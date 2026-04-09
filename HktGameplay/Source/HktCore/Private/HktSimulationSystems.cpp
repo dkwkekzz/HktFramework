@@ -636,7 +636,12 @@ void FHktMovementSystem::Process(
         {
             const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
             if (TerrainState->IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
+            {
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Warning, LogSource,
+                    FString::Printf(TEXT("Move skip — inside solid voxel V(%d,%d,%d) Pos(%.0f,%.0f,%.0f)"),
+                        CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z, CurX, CurY, CurZ), Id);
                 return;
+            }
         }
 
         const float TgtX = static_cast<float>(WorldState.GetProperty(Id, PropertyId::MoveTargetX));
@@ -667,6 +672,10 @@ void FHktMovementSystem::Process(
         // 도착 판정
         if (DistSq <= ArrivalThresholdSq)
         {
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                FString::Printf(TEXT("Arrived at target (%.0f,%.0f,%.0f) dist=%.1f"),
+                    TgtX, TgtY, TgtZ, FMath::Sqrt(DistSq)), Id);
+
             VMProxy.SetPosition(WorldState, Id,
                 FMath::RoundToInt(TgtX), FMath::RoundToInt(TgtY), FMath::RoundToInt(TgtZ));
             VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, 0);
@@ -717,6 +726,10 @@ void FHktMovementSystem::Process(
         // 4. 오버슈트 방지: 이번 프레임의 이동 거리가 남은 거리와 같거나 크면 즉시 스냅 처리
         if (MoveStep >= Dist)
         {
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                FString::Printf(TEXT("Overshoot snap to target (%.0f,%.0f,%.0f) step=%.1f dist=%.1f"),
+                    TgtX, TgtY, TgtZ, MoveStep, Dist), Id);
+
             VMProxy.SetPosition(WorldState, Id,
                 FMath::RoundToInt(TgtX), FMath::RoundToInt(TgtY), FMath::RoundToInt(TgtZ));
             VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, 0);
@@ -756,6 +769,9 @@ void FHktMovementSystem::Process(
                 const FIntVector V = FHktTerrainSystem::CmToVoxel(EdgeX, CurY, BodyZ);
                 if (TerrainState->IsSolid(V.X, V.Y, V.Z))
                 {
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Wall slide X — blocked at V(%d,%d,%d) edge=%.0f"),
+                            V.X, V.Y, V.Z, EdgeX), Id);
                     NewX = CurX;
                     VX = 0.0f;
                 }
@@ -766,6 +782,9 @@ void FHktMovementSystem::Process(
                 const FIntVector V = FHktTerrainSystem::CmToVoxel(NewX, EdgeY, BodyZ);
                 if (TerrainState->IsSolid(V.X, V.Y, V.Z))
                 {
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Wall slide Y — blocked at V(%d,%d,%d) edge=%.0f"),
+                            V.X, V.Y, V.Z, EdgeY), Id);
                     NewY = CurY;
                     VY = 0.0f;
                 }
@@ -789,6 +808,9 @@ void FHktMovementSystem::Process(
             const float MaxStepHeightCm = CVarTerrainMaxStepHeight.GetValueOnAnyThread();
             if (NewSurfaceCmZ > CurZ + MaxStepHeightCm)
             {
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                    FString::Printf(TEXT("Step too high — blocked. surfZ=%.0f curZ=%.0f step=%.0f max=%.0f"),
+                        NewSurfaceCmZ, CurZ, NewSurfaceCmZ - CurZ, MaxStepHeightCm), Id);
                 // 벽/절벽: XY 이동 취소, 현재 지면 유지
                 NewX = CurX;
                 NewY = CurY;
@@ -800,6 +822,12 @@ void FHktMovementSystem::Process(
             else
             {
                 // 지형 Z 스냅: 지면 위/아래 모두 현재 지표면 높이로 보정
+                if (FMath::Abs(NewSurfaceCmZ - CurZ) > 1.0f)
+                {
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Floor snap Z: %.0f → %.0f (delta=%.1f)"),
+                            CurZ, NewSurfaceCmZ, NewSurfaceCmZ - CurZ), Id);
+                }
                 NewZ = NewSurfaceCmZ;
                 VZ = 0.0f;
             }
@@ -832,6 +860,9 @@ void FHktMovementSystem::Process(
 
             if (CurZ != SurfaceCmZ)
             {
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                    FString::Printf(TEXT("Static ground snap Z: %d → %d (delta=%d)"),
+                        CurZ, SurfaceCmZ, SurfaceCmZ - CurZ), Id);
                 VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::PosZ, SurfaceCmZ);
             }
         });
@@ -867,6 +898,9 @@ void FHktMovementSystem::Process(
                     static_cast<float>(PX), static_cast<float>(PY), NewZ + FHktTerrainSystem::VoxelSizeCm);
                 if (TerrainState->IsSolid(HeadVoxel.X, HeadVoxel.Y, HeadVoxel.Z))
                 {
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Ceiling hit — velZ=%.0f headV(%d,%d,%d)"),
+                            JumpVZ, HeadVoxel.X, HeadVoxel.Y, HeadVoxel.Z), Id);
                     NewZ = CurZ;
                     JumpVZ = 0.0f;
                 }
@@ -883,6 +917,8 @@ void FHktMovementSystem::Process(
 
                 if (NewZ <= SurfaceCmZ)
                 {
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Landed — Z=%.0f surfZ=%.0f"), NewZ, SurfaceCmZ), Id);
                     // 착지
                     NewZ = SurfaceCmZ;
                     JumpVZ = 0.0f;
@@ -1013,6 +1049,10 @@ void FHktPhysicsSystem::Process(
                 const float DistSq = FVector::DistSquared(PosA, PosB);
                 if (DistSq <= CombinedRadius * CombinedRadius)
                 {
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Collision E%d↔E%d dist=%.1f combined=%.1f"),
+                            A, B, FMath::Sqrt(DistSq), CombinedRadius), A);
+
                     FHktPhysicsEvent PhysEvent;
                     PhysEvent.EntityA = A;
                     PhysEvent.EntityB = B;
@@ -1035,6 +1075,12 @@ void FHktPhysicsSystem::Process(
                             // 무거운 쪽은 적게, 가벼운 쪽은 많이 밀림
                             const FVector NewA = PosA - Dir * (Overlap * SoftPushRatio * MassB * InvTotalMass);
                             const FVector NewB = PosB + Dir * (Overlap * SoftPushRatio * MassA * InvTotalMass);
+
+                            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                                FString::Printf(TEXT("Soft push E%d↔E%d overlap=%.1f pushA=(%.1f,%.1f,%.1f) pushB=(%.1f,%.1f,%.1f)"),
+                                    A, B, Overlap,
+                                    NewA.X - PosA.X, NewA.Y - PosA.Y, NewA.Z - PosA.Z,
+                                    NewB.X - PosB.X, NewB.Y - PosB.Y, NewB.Z - PosB.Z), A);
 
                             VMProxy.SetPosition(WorldState, A,
                                 FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
@@ -1094,6 +1140,10 @@ void FHktPhysicsSystem::Process(
                     const float DistSq = FVector::DistSquared(PosA, PosB);
                     if (DistSq <= CombinedRadius * CombinedRadius)
                     {
+                        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                            FString::Printf(TEXT("Collision(adj) E%d↔E%d dist=%.1f combined=%.1f"),
+                                A, B, FMath::Sqrt(DistSq), CombinedRadius), A);
+
                         FHktPhysicsEvent PhysEvent;
                         PhysEvent.EntityA = A;
                         PhysEvent.EntityB = B;
@@ -1120,12 +1170,22 @@ void FHktPhysicsSystem::Process(
                                     const FIntVector VA = FHktTerrainSystem::CmToVoxel(
                                         static_cast<float>(NewA.X), static_cast<float>(NewA.Y), static_cast<float>(NewA.Z));
                                     if (TerrainState->IsSolid(VA.X, VA.Y, VA.Z))
+                                    {
+                                        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                                            FString::Printf(TEXT("Push cancelled E%d — target voxel solid V(%d,%d,%d)"),
+                                                A, VA.X, VA.Y, VA.Z), A);
                                         NewA = PosA;
+                                    }
 
                                     const FIntVector VB = FHktTerrainSystem::CmToVoxel(
                                         static_cast<float>(NewB.X), static_cast<float>(NewB.Y), static_cast<float>(NewB.Z));
                                     if (TerrainState->IsSolid(VB.X, VB.Y, VB.Z))
+                                    {
+                                        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                                            FString::Printf(TEXT("Push cancelled E%d — target voxel solid V(%d,%d,%d)"),
+                                                B, VB.X, VB.Y, VB.Z), B);
                                         NewB = PosB;
+                                    }
                                 }
 
                                 VMProxy.SetPosition(WorldState, A,
@@ -1191,6 +1251,9 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
         const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(PosX, PosY, PosZ);
         if (TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
         {
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Warning, LogSource,
+                FString::Printf(TEXT("Terrain escape — inside solid V(%d,%d,%d) Pos(%.0f,%.0f,%.0f)"),
+                    CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z, PosX, PosY, PosZ), Id);
 #if ENABLE_HKT_INSIGHTS
             if (bDebugThis)
             {
@@ -1206,6 +1269,9 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
                 if (!TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, ScanZ))
                 {
                     const int32 EscapeCmZ = FHktTerrainSystem::VoxelToCm(0, 0, ScanZ).Z;
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Terrain escape resolved — Z: %d → %d (scanned %d voxels)"),
+                            FMath::RoundToInt(PosZ), EscapeCmZ, ScanZ - CenterVoxel.Z), Id);
 #if ENABLE_HKT_INSIGHTS
                     if (bDebugThis)
                     {
@@ -1283,6 +1349,9 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
 
         if (PushCount > 0)
         {
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                FString::Printf(TEXT("Terrain edge push — count=%d push=(%.1f,%.1f,%.1f) Pos(%.0f,%.0f,%.0f)"),
+                    PushCount, PushX, PushY, PushZ, PosX, PosY, PosZ), Id);
             VMProxy.SetPosition(WorldState, Id,
                 FMath::RoundToInt(PosX + PushX),
                 FMath::RoundToInt(PosY + PushY),

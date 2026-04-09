@@ -15,6 +15,8 @@ namespace HktLogTags
 	UE_DEFINE_GAMEPLAY_TAG(Core_Entity,     "HktLog.Core.Entity");
 	UE_DEFINE_GAMEPLAY_TAG(Core_VM,         "HktLog.Core.VM");
 	UE_DEFINE_GAMEPLAY_TAG(Core_Story,      "HktLog.Core.Story");
+	UE_DEFINE_GAMEPLAY_TAG(Core_Movement,   "HktLog.Core.Movement");
+	UE_DEFINE_GAMEPLAY_TAG(Core_Physics,    "HktLog.Core.Physics");
 	UE_DEFINE_GAMEPLAY_TAG(Runtime,         "HktLog.Runtime");
 	UE_DEFINE_GAMEPLAY_TAG(Runtime_Server,  "HktLog.Runtime.Server");
 	UE_DEFINE_GAMEPLAY_TAG(Runtime_Client,  "HktLog.Runtime.Client");
