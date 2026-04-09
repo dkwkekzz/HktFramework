@@ -61,6 +61,12 @@ static TAutoConsoleVariable<float> CVarPhysicsSoftPushRatio(
     TEXT("Fraction of overlap resolved per frame (0.0=no push, 1.0=instant). Mass ratio also affects push distribution."),
     ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarTerrainDebugEntity(
+    TEXT("hkt.Debug.TerrainCollisionEntity"),
+    -1,
+    TEXT("지형 충돌 디버그 대상 엔티티 ID. -1=끄기, 0+=해당 엔티티의 충돌 상세 로그 수집"),
+    ECVF_Default);
+
 
 #if ENABLE_HKT_INSIGHTS
 #include "HktCoreDataCollector.h"
@@ -1160,6 +1166,10 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
     static constexpr float HalfVoxel = VoxelSize * 0.5f;
     static constexpr int32 MaxEscapeScanUp = 64;
 
+#if ENABLE_HKT_INSIGHTS
+    const int32 DebugEntityId = CVarTerrainDebugEntity.GetValueOnAnyThread();
+#endif
+
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
         const int32 Layer = WorldState.GetProperty(Id, PropertyId::CollisionLayer);
@@ -1173,16 +1183,36 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
         const float Radius = FMath::Max(
             static_cast<float>(WorldState.GetProperty(Id, PropertyId::CollisionRadius)), 30.0f);
 
+#if ENABLE_HKT_INSIGHTS
+        const bool bDebugThis = (DebugEntityId >= 0 && Id == static_cast<FHktEntityId>(DebugEntityId));
+#endif
+
         // ── 1단계: 중심 복셀이 솔리드 → 수직 탈출 ──
         const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(PosX, PosY, PosZ);
         if (TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
         {
+#if ENABLE_HKT_INSIGHTS
+            if (bDebugThis)
+            {
+                HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("Phase"), TEXT("1-CenterEscape"));
+                HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CenterSolid"), TEXT("YES"));
+                HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CenterVoxel"),
+                    FString::Printf(TEXT("(%d,%d,%d)"), CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z));
+            }
+#endif
             for (int32 ScanZ = CenterVoxel.Z + 1;
                  ScanZ <= CenterVoxel.Z + MaxEscapeScanUp; ++ScanZ)
             {
                 if (!TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, ScanZ))
                 {
                     const int32 EscapeCmZ = FHktTerrainSystem::VoxelToCm(0, 0, ScanZ).Z;
+#if ENABLE_HKT_INSIGHTS
+                    if (bDebugThis)
+                    {
+                        HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("EscapeZ"),
+                            FString::Printf(TEXT("VoxelZ=%d → CmZ=%d"), ScanZ, EscapeCmZ));
+                    }
+#endif
                     VMProxy.SetPosition(WorldState, Id,
                         FMath::RoundToInt(PosX), FMath::RoundToInt(PosY), EscapeCmZ);
                     return;
@@ -1202,14 +1232,26 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
         float PushZ = 0.0f;
         int32 PushCount = 0;
 
+#if ENABLE_HKT_INSIGHTS
+        int32 DebugSolidCount = 0;
+        int32 DebugTotalChecked = 0;
+#endif
+
         for (int32 VZ = MinVoxel.Z; VZ <= MaxVoxel.Z; ++VZ)
         {
             for (int32 VY = MinVoxel.Y; VY <= MaxVoxel.Y; ++VY)
             {
                 for (int32 VX = MinVoxel.X; VX <= MaxVoxel.X; ++VX)
                 {
+#if ENABLE_HKT_INSIGHTS
+                    if (bDebugThis) ++DebugTotalChecked;
+#endif
                     if (!TerrainState.IsSolid(VX, VY, VZ))
                         continue;
+
+#if ENABLE_HKT_INSIGHTS
+                    if (bDebugThis) ++DebugSolidCount;
+#endif
 
                     const FIntVector VoxelCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ);
                     const float VCX = static_cast<float>(VoxelCm.X);
@@ -1246,6 +1288,34 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
                 FMath::RoundToInt(PosY + PushY),
                 FMath::RoundToInt(PosZ + PushZ));
         }
+
+#if ENABLE_HKT_INSIGHTS
+        if (bDebugThis)
+        {
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("Phase"), TEXT("2-EdgePush"));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CenterSolid"), TEXT("No"));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CenterVoxel"),
+                FString::Printf(TEXT("(%d,%d,%d)"), CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("EntityPos"),
+                FString::Printf(TEXT("(%.1f, %.1f, %.1f)"), PosX, PosY, PosZ));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CollisionRadius"),
+                FString::Printf(TEXT("%.1f"), Radius));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("AABBRange"),
+                FString::Printf(TEXT("(%d,%d,%d)→(%d,%d,%d)"),
+                    MinVoxel.X, MinVoxel.Y, MinVoxel.Z, MaxVoxel.X, MaxVoxel.Y, MaxVoxel.Z));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("VoxelsChecked"),
+                FString::Printf(TEXT("%d"), DebugTotalChecked));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("SolidVoxelsInAABB"),
+                FString::Printf(TEXT("%d"), DebugSolidCount));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("PushCount"),
+                FString::Printf(TEXT("%d"), PushCount));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("PushVector"),
+                FString::Printf(TEXT("(%.2f, %.2f, %.2f)"), PushX, PushY, PushZ));
+            HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("ChunkLoaded"),
+                TerrainState.IsChunkLoaded(FHktTerrainState::WorldToChunk(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
+                    ? TEXT("Yes") : TEXT("NO — CHUNK NOT LOADED"));
+        }
+#endif
     });
 }
 
