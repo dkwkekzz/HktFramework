@@ -1,0 +1,60 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktVoxelCommon.ush — 복셀 셰이더 공통 유틸리티
+
+#pragma once
+
+// 6면 법선 벡터
+float3 HktGetFaceNormal(uint FaceDir)
+{
+    // 0:+X, 1:-X, 2:+Y, 3:-Y, 4:+Z, 5:-Z
+    static const float3 Normals[6] = {
+        float3( 1,  0,  0),
+        float3(-1,  0,  0),
+        float3( 0,  1,  0),
+        float3( 0, -1,  0),
+        float3( 0,  0,  1),
+        float3( 0,  0, -1),
+    };
+    return Normals[min(FaceDir, 5u)];
+}
+
+// 면 방향에 따른 Tangent/Bitangent
+void HktGetFaceTangents(uint FaceDir, out float3 Tangent, out float3 Bitangent)
+{
+    // 각 면의 U축(Width 방향)과 V축(Height 방향) 결정
+    switch (FaceDir)
+    {
+        case 0: Tangent = float3(0, 1, 0); Bitangent = float3(0, 0, 1); break; // +X
+        case 1: Tangent = float3(0, 1, 0); Bitangent = float3(0, 0, 1); break; // -X
+        case 2: Tangent = float3(1, 0, 0); Bitangent = float3(0, 0, 1); break; // +Y
+        case 3: Tangent = float3(1, 0, 0); Bitangent = float3(0, 0, 1); break; // -Y
+        case 4: Tangent = float3(1, 0, 0); Bitangent = float3(0, 1, 0); break; // +Z
+        case 5: Tangent = float3(1, 0, 0); Bitangent = float3(0, 1, 0); break; // -Z
+        default: Tangent = float3(1, 0, 0); Bitangent = float3(0, 1, 0); break;
+    }
+}
+
+// 쿼드 코너 확장 — SV_VertexID % 4로 4개 코너 위치 생성
+float3 HktExpandQuad(uint FaceDir, float Width, float Height, uint CornerIndex)
+{
+    float3 Tangent, Bitangent;
+    HktGetFaceTangents(FaceDir, Tangent, Bitangent);
+
+    float U = (CornerIndex & 1u) ? Width : 0.0;
+    float V = (CornerIndex & 2u) ? Height : 0.0;
+
+    // 양면(+X,+Y,+Z)은 법선 방향으로 1복셀 오프셋 — 면이 복셀의 바깥쪽에 위치해야 함
+    float NormalOffset = (FaceDir % 2u == 0u) ? 1.0 : 0.0;
+
+    return HktGetFaceNormal(FaceDir) * NormalOffset + Tangent * U + Bitangent * V;
+}
+
+// AO 값(0~3)을 라이팅 스칼라로 변환
+float HktAOToLight(uint AOValue)
+{
+    // 0 = 완전 차폐(0.4), 3 = 차폐 없음(1.0)
+    return lerp(0.4, 1.0, float(AOValue) / 3.0);
+}
+
+// 발광 강도 상수
+static const float HktEmissionStrength = 5.0;

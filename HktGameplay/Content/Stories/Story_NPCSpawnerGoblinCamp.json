@@ -1,0 +1,48 @@
+{
+  "storyTag": "Story.Flow.Spawner.GoblinCamp",
+  "cancelOnDuplicate": false,
+  "tags": {
+    "NpcGoblin": "Entity.NPC.Goblin",
+    "EntityNPC": "Entity.NPC",
+    "NpcHostile": "Entity.Attr.NPC.Hostile",
+    "StanceUnarmed": "Entity.Stance.Unarmed",
+    "NpcLifecycle": "Story.Flow.NPC.Lifecycle"
+  },
+  "steps": [
+    { "op": "Log", "message": "GoblinCamp spawner: activated" },
+
+    { "op": "Label", "name": "Loop" },
+    { "op": "HasPlayerInGroup", "dst": "Flag" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "Wait" },
+    { "op": "CountByTag", "dst": "R0", "tag": "Entity.NPC.Goblin" },
+    { "op": "LoadConst", "dst": "R1", "value": 5 },
+    { "op": "CmpGe", "dst": "Flag", "src1": "R0", "src2": "R1" },
+    { "op": "JumpIf", "cond": "Flag", "label": "Wait" },
+
+    { "op": "ReadProperty", "dst": "R2", "property": "Param0" },
+    { "op": "ReadProperty", "dst": "R3", "property": "Param1" },
+    { "op": "LoadConst", "dst": "R4", "value": 0 },
+
+    { "op": "Log", "message": "[Snippet] SpawnNPCAtPosition" },
+    { "op": "SpawnEntity", "classTag": "Entity.NPC.Goblin" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC", "value": 1 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Health", "value": 80 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxHealth", "value": 80 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 15 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Defense", "value": 3 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Team", "value": 0 },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC" },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC.Goblin" },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.NPC.Hostile" },
+    { "op": "SetStance", "entity": "Spawned", "stanceTag": "Entity.Stance.Unarmed" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed", "value": 120 },
+    { "op": "SetPosition", "entity": "Spawned", "src": "R2" },
+    { "op": "DispatchEventFrom", "eventTag": "Story.Flow.NPC.Lifecycle", "source": "Spawned" },
+
+    { "op": "Log", "message": "GoblinCamp: goblin spawned" },
+
+    { "op": "Label", "name": "Wait" },
+    { "op": "WaitSeconds", "seconds": 10.0 },
+    { "op": "Jump", "label": "Loop" }
+  ]
+}

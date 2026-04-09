@@ -1,0 +1,48 @@
+{
+  "storyTag": "Story.Event.Attack.Basic",
+  "tags": {
+    "AnimAttack": "Anim.Montage.Attack",
+    "AnimHitReaction": "Anim.Montage.HitReaction",
+    "StateDead": "State.Dead",
+    "VfxHitSpark": "VFX.Niagara.HitSpark",
+    "SndSwing": "Sound.Swing",
+    "SndHit": "Sound.Hit"
+  },
+  "steps": [
+    {"op": "GetWorldTime", "dst": "R0"},
+    {"op": "LoadConst", "dst": "R1", "value": 20},
+    {"op": "LoadConst", "dst": "R2", "value": 100},
+    {"op": "Mul", "dst": "R1", "src1": "R1", "src2": "R2"},
+    {"op": "LoadStore", "dst": "R2", "property": "AttackSpeed"},
+    {"op": "Div", "dst": "R1", "src1": "R1", "src2": "R2"},
+    {"op": "Add", "dst": "R0", "src1": "R0", "src2": "R1"},
+    {"op": "SaveStore", "property": "NextActionFrame", "src": "R0"},
+    {"op": "LoadConst", "dst": "R0", "value": 30},
+    {"op": "LoadStore", "dst": "R1", "property": "AttackSpeed"},
+    {"op": "Mul", "dst": "R0", "src1": "R0", "src2": "R1"},
+    {"op": "LoadConst", "dst": "R1", "value": 20},
+    {"op": "Div", "dst": "R0", "src1": "R0", "src2": "R1"},
+    {"op": "SaveStore", "property": "MotionPlayRate", "src": "R0"},
+
+    {"op": "LookAt", "entity": "Self", "target": "Target"},
+    {"op": "PlaySound", "tag": "SndSwing"},
+    {"op": "PlayAnim", "entity": "Self", "tag": "AnimAttack"},
+    {"op": "ReadProperty", "dst": "R0", "property": "AttackPower"},
+
+    {"op": "ForEachInRadius", "center": "Self", "radius": 200},
+      {"op": "IfNe", "a": "Iter", "b": "Self"},
+        {"op": "Move", "dst": "Target", "src": "Iter"},
+        {"op": "ApplyDamage", "target": "Target", "amount": "R0"},
+        {"op": "PlayVFXAtEntity", "entity": "Target", "tag": "VfxHitSpark"},
+        {"op": "PlayAnim", "entity": "Target", "tag": "AnimHitReaction"},
+        {"op": "IfPropertyLe", "entity": "Target", "property": "Health", "value": 0},
+          {"op": "AddTag", "entity": "Target", "tag": "StateDead"},
+        {"op": "EndIf"},
+      {"op": "EndIf"},
+    {"op": "EndForEach"},
+
+    {"op": "WaitAnimEnd", "entity": "Self"},
+    {"op": "Log", "message": "BasicAttack: 완료"},
+    {"op": "Halt"}
+  ]
+}

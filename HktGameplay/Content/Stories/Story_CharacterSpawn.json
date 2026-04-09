@@ -1,0 +1,40 @@
+{
+  "storyTag": "Story.Flow.Character.Spawn",
+  "tags": {
+    "AnimSpawn": "Anim.FullBody.Action.Spawn",
+    "AnimIntro": "Anim.Montage.Intro",
+    "VfxActivateGlow": "VFX.Niagara.ActivateGlow",
+    "VfxSpawnEffect": "VFX.Niagara.SpawnEffect",
+    "SndSpawn": "Sound.Spawn",
+    "EntitySword": "Entity.Item.Sword",
+    "EntityShield": "Entity.Item.Shield",
+    "StanceSword": "Entity.Stance.Sword1H"
+  },
+  "steps": [
+    {"op": "Log", "message": "CharacterSpawn: 캐릭터 생성"},
+
+    {"op": "PlayVFXAttached", "entity": "Self", "tag": "VfxSpawnEffect"},
+    {"op": "PlaySound", "tag": "SndSpawn"},
+    {"op": "AddTag", "entity": "Self", "tag": "AnimSpawn"},
+
+    {"op": "WaitSeconds", "seconds": 0.5},
+
+    {"op": "Log", "message": "CharacterSpawn: 장비 아이템 생성"},
+
+    {"op": "SpawnEntity", "classTag": "EntitySword"},
+    {"op": "SaveConstEntity", "entity": "Spawned", "property": "EquipIndex", "value": 0},
+    {"op": "SetStance", "entity": "Spawned", "stanceTag": "StanceSword"},
+    {"op": "PlayVFXAttached", "entity": "Spawned", "tag": "VfxActivateGlow"},
+
+    {"op": "SpawnEntity", "classTag": "EntityShield"},
+    {"op": "SaveConstEntity", "entity": "Spawned", "property": "EquipIndex", "value": 1},
+
+    {"op": "PlayAnim", "entity": "Self", "tag": "AnimIntro"},
+    {"op": "WaitAnimEnd", "entity": "Self"},
+
+    {"op": "RemoveTag", "entity": "Self", "tag": "AnimSpawn"},
+
+    {"op": "Log", "message": "CharacterSpawn: 준비 완료"},
+    {"op": "Halt"}
+  ]
+}

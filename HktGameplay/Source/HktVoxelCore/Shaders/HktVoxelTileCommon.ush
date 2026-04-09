@@ -1,0 +1,36 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktVoxelTileCommon.ush — 타일 텍스처 UV 및 매핑 유틸리티
+
+#pragma once
+
+// FaceDirection → FaceVariant (Top/Side/Bottom)
+// Top(+Z)=0, Side(±X,±Y)=1, Bottom(-Z)=2
+uint HktGetFaceVariant(uint FaceDir)
+{
+    if (FaceDir == 4) return 0; // +Z = Top
+    if (FaceDir == 5) return 2; // -Z = Bottom
+    return 1;                    // Side (±X, ±Y)
+}
+
+// Greedy Mesh 쿼드의 타일링 UV 계산
+// Width/Height 복셀만큼 반복 — frac()로 타일링
+float2 HktCalcTileUV(float Width, float Height, uint CornerIndex)
+{
+    float U = (CornerIndex & 1u) ? Width : 0.0;
+    float V = (CornerIndex & 2u) ? Height : 0.0;
+    return float2(U, V);
+}
+
+// TileIndexLUT에서 슬라이스 인덱스 조회
+// LUT: 256×3 텍스처, Row=TypeID, Col=FaceVariant
+// 반환값 255 = 매핑 없음 → 팔레트 폴백
+float HktLookupTileSlice(Texture2D TileIndexLUT, uint VoxelType, uint FaceDir)
+{
+    uint FaceVariant = HktGetFaceVariant(FaceDir);
+    // Load: int3(column, row, mip)
+    float SliceRaw = TileIndexLUT.Load(int3(FaceVariant, VoxelType % 256, 0)).r;
+    // R8 텍스처이므로 0~1 → 0~255로 변환
+    float SliceIndex = SliceRaw * 255.0;
+    // 255 = 미매핑 → -1로 변환하여 폴백 신호
+    return (SliceIndex >= 254.5) ? -1.0 : SliceIndex;
+}

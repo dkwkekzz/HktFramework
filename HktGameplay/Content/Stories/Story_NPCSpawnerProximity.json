@@ -1,0 +1,50 @@
+{
+  "storyTag": "Story.Flow.Spawner.DungeonEntrance",
+  "cancelOnDuplicate": false,
+  "tags": {
+    "NpcSkeleton": "Entity.NPC.Skeleton",
+    "EntityNPC": "Entity.NPC",
+    "NpcHostile": "Entity.Attr.NPC.Hostile",
+    "StanceUnarmed": "Entity.Stance.Unarmed",
+    "NpcLifecycle": "Story.Flow.NPC.Lifecycle"
+  },
+  "steps": [
+    { "op": "Log", "message": "DungeonEntrance proximity spawner: monitoring" },
+
+    { "op": "Label", "name": "check" },
+    { "op": "HasPlayerInGroup", "dst": "Flag" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "sleep" },
+
+    { "op": "FindInRadius", "center": "Self", "radius": 2000 },
+    { "op": "NextFound" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "sleep" },
+
+    { "op": "CountByTag", "dst": "R0", "tag": "Entity.NPC.Skeleton" },
+    { "op": "CmpGeConst", "dst": "Flag", "src": "R0", "value": 3 },
+    { "op": "JumpIf", "cond": "Flag", "label": "sleep" },
+
+    { "op": "GetPosition", "dst": "R0", "entity": "Self" },
+
+    { "op": "Log", "message": "[Snippet] SpawnNPCAtPosition" },
+    { "op": "SpawnEntity", "classTag": "Entity.NPC.Skeleton" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC", "value": 1 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Health", "value": 60 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxHealth", "value": 60 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 20 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Defense", "value": 2 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Team", "value": 0 },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC" },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC.Skeleton" },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.NPC.Hostile" },
+    { "op": "SetStance", "entity": "Spawned", "stanceTag": "Entity.Stance.Unarmed" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed", "value": 100 },
+    { "op": "SetPosition", "entity": "Spawned", "src": "R0" },
+    { "op": "DispatchEventFrom", "eventTag": "Story.Flow.NPC.Lifecycle", "source": "Spawned" },
+
+    { "op": "Log", "message": "DungeonEntrance: skeleton spawned" },
+
+    { "op": "Label", "name": "sleep" },
+    { "op": "WaitSeconds", "seconds": 5.0 },
+    { "op": "Jump", "label": "check" }
+  ]
+}

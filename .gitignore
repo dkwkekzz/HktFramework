@@ -1,0 +1,59 @@
+# Unreal Engine
+.vs/
+.vscode/
+.idea/
+**/Binaries/
+**/Build/
+**/DerivedDataCache/
+**/Intermediate/
+**/Saved/
+**/Script/
+**/Packages/
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.sln
+*.suo
+*.svu
+*.suo-db
+*.user
+*.userprefs
+*.xcodeproj
+*.xcworkspace
+
+# Rider
+*.sln.DotSettings.user
+*.uproject.DotSettings.user
+
+# Visual Studio
+*.pdb
+*.obj
+*.exe
+*.dll
+
+# Mac
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+lnks/*
+
+# Python
+__pycache__/
+
+# Legacy
+.legacy/*
+
+# Claude
+.claude/*
+!.claude/commands/
+!.claude/skills/
+
+# Etc
+working_changes.txt

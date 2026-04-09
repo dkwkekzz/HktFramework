@@ -1,0 +1,11 @@
+{
+  "storyTag": "Story.Event.Move.ToLocation",
+  "cancelOnDuplicate": true,
+  "steps": [
+    {"op": "Log", "message": "MoveTo: 이동 시작"},
+    {"op": "MoveTowardProperty", "entity": "Self", "baseProp": "TargetPosX", "force": 150},
+    {"op": "WaitMoveEnd", "entity": "Self"},
+    {"op": "StopMovement", "entity": "Self"},
+    {"op": "Halt"}
+  ]
+}

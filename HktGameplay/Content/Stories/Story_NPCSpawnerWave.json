@@ -1,0 +1,62 @@
+{
+  "storyTag": "Story.Flow.Spawner.Wave.Arena",
+  "cancelOnDuplicate": false,
+  "tags": {
+    "NpcGoblin": "Entity.NPC.Goblin",
+    "NpcSkeleton": "Entity.NPC.Skeleton",
+    "EntityNPC": "Entity.NPC",
+    "NpcHostile": "Entity.Attr.NPC.Hostile",
+    "StanceUnarmed": "Entity.Stance.Unarmed",
+    "NpcLifecycle": "Story.Flow.NPC.Lifecycle"
+  },
+  "steps": [
+    { "op": "Log", "message": "Wave spawner: starting" },
+
+    { "op": "ReadProperty", "dst": "R0", "property": "Param0" },
+    { "op": "ReadProperty", "dst": "R1", "property": "Param1" },
+    { "op": "LoadConst", "dst": "R2", "value": 0 },
+
+    { "op": "Log", "message": "Wave 1: spawning goblins" },
+    { "op": "Repeat", "count": 3 },
+
+      { "op": "SpawnEntity", "classTag": "Entity.NPC.Goblin" },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC", "value": 1 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "Health", "value": 80 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxHealth", "value": 80 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 15 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "Team", "value": 0 },
+      { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC" },
+      { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC.Goblin" },
+      { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.NPC.Hostile" },
+      { "op": "SetStance", "entity": "Spawned", "stanceTag": "Entity.Stance.Unarmed" },
+      { "op": "SetPosition", "entity": "Spawned", "src": "R0" },
+      { "op": "DispatchEventFrom", "eventTag": "Story.Flow.NPC.Lifecycle", "source": "Spawned" },
+
+    { "op": "EndRepeat" },
+
+    { "op": "WaitUntilCountZero", "tag": "Entity.NPC.Goblin", "interval": 2.0 },
+
+    { "op": "Log", "message": "Wave 2: spawning skeletons" },
+    { "op": "Repeat", "count": 2 },
+
+      { "op": "SpawnEntity", "classTag": "Entity.NPC.Skeleton" },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC", "value": 1 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "Health", "value": 60 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxHealth", "value": 60 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 20 },
+      { "op": "SaveConstEntity", "entity": "Spawned", "property": "Team", "value": 0 },
+      { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC" },
+      { "op": "AddTag", "entity": "Spawned", "tag": "Entity.NPC.Skeleton" },
+      { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.NPC.Hostile" },
+      { "op": "SetStance", "entity": "Spawned", "stanceTag": "Entity.Stance.Unarmed" },
+      { "op": "SetPosition", "entity": "Spawned", "src": "R0" },
+      { "op": "DispatchEventFrom", "eventTag": "Story.Flow.NPC.Lifecycle", "source": "Spawned" },
+
+    { "op": "EndRepeat" },
+
+    { "op": "WaitUntilCountZero", "tag": "Entity.NPC.Skeleton", "interval": 2.0 },
+
+    { "op": "Log", "message": "All waves complete" },
+    { "op": "Halt" }
+  ]
+}

@@ -1,0 +1,303 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktVoxelVertexFactory.ush — UE5 Vertex Factory interface for voxel rendering
+//
+// 8-byte packed voxel vertex → translated-world position, normal, color, AO
+// UE 5.7 LWC: Primitive.LocalToRelativeWorld (translated world space)
+
+#pragma once
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/VertexFactoryCommon.ush"
+#include "HktVoxelCommon.ush"
+#include "HktVoxelTileCommon.ush"
+
+// Voxel size in UE units (default 15 = 15cm)
+float HktVoxelSize;
+
+// Palette texture (256 x 8, RGBA8)
+Texture2D HktPaletteTexture;
+SamplerState HktPaletteSampler;
+
+// GPU 스키닝용 본 트랜스폼 (float4 x 3 per bone = 3x4 affine matrix)
+// 128 본 × 3 float4 = 384 엔트리. 인덱스: BoneIndex * 3 + row.
+// 바인딩 안 됨(월드 복셀) → 스키닝 스킵.
+Buffer<float4> HktBoneMatrices;
+
+// 타일 텍스처 + Material LUT
+float HktTileEnabled;
+Texture2DArray HktTileArray;
+SamplerState HktTileSampler;
+Texture2D HktTileIndexLUT;
+SamplerState HktTileIndexLUTSampler;
+
+float HktMaterialLUTEnabled;
+Texture2D HktMaterialLUT;
+SamplerState HktMaterialLUTSampler;
+
+// ============================================================================
+// FVertexFactoryInput
+// ============================================================================
+struct FVertexFactoryInput
+{
+	uint PackedPositionAndSize : ATTRIBUTE0;
+	uint PackedMaterialAndAO  : ATTRIBUTE1;
+	uint VertexId             : SV_VertexID;
+};
+
+// ============================================================================
+// FVertexFactoryIntermediates
+// ============================================================================
+struct FVertexFactoryIntermediates
+{
+	float3 LocalPosition;
+	float3 WorldNormal;
+	float3 WorldTangent;
+	float4 Color;
+
+	// Tile Texture (Phase 1)
+	float2 TileUV;
+	float  TileSlice;    // -1 = 미매핑 → 팔레트 폴백
+	uint   VoxelType;
+	uint   PaletteIdx;
+	float  AOLight;
+};
+
+// ============================================================================
+// FVertexFactoryInterpolantsVSToPS
+// ============================================================================
+struct FVertexFactoryInterpolantsVSToPS
+{
+	float4 Color        : COLOR0;
+	float3 WorldNormal  : TEXCOORD0;
+	float3 WorldTangent : TEXCOORD1;
+
+	// Tile Texture (Phase 1)
+	float2 TileUV                               : TEXCOORD2;
+	// x=TileSlice, y=VoxelType, z=PaletteIdx, w=AOLight
+	// TEXCOORD6+ reserved by engine (HitProxy, velocity, etc.)
+	nointerpolation float4 VoxelParams           : TEXCOORD3;
+};
+
+// ============================================================================
+// Stereo / Instancing stubs
+// ============================================================================
+
+uint GetEyeIndexFromVF(FVertexFactoryInput Input)
+{
+	return 0;
+}
+
+uint VertexFactoryGetViewIndex(FVertexFactoryIntermediates Intermediates)
+{
+	return 0;
+}
+
+uint VertexFactoryGetInstanceIdLoadIndex(FVertexFactoryIntermediates Intermediates)
+{
+	return 0;
+}
+
+float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return float4(0, 0, 0, 0);
+}
+
+uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return 0;
+}
+
+// ============================================================================
+// Vertex unpack
+// ============================================================================
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Result;
+
+	uint PP = Input.PackedPositionAndSize;
+	uint PM = Input.PackedMaterialAndAO;
+	uint Corner = Input.VertexId % 4;
+
+	// Position unpack
+	float3 BasePos;
+	BasePos.x = float(PP & 0x3F);
+	BasePos.y = float((PP >> 6) & 0x3F);
+	BasePos.z = float((PP >> 12) & 0x3F);
+
+	float Width  = float((PP >> 18) & 0x3F);
+	float Height = float((PP >> 24) & 0x3F);
+
+	// Face direction (3bit)
+	uint FaceDir = ((PP >> 30) & 0x3) | (((PM >> 24) & 0x1) << 2);
+
+	Result.WorldNormal = HktGetFaceNormal(FaceDir);
+
+	float3 Tangent, Bitangent;
+	HktGetFaceTangents(FaceDir, Tangent, Bitangent);
+	Result.WorldTangent = Tangent;
+
+	// Quad corner expansion + scale (1 voxel = HktVoxelSize UU)
+	float3 LocalPos = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * HktVoxelSize;
+
+	// GPU 스키닝 — 본 인덱스가 0이 아니면 본 트랜스폼 적용
+	uint BoneIdx = (PM >> 25) & 0x7F;
+	float3 SkinnedNormal = Result.WorldNormal;
+
+#if HKT_VOXEL_GPU_SKINNING
+	if (BoneIdx > 0)
+	{
+		uint Base = BoneIdx * 3;
+		float4 Row0 = HktBoneMatrices[Base + 0];
+		float4 Row1 = HktBoneMatrices[Base + 1];
+		float4 Row2 = HktBoneMatrices[Base + 2];
+
+		float3 Skinned;
+		Skinned.x = dot(Row0, float4(LocalPos, 1.0));
+		Skinned.y = dot(Row1, float4(LocalPos, 1.0));
+		Skinned.z = dot(Row2, float4(LocalPos, 1.0));
+		LocalPos = Skinned;
+
+		// 법선은 회전만 적용 (w=0)
+		float3 SN;
+		SN.x = dot(Row0.xyz, Result.WorldNormal);
+		SN.y = dot(Row1.xyz, Result.WorldNormal);
+		SN.z = dot(Row2.xyz, Result.WorldNormal);
+		SkinnedNormal = normalize(SN);
+	}
+#endif
+
+	Result.LocalPosition = LocalPos;
+	Result.WorldNormal = SkinnedNormal;
+
+	// Material unpack
+	uint VoxelType  = PM & 0xFFFF;
+	uint PaletteIdx = (PM >> 16) & 0x7;
+	uint AO         = (PM >> 19) & 0x3;
+
+	// [DEBUG] 면 방향별 색상 — 6방향 렌더링 검증용. 릴리스 전 제거
+	// +X=빨강, -X=진빨강, +Y=초록, -Y=진초록, +Z=파랑, -Z=진파랑
+	static const float3 FaceDebugColors[6] = {
+		float3(1.0, 0.2, 0.2), float3(0.5, 0.0, 0.0),
+		float3(0.2, 1.0, 0.2), float3(0.0, 0.5, 0.0),
+		float3(0.2, 0.2, 1.0), float3(0.0, 0.0, 0.5)
+	};
+	Result.Color = float4(FaceDebugColors[min(FaceDir, 5u)] * HktAOToLight(AO), 1.0);
+	// [/DEBUG]
+	// Result.Color = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
+	// Result.Color.rgb *= HktAOToLight(AO);
+
+	// Tile Texture (Phase 1) — HktTileEnabled == 0이면 LUT 접근 자체를 건너뜀
+	Result.TileUV = HktCalcTileUV(Width, Height, Corner);
+	Result.TileSlice = (HktTileEnabled > 0.5)
+		? HktLookupTileSlice(HktTileIndexLUT, VoxelType, FaceDir)
+		: -1.0;
+	Result.VoxelType = VoxelType;
+	Result.PaletteIdx = PaletteIdx;
+	Result.AOLight = HktAOToLight(AO);
+
+	return Result;
+}
+
+// ============================================================================
+// Position — LWC: LocalToRelativeWorld → translated world space
+// ============================================================================
+
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return TransformLocalToTranslatedWorld(Intermediates.LocalPosition);
+}
+
+float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
+{
+	return InWorldPosition;
+}
+
+float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
+{
+	return TranslatedWorldPosition;
+}
+
+float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	// 복셀은 모션 블러 미지원 — 이전 프레임 위치를 현재와 동일하게 사용
+	return TransformLocalToTranslatedWorld(Intermediates.LocalPosition);
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.WorldNormal;
+}
+
+// ============================================================================
+// Tangent
+// ============================================================================
+
+half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	half3 Normal    = Intermediates.WorldNormal;
+	half3 Tangent   = Intermediates.WorldTangent;
+	half3 Bitangent = cross(Normal, Tangent);
+	return half3x3(Tangent, Bitangent, Normal);
+}
+
+// ============================================================================
+// Interpolants
+// ============================================================================
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(
+	FVertexFactoryInput Input,
+	FVertexFactoryIntermediates Intermediates,
+	FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	Interpolants.Color = Intermediates.Color;
+	Interpolants.WorldNormal = Intermediates.WorldNormal;
+	Interpolants.WorldTangent = Intermediates.WorldTangent;
+
+	// Tile Texture (Phase 1)
+	Interpolants.TileUV = Intermediates.TileUV;
+	Interpolants.VoxelParams = float4(
+		Intermediates.TileSlice,
+		float(Intermediates.VoxelType),
+		float(Intermediates.PaletteIdx),
+		Intermediates.AOLight);
+
+	return Interpolants;
+}
+
+// ============================================================================
+// Material parameters — 5th param: bIsPreviousFrame (velocity pass용)
+// ============================================================================
+
+FMaterialVertexParameters GetMaterialVertexParameters(
+	FVertexFactoryInput Input,
+	FVertexFactoryIntermediates Intermediates,
+	float3 WorldPosition,
+	half3x3 TangentToLocal,
+	bool bIsPreviousFrame = false)
+{
+	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
+	Result.WorldPosition = WorldPosition;
+	Result.VertexColor = Intermediates.Color;
+	Result.TangentToWorld = TangentToLocal;
+	return Result;
+}
+
+FMaterialPixelParameters GetMaterialPixelParameters(
+	FVertexFactoryInterpolantsVSToPS Interpolants,
+	float4 SvPosition)
+{
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
+	Result.VertexColor = Interpolants.Color;
+
+	half3 Normal    = normalize(Interpolants.WorldNormal);
+	half3 Tangent   = normalize(Interpolants.WorldTangent);
+	half3 Bitangent = cross(Normal, Tangent);
+
+	Result.WorldNormal = Normal;
+	Result.TangentToWorld = half3x3(Tangent, Bitangent, Normal);
+	Result.TwoSidedSign = 1.0;
+
+	return Result;
+}

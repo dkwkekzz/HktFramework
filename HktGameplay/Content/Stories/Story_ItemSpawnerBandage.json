@@ -1,0 +1,42 @@
+{
+  "storyTag": "Story.Flow.Spawner.Item.Bandage",
+  "cancelOnDuplicate": false,
+  "tags": {
+    "ItemBandage": "Entity.Item.Bandage",
+    "TagBandage": "Entity.Attr.Item.Bandage",
+    "TagSkillHeal": "Entity.Attr.Skill.Heal",
+    "SkillRef": "Story.Event.Combat.UseSkill"
+  },
+  "steps": [
+    { "op": "Log", "message": "Bandage spawner: activated" },
+
+    { "op": "Label", "name": "loop" },
+    { "op": "HasPlayerInGroup", "dst": "Flag" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "wait" },
+    { "op": "CountByTag", "dst": "R0", "tag": "Entity.Attr.Item.Bandage" },
+    { "op": "LoadConst", "dst": "R1", "value": 1 },
+    { "op": "CmpGe", "dst": "Flag", "src1": "R0", "src2": "R1" },
+    { "op": "JumpIf", "cond": "Flag", "label": "wait" },
+
+    { "op": "Log", "message": "[Snippet] SpawnGroundItem" },
+    { "op": "SpawnEntity", "classTag": "Entity.Item.Bandage" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemState", "value": 0 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemId", "value": 202 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "EquipIndex", "value": -1 },
+    { "op": "CopyPosition", "dst": "Spawned", "src": "Self" },
+
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 0 },
+    { "op": "SetItemSkillTag", "entity": "Spawned", "skillTag": "Story.Event.Combat.UseSkill" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillCPCost", "value": 40 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "RecoveryFrame", "value": 120 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillTargetRequired", "value": 0 },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Item.Bandage" },
+    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Skill.Heal" },
+
+    { "op": "Log", "message": "Bandage: item spawned" },
+
+    { "op": "Label", "name": "wait" },
+    { "op": "WaitSeconds", "seconds": 60.0 },
+    { "op": "Jump", "label": "loop" }
+  ]
+}

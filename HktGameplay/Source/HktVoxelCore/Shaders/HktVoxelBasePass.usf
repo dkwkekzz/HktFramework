@@ -1,0 +1,106 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktVoxelBasePass.usf — GBuffer 출력 (Base Pass)
+
+#include "/Engine/Private/Common.ush"
+#include "HktVoxelVertexFactory.ush"
+
+// Vertex Shader
+void MainVS(
+    in uint VertexID : SV_VertexID,
+    in uint PackedPosSize : ATTRIBUTE0,
+    in uint PackedMaterial : ATTRIBUTE1,
+    out float4 OutPosition : SV_POSITION,
+    out float3 OutWorldNormal : TEXCOORD0,
+    out float4 OutColor : TEXCOORD1,
+    out float  OutEmission : TEXCOORD2,
+    out float2 OutTileUV : TEXCOORD3,
+    out float  OutTileSlice : TEXCOORD4,
+    out float  OutVoxelType : TEXCOORD5,
+    out float  OutPaletteIdx : TEXCOORD6,
+    out float  OutAOLight : TEXCOORD7)
+{
+    float3 LocalPos;
+    float3 Normal;
+    float4 Color;
+    float Emission;
+
+    HktUnpackVoxelVertex(PackedPosSize, PackedMaterial, VertexID,
+        LocalPos, Normal, Color, Emission);
+
+    // Local → World → Clip
+    float4 WorldPos = mul(float4(LocalPos, 1.0), Primitive.LocalToWorld);
+    OutPosition = mul(WorldPos, View.ViewProjectionMatrix);
+    OutWorldNormal = mul(Normal, (float3x3)Primitive.LocalToWorld);
+    OutColor = Color;
+    OutEmission = Emission;
+
+    // Tile Texture (Phase 1) — UV/슬라이스/메타데이터 패스스루
+    uint PP = PackedPosSize;
+    uint PM = PackedMaterial;
+    uint Corner = VertexID % 4;
+    float Width  = float((PP >> 18) & 0x3F);
+    float Height = float((PP >> 24) & 0x3F);
+    uint FaceDir = ((PP >> 30) & 0x3) | (((PM >> 24) & 0x1) << 2);
+    uint VoxelType  = PM & 0xFFFF;
+    uint PaletteIdx = (PM >> 16) & 0x7;
+    uint AO         = (PM >> 19) & 0x3;
+
+    OutTileUV = HktCalcTileUV(Width, Height, Corner);
+    OutTileSlice = (HktTileEnabled > 0.5)
+        ? HktLookupTileSlice(HktTileIndexLUT, VoxelType, FaceDir)
+        : -1.0;
+    OutVoxelType = float(VoxelType);
+    OutPaletteIdx = float(PaletteIdx);
+    OutAOLight = HktAOToLight(AO);
+}
+
+// Pixel Shader — GBuffer 출력
+void MainPS(
+    in float4 InPosition : SV_POSITION,
+    in float3 InWorldNormal : TEXCOORD0,
+    in float4 InColor : TEXCOORD1,
+    in float  InEmission : TEXCOORD2,
+    in float2 InTileUV : TEXCOORD3,
+    in float  InTileSlice : TEXCOORD4,
+    in float  InVoxelType : TEXCOORD5,
+    in float  InPaletteIdx : TEXCOORD6,
+    in float  InAOLight : TEXCOORD7,
+    out float4 OutGBufferA : SV_Target0,   // WorldNormal
+    out float4 OutGBufferB : SV_Target1,   // Metallic, Specular, Roughness
+    out float4 OutGBufferC : SV_Target2,   // BaseColor
+    out float4 OutGBufferD : SV_Target3)   // Emissive
+{
+    float3 N = normalize(InWorldNormal);
+
+    // 기본: 기존 팔레트/디버그 색상 (기존 동작 보존)
+    float4 BaseColor = InColor;
+
+    // Tile Texture (Phase 1) — TileSlice >= 0이면 타일 텍스처 사용
+    if (InTileSlice >= 0.0)
+    {
+        // Texture2DArray 샘플링: UV는 frac()으로 타일링, Z는 슬라이스 인덱스
+        float3 TileColor = HktTileArray.Sample(HktTileSampler,
+            float3(frac(InTileUV), InTileSlice)).rgb;
+
+        // 팔레트 틴트 곱 (바이옴 색조 반영)
+        float4 PaletteTint = HktPaletteTexture.Load(
+            int3(uint(InPaletteIdx), uint(InVoxelType) % 256, 0));
+
+        BaseColor = float4(TileColor * PaletteTint.rgb * InAOLight, 1.0);
+    }
+
+    OutGBufferA = float4(N * 0.5 + 0.5, 1.0);
+
+    // GBufferB: PBR 속성 — Material LUT 활성 시 TypeID별 차별화
+    float4 PBR = float4(0.0, 0.5, 0.8, 1.0);  // 기본: 비금속, 중간 스페큘러, 약간 거친
+    if (HktMaterialLUTEnabled > 0.5)
+    {
+        // LUT: 256×1 텍스처, X=TypeID%256. R=Roughness, G=Specular, B=Metallic
+        float4 MatSample = HktMaterialLUT.Load(int3(uint(InVoxelType) % 256, 0, 0));
+        PBR = float4(MatSample.b, MatSample.g, MatSample.r, 1.0);  // (Metallic, Specular, Roughness)
+    }
+    OutGBufferB = PBR;
+
+    OutGBufferC = BaseColor;
+    OutGBufferD = float4(BaseColor.rgb * InEmission, 0.0);
+}
