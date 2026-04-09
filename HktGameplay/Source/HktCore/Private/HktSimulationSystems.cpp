@@ -625,6 +625,14 @@ void FHktMovementSystem::Process(
         const float CurY = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosY));
         const float CurZ = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosZ));
 
+        // 솔리드 복셀 안에 파묻힌 엔티티는 이동 불가 — Physics에서 밀어낸다
+        if (TerrainState)
+        {
+            const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
+            if (TerrainState->IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
+                return;
+        }
+
         const float TgtX = static_cast<float>(WorldState.GetProperty(Id, PropertyId::MoveTargetX));
         const float TgtY = static_cast<float>(WorldState.GetProperty(Id, PropertyId::MoveTargetY));
         const float TgtZ = static_cast<float>(WorldState.GetProperty(Id, PropertyId::MoveTargetZ));
@@ -726,7 +734,39 @@ void FHktMovementSystem::Process(
         float NewY = CurY + VY * FixedDeltaSeconds;
         float NewZ = CurZ + VZ * FixedDeltaSeconds;
 
-        // 지형 충돌 및 스냅: IsGrounded 엔티티가 지형에 맞게 위치 조정
+        // 지형 벽 충돌: 이동 방향 전방 솔리드 복셀 → 축별 슬라이딩
+        // IsGrounded 여부와 무관하게 모든 이동 엔티티에 적용
+        if (TerrainState)
+        {
+            const float ColRadius = FMath::Max(
+                static_cast<float>(WorldState.GetProperty(Id, PropertyId::CollisionRadius)), 30.0f);
+
+            // 발 위 1복셀 높이에서 체크 (바닥 복셀이 아닌 몸통 복셀)
+            const float BodyZ = CurZ + FHktTerrainSystem::VoxelSizeCm;
+
+            // X축 차단: 이동 방향 전방 엔티티 가장자리의 복셀 검사
+            {
+                const float EdgeX = NewX + (VX >= 0.0f ? ColRadius : -ColRadius);
+                const FIntVector V = FHktTerrainSystem::CmToVoxel(EdgeX, CurY, BodyZ);
+                if (TerrainState->IsSolid(V.X, V.Y, V.Z))
+                {
+                    NewX = CurX;
+                    VX = 0.0f;
+                }
+            }
+            // Y축 차단 (X가 이미 보정된 NewX 사용 — 코너 슬라이딩 처리)
+            {
+                const float EdgeY = NewY + (VY >= 0.0f ? ColRadius : -ColRadius);
+                const FIntVector V = FHktTerrainSystem::CmToVoxel(NewX, EdgeY, BodyZ);
+                if (TerrainState->IsSolid(V.X, V.Y, V.Z))
+                {
+                    NewY = CurY;
+                    VY = 0.0f;
+                }
+            }
+        }
+
+        // 접지 엔티티: 바닥 스냅 + 계단 높이 체크
         if (TerrainState && WorldState.GetProperty(Id, PropertyId::IsGrounded) != 0)
         {
             // 현재 위치의 실제 바닥 높이 (동굴·다층 지원: 현재 Z 기준 아래 스캔)
@@ -812,18 +852,28 @@ void FHktMovementSystem::Process(
             const float CurZ = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosZ));
             float NewZ = CurZ + JumpVZ * FixedDeltaSeconds;
 
-            // 착지 판정
+            // 천장 충돌: 상승 중 머리 위 솔리드 복셀 → 속도 0
+            if (JumpVZ > 0.0f && TerrainState)
             {
-                float SurfaceCmZ = 0.0f;  // 지형 없을 시 기본 바닥 Z=0
-
-                if (TerrainState)
+                const int32 PX = WorldState.GetProperty(Id, PropertyId::PosX);
+                const int32 PY = WorldState.GetProperty(Id, PropertyId::PosY);
+                const FIntVector HeadVoxel = FHktTerrainSystem::CmToVoxel(
+                    static_cast<float>(PX), static_cast<float>(PY), NewZ + FHktTerrainSystem::VoxelSizeCm);
+                if (TerrainState->IsSolid(HeadVoxel.X, HeadVoxel.Y, HeadVoxel.Z))
                 {
-                    const int32 CurX = WorldState.GetProperty(Id, PropertyId::PosX);
-                    const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
-                    const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, FMath::RoundToInt(NewZ));
-                    const int32 SurfaceVoxelZ = TerrainState->GetSurfaceHeightAt(VoxelPos.X, VoxelPos.Y);
-                    SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
+                    NewZ = CurZ;
+                    JumpVZ = 0.0f;
                 }
+            }
+
+            // 착지 판정 — 지형 데이터가 있을 때만 바닥 검사
+            if (TerrainState)
+            {
+                const int32 CurPX = WorldState.GetProperty(Id, PropertyId::PosX);
+                const int32 CurPY = WorldState.GetProperty(Id, PropertyId::PosY);
+                const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurPX, CurPY, FMath::RoundToInt(NewZ));
+                const int32 SurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
+                const float SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
 
                 if (NewZ <= SurfaceCmZ)
                 {
@@ -884,7 +934,8 @@ void FHktPhysicsSystem::RebuildGrid(const FHktWorldState& WorldState)
 void FHktPhysicsSystem::Process(
     FHktWorldState& WorldState,
     FHktVMWorldStateProxy& VMProxy,
-    TArray<FHktPhysicsEvent>& OutPhysicsEvents)
+    TArray<FHktPhysicsEvent>& OutPhysicsEvents,
+    const FHktTerrainState* TerrainState)
 {
     OutPhysicsEvents.Reset();
     RebuildGrid(WorldState);
@@ -1054,8 +1105,22 @@ void FHktPhysicsSystem::Process(
                                 const float InvTotalMass = 1.0f / (MassA + MassB);
                                 const FVector Dir = (PosB - PosA) / Dist;
 
-                                const FVector NewA = PosA - Dir * (Overlap * SoftPushRatio * MassB * InvTotalMass);
-                                const FVector NewB = PosB + Dir * (Overlap * SoftPushRatio * MassA * InvTotalMass);
+                                FVector NewA = PosA - Dir * (Overlap * SoftPushRatio * MassB * InvTotalMass);
+                                FVector NewB = PosB + Dir * (Overlap * SoftPushRatio * MassA * InvTotalMass);
+
+                                // 지형 검증: push 결과가 솔리드 복셀이면 해당 축 push 취소
+                                if (TerrainState)
+                                {
+                                    const FIntVector VA = FHktTerrainSystem::CmToVoxel(
+                                        static_cast<float>(NewA.X), static_cast<float>(NewA.Y), static_cast<float>(NewA.Z));
+                                    if (TerrainState->IsSolid(VA.X, VA.Y, VA.Z))
+                                        NewA = PosA;
+
+                                    const FIntVector VB = FHktTerrainSystem::CmToVoxel(
+                                        static_cast<float>(NewB.X), static_cast<float>(NewB.Y), static_cast<float>(NewB.Z));
+                                    if (TerrainState->IsSolid(VB.X, VB.Y, VB.Z))
+                                        NewB = PosB;
+                                }
 
                                 VMProxy.SetPosition(WorldState, A,
                                     FMath::RoundToInt(NewA.X), FMath::RoundToInt(NewA.Y), FMath::RoundToInt(NewA.Z));
@@ -1071,6 +1136,117 @@ void FHktPhysicsSystem::Process(
             }
         }
     }
+
+    // 지형 충돌: 솔리드 복셀에 파묻힌 엔티티를 밀어냄
+    if (TerrainState)
+    {
+        ProcessTerrainCollision(WorldState, VMProxy, *TerrainState);
+    }
+}
+
+// ============================================================================
+// 4.1 Terrain Collision (PhysicsSystem 내부)
+//
+// 1단계: 엔티티 중심 복셀이 솔리드 → 위로 수직 탈출 (스폰 후 지형 생성 대응)
+// 2단계: 가장자리 겹침 → AABB-Sphere push-out (이동/물리 잔여 겹침 보정)
+// ============================================================================
+
+void FHktPhysicsSystem::ProcessTerrainCollision(
+    FHktWorldState& WorldState,
+    FHktVMWorldStateProxy& VMProxy,
+    const FHktTerrainState& TerrainState)
+{
+    static constexpr float VoxelSize = FHktTerrainSystem::VoxelSizeCm;
+    static constexpr float HalfVoxel = VoxelSize * 0.5f;
+    static constexpr int32 MaxEscapeScanUp = 64;
+
+    WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+    {
+        const int32 Layer = WorldState.GetProperty(Id, PropertyId::CollisionLayer);
+        if (Layer == 0)
+            return;
+
+        float PosX = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosX));
+        float PosY = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosY));
+        float PosZ = static_cast<float>(WorldState.GetProperty(Id, PropertyId::PosZ));
+
+        const float Radius = FMath::Max(
+            static_cast<float>(WorldState.GetProperty(Id, PropertyId::CollisionRadius)), 30.0f);
+
+        // ── 1단계: 중심 복셀이 솔리드 → 수직 탈출 ──
+        const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(PosX, PosY, PosZ);
+        if (TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
+        {
+            for (int32 ScanZ = CenterVoxel.Z + 1;
+                 ScanZ <= CenterVoxel.Z + MaxEscapeScanUp; ++ScanZ)
+            {
+                if (!TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, ScanZ))
+                {
+                    const int32 EscapeCmZ = FHktTerrainSystem::VoxelToCm(0, 0, ScanZ).Z;
+                    VMProxy.SetPosition(WorldState, Id,
+                        FMath::RoundToInt(PosX), FMath::RoundToInt(PosY), EscapeCmZ);
+                    return;
+                }
+            }
+            return;
+        }
+
+        // ── 2단계: 가장자리 겹침 → AABB-Sphere push-out ──
+        const FIntVector MinVoxel = FHktTerrainSystem::CmToVoxel(
+            PosX - Radius, PosY - Radius, PosZ);
+        const FIntVector MaxVoxel = FHktTerrainSystem::CmToVoxel(
+            PosX + Radius, PosY + Radius, PosZ + Radius);
+
+        float PushX = 0.0f;
+        float PushY = 0.0f;
+        float PushZ = 0.0f;
+        int32 PushCount = 0;
+
+        for (int32 VZ = MinVoxel.Z; VZ <= MaxVoxel.Z; ++VZ)
+        {
+            for (int32 VY = MinVoxel.Y; VY <= MaxVoxel.Y; ++VY)
+            {
+                for (int32 VX = MinVoxel.X; VX <= MaxVoxel.X; ++VX)
+                {
+                    if (!TerrainState.IsSolid(VX, VY, VZ))
+                        continue;
+
+                    const FIntVector VoxelCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ);
+                    const float VCX = static_cast<float>(VoxelCm.X);
+                    const float VCY = static_cast<float>(VoxelCm.Y);
+                    const float VCZ = static_cast<float>(VoxelCm.Z);
+
+                    const float ClampX = FMath::Clamp(PosX, VCX - HalfVoxel, VCX + HalfVoxel);
+                    const float ClampY = FMath::Clamp(PosY, VCY - HalfVoxel, VCY + HalfVoxel);
+                    const float ClampZ = FMath::Clamp(PosZ, VCZ - HalfVoxel, VCZ + HalfVoxel);
+
+                    const float DX = PosX - ClampX;
+                    const float DY = PosY - ClampY;
+                    const float DZ = PosZ - ClampZ;
+                    const float DistSq = DX * DX + DY * DY + DZ * DZ;
+
+                    if (DistSq < Radius * Radius && DistSq > SMALL_NUMBER)
+                    {
+                        const float Dist = FMath::Sqrt(DistSq);
+                        const float Penetration = Radius - Dist;
+                        const float InvDist = 1.0f / Dist;
+                        PushX += DX * InvDist * Penetration;
+                        PushY += DY * InvDist * Penetration;
+                        PushZ += DZ * InvDist * Penetration;
+                        ++PushCount;
+                    }
+                }
+            }
+        }
+
+        if (PushCount > 0)
+        {
+            VMProxy.SetPosition(WorldState, Id,
+                FMath::RoundToInt(PosX + PushX),
+                FMath::RoundToInt(PosY + PushY),
+                FMath::RoundToInt(PosZ + PushZ));
+        }
+    });
 }
 
 // ============================================================================

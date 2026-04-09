@@ -110,7 +110,9 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
         PendingExternalEvents.Add(ME);
     }
 
-    PhysicsSystem.Process(WorldState, VMProxy, GeneratedPhysicsEvents);
+    PhysicsSystem.Process(WorldState, VMProxy, GeneratedPhysicsEvents,
+                          TerrainGenerator ? &TerrainState : nullptr);
+
     for (const FHktPhysicsEvent& PE : GeneratedPhysicsEvents)
     {
         FHktPendingEvent PA;

@@ -68,12 +68,13 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 		HktAnim->bIsMoving = Entity.bIsMoving.Get();
 
 	if (bForceAll || Entity.bIsJumping.IsDirty(Frame))
-		HktAnim->bIsJumping = Entity.bIsJumping.Get();
+		HktAnim->bIsFalling = Entity.bIsJumping.Get();
 
 	if (bForceAll || Entity.Velocity.IsDirty(Frame))
 	{
 		FVector Vel = Entity.Velocity.Get();
 		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
+		HktAnim->FallingSpeed = Vel.Z;
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
 

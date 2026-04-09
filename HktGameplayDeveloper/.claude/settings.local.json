@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "ue5"
+  ],
+  "enableAllProjectMcpServers": true
+}

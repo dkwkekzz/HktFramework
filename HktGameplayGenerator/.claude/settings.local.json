@@ -1,0 +1,6 @@
+{
+  "disabledMcpjsonServers": [
+    "ue5",
+    "hkt-unreal"
+  ]
+}

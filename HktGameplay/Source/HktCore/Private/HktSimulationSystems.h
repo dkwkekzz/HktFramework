@@ -105,7 +105,9 @@ struct HKTCORE_API FHktMovementSystem
     );
 };
 
-/** 4. Physics System: 공간 분할 및 충돌 감지 */
+// TerrainCollisionSystem은 PhysicsSystem에 통합됨 (FHktPhysicsSystem::ProcessTerrainCollision)
+
+/** 4. Physics System: 공간 분할 충돌 감지 + 지형 충돌 통합 */
 struct HKTCORE_API FHktPhysicsSystem
 {
     static constexpr float CellSize = 1000.0f;
@@ -126,7 +128,16 @@ struct HKTCORE_API FHktPhysicsSystem
     void Process(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
-        TArray<FHktPhysicsEvent>& OutPhysicsEvents
+        TArray<FHktPhysicsEvent>& OutPhysicsEvents,
+        const FHktTerrainState* TerrainState = nullptr
+    );
+
+private:
+    /** 지형 충돌: 솔리드 복셀에 파묻힌 엔티티를 밀어냄 (구 TerrainCollisionSystem 통합) */
+    void ProcessTerrainCollision(
+        FHktWorldState& WorldState,
+        FHktVMWorldStateProxy& VMProxy,
+        const FHktTerrainState& TerrainState
     );
 };
 

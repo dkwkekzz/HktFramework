@@ -1,0 +1,11 @@
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "ue5"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(ls -d \"E:\\\\WS\\\\UE5\\\\HktProto\\\\Plugins\\\\HktFramework\\\\HktGameplay\\\\Source\"/*)"
+    ]
+  }
+}

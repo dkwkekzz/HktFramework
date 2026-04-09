@@ -73,11 +73,15 @@ public:
 
 	/** 점프 중 여부 (IsGrounded == 0에서 파생) */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
-	bool bIsJumping = false;
+	bool bIsFalling = false;
 
 	/** 이동 속도 (cm/s) — VelX/VelY에서 계산 */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
 	float MoveSpeed = 0.0f;
+
+	/** 낙하 속도 (cm/s) — VelZ에서 계산 */
+	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")
+	float FallingSpeed = 0.0f;
 
 	/** 현재 Stance Tag */
 	UPROPERTY(BlueprintReadOnly, Category = "HKT|Animation")

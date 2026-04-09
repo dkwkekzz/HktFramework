@@ -342,10 +342,16 @@ void UHktPresentationSubsystem::ComputeRenderLocations()
 		if (!E.Location.IsDirty(Frame) && !E.IsSpawnedAt(Frame)) return;
 
 		FVector Loc = E.Location.Get();
-		float GroundZ;
-		if (World && TraceGroundZ(World, Loc, GroundZ))
+
+		// 시뮬레이션의 Z를 그대로 사용 (MovementSystem/PhysicsSystem이 지형 스냅 담당)
+		// 시뮬레이션에 지형이 없는 경우에만 UE5 ground trace로 폴백
+		if (Loc.Z == 0.0f)
 		{
-			Loc.Z = GroundZ;
+			float GroundZ;
+			if (World && TraceGroundZ(World, Loc, GroundZ))
+			{
+				Loc.Z = GroundZ;
+			}
 		}
 		Loc.Z += E.CapsuleHalfHeight;
 		E.RenderLocation.Set(Loc, Frame);

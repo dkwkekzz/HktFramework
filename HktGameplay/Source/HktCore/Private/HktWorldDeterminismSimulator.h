@@ -16,7 +16,7 @@ struct FHktPendingEvent;
 // ============================================================================
 // FHktWorldDeterminismSimulator
 //
-// 파이프라인: Arrange → Build → Process → Movement → Physics → Cleanup
+// 파이프라인: Arrange → Build → Process → Movement → Physics(엔티티+지형 충돌) → Cleanup
 // ============================================================================
 
 class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
