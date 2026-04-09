@@ -211,6 +211,15 @@ void AHktVoxelTerrainActor::ProcessMeshReadyChunks()
 		if (Chunk && Chunk->bMeshReady.load(std::memory_order_acquire))
 		{
 			Chunk->bMeshReady.store(false, std::memory_order_release);
+
+			// BuildTerrainStyle의 UpdateResource()가 비동기이므로
+			// 첫 ApplyStyleToComponent 시점에 RHI가 아직 없을 수 있다.
+			// 메싱 완료 시점(수 프레임 후)에 RHI가 준비되었으므로 재시도한다.
+			if (bStyleBuilt && !Pair.Value->HasCachedStyleTextures())
+			{
+				ApplyStyleToComponent(Pair.Value);
+			}
+
 			Pair.Value->OnMeshReady();
 		}
 	}
