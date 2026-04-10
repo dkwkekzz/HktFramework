@@ -19,19 +19,19 @@
 static TAutoConsoleVariable<int32> CVarShowTerrainVoxels(
 	TEXT("hkt.Debug.ShowTerrainVoxels"),
 	0,
-	TEXT("캐릭터 주변 복셀 시각화. 0=끄기, 1=솔리드만, 2=솔리드+빈공간 그리드"),
+	TEXT("캐릭터 주변 복셀 시각화. 0=끄기, 1=표면 경계만, 2=표면+수평 슬라이스"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarTerrainVoxelRadius(
 	TEXT("hkt.Debug.TerrainVoxelRadius"),
-	3,
-	TEXT("복셀 시각화 반경 (복셀 단위). 기본 3 (7x7x7 영역)"),
+	5,
+	TEXT("복셀 시각화 XY 반경 (복셀 단위). 기본 5"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarShowTerrainVoxelLabels(
 	TEXT("hkt.Debug.ShowTerrainVoxelLabels"),
 	0,
-	TEXT("복셀 위에 좌표 라벨 표시. 0=끄기, 1=켜기"),
+	TEXT("표면 복셀 위에 좌표 라벨 표시. 0=끄기, 1=켜기"),
 	ECVF_Default);
 
 // --------------------------------------------------------------------------- 좌표 변환 헬퍼 (HktTerrainSystem과 동일)
@@ -67,48 +67,33 @@ static int32 FloorMod(int32 A, int32 B)
 	return (R < 0) ? R + B : R;
 }
 
-/** 렌더 캐시에서 특정 월드 복셀의 솔리드 여부를 쿼리 */
-static bool QueryRenderCacheSolid(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ, uint16* OutTypeID = nullptr)
+// --------------------------------------------------------------------------- 렌더 캐시 쿼리
+
+static bool IsSolidRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
 {
-	if (!Cache)
-	{
-		return false;
-	}
-
-	const FIntVector ChunkCoord(FloorDiv(VX, ChunkSize), FloorDiv(VY, ChunkSize), FloorDiv(VZ, ChunkSize));
-	const FHktVoxelChunk* Chunk = Cache->GetChunk(ChunkCoord);
-	if (!Chunk)
-	{
-		return false;
-	}
-
-	const int32 LX = FloorMod(VX, ChunkSize);
-	const int32 LY = FloorMod(VY, ChunkSize);
-	const int32 LZ = FloorMod(VZ, ChunkSize);
-
-	const FHktVoxel& Voxel = Chunk->At(LX, LY, LZ);
-	if (OutTypeID)
-	{
-		*OutTypeID = Voxel.TypeID;
-	}
-	return !Voxel.IsEmpty();
+	if (!Cache) return false;
+	const FIntVector CC(FloorDiv(VX, ChunkSize), FloorDiv(VY, ChunkSize), FloorDiv(VZ, ChunkSize));
+	const FHktVoxelChunk* Chunk = Cache->GetChunk(CC);
+	if (!Chunk) return false;
+	return !Chunk->At(FloorMod(VX, ChunkSize), FloorMod(VY, ChunkSize), FloorMod(VZ, ChunkSize)).IsEmpty();
 }
 
-// --------------------------------------------------------------------------- 색상 정의
-
-/** 솔리드 복셀 TypeID 기반 색상 */
-static FColor GetSolidVoxelColor(uint16 TypeID)
+static uint16 GetTypeRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
 {
-	// TypeID별 색상 분류 (시각적 구분 용이)
-	switch (TypeID)
-	{
-	case 1:  return FColor(50, 200, 50);    // Grass — 초록
-	case 2:  return FColor(139, 90, 43);    // Dirt — 갈색
-	case 3:  return FColor(128, 128, 128);  // Stone — 회색
-	case 4:  return FColor(200, 180, 120);  // Sand — 모래색
-	case 5:  return FColor(60, 120, 200);   // Water — 파랑
-	default: return FColor(180, 180, 50);   // 기타 — 노랑
-	}
+	if (!Cache) return 0;
+	const FIntVector CC(FloorDiv(VX, ChunkSize), FloorDiv(VY, ChunkSize), FloorDiv(VZ, ChunkSize));
+	const FHktVoxelChunk* Chunk = Cache->GetChunk(CC);
+	if (!Chunk) return 0;
+	return Chunk->At(FloorMod(VX, ChunkSize), FloorMod(VY, ChunkSize), FloorMod(VZ, ChunkSize)).TypeID;
+}
+
+/** 솔리드 복셀이 6방향 중 하나라도 빈 이웃을 가지면 표면 */
+static bool IsSurfaceVoxel(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
+{
+	if (!IsSolidRC(Cache, VX, VY, VZ)) return false;
+	return !IsSolidRC(Cache, VX+1, VY, VZ) || !IsSolidRC(Cache, VX-1, VY, VZ)
+		|| !IsSolidRC(Cache, VX, VY+1, VZ) || !IsSolidRC(Cache, VX, VY-1, VZ)
+		|| !IsSolidRC(Cache, VX, VY, VZ+1) || !IsSolidRC(Cache, VX, VY, VZ-1);
 }
 
 // --------------------------------------------------------------------------- Implementation
@@ -132,14 +117,12 @@ void FHktTerrainDebugRenderer::Sync(const FHktPresentationState& State)
 void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowTerrainVoxels.GetValueOnGameThread();
-	const int32 Radius = FMath::Clamp(CVarTerrainVoxelRadius.GetValueOnGameThread(), 1, 10);
+	const int32 RadiusXY = FMath::Clamp(CVarTerrainVoxelRadius.GetValueOnGameThread(), 2, 12);
 	const bool bShowLabels = CVarShowTerrainVoxelLabels.GetValueOnGameThread() > 0;
-	const bool bShowEmpty = (Mode >= 2);
 
-	// Subject 엔티티 위치 가져오기
+	// Subject 엔티티 위치
 	UHktPresentationSubsystem* Sub = LocalPlayer.IsValid()
-		? LocalPlayer->GetSubsystem<UHktPresentationSubsystem>()
-		: nullptr;
+		? LocalPlayer->GetSubsystem<UHktPresentationSubsystem>() : nullptr;
 	if (!Sub) return;
 
 	const FHktEntityId SubjectId = Sub->GetSubjectEntityId();
@@ -149,175 +132,176 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 	if (!Entity) return;
 
 	const FVector EntityPos = Entity->RenderLocation.Get().IsZero()
-		? Entity->Location.Get()
-		: Entity->RenderLocation.Get();
-	const float CollisionRadius = Entity->CollisionRadius.Get();
+		? Entity->Location.Get() : Entity->RenderLocation.Get();
+	const float ColRadius = Entity->CollisionRadius.Get();
 
-	// AHktVoxelTerrainActor 탐색 (월드에 1개 존재)
+	// AHktVoxelTerrainActor 탐색
 	AHktVoxelTerrainActor* TerrainActor = nullptr;
 	for (TActorIterator<AHktVoxelTerrainActor> It(World); It; ++It)
 	{
 		TerrainActor = *It;
 		break;
 	}
+	FHktVoxelRenderCache* RC = TerrainActor ? TerrainActor->GetTerrainCache() : nullptr;
+	if (!RC) return;
 
-	FHktVoxelRenderCache* RenderCache = TerrainActor ? TerrainActor->GetTerrainCache() : nullptr;
+	const FIntVector CV = CmToVoxel(EntityPos); // 엔티티 중심 복셀
+	const FVector HE(VoxelSizeCm * 0.5f);       // 복셀 반절 크기
+	constexpr int32 ZScanUp = 3;
+	constexpr int32 ZScanDown = 2;
 
-	// 엔티티 위치 → 복셀 좌표
-	const FIntVector CenterVoxel = CmToVoxel(EntityPos);
+	int32 SurfaceCount = 0;
 
-	// 엔티티 충돌 구체 표시
-	DrawDebugSphere(World, EntityPos, CollisionRadius, 16,
-		FColor(255, 165, 0), false, -1.f, SDPG_World, 1.5f); // 오렌지
-
-	// 엔티티 중심 복셀 표시 (굵은 선)
+	// =========================================================================
+	// 1. 표면 경계 복셀 — 솔리드이면서 빈 이웃이 있는 복셀만 그린다
+	// =========================================================================
+	for (int32 DZ = -ZScanDown; DZ <= ZScanUp; ++DZ)
 	{
-		const FVector CenterCm = VoxelToCm(CenterVoxel);
-		const FVector HalfExtent(VoxelSizeCm * 0.5f);
-		DrawDebugBox(World, CenterCm, HalfExtent, FColor::Cyan, false, -1.f, SDPG_World, 3.0f);
-
-		if (bShowLabels)
+		for (int32 DY = -RadiusXY; DY <= RadiusXY; ++DY)
 		{
-			const FString Label = FString::Printf(TEXT("Center V(%d,%d,%d)"),
-				CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z);
-			DrawDebugString(World, CenterCm + FVector(0, 0, VoxelSizeCm),
-				Label, nullptr, FColor::Cyan, -1.f, false, 1.2f);
-		}
-	}
-
-	// 청크 로드 상태 정보 수집
-	int32 SolidCount = 0;
-	int32 EmptyCount = 0;
-	int32 UnloadedCount = 0;
-
-	// 주변 복셀 순회
-	const FVector HalfExtent(VoxelSizeCm * 0.5f);
-
-	for (int32 DZ = -Radius; DZ <= Radius; ++DZ)
-	{
-		for (int32 DY = -Radius; DY <= Radius; ++DY)
-		{
-			for (int32 DX = -Radius; DX <= Radius; ++DX)
+			for (int32 DX = -RadiusXY; DX <= RadiusXY; ++DX)
 			{
-				// 중심 복셀은 위에서 이미 그림
-				if (DX == 0 && DY == 0 && DZ == 0)
+				const int32 VX = CV.X + DX;
+				const int32 VY = CV.Y + DY;
+				const int32 VZ = CV.Z + DZ;
+
+				if (!IsSurfaceVoxel(RC, VX, VY, VZ))
 					continue;
 
-				const FIntVector VoxelCoord(
-					CenterVoxel.X + DX,
-					CenterVoxel.Y + DY,
-					CenterVoxel.Z + DZ);
-				const FVector VoxelCm = VoxelToCm(VoxelCoord);
+				++SurfaceCount;
+				const FVector Pos = VoxelToCm(FIntVector(VX, VY, VZ));
 
-				if (!RenderCache)
+				// 엔티티 충돌 반경과 겹치는 표면 = 빨강, 아니면 초록
+				const float DistToEntity = FVector::Dist(Pos, EntityPos);
+				const bool bInCollisionRange = (DistToEntity < ColRadius + VoxelSizeCm);
+
+				const FColor Color = bInCollisionRange
+					? FColor(255, 50, 50)    // 빨강 — 충돌 범위 내 표면
+					: FColor(50, 220, 50);   // 초록 — 안전 표면
+				const float Thickness = bInCollisionRange ? 2.0f : 1.0f;
+
+				DrawDebugBox(World, Pos, HE, Color, false, -1.f, SDPG_Foreground, Thickness);
+
+				if (bShowLabels && bInCollisionRange)
 				{
-					// 렌더 캐시 없음 — 전부 미로드 처리
-					++UnloadedCount;
-					if (bShowEmpty)
-					{
-						DrawDebugBox(World, VoxelCm, HalfExtent,
-							FColor(80, 0, 0, 40), false, -1.f, SDPG_World, 0.5f);
-					}
-					continue;
-				}
-
-				// 청크 로드 여부 확인
-				const FIntVector ChunkCoord(
-					FloorDiv(VoxelCoord.X, ChunkSize),
-					FloorDiv(VoxelCoord.Y, ChunkSize),
-					FloorDiv(VoxelCoord.Z, ChunkSize));
-				const FHktVoxelChunk* Chunk = RenderCache->GetChunk(ChunkCoord);
-
-				if (!Chunk)
-				{
-					// 청크 미로드 — 빨간 점선 표시 (시뮬레이션 미스매치 가능성)
-					++UnloadedCount;
-					DrawDebugBox(World, VoxelCm, HalfExtent,
-						FColor(200, 0, 0, 80), false, -1.f, SDPG_World, 1.0f);
-
-					if (bShowLabels)
-					{
-						DrawDebugString(World, VoxelCm, TEXT("UNLOADED"),
-							nullptr, FColor::Red, -1.f, false, 0.8f);
-					}
-					continue;
-				}
-
-				uint16 TypeID = 0;
-				const bool bSolid = QueryRenderCacheSolid(RenderCache,
-					VoxelCoord.X, VoxelCoord.Y, VoxelCoord.Z, &TypeID);
-
-				if (bSolid)
-				{
-					++SolidCount;
-					const FColor Color = GetSolidVoxelColor(TypeID);
-					DrawDebugSolidBox(World, VoxelCm, HalfExtent * 0.95f, Color.WithAlpha(60));
-					DrawDebugBox(World, VoxelCm, HalfExtent, Color, false, -1.f, SDPG_World, 1.5f);
-
-					if (bShowLabels)
-					{
-						const FString Label = FString::Printf(TEXT("T:%d"), TypeID);
-						DrawDebugString(World, VoxelCm, Label,
-							nullptr, Color, -1.f, false, 0.7f);
-					}
-				}
-				else
-				{
-					++EmptyCount;
-					if (bShowEmpty)
-					{
-						DrawDebugBox(World, VoxelCm, HalfExtent,
-							FColor(60, 60, 60, 30), false, -1.f, SDPG_World, 0.3f);
-					}
+					const uint16 TypeID = GetTypeRC(RC, VX, VY, VZ);
+					DrawDebugString(World, Pos + FVector(0, 0, VoxelSizeCm * 0.6f),
+						FString::Printf(TEXT("V(%d,%d,%d) T:%d"), VX, VY, VZ, TypeID),
+						nullptr, FColor::White, -1.f, false, 0.8f);
 				}
 			}
 		}
 	}
 
-	// HUD 요약 정보 표시 (엔티티 위 상단)
+	// =========================================================================
+	// 2. 수평 슬라이스 (Mode 2) — 엔티티 발밑 Z의 XY 평면을 그리드로 표시
+	//    솔리드=회색 채움, 빈 공간=얇은 점선, 충돌 영역 표시
+	// =========================================================================
+	if (Mode >= 2)
 	{
-		const FString Summary = FString::Printf(
-			TEXT("Voxel Debug: Solid=%d Empty=%d Unloaded=%d | Entity V(%d,%d,%d) Pos(%.0f,%.0f,%.0f) R=%.0f"),
-			SolidCount, EmptyCount, UnloadedCount,
-			CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z,
-			EntityPos.X, EntityPos.Y, EntityPos.Z,
-			CollisionRadius);
-		DrawDebugString(World,
-			EntityPos + FVector(0, 0, CollisionRadius + 60.f),
-			Summary, nullptr, FColor::White, -1.f, false, 1.0f);
+		const int32 SliceZ = CV.Z; // 발밑 Z 레벨
+
+		for (int32 DY = -RadiusXY; DY <= RadiusXY; ++DY)
+		{
+			for (int32 DX = -RadiusXY; DX <= RadiusXY; ++DX)
+			{
+				const int32 VX = CV.X + DX;
+				const int32 VY = CV.Y + DY;
+				const FVector Pos = VoxelToCm(FIntVector(VX, VY, SliceZ));
+				const bool bSolid = IsSolidRC(RC, VX, VY, SliceZ);
+
+				if (bSolid)
+				{
+					// 솔리드: 회색 바닥면 라인
+					const FVector Lo(Pos.X - HE.X, Pos.Y - HE.Y, Pos.Z - HE.Z);
+					const FVector Hi(Pos.X + HE.X, Pos.Y + HE.Y, Pos.Z - HE.Z);
+					DrawDebugBox(World,
+						FVector((Lo.X+Hi.X)*0.5f, (Lo.Y+Hi.Y)*0.5f, Lo.Z),
+						FVector(HE.X, HE.Y, 0.5f),
+						FColor(100, 100, 100), false, -1.f, SDPG_Foreground, 0.5f);
+				}
+				else
+				{
+					// 빈 공간: 아주 얇은 점
+					DrawDebugPoint(World, Pos, 2.0f,
+						FColor(40, 40, 40), false, -1.f, SDPG_Foreground);
+				}
+			}
+		}
 	}
 
-	// Insights 데이터 수집 (WorldState 패널에서 확인 가능)
+	// =========================================================================
+	// 3. 엔티티 정보 — 충돌 반경 원 + 중심 마커 + 충돌 테스트 포인트
+	// =========================================================================
+
+	// 충돌 반경을 수평 원으로 표시 (구체 대신 원 — 깔끔함)
+	DrawDebugCircle(World, EntityPos, ColRadius, 32,
+		FColor(255, 165, 0), false, -1.f, SDPG_Foreground, 2.0f,
+		FVector(0,1,0), FVector(1,0,0), false);
+
+	// 중심 복셀 — 시안 굵은 선
+	{
+		const FVector CenterCm = VoxelToCm(CV);
+		DrawDebugBox(World, CenterCm, HE, FColor::Cyan, false, -1.f, SDPG_Foreground, 2.5f);
+	}
+
+	// MovementSystem의 벽 충돌 테스트 포인트 시각화
+	// (BodyZ = CurZ + VoxelSizeCm 에서 EdgeX, EdgeY 검사)
+	{
+		const float BodyZ = EntityPos.Z + VoxelSizeCm;
+
+		// +X / -X 방향 테스트 포인트
+		const FVector TestPosXp(EntityPos.X + ColRadius, EntityPos.Y, BodyZ);
+		const FVector TestNegXp(EntityPos.X - ColRadius, EntityPos.Y, BodyZ);
+		// +Y / -Y 방향 테스트 포인트
+		const FVector TestPosYp(EntityPos.X, EntityPos.Y + ColRadius, BodyZ);
+		const FVector TestNegYp(EntityPos.X, EntityPos.Y - ColRadius, BodyZ);
+
+		const float PtSize = 8.0f;
+		auto DrawTestPoint = [&](const FVector& Pt)
+		{
+			const FIntVector PtV = CmToVoxel(Pt);
+			const bool bBlocked = IsSolidRC(RC, PtV.X, PtV.Y, PtV.Z);
+			const FColor C = bBlocked ? FColor::Red : FColor::Green;
+			DrawDebugPoint(World, Pt, PtSize, C, false, -1.f, SDPG_Foreground);
+			// 테스트 포인트에서 엔티티 중심까지 선
+			DrawDebugLine(World, EntityPos, Pt, FColor(180, 180, 180), false, -1.f, SDPG_Foreground, 0.5f);
+		};
+
+		DrawTestPoint(TestPosXp);
+		DrawTestPoint(TestNegXp);
+		DrawTestPoint(TestPosYp);
+		DrawTestPoint(TestNegYp);
+	}
+
+	// =========================================================================
+	// 4. HUD 요약 — 엔티티 상단에 핵심 정보만 한 줄
+	// =========================================================================
+	{
+		const bool bCenterSolid = IsSolidRC(RC, CV.X, CV.Y, CV.Z);
+
+		const FString Summary = FString::Printf(
+			TEXT("V(%d,%d,%d) R=%.0f Surface=%d %s"),
+			CV.X, CV.Y, CV.Z, ColRadius, SurfaceCount,
+			bCenterSolid ? TEXT("!! INSIDE SOLID !!") : TEXT(""));
+
+		const FColor SumColor = bCenterSolid ? FColor::Red : FColor::White;
+		DrawDebugString(World,
+			EntityPos + FVector(0, 0, ColRadius + 40.f),
+			Summary, nullptr, SumColor, -1.f, false, 1.0f);
+	}
+
+	// Insights 데이터 수집
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("SubjectEntity"),
 		FString::Printf(TEXT("%d"), SubjectId));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("VoxelCoord"),
-		FString::Printf(TEXT("(%d, %d, %d)"), CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z));
-	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("WorldPos"),
-		FString::Printf(TEXT("(%.1f, %.1f, %.1f)"), EntityPos.X, EntityPos.Y, EntityPos.Z));
+		FString::Printf(TEXT("(%d, %d, %d)"), CV.X, CV.Y, CV.Z));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CollisionRadius"),
-		FString::Printf(TEXT("%.1f"), CollisionRadius));
-	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("SolidVoxels"),
-		FString::Printf(TEXT("%d"), SolidCount));
-	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("UnloadedChunks"),
-		FString::Printf(TEXT("%d"), UnloadedCount));
-
-	// 중심 복셀 솔리드 여부 경고 (엔티티가 솔리드 안에 있으면 빨간색 경고)
-	if (RenderCache)
-	{
-		const bool bCenterSolid = QueryRenderCacheSolid(RenderCache,
-			CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z);
-
-		HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CenterVoxelSolid"),
-			bCenterSolid ? TEXT("YES — INSIDE TERRAIN") : TEXT("No"));
-
-		if (bCenterSolid)
-		{
-			DrawDebugString(World,
-				EntityPos + FVector(0, 0, CollisionRadius + 80.f),
-				TEXT("!! ENTITY INSIDE SOLID VOXEL !!"),
-				nullptr, FColor::Red, -1.f, false, 1.5f);
-		}
-	}
+		FString::Printf(TEXT("%.1f"), ColRadius));
+	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("SurfaceVoxels"),
+		FString::Printf(TEXT("%d"), SurfaceCount));
+	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CenterSolid"),
+		IsSolidRC(RC, CV.X, CV.Y, CV.Z) ? TEXT("YES") : TEXT("No"));
 }
 
 void FHktTerrainDebugRenderer::Teardown()
