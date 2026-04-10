@@ -192,6 +192,12 @@ void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)
 	if (ActiveMode)
 	{
 		ActiveMode->OnActivate(this);
+
+		// 현재 Subject를 새 모드에 전달하여, 콘솔 커맨드 등 외부 전환 시에도 동기화
+		if (CurrentSubjectEntityId != InvalidEntityId)
+		{
+			ActiveMode->OnSubjectChanged(this, CurrentSubjectEntityId);
+		}
 	}
 }
 
