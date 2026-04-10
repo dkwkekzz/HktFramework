@@ -27,13 +27,6 @@ void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 		CurrentPitch = FMath::Clamp(-15.0f, MinPitch, MaxPitch);
 		SpringArm->SetRelativeRotation(FRotator(CurrentPitch, CurrentYaw, 0.0f));
 	}
-
-	// ShoulderView에서는 마우스가 카메라 회전에 사용되므로 커서 숨김
-	APlayerController* PC = Pawn->GetBoundPC();
-	if (PC)
-	{
-		PC->bShowMouseCursor = false;
-	}
 }
 
 void UHktCameraMode_ShoulderView::OnDeactivate(AHktRtsCameraPawn* Pawn)
@@ -47,13 +40,6 @@ void UHktCameraMode_ShoulderView::OnDeactivate(AHktRtsCameraPawn* Pawn)
 		SpringArm->TargetArmLength = SavedArmLength;
 		SpringArm->SetRelativeRotation(SavedArmRotation);
 		SpringArm->SocketOffset = SavedSocketOffset;
-	}
-
-	// 마우스 커서 복원
-	APlayerController* PC = Pawn->GetBoundPC();
-	if (PC)
-	{
-		PC->bShowMouseCursor = true;
 	}
 }
 

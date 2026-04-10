@@ -27,6 +27,7 @@ public class HktPresentation : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"InputCore",
+				"EnhancedInput",
 				"GameplayTags",
 				"UMG",
 				"Slate",

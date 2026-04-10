@@ -16,6 +16,8 @@ class UHktCameraMode_ShoulderView : public UHktCameraModeBase
 	GENERATED_BODY()
 
 public:
+	UHktCameraMode_ShoulderView() { bShowMouseCursor = false; }
+
 	virtual void OnActivate(AHktRtsCameraPawn* Pawn) override;
 	virtual void OnDeactivate(AHktRtsCameraPawn* Pawn) override;
 	virtual void TickMode(AHktRtsCameraPawn* Pawn, float DeltaTime) override;
