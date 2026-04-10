@@ -34,26 +34,25 @@ static TAutoConsoleVariable<int32> CVarShowTerrainVoxelLabels(
 	TEXT("표면 복셀 위에 좌표 라벨 표시. 0=끄기, 1=켜기"),
 	ECVF_Default);
 
-// --------------------------------------------------------------------------- 좌표 변환 헬퍼 (HktTerrainSystem과 동일)
+// --------------------------------------------------------------------------- 좌표 변환 헬퍼
 
-static constexpr float VoxelSizeCm = 15.0f;
 static constexpr int32 ChunkSize = 32;
 
-static FIntVector CmToVoxel(const FVector& Pos)
+static FIntVector CmToVoxel(const FVector& Pos, float VoxelSize)
 {
 	return FIntVector(
-		FMath::FloorToInt(static_cast<float>(Pos.X) / VoxelSizeCm),
-		FMath::FloorToInt(static_cast<float>(Pos.Y) / VoxelSizeCm),
-		FMath::FloorToInt(static_cast<float>(Pos.Z) / VoxelSizeCm));
+		FMath::FloorToInt(static_cast<float>(Pos.X) / VoxelSize),
+		FMath::FloorToInt(static_cast<float>(Pos.Y) / VoxelSize),
+		FMath::FloorToInt(static_cast<float>(Pos.Z) / VoxelSize));
 }
 
-static FVector VoxelToCm(const FIntVector& V)
+static FVector VoxelToCm(const FIntVector& V, float VoxelSize)
 {
-	const float Half = VoxelSizeCm * 0.5f;
+	const float Half = VoxelSize * 0.5f;
 	return FVector(
-		V.X * VoxelSizeCm + Half,
-		V.Y * VoxelSizeCm + Half,
-		V.Z * VoxelSizeCm + Half);
+		V.X * VoxelSize + Half,
+		V.Y * VoxelSize + Half,
+		V.Z * VoxelSize + Half);
 }
 
 static int32 FloorDiv(int32 A, int32 B)
@@ -149,8 +148,11 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 	FHktVoxelRenderCache* RC = TerrainActor ? TerrainActor->GetTerrainCache() : nullptr;
 	if (!RC) return;
 
-	const FIntVector CV = CmToVoxel(EntityPos); // 엔티티 중심 복셀
-	const FVector HE(VoxelSizeCm * 0.5f);       // 복셀 반절 크기
+	// 렌더링 파이프라인과 동일한 복셀 크기를 사용 (에디터에서 변경 가능)
+	const float VS = TerrainActor->VoxelSize;
+
+	const FIntVector CV = CmToVoxel(EntityPos, VS); // 엔티티 중심 복셀
+	const FVector HE(VS * 0.5f);                    // 복셀 반절 크기
 	constexpr int32 ZScanUp = 3;
 	constexpr int32 ZScanDown = 2;
 
@@ -173,11 +175,11 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 					continue;
 
 				++SurfaceCount;
-				const FVector Pos = VoxelToCm(FIntVector(VX, VY, VZ));
+				const FVector Pos = VoxelToCm(FIntVector(VX, VY, VZ), VS);
 
 				// 엔티티 충돌 반경과 겹치는 표면 = 빨강, 아니면 초록
 				const float DistToEntity = FVector::Dist(Pos, EntityPos);
-				const bool bInCollisionRange = (DistToEntity < ColRadius + VoxelSizeCm);
+				const bool bInCollisionRange = (DistToEntity < ColRadius + VS);
 
 				const FColor Color = bInCollisionRange
 					? FColor(255, 50, 50)    // 빨강 — 충돌 범위 내 표면
@@ -189,7 +191,7 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 				if (bShowLabels && bInCollisionRange)
 				{
 					const uint16 TypeID = GetTypeRC(RC, VX, VY, VZ);
-					DrawDebugString(World, Pos + FVector(0, 0, VoxelSizeCm * 0.6f),
+					DrawDebugString(World, Pos + FVector(0, 0, VS * 0.6f),
 						FString::Printf(TEXT("V(%d,%d,%d) T:%d"), VX, VY, VZ, TypeID),
 						nullptr, FColor::White, -1.f, false, 0.8f);
 				}
@@ -211,7 +213,7 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 			{
 				const int32 VX = CV.X + DX;
 				const int32 VY = CV.Y + DY;
-				const FVector Pos = VoxelToCm(FIntVector(VX, VY, SliceZ));
+				const FVector Pos = VoxelToCm(FIntVector(VX, VY, SliceZ), VS);
 				const bool bSolid = IsSolidRC(RC, VX, VY, SliceZ);
 
 				if (bSolid)
@@ -245,14 +247,14 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 
 	// 중심 복셀 — 시안 굵은 선
 	{
-		const FVector CenterCm = VoxelToCm(CV);
+		const FVector CenterCm = VoxelToCm(CV, VS);
 		DrawDebugBox(World, CenterCm, HE, FColor::Cyan, false, -1.f, SDPG_Foreground, 2.5f);
 	}
 
 	// MovementSystem의 벽 충돌 테스트 포인트 시각화
 	// (BodyZ = CurZ + VoxelSizeCm 에서 EdgeX, EdgeY 검사)
 	{
-		const float BodyZ = EntityPos.Z + VoxelSizeCm;
+		const float BodyZ = EntityPos.Z + VS;
 
 		// +X / -X 방향 테스트 포인트
 		const FVector TestPosXp(EntityPos.X + ColRadius, EntityPos.Y, BodyZ);
@@ -264,7 +266,7 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 		const float PtSize = 8.0f;
 		auto DrawTestPoint = [&](const FVector& Pt)
 		{
-			const FIntVector PtV = CmToVoxel(Pt);
+			const FIntVector PtV = CmToVoxel(Pt, VS);
 			const bool bBlocked = IsSolidRC(RC, PtV.X, PtV.Y, PtV.Z);
 			const FColor C = bBlocked ? FColor::Red : FColor::Green;
 			DrawDebugPoint(World, Pt, PtSize, C, false, -1.f, SDPG_Foreground);
