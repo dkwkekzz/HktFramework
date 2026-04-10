@@ -56,7 +56,7 @@ void UHktCameraMode_ShoulderView::TickMode(AHktRtsCameraPawn* Pawn, float DeltaT
 	FVector EntityLoc = Sub->GetEntityActorLocation(SubjectEntityId);
 	if (EntityLoc.IsZero()) return;
 
-	// 마우스 델타로 카메라 회전
+	// 마우스 델타로 카메라 회전 (ShoulderView에서는 마우스가 항상 방향 전환)
 	float MouseX = 0.0f, MouseY = 0.0f;
 	PC->GetInputMouseDelta(MouseX, MouseY);
 

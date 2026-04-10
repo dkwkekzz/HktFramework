@@ -14,6 +14,8 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
 
 AHktRtsCameraPawn::AHktRtsCameraPawn()
 {
@@ -67,6 +69,15 @@ void AHktRtsCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			{
 				Interaction->OnSubjectChanged().Remove(SubjectChangedHandle);
 				SubjectChangedHandle.Reset();
+			}
+		}
+
+		// EndPlay 시 활성 모드의 InputMappingContext 제거
+		if (ActiveMode && ActiveMode->InputMappingContext)
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+			{
+				InputSubsystem->RemoveMappingContext(ActiveMode->InputMappingContext);
 			}
 		}
 	}
@@ -176,8 +187,21 @@ void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)
 {
 	if (ActiveModeType == NewMode && ActiveMode) return;
 
+	APlayerController* PC = BoundPlayerController.Get();
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = nullptr;
+	if (PC)
+	{
+		InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
+	}
+
 	if (ActiveMode)
 	{
+		// 이전 모드의 InputMappingContext 제거
+		if (InputSubsystem && ActiveMode->InputMappingContext)
+		{
+			InputSubsystem->RemoveMappingContext(ActiveMode->InputMappingContext);
+		}
+
 		ActiveMode->OnDeactivate(this);
 	}
 
@@ -187,6 +211,18 @@ void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)
 	if (ActiveMode)
 	{
 		ActiveMode->OnActivate(this);
+
+		// 새 모드의 InputMappingContext 추가
+		if (InputSubsystem && ActiveMode->InputMappingContext)
+		{
+			InputSubsystem->AddMappingContext(ActiveMode->InputMappingContext, ActiveMode->MappingPriority);
+		}
+
+		// 마우스 커서 상태 적용
+		if (PC)
+		{
+			PC->bShowMouseCursor = ActiveMode->bShowMouseCursor;
+		}
 
 		// 현재 Subject를 새 모드에 전달하여, 콘솔 커맨드 등 외부 전환 시에도 동기화
 		if (CurrentSubjectEntityId != InvalidEntityId)

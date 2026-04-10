@@ -141,6 +141,30 @@ namespace HktEventBuilder
 		return E;
 	}
 
+	/** 방향 이동 이벤트 (ShoulderView WASD) — Location = 목표 위치 */
+	inline FHktEvent MoveForward(
+		const FGameplayTag& EventTag,
+		FHktEntityId SourceEntity,
+		FVector TargetLocation)
+	{
+		FHktEvent E;
+		E.EventTag     = EventTag;
+		E.SourceEntity = SourceEntity;
+		E.Location     = TargetLocation;
+		return E;
+	}
+
+	/** 이동 정지 이벤트 (ShoulderView WASD 릴리즈) */
+	inline FHktEvent MoveStop(
+		const FGameplayTag& EventTag,
+		FHktEntityId SourceEntity)
+	{
+		FHktEvent E;
+		E.EventTag     = EventTag;
+		E.SourceEntity = SourceEntity;
+		return E;
+	}
+
 	/** 아이템 활성화 이벤트 — Param0 = 슬롯, Param1 = 엔티티 인덱스 */
 	inline FHktEvent ItemActivate(
 		const FGameplayTag& EventTag,

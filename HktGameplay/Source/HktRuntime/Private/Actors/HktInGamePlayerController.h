@@ -97,6 +97,12 @@ protected:
     void OnZoom(const FInputActionValue& Value);
     void OnJumpAction(const FInputActionValue& Value);
 
+    /** ShoulderView 방향 이동 (WASD/방향키) — Triggered */
+    void OnMoveAction(const FInputActionValue& Value);
+
+    /** ShoulderView 방향 이동 종료 — Completed */
+    void OnMoveActionCompleted(const FInputActionValue& Value);
+
     IHktClientRule* GetClientRule() const;
 
 protected:
@@ -118,6 +124,10 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TArray<TObjectPtr<UInputAction>> SlotInputActions;
+
+    /** ShoulderView 방향 이동 (WASD/방향키, Axis2D) */
+    UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
+    TObjectPtr<UInputAction> MoveAction;
 
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;
@@ -147,6 +157,14 @@ private:
 
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();
+
+    /** 방향 이동 입력 이벤트 전송 + 쓰로틀 */
+    void SubmitMoveEvent(const FVector& Direction);
+
+    /** 방향 이동 쓰로틀 — 마지막 전송 방향 / 시각 */
+    FVector LastMoveDirection = FVector::ZeroVector;
+    double LastMoveEventTime = 0.0;
+    bool bIsDirectionalMoving = false;
 
     /** 캐릭터 엔티티의 EquipSlot0~8 프로퍼티에서 아이템 스킬을 읽어 CommandSlot에 바인딩 */
     void SyncSlotBindingsFromWorldState(const FHktWorldView& View);

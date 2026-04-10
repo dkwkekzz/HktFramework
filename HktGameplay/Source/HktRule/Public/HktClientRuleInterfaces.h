@@ -133,6 +133,12 @@ public:
 	virtual void OnUserEvent_ZoomInputAction(float InDelta) {}
 	virtual void OnUserEvent_JumpInputAction() {}
 
+	/** ShoulderView 방향 이동 — Direction은 카메라 기준 월드 방향 (정규화) */
+	virtual void OnUserEvent_MoveInputAction(const FVector& InDirection) {}
+
+	/** ShoulderView 이동 정지 — WASD 릴리즈 시 */
+	virtual void OnUserEvent_MoveStopAction() {}
+
 	/** 내부 캐싱된 Simulator 사용 */
 	virtual void OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex) {}
 	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) {}
