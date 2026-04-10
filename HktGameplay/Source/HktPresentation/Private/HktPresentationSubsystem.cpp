@@ -8,6 +8,7 @@
 #include "Renderers/HktVFXRenderer.h"
 #if ENABLE_HKT_INSIGHTS
 #include "Renderers/HktCollisionDebugRenderer.h"
+#include "Renderers/HktTerrainDebugRenderer.h"
 #endif
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
@@ -56,6 +57,9 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #if ENABLE_HKT_INSIGHTS
 	CollisionDebugRenderer = MakeShared<FHktCollisionDebugRenderer>(GetLocalPlayer());
 	Renderers.Add(CollisionDebugRenderer.Get());
+
+	TerrainDebugRenderer = MakeShared<FHktTerrainDebugRenderer>(GetLocalPlayer());
+	Renderers.Add(TerrainDebugRenderer.Get());
 #endif
 }
 
@@ -70,6 +74,7 @@ void UHktPresentationSubsystem::Deinitialize()
 	Renderers.Empty();
 
 #if ENABLE_HKT_INSIGHTS
+	TerrainDebugRenderer.Reset();
 	CollisionDebugRenderer.Reset();
 #endif
 	VFXRenderer.Reset();

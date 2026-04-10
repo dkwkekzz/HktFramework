@@ -96,6 +96,7 @@ struct HKTCORE_API FHktMovementSystem
     static constexpr float FixedDeltaSeconds = 1.0f / 30.0f;
     static constexpr float MaxSpeed = 600.0f;       // cm/s 최대속도 제한
     static constexpr float Damping = 0.95f;          // 매 프레임 속도 감쇠
+    EHktLogSource LogSource = EHktLogSource::Server;
 
     void Process(
         FHktWorldState& WorldState,
@@ -111,6 +112,7 @@ struct HKTCORE_API FHktMovementSystem
 struct HKTCORE_API FHktPhysicsSystem
 {
     static constexpr float CellSize = 1000.0f;
+    EHktLogSource LogSource = EHktLogSource::Server;
 
     struct FCellCoord
     {
