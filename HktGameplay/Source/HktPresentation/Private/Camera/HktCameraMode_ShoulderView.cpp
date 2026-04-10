@@ -5,7 +5,6 @@
 #include "HktPresentationSubsystem.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "InputCoreTypes.h"
 
 void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 {
@@ -27,6 +26,13 @@ void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 		CurrentYaw = SavedArmRotation.Yaw;
 		CurrentPitch = FMath::Clamp(-15.0f, MinPitch, MaxPitch);
 		SpringArm->SetRelativeRotation(FRotator(CurrentPitch, CurrentYaw, 0.0f));
+	}
+
+	// ShoulderView에서는 마우스가 카메라 회전에 사용되므로 커서 숨김
+	APlayerController* PC = Pawn->GetBoundPC();
+	if (PC)
+	{
+		PC->bShowMouseCursor = false;
 	}
 }
 
@@ -64,20 +70,12 @@ void UHktCameraMode_ShoulderView::TickMode(AHktRtsCameraPawn* Pawn, float DeltaT
 	FVector EntityLoc = Sub->GetEntityActorLocation(SubjectEntityId);
 	if (EntityLoc.IsZero()) return;
 
-	// 오른쪽 마우스 버튼을 누른 상태에서만 카메라 회전
-	const bool bRightMouseHeld = PC->IsInputKeyDown(EKeys::RightMouseButton);
+	// 마우스 델타로 카메라 회전 (ShoulderView에서는 마우스가 항상 방향 전환)
+	float MouseX = 0.0f, MouseY = 0.0f;
+	PC->GetInputMouseDelta(MouseX, MouseY);
 
-	if (bRightMouseHeld)
-	{
-		float MouseX = 0.0f, MouseY = 0.0f;
-		PC->GetInputMouseDelta(MouseX, MouseY);
-
-		CurrentYaw += MouseX * MouseSensitivity;
-		CurrentPitch = FMath::Clamp(CurrentPitch - MouseY * MouseSensitivity, MinPitch, MaxPitch);
-	}
-
-	// RMB 상태에 따라 마우스 커서 표시 전환
-	PC->bShowMouseCursor = !bRightMouseHeld;
+	CurrentYaw += MouseX * MouseSensitivity;
+	CurrentPitch = FMath::Clamp(CurrentPitch - MouseY * MouseSensitivity, MinPitch, MaxPitch);
 
 	// SpringArm 회전 적용
 	USpringArmComponent* SpringArm = Pawn->GetSpringArm();
