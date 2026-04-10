@@ -14,7 +14,6 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
-#include "Kismet/GameplayStatics.h"
 
 AHktRtsCameraPawn::AHktRtsCameraPawn()
 {
@@ -100,6 +99,7 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 		CurrentSubjectEntityId = PendingSubjectEntityId;
 
 		// PlayerUid가 확정되면 보류 중인 Subject에 대해 소유권 검증 후 모드 재평가
+		// SetCameraMode 내부에서 OnSubjectChanged를 호출하므로 별도 호출 불필요
 		if (IsOwnedEntity(PendingSubjectEntityId))
 		{
 			SetCameraMode(EHktCameraMode::SubjectFollow);
@@ -107,11 +107,6 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 		else
 		{
 			SetCameraMode(EHktCameraMode::RtsFree);
-		}
-
-		if (ActiveMode)
-		{
-			ActiveMode->OnSubjectChanged(this, PendingSubjectEntityId);
 		}
 
 		PendingSubjectEntityId = InvalidEntityId;

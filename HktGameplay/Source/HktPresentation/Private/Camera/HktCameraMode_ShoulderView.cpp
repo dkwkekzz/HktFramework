@@ -72,8 +72,7 @@ void UHktCameraMode_ShoulderView::TickMode(AHktRtsCameraPawn* Pawn, float DeltaT
 
 	// 대상 위치로 보간 이동
 	FVector CurrentLoc = Pawn->GetActorLocation();
-	FVector TargetLoc = FVector(EntityLoc.X, EntityLoc.Y, EntityLoc.Z);
-	FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, FollowInterpSpeed);
+	FVector NewLoc = FMath::VInterpTo(CurrentLoc, EntityLoc, DeltaTime, FollowInterpSpeed);
 	Pawn->SetActorLocation(NewLoc);
 }
 
