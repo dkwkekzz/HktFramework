@@ -13,6 +13,7 @@ class UCameraComponent;
 class UHktCameraModeBase;
 class UHktCameraMode_RtsFree;
 class UHktCameraMode_SubjectFollow;
+class UHktCameraMode_ShoulderView;
 
 /**
  * RTS 스타일 카메라 이동·줌을 담당하는 폰.
@@ -69,6 +70,9 @@ protected:
 
 	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
 	TObjectPtr<UHktCameraMode_SubjectFollow> SubjectFollowMode;
+
+	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
+	TObjectPtr<UHktCameraMode_ShoulderView> ShoulderViewMode;
 
 private:
 	void OnSubjectChanged(FHktEntityId EntityId);
