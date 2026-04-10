@@ -131,9 +131,13 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 	const FHktEntityPresentation* Entity = State.Get(SubjectId);
 	if (!Entity) return;
 
-	const FVector EntityPos = Entity->RenderLocation.Get().IsZero()
+	// RenderLocation은 CapsuleHalfHeight가 더해진 렌더용 위치.
+	// 시뮬레이션(MovementSystem/PhysicsSystem)은 raw PosZ를 사용하므로
+	// CapsuleHalfHeight를 빼서 실제 충돌 판정 위치와 일치시킨다.
+	const FVector RenderPos = Entity->RenderLocation.Get().IsZero()
 		? Entity->Location.Get() : Entity->RenderLocation.Get();
-	const float ColRadius = Entity->CollisionRadius.Get();
+	const FVector EntityPos(RenderPos.X, RenderPos.Y, RenderPos.Z - Entity->CapsuleHalfHeight);
+	const float ColRadius = FMath::Max(Entity->CollisionRadius.Get(), 30.0f);
 
 	// AHktVoxelTerrainActor 탐색
 	AHktVoxelTerrainActor* TerrainActor = nullptr;
@@ -234,8 +238,8 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 	// 3. 엔티티 정보 — 충돌 반경 원 + 중심 마커 + 충돌 테스트 포인트
 	// =========================================================================
 
-	// 충돌 반경을 수평 원으로 표시 (구체 대신 원 — 깔끔함)
-	DrawDebugCircle(World, EntityPos, ColRadius, 32,
+	// 충돌 반경을 수평 원으로 표시 — 렌더 위치(캐릭터 시각 위치)에 그린다
+	DrawDebugCircle(World, RenderPos, ColRadius, 32,
 		FColor(255, 165, 0), false, -1.f, SDPG_Foreground, 2.0f,
 		FVector(0,1,0), FVector(1,0,0), false);
 
@@ -287,7 +291,7 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 
 		const FColor SumColor = bCenterSolid ? FColor::Red : FColor::White;
 		DrawDebugString(World,
-			EntityPos + FVector(0, 0, ColRadius + 40.f),
+			RenderPos + FVector(0, 0, ColRadius + 40.f),
 			Summary, nullptr, SumColor, -1.f, false, 1.0f);
 	}
 
