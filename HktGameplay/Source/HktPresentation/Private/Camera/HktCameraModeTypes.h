@@ -9,4 +9,5 @@ enum class EHktCameraMode : uint8
 {
 	RtsFree,
 	SubjectFollow,
+	ShoulderView,
 };
