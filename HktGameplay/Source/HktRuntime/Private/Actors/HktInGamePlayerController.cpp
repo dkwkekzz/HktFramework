@@ -144,6 +144,12 @@ void AHktIngamePlayerController::SetupInputComponent()
     {
         if (SlotInputActions[i]) EnhancedInput->BindAction(SlotInputActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
+
+    if (MoveAction)
+    {
+        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnMoveAction);
+        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &AHktIngamePlayerController::OnMoveActionCompleted);
+    }
 }
 
 // ============================================================================
@@ -268,6 +274,80 @@ void AHktIngamePlayerController::OnJumpAction(const FInputActionValue& Value)
         HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
             FString::Printf(TEXT("OnJumpAction Submit %s"), *Event.ToString()),
             Event.SourceEntity, Event.EventTag);
+    }
+}
+
+void AHktIngamePlayerController::OnMoveAction(const FInputActionValue& Value)
+{
+    if (Value.GetValueType() != EInputActionValueType::Axis2D) return;
+
+    const FVector2D Input = Value.Get<FVector2D>();
+    if (Input.IsNearlyZero()) return;
+
+    // 카메라 Yaw 기준으로 월드 방향 계산
+    const FRotator CameraRot = PlayerCameraManager ? PlayerCameraManager->GetCameraRotation() : GetControlRotation();
+    const FRotator YawRot(0.0f, CameraRot.Yaw, 0.0f);
+    const FVector Forward = FRotationMatrix(YawRot).GetUnitAxis(EAxis::X);
+    const FVector Right = FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y);
+
+    FVector Direction = (Forward * Input.X + Right * Input.Y).GetSafeNormal();
+    if (Direction.IsNearlyZero()) return;
+
+    // 쓰로틀: 방향이 크게 변경되었거나 일정 시간 경과 시에만 전송
+    const double Now = FPlatformTime::Seconds();
+    const bool bDirectionChanged = FVector::DotProduct(Direction, LastMoveDirection) < 0.95f;
+    const bool bTimeElapsed = (Now - LastMoveEventTime) >= 0.1;
+
+    if (bIsDirectionalMoving && !bDirectionChanged && !bTimeElapsed) return;
+
+    bIsDirectionalMoving = true;
+    SubmitMoveEvent(Direction);
+}
+
+void AHktIngamePlayerController::OnMoveActionCompleted(const FInputActionValue& Value)
+{
+    if (!bIsDirectionalMoving) return;
+
+    bIsDirectionalMoving = false;
+    LastMoveDirection = FVector::ZeroVector;
+
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule) return;
+
+    Rule->OnUserEvent_MoveStopAction();
+
+    if (CachedIntentBuilder && CachedIntentBuilder->HasPendingRuntimeEvent())
+    {
+        FHktEvent Event = CachedIntentBuilder->ConsumePendingRuntimeEvent();
+        Event.PlayerUid = GetPlayerUid();
+        Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+        IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
+
+        HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+            FString::Printf(TEXT("OnMoveActionCompleted Submit %s"), *Event.ToString()));
+    }
+}
+
+void AHktIngamePlayerController::SubmitMoveEvent(const FVector& Direction)
+{
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule) return;
+
+    Rule->OnUserEvent_MoveInputAction(Direction);
+
+    if (CachedIntentBuilder && CachedIntentBuilder->HasPendingRuntimeEvent())
+    {
+        FHktEvent Event = CachedIntentBuilder->ConsumePendingRuntimeEvent();
+        Event.PlayerUid = GetPlayerUid();
+        Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+        IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
+
+        LastMoveDirection = Direction;
+        LastMoveEventTime = FPlatformTime::Seconds();
+
+        HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+            FString::Printf(TEXT("SubmitMoveEvent Dir=(%.1f,%.1f,%.1f) %s"),
+                Direction.X, Direction.Y, Direction.Z, *Event.ToString()));
     }
 }
 

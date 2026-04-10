@@ -24,6 +24,8 @@ public:
 	virtual void OnUserEvent_CommandInputAction(int32 InSlotIndex) override;
 	virtual void OnUserEvent_ZoomInputAction(float InDelta) override;
 	virtual void OnUserEvent_JumpInputAction() override;
+	virtual void OnUserEvent_MoveInputAction(const FVector& InDirection) override;
+	virtual void OnUserEvent_MoveStopAction() override;
 	virtual void OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex) override;
 	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) override;
 	virtual void OnReceived_BagUpdate(const FHktBagDelta& InDelta) override;

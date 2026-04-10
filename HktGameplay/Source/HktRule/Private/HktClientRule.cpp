@@ -9,6 +9,8 @@
 // 기본 액션 태그 (슬롯 미선택 시 타겟 유형에 따라 TargetDefault Story가 분기)
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Default, "Story.Event.Target.Default");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Jump, "Story.Event.Move.Jump");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Forward, "Story.Event.Move.Forward");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Stop, "Story.Event.Move.Stop");
 
 FHktDefaultClientRule::FHktDefaultClientRule()
 {
@@ -245,6 +247,78 @@ void FHktDefaultClientRule::OnUserEvent_JumpInputAction()
 
 	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("JumpAction %s"), *Event.ToString()),
+		SubjectEntity, Event.EventTag);
+}
+
+void FHktDefaultClientRule::OnUserEvent_MoveInputAction(const FVector& InDirection)
+{
+	if (!CachedBuilder || !CachedSimulator || !CachedSimulator->IsInitialized())
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("MoveInputAction ignored: context not bound"));
+		return;
+	}
+
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("MoveInputAction ignored: no Subject selected"));
+		return;
+	}
+
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("MoveInputAction ignored: Subject %d is not owned by this player"), SubjectEntity),
+			SubjectEntity);
+		return;
+	}
+
+	// Subject의 현재 위치에서 방향 벡터 * 거리로 목표 위치 계산
+	const FHktWorldState& WS = CachedSimulator->GetWorldState();
+	const int32 PosX = WS.GetProperty(SubjectEntity, PropertyId::PosX);
+	const int32 PosY = WS.GetProperty(SubjectEntity, PropertyId::PosY);
+	const int32 PosZ = WS.GetProperty(SubjectEntity, PropertyId::PosZ);
+
+	static constexpr float MoveProjectionDistance = 100000.0f;  // 충분히 먼 목표 (1km)
+	FVector TargetLocation = FVector(PosX, PosY, PosZ) + InDirection * MoveProjectionDistance;
+
+	FHktEvent Event = HktEventBuilder::MoveForward(Tag_Event_Move_Forward, SubjectEntity, TargetLocation);
+	CachedBuilder->SetPendingRuntimeEvent(Event);
+
+	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("MoveInputAction Dir=(%.1f,%.1f,%.1f) %s"), InDirection.X, InDirection.Y, InDirection.Z, *Event.ToString()),
+		SubjectEntity, Event.EventTag);
+}
+
+void FHktDefaultClientRule::OnUserEvent_MoveStopAction()
+{
+	if (!CachedBuilder || !CachedSimulator || !CachedSimulator->IsInitialized())
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("MoveStopAction ignored: context not bound"));
+		return;
+	}
+
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("MoveStopAction ignored: no Subject selected"));
+		return;
+	}
+
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		return;
+	}
+
+	FHktEvent Event = HktEventBuilder::MoveStop(Tag_Event_Move_Stop, SubjectEntity);
+	CachedBuilder->SetPendingRuntimeEvent(Event);
+
+	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("MoveStopAction %s"), *Event.ToString()),
 		SubjectEntity, Event.EventTag);
 }
 
