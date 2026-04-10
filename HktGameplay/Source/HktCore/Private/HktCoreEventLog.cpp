@@ -75,6 +75,11 @@ void FHktCoreEventLog::SetActive(bool bNewActive)
 	bActive = bNewActive;
 }
 
+void FHktCoreEventLog::SetMinLogLevel(EHktLogLevel NewLevel)
+{
+	MinLogLevel = NewLevel;
+}
+
 TArray<FHktLogEntry> FHktCoreEventLog::Consume(uint32& InOutReadIndex) const
 {
 	FScopeLock ScopeLock(&Lock);
@@ -238,6 +243,26 @@ static FAutoConsoleCommand GHktEventLogClearCmd(
 	{
 		FHktCoreEventLog::Get().Clear();
 		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Buffer cleared."));
+	})
+);
+
+static FAutoConsoleCommand GHktEventLogLevelCmd(
+	TEXT("hkt.EventLog.Level"),
+	TEXT("최소 수집 레벨 설정. 0=Verbose, 1=Info(기본), 2=Warning, 3=Error. Verbose는 Movement/Physics 매 프레임 로그를 포함하므로 버퍼 포화에 주의."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		if (Args.Num() < 1)
+		{
+			const EHktLogLevel Cur = FHktCoreEventLog::Get().GetMinLogLevel();
+			UE_LOG(LogTemp, Log, TEXT("HktEventLog: Current MinLevel=%d (%s). Usage: hkt.EventLog.Level <0-3>"),
+				static_cast<int32>(Cur), GetLogLevelName(Cur));
+			return;
+		}
+		const int32 Val = FCString::Atoi(*Args[0]);
+		const EHktLogLevel NewLevel = static_cast<EHktLogLevel>(FMath::Clamp(Val, 0, 3));
+		FHktCoreEventLog::Get().SetMinLogLevel(NewLevel);
+		UE_LOG(LogTemp, Log, TEXT("HktEventLog: MinLevel set to %d (%s)"),
+			static_cast<int32>(NewLevel), GetLogLevelName(NewLevel));
 	})
 );
 

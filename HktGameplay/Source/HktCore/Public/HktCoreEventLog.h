@@ -99,15 +99,15 @@ namespace HktLogTags
 #if ENABLE_HKT_INSIGHTS
 
 #define HKT_EVENT_LOG(CategoryTag, Level, Source, Message) \
-	do { if (FHktCoreEventLog::Get().IsActive()) \
+	do { if (FHktCoreEventLog::Get().ShouldLog(Level)) \
 		FHktCoreEventLog::Get().Log(CategoryTag, Message, InvalidEntityId, FGameplayTag(), Level, Source); } while(0)
 
 #define HKT_EVENT_LOG_ENTITY(CategoryTag, Level, Source, Message, EntityId) \
-	do { if (FHktCoreEventLog::Get().IsActive()) \
+	do { if (FHktCoreEventLog::Get().ShouldLog(Level)) \
 		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, FGameplayTag(), Level, Source); } while(0)
 
 #define HKT_EVENT_LOG_TAG(CategoryTag, Level, Source, Message, EntityId, Tag) \
-	do { if (FHktCoreEventLog::Get().IsActive()) \
+	do { if (FHktCoreEventLog::Get().ShouldLog(Level)) \
 		FHktCoreEventLog::Get().Log(CategoryTag, Message, EntityId, Tag, Level, Source); } while(0)
 
 #else
@@ -165,8 +165,15 @@ public:
 	/** 패널에서 호출: 수집 활성화/비활성화 */
 	void SetActive(bool bNewActive);
 
-	/** 수집 활성 여부 (매크로에서 사용, lock-free) */
+	/** 수집 활성 여부 (lock-free) */
 	bool IsActive() const { return bActive; }
+
+	/** 최소 수집 레벨 설정. 이 레벨 미만의 로그는 수집하지 않음 (FString 할당도 회피). */
+	void SetMinLogLevel(EHktLogLevel NewLevel);
+	EHktLogLevel GetMinLogLevel() const { return MinLogLevel; }
+
+	/** 매크로에서 사용: bActive && Level >= MinLogLevel (lock-free, 인라인) */
+	bool ShouldLog(EHktLogLevel Level) const { return bActive && Level >= MinLogLevel; }
 
 	/**
 	 * 패널에서 호출: InOutReadIndex 이후의 새 엔트리 반환.
@@ -199,6 +206,7 @@ private:
 	uint32 WriteIndex = 0;          // 다음 쓰기 위치 (monotonic, % MaxEntries로 인덱싱)
 	uint32 Version = 0;
 	bool bActive = false;
+	EHktLogLevel MinLogLevel = EHktLogLevel::Info;  // 기본: Verbose 수집 안 함
 
 	FGameplayTagContainer KnownCategories;  // 지금까지 기록된 카테고리 태그
 
