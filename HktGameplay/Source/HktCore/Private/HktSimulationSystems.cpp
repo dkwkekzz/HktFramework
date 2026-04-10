@@ -764,15 +764,27 @@ void FHktMovementSystem::Process(
             const float BodyZ = CurZ + FHktTerrainSystem::VoxelSizeCm;
 
             // X축 차단: 이동 방향 전방 엔티티 가장자리의 복셀 검사
+            //   벽 감지 시 복셀 면에서 ColRadius만큼 떨어진 안전 위치로 스냅
             {
                 const float EdgeX = NewX + (VX >= 0.0f ? ColRadius : -ColRadius);
                 const FIntVector V = FHktTerrainSystem::CmToVoxel(EdgeX, CurY, BodyZ);
                 if (TerrainState->IsSolid(V.X, V.Y, V.Z))
                 {
+                    if (VX >= 0.0f)
+                    {
+                        // +X 이동: 솔리드의 -X 면에서 ColRadius 떨어진 위치
+                        const float WallFace = static_cast<float>(V.X) * FHktTerrainSystem::VoxelSizeCm;
+                        NewX = FMath::Min(NewX, WallFace - ColRadius - 1.0f);
+                    }
+                    else
+                    {
+                        // -X 이동: 솔리드의 +X 면에서 ColRadius 떨어진 위치
+                        const float WallFace = static_cast<float>(V.X + 1) * FHktTerrainSystem::VoxelSizeCm;
+                        NewX = FMath::Max(NewX, WallFace + ColRadius + 1.0f);
+                    }
                     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
-                        FString::Printf(TEXT("Wall slide X — blocked at V(%d,%d,%d) edge=%.0f"),
-                            V.X, V.Y, V.Z, EdgeX), Id);
-                    NewX = CurX;
+                        FString::Printf(TEXT("Wall snap X — V(%d,%d,%d) NewX=%.0f"),
+                            V.X, V.Y, V.Z, NewX), Id);
                     VX = 0.0f;
                 }
             }
@@ -782,10 +794,19 @@ void FHktMovementSystem::Process(
                 const FIntVector V = FHktTerrainSystem::CmToVoxel(NewX, EdgeY, BodyZ);
                 if (TerrainState->IsSolid(V.X, V.Y, V.Z))
                 {
+                    if (VY >= 0.0f)
+                    {
+                        const float WallFace = static_cast<float>(V.Y) * FHktTerrainSystem::VoxelSizeCm;
+                        NewY = FMath::Min(NewY, WallFace - ColRadius - 1.0f);
+                    }
+                    else
+                    {
+                        const float WallFace = static_cast<float>(V.Y + 1) * FHktTerrainSystem::VoxelSizeCm;
+                        NewY = FMath::Max(NewY, WallFace + ColRadius + 1.0f);
+                    }
                     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
-                        FString::Printf(TEXT("Wall slide Y — blocked at V(%d,%d,%d) edge=%.0f"),
-                            V.X, V.Y, V.Z, EdgeY), Id);
-                    NewY = CurY;
+                        FString::Printf(TEXT("Wall snap Y — V(%d,%d,%d) NewY=%.0f"),
+                            V.X, V.Y, V.Z, NewY), Id);
                     VY = 0.0f;
                 }
             }
@@ -1247,42 +1268,57 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
         const bool bDebugThis = (DebugEntityId >= 0 && Id == static_cast<FHktEntityId>(DebugEntityId));
 #endif
 
-        // ── 1단계: 중심 복셀이 솔리드 → 수직 탈출 ──
+        // ── 1단계: 중심 복셀이 솔리드 → 6방향 최단 탈출 ──
         const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(PosX, PosY, PosZ);
         if (TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
         {
             HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Warning, LogSource,
                 FString::Printf(TEXT("Terrain escape — inside solid V(%d,%d,%d) Pos(%.0f,%.0f,%.0f)"),
                     CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z, PosX, PosY, PosZ), Id);
-#if ENABLE_HKT_INSIGHTS
-            if (bDebugThis)
+
+            // 6방향 스캔: 가장 가까운 빈 복셀로 탈출 (위 우선, 수평 포함)
+            static const FIntVector EscapeDirs[6] = {
+                {0,0,1}, {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,-1}
+            };
+            int32 BestDist = MAX_int32;
+            FIntVector BestPos = CenterVoxel;
+            for (const FIntVector& Dir : EscapeDirs)
             {
-                HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("Phase"), TEXT("1-CenterEscape"));
-                HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CenterSolid"), TEXT("YES"));
-                HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CenterVoxel"),
-                    FString::Printf(TEXT("(%d,%d,%d)"), CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z));
-            }
-#endif
-            for (int32 ScanZ = CenterVoxel.Z + 1;
-                 ScanZ <= CenterVoxel.Z + MaxEscapeScanUp; ++ScanZ)
-            {
-                if (!TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, ScanZ))
+                const int32 MaxScan = (Dir.Z != 0) ? MaxEscapeScanUp : 16;
+                for (int32 Step = 1; Step <= MaxScan; ++Step)
                 {
-                    const int32 EscapeCmZ = FHktTerrainSystem::VoxelToCm(0, 0, ScanZ).Z;
-                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
-                        FString::Printf(TEXT("Terrain escape resolved — Z: %d → %d (scanned %d voxels)"),
-                            FMath::RoundToInt(PosZ), EscapeCmZ, ScanZ - CenterVoxel.Z), Id);
-#if ENABLE_HKT_INSIGHTS
-                    if (bDebugThis)
+                    const FIntVector TestPos(
+                        CenterVoxel.X + Dir.X * Step,
+                        CenterVoxel.Y + Dir.Y * Step,
+                        CenterVoxel.Z + Dir.Z * Step);
+                    if (!TerrainState.IsSolid(TestPos.X, TestPos.Y, TestPos.Z))
                     {
-                        HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("EscapeZ"),
-                            FString::Printf(TEXT("VoxelZ=%d → CmZ=%d"), ScanZ, EscapeCmZ));
+                        if (Step < BestDist)
+                        {
+                            BestDist = Step;
+                            BestPos = TestPos;
+                        }
+                        break;
                     }
-#endif
-                    VMProxy.SetPosition(WorldState, Id,
-                        FMath::RoundToInt(PosX), FMath::RoundToInt(PosY), EscapeCmZ);
-                    return;
                 }
+            }
+
+            if (BestDist < MAX_int32)
+            {
+                const FIntVector EscapeCm = FHktTerrainSystem::VoxelToCm(BestPos.X, BestPos.Y, BestPos.Z);
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                    FString::Printf(TEXT("Terrain escape resolved → V(%d,%d,%d) dist=%d"),
+                        BestPos.X, BestPos.Y, BestPos.Z, BestDist), Id);
+#if ENABLE_HKT_INSIGHTS
+                if (bDebugThis)
+                {
+                    HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("Phase"), TEXT("1-CenterEscape"));
+                    HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("CenterSolid"), TEXT("YES"));
+                    HKT_INSIGHT_COLLECT(TEXT("Terrain.Sim"), TEXT("EscapeTo"),
+                        FString::Printf(TEXT("V(%d,%d,%d) dist=%d"), BestPos.X, BestPos.Y, BestPos.Z, BestDist));
+                }
+#endif
+                VMProxy.SetPosition(WorldState, Id, EscapeCm.X, EscapeCm.Y, EscapeCm.Z);
             }
             return;
         }
@@ -1333,22 +1369,67 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
                     const float DZ = PosZ - ClampZ;
                     const float DistSq = DX * DX + DY * DY + DZ * DZ;
 
-                    if (DistSq < Radius * Radius && DistSq > SMALL_NUMBER)
+                    if (DistSq >= Radius * Radius)
+                        continue;
+
+                    if (DistSq > SMALL_NUMBER)
                     {
+                        // 일반 케이스: 가장 가까운 AABB 점에서 밀어냄
                         const float Dist = FMath::Sqrt(DistSq);
                         const float Penetration = Radius - Dist;
                         const float InvDist = 1.0f / Dist;
                         PushX += DX * InvDist * Penetration;
                         PushY += DY * InvDist * Penetration;
                         PushZ += DZ * InvDist * Penetration;
-                        ++PushCount;
                     }
+                    else
+                    {
+                        // 엔티티 중심이 복셀 AABB 면 위/내부 — 가장 가까운 면 방향으로 탈출
+                        const float DistToFaces[6] = {
+                            PosX - (VCX - HalfVoxel),   // -X 면까지
+                            (VCX + HalfVoxel) - PosX,   // +X 면까지
+                            PosY - (VCY - HalfVoxel),   // -Y 면까지
+                            (VCY + HalfVoxel) - PosY,   // +Y 면까지
+                            PosZ - (VCZ - HalfVoxel),   // -Z 면까지
+                            (VCZ + HalfVoxel) - PosZ,   // +Z 면까지
+                        };
+                        static const float FaceDirX[6] = { -1, 1, 0, 0, 0, 0 };
+                        static const float FaceDirY[6] = { 0, 0, -1, 1, 0, 0 };
+                        static const float FaceDirZ[6] = { 0, 0, 0, 0, -1, 1 };
+
+                        int32 NearestFace = 0;
+                        float NearestDist = DistToFaces[0];
+                        for (int32 F = 1; F < 6; ++F)
+                        {
+                            if (DistToFaces[F] < NearestDist)
+                            {
+                                NearestDist = DistToFaces[F];
+                                NearestFace = F;
+                            }
+                        }
+
+                        const float EscapePush = FMath::Max(NearestDist + Radius, Radius);
+                        PushX += FaceDirX[NearestFace] * EscapePush;
+                        PushY += FaceDirY[NearestFace] * EscapePush;
+                        PushZ += FaceDirZ[NearestFace] * EscapePush;
+                    }
+                    ++PushCount;
                 }
             }
         }
 
         if (PushCount > 0)
         {
+            // 최소 1cm push 보장 — 정수 반올림에 먹히지 않도록
+            const float PushMagSq = PushX * PushX + PushY * PushY + PushZ * PushZ;
+            if (PushMagSq > 0.0f && PushMagSq < 1.0f)
+            {
+                const float Scale = 1.0f / FMath::Sqrt(PushMagSq);
+                PushX *= Scale;
+                PushY *= Scale;
+                PushZ *= Scale;
+            }
+
             HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
                 FString::Printf(TEXT("Terrain edge push — count=%d push=(%.1f,%.1f,%.1f) Pos(%.0f,%.0f,%.0f)"),
                     PushCount, PushX, PushY, PushZ, PosX, PosY, PosZ), Id);
