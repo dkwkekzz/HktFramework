@@ -68,7 +68,7 @@ namespace HktStoryVoxelShatter
 			.SaveConstEntity(Spawned, PropertyId::Health, 1)
 			.SaveConstEntity(Spawned, PropertyId::MaxHealth, 1)
 			.SaveConstEntity(Spawned, PropertyId::IsGrounded, 0)
-			.SaveConstEntity(Spawned, PropertyId::JumpVelZ, ShatterJumpVelZ)
+			.SaveConstEntity(Spawned, PropertyId::VelZ, ShatterJumpVelZ)
 			.DispatchEventFrom(Story_Debris_Lifecycle, Spawned)
 
 			.Halt()

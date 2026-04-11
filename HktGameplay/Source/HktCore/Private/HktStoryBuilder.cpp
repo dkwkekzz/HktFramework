@@ -776,8 +776,10 @@ FHktStoryBuilder& FHktStoryBuilder::StopMovement(RegisterIndex Entity)
 
 FHktStoryBuilder& FHktStoryBuilder::ApplyJump(RegisterIndex Entity, int32 ImpulseVelZ)
 {
+    // 수직 속도는 VelZ(공용)로 통합되었다. IsGrounded=0 으로 공중 상태로 전환하면
+    // 다음 프레임부터 GravitySystem이 VelZ 를 매 프레임 차감하여 낙하 처리한다.
     SaveConstEntity(Entity, PropertyId::IsGrounded, 0);
-    SaveConstEntity(Entity, PropertyId::JumpVelZ, ImpulseVelZ);
+    SaveConstEntity(Entity, PropertyId::VelZ, ImpulseVelZ);
     return *this;
 }
 

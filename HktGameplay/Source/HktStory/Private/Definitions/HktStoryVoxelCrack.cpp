@@ -58,7 +58,7 @@ namespace HktStoryVoxelCrack
 			.PlayVFX(pos, VFX_VoxelCrack)
 			.PlaySoundAtLocation(pos, Sound_VoxelCrack)
 
-			// Debris 엔티티 생성 — 살짝 튀어오르기 (IsGrounded=0, JumpVelZ=150)
+			// Debris 엔티티 생성 — 살짝 튀어오르기 (IsGrounded=0, VelZ=IcePopVelZ)
 			.SpawnEntity(Entity_Debris_Ice)
 			.SetPosition(Spawned, pos)
 			.SaveStoreEntity(Spawned, PropertyId::TerrainTypeId, typeId)
@@ -68,7 +68,7 @@ namespace HktStoryVoxelCrack
 			.SaveConstEntity(Spawned, PropertyId::Health, 1)
 			.SaveConstEntity(Spawned, PropertyId::MaxHealth, 1)
 			.SaveConstEntity(Spawned, PropertyId::IsGrounded, 0)
-			.SaveConstEntity(Spawned, PropertyId::JumpVelZ, IcePopVelZ)
+			.SaveConstEntity(Spawned, PropertyId::VelZ, IcePopVelZ)
 
 			// Debris Lifecycle 시작 (Spawned가 Self가 됨)
 			.DispatchEventFrom(Story_Debris_Lifecycle, Spawned)

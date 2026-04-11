@@ -88,9 +88,9 @@ namespace HktStoryDebrisLifecycle
 			.Label(TEXT("die"))
 				.PlayVFXAtEntity(Self, VFX_TerrainBreak)
 				.PlaySoundAtEntity(Self, Sound_TerrainBreak)
-				// 위로 튕기기
+				// 위로 튕기기 (IsGrounded=0 → GravitySystem 이 다음 프레임부터 VelZ 낙하 처리)
 				.WriteConst(PropertyId::IsGrounded, 0)
-				.WriteConst(PropertyId::JumpVelZ, 200)
+				.WriteConst(PropertyId::VelZ, 200)
 				.WaitSeconds(3.0f)
 				.DestroyEntity(Self)
 				.Halt()

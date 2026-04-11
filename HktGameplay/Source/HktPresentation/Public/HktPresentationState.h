@@ -45,7 +45,7 @@ struct FHktEntityPresentation
 
 	// --- Jump ---
 	THktVisualField<bool> bIsJumping;      // IsGrounded == 0에서 파생
-	THktVisualField<int32> JumpVelZ;       // 수직 속도 (디버그/VFX용)
+	// 수직 속도는 Velocity.Z 로 통합됨 (HktCore VelZ 프로퍼티)
 
 	// --- Vitals ---
 	THktVisualField<float> Health;

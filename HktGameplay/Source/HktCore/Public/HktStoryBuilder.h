@@ -397,7 +397,7 @@ public:
     /** 이동 중지 */
     FHktStoryBuilder& StopMovement(RegisterIndex Entity);
 
-    /** 점프 적용: IsGrounded=0, JumpVelZ=ImpulseVelZ 설정 (조합 연산) */
+    /** 점프 적용: IsGrounded=0, VelZ=ImpulseVelZ 설정 (GravitySystem 이 다음 프레임부터 낙하 감속) */
     FHktStoryBuilder& ApplyJump(RegisterIndex Entity, int32 ImpulseVelZ);
 
     /** 거리 계산 (VM opcode — sqrt 필요) */

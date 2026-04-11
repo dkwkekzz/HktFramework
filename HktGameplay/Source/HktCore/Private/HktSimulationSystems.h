@@ -90,25 +90,55 @@ struct HKTCORE_API FHktTerrainSystem
     static FIntVector VoxelToCm(int32 VX, int32 VY, int32 VZ, float VoxelSizeCm);
 };
 
-/** 3.5 Movement System: 힘→가속도 물리 기반 이동 (고정 프레임 1/30초) */
+/** 3.4 Gravity System: 비접지(IsGrounded==0) 엔티티에 중력 누적
+ *
+ * MovementSystem 바로 직전에 실행된다. 중력은 "환경력"으로서 운동학과 분리돼 있어야
+ * Movement 는 순수 적분만 담당할 수 있다. 지면 접촉 판정은 PhysicsSystem 이 소유한다.
+ */
+struct HKTCORE_API FHktGravitySystem
+{
+    EHktLogSource LogSource = EHktLogSource::Server;
+
+    void Process(
+        FHktWorldState& WorldState,
+        FHktVMWorldStateProxy& VMProxy,
+        float DeltaSeconds
+    );
+};
+
+/** 3.5 Movement System: 순수 운동학 적분 (지형 질의 없음)
+ *
+ * 책임:
+ *   - 힘/질량/속도 적분으로 기대 위치 계산
+ *   - idle 엔티티 skip 최적화
+ *   - MoveEnd 이벤트 emit, RotYaw 갱신
+ *
+ * 책임 아님 (PhysicsSystem 이관):
+ *   - 지형 벽 슬라이드
+ *   - step-height / 천장 검사
+ *   - 지면 스냅 / IsGrounded 갱신
+ *
+ * 고정 프레임 1/30 초로 호출된다 (DeltaSeconds 파라미터).
+ */
 struct HKTCORE_API FHktMovementSystem
 {
-    static constexpr float FixedDeltaSeconds = 1.0f / 30.0f;
-    static constexpr float MaxSpeed = 600.0f;       // cm/s 최대속도 제한
-    static constexpr float Damping = 0.95f;          // 매 프레임 속도 감쇠
     EHktLogSource LogSource = EHktLogSource::Server;
 
     void Process(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
         TArray<FHktPendingEvent>& OutMoveEndEvents,
-        const FHktTerrainState* TerrainState = nullptr
+        TArray<FIntVector>& OutPreMovePositions,  // Slot 인덱스로 접근 — Physics 가 revert/슬라이드에 사용
+        float DeltaSeconds
     );
 };
 
-// TerrainCollisionSystem은 PhysicsSystem에 통합됨 (FHktPhysicsSystem::ProcessTerrainCollision)
-
-/** 4. Physics System: 공간 분할 충돌 감지 + 지형 충돌 통합 */
+/** 4. Physics System: 모든 제약 해결기 (지형 + 엔티티 간 충돌)
+ *
+ * Phase 1: 지형 제약 (PreMove 기준 축별 wall-slide → step-height → ceiling → floor snap)
+ * Phase 2: 엔티티 쌍 해결 (soft push, 결정론적 entity-id 순서)
+ * Phase 3: 잔여 지형 겹침 정리 (ResolveTerrainConstraints — 구 ProcessTerrainCollision)
+ */
 struct HKTCORE_API FHktPhysicsSystem
 {
     static constexpr float CellSize = 1000.0f;
@@ -124,6 +154,9 @@ struct HKTCORE_API FHktPhysicsSystem
     TMap<FCellCoord, TArray<FHktEntityId>> GridMap;
     TSet<uint64> TestedPairs;  // 인접 셀 중복 검사 방지용 (프레임 간 재사용)
 
+    // Phase 2 결정론: entity id 오름차순으로 외곽 루프를 돌리기 위한 스크래치
+    TArray<FHktEntityId> SortedEntitiesScratch;
+
     static FCellCoord WorldToCell(const FVector& Pos);
     void RebuildGrid(const FHktWorldState& WorldState);
 
@@ -131,12 +164,25 @@ struct HKTCORE_API FHktPhysicsSystem
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
         TArray<FHktPhysicsEvent>& OutPhysicsEvents,
-        const FHktTerrainState* TerrainState = nullptr
+        TArray<FHktPendingEvent>& OutGroundedEvents,
+        const TArray<FIntVector>& PreMovePositions,
+        const FHktTerrainState* TerrainState,
+        float DeltaSeconds
     );
 
 private:
-    /** 지형 충돌: 솔리드 복셀에 파묻힌 엔티티를 밀어냄 (구 TerrainCollisionSystem 통합) */
-    void ProcessTerrainCollision(
+    /** Phase 1: 이동 후 위치에 대해 지형 제약(벽/계단/천장/지면) 해결 */
+    void ResolveTerrainPhase1(
+        FHktWorldState& WorldState,
+        FHktVMWorldStateProxy& VMProxy,
+        const TArray<FIntVector>& PreMovePositions,
+        TArray<FHktPendingEvent>& OutGroundedEvents,
+        const FHktTerrainState& TerrainState,
+        float DeltaSeconds
+    );
+
+    /** Phase 3: 지형 잔여 겹침 정리 (구 ProcessTerrainCollision — 동작 그대로) */
+    void ResolveTerrainConstraints(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
         const FHktTerrainState& TerrainState

@@ -25,6 +25,9 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     EntityArrangeSystem.LogSource = LogSource;
     VMBuildSystem.LogSource = LogSource;
     VMProcessSystem.LogSource = LogSource;
+    GravitySystem.LogSource = LogSource;
+    MovementSystem.LogSource = LogSource;
+    PhysicsSystem.LogSource = LogSource;
     VMCleanupSystem.LogSource = LogSource;
 
     ActiveVMs.Reserve(HktLimits::MaxVMs);
@@ -32,10 +35,13 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     GeneratedPhysicsEvents.Reserve(HktLimits::MaxPhysicsEvents);
     PendingExternalEvents.Reserve(HktLimits::MaxPendingEvents);
     GeneratedMoveEndEvents.Reserve(HktLimits::MaxPendingEvents);
+    GeneratedGroundedEvents.Reserve(HktLimits::MaxPendingEvents);
     FrameRemovedEntities.Reserve(256);
     DispatchedEvents.Reserve(16);
+    FramePreMovePositions.Reserve(HktLimits::MaxEntities);
     EntityArrangeSystem.ScratchRemoveList.Reserve(HktLimits::MaxEntities);
     VMProcessSystem.ScratchEvents.Reserve(HktLimits::MaxPendingEvents);
+    PhysicsSystem.SortedEntitiesScratch.Reserve(HktLimits::MaxEntities);
 
     PendingVoxelDeltas.Reserve(256);
 
@@ -103,15 +109,28 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
                               *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
     }
 
+    // Gravity → Movement → Physics 순서: 중력이 VelZ 를 세팅, Movement 는 순수 적분,
+    // Physics Phase 1 이 지형 제약(벽/계단/천장/지면)을 해결한다.
+    GravitySystem.Process(WorldState, VMProxy, FixedDeltaSeconds);
+
     MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
-                           TerrainGenerator ? &TerrainState : nullptr);
+                           FramePreMovePositions, FixedDeltaSeconds);
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
     {
         PendingExternalEvents.Add(ME);
     }
 
-    PhysicsSystem.Process(WorldState, VMProxy, GeneratedPhysicsEvents,
-                          TerrainGenerator ? &TerrainState : nullptr);
+    PhysicsSystem.Process(WorldState, VMProxy,
+                          GeneratedPhysicsEvents,
+                          GeneratedGroundedEvents,
+                          FramePreMovePositions,
+                          TerrainGenerator ? &TerrainState : nullptr,
+                          FixedDeltaSeconds);
+
+    for (const FHktPendingEvent& GE : GeneratedGroundedEvents)
+    {
+        PendingExternalEvents.Add(GE);
+    }
 
     for (const FHktPhysicsEvent& PE : GeneratedPhysicsEvents)
     {

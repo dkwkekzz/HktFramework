@@ -16,12 +16,15 @@ struct FHktPendingEvent;
 // ============================================================================
 // FHktWorldDeterminismSimulator
 //
-// 파이프라인: Arrange → Build → Process → Movement → Physics(엔티티+지형 충돌) → Cleanup
+// 파이프라인: Arrange → Build → VM Process → Gravity → Movement → Physics(지형+엔티티) → Cleanup
 // ============================================================================
 
 class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
 {
 public:
+    // 고정 시뮬레이션 틱 (30Hz). 과거 FHktMovementSystem::FixedDeltaSeconds 에서 승격.
+    static constexpr float FixedDeltaSeconds = 1.0f / 30.0f;
+
     FHktWorldDeterminismSimulator(EHktLogSource InLogSource);
     ~FHktWorldDeterminismSimulator();
 
@@ -48,13 +51,19 @@ private:
     TArray<FHktPhysicsEvent> GeneratedPhysicsEvents;
     TArray<FHktPendingEvent> PendingExternalEvents;
     TArray<FHktPendingEvent> GeneratedMoveEndEvents;
+    TArray<FHktPendingEvent> GeneratedGroundedEvents;
     TArray<FHktEntityId> FrameRemovedEntities;
     TArray<FHktEvent> DispatchedEvents;
+
+    // Movement → Physics 사이 PreMove 스크래치 (slot 인덱스 기반).
+    // Movement 가 적분 전 원 위치를 기록, Physics Phase 1 이 wall-slide/step revert 에 사용.
+    TArray<FIntVector> FramePreMovePositions;
 
     FHktEntityArrangeSystem EntityArrangeSystem;
     FHktVMBuildSystem       VMBuildSystem;
     FHktVMProcessSystem     VMProcessSystem;
     FHktTerrainSystem       TerrainSystem;
+    FHktGravitySystem       GravitySystem;
     FHktMovementSystem      MovementSystem;
     FHktPhysicsSystem       PhysicsSystem;
     FHktVMCleanupSystem     VMCleanupSystem;
