@@ -40,6 +40,41 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (ClampMin = 1.0, ClampMax = 500.0, DisplayName = "Voxel Size (cm)"))
 	float VoxelSizeCm = 15.0f;
 
+	// === 지형 월드 경계 (시뮬레이션 + 렌더 공유) ===
+
+	/**
+	 * 월드 Z축 청크 좌표 최소값. 이 아래로는 청크가 생성/로드되지 않는다.
+	 * 시뮬레이션 `FHktTerrainSystem`과 렌더 `FHktVoxelTerrainStreamer`가 공유.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain|World Bounds", meta = (DisplayName = "Height Min Z (chunks)"))
+	int32 HeightMinZ = 0;
+
+	/**
+	 * 월드 Z축 청크 좌표 최대값. 이 위로는 청크가 생성/로드되지 않는다.
+	 * 시뮬레이션 `FHktTerrainSystem`과 렌더 `FHktVoxelTerrainStreamer`가 공유.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain|World Bounds", meta = (DisplayName = "Height Max Z (chunks)"))
+	int32 HeightMaxZ = 3;
+
+	// === 시뮬레이션 청크 스트리밍 ===
+	// 렌더러의 스트리밍(`ViewDistance`, `MaxLoadedChunks`)과 독립된 시뮬레이션 전용 설정.
+
+	/** 엔티티 주변 XY 청크 로드 반경 (0이면 엔티티 셀만) */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain|Simulation Streaming", meta = (ClampMin = 0, ClampMax = 16))
+	int32 SimLoadRadiusXY = 2;
+
+	/** 엔티티 주변 Z 청크 로드 반경 */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain|Simulation Streaming", meta = (ClampMin = 0, ClampMax = 8))
+	int32 SimLoadRadiusZ = 1;
+
+	/** 시뮬레이션 청크 캐시 상한 (메모리 예산) */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain|Simulation Streaming", meta = (ClampMin = 16, ClampMax = 16384))
+	int32 SimMaxChunksLoaded = 256;
+
+	/** 시뮬레이션 프레임당 최대 청크 로드 수 (스파이크 방지) */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain|Simulation Streaming", meta = (ClampMin = 1, ClampMax = 64))
+	int32 SimMaxChunkLoadsPerFrame = 4;
+
 	/** 지형 시드 (동일 시드 = 동일 지형) */
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Terrain Seed"))
 	int64 TerrainSeed = 42;

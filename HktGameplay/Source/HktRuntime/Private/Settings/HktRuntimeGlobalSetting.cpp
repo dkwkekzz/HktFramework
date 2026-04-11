@@ -11,7 +11,13 @@ FHktTerrainGeneratorConfig UHktRuntimeGlobalSetting::ToTerrainConfig() const
 	using Fixed = FHktFixed32;
 
 	FHktTerrainGeneratorConfig Config;
-	Config.VoxelSizeCm             = VoxelSizeCm;
+	Config.VoxelSizeCm              = VoxelSizeCm;
+	Config.HeightMinZ               = HeightMinZ;
+	Config.HeightMaxZ               = HeightMaxZ;
+	Config.SimLoadRadiusXY          = SimLoadRadiusXY;
+	Config.SimLoadRadiusZ           = SimLoadRadiusZ;
+	Config.SimMaxChunksLoaded       = SimMaxChunksLoaded;
+	Config.SimMaxChunkLoadsPerFrame = SimMaxChunkLoadsPerFrame;
 	Config.Seed                    = TerrainSeed;
 	Config.HeightScale             = Fixed::FromDouble(HeightScale);
 	Config.HeightOffset            = Fixed::FromDouble(HeightOffset);

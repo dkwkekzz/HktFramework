@@ -496,8 +496,15 @@ void FHktTerrainSystem::Process(
 {
     RequiredChunks.Reset();
 
-    // 단일 출처: Generator의 Config에서 VoxelSize를 획득
-    const float VS = Generator.GetConfig().VoxelSizeCm;
+    // 단일 출처: Generator의 Config에서 모든 스트리밍 파라미터 획득
+    const FHktTerrainGeneratorConfig& Cfg = Generator.GetConfig();
+    const float VS            = Cfg.VoxelSizeCm;
+    const int32 LoadRadiusXY  = Cfg.SimLoadRadiusXY;
+    const int32 LoadRadiusZ   = Cfg.SimLoadRadiusZ;
+    const int32 MaxLoaded     = Cfg.SimMaxChunksLoaded;
+    const int32 MaxPerFrame   = Cfg.SimMaxChunkLoadsPerFrame;
+    const int32 HeightMinZ    = Cfg.HeightMinZ;
+    const int32 HeightMaxZ    = Cfg.HeightMaxZ;
 
     // 1. 엔티티를 청크 단위로 중복 제거하여 수집
     //    같은 청크에 있는 엔티티 N개가 동일한 75개 항목을 중복 삽입하지 않도록,
@@ -529,6 +536,7 @@ void FHktTerrainSystem::Process(
     }
 
     // 고유 청크 좌표에서만 반경 확장 (엔티티 200개 → 고유 청크 ~10개)
+    // 월드 Z 경계 [HeightMinZ, HeightMaxZ] 클램프로 천장 밖 청크는 로드 대상에서 제외
     for (const FIntVector& ChunkCoord : EntityChunks)
     {
         for (int32 DX = -LoadRadiusXY; DX <= LoadRadiusXY; ++DX)
@@ -537,7 +545,10 @@ void FHktTerrainSystem::Process(
             {
                 for (int32 DZ = -LoadRadiusZ; DZ <= LoadRadiusZ; ++DZ)
                 {
-                    RequiredChunks.Add(FIntVector(ChunkCoord.X + DX, ChunkCoord.Y + DY, ChunkCoord.Z + DZ));
+                    const int32 CZ = ChunkCoord.Z + DZ;
+                    if (CZ < HeightMinZ || CZ > HeightMaxZ)
+                        continue;  // 월드 경계 밖 — 시뮬레이션에서도 렌더와 동일하게 무시
+                    RequiredChunks.Add(FIntVector(ChunkCoord.X + DX, ChunkCoord.Y + DY, CZ));
                 }
             }
         }
@@ -549,11 +560,11 @@ void FHktTerrainSystem::Process(
     {
         if (!TerrainState.IsChunkLoaded(Coord))
         {
-            if (TerrainState.GetLoadedChunkCount() >= MaxChunksLoaded)
+            if (TerrainState.GetLoadedChunkCount() >= MaxLoaded)
             {
                 break;
             }
-            if (LoadedThisFrame >= MaxChunkLoadsPerFrame)
+            if (LoadedThisFrame >= MaxPerFrame)
             {
                 break;  // 나머지는 다음 프레임에 로드
             }

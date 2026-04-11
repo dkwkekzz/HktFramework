@@ -41,7 +41,9 @@ void AHktVoxelTerrainActor::BeginPlay()
 	// 단일 출처: UHktRuntimeGlobalSetting에서 지형 설정을 모두 읽는다
 	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	const FHktTerrainGeneratorConfig GenConfig = Settings->ToTerrainConfig();
-	VoxelSize = GenConfig.VoxelSizeCm;
+	VoxelSize  = GenConfig.VoxelSizeCm;
+	HeightMinZ = GenConfig.HeightMinZ;
+	HeightMaxZ = GenConfig.HeightMaxZ;
 
 	// 테레인 전용 파이프라인 생성
 	TerrainCache = MakeUnique<FHktVoxelRenderCache>();

@@ -63,15 +63,14 @@ struct HKTCORE_API FHktVMProcessSystem
     );
 };
 
-/** 3.2 Terrain System: 엔티티 위치 기반 청크 로드/언로드 */
+/** 3.2 Terrain System: 엔티티 위치 기반 청크 로드/언로드
+ *
+ * 모든 파라미터(VoxelSize, LoadRadius, MaxChunks, HeightMinZ/MaxZ)는
+ * UHktRuntimeGlobalSetting → FHktTerrainGeneratorConfig 경로로 전달된다.
+ * Process()가 Generator.GetConfig()에서 런타임 조회.
+ */
 struct HKTCORE_API FHktTerrainSystem
 {
-    static constexpr int32 LoadRadiusXY = 2;    // 엔티티 주변 XY 2청크 반경 로드
-    static constexpr int32 LoadRadiusZ = 1;     // 엔티티 주변 Z 1청크 반경 로드
-    static constexpr int32 MaxChunksLoaded = 256;  // 시뮬레이션 메모리 제한
-    static constexpr int32 MaxChunkLoadsPerFrame = 4;  // 프레임당 최대 로드 수 (스파이크 방지)
-
-    // VoxelSize는 FHktTerrainState/Generator에서 제공 (UHktRuntimeGlobalSetting이 단일 출처)
 
     TSet<FIntVector> RequiredChunks;  // 프레임 내 재사용 (할당 회피)
     FIntVector LastPivotChunk = FIntVector(MAX_int32);  // 이전 프레임의 피벗 청크 (변경 감지)
