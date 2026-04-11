@@ -90,18 +90,21 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	// GetScene()에서 FPrimitiveComponentId를 통해 안전하게 접근
 	FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
 
-	// 스타일 텍스처는 첫 OnMeshReady에서만 전달 (이후 Proxy가 캐싱)
-	const bool bNeedStyleSetup = !bStyleTexturesApplied
-		&& (CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid());
+	// 스타일 텍스처는 캐시되어 있으면 매 OnMeshReady마다 항상 재전달한다.
+	// 이유: SceneProxy가 재생성되면 새 Proxy의 Pending*/VertexFactory는 빈 상태로
+	// 시작하므로, 이전 수명주기에서 bStyleTexturesApplied=true가 설정되어 있어도
+	// 새 Proxy에는 텍스처가 없다. 여기서 매번 동봉해야 새 VF가 올바르게 초기화된다.
+	// (4개의 RHI 포인터 복사 + 분기만 추가되므로 비용 무시 가능.)
+	const bool bHasStyleTextures = CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid();
 	FHktVoxelTileTextureSet TileTexCopy = CachedTileTextures;
 	FHktVoxelTexturePair MatLUTCopy = CachedMaterialLUT;
 
 	ENQUEUE_RENDER_COMMAND(HktVoxelUpdateMesh)(
 		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
-		 bNeedStyleSetup, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
+		 bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
 		{
 			FHktVoxelChunkProxy* Proxy = static_cast<FHktVoxelChunkProxy*>(CapturedProxy);
-			if (bNeedStyleSetup)
+			if (bHasStyleTextures)
 			{
 				if (TileTexCopy.IsValid())
 				{
@@ -119,7 +122,7 @@ void UHktVoxelChunkComponent::OnMeshReady()
 		}
 	);
 
-	if (bNeedStyleSetup)
+	if (bHasStyleTextures)
 	{
 		bStyleTexturesApplied = true;
 	}
