@@ -11,7 +11,7 @@
  * 마우스 입력으로 카메라 회전이 가능합니다.
  */
 UCLASS()
-class UHktCameraMode_ShoulderView : public UHktCameraModeBase
+class HKTPRESENTATION_API UHktCameraMode_ShoulderView : public UHktCameraModeBase
 {
 	GENERATED_BODY()
 
@@ -68,4 +68,7 @@ private:
 	/** 현재 카메라 Yaw/Pitch (절대각) */
 	float CurrentYaw = 0.0f;
 	float CurrentPitch = -15.0f;
+
+	/** 활성화 직후 누적된 마우스 delta 스파이크를 한 프레임 버린다 */
+	bool bDiscardNextMouseDelta = false;
 };

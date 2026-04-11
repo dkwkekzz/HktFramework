@@ -218,11 +218,18 @@ void AHktVoxelTerrainActor::ProcessMeshReadyChunks()
 			Chunk->bMeshReady.store(false, std::memory_order_release);
 
 			// BuildTerrainStyle의 UpdateResource()가 비동기이므로
-			// 첫 ApplyStyleToComponent 시점에 RHI가 아직 없을 수 있다.
-			// 메싱 완료 시점(수 프레임 후)에 RHI가 준비되었으므로 재시도한다.
-			if (bStyleBuilt && !Pair.Value->HasCachedStyleTextures())
+			// 첫 ApplyStyleToComponent 시점에 TileArray RHI가 아직 없을 수 있다.
+			// TileArray(비동기)와 MaterialLUT(동기)의 준비 시점이 다르므로 개별 판정.
+			// 예상되는 파트 중 하나라도 아직 미캐시라면 재시도한다.
+			if (bStyleBuilt)
 			{
-				ApplyStyleToComponent(Pair.Value);
+				const bool bExpectsTileArray = BuiltTileAtlas && BuiltTileAtlas->TileArray != nullptr;
+				const bool bNeedTileRetry = bExpectsTileArray && !Pair.Value->HasCachedTileTextures();
+				const bool bNeedMatRetry = BuiltMaterialLUT && !Pair.Value->HasCachedMaterialLUT();
+				if (bNeedTileRetry || bNeedMatRetry)
+				{
+					ApplyStyleToComponent(Pair.Value);
+				}
 			}
 
 			Pair.Value->OnMeshReady();

@@ -10,7 +10,7 @@
  * 화면 가장자리에서 스크롤하고, 선택 없을 때 새로 스폰된 엔터티를 자동 추적합니다.
  */
 UCLASS()
-class UHktCameraMode_RtsFree : public UHktCameraModeBase
+class HKTPRESENTATION_API UHktCameraMode_RtsFree : public UHktCameraModeBase
 {
 	GENERATED_BODY()
 

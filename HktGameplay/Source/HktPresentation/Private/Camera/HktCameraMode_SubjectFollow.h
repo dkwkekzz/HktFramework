@@ -11,7 +11,7 @@
  * 오프셋은 시간에 따라 감쇄되어 대상 중심으로 복귀합니다.
  */
 UCLASS()
-class UHktCameraMode_SubjectFollow : public UHktCameraModeBase
+class HKTPRESENTATION_API UHktCameraMode_SubjectFollow : public UHktCameraModeBase
 {
 	GENERATED_BODY()
 

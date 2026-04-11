@@ -10,7 +10,7 @@
 class AHktRtsCameraPawn;
 class UInputMappingContext;
 
-UCLASS(Abstract, DefaultToInstanced, EditInlineNew)
+UCLASS(Abstract, Blueprintable, DefaultToInstanced, EditInlineNew)
 class UHktCameraModeBase : public UObject
 {
 	GENERATED_BODY()

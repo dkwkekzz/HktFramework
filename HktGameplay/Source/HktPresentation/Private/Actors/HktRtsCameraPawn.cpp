@@ -219,9 +219,11 @@ void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)
 		}
 
 		// 마우스 커서 상태 적용
-		if (PC)
+		// (ShoulderView 등 일부 모드는 OnActivate에서 SetInputMode와 함께 직접 제어하므로
+		//  여기서는 cursor-mode 모드의 기본값만 보장한다)
+		if (PC && ActiveMode->bShowMouseCursor)
 		{
-			PC->bShowMouseCursor = ActiveMode->bShowMouseCursor;
+			PC->bShowMouseCursor = true;
 		}
 
 		// 현재 Subject를 새 모드에 전달하여, 콘솔 커맨드 등 외부 전환 시에도 동기화
@@ -293,7 +295,7 @@ static bool StringToCameraMode(const FString& Str, EHktCameraMode& OutMode)
 	return false;
 }
 
-static FAutoConsoleCommand GHktCameraSetModeCmd(
+static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 	TEXT("hkt.Camera.SetMode"),
 	TEXT("카메라 모드 전환. 사용법: hkt.Camera.SetMode <RtsFree|SubjectFollow|ShoulderView|OTS|0|1|2>"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
@@ -327,7 +329,7 @@ static FAutoConsoleCommand GHktCameraSetModeCmd(
 		})
 );
 
-static FAutoConsoleCommand GHktCameraGetModeCmd(
+static FAutoConsoleCommandWithWorldAndArgs GHktCameraGetModeCmd(
 	TEXT("hkt.Camera.GetMode"),
 	TEXT("현재 카메라 모드를 출력합니다."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(

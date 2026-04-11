@@ -158,6 +158,9 @@ void AHktIngamePlayerController::SetupInputComponent()
 
 void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
+    // 커서가 숨겨진 모드(ShoulderView 등)에서는 클릭-기반 RTS 선택을 비활성화
+    if (!bShowMouseCursor) return;
+
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
 
@@ -180,6 +183,10 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 
 void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
+    // 커서가 숨겨진 모드(ShoulderView 등)에서는 RTS 우클릭 이동/공격 인텐트를 발사하지 않는다
+    // — 그렇지 않으면 ShoulderView에서 우클릭 한 번에 캐릭터가 클릭 지점으로 끝없이 이동함
+    if (!bShowMouseCursor) return;
+
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
 
@@ -306,8 +313,8 @@ void AHktIngamePlayerController::OnMoveAction(const FInputActionValue& Value)
 
 void AHktIngamePlayerController::OnMoveActionCompleted(const FInputActionValue& Value)
 {
-    if (!bIsDirectionalMoving) return;
-
+    // 항상 Stop 이벤트를 시도한다 — bIsDirectionalMoving 가드를 두면
+    // IMC 교체/포커스 손실로 Triggered가 누락된 경우 정지가 안 나가서 캐릭터가 계속 전진함
     bIsDirectionalMoving = false;
     LastMoveDirection = FVector::ZeroVector;
 

@@ -71,8 +71,11 @@ public:
 	/** 머티리얼 LUT 설정 — OnMeshReady에서 Proxy에 전달 */
 	void SetMaterialLUT(const FHktVoxelTexturePair& InMaterialLUT);
 
-	/** 캐시된 스타일 텍스처가 유효한지 확인 (ApplyStyleToComponent 성공 여부 판단용) */
-	bool HasCachedStyleTextures() const { return CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid(); }
+	/** 캐시된 타일 텍스처 셋 유효 여부 (TileArray RHI는 비동기 빌드라 재시도 필요) */
+	bool HasCachedTileTextures() const { return CachedTileTextures.IsValid(); }
+
+	/** 캐시된 머티리얼 LUT 유효 여부 */
+	bool HasCachedMaterialLUT() const { return CachedMaterialLUT.IsValid(); }
 
 	/** 그림자 최대 거리 설정 (UE 유닛). 0이면 항상 그림자 ON */
 	void SetShadowDistance(float InDistance) { ShadowDistance = InDistance; }
