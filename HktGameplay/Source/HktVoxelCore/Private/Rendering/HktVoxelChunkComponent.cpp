@@ -38,6 +38,10 @@ void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FInt
 	ChunkCoord = InChunkCoord;
 	CachedVoxelSize = (InVoxelSize > 0.f) ? InVoxelSize : FHktVoxelChunk::VOXEL_SIZE;
 
+	// 풀 재사용 시 SceneProxy가 재생성되므로 스타일 전달 상태를 리셋.
+	// (이전 수명주기의 stale 플래그로 인해 OnMeshReady가 텍스처 셋업을 스킵하는 것 방지)
+	bStyleTexturesApplied = false;
+
 	// 청크 좌표에 따른 상대 위치 설정
 	const float ChunkWorldSize = FHktVoxelChunk::SIZE * CachedVoxelSize;
 
@@ -131,6 +135,45 @@ void UHktVoxelChunkComponent::SetMaterialLUT(const FHktVoxelTexturePair& InMater
 {
 	CachedMaterialLUT = InMaterialLUT;
 	bStyleTexturesApplied = false;
+}
+
+void UHktVoxelChunkComponent::PushStyleTexturesToProxy()
+{
+	// SceneProxy가 아직 없으면 다음 Pump 틱에서 재시도.
+	if (!SceneProxy)
+	{
+		return;
+	}
+
+	// 캐시된 것이 하나도 없으면 의미 없음.
+	if (!CachedTileTextures.IsValid() && !CachedMaterialLUT.IsValid())
+	{
+		return;
+	}
+
+	FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
+	FHktVoxelTileTextureSet TileTexCopy = CachedTileTextures;
+	FHktVoxelTexturePair MatLUTCopy = CachedMaterialLUT;
+
+	ENQUEUE_RENDER_COMMAND(HktVoxelPushStyleTextures)(
+		[CapturedProxy, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
+		{
+			FHktVoxelChunkProxy* Proxy = static_cast<FHktVoxelChunkProxy*>(CapturedProxy);
+			if (TileTexCopy.IsValid())
+			{
+				Proxy->SetTileTextures_RenderThread(
+					TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
+					TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler);
+			}
+			if (MatLUTCopy.IsValid())
+			{
+				Proxy->SetMaterialLUT_RenderThread(
+					MatLUTCopy.Texture, MatLUTCopy.Sampler);
+			}
+		}
+	);
+
+	bStyleTexturesApplied = true;
 }
 
 void UHktVoxelChunkComponent::UpdateBoneTransforms(const TArray<FVector4f>& BoneMatrixRows)

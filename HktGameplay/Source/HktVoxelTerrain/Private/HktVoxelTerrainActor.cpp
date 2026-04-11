@@ -135,7 +135,11 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	TerrainMeshScheduler->SetMaxMeshPerFrame(MaxMeshPerFrame);
 	TerrainMeshScheduler->Tick(CameraPos);
 
-	// 4. 메싱 완료 청크 → GPU 업로드
+	// 4. 스타일 텍스처 재시도 펌프 (TileArray RHI 비동기 빌드 대응)
+	//    ProcessMeshReadyChunks보다 먼저 호출해 OnMeshReady에서도 최신 캐시를 쓰게 한다.
+	PumpStyleTextures();
+
+	// 5. 메싱 완료 청크 → GPU 업로드
 	ProcessMeshReadyChunks();
 }
 
@@ -210,29 +214,58 @@ void AHktVoxelTerrainActor::ProcessStreamingResults()
 
 void AHktVoxelTerrainActor::ProcessMeshReadyChunks()
 {
+	// 참고: 스타일 텍스처 재시도/전달은 PumpStyleTextures()가 매 Tick 별도로 처리한다.
+	// 여기서는 순수하게 메시 GPU 업로드만 담당.
 	for (auto& Pair : ActiveChunks)
 	{
 		FHktVoxelChunk* Chunk = TerrainCache->GetChunk(Pair.Key);
 		if (Chunk && Chunk->bMeshReady.load(std::memory_order_acquire))
 		{
 			Chunk->bMeshReady.store(false, std::memory_order_release);
-
-			// BuildTerrainStyle의 UpdateResource()가 비동기이므로
-			// 첫 ApplyStyleToComponent 시점에 TileArray RHI가 아직 없을 수 있다.
-			// TileArray(비동기)와 MaterialLUT(동기)의 준비 시점이 다르므로 개별 판정.
-			// 예상되는 파트 중 하나라도 아직 미캐시라면 재시도한다.
-			if (bStyleBuilt)
-			{
-				const bool bExpectsTileArray = BuiltTileAtlas && BuiltTileAtlas->TileArray != nullptr;
-				const bool bNeedTileRetry = bExpectsTileArray && !Pair.Value->HasCachedTileTextures();
-				const bool bNeedMatRetry = BuiltMaterialLUT && !Pair.Value->HasCachedMaterialLUT();
-				if (bNeedTileRetry || bNeedMatRetry)
-				{
-					ApplyStyleToComponent(Pair.Value);
-				}
-			}
-
 			Pair.Value->OnMeshReady();
+		}
+	}
+}
+
+void AHktVoxelTerrainActor::PumpStyleTextures()
+{
+	if (!bStyleBuilt)
+	{
+		return;
+	}
+
+	// BuiltTileAtlas->TileArray가 존재하면 해당 RHI가 준비되어야 "완성"으로 간주.
+	// BuiltMaterialLUT는 BuildLUTTexture()가 동기 경로라 보통 BeginPlay 시점에 이미 준비됨.
+	const bool bExpectsTileArray = BuiltTileAtlas && BuiltTileAtlas->TileArray != nullptr;
+	const bool bExpectsMaterialLUT = (BuiltMaterialLUT != nullptr);
+
+	if (!bExpectsTileArray && !bExpectsMaterialLUT)
+	{
+		return;
+	}
+
+	for (auto& Pair : ActiveChunks)
+	{
+		UHktVoxelChunkComponent* Comp = Pair.Value;
+		if (!Comp)
+		{
+			continue;
+		}
+
+		// 캐시 재시도 — RHI가 이번 틱에 방금 준비되었을 수 있다.
+		const bool bNeedTileRetry = bExpectsTileArray && !Comp->HasCachedTileTextures();
+		const bool bNeedMatRetry = bExpectsMaterialLUT && !Comp->HasCachedMaterialLUT();
+		if (bNeedTileRetry || bNeedMatRetry)
+		{
+			ApplyStyleToComponent(Comp);
+		}
+
+		// 캐시가 기대하는 모든 부분에 대해 완성되었고 아직 Proxy에 전달되지 않았다면 push.
+		const bool bTileComplete = !bExpectsTileArray || Comp->HasCachedTileTextures();
+		const bool bMatComplete = !bExpectsMaterialLUT || Comp->HasCachedMaterialLUT();
+		if (bTileComplete && bMatComplete && !Comp->IsStyleTexturesApplied())
+		{
+			Comp->PushStyleTexturesToProxy();
 		}
 	}
 }

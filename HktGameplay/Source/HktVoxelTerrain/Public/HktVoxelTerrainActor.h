@@ -172,6 +172,18 @@ private:
 	/** 메싱 완료된 청크의 컴포넌트 갱신 */
 	void ProcessMeshReadyChunks();
 
+	/**
+	 * ActiveChunks 전체에 대해 스타일 텍스처 캐시 재시도 + Proxy 전달.
+	 *
+	 * BuildTerrainStyle의 UpdateResource()가 비동기이므로, 최초 ApplyStyleToComponent
+	 * 호출 시점에는 TileArray RHI가 아직 nullptr일 수 있다. 이전 구현은 ProcessMeshReadyChunks
+	 * 안에서 bMeshReady=true인 틱에만 재시도를 수행했는데, 정적 청크는 메싱이 한 번만
+	 * 발생하므로 RHI가 그 틱 안에 준비되지 않으면 다시는 재시도할 기회가 없었다.
+	 *
+	 * 매 Tick 호출되어 캐시가 완성되는 즉시 PushStyleTexturesToProxy로 Proxy에 전달한다.
+	 */
+	void PumpStyleTextures();
+
 	/** 컴포넌트 풀 관리 */
 	UHktVoxelChunkComponent* AcquireComponent();
 	void ReleaseComponent(UHktVoxelChunkComponent* Comp);
