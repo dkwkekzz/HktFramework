@@ -43,6 +43,21 @@ struct HKTCORE_API FHktTerrainGeneratorConfig
 	Fixed BiomeNoiseScale = Fixed::FromRaw(131);           // 0.002 * 65536 ≈ 131
 	Fixed MountainBiomeThreshold = Fixed::FromRaw(80 * 65536); // 80.0
 
+	// 복셀 크기 (cm 단위). HktVoxelCore / HktCore / 디버그 렌더러 등
+	// 프레임워크 전체가 이 값을 단일 출처로 사용한다.
+	float VoxelSizeCm = 15.0f;
+
+	// 월드 경계 (Z축 청크 좌표). 시뮬레이션과 렌더가 공유.
+	int32 HeightMinZ = 0;
+	int32 HeightMaxZ = 3;
+
+	// 시뮬레이션 청크 스트리밍 파라미터.
+	// 렌더러의 스트리밍 설정과 독립되어 있으며, `FHktTerrainSystem::Process`가 사용.
+	int32 SimLoadRadiusXY          = 2;
+	int32 SimLoadRadiusZ           = 1;
+	int32 SimMaxChunksLoaded       = 256;
+	int32 SimMaxChunkLoadsPerFrame = 4;
+
 	// 청크 크기 (HktVoxelCore와 동일)
 	static constexpr int32 ChunkSize = 32;
 };

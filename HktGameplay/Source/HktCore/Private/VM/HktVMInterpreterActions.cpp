@@ -767,9 +767,12 @@ void FHktVMInterpreter::Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex
     const int32 CZ = Runtime.Context->ReadEntity(Center, PropertyId::PosZ);
     const int64 RadiusSq = static_cast<int64>(RadiusCm) * RadiusCm;
 
+    // 단일 출처: TerrainState에서 VoxelSize 획득
+    const float VS = TerrainState->VoxelSizeCm;
+
     // 셀 인덱스 예측: 중심 복셀 좌표 + 반경 내 복셀 범위 계산
-    const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CX, CY, CZ);
-    const int32 VoxelRadius = FMath::CeilToInt(static_cast<float>(RadiusCm) / FHktTerrainSystem::VoxelSizeCm);
+    const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CX, CY, CZ, VS);
+    const int32 VoxelRadius = FMath::CeilToInt(static_cast<float>(RadiusCm) / VS);
 
     static constexpr int32 MaxVoxelsPerQuery = 8;
     int32 VoxelCount = 0;
@@ -787,7 +790,7 @@ void FHktVMInterpreter::Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex
                 const int32 VZ = CenterVoxel.Z + dz;
 
                 // cm 단위 거리 체크
-                const FIntVector VCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ);
+                const FIntVector VCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ, VS);
                 const int64 DDX = VCm.X - CX;
                 const int64 DDY = VCm.Y - CY;
                 const int64 DDZ = VCm.Z - CZ;

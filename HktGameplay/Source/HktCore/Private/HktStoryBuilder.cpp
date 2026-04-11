@@ -1155,13 +1155,13 @@ FHktStoryBuilder& FHktStoryBuilder::IsTerrainSolid(RegisterIndex Dst, RegisterIn
 }
 
 
-FHktStoryBuilder& FHktStoryBuilder::EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity)
+FHktStoryBuilder& FHktStoryBuilder::EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity, int32 VoxelSizeCm)
 {
     // 조합 연산: 엔티티 cm 위치를 복셀 좌표로 변환
-    // VoxelSizeCm = 15.0f → 정수 나눗셈으로 근사 (15로 나누기)
-    // OutVoxelBase+0 = PosX / 15
-    // OutVoxelBase+1 = PosY / 15
-    // OutVoxelBase+2 = PosZ / 15
+    // 호출자가 UHktRuntimeGlobalSetting::VoxelSizeCm을 바이트코드 상수로 베이크하도록 전달한다.
+    // OutVoxelBase+0 = PosX / VoxelSizeCm
+    // OutVoxelBase+1 = PosY / VoxelSizeCm
+    // OutVoxelBase+2 = PosZ / VoxelSizeCm
     FHktRegReserve guard(RegAllocator, {OutVoxelBase, Entity});
     FHktScopedReg divisor(*this);
 
@@ -1169,7 +1169,7 @@ FHktStoryBuilder& FHktStoryBuilder::EntityPosToVoxel(RegisterIndex OutVoxelBase,
     LoadStoreEntity(static_cast<RegisterIndex>(OutVoxelBase + 1), Entity, PropertyId::PosY);
     LoadStoreEntity(static_cast<RegisterIndex>(OutVoxelBase + 2), Entity, PropertyId::PosZ);
 
-    LoadConst(divisor, 15);
+    LoadConst(divisor, VoxelSizeCm);
     Div(OutVoxelBase, OutVoxelBase, divisor);
     Div(static_cast<RegisterIndex>(OutVoxelBase + 1), static_cast<RegisterIndex>(OutVoxelBase + 1), divisor);
     Div(static_cast<RegisterIndex>(OutVoxelBase + 2), static_cast<RegisterIndex>(OutVoxelBase + 2), divisor);

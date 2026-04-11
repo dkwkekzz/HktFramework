@@ -38,6 +38,13 @@ void AHktVoxelTerrainActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 단일 출처: UHktRuntimeGlobalSetting에서 지형 설정을 모두 읽는다
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	const FHktTerrainGeneratorConfig GenConfig = Settings->ToTerrainConfig();
+	VoxelSize  = GenConfig.VoxelSizeCm;
+	HeightMinZ = GenConfig.HeightMinZ;
+	HeightMaxZ = GenConfig.HeightMaxZ;
+
 	// 테레인 전용 파이프라인 생성
 	TerrainCache = MakeUnique<FHktVoxelRenderCache>();
 	TerrainMeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(TerrainCache.Get());
@@ -50,9 +57,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
 	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 
-	// 지형 생성기 초기화 (UHktRuntimeGlobalSetting에서 설정 읽기)
-	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
-	const FHktTerrainGeneratorConfig GenConfig = Settings->ToTerrainConfig();
+	// 지형 생성기 초기화
 	Generator = MakeUnique<FHktTerrainGenerator>(GenConfig);
 
 	PrewarmPool(InitialPoolSize);

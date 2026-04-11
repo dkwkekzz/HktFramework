@@ -457,7 +457,7 @@ void FHktVMProcessSystem::Process(
 // 3.2 Terrain System
 // ============================================================================
 
-FIntVector FHktTerrainSystem::CmToVoxel(int32 X, int32 Y, int32 Z)
+FIntVector FHktTerrainSystem::CmToVoxel(int32 X, int32 Y, int32 Z, float VoxelSizeCm)
 {
     // 음수 좌표를 올바르게 처리하기 위해 floor 연산 사용
     auto FloorDivF = [](float A, float B) -> int32
@@ -470,7 +470,7 @@ FIntVector FHktTerrainSystem::CmToVoxel(int32 X, int32 Y, int32 Z)
         FloorDivF(static_cast<float>(Z), VoxelSizeCm));
 }
 
-FIntVector FHktTerrainSystem::CmToVoxel(float X, float Y, float Z)
+FIntVector FHktTerrainSystem::CmToVoxel(float X, float Y, float Z, float VoxelSizeCm)
 {
     return FIntVector(
         FMath::FloorToInt(X / VoxelSizeCm),
@@ -478,7 +478,7 @@ FIntVector FHktTerrainSystem::CmToVoxel(float X, float Y, float Z)
         FMath::FloorToInt(Z / VoxelSizeCm));
 }
 
-FIntVector FHktTerrainSystem::VoxelToCm(int32 VX, int32 VY, int32 VZ)
+FIntVector FHktTerrainSystem::VoxelToCm(int32 VX, int32 VY, int32 VZ, float VoxelSizeCm)
 {
     // 복셀 중심 좌표 반환
     const float Half = VoxelSizeCm * 0.5f;
@@ -496,6 +496,16 @@ void FHktTerrainSystem::Process(
 {
     RequiredChunks.Reset();
 
+    // 단일 출처: Generator의 Config에서 모든 스트리밍 파라미터 획득
+    const FHktTerrainGeneratorConfig& Cfg = Generator.GetConfig();
+    const float VS            = Cfg.VoxelSizeCm;
+    const int32 LoadRadiusXY  = Cfg.SimLoadRadiusXY;
+    const int32 LoadRadiusZ   = Cfg.SimLoadRadiusZ;
+    const int32 MaxLoaded     = Cfg.SimMaxChunksLoaded;
+    const int32 MaxPerFrame   = Cfg.SimMaxChunkLoadsPerFrame;
+    const int32 HeightMinZ    = Cfg.HeightMinZ;
+    const int32 HeightMaxZ    = Cfg.HeightMaxZ;
+
     // 1. 엔티티를 청크 단위로 중복 제거하여 수집
     //    같은 청크에 있는 엔티티 N개가 동일한 75개 항목을 중복 삽입하지 않도록,
     //    엔티티의 청크 좌표를 먼저 TSet에 모은 뒤 한 번만 반경 확장한다.
@@ -503,7 +513,7 @@ void FHktTerrainSystem::Process(
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
         const FIntVector Pos = WorldState.GetPosition(Id);
-        const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z);
+        const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z, VS);
         EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
     });
 
@@ -518,13 +528,15 @@ void FHktTerrainSystem::Process(
                 const FIntVector VoxelPos = CmToVoxel(
                     static_cast<float>(Evt.Location.X),
                     static_cast<float>(Evt.Location.Y),
-                    static_cast<float>(Evt.Location.Z));
+                    static_cast<float>(Evt.Location.Z),
+                    VS);
                 EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
             }
         }
     }
 
     // 고유 청크 좌표에서만 반경 확장 (엔티티 200개 → 고유 청크 ~10개)
+    // 월드 Z 경계 [HeightMinZ, HeightMaxZ] 클램프로 천장 밖 청크는 로드 대상에서 제외
     for (const FIntVector& ChunkCoord : EntityChunks)
     {
         for (int32 DX = -LoadRadiusXY; DX <= LoadRadiusXY; ++DX)
@@ -533,7 +545,10 @@ void FHktTerrainSystem::Process(
             {
                 for (int32 DZ = -LoadRadiusZ; DZ <= LoadRadiusZ; ++DZ)
                 {
-                    RequiredChunks.Add(FIntVector(ChunkCoord.X + DX, ChunkCoord.Y + DY, ChunkCoord.Z + DZ));
+                    const int32 CZ = ChunkCoord.Z + DZ;
+                    if (CZ < HeightMinZ || CZ > HeightMaxZ)
+                        continue;  // 월드 경계 밖 — 시뮬레이션에서도 렌더와 동일하게 무시
+                    RequiredChunks.Add(FIntVector(ChunkCoord.X + DX, ChunkCoord.Y + DY, CZ));
                 }
             }
         }
@@ -545,11 +560,11 @@ void FHktTerrainSystem::Process(
     {
         if (!TerrainState.IsChunkLoaded(Coord))
         {
-            if (TerrainState.GetLoadedChunkCount() >= MaxChunksLoaded)
+            if (TerrainState.GetLoadedChunkCount() >= MaxLoaded)
             {
                 break;
             }
-            if (LoadedThisFrame >= MaxChunkLoadsPerFrame)
+            if (LoadedThisFrame >= MaxPerFrame)
             {
                 break;  // 나머지는 다음 프레임에 로드
             }
@@ -622,6 +637,9 @@ void FHktMovementSystem::Process(
     const float SlowingRadius = CVarMoveSlowingRadius.GetValueOnAnyThread();
     const float MinSpeed = CVarMoveMinSpeed.GetValueOnAnyThread();
 
+    // 단일 출처: TerrainState에서 VoxelSize 획득 (TerrainState가 없으면 기본값 15.0f)
+    const float VS = TerrainState ? TerrainState->VoxelSizeCm : 15.0f;
+
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
         if (WorldState.GetProperty(Id, PropertyId::IsMoving) == 0)
@@ -634,7 +652,7 @@ void FHktMovementSystem::Process(
         // 솔리드 복셀 안에 파묻힌 엔티티는 이동 불가 — Physics에서 밀어낸다
         if (TerrainState)
         {
-            const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
+            const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ, VS);
             if (TerrainState->IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
             {
                 HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Warning, LogSource,
@@ -761,12 +779,12 @@ void FHktMovementSystem::Process(
                 static_cast<float>(WorldState.GetProperty(Id, PropertyId::CollisionRadius)), 30.0f);
 
             // 발 위 1복셀 높이에서 체크 (바닥 복셀이 아닌 몸통 복셀)
-            const float BodyZ = CurZ + FHktTerrainSystem::VoxelSizeCm;
+            const float BodyZ = CurZ + VS;
 
             // X축 차단: 이동 방향 전방 엔티티 가장자리의 복셀 검사
             {
                 const float EdgeX = NewX + (VX >= 0.0f ? ColRadius : -ColRadius);
-                const FIntVector V = FHktTerrainSystem::CmToVoxel(EdgeX, CurY, BodyZ);
+                const FIntVector V = FHktTerrainSystem::CmToVoxel(EdgeX, CurY, BodyZ, VS);
                 if (TerrainState->IsSolid(V.X, V.Y, V.Z))
                 {
                     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
@@ -779,7 +797,7 @@ void FHktMovementSystem::Process(
             // Y축 차단 (X가 이미 보정된 NewX 사용 — 코너 슬라이딩 처리)
             {
                 const float EdgeY = NewY + (VY >= 0.0f ? ColRadius : -ColRadius);
-                const FIntVector V = FHktTerrainSystem::CmToVoxel(NewX, EdgeY, BodyZ);
+                const FIntVector V = FHktTerrainSystem::CmToVoxel(NewX, EdgeY, BodyZ, VS);
                 if (TerrainState->IsSolid(V.X, V.Y, V.Z))
                 {
                     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
@@ -795,14 +813,14 @@ void FHktMovementSystem::Process(
         if (TerrainState && WorldState.GetProperty(Id, PropertyId::IsGrounded) != 0)
         {
             // 현재 위치의 실제 바닥 높이 (동굴·다층 지원: 현재 Z 기준 아래 스캔)
-            const FIntVector CurVoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
+            const FIntVector CurVoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ, VS);
             const int32 CurSurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, CurVoxelPos.X, CurVoxelPos.Y, CurVoxelPos.Z);
-            const float CurSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, CurSurfaceVoxelZ).Z);
+            const float CurSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, CurSurfaceVoxelZ, VS).Z);
 
             // 이동 목표 위치의 실제 바닥 높이 (동굴·다층 지원: 목표 Z 기준 아래 스캔)
-            const FIntVector NewVoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ);
+            const FIntVector NewVoxelPos = FHktTerrainSystem::CmToVoxel(NewX, NewY, NewZ, VS);
             const int32 NewSurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, NewVoxelPos.X, NewVoxelPos.Y, NewVoxelPos.Z);
-            const float NewSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, NewSurfaceVoxelZ).Z);
+            const float NewSurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, NewSurfaceVoxelZ, VS).Z);
 
             // 측면 충돌: 최대 계단 높이를 초과하면 XY 이동 차단
             const float MaxStepHeightCm = CVarTerrainMaxStepHeight.GetValueOnAnyThread();
@@ -854,9 +872,9 @@ void FHktMovementSystem::Process(
             const int32 CurY = WorldState.GetProperty(Id, PropertyId::PosY);
             const int32 CurZ = WorldState.GetProperty(Id, PropertyId::PosZ);
 
-            const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ);
+            const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurX, CurY, CurZ, VS);
             const int32 SurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
-            const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z;
+            const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ, VS).Z;
 
             if (CurZ != SurfaceCmZ)
             {
@@ -895,7 +913,7 @@ void FHktMovementSystem::Process(
                 const int32 PX = WorldState.GetProperty(Id, PropertyId::PosX);
                 const int32 PY = WorldState.GetProperty(Id, PropertyId::PosY);
                 const FIntVector HeadVoxel = FHktTerrainSystem::CmToVoxel(
-                    static_cast<float>(PX), static_cast<float>(PY), NewZ + FHktTerrainSystem::VoxelSizeCm);
+                    static_cast<float>(PX), static_cast<float>(PY), NewZ + VS, VS);
                 if (TerrainState->IsSolid(HeadVoxel.X, HeadVoxel.Y, HeadVoxel.Z))
                 {
                     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
@@ -911,9 +929,9 @@ void FHktMovementSystem::Process(
             {
                 const int32 CurPX = WorldState.GetProperty(Id, PropertyId::PosX);
                 const int32 CurPY = WorldState.GetProperty(Id, PropertyId::PosY);
-                const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurPX, CurPY, FMath::RoundToInt(NewZ));
+                const FIntVector VoxelPos = FHktTerrainSystem::CmToVoxel(CurPX, CurPY, FMath::RoundToInt(NewZ), VS);
                 const int32 SurfaceVoxelZ = FindFloorVoxelZ(*TerrainState, VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
-                const float SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ).Z);
+                const float SurfaceCmZ = static_cast<float>(FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ, VS).Z);
 
                 if (NewZ <= SurfaceCmZ)
                 {
@@ -986,6 +1004,9 @@ void FHktPhysicsSystem::Process(
 
     // CVar를 루프 진입 전 1회만 캐싱 (매 충돌 쌍마다 읽지 않도록)
     const float SoftPushRatio = CVarPhysicsSoftPushRatio.GetValueOnAnyThread();
+
+    // 단일 출처: TerrainState에서 VoxelSize 획득
+    const float VS = TerrainState ? TerrainState->VoxelSizeCm : 15.0f;
 
     // 인접 셀 중복 검사 방지용 — 멤버 변수 재사용으로 매 프레임 할당 회피
     TestedPairs.Reset();
@@ -1168,7 +1189,7 @@ void FHktPhysicsSystem::Process(
                                 if (TerrainState)
                                 {
                                     const FIntVector VA = FHktTerrainSystem::CmToVoxel(
-                                        static_cast<float>(NewA.X), static_cast<float>(NewA.Y), static_cast<float>(NewA.Z));
+                                        static_cast<float>(NewA.X), static_cast<float>(NewA.Y), static_cast<float>(NewA.Z), VS);
                                     if (TerrainState->IsSolid(VA.X, VA.Y, VA.Z))
                                     {
                                         HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
@@ -1178,7 +1199,7 @@ void FHktPhysicsSystem::Process(
                                     }
 
                                     const FIntVector VB = FHktTerrainSystem::CmToVoxel(
-                                        static_cast<float>(NewB.X), static_cast<float>(NewB.Y), static_cast<float>(NewB.Z));
+                                        static_cast<float>(NewB.X), static_cast<float>(NewB.Y), static_cast<float>(NewB.Z), VS);
                                     if (TerrainState->IsSolid(VB.X, VB.Y, VB.Z))
                                     {
                                         HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
@@ -1222,8 +1243,9 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
     FHktVMWorldStateProxy& VMProxy,
     const FHktTerrainState& TerrainState)
 {
-    static constexpr float VoxelSize = FHktTerrainSystem::VoxelSizeCm;
-    static constexpr float HalfVoxel = VoxelSize * 0.5f;
+    // 단일 출처: TerrainState에서 VoxelSize 획득
+    const float VoxelSize = TerrainState.VoxelSizeCm;
+    const float HalfVoxel = VoxelSize * 0.5f;
     static constexpr int32 MaxEscapeScanUp = 64;
 
 #if ENABLE_HKT_INSIGHTS
@@ -1248,7 +1270,7 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
 #endif
 
         // ── 1단계: 중심 복셀이 솔리드 → 수직 탈출 ──
-        const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(PosX, PosY, PosZ);
+        const FIntVector CenterVoxel = FHktTerrainSystem::CmToVoxel(PosX, PosY, PosZ, VoxelSize);
         if (TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, CenterVoxel.Z))
         {
             HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Warning, LogSource,
@@ -1268,7 +1290,7 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
             {
                 if (!TerrainState.IsSolid(CenterVoxel.X, CenterVoxel.Y, ScanZ))
                 {
-                    const int32 EscapeCmZ = FHktTerrainSystem::VoxelToCm(0, 0, ScanZ).Z;
+                    const int32 EscapeCmZ = FHktTerrainSystem::VoxelToCm(0, 0, ScanZ, VoxelSize).Z;
                     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
                         FString::Printf(TEXT("Terrain escape resolved — Z: %d → %d (scanned %d voxels)"),
                             FMath::RoundToInt(PosZ), EscapeCmZ, ScanZ - CenterVoxel.Z), Id);
@@ -1289,9 +1311,9 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
 
         // ── 2단계: 가장자리 겹침 → AABB-Sphere push-out ──
         const FIntVector MinVoxel = FHktTerrainSystem::CmToVoxel(
-            PosX - Radius, PosY - Radius, PosZ);
+            PosX - Radius, PosY - Radius, PosZ, VoxelSize);
         const FIntVector MaxVoxel = FHktTerrainSystem::CmToVoxel(
-            PosX + Radius, PosY + Radius, PosZ + Radius);
+            PosX + Radius, PosY + Radius, PosZ + Radius, VoxelSize);
 
         float PushX = 0.0f;
         float PushY = 0.0f;
@@ -1319,7 +1341,7 @@ void FHktPhysicsSystem::ProcessTerrainCollision(
                     if (bDebugThis) ++DebugSolidCount;
 #endif
 
-                    const FIntVector VoxelCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ);
+                    const FIntVector VoxelCm = FHktTerrainSystem::VoxelToCm(VX, VY, VZ, VoxelSize);
                     const float VCX = static_cast<float>(VoxelCm.X);
                     const float VCY = static_cast<float>(VoxelCm.Y);
                     const float VCZ = static_cast<float>(VoxelCm.Z);

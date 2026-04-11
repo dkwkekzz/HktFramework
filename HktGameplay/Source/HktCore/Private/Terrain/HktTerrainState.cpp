@@ -48,6 +48,9 @@ void FHktTerrainState::LocalIndexToXYZ(uint16 Index, int32& OutX, int32& OutY, i
 
 void FHktTerrainState::LoadChunk(const FIntVector& Coord, const FHktTerrainGenerator& Generator)
 {
+	// Generator의 Config에서 VoxelSize를 전파 (단일 출처 일관성 유지)
+	VoxelSizeCm = Generator.GetConfig().VoxelSizeCm;
+
 	if (LoadedChunks.Contains(Coord))
 	{
 		return; // 이미 로드됨
@@ -238,6 +241,7 @@ void FHktTerrainState::SerializeModifications(FArchive& Ar)
 
 void FHktTerrainState::CopyFrom(const FHktTerrainState& Other)
 {
+	VoxelSizeCm = Other.VoxelSizeCm;
 	LoadedChunks = Other.LoadedChunks;
 	Modifications = Other.Modifications;
 	HeightmapCache = Other.HeightmapCache;

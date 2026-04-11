@@ -35,7 +35,9 @@ struct FHktVoxel
 struct HKTVOXELCORE_API FHktVoxelChunk
 {
 	static constexpr int32   SIZE       = 32;
-	static constexpr float   VOXEL_SIZE = 15.0f;   // UE units per voxel (15 UU = 15cm)
+	// VOXEL_SIZE는 폴백 기본값 전용 — 실제 런타임 크기는 UHktRuntimeGlobalSetting::VoxelSizeCm이
+	// 단일 출처이며 FHktTerrainGeneratorConfig → FHktTerrainState / AHktVoxelTerrainActor 경로로 전파된다.
+	static constexpr float   VOXEL_SIZE = 15.0f;   // fallback default (UU)
 
 	FHktVoxel Data[SIZE][SIZE][SIZE];  // ~128KB
 
