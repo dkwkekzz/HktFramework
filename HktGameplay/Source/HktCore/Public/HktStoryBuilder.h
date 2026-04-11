@@ -537,7 +537,8 @@ public:
      * 엔티티 cm 위치 → 복셀 좌표로 변환 (조합 연산)
      * OutVoxelBase, OutVoxelBase+1, OutVoxelBase+2 에 복셀 XYZ 저장
      */
-    FHktStoryBuilder& EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity);
+    /** @param VoxelSizeCm  바이트코드에 베이크될 복셀 크기 (cm). UHktRuntimeGlobalSetting에서 조회해 전달할 것. */
+    FHktStoryBuilder& EntityPosToVoxel(RegisterIndex OutVoxelBase, RegisterIndex Entity, int32 VoxelSizeCm);
 
     /** 복셀 좌표(PosBase, PosBase+1, PosBase+2)에 빈 공간(TypeID=0) 설정 (파괴) */
     FHktStoryBuilder& DestroyVoxelAt(RegisterIndex PosBase);

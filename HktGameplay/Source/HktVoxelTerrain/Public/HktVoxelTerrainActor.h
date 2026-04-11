@@ -138,8 +138,12 @@ public:
 		meta = (TitleProperty = "{DisplayName} (ID:{TypeID})"))
 	TArray<FHktVoxelBlockStyle> BlockStyles;
 
-	/** 복셀 1개의 월드 크기 (UE 유닛). 기본 15 UU = 15cm. 런타임 변경 시 리로드 필요 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering", meta = (ClampMin = 1.0, ClampMax = 500.0))
+	/**
+	 * 복셀 1개의 월드 크기 (UE 유닛).
+	 * BeginPlay에서 UHktRuntimeGlobalSetting::VoxelSizeCm에서 읽어 초기화된다.
+	 * 직접 편집 불가 — 전역 설정이 단일 출처.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HktTerrain|Rendering", Transient)
 	float VoxelSize = 15.0f;
 
 	/** 컴포넌트 풀 초기 크기 */

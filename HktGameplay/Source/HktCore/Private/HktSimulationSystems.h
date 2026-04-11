@@ -70,7 +70,8 @@ struct HKTCORE_API FHktTerrainSystem
     static constexpr int32 LoadRadiusZ = 1;     // 엔티티 주변 Z 1청크 반경 로드
     static constexpr int32 MaxChunksLoaded = 256;  // 시뮬레이션 메모리 제한
     static constexpr int32 MaxChunkLoadsPerFrame = 4;  // 프레임당 최대 로드 수 (스파이크 방지)
-    static constexpr float VoxelSizeCm = 15.0f;    // HktVoxelCore와 동일
+
+    // VoxelSize는 FHktTerrainState/Generator에서 제공 (UHktRuntimeGlobalSetting이 단일 출처)
 
     TSet<FIntVector> RequiredChunks;  // 프레임 내 재사용 (할당 회피)
     FIntVector LastPivotChunk = FIntVector(MAX_int32);  // 이전 프레임의 피벗 청크 (변경 감지)
@@ -82,12 +83,12 @@ struct HKTCORE_API FHktTerrainSystem
         const TArray<FHktEvent>* PendingEvents = nullptr
     );
 
-    /** cm 위치 → 복셀 좌표 변환 */
-    static FIntVector CmToVoxel(int32 X, int32 Y, int32 Z);
-    static FIntVector CmToVoxel(float X, float Y, float Z);
+    /** cm 위치 → 복셀 좌표 변환 (VoxelSize는 호출자가 TerrainState/Generator에서 획득) */
+    static FIntVector CmToVoxel(int32 X, int32 Y, int32 Z, float VoxelSizeCm);
+    static FIntVector CmToVoxel(float X, float Y, float Z, float VoxelSizeCm);
 
     /** 복셀 좌표 → cm 위치 변환 (복셀 중심) */
-    static FIntVector VoxelToCm(int32 VX, int32 VY, int32 VZ);
+    static FIntVector VoxelToCm(int32 VX, int32 VY, int32 VZ, float VoxelSizeCm);
 };
 
 /** 3.5 Movement System: 힘→가속도 물리 기반 이동 (고정 프레임 1/30초) */

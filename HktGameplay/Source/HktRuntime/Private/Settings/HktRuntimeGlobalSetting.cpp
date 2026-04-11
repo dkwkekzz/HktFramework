@@ -11,6 +11,7 @@ FHktTerrainGeneratorConfig UHktRuntimeGlobalSetting::ToTerrainConfig() const
 	using Fixed = FHktFixed32;
 
 	FHktTerrainGeneratorConfig Config;
+	Config.VoxelSizeCm             = VoxelSizeCm;
 	Config.Seed                    = TerrainSeed;
 	Config.HeightScale             = Fixed::FromDouble(HeightScale);
 	Config.HeightOffset            = Fixed::FromDouble(HeightOffset);
@@ -40,11 +41,11 @@ FVector UHktRuntimeGlobalSetting::ComputeDefaultSpawnLocation() const
 	const Fixed VoxelY = Fixed::FromDouble(DefaultSpawnVoxelXY.Y);
 	const Fixed SurfaceZ = Generator.GetSurfaceHeight(VoxelX, VoxelY);
 
-	// 복셀 → cm 변환 (복셀 중심 = voxel * 15 + 7.5)
-	constexpr double VoxelSizeCm = 15.0;
-	constexpr double Half = VoxelSizeCm * 0.5;
+	// 복셀 → cm 변환 (복셀 중심 = voxel * VoxelSize + Half)
+	const double VS = static_cast<double>(VoxelSizeCm);
+	const double Half = VS * 0.5;
 	return FVector(
-		DefaultSpawnVoxelXY.X * VoxelSizeCm + Half,
-		DefaultSpawnVoxelXY.Y * VoxelSizeCm + Half,
-		(SurfaceZ.ToDouble() + 1.0) * VoxelSizeCm + Half);  // +1: 표면 위 1복셀
+		DefaultSpawnVoxelXY.X * VS + Half,
+		DefaultSpawnVoxelXY.Y * VS + Half,
+		(SurfaceZ.ToDouble() + 1.0) * VS + Half);  // +1: 표면 위 1복셀
 }

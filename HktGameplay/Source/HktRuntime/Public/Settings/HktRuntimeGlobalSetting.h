@@ -32,6 +32,14 @@ public:
 
 	// === 지형 생성 ===
 
+	/**
+	 * 복셀 1개의 월드 크기 (cm = UE 유닛).
+	 * HktCore 시뮬레이션 / HktVoxelCore 렌더링 / 디버그 렌더러 전체가 이 값을 단일 출처로 사용.
+	 * 변경 시 런타임 리로드 필요.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (ClampMin = 1.0, ClampMax = 500.0, DisplayName = "Voxel Size (cm)"))
+	float VoxelSizeCm = 15.0f;
+
 	/** 지형 시드 (동일 시드 = 동일 지형) */
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Terrain Seed"))
 	int64 TerrainSeed = 42;

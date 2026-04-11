@@ -43,6 +43,10 @@ struct HKTCORE_API FHktTerrainGeneratorConfig
 	Fixed BiomeNoiseScale = Fixed::FromRaw(131);           // 0.002 * 65536 ≈ 131
 	Fixed MountainBiomeThreshold = Fixed::FromRaw(80 * 65536); // 80.0
 
+	// 복셀 크기 (cm 단위). HktVoxelCore / HktCore / 디버그 렌더러 등
+	// 프레임워크 전체가 이 값을 단일 출처로 사용한다.
+	float VoxelSizeCm = 15.0f;
+
 	// 청크 크기 (HktVoxelCore와 동일)
 	static constexpr int32 ChunkSize = 32;
 };

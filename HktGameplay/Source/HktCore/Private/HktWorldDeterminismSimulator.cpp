@@ -312,6 +312,9 @@ void FHktWorldDeterminismSimulator::SetTerrainConfig(const FHktTerrainGeneratorC
     // Interpreter의 TerrainState/PendingVoxelDeltas 포인터는 생성자에서 이미 전달됨.
     // Generator만 생성하면 ProcessBatch의 if(TerrainGenerator) 가드가 지형 파이프라인을 활성화.
     TerrainGenerator = MakeUnique<FHktTerrainGenerator>(Config);
+
+    // 첫 LoadChunk 호출 전에도 TerrainState가 조회될 수 있으므로 VoxelSize를 즉시 전파
+    TerrainState.VoxelSizeCm = Config.VoxelSizeCm;
 }
 
 // ============================================================================
