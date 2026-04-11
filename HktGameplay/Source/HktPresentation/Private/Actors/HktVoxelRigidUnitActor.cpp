@@ -120,7 +120,8 @@ void AHktVoxelRigidUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGro
 		// 본 기준 오프셋 설정 — 단일 출처: UHktRuntimeGlobalSetting::VoxelSizeCm
 		const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 		const float VoxelSize = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
-		const float HalfChunk = 15.5f * VoxelSize;
+		// 청크 중심 정렬: (SIZE/2 - 0.5) 복셀
+		const float HalfChunk = (FHktVoxelChunk::SIZE * 0.5f - 0.5f) * VoxelSize;
 		const FVector VoxelOriginWorld = FVector(
 			BoneGroup.LocalOrigin.X * VoxelSize - HalfChunk,
 			BoneGroup.LocalOrigin.Y * VoxelSize - HalfChunk,

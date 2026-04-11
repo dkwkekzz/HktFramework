@@ -9,6 +9,7 @@
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayTagContainer.h"
 
@@ -45,9 +46,15 @@ void AHktVoxelUnitActorBase::BeginPlay()
 	MeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(EntityRenderCache.Get());
 	MeshScheduler->SetMaxMeshPerFrame(1);
 
-	BodyChunk->Initialize(EntityRenderCache.Get(), EntityChunkCoord);
+	// 단일 출처: UHktRuntimeGlobalSetting::VoxelSizeCm (폴백은 FHktVoxelChunk::VOXEL_SIZE)
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	const float VoxelSizeCm = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
 
-	static constexpr float Offset = -15.5f * FHktVoxelChunk::VOXEL_SIZE;
+	BodyChunk->Initialize(EntityRenderCache.Get(), EntityChunkCoord, VoxelSizeCm);
+
+	// 엔티티 청크(SIZE³)를 바디 중심에 정렬: -(SIZE/2 - 0.5) 복셀
+	const float HalfChunkVoxels = FHktVoxelChunk::SIZE * 0.5f - 0.5f;
+	const float Offset = -HalfChunkVoxels * VoxelSizeCm;
 	BodyChunk->SetRelativeLocation(FVector(Offset, Offset, 0.f));
 
 	InitializeVoxelMesh();
