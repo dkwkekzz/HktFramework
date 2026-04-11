@@ -149,7 +149,8 @@ void InitializeHktArchetypes()
         HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
         HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
         HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::IsGrounded, HktProperty::MaxSpeed,
-        HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ, HktProperty::JumpVelZ,
+        HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ,
+        // JumpVelZ 제거 — VelZ로 통합 (HktCoreProperties.h 의 DEPRECATED_JumpVelZ 참조)
     });
 
     HktTrait::Collidable = R.DefineTrait(TEXT("Collidable"), {

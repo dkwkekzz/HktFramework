@@ -44,7 +44,7 @@ namespace
 			T[PropertyId::MoveForce]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.MoveForce.Set(static_cast<float>(V), F); };
 			T[PropertyId::IsMoving]    = [](FHktEntityPresentation& E, int32 V, int64 F) { E.bIsMoving.Set(V != 0, F); };
 			T[PropertyId::IsGrounded]  = [](FHktEntityPresentation& E, int32 V, int64 F) { E.bIsJumping.Set(V == 0, F); };
-			T[PropertyId::JumpVelZ]    = [](FHktEntityPresentation& E, int32 V, int64 F) { E.JumpVelZ.Set(V, F); };
+			// JumpVelZ 는 DEPRECATED — 수직 속도는 VelZ 로 통합됨
 			T[PropertyId::VelX]        = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Velocity.Value.X = static_cast<float>(V); E.Velocity.Set(E.Velocity.Value, F); };
 			T[PropertyId::VelY]        = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Velocity.Value.Y = static_cast<float>(V); E.Velocity.Set(E.Velocity.Value, F); };
 			T[PropertyId::VelZ]        = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Velocity.Value.Z = static_cast<float>(V); E.Velocity.Set(E.Velocity.Value, F); };
@@ -147,7 +147,6 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 	MoveForce.Set(static_cast<float>(WS.GetProperty(Id, PropertyId::MoveForce)), Frame);
 	bIsMoving.Set(WS.GetProperty(Id, PropertyId::IsMoving) != 0, Frame);
 	bIsJumping.Set(WS.GetProperty(Id, PropertyId::IsGrounded) == 0, Frame);
-	JumpVelZ.Set(WS.GetProperty(Id, PropertyId::JumpVelZ), Frame);
 	Velocity.Set(FVector(
 		static_cast<float>(WS.GetProperty(Id, PropertyId::VelX)),
 		static_cast<float>(WS.GetProperty(Id, PropertyId::VelY)),

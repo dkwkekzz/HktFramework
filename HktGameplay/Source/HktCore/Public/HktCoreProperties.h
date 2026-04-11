@@ -127,8 +127,9 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(CollisionRadius, Hot)    // 28
     HKT_DEFINE_PROPERTY(Mass,            Hot)    // 29
 
-    // 점프
-    HKT_DEFINE_PROPERTY(JumpVelZ,        Hot)    // 30  — 점프 수직 속도 (cm/s). 0이면 점프 중 아님
+    // 점프 (DEPRECATED — VelZ(id 43)로 통합됨. 슬롯 보존을 위해 이름만 변경.)
+    // 네트워크 직렬화 / 저장 호환성 유지를 위해 Hot slot 30은 남겨두고, 더 이상 read/write 하지 않는다.
+    HKT_DEFINE_PROPERTY(DEPRECATED_JumpVelZ, Hot) // 30  — [DEPRECATED] 사용 금지, VelZ 사용
 
     // ===== Cold Properties (공간 절약, 선형 탐색) =====
 

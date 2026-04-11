@@ -55,7 +55,7 @@ namespace HktStoryVoxelCrumble
 			.PlayVFX(pos, VFX_VoxelCrumble)
 			.PlaySoundAtLocation(pos, Sound_VoxelCrumble)
 
-			// Debris 엔티티 생성 — 중력 물리 (IsGrounded=0, JumpVelZ=0)
+			// Debris 엔티티 생성 — 중력 물리 (IsGrounded=0, VelZ=0 — 낙하만)
 			.SpawnEntity(Entity_Debris_Crumble)
 			.SetPosition(Spawned, pos)
 			.SaveStoreEntity(Spawned, PropertyId::TerrainTypeId, typeId)
