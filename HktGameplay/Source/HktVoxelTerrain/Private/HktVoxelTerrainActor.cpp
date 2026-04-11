@@ -65,6 +65,20 @@ void AHktVoxelTerrainActor::BeginPlay()
 	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
 	BuildTerrainStyle();
 
+	// TerrainMaterial 미할당 경고 — 엔진 기본 머티리얼(WorldGridMaterial)은
+	// VertexColor를 BaseColor로 사용하지 않기 때문에, 타일/팔레트 텍스처가
+	// 쉐이더에서 올바르게 샘플링되어도 화면에 나타나지 않는다.
+	// HktVoxelVertexFactory.ush의 GetMaterialPixelParameters는 타일/팔레트
+	// 결과를 Result.VertexColor에 기록하므로, 할당된 머티리얼은 반드시
+	// VertexColor.RGB 노드를 BaseColor 입력에 연결해야 한다.
+	if (!TerrainMaterial)
+	{
+		UE_LOG(LogHktVoxelTerrain, Warning,
+			TEXT("[TerrainActor] TerrainMaterial이 할당되지 않았습니다. 엔진 기본 머티리얼은 "
+				 "VertexColor를 BaseColor로 사용하지 않아 타일/팔레트 텍스처가 렌더링되지 않습니다. "
+				 "VertexColor.RGB → BaseColor로 연결된 Surface 머티리얼을 에디터에서 할당하세요."));
+	}
+
 	UE_LOG(LogHktVoxelTerrain, Log,
 		TEXT("Terrain Actor initialized — Seed=%lld, VoxelSize=%.1f, ChunkWorld=%.0f, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d, Style=%s"),
 		GenConfig.Seed, VoxelSize, GetChunkWorldSize(), ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame,
