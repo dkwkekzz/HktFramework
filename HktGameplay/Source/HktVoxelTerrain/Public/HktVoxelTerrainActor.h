@@ -211,6 +211,9 @@ private:
 	/** 청크 월드 크기 = SIZE * VoxelSize */
 	float GetChunkWorldSize() const { return FHktVoxelChunk::SIZE * VoxelSize; }
 
+	/** 실제 렌더링에 사용되는 머티리얼 — TerrainMaterial이 할당되면 그대로, 아니면 자동 생성 */
+	UMaterialInterface* GetEffectiveTerrainMaterial() const;
+
 	// === 스타일 빌드 결과 (BeginPlay에서 생성) ===
 
 	UPROPERTY(Transient)
