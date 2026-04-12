@@ -51,7 +51,7 @@ static TAutoConsoleVariable<float> CVarJumpMaxFallSpeed(
 
 static TAutoConsoleVariable<float> CVarTerrainMaxStepHeight(
     TEXT("hkt.Terrain.MaxStepHeight"),
-    30.0f, // 2 복셀 × 15cm — 이 높이 이하의 단차는 자동으로 올라감
+    30.0f, // 이 높이 이하의 단차는 자동으로 올라감, 초과 시 벽으로 차단
     TEXT("Maximum terrain step height an entity can walk over (cm). Steps above this block movement."),
     ECVF_Default);
 
@@ -1102,12 +1102,26 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
     const float VS = TerrainState.VoxelSizeCm;
     const float MaxStepHeightCm = CVarTerrainMaxStepHeight.GetValueOnAnyThread();
 
+
+#if ENABLE_HKT_INSIGHTS
+    const int32 DebugPhase1Entity = CVarTerrainDebugEntity.GetValueOnAnyThread();
+#endif
+
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 Slot)
     {
         // Collision layer 없는 엔티티는 지형 충돌 제외 (투사체/장비 등의 장식 엔티티도 제외)
         const int32 Layer = WorldState.GetProperty(Id, PropertyId::CollisionLayer);
         if (Layer == 0)
+        {
+#if ENABLE_HKT_INSIGHTS
+            if (DebugPhase1Entity >= 0 && Id == static_cast<FHktEntityId>(DebugPhase1Entity))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[Phase1] E%d SKIPPED — CollisionLayer=0! 지형 충돌 비활성. "
+                    "ClassTag 기반 GetDefaultCollisionLayer() 매핑 확인 필요"), Id);
+            }
+#endif
             return;
+        }
 
         // PreMovePositions 인덱스 범위 체크 (스폰된 지 얼마 안 돼 인덱스가 뒤에 있을 수 있음)
         if (Slot < 0 || Slot >= PreMovePositions.Num())
@@ -1128,17 +1142,23 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
         const float BodyZ = static_cast<float>(PreMove.Z) + VS;  // 몸통 복셀 Z (발 위 1복셀)
 
         // 1) 수평 wall-slide (per-axis) — PreMove 를 기준으로 변위 분해
+        //    발(feet) 높이와 몸통(body) 높이 두 곳에서 검사한다.
+        //    어느 한쪽이라도 solid 이면 해당 축 이동을 취소.
         const int32 DX = NewPX - PreMove.X;
         const int32 DY = NewPY - PreMove.Y;
+        const float FeetZ = static_cast<float>(PreMove.Z);  // 발 높이
 
         if (DX != 0)
         {
             const float EdgeX = static_cast<float>(NewPX) + (DX > 0 ? ColRadius : -ColRadius);
-            const FIntVector V = FHktTerrainSystem::CmToVoxel(EdgeX, static_cast<float>(PreMove.Y), BodyZ, VS);
-            if (TerrainState.IsSolid(V.X, V.Y, V.Z))
+            const FIntVector VBody = FHktTerrainSystem::CmToVoxel(EdgeX, static_cast<float>(PreMove.Y), BodyZ, VS);
+            const FIntVector VFeet = FHktTerrainSystem::CmToVoxel(EdgeX, static_cast<float>(PreMove.Y), FeetZ, VS);
+            if (TerrainState.IsSolid(VBody.X, VBody.Y, VBody.Z) ||
+                TerrainState.IsSolid(VFeet.X, VFeet.Y, VFeet.Z))
             {
                 HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
-                    FString::Printf(TEXT("Wall slide X — blocked at V(%d,%d,%d)"), V.X, V.Y, V.Z), Id);
+                    FString::Printf(TEXT("Wall slide X — blocked body V(%d,%d,%d) feet V(%d,%d,%d)"),
+                        VBody.X, VBody.Y, VBody.Z, VFeet.X, VFeet.Y, VFeet.Z), Id);
                 NewPX = PreMove.X;
                 VelX = 0;
             }
@@ -1146,11 +1166,14 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
         if (DY != 0)
         {
             const float EdgeY = static_cast<float>(NewPY) + (DY > 0 ? ColRadius : -ColRadius);
-            const FIntVector V = FHktTerrainSystem::CmToVoxel(static_cast<float>(NewPX), EdgeY, BodyZ, VS);
-            if (TerrainState.IsSolid(V.X, V.Y, V.Z))
+            const FIntVector VBody = FHktTerrainSystem::CmToVoxel(static_cast<float>(NewPX), EdgeY, BodyZ, VS);
+            const FIntVector VFeet = FHktTerrainSystem::CmToVoxel(static_cast<float>(NewPX), EdgeY, FeetZ, VS);
+            if (TerrainState.IsSolid(VBody.X, VBody.Y, VBody.Z) ||
+                TerrainState.IsSolid(VFeet.X, VFeet.Y, VFeet.Z))
             {
                 HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
-                    FString::Printf(TEXT("Wall slide Y — blocked at V(%d,%d,%d)"), V.X, V.Y, V.Z), Id);
+                    FString::Printf(TEXT("Wall slide Y — blocked body V(%d,%d,%d) feet V(%d,%d,%d)"),
+                        VBody.X, VBody.Y, VBody.Z, VFeet.X, VFeet.Y, VFeet.Z), Id);
                 NewPY = PreMove.Y;
                 VelY = 0;
             }
@@ -1198,6 +1221,29 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
         const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ, VS).Z;
 
         const int32 PrevGrounded = WorldState.GetProperty(Id, PropertyId::IsGrounded);
+
+#if ENABLE_HKT_INSIGHTS
+        if (DebugPhase1Entity >= 0 && Id == static_cast<FHktEntityId>(DebugPhase1Entity))
+        {
+            // 엔티티 아래 5복셀 솔리드 상태 덤프
+            FString SolidColumn;
+            for (int32 Dz = 2; Dz >= -5; --Dz)
+            {
+                const bool bS = TerrainState.IsSolid(FinalVoxel.X, FinalVoxel.Y, FinalVoxel.Z + Dz);
+                SolidColumn += FString::Printf(TEXT("Z%+d=%s "), Dz, bS ? TEXT("S") : TEXT("_"));
+            }
+
+            UE_LOG(LogTemp, Warning,
+                TEXT("[Phase1] E%d Layer=%d Pos=(%d,%d,%d) Voxel=(%d,%d,%d) FloorVZ=%d SurfCmZ=%d "
+                     "Gap=%d Grounded=%d VelZ=%d Chunks=%d | %s"),
+                Id, Layer, NewPX, NewPY, NewPZ,
+                FinalVoxel.X, FinalVoxel.Y, FinalVoxel.Z,
+                SurfaceVoxelZ, SurfaceCmZ,
+                NewPZ - SurfaceCmZ, PrevGrounded, VelZ,
+                TerrainState.LoadedChunks.Num(),
+                *SolidColumn);
+        }
+#endif
 
         if (NewPZ <= SurfaceCmZ)
         {

@@ -153,12 +153,19 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 	VertexFactory->VoxelSizeUU = VoxelSizeUU;
 
-	// 팔레트 텍스처 — 커스텀 텍스처 미설정 시 GWhiteTexture 폴백 (흰색)
+	// 팔레트 텍스처 설정 — 타일 활성 시 기본 팔레트(8×256 흰색), 아니면 GWhiteTexture 폴백
 	if (!VertexFactory->PaletteTextureRHI)
 	{
-		VertexFactory->SetPaletteTexture(
-			GWhiteTexture->TextureRHI,
-			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI());
+		if (PendingDefaultPaletteRHI)
+		{
+			VertexFactory->SetPaletteTexture(PendingDefaultPaletteRHI, PendingDefaultPaletteSamplerRHI);
+		}
+		else
+		{
+			VertexFactory->SetPaletteTexture(
+				GWhiteTexture->TextureRHI,
+				TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI());
+		}
 	}
 
 	FHktVoxelVertexFactory::FDataType VFData;
@@ -173,6 +180,16 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		VertexFactory->SetTileTextures(
 			PendingTileArrayRHI, PendingTileArraySamplerRHI,
 			PendingTileIndexLUTRHI, PendingTileIndexLUTSamplerRHI);
+
+		UE_LOG(LogHktVoxelCore, Log,
+			TEXT("[Proxy RT] TileTextures 적용됨 — TileArray=%p, IndexLUT=%p, Verts=%d"),
+			PendingTileArrayRHI, PendingTileIndexLUTRHI, Vertices.Num());
+	}
+	else
+	{
+		UE_LOG(LogHktVoxelCore, Warning,
+			TEXT("[Proxy RT] TileTextures 없음 (PendingTileArrayRHI=null) — Verts=%d"),
+			Vertices.Num());
 	}
 	if (PendingMaterialLUTRHI)
 	{
@@ -224,7 +241,8 @@ void FHktVoxelChunkProxy::UpdateBoneTransforms_RenderThread(const TArray<FVector
 
 void FHktVoxelChunkProxy::SetTileTextures_RenderThread(
 	FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
-	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler)
+	FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler,
+	FRHITexture* InDefaultPalette, FRHISamplerState* InPaletteSampler)
 {
 	check(IsInRenderingThread());
 
@@ -232,10 +250,16 @@ void FHktVoxelChunkProxy::SetTileTextures_RenderThread(
 	PendingTileArraySamplerRHI = InTileSampler;
 	PendingTileIndexLUTRHI = InTileIndexLUT;
 	PendingTileIndexLUTSamplerRHI = InLUTSampler;
+	PendingDefaultPaletteRHI = InDefaultPalette;
+	PendingDefaultPaletteSamplerRHI = InPaletteSampler;
 
 	if (VertexFactory)
 	{
 		VertexFactory->SetTileTextures(InTileArray, InTileSampler, InTileIndexLUT, InLUTSampler);
+		if (InDefaultPalette)
+		{
+			VertexFactory->SetPaletteTexture(InDefaultPalette, InPaletteSampler);
+		}
 	}
 }
 

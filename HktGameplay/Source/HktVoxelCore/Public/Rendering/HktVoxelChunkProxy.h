@@ -54,7 +54,8 @@ public:
 
 	void SetTileTextures_RenderThread(
 		FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
-		FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
+		FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler,
+		FRHITexture* InDefaultPalette = nullptr, FRHISamplerState* InPaletteSampler = nullptr);
 
 	void SetMaterialLUT_RenderThread(FRHITexture* InLUT, FRHISamplerState* InSampler);
 
@@ -88,6 +89,8 @@ private:
 	FRHISamplerState* PendingTileIndexLUTSamplerRHI = nullptr;
 	FRHITexture* PendingMaterialLUTRHI = nullptr;
 	FRHISamplerState* PendingMaterialLUTSamplerRHI = nullptr;
+	FRHITexture* PendingDefaultPaletteRHI = nullptr;
+	FRHISamplerState* PendingDefaultPaletteSamplerRHI = nullptr;
 
 	/** GPU 스키닝용 본 트랜스폼 버퍼 (float4 × 3 per bone) */
 	FBufferRHIRef BoneTransformBuffer;

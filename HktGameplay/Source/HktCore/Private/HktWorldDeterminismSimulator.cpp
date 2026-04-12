@@ -111,6 +111,15 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
     // Gravity → Movement → Physics 순서: 중력이 VelZ 를 세팅, Movement 는 순수 적분,
     // Physics Phase 1 이 지형 제약(벽/계단/천장/지면)을 해결한다.
+#if ENABLE_HKT_INSIGHTS
+    if (!TerrainGenerator && Event.FrameNumber % 300 == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[HktSim] TerrainGenerator is NULL — Physics Phase1 (floor snap) 비활성. "
+            "SetTerrainConfig() 호출 여부 확인 필요. LoadedChunks=%d"),
+            TerrainState.LoadedChunks.Num());
+    }
+#endif
+
     GravitySystem.Process(WorldState, VMProxy, FixedDeltaSeconds);
 
     MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,

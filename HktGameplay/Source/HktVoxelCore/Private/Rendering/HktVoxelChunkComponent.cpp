@@ -110,7 +110,8 @@ void UHktVoxelChunkComponent::OnMeshReady()
 				{
 					Proxy->SetTileTextures_RenderThread(
 						TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
-						TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler);
+						TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler,
+						TileTexCopy.DefaultPalette.Texture, TileTexCopy.DefaultPalette.Sampler);
 				}
 				if (MatLUTCopy.IsValid())
 				{
@@ -166,7 +167,8 @@ void UHktVoxelChunkComponent::PushStyleTexturesToProxy()
 			{
 				Proxy->SetTileTextures_RenderThread(
 					TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
-					TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler);
+					TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler,
+					TileTexCopy.DefaultPalette.Texture, TileTexCopy.DefaultPalette.Sampler);
 			}
 			if (MatLUTCopy.IsValid())
 			{

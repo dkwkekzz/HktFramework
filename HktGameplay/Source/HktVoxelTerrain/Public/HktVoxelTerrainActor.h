@@ -219,6 +219,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UHktVoxelMaterialLUT> BuiltMaterialLUT;
 
+	/** 타일 텍스처 활성 시 기본 팔레트 (8×256 흰색) — GWhiteTexture OOB 버그 방지 */
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> DefaultPaletteTexture;
+
 	/** 스타일이 빌드되었는지 (BlockStyles가 비어있으면 false → 기존 팔레트 폴백) */
 	bool bStyleBuilt = false;
 };

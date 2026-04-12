@@ -18,11 +18,19 @@ struct FHktVoxelTexturePair
 	bool IsValid() const { return Texture != nullptr; }
 };
 
-/** 타일 텍스처 셋 (Texture2DArray + IndexLUT) */
+/** 타일 텍스처 셋 (Texture2DArray + IndexLUT + 기본 팔레트) */
 struct FHktVoxelTileTextureSet
 {
 	FHktVoxelTexturePair TileArray;
 	FHktVoxelTexturePair TileIndexLUT;
+
+	/**
+	 * 타일 활성 시 기본 팔레트 텍스처 (8×256 흰색).
+	 * GWhiteTexture(1x1)를 팔레트로 사용하면 Load(int3(PaletteIdx, VoxelType, 0))이
+	 * VoxelType>0에서 out-of-bounds → (0,0,0,0)을 반환하여 TileColor * 0 = 검정이 됨.
+	 * 유효한 크기의 흰색 팔레트를 제공하여 PaletteTint = (1,1,1,1)을 보장.
+	 */
+	FHktVoxelTexturePair DefaultPalette;
 
 	bool IsValid() const { return TileArray.IsValid() && TileIndexLUT.IsValid(); }
 };

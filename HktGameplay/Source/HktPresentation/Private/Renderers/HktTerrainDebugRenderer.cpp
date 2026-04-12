@@ -77,6 +77,28 @@ static bool IsSolidRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
 	return !Chunk->At(FloorMod(VX, ChunkSize), FloorMod(VY, ChunkSize), FloorMod(VZ, ChunkSize)).IsEmpty();
 }
 
+/** PhysicsSystem 의 FindFloorVoxelZ 와 동일한 로직 (렌더 캐시 기반) */
+static int32 FindFloorVoxelZRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 StartVZ,
+                                int32 MaxScanUp = 8, int32 MaxScanDown = 64)
+{
+	if (!Cache) return StartVZ;
+	if (IsSolidRC(Cache, VX, VY, StartVZ))
+	{
+		for (int32 Z = StartVZ + 1; Z <= StartVZ + MaxScanUp; ++Z)
+		{
+			if (!IsSolidRC(Cache, VX, VY, Z))
+				return Z;
+		}
+		return StartVZ;
+	}
+	for (int32 Z = StartVZ - 1; Z >= StartVZ - MaxScanDown; --Z)
+	{
+		if (IsSolidRC(Cache, VX, VY, Z))
+			return Z + 1;
+	}
+	return StartVZ;
+}
+
 static uint16 GetTypeRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
 {
 	if (!Cache) return 0;
@@ -237,29 +259,76 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 	}
 
 	// =========================================================================
-	// 3. 엔티티 정보 — 충돌 반경 원 + 중심 마커 + 충돌 테스트 포인트
+	// 3. Physics 핵심 디버그 — Floor Voxel + SurfaceCmZ + 엔티티 위치
 	// =========================================================================
 
-	// 충돌 반경을 수평 원으로 표시 — 렌더 위치(캐릭터 시각 위치)에 그린다
-	DrawDebugCircle(World, RenderPos, ColRadius, 32,
-		FColor(255, 165, 0), false, -1.f, SDPG_Foreground, 2.0f,
-		FVector(0,1,0), FVector(1,0,0), false);
+	// Physics Phase1 과 동일한 로직으로 바닥 복셀 검색
+	const int32 FloorVoxelZ = FindFloorVoxelZRC(RC, CV.X, CV.Y, CV.Z);
+	const float SurfaceCmZ = static_cast<float>(FMath::RoundToInt(FloorVoxelZ * VS + VS * 0.5f));  // VoxelToCm center
+	const bool bCenterSolid = IsSolidRC(RC, CV.X, CV.Y, CV.Z);
 
-	// 중심 복셀 — 시안 굵은 선
+	// 3-a) 바닥 복셀(Floor Voxel) — 노란색 굵은 박스 (Physics가 "디딛고 있다"고 판단하는 위치)
+	{
+		const FIntVector FloorVoxelBelow(CV.X, CV.Y, FloorVoxelZ - 1);  // 솔리드 복셀 (바닥 아래)
+		const FIntVector FloorVoxelAir(CV.X, CV.Y, FloorVoxelZ);        // 에어 복셀 (서 있는 곳)
+
+		// 솔리드 복셀 = 주황 (실제 디딛는 솔리드)
+		if (IsSolidRC(RC, FloorVoxelBelow.X, FloorVoxelBelow.Y, FloorVoxelBelow.Z))
+		{
+			DrawDebugBox(World, VoxelToCm(FloorVoxelBelow, VS), HE,
+				FColor(255, 140, 0), false, -1.f, SDPG_Foreground, 3.0f);
+		}
+
+		// 에어 복셀 = 노란색 (Physics가 snap 하는 위치)
+		DrawDebugBox(World, VoxelToCm(FloorVoxelAir, VS), HE,
+			FColor(255, 255, 0), false, -1.f, SDPG_Foreground, 2.5f);
+	}
+
+	// 3-b) SurfaceCmZ 수평선 — Physics floor snap 목표 높이 (노란색 십자)
+	{
+		const float CrossSize = ColRadius + 20.0f;
+		const FVector SurfCenter(EntityPos.X, EntityPos.Y, SurfaceCmZ);
+		DrawDebugLine(World,
+			SurfCenter + FVector(-CrossSize, 0, 0), SurfCenter + FVector(CrossSize, 0, 0),
+			FColor::Yellow, false, -1.f, SDPG_Foreground, 2.0f);
+		DrawDebugLine(World,
+			SurfCenter + FVector(0, -CrossSize, 0), SurfCenter + FVector(0, CrossSize, 0),
+			FColor::Yellow, false, -1.f, SDPG_Foreground, 2.0f);
+	}
+
+	// 3-c) 엔티티 실제 시뮬레이션 위치 — 마젠타 포인트 (PosZ)
+	DrawDebugPoint(World, EntityPos, 12.0f, FColor::Magenta, false, -1.f, SDPG_Foreground);
+
+	// 3-d) 중심 복셀 — 시안 박스
 	{
 		const FVector CenterCm = VoxelToCm(CV, VS);
 		DrawDebugBox(World, CenterCm, HE, FColor::Cyan, false, -1.f, SDPG_Foreground, 2.5f);
 	}
 
-	// MovementSystem의 벽 충돌 테스트 포인트 시각화
-	// (BodyZ = CurZ + VoxelSizeCm 에서 EdgeX, EdgeY 검사)
+	// 3-e) PosZ → SurfaceCmZ 간격 표시 (수직 선)
+	{
+		const FColor GapColor = (EntityPos.Z <= SurfaceCmZ) ? FColor::Green : FColor::Red;
+		DrawDebugLine(World,
+			FVector(EntityPos.X, EntityPos.Y, EntityPos.Z),
+			FVector(EntityPos.X, EntityPos.Y, SurfaceCmZ),
+			GapColor, false, -1.f, SDPG_Foreground, 2.5f);
+	}
+
+	// =========================================================================
+	// 4. 충돌 반경 + wall-slide 테스트 포인트
+	// =========================================================================
+
+	// 충돌 반경을 수평 원으로 표시
+	DrawDebugCircle(World, RenderPos, ColRadius, 32,
+		FColor(255, 165, 0), false, -1.f, SDPG_Foreground, 2.0f,
+		FVector(0,1,0), FVector(1,0,0), false);
+
+	// wall-slide 테스트 포인트 (BodyZ = PosZ + VoxelSize)
 	{
 		const float BodyZ = EntityPos.Z + VS;
 
-		// +X / -X 방향 테스트 포인트
 		const FVector TestPosXp(EntityPos.X + ColRadius, EntityPos.Y, BodyZ);
 		const FVector TestNegXp(EntityPos.X - ColRadius, EntityPos.Y, BodyZ);
-		// +Y / -Y 방향 테스트 포인트
 		const FVector TestPosYp(EntityPos.X, EntityPos.Y + ColRadius, BodyZ);
 		const FVector TestNegYp(EntityPos.X, EntityPos.Y - ColRadius, BodyZ);
 
@@ -270,7 +339,6 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 			const bool bBlocked = IsSolidRC(RC, PtV.X, PtV.Y, PtV.Z);
 			const FColor C = bBlocked ? FColor::Red : FColor::Green;
 			DrawDebugPoint(World, Pt, PtSize, C, false, -1.f, SDPG_Foreground);
-			// 테스트 포인트에서 엔티티 중심까지 선
 			DrawDebugLine(World, EntityPos, Pt, FColor(180, 180, 180), false, -1.f, SDPG_Foreground, 0.5f);
 		};
 
@@ -281,20 +349,45 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 	}
 
 	// =========================================================================
-	// 4. HUD 요약 — 엔티티 상단에 핵심 정보만 한 줄
+	// 5. HUD 요약 — Physics 핵심 상태 3줄
 	// =========================================================================
 	{
-		const bool bCenterSolid = IsSolidRC(RC, CV.X, CV.Y, CV.Z);
+		const int32 CollisionLayerVal = Entity->CollisionLayer.Get();
+		const bool bJumping = Entity->bIsJumping.Get();
+		const FVector Vel = Entity->Velocity.Get();
+		const float PosZ = EntityPos.Z;
+		const float GapZ = PosZ - SurfaceCmZ;
 
-		const FString Summary = FString::Printf(
-			TEXT("V(%d,%d,%d) R=%.0f Surface=%d %s"),
-			CV.X, CV.Y, CV.Z, ColRadius, SurfaceCount,
+		// 1줄: 복셀 좌표 + 충돌 반경 + 레이어
+		const FString Line1 = FString::Printf(
+			TEXT("V(%d,%d,%d) R=%.0f Layer=%d %s"),
+			CV.X, CV.Y, CV.Z, ColRadius, CollisionLayerVal,
+			CollisionLayerVal == 0 ? TEXT("!! NO COLLISION !!") : TEXT(""));
+
+		// 2줄: Floor snap 정보
+		const FString Line2 = FString::Printf(
+			TEXT("FloorV=Z:%d SurfCmZ=%.0f PosZ=%.0f Gap=%.1f %s"),
+			FloorVoxelZ, SurfaceCmZ, PosZ, GapZ,
+			(PosZ <= SurfaceCmZ) ? TEXT("[GROUNDED]") : TEXT("[AIRBORNE]"));
+
+		// 3줄: 속도 + 점프 상태
+		const FString Line3 = FString::Printf(
+			TEXT("Vel=(%.0f,%.0f,%.0f) Jump=%s %s"),
+			Vel.X, Vel.Y, Vel.Z,
+			bJumping ? TEXT("YES") : TEXT("NO"),
 			bCenterSolid ? TEXT("!! INSIDE SOLID !!") : TEXT(""));
 
-		const FColor SumColor = bCenterSolid ? FColor::Red : FColor::White;
-		DrawDebugString(World,
-			RenderPos + FVector(0, 0, ColRadius + 40.f),
-			Summary, nullptr, SumColor, -1.f, false, 1.0f);
+		const FColor Col1 = (CollisionLayerVal == 0) ? FColor::Red : FColor::White;
+		const FColor Col2 = (PosZ > SurfaceCmZ) ? FColor::Yellow : FColor::Green;
+		const FColor Col3 = bCenterSolid ? FColor::Red : FColor::White;
+
+		const float BaseZ = ColRadius + 80.f;
+		DrawDebugString(World, RenderPos + FVector(0, 0, BaseZ),
+			Line1, nullptr, Col1, -1.f, false, 1.0f);
+		DrawDebugString(World, RenderPos + FVector(0, 0, BaseZ - 18.f),
+			Line2, nullptr, Col2, -1.f, false, 1.0f);
+		DrawDebugString(World, RenderPos + FVector(0, 0, BaseZ - 36.f),
+			Line3, nullptr, Col3, -1.f, false, 1.0f);
 	}
 
 	// Insights 데이터 수집
@@ -302,12 +395,18 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 		FString::Printf(TEXT("%d"), SubjectId));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("VoxelCoord"),
 		FString::Printf(TEXT("(%d, %d, %d)"), CV.X, CV.Y, CV.Z));
+	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("FloorVoxelZ"),
+		FString::Printf(TEXT("%d"), FloorVoxelZ));
+	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("SurfaceCmZ"),
+		FString::Printf(TEXT("%.1f"), SurfaceCmZ));
+	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("EntityPosZ"),
+		FString::Printf(TEXT("%.1f"), EntityPos.Z));
+	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CollisionLayer"),
+		FString::Printf(TEXT("%d"), Entity->CollisionLayer.Get()));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CollisionRadius"),
 		FString::Printf(TEXT("%.1f"), ColRadius));
-	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("SurfaceVoxels"),
-		FString::Printf(TEXT("%d"), SurfaceCount));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CenterSolid"),
-		IsSolidRC(RC, CV.X, CV.Y, CV.Z) ? TEXT("YES") : TEXT("No"));
+		bCenterSolid ? TEXT("YES") : TEXT("No"));
 }
 
 void FHktTerrainDebugRenderer::Teardown()

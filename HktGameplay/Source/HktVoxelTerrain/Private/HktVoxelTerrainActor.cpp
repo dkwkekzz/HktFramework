@@ -248,8 +248,6 @@ void AHktVoxelTerrainActor::PumpStyleTextures()
 		return;
 	}
 
-	// BuiltTileAtlas->TileArray가 존재하면 해당 RHI가 준비되어야 "완성"으로 간주.
-	// BuiltMaterialLUT는 BuildLUTTexture()가 동기 경로라 보통 BeginPlay 시점에 이미 준비됨.
 	const bool bExpectsTileArray = BuiltTileAtlas && BuiltTileAtlas->TileArray != nullptr;
 	const bool bExpectsMaterialLUT = (BuiltMaterialLUT != nullptr);
 
@@ -257,6 +255,9 @@ void AHktVoxelTerrainActor::PumpStyleTextures()
 	{
 		return;
 	}
+
+	int32 PendingCount = 0;
+	int32 AppliedCount = 0;
 
 	for (auto& Pair : ActiveChunks)
 	{
@@ -281,6 +282,31 @@ void AHktVoxelTerrainActor::PumpStyleTextures()
 		{
 			Comp->PushStyleTexturesToProxy();
 		}
+
+		if (Comp->IsStyleTexturesApplied())
+		{
+			AppliedCount++;
+		}
+		else
+		{
+			PendingCount++;
+		}
+	}
+
+	// 5초간 1회 진단 로그 — 파이프라인 상태 요약
+	static bool bDiagLogged = false;
+	if (!bDiagLogged && GetWorld() && GetWorld()->GetTimeSeconds() > 5.0f && ActiveChunks.Num() > 0)
+	{
+		bDiagLogged = true;
+		UE_LOG(LogHktVoxelTerrain, Warning,
+			TEXT("[PumpStyle 진단] ActiveChunks=%d, Applied=%d, Pending=%d, "
+				 "ExpectsTile=%d, ExpectsMat=%d, "
+				 "TileArrayRHI=%p, TileIndexLUTRHI=%p, MaterialLUTRHI=%p"),
+			ActiveChunks.Num(), AppliedCount, PendingCount,
+			bExpectsTileArray ? 1 : 0, bExpectsMaterialLUT ? 1 : 0,
+			BuiltTileAtlas ? BuiltTileAtlas->GetTileArrayRHI() : nullptr,
+			BuiltTileAtlas ? BuiltTileAtlas->GetTileIndexLUTRHI() : nullptr,
+			BuiltMaterialLUT ? BuiltMaterialLUT->GetMaterialLUTRHI() : nullptr);
 	}
 }
 
@@ -443,12 +469,47 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 			static_cast<uint16>(Style.TypeID), TopSlice, SideSlice, BottomSlice);
 	}
 
-	// 3. 개별 UTexture2D들을 Texture2DArray로 조립
+	// 3. 소스 텍스처 호환성 검증 — Texture2DArray는 모든 슬라이스가 동일 포맷/해상도여야 함
 	if (SliceTextures.Num() > 0)
 	{
+		const int32 RefSizeX = SliceTextures[0]->GetSizeX();
+		const int32 RefSizeY = SliceTextures[0]->GetSizeY();
+		const EPixelFormat RefFormat = SliceTextures[0]->GetPixelFormat();
+		bool bAllCompatible = true;
+
+		for (int32 i = 1; i < SliceTextures.Num(); i++)
+		{
+			const UTexture2D* Tex = SliceTextures[i];
+			if (Tex->GetSizeX() != RefSizeX || Tex->GetSizeY() != RefSizeY)
+			{
+				UE_LOG(LogHktVoxelTerrain, Error,
+					TEXT("[TerrainStyle] 텍스처 크기 불일치 — 슬라이스[0]=%dx%d, 슬라이스[%d](%s)=%dx%d. "
+						 "Texture2DArray는 모든 텍스처가 동일 해상도여야 합니다."),
+					RefSizeX, RefSizeY, i, *Tex->GetName(),
+					Tex->GetSizeX(), Tex->GetSizeY());
+				bAllCompatible = false;
+			}
+			if (Tex->GetPixelFormat() != RefFormat)
+			{
+				UE_LOG(LogHktVoxelTerrain, Error,
+					TEXT("[TerrainStyle] 텍스처 포맷 불일치 — 슬라이스[0]=%s, 슬라이스[%d](%s)=%s. "
+						 "Texture2DArray는 모든 텍스처가 동일 PixelFormat이어야 합니다."),
+					GetPixelFormatString(RefFormat), i, *Tex->GetName(),
+					GetPixelFormatString(Tex->GetPixelFormat()));
+				bAllCompatible = false;
+			}
+		}
+
+		if (!bAllCompatible)
+		{
+			UE_LOG(LogHktVoxelTerrain, Error,
+				TEXT("[TerrainStyle] 텍스처 호환성 검증 실패 — Texture2DArray를 빌드할 수 없습니다. "
+					 "모든 BlockStyle 텍스처를 동일 해상도/포맷으로 통일하세요. 팔레트 폴백으로 렌더링합니다."));
+			return;
+		}
+
 		UTexture2DArray* TileArray = NewObject<UTexture2DArray>(BuiltTileAtlas, TEXT("TileArray"), RF_Transient);
 
-		// SourceTextures에 개별 텍스처 추가 → UE5가 자동으로 Texture2DArray 빌드
 		TileArray->SourceTextures.Empty();
 		for (UTexture2D* Tex : SliceTextures)
 		{
@@ -476,11 +537,63 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 	}
 	BuiltMaterialLUT->BuildLUTTexture();
 
+	// 6. 기본 팔레트 텍스처 생성 (8×256 흰색)
+	//    GWhiteTexture(1x1)를 팔레트로 사용하면 셰이더의 Load(int3(PaletteIdx, VoxelType, 0))가
+	//    VoxelType>0에서 out-of-bounds → (0,0,0,0)을 반환, TileColor * 0 = 검정.
+	//    올바른 크기의 흰색 팔레트를 제공하여 PaletteTint = (1,1,1,1) 보장.
+	{
+		const int32 PW = 8, PH = 256;
+		DefaultPaletteTexture = NewObject<UTexture2D>(this, TEXT("DefaultPalette"), RF_Transient);
+		FTexturePlatformData* PPD = new FTexturePlatformData();
+		PPD->SizeX = PW;
+		PPD->SizeY = PH;
+		PPD->PixelFormat = PF_B8G8R8A8;
+		FTexture2DMipMap* PMip = new FTexture2DMipMap();
+		PPD->Mips.Add(PMip);
+		PMip->SizeX = PW;
+		PMip->SizeY = PH;
+		PMip->BulkData.Lock(LOCK_READ_WRITE);
+		uint8* PData = static_cast<uint8*>(PMip->BulkData.Realloc(PW * PH * 4));
+		FMemory::Memset(PData, 0xFF, PW * PH * 4);
+		PMip->BulkData.Unlock();
+		DefaultPaletteTexture->SetPlatformData(PPD);
+		DefaultPaletteTexture->Filter = TF_Nearest;
+		DefaultPaletteTexture->SRGB = false;
+		DefaultPaletteTexture->AddressX = TA_Clamp;
+		DefaultPaletteTexture->AddressY = TA_Clamp;
+		DefaultPaletteTexture->UpdateResource();
+	}
+
+	// 7. RHI 리소스 동기 대기 — UpdateResource()는 비동기로 렌더 스레드에서 RHI를 생성하므로,
+	//    여기서 Flush하지 않으면 직후 ApplyStyleToComponent에서 GetTileArrayRHI()가 nullptr을
+	//    반환한다. PumpStyleTextures가 매 틱 재시도하지만, 이미 메싱이 완료된 청크에
+	//    SceneProxy가 재생성되지 않는 한 텍스처를 주입할 기회가 제한적이다.
+	//    BeginPlay 초기화 시 1회 Flush로 모든 텍스처 RHI를 확정한다.
+	FlushRenderingCommands();
+
+	// 7. RHI 유효성 검증 — TileArray는 UpdateSourceFromSourceTextures 경유로
+	//    UE5 텍스처 파이프라인이 비동기 리빌드하여 RHI가 지연될 수 있다.
+	//    null이면 경고만 출력하고 계속 진행 — PumpStyleTextures가 매 틱 재시도.
+	if (BuiltTileAtlas->TileArray && !BuiltTileAtlas->GetTileArrayRHI())
+	{
+		UE_LOG(LogHktVoxelTerrain, Warning,
+			TEXT("[TerrainStyle] TileArray RHI 미준비 (비동기 빌드 진행 중) — PumpStyleTextures가 재시도합니다."));
+	}
+	if (!BuiltTileAtlas->GetTileIndexLUTRHI())
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[TerrainStyle] TileIndexLUT RHI 생성 실패. 팔레트 폴백으로 렌더링합니다."));
+		return;
+	}
+
 	bStyleBuilt = true;
 
 	UE_LOG(LogHktVoxelTerrain, Log,
-		TEXT("[TerrainStyle] Built — %d block styles, %d unique textures, %d slices"),
-		BlockStyles.Num(), TextureToSlice.Num(), SliceTextures.Num());
+		TEXT("[TerrainStyle] Built — %d block styles, %d unique textures, %d slices, TileArray=%dx%d %s"),
+		BlockStyles.Num(), TextureToSlice.Num(), SliceTextures.Num(),
+		SliceTextures.Num() > 0 ? SliceTextures[0]->GetSizeX() : 0,
+		SliceTextures.Num() > 0 ? SliceTextures[0]->GetSizeY() : 0,
+		SliceTextures.Num() > 0 ? GetPixelFormatString(SliceTextures[0]->GetPixelFormat()) : TEXT("N/A"));
 }
 
 void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
@@ -492,15 +605,31 @@ void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
 
 	if (BuiltTileAtlas)
 	{
+		FRHITexture* TileArrayRHI = BuiltTileAtlas->GetTileArrayRHI();
+		FRHITexture* TileIndexLUTRHI = BuiltTileAtlas->GetTileIndexLUTRHI();
+
 		FHktVoxelTileTextureSet TileSet;
-		TileSet.TileArray = { BuiltTileAtlas->GetTileArrayRHI(),
+		TileSet.TileArray = { TileArrayRHI,
 			TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI() };
-		TileSet.TileIndexLUT = { BuiltTileAtlas->GetTileIndexLUTRHI(),
+		TileSet.TileIndexLUT = { TileIndexLUTRHI,
 			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI() };
+
+		// 기본 팔레트 (8×256 흰색) — GWhiteTexture OOB 방지
+		if (DefaultPaletteTexture && DefaultPaletteTexture->GetResource())
+		{
+			TileSet.DefaultPalette = { DefaultPaletteTexture->GetResource()->TextureRHI,
+				TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI() };
+		}
 
 		if (TileSet.IsValid())
 		{
 			Comp->SetTileTextures(TileSet);
+		}
+		else
+		{
+			UE_LOG(LogHktVoxelTerrain, Warning,
+				TEXT("[ApplyStyle] TileSet 무효 — TileArrayRHI=%p, TileIndexLUTRHI=%p, Chunk=%s"),
+				TileArrayRHI, TileIndexLUTRHI, *Comp->GetChunkCoord().ToString());
 		}
 	}
 
