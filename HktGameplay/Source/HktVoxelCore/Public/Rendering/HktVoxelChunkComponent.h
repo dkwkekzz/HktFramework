@@ -77,6 +77,19 @@ public:
 	/** 캐시된 머티리얼 LUT 유효 여부 */
 	bool HasCachedMaterialLUT() const { return CachedMaterialLUT.IsValid(); }
 
+	/** 스타일 텍스처가 현재 SceneProxy로 이미 전달되었는지 여부 */
+	bool IsStyleTexturesApplied() const { return bStyleTexturesApplied; }
+
+	/**
+	 * 캐시된 스타일 텍스처(TileArray/IndexLUT/MaterialLUT)를
+	 * 메시 재업로드 없이 현재 SceneProxy로 전달한다.
+	 *
+	 * 사용 목적: BuildTerrainStyle의 UpdateResource()가 비동기이므로
+	 * 메시가 먼저 업로드된 후에야 TileArray RHI가 준비되는 경우,
+	 * OnMeshReady 이벤트 없이도 텍스처만 따로 밀어넣기 위함.
+	 */
+	void PushStyleTexturesToProxy();
+
 	/** 그림자 최대 거리 설정 (UE 유닛). 0이면 항상 그림자 ON */
 	void SetShadowDistance(float InDistance) { ShadowDistance = InDistance; }
 	float GetShadowDistance() const { return ShadowDistance; }
