@@ -599,13 +599,16 @@ void FHktTerrainSystem::Process(
 // - 범위 내 바닥 없으면 StartVoxelZ 반환 (청크 미로드 보호)
 //
 // PhysicsSystem 이 소유한다 (Movement 는 지형을 전혀 쿼리하지 않는다).
+/** 바닥 찾기 실패 시 반환하는 센티널 값. Phase 1 이 이 값을 보면 floor snap 을 건너뛴다. */
+static constexpr int32 NoFloorSentinel = INT32_MIN;
+
 static int32 FindFloorVoxelZ(const FHktTerrainState& Terrain,
                               int32 VoxelX, int32 VoxelY, int32 StartVoxelZ,
                               int32 MaxScanUp = 8, int32 MaxScanDown = 64)
 {
     if (Terrain.IsSolid(VoxelX, VoxelY, StartVoxelZ))
     {
-        // 솔리드 내부 → 위로 탈출
+        // 솔리드 내부 → 위로 ���출
         for (int32 Z = StartVoxelZ + 1; Z <= StartVoxelZ + MaxScanUp; ++Z)
         {
             if (!Terrain.IsSolid(VoxelX, VoxelY, Z))
@@ -614,14 +617,17 @@ static int32 FindFloorVoxelZ(const FHktTerrainState& Terrain,
         return StartVoxelZ;
     }
 
-    // 에어 → 아래로 바닥 탐색
+    // 에어 �� 아래로 ��닥 탐색
     for (int32 Z = StartVoxelZ - 1; Z >= StartVoxelZ - MaxScanDown; --Z)
     {
         if (Terrain.IsSolid(VoxelX, VoxelY, Z))
             return Z + 1;
     }
 
-    return StartVoxelZ;  // 바닥 없음 (청크 미로드 등)
+    // 바닥 없음 (청크 미로드, 스캔 범위 초과 등) — 센티널 반환.
+    // 기존에는 StartVoxelZ 를 반환하여 VoxelToCm(StartVoxelZ) ≥ NewPZ 가 되어
+    // 엔티티가 공중에서 허위 접지(IsGrounded=1) 되는 버그가 있었다.
+    return NoFloorSentinel;
 }
 
 // ============================================================================
@@ -1144,13 +1150,20 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
         // 1) 수평 wall-slide (per-axis) — PreMove 를 기준으로 변위 분해
         //    발(feet) 높이와 몸통(body) 높이 두 곳에서 검사한다.
         //    어느 한쪽이라도 solid 이면 해당 축 이동을 취소.
+        //
+        //    BugFix: EdgeX/Y 가 정확히 복셀 경계(k * VoxelSize)에 걸리면
+        //    FloorToInt 가 다음(빈) 복셀을 반환하여 벽을 놓치는 문제 수정.
+        //    0.1cm 내측 오프셋으로 올바른 복셀을 보장한다.
+        static constexpr float VoxelBoundaryInset = 0.1f;
+
         const int32 DX = NewPX - PreMove.X;
         const int32 DY = NewPY - PreMove.Y;
         const float FeetZ = static_cast<float>(PreMove.Z);  // 발 높이
 
         if (DX != 0)
         {
-            const float EdgeX = static_cast<float>(NewPX) + (DX > 0 ? ColRadius : -ColRadius);
+            const float EdgeX = static_cast<float>(NewPX) +
+                (DX > 0 ? (ColRadius - VoxelBoundaryInset) : -(ColRadius - VoxelBoundaryInset));
             const FIntVector VBody = FHktTerrainSystem::CmToVoxel(EdgeX, static_cast<float>(PreMove.Y), BodyZ, VS);
             const FIntVector VFeet = FHktTerrainSystem::CmToVoxel(EdgeX, static_cast<float>(PreMove.Y), FeetZ, VS);
             if (TerrainState.IsSolid(VBody.X, VBody.Y, VBody.Z) ||
@@ -1165,7 +1178,8 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
         }
         if (DY != 0)
         {
-            const float EdgeY = static_cast<float>(NewPY) + (DY > 0 ? ColRadius : -ColRadius);
+            const float EdgeY = static_cast<float>(NewPY) +
+                (DY > 0 ? (ColRadius - VoxelBoundaryInset) : -(ColRadius - VoxelBoundaryInset));
             const FIntVector VBody = FHktTerrainSystem::CmToVoxel(static_cast<float>(NewPX), EdgeY, BodyZ, VS);
             const FIntVector VFeet = FHktTerrainSystem::CmToVoxel(static_cast<float>(NewPX), EdgeY, FeetZ, VS);
             if (TerrainState.IsSolid(VBody.X, VBody.Y, VBody.Z) ||
@@ -1186,17 +1200,22 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
             const FIntVector NewVoxel = FHktTerrainSystem::CmToVoxel(
                 static_cast<float>(NewPX), static_cast<float>(NewPY), static_cast<float>(NewPZ), VS);
             const int32 NewSurfaceVoxelZ = FindFloorVoxelZ(TerrainState, NewVoxel.X, NewVoxel.Y, NewVoxel.Z);
-            const int32 NewSurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, NewSurfaceVoxelZ, VS).Z;
 
-            if (static_cast<float>(NewSurfaceCmZ) > static_cast<float>(PreMove.Z) + MaxStepHeightCm)
+            // 바닥을 찾은 경우에만 step-height 검사 (NoFloorSentinel → 공중 이동 허용)
+            if (NewSurfaceVoxelZ != NoFloorSentinel)
             {
-                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
-                    FString::Printf(TEXT("Step too high — revert XY. surfZ=%d preZ=%d step=%d max=%.0f"),
-                        NewSurfaceCmZ, PreMove.Z, NewSurfaceCmZ - PreMove.Z, MaxStepHeightCm), Id);
-                NewPX = PreMove.X;
-                NewPY = PreMove.Y;
-                VelX = 0;
-                VelY = 0;
+                const int32 NewSurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, NewSurfaceVoxelZ, VS).Z;
+
+                if (static_cast<float>(NewSurfaceCmZ) > static_cast<float>(PreMove.Z) + MaxStepHeightCm)
+                {
+                    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+                        FString::Printf(TEXT("Step too high — revert XY. surfZ=%d preZ=%d step=%d max=%.0f"),
+                            NewSurfaceCmZ, PreMove.Z, NewSurfaceCmZ - PreMove.Z, MaxStepHeightCm), Id);
+                    NewPX = PreMove.X;
+                    NewPY = PreMove.Y;
+                    VelX = 0;
+                    VelY = 0;
+                }
             }
         }
 
@@ -1218,9 +1237,28 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
         const FIntVector FinalVoxel = FHktTerrainSystem::CmToVoxel(
             static_cast<float>(NewPX), static_cast<float>(NewPY), static_cast<float>(NewPZ), VS);
         const int32 SurfaceVoxelZ = FindFloorVoxelZ(TerrainState, FinalVoxel.X, FinalVoxel.Y, FinalVoxel.Z);
-        const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ, VS).Z;
 
         const int32 PrevGrounded = WorldState.GetProperty(Id, PropertyId::IsGrounded);
+
+        if (SurfaceVoxelZ == NoFloorSentinel)
+        {
+            // 바닥 없음 (청크 미로드 또는 스캔 범위 초과) — 접지 해제하여 중력 작동 보장
+#if ENABLE_HKT_INSIGHTS
+            if (DebugPhase1Entity >= 0 && Id == static_cast<FHktEntityId>(DebugPhase1Entity))
+            {
+                UE_LOG(LogTemp, Warning,
+                    TEXT("[Phase1] E%d NO FLOOR — Voxel=(%d,%d,%d) Pos=(%d,%d,%d) → IsGrounded=0 (gravity enabled)"),
+                    Id, FinalVoxel.X, FinalVoxel.Y, FinalVoxel.Z, NewPX, NewPY, NewPZ);
+            }
+#endif
+            if (PrevGrounded != 0)
+            {
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::IsGrounded, 0);
+            }
+        }
+        else
+        {
+        const int32 SurfaceCmZ = FHktTerrainSystem::VoxelToCm(0, 0, SurfaceVoxelZ, VS).Z;
 
 #if ENABLE_HKT_INSIGHTS
         if (DebugPhase1Entity >= 0 && Id == static_cast<FHktEntityId>(DebugPhase1Entity))
@@ -1277,6 +1315,7 @@ void FHktPhysicsSystem::ResolveTerrainPhase1(
                 VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::IsGrounded, 0);
             }
         }
+        } // end if SurfaceVoxelZ != NoFloorSentinel
 
         // 5) Dirty 최소화: 실제로 변경된 값만 다시 쓰기
         const int32 OldPX = WorldState.GetProperty(Id, PropertyId::PosX);
@@ -1446,6 +1485,19 @@ void FHktPhysicsSystem::ResolveTerrainConstraints(
                 FMath::RoundToInt(PosX + PushX),
                 FMath::RoundToInt(PosY + PushY),
                 FMath::RoundToInt(PosZ + PushZ));
+
+            // 밀어낸 방향의 속도를 제거하여 다음 프레임에서 즉시 재진입하는 것을 방지.
+            // Phase 1 wall-slide 가 다음 프레임에서 이동을 잡지만, 이 사이의 1프레임 진동을 없앤다.
+            const int32 CurVX = WorldState.GetProperty(Id, PropertyId::VelX);
+            const int32 CurVY = WorldState.GetProperty(Id, PropertyId::VelY);
+            const int32 CurVZ = WorldState.GetProperty(Id, PropertyId::VelZ);
+            // Push 방향과 속도 방향이 반대이면(속도가 벽을 향하면) 해당 성분 제거
+            if ((PushX > 0.0f && CurVX < 0) || (PushX < 0.0f && CurVX > 0))
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, 0);
+            if ((PushY > 0.0f && CurVY < 0) || (PushY < 0.0f && CurVY > 0))
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, 0);
+            if ((PushZ > 0.0f && CurVZ < 0) || (PushZ < 0.0f && CurVZ > 0))
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelZ, 0);
         }
 
 #if ENABLE_HKT_INSIGHTS
