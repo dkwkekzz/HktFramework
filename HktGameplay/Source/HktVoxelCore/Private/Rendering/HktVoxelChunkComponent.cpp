@@ -9,6 +9,65 @@
 #include "HktVoxelCoreLog.h"
 #include "Materials/Material.h"
 
+#if WITH_EDITORONLY_DATA
+#include "Materials/MaterialExpressionVertexColor.h"
+#include "Materials/MaterialExpressionConstant.h"
+#endif
+
+// ============================================================================
+// 기본 VertexColor 머티리얼 — 자동 생성
+// ============================================================================
+//
+// HktVoxelVertexFactory.ush의 GetMaterialPixelParameters에서
+// 타일 텍스처 / 팔레트 색상을 Result.VertexColor에 기록한다.
+// 따라서 머티리얼이 VertexColor.RGB를 BaseColor로 사용해야
+// 복셀 텍스처가 화면에 올바르게 나타난다.
+//
+// 엔진 기본 머티리얼(WorldGridMaterial)은 VertexColor를 사용하지 않으므로,
+// TerrainMaterial이 미할당 시 회색으로 렌더링되는 문제가 발생한다.
+// 이 함수가 VertexColor → BaseColor 연결된 최소 머티리얼을 자동 생성하여
+// 별도 에셋 할당 없이도 복셀 텍스처가 정상 렌더링되도록 보장한다.
+//
+static UMaterialInterface* GetDefaultVoxelMaterial()
+{
+	static TWeakObjectPtr<UMaterialInterface> CachedMaterial;
+	if (CachedMaterial.IsValid())
+	{
+		return CachedMaterial.Get();
+	}
+
+#if WITH_EDITORONLY_DATA
+	UMaterial* Mat = NewObject<UMaterial>(
+		GetTransientPackage(), TEXT("M_HktVoxelVertexColor"), RF_Transient);
+	Mat->AddToRoot();
+
+	// VertexColor.RGB → BaseColor
+	UMaterialExpressionVertexColor* VCExpr =
+		NewObject<UMaterialExpressionVertexColor>(Mat);
+	Mat->GetExpressionCollection().AddExpression(VCExpr);
+	Mat->GetEditorOnlyData()->BaseColor.Connect(0, VCExpr);
+
+	// Roughness = 0.8 (복셀 지형에 적합한 비금속 마감)
+	UMaterialExpressionConstant* RoughExpr =
+		NewObject<UMaterialExpressionConstant>(Mat);
+	RoughExpr->R = 0.8f;
+	Mat->GetExpressionCollection().AddExpression(RoughExpr);
+	Mat->GetEditorOnlyData()->Roughness.Connect(0, RoughExpr);
+
+	Mat->TwoSided = false;
+	Mat->PostEditChange();
+
+	UE_LOG(LogHktVoxelCore, Log,
+		TEXT("[DefaultMaterial] VertexColor → BaseColor 기본 머티리얼 자동 생성 완료 (M_HktVoxelVertexColor)"));
+
+	CachedMaterial = Mat;
+	return Mat;
+#else
+	// Shipping 빌드 — 프로덕션에서는 TerrainMaterial을 명시적으로 할당해야 한다
+	return UMaterial::GetDefaultMaterial(MD_Surface);
+#endif
+}
+
 UHktVoxelChunkComponent::UHktVoxelChunkComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -19,8 +78,11 @@ UHktVoxelChunkComponent::UHktVoxelChunkComponent()
 	SetCollisionResponseToAllChannels(ECR_Ignore);
 	SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
-	// 기본 머티리얼 — 프로덕션에서는 팔레트 기반 커스텀 머티리얼로 교체
-	SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));
+	// 기본 머티리얼 — VertexColor.RGB → BaseColor 연결된 자동 생성 머티리얼.
+	// HktVoxelVertexFactory가 타일 텍스처 / 팔레트 결과를 VertexColor에 기록하므로,
+	// 이 머티리얼이 별도 에셋 할당 없이도 올바른 렌더링을 보장한다.
+	// 프로덕션에서는 TerrainMaterial을 명시적으로 할당하여 이 기본값을 교체할 것.
+	SetMaterial(0, GetDefaultVoxelMaterial());
 }
 
 void UHktVoxelChunkComponent::SetVoxelMaterial(UMaterialInterface* InMaterial)

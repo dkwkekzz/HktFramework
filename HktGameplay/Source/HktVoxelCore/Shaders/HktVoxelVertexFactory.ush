@@ -175,10 +175,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	uint PaletteIdx = (PM >> 16) & 0x7;
 	uint AO         = (PM >> 19) & 0x3;
 
-	// 실제 BaseColor는 Pixel Shader(GetMaterialPixelParameters)에서
-	// HktTileArray / HktPaletteTexture 샘플링으로 결정됨. VS는 화이트 패스.
-	Result.Color = float4(1.0, 1.0, 1.0, 1.0);
-
 	// Tile Texture (Phase 1) — HktTileEnabled == 0이면 LUT 접근 자체를 건너뜀
 	Result.TileUV = HktCalcTileUV(Width, Height, Corner);
 	Result.TileSlice = (HktTileEnabled > 0.5)
@@ -187,6 +183,24 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Result.VoxelType = VoxelType;
 	Result.PaletteIdx = PaletteIdx;
 	Result.AOLight = HktAOToLight(AO);
+
+	// VS에서도 타일/팔레트 색상을 계산하여 Intermediates.Color에 기록.
+	// UE5 머티리얼 템플릿이 VertexColor를 Interpolants.Color (COLOR0 시맨틱)에서
+	// 직접 읽을 수 있으므로, PS의 GetMaterialPixelParameters에서 Result.VertexColor를
+	// 설정하는 것만으로는 부족하다. 양쪽 경로 모두에 올바른 색상을 보장한다.
+	float4 PalTint = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
+	float3 VSBaseColor;
+	if (Result.TileSlice >= 0.0)
+	{
+		float3 TileCol = HktTileArray.SampleLevel(HktTileSampler,
+			float3(frac(Result.TileUV), Result.TileSlice), 0).rgb;
+		VSBaseColor = TileCol * PalTint.rgb;
+	}
+	else
+	{
+		VSBaseColor = PalTint.rgb;
+	}
+	Result.Color = float4(VSBaseColor * Result.AOLight, 1.0);
 
 	return Result;
 }
@@ -282,30 +296,45 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 {
 	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
-	// VoxelParams: x=TileSlice, y=VoxelType, z=PaletteIdx, w=AOLight
+	// =====================================================================
+	// 1단계: VS에서 보간된 COLOR0를 기본값으로 사용.
+	//        VS가 이미 타일/팔레트/AO를 계산하여 Color에 기록했으므로,
+	//        이 값을 기본 VertexColor로 사용하면 셰이더 파라미터 바인딩이
+	//        실패(Bound=0)하더라도 회색이 아닌 올바른 색상이 나온다.
+	//        UE5 머티리얼 템플릿이 VertexColor를 어디서 읽든(COLOR0 or
+	//        Parameters.VertexColor) 동일한 값을 보장.
+	// =====================================================================
+	Result.VertexColor = Interpolants.Color;
+
+	// =====================================================================
+	// 2단계: PS 텍스처 접근 가능 시, per-pixel 정확도로 재계산.
+	//        VS의 per-vertex 보간보다 정확한 타일링 패턴을 얻는다.
+	//        HktTileEnabled가 바인딩되지 않으면(=0) 이 블록을 건너뛰고
+	//        1단계의 VS 색상이 그대로 사용된다.
+	// =====================================================================
 	float TileSlice  = Interpolants.VoxelParams.x;
 	uint  VoxelType  = (uint)Interpolants.VoxelParams.y;
 	uint  PaletteIdx = (uint)Interpolants.VoxelParams.z;
 	float AOLight    = Interpolants.VoxelParams.w;
 
-	// 팔레트 틴트 (바이옴 색조) — TileSlice 유무와 무관하게 사용
-	float4 PaletteTint = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
-
-	// BaseColor 결정: TileSlice >= 0이면 HktTileArray 샘플링, 아니면 팔레트 폴백
-	float3 BaseColor;
-	if (HktTileEnabled > 0.5 && TileSlice >= 0.0)
+	if (HktTileEnabled > 0.5)
 	{
-		float3 TileColor = HktTileArray.SampleLevel(HktTileSampler,
-			float3(frac(Interpolants.TileUV), TileSlice), 0).rgb;
-		BaseColor = TileColor * PaletteTint.rgb;
-	}
-	else
-	{
-		BaseColor = PaletteTint.rgb;
-	}
+		float4 PaletteTint = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
 
-	// AO 라이팅 반영 후 VertexColor로 전달 — 머티리얼이 VertexColor를 BaseColor로 사용
-	Result.VertexColor = float4(BaseColor * AOLight, 1.0);
+		float3 BaseColor;
+		if (TileSlice >= 0.0)
+		{
+			float3 TileColor = HktTileArray.SampleLevel(HktTileSampler,
+				float3(frac(Interpolants.TileUV), TileSlice), 0).rgb;
+			BaseColor = TileColor * PaletteTint.rgb;
+		}
+		else
+		{
+			BaseColor = PaletteTint.rgb;
+		}
+
+		Result.VertexColor = float4(BaseColor * AOLight, 1.0);
+	}
 
 	half3 Normal    = normalize(Interpolants.WorldNormal);
 	half3 Tangent   = normalize(Interpolants.WorldTangent);

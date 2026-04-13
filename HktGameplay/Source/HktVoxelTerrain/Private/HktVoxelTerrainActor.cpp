@@ -65,18 +65,13 @@ void AHktVoxelTerrainActor::BeginPlay()
 	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
 	BuildTerrainStyle();
 
-	// TerrainMaterial 미할당 경고 — 엔진 기본 머티리얼(WorldGridMaterial)은
-	// VertexColor를 BaseColor로 사용하지 않기 때문에, 타일/팔레트 텍스처가
-	// 쉐이더에서 올바르게 샘플링되어도 화면에 나타나지 않는다.
-	// HktVoxelVertexFactory.ush의 GetMaterialPixelParameters는 타일/팔레트
-	// 결과를 Result.VertexColor에 기록하므로, 할당된 머티리얼은 반드시
-	// VertexColor.RGB 노드를 BaseColor 입력에 연결해야 한다.
+	// TerrainMaterial 미할당 시 안내 — ChunkComponent가 자동 생성된 VertexColor 머티리얼을
+	// 기본값으로 사용하므로 텍스처는 정상 렌더링된다. 프로덕션에서는 커스텀 머티리얼 할당 권장.
 	if (!TerrainMaterial)
 	{
-		UE_LOG(LogHktVoxelTerrain, Warning,
-			TEXT("[TerrainActor] TerrainMaterial이 할당되지 않았습니다. 엔진 기본 머티리얼은 "
-				 "VertexColor를 BaseColor로 사용하지 않아 타일/팔레트 텍스처가 렌더링되지 않습니다. "
-				 "VertexColor.RGB → BaseColor로 연결된 Surface 머티리얼을 에디터에서 할당하세요."));
+		UE_LOG(LogHktVoxelTerrain, Log,
+			TEXT("[TerrainActor] TerrainMaterial 미할당 — ChunkComponent 기본 머티리얼(VertexColor → BaseColor)이 "
+				 "자동 사용됩니다. 프로덕션에서는 커스텀 Surface 머티리얼을 할당하세요."));
 	}
 
 	UE_LOG(LogHktVoxelTerrain, Log,
@@ -155,6 +150,13 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 
 	// 5. 메싱 완료 청크 → GPU 업로드
 	ProcessMeshReadyChunks();
+}
+
+UMaterialInterface* AHktVoxelTerrainActor::GetEffectiveTerrainMaterial() const
+{
+	// TerrainMaterial이 명시적으로 할당되면 그대로 사용.
+	// 미할당이면 nullptr 반환 — ChunkComponent의 기본 VertexColor 머티리얼이 사용됨.
+	return TerrainMaterial;
 }
 
 FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
