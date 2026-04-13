@@ -71,7 +71,4 @@ private:
 
     // --- 히스토리 보호: 서버 미확인 최대 프레임 수 ---
     static constexpr int32 MaxHistoryFrames = 300; // 10초 @ 30Hz
-
-    // --- 백그라운드 복귀 시 과도한 로컬 예측 프레임 방지 ---
-    static constexpr int32 MaxLocalCatchupFrames = 10;
 };
