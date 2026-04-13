@@ -972,30 +972,41 @@ void FHktPhysicsSystem::Process(
                 const float EMinZ = EPos.Z;
                 const float EMaxZ = EPos.Z + ED.Radius;
 
-                // AABB-AABB 겹침 계산
-                const float OX = FMath::Min(EMaxX, VMaxX) - FMath::Max(EMinX, VMinX);
-                const float OY = FMath::Min(EMaxY, VMaxY) - FMath::Max(EMinY, VMinY);
-                const float OZ = FMath::Min(EMaxZ, VMaxZ) - FMath::Max(EMinZ, VMinZ);
-
-                if (OX <= 0.0f || OY <= 0.0f || OZ <= 0.0f)
+                // AABB 겹침 존재 여부 (하나라도 분리돼 있으면 충돌 없음)
+                if (EMaxX <= VMinX || EMinX >= VMaxX ||
+                    EMaxY <= VMinY || EMinY >= VMaxY ||
+                    EMaxZ <= VMinZ || EMinZ >= VMaxZ)
                     continue;
 
-                // 최소 겹침 축으로 밀어내기 — solid는 무한 mass이므로 엔터티를 100% 밀어냄
-                // Z축 우선: R >> VS 일 때 바닥 복셀의 OX/OY/OZ 가 모두 VS로 동률이 되므로
-                // <= 로 Z를 우선 선택해야 바닥 접촉에서 안정적으로 위로 밀어낸다.
-                const float ECZ = EPos.Z + ED.Radius * 0.5f;  // 바디 Z 중심
-                float MinO = OX;
-                FVector Push((EPos.X >= VCX) ? OX : -OX, 0.0f, 0.0f);
+                // MTV(Minimum Translation Vector) 계산
+                // 각 축에서 엔터티를 분리시키는 두 방향의 push 거리를 구하고,
+                // 절댓값이 작은 쪽을 선택한다.
+                const float PushXPos = VMaxX - EMinX;   // +X 방향 분리 거리
+                const float PushXNeg = VMinX - EMaxX;   // -X 방향 분리 거리
+                const float MtvX = (FMath::Abs(PushXPos) < FMath::Abs(PushXNeg)) ? PushXPos : PushXNeg;
 
-                if (OY < MinO)
+                const float PushYPos = VMaxY - EMinY;
+                const float PushYNeg = VMinY - EMaxY;
+                const float MtvY = (FMath::Abs(PushYPos) < FMath::Abs(PushYNeg)) ? PushYPos : PushYNeg;
+
+                const float PushZPos = VMaxZ - EMinZ;   // 위로 밀기
+                const float PushZNeg = VMinZ - EMaxZ;   // 아래로 밀기
+                const float MtvZ = (FMath::Abs(PushZPos) < FMath::Abs(PushZNeg)) ? PushZPos : PushZNeg;
+
+                // 최소 거리 축 선택 — solid는 무한 mass이므로 엔터티를 100% 밀어냄
+                // Z축 우선(<=): R >> VS 일 때 바닥 접촉 안정성 보장
+                float MinMtv = FMath::Abs(MtvX);
+                FVector Push(MtvX, 0.0f, 0.0f);
+
+                if (FMath::Abs(MtvY) < MinMtv)
                 {
-                    MinO = OY;
-                    Push = FVector(0.0f, (EPos.Y >= VCY) ? OY : -OY, 0.0f);
+                    MinMtv = FMath::Abs(MtvY);
+                    Push = FVector(0.0f, MtvY, 0.0f);
                 }
-                if (OZ <= MinO)  // <= : Z축 우선 (바닥/천장 안정성)
+                if (FMath::Abs(MtvZ) <= MinMtv)  // <= : Z축 우선 (바닥/천장 안정성)
                 {
-                    MinO = OZ;
-                    Push = FVector(0.0f, 0.0f, (ECZ >= VCZ) ? OZ : -OZ);
+                    MinMtv = FMath::Abs(MtvZ);
+                    Push = FVector(0.0f, 0.0f, MtvZ);
                 }
 
                 Reactions[EIdx] += Push;
@@ -1003,12 +1014,12 @@ void FHktPhysicsSystem::Process(
                 if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
                 {
                     UE_LOG(LogTemp, Warning,
-                        TEXT("[Physics Step4] E%d SolidCell=(%d,%d,%d) Overlap=(%.1f,%.1f,%.1f) "
+                        TEXT("[Physics Step4] E%d SolidCell=(%d,%d,%d) MTV=(%.1f,%.1f,%.1f) "
                              "MinAxis=%s Push=(%.1f,%.1f,%.1f) AccumReaction=(%.1f,%.1f,%.1f) "
                              "EntryVel=(%.1f,%.1f,%.1f)"),
                         ED.Id, Cell.X, Cell.Y, Cell.Z,
-                        OX, OY, OZ,
-                        MinO == OX ? TEXT("X") : (MinO == OY ? TEXT("Y") : TEXT("Z")),
+                        MtvX, MtvY, MtvZ,
+                        MinMtv == FMath::Abs(MtvX) ? TEXT("X") : (MinMtv == FMath::Abs(MtvY) ? TEXT("Y") : TEXT("Z")),
                         Push.X, Push.Y, Push.Z,
                         Reactions[EIdx].X, Reactions[EIdx].Y, Reactions[EIdx].Z,
                         CE.Velocity.X, CE.Velocity.Y, CE.Velocity.Z);
