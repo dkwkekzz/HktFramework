@@ -798,7 +798,7 @@ void FHktMovementSystem::Process(
 // Step 2: 기대 위치 + 반경으로 차지하는 복셀 셀을 계산, CellMap 구축
 // Step 3: 각 셀에 진입한 엔터티와 진입 속도를 기록
 // Step 4: solid 셀 → AABB 최소겹침축 기반 push-out (solid = 무한 mass)
-// Step 5: 엔터티 쌍 → CollisionLayer 매칭 시 구-구 mass 기반 반작용
+// Step 5: 엔터티 쌍 → CollisionLayer 매칭 시 캡슐-캡슐 mass 기반 반작용
 // Step 6: 반작용 적용 + 속도 감쇄 + IsGrounded 갱신
 // ============================================================================
 
@@ -827,7 +827,8 @@ void FHktPhysicsSystem::Process(
         int32 Slot;
         FVector ExpectedPos;    // Movement가 계산한 기대 위치
         FVector Velocity;       // ExpectedPos - PreMovePos = 작용한 힘 방향
-        float Radius;           // CollisionRadius
+        float Radius;           // CollisionRadius (XY 반경)
+        float HalfHeight;       // CollisionHalfHeight (캡슐 반높이, >= Radius)
         float Mass;
         uint32 Layer;
         uint32 Mask;
@@ -859,6 +860,8 @@ void FHktPhysicsSystem::Process(
             static_cast<float>(Pre.X), static_cast<float>(Pre.Y), static_cast<float>(Pre.Z));
         ED.Radius = FMath::Max(
             static_cast<float>(WorldState.GetProperty(Id, PropertyId::CollisionRadius)), 30.0f);
+        ED.HalfHeight = FMath::Max(
+            static_cast<float>(WorldState.GetProperty(Id, PropertyId::CollisionHalfHeight)), ED.Radius);
         ED.Mass = FMath::Max(
             static_cast<float>(WorldState.GetProperty(Id, PropertyId::Mass)), 1.0f);
         ED.Layer = static_cast<uint32>(Layer);
@@ -883,7 +886,7 @@ void FHktPhysicsSystem::Process(
     {
         const FEntityData& ED = Entities[Idx];
 
-        // 엔터티 바디 AABB: XY ± Radius, Z = [PosZ, PosZ + Radius]
+        // 엔터티 캡슐 AABB: XY ± Radius, Z = [PosZ, PosZ + 2*HalfHeight]
         const FIntVector MinV = FHktTerrainSystem::CmToVoxel(
             ED.ExpectedPos.X - ED.Radius,
             ED.ExpectedPos.Y - ED.Radius,
@@ -892,16 +895,16 @@ void FHktPhysicsSystem::Process(
         const FIntVector MaxV = FHktTerrainSystem::CmToVoxel(
             ED.ExpectedPos.X + ED.Radius,
             ED.ExpectedPos.Y + ED.Radius,
-            ED.ExpectedPos.Z + ED.Radius,
+            ED.ExpectedPos.Z + 2.0f * ED.HalfHeight,
             VS);
 
         if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
         {
             UE_LOG(LogTemp, Warning,
-                TEXT("[Physics Step2] E%d Pos=(%.0f,%.0f,%.0f) Vel=(%.1f,%.1f,%.1f) R=%.0f Mass=%.0f "
+                TEXT("[Physics Step2] E%d Pos=(%.0f,%.0f,%.0f) Vel=(%.1f,%.1f,%.1f) R=%.0f HH=%.0f Mass=%.0f "
                      "Cells=(%d,%d,%d)->(%d,%d,%d)"),
                 ED.Id, ED.ExpectedPos.X, ED.ExpectedPos.Y, ED.ExpectedPos.Z,
-                ED.Velocity.X, ED.Velocity.Y, ED.Velocity.Z, ED.Radius, ED.Mass,
+                ED.Velocity.X, ED.Velocity.Y, ED.Velocity.Z, ED.Radius, ED.HalfHeight, ED.Mass,
                 MinV.X, MinV.Y, MinV.Z, MaxV.X, MaxV.Y, MaxV.Z);
         }
 
@@ -964,13 +967,13 @@ void FHktPhysicsSystem::Process(
                 // 현재 위치 (축적된 반작용 반영)
                 const FVector EPos = ED.ExpectedPos + Reactions[EIdx];
 
-                // 엔터티 바디 AABB: XY ± Radius, Z = [PosZ, PosZ + Radius]
+                // 엔터티 캡슐 AABB: XY ± Radius, Z = [PosZ, PosZ + 2*HalfHeight]
                 const float EMinX = EPos.X - ED.Radius;
                 const float EMaxX = EPos.X + ED.Radius;
                 const float EMinY = EPos.Y - ED.Radius;
                 const float EMaxY = EPos.Y + ED.Radius;
                 const float EMinZ = EPos.Z;
-                const float EMaxZ = EPos.Z + ED.Radius;
+                const float EMaxZ = EPos.Z + 2.0f * ED.HalfHeight;
 
                 // AABB-AABB 겹침 계산
                 const float OX = FMath::Min(EMaxX, VMaxX) - FMath::Max(EMinX, VMinX);
@@ -981,9 +984,9 @@ void FHktPhysicsSystem::Process(
                     continue;
 
                 // 최소 겹침 축으로 밀어내기 — solid는 무한 mass이므로 엔터티를 100% 밀어냄
-                // Z축 우선: R >> VS 일 때 바닥 복셀의 OX/OY/OZ 가 모두 VS로 동률이 되므로
+                // Z축 우선: HH >> VS 일 때 바닥 복셀의 OX/OY/OZ 가 모두 VS로 동률이 되므로
                 // <= 로 Z를 우선 선택해야 바닥 접촉에서 안정적으로 위로 밀어낸다.
-                const float ECZ = EPos.Z + ED.Radius * 0.5f;  // 바디 Z 중심
+                const float ECZ = EPos.Z + ED.HalfHeight;  // 캡슐 Z 중심
                 float MinO = OX;
                 FVector Push((EPos.X >= VCX) ? OX : -OX, 0.0f, 0.0f);
 
@@ -1016,7 +1019,7 @@ void FHktPhysicsSystem::Process(
             }
         }
 
-        // ── Step 5: 셀 안의 엔터티 쌍 충돌 — CollisionLayer 매칭 + mass 기반 반작용 ──
+        // ── Step 5: 셀 안의 엔터티 쌍 충돌 — CollisionLayer 매칭 + 캡슐-캡슐 mass 기반 반작용 ──
         for (int32 i = 0; i < Entries.Num(); ++i)
         {
             const int32* IdxA = EntityLookup.Find(Entries[i].EntityId);
@@ -1046,11 +1049,45 @@ void FHktPhysicsSystem::Process(
                 if (A.bProjectile && A.OwnerEntity == static_cast<int32>(B.Id)) continue;
                 if (B.bProjectile && B.OwnerEntity == static_cast<int32>(A.Id)) continue;
 
-                // 반작용 반영된 현재 위치로 구-구 충돌 검사
+                // 반작용 반영된 현재 위치로 캡슐-캡슐 충돌 검사
+                // 캡슐 중심축(수직 세그먼트): 하단 반구 중심 ~ 상단 반구 중심
                 const FVector PosA = A.ExpectedPos + Reactions[*IdxA];
                 const FVector PosB = B.ExpectedPos + Reactions[*IdxB];
+
+                // 중심축 Z 범위: [PosZ + Radius, PosZ + 2*HalfHeight - Radius]
+                const float SegABot = PosA.Z + A.Radius;
+                const float SegATop = PosA.Z + 2.0f * A.HalfHeight - A.Radius;
+                const float SegBBot = PosB.Z + B.Radius;
+                const float SegBTop = PosB.Z + 2.0f * B.HalfHeight - B.Radius;
+
+                // 수직 캡슐 간 최근접점: Z축 겹침 구간에서 최소 Z 거리 계산
+                // Z 겹침이 있으면 Z 차이 = 0, 없으면 gap 거리
+                float CloseZA, CloseZB;
+                if (SegATop < SegBBot)
+                {
+                    // A가 B 아래에 있음
+                    CloseZA = SegATop;
+                    CloseZB = SegBBot;
+                }
+                else if (SegBTop < SegABot)
+                {
+                    // B가 A 아래에 있음
+                    CloseZA = SegABot;
+                    CloseZB = SegBTop;
+                }
+                else
+                {
+                    // Z 겹침 — 겹침 구간의 중점 사용 (Z 기여 = 0)
+                    const float OverlapMid = (FMath::Max(SegABot, SegBBot) + FMath::Min(SegATop, SegBTop)) * 0.5f;
+                    CloseZA = FMath::Clamp(OverlapMid, SegABot, SegATop);
+                    CloseZB = FMath::Clamp(OverlapMid, SegBBot, SegBTop);
+                }
+
+                const FVector ClosestA(PosA.X, PosA.Y, CloseZA);
+                const FVector ClosestB(PosB.X, PosB.Y, CloseZB);
+
                 const float CombR = A.Radius + B.Radius;
-                const float DistSq = FVector::DistSquared(PosA, PosB);
+                const float DistSq = FVector::DistSquared(ClosestA, ClosestB);
 
                 if (DistSq >= CombR * CombR)
                     continue;
@@ -1060,7 +1097,7 @@ void FHktPhysicsSystem::Process(
                     continue;
 
                 const float Overlap = CombR - Dist;
-                const FVector Dir = (PosB - PosA) / Dist;
+                const FVector Dir = (ClosestB - ClosestA) / Dist;
                 const float InvMass = 1.0f / (A.Mass + B.Mass);
 
                 // mass 기반 반작용 (투사체는 밀리지 않음)
@@ -1071,11 +1108,11 @@ void FHktPhysicsSystem::Process(
                 if (!B.bProjectile)
                     Reactions[*IdxB] += PushB;
 
-                // 충돌 이벤트
+                // 충돌 이벤트 — 접촉점 = 최근접점 중간
                 FHktPhysicsEvent PhysEvt;
                 PhysEvt.EntityA = A.Id;
                 PhysEvt.EntityB = B.Id;
-                PhysEvt.ContactPoint = (PosA + PosB) * 0.5f;
+                PhysEvt.ContactPoint = (ClosestA + ClosestB) * 0.5f;
                 OutPhysicsEvents.Add(PhysEvt);
 
                 if (DebugEntityId >= 0 &&
@@ -1083,9 +1120,10 @@ void FHktPhysicsSystem::Process(
                      B.Id == static_cast<FHktEntityId>(DebugEntityId)))
                 {
                     UE_LOG(LogTemp, Warning,
-                        TEXT("[Physics Step5] E%d<->E%d Dist=%.1f CombR=%.1f Overlap=%.1f "
+                        TEXT("[Physics Step5 Capsule] E%d(R=%.0f HH=%.0f)<->E%d(R=%.0f HH=%.0f) Dist=%.1f CombR=%.1f Overlap=%.1f "
                              "MassA=%.0f MassB=%.0f PushA=(%.1f,%.1f,%.1f) PushB=(%.1f,%.1f,%.1f)"),
-                        A.Id, B.Id, Dist, CombR, Overlap, A.Mass, B.Mass,
+                        A.Id, A.Radius, A.HalfHeight, B.Id, B.Radius, B.HalfHeight,
+                        Dist, CombR, Overlap, A.Mass, B.Mass,
                         -PushA.X, -PushA.Y, -PushA.Z,
                         PushB.X, PushB.Y, PushB.Z);
                 }

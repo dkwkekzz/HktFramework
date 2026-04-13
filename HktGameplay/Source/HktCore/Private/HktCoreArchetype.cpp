@@ -155,7 +155,7 @@ void InitializeHktArchetypes()
 
     HktTrait::Collidable = R.DefineTrait(TEXT("Collidable"), {
         HktProperty::CollisionLayer, HktProperty::CollisionMask,
-        HktProperty::CollisionRadius, HktProperty::Mass,
+        HktProperty::CollisionRadius, HktProperty::CollisionHalfHeight, HktProperty::Mass,
     });
 
     // Hittable: 피격 가능 대상의 최소 조건 (Character, NPC, Building, Debris 공통)

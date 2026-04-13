@@ -84,6 +84,7 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 TagIndex)
             Runtime.Context->WriteEntity(NewEntity, PropertyId::Mass, 1);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::MaxSpeed, 100);
             Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionRadius, 50);
+            Runtime.Context->WriteEntity(NewEntity, PropertyId::CollisionHalfHeight, 90);  // 캡슐 반높이 90cm (전체 높이 180cm, 표준 휴머노이드)
             Runtime.Context->WriteEntity(NewEntity, PropertyId::IsGrounded, 1);  // 기본: 지면 접지 (투사체 등은 Story에서 0으로 설정)
 
             // 시전자(Self)의 Team을 상속 (시전자가 없거나 유효하지 않으면 건너뜀)
