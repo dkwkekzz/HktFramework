@@ -8,6 +8,7 @@
 #include "Engine/LocalPlayer.h"
 #include "DrawDebugHelpers.h"
 #include "HktCollisionLayers.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 
 // --------------------------------------------------------------------------- CVars
 
@@ -21,12 +22,6 @@ static TAutoConsoleVariable<int32> CVarShowCollisionLabels(
 	TEXT("hkt.Debug.ShowCollisionLabels"),
 	0,
 	TEXT("충돌 캡슐 위에 EntityId/파라미터 표시. 0=끄기, 1=켜기"),
-	ECVF_Default);
-
-static TAutoConsoleVariable<float> CVarDebugVoxelSize(
-	TEXT("hkt.Debug.CollisionVoxelSize"),
-	15.0f,
-	TEXT("디버그용 복셀 크기 (cm). TerrainState.VoxelSizeCm과 동일하게 설정."),
 	ECVF_Default);
 
 // --------------------------------------------------------------------------- Collision Layer Colors
@@ -137,7 +132,9 @@ void FHktCollisionDebugRenderer::DrawDetectionRange(UWorld* World, const FHktPre
 
 void FHktCollisionDebugRenderer::DrawVoxelCells(UWorld* World, const FHktPresentationState& State)
 {
-	const float VS = CVarDebugVoxelSize.GetValueOnGameThread();
+	// RuntimeGlobalSetting 단일 출처에서 VoxelSizeCm 획득
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	const float VS = Settings ? Settings->VoxelSizeCm : 15.0f;
 	if (VS <= 0.0f) return;
 
 	State.ForEachEntity([&](const FHktEntityPresentation& Entity)
