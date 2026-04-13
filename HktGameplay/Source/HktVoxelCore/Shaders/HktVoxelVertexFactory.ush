@@ -188,6 +188,23 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// UE5 머티리얼 템플릿이 VertexColor를 Interpolants.Color (COLOR0 시맨틱)에서
 	// 직접 읽을 수 있으므로, PS의 GetMaterialPixelParameters에서 Result.VertexColor를
 	// 설정하는 것만으로는 부족하다. 양쪽 경로 모두에 올바른 색상을 보장한다.
+	//
+	// [디버그] HKT_VOXEL_DEBUG_COLOR를 1로 정의하면 타일 경로 진단용 색상 출력:
+	//   빨강 = HktTileEnabled == 0 (파라미터 미바인딩)
+	//   초록 = TileSlice >= 0 (타일 텍스처 경로 — 정상)
+	//   파랑 = TileSlice < 0 (팔레트 폴백 — LUT 미매핑)
+#ifndef HKT_VOXEL_DEBUG_COLOR
+#define HKT_VOXEL_DEBUG_COLOR 0
+#endif
+ 
+#if HKT_VOXEL_DEBUG_COLOR
+	if (!(HktTileEnabled > 0.5))
+		Result.Color = float4(1, 0, 0, 1);   // 빨강: HktTileEnabled 비활성
+	else if (Result.TileSlice >= 0.0)
+		Result.Color = float4(0, 1, 0, 1);   // 초록: 타일 텍스처 경로
+	else
+		Result.Color = float4(0, 0, 1, 1);   // 파랑: 팔레트 폴백
+#else
 	float4 PalTint = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
 	float3 VSBaseColor;
 	if (Result.TileSlice >= 0.0)
@@ -201,7 +218,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		VSBaseColor = PalTint.rgb;
 	}
 	Result.Color = float4(VSBaseColor * Result.AOLight, 1.0);
-
+#endif
+	
 	return Result;
 }
 

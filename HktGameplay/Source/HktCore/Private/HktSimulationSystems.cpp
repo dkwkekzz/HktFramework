@@ -876,6 +876,84 @@ void FHktPhysicsSystem::Process(
     if (Entities.Num() == 0)
         return;
 
+    // 스윕으로 바닥에 착지한 엔터티 — Step 6에서 VelZ=0 강제
+    TArray<bool> SweepLanded;
+    SweepLanded.SetNumZeroed(Entities.Num());
+
+    // ════════════════════════════════════════════════════════════════
+    // Step 1.5: Z축 스윕 — PreMove → ExpectedPos 경로상 바닥 관통 차단
+    //
+    // 현재 위치(ExpectedPos)에서만 겹침을 보는 기존 방식은, 엔터티가 한 프레임에
+    // 복셀 높이(VS)보다 많이 낙하하면 관통을 놓친다.
+    // PreMove(이동 전) 발 바로 아래부터 Expected(이동 후) 발까지 IsSolid를
+    // 직접 스캔하여, 경로 상 첫 번째 solid 표면에서 즉시 정지시킨다.
+    // (HeightmapCache는 동굴/오버행에서 부정확하므로 사용하지 않는다.)
+    // ════════════════════════════════════════════════════════════════
+
+    if (TerrainState)
+    {
+        for (int32 Idx = 0; Idx < Entities.Num(); ++Idx)
+        {
+            FEntityData& ED = Entities[Idx];
+
+            const float PreZ = static_cast<float>(PreMovePositions[ED.Slot].Z);
+            const float PostZ = ED.ExpectedPos.Z;
+
+            // 하강 중이 아니면 스킵
+            if (PostZ >= PreZ)
+                continue;
+
+            // 엔터티 XY 발자국의 복셀 범위
+            const int32 FootMinVX = FMath::FloorToInt((ED.ExpectedPos.X - ED.Radius) / VS);
+            const int32 FootMaxVX = FMath::FloorToInt((ED.ExpectedPos.X + ED.Radius) / VS);
+            const int32 FootMinVY = FMath::FloorToInt((ED.ExpectedPos.Y - ED.Radius) / VS);
+            const int32 FootMaxVY = FMath::FloorToInt((ED.ExpectedPos.Y + ED.Radius) / VS);
+
+            // 스윕 Z 범위 (복셀 단위): PreZ 바로 아래 → PostZ
+            // PreZ 발 위치의 한 칸 아래부터 탐색 시작 (PreZ 자체는 이미 유효한 위치)
+            const int32 ScanTopVZ = FMath::FloorToInt((PreZ - 0.01f) / VS);
+            const int32 ScanBotVZ = FMath::FloorToInt(PostZ / VS);
+
+            // 위에서 아래로 스캔: 경로 상 첫 번째 solid 표면을 찾는다
+            float SnapZ = PostZ;  // 기본: 변경 없음
+            bool bFound = false;
+
+            for (int32 VZ = ScanTopVZ; VZ >= ScanBotVZ && !bFound; --VZ)
+            {
+                for (int32 VX = FootMinVX; VX <= FootMaxVX && !bFound; ++VX)
+                {
+                    for (int32 VY = FootMinVY; VY <= FootMaxVY && !bFound; ++VY)
+                    {
+                        if (TerrainState->IsSolid(VX, VY, VZ))
+                        {
+                            // 이 복셀의 윗면 = 착지 표면
+                            const float SurfCm = static_cast<float>(VZ + 1) * VS;
+                            if (SurfCm <= PreZ)
+                            {
+                                SnapZ = SurfCm;
+                                bFound = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (bFound && SnapZ > PostZ)
+            {
+                ED.ExpectedPos.Z = SnapZ;
+                ED.Velocity.Z = 0.0f;
+                SweepLanded[Idx] = true;
+
+                if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
+                {
+                    UE_LOG(LogTemp, Warning,
+                        TEXT("[Physics Sweep] E%d PreZ=%.0f PostZ=%.0f → Snapped to surface %.0f"),
+                        ED.Id, PreZ, PostZ, SnapZ);
+                }
+            }
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════
     // Step 2: 셀맵 구축 — 기대 위치 + 반경으로 차지하는 복셀 셀 등록
     // ════════════════════════════════════════════════════════════════
@@ -888,14 +966,14 @@ void FHktPhysicsSystem::Process(
 
         // 엔터티 캡슐 AABB: XY ± Radius, Z = [PosZ, PosZ + 2*HalfHeight]
         const FIntVector MinV = FHktTerrainSystem::CmToVoxel(
-            ED.ExpectedPos.X - ED.Radius,
-            ED.ExpectedPos.Y - ED.Radius,
-            ED.ExpectedPos.Z,
+            static_cast<float>(ED.ExpectedPos.X) - ED.Radius,
+            static_cast<float>(ED.ExpectedPos.Y) - ED.Radius,
+            static_cast<float>(ED.ExpectedPos.Z),
             VS);
         const FIntVector MaxV = FHktTerrainSystem::CmToVoxel(
-            ED.ExpectedPos.X + ED.Radius,
-            ED.ExpectedPos.Y + ED.Radius,
-            ED.ExpectedPos.Z + 2.0f * ED.HalfHeight,
+            static_cast<float>(ED.ExpectedPos.X) + ED.Radius,
+            static_cast<float>(ED.ExpectedPos.Y) + ED.Radius,
+            static_cast<float>(ED.ExpectedPos.Z) + 2.0f * ED.HalfHeight,
             VS);
 
         if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
@@ -1145,6 +1223,10 @@ void FHktPhysicsSystem::Process(
         int32 FinalVelY = WorldState.GetProperty(ED.Id, PropertyId::VelY);
         int32 FinalVelZ = WorldState.GetProperty(ED.Id, PropertyId::VelZ);
 
+        // 스윕 착지: 바닥에 스냅된 엔터티는 낙하 속도를 즉시 제거
+        if (SweepLanded[Idx] && FinalVelZ < 0)
+            FinalVelZ = 0;
+
         // 반작용 방향과 속도가 반대이면 해당 축 속도 제거
         // (벽에 부딪혀 밀려났는데 속도가 벽 쪽이면 멈춤)
         if (FMath::Abs(React.X) > SMALL_NUMBER &&
@@ -1180,7 +1262,7 @@ void FHktPhysicsSystem::Process(
         if (TerrainState)
         {
             const FIntVector FeetVoxel = FHktTerrainSystem::CmToVoxel(
-                FinalPos.X, FinalPos.Y, FinalPos.Z - 1.0f, VS);
+                static_cast<float>(FinalPos.X), static_cast<float>(FinalPos.Y), static_cast<float>(FinalPos.Z) - 1.0f, VS);
             const bool bGroundBelow = TerrainState->IsSolid(FeetVoxel.X, FeetVoxel.Y, FeetVoxel.Z);
             const int32 PrevGrounded = WorldState.GetProperty(ED.Id, PropertyId::IsGrounded);
 
@@ -1207,7 +1289,7 @@ void FHktPhysicsSystem::Process(
         if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
         {
             const FIntVector FV = FHktTerrainSystem::CmToVoxel(
-                FinalPos.X, FinalPos.Y, FinalPos.Z - 1.0f, VS);
+                static_cast<float>(FinalPos.X), static_cast<float>(FinalPos.Y), static_cast<float>(FinalPos.Z) - 1.0f, VS);
             const bool bGnd = TerrainState ? TerrainState->IsSolid(FV.X, FV.Y, FV.Z) : false;
             UE_LOG(LogTemp, Warning,
                 TEXT("[Physics Step6] E%d Final=(%d,%d,%d) Reaction=(%.1f,%.1f,%.1f) "

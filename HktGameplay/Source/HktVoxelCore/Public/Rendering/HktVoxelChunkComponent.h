@@ -106,7 +106,7 @@ public:
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual UBodySetup* GetBodySetup() const override;
+	virtual UBodySetup* GetBodySetup() override;
 	virtual int32 GetNumMaterials() const override { return 1; }
 
 private:

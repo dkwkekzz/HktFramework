@@ -288,7 +288,7 @@ FBoxSphereBounds UHktVoxelChunkComponent::CalcBounds(const FTransform& LocalToWo
 	return FBoxSphereBounds(Box).TransformBy(LocalToWorld);
 }
 
-UBodySetup* UHktVoxelChunkComponent::GetBodySetup() const
+UBodySetup* UHktVoxelChunkComponent::GetBodySetup()
 {
 	return ChunkBodySetup;
 }

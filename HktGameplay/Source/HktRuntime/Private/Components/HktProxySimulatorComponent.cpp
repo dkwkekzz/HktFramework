@@ -104,17 +104,17 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
     AccumulateDiff(Diff);
 
-    // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정
-    FramesSinceLastServerBatch++;
-    if (FramesSinceLastServerBatch > MaxHistoryFrames)
-    {
-        HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
-            FString::Printf(TEXT("ServerBatchTimeout: %d frames without response"), FramesSinceLastServerBatch));
-        DiffHistory.Empty();
-        FramesSinceLastServerBatch = 0;
-        bInitialized = false;
-        OnTimeout.Broadcast();
-    }
+    // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정 -> 잘못된 버그 코드
+    //FramesSinceLastServerBatch++;
+    //if (FramesSinceLastServerBatch > MaxHistoryFrames)
+    //{
+    //    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
+    //        FString::Printf(TEXT("ServerBatchTimeout: %d frames without response"), FramesSinceLastServerBatch));
+    //    DiffHistory.Empty();
+    //    FramesSinceLastServerBatch = 0;
+    //    bInitialized = false;
+    //    OnTimeout.Broadcast();
+    //}
 }
 
 FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(

@@ -17,7 +17,8 @@ public class HktInsights : ModuleRules
             "SlateCore",
             "InputCore",
 			"GameplayTags",
-            "HktCore"
+            "HktCore",
+            "ApplicationCore"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
