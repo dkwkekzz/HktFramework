@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "IHktHitRefinementProvider.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "HktVoxelTerrainStreamer.h"
@@ -74,7 +75,9 @@ struct FHktVoxelBlockStyle
  *   Streamer → Generator.GenerateChunk() → RenderCache → MeshScheduler → ChunkComponent → GPU
  */
 UCLASS(ClassGroup = (HktVoxel))
-class HKTVOXELTERRAIN_API AHktVoxelTerrainActor : public AActor
+class HKTVOXELTERRAIN_API AHktVoxelTerrainActor
+	: public AActor
+	, public IHktHitRefinementProvider
 {
 	GENERATED_BODY()
 
@@ -92,6 +95,13 @@ public:
 
 	/** RenderCache 직접 접근 (테스트/디버그용) */
 	FHktVoxelRenderCache* GetTerrainCache() const { return TerrainCache.Get(); }
+
+	// IHktHitRefinementProvider
+	virtual bool RefineHit(
+		const FVector& TraceStart,
+		const FVector& TraceDir,
+		const FHitResult& CoarseHit,
+		FHitResult& OutRefinedHit) const override;
 
 	// === 설정 ===
 

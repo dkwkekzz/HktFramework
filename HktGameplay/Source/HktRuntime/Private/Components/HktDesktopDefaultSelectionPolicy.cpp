@@ -3,6 +3,7 @@
 #include "HktDesktopDefaultSelectionPolicy.h"
 #include "HktSelectable.h"
 #include "IHktEntityHudHitTestProvider.h"
+#include "IHktHitRefinementProvider.h"
 #include "HktCoreEventLog.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
@@ -48,6 +49,28 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
             TEXT("ResolveTarget: no hit under cursor"));
         return;
+    }
+
+    // Phase 2: 복셀 지형 히트 시 DDA 레이캐스트로 정밀 보정
+    if (IHktHitRefinementProvider* Refiner = Cast<IHktHitRefinementProvider>(Hit.GetActor()))
+    {
+        APlayerController* PC = Cast<APlayerController>(GetOwner());
+        FVector WorldOrigin, WorldDir;
+        if (PC && PC->DeprojectMousePositionToWorld(WorldOrigin, WorldDir))
+        {
+            FHitResult RefinedHit;
+            if (Refiner->RefineHit(WorldOrigin, WorldDir, Hit, RefinedHit))
+            {
+                Hit = RefinedHit;
+            }
+            else
+            {
+                // DDA가 solid 복셀을 찾지 못함 — 파괴된 영역 통과 → 히트 없음
+                HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Verbose, EHktLogSource::Client,
+                    TEXT("ResolveTarget: voxel refinement found no solid voxel"));
+                return;
+            }
+        }
     }
 
     if (IHktSelectable* Selectable = Cast<IHktSelectable>(Hit.GetActor()))

@@ -4,6 +4,7 @@
 #include "HktVoxelTerrainStreamer.h"
 #include "HktVoxelTerrainLog.h"
 #include "Data/HktVoxelRenderCache.h"
+#include "Data/HktVoxelRaycast.h"
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "Rendering/HktVoxelChunkComponent.h"
@@ -594,6 +595,40 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 		SliceTextures.Num() > 0 ? SliceTextures[0]->GetSizeX() : 0,
 		SliceTextures.Num() > 0 ? SliceTextures[0]->GetSizeY() : 0,
 		SliceTextures.Num() > 0 ? GetPixelFormatString(SliceTextures[0]->GetPixelFormat()) : TEXT("N/A"));
+}
+
+// ============================================================================
+// IHktHitRefinementProvider — DDA 복셀 레이캐스트로 정밀 히트 보정
+// ============================================================================
+
+bool AHktVoxelTerrainActor::RefineHit(
+	const FVector& TraceStart,
+	const FVector& TraceDir,
+	const FHitResult& CoarseHit,
+	FHitResult& OutRefinedHit) const
+{
+	if (!TerrainCache)
+	{
+		return false;
+	}
+
+	const FHktVoxelRaycastResult Result = FHktVoxelRaycast::Trace(
+		*TerrainCache, TraceStart, TraceDir, VoxelSize);
+
+	if (!Result.bHit)
+	{
+		return false;
+	}
+
+	// coarse 히트의 Actor/Component 정보를 유지하면서 위치/법선만 갱신
+	OutRefinedHit = CoarseHit;
+	OutRefinedHit.Location = Result.HitLocation;
+	OutRefinedHit.ImpactPoint = Result.HitLocation;
+	OutRefinedHit.ImpactNormal = Result.HitNormal;
+	OutRefinedHit.Normal = Result.HitNormal;
+	OutRefinedHit.Distance = Result.Distance;
+
+	return true;
 }
 
 void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
