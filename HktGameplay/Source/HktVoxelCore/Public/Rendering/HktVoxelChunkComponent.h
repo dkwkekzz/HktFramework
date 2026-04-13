@@ -8,6 +8,7 @@
 #include "HktVoxelChunkComponent.generated.h"
 
 class FHktVoxelRenderCache;
+class UBodySetup;
 
 /** 텍스처+샘플러 RHI 쌍 — 타일/머티리얼 텍스처 전달에 공용 */
 struct FHktVoxelTexturePair
@@ -105,9 +106,20 @@ public:
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	virtual UBodySetup* GetBodySetup() const override;
 	virtual int32 GetNumMaterials() const override { return 1; }
 
 private:
+	/** solid 복셀 AABB로 Box collision 재구축 — OnMeshReady에서 호출 */
+	void RebuildCollision();
+
+	UPROPERTY()
+	TObjectPtr<UBodySetup> ChunkBodySetup;
+
+	/** 이전 AABB 캐시 — 변경 시에만 RecreatePhysicsState 호출 (비용 절감) */
+	FIntVector CachedAABBMin = FIntVector(-1, -1, -1);
+	FIntVector CachedAABBMax = FIntVector(-1, -1, -1);
+
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
 	FHktVoxelRenderCache* RenderCache = nullptr;
 	float CachedVoxelSize = FHktVoxelChunk::VOXEL_SIZE;

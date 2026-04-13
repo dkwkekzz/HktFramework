@@ -8,6 +8,7 @@
 #include "Meshing/HktVoxelVertex.h"
 #include "HktVoxelCoreLog.h"
 #include "Materials/Material.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Materials/MaterialExpressionVertexColor.h"
@@ -100,6 +101,15 @@ void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FInt
 	ChunkCoord = InChunkCoord;
 	CachedVoxelSize = (InVoxelSize > 0.f) ? InVoxelSize : FHktVoxelChunk::VOXEL_SIZE;
 
+	// 풀 재사용 시 이전 수명주기의 stale collision 정리
+	if (ChunkBodySetup)
+	{
+		ChunkBodySetup = nullptr;
+		RecreatePhysicsState();
+	}
+	CachedAABBMin = FIntVector(-1, -1, -1);
+	CachedAABBMax = FIntVector(-1, -1, -1);
+
 	// 풀 재사용 시 SceneProxy가 재생성되므로 스타일 전달 상태를 리셋.
 	// (이전 수명주기의 stale 플래그로 인해 OnMeshReady가 텍스처 셋업을 스킵하는 것 방지)
 	bStyleTexturesApplied = false;
@@ -125,6 +135,9 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	{
 		return;
 	}
+
+	// 메시 재생성 시 collision도 갱신 (solid 복셀 AABB 재계산)
+	RebuildCollision();
 
 	// 불투명 + 반투명 메시 데이터를 합쳐서 복사
 	// (프로덕션에서는 별도 렌더 패스로 분리하지만, 현재는 단일 패스)
@@ -273,4 +286,107 @@ FBoxSphereBounds UHktVoxelChunkComponent::CalcBounds(const FTransform& LocalToWo
 	// 복셀은 로컬 (0,0,0)~(ChunkWorldSize,ChunkWorldSize,ChunkWorldSize) 범위에 배치됨
 	const FBox Box(FVector::ZeroVector, FVector(ChunkWorldSize, ChunkWorldSize, ChunkWorldSize));
 	return FBoxSphereBounds(Box).TransformBy(LocalToWorld);
+}
+
+UBodySetup* UHktVoxelChunkComponent::GetBodySetup() const
+{
+	return ChunkBodySetup;
+}
+
+void UHktVoxelChunkComponent::RebuildCollision()
+{
+	if (!RenderCache)
+	{
+		return;
+	}
+
+	const FHktVoxelChunk* Chunk = RenderCache->GetChunk(ChunkCoord);
+	if (!Chunk)
+	{
+		return;
+	}
+
+	// solid 복셀의 AABB 계산
+	int32 MinX = FHktVoxelChunk::SIZE, MinY = FHktVoxelChunk::SIZE, MinZ = FHktVoxelChunk::SIZE;
+	int32 MaxX = -1, MaxY = -1, MaxZ = -1;
+	bool bHasSolid = false;
+
+	for (int32 Z = 0; Z < FHktVoxelChunk::SIZE; ++Z)
+	{
+		for (int32 Y = 0; Y < FHktVoxelChunk::SIZE; ++Y)
+		{
+			for (int32 X = 0; X < FHktVoxelChunk::SIZE; ++X)
+			{
+				if (!Chunk->At(X, Y, Z).IsEmpty())
+				{
+					MinX = FMath::Min(MinX, X);
+					MinY = FMath::Min(MinY, Y);
+					MinZ = FMath::Min(MinZ, Z);
+					MaxX = FMath::Max(MaxX, X);
+					MaxY = FMath::Max(MaxY, Y);
+					MaxZ = FMath::Max(MaxZ, Z);
+					bHasSolid = true;
+				}
+			}
+		}
+	}
+
+	if (!bHasSolid)
+	{
+		// solid 복셀 없음 — collision 해제
+		if (ChunkBodySetup)
+		{
+			ChunkBodySetup = nullptr;
+			CachedAABBMin = FIntVector(-1, -1, -1);
+			CachedAABBMax = FIntVector(-1, -1, -1);
+			RecreatePhysicsState();
+		}
+		return;
+	}
+
+	const FIntVector NewMin(MinX, MinY, MinZ);
+	const FIntVector NewMax(MaxX, MaxY, MaxZ);
+
+	// AABB가 이전과 동일하면 물리 씬 재등록 스킵 (RecreatePhysicsState 비용 절감)
+	if (ChunkBodySetup && NewMin == CachedAABBMin && NewMax == CachedAABBMax)
+	{
+		return;
+	}
+
+	CachedAABBMin = NewMin;
+	CachedAABBMax = NewMax;
+
+	// BodySetup 생성 또는 재사용
+	if (!ChunkBodySetup)
+	{
+		ChunkBodySetup = NewObject<UBodySetup>(const_cast<UHktVoxelChunkComponent*>(this),
+			NAME_None, RF_Transient);
+		ChunkBodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+		ChunkBodySetup->DefaultInstance.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
+
+	// 기존 심플 collision 초기화
+	ChunkBodySetup->AggGeom.BoxElems.Reset();
+
+	// AABB → FKBoxElem (로컬 좌표)
+	const float BoxMinX = MinX * CachedVoxelSize;
+	const float BoxMinY = MinY * CachedVoxelSize;
+	const float BoxMinZ = MinZ * CachedVoxelSize;
+	const float BoxMaxX = (MaxX + 1) * CachedVoxelSize;
+	const float BoxMaxY = (MaxY + 1) * CachedVoxelSize;
+	const float BoxMaxZ = (MaxZ + 1) * CachedVoxelSize;
+
+	FKBoxElem BoxElem;
+	BoxElem.X = BoxMaxX - BoxMinX;
+	BoxElem.Y = BoxMaxY - BoxMinY;
+	BoxElem.Z = BoxMaxZ - BoxMinZ;
+	BoxElem.Center = FVector(
+		(BoxMinX + BoxMaxX) * 0.5f,
+		(BoxMinY + BoxMaxY) * 0.5f,
+		(BoxMinZ + BoxMaxZ) * 0.5f);
+
+	ChunkBodySetup->AggGeom.BoxElems.Add(BoxElem);
+	ChunkBodySetup->CreatePhysicsMeshes();
+
+	RecreatePhysicsState();
 }
