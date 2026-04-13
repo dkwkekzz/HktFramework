@@ -130,7 +130,7 @@
     "TargetPosX", "TargetPosY", "TargetPosZ",
     "Param0", "Param1", "Param2", "Param3",
     "AnimState", "VisualState", "AnimStateUpper",
-    "VelX", "VelY", "VelZ", "Mass", "CollisionRadius",
+    "VelX", "VelY", "VelZ", "Mass", "CollisionRadius", "CollisionHalfHeight",
     "ItemState", "ItemId", "BagSlot", "ActionSlot", "BagCapacity",
     "IsNPC", "SpawnFlowTag",
     "ItemSkillTag", "SkillCPCost", "RecoveryFrame"

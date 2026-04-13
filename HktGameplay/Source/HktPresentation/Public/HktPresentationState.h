@@ -35,6 +35,7 @@ struct FHktEntityPresentation
 
 	// --- Physics (Debug) ---
 	THktVisualField<float> CollisionRadius;
+	THktVisualField<float> CollisionHalfHeight;   // 캡슐 반높이 (cm)
 	THktVisualField<int32> CollisionLayer;
 
 	// --- Movement ---

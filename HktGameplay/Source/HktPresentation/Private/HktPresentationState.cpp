@@ -50,8 +50,9 @@ namespace
 			T[PropertyId::VelZ]        = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Velocity.Value.Z = static_cast<float>(V); E.Velocity.Set(E.Velocity.Value, F); };
 
 			// --- Physics ---
-			T[PropertyId::CollisionRadius] = [](FHktEntityPresentation& E, int32 V, int64 F) { E.CollisionRadius.Set(FMath::Max(static_cast<float>(V), 50.f), F); };
-			T[PropertyId::CollisionLayer]  = [](FHktEntityPresentation& E, int32 V, int64 F) { E.CollisionLayer.Set(V, F); };
+			T[PropertyId::CollisionRadius]     = [](FHktEntityPresentation& E, int32 V, int64 F) { E.CollisionRadius.Set(FMath::Max(static_cast<float>(V), 50.f), F); };
+			T[PropertyId::CollisionHalfHeight] = [](FHktEntityPresentation& E, int32 V, int64 F) { E.CollisionHalfHeight.Set(FMath::Max(static_cast<float>(V), 30.f), F); };
+			T[PropertyId::CollisionLayer]      = [](FHktEntityPresentation& E, int32 V, int64 F) { E.CollisionLayer.Set(V, F); };
 
 			// --- Vitals ---
 			T[PropertyId::Health] = [](FHktEntityPresentation& E, int32 V, int64 F) {
@@ -137,6 +138,7 @@ void FHktEntityPresentation::InitFromWorldState(const FHktWorldState& WS, FHktEn
 
 	// Physics
 	CollisionRadius.Set(FMath::Max(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionRadius)), 50.f), Frame);
+	CollisionHalfHeight.Set(FMath::Max(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionHalfHeight)), 30.f), Frame);
 	CollisionLayer.Set(WS.GetProperty(Id, PropertyId::CollisionLayer), Frame);
 
 	// Movement

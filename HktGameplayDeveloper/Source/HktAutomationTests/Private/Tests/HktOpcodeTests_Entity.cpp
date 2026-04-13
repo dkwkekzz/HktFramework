@@ -69,6 +69,7 @@ static FHktTestResult Test_SpawnEntity_AutoInit()
 		.LoadStoreEntity(Reg::R1, Reg::Spawned, PropertyId::MaxSpeed)
 		.LoadStoreEntity(Reg::R2, Reg::Spawned, PropertyId::CollisionRadius)
 		.LoadStoreEntity(Reg::R3, Reg::Spawned, PropertyId::OwnerEntity)
+		.LoadStoreEntity(Reg::R4, Reg::Spawned, PropertyId::CollisionHalfHeight)
 		.Halt()
 		.Build();
 
@@ -83,6 +84,8 @@ static FHktTestResult Test_SpawnEntity_AutoInit()
 		return FHktTestResult::Fail(TEXT("SpawnEntity_AutoInit"), TEXT("CollisionRadius should be 50"));
 	if (H.GetRegister(Reg::R3) != static_cast<int32>(Self))
 		return FHktTestResult::Fail(TEXT("SpawnEntity_AutoInit"), TEXT("OwnerEntity should be Self"));
+	if (H.GetRegister(Reg::R4) != 90)
+		return FHktTestResult::Fail(TEXT("SpawnEntity_AutoInit"), TEXT("CollisionHalfHeight should be 90"));
 
 	return FHktTestResult::Pass(TEXT("SpawnEntity_AutoInit"));
 }
