@@ -116,6 +116,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UBodySetup> ChunkBodySetup;
 
+	/** 이전 AABB 캐시 — 변경 시에만 RecreatePhysicsState 호출 (비용 절감) */
+	FIntVector CachedAABBMin = FIntVector(-1, -1, -1);
+	FIntVector CachedAABBMax = FIntVector(-1, -1, -1);
+
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
 	FHktVoxelRenderCache* RenderCache = nullptr;
 	float CachedVoxelSize = FHktVoxelChunk::VOXEL_SIZE;

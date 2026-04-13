@@ -45,6 +45,8 @@ void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FInt
 		ChunkBodySetup = nullptr;
 		RecreatePhysicsState();
 	}
+	CachedAABBMin = FIntVector(-1, -1, -1);
+	CachedAABBMax = FIntVector(-1, -1, -1);
 
 	// 풀 재사용 시 SceneProxy가 재생성되므로 스타일 전달 상태를 리셋.
 	// (이전 수명주기의 stale 플래그로 인해 OnMeshReady가 텍스처 셋업을 스킵하는 것 방지)
@@ -273,10 +275,24 @@ void UHktVoxelChunkComponent::RebuildCollision()
 		if (ChunkBodySetup)
 		{
 			ChunkBodySetup = nullptr;
+			CachedAABBMin = FIntVector(-1, -1, -1);
+			CachedAABBMax = FIntVector(-1, -1, -1);
 			RecreatePhysicsState();
 		}
 		return;
 	}
+
+	const FIntVector NewMin(MinX, MinY, MinZ);
+	const FIntVector NewMax(MaxX, MaxY, MaxZ);
+
+	// AABB가 이전과 동일하면 물리 씬 재등록 스킵 (RecreatePhysicsState 비용 절감)
+	if (ChunkBodySetup && NewMin == CachedAABBMin && NewMax == CachedAABBMax)
+	{
+		return;
+	}
+
+	CachedAABBMin = NewMin;
+	CachedAABBMax = NewMax;
 
 	// BodySetup 생성 또는 재사용
 	if (!ChunkBodySetup)
