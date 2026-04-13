@@ -52,6 +52,23 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		return;
 	}
 
+	// [진단] 이 프록시가 실제로 GetDynamicMeshElements를 타는지,
+	// 어떤 머티리얼/VF가 사용되는지, VertexFactory 타입이 맞는지 확인.
+	static bool bDrawDiagLogged = false;
+	if (!bDrawDiagLogged)
+	{
+		bDrawDiagLogged = true;
+		UE_LOG(LogHktVoxelCore, Warning,
+			TEXT("[Draw 진단] GetDynamicMeshElements 호출됨 — ")
+			TEXT("NumIdx=%d, NumVert=%d, VF=%p, VFType=%s, ")
+			TEXT("Material=%s, MaterialClass=%s"),
+			NumIndices, NumVertices,
+			VertexFactory,
+			VertexFactory ? VertexFactory->GetType()->GetName() : TEXT("NULL"),
+			VoxelMaterial ? *VoxelMaterial->GetName() : TEXT("NULL"),
+			VoxelMaterial ? *VoxelMaterial->GetClass()->GetName() : TEXT("NULL"));
+	}
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (!(VisibilityMap & (1 << ViewIndex)))
