@@ -180,16 +180,6 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		VertexFactory->SetTileTextures(
 			PendingTileArrayRHI, PendingTileArraySamplerRHI,
 			PendingTileIndexLUTRHI, PendingTileIndexLUTSamplerRHI);
-
-		UE_LOG(LogHktVoxelCore, Log,
-			TEXT("[Proxy RT] TileTextures 적용됨 — TileArray=%p, IndexLUT=%p, Verts=%d"),
-			PendingTileArrayRHI, PendingTileIndexLUTRHI, Vertices.Num());
-	}
-	else
-	{
-		UE_LOG(LogHktVoxelCore, Warning,
-			TEXT("[Proxy RT] TileTextures 없음 (PendingTileArrayRHI=null) — Verts=%d"),
-			Vertices.Num());
 	}
 	if (PendingMaterialLUTRHI)
 	{
@@ -197,6 +187,19 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 
 	VertexFactory->SetData(VFData);
+
+	// [진단] SetData(→UpdateRHI) 후 최종 VertexFactory 텍스처 상태.
+	// SetData 호출 뒤에도 텍스처 포인터가 유지되는지 확인.
+	// RHI 포인터가 null이거나 Sampler가 null이면 셰이더에서 해당 텍스처를 바인딩하지 못한다.
+	UE_LOG(LogHktVoxelCore, Log,
+		TEXT("[Proxy RT 진단] SetData 후 VF 텍스처 상태 — ")
+		TEXT("TileArray=%p(Sampler=%p), IndexLUT=%p(Sampler=%p), ")
+		TEXT("Palette=%p(Sampler=%p), MatLUT=%p(Sampler=%p), Verts=%d"),
+		VertexFactory->TileArrayRHI, VertexFactory->TileArraySamplerRHI,
+		VertexFactory->TileIndexLUTRHI, VertexFactory->TileIndexLUTSamplerRHI,
+		VertexFactory->PaletteTextureRHI, VertexFactory->PaletteSamplerRHI,
+		VertexFactory->MaterialLUTRHI, VertexFactory->MaterialLUTSamplerRHI,
+		Vertices.Num());
 
 	// 기존 본 트랜스폼 SRV가 있으면 재바인딩
 	if (BoneTransformSRV.IsValid())

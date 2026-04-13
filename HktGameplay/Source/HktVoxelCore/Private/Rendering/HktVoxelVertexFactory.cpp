@@ -4,6 +4,7 @@
 #include "MeshMaterialShader.h"
 #include "ShaderParameterUtils.h"
 #include "MeshDrawShaderBindings.h"
+#include "HktVoxelCoreLog.h"
 
 // ============================================================================
 // 셰이더 파라미터 — HktPaletteTexture / HktPaletteSampler 바인딩
@@ -66,6 +67,35 @@ public:
 		if (TileEnabledParam.IsBound())
 		{
 			ShaderBindings.Add(TileEnabledParam, bTileEnabled ? 1.0f : 0.0f);
+		}
+
+		// [진단] 최초 1회 — 셰이더 파라미터 바인딩 상태 전수 검사.
+		// IsBound()=false면 셰이더가 해당 파라미터를 사용하지 않거나 컴파일되지 않은 것.
+		// RHI=null이면 CPU 측에서 텍스처가 설정되지 않은 것.
+		static bool bBindDiagLogged = false;
+		if (!bBindDiagLogged && bTileEnabled)
+		{
+			bBindDiagLogged = true;
+			UE_LOG(LogHktVoxelCore, Warning,
+				TEXT("[VF Bind 진단] === 셰이더 파라미터 바인딩 상태 ===\n")
+				TEXT("  TileEnabled: Bound=%d, Value=%d\n")
+				TEXT("  TileArray:   Bound=%d, RHI=%p\n")
+				TEXT("  TileSampler: Bound=%d, RHI=%p\n")
+				TEXT("  IndexLUT:    Bound=%d, RHI=%p\n")
+				TEXT("  LUTSampler:  Bound=%d, RHI=%p\n")
+				TEXT("  Palette:     Bound=%d, RHI=%p\n")
+				TEXT("  PalSampler:  Bound=%d, RHI=%p\n")
+				TEXT("  MatLUT:      Bound=%d, RHI=%p\n")
+				TEXT("  VoxelSize:   Bound=%d, Value=%.1f"),
+				TileEnabledParam.IsBound() ? 1 : 0, bTileEnabled ? 1 : 0,
+				TileArrayParam.IsBound() ? 1 : 0, VoxelVF->TileArrayRHI,
+				TileArraySamplerParam.IsBound() ? 1 : 0, VoxelVF->TileArraySamplerRHI,
+				TileIndexLUTParam.IsBound() ? 1 : 0, VoxelVF->TileIndexLUTRHI,
+				TileIndexLUTSamplerParam.IsBound() ? 1 : 0, VoxelVF->TileIndexLUTSamplerRHI,
+				PaletteTextureParam.IsBound() ? 1 : 0, VoxelVF->PaletteTextureRHI,
+				PaletteSamplerParam.IsBound() ? 1 : 0, VoxelVF->PaletteSamplerRHI,
+				MaterialLUTParam.IsBound() ? 1 : 0, VoxelVF->MaterialLUTRHI,
+				VoxelSizeParam.IsBound() ? 1 : 0, VoxelVF->VoxelSizeUU);
 		}
 		if (TileArrayParam.IsBound() && VoxelVF->TileArrayRHI)
 		{
