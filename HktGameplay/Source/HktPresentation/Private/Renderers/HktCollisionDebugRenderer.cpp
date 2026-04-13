@@ -105,6 +105,7 @@ void FHktCollisionDebugRenderer::DrawDetectionRange(UWorld* World, const FHktPre
 {
 	// 판정 범위 = 자신의 캡슐을 Radius만큼 팽창 (worst case: 같은 크기의 상대와 충돌)
 	// 즉, 외곽 캡슐의 Radius = 2 * Radius, HalfHeight = HalfHeight + Radius
+	// 팽창 캡슐의 바닥 = PosZ - Radius, 높이 = 2*(HH+R), 중심 = PosZ - R + (HH+R) = PosZ + HH
 
 	State.ForEachEntity([&](const FHktEntityPresentation& Entity)
 	{
@@ -119,9 +120,10 @@ void FHktCollisionDebugRenderer::DrawDetectionRange(UWorld* World, const FHktPre
 		const FVector SimPos = Entity.Location.Get();
 
 		// 팽창된 캡슐: Radius*2, HalfHeight + Radius
+		// 중심 = 원래 캡슐 중심과 동일 (PosZ + HalfHeight)
 		const float DetectR = Radius * 2.0f;
 		const float DetectHH = HalfHeight + Radius;
-		const FVector DetectCenter(SimPos.X, SimPos.Y, SimPos.Z + DetectHH);
+		const FVector DetectCenter(SimPos.X, SimPos.Y, SimPos.Z + HalfHeight);
 
 		DrawDebugCapsule(World, DetectCenter, DetectHH, DetectR, FQuat::Identity,
 			RangeColor, false, -1.f, SDPG_World, 0.5f);
