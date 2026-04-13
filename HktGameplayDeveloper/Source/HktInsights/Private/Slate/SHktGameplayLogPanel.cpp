@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "HktGameplayLogPanel"
 
@@ -153,6 +154,22 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                     return FReply::Handled();
                 })
                 [ SNew(STextBlock).Text(LOCTEXT("DumpBtn", "Dump to File")) ]
+            ]
+
+            // Copy 버튼
+            + SHorizontalBox::Slot()
+            .AutoWidth()
+            .VAlign(VAlign_Center)
+            .Padding(0, 0, 8, 0)
+            [
+                SNew(SButton)
+                .OnClicked_Lambda([this]() -> FReply
+                {
+                    CopySelectedToClipboard();
+                    return FReply::Handled();
+                })
+                .ToolTipText(LOCTEXT("CopyTooltip", "선택된 로그를 클립보드에 복사 (Ctrl+C)"))
+                [ SNew(STextBlock).Text(LOCTEXT("CopyBtn", "Copy")) ]
             ]
 
             // AutoScroll 토글
@@ -340,7 +357,16 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                 SAssignNew(ListView, SListView<TSharedPtr<FHktLogEntry>>)
                 .ListItemsSource(&FilteredRows)
                 .OnGenerateRow(this, &SHktGameplayLogPanel::OnGenerateRow)
-                .SelectionMode(ESelectionMode::Single)
+                .SelectionMode(ESelectionMode::Multi)
+                .OnKeyDownHandler_Lambda([this](const FGeometry&, const FKeyEvent& InKeyEvent) -> FReply
+                {
+                    if (InKeyEvent.IsControlDown() && InKeyEvent.GetKey() == EKeys::C)
+                    {
+                        CopySelectedToClipboard();
+                        return FReply::Handled();
+                    }
+                    return FReply::Unhandled();
+                })
                 .HeaderRow
                 (
                     SNew(SHeaderRow)
@@ -891,6 +917,64 @@ TSharedRef<ITableRow> SHktGameplayLogPanel::OnGenerateRow(
     };
 
     return SNew(SLogRow, OwnerTable, Item, StartTime);
+}
+
+// ============================================================================
+// 복사 기능
+// ============================================================================
+
+FReply SHktGameplayLogPanel::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+    if (InKeyEvent.IsControlDown() && InKeyEvent.GetKey() == EKeys::C)
+    {
+        CopySelectedToClipboard();
+        return FReply::Handled();
+    }
+    return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+void SHktGameplayLogPanel::CopySelectedToClipboard()
+{
+    TArray<TSharedPtr<FHktLogEntry>> SelectedItems = ListView->GetSelectedItems();
+    if (SelectedItems.Num() == 0)
+    {
+        return;
+    }
+
+    // 선택 순서가 아닌 FilteredRows 내 순서로 정렬
+    SelectedItems.Sort([this](const TSharedPtr<FHktLogEntry>& A, const TSharedPtr<FHktLogEntry>& B)
+    {
+        return A->Timestamp < B->Timestamp;
+    });
+
+    FString ClipboardText;
+    for (const TSharedPtr<FHktLogEntry>& Entry : SelectedItems)
+    {
+        if (!ClipboardText.IsEmpty())
+        {
+            ClipboardText += TEXT("\n");
+        }
+        ClipboardText += FormatEntryForCopy(*Entry);
+    }
+
+    FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
+}
+
+FString SHktGameplayLogPanel::FormatEntryForCopy(const FHktLogEntry& Entry) const
+{
+    const double RelTime = Entry.Timestamp - StartTime;
+    const FString TimeStr = FString::Printf(TEXT("%.2fs"), RelTime);
+    const FString FrameStr = FString::Printf(TEXT("%llu"), Entry.FrameNumber);
+    const FString LevelStr = FString(GetLogLevelName(Entry.Level));
+    const FString SourceStr = FString(GetLogSourceName(Entry.Source));
+    const FString CategoryStr = GetCategoryDisplayName(Entry.Category);
+    const FString EntityStr = Entry.EntityId != InvalidEntityId
+        ? FString::Printf(TEXT("%d"), Entry.EntityId)
+        : TEXT("-");
+    const FString TagStr = Entry.EventTag.IsValid() ? Entry.EventTag.ToString() : TEXT("-");
+
+    return FString::Printf(TEXT("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"),
+        *TimeStr, *FrameStr, *LevelStr, *SourceStr, *CategoryStr, *EntityStr, *TagStr, *Entry.Message);
 }
 
 // ============================================================================

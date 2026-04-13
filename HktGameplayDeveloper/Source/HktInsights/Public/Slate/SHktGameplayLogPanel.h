@@ -57,7 +57,16 @@ public:
     void Construct(const FArguments& InArgs);
     virtual ~SHktGameplayLogPanel() override;
 
+    // ── 키 입력 (Ctrl+C 복사) ──
+    virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 private:
+    /** 선택된 로그 엔트리를 클립보드에 복사 */
+    void CopySelectedToClipboard();
+
+    /** 로그 엔트리를 탭 구분 텍스트로 포맷 */
+    FString FormatEntryForCopy(const FHktLogEntry& Entry) const;
+
     /** 새 로그 엔트리 폴링 및 필터 적용 */
     void PollNewEntries();
 
