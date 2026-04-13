@@ -133,32 +133,33 @@ struct HKTCORE_API FHktMovementSystem
     );
 };
 
-/** 4. Physics System: 모든 제약 해결기 (지형 + 엔티티 간 충돌)
+/** 4. Physics System — 셀 기반 통합 물리 (지형 + 엔터티 충돌)
  *
- * Phase 1: 지형 제약 (PreMove 기준 축별 wall-slide → step-height → ceiling → floor snap)
- * Phase 2: 엔티티 쌍 해결 (soft push, 결정론적 entity-id 순서)
- * Phase 3: 잔여 지형 겹침 정리 (ResolveTerrainConstraints — 구 ProcessTerrainCollision)
+ * 1. Movement 결과인 기대 위치와 속도(작용한 힘)를 읽는다
+ * 2. 기대 위치 + 반경으로 차지하는 복셀 셀을 계산한다
+ * 3. 각 셀에 진입한 엔터티와 진입 속도를 기록한다 (CellMap)
+ * 4. solid 셀: AABB 겹침 해소 (solid = 무한 mass, 엔터티 100% 밀어냄)
+ * 5. 엔터티 쌍: CollisionLayer 양방향 매칭 시 mass 기반 반작용
+ * 6. 반작용 적용 + 속도 감쇄 + IsGrounded 갱신
+ *
+ * hkt.Debug.TerrainCollisionEntity 로 특정 엔터티의 전 과정 상세 로그 활성화.
  */
 struct HKTCORE_API FHktPhysicsSystem
 {
-    static constexpr float CellSize = 1000.0f;
     EHktLogSource LogSource = EHktLogSource::Server;
 
-    struct FCellCoord
+    /** 셀 진입 정보: 어떤 엔터티가 어떤 속도로 이 셀에 들어왔는지 */
+    struct FCellEntry
     {
-        int32 X, Y;
-        bool operator==(const FCellCoord& Other) const { return X == Other.X && Y == Other.Y; }
-        friend uint32 GetTypeHash(const FCellCoord& C) { return HashCombine(GetTypeHash(C.X), GetTypeHash(C.Y)); }
+        FHktEntityId EntityId;
+        FVector Velocity;  // ExpectedPos - PreMovePos
     };
 
-    TMap<FCellCoord, TArray<FHktEntityId>> GridMap;
-    TSet<uint64> TestedPairs;  // 인접 셀 중복 검사 방지용 (프레임 간 재사용)
+    /** 복셀 좌표 → 진입 엔터티 목록 */
+    TMap<FIntVector, TArray<FCellEntry>> CellMap;
 
-    // Phase 2 결정론: entity id 오름차순으로 외곽 루프를 돌리기 위한 스크래치
-    TArray<FHktEntityId> SortedEntitiesScratch;
-
-    static FCellCoord WorldToCell(const FVector& Pos);
-    void RebuildGrid(const FHktWorldState& WorldState);
+    /** 엔터티 쌍 중복 검사 방지용 (프레임 간 재사용) */
+    TSet<uint64> TestedPairs;
 
     void Process(
         FHktWorldState& WorldState,
@@ -168,24 +169,6 @@ struct HKTCORE_API FHktPhysicsSystem
         const TArray<FIntVector>& PreMovePositions,
         const FHktTerrainState* TerrainState,
         float DeltaSeconds
-    );
-
-private:
-    /** Phase 1: 이동 후 위치에 대해 지형 제약(벽/계단/천장/지면) 해결 */
-    void ResolveTerrainPhase1(
-        FHktWorldState& WorldState,
-        FHktVMWorldStateProxy& VMProxy,
-        const TArray<FIntVector>& PreMovePositions,
-        TArray<FHktPendingEvent>& OutGroundedEvents,
-        const FHktTerrainState& TerrainState,
-        float DeltaSeconds
-    );
-
-    /** Phase 3: 지형 잔여 겹침 정리 (구 ProcessTerrainCollision — 동작 그대로) */
-    void ResolveTerrainConstraints(
-        FHktWorldState& WorldState,
-        FHktVMWorldStateProxy& VMProxy,
-        const FHktTerrainState& TerrainState
     );
 };
 

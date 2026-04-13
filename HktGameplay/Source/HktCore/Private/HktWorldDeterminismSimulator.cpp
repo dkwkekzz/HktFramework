@@ -41,7 +41,6 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     FramePreMovePositions.Reserve(HktLimits::MaxEntities);
     EntityArrangeSystem.ScratchRemoveList.Reserve(HktLimits::MaxEntities);
     VMProcessSystem.ScratchEvents.Reserve(HktLimits::MaxPendingEvents);
-    PhysicsSystem.SortedEntitiesScratch.Reserve(HktLimits::MaxEntities);
 
     PendingVoxelDeltas.Reserve(256);
 
