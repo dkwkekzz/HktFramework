@@ -276,6 +276,11 @@ void UHktVoxelChunkComponent::UpdateBoneTransforms(const TArray<FVector4f>& Bone
 
 FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 {
+	// Proxy 재생성 시 스타일 전달 플래그를 리셋.
+	// MarkRenderStateDirty() → 기존 Proxy 파괴 → 새 Proxy 생성 과정에서
+	// PumpStyleTextures가 구(old) Proxy에 텍스처를 밀어넣고 플래그를 true로 세팅했을 수 있다.
+	// 새 Proxy는 텍스처가 없으므로 PumpStyleTextures가 재시도할 수 있도록 리셋한다.
+	bStyleTexturesApplied = false;
 	return new FHktVoxelChunkProxy(this);
 }
 
