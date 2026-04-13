@@ -34,6 +34,12 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
     // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
     FrameAccumulator += DeltaTime;
+
+    // 백그라운드 복귀 시 DeltaTime이 매우 큰 값이 될 수 있음.
+    // FrameAccumulator를 제한하여 과도한 로컬 프레임 진행으로 인한 타임아웃 오발동을 방지.
+    static constexpr float MaxAccumulatorSeconds = FixedDeltaTime * MaxLocalCatchupFrames;
+    FrameAccumulator = FMath::Min(FrameAccumulator, MaxAccumulatorSeconds);
+
     while (FrameAccumulator >= FixedDeltaTime)
     {
         FrameAccumulator -= FixedDeltaTime;
@@ -46,6 +52,8 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
         else
         {
             AdvanceLocalFrame(FixedDeltaTime);
+            // 타임아웃 발생 시 루프 즉시 중단
+            if (!bInitialized) break;
         }
     }
 

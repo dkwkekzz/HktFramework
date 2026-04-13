@@ -432,6 +432,20 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
     FHktSimulationDiff Diff;
     if (CachedProxySimulator->ConsumePendingDiff(Diff))
     {
+        // 현재 Subject가 제거된 경우 기본 Subject로 재설정
+        if (Diff.RemovedEntities.Num() > 0 && CachedIntentBuilder)
+        {
+            const FHktEntityId CurrentSubject = CachedIntentBuilder->GetSubjectEntityId();
+            if (CurrentSubject != InvalidEntityId && Diff.RemovedEntities.Contains(CurrentSubject))
+            {
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Client, EHktLogLevel::Warning, EHktLogSource::Client,
+                    FString::Printf(TEXT("Subject %d was removed, re-resolving default subject"), CurrentSubject),
+                    CurrentSubject);
+                DefaultSubjectEntityId = InvalidEntityId;
+                ResolveDefaultSubject();
+            }
+        }
+
         FHktWorldView View;
         View.WorldState = &CachedProxySimulator->GetWorldState();
         View.FrameNumber = Diff.FrameNumber;
