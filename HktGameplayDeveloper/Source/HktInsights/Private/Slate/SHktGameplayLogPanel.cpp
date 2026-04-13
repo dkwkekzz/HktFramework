@@ -358,6 +358,15 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                 .ListItemsSource(&FilteredRows)
                 .OnGenerateRow(this, &SHktGameplayLogPanel::OnGenerateRow)
                 .SelectionMode(ESelectionMode::Multi)
+                .OnKeyDownHandler_Lambda([this](const FGeometry&, const FKeyEvent& InKeyEvent) -> FReply
+                {
+                    if (InKeyEvent.IsControlDown() && InKeyEvent.GetKey() == EKeys::C)
+                    {
+                        CopySelectedToClipboard();
+                        return FReply::Handled();
+                    }
+                    return FReply::Unhandled();
+                })
                 .HeaderRow
                 (
                     SNew(SHeaderRow)
