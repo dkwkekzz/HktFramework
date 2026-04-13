@@ -981,6 +981,8 @@ void FHktPhysicsSystem::Process(
                     continue;
 
                 // 최소 겹침 축으로 밀어내기 — solid는 무한 mass이므로 엔터티를 100% 밀어냄
+                // Z축 우선: R >> VS 일 때 바닥 복셀의 OX/OY/OZ 가 모두 VS로 동률이 되므로
+                // <= 로 Z를 우선 선택해야 바닥 접촉에서 안정적으로 위로 밀어낸다.
                 const float ECZ = EPos.Z + ED.Radius * 0.5f;  // 바디 Z 중심
                 float MinO = OX;
                 FVector Push((EPos.X >= VCX) ? OX : -OX, 0.0f, 0.0f);
@@ -990,7 +992,7 @@ void FHktPhysicsSystem::Process(
                     MinO = OY;
                     Push = FVector(0.0f, (EPos.Y >= VCY) ? OY : -OY, 0.0f);
                 }
-                if (OZ < MinO)
+                if (OZ <= MinO)  // <= : Z축 우선 (바닥/천장 안정성)
                 {
                     MinO = OZ;
                     Push = FVector(0.0f, 0.0f, (ECZ >= VCZ) ? OZ : -OZ);
