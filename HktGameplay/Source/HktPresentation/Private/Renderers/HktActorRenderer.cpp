@@ -50,12 +50,19 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 	}
 
 	// --- Dirty → Actor에 전달 (animation, attachment 등 delta 처리) ---
+	// Actor가 없는 Dirty 엔티티: VisualElement 변경 또는 이전 스폰 실패 → 재시도
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
-		if (!ActorMap.Contains(Id)) continue;
-		ForwardToActor(Id, *E, Frame, false);
+		if (ActorMap.Contains(Id))
+		{
+			ForwardToActor(Id, *E, Frame, false);
+		}
+		else if (!PendingSpawnSet.Contains(Id) && E->VisualElement.Get().IsValid())
+		{
+			SpawnActor(*E);
+		}
 	}
 
 	// --- 매 프레임 Transform 적용 (Core와 렌더 주기 차이로 인한 끊김 방지) ---
@@ -121,10 +128,10 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		if (!WeakGuard.IsValid()) return;
 
 		ULocalPlayer* LP = WeakLP.Get();
-		if (!LP) return;
+		if (!LP) { PendingSpawnSet.Remove(EntityId); return; }
 
 		UWorld* CallbackWorld = LP->GetWorld();
-		if (!CallbackWorld) return;
+		if (!CallbackWorld) { PendingSpawnSet.Remove(EntityId); return; }
 
 		AActor* SpawnedActor = nullptr;
 
@@ -148,7 +155,8 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			if (!ActorClass)
 			{
 				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s"), *VisualTag.ToString()));
+					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s entity=%d"), *VisualTag.ToString(), EntityId));
+				PendingSpawnSet.Remove(EntityId);
 				return;
 			}
 
@@ -156,47 +164,50 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, SpawnRotation, SpawnParams);
 		}
 
-		if (SpawnedActor)
+		if (!SpawnedActor)
 		{
-			if (ActorMap.Contains(EntityId))
-			{
-				SpawnedActor->Destroy();
-				return;
-			}
-
-			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"),
-        *VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
-
-
-			ConfigureCollisionForSelection(SpawnedActor);
-
-			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
-			{
-				P->SetEntityId(EntityId);
-				P->OnVisualAssetLoaded(LoadedAsset);
-			}
-
 			PendingSpawnSet.Remove(EntityId);
-			ActorMap.Add(EntityId, SpawnedActor);
+			return;
+		}
 
-			// 최초 ViewModel 적용 (bForceAll = true)
-			const FHktEntityPresentation* E = CachedState ? CachedState->Get(EntityId) : nullptr;
-			if (E)
-				ForwardToActor(EntityId, *E, 0, true);
+		if (ActorMap.Contains(EntityId))
+		{
+			SpawnedActor->Destroy();
+			PendingSpawnSet.Remove(EntityId);
+			return;
+		}
 
-			// Owner 스폰 시 → ViewModel 기반으로 대기 아이템 부착 시도
-			if (CachedState)
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"),
+			*VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
+
+		ConfigureCollisionForSelection(SpawnedActor);
+
+		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
+		{
+			P->SetEntityId(EntityId);
+			P->OnVisualAssetLoaded(LoadedAsset);
+		}
+
+		PendingSpawnSet.Remove(EntityId);
+		ActorMap.Add(EntityId, SpawnedActor);
+
+		// 최초 ViewModel 적용 (bForceAll = true)
+		const FHktEntityPresentation* E = CachedState ? CachedState->Get(EntityId) : nullptr;
+		if (E)
+			ForwardToActor(EntityId, *E, 0, true);
+
+		// Owner 스폰 시 → ViewModel 기반으로 대기 아이템 부착 시도
+		if (CachedState)
+		{
+			for (auto& [ExistingId, WeakActor] : ActorMap)
 			{
-				for (auto& [ExistingId, WeakActor] : ActorMap)
+				if (ExistingId == EntityId) continue;
+				if (!WeakActor.IsValid()) continue;
+				const FHktEntityPresentation* ItemE = CachedState->Get(ExistingId);
+				if (ItemE && ItemE->IsItemAttached()
+					&& static_cast<FHktEntityId>(ItemE->OwnerEntity.Get()) == EntityId)
 				{
-					if (ExistingId == EntityId) continue;
-					if (!WeakActor.IsValid()) continue;
-					const FHktEntityPresentation* ItemE = CachedState->Get(ExistingId);
-					if (ItemE && ItemE->IsItemAttached()
-						&& static_cast<FHktEntityId>(ItemE->OwnerEntity.Get()) == EntityId)
-					{
-						ForwardToActor(ExistingId, *ItemE, 0, true);
-					}
+					ForwardToActor(ExistingId, *ItemE, 0, true);
 				}
 			}
 		}
