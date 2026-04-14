@@ -1120,6 +1120,21 @@ void FHktPhysicsSystem::Process(
             }
         }
 
+        // Z < 0 절대 방어 — 어떤 경우에도 바닥 아래로 내려갈 수 없음
+        if (FinalPos.Z < 0.0f)
+        {
+            UE_LOG(LogTemp, Error,
+                TEXT("[Physics] E%d Z<0 감지! Pos=(%.1f,%.1f,%.1f) Expected=(%.1f,%.1f,%.1f) "
+                     "React=(%.1f,%.1f,%.1f) Terrain=%s → Z=0 클램프"),
+                ED.Id, FinalPos.X, FinalPos.Y, FinalPos.Z,
+                ED.ExpectedPos.X, ED.ExpectedPos.Y, ED.ExpectedPos.Z,
+                React.X, React.Y, React.Z,
+                TerrainState ? TEXT("Y") : TEXT("N"));
+            FinalPos.Z = 0.0f;
+            bTerrainSnapped = true;
+            bGroundBelow = true;
+        }
+
         int32 FinalVelX = WorldState.GetProperty(ED.Id, PropertyId::VelX);
         int32 FinalVelY = WorldState.GetProperty(ED.Id, PropertyId::VelY);
         int32 FinalVelZ = WorldState.GetProperty(ED.Id, PropertyId::VelZ);
