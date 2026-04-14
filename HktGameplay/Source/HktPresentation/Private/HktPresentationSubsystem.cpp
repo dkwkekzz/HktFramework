@@ -217,14 +217,23 @@ void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 	});
 	ResolveAssetPathsForSpawned();
 	ComputeRenderLocations();
+	SpawnActorsForNewEntities();
 }
 
 void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 {
 	State.BeginFrame(View.FrameNumber);
 
+	// --- Remove: State 갱신 + Actor 즉시 파괴 ---
 	int32 RemovedCount = 0;
-	View.ForEachRemoved([this, &RemovedCount](FHktEntityId Id) { State.RemoveEntity(Id); ++RemovedCount; });
+	View.ForEachRemoved([this, &RemovedCount](FHktEntityId Id)
+	{
+		State.RemoveEntity(Id);
+		if (ActorRenderer) ActorRenderer->DestroyActor(Id);
+		++RemovedCount;
+	});
+
+	// --- Spawn: State 갱신 ---
 	int32 SpawnedCount = 0;
 	View.ForEachSpawned([this, &View, &SpawnedCount](const FHktEntityState& ES)
 	{
@@ -301,6 +310,9 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	});
 
 	ComputeRenderLocations();
+
+	// --- Actor 스폰: RenderLocation 계산 후 직접 호출 (VFX와 동일한 패턴) ---
+	SpawnActorsForNewEntities();
 }
 
 void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
@@ -429,6 +441,17 @@ void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
 			Loc.Z += E->CapsuleHalfHeight;
 			E->RenderLocation.Set(Loc, State.GetCurrentFrame());
 		});
+	}
+}
+
+void UHktPresentationSubsystem::SpawnActorsForNewEntities()
+{
+	if (!ActorRenderer) return;
+	for (FHktEntityId Id : State.SpawnedThisFrame)
+	{
+		const FHktEntityPresentation* E = State.Get(Id);
+		if (E && E->RenderCategory == EHktRenderCategory::Actor)
+			ActorRenderer->SpawnActor(*E);
 	}
 }
 

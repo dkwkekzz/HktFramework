@@ -74,6 +74,7 @@ private:
 	void ProcessDiff(const FHktWorldView& View);
 	void ResolveAssetPathsForSpawned();
 	void ComputeRenderLocations();
+	void SpawnActorsForNewEntities();
 	void SyncRenderers();
 
 	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */

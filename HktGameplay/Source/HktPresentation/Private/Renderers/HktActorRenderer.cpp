@@ -34,20 +34,8 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 	CachedState = &State;
 	const int64 Frame = State.GetCurrentFrame();
 
-	// --- 스폰 (ActorMap/PendingSpawnSet에 있으면 스킵 — NeedsTick 재진입 방지) ---
-	for (FHktEntityId Id : State.SpawnedThisFrame)
-	{
-		if (ActorMap.Contains(Id) || PendingSpawnSet.Contains(Id)) continue;
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (E && E->RenderCategory == EHktRenderCategory::Actor)
-			SpawnActor(*E);
-	}
-
-	// --- 제거 ---
-	for (FHktEntityId Id : State.RemovedThisFrame)
-	{
-		DestroyActor(Id);
-	}
+	// 생명주기(Spawn/Destroy)는 ProcessDiff에서 직접 처리.
+	// Sync에서는 ViewModel 변경점 전달 + Transform 적용만 담당.
 
 	// --- Dirty → Actor에 전달 (animation, attachment 등 delta 처리) ---
 	// Actor가 없는 Dirty 엔티티: VisualElement 변경 또는 이전 스폰 실패 → 재시도
