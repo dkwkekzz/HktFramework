@@ -266,6 +266,13 @@ EHktRenderCategory FHktEntityPresentation::DetermineRenderCategory(const FGamepl
 void FHktPresentationState::BeginFrame(int64 Frame)
 {
 	CurrentFrame = Frame;
+	// SpawnedThisFrame / RemovedThisFrame / DirtyThisFrame는 여기서 초기화하지 않음.
+	// OnTick에서 렌더러가 소비한 후 ClearFrameChanges()로 정리.
+	// BeginFrame이 렌더러 Sync보다 먼저 호출되어 데이터가 유실되는 문제 방지.
+}
+
+void FHktPresentationState::ClearFrameChanges()
+{
 	SpawnedThisFrame.Reset();
 	RemovedThisFrame.Reset();
 	DirtyThisFrame.Reset();

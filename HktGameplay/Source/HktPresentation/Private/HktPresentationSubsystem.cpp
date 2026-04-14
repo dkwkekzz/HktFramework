@@ -322,6 +322,10 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 			}
 		}
 	}
+
+	// 렌더러가 소비한 후 프레임 변경 데이터 정리.
+	// BeginFrame에서 초기화하면 다음 OnTick 전에 ProcessDiff가 여러 번 호출될 때 데이터 유실.
+	State.ClearFrameChanges();
 }
 
 void UHktPresentationSubsystem::NotifyCameraViewChanged()
