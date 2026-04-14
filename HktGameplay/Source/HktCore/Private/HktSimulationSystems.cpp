@@ -1105,6 +1105,20 @@ void FHktPhysicsSystem::Process(
                 bGroundBelow = TerrainState->IsSolid(FootVX, FootVY, BelowVZ);
             }
         }
+        else
+        {
+            // Terrain 없음 — Z=0 을 바닥으로 사용
+            if (FinalPos.Z < 0.0f)
+            {
+                FinalPos.Z = 0.0f;
+                bTerrainSnapped = true;
+                bGroundBelow = true;
+            }
+            else
+            {
+                bGroundBelow = (FinalPos.Z <= 1.0f);
+            }
+        }
 
         int32 FinalVelX = WorldState.GetProperty(ED.Id, PropertyId::VelX);
         int32 FinalVelY = WorldState.GetProperty(ED.Id, PropertyId::VelY);
