@@ -136,6 +136,7 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TArray<FHktEntityId> DirtyThisFrame;
 
 	void BeginFrame(int64 Frame);
+	void ClearFrameChanges();
 	void EnsureCapacity(FHktEntityId MaxId);
 	void AddEntity(const FHktWorldState& WS, FHktEntityId Id);
 	void RemoveEntity(FHktEntityId Id);

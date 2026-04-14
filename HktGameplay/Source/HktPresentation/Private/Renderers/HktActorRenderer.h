@@ -9,8 +9,8 @@ class ULocalPlayer;
 
 /**
  * Actor 렌더러.
- * 역할: Actor 생명주기 관리(스폰/파괴) + ViewModel 변경점을 Actor에 전달.
- * 모든 시각 로직(transform, animation, attachment)은 각 Actor 내부에서 처리.
+ * 생명주기(스폰/파괴)는 ProcessDiff에서 직접 호출.
+ * Sync에서는 ViewModel 변경점 전달 + Transform 적용만 담당.
  */
 class FHktActorRenderer : public IHktPresentationRenderer
 {
@@ -21,11 +21,13 @@ public:
 	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
+	bool HasActorOrPending(FHktEntityId Id) const { return ActorMap.Contains(Id) || PendingSpawnSet.Contains(Id); }
 
-private:
+	/** ProcessDiff에서 호출 — 엔티티 생명주기 직접 관리 */
 	void SpawnActor(const FHktEntityPresentation& Entity);
 	void DestroyActor(FHktEntityId Id);
 
+private:
 	/** ViewModel 변경점을 Actor에 전달 */
 	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
