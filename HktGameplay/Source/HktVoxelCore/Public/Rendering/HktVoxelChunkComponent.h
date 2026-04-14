@@ -86,6 +86,10 @@ public:
 	/** 캐시된 머티리얼 LUT 유효 여부 */
 	bool HasCachedMaterialLUT() const { return CachedMaterialLUT.IsValid(); }
 
+	/** Proxy 생성 시 캐시된 텍스처를 Pending*에 복사하기 위한 접근자 */
+	const FHktVoxelTileTextureSet& GetCachedTileTextures() const { return CachedTileTextures; }
+	const FHktVoxelTexturePair& GetCachedMaterialLUT() const { return CachedMaterialLUT; }
+
 	/** 스타일 텍스처가 현재 SceneProxy로 이미 전달되었는지 여부 */
 	bool IsStyleTexturesApplied() const { return bStyleTexturesApplied; }
 

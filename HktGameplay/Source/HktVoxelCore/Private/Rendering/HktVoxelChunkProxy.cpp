@@ -21,6 +21,28 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 	{
 		VoxelMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 	}
+
+	// Component에 캐시된 스타일 텍스처를 Pending*에 복사.
+	// MarkRenderStateDirty()로 Proxy가 재생성될 때 기존 Proxy의 텍스처가 소실되므로,
+	// 새 Proxy가 생성 시점부터 텍스처 정보를 보유해야
+	// UpdateMeshData_RenderThread에서 VertexFactory에 올바르게 바인딩된다.
+	const FHktVoxelTileTextureSet& TileTex = InComponent->GetCachedTileTextures();
+	if (TileTex.IsValid())
+	{
+		PendingTileArrayRHI = TileTex.TileArray.Texture;
+		PendingTileArraySamplerRHI = TileTex.TileArray.Sampler;
+		PendingTileIndexLUTRHI = TileTex.TileIndexLUT.Texture;
+		PendingTileIndexLUTSamplerRHI = TileTex.TileIndexLUT.Sampler;
+		PendingDefaultPaletteRHI = TileTex.DefaultPalette.Texture;
+		PendingDefaultPaletteSamplerRHI = TileTex.DefaultPalette.Sampler;
+	}
+
+	const FHktVoxelTexturePair& MatLUT = InComponent->GetCachedMaterialLUT();
+	if (MatLUT.IsValid())
+	{
+		PendingMaterialLUTRHI = MatLUT.Texture;
+		PendingMaterialLUTSamplerRHI = MatLUT.Sampler;
+	}
 }
 
 FHktVoxelChunkProxy::~FHktVoxelChunkProxy()
