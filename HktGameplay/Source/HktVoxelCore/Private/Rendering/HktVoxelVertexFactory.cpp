@@ -208,7 +208,7 @@ void FHktVoxelVertexFactory::ModifyCompilationEnvironment(
 	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_VERTEX_FACTORY"), TEXT("1"));
 	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_GPU_SKINNING"), TEXT("1"));
 	// 타일 텍스처 디버그 색상 출력: 1 = 활성 (빨강/초록/파랑 진단), 0 = 비활성 (정상 렌더링)
-	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_DEBUG_COLOR"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("HKT_VOXEL_DEBUG_COLOR"), TEXT("0"));
 }
 
 void FHktVoxelVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)

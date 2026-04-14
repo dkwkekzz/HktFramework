@@ -1073,6 +1073,7 @@ void FHktPhysicsSystem::Process(
     // ════════════════════════════════════════════════════════════════
 
     static constexpr int32 MaxTerrainScanUp = 32;
+    static constexpr int32 MaxTerrainScanDown = 64;
 
     for (int32 Idx = 0; Idx < Entities.Num(); ++Idx)
     {
@@ -1082,7 +1083,7 @@ void FHktPhysicsSystem::Process(
         bool bTerrainSnapped = false;
         bool bGroundBelow = false;
 
-        // 바닥 계산: 발 복셀이 solid → 위로 스캔하여 표면 스냅
+        // 바닥 계산: 발 복셀 → solid면 위로 탈출, air면 아래로 지면 탐색
         if (TerrainState)
         {
             const int32 FootVX = FMath::FloorToInt(FinalPos.X / VS);
@@ -1091,18 +1092,69 @@ void FHktPhysicsSystem::Process(
 
             if (TerrainState->IsSolid(FootVX, FootVY, FootVZ))
             {
-                int32 ScanVZ = FootVZ + 1;
-                const int32 ScanLimit = FootVZ + MaxTerrainScanUp;
-                while (ScanVZ <= ScanLimit && TerrainState->IsSolid(FootVX, FootVY, ScanVZ))
-                    ++ScanVZ;
-                FinalPos.Z = static_cast<float>(ScanVZ) * VS;
+                // 매몰 — 하이트맵으로 정확한 표면 높이를 O(1) 조회
+                const int32 SurfaceVZ = TerrainState->GetSurfaceHeightAt(FootVX, FootVY);
+                if (SurfaceVZ > 0)
+                {
+                    FinalPos.Z = static_cast<float>(SurfaceVZ) * VS;
+                }
+                else
+                {
+                    // 하이트맵 캐시 미스 — 위로 스캔 폴백
+                    int32 ScanVZ = FootVZ + 1;
+                    const int32 ScanLimit = FootVZ + MaxTerrainScanUp;
+                    while (ScanVZ <= ScanLimit && TerrainState->IsSolid(FootVX, FootVY, ScanVZ))
+                        ++ScanVZ;
+                    FinalPos.Z = static_cast<float>(ScanVZ) * VS;
+                }
                 bTerrainSnapped = true;
                 bGroundBelow = true;
             }
             else
             {
-                const int32 BelowVZ = FMath::FloorToInt((FinalPos.Z - 1.0f) / VS);
-                bGroundBelow = TerrainState->IsSolid(FootVX, FootVY, BelowVZ);
+                // 공중 — 아래로 스캔하여 가장 가까운 지면 찾기
+                int32 ScanVZ = FootVZ - 1;
+                const int32 ScanFloor = FootVZ - MaxTerrainScanDown;
+                while (ScanVZ >= ScanFloor && !TerrainState->IsSolid(FootVX, FootVY, ScanVZ))
+                    --ScanVZ;
+
+                if (ScanVZ >= ScanFloor && TerrainState->IsSolid(FootVX, FootVY, ScanVZ))
+                {
+                    // solid 복셀의 윗면이 지면
+                    const float GroundZ = static_cast<float>(ScanVZ + 1) * VS;
+                    const float Gap = FinalPos.Z - GroundZ;
+
+                    if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
+                    {
+                        UE_LOG(LogTemp, Warning,
+                            TEXT("[Physics Floor] E%d FootVZ=%d ScanHit=%d GroundZ=%.0f Gap=%.1f VS=%.1f"),
+                            ED.Id, FootVZ, ScanVZ, GroundZ, Gap, VS);
+                    }
+
+                    if (Gap <= VS)
+                    {
+                        // 1복셀 이내 — 바닥에 스냅
+                        FinalPos.Z = GroundZ;
+                        bTerrainSnapped = true;
+                        bGroundBelow = true;
+                    }
+                    else
+                    {
+                        // 먼 거리 — 낙하 중 (중력이 내려줄 것)
+                        bGroundBelow = false;
+                    }
+                }
+                else
+                {
+                    if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
+                    {
+                        UE_LOG(LogTemp, Warning,
+                            TEXT("[Physics Floor] E%d FootVZ=%d — 아래에 지면 없음 (스캔 %d까지)"),
+                            ED.Id, FootVZ, ScanFloor);
+                    }
+                    // 아래에 지면 없음
+                    bGroundBelow = false;
+                }
             }
         }
         else

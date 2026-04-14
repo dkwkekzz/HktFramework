@@ -431,12 +431,16 @@ void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
 			}
 
 			// CapsuleHalfHeight 변경 후 RenderLocation 재계산
-			UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+			// 시뮬레이션 Z를 기본 사용, Z==0일 때만 UE5 ground trace fallback
 			FVector Loc = E->Location.Get();
-			float GroundZ;
-			if (World && TraceGroundZ(World, Loc, GroundZ))
+			if (Loc.Z == 0.0f)
 			{
-				Loc.Z = GroundZ;
+				UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+				float GroundZ;
+				if (World && TraceGroundZ(World, Loc, GroundZ))
+				{
+					Loc.Z = GroundZ;
+				}
 			}
 			Loc.Z += E->CapsuleHalfHeight;
 			E->RenderLocation.Set(Loc, State.GetCurrentFrame());
@@ -447,6 +451,11 @@ void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
 void UHktPresentationSubsystem::SpawnActorsForNewEntities()
 {
 	if (!ActorRenderer) return;
+
+	// 비동기 에셋 로드 콜백이 동기 실행될 수 있으므로 (캐시 히트 시)
+	// SpawnActor 내부에서 CachedState를 참조하기 전에 미리 설정
+	ActorRenderer->EnsureState(State);
+
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);

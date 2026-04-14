@@ -197,8 +197,8 @@ struct FGroupEventSend
 {
 	FHktSimulationEvent Batch;
 	TArray<IHktWorldPlayer*> Entered;
-	const TArray<IHktWorldPlayer*>* Existing;
-	const FHktWorldState* NewState;
+	const TArray<IHktWorldPlayer*>* Existing = nullptr;
+	const FHktWorldState* NewState = nullptr;
 };
 
 struct FHktEventGameModeTickResult

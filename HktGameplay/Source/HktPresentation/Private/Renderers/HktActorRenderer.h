@@ -27,6 +27,9 @@ public:
 	void SpawnActor(const FHktEntityPresentation& Entity);
 	void DestroyActor(FHktEntityId Id);
 
+	/** 비동기 콜백이 CachedState를 참조하므로, Sync 전에도 State를 설정 */
+	void EnsureState(const FHktPresentationState& State) { CachedState = &State; }
+
 private:
 	/** ViewModel 변경점을 Actor에 전달 */
 	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);

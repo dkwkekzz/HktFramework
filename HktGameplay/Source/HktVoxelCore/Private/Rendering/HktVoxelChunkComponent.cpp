@@ -83,14 +83,14 @@ UHktVoxelChunkComponent::UHktVoxelChunkComponent()
 	// HktVoxelVertexFactory가 타일 텍스처 / 팔레트 결과를 VertexColor에 기록하므로,
 	// 이 머티리얼이 별도 에셋 할당 없이도 올바른 렌더링을 보장한다.
 	// 프로덕션에서는 TerrainMaterial을 명시적으로 할당하여 이 기본값을 교체할 것.
-	SetMaterial(0, GetDefaultVoxelMaterial());
+	CachedVoxelMaterial = GetDefaultVoxelMaterial();
 }
 
 void UHktVoxelChunkComponent::SetVoxelMaterial(UMaterialInterface* InMaterial)
 {
 	if (InMaterial)
 	{
-		SetMaterial(0, InMaterial);
+		CachedVoxelMaterial = InMaterial;
 		MarkRenderStateDirty();
 	}
 }
@@ -281,7 +281,66 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 	// PumpStyleTextures가 구(old) Proxy에 텍스처를 밀어넣고 플래그를 true로 세팅했을 수 있다.
 	// 새 Proxy는 텍스처가 없으므로 PumpStyleTextures가 재시도할 수 있도록 리셋한다.
 	bStyleTexturesApplied = false;
-	return new FHktVoxelChunkProxy(this);
+
+	FHktVoxelChunkProxy* NewProxy = new FHktVoxelChunkProxy(this);
+
+	// 캐시된 메시 데이터가 있으면 새 Proxy에 자동 재업로드.
+	// SetVoxelMaterial → SetMaterial → MarkRenderStateDirty 시 기존 Proxy가 파괴되면서
+	// GPU 버퍼도 소실된다. OnMeshReady는 외부(메싱 파이프라인)에서만 호출되므로,
+	// 여기서 재업로드하지 않으면 새 Proxy는 NumIndices=0 상태로 렌더링이 불가능해진다.
+	if (RenderCache)
+	{
+		const FHktVoxelChunk* Chunk = RenderCache->GetChunk(ChunkCoord);
+		if (Chunk && (Chunk->OpaqueVertices.Num() > 0 || Chunk->TranslucentVertices.Num() > 0))
+		{
+			TArray<FHktVoxelVertex> VerticesCopy;
+			TArray<uint32> IndicesCopy;
+
+			VerticesCopy.Append(Chunk->OpaqueVertices);
+			IndicesCopy.Append(Chunk->OpaqueIndices);
+
+			const uint32 OpaqueVertCount = Chunk->OpaqueVertices.Num();
+			for (uint32 Idx : Chunk->TranslucentIndices)
+			{
+				IndicesCopy.Add(Idx + OpaqueVertCount);
+			}
+			VerticesCopy.Append(Chunk->TranslucentVertices);
+
+			const bool bHasStyleTextures = CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid();
+			FHktVoxelTileTextureSet TileTexCopy = CachedTileTextures;
+			FHktVoxelTexturePair MatLUTCopy = CachedMaterialLUT;
+
+			ENQUEUE_RENDER_COMMAND(HktVoxelReuploadOnProxyRecreate)(
+				[NewProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
+				 bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
+				{
+					if (bHasStyleTextures)
+					{
+						if (TileTexCopy.IsValid())
+						{
+							NewProxy->SetTileTextures_RenderThread(
+								TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
+								TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler,
+								TileTexCopy.DefaultPalette.Texture, TileTexCopy.DefaultPalette.Sampler);
+						}
+						if (MatLUTCopy.IsValid())
+						{
+							NewProxy->SetMaterialLUT_RenderThread(
+								MatLUTCopy.Texture, MatLUTCopy.Sampler);
+						}
+					}
+					NewProxy->UpdateMeshData_RenderThread(Verts, Idxs);
+				}
+			);
+
+			if (bHasStyleTextures)
+			{
+				bStyleTexturesApplied = true;
+			}
+		}
+	}
+
+	return NewProxy;
 }
 
 FBoxSphereBounds UHktVoxelChunkComponent::CalcBounds(const FTransform& LocalToWorld) const

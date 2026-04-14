@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-LLM 기반 UE5 게임플레이 어셋 자동 생성 시스템. MCP(Model Context Protocol)를 통해 언리얼 에디터와 통신하며, Map/Story/VFX/Mesh/Animation/Texture/Item을 생성한다.
+LLM 기반 UE5 게임플레이 어셋 자동 생성 시스템. MCP(Model Context Protocol)를 통해 언리얼 에디터와 통신하며, 어셋들을 생성한다.
 
 두 개의 독립 컴포넌트로 구성된다:
 - **Python MCP 서버** (`McpServer/`) — LLM 클라이언트 ↔ UE5 에디터 브릿지
@@ -33,6 +33,16 @@ UE5 어셋 출력 경로: Project Settings > HktGameplay > HktAsset > `Conventio
 - **Manifest 추적**: `FeatureStatus`로 feature별 진행 상황 (stories/assets 완료 수) 추적
 - 스텝 간 데이터: `.hkt_steps/{project_id}/{step_type}/output.json`
 - 스텝 실패 시 `step_fail` 도구로 에러 기록
+
+### Generator Pipeline (8 steps)
+```
+concept_design → feature_design → [parallel Worker Agents per feature]
+                                       ├── story_generation
+                                       ├── asset_discovery
+                                       └── char/item/vfx_generation
+concept_design → map_generation  (parallel with feature_design)
+```
+Steps communicate via `.hkt_steps/{project_id}/{step_type}/output.json`. Skills: `/concept-design`, `/feature-design`, `/map-gen`, `/story-gen`, `/asset-discovery`, `/char-gen`, `/item-gen`, `/vfx-gen`, `/texture-gen`, `/full-pipeline`.
 
 ## Python MCP 서버 아키텍처
 

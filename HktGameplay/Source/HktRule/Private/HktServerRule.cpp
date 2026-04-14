@@ -24,21 +24,21 @@ TArray<FHktTempStoryEntry> HktTempMapStoryConfig::GetSpawnersForGroup(int32 Grou
 {
 	TArray<FHktTempStoryEntry> Out;
 
-	// 전역 스토리 — 모든 그룹 공통 (FHktMapData::GlobalStories 대응)
-	Out.Add({ Flow_Spawner_GoblinCamp,    1000 + GroupIndex * 500, 1000 });
-	Out.Add({ Flow_Spawner_Item_TreeDrop,  1200 + GroupIndex * 500,  800 });
-
-	// 아이템 스포너 — 4종 아이템 맵 배치 (각 1개씩)
-	Out.Add({ Flow_Spawner_Item_AncientStaff,    800 + GroupIndex * 500,  600 });
-	Out.Add({ Flow_Spawner_Item_Bandage,        1400 + GroupIndex * 500,  600 });
-	Out.Add({ Flow_Spawner_Item_ThunderHammer,   800 + GroupIndex * 500, 1200 });
-	Out.Add({ Flow_Spawner_Item_WingsOfFreedom, 1400 + GroupIndex * 500, 1200 });
-
-	// 그룹 0 전용 — Region별 스토리 (FHktMapRegion::Stories 대응)
-	if (GroupIndex == 0)
-	{
-		Out.Add({ Flow_Spawner_Wave_Arena, 2000, 2000 });
-	}
+	//// 전역 스토리 — 모든 그룹 공통 (FHktMapData::GlobalStories 대응)
+	//Out.Add({ Flow_Spawner_GoblinCamp,    1000 + GroupIndex * 500, 1000 });
+	//Out.Add({ Flow_Spawner_Item_TreeDrop,  1200 + GroupIndex * 500,  800 });
+	//
+	//// 아이템 스포너 — 4종 아이템 맵 배치 (각 1개씩)
+	//Out.Add({ Flow_Spawner_Item_AncientStaff,    800 + GroupIndex * 500,  600 });
+	//Out.Add({ Flow_Spawner_Item_Bandage,        1400 + GroupIndex * 500,  600 });
+	//Out.Add({ Flow_Spawner_Item_ThunderHammer,   800 + GroupIndex * 500, 1200 });
+	//Out.Add({ Flow_Spawner_Item_WingsOfFreedom, 1400 + GroupIndex * 500, 1200 });
+	//
+	//// 그룹 0 전용 — Region별 스토리 (FHktMapRegion::Stories 대응)
+	//if (GroupIndex == 0)
+	//{
+	//	Out.Add({ Flow_Spawner_Wave_Arena, 2000, 2000 });
+	//}
 
 	return Out;
 }

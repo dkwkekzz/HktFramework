@@ -83,6 +83,8 @@ private:
 	int32 NumIndices = 0;
 	int32 NumVertices = 0;
 
+	mutable bool bDrawDiagLogged = false;
+
 	FRHITexture* PendingTileArrayRHI = nullptr;
 	FRHISamplerState* PendingTileArraySamplerRHI = nullptr;
 	FRHITexture* PendingTileIndexLUTRHI = nullptr;

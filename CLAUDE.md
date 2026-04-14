@@ -14,31 +14,6 @@ This is an Unreal Engine 5.6 plugin framework (`HktFramework`) consisting of thr
 
 Each plugin has its own `CLAUDE.md` with detailed module-level guidance. Read those first when working within a specific plugin.
 
-## Build Commands
-
-All commands run from the UE project root (`E:\WS\UE5\HktProto`):
-
-```bash
-# Generate project files
-"C:/Program Files/Epic Games/UE_5.6/Engine/Build/BatchFiles/GenerateProjectFiles.bat" HktProto.uproject
-
-# Build Editor (Development)
-"C:/Program Files/Epic Games/UE_5.6/Engine/Build/BatchFiles/RunUAT.bat" BuildCookRun -project=HktProto.uproject -platform=Win64 -clientconfig=Development -build
-```
-
-```bash
-# MCP Python server (from HktGameplayGenerator/McpServer/)
-pip install -e ".[dev]"
-python -m hkt_mcp.server   # or: hkt-mcp
-pytest                     # run MCP server tests
-```
-
-```bash
-# Run automation tests (UE5 editor console or CLI)
-# Tests are in HktGameplayDeveloper/Source/HktAutomationTests/
-# Categories: HktOpcodeTests, HktStoryIntegrityTests, HktStoryScenarioTests, HktStoryJsonParserTests
-```
-
 ## Architecture: Intent–Simulation–Presentation (ISP)
 
 The framework enforces a strict 3-layer separation:
@@ -90,16 +65,6 @@ HktGameplayDeveloper (developer/editor)
 - Rule/Component/Actor separation: Rule handles flow (interfaces), Component implements interfaces, Actor only publishes events
 - Server: `AHktGameMode` → `IHktServerRuleInterfaces`; Client: `AHktInGamePlayerController` → `IHktClientRuleInterfaces`
 - `FHktEntityState` is a serialization-only DTO — never use it inside HktCore logic; use SOA WorldState directly
-
-### Generator Pipeline (8 steps)
-```
-concept_design → feature_design → [parallel Worker Agents per feature]
-                                       ├── story_generation
-                                       ├── asset_discovery
-                                       └── char/item/vfx_generation
-concept_design → map_generation  (parallel with feature_design)
-```
-Steps communicate via `.hkt_steps/{project_id}/{step_type}/output.json`. Skills: `/concept-design`, `/feature-design`, `/map-gen`, `/story-gen`, `/asset-discovery`, `/char-gen`, `/item-gen`, `/vfx-gen`, `/texture-gen`, `/full-pipeline`.
 
 ## Coding Conventions
 

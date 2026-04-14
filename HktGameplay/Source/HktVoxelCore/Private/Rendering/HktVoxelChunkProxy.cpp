@@ -74,18 +74,16 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		return;
 	}
 
-	// [진단] 이 프록시가 실제로 GetDynamicMeshElements를 타는지,
-	// 어떤 머티리얼/VF가 사용되는지, VertexFactory 타입이 맞는지 확인.
-	static bool bDrawDiagLogged = false;
+	// [진단] per-proxy 1회 — 어떤 머티리얼/VF가 사용되는지 확인.
+	// static이 아닌 mutable 멤버이므로 proxy 재생성 시 다시 로깅됨.
 	if (!bDrawDiagLogged)
 	{
 		bDrawDiagLogged = true;
 		UE_LOG(LogHktVoxelCore, Warning,
-			TEXT("[Draw 진단] GetDynamicMeshElements 호출됨 — ")
-			TEXT("NumIdx=%d, NumVert=%d, VF=%p, VFType=%s, ")
+			TEXT("[Draw 진단] GetDynamicMeshElements — ")
+			TEXT("NumIdx=%d, NumVert=%d, VFType=%s, ")
 			TEXT("Material=%s, MaterialClass=%s"),
 			NumIndices, NumVertices,
-			VertexFactory,
 			VertexFactory ? VertexFactory->GetType()->GetName() : TEXT("NULL"),
 			VoxelMaterial ? *VoxelMaterial->GetName() : TEXT("NULL"),
 			VoxelMaterial ? *VoxelMaterial->GetClass()->GetName() : TEXT("NULL"));

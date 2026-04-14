@@ -143,8 +143,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			if (!ActorClass)
 			{
 				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s entity=%d"), *VisualTag.ToString(), EntityId));
-				PendingSpawnSet.Remove(EntityId);
+					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s entity=%d — 재시도 안함"), *VisualTag.ToString(), EntityId));
 				return;
 			}
 

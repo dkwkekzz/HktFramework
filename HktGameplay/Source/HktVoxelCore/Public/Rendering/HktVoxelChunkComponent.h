@@ -112,6 +112,17 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual UBodySetup* GetBodySetup() override;
 	virtual int32 GetNumMaterials() const override { return 1; }
+	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override
+	{
+		return (ElementIndex == 0) ? CachedVoxelMaterial.Get() : nullptr;
+	}
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override
+	{
+		if (UMaterialInterface* Mat = CachedVoxelMaterial.Get())
+		{
+			OutMaterials.Add(Mat);
+		}
+	}
 
 private:
 	/** solid 복셀 AABB로 Box collision 재구축 — OnMeshReady에서 호출 */
@@ -127,6 +138,10 @@ private:
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
 	FHktVoxelRenderCache* RenderCache = nullptr;
 	float CachedVoxelSize = FHktVoxelChunk::VOXEL_SIZE;
+
+	/** UPrimitiveComponent는 OverrideMaterials를 제공하지 않으므로 직접 관리 */
+	UPROPERTY()
+	TWeakObjectPtr<UMaterialInterface> CachedVoxelMaterial;
 
 	FHktVoxelTileTextureSet CachedTileTextures;
 	FHktVoxelTexturePair CachedMaterialLUT;

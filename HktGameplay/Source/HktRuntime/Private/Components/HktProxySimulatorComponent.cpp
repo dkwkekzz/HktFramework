@@ -3,6 +3,7 @@
 #include "HktCoreEventLog.h"
 #include "HktRuntimeCommon.h"
 #include "HktCoreDataCollector.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 
 UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 {
@@ -213,6 +214,13 @@ void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, in
         FString::Printf(TEXT("RestoreState Frame=%lld Entities=%d GroupIndex=%d"),
             InState.FrameNumber, InState.GetEntityCount(), InGroupIndex));
     Simulator->RestoreWorldState(InState);
+
+    // 클라이언트 시뮬레이터에도 TerrainConfig 설정 — 서버와 동일한 물리 바닥 탐색
+    const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+    if (Settings)
+    {
+        Simulator->SetTerrainConfig(Settings->ToTerrainConfig());
+    }
 
     CachedGroupIndex = InGroupIndex;
     LocalFrame = InState.FrameNumber;
