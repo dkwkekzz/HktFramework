@@ -450,8 +450,9 @@ void UHktPresentationSubsystem::SpawnActorsForNewEntities()
 	for (FHktEntityId Id : State.SpawnedThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
-		if (E && E->RenderCategory == EHktRenderCategory::Actor)
-			ActorRenderer->SpawnActor(*E);
+		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
+		if (ActorRenderer->HasActorOrPending(Id)) continue;
+		ActorRenderer->SpawnActor(*E);
 	}
 }
 

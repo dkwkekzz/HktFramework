@@ -21,6 +21,7 @@ public:
 	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
+	bool HasActorOrPending(FHktEntityId Id) const { return ActorMap.Contains(Id) || PendingSpawnSet.Contains(Id); }
 
 	/** ProcessDiff에서 호출 — 엔티티 생명주기 직접 관리 */
 	void SpawnActor(const FHktEntityPresentation& Entity);
