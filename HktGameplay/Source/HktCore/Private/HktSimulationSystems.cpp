@@ -1016,7 +1016,22 @@ void FHktPhysicsSystem::Process(
 
                 const float Dist = FMath::Sqrt(DistSq);
                 if (Dist <= SMALL_NUMBER)
+                {
+                    // 완전 겹침 — 결정론적 X축 방향으로 분리
+                    const FVector FallbackDir(1.0f, 0.0f, 0.0f);
+                    const float InvMass = 1.0f / (A.Mass + B.Mass);
+                    if (!A.bProjectile)
+                        Reactions[*IdxA] -= FallbackDir * (CombR * B.Mass * InvMass);
+                    if (!B.bProjectile)
+                        Reactions[*IdxB] += FallbackDir * (CombR * A.Mass * InvMass);
+
+                    FHktPhysicsEvent PhysEvt;
+                    PhysEvt.EntityA = A.Id;
+                    PhysEvt.EntityB = B.Id;
+                    PhysEvt.ContactPoint = PosA;
+                    OutPhysicsEvents.Add(PhysEvt);
                     continue;
+                }
 
                 const float Overlap = CombR - Dist;
                 const FVector Dir = (ClosestB - ClosestA) / Dist;
