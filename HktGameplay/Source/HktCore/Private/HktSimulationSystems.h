@@ -133,16 +133,19 @@ struct HKTCORE_API FHktMovementSystem
     );
 };
 
-/** 4. Physics System — 셀 기반 통합 물리 (지형 + 엔터티 캡슐 충돌)
+/** 4. Physics System — 2-phase 충돌 해소
  *
- * 1. Movement 결과인 기대 위치와 속도(작용한 힘)를 읽는다
- * 2. 기대 위치 + 캡슐(Radius, HalfHeight)로 차지하는 복셀 셀을 계산한다
- * 3. 각 셀에 진입한 엔터티와 진입 속도를 기록한다 (CellMap)
- * 4. solid 셀: 캡슐 AABB 겹침 해소 (solid = 무한 mass, 엔터티 100% 밀어냄)
- * 5. 엔터티 쌍: CollisionLayer 양방향 매칭 시 캡슐-캡슐 mass 기반 반작용
- * 6. 반작용 적용 + 속도 감쇄 + IsGrounded 갱신
+ * Phase 1: Entity-Entity Collision
+ *   - CellMap 공간 해싱 broad phase (정렬된 셀 순회로 결정론 보장)
+ *   - 캡슐-캡슐 narrow phase + mass 기반 반작용
+ *   - CollisionLayer/Mask 양방향 매칭, 투사체 소유자 보호
  *
- * hkt.Debug.TerrainCollisionEntity 로 특정 엔터티의 전 과정 상세 로그 활성화.
+ * Phase 2: Terrain Floor Snap
+ *   - 엔터티 발 복셀이 solid이면 위로 스캔하여 표면에 스냅
+ *   - 발 아래 복셀이 solid이면 IsGrounded = 1
+ *   - Grounded 상태 전환 시 이벤트 emit
+ *
+ * hkt.Debug.TerrainCollisionEntity 로 특정 엔터티의 상세 로그 활성화.
  */
 struct HKTCORE_API FHktPhysicsSystem
 {
