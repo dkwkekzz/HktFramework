@@ -19,7 +19,7 @@ class HKTRUNTIME_API UHktProxySimulatorComponent : public UActorComponent, publi
 public:
 	UHktProxySimulatorComponent();
 
-    /** 서버 응답 없이 MaxHistoryFrames 초과 시 브로드캐스트 (연결 끊김 판정) */
+    /** 서버 신호(heartbeat/batch) 미수신이 HeartbeatTimeoutSec를 넘으면 브로드캐스트 (연결 끊김 판정) */
     FOnHktProxySimulatorTimeout OnTimeout;
 
     // === IHktProxySimulator ===
@@ -29,6 +29,7 @@ public:
     virtual void AdvanceLocalFrame(float DeltaSeconds) override;
     virtual void EnqueueServerBatch(const FHktSimulationEvent& InBatch) override;
     virtual bool ConsumePendingDiff(FHktSimulationDiff& OutDiff) override;
+    virtual void NotifyHeartbeat(int64 InServerFrame) override;
 
 protected:
     virtual void BeginPlay() override;
@@ -62,13 +63,14 @@ private:
     // --- 틱 카운터 ---
     float FrameAccumulator = 0.0f;
     int64 LocalFrame = 0;
-    int32 FramesSinceLastServerBatch = 0;
+    double LastServerSignalTimeSec = 0.0;
+    bool bTimeoutNotified = false;
 
     static constexpr float FixedDeltaTime = 1.0f / 30.0f;
 
     // --- 그룹 인덱스 (결정론적 시드 생성용) ---
     int32 CachedGroupIndex = 0;
 
-    // --- 히스토리 보호: 서버 미확인 최대 프레임 수 ---
-    static constexpr int32 MaxHistoryFrames = 300; // 10초 @ 30Hz
+    // --- 연결 생존 판정 ---
+    static constexpr double HeartbeatTimeoutSec = 10.0;
 };

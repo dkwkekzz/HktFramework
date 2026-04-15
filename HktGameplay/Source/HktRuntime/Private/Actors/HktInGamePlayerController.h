@@ -37,6 +37,9 @@ public:
     UFUNCTION(Client, Reliable)
     void Client_ReceiveFrameBatch(const FHktRuntimeBatch& Batch);
 
+    UFUNCTION(Client, Unreliable)
+    void Client_ReceiveHeartbeat(int64 ServerFrame);
+
     // === C2S RPC (통일) ===
 
     /** Subject+Target 상호작용 통합 요청 (이동, 공격, 픽업, 드롭, 스킬 등) */
@@ -174,5 +177,6 @@ private:
     int32 InsightSentIntentCount = 0;
     int32 InsightReceivedBatchCount = 0;
     int32 InsightReceivedInitialStateCount = 0;
+    int32 InsightReceivedHeartbeatCount = 0;
 #endif
 };

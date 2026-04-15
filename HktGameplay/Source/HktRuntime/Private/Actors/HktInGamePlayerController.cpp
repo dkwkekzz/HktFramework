@@ -395,6 +395,18 @@ void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const F
     Rule->OnReceived_FrameBatch(static_cast<const FHktSimulationEvent&>(Batch));
 }
 
+void AHktIngamePlayerController::Client_ReceiveHeartbeat_Implementation(int64 ServerFrame)
+{
+#if ENABLE_HKT_INSIGHTS
+    InsightReceivedHeartbeatCount++;
+#endif
+
+    if (CachedProxySimulator)
+    {
+        CachedProxySimulator->NotifyHeartbeat(ServerFrame);
+    }
+}
+
 // ============================================================================
 // Tick — ProxySimulator가 생성한 Diff를 소비하여 Presentation에 전달
 // ============================================================================
@@ -488,6 +500,7 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
         HKT_INSIGHT_COLLECT(Cat, TEXT("SentIntents"), FString::FromInt(InsightSentIntentCount));
         HKT_INSIGHT_COLLECT(Cat, TEXT("ReceivedBatches"), FString::FromInt(InsightReceivedBatchCount));
         HKT_INSIGHT_COLLECT(Cat, TEXT("ReceivedInitialStates"), FString::FromInt(InsightReceivedInitialStateCount));
+        HKT_INSIGHT_COLLECT(Cat, TEXT("ReceivedHeartbeats"), FString::FromInt(InsightReceivedHeartbeatCount));
     }
 #endif
 }
