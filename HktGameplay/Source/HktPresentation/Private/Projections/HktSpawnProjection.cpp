@@ -23,15 +23,13 @@ void FHktSpawnProjection::Project(
 		FHktEffect& ResolveEffect = Ctx.Effects.Add(EHktEffectType::ResolveAsset, ES.EntityId);
 		ResolveEffect.Tag = VisualTag;
 
-		// 2) RenderLocation 초기 계산 (지면 트레이스 + 캡슐 오프셋)
-		Ctx.Effects.Add(EHktEffectType::ComputeRenderLocation, ES.EntityId);
-
-		// 3) Actor 스폰 (비동기, 에셋 로드 후 콜백에서 실제 생성)
+		// 2) Actor 스폰 (비동기, 에셋 로드 후 콜백에서 실제 생성)
+		// ComputeRenderLocation은 PropertyProjection에서 SpawnedThisFrame 일괄 처리
 		Ctx.Effects.Add(EHktEffectType::SpawnActor, ES.EntityId);
 
 #if ENABLE_HKT_INSIGHTS
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-			FString::Printf(TEXT("[Spawn] Entity=%d VisualTag=%s → ResolveAsset+ComputeRenderLocation+SpawnActor"),
+			FString::Printf(TEXT("[Spawn] Entity=%d VisualTag=%s → ResolveAsset+SpawnActor"),
 				ES.EntityId, *VisualTag.ToString()));
 #endif
 	}

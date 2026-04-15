@@ -71,15 +71,19 @@ void FHktEffectExecutor::ExecuteResolveAsset(const FHktEffect& Effect, FHktPrese
 	FHktEntityId EntityId = Effect.EntityId;
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
 
+	// State 포인터 캡처: State는 Subsystem 멤버이므로 WeakLP가 유효하면 State도 유효.
+	// 참조 캡처(&State)보다 포인터 캡처가 비동기 콜백 수명을 명시적으로 표현.
+	FHktPresentationState* StatePtr = &State;
+
 	// 비동기 에셋 로드 — 콜백에서 ViewModel 갱신 (CapsuleHalfHeight + ResolvedAssetPath + RenderLocation 재계산)
-	AssetSubsystem->LoadAssetAsync(VisualTag, [this, WeakLP, EntityId, &State](UHktTagDataAsset* Asset)
+	AssetSubsystem->LoadAssetAsync(VisualTag, [this, WeakLP, EntityId, StatePtr](UHktTagDataAsset* Asset)
 	{
 		if (!Asset || !WeakLP.IsValid()) return;
 
-		FHktEntityPresentation* E = State.GetMutable(EntityId);
+		FHktEntityPresentation* E = StatePtr->GetMutable(EntityId);
 		if (!E || !E->IsAlive()) return;
 
-		E->ResolvedAssetPath.Set(FSoftObjectPath(Asset), State.GetCurrentFrame());
+		E->ResolvedAssetPath.Set(FSoftObjectPath(Asset), StatePtr->GetCurrentFrame());
 
 		// ActorVisualDataAsset인 경우 CDO에서 캡슐 반높이 추출
 		if (UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(Asset))
@@ -107,7 +111,7 @@ void FHktEffectExecutor::ExecuteResolveAsset(const FHktEffect& Effect, FHktPrese
 			}
 		}
 		Loc.Z += E->CapsuleHalfHeight;
-		E->RenderLocation.Set(Loc, State.GetCurrentFrame());
+		E->RenderLocation.Set(Loc, StatePtr->GetCurrentFrame());
 	});
 }
 

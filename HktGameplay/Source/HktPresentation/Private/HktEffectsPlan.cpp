@@ -53,8 +53,8 @@ FString FHktEffectsPlan::Describe() const
 {
 	if (Effects.IsEmpty()) return TEXT("(empty)");
 
-	// Effect 타입별 카운트
-	int32 Counts[static_cast<int32>(EHktEffectType::DetachVFXFromEntity) + 1] = {};
+	// Effect 타입별 카운트 (MAX_VALUE 센티널로 배열 크기 자동 조정)
+	int32 Counts[static_cast<int32>(EHktEffectType::MAX_VALUE)] = {};
 	for (const FHktEffect& E : Effects)
 	{
 		int32 Idx = static_cast<int32>(E.Type);

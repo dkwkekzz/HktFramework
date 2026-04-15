@@ -32,6 +32,8 @@ enum class EHktEffectType : uint8
 	PlayVFXAtLocation,          // 일회성 VFX 재생 (자동 파괴)
 	AttachVFXToEntity,          // 엔티티 추적 VFX 부착 (지속형)
 	DetachVFXFromEntity,        // 엔티티 VFX 해제
+
+	MAX_VALUE                   // 센티널 — 새 타입은 이 위에 추가
 };
 
 /**

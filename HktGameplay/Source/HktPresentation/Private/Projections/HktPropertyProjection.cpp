@@ -12,7 +12,14 @@ void FHktPropertyProjection::Project(
 		Ctx.State.ApplyDelta(D.EntityId, D.PropertyId, D.NewValue);
 	}
 
-	// --- Location이 변경된 엔티티 → RenderLocation 재계산 effect ---
+	// --- RenderLocation 재계산: 스폰 엔티티 + 위치 변경 엔티티 ---
+	// 기존 ComputeRenderLocations()와 동일: SpawnedThisFrame + DirtyThisFrame 모두 처리.
+	// 모든 카테고리(Actor, MassEntity, FX)에 대해 실행.
+	for (FHktEntityId Id : Ctx.State.SpawnedThisFrame)
+	{
+		Ctx.Effects.Add(EHktEffectType::ComputeRenderLocation, Id);
+	}
+
 	for (FHktEntityId Id : Ctx.State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* E = Ctx.State.Get(Id);
