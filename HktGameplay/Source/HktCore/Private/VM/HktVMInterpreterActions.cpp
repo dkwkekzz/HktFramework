@@ -174,7 +174,8 @@ void FHktVMInterpreter::Op_LookAt(FHktVMRuntime& Runtime, RegisterIndex Entity, 
             if (OldYaw != YawDeg)
             {
                 HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
-                    FString::Printf(TEXT("Op_LookAt RotYaw(%d) %d->%d"),
+                    FString::Printf(TEXT("[%s] Op_LookAt RotYaw(%d) %d->%d"),
+                        Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?"),
                         PropertyId::RotYaw, OldYaw, YawDeg),
                     E);
             }
@@ -699,7 +700,8 @@ void FHktVMInterpreter::Op_SetForwardTarget(FHktVMRuntime& Runtime, RegisterInde
         if (OldX != TgtX || OldY != TgtY || OldZ != TgtZ)
         {
             HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
-                FString::Printf(TEXT("Op_SetForwardTarget MoveTarget (%d,%d,%d)->(%d,%d,%d)"),
+                FString::Printf(TEXT("[%s] Op_SetForwardTarget MoveTarget (%d,%d,%d)->(%d,%d,%d)"),
+                    Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?"),
                     OldX, OldY, OldZ, TgtX, TgtY, TgtZ),
                 E);
         }
