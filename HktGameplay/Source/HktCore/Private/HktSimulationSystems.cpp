@@ -86,14 +86,16 @@ static const TCHAR* WaitEventTypeToString(EWaitEventType Type)
     }
 }
 
-static void CollectVMDetailInsights(FHktVMRuntimePool& Pool)
+static void CollectVMDetailInsights(FHktVMRuntimePool& Pool, const FString& SourceName)
 {
-    if (!FHktCoreDataCollector::Get().IsCollectionEnabled(TEXT("VMDetail")))
+    // Source별로 분리된 카테고리 사용 (Standalone에서 Server/Client 충돌 방지)
+    const FString VMDetailCat = FString::Printf(TEXT("VMDetail.%s"), *SourceName);
+    if (!FHktCoreDataCollector::Get().IsCollectionEnabled(VMDetailCat))
     {
         return;
     }
 
-    HKT_INSIGHT_CLEAR_CATEGORY(TEXT("VMDetail"));
+    HKT_INSIGHT_CLEAR_CATEGORY(VMDetailCat);
 
     // Entity별 VM 집계용
     TMap<FHktEntityId, TArray<TPair<int32, FString>>> EntityVMs;  // EntityId → [(SlotIndex, EventTag)]
@@ -145,7 +147,7 @@ static void CollectVMDetailInsights(FHktVMRuntimePool& Pool)
                 Runtime.Context->EventTargetPosZ);
         }
 
-        HKT_INSIGHT_COLLECT(TEXT("VMDetail"), VMKey, Detail);
+        HKT_INSIGHT_COLLECT(VMDetailCat, VMKey, Detail);
     });
 
     // Entity 요약 행
@@ -158,7 +160,7 @@ static void CollectVMDetailInsights(FHktVMRuntimePool& Pool)
             Names += KV.Value[i].Value;
         }
         FString EntityKey = FString::Printf(TEXT("E_%d"), KV.Key);
-        HKT_INSIGHT_COLLECT(TEXT("VMDetail"), EntityKey,
+        HKT_INSIGHT_COLLECT(VMDetailCat, EntityKey,
             FString::Printf(TEXT("VMCount=%d | Names=%s"), KV.Value.Num(), *Names));
     }
 }
@@ -437,7 +439,7 @@ void FHktVMProcessSystem::Process(
     }
 
 #if ENABLE_HKT_INSIGHTS
-    CollectVMDetailInsights(Pool);
+    CollectVMDetailInsights(Pool, FString(GetLogSourceName(LogSource)));
 #endif
 }
 

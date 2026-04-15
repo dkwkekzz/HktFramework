@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Slate/SHktGameplayLogPanel.h"
+#include "HktCoreDataCollector.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBox.h"
@@ -122,9 +123,29 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                     FHktCoreEventLog::Get().Clear();
                     AllRows.Reset();
                     FilteredRows.Reset();
+                    ReadIndex = 0;
+
+                    // 사전 등록 태그는 유지하고 재구성
                     KnownCategories.Reset();
                     EnabledCategories.Reset();
-                    ReadIndex = 0;
+                    const FGameplayTag AllTags[] = {
+                        HktLogTags::Core_Entity, HktLogTags::Core_VM,
+                        HktLogTags::Core_Story, HktLogTags::Core_Movement,
+                        HktLogTags::Core_Physics, HktLogTags::Runtime_Server,
+                        HktLogTags::Runtime_Client, HktLogTags::Runtime_Intent,
+                        HktLogTags::Presentation, HktLogTags::Asset,
+                        HktLogTags::Rule, HktLogTags::Story,
+                        HktLogTags::UI, HktLogTags::VFX,
+                    };
+                    for (const FGameplayTag& Tag : AllTags)
+                    {
+                        if (Tag.IsValid())
+                        {
+                            KnownCategories.AddTag(Tag);
+                            EnabledCategories.AddTag(Tag);
+                        }
+                    }
+
                     RebuildCategoryTree();
                     ListView->RequestListRefresh();
                     return FReply::Handled();
@@ -191,6 +212,37 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                     SNew(STextBlock)
                     .Text(LOCTEXT("AutoScrollLabel", "Auto-scroll"))
                 ]
+            ]
+
+            // NetMode 표시
+            + SHorizontalBox::Slot()
+            .AutoWidth()
+            .VAlign(VAlign_Center)
+            .Padding(0, 0, 8, 0)
+            [
+                SNew(STextBlock)
+                .Text_Lambda([]() -> FText
+                {
+                    TArray<TPair<FString, FString>> Entries = FHktCoreDataCollector::Get().GetEntries(TEXT("Runtime.Client"));
+                    for (const auto& E : Entries)
+                    {
+                        if (E.Key == TEXT("NetMode"))
+                        {
+                            return FText::FromString(FString::Printf(TEXT("[%s]"), *E.Value));
+                        }
+                    }
+                    TArray<FString> Cats = FHktCoreDataCollector::Get().GetCategories();
+                    for (const FString& Cat : Cats)
+                    {
+                        if (Cat == TEXT("Runtime.Server"))
+                        {
+                            return FText::FromString(TEXT("[DedicatedServer]"));
+                        }
+                    }
+                    return FText::GetEmpty();
+                })
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+                .ColorAndOpacity(FSlateColor(LogColors::LevelWarning))
             ]
 
             // ── Source 필터 (클라/서버 분리) ──
@@ -401,6 +453,35 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
 
     // 수집 활성화
     FHktCoreEventLog::Get().SetActive(true);
+
+    // 모든 HktLogTags 카테고리를 사전 등록 (로그 수신 전에도 트리에 표시)
+    {
+        const FGameplayTag AllTags[] = {
+            HktLogTags::Core_Entity,
+            HktLogTags::Core_VM,
+            HktLogTags::Core_Story,
+            HktLogTags::Core_Movement,
+            HktLogTags::Core_Physics,
+            HktLogTags::Runtime_Server,
+            HktLogTags::Runtime_Client,
+            HktLogTags::Runtime_Intent,
+            HktLogTags::Presentation,
+            HktLogTags::Asset,
+            HktLogTags::Rule,
+            HktLogTags::Story,
+            HktLogTags::UI,
+            HktLogTags::VFX,
+        };
+        for (const FGameplayTag& Tag : AllTags)
+        {
+            if (Tag.IsValid())
+            {
+                KnownCategories.AddTag(Tag);
+                EnabledCategories.AddTag(Tag);
+            }
+        }
+        RebuildCategoryTree();
+    }
 
     // 0.1초 폴링
     RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateLambda(

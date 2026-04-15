@@ -56,12 +56,16 @@ static FSlateColor GetStatusColorFromRow(TWeakPtr<FHktVMRow> WeakRow)
 
 SHktVMStatePanel::~SHktVMStatePanel()
 {
-    FHktCoreDataCollector::Get().DisableCollection(TEXT("VMDetail"));
+    // Source별 VMDetail 수집 비활성화
+    FHktCoreDataCollector::Get().DisableCollection(TEXT("VMDetail.Server"));
+    FHktCoreDataCollector::Get().DisableCollection(TEXT("VMDetail.Client"));
 }
 
 void SHktVMStatePanel::Construct(const FArguments& InArgs)
 {
-    FHktCoreDataCollector::Get().EnableCollection(TEXT("VMDetail"));
+    // Standalone에서 Server/Client 둘 다 확인 가능하도록 모든 Source 수집 활성화
+    FHktCoreDataCollector::Get().EnableCollection(TEXT("VMDetail.Server"));
+    FHktCoreDataCollector::Get().EnableCollection(TEXT("VMDetail.Client"));
 
     ChildSlot
     [
@@ -111,6 +115,37 @@ void SHktVMStatePanel::Construct(const FArguments& InArgs)
                         return FText::FromString(SelectedSource.IsEmpty() ? TEXT("(auto)") : SelectedSource);
                     })
                 ]
+            ]
+            // NetMode 표시 (Runtime.Client에서 읽기)
+            + SHorizontalBox::Slot()
+            .AutoWidth()
+            .VAlign(VAlign_Center)
+            .Padding(0, 0, 12, 0)
+            [
+                SNew(STextBlock)
+                .Text_Lambda([]() -> FText
+                {
+                    TArray<TPair<FString, FString>> Entries = FHktCoreDataCollector::Get().GetEntries(TEXT("Runtime.Client"));
+                    for (const auto& E : Entries)
+                    {
+                        if (E.Key == TEXT("NetMode"))
+                        {
+                            return FText::FromString(FString::Printf(TEXT("[%s]"), *E.Value));
+                        }
+                    }
+                    // Runtime.Server만 있으면 DedicatedServer
+                    TArray<FString> Cats = FHktCoreDataCollector::Get().GetCategories();
+                    for (const FString& Cat : Cats)
+                    {
+                        if (Cat == TEXT("Runtime.Server"))
+                        {
+                            return FText::FromString(TEXT("[DedicatedServer]"));
+                        }
+                    }
+                    return FText::GetEmpty();
+                })
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+                .ColorAndOpacity(FSlateColor(VMColors::Yielded))
             ]
             + SHorizontalBox::Slot()
             .FillWidth(1.0f)
@@ -364,8 +399,9 @@ void SHktVMStatePanel::RefreshData()
         }
     }
 
-    // ── 2. VMDetail에서 VM 데이터 읽기 ──
-    TArray<TPair<FString, FString>> VMEntries = FHktCoreDataCollector::Get().GetEntries(TEXT("VMDetail"));
+    // ── 2. VMDetail.{Source}에서 VM 데이터 읽기 (Standalone에서 Server/Client 분리) ──
+    const FString VMDetailCategory = FString::Printf(TEXT("VMDetail.%s"), *SelectedSource);
+    TArray<TPair<FString, FString>> VMEntries = FHktCoreDataCollector::Get().GetEntries(VMDetailCategory);
 
     // Entity별 VM 요약 수집
     TMap<FString, TPair<int32, FString>> VMSummaryMap;  // EntityKey → (Count, Names)
