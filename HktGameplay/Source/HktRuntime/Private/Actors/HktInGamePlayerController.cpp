@@ -40,9 +40,11 @@ void AHktIngamePlayerController::BeginPlay()
         }
     }
 
-    // ClientRule — Standalone / Client 에서만 (DedicatedServer 제외)
-    const ENetMode NetMode = GetWorld()->GetNetMode();
-    if (NetMode == NM_Standalone || NetMode == NM_Client)
+    // ClientRule — 로컬 플레이어 컨트롤러에서만 초기화한다.
+    // NetMode 조건(NM_Standalone/NM_Client)으로 분기하면 ListenServer 호스트 PC가 누락된다.
+    // IsLocalController()는 Standalone·Client·ListenServer 호스트 모두 true,
+    // DedicatedServer 측 원격 PC에서는 false를 반환하므로 의미상 정확하다.
+    if (IsLocalController())
     {
         CachedClientRule = HktRule::GetClientRule(GetWorld());
     }

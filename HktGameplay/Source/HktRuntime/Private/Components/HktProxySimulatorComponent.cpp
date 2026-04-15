@@ -14,6 +14,16 @@ UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 void UHktProxySimulatorComponent::BeginPlay()
 {
     Super::BeginPlay();
+
+    // DedicatedServer의 원격 PC에는 ProxySimulator가 불필요하다.
+    // 로컬 컨트롤러인 경우에만 Simulator를 생성하여 메모리 낭비를 막는다.
+    // (Standalone / Client / ListenServer 호스트 PC는 IsLocalController() == true)
+    APlayerController* OwnerPC = Cast<APlayerController>(GetOwner());
+    if (OwnerPC && !OwnerPC->IsLocalController())
+    {
+        return;
+    }
+
     Simulator = CreateDeterminismSimulator(EHktLogSource::Client);
 }
 
@@ -105,17 +115,11 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
     AccumulateDiff(Diff);
 
-    // 서버 미응답 타임아웃: MaxHistoryFrames(10초) 초과 시 연결 끊김으로 판정 -> 잘못된 버그 코드
-    //FramesSinceLastServerBatch++;
-    //if (FramesSinceLastServerBatch > MaxHistoryFrames)
-    //{
-    //    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
-    //        FString::Printf(TEXT("ServerBatchTimeout: %d frames without response"), FramesSinceLastServerBatch));
-    //    DiffHistory.Empty();
-    //    FramesSinceLastServerBatch = 0;
-    //    bInitialized = false;
-    //    OnTimeout.Broadcast();
-    //}
+    // TODO: 서버 미응답 타임아웃
+    // 단순 프레임 카운트로는 에디터 비활성화 / 입력 없는 구간에서 오발동한다.
+    // 서버가 콘텐츠 없을 때 배치를 보내지 않으므로 EnqueueServerBatch가 불리지 않아
+    // 정상 연결 중에도 카운터가 초과된다.
+    // 별도 경량 heartbeat RPC 설계 후 활성화 예정.
 }
 
 FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
@@ -210,6 +214,13 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 
 void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, int32 InGroupIndex)
 {
+    if (!Simulator)
+    {
+        HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Error, EHktLogSource::Client,
+            TEXT("RestoreState: Simulator is null (non-local controller?)"));
+        return;
+    }
+
     HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("RestoreState Frame=%lld Entities=%d GroupIndex=%d"),
             InState.FrameNumber, InState.GetEntityCount(), InGroupIndex));
@@ -235,6 +246,7 @@ void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, in
 
 const FHktWorldState& UHktProxySimulatorComponent::GetWorldState() const
 {
+    check(Simulator.IsValid());
     return Simulator->GetWorldState();
 }
 

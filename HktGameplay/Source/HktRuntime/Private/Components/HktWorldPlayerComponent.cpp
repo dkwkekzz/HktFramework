@@ -35,7 +35,7 @@ void UHktWorldPlayerComponent::UpdatePlayerUidFromPlayerState() const
     }
 
     PlayerUid = 0;
-    
+
     if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
     {
         if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
@@ -44,11 +44,13 @@ void UHktWorldPlayerComponent::UpdatePlayerUidFromPlayerState() const
             if (UniqueId.IsValid())
             {
                 PlayerUid = GetTypeHash(UniqueId->ToString());
+                // UniqueId가 유효하고 Uid 계산이 완료된 경우에만 캐시 확정.
+                // PlayerState가 없거나 UniqueId가 아직 미설정인 경우 캐시를 열어두어
+                // OnRep_PlayerState / 서버 재확인 시 재시도할 수 있도록 한다.
+                bPlayerUidCached = true;
             }
         }
     }
-    
-    bPlayerUidCached = true;
 }
 
 bool UHktWorldPlayerComponent::IsInitialized() const
