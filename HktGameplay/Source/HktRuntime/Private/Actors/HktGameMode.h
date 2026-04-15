@@ -56,6 +56,8 @@ private:
     /** 고정 타임스텝 어큐뮬레이터 (서버도 30Hz 고정 간격 시뮬레이션) */
     float FrameAccumulator = 0.0f;
     static constexpr float FixedDeltaTime = 1.0f / 30.0f;
+    TArray<float> GroupHeartbeatAccumulators;
+    static constexpr float HeartbeatInterval = 0.2f; // 5Hz
 
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;

@@ -113,9 +113,14 @@ void AHktGameMode::SimulationTick()
     }
 
     const FHktEventGameModeTickResult TickResult = Rule->OnEvent_GameModeTick(FixedDeltaTime);
-
-    for (const FGroupEventSend& GroupSend : TickResult.EventSends)
+    if (GroupHeartbeatAccumulators.Num() != TickResult.EventSends.Num())
     {
+        GroupHeartbeatAccumulators.Init(0.0f, TickResult.EventSends.Num());
+    }
+
+    for (int32 GroupIndex = 0; GroupIndex < TickResult.EventSends.Num(); ++GroupIndex)
+    {
+        const FGroupEventSend& GroupSend = TickResult.EventSends[GroupIndex];
         const FHktSimulationEvent& Batch = GroupSend.Batch;
         const bool bHasContent = Batch.NewEvents.Num() > 0
             || Batch.NewEntityStates.Num() > 0
@@ -123,12 +128,39 @@ void AHktGameMode::SimulationTick()
 
         if (bHasContent)
         {
-            const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
-            for (IHktWorldPlayer* Player : Existing)
+            GroupHeartbeatAccumulators[GroupIndex] = 0.0f;
+
+            if (GroupSend.Existing)
             {
-                if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
+                const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
+                for (IHktWorldPlayer* Player : Existing)
                 {
-                    PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(Batch));
+                    if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
+                    {
+                        PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(Batch));
+                    }
+                }
+            }
+        }
+
+        if (!bHasContent)
+        {
+            float& GroupHeartbeatAccumulator = GroupHeartbeatAccumulators[GroupIndex];
+            GroupHeartbeatAccumulator += FixedDeltaTime;
+            if (GroupHeartbeatAccumulator >= HeartbeatInterval)
+            {
+                GroupHeartbeatAccumulator -= HeartbeatInterval;
+
+                if (GroupSend.Existing)
+                {
+                    const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
+                    for (IHktWorldPlayer* Player : Existing)
+                    {
+                        if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
+                        {
+                            PC->Client_ReceiveHeartbeat(Batch.FrameNumber);
+                        }
+                    }
                 }
             }
         }

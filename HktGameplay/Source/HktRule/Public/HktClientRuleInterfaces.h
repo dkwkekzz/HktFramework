@@ -33,6 +33,9 @@ public:
 
 	/** 마지막 조정으로 생성된 Diff를 소비 (없으면 false) */
 	virtual bool ConsumePendingDiff(FHktSimulationDiff& OutDiff) = 0;
+
+	/** 서버 heartbeat 수신 알림 (연결 생존 판정용) */
+	virtual void NotifyHeartbeat(int64 InServerFrame) = 0;
 };
 
 // ============================================================================

@@ -14,6 +14,8 @@ UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 void UHktProxySimulatorComponent::BeginPlay()
 {
     Super::BeginPlay();
+    LastServerSignalTimeSec = FPlatformTime::Seconds();
+    bTimeoutNotified = false;
 
     // DedicatedServer의 원격 PC에는 ProxySimulator가 불필요하다.
     // 로컬 컨트롤러인 경우에만 Simulator를 생성하여 메모리 낭비를 막는다.
@@ -58,6 +60,22 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
         {
             AdvanceLocalFrame(FixedDeltaTime);
         }
+    }
+
+    const double NowSec = FPlatformTime::Seconds();
+    if ((NowSec - LastServerSignalTimeSec) > HeartbeatTimeoutSec)
+    {
+        if (!bTimeoutNotified)
+        {
+            bTimeoutNotified = true;
+            OnTimeout.Broadcast();
+            HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Warning, EHktLogSource::Client,
+                FString::Printf(TEXT("Proxy timeout: no server signal for %.2f sec"), HeartbeatTimeoutSec));
+        }
+    }
+    else if (bTimeoutNotified)
+    {
+        bTimeoutNotified = false;
     }
 
 #if ENABLE_HKT_INSIGHTS
@@ -115,11 +133,7 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
     AccumulateDiff(Diff);
 
-    // TODO: 서버 미응답 타임아웃
-    // 단순 프레임 카운트로는 에디터 비활성화 / 입력 없는 구간에서 오발동한다.
-    // 서버가 콘텐츠 없을 때 배치를 보내지 않으므로 EnqueueServerBatch가 불리지 않아
-    // 정상 연결 중에도 카운터가 초과된다.
-    // 별도 경량 heartbeat RPC 설계 후 활성화 예정.
+    // 연결 상태 판정은 heartbeat/서버 신호 시각 기반으로 TickComponent에서 처리한다.
 }
 
 FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
@@ -138,6 +152,9 @@ FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
 
 void UHktProxySimulatorComponent::EnqueueServerBatch(const FHktSimulationEvent& InBatch)
 {
+    LastServerSignalTimeSec = FPlatformTime::Seconds();
+    bTimeoutNotified = false;
+
     HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("EnqueueServerBatch Frame=%lld Events=%d"),
             InBatch.FrameNumber, InBatch.NewEvents.Num()));
@@ -205,7 +222,8 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
     }
 
     PendingServerBatches.Reset();
-    FramesSinceLastServerBatch = 0;
+    LastServerSignalTimeSec = FPlatformTime::Seconds();
+    bTimeoutNotified = false;
 }
 
 // ============================================================================
@@ -239,9 +257,19 @@ void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, in
     PendingServerBatches.Empty();
     bHasPendingDiff = false;
     FrameAccumulator = 0.0f;
-    FramesSinceLastServerBatch = 0;
+    LastServerSignalTimeSec = FPlatformTime::Seconds();
+    bTimeoutNotified = false;
 
     bInitialized = true;
+}
+
+void UHktProxySimulatorComponent::NotifyHeartbeat(int64 InServerFrame)
+{
+    LastServerSignalTimeSec = FPlatformTime::Seconds();
+    bTimeoutNotified = false;
+
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Verbose, EHktLogSource::Client,
+        FString::Printf(TEXT("ReceiveHeartbeat ServerFrame=%lld"), InServerFrame));
 }
 
 const FHktWorldState& UHktProxySimulatorComponent::GetWorldState() const
