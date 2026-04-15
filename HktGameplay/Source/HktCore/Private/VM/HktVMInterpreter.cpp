@@ -262,7 +262,8 @@ void FHktVMInterpreter::Op_SaveStore(FHktVMRuntime& Runtime, uint16 PropId, Regi
         {
             const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
             HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
-                FString::Printf(TEXT("Op_SaveStore %s(%d) %d->%d"),
+                FString::Printf(TEXT("[%s] Op_SaveStore %s(%d) %d->%d"),
+                    Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?"),
                     PropName ? PropName : TEXT("?"), PropId, OldValue, Value),
                 Runtime.Context->SourceEntity);
         }
@@ -281,7 +282,8 @@ void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex
         {
             const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
             HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
-                FString::Printf(TEXT("Op_SaveStoreEntity Id=%d %s(%d) %d->%d"),
+                FString::Printf(TEXT("[%s] Op_SaveStoreEntity Id=%d %s(%d) %d->%d"),
+                    Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?"),
                     E, PropName ? PropName : TEXT("?"), PropId, OldValue, Value),
                 E);
         }

@@ -46,6 +46,12 @@ namespace LogColors
     // Source별 색상
     static const FLinearColor SourceServer(1.0f, 0.6f, 0.3f);
     static const FLinearColor SourceClient(0.3f, 0.85f, 0.85f);
+
+    // Delta 시각화 색상
+    static const FLinearColor DeltaOld(0.9f, 0.45f, 0.4f);     // dim red — 이전 값
+    static const FLinearColor DeltaNew(0.3f, 0.95f, 0.5f);     // bright green — 새 값
+    static const FLinearColor DeltaArrow(0.6f, 0.6f, 0.6f);    // gray — 화살표
+    static const FLinearColor DeltaToggle(0.5f, 1.0f, 0.7f);   // toggle 버튼 색상
 }
 
 static FLinearColor GetLogLevelColor(EHktLogLevel Level)
@@ -294,8 +300,13 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 4, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Verbose; RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("VrbBtn", "VRB")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelVerbose)) ]
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Verbose; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("VrbBtn", "VRB"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Verbose ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Verbose ? FSlateColor(LogColors::LevelVerbose) : FSlateColor(LogColors::Dim); })
+                ]
             ]
             + SHorizontalBox::Slot()
             .AutoWidth()
@@ -303,8 +314,13 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 4, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Info; RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("InfBtn", "INF")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelInfo)) ]
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Info; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("InfBtn", "INF"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Info ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Info ? FSlateColor(LogColors::LevelInfo) : FSlateColor(LogColors::Dim); })
+                ]
             ]
             + SHorizontalBox::Slot()
             .AutoWidth()
@@ -312,8 +328,13 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 4, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Warning; RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("WrnBtn", "WRN")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelWarning)) ]
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Warning; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("WrnBtn", "WRN"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Warning ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Warning ? FSlateColor(LogColors::LevelWarning) : FSlateColor(LogColors::Dim); })
+                ]
             ]
             + SHorizontalBox::Slot()
             .AutoWidth()
@@ -321,8 +342,39 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 12, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Error; RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("ErrBtn", "ERR")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelError)) ]
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Error; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("ErrBtn", "ERR"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Error ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Error ? FSlateColor(LogColors::LevelError) : FSlateColor(LogColors::Dim); })
+                ]
+            ]
+
+            // ── Delta 표시 토글 (값 변경 로그 선택적 표시) ──
+            + SHorizontalBox::Slot()
+            .AutoWidth()
+            .VAlign(VAlign_Center)
+            .Padding(0, 0, 12, 0)
+            [
+                SNew(SCheckBox)
+                .IsChecked_Lambda([this]() -> ECheckBoxState
+                {
+                    return bShowDeltas ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                })
+                .OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
+                {
+                    bShowDeltas = (NewState == ECheckBoxState::Checked);
+                    SyncCollectionLevel();
+                    RebuildFilteredRows();
+                })
+                [
+                    SNew(STextBlock)
+                    .Text(FText::FromString(FString(TEXT("\u0394"))))  // Δ 기호
+                    .Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+                    .ColorAndOpacity(FSlateColor(LogColors::DeltaToggle))
+                    .ToolTipText(LOCTEXT("DeltaTooltip", "Show value-change logs (Op_SaveStore deltas)"))
+                ]
             ]
 
             // 로그 수
@@ -451,8 +503,9 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
         ]
     ];
 
-    // 수집 활성화
+    // 수집 활성화 및 수집 레벨 동기화
     FHktCoreEventLog::Get().SetActive(true);
+    SyncCollectionLevel();
 
     // 모든 HktLogTags 카테고리를 사전 등록 (로그 수신 전에도 트리에 표시)
     {
@@ -494,7 +547,19 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
 
 SHktGameplayLogPanel::~SHktGameplayLogPanel()
 {
+    FHktCoreEventLog::Get().SetMinLogLevel(EHktLogLevel::Info);  // 기본값 복원
     FHktCoreEventLog::Get().SetActive(false);
+}
+
+void SHktGameplayLogPanel::SyncCollectionLevel()
+{
+    // bShowDeltas ON이면 Verbose까지 수집, 아니면 패널 MinLogLevel에 맞춤
+    EHktLogLevel CollectionLevel = MinLogLevel;
+    if (bShowDeltas && CollectionLevel > EHktLogLevel::Verbose)
+    {
+        CollectionLevel = EHktLogLevel::Verbose;
+    }
+    FHktCoreEventLog::Get().SetMinLogLevel(CollectionLevel);
 }
 
 // ============================================================================
@@ -569,9 +634,17 @@ void SHktGameplayLogPanel::PollNewEntries()
 bool SHktGameplayLogPanel::PassesFilter(const FHktLogEntry& Entry) const
 {
     // LogLevel 필터: MinLogLevel 이상만 표시
+    // bShowDeltas ON이면 Core_VM Verbose 로그 중 값 변경("->" 포함) 로그는 MinLogLevel 무시
     if (Entry.Level < MinLogLevel)
     {
-        return false;
+        const bool bIsDeltaEntry = bShowDeltas
+            && Entry.Level == EHktLogLevel::Verbose
+            && Entry.Category == HktLogTags::Core_VM
+            && Entry.Message.Contains(TEXT("->"));
+        if (!bIsDeltaEntry)
+        {
+            return false;
+        }
     }
 
     // Source 필터 (클라/서버 분리)
@@ -978,15 +1051,135 @@ TSharedRef<ITableRow> SHktGameplayLogPanel::OnGenerateRow(
                     .Margin(FMargin(2, 1));
             }
 
-            // Message — Warning/Error는 레벨 색상으로 강조
+            // Message — 값 변경 패턴(OldVal->NewVal) 감지 시 색상 분리 렌더링
             {
                 FLinearColor MsgColor = LogColors::Message;
                 if (Item->Level >= EHktLogLevel::Warning)
                 {
                     MsgColor = GetLogLevelColor(Item->Level);
                 }
+
+                const FString& Msg = Item->Message;
+                int32 ArrowIdx = Msg.Find(TEXT("->"));
+
+                // "->" 패턴이 있고 양쪽에 숫자/부호가 있으면 delta 시각화
+                if (ArrowIdx != INDEX_NONE && ArrowIdx > 0)
+                {
+                    // 화살표 앞쪽에서 OldValue 시작 위치 찾기 (숫자+부호 역방향 탐색)
+                    int32 OldStart = ArrowIdx;
+                    while (OldStart > 0)
+                    {
+                        TCHAR C = Msg[OldStart - 1];
+                        if (FChar::IsDigit(C) || C == TEXT('-'))
+                            --OldStart;
+                        else
+                            break;
+                    }
+
+                    // 화살표 뒤쪽에서 NewValue 끝 위치 찾기
+                    int32 NewEnd = ArrowIdx + 2;  // "->" 길이 = 2
+                    // 선두 부호 허용
+                    if (NewEnd < Msg.Len() && Msg[NewEnd] == TEXT('-'))
+                        ++NewEnd;
+                    while (NewEnd < Msg.Len() && FChar::IsDigit(Msg[NewEnd]))
+                        ++NewEnd;
+
+                    // 유효한 delta 패턴인지 확인 (OldVal, NewVal 모두 1자리 이상)
+                    bool bValidDelta = (OldStart < ArrowIdx) && (NewEnd > ArrowIdx + 2);
+
+                    // 괄호로 감싸인 좌표 패턴 체크: (x,y,z)->(x,y,z)
+                    if (!bValidDelta && ArrowIdx >= 1 && Msg[ArrowIdx - 1] == TEXT(')'))
+                    {
+                        // 닫는 괄호 앞에서 여는 괄호 찾기
+                        int32 OpenParen = Msg.Find(TEXT("("), ESearchCase::CaseSensitive, ESearchDir::FromEnd, ArrowIdx - 1);
+                        if (OpenParen != INDEX_NONE)
+                        {
+                            OldStart = OpenParen;
+                            // 뒤쪽도 괄호 패턴 확인
+                            if (ArrowIdx + 2 < Msg.Len() && Msg[ArrowIdx + 2] == TEXT('('))
+                            {
+                                int32 CloseParen = Msg.Find(TEXT(")"), ESearchCase::CaseSensitive, ESearchDir::FromStart, ArrowIdx + 3);
+                                if (CloseParen != INDEX_NONE)
+                                {
+                                    NewEnd = CloseParen + 1;
+                                    bValidDelta = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (bValidDelta)
+                    {
+                        FString Prefix = Msg.Left(OldStart);
+                        FString OldVal = Msg.Mid(OldStart, ArrowIdx - OldStart);
+                        FString NewVal = Msg.Mid(ArrowIdx + 2, NewEnd - (ArrowIdx + 2));
+                        FString Suffix = Msg.Mid(NewEnd);
+
+                        TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox);
+
+                        if (!Prefix.IsEmpty())
+                        {
+                            Box->AddSlot()
+                            .AutoWidth()
+                            [
+                                SNew(STextBlock)
+                                .Text(FText::FromString(Prefix))
+                                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+                                .ColorAndOpacity(FSlateColor(MsgColor))
+                            ];
+                        }
+
+                        // OldValue (dim red)
+                        Box->AddSlot()
+                        .AutoWidth()
+                        [
+                            SNew(STextBlock)
+                            .Text(FText::FromString(OldVal))
+                            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 8))
+                            .ColorAndOpacity(FSlateColor(LogColors::DeltaOld))
+                        ];
+
+                        // Arrow
+                        Box->AddSlot()
+                        .AutoWidth()
+                        [
+                            SNew(STextBlock)
+                            .Text(FText::FromString(TEXT("->")))
+                            .Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+                            .ColorAndOpacity(FSlateColor(LogColors::DeltaArrow))
+                        ];
+
+                        // NewValue (bright green)
+                        Box->AddSlot()
+                        .AutoWidth()
+                        [
+                            SNew(STextBlock)
+                            .Text(FText::FromString(NewVal))
+                            .Font(FCoreStyle::GetDefaultFontStyle("Bold", 8))
+                            .ColorAndOpacity(FSlateColor(LogColors::DeltaNew))
+                        ];
+
+                        if (!Suffix.IsEmpty())
+                        {
+                            Box->AddSlot()
+                            .AutoWidth()
+                            [
+                                SNew(STextBlock)
+                                .Text(FText::FromString(Suffix))
+                                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+                                .ColorAndOpacity(FSlateColor(MsgColor))
+                            ];
+                        }
+
+                        return SNew(SBox)
+                            .Padding(FMargin(2, 1))
+                            [ Box ];
+                    }
+                }
+
+                // delta 패턴이 아닌 일반 메시지
                 return SNew(STextBlock)
-                    .Text(FText::FromString(Item->Message))
+                    .Text(FText::FromString(Msg))
                     .Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
                     .ColorAndOpacity(FSlateColor(MsgColor))
                     .Margin(FMargin(2, 1));

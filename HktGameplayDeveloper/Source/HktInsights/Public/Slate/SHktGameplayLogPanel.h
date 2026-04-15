@@ -103,6 +103,9 @@ private:
     /** FGameplayTag에서 "HktLog." 접두사 제거 후 표시용 문자열 반환 */
     static FString GetCategoryDisplayName(const FGameplayTag& Category);
 
+    /** 패널 필터 레벨과 bShowDeltas 상태에 맞춰 EventLog 수집 레벨 동기화 */
+    void SyncCollectionLevel();
+
     // ── 데이터 ──
 
     /** 필터를 통과한 전체 로그 (표시용) */
@@ -139,6 +142,9 @@ private:
     // ── Source 필터 (클라/서버 분리) ──
     bool bShowServer = true;
     bool bShowClient = true;
+
+    // ── Delta 시각화 필터 ──
+    bool bShowDeltas = false;  // ON이면 Core_VM Verbose 중 값 변경 로그만 추가 표시
 
     // ── 폴링 상태 ──
     uint32 ReadIndex = 0;
