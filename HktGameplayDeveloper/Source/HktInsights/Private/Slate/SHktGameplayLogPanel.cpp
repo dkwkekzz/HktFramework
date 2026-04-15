@@ -301,7 +301,12 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             [
                 SNew(SButton)
                 .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Verbose; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("VrbBtn", "VRB")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelVerbose)) ]
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("VrbBtn", "VRB"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Verbose ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Verbose ? FSlateColor(LogColors::LevelVerbose) : FSlateColor(LogColors::Dim); })
+                ]
             ]
             + SHorizontalBox::Slot()
             .AutoWidth()
@@ -310,7 +315,12 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             [
                 SNew(SButton)
                 .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Info; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("InfBtn", "INF")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelInfo)) ]
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("InfBtn", "INF"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Info ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Info ? FSlateColor(LogColors::LevelInfo) : FSlateColor(LogColors::Dim); })
+                ]
             ]
             + SHorizontalBox::Slot()
             .AutoWidth()
@@ -319,7 +329,12 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             [
                 SNew(SButton)
                 .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Warning; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("WrnBtn", "WRN")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelWarning)) ]
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("WrnBtn", "WRN"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Warning ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Warning ? FSlateColor(LogColors::LevelWarning) : FSlateColor(LogColors::Dim); })
+                ]
             ]
             + SHorizontalBox::Slot()
             .AutoWidth()
@@ -328,7 +343,12 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             [
                 SNew(SButton)
                 .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Error; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
-                [ SNew(STextBlock).Text(LOCTEXT("ErrBtn", "ERR")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelError)) ]
+                [
+                    SNew(STextBlock)
+                    .Text(LOCTEXT("ErrBtn", "ERR"))
+                    .Font_Lambda([this]() { return FCoreStyle::GetDefaultFontStyle(MinLogLevel == EHktLogLevel::Error ? "Bold" : "Regular", 8); })
+                    .ColorAndOpacity_Lambda([this]() -> FSlateColor { return MinLogLevel == EHktLogLevel::Error ? FSlateColor(LogColors::LevelError) : FSlateColor(LogColors::Dim); })
+                ]
             ]
 
             // ── Delta 표시 토글 (값 변경 로그 선택적 표시) ──
