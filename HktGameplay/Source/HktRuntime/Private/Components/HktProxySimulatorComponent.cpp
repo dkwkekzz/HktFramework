@@ -115,19 +115,11 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     // PendingDiff에 누적 (PlayerController Tick에서 소비 → WorldViewUpdated 전달)
     AccumulateDiff(Diff);
 
-    // 서버 미응답 타임아웃: 로컬 예측 프레임만 쌓이는 구간을 카운트한다.
-    // EnqueueServerBatch() 호출 시 리셋되므로, 서버가 정상 응답하는 한 초과하지 않는다.
-    FramesSinceLastServerBatch++;
-    if (FramesSinceLastServerBatch > MaxHistoryFrames)
-    {
-        HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Warning, EHktLogSource::Client,
-            FString::Printf(TEXT("ProxySimulator: 서버 응답 없음 %d 프레임 초과, 연결 끊김으로 판정"), FramesSinceLastServerBatch));
-        DiffHistory.Empty();
-        PendingServerBatches.Empty();
-        FramesSinceLastServerBatch = 0;
-        bInitialized = false;
-        OnTimeout.Broadcast();
-    }
+    // TODO: 서버 미응답 타임아웃
+    // 단순 프레임 카운트로는 에디터 비활성화 / 입력 없는 구간에서 오발동한다.
+    // 서버가 콘텐츠 없을 때 배치를 보내지 않으므로 EnqueueServerBatch가 불리지 않아
+    // 정상 연결 중에도 카운터가 초과된다.
+    // 별도 경량 heartbeat RPC 설계 후 활성화 예정.
 }
 
 FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
@@ -149,8 +141,6 @@ void UHktProxySimulatorComponent::EnqueueServerBatch(const FHktSimulationEvent& 
     HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("EnqueueServerBatch Frame=%lld Events=%d"),
             InBatch.FrameNumber, InBatch.NewEvents.Num()));
-    // 서버 응답이 도착했으므로 타임아웃 카운터를 리셋한다.
-    FramesSinceLastServerBatch = 0;
     PendingServerBatches.Add(InBatch);
 }
 
