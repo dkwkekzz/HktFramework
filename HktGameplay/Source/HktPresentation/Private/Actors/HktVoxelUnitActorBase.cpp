@@ -43,12 +43,13 @@ void AHktVoxelUnitActorBase::BeginPlay()
 
 	EntityRenderCache = MakeShared<FHktVoxelRenderCache>();
 
-	MeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(EntityRenderCache.Get());
-	MeshScheduler->SetMaxMeshPerFrame(1);
-
 	// 단일 출처: UHktRuntimeGlobalSetting::VoxelSizeCm (폴백은 FHktVoxelChunk::VOXEL_SIZE)
 	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	const float VoxelSizeCm = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
+
+	MeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(EntityRenderCache.Get());
+	MeshScheduler->SetMaxMeshPerFrame(1);
+	MeshScheduler->SetVoxelSize(VoxelSizeCm);
 
 	BodyChunk->Initialize(EntityRenderCache.Get(), EntityChunkCoord, VoxelSizeCm);
 

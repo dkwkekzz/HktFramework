@@ -6,6 +6,8 @@
 
 void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided)
 {
+	FWriteScopeLock WriteLock(Chunk.MeshLock);
+
 	Chunk.OpaqueVertices.Reset();
 	Chunk.OpaqueIndices.Reset();
 	Chunk.TranslucentVertices.Reset();

@@ -525,12 +525,12 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             HktLogTags::UI,
             HktLogTags::VFX,
         };
-        for (const FGameplayTag& Tag : AllTags)
+        for (const FGameplayTag& LogTag : AllTags)
         {
-            if (Tag.IsValid())
+            if (LogTag.IsValid())
             {
-                KnownCategories.AddTag(Tag);
-                EnabledCategories.AddTag(Tag);
+                KnownCategories.AddTag(LogTag);
+                EnabledCategories.AddTag(LogTag);
             }
         }
         RebuildCategoryTree();

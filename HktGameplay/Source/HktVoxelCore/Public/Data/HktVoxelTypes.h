@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/ScopeRWLock.h"
 #include <atomic>
 
 // ============================================================================
@@ -71,6 +72,8 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	std::atomic<uint32> MeshGeneration{0}; // 메싱 세대 — dirty 시 증가, 메싱 시작 시 캡처하여 완료 시 비교
 
 	// Greedy Meshing 결과 — MeshChunk()가 채움
+	// MeshLock: 워커 스레드(MeshChunk)가 Write, 게임 스레드(OnMeshReady/CreateSceneProxy)가 Read.
+	mutable FRWLock MeshLock;
 	TArray<FHktVoxelVertex> OpaqueVertices;
 	TArray<uint32> OpaqueIndices;
 	TArray<FHktVoxelVertex> TranslucentVertices;

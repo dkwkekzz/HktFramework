@@ -144,16 +144,21 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	TArray<FHktVoxelVertex> VerticesCopy;
 	TArray<uint32> IndicesCopy;
 
-	VerticesCopy.Append(Chunk->OpaqueVertices);
-	IndicesCopy.Append(Chunk->OpaqueIndices);
-
-	// 반투명 인덱스는 오프셋 적용
-	const uint32 OpaqueVertCount = Chunk->OpaqueVertices.Num();
-	for (uint32 Idx : Chunk->TranslucentIndices)
+	// MeshLock Read — 워커 스레드의 MeshChunk Write와 배타적 동기화
 	{
-		IndicesCopy.Add(Idx + OpaqueVertCount);
+		FReadScopeLock ReadLock(Chunk->MeshLock);
+
+		VerticesCopy.Append(Chunk->OpaqueVertices);
+		IndicesCopy.Append(Chunk->OpaqueIndices);
+
+		// 반투명 인덱스는 오프셋 적용
+		const uint32 OpaqueVertCount = Chunk->OpaqueVertices.Num();
+		for (uint32 Idx : Chunk->TranslucentIndices)
+		{
+			IndicesCopy.Add(Idx + OpaqueVertCount);
+		}
+		VerticesCopy.Append(Chunk->TranslucentVertices);
 	}
-	VerticesCopy.Append(Chunk->TranslucentVertices);
 
 	if (!SceneProxy)
 	{
@@ -296,15 +301,20 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 			TArray<FHktVoxelVertex> VerticesCopy;
 			TArray<uint32> IndicesCopy;
 
-			VerticesCopy.Append(Chunk->OpaqueVertices);
-			IndicesCopy.Append(Chunk->OpaqueIndices);
-
-			const uint32 OpaqueVertCount = Chunk->OpaqueVertices.Num();
-			for (uint32 Idx : Chunk->TranslucentIndices)
+			// MeshLock Read — 워커 스레드의 MeshChunk Write와 배타적 동기화
 			{
-				IndicesCopy.Add(Idx + OpaqueVertCount);
+				FReadScopeLock ReadLock(Chunk->MeshLock);
+
+				VerticesCopy.Append(Chunk->OpaqueVertices);
+				IndicesCopy.Append(Chunk->OpaqueIndices);
+
+				const uint32 OpaqueVertCount = Chunk->OpaqueVertices.Num();
+				for (uint32 Idx : Chunk->TranslucentIndices)
+				{
+					IndicesCopy.Add(Idx + OpaqueVertCount);
+				}
+				VerticesCopy.Append(Chunk->TranslucentVertices);
 			}
-			VerticesCopy.Append(Chunk->TranslucentVertices);
 
 			const bool bHasStyleTextures = CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid();
 			FHktVoxelTileTextureSet TileTexCopy = CachedTileTextures;

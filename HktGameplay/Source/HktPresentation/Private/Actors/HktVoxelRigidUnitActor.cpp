@@ -93,6 +93,10 @@ void AHktVoxelRigidUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGro
 		MeshScheduler->SetMaxMeshPerFrame(4);
 	}
 
+	// 단일 출처: UHktRuntimeGlobalSetting::VoxelSizeCm
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	const float VoxelSize = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
+
 	int32 BoneIndex = 0;
 	for (const FHktVoxelBoneGroup& BoneGroup : BoneGroups)
 	{
@@ -107,7 +111,7 @@ void AHktVoxelRigidUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGro
 			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 			BoneGroup.BoneName);
 
-		BoneComp->Initialize(EntityRenderCache.Get(), ChunkCoord);
+		BoneComp->Initialize(EntityRenderCache.Get(), ChunkCoord, VoxelSize);
 
 		FHktVoxelChunk TempChunk;
 		FMemory::Memzero(TempChunk.Data, sizeof(TempChunk.Data));
@@ -116,10 +120,6 @@ void AHktVoxelRigidUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGro
 
 		const int32 VoxelCount = FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE * FHktVoxelChunk::SIZE;
 		EntityRenderCache->LoadChunk(ChunkCoord, &TempChunk.Data[0][0][0], VoxelCount);
-
-		// 본 기준 오프셋 설정 — 단일 출처: UHktRuntimeGlobalSetting::VoxelSizeCm
-		const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
-		const float VoxelSize = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
 		// 청크 중심 정렬: (SIZE/2 - 0.5) 복셀
 		const float HalfChunk = (FHktVoxelChunk::SIZE * 0.5f - 0.5f) * VoxelSize;
 		const FVector VoxelOriginWorld = FVector(

@@ -42,9 +42,7 @@ void AHktUnitActor::Tick(float DeltaTime)
 	InterpLocation = FMath::VInterpTo(InterpLocation, CachedRenderLocation, DeltaTime, InterpSpeed);
 	InterpRotation = FMath::RInterpTo(InterpRotation, CachedRotation, DeltaTime, InterpSpeed);
 
-	SetActorLocationAndRotation(
-		InterpLocation, InterpRotation,
-		false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorLocationAndRotation(InterpLocation, InterpRotation, false, nullptr, ETeleportType::TeleportPhysics);
 }
 
 void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
