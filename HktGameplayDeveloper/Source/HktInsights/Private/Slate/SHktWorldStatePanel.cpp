@@ -111,6 +111,36 @@ void SHktWorldStatePanel::Construct(const FArguments& InArgs)
                     })
                 ]
             ]
+            // NetMode 표시 (Runtime.Client에서 읽기)
+            + SHorizontalBox::Slot()
+            .AutoWidth()
+            .VAlign(VAlign_Center)
+            .Padding(0, 0, 8, 0)
+            [
+                SNew(STextBlock)
+                .Text_Lambda([]() -> FText
+                {
+                    TArray<TPair<FString, FString>> Entries = FHktCoreDataCollector::Get().GetEntries(TEXT("Runtime.Client"));
+                    for (const auto& E : Entries)
+                    {
+                        if (E.Key == TEXT("NetMode"))
+                        {
+                            return FText::FromString(FString::Printf(TEXT("[%s]"), *E.Value));
+                        }
+                    }
+                    TArray<FString> Cats = FHktCoreDataCollector::Get().GetCategories();
+                    for (const FString& Cat : Cats)
+                    {
+                        if (Cat == TEXT("Runtime.Server"))
+                        {
+                            return FText::FromString(TEXT("[DedicatedServer]"));
+                        }
+                    }
+                    return FText::GetEmpty();
+                })
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+                .ColorAndOpacity(FSlateColor(WSColors::SectionHeader))
+            ]
             + SHorizontalBox::Slot()
             .AutoWidth()
             .VAlign(VAlign_Center)

@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Slate/SHktGameplayLogPanel.h"
+#include "HktCoreDataCollector.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBox.h"
@@ -191,6 +192,37 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                     SNew(STextBlock)
                     .Text(LOCTEXT("AutoScrollLabel", "Auto-scroll"))
                 ]
+            ]
+
+            // NetMode 표시
+            + SHorizontalBox::Slot()
+            .AutoWidth()
+            .VAlign(VAlign_Center)
+            .Padding(0, 0, 8, 0)
+            [
+                SNew(STextBlock)
+                .Text_Lambda([]() -> FText
+                {
+                    TArray<TPair<FString, FString>> Entries = FHktCoreDataCollector::Get().GetEntries(TEXT("Runtime.Client"));
+                    for (const auto& E : Entries)
+                    {
+                        if (E.Key == TEXT("NetMode"))
+                        {
+                            return FText::FromString(FString::Printf(TEXT("[%s]"), *E.Value));
+                        }
+                    }
+                    TArray<FString> Cats = FHktCoreDataCollector::Get().GetCategories();
+                    for (const FString& Cat : Cats)
+                    {
+                        if (Cat == TEXT("Runtime.Server"))
+                        {
+                            return FText::FromString(TEXT("[DedicatedServer]"));
+                        }
+                    }
+                    return FText::GetEmpty();
+                })
+                .Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+                .ColorAndOpacity(FSlateColor(LogColors::LevelWarning))
             ]
 
             // ── Source 필터 (클라/서버 분리) ──
