@@ -17,6 +17,7 @@ public class HktPresentation : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
+				System.IO.Path.Combine(ModuleDirectory, "Private"),
 			}
 		);
 
