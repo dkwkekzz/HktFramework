@@ -300,7 +300,7 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 4, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Verbose; RebuildFilteredRows(); return FReply::Handled(); })
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Verbose; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
                 [ SNew(STextBlock).Text(LOCTEXT("VrbBtn", "VRB")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelVerbose)) ]
             ]
             + SHorizontalBox::Slot()
@@ -309,7 +309,7 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 4, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Info; RebuildFilteredRows(); return FReply::Handled(); })
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Info; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
                 [ SNew(STextBlock).Text(LOCTEXT("InfBtn", "INF")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelInfo)) ]
             ]
             + SHorizontalBox::Slot()
@@ -318,7 +318,7 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 4, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Warning; RebuildFilteredRows(); return FReply::Handled(); })
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Warning; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
                 [ SNew(STextBlock).Text(LOCTEXT("WrnBtn", "WRN")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelWarning)) ]
             ]
             + SHorizontalBox::Slot()
@@ -327,7 +327,7 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             .Padding(0, 0, 12, 0)
             [
                 SNew(SButton)
-                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Error; RebuildFilteredRows(); return FReply::Handled(); })
+                .OnClicked_Lambda([this]() -> FReply { MinLogLevel = EHktLogLevel::Error; SyncCollectionLevel(); RebuildFilteredRows(); return FReply::Handled(); })
                 [ SNew(STextBlock).Text(LOCTEXT("ErrBtn", "ERR")).Font(FCoreStyle::GetDefaultFontStyle("Regular", 8)).ColorAndOpacity(FSlateColor(LogColors::LevelError)) ]
             ]
 
@@ -345,6 +345,7 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                 .OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
                 {
                     bShowDeltas = (NewState == ECheckBoxState::Checked);
+                    SyncCollectionLevel();
                     RebuildFilteredRows();
                 })
                 [
@@ -482,8 +483,9 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
         ]
     ];
 
-    // 수집 활성화
+    // 수집 활성화 및 수집 레벨 동기화
     FHktCoreEventLog::Get().SetActive(true);
+    SyncCollectionLevel();
 
     // 모든 HktLogTags 카테고리를 사전 등록 (로그 수신 전에도 트리에 표시)
     {
@@ -525,7 +527,19 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
 
 SHktGameplayLogPanel::~SHktGameplayLogPanel()
 {
+    FHktCoreEventLog::Get().SetMinLogLevel(EHktLogLevel::Info);  // 기본값 복원
     FHktCoreEventLog::Get().SetActive(false);
+}
+
+void SHktGameplayLogPanel::SyncCollectionLevel()
+{
+    // bShowDeltas ON이면 Verbose까지 수집, 아니면 패널 MinLogLevel에 맞춤
+    EHktLogLevel CollectionLevel = MinLogLevel;
+    if (bShowDeltas && CollectionLevel > EHktLogLevel::Verbose)
+    {
+        CollectionLevel = EHktLogLevel::Verbose;
+    }
+    FHktCoreEventLog::Get().SetMinLogLevel(CollectionLevel);
 }
 
 // ============================================================================
