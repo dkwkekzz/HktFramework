@@ -140,6 +140,9 @@ private:
     bool bShowServer = true;
     bool bShowClient = true;
 
+    // ── Delta 시각화 필터 ──
+    bool bShowDeltas = false;  // ON이면 Core_VM Verbose 중 값 변경 로그만 추가 표시
+
     // ── 폴링 상태 ──
     uint32 ReadIndex = 0;
     uint32 CachedVersion = 0;

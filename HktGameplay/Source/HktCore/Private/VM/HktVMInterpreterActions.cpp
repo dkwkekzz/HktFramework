@@ -166,7 +166,19 @@ void FHktVMInterpreter::Op_LookAt(FHktVMRuntime& Runtime, RegisterIndex Entity, 
         if (DX * DX + DY * DY > 1.0f)
         {
             int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
+#if ENABLE_HKT_INSIGHTS
+            int32 OldYaw = WorldState->GetProperty(E, PropertyId::RotYaw);
+#endif
             VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::RotYaw, YawDeg);
+#if ENABLE_HKT_INSIGHTS
+            if (OldYaw != YawDeg)
+            {
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+                    FString::Printf(TEXT("Op_LookAt RotYaw(%d) %d->%d"),
+                        PropertyId::RotYaw, OldYaw, YawDeg),
+                    E);
+            }
+#endif
         }
     }
 }
@@ -673,9 +685,25 @@ void FHktVMInterpreter::Op_SetForwardTarget(FHktVMRuntime& Runtime, RegisterInde
         const int32 TgtY = PosY + FMath::RoundToInt(FMath::Sin(YawRad) * ForwardRange);
         const int32 TgtZ = PosZ;
 
+#if ENABLE_HKT_INSIGHTS
+        const int32 OldX = WorldState->GetProperty(E, PropertyId::MoveTargetX);
+        const int32 OldY = WorldState->GetProperty(E, PropertyId::MoveTargetY);
+        const int32 OldZ = WorldState->GetProperty(E, PropertyId::MoveTargetZ);
+#endif
+
         VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetX, TgtX);
         VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetY, TgtY);
         VMProxy->SetPropertyDirty(*WorldState, E, PropertyId::MoveTargetZ, TgtZ);
+
+#if ENABLE_HKT_INSIGHTS
+        if (OldX != TgtX || OldY != TgtY || OldZ != TgtZ)
+        {
+            HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+                FString::Printf(TEXT("Op_SetForwardTarget MoveTarget (%d,%d,%d)->(%d,%d,%d)"),
+                    OldX, OldY, OldZ, TgtX, TgtY, TgtZ),
+                E);
+        }
+#endif
     }
 }
 
