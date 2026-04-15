@@ -123,9 +123,29 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                     FHktCoreEventLog::Get().Clear();
                     AllRows.Reset();
                     FilteredRows.Reset();
+                    ReadIndex = 0;
+
+                    // 사전 등록 태그는 유지하고 재구성
                     KnownCategories.Reset();
                     EnabledCategories.Reset();
-                    ReadIndex = 0;
+                    const FGameplayTag AllTags[] = {
+                        HktLogTags::Core_Entity, HktLogTags::Core_VM,
+                        HktLogTags::Core_Story, HktLogTags::Core_Movement,
+                        HktLogTags::Core_Physics, HktLogTags::Runtime_Server,
+                        HktLogTags::Runtime_Client, HktLogTags::Runtime_Intent,
+                        HktLogTags::Presentation, HktLogTags::Asset,
+                        HktLogTags::Rule, HktLogTags::Story,
+                        HktLogTags::UI, HktLogTags::VFX,
+                    };
+                    for (const FGameplayTag& Tag : AllTags)
+                    {
+                        if (Tag.IsValid())
+                        {
+                            KnownCategories.AddTag(Tag);
+                            EnabledCategories.AddTag(Tag);
+                        }
+                    }
+
                     RebuildCategoryTree();
                     ListView->RequestListRefresh();
                     return FReply::Handled();
