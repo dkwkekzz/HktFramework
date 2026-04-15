@@ -117,19 +117,17 @@ void AHktGameMode::SimulationTick()
     for (const FGroupEventSend& GroupSend : TickResult.EventSends)
     {
         const FHktSimulationEvent& Batch = GroupSend.Batch;
-        const bool bHasContent = Batch.NewEvents.Num() > 0
-            || Batch.NewEntityStates.Num() > 0
-            || Batch.RemovedOwnerIds.Num() > 0;
 
-        if (bHasContent)
+        // 콘텐츠 유무와 무관하게 매 프레임 배치를 전송한다.
+        // 콘텐츠가 없을 때 전송을 건너뛰면, 에디터 비활성화나 입력 없는 구간에서
+        // 클라이언트의 FramesSinceLastServerBatch가 계속 증가해 타임아웃이 오발동한다.
+        // 빈 배치는 클라이언트 입장에서 서버가 살아있음을 알리는 heartbeat 역할을 한다.
+        const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
+        for (IHktWorldPlayer* Player : Existing)
         {
-            const TArray<IHktWorldPlayer*>& Existing = *GroupSend.Existing;
-            for (IHktWorldPlayer* Player : Existing)
+            if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
             {
-                if (AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(Player->GetOwnerActor()))
-                {
-                    PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(Batch));
-                }
+                PC->Client_ReceiveFrameBatch(HktRuntimeConverter::ConvertToBatch(Batch));
             }
         }
 
