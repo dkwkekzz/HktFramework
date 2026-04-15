@@ -434,6 +434,35 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
     // 수집 활성화
     FHktCoreEventLog::Get().SetActive(true);
 
+    // 모든 HktLogTags 카테고리를 사전 등록 (로그 수신 전에도 트리에 표시)
+    {
+        const FGameplayTag AllTags[] = {
+            HktLogTags::Core_Entity,
+            HktLogTags::Core_VM,
+            HktLogTags::Core_Story,
+            HktLogTags::Core_Movement,
+            HktLogTags::Core_Physics,
+            HktLogTags::Runtime_Server,
+            HktLogTags::Runtime_Client,
+            HktLogTags::Runtime_Intent,
+            HktLogTags::Presentation,
+            HktLogTags::Asset,
+            HktLogTags::Rule,
+            HktLogTags::Story,
+            HktLogTags::UI,
+            HktLogTags::VFX,
+        };
+        for (const FGameplayTag& Tag : AllTags)
+        {
+            if (Tag.IsValid())
+            {
+                KnownCategories.AddTag(Tag);
+                EnabledCategories.AddTag(Tag);
+            }
+        }
+        RebuildCategoryTree();
+    }
+
     // 0.1초 폴링
     RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateLambda(
         [this](double, float) -> EActiveTimerReturnType
