@@ -46,6 +46,7 @@ private:
 	void ExecuteSpawnActor(const FHktEffect& Effect, const FHktPresentationState& State);
 	void ExecuteDestroyActor(const FHktEffect& Effect);
 	void ExecuteComputeRenderLocation(const FHktEffect& Effect, FHktPresentationState& State);
+	void ExecuteForwardDirtyToActor(const FHktEffect& Effect, const FHktPresentationState& State);
 	void ExecutePlayVFX(const FHktEffect& Effect);
 	void ExecuteAttachVFX(const FHktEffect& Effect);
 	void ExecuteDetachVFX(const FHktEffect& Effect);

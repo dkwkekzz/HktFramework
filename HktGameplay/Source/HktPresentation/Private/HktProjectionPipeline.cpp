@@ -61,6 +61,18 @@ void FHktProjectionPipeline::RunProjections(
 #endif
 	}
 
+	// --- Dirty 엔티티 → Actor에 ViewModel 증분 전달 Effect 자동 생성 ---
+	// 모든 Projection이 State에 쓰기를 완료한 후, DirtyThisFrame의 Actor 엔티티에 대해
+	// ForwardDirtyToActor Effect를 일괄 추가. 개별 Projection에서 중복 생성하지 않음.
+	for (FHktEntityId Id : State.DirtyThisFrame)
+	{
+		const FHktEntityPresentation* E = State.Get(Id);
+		if (E && E->RenderCategory == EHktRenderCategory::Actor)
+		{
+			CurrentPlan.Add(EHktEffectType::ForwardDirtyToActor, Id);
+		}
+	}
+
 #if ENABLE_HKT_INSIGHTS
 	if (CurrentPlan.Num() > 0)
 	{

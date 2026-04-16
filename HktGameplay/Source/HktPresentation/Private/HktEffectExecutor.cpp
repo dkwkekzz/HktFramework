@@ -39,6 +39,9 @@ void FHktEffectExecutor::Execute(const FHktEffectsPlan& Plan, FHktPresentationSt
 		case EHktEffectType::ComputeRenderLocation:
 			ExecuteComputeRenderLocation(Effect, State);
 			break;
+		case EHktEffectType::ForwardDirtyToActor:
+			ExecuteForwardDirtyToActor(Effect, State);
+			break;
 		case EHktEffectType::PlayVFXAtLocation:
 			ExecutePlayVFX(Effect);
 			break;
@@ -150,6 +153,27 @@ void FHktEffectExecutor::ExecuteComputeRenderLocation(const FHktEffect& Effect, 
 	}
 	Loc.Z += E->CapsuleHalfHeight;
 	E->RenderLocation.Set(Loc, State.GetCurrentFrame());
+}
+
+// --------------------------------------------------------------------------- ForwardDirtyToActor
+void FHktEffectExecutor::ExecuteForwardDirtyToActor(const FHktEffect& Effect, const FHktPresentationState& State)
+{
+	if (!ActorRenderer) return;
+
+	const FHktEntityPresentation* E = State.Get(Effect.EntityId);
+	if (!E || E->RenderCategory != EHktRenderCategory::Actor) return;
+
+	if (ActorRenderer->GetActor(Effect.EntityId))
+	{
+		// Actor 존재 → ViewModel 증분 전달
+		ActorRenderer->ForwardToActor(Effect.EntityId, *E, State.GetCurrentFrame(), false);
+	}
+	else if (!ActorRenderer->HasActorOrPending(Effect.EntityId) && E->VisualElement.Get().IsValid())
+	{
+		// Actor 미스폰 (이전 프레임 스폰 실패 등) → 재시도
+		ActorRenderer->EnsureState(State);
+		ActorRenderer->SpawnActor(*E);
+	}
 }
 
 // --------------------------------------------------------------------------- VFX

@@ -24,6 +24,9 @@ enum class EHktEffectType : uint8
 	// --- 렌더 위치 ---
 	ComputeRenderLocation,      // 지면 트레이스 + 캡슐 오프셋 → RenderLocation 갱신
 
+	// --- Actor 동기화 ---
+	ForwardDirtyToActor,        // Dirty ViewModel → Actor에 증분 전달 (또는 미스폰 재시도)
+
 	// --- VFX ---
 	PlayVFXAtLocation,          // 일회성 VFX 재생 (자동 파괴)
 	AttachVFXToEntity,          // 엔티티 추적 VFX 부착 (지속형)
@@ -40,6 +43,7 @@ enum class EHktEffectType : uint8
  *  SpawnActor:            EntityId
  *  DestroyActor:          EntityId
  *  ComputeRenderLocation: EntityId
+ *  ForwardDirtyToActor:   EntityId
  *  PlayVFXAtLocation:     Tag, Location
  *  AttachVFXToEntity:     Tag, EntityId, Location
  *  DetachVFXFromEntity:   Tag, EntityId

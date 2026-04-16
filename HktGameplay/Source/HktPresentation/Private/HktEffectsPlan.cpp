@@ -12,6 +12,7 @@ namespace
 		case EHktEffectType::SpawnActor:             return TEXT("SpawnActor");
 		case EHktEffectType::DestroyActor:           return TEXT("DestroyActor");
 		case EHktEffectType::ComputeRenderLocation:  return TEXT("ComputeRenderLocation");
+		case EHktEffectType::ForwardDirtyToActor:    return TEXT("ForwardDirtyToActor");
 		case EHktEffectType::PlayVFXAtLocation:      return TEXT("PlayVFXAtLocation");
 		case EHktEffectType::AttachVFXToEntity:      return TEXT("AttachVFXToEntity");
 		case EHktEffectType::DetachVFXFromEntity:    return TEXT("DetachVFXFromEntity");
