@@ -123,7 +123,8 @@ private:
 	void ComputeTeamColor(int32 TeamIndex, int64 Frame);
 };
 
-/** Job에서 생성된 VFX 요청 — 렌더러 Sync에서 소비 */
+/** ProcessDiff에서 적재 → Processor에서 소비하는 pending 구조체 */
+struct FHktPendingSpawn      { FHktEntityId EntityId; FGameplayTag VisualTag; };
 struct FHktPendingVFXEvent   { FGameplayTag Tag; FVector Location; };
 struct FHktPendingVFXAttach  { FGameplayTag Tag; FHktEntityId EntityId; FVector Location; };
 struct FHktPendingVFXDetach  { FGameplayTag Tag; FHktEntityId EntityId; };
@@ -139,7 +140,8 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TArray<FHktEntityId> RemovedThisFrame;
 	TArray<FHktEntityId> DirtyThisFrame;
 
-	/** Job에서 적재된 VFX 요청 (렌더러 Sync에서 소비 후 ClearFrameChanges에서 정리) */
+	/** ProcessDiff에서 적재 → Processor Tick/Sync에서 소비 후 ClearFrameChanges에서 정리 */
+	TArray<FHktPendingSpawn>     PendingSpawns;
 	TArray<FHktPendingVFXEvent>  PendingVFXEvents;
 	TArray<FHktPendingVFXAttach> PendingVFXAttachments;
 	TArray<FHktPendingVFXDetach> PendingVFXDetachments;

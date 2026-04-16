@@ -119,12 +119,12 @@ static bool IsSurfaceVoxel(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int3
 
 // --------------------------------------------------------------------------- Implementation
 
-FHktTerrainDebugRenderer::FHktTerrainDebugRenderer(ULocalPlayer* InLP)
+FHktTerrainDebugProcessor::FHktTerrainDebugProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
 }
 
-void FHktTerrainDebugRenderer::Sync(const FHktPresentationState& State)
+void FHktTerrainDebugProcessor::Sync(const FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowTerrainVoxels.GetValueOnGameThread();
 	if (Mode <= 0) return;
@@ -135,7 +135,7 @@ void FHktTerrainDebugRenderer::Sync(const FHktPresentationState& State)
 	DrawTerrainVoxels(World, State);
 }
 
-void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresentationState& State)
+void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowTerrainVoxels.GetValueOnGameThread();
 	const int32 RadiusXY = FMath::Clamp(CVarTerrainVoxelRadius.GetValueOnGameThread(), 2, 12);
@@ -405,7 +405,7 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 		bCenterSolid ? TEXT("YES") : TEXT("No"));
 }
 
-void FHktTerrainDebugRenderer::Teardown()
+void FHktTerrainDebugProcessor::Teardown()
 {
 	LocalPlayer = nullptr;
 }

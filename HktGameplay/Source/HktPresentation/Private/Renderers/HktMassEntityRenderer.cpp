@@ -2,17 +2,17 @@
 
 #include "HktMassEntityRenderer.h"
 
-FHktMassEntityRenderer::FHktMassEntityRenderer(ULocalPlayer* InLP)
+FHktMassEntityProcessor::FHktMassEntityProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
 }
 
-void FHktMassEntityRenderer::Sync(const FHktPresentationState& State)
+void FHktMassEntityProcessor::Sync(const FHktPresentationState& State)
 {
 	// TODO: UMassEntitySubsystem 연동, SpawnedThisFrame/RemovedThisFrame/DirtyThisFrame 처리
 	(void)State;
 }
 
-void FHktMassEntityRenderer::Teardown()
+void FHktMassEntityProcessor::Teardown()
 {
 }

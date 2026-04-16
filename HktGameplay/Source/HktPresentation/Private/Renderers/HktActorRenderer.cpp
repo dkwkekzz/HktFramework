@@ -24,18 +24,83 @@ static void ConfigureCollisionForSelection(AActor* Actor)
 	}
 }
 
-FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
+FHktActorProcessor::FHktActorProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
 }
 
-void FHktActorRenderer::Sync(const FHktPresentationState& State)
+// --------------------------------------------------------------------------- Tick: 비동기 에셋 로드
+
+void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
+{
+	ULocalPlayer* LP = LocalPlayer.Get();
+	if (!LP) return;
+	UWorld* World = LP->GetWorld();
+	UHktAssetSubsystem* AssetSub = World ? UHktAssetSubsystem::Get(World) : nullptr;
+
+	// 1. PendingSpawns 소비 → 비동기 로드 시작
+	if (AssetSub)
+	{
+		for (const FHktPendingSpawn& Spawn : State.PendingSpawns)
+		{
+			// 이미 로드 대기 중이면 스킵
+			if (PendingLoads.Contains(Spawn.EntityId)) continue;
+
+			FPendingAssetLoad& Load = PendingLoads.Add(Spawn.EntityId);
+			Load.VisualTag = Spawn.VisualTag;
+
+			TWeakPtr<bool> WeakGuard = AliveGuard;
+			FHktEntityId CapturedId = Spawn.EntityId;
+			AssetSub->LoadAssetAsync(Spawn.VisualTag, [this, WeakGuard, CapturedId](UHktTagDataAsset* Asset)
+			{
+				if (!WeakGuard.IsValid()) return;
+				if (FPendingAssetLoad* L = PendingLoads.Find(CapturedId))
+				{
+					if (Asset)
+						L->ResolvedPath = FSoftObjectPath(Asset);
+					L->bResolved = true;
+				}
+			});
+
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("에셋 로드 시작: %s"), *Spawn.VisualTag.ToString()), Spawn.EntityId);
+		}
+	}
+
+	// 2. 로드 완료된 항목 → State 반영
+	for (auto It = PendingLoads.CreateIterator(); It; ++It)
+	{
+		if (!It.Value().bResolved) continue;
+
+		const FHktEntityId EntityId = It.Key();
+		FHktEntityPresentation* E = State.GetMutable(EntityId);
+		if (E && E->IsAlive())
+		{
+			const int64 Frame = State.GetCurrentFrame();
+			if (!It.Value().ResolvedPath.IsNull())
+				E->ResolvedAssetPath.Set(It.Value().ResolvedPath, Frame);
+			E->RenderLocation.Set(E->Location.Get(), Frame);
+			State.DirtyThisFrame.AddUnique(EntityId);
+
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("에셋 로드 완료: %s"), *It.Value().VisualTag.ToString()), EntityId);
+		}
+
+		It.RemoveCurrent();
+	}
+}
+
+// --------------------------------------------------------------------------- Sync: Actor 생명주기 + 렌더링
+
+void FHktActorProcessor::Sync(const FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();
 
 	// --- 1. 삭제: RemovedThisFrame 처리 ---
 	for (FHktEntityId Id : State.RemovedThisFrame)
 	{
+		PendingLoads.Remove(Id);
+		PendingInitialForward.Remove(Id);
 		if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
 		{
 			if (AActor* A = P->Get())
@@ -44,39 +109,32 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		}
 	}
 
-	// --- 2. 스폰: ResolvedAssetPath가 설정된 엔티티 (SpawnedThisFrame + DirtyThisFrame) ---
+	// --- 2. 스폰: ResolvedAssetPath가 설정된 엔티티 ---
 	auto TrySpawn = [this, &State](FHktEntityId Id)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) return;
 		if (ActorMap.Contains(Id)) return;
 		if (E->ResolvedAssetPath.Get().IsNull()) return;
-
 		SpawnActorFromResolvedAsset(*E);
 	};
 
 	for (FHktEntityId Id : State.SpawnedThisFrame)
-	{
 		TrySpawn(Id);
-	}
 
-	// DirtyThisFrame: SpawnJob 완료 후 ResolvedAssetPath가 설정되었을 수 있음
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		if (!ActorMap.Contains(Id))
-		{
 			TrySpawn(Id);
-		}
 	}
 
-	// --- 3. Dirty → Actor에 전달 (animation, attachment 등 delta 처리) ---
+	// --- 3. Dirty → Actor에 전달 + 최초 스폰 시 ForceAll ---
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
 		if (ActorMap.Contains(Id))
 		{
-			// 최초 스폰 직후: bForceAll=true로 전체 ViewModel 적용
 			const bool bForce = PendingInitialForward.Remove(Id) > 0;
 			ForwardToActor(Id, *E, Frame, bForce);
 
@@ -106,7 +164,6 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		if (!E) { It.RemoveCurrent(); continue; }
 
 		ForwardToActor(Id, *E, Frame, true);
-		// 기존 아이템 부착 시도
 		for (auto& [ExistingId, WeakActor] : ActorMap)
 		{
 			if (ExistingId == Id || !WeakActor.IsValid()) continue;
@@ -120,19 +177,20 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		It.RemoveCurrent();
 	}
 
-	// --- 4. 매 프레임 Transform 적용 (Core와 렌더 주기 차이로 인한 끊김 방지) ---
+	// --- 4. 매 프레임 Transform 적용 ---
 	for (auto& [Id, WeakActor] : ActorMap)
 	{
 		if (!WeakActor.IsValid()) continue;
 		const FHktEntityPresentation* E = State.Get(Id);
 		if (!E) continue;
-
 		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakActor.Get()))
 			P->ApplyTransform(*E);
 	}
 }
 
-void FHktActorRenderer::SpawnActorFromResolvedAsset(const FHktEntityPresentation& Entity)
+// --------------------------------------------------------------------------- SpawnActorFromResolvedAsset
+
+void FHktActorProcessor::SpawnActorFromResolvedAsset(const FHktEntityPresentation& Entity)
 {
 	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
@@ -147,7 +205,7 @@ void FHktActorRenderer::SpawnActorFromResolvedAsset(const FHktEntityPresentation
 	FVector SpawnLocation = Entity.RenderLocation.Get();
 	FRotator SpawnRotation = Entity.Rotation.Get();
 
-	// 에셋이 이미 SpawnJob에서 로드되어 캐시에 있으므로 동기 로드 (캐시 히트)
+	// 에셋이 이미 Tick에서 로드되어 캐시에 있으므로 동기 로드 (캐시 히트)
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
 	TWeakPtr<bool> WeakGuard = AliveGuard;
 	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, SpawnLocation, SpawnRotation, WeakLP](UHktTagDataAsset* LoadedAsset)
@@ -214,7 +272,9 @@ void FHktActorRenderer::SpawnActorFromResolvedAsset(const FHktEntityPresentation
 	});
 }
 
-void FHktActorRenderer::ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
+// --------------------------------------------------------------------------- ForwardToActor / Teardown / GetActor
+
+void FHktActorProcessor::ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
 {
 	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
 	if (!WeakPtr || !WeakPtr->IsValid()) return;
@@ -226,14 +286,15 @@ void FHktActorRenderer::ForwardToActor(FHktEntityId Id, const FHktEntityPresenta
 		[this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); });
 }
 
-void FHktActorRenderer::Teardown()
+void FHktActorProcessor::Teardown()
 {
 	AliveGuard.Reset();
 	ActorMap.Empty();
+	PendingLoads.Empty();
 	PendingInitialForward.Empty();
 }
 
-AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
+AActor* FHktActorProcessor::GetActor(FHktEntityId Id) const
 {
 	if (TWeakObjectPtr<AActor> const* P = ActorMap.Find(Id))
 		return P->Get();

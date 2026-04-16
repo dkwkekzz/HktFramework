@@ -2,37 +2,49 @@
 
 #pragma once
 
-#include "HktPresentationRenderer.h"
+#include "HktPresentationProcessor.h"
 #include "HktPresentationState.h"
+#include "UObject/SoftObjectPath.h"
 
 class ULocalPlayer;
 
 /**
- * Actor 렌더러.
- * Sync에서 엔티티 생명주기(스폰/파괴) + ViewModel 변경점 전달 + Transform 적용을 모두 담당.
- * State의 SpawnedThisFrame/RemovedThisFrame/DirtyThisFrame를 소비하여 동작.
+ * Actor Processor.
+ * Tick: PendingSpawns 소비 → 비동기 에셋 로드 → ResolvedAssetPath/RenderLocation 설정.
+ * Sync: Actor 생명주기(스폰/파괴) + ViewModel 전달 + Transform 적용.
  */
-class FHktActorRenderer : public IHktPresentationRenderer
+class FHktActorProcessor : public IHktPresentationProcessor
 {
 public:
-	explicit FHktActorRenderer(ULocalPlayer* InLP);
+	explicit FHktActorProcessor(ULocalPlayer* InLP);
+
+	virtual void Tick(FHktPresentationState& State, float DeltaTime) override;
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
-	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty(); }
+	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty() || !PendingLoads.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
 
 private:
-	/** ResolvedAssetPath가 설정된 엔티티를 동기 스폰 */
+	/** 비동기 에셋 로드 추적 (힙 할당 없이 TMap 인라인) */
+	struct FPendingAssetLoad
+	{
+		FGameplayTag VisualTag;
+		bool bResolved = false;
+		FSoftObjectPath ResolvedPath;
+	};
+
+	/** ResolvedAssetPath가 설정된 엔티티를 액터로 스폰 */
 	void SpawnActorFromResolvedAsset(const FHktEntityPresentation& Entity);
 
 	/** ViewModel 변경점을 Actor에 전달 */
 	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
+	TMap<FHktEntityId, FPendingAssetLoad> PendingLoads;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
-	/** 스폰 콜백 완료 후 최초 ForwardToActor(bForceAll=true) 대기 엔티티 */
+	/** 스폰 콜백 완료 후 최초 ForwardToActor(bForceAll=true) 대기 */
 	TSet<FHktEntityId> PendingInitialForward;
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "HktCoreDefs.h"
-#include "HktPresentationRenderer.h"
+#include "HktPresentationProcessor.h"
 
 class ULocalPlayer;
 class UHktVFXAssetBank;
@@ -23,12 +23,12 @@ enum class EHktVFXElement : uint8;
  * - Tag 기반 (PlayVFXAtLocation): TagDataAsset → UHktVFXVisualDataAsset → NiagaraSystem 비동기 로드
  * - Intent 기반 (PlayVFXWithIntent): UHktVFXAssetBank → 퍼지 매칭
  */
-class FHktVFXRenderer : public IHktPresentationRenderer
+class FHktVFXProcessor : public IHktPresentationProcessor
 {
 public:
-	explicit FHktVFXRenderer(ULocalPlayer* InLP);
+	explicit FHktVFXProcessor(ULocalPlayer* InLP);
 
-	// --- IHktPresentationRenderer ---
+	// --- IHktPresentationProcessor ---
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
 

@@ -72,7 +72,7 @@ void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-// --- IHktPresentationRenderer ---
+// --- IHktPresentationProcessor ---
 
 void AHktIngameHUD::Sync(const FHktPresentationState& State)
 {

@@ -2,16 +2,16 @@
 
 #pragma once
 
-#include "HktPresentationRenderer.h"
+#include "HktPresentationProcessor.h"
 #include "HktPresentationState.h"
 
 class ULocalPlayer;
 
 /** MassEntity 기반 대량 엔터티 렌더링 (Projectile 등). 현재 스텁. */
-class FHktMassEntityRenderer : public IHktPresentationRenderer
+class FHktMassEntityProcessor : public IHktPresentationProcessor
 {
 public:
-	explicit FHktMassEntityRenderer(ULocalPlayer* InLP);
+	explicit FHktMassEntityProcessor(ULocalPlayer* InLP);
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
 

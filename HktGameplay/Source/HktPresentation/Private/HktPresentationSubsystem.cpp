@@ -10,16 +10,10 @@
 #include "Renderers/HktCollisionDebugRenderer.h"
 #include "Renderers/HktTerrainDebugRenderer.h"
 #endif
-#include "Jobs/HktEntitySpawnJob.h"
-#include "Jobs/HktPropertyDeltaJob.h"
-#include "Jobs/HktTagDeltaJob.h"
-#include "Jobs/HktVFXPlayJob.h"
-#include "Jobs/HktAnimEventJob.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
 #include "HktRuntimeTags.h"
-// HktAssetSubsystem, DataAssets — 비동기 에셋 해석은 FHktEntitySpawnJob으로 이동
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
@@ -28,6 +22,7 @@
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_Prefix, "VFX");
 
 UHktPresentationSubsystem* UHktPresentationSubsystem::Get(APlayerController* PC)
 {
@@ -47,42 +42,40 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	ActorRenderer = MakeShared<FHktActorRenderer>(GetLocalPlayer());
-	MassEntityRenderer = MakeShared<FHktMassEntityRenderer>(GetLocalPlayer());
-	VFXRenderer = MakeShared<FHktVFXRenderer>(GetLocalPlayer());
+	ActorProcessor = MakeShared<FHktActorProcessor>(GetLocalPlayer());
+	MassEntityProcessor = MakeShared<FHktMassEntityProcessor>(GetLocalPlayer());
+	VFXProcessor = MakeShared<FHktVFXProcessor>(GetLocalPlayer());
 
-	// 내부 렌더러를 Sync 루프에 등록
-	Renderers.Add(ActorRenderer.Get());
-	Renderers.Add(MassEntityRenderer.Get());
-	Renderers.Add(VFXRenderer.Get());
+	Processors.Add(ActorProcessor.Get());
+	Processors.Add(MassEntityProcessor.Get());
+	Processors.Add(VFXProcessor.Get());
 
 #if ENABLE_HKT_INSIGHTS
-	CollisionDebugRenderer = MakeShared<FHktCollisionDebugRenderer>(GetLocalPlayer());
-	Renderers.Add(CollisionDebugRenderer.Get());
+	CollisionDebugProcessor = MakeShared<FHktCollisionDebugProcessor>(GetLocalPlayer());
+	Processors.Add(CollisionDebugProcessor.Get());
 
-	TerrainDebugRenderer = MakeShared<FHktTerrainDebugRenderer>(GetLocalPlayer());
-	Renderers.Add(TerrainDebugRenderer.Get());
+	TerrainDebugProcessor = MakeShared<FHktTerrainDebugProcessor>(GetLocalPlayer());
+	Processors.Add(TerrainDebugProcessor.Get());
 #endif
 }
 
 void UHktPresentationSubsystem::Deinitialize()
 {
 	UnbindInteraction();
-	JobQueue.Flush();
 
-	for (IHktPresentationRenderer* R : Renderers)
+	for (IHktPresentationProcessor* P : Processors)
 	{
-		if (R) R->Teardown();
+		if (P) P->Teardown();
 	}
-	Renderers.Empty();
+	Processors.Empty();
 
 #if ENABLE_HKT_INSIGHTS
-	TerrainDebugRenderer.Reset();
-	CollisionDebugRenderer.Reset();
+	TerrainDebugProcessor.Reset();
+	CollisionDebugProcessor.Reset();
 #endif
-	VFXRenderer.Reset();
-	MassEntityRenderer.Reset();
-	ActorRenderer.Reset();
+	VFXProcessor.Reset();
+	MassEntityProcessor.Reset();
+	ActorProcessor.Reset();
 	State.Clear();
 
 	Super::Deinitialize();
@@ -91,7 +84,7 @@ void UHktPresentationSubsystem::Deinitialize()
 void UHktPresentationSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	Super::PlayerControllerChanged(NewPlayerController);
-	
+
 	if (NewPlayerController)
 	{
 		IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(NewPlayerController);
@@ -121,7 +114,6 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 		TargetChangedHandle = BoundInteraction->OnTargetChanged().AddUObject(
 			this, &UHktPresentationSubsystem::OnTargetChanged);
 
-		// 렌더러 pending 작업 처리용 틱 등록
 		if (!TickHandle.IsValid())
 		{
 			if (UWorld* World = GetLocalPlayer()->GetWorld())
@@ -195,46 +187,40 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 
 void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 {
-	JobQueue.Flush();
 	State.Clear();
 	State.BeginFrame(View.FrameNumber);
 	View.ForEachEntity([this, &View](FHktEntityId Id, int32)
 	{
 		State.AddEntity(*View.WorldState, Id);
-		// 비동기 에셋 해석 + RenderLocation 계산을 SpawnJob에 위임
 		FHktEntityPresentation* E = State.GetMutable(Id);
 		if (E && E->VisualElement.Get().IsValid())
 		{
-			JobQueue.AddJob(MakeShared<FHktEntitySpawnJob>(Id, E->VisualElement.Get(), GetLocalPlayer()));
+			State.PendingSpawns.Add({ Id, E->VisualElement.Get() });
 		}
 	});
-	// RenderLocation 계산은 SpawnJob::Execute에서 수행
-	// Actor 스폰은 ActorRenderer::Sync에서 ResolvedAssetPath 기반으로 처리
 }
 
 void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 {
 	State.BeginFrame(View.FrameNumber);
 
-	// --- Remove: State 갱신 + 관련 Job 취소 (Actor 파괴는 Sync에서 처리) ---
+	// --- Remove: State 갱신 (Actor 파괴는 Processor::Sync에서 처리) ---
 	int32 RemovedCount = 0;
 	View.ForEachRemoved([this, &RemovedCount](FHktEntityId Id)
 	{
-		JobQueue.CancelJobsForEntity(Id);
 		State.RemoveEntity(Id);
 		++RemovedCount;
 	});
 
-	// --- Spawn: State 즉시 갱신 + SpawnJob 생성 (비동기 에셋 해석) ---
+	// --- Spawn: State 즉시 갱신 + PendingSpawns에 비동기 에셋 해석 요청 적재 ---
 	int32 SpawnedCount = 0;
 	View.ForEachSpawned([this, &View, &SpawnedCount](const FHktEntityState& ES)
 	{
 		State.AddEntity(*View.WorldState, ES.EntityId);
-		// 비동기 에셋 해석 + RenderLocation 계산을 SpawnJob에 위임
 		FHktEntityPresentation* E = State.GetMutable(ES.EntityId);
 		if (E && E->VisualElement.Get().IsValid())
 		{
-			JobQueue.AddJob(MakeShared<FHktEntitySpawnJob>(ES.EntityId, E->VisualElement.Get(), GetLocalPlayer()));
+			State.PendingSpawns.Add({ ES.EntityId, E->VisualElement.Get() });
 		}
 		++SpawnedCount;
 	});
@@ -244,72 +230,95 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("ProcessDiff Frame=%lld Spawned=%d Removed=%d"), View.FrameNumber, SpawnedCount, RemovedCount));
 	}
 
-	// --- Property 델타 배치 Job ---
-	if (View.PropertyDeltas && View.PropertyDeltas->Num() > 0)
+	// --- Property 델타 인라인 적용 ---
+	View.ForEachDelta([this](FHktEntityId Id, uint16 PropId, int32 NewValue)
 	{
-		JobQueue.AddJob(MakeShared<FHktPropertyDeltaJob>(*View.PropertyDeltas));
-	}
+		State.ApplyDelta(Id, PropId, NewValue);
+	});
 
-	// --- Owner 델타 배치 Job ---
-	if (View.OwnerDeltas && View.OwnerDeltas->Num() > 0)
+	// --- Owner 델타 인라인 적용 ---
+	View.ForEachOwnerDelta([this](FHktEntityId Id, int64 NewOwnerUid)
 	{
-		JobQueue.AddJob(MakeShared<FHktOwnerDeltaJob>(*View.OwnerDeltas));
-	}
+		State.ApplyOwnerDelta(Id, NewOwnerUid);
+	});
 
-	// --- Tag 델타 Job (엔티티별 — VFX attach/detach 로직 때문) ---
+	// --- Tag 델타 인라인 적용 + VFX attach/detach 감지 ---
 	View.ForEachTagDelta([this, &View](FHktEntityId Id, const FGameplayTagContainer& Tags, const FGameplayTagContainer& OldTags)
 	{
+		State.ApplyTagDelta(Id, Tags);
+
+		// VFX 태그 변경 감지
+		FGameplayTagContainer VFXFilter;
+		VFXFilter.AddTag(Tag_VFX_Prefix);
+		FGameplayTagContainer CurrentVFX = Tags.Filter(VFXFilter);
+		FGameplayTagContainer OldVFX = OldTags.Filter(VFXFilter);
+
 		FVector EntityPos = FVector::ZeroVector;
 		if (View.WorldState)
 		{
 			FIntVector IntPos = View.WorldState->GetPosition(Id);
 			EntityPos = FVector(IntPos.X, IntPos.Y, IntPos.Z);
 		}
-		JobQueue.AddJob(MakeShared<FHktTagDeltaJob>(Id, Tags, OldTags, EntityPos));
+
+		for (const FGameplayTag& Tag : CurrentVFX)
+		{
+			if (!OldVFX.HasTag(Tag))
+				State.PendingVFXAttachments.Add({ Tag, Id, EntityPos });
+		}
+		for (const FGameplayTag& Tag : OldVFX)
+		{
+			if (!CurrentVFX.HasTag(Tag))
+				State.PendingVFXDetachments.Add({ Tag, Id });
+		}
 	});
 
-	// --- VFX 이벤트 Job (일회성) ---
+	// --- VFX 이벤트 → State 적재 ---
 	View.ForEachVFXEvent([this](const FHktVFXEvent& Event)
 	{
-		JobQueue.AddJob(MakeShared<FHktVFXPlayJob>(Event));
+		FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
+		State.PendingVFXEvents.Add({ Event.Tag, Pos });
 	});
 
-	// --- Anim 이벤트 Job ---
+	// --- Anim 이벤트 인라인 적용 ---
 	View.ForEachAnimEvent([this](const FHktAnimEvent& Event)
 	{
-		JobQueue.AddJob(MakeShared<FHktAnimEventJob>(Event));
+		FHktEntityPresentation* E = State.GetMutable(Event.EntityId);
+		if (E)
+		{
+			E->PendingAnimTriggers.Add(Event.Tag);
+			State.DirtyThisFrame.AddUnique(Event.EntityId);
+		}
 	});
-
 }
 
 void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 {
 	if (!bInitialSyncDone) return;
 
-	// Phase 2: 비동기 작업 진행 (Pending/Preparing Job의 TickJob 호출)
-	JobQueue.TickJobs(DeltaSeconds);
+	// Phase 1: Processor Tick — 비동기 작업 진행 (에셋 로드 등), State 변경 가능
+	for (IHktPresentationProcessor* P : Processors)
+	{
+		if (P) P->Tick(State, DeltaSeconds);
+	}
 
-	// Phase 3: Ready Job 실행 → State 변경
-	bool bJobsExecuted = JobQueue.ExecuteReadyJobs(State);
-
-	if (bStateDirty || bJobsExecuted)
+	// Phase 2: Processor Sync — State 읽어서 렌더링
+	if (bStateDirty)
 	{
 		bStateDirty = false;
-		SyncRenderers();
+		SyncProcessors();
 	}
 	else
 	{
-		for (IHktPresentationRenderer* R : Renderers)
+		for (IHktPresentationProcessor* P : Processors)
 		{
-			if (R && R->NeedsTick())
+			if (P && P->NeedsTick())
 			{
-				R->Sync(State);
+				P->Sync(State);
 			}
 		}
 	}
 
-	// 렌더러가 소비한 후 프레임 변경 데이터 정리.
-	// BeginFrame에서 초기화하면 다음 OnTick 전에 ProcessDiff가 여러 번 호출될 때 데이터 유실.
+	// Processor가 소비한 후 프레임 변경 데이터 정리
 	State.ClearFrameChanges();
 }
 
@@ -317,20 +326,20 @@ void UHktPresentationSubsystem::NotifyCameraViewChanged()
 {
 	if (!bInitialSyncDone) return;
 
-	for (IHktPresentationRenderer* R : Renderers)
+	for (IHktPresentationProcessor* P : Processors)
 	{
-		if (R && R->NeedsCameraSync())
+		if (P && P->NeedsCameraSync())
 		{
-			R->OnCameraViewChanged(State);
+			P->OnCameraViewChanged(State);
 		}
 	}
 }
 
-void UHktPresentationSubsystem::SyncRenderers()
+void UHktPresentationSubsystem::SyncProcessors()
 {
-	for (IHktPresentationRenderer* R : Renderers)
+	for (IHktPresentationProcessor* P : Processors)
 	{
-		if (R) R->Sync(State);
+		if (P) P->Sync(State);
 	}
 }
 
@@ -338,15 +347,14 @@ FVector UHktPresentationSubsystem::GetEntityLocation(FHktEntityId Id) const
 {
 	const FHktEntityPresentation* E = State.Get(Id);
 	if (!E) return FVector::ZeroVector;
-	// RenderLocation이 설정되어 있으면 (지면+캡슐 오프셋 적용) 사용, 아니면 raw Location
 	return E->RenderLocation.Get().IsZero() ? E->Location.Get() : E->RenderLocation.Get();
 }
 
 FVector UHktPresentationSubsystem::GetEntityActorLocation(FHktEntityId Id) const
 {
-	if (ActorRenderer)
+	if (ActorProcessor)
 	{
-		AActor* Actor = ActorRenderer->GetActor(Id);
+		AActor* Actor = ActorProcessor->GetActor(Id);
 		if (Actor)
 		{
 			return Actor->GetActorLocation();
@@ -355,29 +363,26 @@ FVector UHktPresentationSubsystem::GetEntityActorLocation(FHktEntityId Id) const
 	return GetEntityLocation(Id);
 }
 
-void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationRenderer* InRenderer)
+void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationProcessor* InProcessor)
 {
-	if (!InRenderer || Renderers.Contains(InRenderer)) return;
+	if (!InProcessor || Processors.Contains(InProcessor)) return;
 
-	Renderers.Add(InRenderer);
+	Processors.Add(InProcessor);
 
-	// 이미 InitialSync가 완료된 경우 즉시 OnRegistered 호출하여 기존 엔티티 전달
 	if (bInitialSyncDone)
 	{
-		InRenderer->OnRegistered(State);
+		InProcessor->OnRegistered(State);
 	}
 }
 
-void UHktPresentationSubsystem::UnregisterRenderer(IHktPresentationRenderer* InRenderer)
+void UHktPresentationSubsystem::UnregisterRenderer(IHktPresentationProcessor* InProcessor)
 {
-	Renderers.Remove(InRenderer);
+	Processors.Remove(InProcessor);
 }
 
 void UHktPresentationSubsystem::OnIntentSubmitted(const FHktRuntimeEvent& Event)
 {
 	const FHktEvent& CoreEvent = Event.Value;
-
-	// MoveTo intent → 목표 위치에 이동 인디케이터 VFX 재생
 	PlayVFXAtLocation(Tag_VFX_MoveIndicator, CoreEvent.Location);
 }
 
@@ -385,38 +390,36 @@ void UHktPresentationSubsystem::PlayVFXAtLocation(FGameplayTag VFXTag, FVector L
 {
 	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXAtLocation Tag=%s Location=(%.1f, %.1f, %.1f)"), *VFXTag.ToString(), Location.X, Location.Y, Location.Z));
 
-	if (VFXRenderer)
+	if (VFXProcessor)
 	{
-		VFXRenderer->PlayVFXAtLocation(VFXTag, Location);
+		VFXProcessor->PlayVFXAtLocation(VFXTag, Location);
 	}
 }
 
 void UHktPresentationSubsystem::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 {
-	if (VFXRenderer)
+	if (VFXProcessor)
 	{
-		VFXRenderer->PlayVFXWithIntent(Intent);
+		VFXProcessor->PlayVFXWithIntent(Intent);
 	}
 }
 
 void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
 {
-	if (!VFXRenderer) return;
+	if (!VFXProcessor) return;
 
-	// 이전 Subject VFX 제거
 	if (CurrentSubjectEntityId != InvalidEntityId)
 	{
-		VFXRenderer->DetachVFXFromEntity(Tag_VFX_SelectionSubject, CurrentSubjectEntityId);
+		VFXProcessor->DetachVFXFromEntity(Tag_VFX_SelectionSubject, CurrentSubjectEntityId);
 	}
 
 	CurrentSubjectEntityId = NewSubject;
 
-	// 새 Subject VFX 부착
 	if (NewSubject != InvalidEntityId)
 	{
 		const FHktEntityPresentation* Entity = State.Get(NewSubject);
 		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
-		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionSubject, NewSubject, Pos);
+		VFXProcessor->AttachVFXToEntity(Tag_VFX_SelectionSubject, NewSubject, Pos);
 
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SelectionSubject VFX attached Entity=%d"), NewSubject));
 	}
@@ -424,22 +427,20 @@ void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
 
 void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 {
-	if (!VFXRenderer) return;
+	if (!VFXProcessor) return;
 
-	// 이전 Target VFX 제거
 	if (CurrentTargetEntityId != InvalidEntityId)
 	{
-		VFXRenderer->DetachVFXFromEntity(Tag_VFX_SelectionTarget, CurrentTargetEntityId);
+		VFXProcessor->DetachVFXFromEntity(Tag_VFX_SelectionTarget, CurrentTargetEntityId);
 	}
 
 	CurrentTargetEntityId = NewTarget;
 
-	// 새 Target VFX 부착
 	if (NewTarget != InvalidEntityId)
 	{
 		const FHktEntityPresentation* Entity = State.Get(NewTarget);
 		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
-		VFXRenderer->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
+		VFXProcessor->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
 
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));
 	}

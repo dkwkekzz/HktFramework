@@ -14,17 +14,17 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 
-FHktVFXRenderer::FHktVFXRenderer(ULocalPlayer* InLP)
+FHktVFXProcessor::FHktVFXProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
 }
 
-void FHktVFXRenderer::SetAssetBank(UHktVFXAssetBank* InBank)
+void FHktVFXProcessor::SetAssetBank(UHktVFXAssetBank* InBank)
 {
 	AssetBank = InBank;
 }
 
-void FHktVFXRenderer::SetFallbackSystem(UNiagaraSystem* InSystem)
+void FHktVFXProcessor::SetFallbackSystem(UNiagaraSystem* InSystem)
 {
 	FallbackSystem = InSystem;
 }
@@ -33,7 +33,7 @@ void FHktVFXRenderer::SetFallbackSystem(UNiagaraSystem* InSystem)
 // TagDataAsset 기반 비동기 NiagaraSystem 로드
 // ============================================================================
 
-void FHktVFXRenderer::LoadNiagaraSystemAsync(FGameplayTag VFXTag, TFunction<void(UNiagaraSystem*)> OnLoaded)
+void FHktVFXProcessor::LoadNiagaraSystemAsync(FGameplayTag VFXTag, TFunction<void(UNiagaraSystem*)> OnLoaded)
 {
 	// 캐시 확인
 	if (TWeakObjectPtr<UNiagaraSystem>* Cached = NiagaraSystemCache.Find(VFXTag))
@@ -93,7 +93,7 @@ void FHktVFXRenderer::LoadNiagaraSystemAsync(FGameplayTag VFXTag, TFunction<void
 // Tag 기반 VFX 재생 (TagDataAsset → NiagaraSystem 비동기 로드)
 // ============================================================================
 
-void FHktVFXRenderer::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
+void FHktVFXProcessor::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 {
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
 	if (!World)
@@ -135,7 +135,7 @@ void FHktVFXRenderer::PlayVFXAtLocation(FGameplayTag VFXTag, FVector Location)
 // Intent 기반 VFX 재생 (AssetBank 퍼지 매칭)
 // ============================================================================
 
-void FHktVFXRenderer::PlayVFXWithIntent(const FHktVFXIntent& Intent)
+void FHktVFXProcessor::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 {
 	UWorld* World = LocalPlayer ? LocalPlayer->GetWorld() : nullptr;
 	if (!World)
@@ -179,7 +179,7 @@ void FHktVFXRenderer::PlayVFXWithIntent(const FHktVFXIntent& Intent)
 	HKT_EVENT_LOG(HktLogTags::VFX, EHktLogLevel::Verbose, EHktLogSource::Client, FString::Printf(TEXT("PlayVFXWithIntent: [%s] at %s"), *Intent.GetAssetKey(), *Intent.Location.ToString()));
 }
 
-void FHktVFXRenderer::ApplyRuntimeOverrides(UNiagaraComponent* Comp, const FHktVFXIntent& Intent)
+void FHktVFXProcessor::ApplyRuntimeOverrides(UNiagaraComponent* Comp, const FHktVFXIntent& Intent)
 {
 	float RadiusScale = Intent.Radius / 200.f;
 	Comp->SetVariableFloat(FName("RadiusScale"), RadiusScale);
@@ -199,7 +199,7 @@ void FHktVFXRenderer::ApplyRuntimeOverrides(UNiagaraComponent* Comp, const FHktV
 	Comp->SetWorldScale3D(FVector(OverallScale * RadiusScale));
 }
 
-FLinearColor FHktVFXRenderer::GetElementTintColor(EHktVFXElement Element)
+FLinearColor FHktVFXProcessor::GetElementTintColor(EHktVFXElement Element)
 {
 	switch (Element)
 	{
@@ -222,7 +222,7 @@ FLinearColor FHktVFXRenderer::GetElementTintColor(EHktVFXElement Element)
 // 엔터티 부착 지속형 VFX
 // ============================================================================
 
-void FHktVFXRenderer::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId EntityId, FVector Location)
+void FHktVFXProcessor::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId EntityId, FVector Location)
 {
 	FEntityVFXKey Key{ VFXTag, EntityId };
 
@@ -272,7 +272,7 @@ void FHktVFXRenderer::AttachVFXToEntity(FGameplayTag VFXTag, FHktEntityId Entity
 	});
 }
 
-void FHktVFXRenderer::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId EntityId)
+void FHktVFXProcessor::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId EntityId)
 {
 	FEntityVFXKey Key{ VFXTag, EntityId };
 	if (TWeakObjectPtr<UNiagaraComponent>* Found = EntityVFXMap.Find(Key))
@@ -286,7 +286,7 @@ void FHktVFXRenderer::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId Enti
 	}
 }
 
-void FHktVFXRenderer::Sync(const FHktPresentationState& State)
+void FHktVFXProcessor::Sync(const FHktPresentationState& State)
 {
 	// Job 파이프라인에서 적재된 VFX 요청 소비
 	for (const FHktPendingVFXEvent& Evt : State.PendingVFXEvents)
@@ -324,7 +324,7 @@ void FHktVFXRenderer::Sync(const FHktPresentationState& State)
 	}
 }
 
-void FHktVFXRenderer::Teardown()
+void FHktVFXProcessor::Teardown()
 {
 	// 비동기 콜백 무효화 (this 접근 방지)
 	AliveGuard.Reset();
