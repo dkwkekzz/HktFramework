@@ -21,7 +21,7 @@ public:
 	virtual void Tick(FHktPresentationState& State, float DeltaTime) override;
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
-	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty() || !PendingLoads.IsEmpty(); }
+	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty() || !PendingLoads.IsEmpty() || !PendingInitialForward.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
 

@@ -3,12 +3,12 @@
 #include "HktPresentationSubsystem.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "HktRuntimeTypes.h"
-#include "Renderers/HktActorRenderer.h"
-#include "Renderers/HktMassEntityRenderer.h"
-#include "Renderers/HktVFXRenderer.h"
+#include "Processors/HktActorProcessor.h"
+#include "Processors/HktMassEntityProcessor.h"
+#include "Processors/HktVFXProcessor.h"
 #if ENABLE_HKT_INSIGHTS
-#include "Renderers/HktCollisionDebugRenderer.h"
-#include "Renderers/HktTerrainDebugRenderer.h"
+#include "Processors/HktCollisionDebugProcessor.h"
+#include "Processors/HktTerrainDebugProcessor.h"
 #endif
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
@@ -231,20 +231,26 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	}
 
 	// --- Property 델타 인라인 적용 ---
-	View.ForEachDelta([this](FHktEntityId Id, uint16 PropId, int32 NewValue)
+	View.ForEachDelta([this, &View](FHktEntityId Id, uint16 PropId, int32 NewValue)
 	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("PropertyDelta Frame=%lld Prop=%d Value=%d"), View.FrameNumber, PropId, NewValue), Id);
 		State.ApplyDelta(Id, PropId, NewValue);
 	});
 
 	// --- Owner 델타 인라인 적용 ---
-	View.ForEachOwnerDelta([this](FHktEntityId Id, int64 NewOwnerUid)
+	View.ForEachOwnerDelta([this, &View](FHktEntityId Id, int64 NewOwnerUid)
 	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("OwnerDelta Frame=%lld Owner=%lld"), View.FrameNumber, NewOwnerUid), Id);
 		State.ApplyOwnerDelta(Id, NewOwnerUid);
 	});
 
 	// --- Tag 델타 인라인 적용 + VFX attach/detach 감지 ---
 	View.ForEachTagDelta([this, &View](FHktEntityId Id, const FGameplayTagContainer& Tags, const FGameplayTagContainer& OldTags)
 	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("TagDelta Frame=%lld Tags=%s"), View.FrameNumber, *Tags.ToString()), Id);
 		State.ApplyTagDelta(Id, Tags);
 
 		// VFX 태그 변경 감지
@@ -273,15 +279,19 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	});
 
 	// --- VFX 이벤트 → State 적재 ---
-	View.ForEachVFXEvent([this](const FHktVFXEvent& Event)
+	View.ForEachVFXEvent([this, &View](const FHktVFXEvent& Event)
 	{
 		FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("VFXEvent Frame=%lld Tag=%s Pos=(%.1f,%.1f,%.1f)"), View.FrameNumber, *Event.Tag.ToString(), Pos.X, Pos.Y, Pos.Z));
 		State.PendingVFXEvents.Add({ Event.Tag, Pos });
 	});
 
 	// --- Anim 이벤트 인라인 적용 ---
-	View.ForEachAnimEvent([this](const FHktAnimEvent& Event)
+	View.ForEachAnimEvent([this, &View](const FHktAnimEvent& Event)
 	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("AnimEvent Frame=%lld Tag=%s"), View.FrameNumber, *Event.Tag.ToString()), Event.EntityId);
 		FHktEntityPresentation* E = State.GetMutable(Event.EntityId);
 		if (E)
 		{
@@ -296,13 +306,16 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	if (!bInitialSyncDone) return;
 
 	// Phase 1: Processor Tick — 비동기 작업 진행 (에셋 로드 등), State 변경 가능
+	const int32 DirtyCountBefore = State.DirtyThisFrame.Num();
 	for (IHktPresentationProcessor* P : Processors)
 	{
 		if (P) P->Tick(State, DeltaSeconds);
 	}
+	const bool bTickModifiedState = (State.DirtyThisFrame.Num() > DirtyCountBefore);
 
 	// Phase 2: Processor Sync — State 읽어서 렌더링
-	if (bStateDirty)
+	// Tick에서 비동기 에셋 로드 완료 등으로 State가 변경되면 전체 Sync 수행
+	if (bStateDirty || bTickModifiedState)
 	{
 		bStateDirty = false;
 		SyncProcessors();

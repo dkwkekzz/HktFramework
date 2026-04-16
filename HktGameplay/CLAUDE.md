@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - diff 처리 순서: Removed → Spawned → Delta, 이후 렌더러에 디스패치
 - `FHktEntityPresentation`은 7개 ViewModel 그룹: Transform, Movement, Vitals, Combat, Ownership, Animation, Visualization
 - `THktVisualField<T>` — 세대 카운터 기반 더티 트래킹 (프레임 진행 시 자동 클린)
-- 렌더러 디스패치: Unit/Building → `FHktActorRenderer`, Projectile → `FHktMassEntityRenderer` (TODO)
+- Processor 디스패치: Unit/Building → `FHktActorProcessor`, Projectile → `FHktMassEntityProcessor` (TODO)
 
 ## HktAsset — 태그 기반 에셋 관리
 

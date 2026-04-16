@@ -71,6 +71,9 @@ public:
 	/** 머티리얼 LUT 설정 — nullptr이면 기존 하드코딩 PBR 폴백 */
 	void SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler);
 
+	// --- 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩) ---
+	float StylizedEnabled = 0.0f;
+
 private:
 	FDataType Data;
 };

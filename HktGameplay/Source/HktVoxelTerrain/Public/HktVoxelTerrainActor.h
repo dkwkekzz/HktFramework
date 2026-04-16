@@ -136,6 +136,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
 	TObjectPtr<UMaterialInterface> TerrainMaterial;
 
+	/** 스타일라이즈 렌더링 — 메이플2풍 카툰 셰이딩 (그리드 라인, AO 부스트, 채도 강화) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
+	bool bStylizedRendering = false;
+
 	/** 그림자 렌더링 최대 거리 (UE 유닛). 이 거리 밖 청크는 그림자를 드리우지 않음. 0이면 항상 ON */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering", meta = (ClampMin = 0))
 	float ShadowDistance = 16000.f;
@@ -238,4 +242,7 @@ private:
 
 	/** 스타일이 빌드되었는지 (BlockStyles가 비어있으면 false → 기존 팔레트 폴백) */
 	bool bStyleBuilt = false;
+
+	/** bStylizedRendering 변경 감지용 이전 값 (에디터 라이브 토글 대응) */
+	bool bPrevStylizedRendering = false;
 };

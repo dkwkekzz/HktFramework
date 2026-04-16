@@ -31,6 +31,8 @@ public:
 		MaterialLUTEnabledParam.Bind(ParameterMap, TEXT("HktMaterialLUTEnabled"));
 		MaterialLUTParam.Bind(ParameterMap, TEXT("HktMaterialLUT"));
 		MaterialLUTSamplerParam.Bind(ParameterMap, TEXT("HktMaterialLUTSampler"));
+
+		StylizedEnabledParam.Bind(ParameterMap, TEXT("HktStylizedEnabled"));
 	}
 
 	void GetElementShaderBindings(
@@ -127,6 +129,11 @@ public:
 		{
 			ShaderBindings.Add(MaterialLUTSamplerParam, VoxelVF->MaterialLUTSamplerRHI);
 		}
+
+		if (StylizedEnabledParam.IsBound())
+		{
+			ShaderBindings.Add(StylizedEnabledParam, VoxelVF->StylizedEnabled);
+		}
 	}
 
 private:
@@ -144,6 +151,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, MaterialLUTEnabledParam);
 	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTParam);
 	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTSamplerParam);
+
+	LAYOUT_FIELD(FShaderParameter, StylizedEnabledParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);

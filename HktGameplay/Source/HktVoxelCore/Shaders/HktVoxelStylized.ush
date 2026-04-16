@@ -1,0 +1,84 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktVoxelStylized.ush — 메이플스토리2 스타일 복셀 렌더링 효과
+//
+// HktStylizedEnabled > 0.5 일 때만 적용.
+// 효과: 블록 그리드 라인, 카툰 PBR, AO 부스트, 색상 채도 강화.
+
+#pragma once
+
+// ---------------------------------------------------------------------------
+// 1. 그리드 라인 — frac(TileUV)의 가장자리를 어둡게
+// ---------------------------------------------------------------------------
+
+// EdgeWidth: 그리드 라인 두께 (0.02~0.08 권장)
+// DarkenAmount: 경계 최대 어두워지는 비율 (0=효과없음, 0.2=20% 어둡게)
+float HktStylizedGridEdge(float2 TileUV, float EdgeWidth, float DarkenAmount)
+{
+    float2 FracUV = frac(TileUV);
+    // 양쪽 가장자리에서 smoothstep — 0=경계, 1=중앙
+    float2 Edge = smoothstep(0.0, EdgeWidth, FracUV)
+                * smoothstep(0.0, EdgeWidth, 1.0 - FracUV);
+    float Mask = Edge.x * Edge.y;
+    return lerp(1.0 - DarkenAmount, 1.0, Mask);
+}
+
+// ---------------------------------------------------------------------------
+// 2. AO 부스트 — 기존 AO를 더 넓고 부드럽게
+// ---------------------------------------------------------------------------
+
+float HktStylizedAOBoost(float AOLight)
+{
+    // 기존 AO 범위(0.4~1.0)를 더 대비 있게 재매핑
+    // pow로 어두운 부분을 더 강조
+    return pow(AOLight, 1.4);
+}
+
+// ---------------------------------------------------------------------------
+// 3. 색상 채도 강화 — 카툰풍 선명한 색감
+// ---------------------------------------------------------------------------
+
+float3 HktStylizedSaturate(float3 Color, float SaturationBoost)
+{
+    float Lum = dot(Color, float3(0.2126, 0.7152, 0.0722));
+    return lerp(float3(Lum, Lum, Lum), Color, 1.0 + SaturationBoost);
+}
+
+// ---------------------------------------------------------------------------
+// 4. 카툰 PBR 오버라이드
+// ---------------------------------------------------------------------------
+
+// 반환: float4(Metallic, Specular, Roughness, 1.0) — GBufferB 포맷
+float4 HktStylizedPBR()
+{
+    return float4(0.0, 0.15, 0.95, 1.0);  // 비금속, 낮은 스페큘러, 매우 거친
+}
+
+// ---------------------------------------------------------------------------
+// 통합 적용 함수 — BasePass PS에서 호출
+// ---------------------------------------------------------------------------
+
+// BaseColor를 스타일라이즈하고, PBR을 카툰풍으로 오버라이드
+void HktApplyStylized(
+    float2 TileUV,
+    float AOLight,
+    inout float3 BaseColor,
+    inout float4 PBR)
+{
+    // 그리드 라인 (EdgeWidth=0.05, DarkenAmount=0.15)
+    float GridMask = HktStylizedGridEdge(TileUV, 0.05, 0.15);
+    BaseColor *= GridMask;
+
+    // AO 부스트
+    float BoostedAO = HktStylizedAOBoost(AOLight);
+    // 기존 AO가 이미 곱해진 상태이므로, 비율 보정
+    // BaseColor = OrigColor * AOLight → OrigColor * BoostedAO
+    // 보정비 = BoostedAO / max(AOLight, 0.01)
+    float AOCorrection = BoostedAO / max(AOLight, 0.01);
+    BaseColor *= AOCorrection;
+
+    // 채도 강화 (0.2 = 20% 채도 증가)
+    BaseColor = HktStylizedSaturate(BaseColor, 0.2);
+
+    // 카툰 PBR
+    PBR = HktStylizedPBR();
+}

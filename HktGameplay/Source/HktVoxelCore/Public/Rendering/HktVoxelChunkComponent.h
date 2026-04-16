@@ -103,6 +103,10 @@ public:
 	 */
 	void PushStyleTexturesToProxy();
 
+	/** 스타일라이즈 렌더링 토글 (메이플2풍 카툰 셰이딩) */
+	void SetStylizedRendering(bool bEnabled);
+	bool IsStylizedRendering() const { return bStylizedRendering; }
+
 	/** 그림자 최대 거리 설정 (UE 유닛). 0이면 항상 그림자 ON */
 	void SetShadowDistance(float InDistance) { ShadowDistance = InDistance; }
 	float GetShadowDistance() const { return ShadowDistance; }
@@ -146,5 +150,6 @@ private:
 	FHktVoxelTileTextureSet CachedTileTextures;
 	FHktVoxelTexturePair CachedMaterialLUT;
 	bool bStyleTexturesApplied = false;
+	bool bStylizedRendering = false;
 	float ShadowDistance = 0.f;
 };

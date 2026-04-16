@@ -212,7 +212,7 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresent
 				WorldPos = ActorLoc;
 			}
 		}
-		Strategy->SetWorldPosition(WorldPos, Entity->CapsuleHalfHeight);
+		Strategy->SetWorldPosition(WorldPos, Entity->CollisionHalfHeight.Get());
 	}
 
 	Element->InitializeElement(View, Strategy);
@@ -255,7 +255,7 @@ void AHktIngameHUD::UpdateEntityPositions(const FHktPresentationState& State)
 				WorldPos = ActorLoc;
 			}
 		}
-		Strategy->SetWorldPosition(WorldPos, Entity->CapsuleHalfHeight);
+		Strategy->SetWorldPosition(WorldPos, Entity->CollisionHalfHeight.Get());
 	}
 }
 

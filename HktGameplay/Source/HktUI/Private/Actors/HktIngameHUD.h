@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "HktHUD.h"
 #include "HktCoreDefs.h"
-#include "HktPresentationRenderer.h"
+#include "HktPresentationProcessor.h"
 #include "HktPresentationState.h"
 #include "IHktEntityHudHitTestProvider.h"
 #include "HktIngameHUD.generated.h"
@@ -20,7 +20,7 @@ class UHktPresentationSubsystem;
  * 카메라 이동 등 클라이언트 변경 시에도 엔티티 위젯 위치가 실시간 반영됩니다.
  */
 UCLASS()
-class HKTUI_API AHktIngameHUD : public AHktHUD, public IHktPresentationRenderer, public IHktEntityHudHitTestProvider
+class HKTUI_API AHktIngameHUD : public AHktHUD, public IHktPresentationProcessor, public IHktEntityHudHitTestProvider
 {
 	GENERATED_BODY()
 

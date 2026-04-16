@@ -63,6 +63,9 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 	PrewarmPool(InitialPoolSize);
 
+	// 스타일라이즈 토글 초기값 동기화
+	bPrevStylizedRendering = bStylizedRendering;
+
 	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
 	BuildTerrainStyle();
 
@@ -149,7 +152,20 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	//    ProcessMeshReadyChunks보다 먼저 호출해 OnMeshReady에서도 최신 캐시를 쓰게 한다.
 	PumpStyleTextures();
 
-	// 5. 메싱 완료 청크 → GPU 업로드
+	// 5. 스타일라이즈 토글 변경 감지 — 에디터에서 라이브 토글 시 전체 청크에 반영
+	if (bStylizedRendering != bPrevStylizedRendering)
+	{
+		bPrevStylizedRendering = bStylizedRendering;
+		for (auto& Pair : ActiveChunks)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->SetStylizedRendering(bStylizedRendering);
+			}
+		}
+	}
+
+	// 6. 메싱 완료 청크 → GPU 업로드
 	ProcessMeshReadyChunks();
 }
 
@@ -193,6 +209,7 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 	{
 		Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
 		Comp->SetShadowDistance(ShadowDistance);
+		Comp->SetStylizedRendering(bStylizedRendering);
 		if (TerrainMaterial)
 		{
 			Comp->SetVoxelMaterial(TerrainMaterial);
@@ -331,6 +348,7 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 		{
 			Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
 			Comp->SetShadowDistance(ShadowDistance);
+			Comp->SetStylizedRendering(bStylizedRendering);
 			if (TerrainMaterial)
 			{
 				Comp->SetVoxelMaterial(TerrainMaterial);

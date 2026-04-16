@@ -32,9 +32,10 @@ namespace
 			T.SetNumZeroed(HktProperty::MaxCount());
 
 			// --- Transform ---
-			T[PropertyId::PosX]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Location.Value.X = static_cast<float>(V); E.Location.Set(E.Location.Value, F); };
-			T[PropertyId::PosY]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Location.Value.Y = static_cast<float>(V); E.Location.Set(E.Location.Value, F); };
-			T[PropertyId::PosZ]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Location.Value.Z = static_cast<float>(V); E.Location.Set(E.Location.Value, F); };
+			// Location과 RenderLocation을 함께 갱신 (ComputeRenderLocations 제거 이후 직접 동기화)
+			T[PropertyId::PosX]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Location.Value.X = static_cast<float>(V); E.Location.Set(E.Location.Value, F); E.RenderLocation.Set(E.Location.Value, F); };
+			T[PropertyId::PosY]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Location.Value.Y = static_cast<float>(V); E.Location.Set(E.Location.Value, F); E.RenderLocation.Set(E.Location.Value, F); };
+			T[PropertyId::PosZ]   = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Location.Value.Z = static_cast<float>(V); E.Location.Set(E.Location.Value, F); E.RenderLocation.Set(E.Location.Value, F); };
 			T[PropertyId::RotYaw] = [](FHktEntityPresentation& E, int32 V, int64 F) { E.Rotation.Value.Yaw = static_cast<float>(V); E.Rotation.Set(E.Rotation.Value, F); };
 
 			// --- Movement ---

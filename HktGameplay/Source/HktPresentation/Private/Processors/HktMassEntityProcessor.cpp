@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktMassEntityRenderer.h"
+#include "HktMassEntityProcessor.h"
 
 FHktMassEntityProcessor::FHktMassEntityProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -9,7 +9,7 @@ FHktMassEntityProcessor::FHktMassEntityProcessor(ULocalPlayer* InLP)
 
 void FHktMassEntityProcessor::Sync(const FHktPresentationState& State)
 {
-	// TODO: UMassEntitySubsystem 연동, SpawnedThisFrame/RemovedThisFrame/DirtyThisFrame 처리
+	// TODO: UMassEntitySubsystem ?�동, SpawnedThisFrame/RemovedThisFrame/DirtyThisFrame 처리
 	(void)State;
 }
 

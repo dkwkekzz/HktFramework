@@ -43,6 +43,8 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 		PendingMaterialLUTRHI = MatLUT.Texture;
 		PendingMaterialLUTSamplerRHI = MatLUT.Sampler;
 	}
+
+	bStylizedRendering = InComponent->IsStylizedRendering();
 }
 
 FHktVoxelChunkProxy::~FHktVoxelChunkProxy()
@@ -189,6 +191,7 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		VertexFactory->InitResource(FRHICommandListImmediate::Get());
 	}
 	VertexFactory->VoxelSizeUU = VoxelSizeUU;
+	VertexFactory->StylizedEnabled = bStylizedRendering ? 1.0f : 0.0f;
 
 	// 팔레트 텍스처 설정 — 타일 활성 시 기본 팔레트(8×256 흰색), 아니면 GWhiteTexture 폴백
 	if (!VertexFactory->PaletteTextureRHI)
@@ -314,5 +317,17 @@ void FHktVoxelChunkProxy::SetMaterialLUT_RenderThread(
 	if (VertexFactory)
 	{
 		VertexFactory->SetMaterialLUT(InLUT, InSampler);
+	}
+}
+
+void FHktVoxelChunkProxy::SetStylizedRendering_RenderThread(bool bEnabled)
+{
+	check(IsInRenderingThread());
+
+	bStylizedRendering = bEnabled;
+
+	if (VertexFactory)
+	{
+		VertexFactory->StylizedEnabled = bEnabled ? 1.0f : 0.0f;
 	}
 }

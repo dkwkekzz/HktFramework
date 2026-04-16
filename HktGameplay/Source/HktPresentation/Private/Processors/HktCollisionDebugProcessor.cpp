@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktCollisionDebugRenderer.h"
+#include "HktCollisionDebugProcessor.h"
 
 #if ENABLE_HKT_INSIGHTS
 
@@ -15,13 +15,13 @@
 static TAutoConsoleVariable<int32> CVarShowCollision(
 	TEXT("hkt.Debug.ShowCollision"),
 	0,
-	TEXT("Entity 충돌 시각화. 0=끄기, 1=캡슐, 2=캡슐+판정 범위, 3=캡슐+판정 범위+복셀"),
+	TEXT("Entity collision visualization. 0=off, 1=capsule, 2=capsule+detection range, 3=capsule+detection range+voxel"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarShowCollisionLabels(
 	TEXT("hkt.Debug.ShowCollisionLabels"),
 	0,
-	TEXT("충돌 캡슐 위에 EntityId/파라미터 표시. 0=끄기, 1=켜기"),
+	TEXT("Show EntityId/parameters above collision capsule. 0=off, 1=on"),
 	ECVF_Default);
 
 // --------------------------------------------------------------------------- Collision Layer Colors
@@ -39,12 +39,12 @@ static FColor GetCollisionLayerColor(int32 Layer)
 
 // --------------------------------------------------------------------------- Implementation
 
-FHktCollisionDebugRenderer::FHktCollisionDebugRenderer(ULocalPlayer* InLP)
+FHktCollisionDebugProcessor::FHktCollisionDebugProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
 }
 
-void FHktCollisionDebugRenderer::Sync(const FHktPresentationState& State)
+void FHktCollisionDebugProcessor::Sync(const FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowCollision.GetValueOnGameThread();
 	if (Mode <= 0) return;
@@ -67,7 +67,7 @@ void FHktCollisionDebugRenderer::Sync(const FHktPresentationState& State)
 
 // --------------------------------------------------------------------------- Mode 1: 캡슐 충돌 범위
 
-void FHktCollisionDebugRenderer::DrawCollisionCapsules(UWorld* World, const FHktPresentationState& State)
+void FHktCollisionDebugProcessor::DrawCollisionCapsules(UWorld* World, const FHktPresentationState& State)
 {
 	const bool bShowLabels = CVarShowCollisionLabels.GetValueOnGameThread() > 0;
 
@@ -80,7 +80,7 @@ void FHktCollisionDebugRenderer::DrawCollisionCapsules(UWorld* World, const FHkt
 		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
 		const FColor Color = GetCollisionLayerColor(Layer);
 
-		// 시뮬레이션 위치 (발 기준) — 캡슐 중심을 HalfHeight만큼 올림
+		// ?��??�이???�치 (�?기�?) ??캡슐 중심??HalfHeight만큼 ?�림
 		const FVector SimPos = Entity.Location.Get();
 		const FVector CapsuleCenter(SimPos.X, SimPos.Y, SimPos.Z + HalfHeight);
 
@@ -98,13 +98,13 @@ void FHktCollisionDebugRenderer::DrawCollisionCapsules(UWorld* World, const FHkt
 	});
 }
 
-// --------------------------------------------------------------------------- Mode 2: 판정 범위 (Detection Range)
+// --------------------------------------------------------------------------- Mode 2: ?�정 범위 (Detection Range)
 
-void FHktCollisionDebugRenderer::DrawDetectionRange(UWorld* World, const FHktPresentationState& State)
+void FHktCollisionDebugProcessor::DrawDetectionRange(UWorld* World, const FHktPresentationState& State)
 {
-	// 판정 범위 = 자신의 캡슐을 Radius만큼 팽창 (worst case: 같은 크기의 상대와 충돌)
-	// 즉, 외곽 캡슐의 Radius = 2 * Radius, HalfHeight = HalfHeight + Radius
-	// 팽창 캡슐의 바닥 = PosZ - Radius, 높이 = 2*(HH+R), 중심 = PosZ - R + (HH+R) = PosZ + HH
+	// ?�정 범위 = ?�신??캡슐??Radius만큼 ?�창 (worst case: 같�? ?�기???��??� 충돌)
+	// �? ?�곽 캡슐??Radius = 2 * Radius, HalfHeight = HalfHeight + Radius
+	// ?�창 캡슐??바닥 = PosZ - Radius, ?�이 = 2*(HH+R), 중심 = PosZ - R + (HH+R) = PosZ + HH
 
 	State.ForEachEntity([&](const FHktEntityPresentation& Entity)
 	{
@@ -118,8 +118,8 @@ void FHktCollisionDebugRenderer::DrawDetectionRange(UWorld* World, const FHktPre
 
 		const FVector SimPos = Entity.Location.Get();
 
-		// 팽창된 캡슐: Radius*2, HalfHeight + Radius
-		// 중심 = 원래 캡슐 중심과 동일 (PosZ + HalfHeight)
+		// ?�창??캡슐: Radius*2, HalfHeight + Radius
+		// 중심 = ?�래 캡슐 중심�??�일 (PosZ + HalfHeight)
 		const float DetectR = Radius * 2.0f;
 		const float DetectHH = HalfHeight + Radius;
 		const FVector DetectCenter(SimPos.X, SimPos.Y, SimPos.Z + HalfHeight);
@@ -129,11 +129,11 @@ void FHktCollisionDebugRenderer::DrawDetectionRange(UWorld* World, const FHktPre
 	});
 }
 
-// --------------------------------------------------------------------------- Mode 3: 포함 복셀 시각화
+// --------------------------------------------------------------------------- Mode 3: ?�함 복�? ?�각??
 
-void FHktCollisionDebugRenderer::DrawVoxelCells(UWorld* World, const FHktPresentationState& State)
+void FHktCollisionDebugProcessor::DrawVoxelCells(UWorld* World, const FHktPresentationState& State)
 {
-	// RuntimeGlobalSetting 단일 출처에서 VoxelSizeCm 획득
+	// RuntimeGlobalSetting ?�일 출처?�서 VoxelSizeCm ?�득
 	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	const float VS = Settings ? Settings->VoxelSizeCm : 15.0f;
 	if (VS <= 0.0f) return;
@@ -147,7 +147,7 @@ void FHktCollisionDebugRenderer::DrawVoxelCells(UWorld* World, const FHktPresent
 		const float Radius = FMath::Max(Entity.CollisionRadius.Get(), 30.0f);
 		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
 
-		// 캡슐 AABB → 복셀 셀 (PhysicsSystem Step 2와 동일한 로직)
+		// 캡슐 AABB ??복�? ?� (PhysicsSystem Step 2?� ?�일??로직)
 		const FIntVector MinV(
 			FMath::FloorToInt((SimPos.X - Radius) / VS),
 			FMath::FloorToInt((SimPos.Y - Radius) / VS),
@@ -178,7 +178,7 @@ void FHktCollisionDebugRenderer::DrawVoxelCells(UWorld* World, const FHktPresent
 	});
 }
 
-void FHktCollisionDebugRenderer::Teardown()
+void FHktCollisionDebugProcessor::Teardown()
 {
 	LocalPlayer = nullptr;
 }

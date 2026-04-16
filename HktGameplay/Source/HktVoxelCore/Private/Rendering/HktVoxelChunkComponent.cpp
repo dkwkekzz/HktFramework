@@ -95,6 +95,28 @@ void UHktVoxelChunkComponent::SetVoxelMaterial(UMaterialInterface* InMaterial)
 	}
 }
 
+void UHktVoxelChunkComponent::SetStylizedRendering(bool bEnabled)
+{
+	if (bStylizedRendering == bEnabled)
+	{
+		return;
+	}
+
+	bStylizedRendering = bEnabled;
+
+	// 현재 SceneProxy에 즉시 전달
+	if (SceneProxy)
+	{
+		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
+		ENQUEUE_RENDER_COMMAND(HktVoxelSetStylized)(
+			[CapturedProxy, bEnabled](FRHICommandListImmediate& RHICmdList)
+			{
+				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetStylizedRendering_RenderThread(bEnabled);
+			}
+		);
+	}
+}
+
 void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FIntVector& InChunkCoord, float InVoxelSize)
 {
 	RenderCache = Cache;

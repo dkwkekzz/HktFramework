@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktTerrainDebugRenderer.h"
+#include "HktTerrainDebugProcessor.h"
 
 #if ENABLE_HKT_INSIGHTS
 
@@ -19,22 +19,22 @@
 static TAutoConsoleVariable<int32> CVarShowTerrainVoxels(
 	TEXT("hkt.Debug.ShowTerrainVoxels"),
 	0,
-	TEXT("캐릭터 주변 복셀 시각화. 0=끄기, 1=표면 경계만, 2=표면+수평 슬라이스"),
+	TEXT("Voxel terrain visualization around character. 0=off, 1=surface boundary, 2=surface+horizontal radius"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarTerrainVoxelRadius(
 	TEXT("hkt.Debug.TerrainVoxelRadius"),
 	5,
-	TEXT("복셀 시각화 XY 반경 (복셀 단위). 기본 5"),
+	TEXT("XY radius of voxel visualization (in voxel units). Default 5"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarShowTerrainVoxelLabels(
 	TEXT("hkt.Debug.ShowTerrainVoxelLabels"),
 	0,
-	TEXT("표면 복셀 위에 좌표 라벨 표시. 0=끄기, 1=켜기"),
+	TEXT("Show coordinate labels on terrain voxels. 0=off, 1=on"),
 	ECVF_Default);
 
-// --------------------------------------------------------------------------- 좌표 변환 헬퍼
+// --------------------------------------------------------------------------- 좌표 변???�퍼
 
 static constexpr int32 ChunkSize = 32;
 
@@ -66,7 +66,7 @@ static int32 FloorMod(int32 A, int32 B)
 	return (R < 0) ? R + B : R;
 }
 
-// --------------------------------------------------------------------------- 렌더 캐시 쿼리
+// --------------------------------------------------------------------------- ?�더 캐시 쿼리
 
 static bool IsSolidRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
 {
@@ -77,7 +77,7 @@ static bool IsSolidRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
 	return !Chunk->At(FloorMod(VX, ChunkSize), FloorMod(VY, ChunkSize), FloorMod(VZ, ChunkSize)).IsEmpty();
 }
 
-/** PhysicsSystem 의 FindFloorVoxelZ 와 동일한 로직 (렌더 캐시 기반) */
+/** PhysicsSystem ??FindFloorVoxelZ ?� ?�일??로직 (?�더 캐시 기반) */
 static int32 FindFloorVoxelZRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 StartVZ,
                                 int32 MaxScanUp = 8, int32 MaxScanDown = 64)
 {
@@ -108,7 +108,7 @@ static uint16 GetTypeRC(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 V
 	return Chunk->At(FloorMod(VX, ChunkSize), FloorMod(VY, ChunkSize), FloorMod(VZ, ChunkSize)).TypeID;
 }
 
-/** 솔리드 복셀이 6방향 중 하나라도 빈 이웃을 가지면 표면 */
+/** ?�리??복�???6방향 �??�나?�도 �??�웃??가지�??�면 */
 static bool IsSurfaceVoxel(FHktVoxelRenderCache* Cache, int32 VX, int32 VY, int32 VZ)
 {
 	if (!IsSolidRC(Cache, VX, VY, VZ)) return false;
@@ -141,7 +141,7 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	const int32 RadiusXY = FMath::Clamp(CVarTerrainVoxelRadius.GetValueOnGameThread(), 2, 12);
 	const bool bShowLabels = CVarShowTerrainVoxelLabels.GetValueOnGameThread() > 0;
 
-	// Subject 엔티티 위치
+	// Subject ?�티???�치
 	UHktPresentationSubsystem* Sub = LocalPlayer.IsValid()
 		? LocalPlayer->GetSubsystem<UHktPresentationSubsystem>() : nullptr;
 	if (!Sub) return;
@@ -156,7 +156,7 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 		? Entity->Location.Get() : Entity->RenderLocation.Get();
 	const float ColRadius = FMath::Max(Entity->CollisionRadius.Get(), 30.0f);
 
-	// AHktVoxelTerrainActor 탐색
+	// AHktVoxelTerrainActor ?�색
 	AHktVoxelTerrainActor* TerrainActor = nullptr;
 	for (TActorIterator<AHktVoxelTerrainActor> It(World); It; ++It)
 	{
@@ -166,18 +166,18 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	FHktVoxelRenderCache* RC = TerrainActor ? TerrainActor->GetTerrainCache() : nullptr;
 	if (!RC) return;
 
-	// 렌더링 파이프라인과 동일한 복셀 크기를 사용 (에디터에서 변경 가능)
+	// ?�더�??�이?�라?�과 ?�일??복�? ?�기�??�용 (?�디?�에??변�?가??
 	const float VS = TerrainActor->VoxelSize;
 
-	const FIntVector CV = CmToVoxel(EntityPos, VS); // 엔티티 중심 복셀
-	const FVector HE(VS * 0.5f);                    // 복셀 반절 크기
+	const FIntVector CV = CmToVoxel(EntityPos, VS); // ?�티??중심 복�?
+	const FVector HE(VS * 0.5f);                    // 복�? 반절 ?�기
 	constexpr int32 ZScanUp = 3;
 	constexpr int32 ZScanDown = 2;
 
 	int32 SurfaceCount = 0;
 
 	// =========================================================================
-	// 1. 표면 경계 복셀 — 솔리드이면서 빈 이웃이 있는 복셀만 그린다
+	// 1. ?�면 경계 복�? ???�리?�이면서 �??�웃???�는 복�?�?그린??
 	// =========================================================================
 	for (int32 DZ = -ZScanDown; DZ <= ZScanUp; ++DZ)
 	{
@@ -195,13 +195,13 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 				++SurfaceCount;
 				const FVector Pos = VoxelToCm(FIntVector(VX, VY, VZ), VS);
 
-				// 엔티티 충돌 반경과 겹치는 표면 = 빨강, 아니면 초록
+				// ?�티??충돌 반경�?겹치???�면 = 빨강, ?�니�?초록
 				const float DistToEntity = FVector::Dist(Pos, EntityPos);
 				const bool bInCollisionRange = (DistToEntity < ColRadius + VS);
 
 				const FColor Color = bInCollisionRange
-					? FColor(255, 50, 50)    // 빨강 — 충돌 범위 내 표면
-					: FColor(50, 220, 50);   // 초록 — 안전 표면
+					? FColor(255, 50, 50)    // 빨강 ??충돌 범위 ???�면
+					: FColor(50, 220, 50);   // 초록 ???�전 ?�면
 				const float Thickness = bInCollisionRange ? 2.0f : 1.0f;
 
 				DrawDebugBox(World, Pos, HE, Color, false, -1.f, SDPG_Foreground, Thickness);
@@ -218,12 +218,12 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	}
 
 	// =========================================================================
-	// 2. 수평 슬라이스 (Mode 2) — 엔티티 발밑 Z의 XY 평면을 그리드로 표시
-	//    솔리드=회색 채움, 빈 공간=얇은 점선, 충돌 영역 표시
+	// 2. ?�평 ?�라?�스 (Mode 2) ???�티??발밑 Z??XY ?�면??그리?�로 ?�시
+	//    ?�리???�색 채�?, �?공간=?��? ?�선, 충돌 ?�역 ?�시
 	// =========================================================================
 	if (Mode >= 2)
 	{
-		const int32 SliceZ = CV.Z; // 발밑 Z 레벨
+		const int32 SliceZ = CV.Z; // 발밑 Z ?�벨
 
 		for (int32 DY = -RadiusXY; DY <= RadiusXY; ++DY)
 		{
@@ -236,7 +236,7 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 
 				if (bSolid)
 				{
-					// 솔리드: 회색 바닥면 라인
+					// ?�리?? ?�색 바닥�??�인
 					const FVector Lo(Pos.X - HE.X, Pos.Y - HE.Y, Pos.Z - HE.Z);
 					const FVector Hi(Pos.X + HE.X, Pos.Y + HE.Y, Pos.Z - HE.Z);
 					DrawDebugBox(World,
@@ -246,7 +246,7 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 				}
 				else
 				{
-					// 빈 공간: 아주 얇은 점
+					// �?공간: ?�주 ?��? ??
 					DrawDebugPoint(World, Pos, 2.0f,
 						FColor(40, 40, 40), false, -1.f, SDPG_Foreground);
 				}
@@ -255,32 +255,32 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	}
 
 	// =========================================================================
-	// 3. Physics 핵심 디버그 — Floor Voxel + SurfaceCmZ + 엔티티 위치
+	// 3. Physics ?�심 ?�버�???Floor Voxel + SurfaceCmZ + ?�티???�치
 	// =========================================================================
 
-	// Physics Phase1 과 동일한 로직으로 바닥 복셀 검색
+	// Physics Phase1 �??�일??로직?�로 바닥 복�? 검??
 	const int32 FloorVoxelZ = FindFloorVoxelZRC(RC, CV.X, CV.Y, CV.Z);
 	const float SurfaceCmZ = static_cast<float>(FMath::RoundToInt(FloorVoxelZ * VS + VS * 0.5f));  // VoxelToCm center
 	const bool bCenterSolid = IsSolidRC(RC, CV.X, CV.Y, CV.Z);
 
-	// 3-a) 바닥 복셀(Floor Voxel) — 노란색 굵은 박스 (Physics가 "디딛고 있다"고 판단하는 위치)
+	// 3-a) 바닥 복�?(Floor Voxel) ???��???굵�? 박스 (Physics가 "?�딛�??�다"�??�단?�는 ?�치)
 	{
-		const FIntVector FloorVoxelBelow(CV.X, CV.Y, FloorVoxelZ - 1);  // 솔리드 복셀 (바닥 아래)
-		const FIntVector FloorVoxelAir(CV.X, CV.Y, FloorVoxelZ);        // 에어 복셀 (서 있는 곳)
+		const FIntVector FloorVoxelBelow(CV.X, CV.Y, FloorVoxelZ - 1);  // ?�리??복�? (바닥 ?�래)
+		const FIntVector FloorVoxelAir(CV.X, CV.Y, FloorVoxelZ);        // ?�어 복�? (???�는 �?
 
-		// 솔리드 복셀 = 주황 (실제 디딛는 솔리드)
+		// ?�리??복�? = 주황 (?�제 ?�딛???�리??
 		if (IsSolidRC(RC, FloorVoxelBelow.X, FloorVoxelBelow.Y, FloorVoxelBelow.Z))
 		{
 			DrawDebugBox(World, VoxelToCm(FloorVoxelBelow, VS), HE,
 				FColor(255, 140, 0), false, -1.f, SDPG_Foreground, 3.0f);
 		}
 
-		// 에어 복셀 = 노란색 (Physics가 snap 하는 위치)
+		// ?�어 복�? = ?��???(Physics가 snap ?�는 ?�치)
 		DrawDebugBox(World, VoxelToCm(FloorVoxelAir, VS), HE,
 			FColor(255, 255, 0), false, -1.f, SDPG_Foreground, 2.5f);
 	}
 
-	// 3-b) SurfaceCmZ 수평선 — Physics floor snap 목표 높이 (노란색 십자)
+	// 3-b) SurfaceCmZ ?�평????Physics floor snap 목표 ?�이 (?��?????��)
 	{
 		const float CrossSize = ColRadius + 20.0f;
 		const FVector SurfCenter(EntityPos.X, EntityPos.Y, SurfaceCmZ);
@@ -292,16 +292,16 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 			FColor::Yellow, false, -1.f, SDPG_Foreground, 2.0f);
 	}
 
-	// 3-c) 엔티티 실제 시뮬레이션 위치 — 마젠타 포인트 (PosZ)
+	// 3-c) ?�티???�제 ?��??�이???�치 ??마젠?� ?�인??(PosZ)
 	DrawDebugPoint(World, EntityPos, 12.0f, FColor::Magenta, false, -1.f, SDPG_Foreground);
 
-	// 3-d) 중심 복셀 — 시안 박스
+	// 3-d) 중심 복�? ???�안 박스
 	{
 		const FVector CenterCm = VoxelToCm(CV, VS);
 		DrawDebugBox(World, CenterCm, HE, FColor::Cyan, false, -1.f, SDPG_Foreground, 2.5f);
 	}
 
-	// 3-e) PosZ → SurfaceCmZ 간격 표시 (수직 선)
+	// 3-e) PosZ ??SurfaceCmZ 간격 ?�시 (?�직 ??
 	{
 		const FColor GapColor = (EntityPos.Z <= SurfaceCmZ) ? FColor::Green : FColor::Red;
 		DrawDebugLine(World,
@@ -311,15 +311,15 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	}
 
 	// =========================================================================
-	// 4. 충돌 반경 + wall-slide 테스트 포인트
+	// 4. 충돌 반경 + wall-slide ?�스???�인??
 	// =========================================================================
 
-	// 충돌 반경을 수평 원으로 표시
-	DrawDebugCircle(World, RenderPos, ColRadius, 32,
+	// 충돌 반경???�평 ?�으�??�시
+	DrawDebugCircle(World, EntityPos, ColRadius, 32,
 		FColor(255, 165, 0), false, -1.f, SDPG_Foreground, 2.0f,
 		FVector(0,1,0), FVector(1,0,0), false);
 
-	// wall-slide 테스트 포인트 (BodyZ = PosZ + VoxelSize)
+	// wall-slide ?�스???�인??(BodyZ = PosZ + VoxelSize)
 	{
 		const float BodyZ = EntityPos.Z + VS;
 
@@ -345,7 +345,7 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	}
 
 	// =========================================================================
-	// 5. HUD 요약 — Physics 핵심 상태 3줄
+	// 5. HUD ?�약 ??Physics ?�심 ?�태 3�?
 	// =========================================================================
 	{
 		const int32 CollisionLayerVal = Entity->CollisionLayer.Get();
@@ -354,19 +354,19 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 		const float PosZ = EntityPos.Z;
 		const float GapZ = PosZ - SurfaceCmZ;
 
-		// 1줄: 복셀 좌표 + 충돌 반경 + 레이어
+		// 1�? 복�? 좌표 + 충돌 반경 + ?�이??
 		const FString Line1 = FString::Printf(
 			TEXT("V(%d,%d,%d) R=%.0f Layer=%d %s"),
 			CV.X, CV.Y, CV.Z, ColRadius, CollisionLayerVal,
 			CollisionLayerVal == 0 ? TEXT("!! NO COLLISION !!") : TEXT(""));
 
-		// 2줄: Floor snap 정보
+		// 2�? Floor snap ?�보
 		const FString Line2 = FString::Printf(
 			TEXT("FloorV=Z:%d SurfCmZ=%.0f PosZ=%.0f Gap=%.1f %s"),
 			FloorVoxelZ, SurfaceCmZ, PosZ, GapZ,
 			(PosZ <= SurfaceCmZ) ? TEXT("[GROUNDED]") : TEXT("[AIRBORNE]"));
 
-		// 3줄: 속도 + 점프 상태
+		// 3�? ?�도 + ?�프 ?�태
 		const FString Line3 = FString::Printf(
 			TEXT("Vel=(%.0f,%.0f,%.0f) Jump=%s %s"),
 			Vel.X, Vel.Y, Vel.Z,
@@ -378,15 +378,15 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 		const FColor Col3 = bCenterSolid ? FColor::Red : FColor::White;
 
 		const float BaseZ = ColRadius + 80.f;
-		DrawDebugString(World, RenderPos + FVector(0, 0, BaseZ),
+		DrawDebugString(World, EntityPos + FVector(0, 0, BaseZ),
 			Line1, nullptr, Col1, -1.f, false, 1.0f);
-		DrawDebugString(World, RenderPos + FVector(0, 0, BaseZ - 18.f),
+		DrawDebugString(World, EntityPos + FVector(0, 0, BaseZ - 18.f),
 			Line2, nullptr, Col2, -1.f, false, 1.0f);
-		DrawDebugString(World, RenderPos + FVector(0, 0, BaseZ - 36.f),
+		DrawDebugString(World, EntityPos + FVector(0, 0, BaseZ - 36.f),
 			Line3, nullptr, Col3, -1.f, false, 1.0f);
 	}
 
-	// Insights 데이터 수집
+	// Insights ?�이???�집
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("SubjectEntity"),
 		FString::Printf(TEXT("%d"), SubjectId));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("VoxelCoord"),

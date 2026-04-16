@@ -99,6 +99,13 @@ void MainPS(
         float4 MatSample = HktMaterialLUT.Load(int3(uint(InVoxelType) % 256, 0, 0));
         PBR = float4(MatSample.b, MatSample.g, MatSample.r, 1.0);  // (Metallic, Specular, Roughness)
     }
+
+    // 스타일라이즈 렌더링 — 그리드 라인, 카툰 PBR, AO 부스트, 채도 강화
+    if (HktStylizedEnabled > 0.5)
+    {
+        HktApplyStylized(InTileUV, InAOLight, BaseColor.rgb, PBR);
+    }
+
     OutGBufferB = PBR;
 
     OutGBufferC = BaseColor;

@@ -10,6 +10,7 @@
 #include "/Engine/Private/VertexFactoryCommon.ush"
 #include "HktVoxelCommon.ush"
 #include "HktVoxelTileCommon.ush"
+#include "HktVoxelStylized.ush"
 
 // Voxel size in UE units (default 15 = 15cm)
 float HktVoxelSize;
@@ -33,6 +34,9 @@ SamplerState HktTileIndexLUTSampler;
 float HktMaterialLUTEnabled;
 Texture2D HktMaterialLUT;
 SamplerState HktMaterialLUTSampler;
+
+// 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩)
+float HktStylizedEnabled;
 
 // ============================================================================
 // FVertexFactoryInput
@@ -352,6 +356,13 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 		}
 
 		Result.VertexColor = float4(BaseColor * AOLight, 1.0);
+
+		// 스타일라이즈 렌더링 — 머티리얼 경로에서도 동일 적용
+		if (HktStylizedEnabled > 0.5)
+		{
+			float4 DummyPBR = float4(0,0,0,1);
+			HktApplyStylized(Interpolants.TileUV, AOLight, Result.VertexColor.rgb, DummyPBR);
+		}
 	}
 
 	half3 Normal    = normalize(Interpolants.WorldNormal);
