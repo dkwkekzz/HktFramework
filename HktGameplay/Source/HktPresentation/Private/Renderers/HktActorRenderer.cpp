@@ -32,28 +32,9 @@ FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
 void FHktActorRenderer::Sync(const FHktPresentationState& State)
 {
 	CachedState = &State;
-	const int64 Frame = State.GetCurrentFrame();
 
-	// 생명주기(Spawn/Destroy)는 ProcessDiff에서 직접 처리.
-	// Sync에서는 ViewModel 변경점 전달 + Transform 적용만 담당.
-
-	// --- Dirty → Actor에 전달 (animation, attachment 등 delta 처리) ---
-	// Actor가 없는 Dirty 엔티티: VisualElement 변경 또는 이전 스폰 실패 → 재시도
-	for (FHktEntityId Id : State.DirtyThisFrame)
-	{
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
-		if (ActorMap.Contains(Id))
-		{
-			ForwardToActor(Id, *E, Frame, false);
-		}
-		else if (!PendingSpawnSet.Contains(Id) && E->VisualElement.Get().IsValid())
-		{
-			SpawnActor(*E);
-		}
-	}
-
-	// --- 매 프레임 Transform 적용 (Core와 렌더 주기 차이로 인한 끊김 방지) ---
+	// 생명주기(Spawn/Destroy)와 ViewModel 전달(ForwardToActor)은 EffectExecutor가 처리.
+	// Sync에서는 매 프레임 Transform 보간만 담당 (Core와 렌더 주기 차이로 인한 끊김 방지).
 	for (auto& [Id, WeakActor] : ActorMap)
 	{
 		if (!WeakActor.IsValid()) continue;

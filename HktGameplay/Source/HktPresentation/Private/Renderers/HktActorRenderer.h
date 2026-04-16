@@ -9,8 +9,8 @@ class ULocalPlayer;
 
 /**
  * Actor 렌더러.
- * 생명주기(스폰/파괴)는 ProcessDiff에서 직접 호출.
- * Sync에서는 ViewModel 변경점 전달 + Transform 적용만 담당.
+ * 생명주기(Spawn/Destroy)와 ViewModel 전달(ForwardToActor)은 EffectExecutor가 호출.
+ * Sync에서는 매 프레임 Transform 적용만 담당.
  */
 class FHktActorRenderer : public IHktPresentationRenderer
 {
@@ -23,16 +23,17 @@ public:
 	AActor* GetActor(FHktEntityId Id) const;
 	bool HasActorOrPending(FHktEntityId Id) const { return ActorMap.Contains(Id) || PendingSpawnSet.Contains(Id); }
 
-	/** ProcessDiff에서 호출 — 엔티티 생명주기 직접 관리 */
+	/** EffectExecutor에서 호출 — 엔티티 생명주기 직접 관리 */
 	void SpawnActor(const FHktEntityPresentation& Entity);
 	void DestroyActor(FHktEntityId Id);
+
+	/** ViewModel 변경점을 Actor에 전달 (EffectExecutor에서 호출) */
+	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
 	/** 비동기 콜백이 CachedState를 참조하므로, Sync 전에도 State를 설정 */
 	void EnsureState(const FHktPresentationState& State) { CachedState = &State; }
 
 private:
-	/** ViewModel 변경점을 Actor에 전달 */
-	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
 	TSet<FHktEntityId> PendingSpawnSet;
