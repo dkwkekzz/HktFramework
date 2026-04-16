@@ -76,8 +76,48 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
 		if (ActorMap.Contains(Id))
 		{
-			ForwardToActor(Id, *E, Frame, false);
+			// 최초 스폰 직후: bForceAll=true로 전체 ViewModel 적용
+			const bool bForce = PendingInitialForward.Remove(Id) > 0;
+			ForwardToActor(Id, *E, Frame, bForce);
+
+			// 새 Owner 스폰 시: 기존 아이템 부착 시도
+			if (bForce)
+			{
+				for (auto& [ExistingId, WeakActor] : ActorMap)
+				{
+					if (ExistingId == Id || !WeakActor.IsValid()) continue;
+					const FHktEntityPresentation* ItemE = State.Get(ExistingId);
+					if (ItemE && ItemE->IsItemAttached()
+						&& static_cast<FHktEntityId>(ItemE->OwnerEntity.Get()) == Id)
+					{
+						ForwardToActor(ExistingId, *ItemE, Frame, true);
+					}
+				}
+			}
 		}
+	}
+
+	// --- 3.5 비동기 콜백으로 늦게 스폰된 Actor의 최초 ViewModel 적용 ---
+	for (auto It = PendingInitialForward.CreateIterator(); It; ++It)
+	{
+		const FHktEntityId Id = *It;
+		if (!ActorMap.Contains(Id)) continue;
+		const FHktEntityPresentation* E = State.Get(Id);
+		if (!E) { It.RemoveCurrent(); continue; }
+
+		ForwardToActor(Id, *E, Frame, true);
+		// 기존 아이템 부착 시도
+		for (auto& [ExistingId, WeakActor] : ActorMap)
+		{
+			if (ExistingId == Id || !WeakActor.IsValid()) continue;
+			const FHktEntityPresentation* ItemE = State.Get(ExistingId);
+			if (ItemE && ItemE->IsItemAttached()
+				&& static_cast<FHktEntityId>(ItemE->OwnerEntity.Get()) == Id)
+			{
+				ForwardToActor(ExistingId, *ItemE, Frame, true);
+			}
+		}
+		It.RemoveCurrent();
 	}
 
 	// --- 4. 매 프레임 Transform 적용 (Core와 렌더 주기 차이로 인한 끊김 방지) ---
@@ -170,15 +210,7 @@ void FHktActorRenderer::SpawnActorFromResolvedAsset(const FHktEntityPresentation
 		}
 
 		ActorMap.Add(EntityId, SpawnedActor);
-
-		// Owner 스폰 시 → ViewModel 기반으로 대기 아이템 부착 시도
-		for (auto& [ExistingId, WeakActor] : ActorMap)
-		{
-			if (ExistingId == EntityId) continue;
-			if (!WeakActor.IsValid()) continue;
-			// 아이템 부착 여부는 ViewModel에서 확인 — State 접근 필요
-			// ForwardToActor에서 bForceAll=true로 처리
-		}
+		PendingInitialForward.Add(EntityId);
 	});
 }
 
@@ -198,6 +230,7 @@ void FHktActorRenderer::Teardown()
 {
 	AliveGuard.Reset();
 	ActorMap.Empty();
+	PendingInitialForward.Empty();
 }
 
 AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const

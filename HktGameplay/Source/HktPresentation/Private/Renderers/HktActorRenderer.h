@@ -32,6 +32,9 @@ private:
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
+	/** 스폰 콜백 완료 후 최초 ForwardToActor(bForceAll=true) 대기 엔티티 */
+	TSet<FHktEntityId> PendingInitialForward;
+
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
 	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);
 };
