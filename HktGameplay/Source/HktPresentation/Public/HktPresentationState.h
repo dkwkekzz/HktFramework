@@ -124,6 +124,11 @@ private:
 	void ComputeTeamColor(int32 TeamIndex, int64 Frame);
 };
 
+/** Job에서 생성된 VFX 요청 — 렌더러 Sync에서 소비 */
+struct FHktPendingVFXEvent   { FGameplayTag Tag; FVector Location; };
+struct FHktPendingVFXAttach  { FGameplayTag Tag; FHktEntityId EntityId; FVector Location; };
+struct FHktPendingVFXDetach  { FGameplayTag Tag; FHktEntityId EntityId; };
+
 /** 전체 Presentation 상태 (렌더러가 그대로 읽어서 그리는 ViewModel) */
 struct HKTPRESENTATION_API FHktPresentationState
 {
@@ -134,6 +139,11 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TArray<FHktEntityId> SpawnedThisFrame;
 	TArray<FHktEntityId> RemovedThisFrame;
 	TArray<FHktEntityId> DirtyThisFrame;
+
+	/** Job에서 적재된 VFX 요청 (렌더러 Sync에서 소비 후 ClearFrameChanges에서 정리) */
+	TArray<FHktPendingVFXEvent>  PendingVFXEvents;
+	TArray<FHktPendingVFXAttach> PendingVFXAttachments;
+	TArray<FHktPendingVFXDetach> PendingVFXDetachments;
 
 	void BeginFrame(int64 Frame);
 	void ClearFrameChanges();

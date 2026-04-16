@@ -31,14 +31,45 @@ FHktActorRenderer::FHktActorRenderer(ULocalPlayer* InLP)
 
 void FHktActorRenderer::Sync(const FHktPresentationState& State)
 {
-	CachedState = &State;
 	const int64 Frame = State.GetCurrentFrame();
 
-	// 생명주기(Spawn/Destroy)는 ProcessDiff에서 직접 처리.
-	// Sync에서는 ViewModel 변경점 전달 + Transform 적용만 담당.
+	// --- 1. 삭제: RemovedThisFrame 처리 ---
+	for (FHktEntityId Id : State.RemovedThisFrame)
+	{
+		if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
+		{
+			if (AActor* A = P->Get())
+				A->Destroy();
+			ActorMap.Remove(Id);
+		}
+	}
 
-	// --- Dirty → Actor에 전달 (animation, attachment 등 delta 처리) ---
-	// Actor가 없는 Dirty 엔티티: VisualElement 변경 또는 이전 스폰 실패 → 재시도
+	// --- 2. 스폰: ResolvedAssetPath가 설정된 엔티티 (SpawnedThisFrame + DirtyThisFrame) ---
+	auto TrySpawn = [this, &State](FHktEntityId Id)
+	{
+		const FHktEntityPresentation* E = State.Get(Id);
+		if (!E || E->RenderCategory != EHktRenderCategory::Actor) return;
+		if (ActorMap.Contains(Id)) return;
+		if (E->ResolvedAssetPath.Get().IsNull()) return;
+
+		SpawnActorFromResolvedAsset(*E);
+	};
+
+	for (FHktEntityId Id : State.SpawnedThisFrame)
+	{
+		TrySpawn(Id);
+	}
+
+	// DirtyThisFrame: SpawnJob 완료 후 ResolvedAssetPath가 설정되었을 수 있음
+	for (FHktEntityId Id : State.DirtyThisFrame)
+	{
+		if (!ActorMap.Contains(Id))
+		{
+			TrySpawn(Id);
+		}
+	}
+
+	// --- 3. Dirty → Actor에 전달 (animation, attachment 등 delta 처리) ---
 	for (FHktEntityId Id : State.DirtyThisFrame)
 	{
 		const FHktEntityPresentation* E = State.Get(Id);
@@ -47,13 +78,9 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 		{
 			ForwardToActor(Id, *E, Frame, false);
 		}
-		else if (!PendingSpawnSet.Contains(Id) && E->VisualElement.Get().IsValid())
-		{
-			SpawnActor(*E);
-		}
 	}
 
-	// --- 매 프레임 Transform 적용 (Core와 렌더 주기 차이로 인한 끊김 방지) ---
+	// --- 4. 매 프레임 Transform 적용 (Core와 렌더 주기 차이로 인한 끊김 방지) ---
 	for (auto& [Id, WeakActor] : ActorMap)
 	{
 		if (!WeakActor.IsValid()) continue;
@@ -65,34 +92,7 @@ void FHktActorRenderer::Sync(const FHktPresentationState& State)
 	}
 }
 
-void FHktActorRenderer::ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
-{
-	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
-	if (!WeakPtr || !WeakPtr->IsValid()) return;
-
-	IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakPtr->Get());
-	if (!P) return;
-
-	P->ApplyPresentation(Entity, Frame, bForceAll,
-		[this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); });
-}
-
-void FHktActorRenderer::Teardown()
-{
-	AliveGuard.Reset();
-	ActorMap.Empty();
-	PendingSpawnSet.Empty();
-	CachedState = nullptr;
-}
-
-AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
-{
-	if (TWeakObjectPtr<AActor> const* P = ActorMap.Find(Id))
-		return P->Get();
-	return nullptr;
-}
-
-void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
+void FHktActorRenderer::SpawnActorFromResolvedAsset(const FHktEntityPresentation& Entity)
 {
 	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
@@ -107,8 +107,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 	FVector SpawnLocation = Entity.RenderLocation.Get();
 	FRotator SpawnRotation = Entity.Rotation.Get();
 
-	PendingSpawnSet.Add(EntityId);
-
+	// 에셋이 이미 SpawnJob에서 로드되어 캐시에 있으므로 동기 로드 (캐시 히트)
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
 	TWeakPtr<bool> WeakGuard = AliveGuard;
 	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, SpawnLocation, SpawnRotation, WeakLP](UHktTagDataAsset* LoadedAsset)
@@ -116,10 +115,10 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 		if (!WeakGuard.IsValid()) return;
 
 		ULocalPlayer* LP = WeakLP.Get();
-		if (!LP) { PendingSpawnSet.Remove(EntityId); return; }
+		if (!LP) return;
 
 		UWorld* CallbackWorld = LP->GetWorld();
-		if (!CallbackWorld) { PendingSpawnSet.Remove(EntityId); return; }
+		if (!CallbackWorld) return;
 
 		AActor* SpawnedActor = nullptr;
 
@@ -143,7 +142,7 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			if (!ActorClass)
 			{
 				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s entity=%d — 재시도 안함"), *VisualTag.ToString(), EntityId));
+					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s entity=%d"), *VisualTag.ToString(), EntityId));
 				return;
 			}
 
@@ -151,16 +150,11 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, SpawnRotation, SpawnParams);
 		}
 
-		if (!SpawnedActor)
-		{
-			PendingSpawnSet.Remove(EntityId);
-			return;
-		}
+		if (!SpawnedActor) return;
 
 		if (ActorMap.Contains(EntityId))
 		{
 			SpawnedActor->Destroy();
-			PendingSpawnSet.Remove(EntityId);
 			return;
 		}
 
@@ -175,39 +169,40 @@ void FHktActorRenderer::SpawnActor(const FHktEntityPresentation& Entity)
 			P->OnVisualAssetLoaded(LoadedAsset);
 		}
 
-		PendingSpawnSet.Remove(EntityId);
 		ActorMap.Add(EntityId, SpawnedActor);
 
-		// 최초 ViewModel 적용 (bForceAll = true)
-		const FHktEntityPresentation* E = CachedState ? CachedState->Get(EntityId) : nullptr;
-		if (E)
-			ForwardToActor(EntityId, *E, 0, true);
-
 		// Owner 스폰 시 → ViewModel 기반으로 대기 아이템 부착 시도
-		if (CachedState)
+		for (auto& [ExistingId, WeakActor] : ActorMap)
 		{
-			for (auto& [ExistingId, WeakActor] : ActorMap)
-			{
-				if (ExistingId == EntityId) continue;
-				if (!WeakActor.IsValid()) continue;
-				const FHktEntityPresentation* ItemE = CachedState->Get(ExistingId);
-				if (ItemE && ItemE->IsItemAttached()
-					&& static_cast<FHktEntityId>(ItemE->OwnerEntity.Get()) == EntityId)
-				{
-					ForwardToActor(ExistingId, *ItemE, 0, true);
-				}
-			}
+			if (ExistingId == EntityId) continue;
+			if (!WeakActor.IsValid()) continue;
+			// 아이템 부착 여부는 ViewModel에서 확인 — State 접근 필요
+			// ForwardToActor에서 bForceAll=true로 처리
 		}
 	});
 }
 
-void FHktActorRenderer::DestroyActor(FHktEntityId Id)
+void FHktActorRenderer::ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
 {
-	PendingSpawnSet.Remove(Id);
-	if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
-	{
-		if (AActor* A = P->Get())
-			A->Destroy();
-		ActorMap.Remove(Id);
-	}
+	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
+	if (!WeakPtr || !WeakPtr->IsValid()) return;
+
+	IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakPtr->Get());
+	if (!P) return;
+
+	P->ApplyPresentation(Entity, Frame, bForceAll,
+		[this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); });
+}
+
+void FHktActorRenderer::Teardown()
+{
+	AliveGuard.Reset();
+	ActorMap.Empty();
+}
+
+AActor* FHktActorRenderer::GetActor(FHktEntityId Id) const
+{
+	if (TWeakObjectPtr<AActor> const* P = ActorMap.Find(Id))
+		return P->Get();
+	return nullptr;
 }

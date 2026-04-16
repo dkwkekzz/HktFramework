@@ -288,6 +288,21 @@ void FHktVFXRenderer::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId Enti
 
 void FHktVFXRenderer::Sync(const FHktPresentationState& State)
 {
+	// Job 파이프라인에서 적재된 VFX 요청 소비
+	for (const FHktPendingVFXEvent& Evt : State.PendingVFXEvents)
+	{
+		PlayVFXAtLocation(Evt.Tag, Evt.Location);
+	}
+	for (const FHktPendingVFXAttach& Req : State.PendingVFXAttachments)
+	{
+		AttachVFXToEntity(Req.Tag, Req.EntityId, Req.Location);
+	}
+	for (const FHktPendingVFXDetach& Req : State.PendingVFXDetachments)
+	{
+		DetachVFXFromEntity(Req.Tag, Req.EntityId);
+	}
+
+	// 기존: 엔터티 추적 VFX 위치 업데이트 + 유효하지 않은 엔트리 정리
 	for (auto It = EntityVFXMap.CreateIterator(); It; ++It)
 	{
 		if (!It.Value().IsValid())

@@ -9,8 +9,8 @@ class ULocalPlayer;
 
 /**
  * Actor 렌더러.
- * 생명주기(스폰/파괴)는 ProcessDiff에서 직접 호출.
- * Sync에서는 ViewModel 변경점 전달 + Transform 적용만 담당.
+ * Sync에서 엔티티 생명주기(스폰/파괴) + ViewModel 변경점 전달 + Transform 적용을 모두 담당.
+ * State의 SpawnedThisFrame/RemovedThisFrame/DirtyThisFrame를 소비하여 동작.
  */
 class FHktActorRenderer : public IHktPresentationRenderer
 {
@@ -21,25 +21,16 @@ public:
 	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
-	bool HasActorOrPending(FHktEntityId Id) const { return ActorMap.Contains(Id) || PendingSpawnSet.Contains(Id); }
-
-	/** ProcessDiff에서 호출 — 엔티티 생명주기 직접 관리 */
-	void SpawnActor(const FHktEntityPresentation& Entity);
-	void DestroyActor(FHktEntityId Id);
-
-	/** 비동기 콜백이 CachedState를 참조하므로, Sync 전에도 State를 설정 */
-	void EnsureState(const FHktPresentationState& State) { CachedState = &State; }
 
 private:
+	/** ResolvedAssetPath가 설정된 엔티티를 동기 스폰 */
+	void SpawnActorFromResolvedAsset(const FHktEntityPresentation& Entity);
+
 	/** ViewModel 변경점을 Actor에 전달 */
 	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
-	TSet<FHktEntityId> PendingSpawnSet;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
-
-	/** Sync마다 갱신 — async callback에서 ViewModel 직접 조회용 */
-	const FHktPresentationState* CachedState = nullptr;
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
 	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);

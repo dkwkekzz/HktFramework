@@ -10,13 +10,16 @@
 #include "Renderers/HktCollisionDebugRenderer.h"
 #include "Renderers/HktTerrainDebugRenderer.h"
 #endif
+#include "Jobs/HktEntitySpawnJob.h"
+#include "Jobs/HktPropertyDeltaJob.h"
+#include "Jobs/HktTagDeltaJob.h"
+#include "Jobs/HktVFXPlayJob.h"
+#include "Jobs/HktAnimEventJob.h"
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
 #include "HktRuntimeTags.h"
-#include "HktAssetSubsystem.h"
-#include "DataAssets/HktActorVisualDataAsset.h"
-#include "Components/CapsuleComponent.h"
+// HktAssetSubsystem, DataAssets — 비동기 에셋 해석은 FHktEntitySpawnJob으로 이동
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
@@ -25,7 +28,6 @@
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_Prefix, "VFX");
 
 UHktPresentationSubsystem* UHktPresentationSubsystem::Get(APlayerController* PC)
 {
@@ -66,6 +68,7 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UHktPresentationSubsystem::Deinitialize()
 {
 	UnbindInteraction();
+	JobQueue.Flush();
 
 	for (IHktPresentationRenderer* R : Renderers)
 	{
@@ -209,35 +212,47 @@ static bool TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ)
 
 void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 {
+	JobQueue.Flush();
 	State.Clear();
 	State.BeginFrame(View.FrameNumber);
 	View.ForEachEntity([this, &View](FHktEntityId Id, int32)
 	{
 		State.AddEntity(*View.WorldState, Id);
+		// 비동기 에셋 해석 + RenderLocation 계산을 SpawnJob에 위임
+		FHktEntityPresentation* E = State.GetMutable(Id);
+		if (E && E->VisualElement.Get().IsValid())
+		{
+			JobQueue.AddJob(MakeShared<FHktEntitySpawnJob>(Id, E->VisualElement.Get(), GetLocalPlayer()));
+		}
 	});
-	ResolveAssetPathsForSpawned();
-	ComputeRenderLocations();
-	SpawnActorsForNewEntities();
+	// RenderLocation 계산은 SpawnJob::Execute에서 수행
+	// Actor 스폰은 ActorRenderer::Sync에서 ResolvedAssetPath 기반으로 처리
 }
 
 void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 {
 	State.BeginFrame(View.FrameNumber);
 
-	// --- Remove: State 갱신 + Actor 즉시 파괴 ---
+	// --- Remove: State 갱신 + 관련 Job 취소 (Actor 파괴는 Sync에서 처리) ---
 	int32 RemovedCount = 0;
 	View.ForEachRemoved([this, &RemovedCount](FHktEntityId Id)
 	{
+		JobQueue.CancelJobsForEntity(Id);
 		State.RemoveEntity(Id);
-		if (ActorRenderer) ActorRenderer->DestroyActor(Id);
 		++RemovedCount;
 	});
 
-	// --- Spawn: State 갱신 ---
+	// --- Spawn: State 즉시 갱신 + SpawnJob 생성 (비동기 에셋 해석) ---
 	int32 SpawnedCount = 0;
 	View.ForEachSpawned([this, &View, &SpawnedCount](const FHktEntityState& ES)
 	{
 		State.AddEntity(*View.WorldState, ES.EntityId);
+		// 비동기 에셋 해석 + RenderLocation 계산을 SpawnJob에 위임
+		FHktEntityPresentation* E = State.GetMutable(ES.EntityId);
+		if (E && E->VisualElement.Get().IsValid())
+		{
+			JobQueue.AddJob(MakeShared<FHktEntitySpawnJob>(ES.EntityId, E->VisualElement.Get(), GetLocalPlayer()));
+		}
 		++SpawnedCount;
 	});
 
@@ -245,81 +260,59 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	{
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("ProcessDiff Frame=%lld Spawned=%d Removed=%d"), View.FrameNumber, SpawnedCount, RemovedCount));
 	}
-	ResolveAssetPathsForSpawned();
 
-	View.ForEachDelta([this](FHktEntityId Id, uint16 PropId, int32 NewValue)
+	// --- Property 델타 배치 Job ---
+	if (View.PropertyDeltas && View.PropertyDeltas->Num() > 0)
 	{
-		State.ApplyDelta(Id, PropId, NewValue);
-	});
-	View.ForEachOwnerDelta([this](FHktEntityId Id, int64 NewOwnerUid)
-	{
-		State.ApplyOwnerDelta(Id, NewOwnerUid);
-	});
+		JobQueue.AddJob(MakeShared<FHktPropertyDeltaJob>(*View.PropertyDeltas));
+	}
 
-	// 태그 델타 처리
+	// --- Owner 델타 배치 Job ---
+	if (View.OwnerDeltas && View.OwnerDeltas->Num() > 0)
+	{
+		JobQueue.AddJob(MakeShared<FHktOwnerDeltaJob>(*View.OwnerDeltas));
+	}
+
+	// --- Tag 델타 Job (엔티티별 — VFX attach/detach 로직 때문) ---
 	View.ForEachTagDelta([this, &View](FHktEntityId Id, const FGameplayTagContainer& Tags, const FGameplayTagContainer& OldTags)
 	{
-		// Entity presentation에 태그 동기화 (AnimInstance 태그 기반 애니메이션용)
-		State.ApplyTagDelta(Id, Tags);
-
-		// VFX 태그 감지: 엔터티에 부착된 지속형 VFX 생명주기 관리
-		FGameplayTagContainer CurrentVFX = Tags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
-		FGameplayTagContainer OldVFX = OldTags.Filter(FGameplayTagContainer(Tag_VFX_Prefix));
-
-		// 새로 추가된 VFX 태그 → AttachVFXToEntity (엔터티 추적 + 사망 시 자동 정리)
-		for (const FGameplayTag& Tag : CurrentVFX)
+		FVector EntityPos = FVector::ZeroVector;
+		if (View.WorldState)
 		{
-			if (!OldVFX.HasTag(Tag) && VFXRenderer && View.WorldState)
-			{
-				FIntVector IntPos = View.WorldState->GetPosition(Id);
-				FVector Pos(IntPos.X, IntPos.Y, IntPos.Z);
-				VFXRenderer->AttachVFXToEntity(Tag, Id, Pos);
-			}
+			FIntVector IntPos = View.WorldState->GetPosition(Id);
+			EntityPos = FVector(IntPos.X, IntPos.Y, IntPos.Z);
 		}
-
-		// 제거된 VFX 태그 → DetachVFXFromEntity
-		for (const FGameplayTag& Tag : OldVFX)
-		{
-			if (!CurrentVFX.HasTag(Tag) && VFXRenderer)
-			{
-				VFXRenderer->DetachVFXFromEntity(Tag, Id);
-			}
-		}
+		JobQueue.AddJob(MakeShared<FHktTagDeltaJob>(Id, Tags, OldTags, EntityPos));
 	});
 
-	// Op_PlayVFX / Op_PlayVFXAttached 이벤트 처리: 일회성 VFX (자동 파괴)
+	// --- VFX 이벤트 Job (일회성) ---
 	View.ForEachVFXEvent([this](const FHktVFXEvent& Event)
 	{
-		if (VFXRenderer)
-		{
-			FVector Pos(Event.Position.X, Event.Position.Y, Event.Position.Z);
-			VFXRenderer->PlayVFXAtLocation(Event.Tag, Pos);
-		}
+		JobQueue.AddJob(MakeShared<FHktVFXPlayJob>(Event));
 	});
 
-	// Op_PlayAnim 이벤트 처리: 엔터티 PresentationState에 트리거 적재 → ActorRenderer가 소비
+	// --- Anim 이벤트 Job ---
 	View.ForEachAnimEvent([this](const FHktAnimEvent& Event)
 	{
-		FHktEntityPresentation* E = State.GetMutable(Event.EntityId);
-		if (E)
-		{
-			E->PendingAnimTriggers.Add(Event.Tag);
-			// DirtyThisFrame에 추가하여 ActorRenderer::Sync에서 ForwardToActor 호출 보장
-			State.DirtyThisFrame.AddUnique(Event.EntityId);
-		}
+		JobQueue.AddJob(MakeShared<FHktAnimEventJob>(Event));
 	});
 
+	// Dirty 엔티티 RenderLocation 재계산 (위치 변경 시)
+	// 스폰 엔티티의 RenderLocation은 SpawnJob::Execute에서 계산됨
 	ComputeRenderLocations();
-
-	// --- Actor 스폰: RenderLocation 계산 후 직접 호출 (VFX와 동일한 패턴) ---
-	SpawnActorsForNewEntities();
 }
 
 void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 {
 	if (!bInitialSyncDone) return;
 
-	if (bStateDirty)
+	// Phase 2: 비동기 작업 진행 (Pending/Preparing Job의 TickJob 호출)
+	JobQueue.TickJobs(DeltaSeconds);
+
+	// Phase 3: Ready Job 실행 → State 변경
+	bool bJobsExecuted = JobQueue.ExecuteReadyJobs(State);
+
+	if (bStateDirty || bJobsExecuted)
 	{
 		bStateDirty = false;
 		SyncRenderers();
@@ -390,78 +383,6 @@ void UHktPresentationSubsystem::ComputeRenderLocations()
 	{
 		if (FHktEntityPresentation* E = State.GetMutable(Id))
 			ComputeForEntity(*E);
-	}
-}
-
-void UHktPresentationSubsystem::ResolveAssetPathsForSpawned()
-{
-	UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
-	UHktAssetSubsystem* AssetSubsystem = World ? UHktAssetSubsystem::Get(World) : nullptr;
-	if (!AssetSubsystem) return;
-
-	for (FHktEntityId Id : State.SpawnedThisFrame)
-	{
-		FHktEntityPresentation* E = State.GetMutable(Id);
-		if (!E) continue;
-		FGameplayTag VisualTag = E->VisualElement.Get();
-		if (!VisualTag.IsValid()) continue;
-
-		// 비동기 로드 → 완료 시 ViewModel에 ResolvedAssetPath + CapsuleHalfHeight 설정
-		TWeakObjectPtr<UHktPresentationSubsystem> WeakThis(this);
-		AssetSubsystem->LoadAssetAsync(VisualTag, [WeakThis, this, Id](UHktTagDataAsset* Asset)
-		{
-			if (!Asset || !WeakThis.IsValid()) return;
-			FHktEntityPresentation* E = State.GetMutable(Id);
-			if (!E || !E->IsAlive()) return;
-			E->ResolvedAssetPath.Set(FSoftObjectPath(Asset), State.GetCurrentFrame());
-
-			// ActorVisualDataAsset인 경우 CDO에서 캡슐 반높이 추출
-			if (UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(Asset))
-			{
-				if (VisualAsset->ActorClass)
-				{
-					if (AActor* CDO = VisualAsset->ActorClass->GetDefaultObject<AActor>())
-					{
-						if (UCapsuleComponent* Capsule = CDO->FindComponentByClass<UCapsuleComponent>())
-						{
-							E->CapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();
-						}
-					}
-				}
-			}
-
-			// CapsuleHalfHeight 변경 후 RenderLocation 재계산
-			// 시뮬레이션 Z를 기본 사용, Z==0일 때만 UE5 ground trace fallback
-			FVector Loc = E->Location.Get();
-			if (Loc.Z == 0.0f)
-			{
-				UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
-				float GroundZ;
-				if (World && TraceGroundZ(World, Loc, GroundZ))
-				{
-					Loc.Z = GroundZ;
-				}
-			}
-			Loc.Z += E->CapsuleHalfHeight;
-			E->RenderLocation.Set(Loc, State.GetCurrentFrame());
-		});
-	}
-}
-
-void UHktPresentationSubsystem::SpawnActorsForNewEntities()
-{
-	if (!ActorRenderer) return;
-
-	// 비동기 에셋 로드 콜백이 동기 실행될 수 있으므로 (캐시 히트 시)
-	// SpawnActor 내부에서 CachedState를 참조하기 전에 미리 설정
-	ActorRenderer->EnsureState(State);
-
-	for (FHktEntityId Id : State.SpawnedThisFrame)
-	{
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
-		if (ActorRenderer->HasActorOrPending(Id)) continue;
-		ActorRenderer->SpawnActor(*E);
 	}
 }
 

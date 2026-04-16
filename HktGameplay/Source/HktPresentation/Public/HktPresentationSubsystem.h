@@ -8,6 +8,7 @@
 #include "HktWorldView.h"
 #include "HktPresentationState.h"
 #include "HktPresentationRenderer.h"
+#include "Jobs/HktJobQueue.h"
 #include "HktPresentationSubsystem.generated.h"
 
 class IHktPlayerInteractionInterface;
@@ -72,9 +73,7 @@ private:
 	void OnTargetChanged(FHktEntityId NewTarget);
 	void ProcessInitialSync(const FHktWorldView& View);
 	void ProcessDiff(const FHktWorldView& View);
-	void ResolveAssetPathsForSpawned();
 	void ComputeRenderLocations();
-	void SpawnActorsForNewEntities();
 	void SyncRenderers();
 
 	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */
@@ -82,6 +81,7 @@ private:
 
 	FDelegateHandle TickHandle;
 	FHktPresentationState State;
+	FHktJobQueue JobQueue;
 
 	/** IHktPresentationRenderer::Sync 루프에 참여하는 모든 렌더러 */
 	TArray<IHktPresentationRenderer*> Renderers;
