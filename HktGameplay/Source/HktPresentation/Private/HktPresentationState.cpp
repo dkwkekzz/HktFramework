@@ -276,6 +276,10 @@ void FHktPresentationState::ClearFrameChanges()
 	SpawnedThisFrame.Reset();
 	RemovedThisFrame.Reset();
 	DirtyThisFrame.Reset();
+	PendingSpawns.Reset();
+	PendingVFXEvents.Reset();
+	PendingVFXAttachments.Reset();
+	PendingVFXDetachments.Reset();
 }
 
 void FHktPresentationState::EnsureCapacity(FHktEntityId MaxId)
@@ -378,5 +382,9 @@ void FHktPresentationState::Clear()
 	SpawnedThisFrame.Reset();
 	RemovedThisFrame.Reset();
 	DirtyThisFrame.Reset();
+	PendingSpawns.Reset();
+	PendingVFXEvents.Reset();
+	PendingVFXAttachments.Reset();
+	PendingVFXDetachments.Reset();
 	CurrentFrame = 0;
 }

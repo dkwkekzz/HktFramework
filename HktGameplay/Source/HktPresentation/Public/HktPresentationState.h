@@ -30,8 +30,7 @@ struct FHktEntityPresentation
 	// --- Transform ---
 	THktVisualField<FVector> Location;
 	THktVisualField<FRotator> Rotation;
-	THktVisualField<FVector> RenderLocation;       // Location + 지면 트레이스 + 캡슐 오프셋 적용된 최종 렌더 위치
-	float CapsuleHalfHeight = 0.f;                 // DataAsset CDO에서 해결. 렌더 위치 계산에 사용
+	THktVisualField<FVector> RenderLocation;       // 최종 렌더 위치 (Location과 동일)
 
 	// --- Physics (Debug) ---
 	THktVisualField<float> CollisionRadius;
@@ -124,6 +123,12 @@ private:
 	void ComputeTeamColor(int32 TeamIndex, int64 Frame);
 };
 
+/** ProcessDiff에서 적재 → Processor에서 소비하는 pending 구조체 */
+struct FHktPendingSpawn      { FHktEntityId EntityId; FGameplayTag VisualTag; };
+struct FHktPendingVFXEvent   { FGameplayTag Tag; FVector Location; };
+struct FHktPendingVFXAttach  { FGameplayTag Tag; FHktEntityId EntityId; FVector Location; };
+struct FHktPendingVFXDetach  { FGameplayTag Tag; FHktEntityId EntityId; };
+
 /** 전체 Presentation 상태 (렌더러가 그대로 읽어서 그리는 ViewModel) */
 struct HKTPRESENTATION_API FHktPresentationState
 {
@@ -134,6 +139,12 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TArray<FHktEntityId> SpawnedThisFrame;
 	TArray<FHktEntityId> RemovedThisFrame;
 	TArray<FHktEntityId> DirtyThisFrame;
+
+	/** ProcessDiff에서 적재 → Processor Tick/Sync에서 소비 후 ClearFrameChanges에서 정리 */
+	TArray<FHktPendingSpawn>     PendingSpawns;
+	TArray<FHktPendingVFXEvent>  PendingVFXEvents;
+	TArray<FHktPendingVFXAttach> PendingVFXAttachments;
+	TArray<FHktPendingVFXDetach> PendingVFXDetachments;
 
 	void BeginFrame(int64 Frame);
 	void ClearFrameChanges();

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "HktPresentationRenderer.h"
+#include "HktPresentationProcessor.h"
 #include "HktPresentationState.h"
 
 class ULocalPlayer;
@@ -19,10 +19,10 @@ class ULocalPlayer;
  *   hkt.Debug.TerrainVoxelRadius      복셀 반경 (기본 3)
  *   hkt.Debug.ShowTerrainVoxelLabels  0=끄기, 1=복셀 좌표 표시
  */
-class FHktTerrainDebugRenderer : public IHktPresentationRenderer
+class FHktTerrainDebugProcessor : public IHktPresentationProcessor
 {
 public:
-	explicit FHktTerrainDebugRenderer(ULocalPlayer* InLP);
+	explicit FHktTerrainDebugProcessor(ULocalPlayer* InLP);
 
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;

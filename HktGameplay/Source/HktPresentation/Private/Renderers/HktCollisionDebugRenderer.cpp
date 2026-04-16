@@ -80,9 +80,8 @@ void FHktCollisionDebugRenderer::DrawCollisionCapsules(UWorld* World, const FHkt
 		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
 		const FColor Color = GetCollisionLayerColor(Layer);
 
-		// 시뮬레이션 위치 (발 기준) — RenderLocation은 CapsuleHalfHeight 오프셋이 적용되어 있으므로
-		// 시뮬레이션 발 위치를 기준으로 캡슐 중심을 계산
-		const FVector SimPos = Entity.Location.Get();  // 시뮬레이션 발 위치
+		// 시뮬레이션 위치 (발 기준) — 캡슐 중심을 HalfHeight만큼 올림
+		const FVector SimPos = Entity.Location.Get();
 		const FVector CapsuleCenter(SimPos.X, SimPos.Y, SimPos.Z + HalfHeight);
 
 		// UE5 DrawDebugCapsule: Center, HalfHeight, Radius, Rotation

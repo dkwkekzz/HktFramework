@@ -16,7 +16,7 @@ class UHktPresentationSubsystem;
 
 /**
  * 인게임 맵 전용 HUD.
- * IHktPresentationRenderer를 구현하여 PresentationSubsystem으로부터 Sync를 수신합니다.
+ * IHktPresentationProcessor를 구현하여 PresentationSubsystem으로부터 Sync를 수신합니다.
  * 카메라 이동 등 클라이언트 변경 시에도 엔티티 위젯 위치가 실시간 반영됩니다.
  */
 UCLASS()
@@ -28,7 +28,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// --- IHktPresentationRenderer ---
+	// --- IHktPresentationProcessor ---
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
 	virtual bool NeedsCameraSync() const override { return true; }

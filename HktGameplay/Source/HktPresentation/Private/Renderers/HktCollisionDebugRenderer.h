@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "HktPresentationRenderer.h"
+#include "HktPresentationProcessor.h"
 #include "HktPresentationState.h"
 
 class ULocalPlayer;
@@ -17,10 +17,10 @@ class ULocalPlayer;
  *   hkt.Debug.ShowCollision       0=끄기, 1=캡슐, 2=캡슐+판정 범위, 3=캡슐+판정 범위+복셀
  *   hkt.Debug.ShowCollisionLabels 0=끄기, 1=엔티티 ID/파라미터 표시
  */
-class FHktCollisionDebugRenderer : public IHktPresentationRenderer
+class FHktCollisionDebugProcessor : public IHktPresentationProcessor
 {
 public:
-	explicit FHktCollisionDebugRenderer(ULocalPlayer* InLP);
+	explicit FHktCollisionDebugProcessor(ULocalPlayer* InLP);
 
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;

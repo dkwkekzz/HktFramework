@@ -2,44 +2,50 @@
 
 #pragma once
 
-#include "HktPresentationRenderer.h"
+#include "HktPresentationProcessor.h"
 #include "HktPresentationState.h"
+#include "UObject/SoftObjectPath.h"
 
 class ULocalPlayer;
 
 /**
- * Actor 렌더러.
- * 생명주기(스폰/파괴)는 ProcessDiff에서 직접 호출.
- * Sync에서는 ViewModel 변경점 전달 + Transform 적용만 담당.
+ * Actor Processor.
+ * Tick: PendingSpawns 소비 → 비동기 에셋 로드 → ResolvedAssetPath/RenderLocation 설정.
+ * Sync: Actor 생명주기(스폰/파괴) + ViewModel 전달 + Transform 적용.
  */
-class FHktActorRenderer : public IHktPresentationRenderer
+class FHktActorProcessor : public IHktPresentationProcessor
 {
 public:
-	explicit FHktActorRenderer(ULocalPlayer* InLP);
+	explicit FHktActorProcessor(ULocalPlayer* InLP);
+
+	virtual void Tick(FHktPresentationState& State, float DeltaTime) override;
 	virtual void Sync(const FHktPresentationState& State) override;
 	virtual void Teardown() override;
-	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty(); }
+	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty() || !PendingLoads.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
-	bool HasActorOrPending(FHktEntityId Id) const { return ActorMap.Contains(Id) || PendingSpawnSet.Contains(Id); }
-
-	/** ProcessDiff에서 호출 — 엔티티 생명주기 직접 관리 */
-	void SpawnActor(const FHktEntityPresentation& Entity);
-	void DestroyActor(FHktEntityId Id);
-
-	/** 비동기 콜백이 CachedState를 참조하므로, Sync 전에도 State를 설정 */
-	void EnsureState(const FHktPresentationState& State) { CachedState = &State; }
 
 private:
+	/** 비동기 에셋 로드 추적 (힙 할당 없이 TMap 인라인) */
+	struct FPendingAssetLoad
+	{
+		FGameplayTag VisualTag;
+		bool bResolved = false;
+		FSoftObjectPath ResolvedPath;
+	};
+
+	/** ResolvedAssetPath가 설정된 엔티티를 액터로 스폰 */
+	void SpawnActorFromResolvedAsset(const FHktEntityPresentation& Entity);
+
 	/** ViewModel 변경점을 Actor에 전달 */
 	void ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
 
 	TMap<FHktEntityId, TWeakObjectPtr<AActor>> ActorMap;
-	TSet<FHktEntityId> PendingSpawnSet;
+	TMap<FHktEntityId, FPendingAssetLoad> PendingLoads;
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 
-	/** Sync마다 갱신 — async callback에서 ViewModel 직접 조회용 */
-	const FHktPresentationState* CachedState = nullptr;
+	/** 스폰 콜백 완료 후 최초 ForwardToActor(bForceAll=true) 대기 */
+	TSet<FHktEntityId> PendingInitialForward;
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
 	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);
