@@ -14,8 +14,6 @@ class IHktPlayerInteractionInterface;
 class FHktActorRenderer;
 class FHktMassEntityRenderer;
 class FHktVFXRenderer;
-class FHktProjectionPipeline;
-class FHktEffectExecutor;
 #if ENABLE_HKT_INSIGHTS
 class FHktCollisionDebugRenderer;
 class FHktTerrainDebugRenderer;
@@ -72,6 +70,11 @@ private:
 	void OnIntentSubmitted(const FHktRuntimeEvent& Event);
 	void OnSubjectChanged(FHktEntityId NewSubject);
 	void OnTargetChanged(FHktEntityId NewTarget);
+	void ProcessInitialSync(const FHktWorldView& View);
+	void ProcessDiff(const FHktWorldView& View);
+	void ResolveAssetPathsForSpawned();
+	void ComputeRenderLocations();
+	void SpawnActorsForNewEntities();
 	void SyncRenderers();
 
 	/** State 변경 시 전체 Sync, 아니면 NeedsTick인 렌더러만 Sync */
@@ -79,11 +82,6 @@ private:
 
 	FDelegateHandle TickHandle;
 	FHktPresentationState State;
-
-	/** Projection 파이프라인: ChangeSet → Projection 순차 실행 → EffectsPlan */
-	TUniquePtr<FHktProjectionPipeline> Pipeline;
-	/** Effect 실행기: EffectsPlan의 UE5 side effect 일괄 실행 */
-	TUniquePtr<FHktEffectExecutor> Executor;
 
 	/** IHktPresentationRenderer::Sync 루프에 참여하는 모든 렌더러 */
 	TArray<IHktPresentationRenderer*> Renderers;
