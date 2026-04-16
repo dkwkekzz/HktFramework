@@ -39,12 +39,6 @@ void FHktEffectExecutor::Execute(const FHktEffectsPlan& Plan, FHktPresentationSt
 		case EHktEffectType::ComputeRenderLocation:
 			ExecuteComputeRenderLocation(Effect, State);
 			break;
-		case EHktEffectType::SyncPresentation:
-			ExecuteSyncPresentation(Effect, State);
-			break;
-		case EHktEffectType::SyncPresentationDelta:
-			ExecuteSyncPresentationDelta(Effect, State);
-			break;
 		case EHktEffectType::PlayVFXAtLocation:
 			ExecutePlayVFX(Effect);
 			break;
@@ -156,21 +150,6 @@ void FHktEffectExecutor::ExecuteComputeRenderLocation(const FHktEffect& Effect, 
 	}
 	Loc.Z += E->CapsuleHalfHeight;
 	E->RenderLocation.Set(Loc, State.GetCurrentFrame());
-}
-
-// --------------------------------------------------------------------------- SyncPresentation (bForceAll=true)
-void FHktEffectExecutor::ExecuteSyncPresentation(const FHktEffect& Effect, const FHktPresentationState& State)
-{
-	// SpawnActor 콜백 내부에서 ForwardToActor(bForceAll=true)가 이미 호출됨.
-	// 이 Effect는 명시적으로 재동기화가 필요한 경우에 사용 (현재는 SpawnActor에 통합).
-}
-
-// --------------------------------------------------------------------------- SyncPresentationDelta
-void FHktEffectExecutor::ExecuteSyncPresentationDelta(const FHktEffect& Effect, const FHktPresentationState& State)
-{
-	// ActorRenderer::Sync()에서 DirtyThisFrame 순회 시 처리됨.
-	// Projection이 DirtyThisFrame에 엔티티를 추가하면, 기존 Sync 루프에서 자동 소비.
-	// 이 Effect는 추가 동기화가 필요한 경우를 위한 확장 포인트.
 }
 
 // --------------------------------------------------------------------------- VFX

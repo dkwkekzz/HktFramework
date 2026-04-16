@@ -22,11 +22,13 @@ class UHktAssetSubsystem;
  *  SpawnActor            ← SpawnActorsForNewEntities() → ActorRenderer->SpawnActor()
  *  DestroyActor          ← ProcessDiff() → ActorRenderer->DestroyActor()
  *  ComputeRenderLocation ← ComputeRenderLocations()
- *  SyncPresentation      ← ActorRenderer->ForwardToActor(bForceAll=true)
- *  SyncPresentationDelta ← ActorRenderer->Sync() → ForwardToActor(bForceAll=false)
  *  PlayVFXAtLocation     ← VFXRenderer->PlayVFXAtLocation()
  *  AttachVFXToEntity     ← VFXRenderer->AttachVFXToEntity()
  *  DetachVFXFromEntity   ← VFXRenderer->DetachVFXFromEntity()
+ *
+ * ViewModel → Actor 동기화(ForwardToActor)는 Effect가 아닌
+ * 기존 렌더러 Sync 루프(OnTick → SyncRenderers → ActorRenderer::Sync)에서 처리.
+ * DirtyThisFrame 기반으로 자동 소비되므로 별도 Effect 불필요.
  */
 class FHktEffectExecutor
 {
@@ -44,8 +46,6 @@ private:
 	void ExecuteSpawnActor(const FHktEffect& Effect, const FHktPresentationState& State);
 	void ExecuteDestroyActor(const FHktEffect& Effect);
 	void ExecuteComputeRenderLocation(const FHktEffect& Effect, FHktPresentationState& State);
-	void ExecuteSyncPresentation(const FHktEffect& Effect, const FHktPresentationState& State);
-	void ExecuteSyncPresentationDelta(const FHktEffect& Effect, const FHktPresentationState& State);
 	void ExecutePlayVFX(const FHktEffect& Effect);
 	void ExecuteAttachVFX(const FHktEffect& Effect);
 	void ExecuteDetachVFX(const FHktEffect& Effect);

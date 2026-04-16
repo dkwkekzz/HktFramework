@@ -24,10 +24,6 @@ enum class EHktEffectType : uint8
 	// --- 렌더 위치 ---
 	ComputeRenderLocation,      // 지면 트레이스 + 캡슐 오프셋 → RenderLocation 갱신
 
-	// --- Presentation 전달 ---
-	SyncPresentation,           // ViewModel → Actor 전체 동기화 (bForceAll=true, 스폰 후)
-	SyncPresentationDelta,      // ViewModel → Actor 증분 동기화 (dirty 엔티티)
-
 	// --- VFX ---
 	PlayVFXAtLocation,          // 일회성 VFX 재생 (자동 파괴)
 	AttachVFXToEntity,          // 엔티티 추적 VFX 부착 (지속형)
@@ -44,8 +40,6 @@ enum class EHktEffectType : uint8
  *  SpawnActor:            EntityId
  *  DestroyActor:          EntityId
  *  ComputeRenderLocation: EntityId
- *  SyncPresentation:      EntityId
- *  SyncPresentationDelta: EntityId
  *  PlayVFXAtLocation:     Tag, Location
  *  AttachVFXToEntity:     Tag, EntityId, Location
  *  DetachVFXFromEntity:   Tag, EntityId
