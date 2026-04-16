@@ -33,6 +33,7 @@ public:
 	virtual EHktJobStatus GetStatus() const override { return Status; }
 	virtual FHktEntityId GetTargetEntityId() const override { return EntityId; }
 	virtual void Cancel() override { Status = EHktJobStatus::Cancelled; }
+	virtual const TCHAR* GetJobName() const override { return TEXT("AnimEvent"); }
 
 private:
 	FGameplayTag Tag;

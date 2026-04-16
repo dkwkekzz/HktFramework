@@ -27,6 +27,7 @@ public:
 	virtual EHktJobStatus GetStatus() const override { return Status; }
 	virtual FHktEntityId GetTargetEntityId() const override { return InvalidEntityId; }
 	virtual void Cancel() override { Status = EHktJobStatus::Cancelled; }
+	virtual const TCHAR* GetJobName() const override { return TEXT("VFXPlay"); }
 
 private:
 	FGameplayTag Tag;

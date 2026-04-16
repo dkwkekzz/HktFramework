@@ -29,6 +29,7 @@ public:
 	virtual EHktJobStatus GetStatus() const override { return Status; }
 	virtual FHktEntityId GetTargetEntityId() const override { return InvalidEntityId; }
 	virtual void Cancel() override { Status = EHktJobStatus::Cancelled; }
+	virtual const TCHAR* GetJobName() const override { return TEXT("PropertyDelta"); }
 
 private:
 	TArray<FHktPropertyDelta> Deltas;
@@ -58,6 +59,7 @@ public:
 	virtual EHktJobStatus GetStatus() const override { return Status; }
 	virtual FHktEntityId GetTargetEntityId() const override { return InvalidEntityId; }
 	virtual void Cancel() override { Status = EHktJobStatus::Cancelled; }
+	virtual const TCHAR* GetJobName() const override { return TEXT("OwnerDelta"); }
 
 private:
 	TArray<FHktOwnerDelta> Deltas;

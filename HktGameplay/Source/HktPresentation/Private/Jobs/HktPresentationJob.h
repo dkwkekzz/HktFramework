@@ -39,4 +39,7 @@ public:
 
 	/** 부모 엔티티 파괴 등으로 안전하게 중단 */
 	virtual void Cancel() = 0;
+
+	/** 로그용 Job 타입 이름 */
+	virtual const TCHAR* GetJobName() const = 0;
 };

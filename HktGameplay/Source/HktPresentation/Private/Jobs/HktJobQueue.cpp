@@ -2,6 +2,7 @@
 
 #include "Jobs/HktJobQueue.h"
 #include "HktPresentationState.h"
+#include "HktCoreEventLog.h"
 
 void FHktJobQueue::AddJob(TSharedPtr<IHktPresentationJob> Job)
 {
@@ -15,6 +16,10 @@ void FHktJobQueue::AddJob(TSharedPtr<IHktPresentationJob> Job)
 	{
 		EntityJobIndex.Add(EntityId, Index);
 	}
+
+	// Job 생성 로그
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("Job 생성: %s"), Job->GetJobName()), EntityId);
 }
 
 void FHktJobQueue::CancelJobsForEntity(FHktEntityId Id)
@@ -29,6 +34,8 @@ void FHktJobQueue::CancelJobsForEntity(FHktEntityId Id)
 			EHktJobStatus S = Jobs[Idx]->GetStatus();
 			if (S == EHktJobStatus::Pending || S == EHktJobStatus::Preparing || S == EHktJobStatus::Ready)
 			{
+				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+					FString::Printf(TEXT("Job 취소: %s"), Jobs[Idx]->GetJobName()), Id);
 				Jobs[Idx]->Cancel();
 			}
 		}
@@ -58,6 +65,8 @@ bool FHktJobQueue::ExecuteReadyJobs(FHktPresentationState& State)
 		if (Job->GetStatus() == EHktJobStatus::Ready)
 		{
 			Job->Execute(State);
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("Job 완료: %s"), Job->GetJobName()), Job->GetTargetEntityId());
 			bAnyExecuted = true;
 		}
 	}
@@ -70,6 +79,7 @@ bool FHktJobQueue::ExecuteReadyJobs(FHktPresentationState& State)
 
 void FHktJobQueue::Flush()
 {
+	const int32 Count = Jobs.Num();
 	for (const TSharedPtr<IHktPresentationJob>& Job : Jobs)
 	{
 		if (!Job) continue;
@@ -81,6 +91,12 @@ void FHktJobQueue::Flush()
 	}
 	Jobs.Empty();
 	EntityJobIndex.Empty();
+
+	if (Count > 0)
+	{
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+			FString::Printf(TEXT("JobQueue Flush: %d개 Job 전체 취소"), Count));
+	}
 }
 
 void FHktJobQueue::Compact()
