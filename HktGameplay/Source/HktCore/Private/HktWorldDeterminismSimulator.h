@@ -52,7 +52,6 @@ private:
     TArray<FHktPendingEvent> PendingExternalEvents;
     TArray<FHktPendingEvent> GeneratedMoveEndEvents;
     TArray<FHktPendingEvent> GeneratedGroundedEvents;
-    TArray<FHktEntityId> FrameRemovedEntities;
     TArray<FHktEvent> DispatchedEvents;
 
     // Movement → Physics 사이 PreMove 스크래치 (slot 인덱스 기반).

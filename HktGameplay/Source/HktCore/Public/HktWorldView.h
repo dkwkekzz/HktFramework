@@ -21,7 +21,7 @@ struct HKTCORE_API FHktWorldView
 
 	// === 변경점 (Diff로부터, 없으면 nullptr) ===
 	const TArray<FHktEntityState>* SpawnedEntities = nullptr;
-	const TArray<FHktEntityId>* RemovedEntities = nullptr;
+	const TArray<FHktEntityState>* RemovedEntities = nullptr;
 	const TArray<FHktPropertyDelta>* PropertyDeltas = nullptr;
 	const TArray<FHktTagDelta>* TagDeltas = nullptr;
 	const TArray<FHktOwnerDelta>* OwnerDeltas = nullptr;
@@ -71,8 +71,8 @@ struct HKTCORE_API FHktWorldView
 	void ForEachRemoved(F&& Cb) const
 	{
 		if (RemovedEntities)
-			for (FHktEntityId Id : *RemovedEntities)
-				Cb(Id);
+			for (const FHktEntityState& S : *RemovedEntities)
+				Cb(S.EntityId);
 	}
 
 	template<typename F>

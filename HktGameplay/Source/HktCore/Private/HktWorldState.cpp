@@ -281,14 +281,14 @@ void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
 {
     HKT_EVENT_LOG(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("UndoDiff Frame=%lld Spawned=%d Removed=%d Props=%d"),
-            Diff.FrameNumber, Diff.SpawnedEntities.Num(), Diff.RemovedEntityStates.Num(), Diff.PropertyDeltas.Num()));
+            Diff.FrameNumber, Diff.SpawnedEntities.Num(), Diff.RemovedEntities.Num(), Diff.PropertyDeltas.Num()));
     for (const FHktEntityState& S : Diff.SpawnedEntities)
         RemoveEntity(S.EntityId);
 
     if (Diff.PrevNextEntityId != InvalidEntityId)
         NextEntityId = Diff.PrevNextEntityId;
 
-    for (const FHktEntityState& S : Diff.RemovedEntityStates)
+    for (const FHktEntityState& S : Diff.RemovedEntities)
         ImportEntityStateWithId(S);
 
     for (const FHktPropertyDelta& D : Diff.PropertyDeltas)

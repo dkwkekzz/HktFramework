@@ -36,7 +36,6 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     PendingExternalEvents.Reserve(HktLimits::MaxPendingEvents);
     GeneratedMoveEndEvents.Reserve(HktLimits::MaxPendingEvents);
     GeneratedGroundedEvents.Reserve(HktLimits::MaxPendingEvents);
-    FrameRemovedEntities.Reserve(256);
     DispatchedEvents.Reserve(16);
     FramePreMovePositions.Reserve(HktLimits::MaxEntities);
     EntityArrangeSystem.ScratchRemoveList.Reserve(HktLimits::MaxEntities);
@@ -60,7 +59,6 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     VMProxy.ResetDirtyIndices(WorldState);
 
     EntityArrangeSystem.Process(WorldState, Event.RemovedOwnerIds);
-    FrameRemovedEntities = EntityArrangeSystem.ScratchRemoveList;
 
     // Terrain: 엔티티 위치 + 이벤트 Location 기반 청크 로드/언로드
     if (TerrainGenerator)
@@ -189,8 +187,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     FHktSimulationDiff Diff;
     Diff.FrameNumber = InEvent.FrameNumber;
     Diff.PrevNextEntityId = PrevNext;
-    Diff.RemovedEntities = MoveTemp(FrameRemovedEntities);
-    Diff.RemovedEntityStates = MoveTemp(PreRemoveStates);
+    Diff.RemovedEntities = MoveTemp(PreRemoveStates);
 
     for (FHktEntityId Id = PrevNext; Id < WorldState.NextEntityId; ++Id)
         if (WorldState.IsValidEntity(Id))

@@ -99,7 +99,6 @@ void UHktProxySimulatorComponent::AccumulateDiff(FHktSimulationDiff& InDiff)
     PendingDiff.FrameNumber = InDiff.FrameNumber;
     PendingDiff.SpawnedEntities.Append(MoveTemp(InDiff.SpawnedEntities));
     PendingDiff.RemovedEntities.Append(MoveTemp(InDiff.RemovedEntities));
-    PendingDiff.RemovedEntityStates.Append(MoveTemp(InDiff.RemovedEntityStates));
     PendingDiff.PropertyDeltas.Append(MoveTemp(InDiff.PropertyDeltas));
     PendingDiff.TagDeltas.Append(MoveTemp(InDiff.TagDeltas));
     PendingDiff.OwnerDeltas.Append(MoveTemp(InDiff.OwnerDeltas));

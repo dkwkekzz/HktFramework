@@ -282,11 +282,10 @@ struct HKTCORE_API FHktVoxelDelta
 struct HKTCORE_API FHktSimulationDiff
 {
     int64 FrameNumber = 0;
-    TArray<FHktEntityId> RemovedEntities;
     TArray<FHktPropertyDelta> PropertyDeltas;
     FHktEntityId PrevNextEntityId = InvalidEntityId;  // 이 프레임 실행 전 NextEntityId (Undo 시 복원)
     TArray<FHktEntityState> SpawnedEntities;
-    TArray<FHktEntityState> RemovedEntityStates;  // 제거된 엔티티 전체 상태 (UndoDiff 복원용)
+    TArray<FHktEntityState> RemovedEntities;  // 제거된 엔티티 전체 상태 (UndoDiff 복원용)
     TArray<FHktTagDelta> TagDeltas;
     TArray<FHktOwnerDelta> OwnerDeltas;
     TArray<FHktVFXEvent> VFXEvents;
@@ -295,9 +294,9 @@ struct HKTCORE_API FHktSimulationDiff
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << FrameNumber << RemovedEntities << PropertyDeltas << PrevNextEntityId;
+        Ar << FrameNumber << PropertyDeltas << PrevNextEntityId;
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, SpawnedEntities, Map);
-        bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntityStates, Map);
+        bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntities, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, TagDeltas, Map);
         Ar << OwnerDeltas << VFXEvents << AnimEvents << VoxelDeltas;
         return true;
