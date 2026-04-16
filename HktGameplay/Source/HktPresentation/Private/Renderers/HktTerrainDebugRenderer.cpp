@@ -152,12 +152,8 @@ void FHktTerrainDebugRenderer::DrawTerrainVoxels(UWorld* World, const FHktPresen
 	const FHktEntityPresentation* Entity = State.Get(SubjectId);
 	if (!Entity) return;
 
-	// RenderLocation은 CapsuleHalfHeight가 더해진 렌더용 위치.
-	// 시뮬레이션(MovementSystem/PhysicsSystem)은 raw PosZ를 사용하므로
-	// CapsuleHalfHeight를 빼서 실제 충돌 판정 위치와 일치시킨다.
-	const FVector RenderPos = Entity->RenderLocation.Get().IsZero()
+	const FVector EntityPos = Entity->RenderLocation.Get().IsZero()
 		? Entity->Location.Get() : Entity->RenderLocation.Get();
-	const FVector EntityPos(RenderPos.X, RenderPos.Y, RenderPos.Z - Entity->CapsuleHalfHeight);
 	const float ColRadius = FMath::Max(Entity->CollisionRadius.Get(), 30.0f);
 
 	// AHktVoxelTerrainActor 탐색

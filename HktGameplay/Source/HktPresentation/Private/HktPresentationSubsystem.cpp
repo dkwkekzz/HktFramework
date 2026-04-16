@@ -193,23 +193,6 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 	}
 }
 
-static bool TraceGroundZ(UWorld* World, const FVector& Pos, float& OutZ)
-{
-	if (!World) return false;
-	constexpr float TraceHalfHeight = 500.0f;
-	const FVector Start(Pos.X, Pos.Y, Pos.Z + TraceHalfHeight);
-	const FVector End(Pos.X, Pos.Y, Pos.Z - TraceHalfHeight);
-	FHitResult Hit;
-	FCollisionQueryParams Params;
-	Params.bTraceComplex = false;
-	if (World->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, Params))
-	{
-		OutZ = Hit.ImpactPoint.Z;
-		return true;
-	}
-	return false;
-}
-
 void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 {
 	JobQueue.Flush();
@@ -297,9 +280,6 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		JobQueue.AddJob(MakeShared<FHktAnimEventJob>(Event));
 	});
 
-	// Dirty 엔티티 RenderLocation 재계산 (위치 변경 시)
-	// 스폰 엔티티의 RenderLocation은 SpawnJob::Execute에서 계산됨
-	ComputeRenderLocations();
 }
 
 void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
@@ -343,46 +323,6 @@ void UHktPresentationSubsystem::NotifyCameraViewChanged()
 		{
 			R->OnCameraViewChanged(State);
 		}
-	}
-}
-
-void UHktPresentationSubsystem::ComputeRenderLocations()
-{
-	UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
-	const int64 Frame = State.GetCurrentFrame();
-
-	auto ComputeForEntity = [World, Frame](FHktEntityPresentation& E)
-	{
-		if (!E.Location.IsDirty(Frame) && !E.IsSpawnedAt(Frame)) return;
-
-		FVector Loc = E.Location.Get();
-
-		// 시뮬레이션의 Z를 그대로 사용 (MovementSystem/PhysicsSystem이 지형 스냅 담당)
-		// 시뮬레이션에 지형이 없는 경우에만 UE5 ground trace로 폴백
-		if (Loc.Z == 0.0f)
-		{
-			float GroundZ;
-			if (World && TraceGroundZ(World, Loc, GroundZ))
-			{
-				Loc.Z = GroundZ;
-			}
-		}
-		Loc.Z += E.CapsuleHalfHeight;
-		E.RenderLocation.Set(Loc, Frame);
-	};
-
-	// 신규 스폰 엔티티
-	for (FHktEntityId Id : State.SpawnedThisFrame)
-	{
-		if (FHktEntityPresentation* E = State.GetMutable(Id))
-			ComputeForEntity(*E);
-	}
-
-	// 위치 변경된 엔티티
-	for (FHktEntityId Id : State.DirtyThisFrame)
-	{
-		if (FHktEntityPresentation* E = State.GetMutable(Id))
-			ComputeForEntity(*E);
 	}
 }
 

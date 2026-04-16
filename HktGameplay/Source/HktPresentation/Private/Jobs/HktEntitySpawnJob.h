@@ -14,7 +14,7 @@ class UHktTagDataAsset;
  * 엔티티 스폰 시 비동기 에셋 해석 + RenderLocation 계산 Job.
  *
  * State.AddEntity()는 ProcessDiff에서 즉시 호출되며,
- * 이 Job은 VisualElement 비동기 로드 → ResolvedAssetPath/CapsuleHalfHeight/RenderLocation 설정만 담당.
+ * 이 Job은 VisualElement 비동기 로드 → ResolvedAssetPath 설정만 담당.
  *
  * 상태 전이: Pending → Preparing (비동기 로드 중) → Ready → Execute → Completed
  */
@@ -41,5 +41,4 @@ private:
 	/** 비동기 로드 결과 (콜백에서 설정) */
 	bool bAssetResolved = false;
 	FSoftObjectPath ResolvedAssetPath;
-	float CapsuleHalfHeight = 0.f;
 };
