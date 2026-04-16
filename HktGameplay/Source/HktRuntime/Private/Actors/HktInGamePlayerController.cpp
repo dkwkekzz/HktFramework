@@ -451,7 +451,7 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
         View.FrameNumber = Diff.FrameNumber;
         View.bIsInitialSync = false;
         View.SpawnedEntities = &Diff.SpawnedEntities;
-        View.RemovedEntities = &Diff.RemovedEntities;
+        View.RemovedEntities = &Diff.RemovedEntityStates;
         View.PropertyDeltas = &Diff.PropertyDeltas;
         View.TagDeltas = &Diff.TagDeltas;
         View.OwnerDeltas = &Diff.OwnerDeltas;

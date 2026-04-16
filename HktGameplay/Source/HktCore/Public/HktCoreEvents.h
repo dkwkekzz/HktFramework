@@ -282,7 +282,6 @@ struct HKTCORE_API FHktVoxelDelta
 struct HKTCORE_API FHktSimulationDiff
 {
     int64 FrameNumber = 0;
-    TArray<FHktEntityId> RemovedEntities;
     TArray<FHktPropertyDelta> PropertyDeltas;
     FHktEntityId PrevNextEntityId = InvalidEntityId;  // 이 프레임 실행 전 NextEntityId (Undo 시 복원)
     TArray<FHktEntityState> SpawnedEntities;
@@ -295,7 +294,7 @@ struct HKTCORE_API FHktSimulationDiff
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << FrameNumber << RemovedEntities << PropertyDeltas << PrevNextEntityId;
+        Ar << FrameNumber << PropertyDeltas << PrevNextEntityId;
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, SpawnedEntities, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, RemovedEntityStates, Map);
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, TagDeltas, Map);
