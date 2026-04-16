@@ -98,7 +98,7 @@ void UHktProxySimulatorComponent::AccumulateDiff(FHktSimulationDiff& InDiff)
 {
     PendingDiff.FrameNumber = InDiff.FrameNumber;
     PendingDiff.SpawnedEntities.Append(MoveTemp(InDiff.SpawnedEntities));
-    PendingDiff.RemovedEntityStates.Append(MoveTemp(InDiff.RemovedEntityStates));
+    PendingDiff.RemovedEntities.Append(MoveTemp(InDiff.RemovedEntities));
     PendingDiff.PropertyDeltas.Append(MoveTemp(InDiff.PropertyDeltas));
     PendingDiff.TagDeltas.Append(MoveTemp(InDiff.TagDeltas));
     PendingDiff.OwnerDeltas.Append(MoveTemp(InDiff.OwnerDeltas));
@@ -116,7 +116,7 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
 
     // 실제 변경이 있는 Diff만 히스토리에 기록 (역적용 롤백용)
     const bool bHasChanges = Diff.SpawnedEntities.Num() > 0
-        || Diff.RemovedEntityStates.Num() > 0
+        || Diff.RemovedEntities.Num() > 0
         || Diff.PropertyDeltas.Num() > 0
         || Diff.TagDeltas.Num() > 0
         || Diff.OwnerDeltas.Num() > 0

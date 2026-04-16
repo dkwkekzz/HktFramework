@@ -325,8 +325,8 @@ HktCore/
         이번 프레임에 생성된 엔티티 전체 상태
         UndoDiff 시 → RemoveEntity()로 제거
 
-    RemovedEntities / RemovedEntityStates:
-        제거된 엔티티 ID 목록 + 제거 전 전체 상태 스냅샷
+    RemovedEntities (TArray<FHktEntityState>):
+        제거된 엔티티 전체 상태 스냅샷 (ID 포함)
         UndoDiff 시 → ImportEntityStateWithId()로 복원
 
     PropertyDeltas (TArray<FHktPropertyDelta>):
@@ -342,7 +342,7 @@ Diff를 역순으로 적용하여 프레임을 되돌린다:
 
     1. SpawnedEntities에 기록된 엔티티를 RemoveEntity()
     2. PrevNextEntityId로 NextEntityId 복원
-    3. RemovedEntityStates로 삭제되었던 엔티티를 ImportEntityStateWithId()
+    3. RemovedEntities로 삭제되었던 엔티티를 ImportEntityStateWithId()
     4. PropertyDeltas의 OldValue로 프로퍼티 복원
     5. OwnerDeltas의 OldOwnerUid로 소유권 복원
     6. TagDeltas의 OldTags로 태그 복원

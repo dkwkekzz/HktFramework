@@ -187,7 +187,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     FHktSimulationDiff Diff;
     Diff.FrameNumber = InEvent.FrameNumber;
     Diff.PrevNextEntityId = PrevNext;
-    Diff.RemovedEntityStates = MoveTemp(PreRemoveStates);
+    Diff.RemovedEntities = MoveTemp(PreRemoveStates);
 
     for (FHktEntityId Id = PrevNext; Id < WorldState.NextEntityId; ++Id)
         if (WorldState.IsValidEntity(Id))
