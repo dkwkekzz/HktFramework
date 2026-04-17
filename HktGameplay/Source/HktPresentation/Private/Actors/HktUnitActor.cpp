@@ -21,7 +21,7 @@ AHktUnitActor::AHktUnitActor()
 
 	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
 	MeshComponent->SetupAttachment(CapsuleComponent);
-	MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
+	MeshComponent->SetRelativeLocation(FVector::ZeroVector);
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -64,7 +64,6 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 		const float Radius = Entity.CollisionRadius.Get();
 		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
 		CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
-		MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -HalfHeight));
 	}
 
 	// --- Animation ---
