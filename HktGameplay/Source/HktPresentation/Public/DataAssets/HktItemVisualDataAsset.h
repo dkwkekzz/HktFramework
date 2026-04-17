@@ -20,13 +20,9 @@ class HKTPRESENTATION_API UHktItemVisualDataAsset : public UHktTagDataAsset
 	GENERATED_BODY()
 
 public:
-	/** 아이템 메시 (검, 방패, 재료 등) — 장착 시 소켓에 부착되는 메시 */
+	/** 아이템 메시 (검, 방패, 재료 등) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
 	TObjectPtr<UStaticMesh> Mesh;
-
-	/** 바닥에 떨어져 있을 때 보이는 메시 (nullptr이면 Mesh를 대신 사용) */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
-	TObjectPtr<UStaticMesh> DroppedMesh;
 
 	/** UI 아이콘 텍스처 (인벤토리, 장비 패널용) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")

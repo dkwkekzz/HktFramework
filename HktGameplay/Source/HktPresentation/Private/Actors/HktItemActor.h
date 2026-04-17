@@ -16,9 +16,9 @@ struct FHktEntityPresentation;
  * DataAsset(UHktItemVisualDataAsset)으로부터 메시를 받아 설정합니다.
  *
  * 상태별 메시 표시:
- *  - Ground: DroppedMeshComponent만 보임, 픽업 가능
+ *  - Ground: MeshComponent 보임, 픽업 가능
  *  - Owned+Equipped: MeshComponent가 소켓에 부착됨
- *  - Owned+Unequipped: 둘 다 숨김
+ *  - Owned+Unequipped: 숨김
  */
 UCLASS(NotBlueprintable)
 class AHktItemActor : public AActor, public IHktSelectable, public IHktPresentableActor
@@ -29,7 +29,7 @@ public:
 	AHktItemActor();
 
 	/** DataAsset에서 메시/스케일/회전 오프셋을 받아 컴포넌트에 적용 */
-	void SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName);
+	void SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName);
 
 	/** 이 아이템이 부착될 소켓 이름 (DataAsset에서 지정) */
 	FName GetAttachSocketName() const { return AttachSocketName; }
@@ -48,13 +48,8 @@ private:
 	void DetachFromOwnerIfNeeded();
 	void SetDroppedState(bool bDropped);
 
-	/** 장착 시 소켓에 부착되는 메시 */
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
-
-	/** 바닥에 떨어져 있을 때 보이는 메시 */
-	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
-	TObjectPtr<UStaticMeshComponent> DroppedMeshComponent;
 
 	/** 캐릭터 소켓 이름 (DataAsset에서 복사) */
 	FName AttachSocketName = NAME_None;

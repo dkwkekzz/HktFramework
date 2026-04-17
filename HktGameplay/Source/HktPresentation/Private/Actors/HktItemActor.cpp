@@ -9,37 +9,21 @@
 
 AHktItemActor::AHktItemActor()
 {
-	// DroppedMesh — 바닥에 놓일 때 보이는 메시 (Root)
-	DroppedMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DroppedMesh"));
-	RootComponent = DroppedMeshComponent;
-
-	DroppedMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	DroppedMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	DroppedMeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-
-	// MeshComponent — 장착 시 소켓에 부착되는 메시
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ItemMesh"));
-	MeshComponent->SetupAttachment(RootComponent);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComponent->SetVisibility(false);
+	RootComponent = MeshComponent;
+
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 }
 
-void AHktItemActor::SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
+void AHktItemActor::SetupMesh(UStaticMesh* InMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
 {
 	if (MeshComponent && InMesh)
 	{
 		MeshComponent->SetStaticMesh(InMesh);
 		MeshComponent->SetRelativeScale3D(Scale);
 		MeshComponent->SetRelativeRotation(AttachRotOffset);
-	}
-
-	if (DroppedMeshComponent)
-	{
-		UStaticMesh* DropMesh = InDroppedMesh ? InDroppedMesh : InMesh;
-		if (DropMesh)
-		{
-			DroppedMeshComponent->SetStaticMesh(DropMesh);
-		}
 	}
 
 	AttachSocketName = InAttachSocketName;
@@ -53,14 +37,12 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	{
 		if (Entity.IsItemAttached())
 		{
-			// 장착: MeshComponent를 소켓에 부착, DroppedMesh 숨김
 			SetDroppedState(false);
 			if (!bIsAttachedToSocket)
 				TryAttachToOwner(static_cast<FHktEntityId>(Entity.OwnerEntity.Get()), GetActorFunc);
 		}
 		else if (Entity.IsItemOwned())
 		{
-			// 소유 but 비장착: 둘 다 숨김
 			DetachFromOwnerIfNeeded();
 			SetDroppedState(false);
 			SetActorHiddenInGame(true);
@@ -68,7 +50,6 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 		}
 		else
 		{
-			// Ground: DroppedMesh 표시, 픽업 가능
 			DetachFromOwnerIfNeeded();
 			SetDroppedState(true);
 			SetActorHiddenInGame(false);
@@ -89,12 +70,11 @@ void AHktItemActor::ApplyTransform(const FHktEntityPresentation& Entity)
 
 void AHktItemActor::SetDroppedState(bool bDropped)
 {
-	if (DroppedMeshComponent)
+	if (MeshComponent)
 	{
-		DroppedMeshComponent->SetVisibility(bDropped);
-		DroppedMeshComponent->SetCollisionEnabled(bDropped ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+		MeshComponent->SetVisibility(bDropped);
+		MeshComponent->SetCollisionEnabled(bDropped ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
 	}
-	// MeshComponent의 Visibility는 TryAttachToOwner/DetachFromOwnerIfNeeded에서만 제어
 }
 
 void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
