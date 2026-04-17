@@ -59,11 +59,14 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	}
 
 	// --- Capsule ---
+	// HktCore PosZ = 캡슐 바닥(발), UE5 CapsuleComponent 원점 = 캡슐 중심
+	// → 메시를 -HalfHeight만큼 내려 메시 원점이 캡슐 바닥(지면)에 위치하도록 보정
 	if (bForceAll || Entity.CollisionRadius.IsDirty(Frame) || Entity.CollisionHalfHeight.IsDirty(Frame))
 	{
 		const float Radius = Entity.CollisionRadius.Get();
 		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
 		CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
+		MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -HalfHeight));
 	}
 
 	// --- Animation ---
