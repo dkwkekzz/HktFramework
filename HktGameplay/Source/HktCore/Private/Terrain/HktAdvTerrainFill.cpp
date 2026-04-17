@@ -47,10 +47,8 @@ void FHktAdvTerrainFill::Fill(
 	{
 		for (int32 LY = 0; LY < S; ++LY)
 		{
-			const int32 CIdx = LX + LY * S;
-			float Elev = Climate.GetElevation(LX, LY);
-			Elev = FMath::Clamp(Elev * Tectonic.ElevationMultiplier[CIdx] + Tectonic.ElevationOffset[CIdx], 0.f, 1.f);
-
+			// Elevation은 GenerateChunk에서 Tectonic 마스크 적용 완료 상태
+			const float Elev = Climate.GetElevation(LX, LY);
 			const EHktAdvBiome Biome = Biomes.Get(LX, LY);
 			const FHktAdvBiomeMaterialRule& Rule = HktAdvBiomeMaterial::GetRule(Biome);
 			const int32 SurfaceHeight = ComputeHeight(Elev, Biome);
@@ -347,11 +345,12 @@ void FHktAdvTerrainDecoration::ApplySubsurface(
 	const FHktChunkSeed& Seed,
 	FHktTerrainVoxel* InOutVoxels)
 {
-	FHktTerrainNoiseFloat OreNoise(Seed.DecoSeed);
 	constexpr int32 S = 32;
 	const int32 BaseX = ChunkX * S;
 	const int32 BaseY = ChunkY * S;
 	const int32 HeightBase = ChunkZ * S;
+
+	static constexpr int32 OreCount = 5;
 
 	struct OreDef
 	{
@@ -362,12 +361,20 @@ void FHktAdvTerrainDecoration::ApplySubsurface(
 		uint64 SeedOffset;
 	};
 
-	static const OreDef Ores[] = {
+	static const OreDef Ores[OreCount] = {
 		{OreCoal,      100, 16.f, 0.65f, 0x10},
 		{OreIron,       80, 14.f, 0.70f, 0x20},
 		{OreGold,       40, 12.f, 0.78f, 0x30},
 		{OreCrystal,    30, 10.f, 0.82f, 0x40},
 		{OreVoidstone,  25,  8.f, 0.85f, 0x50},
+	};
+
+	FHktTerrainNoiseFloat OreNoises[OreCount] = {
+		FHktTerrainNoiseFloat(Seed.DecoSeed ^ Ores[0].SeedOffset),
+		FHktTerrainNoiseFloat(Seed.DecoSeed ^ Ores[1].SeedOffset),
+		FHktTerrainNoiseFloat(Seed.DecoSeed ^ Ores[2].SeedOffset),
+		FHktTerrainNoiseFloat(Seed.DecoSeed ^ Ores[3].SeedOffset),
+		FHktTerrainNoiseFloat(Seed.DecoSeed ^ Ores[4].SeedOffset),
 	};
 
 	for (int32 LX = 0; LX < S; ++LX)
@@ -383,12 +390,12 @@ void FHktAdvTerrainDecoration::ApplySubsurface(
 				const float WX = static_cast<float>(BaseX + LX);
 				const float WY = static_cast<float>(BaseY + LY);
 
-				for (const auto& Ore : Ores)
+				for (int32 OI = 0; OI < OreCount; ++OI)
 				{
+					const OreDef& Ore = Ores[OI];
 					if (WZ > Ore.MaxHeight) continue;
 
-					FHktTerrainNoiseFloat ON(Seed.DecoSeed ^ Ore.SeedOffset);
-					const float N = ON.Noise3D(WX / Ore.Scale, WY / Ore.Scale, static_cast<float>(WZ) / Ore.Scale);
+					const float N = OreNoises[OI].Noise3D(WX / Ore.Scale, WY / Ore.Scale, static_cast<float>(WZ) / Ore.Scale);
 					if (N > Ore.Threshold)
 					{
 						InOutVoxels[Idx] = HktTerrainVoxelDef::MakeVoxel(Ore.TypeID, 0);
