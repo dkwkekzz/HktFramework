@@ -1,6 +1,9 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Terrain/HktTerrainGenerator.h"
+#include "Terrain/HktAdvTerrainTypes.h"
+#include "Terrain/HktAdvTerrainLayers.h"
+#include "Terrain/HktAdvTerrainFill.h"
 
 using Fixed = FHktFixed32;
 
@@ -137,6 +140,53 @@ FHktTerrainVoxel FHktTerrainGenerator::DetermineVoxel(
 
 void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 ChunkZ, FHktTerrainVoxel* OutVoxels) const
 {
+	// ─── 고급 파이프라인 ───
+	if (Config.bAdvancedTerrain)
+	{
+		const uint64 WorldSeed = static_cast<uint64>(Config.Seed);
+		const uint32 Epoch = Config.Epoch;
+
+		// Layer 0: 시드 파생 (X,Y = 수평축)
+		FHktChunkSeed ChunkSeed = FHktAdvTerrainSeed::Derive(WorldSeed, ChunkX, ChunkY, Epoch);
+
+		// Layer 1: 기후 노이즈
+		FHktClimateField Climate;
+		FHktAdvTerrainClimate::Generate(ChunkX, ChunkY, ChunkSeed, Climate);
+
+		// Layer 1.5: 대륙 템플릿 (epoch 무시 — 대륙 구조는 영구 불변)
+		FHktTectonicMask Tectonic;
+		FHktChunkSeed TecSeed = FHktAdvTerrainSeed::Derive(WorldSeed, ChunkX, ChunkY, 0);
+		FHktAdvTerrainTectonic::Generate(ChunkX, ChunkY, WorldSeed, TecSeed, Tectonic);
+
+		// Layer 1 후처리: 대륙 마스크를 Elevation에 적용
+		constexpr int32 S2 = FHktClimateField::Size;
+		for (int32 i = 0; i < S2 * S2; ++i)
+		{
+			Climate.Elevation[i] = FMath::Clamp(
+				Climate.Elevation[i] * Tectonic.ElevationMultiplier[i] + Tectonic.ElevationOffset[i],
+				0.f, 1.f);
+		}
+
+		// Layer 2: 바이옴 분류
+		FHktAdvBiomeMap Biomes;
+		FHktAdvTerrainBiome::Classify(Climate, ChunkSeed, Biomes);
+
+		// Layer 2.5: 이상 바이옴 오버레이
+		FHktAdvTerrainExoticBiome::Apply(Biomes, Climate, ChunkSeed, ChunkX, ChunkY);
+
+		// Layer 3: 하이트맵 + 컬럼 채우기
+		FHktAdvTerrainFill::Fill(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, OutVoxels);
+
+		// Layer 4: 랜드마크 + 강
+		FHktAdvTerrainLandmark::Apply(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, ChunkSeed, OutVoxels);
+
+		// Layer 5: 데코 (광석 + 표면 산포)
+		FHktAdvTerrainDecoration::Apply(ChunkX, ChunkY, ChunkZ, Climate, Biomes, ChunkSeed, OutVoxels);
+
+		return;
+	}
+
+	// ─── 레거시 파이프라인 ───
 	constexpr int32 S = FHktTerrainGeneratorConfig::ChunkSize;
 
 	const Fixed BaseX = Fixed::FromInt(ChunkX * S);

@@ -12,12 +12,20 @@
  *
  * 지형 생성 파라미터. 시드 + 지형 형태 + 수면 높이 등을 정의한다.
  * 모든 연속 값은 FHktFixed32 (Q16.16) — 결정론 보장.
+ *
+ * bAdvancedTerrain = true 시 고급 다층 파이프라인 활성화:
+ *   Layer 0 시드 → Layer 1 기후 → Layer 1.5 대륙 → Layer 2 바이옴
+ *   → Layer 2.5 이상 바이옴 → Layer 3 채우기 → Layer 4 랜드마크 → Layer 5 데코
  */
 struct HKTCORE_API FHktTerrainGeneratorConfig
 {
 	using Fixed = FHktFixed32;
 
 	int64 Seed = 42;
+
+	// ─── 고급 지형 생성 모드 ───
+	bool bAdvancedTerrain = false;
+	uint32 Epoch = 0;
 
 	// 지형 형태
 	Fixed HeightScale     = Fixed::FromRaw(64 * 65536);    // 64.0

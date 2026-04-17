@@ -75,6 +75,14 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain|Simulation Streaming", meta = (ClampMin = 1, ClampMax = 64))
 	int32 SimMaxChunkLoadsPerFrame = 4;
 
+	/** 고급 다층 지형 생성 파이프라인 활성화 (기후/대륙/이상바이옴/랜드마크/데코) */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Advanced Terrain"))
+	bool bAdvancedTerrain = false;
+
+	/** 지형 에포크 — 미탐험 영역 재생성 사이클 (0=기본) */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Terrain Epoch"))
+	uint32 TerrainEpoch = 0;
+
 	/** 지형 시드 (동일 시드 = 동일 지형) */
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Terrain Seed"))
 	int64 TerrainSeed = 42;
