@@ -43,29 +43,46 @@ struct FHktVoxelDef
  */
 namespace HktTerrainVoxelDef
 {
-    static constexpr int32 MaxTypeId = 16;
+    static constexpr int32 MaxTypeId = 33;
 
     inline const FHktVoxelDef& GetDef(uint16 TypeId)
     {
         using F = FHktTerrainVoxel;
 
         static const FHktVoxelDef Table[MaxTypeId] = {
-            /* 0  Air     */ {false, NAME_None,                          0},
-            /* 1  Grass   */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
-            /* 2  Dirt    */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
-            /* 3  Stone   */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
-            /* 4  Sand    */ {true,  FName(TEXT("Story.Voxel.Crumble")), F::FLAG_DESTRUCTIBLE},
-            /* 5  Water   */ {false, NAME_None,                          F::FLAG_TRANSLUCENT},
-            /* 6  Snow    */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
-            /* 7  Ice     */ {true,  FName(TEXT("Story.Voxel.Crack")),   F::FLAG_TRANSLUCENT | F::FLAG_DESTRUCTIBLE},
-            /* 8  Gravel  */ {true,  FName(TEXT("Story.Voxel.Crumble")), F::FLAG_DESTRUCTIBLE},
-            /* 9  Clay    */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
-            /* 10 Bedrock */ {false, NAME_None,                          0},
-            /* 11 Glass   */ {true,  FName(TEXT("Story.Voxel.Shatter")), F::FLAG_TRANSLUCENT | F::FLAG_DESTRUCTIBLE},
-            /* 12 */         {false, NAME_None,                          0},
-            /* 13 */         {false, NAME_None,                          0},
-            /* 14 */         {false, NAME_None,                          0},
-            /* 15 */         {false, NAME_None,                          0},
+            /* 0  Air            */ {false, NAME_None,                          0},
+            /* 1  Grass          */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 2  Dirt           */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 3  Stone          */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 4  Sand           */ {true,  FName(TEXT("Story.Voxel.Crumble")), F::FLAG_DESTRUCTIBLE},
+            /* 5  Water          */ {false, NAME_None,                          F::FLAG_TRANSLUCENT},
+            /* 6  Snow           */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 7  Ice            */ {true,  FName(TEXT("Story.Voxel.Crack")),   F::FLAG_TRANSLUCENT | F::FLAG_DESTRUCTIBLE},
+            /* 8  Gravel         */ {true,  FName(TEXT("Story.Voxel.Crumble")), F::FLAG_DESTRUCTIBLE},
+            /* 9  Clay           */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 10 Bedrock        */ {false, NAME_None,                          0},
+            /* 11 Glass          */ {true,  FName(TEXT("Story.Voxel.Shatter")), F::FLAG_TRANSLUCENT | F::FLAG_DESTRUCTIBLE},
+            /* 12 GrassFlower    */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 13 StoneMossy     */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 14 CrystalGrass   */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 15 GrassEthereal  */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 16 MossGlow       */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE | F::FLAG_EMISSIVE},
+            /* 17 SoilDark       */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 18 SandBleached   */ {true,  FName(TEXT("Story.Voxel.Crumble")), F::FLAG_DESTRUCTIBLE},
+            /* 19 StoneFractured */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 20 BoneFragment   */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 21 CrystalShard   */ {true,  FName(TEXT("Story.Voxel.Shatter")), F::FLAG_TRANSLUCENT | F::FLAG_DESTRUCTIBLE | F::FLAG_EMISSIVE},
+            /* 22 Wood           */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 23 Leaves         */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 24 LeavesSnow     */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 25 Cactus         */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 26 Mushroom       */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 27 MushroomGlow   */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE | F::FLAG_EMISSIVE},
+            /* 28 OreCoal        */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 29 OreIron        */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 30 OreGold        */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE},
+            /* 31 OreCrystal     */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE | F::FLAG_EMISSIVE},
+            /* 32 OreVoidstone   */ {true,  FName(TEXT("Story.Voxel.Break")),   F::FLAG_DESTRUCTIBLE | F::FLAG_EMISSIVE},
         };
 
         if (TypeId < MaxTypeId)

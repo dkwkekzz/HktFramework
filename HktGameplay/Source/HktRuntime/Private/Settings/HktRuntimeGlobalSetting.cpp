@@ -18,6 +18,8 @@ FHktTerrainGeneratorConfig UHktRuntimeGlobalSetting::ToTerrainConfig() const
 	Config.SimLoadRadiusZ           = SimLoadRadiusZ;
 	Config.SimMaxChunksLoaded       = SimMaxChunksLoaded;
 	Config.SimMaxChunkLoadsPerFrame = SimMaxChunkLoadsPerFrame;
+	Config.bAdvancedTerrain        = bAdvancedTerrain;
+	Config.Epoch                   = TerrainEpoch;
 	Config.Seed                    = TerrainSeed;
 	Config.HeightScale             = Fixed::FromDouble(HeightScale);
 	Config.HeightOffset            = Fixed::FromDouble(HeightOffset);
