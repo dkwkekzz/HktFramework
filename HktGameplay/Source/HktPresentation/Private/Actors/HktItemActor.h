@@ -46,7 +46,6 @@ public:
 private:
 	void TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc);
 	void DetachFromOwnerIfNeeded();
-	void SetDroppedState(bool bDropped);
 
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Item")
 	TObjectPtr<UStaticMeshComponent> MeshComponent;

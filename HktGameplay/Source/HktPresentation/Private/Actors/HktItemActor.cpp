@@ -37,21 +37,21 @@ void AHktItemActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	{
 		if (Entity.IsItemAttached())
 		{
-			SetDroppedState(false);
 			if (!bIsAttachedToSocket)
 				TryAttachToOwner(static_cast<FHktEntityId>(Entity.OwnerEntity.Get()), GetActorFunc);
 		}
 		else if (Entity.IsItemOwned())
 		{
 			DetachFromOwnerIfNeeded();
-			SetDroppedState(false);
+			MeshComponent->SetVisibility(false);
 			SetActorHiddenInGame(true);
 			SetActorEnableCollision(false);
 		}
 		else
 		{
 			DetachFromOwnerIfNeeded();
-			SetDroppedState(true);
+			MeshComponent->SetVisibility(true);
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 			SetActorHiddenInGame(false);
 			SetActorEnableCollision(true);
 		}
@@ -66,15 +66,6 @@ void AHktItemActor::ApplyTransform(const FHktEntityPresentation& Entity)
 	SetActorLocationAndRotation(
 		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
 		false, nullptr, ETeleportType::TeleportPhysics);
-}
-
-void AHktItemActor::SetDroppedState(bool bDropped)
-{
-	if (MeshComponent)
-	{
-		MeshComponent->SetVisibility(bDropped);
-		MeshComponent->SetCollisionEnabled(bDropped ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
-	}
 }
 
 void AHktItemActor::TryAttachToOwner(FHktEntityId OwnerId, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
