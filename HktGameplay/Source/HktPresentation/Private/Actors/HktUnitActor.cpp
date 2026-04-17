@@ -17,11 +17,11 @@ AHktUnitActor::AHktUnitActor()
 	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CapsuleComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CapsuleComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	CapsuleComponent->InitCapsuleSize(34.f, 88.f);
+	CapsuleComponent->InitCapsuleSize(50.f, 90.f);
 
 	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
 	MeshComponent->SetupAttachment(CapsuleComponent);
-	MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -88.f));
+	MeshComponent->SetRelativeLocation(FVector::ZeroVector);
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -56,6 +56,17 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	{
 		InterpLocation = CachedRenderLocation;
 		InterpRotation = CachedRotation;
+	}
+
+	// --- Capsule ---
+	// HktCore PosZ = 캡슐 바닥(발), UE5 CapsuleComponent 원점 = 캡슐 중심
+	// → 메시를 -HalfHeight만큼 내려 메시 원점이 캡슐 바닥(지면)에 위치하도록 보정
+	if (bForceAll || Entity.CollisionRadius.IsDirty(Frame) || Entity.CollisionHalfHeight.IsDirty(Frame))
+	{
+		const float Radius = Entity.CollisionRadius.Get();
+		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
+		CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
+		MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -HalfHeight));
 	}
 
 	// --- Animation ---
