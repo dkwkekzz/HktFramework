@@ -17,11 +17,11 @@ AHktUnitActor::AHktUnitActor()
 	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CapsuleComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CapsuleComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	CapsuleComponent->InitCapsuleSize(34.f, 88.f);
+	CapsuleComponent->InitCapsuleSize(50.f, 90.f);
 
 	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
 	MeshComponent->SetupAttachment(CapsuleComponent);
-	MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -88.f));
+	MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -56,6 +56,15 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	{
 		InterpLocation = CachedRenderLocation;
 		InterpRotation = CachedRotation;
+	}
+
+	// --- Capsule ---
+	if (bForceAll || Entity.CollisionRadius.IsDirty(Frame) || Entity.CollisionHalfHeight.IsDirty(Frame))
+	{
+		const float Radius = Entity.CollisionRadius.Get();
+		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
+		CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
+		MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -HalfHeight));
 	}
 
 	// --- Animation ---
