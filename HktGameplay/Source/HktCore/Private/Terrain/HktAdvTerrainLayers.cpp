@@ -86,7 +86,7 @@ void FHktAdvTerrainClimate::Generate(
 			const float ExBase = FHktTerrainNoiseFloat::Remap(
 				ExoticNoise.FBm2D(ExW / 768.f, ExZ / 768.f, 3, 2.f, 0.5f),
 				-1.f, 1.f, 0.f, 1.f);
-			const float Exotic = FMath::Pow(ExBase, 8.f);
+			const float Exotic = HktDetMath::Pow8(ExBase);
 			OutClimate.SetExoticness(LX, LZ, FMath::Clamp(Exotic, 0.f, 1.f));
 		}
 	}
@@ -170,10 +170,10 @@ void FHktAdvTerrainTectonic::Generate(
 				const float RiftAngle = SplitMix64ToFloat(AngleSeed) * 6.2831853f;
 				const float DX = WX - CellCenterX;
 				const float DZ = WZ - CellCenterZ;
-				const float CosA = FMath::Cos(RiftAngle);
-				const float SinA = FMath::Sin(RiftAngle);
+				const float CosA = HktDetMath::Cos(RiftAngle);
+				const float SinA = HktDetMath::Sin(RiftAngle);
 				const float LocalZ = -DX * SinA + DZ * CosA;
-				const float RiftIntensity = FMath::Exp(-FMath::Pow(LocalZ / 200.f, 2.f));
+				const float RiftIntensity = HktDetMath::GaussianFalloff(LocalZ / 200.f);
 				Mul = 1.f;
 				Off = -0.5f * RiftIntensity;
 				break;
@@ -182,7 +182,7 @@ void FHktAdvTerrainTectonic::Generate(
 			case EHktContinentType::Spire:
 			{
 				const float VDist = TecNoise.VoronoiDistance(WX, WZ, 60.f);
-				Mul = 1.f + 2.f * FMath::Exp(-VDist / 30.f);
+				Mul = 1.f + 2.f * HktDetMath::ExpNeg(VDist / 30.f);
 				Off = 0.f;
 				break;
 			}
@@ -196,7 +196,7 @@ void FHktAdvTerrainTectonic::Generate(
 				if (Dist < CraterRadius)
 				{
 					const float T = Dist / CraterRadius;
-					Off = -0.6f * (1.f - T * T) + 0.2f * FMath::SmoothStep(0.85f, 1.f, T);
+					Off = -0.6f * (1.f - T * T) + 0.2f * HktDetMath::SmoothStep(0.85f, 1.f, T);
 				}
 				Mul = 1.f;
 				break;
@@ -224,7 +224,7 @@ void FHktAdvTerrainTectonic::Generate(
 
 			// 경계 블렌딩
 			const float DistToCenter = FMath::Sqrt(
-				FMath::Pow(WX - CellCenterX, 2.f) + FMath::Pow(WZ - CellCenterZ, 2.f))
+				HktDetMath::Sq(WX - CellCenterX) + HktDetMath::Sq(WZ - CellCenterZ))
 				/ (CELL_SIZE * 0.5f);
 			constexpr float BlendZone = 0.3f;
 
