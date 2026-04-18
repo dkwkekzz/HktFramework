@@ -34,9 +34,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Tile")
 	TObjectPtr<UTexture2D> TileIndexLUT;
 
+	/**
+	 * 노멀맵 배열 (선택) — TileArray와 동일한 슬라이스 인덱스로 샘플.
+	 * nullptr이면 노멀맵 미사용 (플랫 노멀 폴백).
+	 * 셰이더에서 동일 (TileUV, TileSlice)로 접근하므로 슬라이스 수는 TileArray와 같아야 한다.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Tile")
+	TObjectPtr<UTexture2DArray> NormalArray;
+
 	/** RHI 텍스처 핸들 반환 — nullptr이면 타일 시스템 미사용 (팔레트 폴백) */
 	FRHITexture* GetTileArrayRHI() const;
 	FRHITexture* GetTileIndexLUTRHI() const;
+	FRHITexture* GetNormalArrayRHI() const;
 
 	// ================================================================
 	// CPU 매핑 API

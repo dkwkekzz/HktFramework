@@ -117,6 +117,50 @@ void UHktVoxelChunkComponent::SetStylizedRendering(bool bEnabled)
 	}
 }
 
+void UHktVoxelChunkComponent::SetEdgeRoundStrength(float InStrength)
+{
+	const float Clamped = FMath::Clamp(InStrength, 0.0f, 1.0f);
+	if (FMath::IsNearlyEqual(EdgeRoundStrength, Clamped))
+	{
+		return;
+	}
+
+	EdgeRoundStrength = Clamped;
+
+	if (SceneProxy)
+	{
+		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
+		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeRound)(
+			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
+			{
+				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeRoundStrength_RenderThread(Clamped);
+			}
+		);
+	}
+}
+
+void UHktVoxelChunkComponent::SetNormalMapStrength(float InStrength)
+{
+	const float Clamped = FMath::Clamp(InStrength, 0.0f, 4.0f);
+	if (FMath::IsNearlyEqual(NormalMapStrength, Clamped))
+	{
+		return;
+	}
+
+	NormalMapStrength = Clamped;
+
+	if (SceneProxy)
+	{
+		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
+		ENQUEUE_RENDER_COMMAND(HktVoxelSetNormalStrength)(
+			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
+			{
+				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetNormalMapStrength_RenderThread(Clamped);
+			}
+		);
+	}
+}
+
 void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FIntVector& InChunkCoord, float InVoxelSize)
 {
 	RenderCache = Cache;
@@ -215,6 +259,11 @@ void UHktVoxelChunkComponent::OnMeshReady()
 						TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler,
 						TileTexCopy.DefaultPalette.Texture, TileTexCopy.DefaultPalette.Sampler);
 				}
+				if (TileTexCopy.HasNormalArray())
+				{
+					Proxy->SetNormalArray_RenderThread(
+						TileTexCopy.NormalArray.Texture, TileTexCopy.NormalArray.Sampler);
+				}
 				if (MatLUTCopy.IsValid())
 				{
 					Proxy->SetMaterialLUT_RenderThread(
@@ -271,6 +320,11 @@ void UHktVoxelChunkComponent::PushStyleTexturesToProxy()
 					TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
 					TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler,
 					TileTexCopy.DefaultPalette.Texture, TileTexCopy.DefaultPalette.Sampler);
+			}
+			if (TileTexCopy.HasNormalArray())
+			{
+				Proxy->SetNormalArray_RenderThread(
+					TileTexCopy.NormalArray.Texture, TileTexCopy.NormalArray.Sampler);
 			}
 			if (MatLUTCopy.IsValid())
 			{
@@ -354,6 +408,11 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 								TileTexCopy.TileArray.Texture, TileTexCopy.TileArray.Sampler,
 								TileTexCopy.TileIndexLUT.Texture, TileTexCopy.TileIndexLUT.Sampler,
 								TileTexCopy.DefaultPalette.Texture, TileTexCopy.DefaultPalette.Sampler);
+						}
+						if (TileTexCopy.HasNormalArray())
+						{
+							NewProxy->SetNormalArray_RenderThread(
+								TileTexCopy.NormalArray.Texture, TileTexCopy.NormalArray.Sampler);
 						}
 						if (MatLUTCopy.IsValid())
 						{

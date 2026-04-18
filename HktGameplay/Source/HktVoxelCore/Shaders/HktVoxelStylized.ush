@@ -57,6 +57,42 @@ float4 HktStylizedPBR()
 // 통합 적용 함수 — BasePass PS에서 호출
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 5. 엣지 라운딩 — Quad-relative 노멀 벤딩 (지오메트리 변경 없이 라이팅만 둥글게)
+//
+// Greedy Mesh 쿼드 전체에 걸쳐 연속적으로 노멀을 bend한다. TileUV/QuadSize로
+// 쿼드 내부 [0,1] 로컬 좌표를 얻어 중앙(0.5) 기준 offset 계산 → smoothstep로
+// 쿼드 경계 근처에서만 벤딩. 쿼드 내부(연속 UV)는 연속이므로 seam 없음.
+//
+// 이전 frac() 버전은 내부 voxel cell 경계마다 sign 뒤집힘 → 검은 crease 발생.
+// Quad-relative는 쿼드 바깥 경계에서만 벤딩되어 "쿼드 코너 베벨 착시"만 생성.
+//
+// Strength: 0 = 원본 플랫, 0.3~0.8 권장 (merge된 쿼드가 클수록 강도 올려도 무방)
+// EdgeStart: 벤딩 시작 거리 (쿼드 중심=0, 경계=1). 0.3~0.7 권장
+// ---------------------------------------------------------------------------
+float3 HktApplyEdgeRounding(
+    float3 FlatNormal,
+    float3 Tangent,
+    float3 Bitangent,
+    float2 TileUV,
+    float2 QuadSize,
+    float Strength,
+    float EdgeStart)
+{
+    // 쿼드 로컬 UV [0,1]. Width/Height는 voxel 개수이지만 비율만 맞으면 OK
+    float2 QuadUV = TileUV / max(QuadSize, float2(0.001, 0.001));
+
+    // 쿼드 중앙 기준 signed 오프셋 [-1, +1] — 연속 (seam 없음)
+    float2 QuadOffset = saturate(QuadUV) * 2.0 - 1.0;
+
+    // 경계 근처에서만 벤딩 — smoothstep(EdgeStart, 1.0, |offset|) * sign(offset)
+    // QuadOffset이 쿼드 전체에 걸쳐 연속이므로 sign(·)에도 discontinuity 없음
+    float2 EdgeAmount = smoothstep(EdgeStart, 1.0, abs(QuadOffset)) * sign(QuadOffset);
+
+    float3 BendDir = Tangent * EdgeAmount.x + Bitangent * EdgeAmount.y;
+    return normalize(FlatNormal + BendDir * Strength);
+}
+
 // BaseColor를 스타일라이즈하고, PBR을 카툰풍으로 오버라이드
 void HktApplyStylized(
     float2 TileUV,

@@ -71,8 +71,22 @@ public:
 	/** 머티리얼 LUT 설정 — nullptr이면 기존 하드코딩 PBR 폴백 */
 	void SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler);
 
+	// --- 노멀맵 배열 (Phase 3: 표면 디테일) ---
+	FRHITexture* NormalArrayRHI = nullptr;           // Texture2DArray — TileArray와 동일 슬라이싱
+	FRHISamplerState* NormalArraySamplerRHI = nullptr;
+
+	/** 노멀맵 설정 — nullptr이면 플랫 노멀 폴백 */
+	void SetNormalArray(FRHITexture* InArray, FRHISamplerState* InSampler);
+
 	// --- 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩) ---
 	float StylizedEnabled = 0.0f;
+
+	// --- 엣지 라운딩 — PS 노멀 벤딩 강도 (0=off, 0.3~0.6 권장) ---
+	// 스타일라이즈와 독립. 지오메트리는 그대로, 라이팅만 둥글게.
+	float EdgeRoundStrength = 0.0f;
+
+	/** 노멀맵 강도 (0=off, 1=원본, >1=과장). NormalArrayRHI가 null이면 무시됨 */
+	float NormalMapStrength = 1.0f;
 
 private:
 	FDataType Data;

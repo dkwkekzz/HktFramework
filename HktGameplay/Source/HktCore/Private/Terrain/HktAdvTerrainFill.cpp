@@ -14,9 +14,9 @@ using namespace HktAdvTerrainType;
 // 복셀 인덱스 = LX + LY * S + LZ * S * S
 // ============================================================================
 
-int32 FHktAdvTerrainFill::ComputeHeight(float Elevation, EHktAdvBiome Biome)
+int32 FHktAdvTerrainFill::ComputeHeight(float Elevation, EHktAdvBiome Biome, const FHktAdvTerrainHeightParams& Params)
 {
-	int32 H = FMath::FloorToInt(Elevation * MaxHeight) + BaseHeight;
+	int32 H = FMath::FloorToInt(Elevation * Params.MaxHeight) + Params.BaseHeight;
 
 	switch (Biome)
 	{
@@ -38,6 +38,7 @@ void FHktAdvTerrainFill::Fill(
 	const FHktClimateField& Climate,
 	const FHktAdvBiomeMap& Biomes,
 	const FHktTectonicMask& Tectonic,
+	const FHktAdvTerrainHeightParams& Params,
 	FHktTerrainVoxel* OutVoxels)
 {
 	constexpr int32 S = ChunkSize;
@@ -51,7 +52,7 @@ void FHktAdvTerrainFill::Fill(
 			const float Elev = Climate.GetElevation(LX, LY);
 			const EHktAdvBiome Biome = Biomes.Get(LX, LY);
 			const FHktAdvBiomeMaterialRule& Rule = HktAdvBiomeMaterial::GetRule(Biome);
-			const int32 SurfaceHeight = ComputeHeight(Elev, Biome);
+			const int32 SurfaceHeight = ComputeHeight(Elev, Biome, Params);
 
 			for (int32 LZ = 0; LZ < S; ++LZ)
 			{
@@ -63,9 +64,9 @@ void FHktAdvTerrainFill::Fill(
 
 				if (WorldZ > SurfaceHeight)
 				{
-					if (Biome == EHktAdvBiome::Ocean || WorldZ <= SeaLevel)
+					if (Biome == EHktAdvBiome::Ocean || WorldZ <= Params.SeaLevel)
 					{
-						if (WorldZ <= SeaLevel && Rule.WaterType != Air)
+						if (WorldZ <= Params.SeaLevel && Rule.WaterType != Air)
 						{
 							V = HktTerrainVoxelDef::MakeVoxel(Rule.WaterType, Rule.PaletteRow);
 						}
@@ -173,6 +174,7 @@ void FHktAdvTerrainLandmark::ApplyLandmarks(
 	const FHktTectonicMask& Tectonic,
 	const FHktChunkSeed& Seed,
 	const FHktClimateField& Climate,
+	const FHktAdvTerrainHeightParams& Params,
 	FHktTerrainVoxel* InOutVoxels)
 {
 	const EHktAdvBiome CenterBiome = Biomes.Get(16, 16);
@@ -211,7 +213,7 @@ void FHktAdvTerrainLandmark::ApplyLandmarks(
 		const int32 LocalX = static_cast<int32>(SplitMix64(RollSeed + 1) % 8) + 12;
 		const int32 LocalY = static_cast<int32>(SplitMix64(RollSeed + 2) % 8) + 12;
 		const float Elev = Climate.GetElevation(LocalX, LocalY);
-		const int32 SurfaceH = FHktAdvTerrainFill::ComputeHeight(Elev, CenterBiome);
+		const int32 SurfaceH = FHktAdvTerrainFill::ComputeHeight(Elev, CenterBiome, Params);
 		const int32 WorldX = ChunkX * 32 + LocalX;
 		const int32 WorldY = ChunkY * 32 + LocalY;
 
@@ -284,6 +286,7 @@ void FHktAdvTerrainLandmark::ApplyRivers(
 	const FHktClimateField& Climate,
 	const FHktAdvBiomeMap& Biomes,
 	const FHktChunkSeed& Seed,
+	const FHktAdvTerrainHeightParams& Params,
 	FHktTerrainVoxel* InOutVoxels)
 {
 	FHktTerrainNoiseFloat RiverNoise(Seed.FeatureSeed);
@@ -308,7 +311,7 @@ void FHktAdvTerrainLandmark::ApplyRivers(
 
 			if (RiverVal < 0.03f)
 			{
-				const int32 SurfaceH = FHktAdvTerrainFill::ComputeHeight(Elev, Biome);
+				const int32 SurfaceH = FHktAdvTerrainFill::ComputeHeight(Elev, Biome, Params);
 
 				for (int32 LZ = 0; LZ < S; ++LZ)
 				{
@@ -330,10 +333,11 @@ void FHktAdvTerrainLandmark::Apply(
 	const FHktAdvBiomeMap& Biomes,
 	const FHktTectonicMask& Tectonic,
 	const FHktChunkSeed& Seed,
+	const FHktAdvTerrainHeightParams& Params,
 	FHktTerrainVoxel* InOutVoxels)
 {
-	ApplyLandmarks(ChunkX, ChunkY, ChunkZ, Biomes, Tectonic, Seed, Climate, InOutVoxels);
-	ApplyRivers(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Seed, InOutVoxels);
+	ApplyLandmarks(ChunkX, ChunkY, ChunkZ, Biomes, Tectonic, Seed, Climate, Params, InOutVoxels);
+	ApplyRivers(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Seed, Params, InOutVoxels);
 }
 
 // ============================================================================

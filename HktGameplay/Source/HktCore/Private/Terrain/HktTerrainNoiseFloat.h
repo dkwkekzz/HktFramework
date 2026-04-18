@@ -88,15 +88,16 @@ namespace HktDetMath
 	// sin(X) — 7차 Taylor + [-π/2,π/2] 범위 축소
 	inline float Sin(float X)
 	{
-		constexpr float PI = 3.14159265358979323846f;
-		constexpr float HALF_PI = PI * 0.5f;
-		constexpr float TWO_PI = PI * 2.f;
-		constexpr float INV_TWO_PI = 1.f / TWO_PI;
+		// UE5 매크로 PI/HALF_PI/TWO_PI 충돌 방지용 로컬명
+		constexpr float KPi = 3.14159265358979323846f;
+		constexpr float KHalfPi = KPi * 0.5f;
+		constexpr float KTwoPi = KPi * 2.f;
+		constexpr float KInvTwoPi = 1.f / KTwoPi;
 
-		X -= TWO_PI * FMath::FloorToFloat(X * INV_TWO_PI + 0.5f);
+		X -= KTwoPi * FMath::FloorToFloat(X * KInvTwoPi + 0.5f);
 
-		if (X > HALF_PI) X = PI - X;
-		else if (X < -HALF_PI) X = -PI - X;
+		if (X > KHalfPi) X = KPi - X;
+		else if (X < -KHalfPi) X = -KPi - X;
 
 		const float X2 = X * X;
 		return X * (1.f - X2 * (1.f / 6.f - X2 * (1.f / 120.f - X2 * (1.f / 5040.f))));
@@ -105,8 +106,8 @@ namespace HktDetMath
 	// cos(X) = sin(X + π/2)
 	inline float Cos(float X)
 	{
-		constexpr float HALF_PI = 3.14159265358979323846f * 0.5f;
-		return Sin(X + HALF_PI);
+		constexpr float KHalfPi = 3.14159265358979323846f * 0.5f;
+		return Sin(X + KHalfPi);
 	}
 
 	// smoothstep — 명시적 3차 다항식 (t²(3-2t))

@@ -36,6 +36,11 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 		PendingDefaultPaletteRHI = TileTex.DefaultPalette.Texture;
 		PendingDefaultPaletteSamplerRHI = TileTex.DefaultPalette.Sampler;
 	}
+	if (TileTex.HasNormalArray())
+	{
+		PendingNormalArrayRHI = TileTex.NormalArray.Texture;
+		PendingNormalArraySamplerRHI = TileTex.NormalArray.Sampler;
+	}
 
 	const FHktVoxelTexturePair& MatLUT = InComponent->GetCachedMaterialLUT();
 	if (MatLUT.IsValid())
@@ -45,6 +50,8 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 	}
 
 	bStylizedRendering = InComponent->IsStylizedRendering();
+	EdgeRoundStrength = InComponent->GetEdgeRoundStrength();
+	NormalMapStrength = InComponent->GetNormalMapStrength();
 }
 
 FHktVoxelChunkProxy::~FHktVoxelChunkProxy()
@@ -192,6 +199,8 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 	VertexFactory->VoxelSizeUU = VoxelSizeUU;
 	VertexFactory->StylizedEnabled = bStylizedRendering ? 1.0f : 0.0f;
+	VertexFactory->EdgeRoundStrength = EdgeRoundStrength;
+	VertexFactory->NormalMapStrength = NormalMapStrength;
 
 	// 팔레트 텍스처 설정 — 타일 활성 시 기본 팔레트(8×256 흰색), 아니면 GWhiteTexture 폴백
 	if (!VertexFactory->PaletteTextureRHI)
@@ -214,7 +223,7 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	VFData.MaterialComponent = FVertexStreamComponent(
 		&VertexBufferWrapper, 4, sizeof(FHktVoxelVertex), VET_UInt);
 
-	// SetTileTextures/SetMaterialLUT이 VertexFactory 생성 전에 호출될 수 있으므로 여기서 적용
+	// SetTileTextures/SetMaterialLUT/SetNormalArray가 VertexFactory 생성 전에 호출될 수 있으므로 여기서 적용
 	if (PendingTileArrayRHI)
 	{
 		VertexFactory->SetTileTextures(
@@ -224,6 +233,10 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	if (PendingMaterialLUTRHI)
 	{
 		VertexFactory->SetMaterialLUT(PendingMaterialLUTRHI, PendingMaterialLUTSamplerRHI);
+	}
+	if (PendingNormalArrayRHI)
+	{
+		VertexFactory->SetNormalArray(PendingNormalArrayRHI, PendingNormalArraySamplerRHI);
 	}
 
 	VertexFactory->SetData(VFData);
@@ -329,5 +342,43 @@ void FHktVoxelChunkProxy::SetStylizedRendering_RenderThread(bool bEnabled)
 	if (VertexFactory)
 	{
 		VertexFactory->StylizedEnabled = bEnabled ? 1.0f : 0.0f;
+	}
+}
+
+void FHktVoxelChunkProxy::SetEdgeRoundStrength_RenderThread(float InStrength)
+{
+	check(IsInRenderingThread());
+
+	EdgeRoundStrength = InStrength;
+
+	if (VertexFactory)
+	{
+		VertexFactory->EdgeRoundStrength = InStrength;
+	}
+}
+
+void FHktVoxelChunkProxy::SetNormalArray_RenderThread(
+	FRHITexture* InNormalArray, FRHISamplerState* InSampler)
+{
+	check(IsInRenderingThread());
+
+	PendingNormalArrayRHI = InNormalArray;
+	PendingNormalArraySamplerRHI = InSampler;
+
+	if (VertexFactory)
+	{
+		VertexFactory->SetNormalArray(InNormalArray, InSampler);
+	}
+}
+
+void FHktVoxelChunkProxy::SetNormalMapStrength_RenderThread(float InStrength)
+{
+	check(IsInRenderingThread());
+
+	NormalMapStrength = InStrength;
+
+	if (VertexFactory)
+	{
+		VertexFactory->NormalMapStrength = InStrength;
 	}
 }

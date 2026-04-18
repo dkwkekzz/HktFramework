@@ -65,8 +65,11 @@ void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int6
 	{
 		const float Radius = Entity.CollisionRadius.Get();
 		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
-		CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
-		MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -HalfHeight));
+
+		if (CapsuleComponent)
+		{
+			CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
+		}
 	}
 
 	// --- Animation ---

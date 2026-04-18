@@ -27,6 +27,15 @@ FRHITexture* UHktVoxelTileAtlas::GetTileIndexLUTRHI() const
 	return nullptr;
 }
 
+FRHITexture* UHktVoxelTileAtlas::GetNormalArrayRHI() const
+{
+	if (NormalArray && NormalArray->GetResource())
+	{
+		return NormalArray->GetResource()->TextureRHI;
+	}
+	return nullptr;
+}
+
 // ============================================================================
 // CPU 매핑
 // ============================================================================

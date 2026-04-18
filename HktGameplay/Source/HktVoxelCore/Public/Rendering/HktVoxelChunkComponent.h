@@ -19,7 +19,7 @@ struct FHktVoxelTexturePair
 	bool IsValid() const { return Texture != nullptr; }
 };
 
-/** 타일 텍스처 셋 (Texture2DArray + IndexLUT + 기본 팔레트) */
+/** 타일 텍스처 셋 (Texture2DArray + IndexLUT + 기본 팔레트 + 옵션 NormalArray) */
 struct FHktVoxelTileTextureSet
 {
 	FHktVoxelTexturePair TileArray;
@@ -33,7 +33,14 @@ struct FHktVoxelTileTextureSet
 	 */
 	FHktVoxelTexturePair DefaultPalette;
 
+	/**
+	 * 노멀맵 배열 (선택). TileArray와 동일한 슬라이스 인덱싱.
+	 * 미설정이면 셰이더가 플랫 노멀로 폴백. IsValid()에는 포함되지 않음 (옵션).
+	 */
+	FHktVoxelTexturePair NormalArray;
+
 	bool IsValid() const { return TileArray.IsValid() && TileIndexLUT.IsValid(); }
+	bool HasNormalArray() const { return NormalArray.IsValid(); }
 };
 
 /**
@@ -107,6 +114,14 @@ public:
 	void SetStylizedRendering(bool bEnabled);
 	bool IsStylizedRendering() const { return bStylizedRendering; }
 
+	/** 엣지 라운딩 강도 (0=off, 0.3~0.6 권장). PS 노멀 벤딩으로 복셀 경계를 둥글게 보이게 함 */
+	void SetEdgeRoundStrength(float InStrength);
+	float GetEdgeRoundStrength() const { return EdgeRoundStrength; }
+
+	/** 노멀맵 강도 (0=off, 1=원본). NormalArray가 설정된 경우에만 효과 있음 */
+	void SetNormalMapStrength(float InStrength);
+	float GetNormalMapStrength() const { return NormalMapStrength; }
+
 	/** 그림자 최대 거리 설정 (UE 유닛). 0이면 항상 그림자 ON */
 	void SetShadowDistance(float InDistance) { ShadowDistance = InDistance; }
 	float GetShadowDistance() const { return ShadowDistance; }
@@ -151,5 +166,7 @@ private:
 	FHktVoxelTexturePair CachedMaterialLUT;
 	bool bStyleTexturesApplied = false;
 	bool bStylizedRendering = false;
+	float EdgeRoundStrength = 0.0f;
+	float NormalMapStrength = 1.0f;
 	float ShadowDistance = 0.f;
 };

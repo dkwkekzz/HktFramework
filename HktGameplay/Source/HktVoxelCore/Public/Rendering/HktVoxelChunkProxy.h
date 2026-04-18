@@ -59,11 +59,20 @@ public:
 
 	void SetMaterialLUT_RenderThread(FRHITexture* InLUT, FRHISamplerState* InSampler);
 
+	/** 노멀맵 배열 전달 — nullptr이면 플랫 노멀 폴백 */
+	void SetNormalArray_RenderThread(FRHITexture* InNormalArray, FRHISamplerState* InSampler);
+
+	/** 노멀맵 강도 설정 — Render Thread에서 호출 (0=off, 1=원본) */
+	void SetNormalMapStrength_RenderThread(float InStrength);
+
 	/** Render Thread에서 호출 — 본 트랜스폼 GPU 버퍼 갱신 (GPU 스키닝) */
 	void UpdateBoneTransforms_RenderThread(const TArray<FVector4f>& BoneMatrixRows);
 
 	/** 스타일라이즈 렌더링 토글 — Render Thread에서 호출 */
 	void SetStylizedRendering_RenderThread(bool bEnabled);
+
+	/** 엣지 라운딩 강도 설정 — Render Thread에서 호출 (0=off, 0.3~0.6 권장) */
+	void SetEdgeRoundStrength_RenderThread(float InStrength);
 
 private:
 	/** RHI 버퍼를 감싸는 FVertexBuffer/FIndexBuffer 래퍼 (FVertexStreamComponent, FMeshBatchElement 호환용) */
@@ -96,8 +105,12 @@ private:
 	FRHISamplerState* PendingMaterialLUTSamplerRHI = nullptr;
 	FRHITexture* PendingDefaultPaletteRHI = nullptr;
 	FRHISamplerState* PendingDefaultPaletteSamplerRHI = nullptr;
+	FRHITexture* PendingNormalArrayRHI = nullptr;
+	FRHISamplerState* PendingNormalArraySamplerRHI = nullptr;
 
 	bool bStylizedRendering = false;
+	float EdgeRoundStrength = 0.0f;
+	float NormalMapStrength = 1.0f;
 
 	/** GPU 스키닝용 본 트랜스폼 버퍼 (float4 × 3 per bone) */
 	FBufferRHIRef BoneTransformBuffer;

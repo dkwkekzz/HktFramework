@@ -32,7 +32,13 @@ public:
 		MaterialLUTParam.Bind(ParameterMap, TEXT("HktMaterialLUT"));
 		MaterialLUTSamplerParam.Bind(ParameterMap, TEXT("HktMaterialLUTSampler"));
 
+		NormalEnabledParam.Bind(ParameterMap, TEXT("HktNormalEnabled"));
+		NormalArrayParam.Bind(ParameterMap, TEXT("HktNormalArray"));
+		NormalArraySamplerParam.Bind(ParameterMap, TEXT("HktNormalSampler"));
+		NormalStrengthParam.Bind(ParameterMap, TEXT("HktNormalStrength"));
+
 		StylizedEnabledParam.Bind(ParameterMap, TEXT("HktStylizedEnabled"));
+		EdgeRoundStrengthParam.Bind(ParameterMap, TEXT("HktEdgeRoundStrength"));
 	}
 
 	void GetElementShaderBindings(
@@ -130,9 +136,31 @@ public:
 			ShaderBindings.Add(MaterialLUTSamplerParam, VoxelVF->MaterialLUTSamplerRHI);
 		}
 
+		const bool bNormalEnabled = (VoxelVF->NormalArrayRHI != nullptr);
+		if (NormalEnabledParam.IsBound())
+		{
+			ShaderBindings.Add(NormalEnabledParam, bNormalEnabled ? 1.0f : 0.0f);
+		}
+		if (NormalArrayParam.IsBound() && VoxelVF->NormalArrayRHI)
+		{
+			ShaderBindings.Add(NormalArrayParam, VoxelVF->NormalArrayRHI);
+		}
+		if (NormalArraySamplerParam.IsBound() && VoxelVF->NormalArraySamplerRHI)
+		{
+			ShaderBindings.Add(NormalArraySamplerParam, VoxelVF->NormalArraySamplerRHI);
+		}
+		if (NormalStrengthParam.IsBound())
+		{
+			ShaderBindings.Add(NormalStrengthParam, VoxelVF->NormalMapStrength);
+		}
+
 		if (StylizedEnabledParam.IsBound())
 		{
 			ShaderBindings.Add(StylizedEnabledParam, VoxelVF->StylizedEnabled);
+		}
+		if (EdgeRoundStrengthParam.IsBound())
+		{
+			ShaderBindings.Add(EdgeRoundStrengthParam, VoxelVF->EdgeRoundStrength);
 		}
 	}
 
@@ -152,7 +180,13 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTParam);
 	LAYOUT_FIELD(FShaderResourceParameter, MaterialLUTSamplerParam);
 
+	LAYOUT_FIELD(FShaderParameter, NormalEnabledParam);
+	LAYOUT_FIELD(FShaderResourceParameter, NormalArrayParam);
+	LAYOUT_FIELD(FShaderResourceParameter, NormalArraySamplerParam);
+	LAYOUT_FIELD(FShaderParameter, NormalStrengthParam);
+
 	LAYOUT_FIELD(FShaderParameter, StylizedEnabledParam);
+	LAYOUT_FIELD(FShaderParameter, EdgeRoundStrengthParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);
@@ -201,6 +235,12 @@ void FHktVoxelVertexFactory::SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState
 {
 	MaterialLUTRHI = InLUT;
 	MaterialLUTSamplerRHI = InSampler;
+}
+
+void FHktVoxelVertexFactory::SetNormalArray(FRHITexture* InArray, FRHISamplerState* InSampler)
+{
+	NormalArrayRHI = InArray;
+	NormalArraySamplerRHI = InSampler;
 }
 
 bool FHktVoxelVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)

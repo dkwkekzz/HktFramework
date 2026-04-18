@@ -35,8 +35,19 @@ float HktMaterialLUTEnabled;
 Texture2D HktMaterialLUT;
 SamplerState HktMaterialLUTSampler;
 
+// 노멀맵 (Texture2DArray — TileArray와 동일 슬라이스 인덱싱)
+// HktNormalEnabled == 0이면 샘플링 없이 플랫 노멀 사용.
+// BC5(TC_Normalmap) / BGRA8 양쪽 호환: z 채널은 셰이더에서 재구성.
+float HktNormalEnabled;
+Texture2DArray HktNormalArray;
+SamplerState HktNormalSampler;
+float HktNormalStrength;   // 0 = off(평면), 1 = 원본, >1 = 과장
+
 // 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩)
 float HktStylizedEnabled;
+
+// 엣지 라운딩 — 노멀 벤딩 강도 (0=off, 0.3~0.6 권장)
+float HktEdgeRoundStrength;
 
 // ============================================================================
 // FVertexFactoryInput
@@ -64,6 +75,9 @@ struct FVertexFactoryIntermediates
 	uint   VoxelType;
 	uint   PaletteIdx;
 	float  AOLight;
+
+	// 엣지 라운딩용 — 쿼드 전체 크기 (voxel 개수)
+	float2 QuadSize;
 };
 
 // ============================================================================
@@ -77,9 +91,14 @@ struct FVertexFactoryInterpolantsVSToPS
 
 	// Tile Texture (Phase 1)
 	float2 TileUV                               : TEXCOORD2;
-	// x=TileSlice, y=VoxelType, z=PaletteIdx, w=AOLight
+	// 쿼드 단위 상수(x=TileSlice, y=VoxelType, z=PaletteIdx) — flat 허용
+	nointerpolation float3 TileParams           : TEXCOORD3;
+	// AOLight는 코너별로 다르므로 반드시 보간되어야 함.
+	// nointerpolation에 넣으면 두 삼각형의 provoking vertex가 달라 쿼드 대각선 경계가 보인다.
+	float AOLight                               : TEXCOORD4;
+	// 엣지 라운딩용 쿼드 크기 — 쿼드 전체 상수이므로 nointerpolation
+	nointerpolation float2 QuadSize             : TEXCOORD5;
 	// TEXCOORD6+ reserved by engine (HitProxy, velocity, etc.)
-	nointerpolation float4 VoxelParams           : TEXCOORD3;
 };
 
 // ============================================================================
@@ -187,6 +206,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Result.VoxelType = VoxelType;
 	Result.PaletteIdx = PaletteIdx;
 	Result.AOLight = HktAOToLight(AO);
+	Result.QuadSize = float2(max(Width, 1.0), max(Height, 1.0));
 
 	// VS에서도 타일/팔레트 색상을 계산하여 Intermediates.Color에 기록.
 	// UE5 머티리얼 템플릿이 VertexColor를 Interpolants.Color (COLOR0 시맨틱)에서
@@ -285,11 +305,12 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(
 
 	// Tile Texture (Phase 1)
 	Interpolants.TileUV = Intermediates.TileUV;
-	Interpolants.VoxelParams = float4(
+	Interpolants.TileParams = float3(
 		Intermediates.TileSlice,
 		float(Intermediates.VoxelType),
-		float(Intermediates.PaletteIdx),
-		Intermediates.AOLight);
+		float(Intermediates.PaletteIdx));
+	Interpolants.AOLight = Intermediates.AOLight;
+	Interpolants.QuadSize = Intermediates.QuadSize;
 
 	return Interpolants;
 }
@@ -334,10 +355,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 	//        HktTileEnabled가 바인딩되지 않으면(=0) 이 블록을 건너뛰고
 	//        1단계의 VS 색상이 그대로 사용된다.
 	// =====================================================================
-	float TileSlice  = Interpolants.VoxelParams.x;
-	uint  VoxelType  = (uint)Interpolants.VoxelParams.y;
-	uint  PaletteIdx = (uint)Interpolants.VoxelParams.z;
-	float AOLight    = Interpolants.VoxelParams.w;
+	float TileSlice  = Interpolants.TileParams.x;
+	uint  VoxelType  = (uint)Interpolants.TileParams.y;
+	uint  PaletteIdx = (uint)Interpolants.TileParams.z;
+	float AOLight    = Interpolants.AOLight;
 
 	if (HktTileEnabled > 0.5)
 	{
@@ -368,6 +389,41 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 	half3 Normal    = normalize(Interpolants.WorldNormal);
 	half3 Tangent   = normalize(Interpolants.WorldTangent);
 	half3 Bitangent = cross(Normal, Tangent);
+
+	// 엣지 라운딩 — Quad-relative 노멀 벤딩
+	// TileUV/QuadSize로 쿼드 내부 연속 UV를 얻어 쿼드 경계 근처에서만 벤딩.
+	// 내부 voxel cell 경계에는 영향 없음 (seam 없음).
+	if (HktEdgeRoundStrength > 0.001)
+	{
+		Normal = (half3)HktApplyEdgeRounding(
+			(float3)Normal, (float3)Tangent, (float3)Bitangent,
+			Interpolants.TileUV,
+			Interpolants.QuadSize,
+			HktEdgeRoundStrength,
+			0.5  // EdgeStart — 쿼드 중앙에서 50% 지점부터 벤딩 시작
+		);
+		Bitangent = cross(Normal, Tangent);
+	}
+
+	// 노멀맵 — TileSlice가 유효하고 NormalArray 바인딩된 경우에만 샘플.
+	// TileArray와 동일 (TileUV, TileSlice) 인덱싱이므로 BaseColor와 자동 동기화.
+	// BC5/DXT 모두 호환하기 위해 z를 (r,g)에서 재구성.
+	if (HktNormalEnabled > 0.5 && TileSlice >= 0.0 && HktNormalStrength > 0.001)
+	{
+		float3 NSample = HktNormalArray.SampleLevel(HktNormalSampler,
+			float3(frac(Interpolants.TileUV), TileSlice), 0).rgb;
+
+		// Unpack [0,1] → [-1,1] + strength 스케일 + z 재구성 (BC5 호환)
+		float2 NXY = (NSample.xy * 2.0 - 1.0) * HktNormalStrength;
+		float NZ = sqrt(saturate(1.0 - dot(NXY, NXY)));
+
+		// Tangent-space → World-space (현재 TBN 기저 사용: EdgeRound 후)
+		float3 WorldN = NXY.x * (float3)Tangent
+		              + NXY.y * (float3)Bitangent
+		              + NZ    * (float3)Normal;
+		Normal = (half3)normalize(WorldN);
+		Bitangent = cross(Normal, Tangent);
+	}
 
 	Result.WorldNormal = Normal;
 	Result.TangentToWorld = half3x3(Tangent, Bitangent, Normal);

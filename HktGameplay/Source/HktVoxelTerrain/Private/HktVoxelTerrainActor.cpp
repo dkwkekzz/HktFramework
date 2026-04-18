@@ -65,6 +65,8 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 	// 스타일라이즈 토글 초기값 동기화
 	bPrevStylizedRendering = bStylizedRendering;
+	PrevEdgeRoundStrength = EdgeRoundStrength;
+	PrevNormalMapStrength = NormalMapStrength;
 
 	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
 	BuildTerrainStyle();
@@ -165,6 +167,32 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		}
 	}
 
+	// 엣지 라운딩 강도 라이브 토글
+	if (!FMath::IsNearlyEqual(EdgeRoundStrength, PrevEdgeRoundStrength))
+	{
+		PrevEdgeRoundStrength = EdgeRoundStrength;
+		for (auto& Pair : ActiveChunks)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->SetEdgeRoundStrength(EdgeRoundStrength);
+			}
+		}
+	}
+
+	// 노멀맵 강도 라이브 토글
+	if (!FMath::IsNearlyEqual(NormalMapStrength, PrevNormalMapStrength))
+	{
+		PrevNormalMapStrength = NormalMapStrength;
+		for (auto& Pair : ActiveChunks)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->SetNormalMapStrength(NormalMapStrength);
+			}
+		}
+	}
+
 	// 6. 메싱 완료 청크 → GPU 업로드
 	ProcessMeshReadyChunks();
 }
@@ -210,6 +238,8 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 		Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
 		Comp->SetShadowDistance(ShadowDistance);
 		Comp->SetStylizedRendering(bStylizedRendering);
+		Comp->SetEdgeRoundStrength(EdgeRoundStrength);
+		Comp->SetNormalMapStrength(NormalMapStrength);
 		if (TerrainMaterial)
 		{
 			Comp->SetVoxelMaterial(TerrainMaterial);
@@ -349,6 +379,8 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 			Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
 			Comp->SetShadowDistance(ShadowDistance);
 			Comp->SetStylizedRendering(bStylizedRendering);
+			Comp->SetEdgeRoundStrength(EdgeRoundStrength);
+			Comp->SetNormalMapStrength(NormalMapStrength);
 			if (TerrainMaterial)
 			{
 				Comp->SetVoxelMaterial(TerrainMaterial);
@@ -448,19 +480,38 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 		return;
 	}
 
-	// 1. 고유 텍스처 수집 → 슬라이스 인덱스 할당
+	// 1. 고유 텍스처 수집 → 슬라이스 인덱스 할당 (BaseColor 키 + 병렬 Normal 트래킹)
+	//    같은 BaseColor에 서로 다른 Normal이 매핑되면 첫 번째 값을 유지하고 경고.
+	//    null로 시작한 슬롯은 이후 non-null Normal이 들어오면 승격(promote).
 	TMap<UTexture2D*, uint8> TextureToSlice;
 	TArray<UTexture2D*> SliceTextures;  // 인덱스 순서
+	TArray<UTexture2D*> SliceNormals;   // 병렬 배열 — null = 해당 슬라이스 노멀 없음
 
-	auto AssignSlice = [&](UTexture2D* Tex) -> uint8
+	auto AssignSlice = [&](UTexture2D* Base, UTexture2D* Normal) -> uint8
 	{
-		if (!Tex)
+		if (!Base)
 		{
 			return 255;  // 미매핑 → 팔레트 폴백
 		}
-		if (const uint8* Found = TextureToSlice.Find(Tex))
+		if (const uint8* Found = TextureToSlice.Find(Base))
 		{
-			return *Found;
+			const uint8 Idx = *Found;
+			// 병렬 배열에서 기존 Normal과 비교 — null 승격 or 충돌 경고
+			if (Normal)
+			{
+				if (!SliceNormals[Idx])
+				{
+					SliceNormals[Idx] = Normal;  // null → 구체화
+				}
+				else if (SliceNormals[Idx] != Normal)
+				{
+					UE_LOG(LogHktVoxelTerrain, Warning,
+						TEXT("[TerrainStyle] Base 텍스처 %s는 슬라이스 %d에 이미 Normal=%s가 할당됨 — 새 Normal=%s는 무시됨."),
+						*Base->GetName(), Idx,
+						*SliceNormals[Idx]->GetName(), *Normal->GetName());
+				}
+			}
+			return Idx;
 		}
 		if (SliceTextures.Num() >= 255)
 		{
@@ -468,8 +519,9 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 			return 255;
 		}
 		const uint8 Idx = static_cast<uint8>(SliceTextures.Num());
-		TextureToSlice.Add(Tex, Idx);
-		SliceTextures.Add(Tex);
+		TextureToSlice.Add(Base, Idx);
+		SliceTextures.Add(Base);
+		SliceNormals.Add(Normal);
 		return Idx;
 	};
 
@@ -478,13 +530,20 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 
 	for (const FHktVoxelBlockStyle& Style : BlockStyles)
 	{
+		// BaseColor: Top이 없으면 Side로 폴백. Bottom도 동일.
 		UTexture2D* TopTex = Style.TopTexture ? Style.TopTexture.Get() : Style.SideTexture.Get();
 		UTexture2D* SideTex = Style.SideTexture.Get();
 		UTexture2D* BottomTex = Style.BottomTexture ? Style.BottomTexture.Get() : SideTex;
 
-		const uint8 TopSlice = AssignSlice(TopTex);
-		const uint8 SideSlice = AssignSlice(SideTex);
-		const uint8 BottomSlice = AssignSlice(BottomTex);
+		// Normal도 대응하는 BaseColor의 폴백 규칙을 따른다 —
+		// Top이 Side로 폴백되면 TopNormal도 SideNormal로 폴백 (같은 텍스처 쌍 유지).
+		UTexture2D* TopNorm = Style.TopTexture ? Style.TopNormal.Get() : Style.SideNormal.Get();
+		UTexture2D* SideNorm = Style.SideNormal.Get();
+		UTexture2D* BottomNorm = Style.BottomTexture ? Style.BottomNormal.Get() : Style.SideNormal.Get();
+
+		const uint8 TopSlice = AssignSlice(TopTex, TopNorm);
+		const uint8 SideSlice = AssignSlice(SideTex, SideNorm);
+		const uint8 BottomSlice = AssignSlice(BottomTex, BottomNorm);
 
 		BuiltTileAtlas->SetTileMapping(
 			static_cast<uint16>(Style.TypeID), TopSlice, SideSlice, BottomSlice);
@@ -542,6 +601,97 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 		TileArray->UpdateResource();
 
 		BuiltTileAtlas->TileArray = TileArray;
+	}
+
+	// 3b. NormalArray 빌드 (선택) — TileArray와 동일 슬라이스 레이아웃.
+	//     MVP 정책: all-or-nothing. 일부 슬라이스만 노멀이 있으면 전체 스킵 + 경고.
+	//     이유: 누락 슬라이스에 플레이스홀더를 삽입하려면 참조 포맷이 BC5인 경우
+	//     프로시저럴 생성이 복잡해진다. 아티스트가 명시적으로 모든 텍스처를 제공하도록 강제.
+	if (SliceNormals.Num() > 0)
+	{
+		int32 NumProvided = 0;
+		int32 FirstMissingIdx = INDEX_NONE;
+		for (int32 i = 0; i < SliceNormals.Num(); i++)
+		{
+			if (SliceNormals[i]) { NumProvided++; }
+			else if (FirstMissingIdx == INDEX_NONE) { FirstMissingIdx = i; }
+		}
+
+		if (NumProvided == 0)
+		{
+			UE_LOG(LogHktVoxelTerrain, Log,
+				TEXT("[TerrainStyle] 노멀맵 미구성 — 플랫 노멀로 렌더링 (%d 슬라이스)"),
+				SliceNormals.Num());
+		}
+		else if (NumProvided < SliceNormals.Num())
+		{
+			UE_LOG(LogHktVoxelTerrain, Warning,
+				TEXT("[TerrainStyle] 노멀맵 부분 구성 (%d/%d) — NormalArray 빌드 스킵. "
+					 "최초 누락 슬라이스[%d]=%s (BaseColor). "
+					 "모든 BlockStyle에 Top/Side/BottomNormal을 설정하거나 전부 비워 두세요."),
+				NumProvided, SliceNormals.Num(),
+				FirstMissingIdx,
+				*SliceTextures[FirstMissingIdx]->GetName());
+		}
+		else
+		{
+			// 모든 슬라이스에 노멀 제공됨 — 포맷/크기 호환성 검증 후 빌드
+			const int32 NormSizeX = SliceNormals[0]->GetSizeX();
+			const int32 NormSizeY = SliceNormals[0]->GetSizeY();
+			const EPixelFormat NormFormat = SliceNormals[0]->GetPixelFormat();
+			bool bNormalCompatible = true;
+
+			for (int32 i = 1; i < SliceNormals.Num(); i++)
+			{
+				UTexture2D* N = SliceNormals[i];
+				if (N->GetSizeX() != NormSizeX || N->GetSizeY() != NormSizeY)
+				{
+					UE_LOG(LogHktVoxelTerrain, Error,
+						TEXT("[TerrainStyle] 노멀 텍스처 크기 불일치 — [0]=%dx%d, [%d](%s)=%dx%d"),
+						NormSizeX, NormSizeY, i, *N->GetName(),
+						N->GetSizeX(), N->GetSizeY());
+					bNormalCompatible = false;
+				}
+				if (N->GetPixelFormat() != NormFormat)
+				{
+					UE_LOG(LogHktVoxelTerrain, Error,
+						TEXT("[TerrainStyle] 노멀 텍스처 포맷 불일치 — [0]=%s, [%d](%s)=%s"),
+						GetPixelFormatString(NormFormat), i, *N->GetName(),
+						GetPixelFormatString(N->GetPixelFormat()));
+					bNormalCompatible = false;
+				}
+			}
+
+			// SRGB=true는 노멀맵에서 잘못된 설정 — 경고만 출력 (포맷 변환은 엔진이 자동).
+			for (UTexture2D* N : SliceNormals)
+			{
+				if (N->SRGB)
+				{
+					UE_LOG(LogHktVoxelTerrain, Warning,
+						TEXT("[TerrainStyle] 노멀 텍스처 %s에 SRGB=true 설정됨. "
+							 "노멀맵은 Linear 데이터이므로 에셋에서 sRGB=off + TC_Normalmap 권장."),
+						*N->GetName());
+				}
+			}
+
+			if (bNormalCompatible)
+			{
+				UTexture2DArray* NArray = NewObject<UTexture2DArray>(
+					BuiltTileAtlas, TEXT("NormalArray"), RF_Transient);
+				NArray->SourceTextures.Empty();
+				for (UTexture2D* N : SliceNormals)
+				{
+					NArray->SourceTextures.Add(N);
+				}
+				NArray->AddressX = TA_Wrap;
+				NArray->AddressY = TA_Wrap;
+				NArray->SRGB = false;  // 노멀맵은 항상 linear
+				NArray->UpdateSourceFromSourceTextures(true);
+				NArray->UpdateResource();
+
+				BuiltTileAtlas->NormalArray = NArray;
+			}
+		}
 	}
 
 	// 4. TileIndexLUT 빌드
@@ -662,6 +812,7 @@ void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
 	{
 		FRHITexture* TileArrayRHI = BuiltTileAtlas->GetTileArrayRHI();
 		FRHITexture* TileIndexLUTRHI = BuiltTileAtlas->GetTileIndexLUTRHI();
+		FRHITexture* NormalArrayRHI = BuiltTileAtlas->GetNormalArrayRHI();
 
 		FHktVoxelTileTextureSet TileSet;
 		TileSet.TileArray = { TileArrayRHI,
@@ -674,6 +825,13 @@ void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
 		{
 			TileSet.DefaultPalette = { DefaultPaletteTexture->GetResource()->TextureRHI,
 				TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI() };
+		}
+
+		// NormalArray는 옵션 — 빌드되지 않았으면 null로 남아 셰이더가 플랫 노멀 폴백
+		if (NormalArrayRHI)
+		{
+			TileSet.NormalArray = { NormalArrayRHI,
+				TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI() };
 		}
 
 		if (TileSet.IsValid())

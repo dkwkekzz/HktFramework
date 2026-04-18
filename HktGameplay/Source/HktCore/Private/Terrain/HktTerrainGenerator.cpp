@@ -138,6 +138,132 @@ FHktTerrainVoxel FHktTerrainGenerator::DetermineVoxel(
 	return Voxel;
 }
 
+void FHktTerrainGenerator::SamplePreviewRegion(int32 MinWorldX, int32 MinWorldY, int32 Width, int32 Height,
+	FHktTerrainPreviewRegion& Out) const
+{
+	constexpr int32 S = FHktTerrainGeneratorConfig::ChunkSize;
+
+	Out.MinWorldX = MinWorldX;
+	Out.MinWorldY = MinWorldY;
+	Out.Width = Width;
+	Out.Height = Height;
+	Out.WaterLevel = Config.WaterLevel.ToInt();
+	Out.HeightMinZ = Config.HeightMinZ;
+	Out.HeightMaxZ = Config.HeightMaxZ;
+	Out.Samples.SetNum(Width * Height);
+
+	if (Width <= 0 || Height <= 0)
+	{
+		return;
+	}
+
+	// ─── 고급 파이프라인 — 청크 단위 Layer 0~2.5 실행 ───
+	if (Config.bAdvancedTerrain)
+	{
+		const uint64 WorldSeed = static_cast<uint64>(Config.Seed);
+		const uint32 Epoch = Config.Epoch;
+
+		FHktAdvTerrainHeightParams HeightParams;
+		HeightParams.MaxHeight  = Config.HeightScale.ToInt();
+		HeightParams.BaseHeight = Config.HeightOffset.ToInt();
+		HeightParams.SeaLevel   = Config.WaterLevel.ToInt();
+
+		auto FloorDiv = [](int32 A, int32 B) -> int32
+		{
+			return (A >= 0) ? (A / B) : -(((-A) + B - 1) / B);
+		};
+
+		const int32 ChunkMinX = FloorDiv(MinWorldX, S);
+		const int32 ChunkMaxX = FloorDiv(MinWorldX + Width - 1, S);
+		const int32 ChunkMinY = FloorDiv(MinWorldY, S);
+		const int32 ChunkMaxY = FloorDiv(MinWorldY + Height - 1, S);
+
+		for (int32 ChunkY = ChunkMinY; ChunkY <= ChunkMaxY; ++ChunkY)
+		{
+			for (int32 ChunkX = ChunkMinX; ChunkX <= ChunkMaxX; ++ChunkX)
+			{
+				FHktChunkSeed ChunkSeed = FHktAdvTerrainSeed::Derive(WorldSeed, ChunkX, ChunkY, Epoch);
+
+				FHktClimateField Climate;
+				FHktAdvTerrainClimate::Generate(ChunkX, ChunkY, ChunkSeed, Climate);
+
+				FHktTectonicMask Tectonic;
+				FHktChunkSeed TecSeed = FHktAdvTerrainSeed::Derive(WorldSeed, ChunkX, ChunkY, 0);
+				FHktAdvTerrainTectonic::Generate(ChunkX, ChunkY, WorldSeed, TecSeed, Tectonic);
+
+				// Layer 1 후처리: Tectonic 마스크 적용 (GenerateChunk와 동일)
+				for (int32 i = 0; i < S * S; ++i)
+				{
+					Climate.Elevation[i] = FMath::Clamp(
+						Climate.Elevation[i] * Tectonic.ElevationMultiplier[i] + Tectonic.ElevationOffset[i],
+						0.f, 1.f);
+				}
+
+				FHktAdvBiomeMap Biomes;
+				FHktAdvTerrainBiome::Classify(Climate, ChunkSeed, Biomes);
+				FHktAdvTerrainExoticBiome::Apply(Biomes, Climate, ChunkSeed, ChunkX, ChunkY);
+
+				// 청크 영역을 출력 그리드에 복사
+				for (int32 LY = 0; LY < S; ++LY)
+				{
+					const int32 WorldY = ChunkY * S + LY;
+					if (WorldY < MinWorldY || WorldY >= MinWorldY + Height) continue;
+					const int32 OutY = WorldY - MinWorldY;
+
+					for (int32 LX = 0; LX < S; ++LX)
+					{
+						const int32 WorldX = ChunkX * S + LX;
+						if (WorldX < MinWorldX || WorldX >= MinWorldX + Width) continue;
+						const int32 OutX = WorldX - MinWorldX;
+
+						FHktTerrainPreviewSample& Sample = Out.Samples[OutX + OutY * Width];
+						const float Elev = Climate.GetElevation(LX, LY);
+						const EHktAdvBiome Biome = Biomes.Get(LX, LY);
+						const int32 SurfaceH = FHktAdvTerrainFill::ComputeHeight(Elev, Biome, HeightParams);
+
+						Sample.Elevation = Elev;
+						Sample.Moisture = Climate.GetMoisture(LX, LY);
+						Sample.Temperature = Climate.GetTemperature(LX, LY);
+						Sample.BiomeId = static_cast<uint8>(Biome);
+						Sample.TectonicPrimary = static_cast<uint8>(Tectonic.PrimaryType);
+						Sample.SurfaceHeightVoxels = SurfaceH;
+						Sample.bIsAdvanced = true;
+						Sample.bIsOcean = (Biome == EHktAdvBiome::Ocean) || (SurfaceH <= HeightParams.SeaLevel);
+					}
+				}
+			}
+		}
+		return;
+	}
+
+	// ─── 레거시 파이프라인 — 칼럼당 직접 쿼리 ───
+	const int32 BaseHeight = Config.HeightOffset.ToInt();
+	const int32 MaxHeight  = Config.HeightScale.ToInt();
+	const int32 SeaLevel   = Config.WaterLevel.ToInt();
+	const float InvMax = (MaxHeight > 0) ? 1.f / static_cast<float>(MaxHeight) : 0.f;
+
+	for (int32 Y = 0; Y < Height; ++Y)
+	{
+		for (int32 X = 0; X < Width; ++X)
+		{
+			const int32 WX = MinWorldX + X;
+			const int32 WY = MinWorldY + Y;
+			const Fixed FX = Fixed::FromInt(WX);
+			const Fixed FY = Fixed::FromInt(WY);
+			const Fixed H = GetSurfaceHeight(FX, FY);
+			const int32 HVoxels = H.ToInt();
+			const EHktBiomeType Biome = BiomeMap.GetBiomeWithHeight(FX, FY, H);
+
+			FHktTerrainPreviewSample& Sample = Out.Samples[X + Y * Width];
+			Sample.SurfaceHeightVoxels = HVoxels;
+			Sample.BiomeId = static_cast<uint8>(200 + static_cast<uint8>(Biome));  // 200+ = 레거시
+			Sample.Elevation = FMath::Clamp(static_cast<float>(HVoxels - BaseHeight) * InvMax, 0.f, 1.f);
+			Sample.bIsAdvanced = false;
+			Sample.bIsOcean = HVoxels <= SeaLevel;
+		}
+	}
+}
+
 void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 ChunkZ, FHktTerrainVoxel* OutVoxels) const
 {
 	// ─── 고급 파이프라인 ───
@@ -174,14 +300,27 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 		// Layer 2.5: 이상 바이옴 오버레이
 		FHktAdvTerrainExoticBiome::Apply(Biomes, Climate, ChunkSeed, ChunkX, ChunkY);
 
+		// 수직 높이 파라미터 — Config에서 주입 (레거시 경로와 동일 파라미터 공유)
+		FHktAdvTerrainHeightParams HeightParams;
+		HeightParams.MaxHeight  = Config.HeightScale.ToInt();
+		HeightParams.BaseHeight = Config.HeightOffset.ToInt();
+		HeightParams.SeaLevel   = Config.WaterLevel.ToInt();
+
 		// Layer 3: 하이트맵 + 컬럼 채우기
-		FHktAdvTerrainFill::Fill(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, OutVoxels);
+		FHktAdvTerrainFill::Fill(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, HeightParams, OutVoxels);
 
 		// Layer 4: 랜드마크 + 강
-		FHktAdvTerrainLandmark::Apply(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, ChunkSeed, OutVoxels);
+		FHktAdvTerrainLandmark::Apply(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, ChunkSeed, HeightParams, OutVoxels);
 
-		// Layer 5: 데코 (광석 + 표면 산포)
-		FHktAdvTerrainDecoration::Apply(ChunkX, ChunkY, ChunkZ, Climate, Biomes, ChunkSeed, OutVoxels);
+		// Layer 5: 데코 (옵션 플래그로 단계별 분기)
+		if (Config.bAdvEnableSubsurfaceOre)
+		{
+			FHktAdvTerrainDecoration::ApplySubsurface(ChunkX, ChunkY, ChunkZ, ChunkSeed, OutVoxels);
+		}
+		if (Config.bAdvEnableSurfaceScatter)
+		{
+			FHktAdvTerrainDecoration::ApplySurfaceScatter(ChunkX, ChunkY, ChunkZ, Biomes, ChunkSeed, OutVoxels);
+		}
 
 		return;
 	}

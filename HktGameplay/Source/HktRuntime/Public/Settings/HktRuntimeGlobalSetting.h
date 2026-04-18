@@ -79,6 +79,14 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Advanced Terrain"))
 	bool bAdvancedTerrain = false;
 
+	/** Layer 5a — 지하 광석 배치 활성화 (석탄/철/금/수정/공허석) */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Advanced: Subsurface Ore"))
+	bool bAdvEnableSubsurfaceOre = true;
+
+	/** Layer 5b — 표면 산포 데코 활성화 (나무/꽃/선인장/뼈/수정 기둥 등) */
+	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Advanced: Surface Scatter"))
+	bool bAdvEnableSurfaceScatter = true;
+
 	/** 지형 에포크 — 미탐험 영역 재생성 사이클 (0=기본) */
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain", meta = (DisplayName = "Terrain Epoch"))
 	uint32 TerrainEpoch = 0;
