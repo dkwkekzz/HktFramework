@@ -184,8 +184,10 @@ void FHktTerrainGenerator::SamplePreviewRegion(int32 MinWorldX, int32 MinWorldY,
 			{
 				FHktChunkSeed ChunkSeed = FHktAdvTerrainSeed::Derive(WorldSeed, ChunkX, ChunkY, Epoch);
 
+				// Climate / Tectonic / Biome jitter 노이즈는 WorldSeed로 시드한다 —
+				// 청크 경계를 가로지르는 연속성 보장.
 				FHktClimateField Climate;
-				FHktAdvTerrainClimate::Generate(ChunkX, ChunkY, ChunkSeed, Climate);
+				FHktAdvTerrainClimate::Generate(ChunkX, ChunkY, WorldSeed, Climate);
 
 				FHktTectonicMask Tectonic;
 				FHktChunkSeed TecSeed = FHktAdvTerrainSeed::Derive(WorldSeed, ChunkX, ChunkY, 0);
@@ -200,7 +202,7 @@ void FHktTerrainGenerator::SamplePreviewRegion(int32 MinWorldX, int32 MinWorldY,
 				}
 
 				FHktAdvBiomeMap Biomes;
-				FHktAdvTerrainBiome::Classify(Climate, ChunkSeed, Biomes);
+				FHktAdvTerrainBiome::Classify(ChunkX, ChunkY, WorldSeed, Climate, Biomes);
 				FHktAdvTerrainExoticBiome::Apply(Biomes, Climate, ChunkSeed, ChunkX, ChunkY);
 
 				// 청크 영역을 출력 그리드에 복사
@@ -275,9 +277,9 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 		// Layer 0: 시드 파생 (X,Y = 수평축)
 		FHktChunkSeed ChunkSeed = FHktAdvTerrainSeed::Derive(WorldSeed, ChunkX, ChunkY, Epoch);
 
-		// Layer 1: 기후 노이즈
+		// Layer 1: 기후 노이즈 — WorldSeed 기반 (청크 경계 연속)
 		FHktClimateField Climate;
-		FHktAdvTerrainClimate::Generate(ChunkX, ChunkY, ChunkSeed, Climate);
+		FHktAdvTerrainClimate::Generate(ChunkX, ChunkY, WorldSeed, Climate);
 
 		// Layer 1.5: 대륙 템플릿 (epoch 무시 — 대륙 구조는 영구 불변)
 		FHktTectonicMask Tectonic;
@@ -293,9 +295,9 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 				0.f, 1.f);
 		}
 
-		// Layer 2: 바이옴 분류
+		// Layer 2: 바이옴 분류 — WorldSeed 기반 jitter (청크 경계 연속)
 		FHktAdvBiomeMap Biomes;
-		FHktAdvTerrainBiome::Classify(Climate, ChunkSeed, Biomes);
+		FHktAdvTerrainBiome::Classify(ChunkX, ChunkY, WorldSeed, Climate, Biomes);
 
 		// Layer 2.5: 이상 바이옴 오버레이
 		FHktAdvTerrainExoticBiome::Apply(Biomes, Climate, ChunkSeed, ChunkX, ChunkY);
@@ -309,8 +311,8 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 		// Layer 3: 하이트맵 + 컬럼 채우기
 		FHktAdvTerrainFill::Fill(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, HeightParams, OutVoxels);
 
-		// Layer 4: 랜드마크 + 강
-		FHktAdvTerrainLandmark::Apply(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Tectonic, ChunkSeed, HeightParams, OutVoxels);
+		// Layer 4: 랜드마크 + 강 — 강 노이즈는 WorldSeed로 청크 경계 연속
+		FHktAdvTerrainLandmark::Apply(ChunkX, ChunkY, ChunkZ, WorldSeed, Climate, Biomes, Tectonic, ChunkSeed, HeightParams, OutVoxels);
 
 		// Layer 5: 데코 (옵션 플래그로 단계별 분기)
 		if (Config.bAdvEnableSubsurfaceOre)

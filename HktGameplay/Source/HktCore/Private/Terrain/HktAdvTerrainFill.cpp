@@ -283,13 +283,15 @@ void FHktAdvTerrainLandmark::ApplyLandmarks(
 
 void FHktAdvTerrainLandmark::ApplyRivers(
 	int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	uint64 WorldSeed,
 	const FHktClimateField& Climate,
 	const FHktAdvBiomeMap& Biomes,
 	const FHktChunkSeed& Seed,
 	const FHktAdvTerrainHeightParams& Params,
 	FHktTerrainVoxel* InOutVoxels)
 {
-	FHktTerrainNoiseFloat RiverNoise(Seed.FeatureSeed);
+	// 강은 청크 경계를 가로질러 자연스럽게 흘러야 한다 — WorldSeed 기반 시드.
+	FHktTerrainNoiseFloat RiverNoise(SplitMix64(WorldSeed ^ HktAdvNoiseTag::RiverFeature));
 	constexpr int32 S = 32;
 	const int32 BaseX = ChunkX * S;
 	const int32 BaseY = ChunkY * S;
@@ -329,6 +331,7 @@ void FHktAdvTerrainLandmark::ApplyRivers(
 
 void FHktAdvTerrainLandmark::Apply(
 	int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	uint64 WorldSeed,
 	const FHktClimateField& Climate,
 	const FHktAdvBiomeMap& Biomes,
 	const FHktTectonicMask& Tectonic,
@@ -337,7 +340,7 @@ void FHktAdvTerrainLandmark::Apply(
 	FHktTerrainVoxel* InOutVoxels)
 {
 	ApplyLandmarks(ChunkX, ChunkY, ChunkZ, Biomes, Tectonic, Seed, Climate, Params, InOutVoxels);
-	ApplyRivers(ChunkX, ChunkY, ChunkZ, Climate, Biomes, Seed, Params, InOutVoxels);
+	ApplyRivers(ChunkX, ChunkY, ChunkZ, WorldSeed, Climate, Biomes, Seed, Params, InOutVoxels);
 }
 
 // ============================================================================

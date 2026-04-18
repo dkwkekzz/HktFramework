@@ -42,6 +42,7 @@ struct FHktAdvTerrainLandmark
 {
 	static void Apply(
 		int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+		uint64 WorldSeed,
 		const FHktClimateField& Climate,
 		const FHktAdvBiomeMap& Biomes,
 		const FHktTectonicMask& Tectonic,
@@ -61,6 +62,7 @@ private:
 
 	static void ApplyRivers(
 		int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+		uint64 WorldSeed,
 		const FHktClimateField& Climate,
 		const FHktAdvBiomeMap& Biomes,
 		const FHktChunkSeed& Seed,

@@ -33,14 +33,22 @@ FHktChunkSeed FHktAdvTerrainSeed::Derive(uint64 WorldSeed, int32 ChunkX, int32 C
 
 void FHktAdvTerrainClimate::Generate(
 	int32 ChunkX, int32 ChunkZ,
-	const FHktChunkSeed& Seed,
+	uint64 WorldSeed,
 	FHktClimateField& OutClimate)
 {
-	FHktTerrainNoiseFloat ClimateNoise(Seed.ClimateSeed);
-	FHktTerrainNoiseFloat ClimateNoise2(Seed.ClimateSeed ^ 0xA1);
-	FHktTerrainNoiseFloat MoistureNoise(Seed.ClimateSeed ^ 0xB2);
-	FHktTerrainNoiseFloat TempNoise(Seed.ClimateSeed ^ 0xC3);
-	FHktTerrainNoiseFloat ExoticNoise(Seed.ExoticSeed);
+	using namespace HktAdvNoiseTag;
+
+	// 모든 노이즈를 WorldSeed 기반 채널 시드로 만든다 — 청크 경계를 넘어
+	// 동일한 노이즈 함수를 평가하므로 연속성이 보장된다.
+	FHktTerrainNoiseFloat ContinentalNoise(SplitMix64(WorldSeed ^ ClimateContinental));
+	FHktTerrainNoiseFloat MountainNoise   (SplitMix64(WorldSeed ^ ClimateMountain));
+	FHktTerrainNoiseFloat DetailNoise     (SplitMix64(WorldSeed ^ ClimateDetail));
+	FHktTerrainNoiseFloat WarpNoise       (SplitMix64(WorldSeed ^ ClimateDomainWarp));
+	FHktTerrainNoiseFloat MoistureNoise   (SplitMix64(WorldSeed ^ ClimateMoisture));
+	FHktTerrainNoiseFloat TempNoise       (SplitMix64(WorldSeed ^ ClimateTemp));
+	FHktTerrainNoiseFloat ExoticNoise     (SplitMix64(WorldSeed ^ ClimateExotic));
+	FHktTerrainNoiseFloat ExoticWarpXNoise(SplitMix64(WorldSeed ^ ClimateExoticWarpX));
+	FHktTerrainNoiseFloat ExoticWarpZNoise(SplitMix64(WorldSeed ^ ClimateExoticWarpZ));
 
 	constexpr int32 S = FHktClimateField::Size;
 
@@ -52,19 +60,27 @@ void FHktAdvTerrainClimate::Generate(
 			const float WorldZ = static_cast<float>(ChunkZ * S + LZ);
 
 			// --- Elevation ---
+			// 도메인 워프는 별도 노이즈로 — Continental과 분리해야 워프된 좌표가
+			// 다시 같은 노이즈에 들어가는 자기참조 패턴을 피한다.
 			float WX = WorldX, WZ = WorldZ;
-			ClimateNoise.DomainWarp2D(WX, WZ, 20.f);
+			WarpNoise.DomainWarp2D(WX, WZ, 28.f);
 
-			const float Continental = ClimateNoise.FBm2D(WX / 512.f, WZ / 512.f, 4, 2.f, 0.5f);
-			const float Mountain = ClimateNoise2.FBm2D(WX / 128.f, WZ / 128.f, 6, 2.f, 0.5f);
+			const float Continental = ContinentalNoise.FBm2D(WX / 512.f, WZ / 512.f, 5, 2.f, 0.55f);
+			const float Mountain    = MountainNoise.FBm2D(WX / 160.f, WZ / 160.f, 6, 2.f, 0.5f);
+			// Detail은 청크보다 작은 스케일(/40 ~ /5)로 미세한 굴곡을 부여 —
+			// 평탄한 지역도 단조롭지 않도록.
+			const float Detail      = DetailNoise.FBm2D(WorldX / 40.f, WorldZ / 40.f, 4, 2.f, 0.45f);
 
-			float ElevRaw = FHktTerrainNoiseFloat::Remap(Continental, -1.f, 1.f, 0.f, 1.f) * 0.7f
-			              + FHktTerrainNoiseFloat::Remap(Mountain, -1.f, 1.f, 0.f, 1.f) * 0.3f;
+			const float ContN = FHktTerrainNoiseFloat::Remap(Continental, -1.f, 1.f, 0.f, 1.f);
+			const float MtN   = FHktTerrainNoiseFloat::Remap(Mountain,    -1.f, 1.f, 0.f, 1.f);
+			const float DtN   = FHktTerrainNoiseFloat::Remap(Detail,      -1.f, 1.f, 0.f, 1.f);
+
+			float ElevRaw = ContN * 0.55f + MtN * 0.32f + DtN * 0.13f;
 			OutClimate.SetElevation(LX, LZ, FMath::Clamp(ElevRaw, 0.f, 1.f));
 
 			// --- Moisture ---
 			float Moist = FHktTerrainNoiseFloat::Remap(
-				MoistureNoise.FBm2D(WorldX / 256.f, WorldZ / 256.f, 3, 2.f, 0.5f),
+				MoistureNoise.FBm2D(WorldX / 256.f, WorldZ / 256.f, 4, 2.f, 0.5f),
 				-1.f, 1.f, 0.f, 1.f);
 			if (ElevRaw > 0.7f) Moist *= 0.7f;
 			OutClimate.SetMoisture(LX, LZ, FMath::Clamp(Moist, 0.f, 1.f));
@@ -72,16 +88,18 @@ void FHktAdvTerrainClimate::Generate(
 			// --- Temperature ---
 			const float LatFactor = 1.f - FMath::Abs(WorldZ / 4096.f);
 			const float TempNoiseVal = FHktTerrainNoiseFloat::Remap(
-				TempNoise.FBm2D(WorldX / 384.f, WorldZ / 384.f, 3, 2.f, 0.5f),
+				TempNoise.FBm2D(WorldX / 384.f, WorldZ / 384.f, 4, 2.f, 0.5f),
 				-1.f, 1.f, 0.f, 1.f);
-			const float Temp = FMath::Clamp(LatFactor * 0.7f + TempNoiseVal * 0.3f - ElevRaw * 0.4f, 0.f, 1.f);
+			const float Temp = FMath::Clamp(LatFactor * 0.6f + TempNoiseVal * 0.4f - ElevRaw * 0.4f, 0.f, 1.f);
 			OutClimate.SetTemperature(LX, LZ, Temp);
 
 			// --- Exoticness ---
+			// 워프 X/Z를 별도 노이즈로 — 같은 노이즈에 +999 오프셋을 주는 트릭은
+			// 사실상 같은 함수의 다른 영역을 보는 것이라 상관관계가 남는다.
 			float ExW = WorldX, ExZ = WorldZ;
-			const float ExWarpX = ExoticNoise.FBm2D(WorldX / 1024.f, WorldZ / 1024.f, 2, 2.f, 0.5f);
+			const float ExWarpX = ExoticWarpXNoise.FBm2D(WorldX / 1024.f, WorldZ / 1024.f, 2, 2.f, 0.5f);
+			const float ExWarpZ = ExoticWarpZNoise.FBm2D(WorldX / 1024.f, WorldZ / 1024.f, 2, 2.f, 0.5f);
 			ExW += ExWarpX * 100.f;
-			const float ExWarpZ = ExoticNoise.FBm2D(WorldX / 1024.f + 999.f, WorldZ / 1024.f + 999.f, 2, 2.f, 0.5f);
 			ExZ += ExWarpZ * 100.f;
 			const float ExBase = FHktTerrainNoiseFloat::Remap(
 				ExoticNoise.FBm2D(ExW / 768.f, ExZ / 768.f, 3, 2.f, 0.5f),
@@ -126,7 +144,10 @@ void FHktAdvTerrainTectonic::Generate(
 
 	OutMask.PrimaryType = ClassifyCell(CellX, CellZ, WorldSeed);
 
-	FHktTerrainNoiseFloat TecNoise(Seed.TectonicSeed ^ Hash2D(CellX, CellZ));
+	// Tectonic 노이즈는 셀 내부에서 매끄러워야 한다 — 청크별 시드(Seed.TectonicSeed)를
+	// 섞으면 한 셀 안에서도 청크마다 다른 노이즈 함수가 되어 단차가 생긴다.
+	// WorldSeed + Cell 해시 + 채널 태그만으로 시드한다.
+	FHktTerrainNoiseFloat TecNoise(SplitMix64(WorldSeed ^ Hash2D(CellX, CellZ) ^ HktAdvNoiseTag::TectonicCell));
 
 	const float CellCenterX = (static_cast<float>(CellX) + 0.5f) * CELL_SIZE;
 	const float CellCenterZ = (static_cast<float>(CellZ) + 0.5f) * CELL_SIZE;
@@ -271,21 +292,24 @@ EHktAdvBiome FHktAdvTerrainBiome::Decide(float Elev, float Moist, float Temp)
 }
 
 void FHktAdvTerrainBiome::Classify(
+	int32 ChunkX, int32 ChunkZ,
+	uint64 WorldSeed,
 	const FHktClimateField& Climate,
-	const FHktChunkSeed& Seed,
 	FHktAdvBiomeMap& OutBiomes)
 {
-	FHktTerrainNoiseFloat JitterNoise(Seed.BiomeSeed);
+	// 지터도 청크 경계에서 끊기지 않도록 WorldSeed 기반 + 월드 좌표 사용.
+	FHktTerrainNoiseFloat JitterNoise(SplitMix64(WorldSeed ^ HktAdvNoiseTag::BiomeJitter));
 	constexpr int32 S = FHktClimateField::Size;
 
 	for (int32 LZ = 0; LZ < S; ++LZ)
 	{
 		for (int32 LX = 0; LX < S; ++LX)
 		{
-			// 경계 지터 (±0.02)
-			const float Jitter = JitterNoise.Noise2D(
-				static_cast<float>(LX) * 3.7f,
-				static_cast<float>(LZ) * 3.7f) * 0.02f;
+			const float WX = static_cast<float>(ChunkX * S + LX);
+			const float WZ = static_cast<float>(ChunkZ * S + LZ);
+
+			// 경계 지터 (±0.025) — 작지만 분류 임계 근처에서 부드러운 가장자리 생성
+			const float Jitter = JitterNoise.Noise2D(WX * 0.117f, WZ * 0.117f) * 0.025f;
 
 			const float E = FMath::Clamp(Climate.GetElevation(LX, LZ) + Jitter, 0.f, 1.f);
 			const float M = Climate.GetMoisture(LX, LZ);
