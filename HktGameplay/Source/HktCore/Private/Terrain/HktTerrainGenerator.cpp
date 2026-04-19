@@ -392,3 +392,4 @@ void FHktTerrainGenerator::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 Chunk
 		}
 	}
 }
+

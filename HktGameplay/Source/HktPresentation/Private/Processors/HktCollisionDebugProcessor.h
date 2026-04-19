@@ -22,18 +22,13 @@ class FHktCollisionDebugProcessor : public IHktPresentationProcessor
 public:
 	explicit FHktCollisionDebugProcessor(ULocalPlayer* InLP);
 
-	virtual void Sync(const FHktPresentationState& State) override;
+	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
 	virtual bool NeedsTick() const override { return true; }
 
 private:
-	/** Mode 1: 엔티티별 캡슐 충돌 범위 시각화 */
 	void DrawCollisionCapsules(UWorld* World, const FHktPresentationState& State);
-
-	/** Mode 2: 각 엔티티의 최대 판정 도달 범위 (자신 + 최대 상대 반경) */
 	void DrawDetectionRange(UWorld* World, const FHktPresentationState& State);
-
-	/** Mode 3: 캡슐 AABB에 포함되는 복셀 셀 시각화 */
 	void DrawVoxelCells(UWorld* World, const FHktPresentationState& State);
 
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;

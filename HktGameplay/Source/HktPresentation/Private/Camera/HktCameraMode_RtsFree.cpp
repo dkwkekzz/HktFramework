@@ -82,8 +82,7 @@ void UHktCameraMode_RtsFree::FollowNewSpawn(AHktRtsCameraPawn* Pawn, float Delta
 
 	if (FollowTargetEntityId == InvalidEntityId) return;
 
-	const FHktEntityPresentation* E = State.Get(FollowTargetEntityId);
-	if (!E || !E->IsAlive())
+	if (!State.IsValid(FollowTargetEntityId))
 	{
 		FollowTargetEntityId = InvalidEntityId;
 		return;

@@ -81,6 +81,13 @@ public:
 	/** 복셀 렌더링용 머티리얼 설정 (팔레트 기반 단일 머티리얼) */
 	void SetVoxelMaterial(UMaterialInterface* InMaterial);
 
+	/**
+	 * 디버그 시각화용 자동 생성 머티리얼 — Wireframe + Unlit + VertexColor→Emissive.
+	 * AHktVoxelTerrainActor::bDebugRenderMode 활성 시 폴백으로 사용된다.
+	 * 에디터/개발 빌드에서만 유효 (WITH_EDITORONLY_DATA). Shipping은 엔진 기본 머티리얼.
+	 */
+	static UMaterialInterface* GetDebugWireframeMaterial();
+
 	/** 타일 텍스처 설정 — OnMeshReady에서 Proxy에 전달 */
 	void SetTileTextures(const FHktVoxelTileTextureSet& InTileTextures);
 

@@ -168,6 +168,99 @@ void FHktAdvTerrainLandmark::StampCylinder(
 	}
 }
 
+void FHktAdvTerrainLandmark::StampAsymmetricDome(
+	int32 CenterX, int32 CenterY, int32 BaseZ,
+	int32 Radius, int32 Height,
+	float TiltX, float TiltY, float TiltStrength,
+	uint16 TypeID, uint8 Palette,
+	int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	FHktTerrainVoxel* Voxels)
+{
+	constexpr int32 S = 32;
+	const int32 BX = ChunkX * S;
+	const int32 BY = ChunkY * S;
+	const int32 BZ = ChunkZ * S;
+
+	// 각 Z 레벨마다: 반지름은 hemispherical로 축소, 중심은 Tilt 방향으로 이동.
+	for (int32 DZ = 0; DZ < Height; ++DZ)
+	{
+		const int32 WZ = BaseZ + DZ;
+		if (WZ < BZ || WZ >= BZ + S) continue;
+		const int32 LZ = WZ - BZ;
+
+		const float T = static_cast<float>(DZ) / static_cast<float>(Height);  // [0,1]
+		const float RadiusAtZ = static_cast<float>(Radius) * FMath::Sqrt(FMath::Max(0.f, 1.f - T * T));
+		const int32 RZInt = FMath::FloorToInt(RadiusAtZ);
+		if (RZInt <= 0) continue;
+		const int32 R2AtZ = RZInt * RZInt;
+
+		// 상단일수록 기울기 방향으로 중심이 이동 → 한쪽 절벽, 반대쪽 완만.
+		const int32 OffsetX = FMath::RoundToInt(TiltX * TiltStrength * static_cast<float>(Radius) * T);
+		const int32 OffsetY = FMath::RoundToInt(TiltY * TiltStrength * static_cast<float>(Radius) * T);
+		const int32 CXAtZ = CenterX + OffsetX;
+		const int32 CYAtZ = CenterY + OffsetY;
+
+		for (int32 LX = 0; LX < S; ++LX)
+		{
+			const int32 WX = BX + LX;
+			const int32 DXX = WX - CXAtZ;
+			if (DXX * DXX > R2AtZ) continue;
+
+			for (int32 LY = 0; LY < S; ++LY)
+			{
+				const int32 WY = BY + LY;
+				const int32 DYY = WY - CYAtZ;
+				if (DXX * DXX + DYY * DYY > R2AtZ) continue;
+
+				const int32 Idx = LX + LY * S + LZ * S * S;
+				Voxels[Idx] = HktTerrainVoxelDef::MakeVoxel(TypeID, Palette);
+			}
+		}
+	}
+}
+
+void FHktAdvTerrainLandmark::CarveBowlWithWater(
+	int32 CenterX, int32 CenterY, int32 SurfaceZ,
+	int32 Radius, int32 Depth,
+	int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	FHktTerrainVoxel* Voxels)
+{
+	constexpr int32 S = 32;
+	const int32 BX = ChunkX * S;
+	const int32 BY = ChunkY * S;
+	const int32 BZ = ChunkZ * S;
+	const int32 R2 = Radius * Radius;
+
+	for (int32 LX = 0; LX < S; ++LX)
+	{
+		const int32 WX = BX + LX;
+		const int32 DX = WX - CenterX;
+		if (DX * DX > R2) continue;
+
+		for (int32 LY = 0; LY < S; ++LY)
+		{
+			const int32 WY = BY + LY;
+			const int32 DY = WY - CenterY;
+			const int32 DistSq = DX * DX + DY * DY;
+			if (DistSq > R2) continue;
+
+			// 파라볼라 깊이 — 중심 = -Depth, 가장자리 = 0.
+			const float T = static_cast<float>(DistSq) / static_cast<float>(R2);  // [0,1]
+			const int32 BowlBottom = SurfaceZ - FMath::RoundToInt(static_cast<float>(Depth) * (1.f - T));
+
+			for (int32 LZ = 0; LZ < S; ++LZ)
+			{
+				const int32 WZ = BZ + LZ;
+				if (WZ <= BowlBottom || WZ > SurfaceZ) continue;
+
+				// Bowl 내부 (BowlBottom < z ≤ SurfaceZ) → Water 채움.
+				const int32 Idx = LX + LY * S + LZ * S * S;
+				Voxels[Idx] = HktTerrainVoxelDef::MakeVoxel(Water, 0);
+			}
+		}
+	}
+}
+
 void FHktAdvTerrainLandmark::ApplyLandmarks(
 	int32 ChunkX, int32 ChunkY, int32 ChunkZ,
 	const FHktAdvBiomeMap& Biomes,
@@ -190,7 +283,25 @@ void FHktAdvTerrainLandmark::ApplyLandmarks(
 	const bool bExotic = static_cast<uint8>(CenterBiome) >= 100;
 	const float CenterElev = Climate.GetElevation(16, 16);
 
+	// 대륙 타입 게이트 — lone_peak/lake는 Pangea/Plateau에서만 자연스러움.
+	const bool bPangeaLike = Tectonic.PrimaryType == EHktContinentType::Pangea
+		|| Tectonic.PrimaryType == EHktContinentType::Plateau;
+
+	const bool bLonePeakBiome = !bExotic && bPangeaLike && (
+		CenterBiome == EHktAdvBiome::Grassland ||
+		CenterBiome == EHktAdvBiome::Forest ||
+		CenterBiome == EHktAdvBiome::RockyMountain);
+
+	const bool bLakeBiome = !bExotic && bPangeaLike && (
+		CenterBiome == EHktAdvBiome::Grassland ||
+		CenterBiome == EHktAdvBiome::Forest ||
+		CenterBiome == EHktAdvBiome::Savanna ||
+		CenterBiome == EHktAdvBiome::Swamp) && CenterElev > 0.36f && CenterElev < 0.65f;
+
+	// 시각 임팩트가 큰 항목(lone_peak, lake)을 앞쪽에 두어 starvation을 방지한다.
 	LandmarkDef Catalog[] = {
+		{EHktLandmarkType::LonePeak,       0.012f, bLonePeakBiome},
+		{EHktLandmarkType::Lake,           0.020f, bLakeBiome},
 		{EHktLandmarkType::Sinkhole,      0.02f, !bExotic && CenterElev > 0.4f && CenterElev < 0.75f},
 		{EHktLandmarkType::Mesa,           0.015f, CenterBiome == EHktAdvBiome::Desert},
 		{EHktLandmarkType::Monolith,       0.005f, true},
@@ -271,6 +382,29 @@ void FHktAdvTerrainLandmark::ApplyLandmarks(
 			{
 				CarveSphericalHole(WorldX + DX, WorldY, SurfaceH - 40, 5, ChunkX, ChunkY, ChunkZ, InOutVoxels);
 			}
+			break;
+
+		case EHktLandmarkType::LonePeak:
+		{
+			// Tilt 방향은 시드 기반으로 결정론적 선택 — 봉우리별 절벽 방향이 달라짐.
+			const uint64 TiltSeed = SplitMix64(RollSeed + 4);
+			const float TiltAngle = (static_cast<float>(TiltSeed % 1024) / 1024.f) * 2.f * PI;
+			const float TiltX = FMath::Cos(TiltAngle);
+			const float TiltY = FMath::Sin(TiltAngle);
+			StampAsymmetricDome(
+				WorldX, WorldY, SurfaceH,
+				12, 36,
+				TiltX, TiltY, 0.35f,
+				Stone, HktAdvTerrainPalette::RockyMountain,
+				ChunkX, ChunkY, ChunkZ, InOutVoxels);
+			break;
+		}
+
+		case EHktLandmarkType::Lake:
+			CarveBowlWithWater(
+				WorldX, WorldY, SurfaceH,
+				10, 6,
+				ChunkX, ChunkY, ChunkZ, InOutVoxels);
 			break;
 
 		default:

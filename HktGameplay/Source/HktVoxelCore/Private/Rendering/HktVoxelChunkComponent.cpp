@@ -88,11 +88,58 @@ UHktVoxelChunkComponent::UHktVoxelChunkComponent()
 
 void UHktVoxelChunkComponent::SetVoxelMaterial(UMaterialInterface* InMaterial)
 {
-	if (InMaterial)
+	// null 전달 시 기본 버텍스 컬러 머티리얼(M_HktVoxelVertexColor)로 복귀.
+	// 디버그 렌더 모드에서 DebugRenderMaterial 미할당일 때 폴백 경로로 사용된다.
+	UMaterialInterface* NextMat = InMaterial ? InMaterial : GetDefaultVoxelMaterial();
+	if (CachedVoxelMaterial.Get() != NextMat)
 	{
-		CachedVoxelMaterial = InMaterial;
+		CachedVoxelMaterial = NextMat;
 		MarkRenderStateDirty();
 	}
+}
+
+// ============================================================================
+// 디버그 Wireframe 머티리얼 — 자동 생성 (Wireframe + Unlit + VertexColor→Emissive)
+// ============================================================================
+
+UMaterialInterface* UHktVoxelChunkComponent::GetDebugWireframeMaterial()
+{
+	static TWeakObjectPtr<UMaterialInterface> CachedMaterial;
+	if (CachedMaterial.IsValid())
+	{
+		return CachedMaterial.Get();
+	}
+
+#if WITH_EDITORONLY_DATA
+	UMaterial* Mat = NewObject<UMaterial>(
+		GetTransientPackage(), TEXT("M_HktVoxelDebugWireframe"), RF_Transient);
+	Mat->AddToRoot();
+
+	// 언릿 — 라이팅 영향 없음. 버텍스 컬러 그대로 방출.
+	// UE5.4+에서 ShadingModel은 private, 공개 setter 사용.
+	Mat->SetShadingModel(MSM_Unlit);
+	Mat->BlendMode = BLEND_Opaque;
+	// Wireframe 렌더 — 폴리곤 에지만 그려 내부 복셀 구조가 훤히 보임.
+	Mat->Wireframe = true;
+	Mat->TwoSided  = true;
+
+	// VertexColor.RGB → EmissiveColor (언릿이므로 Base 대신 Emissive 사용)
+	UMaterialExpressionVertexColor* VCExpr =
+		NewObject<UMaterialExpressionVertexColor>(Mat);
+	Mat->GetExpressionCollection().AddExpression(VCExpr);
+	Mat->GetEditorOnlyData()->EmissiveColor.Connect(0, VCExpr);
+
+	Mat->PostEditChange();
+
+	UE_LOG(LogHktVoxelCore, Log,
+		TEXT("[DebugMaterial] Wireframe+Unlit+VertexColor 자동 생성 (M_HktVoxelDebugWireframe)"));
+
+	CachedMaterial = Mat;
+	return Mat;
+#else
+	// Shipping — 디버그 머티리얼 없음, 엔진 기본으로 폴백
+	return UMaterial::GetDefaultMaterial(MD_Surface);
+#endif
 }
 
 void UHktVoxelChunkComponent::SetStylizedRendering(bool bEnabled)

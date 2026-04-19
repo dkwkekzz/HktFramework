@@ -177,10 +177,10 @@ bool AHktRtsCameraPawn::IsOwnedEntity(FHktEntityId EntityId) const
 	UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC);
 	if (!Sub) return false;
 
-	const FHktEntityPresentation* E = Sub->GetState().Get(EntityId);
-	if (!E) return false;
+	const FHktOwnershipView* O = Sub->GetState().GetOwnership(EntityId);
+	if (!O) return false;
 
-	return E->OwnedPlayerUid.Get() == CachedPlayerUid;
+	return O->OwnedPlayerUid.Get() == CachedPlayerUid;
 }
 
 void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)

@@ -14,9 +14,12 @@
 #include "Terrain/HktTerrainVoxel.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/Texture2D.h"
+#include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "RenderingThread.h"
 #include "RHIStaticStates.h"
 #include "TextureResource.h"
@@ -137,11 +140,14 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 
 	const FVector CameraPos = GetCameraWorldPos();
 
-	// 1. 스트리밍 업데이트
+	// 1. 스트리밍 업데이트 — 디버그 모드면 ViewDistance 배수 적용
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
 	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
-	Streamer->UpdateStreaming(CameraPos, ViewDistance, GetChunkWorldSize());
+	const float EffectiveViewDistance = bDebugRenderMode
+		? ViewDistance * DebugViewDistanceMultiplier
+		: ViewDistance;
+	Streamer->UpdateStreaming(CameraPos, EffectiveViewDistance, GetChunkWorldSize());
 
 	// 2. 스트리밍 결과 반영 (생성 + 로드 + 컴포넌트 할당)
 	ProcessStreamingResults();
@@ -193,12 +199,35 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		}
 	}
 
+	// 디버그 렌더 모드 라이브 토글 — 활성 청크 전부에 머티리얼 스왑
+	if (bDebugRenderMode != bPrevDebugRenderMode)
+	{
+		bPrevDebugRenderMode = bDebugRenderMode;
+		UMaterialInterface* EffMat = GetEffectiveTerrainMaterial();
+		for (auto& Pair : ActiveChunks)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->SetVoxelMaterial(EffMat);
+			}
+		}
+	}
+
 	// 6. 메싱 완료 청크 → GPU 업로드
 	ProcessMeshReadyChunks();
 }
 
 UMaterialInterface* AHktVoxelTerrainActor::GetEffectiveTerrainMaterial() const
 {
+	// 디버그 모드 — DebugRenderMaterial 우선. 미할당이면 자동 생성된 Wireframe+Unlit 머티리얼 사용.
+	if (bDebugRenderMode)
+	{
+		if (DebugRenderMaterial)
+		{
+			return DebugRenderMaterial;
+		}
+		return UHktVoxelChunkComponent::GetDebugWireframeMaterial();
+	}
 	// TerrainMaterial이 명시적으로 할당되면 그대로 사용.
 	// 미할당이면 nullptr 반환 — ChunkComponent의 기본 VertexColor 머티리얼이 사용됨.
 	return TerrainMaterial;
@@ -240,10 +269,9 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 		Comp->SetStylizedRendering(bStylizedRendering);
 		Comp->SetEdgeRoundStrength(EdgeRoundStrength);
 		Comp->SetNormalMapStrength(NormalMapStrength);
-		if (TerrainMaterial)
-		{
-			Comp->SetVoxelMaterial(TerrainMaterial);
-		}
+		// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial, 아니면 TerrainMaterial).
+		// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
+		Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
 		if (bStyleBuilt) { ApplyStyleToComponent(Comp); }
 		ActiveChunks.Add(ChunkCoord, Comp);
 	}
@@ -381,10 +409,9 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 			Comp->SetStylizedRendering(bStylizedRendering);
 			Comp->SetEdgeRoundStrength(EdgeRoundStrength);
 			Comp->SetNormalMapStrength(NormalMapStrength);
-			if (TerrainMaterial)
-			{
-				Comp->SetVoxelMaterial(TerrainMaterial);
-			}
+			// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial / TerrainMaterial 중 택1).
+			// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
+			Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
 			ApplyStyleToComponent(Comp);
 			ActiveChunks.Add(ChunkCoord, Comp);
 		}
@@ -856,4 +883,95 @@ void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
 			Comp->SetMaterialLUT(MatPair);
 		}
 	}
+}
+
+// ============================================================================
+// 콘솔 명령 — hkt.terrain.debug 0|1, hkt.terrain.debug.radius N
+// 실제 AHktVoxelTerrainActor 파이프라인(생성+메싱) 그대로 사용, 머티리얼·스트리밍 반경만 조정
+// ============================================================================
+
+namespace
+{
+	TArray<AHktVoxelTerrainActor*> FindTerrainActors()
+	{
+		TArray<AHktVoxelTerrainActor*> Out;
+		if (!GEngine)
+		{
+			return Out;
+		}
+		for (const FWorldContext& Ctx : GEngine->GetWorldContexts())
+		{
+			if ((Ctx.WorldType != EWorldType::Game && Ctx.WorldType != EWorldType::PIE) || !Ctx.World())
+			{
+				continue;
+			}
+			for (TActorIterator<AHktVoxelTerrainActor> It(Ctx.World()); It; ++It)
+			{
+				if (IsValid(*It))
+				{
+					Out.Add(*It);
+				}
+			}
+		}
+		return Out;
+	}
+
+	void Cmd_TerrainDebug(const TArray<FString>& Args)
+	{
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		const bool bHasArg = Args.Num() >= 1;
+		const bool bForceOn = bHasArg && FCString::Atoi(*Args[0]) != 0;
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			const bool bNext = bHasArg ? bForceOn : !A->bDebugRenderMode;
+			A->bDebugRenderMode = bNext;
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s debug=%d (mult=%.2f)"),
+				*A->GetName(), bNext ? 1 : 0, A->DebugViewDistanceMultiplier);
+		}
+	}
+
+	void Cmd_TerrainDebugRadius(const TArray<FString>& Args)
+	{
+		if (Args.Num() < 1)
+		{
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("Usage: hkt.terrain.debug.radius <Chunks> — 디버그 모드 스트리밍 반경 (청크)"));
+			return;
+		}
+		const int32 Chunks = FMath::Max(1, FCString::Atoi(*Args[0]));
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			const float ChunkWorldSize = A->GetChunkWorldSize();
+			const float TargetDistance = static_cast<float>(Chunks) * ChunkWorldSize;
+			const float Baseline = FMath::Max(1.f, A->ViewDistance);
+			A->DebugViewDistanceMultiplier = FMath::Clamp(TargetDistance / Baseline, 1.f, 32.f);
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s debug radius=%d chunks (mult=%.2f, dist=%.0fcm)"),
+				*A->GetName(), Chunks, A->DebugViewDistanceMultiplier,
+				A->ViewDistance * A->DebugViewDistanceMultiplier);
+		}
+	}
+
+	FAutoConsoleCommand CmdTerrainDebug(
+		TEXT("hkt.terrain.debug"),
+		TEXT("Terrain 디버그 렌더 모드. 인자: 0=끔, 1=켬. 없으면 토글. "
+			"실제 생성 파이프라인 그대로, DebugRenderMaterial로 교체 + ViewDistance 확장."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebug));
+
+	FAutoConsoleCommand CmdTerrainDebugRadius(
+		TEXT("hkt.terrain.debug.radius"),
+		TEXT("디버그 모드 스트리밍 반경을 청크 단위로 설정. 예: hkt.terrain.debug.radius 64"),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebugRadius));
 }

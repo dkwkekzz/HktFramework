@@ -10,8 +10,6 @@
 #include "HktCollisionLayers.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
-// --------------------------------------------------------------------------- CVars
-
 static TAutoConsoleVariable<int32> CVarShowCollision(
 	TEXT("hkt.Debug.ShowCollision"),
 	0,
@@ -24,27 +22,23 @@ static TAutoConsoleVariable<int32> CVarShowCollisionLabels(
 	TEXT("Show EntityId/parameters above collision capsule. 0=off, 1=on"),
 	ECVF_Default);
 
-// --------------------------------------------------------------------------- Collision Layer Colors
-
 static FColor GetCollisionLayerColor(int32 Layer)
 {
-    if (Layer & EHktCollisionLayer::Character)  return FColor(77, 153, 255);  // Blue
-    if (Layer & EHktCollisionLayer::NPC)        return FColor(255, 77, 77);   // Red
-    if (Layer & EHktCollisionLayer::Projectile) return FColor(255, 200, 50);  // Yellow
-    if (Layer & EHktCollisionLayer::Building)   return FColor(120, 120, 120); // Gray
-    if (Layer & EHktCollisionLayer::Item)       return FColor(50, 220, 50);   // Green
-    if (Layer & EHktCollisionLayer::Trigger)    return FColor(200, 50, 200);  // Purple
-    return FColor(200, 200, 200);                                              // White (None)
+	if (Layer & EHktCollisionLayer::Character)  return FColor(77, 153, 255);
+	if (Layer & EHktCollisionLayer::NPC)        return FColor(255, 77, 77);
+	if (Layer & EHktCollisionLayer::Projectile) return FColor(255, 200, 50);
+	if (Layer & EHktCollisionLayer::Building)   return FColor(120, 120, 120);
+	if (Layer & EHktCollisionLayer::Item)       return FColor(50, 220, 50);
+	if (Layer & EHktCollisionLayer::Trigger)    return FColor(200, 50, 200);
+	return FColor(200, 200, 200);
 }
-
-// --------------------------------------------------------------------------- Implementation
 
 FHktCollisionDebugProcessor::FHktCollisionDebugProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
 }
 
-void FHktCollisionDebugProcessor::Sync(const FHktPresentationState& State)
+void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowCollision.GetValueOnGameThread();
 	if (Mode <= 0) return;
@@ -65,89 +59,91 @@ void FHktCollisionDebugProcessor::Sync(const FHktPresentationState& State)
 	}
 }
 
-// --------------------------------------------------------------------------- Mode 1: 캡슐 충돌 범위
+// --------------------------------------------------------------------------- Mode 1: Physics 뷰만 순회
 
 void FHktCollisionDebugProcessor::DrawCollisionCapsules(UWorld* World, const FHktPresentationState& State)
 {
 	const bool bShowLabels = CVarShowCollisionLabels.GetValueOnGameThread() > 0;
 
-	State.ForEachEntity([&](const FHktEntityPresentation& Entity)
+	// Physics 뷰를 가진 엔터티만 순회 (Debris 등은 Physics 뷰가 없음 → 자연스럽게 스킵)
+	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
 	{
-		const int32 Layer = Entity.CollisionLayer.Get();
-		if (Layer == 0) return;
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const FHktPhysicsView& Phys = *It;
+		const int32 Layer = Phys.CollisionLayer.Get();
+		if (Layer == 0) continue;
 
-		const float Radius = Entity.CollisionRadius.Get();
-		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
+		const FHktTransformView* Tfm = State.GetTransform(Id);
+		if (!Tfm) continue;
+
+		const float Radius = Phys.CollisionRadius.Get();
+		const float HalfHeight = FMath::Max(Phys.CollisionHalfHeight.Get(), Radius);
 		const FColor Color = GetCollisionLayerColor(Layer);
 
-		// ?��??�이???�치 (�?기�?) ??캡슐 중심??HalfHeight만큼 ?�림
-		const FVector SimPos = Entity.Location.Get();
+		const FVector SimPos = Tfm->Location.Get();
 		const FVector CapsuleCenter(SimPos.X, SimPos.Y, SimPos.Z + HalfHeight);
 
-		// UE5 DrawDebugCapsule: Center, HalfHeight, Radius, Rotation
 		DrawDebugCapsule(World, CapsuleCenter, HalfHeight, Radius, FQuat::Identity,
 			Color, false, -1.f, SDPG_World, 1.0f);
 
 		if (bShowLabels)
 		{
 			const FString Label = FString::Printf(TEXT("E:%d R:%.0f HH:%.0f L:0x%X"),
-				Entity.EntityId, Radius, HalfHeight, Layer);
+				Id, Radius, HalfHeight, Layer);
 			DrawDebugString(World, CapsuleCenter + FVector(0, 0, HalfHeight + 20.f),
 				Label, nullptr, Color, -1.f, false, 1.0f);
 		}
-	});
+	}
 }
-
-// --------------------------------------------------------------------------- Mode 2: ?�정 범위 (Detection Range)
 
 void FHktCollisionDebugProcessor::DrawDetectionRange(UWorld* World, const FHktPresentationState& State)
 {
-	// ?�정 범위 = ?�신??캡슐??Radius만큼 ?�창 (worst case: 같�? ?�기???��??� 충돌)
-	// �? ?�곽 캡슐??Radius = 2 * Radius, HalfHeight = HalfHeight + Radius
-	// ?�창 캡슐??바닥 = PosZ - Radius, ?�이 = 2*(HH+R), 중심 = PosZ - R + (HH+R) = PosZ + HH
-
-	State.ForEachEntity([&](const FHktEntityPresentation& Entity)
+	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
 	{
-		const int32 Layer = Entity.CollisionLayer.Get();
-		if (Layer == 0) return;
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const FHktPhysicsView& Phys = *It;
+		const int32 Layer = Phys.CollisionLayer.Get();
+		if (Layer == 0) continue;
 
-		const float Radius = Entity.CollisionRadius.Get();
-		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
+		const FHktTransformView* Tfm = State.GetTransform(Id);
+		if (!Tfm) continue;
+
+		const float Radius = Phys.CollisionRadius.Get();
+		const float HalfHeight = FMath::Max(Phys.CollisionHalfHeight.Get(), Radius);
 		const FColor BaseColor = GetCollisionLayerColor(Layer);
 		const FColor RangeColor(BaseColor.R, BaseColor.G, BaseColor.B, 80);
 
-		const FVector SimPos = Entity.Location.Get();
+		const FVector SimPos = Tfm->Location.Get();
 
-		// ?�창??캡슐: Radius*2, HalfHeight + Radius
-		// 중심 = ?�래 캡슐 중심�??�일 (PosZ + HalfHeight)
 		const float DetectR = Radius * 2.0f;
 		const float DetectHH = HalfHeight + Radius;
 		const FVector DetectCenter(SimPos.X, SimPos.Y, SimPos.Z + HalfHeight);
 
 		DrawDebugCapsule(World, DetectCenter, DetectHH, DetectR, FQuat::Identity,
 			RangeColor, false, -1.f, SDPG_World, 0.5f);
-	});
+	}
 }
-
-// --------------------------------------------------------------------------- Mode 3: ?�함 복�? ?�각??
 
 void FHktCollisionDebugProcessor::DrawVoxelCells(UWorld* World, const FHktPresentationState& State)
 {
-	// RuntimeGlobalSetting ?�일 출처?�서 VoxelSizeCm ?�득
 	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	const float VS = Settings ? Settings->VoxelSizeCm : 15.0f;
 	if (VS <= 0.0f) return;
 
-	State.ForEachEntity([&](const FHktEntityPresentation& Entity)
+	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
 	{
-		const int32 Layer = Entity.CollisionLayer.Get();
-		if (Layer == 0) return;
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const FHktPhysicsView& Phys = *It;
+		const int32 Layer = Phys.CollisionLayer.Get();
+		if (Layer == 0) continue;
 
-		const FVector SimPos = Entity.Location.Get();
-		const float Radius = FMath::Max(Entity.CollisionRadius.Get(), 30.0f);
-		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
+		const FHktTransformView* Tfm = State.GetTransform(Id);
+		if (!Tfm) continue;
 
-		// 캡슐 AABB ??복�? ?� (PhysicsSystem Step 2?� ?�일??로직)
+		const FVector SimPos = Tfm->Location.Get();
+		const float Radius = FMath::Max(Phys.CollisionRadius.Get(), 30.0f);
+		const float HalfHeight = FMath::Max(Phys.CollisionHalfHeight.Get(), Radius);
+
 		const FIntVector MinV(
 			FMath::FloorToInt((SimPos.X - Radius) / VS),
 			FMath::FloorToInt((SimPos.Y - Radius) / VS),
@@ -175,7 +171,7 @@ void FHktCollisionDebugProcessor::DrawVoxelCells(UWorld* World, const FHktPresen
 				}
 			}
 		}
-	});
+	}
 }
 
 void FHktCollisionDebugProcessor::Teardown()

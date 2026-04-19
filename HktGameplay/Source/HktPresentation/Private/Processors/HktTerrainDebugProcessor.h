@@ -24,7 +24,7 @@ class FHktTerrainDebugProcessor : public IHktPresentationProcessor
 public:
 	explicit FHktTerrainDebugProcessor(ULocalPlayer* InLP);
 
-	virtual void Sync(const FHktPresentationState& State) override;
+	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
 	virtual bool NeedsTick() const override { return true; }
 

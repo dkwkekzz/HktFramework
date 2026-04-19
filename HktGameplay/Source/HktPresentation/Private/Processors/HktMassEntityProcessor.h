@@ -12,7 +12,7 @@ class FHktMassEntityProcessor : public IHktPresentationProcessor
 {
 public:
 	explicit FHktMassEntityProcessor(ULocalPlayer* InLP);
-	virtual void Sync(const FHktPresentationState& State) override;
+	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
 
 private:

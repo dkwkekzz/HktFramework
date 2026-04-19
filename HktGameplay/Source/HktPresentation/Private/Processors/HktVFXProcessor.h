@@ -29,7 +29,7 @@ public:
 	explicit FHktVFXProcessor(ULocalPlayer* InLP);
 
 	// --- IHktPresentationProcessor ---
-	virtual void Sync(const FHktPresentationState& State) override;
+	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
 
 	/** AssetBank 설정 (에디터 DataAsset) */

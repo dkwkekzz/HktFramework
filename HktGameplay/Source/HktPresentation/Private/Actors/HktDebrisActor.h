@@ -7,8 +7,6 @@
 #include "IHktPresentableActor.h"
 #include "HktDebrisActor.generated.h"
 
-struct FHktEntityPresentation;
-
 /**
  * Terrain Debris Actor.
  *
@@ -26,17 +24,14 @@ public:
 
 	// IHktPresentableActor
 	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
-	virtual void ApplyTransform(const FHktEntityPresentation& Entity) override;
-	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
+	virtual void ApplyTransform(const FHktTransformView& V) override;
+	virtual void ApplyTerrainDebris(const FHktTerrainDebrisView& V, int64 Frame, bool bForce) override;
 
 private:
-	/** 복셀 큐브 메시 (1x1x1 단위 큐브) */
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Debris")
 	TObjectPtr<UStaticMeshComponent> CubeMeshComponent;
 
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
-	/** 이전 프레임의 TerrainTypeId (변경 감지) */
 	int32 CachedTerrainTypeId = -1;
 };

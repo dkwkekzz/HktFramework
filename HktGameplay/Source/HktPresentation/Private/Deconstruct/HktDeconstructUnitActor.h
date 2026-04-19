@@ -18,9 +18,8 @@ class UHktDeconstructVisualDataAsset;
  * VM State(Health, Element, Combat State)를 Niagara User Parameter로 변환한다.
  *
  * 설계 원칙: AHktUnitActor처럼 순수 리액티브.
- * - ApplyPresentation()에서 TargetParams만 설정
+ * - Apply* 패스에서 TargetParams만 설정
  * - Tick()에서 FInterpTo로 CurrentParams → TargetParams 수렴
- * - 자체 상태 머신/타이머 없음. 모든 전환은 보간 속도만으로 제어.
  */
 UCLASS(Blueprintable)
 class AHktDeconstructUnitActor : public AHktUnitActor
@@ -30,8 +29,11 @@ class AHktDeconstructUnitActor : public AHktUnitActor
 public:
 	AHktDeconstructUnitActor();
 
-	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
+	// SOA 뷰별 Apply 오버라이드
+	virtual void ApplyVitals(const FHktVitalsView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyVisualization(const FHktVisualizationView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;
 
 	virtual void Tick(float DeltaTime) override;
 	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
@@ -41,11 +43,9 @@ protected:
 	TObjectPtr<UNiagaraComponent> DeconstructNiagaraComponent;
 
 private:
-	/** OnVisualAssetLoaded()에서 설정. 런타임 Element 조회용 캐시. */
 	UPROPERTY(Transient)
 	TObjectPtr<UHktDeconstructVisualDataAsset> DeconstructDataAsset;
 
-	/** DataAsset에서 복사한 튜닝값 캐시 */
 	FHktDeconstructTuning Tuning;
 
 	UPROPERTY()

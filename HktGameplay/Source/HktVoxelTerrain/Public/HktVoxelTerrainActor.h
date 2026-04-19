@@ -177,6 +177,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering", meta = (ClampMin = 0))
 	float ShadowDistance = 16000.f;
 
+	// === 디버그 렌더 모드 ===
+
+	/**
+	 * 디버그 렌더 모드.
+	 * ON → 실제 생성/메싱 파이프라인 그대로 유지, 머티리얼만 DebugRenderMaterial로 교체하고
+	 *      ViewDistance를 DebugViewDistanceMultiplier 배 확장해 더 먼 영역까지 스트리밍.
+	 * 콘솔: hkt.terrain.debug 0|1
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug")
+	bool bDebugRenderMode = false;
+
+	/** 디버그 모드 시 ViewDistance 배수 (1=그대로, 4=4배 반경). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug",
+		meta = (ClampMin = "1.0", ClampMax = "32.0", UIMin = "1.0", UIMax = "16.0"))
+	float DebugViewDistanceMultiplier = 4.0f;
+
+	/**
+	 * 디버그 렌더 전용 머티리얼. nullptr이면 ChunkComponent의 자동 기본
+	 * (M_HktVoxelVertexColor, 언릿 버텍스 컬러) 사용.
+	 * 와이어프레임 또는 TypeID 컬러 머티리얼을 할당하면 그쪽으로 그려진다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug")
+	TObjectPtr<UMaterialInterface> DebugRenderMaterial;
+
 	// === 블록 스타일 (Phase 1+2: 타일 텍스처 + PBR) ===
 
 	/**
@@ -255,11 +279,14 @@ private:
 	/** 비활성 컴포넌트 풀 (재사용) */
 	TArray<UHktVoxelChunkComponent*> ComponentPool;
 
+public:
 	/** 청크 월드 크기 = SIZE * VoxelSize */
 	float GetChunkWorldSize() const { return FHktVoxelChunk::SIZE * VoxelSize; }
 
-	/** 실제 렌더링에 사용되는 머티리얼 — TerrainMaterial이 할당되면 그대로, 아니면 자동 생성 */
+	/** 실제 렌더링에 사용되는 머티리얼 — 디버그 모드 시 DebugRenderMaterial, 아니면 TerrainMaterial */
 	UMaterialInterface* GetEffectiveTerrainMaterial() const;
+
+private:
 
 	// === 스타일 빌드 결과 (BeginPlay에서 생성) ===
 
@@ -284,4 +311,7 @@ private:
 
 	/** NormalMapStrength 변경 감지용 이전 값 */
 	float PrevNormalMapStrength = 1.0f;
+
+	/** bDebugRenderMode 변경 감지용 이전 값 */
+	bool bPrevDebugRenderMode = false;
 };

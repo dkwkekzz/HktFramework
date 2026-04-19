@@ -11,7 +11,6 @@
 class UCapsuleComponent;
 class USkeletalMeshComponent;
 class UHktAnimInstance;
-struct FHktEntityPresentation;
 
 /**
  * 캐릭터/유닛용 Actor.
@@ -33,9 +32,11 @@ public:
 
 	// IHktPresentableActor
 	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
-	virtual void ApplyTransform(const FHktEntityPresentation& Entity) override {}
-	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
+	virtual void ApplyTransform(const FHktTransformView& V) override;
+	virtual void ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Unit")
@@ -47,7 +48,6 @@ protected:
 	USkeletalMeshComponent* GetMeshComponent() const { return MeshComponent; }
 
 private:
-
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
 	/** 위치 보간용 현재 시각 위치 (RenderLocation을 향해 매 프레임 VInterpTo) */
@@ -55,6 +55,7 @@ private:
 	FVector CachedRenderLocation = FVector::ZeroVector;
 	FRotator InterpRotation = FRotator::ZeroRotator;
 	FRotator CachedRotation = FRotator::ZeroRotator;
+	bool bHasInitialTransform = false;
 
 	/** 캐시된 AnimInstance (매 프레임 FindComponent 방지) */
 	TWeakObjectPtr<UHktAnimInstance> CachedAnimInstance;

@@ -5,6 +5,13 @@
 #include "HktPresentationState.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
+
+static TAutoConsoleVariable<int32> CVarHktUnitActorDrawDebugCapsule(
+	TEXT("hkt.UnitActor.DrawDebugCapsule"),
+	1,
+	TEXT("Draw debug capsule at AHktUnitActor runtime location for position debugging. 0=off, 1=on"),
+	ECVF_Cheat);
 
 AHktUnitActor::AHktUnitActor()
 {
@@ -13,7 +20,6 @@ AHktUnitActor::AHktUnitActor()
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule"));
 	RootComponent = CapsuleComponent;
 
-	// QueryOnly: 커서 트레이스(Visibility 채널)에 응답, 물리 충돌(밀어내기)은 없음
 	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CapsuleComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CapsuleComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -43,79 +49,108 @@ void AHktUnitActor::Tick(float DeltaTime)
 	InterpRotation = FMath::RInterpTo(InterpRotation, CachedRotation, DeltaTime, InterpSpeed);
 
 	SetActorLocationAndRotation(InterpLocation, InterpRotation, false, nullptr, ETeleportType::TeleportPhysics);
+
+#if ENABLE_DRAW_DEBUG
+	if (CapsuleComponent && CVarHktUnitActorDrawDebugCapsule.GetValueOnGameThread() != 0)
+	{
+		const float Radius = CapsuleComponent->GetScaledCapsuleRadius();
+		const float HalfHeight = CapsuleComponent->GetScaledCapsuleHalfHeight();
+		DrawDebugCapsule(
+			GetWorld(),
+			InterpLocation,
+			HalfHeight,
+			Radius,
+			InterpRotation.Quaternion(),
+			FColor::Green,
+			false,
+			-1.f,
+			0,
+			1.5f);
+	}
+#endif
 }
 
-void AHktUnitActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-	TFunctionRef<AActor*(FHktEntityId)> /*GetActorFunc*/)
+void AHktUnitActor::ApplyTransform(const FHktTransformView& V)
 {
-	// Transform은 ApplyTransform()에서 매 프레임 처리
-	CachedRenderLocation = Entity.RenderLocation.Get();
-	CachedRotation = Entity.Rotation.Get();
-
-	if (bForceAll)
+	CachedRenderLocation = V.RenderLocation.Get();
+	CachedRotation = V.Rotation.Get();
+	if (!bHasInitialTransform)
 	{
 		InterpLocation = CachedRenderLocation;
 		InterpRotation = CachedRotation;
+		bHasInitialTransform = true;
 	}
+}
 
-	// --- Capsule ---
+void AHktUnitActor::ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce)
+{
 	// HktCore PosZ = 캡슐 바닥(발), UE5 CapsuleComponent 원점 = 캡슐 중심
-	// → 메시를 -HalfHeight만큼 내려 메시 원점이 캡슐 바닥(지면)에 위치하도록 보정
-	if (bForceAll || Entity.CollisionRadius.IsDirty(Frame) || Entity.CollisionHalfHeight.IsDirty(Frame))
+	if (!bForce && !V.CollisionRadius.IsDirty(Frame) && !V.CollisionHalfHeight.IsDirty(Frame)) return;
+	const float Radius = V.CollisionRadius.Get();
+	const float HalfHeight = FMath::Max(V.CollisionHalfHeight.Get(), Radius);
+	if (CapsuleComponent)
 	{
-		const float Radius = Entity.CollisionRadius.Get();
-		const float HalfHeight = FMath::Max(Entity.CollisionHalfHeight.Get(), Radius);
-
-		if (CapsuleComponent)
-		{
-			CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
-		}
+		CapsuleComponent->SetCapsuleSize(Radius, HalfHeight);
 	}
+}
 
-	// --- Animation ---
+void AHktUnitActor::ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce)
+{
 	UHktAnimInstance* HktAnim = GetAnimInstance();
 	if (!HktAnim) return;
 
-	if (bForceAll || Entity.bIsMoving.IsDirty(Frame))
-		HktAnim->bIsMoving = Entity.bIsMoving.Get();
+	if (bForce || V.bIsMoving.IsDirty(Frame))
+		HktAnim->bIsMoving = V.bIsMoving.Get();
 
-	if (bForceAll || Entity.bIsJumping.IsDirty(Frame))
-		HktAnim->bIsFalling = Entity.bIsJumping.Get();
+	if (bForce || V.bIsJumping.IsDirty(Frame))
+		HktAnim->bIsFalling = V.bIsJumping.Get();
 
-	if (bForceAll || Entity.Velocity.IsDirty(Frame))
+	if (bForce || V.Velocity.IsDirty(Frame))
 	{
-		FVector Vel = Entity.Velocity.Get();
+		const FVector Vel = V.Velocity.Get();
 		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
 		HktAnim->FallingSpeed = Vel.Z;
 		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
 	}
+}
 
-	if (bForceAll || Entity.Stance.IsDirty(Frame))
-		HktAnim->SyncStance(Entity.Stance.Get());
+void AHktUnitActor::ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce)
+{
+	UHktAnimInstance* HktAnim = GetAnimInstance();
+	if (!HktAnim) return;
 
-	if (bForceAll || Entity.MotionPlayRate.IsDirty(Frame) || Entity.AttackSpeed.IsDirty(Frame))
+	if (bForce || V.MotionPlayRate.IsDirty(Frame) || V.AttackSpeed.IsDirty(Frame))
 	{
-		int32 RawRate = Entity.MotionPlayRate.Get();
+		const int32 RawRate = V.MotionPlayRate.Get();
 		float SpeedScale = (RawRate > 0)
 			? static_cast<float>(RawRate) / 100.0f
-			: static_cast<float>(Entity.AttackSpeed.Get()) / 100.0f;
+			: static_cast<float>(V.AttackSpeed.Get()) / 100.0f;
 		if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
 		HktAnim->AttackPlayRate = SpeedScale;
 	}
 
-	if (bForceAll || Entity.CPRatio.IsDirty(Frame))
-		HktAnim->CPRatio = Entity.CPRatio.Get();
+	if (bForce || V.CPRatio.IsDirty(Frame))
+		HktAnim->CPRatio = V.CPRatio.Get();
+}
 
-	if (bForceAll || Entity.TagsDirtyFrame == Frame)
-		HktAnim->SyncFromTagContainer(Entity.Tags);
+void AHktUnitActor::ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce)
+{
+	UHktAnimInstance* HktAnim = GetAnimInstance();
+	if (!HktAnim) return;
 
-	// 일회성 애니메이션 이벤트 소비 (PlayAnim 경유, 태그 비의존)
-	if (Entity.PendingAnimTriggers.Num() > 0)
+	if (bForce || V.Stance.IsDirty(Frame))
+		HktAnim->SyncStance(V.Stance.Get());
+
+	if (bForce || V.TagsDirtyFrame == Frame)
+		HktAnim->SyncFromTagContainer(V.Tags);
+
+	// 일회성 애니메이션 이벤트 소비 (소유권 이전)
+	if (V.PendingAnimTriggers.Num() > 0)
 	{
-		for (const FGameplayTag& AnimTag : Entity.PendingAnimTriggers)
+		for (const FGameplayTag& AnimTag : V.PendingAnimTriggers)
 		{
 			HktAnim->ApplyAnimTag(AnimTag);
 		}
-		const_cast<FHktEntityPresentation&>(Entity).PendingAnimTriggers.Reset();
+		V.PendingAnimTriggers.Reset();
 	}
 }

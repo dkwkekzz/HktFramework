@@ -212,5 +212,7 @@ enum class EHktLandmarkType : uint8
 	BoneSpire,
 	CrystalColumn,
 	VoidFissure,
+	LonePeak,   // 비대칭 돔 봉우리 — 스카이라인 랜드마크
+	Lake,       // 파라볼라 carve + Water fill
 	MAX
 };

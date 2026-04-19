@@ -29,6 +29,13 @@ FHktActorProcessor::FHktActorProcessor(ULocalPlayer* InLP)
 {
 }
 
+IHktPresentableActor* FHktActorProcessor::FindActorInterface(FHktEntityId Id) const
+{
+	const TWeakObjectPtr<AActor>* P = ActorMap.Find(Id);
+	if (!P || !P->IsValid()) return nullptr;
+	return Cast<IHktPresentableActor>(P->Get());
+}
+
 // --------------------------------------------------------------------------- Tick: 비동기 에셋 로드
 
 void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
@@ -43,7 +50,6 @@ void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
 	{
 		for (const FHktPendingSpawn& Spawn : State.PendingSpawns)
 		{
-			// 이미 로드 대기 중이면 스킵
 			if (PendingLoads.Contains(Spawn.EntityId)) continue;
 
 			FPendingAssetLoad& Load = PendingLoads.Add(Spawn.EntityId);
@@ -73,13 +79,20 @@ void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
 		if (!It.Value().bResolved) continue;
 
 		const FHktEntityId EntityId = It.Key();
-		FHktEntityPresentation* E = State.GetMutable(EntityId);
-		if (E && E->IsAlive())
+		const FHktEntityMeta* Meta = State.GetMeta(EntityId);
+		FHktVisualizationView* Vis = State.GetMutableVisualization(EntityId);
+		if (Meta && Meta->IsAlive() && Vis)
 		{
 			const int64 Frame = State.GetCurrentFrame();
 			if (!It.Value().ResolvedPath.IsNull())
-				E->ResolvedAssetPath.Set(It.Value().ResolvedPath, Frame);
-			E->RenderLocation.Set(E->Location.Get(), Frame);
+			{
+				Vis->ResolvedAssetPath.Set(It.Value().ResolvedPath, Frame);
+			}
+			// RenderLocation을 Location으로 동기화
+			if (FHktTransformView* T = State.GetMutableTransform(EntityId))
+			{
+				T->RenderLocation.Set(T->Location.Get(), Frame);
+			}
 			State.DirtyThisFrame.AddUnique(EntityId);
 
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
@@ -90,9 +103,9 @@ void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
 	}
 }
 
-// --------------------------------------------------------------------------- Sync: Actor 생명주기 + 렌더링
+// --------------------------------------------------------------------------- Sync: Actor 생명주기 + SOA 뷰별 패스
 
-void FHktActorProcessor::Sync(const FHktPresentationState& State)
+void FHktActorProcessor::Sync(FHktPresentationState& State)
 {
 	const int64 Frame = State.GetCurrentFrame();
 
@@ -112,11 +125,12 @@ void FHktActorProcessor::Sync(const FHktPresentationState& State)
 	// --- 2. 스폰: ResolvedAssetPath가 설정된 엔티티 ---
 	auto TrySpawn = [this, &State](FHktEntityId Id)
 	{
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E || E->RenderCategory != EHktRenderCategory::Actor) return;
+		const FHktEntityMeta* M = State.GetMeta(Id);
+		if (!M || !M->IsAlive() || M->RenderCategory != EHktRenderCategory::Actor) return;
 		if (ActorMap.Contains(Id)) return;
-		if (E->ResolvedAssetPath.Get().IsNull()) return;
-		SpawnActorFromResolvedAsset(*E);
+		const FHktVisualizationView* V = State.GetVisualization(Id);
+		if (!V || V->ResolvedAssetPath.Get().IsNull()) return;
+		SpawnActorFromResolvedAsset(Id, State);
 	};
 
 	for (FHktEntityId Id : State.SpawnedThisFrame)
@@ -128,69 +142,161 @@ void FHktActorProcessor::Sync(const FHktPresentationState& State)
 			TrySpawn(Id);
 	}
 
-	// --- 3. Dirty → Actor에 전달 + 최초 스폰 시 ForceAll ---
-	for (FHktEntityId Id : State.DirtyThisFrame)
+	// --- 3. Actor가 방금 스폰된 엔터티 목록 (bForce=true 강제 적용) ---
+	TArray<FHktEntityId, TInlineAllocator<16>> ForceEntities;
+	ForceEntities.Reserve(PendingInitialForward.Num());
+	for (FHktEntityId Id : PendingInitialForward)
 	{
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E || E->RenderCategory != EHktRenderCategory::Actor) continue;
 		if (ActorMap.Contains(Id))
-		{
-			const bool bForce = PendingInitialForward.Remove(Id) > 0;
-			ForwardToActor(Id, *E, Frame, bForce);
+			ForceEntities.Add(Id);
+	}
 
-			// 새 Owner 스폰 시: 기존 아이템 부착 시도
-			if (bForce)
+	auto IsForced = [&ForceEntities](FHktEntityId Id)
+	{
+		return ForceEntities.Contains(Id);
+	};
+
+	// --- 4. SOA 뷰별 독립 순회 패스 ---
+
+	// Physics 패스 — 더티 or Force인 엔터티만 Actor로 전달
+	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyPhysics(*It, Frame, bForce);
+	}
+
+	// Movement 패스
+	for (auto It = State.Movement.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyMovement(*It, Frame, bForce);
+	}
+
+	// Vitals 패스
+	for (auto It = State.Vitals.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyVitals(*It, Frame, bForce);
+	}
+
+	// Combat 패스
+	for (auto It = State.Combat.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyCombat(*It, Frame, bForce);
+	}
+
+	// Ownership 패스
+	for (auto It = State.Ownership.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyOwnership(*It, Frame, bForce);
+	}
+
+	// Animation 패스 — mutable (PendingAnimTriggers 소비)
+	for (auto It = State.Animation.CreateIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyAnimation(*It, Frame, bForce);
+	}
+
+	// Visualization 패스
+	for (auto It = State.Visualization.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyVisualization(*It, Frame, bForce);
+	}
+
+	// Item 패스 — OwnerEntity 룩업 콜백
+	auto GetActorFn = [this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); };
+	for (auto It = State.Items.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyItem(*It, Frame, bForce, GetActorFn);
+	}
+
+	// VoxelSkin 패스
+	for (auto It = State.VoxelSkins.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyVoxelSkin(*It, Frame, bForce);
+	}
+
+	// TerrainDebris 패스
+	for (auto It = State.TerrainDebris.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplyTerrainDebris(*It, Frame, bForce);
+	}
+
+	// --- 5. 새 Owner 스폰 시: 기존 아이템 부착 재시도 ---
+	if (ForceEntities.Num() > 0)
+	{
+		for (FHktEntityId OwnerId : ForceEntities)
+		{
+			for (auto& [ExistingId, WeakActor] : ActorMap)
 			{
-				for (auto& [ExistingId, WeakActor] : ActorMap)
+				if (ExistingId == OwnerId || !WeakActor.IsValid()) continue;
+				const FHktItemView* Item = State.GetItem(ExistingId);
+				if (!Item || !Item->IsAttached()) continue;
+				if (static_cast<FHktEntityId>(Item->OwnerEntity.Get()) != OwnerId) continue;
+				if (IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakActor.Get()))
 				{
-					if (ExistingId == Id || !WeakActor.IsValid()) continue;
-					const FHktEntityPresentation* ItemE = State.Get(ExistingId);
-					if (ItemE && ItemE->IsItemAttached()
-						&& static_cast<FHktEntityId>(ItemE->OwnerEntity.Get()) == Id)
-					{
-						ForwardToActor(ExistingId, *ItemE, Frame, true);
-					}
+					P->ApplyItem(*Item, Frame, /*bForce=*/true, GetActorFn);
 				}
 			}
 		}
 	}
-
-	// --- 3.5 비동기 콜백으로 늦게 스폰된 Actor의 최초 ViewModel 적용 ---
-	for (auto It = PendingInitialForward.CreateIterator(); It; ++It)
+	// 처리된 엔터티만 제거. 비동기 스폰이 아직 완료되지 않은 항목은 다음 Sync까지 대기.
+	for (FHktEntityId Id : ForceEntities)
 	{
-		const FHktEntityId Id = *It;
-		if (!ActorMap.Contains(Id)) continue;
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E) { It.RemoveCurrent(); continue; }
-
-		ForwardToActor(Id, *E, Frame, true);
-		for (auto& [ExistingId, WeakActor] : ActorMap)
-		{
-			if (ExistingId == Id || !WeakActor.IsValid()) continue;
-			const FHktEntityPresentation* ItemE = State.Get(ExistingId);
-			if (ItemE && ItemE->IsItemAttached()
-				&& static_cast<FHktEntityId>(ItemE->OwnerEntity.Get()) == Id)
-			{
-				ForwardToActor(ExistingId, *ItemE, Frame, true);
-			}
-		}
-		It.RemoveCurrent();
+		PendingInitialForward.Remove(Id);
 	}
 
-	// --- 4. 매 프레임 Transform 적용 ---
+	// --- 6. 매 프레임 Transform 적용 (모든 Actor) ---
 	for (auto& [Id, WeakActor] : ActorMap)
 	{
 		if (!WeakActor.IsValid()) continue;
-		const FHktEntityPresentation* E = State.Get(Id);
-		if (!E) continue;
+		const FHktTransformView* T = State.GetTransform(Id);
+		if (!T) continue;
 		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakActor.Get()))
-			P->ApplyTransform(*E);
+			P->ApplyTransform(*T);
 	}
 }
 
 // --------------------------------------------------------------------------- SpawnActorFromResolvedAsset
 
-void FHktActorProcessor::SpawnActorFromResolvedAsset(const FHktEntityPresentation& Entity)
+void FHktActorProcessor::SpawnActorFromResolvedAsset(FHktEntityId EntityId, const FHktPresentationState& State)
 {
 	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
@@ -198,14 +304,16 @@ void FHktActorProcessor::SpawnActorFromResolvedAsset(const FHktEntityPresentatio
 	UHktAssetSubsystem* AssetSubsystem = UHktAssetSubsystem::Get(World);
 	if (!AssetSubsystem) return;
 
-	FGameplayTag VisualTag = Entity.VisualElement.Get();
+	const FHktVisualizationView* Vis = State.GetVisualization(EntityId);
+	const FHktTransformView* Tfm = State.GetTransform(EntityId);
+	if (!Vis || !Tfm) return;
+
+	const FGameplayTag VisualTag = Vis->VisualElement.Get();
 	if (!VisualTag.IsValid()) return;
 
-	FHktEntityId EntityId = Entity.EntityId;
-	FVector SpawnLocation = Entity.RenderLocation.Get();
-	FRotator SpawnRotation = Entity.Rotation.Get();
+	const FVector SpawnLocation = Tfm->RenderLocation.Get();
+	const FRotator SpawnRotation = Tfm->Rotation.Get();
 
-	// 에셋이 이미 Tick에서 로드되어 캐시에 있으므로 동기 로드 (캐시 히트)
 	TWeakObjectPtr<ULocalPlayer> WeakLP = LocalPlayer;
 	TWeakPtr<bool> WeakGuard = AliveGuard;
 	AssetSubsystem->LoadAssetAsync(VisualTag, [WeakGuard, this, VisualTag, EntityId, SpawnLocation, SpawnRotation, WeakLP](UHktTagDataAsset* LoadedAsset)
@@ -272,19 +380,7 @@ void FHktActorProcessor::SpawnActorFromResolvedAsset(const FHktEntityPresentatio
 	});
 }
 
-// --------------------------------------------------------------------------- ForwardToActor / Teardown / GetActor
-
-void FHktActorProcessor::ForwardToActor(FHktEntityId Id, const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
-{
-	TWeakObjectPtr<AActor>* WeakPtr = ActorMap.Find(Id);
-	if (!WeakPtr || !WeakPtr->IsValid()) return;
-
-	IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakPtr->Get());
-	if (!P) return;
-
-	P->ApplyPresentation(Entity, Frame, bForceAll,
-		[this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); });
-}
+// --------------------------------------------------------------------------- Teardown / GetActor
 
 void FHktActorProcessor::Teardown()
 {

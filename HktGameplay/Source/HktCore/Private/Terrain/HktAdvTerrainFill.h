@@ -79,6 +79,24 @@ private:
 		int32 Radius, int32 Height, uint16 TypeID, uint8 Palette,
 		int32 ChunkX, int32 ChunkY, int32 ChunkZ,
 		FHktTerrainVoxel* Voxels);
+
+	// 반구 프로파일 r·sqrt(1-t²) + 상단이 (TiltX, TiltY) 방향으로 기울어진 돔.
+	// TiltStrength는 [0..1], 1.0에서 상단이 Radius만큼 수평 이동 (한쪽은 절벽, 반대쪽은 완만).
+	static void StampAsymmetricDome(
+		int32 CenterX, int32 CenterY, int32 BaseZ,
+		int32 Radius, int32 Height,
+		float TiltX, float TiltY, float TiltStrength,
+		uint16 TypeID, uint8 Palette,
+		int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+		FHktTerrainVoxel* Voxels);
+
+	// 파라볼라 그릇 carve 후 SurfaceZ 이하 영역을 Water로 채움.
+	// SurfaceZ는 호수 수면 높이 (주변 지표 높이 기준).
+	static void CarveBowlWithWater(
+		int32 CenterX, int32 CenterY, int32 SurfaceZ,
+		int32 Radius, int32 Depth,
+		int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+		FHktTerrainVoxel* Voxels);
 };
 
 // ============================================================================

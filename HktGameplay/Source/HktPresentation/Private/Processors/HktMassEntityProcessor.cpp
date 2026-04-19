@@ -7,9 +7,9 @@ FHktMassEntityProcessor::FHktMassEntityProcessor(ULocalPlayer* InLP)
 {
 }
 
-void FHktMassEntityProcessor::Sync(const FHktPresentationState& State)
+void FHktMassEntityProcessor::Sync(FHktPresentationState& State)
 {
-	// TODO: UMassEntitySubsystem ?�동, SpawnedThisFrame/RemovedThisFrame/DirtyThisFrame 처리
+	// TODO: UMassEntitySubsystem 연동, SpawnedThisFrame/RemovedThisFrame/DirtyThisFrame 처리
 	(void)State;
 }
 

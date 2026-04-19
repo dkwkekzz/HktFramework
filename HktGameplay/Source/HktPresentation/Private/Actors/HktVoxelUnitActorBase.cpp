@@ -43,7 +43,6 @@ void AHktVoxelUnitActorBase::BeginPlay()
 
 	EntityRenderCache = MakeShared<FHktVoxelRenderCache>();
 
-	// 단일 출처: UHktRuntimeGlobalSetting::VoxelSizeCm (폴백은 FHktVoxelChunk::VOXEL_SIZE)
 	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	const float VoxelSizeCm = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
 
@@ -53,7 +52,6 @@ void AHktVoxelUnitActorBase::BeginPlay()
 
 	BodyChunk->Initialize(EntityRenderCache.Get(), EntityChunkCoord, VoxelSizeCm);
 
-	// 엔티티 청크(SIZE³)를 바디 중심에 정렬: -(SIZE/2 - 0.5) 복셀
 	const float HalfChunkVoxels = FHktVoxelChunk::SIZE * 0.5f - 0.5f;
 	const float Offset = -HalfChunkVoxels * VoxelSizeCm;
 	BodyChunk->SetRelativeLocation(FVector(Offset, Offset, 0.f));
@@ -91,88 +89,106 @@ void AHktVoxelUnitActorBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void AHktVoxelUnitActorBase::ApplyPresentation(
-	const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-	TFunctionRef<AActor*(FHktEntityId)> /*GetActorFunc*/)
-{
-	CachedRenderLocation = Entity.RenderLocation.Get();
-	CachedRotation = Entity.Rotation.Get();
+// ============================================================================
+// IHktPresentableActor 구현 — SOA 뷰별 Apply
+// ============================================================================
 
-	if (bForceAll)
+void AHktVoxelUnitActorBase::ApplyTransform(const FHktTransformView& V)
+{
+	CachedRenderLocation = V.RenderLocation.Get();
+	CachedRotation = V.Rotation.Get();
+	if (!bHasInitialTransform)
 	{
 		InterpLocation = CachedRenderLocation;
 		InterpRotation = CachedRotation;
+		bHasInitialTransform = true;
+	}
+}
+
+void AHktVoxelUnitActorBase::ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce)
+{
+	if (!IsBoneAnimationActive()) return;
+
+	UHktAnimInstance* HktAnim = GetAnimInstance();
+	if (!HktAnim) return;
+
+	if (bForce || V.bIsMoving.IsDirty(Frame))
+		HktAnim->bIsMoving = V.bIsMoving.Get();
+
+	if (bForce || V.bIsJumping.IsDirty(Frame))
+		HktAnim->bIsFalling = V.bIsJumping.Get();
+
+	if (bForce || V.Velocity.IsDirty(Frame))
+	{
+		const FVector Vel = V.Velocity.Get();
+		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
+		HktAnim->FallingSpeed = Vel.Z;
+		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
+	}
+}
+
+void AHktVoxelUnitActorBase::ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce)
+{
+	if (!IsBoneAnimationActive()) return;
+
+	UHktAnimInstance* HktAnim = GetAnimInstance();
+	if (!HktAnim) return;
+
+	if (bForce || V.MotionPlayRate.IsDirty(Frame) || V.AttackSpeed.IsDirty(Frame))
+	{
+		const int32 RawRate = V.MotionPlayRate.Get();
+		float SpeedScale = (RawRate > 0)
+			? static_cast<float>(RawRate) / 100.0f
+			: static_cast<float>(V.AttackSpeed.Get()) / 100.0f;
+		if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
+		HktAnim->AttackPlayRate = SpeedScale;
 	}
 
-	if (IsBoneAnimationActive())
-	{
-		ForwardAnimation(Entity, Frame, bForceAll);
-	}
+	if (bForce || V.CPRatio.IsDirty(Frame))
+		HktAnim->CPRatio = V.CPRatio.Get();
+}
 
-	if (bForceAll || Entity.VoxelSkinSet.IsDirty(Frame))
+void AHktVoxelUnitActorBase::ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce)
+{
+	if (!IsBoneAnimationActive()) return;
+
+	UHktAnimInstance* HktAnim = GetAnimInstance();
+	if (!HktAnim) return;
+
+	if (bForce || V.Stance.IsDirty(Frame))
+		HktAnim->SyncStance(V.Stance.Get());
+
+	if (bForce || V.TagsDirtyFrame == Frame)
+		HktAnim->SyncFromTagContainer(V.Tags);
+
+	if (V.PendingAnimTriggers.Num() > 0)
 	{
-		uint16 NewSkinSet = static_cast<uint16>(Entity.VoxelSkinSet.Get());
+		for (const FGameplayTag& AnimTag : V.PendingAnimTriggers)
+		{
+			HktAnim->ApplyAnimTag(AnimTag);
+		}
+		V.PendingAnimTriggers.Reset();
+	}
+}
+
+void AHktVoxelUnitActorBase::ApplyVoxelSkin(const FHktVoxelSkinView& V, int64 Frame, bool bForce)
+{
+	if (bForce || V.VoxelSkinSet.IsDirty(Frame))
+	{
+		const uint16 NewSkinSet = static_cast<uint16>(V.VoxelSkinSet.Get());
 		if (NewSkinSet != CachedSkinSetID)
 		{
 			OnSkinSetChanged(NewSkinSet);
 		}
 	}
 
-	if (bForceAll || Entity.VoxelPalette.IsDirty(Frame))
+	if (bForce || V.VoxelPalette.IsDirty(Frame))
 	{
-		uint8 NewPalette = static_cast<uint8>(Entity.VoxelPalette.Get());
+		const uint8 NewPalette = static_cast<uint8>(V.VoxelPalette.Get());
 		if (NewPalette != CachedPaletteRow)
 		{
 			OnPaletteChanged(NewPalette);
 		}
-	}
-}
-
-void AHktVoxelUnitActorBase::ForwardAnimation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll)
-{
-	UHktAnimInstance* HktAnim = GetAnimInstance();
-	if (!HktAnim) return;
-
-	if (bForceAll || Entity.bIsMoving.IsDirty(Frame))
-		HktAnim->bIsMoving = Entity.bIsMoving.Get();
-
-	if (bForceAll || Entity.bIsJumping.IsDirty(Frame))
-		HktAnim->bIsFalling = Entity.bIsJumping.Get();
-
-	if (bForceAll || Entity.Velocity.IsDirty(Frame))
-	{
-		FVector Vel = Entity.Velocity.Get();
-		HktAnim->MoveSpeed = FVector2D(Vel.X, Vel.Y).Size();
-		HktAnim->FallingSpeed = Vel.Z;
-		HktAnim->BlendSpaceX = HktAnim->MoveSpeed;
-	}
-
-	if (bForceAll || Entity.Stance.IsDirty(Frame))
-		HktAnim->SyncStance(Entity.Stance.Get());
-
-	if (bForceAll || Entity.MotionPlayRate.IsDirty(Frame) || Entity.AttackSpeed.IsDirty(Frame))
-	{
-		int32 RawRate = Entity.MotionPlayRate.Get();
-		float SpeedScale = (RawRate > 0)
-			? static_cast<float>(RawRate) / 100.0f
-			: static_cast<float>(Entity.AttackSpeed.Get()) / 100.0f;
-		if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
-		HktAnim->AttackPlayRate = SpeedScale;
-	}
-
-	if (bForceAll || Entity.CPRatio.IsDirty(Frame))
-		HktAnim->CPRatio = Entity.CPRatio.Get();
-
-	if (bForceAll || Entity.TagsDirtyFrame == Frame)
-		HktAnim->SyncFromTagContainer(Entity.Tags);
-
-	if (Entity.PendingAnimTriggers.Num() > 0)
-	{
-		for (const FGameplayTag& AnimTag : Entity.PendingAnimTriggers)
-		{
-			HktAnim->ApplyAnimTag(AnimTag);
-		}
-		const_cast<FHktEntityPresentation&>(Entity).PendingAnimTriggers.Reset();
 	}
 }
 

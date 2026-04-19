@@ -124,7 +124,7 @@ FHktTerrainDebugProcessor::FHktTerrainDebugProcessor(ULocalPlayer* InLP)
 {
 }
 
-void FHktTerrainDebugProcessor::Sync(const FHktPresentationState& State)
+void FHktTerrainDebugProcessor::Sync(FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowTerrainVoxels.GetValueOnGameThread();
 	if (Mode <= 0) return;
@@ -149,12 +149,14 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	const FHktEntityId SubjectId = Sub->GetSubjectEntityId();
 	if (SubjectId == InvalidEntityId) return;
 
-	const FHktEntityPresentation* Entity = State.Get(SubjectId);
-	if (!Entity) return;
+	const FHktTransformView* Tfm = State.GetTransform(SubjectId);
+	const FHktPhysicsView*   Phys = State.GetPhysics(SubjectId);
+	const FHktMovementView*  Move = State.GetMovement(SubjectId);
+	if (!Tfm || !Phys) return;
 
-	const FVector EntityPos = Entity->RenderLocation.Get().IsZero()
-		? Entity->Location.Get() : Entity->RenderLocation.Get();
-	const float ColRadius = FMath::Max(Entity->CollisionRadius.Get(), 30.0f);
+	const FVector EntityPos = Tfm->RenderLocation.Get().IsZero()
+		? Tfm->Location.Get() : Tfm->RenderLocation.Get();
+	const float ColRadius = FMath::Max(Phys->CollisionRadius.Get(), 30.0f);
 
 	// AHktVoxelTerrainActor ?�색
 	AHktVoxelTerrainActor* TerrainActor = nullptr;
@@ -348,9 +350,9 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	// 5. HUD ?�약 ??Physics ?�심 ?�태 3�?
 	// =========================================================================
 	{
-		const int32 CollisionLayerVal = Entity->CollisionLayer.Get();
-		const bool bJumping = Entity->bIsJumping.Get();
-		const FVector Vel = Entity->Velocity.Get();
+		const int32 CollisionLayerVal = Phys->CollisionLayer.Get();
+		const bool bJumping = Move ? Move->bIsJumping.Get() : false;
+		const FVector Vel = Move ? Move->Velocity.Get() : FVector::ZeroVector;
 		const float PosZ = EntityPos.Z;
 		const float GapZ = PosZ - SurfaceCmZ;
 
@@ -398,7 +400,7 @@ void FHktTerrainDebugProcessor::DrawTerrainVoxels(UWorld* World, const FHktPrese
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("EntityPosZ"),
 		FString::Printf(TEXT("%.1f"), EntityPos.Z));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CollisionLayer"),
-		FString::Printf(TEXT("%d"), Entity->CollisionLayer.Get()));
+		FString::Printf(TEXT("%d"), Phys->CollisionLayer.Get()));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CollisionRadius"),
 		FString::Printf(TEXT("%.1f"), ColRadius));
 	HKT_INSIGHT_COLLECT(TEXT("Terrain.Debug"), TEXT("CenterSolid"),

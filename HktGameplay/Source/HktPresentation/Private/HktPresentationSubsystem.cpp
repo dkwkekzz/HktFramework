@@ -192,10 +192,10 @@ void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 	View.ForEachEntity([this, &View](FHktEntityId Id, int32)
 	{
 		State.AddEntity(*View.WorldState, Id);
-		FHktEntityPresentation* E = State.GetMutable(Id);
-		if (E && E->VisualElement.Get().IsValid())
+		const FHktVisualizationView* V = State.GetVisualization(Id);
+		if (V && V->VisualElement.Get().IsValid())
 		{
-			State.PendingSpawns.Add({ Id, E->VisualElement.Get() });
+			State.PendingSpawns.Add({ Id, V->VisualElement.Get() });
 		}
 	});
 }
@@ -217,10 +217,10 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	View.ForEachSpawned([this, &View, &SpawnedCount](const FHktEntityState& ES)
 	{
 		State.AddEntity(*View.WorldState, ES.EntityId);
-		FHktEntityPresentation* E = State.GetMutable(ES.EntityId);
-		if (E && E->VisualElement.Get().IsValid())
+		const FHktVisualizationView* V = State.GetVisualization(ES.EntityId);
+		if (V && V->VisualElement.Get().IsValid())
 		{
-			State.PendingSpawns.Add({ ES.EntityId, E->VisualElement.Get() });
+			State.PendingSpawns.Add({ ES.EntityId, V->VisualElement.Get() });
 		}
 		++SpawnedCount;
 	});
@@ -292,12 +292,7 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	{
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
 			FString::Printf(TEXT("AnimEvent Frame=%lld Tag=%s"), View.FrameNumber, *Event.Tag.ToString()), Event.EntityId);
-		FHktEntityPresentation* E = State.GetMutable(Event.EntityId);
-		if (E)
-		{
-			E->PendingAnimTriggers.Add(Event.Tag);
-			State.DirtyThisFrame.AddUnique(Event.EntityId);
-		}
+		State.AddAnimTrigger(Event.EntityId, Event.Tag);
 	});
 }
 
@@ -358,9 +353,9 @@ void UHktPresentationSubsystem::SyncProcessors()
 
 FVector UHktPresentationSubsystem::GetEntityLocation(FHktEntityId Id) const
 {
-	const FHktEntityPresentation* E = State.Get(Id);
-	if (!E) return FVector::ZeroVector;
-	return E->RenderLocation.Get().IsZero() ? E->Location.Get() : E->RenderLocation.Get();
+	const FHktTransformView* T = State.GetTransform(Id);
+	if (!T) return FVector::ZeroVector;
+	return T->RenderLocation.Get().IsZero() ? T->Location.Get() : T->RenderLocation.Get();
 }
 
 FVector UHktPresentationSubsystem::GetEntityActorLocation(FHktEntityId Id) const
@@ -430,8 +425,8 @@ void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
 
 	if (NewSubject != InvalidEntityId)
 	{
-		const FHktEntityPresentation* Entity = State.Get(NewSubject);
-		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
+		const FHktTransformView* T = State.GetTransform(NewSubject);
+		FVector Pos = T ? T->Location.Get() : FVector::ZeroVector;
 		VFXProcessor->AttachVFXToEntity(Tag_VFX_SelectionSubject, NewSubject, Pos);
 
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SelectionSubject VFX attached Entity=%d"), NewSubject));
@@ -451,8 +446,8 @@ void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 
 	if (NewTarget != InvalidEntityId)
 	{
-		const FHktEntityPresentation* Entity = State.Get(NewTarget);
-		FVector Pos = Entity ? Entity->Location.Get() : FVector::ZeroVector;
+		const FHktTransformView* T = State.GetTransform(NewTarget);
+		FVector Pos = T ? T->Location.Get() : FVector::ZeroVector;
 		VFXProcessor->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
 
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));

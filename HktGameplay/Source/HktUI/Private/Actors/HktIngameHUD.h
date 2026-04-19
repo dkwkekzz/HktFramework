@@ -29,10 +29,10 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// --- IHktPresentationProcessor ---
-	virtual void Sync(const FHktPresentationState& State) override;
+	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
 	virtual bool NeedsCameraSync() const override { return true; }
-	virtual void OnCameraViewChanged(const FHktPresentationState& State) override;
+	virtual void OnCameraViewChanged(FHktPresentationState& State) override;
 
 	// --- IHktEntityHudHitTestProvider ---
 	virtual bool GetEntityUnderScreenPosition(const FVector2D& ScreenPos, FHktEntityId& OutEntityId) const override;
@@ -55,6 +55,9 @@ private:
 	void CreateEntityElement(FHktEntityId EntityId, const FHktPresentationState& State);
 	void UpdateEntityPositions(const FHktPresentationState& State);
 	void UpdateEntityProperties(const FHktPresentationState& State);
+
+	/** 엔터티가 월드에 HUD를 가져야 하는지 — 아이템이면 Ground 상태일 때만 */
+	static bool ShouldDisplayHud(const FHktPresentationState& State, FHktEntityId Id);
 
 	UPROPERTY()
 	TObjectPtr<UHktWidgetEntityHudDataAsset> CachedEntityHudAsset;

@@ -12,24 +12,19 @@ AHktDebrisActor::AHktDebrisActor()
 	CubeMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-void AHktDebrisActor::ApplyTransform(const FHktEntityPresentation& Entity)
+void AHktDebrisActor::ApplyTransform(const FHktTransformView& V)
 {
 	SetActorLocationAndRotation(
-		Entity.RenderLocation.Get(), Entity.Rotation.Get(),
+		V.RenderLocation.Get(), V.Rotation.Get(),
 		false, nullptr, ETeleportType::TeleportPhysics);
 }
 
-void AHktDebrisActor::ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-	TFunctionRef<AActor*(FHktEntityId)> GetActorFunc)
+void AHktDebrisActor::ApplyTerrainDebris(const FHktTerrainDebrisView& V, int64 Frame, bool bForce)
 {
-	// TerrainTypeId 변경 시 머티리얼 갱신 등 추가 처리 가능
-	if (bForceAll || Entity.TerrainTypeId.IsDirty(Frame))
+	if (!bForce && !V.TerrainTypeId.IsDirty(Frame)) return;
+	const int32 NewTerrainTypeId = V.TerrainTypeId.Get();
+	if (NewTerrainTypeId != CachedTerrainTypeId)
 	{
-		const int32 NewTerrainTypeId = Entity.TerrainTypeId.Get();
-		if (NewTerrainTypeId != CachedTerrainTypeId)
-		{
-			CachedTerrainTypeId = NewTerrainTypeId;
-			// TODO: TerrainTypeId에 따른 머티리얼/메시 변경
-		}
+		CachedTerrainTypeId = NewTerrainTypeId;
 	}
 }

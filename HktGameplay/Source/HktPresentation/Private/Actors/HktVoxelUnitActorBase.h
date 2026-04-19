@@ -16,7 +16,6 @@ class USkeletalMeshComponent;
 class UHktAnimInstance;
 class UHktVoxelSkinLayerAsset;
 class FHktVoxelRenderCache;
-struct FHktEntityPresentation;
 struct FHktVoxelBoneGroup;
 
 /**
@@ -46,9 +45,11 @@ public:
 
 	// IHktPresentableActor
 	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
-	virtual void ApplyTransform(const FHktEntityPresentation& Entity) override {}
-	virtual void ApplyPresentation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll,
-		TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) override;
+	virtual void ApplyTransform(const FHktTransformView& V) override;
+	virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;
+	virtual void ApplyVoxelSkin(const FHktVoxelSkinView& V, int64 Frame, bool bForce) override;
 
 protected:
 	/** 초기 복셀 데이터 로드 + 메싱 요청 */
@@ -118,14 +119,12 @@ protected:
 	static const FIntVector EntityChunkCoord;
 
 private:
-	/** 애니메이션 포워딩 (공통) */
-	void ForwardAnimation(const FHktEntityPresentation& Entity, int64 Frame, bool bForceAll);
-
 	FHktEntityId CachedEntityId = InvalidEntityId;
 	FVector InterpLocation = FVector::ZeroVector;
 	FVector CachedRenderLocation = FVector::ZeroVector;
 	FRotator InterpRotation = FRotator::ZeroRotator;
 	FRotator CachedRotation = FRotator::ZeroRotator;
+	bool bHasInitialTransform = false;
 
 	TWeakObjectPtr<UHktAnimInstance> CachedAnimInstance;
 };
