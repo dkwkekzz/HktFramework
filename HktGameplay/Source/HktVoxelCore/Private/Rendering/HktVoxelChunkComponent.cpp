@@ -98,6 +98,16 @@ void UHktVoxelChunkComponent::SetVoxelMaterial(UMaterialInterface* InMaterial)
 	}
 }
 
+void UHktVoxelChunkComponent::SetWaterMaterial(UMaterialInterface* InMaterial)
+{
+	// null 전달은 "Water 전용 머티리얼 없음" — GetMaterial(1)에서 VoxelMaterial로 폴백.
+	if (CachedWaterMaterial.Get() != InMaterial)
+	{
+		CachedWaterMaterial = InMaterial;
+		MarkRenderStateDirty();
+	}
+}
+
 // ============================================================================
 // 디버그 Wireframe 머티리얼 — 자동 생성 (Wireframe + Unlit + VertexColor→Emissive)
 // ============================================================================
@@ -252,10 +262,12 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	// 메시 재생성 시 collision도 갱신 (solid 복셀 AABB 재계산)
 	RebuildCollision();
 
-	// 불투명 + 반투명 메시 데이터를 합쳐서 복사
-	// (프로덕션에서는 별도 렌더 패스로 분리하지만, 현재는 단일 패스)
+	// 불투명 + 반투명 메시 데이터를 합쳐서 복사.
+	// Proxy는 하나의 Vertex/Index 버퍼를 공유하되, OpaqueIndexCount 경계로
+	// 두 개의 FMeshBatch를 발행해 각각 TerrainMaterial / WaterMaterial로 렌더링.
 	TArray<FHktVoxelVertex> VerticesCopy;
 	TArray<uint32> IndicesCopy;
+	int32 OpaqueIndexCount = 0;
 
 	// MeshLock Read — 워커 스레드의 MeshChunk Write와 배타적 동기화
 	{
@@ -263,6 +275,7 @@ void UHktVoxelChunkComponent::OnMeshReady()
 
 		VerticesCopy.Append(Chunk->OpaqueVertices);
 		IndicesCopy.Append(Chunk->OpaqueIndices);
+		OpaqueIndexCount = Chunk->OpaqueIndices.Num();
 
 		// 반투명 인덱스는 오프셋 적용
 		const uint32 OpaqueVertCount = Chunk->OpaqueVertices.Num();
@@ -294,7 +307,7 @@ void UHktVoxelChunkComponent::OnMeshReady()
 
 	ENQUEUE_RENDER_COMMAND(HktVoxelUpdateMesh)(
 		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
-		 bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
+		 OpaqueIndexCount, bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
 		{
 			FHktVoxelChunkProxy* Proxy = static_cast<FHktVoxelChunkProxy*>(CapturedProxy);
 			if (bHasStyleTextures)
@@ -317,7 +330,7 @@ void UHktVoxelChunkComponent::OnMeshReady()
 						MatLUTCopy.Texture, MatLUTCopy.Sampler);
 				}
 			}
-			Proxy->UpdateMeshData_RenderThread(Verts, Idxs);
+			Proxy->UpdateMeshData_RenderThread(Verts, Idxs, OpaqueIndexCount);
 		}
 	);
 
@@ -423,6 +436,7 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 		{
 			TArray<FHktVoxelVertex> VerticesCopy;
 			TArray<uint32> IndicesCopy;
+			int32 OpaqueIndexCount = 0;
 
 			// MeshLock Read — 워커 스레드의 MeshChunk Write와 배타적 동기화
 			{
@@ -430,6 +444,7 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 
 				VerticesCopy.Append(Chunk->OpaqueVertices);
 				IndicesCopy.Append(Chunk->OpaqueIndices);
+				OpaqueIndexCount = Chunk->OpaqueIndices.Num();
 
 				const uint32 OpaqueVertCount = Chunk->OpaqueVertices.Num();
 				for (uint32 Idx : Chunk->TranslucentIndices)
@@ -445,7 +460,7 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 
 			ENQUEUE_RENDER_COMMAND(HktVoxelReuploadOnProxyRecreate)(
 				[NewProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
-				 bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
+				 OpaqueIndexCount, bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
 				{
 					if (bHasStyleTextures)
 					{
@@ -467,7 +482,7 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 								MatLUTCopy.Texture, MatLUTCopy.Sampler);
 						}
 					}
-					NewProxy->UpdateMeshData_RenderThread(Verts, Idxs);
+					NewProxy->UpdateMeshData_RenderThread(Verts, Idxs, OpaqueIndexCount);
 				}
 			);
 

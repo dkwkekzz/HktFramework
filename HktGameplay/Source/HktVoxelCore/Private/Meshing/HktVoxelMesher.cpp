@@ -77,7 +77,12 @@ void FHktVoxelMesher::BuildFaceMask(
 			else
 			{
 				const FHktVoxel& Neighbor = Chunk.At(NX, NY, NZ);
-				bExposed = Neighbor.IsEmpty() || Neighbor.IsTranslucent();
+				// 동일 Translucent 타입(예: water-water)끼리는 내부 면 컬링.
+				// Translucent 머티리얼로 그릴 때 내부 면이 전부 보이는 체크무늬 방지.
+				// 서로 다른 Translucent(예: water-glass)는 여전히 경계면 emit.
+				const bool bNeighborTranslucentDifferent =
+					Neighbor.IsTranslucent() && Neighbor.TypeID != Voxel.TypeID;
+				bExposed = Neighbor.IsEmpty() || bNeighborTranslucentDifferent;
 			}
 
 			if (bExposed)

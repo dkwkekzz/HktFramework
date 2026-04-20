@@ -15,12 +15,40 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 	, ShadowDistanceSq(InComponent->GetShadowDistance() > 0.f
 		? FMath::Square(InComponent->GetShadowDistance()) : 0.f)
 {
-	// 머티리얼은 Component에서 0번 슬롯을 가져옴
+	// 머티리얼은 Component에서 0번(Opaque) + 1번(Water) 슬롯을 가져옴
 	VoxelMaterial = InComponent->GetMaterial(0);
 	if (!VoxelMaterial)
 	{
 		VoxelMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 	}
+	// Water 슬롯은 미설정 시 GetMaterial(1)이 VoxelMaterial로 폴백하므로 null이 아닐 것.
+	WaterMaterial = InComponent->GetMaterial(1);
+	if (!WaterMaterial)
+	{
+		WaterMaterial = VoxelMaterial;
+	}
+
+	// 머티리얼 관련성 계산 — 두 슬롯 OR 결합.
+	// GetRelevance_Concurrent는 렌더 스레드 안전. Scene이 null인 엣지 케이스 방어.
+	if (FSceneInterface* SceneRef = InComponent->GetScene())
+	{
+		const ERHIFeatureLevel::Type FeatureLevel = SceneRef->GetFeatureLevel();
+		CombinedMaterialRelevance = VoxelMaterial->GetRelevance_Concurrent(FeatureLevel);
+		if (WaterMaterial && WaterMaterial != VoxelMaterial)
+		{
+			CombinedMaterialRelevance |= WaterMaterial->GetRelevance_Concurrent(FeatureLevel);
+		}
+	}
+
+	UE_LOG(LogHktVoxelCore, Log,
+		TEXT("[Proxy Ctor] VoxelMat=%s, WaterMat=%s, "
+		     "Relevance: Opaque=%d Masked=%d NormalTranslucency=%d SeparateTranslucency=%d"),
+		VoxelMaterial ? *VoxelMaterial->GetName() : TEXT("NULL"),
+		WaterMaterial ? *WaterMaterial->GetName() : TEXT("NULL"),
+		CombinedMaterialRelevance.bOpaque ? 1 : 0,
+		CombinedMaterialRelevance.bMasked ? 1 : 0,
+		CombinedMaterialRelevance.bNormalTranslucency ? 1 : 0,
+		CombinedMaterialRelevance.bSeparateTranslucency ? 1 : 0);
 
 	// Component에 캐시된 스타일 텍스처를 Pending*에 복사.
 	// MarkRenderStateDirty()로 Proxy가 재생성될 때 기존 Proxy의 텍스처가 소실되므로,
@@ -98,6 +126,8 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 			VoxelMaterial ? *VoxelMaterial->GetClass()->GetName() : TEXT("NULL"));
 	}
 
+	const int32 TranslucentIndexCount = NumIndices - OpaqueIndexCount;
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (!(VisibilityMap & (1 << ViewIndex)))
@@ -109,24 +139,52 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 		const bool bCastShadow = (ShadowDistanceSq <= 0.f)
 			|| (FVector::DistSquared(GetBounds().Origin, Views[ViewIndex]->ViewMatrices.GetViewOrigin()) < ShadowDistanceSq);
 
-		FMeshBatch& Mesh = Collector.AllocateMesh();
-		Mesh.VertexFactory = VertexFactory;
-		Mesh.Type = PT_TriangleList;
-		Mesh.bWireframe = false;
-		Mesh.bUseWireframeSelectionColoring = false;
-		Mesh.MaterialRenderProxy = VoxelMaterial->GetRenderProxy();
-		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-		Mesh.CastShadow = bCastShadow;
+		// Batch 0 — Opaque 섹션 (TerrainMaterial)
+		if (OpaqueIndexCount > 0)
+		{
+			FMeshBatch& Mesh = Collector.AllocateMesh();
+			Mesh.VertexFactory = VertexFactory;
+			Mesh.Type = PT_TriangleList;
+			Mesh.bWireframe = false;
+			Mesh.bUseWireframeSelectionColoring = false;
+			Mesh.MaterialRenderProxy = VoxelMaterial->GetRenderProxy();
+			Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+			Mesh.CastShadow = bCastShadow;
 
-		FMeshBatchElement& BatchElement = Mesh.Elements[0];
-		BatchElement.IndexBuffer = &IndexBufferWrapper;
-		BatchElement.NumPrimitives = NumIndices / 3;
-		BatchElement.FirstIndex = 0;
-		BatchElement.MinVertexIndex = 0;
-		BatchElement.MaxVertexIndex = NumVertices > 0 ? NumVertices - 1 : 0;
-		BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+			FMeshBatchElement& BatchElement = Mesh.Elements[0];
+			BatchElement.IndexBuffer = &IndexBufferWrapper;
+			BatchElement.NumPrimitives = OpaqueIndexCount / 3;
+			BatchElement.FirstIndex = 0;
+			BatchElement.MinVertexIndex = 0;
+			BatchElement.MaxVertexIndex = NumVertices > 0 ? NumVertices - 1 : 0;
+			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
-		Collector.AddMesh(ViewIndex, Mesh);
+			Collector.AddMesh(ViewIndex, Mesh);
+		}
+
+		// Batch 1 — Translucent(Water) 섹션 (WaterMaterial)
+		if (TranslucentIndexCount > 0 && WaterMaterial)
+		{
+			FMeshBatch& Mesh = Collector.AllocateMesh();
+			Mesh.VertexFactory = VertexFactory;
+			Mesh.Type = PT_TriangleList;
+			Mesh.bWireframe = false;
+			Mesh.bUseWireframeSelectionColoring = false;
+			Mesh.MaterialRenderProxy = WaterMaterial->GetRenderProxy();
+			Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+			// Translucent는 일반적으로 그림자를 드리우지 않음 (성능/룩 양쪽 이점).
+			Mesh.CastShadow = false;
+
+			FMeshBatchElement& BatchElement = Mesh.Elements[0];
+			BatchElement.IndexBuffer = &IndexBufferWrapper;
+			BatchElement.NumPrimitives = TranslucentIndexCount / 3;
+			BatchElement.FirstIndex = OpaqueIndexCount;
+			BatchElement.MinVertexIndex = 0;
+			BatchElement.MaxVertexIndex = NumVertices > 0 ? NumVertices - 1 : 0;
+			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+
+			Collector.AddMesh(ViewIndex, Mesh);
+		}
 	}
 }
 
@@ -138,22 +196,31 @@ FPrimitiveViewRelevance FHktVoxelChunkProxy::GetViewRelevance(const FSceneView* 
 	Result.bDynamicRelevance = true;
 	Result.bStaticRelevance = false;
 	Result.bRenderInMainPass = ShouldRenderInMainPass();
+	// 머티리얼 관련성 전달 — Translucent/Masked 패스가 호출되도록 한다.
+	// 이 호출이 없으면 Translucent 머티리얼을 바인딩해도 렌더 패스가 스킵됨.
+	CombinedMaterialRelevance.SetPrimitiveViewRelevance(Result);
+	Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
 	return Result;
 }
 
 void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	const TArray<FHktVoxelVertex>& Vertices,
-	const TArray<uint32>& Indices)
+	const TArray<uint32>& Indices,
+	int32 InOpaqueIndexCount)
 {
 	check(IsInRenderingThread());
 
 	if (Vertices.Num() == 0 || Indices.Num() == 0)
 	{
 		NumIndices = 0;
+		OpaqueIndexCount = 0;
 		VertexBufferWrapper.VertexBufferRHI = nullptr;
 		IndexBufferWrapper.IndexBufferRHI = nullptr;
 		return;
 	}
+
+	// Opaque 카운트는 총 Index 수를 넘지 못하도록 클램프 (방어).
+	OpaqueIndexCount = FMath::Clamp(InOpaqueIndexCount, 0, Indices.Num());
 
 	// Vertex Buffer 생성
 	{

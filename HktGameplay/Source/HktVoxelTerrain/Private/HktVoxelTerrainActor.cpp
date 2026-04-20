@@ -204,11 +204,13 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	{
 		bPrevDebugRenderMode = bDebugRenderMode;
 		UMaterialInterface* EffMat = GetEffectiveTerrainMaterial();
+		UMaterialInterface* EffWaterMat = GetEffectiveWaterMaterial();
 		for (auto& Pair : ActiveChunks)
 		{
 			if (Pair.Value)
 			{
 				Pair.Value->SetVoxelMaterial(EffMat);
+				Pair.Value->SetWaterMaterial(EffWaterMat);
 			}
 		}
 	}
@@ -231,6 +233,16 @@ UMaterialInterface* AHktVoxelTerrainActor::GetEffectiveTerrainMaterial() const
 	// TerrainMaterial이 명시적으로 할당되면 그대로 사용.
 	// 미할당이면 nullptr 반환 — ChunkComponent의 기본 VertexColor 머티리얼이 사용됨.
 	return TerrainMaterial;
+}
+
+UMaterialInterface* AHktVoxelTerrainActor::GetEffectiveWaterMaterial() const
+{
+	// 디버그 모드에서는 워터도 같은 디버그 머티리얼로 — 경계가 혼동되지 않도록.
+	if (bDebugRenderMode)
+	{
+		return GetEffectiveTerrainMaterial();
+	}
+	return WaterMaterial;
 }
 
 FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
@@ -272,6 +284,7 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 		// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial, 아니면 TerrainMaterial).
 		// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
 		Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
+		Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
 		if (bStyleBuilt) { ApplyStyleToComponent(Comp); }
 		ActiveChunks.Add(ChunkCoord, Comp);
 	}
@@ -412,6 +425,7 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 			// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial / TerrainMaterial 중 택1).
 			// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
 			Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
+			Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
 			ApplyStyleToComponent(Comp);
 			ActiveChunks.Add(ChunkCoord, Comp);
 		}

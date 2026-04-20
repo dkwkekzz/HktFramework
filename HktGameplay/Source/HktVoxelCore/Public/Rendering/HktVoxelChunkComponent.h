@@ -82,6 +82,13 @@ public:
 	void SetVoxelMaterial(UMaterialInterface* InMaterial);
 
 	/**
+	 * 워터 머티리얼 설정 — Translucent 섹션(Water TypeID)만 이 머티리얼로 별도 렌더.
+	 * null 전달 시 기본 VoxelMaterial로 폴백.
+	 * SceneProxy는 Opaque/Translucent 두 MeshBatch를 발행, 각각 slot 0/1 머티리얼 사용.
+	 */
+	void SetWaterMaterial(UMaterialInterface* InMaterial);
+
+	/**
 	 * 디버그 시각화용 자동 생성 머티리얼 — Wireframe + Unlit + VertexColor→Emissive.
 	 * AHktVoxelTerrainActor::bDebugRenderMode 활성 시 폴백으로 사용된다.
 	 * 에디터/개발 빌드에서만 유효 (WITH_EDITORONLY_DATA). Shipping은 엔진 기본 머티리얼.
@@ -137,16 +144,30 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual UBodySetup* GetBodySetup() override;
-	virtual int32 GetNumMaterials() const override { return 1; }
+	virtual int32 GetNumMaterials() const override { return 2; }
 	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override
 	{
-		return (ElementIndex == 0) ? CachedVoxelMaterial.Get() : nullptr;
+		if (ElementIndex == 0)
+		{
+			return CachedVoxelMaterial.Get();
+		}
+		if (ElementIndex == 1)
+		{
+			// Water 슬롯 미설정 시 Opaque와 동일 머티리얼 사용 — 최소한 렌더는 된다.
+			UMaterialInterface* Water = CachedWaterMaterial.Get();
+			return Water ? Water : CachedVoxelMaterial.Get();
+		}
+		return nullptr;
 	}
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override
 	{
 		if (UMaterialInterface* Mat = CachedVoxelMaterial.Get())
 		{
 			OutMaterials.Add(Mat);
+		}
+		if (UMaterialInterface* WaterMat = CachedWaterMaterial.Get())
+		{
+			OutMaterials.Add(WaterMat);
 		}
 	}
 
@@ -168,6 +189,10 @@ private:
 	/** UPrimitiveComponent는 OverrideMaterials를 제공하지 않으므로 직접 관리 */
 	UPROPERTY()
 	TWeakObjectPtr<UMaterialInterface> CachedVoxelMaterial;
+
+	/** Water 섹션 전용 머티리얼. nullptr이면 CachedVoxelMaterial로 폴백 */
+	UPROPERTY()
+	TWeakObjectPtr<UMaterialInterface> CachedWaterMaterial;
 
 	FHktVoxelTileTextureSet CachedTileTextures;
 	FHktVoxelTexturePair CachedMaterialLUT;

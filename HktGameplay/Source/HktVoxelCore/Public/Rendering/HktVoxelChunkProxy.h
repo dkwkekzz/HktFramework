@@ -47,10 +47,17 @@ public:
 		return reinterpret_cast<SIZE_T>(&UniquePointer);
 	}
 
-	/** Render Thread에서 호출 — 메싱 완료 데이터로 GPU 버퍼 갱신 */
+	/**
+	 * Render Thread에서 호출 — 메싱 완료 데이터로 GPU 버퍼 갱신.
+	 *
+	 * InOpaqueIndexCount = Opaque 섹션이 사용하는 index 수 (Indices 배열 앞쪽).
+	 * 나머지 (Indices.Num() - InOpaqueIndexCount)는 Translucent(Water) 섹션.
+	 * GetDynamicMeshElements가 이 경계로 2개의 FMeshBatch를 발행한다.
+	 */
 	void UpdateMeshData_RenderThread(
 		const TArray<FHktVoxelVertex>& Vertices,
-		const TArray<uint32>& Indices);
+		const TArray<uint32>& Indices,
+		int32 InOpaqueIndexCount);
 
 	void SetTileTextures_RenderThread(
 		FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
@@ -90,10 +97,21 @@ private:
 	FVoxelIndexBuffer IndexBufferWrapper;
 	FHktVoxelVertexFactory* VertexFactory = nullptr;
 	UMaterialInterface* VoxelMaterial = nullptr;
+	UMaterialInterface* WaterMaterial = nullptr;
+
+	/**
+	 * 결합된 머티리얼 관련성 (VoxelMaterial | WaterMaterial).
+	 * GetViewRelevance에서 Translucent/Opaque/Masked 플래그를 엔진에 전달해
+	 * 올바른 렌더 패스(메인, 트랜슬루슨트, 마스크드)가 스케줄링되도록 한다.
+	 * 이게 없으면 Translucent 머티리얼이 있어도 translucent 패스가 호출되지 않아 invisible.
+	 */
+	FMaterialRelevance CombinedMaterialRelevance;
 	float VoxelSizeUU = 15.0f;
 	float ShadowDistanceSq = 0.f;  // 그림자 거리 제곱. 0이면 항상 그림자 ON
 	int32 NumIndices = 0;
 	int32 NumVertices = 0;
+	/** Opaque 섹션이 차지하는 index 수. NumIndices - OpaqueIndexCount = Translucent 섹션 크기 */
+	int32 OpaqueIndexCount = 0;
 
 	mutable bool bDrawDiagLogged = false;
 

@@ -152,6 +152,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
 	TObjectPtr<UMaterialInterface> TerrainMaterial;
 
+	/**
+	 * 워터 전용 머티리얼 — Translucent Water 복셀(TypeID=5)만 이 머티리얼로 별도 렌더링.
+	 * 호수/강/바다 표면 전부 공통. nullptr이면 TerrainMaterial로 폴백.
+	 * 권장: Blend Mode = Translucent, 깊이 페이드 + 프레넬 + 애니메이션 노멀.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
+	TObjectPtr<UMaterialInterface> WaterMaterial;
+
 	/** 스타일라이즈 렌더링 — 메이플2풍 카툰 셰이딩 (그리드 라인, AO 부스트, 채도 강화) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
 	bool bStylizedRendering = false;
@@ -285,6 +293,12 @@ public:
 
 	/** 실제 렌더링에 사용되는 머티리얼 — 디버그 모드 시 DebugRenderMaterial, 아니면 TerrainMaterial */
 	UMaterialInterface* GetEffectiveTerrainMaterial() const;
+
+	/**
+	 * 워터 섹션 유효 머티리얼 — 디버그 모드 시 지형과 동일 머티리얼(일관된 디버그 룩),
+	 * 평상시엔 WaterMaterial. nullptr 반환 허용 (ChunkComponent가 TerrainMaterial로 폴백).
+	 */
+	UMaterialInterface* GetEffectiveWaterMaterial() const;
 
 private:
 

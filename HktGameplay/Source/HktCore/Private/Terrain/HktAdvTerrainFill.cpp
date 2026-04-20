@@ -401,9 +401,12 @@ void FHktAdvTerrainLandmark::ApplyLandmarks(
 		}
 
 		case EHktLandmarkType::Lake:
+			// Radius=10 (20voxel 너비), Depth=15 (225cm = 2.25m 깊이).
+			// 깊이를 늘려 중앙부에서 BaseColor가 충분히 DeepColor로 페이드되고,
+			// 윗면 SceneDepth-PixelDepth 값도 커져 Rim 영역을 벗어남.
 			CarveBowlWithWater(
 				WorldX, WorldY, SurfaceH,
-				10, 6,
+				10, 15,
 				ChunkX, ChunkY, ChunkZ, InOutVoxels);
 			break;
 

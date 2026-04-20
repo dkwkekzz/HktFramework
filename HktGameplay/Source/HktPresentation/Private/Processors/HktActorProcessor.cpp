@@ -11,19 +11,6 @@
 #include "GameFramework/Actor.h"
 #include "HktCoreEventLog.h"
 
-/** 모든 PrimitiveComponent를 QueryOnly + Visibility만 Block으로 설정 */
-static void ConfigureCollisionForSelection(AActor* Actor)
-{
-	TInlineComponentArray<UPrimitiveComponent*> Primitives;
-	Actor->GetComponents(Primitives);
-	for (UPrimitiveComponent* Prim : Primitives)
-	{
-		Prim->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		Prim->SetCollisionResponseToAllChannels(ECR_Ignore);
-		Prim->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	}
-}
-
 FHktActorProcessor::FHktActorProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
 {
@@ -366,8 +353,6 @@ void FHktActorProcessor::SpawnActorFromResolvedAsset(FHktEntityId EntityId, cons
 
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"),
 			*VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
-
-		ConfigureCollisionForSelection(SpawnedActor);
 
 		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
 		{
