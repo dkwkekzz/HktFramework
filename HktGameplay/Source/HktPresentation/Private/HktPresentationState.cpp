@@ -312,6 +312,45 @@ namespace
 				if (S.VoxelSkins.IsValidIndex(Id)) S.VoxelSkins[Id].VoxelPalette.Set(V, F);
 			};
 
+			// --- Sprite (2D 라그나로크 방식) ---
+			T[PropertyId::Facing] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id))
+					S.Sprites[Id].Facing.Set(static_cast<uint8>(V & 0x07), F);
+			};
+			T[PropertyId::AnimStartTick] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].AnimStartTick.Set(V, F);
+			};
+			T[PropertyId::SpriteBody] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].BodyPart.Set(IndexToTag(V), F);
+			};
+			T[PropertyId::SpriteHead] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadPart.Set(IndexToTag(V), F);
+			};
+			T[PropertyId::SpriteWeapon] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].WeaponPart.Set(IndexToTag(V), F);
+			};
+			T[PropertyId::SpriteShield] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].ShieldPart.Set(IndexToTag(V), F);
+			};
+			T[PropertyId::SpriteHeadgearTop] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadgearTop.Set(IndexToTag(V), F);
+			};
+			T[PropertyId::SpriteHeadgearMid] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadgearMid.Set(IndexToTag(V), F);
+			};
+			T[PropertyId::SpriteHeadgearLow] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			{
+				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadgearLow.Set(IndexToTag(V), F);
+			};
+
 			// --- Terrain Debris (뷰가 없으면 lazy 할당) ---
 			T[PropertyId::TerrainTypeId] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
 			{
@@ -388,6 +427,10 @@ void FHktPresentationState::AllocateViewsForEntity(FHktEntityId Id, EHktRenderCa
 	// VoxelSkin — 복셀 캐릭터만 사용. 현재 태그 체계에 별도 구분 태그가 없어
 	// Character 전원에 배치. 추후 Entity_VoxelCharacter 태그 도입 시 gate.
 	if (bIsCharacter)                   EnsureSlot(VoxelSkins);
+
+	// Sprite — 2D 라그나로크 방식 캐릭터. 현재는 Character/NPC 전원에 배치.
+	// 추후 Entity_SpriteCharacter 태그 도입 시 gate.
+	if (bIsCharacter)                   EnsureSlot(Sprites);
 
 	// TerrainDebris — 분류되지 않은 엔터티를 Debris로 간주 (현재 Entity_Debris 태그 부재)
 	if (Category == EHktRenderCategory::None)
@@ -496,6 +539,19 @@ void FHktPresentationState::InitVoxelSkinFromWS(const FHktWorldState& WS, FHktEn
 	V.VoxelPalette.Set(WS.GetProperty(Id, PropertyId::VoxelPalette), F);
 }
 
+void FHktPresentationState::InitSpriteFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktSpriteView& V, int64 F)
+{
+	V.BodyPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteBody)), F);
+	V.HeadPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHead)), F);
+	V.WeaponPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteWeapon)), F);
+	V.ShieldPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteShield)), F);
+	V.HeadgearTop.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHeadgearTop)), F);
+	V.HeadgearMid.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHeadgearMid)), F);
+	V.HeadgearLow.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHeadgearLow)), F);
+	V.Facing.Set(static_cast<uint8>(WS.GetProperty(Id, PropertyId::Facing) & 0x07), F);
+	V.AnimStartTick.Set(WS.GetProperty(Id, PropertyId::AnimStartTick), F);
+}
+
 void FHktPresentationState::InitTerrainDebrisFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktTerrainDebrisView& V, int64 F)
 {
 	V.TerrainTypeId.Set(WS.GetProperty(Id, PropertyId::TerrainTypeId), F);
@@ -577,6 +633,7 @@ void FHktPresentationState::AddEntity(const FHktWorldState& WS, FHktEntityId Id)
 	if (FHktVisualizationView* V = GetMutableVisualization(Id)) InitVisualizationFromWS(WS, Id, *V, CurrentFrame);
 	if (Items.IsValidIndex(Index))                              InitItemFromWS(WS, Id, Items[Index], CurrentFrame);
 	if (VoxelSkins.IsValidIndex(Index))                         InitVoxelSkinFromWS(WS, Id, VoxelSkins[Index], CurrentFrame);
+	if (Sprites.IsValidIndex(Index))                            InitSpriteFromWS(WS, Id, Sprites[Index], CurrentFrame);
 	if (TerrainDebris.IsValidIndex(Index))                      InitTerrainDebrisFromWS(WS, Id, TerrainDebris[Index], CurrentFrame);
 
 	SpawnedThisFrame.Add(Id);
@@ -603,6 +660,7 @@ void FHktPresentationState::RemoveEntity(FHktEntityId Id)
 	if (Visualization.IsValidIndex(Index))  Visualization.RemoveAt(Index);
 	if (Items.IsValidIndex(Index))          Items.RemoveAt(Index);
 	if (VoxelSkins.IsValidIndex(Index))     VoxelSkins.RemoveAt(Index);
+	if (Sprites.IsValidIndex(Index))        Sprites.RemoveAt(Index);
 	if (TerrainDebris.IsValidIndex(Index))  TerrainDebris.RemoveAt(Index);
 
 	// Meta는 유지 (RemovedFrame 추적용). Clear()에서만 Meta 제거.
@@ -679,6 +737,7 @@ void FHktPresentationState::Clear()
 	Visualization.Empty();
 	Items.Empty();
 	VoxelSkins.Empty();
+	Sprites.Empty();
 	TerrainDebris.Empty();
 
 	SpawnedThisFrame.Reset();

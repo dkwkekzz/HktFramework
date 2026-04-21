@@ -237,15 +237,17 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	HeightDataPerLayer.Add(LandscapeGuid, MoveTemp(HeightData));
 	MaterialLayerDataPerLayer.Add(LandscapeGuid, MoveTemp(ImportLayers));
 
-	// Import 시그니처는 HktMapStreamingSubsystem.cpp:356 의 런타임 선례와 동일하게 호출:
-	//   (Guid, NumComponentsX, NumComponentsY, QuadsPerSection, SectionsPerComponent, ...)
+	// UE5.7 Import 시그니처: (Guid, MinX, MinY, MaxX, MaxY, NumSubsections, SubsectionSizeQuads, ...)
+	// MaxX/MaxY = HeightmapVerts - 1 (버텍스 인덱스 기반), InImportLayers는 빈 뷰 전달.
 	NewLandscape->Import(
 		LandscapeGuid,
-		ComponentCountX, ComponentCountY,
-		QuadsPerSection, SectionsPerComponent,
+		0, 0,
+		HeightmapVertsX - 1, HeightmapVertsY - 1,
+		SectionsPerComponent, QuadsPerSection,
 		HeightDataPerLayer, TEXT(""),
 		MaterialLayerDataPerLayer,
-		ELandscapeImportAlphamapType::Additive);
+		ELandscapeImportAlphamapType::Additive,
+		TArrayView<const FLandscapeLayer>());
 
 	SpawnedLandscape = NewLandscape;
 

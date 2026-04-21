@@ -207,6 +207,39 @@ struct FHktTerrainDebrisView
 	}
 };
 
+/**
+ * FHktSpriteView — 2D 스프라이트 캐릭터의 Loadout + Facing + AnimStartTick.
+ * HktSpriteCore의 프레임 리졸버에 전달하기 위한 최소 상태.
+ * 프레임 결정은 Processor(Sync 시점)에서 Animation/Transform/CurrentTick과 결합하여 수행.
+ */
+struct FHktSpriteView
+{
+	THktVisualField<FGameplayTag> BodyPart;
+	THktVisualField<FGameplayTag> HeadPart;
+	THktVisualField<FGameplayTag> WeaponPart;
+	THktVisualField<FGameplayTag> ShieldPart;
+	THktVisualField<FGameplayTag> HeadgearTop;
+	THktVisualField<FGameplayTag> HeadgearMid;
+	THktVisualField<FGameplayTag> HeadgearLow;
+	THktVisualField<uint8>        Facing;         // 0..7 (N,NE,E,SE,S,SW,W,NW)
+	THktVisualField<int32>        AnimStartTick;  // AnimState 전환 시점의 VM frame
+
+	FORCEINLINE bool AnyDirty(int64 F) const
+	{
+		return BodyPart.IsDirty(F) || HeadPart.IsDirty(F)
+			|| WeaponPart.IsDirty(F) || ShieldPart.IsDirty(F)
+			|| HeadgearTop.IsDirty(F) || HeadgearMid.IsDirty(F) || HeadgearLow.IsDirty(F)
+			|| Facing.IsDirty(F) || AnimStartTick.IsDirty(F);
+	}
+
+	FORCEINLINE bool AnyLoadoutDirty(int64 F) const
+	{
+		return BodyPart.IsDirty(F) || HeadPart.IsDirty(F)
+			|| WeaponPart.IsDirty(F) || ShieldPart.IsDirty(F)
+			|| HeadgearTop.IsDirty(F) || HeadgearMid.IsDirty(F) || HeadgearLow.IsDirty(F);
+	}
+};
+
 // ============================================================================
 // Pending queues — ProcessDiff에서 적재 → Processor에서 소비
 // ============================================================================
@@ -234,6 +267,7 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TSparseArray<FHktVisualizationView> Visualization;
 	TSparseArray<FHktItemView>          Items;
 	TSparseArray<FHktVoxelSkinView>     VoxelSkins;
+	TSparseArray<FHktSpriteView>        Sprites;
 	TSparseArray<FHktTerrainDebrisView> TerrainDebris;
 
 	int64 CurrentFrame = 0;
@@ -279,12 +313,14 @@ struct HKTPRESENTATION_API FHktPresentationState
 	FORCEINLINE const FHktVisualizationView* GetVisualization(FHktEntityId Id) const { return (Id >= 0 && Visualization.IsValidIndex(Id)) ? &Visualization[Id] : nullptr; }
 	FORCEINLINE const FHktItemView*          GetItem(FHktEntityId Id)          const { return (Id >= 0 && Items.IsValidIndex(Id))         ? &Items[Id]         : nullptr; }
 	FORCEINLINE const FHktVoxelSkinView*     GetVoxelSkin(FHktEntityId Id)     const { return (Id >= 0 && VoxelSkins.IsValidIndex(Id))    ? &VoxelSkins[Id]    : nullptr; }
+	FORCEINLINE const FHktSpriteView*        GetSprite(FHktEntityId Id)        const { return (Id >= 0 && Sprites.IsValidIndex(Id))       ? &Sprites[Id]       : nullptr; }
 	FORCEINLINE const FHktTerrainDebrisView* GetTerrainDebris(FHktEntityId Id) const { return (Id >= 0 && TerrainDebris.IsValidIndex(Id)) ? &TerrainDebris[Id] : nullptr; }
 
 	FORCEINLINE FHktEntityMeta*           GetMutableMeta(FHktEntityId Id)             { return (Id >= 0 && Metas.IsValidIndex(Id))            ? &Metas[Id]            : nullptr; }
 	FORCEINLINE FHktTransformView*        GetMutableTransform(FHktEntityId Id)        { return (Id >= 0 && Transforms.IsValidIndex(Id))       ? &Transforms[Id]       : nullptr; }
 	FORCEINLINE FHktAnimationView*        GetMutableAnimation(FHktEntityId Id)        { return (Id >= 0 && Animation.IsValidIndex(Id))        ? &Animation[Id]        : nullptr; }
 	FORCEINLINE FHktVisualizationView*    GetMutableVisualization(FHktEntityId Id)    { return (Id >= 0 && Visualization.IsValidIndex(Id))    ? &Visualization[Id]    : nullptr; }
+	FORCEINLINE FHktSpriteView*           GetMutableSprite(FHktEntityId Id)           { return (Id >= 0 && Sprites.IsValidIndex(Id))          ? &Sprites[Id]          : nullptr; }
 
 	FORCEINLINE int64 GetCurrentFrame() const { return CurrentFrame; }
 
@@ -312,5 +348,6 @@ private:
 	void InitVisualizationFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktVisualizationView& V, int64 F);
 	void InitItemFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktItemView& V, int64 F);
 	void InitVoxelSkinFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktVoxelSkinView& V, int64 F);
+	void InitSpriteFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktSpriteView& V, int64 F);
 	void InitTerrainDebrisFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktTerrainDebrisView& V, int64 F);
 };
