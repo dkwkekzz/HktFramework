@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Terrain/HktTerrainGenerator.h"
 #include "HktBiomeLandscapeLayer.h"
 #include "HktLandscapeTerrainActor.generated.h"
 
 class ALandscape;
 class UMaterialInterface;
-class FHktTerrainGenerator;
 
 /**
  * AHktLandscapeTerrainActor
