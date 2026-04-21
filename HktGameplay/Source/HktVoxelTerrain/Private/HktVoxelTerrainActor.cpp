@@ -12,6 +12,8 @@
 #include "Rendering/HktVoxelMaterialLUT.h"
 #include "Terrain/HktTerrainGenerator.h"
 #include "Terrain/HktTerrainVoxel.h"
+#include "Terrain/HktFixed32.h"
+#include "LOD/HktVoxelLOD.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -57,12 +59,60 @@ void AHktVoxelTerrainActor::BeginPlay()
 	TerrainMeshScheduler->SetDoubleSided(false);  // terrain은 단면 렌더링 — 삼각형 수 절반
 
 	Streamer = MakeUnique<FHktVoxelTerrainStreamer>();
-	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
+	Streamer->SetLODDistances(LOD0Distance, LOD1Distance, LOD2Distance, LOD3Distance);
+	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrameHighLOD, MaxLoadsPerFrameLowLOD);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
 	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
+	Streamer->SetForcedLOD(ForcedLOD);
 
 	// 지형 생성기 초기화
 	Generator = MakeUnique<FHktTerrainGenerator>(GenConfig);
+
+	// SurfaceHeightProbe 바인딩 — LOD ≥ 2 영역에서 빈 공기 청크 스킵.
+	// 칼럼 4-corner를 샘플링하여 max surface chunk Z를 반환 (오버행 청크 손실 방지 위해 +1 마진은 스트리머가 적용).
+	Streamer->SetSurfaceHeightProbe([this](int32 CX, int32 CY) -> int32
+	{
+		if (!Generator)
+		{
+			return HeightMaxZ;
+		}
+		const int32 ChunkVoxels = FHktVoxelChunk::SIZE;
+		int32 MaxSurfaceVox = INT32_MIN;
+		for (int32 i = 0; i <= 1; ++i)
+		{
+			for (int32 j = 0; j <= 1; ++j)
+			{
+				const int32 WX = (CX + i) * ChunkVoxels;
+				const int32 WY = (CY + j) * ChunkVoxels;
+				const int32 SurfVox = Generator->GetSurfaceHeight(
+					FHktFixed32::FromInt(WX), FHktFixed32::FromInt(WY)).FloorToInt();
+				MaxSurfaceVox = FMath::Max(MaxSurfaceVox, SurfVox);
+			}
+		}
+		// voxel Z → chunk Z (음수 floor 처리)
+		const int32 SurfaceChunkZ = (MaxSurfaceVox >= 0)
+			? (MaxSurfaceVox / ChunkVoxels)
+			: -((-MaxSurfaceVox + ChunkVoxels - 1) / ChunkVoxels);
+		return SurfaceChunkZ;
+	});
+
+	// LODSettings 기본 정책 (디자이너가 에디터에서 비워두면 합리적 기본값 채움)
+	if (LODSettings.Num() < 4)
+	{
+		LODSettings.Reset(4);
+		// LOD 0: 풀 디테일
+		{ FHktVoxelLODSettings S; S.NormalMapScale = 1.0f; S.EdgeRoundScale = 1.0f;
+		  S.ShadowDistance = 0.0f; S.bCastShadow = true;  S.bCollision = true;  LODSettings.Add(S); }
+		// LOD 1: 절반 노멀맵 + 라운딩, 그림자 ON, no collision
+		{ FHktVoxelLODSettings S; S.NormalMapScale = 0.5f; S.EdgeRoundScale = 0.5f;
+		  S.ShadowDistance = 0.0f; S.bCastShadow = true;  S.bCollision = false; LODSettings.Add(S); }
+		// LOD 2: 노멀맵·라운딩 off, 그림자 거리 제한
+		{ FHktVoxelLODSettings S; S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+		  S.ShadowDistance = 60000.f; S.bCastShadow = true; S.bCollision = false; LODSettings.Add(S); }
+		// LOD 3: 노멀맵·라운딩·그림자 모두 off
+		{ FHktVoxelLODSettings S; S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+		  S.ShadowDistance = 0.0f; S.bCastShadow = false; S.bCollision = false; LODSettings.Add(S); }
+	}
 
 	PrewarmPool(InitialPoolSize);
 
@@ -84,8 +134,11 @@ void AHktVoxelTerrainActor::BeginPlay()
 	}
 
 	UE_LOG(LogHktVoxelTerrain, Log,
-		TEXT("Terrain Actor initialized — Seed=%lld, VoxelSize=%.1f, ChunkWorld=%.0f, ViewDist=%.0f, Pool=%d, MaxLoad=%d, MaxMesh=%d, Style=%s"),
-		GenConfig.Seed, VoxelSize, GetChunkWorldSize(), ViewDistance, InitialPoolSize, MaxLoadsPerFrame, MaxMeshPerFrame,
+		TEXT("Terrain Actor initialized — Seed=%lld, VoxelSize=%.1f, ChunkWorld=%.0f, "
+			 "LOD=[%.0f/%.0f/%.0f/%.0f], Pool=%d, MaxLoad=High%d/Low%d, MaxMesh=%d, Style=%s"),
+		GenConfig.Seed, VoxelSize, GetChunkWorldSize(),
+		LOD0Distance, LOD1Distance, LOD2Distance, LOD3Distance,
+		InitialPoolSize, MaxLoadsPerFrameHighLOD, MaxLoadsPerFrameLowLOD, MaxMeshPerFrame,
 		bStyleBuilt ? TEXT("Built") : TEXT("Palette"));
 }
 
@@ -140,14 +193,18 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 
 	const FVector CameraPos = GetCameraWorldPos();
 
-	// 1. 스트리밍 업데이트 — 디버그 모드면 ViewDistance 배수 적용
-	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
+	// 1. 스트리밍 업데이트 — 디버그 모드면 모든 LOD 거리에 배수 적용
+	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrameHighLOD, MaxLoadsPerFrameLowLOD);
 	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
-	const float EffectiveViewDistance = bDebugRenderMode
-		? ViewDistance * DebugViewDistanceMultiplier
-		: ViewDistance;
-	Streamer->UpdateStreaming(CameraPos, EffectiveViewDistance, GetChunkWorldSize());
+	Streamer->SetForcedLOD(ForcedLOD);
+	const float DistMul = bDebugRenderMode ? DebugViewDistanceMultiplier : 1.0f;
+	Streamer->SetLODDistances(
+		LOD0Distance * DistMul,
+		LOD1Distance * DistMul,
+		LOD2Distance * DistMul,
+		LOD3Distance * DistMul);
+	Streamer->UpdateStreaming(CameraPos, GetChunkWorldSize());
 
 	// 2. 스트리밍 결과 반영 (생성 + 로드 + 컴포넌트 할당)
 	ProcessStreamingResults();
@@ -173,28 +230,18 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		}
 	}
 
-	// 엣지 라운딩 강도 라이브 토글
-	if (!FMath::IsNearlyEqual(EdgeRoundStrength, PrevEdgeRoundStrength))
+	// 엣지 라운딩 / 노멀맵 강도 라이브 토글 — LOD 스케일을 통과한 값으로 재적용
+	const bool bEdgeChanged = !FMath::IsNearlyEqual(EdgeRoundStrength, PrevEdgeRoundStrength);
+	const bool bNormalChanged = !FMath::IsNearlyEqual(NormalMapStrength, PrevNormalMapStrength);
+	if (bEdgeChanged || bNormalChanged)
 	{
 		PrevEdgeRoundStrength = EdgeRoundStrength;
-		for (auto& Pair : ActiveChunks)
-		{
-			if (Pair.Value)
-			{
-				Pair.Value->SetEdgeRoundStrength(EdgeRoundStrength);
-			}
-		}
-	}
-
-	// 노멀맵 강도 라이브 토글
-	if (!FMath::IsNearlyEqual(NormalMapStrength, PrevNormalMapStrength))
-	{
 		PrevNormalMapStrength = NormalMapStrength;
 		for (auto& Pair : ActiveChunks)
 		{
 			if (Pair.Value)
 			{
-				Pair.Value->SetNormalMapStrength(NormalMapStrength);
+				ApplyLODToComponent(Pair.Value, Pair.Value->GetChunkLOD());
 			}
 		}
 	}
@@ -262,6 +309,11 @@ FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
 
 void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 {
+	GenerateAndLoadChunk(ChunkCoord, 0);
+}
+
+void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, int32 LOD)
+{
 	// 절차적 생성 (힙 할당 — 128KB는 워커 스레드 스택에 위험)
 	constexpr int32 ChunkVoxelCount = 32 * 32 * 32;
 	TArray<FHktTerrainVoxel> GeneratedVoxels;
@@ -272,22 +324,73 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 	const FHktVoxel* VoxelData = reinterpret_cast<const FHktVoxel*>(GeneratedVoxels.GetData());
 	TerrainCache->LoadChunk(ChunkCoord, VoxelData, ChunkVoxelCount);
 
+	// LOD 요청 — LoadChunk 직후 ChunkRef를 받아 RequestedLOD를 캡처.
+	// LoadChunk이 bMeshDirty=true로 설정해 두므로 다음 메싱 틱에서 그 LOD로 빌드된다.
+	if (FHktVoxelChunkRef ChunkRef = TerrainCache->GetChunkRef(ChunkCoord))
+	{
+		const int32 ClampedLOD = FMath::Clamp(LOD, 0, FHktVoxelLODPolicy::MaxLOD);
+		ChunkRef->RequestedLOD.store(static_cast<uint8>(ClampedLOD), std::memory_order_release);
+	}
+
 	// 컴포넌트 할당
 	UHktVoxelChunkComponent* Comp = AcquireComponent();
 	if (Comp)
 	{
 		Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
-		Comp->SetShadowDistance(ShadowDistance);
 		Comp->SetStylizedRendering(bStylizedRendering);
-		Comp->SetEdgeRoundStrength(EdgeRoundStrength);
-		Comp->SetNormalMapStrength(NormalMapStrength);
 		// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial, 아니면 TerrainMaterial).
 		// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
 		Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
 		Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
+		// LOD-aware 컴포넌트 설정 (NormalMap/EdgeRound/Shadow/Collision)
+		ApplyLODToComponent(Comp, LOD);
 		if (bStyleBuilt) { ApplyStyleToComponent(Comp); }
 		ActiveChunks.Add(ChunkCoord, Comp);
 	}
+}
+
+void AHktVoxelTerrainActor::RetuneChunkLOD(const FIntVector& ChunkCoord, int32 NewLOD)
+{
+	if (!TerrainCache)
+	{
+		return;
+	}
+	FHktVoxelChunkRef ChunkRef = TerrainCache->GetChunkRef(ChunkCoord);
+	if (!ChunkRef)
+	{
+		return;
+	}
+
+	const int32 ClampedLOD = FMath::Clamp(NewLOD, 0, FHktVoxelLODPolicy::MaxLOD);
+	const uint8 PrevLOD = ChunkRef->RequestedLOD.load(std::memory_order_acquire);
+	if (static_cast<int32>(PrevLOD) == ClampedLOD)
+	{
+		return;
+	}
+
+	// 메시 재생성 트리거 — Generation 증가로 in-flight 워커 결과는 폐기됨.
+	ChunkRef->RequestedLOD.store(static_cast<uint8>(ClampedLOD), std::memory_order_release);
+	ChunkRef->MeshGeneration.fetch_add(1, std::memory_order_acq_rel);
+	ChunkRef->bMeshDirty.store(true, std::memory_order_release);
+
+	if (UHktVoxelChunkComponent** Found = ActiveChunks.Find(ChunkCoord))
+	{
+		ApplyLODToComponent(*Found, ClampedLOD);
+	}
+}
+
+void AHktVoxelTerrainActor::ApplyLODToComponent(UHktVoxelChunkComponent* Comp, int32 LOD)
+{
+	if (!Comp)
+	{
+		return;
+	}
+	const int32 ClampedLOD = FMath::Clamp(LOD, 0, FHktVoxelLODPolicy::MaxLOD);
+	const FHktVoxelLODSettings& Settings = LODSettings.IsValidIndex(ClampedLOD)
+		? LODSettings[ClampedLOD]
+		: LODSettings[0];
+	Comp->SetChunkLOD(ClampedLOD, Settings.ToComponentSettings(),
+		NormalMapStrength, EdgeRoundStrength);
 }
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()
@@ -306,14 +409,20 @@ void AHktVoxelTerrainActor::ProcessStreamingResults()
 	}
 
 	// 로드: 스트리머가 요청한 청크를 절차적 생성 → RenderCache 로드 → 컴포넌트 할당
-	for (const FIntVector& Coord : Streamer->GetChunksToLoad())
+	for (const FHktChunkLODRequest& Req : Streamer->GetChunksToLoad())
 	{
-		if (ActiveChunks.Contains(Coord))
+		if (ActiveChunks.Contains(Req.Coord))
 		{
 			continue;
 		}
 
-		GenerateAndLoadChunk(Coord);
+		GenerateAndLoadChunk(Req.Coord, Req.LOD);
+	}
+
+	// Retune: 이미 로드된 청크의 LOD만 변경 (Voxel 데이터 보존, 메시만 재생성)
+	for (const FHktChunkLODRequest& Req : Streamer->GetChunksToRetune())
+	{
+		RetuneChunkLOD(Req.Coord, Req.LOD);
 	}
 }
 
@@ -412,22 +521,35 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 
 	TerrainCache->LoadChunk(ChunkCoord, VoxelData, VoxelCount);
 
-	if (Streamer && Streamer->GetLoadedChunks().Contains(ChunkCoord) && !ActiveChunks.Contains(ChunkCoord))
+	if (Streamer)
 	{
-		UHktVoxelChunkComponent* Comp = AcquireComponent();
-		if (Comp)
+		const TMap<FIntVector, int32>& Loaded = Streamer->GetLoadedChunkLOD();
+		if (const int32* LODPtr = Loaded.Find(ChunkCoord))
 		{
-			Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
-			Comp->SetShadowDistance(ShadowDistance);
-			Comp->SetStylizedRendering(bStylizedRendering);
-			Comp->SetEdgeRoundStrength(EdgeRoundStrength);
-			Comp->SetNormalMapStrength(NormalMapStrength);
-			// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial / TerrainMaterial 중 택1).
-			// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
-			Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
-			Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
-			ApplyStyleToComponent(Comp);
-			ActiveChunks.Add(ChunkCoord, Comp);
+			const int32 LOD = *LODPtr;
+			if (FHktVoxelChunkRef ChunkRef = TerrainCache->GetChunkRef(ChunkCoord))
+			{
+				ChunkRef->RequestedLOD.store(
+					static_cast<uint8>(FMath::Clamp(LOD, 0, FHktVoxelLODPolicy::MaxLOD)),
+					std::memory_order_release);
+			}
+
+			if (!ActiveChunks.Contains(ChunkCoord))
+			{
+				UHktVoxelChunkComponent* Comp = AcquireComponent();
+				if (Comp)
+				{
+					Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
+					Comp->SetStylizedRendering(bStylizedRendering);
+					// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial / TerrainMaterial 중 택1).
+					// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
+					Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
+					Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
+					ApplyLODToComponent(Comp, LOD);
+					ApplyStyleToComponent(Comp);
+					ActiveChunks.Add(ChunkCoord, Comp);
+				}
+			}
 		}
 	}
 }
@@ -969,23 +1091,127 @@ namespace
 		{
 			const float ChunkWorldSize = A->GetChunkWorldSize();
 			const float TargetDistance = static_cast<float>(Chunks) * ChunkWorldSize;
-			const float Baseline = FMath::Max(1.f, A->ViewDistance);
+			// LOD3가 외곽 가시 거리 기준 — 그에 맞춰 multiplier 산출
+			const float Baseline = FMath::Max(1.f, A->LOD3Distance);
 			A->DebugViewDistanceMultiplier = FMath::Clamp(TargetDistance / Baseline, 1.f, 32.f);
 			UE_LOG(LogConsoleResponse, Display,
-				TEXT("[Terrain] %s debug radius=%d chunks (mult=%.2f, dist=%.0fcm)"),
+				TEXT("[Terrain] %s debug radius=%d chunks (mult=%.2f, outerDist=%.0fcm)"),
 				*A->GetName(), Chunks, A->DebugViewDistanceMultiplier,
-				A->ViewDistance * A->DebugViewDistanceMultiplier);
+				A->LOD3Distance * A->DebugViewDistanceMultiplier);
+		}
+	}
+
+	// === LOD 디버그 콘솔 명령 ===
+
+	void Cmd_TerrainLODDistances(const TArray<FString>& Args)
+	{
+		if (Args.Num() < 4)
+		{
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("Usage: hkt.terrain.lod.distances <D0> <D1> <D2> <D3> — LOD 외곽 거리 (cm)"));
+			return;
+		}
+		const float D0 = FMath::Max(1.f, FCString::Atof(*Args[0]));
+		const float D1 = FMath::Max(D0 + 1.f, FCString::Atof(*Args[1]));
+		const float D2 = FMath::Max(D1 + 1.f, FCString::Atof(*Args[2]));
+		const float D3 = FMath::Max(D2 + 1.f, FCString::Atof(*Args[3]));
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			A->LOD0Distance = D0;
+			A->LOD1Distance = D1;
+			A->LOD2Distance = D2;
+			A->LOD3Distance = D3;
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s LOD distances = [%.0f / %.0f / %.0f / %.0f]"),
+				*A->GetName(), D0, D1, D2, D3);
+		}
+	}
+
+	void Cmd_TerrainLODFreeze(const TArray<FString>& Args)
+	{
+		if (Args.Num() < 1)
+		{
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("Usage: hkt.terrain.lod.freeze <-1|0|1|2|3> — LOD 강제 (-1=정상)"));
+			return;
+		}
+		const int32 LOD = FMath::Clamp(FCString::Atoi(*Args[0]), -1, 3);
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			A->ForcedLOD = LOD;
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s ForcedLOD=%d %s"),
+				*A->GetName(), LOD,
+				LOD < 0 ? TEXT("(정상 동작)") : TEXT("(전체 청크 강제)"));
+		}
+	}
+
+	void Cmd_TerrainLODStats(const TArray<FString>&)
+	{
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			// ActiveChunks는 private이므로 액터의 컴포넌트 목록에서 직접 LOD 집계
+			int32 LODCount[4] = { 0, 0, 0, 0 };
+			TArray<UHktVoxelChunkComponent*> Comps;
+			A->GetComponents<UHktVoxelChunkComponent>(Comps);
+			for (UHktVoxelChunkComponent* C : Comps)
+			{
+				if (!C || !C->IsVisible()) continue;
+				const int32 L = FMath::Clamp(C->GetChunkLOD(), 0, 3);
+				LODCount[L]++;
+			}
+			const int32 Total = LODCount[0] + LODCount[1] + LODCount[2] + LODCount[3];
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s — LOD0=%d, LOD1=%d, LOD2=%d, LOD3=%d (Total=%d active comps), "
+					 "BudgetHigh=%d/frame, BudgetLow=%d/frame, Forced=%d, DistMul=%.2f"),
+				*A->GetName(),
+				LODCount[0], LODCount[1], LODCount[2], LODCount[3], Total,
+				A->MaxLoadsPerFrameHighLOD, A->MaxLoadsPerFrameLowLOD,
+				A->ForcedLOD, A->DebugViewDistanceMultiplier);
 		}
 	}
 
 	FAutoConsoleCommand CmdTerrainDebug(
 		TEXT("hkt.terrain.debug"),
 		TEXT("Terrain 디버그 렌더 모드. 인자: 0=끔, 1=켬. 없으면 토글. "
-			"실제 생성 파이프라인 그대로, DebugRenderMaterial로 교체 + ViewDistance 확장."),
+			"실제 생성 파이프라인 그대로, DebugRenderMaterial로 교체 + 4개 LOD 거리 확장."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebug));
 
 	FAutoConsoleCommand CmdTerrainDebugRadius(
 		TEXT("hkt.terrain.debug.radius"),
 		TEXT("디버그 모드 스트리밍 반경을 청크 단위로 설정. 예: hkt.terrain.debug.radius 64"),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebugRadius));
+
+	FAutoConsoleCommand CmdTerrainLODDistances(
+		TEXT("hkt.terrain.lod.distances"),
+		TEXT("LOD 0~3의 외곽 거리(cm)를 라이브 변경. 예: hkt.terrain.lod.distances 8000 20000 50000 128000"),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLODDistances));
+
+	FAutoConsoleCommand CmdTerrainLODFreeze(
+		TEXT("hkt.terrain.lod.freeze"),
+		TEXT("모든 청크를 특정 LOD로 강제. 인자: -1=정상, 0/1/2/3=강제. 디버그/스크린샷용."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLODFreeze));
+
+	FAutoConsoleCommand CmdTerrainLODStats(
+		TEXT("hkt.terrain.lod.stats"),
+		TEXT("현재 LOD별 활성 청크 수와 프레임 버짓 출력."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLODStats));
 }

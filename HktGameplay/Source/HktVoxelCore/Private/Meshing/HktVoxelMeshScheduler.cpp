@@ -64,16 +64,19 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 		// dirty 해제 + 세대 캡처하여 메싱 중 새 delta가 들어오면 결과를 버릴 수 있도록
 		ChunkRef->bMeshDirty.store(false, std::memory_order_relaxed);
 		const uint32 Gen = ChunkRef->MeshGeneration.load(std::memory_order_acquire);
+		const int32 LOD = (int32)ChunkRef->RequestedLOD.load(std::memory_order_acquire);
 
 		const bool bDS = bDoubleSided;
 		PendingTasks.Add(UE::Tasks::Launch(
 			TEXT("HktVoxelMeshing"),
-			[ChunkRef, Gen, bDS]()
+			[ChunkRef, Gen, bDS, LOD]()
 			{
-				FHktVoxelMesher::MeshChunk(*ChunkRef, bDS);
-				// 세대가 변경되지 않았을 때만 결과를 유효로 마킹
+				FHktVoxelMesher::MeshChunk(*ChunkRef, bDS, LOD);
+				// 세대가 변경되지 않았을 때만 결과를 유효로 마킹.
+				// CurrentLOD를 먼저 갱신해 게임 스레드가 bMeshReady 관측 시 LOD가 일관되도록.
 				if (ChunkRef->MeshGeneration.load(std::memory_order_acquire) == Gen)
 				{
+					ChunkRef->CurrentLOD.store((uint8)LOD, std::memory_order_release);
 					ChunkRef->bMeshReady.store(true, std::memory_order_release);
 				}
 			},

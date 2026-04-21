@@ -9,12 +9,56 @@
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "HktVoxelTerrainStreamer.h"
 #include "Terrain/HktTerrainGenerator.h"
+#include "Rendering/HktVoxelChunkComponent.h"
 #include "HktVoxelTerrainActor.generated.h"
 
 struct FHktTerrainGeneratorConfig;
 class UHktVoxelChunkComponent;
 class UHktVoxelTileAtlas;
 class UHktVoxelMaterialLUT;
+
+/**
+ * FHktVoxelLODSettings — UPROPERTY 노출용 LOD 컴포넌트 프리셋.
+ *
+ * `FHktVoxelLODComponentSettings`(POD)와 1:1 대응되는 USTRUCT 래퍼.
+ * 에디터에서 LOD별 NormalMap/EdgeRound 스케일과 그림자/콜리전 정책을 튜닝.
+ */
+USTRUCT(BlueprintType)
+struct FHktVoxelLODSettings
+{
+	GENERATED_BODY()
+
+	/** 액터 NormalMapStrength에 곱해질 스케일 (LOD 0=1.0 / LOD 3=0.0 권장) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD",
+		meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	float NormalMapScale = 1.0f;
+
+	/** 액터 EdgeRoundStrength에 곱해질 스케일 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD",
+		meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	float EdgeRoundScale = 1.0f;
+
+	/** 그림자 최대 거리 (UE 유닛). 0이면 항상 ON */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD", meta = (ClampMin = "0.0"))
+	float ShadowDistance = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD")
+	bool bCastShadow = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD")
+	bool bCollision = true;
+
+	FHktVoxelLODComponentSettings ToComponentSettings() const
+	{
+		FHktVoxelLODComponentSettings Out;
+		Out.NormalMapScale = NormalMapScale;
+		Out.EdgeRoundScale = EdgeRoundScale;
+		Out.ShadowDistance = ShadowDistance;
+		Out.bCastShadow = bCastShadow;
+		Out.bCollision = bCollision;
+		return Out;
+	}
+};
 
 /**
  * FHktVoxelBlockStyle — TypeID별 시각 정의
@@ -121,13 +165,44 @@ public:
 
 	// === 설정 ===
 
-	/** 카메라로부터 청크 로드/유지 거리 (UE 유닛). 3200 = 청크 1개분 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 3200, ClampMax = 204800))
-	float ViewDistance = 32000.f;  // 10청크 반경 ≈ 320m
+	// === LOD 거리 임계값 (multi-ring 스트리밍) ===
+	// 가까운 카메라 → 풀 디테일 LOD0, 먼 카메라 → 다운샘플 LOD3.
+	// D0 < D1 < D2 < D3 순서를 유지해야 한다 (검증 없음, 디자이너 책임).
 
-	/** 프레임당 최대 청크 생성+로드 수 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 1, ClampMax = 32))
-	int32 MaxLoadsPerFrame = 4;
+	/** LOD 0(풀 디테일) 외곽 거리 (UE 유닛). 기본 8000 = 80m */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+		meta = (ClampMin = 1600, ClampMax = 1024000))
+	float LOD0Distance = 8000.f;
+
+	/** LOD 1(2x 다운샘플) 외곽 거리. 기본 20000 = 200m */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+		meta = (ClampMin = 1600, ClampMax = 1024000))
+	float LOD1Distance = 20000.f;
+
+	/** LOD 2(4x 다운샘플) 외곽 거리. 기본 50000 = 500m */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+		meta = (ClampMin = 1600, ClampMax = 1024000))
+	float LOD2Distance = 50000.f;
+
+	/** LOD 3(8x 다운샘플 / 단색 프록시) 외곽 거리 — 최대 가시 거리. 기본 128000 = 1280m */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+		meta = (ClampMin = 1600, ClampMax = 1024000))
+	float LOD3Distance = 128000.f;
+
+	/** 프레임당 최대 HighLOD(LOD 0/1) 청크 로드 수 — 근거리 우선순위 보호 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+		meta = (ClampMin = 1, ClampMax = 32))
+	int32 MaxLoadsPerFrameHighLOD = 4;
+
+	/** 프레임당 최대 LowLOD(LOD 2/3) 청크 로드 수 — 원거리는 한 번에 많이 로드 가능 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+		meta = (ClampMin = 1, ClampMax = 64))
+	int32 MaxLoadsPerFrameLowLOD = 16;
+
+	/** LOD 레벨별 컴포넌트 품질 프리셋 (4개, 인덱스 = LOD 레벨) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+		meta = (TitleProperty = "NormalMapScale"))
+	TArray<FHktVoxelLODSettings> LODSettings;
 
 	/** 프레임당 최대 메싱 수 (MeshScheduler에 전달) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Meshing", meta = (ClampMin = 1, ClampMax = 16))
@@ -190,16 +265,24 @@ public:
 	/**
 	 * 디버그 렌더 모드.
 	 * ON → 실제 생성/메싱 파이프라인 그대로 유지, 머티리얼만 DebugRenderMaterial로 교체하고
-	 *      ViewDistance를 DebugViewDistanceMultiplier 배 확장해 더 먼 영역까지 스트리밍.
+	 *      4개 LOD 거리 모두에 DebugViewDistanceMultiplier를 곱해 더 먼 영역까지 스트리밍.
 	 * 콘솔: hkt.terrain.debug 0|1
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug")
 	bool bDebugRenderMode = false;
 
-	/** 디버그 모드 시 ViewDistance 배수 (1=그대로, 4=4배 반경). */
+	/** 디버그 모드 시 LOD 외곽 거리 배수 (1=그대로, 4=4배 반경). 4개 LOD 거리 모두에 곱함. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug",
 		meta = (ClampMin = "1.0", ClampMax = "32.0", UIMin = "1.0", UIMax = "16.0"))
 	float DebugViewDistanceMultiplier = 4.0f;
+
+	/**
+	 * 디버그용 LOD 강제. -1=정상 동작, 0~3=모든 청크를 해당 LOD로.
+	 * 콘솔: hkt.terrain.lod.freeze <-1|0|1|2|3>
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug",
+		meta = (ClampMin = "-1", ClampMax = "3"))
+	int32 ForcedLOD = -1;
 
 	/**
 	 * 디버그 렌더 전용 머티리얼. nullptr이면 ChunkComponent의 자동 기본
@@ -242,8 +325,20 @@ private:
 	/** 카메라 위치 가져오기 */
 	FVector GetCameraWorldPos() const;
 
-	/** 절차적 생성 + RenderCache 로드 + 컴포넌트 할당 */
+	/** 절차적 생성 + RenderCache 로드 + 컴포넌트 할당 (LOD 0 기본 — 외부 API 호환용) */
 	void GenerateAndLoadChunk(const FIntVector& ChunkCoord);
+
+	/** LOD-aware 절차적 생성 + 로드 + 컴포넌트 할당 */
+	void GenerateAndLoadChunk(const FIntVector& ChunkCoord, int32 LOD);
+
+	/**
+	 * 이미 로드된 청크의 LOD만 변경 — RequestedLOD store + bMeshDirty=true + MeshGeneration++.
+	 * Voxel 데이터는 재생성하지 않고 메시만 다음 틱에 새 LOD로 재생성된다.
+	 */
+	void RetuneChunkLOD(const FIntVector& ChunkCoord, int32 NewLOD);
+
+	/** LOD 인덱스에 해당하는 컴포넌트 설정 적용 (clamp + 액터 글로벌 강도 합성) */
+	void ApplyLODToComponent(UHktVoxelChunkComponent* Comp, int32 LOD);
 
 	/** 스트리밍 결과 반영 — 청크 로드/언로드 + 컴포넌트 할당 */
 	void ProcessStreamingResults();

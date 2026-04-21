@@ -19,6 +19,27 @@ struct FHktVoxelTexturePair
 	bool IsValid() const { return Texture != nullptr; }
 };
 
+/**
+ * FHktVoxelLODComponentSettings — LOD 레벨별 컴포넌트 품질 프리셋.
+ *
+ * AHktVoxelTerrainActor가 4개 LOD에 대해 정책 테이블로 보유하고
+ * UHktVoxelChunkComponent::SetChunkLOD()가 호출될 때 적용된다.
+ *
+ * 기본 정책 (LOD 0~3):
+ *  LOD 0: 풀 노멀맵 + 풀 라운딩 + 그림자 + collision
+ *  LOD 1: 절반 노멀맵 + 절반 라운딩 + 그림자 + no collision
+ *  LOD 2: 노멀맵·라운딩 off + 그림자(거리 제한) + no collision
+ *  LOD 3: 노멀맵·라운딩 off + 그림자 off + no collision
+ */
+struct FHktVoxelLODComponentSettings
+{
+	float NormalMapScale = 1.0f;   // 액터 NormalMapStrength에 곱해질 스케일
+	float EdgeRoundScale = 1.0f;   // 액터 EdgeRoundStrength에 곱해질 스케일
+	float ShadowDistance = 0.0f;   // 0이면 그림자 항상 ON
+	bool  bCastShadow = true;
+	bool  bCollision = true;
+};
+
 /** 타일 텍스처 셋 (Texture2DArray + IndexLUT + 기본 팔레트 + 옵션 NormalArray) */
 struct FHktVoxelTileTextureSet
 {
@@ -140,6 +161,16 @@ public:
 	void SetShadowDistance(float InDistance) { ShadowDistance = InDistance; }
 	float GetShadowDistance() const { return ShadowDistance; }
 
+	/**
+	 * 청크 LOD 설정 — 보관 중인 LOD 프리셋 + 액터 글로벌 강도를 컴포넌트 설정에 반영.
+	 * NormalMapStrength = ActorNormalMapStrength * Settings.NormalMapScale.
+	 * EdgeRoundStrength = ActorEdgeRoundStrength * Settings.EdgeRoundScale.
+	 * Collision/CastShadow/ShadowDistance도 함께 갱신.
+	 */
+	void SetChunkLOD(int32 InLOD, const FHktVoxelLODComponentSettings& Settings,
+	                 float ActorNormalMapStrength, float ActorEdgeRoundStrength);
+	int32 GetChunkLOD() const { return CurrentLOD; }
+
 	// UPrimitiveComponent
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -201,4 +232,5 @@ private:
 	float EdgeRoundStrength = 0.0f;
 	float NormalMapStrength = 1.0f;
 	float ShadowDistance = 0.f;
+	int32 CurrentLOD = 0;
 };

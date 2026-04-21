@@ -71,6 +71,11 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	std::atomic<bool> bMeshReady{false};  // 메싱 완료, GPU 업로드 대기
 	std::atomic<uint32> MeshGeneration{0}; // 메싱 세대 — dirty 시 증가, 메싱 시작 시 캡처하여 완료 시 비교
 
+	// LOD 상태 — 스트리머가 RequestedLOD를 쓰고 bMeshDirty=true로 재메싱 트리거.
+	// 워커는 RequestedLOD를 캡처하여 그 해상도로 메싱 후 CurrentLOD를 갱신한다.
+	std::atomic<uint8> CurrentLOD{0};
+	std::atomic<uint8> RequestedLOD{0};
+
 	// Greedy Meshing 결과 — MeshChunk()가 채움
 	// MeshLock: 워커 스레드(MeshChunk)가 Write, 게임 스레드(OnMeshReady/CreateSceneProxy)가 Read.
 	mutable FRWLock MeshLock;
@@ -86,6 +91,8 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 		, bMeshDirty(Other.bMeshDirty.load(std::memory_order_relaxed))
 		, bMeshReady(Other.bMeshReady.load(std::memory_order_relaxed))
 		, MeshGeneration(Other.MeshGeneration.load(std::memory_order_relaxed))
+		, CurrentLOD(Other.CurrentLOD.load(std::memory_order_relaxed))
+		, RequestedLOD(Other.RequestedLOD.load(std::memory_order_relaxed))
 		, OpaqueVertices(MoveTemp(Other.OpaqueVertices))
 		, OpaqueIndices(MoveTemp(Other.OpaqueIndices))
 		, TranslucentVertices(MoveTemp(Other.TranslucentVertices))
@@ -103,6 +110,8 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 			bMeshDirty.store(Other.bMeshDirty.load(std::memory_order_relaxed), std::memory_order_relaxed);
 			bMeshReady.store(Other.bMeshReady.load(std::memory_order_relaxed), std::memory_order_relaxed);
 			MeshGeneration.store(Other.MeshGeneration.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			CurrentLOD.store(Other.CurrentLOD.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			RequestedLOD.store(Other.RequestedLOD.load(std::memory_order_relaxed), std::memory_order_relaxed);
 			OpaqueVertices = MoveTemp(Other.OpaqueVertices);
 			OpaqueIndices = MoveTemp(Other.OpaqueIndices);
 			TranslucentVertices = MoveTemp(Other.TranslucentVertices);
