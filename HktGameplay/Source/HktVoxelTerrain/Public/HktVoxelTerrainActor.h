@@ -156,6 +156,9 @@ public:
 	/** RenderCache 직접 접근 (테스트/디버그용) */
 	FHktVoxelRenderCache* GetTerrainCache() const { return TerrainCache.Get(); }
 
+	/** LOD별 로드된 청크 수 집계 — 콘솔/디버그용. Streamer가 없으면 0으로 채움 */
+	void GetLODHistogram(int32 OutCounts[4]) const;
+
 	// IHktHitRefinementProvider
 	virtual bool RefineHit(
 		const FVector& TraceStart,
@@ -362,6 +365,12 @@ private:
 	UHktVoxelChunkComponent* AcquireComponent();
 	void ReleaseComponent(UHktVoxelChunkComponent* Comp);
 	void PrewarmPool(int32 Count);
+
+	/**
+	 * 풀에서 컴포넌트 1개를 획득해 머티리얼/LOD/스타일/ActiveChunks 등록까지 일괄 처리.
+	 * GenerateAndLoadChunk와 LoadTerrainChunk의 공통 초기화 경로. nullptr 반환 시 스킵.
+	 */
+	UHktVoxelChunkComponent* AcquireAndConfigureComponent(const FIntVector& ChunkCoord, int32 LOD);
 
 	/** BlockStyles 배열로부터 Texture2DArray + LUT + MaterialLUT를 빌드 */
 	void BuildTerrainStyle();

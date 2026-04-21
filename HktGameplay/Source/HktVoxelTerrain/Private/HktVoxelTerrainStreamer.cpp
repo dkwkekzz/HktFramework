@@ -36,26 +36,25 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 	ChunksToLoad.Reset();
 	ChunksToUnload.Reset();
 	ChunksToRetune.Reset();
+	ScratchDesired.Reset();
+	ScratchLoadCandidates.Reset();
 
 	if (ChunkWorldSize <= 0.f)
 	{
 		return;
 	}
 
-	// 카메라 청크 좌표 (XY)
 	const FIntVector CameraChunk(
 		FMath::FloorToInt(CameraPos.X / ChunkWorldSize),
 		FMath::FloorToInt(CameraPos.Y / ChunkWorldSize),
 		0);
 
-	// 외곽 LOD3 거리 기준으로 bounding-square 열거
 	const float OuterDistance = Distances[FHktVoxelLODPolicy::MaxLOD];
 	const int32 OuterRadiusInChunks = FMath::CeilToInt(OuterDistance / ChunkWorldSize);
 	const float OuterDistSq = OuterDistance * OuterDistance;
-
-	// 첫 패스: desired 집합 + 청크별 목표 LOD 계산
-	TMap<FIntVector, int32> Desired;
-	Desired.Reserve((2 * OuterRadiusInChunks + 1) * (2 * OuterRadiusInChunks + 1) * (HeightMaxZ - HeightMinZ + 1));
+	const int32 ZSpan = FMath::Max(0, HeightMaxZ - HeightMinZ + 1);
+	const int32 SquareCount = (2 * OuterRadiusInChunks + 1) * (2 * OuterRadiusInChunks + 1);
+	ScratchDesired.Reserve((SquareCount * 3 / 4) * FMath::Max(1, ZSpan));
 
 	for (int32 DX = -OuterRadiusInChunks; DX <= OuterRadiusInChunks; ++DX)
 	{
@@ -75,45 +74,48 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 				continue;
 			}
 
-			// 이전 LOD 기억 — 칼럼 내 임의 청크 1개로 hysteresis 판정 (모두 같은 XY)
-			const FIntVector ProbeCoord(CX, CY, HeightMinZ);
-			const int32* PrevLODPtr = LoadedChunkLOD.Find(ProbeCoord);
-			const int32 PrevLOD = PrevLODPtr ? *PrevLODPtr : -1;
+			const FIntPoint Column(CX, CY);
+			const int32* PrevColumnLOD = LastColumnLOD.Find(Column);
+			const int32 PrevLOD = PrevColumnLOD ? *PrevColumnLOD : -1;
 			const int32 TargetLOD = ComputeLODForChunk(DistSqXY, PrevLOD);
 
-			// Z 범위: LOD 0/1은 전체, LOD ≥ 2는 SurfaceProbe로 잘라내기
 			int32 ZTop = HeightMaxZ;
 			if (TargetLOD >= 2 && SurfaceHeightProbe)
 			{
-				const int32 MaxSurfaceChunkZ = SurfaceHeightProbe(CX, CY);
-				// +1 마진(나무/오버행)
+				int32 MaxSurfaceChunkZ = 0;
+				if (const int32* Cached = SurfaceHeightCache.Find(Column))
+				{
+					MaxSurfaceChunkZ = *Cached;
+				}
+				else
+				{
+					MaxSurfaceChunkZ = SurfaceHeightProbe(CX, CY);
+					SurfaceHeightCache.Add(Column, MaxSurfaceChunkZ);
+				}
 				ZTop = FMath::Min(MaxSurfaceChunkZ + 1, HeightMaxZ);
 			}
 
 			for (int32 Z = HeightMinZ; Z <= ZTop; ++Z)
 			{
-				Desired.Add(FIntVector(CX, CY, Z), TargetLOD);
+				ScratchDesired.Add(FIntVector(CX, CY, Z), TargetLOD);
 			}
 		}
 	}
 
-	// 언로드: 더 이상 desired에 없음
 	for (const TPair<FIntVector, int32>& Pair : LoadedChunkLOD)
 	{
-		if (!Desired.Contains(Pair.Key))
+		if (!ScratchDesired.Contains(Pair.Key))
 		{
 			ChunksToUnload.Add(Pair.Key);
 		}
 	}
 
-	// 신규 로드 후보 + Retune 후보 분리
-	TArray<FHktChunkLODRequest> LoadCandidates;
-	for (const TPair<FIntVector, int32>& Pair : Desired)
+	for (const TPair<FIntVector, int32>& Pair : ScratchDesired)
 	{
 		const int32* ExistingLOD = LoadedChunkLOD.Find(Pair.Key);
 		if (!ExistingLOD)
 		{
-			LoadCandidates.Add({Pair.Key, Pair.Value});
+			ScratchLoadCandidates.Add({Pair.Key, Pair.Value});
 		}
 		else if (*ExistingLOD != Pair.Value)
 		{
@@ -121,37 +123,49 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 		}
 	}
 
-	// HighLOD/LowLOD 카테고리 분리
 	auto IsHighLOD = [](int32 LOD) { return LOD <= 1; };
 
-	// 거리 기준 정렬 — 가까운 청크 우선
-	auto DistLambda = [&CameraPos, ChunkWorldSize](const FHktChunkLODRequest& A, const FHktChunkLODRequest& B)
+	auto DistSqForRequest = [&CameraPos, ChunkWorldSize](const FHktChunkLODRequest& Req)
 	{
-		const FVector CenterA(
-			(A.Coord.X + 0.5f) * ChunkWorldSize,
-			(A.Coord.Y + 0.5f) * ChunkWorldSize,
-			(A.Coord.Z + 0.5f) * ChunkWorldSize);
-		const FVector CenterB(
-			(B.Coord.X + 0.5f) * ChunkWorldSize,
-			(B.Coord.Y + 0.5f) * ChunkWorldSize,
-			(B.Coord.Z + 0.5f) * ChunkWorldSize);
-		return FVector::DistSquared(CenterA, CameraPos) < FVector::DistSquared(CenterB, CameraPos);
+		const float CX = (Req.Coord.X + 0.5f) * ChunkWorldSize - static_cast<float>(CameraPos.X);
+		const float CY = (Req.Coord.Y + 0.5f) * ChunkWorldSize - static_cast<float>(CameraPos.Y);
+		const float CZ = (Req.Coord.Z + 0.5f) * ChunkWorldSize - static_cast<float>(CameraPos.Z);
+		return CX * CX + CY * CY + CZ * CZ;
 	};
 
-	LoadCandidates.Sort(DistLambda);
+	auto SortByDistance = [&DistSqForRequest](TArray<FHktChunkLODRequest>& Arr)
+	{
+		const int32 N = Arr.Num();
+		TArray<float, TInlineAllocator<256>> Keys;
+		Keys.SetNumUninitialized(N);
+		for (int32 i = 0; i < N; ++i)
+		{
+			Keys[i] = DistSqForRequest(Arr[i]);
+		}
+		TArray<int32, TInlineAllocator<256>> Order;
+		Order.SetNumUninitialized(N);
+		for (int32 i = 0; i < N; ++i) { Order[i] = i; }
+		Order.Sort([&Keys](int32 A, int32 B) { return Keys[A] < Keys[B]; });
 
-	// 메모리 예산 잔여
+		TArray<FHktChunkLODRequest> Sorted;
+		Sorted.SetNumUninitialized(N);
+		for (int32 i = 0; i < N; ++i)
+		{
+			Sorted[i] = Arr[Order[i]];
+		}
+		Arr = MoveTemp(Sorted);
+	};
+
+	SortByDistance(ScratchLoadCandidates);
+	SortByDistance(ChunksToRetune);
+
 	const int32 RemainingMemBudget = (MaxLoadedChunks > 0)
 		? FMath::Max(0, MaxLoadedChunks - LoadedChunkLOD.Num())
-		: LoadCandidates.Num();
+		: ScratchLoadCandidates.Num();
 
-	// HighLOD/LowLOD 버짓 차감 변수 — Retune도 같은 버짓에서 차감
 	int32 BudgetHigh = MaxLoadsPerFrameHighLOD;
 	int32 BudgetLow = MaxLoadsPerFrameLowLOD;
 
-	// Retune 먼저 처리 (이미 로드된 청크의 LOD 변경 — 메모리 증가 없음)
-	// 가까운 것 우선
-	ChunksToRetune.Sort(DistLambda);
 	int32 RetuneKept = 0;
 	for (int32 i = 0; i < ChunksToRetune.Num(); ++i)
 	{
@@ -165,11 +179,10 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 	}
 	ChunksToRetune.SetNum(RetuneKept, EAllowShrinking::No);
 
-	// 로드 candidates에 버짓 적용
 	int32 MemRemaining = RemainingMemBudget;
-	for (int32 i = 0; i < LoadCandidates.Num() && MemRemaining > 0; ++i)
+	for (int32 i = 0; i < ScratchLoadCandidates.Num() && MemRemaining > 0; ++i)
 	{
-		const FHktChunkLODRequest& Req = LoadCandidates[i];
+		const FHktChunkLODRequest& Req = ScratchLoadCandidates[i];
 		int32& Budget = IsHighLOD(Req.LOD) ? BudgetHigh : BudgetLow;
 		if (Budget > 0)
 		{
@@ -179,7 +192,6 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 		}
 	}
 
-	// 상태 반영
 	for (const FIntVector& Coord : ChunksToUnload)
 	{
 		LoadedChunkLOD.Remove(Coord);
@@ -187,20 +199,35 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 	for (const FHktChunkLODRequest& Req : ChunksToLoad)
 	{
 		LoadedChunkLOD.Add(Req.Coord, Req.LOD);
+		LastColumnLOD.Add(FIntPoint(Req.Coord.X, Req.Coord.Y), Req.LOD);
 	}
 	for (const FHktChunkLODRequest& Req : ChunksToRetune)
 	{
 		LoadedChunkLOD.Add(Req.Coord, Req.LOD);
+		LastColumnLOD.Add(FIntPoint(Req.Coord.X, Req.Coord.Y), Req.LOD);
 	}
 
 	LastCameraChunk = CameraChunk;
 }
 
+void FHktVoxelTerrainStreamer::GetLODHistogram(int32 OutCounts[4]) const
+{
+	OutCounts[0] = OutCounts[1] = OutCounts[2] = OutCounts[3] = 0;
+	for (const TPair<FIntVector, int32>& Pair : LoadedChunkLOD)
+	{
+		const int32 LOD = FMath::Clamp(Pair.Value, 0, 3);
+		++OutCounts[LOD];
+	}
+}
+
 void FHktVoxelTerrainStreamer::Clear()
 {
 	LoadedChunkLOD.Empty();
+	LastColumnLOD.Empty();
 	ChunksToLoad.Reset();
 	ChunksToUnload.Reset();
 	ChunksToRetune.Reset();
+	ScratchDesired.Reset();
+	ScratchLoadCandidates.Reset();
 	LastCameraChunk = FIntVector(INT32_MAX);
 }

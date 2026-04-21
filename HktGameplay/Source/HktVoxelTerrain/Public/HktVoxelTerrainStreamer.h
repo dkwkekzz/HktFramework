@@ -52,6 +52,9 @@ public:
 	/** 현재 로드된 청크 → LOD 매핑 */
 	const TMap<FIntVector, int32>& GetLoadedChunkLOD() const { return LoadedChunkLOD; }
 
+	/** LOD별 로드된 청크 수 집계 (디버그/스탯용) */
+	void GetLODHistogram(int32 OutCounts[4]) const;
+
 	/** 4-원 LOD 외곽 거리 (UE 유닛). D0 < D1 < D2 < D3 권장 */
 	void SetLODDistances(float D0, float D1, float D2, float D3);
 
@@ -72,6 +75,7 @@ public:
 	void SetSurfaceHeightProbe(TFunction<int32(int32 ChunkX, int32 ChunkY)> InProbe)
 	{
 		SurfaceHeightProbe = MoveTemp(InProbe);
+		SurfaceHeightCache.Empty();
 	}
 
 	/** 디버그용 — 0~3이면 모든 청크를 해당 LOD로 강제. -1이면 정상 동작 */
@@ -85,9 +89,22 @@ private:
 	int32 ComputeLODForChunk(float DistSqXY, int32 PrevLOD) const;
 
 	TMap<FIntVector, int32> LoadedChunkLOD;
+
+	// 칼럼별 이전 LOD — hysteresis 판정용. 컬럼 내 모든 Z가 동일 LOD라는 사실을
+	// 3D 맵의 컨벤션으로 강요하지 않고 구조적으로 보장한다.
+	TMap<FIntPoint, int32> LastColumnLOD;
+
 	TArray<FHktChunkLODRequest> ChunksToLoad;
 	TArray<FIntVector> ChunksToUnload;
 	TArray<FHktChunkLODRequest> ChunksToRetune;
+
+	// 프레임 스크래치 버퍼 — UpdateStreaming 진입 시 Reset만 수행하여 할당 재사용.
+	TMap<FIntVector, int32> ScratchDesired;
+	TArray<FHktChunkLODRequest> ScratchLoadCandidates;
+
+	// 칼럼별 surface 높이 캐시 — Generator 노이즈는 deterministic이므로 영구 보관.
+	// 외부에서 SurfaceHeightProbe를 교체하면 자동으로 비워진다.
+	mutable TMap<FIntPoint, int32> SurfaceHeightCache;
 
 	// LOD 외곽 거리 — Distances[i] = LOD i의 외곽 한계 (D3가 최대 가시 거리)
 	// 기본: 80m / 200m / 500m / 1280m

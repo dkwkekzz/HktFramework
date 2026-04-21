@@ -89,29 +89,25 @@ void AHktVoxelTerrainActor::BeginPlay()
 				MaxSurfaceVox = FMath::Max(MaxSurfaceVox, SurfVox);
 			}
 		}
-		// voxel Z → chunk Z (음수 floor 처리)
-		const int32 SurfaceChunkZ = (MaxSurfaceVox >= 0)
-			? (MaxSurfaceVox / ChunkVoxels)
-			: -((-MaxSurfaceVox + ChunkVoxels - 1) / ChunkVoxels);
-		return SurfaceChunkZ;
+		return FHktVoxelRaycast::FloorDiv(MaxSurfaceVox, ChunkVoxels);
 	});
 
-	// LODSettings 기본 정책 (디자이너가 에디터에서 비워두면 합리적 기본값 채움)
-	if (LODSettings.Num() < 4)
+	// LODSettings 기본 정책 — 디자이너가 에디터에서 앞쪽만 채워두었을 경우 뒤만 보충.
+	while (LODSettings.Num() < 4)
 	{
-		LODSettings.Reset(4);
-		// LOD 0: 풀 디테일
-		{ FHktVoxelLODSettings S; S.NormalMapScale = 1.0f; S.EdgeRoundScale = 1.0f;
-		  S.ShadowDistance = 0.0f; S.bCastShadow = true;  S.bCollision = true;  LODSettings.Add(S); }
-		// LOD 1: 절반 노멀맵 + 라운딩, 그림자 ON, no collision
-		{ FHktVoxelLODSettings S; S.NormalMapScale = 0.5f; S.EdgeRoundScale = 0.5f;
-		  S.ShadowDistance = 0.0f; S.bCastShadow = true;  S.bCollision = false; LODSettings.Add(S); }
-		// LOD 2: 노멀맵·라운딩 off, 그림자 거리 제한
-		{ FHktVoxelLODSettings S; S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
-		  S.ShadowDistance = 60000.f; S.bCastShadow = true; S.bCollision = false; LODSettings.Add(S); }
-		// LOD 3: 노멀맵·라운딩·그림자 모두 off
-		{ FHktVoxelLODSettings S; S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
-		  S.ShadowDistance = 0.0f; S.bCastShadow = false; S.bCollision = false; LODSettings.Add(S); }
+		FHktVoxelLODSettings S;
+		switch (LODSettings.Num())
+		{
+			case 0: S.NormalMapScale = 1.0f; S.EdgeRoundScale = 1.0f;
+			        S.ShadowDistance = 0.0f;    S.bCastShadow = true;  S.bCollision = true;  break;
+			case 1: S.NormalMapScale = 0.5f; S.EdgeRoundScale = 0.5f;
+			        S.ShadowDistance = 0.0f;    S.bCastShadow = true;  S.bCollision = false; break;
+			case 2: S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+			        S.ShadowDistance = 60000.f; S.bCastShadow = true;  S.bCollision = false; break;
+			default: S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+			         S.ShadowDistance = 0.0f;   S.bCastShadow = false; S.bCollision = false; break;
+		}
+		LODSettings.Add(S);
 	}
 
 	PrewarmPool(InitialPoolSize);
@@ -266,6 +262,18 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	ProcessMeshReadyChunks();
 }
 
+void AHktVoxelTerrainActor::GetLODHistogram(int32 OutCounts[4]) const
+{
+	if (Streamer)
+	{
+		Streamer->GetLODHistogram(OutCounts);
+	}
+	else
+	{
+		OutCounts[0] = OutCounts[1] = OutCounts[2] = OutCounts[3] = 0;
+	}
+}
+
 UMaterialInterface* AHktVoxelTerrainActor::GetEffectiveTerrainMaterial() const
 {
 	// 디버그 모드 — DebugRenderMaterial 우선. 미할당이면 자동 생성된 Wireframe+Unlit 머티리얼 사용.
@@ -332,21 +340,27 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, i
 		ChunkRef->RequestedLOD.store(static_cast<uint8>(ClampedLOD), std::memory_order_release);
 	}
 
-	// 컴포넌트 할당
+	AcquireAndConfigureComponent(ChunkCoord, LOD);
+}
+
+UHktVoxelChunkComponent* AHktVoxelTerrainActor::AcquireAndConfigureComponent(const FIntVector& ChunkCoord, int32 LOD)
+{
 	UHktVoxelChunkComponent* Comp = AcquireComponent();
-	if (Comp)
+	if (!Comp)
 	{
-		Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
-		Comp->SetStylizedRendering(bStylizedRendering);
-		// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial, 아니면 TerrainMaterial).
-		// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
-		Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
-		Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
-		// LOD-aware 컴포넌트 설정 (NormalMap/EdgeRound/Shadow/Collision)
-		ApplyLODToComponent(Comp, LOD);
-		if (bStyleBuilt) { ApplyStyleToComponent(Comp); }
-		ActiveChunks.Add(ChunkCoord, Comp);
+		return nullptr;
 	}
+	Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
+	Comp->SetStylizedRendering(bStylizedRendering);
+	Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
+	Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
+	ApplyLODToComponent(Comp, LOD);
+	if (bStyleBuilt)
+	{
+		ApplyStyleToComponent(Comp);
+	}
+	ActiveChunks.Add(ChunkCoord, Comp);
+	return Comp;
 }
 
 void AHktVoxelTerrainActor::RetuneChunkLOD(const FIntVector& ChunkCoord, int32 NewLOD)
@@ -536,19 +550,7 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 
 			if (!ActiveChunks.Contains(ChunkCoord))
 			{
-				UHktVoxelChunkComponent* Comp = AcquireComponent();
-				if (Comp)
-				{
-					Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
-					Comp->SetStylizedRendering(bStylizedRendering);
-					// 유효 머티리얼 적용 (디버그 모드면 DebugRenderMaterial / TerrainMaterial 중 택1).
-					// null이어도 ChunkComponent 내부에서 기본 버텍스 컬러로 폴백.
-					Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
-					Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
-					ApplyLODToComponent(Comp, LOD);
-					ApplyStyleToComponent(Comp);
-					ActiveChunks.Add(ChunkCoord, Comp);
-				}
+				AcquireAndConfigureComponent(ChunkCoord, LOD);
 			}
 		}
 	}
@@ -1168,16 +1170,8 @@ namespace
 		}
 		for (AHktVoxelTerrainActor* A : Actors)
 		{
-			// ActiveChunks는 private이므로 액터의 컴포넌트 목록에서 직접 LOD 집계
 			int32 LODCount[4] = { 0, 0, 0, 0 };
-			TArray<UHktVoxelChunkComponent*> Comps;
-			A->GetComponents<UHktVoxelChunkComponent>(Comps);
-			for (UHktVoxelChunkComponent* C : Comps)
-			{
-				if (!C || !C->IsVisible()) continue;
-				const int32 L = FMath::Clamp(C->GetChunkLOD(), 0, 3);
-				LODCount[L]++;
-			}
+			A->GetLODHistogram(LODCount);
 			const int32 Total = LODCount[0] + LODCount[1] + LODCount[2] + LODCount[3];
 			UE_LOG(LogConsoleResponse, Display,
 				TEXT("[Terrain] %s — LOD0=%d, LOD1=%d, LOD2=%d, LOD3=%d (Total=%d active comps), "
