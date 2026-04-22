@@ -252,6 +252,23 @@ public:
 	float EdgeRoundStrength = 0.0f;
 
 	/**
+	 * 엣지 알파 강도 — Dithered clip으로 쿼드 경계 픽셀을 discard (실루엣 둥글리기).
+	 * 0 = off(각진 실루엣), 0.3~0.7 = 둥근 반투명 모서리, 1.0 = 최대 페이드.
+	 * EdgeRoundStrength와 독립 토글. 둘 다 켜면 실루엣·라이팅 모두 둥글어짐.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float EdgeAlphaStrength = 0.0f;
+
+	/**
+	 * 엣지 알파 페이드 시작 거리 (쿼드 중심=0, 경계=1). 0.6~0.9 권장.
+	 * 값이 작을수록 더 넓은 영역이 페이드된다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
+		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float EdgeAlphaStart = 0.75f;
+
+	/**
 	 * 노멀맵 강도 — BlockStyle의 Normal 텍스처가 빌드되었을 때만 적용.
 	 * 0 = off(평면), 1 = 원본 강도, 1.0 이상 = 과장. EdgeRoundStrength와 독립적으로 합성.
 	 */
@@ -426,6 +443,10 @@ private:
 
 	/** EdgeRoundStrength 변경 감지용 이전 값 */
 	float PrevEdgeRoundStrength = 0.0f;
+
+	/** EdgeAlphaStrength/Start 변경 감지용 이전 값 */
+	float PrevEdgeAlphaStrength = 0.0f;
+	float PrevEdgeAlphaStart = 0.75f;
 
 	/** NormalMapStrength 변경 감지용 이전 값 */
 	float PrevNormalMapStrength = 1.0f;

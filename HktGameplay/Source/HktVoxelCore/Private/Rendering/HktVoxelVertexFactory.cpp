@@ -39,6 +39,8 @@ public:
 
 		StylizedEnabledParam.Bind(ParameterMap, TEXT("HktStylizedEnabled"));
 		EdgeRoundStrengthParam.Bind(ParameterMap, TEXT("HktEdgeRoundStrength"));
+		EdgeAlphaStrengthParam.Bind(ParameterMap, TEXT("HktEdgeAlphaStrength"));
+		EdgeAlphaStartParam.Bind(ParameterMap, TEXT("HktEdgeAlphaStart"));
 	}
 
 	void GetElementShaderBindings(
@@ -162,6 +164,14 @@ public:
 		{
 			ShaderBindings.Add(EdgeRoundStrengthParam, VoxelVF->EdgeRoundStrength);
 		}
+		if (EdgeAlphaStrengthParam.IsBound())
+		{
+			ShaderBindings.Add(EdgeAlphaStrengthParam, VoxelVF->EdgeAlphaStrength);
+		}
+		if (EdgeAlphaStartParam.IsBound())
+		{
+			ShaderBindings.Add(EdgeAlphaStartParam, VoxelVF->EdgeAlphaStart);
+		}
 	}
 
 private:
@@ -187,6 +197,8 @@ private:
 
 	LAYOUT_FIELD(FShaderParameter, StylizedEnabledParam);
 	LAYOUT_FIELD(FShaderParameter, EdgeRoundStrengthParam);
+	LAYOUT_FIELD(FShaderParameter, EdgeAlphaStrengthParam);
+	LAYOUT_FIELD(FShaderParameter, EdgeAlphaStartParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);
