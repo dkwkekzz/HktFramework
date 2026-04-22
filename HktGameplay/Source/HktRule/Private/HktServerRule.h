@@ -29,6 +29,7 @@ public:
     // 액터 이벤트 (item 1)
     virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) override;
     virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) override;
+    virtual void OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation) override;
     virtual FHktEventGameModeTickResult OnEvent_GameModeTick(float InDeltaTime) override;
 
 private:
@@ -49,8 +50,13 @@ private:
 
 	int32 ServerEventSequence = 0;
 
-	// NPC 스포너 — fire된 스포너 EventTag 추적 (그룹별)
-	TSet<FGameplayTag> ActiveSpawnerFlows;
+	// 월드 최초 생성 Story (InitGame에서 등록, 첫 Tick에 소비)
+	struct FPendingWorldInit
+	{
+		FGameplayTag StoryTag;
+		FVector Location = FVector::ZeroVector;
+	};
+	TOptional<FPendingWorldInit> PendingWorldInit;
 
 	// RestoreToSlot/Discard — TakeFromBag 후 엔티티 생성이 필요한 큐
 	struct FPendingBagEntitySpawn

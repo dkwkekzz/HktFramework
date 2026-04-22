@@ -33,7 +33,7 @@ public:
 
     // === IHktWorldDatabase 구현 ===
 
-    virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback) override;
+    virtual void LoadPlayerRecordAsync(int64 InPlayerUid, const FGameplayTag& InSpawnStoryTag, TFunction<void(const FHktPlayerRecord&)> InCallback) override;
     virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems = {}) override;
     virtual const FHktPlayerRecord* GetCachedPlayerRecord(int64 InPlayerUid) const override;
 

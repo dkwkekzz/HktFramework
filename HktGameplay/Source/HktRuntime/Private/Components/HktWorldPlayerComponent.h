@@ -25,6 +25,9 @@ public:
     virtual bool IsInitialized() const override;
     virtual void InvalidatePlayerUidCache() override;
 
+    virtual FGameplayTag GetSpawnStoryTag() const override;
+    virtual FGameplayTag GetTargetDefaultStoryTag() const override;
+
     // === Bag (형제 BagComponent에 위임) ===
     virtual const FHktBagState& GetBagState() const override;
     virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) override;

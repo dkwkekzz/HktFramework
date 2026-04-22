@@ -64,6 +64,12 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
         const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
         CachedRelevancyGraph->SetTerrainConfig(Settings->ToTerrainConfig());
     }
+
+    // 월드 최초 생성 Story 트리거 — 에디터에서 지정한 Tag를 Rule에 전달
+    if (CachedServerRule && WorldInitStoryTag.IsValid())
+    {
+        CachedServerRule->OnEvent_GameModeInitWorld(WorldInitStoryTag, WorldInitLocation);
+    }
 }
 
 void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)

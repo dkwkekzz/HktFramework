@@ -2,6 +2,7 @@
 
 #include "HktWorldPlayerComponent.h"
 #include "HktBagComponent.h"
+#include "HktIngamePlayerController.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 
@@ -62,6 +63,24 @@ void UHktWorldPlayerComponent::InvalidatePlayerUidCache()
 {
     bPlayerUidCached = false;
     PlayerUid = 0;
+}
+
+FGameplayTag UHktWorldPlayerComponent::GetSpawnStoryTag() const
+{
+    if (const AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(GetOwner()))
+    {
+        return PC->GetPlayerSpawnStoryTag();
+    }
+    return FGameplayTag();
+}
+
+FGameplayTag UHktWorldPlayerComponent::GetTargetDefaultStoryTag() const
+{
+    if (const AHktIngamePlayerController* PC = Cast<AHktIngamePlayerController>(GetOwner()))
+    {
+        return PC->GetTargetDefaultStoryTag();
+    }
+    return FGameplayTag();
 }
 
 // ============================================================================

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
 #include "InputActionValue.h"
 #include "HktCoreDefs.h"
 #include "HktWorldState.h"
@@ -87,6 +88,14 @@ public:
     // === Player UID ===
     virtual int64 GetPlayerUid() const override;
 
+    // === Story Tags (에디터에서 지정) ===
+
+    /** 플레이어 생성 시 서버가 발동할 Story Tag (예: Story.State.Player.InWorld) */
+    FGameplayTag GetPlayerSpawnStoryTag() const { return PlayerSpawnStoryTag; }
+
+    /** 슬롯 미선택 상태에서 우클릭 시 서버로 보낼 기본 Story Tag (예: Story.Event.Target.Default) */
+    FGameplayTag GetTargetDefaultStoryTag() const { return TargetDefaultStoryTag; }
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -131,6 +140,16 @@ protected:
     /** ShoulderView 방향 이동 (WASD/방향키, Axis2D) */
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TObjectPtr<UInputAction> MoveAction;
+
+    // === Story Tags ===
+
+    /** 플레이어 생성 시 서버가 발동할 Story Tag. 미설정 시 Story.State.Player.InWorld로 fallback. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hkt|Story", meta = (Categories = "Story"))
+    FGameplayTag PlayerSpawnStoryTag;
+
+    /** 우클릭(타겟 선택) 시 슬롯 미선택이면 이 Story Tag로 Rule이 이벤트를 빌드한다. 미설정 시 Story.Event.Target.Default로 fallback. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hkt|Story", meta = (Categories = "Story"))
+    FGameplayTag TargetDefaultStoryTag;
 
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;

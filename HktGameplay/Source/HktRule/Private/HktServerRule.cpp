@@ -8,40 +8,6 @@
 #include "HktStoryEventParams.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
-#include "HktTempMapStoryConfig.h"
-
-// Story 태그 — .cpp 전용 static 정의
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_GoblinCamp,            "Story.Flow.Spawner.GoblinCamp");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Item_TreeDrop,         "Story.Flow.Spawner.Item.TreeDrop");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Wave_Arena,            "Story.Flow.Spawner.Wave.Arena");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Item_AncientStaff,     "Story.Flow.Spawner.Item.AncientStaff");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Item_Bandage,          "Story.Flow.Spawner.Item.Bandage");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Item_ThunderHammer,    "Story.Flow.Spawner.Item.ThunderHammer");
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Flow_Spawner_Item_WingsOfFreedom,   "Story.Flow.Spawner.Item.WingsOfFreedom");
-
-
-TArray<FHktTempStoryEntry> HktTempMapStoryConfig::GetSpawnersForGroup(int32 GroupIndex)
-{
-	TArray<FHktTempStoryEntry> Out;
-
-	//// 전역 스토리 — 모든 그룹 공통 (FHktMapData::GlobalStories 대응)
-	//Out.Add({ Flow_Spawner_GoblinCamp,    1000 + GroupIndex * 500, 1000 });
-	//Out.Add({ Flow_Spawner_Item_TreeDrop,  1200 + GroupIndex * 500,  800 });
-	//
-	//// 아이템 스포너 — 4종 아이템 맵 배치 (각 1개씩)
-	//Out.Add({ Flow_Spawner_Item_AncientStaff,    800 + GroupIndex * 500,  600 });
-	//Out.Add({ Flow_Spawner_Item_Bandage,        1400 + GroupIndex * 500,  600 });
-	//Out.Add({ Flow_Spawner_Item_ThunderHammer,   800 + GroupIndex * 500, 1200 });
-	//Out.Add({ Flow_Spawner_Item_WingsOfFreedom, 1400 + GroupIndex * 500, 1200 });
-	//
-	//// 그룹 0 전용 — Region별 스토리 (FHktMapRegion::Stories 대응)
-	//if (GroupIndex == 0)
-	//{
-	//	Out.Add({ Flow_Spawner_Wave_Arena, 2000, 2000 });
-	//}
-
-	return Out;
-}
 
 namespace
 {
@@ -250,9 +216,10 @@ void FHktDefaultServerRule::OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer)
 	if (!CachedDB) return;
 
 	const int64 PlayerUid = InPlayer.GetPlayerUid();
+	const FGameplayTag SpawnStoryTag = InPlayer.GetSpawnStoryTag();
 	TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(&InPlayer);
 
-	CachedDB->LoadPlayerRecordAsync(PlayerUid, [this, WeakPlayer](const FHktPlayerRecord& Record)
+	CachedDB->LoadPlayerRecordAsync(PlayerUid, SpawnStoryTag, [this, WeakPlayer](const FHktPlayerRecord& Record)
 	{
 		if (Record.IsValid())
 		{
@@ -265,6 +232,12 @@ void FHktDefaultServerRule::OnEvent_GameModeLogout(const IHktWorldPlayer& InPlay
 {
 	// 로그아웃 UID를 큐잉 — ProcessPendingConnections에서 ExitWorldPlayer 포함하여 처리 (item 9)
 	PendingLogoutRequests.Enqueue(InPlayer.GetPlayerUid());
+}
+
+void FHktDefaultServerRule::OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation)
+{
+	if (!InStoryTag.IsValid()) return;
+	PendingWorldInit.Emplace(FPendingWorldInit{ InStoryTag, InLocation });
 }
 
 // ============================================================================
@@ -340,21 +313,26 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		GroupEventSend.Entered.Add(NewPlayer);
 	}
 
-	// --- Temp Map Story Injection (TODO: MapGenerator의 FHktMapData로 교체) ---
-	// HktTempMapStoryConfig에서 테스트용 스토리 목록을 읽어 1회 fire.
-	// 향후: FHktMapData::GlobalStories + FHktMapRegion::Stories에서 읽도록 변경.
-	if (ActiveSpawnerFlows.Num() == 0)
+	// --- World Init Story (GameMode에서 지정한 1회성 Story) ---
+	// 지정된 위치의 그룹(또는 그룹이 없으면 0번)에 이벤트를 주입한다.
+	if (PendingWorldInit.IsSet() && NumGroups > 0)
 	{
-		for (int32 GroupIndex = 0; GroupIndex < NumGroups; ++GroupIndex)
+		const FPendingWorldInit& Init = PendingWorldInit.GetValue();
+		int32 TargetGroup = Graph.CalculateRelevancyGroupIndex(Init.Location);
+		if (!PendingGroupIntents.IsValidIndex(TargetGroup))
 		{
-			for (const FHktTempStoryEntry& Entry : HktTempMapStoryConfig::GetSpawnersForGroup(GroupIndex))
-			{
-				FHktEvent SpawnerEvent = HktEventBuilder::Spawner(Entry.StoryTag, Entry.SpawnPosX, Entry.SpawnPosY);
-				SpawnerEvent.EventId = ++ServerEventSequence;
-				PendingGroupIntents[GroupIndex].Add(SpawnerEvent);
-				ActiveSpawnerFlows.Add(Entry.StoryTag);
-			}
+			TargetGroup = 0;
 		}
+
+		FHktEvent InitEvent = HktEventBuilder::Spawner(
+			Init.StoryTag,
+			static_cast<int32>(Init.Location.X),
+			static_cast<int32>(Init.Location.Y));
+		InitEvent.Location = Init.Location;
+		InitEvent.EventId = ++ServerEventSequence;
+		PendingGroupIntents[TargetGroup].Add(InitEvent);
+
+		PendingWorldInit.Reset();
 	}
 
 	// --- ProcessSimulationAndPayloads ---

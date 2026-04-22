@@ -107,7 +107,7 @@ void UHktFileDatabaseComponent::SaveToSlot(int64 PlayerUid, const FHktPlayerReco
 // IHktWorldDatabase 구현
 // ============================================================================
 
-void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback)
+void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const FGameplayTag& InSpawnStoryTag, TFunction<void(const FHktPlayerRecord&)> InCallback)
 {
 	if (FHktPlayerRecord* Cached = CachedRecords.Find(InPlayerUid))
 	{
@@ -115,7 +115,12 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 		return;
 	}
 
-	LoadFromSlot(InPlayerUid, [this, InPlayerUid, InCallback](TOptional<FHktPlayerRecord> Loaded)
+	// PC가 지정한 Spawn Story Tag가 없으면 기본값(Story.State.Player.InWorld) 사용
+	const FGameplayTag EnterTag = InSpawnStoryTag.IsValid()
+		? InSpawnStoryTag
+		: HktGameplayTags::Story_PlayerInWorld;
+
+	LoadFromSlot(InPlayerUid, [this, InPlayerUid, EnterTag, InCallback](TOptional<FHktPlayerRecord> Loaded)
 	{
 		if (Loaded.IsSet())
 		{
@@ -123,11 +128,10 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			Record.PlayerUid = InPlayerUid;
 
 			// 기존 레코드에 월드 진입 이벤트가 없으면 추가 (재진입 시)
-			const FGameplayTag InWorldTag = HktGameplayTags::Story_PlayerInWorld;
 			bool bHasInWorldEvent = false;
 			for (const FHktEvent& Event : Record.ActiveEvents)
 			{
-				if (Event.EventTag == InWorldTag)
+				if (Event.EventTag == EnterTag)
 				{
 					bHasInWorldEvent = true;
 					break;
@@ -137,7 +141,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 			if (!bHasInWorldEvent)
 			{
 				FHktEvent EnterWorldEvent;
-				EnterWorldEvent.EventTag = InWorldTag;
+				EnterWorldEvent.EventTag = EnterTag;
 				EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 				EnterWorldEvent.TargetEntity = InvalidEntityId;
 				EnterWorldEvent.Location = Record.LastPosition;
@@ -158,7 +162,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFuncti
 
 			// 초기 월드 진입 이벤트 추가
 			FHktEvent EnterWorldEvent;
-			EnterWorldEvent.EventTag = HktGameplayTags::Story_PlayerInWorld;
+			EnterWorldEvent.EventTag = EnterTag;
 			EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 			EnterWorldEvent.TargetEntity = InvalidEntityId;
 			EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation();

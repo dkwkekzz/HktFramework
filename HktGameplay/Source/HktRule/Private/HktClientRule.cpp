@@ -140,7 +140,13 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 	else
 	{
 		// SlotAction 없음 → 기본 액션 (타겟 유형 기반)
-		Event = HktEventBuilder::TargetDefault(Tag_Event_Target_Default, SubjectEntity, TargetEntity, TargetLocation);
+		// PC가 지정한 TargetDefault Story Tag가 있으면 우선 사용, 없으면 기본값
+		FGameplayTag TargetDefaultTag = CachedWorldPlayer ? CachedWorldPlayer->GetTargetDefaultStoryTag() : FGameplayTag();
+		if (!TargetDefaultTag.IsValid())
+		{
+			TargetDefaultTag = Tag_Event_Target_Default;
+		}
+		Event = HktEventBuilder::TargetDefault(TargetDefaultTag, SubjectEntity, TargetEntity, TargetLocation);
 	}
 
 	// ValidateStory 사전조건 검증

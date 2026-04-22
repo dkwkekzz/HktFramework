@@ -1,0 +1,72 @@
+{
+  "storyTag": "Story.Flow.World.Init",
+  "cancelOnDuplicate": false,
+  "tags": {
+    "NpcGoblin":     "Entity.NPC.Goblin",
+    "NpcSkeleton":   "Entity.NPC.Skeleton",
+    "NpcZombie":     "Entity.NPC.Zombie",
+    "EntityNPC":     "Entity.NPC",
+    "NpcHostile":    "Entity.Attr.NPC.Hostile",
+    "StanceUnarmed": "Entity.Stance.Unarmed",
+    "NpcLifecycle":  "Story.Flow.NPC.Lifecycle"
+  },
+  "steps": [
+    { "op": "Log", "message": "WorldInit: 스폰 3 NPC" },
+
+    { "op": "ReadProperty", "dst": "R0", "property": "Param0" },
+    { "op": "ReadProperty", "dst": "R1", "property": "Param1" },
+    { "op": "LoadConst",    "dst": "R2", "value": 0 },
+
+    { "op": "SpawnEntity",     "classTag": "NpcGoblin" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC",       "value": 1 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Health",      "value": 80 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxHealth",   "value": 80 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 15 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Defense",     "value": 3 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Team",        "value": 0 },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "EntityNPC" },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "NpcGoblin" },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "NpcHostile" },
+    { "op": "SetStance",       "entity": "Spawned", "stanceTag": "StanceUnarmed" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed",    "value": 120 },
+    { "op": "SetPosition",     "entity": "Spawned", "src": "R0" },
+    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": "Spawned" },
+
+    { "op": "AddImm", "dst": "R0", "src": "R0", "imm": 500 },
+
+    { "op": "SpawnEntity",     "classTag": "NpcSkeleton" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC",       "value": 1 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Health",      "value": 60 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxHealth",   "value": 60 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 20 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Defense",     "value": 2 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Team",        "value": 0 },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "EntityNPC" },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "NpcSkeleton" },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "NpcHostile" },
+    { "op": "SetStance",       "entity": "Spawned", "stanceTag": "StanceUnarmed" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed",    "value": 100 },
+    { "op": "SetPosition",     "entity": "Spawned", "src": "R0" },
+    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": "Spawned" },
+
+    { "op": "AddImm", "dst": "R0", "src": "R0", "imm": -1000 },
+
+    { "op": "SpawnEntity",     "classTag": "NpcZombie" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC",       "value": 1 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Health",      "value": 100 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxHealth",   "value": 100 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 12 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Defense",     "value": 5 },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "Team",        "value": 0 },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "EntityNPC" },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "NpcZombie" },
+    { "op": "AddTag",          "entity": "Spawned", "tag": "NpcHostile" },
+    { "op": "SetStance",       "entity": "Spawned", "stanceTag": "StanceUnarmed" },
+    { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed",    "value": 80 },
+    { "op": "SetPosition",     "entity": "Spawned", "src": "R0" },
+    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": "Spawned" },
+
+    { "op": "Log", "message": "WorldInit: 3 NPC 스폰 완료" },
+    { "op": "Halt" }
+  ]
+}
