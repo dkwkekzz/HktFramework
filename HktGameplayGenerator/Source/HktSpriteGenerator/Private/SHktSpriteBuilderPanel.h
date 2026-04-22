@@ -8,7 +8,6 @@
 class SEditableTextBox;
 class SMultiLineEditableTextBox;
 class STextBlock;
-class SComboBox;
 
 /**
  * SHktSpriteBuilderPanel — 에디터 단독 Sprite Part 빌더 UI.

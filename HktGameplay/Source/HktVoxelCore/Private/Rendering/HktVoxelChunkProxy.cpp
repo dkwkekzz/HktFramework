@@ -40,16 +40,6 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 		}
 	}
 
-	UE_LOG(LogHktVoxelCore, Log,
-		TEXT("[Proxy Ctor] VoxelMat=%s, WaterMat=%s, "
-		     "Relevance: Opaque=%d Masked=%d NormalTranslucency=%d SeparateTranslucency=%d"),
-		VoxelMaterial ? *VoxelMaterial->GetName() : TEXT("NULL"),
-		WaterMaterial ? *WaterMaterial->GetName() : TEXT("NULL"),
-		CombinedMaterialRelevance.bOpaque ? 1 : 0,
-		CombinedMaterialRelevance.bMasked ? 1 : 0,
-		CombinedMaterialRelevance.bNormalTranslucency ? 1 : 0,
-		CombinedMaterialRelevance.bSeparateTranslucency ? 1 : 0);
-
 	// Component에 캐시된 스타일 텍스처를 Pending*에 복사.
 	// MarkRenderStateDirty()로 Proxy가 재생성될 때 기존 Proxy의 텍스처가 소실되므로,
 	// 새 Proxy가 생성 시점부터 텍스처 정보를 보유해야
@@ -111,21 +101,6 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 	if (NumIndices == 0 || !VertexBufferWrapper.VertexBufferRHI.IsValid() || !IndexBufferWrapper.IndexBufferRHI.IsValid())
 	{
 		return;
-	}
-
-	// [진단] per-proxy 1회 — 어떤 머티리얼/VF가 사용되는지 확인.
-	// static이 아닌 mutable 멤버이므로 proxy 재생성 시 다시 로깅됨.
-	if (!bDrawDiagLogged)
-	{
-		bDrawDiagLogged = true;
-		UE_LOG(LogHktVoxelCore, Warning,
-			TEXT("[Draw 진단] GetDynamicMeshElements — ")
-			TEXT("NumIdx=%d, NumVert=%d, VFType=%s, ")
-			TEXT("Material=%s, MaterialClass=%s"),
-			NumIndices, NumVertices,
-			VertexFactory ? VertexFactory->GetType()->GetName() : TEXT("NULL"),
-			VoxelMaterial ? *VoxelMaterial->GetName() : TEXT("NULL"),
-			VoxelMaterial ? *VoxelMaterial->GetClass()->GetName() : TEXT("NULL"));
 	}
 
 	const int32 TranslucentIndexCount = NumIndices - OpaqueIndexCount;
@@ -311,19 +286,6 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 
 	VertexFactory->SetData(VFData);
-
-	// [진단] SetData(→UpdateRHI) 후 최종 VertexFactory 텍스처 상태.
-	// SetData 호출 뒤에도 텍스처 포인터가 유지되는지 확인.
-	// RHI 포인터가 null이거나 Sampler가 null이면 셰이더에서 해당 텍스처를 바인딩하지 못한다.
-	UE_LOG(LogHktVoxelCore, Log,
-		TEXT("[Proxy RT 진단] SetData 후 VF 텍스처 상태 — ")
-		TEXT("TileArray=%p(Sampler=%p), IndexLUT=%p(Sampler=%p), ")
-		TEXT("Palette=%p(Sampler=%p), MatLUT=%p(Sampler=%p), Verts=%d"),
-		VertexFactory->TileArrayRHI, VertexFactory->TileArraySamplerRHI,
-		VertexFactory->TileIndexLUTRHI, VertexFactory->TileIndexLUTSamplerRHI,
-		VertexFactory->PaletteTextureRHI, VertexFactory->PaletteSamplerRHI,
-		VertexFactory->MaterialLUTRHI, VertexFactory->MaterialLUTSamplerRHI,
-		Vertices.Num());
 
 	// 기존 본 트랜스폼 SRV가 있으면 재바인딩
 	if (BoneTransformSRV.IsValid())

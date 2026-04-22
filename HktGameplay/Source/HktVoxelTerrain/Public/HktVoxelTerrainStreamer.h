@@ -58,6 +58,16 @@ public:
 	/** 4-원 LOD 외곽 거리 (UE 유닛). D0 < D1 < D2 < D3 권장 */
 	void SetLODDistances(float D0, float D1, float D2, float D3);
 
+	/**
+	 * 프러스텀 바이어스 설정.
+	 * @param ForwardXY   카메라 전방 벡터 XY 성분(정규화 필요). ZeroVector 전달 시 비활성.
+	 * @param HalfFovCos  cos(HalfFOV + 마진). 이 값보다 XY dot이 작은 청크는 LOD 한 단계 강등.
+	 *
+	 * 효과: 프러스텀 밖(주로 카메라 뒤/옆) 청크는 한 단계 낮은 LOD로 로드되어 메싱/GPU 비용이 감소.
+	 * 모든 청크는 계속 로드되므로 회전 히치는 없음. LOD3이면 더 이상 강등하지 않음.
+	 */
+	void SetFrustumBias(const FVector2D& ForwardXY, float HalfFovCos);
+
 	/** 프레임 예산 — HighLOD(LOD0/1) vs LowLOD(LOD2/3) 분리 */
 	void SetMaxLoadsPerFrame(int32 HighLOD, int32 LowLOD);
 
@@ -119,5 +129,13 @@ private:
 
 	TFunction<int32(int32, int32)> SurfaceHeightProbe;
 
+	// 프러스텀 바이어스 — ForwardXY가 ZeroVector면 비활성(전방향 풀 LOD).
+	FVector2D FrustumForwardXY = FVector2D::ZeroVector;
+	float FrustumHalfFovCos = -1.f;  // -1이면 항상 프러스텀 내부 판정(비활성)
+
 	FIntVector LastCameraChunk = FIntVector(INT32_MAX);
+
+	// 직전 UpdateStreaming이 어떤 work도 남기지 않은 상태 (로드/언로드/리튠 모두 0).
+	// 카메라 청크가 동일하고 안정화되어 있으면 enumerate 자체를 스킵해 CPU를 절약한다.
+	bool bLastUpdateStable = false;
 };

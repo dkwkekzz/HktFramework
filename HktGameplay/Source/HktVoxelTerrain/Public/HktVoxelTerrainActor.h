@@ -172,35 +172,39 @@ public:
 	// 가까운 카메라 → 풀 디테일 LOD0, 먼 카메라 → 다운샘플 LOD3.
 	// D0 < D1 < D2 < D3 순서를 유지해야 한다 (검증 없음, 디자이너 책임).
 
-	/** LOD 0(풀 디테일) 외곽 거리 (UE 유닛). 기본 8000 = 80m */
+	/** LOD 0(풀 디테일) 외곽 거리 (UE 유닛). 기본 4800 = 48m (10 청크 반경 @ 480cm) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
 		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD0Distance = 8000.f;
+	float LOD0Distance = 4800.f;
 
-	/** LOD 1(2x 다운샘플) 외곽 거리. 기본 20000 = 200m */
+	/** LOD 1(2x 다운샘플) 외곽 거리. 기본 12000 = 120m */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
 		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD1Distance = 20000.f;
+	float LOD1Distance = 12000.f;
 
-	/** LOD 2(4x 다운샘플) 외곽 거리. 기본 50000 = 500m */
+	/** LOD 2(4x 다운샘플) 외곽 거리. 기본 24000 = 240m */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
 		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD2Distance = 50000.f;
+	float LOD2Distance = 24000.f;
 
-	/** LOD 3(8x 다운샘플 / 단색 프록시) 외곽 거리 — 최대 가시 거리. 기본 128000 = 1280m */
+	/**
+	 * LOD 3(8x 다운샘플 / 단색 프록시) 외곽 거리 — 최대 가시 거리. 기본 48000 = 480m (100 청크 반경).
+	 * 주의: OuterDistance는 Streamer가 매 tick XY 전체를 enumerate하는 기준이다.
+	 * 128000cm처럼 크게 주면 (2·R+1)² ≈ 285K cell/tick이 되어 심각한 CPU 비용을 유발한다.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
 		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD3Distance = 128000.f;
+	float LOD3Distance = 48000.f;
 
 	/** 프레임당 최대 HighLOD(LOD 0/1) 청크 로드 수 — 근거리 우선순위 보호 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
 		meta = (ClampMin = 1, ClampMax = 32))
-	int32 MaxLoadsPerFrameHighLOD = 4;
+	int32 MaxLoadsPerFrameHighLOD = 8;
 
 	/** 프레임당 최대 LowLOD(LOD 2/3) 청크 로드 수 — 원거리는 한 번에 많이 로드 가능 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
 		meta = (ClampMin = 1, ClampMax = 64))
-	int32 MaxLoadsPerFrameLowLOD = 16;
+	int32 MaxLoadsPerFrameLowLOD = 32;
 
 	/** LOD 레벨별 컴포넌트 품질 프리셋 (4개, 인덱스 = LOD 레벨) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
@@ -209,11 +213,11 @@ public:
 
 	/** 프레임당 최대 메싱 수 (MeshScheduler에 전달) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Meshing", meta = (ClampMin = 1, ClampMax = 16))
-	int32 MaxMeshPerFrame = 4;
+	int32 MaxMeshPerFrame = 8;
 
 	/** 동시에 로드 가능한 최대 청크 수 (메모리 예산). 0이면 제한 없음 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 0))
-	int32 MaxLoadedChunks = 2048;
+	int32 MaxLoadedChunks = 1024;
 
 	/**
 	 * 테레인 높이 범위 — Z축 청크 좌표 [MinZ, MaxZ].
@@ -336,6 +340,41 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 16, ClampMax = 2048))
 	int32 InitialPoolSize = 64;
 
+	/**
+	 * 레거시 모드 — multi-ring LOD 도입 이전 동작으로 되돌린다.
+	 *
+	 * 효과:
+	 *  - 모든 청크를 LOD 0(풀 디테일)로 강제
+	 *  - 스트리밍 반경을 LegacyStreamRadius 하나로 고정 (LOD1/2/3 외곽 거리 무시)
+	 *  - 프러스텀 바이어스 비활성
+	 *
+	 * LOD 파이프라인에 문제가 있을 때 안전한 폴백으로 사용.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Legacy")
+	bool bLegacyNonLODMode = false;
+
+	/** 레거시 모드에서 사용할 단일 스트리밍 반경 (UE 유닛). 기본 8000 = 80m */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Legacy",
+		meta = (EditCondition = "bLegacyNonLODMode", ClampMin = 1600, ClampMax = 1024000))
+	float LegacyStreamRadius = 8000.f;
+
+	/**
+	 * 프러스텀 바이어스 활성화 — 카메라 전방 콘 밖 청크는 LOD 한 단계 강등(로드는 유지).
+	 * 메싱/GPU 비용 절감. 회전 히치는 없음(모든 청크 로드 유지).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Frustum")
+	bool bFrustumBias = true;
+
+	/** 프러스텀 경계 마진(도). 반 시야각 + 이 값 밖 청크가 강등됨. 깜빡임 방지용 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Frustum",
+		meta = (ClampMin = 0.f, ClampMax = 60.f))
+	float FrustumBiasMarginDeg = 15.f;
+
+	/** 청크 스트리밍 통계 로그 주기(초). 0 이하면 비활성 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug",
+		meta = (ClampMin = 0.f, ClampMax = 60.f))
+	float StatsLogInterval = 10.f;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -344,6 +383,9 @@ protected:
 private:
 	/** 카메라 위치 가져오기 */
 	FVector GetCameraWorldPos() const;
+
+	/** 카메라 위치 + 회전 + Half FOV(도 단위) 가져오기 — 프러스텀 바이어스 계산용 */
+	void GetCameraView(FVector& OutPos, FRotator& OutRot, float& OutHalfFovDeg) const;
 
 	/** 절차적 생성 + RenderCache 로드 + 컴포넌트 할당 (LOD 0 기본 — 외부 API 호환용) */
 	void GenerateAndLoadChunk(const FIntVector& ChunkCoord);
@@ -377,6 +419,9 @@ private:
 	 * 매 Tick 호출되어 캐시가 완성되는 즉시 PushStyleTexturesToProxy로 Proxy에 전달한다.
 	 */
 	void PumpStyleTextures();
+
+	/** StatsLogInterval 주기로 현재 로드된 청크 수, 크기, LOD 분포를 로그 출력 */
+	void LogStreamingStatsPeriodic();
 
 	/** 컴포넌트 풀 관리 */
 	UHktVoxelChunkComponent* AcquireComponent();
@@ -453,4 +498,7 @@ private:
 
 	/** bDebugRenderMode 변경 감지용 이전 값 */
 	bool bPrevDebugRenderMode = false;
+
+	/** 다음 스트리밍 통계 로그 출력 시각 (초) */
+	float NextStatsLogTime = 0.f;
 };

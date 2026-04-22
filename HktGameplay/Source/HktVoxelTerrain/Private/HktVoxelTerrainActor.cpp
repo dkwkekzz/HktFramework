@@ -21,6 +21,7 @@
 #include "Engine/Texture2D.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "HAL/IConsoleManager.h"
 #include "RenderingThread.h"
 #include "RHIStaticStates.h"
@@ -189,20 +190,54 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		return;
 	}
 
-	const FVector CameraPos = GetCameraWorldPos();
+	FVector CameraPos;
+	FRotator CameraRot;
+	float HalfFovDeg;
+	GetCameraView(CameraPos, CameraRot, HalfFovDeg);
 
 	// 1. 스트리밍 업데이트 — 디버그 모드면 모든 LOD 거리에 배수 적용
 	Streamer->SetMaxLoadsPerFrame(MaxLoadsPerFrameHighLOD, MaxLoadsPerFrameLowLOD);
 	Streamer->SetMaxLoadedChunks(MaxLoadedChunks);
 	Streamer->SetHeightRange(HeightMinZ, HeightMaxZ);
-	Streamer->SetForcedLOD(ForcedLOD);
-	const float DistMul = bDebugRenderMode ? DebugViewDistanceMultiplier : 1.0f;
-	Streamer->SetLODDistances(
-		LOD0Distance * DistMul,
-		LOD1Distance * DistMul,
-		LOD2Distance * DistMul,
-		LOD3Distance * DistMul);
+
+	if (bLegacyNonLODMode)
+	{
+		// 레거시 모드: 모든 청크 LOD 0 + 단일 반경 + 프러스텀 바이어스 OFF
+		const float DistMul = bDebugRenderMode ? DebugViewDistanceMultiplier : 1.0f;
+		const float R = LegacyStreamRadius * DistMul;
+		Streamer->SetLODDistances(R, R, R, R);
+		Streamer->SetForcedLOD(0);
+		Streamer->SetFrustumBias(FVector2D::ZeroVector, -1.f);
+	}
+	else
+	{
+		Streamer->SetForcedLOD(ForcedLOD);
+		const float DistMul = bDebugRenderMode ? DebugViewDistanceMultiplier : 1.0f;
+		Streamer->SetLODDistances(
+			LOD0Distance * DistMul,
+			LOD1Distance * DistMul,
+			LOD2Distance * DistMul,
+			LOD3Distance * DistMul);
+
+		// 프러스텀 바이어스 — 카메라 전방 콘 밖은 LOD 한 단계 강등.
+		if (bFrustumBias)
+		{
+			const FVector Fwd = CameraRot.Vector();
+			const FVector2D FwdXY(Fwd.X, Fwd.Y);
+			const float EffectiveHalfFovDeg = FMath::Clamp(HalfFovDeg + FrustumBiasMarginDeg, 1.f, 179.f);
+			const float HalfFovCos = FMath::Cos(FMath::DegreesToRadians(EffectiveHalfFovDeg));
+			Streamer->SetFrustumBias(FwdXY, HalfFovCos);
+		}
+		else
+		{
+			Streamer->SetFrustumBias(FVector2D::ZeroVector, -1.f);
+		}
+	}
+
 	Streamer->UpdateStreaming(CameraPos, GetChunkWorldSize());
+
+	// 10초마다 1회 청크 스트리밍 통계 로그 (어떤 규모로 로드 중인지 명확화)
+	LogStreamingStatsPeriodic();
 
 	// 2. 스트리밍 결과 반영 (생성 + 로드 + 컴포넌트 할당)
 	ProcessStreamingResults();
@@ -282,6 +317,59 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	ProcessMeshReadyChunks();
 }
 
+void AHktVoxelTerrainActor::LogStreamingStatsPeriodic()
+{
+	if (StatsLogInterval <= 0.f || !Streamer)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	const float Now = World->GetTimeSeconds();
+	if (Now < NextStatsLogTime)
+	{
+		return;
+	}
+	NextStatsLogTime = Now + StatsLogInterval;
+
+	// 청크당 크기
+	const int32 VoxelsPerAxis = FHktVoxelChunk::SIZE;
+	const int32 VoxelsPerChunk = VoxelsPerAxis * VoxelsPerAxis * VoxelsPerAxis;
+	const float ChunkWorldCm = GetChunkWorldSize();
+	// FHktVoxel 4바이트 + 메시 오버헤드(러프 추정)
+	constexpr int32 BytesPerVoxel = 4;
+	const int32 KBytesPerChunkData = (VoxelsPerChunk * BytesPerVoxel) / 1024;
+
+	// LOD 분포
+	int32 LODCounts[4] = { 0, 0, 0, 0 };
+	Streamer->GetLODHistogram(LODCounts);
+	const int32 TotalLoaded = LODCounts[0] + LODCounts[1] + LODCounts[2] + LODCounts[3];
+	const int32 ActiveComps = ActiveChunks.Num();
+
+	// 예상 스캔 셀 수 (매 재빌드 비용)
+	const float DistMul = bDebugRenderMode ? DebugViewDistanceMultiplier : 1.0f;
+	const float OuterCm = LOD3Distance * DistMul;
+	const int32 OuterRadiusChunks = FMath::CeilToInt(OuterCm / FMath::Max(1.f, ChunkWorldCm));
+	const int32 ScanCells = (2 * OuterRadiusChunks + 1) * (2 * OuterRadiusChunks + 1);
+
+	UE_LOG(LogHktVoxelTerrain, Log,
+		TEXT("[Terrain Stats] Loaded=%d (LOD0=%d, LOD1=%d, LOD2=%d, LOD3=%d), ActiveComps=%d | "
+			 "Chunk=%dx%dx%d voxels = %.0fx%.0fcm = %d KB data | "
+			 "OuterRadius=%d chunks (%.0fm), ScanCells/rebuild=%d | "
+			 "Budget=High%d+Low%d /frame, Mesh=%d/frame, MaxLoaded=%d | "
+			 "FrustumBias=%s"),
+		TotalLoaded, LODCounts[0], LODCounts[1], LODCounts[2], LODCounts[3], ActiveComps,
+		VoxelsPerAxis, VoxelsPerAxis, VoxelsPerAxis,
+		ChunkWorldCm, ChunkWorldCm, KBytesPerChunkData,
+		OuterRadiusChunks, OuterCm / 100.f, ScanCells,
+		MaxLoadsPerFrameHighLOD, MaxLoadsPerFrameLowLOD, MaxMeshPerFrame, MaxLoadedChunks,
+		bFrustumBias ? TEXT("ON") : TEXT("OFF"));
+}
+
 void AHktVoxelTerrainActor::GetLODHistogram(int32 OutCounts[4]) const
 {
 	if (Streamer)
@@ -322,17 +410,30 @@ UMaterialInterface* AHktVoxelTerrainActor::GetEffectiveWaterMaterial() const
 
 FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
 {
+	FVector ViewLoc;
+	FRotator ViewRot;
+	float HalfFovDeg;
+	GetCameraView(ViewLoc, ViewRot, HalfFovDeg);
+	return ViewLoc;
+}
+
+void AHktVoxelTerrainActor::GetCameraView(FVector& OutPos, FRotator& OutRot, float& OutHalfFovDeg) const
+{
+	OutPos = FVector::ZeroVector;
+	OutRot = FRotator::ZeroRotator;
+	OutHalfFovDeg = 45.f;  // 기본 90° FOV 가정
+
 	if (const UWorld* World = GetWorld())
 	{
 		if (const APlayerController* PC = World->GetFirstPlayerController())
 		{
-			FVector ViewLoc;
-			FRotator ViewRot;
-			PC->GetPlayerViewPoint(ViewLoc, ViewRot);
-			return ViewLoc;
+			PC->GetPlayerViewPoint(OutPos, OutRot);
+			if (const APlayerCameraManager* CM = PC->PlayerCameraManager)
+			{
+				OutHalfFovDeg = CM->GetFOVAngle() * 0.5f;
+			}
 		}
 	}
-	return FVector::ZeroVector;
 }
 
 void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
@@ -1232,4 +1333,35 @@ namespace
 		TEXT("hkt.terrain.lod.stats"),
 		TEXT("현재 LOD별 활성 청크 수와 프레임 버짓 출력."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLODStats));
+
+	void Cmd_TerrainLegacyMode(const TArray<FString>& Args)
+	{
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		const bool bHasArg = Args.Num() >= 1;
+		const bool bForceOn = bHasArg && FCString::Atoi(*Args[0]) != 0;
+		const float RadiusArg = (Args.Num() >= 2) ? FMath::Max(1600.f, FCString::Atof(*Args[1])) : -1.f;
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			const bool bNext = bHasArg ? bForceOn : !A->bLegacyNonLODMode;
+			A->bLegacyNonLODMode = bNext;
+			if (RadiusArg > 0.f)
+			{
+				A->LegacyStreamRadius = RadiusArg;
+			}
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s LegacyNonLODMode=%s (Radius=%.0fcm)"),
+				*A->GetName(), bNext ? TEXT("ON") : TEXT("OFF"), A->LegacyStreamRadius);
+		}
+	}
+
+	FAutoConsoleCommand CmdTerrainLegacyMode(
+		TEXT("hkt.terrain.legacy"),
+		TEXT("LOD 도입 전 동작으로 되돌리기. 인자: [0|1] [radius_cm]. 없으면 토글. "
+			"예: hkt.terrain.legacy 1 8000 — 레거시 모드 ON, 반경 80m."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLegacyMode));
 }

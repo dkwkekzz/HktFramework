@@ -4,6 +4,10 @@
 
 UHktRuntimeGlobalSetting::UHktRuntimeGlobalSetting()
 {
+	// 기본 Story 디렉토리 — Project/Content/HktGameplay/Content (사용자가 Project Settings에서 추가/변경 가능)
+	FDirectoryPath DefaultStoryDir;
+	DefaultStoryDir.Path = TEXT("HktGameplay/Content");
+	StoryDirectories.Add(DefaultStoryDir);
 }
 
 FHktTerrainGeneratorConfig UHktRuntimeGlobalSetting::ToTerrainConfig() const

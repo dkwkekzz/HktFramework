@@ -44,7 +44,7 @@ namespace HktSpriteGen
 		return Json;
 	}
 
-	static FString MakeError(const FString& Msg)
+	static FString MakeSpriteError(const FString& Msg)
 	{
 		UE_LOG(LogHktSpriteGenerator, Warning, TEXT("%s"), *Msg);
 		return MakeResult(false, { {TEXT("error"), Msg} });
@@ -183,7 +183,7 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonSpec);
 	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
 	{
-		return MakeError(TEXT("JsonSpec parse failed"));
+		return MakeSpriteError(TEXT("JsonSpec parse failed"));
 	}
 
 	const FString TagStr   = Root->GetStringField(TEXT("tag"));
@@ -191,11 +191,11 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	const FString AtlasPng = Root->GetStringField(TEXT("atlasPngPath"));
 	if (TagStr.IsEmpty() || AtlasPng.IsEmpty())
 	{
-		return MakeError(TEXT("tag / atlasPngPath required"));
+		return MakeSpriteError(TEXT("tag / atlasPngPath required"));
 	}
 	if (!FPaths::FileExists(AtlasPng))
 	{
-		return MakeError(FString::Printf(TEXT("Atlas PNG not found: %s"), *AtlasPng));
+		return MakeSpriteError(FString::Printf(TEXT("Atlas PNG not found: %s"), *AtlasPng));
 	}
 
 	const double CellW         = Root->GetNumberField(TEXT("cellW"));
@@ -217,17 +217,17 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	UTexture2D* AtlasTex = ImportAtlasTexture(AtlasPng, AtlasPackage, AtlasName);
 	if (!AtlasTex)
 	{
-		return MakeError(TEXT("Atlas 텍스처 임포트 실패"));
+		return MakeSpriteError(TEXT("Atlas 텍스처 임포트 실패"));
 	}
 
 	// --- 2. DataAsset 패키지/오브젝트 생성 ---
 	UPackage* TmplPkg = CreatePackage(*TemplatePackage);
-	if (!TmplPkg) return MakeError(TEXT("DataAsset 패키지 생성 실패"));
+	if (!TmplPkg) return MakeSpriteError(TEXT("DataAsset 패키지 생성 실패"));
 	TmplPkg->FullyLoad();
 
 	UHktSpritePartTemplate* Tmpl = NewObject<UHktSpritePartTemplate>(
 		TmplPkg, FName(*TemplateName), RF_Public | RF_Standalone);
-	if (!Tmpl) return MakeError(TEXT("UHktSpritePartTemplate 생성 실패"));
+	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpritePartTemplate 생성 실패"));
 
 	Tmpl->IdentifierTag = EnsureTag(TagStr);
 	Tmpl->PartSlot      = ParseSlot(SlotStr);
@@ -304,7 +304,7 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
 	if (!UPackage::SavePackage(TmplPkg, Tmpl, *TmplFile, SaveArgs))
 	{
-		return MakeError(TEXT("DataAsset 패키지 저장 실패"));
+		return MakeSpriteError(TEXT("DataAsset 패키지 저장 실패"));
 	}
 	FAssetRegistryModule::AssetCreated(Tmpl);
 
@@ -713,7 +713,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
 
 	if (Tag.IsEmpty() || Slot.IsEmpty() || InputDir.IsEmpty())
 	{
-		return MakeError(TEXT("Tag / Slot / InputDir 필수"));
+		return MakeSpriteError(TEXT("Tag / Slot / InputDir 필수"));
 	}
 
 	// 1. 디렉터리 스캔
@@ -721,7 +721,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
 	FString ScanError;
 	if (!ScanDirectory(InputDir, Frames, ScanError))
 	{
-		return MakeError(ScanError);
+		return MakeSpriteError(ScanError);
 	}
 
 	// 2. Atlas PNG 출력 경로 — {ProjectSavedDir}/SpriteGenerator/{Tag_safe}.png
@@ -736,7 +736,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
 	FString PackError;
 	if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackError))
 	{
-		return MakeError(PackError);
+		return MakeSpriteError(PackError);
 	}
 
 	// 4. JsonSpec 빌드 + 기존 McpBuildSpritePart 재사용

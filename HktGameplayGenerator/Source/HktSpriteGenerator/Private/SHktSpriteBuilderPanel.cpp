@@ -163,7 +163,7 @@ FReply SHktSpriteBuilderPanel::OnBrowseInputDir()
 
 FReply SHktSpriteBuilderPanel::OnBuildClicked()
 {
-	const FString Tag      = TagBox      ? TagBox->GetText().ToString() : TEXT("");
+	const FString TagStr   = TagBox      ? TagBox->GetText().ToString() : TEXT("");
 	const FString Slot     = CurrentSlot ? *CurrentSlot : TEXT("Body");
 	const FString InputDir = InputDirBox ? InputDirBox->GetText().ToString() : TEXT("");
 	const FString OutputDir= OutputDirBox? OutputDirBox->GetText().ToString(): TEXT("/Game/Generated/Sprites");
@@ -171,7 +171,7 @@ FReply SHktSpriteBuilderPanel::OnBuildClicked()
 	const float FrameDur   = FrameDurationBox ? FCString::Atof(*FrameDurationBox->GetText().ToString()) : 100.f;
 
 	const FString Result = UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
-		Tag, Slot, InputDir, OutputDir, P2W, FrameDur, bLooping, bMirrorWestFromEast);
+		TagStr, Slot, InputDir, OutputDir, P2W, FrameDur, bLooping, bMirrorWestFromEast);
 
 	if (ResultBox.IsValid())
 	{

@@ -2,7 +2,7 @@
 
 #include "HktWorldPlayerComponent.h"
 #include "HktBagComponent.h"
-#include "HktIngamePlayerController.h"
+#include "Actors/HktInGamePlayerController.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 

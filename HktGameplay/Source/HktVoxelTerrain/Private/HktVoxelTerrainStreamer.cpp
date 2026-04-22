@@ -22,6 +22,25 @@ void FHktVoxelTerrainStreamer::SetMaxLoadsPerFrame(int32 HighLOD, int32 LowLOD)
 	MaxLoadsPerFrameLowLOD = FMath::Max(1, LowLOD);
 }
 
+void FHktVoxelTerrainStreamer::SetFrustumBias(const FVector2D& ForwardXY, float HalfFovCos)
+{
+	// ForwardXY 길이가 미세하면 비활성화 처리.
+	if (ForwardXY.SizeSquared() < KINDA_SMALL_NUMBER)
+	{
+		FrustumForwardXY = FVector2D::ZeroVector;
+		FrustumHalfFovCos = -1.f;
+		bLastUpdateStable = false;  // 강제 재계산
+		return;
+	}
+	FVector2D NewForward = ForwardXY.GetSafeNormal();
+	if (!FrustumForwardXY.Equals(NewForward, 0.01f) || !FMath::IsNearlyEqual(FrustumHalfFovCos, HalfFovCos, 0.01f))
+	{
+		bLastUpdateStable = false;  // 프러스텀 바뀌면 재계산 필요
+	}
+	FrustumForwardXY = NewForward;
+	FrustumHalfFovCos = HalfFovCos;
+}
+
 int32 FHktVoxelTerrainStreamer::ComputeLODForChunk(float DistSqXY, int32 PrevLOD) const
 {
 	if (ForcedLOD >= 0 && ForcedLOD <= FHktVoxelLODPolicy::MaxLOD)
@@ -48,6 +67,14 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 		FMath::FloorToInt(CameraPos.X / ChunkWorldSize),
 		FMath::FloorToInt(CameraPos.Y / ChunkWorldSize),
 		0);
+
+	// 카메라 청크가 동일하고 직전 업데이트가 안정 상태였다면 enumerate 스킵.
+	// LOD3Distance 기준 (2·R+1)² 셀 스캔이 매 tick의 최대 비용원이므로
+	// 카메라가 청크 경계를 넘지 않는 한 전체 재계산은 불필요하다.
+	if (bLastUpdateStable && CameraChunk == LastCameraChunk)
+	{
+		return;
+	}
 
 	const float OuterDistance = Distances[FHktVoxelLODPolicy::MaxLOD];
 	const int32 OuterRadiusInChunks = FMath::CeilToInt(OuterDistance / ChunkWorldSize);
@@ -77,7 +104,22 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 			const FIntPoint Column(CX, CY);
 			const int32* PrevColumnLOD = LastColumnLOD.Find(Column);
 			const int32 PrevLOD = PrevColumnLOD ? *PrevColumnLOD : -1;
-			const int32 TargetLOD = ComputeLODForChunk(DistSqXY, PrevLOD);
+			int32 TargetLOD = ComputeLODForChunk(DistSqXY, PrevLOD);
+
+			// 프러스텀 바이어스 — 카메라 전방 콘 밖이면 한 단계 강등.
+			// 카메라 매우 근처(청크 중심 dist < ChunkWorldSize)는 방향 의미가 없으므로 예외.
+			if (!FrustumForwardXY.IsZero() && DistSqXY > ChunkWorldSize * ChunkWorldSize)
+			{
+				const float DX_W = ChunkCenterX - static_cast<float>(CameraPos.X);
+				const float DY_W = ChunkCenterY - static_cast<float>(CameraPos.Y);
+				const float InvLen = FMath::InvSqrt(FMath::Max(DistSqXY, KINDA_SMALL_NUMBER));
+				const float Dot = (DX_W * static_cast<float>(FrustumForwardXY.X)
+								+ DY_W * static_cast<float>(FrustumForwardXY.Y)) * InvLen;
+				if (Dot < FrustumHalfFovCos && TargetLOD < FHktVoxelLODPolicy::MaxLOD)
+				{
+					TargetLOD += 1;
+				}
+			}
 
 			int32 ZTop = HeightMaxZ;
 			if (TargetLOD >= 2 && SurfaceHeightProbe)
@@ -208,6 +250,9 @@ void FHktVoxelTerrainStreamer::UpdateStreaming(const FVector& CameraPos, float C
 	}
 
 	LastCameraChunk = CameraChunk;
+	bLastUpdateStable = (ChunksToLoad.Num() == 0)
+		&& (ChunksToUnload.Num() == 0)
+		&& (ChunksToRetune.Num() == 0);
 }
 
 void FHktVoxelTerrainStreamer::GetLODHistogram(int32 OutCounts[4]) const
@@ -230,4 +275,5 @@ void FHktVoxelTerrainStreamer::Clear()
 	ScratchDesired.Reset();
 	ScratchLoadCandidates.Reset();
 	LastCameraChunk = FIntVector(INT32_MAX);
+	bLastUpdateStable = false;
 }

@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktStoryJsonLoader, Log, All);
 
@@ -34,8 +35,25 @@ namespace
 
 int32 FHktStoryJsonLoader::LoadAllFromContentDirectory()
 {
-	const FString StoriesDir = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Stories"));
-	return LoadAllFromDirectory(StoriesDir);
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	if (!Settings || Settings->StoryDirectories.Num() == 0)
+	{
+		UE_LOG(LogHktStoryJsonLoader, Log, TEXT("No Story directories configured in HktRuntimeGlobalSetting; skipping JSON story loading"));
+		return 0;
+	}
+
+	int32 TotalSuccess = 0;
+	for (const FDirectoryPath& DirPath : Settings->StoryDirectories)
+	{
+		if (DirPath.Path.IsEmpty())
+		{
+			continue;
+		}
+		// RelativeToGameContentDir: Path는 `<Project>/Content/` 기준 상대 경로
+		const FString ResolvedDir = FPaths::Combine(FPaths::ProjectContentDir(), DirPath.Path);
+		TotalSuccess += LoadAllFromDirectory(ResolvedDir);
+	}
+	return TotalSuccess;
 }
 
 int32 FHktStoryJsonLoader::LoadAllFromDirectory(const FString& DirectoryPath)

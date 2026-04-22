@@ -119,8 +119,6 @@ private:
 	/** Opaque 섹션이 차지하는 index 수. NumIndices - OpaqueIndexCount = Translucent 섹션 크기 */
 	int32 OpaqueIndexCount = 0;
 
-	mutable bool bDrawDiagLogged = false;
-
 	FRHITexture* PendingTileArrayRHI = nullptr;
 	FRHISamplerState* PendingTileArraySamplerRHI = nullptr;
 	FRHITexture* PendingTileIndexLUTRHI = nullptr;

@@ -46,9 +46,11 @@ public:
 		float VoxelSize,
 		float MaxDistance = 0.f);
 
-private:
+public:
 	/** 음수 좌표를 올바르게 처리하는 정수 나눗셈 (FHktTerrainState::FloorDiv와 동일) */
 	static int32 FloorDiv(int32 A, int32 B);
+
+private:
 
 	/** 음수 좌표를 올바르게 처리하는 나머지 (항상 0 이상) */
 	static int32 FloorMod(int32 A, int32 B);

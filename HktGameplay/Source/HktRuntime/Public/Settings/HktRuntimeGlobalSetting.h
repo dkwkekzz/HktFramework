@@ -30,6 +30,16 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Login", meta = (DisplayName = "In-Game Map"))
 	TSoftObjectPtr<UWorld> InGameMap;
 
+	// === Story JSON 로딩 ===
+
+	/**
+	 * Story JSON(*.json)을 스캔할 디렉토리 목록. Project `Content/` 기준 상대 경로.
+	 * 비어 있으면 Story JSON 로딩이 비활성화된다.
+	 * 기본값: `HktGameplay/Content` (→ `<Project>/Content/HktGameplay/Content`)
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Story", meta = (DisplayName = "Story Directories", RelativeToGameContentDir, LongPackageName))
+	TArray<FDirectoryPath> StoryDirectories;
+
 	// === 지형 생성 ===
 
 	/**
