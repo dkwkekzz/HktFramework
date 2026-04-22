@@ -142,7 +142,6 @@ void FHktWorldState::FreeSlot(int32 Slot)
 void FHktWorldState::Initialize()
 {
     EntitySlots.Reserve(HktLimits::MaxEntities);
-    ActiveEvents.Reserve(HktLimits::MaxActiveEvents);
     ActiveVMSnapshots.Reserve(HktLimits::MaxActiveEvents);
 
     constexpr int32 ReserveCount = 2176;  // 512 + 1024 + 512 + 128
@@ -317,7 +316,6 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
     RandomSeed = Other.RandomSeed;
     NextEntityId = Other.NextEntityId;
     EntitySlots = Other.EntitySlots;
-    ActiveEvents = Other.ActiveEvents;
     ActiveVMSnapshots = Other.ActiveVMSnapshots;
 
     HotData = Other.HotData;
@@ -457,7 +455,6 @@ bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
         }
     }
 
-    Ar << ActiveEvents;
     Ar << ActiveVMSnapshots;
     return true;
 }

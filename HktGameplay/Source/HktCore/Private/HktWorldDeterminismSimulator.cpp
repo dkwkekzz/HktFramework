@@ -420,10 +420,26 @@ FHktPlayerState FHktWorldDeterminismSimulator::ExportPlayerState(int64 OwnerUid)
         Out.OwnedEntities.Add(WorldState.ExtractEntityState(Id));
     });
 
-    for (const FHktEvent& E : WorldState.ActiveEvents)
-        if (WorldState.IsValidEntity(E.SourceEntity))
-            if (WorldState.GetOwnerUid(E.SourceEntity) == OwnerUid)
-                Out.ActiveEvents.Add(E);
+    // DB 영속 경계에서는 "재진입 시 처음부터 재실행"을 위해 FHktEvent 형태로 내보낸다.
+    // (세션 내 VM 런타임 상태는 서버 재시작을 넘어서는 의미가 없으므로 전달하지 않는다.)
+    for (const FHktVMSnapshot& S : WorldState.ActiveVMSnapshots)
+    {
+        if (!WorldState.IsValidEntity(S.SourceEntity)) continue;
+        if (WorldState.GetOwnerUid(S.SourceEntity) != OwnerUid) continue;
+
+        FHktEvent E;
+        E.EventTag = S.EventTag;
+        E.SourceEntity = S.SourceEntity;
+        E.TargetEntity = S.TargetEntity;
+        E.Location = FVector(
+            static_cast<double>(S.EventTargetPosX),
+            static_cast<double>(S.EventTargetPosY),
+            static_cast<double>(S.EventTargetPosZ));
+        E.PlayerUid = S.PlayerUid;
+        E.Param0 = S.EventParam0;
+        E.Param1 = S.EventParam1;
+        Out.ActiveEvents.Add(E);
+    }
 
     return Out;
 }

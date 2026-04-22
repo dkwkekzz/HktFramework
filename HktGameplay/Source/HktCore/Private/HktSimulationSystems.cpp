@@ -277,7 +277,7 @@ void FHktVMBuildSystem::Process(
         }
 
         OutActiveVMs.Add(Handle);
-        WorldState.ActiveEvents.Add(Event);
+        // WorldState.ActiveVMSnapshots 는 프레임 말미 CaptureVMSnapshots 에서 일괄 생성.
 
 #if ENABLE_HKT_INSIGHTS
         Runtime->SourceEventId = Event.EventId;
@@ -1279,10 +1279,6 @@ void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRunt
             {
                 FGameplayTag Tag = Runtime->Program->Tag;
                 FHktEntityId Source = Runtime->Context->SourceEntity;
-                WorldState.ActiveEvents.RemoveAll([&](const FHktEvent& E)
-                {
-                    return E.SourceEntity == Source && E.EventTag == Tag;
-                });
 
                 // 이벤트 태그 + 자식 태그를 SourceEntity에서 일괄 제거
                 if (WorldState.IsValidEntity(Source))
