@@ -42,8 +42,6 @@ namespace
 	// WPO (Vertex Shader) HLSL — Y-axis 빌보드
 	// ----------------------------------------------------------------------------
 	static const TCHAR* kWPOCode = TEXT(R"(
-		float CellW    = GetPerInstanceCustomData(Parameters, 1, 64.0);
-		float CellH    = GetPerInstanceCustomData(Parameters, 2, 64.0);
 		float OffX     = GetPerInstanceCustomData(Parameters, 4, 0.0);
 		float OffY     = GetPerInstanceCustomData(Parameters, 5, 0.0);
 		float RotR     = GetPerInstanceCustomData(Parameters, 6, 0.0);
@@ -237,7 +235,6 @@ namespace
 				TEXT("[HktSpriteBillboardMaterial] CreatePackage 실패: %s"), *PackageName);
 			return nullptr;
 		}
-		Pkg->FullyLoad();
 
 		UMaterial* Mat = ConstructMaterial(Pkg);
 		if (!Mat)
