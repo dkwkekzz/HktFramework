@@ -3,11 +3,14 @@
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpritePartTemplate.h"
 #include "HktSpriteFrameResolver.h"
+#include "HktSpriteBillboardMaterial.h"
 #include "HktSpriteCoreLog.h"
 #include "HktAssetSubsystem.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
 
 // ============================================================================
@@ -18,15 +21,18 @@ namespace
 {
 	constexpr int32 kNumCpdSlots = 16;
 
-	// CPD 슬롯 레이아웃 (rnd-sprite-skeletal-animation.md 5.2절):
-	//  0~3  UV Rect (umin, vmin, usize, vsize)
-	//  4~5  2D Offset (픽셀 → 월드)
-	//  6    Rotation (rad)
-	//  7~8  Scale (x, y)
+	// CPD 슬롯 레이아웃 (HktSpriteBillboardMaterial.cpp의 HLSL과 동기):
+	//  0    AtlasIndex (cell 그리드 내 프레임 번호)
+	//  1    CellW (아틀라스 셀 픽셀 너비)
+	//  2    CellH (아틀라스 셀 픽셀 높이)
+	//  3    reserved
+	//  4~5  Pivot Offset (world cm)
+	//  6    Rotation (rad, 빌보드 평면 내)
+	//  7~8  Scale (half-width, half-height in world cm)
 	//  9~12 Tint RGBA
-	//  13   Palette Index
-	//  14   Flip (0=normal, 1=horizontal flip)
-	//  15   ZBias
+	//  13   Palette Index (현재 미사용)
+	//  14   Flip X (0=normal, 1=horizontal flip)
+	//  15   ZBias (cm toward camera)
 }
 
 // ============================================================================
@@ -254,9 +260,32 @@ UHierarchicalInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateH
 	HISM->SetStaticMesh(QuadMesh);
 	HISM->NumCustomDataFloats = kNumCpdSlots;
 
-	if (UMaterialInterface* Mat = SpriteMaterialTemplate)
+	// 머티리얼 바인딩:
+	//   1) SpriteMaterialTemplate이 지정돼 있으면 이를 베이스로 MID 생성
+	//   2) 미지정이면 HktSpriteBillboardMaterial의 디폴트 Y-axis 빌보드 머티리얼로 폴백
+	// 각 HISM마다 고유 아틀라스(텍스처)를 바인딩해야 하므로 반드시 MID 사용.
+	UMaterialInterface* BaseMat = SpriteMaterialTemplate
+		? static_cast<UMaterialInterface*>(SpriteMaterialTemplate)
+		: HktSpriteBillboardMaterial::GetDefault();
+	if (BaseMat)
 	{
-		HISM->SetMaterial(0, Mat);
+		UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, HISM);
+		if (MID)
+		{
+			// 아틀라스 텍스처 바인딩 — TSoftObjectPtr는 Template이 이미 로드된 시점이므로
+			// LoadSynchronous가 두 번째 hop(텍스처 에셋)만 동기 로드.
+			UTexture2D* AtlasTex = Template->Atlas.LoadSynchronous();
+			if (AtlasTex)
+			{
+				MID->SetTextureParameterValue(HktSpriteBillboardMaterial::AtlasParamName, AtlasTex);
+				MID->SetVectorParameterValue(
+					HktSpriteBillboardMaterial::AtlasSizeParamName,
+					FLinearColor(static_cast<float>(AtlasTex->GetSizeX()),
+								 static_cast<float>(AtlasTex->GetSizeY()),
+								 0.f, 0.f));
+			}
+			HISM->SetMaterial(0, MID);
+		}
 	}
 
 	HISM->SetupAttachment(Owner->GetRootComponent());
