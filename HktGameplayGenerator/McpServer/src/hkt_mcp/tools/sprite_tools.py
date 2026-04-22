@@ -1,11 +1,14 @@
 """
 Sprite Generator Tools — Tag/Slot + 입력 텍스처들 → Atlas 패킹 → UE5 DataAsset 자동 생성.
 
-Workflow:
-1. 사용자가 tag/slot/textures(액션×방향×프레임 PNG 경로들) 지정
-2. Pillow가 균일 그리드 Atlas PNG로 패킹 (모든 프레임 max W/H에 맞춤)
-3. UE5 C++ McpBuildSpritePart 호출 → UTexture2D 임포트 + UHktSpritePartTemplate 생성
-4. IdentifierTag로 런타임 UHktAssetSubsystem이 자동 조회 → AHktSpriteCrowdHost에서 렌더
+=== 가장 간단한 사용법 ===
+1. `{ProjectDir}/SpriteInput/{tag_safe}/` 아래에 파일만 드랍:
+     idle.png                           → 모든 방향 1프레임
+     idle_S.png, idle_N.png, ...        → 방향별 1프레임
+     walk_S_0.png, walk_S_1.png, ...    → 방향×프레임
+     또는 서브폴더: idle/S/0.png, walk/NE/2.png
+2. `build_sprite_part(tag="Sprite.Part.Body.X", slot="Body")` 호출
+3. 끝 — Pillow가 Atlas 패킹, UE5가 UTexture2D + UHktSpritePartTemplate 생성
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ import json
 import logging
 import math
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -25,6 +29,8 @@ OBJECT_PATH = "/Script/HktSpriteGenerator.Default__HktSpriteGeneratorFunctionLib
 
 # 8방향 고정 순서 — FHktSpriteAction::FramesByDirection 인덱스와 일치해야 함.
 DIRECTIONS: List[str] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+DIRECTION_SET = set(DIRECTIONS)
+IMAGE_EXTS = {".png", ".tga", ".jpg", ".jpeg", ".bmp", ".webp"}
 
 
 def _require_pillow():
@@ -36,16 +42,135 @@ def _require_pillow():
         ) from e
 
 
-def _resolve_output_dir(project_saved: Optional[str]) -> Path:
-    """Atlas PNG를 쓸 디스크 경로 — 기본 {ProjectSavedDir}/SpriteGenerator/."""
-    base = project_saved or os.environ.get("UE_PROJECT_PATH") or os.getcwd()
-    out = Path(base) / "Saved" / "SpriteGenerator"
+def _project_root(project_dir_hint: Optional[str]) -> Path:
+    base = project_dir_hint or os.environ.get("UE_PROJECT_PATH") or os.getcwd()
+    return Path(base)
+
+
+def _resolve_input_dir(tag: str, project_dir_hint: Optional[str]) -> Path:
+    """텍스처를 드랍하는 컨벤션 폴더: {ProjectDir}/SpriteInput/{tag_safe}/."""
+    p = _project_root(project_dir_hint) / "SpriteInput" / _sanitize_tag(tag)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _resolve_output_dir(project_dir_hint: Optional[str]) -> Path:
+    """Atlas PNG를 쓸 디스크 경로 — {ProjectDir}/Saved/SpriteGenerator/."""
+    out = _project_root(project_dir_hint) / "Saved" / "SpriteGenerator"
     out.mkdir(parents=True, exist_ok=True)
     return out
 
 
 def _sanitize_tag(tag: str) -> str:
     return tag.replace(".", "_").replace("/", "_")
+
+
+def _is_image(p: Path) -> bool:
+    return p.suffix.lower() in IMAGE_EXTS
+
+
+# 파일명 파싱: {action}[_{direction}][_{frame_idx}].{ext}
+# 예: "idle.png"          → ("idle", None, None)
+#     "idle_S.png"        → ("idle", "S",  None)
+#     "walk_NE_3.png"     → ("walk", "NE", 3)
+_STEM_RE = re.compile(r"^(?P<action>[A-Za-z][A-Za-z0-9]*)(?:_(?P<dir>N|NE|E|SE|S|SW|W|NW))?(?:_(?P<idx>\d+))?$")
+
+
+def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
+    """
+    컨벤션 폴더를 스캔해 textures dict 반환.
+
+    지원 레이아웃:
+      a) 플랫: {action}[_{direction}][_{idx}].{ext}
+      b) 서브폴더: {action}/{direction}/{idx}.{ext}  또는  {action}/{direction}.{ext}  또는  {action}/{any}.{ext}
+
+    반환 포맷은 _normalize_frames가 받는 dict와 동일.
+    """
+    if not dir_path.exists():
+        raise FileNotFoundError(f"입력 폴더 없음: {dir_path}")
+
+    # action → direction → sorted list of (frame_idx_hint, path)
+    buckets: Dict[str, Dict[str, List[tuple[int, str]]]] = {}
+
+    def add(action: str, direction: Optional[str], idx_hint: int, path: Path):
+        if direction is None:
+            # 방향 미지정 → 모든 방향에 기록해서 나중에 normalize 시 동일하게 쓰도록
+            for d in DIRECTIONS:
+                buckets.setdefault(action, {}).setdefault(d, []).append((idx_hint, str(path)))
+        else:
+            buckets.setdefault(action, {}).setdefault(direction, []).append((idx_hint, str(path)))
+
+    # (a) 플랫 스캔
+    for f in sorted(dir_path.iterdir()):
+        if f.is_file() and _is_image(f):
+            m = _STEM_RE.match(f.stem)
+            if not m:
+                continue
+            action = m.group("action").lower()
+            d = m.group("dir")
+            idx_s = m.group("idx")
+            idx = int(idx_s) if idx_s else 0
+            add(action, d, idx, f)
+
+    # (b) 서브폴더 스캔 (플랫보다 우선도 높음: 존재하면 덮어씀)
+    for action_dir in sorted(dir_path.iterdir()):
+        if not action_dir.is_dir():
+            continue
+        action = action_dir.name.lower()
+        # action 하위에 direction 서브폴더가 있는지 먼저 확인
+        dir_subdirs = [d for d in action_dir.iterdir() if d.is_dir() and d.name in DIRECTION_SET]
+        if dir_subdirs:
+            # action/{direction}/{idx}.{ext}
+            buckets.pop(action, None)  # 플랫 결과 있으면 서브폴더가 우선
+            for direction_dir in dir_subdirs:
+                files = sorted(f for f in direction_dir.iterdir() if f.is_file() and _is_image(f))
+                for i, f in enumerate(files):
+                    # 파일명이 숫자면 그대로 idx, 아니면 순번
+                    try:
+                        idx = int(f.stem)
+                    except ValueError:
+                        idx = i
+                    add(action, direction_dir.name, idx, f)
+        else:
+            # action/{direction}.{ext} 혹은 방향 없이 action/*.{ext}
+            files = sorted(f for f in action_dir.iterdir() if f.is_file() and _is_image(f))
+            if not files:
+                continue
+            buckets.pop(action, None)
+            direction_files = []
+            nondir_files = []
+            for f in files:
+                if f.stem in DIRECTION_SET:
+                    direction_files.append(f)
+                else:
+                    nondir_files.append(f)
+
+            if direction_files:
+                for f in direction_files:
+                    add(action, f.stem, 0, f)
+                # 방향 미지정 파일은 나머지 방향 폴백용으로 append
+                for i, f in enumerate(nondir_files):
+                    add(action, None, i, f)
+            else:
+                for i, f in enumerate(nondir_files):
+                    add(action, None, i, f)
+
+    if not buckets:
+        raise FileNotFoundError(
+            f"스프라이트 파일을 찾지 못했습니다: {dir_path}\n"
+            f"허용 파일명: {{action}}[_{{N|NE|E|SE|S|SW|W|NW}}][_{{frame_idx}}].png "
+            f"또는 서브폴더 {{action}}/{{direction}}/{{idx}}.png"
+        )
+
+    # 정렬해서 최종 dict로
+    out: Dict[str, Dict[str, List[str]]] = {}
+    for action, dirs in buckets.items():
+        action_map: Dict[str, List[str]] = {}
+        for d, entries in dirs.items():
+            entries.sort(key=lambda t: t[0])
+            action_map[d] = [p for _, p in entries]
+        out[action] = action_map
+    return out
 
 
 def _normalize_frames(textures: Dict[str, Any]) -> Dict[str, Dict[str, List[str]]]:
@@ -84,14 +209,14 @@ def _normalize_frames(textures: Dict[str, Any]) -> Dict[str, Dict[str, List[str]
                     action_map[d] = list(arr or [])
         else:
             for d, val in spec.items():
-                if d not in DIRECTIONS:
+                if d not in DIRECTION_SET:
                     continue
                 if isinstance(val, str):
                     action_map[d] = [val]
                 else:
                     action_map[d] = list(val or [])
 
-            # 방향 채우기 — 비어있는 방향은 가장 가까운 채워진 방향의 프레임을 복사
+            # 방향 채우기 — 비어있는 방향은 채워진 방향 중 아무거나로 폴백
             if not any(action_map.values()):
                 raise ValueError(f"action '{action_id}' 에 유효한 프레임이 없음")
             fallback = next(v for v in action_map.values() if v)
@@ -197,7 +322,8 @@ async def build_sprite_part(
     bridge: EditorBridge,
     tag: str,
     slot: str,
-    textures: str,  # JSON string
+    textures: str = "",  # JSON string (optional) — 비면 컨벤션 폴더 자동 스캔
+    input_dir: str = "",  # 컨벤션 폴더 직접 지정 (기본: {ProjectDir}/SpriteInput/{tag_safe}/)
     output_dir: str = "",
     pixel_to_world: float = 2.0,
     frame_duration_ms: float = 100.0,
@@ -208,20 +334,37 @@ async def build_sprite_part(
     """
     Tag/Slot + 입력 텍스처들로 Atlas 패킹 + UE5 DataAsset 자동 생성.
 
-    textures (JSON 문자열) 예시:
+    === 가장 간단한 사용 ===
+      1) {ProjectDir}/SpriteInput/{tag의 '.'를 '_'로 바꾼 폴더명}/ 아래에 파일만 드랍
+         - idle.png                        (모든 방향 공통 1프레임)
+         - idle_S.png, idle_N.png, ...     (방향별 1프레임)
+         - walk_S_0.png, walk_S_1.png, ... (방향×프레임)
+         - 또는 서브폴더 idle/S/0.png 식
+      2) build_sprite_part(tag=..., slot=...) 만 호출
+
+    textures JSON으로 경로를 직접 명시할 수도 있음 (비우면 자동 스캔):
       {"idle": "path/to/one.png"}
-      {"idle": {"S": ["p1.png", "p2.png"], "N": ["q1.png"]}}
-      {"walk": {"framesByDirection": [["N1.png"], ["NE1.png"], ...]}}  # 8방향
+      {"idle": {"S": ["p1.png","p2.png"]}}
+      {"walk": {"framesByDirection": [["N1.png"], ["NE1.png"], ...]}}
     """
     _require_pillow()
 
-    try:
-        tex_dict = json.loads(textures) if isinstance(textures, str) else textures
-    except json.JSONDecodeError as e:
-        return json.dumps({"success": False, "error": f"textures JSON parse: {e}"})
-
     if not tag or not slot:
         return json.dumps({"success": False, "error": "tag/slot required"})
+
+    # --- 입력 결정: textures JSON이 있으면 그것, 없으면 컨벤션 폴더 스캔 ---
+    scanned_dir: Optional[str] = None
+    try:
+        if textures and textures.strip():
+            tex_dict = json.loads(textures) if isinstance(textures, str) else textures
+        else:
+            conv_dir = Path(input_dir) if input_dir else _resolve_input_dir(tag, project_saved_dir or None)
+            tex_dict = _scan_convention_dir(conv_dir)
+            scanned_dir = str(conv_dir)
+    except json.JSONDecodeError as e:
+        return json.dumps({"success": False, "error": f"textures JSON parse: {e}"})
+    except FileNotFoundError as e:
+        return json.dumps({"success": False, "error": str(e)})
 
     try:
         normalized = _normalize_frames(tex_dict)
@@ -279,4 +422,45 @@ async def build_sprite_part(
         "cell_size": [cell_w, cell_h],
         "columns": pack["columns"],
         "rows": pack["rows"],
+        "scanned_dir": scanned_dir,
+    }, indent=2)
+
+
+async def get_sprite_input_dir(tag: str, project_saved_dir: str = "") -> str:
+    """
+    주어진 태그의 텍스처 드랍 컨벤션 폴더 경로를 반환 (없으면 생성).
+
+    사용자는 이 경로 안에 다음 중 아무 레이아웃으로 파일만 넣으면 됨:
+      idle.png / idle_S.png / walk_NE_3.png / idle/S/0.png ...
+    """
+    if not tag:
+        return json.dumps({"success": False, "error": "tag required"}, indent=2)
+    try:
+        path = _resolve_input_dir(tag, project_saved_dir or None)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    existing: List[str] = []
+    if path.exists():
+        for p in sorted(path.rglob("*")):
+            if p.is_file() and _is_image(p):
+                existing.append(str(p.relative_to(path)))
+
+    return json.dumps({
+        "success": True,
+        "tag": tag,
+        "input_dir": str(path),
+        "existing_files": existing,
+        "conventions": {
+            "flat": "{action}[_{direction}][_{idx}].{png|tga|jpg|bmp|webp}",
+            "subfolder_dir": "{action}/{direction}/{idx}.{ext}  or  {action}/{direction}.{ext}",
+            "directions": DIRECTIONS,
+            "examples": [
+                "idle.png                 → 모든 방향 1프레임",
+                "idle_S.png               → South 방향 1프레임",
+                "walk_NE_0.png, walk_NE_1.png → Northeast 2프레임",
+                "walk/S/0.png, walk/S/1.png  → 서브폴더 스타일",
+            ],
+            "note": "비어있는 방향은 채워진 방향 중 하나로 자동 폴백. mirror_west_from_east=true면 W/SW/NW는 런타임 flip.",
+        },
     }, indent=2)
