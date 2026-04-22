@@ -34,7 +34,13 @@ public class HktStory : ModuleRules
 			{
 			}
 		);
-		
+
+		// 에디터 전용 — PIE 시작 시 Story 재로드를 위한 FEditorDelegates 바인딩
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
