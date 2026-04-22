@@ -32,3 +32,32 @@ void FHktVoxelLODPolicy::SetLODDistance(int32 LODLevel, float Distance)
 		LODDistances[LODLevel] = Distance;
 	}
 }
+
+int32 FHktVoxelLODPolicy::GetLODForDistance(float DistSq, int32 PrevLOD, const float (&Distances)[4])
+{
+	// Distances[i] = LOD i 외곽 경계. DistSq < Distances[i]^2 이면 LOD i 후보.
+	int32 Target = MaxLOD;
+	for (int32 i = 0; i <= MaxLOD; i++)
+	{
+		const float D = Distances[i];
+		if (DistSq < D * D)
+		{
+			Target = i;
+			break;
+		}
+	}
+
+	// Hysteresis: 다운그레이드(LOD 숫자 증가) 시 5% 오버슈트 요구.
+	// 즉, PrevLOD에 머무르려면 PrevLOD의 외곽 경계 * 1.05 까지 허용.
+	if (Target > PrevLOD && PrevLOD >= 0 && PrevLOD <= MaxLOD)
+	{
+		const float HysteresisFactor = 1.05f;
+		const float PrevBoundary = Distances[PrevLOD] * HysteresisFactor;
+		if (DistSq < PrevBoundary * PrevBoundary)
+		{
+			return PrevLOD;
+		}
+	}
+
+	return Target;
+}

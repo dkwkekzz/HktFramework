@@ -218,6 +218,33 @@ void UHktVoxelChunkComponent::SetNormalMapStrength(float InStrength)
 	}
 }
 
+void UHktVoxelChunkComponent::SetChunkLOD(int32 InLOD, const FHktVoxelLODComponentSettings& Settings,
+                                          float ActorNormalMapStrength, float ActorEdgeRoundStrength)
+{
+	CurrentLOD = InLOD;
+
+	// 노멀맵·라운딩: 액터 글로벌 강도에 LOD 스케일 곱
+	SetNormalMapStrength(ActorNormalMapStrength * Settings.NormalMapScale);
+	SetEdgeRoundStrength(ActorEdgeRoundStrength * Settings.EdgeRoundScale);
+
+	// 그림자
+	const bool bShadowChanged = (CastShadow != Settings.bCastShadow);
+	if (bShadowChanged)
+	{
+		CastShadow = Settings.bCastShadow;
+		MarkRenderStateDirty();
+	}
+	SetShadowDistance(Settings.ShadowDistance);
+
+	// Collision: LOD ≥ 1은 비활성 (먼 청크는 hit refinement 불필요)
+	const ECollisionEnabled::Type DesiredCollision =
+		Settings.bCollision ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision;
+	if (GetCollisionEnabled() != DesiredCollision)
+	{
+		SetCollisionEnabled(DesiredCollision);
+	}
+}
+
 void UHktVoxelChunkComponent::Initialize(FHktVoxelRenderCache* Cache, const FIntVector& InChunkCoord, float InVoxelSize)
 {
 	RenderCache = Cache;
