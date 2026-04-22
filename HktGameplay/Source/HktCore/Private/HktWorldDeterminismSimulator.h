@@ -38,6 +38,12 @@ public:
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);
 
+    /** ProcessBatch 말미에 현재 살아있는 VM들을 WorldState.ActiveVMSnapshots 로 직렬화. */
+    void CaptureVMSnapshots();
+
+    /** RestoreWorldState 직후 WorldState.ActiveVMSnapshots 에서 VMPool/ActiveVMs 재구성. */
+    void RehydrateVMPool();
+
     EHktLogSource LogSource;
     FString SourceName;
     FHktWorldState WorldState;

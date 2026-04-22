@@ -89,8 +89,10 @@ FHktWorldState — 시뮬레이션 전체 스냅샷
         Columns (TMap<int32, FHktDataColumn>): PropertyId별 데이터 컬럼
         TagColumn (TArray<TArray<int32>>): SlotIndex별 TagIndices
 
-    Active Events:
-        ActiveEvents (TArray<FHktEvent>): 진행 중인 이벤트 (중간 합류 클라이언트 동기화용)
+    Active VM Snapshots:
+        ActiveVMSnapshots (TArray<FHktVMSnapshot>): 진행 중 VM의 런타임 상태 (PC/Registers/EventWait 등).
+            프레임 말미 CaptureVMSnapshots 에서 일괄 캡처되며, RestoreWorldState 시 RehydrateVMPool 이
+            이 배열을 기반으로 VMPool 을 재구성한다. Late-Join 클라의 WaitingEvent VM 재개에 사용.
 
     Core Operations:
         AllocateEntity() -> FHktEntityId
@@ -200,7 +202,7 @@ Phase 1: 준비 (Preparation)
         - OwnedPlayerUid 컬럼을 루프 밖에서 캐싱하여 순회.
 
     1-2. Build System: FHktEvent를 순회하며 VM 생성 및 레지스터 초기화.
-        - VM 생성 성공 시 WorldState.ActiveEvents에 이벤트 등록.
+        - VM 런타임은 VMRuntimePool + ActiveVMs 핸들로 추적.
 
 Phase 2: 실행 (Execution)
 
@@ -227,7 +229,9 @@ Phase 3: 물리 및 적용 (Physics & Commit)
 Phase 4: 정리 (Cleanup)
 
     Cleanup System: 완료된 VM 핸들 해제.
-        - WorldState.ActiveEvents에서 해당 이벤트 제거 (SourceEntity + EventTag 매칭).
+        - 종료된 VM은 ActiveVMs 에서 제거되므로 다음 Capture 에서 자동으로 ActiveVMSnapshots 에 포함되지 않는다.
+
+    Post-Cleanup: CaptureVMSnapshots 로 살아있는 VM 런타임을 WorldState.ActiveVMSnapshots 로 직렬화.
 
 Phase 5: 뷰 생성 (View)
 
@@ -268,7 +272,10 @@ Phase 5: 뷰 생성 (View)
 
 Store 패턴: VM은 절대로 WorldState를 직접 수정하면 안 됨. 반드시 Store.Write() / Store.WriteEntity()를 통해 버퍼링.
 
-ActiveEvents 관리: VMBuildSystem에서 Add, VMCleanupSystem에서 Remove. WorldState에 포함되어 직렬화/롤백 시 자동 동기화.
+VM 스냅샷 관리: ProcessBatch 말미(CaptureVMSnapshots)에서 살아있는 VM 런타임(PC/Registers/EventWait/Context)을
+WorldState.ActiveVMSnapshots 로 일괄 직렬화. RestoreWorldState 시 RehydrateVMPool 이 이를 기반으로 VMPool/ActiveVMs 재구성.
+DB 영속 경계(FHktPlayerState.ActiveEvents)는 별도로, ExportPlayerState 에서 스냅샷→FHktEvent 로 역변환해 전달
+(세션 간 재진입은 PC=0 부터 재실행 의미).
 
 FHktEntityState는 DTO: HktCore 내부에서는 SOA WorldState를 직접 사용. FHktEntityState는 HktRuntime의 네트워크 직렬화 시 ExtractEntityState()로 생성.
 
