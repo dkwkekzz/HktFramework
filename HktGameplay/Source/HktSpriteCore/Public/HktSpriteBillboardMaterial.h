@@ -7,21 +7,17 @@
 class UMaterialInterface;
 
 // ============================================================================
-// HktSpriteBillboardMaterial
+// HktSpriteBillboardMaterial — 런타임 로더 (Editor / Shipping 공통)
 //
 // HISM 스프라이트 크라우드 렌더러(`UHktSpriteCrowdRenderer`)용 디폴트
-// Y-axis 빌보드 머티리얼.
+// Y-axis 빌보드 머티리얼을 플러그인 콘텐츠에서 로드해 반환한다.
 //
-// 배포 전략:
-//  - 실물 `UMaterial` 에셋은 플러그인 콘텐츠 경로에 저장된다:
-//      /HktGameplay/Materials/M_HktSpriteYBillboard
-//      (디스크: HktGameplay/Content/Materials/M_HktSpriteYBillboard.uasset)
-//  - `GetDefault()` 런타임 해석 순서:
-//      1) `LoadObject`로 쿠킹된 에셋 로드 — Editor / Shipping 모두 동작
-//      2) 에디터이고 에셋이 아직 없으면 `UMaterialExpression` API로 즉시 생성 +
-//         디스크 저장. 개발자는 이 .uasset을 저장소에 커밋해 Shipping 빌드
-//         쿠킹 대상으로 포함시킨다.
-//      3) Shipping에서 에셋 누락 시 엔진 기본 머티리얼로 폴백(경고 로그).
+//  - 실물 `UMaterial` 에셋 경로: /HktGameplay/Materials/M_HktSpriteYBillboard
+//    (디스크: HktGameplay/Content/Materials/M_HktSpriteYBillboard.uasset)
+//  - 에셋은 HktSpriteGenerator(Editor 모듈)가 빌드·저장한다. 모듈 스타트업 시
+//    자동 체크·생성되며, `HktSprite.BuildBillboardMaterial` 콘솔 명령으로도
+//    강제 재생성 가능.
+//  - 에셋이 없는 Shipping 빌드에서는 엔진 기본 머티리얼로 폴백(경고 로그).
 //
 // 머티리얼 특성:
 //  - Unlit / Masked / TwoSided / UsedWithInstancedStaticMeshes
@@ -52,9 +48,18 @@ namespace HktSpriteBillboardMaterial
 	/** 아틀라스 픽셀 크기(Width/Height)를 전달하는 Vector 파라미터 이름. */
 	HKTSPRITECORE_API extern const FName AtlasSizeParamName;
 
+	/** 기본 머티리얼 에셋 패키지 경로 (롱 패키지 네임). */
+	HKTSPRITECORE_API extern const TCHAR* PackagePath;
+
+	/** 기본 머티리얼 에셋 오브젝트 경로 (LoadObject 인자). */
+	HKTSPRITECORE_API extern const TCHAR* AssetObjectPath;
+
+	/** 기본 머티리얼 오브젝트 이름. */
+	HKTSPRITECORE_API extern const TCHAR* MaterialName;
+
 	/**
-	 * 디폴트 Y-axis 빌보드 머티리얼을 지연 생성/반환(캐시됨).
-	 * Shipping 빌드 등 `WITH_EDITORONLY_DATA`가 꺼진 환경에서는 엔진 기본 머티리얼로 폴백.
+	 * 디폴트 Y-axis 빌보드 머티리얼을 로드해 반환(캐시됨).
+	 * 에셋이 없으면 엔진 기본 머티리얼로 폴백.
 	 */
 	HKTSPRITECORE_API UMaterialInterface* GetDefault();
 }
