@@ -8,6 +8,7 @@ namespace HktStoryTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player,      "Entity.Character.Player",  "Player character entity.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin,            "Entity.NPC.Goblin",        "Goblin NPC entity.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton,          "Entity.NPC.Skeleton",      "Skeleton NPC entity.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Zombie,            "Entity.NPC.Zombie",        "Zombie NPC entity.");
 
 	// --- Entity Attr ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile,              "Entity.Attr.NPC.Hostile",   "Hostile NPC tag.");
@@ -15,6 +16,11 @@ namespace HktStoryTags
 
 	// --- NPC Flow ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle,             "Story.Flow.NPC.Lifecycle",   "NPC lifecycle management (death/despawn).");
+
+	// --- JSON Story 엔트리 포인트 (GameMode / PlayerController에서 선택) ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_World_Init,                "Story.Flow.World.Init",      "World init JSON story — GameMode 지정.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Player_Init,               "Story.State.Player.Init",    "Player init JSON story — PlayerController 지정.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Target_Action,             "Story.Event.Target.Action",  "Target default action JSON story — PlayerController 지정.");
 
 	// --- Debris Flow ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Debris_Lifecycle,          "Story.Flow.Debris.Lifecycle", "Terrain debris lifecycle (death/despawn).");

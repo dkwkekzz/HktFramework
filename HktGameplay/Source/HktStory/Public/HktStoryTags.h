@@ -21,6 +21,7 @@ namespace HktStoryTags
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Character_Player);      // Entity.Character.Player
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Goblin);            // Entity.NPC.Goblin
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Skeleton);          // Entity.NPC.Skeleton
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Zombie);            // Entity.NPC.Zombie
 
 	// --- Entity Attr ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_NPC_Hostile);              // Entity.Attr.NPC.Hostile
@@ -28,6 +29,11 @@ namespace HktStoryTags
 
 	// --- NPC Flow ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_NPC_Lifecycle);            // Story.Flow.NPC.Lifecycle
+
+	// --- JSON Story 엔트리 포인트 (GameMode / PlayerController에서 선택) ---
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_World_Init);               // Story.Flow.World.Init
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Player_Init);              // Story.State.Player.Init
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Target_Action);            // Story.Event.Target.Action
 
 	// --- Debris Flow ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Debris_Lifecycle);         // Story.Flow.Debris.Lifecycle

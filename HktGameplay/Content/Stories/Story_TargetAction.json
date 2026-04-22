@@ -1,0 +1,87 @@
+{
+  "storyTag": "Story.Event.Target.Action",
+  "cancelOnDuplicate": true,
+  "tags": {
+    "StoryItemPickup":    "Story.Event.Item.Pickup",
+    "StoryUseSkill":      "Story.Event.Combat.UseSkill",
+    "StoryMoveLocation":  "Story.Event.Move.ToLocation"
+  },
+  "steps": [
+    { "op": "CmpEqConst", "dst": "Flag", "src": "Target", "value": -1 },
+    { "op": "JumpIf", "cond": "Flag", "label": "dispatch_move" },
+
+    { "op": "LoadStoreEntity", "dst": "R0", "entity": "Target", "property": "ItemId" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": "R0", "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "check_npc" },
+
+    { "op": "LoadStoreEntity", "dst": "R0", "entity": "Target", "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": "R0", "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "dispatch_move" },
+
+    { "op": "Log", "message": "TargetAction: 아이템 → 접근 시작" },
+    { "op": "GetDistance", "dst": "R1", "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpLeConst", "dst": "Flag", "src": "R1", "value": 300 },
+    { "op": "JumpIf", "cond": "Flag", "label": "item_pickup" },
+
+    { "op": "Label", "name": "item_chase_loop" },
+    { "op": "GetPosition", "dst": "R2", "entity": "Target" },
+    { "op": "MoveToward", "entity": "Self", "targetPos": "R2", "force": 150 },
+    { "op": "Yield", "frames": 1 },
+    { "op": "GetDistance", "dst": "R1", "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpLeConst", "dst": "Flag", "src": "R1", "value": 300 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "item_chase_loop" },
+    { "op": "StopMovement", "entity": "Self" },
+
+    { "op": "Label", "name": "item_pickup" },
+    { "op": "Log", "message": "TargetAction: 아이템 → Pickup" },
+    { "op": "DispatchEvent", "eventTag": "StoryItemPickup" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "check_npc" },
+    { "op": "LoadStoreEntity", "dst": "R0", "entity": "Target", "property": "IsNPC" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": "R0", "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "dispatch_move" },
+
+    { "op": "SnippetLoadItemFromSlot", "dst": "R4", "failLabel": "use_self_range" },
+    { "op": "LoadEntityProperty", "dst": "R0", "entity": "R4", "property": "AttackRange" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": "R0", "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "npc_range_ok" },
+
+    { "op": "Label", "name": "use_self_range" },
+    { "op": "ReadProperty", "dst": "R0", "property": "AttackRange" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": "R0", "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "npc_range_ok" },
+    { "op": "LoadConst", "dst": "R0", "value": 200 },
+
+    { "op": "Label", "name": "npc_range_ok" },
+    { "op": "GetDistance", "dst": "R1", "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpLe", "dst": "Flag", "src1": "R1", "src2": "R0" },
+    { "op": "JumpIf", "cond": "Flag", "label": "npc_check_cd" },
+
+    { "op": "Label", "name": "npc_chase_loop" },
+    { "op": "GetPosition", "dst": "R2", "entity": "Target" },
+    { "op": "MoveToward", "entity": "Self", "targetPos": "R2", "force": 150 },
+    { "op": "Yield", "frames": 1 },
+    { "op": "GetDistance", "dst": "R1", "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpLe", "dst": "Flag", "src1": "R1", "src2": "R0" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "npc_chase_loop" },
+    { "op": "StopMovement", "entity": "Self" },
+
+    { "op": "Label", "name": "npc_check_cd" },
+    { "op": "GetWorldTime", "dst": "R2" },
+    { "op": "ReadProperty", "dst": "R3", "property": "NextActionFrame" },
+    { "op": "CmpGe", "dst": "Flag", "src1": "R2", "src2": "R3" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "npc_done" },
+
+    { "op": "Log", "message": "TargetAction: NPC → UseSkill" },
+    { "op": "DispatchEvent", "eventTag": "StoryUseSkill" },
+
+    { "op": "Label", "name": "npc_done" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "dispatch_move" },
+    { "op": "Log", "message": "TargetAction: 이동" },
+    { "op": "DispatchEvent", "eventTag": "StoryMoveLocation" },
+    { "op": "Halt" }
+  ]
+}

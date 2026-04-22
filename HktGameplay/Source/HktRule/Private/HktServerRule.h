@@ -50,9 +50,6 @@ private:
 
 	int32 ServerEventSequence = 0;
 
-	// NPC 스포너 — fire된 스포너 EventTag 추적 (그룹별)
-	TSet<FGameplayTag> ActiveSpawnerFlows;
-
 	// 월드 최초 생성 Story (InitGame에서 등록, 첫 Tick에 소비)
 	struct FPendingWorldInit
 	{

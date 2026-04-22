@@ -3,6 +3,7 @@
 #include "HktStoryModule.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryJsonLoader.h"
+#include "HktSnippetJsonCommands.h"
 #include "HktCoreEventLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHktStory, Log, All); // Story 모듈은 단일 파일이므로 static 유지
@@ -11,6 +12,9 @@ IMPLEMENT_MODULE(FHktStoryModule, HktStory)
 
 void FHktStoryModule::StartupModule()
 {
+	// 0) JSON 파서에 HktSnippetItem op를 추가 등록 (JSON 로드 전에 필수)
+	HktStory::RegisterSnippetJsonCommands();
+
 	// 1) C++ 정의 Story 등록 (정적 초기화로 레지스트리에 추가된 것들)
 	FHktStoryRegistry::InitializeAllStories();
 
