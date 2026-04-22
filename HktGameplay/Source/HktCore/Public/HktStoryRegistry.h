@@ -17,6 +17,9 @@ public:
     /** 게임 시작 시(예: GameInstance Init) 호출하여 모든 등록된 Story 빌드 */
     static void InitializeAllStories();
 
+    /** 이미 빌드된 VM 프로그램을 모두 폐기 (에디터 PIE 재시작 시 재빌드 전 호출) */
+    static void ClearCompiledPrograms();
+
 private:
     /** 정적 초기화 순서 문제 방지를 위해 함수 내 정적 변수 사용 (Meyers Singleton) */
     static TArray<FStoryRegisterFunc>& GetRegistry();

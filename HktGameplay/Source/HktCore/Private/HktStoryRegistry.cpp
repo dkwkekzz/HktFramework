@@ -3,6 +3,7 @@
 #include "HktStoryRegistry.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
+#include "VM/HktVMProgram.h"
 
 TArray<FHktStoryRegistry::FStoryRegisterFunc>& FHktStoryRegistry::GetRegistry()
 {
@@ -20,6 +21,7 @@ void FHktStoryRegistry::InitializeAllStories()
     const int32 StoryCount = GetRegistry().Num();
 
     // 등록된 모든 Story 생성 로직 실행
+    // 에디터에서 PIE 시작 시 재호출 가능해야 하므로 실행 후 비우지 않는다.
     for (const auto& RegisterFunc : GetRegistry())
     {
         if (RegisterFunc)
@@ -28,9 +30,11 @@ void FHktStoryRegistry::InitializeAllStories()
         }
     }
 
-    // 메모리 절약을 위해 실행 후 비움 (필요에 따라 유지 가능)
-    GetRegistry().Empty();
-
     HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Info, EHktLogSource::Server,
         FString::Printf(TEXT("InitializeAllStories: %d stories initialized"), StoryCount));
+}
+
+void FHktStoryRegistry::ClearCompiledPrograms()
+{
+    FHktVMProgramRegistry::Get().Clear();
 }
