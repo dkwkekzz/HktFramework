@@ -10,8 +10,18 @@ class UMaterialInterface;
 // HktSpriteBillboardMaterial
 //
 // HISM 스프라이트 크라우드 렌더러(`UHktSpriteCrowdRenderer`)용 디폴트
-// Y-axis 빌보드 머티리얼. `HktVoxelChunkComponent::GetDefaultVoxelMaterial`과
-// 동일한 패턴으로 런타임에 에디터 온리 데이터로 머티리얼을 생성해 캐시한다.
+// Y-axis 빌보드 머티리얼.
+//
+// 배포 전략:
+//  - 실물 `UMaterial` 에셋은 플러그인 콘텐츠 경로에 저장된다:
+//      /HktGameplay/Materials/M_HktSpriteYBillboard
+//      (디스크: HktGameplay/Content/Materials/M_HktSpriteYBillboard.uasset)
+//  - `GetDefault()` 런타임 해석 순서:
+//      1) `LoadObject`로 쿠킹된 에셋 로드 — Editor / Shipping 모두 동작
+//      2) 에디터이고 에셋이 아직 없으면 `UMaterialExpression` API로 즉시 생성 +
+//         디스크 저장. 개발자는 이 .uasset을 저장소에 커밋해 Shipping 빌드
+//         쿠킹 대상으로 포함시킨다.
+//      3) Shipping에서 에셋 누락 시 엔진 기본 머티리얼로 폴백(경고 로그).
 //
 // 머티리얼 특성:
 //  - Unlit / Masked / TwoSided / UsedWithInstancedStaticMeshes
@@ -21,7 +31,7 @@ class UMaterialInterface;
 //      6      : Rotation (radians, 평면 내)
 //      7..8   : Scale (half-width, half-height in world units)
 //      9..12  : Tint RGBA
-//      13     : Palette Index (현재 미사용 — 외부 포스트 프로세스가 해석)
+//      13     : Palette Index (현재 미사용)
 //      14     : Flip X (0 / 1)
 //      15     : Z-Bias (cm toward camera)
 //  - World Position Offset으로 쿼드를 월드 Z축(Up)과 카메라-수평 Right축에 정렬

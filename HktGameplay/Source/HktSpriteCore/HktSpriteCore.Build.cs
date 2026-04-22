@@ -42,6 +42,20 @@ public class HktSpriteCore : ModuleRules
 			}
 		);
 
+		// 에디터 최초 실행 시 기본 Y-axis 빌보드 머티리얼을
+		// `/HktGameplay/Materials/M_HktSpriteYBillboard.uasset`에 저장하기 위한
+		// 에디터 전용 의존. Shipping 빌드에는 포함되지 않으므로 런타임 에셋 로드
+		// (`LoadObject`)에만 의존해 동작한다.
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"AssetRegistry",
+				}
+			);
+		}
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{

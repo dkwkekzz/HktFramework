@@ -4,33 +4,44 @@
 #include "HktSpriteCoreLog.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/Package.h"
+#include "UObject/SavePackage.h"
+#include "Misc/PackageName.h"
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 #include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #endif
+
+// ============================================================================
+// 경로
+//   - 런타임 에셋 경로(패키지.오브젝트): /HktGameplay/Materials/M_HktSpriteYBillboard
+//     → 디스크: HktGameplay/Content/Materials/M_HktSpriteYBillboard.uasset
+//   - 이 위치는 `HktGameplay.uplugin`의 `CanContainContent: true`로 쿠킹·배포된다.
+// ============================================================================
 
 namespace HktSpriteBillboardMaterial
 {
 	const FName AtlasParamName     = TEXT("Atlas");
 	const FName AtlasSizeParamName = TEXT("AtlasSize");
+
+	static const TCHAR* kPackagePath     = TEXT("/HktGameplay/Materials/M_HktSpriteYBillboard");
+	static const TCHAR* kAssetObjectPath = TEXT("/HktGameplay/Materials/M_HktSpriteYBillboard.M_HktSpriteYBillboard");
+	static const TCHAR* kMaterialName    = TEXT("M_HktSpriteYBillboard");
 }
 
 namespace
 {
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	// ----------------------------------------------------------------------------
-	// WPO (Vertex Shader) HLSL
-	//
-	// Y-axis 빌보드: 월드 Up(+Z) 고정, 카메라 방향에 따라 Right만 회전.
-	// Custom 노드는 단일 float 인풋(InTexCoord)만 받아 월드 좌표계 WPO(float3)를 반환.
+	// WPO (Vertex Shader) HLSL — Y-axis 빌보드
 	// ----------------------------------------------------------------------------
 	static const TCHAR* kWPOCode = TEXT(R"(
-		float AtlasIdx = GetPerInstanceCustomData(Parameters, 0, 0.0);
 		float CellW    = GetPerInstanceCustomData(Parameters, 1, 64.0);
 		float CellH    = GetPerInstanceCustomData(Parameters, 2, 64.0);
 		float OffX     = GetPerInstanceCustomData(Parameters, 4, 0.0);
@@ -41,24 +52,19 @@ namespace
 		float FlipV    = GetPerInstanceCustomData(Parameters, 14, 0.0);
 		float ZBiasV   = GetPerInstanceCustomData(Parameters, 15, 0.0);
 
-		// 쿼드 코너 파라미터: TexCoord[0] 사용 (UV 표준: y=0 top, y=1 bottom).
-		// → X ∈ [-1, 1], Y ∈ [0, 2]로 매핑 (하단-피벗).
 		float flipSign = FlipV > 0.5 ? -1.0 : 1.0;
 		float2 Quad;
 		Quad.x = (InTexCoord.x * 2.0 - 1.0) * flipSign;
 		Quad.y = (1.0 - InTexCoord.y) * 2.0;
 
-		// 평면 내 회전 (피벗=하단 중앙, (0,0) 기준)
 		float cs = cos(RotR);
 		float sn = sin(RotR);
 		float2 RotQuad;
 		RotQuad.x = cs * Quad.x - sn * Quad.y;
 		RotQuad.y = sn * Quad.x + cs * Quad.y;
 
-		// 스케일 + 피벗 오프셋 (world units)
 		float2 PlanePos = RotQuad * float2(ScaleX, ScaleY) + float2(OffX, OffY);
 
-		// Y-axis 빌보드 기반 basis: Up=+Z, Right=카메라-수평
 		float3 ObjPos = GetObjectWorldPosition(Parameters);
 		float3 CamPos = ResolvedView.WorldCameraOrigin;
 		float2 ToCamH = CamPos.xy - ObjPos.xy;
@@ -69,11 +75,9 @@ namespace
 
 		float3 BillboardWS = ObjPos + RightDir * PlanePos.x + UpDir * PlanePos.y;
 
-		// Z-bias: 카메라 쪽으로 ZBiasV(cm) × 0.1 만큼 당김
 		float3 ToCamN = normalize(CamPos - BillboardWS);
 		BillboardWS += ToCamN * (ZBiasV * 0.1);
 
-		// WPO = 목표 월드좌표 - 버텍스 원본 월드좌표
 		float3 AbsWS = GetWorldPosition(Parameters);
 		return BillboardWS - AbsWS;
 	)");
@@ -123,13 +127,15 @@ namespace
 		return Expr;
 	}
 
-	static UMaterialInterface* BuildDefaultMaterial()
+	// ----------------------------------------------------------------------------
+	// 머티리얼 그래프 구성 — 소유 패키지(`Outer`) 하위에 `UMaterial`을 생성하고
+	// 모든 표현식을 연결해 반환. 호출자가 저장·쿠킹을 담당한다.
+	// ----------------------------------------------------------------------------
+	static UMaterial* ConstructMaterial(UPackage* Outer)
 	{
 		UMaterial* Mat = NewObject<UMaterial>(
-			GetTransientPackage(), TEXT("M_HktSpriteYBillboard"), RF_Transient);
-		Mat->AddToRoot();
+			Outer, HktSpriteBillboardMaterial::kMaterialName, RF_Public | RF_Standalone);
 
-		// --- 머티리얼 기본 프로퍼티 ---
 		Mat->SetShadingModel(MSM_Unlit);
 		Mat->BlendMode                        = BLEND_Masked;
 		Mat->TwoSided                         = true;
@@ -138,46 +144,35 @@ namespace
 		Mat->DitheredLODTransition            = false;
 		Mat->OpacityMaskClipValue             = 0.333f;
 
-		// --- UV 계산 노드 ---
+		// UV 노드
 		UMaterialExpressionCustom* UVExpr = MakeCustomExpr(
 			Mat, TEXT("HktSprite UV"), kUVCode, CMOT_Float2);
 		UVExpr->Inputs.Reset();
 		{
-			FCustomInput UvIn;
-			UvIn.InputName = TEXT("InTexCoord");
-			UVExpr->Inputs.Add(UvIn);
-
-			FCustomInput SzIn;
-			SzIn.InputName = TEXT("InAtlasSize");
-			UVExpr->Inputs.Add(SzIn);
+			FCustomInput UvIn;  UvIn.InputName = TEXT("InTexCoord");   UVExpr->Inputs.Add(UvIn);
+			FCustomInput SzIn;  SzIn.InputName = TEXT("InAtlasSize");  UVExpr->Inputs.Add(SzIn);
 		}
 
-		// TexCoord[0] — 엔진 노드로 VS/PS 양쪽에서 안전하게 접근.
 		UMaterialExpressionTextureCoordinate* TexCoordExpr =
 			NewObject<UMaterialExpressionTextureCoordinate>(Mat);
 		TexCoordExpr->CoordinateIndex = 0;
 		Mat->GetExpressionCollection().AddExpression(TexCoordExpr);
 
-		// AtlasSize 벡터 파라미터 (xy = 아틀라스 픽셀 해상도)
 		UMaterialExpressionVectorParameter* AtlasSizeParam =
 			NewObject<UMaterialExpressionVectorParameter>(Mat);
 		AtlasSizeParam->ParameterName = HktSpriteBillboardMaterial::AtlasSizeParamName;
 		AtlasSizeParam->DefaultValue  = FLinearColor(1024.f, 1024.f, 0.f, 0.f);
 		Mat->GetExpressionCollection().AddExpression(AtlasSizeParam);
 
-		UMaterialExpressionComponentMask* AtlasSizeXY =
-			NewObject<UMaterialExpressionComponentMask>(Mat);
-		AtlasSizeXY->R = 1;
-		AtlasSizeXY->G = 1;
-		AtlasSizeXY->B = 0;
-		AtlasSizeXY->A = 0;
+		UMaterialExpressionComponentMask* AtlasSizeXY = NewObject<UMaterialExpressionComponentMask>(Mat);
+		AtlasSizeXY->R = 1; AtlasSizeXY->G = 1; AtlasSizeXY->B = 0; AtlasSizeXY->A = 0;
 		AtlasSizeXY->Input.Connect(0, AtlasSizeParam);
 		Mat->GetExpressionCollection().AddExpression(AtlasSizeXY);
 
 		UVExpr->Inputs[0].Input.Connect(0, TexCoordExpr);
 		UVExpr->Inputs[1].Input.Connect(0, AtlasSizeXY);
 
-		// --- Atlas TextureSampleParameter ---
+		// Atlas 텍스처 파라미터 + 샘플
 		UMaterialExpressionTextureSampleParameter2D* AtlasSample =
 			NewObject<UMaterialExpressionTextureSampleParameter2D>(Mat);
 		AtlasSample->ParameterName = HktSpriteBillboardMaterial::AtlasParamName;
@@ -186,58 +181,99 @@ namespace
 		AtlasSample->Coordinates.Connect(0, UVExpr);
 		Mat->GetExpressionCollection().AddExpression(AtlasSample);
 
-		// --- Tint 노드 ---
+		// Tint
 		UMaterialExpressionCustom* TintExpr = MakeCustomExpr(
 			Mat, TEXT("HktSprite Tint"), kTintCode, CMOT_Float4);
 
-		// Tint.RGB
 		UMaterialExpressionComponentMask* TintRGB = NewObject<UMaterialExpressionComponentMask>(Mat);
 		TintRGB->R = 1; TintRGB->G = 1; TintRGB->B = 1; TintRGB->A = 0;
 		TintRGB->Input.Connect(0, TintExpr);
 		Mat->GetExpressionCollection().AddExpression(TintRGB);
 
-		// Tint.A
 		UMaterialExpressionComponentMask* TintA = NewObject<UMaterialExpressionComponentMask>(Mat);
 		TintA->R = 0; TintA->G = 0; TintA->B = 0; TintA->A = 1;
 		TintA->Input.Connect(0, TintExpr);
 		Mat->GetExpressionCollection().AddExpression(TintA);
 
-		// Texture.RGB * Tint.RGB
 		UMaterialExpressionMultiply* ColorMul = NewObject<UMaterialExpressionMultiply>(Mat);
-		ColorMul->A.Connect(0, AtlasSample); // TextureSample output 0 = RGB
+		ColorMul->A.Connect(0, AtlasSample);
 		ColorMul->B.Connect(0, TintRGB);
 		Mat->GetExpressionCollection().AddExpression(ColorMul);
 
-		// Texture.A * Tint.A
 		UMaterialExpressionMultiply* AlphaMul = NewObject<UMaterialExpressionMultiply>(Mat);
-		AlphaMul->A.Connect(4, AtlasSample); // TextureSample output 4 = A
+		AlphaMul->A.Connect(4, AtlasSample);
 		AlphaMul->B.Connect(0, TintA);
 		Mat->GetExpressionCollection().AddExpression(AlphaMul);
 
-		// --- WPO 노드 ---
+		// WPO
 		UMaterialExpressionCustom* WPOExpr = MakeCustomExpr(
 			Mat, TEXT("HktSprite WPO"), kWPOCode, CMOT_Float3);
 		WPOExpr->Inputs.Reset();
 		{
-			FCustomInput WpoIn;
-			WpoIn.InputName = TEXT("InTexCoord");
-			WPOExpr->Inputs.Add(WpoIn);
+			FCustomInput WpoIn;  WpoIn.InputName = TEXT("InTexCoord");  WPOExpr->Inputs.Add(WpoIn);
 		}
 		WPOExpr->Inputs[0].Input.Connect(0, TexCoordExpr);
 
-		// --- 머티리얼 최종 핀 연결 ---
 		Mat->GetEditorOnlyData()->EmissiveColor.Connect(0, ColorMul);
 		Mat->GetEditorOnlyData()->OpacityMask.Connect(0, AlphaMul);
 		Mat->GetEditorOnlyData()->WorldPositionOffset.Connect(0, WPOExpr);
 
 		Mat->PostEditChange();
-
-		UE_LOG(LogHktSpriteCore, Log,
-			TEXT("[HktSpriteBillboardMaterial] 디폴트 Y-axis 빌보드 머티리얼 자동 생성 (M_HktSpriteYBillboard)"));
-
 		return Mat;
 	}
-#endif // WITH_EDITORONLY_DATA
+
+	// ----------------------------------------------------------------------------
+	// 에디터에서 최초 호출 시: 플러그인 Content 폴더에 .uasset으로 저장한다.
+	// 저장된 에셋은 개발자가 커밋하여 이후 쿠킹되면 Shipping 빌드에 포함된다.
+	// ----------------------------------------------------------------------------
+	static UMaterialInterface* BuildAndSaveDefaultMaterial()
+	{
+		const FString PackageName = HktSpriteBillboardMaterial::kPackagePath;
+
+		UPackage* Pkg = CreatePackage(*PackageName);
+		if (!Pkg)
+		{
+			UE_LOG(LogHktSpriteCore, Error,
+				TEXT("[HktSpriteBillboardMaterial] CreatePackage 실패: %s"), *PackageName);
+			return nullptr;
+		}
+		Pkg->FullyLoad();
+
+		UMaterial* Mat = ConstructMaterial(Pkg);
+		if (!Mat)
+		{
+			UE_LOG(LogHktSpriteCore, Error,
+				TEXT("[HktSpriteBillboardMaterial] Material 생성 실패"));
+			return nullptr;
+		}
+
+		FAssetRegistryModule::AssetCreated(Mat);
+		Pkg->MarkPackageDirty();
+
+		const FString PackageFileName = FPackageName::LongPackageNameToFilename(
+			PackageName, FPackageName::GetAssetPackageExtension());
+
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+		SaveArgs.SaveFlags     = SAVE_NoError;
+		SaveArgs.Error         = GLog;
+
+		const bool bSaved = UPackage::SavePackage(Pkg, Mat, *PackageFileName, SaveArgs);
+		if (!bSaved)
+		{
+			UE_LOG(LogHktSpriteCore, Warning,
+				TEXT("[HktSpriteBillboardMaterial] SavePackage 실패 — 세션 한정 인메모리 에셋으로 사용: %s"),
+				*PackageFileName);
+		}
+		else
+		{
+			UE_LOG(LogHktSpriteCore, Log,
+				TEXT("[HktSpriteBillboardMaterial] 기본 Y-axis 빌보드 머티리얼을 생성·저장했다: %s"),
+				*PackageFileName);
+		}
+		return Mat;
+	}
+#endif // WITH_EDITOR
 }
 
 namespace HktSpriteBillboardMaterial
@@ -250,17 +286,30 @@ namespace HktSpriteBillboardMaterial
 			return Cached.Get();
 		}
 
-#if WITH_EDITORONLY_DATA
-		UMaterialInterface* Mat = BuildDefaultMaterial();
-		Cached = Mat;
-		return Mat;
-#else
-		// Shipping: 에디터 온리 데이터 없이 UMaterial 편집 불가.
-		// 프로덕션에서는 SpriteMaterialTemplate을 명시 할당해야 한다.
-		UE_LOG(LogHktSpriteCore, Warning,
-			TEXT("[HktSpriteBillboardMaterial] WITH_EDITORONLY_DATA=0 빌드 — 엔진 기본 머티리얼로 폴백. "
-			     "UHktSpriteCrowdRenderer::SpriteMaterialTemplate을 명시 할당하세요."));
-		return UMaterial::GetDefaultMaterial(MD_Surface);
+		// 1차: 플러그인 콘텐츠에 쿠킹된 에셋 로드 — Editor / Shipping 양쪽에서 동작.
+		if (UMaterialInterface* Loaded =
+			LoadObject<UMaterialInterface>(nullptr, kAssetObjectPath, nullptr, LOAD_Quiet | LOAD_NoWarn))
+		{
+			Cached = Loaded;
+			return Loaded;
+		}
+
+#if WITH_EDITOR
+		// 2차(에디터 한정): 에셋이 아직 없음 — 즉시 생성 + 디스크 저장.
+		// 개발자가 이 .uasset을 커밋하면 이후 Shipping 빌드에서 1차 경로로 해결된다.
+		if (UMaterialInterface* Built = BuildAndSaveDefaultMaterial())
+		{
+			Cached = Built;
+			return Built;
+		}
 #endif
+
+		// 최종 폴백: Shipping에서 에셋 누락 시 엔진 기본으로 폴백.
+		UE_LOG(LogHktSpriteCore, Warning,
+			TEXT("[HktSpriteBillboardMaterial] 기본 머티리얼(%s)을 해결하지 못했다. "
+			     "에디터에서 한 번 실행해 에셋을 생성·커밋하거나, "
+			     "UHktSpriteCrowdRenderer::SpriteMaterialTemplate을 명시 할당하라."),
+			kAssetObjectPath);
+		return UMaterial::GetDefaultMaterial(MD_Surface);
 	}
 }
