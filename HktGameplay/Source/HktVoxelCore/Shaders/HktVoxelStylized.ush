@@ -100,7 +100,11 @@ float3 HktApplyEdgeRounding(
     // 벤딩 후 원래 Tangent는 NewNormal과 수직이 아니므로, 투영으로 Normal 성분을 제거.
     float3 ReOrthoTangent = Tangent - NewNormal * dot(NewNormal, Tangent);
     float LenSq = dot(ReOrthoTangent, ReOrthoTangent);
-    Tangent = (LenSq > 1e-6) ? ReOrthoTangent * rsqrt(LenSq) : Tangent;
+    // 퇴화(T ∥ NewNormal) 시 Bitangent×NewNormal로 대체 — 비직교 fallback 금지.
+    // Strength가 [0,1]로 클램프되므로 실전에서 발생 확률은 낮지만 안전한 기저 보장.
+    Tangent = (LenSq > 1e-6)
+        ? ReOrthoTangent * rsqrt(LenSq)
+        : normalize(cross(Bitangent, NewNormal));
 
     return NewNormal;
 }
@@ -114,6 +118,15 @@ float3 HktApplyEdgeRounding(
 //
 // 모서리 모양: max(|x|, |y|)로 쿼드 경계를 사각형으로 고르게 페이드.
 // (length로 바꾸면 둥근 SDF가 되지만 greedy merge로 폭/높이가 달라 타원이 됨)
+//
+// === UE5 파이프라인 한계 ===
+// 머티리얼 BlendMode = Opaque일 때:
+//   - Depth prepass는 position-only PS이므로 clip() 미실행 → 깊이 버퍼에 전체
+//     사각형이 기록됨. Base pass의 clip()은 컬러/노멀 GBuffer 쓰기만 막는다.
+//   - Shadow depth pass도 position-only → 그림자 실루엣은 원본 사각형.
+//   - SSR/SSAO/SSGI는 full depth를 기준으로 하므로 알파 형상 무시.
+// 완벽한 실루엣 일치가 필요하면 머티리얼을 BlendMode=Masked로 전환하면
+// Depth/Shadow 패스가 PS를 호출해 같은 clip()을 적용한다.
 //
 // Strength: 0 = off, 1 = 경계 완전 투명. 0.3~0.7 권장.
 // EdgeStart: 페이드 시작 거리 (쿼드 중심=0, 경계=1). 0.6~0.9 권장.

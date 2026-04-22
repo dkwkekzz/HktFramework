@@ -157,6 +157,12 @@ public:
 	 * 엣지 알파 강도 (0=off, 0.3~0.7 권장).
 	 * Dithered clip으로 쿼드 경계 픽셀을 discard → 실루엣이 둥글고 반투명해 보임.
 	 * EdgeRound(노멀 벤딩)와 독립 토글. 둘 다 켜면 실루엣+라이팅 모두 둥글어짐.
+	 *
+	 * 주의 — UE5 파이프라인 한계:
+	 *   머티리얼 BlendMode=Opaque면 Base pass GBuffer에만 알파가 적용되고,
+	 *   Depth prepass·Shadow depth pass는 position-only PS라 full-square 모양
+	 *   그대로 남는다(그림자·SSAO·SSR은 알파 모서리를 무시). 완벽한 실루엣
+	 *   일치가 필요하면 TerrainMaterial을 BlendMode=Masked로 설정할 것.
 	 */
 	void SetEdgeAlphaStrength(float InStrength);
 	float GetEdgeAlphaStrength() const { return EdgeAlphaStrength; }
