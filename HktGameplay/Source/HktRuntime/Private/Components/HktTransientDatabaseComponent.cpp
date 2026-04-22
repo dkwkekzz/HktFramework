@@ -18,7 +18,7 @@ UHktTransientDatabaseComponent::UHktTransientDatabaseComponent()
 // IHktWorldDatabase 구현
 // ============================================================================
 
-void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback)
+void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const FGameplayTag& InSpawnStoryTag, TFunction<void(const FHktPlayerRecord&)> InCallback)
 {
     // 메모리에서 레코드 찾기
     if (FHktPlayerRecord* Cached = TransientRecords.Find(InPlayerUid))
@@ -32,10 +32,15 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, TF
     NewRecord.PlayerUid = InPlayerUid;
     NewRecord.CreatedTime = FDateTime::UtcNow();
     NewRecord.LastLoginTime = NewRecord.CreatedTime;
-    
+
     // 신규 플레이어 레코드에 월드 진입 이벤트 추가
+    // PC가 지정한 Spawn Story Tag가 없으면 기본값(Story.State.Player.InWorld) 사용
+    const FGameplayTag EnterTag = InSpawnStoryTag.IsValid()
+        ? InSpawnStoryTag
+        : HktGameplayTags::Story_PlayerInWorld;
+
     FHktEvent EnterWorldEvent;
-    EnterWorldEvent.EventTag = HktGameplayTags::Story_PlayerInWorld;
+    EnterWorldEvent.EventTag = EnterTag;
     EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid); // 임시, 플로우에서 실제 엔티티 생성
     EnterWorldEvent.TargetEntity = InvalidEntityId;
     EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation();

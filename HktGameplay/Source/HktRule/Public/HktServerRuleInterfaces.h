@@ -68,6 +68,14 @@ public:
 	virtual bool IsInitialized() const = 0;
 	virtual void InvalidatePlayerUidCache() = 0;
 
+	// === Story Tags (owner Actor에서 읽음) ===
+
+	/** 플레이어 생성 시 발동할 Story Tag. 빈 Tag면 호출자가 기본값을 사용한다. */
+	virtual FGameplayTag GetSpawnStoryTag() const { return FGameplayTag(); }
+
+	/** 기본 타겟 액션(우클릭 슬롯 미선택) Story Tag. 빈 Tag면 호출자가 기본값을 사용한다. */
+	virtual FGameplayTag GetTargetDefaultStoryTag() const { return FGameplayTag(); }
+
 	// === Bag ===
 	virtual const FHktBagState& GetBagState() const { static FHktBagState Empty; return Empty; }
 	virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) { return false; }
@@ -145,7 +153,11 @@ class HKTRULE_API IHktWorldDatabase
 {
 	GENERATED_BODY()
 public:
-	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, TFunction<void(const FHktPlayerRecord&)> InCallback) = 0;
+	/**
+	 * @param InSpawnStoryTag 신규/재진입 플레이어의 월드 진입 이벤트로 주입할 Story Tag.
+	 *                       빈 Tag면 구현체의 기본값(Story.State.Player.InWorld)을 사용한다.
+	 */
+	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, const FGameplayTag& InSpawnStoryTag, TFunction<void(const FHktPlayerRecord&)> InCallback) = 0;
 	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems = {}) = 0;
 	virtual const FHktPlayerRecord* GetCachedPlayerRecord(int64 InPlayerUid) const = 0;
 };
@@ -273,6 +285,9 @@ public:
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
 	virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) {}
 	virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) {}
+
+	/** 월드 최초 생성 Story 트리거 — InitGame에서 호출, 첫 Tick에 이벤트 발동 */
+	virtual void OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation) {}
 
 	/** 틱 — 내부 캐싱된 컨텍스트 사용, 결과 구조체 반환 (item 1, 2, 6) */
 	virtual FHktEventGameModeTickResult OnEvent_GameModeTick(float InDeltaTime) { return {}; }

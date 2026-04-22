@@ -250,9 +250,10 @@ void FHktDefaultServerRule::OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer)
 	if (!CachedDB) return;
 
 	const int64 PlayerUid = InPlayer.GetPlayerUid();
+	const FGameplayTag SpawnStoryTag = InPlayer.GetSpawnStoryTag();
 	TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(&InPlayer);
 
-	CachedDB->LoadPlayerRecordAsync(PlayerUid, [this, WeakPlayer](const FHktPlayerRecord& Record)
+	CachedDB->LoadPlayerRecordAsync(PlayerUid, SpawnStoryTag, [this, WeakPlayer](const FHktPlayerRecord& Record)
 	{
 		if (Record.IsValid())
 		{
@@ -265,6 +266,12 @@ void FHktDefaultServerRule::OnEvent_GameModeLogout(const IHktWorldPlayer& InPlay
 {
 	// 로그아웃 UID를 큐잉 — ProcessPendingConnections에서 ExitWorldPlayer 포함하여 처리 (item 9)
 	PendingLogoutRequests.Enqueue(InPlayer.GetPlayerUid());
+}
+
+void FHktDefaultServerRule::OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation)
+{
+	if (!InStoryTag.IsValid()) return;
+	PendingWorldInit.Emplace(FPendingWorldInit{ InStoryTag, InLocation });
 }
 
 // ============================================================================
@@ -355,6 +362,28 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 				ActiveSpawnerFlows.Add(Entry.StoryTag);
 			}
 		}
+	}
+
+	// --- World Init Story (GameMode에서 지정한 1회성 Story) ---
+	// 지정된 위치의 그룹(또는 그룹이 없으면 0번)에 이벤트를 주입한다.
+	if (PendingWorldInit.IsSet() && NumGroups > 0)
+	{
+		const FPendingWorldInit& Init = PendingWorldInit.GetValue();
+		int32 TargetGroup = Graph.CalculateRelevancyGroupIndex(Init.Location);
+		if (!PendingGroupIntents.IsValidIndex(TargetGroup))
+		{
+			TargetGroup = 0;
+		}
+
+		FHktEvent InitEvent = HktEventBuilder::Spawner(
+			Init.StoryTag,
+			static_cast<int32>(Init.Location.X),
+			static_cast<int32>(Init.Location.Y));
+		InitEvent.Location = Init.Location;
+		InitEvent.EventId = ++ServerEventSequence;
+		PendingGroupIntents[TargetGroup].Add(InitEvent);
+
+		PendingWorldInit.Reset();
 	}
 
 	// --- ProcessSimulationAndPayloads ---
