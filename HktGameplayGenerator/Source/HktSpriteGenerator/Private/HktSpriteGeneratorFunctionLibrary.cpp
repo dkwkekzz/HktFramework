@@ -10,9 +10,14 @@
 #include "Engine/Texture2D.h"
 #include "Factories/TextureFactory.h"
 #include "GameplayTagsManager.h"
+#include "HAL/FileManager.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -311,4 +316,413 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 		{ TEXT("atlasAssetPath"), FString::Printf(TEXT("%s.%s"), *AtlasPackage,    *AtlasName)    },
 		{ TEXT("dataAssetPath"),  FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName) },
 	});
+}
+
+// ============================================================================
+// EditorBuildSpritePartFromDirectory — MCP/Python 없이 에디터 단독 파이프라인
+// ============================================================================
+
+namespace HktSpriteGen
+{
+	constexpr int32 kNumDirections = 8;
+	static const TCHAR* const kDirectionNames[kNumDirections] = {
+		TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"),
+		TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW")
+	};
+
+	static int32 DirectionIndexFromName(const FString& Name)
+	{
+		for (int32 i = 0; i < kNumDirections; ++i)
+		{
+			if (Name.Equals(kDirectionNames[i], ESearchCase::CaseSensitive)) return i;
+		}
+		return INDEX_NONE;
+	}
+
+	static bool IsSupportedImageExt(const FString& Ext)
+	{
+		const FString E = Ext.ToLower();
+		return E == TEXT("png") || E == TEXT("tga") || E == TEXT("jpg") ||
+		       E == TEXT("jpeg") || E == TEXT("bmp") || E == TEXT("webp");
+	}
+
+	static EImageFormat ImageFormatFromExt(const FString& Ext)
+	{
+		const FString E = Ext.ToLower();
+		if (E == TEXT("png"))                     return EImageFormat::PNG;
+		if (E == TEXT("tga"))                     return EImageFormat::BMP; // TGA는 별도 처리 필요, 일단 BMP로 폴백 표시
+		if (E == TEXT("jpg") || E == TEXT("jpeg")) return EImageFormat::JPEG;
+		if (E == TEXT("bmp"))                     return EImageFormat::BMP;
+		return EImageFormat::PNG;
+	}
+
+	/** 한 프레임 단위: action/direction/frameIdx/경로/크기. */
+	struct FFrameEntry
+	{
+		FString Action;
+		int32 DirectionIdx = INDEX_NONE;  // INDEX_NONE이면 "모든 방향 공통"
+		int32 FrameIdx = 0;
+		FString FilePath;
+		int32 Width = 0;
+		int32 Height = 0;
+	};
+
+	/** 파일명 stem을 파싱: {action}[_{direction}][_{frame_idx}] */
+	static bool ParseFlatStem(const FString& Stem, FString& OutAction, int32& OutDirIdx, int32& OutFrameIdx)
+	{
+		static const FRegexPattern Pattern(TEXT("^([A-Za-z][A-Za-z0-9]*)(?:_(NE|NW|SE|SW|N|E|S|W))?(?:_(\\d+))?$"));
+		FRegexMatcher M(Pattern, Stem);
+		if (!M.FindNext()) return false;
+
+		OutAction = M.GetCaptureGroup(1).ToLower();
+		const FString DirCap = M.GetCaptureGroup(2);
+		const FString IdxCap = M.GetCaptureGroup(3);
+		OutDirIdx   = DirCap.IsEmpty() ? INDEX_NONE : DirectionIndexFromName(DirCap);
+		OutFrameIdx = IdxCap.IsEmpty() ? 0 : FCString::Atoi(*IdxCap);
+		return true;
+	}
+
+	/** 디렉터리에서 이미지 파일을 모아 평탄한 프레임 리스트 반환. */
+	static bool ScanDirectory(const FString& InputDir, TArray<FFrameEntry>& OutFrames, FString& OutError)
+	{
+		IFileManager& FM = IFileManager::Get();
+		if (!FM.DirectoryExists(*InputDir))
+		{
+			OutError = FString::Printf(TEXT("입력 폴더 없음: %s"), *InputDir);
+			return false;
+		}
+
+		auto AppendImage = [](const FString& Path, FString Action, int32 DirIdx, int32 FrameIdx, TArray<FFrameEntry>& Out)
+		{
+			FFrameEntry E;
+			E.Action = Action;
+			E.DirectionIdx = DirIdx;
+			E.FrameIdx = FrameIdx;
+			E.FilePath = Path;
+			Out.Add(MoveTemp(E));
+		};
+
+		// (a) 플랫 스캔
+		TArray<FString> TopFiles;
+		FM.FindFiles(TopFiles, *(InputDir / TEXT("*.*")), /*Files*/ true, /*Dirs*/ false);
+		for (const FString& FileName : TopFiles)
+		{
+			if (!IsSupportedImageExt(FPaths::GetExtension(FileName))) continue;
+			FString Stem = FPaths::GetBaseFilename(FileName);
+			FString Action; int32 DirIdx = INDEX_NONE; int32 FrameIdx = 0;
+			if (!ParseFlatStem(Stem, Action, DirIdx, FrameIdx)) continue;
+			AppendImage(InputDir / FileName, Action, DirIdx, FrameIdx, OutFrames);
+		}
+
+		// (b) 서브폴더 스캔: {action}/{direction}/{idx}.ext  또는  {action}/{direction}.ext
+		TArray<FString> ActionDirs;
+		FM.FindFiles(ActionDirs, *(InputDir / TEXT("*")), /*Files*/ false, /*Dirs*/ true);
+		for (const FString& ActionDirName : ActionDirs)
+		{
+			const FString ActionPath = InputDir / ActionDirName;
+			const FString ActionLower = ActionDirName.ToLower();
+
+			// 먼저 direction 서브폴더가 있는지 확인
+			TArray<FString> DirSubs;
+			FM.FindFiles(DirSubs, *(ActionPath / TEXT("*")), false, true);
+			bool bHasDirSub = false;
+			for (const FString& Sub : DirSubs)
+			{
+				const int32 DirIdx = DirectionIndexFromName(Sub);
+				if (DirIdx == INDEX_NONE) continue;
+				bHasDirSub = true;
+
+				// 서브폴더가 있으면 같은 액션의 플랫 결과 제거 (서브폴더 우선)
+				OutFrames.RemoveAll([&ActionLower](const FFrameEntry& E){ return E.Action == ActionLower; });
+
+				const FString DirPath = ActionPath / Sub;
+				TArray<FString> Files;
+				FM.FindFiles(Files, *(DirPath / TEXT("*.*")), true, false);
+				Files.Sort();
+				int32 FrameCounter = 0;
+				for (const FString& F : Files)
+				{
+					if (!IsSupportedImageExt(FPaths::GetExtension(F))) continue;
+					int32 FrameIdx = FrameCounter++;
+					FString Stem = FPaths::GetBaseFilename(F);
+					if (Stem.IsNumeric()) FrameIdx = FCString::Atoi(*Stem);
+					AppendImage(DirPath / F, ActionLower, DirIdx, FrameIdx, OutFrames);
+				}
+			}
+			if (bHasDirSub) continue;
+
+			// direction 서브폴더가 없으면 action/*.ext 파일명으로 direction 추정
+			TArray<FString> Files;
+			FM.FindFiles(Files, *(ActionPath / TEXT("*.*")), true, false);
+			Files.Sort();
+			if (Files.Num() == 0) continue;
+			OutFrames.RemoveAll([&ActionLower](const FFrameEntry& E){ return E.Action == ActionLower; });
+			int32 UnknownCounter = 0;
+			for (const FString& F : Files)
+			{
+				if (!IsSupportedImageExt(FPaths::GetExtension(F))) continue;
+				FString Stem = FPaths::GetBaseFilename(F);
+				const int32 DirIdx = DirectionIndexFromName(Stem);
+				if (DirIdx != INDEX_NONE)
+				{
+					AppendImage(ActionPath / F, ActionLower, DirIdx, 0, OutFrames);
+				}
+				else
+				{
+					AppendImage(ActionPath / F, ActionLower, INDEX_NONE, UnknownCounter++, OutFrames);
+				}
+			}
+		}
+
+		if (OutFrames.Num() == 0)
+		{
+			OutError = FString::Printf(TEXT("스프라이트 파일을 찾지 못했습니다: %s"), *InputDir);
+			return false;
+		}
+		return true;
+	}
+
+	/** 이미지 하나를 BGRA8 raw로 디코드. */
+	static bool DecodeImageFile(const FString& Path, TArray64<uint8>& OutBGRA, int32& OutW, int32& OutH)
+	{
+		TArray<uint8> FileData;
+		if (!FFileHelper::LoadFileToArray(FileData, *Path)) return false;
+
+		IImageWrapperModule& IWM = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+		const EImageFormat Fmt = ImageFormatFromExt(FPaths::GetExtension(Path));
+		TSharedPtr<IImageWrapper> Wrapper = IWM.CreateImageWrapper(Fmt);
+		if (!Wrapper.IsValid() || !Wrapper->SetCompressed(FileData.GetData(), FileData.Num())) return false;
+		OutW = Wrapper->GetWidth();
+		OutH = Wrapper->GetHeight();
+		return Wrapper->GetRaw(ERGBFormat::BGRA, 8, OutBGRA);
+	}
+
+	/** 모든 프레임을 (액션→방향idx→frameIdx) 순으로 균일 셀 그리드에 패킹해 PNG로 저장. */
+	static bool PackAtlas(TArray<FFrameEntry>& Frames, const FString& OutPngPath,
+	                      int32& OutCellW, int32& OutCellH, int32& OutCols, int32& OutRows,
+	                      TMap<TTuple<FString,int32,int32>, int32>& OutIndexMap, FString& OutError)
+	{
+		// 1. 모든 이미지 크기 수집 → 최대 셀 크기 결정
+		int32 MaxW = 0, MaxH = 0;
+		for (FFrameEntry& E : Frames)
+		{
+			TArray64<uint8> Tmp;
+			if (!DecodeImageFile(E.FilePath, Tmp, E.Width, E.Height))
+			{
+				OutError = FString::Printf(TEXT("이미지 디코드 실패: %s"), *E.FilePath);
+				return false;
+			}
+			MaxW = FMath::Max(MaxW, E.Width);
+			MaxH = FMath::Max(MaxH, E.Height);
+		}
+		if (MaxW == 0 || MaxH == 0)
+		{
+			OutError = TEXT("입력 이미지 크기가 0");
+			return false;
+		}
+		OutCellW = MaxW;
+		OutCellH = MaxH;
+
+		// 2. 정렬: action → directionIdx(INDEX_NONE은 -1처럼 앞) → frameIdx
+		Frames.Sort([](const FFrameEntry& A, const FFrameEntry& B)
+		{
+			if (A.Action != B.Action) return A.Action < B.Action;
+			const int32 Ad = A.DirectionIdx == INDEX_NONE ? -1 : A.DirectionIdx;
+			const int32 Bd = B.DirectionIdx == INDEX_NONE ? -1 : B.DirectionIdx;
+			if (Ad != Bd) return Ad < Bd;
+			return A.FrameIdx < B.FrameIdx;
+		});
+
+		// 3. INDEX_NONE(방향 미지정) 프레임은 8방향 모두로 확장
+		TArray<FFrameEntry> Expanded;
+		Expanded.Reserve(Frames.Num() * 2);
+		for (const FFrameEntry& E : Frames)
+		{
+			if (E.DirectionIdx == INDEX_NONE)
+			{
+				for (int32 d = 0; d < kNumDirections; ++d)
+				{
+					FFrameEntry Copy = E;
+					Copy.DirectionIdx = d;
+					Expanded.Add(Copy);
+				}
+			}
+			else
+			{
+				Expanded.Add(E);
+			}
+		}
+		Frames = MoveTemp(Expanded);
+
+		// 4. 그리드 크기 — 컬럼=8 고정 (방향 하나가 한 행 지향)
+		const int32 Total = Frames.Num();
+		OutCols = FMath::Max(1, FMath::Min(kNumDirections, Total));
+		OutRows = FMath::DivideAndRoundUp(Total, OutCols);
+
+		const int32 AtlasW = OutCols * OutCellW;
+		const int32 AtlasH = OutRows * OutCellH;
+
+		// BGRA8 버퍼 (투명 배경)
+		TArray64<uint8> AtlasBuf;
+		AtlasBuf.SetNumZeroed(static_cast<int64>(AtlasW) * AtlasH * 4);
+
+		// 5. 셀별 복사
+		for (int32 i = 0; i < Total; ++i)
+		{
+			const FFrameEntry& E = Frames[i];
+			TArray64<uint8> Src;
+			int32 SrcW = 0, SrcH = 0;
+			if (!DecodeImageFile(E.FilePath, Src, SrcW, SrcH))
+			{
+				OutError = FString::Printf(TEXT("이미지 재디코드 실패: %s"), *E.FilePath);
+				return false;
+			}
+			const int32 Col = i % OutCols;
+			const int32 Row = i / OutCols;
+			const int32 DstX0 = Col * OutCellW;
+			const int32 DstY0 = Row * OutCellH;
+			for (int32 y = 0; y < SrcH; ++y)
+			{
+				const int64 SrcOff = static_cast<int64>(y) * SrcW * 4;
+				const int64 DstOff = (static_cast<int64>(DstY0 + y) * AtlasW + DstX0) * 4;
+				FMemory::Memcpy(AtlasBuf.GetData() + DstOff, Src.GetData() + SrcOff, static_cast<SIZE_T>(SrcW) * 4);
+			}
+			OutIndexMap.Add(MakeTuple(E.Action, E.DirectionIdx, E.FrameIdx), i);
+		}
+
+		// 6. PNG로 저장
+		IImageWrapperModule& IWM = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+		TSharedPtr<IImageWrapper> Wrapper = IWM.CreateImageWrapper(EImageFormat::PNG);
+		if (!Wrapper.IsValid() || !Wrapper->SetRaw(AtlasBuf.GetData(), AtlasBuf.Num(), AtlasW, AtlasH, ERGBFormat::BGRA, 8))
+		{
+			OutError = TEXT("Atlas PNG 인코드 실패");
+			return false;
+		}
+		const TArray64<uint8>& Compressed = Wrapper->GetCompressed(100);
+		if (!FFileHelper::SaveArrayToFile(Compressed, *OutPngPath))
+		{
+			OutError = FString::Printf(TEXT("Atlas PNG 파일 저장 실패: %s"), *OutPngPath);
+			return false;
+		}
+		return true;
+	}
+
+	/** 패킹 결과를 McpBuildSpritePart JsonSpec으로 변환. */
+	static FString BuildSpecJson(
+		const FString& Tag, const FString& SlotStr, const FString& AtlasPngPath,
+		int32 CellW, int32 CellH, float PixelToWorld, const FString& OutputDir,
+		const TArray<FFrameEntry>& Frames,
+		const TMap<TTuple<FString,int32,int32>, int32>& IndexMap,
+		float FrameDurationMs, bool bLooping, bool bMirrorWestFromEast)
+	{
+		// action → dirIdx → sorted frames
+		TMap<FString, TArray<TArray<const FFrameEntry*>>> Grouped;
+		for (const FFrameEntry& E : Frames)
+		{
+			TArray<TArray<const FFrameEntry*>>& DirArr = Grouped.FindOrAdd(E.Action);
+			if (DirArr.Num() < kNumDirections) DirArr.SetNum(kNumDirections);
+			DirArr[E.DirectionIdx].Add(&E);
+		}
+		for (auto& Pair : Grouped)
+		{
+			for (int32 d = 0; d < kNumDirections; ++d)
+			{
+				Pair.Value[d].Sort([](const FFrameEntry& A, const FFrameEntry& B){ return A.FrameIdx < B.FrameIdx; });
+			}
+		}
+
+		FString Json;
+		TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Json);
+		W->WriteObjectStart();
+		W->WriteValue(TEXT("tag"), Tag);
+		W->WriteValue(TEXT("slot"), SlotStr);
+		W->WriteValue(TEXT("atlasPngPath"), AtlasPngPath);
+		W->WriteValue(TEXT("cellW"), CellW);
+		W->WriteValue(TEXT("cellH"), CellH);
+		W->WriteValue(TEXT("pixelToWorld"), PixelToWorld);
+		if (!OutputDir.IsEmpty()) W->WriteValue(TEXT("outputDir"), OutputDir);
+
+		W->WriteArrayStart(TEXT("actions"));
+		TArray<FString> ActionKeys;
+		Grouped.GenerateKeyArray(ActionKeys);
+		ActionKeys.Sort();
+		for (const FString& ActionId : ActionKeys)
+		{
+			const TArray<TArray<const FFrameEntry*>>& Dirs = Grouped[ActionId];
+			W->WriteObjectStart();
+			W->WriteValue(TEXT("id"), ActionId);
+			W->WriteValue(TEXT("frameDurationMs"), FrameDurationMs);
+			W->WriteValue(TEXT("looping"), bLooping);
+			W->WriteValue(TEXT("mirrorWestFromEast"), bMirrorWestFromEast);
+
+			W->WriteArrayStart(TEXT("framesByDirection"));
+			for (int32 d = 0; d < kNumDirections; ++d)
+			{
+				W->WriteArrayStart();
+				const TArray<const FFrameEntry*>& DirFrames = Dirs[d];
+				for (const FFrameEntry* EP : DirFrames)
+				{
+					const int32* Idx = IndexMap.Find(MakeTuple(EP->Action, EP->DirectionIdx, EP->FrameIdx));
+					W->WriteObjectStart();
+					W->WriteValue(TEXT("atlasIndex"), Idx ? *Idx : 0);
+					W->WriteValue(TEXT("pivotX"), static_cast<float>(CellW) * 0.5f);
+					W->WriteValue(TEXT("pivotY"), static_cast<float>(CellH));
+					W->WriteObjectEnd();
+				}
+				W->WriteArrayEnd();
+			}
+			W->WriteArrayEnd();
+			W->WriteObjectEnd();
+		}
+		W->WriteArrayEnd();
+		W->WriteObjectEnd();
+		W->Close();
+		return Json;
+	}
+} // namespace HktSpriteGen
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
+	const FString& Tag, const FString& Slot, const FString& InputDir,
+	const FString& OutputDir, float PixelToWorld, float FrameDurationMs,
+	bool bLooping, bool bMirrorWestFromEast)
+{
+	using namespace HktSpriteGen;
+
+	if (Tag.IsEmpty() || Slot.IsEmpty() || InputDir.IsEmpty())
+	{
+		return MakeError(TEXT("Tag / Slot / InputDir 필수"));
+	}
+
+	// 1. 디렉터리 스캔
+	TArray<FFrameEntry> Frames;
+	FString ScanError;
+	if (!ScanDirectory(InputDir, Frames, ScanError))
+	{
+		return MakeError(ScanError);
+	}
+
+	// 2. Atlas PNG 출력 경로 — {ProjectSavedDir}/SpriteGenerator/{Tag_safe}.png
+	const FString SafeTag = SanitizeForAssetName(Tag);
+	const FString OutDir  = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator");
+	IFileManager::Get().MakeDirectory(*OutDir, /*Tree*/ true);
+	const FString AtlasPng = OutDir / (SafeTag + TEXT(".png"));
+
+	// 3. 패킹
+	int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
+	TMap<TTuple<FString,int32,int32>, int32> IndexMap;
+	FString PackError;
+	if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackError))
+	{
+		return MakeError(PackError);
+	}
+
+	// 4. JsonSpec 빌드 + 기존 McpBuildSpritePart 재사용
+	const FString Spec = BuildSpecJson(Tag, Slot, AtlasPng, CellW, CellH, PixelToWorld,
+	                                   OutputDir, Frames, IndexMap,
+	                                   FrameDurationMs, bLooping, bMirrorWestFromEast);
+
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("EditorBuild: %d frames → Cell=%dx%d Grid=%dx%d"),
+		Frames.Num(), CellW, CellH, Cols, Rows);
+
+	return McpBuildSpritePart(Spec);
 }

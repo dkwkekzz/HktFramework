@@ -28,6 +28,13 @@ public class HktSpriteGenerator : ModuleRules
 				"AssetRegistry",
 				"AssetTools",
 				"ImageWrapper",
+				"Slate",
+				"SlateCore",
+				"EditorStyle",
+				"ToolMenus",
+				"WorkspaceMenuStructure",
+				"InputCore",
+				"DesktopPlatform",
 			}
 		);
 	}

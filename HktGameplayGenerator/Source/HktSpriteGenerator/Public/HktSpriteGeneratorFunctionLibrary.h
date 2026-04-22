@@ -57,4 +57,25 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|MCP")
 	static FString McpBuildSpritePart(const FString& JsonSpec);
+
+	/**
+	 * 에디터 단독 경로: 사용자가 지정한 디렉터리에서 이미지를 스캔해
+	 * Atlas 패킹 + UHktSpritePartTemplate DataAsset 생성을 끝까지 수행.
+	 *
+	 * InputDir 파일명 규칙 (Python sprite_tools와 동일):
+	 *   - 플랫:    {action}[_{direction}][_{frame_idx}].{png|tga|jpg|bmp|webp}
+	 *   - 서브폴더: {action}/{direction}/{idx}.{ext}  또는  {action}/{direction}.{ext}
+	 *
+	 * 반환: McpBuildSpritePart와 동일한 JSON.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorBuildSpritePartFromDirectory(
+		const FString& Tag,
+		const FString& Slot,
+		const FString& InputDir,
+		const FString& OutputDir = TEXT("/Game/Generated/Sprites"),
+		float PixelToWorld = 2.0f,
+		float FrameDurationMs = 100.f,
+		bool bLooping = true,
+		bool bMirrorWestFromEast = true);
 };

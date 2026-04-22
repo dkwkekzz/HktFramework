@@ -754,45 +754,28 @@ def _get_hkt_tools() -> list[Tool]:
     # ==================== Sprite Generator Tools ====================
     tools.extend([
         Tool(
-            name="get_sprite_input_dir",
-            description=(
-                "Return the convention folder path where the user should drop texture files "
-                "for a given sprite tag. The folder is auto-created. Use this first to find "
-                "where to place files, then call build_sprite_part."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "tag": {"type": "string", "description": "IdentifierTag (e.g. 'Sprite.Part.Body.Knight')"},
-                    "project_saved_dir": {"type": "string", "description": "UE project root (optional)"},
-                },
-                "required": ["tag"],
-            },
-        ),
-        Tool(
             name="build_sprite_part",
             description=(
                 "Build a UHktSpritePartTemplate DataAsset from raw texture files. "
-                "By DEFAULT scans the convention folder {ProjectDir}/SpriteInput/{tag_safe}/ "
-                "for files like 'idle.png', 'idle_S.png', 'walk_NE_0.png', or subfolders "
-                "'idle/S/0.png'. Packs inputs into a uniform grid atlas (Pillow), imports "
-                "as UTexture2D (Nearest, NoMipmap, UI), and fills the DataAsset with tag, "
-                "cell size, and Actions[direction][frame] mapping. "
-                "Override by passing explicit `textures` JSON if needed."
+                "Provide EITHER `input_dir` (scans images with filenames like "
+                "'idle.png', 'idle_S.png', 'walk_NE_0.png' or subfolders 'idle/S/0.png') "
+                "OR `textures` JSON for explicit path mapping. Packs inputs into a uniform "
+                "grid atlas (Pillow), imports as UTexture2D (Nearest, NoMipmap, UI), and "
+                "fills the DataAsset with tag, cell size, and Actions[direction][frame]."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "tag": {"type": "string", "description": "IdentifierTag for the part (e.g. 'Sprite.Part.Body.Knight')"},
                     "slot": {"type": "string", "enum": ["Body","Head","Weapon","Shield","HeadgearTop","HeadgearMid","HeadgearLow"]},
-                    "textures": {"type": "string", "description": "(Optional) JSON: {action_id: <path> | {dir: path|[paths]} | {framesByDirection:[...x8]}}. If omitted, auto-scans the convention folder."},
-                    "input_dir": {"type": "string", "description": "(Optional) Override the scan directory. Default: {ProjectDir}/SpriteInput/{tag_safe}/"},
+                    "input_dir": {"type": "string", "description": "Directory containing input images. Filenames: {action}[_{direction}][_{frame_idx}].{ext} or subfolders {action}/{direction}/{idx}.{ext}"},
+                    "textures": {"type": "string", "description": "(Alternative) JSON: {action_id: <path> | {dir: path|[paths]} | {framesByDirection:[...x8]}}"},
                     "output_dir": {"type": "string", "description": "UE content dir (default: /Game/Generated/Sprites)"},
                     "pixel_to_world": {"type": "number", "description": "1 px → world cm (default 2.0)"},
                     "frame_duration_ms": {"type": "number", "description": "Default per-frame duration (ms), default 100"},
                     "looping": {"type": "boolean", "description": "Default action looping, default true"},
                     "mirror_west_from_east": {"type": "boolean", "description": "Fold W/SW/NW from E/SE/NE, default true"},
-                    "project_saved_dir": {"type": "string", "description": "UE project root (optional; falls back to UE_PROJECT_PATH)"},
+                    "project_saved_dir": {"type": "string", "description": "UE project root (for Atlas PNG output; falls back to UE_PROJECT_PATH)"},
                 },
                 "required": ["tag", "slot"],
             },
@@ -1769,18 +1752,13 @@ async def dispatch_tool(name: str, arguments: dict[str, Any]) -> Any:
         return await texture_tools.list_generated_textures(bridge, arguments.get("directory", ""))
 
     # Sprite Generator Tools
-    elif name == "get_sprite_input_dir":
-        return await sprite_tools.get_sprite_input_dir(
-            tag=arguments["tag"],
-            project_saved_dir=arguments.get("project_saved_dir", ""),
-        )
     elif name == "build_sprite_part":
         return await sprite_tools.build_sprite_part(
             bridge,
             tag=arguments["tag"],
             slot=arguments["slot"],
-            textures=arguments.get("textures", ""),
             input_dir=arguments.get("input_dir", ""),
+            textures=arguments.get("textures", ""),
             output_dir=arguments.get("output_dir", ""),
             pixel_to_world=float(arguments.get("pixel_to_world", 2.0)),
             frame_duration_ms=float(arguments.get("frame_duration_ms", 100.0)),
