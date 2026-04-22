@@ -81,16 +81,11 @@ def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
     if not dir_path.exists():
         raise FileNotFoundError(f"입력 폴더 없음: {dir_path}")
 
-    # action → direction → sorted list of (frame_idx_hint, path)
-    buckets: Dict[str, Dict[str, List[tuple[int, str]]]] = {}
-
-    def add(action: str, direction: Optional[str], idx_hint: int, path: Path):
-        if direction is None:
-            # 방향 미지정 → 모든 방향에 기록해서 나중에 normalize 시 동일하게 쓰도록
-            for d in DIRECTIONS:
-                buckets.setdefault(action, {}).setdefault(d, []).append((idx_hint, str(path)))
-        else:
-            buckets.setdefault(action, {}).setdefault(direction, []).append((idx_hint, str(path)))
+    # 두 단계로 수집: 명시 방향 vs 방향 미지정(폴백).
+    # action → direction → [(idx_hint, path)]
+    explicit: Dict[str, Dict[str, List[tuple[int, str]]]] = {}
+    # action → [(idx_hint, path)]  (방향 미지정 → 나중에 빈 방향에만 채움)
+    fallback: Dict[str, List[tuple[int, str]]] = {}
 
     # (a) 플랫 스캔
     for f in sorted(dir_path.iterdir()):
@@ -102,57 +97,60 @@ def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
             d = m.group("dir")
             idx_s = m.group("idx")
             idx = int(idx_s) if idx_s else 0
-            add(action, d, idx, f)
+            if d is None:
+                fallback.setdefault(action, []).append((idx, str(f)))
+            else:
+                explicit.setdefault(action, {}).setdefault(d, []).append((idx, str(f)))
 
-    # (b) 서브폴더 스캔 (플랫보다 우선도 높음: 존재하면 덮어씀)
+    # (b) 서브폴더 스캔 — 존재하면 해당 액션의 플랫 결과를 전부 덮어씀
     for action_dir in sorted(dir_path.iterdir()):
         if not action_dir.is_dir():
             continue
         action = action_dir.name.lower()
-        # action 하위에 direction 서브폴더가 있는지 먼저 확인
         dir_subdirs = [d for d in action_dir.iterdir() if d.is_dir() and d.name in DIRECTION_SET]
         if dir_subdirs:
             # action/{direction}/{idx}.{ext}
-            buckets.pop(action, None)  # 플랫 결과 있으면 서브폴더가 우선
+            explicit.pop(action, None)
+            fallback.pop(action, None)
             for direction_dir in dir_subdirs:
                 files = sorted(f for f in direction_dir.iterdir() if f.is_file() and _is_image(f))
                 for i, f in enumerate(files):
-                    # 파일명이 숫자면 그대로 idx, 아니면 순번
                     try:
                         idx = int(f.stem)
                     except ValueError:
                         idx = i
-                    add(action, direction_dir.name, idx, f)
+                    explicit.setdefault(action, {}).setdefault(direction_dir.name, []).append((idx, str(f)))
         else:
-            # action/{direction}.{ext} 혹은 방향 없이 action/*.{ext}
             files = sorted(f for f in action_dir.iterdir() if f.is_file() and _is_image(f))
             if not files:
                 continue
-            buckets.pop(action, None)
-            direction_files = []
-            nondir_files = []
-            for f in files:
-                if f.stem in DIRECTION_SET:
-                    direction_files.append(f)
-                else:
-                    nondir_files.append(f)
+            explicit.pop(action, None)
+            fallback.pop(action, None)
+            direction_files = [f for f in files if f.stem in DIRECTION_SET]
+            nondir_files = [f for f in files if f.stem not in DIRECTION_SET]
+            for f in direction_files:
+                explicit.setdefault(action, {}).setdefault(f.stem, []).append((0, str(f)))
+            for i, f in enumerate(nondir_files):
+                fallback.setdefault(action, []).append((i, str(f)))
 
-            if direction_files:
-                for f in direction_files:
-                    add(action, f.stem, 0, f)
-                # 방향 미지정 파일은 나머지 방향 폴백용으로 append
-                for i, f in enumerate(nondir_files):
-                    add(action, None, i, f)
-            else:
-                for i, f in enumerate(nondir_files):
-                    add(action, None, i, f)
-
-    if not buckets:
+    if not explicit and not fallback:
         raise FileNotFoundError(
             f"스프라이트 파일을 찾지 못했습니다: {dir_path}\n"
             f"허용 파일명: {{action}}[_{{N|NE|E|SE|S|SW|W|NW}}][_{{frame_idx}}].png "
             f"또는 서브폴더 {{action}}/{{direction}}/{{idx}}.png"
         )
+
+    # 병합: 명시 방향은 그대로, 빠진 방향만 fallback으로 채움
+    buckets: Dict[str, Dict[str, List[tuple[int, str]]]] = {}
+    all_actions = set(explicit.keys()) | set(fallback.keys())
+    for action in all_actions:
+        per_dir = dict(explicit.get(action, {}))
+        fb = fallback.get(action, [])
+        if fb:
+            for d in DIRECTIONS:
+                if d not in per_dir:
+                    per_dir[d] = list(fb)
+        buckets[action] = per_dir
 
     # 정렬해서 최종 dict로
     out: Dict[str, Dict[str, List[str]]] = {}
@@ -221,82 +219,63 @@ def _normalize_frames(textures: Dict[str, Any]) -> Dict[str, Dict[str, List[str]
     return out
 
 
-def _compute_cell_size(normalized: Dict[str, Dict[str, List[str]]]) -> tuple[int, int]:
-    from PIL import Image
-
-    max_w, max_h = 0, 0
-    for action_map in normalized.values():
-        for paths in action_map.values():
-            for p in paths:
-                with Image.open(p) as im:
-                    w, h = im.size
-                    if w > max_w:
-                        max_w = w
-                    if h > max_h:
-                        max_h = h
-    if max_w == 0 or max_h == 0:
-        raise ValueError("입력 이미지에서 유효한 크기를 얻지 못했습니다")
-    return max_w, max_h
-
-
 def _pack_atlas(
     normalized: Dict[str, Dict[str, List[str]]],
-    cell_w: int,
-    cell_h: int,
     out_path: Path,
 ) -> Dict[str, Any]:
     """
-    모든 프레임을 (액션, 방향, 프레임) 순서로 row-major 그리드에 배치.
-    반환: {actions:[{id,framesByDirection:[[{atlasIndex,pivotX,pivotY}]]}], columns, rows, cellW, cellH}
+    고유 파일 경로마다 한 번만 디코드 + 한 셀만 차지하도록 패킹.
+    동일 경로가 여러 방향에 매핑돼 있으면(단일 파일 폴백 케이스) 모두 같은 atlasIndex를 공유.
+    셀 크기는 모든 입력 이미지의 max(W, H).
     """
     from PIL import Image
 
-    # 프레임 순서 고정: sorted action id → DIRECTIONS 순서 → frameIdx
-    flat: List[tuple[str, int, int, str]] = []  # (action, dir_idx, frame_idx, path)
+    unique_paths: List[str] = []
+    path_to_cell: Dict[str, int] = {}
+    decoded: Dict[str, "Image.Image"] = {}
+    max_w, max_h = 0, 0
+
     for action_id in sorted(normalized.keys()):
-        for dir_idx, d in enumerate(DIRECTIONS):
-            for frame_idx, p in enumerate(normalized[action_id][d]):
-                flat.append((action_id, dir_idx, frame_idx, p))
+        for d in DIRECTIONS:
+            for p in normalized[action_id][d]:
+                if p in path_to_cell:
+                    continue
+                im = Image.open(p).convert("RGBA")
+                decoded[p] = im
+                if im.width > max_w:
+                    max_w = im.width
+                if im.height > max_h:
+                    max_h = im.height
+                path_to_cell[p] = len(unique_paths)
+                unique_paths.append(p)
 
-    total = len(flat)
-    # 가로 8셀 고정 — 각 방향이 한 행에 오도록 균일화 (8은 DIRECTIONS 수)
-    columns = max(1, min(8, total))
-    rows = math.ceil(total / columns)
+    if not unique_paths or max_w == 0 or max_h == 0:
+        raise ValueError("유효한 입력 이미지가 없습니다")
 
+    cell_w, cell_h = max_w, max_h
+    columns = max(1, min(len(DIRECTIONS), len(unique_paths)))
+    rows = math.ceil(len(unique_paths) / columns)
     atlas_w = columns * cell_w
     atlas_h = rows * cell_h
+
     atlas = Image.new("RGBA", (atlas_w, atlas_h), (0, 0, 0, 0))
-
-    index_map: Dict[tuple[str, int, int], int] = {}
-    for i, (action_id, dir_idx, frame_idx, p) in enumerate(flat):
-        col = i % columns
-        row = i // columns
-        with Image.open(p) as im:
-            src = im.convert("RGBA")
-            # 좌상단 정렬 (셀 좌상단 기준 pivotOffset 해석과 호환)
-            dst_x = col * cell_w
-            dst_y = row * cell_h
-            atlas.paste(src, (dst_x, dst_y), src)
-        index_map[(action_id, dir_idx, frame_idx)] = i
-
+    for i, p in enumerate(unique_paths):
+        col, row = i % columns, i // columns
+        atlas.paste(decoded[p], (col * cell_w, row * cell_h), decoded[p])
     atlas.save(out_path, "PNG")
 
-    # 액션별 framesByDirection 스펙 구성
     actions_out: List[Dict[str, Any]] = []
     for action_id in sorted(normalized.keys()):
         fbd: List[List[Dict[str, Any]]] = []
-        for dir_idx, d in enumerate(DIRECTIONS):
-            paths = normalized[action_id][d]
-            dir_frames: List[Dict[str, Any]] = []
-            for frame_idx in range(len(paths)):
-                atlas_idx = index_map[(action_id, dir_idx, frame_idx)]
-                # pivot: 셀 하단 중앙 기본값 (캐릭터 발 위치 관습). 필요 시 호출자가 override.
-                dir_frames.append({
-                    "atlasIndex": atlas_idx,
+        for d in DIRECTIONS:
+            fbd.append([
+                {
+                    "atlasIndex": path_to_cell[p],
                     "pivotX": cell_w / 2.0,
                     "pivotY": float(cell_h),
-                })
-            fbd.append(dir_frames)
+                }
+                for p in normalized[action_id][d]
+            ])
         actions_out.append({"id": action_id, "framesByDirection": fbd})
 
     return {
@@ -360,14 +339,14 @@ async def build_sprite_part(
 
     try:
         normalized = _normalize_frames(tex_dict)
-        cell_w, cell_h = _compute_cell_size(normalized)
-
         out_dir = _resolve_output_dir(project_saved_dir or None)
         atlas_png = out_dir / f"{_sanitize_tag(tag)}.png"
-        pack = _pack_atlas(normalized, cell_w, cell_h, atlas_png)
+        pack = _pack_atlas(normalized, atlas_png)
     except Exception as e:
         logger.exception("Atlas 패킹 실패")
         return json.dumps({"success": False, "error": f"pack: {e}"})
+
+    cell_w, cell_h = pack["cellW"], pack["cellH"]
 
     # --- UE5 빌드 호출 스펙 구성 ---
     actions_spec = []

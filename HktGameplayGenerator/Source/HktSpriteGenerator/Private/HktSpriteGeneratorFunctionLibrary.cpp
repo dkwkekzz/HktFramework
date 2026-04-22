@@ -497,23 +497,32 @@ namespace HktSpriteGen
 		return Wrapper->GetRaw(ERGBFormat::BGRA, 8, OutBGRA);
 	}
 
-	/** 모든 프레임을 (액션→방향idx→frameIdx) 순으로 균일 셀 그리드에 패킹해 PNG로 저장. */
+	struct FDecodedImage
+	{
+		TArray64<uint8> BGRA;
+		int32 Width = 0;
+		int32 Height = 0;
+	};
+
 	static bool PackAtlas(TArray<FFrameEntry>& Frames, const FString& OutPngPath,
 	                      int32& OutCellW, int32& OutCellH, int32& OutCols, int32& OutRows,
 	                      TMap<TTuple<FString,int32,int32>, int32>& OutIndexMap, FString& OutError)
 	{
-		// 1. 모든 이미지 크기 수집 → 최대 셀 크기 결정
+		// 1. 고유 파일만 한 번씩 디코드 — 이후 확장 복제본들은 같은 아틀라스 셀을 공유.
+		TMap<FString, FDecodedImage> DecodedByPath;
 		int32 MaxW = 0, MaxH = 0;
-		for (FFrameEntry& E : Frames)
+		for (const FFrameEntry& E : Frames)
 		{
-			TArray64<uint8> Tmp;
-			if (!DecodeImageFile(E.FilePath, Tmp, E.Width, E.Height))
+			if (DecodedByPath.Contains(E.FilePath)) continue;
+			FDecodedImage Img;
+			if (!DecodeImageFile(E.FilePath, Img.BGRA, Img.Width, Img.Height))
 			{
 				OutError = FString::Printf(TEXT("이미지 디코드 실패: %s"), *E.FilePath);
 				return false;
 			}
-			MaxW = FMath::Max(MaxW, E.Width);
-			MaxH = FMath::Max(MaxH, E.Height);
+			MaxW = FMath::Max(MaxW, Img.Width);
+			MaxH = FMath::Max(MaxH, Img.Height);
+			DecodedByPath.Add(E.FilePath, MoveTemp(Img));
 		}
 		if (MaxW == 0 || MaxH == 0)
 		{
@@ -523,7 +532,6 @@ namespace HktSpriteGen
 		OutCellW = MaxW;
 		OutCellH = MaxH;
 
-		// 2. 정렬: action → directionIdx(INDEX_NONE은 -1처럼 앞) → frameIdx
 		Frames.Sort([](const FFrameEntry& A, const FFrameEntry& B)
 		{
 			if (A.Action != B.Action) return A.Action < B.Action;
@@ -533,15 +541,25 @@ namespace HktSpriteGen
 			return A.FrameIdx < B.FrameIdx;
 		});
 
-		// 3. INDEX_NONE(방향 미지정) 프레임은 8방향 모두로 확장
+		// 2. INDEX_NONE 프레임은 명시 방향이 없는 방향에만 복제 (중복 키 방지).
+		TMap<FString, TSet<int32>> ExplicitDirsPerAction;
+		for (const FFrameEntry& E : Frames)
+		{
+			if (E.DirectionIdx != INDEX_NONE)
+			{
+				ExplicitDirsPerAction.FindOrAdd(E.Action).Add(E.DirectionIdx);
+			}
+		}
 		TArray<FFrameEntry> Expanded;
 		Expanded.Reserve(Frames.Num() * 2);
 		for (const FFrameEntry& E : Frames)
 		{
 			if (E.DirectionIdx == INDEX_NONE)
 			{
+				const TSet<int32>* Explicit = ExplicitDirsPerAction.Find(E.Action);
 				for (int32 d = 0; d < kNumDirections; ++d)
 				{
+					if (Explicit && Explicit->Contains(d)) continue;
 					FFrameEntry Copy = E;
 					Copy.DirectionIdx = d;
 					Expanded.Add(Copy);
@@ -554,43 +572,48 @@ namespace HktSpriteGen
 		}
 		Frames = MoveTemp(Expanded);
 
-		// 4. 그리드 크기 — 컬럼=8 고정 (방향 하나가 한 행 지향)
-		const int32 Total = Frames.Num();
-		OutCols = FMath::Max(1, FMath::Min(kNumDirections, Total));
-		OutRows = FMath::DivideAndRoundUp(Total, OutCols);
+		// 3. 아틀라스 셀 배정은 고유 파일 단위 — 같은 경로가 여러 방향에 확장돼도 한 셀만 차지.
+		TMap<FString, int32> PathToCell;
+		TArray<FString> CellOrder;
+		CellOrder.Reserve(DecodedByPath.Num());
+		for (const FFrameEntry& E : Frames)
+		{
+			if (!PathToCell.Contains(E.FilePath))
+			{
+				PathToCell.Add(E.FilePath, CellOrder.Num());
+				CellOrder.Add(E.FilePath);
+			}
+		}
+
+		const int32 CellCount = CellOrder.Num();
+		OutCols = FMath::Max(1, FMath::Min(kNumDirections, CellCount));
+		OutRows = FMath::DivideAndRoundUp(CellCount, OutCols);
 
 		const int32 AtlasW = OutCols * OutCellW;
 		const int32 AtlasH = OutRows * OutCellH;
-
-		// BGRA8 버퍼 (투명 배경)
 		TArray64<uint8> AtlasBuf;
 		AtlasBuf.SetNumZeroed(static_cast<int64>(AtlasW) * AtlasH * 4);
 
-		// 5. 셀별 복사
-		for (int32 i = 0; i < Total; ++i)
+		for (int32 i = 0; i < CellCount; ++i)
 		{
-			const FFrameEntry& E = Frames[i];
-			TArray64<uint8> Src;
-			int32 SrcW = 0, SrcH = 0;
-			if (!DecodeImageFile(E.FilePath, Src, SrcW, SrcH))
-			{
-				OutError = FString::Printf(TEXT("이미지 재디코드 실패: %s"), *E.FilePath);
-				return false;
-			}
+			const FDecodedImage& Img = DecodedByPath[CellOrder[i]];
 			const int32 Col = i % OutCols;
 			const int32 Row = i / OutCols;
 			const int32 DstX0 = Col * OutCellW;
 			const int32 DstY0 = Row * OutCellH;
-			for (int32 y = 0; y < SrcH; ++y)
+			for (int32 y = 0; y < Img.Height; ++y)
 			{
-				const int64 SrcOff = static_cast<int64>(y) * SrcW * 4;
+				const int64 SrcOff = static_cast<int64>(y) * Img.Width * 4;
 				const int64 DstOff = (static_cast<int64>(DstY0 + y) * AtlasW + DstX0) * 4;
-				FMemory::Memcpy(AtlasBuf.GetData() + DstOff, Src.GetData() + SrcOff, static_cast<SIZE_T>(SrcW) * 4);
+				FMemory::Memcpy(AtlasBuf.GetData() + DstOff, Img.BGRA.GetData() + SrcOff, static_cast<SIZE_T>(Img.Width) * 4);
 			}
-			OutIndexMap.Add(MakeTuple(E.Action, E.DirectionIdx, E.FrameIdx), i);
 		}
 
-		// 6. PNG로 저장
+		for (const FFrameEntry& E : Frames)
+		{
+			OutIndexMap.Add(MakeTuple(E.Action, E.DirectionIdx, E.FrameIdx), PathToCell[E.FilePath]);
+		}
+
 		IImageWrapperModule& IWM = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 		TSharedPtr<IImageWrapper> Wrapper = IWM.CreateImageWrapper(EImageFormat::PNG);
 		if (!Wrapper.IsValid() || !Wrapper->SetRaw(AtlasBuf.GetData(), AtlasBuf.Num(), AtlasW, AtlasH, ERGBFormat::BGRA, 8))
@@ -598,7 +621,7 @@ namespace HktSpriteGen
 			OutError = TEXT("Atlas PNG 인코드 실패");
 			return false;
 		}
-		const TArray64<uint8>& Compressed = Wrapper->GetCompressed(100);
+		const TArray64<uint8>& Compressed = Wrapper->GetCompressed();
 		if (!FFileHelper::SaveArrayToFile(Compressed, *OutPngPath))
 		{
 			OutError = FString::Printf(TEXT("Atlas PNG 파일 저장 실패: %s"), *OutPngPath);
