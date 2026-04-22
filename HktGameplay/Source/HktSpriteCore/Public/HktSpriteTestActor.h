@@ -21,8 +21,8 @@ class UMaterialInterface;
  *   3. Play 시 자체 UHktSpriteCrowdRenderer를 생성하고 단일 EntityId로 등록.
  *   4. Tick마다 NowTick을 증분해 UpdateEntity 호출.
  *
- * 모든 참조는 이 액터에 국한되며 전역 UHktSpriteWorldSubsystem과 독립.
- * (Subsystem이 비활성화된 상태에서도 검증 가능)
+ * 모든 참조는 이 액터에 국한되며 자동 스폰되는 AHktSpriteCrowdHost와 독립.
+ * (Presentation 파이프라인이 비활성화된 상태에서도 검증 가능)
  */
 UCLASS(BlueprintType, meta=(DisplayName="Hkt Sprite Test Actor"))
 class HKTSPRITECORE_API AHktSpriteTestActor : public AActor

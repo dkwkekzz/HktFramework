@@ -22,7 +22,7 @@ from mcp.types import Tool, TextContent, Resource, Prompt
 # Import tool modules
 from .tools import asset_tools, level_tools, query_tools, runtime_tools
 from .tools import vfx_tools, story_tools, texture_tools, anim_tools, mesh_tools, item_tools
-from .tools import step_tools, map_tools, python_tools
+from .tools import step_tools, map_tools, python_tools, sprite_tools
 from .bridge import editor_bridge, runtime_bridge
 from .bridge.monolith_client import MonolithClient
 
@@ -748,6 +748,37 @@ def _get_hkt_tools() -> list[Tool]:
                     "directory": {"type": "string", "description": "Directory to search (default: auto)"}
                 }
             }
+        ),
+    ])
+
+    # ==================== Sprite Generator Tools ====================
+    tools.extend([
+        Tool(
+            name="build_sprite_part",
+            description=(
+                "Build a UHktSpritePartTemplate DataAsset from raw texture files. "
+                "Provide EITHER `input_dir` (scans images with filenames like "
+                "'idle.png', 'idle_S.png', 'walk_NE_0.png' or subfolders 'idle/S/0.png') "
+                "OR `textures` JSON for explicit path mapping. Packs inputs into a uniform "
+                "grid atlas (Pillow), imports as UTexture2D (Nearest, NoMipmap, UI), and "
+                "fills the DataAsset with tag, cell size, and Actions[direction][frame]."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "tag": {"type": "string", "description": "IdentifierTag for the part (e.g. 'Sprite.Part.Body.Knight')"},
+                    "slot": {"type": "string", "enum": ["Body","Head","Weapon","Shield","HeadgearTop","HeadgearMid","HeadgearLow"]},
+                    "input_dir": {"type": "string", "description": "Directory containing input images. Filenames: {action}[_{direction}][_{frame_idx}].{ext} or subfolders {action}/{direction}/{idx}.{ext}"},
+                    "textures": {"type": "string", "description": "(Alternative) JSON: {action_id: <path> | {dir: path|[paths]} | {framesByDirection:[...x8]}}"},
+                    "output_dir": {"type": "string", "description": "UE content dir (default: /Game/Generated/Sprites)"},
+                    "pixel_to_world": {"type": "number", "description": "1 px → world cm (default 2.0)"},
+                    "frame_duration_ms": {"type": "number", "description": "Default per-frame duration (ms), default 100"},
+                    "looping": {"type": "boolean", "description": "Default action looping, default true"},
+                    "mirror_west_from_east": {"type": "boolean", "description": "Fold W/SW/NW from E/SE/NE, default true"},
+                    "project_saved_dir": {"type": "string", "description": "UE project root (for Atlas PNG output; falls back to UE_PROJECT_PATH)"},
+                },
+                "required": ["tag", "slot"],
+            },
         ),
     ])
 
@@ -1719,6 +1750,22 @@ async def dispatch_tool(name: str, arguments: dict[str, Any]) -> Any:
         return await texture_tools.get_pending_texture_requests(bridge, arguments["json_requests"])
     elif name == "list_generated_textures":
         return await texture_tools.list_generated_textures(bridge, arguments.get("directory", ""))
+
+    # Sprite Generator Tools
+    elif name == "build_sprite_part":
+        return await sprite_tools.build_sprite_part(
+            bridge,
+            tag=arguments["tag"],
+            slot=arguments["slot"],
+            input_dir=arguments.get("input_dir", ""),
+            textures=arguments.get("textures", ""),
+            output_dir=arguments.get("output_dir", ""),
+            pixel_to_world=float(arguments.get("pixel_to_world", 2.0)),
+            frame_duration_ms=float(arguments.get("frame_duration_ms", 100.0)),
+            looping=bool(arguments.get("looping", True)),
+            mirror_west_from_east=bool(arguments.get("mirror_west_from_east", True)),
+            project_saved_dir=arguments.get("project_saved_dir", ""),
+        )
 
     # Animation Generator Tools
     elif name == "request_animation":

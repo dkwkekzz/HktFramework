@@ -51,6 +51,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "HktSpriteGenerator",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		},
+		{
 			"Name": "HktMcpBridge",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

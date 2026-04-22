@@ -1,29 +1,89 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktSpriteProcessor.h"
+#include "HktSpriteCrowdHost.h"
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteFrameResolver.h"
 #include "HktSpriteCoreLog.h"
+#include "HktPresentationSubsystem.h"
+#include "Components/SceneComponent.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 
-// ============================================================================
-// FHktSpriteProcessor
-// ============================================================================
-
-FHktSpriteProcessor::FHktSpriteProcessor(UHktSpriteCrowdRenderer* InRenderer)
-	: Renderer(InRenderer)
+AHktSpriteCrowdHost::AHktSpriteCrowdHost()
 {
+	PrimaryActorTick.bCanEverTick = false;
+
+	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(Root);
+
+	// HISM 자식 컴포넌트들은 GetOrCreateHISM 내부에서 Owner의 RootComponent에 SetupAttachment.
+	Renderer = CreateDefaultSubobject<UHktSpriteCrowdRenderer>(TEXT("CrowdRenderer"));
 }
 
-void FHktSpriteProcessor::Teardown()
+void AHktSpriteCrowdHost::BeginPlay()
 {
-	if (UHktSpriteCrowdRenderer* R = Renderer.Get())
+	Super::BeginPlay();
+	TryRegisterWithPresentation();
+}
+
+void AHktSpriteCrowdHost::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UWorld* World = GetWorld())
 	{
-		R->ClearAll();
+		World->GetTimerManager().ClearTimer(RegisterRetryHandle);
+	}
+
+	if (CachedPresentationSubsystem)
+	{
+		CachedPresentationSubsystem->UnregisterRenderer(this);
+		CachedPresentationSubsystem = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void AHktSpriteCrowdHost::TryRegisterWithPresentation()
+{
+	if (CachedPresentationSubsystem) return;
+
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	UHktPresentationSubsystem* PS = UHktPresentationSubsystem::Get(PC);
+
+	if (!PS)
+	{
+		// LocalPlayer 초기화가 늦는 경우 1초 후 재시도 (3회까지)
+		if (RegisterRetries++ < 3)
+		{
+			FTimerManager& TM = World->GetTimerManager();
+			TM.SetTimer(RegisterRetryHandle,
+				FTimerDelegate::CreateUObject(this, &AHktSpriteCrowdHost::TryRegisterWithPresentation),
+				1.f, false);
+		}
+		return;
+	}
+
+	CachedPresentationSubsystem = PS;
+	PS->RegisterRenderer(this);
+	UE_LOG(LogHktSpriteCore, Log, TEXT("AHktSpriteCrowdHost registered with UHktPresentationSubsystem"));
+}
+
+// --- IHktPresentationProcessor ---
+
+void AHktSpriteCrowdHost::Teardown()
+{
+	if (Renderer)
+	{
+		Renderer->ClearAll();
 	}
 	ActionIdCache.Empty();
 }
 
-FName FHktSpriteProcessor::ResolveActionId(const FGameplayTag& AnimTag)
+FName AHktSpriteCrowdHost::ResolveActionId(const FGameplayTag& AnimTag)
 {
 	if (!AnimTag.IsValid()) return NAME_None;
 	if (const FName* Cached = ActionIdCache.Find(AnimTag))
@@ -44,23 +104,22 @@ FName FHktSpriteProcessor::ResolveActionId(const FGameplayTag& AnimTag)
 	return Result;
 }
 
-void FHktSpriteProcessor::OnCameraViewChanged(FHktPresentationState& State)
+void AHktSpriteCrowdHost::OnCameraViewChanged(FHktPresentationState& State)
 {
 	// 카메라 yaw 변화 시 Facing 변환이 달라지므로 전체 Sync 강제.
 	Sync(State);
 }
 
-void FHktSpriteProcessor::Sync(FHktPresentationState& State)
+void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 {
-	UHktSpriteCrowdRenderer* R = Renderer.Get();
-	if (!R) return;
+	if (!Renderer) return;
 
 	const int64 Frame = State.GetCurrentFrame();
 
 	// --- 1. Removed ---
 	for (FHktEntityId Id : State.RemovedThisFrame)
 	{
-		R->UnregisterEntity(Id);
+		Renderer->UnregisterEntity(Id);
 	}
 
 	// --- 2. Spawned: FHktSpriteView가 할당된 엔터티만 처리 ---
@@ -69,7 +128,7 @@ void FHktSpriteProcessor::Sync(FHktPresentationState& State)
 		const FHktSpriteView* SV = State.GetSprite(Id);
 		if (!SV) continue;
 
-		R->RegisterEntity(Id);
+		Renderer->RegisterEntity(Id);
 
 		FHktSpriteLoadout Loadout;
 		Loadout.BodyPart    = SV->BodyPart.Get();
@@ -79,7 +138,7 @@ void FHktSpriteProcessor::Sync(FHktPresentationState& State)
 		Loadout.HeadgearTop = SV->HeadgearTop.Get();
 		Loadout.HeadgearMid = SV->HeadgearMid.Get();
 		Loadout.HeadgearLow = SV->HeadgearLow.Get();
-		R->SetLoadout(Id, Loadout);
+		Renderer->SetLoadout(Id, Loadout);
 	}
 
 	// --- 3. Loadout diff: 기존 엔터티 중 이번 프레임 Loadout 변경분 ---
@@ -97,7 +156,7 @@ void FHktSpriteProcessor::Sync(FHktPresentationState& State)
 		Loadout.HeadgearTop = SV.HeadgearTop.Get();
 		Loadout.HeadgearMid = SV.HeadgearMid.Get();
 		Loadout.HeadgearLow = SV.HeadgearLow.Get();
-		R->SetLoadout(Id, Loadout);
+		Renderer->SetLoadout(Id, Loadout);
 	}
 
 	// --- 4. 매 프레임 UpdateEntity ---
@@ -125,6 +184,6 @@ void FHktSpriteProcessor::Sync(FHktPresentationState& State)
 		Update.TintOverride   = FLinearColor::White;
 		Update.PaletteIndex   = 0;
 
-		R->UpdateEntity(Id, Update);
+		Renderer->UpdateEntity(Id, Update);
 	}
 }
