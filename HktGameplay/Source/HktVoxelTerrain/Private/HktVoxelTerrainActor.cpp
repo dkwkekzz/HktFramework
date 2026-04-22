@@ -115,6 +115,8 @@ void AHktVoxelTerrainActor::BeginPlay()
 	// 스타일라이즈 토글 초기값 동기화
 	bPrevStylizedRendering = bStylizedRendering;
 	PrevEdgeRoundStrength = EdgeRoundStrength;
+	PrevEdgeAlphaStrength = EdgeAlphaStrength;
+	PrevEdgeAlphaStart = EdgeAlphaStart;
 	PrevNormalMapStrength = NormalMapStrength;
 
 	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
@@ -238,6 +240,24 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 			if (Pair.Value)
 			{
 				ApplyLODToComponent(Pair.Value, Pair.Value->GetChunkLOD());
+			}
+		}
+	}
+
+	// 엣지 알파 라이브 토글 — LOD 스케일 없이 글로벌 강도 그대로 모든 활성 청크에 적용.
+	// EdgeRound와 달리 LOD별 스케일 정책 없음(거리로도 실루엣은 여전히 보이므로 일률 적용).
+	const bool bEdgeAlphaStrengthChanged = !FMath::IsNearlyEqual(EdgeAlphaStrength, PrevEdgeAlphaStrength);
+	const bool bEdgeAlphaStartChanged = !FMath::IsNearlyEqual(EdgeAlphaStart, PrevEdgeAlphaStart);
+	if (bEdgeAlphaStrengthChanged || bEdgeAlphaStartChanged)
+	{
+		PrevEdgeAlphaStrength = EdgeAlphaStrength;
+		PrevEdgeAlphaStart = EdgeAlphaStart;
+		for (auto& Pair : ActiveChunks)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->SetEdgeAlphaStrength(EdgeAlphaStrength);
+				Pair.Value->SetEdgeAlphaStart(EdgeAlphaStart);
 			}
 		}
 	}
@@ -405,6 +425,10 @@ void AHktVoxelTerrainActor::ApplyLODToComponent(UHktVoxelChunkComponent* Comp, i
 		: LODSettings[0];
 	Comp->SetChunkLOD(ClampedLOD, Settings.ToComponentSettings(),
 		NormalMapStrength, EdgeRoundStrength);
+
+	// 엣지 알파는 LOD 스케일 없이 글로벌 값 그대로 (거리에 따라 LOD가 바뀌어도 실루엣은 동일)
+	Comp->SetEdgeAlphaStrength(EdgeAlphaStrength);
+	Comp->SetEdgeAlphaStart(EdgeAlphaStart);
 }
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()

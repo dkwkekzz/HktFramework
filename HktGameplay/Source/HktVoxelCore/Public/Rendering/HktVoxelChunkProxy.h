@@ -81,6 +81,12 @@ public:
 	/** 엣지 라운딩 강도 설정 — Render Thread에서 호출 (0=off, 0.3~0.6 권장) */
 	void SetEdgeRoundStrength_RenderThread(float InStrength);
 
+	/** 엣지 알파 강도 설정 — Render Thread에서 호출 (0=off, 0.3~0.7 권장) */
+	void SetEdgeAlphaStrength_RenderThread(float InStrength);
+
+	/** 엣지 알파 페이드 시작 거리 — Render Thread에서 호출 (쿼드 중심=0, 경계=1) */
+	void SetEdgeAlphaStart_RenderThread(float InStart);
+
 private:
 	/** RHI 버퍼를 감싸는 FVertexBuffer/FIndexBuffer 래퍼 (FVertexStreamComponent, FMeshBatchElement 호환용) */
 	struct FVoxelVertexBuffer : public FVertexBuffer
@@ -128,6 +134,8 @@ private:
 
 	bool bStylizedRendering = false;
 	float EdgeRoundStrength = 0.0f;
+	float EdgeAlphaStrength = 0.0f;
+	float EdgeAlphaStart = 0.75f;
 	float NormalMapStrength = 1.0f;
 
 	/** GPU 스키닝용 본 트랜스폼 버퍼 (float4 × 3 per bone) */

@@ -196,6 +196,50 @@ void UHktVoxelChunkComponent::SetEdgeRoundStrength(float InStrength)
 	}
 }
 
+void UHktVoxelChunkComponent::SetEdgeAlphaStrength(float InStrength)
+{
+	const float Clamped = FMath::Clamp(InStrength, 0.0f, 1.0f);
+	if (FMath::IsNearlyEqual(EdgeAlphaStrength, Clamped))
+	{
+		return;
+	}
+
+	EdgeAlphaStrength = Clamped;
+
+	if (SceneProxy)
+	{
+		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
+		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeAlpha)(
+			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
+			{
+				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeAlphaStrength_RenderThread(Clamped);
+			}
+		);
+	}
+}
+
+void UHktVoxelChunkComponent::SetEdgeAlphaStart(float InStart)
+{
+	const float Clamped = FMath::Clamp(InStart, 0.0f, 1.0f);
+	if (FMath::IsNearlyEqual(EdgeAlphaStart, Clamped))
+	{
+		return;
+	}
+
+	EdgeAlphaStart = Clamped;
+
+	if (SceneProxy)
+	{
+		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
+		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeAlphaStart)(
+			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
+			{
+				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeAlphaStart_RenderThread(Clamped);
+			}
+		);
+	}
+}
+
 void UHktVoxelChunkComponent::SetNormalMapStrength(float InStrength)
 {
 	const float Clamped = FMath::Clamp(InStrength, 0.0f, 4.0f);
