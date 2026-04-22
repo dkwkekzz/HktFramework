@@ -13,7 +13,7 @@
  *  - FHktSpriteFrame/Action/PartTemplate/Loadout 데이터 모델
  *  - HktResolveSpriteFrame 순수 함수 (tick → frame)
  *  - UHktSpriteCrowdRenderer (HISM-based 파츠별 인스턴싱)
- *  - FHktSpriteProcessor (Presentation Processor)
+ *  - AHktSpriteCrowdHost (CrowdRenderer 호스트 Actor + IHktPresentationProcessor)
  */
 class HKTSPRITECORE_API IHktSpriteCoreModule : public IModuleInterface
 {
