@@ -161,6 +161,115 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     }
 
     VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState, VMProxy);
+
+    // Late-Join 복구용 스냅샷 캡처 (모든 VM 라이프사이클 처리 이후)
+    CaptureVMSnapshots();
+}
+
+void FHktWorldDeterminismSimulator::CaptureVMSnapshots()
+{
+    WorldState.ActiveVMSnapshots.Reset();
+    for (FHktVMHandle Handle : ActiveVMs)
+    {
+        const FHktVMRuntime* Runtime = VMPool->Get(Handle);
+        if (!Runtime || Runtime->IsTerminated() || Runtime->Program == nullptr || Runtime->Context == nullptr)
+        {
+            continue;
+        }
+
+        FHktVMSnapshot Snap;
+        Snap.EventTag = Runtime->Program->Tag;
+        Snap.PC = Runtime->PC;
+        FMemory::Memcpy(Snap.Registers, Runtime->Registers, sizeof(Snap.Registers));
+        Snap.Status = static_cast<uint8>(Runtime->Status);
+        Snap.WaitFrames = Runtime->WaitFrames;
+        Snap.WaitType = static_cast<uint8>(Runtime->EventWait.Type);
+        Snap.WaitWatchedEntity = Runtime->EventWait.WatchedEntity;
+        Snap.WaitRemainingTime = Runtime->EventWait.RemainingTime;
+        Snap.PlayerUid = Runtime->PlayerUid;
+        Snap.CreationFrame = Runtime->CreationFrame;
+
+        const FHktVMContext* Ctx = Runtime->Context;
+        Snap.SourceEntity = Ctx->SourceEntity;
+        Snap.TargetEntity = Ctx->TargetEntity;
+        Snap.EventParam0 = Ctx->EventParam0;
+        Snap.EventParam1 = Ctx->EventParam1;
+        Snap.EventParam2 = Ctx->EventParam2;
+        Snap.EventParam3 = Ctx->EventParam3;
+        Snap.EventTargetPosX = Ctx->EventTargetPosX;
+        Snap.EventTargetPosY = Ctx->EventTargetPosY;
+        Snap.EventTargetPosZ = Ctx->EventTargetPosZ;
+
+        Snap.PendingDispatchedEvents = Runtime->PendingDispatchedEvents;
+
+        WorldState.ActiveVMSnapshots.Add(MoveTemp(Snap));
+    }
+}
+
+void FHktWorldDeterminismSimulator::RehydrateVMPool()
+{
+    VMPool->Reset();
+    ActiveVMs.Reset();
+    CompletedVMs.Reset();
+
+    const FHktVMProgramRegistry& Registry = FHktVMProgramRegistry::Get();
+
+    for (const FHktVMSnapshot& Snap : WorldState.ActiveVMSnapshots)
+    {
+        const FHktVMProgram* Program = Registry.FindProgram(Snap.EventTag);
+        if (!Program)
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, LogSource,
+                FString::Printf(TEXT("VM Rehydrate: Program not found for %s — 스냅샷 폐기"),
+                    *Snap.EventTag.ToString()));
+            continue;
+        }
+
+        FHktVMHandle Handle = VMPool->Allocate();
+        if (!Handle.IsValid())
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, LogSource,
+                TEXT("VM Rehydrate: Pool exhausted — 남은 스냅샷 폐기"));
+            break;
+        }
+
+        FHktVMRuntime* Runtime = VMPool->Get(Handle);
+        FHktVMContext* Context = VMPool->GetContext(Handle);
+        check(Runtime && Context);
+
+        // Context 포인터 재배선 (스냅샷에 없던 런타임 포인터들)
+        Context->WorldState = &WorldState;
+        Context->VMProxy = &VMProxy;
+        Context->SourceEntity = Snap.SourceEntity;
+        Context->TargetEntity = Snap.TargetEntity;
+        Context->EventParam0 = Snap.EventParam0;
+        Context->EventParam1 = Snap.EventParam1;
+        Context->EventParam2 = Snap.EventParam2;
+        Context->EventParam3 = Snap.EventParam3;
+        Context->EventTargetPosX = Snap.EventTargetPosX;
+        Context->EventTargetPosY = Snap.EventTargetPosY;
+        Context->EventTargetPosZ = Snap.EventTargetPosZ;
+
+        Runtime->Program = Program;
+        Runtime->Context = Context;
+        Runtime->PC = Snap.PC;
+        FMemory::Memcpy(Runtime->Registers, Snap.Registers, sizeof(Runtime->Registers));
+        Runtime->Status = static_cast<EVMStatus>(Snap.Status);
+        Runtime->PlayerUid = Snap.PlayerUid;
+        Runtime->CreationFrame = Snap.CreationFrame;
+        Runtime->WaitFrames = Snap.WaitFrames;
+        Runtime->EventWait.Type = static_cast<EWaitEventType>(Snap.WaitType);
+        Runtime->EventWait.WatchedEntity = Snap.WaitWatchedEntity;
+        Runtime->EventWait.RemainingTime = Snap.WaitRemainingTime;
+        Runtime->PendingDispatchedEvents = Snap.PendingDispatchedEvents;
+        Runtime->SpatialQuery.Reset();
+
+        ActiveVMs.Add(Handle);
+
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+            FString::Printf(TEXT("VM rehydrated: %s PC=%d Status=%u Wait=%u Watched=%d"),
+                *Snap.EventTag.ToString(), Snap.PC, Snap.Status, Snap.WaitType, Snap.WaitWatchedEntity));
+    }
 }
 
 FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)
@@ -324,6 +433,10 @@ void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InSt
     const EHktLogSource SavedLogSource = WorldState.LogSource;
     WorldState.CopyFrom(InState);
     WorldState.LogSource = SavedLogSource;
+
+    // 복원된 WorldState 의 ActiveVMSnapshots 에서 VMPool 재수화.
+    // 이를 통해 WaitingEvent 중이던 VM 이 Late-Join 클라에서도 올바르게 재개된다.
+    RehydrateVMPool();
 }
 
 void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)

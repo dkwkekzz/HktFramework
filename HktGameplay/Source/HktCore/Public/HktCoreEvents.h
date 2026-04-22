@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HktCoreDefs.h"
+#include "HktStoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "UObject/NoExportTypes.h"
 
@@ -94,6 +95,51 @@ struct HKTCORE_API FHktEvent
     {
         Ar << E.EventId << E.SourceEntity << E.EventTag;
         Ar << E.TargetEntity << E.Location << E.PlayerUid << E.Param0 << E.Param1;
+        return Ar;
+    }
+};
+
+// ============================================================================
+// FHktVMSnapshot — 진행 중 VM 런타임의 직렬화 가능한 스냅샷
+//
+// Late-Join / 서버 권위 복원에서 WaitingEvent 등 멀티프레임 VM 상태를 보존하기 위해 사용.
+// Program/Context 포인터와 SpatialQuery 같은 일회용 스크래치는 재수화 시 복원.
+// ============================================================================
+
+struct HKTCORE_API FHktVMSnapshot
+{
+    FGameplayTag EventTag;
+    int32 PC = 0;
+    int32 Registers[MaxRegisters] = {0};
+    uint8 Status = 0;
+    int32 WaitFrames = 0;
+    uint8 WaitType = 0;
+    FHktEntityId WaitWatchedEntity = InvalidEntityId;
+    float WaitRemainingTime = 0.0f;
+    int64 PlayerUid = 0;
+    int32 CreationFrame = 0;
+    FHktEntityId SourceEntity = InvalidEntityId;
+    FHktEntityId TargetEntity = InvalidEntityId;
+    int32 EventParam0 = 0;
+    int32 EventParam1 = 0;
+    int32 EventParam2 = 0;
+    int32 EventParam3 = 0;
+    int32 EventTargetPosX = 0;
+    int32 EventTargetPosY = 0;
+    int32 EventTargetPosZ = 0;
+    TArray<FHktEvent> PendingDispatchedEvents;
+
+    friend FArchive& operator<<(FArchive& Ar, FHktVMSnapshot& S)
+    {
+        Ar << S.EventTag;
+        Ar << S.PC;
+        for (int32 i = 0; i < MaxRegisters; ++i) Ar << S.Registers[i];
+        Ar << S.Status << S.WaitFrames << S.WaitType << S.WaitWatchedEntity << S.WaitRemainingTime;
+        Ar << S.PlayerUid << S.CreationFrame;
+        Ar << S.SourceEntity << S.TargetEntity;
+        Ar << S.EventParam0 << S.EventParam1 << S.EventParam2 << S.EventParam3;
+        Ar << S.EventTargetPosX << S.EventTargetPosY << S.EventTargetPosZ;
+        Ar << S.PendingDispatchedEvents;
         return Ar;
     }
 };

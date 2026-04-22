@@ -62,6 +62,7 @@ struct HKTCORE_API FHktWorldState
     TArray<EHktArchetype> EntityArchetypes;             // Slot → Archetype 매핑
     TArray<int64> OwnerUids;
     TArray<FHktEvent> ActiveEvents;
+    TArray<FHktVMSnapshot> ActiveVMSnapshots;       // Late-Join용 VM 런타임 스냅샷 (프레임 말미 캡처)
 
 #if ENABLE_HKT_INSIGHTS
     /**
