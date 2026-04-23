@@ -54,14 +54,14 @@ public:
 
 	/**
 	 * 월드 Z축 청크 좌표 최소값. 이 아래로는 청크가 생성/로드되지 않는다.
-	 * 시뮬레이션 `FHktTerrainSystem`과 렌더 `FHktVoxelTerrainStreamer`가 공유.
+	 * 시뮬레이션 `FHktTerrainSystem`과 렌더 `IHktVoxelChunkLoader` 구현체가 공유.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain|World Bounds", meta = (DisplayName = "Height Min Z (chunks)"))
 	int32 HeightMinZ = 0;
 
 	/**
 	 * 월드 Z축 청크 좌표 최대값. 이 위로는 청크가 생성/로드되지 않는다.
-	 * 시뮬레이션 `FHktTerrainSystem`과 렌더 `FHktVoxelTerrainStreamer`가 공유.
+	 * 시뮬레이션 `FHktTerrainSystem`과 렌더 `IHktVoxelChunkLoader` 구현체가 공유.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Terrain|World Bounds", meta = (DisplayName = "Height Max Z (chunks)"))
 	int32 HeightMaxZ = 3;

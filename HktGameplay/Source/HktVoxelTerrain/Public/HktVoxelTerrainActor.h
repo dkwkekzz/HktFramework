@@ -7,7 +7,7 @@
 #include "IHktHitRefinementProvider.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
-#include "HktVoxelTerrainStreamer.h"
+#include "HktVoxelChunkLoader.h"
 #include "Terrain/HktTerrainGenerator.h"
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "HktVoxelTerrainActor.generated.h"
@@ -16,43 +16,6 @@ struct FHktTerrainGeneratorConfig;
 class UHktVoxelChunkComponent;
 class UHktVoxelTileAtlas;
 class UHktVoxelMaterialLUT;
-
-/**
- * FHktVoxelLODSettings — UPROPERTY 노출용 LOD 컴포넌트 프리셋.
- *
- * `FHktVoxelLODComponentSettings`(POD)와 1:1 대응되는 USTRUCT 래퍼.
- * 에디터에서 LOD별 NormalMap 스케일과 그림자/콜리전 정책을 튜닝.
- */
-USTRUCT(BlueprintType)
-struct FHktVoxelLODSettings
-{
-	GENERATED_BODY()
-
-	/** 액터 NormalMapStrength에 곱해질 스케일 (LOD 0=1.0 / LOD 3=0.0 권장) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD",
-		meta = (ClampMin = "0.0", ClampMax = "2.0"))
-	float NormalMapScale = 1.0f;
-
-	/** 그림자 최대 거리 (UE 유닛). 0이면 항상 ON */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD", meta = (ClampMin = "0.0"))
-	float ShadowDistance = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD")
-	bool bCastShadow = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD")
-	bool bCollision = true;
-
-	FHktVoxelLODComponentSettings ToComponentSettings() const
-	{
-		FHktVoxelLODComponentSettings Out;
-		Out.NormalMapScale = NormalMapScale;
-		Out.ShadowDistance = ShadowDistance;
-		Out.bCastShadow = bCastShadow;
-		Out.bCollision = bCollision;
-		return Out;
-	}
-};
 
 /**
  * FHktVoxelBlockStyle — TypeID별 시각 정의
@@ -126,7 +89,7 @@ struct FHktVoxelBlockStyle
  * 카메라 기반 스트리밍으로 ChunkComponent를 동적 생성/풀링한다.
  *
  * 데이터 흐름:
- *   Streamer → Generator.GenerateChunk() → RenderCache → MeshScheduler → ChunkComponent → GPU
+ *   Loader → Generator.GenerateChunk() → RenderCache → MeshScheduler → ChunkComponent → GPU
  */
 UCLASS(ClassGroup = (HktVoxel))
 class HKTVOXELTERRAIN_API AHktVoxelTerrainActor
@@ -150,8 +113,8 @@ public:
 	/** RenderCache 직접 접근 (테스트/디버그용) */
 	FHktVoxelRenderCache* GetTerrainCache() const { return TerrainCache.Get(); }
 
-	/** LOD별 로드된 청크 수 집계 — 콘솔/디버그용. Streamer가 없으면 0으로 채움 */
-	void GetLODHistogram(int32 OutCounts[4]) const;
+	/** Tier별 로드된 청크 수 집계 — 콘솔/디버그용. [0]=Near, [1]=Far */
+	void GetTierHistogram(int32 OutCounts[2]) const;
 
 	// IHktHitRefinementProvider
 	virtual bool RefineHit(
@@ -162,48 +125,54 @@ public:
 
 	// === 설정 ===
 
-	// === LOD 거리 임계값 (multi-ring 스트리밍) ===
-	// 가까운 카메라 → 풀 디테일 LOD0, 먼 카메라 → 다운샘플 LOD3.
-	// D0 < D1 < D2 < D3 순서를 유지해야 한다 (검증 없음, 디자이너 책임).
-
-	/** LOD 0(풀 디테일) 외곽 거리 (UE 유닛). 기본 4800 = 48m (10 청크 반경 @ 480cm) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
-		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD0Distance = 4800.f;
-
-	/** LOD 1(2x 다운샘플) 외곽 거리. 기본 12000 = 120m */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
-		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD1Distance = 12000.f;
-
-	/** LOD 2(4x 다운샘플) 외곽 거리. 기본 24000 = 240m */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
-		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD2Distance = 24000.f;
+	// === 청크 로더 선택 ===
 
 	/**
-	 * LOD 3(8x 다운샘플 / 단색 프록시) 외곽 거리 — 최대 가시 거리. 기본 48000 = 480m (100 청크 반경).
-	 * 주의: OuterDistance는 Streamer가 매 tick XY 전체를 enumerate하는 기준이다.
-	 * 128000cm처럼 크게 주면 (2·R+1)² ≈ 285K cell/tick이 되어 심각한 CPU 비용을 유발한다.
+	 * 청크 로딩 전략. 두 가지 방식만 지원:
+	 *  - Legacy   : 단일 반경 내 모든 청크 풀 디테일. 안전한 폴백.
+	 *  - Proximity: 근거리 풀 + 원거리 간이 2링. 회전에 무관(피드백 루프 없음).
+	 * BeginPlay 1회 생성이라 런타임 스왑하지 않는다 — 변경 시 PIE 재시작 필요.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
-		meta = (ClampMin = 1600, ClampMax = 1024000))
-	float LOD3Distance = 48000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming")
+	EHktVoxelLoaderType LoaderType = EHktVoxelLoaderType::Proximity;
 
-	/** 프레임당 최대 HighLOD(LOD 0/1) 청크 로드 수 — 근거리 우선순위 보호 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
-		meta = (ClampMin = 1, ClampMax = 32))
-	int32 MaxLoadsPerFrameHighLOD = 8;
+	// === Legacy 로더 파라미터 ===
 
-	/** 프레임당 최대 LowLOD(LOD 2/3) 청크 로드 수 — 원거리는 한 번에 많이 로드 가능 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
+	/** Legacy 모드에서 사용할 단일 스트리밍 반경 (UE 유닛). 기본 8000 = 80m */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Legacy",
+		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Legacy",
+				ClampMin = 1600, ClampMax = 1024000))
+	float LegacyStreamRadius = 8000.f;
+
+	// === Proximity 로더 파라미터 ===
+
+	/** 근거리(풀 디테일) 링 반경. 기본 1500 = 15m (~3 청크 @ 480cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Proximity",
+		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Proximity",
+				ClampMin = 480, ClampMax = 102400))
+	float ProximityNearRadius = 1500.f;
+
+	/** 원거리(간이 메시) 링 반경. 기본 8000 = 80m (~16 청크 @ 480cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Proximity",
+		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Proximity",
+				ClampMin = 480, ClampMax = 1024000))
+	float ProximityFarRadius = 8000.f;
+
+	/**
+	 * Far Tier 메시 LOD — 원거리 간이 메시의 다운샘플 배수. 0=1x / 1=2x / 2=4x / 3=8x.
+	 * 기본 2 = 4x 다운샘플 (복셀 64배 ↓, 삼각형 대폭 감소).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Proximity",
+		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Proximity",
+				ClampMin = 0, ClampMax = 3))
+	int32 ProximityFarMeshLOD = 2;
+
+	// === 공용 버짓 ===
+
+	/** 프레임당 최대 청크 로드/리티어 수 (로더 공통) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming",
 		meta = (ClampMin = 1, ClampMax = 64))
-	int32 MaxLoadsPerFrameLowLOD = 32;
-
-	/** LOD 레벨별 컴포넌트 품질 프리셋 (4개, 인덱스 = LOD 레벨) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|LOD",
-		meta = (TitleProperty = "NormalMapScale"))
-	TArray<FHktVoxelLODSettings> LODSettings;
+	int32 MaxLoadsPerFrame = 16;
 
 	/** 프레임당 최대 메싱 수 (MeshScheduler에 전달) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Meshing", meta = (ClampMin = 1, ClampMax = 16))
@@ -211,7 +180,7 @@ public:
 
 	/** 동시에 로드 가능한 최대 청크 수 (메모리 예산). 0이면 제한 없음 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 0))
-	int32 MaxLoadedChunks = 1024;
+	int32 MaxLoadedChunks = 2048;
 
 	/**
 	 * 테레인 높이 범위 — Z축 청크 좌표 [MinZ, MaxZ].
@@ -282,25 +251,11 @@ public:
 
 	/**
 	 * 디버그 렌더 모드.
-	 * ON → 실제 생성/메싱 파이프라인 그대로 유지, 머티리얼만 DebugRenderMaterial로 교체하고
-	 *      4개 LOD 거리 모두에 DebugViewDistanceMultiplier를 곱해 더 먼 영역까지 스트리밍.
+	 * ON → 실제 생성/메싱 파이프라인 그대로 유지, 머티리얼만 DebugRenderMaterial로 교체.
 	 * 콘솔: hkt.terrain.debug 0|1
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug")
 	bool bDebugRenderMode = false;
-
-	/** 디버그 모드 시 LOD 외곽 거리 배수 (1=그대로, 4=4배 반경). 4개 LOD 거리 모두에 곱함. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug",
-		meta = (ClampMin = "1.0", ClampMax = "32.0", UIMin = "1.0", UIMax = "16.0"))
-	float DebugViewDistanceMultiplier = 4.0f;
-
-	/**
-	 * 디버그용 LOD 강제. -1=정상 동작, 0~3=모든 청크를 해당 LOD로.
-	 * 콘솔: hkt.terrain.lod.freeze <-1|0|1|2|3>
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug",
-		meta = (ClampMin = "-1", ClampMax = "3"))
-	int32 ForcedLOD = -1;
 
 	/**
 	 * 디버그 렌더 전용 머티리얼. nullptr이면 ChunkComponent의 자동 기본
@@ -334,36 +289,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming", meta = (ClampMin = 16, ClampMax = 2048))
 	int32 InitialPoolSize = 64;
 
-	/**
-	 * 레거시 모드 — multi-ring LOD 도입 이전 동작으로 되돌린다.
-	 *
-	 * 효과:
-	 *  - 모든 청크를 LOD 0(풀 디테일)로 강제
-	 *  - 스트리밍 반경을 LegacyStreamRadius 하나로 고정 (LOD1/2/3 외곽 거리 무시)
-	 *  - 프러스텀 바이어스 비활성
-	 *
-	 * LOD 파이프라인에 문제가 있을 때 안전한 폴백으로 사용.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Legacy")
-	bool bLegacyNonLODMode = false;
-
-	/** 레거시 모드에서 사용할 단일 스트리밍 반경 (UE 유닛). 기본 8000 = 80m */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Legacy",
-		meta = (EditCondition = "bLegacyNonLODMode", ClampMin = 1600, ClampMax = 1024000))
-	float LegacyStreamRadius = 8000.f;
-
-	/**
-	 * 프러스텀 바이어스 활성화 — 카메라 전방 콘 밖 청크는 LOD 한 단계 강등(로드는 유지).
-	 * 메싱/GPU 비용 절감. 회전 히치는 없음(모든 청크 로드 유지).
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Frustum")
-	bool bFrustumBias = true;
-
-	/** 프러스텀 경계 마진(도). 반 시야각 + 이 값 밖 청크가 강등됨. 깜빡임 방지용 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Frustum",
-		meta = (ClampMin = 0.f, ClampMax = 60.f))
-	float FrustumBiasMarginDeg = 15.f;
-
 	/** 청크 스트리밍 통계 로그 주기(초). 0 이하면 비활성 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug",
 		meta = (ClampMin = 0.f, ClampMax = 60.f))
@@ -378,14 +303,14 @@ public:
 	bool bLogChunkEvents = false;
 
 	/**
-	 * 활성 청크별 AABB를 LOD 색상으로 DrawDebug 렌더.
-	 * LOD0=녹/LOD1=노랑/LOD2=주황/LOD3=빨강. 매 틱 1프레임 라인 그리기.
+	 * 활성 청크별 AABB를 Tier 색상으로 DrawDebug 렌더.
+	 * Near=녹 / Far=주황. 매 틱 1프레임 라인 그리기.
 	 * 콘솔: hkt.terrain.debug.draw 0|1
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug", Transient)
 	bool bDrawChunkDebug = false;
 
-	/** DrawChunkDebug 시 청크 좌표·LOD 텍스트 라벨 표시 */
+	/** DrawChunkDebug 시 청크 좌표·Tier 텍스트 라벨 표시 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug", Transient,
 		meta = (EditCondition = "bDrawChunkDebug"))
 	bool bDrawChunkDebugLabels = false;
@@ -425,23 +350,24 @@ private:
 	/** 카메라 위치 가져오기 */
 	FVector GetCameraWorldPos() const;
 
-	/** 카메라 위치 + 회전 + Half FOV(도 단위) 가져오기 — 프러스텀 바이어스 계산용 */
-	void GetCameraView(FVector& OutPos, FRotator& OutRot, float& OutHalfFovDeg) const;
+	/** Tier → Mesh LOD 매핑 (Near=0, Far=ProximityFarMeshLOD). Legacy 로더는 Near만 쓰므로 LOD 0 고정. */
+	int32 TierToMeshLOD(EHktVoxelChunkTier Tier) const;
 
-	/** 절차적 생성 + RenderCache 로드 + 컴포넌트 할당 (LOD 0 기본 — 외부 API 호환용) */
+	/** 절차적 생성 + RenderCache 로드 + 컴포넌트 할당 (기본 Near Tier — 외부 API 호환용) */
 	void GenerateAndLoadChunk(const FIntVector& ChunkCoord);
 
-	/** LOD-aware 절차적 생성 + 로드 + 컴포넌트 할당 */
-	void GenerateAndLoadChunk(const FIntVector& ChunkCoord, int32 LOD);
+	/** Tier-aware 절차적 생성 + 로드 + 컴포넌트 할당 */
+	void GenerateAndLoadChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier Tier);
 
 	/**
-	 * 이미 로드된 청크의 LOD만 변경 — RequestedLOD store + bMeshDirty=true + MeshGeneration++.
+	 * 이미 로드된 청크의 Tier만 변경 — RequestedLOD store + bMeshDirty=true + MeshGeneration++.
 	 * Voxel 데이터는 재생성하지 않고 메시만 다음 틱에 새 LOD로 재생성된다.
+	 * 머티리얼/그림자/콜리전 등 컴포넌트 설정도 동시에 반영.
 	 */
-	void RetuneChunkLOD(const FIntVector& ChunkCoord, int32 NewLOD);
+	void RetierChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier NewTier);
 
-	/** LOD 인덱스에 해당하는 컴포넌트 설정 적용 (clamp + 액터 글로벌 강도 합성) */
-	void ApplyLODToComponent(UHktVoxelChunkComponent* Comp, int32 LOD);
+	/** Tier에 해당하는 컴포넌트 설정 적용 (액터 글로벌 강도 합성) */
+	void ApplyTierToComponent(UHktVoxelChunkComponent* Comp, EHktVoxelChunkTier Tier);
 
 	/** 스트리밍 결과 반영 — 청크 로드/언로드 + 컴포넌트 할당 */
 	void ProcessStreamingResults();
@@ -461,11 +387,14 @@ private:
 	 */
 	void PumpStyleTextures();
 
-	/** 활성 청크 AABB를 LOD 색상으로 DrawDebug 그림 (bDrawChunkDebug ON 시) */
+	/** 활성 청크 AABB를 Tier 색상으로 DrawDebug 그림 (bDrawChunkDebug ON 시) */
 	void DrawChunkDebug() const;
 
-	/** StatsLogInterval 주기로 현재 로드된 청크 수, 크기, LOD 분포를 로그 출력 */
+	/** StatsLogInterval 주기로 현재 로드된 청크 수, 크기, Tier 분포를 로그 출력 */
 	void LogStreamingStatsPeriodic();
+
+	/** UPROPERTY 변경이 즉시 반영되도록 매 Tick 로더에 Config 주입 */
+	void SyncLoaderParams();
 
 	/** 컴포넌트 풀 관리 */
 	UHktVoxelChunkComponent* AcquireComponent();
@@ -473,10 +402,10 @@ private:
 	void PrewarmPool(int32 Count);
 
 	/**
-	 * 풀에서 컴포넌트 1개를 획득해 머티리얼/LOD/스타일/ActiveChunks 등록까지 일괄 처리.
+	 * 풀에서 컴포넌트 1개를 획득해 머티리얼/Tier/스타일/ActiveChunks 등록까지 일괄 처리.
 	 * GenerateAndLoadChunk와 LoadTerrainChunk의 공통 초기화 경로. nullptr 반환 시 스킵.
 	 */
-	UHktVoxelChunkComponent* AcquireAndConfigureComponent(const FIntVector& ChunkCoord, int32 LOD);
+	UHktVoxelChunkComponent* AcquireAndConfigureComponent(const FIntVector& ChunkCoord, EHktVoxelChunkTier Tier);
 
 	/** BlockStyles 배열로부터 Texture2DArray + LUT + MaterialLUT를 빌드 */
 	void BuildTerrainStyle();
@@ -488,7 +417,7 @@ private:
 
 	TUniquePtr<FHktVoxelRenderCache> TerrainCache;
 	TUniquePtr<FHktVoxelMeshScheduler> TerrainMeshScheduler;
-	TUniquePtr<FHktVoxelTerrainStreamer> Streamer;
+	TUniquePtr<IHktVoxelChunkLoader> Loader;
 	TUniquePtr<FHktTerrainGenerator> Generator;
 
 	/** 활성 청크 → 컴포넌트 매핑 */
