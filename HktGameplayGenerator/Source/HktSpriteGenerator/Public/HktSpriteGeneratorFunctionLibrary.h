@@ -64,8 +64,12 @@ public:
 	static FString McpBuildSpritePart(const FString& JsonSpec);
 
 	/**
-	 * 가장 간단한 경로: 이미 임포트된 UTexture2D 아틀라스와 단일 프레임 크기만으로
+	 * 가장 간단한 경로: 이미 임포트된 UTexture2D 아틀라스 경로와 단일 프레임 크기만으로
 	 * UHktSpritePartTemplate DataAsset을 생성.
+	 *
+	 * AtlasAssetPath: UE5 오브젝트 경로 문자열 (예: "/Game/Generated/Textures/T_Foo.T_Foo").
+	 *   내부에서 LoadObject<UTexture2D> 로 명시 로드한다 — 아직 메모리에 없어도 됨.
+	 *   Remote Control API / Python MCP 에서도 이 문자열 그대로 넘기면 된다.
 	 *
 	 * 가정: 아틀라스는 "행=방향, 열=프레임" 그리드 형태로 패킹되어 있다.
 	 *   - cols = Atlas.Width  / FrameWidth  → FramesPerDirection
@@ -82,15 +86,14 @@ public:
 	 *
 	 *   OBJECT_PATH = "/Script/HktSpriteGenerator.Default__HktSpriteGeneratorFunctionLibrary"
 	 *
-	 *   # 1) 최소 예시: 이미 /Game/ 아래에 임포트된 Atlas 텍스처를 사용
+	 *   # 1) 최소 예시: /Game/ 아래에 임포트된 Atlas 텍스처 경로를 그대로 전달
 	 *   async def build_knight_body(bridge: EditorBridge):
 	 *       result_json = await bridge.call_method(
 	 *           "EditorBuildSpritePartFromAtlas",
 	 *           object_path=OBJECT_PATH,
 	 *           Tag="Sprite.Part.Body.Knight",
 	 *           Slot="Body",
-	 *           # UTexture2D* 는 Remote Control API에서 에셋 경로 문자열로 전달
-	 *           Atlas="/Game/Generated/Textures/T_Knight_Body_Atlas.T_Knight_Body_Atlas",
+	 *           AtlasAssetPath="/Game/Generated/Textures/T_Knight_Body_Atlas.T_Knight_Body_Atlas",
 	 *           FrameWidth=64,
 	 *           FrameHeight=64,
 	 *       )
@@ -104,7 +107,7 @@ public:
 	 *           object_path=OBJECT_PATH,
 	 *           Tag="Sprite.Part.Body.Mage",
 	 *           Slot="Body",
-	 *           Atlas="/Game/Generated/Textures/T_Mage_Cast_Atlas.T_Mage_Cast_Atlas",
+	 *           AtlasAssetPath="/Game/Generated/Textures/T_Mage_Cast_Atlas.T_Mage_Cast_Atlas",
 	 *           FrameWidth=96,
 	 *           FrameHeight=96,
 	 *           ActionId="cast",
@@ -115,7 +118,7 @@ public:
 	 *           bMirrorWestFromEast=True,
 	 *       )
 	 *
-	 *   # 3) 디스크의 PNG 를 먼저 UTexture2D 로 임포트한 뒤 이 함수에 넘기는 파이프라인
+	 *   # 3) 디스크 PNG → McpImportTexture → 반환 경로를 AtlasAssetPath 로 바로 체이닝
 	 *   async def import_then_build(bridge: EditorBridge, png_path: str):
 	 *       import json
 	 *       intent = json.dumps({"usage": "UI"})  # Nearest/NoMipmap 강제
@@ -126,13 +129,13 @@ public:
 	 *           JsonIntent=intent,
 	 *           OutputDir="/Game/Generated/Textures",
 	 *       )
-	 *       atlas_asset_path = json.loads(imp)["assetPath"]   # e.g. "/Game/Generated/Textures/T_Foo"
+	 *       atlas_asset_path = json.loads(imp)["assetPath"]
 	 *       return await bridge.call_method(
 	 *           "EditorBuildSpritePartFromAtlas",
 	 *           object_path=OBJECT_PATH,
 	 *           Tag="Sprite.Part.Weapon.Sword",
 	 *           Slot="Weapon",
-	 *           Atlas=atlas_asset_path,
+	 *           AtlasAssetPath=atlas_asset_path,
 	 *           FrameWidth=48,
 	 *           FrameHeight=48,
 	 *           ActionId="swing",
@@ -143,7 +146,7 @@ public:
 	static FString EditorBuildSpritePartFromAtlas(
 		const FString& Tag,
 		const FString& Slot,
-		UTexture2D* Atlas,
+		const FString& AtlasAssetPath,
 		int32 FrameWidth,
 		int32 FrameHeight,
 		const FString& ActionId = TEXT("idle"),
