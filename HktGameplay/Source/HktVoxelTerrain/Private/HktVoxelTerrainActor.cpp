@@ -2,8 +2,6 @@
 
 #include "HktVoxelTerrainActor.h"
 #include "HktVoxelChunkLoader.h"
-#include "HktLegacyChunkLoader.h"
-#include "HktProximityChunkLoader.h"
 #include "HktVoxelTerrainLog.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelRaycast.h"
@@ -23,7 +21,6 @@
 #include "Engine/Texture2D.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
-#include "Camera/PlayerCameraManager.h"
 #include "HAL/IConsoleManager.h"
 #include "RenderingThread.h"
 #include "RHIStaticStates.h"
@@ -65,13 +62,15 @@ void AHktVoxelTerrainActor::BeginPlay()
 	// 지형 생성기 초기화
 	Generator = MakeUnique<FHktTerrainGenerator>(GenConfig);
 
-	// 청크 로더 초기화 — LoaderType에 따라 전략을 선택하고 파라미터 주입.
-	RebuildLoader();
+	// 청크 로더 초기화 — LoaderType은 BeginPlay 시점에 확정되어 런타임 스왑하지 않는다.
+	Loader = CreateVoxelChunkLoader(LoaderType);
+	SyncLoaderParams();
 
 	PrewarmPool(InitialPoolSize);
 
-	// 스타일라이즈 토글 초기값 동기화
+	// 에디터 라이브 토글 감지용 초기값 동기화
 	bPrevStylizedRendering = bStylizedRendering;
+	bPrevDebugRenderMode = bDebugRenderMode;
 	PrevEdgeRoundStrength = EdgeRoundStrength;
 	PrevEdgeAlphaStrength = EdgeAlphaStrength;
 	PrevEdgeAlphaStart = EdgeAlphaStart;
@@ -146,12 +145,6 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	if (!TerrainCache || !TerrainMeshScheduler || !Loader || !Generator)
 	{
 		return;
-	}
-
-	// 런타임 LoaderType 변경 감지 — 에디터 라이브 토글 대응.
-	if (LoaderType != ActiveLoaderType)
-	{
-		RebuildLoader();
 	}
 
 	const FVector CameraPos = GetCameraWorldPos();
@@ -266,6 +259,11 @@ void AHktVoxelTerrainActor::DrawChunkDebug() const
 		return;
 	}
 
+	if (!Loader)
+	{
+		return;
+	}
+
 	const FVector Extent(ChunkWorldSize * 0.5f);
 	const FTransform ActorXform = GetActorTransform();
 
@@ -275,8 +273,7 @@ void AHktVoxelTerrainActor::DrawChunkDebug() const
 		FColor(255, 128, 0),
 	};
 
-	const TMap<FIntVector, EHktVoxelChunkTier>& LoadedTiers =
-		Loader ? Loader->GetLoadedChunks() : TMap<FIntVector, EHktVoxelChunkTier>();
+	const TMap<FIntVector, EHktVoxelChunkTier>& LoadedTiers = Loader->GetLoadedChunks();
 
 	for (const TPair<FIntVector, UHktVoxelChunkComponent*>& Pair : ActiveChunks)
 	{
@@ -423,37 +420,22 @@ FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
 	return FVector::ZeroVector;
 }
 
-void AHktVoxelTerrainActor::RebuildLoader()
-{
-	Loader = CreateVoxelChunkLoader(LoaderType);
-	ActiveLoaderType = LoaderType;
-	SyncLoaderParams();
-}
-
 void AHktVoxelTerrainActor::SyncLoaderParams()
 {
 	if (!Loader)
 	{
 		return;
 	}
-	Loader->SetMaxLoadsPerFrame(MaxLoadsPerFrame);
-	Loader->SetMaxLoadedChunks(MaxLoadedChunks);
-	Loader->SetHeightRange(HeightMinZ, HeightMaxZ);
-
-	if (LoaderType == EHktVoxelLoaderType::Legacy)
-	{
-		if (FHktLegacyChunkLoader* L = static_cast<FHktLegacyChunkLoader*>(Loader.Get()))
-		{
-			L->SetStreamRadius(LegacyStreamRadius);
-		}
-	}
-	else if (LoaderType == EHktVoxelLoaderType::Proximity)
-	{
-		if (FHktProximityChunkLoader* L = static_cast<FHktProximityChunkLoader*>(Loader.Get()))
-		{
-			L->SetRadii(ProximityNearRadius, ProximityFarRadius);
-		}
-	}
+	FHktVoxelLoaderConfig Cfg;
+	Cfg.PrimaryRadius = (LoaderType == EHktVoxelLoaderType::Legacy)
+		? LegacyStreamRadius
+		: ProximityNearRadius;
+	Cfg.SecondaryRadius = ProximityFarRadius;  // Legacy는 무시
+	Cfg.MaxLoadsPerFrame = MaxLoadsPerFrame;
+	Cfg.MaxLoadedChunks = MaxLoadedChunks;
+	Cfg.HeightMinZ = HeightMinZ;
+	Cfg.HeightMaxZ = HeightMaxZ;
+	Loader->Configure(Cfg);
 }
 
 int32 AHktVoxelTerrainActor::TierToMeshLOD(EHktVoxelChunkTier Tier) const
@@ -1286,54 +1268,9 @@ namespace
 		}
 	}
 
-	// === 로더 선택 / 파라미터 / 통계 ===
-
-	void Cmd_TerrainLoader(const TArray<FString>& Args)
-	{
-		auto Actors = FindTerrainActors();
-		if (Actors.Num() == 0)
-		{
-			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
-			return;
-		}
-		if (Args.Num() < 1)
-		{
-			for (AHktVoxelTerrainActor* A : Actors)
-			{
-				const TCHAR* Name = (A->LoaderType == EHktVoxelLoaderType::Legacy)
-					? TEXT("Legacy") : TEXT("Proximity");
-				UE_LOG(LogConsoleResponse, Display,
-					TEXT("[Terrain] %s Loader=%s"), *A->GetName(), Name);
-			}
-			UE_LOG(LogConsoleResponse, Display,
-				TEXT("Usage: hkt.terrain.loader <legacy|proximity>"));
-			return;
-		}
-		const FString& Arg = Args[0];
-		EHktVoxelLoaderType NewType = EHktVoxelLoaderType::Proximity;
-		if (Arg.Equals(TEXT("legacy"), ESearchCase::IgnoreCase))
-		{
-			NewType = EHktVoxelLoaderType::Legacy;
-		}
-		else if (Arg.Equals(TEXT("proximity"), ESearchCase::IgnoreCase))
-		{
-			NewType = EHktVoxelLoaderType::Proximity;
-		}
-		else
-		{
-			UE_LOG(LogConsoleResponse, Warning,
-				TEXT("[Terrain] 알 수 없는 로더 '%s' — legacy|proximity 중 하나"), *Arg);
-			return;
-		}
-		for (AHktVoxelTerrainActor* A : Actors)
-		{
-			A->LoaderType = NewType;
-			UE_LOG(LogConsoleResponse, Display,
-				TEXT("[Terrain] %s Loader → %s (다음 Tick에 적용)"),
-				*A->GetName(),
-				NewType == EHktVoxelLoaderType::Legacy ? TEXT("Legacy") : TEXT("Proximity"));
-		}
-	}
+	// === 로더 파라미터 / 통계 ===
+	// 로더 종류(LoaderType)는 BeginPlay 시점에 확정되어 런타임에 바꾸지 않는다.
+	// 에디터 UPROPERTY로 변경 후 PIE 재시작해서 적용한다.
 
 	void Cmd_TerrainProximityRadii(const TArray<FString>& Args)
 	{
@@ -1401,11 +1338,6 @@ namespace
 		TEXT("Terrain 디버그 렌더 모드. 인자: 0=끔, 1=켬. 없으면 토글. "
 			"DebugRenderMaterial로 교체 (생성/메싱 파이프라인은 그대로)."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebug));
-
-	FAutoConsoleCommand CmdTerrainLoader(
-		TEXT("hkt.terrain.loader"),
-		TEXT("청크 로더 선택. 인자: legacy|proximity. 없으면 현재 로더 출력."),
-		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLoader));
 
 	FAutoConsoleCommand CmdTerrainProximityRadii(
 		TEXT("hkt.terrain.proximity"),

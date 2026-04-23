@@ -131,7 +131,7 @@ public:
 	 * 청크 로딩 전략. 두 가지 방식만 지원:
 	 *  - Legacy   : 단일 반경 내 모든 청크 풀 디테일. 안전한 폴백.
 	 *  - Proximity: 근거리 풀 + 원거리 간이 2링. 회전에 무관(피드백 루프 없음).
-	 * 런타임 스왑은 hkt.terrain.loader 콘솔로 가능.
+	 * BeginPlay 1회 생성이라 런타임 스왑하지 않는다 — 변경 시 PIE 재시작 필요.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming")
 	EHktVoxelLoaderType LoaderType = EHktVoxelLoaderType::Proximity;
@@ -372,10 +372,7 @@ private:
 	/** StatsLogInterval 주기로 현재 로드된 청크 수, 크기, Tier 분포를 로그 출력 */
 	void LogStreamingStatsPeriodic();
 
-	/** 로더 인스턴스 (재)생성 — LoaderType 변경 시 호출 */
-	void RebuildLoader();
-
-	/** LoaderType별 파라미터를 현재 로더에 주입 (반경/버짓/높이 등) */
+	/** UPROPERTY 변경이 즉시 반영되도록 매 Tick 로더에 Config 주입 */
 	void SyncLoaderParams();
 
 	/** 컴포넌트 풀 관리 */
@@ -400,7 +397,6 @@ private:
 	TUniquePtr<FHktVoxelRenderCache> TerrainCache;
 	TUniquePtr<FHktVoxelMeshScheduler> TerrainMeshScheduler;
 	TUniquePtr<IHktVoxelChunkLoader> Loader;
-	EHktVoxelLoaderType ActiveLoaderType = EHktVoxelLoaderType::Proximity;
 	TUniquePtr<FHktTerrainGenerator> Generator;
 
 	/** 활성 청크 → 컴포넌트 매핑 */
