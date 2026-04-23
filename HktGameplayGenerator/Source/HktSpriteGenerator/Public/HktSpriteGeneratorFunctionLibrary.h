@@ -75,6 +75,69 @@ public:
 	 * 더 복잡한 구조가 필요하면 McpBuildSpritePart 사용.
 	 *
 	 * 반환: {"success":bool, "dataAssetPath":..., "error":...}
+	 *
+	 * === Python 사용 예시 (MCP EditorBridge / Remote Control API) ===
+	 *
+	 *   from hkt_mcp.bridge.editor_bridge import EditorBridge
+	 *
+	 *   OBJECT_PATH = "/Script/HktSpriteGenerator.Default__HktSpriteGeneratorFunctionLibrary"
+	 *
+	 *   # 1) 최소 예시: 이미 /Game/ 아래에 임포트된 Atlas 텍스처를 사용
+	 *   async def build_knight_body(bridge: EditorBridge):
+	 *       result_json = await bridge.call_method(
+	 *           "EditorBuildSpritePartFromAtlas",
+	 *           object_path=OBJECT_PATH,
+	 *           Tag="Sprite.Part.Body.Knight",
+	 *           Slot="Body",
+	 *           # UTexture2D* 는 Remote Control API에서 에셋 경로 문자열로 전달
+	 *           Atlas="/Game/Generated/Textures/T_Knight_Body_Atlas.T_Knight_Body_Atlas",
+	 *           FrameWidth=64,
+	 *           FrameHeight=64,
+	 *       )
+	 *       # result_json: {"success": true, "dataAssetPath": "/Game/Generated/Sprites/DA_...", ...}
+	 *       return result_json
+	 *
+	 *   # 2) 전체 파라미터 예시: 액션 id/피봇/루핑/미러링 등을 명시
+	 *   async def build_mage_cast(bridge: EditorBridge):
+	 *       return await bridge.call_method(
+	 *           "EditorBuildSpritePartFromAtlas",
+	 *           object_path=OBJECT_PATH,
+	 *           Tag="Sprite.Part.Body.Mage",
+	 *           Slot="Body",
+	 *           Atlas="/Game/Generated/Textures/T_Mage_Cast_Atlas.T_Mage_Cast_Atlas",
+	 *           FrameWidth=96,
+	 *           FrameHeight=96,
+	 *           ActionId="cast",
+	 *           OutputDir="/Game/Generated/Sprites/Mage",
+	 *           PixelToWorld=2.0,
+	 *           FrameDurationMs=80.0,
+	 *           bLooping=False,
+	 *           bMirrorWestFromEast=True,
+	 *       )
+	 *
+	 *   # 3) 디스크의 PNG 를 먼저 UTexture2D 로 임포트한 뒤 이 함수에 넘기는 파이프라인
+	 *   async def import_then_build(bridge: EditorBridge, png_path: str):
+	 *       import json
+	 *       intent = json.dumps({"usage": "UI"})  # Nearest/NoMipmap 강제
+	 *       imp = await bridge.call_method(
+	 *           "McpImportTexture",
+	 *           object_path="/Script/HktTextureGenerator.Default__HktTextureFunctionLibrary",
+	 *           ImageFilePath=png_path,
+	 *           JsonIntent=intent,
+	 *           OutputDir="/Game/Generated/Textures",
+	 *       )
+	 *       atlas_asset_path = json.loads(imp)["assetPath"]   # e.g. "/Game/Generated/Textures/T_Foo"
+	 *       return await bridge.call_method(
+	 *           "EditorBuildSpritePartFromAtlas",
+	 *           object_path=OBJECT_PATH,
+	 *           Tag="Sprite.Part.Weapon.Sword",
+	 *           Slot="Weapon",
+	 *           Atlas=atlas_asset_path,
+	 *           FrameWidth=48,
+	 *           FrameHeight=48,
+	 *           ActionId="swing",
+	 *           bLooping=False,
+	 *       )
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorBuildSpritePartFromAtlas(
