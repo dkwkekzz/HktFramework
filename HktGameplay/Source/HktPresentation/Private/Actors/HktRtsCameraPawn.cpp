@@ -2,11 +2,9 @@
 
 #include "Actors/HktRtsCameraPawn.h"
 #include "HktPresentationSubsystem.h"
-#include "HktPresentationState.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "Camera/HktCameraModeBase.h"
-#include "Camera/HktCameraMode_RtsFree.h"
-#include "Camera/HktCameraMode_SubjectFollow.h"
+#include "Camera/HktCameraMode_RtsView.h"
 #include "Camera/HktCameraMode_ShoulderView.h"
 #include "Camera/HktCameraMode_IsometricOrtho.h"
 #include "Camera/HktCameraMode_IsometricGame.h"
@@ -32,8 +30,7 @@ AHktRtsCameraPawn::AHktRtsCameraPawn()
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm);
 
-	RtsFreeMode = CreateDefaultSubobject<UHktCameraMode_RtsFree>(TEXT("RtsFreeMode"));
-	SubjectFollowMode = CreateDefaultSubobject<UHktCameraMode_SubjectFollow>(TEXT("SubjectFollowMode"));
+	RtsViewMode = CreateDefaultSubobject<UHktCameraMode_RtsView>(TEXT("RtsViewMode"));
 	ShoulderViewMode = CreateDefaultSubobject<UHktCameraMode_ShoulderView>(TEXT("ShoulderViewMode"));
 	IsometricOrthoMode = CreateDefaultSubobject<UHktCameraMode_IsometricOrtho>(TEXT("IsometricOrthoMode"));
 	IsometricGameMode = CreateDefaultSubobject<UHktCameraMode_IsometricGame>(TEXT("IsometricGameMode"));
@@ -51,11 +48,10 @@ void AHktRtsCameraPawn::BeginPlay()
 	{
 		WheelInputHandle = Interaction->OnWheelInput().AddUObject(this, &AHktRtsCameraPawn::HandleZoom);
 		SubjectChangedHandle = Interaction->OnSubjectChanged().AddUObject(this, &AHktRtsCameraPawn::OnSubjectChanged);
-		CachedPlayerUid = Interaction->GetPlayerUid();
 	}
 
-	// 기본 모드로 시작
-	SetCameraMode(EHktCameraMode::RtsFree);
+	// BP에서 지정한 기본 모드로 시작
+	SetCameraMode(DefaultCameraMode);
 }
 
 void AHktRtsCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -100,33 +96,6 @@ void AHktRtsCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// PlayerUid가 지연 초기화될 수 있으므로 캐싱 재시도
-	if (CachedPlayerUid == 0)
-	{
-		if (IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(BoundPlayerController.Get()))
-		{
-			CachedPlayerUid = Interaction->GetPlayerUid();
-		}
-	}
-
-	if (PendingSubjectEntityId != InvalidEntityId && CachedPlayerUid != 0)
-	{
-		CurrentSubjectEntityId = PendingSubjectEntityId;
-
-		// PlayerUid가 확정되면 보류 중인 Subject에 대해 소유권 검증 후 모드 재평가
-		// SetCameraMode 내부에서 OnSubjectChanged를 호출하므로 별도 호출 불필요
-		if (IsOwnedEntity(PendingSubjectEntityId))
-		{
-			SetCameraMode(EHktCameraMode::SubjectFollow);
-		}
-		else
-		{
-			SetCameraMode(EHktCameraMode::RtsFree);
-		}
-
-		PendingSubjectEntityId = InvalidEntityId;
-	}
-
 	if (ActiveMode)
 	{
 		ActiveMode->TickMode(this, DeltaTime);
@@ -165,26 +134,14 @@ void AHktRtsCameraPawn::HandleZoom(float Value)
 
 void AHktRtsCameraPawn::OnSubjectChanged(FHktEntityId EntityId)
 {
-	if (CurrentSubjectEntityId != EntityId)
+	if (CurrentSubjectEntityId == EntityId) return;
+
+	CurrentSubjectEntityId = EntityId;
+
+	if (ActiveMode)
 	{
-		PendingSubjectEntityId = EntityId;
+		ActiveMode->OnSubjectChanged(this, CurrentSubjectEntityId);
 	}
-}
-
-bool AHktRtsCameraPawn::IsOwnedEntity(FHktEntityId EntityId) const
-{
-	if (CachedPlayerUid == 0) return false;
-
-	APlayerController* PC = BoundPlayerController.Get();
-	if (!PC) return false;
-
-	UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC);
-	if (!Sub) return false;
-
-	const FHktOwnershipView* O = Sub->GetState().GetOwnership(EntityId);
-	if (!O) return false;
-
-	return O->OwnedPlayerUid.Get() == CachedPlayerUid;
 }
 
 void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)
@@ -223,14 +180,13 @@ void AHktRtsCameraPawn::SetCameraMode(EHktCameraMode NewMode)
 		}
 
 		// 마우스 커서 상태 적용
-		// (ShoulderView 등 일부 모드는 OnActivate에서 SetInputMode와 함께 직접 제어하므로
-		//  여기서는 cursor-mode 모드의 기본값만 보장한다)
+		// (ShoulderView 등 일부 모드는 OnActivate에서 SetInputMode와 함께 직접 제어)
 		if (PC && ActiveMode->bShowMouseCursor)
 		{
 			PC->bShowMouseCursor = true;
 		}
 
-		// 현재 Subject를 새 모드에 전달하여, 콘솔 커맨드 등 외부 전환 시에도 동기화
+		// 현재 Subject를 새 모드에 전달 — 콘솔 등 외부 모드 전환 시에도 동기화
 		if (CurrentSubjectEntityId != InvalidEntityId)
 		{
 			ActiveMode->OnSubjectChanged(this, CurrentSubjectEntityId);
@@ -242,12 +198,11 @@ UHktCameraModeBase* AHktRtsCameraPawn::GetModeInstance(EHktCameraMode Mode) cons
 {
 	switch (Mode)
 	{
-	case EHktCameraMode::RtsFree:        return RtsFreeMode;
-	case EHktCameraMode::SubjectFollow:  return SubjectFollowMode;
+	case EHktCameraMode::RtsView:        return RtsViewMode;
 	case EHktCameraMode::ShoulderView:   return ShoulderViewMode;
 	case EHktCameraMode::IsometricOrtho: return IsometricOrthoMode;
 	case EHktCameraMode::IsometricGame:  return IsometricGameMode;
-	default:                             return RtsFreeMode;
+	default:                             return RtsViewMode;
 	}
 }
 
@@ -269,8 +224,7 @@ static const TCHAR* CameraModeToString(EHktCameraMode Mode)
 {
 	switch (Mode)
 	{
-	case EHktCameraMode::RtsFree:        return TEXT("RtsFree");
-	case EHktCameraMode::SubjectFollow:  return TEXT("SubjectFollow");
+	case EHktCameraMode::RtsView:        return TEXT("RtsView");
 	case EHktCameraMode::ShoulderView:   return TEXT("ShoulderView");
 	case EHktCameraMode::IsometricOrtho: return TEXT("IsometricOrtho");
 	case EHktCameraMode::IsometricGame:  return TEXT("IsometricGame");
@@ -280,22 +234,17 @@ static const TCHAR* CameraModeToString(EHktCameraMode Mode)
 
 static bool StringToCameraMode(const FString& Str, EHktCameraMode& OutMode)
 {
-	if (Str.Equals(TEXT("RtsFree"), ESearchCase::IgnoreCase)
+	if (Str.Equals(TEXT("RtsView"), ESearchCase::IgnoreCase)
+		|| Str.Equals(TEXT("Rts"), ESearchCase::IgnoreCase)
 		|| Str.Equals(TEXT("0")))
 	{
-		OutMode = EHktCameraMode::RtsFree;
-		return true;
-	}
-	if (Str.Equals(TEXT("SubjectFollow"), ESearchCase::IgnoreCase)
-		|| Str.Equals(TEXT("1")))
-	{
-		OutMode = EHktCameraMode::SubjectFollow;
+		OutMode = EHktCameraMode::RtsView;
 		return true;
 	}
 	if (Str.Equals(TEXT("ShoulderView"), ESearchCase::IgnoreCase)
 		|| Str.Equals(TEXT("Shoulder"), ESearchCase::IgnoreCase)
 		|| Str.Equals(TEXT("OTS"), ESearchCase::IgnoreCase)
-		|| Str.Equals(TEXT("2")))
+		|| Str.Equals(TEXT("1")))
 	{
 		OutMode = EHktCameraMode::ShoulderView;
 		return true;
@@ -303,7 +252,7 @@ static bool StringToCameraMode(const FString& Str, EHktCameraMode& OutMode)
 	if (Str.Equals(TEXT("IsometricOrtho"), ESearchCase::IgnoreCase)
 		|| Str.Equals(TEXT("IsoOrtho"), ESearchCase::IgnoreCase)
 		|| Str.Equals(TEXT("Ortho"), ESearchCase::IgnoreCase)
-		|| Str.Equals(TEXT("3")))
+		|| Str.Equals(TEXT("2")))
 	{
 		OutMode = EHktCameraMode::IsometricOrtho;
 		return true;
@@ -311,7 +260,7 @@ static bool StringToCameraMode(const FString& Str, EHktCameraMode& OutMode)
 	if (Str.Equals(TEXT("IsometricGame"), ESearchCase::IgnoreCase)
 		|| Str.Equals(TEXT("IsoGame"), ESearchCase::IgnoreCase)
 		|| Str.Equals(TEXT("Iso"), ESearchCase::IgnoreCase)
-		|| Str.Equals(TEXT("4")))
+		|| Str.Equals(TEXT("3")))
 	{
 		OutMode = EHktCameraMode::IsometricGame;
 		return true;
@@ -321,14 +270,14 @@ static bool StringToCameraMode(const FString& Str, EHktCameraMode& OutMode)
 
 static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 	TEXT("hkt.Camera.SetMode"),
-	TEXT("카메라 모드 전환. 사용법: hkt.Camera.SetMode <RtsFree|SubjectFollow|ShoulderView|IsometricOrtho|IsometricGame|0|1|2|3|4>"),
+	TEXT("카메라 모드 전환. 사용법: hkt.Camera.SetMode <RtsView|ShoulderView|IsometricOrtho|IsometricGame|0|1|2|3>"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 		[](const TArray<FString>& Args, UWorld* World)
 		{
 			if (Args.Num() < 1)
 			{
 				UE_LOG(LogTemp, Warning,
-					TEXT("hkt.Camera.SetMode: 모드를 지정하세요. (RtsFree, SubjectFollow, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3, 4)"));
+					TEXT("hkt.Camera.SetMode: 모드를 지정하세요. (RtsView, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3)"));
 				return;
 			}
 
@@ -336,7 +285,7 @@ static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 			if (!StringToCameraMode(Args[0], NewMode))
 			{
 				UE_LOG(LogTemp, Warning,
-					TEXT("hkt.Camera.SetMode: 알 수 없는 모드 '%s'. (RtsFree, SubjectFollow, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3, 4)"),
+					TEXT("hkt.Camera.SetMode: 알 수 없는 모드 '%s'. (RtsView, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3)"),
 					*Args[0]);
 				return;
 			}

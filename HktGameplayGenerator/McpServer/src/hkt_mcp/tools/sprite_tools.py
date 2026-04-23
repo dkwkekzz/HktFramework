@@ -26,7 +26,7 @@ logger = logging.getLogger("hkt_mcp.tools.sprite")
 
 OBJECT_PATH = "/Script/HktSpriteGenerator.Default__HktSpriteGeneratorFunctionLibrary"
 
-# 8방향 고정 순서 — FHktSpriteAction::FramesByDirection 인덱스와 일치해야 함.
+# 8방향 고정 순서 — FHktSpriteAction 의 direction 인덱스와 일치해야 함.
 DIRECTIONS: List[str] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 DIRECTION_SET = set(DIRECTIONS)
 IMAGE_EXTS = {".png", ".tga", ".jpg", ".jpeg", ".bmp", ".webp"}
@@ -264,19 +264,29 @@ def _pack_atlas(
         atlas.paste(decoded[p], (col * cell_w, row * cell_h), decoded[p])
     atlas.save(out_path, "PNG")
 
+    # UE5 새 스키마: 그리드 레이아웃 + frameOverrides.
+    # 패킹이 (action, dir, frame) 순이 아니라 고유 파일 순이라, 각 셀 위치를
+    # frameOverrides 의 명시 atlasIndex 로 내보낸다.
     actions_out: List[Dict[str, Any]] = []
     for action_id in sorted(normalized.keys()):
-        fbd: List[List[Dict[str, Any]]] = []
-        for d in DIRECTIONS:
-            fbd.append([
-                {
+        max_frames = max(len(normalized[action_id][d]) for d in DIRECTIONS)
+        overrides: List[Dict[str, Any]] = []
+        for di, d in enumerate(DIRECTIONS):
+            for fi, p in enumerate(normalized[action_id][d]):
+                overrides.append({
+                    "dir": di,
+                    "frame": fi,
                     "atlasIndex": path_to_cell[p],
-                    "pivotX": cell_w / 2.0,
-                    "pivotY": float(cell_h),
-                }
-                for p in normalized[action_id][d]
-            ])
-        actions_out.append({"id": action_id, "framesByDirection": fbd})
+                })
+        actions_out.append({
+            "id": action_id,
+            "numDirections": len(DIRECTIONS),
+            "framesPerDirection": max_frames,
+            "startAtlasIndex": 0,
+            "pivotX": cell_w / 2.0,
+            "pivotY": float(cell_h),
+            "frameOverrides": overrides,
+        })
 
     return {
         "columns": columns,
@@ -348,15 +358,20 @@ async def build_sprite_part(
 
     cell_w, cell_h = pack["cellW"], pack["cellH"]
 
-    # --- UE5 빌드 호출 스펙 구성 ---
+    # --- UE5 빌드 호출 스펙 구성 (그리드 레이아웃 스키마) ---
     actions_spec = []
     for a in pack["actions"]:
         actions_spec.append({
             "id": a["id"],
-            "frameDurationMs": frame_duration_ms,
-            "looping": looping,
-            "mirrorWestFromEast": mirror_west_from_east,
-            "framesByDirection": a["framesByDirection"],
+            "numDirections":       a["numDirections"],
+            "framesPerDirection":  a["framesPerDirection"],
+            "startAtlasIndex":     a["startAtlasIndex"],
+            "pivotX":              a["pivotX"],
+            "pivotY":              a["pivotY"],
+            "frameDurationMs":     frame_duration_ms,
+            "looping":             looping,
+            "mirrorWestFromEast":  mirror_west_from_east,
+            "frameOverrides":      a["frameOverrides"],
         })
 
     spec = {

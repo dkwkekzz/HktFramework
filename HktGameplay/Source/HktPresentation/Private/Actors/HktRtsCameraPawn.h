@@ -11,8 +11,7 @@
 class USpringArmComponent;
 class UCameraComponent;
 class UHktCameraModeBase;
-class UHktCameraMode_RtsFree;
-class UHktCameraMode_SubjectFollow;
+class UHktCameraMode_RtsView;
 class UHktCameraMode_ShoulderView;
 class UHktCameraMode_IsometricOrtho;
 class UHktCameraMode_IsometricGame;
@@ -20,7 +19,10 @@ class UHktCameraMode_IsometricGame;
 /**
  * RTS 스타일 카메라 이동·줌을 담당하는 폰.
  * PlayerController가 이 폰을 Possess합니다.
- * 카메라 모드 시스템을 통해 다양한 카메라 동작을 지원합니다.
+ *
+ * 카메라 모드는 4종(RtsView/ShoulderView/IsometricOrtho/IsometricGame)을 지원하며,
+ * 모든 모드는 "내 엔티티가 있으면 추적, 없으면 자체 컨트롤(edge-scroll)" 계약을 따릅니다.
+ * 기본 모드는 BP에서 DefaultCameraMode UPROPERTY로 지정합니다.
  */
 UCLASS()
 class HKTPRESENTATION_API AHktRtsCameraPawn : public ASpectatorPawn
@@ -34,7 +36,10 @@ public:
 	void HandleZoom(float Value);
 
 	/** 카메라 모드 전환 */
+	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void SetCameraMode(EHktCameraMode NewMode);
+
+	UFUNCTION(BlueprintCallable, Category = "Camera")
 	EHktCameraMode GetCameraMode() const { return ActiveModeType; }
 
 	// === 모드에서 사용할 접근자 ===
@@ -44,7 +49,6 @@ public:
 	float GetZoomSpeed() const { return ZoomSpeed; }
 	float GetMinZoom() const { return MinZoom; }
 	float GetMaxZoom() const { return MaxZoom; }
-	int64 GetCachedPlayerUid() const { return CachedPlayerUid; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -66,12 +70,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
 	float MaxZoom = 4000.0f;
 
-	// === 카메라 모드 ===
-	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
-	TObjectPtr<UHktCameraMode_RtsFree> RtsFreeMode;
+	/** BeginPlay 시 활성화될 카메라 모드. BP에서 기본값 변경 가능. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	EHktCameraMode DefaultCameraMode = EHktCameraMode::RtsView;
 
+	// === 카메라 모드 인스턴스 ===
 	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
-	TObjectPtr<UHktCameraMode_SubjectFollow> SubjectFollowMode;
+	TObjectPtr<UHktCameraMode_RtsView> RtsViewMode;
 
 	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
 	TObjectPtr<UHktCameraMode_ShoulderView> ShoulderViewMode;
@@ -85,18 +90,12 @@ protected:
 private:
 	void OnSubjectChanged(FHktEntityId EntityId);
 
-	/** 엔티티 소유권 검증: PlayerUid가 일치하는지 확인 */
-	bool IsOwnedEntity(FHktEntityId EntityId) const;
-
 	UHktCameraModeBase* GetModeInstance(EHktCameraMode Mode) const;
 
 	UHktCameraModeBase* ActiveMode = nullptr;
-	EHktCameraMode ActiveModeType = EHktCameraMode::RtsFree;
+	EHktCameraMode ActiveModeType = EHktCameraMode::RtsView;
 
-	int64 CachedPlayerUid = 0;
-
-	/** PlayerUid 미확정 시 Subject를 보류하고, Uid 확정 후 재평가 */
-	FHktEntityId PendingSubjectEntityId = InvalidEntityId;
+	/** 현재 Subject — Interaction에서 받은 raw entity. 모드 전환/Subject 변경 시 모드에 전파. */
 	FHktEntityId CurrentSubjectEntityId = InvalidEntityId;
 
 	/** 카메라 뷰 변경 감지용 캐시 */

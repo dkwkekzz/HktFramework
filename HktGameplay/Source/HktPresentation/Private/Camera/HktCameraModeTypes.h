@@ -7,8 +7,7 @@
 UENUM(BlueprintType)
 enum class EHktCameraMode : uint8
 {
-	RtsFree,
-	SubjectFollow,
+	RtsView,
 	ShoulderView,
 	IsometricOrtho,
 	IsometricGame,

@@ -158,15 +158,6 @@ public:
 				ClampMin = 480, ClampMax = 1024000))
 	float ProximityFarRadius = 8000.f;
 
-	/**
-	 * Far Tier 메시 LOD — 원거리 간이 메시의 다운샘플 배수. 0=1x / 1=2x / 2=4x / 3=8x.
-	 * 기본 2 = 4x 다운샘플 (복셀 64배 ↓, 삼각형 대폭 감소).
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Proximity",
-		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Proximity",
-				ClampMin = 0, ClampMax = 3))
-	int32 ProximityFarMeshLOD = 2;
-
 	// === 공용 버짓 ===
 
 	/** 프레임당 최대 청크 로드/리티어 수 (로더 공통) */
@@ -349,9 +340,6 @@ private:
 
 	/** 카메라 위치 가져오기 */
 	FVector GetCameraWorldPos() const;
-
-	/** Tier → Mesh LOD 매핑 (Near=0, Far=ProximityFarMeshLOD). Legacy 로더는 Near만 쓰므로 LOD 0 고정. */
-	int32 TierToMeshLOD(EHktVoxelChunkTier Tier) const;
 
 	/** 절차적 생성 + RenderCache 로드 + 컴포넌트 할당 (기본 Near Tier — 외부 API 호환용) */
 	void GenerateAndLoadChunk(const FIntVector& ChunkCoord);

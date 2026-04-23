@@ -6,6 +6,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "HktSpriteGeneratorFunctionLibrary.generated.h"
 
+class UTexture2D;
+
 /**
  * UHktSpriteGeneratorFunctionLibrary
  *
@@ -28,26 +30,29 @@ public:
 	/**
 	 * Atlas PNG + 메타데이터로 UHktSpritePartTemplate DataAsset 빌드.
 	 *
-	 * JsonSpec 스키마:
+	 * JsonSpec 스키마 (그리드 레이아웃 기반):
 	 * {
 	 *   "tag": "Sprite.Part.Body.Knight",
-	 *   "slot": "Body",                    // Body|Head|Weapon|Shield|HeadgearTop|HeadgearMid|HeadgearLow
+	 *   "slot": "Body",
 	 *   "atlasPngPath": "absolute/path/to/packed_atlas.png",
 	 *   "cellW": 64,
 	 *   "cellH": 64,
 	 *   "pixelToWorld": 2.0,
-	 *   "outputDir": "/Game/Generated/Sprites",  // optional
+	 *   "outputDir": "/Game/Generated/Sprites",
 	 *   "actions": [
 	 *     {
 	 *       "id": "idle",
+	 *       "numDirections": 8,                 // 1 | 5 | 8
+	 *       "framesPerDirection": 4,
+	 *       "startAtlasIndex": 0,
+	 *       "pivotX": 32, "pivotY": 64,
 	 *       "frameDurationMs": 100,
 	 *       "looping": true,
 	 *       "mirrorWestFromEast": true,
 	 *       "onCompleteTransition": "",
-	 *       "framesByDirection": [
-	 *         [ {"atlasIndex":0, "pivotX":32, "pivotY":56}, {"atlasIndex":1}, ... ],  // N
-	 *         [ ... ],                                                                // NE
-	 *         ...
+	 *       "perFrameDurationMs": [100, 80, 100, 120],   // optional
+	 *       "frameOverrides": [                          // optional
+	 *         { "dir": 0, "frame": 3, "atlasIndex": 42 }
 	 *       ]
 	 *     }
 	 *   ]
@@ -57,6 +62,33 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|MCP")
 	static FString McpBuildSpritePart(const FString& JsonSpec);
+
+	/**
+	 * 가장 간단한 경로: 이미 임포트된 UTexture2D 아틀라스와 단일 프레임 크기만으로
+	 * UHktSpritePartTemplate DataAsset을 생성.
+	 *
+	 * 가정: 아틀라스는 "행=방향, 열=프레임" 그리드 형태로 패킹되어 있다.
+	 *   - cols = Atlas.Width  / FrameWidth  → FramesPerDirection
+	 *   - rows = Atlas.Height / FrameHeight → NumDirections (1/5/8로 양자화)
+	 *
+	 * 단일 "idle" 액션을 StartAtlasIndex=0, Pivot=(FrameWidth/2, FrameHeight)로 생성한다.
+	 * 더 복잡한 구조가 필요하면 McpBuildSpritePart 사용.
+	 *
+	 * 반환: {"success":bool, "dataAssetPath":..., "error":...}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorBuildSpritePartFromAtlas(
+		const FString& Tag,
+		const FString& Slot,
+		UTexture2D* Atlas,
+		int32 FrameWidth,
+		int32 FrameHeight,
+		const FString& ActionId = TEXT("idle"),
+		const FString& OutputDir = TEXT("/Game/Generated/Sprites"),
+		float PixelToWorld = 2.0f,
+		float FrameDurationMs = 100.f,
+		bool bLooping = true,
+		bool bMirrorWestFromEast = true);
 
 	/**
 	 * 에디터 단독 경로: 사용자가 지정한 디렉터리에서 이미지를 스캔해

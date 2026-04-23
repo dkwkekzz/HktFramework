@@ -7,11 +7,11 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/PlayerController.h"
-#include "Framework/Application/SlateApplication.h"
 
 UHktCameraMode_ShoulderView::UHktCameraMode_ShoulderView()
 {
 	bShowMouseCursor = false;
+	FollowInterpSpeed = 10.0f;
 
 	Framing = CreateDefaultSubobject<UHktCameraFramingProfile>(TEXT("Framing"));
 	Framing->ProjectionMode = ECameraProjectionMode::Perspective;
@@ -31,7 +31,7 @@ void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 {
 	if (!Pawn) return;
 
-	// SpectatorPawn의 기본 WASD 이동을 비활성화 — 숄더뷰에서는 대상 추적만 사용
+	// SpectatorPawn의 기본 WASD 이동을 비활성화 — 위치는 추적/edge-scroll로만 제어
 	if (UPawnMovementComponent* MoveComp = Pawn->GetMovementComponent())
 	{
 		MoveComp->Deactivate();
@@ -44,10 +44,7 @@ void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 		PrevYaw = SpringArm->GetRelativeRotation().Yaw;
 	}
 
-	if (Framing)
-	{
-		Framing->Apply(Pawn);
-	}
+	Super::OnActivate(Pawn);
 
 	const float ClampMin = Framing ? Framing->PitchClampMin : -60.0f;
 	const float ClampMax = Framing ? Framing->PitchClampMax : 60.0f;
@@ -61,38 +58,21 @@ void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 		SpringArm->SetRelativeRotation(FRotator(CurrentPitch, CurrentYaw, 0.0f));
 	}
 
-	// 커서를 캡처해서 화면 가장자리에서 mouse delta가 0으로 클램핑되는 것을 방지
-	// (bShowMouseCursor=false 만으로는 부족 — InputMode를 GameOnly로 강제해야 함)
-	if (APlayerController* PC = Pawn->GetBoundPC())
-	{
-		FInputModeGameOnly InputMode;
-		InputMode.SetConsumeCaptureMouseDown(true);
-		PC->SetInputMode(InputMode);
-		PC->bShowMouseCursor = false;
-
-		// 활성화 직후 누적된 마우스 delta 스파이크를 한 프레임 버린다
-		float DummyX = 0.0f, DummyY = 0.0f;
-		PC->GetInputMouseDelta(DummyX, DummyY);
-	}
-	bDiscardNextMouseDelta = true;
+	ApplyInputModeForSubject(Pawn);
 }
 
 void UHktCameraMode_ShoulderView::OnDeactivate(AHktRtsCameraPawn* Pawn)
 {
 	if (!Pawn) return;
 
-	// MovementComponent 재활성화
 	if (UPawnMovementComponent* MoveComp = Pawn->GetMovementComponent())
 	{
 		MoveComp->Activate();
 	}
 
-	if (Framing)
-	{
-		Framing->Restore(Pawn);
-	}
+	Super::OnDeactivate(Pawn);
 
-	// 커서/입력 모드 복구 — RTS 모드에서 클릭 입력이 다시 동작하도록
+	// 커서/입력 모드 복구 — 다른 모드에서 클릭 입력이 정상 동작하도록
 	if (APlayerController* PC = Pawn->GetBoundPC())
 	{
 		FInputModeGameAndUI InputMode;
@@ -105,16 +85,17 @@ void UHktCameraMode_ShoulderView::OnDeactivate(AHktRtsCameraPawn* Pawn)
 
 void UHktCameraMode_ShoulderView::TickMode(AHktRtsCameraPawn* Pawn, float DeltaTime)
 {
-	if (!Pawn || SubjectEntityId == InvalidEntityId) return;
+	if (!Pawn) return;
+
+	// Subject가 없으면 베이스 동작(edge-scroll)으로 폴백 — 커서가 보이는 상태여야 한다
+	if (SubjectEntityId == InvalidEntityId)
+	{
+		Super::TickMode(Pawn, DeltaTime);
+		return;
+	}
 
 	APlayerController* PC = Pawn->GetBoundPC();
 	if (!PC) return;
-
-	UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC);
-	if (!Sub) return;
-
-	FVector EntityLoc = Sub->GetEntityActorLocation(SubjectEntityId);
-	if (EntityLoc.IsZero()) return;
 
 	// 마우스 델타로 카메라 회전 (ShoulderView에서는 마우스가 항상 방향 전환)
 	float MouseX = 0.0f, MouseY = 0.0f;
@@ -134,36 +115,48 @@ void UHktCameraMode_ShoulderView::TickMode(AHktRtsCameraPawn* Pawn, float DeltaT
 	CurrentYaw += MouseX * MouseSensitivity;
 	CurrentPitch = FMath::Clamp(CurrentPitch - MouseY * MouseSensitivity, ClampMin, ClampMax);
 
-	// SpringArm 회전 적용
 	if (USpringArmComponent* SpringArm = Pawn->GetSpringArm())
 	{
 		SpringArm->SetRelativeRotation(FRotator(CurrentPitch, CurrentYaw, 0.0f));
 	}
 
-	// 대상 위치로 보간 이동
-	FVector CurrentLoc = Pawn->GetActorLocation();
-	FVector NewLoc = FMath::VInterpTo(CurrentLoc, EntityLoc, DeltaTime, FollowInterpSpeed);
-	Pawn->SetActorLocation(NewLoc);
-}
-
-void UHktCameraMode_ShoulderView::HandleZoom(AHktRtsCameraPawn* Pawn, float Value)
-{
-	if (Framing)
-	{
-		Framing->HandleZoom(Pawn, Value);
-	}
+	// 베이스의 추적 로직 재사용 (Z 포함)
+	TrackEntity(Pawn, SubjectEntityId, DeltaTime);
 }
 
 void UHktCameraMode_ShoulderView::OnSubjectChanged(AHktRtsCameraPawn* Pawn, FHktEntityId EntityId)
 {
-	SubjectEntityId = EntityId;
+	Super::OnSubjectChanged(Pawn, EntityId);
+	ApplyInputModeForSubject(Pawn);
+}
 
-	if (EntityId == InvalidEntityId)
+void UHktCameraMode_ShoulderView::ApplyInputModeForSubject(AHktRtsCameraPawn* Pawn)
+{
+	if (!Pawn) return;
+
+	APlayerController* PC = Pawn->GetBoundPC();
+	if (!PC) return;
+
+	if (SubjectEntityId != InvalidEntityId)
 	{
-		// 대상이 없어지면 RtsFree로 복귀
-		if (Pawn)
-		{
-			Pawn->SetCameraMode(EHktCameraMode::RtsFree);
-		}
+		// 마우스룩: 커서 캡처해서 화면 가장자리에서 mouse delta가 0으로 클램핑되는 것을 방지
+		FInputModeGameOnly InputMode;
+		InputMode.SetConsumeCaptureMouseDown(true);
+		PC->SetInputMode(InputMode);
+		PC->bShowMouseCursor = false;
+
+		// 활성화/전환 직후 누적된 마우스 delta 스파이크를 한 프레임 버린다
+		float DummyX = 0.0f, DummyY = 0.0f;
+		PC->GetInputMouseDelta(DummyX, DummyY);
+		bDiscardNextMouseDelta = true;
+	}
+	else
+	{
+		// Subject 없음 → edge-scroll 폴백을 위해 커서 노출
+		FInputModeGameAndUI InputMode;
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		InputMode.SetHideCursorDuringCapture(false);
+		PC->SetInputMode(InputMode);
+		PC->bShowMouseCursor = true;
 	}
 }

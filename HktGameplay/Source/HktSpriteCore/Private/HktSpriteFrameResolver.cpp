@@ -20,19 +20,19 @@ FHktSpriteFrameResolveResult HktResolveSpriteFrame(const FHktSpriteFrameResolveI
 
 	// 방향 리졸브 (mirror 처리)
 	bool bFlipX = false;
-	const EHktSpriteFacing Stored = FHktSpriteAction::ResolveStoredFacing(In.Facing, A.bMirrorWestFromEast, bFlipX);
+	const EHktSpriteFacing Stored = FHktSpriteAction::ResolveStoredFacing(
+		In.Facing, A.NumDirections, A.bMirrorWestFromEast, bFlipX);
 	Out.StoredFacing = Stored;
 	Out.bFlipX = bFlipX;
 
 	const int32 DirIdx = static_cast<int32>(Stored);
-	if (!A.FramesByDirection.IsValidIndex(DirIdx))
+	if (DirIdx < 0 || DirIdx >= A.NumDirections)
 	{
 		Out.bInvalid = true;
 		return Out;
 	}
 
-	const TArray<FHktSpriteFrame>& Frames = A.FramesByDirection[DirIdx].Frames;
-	const int32 N = Frames.Num();
+	const int32 N = A.GetNumFrames(DirIdx);
 	if (N <= 0)
 	{
 		Out.bInvalid = true;

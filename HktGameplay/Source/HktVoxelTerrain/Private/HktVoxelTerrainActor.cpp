@@ -20,6 +20,7 @@
 #include "Engine/Texture2DArray.h"
 #include "Engine/Texture2D.h"
 #include "EngineUtils.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "RenderingThread.h"
@@ -465,11 +466,18 @@ void AHktVoxelTerrainActor::UpdatePlayerChunkBevel()
 
 FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
 {
-	// 로더는 뷰 무관이므로 회전/FOV는 불필요 — 위치만 반환.
+	// 스트리밍 포커스는 "카메라 자체 위치"가 아니라 "플레이어가 있는 곳".
+	// 이소/탑다운 RTS 카메라는 피사체에서 수십 미터 떨어져 배치되므로 카메라 좌표를
+	// 쓰면 화면 중앙 지형이 전부 Far tier로 밀려난다. Pawn이 있으면 Pawn 위치를 쓰고,
+	// 없으면(관전/스폰 전 등) 카메라 뷰포인트로 폴백.
 	if (const UWorld* World = GetWorld())
 	{
 		if (const APlayerController* PC = World->GetFirstPlayerController())
 		{
+			if (const APawn* Pawn = PC->GetPawn())
+			{
+				return Pawn->GetActorLocation();
+			}
 			FVector Pos; FRotator Rot;
 			PC->GetPlayerViewPoint(Pos, Rot);
 			return Pos;
@@ -496,17 +504,6 @@ void AHktVoxelTerrainActor::SyncLoaderParams()
 	Loader->Configure(Cfg);
 }
 
-int32 AHktVoxelTerrainActor::TierToMeshLOD(EHktVoxelChunkTier Tier) const
-{
-	switch (Tier)
-	{
-		case EHktVoxelChunkTier::Near: return 0;
-		case EHktVoxelChunkTier::Far:
-			return FMath::Clamp(ProximityFarMeshLOD, 0, FHktVoxelLODPolicy::MaxLOD);
-		default: return 0;
-	}
-}
-
 void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 {
 	GenerateAndLoadChunk(ChunkCoord, EHktVoxelChunkTier::Near);
@@ -524,12 +521,11 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, E
 	const FHktVoxel* VoxelData = reinterpret_cast<const FHktVoxel*>(GeneratedVoxels.GetData());
 	TerrainCache->LoadChunk(ChunkCoord, VoxelData, ChunkVoxelCount);
 
-	// Tier → Mesh LOD 매핑 후 RequestedLOD 캡처.
-	// LoadChunk이 bMeshDirty=true로 설정해 두므로 다음 메싱 틱에서 그 LOD로 빌드된다.
-	const int32 MeshLOD = TierToMeshLOD(Tier);
+	// Tier와 무관하게 모든 청크는 LOD 0으로 메싱 (LOD 다운샘플은 인접 청크와의 실루엣 불일치로
+	// 크랙이 발생하므로 폐기). Tier 차이는 콜리전/그림자/노말맵으로만 반영된다.
 	if (FHktVoxelChunkRef ChunkRef = TerrainCache->GetChunkRef(ChunkCoord))
 	{
-		ChunkRef->RequestedLOD.store(static_cast<uint8>(MeshLOD), std::memory_order_release);
+		ChunkRef->RequestedLOD.store(0, std::memory_order_release);
 
 		// 방금 로드된 청크가 "플레이어 청크"이면 첫 메싱부터 베벨을 적용.
 		const float InitialBevel = ShouldBevelChunk(ChunkCoord) ? ChunkEdgeRoundingBevel : 0.f;
@@ -561,27 +557,7 @@ UHktVoxelChunkComponent* AHktVoxelTerrainActor::AcquireAndConfigureComponent(con
 
 void AHktVoxelTerrainActor::RetierChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier NewTier)
 {
-	if (!TerrainCache)
-	{
-		return;
-	}
-	FHktVoxelChunkRef ChunkRef = TerrainCache->GetChunkRef(ChunkCoord);
-	if (!ChunkRef)
-	{
-		return;
-	}
-
-	const int32 NewMeshLOD = TierToMeshLOD(NewTier);
-	const uint8 PrevMeshLOD = ChunkRef->RequestedLOD.load(std::memory_order_acquire);
-	if (static_cast<int32>(PrevMeshLOD) != NewMeshLOD)
-	{
-		// 메시 재생성 트리거 — Generation 증가로 in-flight 워커 결과는 폐기됨.
-		ChunkRef->RequestedLOD.store(static_cast<uint8>(NewMeshLOD), std::memory_order_release);
-		ChunkRef->MeshGeneration.fetch_add(1, std::memory_order_acq_rel);
-		ChunkRef->bMeshDirty.store(true, std::memory_order_release);
-	}
-
-	// 메시 LOD가 동일해도(예: Near→Far에서 둘 다 LOD 0) 머티리얼/그림자/콜리전은 갱신해야 함.
+	// 모든 tier가 LOD 0을 공유하므로 메시 재생성은 불필요 — 컴포넌트 설정만 갱신.
 	if (UHktVoxelChunkComponent** Found = ActiveChunks.Find(ChunkCoord))
 	{
 		ApplyTierToComponent(*Found, NewTier);
@@ -615,8 +591,7 @@ void AHktVoxelTerrainActor::ApplyTierToComponent(UHktVoxelChunkComponent* Comp, 
 			break;
 	}
 
-	const int32 MeshLOD = TierToMeshLOD(Tier);
-	Comp->SetChunkLOD(MeshLOD, Settings, NormalMapStrength);
+	Comp->SetChunkLOD(0, Settings, NormalMapStrength);
 }
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()
@@ -790,11 +765,9 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 		if (const EHktVoxelChunkTier* TierPtr = Loaded.Find(ChunkCoord))
 		{
 			const EHktVoxelChunkTier Tier = *TierPtr;
-			const int32 MeshLOD = TierToMeshLOD(Tier);
 			if (FHktVoxelChunkRef ChunkRef = TerrainCache->GetChunkRef(ChunkCoord))
 			{
-				ChunkRef->RequestedLOD.store(
-					static_cast<uint8>(MeshLOD), std::memory_order_release);
+				ChunkRef->RequestedLOD.store(0, std::memory_order_release);
 			}
 
 			if (!ActiveChunks.Contains(ChunkCoord))

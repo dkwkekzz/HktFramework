@@ -126,24 +126,40 @@ namespace HktSpriteGen
 		return Tex;
 	}
 
-	static void ParseFrame(const TSharedPtr<FJsonObject>& F, FHktSpriteFrame& Out)
+	static void ParseFrameOverride(const TSharedPtr<FJsonObject>& F, FHktSpriteFrameOverride& Out)
 	{
-		Out.AtlasIndex       = static_cast<int32>(F->GetNumberField(TEXT("atlasIndex")));
-		Out.PivotOffset.X    = static_cast<float>(F->GetNumberField(TEXT("pivotX")));
-		Out.PivotOffset.Y    = static_cast<float>(F->GetNumberField(TEXT("pivotY")));
+		int32 Dir = -1, Idx = -1;
+		F->TryGetNumberField(TEXT("dir"),   Dir);
+		F->TryGetNumberField(TEXT("frame"), Idx);
+		Out.DirectionIndex = Dir;
+		Out.FrameIndex     = Idx;
+
+		int32 AtlasIndex = -1;
+		if (F->TryGetNumberField(TEXT("atlasIndex"), AtlasIndex) && AtlasIndex >= 0)
+		{
+			Out.Frame.AtlasIndex = AtlasIndex;
+			Out.bOverrideAtlasIndex = true;
+		}
+
+		double PivX, PivY;
+		if (F->TryGetNumberField(TEXT("pivotX"), PivX) && F->TryGetNumberField(TEXT("pivotY"), PivY))
+		{
+			Out.Frame.PivotOffset = FVector2f(static_cast<float>(PivX), static_cast<float>(PivY));
+			Out.bOverridePivot = true;
+		}
 
 		double ScaleX = 1.0, ScaleY = 1.0;
 		F->TryGetNumberField(TEXT("scaleX"), ScaleX);
 		F->TryGetNumberField(TEXT("scaleY"), ScaleY);
-		Out.Scale = FVector2f(static_cast<float>(ScaleX), static_cast<float>(ScaleY));
+		Out.Frame.Scale = FVector2f(static_cast<float>(ScaleX), static_cast<float>(ScaleY));
 
 		double Rot = 0.0;
 		F->TryGetNumberField(TEXT("rotation"), Rot);
-		Out.Rotation = static_cast<float>(Rot);
+		Out.Frame.Rotation = static_cast<float>(Rot);
 
-		double ZBias = 0.0;
+		int32 ZBias = 0;
 		F->TryGetNumberField(TEXT("zBias"), ZBias);
-		Out.ZBias = static_cast<int32>(ZBias);
+		Out.Frame.ZBias = ZBias;
 
 		const TSharedPtr<FJsonObject>* Tint = nullptr;
 		if (F->TryGetObjectField(TEXT("tint"), Tint) && Tint && Tint->IsValid())
@@ -153,7 +169,7 @@ namespace HktSpriteGen
 			(*Tint)->TryGetNumberField(TEXT("g"), G);
 			(*Tint)->TryGetNumberField(TEXT("b"), B);
 			(*Tint)->TryGetNumberField(TEXT("a"), A);
-			Out.Tint = FLinearColor(R, G, B, A);
+			Out.Frame.Tint = FLinearColor(R, G, B, A);
 		}
 
 		const TSharedPtr<FJsonObject>* Anchors = nullptr;
@@ -166,7 +182,7 @@ namespace HktSpriteGen
 				{
 					const float X = static_cast<float>((*Arr)[0]->AsNumber());
 					const float Y = static_cast<float>((*Arr)[1]->AsNumber());
-					Out.ChildAnchors.Add(FName(*Pair.Key), FVector2f(X, Y));
+					Out.Frame.ChildAnchors.Add(FName(*Pair.Key), FVector2f(X, Y));
 				}
 			}
 		}
@@ -237,7 +253,7 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	Tmpl->AtlasCellSize = FVector2f(static_cast<float>(CellW), static_cast<float>(CellH));
 	Tmpl->PixelToWorld  = static_cast<float>(PixelToWorld);
 
-	// --- 3. Actions 파싱 ---
+	// --- 3. Actions 파싱 (그리드 레이아웃) ---
 	const TArray<TSharedPtr<FJsonValue>>* Actions = nullptr;
 	if (Root->TryGetArrayField(TEXT("actions"), Actions) && Actions)
 	{
@@ -248,6 +264,19 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 
 			FHktSpriteAction Action;
 			Action.ActionId = FName(*A->GetStringField(TEXT("id")));
+
+			int32 NumDir = 1, FramesPerDir = 1, StartIdx = 0;
+			A->TryGetNumberField(TEXT("numDirections"),      NumDir);
+			A->TryGetNumberField(TEXT("framesPerDirection"), FramesPerDir);
+			A->TryGetNumberField(TEXT("startAtlasIndex"),    StartIdx);
+			Action.NumDirections      = FMath::Clamp(NumDir, 1, 8);
+			Action.FramesPerDirection = FMath::Max(FramesPerDir, 1);
+			Action.StartAtlasIndex    = FMath::Max(StartIdx, 0);
+
+			double PivX = CellW * 0.5, PivY = CellH; // 바닥 중앙 기본
+			A->TryGetNumberField(TEXT("pivotX"), PivX);
+			A->TryGetNumberField(TEXT("pivotY"), PivY);
+			Action.PivotOffset = FVector2f(static_cast<float>(PivX), static_cast<float>(PivY));
 
 			double FrameDur = 100.0;
 			A->TryGetNumberField(TEXT("frameDurationMs"), FrameDur);
@@ -271,27 +300,16 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 				for (const auto& F : *PerFrame) Action.PerFrameDurationMs.Add(static_cast<float>(F->AsNumber()));
 			}
 
-			const TArray<TSharedPtr<FJsonValue>>* Dirs = nullptr;
-			if (A->TryGetArrayField(TEXT("framesByDirection"), Dirs) && Dirs)
+			const TArray<TSharedPtr<FJsonValue>>* Overrides = nullptr;
+			if (A->TryGetArrayField(TEXT("frameOverrides"), Overrides) && Overrides)
 			{
-				Action.FramesByDirection.Reserve(Dirs->Num());
-				for (const TSharedPtr<FJsonValue>& DirV : *Dirs)
+				for (const TSharedPtr<FJsonValue>& OV : *Overrides)
 				{
-					FHktSpriteDirectionFrames DirFrames;
-					const TArray<TSharedPtr<FJsonValue>>* FrameArr = nullptr;
-					if (DirV.IsValid() && DirV->TryGetArray(FrameArr) && FrameArr)
-					{
-						DirFrames.Frames.Reserve(FrameArr->Num());
-						for (const TSharedPtr<FJsonValue>& FV : *FrameArr)
-						{
-							const TSharedPtr<FJsonObject> FO = FV->AsObject();
-							if (!FO.IsValid()) continue;
-							FHktSpriteFrame Frame;
-							ParseFrame(FO, Frame);
-							DirFrames.Frames.Add(Frame);
-						}
-					}
-					Action.FramesByDirection.Add(MoveTemp(DirFrames));
+					const TSharedPtr<FJsonObject> OO = OV->AsObject();
+					if (!OO.IsValid()) continue;
+					FHktSpriteFrameOverride Ovr;
+					ParseFrameOverride(OO, Ovr);
+					Action.FrameOverrides.Add(MoveTemp(Ovr));
 				}
 			}
 
@@ -632,7 +650,7 @@ namespace HktSpriteGen
 		return true;
 	}
 
-	/** 패킹 결과를 McpBuildSpritePart JsonSpec으로 변환. */
+	/** 패킹 결과를 McpBuildSpritePart JsonSpec으로 변환 (그리드 + Overrides). */
 	static FString BuildSpecJson(
 		const FString& Tag, const FString& SlotStr, const FString& AtlasPngPath,
 		int32 CellW, int32 CellH, float PixelToWorld, const FString& OutputDir,
@@ -674,29 +692,46 @@ namespace HktSpriteGen
 		for (const FString& ActionId : ActionKeys)
 		{
 			const TArray<TArray<const FFrameEntry*>>& Dirs = Grouped[ActionId];
-			W->WriteObjectStart();
-			W->WriteValue(TEXT("id"), ActionId);
-			W->WriteValue(TEXT("frameDurationMs"), FrameDurationMs);
-			W->WriteValue(TEXT("looping"), bLooping);
-			W->WriteValue(TEXT("mirrorWestFromEast"), bMirrorWestFromEast);
 
-			W->WriteArrayStart(TEXT("framesByDirection"));
+			// 이 액션의 방향당 프레임 수 (동일하다고 가정, 최대 사용)
+			int32 MaxFrames = 0;
 			for (int32 d = 0; d < kNumDirections; ++d)
 			{
-				W->WriteArrayStart();
+				MaxFrames = FMath::Max(MaxFrames, Dirs[d].Num());
+			}
+			if (MaxFrames == 0) continue;
+
+			W->WriteObjectStart();
+			W->WriteValue(TEXT("id"), ActionId);
+			W->WriteValue(TEXT("numDirections"),      kNumDirections);
+			W->WriteValue(TEXT("framesPerDirection"), MaxFrames);
+			W->WriteValue(TEXT("startAtlasIndex"),    0);
+			W->WriteValue(TEXT("pivotX"), static_cast<float>(CellW) * 0.5f);
+			W->WriteValue(TEXT("pivotY"), static_cast<float>(CellH));
+			W->WriteValue(TEXT("frameDurationMs"),  FrameDurationMs);
+			W->WriteValue(TEXT("looping"),          bLooping);
+			W->WriteValue(TEXT("mirrorWestFromEast"), bMirrorWestFromEast);
+
+			// 디렉터리 패커는 셀을 (action, dir, frame) 순서가 아니라 "고유 파일 순"으로
+			// 배정하므로, 그리드 기본 수식과 실제 아틀라스 위치가 일치하지 않는다.
+			// → 각 (dir, frame)마다 명시적 atlasIndex를 frameOverrides로 내보낸다.
+			W->WriteArrayStart(TEXT("frameOverrides"));
+			for (int32 d = 0; d < kNumDirections; ++d)
+			{
 				const TArray<const FFrameEntry*>& DirFrames = Dirs[d];
-				for (const FFrameEntry* EP : DirFrames)
+				for (int32 f = 0; f < DirFrames.Num(); ++f)
 				{
+					const FFrameEntry* EP = DirFrames[f];
 					const int32* Idx = IndexMap.Find(MakeTuple(EP->Action, EP->DirectionIdx, EP->FrameIdx));
 					W->WriteObjectStart();
+					W->WriteValue(TEXT("dir"),        d);
+					W->WriteValue(TEXT("frame"),      f);
 					W->WriteValue(TEXT("atlasIndex"), Idx ? *Idx : 0);
-					W->WriteValue(TEXT("pivotX"), static_cast<float>(CellW) * 0.5f);
-					W->WriteValue(TEXT("pivotY"), static_cast<float>(CellH));
 					W->WriteObjectEnd();
 				}
-				W->WriteArrayEnd();
 			}
 			W->WriteArrayEnd();
+
 			W->WriteObjectEnd();
 		}
 		W->WriteArrayEnd();
@@ -962,4 +997,106 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
 	return EditorBuildSpritePartFromDirectory(
 		Tag, Slot, WorkRoot, OutputDir,
 		PixelToWorld, FrameDurationMs, bLooping, bMirrorWestFromEast);
+}
+
+// ============================================================================
+// EditorBuildSpritePartFromAtlas — 가장 간단한 경로
+//   임포트된 UTexture2D + 프레임 크기만으로 DataAsset 생성.
+//   아틀라스는 "행=방향, 열=프레임" 그리드로 이미 패킹돼 있다고 가정.
+// ============================================================================
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
+	const FString& Tag, const FString& Slot, UTexture2D* Atlas,
+	int32 FrameWidth, int32 FrameHeight,
+	const FString& ActionId, const FString& OutputDir,
+	float PixelToWorld, float FrameDurationMs,
+	bool bLooping, bool bMirrorWestFromEast)
+{
+	using namespace HktSpriteGen;
+
+	if (Tag.IsEmpty() || Slot.IsEmpty())
+	{
+		return MakeSpriteError(TEXT("Tag / Slot 필수"));
+	}
+	if (!Atlas)
+	{
+		return MakeSpriteError(TEXT("Atlas 텍스처가 null"));
+	}
+	if (FrameWidth <= 0 || FrameHeight <= 0)
+	{
+		return MakeSpriteError(TEXT("FrameWidth / FrameHeight는 양수여야 합니다"));
+	}
+
+	const int32 AtlasW = Atlas->GetSizeX();
+	const int32 AtlasH = Atlas->GetSizeY();
+	if (AtlasW < FrameWidth || AtlasH < FrameHeight)
+	{
+		return MakeSpriteError(FString::Printf(
+			TEXT("아틀라스(%dx%d)가 프레임 크기(%dx%d)보다 작습니다"),
+			AtlasW, AtlasH, FrameWidth, FrameHeight));
+	}
+
+	const int32 Cols = AtlasW / FrameWidth;   // = FramesPerDirection
+	const int32 Rows = AtlasH / FrameHeight;  // → NumDirections 로 양자화
+
+	// NumDirections 양자화: 1/5/8 중 가장 가까운 값으로.
+	int32 NumDir = 1;
+	if      (Rows >= 8) NumDir = 8;
+	else if (Rows >= 5) NumDir = 5;
+	else if (Rows >= 1) NumDir = 1;
+
+	// DataAsset 경로 계산
+	const FString SafeTag        = SanitizeForAssetName(Tag);
+	const FString TemplateName   = FString::Printf(TEXT("DA_SpritePart_%s"), *SafeTag);
+	const FString TemplatePackage= FString::Printf(TEXT("%s/%s"), *OutputDir, *TemplateName);
+
+	UPackage* TmplPkg = CreatePackage(*TemplatePackage);
+	if (!TmplPkg) return MakeSpriteError(TEXT("DataAsset 패키지 생성 실패"));
+	TmplPkg->FullyLoad();
+
+	UHktSpritePartTemplate* Tmpl = NewObject<UHktSpritePartTemplate>(
+		TmplPkg, FName(*TemplateName), RF_Public | RF_Standalone);
+	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpritePartTemplate 생성 실패"));
+
+	Tmpl->IdentifierTag = EnsureTag(Tag);
+	Tmpl->PartSlot      = ParseSlot(Slot);
+	Tmpl->Atlas         = Atlas;
+	Tmpl->AtlasCellSize = FVector2f(static_cast<float>(FrameWidth), static_cast<float>(FrameHeight));
+	Tmpl->PixelToWorld  = PixelToWorld;
+
+	// 단일 액션(기본 idle) — 그리드 기본 수식만으로 완결.
+	FHktSpriteAction Action;
+	Action.ActionId            = ActionId.IsEmpty() ? FName(TEXT("idle")) : FName(*ActionId);
+	Action.NumDirections       = NumDir;
+	Action.FramesPerDirection  = FMath::Max(Cols, 1);
+	Action.StartAtlasIndex     = 0;
+	// 바닥 중앙 pivot — 라그나로크 류 스프라이트의 표준.
+	Action.PivotOffset         = FVector2f(FrameWidth * 0.5f, static_cast<float>(FrameHeight));
+	Action.FrameDurationMs     = FrameDurationMs;
+	Action.bLooping            = bLooping;
+	Action.bMirrorWestFromEast = bMirrorWestFromEast;
+
+	Tmpl->Actions.Add(Action.ActionId, Action);
+
+	// 저장
+	Tmpl->MarkPackageDirty();
+	const FString TmplFile = FPackageName::LongPackageNameToFilename(TemplatePackage, FPackageName::GetAssetPackageExtension());
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+	if (!UPackage::SavePackage(TmplPkg, Tmpl, *TmplFile, SaveArgs))
+	{
+		return MakeSpriteError(TEXT("DataAsset 패키지 저장 실패"));
+	}
+	FAssetRegistryModule::AssetCreated(Tmpl);
+
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("AtlasGrid DataAsset: Tag=%s Atlas=%dx%d Cell=%dx%d Cols=%d Rows=%d → NumDir=%d Frames=%d"),
+		*Tag, AtlasW, AtlasH, FrameWidth, FrameHeight, Cols, Rows, NumDir, Action.FramesPerDirection);
+
+	return MakeResult(true, {
+		{ TEXT("tag"),           Tag },
+		{ TEXT("dataAssetPath"), FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName) },
+		{ TEXT("atlasCols"),     FString::FromInt(Cols) },
+		{ TEXT("atlasRows"),     FString::FromInt(Rows) },
+		{ TEXT("numDirections"), FString::FromInt(NumDir) },
+	});
 }

@@ -434,10 +434,10 @@ void UHktSpriteCrowdRenderer::ApplySlotInstanceTransform(FHktEntityId Id, EHktSp
 	if (Res.bInvalid) return;
 
 	const int32 DirIdx = static_cast<int32>(Res.StoredFacing);
-	if (!Action->FramesByDirection.IsValidIndex(DirIdx)) return;
-	const TArray<FHktSpriteFrame>& FrameArr = Action->FramesByDirection[DirIdx].Frames;
-	if (!FrameArr.IsValidIndex(Res.FrameIndex)) return;
-	const FHktSpriteFrame& Frame = FrameArr[Res.FrameIndex];
+	if (DirIdx < 0 || DirIdx >= Action->NumDirections) return;
+	const int32 NumFrames = Action->GetNumFrames(DirIdx);
+	if (Res.FrameIndex < 0 || Res.FrameIndex >= NumFrames) return;
+	const FHktSpriteFrame Frame = Action->MakeFrame(DirIdx, Res.FrameIndex);
 
 	// --- 앵커 오프셋 ---
 	//   Body 외 파츠는 Entity의 Body 현재 프레임에서 Slot.ChildAnchors를 찾아 부모 pivot을 건다.
@@ -458,14 +458,12 @@ void UHktSpriteCrowdRenderer::ApplySlotInstanceTransform(FHktEntityId Id, EHktSp
 				{
 					if (const FHktSpriteAction* BodyAction = BT->FindAction(Update.ActionId))
 					{
-						if (BodyAction->FramesByDirection.IsValidIndex(DirIdx))
+						const int32 BodyNumFrames = BodyAction->GetNumFrames(DirIdx);
+						if (DirIdx >= 0 && DirIdx < BodyAction->NumDirections && BodyNumFrames > 0)
 						{
-							const TArray<FHktSpriteFrame>& BodyFrames = BodyAction->FramesByDirection[DirIdx].Frames;
-							if (BodyFrames.Num() > 0)
-							{
-								const int32 BodyIdx = FMath::Min(Res.FrameIndex, BodyFrames.Num() - 1);
-								AnchorOffset = ResolveChildAnchor(Slot, BodyFrames[BodyIdx]);
-							}
+							const int32 BodyIdx = FMath::Clamp(Res.FrameIndex, 0, BodyNumFrames - 1);
+							const FHktSpriteFrame BodyFrame = BodyAction->MakeFrame(DirIdx, BodyIdx);
+							AnchorOffset = ResolveChildAnchor(Slot, BodyFrame);
 						}
 					}
 				}
