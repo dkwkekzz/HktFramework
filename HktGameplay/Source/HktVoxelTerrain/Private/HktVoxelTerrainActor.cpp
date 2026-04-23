@@ -100,13 +100,13 @@ void AHktVoxelTerrainActor::BeginPlay()
 		FHktVoxelLODSettings S;
 		switch (LODSettings.Num())
 		{
-			case 0: S.NormalMapScale = 1.0f; S.EdgeRoundScale = 1.0f;
+			case 0: S.NormalMapScale = 1.0f;
 			        S.ShadowDistance = 0.0f;    S.bCastShadow = true;  S.bCollision = true;  break;
-			case 1: S.NormalMapScale = 0.5f; S.EdgeRoundScale = 0.5f;
+			case 1: S.NormalMapScale = 0.5f;
 			        S.ShadowDistance = 0.0f;    S.bCastShadow = true;  S.bCollision = false; break;
-			case 2: S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+			case 2: S.NormalMapScale = 0.0f;
 			        S.ShadowDistance = 60000.f; S.bCastShadow = true;  S.bCollision = false; break;
-			default: S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+			default: S.NormalMapScale = 0.0f;
 			         S.ShadowDistance = 0.0f;   S.bCastShadow = false; S.bCollision = false; break;
 		}
 		LODSettings.Add(S);
@@ -116,10 +116,10 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 	// 스타일라이즈 토글 초기값 동기화
 	bPrevStylizedRendering = bStylizedRendering;
-	PrevEdgeRoundStrength = EdgeRoundStrength;
-	PrevEdgeAlphaStrength = EdgeAlphaStrength;
-	PrevEdgeAlphaStart = EdgeAlphaStart;
 	PrevNormalMapStrength = NormalMapStrength;
+	bPrevEnableChunkEdgeRounding = bEnableChunkEdgeRounding;
+	PrevChunkEdgeRoundingBevel = ChunkEdgeRoundingBevel;
+	PlayerChunkCoord = FIntVector(INT_MIN, INT_MIN, INT_MIN);
 
 	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
 	BuildTerrainStyle();
@@ -264,12 +264,10 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		}
 	}
 
-	// 엣지 라운딩 / 노멀맵 강도 라이브 토글 — LOD 스케일을 통과한 값으로 재적용
-	const bool bEdgeChanged = !FMath::IsNearlyEqual(EdgeRoundStrength, PrevEdgeRoundStrength);
+	// 노멀맵 강도 라이브 토글 — LOD 스케일을 통과한 값으로 재적용
 	const bool bNormalChanged = !FMath::IsNearlyEqual(NormalMapStrength, PrevNormalMapStrength);
-	if (bEdgeChanged || bNormalChanged)
+	if (bNormalChanged)
 	{
-		PrevEdgeRoundStrength = EdgeRoundStrength;
 		PrevNormalMapStrength = NormalMapStrength;
 		for (auto& Pair : ActiveChunks)
 		{
@@ -280,23 +278,10 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		}
 	}
 
-	// 엣지 알파 라이브 토글 — LOD 스케일 없이 글로벌 강도 그대로 모든 활성 청크에 적용.
-	// EdgeRound와 달리 LOD별 스케일 정책 없음(거리로도 실루엣은 여전히 보이므로 일률 적용).
-	const bool bEdgeAlphaStrengthChanged = !FMath::IsNearlyEqual(EdgeAlphaStrength, PrevEdgeAlphaStrength);
-	const bool bEdgeAlphaStartChanged = !FMath::IsNearlyEqual(EdgeAlphaStart, PrevEdgeAlphaStart);
-	if (bEdgeAlphaStrengthChanged || bEdgeAlphaStartChanged)
-	{
-		PrevEdgeAlphaStrength = EdgeAlphaStrength;
-		PrevEdgeAlphaStart = EdgeAlphaStart;
-		for (auto& Pair : ActiveChunks)
-		{
-			if (Pair.Value)
-			{
-				Pair.Value->SetEdgeAlphaStrength(EdgeAlphaStrength);
-				Pair.Value->SetEdgeAlphaStart(EdgeAlphaStart);
-			}
-		}
-	}
+	// 플레이어 소속 청크 엣지 라운딩(실제 지오메트리 베벨) 갱신.
+	// 옵션이 켜져 있으면 카메라가 속한 청크를 감지해 이전/새 청크를 재메싱한다.
+	// 옵션이 방금 꺼졌다면 마지막 플레이어 청크를 기본 메시로 되돌린다.
+	UpdatePlayerChunkBevel();
 
 	// 디버그 렌더 모드 라이브 토글 — 활성 청크 전부에 머티리얼 스왑
 	if (bDebugRenderMode != bPrevDebugRenderMode)
@@ -474,6 +459,79 @@ UMaterialInterface* AHktVoxelTerrainActor::GetEffectiveWaterMaterial() const
 	return WaterMaterial;
 }
 
+void AHktVoxelTerrainActor::UpdatePlayerChunkBevel()
+{
+	if (!TerrainCache)
+	{
+		return;
+	}
+
+	// "플레이어 청크" 결정 — 옵션이 켜져 있을 때만 카메라 위치로부터 청크 좌표 산출.
+	// 옵션이 꺼져 있으면 PlayerChunkCoord를 sentinel(INT_MIN)로 두어 ShouldBevelChunk이
+	// 항상 false가 되도록 한다.
+	const float ChunkWorldSize = GetChunkWorldSize();
+	FIntVector NewPlayerChunk(INT_MIN, INT_MIN, INT_MIN);
+
+	if (bEnableChunkEdgeRounding && ChunkWorldSize > 0.f)
+	{
+		const FVector CamWorld = GetCameraWorldPos();
+		const FTransform& ActorXform = GetActorTransform();
+		const FVector CamLocal = ActorXform.InverseTransformPosition(CamWorld);
+
+		NewPlayerChunk = FIntVector(
+			FMath::FloorToInt(CamLocal.X / ChunkWorldSize),
+			FMath::FloorToInt(CamLocal.Y / ChunkWorldSize),
+			FMath::FloorToInt(CamLocal.Z / ChunkWorldSize));
+	}
+
+	const bool bOptionJustChanged = (bEnableChunkEdgeRounding != bPrevEnableChunkEdgeRounding);
+	const bool bBevelJustChanged = !FMath::IsNearlyEqual(ChunkEdgeRoundingBevel, PrevChunkEdgeRoundingBevel);
+	const bool bPlayerChunkChanged = (NewPlayerChunk != PlayerChunkCoord);
+
+	if (!bOptionJustChanged && !bBevelJustChanged && !bPlayerChunkChanged)
+	{
+		return;
+	}
+
+	// 이전 "플레이어 청크"를 원래대로(bevel=0) 되돌려 재메싱 요청.
+	// 옵션이 ON→OFF로 바뀐 경우: 마지막 청크 베벨을 해제한다.
+	// 플레이어가 다른 청크로 이동한 경우: 이전 청크 베벨을 해제한다.
+	auto RequestRemeshWithBevel = [this](const FIntVector& Coord, float BevelVox)
+	{
+		if (Coord.X == INT_MIN)
+		{
+			return;
+		}
+		if (FHktVoxelChunkRef Ref = TerrainCache->GetChunkRef(Coord))
+		{
+			Ref->SetRequestedBevel(BevelVox);
+			Ref->MeshGeneration.fetch_add(1, std::memory_order_acq_rel);
+			Ref->bMeshDirty.store(true, std::memory_order_release);
+		}
+	};
+
+	// 1) 이전 플레이어 청크(또는 bevel 크기가 바뀐 현재 청크)를 평면으로 복원
+	if (PlayerChunkCoord.X != INT_MIN && (bOptionJustChanged || bPlayerChunkChanged))
+	{
+		RequestRemeshWithBevel(PlayerChunkCoord, 0.f);
+	}
+
+	// 2) 새 플레이어 청크에 베벨 적용
+	if (NewPlayerChunk.X != INT_MIN)
+	{
+		RequestRemeshWithBevel(NewPlayerChunk, ChunkEdgeRoundingBevel);
+	}
+	else if (bBevelJustChanged && PlayerChunkCoord.X != INT_MIN)
+	{
+		// 옵션은 켜진 채로 bevel 크기만 변한 케이스 — 기존 청크에 새 크기 적용
+		RequestRemeshWithBevel(PlayerChunkCoord, ChunkEdgeRoundingBevel);
+	}
+
+	PlayerChunkCoord = NewPlayerChunk;
+	bPrevEnableChunkEdgeRounding = bEnableChunkEdgeRounding;
+	PrevChunkEdgeRoundingBevel = ChunkEdgeRoundingBevel;
+}
+
 FVector AHktVoxelTerrainActor::GetCameraWorldPos() const
 {
 	FVector ViewLoc;
@@ -525,6 +583,10 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, i
 	{
 		const int32 ClampedLOD = FMath::Clamp(LOD, 0, FHktVoxelLODPolicy::MaxLOD);
 		ChunkRef->RequestedLOD.store(static_cast<uint8>(ClampedLOD), std::memory_order_release);
+
+		// 방금 로드된 청크가 "플레이어 청크"이면 첫 메싱부터 베벨을 적용.
+		const float InitialBevel = ShouldBevelChunk(ChunkCoord) ? ChunkEdgeRoundingBevel : 0.f;
+		ChunkRef->SetRequestedBevel(InitialBevel);
 	}
 
 	AcquireAndConfigureComponent(ChunkCoord, LOD);
@@ -591,11 +653,7 @@ void AHktVoxelTerrainActor::ApplyLODToComponent(UHktVoxelChunkComponent* Comp, i
 		? LODSettings[ClampedLOD]
 		: LODSettings[0];
 	Comp->SetChunkLOD(ClampedLOD, Settings.ToComponentSettings(),
-		NormalMapStrength, EdgeRoundStrength);
-
-	// 엣지 알파는 LOD 스케일 없이 글로벌 값 그대로 (거리에 따라 LOD가 바뀌어도 실루엣은 동일)
-	Comp->SetEdgeAlphaStrength(EdgeAlphaStrength);
-	Comp->SetEdgeAlphaStart(EdgeAlphaStart);
+		NormalMapStrength);
 }
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()

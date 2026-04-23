@@ -38,9 +38,6 @@ public:
 		NormalStrengthParam.Bind(ParameterMap, TEXT("HktNormalStrength"));
 
 		StylizedEnabledParam.Bind(ParameterMap, TEXT("HktStylizedEnabled"));
-		EdgeRoundStrengthParam.Bind(ParameterMap, TEXT("HktEdgeRoundStrength"));
-		EdgeAlphaStrengthParam.Bind(ParameterMap, TEXT("HktEdgeAlphaStrength"));
-		EdgeAlphaStartParam.Bind(ParameterMap, TEXT("HktEdgeAlphaStart"));
 	}
 
 	void GetElementShaderBindings(
@@ -160,18 +157,6 @@ public:
 		{
 			ShaderBindings.Add(StylizedEnabledParam, VoxelVF->StylizedEnabled);
 		}
-		if (EdgeRoundStrengthParam.IsBound())
-		{
-			ShaderBindings.Add(EdgeRoundStrengthParam, VoxelVF->EdgeRoundStrength);
-		}
-		if (EdgeAlphaStrengthParam.IsBound())
-		{
-			ShaderBindings.Add(EdgeAlphaStrengthParam, VoxelVF->EdgeAlphaStrength);
-		}
-		if (EdgeAlphaStartParam.IsBound())
-		{
-			ShaderBindings.Add(EdgeAlphaStartParam, VoxelVF->EdgeAlphaStart);
-		}
 	}
 
 private:
@@ -196,9 +181,6 @@ private:
 	LAYOUT_FIELD(FShaderParameter, NormalStrengthParam);
 
 	LAYOUT_FIELD(FShaderParameter, StylizedEnabledParam);
-	LAYOUT_FIELD(FShaderParameter, EdgeRoundStrengthParam);
-	LAYOUT_FIELD(FShaderParameter, EdgeAlphaStrengthParam);
-	LAYOUT_FIELD(FShaderParameter, EdgeAlphaStartParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);
@@ -286,6 +268,13 @@ void FHktVoxelVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 	if (Data.MaterialComponent.VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.MaterialComponent, 1));
+	}
+
+	// Stream 2: BevelOffsetPacked (int16 × 4 — .xyz = voxel * 1024 오프셋, .w = pad)
+	// 셰이더가 ATTRIBUTE2를 선언하므로 vertex declaration에 반드시 포함되어야 한다.
+	if (Data.BevelOffsetComponent.VertexBuffer)
+	{
+		Elements.Add(AccessStreamComponent(Data.BevelOffsetComponent, 2));
 	}
 
 	InitDeclaration(Elements);

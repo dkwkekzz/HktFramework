@@ -25,8 +25,13 @@ struct FHktVoxelChunk;
 class HKTVOXELCORE_API FHktVoxelMesher
 {
 public:
-	/** 단일 청크를 메싱 — 워커 스레드에서 호출. bDoubleSided=true면 양면 렌더링 (엔티티용) */
-	static void MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided = true, int32 LODLevel = 0);
+	/**
+	 * 단일 청크를 메싱 — 워커 스레드에서 호출. bDoubleSided=true면 양면 렌더링 (엔티티용).
+	 * BevelSize > 0이면 각 greedy-merge 쿼드의 "실루엣" 버텍스에 per-vertex offset을
+	 * 채워 모서리를 베벨 처리한다(지오메트리 레벨). 0이면 기존 플랫 메시.
+	 */
+	static void MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided = true, int32 LODLevel = 0,
+	                      float BevelSize = 0.f);
 
 private:
 	/**
@@ -48,7 +53,8 @@ private:
 		int32 Face, int32 Slice,
 		const uint32 Mask[32],
 		bool bDoubleSided,
-		int32 LODLevel);
+		int32 LODLevel,
+		float BevelSize);
 
 	/**
 	 * Baked AO 계산 — 인접 복셀 기반, 버텍스당 0~3
@@ -59,7 +65,10 @@ private:
 		const FHktVoxelChunk& Chunk,
 		FIntVector Pos, int32 Face, int32 CornerIndex, int32 LODLevel);
 
-	/** 쿼드 4개 버텍스 + 인덱스를 청크 메시 배열에 추가. bDoubleSided=false면 back face 생략 */
+	/**
+	 * 쿼드 4개 버텍스 + 인덱스를 청크 메시 배열에 추가. bDoubleSided=false면 back face 생략.
+	 * BevelSize > 0이면 실루엣 판정된 쿼드 경계 버텍스에 per-vertex offset을 채운다.
+	 */
 	static void EmitQuad(
 		FHktVoxelChunk& Chunk,
 		int32 Face, int32 Slice,
@@ -68,5 +77,6 @@ private:
 		const FHktVoxel& Voxel,
 		uint8 BoneIndex,
 		bool bDoubleSided,
-		int32 LODLevel);
+		int32 LODLevel,
+		float BevelSize);
 };
