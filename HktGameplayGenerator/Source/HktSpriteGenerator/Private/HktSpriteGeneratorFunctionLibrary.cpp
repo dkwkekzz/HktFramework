@@ -17,6 +17,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformProcess.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -748,4 +750,211 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
 		Frames.Num(), CellW, CellH, Cols, Rows);
 
 	return McpBuildSpritePart(Spec);
+}
+
+// ============================================================================
+// 동영상 → 프레임 추출 / 아틀라스 빌드 (ffmpeg 의존)
+// ============================================================================
+
+namespace HktSpriteGen
+{
+	/** HKT_FFMPEG_PATH 환경변수 → 시스템 PATH의 ffmpeg 순으로 해결. */
+	static FString ResolveFFmpegExecutable()
+	{
+		const FString EnvPath = FPlatformMisc::GetEnvironmentVariable(TEXT("HKT_FFMPEG_PATH"));
+		if (!EnvPath.IsEmpty() && FPaths::FileExists(EnvPath))
+		{
+			return EnvPath;
+		}
+#if PLATFORM_WINDOWS
+		return TEXT("ffmpeg.exe");
+#else
+		return TEXT("ffmpeg");
+#endif
+	}
+
+	/** 문자열 하나를 ffmpeg 인수로 안전하게 인용. */
+	static FString QuoteArg(const FString& In)
+	{
+		return FString::Printf(TEXT("\"%s\""), *In);
+	}
+
+	/**
+	 * ffmpeg 실행 → 단일 디렉터리에 frame_####.png 시퀀스 저장.
+	 *
+	 * 주의: -ss 를 -i 앞에 두면 빠른 seek(키프레임 기준), 뒤에 두면 정확한 seek.
+	 * 스프라이트 추출 용도에서는 정확도가 더 중요하므로 -i 뒤에 배치한다.
+	 */
+	static bool ExtractVideoFramesImpl(
+		const FString& VideoPath,
+		const FString& OutputDir,
+		int32 FrameWidth,
+		int32 FrameHeight,
+		float FrameRate,
+		int32 MaxFrames,
+		float StartTimeSec,
+		float EndTimeSec,
+		int32& OutFrameCount,
+		FString& OutError)
+	{
+		OutFrameCount = 0;
+
+		if (VideoPath.IsEmpty() || OutputDir.IsEmpty())
+		{
+			OutError = TEXT("VideoPath / OutputDir 필수");
+			return false;
+		}
+		if (!FPaths::FileExists(VideoPath))
+		{
+			OutError = FString::Printf(TEXT("영상 파일 없음: %s"), *VideoPath);
+			return false;
+		}
+		if (FrameRate <= 0.0f)
+		{
+			OutError = TEXT("FrameRate는 0보다 커야 합니다");
+			return false;
+		}
+
+		IFileManager& FM = IFileManager::Get();
+		FM.MakeDirectory(*OutputDir, /*Tree*/ true);
+
+		const FString FFmpeg = ResolveFFmpegExecutable();
+
+		// -vf 체인 구성: fps → (선택적) scale
+		FString VideoFilter = FString::Printf(TEXT("fps=%.6f"), FrameRate);
+		if (FrameWidth > 0 && FrameHeight > 0)
+		{
+			VideoFilter += FString::Printf(TEXT(",scale=%d:%d:flags=lanczos"), FrameWidth, FrameHeight);
+		}
+
+		// 출력 패턴: 4자리 0패딩 → 사전식 정렬 시 시간순 유지
+		const FString OutPattern = OutputDir / TEXT("frame_%04d.png");
+
+		FString Args;
+		Args += TEXT("-y -hide_banner -loglevel error ");
+		Args += FString::Printf(TEXT("-i %s "), *QuoteArg(VideoPath));
+		if (StartTimeSec > 0.0f)
+		{
+			Args += FString::Printf(TEXT("-ss %.3f "), StartTimeSec);
+		}
+		if (EndTimeSec > StartTimeSec && EndTimeSec > 0.0f)
+		{
+			Args += FString::Printf(TEXT("-to %.3f "), EndTimeSec);
+		}
+		Args += FString::Printf(TEXT("-vf \"%s\" "), *VideoFilter);
+		if (MaxFrames > 0)
+		{
+			Args += FString::Printf(TEXT("-frames:v %d "), MaxFrames);
+		}
+		Args += QuoteArg(OutPattern);
+
+		UE_LOG(LogHktSpriteGenerator, Log, TEXT("ffmpeg %s"), *Args);
+
+		// 기존 프레임 제거 (이전 호출 잔여물 간섭 방지)
+		{
+			TArray<FString> OldFiles;
+			FM.FindFiles(OldFiles, *(OutputDir / TEXT("frame_*.png")), true, false);
+			for (const FString& F : OldFiles)
+			{
+				FM.Delete(*(OutputDir / F), /*RequireExists*/ false, /*EvenReadOnly*/ true);
+			}
+		}
+
+		int32 ReturnCode = -1;
+		FString StdOut, StdErr;
+		const bool bExecOk = FPlatformProcess::ExecProcess(*FFmpeg, *Args, &ReturnCode, &StdOut, &StdErr);
+		if (!bExecOk)
+		{
+			OutError = FString::Printf(
+				TEXT("ffmpeg 실행 불가: '%s'. HKT_FFMPEG_PATH 환경변수로 실행파일 경로를 지정하세요."),
+				*FFmpeg);
+			return false;
+		}
+		if (ReturnCode != 0)
+		{
+			OutError = FString::Printf(TEXT("ffmpeg 실패 code=%d: %s"), ReturnCode, *StdErr.TrimStartAndEnd());
+			return false;
+		}
+
+		// 생성된 프레임 카운트
+		TArray<FString> Files;
+		FM.FindFiles(Files, *(OutputDir / TEXT("frame_*.png")), true, false);
+		OutFrameCount = Files.Num();
+		if (OutFrameCount == 0)
+		{
+			OutError = TEXT("ffmpeg는 성공했지만 추출된 프레임이 없습니다. 시간 범위/fps를 확인하세요.");
+			return false;
+		}
+		return true;
+	}
+} // namespace HktSpriteGen
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorExtractVideoFrames(
+	const FString& VideoPath, const FString& OutputDir,
+	int32 FrameWidth, int32 FrameHeight, float FrameRate,
+	int32 MaxFrames, float StartTimeSec, float EndTimeSec)
+{
+	using namespace HktSpriteGen;
+
+	int32 FrameCount = 0;
+	FString Err;
+	if (!ExtractVideoFramesImpl(VideoPath, OutputDir,
+		FrameWidth, FrameHeight, FrameRate, MaxFrames,
+		StartTimeSec, EndTimeSec, FrameCount, Err))
+	{
+		return MakeSpriteError(Err);
+	}
+
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("비디오 프레임 추출 완료: %d frames → %s"), FrameCount, *OutputDir);
+	return MakeResult(true, {
+		{ TEXT("outputDir"),  OutputDir },
+		{ TEXT("frameCount"), FString::FromInt(FrameCount) },
+	});
+}
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
+	const FString& Tag, const FString& Slot, const FString& VideoPath,
+	const FString& ActionId,
+	int32 FrameWidth, int32 FrameHeight, float FrameRate,
+	int32 MaxFrames, float StartTimeSec, float EndTimeSec,
+	const FString& OutputDir, float PixelToWorld, float FrameDurationMs,
+	bool bLooping, bool bMirrorWestFromEast)
+{
+	using namespace HktSpriteGen;
+
+	if (Tag.IsEmpty() || Slot.IsEmpty() || VideoPath.IsEmpty())
+	{
+		return MakeSpriteError(TEXT("Tag / Slot / VideoPath 필수"));
+	}
+
+	// 1. 프레임 스테이징 디렉터리: {Saved}/SpriteGenerator/VideoFrames/{SafeTag}/{action}/
+	//    → 상위(WorkRoot) 를 InputDir로 넘기면 기존 ScanDirectory가
+	//       "action 서브폴더 / direction 없음 / 파일명이 방향 불일치" 경로를 타며
+	//       INDEX_NONE 으로 수집되어 모든 8방향에 동일 셀이 복제된다.
+	const FString SafeTag      = SanitizeForAssetName(Tag);
+	const FString ActionLower  = ActionId.IsEmpty() ? TEXT("idle") : ActionId.ToLower();
+	const FString WorkRoot     = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator") / TEXT("VideoFrames") / SafeTag;
+	const FString FramesDir    = WorkRoot / ActionLower;
+
+	IFileManager& FM = IFileManager::Get();
+	FM.DeleteDirectory(*FramesDir, /*RequireExists*/ false, /*Tree*/ true);
+	FM.MakeDirectory(*FramesDir, /*Tree*/ true);
+
+	// 2. ffmpeg로 프레임 추출
+	int32 FrameCount = 0;
+	FString Err;
+	if (!ExtractVideoFramesImpl(VideoPath, FramesDir,
+		FrameWidth, FrameHeight, FrameRate, MaxFrames,
+		StartTimeSec, EndTimeSec, FrameCount, Err))
+	{
+		return MakeSpriteError(Err);
+	}
+
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("비디오 → 아틀라스: Tag=%s Action=%s Frames=%d Video=%s"),
+		*Tag, *ActionLower, FrameCount, *VideoPath);
+
+	// 3. 기존 디렉터리 파이프라인 재사용
+	return EditorBuildSpritePartFromDirectory(
+		Tag, Slot, WorkRoot, OutputDir,
+		PixelToWorld, FrameDurationMs, bLooping, bMirrorWestFromEast);
 }
