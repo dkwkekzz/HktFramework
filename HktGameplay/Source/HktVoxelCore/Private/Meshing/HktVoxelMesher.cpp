@@ -6,7 +6,7 @@
 #include "LOD/HktVoxelLOD.h"
 
 void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 LODLevel,
-                                float BevelSize)
+                                float BevelSize, const FHktVoxelMeshNeighbors* Neighbors)
 {
 	FWriteScopeLock WriteLock(Chunk.MeshLock);
 
@@ -21,13 +21,16 @@ void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 
 	// 베벨은 LOD 0(풀 디테일)에서만 유효. 원거리 LOD는 삼각형 수를 아끼고 효과도 보이지 않음.
 	const float EffectiveBevel = (ClampedLOD == 0) ? FMath::Clamp(BevelSize, 0.f, 0.45f) : 0.f;
 
+	// 이웃 포인터는 LOD 0 + 베벨 활성일 때만 의미가 있다. 그 외 경로는 기존 로직 그대로.
+	const FHktVoxelMeshNeighbors* ActiveNeighbors = (EffectiveBevel > 0.f) ? Neighbors : nullptr;
+
 	for (int32 Face = 0; Face < EHktVoxelFace::Count; Face++)
 	{
 		for (int32 Slice = 0; Slice < DownSize; Slice++)
 		{
 			uint32 FaceMask[FHktVoxelChunk::SIZE] = {};
 			BuildFaceMask(Chunk, Face, Slice, FaceMask, ClampedLOD);
-			MergeQuads(Chunk, Face, Slice, FaceMask, bDoubleSided, ClampedLOD, EffectiveBevel);
+			MergeQuads(Chunk, Face, Slice, FaceMask, bDoubleSided, ClampedLOD, EffectiveBevel, ActiveNeighbors);
 		}
 	}
 
@@ -110,7 +113,8 @@ void FHktVoxelMesher::MergeQuads(
 	const uint32 Mask[32],
 	bool bDoubleSided,
 	int32 LODLevel,
-	float BevelSize)
+	float BevelSize,
+	const FHktVoxelMeshNeighbors* Neighbors)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 	const int32 SIZE = FHktVoxelChunk::SIZE;
@@ -217,7 +221,7 @@ void FHktVoxelMesher::MergeQuads(
 			}
 
 			// 쿼드 방출 (다운샘플 좌표 그대로 전달, EmitQuad 안에서 Step 스케일)
-			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel, BaseBone, bDoubleSided, LODLevel, BevelSize);
+			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel, BaseBone, bDoubleSided, LODLevel, BevelSize, Neighbors);
 
 			// 처리된 비트 제거
 			Row &= ~WidthMask;
@@ -285,7 +289,8 @@ void FHktVoxelMesher::EmitQuad(
 	uint8 BoneIndex,
 	bool bDoubleSided,
 	int32 LODLevel,
-	float BevelSize)
+	float BevelSize,
+	const FHktVoxelMeshNeighbors* Neighbors)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 	const int32 Step = 1 << LODLevel;
@@ -362,13 +367,50 @@ void FHktVoxelMesher::EmitQuad(
 	{
 		const int32 SIZE = FHktVoxelChunk::SIZE;
 
+		// 청크 경계 바깥을 probe할 때 이웃 청크의 대응 셀을 대신 조회한다.
+		// 이웃 청크가 로드되지 않았으면(nullptr) 기존 동작처럼 empty로 간주.
+		// 각 축은 범위를 벗어날 때 (coord - SIZE) 또는 (coord + SIZE)로 wrap하여
+		// 이웃 청크의 로컬 좌표로 변환한다.
 		auto CellEmpty = [&](int32 X, int32 Y, int32 Z) -> bool
 		{
-			if (X < 0 || X >= SIZE || Y < 0 || Y >= SIZE || Z < 0 || Z >= SIZE)
+			const FHktVoxelChunk* Target = &Chunk;
+			int32 LX = X, LY = Y, LZ = Z;
+
+			// 한 번에 한 축만 경계 바깥이라고 가정(베벨 probe는 항상 단일 축으로 ±Step 이동).
+			if (LX < 0)
 			{
-				return true;
+				if (!Neighbors || !Neighbors->NegX) return true;
+				Target = Neighbors->NegX;  LX += SIZE;
 			}
-			return Chunk.At(X, Y, Z).IsEmpty();
+			else if (LX >= SIZE)
+			{
+				if (!Neighbors || !Neighbors->PosX) return true;
+				Target = Neighbors->PosX;  LX -= SIZE;
+			}
+
+			if (LY < 0)
+			{
+				if (!Neighbors || !Neighbors->NegY) return true;
+				Target = Neighbors->NegY;  LY += SIZE;
+			}
+			else if (LY >= SIZE)
+			{
+				if (!Neighbors || !Neighbors->PosY) return true;
+				Target = Neighbors->PosY;  LY -= SIZE;
+			}
+
+			if (LZ < 0)
+			{
+				if (!Neighbors || !Neighbors->NegZ) return true;
+				Target = Neighbors->NegZ;  LZ += SIZE;
+			}
+			else if (LZ >= SIZE)
+			{
+				if (!Neighbors || !Neighbors->PosZ) return true;
+				Target = Neighbors->PosZ;  LZ -= SIZE;
+			}
+
+			return Target->At(LX, LY, LZ).IsEmpty();
 		};
 
 		// U-low / U-high / V-low / V-high 각각의 실루엣 여부 (쿼드 전체 변 기준).
