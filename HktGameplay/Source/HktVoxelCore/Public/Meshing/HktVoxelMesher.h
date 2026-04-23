@@ -28,6 +28,19 @@ public:
 	/** 단일 청크를 메싱 — 워커 스레드에서 호출. bDoubleSided=true면 양면 렌더링 (엔티티용) */
 	static void MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided = true, int32 LODLevel = 0);
 
+	/**
+	 * LOD0 전용 — 볼록 모서리에 45° 베벨 지오메트리를 추가.
+	 * MeshChunk의 greedy 쿼드와 별도 배열(Chunk.BevelVertices/Indices)로 출력되어
+	 * Scene Proxy가 전용 VB/IB + HktVoxelBevelVertexFactory로 렌더한다.
+	 *
+	 * 볼록(convex) 조건: 복셀 V의 두 인접 면이 노출돼 있고, 두 면이 공유하는
+	 * edge의 "대각 셀"이 비어있을 것. (대각이 차있으면 오목이므로 베벨 금지.)
+	 * 반투명 복셀(물)은 제외.
+	 *
+	 * BevelSize = voxel 크기에 대한 비율. 0.15 = 한 변 15cm 복셀 기준 2.25cm.
+	 */
+	static void EmitConvexEdges(FHktVoxelChunk& Chunk, float BevelSize);
+
 private:
 	/**
 	 * 슬라이스별 노출면 비트마스크 생성

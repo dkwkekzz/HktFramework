@@ -81,16 +81,6 @@ public:
 	// --- 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩) ---
 	float StylizedEnabled = 0.0f;
 
-	// --- 엣지 라운딩 — PS 노멀 벤딩 강도 (0=off, 0.3~0.6 권장) ---
-	// 스타일라이즈와 독립. 지오메트리는 그대로, 라이팅만 둥글게.
-	float EdgeRoundStrength = 0.0f;
-
-	// --- 엣지 알파 — Dithered clip으로 쿼드 경계 픽셀 discard (실루엣 둥글리기) ---
-	// EdgeRound와 독립 토글. 둘 다 켜면 실루엣/라이팅 모두 둥글게.
-	// Strength: 0=off, 0.3~0.7 권장. Start: 페이드 시작 거리(쿼드 중심=0, 경계=1), 0.6~0.9 권장.
-	float EdgeAlphaStrength = 0.0f;
-	float EdgeAlphaStart = 0.75f;
-
 	/** 노멀맵 강도 (0=off, 1=원본, >1=과장). NormalArrayRHI가 null이면 무시됨 */
 	float NormalMapStrength = 1.0f;
 

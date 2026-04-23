@@ -82,6 +82,61 @@ struct FHktVoxelVertex
 
 static_assert(sizeof(FHktVoxelVertex) == 8, "FHktVoxelVertex must be exactly 8 bytes");
 
+// ============================================================================
+// FHktVoxelBevelVertex — LOD0 볼록 모서리 베벨 전용 버텍스 (20 bytes)
+//
+// 플랫 greedy mesh와 별도의 VB/IB로 렌더링된다. 메인 복셀 VertexFactory가
+// 6-bit 정수 위치에 쿼드 단위로 고정되어 있어 sub-voxel 비스듬한 베벨 위치를
+// 담을 수 없기 때문.
+//
+// LocalPos        : voxel 단위 좌표. 셰이더가 HktVoxelSize 곱해 월드 유닛으로 변환.
+// PackedNormal    : 법선 선언은 12가지 가능한 45° 방향 중 하나.
+//                   [3:0]   axis         (0~2: 베벨 에지가 놓인 축)
+//                   [4]     s1 sign      (0=음, 1=양)
+//                   [5]     s2 sign      (0=음, 1=양)
+//                   나머지 예약 — PS에서 lookup table로 normalize된 (1,1,0)/√2
+//                   형태의 3D 벡터 계산.
+// PackedMaterial : FHktVoxelVertex::PackedMaterialAndAO와 동일 레이아웃 — 팔레트
+//                   룩업 / bone 인덱스 / flags 공유 코드 경로 재사용.
+// ============================================================================
+struct FHktVoxelBevelVertex
+{
+	float  PosX = 0.f;
+	float  PosY = 0.f;
+	float  PosZ = 0.f;
+	uint32 PackedNormal = 0;
+	uint32 PackedMaterial = 0;
+
+	static FHktVoxelBevelVertex Make(
+		float InX, float InY, float InZ,
+		uint8 Axis, bool bS1Pos, bool bS2Pos,
+		uint16 VoxelType, uint8 PaletteIndex,
+		uint8 AOValue, uint8 Flags, uint8 BoneIndex)
+	{
+		FHktVoxelBevelVertex V;
+		V.PosX = InX;
+		V.PosY = InY;
+		V.PosZ = InZ;
+
+		V.PackedNormal =
+			(static_cast<uint32>(Axis) & 0xF) |
+			((bS1Pos ? 1u : 0u) << 4) |
+			((bS2Pos ? 1u : 0u) << 5);
+
+		// FHktVoxelVertex::PackedMaterialAndAO와 동일 레이아웃
+		V.PackedMaterial =
+			(static_cast<uint32>(VoxelType) & 0xFFFF) |
+			((static_cast<uint32>(PaletteIndex) & 0x7) << 16) |
+			((static_cast<uint32>(AOValue) & 0x3) << 19) |
+			((static_cast<uint32>(Flags) & 0x7) << 21) |
+			((static_cast<uint32>(BoneIndex) & 0x7F) << 25);
+
+		return V;
+	}
+};
+
+static_assert(sizeof(FHktVoxelBevelVertex) == 20, "FHktVoxelBevelVertex must be 20 bytes");
+
 // 면 방향 상수 (6면)
 namespace EHktVoxelFace
 {

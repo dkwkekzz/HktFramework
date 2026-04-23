@@ -174,72 +174,6 @@ void UHktVoxelChunkComponent::SetStylizedRendering(bool bEnabled)
 	}
 }
 
-void UHktVoxelChunkComponent::SetEdgeRoundStrength(float InStrength)
-{
-	const float Clamped = FMath::Clamp(InStrength, 0.0f, 1.0f);
-	if (FMath::IsNearlyEqual(EdgeRoundStrength, Clamped))
-	{
-		return;
-	}
-
-	EdgeRoundStrength = Clamped;
-
-	if (SceneProxy)
-	{
-		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
-		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeRound)(
-			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
-			{
-				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeRoundStrength_RenderThread(Clamped);
-			}
-		);
-	}
-}
-
-void UHktVoxelChunkComponent::SetEdgeAlphaStrength(float InStrength)
-{
-	const float Clamped = FMath::Clamp(InStrength, 0.0f, 1.0f);
-	if (FMath::IsNearlyEqual(EdgeAlphaStrength, Clamped))
-	{
-		return;
-	}
-
-	EdgeAlphaStrength = Clamped;
-
-	if (SceneProxy)
-	{
-		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
-		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeAlpha)(
-			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
-			{
-				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeAlphaStrength_RenderThread(Clamped);
-			}
-		);
-	}
-}
-
-void UHktVoxelChunkComponent::SetEdgeAlphaStart(float InStart)
-{
-	const float Clamped = FMath::Clamp(InStart, 0.0f, 1.0f);
-	if (FMath::IsNearlyEqual(EdgeAlphaStart, Clamped))
-	{
-		return;
-	}
-
-	EdgeAlphaStart = Clamped;
-
-	if (SceneProxy)
-	{
-		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
-		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeAlphaStart)(
-			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
-			{
-				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeAlphaStart_RenderThread(Clamped);
-			}
-		);
-	}
-}
-
 void UHktVoxelChunkComponent::SetNormalMapStrength(float InStrength)
 {
 	const float Clamped = FMath::Clamp(InStrength, 0.0f, 4.0f);
@@ -263,13 +197,12 @@ void UHktVoxelChunkComponent::SetNormalMapStrength(float InStrength)
 }
 
 void UHktVoxelChunkComponent::SetChunkLOD(int32 InLOD, const FHktVoxelLODComponentSettings& Settings,
-                                          float ActorNormalMapStrength, float ActorEdgeRoundStrength)
+                                          float ActorNormalMapStrength)
 {
 	CurrentLOD = InLOD;
 
-	// 노멀맵·라운딩: 액터 글로벌 강도에 LOD 스케일 곱
+	// 노멀맵: 액터 글로벌 강도에 LOD 스케일 곱
 	SetNormalMapStrength(ActorNormalMapStrength * Settings.NormalMapScale);
-	SetEdgeRoundStrength(ActorEdgeRoundStrength * Settings.EdgeRoundScale);
 
 	// 그림자
 	const bool bShadowChanged = (CastShadow != Settings.bCastShadow);
@@ -336,8 +269,11 @@ void UHktVoxelChunkComponent::OnMeshReady()
 	// 불투명 + 반투명 메시 데이터를 합쳐서 복사.
 	// Proxy는 하나의 Vertex/Index 버퍼를 공유하되, OpaqueIndexCount 경계로
 	// 두 개의 FMeshBatch를 발행해 각각 TerrainMaterial / WaterMaterial로 렌더링.
+	// LOD0 베벨 섹션은 별도 VB/IB.
 	TArray<FHktVoxelVertex> VerticesCopy;
 	TArray<uint32> IndicesCopy;
+	TArray<FHktVoxelBevelVertex> BevelVerticesCopy;
+	TArray<uint32> BevelIndicesCopy;
 	int32 OpaqueIndexCount = 0;
 
 	// MeshLock Read — 워커 스레드의 MeshChunk Write와 배타적 동기화
@@ -355,6 +291,9 @@ void UHktVoxelChunkComponent::OnMeshReady()
 			IndicesCopy.Add(Idx + OpaqueVertCount);
 		}
 		VerticesCopy.Append(Chunk->TranslucentVertices);
+
+		BevelVerticesCopy.Append(Chunk->BevelVertices);
+		BevelIndicesCopy.Append(Chunk->BevelIndices);
 	}
 
 	if (!SceneProxy)
@@ -378,6 +317,7 @@ void UHktVoxelChunkComponent::OnMeshReady()
 
 	ENQUEUE_RENDER_COMMAND(HktVoxelUpdateMesh)(
 		[CapturedProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
+		 BevelVerts = MoveTemp(BevelVerticesCopy), BevelIdxs = MoveTemp(BevelIndicesCopy),
 		 OpaqueIndexCount, bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
 		{
 			FHktVoxelChunkProxy* Proxy = static_cast<FHktVoxelChunkProxy*>(CapturedProxy);
@@ -402,6 +342,7 @@ void UHktVoxelChunkComponent::OnMeshReady()
 				}
 			}
 			Proxy->UpdateMeshData_RenderThread(Verts, Idxs, OpaqueIndexCount);
+			Proxy->UpdateBevelMeshData_RenderThread(BevelVerts, BevelIdxs);
 		}
 	);
 
@@ -507,6 +448,8 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 		{
 			TArray<FHktVoxelVertex> VerticesCopy;
 			TArray<uint32> IndicesCopy;
+			TArray<FHktVoxelBevelVertex> BevelVerticesCopy;
+			TArray<uint32> BevelIndicesCopy;
 			int32 OpaqueIndexCount = 0;
 
 			// MeshLock Read — 워커 스레드의 MeshChunk Write와 배타적 동기화
@@ -523,6 +466,9 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 					IndicesCopy.Add(Idx + OpaqueVertCount);
 				}
 				VerticesCopy.Append(Chunk->TranslucentVertices);
+
+				BevelVerticesCopy.Append(Chunk->BevelVertices);
+				BevelIndicesCopy.Append(Chunk->BevelIndices);
 			}
 
 			const bool bHasStyleTextures = CachedTileTextures.IsValid() || CachedMaterialLUT.IsValid();
@@ -531,6 +477,7 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 
 			ENQUEUE_RENDER_COMMAND(HktVoxelReuploadOnProxyRecreate)(
 				[NewProxy, Verts = MoveTemp(VerticesCopy), Idxs = MoveTemp(IndicesCopy),
+				 BevelVerts = MoveTemp(BevelVerticesCopy), BevelIdxs = MoveTemp(BevelIndicesCopy),
 				 OpaqueIndexCount, bHasStyleTextures, TileTexCopy, MatLUTCopy](FRHICommandListImmediate& RHICmdList)
 				{
 					if (bHasStyleTextures)
@@ -554,6 +501,7 @@ FPrimitiveSceneProxy* UHktVoxelChunkComponent::CreateSceneProxy()
 						}
 					}
 					NewProxy->UpdateMeshData_RenderThread(Verts, Idxs, OpaqueIndexCount);
+					NewProxy->UpdateBevelMeshData_RenderThread(BevelVerts, BevelIdxs);
 				}
 			);
 

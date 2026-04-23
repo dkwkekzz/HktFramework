@@ -1,0 +1,246 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktVoxelBevelVertexFactory.ush — LOD0 볼록 모서리 45° 베벨 전용 VF
+//
+// 지오메트리: EmitConvexEdges가 생성한 4개 정점 쿼드.
+// 정점 정보: float3 로컬 위치(voxel 단위) + uint32 PackedNormal + uint32 PackedMaterial.
+//
+// 법선은 8가지 45° 방향 중 하나 — (B_axis 부호) + (C_axis 부호)의 단위 조합.
+// 팔레트 색상은 메인 VF와 동일 경로(HktPaletteTexture[PaletteIdx][VoxelType]).
+// 타일 텍스처 / 노멀맵 / 머티리얼 LUT는 사용하지 않음 (베벨은 작으므로 디테일 불필요).
+
+#pragma once
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/VertexFactoryCommon.ush"
+#include "HktVoxelStylized.ush"
+
+float HktVoxelSize;
+
+Texture2D HktPaletteTexture;
+SamplerState HktPaletteSampler;
+
+Buffer<float4> HktBoneMatrices;
+
+float HktStylizedEnabled;
+
+// ============================================================================
+// FVertexFactoryInput
+// ============================================================================
+struct FVertexFactoryInput
+{
+	float3 LocalPos            : ATTRIBUTE0;   // voxel 단위 (0~32)
+	uint   PackedNormal        : ATTRIBUTE1;   // [3:0]=축, [4]=s1부호, [5]=s2부호
+	uint   PackedMaterial      : ATTRIBUTE2;   // FHktVoxelVertex::PackedMaterialAndAO 레이아웃
+	uint   VertexId            : SV_VertexID;
+};
+
+// ============================================================================
+// FVertexFactoryIntermediates
+// ============================================================================
+struct FVertexFactoryIntermediates
+{
+	float3 LocalPosition;
+	float3 WorldNormal;
+	float3 WorldTangent;
+	float4 Color;
+	float  AOLight;
+};
+
+// ============================================================================
+// Interpolants
+// ============================================================================
+struct FVertexFactoryInterpolantsVSToPS
+{
+	float4 Color        : COLOR0;
+	float3 WorldNormal  : TEXCOORD0;
+	float3 WorldTangent : TEXCOORD1;
+	float AOLight       : TEXCOORD2;
+};
+
+// ============================================================================
+// Stereo / Instancing stubs
+// ============================================================================
+uint GetEyeIndexFromVF(FVertexFactoryInput Input) { return 0; }
+uint VertexFactoryGetViewIndex(FVertexFactoryIntermediates Intermediates) { return 0; }
+uint VertexFactoryGetInstanceIdLoadIndex(FVertexFactoryIntermediates Intermediates) { return 0; }
+float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants) { return float4(0, 0, 0, 0); }
+uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants) { return 0; }
+
+// ============================================================================
+// Helpers — 법선/탄젠트 언팩
+// ============================================================================
+void HktBevelUnpackNormal(uint Packed, out float3 OutN, out float3 OutT)
+{
+	uint Axis = Packed & 0xF;
+	float S1 = ((Packed >> 4) & 0x1) != 0 ? 1.0 : -1.0;
+	float S2 = ((Packed >> 5) & 0x1) != 0 ? 1.0 : -1.0;
+
+	// Axis=0 (X축 에지): B=Y, C=Z. 법선 = (0, S1, S2) / √2.
+	// Axis=1 (Y축 에지): B=X, C=Z. 법선 = (S1, 0, S2) / √2.
+	// Axis=2 (Z축 에지): B=X, C=Y. 법선 = (S1, S2, 0) / √2.
+	const float K = 0.7071067811865476;
+	if (Axis == 0)
+	{
+		OutN = float3(0, S1 * K, S2 * K);
+		OutT = float3(1, 0, 0);  // 탄젠트는 주축 방향
+	}
+	else if (Axis == 1)
+	{
+		OutN = float3(S1 * K, 0, S2 * K);
+		OutT = float3(0, 1, 0);
+	}
+	else
+	{
+		OutN = float3(S1 * K, S2 * K, 0);
+		OutT = float3(0, 0, 1);
+	}
+}
+
+float HktAOToLight(uint AOValue)
+{
+	return lerp(0.4, 1.0, float(AOValue) / 3.0);
+}
+
+// ============================================================================
+// Vertex unpack
+// ============================================================================
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Result;
+
+	// Position — voxel 단위 → UE 유닛
+	float3 LocalPos = Input.LocalPos * HktVoxelSize;
+
+	float3 N, T;
+	HktBevelUnpackNormal(Input.PackedNormal, N, T);
+
+	// GPU 스키닝
+	uint BoneIdx = (Input.PackedMaterial >> 25) & 0x7F;
+#if HKT_VOXEL_GPU_SKINNING
+	if (BoneIdx > 0)
+	{
+		uint Base = BoneIdx * 3;
+		float4 Row0 = HktBoneMatrices[Base + 0];
+		float4 Row1 = HktBoneMatrices[Base + 1];
+		float4 Row2 = HktBoneMatrices[Base + 2];
+
+		float3 Skinned;
+		Skinned.x = dot(Row0, float4(LocalPos, 1.0));
+		Skinned.y = dot(Row1, float4(LocalPos, 1.0));
+		Skinned.z = dot(Row2, float4(LocalPos, 1.0));
+		LocalPos = Skinned;
+
+		float3 SN;
+		SN.x = dot(Row0.xyz, N);
+		SN.y = dot(Row1.xyz, N);
+		SN.z = dot(Row2.xyz, N);
+		N = normalize(SN);
+	}
+#endif
+
+	Result.LocalPosition = LocalPos;
+	Result.WorldNormal = N;
+	Result.WorldTangent = T;
+
+	// Material unpack
+	uint VoxelType  = Input.PackedMaterial & 0xFFFF;
+	uint PaletteIdx = (Input.PackedMaterial >> 16) & 0x7;
+	uint AO         = (Input.PackedMaterial >> 19) & 0x3;
+
+	Result.AOLight = HktAOToLight(AO);
+
+	// 팔레트 색상 — 메인 VF와 동일
+	float4 PalTint = HktPaletteTexture.Load(int3(PaletteIdx, VoxelType % 256, 0));
+	Result.Color = float4(PalTint.rgb * Result.AOLight, 1.0);
+
+	return Result;
+}
+
+// ============================================================================
+// Position / Normal
+// ============================================================================
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return TransformLocalToTranslatedWorld(Intermediates.LocalPosition);
+}
+
+float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
+{
+	return InWorldPosition;
+}
+
+float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
+{
+	return TranslatedWorldPosition;
+}
+
+float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return TransformLocalToTranslatedWorld(Intermediates.LocalPosition);
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.WorldNormal;
+}
+
+half3x3 VertexFactoryGetTangentToLocal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	half3 Normal    = Intermediates.WorldNormal;
+	half3 Tangent   = Intermediates.WorldTangent;
+	half3 Bitangent = cross(Normal, Tangent);
+	return half3x3(Tangent, Bitangent, Normal);
+}
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(
+	FVertexFactoryInput Input,
+	FVertexFactoryIntermediates Intermediates,
+	FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	Interpolants.Color = Intermediates.Color;
+	Interpolants.WorldNormal = Intermediates.WorldNormal;
+	Interpolants.WorldTangent = Intermediates.WorldTangent;
+	Interpolants.AOLight = Intermediates.AOLight;
+	return Interpolants;
+}
+
+FMaterialVertexParameters GetMaterialVertexParameters(
+	FVertexFactoryInput Input,
+	FVertexFactoryIntermediates Intermediates,
+	float3 WorldPosition,
+	half3x3 TangentToLocal,
+	bool bIsPreviousFrame = false)
+{
+	FMaterialVertexParameters Result = MakeInitializedMaterialVertexParameters();
+	Result.WorldPosition = WorldPosition;
+	Result.VertexColor = Intermediates.Color;
+	Result.TangentToWorld = TangentToLocal;
+	return Result;
+}
+
+FMaterialPixelParameters GetMaterialPixelParameters(
+	FVertexFactoryInterpolantsVSToPS Interpolants,
+	float4 SvPosition)
+{
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
+	Result.VertexColor = Interpolants.Color;
+
+	// 스타일라이즈 토글 시 AO 부스트 + 채도 강화만 적용 (베벨은 그리드 라인 불필요)
+	if (HktStylizedEnabled > 0.5)
+	{
+		Result.VertexColor.rgb = HktStylizedSaturate(
+			Result.VertexColor.rgb * HktStylizedAOBoost(Interpolants.AOLight) / max(Interpolants.AOLight, 0.01),
+			0.2);
+	}
+
+	half3 Normal    = normalize(Interpolants.WorldNormal);
+	half3 Tangent   = normalize(Interpolants.WorldTangent);
+	half3 Bitangent = cross(Normal, Tangent);
+
+	Result.WorldNormal = Normal;
+	Result.TangentToWorld = half3x3(Tangent, Bitangent, Normal);
+	Result.TwoSidedSign = 1.0;
+
+	return Result;
+}

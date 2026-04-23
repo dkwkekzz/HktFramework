@@ -5,6 +5,11 @@
 #include "Data/HktVoxelTypes.h"
 #include "LOD/HktVoxelLOD.h"
 
+// 베벨 토글 CVar — HktVoxelCoreModule에서 등록. 기본 ON.
+// 해당 청크가 워커 스레드에서 메싱될 때 읽는다. 단순 int32 — tearing이 있어도
+// 값 전이(0↔1)는 곧 다음 재메싱 때 일관되게 수렴.
+extern int32 GHktVoxelBevelEnabled;
+
 void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 LODLevel)
 {
 	FWriteScopeLock WriteLock(Chunk.MeshLock);
@@ -13,6 +18,8 @@ void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 
 	Chunk.OpaqueIndices.Reset();
 	Chunk.TranslucentVertices.Reset();
 	Chunk.TranslucentIndices.Reset();
+	Chunk.BevelVertices.Reset();
+	Chunk.BevelIndices.Reset();
 
 	const int32 ClampedLOD = FMath::Clamp(LODLevel, 0, FHktVoxelLODPolicy::MaxLOD);
 	const int32 DownSize = FHktVoxelChunk::SIZE >> ClampedLOD;
@@ -25,6 +32,13 @@ void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 
 			BuildFaceMask(Chunk, Face, Slice, FaceMask, ClampedLOD);
 			MergeQuads(Chunk, Face, Slice, FaceMask, bDoubleSided, ClampedLOD);
 		}
+	}
+
+	// LOD0 근접 청크에만 실제 지오메트리 모서리 베벨 추가.
+	// LOD1+는 거리상 2cm 실루엣 변화가 인지 불가 → 비용 0 유지.
+	if (ClampedLOD == 0 && GHktVoxelBevelEnabled != 0)
+	{
+		EmitConvexEdges(Chunk, 0.15f);
 	}
 
 	// bMeshDirty/bMeshReady/CurrentLOD는 스케줄러 람다에서 세대 확인 후 관리
@@ -408,6 +422,185 @@ void FHktVoxelMesher::EmitQuad(
 			{
 				Indices.Append({BaseIndex,   BaseIndex+1, BaseIndex+2,
 								BaseIndex+1, BaseIndex+3, BaseIndex+2});
+			}
+		}
+	}
+}
+
+// ============================================================================
+// EmitConvexEdges — LOD0 볼록 모서리 45° 베벨 지오메트리 생성
+// ============================================================================
+//
+// 알고리즘:
+//   1) 각 솔리드 복셀 V(x,y,z)를 순회.
+//   2) 12개 cube 모서리 후보를 검사. 각 모서리는 (주축, 수직 축1, 수직 축2)로
+//      식별되며 수직 두 축의 부호 조합이 볼록 방향 s1,s2 ∈ {-1,+1}.
+//   3) 노출 조건:
+//        - 수직 축1의 +s1 방향 이웃이 비어있거나 다른 translucent 타입
+//        - 수직 축2의 +s2 방향 이웃이 비어있거나 다른 translucent 타입
+//        - 대각 (s1 B_hat + s2 C_hat) 이웃도 비어있음(볼록 보장)
+//   4) 조건을 만족하는 모서리에 대해 두 면 사이를 45°로 이어주는 베벨 쿼드
+//      4개 버텍스 + 2개 삼각형 방출.
+//
+// 각 모서리에 대한 쿼드 4 정점(voxel 로컬 좌표):
+//   E0 = (cell 원점) + 주축 시작 + B축(+/- s1)*b + C축(0 또는 1)
+//   E1 = (cell 원점) + 주축 시작 + B축(0 또는 1) + C축(+/- s2)*b
+//   (+주축 끝 벌전 E2, E3 동일 패턴)
+// 여기서 b = BevelSize * VoxelSize, 그리고 face의 "1복셀" 경계점은 1.0 또는 0.0.
+// 세부 공식은 구현부 참고.
+// ============================================================================
+
+// 베벨 쿼드 각 모서리 정의 — (PrimaryAxis, B_axis, C_axis, s1_sign, s2_sign)
+// PrimaryAxis: 에지가 놓인 방향(0=X,1=Y,2=Z)
+// B_axis / C_axis: PrimaryAxis에 수직인 나머지 두 축
+// s1_sign / s2_sign: 각각 B, C축의 노출 방향. +1이면 양, -1이면 음.
+// 총 12가지 = 3 축 × 2 × 2.
+static constexpr int32 kBevelEdgeCount = 12;
+struct FBevelEdgeDef
+{
+	int8 PrimaryAxis;  // 0=X, 1=Y, 2=Z
+	int8 BAxis;
+	int8 CAxis;
+	int8 S1;           // +1 또는 -1
+	int8 S2;
+};
+
+static const FBevelEdgeDef kBevelEdges[kBevelEdgeCount] = {
+	// PrimaryAxis=0 (X축 에지) → BAxis=1(Y), CAxis=2(Z)
+	{0, 1, 2, +1, +1}, {0, 1, 2, +1, -1}, {0, 1, 2, -1, +1}, {0, 1, 2, -1, -1},
+	// PrimaryAxis=1 (Y축 에지) → BAxis=0(X), CAxis=2(Z)
+	{1, 0, 2, +1, +1}, {1, 0, 2, +1, -1}, {1, 0, 2, -1, +1}, {1, 0, 2, -1, -1},
+	// PrimaryAxis=2 (Z축 에지) → BAxis=0(X), CAxis=1(Y)
+	{2, 0, 1, +1, +1}, {2, 0, 1, +1, -1}, {2, 0, 1, -1, +1}, {2, 0, 1, -1, -1},
+};
+
+void FHktVoxelMesher::EmitConvexEdges(FHktVoxelChunk& Chunk, float BevelSize)
+{
+	const int32 SIZE = FHktVoxelChunk::SIZE;
+
+	auto IsExposed = [&](int32 X, int32 Y, int32 Z, const FHktVoxel& Self) -> bool
+	{
+		// 청크 경계 밖은 노출로 취급 (greedy mesher와 일치).
+		if (X < 0 || X >= SIZE || Y < 0 || Y >= SIZE || Z < 0 || Z >= SIZE)
+		{
+			return true;
+		}
+		const FHktVoxel& N = Chunk.At(X, Y, Z);
+		if (N.IsEmpty()) return true;
+		// 동일 translucent 타입끼리는 내부 컬링됨 — 동일한 예측을 따른다.
+		if (N.IsTranslucent() && N.TypeID != Self.TypeID) return true;
+		return false;
+	};
+
+	for (int32 Z = 0; Z < SIZE; ++Z)
+	{
+		for (int32 Y = 0; Y < SIZE; ++Y)
+		{
+			for (int32 X = 0; X < SIZE; ++X)
+			{
+				const FHktVoxel& V = Chunk.At(X, Y, Z);
+				if (V.IsEmpty()) continue;
+				// 반투명(물)은 베벨 대상에서 제외.
+				if (V.IsTranslucent()) continue;
+
+				const uint8 BoneIdx = Chunk.GetBoneIndex(X, Y, Z);
+
+				for (int32 EdgeIdx = 0; EdgeIdx < kBevelEdgeCount; ++EdgeIdx)
+				{
+					const FBevelEdgeDef& Def = kBevelEdges[EdgeIdx];
+
+					// 세 체크 이웃의 복셀 좌표 계산.
+					int32 NbrB[3] = { X, Y, Z };
+					int32 NbrC[3] = { X, Y, Z };
+					int32 NbrD[3] = { X, Y, Z };
+					NbrB[Def.BAxis] += Def.S1;
+					NbrC[Def.CAxis] += Def.S2;
+					NbrD[Def.BAxis] += Def.S1;
+					NbrD[Def.CAxis] += Def.S2;
+
+					const bool bExpB = IsExposed(NbrB[0], NbrB[1], NbrB[2], V);
+					const bool bExpC = IsExposed(NbrC[0], NbrC[1], NbrC[2], V);
+					const bool bExpD = IsExposed(NbrD[0], NbrD[1], NbrD[2], V);
+
+					// 볼록 노출 조건: B, C 방향 두 이웃 노출 + 대각 D도 노출.
+					// (대각 D가 솔리드면 오목이므로 베벨이 그쪽 면을 관통)
+					if (!(bExpB && bExpC && bExpD)) continue;
+
+					// 모서리 길이(= 주축) 양 끝을 베벨 쿼드로 연결.
+					// 복셀 로컬 좌표(0~32)에서 셀은 [X,X+1]×[Y,Y+1]×[Z,Z+1] 범위.
+					// 모서리 좌표는 B축에서 (S1>0 ? 1 : 0), C축에서 (S2>0 ? 1 : 0).
+					// 베벨 인셋은 경계로부터 BevelSize voxel 안쪽으로 인입.
+					float Origin[3] = { static_cast<float>(X), static_cast<float>(Y), static_cast<float>(Z) };
+
+					// 모서리 이중 점(P_B, P_C): 각각 B축에서 +S1 면 위 / C축에서 +S2 면 위.
+					// P_B는 B = (S1>0 ? 1 : 0), C = (S2>0 ? 1-b : b)로 인셋.
+					// P_C는 B = (S1>0 ? 1-b : b)로 인셋, C = (S2>0 ? 1 : 0).
+					const float BOuter = (Def.S1 > 0) ? 1.0f : 0.0f;
+					const float COuter = (Def.S2 > 0) ? 1.0f : 0.0f;
+					const float BInset = (Def.S1 > 0) ? (1.0f - BevelSize) : BevelSize;
+					const float CInset = (Def.S2 > 0) ? (1.0f - BevelSize) : BevelSize;
+
+					// 주축 시작/끝 (0 또는 1 복셀).
+					const float PStart = 0.0f;
+					const float PEnd = 1.0f;
+
+					// 4 정점 좌표 구성 — (PStart, P_B), (PStart, P_C), (PEnd, P_B), (PEnd, P_C).
+					auto MakePos = [&](float P, bool bUseB)
+					{
+						float Out[3] = { Origin[0], Origin[1], Origin[2] };
+						Out[Def.PrimaryAxis] += P;
+						if (bUseB)
+						{
+							Out[Def.BAxis] += BOuter;
+							Out[Def.CAxis] += CInset;
+						}
+						else
+						{
+							Out[Def.BAxis] += BInset;
+							Out[Def.CAxis] += COuter;
+						}
+						return FVector3f(Out[0], Out[1], Out[2]);
+					};
+
+					const FVector3f P0 = MakePos(PStart, true);   // 시작점, B면
+					const FVector3f P1 = MakePos(PStart, false);  // 시작점, C면
+					const FVector3f P2 = MakePos(PEnd, true);     // 끝점, B면
+					const FVector3f P3 = MakePos(PEnd, false);    // 끝점, C면
+
+					// 정점 생성 — 4개 전부 동일 material / bone / AO.
+					// AO는 해당 복셀의 평균에 가까운 근사로 0 부여(추후 필요시 CalcVertexAO 활용).
+					const uint8 AO = 3;  // 완전 노출 가정 — 볼록 모서리는 주변 가림 없음
+					const bool bS1Pos = (Def.S1 > 0);
+					const bool bS2Pos = (Def.S2 > 0);
+
+					const uint32 Base = Chunk.BevelVertices.Num();
+					Chunk.BevelVertices.Add(FHktVoxelBevelVertex::Make(
+						P0.X, P0.Y, P0.Z, (uint8)Def.PrimaryAxis, bS1Pos, bS2Pos,
+						V.TypeID, V.PaletteIndex, AO, V.Flags, BoneIdx));
+					Chunk.BevelVertices.Add(FHktVoxelBevelVertex::Make(
+						P1.X, P1.Y, P1.Z, (uint8)Def.PrimaryAxis, bS1Pos, bS2Pos,
+						V.TypeID, V.PaletteIndex, AO, V.Flags, BoneIdx));
+					Chunk.BevelVertices.Add(FHktVoxelBevelVertex::Make(
+						P2.X, P2.Y, P2.Z, (uint8)Def.PrimaryAxis, bS1Pos, bS2Pos,
+						V.TypeID, V.PaletteIndex, AO, V.Flags, BoneIdx));
+					Chunk.BevelVertices.Add(FHktVoxelBevelVertex::Make(
+						P3.X, P3.Y, P3.Z, (uint8)Def.PrimaryAxis, bS1Pos, bS2Pos,
+						V.TypeID, V.PaletteIndex, AO, V.Flags, BoneIdx));
+
+					// 인덱스 — (P0, P1, P2) + (P1, P3, P2). 법선이 (s1*B + s2*C)/√2 바깥쪽을
+					// 향하도록 winding 조정. s1*s2가 양이면 CCW, 음이면 CW로 뒤집는다.
+					// UE5 왼손 좌표계 + CW가 앞면이므로 외부 관찰자 기준으로 다음 순서.
+					if (Def.S1 * Def.S2 > 0)
+					{
+						Chunk.BevelIndices.Append({ Base + 0, Base + 2, Base + 1,
+						                             Base + 1, Base + 2, Base + 3 });
+					}
+					else
+					{
+						Chunk.BevelIndices.Append({ Base + 0, Base + 1, Base + 2,
+						                             Base + 1, Base + 3, Base + 2 });
+					}
+				}
 			}
 		}
 	}

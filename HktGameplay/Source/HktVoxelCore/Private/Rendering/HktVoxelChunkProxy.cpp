@@ -2,7 +2,9 @@
 
 #include "Rendering/HktVoxelChunkProxy.h"
 #include "Rendering/HktVoxelVertexFactory.h"
+#include "Rendering/HktVoxelBevelVertexFactory.h"
 #include "Rendering/HktVoxelChunkComponent.h"
+#include "Meshing/HktVoxelVertex.h"
 #include "HktVoxelCoreLog.h"
 #include "Materials/Material.h"
 #include "SceneManagement.h"
@@ -68,9 +70,6 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 	}
 
 	bStylizedRendering = InComponent->IsStylizedRendering();
-	EdgeRoundStrength = InComponent->GetEdgeRoundStrength();
-	EdgeAlphaStrength = InComponent->GetEdgeAlphaStrength();
-	EdgeAlphaStart = InComponent->GetEdgeAlphaStart();
 	NormalMapStrength = InComponent->GetNormalMapStrength();
 }
 
@@ -89,6 +88,22 @@ FHktVoxelChunkProxy::~FHktVoxelChunkProxy()
 		VertexFactory->ReleaseResource();
 		delete VertexFactory;
 		VertexFactory = nullptr;
+	}
+
+	// 베벨 섹션 리소스 해제
+	if (BevelVertexBufferWrapper.IsInitialized())
+	{
+		BevelVertexBufferWrapper.ReleaseResource();
+	}
+	if (BevelIndexBufferWrapper.IsInitialized())
+	{
+		BevelIndexBufferWrapper.ReleaseResource();
+	}
+	if (BevelVertexFactory)
+	{
+		BevelVertexFactory->ReleaseResource();
+		delete BevelVertexFactory;
+		BevelVertexFactory = nullptr;
 	}
 }
 
@@ -158,6 +173,32 @@ void FHktVoxelChunkProxy::GetDynamicMeshElements(
 			BatchElement.FirstIndex = OpaqueIndexCount;
 			BatchElement.MinVertexIndex = 0;
 			BatchElement.MaxVertexIndex = NumVertices > 0 ? NumVertices - 1 : 0;
+			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+
+			Collector.AddMesh(ViewIndex, Mesh);
+		}
+
+		// Batch 2 — LOD0 베벨 섹션 (Opaque TerrainMaterial)
+		if (BevelNumIndices > 0
+			&& BevelVertexFactory
+			&& BevelVertexBufferWrapper.VertexBufferRHI.IsValid()
+			&& BevelIndexBufferWrapper.IndexBufferRHI.IsValid())
+		{
+			FMeshBatch& Mesh = Collector.AllocateMesh();
+			Mesh.VertexFactory = BevelVertexFactory;
+			Mesh.Type = PT_TriangleList;
+			Mesh.bWireframe = false;
+			Mesh.bUseWireframeSelectionColoring = false;
+			Mesh.MaterialRenderProxy = VoxelMaterial->GetRenderProxy();
+			Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+			Mesh.CastShadow = bCastShadow;
+
+			FMeshBatchElement& BatchElement = Mesh.Elements[0];
+			BatchElement.IndexBuffer = &BevelIndexBufferWrapper;
+			BatchElement.NumPrimitives = BevelNumIndices / 3;
+			BatchElement.FirstIndex = 0;
+			BatchElement.MinVertexIndex = 0;
+			BatchElement.MaxVertexIndex = BevelNumVertices > 0 ? BevelNumVertices - 1 : 0;
 			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
 			Collector.AddMesh(ViewIndex, Mesh);
@@ -243,9 +284,6 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 	VertexFactory->VoxelSizeUU = VoxelSizeUU;
 	VertexFactory->StylizedEnabled = bStylizedRendering ? 1.0f : 0.0f;
-	VertexFactory->EdgeRoundStrength = EdgeRoundStrength;
-	VertexFactory->EdgeAlphaStrength = EdgeAlphaStrength;
-	VertexFactory->EdgeAlphaStart = EdgeAlphaStart;
 	VertexFactory->NormalMapStrength = NormalMapStrength;
 
 	// 팔레트 텍스처 설정 — 타일 활성 시 기본 팔레트(8×256 흰색), 아니면 GWhiteTexture 폴백
@@ -294,6 +332,95 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 }
 
+void FHktVoxelChunkProxy::UpdateBevelMeshData_RenderThread(
+	const TArray<FHktVoxelBevelVertex>& BevelVertices,
+	const TArray<uint32>& BevelIndices)
+{
+	check(IsInRenderingThread());
+
+	if (BevelVertices.Num() == 0 || BevelIndices.Num() == 0)
+	{
+		BevelNumIndices = 0;
+		BevelNumVertices = 0;
+		BevelVertexBufferWrapper.VertexBufferRHI = nullptr;
+		BevelIndexBufferWrapper.IndexBufferRHI = nullptr;
+		return;
+	}
+
+	// Vertex Buffer
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("HktVoxelChunkBevelVB"));
+		const uint32 Size = BevelVertices.Num() * sizeof(FHktVoxelBevelVertex);
+		BevelVertexBufferWrapper.VertexBufferRHI = FRHICommandListImmediate::Get().CreateVertexBuffer(
+			Size, BUF_Static, CreateInfo);
+
+		void* Data = FRHICommandListImmediate::Get().LockBuffer(BevelVertexBufferWrapper.VertexBufferRHI, 0, Size, RLM_WriteOnly);
+		FMemory::Memcpy(Data, BevelVertices.GetData(), Size);
+		FRHICommandListImmediate::Get().UnlockBuffer(BevelVertexBufferWrapper.VertexBufferRHI);
+	}
+
+	// Index Buffer
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("HktVoxelChunkBevelIB"));
+		const uint32 Size = BevelIndices.Num() * sizeof(uint32);
+		BevelIndexBufferWrapper.IndexBufferRHI = FRHICommandListImmediate::Get().CreateIndexBuffer(
+			sizeof(uint32), Size, BUF_Static, CreateInfo);
+
+		void* Data = FRHICommandListImmediate::Get().LockBuffer(BevelIndexBufferWrapper.IndexBufferRHI, 0, Size, RLM_WriteOnly);
+		FMemory::Memcpy(Data, BevelIndices.GetData(), Size);
+		FRHICommandListImmediate::Get().UnlockBuffer(BevelIndexBufferWrapper.IndexBufferRHI);
+	}
+
+	BevelNumIndices = BevelIndices.Num();
+	BevelNumVertices = BevelVertices.Num();
+
+	if (!BevelVertexBufferWrapper.IsInitialized())
+	{
+		BevelVertexBufferWrapper.InitResource(FRHICommandListImmediate::Get());
+	}
+	if (!BevelIndexBufferWrapper.IsInitialized())
+	{
+		BevelIndexBufferWrapper.InitResource(FRHICommandListImmediate::Get());
+	}
+
+	// Vertex Factory — 최초 호출 시 생성.
+	if (!BevelVertexFactory)
+	{
+		BevelVertexFactory = new FHktVoxelBevelVertexFactory(GetScene().GetFeatureLevel());
+		BevelVertexFactory->InitResource(FRHICommandListImmediate::Get());
+	}
+	BevelVertexFactory->VoxelSizeUU = VoxelSizeUU;
+	BevelVertexFactory->StylizedEnabled = bStylizedRendering ? 1.0f : 0.0f;
+
+	// 팔레트 텍스처 공유 — 메인 VF와 동일하게 기본 팔레트 또는 GWhiteTexture 폴백
+	if (PendingDefaultPaletteRHI)
+	{
+		BevelVertexFactory->SetPaletteTexture(PendingDefaultPaletteRHI, PendingDefaultPaletteSamplerRHI);
+	}
+	else if (!BevelVertexFactory->PaletteTextureRHI)
+	{
+		BevelVertexFactory->SetPaletteTexture(
+			GWhiteTexture->TextureRHI,
+			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+
+	FHktVoxelBevelVertexFactory::FDataType VFData;
+	VFData.PositionComponent = FVertexStreamComponent(
+		&BevelVertexBufferWrapper, 0, sizeof(FHktVoxelBevelVertex), VET_Float3);
+	VFData.NormalComponent = FVertexStreamComponent(
+		&BevelVertexBufferWrapper, 12, sizeof(FHktVoxelBevelVertex), VET_UInt);
+	VFData.MaterialComponent = FVertexStreamComponent(
+		&BevelVertexBufferWrapper, 16, sizeof(FHktVoxelBevelVertex), VET_UInt);
+
+	BevelVertexFactory->SetData(VFData);
+
+	// 본 트랜스폼 SRV 공유
+	if (BoneTransformSRV.IsValid())
+	{
+		BevelVertexFactory->SetBoneTransformSRV(BoneTransformSRV);
+	}
+}
+
 void FHktVoxelChunkProxy::UpdateBoneTransforms_RenderThread(const TArray<FVector4f>& BoneMatrixRows)
 {
 	check(IsInRenderingThread());
@@ -320,6 +447,10 @@ void FHktVoxelChunkProxy::UpdateBoneTransforms_RenderThread(const TArray<FVector
 		if (VertexFactory)
 		{
 			VertexFactory->SetBoneTransformSRV(BoneTransformSRV);
+		}
+		if (BevelVertexFactory)
+		{
+			BevelVertexFactory->SetBoneTransformSRV(BoneTransformSRV);
 		}
 	}
 
@@ -376,41 +507,9 @@ void FHktVoxelChunkProxy::SetStylizedRendering_RenderThread(bool bEnabled)
 	{
 		VertexFactory->StylizedEnabled = bEnabled ? 1.0f : 0.0f;
 	}
-}
-
-void FHktVoxelChunkProxy::SetEdgeRoundStrength_RenderThread(float InStrength)
-{
-	check(IsInRenderingThread());
-
-	EdgeRoundStrength = InStrength;
-
-	if (VertexFactory)
+	if (BevelVertexFactory)
 	{
-		VertexFactory->EdgeRoundStrength = InStrength;
-	}
-}
-
-void FHktVoxelChunkProxy::SetEdgeAlphaStrength_RenderThread(float InStrength)
-{
-	check(IsInRenderingThread());
-
-	EdgeAlphaStrength = InStrength;
-
-	if (VertexFactory)
-	{
-		VertexFactory->EdgeAlphaStrength = InStrength;
-	}
-}
-
-void FHktVoxelChunkProxy::SetEdgeAlphaStart_RenderThread(float InStart)
-{
-	check(IsInRenderingThread());
-
-	EdgeAlphaStart = InStart;
-
-	if (VertexFactory)
-	{
-		VertexFactory->EdgeAlphaStart = InStart;
+		BevelVertexFactory->StylizedEnabled = bEnabled ? 1.0f : 0.0f;
 	}
 }
 

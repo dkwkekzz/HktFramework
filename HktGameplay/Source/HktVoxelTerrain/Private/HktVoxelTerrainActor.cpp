@@ -27,6 +27,10 @@
 #include "RHIStaticStates.h"
 #include "TextureResource.h"
 
+// HktVoxelCoreModule에서 등록한 베벨 토글 플래그. 액터 프로퍼티와 동기화해
+// 메싱 워커가 재메싱 시 올바른 값을 읽게 한다.
+extern int32 GHktVoxelBevelEnabled;
+
 // FHktTerrainVoxel과 FHktVoxel은 동일 4바이트 레이아웃
 static_assert(sizeof(FHktTerrainVoxel) == sizeof(FHktVoxel),
 	"FHktTerrainVoxel and FHktVoxel must have identical size for safe reinterpret_cast");
@@ -94,18 +98,19 @@ void AHktVoxelTerrainActor::BeginPlay()
 	});
 
 	// LODSettings 기본 정책 — 디자이너가 에디터에서 앞쪽만 채워두었을 경우 뒤만 보충.
+	// 모서리 베벨은 LOD0 메싱 단계에서만 수행되므로 LOD 스케일 필드 불요.
 	while (LODSettings.Num() < 4)
 	{
 		FHktVoxelLODSettings S;
 		switch (LODSettings.Num())
 		{
-			case 0: S.NormalMapScale = 1.0f; S.EdgeRoundScale = 1.0f;
+			case 0: S.NormalMapScale = 1.0f;
 			        S.ShadowDistance = 0.0f;    S.bCastShadow = true;  S.bCollision = true;  break;
-			case 1: S.NormalMapScale = 0.5f; S.EdgeRoundScale = 0.5f;
+			case 1: S.NormalMapScale = 0.5f;
 			        S.ShadowDistance = 0.0f;    S.bCastShadow = true;  S.bCollision = false; break;
-			case 2: S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+			case 2: S.NormalMapScale = 0.0f;
 			        S.ShadowDistance = 60000.f; S.bCastShadow = true;  S.bCollision = false; break;
-			default: S.NormalMapScale = 0.0f; S.EdgeRoundScale = 0.0f;
+			default: S.NormalMapScale = 0.0f;
 			         S.ShadowDistance = 0.0f;   S.bCastShadow = false; S.bCollision = false; break;
 		}
 		LODSettings.Add(S);
@@ -113,11 +118,10 @@ void AHktVoxelTerrainActor::BeginPlay()
 
 	PrewarmPool(InitialPoolSize);
 
-	// 스타일라이즈 토글 초기값 동기화
+	// 스타일라이즈·베벨 토글 초기값 동기화
 	bPrevStylizedRendering = bStylizedRendering;
-	PrevEdgeRoundStrength = EdgeRoundStrength;
-	PrevEdgeAlphaStrength = EdgeAlphaStrength;
-	PrevEdgeAlphaStart = EdgeAlphaStart;
+	bPrevBevelEnabled = bBevelEnabled;
+	GHktVoxelBevelEnabled = bBevelEnabled ? 1 : 0;
 	PrevNormalMapStrength = NormalMapStrength;
 
 	// 블록 스타일 빌드 (비어있으면 스킵 → 기존 팔레트 렌더링)
@@ -263,12 +267,10 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		}
 	}
 
-	// 엣지 라운딩 / 노멀맵 강도 라이브 토글 — LOD 스케일을 통과한 값으로 재적용
-	const bool bEdgeChanged = !FMath::IsNearlyEqual(EdgeRoundStrength, PrevEdgeRoundStrength);
+	// 노멀맵 강도 라이브 토글 — LOD 스케일을 통과한 값으로 재적용
 	const bool bNormalChanged = !FMath::IsNearlyEqual(NormalMapStrength, PrevNormalMapStrength);
-	if (bEdgeChanged || bNormalChanged)
+	if (bNormalChanged)
 	{
-		PrevEdgeRoundStrength = EdgeRoundStrength;
 		PrevNormalMapStrength = NormalMapStrength;
 		for (auto& Pair : ActiveChunks)
 		{
@@ -279,20 +281,22 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		}
 	}
 
-	// 엣지 알파 라이브 토글 — LOD 스케일 없이 글로벌 강도 그대로 모든 활성 청크에 적용.
-	// EdgeRound와 달리 LOD별 스케일 정책 없음(거리로도 실루엣은 여전히 보이므로 일률 적용).
-	const bool bEdgeAlphaStrengthChanged = !FMath::IsNearlyEqual(EdgeAlphaStrength, PrevEdgeAlphaStrength);
-	const bool bEdgeAlphaStartChanged = !FMath::IsNearlyEqual(EdgeAlphaStart, PrevEdgeAlphaStart);
-	if (bEdgeAlphaStrengthChanged || bEdgeAlphaStartChanged)
+	// 베벨 토글 라이브 변경 — 메싱 플래그 싱크 + LOD0 청크 재메싱 트리거.
+	if (bBevelEnabled != bPrevBevelEnabled)
 	{
-		PrevEdgeAlphaStrength = EdgeAlphaStrength;
-		PrevEdgeAlphaStart = EdgeAlphaStart;
-		for (auto& Pair : ActiveChunks)
+		bPrevBevelEnabled = bBevelEnabled;
+		GHktVoxelBevelEnabled = bBevelEnabled ? 1 : 0;
+		if (TerrainCache)
 		{
-			if (Pair.Value)
+			for (const auto& Pair : ActiveChunks)
 			{
-				Pair.Value->SetEdgeAlphaStrength(EdgeAlphaStrength);
-				Pair.Value->SetEdgeAlphaStart(EdgeAlphaStart);
+				if (!Pair.Value) continue;
+				FHktVoxelChunk* Chunk = TerrainCache->GetChunk(Pair.Key);
+				if (Chunk && Chunk->CurrentLOD.load() == 0)
+				{
+					Chunk->bMeshDirty.store(true);
+					Chunk->MeshGeneration.fetch_add(1);
+				}
 			}
 		}
 	}
@@ -524,12 +528,7 @@ void AHktVoxelTerrainActor::ApplyLODToComponent(UHktVoxelChunkComponent* Comp, i
 	const FHktVoxelLODSettings& Settings = LODSettings.IsValidIndex(ClampedLOD)
 		? LODSettings[ClampedLOD]
 		: LODSettings[0];
-	Comp->SetChunkLOD(ClampedLOD, Settings.ToComponentSettings(),
-		NormalMapStrength, EdgeRoundStrength);
-
-	// 엣지 알파는 LOD 스케일 없이 글로벌 값 그대로 (거리에 따라 LOD가 바뀌어도 실루엣은 동일)
-	Comp->SetEdgeAlphaStrength(EdgeAlphaStrength);
-	Comp->SetEdgeAlphaStart(EdgeAlphaStart);
+	Comp->SetChunkLOD(ClampedLOD, Settings.ToComponentSettings(), NormalMapStrength);
 }
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()

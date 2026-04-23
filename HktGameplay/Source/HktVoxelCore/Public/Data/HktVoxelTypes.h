@@ -84,6 +84,11 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	TArray<FHktVoxelVertex> TranslucentVertices;
 	TArray<uint32> TranslucentIndices;
 
+	// LOD0 전용 볼록 모서리 베벨 지오메트리 — EmitConvexEdges()가 채움.
+	// LOD≥1에서는 비어있음. 반투명 복셀(물)은 베벨 대상에서 제외.
+	TArray<FHktVoxelBevelVertex> BevelVertices;
+	TArray<uint32> BevelIndices;
+
 	FHktVoxelChunk() = default;
 	FHktVoxelChunk(FHktVoxelChunk&& Other) noexcept
 		: BoneIndices(MoveTemp(Other.BoneIndices))
@@ -97,6 +102,8 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 		, OpaqueIndices(MoveTemp(Other.OpaqueIndices))
 		, TranslucentVertices(MoveTemp(Other.TranslucentVertices))
 		, TranslucentIndices(MoveTemp(Other.TranslucentIndices))
+		, BevelVertices(MoveTemp(Other.BevelVertices))
+		, BevelIndices(MoveTemp(Other.BevelIndices))
 	{
 		FMemory::Memcpy(Data, Other.Data, sizeof(Data));
 	}
@@ -116,6 +123,8 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 			OpaqueIndices = MoveTemp(Other.OpaqueIndices);
 			TranslucentVertices = MoveTemp(Other.TranslucentVertices);
 			TranslucentIndices = MoveTemp(Other.TranslucentIndices);
+			BevelVertices = MoveTemp(Other.BevelVertices);
+			BevelIndices = MoveTemp(Other.BevelIndices);
 		}
 		return *this;
 	}

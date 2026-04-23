@@ -21,7 +21,7 @@ class UHktVoxelMaterialLUT;
  * FHktVoxelLODSettings — UPROPERTY 노출용 LOD 컴포넌트 프리셋.
  *
  * `FHktVoxelLODComponentSettings`(POD)와 1:1 대응되는 USTRUCT 래퍼.
- * 에디터에서 LOD별 NormalMap/EdgeRound 스케일과 그림자/콜리전 정책을 튜닝.
+ * 에디터에서 LOD별 NormalMap 스케일과 그림자/콜리전 정책을 튜닝.
  */
 USTRUCT(BlueprintType)
 struct FHktVoxelLODSettings
@@ -32,11 +32,6 @@ struct FHktVoxelLODSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD",
 		meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float NormalMapScale = 1.0f;
-
-	/** 액터 EdgeRoundStrength에 곱해질 스케일 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD",
-		meta = (ClampMin = "0.0", ClampMax = "2.0"))
-	float EdgeRoundScale = 1.0f;
 
 	/** 그림자 최대 거리 (UE 유닛). 0이면 항상 ON */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LOD", meta = (ClampMin = "0.0"))
@@ -52,7 +47,6 @@ struct FHktVoxelLODSettings
 	{
 		FHktVoxelLODComponentSettings Out;
 		Out.NormalMapScale = NormalMapScale;
-		Out.EdgeRoundScale = EdgeRoundScale;
 		Out.ShadowDistance = ShadowDistance;
 		Out.bCastShadow = bCastShadow;
 		Out.bCollision = bCollision;
@@ -247,34 +241,17 @@ public:
 	bool bStylizedRendering = false;
 
 	/**
-	 * 엣지 라운딩 강도 — PS 노멀 벤딩만 수행 (지오메트리 변경 없음).
-	 * 0 = 플랫(원본 복셀 룩), 0.3~0.6 = 부드러운 라이팅 라운딩, 1.0 = 최대.
-	 * 실루엣·섀도우 경계는 여전히 각지지만 라이팅/스페큘러가 둥글게 보임.
+	 * 모서리 베벨 — LOD0 청크의 볼록 모서리에 실제 45° 베벨 지오메트리를 추가한다.
+	 * 실루엣과 라이팅 양쪽에 작용하며, LOD1 이상에서는 자동으로 생략되어 거리 비용 0.
+	 * OFF로 토글 시 ActiveChunks 전부를 재메싱한다 (한 번의 약간의 스터터).
+	 * 콘솔: hkt.Voxel.BevelEnabled 0|1
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float EdgeRoundStrength = 0.0f;
-
-	/**
-	 * 엣지 알파 강도 — Dithered clip으로 쿼드 경계 픽셀을 discard (실루엣 둥글리기).
-	 * 0 = off(각진 실루엣), 0.3~0.7 = 둥근 반투명 모서리, 1.0 = 최대 페이드.
-	 * EdgeRoundStrength와 독립 토글. 둘 다 켜면 실루엣·라이팅 모두 둥글어짐.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float EdgeAlphaStrength = 0.0f;
-
-	/**
-	 * 엣지 알파 페이드 시작 거리 (쿼드 중심=0, 경계=1). 0.6~0.9 권장.
-	 * 값이 작을수록 더 넓은 영역이 페이드된다.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float EdgeAlphaStart = 0.75f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
+	bool bBevelEnabled = true;
 
 	/**
 	 * 노멀맵 강도 — BlockStyle의 Normal 텍스처가 빌드되었을 때만 적용.
-	 * 0 = off(평면), 1 = 원본 강도, 1.0 이상 = 과장. EdgeRoundStrength와 독립적으로 합성.
+	 * 0 = off(평면), 1 = 원본 강도, 1.0 이상 = 과장.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
 		meta = (ClampMin = "0.0", ClampMax = "2.0", UIMin = "0.0", UIMax = "2.0"))
@@ -486,12 +463,8 @@ private:
 	/** bStylizedRendering 변경 감지용 이전 값 (에디터 라이브 토글 대응) */
 	bool bPrevStylizedRendering = false;
 
-	/** EdgeRoundStrength 변경 감지용 이전 값 */
-	float PrevEdgeRoundStrength = 0.0f;
-
-	/** EdgeAlphaStrength/Start 변경 감지용 이전 값 */
-	float PrevEdgeAlphaStrength = 0.0f;
-	float PrevEdgeAlphaStart = 0.75f;
+	/** bBevelEnabled 변경 감지용 — 토글 시 전체 청크 재메싱 */
+	bool bPrevBevelEnabled = true;
 
 	/** NormalMapStrength 변경 감지용 이전 값 */
 	float PrevNormalMapStrength = 1.0f;
