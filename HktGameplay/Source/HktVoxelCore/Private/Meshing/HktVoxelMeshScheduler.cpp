@@ -65,13 +65,42 @@ void FHktVoxelMeshScheduler::Tick(const FVector& CameraPos)
 		ChunkRef->bMeshDirty.store(false, std::memory_order_relaxed);
 		const uint32 Gen = ChunkRef->MeshGeneration.load(std::memory_order_acquire);
 		const int32 LOD = (int32)ChunkRef->RequestedLOD.load(std::memory_order_acquire);
+		const float Bevel = ChunkRef->GetRequestedBevel();
+
+		// 베벨이 활성인 청크만 6방향 이웃을 사전 조회해 태스크에 첨부.
+		// 베벨 미적용 경로는 이웃 조회 오버헤드를 완전히 피한다 (기존 경로와 동일 성능).
+		FHktVoxelChunkRef NegX, PosX, NegY, PosY, NegZ, PosZ;
+		if (Bevel > 0.f)
+		{
+			const FIntVector Coord = DirtyChunks[i];
+			NegX = RenderCache->GetChunkRef(Coord + FIntVector(-1, 0, 0));
+			PosX = RenderCache->GetChunkRef(Coord + FIntVector(+1, 0, 0));
+			NegY = RenderCache->GetChunkRef(Coord + FIntVector(0, -1, 0));
+			PosY = RenderCache->GetChunkRef(Coord + FIntVector(0, +1, 0));
+			NegZ = RenderCache->GetChunkRef(Coord + FIntVector(0, 0, -1));
+			PosZ = RenderCache->GetChunkRef(Coord + FIntVector(0, 0, +1));
+		}
 
 		const bool bDS = bDoubleSided;
 		PendingTasks.Add(UE::Tasks::Launch(
 			TEXT("HktVoxelMeshing"),
-			[ChunkRef, Gen, bDS, LOD]()
+			[ChunkRef, Gen, bDS, LOD, Bevel,
+			 NegX = MoveTemp(NegX), PosX = MoveTemp(PosX),
+			 NegY = MoveTemp(NegY), PosY = MoveTemp(PosY),
+			 NegZ = MoveTemp(NegZ), PosZ = MoveTemp(PosZ)]()
 			{
-				FHktVoxelMesher::MeshChunk(*ChunkRef, bDS, LOD);
+				FHktVoxelMeshNeighbors Neighbors;
+				Neighbors.NegX = NegX.Get();
+				Neighbors.PosX = PosX.Get();
+				Neighbors.NegY = NegY.Get();
+				Neighbors.PosY = PosY.Get();
+				Neighbors.NegZ = NegZ.Get();
+				Neighbors.PosZ = PosZ.Get();
+
+				// Bevel==0이면 MeshChunk 내부에서 Neighbors를 무시한다.
+				FHktVoxelMesher::MeshChunk(*ChunkRef, bDS, LOD, Bevel,
+					(Bevel > 0.f) ? &Neighbors : nullptr);
+
 				// 세대가 변경되지 않았을 때만 결과를 유효로 마킹.
 				// CurrentLOD를 먼저 갱신해 게임 스레드가 bMeshReady 관측 시 LOD가 일관되도록.
 				if (ChunkRef->MeshGeneration.load(std::memory_order_acquire) == Gen)

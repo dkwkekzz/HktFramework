@@ -8,6 +8,25 @@ struct FHktVoxel;
 struct FHktVoxelChunk;
 
 /**
+ * FHktVoxelMeshNeighbors — 6방향 이웃 청크 스냅샷.
+ *
+ * 베벨 실루엣 판정을 위해 Mesher가 청크 경계 바깥 셀을 probe해야 한다.
+ * 게임 스레드가 사전 조회한 raw 포인터를 워커 태스크에 전달한다.
+ * TSharedPtr 수명 보장은 스케줄러 태스크 람다가 별도로 캡처한다.
+ *
+ * 포인터가 nullptr이면 해당 방향 이웃이 없다는 뜻 → 청크 밖을 empty로 간주.
+ */
+struct FHktVoxelMeshNeighbors
+{
+	const FHktVoxelChunk* NegX = nullptr;  // X-1 방향
+	const FHktVoxelChunk* PosX = nullptr;  // X+1 방향
+	const FHktVoxelChunk* NegY = nullptr;
+	const FHktVoxelChunk* PosY = nullptr;
+	const FHktVoxelChunk* NegZ = nullptr;
+	const FHktVoxelChunk* PosZ = nullptr;
+};
+
+/**
  * FHktVoxelMesher — Binary Greedy Meshing
  *
  * 슬라이스별 비트마스크를 사용하여 노출된 면을 탐색하고,
@@ -25,8 +44,15 @@ struct FHktVoxelChunk;
 class HKTVOXELCORE_API FHktVoxelMesher
 {
 public:
-	/** 단일 청크를 메싱 — 워커 스레드에서 호출. bDoubleSided=true면 양면 렌더링 (엔티티용) */
-	static void MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided = true, int32 LODLevel = 0);
+	/**
+	 * 단일 청크를 메싱 — 워커 스레드에서 호출. bDoubleSided=true면 양면 렌더링 (엔티티용).
+	 * BevelSize > 0이면 각 greedy-merge 쿼드의 "실루엣" 버텍스에 per-vertex offset을
+	 * 채워 모서리를 베벨 처리한다(지오메트리 레벨). 0이면 기존 플랫 메시.
+	 * Neighbors != nullptr이면 청크 경계 바깥 셀 probe 시 이웃 청크를 사용해
+	 * 청크 이음새의 false-positive 베벨을 제거한다.
+	 */
+	static void MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided = true, int32 LODLevel = 0,
+	                      float BevelSize = 0.f, const FHktVoxelMeshNeighbors* Neighbors = nullptr);
 
 private:
 	/**
@@ -48,7 +74,9 @@ private:
 		int32 Face, int32 Slice,
 		const uint32 Mask[32],
 		bool bDoubleSided,
-		int32 LODLevel);
+		int32 LODLevel,
+		float BevelSize,
+		const FHktVoxelMeshNeighbors* Neighbors);
 
 	/**
 	 * Baked AO 계산 — 인접 복셀 기반, 버텍스당 0~3
@@ -59,7 +87,10 @@ private:
 		const FHktVoxelChunk& Chunk,
 		FIntVector Pos, int32 Face, int32 CornerIndex, int32 LODLevel);
 
-	/** 쿼드 4개 버텍스 + 인덱스를 청크 메시 배열에 추가. bDoubleSided=false면 back face 생략 */
+	/**
+	 * 쿼드 4개 버텍스 + 인덱스를 청크 메시 배열에 추가. bDoubleSided=false면 back face 생략.
+	 * BevelSize > 0이면 실루엣 판정된 쿼드 경계 버텍스에 per-vertex offset을 채운다.
+	 */
 	static void EmitQuad(
 		FHktVoxelChunk& Chunk,
 		int32 Face, int32 Slice,
@@ -68,5 +99,7 @@ private:
 		const FHktVoxel& Voxel,
 		uint8 BoneIndex,
 		bool bDoubleSided,
-		int32 LODLevel);
+		int32 LODLevel,
+		float BevelSize,
+		const FHktVoxelMeshNeighbors* Neighbors);
 };

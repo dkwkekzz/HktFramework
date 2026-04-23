@@ -76,6 +76,12 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	std::atomic<uint8> CurrentLOD{0};
 	std::atomic<uint8> RequestedLOD{0};
 
+	// 플레이어 소속 청크 엣지 라운딩(지오메트리 베벨) 요청값 — voxel 단위.
+	// 0이면 기존 flat greedy mesh. 0보다 크면 Mesher가 per-vertex offset을
+	// 채워 실루엣 모서리를 베벨한다. std::atomic<uint32>로 bit-cast 저장하여
+	// 게임-스레드 쓰기/워커-스레드 읽기를 동기화한다.
+	std::atomic<uint32> RequestedBevelBits{0};
+
 	// Greedy Meshing 결과 — MeshChunk()가 채움
 	// MeshLock: 워커 스레드(MeshChunk)가 Write, 게임 스레드(OnMeshReady/CreateSceneProxy)가 Read.
 	mutable FRWLock MeshLock;
@@ -83,6 +89,23 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 	TArray<uint32> OpaqueIndices;
 	TArray<FHktVoxelVertex> TranslucentVertices;
 	TArray<uint32> TranslucentIndices;
+
+	/** 베벨 크기 설정 — 게임 스레드에서 호출. voxel 단위 float를 bit-cast로 저장 */
+	void SetRequestedBevel(float BevelVoxels)
+	{
+		uint32 Bits = 0;
+		FMemory::Memcpy(&Bits, &BevelVoxels, sizeof(uint32));
+		RequestedBevelBits.store(Bits, std::memory_order_release);
+	}
+
+	/** 베벨 크기 조회 — 워커 스레드에서 호출. voxel 단위 float 반환 */
+	float GetRequestedBevel() const
+	{
+		uint32 Bits = RequestedBevelBits.load(std::memory_order_acquire);
+		float Out = 0.f;
+		FMemory::Memcpy(&Out, &Bits, sizeof(float));
+		return Out;
+	}
 
 	FHktVoxelChunk() = default;
 	FHktVoxelChunk(FHktVoxelChunk&& Other) noexcept
@@ -93,6 +116,7 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 		, MeshGeneration(Other.MeshGeneration.load(std::memory_order_relaxed))
 		, CurrentLOD(Other.CurrentLOD.load(std::memory_order_relaxed))
 		, RequestedLOD(Other.RequestedLOD.load(std::memory_order_relaxed))
+		, RequestedBevelBits(Other.RequestedBevelBits.load(std::memory_order_relaxed))
 		, OpaqueVertices(MoveTemp(Other.OpaqueVertices))
 		, OpaqueIndices(MoveTemp(Other.OpaqueIndices))
 		, TranslucentVertices(MoveTemp(Other.TranslucentVertices))
@@ -112,6 +136,7 @@ struct HKTVOXELCORE_API FHktVoxelChunk
 			MeshGeneration.store(Other.MeshGeneration.load(std::memory_order_relaxed), std::memory_order_relaxed);
 			CurrentLOD.store(Other.CurrentLOD.load(std::memory_order_relaxed), std::memory_order_relaxed);
 			RequestedLOD.store(Other.RequestedLOD.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			RequestedBevelBits.store(Other.RequestedBevelBits.load(std::memory_order_relaxed), std::memory_order_relaxed);
 			OpaqueVertices = MoveTemp(Other.OpaqueVertices);
 			OpaqueIndices = MoveTemp(Other.OpaqueIndices);
 			TranslucentVertices = MoveTemp(Other.TranslucentVertices);
