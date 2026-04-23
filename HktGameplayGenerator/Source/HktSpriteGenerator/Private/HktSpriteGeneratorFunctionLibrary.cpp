@@ -829,17 +829,22 @@ namespace HktSpriteGen
 
 		// 출력 패턴: 4자리 0패딩 → 사전식 정렬 시 시간순 유지
 		const FString OutPattern = OutputDir / TEXT("frame_%04d.png");
+		const FString AbsVideoPath = FPaths::ConvertRelativePathToFull(VideoPath);
 
+		// ffmpeg 인자 순서 주의:
+		//   -ss 는 -i 뒤에 두어 정확한 seek(slow seek). 스프라이트 추출은 정확도가 우선.
+		//   종료 지점은 -to (절대 시각) 대신 -t (지속 시간)으로 지정 — -ss 와의 상호작용에서
+		//   항상 "시작 후 N초간" 의 의미가 되어 ffmpeg 버전과 무관하게 일관됨.
 		FString Args;
 		Args += TEXT("-y -hide_banner -loglevel error ");
-		Args += FString::Printf(TEXT("-i %s "), *QuoteArg(VideoPath));
+		Args += FString::Printf(TEXT("-i %s "), *QuoteArg(AbsVideoPath));
 		if (StartTimeSec > 0.0f)
 		{
 			Args += FString::Printf(TEXT("-ss %.3f "), StartTimeSec);
 		}
 		if (EndTimeSec > StartTimeSec && EndTimeSec > 0.0f)
 		{
-			Args += FString::Printf(TEXT("-to %.3f "), EndTimeSec);
+			Args += FString::Printf(TEXT("-t %.3f "), EndTimeSec - StartTimeSec);
 		}
 		Args += FString::Printf(TEXT("-vf \"%s\" "), *VideoFilter);
 		if (MaxFrames > 0)
@@ -861,8 +866,8 @@ namespace HktSpriteGen
 		}
 
 		int32 ReturnCode = -1;
-		FString StdOut, StdErr;
-		const bool bExecOk = FPlatformProcess::ExecProcess(*FFmpeg, *Args, &ReturnCode, &StdOut, &StdErr);
+		FString StdErr;
+		const bool bExecOk = FPlatformProcess::ExecProcess(*FFmpeg, *Args, &ReturnCode, /*StdOut*/ nullptr, &StdErr);
 		if (!bExecOk)
 		{
 			OutError = FString::Printf(
