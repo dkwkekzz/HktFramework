@@ -26,6 +26,7 @@
 #include "RenderingThread.h"
 #include "RHIStaticStates.h"
 #include "TextureResource.h"
+#include "DrawDebugHelpers.h"
 
 // FHktTerrainVoxel과 FHktVoxel은 동일 4바이트 레이아웃
 static_assert(sizeof(FHktTerrainVoxel) == sizeof(FHktVoxel),
@@ -315,6 +316,71 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 
 	// 6. 메싱 완료 청크 → GPU 업로드
 	ProcessMeshReadyChunks();
+
+	// 7. 디버그 시각화 — LOD 색상 AABB (bDrawChunkDebug ON 시)
+	if (bDrawChunkDebug)
+	{
+		DrawChunkDebug();
+	}
+}
+
+void AHktVoxelTerrainActor::DrawChunkDebug() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float ChunkWorldSize = GetChunkWorldSize();
+	if (ChunkWorldSize <= 0.f)
+	{
+		return;
+	}
+
+	const FVector Extent(ChunkWorldSize * 0.5f);
+	const FTransform ActorXform = GetActorTransform();
+
+	// LOD 색상: 0=녹 / 1=노랑 / 2=주황 / 3=빨강
+	static const FColor LODColors[4] = {
+		FColor(0, 255, 0),
+		FColor(255, 255, 0),
+		FColor(255, 128, 0),
+		FColor(255, 0, 0),
+	};
+
+	for (const TPair<FIntVector, UHktVoxelChunkComponent*>& Pair : ActiveChunks)
+	{
+		const FIntVector& Coord = Pair.Key;
+		const UHktVoxelChunkComponent* Comp = Pair.Value;
+		if (!Comp)
+		{
+			continue;
+		}
+
+		const int32 LOD = FMath::Clamp(Comp->GetChunkLOD(), 0, FHktVoxelLODPolicy::MaxLOD);
+		const FColor& Color = LODColors[LOD];
+
+		const FVector LocalCenter(
+			(Coord.X + 0.5f) * ChunkWorldSize,
+			(Coord.Y + 0.5f) * ChunkWorldSize,
+			(Coord.Z + 0.5f) * ChunkWorldSize);
+		const FVector WorldCenter = ActorXform.TransformPosition(LocalCenter);
+
+		DrawDebugBox(World, WorldCenter, Extent, Color,
+			/*bPersistent=*/false, /*Lifetime=*/-1.f,
+			/*DepthPriority=*/0, ChunkDebugDrawThickness);
+
+		if (bDrawChunkDebugLabels)
+		{
+			const FString Label = FString::Printf(
+				TEXT("L%d\n(%d,%d,%d)"),
+				LOD, Coord.X, Coord.Y, Coord.Z);
+			DrawDebugString(World, WorldCenter, Label,
+				/*TestBaseActor=*/nullptr, Color,
+				/*Duration=*/0.f, /*bDrawShadow=*/true);
+		}
+	}
 }
 
 void AHktVoxelTerrainActor::LogStreamingStatsPeriodic()
@@ -534,10 +600,26 @@ void AHktVoxelTerrainActor::ApplyLODToComponent(UHktVoxelChunkComponent* Comp, i
 
 void AHktVoxelTerrainActor::ProcessStreamingResults()
 {
+	const TArray<FIntVector>& ToUnload = Streamer->GetChunksToUnload();
+	const TArray<FHktChunkLODRequest>& ToLoad = Streamer->GetChunksToLoad();
+	const TArray<FHktChunkLODRequest>& ToRetune = Streamer->GetChunksToRetune();
+
 	// 언로드 — 태스크가 TSharedPtr<FHktVoxelChunk>를 캡처하므로 Flush 불필요.
 	// UnloadChunk은 맵에서 제거만 하고, 실제 메모리는 태스크의 TSharedPtr 해제 시 반환.
-	for (const FIntVector& Coord : Streamer->GetChunksToUnload())
+	for (const FIntVector& Coord : ToUnload)
 	{
+		if (bLogChunkEvents)
+		{
+			int32 PrevLOD = -1;
+			if (FHktVoxelChunkRef Ref = TerrainCache->GetChunkRef(Coord))
+			{
+				PrevLOD = static_cast<int32>(Ref->CurrentLOD.load(std::memory_order_acquire));
+			}
+			UE_LOG(LogHktVoxelTerrain, Log,
+				TEXT("[Chunk UNLOAD] coord=(%d,%d,%d) prevLOD=%d"),
+				Coord.X, Coord.Y, Coord.Z, PrevLOD);
+		}
+
 		TerrainCache->UnloadChunk(Coord);
 
 		if (UHktVoxelChunkComponent** Found = ActiveChunks.Find(Coord))
@@ -548,20 +630,49 @@ void AHktVoxelTerrainActor::ProcessStreamingResults()
 	}
 
 	// 로드: 스트리머가 요청한 청크를 절차적 생성 → RenderCache 로드 → 컴포넌트 할당
-	for (const FHktChunkLODRequest& Req : Streamer->GetChunksToLoad())
+	int32 LoadedCount = 0;
+	for (const FHktChunkLODRequest& Req : ToLoad)
 	{
 		if (ActiveChunks.Contains(Req.Coord))
 		{
 			continue;
 		}
 
+		if (bLogChunkEvents)
+		{
+			UE_LOG(LogHktVoxelTerrain, Log,
+				TEXT("[Chunk LOAD] coord=(%d,%d,%d) LOD=%d"),
+				Req.Coord.X, Req.Coord.Y, Req.Coord.Z, Req.LOD);
+		}
+
 		GenerateAndLoadChunk(Req.Coord, Req.LOD);
+		++LoadedCount;
 	}
 
 	// Retune: 이미 로드된 청크의 LOD만 변경 (Voxel 데이터 보존, 메시만 재생성)
-	for (const FHktChunkLODRequest& Req : Streamer->GetChunksToRetune())
+	for (const FHktChunkLODRequest& Req : ToRetune)
 	{
+		if (bLogChunkEvents)
+		{
+			int32 PrevLOD = -1;
+			if (FHktVoxelChunkRef Ref = TerrainCache->GetChunkRef(Req.Coord))
+			{
+				PrevLOD = static_cast<int32>(Ref->RequestedLOD.load(std::memory_order_acquire));
+			}
+			UE_LOG(LogHktVoxelTerrain, Log,
+				TEXT("[Chunk RETUNE] coord=(%d,%d,%d) LOD %d -> %d"),
+				Req.Coord.X, Req.Coord.Y, Req.Coord.Z, PrevLOD, Req.LOD);
+		}
+
 		RetuneChunkLOD(Req.Coord, Req.LOD);
+	}
+
+	if (bLogChunkEvents
+		&& (LoadedCount + ToUnload.Num() + ToRetune.Num()) > 0)
+	{
+		UE_LOG(LogHktVoxelTerrain, Log,
+			TEXT("[Chunk Tick] Load=%d Unload=%d Retune=%d | Active=%d"),
+			LoadedCount, ToUnload.Num(), ToRetune.Num(), ActiveChunks.Num());
 	}
 }
 
@@ -1364,4 +1475,65 @@ namespace
 		TEXT("LOD 도입 전 동작으로 되돌리기. 인자: [0|1] [radius_cm]. 없으면 토글. "
 			"예: hkt.terrain.legacy 1 8000 — 레거시 모드 ON, 반경 80m."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLegacyMode));
+
+	// === 청크 이벤트 로그 / DrawDebug 토글 ===
+
+	void Cmd_TerrainLogChunks(const TArray<FString>& Args)
+	{
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		const bool bHasArg = Args.Num() >= 1;
+		const bool bForceOn = bHasArg && FCString::Atoi(*Args[0]) != 0;
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			const bool bNext = bHasArg ? bForceOn : !A->bLogChunkEvents;
+			A->bLogChunkEvents = bNext;
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s LogChunkEvents=%s"),
+				*A->GetName(), bNext ? TEXT("ON") : TEXT("OFF"));
+		}
+	}
+
+	void Cmd_TerrainDebugDraw(const TArray<FString>& Args)
+	{
+		auto Actors = FindTerrainActors();
+		if (Actors.Num() == 0)
+		{
+			UE_LOG(LogConsoleResponse, Warning, TEXT("[Terrain] AHktVoxelTerrainActor 없음"));
+			return;
+		}
+		const bool bHasArg = Args.Num() >= 1;
+		const bool bForceOn = bHasArg && FCString::Atoi(*Args[0]) != 0;
+		const bool bHasLabelArg = Args.Num() >= 2;
+		const bool bForceLabels = bHasLabelArg && FCString::Atoi(*Args[1]) != 0;
+		for (AHktVoxelTerrainActor* A : Actors)
+		{
+			const bool bNext = bHasArg ? bForceOn : !A->bDrawChunkDebug;
+			A->bDrawChunkDebug = bNext;
+			if (bHasLabelArg)
+			{
+				A->bDrawChunkDebugLabels = bForceLabels;
+			}
+			UE_LOG(LogConsoleResponse, Display,
+				TEXT("[Terrain] %s DrawChunkDebug=%s (Labels=%s)"),
+				*A->GetName(),
+				bNext ? TEXT("ON") : TEXT("OFF"),
+				A->bDrawChunkDebugLabels ? TEXT("ON") : TEXT("OFF"));
+		}
+	}
+
+	FAutoConsoleCommand CmdTerrainLogChunks(
+		TEXT("hkt.terrain.log.chunks"),
+		TEXT("청크 단위 LOAD/UNLOAD/RETUNE 이벤트 로그. 인자: 0=끔, 1=켬, 없으면 토글."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainLogChunks));
+
+	FAutoConsoleCommand CmdTerrainDebugDraw(
+		TEXT("hkt.terrain.debug.draw"),
+		TEXT("활성 청크 AABB를 LOD 색상(0=녹/1=노랑/2=주황/3=빨강)으로 DrawDebug. "
+			 "인자: [0|1] [labels:0|1]. 예: hkt.terrain.debug.draw 1 1"),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebugDraw));
 }

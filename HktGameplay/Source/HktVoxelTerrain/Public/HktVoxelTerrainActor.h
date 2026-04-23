@@ -375,6 +375,32 @@ public:
 		meta = (ClampMin = 0.f, ClampMax = 60.f))
 	float StatsLogInterval = 10.f;
 
+	/**
+	 * 청크 단위 LOAD/UNLOAD/RETUNE 이벤트를 UE_LOG로 출력.
+	 * ON 시 매 틱 빈도가 높을 수 있으므로 진단 중에만 사용.
+	 * 콘솔: hkt.terrain.log.chunks 0|1
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug", Transient)
+	bool bLogChunkEvents = false;
+
+	/**
+	 * 활성 청크별 AABB를 LOD 색상으로 DrawDebug 렌더.
+	 * LOD0=녹/LOD1=노랑/LOD2=주황/LOD3=빨강. 매 틱 1프레임 라인 그리기.
+	 * 콘솔: hkt.terrain.debug.draw 0|1
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug", Transient)
+	bool bDrawChunkDebug = false;
+
+	/** DrawChunkDebug 시 청크 좌표·LOD 텍스트 라벨 표시 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug", Transient,
+		meta = (EditCondition = "bDrawChunkDebug"))
+	bool bDrawChunkDebugLabels = false;
+
+	/** DrawChunkDebug AABB 선 두께 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Debug", Transient,
+		meta = (EditCondition = "bDrawChunkDebug", ClampMin = "0.5", ClampMax = "8.0"))
+	float ChunkDebugDrawThickness = 2.f;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -419,6 +445,9 @@ private:
 	 * 매 Tick 호출되어 캐시가 완성되는 즉시 PushStyleTexturesToProxy로 Proxy에 전달한다.
 	 */
 	void PumpStyleTextures();
+
+	/** 활성 청크 AABB를 LOD 색상으로 DrawDebug 그림 (bDrawChunkDebug ON 시) */
+	void DrawChunkDebug() const;
 
 	/** StatsLogInterval 주기로 현재 로드된 청크 수, 크기, LOD 분포를 로그 출력 */
 	void LogStreamingStatsPeriodic();
