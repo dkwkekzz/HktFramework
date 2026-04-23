@@ -5,7 +5,8 @@
 #include "Data/HktVoxelTypes.h"
 #include "LOD/HktVoxelLOD.h"
 
-void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 LODLevel)
+void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 LODLevel,
+                                float BevelSize, const FHktVoxelMeshNeighbors* Neighbors)
 {
 	FWriteScopeLock WriteLock(Chunk.MeshLock);
 
@@ -17,13 +18,19 @@ void FHktVoxelMesher::MeshChunk(FHktVoxelChunk& Chunk, bool bDoubleSided, int32 
 	const int32 ClampedLOD = FMath::Clamp(LODLevel, 0, FHktVoxelLODPolicy::MaxLOD);
 	const int32 DownSize = FHktVoxelChunk::SIZE >> ClampedLOD;
 
+	// 베벨은 LOD 0(풀 디테일)에서만 유효. 원거리 LOD는 삼각형 수를 아끼고 효과도 보이지 않음.
+	const float EffectiveBevel = (ClampedLOD == 0) ? FMath::Clamp(BevelSize, 0.f, 0.45f) : 0.f;
+
+	// 이웃 포인터는 LOD 0 + 베벨 활성일 때만 의미가 있다. 그 외 경로는 기존 로직 그대로.
+	const FHktVoxelMeshNeighbors* ActiveNeighbors = (EffectiveBevel > 0.f) ? Neighbors : nullptr;
+
 	for (int32 Face = 0; Face < EHktVoxelFace::Count; Face++)
 	{
 		for (int32 Slice = 0; Slice < DownSize; Slice++)
 		{
 			uint32 FaceMask[FHktVoxelChunk::SIZE] = {};
 			BuildFaceMask(Chunk, Face, Slice, FaceMask, ClampedLOD);
-			MergeQuads(Chunk, Face, Slice, FaceMask, bDoubleSided, ClampedLOD);
+			MergeQuads(Chunk, Face, Slice, FaceMask, bDoubleSided, ClampedLOD, EffectiveBevel, ActiveNeighbors);
 		}
 	}
 
@@ -105,7 +112,9 @@ void FHktVoxelMesher::MergeQuads(
 	int32 Face, int32 Slice,
 	const uint32 Mask[32],
 	bool bDoubleSided,
-	int32 LODLevel)
+	int32 LODLevel,
+	float BevelSize,
+	const FHktVoxelMeshNeighbors* Neighbors)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 	const int32 SIZE = FHktVoxelChunk::SIZE;
@@ -212,7 +221,7 @@ void FHktVoxelMesher::MergeQuads(
 			}
 
 			// 쿼드 방출 (다운샘플 좌표 그대로 전달, EmitQuad 안에서 Step 스케일)
-			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel, BaseBone, bDoubleSided, LODLevel);
+			EmitQuad(Chunk, Face, Slice, StartU, V, Width, Height, BaseVoxel, BaseBone, bDoubleSided, LODLevel, BevelSize, Neighbors);
 
 			// 처리된 비트 제거
 			Row &= ~WidthMask;
@@ -279,7 +288,9 @@ void FHktVoxelMesher::EmitQuad(
 	const FHktVoxel& Voxel,
 	uint8 BoneIndex,
 	bool bDoubleSided,
-	int32 LODLevel)
+	int32 LODLevel,
+	float BevelSize,
+	const FHktVoxelMeshNeighbors* Neighbors)
 {
 	const int32 Axis = EHktVoxelFace::GetAxis(Face);
 	const int32 Step = 1 << LODLevel;
@@ -338,6 +349,149 @@ void FHktVoxelMesher::EmitQuad(
 		(uint8)ScaledWidth, (uint8)ScaledHeight, (uint8)Face,
 		Voxel.TypeID, Voxel.PaletteIndex, AO[0], Voxel.Flags, BoneIndex);
 
+	// ---- per-corner 베벨 오프셋 계산 ----
+	//
+	// 실루엣 판정: 각 U/V edge에 대해, 해당 edge 바깥쪽 in-plane 이웃 cell이
+	// 빈칸(empty) 또는 청크 밖이면 그 edge는 silhouette이다. 이 edge에 붙은
+	// 두 코너를 in-plane 안쪽으로 BevelSize voxel만큼 당기고, 동시에 face
+	// 법선의 반대 방향(solid 안쪽)으로도 BevelSize voxel만큼 밀어넣어
+	// 지오메트리 레벨에서 chamfer를 만든다.
+	//
+	// 베벨을 적용하지 않는 쪽(BevelSize=0 또는 edge가 다른 solid에 접해 있음)은
+	// 오프셋이 0이라 기존 평면 greedy mesh와 완전히 동일하게 렌더링된다.
+	float BevelOX[4] = {0.f, 0.f, 0.f, 0.f};
+	float BevelOY[4] = {0.f, 0.f, 0.f, 0.f};
+	float BevelOZ[4] = {0.f, 0.f, 0.f, 0.f};
+
+	if (BevelSize > 0.f)
+	{
+		const int32 SIZE = FHktVoxelChunk::SIZE;
+
+		// 청크 경계 바깥을 probe할 때 이웃 청크의 대응 셀을 대신 조회한다.
+		// 이웃 청크가 로드되지 않았으면(nullptr) 기존 동작처럼 empty로 간주.
+		// 각 축은 범위를 벗어날 때 (coord - SIZE) 또는 (coord + SIZE)로 wrap하여
+		// 이웃 청크의 로컬 좌표로 변환한다.
+		auto CellEmpty = [&](int32 X, int32 Y, int32 Z) -> bool
+		{
+			const FHktVoxelChunk* Target = &Chunk;
+			int32 LX = X, LY = Y, LZ = Z;
+
+			// 한 번에 한 축만 경계 바깥이라고 가정(베벨 probe는 항상 단일 축으로 ±Step 이동).
+			if (LX < 0)
+			{
+				if (!Neighbors || !Neighbors->NegX) return true;
+				Target = Neighbors->NegX;  LX += SIZE;
+			}
+			else if (LX >= SIZE)
+			{
+				if (!Neighbors || !Neighbors->PosX) return true;
+				Target = Neighbors->PosX;  LX -= SIZE;
+			}
+
+			if (LY < 0)
+			{
+				if (!Neighbors || !Neighbors->NegY) return true;
+				Target = Neighbors->NegY;  LY += SIZE;
+			}
+			else if (LY >= SIZE)
+			{
+				if (!Neighbors || !Neighbors->PosY) return true;
+				Target = Neighbors->PosY;  LY -= SIZE;
+			}
+
+			if (LZ < 0)
+			{
+				if (!Neighbors || !Neighbors->NegZ) return true;
+				Target = Neighbors->NegZ;  LZ += SIZE;
+			}
+			else if (LZ >= SIZE)
+			{
+				if (!Neighbors || !Neighbors->PosZ) return true;
+				Target = Neighbors->PosZ;  LZ -= SIZE;
+			}
+
+			return Target->At(LX, LY, LZ).IsEmpty();
+		};
+
+		// U-low / U-high / V-low / V-high 각각의 실루엣 여부 (쿼드 전체 변 기준).
+		// 효율을 위해 변 전체가 아닌 대표 샘플 셀(쿼드 중앙의 해당 변 셀)로 판정.
+		// 아주 복잡한 형태에서는 변 전체가 실루엣이 아닐 수 있지만 이 경우는 드물고,
+		// 잘못 베벨이 적용되어도 단지 시각적 미세 오차일 뿐이므로 허용한다.
+		auto InPlaneEmpty = [&](int32 USample, int32 VSample, int32 DU, int32 DV) -> bool
+		{
+			// Axis에 따라 U, V를 축 좌표로 매핑하여 in-plane 이웃을 probe.
+			switch (Axis)
+			{
+				case 0: return CellEmpty(ScaledSlice, USample + DU, VSample + DV);
+				case 1: return CellEmpty(USample + DU, ScaledSlice, VSample + DV);
+				case 2: return CellEmpty(USample + DU, VSample + DV, ScaledSlice);
+			}
+			return true;
+		};
+
+		const int32 MidU = ScaledU + (ScaledWidth / 2);
+		const int32 MidV = ScaledV + (ScaledHeight / 2);
+		const bool bSilU0 = InPlaneEmpty(ScaledU,                    MidV, -Step, 0);       // -U silhouette
+		const bool bSilU1 = InPlaneEmpty(ScaledU + ScaledWidth - 1,  MidV, +Step, 0);       // +U silhouette
+		const bool bSilV0 = InPlaneEmpty(MidU,                       ScaledV, 0, -Step);    // -V silhouette
+		const bool bSilV1 = InPlaneEmpty(MidU,                       ScaledV + ScaledHeight - 1, 0, +Step);  // +V silhouette
+
+		// 축 0(X) → U=Y, V=Z.  축 1(Y) → U=X, V=Z.  축 2(Z) → U=X, V=Y.
+		// 코너 인덱스: bit0 = U-high, bit1 = V-high. Corner 0 = (UMin, VMin).
+		auto SetCornerOffset = [&](int32 CornerIdx, float OffU, float OffV, float OffN)
+		{
+			// In-plane 이동은 U / V 축 방향으로 각각. 법선 이동은 Face 법선 반대 방향.
+			const FIntVector Normal = EHktVoxelFace::GetNormal((uint8)Face);
+			switch (Axis)
+			{
+				case 0:
+					// X=Slice축 법선, Y=U, Z=V
+					BevelOX[CornerIdx] += -OffN * (float)Normal.X;
+					BevelOY[CornerIdx] += OffU;
+					BevelOZ[CornerIdx] += OffV;
+					break;
+				case 1:
+					// Y=Slice축 법선, X=U, Z=V
+					BevelOX[CornerIdx] += OffU;
+					BevelOY[CornerIdx] += -OffN * (float)Normal.Y;
+					BevelOZ[CornerIdx] += OffV;
+					break;
+				case 2:
+					// Z=Slice축 법선, X=U, Y=V
+					BevelOX[CornerIdx] += OffU;
+					BevelOY[CornerIdx] += OffV;
+					BevelOZ[CornerIdx] += -OffN * (float)Normal.Z;
+					break;
+			}
+		};
+
+		// 코너별로 U/V edge 접촉 여부를 확인하고 실루엣이면 오프셋 누적.
+		// Corner: 0=(Umin,Vmin), 1=(Umax,Vmin), 2=(Umin,Vmax), 3=(Umax,Vmax)
+		for (int32 c = 0; c < 4; ++c)
+		{
+			const bool bUHigh = (c & 1) != 0;
+			const bool bVHigh = (c & 2) != 0;
+
+			const bool bUSil = bUHigh ? bSilU1 : bSilU0;
+			const bool bVSil = bVHigh ? bSilV1 : bSilV0;
+
+			if (!bUSil && !bVSil)
+			{
+				continue;
+			}
+
+			// In-plane inset 방향: U-silhouette이면 U 방향으로 중심을 향해 당긴다.
+			const float OffU = bUSil ? (bUHigh ? -BevelSize : +BevelSize) : 0.f;
+			const float OffV = bVSil ? (bVHigh ? -BevelSize : +BevelSize) : 0.f;
+
+			// 법선 반대(=솔리드 안쪽) 오프셋 — U 또는 V 중 하나라도 실루엣이면 적용.
+			// 코너에서만 강하게(= BevelSize), 변 중간은 자연 보간으로 완화된다.
+			const float OffN = BevelSize;
+
+			SetCornerOffset(c, OffU, OffV, OffN);
+		}
+	}
+
 	// 대상 배열 선택
 	TArray<FHktVoxelVertex>& Vertices = Voxel.IsTranslucent()
 		? Chunk.TranslucentVertices
@@ -354,6 +508,7 @@ void FHktVoxelMesher::EmitQuad(
 		Vert.PackedMaterialAndAO =
 			(Vert.PackedMaterialAndAO & ~(0x3u << 19)) |
 			((static_cast<uint32>(AO[i]) & 0x3) << 19);
+		Vert.SetBevelOffset(BevelOX[i], BevelOY[i], BevelOZ[i]);
 		Vertices.Add(Vert);
 	}
 

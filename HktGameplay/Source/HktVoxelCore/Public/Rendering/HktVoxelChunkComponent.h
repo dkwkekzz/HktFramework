@@ -23,13 +23,12 @@ struct FHktVoxelTexturePair
  * FHktVoxelLODComponentSettings — 메시 LOD 레벨별 컴포넌트 품질 프리셋.
  *
  * AHktVoxelTerrainActor가 Tier별(Near/Far) 프리셋을 구성해 SetChunkLOD()로 전달한다.
- *  Near: 풀 노멀맵 + 풀 라운딩 + 그림자 + collision
- *  Far : 노멀맵·라운딩 off + 그림자 off + no collision
+ *  Near: 풀 노멀맵 + 그림자 + collision
+ *  Far : 노멀맵 off + 그림자 off + no collision
  */
 struct FHktVoxelLODComponentSettings
 {
 	float NormalMapScale = 1.0f;   // 액터 NormalMapStrength에 곱해질 스케일
-	float EdgeRoundScale = 1.0f;   // 액터 EdgeRoundStrength에 곱해질 스케일
 	float ShadowDistance = 0.0f;   // 0이면 그림자 항상 ON
 	bool  bCastShadow = true;
 	bool  bCollision = true;
@@ -144,31 +143,6 @@ public:
 	void SetStylizedRendering(bool bEnabled);
 	bool IsStylizedRendering() const { return bStylizedRendering; }
 
-	/** 엣지 라운딩 강도 (0=off, 0.3~0.6 권장). PS 노멀 벤딩으로 복셀 경계를 둥글게 보이게 함 */
-	void SetEdgeRoundStrength(float InStrength);
-	float GetEdgeRoundStrength() const { return EdgeRoundStrength; }
-
-	/**
-	 * 엣지 알파 강도 (0=off, 0.3~0.7 권장).
-	 * Dithered clip으로 쿼드 경계 픽셀을 discard → 실루엣이 둥글고 반투명해 보임.
-	 * EdgeRound(노멀 벤딩)와 독립 토글. 둘 다 켜면 실루엣+라이팅 모두 둥글어짐.
-	 *
-	 * 주의 — UE5 파이프라인 한계:
-	 *   머티리얼 BlendMode=Opaque면 Base pass GBuffer에만 알파가 적용되고,
-	 *   Depth prepass·Shadow depth pass는 position-only PS라 full-square 모양
-	 *   그대로 남는다(그림자·SSAO·SSR은 알파 모서리를 무시). 완벽한 실루엣
-	 *   일치가 필요하면 TerrainMaterial을 BlendMode=Masked로 설정할 것.
-	 */
-	void SetEdgeAlphaStrength(float InStrength);
-	float GetEdgeAlphaStrength() const { return EdgeAlphaStrength; }
-
-	/**
-	 * 엣지 알파 페이드 시작 거리 (쿼드 중심=0, 경계=1). 0.6~0.9 권장.
-	 * 값이 작을수록 더 넓은 영역이 페이드된다.
-	 */
-	void SetEdgeAlphaStart(float InStart);
-	float GetEdgeAlphaStart() const { return EdgeAlphaStart; }
-
 	/** 노멀맵 강도 (0=off, 1=원본). NormalArray가 설정된 경우에만 효과 있음 */
 	void SetNormalMapStrength(float InStrength);
 	float GetNormalMapStrength() const { return NormalMapStrength; }
@@ -180,11 +154,10 @@ public:
 	/**
 	 * 청크 LOD 설정 — 보관 중인 LOD 프리셋 + 액터 글로벌 강도를 컴포넌트 설정에 반영.
 	 * NormalMapStrength = ActorNormalMapStrength * Settings.NormalMapScale.
-	 * EdgeRoundStrength = ActorEdgeRoundStrength * Settings.EdgeRoundScale.
 	 * Collision/CastShadow/ShadowDistance도 함께 갱신.
 	 */
 	void SetChunkLOD(int32 InLOD, const FHktVoxelLODComponentSettings& Settings,
-	                 float ActorNormalMapStrength, float ActorEdgeRoundStrength);
+	                 float ActorNormalMapStrength);
 	int32 GetChunkLOD() const { return CurrentLOD; }
 
 	// UPrimitiveComponent
@@ -245,9 +218,6 @@ private:
 	FHktVoxelTexturePair CachedMaterialLUT;
 	bool bStyleTexturesApplied = false;
 	bool bStylizedRendering = false;
-	float EdgeRoundStrength = 0.0f;
-	float EdgeAlphaStrength = 0.0f;
-	float EdgeAlphaStart = 0.75f;
 	float NormalMapStrength = 1.0f;
 	float ShadowDistance = 0.f;
 	int32 CurrentLOD = 0;

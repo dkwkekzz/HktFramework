@@ -209,35 +209,35 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
 	bool bStylizedRendering = false;
 
-	/**
-	 * 엣지 라운딩 강도 — PS 노멀 벤딩만 수행 (지오메트리 변경 없음).
-	 * 0 = 플랫(원본 복셀 룩), 0.3~0.6 = 부드러운 라이팅 라운딩, 1.0 = 최대.
-	 * 실루엣·섀도우 경계는 여전히 각지지만 라이팅/스페큘러가 둥글게 보임.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float EdgeRoundStrength = 0.0f;
+	// === 플레이어 청크 엣지 라운딩 (지오메트리 베벨) ===
+	//
+	// 플레이어(카메라)가 소속된 청크에만 greedy-merge된 쿼드의 실루엣 모서리를
+	// 실제 지오메트리 레벨에서 안쪽/아래로 당겨 라운딩 외형을 만든다.
+	// 일반 청크는 영향 없음. 카메라가 청크 경계를 넘을 때 이전/새 청크가 재메싱된다.
+	//
+	// 정확히는 int16 per-vertex offset 스트림(1/1024 voxel 단위)을 버텍스 팩토리에
+	// 추가하고, Mesher가 플레이어 청크의 실루엣 모서리 버텍스에만 0이 아닌 값을
+	// 채운다. 셰이더가 LocalPos에 오프셋을 더하면서 지오메트리가 실제로 변한다.
 
 	/**
-	 * 엣지 알파 강도 — Dithered clip으로 쿼드 경계 픽셀을 discard (실루엣 둥글리기).
-	 * 0 = off(각진 실루엣), 0.3~0.7 = 둥근 반투명 모서리, 1.0 = 최대 페이드.
-	 * EdgeRoundStrength와 독립 토글. 둘 다 켜면 실루엣·라이팅 모두 둥글어짐.
+	 * 플레이어 청크 엣지 라운딩 활성화. OFF면 기존 greedy-mesh 그대로(평면 복셀).
+	 * ON이면 플레이어 소속 청크만 베벨 메시로 재생성된다.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float EdgeAlphaStrength = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering|EdgeRounding")
+	bool bEnableChunkEdgeRounding = false;
 
 	/**
-	 * 엣지 알파 페이드 시작 거리 (쿼드 중심=0, 경계=1). 0.6~0.9 권장.
-	 * 값이 작을수록 더 넓은 영역이 페이드된다.
+	 * 베벨 깊이 (복셀 단위). 쿼드 경계 버텍스를 안쪽/법선 반대쪽으로 당기는 거리.
+	 * 0.1 = 얕은 chamfer, 0.3 = 선명한 라운딩, 0.45 = 최대(버텍스가 셀 절반까지 침식).
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
-		meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float EdgeAlphaStart = 0.75f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering|EdgeRounding",
+		meta = (EditCondition = "bEnableChunkEdgeRounding",
+		        ClampMin = "0.0", ClampMax = "0.45", UIMin = "0.0", UIMax = "0.45"))
+	float ChunkEdgeRoundingBevel = 0.25f;
 
 	/**
 	 * 노멀맵 강도 — BlockStyle의 Normal 텍스처가 빌드되었을 때만 적용.
-	 * 0 = off(평면), 1 = 원본 강도, 1.0 이상 = 과장. EdgeRoundStrength와 독립적으로 합성.
+	 * 0 = off(평면), 1 = 원본 강도, 1.0 이상 = 과장.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering",
 		meta = (ClampMin = "0.0", ClampMax = "2.0", UIMin = "0.0", UIMax = "2.0"))
@@ -325,7 +325,28 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaTime) override;
 
+public:
+	/** 현재 엣지 라운딩 대상 청크 좌표 반환 (bEnableChunkEdgeRounding=false면 의미 없음) */
+	FIntVector GetPlayerChunkCoord() const { return PlayerChunkCoord; }
+
+	/**
+	 * 해당 청크가 "플레이어 청크"이고 엣지 라운딩 옵션이 켜져 있는지 여부.
+	 * 메싱 스케줄러/Mesher가 이 플래그로 베벨 여부를 결정한다.
+	 */
+	bool ShouldBevelChunk(const FIntVector& Coord) const
+	{
+		return bEnableChunkEdgeRounding && Coord == PlayerChunkCoord;
+	}
+
+	float GetChunkEdgeRoundingBevel() const { return ChunkEdgeRoundingBevel; }
+
 private:
+	/**
+	 * 카메라 기반으로 현재 플레이어 청크 좌표를 갱신하고, 변경된 경우 이전/새 청크의
+	 * 메시를 재생성 플래그 세팅(bMeshDirty + MeshGeneration++).
+	 */
+	void UpdatePlayerChunkBevel();
+
 	/** 카메라 위치 가져오기 */
 	FVector GetCameraWorldPos() const;
 
@@ -438,15 +459,15 @@ private:
 	/** bStylizedRendering 변경 감지용 이전 값 (에디터 라이브 토글 대응) */
 	bool bPrevStylizedRendering = false;
 
-	/** EdgeRoundStrength 변경 감지용 이전 값 */
-	float PrevEdgeRoundStrength = 0.0f;
-
-	/** EdgeAlphaStrength/Start 변경 감지용 이전 값 */
-	float PrevEdgeAlphaStrength = 0.0f;
-	float PrevEdgeAlphaStart = 0.75f;
-
 	/** NormalMapStrength 변경 감지용 이전 값 */
 	float PrevNormalMapStrength = 1.0f;
+
+	/** 엣지 라운딩 대상이 되는 "플레이어 청크" 좌표 (현재 프레임 기준). INT_MIN = 없음. */
+	FIntVector PlayerChunkCoord = FIntVector(INT_MIN, INT_MIN, INT_MIN);
+
+	/** bEnableChunkEdgeRounding / ChunkEdgeRoundingBevel 변경 감지용 이전 값 (라이브 토글) */
+	bool bPrevEnableChunkEdgeRounding = false;
+	float PrevChunkEdgeRoundingBevel = 0.25f;
 
 	/** bDebugRenderMode 변경 감지용 이전 값 */
 	bool bPrevDebugRenderMode = false;

@@ -46,22 +46,20 @@ float HktNormalStrength;   // 0 = off(평면), 1 = 원본, >1 = 과장
 // 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩)
 float HktStylizedEnabled;
 
-// 엣지 라운딩 — 노멀 벤딩 강도 (0=off, 0.3~0.6 권장)
-float HktEdgeRoundStrength;
-
-// 엣지 알파 — Dithered clip으로 쿼드 경계 픽셀을 discard (실루엣 둥글리기)
-// 0 = off, 0.3~0.7 권장. EdgeStart는 0.6~0.9 권장.
-float HktEdgeAlphaStrength;
-float HktEdgeAlphaStart;
-
 // ============================================================================
 // FVertexFactoryInput
+//
+// ATTRIBUTE2 (BevelOffset)는 플레이어 소속 청크에서만 의미 있는 per-vertex
+// geometry offset이다. int16 x3 + 2바이트 패딩 = 8바이트 스트림이며,
+// EmitQuad가 1/1024 voxel 단위로 인코딩한 값을 셰이더에서 voxel 단위로 복원해
+// LocalPos에 더한다. 일반 청크에서는 모든 값이 0이므로 시각 차이가 없다.
 // ============================================================================
 struct FVertexFactoryInput
 {
-	uint PackedPositionAndSize : ATTRIBUTE0;
-	uint PackedMaterialAndAO  : ATTRIBUTE1;
-	uint VertexId             : SV_VertexID;
+	uint  PackedPositionAndSize : ATTRIBUTE0;
+	uint  PackedMaterialAndAO   : ATTRIBUTE1;
+	int4  BevelOffset           : ATTRIBUTE2;  // .xyz = int16 offsets (1/1024 voxel), .w = padding
+	uint  VertexId              : SV_VertexID;
 };
 
 // ============================================================================
@@ -167,6 +165,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	// Quad corner expansion + scale (1 voxel = HktVoxelSize UU)
 	float3 LocalPos = (BasePos + HktExpandQuad(FaceDir, Width, Height, Corner)) * HktVoxelSize;
+
+	// Bevel offset — 플레이어 청크에서 greedy merge된 큰 쿼드의 실루엣 모서리를
+	// 실제 지오메트리 레벨에서 안쪽/아래로 당겨서 라운딩 모양을 만든다.
+	// int16 / 1024.0 으로 voxel 단위 오프셋을 복원. 비활성 청크에서는 항상 0.
+	const float BevelScale = HktVoxelSize * (1.0 / 1024.0);
+	LocalPos += float3(Input.BevelOffset.xyz) * BevelScale;
 
 	// GPU 스키닝 — 본 인덱스가 0이 아니면 본 트랜스폼 적용
 	uint BoneIdx = (PM >> 25) & 0x7F;
@@ -345,21 +349,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
 	// =====================================================================
-	// 0단계: 엣지 알파 clip — 쿼드 경계 픽셀을 dithered discard.
-	//        머티리얼 평가 전에 discard하면 다운스트림 비용 전부 절약.
-	//        HktEdgeAlphaStrength <= 0이면 clip 호출 자체를 생략 (동적 분기).
-	// =====================================================================
-	if (HktEdgeAlphaStrength > 0.001)
-	{
-		clip(HktApplyEdgeAlpha(
-			Interpolants.TileUV,
-			Interpolants.QuadSize,
-			HktEdgeAlphaStrength,
-			HktEdgeAlphaStart,
-			SvPosition.xy));
-	}
-
-	// =====================================================================
 	// 1단계: VS에서 보간된 COLOR0를 기본값으로 사용.
 	//        VS가 이미 타일/팔레트/AO를 계산하여 Color에 기록했으므로,
 	//        이 값을 기본 VertexColor로 사용하면 셰이더 파라미터 바인딩이
@@ -410,25 +399,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 	half3 Tangent   = normalize(Interpolants.WorldTangent);
 	half3 Bitangent = cross(Normal, Tangent);
 
-	// 엣지 라운딩 — Quad-relative 노멀 벤딩
-	// TileUV/QuadSize로 쿼드 내부 연속 UV를 얻어 쿼드 경계 근처에서만 벤딩.
-	// 내부 voxel cell 경계에는 영향 없음 (seam 없음).
-	// HktApplyEdgeRounding이 Tangent를 inout으로 재직교화해 돌려주므로,
-	// 이후 Bitangent = cross(N, T)가 올바른 직교 기저를 만든다.
-	if (HktEdgeRoundStrength > 0.001)
-	{
-		float3 BentTangent = (float3)Tangent;
-		Normal = (half3)HktApplyEdgeRounding(
-			(float3)Normal, BentTangent, (float3)Bitangent,
-			Interpolants.TileUV,
-			Interpolants.QuadSize,
-			HktEdgeRoundStrength,
-			0.5  // EdgeStart — 쿼드 중앙에서 50% 지점부터 벤딩 시작
-		);
-		Tangent = (half3)BentTangent;
-		Bitangent = cross(Normal, Tangent);
-	}
-
 	// 노멀맵 — TileSlice가 유효하고 NormalArray 바인딩된 경우에만 샘플.
 	// TileArray와 동일 (TileUV, TileSlice) 인덱싱이므로 BaseColor와 자동 동기화.
 	// BC5/DXT 모두 호환하기 위해 z를 (r,g)에서 재구성.
@@ -441,7 +411,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 		float2 NXY = (NSample.xy * 2.0 - 1.0) * HktNormalStrength;
 		float NZ = sqrt(saturate(1.0 - dot(NXY, NXY)));
 
-		// Tangent-space → World-space (현재 TBN 기저 사용: EdgeRound 후)
+		// Tangent-space → World-space (TBN 기저 사용)
 		float3 WorldN = NXY.x * (float3)Tangent
 		              + NXY.y * (float3)Bitangent
 		              + NZ    * (float3)Normal;

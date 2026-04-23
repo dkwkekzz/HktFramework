@@ -68,9 +68,6 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 	}
 
 	bStylizedRendering = InComponent->IsStylizedRendering();
-	EdgeRoundStrength = InComponent->GetEdgeRoundStrength();
-	EdgeAlphaStrength = InComponent->GetEdgeAlphaStrength();
-	EdgeAlphaStart = InComponent->GetEdgeAlphaStart();
 	NormalMapStrength = InComponent->GetNormalMapStrength();
 }
 
@@ -243,9 +240,6 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 	}
 	VertexFactory->VoxelSizeUU = VoxelSizeUU;
 	VertexFactory->StylizedEnabled = bStylizedRendering ? 1.0f : 0.0f;
-	VertexFactory->EdgeRoundStrength = EdgeRoundStrength;
-	VertexFactory->EdgeAlphaStrength = EdgeAlphaStrength;
-	VertexFactory->EdgeAlphaStart = EdgeAlphaStart;
 	VertexFactory->NormalMapStrength = NormalMapStrength;
 
 	// 팔레트 텍스처 설정 — 타일 활성 시 기본 팔레트(8×256 흰색), 아니면 GWhiteTexture 폴백
@@ -268,6 +262,9 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		&VertexBufferWrapper, 0, sizeof(FHktVoxelVertex), VET_UInt);
 	VFData.MaterialComponent = FVertexStreamComponent(
 		&VertexBufferWrapper, 4, sizeof(FHktVoxelVertex), VET_UInt);
+	// Bevel offset stream — int16 × 4 (VET_Short4). offset 8, stride = sizeof(FHktVoxelVertex).
+	VFData.BevelOffsetComponent = FVertexStreamComponent(
+		&VertexBufferWrapper, 8, sizeof(FHktVoxelVertex), VET_Short4);
 
 	// SetTileTextures/SetMaterialLUT/SetNormalArray가 VertexFactory 생성 전에 호출될 수 있으므로 여기서 적용
 	if (PendingTileArrayRHI)
@@ -375,42 +372,6 @@ void FHktVoxelChunkProxy::SetStylizedRendering_RenderThread(bool bEnabled)
 	if (VertexFactory)
 	{
 		VertexFactory->StylizedEnabled = bEnabled ? 1.0f : 0.0f;
-	}
-}
-
-void FHktVoxelChunkProxy::SetEdgeRoundStrength_RenderThread(float InStrength)
-{
-	check(IsInRenderingThread());
-
-	EdgeRoundStrength = InStrength;
-
-	if (VertexFactory)
-	{
-		VertexFactory->EdgeRoundStrength = InStrength;
-	}
-}
-
-void FHktVoxelChunkProxy::SetEdgeAlphaStrength_RenderThread(float InStrength)
-{
-	check(IsInRenderingThread());
-
-	EdgeAlphaStrength = InStrength;
-
-	if (VertexFactory)
-	{
-		VertexFactory->EdgeAlphaStrength = InStrength;
-	}
-}
-
-void FHktVoxelChunkProxy::SetEdgeAlphaStart_RenderThread(float InStart)
-{
-	check(IsInRenderingThread());
-
-	EdgeAlphaStart = InStart;
-
-	if (VertexFactory)
-	{
-		VertexFactory->EdgeAlphaStart = InStart;
 	}
 }
 

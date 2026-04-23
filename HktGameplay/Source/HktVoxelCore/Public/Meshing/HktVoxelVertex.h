@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 // ============================================================================
-// FHktVoxelVertex — 복셀 전용 압축 버텍스 (8 bytes per quad vertex)
+// FHktVoxelVertex — 복셀 전용 압축 버텍스 (16 bytes per quad vertex)
 //
 // PackedPositionAndSize (32bit):
 //   [5:0]   x             (0~63)
@@ -22,14 +22,32 @@
 //   [23:21] flags         (발광, 투명, 애니메이션)
 //   [24]    face_direction_high (1bit — face_direction 3bit 중 MSB)
 //   [31:25] bone_index    (0~127, GPU 스키닝용. 0=루트/스키닝 없음)
+//
+// BevelOffset (4 × int16 = 8 bytes):
+//   [.x, .y, .z] = 복셀 단위 * 1024 로 고정소수점 인코딩된 per-vertex offset.
+//                  셰이더가 voxel 단위로 복원해 LocalPos에 더한다.
+//                  일반 청크는 전부 0 (오프셋 없음), 플레이어 소속 청크에서만
+//                  greedy-merge된 쿼드의 실루엣 모서리가 0이 아닌 값을 가진다.
+//   [.w]        = 패딩 (정렬용, 사용하지 않음)
 // ============================================================================
 
 struct FHktVoxelVertex
 {
 	uint32 PackedPositionAndSize;
 	uint32 PackedMaterialAndAO;
+	int16  BevelOffsetX;
+	int16  BevelOffsetY;
+	int16  BevelOffsetZ;
+	int16  BevelOffsetPad;
 
-	FHktVoxelVertex() : PackedPositionAndSize(0), PackedMaterialAndAO(0) {}
+	FHktVoxelVertex()
+		: PackedPositionAndSize(0)
+		, PackedMaterialAndAO(0)
+		, BevelOffsetX(0)
+		, BevelOffsetY(0)
+		, BevelOffsetZ(0)
+		, BevelOffsetPad(0)
+	{}
 
 	static FHktVoxelVertex Pack(
 		uint8 X, uint8 Y, uint8 Z,
@@ -58,7 +76,25 @@ struct FHktVoxelVertex
 			((static_cast<uint32>((FaceDirection >> 2) & 0x1)) << 24) |
 			((static_cast<uint32>(BoneIndex) & 0x7F) << 25);
 
+		V.BevelOffsetX = 0;
+		V.BevelOffsetY = 0;
+		V.BevelOffsetZ = 0;
+		V.BevelOffsetPad = 0;
 		return V;
+	}
+
+	/** Bevel offset 설정 — voxel 단위의 float를 int16(1/1024 단위)로 quantize */
+	void SetBevelOffset(float OffsetX, float OffsetY, float OffsetZ)
+	{
+		auto Quantize = [](float V) -> int16
+		{
+			const float Scaled = V * 1024.0f;
+			const float Clamped = FMath::Clamp(Scaled, -32767.0f, 32767.0f);
+			return static_cast<int16>(FMath::RoundToFloat(Clamped));
+		};
+		BevelOffsetX = Quantize(OffsetX);
+		BevelOffsetY = Quantize(OffsetY);
+		BevelOffsetZ = Quantize(OffsetZ);
 	}
 
 	// 언팩 유틸리티 (CPU 디버그용)
@@ -80,7 +116,7 @@ struct FHktVoxelVertex
 	uint8 GetBoneIndex() const { return (PackedMaterialAndAO >> 25) & 0x7F; }
 };
 
-static_assert(sizeof(FHktVoxelVertex) == 8, "FHktVoxelVertex must be exactly 8 bytes");
+static_assert(sizeof(FHktVoxelVertex) == 16, "FHktVoxelVertex must be exactly 16 bytes");
 
 // 면 방향 상수 (6면)
 namespace EHktVoxelFace

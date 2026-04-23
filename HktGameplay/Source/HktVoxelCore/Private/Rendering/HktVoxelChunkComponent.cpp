@@ -174,72 +174,6 @@ void UHktVoxelChunkComponent::SetStylizedRendering(bool bEnabled)
 	}
 }
 
-void UHktVoxelChunkComponent::SetEdgeRoundStrength(float InStrength)
-{
-	const float Clamped = FMath::Clamp(InStrength, 0.0f, 1.0f);
-	if (FMath::IsNearlyEqual(EdgeRoundStrength, Clamped))
-	{
-		return;
-	}
-
-	EdgeRoundStrength = Clamped;
-
-	if (SceneProxy)
-	{
-		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
-		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeRound)(
-			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
-			{
-				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeRoundStrength_RenderThread(Clamped);
-			}
-		);
-	}
-}
-
-void UHktVoxelChunkComponent::SetEdgeAlphaStrength(float InStrength)
-{
-	const float Clamped = FMath::Clamp(InStrength, 0.0f, 1.0f);
-	if (FMath::IsNearlyEqual(EdgeAlphaStrength, Clamped))
-	{
-		return;
-	}
-
-	EdgeAlphaStrength = Clamped;
-
-	if (SceneProxy)
-	{
-		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
-		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeAlpha)(
-			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
-			{
-				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeAlphaStrength_RenderThread(Clamped);
-			}
-		);
-	}
-}
-
-void UHktVoxelChunkComponent::SetEdgeAlphaStart(float InStart)
-{
-	const float Clamped = FMath::Clamp(InStart, 0.0f, 1.0f);
-	if (FMath::IsNearlyEqual(EdgeAlphaStart, Clamped))
-	{
-		return;
-	}
-
-	EdgeAlphaStart = Clamped;
-
-	if (SceneProxy)
-	{
-		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
-		ENQUEUE_RENDER_COMMAND(HktVoxelSetEdgeAlphaStart)(
-			[CapturedProxy, Clamped](FRHICommandListImmediate& RHICmdList)
-			{
-				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetEdgeAlphaStart_RenderThread(Clamped);
-			}
-		);
-	}
-}
-
 void UHktVoxelChunkComponent::SetNormalMapStrength(float InStrength)
 {
 	const float Clamped = FMath::Clamp(InStrength, 0.0f, 4.0f);
@@ -263,13 +197,12 @@ void UHktVoxelChunkComponent::SetNormalMapStrength(float InStrength)
 }
 
 void UHktVoxelChunkComponent::SetChunkLOD(int32 InLOD, const FHktVoxelLODComponentSettings& Settings,
-                                          float ActorNormalMapStrength, float ActorEdgeRoundStrength)
+                                          float ActorNormalMapStrength)
 {
 	CurrentLOD = InLOD;
 
-	// 노멀맵·라운딩: 액터 글로벌 강도에 LOD 스케일 곱
+	// 노멀맵: 액터 글로벌 강도에 LOD 스케일 곱
 	SetNormalMapStrength(ActorNormalMapStrength * Settings.NormalMapScale);
-	SetEdgeRoundStrength(ActorEdgeRoundStrength * Settings.EdgeRoundScale);
 
 	// 그림자
 	const bool bShadowChanged = (CastShadow != Settings.bCastShadow);
