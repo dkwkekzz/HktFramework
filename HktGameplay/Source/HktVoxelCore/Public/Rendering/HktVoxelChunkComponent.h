@@ -20,16 +20,11 @@ struct FHktVoxelTexturePair
 };
 
 /**
- * FHktVoxelLODComponentSettings — LOD 레벨별 컴포넌트 품질 프리셋.
+ * FHktVoxelLODComponentSettings — 메시 LOD 레벨별 컴포넌트 품질 프리셋.
  *
- * AHktVoxelTerrainActor가 4개 LOD에 대해 정책 테이블로 보유하고
- * UHktVoxelChunkComponent::SetChunkLOD()가 호출될 때 적용된다.
- *
- * 기본 정책 (LOD 0~3):
- *  LOD 0: 풀 노멀맵 + 풀 라운딩 + 그림자 + collision
- *  LOD 1: 절반 노멀맵 + 절반 라운딩 + 그림자 + no collision
- *  LOD 2: 노멀맵·라운딩 off + 그림자(거리 제한) + no collision
- *  LOD 3: 노멀맵·라운딩 off + 그림자 off + no collision
+ * AHktVoxelTerrainActor가 Tier별(Near/Far) 프리셋을 구성해 SetChunkLOD()로 전달한다.
+ *  Near: 풀 노멀맵 + 풀 라운딩 + 그림자 + collision
+ *  Far : 노멀맵·라운딩 off + 그림자 off + no collision
  */
 struct FHktVoxelLODComponentSettings
 {
