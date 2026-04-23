@@ -8,6 +8,8 @@
 #include "Camera/HktCameraMode_RtsFree.h"
 #include "Camera/HktCameraMode_SubjectFollow.h"
 #include "Camera/HktCameraMode_ShoulderView.h"
+#include "Camera/HktCameraMode_IsometricOrtho.h"
+#include "Camera/HktCameraMode_IsometricGame.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -33,6 +35,8 @@ AHktRtsCameraPawn::AHktRtsCameraPawn()
 	RtsFreeMode = CreateDefaultSubobject<UHktCameraMode_RtsFree>(TEXT("RtsFreeMode"));
 	SubjectFollowMode = CreateDefaultSubobject<UHktCameraMode_SubjectFollow>(TEXT("SubjectFollowMode"));
 	ShoulderViewMode = CreateDefaultSubobject<UHktCameraMode_ShoulderView>(TEXT("ShoulderViewMode"));
+	IsometricOrthoMode = CreateDefaultSubobject<UHktCameraMode_IsometricOrtho>(TEXT("IsometricOrthoMode"));
+	IsometricGameMode = CreateDefaultSubobject<UHktCameraMode_IsometricGame>(TEXT("IsometricGameMode"));
 }
 
 void AHktRtsCameraPawn::BeginPlay()
@@ -241,6 +245,8 @@ UHktCameraModeBase* AHktRtsCameraPawn::GetModeInstance(EHktCameraMode Mode) cons
 	case EHktCameraMode::RtsFree:        return RtsFreeMode;
 	case EHktCameraMode::SubjectFollow:  return SubjectFollowMode;
 	case EHktCameraMode::ShoulderView:   return ShoulderViewMode;
+	case EHktCameraMode::IsometricOrtho: return IsometricOrthoMode;
+	case EHktCameraMode::IsometricGame:  return IsometricGameMode;
 	default:                             return RtsFreeMode;
 	}
 }
@@ -266,6 +272,8 @@ static const TCHAR* CameraModeToString(EHktCameraMode Mode)
 	case EHktCameraMode::RtsFree:        return TEXT("RtsFree");
 	case EHktCameraMode::SubjectFollow:  return TEXT("SubjectFollow");
 	case EHktCameraMode::ShoulderView:   return TEXT("ShoulderView");
+	case EHktCameraMode::IsometricOrtho: return TEXT("IsometricOrtho");
+	case EHktCameraMode::IsometricGame:  return TEXT("IsometricGame");
 	default:                             return TEXT("Unknown");
 	}
 }
@@ -292,19 +300,35 @@ static bool StringToCameraMode(const FString& Str, EHktCameraMode& OutMode)
 		OutMode = EHktCameraMode::ShoulderView;
 		return true;
 	}
+	if (Str.Equals(TEXT("IsometricOrtho"), ESearchCase::IgnoreCase)
+		|| Str.Equals(TEXT("IsoOrtho"), ESearchCase::IgnoreCase)
+		|| Str.Equals(TEXT("Ortho"), ESearchCase::IgnoreCase)
+		|| Str.Equals(TEXT("3")))
+	{
+		OutMode = EHktCameraMode::IsometricOrtho;
+		return true;
+	}
+	if (Str.Equals(TEXT("IsometricGame"), ESearchCase::IgnoreCase)
+		|| Str.Equals(TEXT("IsoGame"), ESearchCase::IgnoreCase)
+		|| Str.Equals(TEXT("Iso"), ESearchCase::IgnoreCase)
+		|| Str.Equals(TEXT("4")))
+	{
+		OutMode = EHktCameraMode::IsometricGame;
+		return true;
+	}
 	return false;
 }
 
 static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 	TEXT("hkt.Camera.SetMode"),
-	TEXT("카메라 모드 전환. 사용법: hkt.Camera.SetMode <RtsFree|SubjectFollow|ShoulderView|OTS|0|1|2>"),
+	TEXT("카메라 모드 전환. 사용법: hkt.Camera.SetMode <RtsFree|SubjectFollow|ShoulderView|IsometricOrtho|IsometricGame|0|1|2|3|4>"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 		[](const TArray<FString>& Args, UWorld* World)
 		{
 			if (Args.Num() < 1)
 			{
 				UE_LOG(LogTemp, Warning,
-					TEXT("hkt.Camera.SetMode: 모드를 지정하세요. (RtsFree, SubjectFollow, ShoulderView, OTS, 0, 1, 2)"));
+					TEXT("hkt.Camera.SetMode: 모드를 지정하세요. (RtsFree, SubjectFollow, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3, 4)"));
 				return;
 			}
 
@@ -312,7 +336,7 @@ static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 			if (!StringToCameraMode(Args[0], NewMode))
 			{
 				UE_LOG(LogTemp, Warning,
-					TEXT("hkt.Camera.SetMode: 알 수 없는 모드 '%s'. (RtsFree, SubjectFollow, ShoulderView, OTS, 0, 1, 2)"),
+					TEXT("hkt.Camera.SetMode: 알 수 없는 모드 '%s'. (RtsFree, SubjectFollow, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3, 4)"),
 					*Args[0]);
 				return;
 			}

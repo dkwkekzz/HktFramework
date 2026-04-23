@@ -14,6 +14,8 @@ class UHktCameraModeBase;
 class UHktCameraMode_RtsFree;
 class UHktCameraMode_SubjectFollow;
 class UHktCameraMode_ShoulderView;
+class UHktCameraMode_IsometricOrtho;
+class UHktCameraMode_IsometricGame;
 
 /**
  * RTS 스타일 카메라 이동·줌을 담당하는 폰.
@@ -73,6 +75,12 @@ protected:
 
 	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
 	TObjectPtr<UHktCameraMode_ShoulderView> ShoulderViewMode;
+
+	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
+	TObjectPtr<UHktCameraMode_IsometricOrtho> IsometricOrthoMode;
+
+	UPROPERTY(Instanced, EditAnywhere, Category = "Camera|Modes")
+	TObjectPtr<UHktCameraMode_IsometricGame> IsometricGameMode;
 
 private:
 	void OnSubjectChanged(FHktEntityId EntityId);

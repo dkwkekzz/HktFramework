@@ -1,12 +1,31 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Camera/HktCameraMode_ShoulderView.h"
+#include "Camera/HktCameraFramingProfile.h"
 #include "Actors/HktRtsCameraPawn.h"
 #include "HktPresentationSubsystem.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
+
+UHktCameraMode_ShoulderView::UHktCameraMode_ShoulderView()
+{
+	bShowMouseCursor = false;
+
+	Framing = CreateDefaultSubobject<UHktCameraFramingProfile>(TEXT("Framing"));
+	Framing->ProjectionMode = ECameraProjectionMode::Perspective;
+	Framing->FieldOfView = 90.0f;
+	Framing->DefaultPitch = -15.0f;
+	Framing->DefaultYaw = 0.0f;
+	Framing->PitchClampMin = -60.0f;
+	Framing->PitchClampMax = 60.0f;
+	Framing->DefaultArmLength = 300.0f;
+	Framing->MinArmLength = 150.0f;
+	Framing->MaxArmLength = 600.0f;
+	Framing->SocketOffset = FVector(0.0f, 50.0f, 80.0f);
+	Framing->ZoomStep = 30.0f;
+}
 
 void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 {
@@ -18,21 +37,27 @@ void UHktCameraMode_ShoulderView::OnActivate(AHktRtsCameraPawn* Pawn)
 		MoveComp->Deactivate();
 	}
 
-	USpringArmComponent* SpringArm = Pawn->GetSpringArm();
-	if (SpringArm)
+	// Framing 적용 전 이전 Yaw를 캡처 — 모드 전환 시 시선 방향 유지
+	float PrevYaw = 0.0f;
+	if (USpringArmComponent* SpringArm = Pawn->GetSpringArm())
 	{
-		// 기존 SpringArm 세팅 백업
-		SavedArmLength = SpringArm->TargetArmLength;
-		SavedArmRotation = SpringArm->GetRelativeRotation();
-		SavedSocketOffset = SpringArm->SocketOffset;
+		PrevYaw = SpringArm->GetRelativeRotation().Yaw;
+	}
 
-		// 숄더뷰용 세팅 적용
-		SpringArm->TargetArmLength = ArmLength;
-		SpringArm->SocketOffset = ShoulderOffset;
+	if (Framing)
+	{
+		Framing->Apply(Pawn);
+	}
 
-		// 현재 SpringArm 회전을 초기 Yaw/Pitch로 사용
-		CurrentYaw = SavedArmRotation.Yaw;
-		CurrentPitch = FMath::Clamp(-15.0f, MinPitch, MaxPitch);
+	const float ClampMin = Framing ? Framing->PitchClampMin : -60.0f;
+	const float ClampMax = Framing ? Framing->PitchClampMax : 60.0f;
+	const float InitialPitch = Framing ? Framing->DefaultPitch : -15.0f;
+
+	CurrentYaw = PrevYaw;
+	CurrentPitch = FMath::Clamp(InitialPitch, ClampMin, ClampMax);
+
+	if (USpringArmComponent* SpringArm = Pawn->GetSpringArm())
+	{
 		SpringArm->SetRelativeRotation(FRotator(CurrentPitch, CurrentYaw, 0.0f));
 	}
 
@@ -62,13 +87,9 @@ void UHktCameraMode_ShoulderView::OnDeactivate(AHktRtsCameraPawn* Pawn)
 		MoveComp->Activate();
 	}
 
-	USpringArmComponent* SpringArm = Pawn->GetSpringArm();
-	if (SpringArm)
+	if (Framing)
 	{
-		// 백업된 세팅 복원
-		SpringArm->TargetArmLength = SavedArmLength;
-		SpringArm->SetRelativeRotation(SavedArmRotation);
-		SpringArm->SocketOffset = SavedSocketOffset;
+		Framing->Restore(Pawn);
 	}
 
 	// 커서/입력 모드 복구 — RTS 모드에서 클릭 입력이 다시 동작하도록
@@ -107,12 +128,14 @@ void UHktCameraMode_ShoulderView::TickMode(AHktRtsCameraPawn* Pawn, float DeltaT
 		MouseY = 0.0f;
 	}
 
+	const float ClampMin = Framing ? Framing->PitchClampMin : -60.0f;
+	const float ClampMax = Framing ? Framing->PitchClampMax : 60.0f;
+
 	CurrentYaw += MouseX * MouseSensitivity;
-	CurrentPitch = FMath::Clamp(CurrentPitch - MouseY * MouseSensitivity, MinPitch, MaxPitch);
+	CurrentPitch = FMath::Clamp(CurrentPitch - MouseY * MouseSensitivity, ClampMin, ClampMax);
 
 	// SpringArm 회전 적용
-	USpringArmComponent* SpringArm = Pawn->GetSpringArm();
-	if (SpringArm)
+	if (USpringArmComponent* SpringArm = Pawn->GetSpringArm())
 	{
 		SpringArm->SetRelativeRotation(FRotator(CurrentPitch, CurrentYaw, 0.0f));
 	}
@@ -125,14 +148,9 @@ void UHktCameraMode_ShoulderView::TickMode(AHktRtsCameraPawn* Pawn, float DeltaT
 
 void UHktCameraMode_ShoulderView::HandleZoom(AHktRtsCameraPawn* Pawn, float Value)
 {
-	if (!Pawn || Value == 0.0f) return;
-
-	USpringArmComponent* SpringArm = Pawn->GetSpringArm();
-	if (SpringArm)
+	if (Framing)
 	{
-		SpringArm->TargetArmLength = FMath::Clamp(
-			SpringArm->TargetArmLength - Value * ZoomSpeed,
-			MinArmLength, MaxArmLength);
+		Framing->HandleZoom(Pawn, Value);
 	}
 }
 
