@@ -6,6 +6,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "RenderResource.h"
 #include "Meshing/HktVoxelVertex.h"
+#include "Rendering/HktVoxelChunkComponent.h"  // EHktVoxelStyleMode
 
 class UHktVoxelChunkComponent;
 class FHktVoxelVertexFactory;
@@ -75,8 +76,8 @@ public:
 	/** Render Thread에서 호출 — 본 트랜스폼 GPU 버퍼 갱신 (GPU 스키닝) */
 	void UpdateBoneTransforms_RenderThread(const TArray<FVector4f>& BoneMatrixRows);
 
-	/** 스타일라이즈 렌더링 토글 — Render Thread에서 호출 */
-	void SetStylizedRendering_RenderThread(bool bEnabled);
+	/** 복셀 스타일 모드 설정 — Render Thread에서 호출 */
+	void SetStyleMode_RenderThread(EHktVoxelStyleMode InMode);
 
 private:
 	/** RHI 버퍼를 감싸는 FVertexBuffer/FIndexBuffer 래퍼 (FVertexStreamComponent, FMeshBatchElement 호환용) */
@@ -121,7 +122,7 @@ private:
 	FRHITexture* PendingNormalArrayRHI = nullptr;
 	FRHISamplerState* PendingNormalArraySamplerRHI = nullptr;
 
-	bool bStylizedRendering = false;
+	EHktVoxelStyleMode StyleMode = EHktVoxelStyleMode::Off;
 	float NormalMapStrength = 1.0f;
 
 	/** GPU 스키닝용 본 트랜스폼 버퍼 (float4 × 3 per bone) */

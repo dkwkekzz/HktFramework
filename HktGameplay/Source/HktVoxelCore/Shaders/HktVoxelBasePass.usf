@@ -100,14 +100,35 @@ void MainPS(
         PBR = float4(MatSample.b, MatSample.g, MatSample.r, 1.0);  // (Metallic, Specular, Roughness)
     }
 
-    // 스타일라이즈 렌더링 — 그리드 라인, 카툰 PBR, AO 부스트, 채도 강화
-    if (HktStylizedEnabled > 0.5)
+    // 스타일라이즈 — HktStyleMode 값에 따라 분기.
+    // ToonRamp 모드는 최종 색을 Emissive로 내보내 디퍼드 조명을 무시한다.
+    float3 ToonEmissive = float3(0, 0, 0);
+    bool bToonRamp = (HktStyleMode >= 2.5);
+
+    if (bToonRamp)
     {
-        HktApplyStylized(InTileUV, InAOLight, BaseColor.rgb, PBR);
+        HktApplyStyle_ToonRamp(InTileUV, InAOLight, N, BaseColor.rgb, PBR, ToonEmissive);
+    }
+    else if (HktStyleMode >= 1.5)
+    {
+        HktApplyStyle_Matte(InTileUV, InAOLight, BaseColor.rgb, PBR);
+    }
+    else if (HktStyleMode >= 0.5)
+    {
+        HktApplyStyle_MapleStory2(InTileUV, InAOLight, BaseColor.rgb, PBR);
     }
 
     OutGBufferB = PBR;
-
     OutGBufferC = BaseColor;
-    OutGBufferD = float4(BaseColor.rgb * InEmission, 0.0);
+
+    // ToonRamp: 램프 계산된 색을 Emissive로. 기본 Emission(발광 복셀)도 더해서 보존.
+    // 그 외 모드: 기존 로직 (BaseColor × Emission 계수)
+    if (bToonRamp)
+    {
+        OutGBufferD = float4(ToonEmissive + float3(InEmission, InEmission, InEmission) * ToonEmissive, 0.0);
+    }
+    else
+    {
+        OutGBufferD = float4(BaseColor.rgb * InEmission, 0.0);
+    }
 }

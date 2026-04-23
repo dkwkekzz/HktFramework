@@ -79,8 +79,9 @@ public:
 	/** 노멀맵 설정 — nullptr이면 플랫 노멀 폴백 */
 	void SetNormalArray(FRHITexture* InArray, FRHISamplerState* InSampler);
 
-	// --- 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩) ---
-	float StylizedEnabled = 0.0f;
+	// --- 스타일 모드 (0=Off / 1=MapleStory2 / 2=Matte / 3=ToonRamp) ---
+	// EHktVoxelStyleMode 값을 float으로 전달. 셰이더에서 HktStyleMode로 읽음.
+	float StyleMode = 0.0f;
 
 	/** 노멀맵 강도 (0=off, 1=원본, >1=과장). NormalArrayRHI가 null이면 무시됨 */
 	float NormalMapStrength = 1.0f;

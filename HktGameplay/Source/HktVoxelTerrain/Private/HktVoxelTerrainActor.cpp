@@ -69,7 +69,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 	PrewarmPool(InitialPoolSize);
 
 	// 에디터 라이브 토글 감지용 초기값 동기화
-	bPrevStylizedRendering = bStylizedRendering;
+	PrevStyleMode = StyleMode;
 	bPrevDebugRenderMode = bDebugRenderMode;
 	PrevNormalMapStrength = NormalMapStrength;
 	bPrevEnableChunkEdgeRounding = bEnableChunkEdgeRounding;
@@ -169,15 +169,15 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	//    ProcessMeshReadyChunks보다 먼저 호출해 OnMeshReady에서도 최신 캐시를 쓰게 한다.
 	PumpStyleTextures();
 
-	// 5. 스타일라이즈 토글 변경 감지 — 에디터에서 라이브 토글 시 전체 청크에 반영
-	if (bStylizedRendering != bPrevStylizedRendering)
+	// 5. 스타일 모드 변경 감지 — 에디터에서 라이브 변경 시 전체 청크에 반영
+	if (StyleMode != PrevStyleMode)
 	{
-		bPrevStylizedRendering = bStylizedRendering;
+		PrevStyleMode = StyleMode;
 		for (auto& Pair : ActiveChunks)
 		{
 			if (Pair.Value)
 			{
-				Pair.Value->SetStylizedRendering(bStylizedRendering);
+				Pair.Value->SetStyleMode(StyleMode);
 			}
 		}
 	}
@@ -547,7 +547,7 @@ UHktVoxelChunkComponent* AHktVoxelTerrainActor::AcquireAndConfigureComponent(con
 		return nullptr;
 	}
 	Comp->Initialize(TerrainCache.Get(), ChunkCoord, VoxelSize);
-	Comp->SetStylizedRendering(bStylizedRendering);
+	Comp->SetStyleMode(StyleMode);
 	Comp->SetVoxelMaterial(GetEffectiveTerrainMaterial());
 	Comp->SetWaterMaterial(GetEffectiveWaterMaterial());
 	ApplyTierToComponent(Comp, Tier);

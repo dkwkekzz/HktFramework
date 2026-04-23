@@ -43,8 +43,8 @@ Texture2DArray HktNormalArray;
 SamplerState HktNormalSampler;
 float HktNormalStrength;   // 0 = off(평면), 1 = 원본, >1 = 과장
 
-// 스타일라이즈 렌더링 (메이플2풍 카툰 셰이딩)
-float HktStylizedEnabled;
+// 복셀 스타일 모드 (0=Off / 1=MapleStory2 / 2=Matte / 3=ToonRamp)
+float HktStyleMode;
 
 // ============================================================================
 // FVertexFactoryInput
@@ -387,11 +387,25 @@ FMaterialPixelParameters GetMaterialPixelParameters(
 
 		Result.VertexColor = float4(BaseColor * AOLight, 1.0);
 
-		// 스타일라이즈 렌더링 — 머티리얼 경로에서도 동일 적용
-		if (HktStylizedEnabled > 0.5)
+		// 스타일라이즈 렌더링 — 머티리얼 경로에서도 VertexColor 톤 맞추기.
+		// (실제 PBR/Emissive 쓰기는 BasePass에서. 여기서는 색만 보정)
+		float4 DummyPBR = float4(0,0,0,1);
+		if (HktStyleMode >= 2.5)
 		{
-			float4 DummyPBR = float4(0,0,0,1);
-			HktApplyStylized(Interpolants.TileUV, AOLight, Result.VertexColor.rgb, DummyPBR);
+			// ToonRamp: VertexColor에 램프 적용 — 머티리얼 그래프가 VertexColor를 읽을 때 대비
+			float Ramp = HktStylizedToonRampFactor(Interpolants.WorldNormal);
+			Result.VertexColor.rgb *= Ramp;
+			Result.VertexColor.rgb = HktStylizedSaturate(Result.VertexColor.rgb, 0.2);
+			float GridMask = HktStylizedGridEdge(Interpolants.TileUV, 0.05, 0.15);
+			Result.VertexColor.rgb *= GridMask;
+		}
+		else if (HktStyleMode >= 1.5)
+		{
+			HktApplyStyle_Matte(Interpolants.TileUV, AOLight, Result.VertexColor.rgb, DummyPBR);
+		}
+		else if (HktStyleMode >= 0.5)
+		{
+			HktApplyStyle_MapleStory2(Interpolants.TileUV, AOLight, Result.VertexColor.rgb, DummyPBR);
 		}
 	}
 

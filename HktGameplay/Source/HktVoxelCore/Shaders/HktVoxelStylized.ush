@@ -1,8 +1,11 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
-// HktVoxelStylized.ush — 메이플스토리2 스타일 복셀 렌더링 효과
+// HktVoxelStylized.ush — 복셀 스타일 모드 렌더링 효과
 //
-// HktStylizedEnabled > 0.5 일 때만 적용.
-// 효과: 블록 그리드 라인, 카툰 PBR, AO 부스트, 색상 채도 강화.
+// HktStyleMode 값 (float, 소수점 비교):
+//   0 = Off          : 스타일라이즈 없음 (BasePass 기본 PBR)
+//   1 = MapleStory2  : 카툰 PBR (Spec=0.15, Rough=0.95) + 그리드/AO/채도
+//   2 = Matte        : 무광 PBR (Spec=0.0, Rough=1.0)   + 그리드/AO/채도
+//   3 = ToonRamp     : Unlit 에미시브 + N·L 2톤 램프    + 그리드/채도
 
 #pragma once
 
@@ -53,32 +56,112 @@ float4 HktStylizedPBR()
     return float4(0.0, 0.15, 0.95, 1.0);  // 비금속, 낮은 스페큘러, 매우 거친
 }
 
+// Matte 모드: 스페큘러 완전 제거 + 러프니스 최대 — 하이라이트 0
+float4 HktStylizedMattePBR()
+{
+    return float4(0.0, 0.0, 1.0, 1.0);
+}
+
 // ---------------------------------------------------------------------------
-// 통합 적용 함수 — BasePass PS에서 호출
+// 5. ToonRamp — N·L 램프 (스프라이트 캐릭터와 톤 매칭용)
 // ---------------------------------------------------------------------------
 
-// BaseColor를 스타일라이즈하고, PBR을 카툰풍으로 오버라이드
+// 아트 디렉션된 고정 "태양" 방향 — 월드 공간, 우상단 위쪽에서 비추는 각도.
+// 실제 Sky/Directional Light와 상관없이 셀셰이딩 룩을 일관되게 유지.
+static const float3 HktStylizedSunDir = float3(0.408, 0.408, 0.816);  // normalize((1,1,2))
+
+// 2~3톤 N·L 램프. 결과는 BaseColor에 곱해지는 음영 팩터.
+// NdotL ≤ 0.3 → Shadow(0.55), 0.3~0.7 → Mid(0.80), 0.7+ → Lit(1.0)
+float HktStylizedToonRampFactor(float3 WorldNormal)
+{
+    float NdotL = dot(normalize(WorldNormal), HktStylizedSunDir);
+    float Shadow = 0.55;
+    float Mid    = 0.80;
+    float Lit    = 1.00;
+    // 두 개의 부드러운 스텝으로 3톤 생성
+    float Step1 = smoothstep(0.28, 0.32, NdotL);  // Shadow → Mid
+    float Step2 = smoothstep(0.68, 0.72, NdotL);  // Mid → Lit
+    return lerp(Shadow, lerp(Mid, Lit, Step2), Step1);
+}
+
+// ---------------------------------------------------------------------------
+// 통합 적용 함수 — BasePass PS에서 호출
+//
+// OutEmissive는 ToonRamp 모드에서만 사용 (GBufferD).
+// ToonRamp일 때 BaseColor는 0으로 만들어 디퍼드 조명을 무시하고,
+// 최종 음영 색을 에미시브로 내보내 "Unlit 처럼" 동작시킨다.
+// ---------------------------------------------------------------------------
+
+void HktApplyStyle_MapleStory2(
+    float2 TileUV,
+    float AOLight,
+    inout float3 BaseColor,
+    inout float4 PBR)
+{
+    float GridMask = HktStylizedGridEdge(TileUV, 0.05, 0.15);
+    BaseColor *= GridMask;
+
+    float BoostedAO = HktStylizedAOBoost(AOLight);
+    float AOCorrection = BoostedAO / max(AOLight, 0.01);
+    BaseColor *= AOCorrection;
+
+    BaseColor = HktStylizedSaturate(BaseColor, 0.2);
+
+    PBR = HktStylizedPBR();
+}
+
+void HktApplyStyle_Matte(
+    float2 TileUV,
+    float AOLight,
+    inout float3 BaseColor,
+    inout float4 PBR)
+{
+    // MapleStory2와 동일한 컬러 보정을 쓰되, PBR만 완전 무광으로 오버라이드.
+    float GridMask = HktStylizedGridEdge(TileUV, 0.05, 0.15);
+    BaseColor *= GridMask;
+
+    float BoostedAO = HktStylizedAOBoost(AOLight);
+    float AOCorrection = BoostedAO / max(AOLight, 0.01);
+    BaseColor *= AOCorrection;
+
+    BaseColor = HktStylizedSaturate(BaseColor, 0.2);
+
+    PBR = HktStylizedMattePBR();
+}
+
+void HktApplyStyle_ToonRamp(
+    float2 TileUV,
+    float AOLight,
+    float3 WorldNormal,
+    inout float3 BaseColor,
+    inout float4 PBR,
+    out float3 OutEmissive)
+{
+    // 그리드 라인 + 채도는 살리되, AO 부스트는 N·L 램프가 음영을 맡으므로 과하지 않게.
+    float GridMask = HktStylizedGridEdge(TileUV, 0.05, 0.15);
+    BaseColor *= GridMask;
+    BaseColor = HktStylizedSaturate(BaseColor, 0.2);
+
+    // 2~3톤 램프로 음영 — AO를 곱해 코너는 약간 더 어둡게.
+    float RampFactor = HktStylizedToonRampFactor(WorldNormal);
+    float3 ShadedColor = BaseColor * RampFactor * AOLight;
+
+    // 디퍼드 조명 무시: BaseColor=0, Specular=0, Roughness=1.
+    // 최종 색은 Emissive로 내보내 "Unlit" 효과.
+    OutEmissive = ShadedColor;
+    BaseColor = float3(0, 0, 0);
+    PBR = HktStylizedMattePBR();
+}
+
+// ---------------------------------------------------------------------------
+// [호환] 기존 HktApplyStylized — MapleStory2 모드로 매핑.
+// VertexFactory.ush의 GetMaterialPixelParameters에서 호출됨.
+// ---------------------------------------------------------------------------
 void HktApplyStylized(
     float2 TileUV,
     float AOLight,
     inout float3 BaseColor,
     inout float4 PBR)
 {
-    // 그리드 라인 (EdgeWidth=0.05, DarkenAmount=0.15)
-    float GridMask = HktStylizedGridEdge(TileUV, 0.05, 0.15);
-    BaseColor *= GridMask;
-
-    // AO 부스트
-    float BoostedAO = HktStylizedAOBoost(AOLight);
-    // 기존 AO가 이미 곱해진 상태이므로, 비율 보정
-    // BaseColor = OrigColor * AOLight → OrigColor * BoostedAO
-    // 보정비 = BoostedAO / max(AOLight, 0.01)
-    float AOCorrection = BoostedAO / max(AOLight, 0.01);
-    BaseColor *= AOCorrection;
-
-    // 채도 강화 (0.2 = 20% 채도 증가)
-    BaseColor = HktStylizedSaturate(BaseColor, 0.2);
-
-    // 카툰 PBR
-    PBR = HktStylizedPBR();
+    HktApplyStyle_MapleStory2(TileUV, AOLight, BaseColor, PBR);
 }

@@ -205,9 +205,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
 	TObjectPtr<UMaterialInterface> WaterMaterial;
 
-	/** 스타일라이즈 렌더링 — 메이플2풍 카툰 셰이딩 (그리드 라인, AO 부스트, 채도 강화) */
+	/**
+	 * 복셀 렌더 스타일 모드.
+	 *   Off         : 기본 PBR (스펙 0.5, 러프 0.8) — 기존 머티리얼 그대로.
+	 *   MapleStory2 : 카툰 PBR (스펙 0.15, 러프 0.95) + 그리드/AO/채도 부스트.
+	 *   Matte       : 무광 (스펙 0, 러프 1) + 그리드/AO/채도 — 광택 완전 제거.
+	 *   ToonRamp    : Unlit + N·L 2톤 셀셰이딩 — 2D 스프라이트 캐릭터와 톤 매칭용.
+	 *
+	 * 주의: PBR Specular/Roughness 오버라이드는 복셀 머티리얼이 VertexColor 경로를
+	 * 사용할 때만 완전히 반영된다. 머티리얼 그래프가 자체 PBR 값을 하드코딩하면
+	 * Matte/ToonRamp의 "광택 제거" 효과를 위해 머티리얼 에셋도 맞춰 수정해야 한다.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Rendering")
-	bool bStylizedRendering = false;
+	EHktVoxelStyleMode StyleMode = EHktVoxelStyleMode::Off;
 
 	// === 플레이어 청크 엣지 라운딩 (지오메트리 베벨) ===
 	//
@@ -456,8 +466,8 @@ private:
 	/** 스타일이 빌드되었는지 (BlockStyles가 비어있으면 false → 기존 팔레트 폴백) */
 	bool bStyleBuilt = false;
 
-	/** bStylizedRendering 변경 감지용 이전 값 (에디터 라이브 토글 대응) */
-	bool bPrevStylizedRendering = false;
+	/** StyleMode 변경 감지용 이전 값 (에디터 라이브 토글 대응) */
+	EHktVoxelStyleMode PrevStyleMode = EHktVoxelStyleMode::Off;
 
 	/** NormalMapStrength 변경 감지용 이전 값 */
 	float PrevNormalMapStrength = 1.0f;

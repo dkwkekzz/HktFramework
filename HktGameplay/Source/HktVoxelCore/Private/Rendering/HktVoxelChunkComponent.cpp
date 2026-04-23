@@ -152,23 +152,24 @@ UMaterialInterface* UHktVoxelChunkComponent::GetDebugWireframeMaterial()
 #endif
 }
 
-void UHktVoxelChunkComponent::SetStylizedRendering(bool bEnabled)
+void UHktVoxelChunkComponent::SetStyleMode(EHktVoxelStyleMode InMode)
 {
-	if (bStylizedRendering == bEnabled)
+	if (StyleMode == InMode)
 	{
 		return;
 	}
 
-	bStylizedRendering = bEnabled;
+	StyleMode = InMode;
 
 	// 현재 SceneProxy에 즉시 전달
 	if (SceneProxy)
 	{
 		FPrimitiveSceneProxy* CapturedProxy = SceneProxy;
-		ENQUEUE_RENDER_COMMAND(HktVoxelSetStylized)(
-			[CapturedProxy, bEnabled](FRHICommandListImmediate& RHICmdList)
+		const EHktVoxelStyleMode CapturedMode = InMode;
+		ENQUEUE_RENDER_COMMAND(HktVoxelSetStyleMode)(
+			[CapturedProxy, CapturedMode](FRHICommandListImmediate& RHICmdList)
 			{
-				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetStylizedRendering_RenderThread(bEnabled);
+				static_cast<FHktVoxelChunkProxy*>(CapturedProxy)->SetStyleMode_RenderThread(CapturedMode);
 			}
 		);
 	}

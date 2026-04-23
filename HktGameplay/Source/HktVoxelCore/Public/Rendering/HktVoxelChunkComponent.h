@@ -10,6 +10,24 @@
 class FHktVoxelRenderCache;
 class UBodySetup;
 
+/**
+ * EHktVoxelStyleMode — 복셀 렌더 스타일 모드.
+ *
+ * 셰이더의 HktStyleMode 유니폼에 float(uint)로 전달된다.
+ *  Off        : 기본 PBR (Specular=0.5, Roughness=0.8). 스타일라이즈 없음.
+ *  MapleStory2: 카툰 PBR (Spec=0.15, Rough=0.95) + 그리드/AO/채도 부스트.
+ *  Matte      : 완전 무광 (Spec=0, Rough=1) + 그리드/AO/채도 부스트. PBR 하이라이트 제거.
+ *  ToonRamp   : Unlit 에미시브 + N·L 2톤 램프 + 그리드/채도. 2D 스프라이트 캐릭터와 톤 매칭.
+ */
+UENUM(BlueprintType)
+enum class EHktVoxelStyleMode : uint8
+{
+	Off          UMETA(DisplayName = "Off (PBR)"),
+	MapleStory2  UMETA(DisplayName = "MapleStory2 (카툰 PBR)"),
+	Matte        UMETA(DisplayName = "Matte (무광)"),
+	ToonRamp     UMETA(DisplayName = "ToonRamp (Unlit 셀셰이딩)"),
+};
+
 /** 텍스처+샘플러 RHI 쌍 — 타일/머티리얼 텍스처 전달에 공용 */
 struct FHktVoxelTexturePair
 {
@@ -139,9 +157,16 @@ public:
 	 */
 	void PushStyleTexturesToProxy();
 
-	/** 스타일라이즈 렌더링 토글 (메이플2풍 카툰 셰이딩) */
-	void SetStylizedRendering(bool bEnabled);
-	bool IsStylizedRendering() const { return bStylizedRendering; }
+	/** 복셀 스타일 모드 설정 — 렌더 쓰레드에 즉시 전파 */
+	void SetStyleMode(EHktVoxelStyleMode InMode);
+	EHktVoxelStyleMode GetStyleMode() const { return StyleMode; }
+
+	/** [호환] 과거 bool API — true면 MapleStory2, false면 Off로 매핑 */
+	void SetStylizedRendering(bool bEnabled)
+	{
+		SetStyleMode(bEnabled ? EHktVoxelStyleMode::MapleStory2 : EHktVoxelStyleMode::Off);
+	}
+	bool IsStylizedRendering() const { return StyleMode != EHktVoxelStyleMode::Off; }
 
 	/** 노멀맵 강도 (0=off, 1=원본). NormalArray가 설정된 경우에만 효과 있음 */
 	void SetNormalMapStrength(float InStrength);
@@ -217,7 +242,7 @@ private:
 	FHktVoxelTileTextureSet CachedTileTextures;
 	FHktVoxelTexturePair CachedMaterialLUT;
 	bool bStyleTexturesApplied = false;
-	bool bStylizedRendering = false;
+	EHktVoxelStyleMode StyleMode = EHktVoxelStyleMode::Off;
 	float NormalMapStrength = 1.0f;
 	float ShadowDistance = 0.f;
 	int32 CurrentLOD = 0;

@@ -37,7 +37,7 @@ public:
 		NormalArraySamplerParam.Bind(ParameterMap, TEXT("HktNormalSampler"));
 		NormalStrengthParam.Bind(ParameterMap, TEXT("HktNormalStrength"));
 
-		StylizedEnabledParam.Bind(ParameterMap, TEXT("HktStylizedEnabled"));
+		StyleModeParam.Bind(ParameterMap, TEXT("HktStyleMode"));
 	}
 
 	void GetElementShaderBindings(
@@ -153,9 +153,9 @@ public:
 			ShaderBindings.Add(NormalStrengthParam, VoxelVF->NormalMapStrength);
 		}
 
-		if (StylizedEnabledParam.IsBound())
+		if (StyleModeParam.IsBound())
 		{
-			ShaderBindings.Add(StylizedEnabledParam, VoxelVF->StylizedEnabled);
+			ShaderBindings.Add(StyleModeParam, VoxelVF->StyleMode);
 		}
 	}
 
@@ -180,7 +180,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, NormalArraySamplerParam);
 	LAYOUT_FIELD(FShaderParameter, NormalStrengthParam);
 
-	LAYOUT_FIELD(FShaderParameter, StylizedEnabledParam);
+	LAYOUT_FIELD(FShaderParameter, StyleModeParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FHktVoxelVertexFactoryShaderParameters);

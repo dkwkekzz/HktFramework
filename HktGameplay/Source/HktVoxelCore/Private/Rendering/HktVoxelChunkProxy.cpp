@@ -67,7 +67,7 @@ FHktVoxelChunkProxy::FHktVoxelChunkProxy(const UHktVoxelChunkComponent* InCompon
 		PendingMaterialLUTSamplerRHI = MatLUT.Sampler;
 	}
 
-	bStylizedRendering = InComponent->IsStylizedRendering();
+	StyleMode = InComponent->GetStyleMode();
 	NormalMapStrength = InComponent->GetNormalMapStrength();
 }
 
@@ -239,7 +239,7 @@ void FHktVoxelChunkProxy::UpdateMeshData_RenderThread(
 		VertexFactory->InitResource(FRHICommandListImmediate::Get());
 	}
 	VertexFactory->VoxelSizeUU = VoxelSizeUU;
-	VertexFactory->StylizedEnabled = bStylizedRendering ? 1.0f : 0.0f;
+	VertexFactory->StyleMode = static_cast<float>(static_cast<uint8>(StyleMode));
 	VertexFactory->NormalMapStrength = NormalMapStrength;
 
 	// 팔레트 텍스처 설정 — 타일 활성 시 기본 팔레트(8×256 흰색), 아니면 GWhiteTexture 폴백
@@ -363,15 +363,15 @@ void FHktVoxelChunkProxy::SetMaterialLUT_RenderThread(
 	}
 }
 
-void FHktVoxelChunkProxy::SetStylizedRendering_RenderThread(bool bEnabled)
+void FHktVoxelChunkProxy::SetStyleMode_RenderThread(EHktVoxelStyleMode InMode)
 {
 	check(IsInRenderingThread());
 
-	bStylizedRendering = bEnabled;
+	StyleMode = InMode;
 
 	if (VertexFactory)
 	{
-		VertexFactory->StylizedEnabled = bEnabled ? 1.0f : 0.0f;
+		VertexFactory->StyleMode = static_cast<float>(static_cast<uint8>(InMode));
 	}
 }
 
