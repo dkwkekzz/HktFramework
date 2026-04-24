@@ -103,12 +103,9 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 
 	OutCells.Reserve(Coords.Num());
 
-	// 청크당 top-most 1셀 — 중심 컬럼(16,16)에서 Z 내림차순 스캔.
-	// NOTE: 청크 중심 컬럼 1개만 샘플링하므로 (16,16)에 수직 공기 구멍이 있으면
-	// 잘못된 Z를 반환할 수 있다. 대부분의 지형은 층상 구조라 실용상 허용.
-	// 전체 32² 컬럼 스캔 or majority-vote는 후속 최적화 대상.
-	constexpr int32 ScanX = FHktVoxelChunk::SIZE / 2;
-	constexpr int32 ScanY = FHktVoxelChunk::SIZE / 2;
+	// 청크당 top-most 1셀 — 전체 32×32 컬럼의 최상단 non-empty voxel 중 Z 최대 선택.
+	// 공기 구멍이 있는 지형도 안정적으로 top을 잡는다.
+	constexpr int32 S = FHktVoxelChunk::SIZE;
 
 	for (const FIntVector& Coord : Coords)
 	{
@@ -130,25 +127,45 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 			continue;
 		}
 
-		for (int32 Z = FHktVoxelChunk::SIZE - 1; Z >= 0; --Z)
-		{
-			const FHktVoxel& V = Chunk->At(ScanX, ScanY, Z);
-			if (V.IsEmpty())
-			{
-				continue;
-			}
+		int32 BestZ = -1;
+		int32 BestX = 0;
+		int32 BestY = 0;
+		const FHktVoxel* BestVoxel = nullptr;
 
-			FHktVoxelSurfaceCell Cell;
-			Cell.WorldPos = FVector(
-				Coord.X * ChunkWorldSize + (ScanX + 0.5f) * VoxelSize,
-				Coord.Y * ChunkWorldSize + (ScanY + 0.5f) * VoxelSize,
-				Coord.Z * ChunkWorldSize + (Z + 0.5f) * VoxelSize);
-			Cell.TypeID = V.TypeID;
-			Cell.PaletteIndex = V.PaletteIndex;
-			Cell.Flags = V.Flags;
-			OutCells.Add(Cell);
-			break;
+		for (int32 Y = 0; Y < S; ++Y)
+		{
+			for (int32 X = 0; X < S; ++X)
+			{
+				for (int32 Z = S - 1; Z > BestZ; --Z)
+				{
+					const FHktVoxel& V = Chunk->At(X, Y, Z);
+					if (V.IsEmpty())
+					{
+						continue;
+					}
+					BestZ = Z;
+					BestX = X;
+					BestY = Y;
+					BestVoxel = &V;
+					break;
+				}
+			}
 		}
+
+		if (!BestVoxel)
+		{
+			continue;
+		}
+
+		FHktVoxelSurfaceCell Cell;
+		Cell.WorldPos = FVector(
+			Coord.X * ChunkWorldSize + (BestX + 0.5f) * VoxelSize,
+			Coord.Y * ChunkWorldSize + (BestY + 0.5f) * VoxelSize,
+			Coord.Z * ChunkWorldSize + (BestZ + 0.5f) * VoxelSize);
+		Cell.TypeID = BestVoxel->TypeID;
+		Cell.PaletteIndex = BestVoxel->PaletteIndex;
+		Cell.Flags = BestVoxel->Flags;
+		OutCells.Add(Cell);
 	}
 }
 
@@ -194,5 +211,21 @@ FHktVoxelRenderCache* AHktVoxelSpriteTerrainActor::ResolveRenderCache() const
 	}
 
 	CachedSourceActor = VoxelActor;
+
+	// Voxel Actor가 RenderCache를 갱신한 후에 Sprite Actor가 읽도록 tick 순서 확정.
+	// const_cast — resolve는 const 경로지만 tick dependency 등록은 설계상 1회 세팅이며
+	// 관측 가능한 상태 변화가 없다.
+	AHktVoxelSpriteTerrainActor* MutableSelf = const_cast<AHktVoxelSpriteTerrainActor*>(this);
+	MutableSelf->AddTickPrerequisiteActor(VoxelActor);
+
+	// Sprite + Voxel 동시 렌더링 감지 — chunk mesh와 sprite 평면이 Z-fighting 소지.
+	// A/B 비교 중이 아니라면 Voxel Actor의 ChunkComponent를 숨기거나 한 쪽을 제거할 것.
+	if (!VoxelActor->IsHidden())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[HktVoxelSpriteTerrain] AHktVoxelTerrainActor also visible — Z-fighting ")
+			TEXT("possible. Hide one actor (bHiddenInGame) for clean A/B or single render."));
+	}
+
 	return VoxelActor->GetTerrainCache();
 }
