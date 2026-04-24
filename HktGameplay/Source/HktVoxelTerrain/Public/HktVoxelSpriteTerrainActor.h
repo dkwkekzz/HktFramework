@@ -42,6 +42,53 @@ struct FHktVoxelSurfaceCell
  *
  * 기존 AHktVoxelTerrainActor의 메싱/청크 컴포넌트 경로와 독립적이며,
  * 월드에 둘 중 하나만 활성화하거나 양쪽 모두 스폰 후 bHiddenInGame으로 A/B 비교한다.
+ *
+ * ============================================================================
+ * [Niagara System 에셋 스펙 — NS_HktSpriteTerrain]
+ * ============================================================================
+ * 본 Actor는 UNiagaraComponent를 소유하지만 Niagara System(.uasset)은 에디터에서
+ * 별도 제작한다. 아래 규약을 지켜야 Actor가 올바르게 바인딩된다.
+ *
+ * [User Parameters (Array Data Interface)]
+ *   - Positions      : NiagaraDataInterfaceArrayPosition  ← FVector[]
+ *   - TypeIDs        : NiagaraDataInterfaceArrayInt32     ← int32[] (HktTerrainType)
+ *   - PaletteIndices : NiagaraDataInterfaceArrayInt32     ← int32[] (0~7)
+ *   - Flags          : NiagaraDataInterfaceArrayInt32     ← int32[] (FLAG_TRANSLUCENT 등)
+ *   이름은 AHktVoxelSpriteTerrainActor의 ParamName_* UPROPERTY로 오버라이드 가능.
+ *
+ * [Emitter 구성 — 최소 2개]
+ *   1) Emitter_Opaque
+ *        - Spawn Burst (1 tick, Count = Positions.Length)  또는
+ *          Niagara "Sample Array" 템플릿으로 per-index 스폰
+ *        - Flags[i] & 0x01 == 0  인 particle만 통과 (Particles.Kill 게이트)
+ *   2) Emitter_Translucent
+ *        - 동일 패턴, Flags[i] & 0x01 == 1 게이트
+ *        - Sprite Renderer의 Material Domain = Translucent
+ *
+ * [Particle Attribute 바인딩 (Spawn 또는 Particle Update)]
+ *   Particles.Position       ← Positions.Sample(i)
+ *   Particles.SubImageIndex  ← TypeIDs.Sample(i)           (아틀라스 프레임 인덱스)
+ *   Particles.Color.a        ← PaletteIndices.Sample(i)/7  (셰이더에서 팔레트 lookup)
+ *   Particles.Lifetime       ← 0 (정적) 또는 매우 짧음 + 재스폰 by dirty
+ *
+ * [Sprite Renderer 설정 — 고정 카메라 iso 뷰 전제]
+ *   - Facing Mode         : Custom Facing Vector
+ *   - Facing Vector (월드): 카메라 forward의 반대 고정 벡터
+ *                            IsometricOrtho(Pitch=-60°, Yaw=45°) 기준
+ *                            Forward ≈ (cos(-60°)*cos(45°), cos(-60°)*sin(45°), sin(-60°))
+ *                                    ≈ (0.354, 0.354, -0.866) → Facing = -Forward
+ *   - Alignment           : Custom Alignment (월드 +Z up)
+ *   - Pivot Offset        : (0.5, 1.0) — bottom-center (타일이 복셀 바닥에 앉도록)
+ *   - Size                : Chunk WorldSize(480 UU) 기준 — 1 particle이 1 chunk top tile
+ *   - Sub UV              : 1D horizontal strip, Sub Image Size = (1/NumTypes, 1)
+ *   - Material            : M_HktSpriteTerrain (Atlas Texture2DArray 또는 SubUV Texture2D)
+ *
+ * [업데이트 주기]
+ *   Actor Tick이 매 프레임 PushSurfaceCells 호출 (MaxScansPerSecond 상한 적용).
+ *   Array DI 는 GPU에 자동 재업로드되므로 추가 dirty 신호 불필요.
+ *   Emitter Lifetime을 "무한"으로 두지 말 것 — Array 길이 변경 시 Respawn 필요.
+ *   권장: Emitter Loop = Infinite, SpawnBurst per frame, Particles.Lifetime = Delta Time + 1틱.
+ * ============================================================================
  */
 UCLASS(ClassGroup = (HktVoxel))
 class HKTVOXELTERRAIN_API AHktVoxelSpriteTerrainActor : public AActor
