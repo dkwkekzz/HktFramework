@@ -79,6 +79,18 @@ void FHktVoxelRenderCache::GetDirtyChunks(TArray<FIntVector>& OutDirtyChunks) co
 	}
 }
 
+void FHktVoxelRenderCache::GetAllChunkCoords(TArray<FIntVector>& OutCoords) const
+{
+	FScopeLock Lock(&ChunkLock);
+	OutCoords.Reset();
+	OutCoords.Reserve(Chunks.Num());
+
+	for (const auto& Pair : Chunks)
+	{
+		OutCoords.Add(Pair.Key);
+	}
+}
+
 FHktVoxelChunk* FHktVoxelRenderCache::GetChunk(const FIntVector& ChunkCoord)
 {
 	FScopeLock Lock(&ChunkLock);
