@@ -17,7 +17,7 @@ class UMaterialInterface;
  *
  * 사용법:
  *   1. 월드에 이 액터를 드래그 배치.
- *   2. Details 패널에서 QuadMesh / SpriteMaterial / 파츠 태그 / ActionId 지정.
+ *   2. Details 패널에서 QuadMesh / SpriteMaterial / 파츠 태그 / AnimTag 지정.
  *   3. Play 시 자체 UHktSpriteCrowdRenderer를 생성하고 단일 EntityId로 등록.
  *   4. Tick마다 NowTick을 증분해 UpdateEntity 호출.
  *
@@ -57,9 +57,9 @@ public:
 
 	// --- 애니메이션 재생 상태 ---
 
-	/** 재생할 액션 ID (PartTemplate.Actions 키와 일치, 예: "idle", "walk") */
+	/** 재생할 액션의 anim tag (PartTemplate의 Action.AnimTag와 매칭). 비워두면 PartTemplate의 DefaultAnimTag로 폴백. */
 	UPROPERTY(EditAnywhere, Category="HKT|Sprite|Anim")
-	FName ActionId = "idle";
+	FGameplayTag AnimTag;
 
 	/** 바라볼 방향 (8방향 양자화) */
 	UPROPERTY(EditAnywhere, Category="HKT|Sprite|Anim")

@@ -1,7 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteCrowdHost.h"
-#include "HktSpriteAnimMappingAsset.h"
 #include "HktSpriteAnimProcessor.h"
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteFrameResolver.h"
@@ -127,12 +126,11 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		Loadout.HeadgearLow = SV->HeadgearLow.Get();
 		Renderer->SetLoadout(Id, Loadout);
 
-		// 초기 상태에서 Anim Tag Container/Stance를 한 번 동기화
+		// 초기 상태에서 Anim Tag Container를 한 번 동기화
 		if (const FHktAnimationView* AV = State.GetAnimation(Id))
 		{
 			FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
-			HktSpriteAnimProcessor::SyncStance(Frag, AV->Stance.Get());
-			HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags);
+			HktSpriteAnimProcessor::SyncFromTagContainer(Frag, AV->Tags);
 		}
 	}
 
@@ -199,13 +197,10 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 
 		if (FHktAnimationView* AV = State.GetMutableAnimation(Id))
 		{
-			if (AV->Stance.IsDirty(Frame))
-			{
-				HktSpriteAnimProcessor::SyncStance(Frag, AV->Stance.Get());
-			}
+			// Stance는 Sprite에서 사용하지 않음 — 3D actor 전용으로 남김.
 			if (AV->TagsDirtyFrame == Frame)
 			{
-				HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags);
+				HktSpriteAnimProcessor::SyncFromTagContainer(Frag, AV->Tags);
 			}
 			// 일회성 트리거 소비 (AHktUnitActor::ApplyAnimation과 동일)
 			if (AV->PendingAnimTriggers.Num() > 0)
@@ -218,16 +213,16 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 			}
 		}
 
-		// 최종 렌더 출력 결정 (ActionId / PlayRate).
+		// 최종 렌더 출력 결정 (AnimTag / PlayRate).
 		// AnimStartTick은 서버 VM이 PropertyId::AnimStartTick 으로 권위 갱신 → SV값 그대로 사용.
-		FName ActionId = NAME_None;
+		FGameplayTag AnimTag;
 		float PlayRate = 1.f;
-		HktSpriteAnimProcessor::ResolveRenderOutputs(AnimMapping, Frag, ActionId, PlayRate);
+		HktSpriteAnimProcessor::ResolveRenderOutputs(Frag, AnimTag, PlayRate);
 
 		FHktSpriteEntityUpdate Update;
 		Update.WorldLocation  = TV->RenderLocation.Get().IsZero() ? TV->Location.Get() : TV->RenderLocation.Get();
 		Update.Facing         = static_cast<EHktSpriteFacing>(SV.Facing.Get() & 0x07);
-		Update.ActionId       = ActionId;
+		Update.AnimTag        = AnimTag;
 		Update.AnimStartTick  = SV.AnimStartTick.Get();
 		Update.NowTick        = NowTick;
 		Update.TickDurationMs = TickDurationMs;
