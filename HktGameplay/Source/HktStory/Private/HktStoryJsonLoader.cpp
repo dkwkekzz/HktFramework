@@ -5,6 +5,7 @@
 #include "HktCoreEventLog.h"
 #include "GameplayTagsManager.h"
 #include "HAL/FileManager.h"
+#include "Interfaces/IPluginManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
@@ -35,23 +36,39 @@ namespace
 
 int32 FHktStoryJsonLoader::LoadAllFromContentDirectory()
 {
-	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
-	if (!Settings || Settings->StoryDirectories.Num() == 0)
+	TArray<FString> ScanDirs;
+
+	// 1) HktGameplay 플러그인 자체 Content 디렉토리 (기본 내장 JSON Story 번들)
+	//    사용자가 Settings를 비워두어도 플러그인 번들 Story는 항상 로드된다.
+	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("HktGameplay")))
 	{
-		UE_LOG(LogHktStoryJsonLoader, Log, TEXT("No Story directories configured in HktRuntimeGlobalSetting; skipping JSON story loading"));
+		ScanDirs.Add(Plugin->GetContentDir());
+	}
+
+	// 2) 프로젝트 측에서 Project Settings로 추가한 커스텀 디렉토리
+	if (const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>())
+	{
+		for (const FDirectoryPath& DirPath : Settings->StoryDirectories)
+		{
+			if (DirPath.Path.IsEmpty())
+			{
+				continue;
+			}
+			// RelativeToGameContentDir: Path는 `<Project>/Content/` 기준 상대 경로
+			ScanDirs.Add(FPaths::Combine(FPaths::ProjectContentDir(), DirPath.Path));
+		}
+	}
+
+	if (ScanDirs.Num() == 0)
+	{
+		UE_LOG(LogHktStoryJsonLoader, Log, TEXT("No Story directories to scan; skipping JSON story loading"));
 		return 0;
 	}
 
 	int32 TotalSuccess = 0;
-	for (const FDirectoryPath& DirPath : Settings->StoryDirectories)
+	for (const FString& Dir : ScanDirs)
 	{
-		if (DirPath.Path.IsEmpty())
-		{
-			continue;
-		}
-		// RelativeToGameContentDir: Path는 `<Project>/Content/` 기준 상대 경로
-		const FString ResolvedDir = FPaths::Combine(FPaths::ProjectContentDir(), DirPath.Path);
-		TotalSuccess += LoadAllFromDirectory(ResolvedDir);
+		TotalSuccess += LoadAllFromDirectory(Dir);
 	}
 	return TotalSuccess;
 }
@@ -64,16 +81,17 @@ int32 FHktStoryJsonLoader::LoadAllFromDirectory(const FString& DirectoryPath)
 		return 0;
 	}
 
+	// 재귀 스캔 — `Stories/` 등 서브 디렉토리의 JSON도 모두 수집
 	TArray<FString> JsonFiles;
-	IFileManager::Get().FindFiles(JsonFiles, *FPaths::Combine(DirectoryPath, TEXT("*.json")), true, false);
+	IFileManager::Get().FindFilesRecursive(JsonFiles, *DirectoryPath, TEXT("*.json"), /*Files=*/true, /*Directories=*/false);
 
 	int32 SuccessCount = 0;
 	int32 TotalCount = JsonFiles.Num();
 
-	for (const FString& FileName : JsonFiles)
+	for (const FString& FilePath : JsonFiles)
 	{
-		const FString FilePath = FPaths::Combine(DirectoryPath, FileName);
 		FHktStoryParseResult Result = LoadFromFile(FilePath);
+		const FString FileName = FPaths::GetCleanFilename(FilePath);
 
 		if (Result.bSuccess)
 		{
