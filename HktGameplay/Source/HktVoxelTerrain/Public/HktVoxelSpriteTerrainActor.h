@@ -89,6 +89,46 @@ struct FHktVoxelSurfaceCell
  *   Emitter Lifetime을 "무한"으로 두지 말 것 — Array 길이 변경 시 Respawn 필요.
  *   권장: Emitter Loop = Infinite, SpawnBurst per frame, Particles.Lifetime = Delta Time + 1틱.
  * ============================================================================
+ *
+ * ============================================================================
+ * [아틀라스 베이크 파이프라인 — T_HktSpriteTerrainAtlas]
+ * ============================================================================
+ * 33 타입 × 1방향(iso 고정) = 33 프레임. Yaw 회전 비활성이므로 방향 바리에이션 불필요.
+ *
+ * [아틀라스 레이아웃]
+ *   - 크기       : 모바일 기준 프레임당 128×128 px → 아틀라스 4224×128 (1D strip)
+ *                   또는 8×5 그리드 (1024×640)로 mip 친화적 레이아웃
+ *   - Frame 순서 : HktTerrainType 열거값 순서와 동일 (Air=0은 빈 프레임)
+ *                   SubImageIndex = TypeID 직접 매핑
+ *   - 포맷       : BC7 / ASTC 6×6 (모바일) — 알파 채널로 투명 배경 보존
+ *   - sRGB       : ON (diffuse)
+ *
+ * [렌더 파라미터 — 모든 프레임 공통]
+ *   - 카메라      : Orthographic, Yaw=45°, Pitch=-60° (HktCameraMode_IsometricOrtho와 동일)
+ *   - OrthoWidth  : 1 voxel cube(15 cm) 투영 시 프레임 90% 차지하도록 조정
+ *                   → 아이소에서 대각 ≈ 21 cm → OrthoWidth ≈ 23 cm
+ *   - 배경        : 투명 (checker board OFF)
+ *   - 조명        : 고정 3점(Key/Fill/Rim) — 프레임간 조명 일관성 필수
+ *   - 섀도우      : 자체 그림자 OFF (Sprite Renderer에서 별도 drop shadow)
+ *
+ * [팔레트 바리에이션]
+ *   개별 프레임에 팔레트를 굽지 않는다 — 셰이더에서 런타임 스왑:
+ *     1) 베이스 프레임은 grayscale + mask 레이어로 저장
+ *     2) M_HktSpriteTerrain이 PaletteIndex로 8색 LUT(Texture2D 8×N)에서 tint 샘플
+ *     3) HktTerrainPalette 바이옴별 변주는 LUT row로 처리
+ *   이 방식은 기존 UHktVoxelPalette(HktSpriteCore) 관행과 동일.
+ *
+ * [베이크 도구]
+ *   HktGameplayGenerator/McpServer/tools/texture_tools.py 재사용:
+ *     - SD WebUI(SD_WEBUI_URL)로 개별 타입 프롬프트 일괄 생성
+ *     - 후처리: iso 크롭, alpha matting, 아틀라스 패킹
+ *     - UE5 import 시 Texture Group = UI / Compression = BC7 / Mip = Off(1D strip) 또는 Auto
+ *
+ * [런타임 워크플로]
+ *   AHktVoxelSpriteTerrainActor 는 아틀라스를 직접 참조하지 않는다 —
+ *   M_HktSpriteTerrain 이 SubImageIndex로 샘플링한다. 타입 추가 시엔
+ *   HktTerrainType 열거 + 아틀라스 재베이크만 필요 (Actor/NDI 수정 없음).
+ * ============================================================================
  */
 UCLASS(ClassGroup = (HktVoxel))
 class HKTVOXELTERRAIN_API AHktVoxelSpriteTerrainActor : public AActor
