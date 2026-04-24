@@ -152,9 +152,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite")
 	TObjectPtr<UNiagaraSystem> TerrainNiagaraSystem;
 
-	/** 가시 영역 여유(UU) — OrthoWidth 프러스텀 경계 바깥 N UU까지 포함 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming")
-	float VisibilityPaddingUU = 240.0f;
+	/**
+	 * 가시 영역 반경 (UU) — 월드 XY-평면 상 ViewCenter 기준 원 내부의 청크만 스캔.
+	 *
+	 * 기본값 2000은 OrthoWidth ≈ 2500(화면 반폭 1250) + 16:9 세로 반폭 ≈ 704 의 대각
+	 * (≈ 1435)에 여유를 더한 값. OrthoWidth를 바꿨다면 이에 맞춰 조정한다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming",
+		meta = (ClampMin = "0.0"))
+	float IncludeRadiusUU = 2000.0f;
 
 	/** 초당 surface 스캔 횟수 상한 — 카메라/월드 변화 없으면 스킵 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming")

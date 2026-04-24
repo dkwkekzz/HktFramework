@@ -32,7 +32,7 @@ void UHktVoxelTerrainNDI::PushSurfaceCells(
 		ScratchFlags[i] = static_cast<int32>(C.Flags);
 	}
 
-	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayPosition(
 		NiagaraComponent, ParamNames.Positions, ScratchPositions);
 	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
 		NiagaraComponent, ParamNames.TypeIDs, ScratchTypeIDs);

@@ -96,14 +96,17 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 	}
 
 	const FVector ViewCenter = GetViewCenterWorldPos();
-	const float IncludeRadiusSq = FMath::Square(VisibilityPaddingUU);
+	const float IncludeRadiusSq = FMath::Square(IncludeRadiusUU);
 
 	TArray<FIntVector> Coords;
 	Cache->GetAllChunkCoords(Coords);
 
 	OutCells.Reserve(Coords.Num());
 
-	// 청크당 top-most 1셀 — 중심 컬럼(16,16)에서 Z 내림차순 스캔
+	// 청크당 top-most 1셀 — 중심 컬럼(16,16)에서 Z 내림차순 스캔.
+	// NOTE: 청크 중심 컬럼 1개만 샘플링하므로 (16,16)에 수직 공기 구멍이 있으면
+	// 잘못된 Z를 반환할 수 있다. 대부분의 지형은 층상 구조라 실용상 허용.
+	// 전체 32² 컬럼 스캔 or majority-vote는 후속 최적화 대상.
 	constexpr int32 ScanX = FHktVoxelChunk::SIZE / 2;
 	constexpr int32 ScanY = FHktVoxelChunk::SIZE / 2;
 
