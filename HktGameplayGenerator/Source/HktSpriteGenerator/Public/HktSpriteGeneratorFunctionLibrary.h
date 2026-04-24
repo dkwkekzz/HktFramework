@@ -69,7 +69,6 @@ public:
 	 *
 	 * AtlasAssetPath: UE5 오브젝트 경로 문자열 (예: "/Game/Generated/Textures/T_Foo.T_Foo").
 	 *   내부에서 LoadObject<UTexture2D> 로 명시 로드한다 — 아직 메모리에 없어도 됨.
-	 *   Remote Control API / Python MCP 에서도 이 문자열 그대로 넘기면 된다.
 	 *
 	 * 가정: 아틀라스는 "행=방향, 열=프레임" 그리드 형태로 패킹되어 있다.
 	 *   - cols = Atlas.Width  / FrameWidth  → FramesPerDirection
@@ -80,67 +79,18 @@ public:
 	 *
 	 * 반환: {"success":bool, "dataAssetPath":..., "error":...}
 	 *
-	 * === Python 사용 예시 (MCP EditorBridge / Remote Control API) ===
+	 * === Python 사용 예시 ===
 	 *
-	 *   from hkt_mcp.bridge.editor_bridge import EditorBridge
-	 *
-	 *   OBJECT_PATH = "/Script/HktSpriteGenerator.Default__HktSpriteGeneratorFunctionLibrary"
-	 *
-	 *   # 1) 최소 예시: /Game/ 아래에 임포트된 Atlas 텍스처 경로를 그대로 전달
-	 *   async def build_knight_body(bridge: EditorBridge):
-	 *       result_json = await bridge.call_method(
-	 *           "EditorBuildSpritePartFromAtlas",
-	 *           object_path=OBJECT_PATH,
-	 *           Tag="Sprite.Part.Body.Knight",
-	 *           Slot="Body",
-	 *           AtlasAssetPath="/Game/Generated/Textures/T_Knight_Body_Atlas.T_Knight_Body_Atlas",
-	 *           FrameWidth=64,
-	 *           FrameHeight=64,
-	 *       )
-	 *       # result_json: {"success": true, "dataAssetPath": "/Game/Generated/Sprites/DA_...", ...}
-	 *       return result_json
-	 *
-	 *   # 2) 전체 파라미터 예시: 액션 id/피봇/루핑/미러링 등을 명시
-	 *   async def build_mage_cast(bridge: EditorBridge):
-	 *       return await bridge.call_method(
-	 *           "EditorBuildSpritePartFromAtlas",
-	 *           object_path=OBJECT_PATH,
-	 *           Tag="Sprite.Part.Body.Mage",
-	 *           Slot="Body",
-	 *           AtlasAssetPath="/Game/Generated/Textures/T_Mage_Cast_Atlas.T_Mage_Cast_Atlas",
-	 *           FrameWidth=96,
-	 *           FrameHeight=96,
-	 *           ActionId="cast",
-	 *           OutputDir="/Game/Generated/Sprites/Mage",
-	 *           PixelToWorld=2.0,
-	 *           FrameDurationMs=80.0,
-	 *           bLooping=False,
-	 *           bMirrorWestFromEast=True,
-	 *       )
-	 *
-	 *   # 3) 디스크 PNG → McpImportTexture → 반환 경로를 AtlasAssetPath 로 바로 체이닝
-	 *   async def import_then_build(bridge: EditorBridge, png_path: str):
-	 *       import json
-	 *       intent = json.dumps({"usage": "UI"})  # Nearest/NoMipmap 강제
-	 *       imp = await bridge.call_method(
-	 *           "McpImportTexture",
-	 *           object_path="/Script/HktTextureGenerator.Default__HktTextureFunctionLibrary",
-	 *           ImageFilePath=png_path,
-	 *           JsonIntent=intent,
-	 *           OutputDir="/Game/Generated/Textures",
-	 *       )
-	 *       atlas_asset_path = json.loads(imp)["assetPath"]
-	 *       return await bridge.call_method(
-	 *           "EditorBuildSpritePartFromAtlas",
-	 *           object_path=OBJECT_PATH,
-	 *           Tag="Sprite.Part.Weapon.Sword",
-	 *           Slot="Weapon",
-	 *           AtlasAssetPath=atlas_asset_path,
-	 *           FrameWidth=48,
-	 *           FrameHeight=48,
-	 *           ActionId="swing",
-	 *           bLooping=False,
-	 *       )
+	 *   # UE5 에디터 Python 콘솔에서 바로
+	 *   import unreal
+	 *   result_json = unreal.HktSpriteGeneratorFunctionLibrary.editor_build_sprite_part_from_atlas(
+	 *       tag="Sprite.Part.Body.Knight",
+	 *       slot="Body",
+	 *       atlas_asset_path="/Game/Generated/Textures/T_Knight_Body_Atlas.T_Knight_Body_Atlas",
+	 *       frame_width=64,
+	 *       frame_height=64,
+	 *   )
+	 *   print(result_json)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorBuildSpritePartFromAtlas(
