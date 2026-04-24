@@ -348,6 +348,9 @@ void FHktVMInterpreter::Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity
 
     VMProxy->PendingAnimEvents.Add({ Tag, E });
 
+    // 원샷 Montage도 클라가 프레임 커서 0부터 재생하도록 서버 권위 AnimStartTick 갱신.
+    if (WorldState) VMProxy->TouchAnimStartTick(*WorldState, E);
+
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_PlayAnim Id=%d Anim=%s"), E, *Tag.ToString()), E);
 }

@@ -132,7 +132,7 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		{
 			FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
 			HktSpriteAnimProcessor::SyncStance(Frag, AV->Stance.Get());
-			HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags, Frame);
+			HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags);
 		}
 	}
 
@@ -197,8 +197,6 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 			if (CV->CPRatio.IsDirty(Frame)) Frag.CPRatio = CV->CPRatio.Get();
 		}
 
-		const int64 FallbackAnimStartTick = SV.AnimStartTick.Get();
-
 		if (FHktAnimationView* AV = State.GetMutableAnimation(Id))
 		{
 			if (AV->Stance.IsDirty(Frame))
@@ -207,31 +205,30 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 			}
 			if (AV->TagsDirtyFrame == Frame)
 			{
-				HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags, NowTick);
+				HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags);
 			}
 			// 일회성 트리거 소비 (AHktUnitActor::ApplyAnimation과 동일)
 			if (AV->PendingAnimTriggers.Num() > 0)
 			{
 				for (const FGameplayTag& AnimTag : AV->PendingAnimTriggers)
 				{
-					HktSpriteAnimProcessor::ApplyAnimTag(Frag, AnimTag, NowTick);
+					HktSpriteAnimProcessor::ApplyAnimTag(Frag, AnimTag);
 				}
 				AV->PendingAnimTriggers.Reset();
 			}
 		}
 
-		// 최종 렌더 출력 결정
-		FName ActionId      = NAME_None;
-		float PlayRate      = 1.f;
-		int64 AnimStartTick = FallbackAnimStartTick;
-		HktSpriteAnimProcessor::ResolveRenderOutputs(AnimMapping, Frag, FallbackAnimStartTick,
-			ActionId, PlayRate, AnimStartTick);
+		// 최종 렌더 출력 결정 (ActionId / PlayRate).
+		// AnimStartTick은 서버 VM이 PropertyId::AnimStartTick 으로 권위 갱신 → SV값 그대로 사용.
+		FName ActionId = NAME_None;
+		float PlayRate = 1.f;
+		HktSpriteAnimProcessor::ResolveRenderOutputs(AnimMapping, Frag, ActionId, PlayRate);
 
 		FHktSpriteEntityUpdate Update;
 		Update.WorldLocation  = TV->RenderLocation.Get().IsZero() ? TV->Location.Get() : TV->RenderLocation.Get();
 		Update.Facing         = static_cast<EHktSpriteFacing>(SV.Facing.Get() & 0x07);
 		Update.ActionId       = ActionId;
-		Update.AnimStartTick  = AnimStartTick;
+		Update.AnimStartTick  = SV.AnimStartTick.Get();
 		Update.NowTick        = NowTick;
 		Update.TickDurationMs = TickDurationMs;
 		Update.PlayRate       = PlayRate;

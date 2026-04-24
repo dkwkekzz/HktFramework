@@ -65,6 +65,7 @@ struct HKTCORE_API FHktVMWorldStateProxy
         int32 Slot = WS.GetSlot(Entity);
         WS.TagContainers[Slot].AddTag(Tag);
         SetTagsDirty(Slot);
+        if (IsAnimTag(Tag)) TouchAnimStartTick(WS, Slot);
     }
 
     FORCEINLINE void RemoveTag(FHktWorldState& WS, FHktEntityId Entity, const FGameplayTag& Tag)
@@ -73,6 +74,7 @@ struct HKTCORE_API FHktVMWorldStateProxy
         int32 Slot = WS.GetSlot(Entity);
         WS.TagContainers[Slot].RemoveTag(Tag);
         SetTagsDirty(Slot);
+        if (IsAnimTag(Tag)) TouchAnimStartTick(WS, Slot);
     }
 
     // --- Owner Dirty ---
@@ -85,6 +87,37 @@ struct HKTCORE_API FHktVMWorldStateProxy
     }
 
     void SetOwnerUid(FHktWorldState& WS, FHktEntityId Entity, int64 Uid);
+
+    // --- Anim Start Tick 자동 기록 ---
+    //
+    // Anim 상태가 전환되는 모든 경로(PlayAnim / Anim.* 태그 Add/Remove /
+    // IsMoving·IsGrounded·AnimState·AnimStateUpper 변경)에서 현재 프레임 번호를
+    // PropertyId::AnimStartTick 에 기록한다. 클라(Presentation / SpriteAnimProcessor)는
+    // 서버 권위 AnimStartTick만 믿고 프레임 커서를 계산 — 별도 클라측 추론 불필요.
+    //
+    // 내부 헬퍼 — SetDirty로 직접 써서 SetPropertyDirty 재진입 회피.
+    FORCEINLINE void TouchAnimStartTick(FHktWorldState& WS, int32 Slot)
+    {
+        SetDirty(WS, Slot, PropertyId::AnimStartTick, static_cast<int32>(WS.FrameNumber));
+    }
+
+    FORCEINLINE void TouchAnimStartTick(FHktWorldState& WS, FHktEntityId Entity)
+    {
+        if (!WS.IsValidEntity(Entity)) return;
+        TouchAnimStartTick(WS, WS.GetSlot(Entity));
+    }
+
+    /** Tag가 "Anim" 혹은 "Anim.*" 계열인지. (HktCore는 HktRuntime에 의존하지 않으므로 string prefix 판정) */
+    static FORCEINLINE bool IsAnimTag(const FGameplayTag& Tag)
+    {
+        if (!Tag.IsValid()) return false;
+        const FName N = Tag.GetTagName();
+        static const FName AnimRoot(TEXT("Anim"));
+        if (N == AnimRoot) return true;
+        // FName → 문자열 prefix 체크. "Anim." 5글자 비교만 수행.
+        const FString S = N.ToString();
+        return S.StartsWith(TEXT("Anim."), ESearchCase::CaseSensitive);
+    }
 
     // --- Position ---
     FORCEINLINE void SetPosition(FHktWorldState& WS, FHktEntityId Entity, int32 X, int32 Y, int32 Z)

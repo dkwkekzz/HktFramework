@@ -50,8 +50,19 @@ void FHktVMWorldStateProxy::ResetDirtyIndices(const FHktWorldState& WS)
 void FHktVMWorldStateProxy::SetPropertyDirty(FHktWorldState& WS, FHktEntityId Entity, uint16 PropId, int32 Value)
 {
     if (!WS.IsValidEntity(Entity)) return;
-    int32 Slot = WS.GetSlot(Entity);
+    const int32 Slot = WS.GetSlot(Entity);
     SetDirty(WS, Slot, PropId, Value);
+
+    // Anim 상태 전환을 유발하는 property에는 AnimStartTick도 함께 갱신.
+    // AnimStartTick 자체 쓰기에 대한 재귀는 당연히 회피.
+    if (PropId != PropertyId::AnimStartTick
+        && (PropId == PropertyId::IsMoving
+         || PropId == PropertyId::IsGrounded
+         || PropId == PropertyId::AnimState
+         || PropId == PropertyId::AnimStateUpper))
+    {
+        TouchAnimStartTick(WS, Slot);
+    }
 }
 
 void FHktVMWorldStateProxy::SetOwnerUid(FHktWorldState& WS, FHktEntityId Entity, int64 Uid)

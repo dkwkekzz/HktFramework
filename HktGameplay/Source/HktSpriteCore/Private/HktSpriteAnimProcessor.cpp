@@ -98,7 +98,7 @@ namespace
 // ============================================================================
 
 void SyncFromTagContainer(const UHktSpriteAnimMappingAsset* /*Mapping*/, FHktSpriteAnimFragment& Fragment,
-	const FGameplayTagContainer& EntityTags, int64 CurrentTick)
+	const FGameplayTagContainer& EntityTags)
 {
 	// Entity 태그 중 Anim.* 계열만 필터링 (UHktAnimInstance와 동일)
 	const FGameplayTagContainer CurrentAnimTags = EntityTags.Filter(FGameplayTagContainer(HktGameplayTags::Anim));
@@ -108,7 +108,7 @@ void SyncFromTagContainer(const UHktSpriteAnimMappingAsset* /*Mapping*/, FHktSpr
 	{
 		if (!Fragment.PrevAnimTags.HasTagExact(Tag))
 		{
-			ApplyAnimTag(Fragment, Tag, CurrentTick);
+			ApplyAnimTag(Fragment, Tag);
 		}
 	}
 
@@ -124,7 +124,7 @@ void SyncFromTagContainer(const UHktSpriteAnimMappingAsset* /*Mapping*/, FHktSpr
 	Fragment.PrevAnimTags = CurrentAnimTags;
 }
 
-void ApplyAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag, int64 CurrentTick)
+void ApplyAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag)
 {
 	if (!AnimTag.IsValid())
 	{
@@ -142,10 +142,7 @@ void ApplyAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag,
 		Fragment.AnimStateTag = AnimTag;
 	}
 
-	// Montage/UpperBody/FullBody 모두 트리거 시점 tick을 기록.
-	// ResolveRenderOutputs에서 활성 레이어에 따라 사용 여부 결정.
-	Fragment.CurrentAnimTag       = AnimTag;
-	Fragment.CurrentAnimStartTick = CurrentTick;
+	Fragment.CurrentAnimTag = AnimTag;
 }
 
 void RemoveAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag)
@@ -252,13 +249,12 @@ namespace
 }
 
 void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktSpriteAnimFragment& Fragment,
-	int64 FallbackAnimStartTick, FName& OutActionId, float& OutPlayRate, int64& OutAnimStartTick)
+	FName& OutActionId, float& OutPlayRate)
 {
 	FName BaseActionId = NAME_None;
 	bool  bIsCombat    = false;
 	float LocoPlayRate = 1.f;      // Locomotion 추론이 산출한 속도 스케일 (1.0이 기본)
 	bool  bFromLocomotion = false; // Locomotion 경로로 해석되었는지
-	FGameplayTag ActiveLayer;
 
 	// 1~3. 우선순위: Montage > UpperBody > FullBody
 	static const FGameplayTag* kPriorityLayers[] = {
@@ -275,7 +271,6 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 		{
 			if (Found->IsValid() && ResolveTagToAction(Mapping, *Found, BaseActionId, bIsCombat))
 			{
-				ActiveLayer = *LayerPtr;
 				bResolved = true;
 				break;
 			}
@@ -290,7 +285,6 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 			if (!Pair.Value.IsValid()) continue;
 			if (ResolveTagToAction(Mapping, Pair.Value, BaseActionId, bIsCombat))
 			{
-				ActiveLayer = Pair.Key;
 				bResolved = true;
 				break;
 			}
@@ -308,7 +302,6 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 	{
 		BaseActionId = Mapping ? Mapping->DefaultActionId : FName(TEXT("idle"));
 		bIsCombat    = false;
-		ActiveLayer  = FGameplayTag();
 	}
 
 	OutActionId = ApplyStanceOverride(Mapping, BaseActionId, Fragment.StanceTag);
@@ -330,13 +323,9 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 		OutPlayRate = 1.0f;
 	}
 
-	// AnimStartTick:
-	//   - Montage/UpperBody: 트리거 수신 시점(CurrentAnimStartTick) — 서버는 별도 프레임 권위값 없음
-	//   - FullBody / Locomotion / Default: 서버 권위 SV.AnimStartTick
-	const bool bUseLocalTick = ActiveLayer.IsValid()
-		&& (ActiveLayer.MatchesTagExact(HktGameplayTags::Anim_Montage)
-			|| ActiveLayer.MatchesTagExact(HktGameplayTags::Anim_UpperBody));
-	OutAnimStartTick = bUseLocalTick ? Fragment.CurrentAnimStartTick : FallbackAnimStartTick;
+	// AnimStartTick은 CrowdHost가 SV.AnimStartTick(서버 권위값)으로 직접 설정.
+	// 서버 VM이 Op_PlayAnim / AddTag(Anim.*) / IsMoving·IsGrounded 변경 시마다
+	// PropertyId::AnimStartTick 을 갱신하므로 클라 측 추론 불필요.
 }
 
 FGameplayTag GetAnimLayerTag(const FHktSpriteAnimFragment& Fragment, const FGameplayTag& LayerTag)

@@ -25,11 +25,11 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 	/** FullBody 태그 — UHktAnimInstance::AnimStateTag와 동일 의미(하위 호환). */
 	FGameplayTag AnimStateTag;
 
-	/** 가장 최근에 재생 시작한 태그(주로 Montage trigger). */
+	/** 가장 최근에 재생 시작한 태그(주로 Montage trigger). 디버그/조회용. */
 	FGameplayTag CurrentAnimTag;
 
-	/** CurrentAnimTag 재생이 시작된 VM tick. CrowdRenderer가 프레임 커서 계산에 사용. */
-	int64 CurrentAnimStartTick = 0;
+	// 주: AnimStartTick은 서버 VM이 PropertyId::AnimStartTick 으로 권위 기록 →
+	//     SV.AnimStartTick으로 전달되므로 클라 Fragment에는 별도로 저장하지 않는다.
 
 	// --- 움직임 ---
 	bool  bIsMoving   = false;
@@ -78,31 +78,32 @@ namespace HktSpriteAnimProcessor
 	 * 추가된 태그는 ApplyAnimTag, 제거된 태그는 RemoveAnimTag로 반영.
 	 */
 	HKTSPRITECORE_API void SyncFromTagContainer(const UHktSpriteAnimMappingAsset* Mapping,
-		FHktSpriteAnimFragment& Fragment, const FGameplayTagContainer& EntityTags, int64 CurrentTick);
+		FHktSpriteAnimFragment& Fragment, const FGameplayTagContainer& EntityTags);
 
 	/** Stance 전환. ActionId 치환은 ResolveRenderOutputs 시점에 적용. */
 	HKTSPRITECORE_API void SyncStance(FHktSpriteAnimFragment& Fragment, FGameplayTag NewStance);
 
-	/** 단일 AnimTag 재생 (PendingAnimTriggers 소비용). CurrentAnimStartTick을 CurrentTick으로 설정. */
-	HKTSPRITECORE_API void ApplyAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag, int64 CurrentTick);
+	/** 단일 AnimTag 재생 (PendingAnimTriggers 소비용). AnimLayerTags에 layer 매핑만 갱신. */
+	HKTSPRITECORE_API void ApplyAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag);
 
 	/** AnimTag 제거 — AnimLayerTags에서 해당 레이어 엔트리 정리. */
 	HKTSPRITECORE_API void RemoveAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag);
 
 	/**
-	 * 현재 상태로부터 CrowdRenderer에 전달할 ActionId/PlayRate/AnimStartTick을 결정.
+	 * 현재 상태로부터 CrowdRenderer에 전달할 ActionId/PlayRate를 결정.
 	 *
-	 * @param Mapping              매핑 테이블(null이면 DefaultActionId 상수로 대체).
-	 * @param Fragment             엔터티 상태.
-	 * @param FallbackAnimStartTick 서버 권위 AnimStartTick(SV.AnimStartTick). Montage/UpperBody가
-	 *                              활성이 아닐 때 이 값을 사용 → 네트워크 동기 유지.
-	 * @param OutActionId          최종 ActionId (PartTemplate.Actions 키).
-	 * @param OutPlayRate          최종 PlayRate (bIsCombat이면 AttackPlayRate 반영).
-	 * @param OutAnimStartTick     최종 AnimStartTick (프레임 커서 기준).
+	 * AnimStartTick은 클라에서 계산하지 않는다 — 서버 VM이 anim 변화 시점에
+	 * PropertyId::AnimStartTick 을 권위 기록하므로 호출자(CrowdHost)가 SV.AnimStartTick
+	 * 을 그대로 Renderer에 전달한다.
+	 *
+	 * @param Mapping     매핑 테이블(null이면 DefaultActionId 상수로 대체).
+	 * @param Fragment    엔터티 상태.
+	 * @param OutActionId 최종 ActionId (PartTemplate.Actions 키).
+	 * @param OutPlayRate 최종 PlayRate (bIsCombat이면 AttackPlayRate 반영).
 	 */
 	HKTSPRITECORE_API void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping,
-		const FHktSpriteAnimFragment& Fragment, int64 FallbackAnimStartTick,
-		FName& OutActionId, float& OutPlayRate, int64& OutAnimStartTick);
+		const FHktSpriteAnimFragment& Fragment,
+		FName& OutActionId, float& OutPlayRate);
 
 	/** 특정 레이어(Anim.FullBody 등)의 현재 태그 조회. */
 	HKTSPRITECORE_API FGameplayTag GetAnimLayerTag(const FHktSpriteAnimFragment& Fragment, const FGameplayTag& LayerTag);
