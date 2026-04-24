@@ -33,11 +33,9 @@ public:
 	// === Story JSON 로딩 ===
 
 	/**
-	 * 프로젝트 측 커스텀 Story JSON(*.json) 스캔 디렉토리. Project `Content/` 기준 상대 경로.
+	 * Story JSON(*.json)을 스캔할 디렉토리 목록. Project `Content/` 기준 상대 경로.
 	 * 각 디렉토리는 재귀적으로 스캔된다 (서브 폴더의 JSON도 로드).
-	 *
-	 * HktGameplay 플러그인 번들 Story(`<Plugin>/Content/Stories/`)는 항상 자동 로드되므로
-	 * 이 목록에 포함시킬 필요가 없다. 프로젝트에서 추가 Story를 정의할 때만 항목 추가.
+	 * 비어 있으면 Story JSON 로딩이 비활성화된다.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Story", meta = (DisplayName = "Story Directories", RelativeToGameContentDir, LongPackageName))
 	TArray<FDirectoryPath> StoryDirectories;

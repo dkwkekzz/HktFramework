@@ -25,8 +25,7 @@ public class HktStory : ModuleRules
 				"CoreUObject",
 				"GameplayTags",
 				"HktCore",
-				"HktRuntime",
-				"Projects"
+				"HktRuntime"
 			}
 		);
 			
