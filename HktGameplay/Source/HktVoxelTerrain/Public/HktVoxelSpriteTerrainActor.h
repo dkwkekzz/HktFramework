@@ -74,8 +74,17 @@ public:
 	float MaxScansPerSecond = 30.0f;
 
 private:
-	/** 가시 프러스텀 ∩ 로드된 chunk iterate → (X,Y) 컬럼별 top-most voxel 수집 */
+	/**
+	 * 가시 영역 내 로드된 chunk iterate → 청크당 top-most voxel 1개 수집.
+	 *
+	 * 모바일 orthographic 카메라 기준 가시 청크 ≈ 20개 전제. 청크당 1 particle이므로
+	 * GPU 부하는 Niagara에서 무시 가능. XY-평면 반경 체크로 frustum 근사하며 Z는 무시
+	 * (iso 고정 각도라 세부 frustum이 불필요).
+	 */
 	void ScanVisibleTopSurface(TArray<FHktVoxelSurfaceCell>& OutCells) const;
+
+	/** 스트리밍/가시성 기준점 — Pawn이 있으면 Pawn, 없으면 PC ViewPoint */
+	FVector GetViewCenterWorldPos() const;
 
 	/**
 	 * RenderCache resolver — 월드에 배치된 AHktVoxelTerrainActor의 공용 캐시를 참조한다.

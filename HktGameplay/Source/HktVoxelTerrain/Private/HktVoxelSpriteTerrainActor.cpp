@@ -4,6 +4,9 @@
 #include "HktVoxelTerrainActor.h"
 #include "HktVoxelTerrainNDI.h"
 #include "Data/HktVoxelRenderCache.h"
+#include "Data/HktVoxelTypes.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
@@ -74,14 +77,90 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 		return;
 	}
 
-	// TODO: 구현
-	//   1) 카메라 frustum을 월드 XY 평면에 투영 (IsometricOrtho: Yaw=45°, Pitch=-60°)
-	//   2) AABB padding = VisibilityPaddingUU
-	//   3) AABB와 겹치는 청크만 iterate — RenderCache에 chunk iterator/키 접근자 추가 필요
-	//   4) 청크당 (LocalX, LocalY) 컬럼 32x32 스캔 → Z 최대 non-empty voxel 1개만 수집
-	//   5) WorldPos = ChunkCoord * ChunkWorldSize + (Local + 0.5) * VoxelSize
-	//      팔레트/플래그 복사 후 OutCells.Add
-	//   6) dirty-only 증분 경로는 후속: ApplyVoxelDelta 훅으로 영향 컬럼만 재계산
+	// ResolveRenderCache 성공 경로에선 CachedSourceActor가 유효
+	const AHktVoxelTerrainActor* VoxelActor = CachedSourceActor.Get();
+	if (!VoxelActor)
+	{
+		return;
+	}
+
+	const float ChunkWorldSize = VoxelActor->GetChunkWorldSize();
+	const float VoxelSize = VoxelActor->VoxelSize;
+	if (ChunkWorldSize <= 0.f || VoxelSize <= 0.f)
+	{
+		return;
+	}
+
+	const FVector ViewCenter = GetViewCenterWorldPos();
+	const float IncludeRadiusSq = FMath::Square(VisibilityPaddingUU);
+
+	TArray<FIntVector> Coords;
+	Cache->GetAllChunkCoords(Coords);
+
+	OutCells.Reserve(Coords.Num());
+
+	// 청크당 top-most 1셀 — 중심 컬럼(16,16)에서 Z 내림차순 스캔
+	constexpr int32 ScanX = FHktVoxelChunk::SIZE / 2;
+	constexpr int32 ScanY = FHktVoxelChunk::SIZE / 2;
+
+	for (const FIntVector& Coord : Coords)
+	{
+		// 청크 AABB 중심 (XY만 사용 — iso 고정각이라 Z는 무시)
+		const FVector2D ChunkCenterXY(
+			(Coord.X + 0.5f) * ChunkWorldSize,
+			(Coord.Y + 0.5f) * ChunkWorldSize);
+
+		const float DX = ChunkCenterXY.X - ViewCenter.X;
+		const float DY = ChunkCenterXY.Y - ViewCenter.Y;
+		if (DX * DX + DY * DY > IncludeRadiusSq)
+		{
+			continue;
+		}
+
+		const FHktVoxelChunk* Chunk = Cache->GetChunk(Coord);
+		if (!Chunk)
+		{
+			continue;
+		}
+
+		for (int32 Z = FHktVoxelChunk::SIZE - 1; Z >= 0; --Z)
+		{
+			const FHktVoxel& V = Chunk->At(ScanX, ScanY, Z);
+			if (V.IsEmpty())
+			{
+				continue;
+			}
+
+			FHktVoxelSurfaceCell Cell;
+			Cell.WorldPos = FVector(
+				Coord.X * ChunkWorldSize + (ScanX + 0.5f) * VoxelSize,
+				Coord.Y * ChunkWorldSize + (ScanY + 0.5f) * VoxelSize,
+				Coord.Z * ChunkWorldSize + (Z + 0.5f) * VoxelSize);
+			Cell.TypeID = V.TypeID;
+			Cell.PaletteIndex = V.PaletteIndex;
+			Cell.Flags = V.Flags;
+			OutCells.Add(Cell);
+			break;
+		}
+	}
+}
+
+FVector AHktVoxelSpriteTerrainActor::GetViewCenterWorldPos() const
+{
+	if (const UWorld* World = GetWorld())
+	{
+		if (const APlayerController* PC = World->GetFirstPlayerController())
+		{
+			if (const APawn* Pawn = PC->GetPawn())
+			{
+				return Pawn->GetActorLocation();
+			}
+			FVector Pos; FRotator Rot;
+			PC->GetPlayerViewPoint(Pos, Rot);
+			return Pos;
+		}
+	}
+	return FVector::ZeroVector;
 }
 
 FHktVoxelRenderCache* AHktVoxelSpriteTerrainActor::ResolveRenderCache() const

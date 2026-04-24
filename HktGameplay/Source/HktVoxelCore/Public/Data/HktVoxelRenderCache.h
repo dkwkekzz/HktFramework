@@ -45,6 +45,9 @@ public:
 	/** dirty 청크 목록 반환 (메싱 스케줄러용) */
 	void GetDirtyChunks(TArray<FIntVector>& OutDirtyChunks) const;
 
+	/** 로드된 전체 청크 좌표 스냅샷 (read-only consumer — Sprite 테레인 등) */
+	void GetAllChunkCoords(TArray<FIntVector>& OutCoords) const;
+
 	/** 메싱/렌더링용 청크 접근 (raw 포인터 — 동일 프레임 내 유효) */
 	FHktVoxelChunk* GetChunk(const FIntVector& ChunkCoord);
 	const FHktVoxelChunk* GetChunk(const FIntVector& ChunkCoord) const;
