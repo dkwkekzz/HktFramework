@@ -7,10 +7,12 @@
 #include "GameplayTagContainer.h"
 #include "HktPresentationProcessor.h"
 #include "HktPresentationState.h"
+#include "HktSpriteAnimInstance.h"
 #include "HktSpriteTypes.h"
 #include "HktSpriteCrowdHost.generated.h"
 
 class UHktSpriteCrowdRenderer;
+class UHktSpriteAnimInstance;
 class UHktPresentationSubsystem;
 
 /**
@@ -47,15 +49,31 @@ public:
 
 	UHktSpriteCrowdRenderer* GetRenderer() const { return Renderer; }
 
-private:
-	/** AnimationView.AnimState 태그 → PartTemplate Action FName 변환 (캐시). */
-	FName ResolveActionId(const FGameplayTag& AnimTag);
+	/** 현재 사용 중인 AnimInstance 템플릿. BP에서 RegisterAnimMapping 호출용. */
+	UHktSpriteAnimInstance* GetAnimInstance() const { return AnimInstance; }
 
+private:
 	/** 등록 시도 — LocalPlayer 초기화가 늦으면 1초 후 재시도 (3회까지). */
 	void TryRegisterWithPresentation();
 
+	/** AnimInstance(템플릿) 생성 — BeginPlay와 Sync 양쪽에서 한 번만 실행. */
+	void EnsureAnimInstance();
+
+	/** Entity별 AnimState를 가져오거나 없으면 생성. */
+	FHktSpriteAnimState& GetOrCreateAnimState(FHktEntityId Id);
+
 	UPROPERTY(VisibleAnywhere, Category = "HKT|Sprite")
 	TObjectPtr<UHktSpriteCrowdRenderer> Renderer;
+
+	/**
+	 * Anim 의사결정 템플릿 클래스. UHktAnimInstance가 AnimBP로 스켈레탈별 커스터마이즈 되듯,
+	 * 프로젝트별로 BP 서브클래스를 만들어 AnimMappings를 구성한다.
+	 */
+	UPROPERTY(EditAnywhere, Category = "HKT|SpriteAnim")
+	TSubclassOf<UHktSpriteAnimInstance> AnimInstanceClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHktSpriteAnimInstance> AnimInstance;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UHktPresentationSubsystem> CachedPresentationSubsystem;
@@ -66,5 +84,6 @@ private:
 	float CameraYawDeg = 0.f;
 	float TickDurationMs = 1000.f / 30.f;
 
-	TMap<FGameplayTag, FName> ActionIdCache;
+	/** Entity별 sprite anim 런타임 상태(PrevAnimTags/AnimLayerTags 등). */
+	TMap<FHktEntityId, FHktSpriteAnimState> AnimStates;
 };
