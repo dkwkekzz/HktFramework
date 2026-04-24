@@ -9,6 +9,7 @@
 class UNiagaraComponent;
 class UNiagaraSystem;
 class UHktVoxelTerrainNDI;
+class AHktVoxelTerrainActor;
 class FHktVoxelRenderCache;
 
 /**
@@ -77,11 +78,13 @@ private:
 	void ScanVisibleTopSurface(TArray<FHktVoxelSurfaceCell>& OutCells) const;
 
 	/**
-	 * 기존 AHktVoxelTerrainActor가 소유한 RenderCache를 참조하기 위한 resolver.
-	 * 후속 커밋에서 3가지 경로 중 하나를 선택:
-	 *   1) World에서 AHktVoxelTerrainActor를 FindActorOfClass로 찾고 공용 접근자 노출
-	 *   2) 본 액터가 자체 RenderCache를 보유 (메모리 2배)
-	 *   3) FHktWorldView에 voxel 접근 API 확장 후 WorldView 경유
+	 * RenderCache resolver — 월드에 배치된 AHktVoxelTerrainActor의 공용 캐시를 참조한다.
+	 *
+	 * 설계 결정: Voxel Actor의 데이터 파이프라인(Loader/Generator/Cache)을 재사용하여
+	 * 메모리 복제와 중복 스트리밍을 피한다. Sprite-only 배포 시엔 Voxel Actor의
+	 * 렌더링(ChunkComponent)만 별도 토글로 끄고 데이터 피드는 유지한다.
+	 *
+	 * Voxel Actor가 월드에 없으면 nullptr을 반환하고 Tick은 no-op으로 동작.
 	 */
 	FHktVoxelRenderCache* ResolveRenderCache() const;
 
@@ -91,4 +94,7 @@ private:
 
 	/** 마지막 스캔 시각 (GetWorld()->GetTimeSeconds 기준) */
 	float LastScanTime = -FLT_MAX;
+
+	/** 월드 스캔 결과 캐시 — 매 Tick FindActorOfClass 재호출 방지 */
+	mutable TWeakObjectPtr<AHktVoxelTerrainActor> CachedSourceActor;
 };

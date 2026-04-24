@@ -1,7 +1,10 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVoxelSpriteTerrainActor.h"
+#include "HktVoxelTerrainActor.h"
 #include "HktVoxelTerrainNDI.h"
+#include "Data/HktVoxelRenderCache.h"
+#include "Kismet/GameplayStatics.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 
@@ -83,6 +86,27 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 
 FHktVoxelRenderCache* AHktVoxelSpriteTerrainActor::ResolveRenderCache() const
 {
-	// TODO: 3가지 경로 중 선택 (헤더 주석 참조)
-	return nullptr;
+	// 캐시된 핸들이 아직 유효하면 즉시 반환
+	if (AHktVoxelTerrainActor* Cached = CachedSourceActor.Get())
+	{
+		return Cached->GetTerrainCache();
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	// 월드에 1개 존재 가정 — 없으면 no-op. 레벨 스트리밍으로 뒤늦게 스폰돼도
+	// 다음 Tick에 재시도되므로 경고 로그는 생략.
+	AActor* Found = UGameplayStatics::GetActorOfClass(World, AHktVoxelTerrainActor::StaticClass());
+	AHktVoxelTerrainActor* VoxelActor = Cast<AHktVoxelTerrainActor>(Found);
+	if (!VoxelActor)
+	{
+		return nullptr;
+	}
+
+	CachedSourceActor = VoxelActor;
+	return VoxelActor->GetTerrainCache();
 }
