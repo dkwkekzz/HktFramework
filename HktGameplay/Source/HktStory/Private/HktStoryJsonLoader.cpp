@@ -64,16 +64,17 @@ int32 FHktStoryJsonLoader::LoadAllFromDirectory(const FString& DirectoryPath)
 		return 0;
 	}
 
+	// 재귀 스캔 — `Stories/` 등 서브 디렉토리의 JSON도 모두 수집
 	TArray<FString> JsonFiles;
-	IFileManager::Get().FindFiles(JsonFiles, *FPaths::Combine(DirectoryPath, TEXT("*.json")), true, false);
+	IFileManager::Get().FindFilesRecursive(JsonFiles, *DirectoryPath, TEXT("*.json"), /*Files=*/true, /*Directories=*/false);
 
 	int32 SuccessCount = 0;
 	int32 TotalCount = JsonFiles.Num();
 
-	for (const FString& FileName : JsonFiles)
+	for (const FString& FilePath : JsonFiles)
 	{
-		const FString FilePath = FPaths::Combine(DirectoryPath, FileName);
 		FHktStoryParseResult Result = LoadFromFile(FilePath);
+		const FString FileName = FPaths::GetCleanFilename(FilePath);
 
 		if (Result.bSuccess)
 		{
