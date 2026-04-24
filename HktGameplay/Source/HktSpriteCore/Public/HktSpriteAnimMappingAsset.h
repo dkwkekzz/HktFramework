@@ -50,6 +50,68 @@ struct HKTSPRITECORE_API FHktSpriteStanceMapping
 };
 
 // ============================================================================
+// FHktSpriteLocomotionMapping — Tag 없이 Movement Property로 추론하는 기본 액션
+//
+// 3D는 AnimBP의 BlendSpace가 bIsMoving/MoveSpeed/bIsFalling을 읽어 idle/walk/run
+// 을 자동 선택했다. 스프라이트는 BlendSpace가 없으므로 Processor가 직접 추론한다.
+//
+// 태그 우선순위(Montage > UpperBody > FullBody) 어느 레이어에도 활성 태그가
+// 없을 때 이 블록이 사용된다. Anim.FullBody.Jump 같은 명시 태그가 있으면
+// 이 블록은 건너뛰고 기존 태그 매핑이 우선.
+// ============================================================================
+
+USTRUCT(BlueprintType)
+struct HKTSPRITECORE_API FHktSpriteLocomotionMapping
+{
+	GENERATED_BODY()
+
+	/** true이면 tag가 없을 때 아래 필드로 ActionId 추론. false면 DefaultActionId만 사용. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim")
+	bool bEnabled = true;
+
+	/** 정지 상태 기본 액션. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim")
+	FName IdleActionId = TEXT("idle");
+
+	/** bIsMoving && MoveSpeed < RunSpeedThreshold 일 때. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim")
+	FName WalkActionId = TEXT("walk");
+
+	/** bIsMoving && MoveSpeed >= RunSpeedThreshold 일 때. 비우면 항상 Walk. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim")
+	FName RunActionId = TEXT("run");
+
+	/** bIsFalling(공중) 일 때. 비우면 locomotion 추론 생략하고 다음 폴백으로. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim")
+	FName FallActionId = NAME_None;
+
+	/** Walk↔Run 전환 속도 (cm/s). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim", meta = (ClampMin = "0.0"))
+	float RunSpeedThreshold = 300.f;
+
+	/**
+	 * true이면 PlayRate를 MoveSpeed/ReferenceMoveSpeed로 스케일. 보폭과 재생 속도를
+	 * 속도에 연동시켜 slow-walk/quick-walk 양쪽에서 자연스럽게 보이게 한다.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim")
+	bool bScalePlayRateByMoveSpeed = false;
+
+	/** bScalePlayRateByMoveSpeed=true일 때 PlayRate=1.0에 해당하는 기준 속도. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim",
+		meta = (ClampMin = "1.0", EditCondition = "bScalePlayRateByMoveSpeed"))
+	float ReferenceMoveSpeed = 200.f;
+
+	/** PlayRate 스케일 범위 상/하한 (너무 느리거나 빠른 속도에서 안정화). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim",
+		meta = (ClampMin = "0.01", EditCondition = "bScalePlayRateByMoveSpeed"))
+	float MinPlayRate = 0.25f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|SpriteAnim",
+		meta = (ClampMin = "0.01", EditCondition = "bScalePlayRateByMoveSpeed"))
+	float MaxPlayRate = 3.0f;
+};
+
+// ============================================================================
 // UHktSpriteAnimMappingAsset
 //
 // 스프라이트 anim 의사결정에 필요한 "매핑 테이블"만 담은 경량 DataAsset.
@@ -74,7 +136,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "HKT|SpriteAnim")
 	TMap<FGameplayTag, FHktSpriteStanceMapping> StanceMappings;
 
-	/** 어떤 애니 태그도 활성 상태가 아닐 때 사용할 기본 ActionId. */
+	/** Tag 없이 Movement Property로 추론하는 idle/walk/run/fall 매핑. */
+	UPROPERTY(EditDefaultsOnly, Category = "HKT|SpriteAnim")
+	FHktSpriteLocomotionMapping Locomotion;
+
+	/** Locomotion 추론으로도 결정 못 할 때 사용하는 최종 폴백. */
 	UPROPERTY(EditDefaultsOnly, Category = "HKT|SpriteAnim")
 	FName DefaultActionId = TEXT("idle");
 

@@ -192,14 +192,75 @@ void SyncStance(FHktSpriteAnimFragment& Fragment, FGameplayTag NewStance)
 // 결과 해석
 // ============================================================================
 
+namespace
+{
+	/**
+	 * Locomotion 추론: 태그가 없을 때 Fragment의 Movement/물리 상태로 idle/walk/run/fall 결정.
+	 * 성공 시 OutActionId/OutLocoPlayRate 채우고 true 반환.
+	 *
+	 * 우선순위: Fall > Run > Walk > Idle.
+	 * FallActionId가 비어있으면 공중이어도 추론하지 않고 다음 폴백으로 넘김(낙하 중에도
+	 * 다른 폴백 로직을 쓰고 싶은 프로젝트를 위함).
+	 */
+	bool ResolveLocomotion(const FHktSpriteLocomotionMapping& Loco, const FHktSpriteAnimFragment& Fragment,
+		FName& OutActionId, float& OutLocoPlayRate)
+	{
+		if (!Loco.bEnabled)
+		{
+			return false;
+		}
+
+		// 공중/낙하: 명시 태그(Anim.FullBody.Jump 등)가 없는데도 IsGrounded=0이면 fall로 폴백
+		if (Fragment.bIsFalling)
+		{
+			if (Loco.FallActionId.IsNone())
+			{
+				return false;
+			}
+			OutActionId     = Loco.FallActionId;
+			OutLocoPlayRate = 1.f;
+			return true;
+		}
+
+		if (Fragment.bIsMoving)
+		{
+			const bool bUseRun = !Loco.RunActionId.IsNone()
+				&& Fragment.MoveSpeed >= Loco.RunSpeedThreshold;
+			OutActionId = bUseRun ? Loco.RunActionId : Loco.WalkActionId;
+			if (OutActionId.IsNone())
+			{
+				return false;
+			}
+
+			OutLocoPlayRate = 1.f;
+			if (Loco.bScalePlayRateByMoveSpeed && Loco.ReferenceMoveSpeed > KINDA_SMALL_NUMBER)
+			{
+				const float Raw = Fragment.MoveSpeed / Loco.ReferenceMoveSpeed;
+				OutLocoPlayRate = FMath::Clamp(Raw, Loco.MinPlayRate, Loco.MaxPlayRate);
+			}
+			return true;
+		}
+
+		if (Loco.IdleActionId.IsNone())
+		{
+			return false;
+		}
+		OutActionId     = Loco.IdleActionId;
+		OutLocoPlayRate = 1.f;
+		return true;
+	}
+}
+
 void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktSpriteAnimFragment& Fragment,
 	int64 FallbackAnimStartTick, FName& OutActionId, float& OutPlayRate, int64& OutAnimStartTick)
 {
 	FName BaseActionId = NAME_None;
 	bool  bIsCombat    = false;
+	float LocoPlayRate = 1.f;      // Locomotion 추론이 산출한 속도 스케일 (1.0이 기본)
+	bool  bFromLocomotion = false; // Locomotion 경로로 해석되었는지
 	FGameplayTag ActiveLayer;
 
-	// 우선순위: Montage > UpperBody > FullBody > (기타 레이어 중 임의 하나) > Default
+	// 1~3. 우선순위: Montage > UpperBody > FullBody
 	static const FGameplayTag* kPriorityLayers[] = {
 		&HktGameplayTags::Anim_Montage,
 		&HktGameplayTags::Anim_UpperBody,
@@ -221,6 +282,7 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 		}
 	}
 
+	// 4. 기타 임의 Anim.* 레이어
 	if (!bResolved)
 	{
 		for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
@@ -235,6 +297,13 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 		}
 	}
 
+	// 5. Locomotion 추론 (Movement Property 기반). 3D BlendSpace를 대체.
+	if (!bResolved && Mapping)
+	{
+		bResolved = bFromLocomotion = ResolveLocomotion(Mapping->Locomotion, Fragment, BaseActionId, LocoPlayRate);
+	}
+
+	// 6. 최종 폴백
 	if (!bResolved)
 	{
 		BaseActionId = Mapping ? Mapping->DefaultActionId : FName(TEXT("idle"));
@@ -244,11 +313,26 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 
 	OutActionId = ApplyStanceOverride(Mapping, BaseActionId, Fragment.StanceTag);
 
-	// Combat 액션은 AttackPlayRate 반영
-	OutPlayRate = bIsCombat ? FMath::Max(Fragment.AttackPlayRate, 0.01f) : 1.0f;
+	// PlayRate 결정:
+	//   - Combat 태그 → AttackPlayRate
+	//   - Locomotion → MoveSpeed 기반 스케일(bScalePlayRateByMoveSpeed=true일 때만 != 1.0)
+	//   - 그 외 → 1.0
+	if (bIsCombat)
+	{
+		OutPlayRate = FMath::Max(Fragment.AttackPlayRate, 0.01f);
+	}
+	else if (bFromLocomotion)
+	{
+		OutPlayRate = FMath::Max(LocoPlayRate, 0.01f);
+	}
+	else
+	{
+		OutPlayRate = 1.0f;
+	}
 
-	// Montage/UpperBody 오버라이드가 활성이면 내부 CurrentAnimStartTick을 사용(트리거 시점 기준).
-	// FullBody 전환은 서버의 AnimStartTick을 권위값으로 사용(네트워크 동기 유지).
+	// AnimStartTick:
+	//   - Montage/UpperBody: 트리거 수신 시점(CurrentAnimStartTick) — 서버는 별도 프레임 권위값 없음
+	//   - FullBody / Locomotion / Default: 서버 권위 SV.AnimStartTick
 	const bool bUseLocalTick = ActiveLayer.IsValid()
 		&& (ActiveLayer.MatchesTagExact(HktGameplayTags::Anim_Montage)
 			|| ActiveLayer.MatchesTagExact(HktGameplayTags::Anim_UpperBody));
