@@ -2,12 +2,42 @@
 
 #include "HktVoxelTerrainNDI.h"
 #include "HktVoxelSpriteTerrainActor.h"
+#include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 
-void UHktVoxelTerrainNDI::PushSurfaceCells(TArrayView<const FHktVoxelSurfaceCell> Cells)
+void UHktVoxelTerrainNDI::PushSurfaceCells(
+	UNiagaraComponent* NiagaraComponent,
+	TArrayView<const FHktVoxelSurfaceCell> Cells,
+	const FParamNames& ParamNames)
 {
-	CachedCellCount.store(Cells.Num(), std::memory_order_release);
+	CachedCellCount = Cells.Num();
 
-	// TODO: ENQUEUE_RENDER_COMMAND로 RT에 structured buffer 업로드
-	//   - FRHICommandListImmediate에서 FRWBuffer 리사이즈 + UpdateBuffer
-	//   - 동일 프레임 내 중복 Push는 최신값으로 overwrite
+	if (!NiagaraComponent)
+	{
+		return;
+	}
+
+	const int32 Num = Cells.Num();
+	ScratchPositions.SetNumUninitialized(Num);
+	ScratchTypeIDs.SetNumUninitialized(Num);
+	ScratchPaletteIndices.SetNumUninitialized(Num);
+	ScratchFlags.SetNumUninitialized(Num);
+
+	for (int32 i = 0; i < Num; ++i)
+	{
+		const FHktVoxelSurfaceCell& C = Cells[i];
+		ScratchPositions[i] = C.WorldPos;
+		ScratchTypeIDs[i] = static_cast<int32>(C.TypeID);
+		ScratchPaletteIndices[i] = static_cast<int32>(C.PaletteIndex);
+		ScratchFlags[i] = static_cast<int32>(C.Flags);
+	}
+
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(
+		NiagaraComponent, ParamNames.Positions, ScratchPositions);
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
+		NiagaraComponent, ParamNames.TypeIDs, ScratchTypeIDs);
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
+		NiagaraComponent, ParamNames.PaletteIndices, ScratchPaletteIndices);
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(
+		NiagaraComponent, ParamNames.Flags, ScratchFlags);
 }

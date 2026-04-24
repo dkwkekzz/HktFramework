@@ -73,6 +73,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming")
 	float MaxScansPerSecond = 30.0f;
 
+	// === Niagara User Parameter 이름 매핑 ===
+	// Niagara System에서 Array DI 기반 User Parameter로 아래 이름을 노출해야 한다.
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Niagara")
+	FName ParamName_Positions = TEXT("Positions");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Niagara")
+	FName ParamName_TypeIDs = TEXT("TypeIDs");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Niagara")
+	FName ParamName_PaletteIndices = TEXT("PaletteIndices");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Niagara")
+	FName ParamName_Flags = TEXT("Flags");
+
 private:
 	/**
 	 * 가시 영역 내 로드된 chunk iterate → 청크당 top-most voxel 1개 수집.

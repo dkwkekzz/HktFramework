@@ -3,53 +3,62 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NiagaraDataInterface.h"
-#include <atomic>
+#include "UObject/Object.h"
 #include "HktVoxelTerrainNDI.generated.h"
 
 struct FHktVoxelSurfaceCell;
+class UNiagaraComponent;
 
 /**
- * UHktVoxelTerrainNDI — 스프라이트 테레인용 Niagara Data Interface.
+ * UHktVoxelTerrainNDI — Sprite 테레인용 Niagara Array DI 바인더.
  *
- * AHktVoxelSpriteTerrainActor가 매 프레임(혹은 dirty 시) 가시 영역 top-most
- * voxel 리스트를 PushSurfaceCells()로 업로드하면, Render Thread의 structured
- * buffer로 반영되어 Niagara Emitter가 GPU에서 직접 샘플링한다.
+ * AHktVoxelSpriteTerrainActor가 매 Tick 수집한 SurfaceCell 배열을 Niagara
+ * Component의 User Parameter Array Data Interface(들)로 분해·업로드한다.
  *
- * Niagara HLSL 측 함수(예정):
- *   GetSurfaceCellCount(out int Count)
- *   GetSurfaceCell(int Index, out float3 WorldPos,
- *                  out int TypeID, out int PaletteIndex, out int Flags)
+ * 본 클래스는 UNiagaraDataInterface 서브클래스가 "아니다" — 커스텀 DI는
+ * ~20 particle 규모에 과잉이라 내장 Array DI(Position/Int32)를 사용한다.
+ * 추후 voxel 단위(수만~수십만 particle)로 확장하거나 GPU Simulation Stage가
+ * 필요해지면 본 클래스를 커스텀 DI로 교체한다.
  *
- * 현재는 스캐폴딩 단계 — CPU-side API만 구현하고 UNiagaraDataInterface 가상
- * 함수/HLSL 바인딩은 후속 커밋에서 채운다.
+ * 전제 Niagara User Parameter 이름 (AHktVoxelSpriteTerrainActor에서 오버라이드):
+ *   - Positions     : Array Position DI  (TArray<FVector>)
+ *   - TypeIDs       : Array Int32 DI     (TArray<int32>)
+ *   - PaletteIndices: Array Int32 DI     (TArray<int32>)
+ *   - Flags         : Array Int32 DI     (TArray<int32>)
  */
-UCLASS(EditInlineNew, Category = "HktVoxel", meta = (DisplayName = "Hkt Voxel Terrain"))
-class HKTVOXELTERRAIN_API UHktVoxelTerrainNDI : public UNiagaraDataInterface
+UCLASS()
+class HKTVOXELTERRAIN_API UHktVoxelTerrainNDI : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	// --- CPU-side API ---
+	/** 기본 User Parameter 이름 세트 — Actor가 FName UPROPERTY로 오버라이드 가능 */
+	struct FParamNames
+	{
+		FName Positions = TEXT("Positions");
+		FName TypeIDs = TEXT("TypeIDs");
+		FName PaletteIndices = TEXT("PaletteIndices");
+		FName Flags = TEXT("Flags");
+	};
 
-	/** Surface 배열 업로드 — Game Thread에서 호출 */
-	void PushSurfaceCells(TArrayView<const FHktVoxelSurfaceCell> Cells);
+	/**
+	 * SurfaceCell 배열을 분해해 NiagaraComponent의 Array DI User Parameter에 업로드.
+	 * Cells가 비어있으면 모든 배열을 0-length로 설정하여 Emitter를 idle 상태로 둔다.
+	 */
+	void PushSurfaceCells(
+		UNiagaraComponent* NiagaraComponent,
+		TArrayView<const FHktVoxelSurfaceCell> Cells,
+		const FParamNames& ParamNames);
 
 	/** 최근 Push된 셀 수 (디버그/검증용) */
-	int32 GetCachedCellCount() const { return CachedCellCount.load(std::memory_order_acquire); }
-
-	// --- UNiagaraDataInterface overrides ---
-	// TODO: UE 5.6 NiagaraDataInterface API에 맞춰 다음 override를 채운다.
-	//   CanExecuteOnTarget / Equals / CopyToInternal
-	//   PerInstanceDataSize / InitPerInstanceData / DestroyPerInstanceData
-	//   GetFunctionsInternal / GetFunctionHLSL / GetParameterDefinitionHLSL
-	//   BuildShaderParameters / ProvideShaderParameters (RT 바인딩)
-	//   RT-side FRWBuffer structured buffer 래퍼
+	int32 GetCachedCellCount() const { return CachedCellCount; }
 
 private:
-	/** 최근 Push된 셀 수 — 스레드 안전 스냅샷 */
-	std::atomic<int32> CachedCellCount{0};
+	int32 CachedCellCount = 0;
 
-	// TODO: GT→RT 업로드 큐 (TArray<FHktVoxelSurfaceCell>를 RT로 enqueue)
-	// TODO: RT-side structured buffer (FRWBuffer) — PerInstanceData에 보관
+	/** Push 재사용용 스크래치 버퍼 — 매 Push마다 재할당 방지 */
+	TArray<FVector> ScratchPositions;
+	TArray<int32> ScratchTypeIDs;
+	TArray<int32> ScratchPaletteIndices;
+	TArray<int32> ScratchFlags;
 };

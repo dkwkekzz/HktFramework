@@ -30,8 +30,6 @@ void AHktVoxelSpriteTerrainActor::BeginPlay()
 	if (TerrainNiagaraSystem && NiagaraComponent)
 	{
 		NiagaraComponent->SetAsset(TerrainNiagaraSystem);
-		// TODO: Niagara User Parameter("TerrainNDI")에 TerrainNDI 바인딩
-		//   NiagaraComponent->SetVariableObject(TEXT("TerrainNDI"), TerrainNDI);
 		NiagaraComponent->Activate(true);
 	}
 }
@@ -63,7 +61,13 @@ void AHktVoxelSpriteTerrainActor::Tick(float DeltaSeconds)
 
 	if (TerrainNDI)
 	{
-		TerrainNDI->PushSurfaceCells(Cells);
+		UHktVoxelTerrainNDI::FParamNames Names;
+		Names.Positions = ParamName_Positions;
+		Names.TypeIDs = ParamName_TypeIDs;
+		Names.PaletteIndices = ParamName_PaletteIndices;
+		Names.Flags = ParamName_Flags;
+
+		TerrainNDI->PushSurfaceCells(NiagaraComponent, Cells, Names);
 	}
 }
 
