@@ -3,6 +3,18 @@
 #include "HktSpriteAnimProcessor.h"
 #include "HktSpriteCoreLog.h"
 #include "HktRuntimeTags.h"
+#include "HAL/IConsoleManager.h"
+
+// ============================================================================
+// 콘솔 변수
+// ============================================================================
+
+static TAutoConsoleVariable<float> CVarHktSpriteRunSpeedThreshold(
+	TEXT("hkt.Sprite.Loco.RunSpeedThreshold"),
+	300.f,
+	TEXT("Walk↔Run 전환 MoveSpeed 임계값 (cm/s). ")
+	TEXT("Sprite AnimProcessor가 Anim.* 태그 없을 때 Locomotion 폴백을 선택할 때 사용."),
+	ECVF_Default);
 
 namespace HktSpriteAnimProcessor
 {
@@ -150,7 +162,8 @@ namespace
 
 		if (Fragment.bIsMoving)
 		{
-			const bool bUseRun = Fragment.MoveSpeed >= kRunSpeedThreshold;
+			const float RunSpeedThreshold = CVarHktSpriteRunSpeedThreshold.GetValueOnGameThread();
+			const bool bUseRun = Fragment.MoveSpeed >= RunSpeedThreshold;
 			if (kScalePlayRateBySpeed && kReferenceMoveSpeed > KINDA_SMALL_NUMBER)
 			{
 				const float Raw = Fragment.MoveSpeed / kReferenceMoveSpeed;

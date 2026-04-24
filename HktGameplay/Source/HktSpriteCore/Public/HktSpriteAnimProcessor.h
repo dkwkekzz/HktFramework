@@ -69,9 +69,8 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 namespace HktSpriteAnimProcessor
 {
 	// --- Locomotion 튜닝 상수 ---
-	// 별도 데이터 에셋 없이 Processor 로컬 상수로 관리. 프로젝트별 조정이 필요하면
-	// AHktSpriteCrowdHost에 UPROPERTY를 도입해 주입하도록 확장.
-	constexpr float kRunSpeedThreshold   = 300.f; // cm/s — Walk↔Run 전환
+	// Walk↔Run 전환 임계는 콘솔 변수 `hkt.Sprite.Loco.RunSpeedThreshold`로 런타임 조정.
+	// 나머지 상수는 Processor 로컬 constexpr로 유지 — 필요 시 UPROPERTY나 CVar로 승격.
 	constexpr float kReferenceMoveSpeed  = 200.f; // cm/s — PlayRate=1.0 기준
 	constexpr float kMinLocoPlayRate     = 0.25f;
 	constexpr float kMaxLocoPlayRate     = 3.0f;
