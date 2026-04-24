@@ -28,6 +28,7 @@ public class HktVoxelTerrain : ModuleRules
 				"RenderCore",
 				"HktCore",
 				"HktVoxelCore",
+				"Niagara",
 			}
 		);
 
