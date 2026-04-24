@@ -64,8 +64,11 @@ public:
 	static FString McpBuildSpritePart(const FString& JsonSpec);
 
 	/**
-	 * 가장 간단한 경로: 이미 임포트된 UTexture2D 아틀라스와 단일 프레임 크기만으로
+	 * 가장 간단한 경로: 이미 임포트된 UTexture2D 아틀라스 경로와 단일 프레임 크기만으로
 	 * UHktSpritePartTemplate DataAsset을 생성.
+	 *
+	 * AtlasAssetPath: UE5 오브젝트 경로 문자열 (예: "/Game/Generated/Textures/T_Foo.T_Foo").
+	 *   내부에서 LoadObject<UTexture2D> 로 명시 로드한다 — 아직 메모리에 없어도 됨.
 	 *
 	 * 가정: 아틀라스는 "행=방향, 열=프레임" 그리드 형태로 패킹되어 있다.
 	 *   - cols = Atlas.Width  / FrameWidth  → FramesPerDirection
@@ -75,12 +78,25 @@ public:
 	 * 더 복잡한 구조가 필요하면 McpBuildSpritePart 사용.
 	 *
 	 * 반환: {"success":bool, "dataAssetPath":..., "error":...}
+	 *
+	 * === Python 사용 예시 ===
+	 *
+	 *   # UE5 에디터 Python 콘솔에서 바로
+	 *   import unreal
+	 *   result_json = unreal.HktSpriteGeneratorFunctionLibrary.editor_build_sprite_part_from_atlas(
+	 *       tag="Sprite.Part.Body.Knight",
+	 *       slot="Body",
+	 *       atlas_asset_path="/Game/Generated/Textures/T_Knight_Body_Atlas.T_Knight_Body_Atlas",
+	 *       frame_width=64,
+	 *       frame_height=64,
+	 *   )
+	 *   print(result_json)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorBuildSpritePartFromAtlas(
 		const FString& Tag,
 		const FString& Slot,
-		UTexture2D* Atlas,
+		const FString& AtlasAssetPath,
 		int32 FrameWidth,
 		int32 FrameHeight,
 		const FString& ActionId = TEXT("idle"),

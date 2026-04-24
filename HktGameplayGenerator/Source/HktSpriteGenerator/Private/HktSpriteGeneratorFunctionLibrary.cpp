@@ -1006,7 +1006,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
 // ============================================================================
 
 FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
-	const FString& Tag, const FString& Slot, UTexture2D* Atlas,
+	const FString& Tag, const FString& Slot, const FString& AtlasAssetPath,
 	int32 FrameWidth, int32 FrameHeight,
 	const FString& ActionId, const FString& OutputDir,
 	float PixelToWorld, float FrameDurationMs,
@@ -1018,9 +1018,15 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 	{
 		return MakeSpriteError(TEXT("Tag / Slot 필수"));
 	}
+	if (AtlasAssetPath.IsEmpty())
+	{
+		return MakeSpriteError(TEXT("AtlasAssetPath가 비어있습니다"));
+	}
+	UTexture2D* Atlas = LoadObject<UTexture2D>(nullptr, *AtlasAssetPath);
 	if (!Atlas)
 	{
-		return MakeSpriteError(TEXT("Atlas 텍스처가 null"));
+		return MakeSpriteError(FString::Printf(
+			TEXT("Atlas 텍스처 로드 실패: %s"), *AtlasAssetPath));
 	}
 	if (FrameWidth <= 0 || FrameHeight <= 0)
 	{
