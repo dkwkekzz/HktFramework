@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 
-class UHktSpriteAnimMappingAsset;
-
 // ============================================================================
 // FHktSpriteAnimFragment — 엔터티 한 명의 스프라이트 애니메이션 런타임 상태
 //
@@ -42,9 +40,6 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 	float AttackPlayRate = 1.f;
 	float CPRatio        = 0.f;
 
-	// --- Stance ---
-	FGameplayTag StanceTag;
-
 	// --- 델타 트래킹 ---
 	/** 이전 프레임의 Anim.* 태그 스냅샷(변화 감지용). */
 	FGameplayTagContainer PrevAnimTags;
@@ -56,32 +51,37 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 // 스프라이트 전용 애니메이션 의사결정 로직. 순수 C++ 네임스페이스 — UObject/vtable
 // 없음, GC root 없음, per-entity UObject 없음.
 //
-// UHktAnimInstance(UAnimInstance 상속, 3D 스켈레탈 전용)가 담당하던
-// "엔터티 상태 → 애니메이션 선택"을 HktSpriteCrowdRenderer용으로 재구현.
-//
 // 설계 원칙:
-//  - 입력: UHktSpriteAnimMappingAsset(공유 템플릿) + FHktSpriteAnimFragment(엔터티 상태).
-//  - 출력: (ActionId, PlayRate, AnimStartTick) — FHktSpriteEntityUpdate로 바로 전달.
-//  - 상태 소유 없음. 모든 함수가 static. `FHktActorProcessor`와 네이밍 결을 맞춤.
+//  - 입력: FHktSpriteAnimFragment(엔터티 상태) 만.
+//  - 출력: (AnimTag, PlayRate). 실제 Action 해석은 Renderer가 PartTemplate의
+//    FindActionOrFallback(Tag)로 처리하므로 Processor는 PartTemplate을 모른다.
+//  - 태그 중간 매핑 테이블 없음. Generator가 PartTemplate을 만들 때 각 액션의
+//    AnimTag를 직접 채운다.
 //
 // 태그 계층 우선순위(UHktAnimInstance와 동일):
 //  1. Anim.Montage.*   — 최상위. 원샷 액션(공격 발동 등).
 //  2. Anim.UpperBody.* — 상체 오버라이드 (공격/캐스트 지속).
 //  3. Anim.FullBody.*  — 기본 상태(Locomotion/Idle/Death).
-//  4. 없음             — UHktSpriteAnimMappingAsset::DefaultActionId.
+//  4. 없음             — Movement 상태로 Anim.FullBody.Locomotion.{Idle,Walk,Run,Fall}
+//                          합성 폴백.
 // ============================================================================
 
 namespace HktSpriteAnimProcessor
 {
+	// --- Locomotion 튜닝 상수 ---
+	// Walk↔Run 전환 임계는 콘솔 변수 `hkt.Sprite.Loco.RunSpeedThreshold`로 런타임 조정.
+	// 나머지 상수는 Processor 로컬 constexpr로 유지 — 필요 시 UPROPERTY나 CVar로 승격.
+	constexpr float kReferenceMoveSpeed  = 200.f; // cm/s — PlayRate=1.0 기준
+	constexpr float kMinLocoPlayRate     = 0.25f;
+	constexpr float kMaxLocoPlayRate     = 3.0f;
+	constexpr bool  kScalePlayRateBySpeed = false;
+
 	/**
 	 * Entity 태그 컨테이너에서 Anim.* 변화를 감지해 AnimLayerTags를 갱신한다.
 	 * 추가된 태그는 ApplyAnimTag, 제거된 태그는 RemoveAnimTag로 반영.
 	 */
-	HKTSPRITECORE_API void SyncFromTagContainer(const UHktSpriteAnimMappingAsset* Mapping,
-		FHktSpriteAnimFragment& Fragment, const FGameplayTagContainer& EntityTags);
-
-	/** Stance 전환. ActionId 치환은 ResolveRenderOutputs 시점에 적용. */
-	HKTSPRITECORE_API void SyncStance(FHktSpriteAnimFragment& Fragment, FGameplayTag NewStance);
+	HKTSPRITECORE_API void SyncFromTagContainer(FHktSpriteAnimFragment& Fragment,
+		const FGameplayTagContainer& EntityTags);
 
 	/** 단일 AnimTag 재생 (PendingAnimTriggers 소비용). AnimLayerTags에 layer 매핑만 갱신. */
 	HKTSPRITECORE_API void ApplyAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag);
@@ -90,20 +90,19 @@ namespace HktSpriteAnimProcessor
 	HKTSPRITECORE_API void RemoveAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag);
 
 	/**
-	 * 현재 상태로부터 CrowdRenderer에 전달할 ActionId/PlayRate를 결정.
+	 * 현재 상태로부터 Renderer에 전달할 AnimTag/PlayRate를 결정.
 	 *
 	 * AnimStartTick은 클라에서 계산하지 않는다 — 서버 VM이 anim 변화 시점에
 	 * PropertyId::AnimStartTick 을 권위 기록하므로 호출자(CrowdHost)가 SV.AnimStartTick
 	 * 을 그대로 Renderer에 전달한다.
 	 *
-	 * @param Mapping     매핑 테이블(null이면 DefaultActionId 상수로 대체).
 	 * @param Fragment    엔터티 상태.
-	 * @param OutActionId 최종 ActionId (PartTemplate.Actions 키).
-	 * @param OutPlayRate 최종 PlayRate (bIsCombat이면 AttackPlayRate 반영).
+	 * @param OutAnimTag  최종 AnimTag (PartTemplate의 FindAction 키).
+	 * @param OutPlayRate Montage/UpperBody이면 AttackPlayRate, Locomotion이면
+	 *                    선택적 MoveSpeed 스케일, 그 외 1.0.
 	 */
-	HKTSPRITECORE_API void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping,
-		const FHktSpriteAnimFragment& Fragment,
-		FName& OutActionId, float& OutPlayRate);
+	HKTSPRITECORE_API void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
+		FGameplayTag& OutAnimTag, float& OutPlayRate);
 
 	/** 특정 레이어(Anim.FullBody 등)의 현재 태그 조회. */
 	HKTSPRITECORE_API FGameplayTag GetAnimLayerTag(const FHktSpriteAnimFragment& Fragment, const FGameplayTag& LayerTag);

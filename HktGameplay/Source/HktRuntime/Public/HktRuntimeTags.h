@@ -18,4 +18,10 @@ namespace HktGameplayTags
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_FullBody);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_Montage);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_UpperBody);
+
+    // --- Locomotion Fallback Tags (sprite Processor가 tag 없을 때 합성) ---
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_FullBody_Locomotion_Idle);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_FullBody_Locomotion_Walk);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_FullBody_Locomotion_Run);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Anim_FullBody_Locomotion_Fall);
 }

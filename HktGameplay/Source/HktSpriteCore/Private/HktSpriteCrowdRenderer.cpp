@@ -413,13 +413,7 @@ void UHktSpriteCrowdRenderer::ApplySlotInstanceTransform(FHktEntityId Id, EHktSp
 {
 	if (!Template) return;
 
-	const FHktSpriteAction* Action = Template->FindAction(Update.ActionId);
-	if (!Action)
-	{
-		// idle 폴백
-		static const FName NameIdle = "idle";
-		Action = Template->FindAction(NameIdle);
-	}
+	const FHktSpriteAction* Action = Template->FindActionOrFallback(Update.AnimTag);
 	if (!Action) return;
 
 	FHktSpriteFrameResolveInput In;
@@ -448,7 +442,7 @@ void UHktSpriteCrowdRenderer::ApplySlotInstanceTransform(FHktEntityId Id, EHktSp
 	if (Slot != EHktSpritePartSlot::Body)
 	{
 		// Body 파츠의 동일 프레임에서 이 슬롯 앵커를 찾는다 — 단순화 전략:
-		// 엔터티의 BodyPartTag → Template → 동일 ActionId → 같은 FrameIndex.
+		// 엔터티의 BodyPartTag → Template → 동일 AnimTag → 같은 FrameIndex.
 		const FEntityState* State = Entities.Find(Id);
 		if (State && State->Loadout.BodyPart.IsValid())
 		{
@@ -456,7 +450,7 @@ void UHktSpriteCrowdRenderer::ApplySlotInstanceTransform(FHktEntityId Id, EHktSp
 			{
 				if (UHktSpritePartTemplate* BT = BodyTmpl->Get())
 				{
-					if (const FHktSpriteAction* BodyAction = BT->FindAction(Update.ActionId))
+					if (const FHktSpriteAction* BodyAction = BT->FindActionOrFallback(Update.AnimTag))
 					{
 						const int32 BodyNumFrames = BodyAction->GetNumFrames(DirIdx);
 						if (DirIdx >= 0 && DirIdx < BodyAction->NumDirections && BodyNumFrames > 0)

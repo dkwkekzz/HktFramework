@@ -85,7 +85,7 @@ void AHktSpriteTestActor::Tick(float DeltaSeconds)
 	FHktSpriteEntityUpdate Update;
 	Update.WorldLocation  = GetActorLocation();
 	Update.Facing         = Facing;
-	Update.ActionId       = ActionId;
+	Update.AnimTag        = AnimTag;
 	Update.AnimStartTick  = AnimStartTick;
 	Update.NowTick        = NowTick;
 	Update.TickDurationMs = TickDurationMs;

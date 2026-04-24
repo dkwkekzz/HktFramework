@@ -26,8 +26,8 @@ struct FHktSpriteEntityUpdate
 	/** 카메라 기준 8방향 */
 	EHktSpriteFacing Facing = EHktSpriteFacing::S;
 
-	/** 현재 재생 중 액션의 FName (PartTemplate.Actions 키와 대응) */
-	FName ActionId;
+	/** 현재 재생 중 anim tag (PartTemplate::FindAction 키와 대응). */
+	FGameplayTag AnimTag;
 
 	/** 해당 AnimState가 시작된 VM tick */
 	int64 AnimStartTick = 0;

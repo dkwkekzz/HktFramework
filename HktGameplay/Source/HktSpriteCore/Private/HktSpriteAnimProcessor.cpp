@@ -1,9 +1,20 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteAnimProcessor.h"
-#include "HktSpriteAnimMappingAsset.h"
 #include "HktSpriteCoreLog.h"
 #include "HktRuntimeTags.h"
+#include "HAL/IConsoleManager.h"
+
+// ============================================================================
+// 콘솔 변수
+// ============================================================================
+
+static TAutoConsoleVariable<float> CVarHktSpriteRunSpeedThreshold(
+	TEXT("hkt.Sprite.Loco.RunSpeedThreshold"),
+	300.f,
+	TEXT("Walk↔Run 전환 MoveSpeed 임계값 (cm/s). ")
+	TEXT("Sprite AnimProcessor가 Anim.* 태그 없을 때 Locomotion 폴백을 선택할 때 사용."),
+	ECVF_Default);
 
 namespace HktSpriteAnimProcessor
 {
@@ -38,58 +49,10 @@ namespace
 		return FGameplayTag::RequestGameplayTag(FName(*ParentStr), false);
 	}
 
-	FName TagLeafToActionId(const FGameplayTag& Tag)
+	bool IsCombatLayerTag(const FGameplayTag& Tag)
 	{
-		if (!Tag.IsValid()) return NAME_None;
-		const FString TagStr = Tag.ToString();
-		int32 LastDot = INDEX_NONE;
-		TagStr.FindLastChar(TEXT('.'), LastDot);
-		const FString Leaf = (LastDot != INDEX_NONE && LastDot + 1 < TagStr.Len())
-			? TagStr.RightChop(LastDot + 1)
-			: TagStr;
-		return FName(*Leaf.ToLower());
-	}
-
-	/**
-	 * 주어진 태그를 매핑 테이블에서 찾거나, 없으면 leaf-fallback으로 ActionId 결정.
-	 * 성공 시 true, OutActionId/bOutIsCombat 채움.
-	 */
-	bool ResolveTagToAction(const UHktSpriteAnimMappingAsset* Mapping, const FGameplayTag& Tag,
-		FName& OutActionId, bool& bOutIsCombat)
-	{
-		if (Mapping)
-		{
-			if (const FHktSpriteAnimMappingEntry* Entry = Mapping->FindMapping(Tag))
-			{
-				OutActionId  = Entry->ActionId;
-				bOutIsCombat = Entry->bIsCombat;
-				return OutActionId != NAME_None;
-			}
-		}
-		const bool bFallback = !Mapping || Mapping->bUseTagLeafFallback;
-		if (bFallback)
-		{
-			OutActionId  = TagLeafToActionId(Tag);
-			bOutIsCombat = false;
-			return OutActionId != NAME_None;
-		}
-		return false;
-	}
-
-	FName ApplyStanceOverride(const UHktSpriteAnimMappingAsset* Mapping, FName BaseActionId, const FGameplayTag& StanceTag)
-	{
-		if (!Mapping || BaseActionId.IsNone() || !StanceTag.IsValid())
-		{
-			return BaseActionId;
-		}
-		if (const FHktSpriteStanceMapping* StanceMap = Mapping->StanceMappings.Find(StanceTag))
-		{
-			if (const FName* Override = StanceMap->ActionIdOverrides.Find(BaseActionId))
-			{
-				return *Override;
-			}
-		}
-		return BaseActionId;
+		return Tag.MatchesTag(HktGameplayTags::Anim_Montage)
+			|| Tag.MatchesTag(HktGameplayTags::Anim_UpperBody);
 	}
 } // namespace
 
@@ -97,7 +60,7 @@ namespace
 // 상태 갱신
 // ============================================================================
 
-void SyncFromTagContainer(const UHktSpriteAnimMappingAsset* /*Mapping*/, FHktSpriteAnimFragment& Fragment,
+void SyncFromTagContainer(FHktSpriteAnimFragment& Fragment,
 	const FGameplayTagContainer& EntityTags)
 {
 	// Entity 태그 중 Anim.* 계열만 필터링 (UHktAnimInstance와 동일)
@@ -176,15 +139,6 @@ void RemoveAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag
 	}
 }
 
-void SyncStance(FHktSpriteAnimFragment& Fragment, FGameplayTag NewStance)
-{
-	if (Fragment.StanceTag == NewStance)
-	{
-		return;
-	}
-	Fragment.StanceTag = NewStance;
-}
-
 // ============================================================================
 // 결과 해석
 // ============================================================================
@@ -192,69 +146,44 @@ void SyncStance(FHktSpriteAnimFragment& Fragment, FGameplayTag NewStance)
 namespace
 {
 	/**
-	 * Locomotion 추론: 태그가 없을 때 Fragment의 Movement/물리 상태로 idle/walk/run/fall 결정.
-	 * 성공 시 OutActionId/OutLocoPlayRate 채우고 true 반환.
+	 * Locomotion 폴백: 태그가 없을 때 Fragment의 Movement/물리 상태로 idle/walk/run/fall을
+	 * Anim.FullBody.Locomotion.* 태그로 합성.
 	 *
 	 * 우선순위: Fall > Run > Walk > Idle.
-	 * FallActionId가 비어있으면 공중이어도 추론하지 않고 다음 폴백으로 넘김(낙하 중에도
-	 * 다른 폴백 로직을 쓰고 싶은 프로젝트를 위함).
 	 */
-	bool ResolveLocomotion(const FHktSpriteLocomotionMapping& Loco, const FHktSpriteAnimFragment& Fragment,
-		FName& OutActionId, float& OutLocoPlayRate)
+	FGameplayTag ResolveLocomotionTag(const FHktSpriteAnimFragment& Fragment, float& OutLocoPlayRate)
 	{
-		if (!Loco.bEnabled)
-		{
-			return false;
-		}
+		OutLocoPlayRate = 1.f;
 
-		// 공중/낙하: 명시 태그(Anim.FullBody.Jump 등)가 없는데도 IsGrounded=0이면 fall로 폴백
 		if (Fragment.bIsFalling)
 		{
-			if (Loco.FallActionId.IsNone())
-			{
-				return false;
-			}
-			OutActionId     = Loco.FallActionId;
-			OutLocoPlayRate = 1.f;
-			return true;
+			return HktGameplayTags::Anim_FullBody_Locomotion_Fall;
 		}
 
 		if (Fragment.bIsMoving)
 		{
-			const bool bUseRun = !Loco.RunActionId.IsNone()
-				&& Fragment.MoveSpeed >= Loco.RunSpeedThreshold;
-			OutActionId = bUseRun ? Loco.RunActionId : Loco.WalkActionId;
-			if (OutActionId.IsNone())
+			const float RunSpeedThreshold = CVarHktSpriteRunSpeedThreshold.GetValueOnGameThread();
+			const bool bUseRun = Fragment.MoveSpeed >= RunSpeedThreshold;
+			if (kScalePlayRateBySpeed && kReferenceMoveSpeed > KINDA_SMALL_NUMBER)
 			{
-				return false;
+				const float Raw = Fragment.MoveSpeed / kReferenceMoveSpeed;
+				OutLocoPlayRate = FMath::Clamp(Raw, kMinLocoPlayRate, kMaxLocoPlayRate);
 			}
-
-			OutLocoPlayRate = 1.f;
-			if (Loco.bScalePlayRateByMoveSpeed && Loco.ReferenceMoveSpeed > KINDA_SMALL_NUMBER)
-			{
-				const float Raw = Fragment.MoveSpeed / Loco.ReferenceMoveSpeed;
-				OutLocoPlayRate = FMath::Clamp(Raw, Loco.MinPlayRate, Loco.MaxPlayRate);
-			}
-			return true;
+			return bUseRun
+				? HktGameplayTags::Anim_FullBody_Locomotion_Run
+				: HktGameplayTags::Anim_FullBody_Locomotion_Walk;
 		}
 
-		if (Loco.IdleActionId.IsNone())
-		{
-			return false;
-		}
-		OutActionId     = Loco.IdleActionId;
-		OutLocoPlayRate = 1.f;
-		return true;
+		return HktGameplayTags::Anim_FullBody_Locomotion_Idle;
 	}
 }
 
-void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktSpriteAnimFragment& Fragment,
-	FName& OutActionId, float& OutPlayRate)
+void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
+	FGameplayTag& OutAnimTag, float& OutPlayRate)
 {
-	FName BaseActionId = NAME_None;
-	bool  bIsCombat    = false;
-	float LocoPlayRate = 1.f;      // Locomotion 추론이 산출한 속도 스케일 (1.0이 기본)
-	bool  bFromLocomotion = false; // Locomotion 경로로 해석되었는지
+	FGameplayTag ResolvedTag;
+	float LocoPlayRate = 1.f;
+	bool  bFromLocomotion = false;
 
 	// 1~3. 우선순위: Montage > UpperBody > FullBody
 	static const FGameplayTag* kPriorityLayers[] = {
@@ -263,54 +192,46 @@ void ResolveRenderOutputs(const UHktSpriteAnimMappingAsset* Mapping, const FHktS
 		&HktGameplayTags::Anim_FullBody,
 	};
 
-	bool bResolved = false;
 	for (const FGameplayTag* LayerPtr : kPriorityLayers)
 	{
 		if (!LayerPtr) continue;
 		if (const FGameplayTag* Found = Fragment.AnimLayerTags.Find(*LayerPtr))
 		{
-			if (Found->IsValid() && ResolveTagToAction(Mapping, *Found, BaseActionId, bIsCombat))
+			if (Found->IsValid())
 			{
-				bResolved = true;
+				ResolvedTag = *Found;
 				break;
 			}
 		}
 	}
 
-	// 4. 기타 임의 Anim.* 레이어
-	if (!bResolved)
+	// 4. 기타 임의 Anim.* 레이어 (위 3개가 아니지만 존재하는 경우)
+	if (!ResolvedTag.IsValid())
 	{
 		for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
 		{
-			if (!Pair.Value.IsValid()) continue;
-			if (ResolveTagToAction(Mapping, Pair.Value, BaseActionId, bIsCombat))
+			if (Pair.Value.IsValid())
 			{
-				bResolved = true;
+				ResolvedTag = Pair.Value;
 				break;
 			}
 		}
 	}
 
-	// 5. Locomotion 추론 (Movement Property 기반). 3D BlendSpace를 대체.
-	if (!bResolved && Mapping)
+	// 5. Locomotion 폴백 (Movement Property → Anim.FullBody.Locomotion.* 합성)
+	if (!ResolvedTag.IsValid())
 	{
-		bResolved = bFromLocomotion = ResolveLocomotion(Mapping->Locomotion, Fragment, BaseActionId, LocoPlayRate);
+		ResolvedTag = ResolveLocomotionTag(Fragment, LocoPlayRate);
+		bFromLocomotion = ResolvedTag.IsValid();
 	}
 
-	// 6. 최종 폴백
-	if (!bResolved)
-	{
-		BaseActionId = Mapping ? Mapping->DefaultActionId : FName(TEXT("idle"));
-		bIsCombat    = false;
-	}
-
-	OutActionId = ApplyStanceOverride(Mapping, BaseActionId, Fragment.StanceTag);
+	OutAnimTag = ResolvedTag;
 
 	// PlayRate 결정:
-	//   - Combat 태그 → AttackPlayRate
-	//   - Locomotion → MoveSpeed 기반 스케일(bScalePlayRateByMoveSpeed=true일 때만 != 1.0)
+	//   - Combat 계열(Montage/UpperBody) → AttackPlayRate
+	//   - Locomotion 합성 → MoveSpeed 기반 스케일(kScalePlayRateBySpeed=true일 때만 != 1.0)
 	//   - 그 외 → 1.0
-	if (bIsCombat)
+	if (IsCombatLayerTag(ResolvedTag))
 	{
 		OutPlayRate = FMath::Max(Fragment.AttackPlayRate, 0.01f);
 	}

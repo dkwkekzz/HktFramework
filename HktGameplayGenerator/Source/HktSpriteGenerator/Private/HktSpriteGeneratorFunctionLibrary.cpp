@@ -79,6 +79,27 @@ namespace HktSpriteGen
 		return In.Replace(TEXT("."), TEXT("_"));
 	}
 
+	/**
+	 * Directory/video 파이프라인이 파일명에서 뽑아낸 action 문자열("idle","walk",...)을
+	 * 표준 anim tag로 승격. 알려진 locomotion 이름은 Anim.FullBody.Locomotion.*로,
+	 * 그 외는 Anim.FullBody.<Capitalized>로 맵핑.
+	 */
+	static FString ActionNameToAnimTagString(const FString& ActionName)
+	{
+		const FString Lower = ActionName.ToLower();
+		if (Lower == TEXT("idle")) return TEXT("Anim.FullBody.Locomotion.Idle");
+		if (Lower == TEXT("walk")) return TEXT("Anim.FullBody.Locomotion.Walk");
+		if (Lower == TEXT("run"))  return TEXT("Anim.FullBody.Locomotion.Run");
+		if (Lower == TEXT("fall")) return TEXT("Anim.FullBody.Locomotion.Fall");
+
+		FString Capitalized = Lower;
+		if (Capitalized.Len() > 0)
+		{
+			Capitalized[0] = FChar::ToUpper(Capitalized[0]);
+		}
+		return FString::Printf(TEXT("Anim.FullBody.%s"), *Capitalized);
+	}
+
 	static UTexture2D* ImportAtlasTexture(const FString& PngPath, const FString& PackagePath, const FString& AssetName)
 	{
 		TArray<uint8> FileData;
@@ -263,7 +284,19 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 			if (!A.IsValid()) continue;
 
 			FHktSpriteAction Action;
-			Action.ActionId = FName(*A->GetStringField(TEXT("id")));
+
+			FString AnimTagStr;
+			if (!A->TryGetStringField(TEXT("animTag"), AnimTagStr) || AnimTagStr.IsEmpty())
+			{
+				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("액션에 animTag 없음 (skipped)"));
+				continue;
+			}
+			Action.AnimTag = EnsureTag(AnimTagStr);
+			if (!Action.AnimTag.IsValid())
+			{
+				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("animTag 등록 실패: %s (skipped)"), *AnimTagStr);
+				continue;
+			}
 
 			int32 NumDir = 1, FramesPerDir = 1, StartIdx = 0;
 			A->TryGetNumberField(TEXT("numDirections"),      NumDir);
@@ -291,7 +324,7 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 			FString OnComplete;
 			if (A->TryGetStringField(TEXT("onCompleteTransition"), OnComplete) && !OnComplete.IsEmpty())
 			{
-				Action.OnCompleteTransition = FName(*OnComplete);
+				Action.OnCompleteTransition = EnsureTag(OnComplete);
 			}
 
 			const TArray<TSharedPtr<FJsonValue>>* PerFrame = nullptr;
@@ -313,7 +346,31 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 				}
 			}
 
-			Tmpl->Actions.Add(Action.ActionId, Action);
+			Tmpl->Actions.Add(Action);
+		}
+	}
+
+	// --- DefaultAnimTag 설정 ---
+	//   명시 필드 우선, 없으면 Anim.FullBody.Locomotion.Idle을 찾고, 그것도 없으면 Actions[0].
+	FString DefaultTagStr;
+	if (Root->TryGetStringField(TEXT("defaultAnimTag"), DefaultTagStr) && !DefaultTagStr.IsEmpty())
+	{
+		Tmpl->DefaultAnimTag = EnsureTag(DefaultTagStr);
+	}
+	else
+	{
+		const FGameplayTag IdleTag = EnsureTag(TEXT("Anim.FullBody.Locomotion.Idle"));
+		for (const FHktSpriteAction& Act : Tmpl->Actions)
+		{
+			if (Act.AnimTag.MatchesTagExact(IdleTag))
+			{
+				Tmpl->DefaultAnimTag = IdleTag;
+				break;
+			}
+		}
+		if (!Tmpl->DefaultAnimTag.IsValid() && Tmpl->Actions.Num() > 0)
+		{
+			Tmpl->DefaultAnimTag = Tmpl->Actions[0].AnimTag;
 		}
 	}
 
@@ -702,7 +759,7 @@ namespace HktSpriteGen
 			if (MaxFrames == 0) continue;
 
 			W->WriteObjectStart();
-			W->WriteValue(TEXT("id"), ActionId);
+			W->WriteValue(TEXT("animTag"), ActionNameToAnimTagString(ActionId));
 			W->WriteValue(TEXT("numDirections"),      kNumDirections);
 			W->WriteValue(TEXT("framesPerDirection"), MaxFrames);
 			W->WriteValue(TEXT("startAtlasIndex"),    0);
@@ -1008,7 +1065,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
 FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 	const FString& Tag, const FString& Slot, const FString& AtlasAssetPath,
 	int32 FrameWidth, int32 FrameHeight,
-	const FString& ActionId, const FString& OutputDir,
+	const FString& AnimTagStr, const FString& OutputDir,
 	float PixelToWorld, float FrameDurationMs,
 	bool bLooping, bool bMirrorWestFromEast)
 {
@@ -1070,9 +1127,13 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 	Tmpl->AtlasCellSize = FVector2f(static_cast<float>(FrameWidth), static_cast<float>(FrameHeight));
 	Tmpl->PixelToWorld  = PixelToWorld;
 
-	// 단일 액션(기본 idle) — 그리드 기본 수식만으로 완결.
+	// 단일 액션 — 그리드 기본 수식만으로 완결.
+	const FString ResolvedAnimTag = AnimTagStr.IsEmpty()
+		? TEXT("Anim.FullBody.Locomotion.Idle")
+		: AnimTagStr;
+
 	FHktSpriteAction Action;
-	Action.ActionId            = ActionId.IsEmpty() ? FName(TEXT("idle")) : FName(*ActionId);
+	Action.AnimTag             = EnsureTag(ResolvedAnimTag);
 	Action.NumDirections       = NumDir;
 	Action.FramesPerDirection  = FMath::Max(Cols, 1);
 	Action.StartAtlasIndex     = 0;
@@ -1082,7 +1143,8 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 	Action.bLooping            = bLooping;
 	Action.bMirrorWestFromEast = bMirrorWestFromEast;
 
-	Tmpl->Actions.Add(Action.ActionId, Action);
+	Tmpl->Actions.Add(Action);
+	Tmpl->DefaultAnimTag = Action.AnimTag;
 
 	// 저장
 	Tmpl->MarkPackageDirty();
@@ -1095,8 +1157,9 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 	}
 	FAssetRegistryModule::AssetCreated(Tmpl);
 
-	UE_LOG(LogHktSpriteGenerator, Log, TEXT("AtlasGrid DataAsset: Tag=%s Atlas=%dx%d Cell=%dx%d Cols=%d Rows=%d → NumDir=%d Frames=%d"),
-		*Tag, AtlasW, AtlasH, FrameWidth, FrameHeight, Cols, Rows, NumDir, Action.FramesPerDirection);
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("AtlasGrid DataAsset: Tag=%s Atlas=%dx%d Cell=%dx%d Cols=%d Rows=%d → NumDir=%d Frames=%d AnimTag=%s"),
+		*Tag, AtlasW, AtlasH, FrameWidth, FrameHeight, Cols, Rows, NumDir, Action.FramesPerDirection,
+		*Action.AnimTag.ToString());
 
 	return MakeResult(true, {
 		{ TEXT("tag"),           Tag },

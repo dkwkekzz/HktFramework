@@ -39,24 +39,28 @@ public:
 	 *   "cellH": 64,
 	 *   "pixelToWorld": 2.0,
 	 *   "outputDir": "/Game/Generated/Sprites",
+	 *   "defaultAnimTag": "Anim.FullBody.Locomotion.Idle",    // optional, 폴백 액션
 	 *   "actions": [
 	 *     {
-	 *       "id": "idle",
-	 *       "numDirections": 8,                 // 1 | 5 | 8
+	 *       "animTag": "Anim.FullBody.Locomotion.Idle",       // PartTemplate.Actions 키
+	 *       "numDirections": 8,                               // 1 | 5 | 8
 	 *       "framesPerDirection": 4,
 	 *       "startAtlasIndex": 0,
 	 *       "pivotX": 32, "pivotY": 64,
 	 *       "frameDurationMs": 100,
 	 *       "looping": true,
 	 *       "mirrorWestFromEast": true,
-	 *       "onCompleteTransition": "",
-	 *       "perFrameDurationMs": [100, 80, 100, 120],   // optional
-	 *       "frameOverrides": [                          // optional
+	 *       "onCompleteTransition": "",                       // anim tag or 빈 문자열
+	 *       "perFrameDurationMs": [100, 80, 100, 120],        // optional
+	 *       "frameOverrides": [                               // optional
 	 *         { "dir": 0, "frame": 3, "atlasIndex": 42 }
 	 *       ]
 	 *     }
 	 *   ]
 	 * }
+	 *
+	 * 각 action의 animTag는 필수. 파이썬 MCP 클라이언트는 파일명(action id 문자열)을
+	 * _action_name_to_anim_tag 로 승격해서 전송한다.
 	 *
 	 * 반환: {"success":bool, "dataAssetPath":..., "atlasAssetPath":..., "error":...}
 	 */
@@ -74,7 +78,8 @@ public:
 	 *   - cols = Atlas.Width  / FrameWidth  → FramesPerDirection
 	 *   - rows = Atlas.Height / FrameHeight → NumDirections (1/5/8로 양자화)
 	 *
-	 * 단일 "idle" 액션을 StartAtlasIndex=0, Pivot=(FrameWidth/2, FrameHeight)로 생성한다.
+	 * 단일 액션(AnimTag)을 StartAtlasIndex=0, Pivot=(FrameWidth/2, FrameHeight)로 생성한다.
+	 * AnimTag를 비우면 "Anim.FullBody.Locomotion.Idle"로 기본 설정.
 	 * 더 복잡한 구조가 필요하면 McpBuildSpritePart 사용.
 	 *
 	 * 반환: {"success":bool, "dataAssetPath":..., "error":...}
@@ -99,7 +104,7 @@ public:
 		const FString& AtlasAssetPath,
 		int32 FrameWidth,
 		int32 FrameHeight,
-		const FString& ActionId = TEXT("idle"),
+		const FString& AnimTagStr = TEXT("Anim.FullBody.Locomotion.Idle"),
 		const FString& OutputDir = TEXT("/Game/Generated/Sprites"),
 		float PixelToWorld = 2.0f,
 		float FrameDurationMs = 100.f,

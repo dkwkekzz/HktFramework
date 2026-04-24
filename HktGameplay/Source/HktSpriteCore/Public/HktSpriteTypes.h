@@ -123,8 +123,11 @@ struct HKTSPRITECORE_API FHktSpriteAction
 {
 	GENERATED_BODY()
 
-	/** "idle", "walk", "attack_1", "hurt", "die" 등 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FName ActionId;
+	/**
+	 * 이 액션이 반응하는 anim tag. Entity의 AnimLayerTags에서 우선순위에 따라 선택된 태그와
+	 * 매칭된다. 예) Anim.FullBody.Locomotion.Idle, Anim.UpperBody.Combat.Attack_1.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag AnimTag;
 
 	/** 저장된 방향 수: 1(단일), 5(N/NE/E/SE/S+미러), 8(전체). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1", ClampMax="8"))
@@ -151,8 +154,8 @@ struct HKTSPRITECORE_API FHktSpriteAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bLooping = true;
 
-	/** 비루프 액션 종료 후 자동 전환될 액션 (없으면 NAME_None) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FName OnCompleteTransition;
+	/** 비루프 액션 종료 후 자동 전환될 anim tag (없으면 무효 태그). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag OnCompleteTransition;
 
 	/** W/SW/NW를 E/SE/NE 미러로 처리 (NumDirections=5일 때만 의미 있음). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bMirrorWestFromEast = true;

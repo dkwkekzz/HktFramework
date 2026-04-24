@@ -57,6 +57,19 @@ def _sanitize_tag(tag: str) -> str:
     return tag.replace(".", "_").replace("/", "_")
 
 
+# HktSpriteGeneratorFunctionLibrary::ActionNameToAnimTagString와 동일 규약.
+# "idle"/"walk"/"run"/"fall"은 Anim.FullBody.Locomotion.*로, 그 외는
+# Anim.FullBody.<Capitalized>로 승격한다.
+_LOCOMOTION_NAMES = {"idle", "walk", "run", "fall"}
+
+
+def _action_name_to_anim_tag(action_name: str) -> str:
+    lower = action_name.lower()
+    if lower in _LOCOMOTION_NAMES:
+        return f"Anim.FullBody.Locomotion.{lower.capitalize()}"
+    return f"Anim.FullBody.{lower.capitalize()}"
+
+
 def _is_image(p: Path) -> bool:
     return p.suffix.lower() in IMAGE_EXTS
 
@@ -279,7 +292,7 @@ def _pack_atlas(
                     "atlasIndex": path_to_cell[p],
                 })
         actions_out.append({
-            "id": action_id,
+            "animTag": _action_name_to_anim_tag(action_id),
             "numDirections": len(DIRECTIONS),
             "framesPerDirection": max_frames,
             "startAtlasIndex": 0,
@@ -362,7 +375,7 @@ async def build_sprite_part(
     actions_spec = []
     for a in pack["actions"]:
         actions_spec.append({
-            "id": a["id"],
+            "animTag":             a["animTag"],
             "numDirections":       a["numDirections"],
             "framesPerDirection":  a["framesPerDirection"],
             "startAtlasIndex":     a["startAtlasIndex"],
