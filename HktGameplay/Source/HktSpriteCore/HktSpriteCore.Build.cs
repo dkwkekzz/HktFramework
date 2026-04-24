@@ -20,7 +20,8 @@ public class HktSpriteCore : ModuleRules
 
 		// 2D 스프라이트 파츠 파이프라인: 데이터 모델 + 순수 함수 프레임 리졸버 +
 		// HISM 기반 Crowd 렌더러 + Presentation Processor.
-		// HktCore / HktPresentation / HktAsset에 의존.
+		// HktCore / HktRuntime / HktPresentation / HktAsset에 의존.
+		// HktRuntime은 Anim.* GameplayTag 공유 선언(HktRuntimeTags.h) 때문에 필요.
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -29,6 +30,7 @@ public class HktSpriteCore : ModuleRules
 				"Engine",
 				"GameplayTags",
 				"HktCore",
+				"HktRuntime",
 				"HktPresentation",
 				"HktAsset",
 			}

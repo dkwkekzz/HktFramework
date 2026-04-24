@@ -1,6 +1,8 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteCrowdHost.h"
+#include "HktSpriteAnimMappingAsset.h"
+#include "HktSpriteAnimProcessor.h"
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteFrameResolver.h"
 #include "HktSpriteCoreLog.h"
@@ -44,6 +46,11 @@ void AHktSpriteCrowdHost::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+FHktSpriteAnimFragment& AHktSpriteCrowdHost::GetOrCreateAnimFragment(FHktEntityId Id)
+{
+	return AnimFragments.FindOrAdd(Id);
+}
+
 void AHktSpriteCrowdHost::TryRegisterWithPresentation()
 {
 	if (CachedPresentationSubsystem) return;
@@ -80,28 +87,7 @@ void AHktSpriteCrowdHost::Teardown()
 	{
 		Renderer->ClearAll();
 	}
-	ActionIdCache.Empty();
-}
-
-FName AHktSpriteCrowdHost::ResolveActionId(const FGameplayTag& AnimTag)
-{
-	if (!AnimTag.IsValid()) return NAME_None;
-	if (const FName* Cached = ActionIdCache.Find(AnimTag))
-	{
-		return *Cached;
-	}
-
-	// 태그의 leaf name을 소문자로 변환해서 ActionId로 사용.
-	// 예: Anim.Action.Walk → "walk", Anim.Action.Attack_1 → "attack_1"
-	const FString TagStr = AnimTag.ToString();
-	int32 LastDot = INDEX_NONE;
-	TagStr.FindLastChar(TEXT('.'), LastDot);
-	const FString Leaf = (LastDot != INDEX_NONE && LastDot + 1 < TagStr.Len())
-		? TagStr.RightChop(LastDot + 1)
-		: TagStr;
-	const FName Result(*Leaf.ToLower());
-	ActionIdCache.Add(AnimTag, Result);
-	return Result;
+	AnimFragments.Empty();
 }
 
 void AHktSpriteCrowdHost::OnCameraViewChanged(FHktPresentationState& State)
@@ -120,6 +106,7 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 	for (FHktEntityId Id : State.RemovedThisFrame)
 	{
 		Renderer->UnregisterEntity(Id);
+		AnimFragments.Remove(Id);
 	}
 
 	// --- 2. Spawned: FHktSpriteView가 할당된 엔터티만 처리 ---
@@ -139,6 +126,14 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		Loadout.HeadgearMid = SV->HeadgearMid.Get();
 		Loadout.HeadgearLow = SV->HeadgearLow.Get();
 		Renderer->SetLoadout(Id, Loadout);
+
+		// 초기 상태에서 Anim Tag Container/Stance를 한 번 동기화
+		if (const FHktAnimationView* AV = State.GetAnimation(Id))
+		{
+			FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
+			HktSpriteAnimProcessor::SyncStance(Frag, AV->Stance.Get());
+			HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags);
+		}
 	}
 
 	// --- 3. Loadout diff: 기존 엔터티 중 이번 프레임 Loadout 변경분 ---
@@ -160,8 +155,8 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 	}
 
 	// --- 4. 매 프레임 UpdateEntity ---
-	//     모든 스프라이트 엔터티를 순회해 프레임/트랜스폼 재적용.
-	//     NowTick으로는 State.GetCurrentFrame()을 사용 (히트스톱 구현은 VM에서 또는 후속 확장에서).
+	//     모든 스프라이트 엔터티를 순회해 AnimFragment 상태 갱신 → 프레임/트랜스폼 재적용.
+	//     NowTick으로는 State.GetCurrentFrame()을 사용 (히트스톱은 후속 확장).
 	const int64 NowTick = Frame;
 
 	for (auto It = State.Sprites.CreateConstIterator(); It; ++It)
@@ -171,16 +166,72 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 
 		const FHktTransformView* TV = State.GetTransform(Id);
 		if (!TV) continue;
-		const FHktAnimationView* AV = State.GetAnimation(Id);
+
+		FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
+
+		// Fragment 입력: Movement/Combat/Animation 뷰에서 파라미터 흡수.
+		// (AHktUnitActor::ApplyMovement/ApplyCombat/ApplyAnimation과 동일 역할 통합)
+		if (const FHktMovementView* MV = State.GetMovement(Id))
+		{
+			if (MV->bIsMoving.IsDirty(Frame))  Frag.bIsMoving  = MV->bIsMoving.Get();
+			if (MV->bIsJumping.IsDirty(Frame)) Frag.bIsFalling = MV->bIsJumping.Get();
+			if (MV->Velocity.IsDirty(Frame))
+			{
+				const FVector Vel = MV->Velocity.Get();
+				Frag.MoveSpeed    = FVector2D(Vel.X, Vel.Y).Size();
+				Frag.FallingSpeed = Vel.Z;
+			}
+		}
+
+		if (const FHktCombatView* CV = State.GetCombat(Id))
+		{
+			if (CV->MotionPlayRate.IsDirty(Frame) || CV->AttackSpeed.IsDirty(Frame))
+			{
+				const int32 RawRate = CV->MotionPlayRate.Get();
+				float SpeedScale = (RawRate > 0)
+					? static_cast<float>(RawRate) / 100.0f
+					: static_cast<float>(CV->AttackSpeed.Get()) / 100.0f;
+				if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
+				Frag.AttackPlayRate = SpeedScale;
+			}
+			if (CV->CPRatio.IsDirty(Frame)) Frag.CPRatio = CV->CPRatio.Get();
+		}
+
+		if (FHktAnimationView* AV = State.GetMutableAnimation(Id))
+		{
+			if (AV->Stance.IsDirty(Frame))
+			{
+				HktSpriteAnimProcessor::SyncStance(Frag, AV->Stance.Get());
+			}
+			if (AV->TagsDirtyFrame == Frame)
+			{
+				HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags);
+			}
+			// 일회성 트리거 소비 (AHktUnitActor::ApplyAnimation과 동일)
+			if (AV->PendingAnimTriggers.Num() > 0)
+			{
+				for (const FGameplayTag& AnimTag : AV->PendingAnimTriggers)
+				{
+					HktSpriteAnimProcessor::ApplyAnimTag(Frag, AnimTag);
+				}
+				AV->PendingAnimTriggers.Reset();
+			}
+		}
+
+		// 최종 렌더 출력 결정 (ActionId / PlayRate).
+		// AnimStartTick은 서버 VM이 PropertyId::AnimStartTick 으로 권위 갱신 → SV값 그대로 사용.
+		FName ActionId = NAME_None;
+		float PlayRate = 1.f;
+		HktSpriteAnimProcessor::ResolveRenderOutputs(AnimMapping, Frag, ActionId, PlayRate);
 
 		FHktSpriteEntityUpdate Update;
 		Update.WorldLocation  = TV->RenderLocation.Get().IsZero() ? TV->Location.Get() : TV->RenderLocation.Get();
 		Update.Facing         = static_cast<EHktSpriteFacing>(SV.Facing.Get() & 0x07);
-		Update.ActionId       = AV ? ResolveActionId(AV->AnimState.Get()) : NAME_None;
+		Update.ActionId       = ActionId;
 		Update.AnimStartTick  = SV.AnimStartTick.Get();
 		Update.NowTick        = NowTick;
 		Update.TickDurationMs = TickDurationMs;
-		Update.PlayRate       = 1.f;
+		Update.PlayRate       = PlayRate;
 		Update.TintOverride   = FLinearColor::White;
 		Update.PaletteIndex   = 0;
 
