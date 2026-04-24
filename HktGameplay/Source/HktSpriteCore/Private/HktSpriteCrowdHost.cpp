@@ -1,7 +1,8 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteCrowdHost.h"
-#include "HktSpriteAnimInstance.h"
+#include "HktSpriteAnimMappingAsset.h"
+#include "HktSpriteAnimProcessor.h"
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteFrameResolver.h"
 #include "HktSpriteCoreLog.h"
@@ -26,7 +27,6 @@ AHktSpriteCrowdHost::AHktSpriteCrowdHost()
 void AHktSpriteCrowdHost::BeginPlay()
 {
 	Super::BeginPlay();
-	EnsureAnimInstance();
 	TryRegisterWithPresentation();
 }
 
@@ -46,17 +46,9 @@ void AHktSpriteCrowdHost::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void AHktSpriteCrowdHost::EnsureAnimInstance()
+FHktSpriteAnimFragment& AHktSpriteCrowdHost::GetOrCreateAnimFragment(FHktEntityId Id)
 {
-	if (AnimInstance) return;
-
-	UClass* Cls = AnimInstanceClass ? AnimInstanceClass.Get() : UHktSpriteAnimInstance::StaticClass();
-	AnimInstance = NewObject<UHktSpriteAnimInstance>(this, Cls);
-}
-
-FHktSpriteAnimState& AHktSpriteCrowdHost::GetOrCreateAnimState(FHktEntityId Id)
-{
-	return AnimStates.FindOrAdd(Id);
+	return AnimFragments.FindOrAdd(Id);
 }
 
 void AHktSpriteCrowdHost::TryRegisterWithPresentation()
@@ -95,7 +87,7 @@ void AHktSpriteCrowdHost::Teardown()
 	{
 		Renderer->ClearAll();
 	}
-	AnimStates.Empty();
+	AnimFragments.Empty();
 }
 
 void AHktSpriteCrowdHost::OnCameraViewChanged(FHktPresentationState& State)
@@ -107,7 +99,6 @@ void AHktSpriteCrowdHost::OnCameraViewChanged(FHktPresentationState& State)
 void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 {
 	if (!Renderer) return;
-	EnsureAnimInstance();
 
 	const int64 Frame = State.GetCurrentFrame();
 
@@ -115,7 +106,7 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 	for (FHktEntityId Id : State.RemovedThisFrame)
 	{
 		Renderer->UnregisterEntity(Id);
-		AnimStates.Remove(Id);
+		AnimFragments.Remove(Id);
 	}
 
 	// --- 2. Spawned: FHktSpriteView가 할당된 엔터티만 처리 ---
@@ -139,9 +130,9 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		// 초기 상태에서 Anim Tag Container/Stance를 한 번 동기화
 		if (const FHktAnimationView* AV = State.GetAnimation(Id))
 		{
-			FHktSpriteAnimState& AnimState = GetOrCreateAnimState(Id);
-			AnimInstance->SyncStance(AnimState, AV->Stance.Get());
-			AnimInstance->SyncFromTagContainer(AnimState, AV->Tags, Frame);
+			FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
+			HktSpriteAnimProcessor::SyncStance(Frag, AV->Stance.Get());
+			HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags, Frame);
 		}
 	}
 
@@ -164,7 +155,7 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 	}
 
 	// --- 4. 매 프레임 UpdateEntity ---
-	//     모든 스프라이트 엔터티를 순회해 AnimInstance 상태 갱신 → 프레임/트랜스폼 재적용.
+	//     모든 스프라이트 엔터티를 순회해 AnimFragment 상태 갱신 → 프레임/트랜스폼 재적용.
 	//     NowTick으로는 State.GetCurrentFrame()을 사용 (히트스톱은 후속 확장).
 	const int64 NowTick = Frame;
 
@@ -176,19 +167,19 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		const FHktTransformView* TV = State.GetTransform(Id);
 		if (!TV) continue;
 
-		FHktSpriteAnimState& AnimState = GetOrCreateAnimState(Id);
+		FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
 
-		// AnimInstance 입력: Movement/Combat/Animation 뷰에서 파라미터 흡수.
+		// Fragment 입력: Movement/Combat/Animation 뷰에서 파라미터 흡수.
 		// (AHktUnitActor::ApplyMovement/ApplyCombat/ApplyAnimation과 동일 역할 통합)
 		if (const FHktMovementView* MV = State.GetMovement(Id))
 		{
-			if (MV->bIsMoving.IsDirty(Frame))  AnimState.bIsMoving  = MV->bIsMoving.Get();
-			if (MV->bIsJumping.IsDirty(Frame)) AnimState.bIsFalling = MV->bIsJumping.Get();
+			if (MV->bIsMoving.IsDirty(Frame))  Frag.bIsMoving  = MV->bIsMoving.Get();
+			if (MV->bIsJumping.IsDirty(Frame)) Frag.bIsFalling = MV->bIsJumping.Get();
 			if (MV->Velocity.IsDirty(Frame))
 			{
 				const FVector Vel = MV->Velocity.Get();
-				AnimState.MoveSpeed    = FVector2D(Vel.X, Vel.Y).Size();
-				AnimState.FallingSpeed = Vel.Z;
+				Frag.MoveSpeed    = FVector2D(Vel.X, Vel.Y).Size();
+				Frag.FallingSpeed = Vel.Z;
 			}
 		}
 
@@ -201,39 +192,40 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 					? static_cast<float>(RawRate) / 100.0f
 					: static_cast<float>(CV->AttackSpeed.Get()) / 100.0f;
 				if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
-				AnimState.AttackPlayRate = SpeedScale;
+				Frag.AttackPlayRate = SpeedScale;
 			}
-			if (CV->CPRatio.IsDirty(Frame)) AnimState.CPRatio = CV->CPRatio.Get();
+			if (CV->CPRatio.IsDirty(Frame)) Frag.CPRatio = CV->CPRatio.Get();
 		}
 
-		int64 FallbackAnimStartTick = SV.AnimStartTick.Get();
+		const int64 FallbackAnimStartTick = SV.AnimStartTick.Get();
 
 		if (FHktAnimationView* AV = State.GetMutableAnimation(Id))
 		{
 			if (AV->Stance.IsDirty(Frame))
 			{
-				AnimInstance->SyncStance(AnimState, AV->Stance.Get());
+				HktSpriteAnimProcessor::SyncStance(Frag, AV->Stance.Get());
 			}
 			if (AV->TagsDirtyFrame == Frame)
 			{
-				AnimInstance->SyncFromTagContainer(AnimState, AV->Tags, NowTick);
+				HktSpriteAnimProcessor::SyncFromTagContainer(AnimMapping, Frag, AV->Tags, NowTick);
 			}
 			// 일회성 트리거 소비 (AHktUnitActor::ApplyAnimation과 동일)
 			if (AV->PendingAnimTriggers.Num() > 0)
 			{
 				for (const FGameplayTag& AnimTag : AV->PendingAnimTriggers)
 				{
-					AnimInstance->ApplyAnimTag(AnimState, AnimTag, NowTick);
+					HktSpriteAnimProcessor::ApplyAnimTag(Frag, AnimTag, NowTick);
 				}
 				AV->PendingAnimTriggers.Reset();
 			}
 		}
 
 		// 최종 렌더 출력 결정
-		FName   ActionId       = NAME_None;
-		float   PlayRate       = 1.f;
-		int64   AnimStartTick  = FallbackAnimStartTick;
-		AnimInstance->ResolveRenderOutputs(AnimState, FallbackAnimStartTick, ActionId, PlayRate, AnimStartTick);
+		FName ActionId      = NAME_None;
+		float PlayRate      = 1.f;
+		int64 AnimStartTick = FallbackAnimStartTick;
+		HktSpriteAnimProcessor::ResolveRenderOutputs(AnimMapping, Frag, FallbackAnimStartTick,
+			ActionId, PlayRate, AnimStartTick);
 
 		FHktSpriteEntityUpdate Update;
 		Update.WorldLocation  = TV->RenderLocation.Get().IsZero() ? TV->Location.Get() : TV->RenderLocation.Get();
