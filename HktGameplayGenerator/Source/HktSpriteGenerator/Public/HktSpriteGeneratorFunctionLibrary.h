@@ -59,8 +59,8 @@ public:
 	 *   ]
 	 * }
 	 *
-	 * 하위호환: "animTag" 대신 "id"(action name string)를 주면 "idle"/"walk"/"run"/"fall"은
-	 * Anim.FullBody.Locomotion.*로, 그 외는 Anim.FullBody.<Capitalized>로 자동 승격한다.
+	 * 각 action의 animTag는 필수. 파이썬 MCP 클라이언트는 파일명(action id 문자열)을
+	 * _action_name_to_anim_tag 로 승격해서 전송한다.
 	 *
 	 * 반환: {"success":bool, "dataAssetPath":..., "atlasAssetPath":..., "error":...}
 	 */

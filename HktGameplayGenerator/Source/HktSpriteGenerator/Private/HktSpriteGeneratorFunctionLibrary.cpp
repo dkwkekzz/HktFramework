@@ -285,23 +285,16 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 
 			FHktSpriteAction Action;
 
-			// 신규 animTag 필드 우선, 하위호환으로 id(문자열 action name)도 지원.
 			FString AnimTagStr;
-			if (A->TryGetStringField(TEXT("animTag"), AnimTagStr) && !AnimTagStr.IsEmpty())
-			{
-				Action.AnimTag = EnsureTag(AnimTagStr);
-			}
-			else
-			{
-				FString Id;
-				if (A->TryGetStringField(TEXT("id"), Id) && !Id.IsEmpty())
-				{
-					Action.AnimTag = EnsureTag(ActionNameToAnimTagString(Id));
-				}
-			}
-			if (!Action.AnimTag.IsValid())
+			if (!A->TryGetStringField(TEXT("animTag"), AnimTagStr) || AnimTagStr.IsEmpty())
 			{
 				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("액션에 animTag 없음 (skipped)"));
+				continue;
+			}
+			Action.AnimTag = EnsureTag(AnimTagStr);
+			if (!Action.AnimTag.IsValid())
+			{
+				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("animTag 등록 실패: %s (skipped)"), *AnimTagStr);
 				continue;
 			}
 
