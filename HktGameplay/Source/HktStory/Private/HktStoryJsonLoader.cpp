@@ -49,9 +49,8 @@ int32 FHktStoryJsonLoader::LoadAllFromContentDirectory()
 		{
 			continue;
 		}
-		// RelativeToGameContentDir: Path는 `<Project>/Content/` 기준 상대 경로
-		const FString ResolvedDir = FPaths::Combine(FPaths::ProjectContentDir(), DirPath.Path);
-		TotalSuccess += LoadAllFromDirectory(ResolvedDir);
+		// 설정값은 절대 경로(SpriteGeneratorSettings 패턴). 추가 결합 없이 그대로 사용.
+		TotalSuccess += LoadAllFromDirectory(DirPath.Path);
 	}
 	return TotalSuccess;
 }

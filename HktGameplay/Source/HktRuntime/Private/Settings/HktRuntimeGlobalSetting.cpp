@@ -1,13 +1,51 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Settings/HktRuntimeGlobalSetting.h"
+#include "Misc/Paths.h"
 
 UHktRuntimeGlobalSetting::UHktRuntimeGlobalSetting()
 {
-	// HktGameplay 플러그인 번들 Story(<Plugin>/Content/Stories/*.json)는
-	// FHktStoryJsonLoader가 자동으로 스캔하므로 기본값은 비워둔다.
-	// 프로젝트 측 커스텀 Story 디렉토리가 필요한 경우에만 Project Settings에서 추가.
+	// Story 디렉토리는 절대 경로로 직접 지정한다.
+	// 비어 있으면 Story JSON 로딩이 비활성화된다.
 }
+
+#if WITH_EDITOR
+namespace
+{
+	/** 상대경로/프로젝트 기준 경로를 항상 절대경로로 정규화. 빈 문자열은 그대로. */
+	static FString NormalizeToAbsolute(const FString& In)
+	{
+		if (In.IsEmpty()) return FString();
+		FString Full = FPaths::ConvertRelativePathToFull(In);
+		FPaths::NormalizeDirectoryName(Full);
+		return Full;
+	}
+}
+
+void UHktRuntimeGlobalSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropName = PropertyChangedEvent.GetPropertyName();
+	if (PropName == GET_MEMBER_NAME_CHECKED(UHktRuntimeGlobalSetting, StoryDirectories))
+	{
+		bool bChanged = false;
+		for (FDirectoryPath& Dir : StoryDirectories)
+		{
+			const FString Normalized = NormalizeToAbsolute(Dir.Path);
+			if (Normalized != Dir.Path)
+			{
+				Dir.Path = Normalized;
+				bChanged = true;
+			}
+		}
+		if (bChanged)
+		{
+			SaveConfig();
+		}
+	}
+}
+#endif
 
 FHktTerrainGeneratorConfig UHktRuntimeGlobalSetting::ToTerrainConfig() const
 {
