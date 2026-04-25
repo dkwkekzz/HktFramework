@@ -3,7 +3,7 @@
 #include "HktSpriteTypes.h"
 
 // ============================================================================
-// FHktSpriteAction::ResolveStoredFacing
+// FHktSpriteAnimation::ResolveStoredFacing
 //
 // NumDirections 별 매핑:
 //   1 → 항상 index 0 (no mirror).
@@ -12,7 +12,7 @@
 //   8 → 그대로 0..7 (bMirror 무시).
 // ============================================================================
 
-EHktSpriteFacing FHktSpriteAction::ResolveStoredFacing(
+EHktSpriteFacing FHktSpriteAnimation::ResolveStoredFacing(
 	EHktSpriteFacing In, int32 NumDirections, bool bMirror, bool& OutFlipX)
 {
 	OutFlipX = false;
@@ -50,76 +50,23 @@ EHktSpriteFacing FHktSpriteAction::ResolveStoredFacing(
 }
 
 // ============================================================================
-// FHktSpriteAction::MakeFrame — 그리드 규칙 + Overrides 합성
+// FHktSpriteAnimation::MakeFrame — Frames[dir * FPD + frameIdx] 조회
 // ============================================================================
 
-FHktSpriteFrame FHktSpriteAction::MakeFrame(int32 DirIdx, int32 FrameIdx) const
+FHktSpriteFrame FHktSpriteAnimation::MakeFrame(int32 DirIdx, int32 FrameIdx) const
 {
-	FHktSpriteFrame Out;
-	Out.AtlasIndex  = StartAtlasIndex + FMath::Max(DirIdx, 0) * FMath::Max(FramesPerDirection, 1) + FMath::Max(FrameIdx, 0);
-	Out.PivotOffset = PivotOffset;
+	const int32 SafeDir   = FMath::Max(DirIdx, 0);
+	const int32 SafeFrame = FMath::Max(FrameIdx, 0);
+	const int32 FPD       = FMath::Max(FramesPerDirection, 1);
+	const int32 Linear    = SafeDir * FPD + SafeFrame;
 
-	// Overrides는 소수 항목이므로 선형 스캔으로 충분.
-	for (const FHktSpriteFrameOverride& Ov : FrameOverrides)
+	if (Frames.IsValidIndex(Linear))
 	{
-		const bool bDirMatches   = (Ov.DirectionIndex < 0) || (Ov.DirectionIndex == DirIdx);
-		const bool bFrameMatches = (Ov.FrameIndex < 0)     || (Ov.FrameIndex == FrameIdx);
-		if (!bDirMatches || !bFrameMatches) continue;
-
-		if (Ov.bOverrideAtlasIndex) Out.AtlasIndex  = Ov.Frame.AtlasIndex;
-		if (Ov.bOverridePivot)      Out.PivotOffset = Ov.Frame.PivotOffset;
-
-		// 나머지는 기본값에서 멀어진 경우만 반영 — 완전 기본이면 무시.
-		if (Ov.Frame.Scale != FVector2f(1.f, 1.f))        Out.Scale    = Ov.Frame.Scale;
-		if (Ov.Frame.Rotation != 0.f)                     Out.Rotation = Ov.Frame.Rotation;
-		if (Ov.Frame.Tint != FLinearColor::White)         Out.Tint     = Ov.Frame.Tint;
-		if (Ov.Frame.ZBias != 0)                          Out.ZBias    = Ov.Frame.ZBias;
-		if (Ov.Frame.ChildAnchors.Num() > 0)              Out.ChildAnchors = Ov.Frame.ChildAnchors;
+		return Frames[Linear];
 	}
-	return Out;
-}
 
-// ============================================================================
-// FHktSpriteLoadout
-// ============================================================================
-
-FGameplayTag FHktSpriteLoadout::GetSlotTag(EHktSpritePartSlot Slot) const
-{
-	switch (Slot)
-	{
-		case EHktSpritePartSlot::Body:        return BodyPart;
-		case EHktSpritePartSlot::Head:        return HeadPart;
-		case EHktSpritePartSlot::Weapon:      return WeaponPart;
-		case EHktSpritePartSlot::Shield:      return ShieldPart;
-		case EHktSpritePartSlot::HeadgearTop: return HeadgearTop;
-		case EHktSpritePartSlot::HeadgearMid: return HeadgearMid;
-		case EHktSpritePartSlot::HeadgearLow: return HeadgearLow;
-		default:                              return FGameplayTag();
-	}
-}
-
-void FHktSpriteLoadout::SetSlotTag(EHktSpritePartSlot Slot, FGameplayTag Tag)
-{
-	switch (Slot)
-	{
-		case EHktSpritePartSlot::Body:        BodyPart = Tag;    break;
-		case EHktSpritePartSlot::Head:        HeadPart = Tag;    break;
-		case EHktSpritePartSlot::Weapon:      WeaponPart = Tag;  break;
-		case EHktSpritePartSlot::Shield:      ShieldPart = Tag;  break;
-		case EHktSpritePartSlot::HeadgearTop: HeadgearTop = Tag; break;
-		case EHktSpritePartSlot::HeadgearMid: HeadgearMid = Tag; break;
-		case EHktSpritePartSlot::HeadgearLow: HeadgearLow = Tag; break;
-		default: break;
-	}
-}
-
-bool FHktSpriteLoadout::IsEqual(const FHktSpriteLoadout& Other) const
-{
-	return BodyPart == Other.BodyPart
-		&& HeadPart == Other.HeadPart
-		&& WeaponPart == Other.WeaponPart
-		&& ShieldPart == Other.ShieldPart
-		&& HeadgearTop == Other.HeadgearTop
-		&& HeadgearMid == Other.HeadgearMid
-		&& HeadgearLow == Other.HeadgearLow;
+	// 배열이 비거나 잘렸으면 피벗만 채운 기본 프레임 반환 — 렌더러 측 안전망.
+	FHktSpriteFrame Fallback;
+	Fallback.PivotOffset = PivotOffset;
+	return Fallback;
 }

@@ -326,30 +326,6 @@ namespace
 			{
 				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].BodyPart.Set(IndexToTag(V), F);
 			};
-			T[PropertyId::SpriteHead] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
-			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadPart.Set(IndexToTag(V), F);
-			};
-			T[PropertyId::SpriteWeapon] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
-			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].WeaponPart.Set(IndexToTag(V), F);
-			};
-			T[PropertyId::SpriteShield] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
-			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].ShieldPart.Set(IndexToTag(V), F);
-			};
-			T[PropertyId::SpriteHeadgearTop] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
-			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadgearTop.Set(IndexToTag(V), F);
-			};
-			T[PropertyId::SpriteHeadgearMid] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
-			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadgearMid.Set(IndexToTag(V), F);
-			};
-			T[PropertyId::SpriteHeadgearLow] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
-			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].HeadgearLow.Set(IndexToTag(V), F);
-			};
 
 			// --- Terrain Debris (뷰가 없으면 lazy 할당) ---
 			T[PropertyId::TerrainTypeId] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
@@ -542,12 +518,6 @@ void FHktPresentationState::InitVoxelSkinFromWS(const FHktWorldState& WS, FHktEn
 void FHktPresentationState::InitSpriteFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktSpriteView& V, int64 F)
 {
 	V.BodyPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteBody)), F);
-	V.HeadPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHead)), F);
-	V.WeaponPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteWeapon)), F);
-	V.ShieldPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteShield)), F);
-	V.HeadgearTop.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHeadgearTop)), F);
-	V.HeadgearMid.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHeadgearMid)), F);
-	V.HeadgearLow.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteHeadgearLow)), F);
 	V.Facing.Set(static_cast<uint8>(WS.GetProperty(Id, PropertyId::Facing) & 0x07), F);
 	V.AnimStartTick.Set(WS.GetProperty(Id, PropertyId::AnimStartTick), F);
 }

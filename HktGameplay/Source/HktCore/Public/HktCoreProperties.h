@@ -203,12 +203,6 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(Facing,               Cold) // 71 — 8방향 (0=N, 1=NE, ..., 7=NW)
     HKT_DEFINE_PROPERTY(AnimStartTick,        Cold) // 72 — AnimState 전환 시점 (VM frame)
     HKT_DEFINE_PROPERTY(SpriteBody,           Cold) // 73 — Body PartTemplate FGameplayTag NetIndex
-    HKT_DEFINE_PROPERTY(SpriteHead,           Cold) // 74 — Head PartTemplate
-    HKT_DEFINE_PROPERTY(SpriteWeapon,         Cold) // 75 — Weapon PartTemplate
-    HKT_DEFINE_PROPERTY(SpriteShield,         Cold) // 76 — Shield PartTemplate
-    HKT_DEFINE_PROPERTY(SpriteHeadgearTop,    Cold) // 77 — HeadgearTop PartTemplate
-    HKT_DEFINE_PROPERTY(SpriteHeadgearMid,    Cold) // 78 — HeadgearMid PartTemplate
-    HKT_DEFINE_PROPERTY(SpriteHeadgearLow,    Cold) // 79 — HeadgearLow PartTemplate
 
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계

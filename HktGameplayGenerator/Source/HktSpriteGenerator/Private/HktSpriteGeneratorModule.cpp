@@ -22,7 +22,7 @@ public:
 			BuilderTabName,
 			FOnSpawnTab::CreateStatic(&FHktSpriteGeneratorModule::SpawnBuilderTab))
 			.SetDisplayName(NSLOCTEXT("HktSpriteGen", "BuilderTab", "HKT Sprite Builder"))
-			.SetTooltipText(NSLOCTEXT("HktSpriteGen", "BuilderTabTip", "Pack textures into an atlas and build UHktSpritePartTemplate."))
+			.SetTooltipText(NSLOCTEXT("HktSpriteGen", "BuilderTabTip", "Pack textures into an atlas and build UHktSpriteCharacterTemplate."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 

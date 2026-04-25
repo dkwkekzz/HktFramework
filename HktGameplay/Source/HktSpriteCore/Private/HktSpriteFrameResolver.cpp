@@ -11,16 +11,16 @@ FHktSpriteFrameResolveResult HktResolveSpriteFrame(const FHktSpriteFrameResolveI
 {
 	FHktSpriteFrameResolveResult Out;
 
-	if (!In.Action)
+	if (!In.Animation)
 	{
 		Out.bInvalid = true;
 		return Out;
 	}
-	const FHktSpriteAction& A = *In.Action;
+	const FHktSpriteAnimation& A = *In.Animation;
 
 	// 방향 리졸브 (mirror 처리)
 	bool bFlipX = false;
-	const EHktSpriteFacing Stored = FHktSpriteAction::ResolveStoredFacing(
+	const EHktSpriteFacing Stored = FHktSpriteAnimation::ResolveStoredFacing(
 		In.Facing, A.NumDirections, A.bMirrorWestFromEast, bFlipX);
 	Out.StoredFacing = Stored;
 	Out.bFlipX = bFlipX;

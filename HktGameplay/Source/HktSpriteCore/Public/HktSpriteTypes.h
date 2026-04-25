@@ -6,22 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "HktSpriteTypes.generated.h"
 
-// ============================================================================
-// 파츠 슬롯 — 라그나로크 정통 슬롯 구조
-// ============================================================================
-
-UENUM(BlueprintType)
-enum class EHktSpritePartSlot : uint8
-{
-	Body          = 0,
-	Head          = 1,
-	Weapon        = 2,
-	Shield        = 3,
-	HeadgearTop   = 4,
-	HeadgearMid   = 5,
-	HeadgearLow   = 6,
-	MAX           = 7 UMETA(Hidden)
-};
+class UTexture2D;
 
 // ============================================================================
 // 방향 — 8방향 또는 5방향 + mirror
@@ -55,7 +40,7 @@ struct HKTSPRITECORE_API FHktSpriteFrame
 	/** 아틀라스 내 셀 인덱스(좌→우, 위→아래). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) int32 AtlasIndex = 0;
 
-	/** 스프라이트 pivot 오프셋 (픽셀, 프레임 좌상단 기준) */
+	/** 스프라이트 pivot 오프셋 (픽셀, 프레임 좌상단 기준). 비워두면 애니메이션 공통값. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector2f PivotOffset = FVector2f::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector2f Scale = FVector2f(1.f, 1.f);
@@ -65,69 +50,40 @@ struct HKTSPRITECORE_API FHktSpriteFrame
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FLinearColor Tint = FLinearColor::White;
 
-	/** 파츠 간 Z-fighting 해소 (Head=+1, Weapon=+2 등) */
+	/** 같은 캐릭터 안에서 프레임 간 Z-fighting 해소용 오프셋. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) int32 ZBias = 0;
-
-	/** 자식 파츠가 부착될 앵커 포인트 (픽셀). 비어있으면 부모의 PivotOffset 사용. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TMap<FName, FVector2f> ChildAnchors;
 };
 
 // ============================================================================
-// FHktSpriteAction — 한 액션(idle/walk/attack/...)의 그리드 레이아웃
+// FHktSpriteAnimation — 한 애니메이션(AnimTag)의 재생 정보 + 프레임 리스트
 //
-// ----------------------------------------------------------------------------
-// 디자인 철학: 거의 모든 파츠는 "아틀라스를 방향 × 프레임 격자로 잘라 순서대로
-// 사용"하는 정형 패턴이다. 과거의 TArray<TArray<FHktSpriteFrame>> 중첩 구조는
-// 에디터에서 드릴다운이 심하고, 프레임마다 7개 필드를 채워야 해 불편했다.
+// 한 캐릭터의 모든 애니메이션이 단일 아틀라스/머티리얼에 녹아 있으므로, 애니메이션
+// 단위로는 "어느 셀 범위를 어떤 순서로 재생할지" + "프레임별 렌더 속성"만 들고 있다.
 //
-// 기본 입력은 단 4개:
-//   - NumDirections      : 저장 방향 수 (1 / 5 / 8)
-//   - FramesPerDirection : 방향당 프레임 수
-//   - StartAtlasIndex    : 첫 셀 위치(보통 0)
-//   - PivotOffset        : 프레임 공통 피벗(픽셀)
-//
-// 셀 인덱싱 규칙:
-//   AtlasIndex(dir, frame) = StartAtlasIndex + dir * FramesPerDirection + frame
-//
-// 즉 아틀라스 한 행(row)이 한 방향, 한 열(col)이 한 프레임이 되도록 패킹됐다고
-// 가정한다. (HktSpriteGeneratorFunctionLibrary가 그렇게 패킹해 둔다.)
-//
-// 프레임 단위 특수 속성(Tint/ZBias/ChildAnchors 등)이 필요한 경우에 한해
-// FrameOverrides 에 부분적으로 지정한다. 비어두면 그리드만으로 충분.
+// 그리드 파라미터(NumDirections × FramesPerDirection)는 Frames 배열과 중복처럼 보이지만,
+// FrameResolver가 "현재 방향의 N번째 프레임"을 O(1)로 매핑하기 위해 필요하다.
+// Frames.Num() >= NumDirections * FramesPerDirection 이어야 하며,
+// 인덱싱: Frames[ dir * FramesPerDirection + frame ].
 // ============================================================================
 
 USTRUCT(BlueprintType)
-struct HKTSPRITECORE_API FHktSpriteFrameOverride
-{
-	GENERATED_BODY()
-
-	/** 덮어쓸 방향 인덱스(0~7). -1이면 모든 방향. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) int32 DirectionIndex = -1;
-
-	/** 덮어쓸 프레임 인덱스. -1이면 모든 프레임. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) int32 FrameIndex = -1;
-
-	/** 프레임 속성 (기본값에서 바뀌는 필드만 채우면 됨). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FHktSpriteFrame Frame;
-
-	/** Frame.AtlasIndex 사용 여부 (false면 그리드 계산값 유지). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bOverrideAtlasIndex = false;
-
-	/** Frame.PivotOffset 사용 여부 (false면 액션 공통 PivotOffset 유지). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bOverridePivot = false;
-};
-
-USTRUCT(BlueprintType)
-struct HKTSPRITECORE_API FHktSpriteAction
+struct HKTSPRITECORE_API FHktSpriteAnimation
 {
 	GENERATED_BODY()
 
 	/**
-	 * 이 액션이 반응하는 anim tag. Entity의 AnimLayerTags에서 우선순위에 따라 선택된 태그와
-	 * 매칭된다. 예) Anim.FullBody.Locomotion.Idle, Anim.UpperBody.Combat.Attack_1.
+	 * 이 애니메이션 전용 아틀라스. Null이면 CharacterTemplate의 Atlas(폴백) 사용.
+	 * 애니별로 개별 PNG를 빌드한 캐릭터에서 필수.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag AnimTag;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TSoftObjectPtr<UTexture2D> Atlas;
+
+	/**
+	 * 이 애니메이션의 셀 크기(px). 0이면 CharacterTemplate의 AtlasCellSize(폴백) 사용.
+	 * Atlas가 애니별로 다른 셀 크기를 가질 때(예: 공격 모션 큰 프레임) 사용.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FVector2f AtlasCellSize = FVector2f::ZeroVector;
 
 	/** 저장된 방향 수: 1(단일), 5(N/NE/E/SE/S+미러), 8(전체). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1", ClampMax="8"))
@@ -137,14 +93,10 @@ struct HKTSPRITECORE_API FHktSpriteAction
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1"))
 	int32 FramesPerDirection = 1;
 
-	/** 첫 프레임이 아틀라스에서 차지하는 셀 인덱스(좌→우, 위→아래). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0"))
-	int32 StartAtlasIndex = 0;
-
-	/** 모든 프레임 공통 피벗(픽셀, 프레임 좌상단 기준). 보통 (CellW/2, CellH) — 바닥 중앙. */
+	/** 모든 프레임의 공통 피벗(픽셀, 프레임 좌상단 기준). 보통 (CellW/2, CellH) — 바닥 중앙. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector2f PivotOffset = FVector2f::ZeroVector;
 
-	/** 고정 프레임 길이 (ms) */
+	/** 고정 프레임 길이 (ms). PerFrameDurationMs가 비어있을 때 사용. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1.0"))
 	float FrameDurationMs = 100.f;
 
@@ -154,51 +106,31 @@ struct HKTSPRITECORE_API FHktSpriteAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bLooping = true;
 
-	/** 비루프 액션 종료 후 자동 전환될 anim tag (없으면 무효 태그). */
+	/** 비루프 애니 종료 후 자동 전환될 anim tag (없으면 무효 태그). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag OnCompleteTransition;
 
 	/** W/SW/NW를 E/SE/NE 미러로 처리 (NumDirections=5일 때만 의미 있음). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bMirrorWestFromEast = true;
 
-	/** 고급: 특정 (방향, 프레임) 셀의 속성을 덮어쓰고 싶을 때만 채운다. */
+	/**
+	 * 프레임 리스트. 크기는 NumDirections × FramesPerDirection.
+	 * 인덱싱: Frames[ dir * FramesPerDirection + frame ].
+	 * Generator가 채우므로 FrameOverride 같은 부분 덮어쓰기는 사용하지 않는다.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TArray<FHktSpriteFrameOverride> FrameOverrides;
+	TArray<FHktSpriteFrame> Frames;
 
 	// --- 런타임 헬퍼 ---
 
 	/** 해당 방향의 프레임 수. 현재는 모든 방향 동일 = FramesPerDirection. */
 	FORCEINLINE int32 GetNumFrames(int32 /*DirIdx*/) const { return FMath::Max(FramesPerDirection, 0); }
 
-	/** (dir, frameIdx) → 실제 프레임 속성 (Overrides 적용). */
+	/**
+	 * (dir, frameIdx) → 실제 프레임 속성. Frames 배열에서 직접 꺼낸다.
+	 * 범위를 벗어나면 grid 기본 속성(PivotOffset만 채운 FHktSpriteFrame)을 반환.
+	 */
 	FHktSpriteFrame MakeFrame(int32 DirIdx, int32 FrameIdx) const;
 
 	/** bMirrorWestFromEast + NumDirections를 반영해 저장된 방향과 flipX를 계산. */
 	static EHktSpriteFacing ResolveStoredFacing(EHktSpriteFacing In, int32 NumDirections, bool bMirror, bool& OutFlipX);
-};
-
-// ============================================================================
-// FHktSpriteLoadout — 캐릭터의 파츠 조합 (VM 상태의 프레젠테이션 스냅샷)
-// VM 내부에는 각 파츠 ID가 FGameplayTag NetIndex로 개별 Cold Property에 저장됨
-// (HktCoreProperties.h: SpriteBody..SpriteHeadgearLow). 이 구조체는 Presentation
-// 뷰가 한 번에 취급할 수 있도록 모은 값 객체.
-// ============================================================================
-
-USTRUCT(BlueprintType)
-struct HKTSPRITECORE_API FHktSpriteLoadout
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag BodyPart;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag HeadPart;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag WeaponPart;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag ShieldPart;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag HeadgearTop;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag HeadgearMid;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag HeadgearLow;
-
-	/** 슬롯 열거값으로 접근 */
-	FGameplayTag GetSlotTag(EHktSpritePartSlot Slot) const;
-	void SetSlotTag(EHktSpritePartSlot Slot, FGameplayTag Tag);
-
-	bool IsEqual(const FHktSpriteLoadout& Other) const;
 };

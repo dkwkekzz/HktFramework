@@ -7,7 +7,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -19,17 +18,6 @@
 
 void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 {
-	SlotOptions = {
-		MakeShared<FString>(TEXT("Body")),
-		MakeShared<FString>(TEXT("Head")),
-		MakeShared<FString>(TEXT("Weapon")),
-		MakeShared<FString>(TEXT("Shield")),
-		MakeShared<FString>(TEXT("HeadgearTop")),
-		MakeShared<FString>(TEXT("HeadgearMid")),
-		MakeShared<FString>(TEXT("HeadgearLow")),
-	};
-	CurrentSlot = SlotOptions[0];
-
 	auto Row = [](const FText& Label, TSharedRef<SWidget> Field) -> TSharedRef<SWidget>
 	{
 		return SNew(SHorizontalBox)
@@ -48,27 +36,14 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0,0,0,8)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("Title", "HKT Sprite Part Builder"))
+				.Text(LOCTEXT("Title", "HKT Sprite Character Builder"))
 				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
 			]
 
 			+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
-			[ Row(LOCTEXT("TagLbl", "Tag"),
+			[ Row(LOCTEXT("TagLbl", "Character Tag"),
 				SAssignNew(TagBox, SEditableTextBox)
-					.HintText(LOCTEXT("TagHint", "Sprite.Part.Body.Knight"))
-			) ]
-
-			+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
-			[ Row(LOCTEXT("SlotLbl", "Slot"),
-				SNew(SComboBox<TSharedPtr<FString>>)
-					.OptionsSource(&SlotOptions)
-					.InitiallySelectedItem(CurrentSlot)
-					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> S, ESelectInfo::Type){ if (S) CurrentSlot = S; })
-					.OnGenerateWidget_Lambda([](TSharedPtr<FString> S){ return SNew(STextBlock).Text(FText::FromString(*S)); })
-					[
-						SNew(STextBlock).Text_Lambda([this]()
-						{ return CurrentSlot.IsValid() ? FText::FromString(*CurrentSlot) : FText::GetEmpty(); })
-					]
+					.HintText(LOCTEXT("TagHint", "Sprite.Character.Knight"))
 			) ]
 
 			+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
@@ -127,7 +102,7 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				SNew(SButton)
 				.HAlign(HAlign_Center)
 				.ContentPadding(FMargin(24,6))
-				.Text(LOCTEXT("Build", "Build Sprite Part"))
+				.Text(LOCTEXT("Build", "Build Sprite Character"))
 				.OnClicked(this, &SHktSpriteBuilderPanel::OnBuildClicked)
 			]
 
@@ -164,14 +139,13 @@ FReply SHktSpriteBuilderPanel::OnBrowseInputDir()
 FReply SHktSpriteBuilderPanel::OnBuildClicked()
 {
 	const FString TagStr   = TagBox      ? TagBox->GetText().ToString() : TEXT("");
-	const FString Slot     = CurrentSlot ? *CurrentSlot : TEXT("Body");
 	const FString InputDir = InputDirBox ? InputDirBox->GetText().ToString() : TEXT("");
 	const FString OutputDir= OutputDirBox? OutputDirBox->GetText().ToString(): TEXT("/Game/Generated/Sprites");
 	const float P2W        = PixelToWorldBox  ? FCString::Atof(*PixelToWorldBox->GetText().ToString())  : 2.0f;
 	const float FrameDur   = FrameDurationBox ? FCString::Atof(*FrameDurationBox->GetText().ToString()) : 100.f;
 
-	const FString Result = UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
-		TagStr, Slot, InputDir, OutputDir, P2W, FrameDur, bLooping, bMirrorWestFromEast);
+	const FString Result = UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromDirectory(
+		TagStr, InputDir, OutputDir, P2W, FrameDur, bLooping, bMirrorWestFromEast);
 
 	if (ResultBox.IsValid())
 	{

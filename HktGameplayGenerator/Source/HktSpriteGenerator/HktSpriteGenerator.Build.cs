@@ -18,6 +18,7 @@ public class HktSpriteGenerator : ModuleRules
 				"JsonUtilities",
 				"GameplayTags",
 				"HktSpriteCore",
+				"DeveloperSettings",
 			}
 		);
 

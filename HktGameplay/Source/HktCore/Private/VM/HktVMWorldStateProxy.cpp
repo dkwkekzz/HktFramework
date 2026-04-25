@@ -61,7 +61,7 @@ void FHktVMWorldStateProxy::SetPropertyDirty(FHktWorldState& WS, FHktEntityId En
          || PropId == PropertyId::AnimState
          || PropId == PropertyId::AnimStateUpper))
     {
-        TouchAnimStartTick(WS, Slot);
+        TouchAnimStartTickBySlot(WS, Slot);
     }
 }
 

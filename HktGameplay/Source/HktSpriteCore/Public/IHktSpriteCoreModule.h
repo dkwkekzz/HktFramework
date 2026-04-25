@@ -9,10 +9,10 @@
 /**
  * HktSpriteCore Module Interface
  *
- * 라그나로크 방식 2D 스프라이트 스켈레탈 애니메이션 파이프라인.
- *  - FHktSpriteFrame/Action/PartTemplate/Loadout 데이터 모델
+ * 캐릭터당 단일 TagDataAsset 기반 2D 스프라이트 애니메이션 파이프라인.
+ *  - FHktSpriteFrame/Animation/CharacterTemplate 데이터 모델
  *  - HktResolveSpriteFrame 순수 함수 (tick → frame)
- *  - UHktSpriteCrowdRenderer (HISM-based 파츠별 인스턴싱)
+ *  - UHktSpriteCrowdRenderer (HISM-based 캐릭터별 인스턴싱)
  *  - AHktSpriteCrowdHost (CrowdRenderer 호스트 Actor + IHktPresentationProcessor)
  */
 class HKTSPRITECORE_API IHktSpriteCoreModule : public IModuleInterface

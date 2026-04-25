@@ -65,7 +65,7 @@ struct HKTCORE_API FHktVMWorldStateProxy
         int32 Slot = WS.GetSlot(Entity);
         WS.TagContainers[Slot].AddTag(Tag);
         SetTagsDirty(Slot);
-        if (IsAnimTag(Tag)) TouchAnimStartTick(WS, Slot);
+        if (IsAnimTag(Tag)) TouchAnimStartTickBySlot(WS, Slot);
     }
 
     FORCEINLINE void RemoveTag(FHktWorldState& WS, FHktEntityId Entity, const FGameplayTag& Tag)
@@ -74,7 +74,7 @@ struct HKTCORE_API FHktVMWorldStateProxy
         int32 Slot = WS.GetSlot(Entity);
         WS.TagContainers[Slot].RemoveTag(Tag);
         SetTagsDirty(Slot);
-        if (IsAnimTag(Tag)) TouchAnimStartTick(WS, Slot);
+        if (IsAnimTag(Tag)) TouchAnimStartTickBySlot(WS, Slot);
     }
 
     // --- Owner Dirty ---
@@ -96,7 +96,7 @@ struct HKTCORE_API FHktVMWorldStateProxy
     // 서버 권위 AnimStartTick만 믿고 프레임 커서를 계산 — 별도 클라측 추론 불필요.
     //
     // 내부 헬퍼 — SetDirty로 직접 써서 SetPropertyDirty 재진입 회피.
-    FORCEINLINE void TouchAnimStartTick(FHktWorldState& WS, int32 Slot)
+    FORCEINLINE void TouchAnimStartTickBySlot(FHktWorldState& WS, int32 Slot)
     {
         SetDirty(WS, Slot, PropertyId::AnimStartTick, static_cast<int32>(WS.FrameNumber));
     }
@@ -104,7 +104,7 @@ struct HKTCORE_API FHktVMWorldStateProxy
     FORCEINLINE void TouchAnimStartTick(FHktWorldState& WS, FHktEntityId Entity)
     {
         if (!WS.IsValidEntity(Entity)) return;
-        TouchAnimStartTick(WS, WS.GetSlot(Entity));
+        TouchAnimStartTickBySlot(WS, WS.GetSlot(Entity));
     }
 
     /** Tag가 "Anim" 혹은 "Anim.*" 계열인지. (HktCore는 HktRuntime에 의존하지 않으므로 string prefix 판정) */

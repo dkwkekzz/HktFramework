@@ -1,8 +1,10 @@
 """
-Sprite Generator Tools — Tag/Slot + 입력 텍스처들 → Atlas 패킹 → UE5 DataAsset 자동 생성.
+Sprite Generator Tools — CharacterTag + 입력 텍스처들 → Atlas 패킹 → UE5 DataAsset 자동 생성.
+
+각 캐릭터는 유일한 애니메이션 세트를 가진다. 파츠(Body/Head/…)로 나눠 공유하던
+기존 구조를 걷어내고, 캐릭터당 하나의 UHktSpriteCharacterTemplate을 만든다.
 
 호출자는 입력 이미지들이 있는 디렉터리 경로(또는 textures JSON)를 직접 지정한다.
-경로는 하드코딩된 컨벤션을 쓰지 않고 인자로 받는다.
 
 디렉터리 스캔 시 허용 파일명:
   - 플랫:     {action}[_{direction}][_{frame_idx}].{png|tga|jpg|bmp|webp}
@@ -26,7 +28,7 @@ logger = logging.getLogger("hkt_mcp.tools.sprite")
 
 OBJECT_PATH = "/Script/HktSpriteGenerator.Default__HktSpriteGeneratorFunctionLibrary"
 
-# 8방향 고정 순서 — FHktSpriteAction 의 direction 인덱스와 일치해야 함.
+# 8방향 고정 순서 — FHktSpriteAnimation의 direction 인덱스와 일치해야 함.
 DIRECTIONS: List[str] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 DIRECTION_SET = set(DIRECTIONS)
 IMAGE_EXTS = {".png", ".tga", ".jpg", ".jpeg", ".bmp", ".webp"}
@@ -58,8 +60,6 @@ def _sanitize_tag(tag: str) -> str:
 
 
 # HktSpriteGeneratorFunctionLibrary::ActionNameToAnimTagString와 동일 규약.
-# "idle"/"walk"/"run"/"fall"은 Anim.FullBody.Locomotion.*로, 그 외는
-# Anim.FullBody.<Capitalized>로 승격한다.
 _LOCOMOTION_NAMES = {"idle", "walk", "run", "fall"}
 
 
@@ -74,33 +74,17 @@ def _is_image(p: Path) -> bool:
     return p.suffix.lower() in IMAGE_EXTS
 
 
-# 파일명 파싱: {action}[_{direction}][_{frame_idx}].{ext}
-# 예: "idle.png"          → ("idle", None, None)
-#     "idle_S.png"        → ("idle", "S",  None)
-#     "walk_NE_3.png"     → ("walk", "NE", 3)
 _STEM_RE = re.compile(r"^(?P<action>[A-Za-z][A-Za-z0-9]*)(?:_(?P<dir>N|NE|E|SE|S|SW|W|NW))?(?:_(?P<idx>\d+))?$")
 
 
 def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
-    """
-    컨벤션 폴더를 스캔해 textures dict 반환.
-
-    지원 레이아웃:
-      a) 플랫: {action}[_{direction}][_{idx}].{ext}
-      b) 서브폴더: {action}/{direction}/{idx}.{ext}  또는  {action}/{direction}.{ext}  또는  {action}/{any}.{ext}
-
-    반환 포맷은 _normalize_frames가 받는 dict와 동일.
-    """
+    """컨벤션 폴더를 스캔해 textures dict 반환."""
     if not dir_path.exists():
         raise FileNotFoundError(f"입력 폴더 없음: {dir_path}")
 
-    # 두 단계로 수집: 명시 방향 vs 방향 미지정(폴백).
-    # action → direction → [(idx_hint, path)]
     explicit: Dict[str, Dict[str, List[tuple[int, str]]]] = {}
-    # action → [(idx_hint, path)]  (방향 미지정 → 나중에 빈 방향에만 채움)
     fallback: Dict[str, List[tuple[int, str]]] = {}
 
-    # (a) 플랫 스캔
     for f in sorted(dir_path.iterdir()):
         if f.is_file() and _is_image(f):
             m = _STEM_RE.match(f.stem)
@@ -115,14 +99,12 @@ def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
             else:
                 explicit.setdefault(action, {}).setdefault(d, []).append((idx, str(f)))
 
-    # (b) 서브폴더 스캔 — 존재하면 해당 액션의 플랫 결과를 전부 덮어씀
     for action_dir in sorted(dir_path.iterdir()):
         if not action_dir.is_dir():
             continue
         action = action_dir.name.lower()
         dir_subdirs = [d for d in action_dir.iterdir() if d.is_dir() and d.name in DIRECTION_SET]
         if dir_subdirs:
-            # action/{direction}/{idx}.{ext}
             explicit.pop(action, None)
             fallback.pop(action, None)
             for direction_dir in dir_subdirs:
@@ -153,7 +135,6 @@ def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
             f"또는 서브폴더 {{action}}/{{direction}}/{{idx}}.png"
         )
 
-    # 병합: 명시 방향은 그대로, 빠진 방향만 fallback으로 채움
     buckets: Dict[str, Dict[str, List[tuple[int, str]]]] = {}
     all_actions = set(explicit.keys()) | set(fallback.keys())
     for action in all_actions:
@@ -165,7 +146,6 @@ def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
                     per_dir[d] = list(fb)
         buckets[action] = per_dir
 
-    # 정렬해서 최종 dict로
     out: Dict[str, Dict[str, List[str]]] = {}
     for action, dirs in buckets.items():
         action_map: Dict[str, List[str]] = {}
@@ -179,17 +159,15 @@ def _scan_convention_dir(dir_path: Path) -> Dict[str, Any]:
 def _normalize_frames(textures: Dict[str, Any]) -> Dict[str, Dict[str, List[str]]]:
     """
     입력 허용 형태:
-      {"idle": "path.png"}                             # 단일 프레임, 모든 방향 동일
-      {"idle": {"S": "path.png"}}                      # 방향별 1 프레임
-      {"idle": {"S": ["p1.png","p2.png"]}}             # 방향별 N 프레임
-      {"idle": {"framesByDirection": [[...], [...]]}}  # 8방향 × N 프레임 (고급)
-
-    반환: {action: {direction: [paths...]}}   (누락 방향 없음; 모든 방향 채움)
+      {"idle": "path.png"}
+      {"idle": {"S": "path.png"}}
+      {"idle": {"S": ["p1.png","p2.png"]}}
+      {"idle": {"framesByDirection": [[...], [...]]}}
+    반환: {action: {direction: [paths...]}}
     """
     out: Dict[str, Dict[str, List[str]]] = {}
     for action_id, spec in textures.items():
         if isinstance(spec, str):
-            # 단일 경로 → 8방향 모두 동일 프레임 1장
             out[action_id] = {d: [spec] for d in DIRECTIONS}
             continue
 
@@ -219,7 +197,6 @@ def _normalize_frames(textures: Dict[str, Any]) -> Dict[str, Dict[str, List[str]
                 else:
                     action_map[d] = list(val or [])
 
-            # 방향 채우기 — 비어있는 방향은 채워진 방향 중 아무거나로 폴백
             if not any(action_map.values()):
                 raise ValueError(f"action '{action_id}' 에 유효한 프레임이 없음")
             fallback = next(v for v in action_map.values() if v)
@@ -238,8 +215,7 @@ def _pack_atlas(
 ) -> Dict[str, Any]:
     """
     고유 파일 경로마다 한 번만 디코드 + 한 셀만 차지하도록 패킹.
-    동일 경로가 여러 방향에 매핑돼 있으면(단일 파일 폴백 케이스) 모두 같은 atlasIndex를 공유.
-    셀 크기는 모든 입력 이미지의 max(W, H).
+    각 애니메이션의 frames 배열은 (dir × framesPerDirection) 개를 atlasIndex만 채워서 만든다.
     """
     from PIL import Image
 
@@ -277,28 +253,27 @@ def _pack_atlas(
         atlas.paste(decoded[p], (col * cell_w, row * cell_h), decoded[p])
     atlas.save(out_path, "PNG")
 
-    # UE5 새 스키마: 그리드 레이아웃 + frameOverrides.
-    # 패킹이 (action, dir, frame) 순이 아니라 고유 파일 순이라, 각 셀 위치를
-    # frameOverrides 의 명시 atlasIndex 로 내보낸다.
-    actions_out: List[Dict[str, Any]] = []
+    # 각 애니메이션의 frames 배열 — (dir, frame) 선형 순.
+    animations_out: List[Dict[str, Any]] = []
     for action_id in sorted(normalized.keys()):
         max_frames = max(len(normalized[action_id][d]) for d in DIRECTIONS)
-        overrides: List[Dict[str, Any]] = []
+        frames: List[Dict[str, Any]] = []
         for di, d in enumerate(DIRECTIONS):
-            for fi, p in enumerate(normalized[action_id][d]):
-                overrides.append({
-                    "dir": di,
-                    "frame": fi,
-                    "atlasIndex": path_to_cell[p],
-                })
-        actions_out.append({
+            dir_paths = normalized[action_id][d]
+            last_idx = path_to_cell[dir_paths[-1]] if dir_paths else 0
+            for fi in range(max_frames):
+                if fi < len(dir_paths):
+                    frames.append({"atlasIndex": path_to_cell[dir_paths[fi]]})
+                else:
+                    # 부족한 프레임은 방향의 마지막 프레임 유지.
+                    frames.append({"atlasIndex": last_idx})
+        animations_out.append({
             "animTag": _action_name_to_anim_tag(action_id),
             "numDirections": len(DIRECTIONS),
             "framesPerDirection": max_frames,
-            "startAtlasIndex": 0,
             "pivotX": cell_w / 2.0,
             "pivotY": float(cell_h),
-            "frameOverrides": overrides,
+            "frames": frames,
         })
 
     return {
@@ -308,16 +283,15 @@ def _pack_atlas(
         "cellH": cell_h,
         "atlasWidth": atlas_w,
         "atlasHeight": atlas_h,
-        "actions": actions_out,
+        "animations": animations_out,
     }
 
 
-async def build_sprite_part(
+async def build_sprite_character(
     bridge: EditorBridge,
-    tag: str,
-    slot: str,
-    input_dir: str = "",   # 입력 이미지가 들어있는 폴더 (또는 textures JSON으로 대체)
-    textures: str = "",    # JSON string — 경로를 직접 명시할 때
+    character_tag: str,
+    input_dir: str = "",
+    textures: str = "",
     output_dir: str = "",
     pixel_to_world: float = 2.0,
     frame_duration_ms: float = 100.0,
@@ -326,27 +300,22 @@ async def build_sprite_part(
     project_saved_dir: str = "",
 ) -> str:
     """
-    Tag/Slot + 입력 텍스처들로 Atlas 패킹 + UE5 DataAsset 자동 생성.
+    CharacterTag + 입력 텍스처들로 Atlas 패킹 + UE5 DataAsset 자동 생성.
 
-    입력은 둘 중 하나를 주면 된다:
+    입력은 둘 중 하나:
       - input_dir:  이미지 파일이 들어있는 폴더 경로
-                    파일명 규칙: {action}[_{direction}][_{frame_idx}].{ext}
-                    또는 서브폴더: {action}/{direction}/{idx}.{ext}
-      - textures:   JSON 으로 경로를 직접 명시
-                    {"idle": "p.png"} / {"idle": {"S":["p1.png","p2.png"]}} /
-                    {"walk": {"framesByDirection": [[...], ..., [...]]}}  # 8방향
+      - textures:   JSON으로 경로를 직접 명시
     """
     _require_pillow()
 
-    if not tag or not slot:
-        return json.dumps({"success": False, "error": "tag/slot required"})
+    if not character_tag:
+        return json.dumps({"success": False, "error": "character_tag required"})
     if not (input_dir or (textures and textures.strip())):
         return json.dumps({
             "success": False,
             "error": "input_dir 또는 textures JSON 중 하나를 반드시 지정해야 합니다"
         })
 
-    # --- 입력 파싱: textures JSON 우선, 아니면 input_dir 스캔 ---
     scanned_dir: Optional[str] = None
     try:
         if textures and textures.strip():
@@ -363,7 +332,7 @@ async def build_sprite_part(
     try:
         normalized = _normalize_frames(tex_dict)
         out_dir = _resolve_output_dir(project_saved_dir or None)
-        atlas_png = out_dir / f"{_sanitize_tag(tag)}.png"
+        atlas_png = out_dir / f"{_sanitize_tag(character_tag)}.png"
         pack = _pack_atlas(normalized, atlas_png)
     except Exception as e:
         logger.exception("Atlas 패킹 실패")
@@ -371,43 +340,40 @@ async def build_sprite_part(
 
     cell_w, cell_h = pack["cellW"], pack["cellH"]
 
-    # --- UE5 빌드 호출 스펙 구성 (그리드 레이아웃 스키마) ---
-    actions_spec = []
-    for a in pack["actions"]:
-        actions_spec.append({
+    animations_spec = []
+    for a in pack["animations"]:
+        animations_spec.append({
             "animTag":             a["animTag"],
             "numDirections":       a["numDirections"],
             "framesPerDirection":  a["framesPerDirection"],
-            "startAtlasIndex":     a["startAtlasIndex"],
             "pivotX":              a["pivotX"],
             "pivotY":              a["pivotY"],
             "frameDurationMs":     frame_duration_ms,
             "looping":             looping,
             "mirrorWestFromEast":  mirror_west_from_east,
-            "frameOverrides":      a["frameOverrides"],
+            "frames":              a["frames"],
         })
 
     spec = {
-        "tag": tag,
-        "slot": slot,
+        "characterTag": character_tag,
         "atlasPngPath": str(atlas_png),
         "cellW": cell_w,
         "cellH": cell_h,
         "pixelToWorld": pixel_to_world,
-        "actions": actions_spec,
+        "animations": animations_spec,
     }
     if output_dir:
         spec["outputDir"] = output_dir
 
     data = await bridge.call_method(
-        "McpBuildSpritePart",
+        "McpBuildSpriteCharacter",
         object_path=OBJECT_PATH,
         JsonSpec=json.dumps(spec),
     )
     if data is None:
         return json.dumps({
             "success": False,
-            "error": "UE5 McpBuildSpritePart 호출 실패",
+            "error": "UE5 McpBuildSpriteCharacter 호출 실패",
             "atlas_png": str(atlas_png),
             "atlas_size": [pack["atlasWidth"], pack["atlasHeight"]],
             "cell_size": [cell_w, cell_h],
@@ -423,5 +389,3 @@ async def build_sprite_part(
         "rows": pack["rows"],
         "scanned_dir": scanned_dir,
     }, indent=2)
-
-

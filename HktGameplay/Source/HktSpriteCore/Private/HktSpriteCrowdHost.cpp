@@ -116,15 +116,9 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 
 		Renderer->RegisterEntity(Id);
 
-		FHktSpriteLoadout Loadout;
-		Loadout.BodyPart    = SV->BodyPart.Get();
-		Loadout.HeadPart    = SV->HeadPart.Get();
-		Loadout.WeaponPart  = SV->WeaponPart.Get();
-		Loadout.ShieldPart  = SV->ShieldPart.Get();
-		Loadout.HeadgearTop = SV->HeadgearTop.Get();
-		Loadout.HeadgearMid = SV->HeadgearMid.Get();
-		Loadout.HeadgearLow = SV->HeadgearLow.Get();
-		Renderer->SetLoadout(Id, Loadout);
+		// 캐릭터 한 명 = 하나의 스프라이트 템플릿. Body 슬롯 태그를 CharacterTag로 사용.
+		// (HktCore 측은 7슬롯을 유지하지만, 시각적으로는 캐릭터 아틀라스가 모두 담는다.)
+		Renderer->SetCharacter(Id, SV->BodyPart.Get());
 
 		// 초기 상태에서 Anim Tag Container를 한 번 동기화
 		if (const FHktAnimationView* AV = State.GetAnimation(Id))
@@ -134,22 +128,14 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		}
 	}
 
-	// --- 3. Loadout diff: 기존 엔터티 중 이번 프레임 Loadout 변경분 ---
+	// --- 3. Character diff: Body 태그(=CharacterTag) 변경분만 반영 ---
+	//     나머지 슬롯(Head/Weapon/…)은 HktCore에선 유지되지만 시각적으로는 사용 안 함.
 	for (auto It = State.Sprites.CreateConstIterator(); It; ++It)
 	{
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
 		const FHktSpriteView& SV = *It;
-		if (!SV.AnyLoadoutDirty(Frame)) continue;
-
-		FHktSpriteLoadout Loadout;
-		Loadout.BodyPart    = SV.BodyPart.Get();
-		Loadout.HeadPart    = SV.HeadPart.Get();
-		Loadout.WeaponPart  = SV.WeaponPart.Get();
-		Loadout.ShieldPart  = SV.ShieldPart.Get();
-		Loadout.HeadgearTop = SV.HeadgearTop.Get();
-		Loadout.HeadgearMid = SV.HeadgearMid.Get();
-		Loadout.HeadgearLow = SV.HeadgearLow.Get();
-		Renderer->SetLoadout(Id, Loadout);
+		if (!SV.BodyPart.IsDirty(Frame)) continue;
+		Renderer->SetCharacter(Id, SV.BodyPart.Get());
 	}
 
 	// --- 4. 매 프레임 UpdateEntity ---

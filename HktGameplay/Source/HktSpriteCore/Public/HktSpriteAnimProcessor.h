@@ -53,10 +53,10 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 //
 // 설계 원칙:
 //  - 입력: FHktSpriteAnimFragment(엔터티 상태) 만.
-//  - 출력: (AnimTag, PlayRate). 실제 Action 해석은 Renderer가 PartTemplate의
-//    FindActionOrFallback(Tag)로 처리하므로 Processor는 PartTemplate을 모른다.
-//  - 태그 중간 매핑 테이블 없음. Generator가 PartTemplate을 만들 때 각 액션의
-//    AnimTag를 직접 채운다.
+//  - 출력: (AnimTag, PlayRate). 실제 Animation 해석은 Renderer가 CharacterTemplate의
+//    FindAnimationOrFallback(Tag)로 처리하므로 Processor는 CharacterTemplate을 모른다.
+//  - 태그 중간 매핑 테이블 없음. Generator가 CharacterTemplate을 만들 때 각 애니의
+//    AnimTag를 Animations 맵 키로 직접 채운다.
 //
 // 태그 계층 우선순위(UHktAnimInstance와 동일):
 //  1. Anim.Montage.*   — 최상위. 원샷 액션(공격 발동 등).

@@ -215,28 +215,18 @@ struct FHktTerrainDebrisView
 struct FHktSpriteView
 {
 	THktVisualField<FGameplayTag> BodyPart;
-	THktVisualField<FGameplayTag> HeadPart;
-	THktVisualField<FGameplayTag> WeaponPart;
-	THktVisualField<FGameplayTag> ShieldPart;
-	THktVisualField<FGameplayTag> HeadgearTop;
-	THktVisualField<FGameplayTag> HeadgearMid;
-	THktVisualField<FGameplayTag> HeadgearLow;
 	THktVisualField<uint8>        Facing;         // 0..7 (N,NE,E,SE,S,SW,W,NW)
 	THktVisualField<int32>        AnimStartTick;  // AnimState 전환 시점의 VM frame
 
 	FORCEINLINE bool AnyDirty(int64 F) const
 	{
-		return BodyPart.IsDirty(F) || HeadPart.IsDirty(F)
-			|| WeaponPart.IsDirty(F) || ShieldPart.IsDirty(F)
-			|| HeadgearTop.IsDirty(F) || HeadgearMid.IsDirty(F) || HeadgearLow.IsDirty(F)
+		return BodyPart.IsDirty(F)
 			|| Facing.IsDirty(F) || AnimStartTick.IsDirty(F);
 	}
 
 	FORCEINLINE bool AnyLoadoutDirty(int64 F) const
 	{
-		return BodyPart.IsDirty(F) || HeadPart.IsDirty(F)
-			|| WeaponPart.IsDirty(F) || ShieldPart.IsDirty(F)
-			|| HeadgearTop.IsDirty(F) || HeadgearMid.IsDirty(F) || HeadgearLow.IsDirty(F);
+		return BodyPart.IsDirty(F);
 	}
 };
 

@@ -1,7 +1,8 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteGeneratorFunctionLibrary.h"
-#include "HktSpritePartTemplate.h"
+#include "HktSpriteCharacterTemplate.h"
+#include "HktSpriteGeneratorSettings.h"
 #include "HktSpriteTypes.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dom/JsonObject.h"
@@ -52,25 +53,12 @@ namespace HktSpriteGen
 		return MakeResult(false, { {TEXT("error"), Msg} });
 	}
 
-	static EHktSpritePartSlot ParseSlot(const FString& S)
-	{
-		if (S.Equals(TEXT("Body"),        ESearchCase::IgnoreCase)) return EHktSpritePartSlot::Body;
-		if (S.Equals(TEXT("Head"),        ESearchCase::IgnoreCase)) return EHktSpritePartSlot::Head;
-		if (S.Equals(TEXT("Weapon"),      ESearchCase::IgnoreCase)) return EHktSpritePartSlot::Weapon;
-		if (S.Equals(TEXT("Shield"),      ESearchCase::IgnoreCase)) return EHktSpritePartSlot::Shield;
-		if (S.Equals(TEXT("HeadgearTop"), ESearchCase::IgnoreCase)) return EHktSpritePartSlot::HeadgearTop;
-		if (S.Equals(TEXT("HeadgearMid"), ESearchCase::IgnoreCase)) return EHktSpritePartSlot::HeadgearMid;
-		if (S.Equals(TEXT("HeadgearLow"), ESearchCase::IgnoreCase)) return EHktSpritePartSlot::HeadgearLow;
-		return EHktSpritePartSlot::Body;
-	}
-
-	/** Tag 문자열을 네이티브 등록해 FGameplayTag로 반환. 파일명 안전 변환까지. */
+	/** Tag 문자열을 네이티브 등록해 FGameplayTag로 반환. */
 	static FGameplayTag EnsureTag(const FString& TagStr)
 	{
 		UGameplayTagsManager& TM = UGameplayTagsManager::Get();
 		FGameplayTag Existing = TM.RequestGameplayTag(FName(*TagStr), /*ErrorIfNotFound*/ false);
 		if (Existing.IsValid()) return Existing;
-		// 태그 미등록이면 일시적으로 네이티브 추가 (세션 수명). 영구 등록은 프로젝트 DataTable 관리.
 		return TM.AddNativeGameplayTag(FName(*TagStr));
 	}
 
@@ -80,9 +68,7 @@ namespace HktSpriteGen
 	}
 
 	/**
-	 * Directory/video 파이프라인이 파일명에서 뽑아낸 action 문자열("idle","walk",...)을
-	 * 표준 anim tag로 승격. 알려진 locomotion 이름은 Anim.FullBody.Locomotion.*로,
-	 * 그 외는 Anim.FullBody.<Capitalized>로 맵핑.
+	 * 파일명에서 뽑아낸 action 문자열("idle","walk",...)을 표준 anim tag로 승격.
 	 */
 	static FString ActionNameToAnimTagString(const FString& ActionName)
 	{
@@ -147,40 +133,37 @@ namespace HktSpriteGen
 		return Tex;
 	}
 
-	static void ParseFrameOverride(const TSharedPtr<FJsonObject>& F, FHktSpriteFrameOverride& Out)
+	/** JSON → FHktSpriteFrame. 비어있으면 기본값. */
+	static FHktSpriteFrame ParseFrame(const TSharedPtr<FJsonObject>& F, float DefaultPivotX, float DefaultPivotY)
 	{
-		int32 Dir = -1, Idx = -1;
-		F->TryGetNumberField(TEXT("dir"),   Dir);
-		F->TryGetNumberField(TEXT("frame"), Idx);
-		Out.DirectionIndex = Dir;
-		Out.FrameIndex     = Idx;
-
-		int32 AtlasIndex = -1;
-		if (F->TryGetNumberField(TEXT("atlasIndex"), AtlasIndex) && AtlasIndex >= 0)
+		FHktSpriteFrame Out;
+		if (!F.IsValid())
 		{
-			Out.Frame.AtlasIndex = AtlasIndex;
-			Out.bOverrideAtlasIndex = true;
+			Out.PivotOffset = FVector2f(DefaultPivotX, DefaultPivotY);
+			return Out;
 		}
 
-		double PivX, PivY;
-		if (F->TryGetNumberField(TEXT("pivotX"), PivX) && F->TryGetNumberField(TEXT("pivotY"), PivY))
-		{
-			Out.Frame.PivotOffset = FVector2f(static_cast<float>(PivX), static_cast<float>(PivY));
-			Out.bOverridePivot = true;
-		}
+		int32 AtlasIndex = 0;
+		F->TryGetNumberField(TEXT("atlasIndex"), AtlasIndex);
+		Out.AtlasIndex = FMath::Max(AtlasIndex, 0);
+
+		double PivX = DefaultPivotX, PivY = DefaultPivotY;
+		F->TryGetNumberField(TEXT("pivotX"), PivX);
+		F->TryGetNumberField(TEXT("pivotY"), PivY);
+		Out.PivotOffset = FVector2f(static_cast<float>(PivX), static_cast<float>(PivY));
 
 		double ScaleX = 1.0, ScaleY = 1.0;
 		F->TryGetNumberField(TEXT("scaleX"), ScaleX);
 		F->TryGetNumberField(TEXT("scaleY"), ScaleY);
-		Out.Frame.Scale = FVector2f(static_cast<float>(ScaleX), static_cast<float>(ScaleY));
+		Out.Scale = FVector2f(static_cast<float>(ScaleX), static_cast<float>(ScaleY));
 
 		double Rot = 0.0;
 		F->TryGetNumberField(TEXT("rotation"), Rot);
-		Out.Frame.Rotation = static_cast<float>(Rot);
+		Out.Rotation = static_cast<float>(Rot);
 
 		int32 ZBias = 0;
 		F->TryGetNumberField(TEXT("zBias"), ZBias);
-		Out.Frame.ZBias = ZBias;
+		Out.ZBias = ZBias;
 
 		const TSharedPtr<FJsonObject>* Tint = nullptr;
 		if (F->TryGetObjectField(TEXT("tint"), Tint) && Tint && Tint->IsValid())
@@ -190,31 +173,17 @@ namespace HktSpriteGen
 			(*Tint)->TryGetNumberField(TEXT("g"), G);
 			(*Tint)->TryGetNumberField(TEXT("b"), B);
 			(*Tint)->TryGetNumberField(TEXT("a"), A);
-			Out.Frame.Tint = FLinearColor(R, G, B, A);
+			Out.Tint = FLinearColor(R, G, B, A);
 		}
-
-		const TSharedPtr<FJsonObject>* Anchors = nullptr;
-		if (F->TryGetObjectField(TEXT("childAnchors"), Anchors) && Anchors && Anchors->IsValid())
-		{
-			for (const auto& Pair : (*Anchors)->Values)
-			{
-				const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
-				if (Pair.Value.IsValid() && Pair.Value->TryGetArray(Arr) && Arr && Arr->Num() >= 2)
-				{
-					const float X = static_cast<float>((*Arr)[0]->AsNumber());
-					const float Y = static_cast<float>((*Arr)[1]->AsNumber());
-					Out.Frame.ChildAnchors.Add(FName(*Pair.Key), FVector2f(X, Y));
-				}
-			}
-		}
+		return Out;
 	}
 }
 
 // ============================================================================
-// McpBuildSpritePart
+// McpBuildSpriteCharacter
 // ============================================================================
 
-FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& JsonSpec)
+FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpriteCharacter(const FString& JsonSpec)
 {
 	using namespace HktSpriteGen;
 
@@ -225,21 +194,20 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 		return MakeSpriteError(TEXT("JsonSpec parse failed"));
 	}
 
-	const FString TagStr   = Root->GetStringField(TEXT("tag"));
-	const FString SlotStr  = Root->GetStringField(TEXT("slot"));
+	const FString TagStr   = Root->GetStringField(TEXT("characterTag"));
 	const FString AtlasPng = Root->GetStringField(TEXT("atlasPngPath"));
 	if (TagStr.IsEmpty() || AtlasPng.IsEmpty())
 	{
-		return MakeSpriteError(TEXT("tag / atlasPngPath required"));
+		return MakeSpriteError(TEXT("characterTag / atlasPngPath required"));
 	}
 	if (!FPaths::FileExists(AtlasPng))
 	{
 		return MakeSpriteError(FString::Printf(TEXT("Atlas PNG not found: %s"), *AtlasPng));
 	}
 
-	const double CellW         = Root->GetNumberField(TEXT("cellW"));
-	const double CellH         = Root->GetNumberField(TEXT("cellH"));
-	double PixelToWorld        = 2.0;
+	const double CellW  = Root->GetNumberField(TEXT("cellW"));
+	const double CellH  = Root->GetNumberField(TEXT("cellH"));
+	double PixelToWorld = 2.0;
 	Root->TryGetNumberField(TEXT("pixelToWorld"), PixelToWorld);
 
 	FString OutputDir = TEXT("/Game/Generated/Sprites");
@@ -248,7 +216,7 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	// --- 에셋 경로 계산 ---
 	const FString SafeTag        = SanitizeForAssetName(TagStr);
 	const FString AtlasName      = FString::Printf(TEXT("T_SpriteAtlas_%s"), *SafeTag);
-	const FString TemplateName   = FString::Printf(TEXT("DA_SpritePart_%s"),  *SafeTag);
+	const FString TemplateName   = FString::Printf(TEXT("DA_SpriteCharacter_%s"), *SafeTag);
 	const FString AtlasPackage   = FString::Printf(TEXT("%s/%s"), *OutputDir, *AtlasName);
 	const FString TemplatePackage= FString::Printf(TEXT("%s/%s"), *OutputDir, *TemplateName);
 
@@ -264,94 +232,106 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	if (!TmplPkg) return MakeSpriteError(TEXT("DataAsset 패키지 생성 실패"));
 	TmplPkg->FullyLoad();
 
-	UHktSpritePartTemplate* Tmpl = NewObject<UHktSpritePartTemplate>(
+	UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
 		TmplPkg, FName(*TemplateName), RF_Public | RF_Standalone);
-	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpritePartTemplate 생성 실패"));
+	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpriteCharacterTemplate 생성 실패"));
 
 	Tmpl->IdentifierTag = EnsureTag(TagStr);
-	Tmpl->PartSlot      = ParseSlot(SlotStr);
 	Tmpl->Atlas         = AtlasTex;
 	Tmpl->AtlasCellSize = FVector2f(static_cast<float>(CellW), static_cast<float>(CellH));
 	Tmpl->PixelToWorld  = static_cast<float>(PixelToWorld);
 
-	// --- 3. Actions 파싱 (그리드 레이아웃) ---
-	const TArray<TSharedPtr<FJsonValue>>* Actions = nullptr;
-	if (Root->TryGetArrayField(TEXT("actions"), Actions) && Actions)
+	// --- 3. Animations 파싱 ---
+	const TArray<TSharedPtr<FJsonValue>>* Animations = nullptr;
+	if (Root->TryGetArrayField(TEXT("animations"), Animations) && Animations)
 	{
-		for (const TSharedPtr<FJsonValue>& V : *Actions)
+		for (const TSharedPtr<FJsonValue>& V : *Animations)
 		{
 			const TSharedPtr<FJsonObject> A = V->AsObject();
 			if (!A.IsValid()) continue;
 
-			FHktSpriteAction Action;
-
 			FString AnimTagStr;
 			if (!A->TryGetStringField(TEXT("animTag"), AnimTagStr) || AnimTagStr.IsEmpty())
 			{
-				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("액션에 animTag 없음 (skipped)"));
+				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("애니에 animTag 없음 (skipped)"));
 				continue;
 			}
-			Action.AnimTag = EnsureTag(AnimTagStr);
-			if (!Action.AnimTag.IsValid())
+			const FGameplayTag AnimTag = EnsureTag(AnimTagStr);
+			if (!AnimTag.IsValid())
 			{
 				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("animTag 등록 실패: %s (skipped)"), *AnimTagStr);
 				continue;
 			}
 
-			int32 NumDir = 1, FramesPerDir = 1, StartIdx = 0;
+			FHktSpriteAnimation Anim;
+
+			int32 NumDir = 1, FramesPerDir = 1;
 			A->TryGetNumberField(TEXT("numDirections"),      NumDir);
 			A->TryGetNumberField(TEXT("framesPerDirection"), FramesPerDir);
-			A->TryGetNumberField(TEXT("startAtlasIndex"),    StartIdx);
-			Action.NumDirections      = FMath::Clamp(NumDir, 1, 8);
-			Action.FramesPerDirection = FMath::Max(FramesPerDir, 1);
-			Action.StartAtlasIndex    = FMath::Max(StartIdx, 0);
+			Anim.NumDirections      = FMath::Clamp(NumDir, 1, 8);
+			Anim.FramesPerDirection = FMath::Max(FramesPerDir, 1);
 
 			double PivX = CellW * 0.5, PivY = CellH; // 바닥 중앙 기본
 			A->TryGetNumberField(TEXT("pivotX"), PivX);
 			A->TryGetNumberField(TEXT("pivotY"), PivY);
-			Action.PivotOffset = FVector2f(static_cast<float>(PivX), static_cast<float>(PivY));
+			Anim.PivotOffset = FVector2f(static_cast<float>(PivX), static_cast<float>(PivY));
 
 			double FrameDur = 100.0;
 			A->TryGetNumberField(TEXT("frameDurationMs"), FrameDur);
-			Action.FrameDurationMs = static_cast<float>(FrameDur);
+			Anim.FrameDurationMs = static_cast<float>(FrameDur);
 
 			bool bLoop = true, bMirror = true;
 			A->TryGetBoolField(TEXT("looping"), bLoop);
 			A->TryGetBoolField(TEXT("mirrorWestFromEast"), bMirror);
-			Action.bLooping = bLoop;
-			Action.bMirrorWestFromEast = bMirror;
+			Anim.bLooping = bLoop;
+			Anim.bMirrorWestFromEast = bMirror;
 
 			FString OnComplete;
 			if (A->TryGetStringField(TEXT("onCompleteTransition"), OnComplete) && !OnComplete.IsEmpty())
 			{
-				Action.OnCompleteTransition = EnsureTag(OnComplete);
+				Anim.OnCompleteTransition = EnsureTag(OnComplete);
 			}
 
 			const TArray<TSharedPtr<FJsonValue>>* PerFrame = nullptr;
 			if (A->TryGetArrayField(TEXT("perFrameDurationMs"), PerFrame) && PerFrame)
 			{
-				for (const auto& F : *PerFrame) Action.PerFrameDurationMs.Add(static_cast<float>(F->AsNumber()));
+				for (const auto& F : *PerFrame) Anim.PerFrameDurationMs.Add(static_cast<float>(F->AsNumber()));
 			}
 
-			const TArray<TSharedPtr<FJsonValue>>* Overrides = nullptr;
-			if (A->TryGetArrayField(TEXT("frameOverrides"), Overrides) && Overrides)
+			// Frames 배열: numDirections × framesPerDirection 개를 기대.
+			// 비어있거나 부족하면 나머지는 grid 기본 (StartIndex=0 기반 linear)로 채운다.
+			const int32 Expected = Anim.NumDirections * Anim.FramesPerDirection;
+			Anim.Frames.Reserve(Expected);
+
+			const TArray<TSharedPtr<FJsonValue>>* FrameArr = nullptr;
+			const bool bHasFrames = A->TryGetArrayField(TEXT("frames"), FrameArr) && FrameArr;
+
+			int32 StartAtlasIndex = 0;
+			A->TryGetNumberField(TEXT("startAtlasIndex"), StartAtlasIndex);
+
+			for (int32 Idx = 0; Idx < Expected; ++Idx)
 			{
-				for (const TSharedPtr<FJsonValue>& OV : *Overrides)
+				if (bHasFrames && FrameArr->IsValidIndex(Idx))
 				{
-					const TSharedPtr<FJsonObject> OO = OV->AsObject();
-					if (!OO.IsValid()) continue;
-					FHktSpriteFrameOverride Ovr;
-					ParseFrameOverride(OO, Ovr);
-					Action.FrameOverrides.Add(MoveTemp(Ovr));
+					Anim.Frames.Add(ParseFrame((*FrameArr)[Idx]->AsObject(),
+						Anim.PivotOffset.X, Anim.PivotOffset.Y));
+				}
+				else
+				{
+					// 그리드 폴백: Start + 선형 인덱스.
+					FHktSpriteFrame F;
+					F.AtlasIndex = StartAtlasIndex + Idx;
+					F.PivotOffset = Anim.PivotOffset;
+					Anim.Frames.Add(F);
 				}
 			}
 
-			Tmpl->Actions.Add(Action);
+			Tmpl->Animations.Add(AnimTag, MoveTemp(Anim));
 		}
 	}
 
 	// --- DefaultAnimTag 설정 ---
-	//   명시 필드 우선, 없으면 Anim.FullBody.Locomotion.Idle을 찾고, 그것도 없으면 Actions[0].
+	//   명시 필드 우선, 없으면 Anim.FullBody.Locomotion.Idle, 그것도 없으면 첫 번째 키.
 	FString DefaultTagStr;
 	if (Root->TryGetStringField(TEXT("defaultAnimTag"), DefaultTagStr) && !DefaultTagStr.IsEmpty())
 	{
@@ -360,17 +340,17 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	else
 	{
 		const FGameplayTag IdleTag = EnsureTag(TEXT("Anim.FullBody.Locomotion.Idle"));
-		for (const FHktSpriteAction& Act : Tmpl->Actions)
+		if (Tmpl->Animations.Contains(IdleTag))
 		{
-			if (Act.AnimTag.MatchesTagExact(IdleTag))
+			Tmpl->DefaultAnimTag = IdleTag;
+		}
+		else if (Tmpl->Animations.Num() > 0)
+		{
+			for (const auto& Pair : Tmpl->Animations)
 			{
-				Tmpl->DefaultAnimTag = IdleTag;
+				Tmpl->DefaultAnimTag = Pair.Key;
 				break;
 			}
-		}
-		if (!Tmpl->DefaultAnimTag.IsValid() && Tmpl->Actions.Num() > 0)
-		{
-			Tmpl->DefaultAnimTag = Tmpl->Actions[0].AnimTag;
 		}
 	}
 
@@ -385,8 +365,8 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 	}
 	FAssetRegistryModule::AssetCreated(Tmpl);
 
-	UE_LOG(LogHktSpriteGenerator, Log, TEXT("SpritePart 빌드 완료: Tag=%s Slot=%s Atlas=%s Template=%s"),
-		*TagStr, *SlotStr, *AtlasPackage, *TemplatePackage);
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("SpriteCharacter 빌드 완료: Tag=%s Atlas=%s Template=%s Anims=%d"),
+		*TagStr, *AtlasPackage, *TemplatePackage, Tmpl->Animations.Num());
 
 	return MakeResult(true, {
 		{ TEXT("tag"),            TagStr },
@@ -396,7 +376,7 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpritePart(const FString& Js
 }
 
 // ============================================================================
-// EditorBuildSpritePartFromDirectory — MCP/Python 없이 에디터 단독 파이프라인
+// EditorBuildSpriteCharacterFromDirectory — 에디터 단독 파이프라인
 // ============================================================================
 
 namespace HktSpriteGen
@@ -427,7 +407,7 @@ namespace HktSpriteGen
 	{
 		const FString E = Ext.ToLower();
 		if (E == TEXT("png"))                     return EImageFormat::PNG;
-		if (E == TEXT("tga"))                     return EImageFormat::BMP; // TGA는 별도 처리 필요, 일단 BMP로 폴백 표시
+		if (E == TEXT("tga"))                     return EImageFormat::BMP;
 		if (E == TEXT("jpg") || E == TEXT("jpeg")) return EImageFormat::JPEG;
 		if (E == TEXT("bmp"))                     return EImageFormat::BMP;
 		return EImageFormat::PNG;
@@ -440,11 +420,9 @@ namespace HktSpriteGen
 		int32 DirectionIdx = INDEX_NONE;  // INDEX_NONE이면 "모든 방향 공통"
 		int32 FrameIdx = 0;
 		FString FilePath;
-		int32 Width = 0;
-		int32 Height = 0;
 	};
 
-	/** 파일명 stem을 파싱: {action}[_{direction}][_{frame_idx}] */
+	/** 파일명 stem: {action}[_{direction}][_{frame_idx}] */
 	static bool ParseFlatStem(const FString& Stem, FString& OutAction, int32& OutDirIdx, int32& OutFrameIdx)
 	{
 		static const FRegexPattern Pattern(TEXT("^([A-Za-z][A-Za-z0-9]*)(?:_(NE|NW|SE|SW|N|E|S|W))?(?:_(\\d+))?$"));
@@ -459,7 +437,6 @@ namespace HktSpriteGen
 		return true;
 	}
 
-	/** 디렉터리에서 이미지 파일을 모아 평탄한 프레임 리스트 반환. */
 	static bool ScanDirectory(const FString& InputDir, TArray<FFrameEntry>& OutFrames, FString& OutError)
 	{
 		IFileManager& FM = IFileManager::Get();
@@ -491,7 +468,7 @@ namespace HktSpriteGen
 			AppendImage(InputDir / FileName, Action, DirIdx, FrameIdx, OutFrames);
 		}
 
-		// (b) 서브폴더 스캔: {action}/{direction}/{idx}.ext  또는  {action}/{direction}.ext
+		// (b) 서브폴더 스캔: {action}/{direction}/{idx}.ext 또는 {action}/{direction}.ext
 		TArray<FString> ActionDirs;
 		FM.FindFiles(ActionDirs, *(InputDir / TEXT("*")), /*Files*/ false, /*Dirs*/ true);
 		for (const FString& ActionDirName : ActionDirs)
@@ -499,7 +476,6 @@ namespace HktSpriteGen
 			const FString ActionPath = InputDir / ActionDirName;
 			const FString ActionLower = ActionDirName.ToLower();
 
-			// 먼저 direction 서브폴더가 있는지 확인
 			TArray<FString> DirSubs;
 			FM.FindFiles(DirSubs, *(ActionPath / TEXT("*")), false, true);
 			bool bHasDirSub = false;
@@ -509,7 +485,6 @@ namespace HktSpriteGen
 				if (DirIdx == INDEX_NONE) continue;
 				bHasDirSub = true;
 
-				// 서브폴더가 있으면 같은 액션의 플랫 결과 제거 (서브폴더 우선)
 				OutFrames.RemoveAll([&ActionLower](const FFrameEntry& E){ return E.Action == ActionLower; });
 
 				const FString DirPath = ActionPath / Sub;
@@ -559,7 +534,6 @@ namespace HktSpriteGen
 		return true;
 	}
 
-	/** 이미지 하나를 BGRA8 raw로 디코드. */
 	static bool DecodeImageFile(const FString& Path, TArray64<uint8>& OutBGRA, int32& OutW, int32& OutH)
 	{
 		TArray<uint8> FileData;
@@ -585,7 +559,6 @@ namespace HktSpriteGen
 	                      int32& OutCellW, int32& OutCellH, int32& OutCols, int32& OutRows,
 	                      TMap<TTuple<FString,int32,int32>, int32>& OutIndexMap, FString& OutError)
 	{
-		// 1. 고유 파일만 한 번씩 디코드 — 이후 확장 복제본들은 같은 아틀라스 셀을 공유.
 		TMap<FString, FDecodedImage> DecodedByPath;
 		int32 MaxW = 0, MaxH = 0;
 		for (const FFrameEntry& E : Frames)
@@ -618,7 +591,7 @@ namespace HktSpriteGen
 			return A.FrameIdx < B.FrameIdx;
 		});
 
-		// 2. INDEX_NONE 프레임은 명시 방향이 없는 방향에만 복제 (중복 키 방지).
+		// INDEX_NONE 프레임은 명시 방향이 없는 방향에만 복제.
 		TMap<FString, TSet<int32>> ExplicitDirsPerAction;
 		for (const FFrameEntry& E : Frames)
 		{
@@ -649,7 +622,7 @@ namespace HktSpriteGen
 		}
 		Frames = MoveTemp(Expanded);
 
-		// 3. 아틀라스 셀 배정은 고유 파일 단위 — 같은 경로가 여러 방향에 확장돼도 한 셀만 차지.
+		// 아틀라스 셀은 고유 파일 단위.
 		TMap<FString, int32> PathToCell;
 		TArray<FString> CellOrder;
 		CellOrder.Reserve(DecodedByPath.Num());
@@ -707,9 +680,12 @@ namespace HktSpriteGen
 		return true;
 	}
 
-	/** 패킹 결과를 McpBuildSpritePart JsonSpec으로 변환 (그리드 + Overrides). */
+	/**
+	 * 패킹 결과를 McpBuildSpriteCharacter JsonSpec으로 변환.
+	 * animations[].frames 는 (dir, frame) 순으로 numDirections × framesPerDirection 개 채운다.
+	 */
 	static FString BuildSpecJson(
-		const FString& Tag, const FString& SlotStr, const FString& AtlasPngPath,
+		const FString& Tag, const FString& AtlasPngPath,
 		int32 CellW, int32 CellH, float PixelToWorld, const FString& OutputDir,
 		const TArray<FFrameEntry>& Frames,
 		const TMap<TTuple<FString,int32,int32>, int32>& IndexMap,
@@ -734,15 +710,14 @@ namespace HktSpriteGen
 		FString Json;
 		TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Json);
 		W->WriteObjectStart();
-		W->WriteValue(TEXT("tag"), Tag);
-		W->WriteValue(TEXT("slot"), SlotStr);
+		W->WriteValue(TEXT("characterTag"), Tag);
 		W->WriteValue(TEXT("atlasPngPath"), AtlasPngPath);
 		W->WriteValue(TEXT("cellW"), CellW);
 		W->WriteValue(TEXT("cellH"), CellH);
 		W->WriteValue(TEXT("pixelToWorld"), PixelToWorld);
 		if (!OutputDir.IsEmpty()) W->WriteValue(TEXT("outputDir"), OutputDir);
 
-		W->WriteArrayStart(TEXT("actions"));
+		W->WriteArrayStart(TEXT("animations"));
 		TArray<FString> ActionKeys;
 		Grouped.GenerateKeyArray(ActionKeys);
 		ActionKeys.Sort();
@@ -750,7 +725,6 @@ namespace HktSpriteGen
 		{
 			const TArray<TArray<const FFrameEntry*>>& Dirs = Grouped[ActionId];
 
-			// 이 액션의 방향당 프레임 수 (동일하다고 가정, 최대 사용)
 			int32 MaxFrames = 0;
 			for (int32 d = 0; d < kNumDirections; ++d)
 			{
@@ -762,28 +736,35 @@ namespace HktSpriteGen
 			W->WriteValue(TEXT("animTag"), ActionNameToAnimTagString(ActionId));
 			W->WriteValue(TEXT("numDirections"),      kNumDirections);
 			W->WriteValue(TEXT("framesPerDirection"), MaxFrames);
-			W->WriteValue(TEXT("startAtlasIndex"),    0);
 			W->WriteValue(TEXT("pivotX"), static_cast<float>(CellW) * 0.5f);
 			W->WriteValue(TEXT("pivotY"), static_cast<float>(CellH));
 			W->WriteValue(TEXT("frameDurationMs"),  FrameDurationMs);
 			W->WriteValue(TEXT("looping"),          bLooping);
 			W->WriteValue(TEXT("mirrorWestFromEast"), bMirrorWestFromEast);
 
-			// 디렉터리 패커는 셀을 (action, dir, frame) 순서가 아니라 "고유 파일 순"으로
-			// 배정하므로, 그리드 기본 수식과 실제 아틀라스 위치가 일치하지 않는다.
-			// → 각 (dir, frame)마다 명시적 atlasIndex를 frameOverrides로 내보낸다.
-			W->WriteArrayStart(TEXT("frameOverrides"));
+			// frames 배열 (dir × frame 선형): 각 셀은 아틀라스 패킹 결과의 고유 인덱스.
+			W->WriteArrayStart(TEXT("frames"));
 			for (int32 d = 0; d < kNumDirections; ++d)
 			{
 				const TArray<const FFrameEntry*>& DirFrames = Dirs[d];
-				for (int32 f = 0; f < DirFrames.Num(); ++f)
+				for (int32 f = 0; f < MaxFrames; ++f)
 				{
-					const FFrameEntry* EP = DirFrames[f];
-					const int32* Idx = IndexMap.Find(MakeTuple(EP->Action, EP->DirectionIdx, EP->FrameIdx));
 					W->WriteObjectStart();
-					W->WriteValue(TEXT("dir"),        d);
-					W->WriteValue(TEXT("frame"),      f);
-					W->WriteValue(TEXT("atlasIndex"), Idx ? *Idx : 0);
+					int32 AtlasIndex = 0;
+					if (f < DirFrames.Num())
+					{
+						const FFrameEntry* EP = DirFrames[f];
+						const int32* Idx = IndexMap.Find(MakeTuple(EP->Action, EP->DirectionIdx, EP->FrameIdx));
+						if (Idx) AtlasIndex = *Idx;
+					}
+					else if (DirFrames.Num() > 0)
+					{
+						// 부족한 프레임은 마지막 프레임 유지.
+						const FFrameEntry* EP = DirFrames.Last();
+						const int32* Idx = IndexMap.Find(MakeTuple(EP->Action, EP->DirectionIdx, EP->FrameIdx));
+						if (Idx) AtlasIndex = *Idx;
+					}
+					W->WriteValue(TEXT("atlasIndex"), AtlasIndex);
 					W->WriteObjectEnd();
 				}
 			}
@@ -798,19 +779,18 @@ namespace HktSpriteGen
 	}
 } // namespace HktSpriteGen
 
-FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
-	const FString& Tag, const FString& Slot, const FString& InputDir,
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromDirectory(
+	const FString& CharacterTag, const FString& InputDir,
 	const FString& OutputDir, float PixelToWorld, float FrameDurationMs,
 	bool bLooping, bool bMirrorWestFromEast)
 {
 	using namespace HktSpriteGen;
 
-	if (Tag.IsEmpty() || Slot.IsEmpty() || InputDir.IsEmpty())
+	if (CharacterTag.IsEmpty() || InputDir.IsEmpty())
 	{
-		return MakeSpriteError(TEXT("Tag / Slot / InputDir 필수"));
+		return MakeSpriteError(TEXT("CharacterTag / InputDir 필수"));
 	}
 
-	// 1. 디렉터리 스캔
 	TArray<FFrameEntry> Frames;
 	FString ScanError;
 	if (!ScanDirectory(InputDir, Frames, ScanError))
@@ -818,13 +798,11 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
 		return MakeSpriteError(ScanError);
 	}
 
-	// 2. Atlas PNG 출력 경로 — {ProjectSavedDir}/SpriteGenerator/{Tag_safe}.png
-	const FString SafeTag = SanitizeForAssetName(Tag);
+	const FString SafeTag = SanitizeForAssetName(CharacterTag);
 	const FString OutDir  = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator");
 	IFileManager::Get().MakeDirectory(*OutDir, /*Tree*/ true);
 	const FString AtlasPng = OutDir / (SafeTag + TEXT(".png"));
 
-	// 3. 패킹
 	int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
 	TMap<TTuple<FString,int32,int32>, int32> IndexMap;
 	FString PackError;
@@ -833,15 +811,14 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
 		return MakeSpriteError(PackError);
 	}
 
-	// 4. JsonSpec 빌드 + 기존 McpBuildSpritePart 재사용
-	const FString Spec = BuildSpecJson(Tag, Slot, AtlasPng, CellW, CellH, PixelToWorld,
+	const FString Spec = BuildSpecJson(CharacterTag, AtlasPng, CellW, CellH, PixelToWorld,
 	                                   OutputDir, Frames, IndexMap,
 	                                   FrameDurationMs, bLooping, bMirrorWestFromEast);
 
 	UE_LOG(LogHktSpriteGenerator, Log, TEXT("EditorBuild: %d frames → Cell=%dx%d Grid=%dx%d"),
 		Frames.Num(), CellW, CellH, Cols, Rows);
 
-	return McpBuildSpritePart(Spec);
+	return McpBuildSpriteCharacter(Spec);
 }
 
 // ============================================================================
@@ -850,33 +827,11 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromDirectory(
 
 namespace HktSpriteGen
 {
-	/** HKT_FFMPEG_PATH 환경변수 → 시스템 PATH의 ffmpeg 순으로 해결. */
-	static FString ResolveFFmpegExecutable()
-	{
-		const FString EnvPath = FPlatformMisc::GetEnvironmentVariable(TEXT("HKT_FFMPEG_PATH"));
-		if (!EnvPath.IsEmpty() && FPaths::FileExists(EnvPath))
-		{
-			return EnvPath;
-		}
-#if PLATFORM_WINDOWS
-		return TEXT("ffmpeg.exe");
-#else
-		return TEXT("ffmpeg");
-#endif
-	}
-
-	/** 문자열 하나를 ffmpeg 인수로 안전하게 인용. */
 	static FString QuoteArg(const FString& In)
 	{
 		return FString::Printf(TEXT("\"%s\""), *In);
 	}
 
-	/**
-	 * ffmpeg 실행 → 단일 디렉터리에 frame_####.png 시퀀스 저장.
-	 *
-	 * 주의: -ss 를 -i 앞에 두면 빠른 seek(키프레임 기준), 뒤에 두면 정확한 seek.
-	 * 스프라이트 추출 용도에서는 정확도가 더 중요하므로 -i 뒤에 배치한다.
-	 */
 	static bool ExtractVideoFramesImpl(
 		const FString& VideoPath,
 		const FString& OutputDir,
@@ -910,23 +865,17 @@ namespace HktSpriteGen
 		IFileManager& FM = IFileManager::Get();
 		FM.MakeDirectory(*OutputDir, /*Tree*/ true);
 
-		const FString FFmpeg = ResolveFFmpegExecutable();
+		const FString FFmpeg = UHktSpriteGeneratorSettings::ResolveFFmpegExecutable();
 
-		// -vf 체인 구성: fps → (선택적) scale
 		FString VideoFilter = FString::Printf(TEXT("fps=%.6f"), FrameRate);
 		if (FrameWidth > 0 && FrameHeight > 0)
 		{
 			VideoFilter += FString::Printf(TEXT(",scale=%d:%d:flags=lanczos"), FrameWidth, FrameHeight);
 		}
 
-		// 출력 패턴: 4자리 0패딩 → 사전식 정렬 시 시간순 유지
 		const FString OutPattern = OutputDir / TEXT("frame_%04d.png");
 		const FString AbsVideoPath = FPaths::ConvertRelativePathToFull(VideoPath);
 
-		// ffmpeg 인자 순서 주의:
-		//   -ss 는 -i 뒤에 두어 정확한 seek(slow seek). 스프라이트 추출은 정확도가 우선.
-		//   종료 지점은 -to (절대 시각) 대신 -t (지속 시간)으로 지정 — -ss 와의 상호작용에서
-		//   항상 "시작 후 N초간" 의 의미가 되어 ffmpeg 버전과 무관하게 일관됨.
 		FString Args;
 		Args += TEXT("-y -hide_banner -loglevel error ");
 		Args += FString::Printf(TEXT("-i %s "), *QuoteArg(AbsVideoPath));
@@ -947,7 +896,6 @@ namespace HktSpriteGen
 
 		UE_LOG(LogHktSpriteGenerator, Log, TEXT("ffmpeg %s"), *Args);
 
-		// 기존 프레임 제거 (이전 호출 잔여물 간섭 방지)
 		{
 			TArray<FString> OldFiles;
 			FM.FindFiles(OldFiles, *(OutputDir / TEXT("frame_*.png")), true, false);
@@ -963,7 +911,7 @@ namespace HktSpriteGen
 		if (!bExecOk)
 		{
 			OutError = FString::Printf(
-				TEXT("ffmpeg 실행 불가: '%s'. HKT_FFMPEG_PATH 환경변수로 실행파일 경로를 지정하세요."),
+				TEXT("ffmpeg 실행 불가: '%s'. Project Settings > Plugins > HKT Sprite Generator 의 FFmpeg Directory를 지정하세요."),
 				*FFmpeg);
 			return false;
 		}
@@ -973,7 +921,6 @@ namespace HktSpriteGen
 			return false;
 		}
 
-		// 생성된 프레임 카운트
 		TArray<FString> Files;
 		FM.FindFiles(Files, *(OutputDir / TEXT("frame_*.png")), true, false);
 		OutFrameCount = Files.Num();
@@ -1009,8 +956,8 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorExtractVideoFrames(
 	});
 }
 
-FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
-	const FString& Tag, const FString& Slot, const FString& VideoPath,
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromVideo(
+	const FString& CharacterTag, const FString& VideoPath,
 	const FString& ActionId,
 	int32 FrameWidth, int32 FrameHeight, float FrameRate,
 	int32 MaxFrames, float StartTimeSec, float EndTimeSec,
@@ -1019,16 +966,12 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
 {
 	using namespace HktSpriteGen;
 
-	if (Tag.IsEmpty() || Slot.IsEmpty() || VideoPath.IsEmpty())
+	if (CharacterTag.IsEmpty() || VideoPath.IsEmpty())
 	{
-		return MakeSpriteError(TEXT("Tag / Slot / VideoPath 필수"));
+		return MakeSpriteError(TEXT("CharacterTag / VideoPath 필수"));
 	}
 
-	// 1. 프레임 스테이징 디렉터리: {Saved}/SpriteGenerator/VideoFrames/{SafeTag}/{action}/
-	//    → 상위(WorkRoot) 를 InputDir로 넘기면 기존 ScanDirectory가
-	//       "action 서브폴더 / direction 없음 / 파일명이 방향 불일치" 경로를 타며
-	//       INDEX_NONE 으로 수집되어 모든 8방향에 동일 셀이 복제된다.
-	const FString SafeTag      = SanitizeForAssetName(Tag);
+	const FString SafeTag      = SanitizeForAssetName(CharacterTag);
 	const FString ActionLower  = ActionId.IsEmpty() ? TEXT("idle") : ActionId.ToLower();
 	const FString WorkRoot     = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator") / TEXT("VideoFrames") / SafeTag;
 	const FString FramesDir    = WorkRoot / ActionLower;
@@ -1037,7 +980,6 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
 	FM.DeleteDirectory(*FramesDir, /*RequireExists*/ false, /*Tree*/ true);
 	FM.MakeDirectory(*FramesDir, /*Tree*/ true);
 
-	// 2. ffmpeg로 프레임 추출
 	int32 FrameCount = 0;
 	FString Err;
 	if (!ExtractVideoFramesImpl(VideoPath, FramesDir,
@@ -1048,22 +990,20 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromVideo(
 	}
 
 	UE_LOG(LogHktSpriteGenerator, Log, TEXT("비디오 → 아틀라스: Tag=%s Action=%s Frames=%d Video=%s"),
-		*Tag, *ActionLower, FrameCount, *VideoPath);
+		*CharacterTag, *ActionLower, FrameCount, *VideoPath);
 
-	// 3. 기존 디렉터리 파이프라인 재사용
-	return EditorBuildSpritePartFromDirectory(
-		Tag, Slot, WorkRoot, OutputDir,
+	return EditorBuildSpriteCharacterFromDirectory(
+		CharacterTag, WorkRoot, OutputDir,
 		PixelToWorld, FrameDurationMs, bLooping, bMirrorWestFromEast);
 }
 
 // ============================================================================
-// EditorBuildSpritePartFromAtlas — 가장 간단한 경로
-//   임포트된 UTexture2D + 프레임 크기만으로 DataAsset 생성.
+// EditorBuildSpriteCharacterFromAtlas — 가장 간단한 경로
 //   아틀라스는 "행=방향, 열=프레임" 그리드로 이미 패킹돼 있다고 가정.
 // ============================================================================
 
-FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
-	const FString& Tag, const FString& Slot, const FString& AtlasAssetPath,
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromAtlas(
+	const FString& CharacterTag, const FString& AtlasAssetPath,
 	int32 FrameWidth, int32 FrameHeight,
 	const FString& AnimTagStr, const FString& OutputDir,
 	float PixelToWorld, float FrameDurationMs,
@@ -1071,9 +1011,9 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 {
 	using namespace HktSpriteGen;
 
-	if (Tag.IsEmpty() || Slot.IsEmpty())
+	if (CharacterTag.IsEmpty())
 	{
-		return MakeSpriteError(TEXT("Tag / Slot 필수"));
+		return MakeSpriteError(TEXT("CharacterTag 필수"));
 	}
 	if (AtlasAssetPath.IsEmpty())
 	{
@@ -1099,54 +1039,58 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 			AtlasW, AtlasH, FrameWidth, FrameHeight));
 	}
 
-	const int32 Cols = AtlasW / FrameWidth;   // = FramesPerDirection
-	const int32 Rows = AtlasH / FrameHeight;  // → NumDirections 로 양자화
+	const int32 Cols = AtlasW / FrameWidth;
+	const int32 Rows = AtlasH / FrameHeight;
 
-	// NumDirections 양자화: 1/5/8 중 가장 가까운 값으로.
 	int32 NumDir = 1;
 	if      (Rows >= 8) NumDir = 8;
 	else if (Rows >= 5) NumDir = 5;
 	else if (Rows >= 1) NumDir = 1;
 
-	// DataAsset 경로 계산
-	const FString SafeTag        = SanitizeForAssetName(Tag);
-	const FString TemplateName   = FString::Printf(TEXT("DA_SpritePart_%s"), *SafeTag);
+	const FString SafeTag        = SanitizeForAssetName(CharacterTag);
+	const FString TemplateName   = FString::Printf(TEXT("DA_SpriteCharacter_%s"), *SafeTag);
 	const FString TemplatePackage= FString::Printf(TEXT("%s/%s"), *OutputDir, *TemplateName);
 
 	UPackage* TmplPkg = CreatePackage(*TemplatePackage);
 	if (!TmplPkg) return MakeSpriteError(TEXT("DataAsset 패키지 생성 실패"));
 	TmplPkg->FullyLoad();
 
-	UHktSpritePartTemplate* Tmpl = NewObject<UHktSpritePartTemplate>(
+	UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
 		TmplPkg, FName(*TemplateName), RF_Public | RF_Standalone);
-	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpritePartTemplate 생성 실패"));
+	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpriteCharacterTemplate 생성 실패"));
 
-	Tmpl->IdentifierTag = EnsureTag(Tag);
-	Tmpl->PartSlot      = ParseSlot(Slot);
+	Tmpl->IdentifierTag = EnsureTag(CharacterTag);
 	Tmpl->Atlas         = Atlas;
 	Tmpl->AtlasCellSize = FVector2f(static_cast<float>(FrameWidth), static_cast<float>(FrameHeight));
 	Tmpl->PixelToWorld  = PixelToWorld;
 
-	// 단일 액션 — 그리드 기본 수식만으로 완결.
 	const FString ResolvedAnimTag = AnimTagStr.IsEmpty()
 		? TEXT("Anim.FullBody.Locomotion.Idle")
 		: AnimTagStr;
 
-	FHktSpriteAction Action;
-	Action.AnimTag             = EnsureTag(ResolvedAnimTag);
-	Action.NumDirections       = NumDir;
-	Action.FramesPerDirection  = FMath::Max(Cols, 1);
-	Action.StartAtlasIndex     = 0;
-	// 바닥 중앙 pivot — 라그나로크 류 스프라이트의 표준.
-	Action.PivotOffset         = FVector2f(FrameWidth * 0.5f, static_cast<float>(FrameHeight));
-	Action.FrameDurationMs     = FrameDurationMs;
-	Action.bLooping            = bLooping;
-	Action.bMirrorWestFromEast = bMirrorWestFromEast;
+	FHktSpriteAnimation Anim;
+	Anim.NumDirections       = NumDir;
+	Anim.FramesPerDirection  = FMath::Max(Cols, 1);
+	Anim.PivotOffset         = FVector2f(FrameWidth * 0.5f, static_cast<float>(FrameHeight));
+	Anim.FrameDurationMs     = FrameDurationMs;
+	Anim.bLooping            = bLooping;
+	Anim.bMirrorWestFromEast = bMirrorWestFromEast;
 
-	Tmpl->Actions.Add(Action);
-	Tmpl->DefaultAnimTag = Action.AnimTag;
+	// 그리드 기본 선형 인덱스로 Frames 채움 (dir × FPD 순).
+	const int32 Expected = Anim.NumDirections * Anim.FramesPerDirection;
+	Anim.Frames.Reserve(Expected);
+	for (int32 i = 0; i < Expected; ++i)
+	{
+		FHktSpriteFrame F;
+		F.AtlasIndex = i;
+		F.PivotOffset = Anim.PivotOffset;
+		Anim.Frames.Add(F);
+	}
 
-	// 저장
+	const FGameplayTag AnimTag = EnsureTag(ResolvedAnimTag);
+	Tmpl->Animations.Add(AnimTag, MoveTemp(Anim));
+	Tmpl->DefaultAnimTag = AnimTag;
+
 	Tmpl->MarkPackageDirty();
 	const FString TmplFile = FPackageName::LongPackageNameToFilename(TemplatePackage, FPackageName::GetAssetPackageExtension());
 	FSavePackageArgs SaveArgs;
@@ -1157,15 +1101,421 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpritePartFromAtlas(
 	}
 	FAssetRegistryModule::AssetCreated(Tmpl);
 
-	UE_LOG(LogHktSpriteGenerator, Log, TEXT("AtlasGrid DataAsset: Tag=%s Atlas=%dx%d Cell=%dx%d Cols=%d Rows=%d → NumDir=%d Frames=%d AnimTag=%s"),
-		*Tag, AtlasW, AtlasH, FrameWidth, FrameHeight, Cols, Rows, NumDir, Action.FramesPerDirection,
-		*Action.AnimTag.ToString());
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("AtlasGrid CharacterTemplate: Tag=%s Atlas=%dx%d Cell=%dx%d Cols=%d Rows=%d → NumDir=%d AnimTag=%s"),
+		*CharacterTag, AtlasW, AtlasH, FrameWidth, FrameHeight, Cols, Rows, NumDir, *AnimTag.ToString());
 
 	return MakeResult(true, {
-		{ TEXT("tag"),           Tag },
+		{ TEXT("tag"),           CharacterTag },
 		{ TEXT("dataAssetPath"), FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName) },
 		{ TEXT("atlasCols"),     FString::FromInt(Cols) },
 		{ TEXT("atlasRows"),     FString::FromInt(Rows) },
 		{ TEXT("numDirections"), FString::FromInt(NumDir) },
+	});
+}
+
+// ============================================================================
+// BuildSpriteAnim — 단일 진입점
+// ============================================================================
+
+namespace HktSpriteGen
+{
+	static const FString kDefaultOutputDir = TEXT("/Game/Generated/Sprites");
+
+	/** AnimTag 이름에서 bLooping 자동 추론. */
+	static bool InferLooping(const FString& AnimTagStr)
+	{
+		// Montage/Death/Hit/Attack 등 원샷 계열 키워드는 비루프.
+		static const TCHAR* const kOneShotHints[] = {
+			TEXT("Montage"), TEXT("Death"), TEXT("Hit"),
+			TEXT("Attack"),  TEXT("Cast"),  TEXT("Dodge"),
+		};
+		for (const TCHAR* H : kOneShotHints)
+		{
+			if (AnimTagStr.Contains(H, ESearchCase::CaseSensitive)) return false;
+		}
+		return true;
+	}
+
+	/** 기존 UHktSpriteCharacterTemplate 로드 또는 새로 생성. */
+	static UHktSpriteCharacterTemplate* UpsertTemplate(
+		const FString& TemplatePackage, const FString& TemplateName,
+		const FString& CharTagStr, UPackage*& OutPkg)
+	{
+		OutPkg = FindPackage(nullptr, *TemplatePackage);
+		if (OutPkg)
+		{
+			UHktSpriteCharacterTemplate* Existing = Cast<UHktSpriteCharacterTemplate>(
+				StaticFindObject(UHktSpriteCharacterTemplate::StaticClass(), OutPkg, *TemplateName));
+			if (Existing) return Existing;
+		}
+
+		const FString AssetObjPath = FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName);
+		if (UHktSpriteCharacterTemplate* Loaded = LoadObject<UHktSpriteCharacterTemplate>(nullptr, *AssetObjPath))
+		{
+			OutPkg = Loaded->GetPackage();
+			return Loaded;
+		}
+
+		OutPkg = CreatePackage(*TemplatePackage);
+		if (!OutPkg) return nullptr;
+		OutPkg->FullyLoad();
+
+		UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
+			OutPkg, FName(*TemplateName), RF_Public | RF_Standalone);
+		if (Tmpl)
+		{
+			Tmpl->IdentifierTag = EnsureTag(CharTagStr);
+		}
+		return Tmpl;
+	}
+
+	/** DataAsset 저장 + AssetRegistry 등록. */
+	static bool SaveTemplate(UHktSpriteCharacterTemplate* Tmpl, UPackage* Pkg,
+	                         const FString& TemplatePackage, FString& OutError)
+	{
+		Tmpl->MarkPackageDirty();
+		const FString TmplFile = FPackageName::LongPackageNameToFilename(
+			TemplatePackage, FPackageName::GetAssetPackageExtension());
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+		if (!UPackage::SavePackage(Pkg, Tmpl, *TmplFile, SaveArgs))
+		{
+			OutError = TEXT("DataAsset 패키지 저장 실패");
+			return false;
+		}
+		FAssetRegistryModule::AssetCreated(Tmpl);
+		return true;
+	}
+
+	/**
+	 * 스캔된 FFrameEntry에서 explicit 방향·프레임 정보를 읽어 NumDir/FPD를 결정.
+	 *   - 모든 엔트리가 INDEX_NONE(방향 미지정) → NumDir=1, FPD=파일 개수
+	 *   - explicit dir이 8개 → NumDir=8
+	 *   - explicit dir이 5~7개 → NumDir=5
+	 *   - 그 외(1~4) → NumDir=1 (한 방향만 가진 것으로 간주)
+	 */
+	static void DetectGridFromFrames(const TArray<FFrameEntry>& Frames,
+	                                 int32& OutNumDir, int32& OutFPD)
+	{
+		TSet<int32> ExplicitDirs;
+		int32 MaxFrameIdx = -1;
+		int32 NoneCount   = 0;
+		for (const FFrameEntry& E : Frames)
+		{
+			if (E.DirectionIdx == INDEX_NONE)
+			{
+				++NoneCount;
+			}
+			else
+			{
+				ExplicitDirs.Add(E.DirectionIdx);
+				MaxFrameIdx = FMath::Max(MaxFrameIdx, E.FrameIdx);
+			}
+		}
+
+		if (ExplicitDirs.Num() == 0)
+		{
+			OutNumDir = 1;
+			OutFPD    = FMath::Max(NoneCount, 1);
+			return;
+		}
+
+		if      (ExplicitDirs.Num() >= 8) OutNumDir = 8;
+		else if (ExplicitDirs.Num() >= 5) OutNumDir = 5;
+		else                              OutNumDir = 1;
+		OutFPD = FMath::Max(MaxFrameIdx + 1, 1);
+	}
+
+	/**
+	 * IndexMap(Action,Dir,Frame → Cell)로부터 (Dir, Frame) → Cell 룩업 구성.
+	 * BuildSpriteAnim은 단일 애니 대상이므로 Action은 무시.
+	 */
+	static TMap<TPair<int32,int32>, int32> BuildDirFrameLookup(
+		const TMap<TTuple<FString,int32,int32>, int32>& IndexMap)
+	{
+		TMap<TPair<int32,int32>, int32> Out;
+		Out.Reserve(IndexMap.Num());
+		for (const auto& P : IndexMap)
+		{
+			// 같은 (Dir, Frame)에 여러 Action이 있으면 아무거나 첫 번째.
+			Out.FindOrAdd({ P.Key.Get<1>(), P.Key.Get<2>() }) = P.Value;
+		}
+		return Out;
+	}
+
+	/** IndexMap 기반 Frames[] 채움. 룩업 실패 셀은 같은 방향의 최근 유효 셀로 폴백. */
+	static void PopulateFramesFromLookup(FHktSpriteAnimation& Anim,
+		const TMap<TPair<int32,int32>, int32>& DirFrameToCell)
+	{
+		const int32 Total = Anim.NumDirections * Anim.FramesPerDirection;
+		Anim.Frames.SetNum(Total);
+
+		for (int32 d = 0; d < Anim.NumDirections; ++d)
+		{
+			int32 LastCell = 0;
+			for (int32 f = 0; f < Anim.FramesPerDirection; ++f)
+			{
+				int32 Cell = LastCell;
+				if (const int32* Found = DirFrameToCell.Find({ d, f }))
+				{
+					Cell = *Found;
+					LastCell = Cell;
+				}
+				FHktSpriteFrame& Fr = Anim.Frames[d * Anim.FramesPerDirection + f];
+				Fr.AtlasIndex  = Cell;
+				Fr.PivotOffset = Anim.PivotOffset;
+			}
+		}
+	}
+} // namespace HktSpriteGen
+
+FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
+	const FString& CharacterTagStr,
+	const FString& AnimTagStr,
+	const FString& SourcePath,
+	EHktSpriteSourceType SourceType,
+	int32 CellWidth,
+	int32 CellHeight,
+	float PixelToWorld,
+	const FString& OutputDir)
+{
+	using namespace HktSpriteGen;
+
+	// --- 입력 검증 ---
+	if (CharacterTagStr.IsEmpty()) return MakeSpriteError(TEXT("CharacterTagStr 필수"));
+	if (AnimTagStr.IsEmpty())      return MakeSpriteError(TEXT("AnimTagStr 필수"));
+	if (SourcePath.IsEmpty())      return MakeSpriteError(TEXT("SourcePath 필수"));
+
+	const FString ResolvedOutDir  = OutputDir.IsEmpty() ? kDefaultOutputDir : OutputDir;
+	const bool    bLoop           = InferLooping(AnimTagStr);
+	const FGameplayTag AnimTag    = EnsureTag(AnimTagStr);
+	const FGameplayTag CharTag    = EnsureTag(CharacterTagStr);
+
+	// --- 에셋 경로 (DA는 캐릭터 단위, 아틀라스는 애니 단위) ---
+	const FString SafeCharTag      = SanitizeForAssetName(CharacterTagStr);
+	const FString SafeAnim         = SanitizeForAssetName(AnimTagStr);
+	const FString TemplateName     = FString::Printf(TEXT("DA_SpriteCharacter_%s"), *SafeCharTag);
+	const FString TemplatePackage  = FString::Printf(TEXT("%s/%s"), *ResolvedOutDir, *TemplateName);
+	const FString AtlasName        = FString::Printf(TEXT("T_SpriteAtlas_%s_%s"), *SafeCharTag, *SafeAnim);
+	const FString AtlasPkg         = FString::Printf(TEXT("%s/%s"), *ResolvedOutDir, *AtlasName);
+
+	// ========================================================================
+	// 소스 타입별 처리 → (AtlasTex, CellW/H, DirFrameToCell, NumDir, FPD) 확보
+	// ========================================================================
+	UTexture2D* AtlasTex = nullptr;
+	FString     AtlasObjPath;
+	int32       FinalCellW = CellWidth;
+	int32       FinalCellH = CellHeight;
+	int32       NumDir     = 1;
+	int32       FPD        = 1;
+	TMap<TPair<int32,int32>, int32> DirFrameToCell;  // 비어있으면 그리드 기본 선형 매핑
+
+	if (SourceType == EHktSpriteSourceType::Atlas)
+	{
+		// 사전 정렬된 아틀라스: 행=방향, 열=프레임. CellW/H 필수.
+		if (FinalCellW <= 0 || FinalCellH <= 0)
+		{
+			return MakeSpriteError(TEXT("Atlas 소스는 CellWidth/CellHeight 필수"));
+		}
+
+		if (SourcePath.StartsWith(TEXT("/Game/")) || SourcePath.StartsWith(TEXT("/Plugin/")))
+		{
+			AtlasTex = LoadObject<UTexture2D>(nullptr, *SourcePath);
+			if (!AtlasTex)
+			{
+				return MakeSpriteError(FString::Printf(TEXT("Atlas 에셋 로드 실패: %s"), *SourcePath));
+			}
+			AtlasObjPath = SourcePath;
+		}
+		else
+		{
+			if (!FPaths::FileExists(SourcePath))
+			{
+				return MakeSpriteError(FString::Printf(TEXT("Atlas PNG 파일 없음: %s"), *SourcePath));
+			}
+			AtlasTex = ImportAtlasTexture(SourcePath, AtlasPkg, AtlasName);
+			if (!AtlasTex) return MakeSpriteError(TEXT("Atlas PNG 임포트 실패"));
+			AtlasObjPath = FString::Printf(TEXT("%s.%s"), *AtlasPkg, *AtlasName);
+		}
+
+		// Atlas는 "행=방향 열=프레임" 가정이므로 아틀라스 shape에서 직접 추론.
+		const int32 Cols = FMath::Max(1, AtlasTex->GetSizeX() / FinalCellW);
+		const int32 Rows = FMath::Max(1, AtlasTex->GetSizeY() / FinalCellH);
+		if      (Rows >= 8) NumDir = 8;
+		else if (Rows >= 5) NumDir = 5;
+		else                NumDir = 1;
+		FPD = Cols;
+		// DirFrameToCell 비워둠 → 선형 AtlasIndex = d * FPD + f
+	}
+	else if (SourceType == EHktSpriteSourceType::Video)
+	{
+		// --- Video → 프레임 추출 → 1방향 N프레임 애니로 구성 ---
+		const FString WorkRoot  = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator") / TEXT("VideoFrames") / SafeCharTag / SafeAnim;
+		IFileManager& FM = IFileManager::Get();
+		FM.DeleteDirectory(*WorkRoot, false, true);
+		FM.MakeDirectory(*WorkRoot, true);
+
+		// CellW/H가 0이면 ffmpeg scale 필터 생략 → 원본 해상도.
+		// 실제 최종 CellSize는 PackAtlas가 디코드 결과의 max(W,H)로 결정하므로 여기선 전달만.
+		int32 FrameCount = 0;
+		FString Err;
+		if (!ExtractVideoFramesImpl(SourcePath, WorkRoot, FinalCellW, FinalCellH, 10.f, 0, 0.f, 0.f, FrameCount, Err))
+		{
+			return MakeSpriteError(Err);
+		}
+
+		// 추출된 프레임들을 명시 방향 0(N)로 직접 라벨링 — NumDir=1, FPD=FrameCount.
+		TArray<FFrameEntry> Frames;
+		TArray<FString> Files;
+		FM.FindFiles(Files, *(WorkRoot / TEXT("frame_*.png")), true, false);
+		Files.Sort();
+		for (int32 i = 0; i < Files.Num(); ++i)
+		{
+			FFrameEntry E;
+			E.Action       = TEXT("anim");
+			E.DirectionIdx = 0;              // 비디오는 단일 방향 고정
+			E.FrameIdx     = i;
+			E.FilePath     = WorkRoot / Files[i];
+			Frames.Add(MoveTemp(E));
+		}
+		if (Frames.IsEmpty())
+		{
+			return MakeSpriteError(TEXT("추출된 프레임 없음"));
+		}
+
+		const FString AtlasPng = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator")
+		                       / (SafeCharTag + TEXT("_") + SafeAnim + TEXT(".png"));
+		IFileManager::Get().MakeDirectory(*FPaths::GetPath(AtlasPng), true);
+
+		int32 CellW2 = 0, CellH2 = 0, Cols = 0, Rows = 0;
+		TMap<TTuple<FString,int32,int32>, int32> IndexMap;
+		FString PackErr;
+		if (!PackAtlas(Frames, AtlasPng, CellW2, CellH2, Cols, Rows, IndexMap, PackErr))
+		{
+			return MakeSpriteError(PackErr);
+		}
+		FinalCellW = CellW2;
+		FinalCellH = CellH2;
+
+		AtlasTex = ImportAtlasTexture(AtlasPng, AtlasPkg, AtlasName);
+		if (!AtlasTex) return MakeSpriteError(TEXT("Atlas 텍스처 임포트 실패"));
+		AtlasObjPath = FString::Printf(TEXT("%s.%s"), *AtlasPkg, *AtlasName);
+
+		NumDir = 1;
+		FPD    = Frames.Num();
+		DirFrameToCell = BuildDirFrameLookup(IndexMap);
+	}
+	else // TextureBundle
+	{
+		// --- TextureBundle: 이미지 폴더 스캔 → Atlas 패킹 ---
+		if (!IFileManager::Get().DirectoryExists(*SourcePath))
+		{
+			return MakeSpriteError(FString::Printf(TEXT("TextureBundle 폴더 없음: %s"), *SourcePath));
+		}
+
+		TArray<FFrameEntry> Frames;
+		FString ScanErr;
+		if (!ScanDirectory(SourcePath, Frames, ScanErr))
+		{
+			return MakeSpriteError(ScanErr);
+		}
+
+		// PackAtlas가 INDEX_NONE을 명시 방향으로 확장하기 전에 NumDir/FPD 결정.
+		DetectGridFromFrames(Frames, NumDir, FPD);
+
+		const FString AtlasPng = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator")
+		                       / (SafeCharTag + TEXT("_") + SafeAnim + TEXT(".png"));
+		IFileManager::Get().MakeDirectory(*FPaths::GetPath(AtlasPng), true);
+
+		int32 CellW2 = 0, CellH2 = 0, Cols = 0, Rows = 0;
+		TMap<TTuple<FString,int32,int32>, int32> IndexMap;
+		FString PackErr;
+		if (!PackAtlas(Frames, AtlasPng, CellW2, CellH2, Cols, Rows, IndexMap, PackErr))
+		{
+			return MakeSpriteError(PackErr);
+		}
+		FinalCellW = CellW2;
+		FinalCellH = CellH2;
+
+		AtlasTex = ImportAtlasTexture(AtlasPng, AtlasPkg, AtlasName);
+		if (!AtlasTex) return MakeSpriteError(TEXT("Atlas 텍스처 임포트 실패"));
+		AtlasObjPath = FString::Printf(TEXT("%s.%s"), *AtlasPkg, *AtlasName);
+
+		DirFrameToCell = BuildDirFrameLookup(IndexMap);
+	}
+
+	// ========================================================================
+	// DataAsset Upsert — 캐릭터 DA 로드/생성 후 이 애니만 교체 추가
+	// ========================================================================
+	UPackage* Pkg = nullptr;
+	UHktSpriteCharacterTemplate* Tmpl = UpsertTemplate(TemplatePackage, TemplateName, CharacterTagStr, Pkg);
+	if (!Tmpl || !Pkg)
+	{
+		return MakeSpriteError(TEXT("DataAsset 생성/로드 실패"));
+	}
+
+	// 캐릭터 IdentifierTag / PixelToWorld는 최초 1회만 확정 (이후 호출에서 덮어쓰기 않음)
+	if (!Tmpl->IdentifierTag.IsValid()) Tmpl->IdentifierTag = CharTag;
+	if (Tmpl->PixelToWorld <= 0.f)      Tmpl->PixelToWorld  = PixelToWorld;
+
+	// 폴백 아틀라스가 아직 없으면 이번 애니 아틀라스를 폴백으로 기록 (Optional).
+	// 각 애니 자체가 Atlas를 들고 있으므로 런타임에는 이 폴백을 거의 안 씀.
+	if (Tmpl->Atlas.IsNull())
+	{
+		Tmpl->Atlas         = AtlasTex;
+		Tmpl->AtlasCellSize = FVector2f(static_cast<float>(FinalCellW), static_cast<float>(FinalCellH));
+	}
+
+	// --- 이 애니 구성 ---
+	FHktSpriteAnimation Anim;
+	Anim.Atlas               = AtlasTex;
+	Anim.AtlasCellSize       = FVector2f(static_cast<float>(FinalCellW), static_cast<float>(FinalCellH));
+	Anim.NumDirections       = NumDir;
+	Anim.FramesPerDirection  = FPD;
+	Anim.PivotOffset         = FVector2f(FinalCellW * 0.5f, static_cast<float>(FinalCellH));
+	Anim.FrameDurationMs     = 100.f;
+	Anim.bLooping            = bLoop;
+	Anim.bMirrorWestFromEast = (NumDir == 5);  // 5방향일 때만 mirror 의미 있음
+
+	if (DirFrameToCell.Num() > 0)
+	{
+		PopulateFramesFromLookup(Anim, DirFrameToCell);
+	}
+	else
+	{
+		// Atlas 소스: 선형 그리드 매핑.
+		const int32 Total = NumDir * FPD;
+		Anim.Frames.SetNum(Total);
+		for (int32 i = 0; i < Total; ++i)
+		{
+			Anim.Frames[i].AtlasIndex  = i;
+			Anim.Frames[i].PivotOffset = Anim.PivotOffset;
+		}
+	}
+
+	Tmpl->Animations.Add(AnimTag, MoveTemp(Anim));
+
+	if (!Tmpl->DefaultAnimTag.IsValid())
+	{
+		Tmpl->DefaultAnimTag = AnimTag;
+	}
+
+	FString SaveErr;
+	if (!SaveTemplate(Tmpl, Pkg, TemplatePackage, SaveErr))
+	{
+		return MakeSpriteError(SaveErr);
+	}
+
+	UE_LOG(LogHktSpriteGenerator, Log,
+		TEXT("BuildSpriteAnim: CharTag=%s AnimTag=%s NumDir=%d FPD=%d Cell=%dx%d Atlas=%s"),
+		*CharacterTagStr, *AnimTagStr, NumDir, FPD, FinalCellW, FinalCellH, *AtlasObjPath);
+
+	return MakeResult(true, {
+		{ TEXT("animTag"),        AnimTagStr },
+		{ TEXT("characterTag"),   CharacterTagStr },
+		{ TEXT("dataAssetPath"),  FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName) },
+		{ TEXT("atlasAssetPath"), AtlasObjPath },
+		{ TEXT("numDirections"),  FString::FromInt(NumDir) },
+		{ TEXT("framesPerDir"),   FString::FromInt(FPD) },
 	});
 }

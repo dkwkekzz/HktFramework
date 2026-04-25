@@ -8,18 +8,58 @@
 
 class UTexture2D;
 
+// ============================================================================
+// EHktSpriteSourceType — BuildSpriteAnim 재료 타입
+// ============================================================================
+
+UENUM(BlueprintType)
+enum class EHktSpriteSourceType : uint8
+{
+	/** 동영상 파일 (ffmpeg 필요). SourcePath = 절대 파일 경로. */
+	Video         UMETA(DisplayName = "Video File (ffmpeg)"),
+
+	/**
+	 * 단일 아틀라스.
+	 *   - SourcePath가 "/Game/"으로 시작 → 이미 임포트된 UE5 Texture2D 에셋 경로
+	 *   - 그 외 → 디스크 PNG 절대 경로 (자동 임포트)
+	 * 레이아웃: 행=방향, 열=프레임.
+	 */
+	Atlas         UMETA(DisplayName = "Atlas (PNG file or UE asset path)"),
+
+	/**
+	 * 이미지 폴더 (TextureBundle).
+	 * SourcePath = 디렉터리 경로.
+	 * 파일명 규칙: {action}[_{direction}][_{frame_idx}].{png|tga|…}
+	 *   또는 서브폴더: {action}/{direction}/{idx}.ext
+	 * → 자동으로 아틀라스를 패킹한 뒤 DataAsset 생성/갱신.
+	 */
+	TextureBundle UMETA(DisplayName = "Texture Bundle (image folder)"),
+};
+
+// ============================================================================
+// UHktSpriteGeneratorFunctionLibrary
+// ============================================================================
+
 /**
- * UHktSpriteGeneratorFunctionLibrary
+ * HktSprite 자동화 API.
  *
- * MCP에서 호출 가능한 Sprite 파츠 자동 빌드 API.
+ * === 단일 진입점 ===
  *
- * === 워크플로우 ===
- * 1. Python 측에서 입력 텍스처들을 Pillow로 균일 그리드 Atlas PNG로 패킹
- * 2. 패킹 메타데이터(JsonSpec)에 tag/slot/cell size/actions/frames 포함
- * 3. McpBuildSpritePart 호출:
- *    - Atlas PNG → UTexture2D로 임포트 (Nearest, NoMipmaps, UI 설정)
- *    - UHktSpritePartTemplate DataAsset 생성 + 필드 자동 주입
- *    - IdentifierTag로 런타임 UHktAssetSubsystem 태그 조회 자동 연결
+ *   BuildSpriteAnim(AnimTag, SourcePath, SourceType, CellW, CellH, ...)
+ *
+ * 최소 3개(AnimTag + SourcePath + SourceType)만 넣으면 나머지는 자동 추론:
+ *   - CharacterTag     → AnimTagStr 그대로 사용 (또는 명시 지정)
+ *   - NumDirections    → 아틀라스 행 수로 자동 감지 (1·5·8 양자화)
+ *   - FramesPerDir     → 아틀라스 열 수로 자동 감지
+ *   - PivotOffset      → 셀 중앙·하단 (CellW/2, CellH)
+ *   - bLooping         → AnimTag에 "Locomotion" 포함 시 true, "Montage" 포함 시 false
+ *   - FrameDurationMs  → 100 ms
+ *   - OutputDir        → /Game/Generated/Sprites
+ *   - Upsert           → 기존 DataAsset이 있으면 해당 AnimTag 항목만 추가/교체
+ *
+ * === 저수준 API (MCP Python 호환) ===
+ *   McpBuildSpriteCharacter(JsonSpec) — 기존 인터페이스, 변경하지 않음
+ *   EditorBuildSpriteCharacterFromAtlas / FromDirectory / FromVideo / ExtractVideoFrames
  */
 UCLASS()
 class HKTSPRITEGENERATOR_API UHktSpriteGeneratorFunctionLibrary : public UBlueprintFunctionLibrary
@@ -27,166 +67,155 @@ class HKTSPRITEGENERATOR_API UHktSpriteGeneratorFunctionLibrary : public UBluepr
 	GENERATED_BODY()
 
 public:
+
+	// ========================================================================
+	// 단일 진입점
+	// ========================================================================
+
 	/**
-	 * Atlas PNG + 메타데이터로 UHktSpritePartTemplate DataAsset 빌드.
+	 * CharacterTag + AnimTag + 재료(동영상|Atlas|TextureBundle) → UHktSpriteCharacterTemplate 빌드/갱신.
 	 *
-	 * JsonSpec 스키마 (그리드 레이아웃 기반):
+	 * 하나의 캐릭터(=CharacterTag)에 여러 애니메이션을 반복 호출로 누적한다.
+	 *   - 같은 CharacterTag의 DataAsset이 이미 있으면 Animations 맵에 해당 AnimTag만 추가/교체
+	 *   - 각 애니는 자신의 고유 아틀라스(`FHktSpriteAnimation::Atlas`)를 가짐 — 이전 애니가 파손되지 않음
+	 *
+	 * @param CharacterTagStr  캐릭터 식별 태그 — 필수 (예: "Sprite.Character.Knight")
+	 * @param AnimTagStr       애니메이션 GameplayTag 문자열 (예: "Anim.FullBody.Locomotion.Idle")
+	 * @param SourcePath       재료 경로. SourceType별:
+	 *                           Video         → 동영상 파일 절대 경로
+	 *                           Atlas         → PNG 절대경로 또는 UE 텍스처 에셋 경로("/Game/…")
+	 *                           TextureBundle → 이미지 폴더 경로
+	 * @param SourceType       재료 타입
+	 * @param CellWidth        셀(프레임) 가로 px. Atlas 소스는 **필수**, 나머지는 0=자동 검출
+	 * @param CellHeight       셀(프레임) 세로 px. Atlas 소스는 **필수**, 나머지는 0=자동 검출
+	 * @param PixelToWorld     px → UE cm (기본 2.0)
+	 * @param OutputDir        에셋 출력 경로. 비어있으면 /Game/Generated/Sprites
+	 *
+	 * 반환: {"success":bool, "dataAssetPath":…, "atlasAssetPath":…, "animTag":…,
+	 *        "characterTag":…, "numDirections":…, "framesPerDir":…, "error":…}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator")
+	static FString BuildSpriteAnim(
+		const FString& CharacterTagStr,
+		const FString& AnimTagStr,
+		const FString& SourcePath,
+		EHktSpriteSourceType SourceType,
+		int32 CellWidth      = 0,
+		int32 CellHeight     = 0,
+		float PixelToWorld   = 2.0f,
+		const FString& OutputDir = TEXT(""));
+
+	// ========================================================================
+	// 저수준 API — MCP Python 및 직접 호출용 (기존 인터페이스 유지)
+	// ========================================================================
+
+	/**
+	 * Atlas PNG + 메타데이터로 UHktSpriteCharacterTemplate DataAsset 빌드.
+	 *
+	 * JsonSpec 스키마:
 	 * {
-	 *   "tag": "Sprite.Part.Body.Knight",
-	 *   "slot": "Body",
+	 *   "characterTag": "Sprite.Character.Knight",
 	 *   "atlasPngPath": "absolute/path/to/packed_atlas.png",
 	 *   "cellW": 64,
 	 *   "cellH": 64,
 	 *   "pixelToWorld": 2.0,
 	 *   "outputDir": "/Game/Generated/Sprites",
-	 *   "defaultAnimTag": "Anim.FullBody.Locomotion.Idle",    // optional, 폴백 액션
-	 *   "actions": [
+	 *   "defaultAnimTag": "Anim.FullBody.Locomotion.Idle",
+	 *   "animations": [
 	 *     {
-	 *       "animTag": "Anim.FullBody.Locomotion.Idle",       // PartTemplate.Actions 키
-	 *       "numDirections": 8,                               // 1 | 5 | 8
+	 *       "animTag": "Anim.FullBody.Locomotion.Idle",
+	 *       "numDirections": 8,
 	 *       "framesPerDirection": 4,
-	 *       "startAtlasIndex": 0,
 	 *       "pivotX": 32, "pivotY": 64,
 	 *       "frameDurationMs": 100,
 	 *       "looping": true,
 	 *       "mirrorWestFromEast": true,
-	 *       "onCompleteTransition": "",                       // anim tag or 빈 문자열
-	 *       "perFrameDurationMs": [100, 80, 100, 120],        // optional
-	 *       "frameOverrides": [                               // optional
-	 *         { "dir": 0, "frame": 3, "atlasIndex": 42 }
-	 *       ]
+	 *       "onCompleteTransition": "",
+	 *       "perFrameDurationMs": [100, 80, 100, 120],
+	 *       "frames": [ { "atlasIndex": 0, … }, … ]
 	 *     }
 	 *   ]
 	 * }
 	 *
-	 * 각 action의 animTag는 필수. 파이썬 MCP 클라이언트는 파일명(action id 문자열)을
-	 * _action_name_to_anim_tag 로 승격해서 전송한다.
-	 *
-	 * 반환: {"success":bool, "dataAssetPath":..., "atlasAssetPath":..., "error":...}
+	 * 반환: {"success":bool, "dataAssetPath":…, "atlasAssetPath":…, "error":…}
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|MCP")
-	static FString McpBuildSpritePart(const FString& JsonSpec);
+	static FString McpBuildSpriteCharacter(const FString& JsonSpec);
 
 	/**
-	 * 가장 간단한 경로: 이미 임포트된 UTexture2D 아틀라스 경로와 단일 프레임 크기만으로
-	 * UHktSpritePartTemplate DataAsset을 생성.
+	 * 이미 임포트된 UTexture2D 아틀라스 + 단일 프레임 크기 → DataAsset 생성.
+	 * 아틀라스 레이아웃: 행=방향, 열=프레임.
 	 *
-	 * AtlasAssetPath: UE5 오브젝트 경로 문자열 (예: "/Game/Generated/Textures/T_Foo.T_Foo").
-	 *   내부에서 LoadObject<UTexture2D> 로 명시 로드한다 — 아직 메모리에 없어도 됨.
-	 *
-	 * 가정: 아틀라스는 "행=방향, 열=프레임" 그리드 형태로 패킹되어 있다.
-	 *   - cols = Atlas.Width  / FrameWidth  → FramesPerDirection
-	 *   - rows = Atlas.Height / FrameHeight → NumDirections (1/5/8로 양자화)
-	 *
-	 * 단일 액션(AnimTag)을 StartAtlasIndex=0, Pivot=(FrameWidth/2, FrameHeight)로 생성한다.
-	 * AnimTag를 비우면 "Anim.FullBody.Locomotion.Idle"로 기본 설정.
-	 * 더 복잡한 구조가 필요하면 McpBuildSpritePart 사용.
-	 *
-	 * 반환: {"success":bool, "dataAssetPath":..., "error":...}
-	 *
-	 * === Python 사용 예시 ===
-	 *
-	 *   # UE5 에디터 Python 콘솔에서 바로
-	 *   import unreal
-	 *   result_json = unreal.HktSpriteGeneratorFunctionLibrary.editor_build_sprite_part_from_atlas(
-	 *       tag="Sprite.Part.Body.Knight",
-	 *       slot="Body",
-	 *       atlas_asset_path="/Game/Generated/Textures/T_Knight_Body_Atlas.T_Knight_Body_Atlas",
-	 *       frame_width=64,
-	 *       frame_height=64,
-	 *   )
-	 *   print(result_json)
+	 * 반환: {"success":bool, "dataAssetPath":…, "error":…}
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
-	static FString EditorBuildSpritePartFromAtlas(
-		const FString& Tag,
-		const FString& Slot,
+	static FString EditorBuildSpriteCharacterFromAtlas(
+		const FString& CharacterTag,
 		const FString& AtlasAssetPath,
 		int32 FrameWidth,
 		int32 FrameHeight,
-		const FString& AnimTagStr = TEXT("Anim.FullBody.Locomotion.Idle"),
-		const FString& OutputDir = TEXT("/Game/Generated/Sprites"),
-		float PixelToWorld = 2.0f,
-		float FrameDurationMs = 100.f,
-		bool bLooping = true,
-		bool bMirrorWestFromEast = true);
+		const FString& AnimTagStr      = TEXT("Anim.FullBody.Locomotion.Idle"),
+		const FString& OutputDir       = TEXT("/Game/Generated/Sprites"),
+		float PixelToWorld             = 2.0f,
+		float FrameDurationMs          = 100.f,
+		bool bLooping                  = true,
+		bool bMirrorWestFromEast       = true);
 
 	/**
-	 * 에디터 단독 경로: 사용자가 지정한 디렉터리에서 이미지를 스캔해
-	 * Atlas 패킹 + UHktSpritePartTemplate DataAsset 생성을 끝까지 수행.
+	 * 디렉터리의 이미지들을 스캔 → Atlas 패킹 → DataAsset 생성.
+	 * 파일명 규칙: {action}[_{direction}][_{frame_idx}].{png|tga|…}
 	 *
-	 * InputDir 파일명 규칙 (Python sprite_tools와 동일):
-	 *   - 플랫:    {action}[_{direction}][_{frame_idx}].{png|tga|jpg|bmp|webp}
-	 *   - 서브폴더: {action}/{direction}/{idx}.{ext}  또는  {action}/{direction}.{ext}
-	 *
-	 * 반환: McpBuildSpritePart와 동일한 JSON.
+	 * 반환: McpBuildSpriteCharacter와 동일 JSON.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
-	static FString EditorBuildSpritePartFromDirectory(
-		const FString& Tag,
-		const FString& Slot,
+	static FString EditorBuildSpriteCharacterFromDirectory(
+		const FString& CharacterTag,
 		const FString& InputDir,
-		const FString& OutputDir = TEXT("/Game/Generated/Sprites"),
-		float PixelToWorld = 2.0f,
-		float FrameDurationMs = 100.f,
-		bool bLooping = true,
-		bool bMirrorWestFromEast = true);
+		const FString& OutputDir       = TEXT("/Game/Generated/Sprites"),
+		float PixelToWorld             = 2.0f,
+		float FrameDurationMs          = 100.f,
+		bool bLooping                  = true,
+		bool bMirrorWestFromEast       = true);
 
 	/**
-	 * 동영상 파일에서 ffmpeg로 일정한 크기의 PNG 프레임 시퀀스를 추출한다.
+	 * 동영상 → ffmpeg 프레임 추출 (frame_0001.png …).
+	 * ffmpeg 경로는 Project Settings > Plugins > HKT Sprite Generator > FFmpeg Directory,
+	 * 없으면 환경변수 HKT_FFMPEG_PATH, 그마저도 없으면 시스템 PATH 순으로 해석.
 	 *
-	 * 요구사항: 시스템에 ffmpeg가 설치되어 있어야 한다.
-	 *   - 환경변수 HKT_FFMPEG_PATH 로 실행파일 경로를 지정 가능
-	 *   - 미지정 시 시스템 PATH의 "ffmpeg" 사용
+	 * FrameWidth/Height가 0이면 ffmpeg scale 필터를 생략하고 원본 해상도로 추출.
 	 *
-	 * 출력 파일: {OutputDir}/frame_0001.png, frame_0002.png, ...
-	 *
-	 * 파라미터:
-	 *   FrameWidth/Height  추출 시 리사이즈할 셀 크기(px). 0 이하면 원본 크기.
-	 *   FrameRate          초당 추출 프레임 수. (기본 10fps)
-	 *   MaxFrames          최대 프레임 수. 0이면 제한 없음.
-	 *   StartTimeSec       시작 시각(초).
-	 *   EndTimeSec         종료 시각(초). 0이면 끝까지.
-	 *
-	 * 반환: {"success":bool, "outputDir":..., "frameCount":..., "error":...}
+	 * 반환: {"success":bool, "outputDir":…, "frameCount":…, "error":…}
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorExtractVideoFrames(
 		const FString& VideoPath,
 		const FString& OutputDir,
-		int32 FrameWidth = 64,
-		int32 FrameHeight = 64,
-		float FrameRate = 10.0f,
-		int32 MaxFrames = 0,
-		float StartTimeSec = 0.0f,
-		float EndTimeSec = 0.0f);
+		int32 FrameWidth               = 0,
+		int32 FrameHeight              = 0,
+		float FrameRate                = 10.0f,
+		int32 MaxFrames                = 0,
+		float StartTimeSec             = 0.0f,
+		float EndTimeSec               = 0.0f);
 
 	/**
-	 * 동영상 → 프레임 추출 → Atlas 패킹 → UHktSpritePartTemplate DataAsset 생성까지 일괄 수행.
+	 * 동영상 → 프레임 추출 → Atlas 패킹 → DataAsset 일괄 빌드.
 	 *
-	 * 내부적으로 EditorExtractVideoFrames로 프레임을 추출한 뒤
-	 * EditorBuildSpritePartFromDirectory의 디렉터리 파이프라인을 재사용한다.
-	 * 프레임에는 방향 정보가 없으므로 모든 8방향이 동일 아틀라스 셀을 공유한다.
-	 *
-	 * 프레임 임시 경로: {ProjectSavedDir}/SpriteGenerator/VideoFrames/{SafeTag}/{ActionId}/frame_####.png
-	 *
-	 * 반환: McpBuildSpritePart와 동일한 JSON.
+	 * 반환: McpBuildSpriteCharacter와 동일 JSON.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
-	static FString EditorBuildSpritePartFromVideo(
-		const FString& Tag,
-		const FString& Slot,
+	static FString EditorBuildSpriteCharacterFromVideo(
+		const FString& CharacterTag,
 		const FString& VideoPath,
-		const FString& ActionId = TEXT("idle"),
-		int32 FrameWidth = 64,
-		int32 FrameHeight = 64,
-		float FrameRate = 10.0f,
-		int32 MaxFrames = 0,
-		float StartTimeSec = 0.0f,
-		float EndTimeSec = 0.0f,
-		const FString& OutputDir = TEXT("/Game/Generated/Sprites"),
-		float PixelToWorld = 2.0f,
-		float FrameDurationMs = 100.f,
-		bool bLooping = true,
-		bool bMirrorWestFromEast = true);
+		const FString& ActionId        = TEXT("idle"),
+		int32 FrameWidth               = 0,
+		int32 FrameHeight              = 0,
+		float FrameRate                = 10.0f,
+		int32 MaxFrames                = 0,
+		float StartTimeSec             = 0.0f,
+		float EndTimeSec               = 0.0f,
+		const FString& OutputDir       = TEXT("/Game/Generated/Sprites"),
+		float PixelToWorld             = 2.0f,
+		float FrameDurationMs          = 100.f,
+		bool bLooping                  = true,
+		bool bMirrorWestFromEast       = true);
 };

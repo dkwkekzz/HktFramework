@@ -66,7 +66,7 @@ private:
     float FrameAccumulator = 0.0f;
     static constexpr float FixedDeltaTime = 1.0f / 30.0f;
     TArray<float> GroupHeartbeatAccumulators;
-    static constexpr float HeartbeatInterval = 0.2f; // 5Hz
+    static constexpr float HeartbeatInterval = 1.0f; // 5Hz
 
     /** Insight 통계: 틱 당 처리 시간 추적 */
     float LastTickDurationMs = 0.0f;

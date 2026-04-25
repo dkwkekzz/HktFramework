@@ -3,6 +3,7 @@
 #include "HktSpriteAnimProcessor.h"
 #include "HktSpriteCoreLog.h"
 #include "HktRuntimeTags.h"
+#include "HktCoreEventLog.h"
 #include "HAL/IConsoleManager.h"
 
 // ============================================================================
@@ -91,13 +92,33 @@ void ApplyAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag)
 {
 	if (!AnimTag.IsValid())
 	{
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("Sprite|AnimProcessor: ApplyAnimTag 무시 — invalid tag"));
 		return;
 	}
 
 	const FGameplayTag LayerParent = ExtractLayerParent(AnimTag);
+	if (!LayerParent.IsValid())
+	{
+		HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|AnimProcessor: ApplyAnimTag — Layer parent 추출 실패 (tag=%s, GameplayTag 미등록 가능성)"),
+				*AnimTag.ToString()),
+			InvalidEntityId, AnimTag);
+	}
 
 	FGameplayTag& Current = Fragment.AnimLayerTags.FindOrAdd(LayerParent);
+	const FGameplayTag Prev = Current;
 	Current = AnimTag;
+
+	if (!Prev.MatchesTagExact(AnimTag))
+	{
+		HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|AnimProcessor: ApplyAnimTag layer=%s %s → %s"),
+				*LayerParent.ToString(),
+				Prev.IsValid() ? *Prev.ToString() : TEXT("(none)"),
+				*AnimTag.ToString()),
+			InvalidEntityId, AnimTag);
+	}
 
 	// FullBody는 AnimStateTag와 동기화 (하위호환)
 	if (LayerParent.MatchesTagExact(HktGameplayTags::Anim_FullBody))
@@ -123,6 +144,10 @@ void RemoveAnimTag(FHktSpriteAnimFragment& Fragment, const FGameplayTag& AnimTag
 		if (Current->MatchesTagExact(AnimTag))
 		{
 			Fragment.AnimLayerTags.Remove(LayerParent);
+			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|AnimProcessor: RemoveAnimTag layer=%s tag=%s"),
+					*LayerParent.ToString(), *AnimTag.ToString()),
+				InvalidEntityId, AnimTag);
 		}
 	}
 
@@ -186,16 +211,15 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 	bool  bFromLocomotion = false;
 
 	// 1~3. 우선순위: Montage > UpperBody > FullBody
-	static const FGameplayTag* kPriorityLayers[] = {
-		&HktGameplayTags::Anim_Montage,
-		&HktGameplayTags::Anim_UpperBody,
-		&HktGameplayTags::Anim_FullBody,
+	static const FGameplayTag kPriorityLayers[] = {
+		HktGameplayTags::Anim_Montage,
+		HktGameplayTags::Anim_UpperBody,
+		HktGameplayTags::Anim_FullBody,
 	};
 
-	for (const FGameplayTag* LayerPtr : kPriorityLayers)
+	for (const FGameplayTag& Layer : kPriorityLayers)
 	{
-		if (!LayerPtr) continue;
-		if (const FGameplayTag* Found = Fragment.AnimLayerTags.Find(*LayerPtr))
+		if (const FGameplayTag* Found = Fragment.AnimLayerTags.Find(Layer))
 		{
 			if (Found->IsValid())
 			{
@@ -223,6 +247,14 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 	{
 		ResolvedTag = ResolveLocomotionTag(Fragment, LocoPlayRate);
 		bFromLocomotion = ResolvedTag.IsValid();
+	}
+
+	if (!ResolvedTag.IsValid())
+	{
+		// 정상 경로에서는 도달 불가 — Locomotion 폴백이 항상 Idle/Walk/Run/Fall을 반환한다.
+		// 도달했다면 HktGameplayTags::Anim_FullBody_Locomotion_* 가 미등록 상태.
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+			TEXT("Sprite|AnimProcessor: ResolveRenderOutputs — Anim 태그 해석 실패 (Locomotion 폴백까지 무효). HktGameplayTags::Anim_FullBody_Locomotion_* 등록 확인 필요"));
 	}
 
 	OutAnimTag = ResolvedTag;

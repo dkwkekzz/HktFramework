@@ -15,7 +15,7 @@
 
 struct HKTSPRITECORE_API FHktSpriteFrameResolveInput
 {
-	const FHktSpriteAction* Action = nullptr;
+	const FHktSpriteAnimation* Animation = nullptr;
 
 	/** AnimState 전환 시점 (VM frame) */
 	int64 AnimStartTick = 0;

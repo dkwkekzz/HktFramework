@@ -754,30 +754,30 @@ def _get_hkt_tools() -> list[Tool]:
     # ==================== Sprite Generator Tools ====================
     tools.extend([
         Tool(
-            name="build_sprite_part",
+            name="build_sprite_character",
             description=(
-                "Build a UHktSpritePartTemplate DataAsset from raw texture files. "
+                "Build a UHktSpriteCharacterTemplate DataAsset from raw texture files. "
+                "A character has its own unique animation set — one DataAsset per character. "
                 "Provide EITHER `input_dir` (scans images with filenames like "
                 "'idle.png', 'idle_S.png', 'walk_NE_0.png' or subfolders 'idle/S/0.png') "
                 "OR `textures` JSON for explicit path mapping. Packs inputs into a uniform "
                 "grid atlas (Pillow), imports as UTexture2D (Nearest, NoMipmap, UI), and "
-                "fills the DataAsset with tag, cell size, and Actions[direction][frame]."
+                "fills the DataAsset with character tag, cell size, and Animations[animTag]."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "tag": {"type": "string", "description": "IdentifierTag for the part (e.g. 'Sprite.Part.Body.Knight')"},
-                    "slot": {"type": "string", "enum": ["Body","Head","Weapon","Shield","HeadgearTop","HeadgearMid","HeadgearLow"]},
+                    "character_tag": {"type": "string", "description": "IdentifierTag for the character (e.g. 'Sprite.Character.Knight')"},
                     "input_dir": {"type": "string", "description": "Directory containing input images. Filenames: {action}[_{direction}][_{frame_idx}].{ext} or subfolders {action}/{direction}/{idx}.{ext}"},
                     "textures": {"type": "string", "description": "(Alternative) JSON: {action_id: <path> | {dir: path|[paths]} | {framesByDirection:[...x8]}}"},
                     "output_dir": {"type": "string", "description": "UE content dir (default: /Game/Generated/Sprites)"},
                     "pixel_to_world": {"type": "number", "description": "1 px → world cm (default 2.0)"},
                     "frame_duration_ms": {"type": "number", "description": "Default per-frame duration (ms), default 100"},
-                    "looping": {"type": "boolean", "description": "Default action looping, default true"},
+                    "looping": {"type": "boolean", "description": "Default animation looping, default true"},
                     "mirror_west_from_east": {"type": "boolean", "description": "Fold W/SW/NW from E/SE/NE, default true"},
                     "project_saved_dir": {"type": "string", "description": "UE project root (for Atlas PNG output; falls back to UE_PROJECT_PATH)"},
                 },
-                "required": ["tag", "slot"],
+                "required": ["character_tag"],
             },
         ),
     ])
@@ -1752,11 +1752,10 @@ async def dispatch_tool(name: str, arguments: dict[str, Any]) -> Any:
         return await texture_tools.list_generated_textures(bridge, arguments.get("directory", ""))
 
     # Sprite Generator Tools
-    elif name == "build_sprite_part":
-        return await sprite_tools.build_sprite_part(
+    elif name == "build_sprite_character":
+        return await sprite_tools.build_sprite_character(
             bridge,
-            tag=arguments["tag"],
-            slot=arguments["slot"],
+            character_tag=arguments["character_tag"],
             input_dir=arguments.get("input_dir", ""),
             textures=arguments.get("textures", ""),
             output_dir=arguments.get("output_dir", ""),

@@ -266,9 +266,6 @@ void UHktProxySimulatorComponent::NotifyHeartbeat(int64 InServerFrame)
 {
     LastServerSignalTimeSec = FPlatformTime::Seconds();
     bTimeoutNotified = false;
-
-    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Verbose, EHktLogSource::Client,
-        FString::Printf(TEXT("ReceiveHeartbeat ServerFrame=%lld"), InServerFrame));
 }
 
 const FHktWorldState& UHktProxySimulatorComponent::GetWorldState() const
