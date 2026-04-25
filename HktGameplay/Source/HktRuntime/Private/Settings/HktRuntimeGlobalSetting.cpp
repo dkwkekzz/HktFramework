@@ -1,51 +1,10 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Settings/HktRuntimeGlobalSetting.h"
-#include "Misc/Paths.h"
 
 UHktRuntimeGlobalSetting::UHktRuntimeGlobalSetting()
 {
-	// Story 디렉토리는 절대 경로로 직접 지정한다.
-	// 비어 있으면 Story JSON 로딩이 비활성화된다.
 }
-
-#if WITH_EDITOR
-namespace
-{
-	/** 상대경로/프로젝트 기준 경로를 항상 절대경로로 정규화. 빈 문자열은 그대로. */
-	static FString NormalizeToAbsolute(const FString& In)
-	{
-		if (In.IsEmpty()) return FString();
-		FString Full = FPaths::ConvertRelativePathToFull(In);
-		FPaths::NormalizeDirectoryName(Full);
-		return Full;
-	}
-}
-
-void UHktRuntimeGlobalSetting::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FName PropName = PropertyChangedEvent.GetPropertyName();
-	if (PropName == GET_MEMBER_NAME_CHECKED(UHktRuntimeGlobalSetting, StoryDirectories))
-	{
-		bool bChanged = false;
-		for (FDirectoryPath& Dir : StoryDirectories)
-		{
-			const FString Normalized = NormalizeToAbsolute(Dir.Path);
-			if (Normalized != Dir.Path)
-			{
-				Dir.Path = Normalized;
-				bChanged = true;
-			}
-		}
-		if (bChanged)
-		{
-			SaveConfig();
-		}
-	}
-}
-#endif
 
 FHktTerrainGeneratorConfig UHktRuntimeGlobalSetting::ToTerrainConfig() const
 {

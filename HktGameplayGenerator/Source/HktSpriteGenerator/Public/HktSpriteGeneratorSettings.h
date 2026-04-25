@@ -25,7 +25,6 @@ public:
 	/**
 	 * ffmpeg 실행파일이 위치한 **절대 경로** 디렉터리. 비워두면 환경변수/시스템 PATH로 폴백.
 	 * 디렉터리만 지정하면 OS에 맞는 파일명(ffmpeg.exe / ffmpeg)을 자동으로 조합.
-	 * 상대경로를 입력해도 저장 시점에 절대경로로 정규화된다.
 	 */
 	UPROPERTY(config, EditAnywhere, Category="FFmpeg",
 		meta=(DisplayName="FFmpeg Directory"))
@@ -33,10 +32,6 @@ public:
 
 	// UDeveloperSettings 인터페이스
 	virtual FName GetCategoryName() const override { return FName(TEXT("Plugins")); }
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 
 	/** 설정 + 환경변수 + PATH 순으로 ffmpeg 실행파일 경로를 해석. 없으면 시스템 PATH 기본명 반환. */
 	static FString ResolveFFmpegExecutable();

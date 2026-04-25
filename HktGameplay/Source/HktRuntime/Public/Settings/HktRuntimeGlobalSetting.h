@@ -171,8 +171,4 @@ public:
 
 	/** 기본 스폰 위치를 지형 높이 쿼리하여 cm 좌표로 반환 */
 	FVector ComputeDefaultSpawnLocation() const;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 };
