@@ -33,11 +33,11 @@ public:
 	// === Story JSON 로딩 ===
 
 	/**
-	 * Story JSON(*.json)을 스캔할 디렉토리 목록. Project `Content/` 기준 상대 경로.
+	 * Story JSON(*.json)을 스캔할 **절대 경로** 디렉토리 목록.
 	 * 각 디렉토리는 재귀적으로 스캔된다 (서브 폴더의 JSON도 로드).
 	 * 비어 있으면 Story JSON 로딩이 비활성화된다.
 	 */
-	UPROPERTY(Config, EditAnywhere, Category = "Story", meta = (DisplayName = "Story Directories", RelativeToGameContentDir, LongPackageName))
+	UPROPERTY(Config, EditAnywhere, Category = "Story", meta = (DisplayName = "Story Directories"))
 	TArray<FDirectoryPath> StoryDirectories;
 
 	// === 지형 생성 ===

@@ -11,37 +11,6 @@ UHktSpriteGeneratorSettings::UHktSpriteGeneratorSettings()
 	SectionName  = FName(TEXT("HktSpriteGenerator"));
 }
 
-namespace
-{
-	/** 상대경로/프로젝트 기준 경로를 항상 절대경로로 정규화. 빈 문자열은 그대로. */
-	static FString NormalizeToAbsolute(const FString& In)
-	{
-		if (In.IsEmpty()) return FString();
-		FString Full = FPaths::ConvertRelativePathToFull(In);
-		FPaths::NormalizeDirectoryName(Full);
-		return Full;
-	}
-}
-
-#if WITH_EDITOR
-void UHktSpriteGeneratorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FName PropName = PropertyChangedEvent.GetPropertyName();
-	if (PropName == GET_MEMBER_NAME_CHECKED(UHktSpriteGeneratorSettings, FFmpegDirectory))
-	{
-		const FString Normalized = NormalizeToAbsolute(FFmpegDirectory.Path);
-		if (Normalized != FFmpegDirectory.Path)
-		{
-			FFmpegDirectory.Path = Normalized;
-			// 정규화한 값을 디스크에 반영.
-			SaveConfig();
-		}
-	}
-}
-#endif
-
 FString UHktSpriteGeneratorSettings::ResolveFFmpegExecutable()
 {
 #if PLATFORM_WINDOWS
@@ -53,9 +22,7 @@ FString UHktSpriteGeneratorSettings::ResolveFFmpegExecutable()
 	auto ComposeFromDir = [](const FString& Dir) -> FString
 	{
 		if (Dir.IsEmpty()) return FString();
-		// 런타임에도 한 번 더 절대경로로 정규화 — 에디터 외 경로에서 호출돼도 안전.
-		const FString AbsDir = NormalizeToAbsolute(Dir);
-		const FString Candidate = FPaths::Combine(AbsDir, kExeName);
+		const FString Candidate = FPaths::Combine(Dir, kExeName);
 		return FPaths::FileExists(Candidate) ? Candidate : FString();
 	};
 
@@ -70,9 +37,8 @@ FString UHktSpriteGeneratorSettings::ResolveFFmpegExecutable()
 	const FString EnvPath = FPlatformMisc::GetEnvironmentVariable(TEXT("HKT_FFMPEG_PATH"));
 	if (!EnvPath.IsEmpty())
 	{
-		const FString AbsEnv = NormalizeToAbsolute(EnvPath);
-		if (FPaths::FileExists(AbsEnv)) return AbsEnv;
-		const FString Resolved = ComposeFromDir(AbsEnv);
+		if (FPaths::FileExists(EnvPath)) return EnvPath;
+		const FString Resolved = ComposeFromDir(EnvPath);
 		if (!Resolved.IsEmpty()) return Resolved;
 	}
 

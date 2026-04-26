@@ -4,9 +4,6 @@
 
 UHktRuntimeGlobalSetting::UHktRuntimeGlobalSetting()
 {
-	// HktGameplay 플러그인 번들 Story(<Plugin>/Content/Stories/*.json)는
-	// FHktStoryJsonLoader가 자동으로 스캔하므로 기본값은 비워둔다.
-	// 프로젝트 측 커스텀 Story 디렉토리가 필요한 경우에만 Project Settings에서 추가.
 }
 
 FHktTerrainGeneratorConfig UHktRuntimeGlobalSetting::ToTerrainConfig() const
