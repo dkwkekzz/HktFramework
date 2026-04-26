@@ -10,6 +10,7 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
@@ -179,7 +180,19 @@ UTexture2D* UHktSpriteCrowdRenderer::ResolveAtlas(const FHktSpriteAnimation& Ani
 		? Anim.AtlasCellSize
 		: Template->AtlasCellSize;
 
-	return Ref.LoadSynchronous();
+	UTexture2D* Tex = Ref.LoadSynchronous();
+	if (!Tex) return nullptr;
+
+	// RHI 리소스가 실제로 초기화될 때까지 대기. HISM 생성 시점에 머티리얼 텍스처
+	// 파라미터를 한 번 굳히기 때문에, 여기서 RHI 미준비 상태로 진행하면 렌더 스레드가
+	// 초기화되지 않은 FRHITexture 핸들을 잡고 D3D12 RHISetShaderParameters에서 크래시.
+	const FTextureResource* Resource = Tex->GetResource();
+	if (!Resource || !Resource->TextureRHI.IsValid())
+	{
+		return nullptr;
+	}
+
+	return Tex;
 }
 
 // ============================================================================

@@ -198,6 +198,37 @@ public:
 		float EndTimeSec               = 0.0f);
 
 	/**
+	 * 33프레임 1D 가로 strip 테레인 아틀라스를 폴더에서 빌드 (T_HktSpriteTerrainAtlas).
+	 *
+	 * 동작:
+	 *   1) InputDir에서 {TypeName}.{png|tga|jpg|jpeg|bmp|webp} 파일을 스캔.
+	 *      파일명 stem이 HktTerrainType의 이름(대소문자 무시)과 일치하면 해당 인덱스에 배치.
+	 *      예) "Grass.png" → 인덱스 1, "Stone.png" → 3, "OreVoidstone.png" → 32
+	 *   2) 누락된 프레임(파일 없음)과 Air(인덱스 0)는 투명(0,0,0,0) 셀로 채움.
+	 *   3) 모든 프레임을 ForcedFrameSize(또는 입력 max(W,H))로 정렬해 1×33 strip으로 패킹.
+	 *   4) PNG로 임시 저장 → UE5 Texture2D 에셋으로 임포트 (Nearest, NoMipmap, sRGB ON).
+	 *      압축 설정은 임포트 후 에디터에서 수동 조정 권장 (모바일: BC7 / ASTC 6×6).
+	 *
+	 * 호환성:
+	 *   - Material(M_HktSpriteTerrain)이 SubImageIndex로 샘플링하므로 SubUV는 (1/33, 1).
+	 *   - HktVoxelTerrainTypes.h::HktTerrainType과 인덱스 순서가 일치해야 함 — 타입 추가 시
+	 *     본 함수의 cpp 내 kTerrainTypeNames 배열도 동기화할 것.
+	 *
+	 * @param InputDir            이미지 폴더 절대 경로 (예: D:\Bundles\Terrain\Iso)
+	 * @param OutputAssetPath     UE 에셋 경로. 기본: /Game/Generated/Terrain/T_HktSpriteTerrainAtlas
+	 * @param ForcedFrameSize     프레임 한 변 픽셀(정사각). 0이면 입력 이미지 max(W,H) 사용.
+	 *                            모바일 권장 128.
+	 *
+	 * 반환: {"success":bool, "atlasAssetPath":..., "frameCount":33, "frameSize":...,
+	 *        "missing":["Air","..."], "error":...}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorBuildTerrainAtlasFromBundle(
+		const FString& InputDir,
+		const FString& OutputAssetPath = TEXT("/Game/Generated/Terrain/T_HktSpriteTerrainAtlas"),
+		int32 ForcedFrameSize          = 128);
+
+	/**
 	 * 동영상 → 프레임 추출 → Atlas 패킹 → DataAsset 일괄 빌드.
 	 *
 	 * 반환: McpBuildSpriteCharacter와 동일 JSON.

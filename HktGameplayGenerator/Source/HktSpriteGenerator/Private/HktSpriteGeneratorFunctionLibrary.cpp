@@ -1519,3 +1519,205 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 		{ TEXT("framesPerDir"),   FString::FromInt(FPD) },
 	});
 }
+
+// ============================================================================
+// EditorBuildTerrainAtlasFromBundle — 33프레임 1D strip 테레인 아틀라스
+// ============================================================================
+
+namespace HktSpriteGen
+{
+	/**
+	 * HktVoxelTerrainTypes.h::HktTerrainType 의 인덱스 순서와 동기화.
+	 * 타입을 추가하면 양쪽 모두 갱신해야 한다 (cross-plugin 의존을 피하기 위한 의도적 복제).
+	 */
+	static const TCHAR* const kTerrainTypeNames[] = {
+		TEXT("Air"),            // 0
+		TEXT("Grass"),          // 1
+		TEXT("Dirt"),           // 2
+		TEXT("Stone"),          // 3
+		TEXT("Sand"),           // 4
+		TEXT("Water"),          // 5
+		TEXT("Snow"),           // 6
+		TEXT("Ice"),            // 7
+		TEXT("Gravel"),         // 8
+		TEXT("Clay"),           // 9
+		TEXT("Bedrock"),        // 10
+		TEXT("Glass"),          // 11
+		TEXT("GrassFlower"),    // 12
+		TEXT("StoneMossy"),     // 13
+		TEXT("CrystalGrass"),   // 14
+		TEXT("GrassEthereal"),  // 15
+		TEXT("MossGlow"),       // 16
+		TEXT("SoilDark"),       // 17
+		TEXT("SandBleached"),   // 18
+		TEXT("StoneFractured"), // 19
+		TEXT("BoneFragment"),   // 20
+		TEXT("CrystalShard"),   // 21
+		TEXT("Wood"),           // 22
+		TEXT("Leaves"),         // 23
+		TEXT("LeavesSnow"),     // 24
+		TEXT("Cactus"),         // 25
+		TEXT("Mushroom"),       // 26
+		TEXT("MushroomGlow"),   // 27
+		TEXT("OreCoal"),        // 28
+		TEXT("OreIron"),        // 29
+		TEXT("OreGold"),        // 30
+		TEXT("OreCrystal"),     // 31
+		TEXT("OreVoidstone"),   // 32
+	};
+	static constexpr int32 kTerrainTypeCount = UE_ARRAY_COUNT(kTerrainTypeNames);
+
+	/** InputDir 내에서 stem이 TypeName과 일치하는 첫 이미지 파일을 찾는다 (대소문자 무시). */
+	static FString FindFrameFileByStem(const FString& InputDir, const FString& TypeName)
+	{
+		IFileManager& FM = IFileManager::Get();
+		TArray<FString> Files;
+		FM.FindFiles(Files, *(InputDir / TEXT("*.*")), /*Files*/ true, /*Dirs*/ false);
+		for (const FString& F : Files)
+		{
+			if (!IsSupportedImageExt(FPaths::GetExtension(F))) continue;
+			if (FPaths::GetBaseFilename(F).Equals(TypeName, ESearchCase::IgnoreCase))
+			{
+				return InputDir / F;
+			}
+		}
+		return FString();
+	}
+} // namespace HktSpriteGen
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildTerrainAtlasFromBundle(
+	const FString& InputDir,
+	const FString& OutputAssetPath,
+	int32 ForcedFrameSize)
+{
+	using namespace HktSpriteGen;
+
+	IFileManager& FM = IFileManager::Get();
+	if (!FM.DirectoryExists(*InputDir))
+	{
+		return MakeSpriteError(FString::Printf(TEXT("입력 폴더 없음: %s"), *InputDir));
+	}
+	if (OutputAssetPath.IsEmpty() || !OutputAssetPath.StartsWith(TEXT("/Game/")))
+	{
+		return MakeSpriteError(TEXT("OutputAssetPath는 /Game/... 으로 시작해야 합니다"));
+	}
+
+	// 1) 타입 이름 → 디스크 파일 매핑 (없는 칸은 빈 문자열).
+	TArray<FString> FilePerIndex;
+	FilePerIndex.SetNum(kTerrainTypeCount);
+	TArray<FString> Missing;
+	int32 MaxW = 0, MaxH = 0;
+	TMap<int32, FDecodedImage> Decoded;
+
+	for (int32 i = 0; i < kTerrainTypeCount; ++i)
+	{
+		const FString TypeName = kTerrainTypeNames[i];
+		const FString FoundPath = FindFrameFileByStem(InputDir, TypeName);
+		if (FoundPath.IsEmpty())
+		{
+			Missing.Add(TypeName);
+			continue;
+		}
+		FDecodedImage Img;
+		if (!DecodeImageFile(FoundPath, Img.BGRA, Img.Width, Img.Height))
+		{
+			return MakeSpriteError(FString::Printf(TEXT("이미지 디코드 실패: %s"), *FoundPath));
+		}
+		MaxW = FMath::Max(MaxW, Img.Width);
+		MaxH = FMath::Max(MaxH, Img.Height);
+		FilePerIndex[i] = FoundPath;
+		Decoded.Add(i, MoveTemp(Img));
+	}
+
+	if (Decoded.Num() == 0)
+	{
+		return MakeSpriteError(FString::Printf(
+			TEXT("InputDir에서 HktTerrainType과 매칭되는 이미지를 하나도 찾지 못했습니다: %s"), *InputDir));
+	}
+
+	// 2) 프레임 크기 결정.
+	const int32 FrameSize = (ForcedFrameSize > 0)
+		? ForcedFrameSize
+		: FMath::Max(MaxW, MaxH);
+	if (FrameSize <= 0)
+	{
+		return MakeSpriteError(TEXT("프레임 크기 결정 실패 (입력 이미지 모두 0 크기)"));
+	}
+
+	// 3) 1×33 가로 strip 버퍼 합성 (BGRA, 0=투명으로 zero-init).
+	const int32 AtlasW = FrameSize * kTerrainTypeCount;
+	const int32 AtlasH = FrameSize;
+	TArray64<uint8> AtlasBuf;
+	AtlasBuf.SetNumZeroed(static_cast<int64>(AtlasW) * AtlasH * 4);
+
+	for (const TPair<int32, FDecodedImage>& Pair : Decoded)
+	{
+		const int32 Index = Pair.Key;
+		const FDecodedImage& Img = Pair.Value;
+
+		// 셀 좌상단 (정사각 셀에 좌상단 정렬 — pivot은 머티리얼/Sprite Renderer가 처리).
+		const int32 DstX0 = Index * FrameSize;
+		const int32 DstY0 = 0;
+		const int32 CopyW = FMath::Min(Img.Width, FrameSize);
+		const int32 CopyH = FMath::Min(Img.Height, FrameSize);
+
+		for (int32 y = 0; y < CopyH; ++y)
+		{
+			const int64 SrcOff = static_cast<int64>(y) * Img.Width * 4;
+			const int64 DstOff = (static_cast<int64>(DstY0 + y) * AtlasW + DstX0) * 4;
+			FMemory::Memcpy(AtlasBuf.GetData() + DstOff, Img.BGRA.GetData() + SrcOff, static_cast<SIZE_T>(CopyW) * 4);
+		}
+	}
+
+	// 4) PNG 임시 파일로 인코드 → 임포트.
+	const FString AtlasName = FPaths::GetCleanFilename(OutputAssetPath);
+	if (AtlasName.IsEmpty())
+	{
+		return MakeSpriteError(FString::Printf(TEXT("OutputAssetPath 파싱 실패: %s"), *OutputAssetPath));
+	}
+
+	const FString TmpPng = FPaths::ProjectSavedDir() / TEXT("SpriteGenerator") / TEXT("TerrainAtlas")
+		/ FString::Printf(TEXT("%s_%lld.png"), *AtlasName, FDateTime::UtcNow().GetTicks());
+	FM.MakeDirectory(*FPaths::GetPath(TmpPng), /*Tree*/ true);
+
+	{
+		IImageWrapperModule& IWM = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+		TSharedPtr<IImageWrapper> Wrapper = IWM.CreateImageWrapper(EImageFormat::PNG);
+		if (!Wrapper.IsValid() || !Wrapper->SetRaw(AtlasBuf.GetData(), AtlasBuf.Num(), AtlasW, AtlasH, ERGBFormat::BGRA, 8))
+		{
+			return MakeSpriteError(TEXT("Atlas PNG 인코드 실패"));
+		}
+		const TArray64<uint8>& Compressed = Wrapper->GetCompressed();
+		if (!FFileHelper::SaveArrayToFile(Compressed, *TmpPng))
+		{
+			return MakeSpriteError(FString::Printf(TEXT("Atlas PNG 임시 저장 실패: %s"), *TmpPng));
+		}
+	}
+
+	UTexture2D* AtlasTex = ImportAtlasTexture(TmpPng, OutputAssetPath, AtlasName);
+	if (!AtlasTex)
+	{
+		return MakeSpriteError(TEXT("Atlas 텍스처 임포트 실패"));
+	}
+
+	UE_LOG(LogHktSpriteGenerator, Log,
+		TEXT("TerrainAtlas: 프레임 %d × %dpx → %s (누락 %d)"),
+		kTerrainTypeCount, FrameSize, *OutputAssetPath, Missing.Num());
+
+	// missing 배열은 보고용 — JSON으로 직렬화.
+	FString MissingJson;
+	{
+		TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&MissingJson);
+		W->WriteArrayStart();
+		for (const FString& Name : Missing) W->WriteValue(Name);
+		W->WriteArrayEnd();
+		W->Close();
+	}
+
+	return MakeResult(true, {
+		{ TEXT("atlasAssetPath"), FString::Printf(TEXT("%s.%s"), *OutputAssetPath, *AtlasName) },
+		{ TEXT("frameCount"),     FString::FromInt(kTerrainTypeCount) },
+		{ TEXT("frameSize"),      FString::FromInt(FrameSize) },
+		{ TEXT("missing"),        MissingJson },
+	});
+}

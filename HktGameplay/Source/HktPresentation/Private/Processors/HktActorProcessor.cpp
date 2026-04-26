@@ -325,14 +325,11 @@ void FHktActorProcessor::SpawnActorFromResolvedAsset(FHktEntityId EntityId, cons
 			}
 			SpawnedActor = ItemActor;
 		}
-		else
+		else if (UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset))
 		{
-			TSubclassOf<AActor> ActorClass;
-			UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset);
-			if (VisualAsset && VisualAsset->ActorClass)
-				ActorClass = VisualAsset->ActorClass;
-
-			if (!ActorClass)
+			// Actor 기반 비주얼 에셋만 여기서 스폰. SpriteCharacterTemplate 등 다른 타입은
+			// 별도 Processor(AHktSpriteCrowdHost 등)가 처리하므로 이 경로에서 무시.
+			if (!VisualAsset->ActorClass)
 			{
 				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 					FString::Printf(TEXT("SpawnActor: No ActorClass for tag %s entity=%d"), *VisualTag.ToString(), EntityId));
@@ -340,7 +337,12 @@ void FHktActorProcessor::SpawnActorFromResolvedAsset(FHktEntityId EntityId, cons
 			}
 
 			FActorSpawnParameters SpawnParams;
-			SpawnedActor = CallbackWorld->SpawnActor<AActor>(ActorClass, SpawnLocation, SpawnRotation, SpawnParams);
+			SpawnedActor = CallbackWorld->SpawnActor<AActor>(VisualAsset->ActorClass, SpawnLocation, SpawnRotation, SpawnParams);
+		}
+		else
+		{
+			// 스프라이트 캐릭터 템플릿 등 Actor 스폰이 필요 없는 에셋 — Sprite Crowd 파이프라인이 처리.
+			return;
 		}
 
 		if (!SpawnedActor) return;

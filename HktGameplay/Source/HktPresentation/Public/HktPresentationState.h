@@ -208,25 +208,25 @@ struct FHktTerrainDebrisView
 };
 
 /**
- * FHktSpriteView — 2D 스프라이트 캐릭터의 Loadout + Facing + AnimStartTick.
- * HktSpriteCore의 프레임 리졸버에 전달하기 위한 최소 상태.
+ * FHktSpriteView — 2D 스프라이트 캐릭터의 Character + Facing + AnimStartTick.
+ * 캐릭터 1개당 UHktSpriteCharacterTemplate 1개를 매핑한다 (Template 내부에서 파츠/애니 분기).
  * 프레임 결정은 Processor(Sync 시점)에서 Animation/Transform/CurrentTick과 결합하여 수행.
  */
 struct FHktSpriteView
 {
-	THktVisualField<FGameplayTag> BodyPart;
+	THktVisualField<FGameplayTag> Character;      // CharacterTemplate Tag — 캐릭터당 1개
 	THktVisualField<uint8>        Facing;         // 0..7 (N,NE,E,SE,S,SW,W,NW)
 	THktVisualField<int32>        AnimStartTick;  // AnimState 전환 시점의 VM frame
 
 	FORCEINLINE bool AnyDirty(int64 F) const
 	{
-		return BodyPart.IsDirty(F)
+		return Character.IsDirty(F)
 			|| Facing.IsDirty(F) || AnimStartTick.IsDirty(F);
 	}
 
-	FORCEINLINE bool AnyLoadoutDirty(int64 F) const
+	FORCEINLINE bool IsCharacterDirty(int64 F) const
 	{
-		return BodyPart.IsDirty(F);
+		return Character.IsDirty(F);
 	}
 };
 

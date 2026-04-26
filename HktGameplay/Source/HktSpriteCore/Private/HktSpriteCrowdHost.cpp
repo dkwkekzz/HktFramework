@@ -116,9 +116,9 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 
 		Renderer->RegisterEntity(Id);
 
-		// 캐릭터 한 명 = 하나의 스프라이트 템플릿. Body 슬롯 태그를 CharacterTag로 사용.
-		// (HktCore 측은 7슬롯을 유지하지만, 시각적으로는 캐릭터 아틀라스가 모두 담는다.)
-		Renderer->SetCharacter(Id, SV->BodyPart.Get());
+		// 캐릭터 1개 = UHktSpriteCharacterTemplate 1개. SpawnEntity의 ClassTag(=EntitySpawnTag)를
+		// 그대로 Template Tag로 사용한다 (Template 내부에서 향후 파츠 분기는 가능).
+		Renderer->SetCharacter(Id, SV->Character.Get());
 
 		// 초기 상태에서 Anim Tag Container를 한 번 동기화
 		if (const FHktAnimationView* AV = State.GetAnimation(Id))
@@ -128,14 +128,13 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		}
 	}
 
-	// --- 3. Character diff: Body 태그(=CharacterTag) 변경분만 반영 ---
-	//     나머지 슬롯(Head/Weapon/…)은 HktCore에선 유지되지만 시각적으로는 사용 안 함.
+	// --- 3. Character diff: CharacterTemplate 태그 변경분만 반영 ---
 	for (auto It = State.Sprites.CreateConstIterator(); It; ++It)
 	{
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
 		const FHktSpriteView& SV = *It;
-		if (!SV.BodyPart.IsDirty(Frame)) continue;
-		Renderer->SetCharacter(Id, SV.BodyPart.Get());
+		if (!SV.Character.IsDirty(Frame)) continue;
+		Renderer->SetCharacter(Id, SV.Character.Get());
 	}
 
 	// --- 4. 매 프레임 UpdateEntity ---

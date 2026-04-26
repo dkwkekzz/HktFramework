@@ -47,6 +47,35 @@ void AHktIngamePlayerController::BeginPlay()
     if (IsLocalController())
     {
         CachedClientRule = HktRule::GetClientRule(GetWorld());
+
+        // SpriteCrowdHost를 BP에서 지정한 클래스로 스폰 (HUD 등록 패턴).
+        // 로컬 컨트롤러에서만 — Dedicated Server에선 IsLocalController()가 false라 자동 스킵.
+        if (!SpriteCrowdHostClass.IsNull())
+        {
+            UClass* HostClass = SpriteCrowdHostClass.LoadSynchronous();
+            if (HostClass)
+            {
+                FActorSpawnParameters Params;
+                Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+                Params.ObjectFlags = RF_Transient;
+                Params.Owner = this;
+                SpawnedSpriteCrowdHost = GetWorld()->SpawnActor<AActor>(HostClass, FTransform::Identity, Params);
+                if (!SpawnedSpriteCrowdHost)
+                {
+                    UE_LOG(LogHktRuntime, Warning, TEXT("SpriteCrowdHost 스폰 실패: %s"), *HostClass->GetName());
+                }
+#if WITH_EDITOR
+                else
+                {
+                    SpawnedSpriteCrowdHost->SetActorLabel(TEXT("HktSpriteCrowdHost"));
+                }
+#endif
+            }
+            else
+            {
+                UE_LOG(LogHktRuntime, Warning, TEXT("SpriteCrowdHostClass 로드 실패: %s"), *SpriteCrowdHostClass.ToString());
+            }
+        }
     }
 
     // 컴포넌트에서 인터페이스 캐싱
@@ -105,6 +134,12 @@ void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
     if (CachedClientRule)
     {
         CachedClientRule->BindContext(nullptr, nullptr, nullptr, nullptr, nullptr);
+    }
+
+    if (SpawnedSpriteCrowdHost)
+    {
+        SpawnedSpriteCrowdHost->Destroy();
+        SpawnedSpriteCrowdHost = nullptr;
     }
 
     CachedClientRule       = nullptr;

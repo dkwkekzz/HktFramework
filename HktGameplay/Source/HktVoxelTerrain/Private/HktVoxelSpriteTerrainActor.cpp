@@ -2,50 +2,91 @@
 
 #include "HktVoxelSpriteTerrainActor.h"
 #include "HktVoxelTerrainActor.h"
-#include "HktVoxelTerrainNDI.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelTypes.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
-#include "NiagaraComponent.h"
-#include "NiagaraSystem.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+
+namespace
+{
+	constexpr int32 kNumCustomDataFloats = 16;
+}
 
 AHktVoxelSpriteTerrainActor::AHktVoxelSpriteTerrainActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = TG_DuringPhysics;
 
-	NiagaraComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraComponent"));
-	RootComponent = NiagaraComponent;
-	NiagaraComponent->bAutoActivate = false;
+	HISMComponent = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("HISM"));
+	RootComponent = HISMComponent;
+	HISMComponent->SetMobility(EComponentMobility::Movable);
+	HISMComponent->NumCustomDataFloats = kNumCustomDataFloats;
+	HISMComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HISMComponent->SetCanEverAffectNavigation(false);
+	HISMComponent->bDisableCollision = true;
+	HISMComponent->SetGenerateOverlapEvents(false);
+	HISMComponent->bAffectDistanceFieldLighting = false;
+	HISMComponent->bAffectDynamicIndirectLighting = false;
+	HISMComponent->CastShadow = false;
 }
 
 void AHktVoxelSpriteTerrainActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	TerrainNDI = NewObject<UHktVoxelTerrainNDI>(this);
-
-	if (TerrainNiagaraSystem && NiagaraComponent)
+	if (HISMComponent && QuadMesh)
 	{
-		NiagaraComponent->SetAsset(TerrainNiagaraSystem);
-		NiagaraComponent->Activate(true);
+		HISMComponent->SetStaticMesh(QuadMesh);
+		HISMComponent->NumCustomDataFloats = kNumCustomDataFloats;
+
+		if (TerrainMaterial)
+		{
+			TerrainMID = UMaterialInstanceDynamic::Create(TerrainMaterial, this);
+			if (TerrainMID)
+			{
+				if (AtlasTexture)
+				{
+					TerrainMID->SetTextureParameterValue(TEXT("Atlas"), AtlasTexture);
+				}
+				if (PaletteLUT)
+				{
+					TerrainMID->SetTextureParameterValue(TEXT("PaletteLUT"), PaletteLUT);
+				}
+				TerrainMID->SetVectorParameterValue(
+					TEXT("AtlasSize"),
+					FLinearColor(AtlasSizePx.X, AtlasSizePx.Y, CellSizePx.X, CellSizePx.Y));
+				HISMComponent->SetMaterial(0, TerrainMID);
+			}
+		}
 	}
 }
 
 void AHktVoxelSpriteTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (NiagaraComponent)
+	if (HISMComponent)
 	{
-		NiagaraComponent->Deactivate();
+		HISMComponent->ClearInstances();
 	}
+	InstanceMap.Reset();
+	InstanceCoordByIndex.Reset();
+	LastCellByCoord.Reset();
+
 	Super::EndPlay(EndPlayReason);
 }
 
 void AHktVoxelSpriteTerrainActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (!HISMComponent || !QuadMesh)
+	{
+		return;
+	}
 
 	// 스캔 빈도 제한 — 고정 카메라라 초당 N회면 충분
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
@@ -59,16 +100,142 @@ void AHktVoxelSpriteTerrainActor::Tick(float DeltaSeconds)
 	TArray<FHktVoxelSurfaceCell> Cells;
 	ScanVisibleTopSurface(Cells);
 
-	if (TerrainNDI)
+	const AHktVoxelTerrainActor* VoxelActor = CachedSourceActor.Get();
+	const float ChunkWorldSize = VoxelActor ? VoxelActor->GetChunkWorldSize() : 0.f;
+	if (ChunkWorldSize <= 0.f)
 	{
-		UHktVoxelTerrainNDI::FParamNames Names;
-		Names.Positions = ParamName_Positions;
-		Names.TypeIDs = ParamName_TypeIDs;
-		Names.PaletteIndices = ParamName_PaletteIndices;
-		Names.Flags = ParamName_Flags;
-
-		TerrainNDI->PushSurfaceCells(NiagaraComponent, Cells, Names);
+		return;
 	}
+
+	// === Diff: 신규/변경 처리 ===
+	TSet<FIntVector> SeenCoords;
+	SeenCoords.Reserve(Cells.Num());
+
+	TArray<float> CustomData;
+	CustomData.SetNumUninitialized(kNumCustomDataFloats);
+
+	for (const FHktVoxelSurfaceCell& Cell : Cells)
+	{
+		SeenCoords.Add(Cell.ChunkCoord);
+
+		const FTransform Xform = MakeInstanceTransform(Cell);
+		FillCustomData(Cell, ChunkWorldSize, CustomData);
+
+		if (int32* ExistingIdx = InstanceMap.Find(Cell.ChunkCoord))
+		{
+			const int32 Idx = *ExistingIdx;
+			const FHktVoxelSurfaceCell* Prev = LastCellByCoord.Find(Cell.ChunkCoord);
+			const bool bTransformChanged =
+				!Prev ||
+				!Prev->WorldPos.Equals(Cell.WorldPos, 0.01f);
+			const bool bDataChanged =
+				!Prev ||
+				Prev->TypeID != Cell.TypeID ||
+				Prev->PaletteIndex != Cell.PaletteIndex ||
+				Prev->Flags != Cell.Flags;
+
+			if (bTransformChanged)
+			{
+				HISMComponent->UpdateInstanceTransform(Idx, Xform, /*bWorldSpace=*/true,
+					/*bMarkRenderStateDirty=*/false, /*bTeleport=*/true);
+			}
+			if (bDataChanged)
+			{
+				for (int32 S = 0; S < kNumCustomDataFloats; ++S)
+				{
+					HISMComponent->SetCustomDataValue(Idx, S, CustomData[S],
+						/*bMarkRenderStateDirty=*/false);
+				}
+			}
+		}
+		else
+		{
+			const int32 NewIdx = HISMComponent->AddInstance(Xform, /*bWorldSpace=*/true);
+			if (NewIdx != INDEX_NONE)
+			{
+				InstanceMap.Add(Cell.ChunkCoord, NewIdx);
+				InstanceCoordByIndex.Add(NewIdx, Cell.ChunkCoord);
+				for (int32 S = 0; S < kNumCustomDataFloats; ++S)
+				{
+					HISMComponent->SetCustomDataValue(NewIdx, S, CustomData[S],
+						/*bMarkRenderStateDirty=*/false);
+				}
+			}
+		}
+
+		LastCellByCoord.Add(Cell.ChunkCoord, Cell);
+	}
+
+	// === Diff: 사라진 인스턴스 제거 ===
+	// RemoveInstance는 마지막 인스턴스를 빈자리에 swap한다 — 매핑 갱신 필수.
+	TArray<FIntVector> ToRemove;
+	for (const TPair<FIntVector, int32>& Pair : InstanceMap)
+	{
+		if (!SeenCoords.Contains(Pair.Key))
+		{
+			ToRemove.Add(Pair.Key);
+		}
+	}
+
+	for (const FIntVector& Coord : ToRemove)
+	{
+		const int32 RemoveIdx = InstanceMap.FindAndRemoveChecked(Coord);
+		const int32 LastIdx = HISMComponent->GetInstanceCount() - 1;
+
+		if (HISMComponent->RemoveInstance(RemoveIdx))
+		{
+			InstanceCoordByIndex.Remove(RemoveIdx);
+			LastCellByCoord.Remove(Coord);
+
+			// 마지막 인스턴스가 RemoveIdx 자리로 swap된 경우 매핑 보정.
+			if (RemoveIdx != LastIdx)
+			{
+				if (FIntVector* SwappedCoord = InstanceCoordByIndex.Find(LastIdx))
+				{
+					const FIntVector NewKey = *SwappedCoord;
+					InstanceCoordByIndex.Remove(LastIdx);
+					InstanceCoordByIndex.Add(RemoveIdx, NewKey);
+					InstanceMap[NewKey] = RemoveIdx;
+				}
+			}
+		}
+	}
+
+	HISMComponent->MarkRenderStateDirty();
+}
+
+FTransform AHktVoxelSpriteTerrainActor::MakeInstanceTransform(const FHktVoxelSurfaceCell& Cell) const
+{
+	// quad mesh = 1×1 unit. 실제 크기는 PerInstanceCustomData slot 7,8 (ScaleX/Y, M_HktSpriteYBillboard
+	// WPO에서 사용)로 결정되므로 인스턴스 자체 스케일은 1.
+	return FTransform(FQuat::Identity, Cell.WorldPos, FVector::OneVector);
+}
+
+void AHktVoxelSpriteTerrainActor::FillCustomData(
+	const FHktVoxelSurfaceCell& Cell, float ChunkWorldSize, TArray<float>& OutData) const
+{
+	check(OutData.Num() == kNumCustomDataFloats);
+
+	const float HalfChunk = ChunkWorldSize * 0.5f;
+	const bool bTranslucent = (Cell.Flags & FHktVoxel::FLAG_TRANSLUCENT) != 0;
+	const float Alpha = bTranslucent ? 0.6f : 1.0f;
+
+	OutData[0]  = static_cast<float>(Cell.TypeID);   // AtlasIdx
+	OutData[1]  = CellSizePx.X;                      // CellW
+	OutData[2]  = CellSizePx.Y;                      // CellH
+	OutData[3]  = 0.f;                               // reserved
+	OutData[4]  = 0.f;                               // OffX
+	OutData[5]  = 0.f;                               // OffY
+	OutData[6]  = 0.f;                               // RotR (iso 고정)
+	OutData[7]  = HalfChunk;                         // ScaleX = ChunkWorld/2
+	OutData[8]  = HalfChunk;                         // ScaleY
+	OutData[9]  = 1.f;                               // Tint R
+	OutData[10] = 1.f;                               // Tint G
+	OutData[11] = 1.f;                               // Tint B
+	OutData[12] = Alpha;                             // Tint A
+	OutData[13] = static_cast<float>(Cell.PaletteIndex); // PaletteIndex
+	OutData[14] = 0.f;                               // FlipV
+	OutData[15] = 0.f;                               // ZBiasV
 }
 
 void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceCell>& OutCells) const
@@ -81,7 +248,6 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 		return;
 	}
 
-	// ResolveRenderCache 성공 경로에선 CachedSourceActor가 유효
 	const AHktVoxelTerrainActor* VoxelActor = CachedSourceActor.Get();
 	if (!VoxelActor)
 	{
@@ -103,13 +269,10 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 
 	OutCells.Reserve(Coords.Num());
 
-	// 청크당 top-most 1셀 — 전체 32×32 컬럼의 최상단 non-empty voxel 중 Z 최대 선택.
-	// 공기 구멍이 있는 지형도 안정적으로 top을 잡는다.
 	constexpr int32 S = FHktVoxelChunk::SIZE;
 
 	for (const FIntVector& Coord : Coords)
 	{
-		// 청크 AABB 중심 (XY만 사용 — iso 고정각이라 Z는 무시)
 		const FVector2D ChunkCenterXY(
 			(Coord.X + 0.5f) * ChunkWorldSize,
 			(Coord.Y + 0.5f) * ChunkWorldSize);
@@ -158,6 +321,7 @@ void AHktVoxelSpriteTerrainActor::ScanVisibleTopSurface(TArray<FHktVoxelSurfaceC
 		}
 
 		FHktVoxelSurfaceCell Cell;
+		Cell.ChunkCoord = Coord;
 		Cell.WorldPos = FVector(
 			Coord.X * ChunkWorldSize + (BestX + 0.5f) * VoxelSize,
 			Coord.Y * ChunkWorldSize + (BestY + 0.5f) * VoxelSize,
@@ -189,7 +353,6 @@ FVector AHktVoxelSpriteTerrainActor::GetViewCenterWorldPos() const
 
 FHktVoxelRenderCache* AHktVoxelSpriteTerrainActor::ResolveRenderCache() const
 {
-	// 캐시된 핸들이 아직 유효하면 즉시 반환
 	if (AHktVoxelTerrainActor* Cached = CachedSourceActor.Get())
 	{
 		return Cached->GetTerrainCache();
@@ -201,8 +364,6 @@ FHktVoxelRenderCache* AHktVoxelSpriteTerrainActor::ResolveRenderCache() const
 		return nullptr;
 	}
 
-	// 월드에 1개 존재 가정 — 없으면 no-op. 레벨 스트리밍으로 뒤늦게 스폰돼도
-	// 다음 Tick에 재시도되므로 경고 로그는 생략.
 	AActor* Found = UGameplayStatics::GetActorOfClass(World, AHktVoxelTerrainActor::StaticClass());
 	AHktVoxelTerrainActor* VoxelActor = Cast<AHktVoxelTerrainActor>(Found);
 	if (!VoxelActor)
@@ -212,14 +373,11 @@ FHktVoxelRenderCache* AHktVoxelSpriteTerrainActor::ResolveRenderCache() const
 
 	CachedSourceActor = VoxelActor;
 
-	// Voxel Actor가 RenderCache를 갱신한 후에 Sprite Actor가 읽도록 tick 순서 확정.
-	// const_cast — resolve는 const 경로지만 tick dependency 등록은 설계상 1회 세팅이며
+	// const_cast — resolve는 const 경로지만 tick dependency 등록은 1회 세팅이며
 	// 관측 가능한 상태 변화가 없다.
 	AHktVoxelSpriteTerrainActor* MutableSelf = const_cast<AHktVoxelSpriteTerrainActor*>(this);
 	MutableSelf->AddTickPrerequisiteActor(VoxelActor);
 
-	// Sprite + Voxel 동시 렌더링 감지 — chunk mesh와 sprite 평면이 Z-fighting 소지.
-	// A/B 비교 중이 아니라면 Voxel Actor의 ChunkComponent를 숨기거나 한 쪽을 제거할 것.
 	if (!VoxelActor->IsHidden())
 	{
 		UE_LOG(LogTemp, Warning,

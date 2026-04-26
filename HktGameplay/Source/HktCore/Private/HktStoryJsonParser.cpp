@@ -2,10 +2,29 @@
 
 #include "HktStoryJsonParser.h"
 #include "HktStoryBuilder.h"
+#include "HktCoreArchetype.h"
 #include "HktCoreProperties.h"
 #include "GameplayTagsManager.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
+
+namespace
+{
+	// JSON trait 이름 → HktTrait 포인터. 신규 trait 추가 시 여기에 매핑을 추가한다.
+	const FHktPropertyTrait* ResolveTraitByName(const FString& Name)
+	{
+		if (Name == TEXT("Spatial"))    return HktTrait::Spatial;
+		if (Name == TEXT("Movable"))    return HktTrait::Movable;
+		if (Name == TEXT("Collidable")) return HktTrait::Collidable;
+		if (Name == TEXT("Hittable"))   return HktTrait::Hittable;
+		if (Name == TEXT("Combatable")) return HktTrait::Combatable;
+		if (Name == TEXT("Animated"))   return HktTrait::Animated;
+		if (Name == TEXT("EventParam")) return HktTrait::EventParam;
+		if (Name == TEXT("Ownable"))    return HktTrait::Ownable;
+		if (Name == TEXT("EquipSlots")) return HktTrait::EquipSlots;
+		return nullptr;
+	}
+}
 
 // ============================================================================
 // FHktStoryCmdArgs
@@ -366,8 +385,8 @@ bool FHktStoryJsonParser::IsReadOnlyOp(const FString& OpName)
 		TEXT("CmpEqConst"), TEXT("CmpNeConst"), TEXT("CmpLtConst"), TEXT("CmpLeConst"), TEXT("CmpGtConst"), TEXT("CmpGeConst"),
 		// Spatial Query (읽기)
 		TEXT("GetDistance"),
-		// Tags (읽기)
-		TEXT("HasTag"),
+		// Tags / Traits (읽기)
+		TEXT("HasTag"), TEXT("CheckTrait"), TEXT("IfHasTrait"),
 		// Query
 		TEXT("CountByTag"), TEXT("GetWorldTime"), TEXT("RandomInt"), TEXT("HasPlayerInGroup"),
 		// Item (읽기)
@@ -596,6 +615,9 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 	RegisterCommand(TEXT("EndForEach"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.EndForEach();
 	});
+	RegisterCommand(TEXT("InteractTerrain"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		B.InteractTerrain(A.GetRegOpt(TEXT("center"), Reg::Self), A.GetInt(TEXT("radius")));
+	});
 
 	// ======================== Combat ========================
 
@@ -640,6 +662,26 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 	});
 	RegisterCommand(TEXT("HasTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.HasTag(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity")), A.GetTag(TEXT("tag")));
+	});
+	RegisterCommand(TEXT("CheckTrait"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		const FString TraitName = A.GetString(TEXT("trait"));
+		const FHktPropertyTrait* Trait = ResolveTraitByName(TraitName);
+		if (!Trait)
+		{
+			A.Errors.Add(FString::Printf(TEXT("CheckTrait: unknown trait '%s'"), *TraitName));
+			return;
+		}
+		B.CheckTrait(A.GetReg(TEXT("dst")), A.GetReg(TEXT("entity")), Trait);
+	});
+	RegisterCommand(TEXT("IfHasTrait"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+		const FString TraitName = A.GetString(TEXT("trait"));
+		const FHktPropertyTrait* Trait = ResolveTraitByName(TraitName);
+		if (!Trait)
+		{
+			A.Errors.Add(FString::Printf(TEXT("IfHasTrait: unknown trait '%s'"), *TraitName));
+			return;
+		}
+		B.IfHasTrait(A.GetReg(TEXT("entity")), Trait);
 	});
 	RegisterCommand(TEXT("CountByTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 		B.CountByTag(A.GetReg(TEXT("dst")), A.GetTag(TEXT("tag")));

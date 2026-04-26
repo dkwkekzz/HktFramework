@@ -278,10 +278,12 @@ namespace
 				if (S.Animation.IsValidIndex(Id)) S.Animation[Id].Stance.Set(IndexToTag(V), F);
 			};
 
-			// --- Visualization ---
+			// --- Visualization & Sprite (둘 다 EntitySpawnTag = 캐릭터 Template Tag로 재사용) ---
 			T[PropertyId::EntitySpawnTag] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
 			{
-				if (S.Visualization.IsValidIndex(Id)) S.Visualization[Id].VisualElement.Set(IndexToTag(V), F);
+				const FGameplayTag Tag = IndexToTag(V);
+				if (S.Visualization.IsValidIndex(Id)) S.Visualization[Id].VisualElement.Set(Tag, F);
+				if (S.Sprites.IsValidIndex(Id))      S.Sprites[Id].Character.Set(Tag, F);
 			};
 
 			// --- Item ---
@@ -321,10 +323,6 @@ namespace
 			T[PropertyId::AnimStartTick] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
 			{
 				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].AnimStartTick.Set(V, F);
-			};
-			T[PropertyId::SpriteBody] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
-			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].BodyPart.Set(IndexToTag(V), F);
 			};
 
 			// --- Terrain Debris (뷰가 없으면 lazy 할당) ---
@@ -517,7 +515,8 @@ void FHktPresentationState::InitVoxelSkinFromWS(const FHktWorldState& WS, FHktEn
 
 void FHktPresentationState::InitSpriteFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktSpriteView& V, int64 F)
 {
-	V.BodyPart.Set(IndexToTag(WS.GetProperty(Id, PropertyId::SpriteBody)), F);
+	// Character Template Tag = SpawnEntity의 ClassTag (EntitySpawnTag). 별도 프로퍼티 없음.
+	V.Character.Set(IndexToTag(WS.GetProperty(Id, PropertyId::EntitySpawnTag)), F);
 	V.Facing.Set(static_cast<uint8>(WS.GetProperty(Id, PropertyId::Facing) & 0x07), F);
 	V.AnimStartTick.Set(WS.GetProperty(Id, PropertyId::AnimStartTick), F);
 }

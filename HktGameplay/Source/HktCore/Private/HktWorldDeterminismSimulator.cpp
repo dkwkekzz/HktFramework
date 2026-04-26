@@ -311,7 +311,12 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
             int32 NewVal = WorldState.Get(Slot, PropId);
             int32 OldVal = VMProxy.GetPreFrameValue(Slot, PropId);
-            Diff.PropertyDeltas.Add({ Id, PropId, NewVal, OldVal });
+            // SetDirty는 값 변경 여부와 무관하게 쓰기 시 dirty 비트를 세팅하므로,
+            // 실제 값이 변하지 않은 항목은 델타에서 제외한다 (불필요한 네트워크/로그 노이즈 방지).
+            if (NewVal != OldVal)
+            {
+                Diff.PropertyDeltas.Add({ Id, PropId, NewVal, OldVal });
+            }
             M &= M - 1;
         }
     });

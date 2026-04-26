@@ -28,7 +28,7 @@ class UHktPresentationSubsystem;
  *
  *  PartTemplate이 각 액션의 AnimTag를 직접 보유하므로 별도 매핑 DataAsset은 없다.
  */
-UCLASS(NotPlaceable, NotBlueprintable)
+UCLASS(NotPlaceable, Blueprintable)
 class HKTSPRITECORE_API AHktSpriteCrowdHost : public AActor, public IHktPresentationProcessor
 {
 	GENERATED_BODY()

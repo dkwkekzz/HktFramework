@@ -151,6 +151,15 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hkt|Story", meta = (Categories = "Story"))
     FGameplayTag TargetDefaultStoryTag;
 
+    /**
+     * 로컬 컨트롤러에서만 스폰될 SpriteCrowdHost 클래스 (AHktSpriteCrowdHost 또는 그 BP 서브클래스).
+     * HUD 등록 패턴과 동일하게 BP에서 지정. Dedicated Server에선 스폰하지 않는다.
+     * HktRuntime이 HktSpriteCore에 직접 의존하지 않도록 SoftClass + MetaClass로 결합.
+     */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hkt|Presentation",
+        meta = (MetaClass = "/Script/HktSpriteCore.HktSpriteCrowdHost", AllowAbstract = "false"))
+    TSoftClassPtr<AActor> SpriteCrowdHostClass;
+
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;
     FOnHktTargetChanged TargetChangedDelegate;
@@ -172,6 +181,10 @@ private:
     IHktProxySimulator* CachedProxySimulator = nullptr;
     IHktCommandContainer* CachedCommandContainer = nullptr;
     IHktWorldPlayer* CachedWorldPlayer = nullptr;
+
+    /** 로컬 컨트롤러에서 스폰한 SpriteCrowdHost 인스턴스. EndPlay에서 파기. */
+    UPROPERTY(Transient)
+    TObjectPtr<AActor> SpawnedSpriteCrowdHost;
 
     /** OwnedPlayerUid가 일치하는 첫 번째 엔티티 — 기본 Subject */
     FHktEntityId DefaultSubjectEntityId = InvalidEntityId;
