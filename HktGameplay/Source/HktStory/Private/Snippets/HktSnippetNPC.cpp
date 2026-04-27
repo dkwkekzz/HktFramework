@@ -89,3 +89,26 @@ FHktStoryBuilder& HktSnippetNPC::SpawnNPCAtPosition(
 
 	return B;
 }
+
+
+// ============================================================================
+// 신 FHktVar API 오버로드 (PR-2 단계 2)
+// SetupNPCStats 는 Reg::Spawned 의존이 시맨틱이므로 본문은 그대로 두고,
+// FHktVarBlock 기반 위치 인자만 신 오버로드로 노출한다.
+// ============================================================================
+
+FHktStoryBuilder& HktSnippetNPC::SpawnNPCAtPosition(
+	FHktStoryBuilder& B,
+	const FGameplayTag& NPCTag,
+	const FHktNPCTemplate& Stats,
+	FHktVarBlock PosBlock)
+{
+	check(PosBlock.Num() >= 3);
+	B.Log(TEXT("[Snippet] SpawnNPCAtPosition (Var)"));
+	FHktVar Spawned = B.SpawnEntityVar(NPCTag);
+	// SetupNPCStats 는 Reg::Spawned (특수 슬롯) 시맨틱을 사용하므로 그대로 호출.
+	SetupNPCStats(B, NPCTag, Stats);
+	B.SetPosition(Spawned, PosBlock);
+	B.DispatchEventFrom(HktStoryTags::Story_NPC_Lifecycle, Spawned);
+	return B;
+}

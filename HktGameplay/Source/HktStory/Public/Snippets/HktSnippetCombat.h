@@ -44,6 +44,11 @@ namespace HktSnippetCombat
 		FHktStoryBuilder& B,
 		RegisterIndex ItemEntity);
 
+	/** 신 FHktVar API 오버로드 — PR-3 마이그레이션 시 위 RegisterIndex 버전을 대체할 예정 */
+	HKTSTORY_API FHktStoryBuilder& CooldownUpdateFromEntity(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity);
+
 	/**
 	 * 자원 회복 + Max 클램프
 	 * CurrentProp += Amount, MaxProp 초과 시 클램프
@@ -66,6 +71,10 @@ namespace HktSnippetCombat
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
 		const FGameplayTag& AnimTag);
+	HKTSTORY_API FHktStoryBuilder& AnimTrigger(
+		FHktStoryBuilder& B,
+		FHktVar Entity,
+		const FGameplayTag& AnimTag);
 
 	/**
 	 * 루프 애니메이션 시작 (태그 추가)
@@ -75,6 +84,10 @@ namespace HktSnippetCombat
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
 		const FGameplayTag& AnimTag);
+	HKTSTORY_API FHktStoryBuilder& AnimLoopStart(
+		FHktStoryBuilder& B,
+		FHktVar Entity,
+		const FGameplayTag& AnimTag);
 
 	/**
 	 * 루프 애니메이션 정지 (태그 제거)
@@ -82,6 +95,10 @@ namespace HktSnippetCombat
 	HKTSTORY_API FHktStoryBuilder& AnimLoopStop(
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
+		const FGameplayTag& AnimTag);
+	HKTSTORY_API FHktStoryBuilder& AnimLoopStop(
+		FHktStoryBuilder& B,
+		FHktVar Entity,
 		const FGameplayTag& AnimTag);
 
 	/**
@@ -94,5 +111,9 @@ namespace HktSnippetCombat
 	HKTSTORY_API FHktStoryBuilder& CheckDeath(
 		FHktStoryBuilder& B,
 		RegisterIndex Entity,
+		const FGameplayTag& DeadTag);
+	HKTSTORY_API FHktStoryBuilder& CheckDeath(
+		FHktStoryBuilder& B,
+		FHktVar Entity,
 		const FGameplayTag& DeadTag);
 }

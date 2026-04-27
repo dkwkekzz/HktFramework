@@ -364,3 +364,105 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
 
 	return B;
 }
+
+
+// ============================================================================
+// 신 FHktVar API 오버로드 (PR-2 단계 2)
+// ============================================================================
+
+FHktStoryBuilder& HktSnippetItem::ApplyItemStats(
+	FHktStoryBuilder& B,
+	FHktVar ItemEntity,
+	FHktVar CharEntity)
+{
+	FHktVar ItemVal = B.NewVar(TEXT("ApplyStats.Item"));
+	FHktVar CharVal = B.NewVar(TEXT("ApplyStats.Char"));
+
+	B.LoadStoreEntity(ItemVal, ItemEntity, PropertyId::AttackPower);
+	B.LoadStoreEntity(CharVal, CharEntity, PropertyId::AttackPower);
+	B.Add(CharVal, CharVal, ItemVal);
+	B.SaveStoreEntity(CharEntity, PropertyId::AttackPower, CharVal);
+
+	B.LoadStoreEntity(ItemVal, ItemEntity, PropertyId::Defense);
+	B.LoadStoreEntity(CharVal, CharEntity, PropertyId::Defense);
+	B.Add(CharVal, CharVal, ItemVal);
+	B.SaveStoreEntity(CharEntity, PropertyId::Defense, CharVal);
+
+	// Equippable 검사 — Equippable != 0 일 때만 Stance 복사
+	FHktVar Eq = B.NewVar(TEXT("ApplyStats.Eq"));
+	B.LoadStoreEntity(Eq, ItemEntity, PropertyId::Equippable);
+	B.If(Eq);
+	B.LoadStoreEntity(ItemVal, ItemEntity, PropertyId::Stance);
+	B.SaveStoreEntity(CharEntity, PropertyId::Stance, ItemVal);
+	B.EndIf();
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::RemoveItemStats(
+	FHktStoryBuilder& B,
+	FHktVar ItemEntity,
+	FHktVar CharEntity)
+{
+	FHktVar ItemVal = B.NewVar(TEXT("RemoveStats.Item"));
+	FHktVar CharVal = B.NewVar(TEXT("RemoveStats.Char"));
+
+	B.LoadStoreEntity(ItemVal, ItemEntity, PropertyId::AttackPower);
+	B.LoadStoreEntity(CharVal, CharEntity, PropertyId::AttackPower);
+	B.Sub(CharVal, CharVal, ItemVal);
+	B.SaveStoreEntity(CharEntity, PropertyId::AttackPower, CharVal);
+
+	B.LoadStoreEntity(ItemVal, ItemEntity, PropertyId::Defense);
+	B.LoadStoreEntity(CharVal, CharEntity, PropertyId::Defense);
+	B.Sub(CharVal, CharVal, ItemVal);
+	B.SaveStoreEntity(CharEntity, PropertyId::Defense, CharVal);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::AssignOwnership(
+	FHktStoryBuilder& B,
+	FHktVar ItemEntity,
+	FHktVar NewOwner)
+{
+	B.Log(TEXT("[Snippet] AssignOwnership (Var)"));
+	B.SaveStoreEntity(ItemEntity, PropertyId::OwnerEntity, NewOwner);
+	B.SetOwnerUid(ItemEntity);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ReleaseOwnership(
+	FHktStoryBuilder& B,
+	FHktVar ItemEntity)
+{
+	B.Log(TEXT("[Snippet] ReleaseOwnership (Var)"));
+	B.SaveConstEntity(ItemEntity, PropertyId::OwnerEntity, 0);
+	B.ClearOwnerUid(ItemEntity);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::DropToGround(
+	FHktStoryBuilder& B,
+	FHktVar ItemEntity,
+	FHktVar PositionSourceEntity)
+{
+	B.Log(TEXT("[Snippet] DropToGround (Var)"));
+	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 0);          // Ground
+	B.SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);
+	HktSnippetItem::ReleaseOwnership(B, ItemEntity);
+	B.CopyPosition(ItemEntity, PositionSourceEntity);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
+	FHktStoryBuilder& B,
+	const FGameplayTag& ItemClassTag,
+	const FHktGroundItemTemplate& Template,
+	FHktVarBlock PosBlock)
+{
+	B.Log(TEXT("[Snippet] SpawnGroundItemAtPos (Var)"));
+	FHktVar Spawned = B.SpawnEntityVar(ItemClassTag);
+	B.SaveConstEntity(Spawned, PropertyId::ItemState, 0);              // Ground
+	B.SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId);
+	B.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1);
+	B.SetPosition(Spawned, PosBlock);
+	return B;
+}

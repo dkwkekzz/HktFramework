@@ -70,4 +70,11 @@ namespace HktSnippetNPC
 		const FGameplayTag& NPCTag,
 		const FHktNPCTemplate& Stats,
 		RegisterIndex PosBaseReg);
+
+	/** 신 FHktVar API — PosBaseReg 대신 FHktVarBlock 사용 */
+	HKTSTORY_API FHktStoryBuilder& SpawnNPCAtPosition(
+		FHktStoryBuilder& B,
+		const FGameplayTag& NPCTag,
+		const FHktNPCTemplate& Stats,
+		FHktVarBlock PosBlock);
 }
