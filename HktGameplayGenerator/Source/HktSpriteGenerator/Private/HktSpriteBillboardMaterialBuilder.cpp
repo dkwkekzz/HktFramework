@@ -12,6 +12,7 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "Materials/MaterialExpressionPerInstanceCustomData.h"
 
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
@@ -23,16 +24,11 @@ namespace
 {
 	// ----------------------------------------------------------------------------
 	// WPO (Vertex Shader) HLSL — Y-axis 빌보드
+	// CPD 값들은 외부 PerInstanceCustomData 노드에서 입력 인자로 받는다.
+	// (Custom HLSL 안의 GetPerInstanceCustomData() 호출은 컴파일러가 ISM 용도로
+	//  감지하지 못해 bUsesPerInstanceCustomData 플래그가 안 켜진다.)
 	// ----------------------------------------------------------------------------
 	const TCHAR* kWPOCode = TEXT(R"(
-		float OffX     = GetPerInstanceCustomData(Parameters, 4, 0.0);
-		float OffY     = GetPerInstanceCustomData(Parameters, 5, 0.0);
-		float RotR     = GetPerInstanceCustomData(Parameters, 6, 0.0);
-		float ScaleX   = GetPerInstanceCustomData(Parameters, 7, 50.0);
-		float ScaleY   = GetPerInstanceCustomData(Parameters, 8, 50.0);
-		float FlipV    = GetPerInstanceCustomData(Parameters, 14, 0.0);
-		float ZBiasV   = GetPerInstanceCustomData(Parameters, 15, 0.0);
-
 		float flipSign = FlipV > 0.5 ? -1.0 : 1.0;
 		float2 Quad;
 		Quad.x = (InTexCoord.x * 2.0 - 1.0) * flipSign;
@@ -65,13 +61,9 @@ namespace
 
 	// ----------------------------------------------------------------------------
 	// UV (Pixel Shader) HLSL — AtlasIndex + Cell size + Atlas size → 최종 UV
+	// AtlasIdx/CellW/CellH/FlipV 는 외부 PerInstanceCustomData 노드에서 입력으로 받는다.
 	// ----------------------------------------------------------------------------
 	const TCHAR* kUVCode = TEXT(R"(
-		float AtlasIdx = GetPerInstanceCustomData(Parameters, 0, 0.0);
-		float CellW    = GetPerInstanceCustomData(Parameters, 1, 64.0);
-		float CellH    = GetPerInstanceCustomData(Parameters, 2, 64.0);
-		float FlipV    = GetPerInstanceCustomData(Parameters, 14, 0.0);
-
 		float2 AtlasPx = max(InAtlasSize, float2(1.0, 1.0));
 		float CellsPerRow = max(floor(AtlasPx.x / max(CellW, 1.0)), 1.0);
 
@@ -87,15 +79,25 @@ namespace
 	)");
 
 	// ----------------------------------------------------------------------------
-	// Tint (Pixel Shader) HLSL — CPD 9..12 → float4
+	// Tint (Pixel Shader) HLSL — CPD 9..12 입력 → float4
 	// ----------------------------------------------------------------------------
 	const TCHAR* kTintCode = TEXT(R"(
-		float TR = GetPerInstanceCustomData(Parameters, 9,  1.0);
-		float TG = GetPerInstanceCustomData(Parameters, 10, 1.0);
-		float TB = GetPerInstanceCustomData(Parameters, 11, 1.0);
-		float TA = GetPerInstanceCustomData(Parameters, 12, 1.0);
 		return float4(TR, TG, TB, TA);
 	)");
+
+	// ----------------------------------------------------------------------------
+	// PerInstanceCustomData 노드 헬퍼 — 슬롯/디폴트 지정해 생성 후 그래프에 추가.
+	// 이 노드를 그래프에 두어야 머티리얼 컴파일러가 bUsesPerInstanceCustomData 를
+	// 켜고, 셰이더에 CPD 버퍼 바인딩을 만든다.
+	// ----------------------------------------------------------------------------
+	UMaterialExpressionPerInstanceCustomData* MakeCPD(UMaterial* Mat, int32 SlotIndex, float DefaultValue)
+	{
+		UMaterialExpressionPerInstanceCustomData* Node = NewObject<UMaterialExpressionPerInstanceCustomData>(Mat);
+		Node->ConstDataIndex = SlotIndex;
+		Node->DefaultValue   = DefaultValue;
+		Mat->GetExpressionCollection().AddExpression(Node);
+		return Node;
+	}
 
 	UMaterialExpressionCustom* MakeCustomExpr(UMaterial* Mat,
 		const TCHAR* Description, const TCHAR* Code, ECustomMaterialOutputType OutputType)
@@ -125,13 +127,36 @@ namespace
 		Mat->DitheredLODTransition            = false;
 		Mat->OpacityMaskClipValue             = 0.333f;
 
-		// UV 노드
+		// --- 공통 PerInstanceCustomData 노드들 ---
+		// 컴파일러가 이 노드를 보고 bUsesPerInstanceCustomData 를 켜야 셰이더에
+		// CPD 버퍼가 바인딩된다. Custom HLSL 의 GetPerInstanceCustomData() 호출만으로는
+		// 인식되지 않으므로 반드시 이 expression 노드를 통해야 한다.
+		UMaterialExpressionPerInstanceCustomData* CPD_AtlasIdx = MakeCPD(Mat, 0,  0.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_CellW    = MakeCPD(Mat, 1,  64.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_CellH    = MakeCPD(Mat, 2,  64.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_OffX     = MakeCPD(Mat, 4,  0.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_OffY     = MakeCPD(Mat, 5,  0.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_RotR     = MakeCPD(Mat, 6,  0.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_ScaleX   = MakeCPD(Mat, 7,  50.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_ScaleY   = MakeCPD(Mat, 8,  50.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_TR       = MakeCPD(Mat, 9,  1.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_TG       = MakeCPD(Mat, 10, 1.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_TB       = MakeCPD(Mat, 11, 1.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_TA       = MakeCPD(Mat, 12, 1.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_FlipV    = MakeCPD(Mat, 14, 0.f);
+		UMaterialExpressionPerInstanceCustomData* CPD_ZBiasV   = MakeCPD(Mat, 15, 0.f);
+
+		// UV 노드 — InTexCoord, InAtlasSize + CPD 입력 4개
 		UMaterialExpressionCustom* UVExpr = MakeCustomExpr(
 			Mat, TEXT("HktSprite UV"), kUVCode, CMOT_Float2);
 		UVExpr->Inputs.Reset();
 		{
-			FCustomInput UvIn;  UvIn.InputName = TEXT("InTexCoord");   UVExpr->Inputs.Add(UvIn);
-			FCustomInput SzIn;  SzIn.InputName = TEXT("InAtlasSize");  UVExpr->Inputs.Add(SzIn);
+			FCustomInput UvIn;       UvIn.InputName       = TEXT("InTexCoord");   UVExpr->Inputs.Add(UvIn);
+			FCustomInput SzIn;       SzIn.InputName       = TEXT("InAtlasSize");  UVExpr->Inputs.Add(SzIn);
+			FCustomInput AtlasIdxIn; AtlasIdxIn.InputName = TEXT("AtlasIdx");     UVExpr->Inputs.Add(AtlasIdxIn);
+			FCustomInput CellWIn;    CellWIn.InputName    = TEXT("CellW");        UVExpr->Inputs.Add(CellWIn);
+			FCustomInput CellHIn;    CellHIn.InputName    = TEXT("CellH");        UVExpr->Inputs.Add(CellHIn);
+			FCustomInput FlipVIn;    FlipVIn.InputName    = TEXT("FlipV");        UVExpr->Inputs.Add(FlipVIn);
 		}
 
 		UMaterialExpressionTextureCoordinate* TexCoordExpr =
@@ -152,6 +177,10 @@ namespace
 
 		UVExpr->Inputs[0].Input.Connect(0, TexCoordExpr);
 		UVExpr->Inputs[1].Input.Connect(0, AtlasSizeXY);
+		UVExpr->Inputs[2].Input.Connect(0, CPD_AtlasIdx);
+		UVExpr->Inputs[3].Input.Connect(0, CPD_CellW);
+		UVExpr->Inputs[4].Input.Connect(0, CPD_CellH);
+		UVExpr->Inputs[5].Input.Connect(0, CPD_FlipV);
 
 		// Atlas 텍스처 파라미터 + 샘플
 		UMaterialExpressionTextureSampleParameter2D* AtlasSample =
@@ -162,9 +191,20 @@ namespace
 		AtlasSample->Coordinates.Connect(0, UVExpr);
 		Mat->GetExpressionCollection().AddExpression(AtlasSample);
 
-		// Tint
+		// Tint — CPD 4개 입력
 		UMaterialExpressionCustom* TintExpr = MakeCustomExpr(
 			Mat, TEXT("HktSprite Tint"), kTintCode, CMOT_Float4);
+		TintExpr->Inputs.Reset();
+		{
+			FCustomInput TRIn; TRIn.InputName = TEXT("TR"); TintExpr->Inputs.Add(TRIn);
+			FCustomInput TGIn; TGIn.InputName = TEXT("TG"); TintExpr->Inputs.Add(TGIn);
+			FCustomInput TBIn; TBIn.InputName = TEXT("TB"); TintExpr->Inputs.Add(TBIn);
+			FCustomInput TAIn; TAIn.InputName = TEXT("TA"); TintExpr->Inputs.Add(TAIn);
+		}
+		TintExpr->Inputs[0].Input.Connect(0, CPD_TR);
+		TintExpr->Inputs[1].Input.Connect(0, CPD_TG);
+		TintExpr->Inputs[2].Input.Connect(0, CPD_TB);
+		TintExpr->Inputs[3].Input.Connect(0, CPD_TA);
 
 		UMaterialExpressionComponentMask* TintRGB = NewObject<UMaterialExpressionComponentMask>(Mat);
 		TintRGB->R = 1; TintRGB->G = 1; TintRGB->B = 1; TintRGB->A = 0;
@@ -186,14 +226,28 @@ namespace
 		AlphaMul->B.Connect(0, TintA);
 		Mat->GetExpressionCollection().AddExpression(AlphaMul);
 
-		// WPO
+		// WPO — InTexCoord + CPD 7개 입력
 		UMaterialExpressionCustom* WPOExpr = MakeCustomExpr(
 			Mat, TEXT("HktSprite WPO"), kWPOCode, CMOT_Float3);
 		WPOExpr->Inputs.Reset();
 		{
-			FCustomInput WpoIn;  WpoIn.InputName = TEXT("InTexCoord");  WPOExpr->Inputs.Add(WpoIn);
+			FCustomInput WpoIn;     WpoIn.InputName     = TEXT("InTexCoord"); WPOExpr->Inputs.Add(WpoIn);
+			FCustomInput OffXIn;    OffXIn.InputName    = TEXT("OffX");       WPOExpr->Inputs.Add(OffXIn);
+			FCustomInput OffYIn;    OffYIn.InputName    = TEXT("OffY");       WPOExpr->Inputs.Add(OffYIn);
+			FCustomInput RotRIn;    RotRIn.InputName    = TEXT("RotR");       WPOExpr->Inputs.Add(RotRIn);
+			FCustomInput ScaleXIn;  ScaleXIn.InputName  = TEXT("ScaleX");     WPOExpr->Inputs.Add(ScaleXIn);
+			FCustomInput ScaleYIn;  ScaleYIn.InputName  = TEXT("ScaleY");     WPOExpr->Inputs.Add(ScaleYIn);
+			FCustomInput FlipVIn;   FlipVIn.InputName   = TEXT("FlipV");      WPOExpr->Inputs.Add(FlipVIn);
+			FCustomInput ZBiasVIn;  ZBiasVIn.InputName  = TEXT("ZBiasV");     WPOExpr->Inputs.Add(ZBiasVIn);
 		}
 		WPOExpr->Inputs[0].Input.Connect(0, TexCoordExpr);
+		WPOExpr->Inputs[1].Input.Connect(0, CPD_OffX);
+		WPOExpr->Inputs[2].Input.Connect(0, CPD_OffY);
+		WPOExpr->Inputs[3].Input.Connect(0, CPD_RotR);
+		WPOExpr->Inputs[4].Input.Connect(0, CPD_ScaleX);
+		WPOExpr->Inputs[5].Input.Connect(0, CPD_ScaleY);
+		WPOExpr->Inputs[6].Input.Connect(0, CPD_FlipV);
+		WPOExpr->Inputs[7].Input.Connect(0, CPD_ZBiasV);
 
 		Mat->GetEditorOnlyData()->EmissiveColor.Connect(0, ColorMul);
 		Mat->GetEditorOnlyData()->OpacityMask.Connect(0, AlphaMul);

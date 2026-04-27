@@ -62,6 +62,7 @@ public:
 
 private:
     friend class FHktStoryBuilder;
+    friend class FHktVarBlock;
     explicit FHktVar(FHktVRegHandle Id) : VRegId(Id) {}
     FHktVRegHandle VRegId = -1;
 };
@@ -835,7 +836,7 @@ private:
     void EmitV_Imm20NoDst(EOpCode Op, int32 Imm20);
 
     /** FHktVar → 내부 VReg ID 변환 (-1 이면 InvalidVReg). 멤버 헬퍼 */
-    static FHktVRegId ToVRegId(FHktVar V) { return V.GetId(); }
+    static FHktVRegHandle ToVRegId(FHktVar V) { return V.GetId(); }
 
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);

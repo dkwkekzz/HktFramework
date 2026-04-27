@@ -199,4 +199,47 @@ namespace HktSnippetItem
 		const FGameplayTag& ItemClassTag,
 		const FHktGroundItemTemplate& Template,
 		FHktVarBlock PosBlock);
+
+	// ---- 슬롯 디스패치 / 검증 (FHktVar) ----
+
+	HKTSTORY_API FHktStoryBuilder& LoadItemFromSlot(
+		FHktStoryBuilder& B,
+		FHktVar Dst,
+		int32 FailLabel);
+
+	HKTSTORY_API FHktStoryBuilder& SaveItemToEquipSlot(
+		FHktStoryBuilder& B,
+		FHktVar SlotIndex,
+		FHktVar Value);
+
+	HKTSTORY_API FHktStoryBuilder& ClearEquipSlot(
+		FHktStoryBuilder& B,
+		FHktVar SlotIndex);
+
+	HKTSTORY_API FHktStoryBuilder& FindEmptyEquipSlot(
+		FHktStoryBuilder& B,
+		FHktVar Dst,
+		int32 FailLabel);
+
+	HKTSTORY_API FHktStoryBuilder& ValidateOwnership(
+		FHktStoryBuilder& B,
+		FHktVar Entity,
+		int32 FailLabel);
+
+	HKTSTORY_API FHktStoryBuilder& ValidateItemState(
+		FHktStoryBuilder& B,
+		FHktVar Entity,
+		int32 ExpectedState,
+		int32 FailLabel);
+
+	HKTSTORY_API FHktStoryBuilder& ActivateInSlot(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity,
+		FHktVar SlotIndex,
+		FHktVar CharEntity);
+
+	HKTSTORY_API FHktStoryBuilder& DeactivateToBag(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity,
+		FHktVar CharEntity);
 }

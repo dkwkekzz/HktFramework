@@ -10,7 +10,7 @@
 #include "HktSpriteTypes.h"
 #include "HktSpriteCrowdRenderer.generated.h"
 
-class UHierarchicalInstancedStaticMeshComponent;
+class UInstancedStaticMeshComponent;
 class UStaticMesh;
 class UMaterialInterface;
 class UTexture2D;
@@ -108,10 +108,10 @@ private:
 	};
 
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> AllHISMs;
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>> AllHISMs;
 
-	/** 아틀라스 SoftObjectPath → HISM (고유 아틀라스당 하나) */
-	TMap<FSoftObjectPath, UHierarchicalInstancedStaticMeshComponent*> AtlasHISMs;
+	/** 아틀라스 SoftObjectPath → ISM (고유 아틀라스당 하나) */
+	TMap<FSoftObjectPath, UInstancedStaticMeshComponent*> AtlasHISMs;
 
 	UPROPERTY(Transient)
 	TMap<FGameplayTag, TObjectPtr<UHktSpriteCharacterTemplate>> TemplateCache;
@@ -122,7 +122,7 @@ private:
 
 	void RequestTemplateLoad(FGameplayTag Tag);
 
-	UHierarchicalInstancedStaticMeshComponent* GetOrCreateHISM(const FSoftObjectPath& AtlasPath, UTexture2D* AtlasTex);
+	UInstancedStaticMeshComponent* GetOrCreateHISM(const FSoftObjectPath& AtlasPath, UTexture2D* AtlasTex);
 
 	/** swap-and-pop 제거 + InstanceIndex remap. */
 	void RemoveInstanceAndRemap(const FSoftObjectPath& AtlasPath, int32 InstanceIndex);

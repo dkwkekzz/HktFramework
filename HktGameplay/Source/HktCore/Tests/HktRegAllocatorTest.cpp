@@ -1,10 +1,15 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
+#include "NativeGameplayTags.h"
 #include "HktStoryTypes.h"
 #include "HktStoryBuilder.h"
 
 #if WITH_AUTOMATION_TESTS
+
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_ScopedReg,        "Test.ScopedReg");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_NestedComposite,  "Test.NestedComposite");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_ScopedRegBlock,   "Test.ScopedRegBlock");
 
 // ============================================================================
 // FHktRegAllocator 단위 테스트

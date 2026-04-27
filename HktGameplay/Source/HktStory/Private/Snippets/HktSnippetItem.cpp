@@ -466,3 +466,212 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
 	B.SetPosition(Spawned, PosBlock);
 	return B;
 }
+
+
+// ============================================================================
+// 슬롯 디스패치 / 검증 — FHktVar 오버로드 (PR-2 보완)
+// ============================================================================
+
+FHktStoryBuilder& HktSnippetItem::LoadItemFromSlot(
+	FHktStoryBuilder& B,
+	FHktVar Dst,
+	int32 FailLabel)
+{
+	const TArray<uint16>& Slots = HktTrait::GetEquipSlotPropertyIds();
+
+	FHktVar SlotIdx = B.NewVar(TEXT("LoadSlot.Idx"));
+	FHktVar Cmp = B.NewVar(TEXT("LoadSlot.Cmp"));
+	FHktVar Flag = B.FlagVar();
+
+	int32 DoneLabel = B.AllocLabel();
+	TArray<int32> BranchLabels;
+	BranchLabels.SetNum(Slots.Num());
+	for (int32 i = 0; i < Slots.Num(); ++i)
+		BranchLabels[i] = B.AllocLabel();
+
+	B.LoadStore(SlotIdx, UseSkillParams::EquipSlotIndex);
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.LoadConst(Cmp, i);
+		B.CmpEq(Flag, SlotIdx, Cmp);
+		B.JumpIf(Flag, BranchLabels[i]);
+	}
+	B.Jump(FailLabel);
+
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.Label(BranchLabels[i]);
+		B.LoadStore(Dst, Slots[i]);
+		B.Jump(DoneLabel);
+	}
+	B.Label(DoneLabel);
+
+	// DstVar == 0 이면 fail
+	FHktVar Zero = B.NewVar(TEXT("LoadSlot.Zero"));
+	B.LoadConst(Zero, 0);
+	B.CmpEq(Flag, Dst, Zero);
+	B.JumpIf(Flag, FailLabel);
+
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::SaveItemToEquipSlot(
+	FHktStoryBuilder& B,
+	FHktVar SlotIndex,
+	FHktVar Value)
+{
+	const TArray<uint16>& Slots = HktTrait::GetEquipSlotPropertyIds();
+
+	FHktVar Cmp = B.NewVar(TEXT("SaveSlot.Cmp"));
+	FHktVar Flag = B.FlagVar();
+	FHktVar Self = B.Self();
+
+	int32 DoneLabel = B.AllocLabel();
+	TArray<int32> BranchLabels;
+	BranchLabels.SetNum(Slots.Num());
+	for (int32 i = 0; i < Slots.Num(); ++i)
+		BranchLabels[i] = B.AllocLabel();
+
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.LoadConst(Cmp, i);
+		B.CmpEq(Flag, SlotIndex, Cmp);
+		B.JumpIf(Flag, BranchLabels[i]);
+	}
+	B.Jump(DoneLabel);
+
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.Label(BranchLabels[i]);
+		B.SaveStoreEntity(Self, Slots[i], Value);
+		B.Jump(DoneLabel);
+	}
+	B.Label(DoneLabel);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ClearEquipSlot(
+	FHktStoryBuilder& B,
+	FHktVar SlotIndex)
+{
+	const TArray<uint16>& Slots = HktTrait::GetEquipSlotPropertyIds();
+
+	FHktVar Cmp = B.NewVar(TEXT("ClearSlot.Cmp"));
+	FHktVar Flag = B.FlagVar();
+	FHktVar Self = B.Self();
+
+	int32 DoneLabel = B.AllocLabel();
+	TArray<int32> BranchLabels;
+	BranchLabels.SetNum(Slots.Num());
+	for (int32 i = 0; i < Slots.Num(); ++i)
+		BranchLabels[i] = B.AllocLabel();
+
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.LoadConst(Cmp, i);
+		B.CmpEq(Flag, SlotIndex, Cmp);
+		B.JumpIf(Flag, BranchLabels[i]);
+	}
+	B.Jump(DoneLabel);
+
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.Label(BranchLabels[i]);
+		B.SaveConstEntity(Self, Slots[i], 0);
+		B.Jump(DoneLabel);
+	}
+	B.Label(DoneLabel);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::FindEmptyEquipSlot(
+	FHktStoryBuilder& B,
+	FHktVar Dst,
+	int32 FailLabel)
+{
+	const TArray<uint16>& Slots = HktTrait::GetEquipSlotPropertyIds();
+
+	FHktVar SlotVal = B.NewVar(TEXT("FindEmpty.Val"));
+	FHktVar Zero = B.NewVar(TEXT("FindEmpty.Zero"));
+	FHktVar Flag = B.FlagVar();
+
+	int32 FoundLabel = B.AllocLabel();
+	TArray<int32> BranchLabels;
+	BranchLabels.SetNum(Slots.Num());
+	for (int32 i = 0; i < Slots.Num(); ++i)
+		BranchLabels[i] = B.AllocLabel();
+
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.LoadStore(SlotVal, Slots[i]);
+		B.LoadConst(Zero, 0);
+		B.CmpEq(Flag, SlotVal, Zero);
+		B.JumpIf(Flag, BranchLabels[i]);
+	}
+	B.Jump(FailLabel);
+
+	for (int32 i = 0; i < Slots.Num(); ++i)
+	{
+		B.Label(BranchLabels[i]);
+		B.LoadConst(Dst, i);
+		B.Jump(FoundLabel);
+	}
+	B.Label(FoundLabel);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ValidateOwnership(
+	FHktStoryBuilder& B,
+	FHktVar Entity,
+	int32 FailLabel)
+{
+	FHktVar Owner = B.NewVar(TEXT("ValidateOwn.Owner"));
+	FHktVar Flag = B.FlagVar();
+	B.LoadStoreEntity(Owner, Entity, PropertyId::OwnerEntity);
+	B.CmpNe(Flag, Owner, B.Self());
+	B.JumpIf(Flag, FailLabel);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ValidateItemState(
+	FHktStoryBuilder& B,
+	FHktVar Entity,
+	int32 ExpectedState,
+	int32 FailLabel)
+{
+	FHktVar State = B.NewVar(TEXT("ValidateState.State"));
+	FHktVar Expected = B.NewVar(TEXT("ValidateState.Expected"));
+	FHktVar Flag = B.FlagVar();
+	B.LoadStoreEntity(State, Entity, PropertyId::ItemState);
+	B.LoadConst(Expected, ExpectedState);
+	B.CmpNe(Flag, State, Expected);
+	B.JumpIf(Flag, FailLabel);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
+	FHktStoryBuilder& B,
+	FHktVar ItemEntity,
+	FHktVar SlotIndex,
+	FHktVar CharEntity)
+{
+	B.Log(TEXT("[Snippet] ActivateInSlot (Var)"));
+	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 2);              // Active
+	B.SaveStoreEntity(ItemEntity, PropertyId::EquipIndex, SlotIndex);
+
+	HktSnippetItem::SaveItemToEquipSlot(B, SlotIndex, ItemEntity);
+	HktSnippetItem::ApplyItemStats(B, ItemEntity, CharEntity);
+	return B;
+}
+
+FHktStoryBuilder& HktSnippetItem::DeactivateToBag(
+	FHktStoryBuilder& B,
+	FHktVar ItemEntity,
+	FHktVar CharEntity)
+{
+	B.Log(TEXT("[Snippet] DeactivateToBag (Var)"));
+	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 1);              // InBag
+	B.SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);
+	HktSnippetItem::RemoveItemStats(B, ItemEntity, CharEntity);
+	return B;
+}

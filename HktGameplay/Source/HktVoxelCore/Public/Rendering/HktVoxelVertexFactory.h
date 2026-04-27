@@ -51,30 +51,33 @@ public:
 	/** 복셀 크기 (UE 유닛). 셰이더의 HktVoxelSize에 바인딩 */
 	float VoxelSizeUU = 15.0f;
 
-	FRHITexture* PaletteTextureRHI = nullptr;
-	FRHISamplerState* PaletteSamplerRHI = nullptr;
-	FRHIShaderResourceView* BoneTransformSRV = nullptr;
+	// 모든 RHI 핸들은 ref-counted. VertexFactory는 SceneProxy의 수명 안에서 살아 있지만
+	// 외부 텍스처(UTexture/Atlas)는 GC/재빌드로 사라질 수 있다. ref를 들고 있어야
+	// 다음 ENQUEUE_RENDER_COMMAND 실행 시점까지 RHI 리소스가 보존된다.
+	FTextureRHIRef PaletteTextureRHI;
+	FSamplerStateRHIRef PaletteSamplerRHI;
+	FShaderResourceViewRHIRef BoneTransformSRV;
 
 	// --- Tile Texture (Phase 1: 타일 아틀라스) ---
-	FRHITexture* TileArrayRHI = nullptr;           // Texture2DArray — 타일 텍스처
-	FRHISamplerState* TileArraySamplerRHI = nullptr;
-	FRHITexture* TileIndexLUTRHI = nullptr;         // 256×3 R8 — TypeID→슬라이스 LUT
-	FRHISamplerState* TileIndexLUTSamplerRHI = nullptr;
+	FTextureRHIRef TileArrayRHI;           // Texture2DArray — 타일 텍스처
+	FSamplerStateRHIRef TileArraySamplerRHI;
+	FTextureRHIRef TileIndexLUTRHI;         // 256×3 R8 — TypeID→슬라이스 LUT
+	FSamplerStateRHIRef TileIndexLUTSamplerRHI;
 
 	/** 타일 텍스처 설정 — nullptr이면 타일 비활성 (기존 팔레트 폴백) */
 	void SetTileTextures(FRHITexture* InTileArray, FRHISamplerState* InTileSampler,
 	                     FRHITexture* InTileIndexLUT, FRHISamplerState* InLUTSampler);
 
 	// --- Material LUT (Phase 2: PBR 질감 차별화) ---
-	FRHITexture* MaterialLUTRHI = nullptr;           // 256×1 RGBA8 — TypeID별 PBR 속성
-	FRHISamplerState* MaterialLUTSamplerRHI = nullptr;
+	FTextureRHIRef MaterialLUTRHI;           // 256×1 RGBA8 — TypeID별 PBR 속성
+	FSamplerStateRHIRef MaterialLUTSamplerRHI;
 
 	/** 머티리얼 LUT 설정 — nullptr이면 기존 하드코딩 PBR 폴백 */
 	void SetMaterialLUT(FRHITexture* InLUT, FRHISamplerState* InSampler);
 
 	// --- 노멀맵 배열 (Phase 3: 표면 디테일) ---
-	FRHITexture* NormalArrayRHI = nullptr;           // Texture2DArray — TileArray와 동일 슬라이싱
-	FRHISamplerState* NormalArraySamplerRHI = nullptr;
+	FTextureRHIRef NormalArrayRHI;           // Texture2DArray — TileArray와 동일 슬라이싱
+	FSamplerStateRHIRef NormalArraySamplerRHI;
 
 	/** 노멀맵 설정 — nullptr이면 플랫 노멀 폴백 */
 	void SetNormalArray(FRHITexture* InArray, FRHISamplerState* InSampler);

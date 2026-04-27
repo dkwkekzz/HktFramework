@@ -25,7 +25,14 @@ FHktStoryBuilder FHktStoryBuilder::Create(const FGameplayTag& Tag)
 
 FHktStoryBuilder FHktStoryBuilder::Create(const FName& TagName)
 {
-    return FHktStoryBuilder(FGameplayTag::RequestGameplayTag(TagName));
+    // 미등록 태그여도 fatal 처리하지 않는다 — 자동화 테스트나 동적 태그 시나리오에서
+    // Tag 등록 없이도 Builder 를 만들 수 있어야 한다. 미등록 시 Program->Tag 는 빈 값.
+    FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, /*ErrorIfNotFound*/ false);
+    if (!Tag.IsValid())
+    {
+        UE_LOG(LogHktCore, Verbose, TEXT("FHktStoryBuilder::Create: tag '%s' is not registered; building with empty tag."), *TagName.ToString());
+    }
+    return FHktStoryBuilder(Tag);
 }
 
 FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
@@ -1367,7 +1374,6 @@ bool FHktStoryBuilder::FinalizeAndEmitBytecode(FCodeSection& Section, const FGam
         OutCode.Add(HktVReg_ToInstruction(V, Section.RegPool));
     }
     return true;
-}
 }
 
 TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()

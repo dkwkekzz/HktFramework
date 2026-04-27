@@ -51,6 +51,12 @@ HktGameplay (Runtime)
 - `HktStoryJsonLoader` — JSON에서 스토리 정의 로드 (schema 1·2 동시 지원)
 - `HktStoryTags` — 엔티티 서브타입·속성·애니메이션 태그 공유 선언
 
+**Schema 2 JSON 마이그레이션 컨벤션 (PR-3)**:
+- schema 2 JSON 은 cpp 와 병행 운영 — `Story.V2.{원본}` prefix 태그로 등록 (예: cpp `Story.Event.Skill.Fireball` → JSON `Story.V2.Event.Skill.Fireball`).
+- cpp 본문은 무수정. 두 system 이 동시에 등록되어 충돌 없이 공존한다.
+- 검증 방식: byte-identical 비교 폐기. 의미 등가성을 시뮬레이션 1틱 dirty 비교로 검증 (`HktCore/Tests/HktStorySemanticTest.cpp` 의 `FHktStorySemanticHarness`).
+- JSON 스키마 정의: [`HktGameplay/Content/Stories/SCHEMA.md`](Content/Stories/SCHEMA.md).
+
 ## HktPresentation — 시각화
 
 - `UHktPresentationSubsystem` (LocalPlayerSubsystem)가 `IHktPlayerInteractionInterface::OnWorldViewUpdated`에 바인딩

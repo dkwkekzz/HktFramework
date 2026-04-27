@@ -7,7 +7,7 @@
 #include "HktSpriteCoreLog.h"
 #include "HktAssetSubsystem.h"
 #include "HktCoreEventLog.h"
-#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
@@ -102,9 +102,9 @@ void UHktSpriteCrowdRenderer::SetCharacter(FHktEntityId Id, FGameplayTag Charact
 
 void UHktSpriteCrowdRenderer::RemoveInstanceAndRemap(const FSoftObjectPath& AtlasPath, int32 InstanceIndex)
 {
-	UHierarchicalInstancedStaticMeshComponent** HPtr = AtlasHISMs.Find(AtlasPath);
+	UInstancedStaticMeshComponent** HPtr = AtlasHISMs.Find(AtlasPath);
 	if (!HPtr || !*HPtr) return;
-	UHierarchicalInstancedStaticMeshComponent* HISM = *HPtr;
+	UInstancedStaticMeshComponent* HISM = *HPtr;
 
 	const int32 InstanceCount = HISM->GetInstanceCount();
 	if (InstanceCount <= 0) return;
@@ -211,10 +211,10 @@ UTexture2D* UHktSpriteCrowdRenderer::ResolveAtlas(const FHktSpriteAnimation& Ani
 // HISM Get-or-Create (atlas 단위)
 // ============================================================================
 
-UHierarchicalInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateHISM(
+UInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateHISM(
 	const FSoftObjectPath& AtlasPath, UTexture2D* AtlasTex)
 {
-	if (UHierarchicalInstancedStaticMeshComponent** Existing = AtlasHISMs.Find(AtlasPath))
+	if (UInstancedStaticMeshComponent** Existing = AtlasHISMs.Find(AtlasPath))
 	{
 		return *Existing;
 	}
@@ -239,12 +239,17 @@ UHierarchicalInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateH
 	const FString Name = FString::Printf(TEXT("HktSpriteHISM_%s"),
 		*AtlasPath.GetAssetName().Replace(TEXT("."), TEXT("_")));
 
-	UHierarchicalInstancedStaticMeshComponent* HISM = NewObject<UHierarchicalInstancedStaticMeshComponent>(
-		Owner, UHierarchicalInstancedStaticMeshComponent::StaticClass(), *Name, RF_Transient);
+	UInstancedStaticMeshComponent* HISM = NewObject<UInstancedStaticMeshComponent>(
+		Owner, UInstancedStaticMeshComponent::StaticClass(), *Name, RF_Transient);
 	if (!HISM) return nullptr;
 
 	HISM->SetStaticMesh(QuadMesh);
 	HISM->NumCustomDataFloats = kNumCpdSlots;
+
+	// 동적 크라우드(매 프레임 트랜스폼 갱신) 전용 — 컴포넌트 bounds 가 인스턴스 이동을
+	// 따라가지 못하면 frustum 컬링되어 통째로 사라진다. 큰 BoundsScale 로 안전 마진 확보.
+	// (HISM 의 cluster tree 컬링 이슈를 회피하기 위해 ISM 사용.)
+	HISM->BoundsScale = 1000.f;
 
 	UMaterialInterface* BaseMat = SpriteMaterialTemplate
 		? static_cast<UMaterialInterface*>(SpriteMaterialTemplate)
@@ -385,7 +390,7 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 			RemoveInstanceAndRemap(State.CurrentAtlasPath, State.InstanceIndex);
 			State.InstanceIndex = INDEX_NONE;
 		}
-		UHierarchicalInstancedStaticMeshComponent* NewHISM = GetOrCreateHISM(AtlasPath, AtlasTex);
+		UInstancedStaticMeshComponent* NewHISM = GetOrCreateHISM(AtlasPath, AtlasTex);
 		if (!NewHISM)
 		{
 			if (State.LastUpdateStatus != EHktSpriteUpdateStatus::HISMCreateFailed)
@@ -430,7 +435,7 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 
-	UHierarchicalInstancedStaticMeshComponent** HPtr = AtlasHISMs.Find(State.CurrentAtlasPath);
+	UInstancedStaticMeshComponent** HPtr = AtlasHISMs.Find(State.CurrentAtlasPath);
 	if (!HPtr || !*HPtr)
 	{
 		// AtlasHISMs 룩업이 프레임 중간에 사라진 케이스 — RemoveInstanceAndRemap 등에서 외부 변경 가능성.
@@ -444,7 +449,7 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		}
 		return;
 	}
-	UHierarchicalInstancedStaticMeshComponent* HISM = *HPtr;
+	UInstancedStaticMeshComponent* HISM = *HPtr;
 
 	// --- 2. 프레임 해석 ---
 	FHktSpriteFrameResolveInput In;
@@ -525,9 +530,13 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	if (PrevStatus != EHktSpriteUpdateStatus::OK)
 	{
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
-			FString::Printf(TEXT("Sprite|CrowdRenderer: 렌더 정상화 (prev=%s, anim=%s, dir=%d, frame=%d, atlas=%s)"),
+			FString::Printf(TEXT("Sprite|CrowdRenderer: 렌더 정상화 (prev=%s, anim=%s, dir=%d, frame=%d, atlasIdx=%d, cell=(%.1f,%.1f), atlasPx=(%d,%d), numDir=%d, FPD=%d, atlas=%s)"),
 				*StaticEnum<EHktSpriteUpdateStatus>()->GetNameStringByValue(static_cast<int64>(PrevStatus)),
-				*Update.AnimTag.ToString(), DirIdx, Res.FrameIndex, *State.CurrentAtlasPath.ToString()),
+				*Update.AnimTag.ToString(), DirIdx, Res.FrameIndex,
+				Frame.AtlasIndex, CellSize.X, CellSize.Y,
+				AtlasTex->GetSizeX(), AtlasTex->GetSizeY(),
+				Animation->NumDirections, Animation->FramesPerDirection,
+				*State.CurrentAtlasPath.ToString()),
 			Id);
 	}
 

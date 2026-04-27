@@ -10,13 +10,23 @@
 class FHktVoxelRenderCache;
 class UBodySetup;
 
-/** 텍스처+샘플러 RHI 쌍 — 타일/머티리얼 텍스처 전달에 공용 */
+/**
+ * 텍스처+샘플러 RHI 쌍 — 타일/머티리얼 텍스처 전달에 공용.
+ *
+ * RHI 핸들은 반드시 ref-counted 타입을 사용한다. 이 구조체는 게임 스레드에서
+ * 채워진 뒤 ENQUEUE_RENDER_COMMAND 람다에 by-value 캡처되어 렌더 스레드로
+ * 전달된다. raw 포인터를 쓰면 캡처 시점에 refcount가 증가하지 않아,
+ * 텍스처 소유자(UTexture/Atlas)가 GC/재빌드되면 람다 실행 시점에 댕글링
+ * 포인터를 사용하게 되어 FRHICommandListBase::Execute() 내부에서 액세스
+ * 위반(0xC0000005)이 발생한다. FTextureRHIRef/FSamplerStateRHIRef은
+ * TRefCountPtr이라 복사 시 자동 addref → 람다가 살아있는 동안 RHI 리소스 보존.
+ */
 struct FHktVoxelTexturePair
 {
-	FRHITexture* Texture = nullptr;
-	FRHISamplerState* Sampler = nullptr;
+	FTextureRHIRef Texture;
+	FSamplerStateRHIRef Sampler;
 
-	bool IsValid() const { return Texture != nullptr; }
+	bool IsValid() const { return Texture.IsValid(); }
 };
 
 /**

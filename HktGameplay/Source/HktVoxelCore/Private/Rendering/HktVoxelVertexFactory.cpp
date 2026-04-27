@@ -95,13 +95,13 @@ public:
 				TEXT("  MatLUT:      Bound=%d, RHI=%p\n")
 				TEXT("  VoxelSize:   Bound=%d, Value=%.1f"),
 				TileEnabledParam.IsBound() ? 1 : 0, bTileEnabled ? 1 : 0,
-				TileArrayParam.IsBound() ? 1 : 0, VoxelVF->TileArrayRHI,
-				TileArraySamplerParam.IsBound() ? 1 : 0, VoxelVF->TileArraySamplerRHI,
-				TileIndexLUTParam.IsBound() ? 1 : 0, VoxelVF->TileIndexLUTRHI,
-				TileIndexLUTSamplerParam.IsBound() ? 1 : 0, VoxelVF->TileIndexLUTSamplerRHI,
-				PaletteTextureParam.IsBound() ? 1 : 0, VoxelVF->PaletteTextureRHI,
-				PaletteSamplerParam.IsBound() ? 1 : 0, VoxelVF->PaletteSamplerRHI,
-				MaterialLUTParam.IsBound() ? 1 : 0, VoxelVF->MaterialLUTRHI,
+				TileArrayParam.IsBound() ? 1 : 0, VoxelVF->TileArrayRHI.GetReference(),
+				TileArraySamplerParam.IsBound() ? 1 : 0, VoxelVF->TileArraySamplerRHI.GetReference(),
+				TileIndexLUTParam.IsBound() ? 1 : 0, VoxelVF->TileIndexLUTRHI.GetReference(),
+				TileIndexLUTSamplerParam.IsBound() ? 1 : 0, VoxelVF->TileIndexLUTSamplerRHI.GetReference(),
+				PaletteTextureParam.IsBound() ? 1 : 0, VoxelVF->PaletteTextureRHI.GetReference(),
+				PaletteSamplerParam.IsBound() ? 1 : 0, VoxelVF->PaletteSamplerRHI.GetReference(),
+				MaterialLUTParam.IsBound() ? 1 : 0, VoxelVF->MaterialLUTRHI.GetReference(),
 				VoxelSizeParam.IsBound() ? 1 : 0, VoxelVF->VoxelSizeUU);
 		}
 		if (TileArrayParam.IsBound() && VoxelVF->TileArrayRHI)

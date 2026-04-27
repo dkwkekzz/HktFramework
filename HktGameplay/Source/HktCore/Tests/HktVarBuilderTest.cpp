@@ -5,12 +5,18 @@
 // 빌드가 성공하며 Halt 가 마지막 명령인지 검증한다.
 
 #include "Misc/AutomationTest.h"
+#include "NativeGameplayTags.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
 #include "HktStoryTypes.h"
 #include "VM/HktVMProgram.h"
 
 #if WITH_AUTOMATION_TESTS
+
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VarBuilder_Arithmetic,   "Test.VarBuilder.Arithmetic");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VarBuilder_Position,     "Test.VarBuilder.Position");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VarBuilder_MiniFireball, "Test.VarBuilder.MiniFireball");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VarBuilder_Coexist,      "Test.VarBuilder.Coexist");
 
 // ============================================================================
 // (1) 신 API 만으로 빌드 가능한지 — 산술/저장 파이프라인

@@ -4,12 +4,19 @@
 // 변경하지 않음(byte-identical)을 검증하는 임시 회귀 테스트.
 
 #include "Misc/AutomationTest.h"
+#include "NativeGameplayTags.h"
 #include "HktStoryTypes.h"
 #include "HktStoryBuilder.h"
 #include "HktCoreProperties.h"
 #include "VM/HktVMProgram.h"
 
 #if WITH_AUTOMATION_TESTS
+
+// 테스트용 Story 태그 — 모듈 로드 시 자동 등록되어 FHktStoryBuilder::Create(FName) 가 정상 해석.
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VRegIR_Basic,  "Test.VRegIR.Basic");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VRegIR_Label,  "Test.VRegIR.Label");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VRegIR_Determ, "Test.VRegIR.Determ");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Test_VRegIR_Mixed,  "Test.VRegIR.Mixed");
 
 namespace
 {
@@ -129,8 +136,11 @@ bool FHktVRegIR_LabelResolution::RunTest(const FString& Parameters)
     TestTrue(TEXT("Halt 발견"), HaltPC != INDEX_NONE);
     if (HaltPC == INDEX_NONE) return false;
 
+    // ENABLE_HKT_INSIGHTS=1 빌드에서는 Halt() 가 내부적으로 [Story End] Log 를 먼저 emit 하므로,
+    // Label("End") 직후 PC 는 Halt 가 아니라 그 Log 가 차지한다. 즉 라벨은 (HaltPC - 1) 로 해소된다.
+    const int32 ExpectedLabelPC = bInsightsLogs ? (HaltPC - 1) : HaltPC;
     const int32 ResolvedTarget = Program->Code[JumpIfPC].Imm12;
-    TestEqual(TEXT("JumpIf 타겟이 'End' 라벨(=Halt PC)과 일치"), ResolvedTarget, HaltPC);
+    TestEqual(TEXT("JumpIf 타겟이 'End' 라벨 PC 와 일치"), ResolvedTarget, ExpectedLabelPC);
     return true;
 }
 

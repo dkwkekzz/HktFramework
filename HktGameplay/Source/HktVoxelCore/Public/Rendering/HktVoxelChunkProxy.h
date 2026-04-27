@@ -110,16 +110,19 @@ private:
 	/** Opaque 섹션이 차지하는 index 수. NumIndices - OpaqueIndexCount = Translucent 섹션 크기 */
 	int32 OpaqueIndexCount = 0;
 
-	FRHITexture* PendingTileArrayRHI = nullptr;
-	FRHISamplerState* PendingTileArraySamplerRHI = nullptr;
-	FRHITexture* PendingTileIndexLUTRHI = nullptr;
-	FRHISamplerState* PendingTileIndexLUTSamplerRHI = nullptr;
-	FRHITexture* PendingMaterialLUTRHI = nullptr;
-	FRHISamplerState* PendingMaterialLUTSamplerRHI = nullptr;
-	FRHITexture* PendingDefaultPaletteRHI = nullptr;
-	FRHISamplerState* PendingDefaultPaletteSamplerRHI = nullptr;
-	FRHITexture* PendingNormalArrayRHI = nullptr;
-	FRHISamplerState* PendingNormalArraySamplerRHI = nullptr;
+	// 모든 텍스처/샘플러 핸들은 ref-counted. raw 포인터로 두면 Pending* 멤버에
+	// 저장되어 있는 동안 텍스처 소유자가 해제될 때 댕글링이 되어 다음 RHI 커맨드
+	// 실행 시 액세스 위반이 발생한다.
+	FTextureRHIRef PendingTileArrayRHI;
+	FSamplerStateRHIRef PendingTileArraySamplerRHI;
+	FTextureRHIRef PendingTileIndexLUTRHI;
+	FSamplerStateRHIRef PendingTileIndexLUTSamplerRHI;
+	FTextureRHIRef PendingMaterialLUTRHI;
+	FSamplerStateRHIRef PendingMaterialLUTSamplerRHI;
+	FTextureRHIRef PendingDefaultPaletteRHI;
+	FSamplerStateRHIRef PendingDefaultPaletteSamplerRHI;
+	FTextureRHIRef PendingNormalArrayRHI;
+	FSamplerStateRHIRef PendingNormalArraySamplerRHI;
 
 	bool bStylizedRendering = false;
 	float NormalMapStrength = 1.0f;
