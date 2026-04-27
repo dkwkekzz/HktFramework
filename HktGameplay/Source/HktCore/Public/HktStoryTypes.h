@@ -14,9 +14,13 @@ constexpr RegisterIndex MaxRegisters = 16;
 
 /**
  * Reg - 특수 레지스터 별칭
- * 
+ *
  * R0~R9는 범용 레지스터
  * R10~R15는 특수 목적 레지스터
+ *
+ * @deprecated PR-3에서 FHktVar / FHktStoryBuilder::Self()/Target() API 로 대체 예정.
+ *             신규 코드는 FHktVar 기반 API 를 사용해야 한다. 본 네임스페이스는 기존
+ *             32개 cpp 스토리 호환을 위해 보존되며 deprecated 로 마킹된다.
  */
 namespace Reg
 {

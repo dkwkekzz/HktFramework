@@ -20,11 +20,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 재사용 가능한 바이트코드 스니펫. `FHktStoryBuilder&`를 반환하는 플루언트(Fluent) API로 체이닝 가능.
 
-- `FHktScopedReg` — 스크래치 레지스터 자동 관리 (호출자 레지스터 충돌 방지)
+> **신규 코드는 `FHktVar` API 를 사용할 것.** 구 `RegisterIndex` 기반 API (`Reg::Self`, `FHktScopedReg`, `FHktRegAllocator`)는 PR-3 에서 strangler-fig 방식으로 JSON 마이그레이션 예정. PR-2 에서는 빌드 타임 Liveness + Linear-Scan 할당기가 도입되어 anonymous VReg(`B.NewVar()`)에 GP 레지스터(R0..R9)를 자동 배정한다. JSON 도 `{"schema": 2, ...}` 와 VarRef 폼(`{"var":"name"}` / `{"self":true}` / `{"const":N}`)을 지원한다.
+
+- `FHktVar` / `FHktVarBlock` — 신 가상 변수 핸들 (PR-2)
+- `FHktScopedReg` — 스크래치 레지스터 자동 관리 (호출자 레지스터 충돌 방지) — *PR-3 에서 제거 예정*
 - `HktSnippetItem` — 장비 슬롯 디스패치, 아이템 스탯 적용/제거, 유효성 검사
 - `HktSnippetCombat` — 전투 액션 패턴
 - `HktSnippetNPC` — NPC 행동 패턴
-- `HktStoryJsonLoader` — JSON에서 스토리 정의 로드
+- `HktStoryJsonLoader` — JSON에서 스토리 정의 로드 (schema 1·2 동시 지원)
 - `HktStoryTags` — 엔티티 서브타입·속성·애니메이션 태그 공유 선언
 
 ## HktPresentation — 시각화

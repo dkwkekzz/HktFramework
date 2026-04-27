@@ -163,4 +163,40 @@ namespace HktSnippetItem
 		const FGameplayTag& ItemClassTag,
 		const FHktGroundItemTemplate& Template,
 		RegisterIndex PosBase);
+
+	// ================================================================
+	// 신 FHktVar API 오버로드 — PR-2 단계 2.
+	// 본 모듈의 RegisterIndex 버전과 동일한 시맨틱이지만 FHktVar / FHktVarBlock 인자를 받는다.
+	// PR-3 마이그레이션 시 위 RegisterIndex 버전이 제거된다.
+	// ================================================================
+
+	HKTSTORY_API FHktStoryBuilder& ApplyItemStats(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity,
+		FHktVar CharEntity);
+
+	HKTSTORY_API FHktStoryBuilder& RemoveItemStats(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity,
+		FHktVar CharEntity);
+
+	HKTSTORY_API FHktStoryBuilder& AssignOwnership(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity,
+		FHktVar NewOwner);
+
+	HKTSTORY_API FHktStoryBuilder& ReleaseOwnership(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity);
+
+	HKTSTORY_API FHktStoryBuilder& DropToGround(
+		FHktStoryBuilder& B,
+		FHktVar ItemEntity,
+		FHktVar PositionSourceEntity);
+
+	HKTSTORY_API FHktStoryBuilder& SpawnGroundItemAtPos(
+		FHktStoryBuilder& B,
+		const FGameplayTag& ItemClassTag,
+		const FHktGroundItemTemplate& Template,
+		FHktVarBlock PosBlock);
 }

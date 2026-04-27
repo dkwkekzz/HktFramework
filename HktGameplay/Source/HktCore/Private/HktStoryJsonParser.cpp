@@ -54,6 +54,116 @@ RegisterIndex FHktStoryCmdArgs::GetReg(const FString& Key) const
 	return Idx;
 }
 
+// ----------------------------------------------------------------------------
+// Schema 2 VarRef 처리
+// ----------------------------------------------------------------------------
+
+FHktVar FHktStoryCmdArgs::GetVar(FHktStoryBuilder& B, const FString& Key) const
+{
+	const TSharedPtr<FJsonValue> V = Step->Values.FindRef(Key);
+	if (!V.IsValid())
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): missing var '%s'"), StepIndex, *OpName, *Key));
+		return B.Self();  // 안전한 기본값 — 에러 누적되어 빌드 실패 처리됨
+	}
+
+	// 객체 형태(VarRef): {"var":"name"} / {"self":true} / {"target":true} / {"const":N} / {"block":"name","index":i}
+	const TSharedPtr<FJsonObject>* Obj;
+	if (V->TryGetObject(Obj))
+	{
+		bool bSelf = false, bTarget = false;
+		if ((*Obj)->TryGetBoolField(TEXT("self"), bSelf) && bSelf) return B.Self();
+		if ((*Obj)->TryGetBoolField(TEXT("target"), bTarget) && bTarget) return B.Target();
+
+		FString VarName;
+		if ((*Obj)->TryGetStringField(TEXT("var"), VarName))
+		{
+			return B.ResolveOrCreateNamedVar(VarName);
+		}
+
+		double ConstNum;
+		if ((*Obj)->TryGetNumberField(TEXT("const"), ConstNum))
+		{
+			FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("const_%d"), static_cast<int32>(ConstNum)));
+			B.LoadConst(Tmp, static_cast<int32>(ConstNum));
+			return Tmp;
+		}
+
+		FString BlockName;
+		double IdxNum = 0;
+		if ((*Obj)->TryGetStringField(TEXT("block"), BlockName) &&
+		    (*Obj)->TryGetNumberField(TEXT("index"), IdxNum))
+		{
+			// {"block":"name", "index":i} — 같은 이름의 블록이 미리 발급되어 있어야 일관된 핀 결과.
+			// 단순화를 위해 매번 새 size-3 블록을 발급한다 (PR-3에서 NamedBlockMap 도입 예정).
+			FHktVarBlock Blk = B.NewVarBlock(3, *BlockName);
+			const int32 Idx = static_cast<int32>(IdxNum);
+			if (Idx >= 0 && Idx < Blk.Num())
+			{
+				return Blk.Element(Idx);
+			}
+			Errors.Add(FString::Printf(TEXT("Step %d (%s): block index out of range: %d"), StepIndex, *OpName, Idx));
+			return B.Self();
+		}
+
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): unrecognized VarRef object for '%s'"), StepIndex, *OpName, *Key));
+		return B.Self();
+	}
+
+	// 문자열 형태 (Schema 1 호환): "Self", "R0".."R9"
+	FString StrVal;
+	if (V->TryGetString(StrVal))
+	{
+		const RegisterIndex R = FHktStoryJsonParser::ParseRegister(StrVal);
+		if (R == 0xFF)
+		{
+			Errors.Add(FString::Printf(TEXT("Step %d (%s): invalid register string '%s'"), StepIndex, *OpName, *StrVal));
+			return B.Self();
+		}
+		// pre-colored 핸들 반환 — 빌더 내부 EnsurePinned 가 같은 인덱스에 같은 VReg 를 부여한다.
+		// 직접 만들 수 없으므로 명명 헬퍼를 통한다.
+		switch (R)
+		{
+		case Reg::Self:    return B.Self();
+		case Reg::Target:  return B.Target();
+		case Reg::Spawned: return B.SpawnedVar();
+		case Reg::Hit:     return B.HitVar();
+		case Reg::Iter:    return B.IterVar();
+		case Reg::Flag:    return B.FlagVar();
+		default: break;
+		}
+		// R0..R9: 이름 기반 변수로 매핑 (schema 2 코드에서 자유롭게 재사용)
+		return B.ResolveOrCreateNamedVar(FString::Printf(TEXT("__pre_R%d"), R));
+	}
+
+	Errors.Add(FString::Printf(TEXT("Step %d (%s): VarRef '%s' must be string or object"), StepIndex, *OpName, *Key));
+	return B.Self();
+}
+
+FHktVarBlock FHktStoryCmdArgs::GetVarBlock(FHktStoryBuilder& B, const FString& Key, int32 Count) const
+{
+	const TSharedPtr<FJsonValue> V = Step->Values.FindRef(Key);
+	if (!V.IsValid())
+	{
+		Errors.Add(FString::Printf(TEXT("Step %d (%s): missing block '%s'"), StepIndex, *OpName, *Key));
+		return B.NewVarBlock(Count, TEXT("missing"));
+	}
+	const TSharedPtr<FJsonObject>* Obj;
+	if (V->TryGetObject(Obj))
+	{
+		FString Name;
+		if ((*Obj)->TryGetStringField(TEXT("block"), Name))
+		{
+			// 같은 이름의 블록은 같은 핸들을 반환 — Builder 의 NamedVarMap 을 NamedVarBlock 처럼 재활용.
+			// 여기서는 Builder 가 별도 블록 맵을 노출하지 않으므로 매번 새 블록을 발급한다.
+			// (PR-3 마이그레이션 시 Builder 에 NamedBlockMap 추가 예정)
+			return B.NewVarBlock(Count, *Name);
+		}
+	}
+	Errors.Add(FString::Printf(TEXT("Step %d (%s): block '%s' must be {\"block\":\"name\"}"), StepIndex, *OpName, *Key));
+	return B.NewVarBlock(Count, TEXT("invalid"));
+}
+
 RegisterIndex FHktStoryCmdArgs::GetRegOpt(const FString& Key, RegisterIndex Default) const
 {
 	FString Val;
@@ -139,6 +249,7 @@ FHktStoryJsonParser& FHktStoryJsonParser::Get()
 FHktStoryJsonParser::FHktStoryJsonParser()
 {
 	InitializeCoreCommands();
+	InitializeCoreCommandsV2();
 }
 
 void FHktStoryJsonParser::RegisterCommand(const FString& OpName, FHktStoryCommandHandler Handler)
@@ -146,8 +257,22 @@ void FHktStoryJsonParser::RegisterCommand(const FString& OpName, FHktStoryComman
 	CommandMap.Add(OpName, MoveTemp(Handler));
 }
 
+void FHktStoryJsonParser::RegisterCommandV2(const FString& OpName, FHktStoryCommandHandler Handler)
+{
+	CommandMapV2.Add(OpName, MoveTemp(Handler));
+}
+
 bool FHktStoryJsonParser::ApplyCommand(FHktStoryBuilder& Builder, const FHktStoryCmdArgs& Args)
 {
+	// Schema 2: V2 핸들러 우선, 없으면 v1 폴백 (공통 op — Halt, Jump, Yield 등은 register 인자가 없으므로 동일하다).
+	if (Args.SchemaVersion >= 2)
+	{
+		if (const FHktStoryCommandHandler* H2 = CommandMapV2.Find(Args.OpName))
+		{
+			(*H2)(Builder, Args);
+			return true;
+		}
+	}
 	if (const FHktStoryCommandHandler* Handler = CommandMap.Find(Args.OpName))
 	{
 		(*Handler)(Builder, Args);
@@ -222,6 +347,21 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 	{
 		Result.Errors.Add(TEXT("Invalid JSON syntax"));
 		return Result;
+	}
+
+	// Schema 버전 (선택, 기본 1) — schema 2 는 VarRef 객체 폼만 허용한다.
+	int32 SchemaVersion = 1;
+	{
+		double SchemaNum;
+		if (Root->TryGetNumberField(TEXT("schema"), SchemaNum))
+		{
+			SchemaVersion = static_cast<int32>(SchemaNum);
+			if (SchemaVersion != 1 && SchemaVersion != 2)
+			{
+				Result.Errors.Add(FString::Printf(TEXT("Unsupported schema version: %d (expected 1 or 2)"), SchemaVersion));
+				return Result;
+			}
+		}
 	}
 
 	// Story tag
@@ -339,6 +479,7 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 
 		FHktStoryCmdArgs Args(*StepObj, i, OpName);
 		Args.ResolveTagFunc = ResolveTagWithAlias;
+		Args.SchemaVersion = SchemaVersion;
 
 		if (!ApplyCommand(Builder, Args))
 		{
@@ -890,3 +1031,123 @@ void FHktStoryJsonParser::InitializeCoreCommands()
 		B.Log(A.GetString(TEXT("message")));
 	});
 }
+
+
+// ============================================================================
+// InitializeCoreCommandsV2 — Schema 2 (FHktVar VarRef) 핸들러 베이스라인
+//
+// 본 맵은 schema 2 Story 가 사용하며, 등록되지 않은 op 는 자동으로 v1 핸들러로 폴백한다.
+// PR-3 의 strangler-fig 마이그레이션이 진행되면서 점진적으로 op 가 추가될 예정.
+// ============================================================================
+
+void FHktStoryJsonParser::InitializeCoreCommandsV2()
+{
+    // ---- Data ----
+    RegisterCommandV2(TEXT("LoadConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.LoadConst(A.GetVar(B, TEXT("dst")), A.GetInt(TEXT("value")));
+    });
+    RegisterCommandV2(TEXT("LoadStore"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.LoadStore(A.GetVar(B, TEXT("dst")), A.GetPropertyId(TEXT("property")));
+    });
+    RegisterCommandV2(TEXT("LoadStoreEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.LoadStoreEntity(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("entity")), A.GetPropertyId(TEXT("property")));
+    });
+    RegisterCommandV2(TEXT("SaveStore"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SaveStore(A.GetPropertyId(TEXT("property")), A.GetVar(B, TEXT("src")));
+    });
+    RegisterCommandV2(TEXT("SaveStoreEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SaveStoreEntity(A.GetVar(B, TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetVar(B, TEXT("src")));
+    });
+    RegisterCommandV2(TEXT("SaveConstEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SaveConstEntity(A.GetVar(B, TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetInt(TEXT("value")));
+    });
+    RegisterCommandV2(TEXT("Move"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.Move(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")));
+    });
+
+    // ---- Arithmetic ----
+    RegisterCommandV2(TEXT("Add"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.Add(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+    RegisterCommandV2(TEXT("Sub"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.Sub(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+    RegisterCommandV2(TEXT("Mul"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.Mul(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+    RegisterCommandV2(TEXT("Div"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.Div(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+
+    // ---- Comparison ----
+    RegisterCommandV2(TEXT("CmpEq"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CmpEq(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+    RegisterCommandV2(TEXT("CmpNe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CmpNe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+    RegisterCommandV2(TEXT("CmpLt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CmpLt(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+
+    // ---- Tags ----
+    RegisterCommandV2(TEXT("AddTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.AddTag(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("RemoveTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.RemoveTag(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("HasTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.HasTag(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
+
+    // ---- Entity ----
+    RegisterCommandV2(TEXT("SpawnEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // 명시 출력 변수: 결과를 이름에 바인딩 (선택)
+        FHktVar Out = B.SpawnEntityVar(A.GetTag(TEXT("classTag")));
+        FString OutName;
+        if (A.Step->TryGetStringField(TEXT("out"), OutName))
+        {
+            B.Move(B.ResolveOrCreateNamedVar(OutName), Out);
+        }
+    });
+    RegisterCommandV2(TEXT("DestroyEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.DestroyEntity(A.GetVar(B, TEXT("entity")));
+    });
+
+    // ---- Combat ----
+    RegisterCommandV2(TEXT("ApplyDamage"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.ApplyDamage(A.GetVar(B, TEXT("target")), A.GetVar(B, TEXT("amount")));
+    });
+    RegisterCommandV2(TEXT("ApplyDamageConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.ApplyDamageConst(A.GetVar(B, TEXT("target")), A.GetInt(TEXT("amount")));
+    });
+
+    // ---- Wait ----
+    RegisterCommandV2(TEXT("WaitCollision"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.WaitCollision(A.GetVar(B, TEXT("entity")));
+    });
+
+    // ---- Movement ----
+    RegisterCommandV2(TEXT("MoveForward"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.MoveForward(A.GetVar(B, TEXT("entity")), A.GetInt(TEXT("force")));
+    });
+    RegisterCommandV2(TEXT("CopyPosition"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CopyPosition(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")));
+    });
+    RegisterCommandV2(TEXT("StopMovement"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.StopMovement(A.GetVar(B, TEXT("entity")));
+    });
+
+    // ---- Presentation ----
+    RegisterCommandV2(TEXT("PlayVFXAttached"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.PlayVFXAttached(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("PlayAnim"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.PlayAnim(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("ApplyEffect"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.ApplyEffect(A.GetVar(B, TEXT("target")), A.GetTag(TEXT("effectTag")));
+    });
+}
+
