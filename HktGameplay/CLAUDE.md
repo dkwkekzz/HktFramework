@@ -1,14 +1,35 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+HktGameplay 플러그인의 런타임 시뮬레이션 / 네트워킹 / 프레젠테이션 가이드. 프로젝트 전체 원칙은 루트 [../CLAUDE.md](../CLAUDE.md) 참조.
+
+## Module Dependency Graph
+
+```
+HktGameplay (Runtime)
+├── HktCore             — 순수 C++ SOA 결정론적 VM (UObject 0)
+├── HktStory            — 재사용 가능한 바이트코드 스니펫 라이브러리 (fluent API)
+├── HktRule             — 서버/클라이언트 룰 인터페이스
+│   └── HktRuntime      — 네트워킹, GGPO 롤백 동기화 (30Hz)
+├── HktAsset            — GameplayTag → DataAsset 비동기 로딩
+├── HktPresentation     — 읽기 전용 UE5 시각화 (OnWorldViewUpdated)
+│   └── HktVFX          — Niagara VFX 인텐트 해석 (클라이언트 전용)
+├── HktUI               — 데이터 드리븐 Slate UI (anchor strategy 패턴)
+├── HktLandscapeTerrain — Landscape 기반 지형 (HktVoxel과 별개 경로)
+├── HktSpriteCore       — 스프라이트 렌더링
+└── HktVoxelCore        [PostConfigInit — Default 단계보다 선행]
+    ├── HktVoxelTerrain — 지형 생성/파괴 (HktRuntime 의존)
+    ├── HktVoxelSkin    — 메시 스키닝/베이킹 (Editor에서 UnrealEd 조건부)
+    └── HktVoxelVFX     — 파괴 VFX (Niagara 의존)
+```
 
 ## HktCore — 결정론적 시뮬레이션 엔진
 
-- **SOA 데이터 레이아웃**: 엔티티 데이터를 `PropertyId`로 인덱싱된 `FHktDataColumn` 배열에 저장 (`HktCoreProperties.h`에 정의). 컬럼 포인터 호이스팅으로 캐시 효율적인 벌크 이터레이션.
+- **SOA 데이터 레이아웃**: 엔티티 데이터를 `PropertyId`로 인덱싱된 컬럼 배열에 저장 (`HktCoreProperties.h`에 정의). 컬럼 포인터 호이스팅으로 캐시 효율적인 벌크 이터레이션.
+- **3-tier 프로퍼티 저장소**: Hot(0–15, 직접 인덱스 O(1)) → Warm(슬롯당 16 fixed pairs) → Overflow(heap `TArray`)
 - **FHktWorldState**: 완전한 시뮬레이션 스냅샷. 아키타입 기반 엔티티 풀, `EntityToIndex`/`IndexToEntity` 매핑, `FreeIndices` 슬롯 재사용.
 - **FHktWorldView**: 제로 카피 읽기 전용 뷰 + 희소 오버레이. Presentation 레이어가 `GetInt(Entity, PropId)`로 읽음 (Overlay → WorldState 순으로 확인).
-- **VM 실행**: 바이트코드 프로그램이 `FHktVMRuntime` (R0~R15, 16개 레지스터)에서 실행. 모든 쓰기는 `FHktVMStore` 버퍼드 쓰기(`PendingWritesByProperty`)를 거쳐 `ApplyStoreSystem`이 프레임당 원자적으로 커밋.
-- **프레임 파이프라인**: `ProcessBatch()` → Arrange → Build VMs → Process VMs → Physics(공간 해싱) → Apply Store → Cleanup → CreateWorldView
+- **VM 실행**: 바이트코드 프로그램이 `FHktVMRuntime` (R0~R15, 16개 레지스터)에서 실행. 실행 컨텍스트는 `FHktVMContext` (구 `FHktVMStore` 대체); 쓰기는 `FHktVMWorldStateProxy::SetPropertyDirty`를 경유하여 dirty 추적 후 커밋.
+- **프레임 파이프라인**: `ProcessBatch()` → Arrange → Build VMs → Process VMs → Physics(공간 해싱) → Apply Dirty → Cleanup → CreateWorldView
 
 ## HktRuntime — 네트워킹 레이어
 
@@ -66,6 +87,11 @@ HktPresentation 의존 없음 (인터페이스/델리게이트만 사용).
 - `UHktVFXAssetBank` — VFX 에셋 저장 + Intent → Niagara/텍스처 런타임 해석
 - `UHktVFXRuntimeResolver` — 런타임 VFX 스폰 컴포넌트
 
+## HktLandscapeTerrain / HktSpriteCore
+
+- **HktLandscapeTerrain** — UE5 Landscape 기반 지형 시스템 (HktVoxel과 독립적인 대안 경로).
+- **HktSpriteCore** — 스프라이트 기반 렌더링 코어. 스프라이트 어셋 자동화는 `HktGameplayGenerator/HktSpriteGenerator` 참조.
+
 ## HktVoxel — 복셀 서브시스템 (4모듈)
 
 **HktVoxelCore** (PostConfigInit — 렌더 서브시스템 선행 초기화)는 순수 렌더링만 담당 (게임 로직 없음):
@@ -83,15 +109,13 @@ HktPresentation 의존 없음 (인터페이스/델리게이트만 사용).
 
 Python MCP 서버로 Claude Desktop/Cursor가 UE5 에디터와 상호작용 가능. 도구: 에셋 관리, 레벨 편집, 액터 스폰, PIE 제어, 뷰포트 카메라. JSON-RPC(stdio) → Remote Control API / WebSocket 통신. `../HktGameplayGenerator/` 플러그인에 위치.
 
-## Important Constraints
+## Plugin-Local Constraints
 
-1. **No UE5 runtime in HktCore** — VM을 순수 C++로 유지 (UObject, UWorld 금지)
-2. **Server-authoritative** — 클라이언트는 읽기 전용 `FHktWorldView`만 수신; 서버가 모든 데이터 필터링
-3. **VM never writes WorldState directly** — 모든 쓰기는 `FHktVMStore` 버퍼드 쓰기를 경유
-4. **FHktEntityState는 DTO** — `ExtractEntityState()`를 통한 네트워크 직렬화 전용. 내부 코드는 SOA WorldState 사용
-5. **컬럼 포인터 호이스팅** — 시스템 루프에서 `GetColumn()` 포인터를 루프 밖에서 캐시; 벌크 이터레이션 중 엔티티별 `GetProperty()` 호출 금지
-6. **HktInsights 조건부** — `WITH_HKT_INSIGHTS` 매크로로 가드, Shipping 빌드에서 비활성화
-7. **HktVoxelCore PostConfigInit** — 렌더 서브시스템 선행 초기화를 위해 Default보다 먼저 로드
+루트 [../CLAUDE.md](../CLAUDE.md)의 절대 원칙에 더해, HktGameplay 작업 시 다음을 추가로 준수한다.
+
+1. **HktVoxelCore PostConfigInit** — 렌더 서브시스템 선행 초기화를 위해 Default보다 먼저 로드. `LoadingPhase` 변경 금지.
+2. **HktVoxelSkin Editor 의존성** — Editor 빌드에서만 UnrealEd 조건부 링크. Runtime/Shipping에서 누설 금지.
+3. **HktUI ↔ HktPresentation 단방향** — HktUI는 HktPresentation에 의존하지 않음 (인터페이스/델리게이트만 사용).
 
 ## Coding Conventions
 

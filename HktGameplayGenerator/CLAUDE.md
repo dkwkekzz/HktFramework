@@ -23,6 +23,16 @@ UE5 에디터 콘솔: `HktGen.Prompt` — Generator Prompt 패널 열기
 
 UE5 어셋 출력 경로: Project Settings > HktGameplay > HktAsset > `ConventionRootDirectory` (기본: `/Game/Generated`)
 
+### MCP Server Environment Variables
+
+| 변수 | 설명 |
+|---|---|
+| `UE_PROJECT_PATH` | UE 프로젝트 루트 |
+| `HKT_STEPS_DIR` | 스텝 데이터 출력 경로 (default: `.hkt_steps/`) |
+| `HKT_MAPS_DIR` | HktMap JSON 파일 위치 (default: `.hkt_maps/`) |
+| `SD_WEBUI_URL` | Stable Diffusion WebUI (default: `http://localhost:7860`) |
+| `MONOLITH_URL` | Monolith MCP 프록시 (default: `http://localhost:9316/mcp`) |
+
 ## 스텝 시스템 상세
 
 ### Feature 시스템
@@ -82,6 +92,7 @@ hkt_mcp/
 | `HktAnimGenerator` | Editor | 애니메이션 생성 서브시스템 |
 | `HktItemGenerator` | Editor | 아이템 Mesh + 아이콘 생성 |
 | `HktTextureGenerator` | Editor | `FHktTextureIntent` → SD WebUI 텍스처 |
+| `HktSpriteGenerator` | Editor (PostEngineInit) | 스프라이트 어셋 자동 생성 (HktSpriteCore와 페어) |
 
 ### Generator Handler 패턴
 
