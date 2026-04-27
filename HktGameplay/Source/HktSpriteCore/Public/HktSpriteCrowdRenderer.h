@@ -17,6 +17,32 @@ class UTexture2D;
 class UHktSpriteCharacterTemplate;
 
 /**
+ * EHktSpriteUpdateStatus — UpdateEntity의 마지막 결과 코드.
+ *
+ * 같은 사유로 매 프레임 실패가 반복되므로 *전이* 시점에만 로그를 emit한다.
+ * OK로의 전이(=복구)도 1회 Info 로그를 남겨 EventLog만으로 복구 여부를 추적할 수 있게 한다.
+ *
+ * UENUM으로 두는 이유: 로그 출력 시 `UEnum::GetValueAsString` /
+ * `StaticEnum<>()->GetNameStringByValue`로 자동 문자열화하여 별도 헬퍼 불필요.
+ */
+UENUM()
+enum class EHktSpriteUpdateStatus : uint8
+{
+	OK                  = 0,
+	TemplateMissing     = 1,
+	AnimationNull       = 2,
+	AtlasNull           = 3,
+	InvalidCellSize     = 4,
+	HISMCreateFailed    = 5,
+	InvalidDir          = 6,
+	InvalidFrame        = 7,
+	CharacterTagInvalid = 8,
+	AddInstanceFailed   = 9,
+	HISMLookupLost      = 10,
+	ZeroQuadSize        = 11,
+};
+
+/**
  * FHktSpriteEntityUpdate — 한 엔터티, 한 프레임의 스프라이트 갱신 입력.
  * HktSpriteCore Processor가 구성하여 전달.
  */
@@ -70,30 +96,6 @@ public:
 	void ClearAll();
 
 private:
-	/**
-	 * 매 프레임 Update의 마지막 결과 코드.
-	 * 같은 사유로 매 프레임 실패가 반복되므로 상태 *전이* 시점에만 로그를 emit한다.
-	 * OK로의 전이(=복구)도 1회 Info 로그를 남긴다.
-	 */
-	enum class EUpdateStatus : uint8
-	{
-		OK                  = 0,
-		TemplateMissing     = 1,
-		AnimationNull       = 2,
-		AtlasNull           = 3,
-		InvalidCellSize     = 4,
-		HISMCreateFailed    = 5,
-		InvalidDir          = 6,
-		InvalidFrame        = 7,
-		CharacterTagInvalid = 8,
-		AddInstanceFailed   = 9,
-		HISMLookupLost      = 10,
-		ZeroQuadSize        = 11,
-	};
-
-	/** 로그 포맷용 — 이름 문자열 반환. */
-	static const TCHAR* StatusToString(EUpdateStatus S);
-
 	/** 엔터티 1명의 렌더 상태 — 현재 속한 아틀라스 HISM + 인스턴스 인덱스. */
 	struct FEntityState
 	{
@@ -102,7 +104,7 @@ private:
 		int32 InstanceIndex = INDEX_NONE;
 		bool bActive = false;
 
-		EUpdateStatus LastUpdateStatus = EUpdateStatus::OK;
+		EHktSpriteUpdateStatus LastUpdateStatus = EHktSpriteUpdateStatus::OK;
 	};
 
 	UPROPERTY(Transient)

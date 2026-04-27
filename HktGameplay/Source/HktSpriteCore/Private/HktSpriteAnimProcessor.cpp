@@ -204,7 +204,7 @@ namespace
 }
 
 void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
-	FGameplayTag& OutAnimTag, float& OutPlayRate)
+	FGameplayTag& OutAnimTag, float& OutPlayRate, bool& InOutLoggedFailure)
 {
 	FGameplayTag ResolvedTag;
 	float LocoPlayRate = 1.f;
@@ -254,12 +254,11 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 		// 정상 경로에서는 도달 불가 — Locomotion 폴백이 항상 Idle/Walk/Run/Fall을 반환한다.
 		// 도달했다면 HktGameplayTags::Anim_FullBody_Locomotion_* 가 미등록 상태.
 		// 이 함수는 모든 sprite 엔티티에 대해 매 프레임 호출되므로 무가드 emit은
-		// N×30Hz 스팸이 된다. 사유가 전역 태그 미등록(글로벌 설정 오류)이라
-		// 프로세스당 1회만 남기고 묵음.
-		static bool bLoggedOnce = false;
-		if (!bLoggedOnce)
+		// N×30Hz 스팸이 된다. dedup 플래그는 호출자가 소유 — 호스트 수명에 묶여
+		// PIE 재시작/멀티 호스트에서 자동 리셋된다.
+		if (!InOutLoggedFailure)
 		{
-			bLoggedOnce = true;
+			InOutLoggedFailure = true;
 			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
 				TEXT("Sprite|AnimProcessor: ResolveRenderOutputs — Anim 태그 해석 실패 (Locomotion 폴백까지 무효). HktGameplayTags::Anim_FullBody_Locomotion_* 등록 확인 필요 (이후 동일 사유 묵음)"));
 		}
