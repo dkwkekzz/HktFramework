@@ -1687,16 +1687,15 @@ FHktStoryBuilder& FHktStoryBuilder::FindInRadius(FHktVar CenterEntity, int32 Rad
 
 FHktStoryBuilder& FHktStoryBuilder::FindInRadiusEx(FHktVar CenterEntity, int32 RadiusCm, uint32 FilterMask)
 {
-    FHktVar RadiusReg = NewVar(TEXT("FindInRadiusEx.Radius"));
+    // VM 인터프리터는 Imm12 에 RadiusReg 의 물리 인덱스를 기대한다.
+    // 신 API 에서 RadiusReg 를 anonymous 로 두면 할당 결과가 Imm12 인코딩과 일치하지 않으므로,
+    // RadiusReg 를 pre-colored R0 로 강제하여 인코딩 일관성을 보장한다.
+    // (PR-3 에서 VM 인터프리터를 VReg 기반으로 재설계하면 본 강제 핀이 제거된다.)
+    FHktVar RadiusReg = FHktVar(ActiveSection->RegPool.EnsurePinned(0));
     FHktVar MaskReg = NewVar(TEXT("FindInRadiusEx.Mask"));
     LoadConst(RadiusReg, RadiusCm);
     LoadConst(MaskReg, static_cast<int32>(FilterMask));
-    // 인터프리터는 Imm12 에 RadiusReg 의 물리 인덱스를 기대한다 — 할당 후에야 알 수 있으므로,
-    // 본 신 API 는 RadiusReg 사용 시 별도 hack 이 필요. 단순화: pre-colored Reg::R0 강제 사용.
-    // TODO(PR-3): VM 인터프리터의 FindInRadiusEx 를 VReg 기반 인코딩으로 재설계.
-    // 임시: Imm12 에 0 을 두어 R0 를 기대하게 한다 — RadiusReg 가 R0 에 핀되도록 강제하지는 못하므로
-    // 본 경로는 안전한 결정론을 위해 단순 형태 (FindInRadius) 사용을 권장한다.
-    EmitV(EOpCode::FindInRadiusEx, FlagVar(), CenterEntity, MaskReg, 0);
+    EmitV(EOpCode::FindInRadiusEx, FlagVar(), CenterEntity, MaskReg, /*Imm12=R0=*/0);
     return *this;
 }
 
