@@ -8,10 +8,95 @@
 #include "HktStoryTypes.h"
 #include "HktCoreArchetype.h"
 
+// ============================================================================
+// FHktStoryBuilder API 가이드
+//
+// 본 빌더는 두 종류의 공개 API 를 동시에 노출한다.
+//
+//   (A) [신] FHktVar 기반 가상 레지스터 API — 권장
+//        - NewVar(), NewVarBlock(), Self(), Target() 으로 변수를 얻고
+//          이를 인자로 넘긴다. 빌드 타임에 Liveness + Linear-Scan 할당기가
+//          GP 레지스터(R0..R9) 를 자동 배정한다.
+//        - SpawnEntity / WaitCollision / GetPosition 등은 FHktVar 또는
+//          FHktVarBlock 을 *반환*하므로 호출자가 결과를 명시적으로 받는다.
+//        - JSON schema 2 (`{"schema": 2, ...}`) 는 본 API 만 사용한다.
+//
+//   (B) [구] RegisterIndex 기반 API — [[deprecated]]
+//        - 모든 RegisterIndex 인자/Reg 별칭을 받는 메서드는 deprecated 로 표시되어
+//          호출 측에 컴파일 경고가 발생한다.
+//        - 시그니처와 emit 결과는 PR-1과 byte-identical 로 보존된다.
+//        - PR-3에서 strangler-fig 방식으로 새 API 기반 JSON 으로 점진 대체된다.
+//
+// 신·구 API 의 공존은 명시적인 설계 결정이다 (PR-2 단계). 신규 코드는 (A) 만
+// 사용해야 하며, 기존 cpp 스토리/스니펫은 PR-3 마이그레이션까지 (B) 를 그대로 사용한다.
+// ============================================================================
+
 struct FHktVMProgram;
 struct FHktWorldState;
 struct FHktEvent;
 class FHktStoryBuilder;
+
+// ============================================================================
+// FHktVar / FHktVarBlock — 신 가상 변수 API (PR-2)
+// ============================================================================
+
+/** 가상 레지스터 ID — HktVRegIR.h 의 FHktVRegId 와 일치(int32). 공개 헤더에서는 별칭으로 둔다. */
+using FHktVRegHandle = int32;
+
+/**
+ * FHktVar — 빌더가 발급한 가상 변수 핸들
+ *
+ * 내부적으로 FHktVRegId 를 보유하며, 빌드 타임 Linear-Scan 할당기가 물리 레지스터를 결정한다.
+ * 외부 코드는 값으로 자유롭게 복사할 수 있고, 동일 빌더 내에서 재사용 가능하다.
+ * 다른 빌더 인스턴스로 넘기는 것은 정의되지 않은 동작이다.
+ */
+class HKTCORE_API FHktVar
+{
+public:
+    FHktVar() = default;
+    FHktVar(const FHktVar&) = default;
+    FHktVar& operator=(const FHktVar&) = default;
+
+    bool IsValid() const { return VRegId >= 0; }
+    FHktVRegHandle GetId() const { return VRegId; }
+
+private:
+    friend class FHktStoryBuilder;
+    explicit FHktVar(FHktVRegHandle Id) : VRegId(Id) {}
+    FHktVRegHandle VRegId = -1;
+};
+
+/**
+ * FHktVarBlock — 연속 N개 가상 변수 핸들 (Position 등)
+ *
+ * Element(i) 로 i번째 슬롯의 FHktVar 를 얻는다. 할당기는 모든 슬롯에 연속 GP 레지스터를 부여한다.
+ */
+class HKTCORE_API FHktVarBlock
+{
+public:
+    FHktVarBlock() = default;
+    FHktVarBlock(const FHktVarBlock&) = default;
+    FHktVarBlock& operator=(const FHktVarBlock&) = default;
+
+    int32 Num() const { return Count; }
+    bool IsValid() const { return BaseVRegId >= 0 && Count > 0; }
+
+    /** i번째 슬롯의 FHktVar (0-based). NewVarBlock 은 베이스 + 멤버 VReg 를 연속 ID 로 발급한다. */
+    FHktVar Element(int32 i) const
+    {
+        check(i >= 0 && i < Count);
+        return FHktVar(BaseVRegId + i);
+    }
+
+    /** 베이스(0번) 슬롯 — Position 같은 base 인자에 그대로 사용 가능 */
+    FHktVar Base() const { return Element(0); }
+
+private:
+    friend class FHktStoryBuilder;
+    FHktVarBlock(FHktVRegHandle InBase, int32 InCount) : BaseVRegId(InBase), Count(InCount) {}
+    FHktVRegHandle BaseVRegId = -1;
+    int32 Count = 0;
+};
 
 // ============================================================================
 // RAII 레지스터 핸들 — 스코프 종료 시 자동 반환
@@ -29,6 +114,10 @@ class FHktStoryBuilder;
  *       Builder.LoadConst(scratch, 100);
  *       Builder.SaveStore(PropertyId::Health, scratch);
  *   } // scratch 자동 반환
+ */
+/**
+ * @deprecated PR-3 에서 FHktVar (NewVar) 기반 새 API 로 대체 예정. 현재는 기존 cpp 스토리 호환을 위해 보존.
+ * 내부 emit 결과는 PR-1과 byte-identical 이며, 신·구 API 가 동일 빌더에서 공존할 수 있다.
  */
 struct HKTCORE_API FHktScopedReg
 {
@@ -140,6 +229,170 @@ public:
 
     static FHktStoryBuilder Create(const FGameplayTag& Tag);
     static FHktStoryBuilder Create(const FName& TagName);
+
+    // ========================================================================
+    // 신 FHktVar API (PR-2)
+    //
+    // 신규 코드는 본 섹션의 메서드만 사용해야 한다. 기존 RegisterIndex API 는
+    // [[deprecated]] 로 마킹되어 PR-3 에서 JSON 마이그레이션과 함께 제거된다.
+    // ========================================================================
+
+    /** 새 anonymous 가상 변수 — 빌드 타임에 GP 레지스터(R0..R9) 가 자동 배정 */
+    FHktVar NewVar(const TCHAR* DebugName = nullptr);
+
+    /** 새 anonymous 가상 블록 — Position(X,Y,Z) 등 연속 N개 슬롯이 필요할 때 사용 */
+    FHktVarBlock NewVarBlock(int32 Count, const TCHAR* DebugName = nullptr);
+
+    /** 특수 레지스터 핸들 — 동일 빌더 내에서 항상 같은 VReg 반환 */
+    FHktVar Self();
+    FHktVar Target();
+    FHktVar SpawnedVar();   // 최근 SpawnEntity 결과를 가리키는 특수 슬롯
+    FHktVar HitVar();       // 최근 WaitCollision 결과
+    FHktVar IterVar();      // ForEach 순회 슬롯
+    FHktVar FlagVar();      // 비교/카운트 결과 슬롯
+
+    /**
+     * 같은 이름은 같은 VReg 로 해석 — JSON `{"var":"name"}` 폼이 사용한다.
+     * 이름이 처음 등장하면 anonymous VReg 를 생성한다.
+     */
+    FHktVar ResolveOrCreateNamedVar(const FString& Name);
+
+    // ---- 데이터 ----
+    FHktStoryBuilder& LoadConst(FHktVar Dst, int32 Value);
+    FHktStoryBuilder& LoadStore(FHktVar Dst, uint16 PropertyId);
+    FHktStoryBuilder& LoadStoreEntity(FHktVar Dst, FHktVar Entity, uint16 PropertyId);
+    FHktStoryBuilder& SaveStore(uint16 PropertyId, FHktVar Src);
+    FHktStoryBuilder& SaveStoreEntity(FHktVar Entity, uint16 PropertyId, FHktVar Src);
+    // 주의: SaveConst(uint16, int32) 는 레지스터 인자가 없으므로 신·구 API 공통.
+    FHktStoryBuilder& SaveConstEntity(FHktVar Entity, uint16 PropertyId, int32 Value);
+    FHktStoryBuilder& Move(FHktVar Dst, FHktVar Src);
+
+    // ---- 산술 ----
+    FHktStoryBuilder& Add(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& Sub(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& Mul(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& Div(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& AddImm(FHktVar Dst, FHktVar Src, int32 Imm);
+
+    // ---- 비교 ----
+    FHktStoryBuilder& CmpEq(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& CmpNe(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& CmpLt(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& CmpLe(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& CmpGt(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+    FHktStoryBuilder& CmpGe(FHktVar Dst, FHktVar Src1, FHktVar Src2);
+
+    // ---- 점프/조건 ----
+    FHktStoryBuilder& JumpIf(FHktVar Cond, FName LabelName);
+    FHktStoryBuilder& JumpIfNot(FHktVar Cond, FName LabelName);
+    FHktStoryBuilder& JumpIf(FHktVar Cond, int32 Key);
+    FHktStoryBuilder& JumpIfNot(FHktVar Cond, int32 Key);
+    FHktStoryBuilder& If(FHktVar Cond);
+    FHktStoryBuilder& IfNot(FHktVar Cond);
+
+    // ---- 엔티티 (출력 변수 명시 반환) ----
+    /**
+     * 엔티티 스폰 — 새 VReg 핸들 반환.
+     * 구 API 의 묵시적 Reg::Spawned 의존을 제거하기 위해 명시적 반환을 채택.
+     * 이름이 SpawnEntity 와 동일하면 반환형만 다른 오버로드(불가) 가 되므로 별명으로 분리.
+     */
+    FHktVar SpawnEntityVar(const FGameplayTag& ClassTag);
+
+    FHktStoryBuilder& DestroyEntity(FHktVar Entity);
+
+    // ---- Position & Movement ----
+    /** 위치 가져오기 — 새 FHktVarBlock(3) 반환. 호출자가 Element(0..2) 로 X/Y/Z 접근. */
+    FHktVarBlock GetPosition(FHktVar Entity);
+
+    FHktStoryBuilder& SetPosition(FHktVar Entity, FHktVarBlock SrcPos);
+    FHktStoryBuilder& CopyPosition(FHktVar DstEntity, FHktVar SrcEntity);
+    FHktStoryBuilder& MoveToward(FHktVar Entity, FHktVarBlock TargetPos, int32 Force);
+    FHktStoryBuilder& MoveForward(FHktVar Entity, int32 Force);
+    FHktStoryBuilder& StopMovement(FHktVar Entity);
+    FHktStoryBuilder& ApplyJump(FHktVar Entity, int32 ImpulseVelZ);
+    FHktStoryBuilder& GetDistance(FHktVar Dst, FHktVar Entity1, FHktVar Entity2);
+    FHktStoryBuilder& LookAt(FHktVar Entity, FHktVar TargetEntity);
+
+    // ---- Spatial Query ----
+    FHktStoryBuilder& FindInRadius(FHktVar CenterEntity, int32 RadiusCm);
+    FHktStoryBuilder& FindInRadiusEx(FHktVar CenterEntity, int32 RadiusCm, uint32 FilterMask);
+
+    /**
+     * 콜백 형태 ForEach — Body 람다는 Iter VReg(FHktVar) 를 인자로 받는다.
+     * 호환성을 위해 람다 형태의 본 메서드는 헤더에 인라인으로 둔다 (템플릿).
+     */
+    template <typename F>
+    FHktStoryBuilder& ForEachInRadius(FHktVar CenterEntity, int32 RadiusCm, F&& Body)
+    {
+        FHktVar IterIn = IterVar();
+        ForEachInRadius_Begin(CenterEntity, RadiusCm);
+        Body(*this, IterIn);
+        ForEachInRadius_End();
+        return *this;
+    }
+
+    // ---- WaitCollision: Hit VReg 명시 반환 ----
+    FHktVar WaitCollision(FHktVar Watch);
+
+    // ---- Combat ----
+    FHktStoryBuilder& ApplyDamage(FHktVar TargetEntity, FHktVar Amount);
+    FHktStoryBuilder& ApplyDamageConst(FHktVar TargetEntity, int32 Amount);
+
+    // ---- Tags ----
+    FHktStoryBuilder& AddTag(FHktVar Entity, const FGameplayTag& Tag);
+    FHktStoryBuilder& RemoveTag(FHktVar Entity, const FGameplayTag& Tag);
+    FHktStoryBuilder& HasTag(FHktVar Dst, FHktVar Entity, const FGameplayTag& Tag);
+    FHktStoryBuilder& CheckTrait(FHktVar Dst, FHktVar Entity, const FHktPropertyTrait* Trait);
+    FHktStoryBuilder& IfHasTrait(FHktVar Entity, const FHktPropertyTrait* Trait);
+
+    // ---- Presentation ----
+    FHktStoryBuilder& ApplyEffect(FHktVar TargetEntity, const FGameplayTag& EffectTag);
+    FHktStoryBuilder& RemoveEffect(FHktVar TargetEntity, const FGameplayTag& EffectTag);
+    FHktStoryBuilder& PlayVFX(FHktVarBlock PosBlock, const FGameplayTag& VFXTag);
+    FHktStoryBuilder& PlayVFXAttached(FHktVar Entity, const FGameplayTag& VFXTag);
+    FHktStoryBuilder& PlayAnim(FHktVar Entity, const FGameplayTag& AnimTag);
+    FHktStoryBuilder& PlaySoundAtLocation(FHktVarBlock PosBlock, const FGameplayTag& SoundTag);
+    FHktStoryBuilder& PlayVFXAtEntity(FHktVar Entity, const FGameplayTag& VFXTag);
+    FHktStoryBuilder& PlaySoundAtEntity(FHktVar Entity, const FGameplayTag& SoundTag);
+
+    // ---- World Query ----
+    FHktStoryBuilder& CountByTag(FHktVar Dst, const FGameplayTag& Tag);
+    FHktStoryBuilder& GetWorldTime(FHktVar Dst);
+    FHktStoryBuilder& RandomInt(FHktVar Dst, FHktVar ModulusVar);
+    FHktStoryBuilder& HasPlayerInGroup(FHktVar Dst);
+
+    // ---- Item ----
+    FHktStoryBuilder& CountByOwner(FHktVar Dst, FHktVar OwnerEntity, const FGameplayTag& Tag);
+    FHktStoryBuilder& FindByOwner(FHktVar OwnerEntity, const FGameplayTag& Tag);
+    FHktStoryBuilder& SetOwnerUid(FHktVar Entity);
+    FHktStoryBuilder& ClearOwnerUid(FHktVar Entity);
+
+    // ---- Stance / Item skill ----
+    FHktStoryBuilder& SetStance(FHktVar Entity, const FGameplayTag& StanceTag);
+    FHktStoryBuilder& SetItemSkillTag(FHktVar Entity, const FGameplayTag& SkillTag);
+
+    // ---- Event Dispatch ----
+    FHktStoryBuilder& DispatchEventTo(const FGameplayTag& EventTag, FHktVar TargetEntity);
+    FHktStoryBuilder& DispatchEventFrom(const FGameplayTag& EventTag, FHktVar SourceEntity);
+
+    // ---- Terrain ----
+    FHktStoryBuilder& GetTerrainHeight(FHktVar Dst, FHktVar VoxelX, FHktVar VoxelY);
+    FHktStoryBuilder& GetVoxelType(FHktVar Dst, FHktVarBlock PosXY, FHktVar ZVar);
+    FHktStoryBuilder& SetVoxel(FHktVarBlock Pos, FHktVar TypeVar);
+    FHktStoryBuilder& IsTerrainSolid(FHktVar Dst, FHktVarBlock PosXY, FHktVar ZVar);
+    FHktVarBlock     EntityPosToVoxel(FHktVar Entity, int32 VoxelSizeCm);
+    FHktStoryBuilder& DestroyVoxelAt(FHktVarBlock Pos);
+
+    // ---- Wait variants ----
+    FHktStoryBuilder& WaitAnimEnd(FHktVar Entity);
+    FHktStoryBuilder& WaitMoveEnd(FHktVar Entity);
+    FHktStoryBuilder& WaitGrounded(FHktVar Entity);
+
+    // ========================================================================
+    // 구 RegisterIndex API (deprecated — 시그니처/구현 보존)
+    //
+    // 이하 메서드는 PR-3 에서 새 FHktVar 기반 JSON 으로 strangler-fig 마이그레이션 예정.
+    // ========================================================================
 
     // ActiveSection이 자기 멤버(MainSection/PreconditionSection)를 가리키므로
     // implicit copy/move는 댕글링 포인터를 만든다. 복사 금지, move는 재조정.
@@ -561,21 +814,40 @@ public:
     /** 빌드 + 레지스트리 등록 — 검증 실패 시 등록하지 않음 */
     void BuildAndRegister();
 
+public:
+    // ForEach 템플릿이 호출하는 진입/종료 헬퍼 (FHktVar 기반).
+    // 사용자가 직접 호출할 일은 거의 없지만, 템플릿이 헤더에 인라인되므로 public.
+    FHktStoryBuilder& ForEachInRadius_Begin(FHktVar CenterEntity, int32 RadiusCm);
+    FHktStoryBuilder& ForEachInRadius_End();
+
 private:
     explicit FHktStoryBuilder(const FGameplayTag& Tag);
 
     void Emit(FInstruction Inst);
+
+    /**
+     * VReg 기반 인스트럭션 emit — 신 FHktVar API 의 공통 백엔드.
+     * Field(0..15) 는 비워두고 VReg ID만 기록 → 단계 2 할당기가 채운다.
+     */
+    void EmitV(EOpCode Op, FHktVar Dst, FHktVar Src1, FHktVar Src2, uint16 Imm12);
+    void EmitV_Imm20(EOpCode Op, FHktVar Dst, int32 Imm20);
+    /** Imm20 인코딩 + Dst 미사용 (DispatchEvent, PlaySound 등) */
+    void EmitV_Imm20NoDst(EOpCode Op, int32 Imm20);
+
+    /** FHktVar → 내부 VReg ID 변환 (-1 이면 InvalidVReg). 멤버 헬퍼 */
+    static FHktVRegId ToVRegId(FHktVar V) { return V.GetId(); }
+
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
 
     /**
      * VInst 단위 라벨/픽스업을 해소하면서 FInstruction 배열로 emit한다.
-     * 단계 1: VInst 인덱스가 FInstruction 인덱스와 1:1 일치하므로
-     * 기존 Label/Fixup PC가 그대로 유효하다.
+     * 단계 2: 라벨 픽스업 후 Linear-Scan 할당기가 anonymous VReg 에 물리 레지스터를 배정한다.
+     * 입력에 anonymous 가 없으면 할당기는 즉시 반환하여 PR-1과 byte-identical 출력을 보장.
      */
-    static void FinalizeAndEmitBytecode(FCodeSection& Section, const FGameplayTag& Tag,
-        TArray<FInstruction>& OutCode);
+    static bool FinalizeAndEmitBytecode(FCodeSection& Section, const FGameplayTag& Tag,
+        TArray<FInstruction>& OutCode, TArray<FString>& OutErrors);
 
     // 비교 + If 헬퍼 (18개 public 메서드의 공통 구현)
     FHktStoryBuilder& IfCmp(EOpCode CmpOp, RegisterIndex A, RegisterIndex B);
@@ -620,6 +892,9 @@ private:
 
     // 문자열 → int32 키 매핑 (JSON 파서용 — 런타임 동적 라벨 해석)
     TMap<FString, int32> NamedLabelMap;
+
+    // 신 FHktVar API 의 이름 기반 변수 매핑 (JSON schema 2 의 {"var":"name"} 해석용)
+    TMap<FString, FHktVRegHandle> NamedVarMap;
 
     // Flow 모드 — Self/Target 엔티티 없음
     bool bFlowMode = false;

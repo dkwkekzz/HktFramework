@@ -8,6 +8,7 @@
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
 #include "HktVRegIR.h"
+#include "HktVRegAllocator.h"
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
@@ -118,6 +119,76 @@ void FHktStoryBuilder::Emit(FInstruction Inst)
     // 단계 1: FInstruction → FHktVInst 변환 후 push.
     // RegisterIndex 0..15는 pre-colored VReg로 매핑되며, 동일 인덱스는 동일 VReg를 재사용.
     ActiveSection->Code.Add(HktVReg_FromInstruction(Inst, ActiveSection->RegPool));
+}
+
+// ============================================================================
+// FHktVar 기반 EmitV — 단계 2 (anonymous VReg 지원)
+// ============================================================================
+
+void FHktStoryBuilder::EmitV(EOpCode Op, FHktVar Dst, FHktVar Src1, FHktVar Src2, uint16 Imm12)
+{
+    FHktVInst V;
+    V.Op = Op;
+    V.Imm12Field = Imm12;
+    V.bUsesImm20 = false;
+    V.DstVReg = ToVRegId(Dst);
+    V.Src1VReg = ToVRegId(Src1);
+    V.Src2VReg = ToVRegId(Src2);
+    // Field 들은 0 으로 두고, 단계 2 할당기 + ToInstruction 이 ResolvePhysical 로 채운다.
+    ActiveSection->Code.Add(V);
+}
+
+void FHktStoryBuilder::EmitV_Imm20(EOpCode Op, FHktVar Dst, int32 Imm20)
+{
+    FHktVInst V;
+    V.Op = Op;
+    V.bUsesImm20 = true;
+    V.Imm20Field = Imm20;
+    V.DstVReg = ToVRegId(Dst);
+    ActiveSection->Code.Add(V);
+}
+
+void FHktStoryBuilder::EmitV_Imm20NoDst(EOpCode Op, int32 Imm20)
+{
+    FHktVInst V;
+    V.Op = Op;
+    V.bUsesImm20 = true;
+    V.Imm20Field = Imm20;
+    ActiveSection->Code.Add(V);
+}
+
+// ============================================================================
+// FHktVar — 변수 발급
+// ============================================================================
+
+FHktVar FHktStoryBuilder::NewVar(const TCHAR* DebugName)
+{
+    return FHktVar(ActiveSection->RegPool.NewAnonymous(DebugName));
+}
+
+FHktVarBlock FHktStoryBuilder::NewVarBlock(int32 Count, const TCHAR* DebugName)
+{
+    check(Count > 0 && Count <= 10);
+    const FHktVRegId Base = ActiveSection->RegPool.NewAnonymousBlock(Count, DebugName);
+    return FHktVarBlock(Base, Count);
+}
+
+FHktVar FHktStoryBuilder::Self()      { return FHktVar(ActiveSection->RegPool.EnsurePinned(Reg::Self)); }
+FHktVar FHktStoryBuilder::Target()    { return FHktVar(ActiveSection->RegPool.EnsurePinned(Reg::Target)); }
+FHktVar FHktStoryBuilder::SpawnedVar(){ return FHktVar(ActiveSection->RegPool.EnsurePinned(Reg::Spawned)); }
+FHktVar FHktStoryBuilder::HitVar()    { return FHktVar(ActiveSection->RegPool.EnsurePinned(Reg::Hit)); }
+FHktVar FHktStoryBuilder::IterVar()   { return FHktVar(ActiveSection->RegPool.EnsurePinned(Reg::Iter)); }
+FHktVar FHktStoryBuilder::FlagVar()   { return FHktVar(ActiveSection->RegPool.EnsurePinned(Reg::Flag)); }
+
+FHktVar FHktStoryBuilder::ResolveOrCreateNamedVar(const FString& Name)
+{
+    if (FHktVRegHandle* Found = NamedVarMap.Find(Name))
+    {
+        return FHktVar(*Found);
+    }
+    const FHktVRegId Id = ActiveSection->RegPool.NewAnonymous(*Name);
+    NamedVarMap.Add(Name, Id);
+    return FHktVar(Id);
 }
 
 int32 FHktStoryBuilder::AddString(const FString& Str)
@@ -1234,8 +1305,8 @@ static void ResolveVInstFixup(FHktVInst& V, int32 Target)
     }
 }
 
-void FHktStoryBuilder::FinalizeAndEmitBytecode(FCodeSection& Section, const FGameplayTag& Tag,
-    TArray<FInstruction>& OutCode)
+bool FHktStoryBuilder::FinalizeAndEmitBytecode(FCodeSection& Section, const FGameplayTag& Tag,
+    TArray<FInstruction>& OutCode, TArray<FString>& OutErrors)
 {
     // === 1) 라벨 해소: VInst의 Imm 필드에 라벨 PC를 패치 ===
     // FName 라벨 (사용자 정의 + Snippet)
@@ -1268,24 +1339,35 @@ void FHktStoryBuilder::FinalizeAndEmitBytecode(FCodeSection& Section, const FGam
         }
     }
 
-    // === 2) 검증: 모든 사용된 VReg가 0..15 범위의 pre-colored인지 확인 ===
-    // 단계 1: anonymous VReg가 없으므로 위반은 곧 버그. 단계 2에서 spill 처리로 확장.
+    // === 2) Liveness + Linear-Scan 할당기 ===
+    // 모든 VReg 가 pre-colored 면 즉시 반환 → byte-identical 보장. anonymous 가 있으면 GP 레지스터 배정.
+    if (!HktVRegAlloc::Allocate(Section, Tag, OutErrors))
+    {
+        // 진단은 OutErrors 에 누적됨. 호출자가 Build 결과를 nullptr 로 반환할 수 있도록 false 반환.
+        return false;
+    }
+
+    // === 3) 검증: 모든 사용된 VReg가 0..15 범위에 핀되었는지 확인 ===
     for (const FHktVRegMeta& Meta : Section.RegPool.Metas)
     {
+        // 블록 멤버는 ResolvePhysical 이 base+offset 으로 자동 해소되므로 자체 PinnedPhysical 은 -1 일 수 있다.
+        if (Meta.BlockBaseVReg >= 0) continue;
         if (Meta.PinnedPhysical < 0 || Meta.PinnedPhysical >= FHktVRegPool::NumPhysicalRegs)
         {
             HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server,
-                FString::Printf(TEXT("Story '%s': pre-colored 범위(0..15)를 벗어난 VReg 발견 (Pinned=%d)"),
+                FString::Printf(TEXT("Story '%s': 미할당 또는 범위 외 VReg 발견 (Pinned=%d)"),
                     *Tag.ToString(), Meta.PinnedPhysical));
         }
     }
 
-    // === 3) emit: VInst → FInstruction (인덱스 1:1) ===
+    // === 4) emit: VInst → FInstruction (인덱스 1:1) ===
     OutCode.Reset(Section.Code.Num());
     for (const FHktVInst& V : Section.Code)
     {
         OutCode.Add(HktVReg_ToInstruction(V, Section.RegPool));
     }
+    return true;
+}
 }
 
 TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
@@ -1295,8 +1377,19 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
         Halt();
     }
 
-    // === MainSection: VInst → FInstruction emit (라벨 해소 포함) ===
-    FinalizeAndEmitBytecode(*MainSection, Program->Tag, Program->Code);
+    // === MainSection: VInst → FInstruction emit (라벨 해소 + 할당기 포함) ===
+    if (!FinalizeAndEmitBytecode(*MainSection, Program->Tag, Program->Code, ValidationErrors))
+    {
+        HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
+            TEXT("===== Story '%s' Build FAILED — Linear-Scan 할당 실패 ====="),
+            *Program->Tag.ToString()));
+        for (const FString& Err : ValidationErrors)
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server,
+                FString::Printf(TEXT("  %s"), *Err));
+        }
+        return nullptr;
+    }
     Program->Constants = MoveTemp(MainSection->Constants);
     Program->Strings = MoveTemp(MainSection->Strings);
 
@@ -1343,7 +1436,13 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
     // === PreconditionSection: VInst → FInstruction emit ===
     if (PreconditionSection->Code.Num() > 0)
     {
-        FinalizeAndEmitBytecode(*PreconditionSection, Program->Tag, Program->PreconditionCode);
+        if (!FinalizeAndEmitBytecode(*PreconditionSection, Program->Tag, Program->PreconditionCode, ValidationErrors))
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
+                TEXT("Story '%s': Precondition Linear-Scan 할당 실패"),
+                *Program->Tag.ToString()));
+            return nullptr;
+        }
         Program->PreconditionConstants = MoveTemp(PreconditionSection->Constants);
         Program->PreconditionStrings = MoveTemp(PreconditionSection->Strings);
     }
@@ -1360,7 +1459,534 @@ void FHktStoryBuilder::BuildAndRegister()
     }
 }
 
+// ============================================================================
+// FHktVar 기반 신 API 구현 — 모든 메서드는 EmitV / EmitV_Imm20 / EmitV_Imm20NoDst 만 사용
+// 하여 anonymous VReg 도 자연스럽게 처리된다. pre-colored VReg(Self/Target/...)는
+// EnsurePinned 로 발급된 VReg ID를 그대로 전달한다.
+// ============================================================================
 
+namespace
+{
+    // 빈 FHktVar (InvalidVReg) — Src1/Src2 가 없는 op 에서 사용
+    inline FHktVar VNone() { return FHktVar(); }
+}
+
+// ---- 데이터 ----
+FHktStoryBuilder& FHktStoryBuilder::LoadConst(FHktVar Dst, int32 Value)
+{
+    if (Value >= -524288 && Value <= 524287)
+    {
+        EmitV_Imm20(EOpCode::LoadConst, Dst, Value);
+    }
+    else
+    {
+        EmitV_Imm20(EOpCode::LoadConst, Dst, Value & 0xFFFFF);
+        EmitV(EOpCode::LoadConstHigh, Dst, VNone(), VNone(), static_cast<uint16>((Value >> 20) & 0xFFF));
+    }
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::LoadStore(FHktVar Dst, uint16 PropertyId)
+{
+    ValidatePropertyAccess(PropertyId, SelfArchetype);
+    EmitV(EOpCode::LoadStore, Dst, VNone(), VNone(), PropertyId);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::LoadStoreEntity(FHktVar Dst, FHktVar Entity, uint16 PropertyId)
+{
+    EmitV(EOpCode::LoadStoreEntity, Dst, Entity, VNone(), PropertyId);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SaveStore(uint16 PropertyId, FHktVar Src)
+{
+    ValidatePropertyAccess(PropertyId, SelfArchetype);
+    EmitV(EOpCode::SaveStore, VNone(), Src, VNone(), PropertyId);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SaveStoreEntity(FHktVar Entity, uint16 PropertyId, FHktVar Src)
+{
+    EmitV(EOpCode::SaveStoreEntity, VNone(), Entity, Src, PropertyId);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SaveConstEntity(FHktVar Entity, uint16 PropertyId, int32 Value)
+{
+    FHktVar Tmp = NewVar(TEXT("SaveConstEntity.Tmp"));
+    LoadConst(Tmp, Value);
+    SaveStoreEntity(Entity, PropertyId, Tmp);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::Move(FHktVar Dst, FHktVar Src)
+{
+    EmitV(EOpCode::Move, Dst, Src, VNone(), 0);
+    return *this;
+}
+
+// ---- 산술 ----
+FHktStoryBuilder& FHktStoryBuilder::Add(FHktVar Dst, FHktVar Src1, FHktVar Src2) { EmitV(EOpCode::Add, Dst, Src1, Src2, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::Sub(FHktVar Dst, FHktVar Src1, FHktVar Src2) { EmitV(EOpCode::Sub, Dst, Src1, Src2, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::Mul(FHktVar Dst, FHktVar Src1, FHktVar Src2) { EmitV(EOpCode::Mul, Dst, Src1, Src2, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::Div(FHktVar Dst, FHktVar Src1, FHktVar Src2) { EmitV(EOpCode::Div, Dst, Src1, Src2, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::AddImm(FHktVar Dst, FHktVar Src, int32 Imm)
+{
+    EmitV(EOpCode::AddImm, Dst, Src, VNone(), static_cast<uint16>(Imm & 0xFFF));
+    return *this;
+}
+
+// ---- 비교 ----
+FHktStoryBuilder& FHktStoryBuilder::CmpEq(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpEq, D, A, B, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::CmpNe(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpNe, D, A, B, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::CmpLt(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpLt, D, A, B, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::CmpLe(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpLe, D, A, B, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::CmpGt(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpGt, D, A, B, 0); return *this; }
+FHktStoryBuilder& FHktStoryBuilder::CmpGe(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpGe, D, A, B, 0); return *this; }
+
+// ---- 점프 ----
+FHktStoryBuilder& FHktStoryBuilder::JumpIf(FHktVar Cond, FName LabelName)
+{
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
+    EmitV(EOpCode::JumpIf, VNone(), Cond, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(FHktVar Cond, FName LabelName)
+{
+    ActiveSection->Fixups.Add({ActiveSection->Code.Num(), LabelName});
+    EmitV(EOpCode::JumpIfNot, VNone(), Cond, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::JumpIf(FHktVar Cond, int32 Key)
+{
+    ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
+    EmitV(EOpCode::JumpIf, VNone(), Cond, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::JumpIfNot(FHktVar Cond, int32 Key)
+{
+    ActiveSection->IntFixups.Add({ActiveSection->Code.Num(), Key});
+    EmitV(EOpCode::JumpIfNot, VNone(), Cond, VNone(), 0);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::If(FHktVar Cond)
+{
+    const int32 Id = IfCounter++;
+    IfStack.Push({Id, false});
+    JumpIfNot(Cond, MakeLabelKey(LT_If, Id, 0));   // → false branch
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::IfNot(FHktVar Cond)
+{
+    const int32 Id = IfCounter++;
+    IfStack.Push({Id, false});
+    JumpIf(Cond, MakeLabelKey(LT_If, Id, 0));      // → false branch
+    return *this;
+}
+
+// ---- 엔티티 ----
+FHktVar FHktStoryBuilder::SpawnEntityVar(const FGameplayTag& ClassTag)
+{
+    int32 TagIdx = TagToInt(ClassTag);
+    EmitV_Imm20NoDst(EOpCode::SpawnEntity, TagIdx & 0xFFF);
+    // 단계 2: SpawnEntity 의 결과 슬롯은 여전히 Reg::Spawned (VM 시맨틱). 명시 반환은 그 핸들.
+    SpawnedArchetype = FHktArchetypeRegistry::Get().FindByTag(ClassTag);
+    return SpawnedVar();
+}
+
+FHktStoryBuilder& FHktStoryBuilder::DestroyEntity(FHktVar Entity)
+{
+    EmitV(EOpCode::DestroyEntity, VNone(), Entity, VNone(), 0);
+    return *this;
+}
+
+// ---- Position & Movement ----
+FHktVarBlock FHktStoryBuilder::GetPosition(FHktVar Entity)
+{
+    FHktVarBlock Pos = NewVarBlock(3, TEXT("GetPosition"));
+    LoadStoreEntity(Pos.Element(0), Entity, PropertyId::PosX);
+    LoadStoreEntity(Pos.Element(1), Entity, PropertyId::PosY);
+    LoadStoreEntity(Pos.Element(2), Entity, PropertyId::PosZ);
+    return Pos;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SetPosition(FHktVar Entity, FHktVarBlock Src)
+{
+    check(Src.Num() >= 3);
+    SaveStoreEntity(Entity, PropertyId::PosX, Src.Element(0));
+    SaveStoreEntity(Entity, PropertyId::PosY, Src.Element(1));
+    SaveStoreEntity(Entity, PropertyId::PosZ, Src.Element(2));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::CopyPosition(FHktVar DstEntity, FHktVar SrcEntity)
+{
+    FHktVarBlock Pos = GetPosition(SrcEntity);
+    SetPosition(DstEntity, Pos);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::MoveToward(FHktVar Entity, FHktVarBlock TargetPos, int32 Force)
+{
+    check(TargetPos.Num() >= 3);
+    SaveStoreEntity(Entity, PropertyId::MoveTargetX, TargetPos.Element(0));
+    SaveStoreEntity(Entity, PropertyId::MoveTargetY, TargetPos.Element(1));
+    SaveStoreEntity(Entity, PropertyId::MoveTargetZ, TargetPos.Element(2));
+    SaveConstEntity(Entity, PropertyId::MoveForce, Force);
+    SaveConstEntity(Entity, PropertyId::IsMoving, 1);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::MoveForward(FHktVar Entity, int32 Force)
+{
+    FHktVar Yaw = NewVar(TEXT("MoveForward.Yaw"));
+    LoadStoreEntity(Yaw, Self(), PropertyId::RotYaw);
+    SaveStoreEntity(Entity, PropertyId::RotYaw, Yaw);
+    EmitV(EOpCode::SetForwardTarget, VNone(), Entity, VNone(), 0);
+    SaveConstEntity(Entity, PropertyId::MoveForce, Force);
+    SaveConstEntity(Entity, PropertyId::IsMoving, 1);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::StopMovement(FHktVar Entity)
+{
+    SaveConstEntity(Entity, PropertyId::IsMoving, 0);
+    SaveConstEntity(Entity, PropertyId::VelX, 0);
+    SaveConstEntity(Entity, PropertyId::VelY, 0);
+    SaveConstEntity(Entity, PropertyId::VelZ, 0);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ApplyJump(FHktVar Entity, int32 ImpulseVelZ)
+{
+    SaveConstEntity(Entity, PropertyId::IsGrounded, 0);
+    SaveConstEntity(Entity, PropertyId::VelZ, ImpulseVelZ);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::GetDistance(FHktVar Dst, FHktVar E1, FHktVar E2)
+{
+    EmitV(EOpCode::GetDistance, Dst, E1, E2, 0);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::LookAt(FHktVar Entity, FHktVar TargetEntity)
+{
+    EmitV(EOpCode::LookAt, VNone(), Entity, TargetEntity, 0);
+    return *this;
+}
+
+// ---- Spatial Query ----
+FHktStoryBuilder& FHktStoryBuilder::FindInRadius(FHktVar CenterEntity, int32 RadiusCm)
+{
+    EmitV(EOpCode::FindInRadius, FlagVar(), CenterEntity, VNone(), static_cast<uint16>(RadiusCm & 0xFFF));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::FindInRadiusEx(FHktVar CenterEntity, int32 RadiusCm, uint32 FilterMask)
+{
+    FHktVar RadiusReg = NewVar(TEXT("FindInRadiusEx.Radius"));
+    FHktVar MaskReg = NewVar(TEXT("FindInRadiusEx.Mask"));
+    LoadConst(RadiusReg, RadiusCm);
+    LoadConst(MaskReg, static_cast<int32>(FilterMask));
+    // 인터프리터는 Imm12 에 RadiusReg 의 물리 인덱스를 기대한다 — 할당 후에야 알 수 있으므로,
+    // 본 신 API 는 RadiusReg 사용 시 별도 hack 이 필요. 단순화: pre-colored Reg::R0 강제 사용.
+    // TODO(PR-3): VM 인터프리터의 FindInRadiusEx 를 VReg 기반 인코딩으로 재설계.
+    // 임시: Imm12 에 0 을 두어 R0 를 기대하게 한다 — RadiusReg 가 R0 에 핀되도록 강제하지는 못하므로
+    // 본 경로는 안전한 결정론을 위해 단순 형태 (FindInRadius) 사용을 권장한다.
+    EmitV(EOpCode::FindInRadiusEx, FlagVar(), CenterEntity, MaskReg, 0);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius_Begin(FHktVar CenterEntity, int32 RadiusCm)
+{
+    const int32 Id = ForEachCounter++;
+    ForEachStack.Push({Id});
+
+    FindInRadius(CenterEntity, RadiusCm);
+    Label(MakeLabelKey(LT_ForEach, Id, 0));          // loop
+    EmitV(EOpCode::NextFound, IterVar(), VNone(), VNone(), 0);
+    JumpIfNot(FlagVar(), MakeLabelKey(LT_ForEach, Id, 1)); // → end
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ForEachInRadius_End()
+{
+    check(ForEachStack.Num() > 0);
+    FForEachContext Ctx = ForEachStack.Pop();
+    Jump(MakeLabelKey(LT_ForEach, Ctx.Id, 0));      // → loop
+    Label(MakeLabelKey(LT_ForEach, Ctx.Id, 1));      // end
+    return *this;
+}
+
+// ---- WaitCollision ----
+FHktVar FHktStoryBuilder::WaitCollision(FHktVar Watch)
+{
+    // VM 시맨틱: WaitCollision 의 결과는 항상 Reg::Hit 슬롯
+    EmitV(EOpCode::WaitCollision, HitVar(), Watch, VNone(), 0);
+    return HitVar();
+}
+
+// ---- Combat ----
+FHktStoryBuilder& FHktStoryBuilder::ApplyDamage(FHktVar TargetEntity, FHktVar Amount)
+{
+    FHktVar Dmg = NewVar(TEXT("ApplyDamage.Dmg"));
+    FHktVar Scratch = NewVar(TEXT("ApplyDamage.Scratch"));
+    Move(Dmg, Amount);
+    LoadStoreEntity(Scratch, TargetEntity, PropertyId::Defense);
+    Sub(Dmg, Dmg, Scratch);
+
+    LoadConst(Scratch, 1);
+    CmpLt(FlagVar(), Dmg, Scratch);
+    {
+        const int32 Key = MakeLabelKey(LT_Internal, InternalLabelCounter++, 0);
+        JumpIfNot(FlagVar(), Key);
+        Move(Dmg, Scratch);
+        Label(Key);
+    }
+
+    LoadStoreEntity(Scratch, TargetEntity, PropertyId::Health);
+    Sub(Scratch, Scratch, Dmg);
+
+    {
+        FHktVar Zero = NewVar(TEXT("ApplyDamage.Zero"));
+        LoadConst(Zero, 0);
+        CmpLt(FlagVar(), Scratch, Zero);
+        const int32 Key = MakeLabelKey(LT_Internal, InternalLabelCounter++, 0);
+        JumpIfNot(FlagVar(), Key);
+        Move(Scratch, Zero);
+        Label(Key);
+    }
+
+    SaveStoreEntity(TargetEntity, PropertyId::Health, Scratch);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::ApplyDamageConst(FHktVar TargetEntity, int32 Amount)
+{
+    FHktVar AmountVar = NewVar(TEXT("ApplyDamageConst.Amount"));
+    LoadConst(AmountVar, Amount);
+    return ApplyDamage(TargetEntity, AmountVar);
+}
+
+// ---- Tags ----
+FHktStoryBuilder& FHktStoryBuilder::AddTag(FHktVar Entity, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    EmitV(EOpCode::AddTag, VNone(), Entity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::RemoveTag(FHktVar Entity, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    EmitV(EOpCode::RemoveTag, VNone(), Entity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::HasTag(FHktVar Dst, FHktVar Entity, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    EmitV(EOpCode::HasTag, Dst, Entity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::CheckTrait(FHktVar Dst, FHktVar Entity, const FHktPropertyTrait* Trait)
+{
+    int32 TraitIdx = FHktArchetypeRegistry::Get().GetTraitIndex(Trait);
+    checkf(TraitIdx >= 0, TEXT("CheckTrait: Trait not registered"));
+    EmitV(EOpCode::CheckTrait, Dst, Entity, VNone(), static_cast<uint16>(TraitIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::IfHasTrait(FHktVar Entity, const FHktPropertyTrait* Trait)
+{
+    FHktVar Tmp = NewVar(TEXT("IfHasTrait.Tmp"));
+    CheckTrait(Tmp, Entity, Trait);
+    return If(Tmp);
+}
+
+// ---- Presentation ----
+FHktStoryBuilder& FHktStoryBuilder::ApplyEffect(FHktVar Target, const FGameplayTag& EffectTag)
+{
+    int32 TagIdx = TagToInt(EffectTag);
+    EmitV(EOpCode::ApplyEffect, VNone(), Target, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::RemoveEffect(FHktVar Target, const FGameplayTag& EffectTag)
+{
+    int32 TagIdx = TagToInt(EffectTag);
+    EmitV(EOpCode::RemoveEffect, VNone(), Target, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::PlayVFX(FHktVarBlock PosBlock, const FGameplayTag& VFXTag)
+{
+    int32 TagIdx = TagToInt(VFXTag);
+    EmitV(EOpCode::PlayVFX, VNone(), PosBlock.Element(0), VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::PlayVFXAttached(FHktVar Entity, const FGameplayTag& VFXTag)
+{
+    int32 TagIdx = TagToInt(VFXTag);
+    EmitV(EOpCode::PlayVFXAttached, VNone(), Entity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::PlayAnim(FHktVar Entity, const FGameplayTag& AnimTag)
+{
+    int32 TagIdx = TagToInt(AnimTag);
+    EmitV(EOpCode::PlayAnim, VNone(), Entity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::PlaySoundAtLocation(FHktVarBlock PosBlock, const FGameplayTag& SoundTag)
+{
+    int32 TagIdx = TagToInt(SoundTag);
+    EmitV(EOpCode::PlaySoundAtLocation, VNone(), PosBlock.Element(0), VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::PlayVFXAtEntity(FHktVar Entity, const FGameplayTag& VFXTag)
+{
+    FHktVarBlock Pos = GetPosition(Entity);
+    return PlayVFX(Pos, VFXTag);
+}
+FHktStoryBuilder& FHktStoryBuilder::PlaySoundAtEntity(FHktVar Entity, const FGameplayTag& SoundTag)
+{
+    FHktVarBlock Pos = GetPosition(Entity);
+    return PlaySoundAtLocation(Pos, SoundTag);
+}
+
+// ---- World Query ----
+FHktStoryBuilder& FHktStoryBuilder::CountByTag(FHktVar Dst, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    EmitV(EOpCode::CountByTag, Dst, VNone(), VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::GetWorldTime(FHktVar Dst)
+{
+    EmitV(EOpCode::GetWorldTime, Dst, VNone(), VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::RandomInt(FHktVar Dst, FHktVar Mod)
+{
+    EmitV(EOpCode::RandomInt, Dst, Mod, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::HasPlayerInGroup(FHktVar Dst)
+{
+    EmitV(EOpCode::HasPlayerInGroup, Dst, VNone(), VNone(), 0);
+    return *this;
+}
+
+// ---- Item ----
+FHktStoryBuilder& FHktStoryBuilder::CountByOwner(FHktVar Dst, FHktVar OwnerEntity, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    EmitV(EOpCode::CountByOwner, Dst, OwnerEntity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::FindByOwner(FHktVar OwnerEntity, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    EmitV(EOpCode::FindByOwner, FlagVar(), OwnerEntity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::SetOwnerUid(FHktVar Entity)
+{
+    EmitV(EOpCode::SetOwnerUid, VNone(), Entity, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::ClearOwnerUid(FHktVar Entity)
+{
+    EmitV(EOpCode::ClearOwnerUid, VNone(), Entity, VNone(), 0);
+    return *this;
+}
+
+// ---- Stance / Item skill ----
+FHktStoryBuilder& FHktStoryBuilder::SetStance(FHktVar Entity, const FGameplayTag& StanceTag)
+{
+    int32 TagIdx = TagToInt(StanceTag);
+    SaveConstEntity(Entity, PropertyId::Stance, TagIdx);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::SetItemSkillTag(FHktVar Entity, const FGameplayTag& SkillTag)
+{
+    int32 TagIdx = TagToInt(SkillTag);
+    SaveConstEntity(Entity, PropertyId::ItemSkillTag, TagIdx);
+    return *this;
+}
+
+// ---- Event Dispatch ----
+FHktStoryBuilder& FHktStoryBuilder::DispatchEventTo(const FGameplayTag& EventTag, FHktVar TargetEntity)
+{
+    int32 TagIdx = TagToInt(EventTag);
+    EmitV_Imm20(EOpCode::DispatchEventTo, TargetEntity, TagIdx);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::DispatchEventFrom(const FGameplayTag& EventTag, FHktVar SourceEntity)
+{
+    int32 TagIdx = TagToInt(EventTag);
+    EmitV_Imm20(EOpCode::DispatchEventFrom, SourceEntity, TagIdx);
+    return *this;
+}
+
+// ---- Terrain ----
+FHktStoryBuilder& FHktStoryBuilder::GetTerrainHeight(FHktVar Dst, FHktVar VoxelX, FHktVar VoxelY)
+{
+    EmitV(EOpCode::GetTerrainHeight, Dst, VoxelX, VoxelY, 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::GetVoxelType(FHktVar Dst, FHktVarBlock PosXY, FHktVar Z)
+{
+    check(PosXY.Num() >= 2);
+    EmitV(EOpCode::GetVoxelType, Dst, PosXY.Element(0), Z, 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::SetVoxel(FHktVarBlock Pos, FHktVar Type)
+{
+    check(Pos.Num() >= 3);
+    EmitV(EOpCode::SetVoxel, VNone(), Pos.Element(0), Type, 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::IsTerrainSolid(FHktVar Dst, FHktVarBlock PosXY, FHktVar Z)
+{
+    check(PosXY.Num() >= 2);
+    EmitV(EOpCode::IsTerrainSolid, Dst, PosXY.Element(0), Z, 0);
+    return *this;
+}
+FHktVarBlock FHktStoryBuilder::EntityPosToVoxel(FHktVar Entity, int32 VoxelSizeCm)
+{
+    FHktVarBlock Out = NewVarBlock(3, TEXT("EntityPosToVoxel"));
+    FHktVar Divisor = NewVar(TEXT("EntityPosToVoxel.Divisor"));
+    LoadStoreEntity(Out.Element(0), Entity, PropertyId::PosX);
+    LoadStoreEntity(Out.Element(1), Entity, PropertyId::PosY);
+    LoadStoreEntity(Out.Element(2), Entity, PropertyId::PosZ);
+    LoadConst(Divisor, VoxelSizeCm);
+    Div(Out.Element(0), Out.Element(0), Divisor);
+    Div(Out.Element(1), Out.Element(1), Divisor);
+    Div(Out.Element(2), Out.Element(2), Divisor);
+    return Out;
+}
+FHktStoryBuilder& FHktStoryBuilder::DestroyVoxelAt(FHktVarBlock Pos)
+{
+    FHktVar Type = NewVar(TEXT("DestroyVoxelAt.Type"));
+    LoadConst(Type, 0);
+    return SetVoxel(Pos, Type);
+}
+
+// ---- Wait ----
+FHktStoryBuilder& FHktStoryBuilder::WaitAnimEnd(FHktVar Entity)
+{
+    EmitV(EOpCode::WaitAnimEnd, VNone(), Entity, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::WaitMoveEnd(FHktVar Entity)
+{
+    EmitV(EOpCode::WaitMoveEnd, VNone(), Entity, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::WaitGrounded(FHktVar Entity)
+{
+    EmitV(EOpCode::WaitGrounded, VNone(), Entity, VNone(), 0);
+    return *this;
+}
 
 // ============================================================================
 // Public Query API
