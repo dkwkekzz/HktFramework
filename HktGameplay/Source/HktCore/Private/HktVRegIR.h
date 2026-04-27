@@ -61,14 +61,25 @@ struct FHktVInst
  * 단계 1에서 모든 VReg는 PinnedPhysical >= 0 (고정 핀)이다.
  * 단계 2에서 PinnedPhysical = -1 인 anonymous VReg가 도입되며,
  * FirstDef/LastUse를 기반으로 linear-scan 할당이 이루어진다.
+ *
+ * 블록 VReg(연속 N개 물리 레지스터):
+ *   - bIsBlockBase=true 이면 BlockSize 만큼의 연속 영역이 예약된다.
+ *   - 블록 멤버(첫 번째가 아닌)는 BlockBaseVReg / BlockOffset 으로 베이스를 참조하며,
+ *     ResolvePhysical()이 base+offset을 반환한다. 멤버 자체의 PinnedPhysical은 -1로 둔다.
+ *   - 단계 2의 LinearScan 할당기는 베이스를 먼저 배치한 뒤 멤버를 자동으로 채운다.
  */
 struct FHktVRegMeta
 {
     int32 PinnedPhysical = -1;       // 0..15 = pre-colored, -1 = anonymous
     bool bIsBlockBase = false;       // 연속 블록의 base 인지 여부
     int32 BlockSize = 1;             // 블록 크기 (1 = 단일 레지스터)
+    int32 BlockBaseVReg = -1;        // 멤버 VReg가 가리키는 베이스 (-1 = 자기 자신)
+    int32 BlockOffset = 0;           // 베이스로부터의 오프셋 (0 = 베이스 자신)
     int32 FirstDef = INT32_MAX;      // 최초 정의된 VInst 인덱스
     int32 LastUse = -1;              // 마지막 사용 VInst 인덱스
+
+    // 디버그/오류 메시지용 — 할당 실패 진단을 돕는다 (결정론에 영향 없음).
+    FString DebugName;
 };
 
 /**
@@ -105,12 +116,76 @@ struct FHktVRegPool
         return PhysicalToVReg[PhysicalIndex];
     }
 
+    /** anonymous VReg 1개 생성 — 단계 2 할당기가 물리 레지스터를 결정 */
+    FHktVRegId NewAnonymous(const TCHAR* DebugName = nullptr)
+    {
+        FHktVRegMeta Meta;
+        Meta.PinnedPhysical = -1;
+        if (DebugName) Meta.DebugName = DebugName;
+        return Metas.Add(Meta);
+    }
+
+    /**
+     * 연속 N개 anonymous 블록 생성 — 첫 VReg가 base, 나머지는 멤버.
+     * 모든 VReg는 anonymous(PinnedPhysical=-1)이며 멤버는 BlockBaseVReg/BlockOffset 으로 base를 참조한다.
+     * 반환값은 base VReg ID. base+1..base+N-1 의 VReg ID는 base + i 가 아니라 Metas의 연속 인덱스다.
+     */
+    FHktVRegId NewAnonymousBlock(int32 Count, const TCHAR* DebugName = nullptr)
+    {
+        check(Count > 0 && Count <= NumPhysicalRegs);
+        FHktVRegMeta BaseMeta;
+        BaseMeta.PinnedPhysical = -1;
+        BaseMeta.bIsBlockBase = true;
+        BaseMeta.BlockSize = Count;
+        if (DebugName) BaseMeta.DebugName = DebugName;
+        const FHktVRegId BaseId = Metas.Add(BaseMeta);
+        for (int32 i = 1; i < Count; ++i)
+        {
+            FHktVRegMeta Member;
+            Member.PinnedPhysical = -1;
+            Member.BlockBaseVReg = BaseId;
+            Member.BlockOffset = i;
+            if (DebugName) Member.DebugName = FString::Printf(TEXT("%s[%d]"), DebugName, i);
+            Metas.Add(Member);
+        }
+        return BaseId;
+    }
+
+    /** 블록 VReg의 i번째 멤버 VReg ID (i=0은 베이스 자신) */
+    FHktVRegId GetBlockMember(FHktVRegId BaseId, int32 Index) const
+    {
+        check(BaseId != InvalidVReg && BaseId >= 0 && BaseId < Metas.Num());
+        check(Metas[BaseId].bIsBlockBase);
+        check(Index >= 0 && Index < Metas[BaseId].BlockSize);
+        // 베이스 직후에 멤버들이 연속 추가되었으므로 BaseId + Index 가 멤버 VReg ID 이다.
+        return BaseId + Index;
+    }
+
     /** VReg → 물리 레지스터 인덱스 (-1이면 미할당) */
     int32 ResolvePhysical(FHktVRegId Id) const
     {
         if (Id == InvalidVReg) return -1;
         check(Id >= 0 && Id < Metas.Num());
-        return Metas[Id].PinnedPhysical;
+        const FHktVRegMeta& Meta = Metas[Id];
+        if (Meta.BlockBaseVReg >= 0)
+        {
+            const int32 BasePhys = Metas[Meta.BlockBaseVReg].PinnedPhysical;
+            return (BasePhys >= 0) ? (BasePhys + Meta.BlockOffset) : -1;
+        }
+        return Meta.PinnedPhysical;
+    }
+
+    /** 모든 VReg가 pre-colored 인지 — 그렇다면 할당기를 건너뛸 수 있다 (byte-identical 보장) */
+    bool AllPreColored() const
+    {
+        for (const FHktVRegMeta& M : Metas)
+        {
+            if (M.PinnedPhysical < 0 && M.BlockBaseVReg < 0)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 };
 
