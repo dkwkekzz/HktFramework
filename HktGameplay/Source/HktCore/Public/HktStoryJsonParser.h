@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "HktStoryTypes.h"
+#include "HktStoryBuilder.h"  // FHktVar / FHktVarBlock 완전 정의 필요 (return-by-value)
 
-class FHktStoryBuilder;
 class FJsonObject;
 
 // ============================================================================
@@ -23,11 +23,33 @@ struct HKTCORE_API FHktStoryCmdArgs
 
 	// --- 타입별 게터 ---
 
-	/** 필수 레지스터. 실패 시 R0 반환 + 에러 누적 */
+	/**
+	 * @deprecated PR-3 에서 GetVar(B, Key) 로 대체 예정. 현재는 schema 1 (구 표기 "R0".."R9", "Self") 호환.
+	 * 필수 레지스터. 실패 시 R0 반환 + 에러 누적
+	 */
 	RegisterIndex GetReg(const FString& Key) const;
 
-	/** 옵션 레지스터. 필드 없으면 Default 반환 */
+	/**
+	 * @deprecated PR-3 에서 GetVar / GetVarOpt 로 대체 예정.
+	 * 옵션 레지스터. 필드 없으면 Default 반환
+	 */
 	RegisterIndex GetRegOpt(const FString& Key, RegisterIndex Default) const;
+
+	/**
+	 * 신 FHktVar API (schema 2). 다음 4종 VarRef JSON 폼을 모두 처리:
+	 *   - {"var": "name"}        — 같은 빌더 내 같은 이름은 같은 VReg.
+	 *   - {"self": true}         — FHktStoryBuilder::Self()
+	 *   - {"target": true}       — FHktStoryBuilder::Target()
+	 *   - {"const": N}           — 자동 NewVar + LoadConst(N) 후 새 VReg 반환
+	 * Schema 1 호환: 키 값이 문자열이면 ParseRegister 로 처리하여 pre-colored VReg 핸들 반환.
+	 */
+	FHktVar GetVar(FHktStoryBuilder& B, const FString& Key) const;
+
+	/**
+	 * 블록 변수 — JSON 폼: {"block": "name", "count": N}.
+	 * 같은 이름의 블록은 같은 FHktVarBlock 을 반환한다.
+	 */
+	FHktVarBlock GetVarBlock(FHktStoryBuilder& B, const FString& Key, int32 Count) const;
 
 	/** 필수 정수. 실패 시 0 반환 + 에러 누적 */
 	int32 GetInt(const FString& Key) const;
@@ -56,6 +78,9 @@ struct HKTCORE_API FHktStoryCmdArgs
 
 	/** 태그 해석 함수 — Parser가 디스패치 전에 설정 */
 	TFunction<FGameplayTag(const FString&)> ResolveTagFunc;
+
+	/** Story 메타의 schema 버전 (1=구, 2=신 FHktVar VarRef). 기본 1. */
+	int32 SchemaVersion = 1;
 
 	/** 파싱 에러 누적 (핸들러 실행 후 검사) */
 	mutable TArray<FString> Errors;
@@ -97,8 +122,14 @@ class HKTCORE_API FHktStoryJsonParser
 public:
 	static FHktStoryJsonParser& Get();
 
-	/** 커맨드 핸들러 등록 (게임 모듈에서 확장 가능) */
+	/** 커맨드 핸들러 등록 (게임 모듈에서 확장 가능) — schema 1 (구) */
 	void RegisterCommand(const FString& OpName, FHktStoryCommandHandler Handler);
+
+	/**
+	 * Schema 2 핸들러 등록 — VarRef 객체를 받는 신 API 핸들러.
+	 * Schema 2 Story 가 디스패치될 때 본 맵을 우선 조회하고, 없으면 v1 핸들러로 폴백한다(공통 op).
+	 */
+	void RegisterCommandV2(const FString& OpName, FHktStoryCommandHandler Handler);
 
 	/** JSON Story 전체를 파싱하여 빌드 + 등록 (기본 태그 해석) */
 	FHktStoryParseResult ParseAndBuild(const FString& JsonStr);
@@ -126,6 +157,7 @@ public:
 private:
 	FHktStoryJsonParser();
 	void InitializeCoreCommands();
+	void InitializeCoreCommandsV2();
 
 	/** preconditions 배열 파싱 — Builder의 BeginPrecondition/EndPrecondition 사이로 디스패치 */
 	bool ParsePreconditions(
@@ -135,4 +167,5 @@ private:
 		FHktStoryParseResult& Result);
 
 	TMap<FString, FHktStoryCommandHandler> CommandMap;
+	TMap<FString, FHktStoryCommandHandler> CommandMapV2;
 };
