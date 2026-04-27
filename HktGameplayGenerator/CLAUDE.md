@@ -79,12 +79,12 @@ hkt_mcp/
 
 ### 모듈 목록
 
-| 모듈 | 타입 | 역할 |
+| 모듈 | 타입 / LoadingPhase | 역할 |
 |---|---|---|
 | `HktGeneratorCore` | Runtime | Tag 해석, ConventionPath, `UHktGeneratorRouter` |
-| `HktGeneratorEditor` | Editor | Generator Prompt 패널 UI, `FHktClaudeProcess` subprocess 래퍼 |
+| `HktGeneratorEditor` | Editor / PostEngineInit | Generator Prompt 패널 UI, `FHktClaudeProcess` subprocess 래퍼 |
 | `HktMcpBridge` | Runtime | `UHktMcpBridgeSubsystem` (최소 런타임) |
-| `HktMcpBridgeEditor` | Editor | `UHktMcpEditorSubsystem`, `UHktMcpFunctionLibrary` |
+| `HktMcpBridgeEditor` | Editor / PostEngineInit | `UHktMcpEditorSubsystem`, `UHktMcpFunctionLibrary` |
 | `HktMapGenerator` | Editor | HktMap JSON 파싱, Landscape/Spawner/Region 빌드 |
 | `HktStoryGenerator` | Editor | Story JSON → HktCore 바이트코드 컴파일 |
 | `HktVFXGenerator` | Editor | `FHktVFXNiagaraBuilder` — Config JSON → Niagara 시스템 빌드 |
@@ -92,7 +92,7 @@ hkt_mcp/
 | `HktAnimGenerator` | Editor | 애니메이션 생성 서브시스템 |
 | `HktItemGenerator` | Editor | 아이템 Mesh + 아이콘 생성 |
 | `HktTextureGenerator` | Editor | `FHktTextureIntent` → SD WebUI 텍스처 |
-| `HktSpriteGenerator` | Editor (PostEngineInit) | 스프라이트 어셋 자동 생성 (HktSpriteCore와 페어) |
+| `HktSpriteGenerator` | Editor / PostEngineInit | 스프라이트 어셋 자동 생성 (HktSpriteCore와 페어) |
 
 ### Generator Handler 패턴
 
