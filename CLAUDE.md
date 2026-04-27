@@ -1,99 +1,34 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+루트 라우터 — 프로젝트 전체에 걸친 절대 원칙과 모듈별 가이드 진입점만 보관한다. 세부 사항은 각 플러그인 CLAUDE.md를 참조할 것.
 
-## Repository Structure
+## Repository
 
-This is an Unreal Engine 5.6 plugin framework (`HktFramework`) consisting of three plugins:
+UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된다.
 
-| Plugin | Purpose |
-|--------|---------|
-| `HktGameplay/` | Core gameplay runtime — deterministic simulation engine, networking, UI, VFX, Voxel |
-| `HktGameplayGenerator/` | LLM-powered asset generation — MCP server, map/story/VFX/mesh/anim/item/texture generators |
-| `HktGameplayDeveloper/` | Developer tooling — runtime debugging panels, automated test suite |
+| 플러그인 | 역할 | 상세 가이드 |
+|---|---|---|
+| `HktGameplay/` | 런타임 시뮬레이션, 네트워킹, 프레젠테이션, UI, VFX, Voxel | [HktGameplay/CLAUDE.md](HktGameplay/CLAUDE.md) |
+| `HktGameplayGenerator/` | LLM 기반 에셋 자동 생성, MCP 서버 | [HktGameplayGenerator/CLAUDE.md](HktGameplayGenerator/CLAUDE.md) |
+| `HktGameplayDeveloper/` | 인사이트 패널, 자동화 테스트 | [HktGameplayDeveloper/CLAUDE.md](HktGameplayDeveloper/CLAUDE.md) |
 
-Each plugin has its own `CLAUDE.md` with detailed module-level guidance. Read those first when working within a specific plugin.
+작업 대상 플러그인을 먼저 식별하고 해당 CLAUDE.md를 읽을 것. 루트는 위 문서들에 중복 기재하지 않는다.
 
-## Architecture: Intent–Simulation–Presentation (ISP)
+## Absolute Principles (IMPORTANT)
 
-The framework enforces a strict 3-layer separation:
+프로젝트 전체에 무조건 적용되는 불변(invariant). 위반 시 근본부터 다시 검토할 것.
 
-1. **Intent** (`HktRule`) — game logic decides *what* to do via `IHktServerRuleInterfaces` / `IHktClientRuleInterfaces`
-2. **Simulation** (`HktCore`) — pure C++ deterministic VM executes logic and produces the next state
-3. **Presentation** (`HktPresentation`) — read-only layer visualizes `FHktWorldView` output in UE5
-
-**Critical constraint**: `HktCore` has zero UObject/UWorld dependency. All writes go through `FHktVMStore` buffered writes; `ApplyStoreSystem` commits atomically per frame.
-
-## Plugin Dependency Graph
-
-```
-HktGameplay (runtime)
-├── HktCore          — pure C++ SOA simulation VM (no UObject)
-├── HktStory         — reusable bytecode snippet library (fluent API)
-├── HktRule          — server/client rule interfaces
-│   └── HktRuntime   — networking, GGPO rollback sync (30Hz)
-├── HktAsset         — GameplayTag → DataAsset async loading
-├── HktPresentation  — read-only UE5 visualization (OnWorldViewUpdated)
-│   └── HktVFX       — Niagara VFX intent resolver
-├── HktUI            — data-driven Slate UI (anchor strategy pattern)
-└── HktVoxelCore     [PostConfigInit — loads before Default phase]
-    ├── HktVoxelTerrain
-    ├── HktVoxelSkin
-    └── HktVoxelVFX
-
-HktGameplayGenerator (editor)
-├── HktGeneratorCore / HktGeneratorEditor  — prompt panel, subprocess wrapper
-├── HktMcpBridge / HktMcpBridgeEditor      — UE5 ↔ MCP bridge subsystems
-└── HktMapGenerator, HktStoryGenerator, HktVFXGenerator,
-    HktMeshGenerator, HktAnimGenerator, HktItemGenerator, HktTextureGenerator
-
-HktGameplayDeveloper (developer/editor)
-├── HktInsights        — Slate debugging panels (VM, WorldState, Runtime, Log)
-├── HktInsightsEditor  — dockable editor tabs
-└── HktAutomationTests — FHktAutomationTestHarness + test suites
-```
-
-## Key Architectural Patterns
-
-### HktCore VM
-- **SOA layout**: entity data stored in `FHktDataColumn` arrays indexed by `PropertyId` (defined in `HktCoreProperties.h`). Hoist column pointers outside loops — never call `GetProperty()` per-entity inside bulk iteration.
-- **3-tier property storage**: Hot (0–15, O(1) direct index) → Warm (16 fixed pairs per slot) → Overflow (heap `TArray`)
-- **Frame pipeline**: `ProcessBatch()` → Arrange → Build VMs → Process VMs → Physics (spatial hash) → Apply Store → Cleanup → CreateWorldView
-- **`FHktWorldView`**: zero-copy read-only snapshot with sparse overlays; Overlay checked before WorldState on `GetInt(Entity, PropId)`
-
-### HktRuntime Networking
-- Rule/Component/Actor separation: Rule handles flow (interfaces), Component implements interfaces, Actor only publishes events
-- Server: `AHktGameMode` → `IHktServerRuleInterfaces`; Client: `AHktInGamePlayerController` → `IHktClientRuleInterfaces`
-- `FHktEntityState` is a serialization-only DTO — never use it inside HktCore logic; use SOA WorldState directly
+1. **ISP 3-Layer 분리** — Intent(`HktRule`) → Simulation(`HktCore`) → Presentation(`HktPresentation`). 레이어 역방향 의존 금지.
+2. **HktCore 순수성** — `HktCore` 모듈은 UObject/UWorld/UE 런타임 의존 0. 순수 C++ 결정론적 VM 유지.
+3. **서버 권위(Server-authoritative)** — 클라이언트는 읽기 전용 `FHktWorldView`만 수신. 모든 상태 변경은 서버 시뮬레이션 결과.
+4. **VM은 WorldState 직접 쓰기 금지** — 모든 쓰기는 `FHktVMWorldStateProxy::SetPropertyDirty`를 경유하여 dirty 추적 후 커밋.
+5. **`FHktEntityState`는 직렬화 전용 DTO** — HktCore 내부 로직에서 사용 금지. 반드시 SOA `FHktWorldState`를 직접 사용.
+6. **컬럼 포인터 호이스팅** — 시스템 벌크 루프에서 `GetColumn()`을 루프 밖에서 캐시. 엔티티별 `GetProperty()`를 루프 안에서 호출 금지.
 
 ## Coding Conventions
 
-- **Naming prefixes**: `FHkt` (structs), `UHkt` (UObject), `IHkt` (interfaces), `AHkt` (Actors), `SHkt` (Slate widgets), `THkt` (templates)
-- **PropertyId constants**: `uint16` in `PropertyId` namespace inside `HktCoreProperties.h`; use `HKT_DEFINE_PROPERTY` macro
-- **Code comments**: Korean (한국어)
-- **`HktInsights` guard**: wrap with `WITH_HKT_INSIGHTS` macro; disabled in Shipping builds
-- **`HktVoxelCore` load phase**: must remain `PostConfigInit` — do not change without understanding render subsystem init order
-
-## Debug Tools
-
-```
-# HKT Event Log (ring buffer, 8192 entries)
-hkt.EventLog.Start / Stop / Dump / Clear
-# Log file: Saved/Logs/HktEventLog.log
-
-# Insights panels (editor Window menu or Tools > Instrumentation)
-hkt.insights.clear / categories / dump <Cat>
-
-# Generator Prompt panel
-HktGen.Prompt   (UE5 editor console)
-```
-
-## MCP Server Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `UE_PROJECT_PATH` | UE project root |
-| `HKT_STEPS_DIR` | Step data output (default: `.hkt_steps/`) |
-| `HKT_MAPS_DIR` | HktMap JSON files (default: `.hkt_maps/`) |
-| `SD_WEBUI_URL` | Stable Diffusion WebUI (default: `http://localhost:7860`) |
-| `MONOLITH_URL` | Monolith MCP proxy (default: `http://localhost:9316/mcp`) |
+- **네이밍 prefix**: `FHkt`(struct), `UHkt`(UObject), `IHkt`(interface), `AHkt`(Actor), `SHkt`(Slate), `THkt`(template)
+- **PropertyId**: `uint16` in `PropertyId` namespace (`HktCore/Public/HktCoreProperties.h`). 추가 시 `HKT_DEFINE_PROPERTY` 매크로 사용.
+- **코드 주석**: 한국어
+- **HktInsights 가드**: `WITH_HKT_INSIGHTS` 매크로로 감싸기 — Shipping 빌드에서 비활성화
+- **HktVoxelCore LoadingPhase**: `PostConfigInit` 고정 — 렌더 서브시스템 선행 초기화 필수, 변경 금지
