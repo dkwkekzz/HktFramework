@@ -70,6 +70,30 @@ public:
 	void ClearAll();
 
 private:
+	/**
+	 * 매 프레임 Update의 마지막 결과 코드.
+	 * 같은 사유로 매 프레임 실패가 반복되므로 상태 *전이* 시점에만 로그를 emit한다.
+	 * OK로의 전이(=복구)도 1회 Info 로그를 남긴다.
+	 */
+	enum class EUpdateStatus : uint8
+	{
+		OK                  = 0,
+		TemplateMissing     = 1,
+		AnimationNull       = 2,
+		AtlasNull           = 3,
+		InvalidCellSize     = 4,
+		HISMCreateFailed    = 5,
+		InvalidDir          = 6,
+		InvalidFrame        = 7,
+		CharacterTagInvalid = 8,
+		AddInstanceFailed   = 9,
+		HISMLookupLost      = 10,
+		ZeroQuadSize        = 11,
+	};
+
+	/** 로그 포맷용 — 이름 문자열 반환. */
+	static const TCHAR* StatusToString(EUpdateStatus S);
+
 	/** 엔터티 1명의 렌더 상태 — 현재 속한 아틀라스 HISM + 인스턴스 인덱스. */
 	struct FEntityState
 	{
@@ -78,15 +102,7 @@ private:
 		int32 InstanceIndex = INDEX_NONE;
 		bool bActive = false;
 
-		// 매 프레임 Update 실패(템플릿 로딩/아틀라스 null/범위초과 등)가 반복되므로
-		// 상태 전이일 때만 로그를 남기기 위한 마지막 실패 코드.
-		// 0=OK,                  1=TemplateMissing,    2=AnimationNull,
-		// 3=AtlasNull,           4=InvalidCellSize,    5=HISMCreateFailed,
-		// 6=InvalidDir,          7=InvalidFrame,       8=CharacterTagInvalid,
-		// 9=AddInstanceFailed,  10=HISMLookupLost,    11=ZeroQuadSize
-		// 정상화(=0) 전이 시에도 한 번 Info 로그를 emit하여 EventLog만으로
-		// "복구 여부"를 추적할 수 있도록 한다.
-		uint8 LastUpdateStatus = 0;
+		EUpdateStatus LastUpdateStatus = EUpdateStatus::OK;
 	};
 
 	UPROPERTY(Transient)

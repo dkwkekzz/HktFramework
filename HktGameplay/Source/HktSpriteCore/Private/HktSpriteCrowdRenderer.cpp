@@ -29,6 +29,26 @@ UHktSpriteCrowdRenderer::UHktSpriteCrowdRenderer()
 	bAutoActivate = true;
 }
 
+const TCHAR* UHktSpriteCrowdRenderer::StatusToString(EUpdateStatus S)
+{
+	switch (S)
+	{
+		case EUpdateStatus::OK:                  return TEXT("OK");
+		case EUpdateStatus::TemplateMissing:     return TEXT("TemplateMissing");
+		case EUpdateStatus::AnimationNull:       return TEXT("AnimationNull");
+		case EUpdateStatus::AtlasNull:           return TEXT("AtlasNull");
+		case EUpdateStatus::InvalidCellSize:     return TEXT("InvalidCellSize");
+		case EUpdateStatus::HISMCreateFailed:    return TEXT("HISMCreateFailed");
+		case EUpdateStatus::InvalidDir:          return TEXT("InvalidDir");
+		case EUpdateStatus::InvalidFrame:        return TEXT("InvalidFrame");
+		case EUpdateStatus::CharacterTagInvalid: return TEXT("CharacterTagInvalid");
+		case EUpdateStatus::AddInstanceFailed:   return TEXT("AddInstanceFailed");
+		case EUpdateStatus::HISMLookupLost:      return TEXT("HISMLookupLost");
+		case EUpdateStatus::ZeroQuadSize:        return TEXT("ZeroQuadSize");
+	}
+	return TEXT("Unknown");
+}
+
 // ============================================================================
 // Register / Unregister / SetCharacter
 // ============================================================================
@@ -83,7 +103,7 @@ void UHktSpriteCrowdRenderer::SetCharacter(FHktEntityId Id, FGameplayTag Charact
 	State->CharacterTag     = CharacterTag;
 	State->CurrentAtlasPath = FSoftObjectPath();
 	State->InstanceIndex    = INDEX_NONE;
-	State->LastUpdateStatus = 0;
+	State->LastUpdateStatus = EUpdateStatus::OK;
 
 	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("Sprite|CrowdRenderer: SetCharacter %s → %s"),
@@ -136,9 +156,9 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 	{
 		// CrowdHost.Sync의 SetCharacter가 누락되었거나 SV.Character가 invalid인 케이스 —
 		// 이전 프레임까진 정상이었더라도 이 시점부터 그려지지 않으므로 반드시 로그.
-		if (State->LastUpdateStatus != 8)
+		if (State->LastUpdateStatus != EUpdateStatus::CharacterTagInvalid)
 		{
-			State->LastUpdateStatus = 8;
+			State->LastUpdateStatus = EUpdateStatus::CharacterTagInvalid;
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				TEXT("Sprite|CrowdRenderer: UpdateEntity — CharacterTag 미지정 (Sync에서 SetCharacter 누락 또는 SV.Character invalid)"),
 				Id);
@@ -151,9 +171,9 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 	if (!Template)
 	{
 		// 템플릿 아직 로딩 중 — 전이 시 1회만 경고(PendingTemplateLoads에 없으면 비정상).
-		if (State->LastUpdateStatus != 1)
+		if (State->LastUpdateStatus != EUpdateStatus::TemplateMissing)
 		{
-			State->LastUpdateStatus = 1;
+			State->LastUpdateStatus = EUpdateStatus::TemplateMissing;
 			const bool bPending = PendingTemplateLoads.Contains(State->CharacterTag);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
 				bPending ? EHktLogLevel::Verbose : EHktLogLevel::Warning,
@@ -337,9 +357,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	const FHktSpriteAnimation* Animation = Template->FindAnimationOrFallback(Update.AnimTag);
 	if (!Animation)
 	{
-		if (State.LastUpdateStatus != 2)
+		if (State.LastUpdateStatus != EUpdateStatus::AnimationNull)
 		{
-			State.LastUpdateStatus = 2;
+			State.LastUpdateStatus = EUpdateStatus::AnimationNull;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: Animation 못 찾음 — CharacterTemplate(%s)에 AnimTag(%s) 미등록 (fallback 실패)"),
 					*State.CharacterTag.ToString(), *Update.AnimTag.ToString()),
@@ -354,9 +374,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	UTexture2D* AtlasTex = ResolveAtlas(*Animation, Template, AtlasPath, CellSize);
 	if (!AtlasTex)
 	{
-		if (State.LastUpdateStatus != 3)
+		if (State.LastUpdateStatus != EUpdateStatus::AtlasNull)
 		{
-			State.LastUpdateStatus = 3;
+			State.LastUpdateStatus = EUpdateStatus::AtlasNull;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas 텍스처 로드 실패 (char=%s, anim=%s) — Animation.Atlas/Template.Atlas 모두 비어있거나 LoadSynchronous 실패"),
 					*State.CharacterTag.ToString(), *Update.AnimTag.ToString()),
@@ -366,9 +386,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	}
 	if (CellSize.X <= 0.f || CellSize.Y <= 0.f)
 	{
-		if (State.LastUpdateStatus != 4)
+		if (State.LastUpdateStatus != EUpdateStatus::InvalidCellSize)
 		{
-			State.LastUpdateStatus = 4;
+			State.LastUpdateStatus = EUpdateStatus::InvalidCellSize;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: AtlasCellSize 유효하지 않음 (%.1f x %.1f) char=%s anim=%s"),
 					CellSize.X, CellSize.Y, *State.CharacterTag.ToString(), *Update.AnimTag.ToString()),
@@ -388,9 +408,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		UHierarchicalInstancedStaticMeshComponent* NewHISM = GetOrCreateHISM(AtlasPath, AtlasTex);
 		if (!NewHISM)
 		{
-			if (State.LastUpdateStatus != 5)
+			if (State.LastUpdateStatus != EUpdateStatus::HISMCreateFailed)
 			{
-				State.LastUpdateStatus = 5;
+				State.LastUpdateStatus = EUpdateStatus::HISMCreateFailed;
 				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
 					FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 생성 실패 (atlas=%s) — QuadMesh/Owner 누락 의심"),
 						*AtlasPath.ToString()),
@@ -406,9 +426,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 			// AddInstance가 INDEX_NONE을 반환 — HISM 내부 자원 부족/엔진 이슈로 매우 드물지만
 			// 다음 프레임부터 마이그레이션 가드(CurrentAtlasPath==AtlasPath)로 조용히 스킵되므로
 			// 반드시 한 번은 EventLog에 남긴다.
-			if (State.LastUpdateStatus != 9)
+			if (State.LastUpdateStatus != EUpdateStatus::AddInstanceFailed)
 			{
-				State.LastUpdateStatus = 9;
+				State.LastUpdateStatus = EUpdateStatus::AddInstanceFailed;
 				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
 					FString::Printf(TEXT("Sprite|CrowdRenderer: HISM AddInstance 실패 (atlas=%s, anim=%s) — 인스턴스 미생성"),
 						*AtlasPath.ToString(), *Update.AnimTag.ToString()),
@@ -434,9 +454,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	if (!HPtr || !*HPtr)
 	{
 		// AtlasHISMs 룩업이 프레임 중간에 사라진 케이스 — RemoveInstanceAndRemap 등에서 외부 변경 가능성.
-		if (State.LastUpdateStatus != 10)
+		if (State.LastUpdateStatus != EUpdateStatus::HISMLookupLost)
 		{
-			State.LastUpdateStatus = 10;
+			State.LastUpdateStatus = EUpdateStatus::HISMLookupLost;
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 룩업 손실 (atlas=%s) — AtlasHISMs 맵에서 제거됨"),
 					*State.CurrentAtlasPath.ToString()),
@@ -458,9 +478,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	const FHktSpriteFrameResolveResult Res = HktResolveSpriteFrame(In);
 	if (Res.bInvalid)
 	{
-		if (State.LastUpdateStatus != 7)
+		if (State.LastUpdateStatus != EUpdateStatus::InvalidFrame)
 		{
-			State.LastUpdateStatus = 7;
+			State.LastUpdateStatus = EUpdateStatus::InvalidFrame;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: FrameResolver 실패 (char=%s, anim=%s, StartTick=%lld, NowTick=%lld) — 애니 정의/타이밍 확인"),
 					*State.CharacterTag.ToString(), *Update.AnimTag.ToString(), Update.AnimStartTick, Update.NowTick),
@@ -472,9 +492,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	const int32 DirIdx = static_cast<int32>(Res.StoredFacing);
 	if (DirIdx < 0 || DirIdx >= Animation->NumDirections)
 	{
-		if (State.LastUpdateStatus != 6)
+		if (State.LastUpdateStatus != EUpdateStatus::InvalidDir)
 		{
-			State.LastUpdateStatus = 6;
+			State.LastUpdateStatus = EUpdateStatus::InvalidDir;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: StoredFacing=%d 범위 초과 (NumDirections=%d, anim=%s)"),
 					DirIdx, Animation->NumDirections, *Update.AnimTag.ToString()),
@@ -485,9 +505,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	const int32 NumFrames = Animation->GetNumFrames(DirIdx);
 	if (Res.FrameIndex < 0 || Res.FrameIndex >= NumFrames)
 	{
-		if (State.LastUpdateStatus != 7)
+		if (State.LastUpdateStatus != EUpdateStatus::InvalidFrame)
 		{
-			State.LastUpdateStatus = 7;
+			State.LastUpdateStatus = EUpdateStatus::InvalidFrame;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: FrameIndex=%d 범위 초과 (NumFrames=%d, dir=%d, anim=%s)"),
 					Res.FrameIndex, NumFrames, DirIdx, *Update.AnimTag.ToString()),
@@ -505,9 +525,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	const float PxToWorld = Template->PixelToWorld * GlobalWorldScale;
 	if (Frame.Scale.X <= 0.f || Frame.Scale.Y <= 0.f || PxToWorld <= 0.f)
 	{
-		if (State.LastUpdateStatus != 11)
+		if (State.LastUpdateStatus != EUpdateStatus::ZeroQuadSize)
 		{
-			State.LastUpdateStatus = 11;
+			State.LastUpdateStatus = EUpdateStatus::ZeroQuadSize;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: 쿼드 크기 0 — Frame.Scale=(%.3f, %.3f), PxToWorld=%.3f (PixelToWorld=%.3f, GlobalScale=%.3f), Cell=(%.1f, %.1f) [char=%s, anim=%s, dir=%d, frame=%d]"),
 					Frame.Scale.X, Frame.Scale.Y, PxToWorld, Template->PixelToWorld, GlobalWorldScale,
@@ -520,13 +540,13 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 
 	// 정상 경로 — 이전 실패 상태 클리어 + 복구 로그(전이 시 1회).
 	// 비대칭 로깅(실패만 emit)을 제거해 EventLog에서 "정상화 시점"을 직접 추적할 수 있게 한다.
-	const uint8 PrevStatus = State.LastUpdateStatus;
-	State.LastUpdateStatus = 0;
-	if (PrevStatus != 0)
+	const EUpdateStatus PrevStatus = State.LastUpdateStatus;
+	State.LastUpdateStatus = EUpdateStatus::OK;
+	if (PrevStatus != EUpdateStatus::OK)
 	{
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
-			FString::Printf(TEXT("Sprite|CrowdRenderer: 렌더 정상화 (prev=%u, anim=%s, dir=%d, frame=%d, atlas=%s)"),
-				PrevStatus, *Update.AnimTag.ToString(), DirIdx, Res.FrameIndex, *State.CurrentAtlasPath.ToString()),
+			FString::Printf(TEXT("Sprite|CrowdRenderer: 렌더 정상화 (prev=%s, anim=%s, dir=%d, frame=%d, atlas=%s)"),
+				StatusToString(PrevStatus), *Update.AnimTag.ToString(), DirIdx, Res.FrameIndex, *State.CurrentAtlasPath.ToString()),
 			Id);
 	}
 
