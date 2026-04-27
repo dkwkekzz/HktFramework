@@ -96,13 +96,16 @@ namespace HktSpriteAnimProcessor
 	 * PropertyId::AnimStartTick 을 권위 기록하므로 호출자(CrowdHost)가 SV.AnimStartTick
 	 * 을 그대로 Renderer에 전달한다.
 	 *
-	 * @param Fragment    엔터티 상태.
-	 * @param OutAnimTag  최종 AnimTag (PartTemplate의 FindAction 키).
-	 * @param OutPlayRate Montage/UpperBody이면 AttackPlayRate, Locomotion이면
-	 *                    선택적 MoveSpeed 스케일, 그 외 1.0.
+	 * @param Fragment            엔터티 상태.
+	 * @param OutAnimTag          최종 AnimTag (PartTemplate의 FindAction 키).
+	 * @param OutPlayRate         Montage/UpperBody이면 AttackPlayRate, Locomotion이면
+	 *                            선택적 MoveSpeed 스케일, 그 외 1.0.
+	 * @param InOutLoggedFailure  태그 해석 실패 dedup 플래그(호출자 소유). 매 프레임 호출되는
+	 *                            함수라 file-scope static 대신 호출자 인스턴스 수명에 묶어
+	 *                            PIE 재시작/멀티 호스트에서 자동 리셋되도록 한다.
 	 */
 	HKTSPRITECORE_API void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
-		FGameplayTag& OutAnimTag, float& OutPlayRate);
+		FGameplayTag& OutAnimTag, float& OutPlayRate, bool& InOutLoggedFailure);
 
 	/** 특정 레이어(Anim.FullBody 등)의 현재 태그 조회. */
 	HKTSPRITECORE_API FGameplayTag GetAnimLayerTag(const FHktSpriteAnimFragment& Fragment, const FGameplayTag& LayerTag);

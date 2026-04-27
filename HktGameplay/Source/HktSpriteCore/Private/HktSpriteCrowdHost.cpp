@@ -202,7 +202,7 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		// AnimStartTick은 서버 VM이 PropertyId::AnimStartTick 으로 권위 갱신 → SV값 그대로 사용.
 		FGameplayTag AnimTag;
 		float PlayRate = 1.f;
-		HktSpriteAnimProcessor::ResolveRenderOutputs(Frag, AnimTag, PlayRate);
+		HktSpriteAnimProcessor::ResolveRenderOutputs(Frag, AnimTag, PlayRate, bLoggedResolveRenderOutputsFailure);
 
 		FHktSpriteEntityUpdate Update;
 		Update.WorldLocation  = TV->RenderLocation.Get().IsZero() ? TV->Location.Get() : TV->RenderLocation.Get();

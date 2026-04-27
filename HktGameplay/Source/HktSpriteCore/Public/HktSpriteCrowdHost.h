@@ -75,4 +75,10 @@ private:
 
 	/** Entity별 sprite anim 런타임 상태(POD fragment). */
 	TMap<FHktEntityId, FHktSpriteAnimFragment> AnimFragments;
+
+	/**
+	 * HktSpriteAnimProcessor::ResolveRenderOutputs 태그 해석 실패 dedup.
+	 * 호스트 인스턴스 수명에 묶여 PIE 재시작 / 멀티 호스트에서 자동 리셋된다.
+	 */
+	bool bLoggedResolveRenderOutputsFailure = false;
 };
