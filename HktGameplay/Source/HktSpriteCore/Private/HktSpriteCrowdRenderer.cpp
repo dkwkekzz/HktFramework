@@ -132,7 +132,19 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 {
 	FEntityState* State = Entities.Find(Id);
 	if (!State || !State->bActive) return;
-	if (!State->CharacterTag.IsValid()) return;
+	if (!State->CharacterTag.IsValid())
+	{
+		// CrowdHost.Sync의 SetCharacter가 누락되었거나 SV.Character가 invalid인 케이스 —
+		// 이전 프레임까진 정상이었더라도 이 시점부터 그려지지 않으므로 반드시 로그.
+		if (State->LastUpdateStatus != 8)
+		{
+			State->LastUpdateStatus = 8;
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				TEXT("Sprite|CrowdRenderer: UpdateEntity — CharacterTag 미지정 (Sync에서 SetCharacter 누락 또는 SV.Character invalid)"),
+				Id);
+		}
+		return;
+	}
 
 	TObjectPtr<UHktSpriteCharacterTemplate>* Found = TemplateCache.Find(State->CharacterTag);
 	UHktSpriteCharacterTemplate* Template = Found ? Found->Get() : nullptr;
@@ -389,16 +401,49 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		State.InstanceIndex    = NewHISM->AddInstance(FTransform::Identity, /*bWorldSpace=*/true);
 		State.CurrentAtlasPath = AtlasPath;
 
+		if (State.InstanceIndex == INDEX_NONE)
+		{
+			// AddInstance가 INDEX_NONE을 반환 — HISM 내부 자원 부족/엔진 이슈로 매우 드물지만
+			// 다음 프레임부터 마이그레이션 가드(CurrentAtlasPath==AtlasPath)로 조용히 스킵되므로
+			// 반드시 한 번은 EventLog에 남긴다.
+			if (State.LastUpdateStatus != 9)
+			{
+				State.LastUpdateStatus = 9;
+				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+					FString::Printf(TEXT("Sprite|CrowdRenderer: HISM AddInstance 실패 (atlas=%s, anim=%s) — 인스턴스 미생성"),
+						*AtlasPath.ToString(), *Update.AnimTag.ToString()),
+					Id);
+			}
+			return;
+		}
+
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
 			FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas migrate %s → %s (inst=%d, anim=%s)"),
 				*OldPath.ToString(), *AtlasPath.ToString(), State.InstanceIndex, *Update.AnimTag.ToString()),
 			Id);
 	}
 
-	if (State.InstanceIndex == INDEX_NONE) return;
+	if (State.InstanceIndex == INDEX_NONE)
+	{
+		// 마이그레이션 분기 밖에서 InstanceIndex가 INDEX_NONE — 이전 프레임에 status=9로 진입했다가
+		// CurrentAtlasPath만 갱신된 상태. 여기서는 status=9를 유지(중복 로그 방지).
+		return;
+	}
 
 	UHierarchicalInstancedStaticMeshComponent** HPtr = AtlasHISMs.Find(State.CurrentAtlasPath);
-	if (!HPtr || !*HPtr) return;
+	if (!HPtr || !*HPtr)
+	{
+		// AtlasHISMs 룩업이 프레임 중간에 사라진 케이스 — RemoveInstanceAndRemap 등에서 외부 변경 가능성.
+		if (State.LastUpdateStatus != 10)
+		{
+			State.LastUpdateStatus = 10;
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 룩업 손실 (atlas=%s) — AtlasHISMs 맵에서 제거됨"),
+					*State.CurrentAtlasPath.ToString()),
+				Id);
+		}
+		return;
+	}
 	UHierarchicalInstancedStaticMeshComponent* HISM = *HPtr;
 
 	// --- 2. 프레임 해석 ---
@@ -451,10 +496,39 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 
-	// 정상 경로 — 이전 실패 상태 클리어
-	State.LastUpdateStatus = 0;
-
 	const FHktSpriteFrame Frame = Animation->MakeFrame(DirIdx, Res.FrameIndex);
+
+	// --- 쿼드 크기 0 가드 ---
+	// Frame.Scale은 UPROPERTY 디폴트(1,1)이지만 JSON 로더/Generator가 비워두면 (0,0)으로 들어올 수 있다.
+	// PixelToWorld는 ClampMin=0.1, GlobalWorldScale은 ClampMin=0.01이지만 BP 비정상 설정 가능성 방어.
+	// HalfW/HalfH가 0이면 머티리얼이 World Position Offset을 0배 → 쿼드 면적 0 → 보이지 않음.
+	const float PxToWorld = Template->PixelToWorld * GlobalWorldScale;
+	if (Frame.Scale.X <= 0.f || Frame.Scale.Y <= 0.f || PxToWorld <= 0.f)
+	{
+		if (State.LastUpdateStatus != 11)
+		{
+			State.LastUpdateStatus = 11;
+			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: 쿼드 크기 0 — Frame.Scale=(%.3f, %.3f), PxToWorld=%.3f (PixelToWorld=%.3f, GlobalScale=%.3f), Cell=(%.1f, %.1f) [char=%s, anim=%s, dir=%d, frame=%d]"),
+					Frame.Scale.X, Frame.Scale.Y, PxToWorld, Template->PixelToWorld, GlobalWorldScale,
+					CellSize.X, CellSize.Y,
+					*State.CharacterTag.ToString(), *Update.AnimTag.ToString(), DirIdx, Res.FrameIndex),
+				Id, Update.AnimTag);
+		}
+		return;
+	}
+
+	// 정상 경로 — 이전 실패 상태 클리어 + 복구 로그(전이 시 1회).
+	// 비대칭 로깅(실패만 emit)을 제거해 EventLog에서 "정상화 시점"을 직접 추적할 수 있게 한다.
+	const uint8 PrevStatus = State.LastUpdateStatus;
+	State.LastUpdateStatus = 0;
+	if (PrevStatus != 0)
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|CrowdRenderer: 렌더 정상화 (prev=%u, anim=%s, dir=%d, frame=%d, atlas=%s)"),
+				PrevStatus, *Update.AnimTag.ToString(), DirIdx, Res.FrameIndex, *State.CurrentAtlasPath.ToString()),
+			Id);
+	}
 
 	const FVector2f Pivot = Frame.PivotOffset.IsNearlyZero()
 		? Animation->PivotOffset
@@ -469,7 +543,6 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	const float AtlasIndexF = static_cast<float>(Frame.AtlasIndex);
 	const float CellW = CellSize.X;
 	const float CellH = CellSize.Y;
-	const float PxToWorld = Template->PixelToWorld * GlobalWorldScale;
 	const FVector2f Offset = Pivot * PxToWorld;
 
 	const FLinearColor Tint = Frame.Tint * Update.TintOverride;
