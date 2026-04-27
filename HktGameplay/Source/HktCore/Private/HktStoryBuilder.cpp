@@ -7,6 +7,7 @@
 #include "HktCoreProperties.h"
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
+#include "HktVRegIR.h"
 #include "VM/HktVMProgram.h"
 #include "GameplayTagsManager.h"
 
@@ -28,12 +29,17 @@ FHktStoryBuilder FHktStoryBuilder::Create(const FName& TagName)
 
 FHktStoryBuilder::FHktStoryBuilder(const FGameplayTag& Tag)
     : Program(MakeShared<FHktVMProgram>())
+    , MainSection(MakeUnique<FCodeSection>())
+    , PreconditionSection(MakeUnique<FCodeSection>())
 {
+    ActiveSection = MainSection.Get();
     Program->Tag = Tag;
 #if ENABLE_HKT_INSIGHTS
     Log(FString::Printf(TEXT("[Story Start] %s"), *Tag.ToString()));
 #endif
 }
+
+FHktStoryBuilder::~FHktStoryBuilder() = default;
 
 FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
     : Program(MoveTemp(Other.Program))
@@ -53,9 +59,10 @@ FHktStoryBuilder::FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept
     , ValidationErrors(MoveTemp(Other.ValidationErrors))
 {
     // ActiveSection 포인터 재조정: 원본이 어느 섹션을 가리키고 있었는지에 따라 결정
-    ActiveSection = (Other.ActiveSection == &Other.PreconditionSection)
-        ? &PreconditionSection
-        : &MainSection;
+    ActiveSection = (Other.ActiveSection == Other.PreconditionSection.Get())
+        ? PreconditionSection.Get()
+        : MainSection.Get();
+    Other.ActiveSection = nullptr;
 }
 
 // ============================================================================
@@ -108,7 +115,9 @@ FHktScopedRegBlock::FHktScopedRegBlock(FHktScopedRegBlock&& Other) noexcept
 
 void FHktStoryBuilder::Emit(FInstruction Inst)
 {
-    ActiveSection->Code.Add(Inst);
+    // 단계 1: FInstruction → FHktVInst 변환 후 push.
+    // RegisterIndex 0..15는 pre-colored VReg로 매핑되며, 동일 인덱스는 동일 VReg를 재사용.
+    ActiveSection->Code.Add(HktVReg_FromInstruction(Inst, ActiveSection->RegPool));
 }
 
 int32 FHktStoryBuilder::AddString(const FString& Str)
@@ -168,16 +177,17 @@ FHktStoryBuilder& FHktStoryBuilder::SetPrecondition(FHktEventPrecondition InPrec
 
 FHktStoryBuilder& FHktStoryBuilder::BeginPrecondition()
 {
-    check(ActiveSection == &MainSection);
-    ActiveSection = &PreconditionSection;
+    check(ActiveSection == MainSection.Get());
+    ActiveSection = PreconditionSection.Get();
     return *this;
 }
 
 FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
 {
-    check(ActiveSection == &PreconditionSection);
-    ResolveLabels(PreconditionSection, Program->Tag);
-    ActiveSection = &MainSection;
+    check(ActiveSection == PreconditionSection.Get());
+    // 단계 1: PreconditionSection의 FInstruction emit은 Build에서 일괄 처리한다.
+    // 라벨 해소는 VInst 단계에서도 가능하지만 단순화를 위해 Build로 일원화.
+    ActiveSection = MainSection.Get();
     return *this;
 }
 
@@ -1206,34 +1216,40 @@ FHktStoryBuilder& FHktStoryBuilder::Log(const FString& Message)
 // Build
 // ============================================================================
 
-static void ResolveFixup(FInstruction& Inst, int32 Target)
+// VInst의 점프/조건점프 인스트럭션의 immediate 필드에 라벨 PC를 패치한다.
+static void ResolveVInstFixup(FHktVInst& V, int32 Target)
 {
-    switch (Inst.GetOpCode())
+    switch (V.Op)
     {
     case EOpCode::Jump:
-        Inst.Imm20 = Target;
+        V.Imm20Field = Target;
+        V.bUsesImm20 = true;
         break;
     case EOpCode::JumpIf:
     case EOpCode::JumpIfNot:
-        Inst.Imm12 = static_cast<uint16>(Target);
+        V.Imm12Field = static_cast<uint16>(Target);
         break;
     default:
         break;
     }
 }
 
-void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag)
+void FHktStoryBuilder::FinalizeAndEmitBytecode(FCodeSection& Section, const FGameplayTag& Tag,
+    TArray<FInstruction>& OutCode)
 {
+    // === 1) 라벨 해소: VInst의 Imm 필드에 라벨 PC를 패치 ===
     // FName 라벨 (사용자 정의 + Snippet)
     for (const auto& Fixup : Section.Fixups)
     {
         if (const int32* Target = Section.Labels.Find(Fixup.Value))
         {
-            ResolveFixup(Section.Code[Fixup.Key], *Target);
+            ResolveVInstFixup(Section.Code[Fixup.Key], *Target);
         }
         else
         {
-            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved label: %s in Flow %s"), *Fixup.Value.ToString(), *Tag.ToString()));
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server,
+                FString::Printf(TEXT("Unresolved label: %s in Flow %s"),
+                    *Fixup.Value.ToString(), *Tag.ToString()));
         }
     }
 
@@ -1242,28 +1258,47 @@ void FHktStoryBuilder::ResolveLabels(FCodeSection& Section, const FGameplayTag& 
     {
         if (const int32* Target = Section.IntLabels.Find(Fixup.Value))
         {
-            ResolveFixup(Section.Code[Fixup.Key], *Target);
+            ResolveVInstFixup(Section.Code[Fixup.Key], *Target);
         }
         else
         {
-            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(TEXT("Unresolved int label: 0x%08X in Flow %s"), Fixup.Value, *Tag.ToString()));
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server,
+                FString::Printf(TEXT("Unresolved int label: 0x%08X in Flow %s"),
+                    Fixup.Value, *Tag.ToString()));
         }
+    }
+
+    // === 2) 검증: 모든 사용된 VReg가 0..15 범위의 pre-colored인지 확인 ===
+    // 단계 1: anonymous VReg가 없으므로 위반은 곧 버그. 단계 2에서 spill 처리로 확장.
+    for (const FHktVRegMeta& Meta : Section.RegPool.Metas)
+    {
+        if (Meta.PinnedPhysical < 0 || Meta.PinnedPhysical >= FHktVRegPool::NumPhysicalRegs)
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server,
+                FString::Printf(TEXT("Story '%s': pre-colored 범위(0..15)를 벗어난 VReg 발견 (Pinned=%d)"),
+                    *Tag.ToString(), Meta.PinnedPhysical));
+        }
+    }
+
+    // === 3) emit: VInst → FInstruction (인덱스 1:1) ===
+    OutCode.Reset(Section.Code.Num());
+    for (const FHktVInst& V : Section.Code)
+    {
+        OutCode.Add(HktVReg_ToInstruction(V, Section.RegPool));
     }
 }
 
 TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
 {
-    if (MainSection.Code.Num() == 0 || MainSection.Code.Last().GetOpCode() != EOpCode::Halt)
+    if (MainSection->Code.Num() == 0 || MainSection->Code.Last().Op != EOpCode::Halt)
     {
         Halt();
     }
 
-    ResolveLabels(MainSection, Program->Tag);
-
-    // MainSection → Program
-    Program->Code = MoveTemp(MainSection.Code);
-    Program->Constants = MoveTemp(MainSection.Constants);
-    Program->Strings = MoveTemp(MainSection.Strings);
+    // === MainSection: VInst → FInstruction emit (라벨 해소 포함) ===
+    FinalizeAndEmitBytecode(*MainSection, Program->Tag, Program->Code);
+    Program->Constants = MoveTemp(MainSection->Constants);
+    Program->Strings = MoveTemp(MainSection->Strings);
 
     // === Archetype 프로퍼티 검증 ===
     if (ValidationErrors.Num() > 0)
@@ -1280,7 +1315,7 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
     }
 
     // === Story 바이트코드 검증 ===
-    FHktStoryValidator Validator(Program->Code, Program->Tag, MainSection.Labels, MainSection.IntLabels, bFlowMode);
+    FHktStoryValidator Validator(Program->Code, Program->Tag, MainSection->Labels, MainSection->IntLabels, bFlowMode);
 
     if (!Validator.ValidateEntityFlow())
     {
@@ -1305,12 +1340,12 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
     }
 #endif
 
-    // PreconditionSection → Program
-    if (PreconditionSection.Code.Num() > 0)
+    // === PreconditionSection: VInst → FInstruction emit ===
+    if (PreconditionSection->Code.Num() > 0)
     {
-        Program->PreconditionCode = MoveTemp(PreconditionSection.Code);
-        Program->PreconditionConstants = MoveTemp(PreconditionSection.Constants);
-        Program->PreconditionStrings = MoveTemp(PreconditionSection.Strings);
+        FinalizeAndEmitBytecode(*PreconditionSection, Program->Tag, Program->PreconditionCode);
+        Program->PreconditionConstants = MoveTemp(PreconditionSection->Constants);
+        Program->PreconditionStrings = MoveTemp(PreconditionSection->Strings);
     }
 
     return Program;
