@@ -120,19 +120,12 @@ using FHktEventPrecondition = TFunction<bool(const FHktWorldState& WorldState, c
  *
  * Emit, AddString, AddConstant, Label, Jump 등이 모두 ActiveSection 포인터를 통해
  * 이 구조체에 쓰기하므로, 새로운 섹션 추가 시 분기 코드가 불필요하다.
+ *
+ * 정의는 private 헤더(HktVRegIR.h)에 있다 — 가상 레지스터 IR 도입으로
+ * 내부 명령어 표현이 FInstruction에서 FHktVInst로 전환되었기 때문이다.
+ * 외부 코드는 이 타입을 직접 참조하지 않으며 Builder 내부에서만 다룬다.
  */
-struct FCodeSection
-{
-    TArray<FInstruction> Code;
-    TArray<int32> Constants;
-    TArray<FString> Strings;
-    TMap<FName, int32> Labels;
-    TArray<TPair<int32, FName>> Fixups;
-
-    // 정수 키 라벨 — 자동 생성 라벨용 (힙할당 없음)
-    TMap<int32, int32> IntLabels;
-    TArray<TPair<int32, int32>> IntFixups;
-};
+struct FCodeSection;
 
 class HKTCORE_API FHktStoryBuilder
 {
@@ -150,10 +143,12 @@ public:
 
     // ActiveSection이 자기 멤버(MainSection/PreconditionSection)를 가리키므로
     // implicit copy/move는 댕글링 포인터를 만든다. 복사 금지, move는 재조정.
+    // FCodeSection이 forward-declared이므로 dtor도 out-of-line로 둔다.
     FHktStoryBuilder(const FHktStoryBuilder&) = delete;
     FHktStoryBuilder& operator=(const FHktStoryBuilder&) = delete;
     FHktStoryBuilder(FHktStoryBuilder&& Other) noexcept;
     FHktStoryBuilder& operator=(FHktStoryBuilder&&) = delete;
+    ~FHktStoryBuilder();
 
     // ========== Archetype 검증 ==========
 
@@ -573,7 +568,14 @@ private:
     int32 AddString(const FString& Str);
     int32 AddConstant(int32 Value);
     int32 TagToInt(const FGameplayTag& Tag);
-    static void ResolveLabels(FCodeSection& Section, const FGameplayTag& Tag);
+
+    /**
+     * VInst 단위 라벨/픽스업을 해소하면서 FInstruction 배열로 emit한다.
+     * 단계 1: VInst 인덱스가 FInstruction 인덱스와 1:1 일치하므로
+     * 기존 Label/Fixup PC가 그대로 유효하다.
+     */
+    static void FinalizeAndEmitBytecode(FCodeSection& Section, const FGameplayTag& Tag,
+        TArray<FInstruction>& OutCode);
 
     // 비교 + If 헬퍼 (18개 public 메서드의 공통 구현)
     FHktStoryBuilder& IfCmp(EOpCode CmpOp, RegisterIndex A, RegisterIndex B);
@@ -585,9 +587,10 @@ private:
     TSharedRef<FHktVMProgram> Program;
     FHktRegAllocator RegAllocator;
 
-    FCodeSection MainSection;
-    FCodeSection PreconditionSection;
-    FCodeSection* ActiveSection = &MainSection;
+    // FCodeSection은 private 헤더에 정의된다 (FHktVInst 의존). Pimpl 패턴.
+    TUniquePtr<FCodeSection> MainSection;
+    TUniquePtr<FCodeSection> PreconditionSection;
+    FCodeSection* ActiveSection = nullptr;
 
     /**
      * 자동 생성 라벨 키 인코딩 (FString 없이 정수만 사용):
