@@ -5,6 +5,7 @@
 #include "Animation/AnimSequence.h"
 #include "Camera/HktCameraFramingProfile.h"
 #include "Camera/HktCameraModeBase.h"
+#include "Components/DirectionalLightComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -57,7 +58,20 @@ FHktAnimCaptureScene::~FHktAnimCaptureScene()
 	MeshComp = nullptr;
 	CaptureComp = nullptr;
 	RenderTarget = nullptr;
+	PreviewRT = nullptr;
+	FillLight = nullptr;
 	Preview.Reset();
+}
+
+void FHktAnimCaptureScene::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	// PreviewScene 자체가 World/Components 를 GC root 로 잡지만, RT 와 같이
+	// World 외부에 떠있는 UObject 는 명시적으로 referencing 해야 GC 안전.
+	Collector.AddReferencedObject(MeshComp);
+	Collector.AddReferencedObject(CaptureComp);
+	Collector.AddReferencedObject(RenderTarget);
+	Collector.AddReferencedObject(PreviewRT);
+	Collector.AddReferencedObject(FillLight);
 }
 
 bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, FString& OutError)
@@ -91,9 +105,19 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	}
 
 	// === SkeletalMesh ===
+	// 주의: USkeletalMeshComponent::InitAnim 은 IsRegistered()==true 일 때만 동작한다.
+	// 즉 SetAnimationMode/SetAnimation 은 반드시 Preview->AddComponent(=등록) 이후에
+	// 호출해야 AnimScriptInstance 가 만들어지고 실제로 포즈가 평가된다.
 	MeshComp = NewObject<USkeletalMeshComponent>(GetTransientPackage(), USkeletalMeshComponent::StaticClass(), NAME_None, RF_Transient);
 	MeshComp->SetSkeletalMeshAsset(Mesh);
 	MeshComp->SetMobility(EComponentMobility::Movable);
+	// 본 업데이트가 캡처 전 항상 평가되도록 — 보이지 않을 때도 동작 필요.
+	// (등록 시점에 AnimTickOption 을 보므로 등록 전에 설정.)
+	MeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	MeshComp->bUpdateJointsFromAnimation = true;
+
+	Preview->AddComponent(MeshComp, FTransform::Identity);
+
 	if (Anim)
 	{
 		MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
@@ -107,15 +131,20 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 		MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		AnimLengthSec = 0.0f;
 	}
-	Preview->AddComponent(MeshComp, FTransform::Identity);
 
-	// 본 업데이트가 캡처 전 항상 평가되도록 — 보이지 않을 때도 동작 필요.
-	MeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
-	MeshComp->bUpdateJointsFromAnimation = true;
 	MeshComp->RefreshBoneTransforms();
 
 	const FBoxSphereBounds Bounds = MeshComp->Bounds;
 	SubjectFocus = Bounds.Origin;
+
+	// === Fill Light ===
+	// FPreviewScene::bDefaultLighting 가 키 라이트 + 스카이라이트를 자동 추가하지만,
+	// 캐릭터의 측면이 어둡게 보이는 경우가 잦아 반대 방향 약한 fill 을 보강.
+	FillLight = NewObject<UDirectionalLightComponent>(GetTransientPackage(), UDirectionalLightComponent::StaticClass(), NAME_None, RF_Transient);
+	FillLight->SetIntensity(2.0f);
+	FillLight->SetLightColor(FLinearColor(0.9f, 0.95f, 1.0f));
+	FillLight->SetMobility(EComponentMobility::Movable);
+	Preview->AddComponent(FillLight, FTransform(FRotator(-25.0f, 135.0f, 0.0f)));
 
 	// === RenderTarget ===
 	const int32 W = FMath::Clamp(Settings.OutputWidth,  16, 4096);
@@ -448,4 +477,57 @@ bool FHktAnimCaptureScene::EncodePng(TArray64<uint8>& OutPng, FString& OutError)
 
 	OutPng = Wrapper->GetCompressed();
 	return OutPng.Num() > 0;
+}
+
+bool FHktAnimCaptureScene::InitializePreviewRT(int32 PreviewWidth, int32 PreviewHeight, FString& OutError)
+{
+	if (!CaptureComp)
+	{
+		OutError = TEXT("Initialize 가 먼저 호출되어야 함");
+		return false;
+	}
+
+	const int32 W = FMath::Clamp(PreviewWidth, 64, 4096);
+	const int32 H = FMath::Clamp(PreviewHeight, 64, 4096);
+
+	PreviewRT = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
+	PreviewRT->RenderTargetFormat = RTF_RGBA8;
+	// 프리뷰는 캐릭터가 잘 보이도록 어두운 배경 — 투명 배경 캡처라도 프리뷰는 중성 회색.
+	PreviewRT->ClearColor = FLinearColor(0.12f, 0.12f, 0.13f, 1.0f);
+	PreviewRT->bAutoGenerateMips = false;
+	PreviewRT->InitAutoFormat(W, H);
+	PreviewRT->UpdateResourceImmediate(true);
+	return true;
+}
+
+void FHktAnimCaptureScene::RenderPreview()
+{
+	if (!CaptureComp || !PreviewRT) return;
+
+	UTextureRenderTarget2D* SavedTarget = CaptureComp->TextureTarget;
+	const FLinearColor SavedClear = SavedTarget ? SavedTarget->ClearColor : FLinearColor::Black;
+
+	// 프리뷰 1프레임 렌더 — 출력 RT 상태는 보존.
+	CaptureComp->TextureTarget = PreviewRT;
+	TickPose();
+	CaptureComp->CaptureScene();
+	CaptureComp->TextureTarget = SavedTarget;
+}
+
+void FHktAnimCaptureScene::UpdateCameraSettings(const FHktAnimCaptureSettings& NewSettings)
+{
+	// 메시/애니/RT 는 그대로 — 카메라 관련 값만 갱신.
+	const int32 PrevDirCount = CachedSettings.NumDirections;
+	CachedSettings = NewSettings;
+	// NumDirections 는 외부에서 직접 적용 — 클램프 유지.
+	CachedSettings.NumDirections = FMath::Clamp(NewSettings.NumDirections, 1, 8);
+
+	ApplyCameraFraming(CachedSettings);
+
+	// 방향 인덱스 보정.
+	if (CachedSettings.NumDirections != PrevDirCount)
+	{
+		CurrentDirectionIdx = FMath::Min(CurrentDirectionIdx, CachedSettings.NumDirections - 1);
+	}
+	UpdateCameraTransform();
 }

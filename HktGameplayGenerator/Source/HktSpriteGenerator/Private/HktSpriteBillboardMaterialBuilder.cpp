@@ -13,6 +13,7 @@
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionPerInstanceCustomData.h"
+#include "Engine/Texture2D.h"
 
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
@@ -42,8 +43,11 @@ namespace
 
 		float2 PlanePos = RotQuad * float2(ScaleX, ScaleY) + float2(OffX, OffY);
 
-		float3 ObjPos = GetObjectWorldPosition(Parameters);
-		float3 CamPos = ResolvedView.WorldCameraOrigin;
+		// UE5.7 LWC: GetObjectWorldPosition은 FLWCVector3, ResolvedView.WorldCameraOrigin은
+		// FDFVector3를 리턴 — float3로 강제 demote 필요. 빌보드는 카메라 가까운 영역이므로
+		// 정밀도 손실은 무시 가능.
+		float3 ObjPos = LWCToFloat(GetObjectWorldPosition(Parameters));
+		float3 CamPos = DFHackToFloat(ResolvedView.WorldCameraOrigin);
 		float2 ToCamH = CamPos.xy - ObjPos.xy;
 		float lenSq = dot(ToCamH, ToCamH);
 		float2 CamDir = lenSq > 1e-6 ? ToCamH * rsqrt(lenSq) : float2(0.0, -1.0);
@@ -55,7 +59,7 @@ namespace
 		float3 ToCamN = normalize(CamPos - BillboardWS);
 		BillboardWS += ToCamN * (ZBiasV * 0.1);
 
-		float3 AbsWS = GetWorldPosition(Parameters);
+		float3 AbsWS = LWCToFloat(GetWorldPosition(Parameters));
 		return BillboardWS - AbsWS;
 	)");
 
@@ -93,8 +97,8 @@ namespace
 	UMaterialExpressionPerInstanceCustomData* MakeCPD(UMaterial* Mat, int32 SlotIndex, float DefaultValue)
 	{
 		UMaterialExpressionPerInstanceCustomData* Node = NewObject<UMaterialExpressionPerInstanceCustomData>(Mat);
-		Node->ConstDataIndex = SlotIndex;
-		Node->DefaultValue   = DefaultValue;
+		Node->DataIndex        = SlotIndex;
+		Node->ConstDefaultValue = DefaultValue;
 		Mat->GetExpressionCollection().AddExpression(Node);
 		return Node;
 	}
@@ -186,7 +190,11 @@ namespace
 		UMaterialExpressionTextureSampleParameter2D* AtlasSample =
 			NewObject<UMaterialExpressionTextureSampleParameter2D>(Mat);
 		AtlasSample->ParameterName = HktSpriteBillboardMaterial::AtlasParamName;
-		AtlasSample->Texture       = nullptr;
+		// 마스터 컴파일 시점에 디폴트 텍스처가 NULL 이면 SM6 셰이더 컴파일이 실패한다
+		// (`Param2D> Found NULL, requires Texture2D`). 런타임에는 MID 가
+		// SetTextureParameterValue로 실제 아틀라스로 덮어쓰므로 이 디폴트는 컴파일용.
+		AtlasSample->Texture       = LoadObject<UTexture2D>(nullptr,
+			TEXT("/Engine/EngineResources/WhiteSquareTexture.WhiteSquareTexture"));
 		AtlasSample->SamplerType   = SAMPLERTYPE_Color;
 		AtlasSample->Coordinates.Connect(0, UVExpr);
 		Mat->GetExpressionCollection().AddExpression(AtlasSample);

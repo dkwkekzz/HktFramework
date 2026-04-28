@@ -45,7 +45,7 @@
 
     { "op": "Log", "message": "Fireball: 범위 피해 적용" },
 
-    { "op": "ForEachInRadius", "center": "Hit", "radius": 300 },
+    { "op": "ForEachInRadius", "center": {"var": "hitTarget"}, "radius": 300 },
       { "op": "IfHasTrait", "entity": "Iter", "trait": "Hittable" },
         { "op": "Move",             "dst": {"target": true}, "src": "Iter" },
         { "op": "ApplyDamageConst", "target": {"target": true}, "amount": 50 },

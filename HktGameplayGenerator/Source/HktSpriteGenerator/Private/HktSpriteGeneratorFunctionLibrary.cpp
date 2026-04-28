@@ -115,11 +115,14 @@ namespace HktSpriteGen
 		UTexture2D* Tex = Cast<UTexture2D>(Imported);
 		if (!Tex) return nullptr;
 
-		// 스프라이트 아틀라스 표준 설정: 픽셀아트 Nearest, NoMipmap, UI 그룹 압축 X
+		// 스프라이트 아틀라스 표준 설정: 픽셀아트 Nearest, NoMipmap, 비압축.
+		// LODGroup=UI 는 BaseDeviceProfiles.ini의 MaxLODSize 캡(보통 2048~4096)에 걸려
+		// 큰 비디오 아틀라스가 강제 다운스케일된다. Pixels2D + MaxTextureSize=0 으로 원본 보존.
 		Tex->CompressionSettings = TC_EditorIcon;
 		Tex->Filter              = TF_Nearest;
 		Tex->MipGenSettings      = TMGS_NoMipmaps;
-		Tex->LODGroup            = TEXTUREGROUP_UI;
+		Tex->LODGroup            = TEXTUREGROUP_Pixels2D;
+		Tex->MaxTextureSize      = 0;
 		Tex->SRGB                = true;
 		Tex->UpdateResource();
 
@@ -636,8 +639,30 @@ namespace HktSpriteGen
 		}
 
 		const int32 CellCount = CellOrder.Num();
-		OutCols = FMath::Max(1, FMath::Min(kNumDirections, CellCount));
+
+		// 아틀라스 한 변을 8192 이하로 제한(GPU 한계·LODGroup 캡 회피).
+		// 1) 기본 cols = min(kNumDirections, CellCount)
+		// 2) Width 캡: cols ≤ 8192 / CellW
+		// 3) Height 캡: rows ≤ 8192 / CellH → 필요 시 cols를 늘려 행 수를 줄임
+		// 4) 셀 자체가 너무 커 둘 다 못 맞추는 경우 경고 로그 후 진행.
+		constexpr int32 kMaxAtlasDim = 8192;
+		const int32 MaxColsByWidth  = FMath::Max(1, kMaxAtlasDim / FMath::Max(1, OutCellW));
+		const int32 MaxRowsByHeight = FMath::Max(1, kMaxAtlasDim / FMath::Max(1, OutCellH));
+		const int32 MinColsByRows   = FMath::DivideAndRoundUp(CellCount, MaxRowsByHeight);
+
+		int32 PreferredCols = FMath::Min(kNumDirections, CellCount);
+		PreferredCols = FMath::Max(PreferredCols, MinColsByRows);
+		PreferredCols = FMath::Min(PreferredCols, MaxColsByWidth);
+		OutCols = FMath::Max(1, PreferredCols);
 		OutRows = FMath::DivideAndRoundUp(CellCount, OutCols);
+
+		if (OutCols * OutCellW > kMaxAtlasDim || OutRows * OutCellH > kMaxAtlasDim)
+		{
+			UE_LOG(LogHktSpriteGenerator, Warning,
+				TEXT("아틀라스가 %d 한계를 초과합니다(CellW=%d CellH=%d Cells=%d → %dx%d). 셀 크기가 너무 큽니다."),
+				kMaxAtlasDim, OutCellW, OutCellH, CellCount,
+				OutCols * OutCellW, OutRows * OutCellH);
+		}
 
 		const int32 AtlasW = OutCols * OutCellW;
 		const int32 AtlasH = OutRows * OutCellH;
@@ -856,21 +881,21 @@ namespace HktSpriteGen
 			OutError = FString::Printf(TEXT("영상 파일 없음: %s"), *VideoPath);
 			return false;
 		}
-		if (FrameRate <= 0.0f)
-		{
-			OutError = TEXT("FrameRate는 0보다 커야 합니다");
-			return false;
-		}
-
+		// FrameRate <= 0 → fps 필터 생략(원본 프레임 전부 보존). 모션·화질 손실 방지.
 		IFileManager& FM = IFileManager::Get();
 		FM.MakeDirectory(*OutputDir, /*Tree*/ true);
 
 		const FString FFmpeg = UHktSpriteGeneratorSettings::ResolveFFmpegExecutable();
 
-		FString VideoFilter = FString::Printf(TEXT("fps=%.6f"), FrameRate);
+		FString VideoFilter;
+		if (FrameRate > 0.0f)
+		{
+			VideoFilter = FString::Printf(TEXT("fps=%.6f"), FrameRate);
+		}
 		if (FrameWidth > 0 && FrameHeight > 0)
 		{
-			VideoFilter += FString::Printf(TEXT(",scale=%d:%d:flags=lanczos"), FrameWidth, FrameHeight);
+			if (!VideoFilter.IsEmpty()) VideoFilter += TEXT(",");
+			VideoFilter += FString::Printf(TEXT("scale=%d:%d:flags=lanczos"), FrameWidth, FrameHeight);
 		}
 
 		const FString OutPattern = OutputDir / TEXT("frame_%04d.png");
@@ -887,7 +912,10 @@ namespace HktSpriteGen
 		{
 			Args += FString::Printf(TEXT("-t %.3f "), EndTimeSec - StartTimeSec);
 		}
-		Args += FString::Printf(TEXT("-vf \"%s\" "), *VideoFilter);
+		if (!VideoFilter.IsEmpty())
+		{
+			Args += FString::Printf(TEXT("-vf \"%s\" "), *VideoFilter);
+		}
 		if (MaxFrames > 0)
 		{
 			Args += FString::Printf(TEXT("-frames:v %d "), MaxFrames);
@@ -1359,7 +1387,8 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 		// 실제 최종 CellSize는 PackAtlas가 디코드 결과의 max(W,H)로 결정하므로 여기선 전달만.
 		int32 FrameCount = 0;
 		FString Err;
-		if (!ExtractVideoFramesImpl(SourcePath, WorkRoot, FinalCellW, FinalCellH, 10.f, 0, 0.f, 0.f, FrameCount, Err))
+		// FrameRate=0 → fps 필터 생략, 원본 프레임을 그대로 보존(화질 우선).
+		if (!ExtractVideoFramesImpl(SourcePath, WorkRoot, FinalCellW, FinalCellH, 0.f, 0, 0.f, 0.f, FrameCount, Err))
 		{
 			return MakeSpriteError(Err);
 		}

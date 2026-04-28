@@ -258,7 +258,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Style")
 	TObjectPtr<UHktVoxelTerrainStyleSet> BakedStyleSet;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	/**
 	 * BlockStyles 를 베이크하여 .uasset 으로 저장 + BakedStyleSet 에 자동 할당.
 	 * 저장 위치는 BakeStyleSetSavePath 를 따른다. 에디터-전용.

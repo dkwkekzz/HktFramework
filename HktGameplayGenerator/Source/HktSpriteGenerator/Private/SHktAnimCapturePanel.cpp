@@ -3,6 +3,7 @@
 #include "SHktAnimCapturePanel.h"
 
 #include "HktAnimCaptureFunctionLibrary.h"
+#include "HktAnimCaptureScene.h"
 
 #include "Animation/AnimSequence.h"
 #include "AssetRegistry/AssetData.h"
@@ -10,16 +11,19 @@
 #include "Camera/HktCameraModeBase.h"
 #include "DesktopPlatformModule.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDesktopPlatform.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -71,6 +75,11 @@ namespace HktAnimCapturePanelPrivate
 void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 {
 	using namespace HktAnimCapturePanelPrivate;
+
+	// 프리뷰 브러시 초기화 — RT 가 생성된 후 SetResourceObject 로 연결한다.
+	PreviewBrush = MakeShared<FSlateBrush>();
+	PreviewBrush->ImageSize = FVector2D(512.f, 512.f);
+	PreviewBrush->DrawAs = ESlateBrushDrawType::Image;
 
 	// 디폴트 설정 적용 (IsometricOrtho).
 	Settings.NumDirections = 8;
@@ -223,6 +232,69 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 						SAssignNew(ArmLengthBox, SEditableTextBox).Text(FloatText(Settings.ArmLength))) ]
 				]
 
+				// === Preview ===
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,8,0,4)
+				[
+					SNew(STextBlock).Font(HeaderFont)
+					.Text(LOCTEXT("PreviewSec", "Preview"))
+				]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,2,0,4)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("PreviewHint",
+						"Refresh Preview 로 현재 설정의 캡처 결과를 그대로 시뮬레이션. "
+						"방향(◀ ▶)과 Play/Pause 로 애니메이션을 직접 확인."))
+					.AutoWrapText(true)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0,0,8,0)
+					[ SNew(SButton)
+						.Text(LOCTEXT("PreviewRefresh", "Refresh Preview"))
+						.OnClicked(this, &SHktAnimCapturePanel::OnRefreshPreviewClicked) ]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0,0,8,0)
+					[ SNew(SCheckBox)
+						.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+						.IsChecked_Lambda([this]() { return bPreviewPlaying ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+						.OnCheckStateChanged(this, &SHktAnimCapturePanel::OnPlayPauseChanged)
+						[ SNew(SBox).Padding(FMargin(8,2))
+							[ SNew(STextBlock).Text_Lambda([this]() {
+								return bPreviewPlaying ? LOCTEXT("Pause", "Pause") : LOCTEXT("Play", "Play");
+							}) ]
+						]
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0,0,4,0)
+					[ SNew(SButton).Text(LOCTEXT("DirPrev", "◀"))
+						.OnClicked(this, &SHktAnimCapturePanel::OnPrevDirectionClicked) ]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0,0,8,0)
+					[ SNew(SButton).Text(LOCTEXT("DirNext", "▶"))
+						.OnClicked(this, &SHktAnimCapturePanel::OnNextDirectionClicked) ]
+					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+					[ SAssignNew(PreviewStatusText, STextBlock)
+						.Text(LOCTEXT("PreviewIdle", "Preview idle. Set mesh/anim and click Refresh Preview."))
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground()) ]
+				]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
+				[
+					SNew(SBorder)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Padding(2)
+					[
+						SNew(SBox)
+						.WidthOverride(512.f)
+						.HeightOverride(512.f)
+						[
+							SAssignNew(PreviewImage, SImage)
+						]
+					]
+				]
+
 				// === 캡처 ===
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,8,0,4)
 				[
@@ -351,6 +423,22 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 			]
 		]
 	];
+
+	// 프리뷰 이미지에 브러시 연결.
+	if (PreviewImage.IsValid() && PreviewBrush.IsValid())
+	{
+		PreviewImage->SetImage(PreviewBrush.Get());
+	}
+
+	// ~30 FPS 활성 타이머 — 프리뷰 씬이 살아있을 때만 RenderPreview.
+	PreviewTimerHandle = RegisterActiveTimer(
+		1.0f / 30.0f,
+		FWidgetActiveTimerDelegate::CreateSP(this, &SHktAnimCapturePanel::TickPreview));
+}
+
+SHktAnimCapturePanel::~SHktAnimCapturePanel()
+{
+	DestroyPreviewScene();
 }
 
 void SHktAnimCapturePanel::OnSkeletalMeshChanged(const FAssetData& Asset)
@@ -483,6 +571,157 @@ FReply SHktAnimCapturePanel::OnCaptureClicked()
 		ResultBox->SetText(FText::FromString(Result));
 	}
 	return FReply::Handled();
+}
+
+// ============================================================================
+// Editor Preview
+// ============================================================================
+
+void SHktAnimCapturePanel::DestroyPreviewScene()
+{
+	// 브러시가 곧 파괴될 RT 를 가리키지 않게 먼저 해제.
+	if (PreviewBrush.IsValid())
+	{
+		PreviewBrush->SetResourceObject(nullptr);
+	}
+	PreviewScene.Reset();
+}
+
+void SHktAnimCapturePanel::RebuildPreviewScene()
+{
+	RebuildSettingsFromUI();
+
+	// 기존 씬 폐기 — 메시/애니가 바뀌었을 수 있으므로 깔끔히 재구성.
+	DestroyPreviewScene();
+
+	if (Settings.SkeletalMesh.IsNull())
+	{
+		if (PreviewStatusText.IsValid())
+		{
+			PreviewStatusText->SetText(LOCTEXT("PreviewNoMesh", "SkeletalMesh 가 지정되지 않음."));
+		}
+		return;
+	}
+
+	PreviewScene = MakeUnique<FHktAnimCaptureScene>();
+
+	FString Err;
+	if (!PreviewScene->Initialize(Settings, Err))
+	{
+		if (PreviewStatusText.IsValid())
+		{
+			PreviewStatusText->SetText(FText::FromString(FString::Printf(TEXT("Preview init 실패: %s"), *Err)));
+		}
+		PreviewScene.Reset();
+		return;
+	}
+
+	if (!PreviewScene->InitializePreviewRT(512, 512, Err))
+	{
+		if (PreviewStatusText.IsValid())
+		{
+			PreviewStatusText->SetText(FText::FromString(FString::Printf(TEXT("Preview RT 실패: %s"), *Err)));
+		}
+		PreviewScene.Reset();
+		return;
+	}
+
+	// 방향 인덱스 보정 + 카메라 적용.
+	const int32 NumDir = FMath::Clamp(Settings.NumDirections, 1, 8);
+	PreviewDirectionIdx = FMath::Clamp(PreviewDirectionIdx, 0, NumDir - 1);
+	PreviewScene->SetDirectionIndex(PreviewDirectionIdx);
+
+	// 첫 프레임으로 시간 리셋 후 1프레임 렌더.
+	PreviewTimeSec = 0.0f;
+	PreviewScene->SetAnimationTime(PreviewTimeSec);
+	PreviewScene->RenderPreview();
+
+	// 브러시에 RT 연결.
+	if (PreviewBrush.IsValid())
+	{
+		PreviewBrush->SetResourceObject(PreviewScene->GetPreviewRenderTarget());
+		PreviewBrush->ImageSize = FVector2D(512.f, 512.f);
+	}
+	if (PreviewImage.IsValid())
+	{
+		PreviewImage->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	}
+
+	if (PreviewStatusText.IsValid())
+	{
+		const float L = PreviewScene->GetAnimSequenceLength();
+		PreviewStatusText->SetText(FText::FromString(FString::Printf(
+			TEXT("Dir %d/%d  Len %.2fs  %s"),
+			PreviewDirectionIdx, NumDir, L, bPreviewPlaying ? TEXT("Playing") : TEXT("Paused"))));
+	}
+}
+
+EActiveTimerReturnType SHktAnimCapturePanel::TickPreview(double, float InDeltaTime)
+{
+	if (!PreviewScene.IsValid())
+	{
+		return EActiveTimerReturnType::Continue;
+	}
+
+	if (bPreviewPlaying)
+	{
+		const float L = PreviewScene->GetAnimSequenceLength();
+		PreviewTimeSec += InDeltaTime;
+		if (L > 0.0f)
+		{
+			PreviewTimeSec = FMath::Fmod(PreviewTimeSec, L);
+		}
+		PreviewScene->SetAnimationTime(PreviewTimeSec);
+	}
+
+	PreviewScene->RenderPreview();
+
+	if (PreviewStatusText.IsValid())
+	{
+		const int32 NumDir = FMath::Clamp(Settings.NumDirections, 1, 8);
+		const float L = PreviewScene->GetAnimSequenceLength();
+		PreviewStatusText->SetText(FText::FromString(FString::Printf(
+			TEXT("Dir %d/%d  T %.2f/%.2fs  %s"),
+			PreviewDirectionIdx, NumDir, PreviewTimeSec, L,
+			bPreviewPlaying ? TEXT("Playing") : TEXT("Paused"))));
+	}
+
+	return EActiveTimerReturnType::Continue;
+}
+
+FReply SHktAnimCapturePanel::OnRefreshPreviewClicked()
+{
+	RebuildPreviewScene();
+	return FReply::Handled();
+}
+
+FReply SHktAnimCapturePanel::OnPrevDirectionClicked()
+{
+	RebuildSettingsFromUI();
+	const int32 NumDir = FMath::Clamp(Settings.NumDirections, 1, 8);
+	PreviewDirectionIdx = ((PreviewDirectionIdx - 1) % NumDir + NumDir) % NumDir;
+	if (PreviewScene.IsValid())
+	{
+		PreviewScene->SetDirectionIndex(PreviewDirectionIdx);
+	}
+	return FReply::Handled();
+}
+
+FReply SHktAnimCapturePanel::OnNextDirectionClicked()
+{
+	RebuildSettingsFromUI();
+	const int32 NumDir = FMath::Clamp(Settings.NumDirections, 1, 8);
+	PreviewDirectionIdx = (PreviewDirectionIdx + 1) % NumDir;
+	if (PreviewScene.IsValid())
+	{
+		PreviewScene->SetDirectionIndex(PreviewDirectionIdx);
+	}
+	return FReply::Handled();
+}
+
+void SHktAnimCapturePanel::OnPlayPauseChanged(ECheckBoxState NewState)
+{
+	bPreviewPlaying = (NewState == ECheckBoxState::Checked);
 }
 
 #undef LOCTEXT_NAMESPACE

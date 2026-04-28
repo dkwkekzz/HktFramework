@@ -547,13 +547,22 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	// --- 3. 트랜스폼 + CPD ---
 	FTransform WorldXform = FTransform::Identity;
 	WorldXform.SetLocation(Update.WorldLocation);
+	// UE5.7 ISM: bMarkRenderStateDirty=false 시 트랜스폼 업데이트가 별도 cmd buffer로
+	// 큐잉되어 CPD 의 MarkRenderStateDirty 와 같이 flush되지 않는 케이스가 있다.
+	// 인스턴스가 매 프레임 이동하므로 여기서 직접 dirty 를 마크해 GPU 업로드 보장.
 	HISM->UpdateInstanceTransform(State.InstanceIndex, WorldXform, /*bWorldSpace=*/true,
-		/*bMarkRenderStateDirty=*/false, /*bTeleport=*/true);
+		/*bMarkRenderStateDirty=*/true, /*bTeleport=*/true);
 
 	const float AtlasIndexF = static_cast<float>(Frame.AtlasIndex);
 	const float CellW = CellSize.X;
 	const float CellH = CellSize.Y;
-	const FVector2f Offset = Pivot * PxToWorld;
+	// PivotOffset 은 셀 좌상단 기준 픽셀 좌표(예: (CellW/2, CellH) = 하단-중앙).
+	// 셰이더 Quad 는 이미 하단-중앙이 (0,0) 이도록 구성되어 있으므로,
+	// 셀 중심/하단을 기준점으로 변환한 뒤 PxToWorld 와 Frame.Scale 을 곱해야
+	// pivot 픽셀이 정확히 entity 위치(WorldLocation)에 놓인다.
+	const FVector2f Offset(
+		(CellW * 0.5f - Pivot.X) * PxToWorld * Frame.Scale.X,
+		(CellH        - Pivot.Y) * PxToWorld * Frame.Scale.Y);
 
 	const FLinearColor Tint = Frame.Tint * Update.TintOverride;
 	const float FlipValue = Res.bFlipX ? 1.f : 0.f;

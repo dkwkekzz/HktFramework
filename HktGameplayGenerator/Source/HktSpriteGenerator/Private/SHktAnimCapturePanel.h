@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HktAnimCaptureScene.h"
 #include "HktAnimCaptureTypes.h"
+#include "Styling/SlateBrush.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SEditableTextBox;
+class SImage;
 class SMultiLineEditableTextBox;
 
 /**
@@ -29,10 +32,20 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+	virtual ~SHktAnimCapturePanel() override;
 
 private:
 	FReply OnBrowseDiskOutputDir();
 	FReply OnCaptureClicked();
+	FReply OnRefreshPreviewClicked();
+	FReply OnPrevDirectionClicked();
+	FReply OnNextDirectionClicked();
+
+	void OnPlayPauseChanged(ECheckBoxState NewState);
+	EActiveTimerReturnType TickPreview(double InCurrentTime, float InDeltaTime);
+
+	void RebuildPreviewScene();
+	void DestroyPreviewScene();
 
 	void OnSkeletalMeshChanged(const FAssetData& Asset);
 	void OnAnimSequenceChanged(const FAssetData& Asset);
@@ -70,6 +83,19 @@ private:
 	TSharedPtr<SEditableTextBox> CropPaddingBox;
 
 	TSharedPtr<SMultiLineEditableTextBox> ResultBox;
+
+	// === Preview =========================================================
+	TSharedPtr<SImage> PreviewImage;
+	TSharedPtr<FSlateBrush> PreviewBrush;
+	TSharedPtr<class STextBlock> PreviewStatusText;
+	TSharedPtr<class FActiveTimerHandle> PreviewTimerHandle;
+
+	// 캡처 씬을 그대로 프리뷰에도 사용 — 카메라/프레이밍 = 캡처 결과와 1:1.
+	TUniquePtr<FHktAnimCaptureScene> PreviewScene;
+
+	bool bPreviewPlaying = true;
+	float PreviewTimeSec = 0.0f;
+	int32 PreviewDirectionIdx = 0;
 
 	// 상태 ===============================================================
 	FHktAnimCaptureSettings Settings;

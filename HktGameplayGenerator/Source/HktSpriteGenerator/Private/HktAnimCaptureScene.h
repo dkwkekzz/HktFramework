@@ -4,12 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "PreviewScene.h"
+#include "UObject/GCObject.h"
 #include "HktAnimCaptureTypes.h"
 
 class USkeletalMesh;
 class UAnimSequence;
 class USkeletalMeshComponent;
 class USceneCaptureComponent2D;
+class UDirectionalLightComponent;
 class UTextureRenderTarget2D;
 
 /**
@@ -32,11 +34,11 @@ class UTextureRenderTarget2D;
  *   }
  *   // 자동 RAII 해제
  */
-class FHktAnimCaptureScene
+class FHktAnimCaptureScene : public FGCObject
 {
 public:
 	FHktAnimCaptureScene();
-	~FHktAnimCaptureScene();
+	virtual ~FHktAnimCaptureScene();
 
 	bool Initialize(const FHktAnimCaptureSettings& Settings, FString& OutError);
 
@@ -52,6 +54,25 @@ public:
 	/** AnimSequence 의 길이(초). 미지정 시 0. */
 	float GetAnimSequenceLength() const { return AnimLengthSec; }
 
+	// === Editor Preview =================================================
+	// 캡처 출력 RT 와 별도로, 에디터 패널에 실시간 표시할 프리뷰 RT 를 운영한다.
+	// 같은 SceneCaptureComponent 를 공유하되, 캡처 시에는 출력 RT 로 잠시 swap.
+
+	/** 프리뷰용 RT 를 (재)생성. Initialize 이후 호출 가능. */
+	bool InitializePreviewRT(int32 PreviewWidth, int32 PreviewHeight, FString& OutError);
+
+	/** 프리뷰 1프레임 렌더 — 출력 RT 는 건드리지 않는다. */
+	void RenderPreview();
+
+	/** 카메라/프리셋/오프셋이 변경됐을 때 씬 재구성 없이 SCC 만 갱신. */
+	void UpdateCameraSettings(const FHktAnimCaptureSettings& NewSettings);
+
+	UTextureRenderTarget2D* GetPreviewRenderTarget() const { return PreviewRT; }
+
+	// FGCObject ===========================================================
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("FHktAnimCaptureScene"); }
+
 private:
 	void ApplyCameraFraming(const FHktAnimCaptureSettings& Settings);
 	void UpdateCameraTransform();
@@ -65,6 +86,10 @@ private:
 	TObjectPtr<USkeletalMeshComponent> MeshComp = nullptr;
 	TObjectPtr<USceneCaptureComponent2D> CaptureComp = nullptr;
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget = nullptr;
+	// 에디터 프리뷰 패널용 RT — 출력 RT 와 별개. 미사용 시 nullptr.
+	TObjectPtr<UTextureRenderTarget2D> PreviewRT = nullptr;
+	// 추가 fill light(시인성 향상) — FPreviewScene::bDefaultLighting 의 키 라이트 보조.
+	TObjectPtr<UDirectionalLightComponent> FillLight = nullptr;
 
 	FHktAnimCaptureSettings CachedSettings;
 

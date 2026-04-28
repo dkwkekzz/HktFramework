@@ -54,7 +54,7 @@ HktGameplay (Runtime)
 **Schema 2 JSON 마이그레이션 컨벤션 (PR-3)**:
 - schema 2 JSON 은 cpp 와 병행 운영 — `Story.V2.{원본}` prefix 태그로 등록 (예: cpp `Story.Event.Skill.Fireball` → JSON `Story.V2.Event.Skill.Fireball`).
 - cpp 본문은 무수정. 두 system 이 동시에 등록되어 충돌 없이 공존한다.
-- 검증 방식: byte-identical 비교 폐기. 의미 등가성을 시뮬레이션 1틱 dirty 비교로 검증 (`HktCore/Tests/HktStorySemanticTest.cpp` 의 `FHktStorySemanticHarness`).
+- 검증 방식: byte-identical 비교 폐기. UE Automation 테스트로 동등성 검증 — `HktGameplayDeveloper/HktAutomationTests` 모듈의 `HktStoryV2EquivalenceTest.cpp`. `FHktAutomationTestHarness` 로 cpp/V2 program 을 각각 `ExecuteProgram` 한 뒤 `GetProperty` 결과를 비교한다 (Session Frontend 에서 `HktCore.Story.V2.*.Equivalent` 카테고리로 실행).
 - JSON 스키마 정의: [`HktGameplay/Content/Stories/SCHEMA.md`](Content/Stories/SCHEMA.md).
 
 ## HktPresentation — 시각화
