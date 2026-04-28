@@ -28,8 +28,6 @@ public class HktUI : ModuleRules
 				"Slate",
 				"SlateCore",
 				"MediaAssets",
-				"CommonUI",
-				"CommonInput",
 				"HktCore",
 				"HktRuntime",
 				"HktAsset",
