@@ -161,23 +161,21 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
-				[ MakeRow(LOCTEXT("CamModeLbl", "Camera Mode BP"),
-					SNew(SObjectPropertyEntryBox)
-						.AllowedClass(UHktCameraModeBase::StaticClass())
-						.ObjectPath(this, &SHktAnimCapturePanel::GetCameraModeAssetPath)
-						.OnObjectChanged(this, &SHktAnimCapturePanel::OnCameraModeAssetChanged)
-						.AllowClear(true)
-						.DisplayUseSelected(true)
-						.DisplayBrowse(true)
-						.DisplayThumbnail(true)
-						.ThumbnailPool(UThumbnailManager::Get().GetSharedThumbnailPool())
+				[ MakeRow(LOCTEXT("CamModeLbl", "Camera Mode Class"),
+					SNew(SClassPropertyEntryBox)
+						.MetaClass(UHktCameraModeBase::StaticClass())
+						.SelectedClass(this, &SHktAnimCapturePanel::GetCameraModeClass)
+						.OnSetClass(this, &SHktAnimCapturePanel::OnCameraModeClassChanged)
+						.AllowAbstract(false)
+						.AllowNone(true)
 				) ]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,2,0,4)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("CamModeHint",
-						"BP 지정 시 인게임 Framing(Projection/FOV/OrthoWidth/Pitch/ArmLength/SocketOffset)을 그대로 사용. "
+						"네이티브 클래스(UHktCameraMode_*) 또는 그로부터 파생된 BP 클래스를 선택. "
+						"CDO 의 Framing(Projection/FOV/OrthoWidth/Pitch/ArmLength/SocketOffset)이 SceneCapture 에 적용됨. "
 						"미지정 시 아래 프리셋/Custom 값 사용."))
 					.AutoWrapText(true)
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
@@ -239,7 +237,7 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 						SAssignNew(WidthBox, SEditableTextBox).Text(IntText(Settings.OutputWidth))) ]
 					+ SUniformGridPanel::Slot(1,0)[ MakeRow(LOCTEXT("HLbl", "Output Height (px)"),
 						SAssignNew(HeightBox, SEditableTextBox).Text(IntText(Settings.OutputHeight))) ]
-					+ SUniformGridPanel::Slot(0,1)[ MakeRow(LOCTEXT("NDirLbl", "Num Directions (1/4/8)"),
+					+ SUniformGridPanel::Slot(0,1)[ MakeRow(LOCTEXT("NDirLbl", "Num Directions (1 or 8)"),
 						SAssignNew(NumDirBox, SEditableTextBox).Text(IntText(Settings.NumDirections))) ]
 					+ SUniformGridPanel::Slot(1,1)[ MakeRow(LOCTEXT("FpsLbl", "Capture FPS"),
 						SAssignNew(FpsBox, SEditableTextBox).Text(FloatText(Settings.CaptureFPS))) ]
@@ -365,9 +363,11 @@ void SHktAnimCapturePanel::OnAnimSequenceChanged(const FAssetData& Asset)
 	Settings.AnimSequence = TSoftObjectPtr<UAnimSequence>(Asset.ToSoftObjectPath());
 }
 
-void SHktAnimCapturePanel::OnCameraModeAssetChanged(const FAssetData& Asset)
+void SHktAnimCapturePanel::OnCameraModeClassChanged(const UClass* NewClass)
 {
-	Settings.CameraModeAsset = TSoftObjectPtr<UHktCameraModeBase>(Asset.ToSoftObjectPath());
+	Settings.CameraModeClass = NewClass
+		? TSoftClassPtr<UHktCameraModeBase>(const_cast<UClass*>(NewClass))
+		: TSoftClassPtr<UHktCameraModeBase>();
 }
 
 FString SHktAnimCapturePanel::GetSkeletalMeshPath() const
@@ -380,9 +380,10 @@ FString SHktAnimCapturePanel::GetAnimSequencePath() const
 	return Settings.AnimSequence.IsNull() ? FString() : Settings.AnimSequence.ToString();
 }
 
-FString SHktAnimCapturePanel::GetCameraModeAssetPath() const
+const UClass* SHktAnimCapturePanel::GetCameraModeClass() const
 {
-	return Settings.CameraModeAsset.IsNull() ? FString() : Settings.CameraModeAsset.ToString();
+	// SoftClassPtr::Get() 는 이미 로드된 경우만 반환 — 미로드면 LoadSynchronous.
+	return Settings.CameraModeClass.IsNull() ? nullptr : Settings.CameraModeClass.LoadSynchronous();
 }
 
 void SHktAnimCapturePanel::ApplyPresetToCustomFields(EHktAnimCaptureCameraPreset Preset)
@@ -451,7 +452,11 @@ void SHktAnimCapturePanel::RebuildSettingsFromUI()
 
 	Settings.OutputWidth     = FMath::Max(16,  GetInt(WidthBox,  Settings.OutputWidth));
 	Settings.OutputHeight    = FMath::Max(16,  GetInt(HeightBox, Settings.OutputHeight));
-	Settings.NumDirections   = FMath::Clamp(GetInt(NumDirBox, Settings.NumDirections), 1, 8);
+	// SpriteGenerator 디렉터리 매핑 안전성 위해 1 또는 8 만 허용 (라이브러리도 동일 강제).
+	{
+		const int32 RawN = GetInt(NumDirBox, Settings.NumDirections);
+		Settings.NumDirections = (RawN <= 1) ? 1 : 8;
+	}
 	Settings.FrameCount      = FMath::Max(0,   GetInt(FrameCountBox, Settings.FrameCount));
 	Settings.CaptureFPS      = FMath::Max(0.1f, GetFlt(FpsBox, Settings.CaptureFPS));
 	Settings.StartTime       = FMath::Max(0.0f, GetFlt(StartTimeBox, Settings.StartTime));

@@ -71,18 +71,23 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 	// === 카메라 ===
 
 	/**
-	 * 인게임 카메라 BP(또는 네이티브 UHktCameraMode_* 클래스의 인스턴스 어셋).
-	 * 지정 시 CameraPreset / Custom 필드는 모두 무시되고, 이 BP 의 Framing
-	 * 프로필(Projection/FOV/OrthoWidth/DefaultPitch/DefaultArmLength/SocketOffset)이
-	 * SceneCapture 에 그대로 적용된다 — 인게임 뷰와 1:1 일치.
+	 * 인게임 카메라 모드 클래스 (네이티브 `UHktCameraMode_*` 또는 그로부터 파생된 BP).
 	 *
-	 * BP 의 동적 동작(마우스룩, EdgeScroll, Yaw 스냅, Tick) 은 정적 캡처에서
-	 * 의미가 없어 무시된다. "기본 framing" 만 동기화된다.
+	 * `UHktCameraModeBase` 는 `EditInlineNew, DefaultToInstanced` — 즉 콘텐츠
+	 * 브라우저에 독립 어셋으로는 존재하지 않고 Pawn BP 안의 서브오브젝트로 산다.
+	 * 그래서 인스턴스(=어셋) 가 아닌 **클래스** 를 픽하고, 캡처 시 그 클래스의
+	 * CDO(GetDefaultObject) 의 `Framing` 프로필을 SceneCapture 에 적용한다.
+	 *
+	 * 적용 범위: C++ 생성자에서 세팅된 디폴트 + BP 클래스 자체에서 변경된 값.
+	 * (`AHktRtsCameraPawn` BP 의 인스턴스 디테일에서 오버라이드된 값은
+	 *  잡지 못함 — 그건 pawn 단의 서브오브젝트 오버라이드라서.)
+	 *
+	 * 미지정 시 enum 프리셋 / Custom 필드 사용.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
-	TSoftObjectPtr<UHktCameraModeBase> CameraModeAsset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (MetaClass = "/Script/HktPresentation.HktCameraModeBase"))
+	TSoftClassPtr<UHktCameraModeBase> CameraModeClass;
 
-	/** CameraModeAsset 미지정 시 사용. */
+	/** CameraModeClass 미지정 시 사용. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
 	EHktAnimCaptureCameraPreset CameraPreset = EHktAnimCaptureCameraPreset::IsometricOrtho;
 
@@ -122,7 +127,15 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture")
 	int32 OutputHeight = 256;
 
-	/** 1 (정면), 4, 또는 8 방향. 그 외 값은 8 로 클램프. */
+	/**
+	 * 캡처 방향 수. **1 또는 8 만 안전**.
+	 *
+	 * SpriteGenerator 디렉터리 스캐너의 방향 인덱스는 N(0)/NE(1)/E(2)/SE(3)/
+	 * S(4)/SW(5)/W(6)/NW(7) 8개 고정. 4 등 중간값을 쓰면 yaw step (=360/N)
+	 * 과 파일명 인덱스가 어긋나 잘못된 방향 슬롯에 매핑된다.
+	 *
+	 * 1 외의 값은 모두 8 로 강제 (CaptureAnimation 진입부에서 클램프).
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture", meta = (ClampMin = "1", ClampMax = "8"))
 	int32 NumDirections = 8;
 

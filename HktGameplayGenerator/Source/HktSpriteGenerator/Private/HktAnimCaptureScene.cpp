@@ -116,7 +116,6 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 
 	const FBoxSphereBounds Bounds = MeshComp->Bounds;
 	SubjectFocus = Bounds.Origin;
-	SubjectRadius = FMath::Max(50.0f, Bounds.SphereRadius);
 
 	// === RenderTarget ===
 	const int32 W = FMath::Clamp(Settings.OutputWidth,  16, 4096);
@@ -175,27 +174,38 @@ void FHktAnimCaptureScene::ApplyCameraFraming(const FHktAnimCaptureSettings& Set
 	float OrthoW = Settings.OrthoWidth;
 	FVector SocketOffset = FVector::ZeroVector;
 
-	// 1순위: 인게임 카메라 BP 의 Framing 프로필을 그대로 적용 (1:1 뷰 일치).
+	// 1순위: 인게임 카메라 모드 클래스의 CDO Framing 을 그대로 적용 (1:1 뷰 일치).
+	// `UHktCameraModeBase` 는 EditInlineNew/DefaultToInstanced 라 콘텐츠 브라우저에
+	// 독립 어셋으로 존재하지 않는다 — 그래서 인스턴스가 아닌 클래스(CDO)를 본다.
 	bool bResolvedFromAsset = false;
-	if (!Settings.CameraModeAsset.IsNull())
+	if (!Settings.CameraModeClass.IsNull())
 	{
-		if (UHktCameraModeBase* ModeAsset = Settings.CameraModeAsset.LoadSynchronous())
+		if (UClass* ModeClass = Settings.CameraModeClass.LoadSynchronous())
 		{
-			if (UHktCameraFramingProfile* Profile = ModeAsset->Framing)
-			{
-				Proj         = Profile->ProjectionMode;
-				FOV          = Profile->FieldOfView;
-				OrthoW       = Profile->OrthoWidth;
-				Pitch        = Profile->DefaultPitch;
-				ArmLength    = Profile->DefaultArmLength;
-				SocketOffset = Profile->SocketOffset;
-				bResolvedFromAsset = true;
-			}
-			else
+			if (ModeClass->HasAnyClassFlags(CLASS_Abstract))
 			{
 				UE_LOG(LogHktAnimCapture, Warning,
-					TEXT("CameraModeAsset(%s) 에 Framing 프로필이 없음 — 프리셋으로 폴백"),
-					*ModeAsset->GetPathName());
+					TEXT("CameraModeClass(%s)가 Abstract — 파생 BP 또는 네이티브 구상 클래스를 골라야 한다."),
+					*ModeClass->GetPathName());
+			}
+			else if (UHktCameraModeBase* CDO = ModeClass->GetDefaultObject<UHktCameraModeBase>())
+			{
+				if (UHktCameraFramingProfile* Profile = CDO->Framing)
+				{
+					Proj         = Profile->ProjectionMode;
+					FOV          = Profile->FieldOfView;
+					OrthoW       = Profile->OrthoWidth;
+					Pitch        = Profile->DefaultPitch;
+					ArmLength    = Profile->DefaultArmLength;
+					SocketOffset = Profile->SocketOffset;
+					bResolvedFromAsset = true;
+				}
+				else
+				{
+					UE_LOG(LogHktAnimCapture, Warning,
+						TEXT("CameraModeClass(%s) CDO 에 Framing 프로필이 없음 — 프리셋으로 폴백"),
+						*ModeClass->GetPathName());
+				}
 			}
 		}
 	}

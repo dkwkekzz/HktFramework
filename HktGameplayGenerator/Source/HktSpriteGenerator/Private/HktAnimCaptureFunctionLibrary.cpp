@@ -86,9 +86,10 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimation(const FHktAnimCaptureSe
 	Settings.DiskOutputDir = FPaths::ConvertRelativePathToFull(Settings.DiskOutputDir);
 	ClearDirectoryContents(Settings.DiskOutputDir);
 
-	// 방향 수 정규화 — SpriteGenerator 가 1·5·8 양자화하므로 4 는 사실상 8 로 보강하는 것이 안전.
-	if (Settings.NumDirections <= 0) Settings.NumDirections = 1;
-	if (Settings.NumDirections > 8)  Settings.NumDirections = 8;
+	// 방향 수 강제: 1 또는 8 만 허용. 그 외(2/3/4/5/6/7)는 yaw step 과
+	// SpriteGenerator 의 N/NE/E/SE/S/SW/W/NW 파일명 인덱스 매핑이 어긋나
+	// 잘못된 방향 슬롯으로 들어간다 — 안전을 위해 8 로 강제.
+	Settings.NumDirections = (Settings.NumDirections <= 1) ? 1 : 8;
 
 	// === 씬 초기화 ===
 	FHktAnimCaptureScene Scene;

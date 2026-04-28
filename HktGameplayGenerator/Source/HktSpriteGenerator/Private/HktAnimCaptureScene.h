@@ -68,9 +68,8 @@ private:
 
 	FHktAnimCaptureSettings CachedSettings;
 
-	// 메시 바운드 중심에 카메라 타깃을 맞추기 위한 캐시.
+	// 메시 바운드 중심 — SpringArm pivot 으로 사용.
 	FVector SubjectFocus = FVector::ZeroVector;
-	float SubjectRadius = 100.0f;
 
 	// HktCameraFramingProfile::SocketOffset 와 동일 의미 — SpringArm 회전 좌표계에서
 	// (Forward, Right, Up) 으로 카메라를 살짝 미는 오프셋 (어깨뷰 등).
