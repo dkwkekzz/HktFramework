@@ -31,7 +31,8 @@ public:
 	FDirectoryPath FFmpegDirectory;
 
 	// UDeveloperSettings 인터페이스
-	virtual FName GetCategoryName() const override { return FName(TEXT("Plugins")); }
+	virtual FName GetCategoryName() const override { return FName(TEXT("HktGameplay")); }
+	virtual FName GetSectionName() const override { return FName(TEXT("HktSpriteGenerator")); }
 
 	/** 설정 + 환경변수 + PATH 순으로 ffmpeg 실행파일 경로를 해석. 없으면 시스템 PATH 기본명 반환. */
 	static FString ResolveFFmpegExecutable();

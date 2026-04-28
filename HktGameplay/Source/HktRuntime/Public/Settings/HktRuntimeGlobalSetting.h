@@ -21,8 +21,8 @@ public:
 	UHktRuntimeGlobalSetting();
 
 	virtual FName GetContainerName() const override { return FName("Project"); }
-	virtual FName GetCategoryName() const override { return FName("Game"); }
-	virtual FName GetSectionName() const override { return FName("HktGameplay"); }
+	virtual FName GetCategoryName() const override { return FName("HktGameplay"); }
+	virtual FName GetSectionName() const override { return FName("HktRuntime"); }
 
 	// === 로그인 / 레벨 전환 ===
 
