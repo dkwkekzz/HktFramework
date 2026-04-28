@@ -16,6 +16,7 @@ struct FHktTerrainGeneratorConfig;
 class UHktVoxelChunkComponent;
 class UHktVoxelTileAtlas;
 class UHktVoxelMaterialLUT;
+class UHktVoxelTerrainStyleSet;
 
 /**
  * FHktVoxelBlockStyle — TypeID별 시각 정의
@@ -233,14 +234,46 @@ public:
 	// === 블록 스타일 (Phase 1+2: 타일 텍스처 + PBR) ===
 
 	/**
-	 * 블록 타입별 시각 정의.
-	 * TypeID별 텍스처(Top/Side/Bottom)와 PBR(Roughness/Metallic/Specular)을 지정.
-	 * BeginPlay에서 자동으로 Texture2DArray + MaterialLUT로 빌드된다.
-	 * 비어있으면 기존 팔레트 렌더링 그대로 동작.
+	 * 블록 타입별 시각 정의 (편집/베이크 소스).
+	 *
+	 * BakedStyleSet 가 비어있을 때만 BeginPlay 가 이 배열을 직접 빌드한다 —
+	 * 이 경로는 UpdateSourceFromSourceTextures 를 통한 BCn DDC 컴파일을 런타임에
+	 * 트리거하므로 텍스처 수가 많거나 해상도가 크면 TextureDerivedData 워커 메모리를
+	 * 초과한다(약 1 GiB+). 프로덕션에서는 Bake 버튼 → BakedStyleSet 경로 사용 권장.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Style",
 		meta = (TitleProperty = "{DisplayName} (ID:{TypeID})"))
 	TArray<FHktVoxelBlockStyle> BlockStyles;
+
+	/**
+	 * 베이크된 스타일 자산 (권장 경로).
+	 *
+	 * 설정되어 있으면 BlockStyles 직접 빌드 경로를 우회하고 이 자산만 적용한다.
+	 * 자산 내부에 Texture2DArray 가 cooked 상태로 포함되어 있어 런타임에는
+	 * DDC 컴파일이 발생하지 않는다.
+	 *
+	 * 생성: Details 패널의 BakeStyleSet 버튼(에디터 전용) 또는
+	 *       UHktVoxelTerrainBakeLibrary::BakeStyleSet(...) 호출.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Style")
+	TObjectPtr<UHktVoxelTerrainStyleSet> BakedStyleSet;
+
+#if WITH_EDITOR
+	/**
+	 * BlockStyles 를 베이크하여 .uasset 으로 저장 + BakedStyleSet 에 자동 할당.
+	 * 저장 위치는 BakeStyleSetSavePath 를 따른다. 에디터-전용.
+	 */
+	UFUNCTION(CallInEditor, Category = "HktTerrain|Style")
+	void BakeStyleSet();
+
+	/**
+	 * BakeStyleSet 버튼이 사용할 저장 경로 (Content 상대).
+	 * 예: "/Game/VoxelTerrain/SS_Default"
+	 */
+	UPROPERTY(EditAnywhere, Category = "HktTerrain|Style",
+		meta = (ContentDir))
+	FString BakeStyleSetSavePath = TEXT("/Game/VoxelTerrain/SS_Default");
+#endif
 
 	/**
 	 * 복셀 1개의 월드 크기 (UE 유닛).

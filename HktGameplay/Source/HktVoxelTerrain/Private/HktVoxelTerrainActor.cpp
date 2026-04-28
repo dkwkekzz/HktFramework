@@ -3,6 +3,10 @@
 #include "HktVoxelTerrainActor.h"
 #include "HktVoxelChunkLoader.h"
 #include "HktVoxelTerrainLog.h"
+#include "HktVoxelTerrainStyleSet.h"
+#if WITH_EDITOR
+#include "HktVoxelTerrainBakeLibrary.h"
+#endif
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelRaycast.h"
 #include "Data/HktVoxelTypes.h"
@@ -776,11 +780,64 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 {
 	bStyleBuilt = false;
 
+	// 우선순위 1) BakedStyleSet — DDC 컴파일 미경유, 단순 자산 적용.
+	//   에디터-타임에 베이크된 Texture2DArray 를 그대로 참조하므로
+	//   TextureDerivedData 워커 메모리 폭증 (~1 GiB+) 회피.
+	if (BakedStyleSet && BakedStyleSet->IsValid())
+	{
+		BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
+		BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);
+		BakedStyleSet->ApplyTo(BuiltTileAtlas, BuiltMaterialLUT);
+
+		// 기본 팔레트 텍스처 (8×256 흰색) — GWhiteTexture OOB 방지용. Build 경로와 동일.
+		{
+			const int32 PW = 8, PH = 256;
+			DefaultPaletteTexture = NewObject<UTexture2D>(this, TEXT("DefaultPalette"), RF_Transient);
+			FTexturePlatformData* PPD = new FTexturePlatformData();
+			PPD->SizeX = PW;
+			PPD->SizeY = PH;
+			PPD->PixelFormat = PF_B8G8R8A8;
+			FTexture2DMipMap* PMip = new FTexture2DMipMap();
+			PPD->Mips.Add(PMip);
+			PMip->SizeX = PW;
+			PMip->SizeY = PH;
+			PMip->BulkData.Lock(LOCK_READ_WRITE);
+			uint8* PData = static_cast<uint8*>(PMip->BulkData.Realloc(PW * PH * 4));
+			FMemory::Memset(PData, 0xFF, PW * PH * 4);
+			PMip->BulkData.Unlock();
+			DefaultPaletteTexture->SetPlatformData(PPD);
+			DefaultPaletteTexture->Filter = TF_Nearest;
+			DefaultPaletteTexture->SRGB = false;
+			DefaultPaletteTexture->AddressX = TA_Clamp;
+			DefaultPaletteTexture->AddressY = TA_Clamp;
+			DefaultPaletteTexture->UpdateResource();
+		}
+
+		// 작은 LUT 들의 RHI 준비를 BeginPlay 직후 보장 — 텍스처 배열은 이미
+		// cooked 상태로 로드되었으므로 여기서 flush 비용은 LUT(8×256, 256×3) 만큼만 든다.
+		FlushRenderingCommands();
+
+		bStyleBuilt = true;
+		UE_LOG(LogHktVoxelTerrain, Log,
+			TEXT("[TerrainStyle] BakedStyleSet 적용 — '%s' (%d styles, %d slices)"),
+			*BakedStyleSet->GetName(),
+			BakedStyleSet->SourceBlockStyleCount, BakedStyleSet->SliceCount);
+		return;
+	}
+
 	if (BlockStyles.Num() == 0)
 	{
 		UE_LOG(LogHktVoxelTerrain, Log, TEXT("[TerrainStyle] BlockStyles is empty — using palette fallback"));
 		return;
 	}
+
+	// 폴백: 런타임 빌드 경로. BCn DDC 컴파일이 발생하므로 텍스처 수/해상도가
+	// 크면 TextureDerivedData 워커 메모리 한계(~982 MiB)를 초과할 수 있다.
+	// 프로덕션은 BakeStyleSet 버튼으로 베이크된 BakedStyleSet 사용을 권장.
+	UE_LOG(LogHktVoxelTerrain, Warning,
+		TEXT("[TerrainStyle] BakedStyleSet 미할당 — BlockStyles 직접 빌드 경로 사용. "
+			 "텍스처 수/해상도가 크면 DDC 컴파일 메모리 폭증 위험. "
+			 "Details 패널의 BakeStyleSet 버튼으로 자산을 생성하세요."));
 
 	// 1. 고유 텍스처 수집 → 슬라이스 인덱스 할당 (BaseColor 키 + 병렬 Normal 트래킹)
 	//    같은 BaseColor에 서로 다른 Normal이 매핑되면 첫 번째 값을 유지하고 경고.
@@ -1358,3 +1415,35 @@ namespace
 			 "인자: [0|1] [labels:0|1]. 예: hkt.terrain.debug.draw 1 1"),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebugDraw));
 }
+
+#if WITH_EDITOR
+void AHktVoxelTerrainActor::BakeStyleSet()
+{
+	if (BlockStyles.Num() == 0)
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[TerrainActor] BakeStyleSet: BlockStyles 가 비어있습니다."));
+		return;
+	}
+
+	if (BakeStyleSetSavePath.IsEmpty() || !BakeStyleSetSavePath.StartsWith(TEXT("/")))
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[TerrainActor] BakeStyleSet: BakeStyleSetSavePath '%s' 가 잘못됨 — '/Game/...' 형식 필요"),
+			*BakeStyleSetSavePath);
+		return;
+	}
+
+	UHktVoxelTerrainStyleSet* NewAsset =
+		UHktVoxelTerrainBakeLibrary::BakeStyleSet(BlockStyles, BakeStyleSetSavePath);
+
+	if (NewAsset)
+	{
+		BakedStyleSet = NewAsset;
+		Modify();
+		UE_LOG(LogHktVoxelTerrain, Log,
+			TEXT("[TerrainActor] BakeStyleSet 성공 — BakedStyleSet 에 자동 할당됨: '%s'"),
+			*NewAsset->GetPathName());
+	}
+}
+#endif

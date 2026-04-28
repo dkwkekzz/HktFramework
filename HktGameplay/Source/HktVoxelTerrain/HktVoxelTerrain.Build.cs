@@ -39,6 +39,13 @@ public class HktVoxelTerrain : ModuleRules
 			}
 		);
 
+		// 에디터 전용 — 스타일 셋 베이킹 (UHktVoxelTerrainBakeLibrary).
+		// Runtime/Shipping 빌드에는 누설되지 않는다.
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
