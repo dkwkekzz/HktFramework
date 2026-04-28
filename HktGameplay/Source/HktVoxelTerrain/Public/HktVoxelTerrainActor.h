@@ -270,8 +270,7 @@ public:
 	 * BakeStyleSet 버튼이 사용할 저장 경로 (Content 상대).
 	 * 예: "/Game/VoxelTerrain/SS_Default"
 	 */
-	UPROPERTY(EditAnywhere, Category = "HktTerrain|Style",
-		meta = (ContentDir))
+	UPROPERTY(EditAnywhere, Category = "HktTerrain|Style")
 	FString BakeStyleSetSavePath = TEXT("/Game/VoxelTerrain/SS_Default");
 #endif
 

@@ -783,7 +783,7 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 	// 우선순위 1) BakedStyleSet — DDC 컴파일 미경유, 단순 자산 적용.
 	//   에디터-타임에 베이크된 Texture2DArray 를 그대로 참조하므로
 	//   TextureDerivedData 워커 메모리 폭증 (~1 GiB+) 회피.
-	if (BakedStyleSet && BakedStyleSet->IsValid())
+	if (BakedStyleSet && BakedStyleSet->HasBakedData())
 	{
 		BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
 		BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);

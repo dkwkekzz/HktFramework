@@ -112,7 +112,7 @@ public:
 	void ApplyTo(UHktVoxelTileAtlas* Atlas, UHktVoxelMaterialLUT* MaterialLUT) const;
 
 	/** 베이크 결과가 사용 가능한지 (TileArray + 매핑이 1개 이상) */
-	bool IsValid() const
+	bool HasBakedData() const
 	{
 		return TileArray != nullptr && TileMappings.Num() > 0;
 	}
