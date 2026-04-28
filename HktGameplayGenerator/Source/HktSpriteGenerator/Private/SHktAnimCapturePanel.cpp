@@ -7,6 +7,7 @@
 #include "Animation/AnimSequence.h"
 #include "AssetRegistry/AssetData.h"
 #include "Camera/CameraTypes.h"
+#include "Camera/HktCameraModeBase.h"
 #include "DesktopPlatformModule.h"
 #include "Engine/SkeletalMesh.h"
 #include "Framework/Application/SlateApplication.h"
@@ -157,6 +158,29 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock).Font(HeaderFont)
 					.Text(LOCTEXT("CameraSec", "Camera"))
+				]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
+				[ MakeRow(LOCTEXT("CamModeLbl", "Camera Mode BP"),
+					SNew(SObjectPropertyEntryBox)
+						.AllowedClass(UHktCameraModeBase::StaticClass())
+						.ObjectPath(this, &SHktAnimCapturePanel::GetCameraModeAssetPath)
+						.OnObjectChanged(this, &SHktAnimCapturePanel::OnCameraModeAssetChanged)
+						.AllowClear(true)
+						.DisplayUseSelected(true)
+						.DisplayBrowse(true)
+						.DisplayThumbnail(true)
+						.ThumbnailPool(UThumbnailManager::Get().GetSharedThumbnailPool())
+				) ]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,2,0,4)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("CamModeHint",
+						"BP 지정 시 인게임 Framing(Projection/FOV/OrthoWidth/Pitch/ArmLength/SocketOffset)을 그대로 사용. "
+						"미지정 시 아래 프리셋/Custom 값 사용."))
+					.AutoWrapText(true)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
@@ -341,6 +365,11 @@ void SHktAnimCapturePanel::OnAnimSequenceChanged(const FAssetData& Asset)
 	Settings.AnimSequence = TSoftObjectPtr<UAnimSequence>(Asset.ToSoftObjectPath());
 }
 
+void SHktAnimCapturePanel::OnCameraModeAssetChanged(const FAssetData& Asset)
+{
+	Settings.CameraModeAsset = TSoftObjectPtr<UHktCameraModeBase>(Asset.ToSoftObjectPath());
+}
+
 FString SHktAnimCapturePanel::GetSkeletalMeshPath() const
 {
 	return Settings.SkeletalMesh.IsNull() ? FString() : Settings.SkeletalMesh.ToString();
@@ -349,6 +378,11 @@ FString SHktAnimCapturePanel::GetSkeletalMeshPath() const
 FString SHktAnimCapturePanel::GetAnimSequencePath() const
 {
 	return Settings.AnimSequence.IsNull() ? FString() : Settings.AnimSequence.ToString();
+}
+
+FString SHktAnimCapturePanel::GetCameraModeAssetPath() const
+{
+	return Settings.CameraModeAsset.IsNull() ? FString() : Settings.CameraModeAsset.ToString();
 }
 
 void SHktAnimCapturePanel::ApplyPresetToCustomFields(EHktAnimCaptureCameraPreset Preset)

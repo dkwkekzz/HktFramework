@@ -8,6 +8,7 @@
 
 class USkeletalMesh;
 class UAnimSequence;
+class UHktCameraModeBase;
 
 // ============================================================================
 // EHktAnimCaptureCameraPreset
@@ -69,6 +70,19 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 
 	// === 카메라 ===
 
+	/**
+	 * 인게임 카메라 BP(또는 네이티브 UHktCameraMode_* 클래스의 인스턴스 어셋).
+	 * 지정 시 CameraPreset / Custom 필드는 모두 무시되고, 이 BP 의 Framing
+	 * 프로필(Projection/FOV/OrthoWidth/DefaultPitch/DefaultArmLength/SocketOffset)이
+	 * SceneCapture 에 그대로 적용된다 — 인게임 뷰와 1:1 일치.
+	 *
+	 * BP 의 동적 동작(마우스룩, EdgeScroll, Yaw 스냅, Tick) 은 정적 캡처에서
+	 * 의미가 없어 무시된다. "기본 framing" 만 동기화된다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	TSoftObjectPtr<UHktCameraModeBase> CameraModeAsset;
+
+	/** CameraModeAsset 미지정 시 사용. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
 	EHktAnimCaptureCameraPreset CameraPreset = EHktAnimCaptureCameraPreset::IsometricOrtho;
 

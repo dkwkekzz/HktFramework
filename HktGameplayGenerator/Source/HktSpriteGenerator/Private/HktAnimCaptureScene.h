@@ -72,6 +72,10 @@ private:
 	FVector SubjectFocus = FVector::ZeroVector;
 	float SubjectRadius = 100.0f;
 
+	// HktCameraFramingProfile::SocketOffset 와 동일 의미 — SpringArm 회전 좌표계에서
+	// (Forward, Right, Up) 으로 카메라를 살짝 미는 오프셋 (어깨뷰 등).
+	FVector CachedSocketOffset = FVector::ZeroVector;
+
 	int32 CurrentDirectionIdx = 0;
 	float AnimLengthSec = 0.0f;
 };

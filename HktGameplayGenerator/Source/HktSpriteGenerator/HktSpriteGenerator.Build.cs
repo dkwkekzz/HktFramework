@@ -18,6 +18,7 @@ public class HktSpriteGenerator : ModuleRules
 				"JsonUtilities",
 				"GameplayTags",
 				"HktSpriteCore",
+				"HktPresentation",  // UHktCameraModeBase / UHktCameraFramingProfile (Public/Camera)
 				"DeveloperSettings",
 			}
 		);

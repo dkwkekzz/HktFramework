@@ -3,6 +3,8 @@
 #include "HktAnimCaptureScene.h"
 
 #include "Animation/AnimSequence.h"
+#include "Camera/HktCameraFramingProfile.h"
+#include "Camera/HktCameraModeBase.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -171,40 +173,71 @@ void FHktAnimCaptureScene::ApplyCameraFraming(const FHktAnimCaptureSettings& Set
 	ECameraProjectionMode::Type Proj = Settings.ProjectionMode;
 	float FOV = Settings.FieldOfView;
 	float OrthoW = Settings.OrthoWidth;
+	FVector SocketOffset = FVector::ZeroVector;
 
-	switch (Settings.CameraPreset)
+	// 1순위: 인게임 카메라 BP 의 Framing 프로필을 그대로 적용 (1:1 뷰 일치).
+	bool bResolvedFromAsset = false;
+	if (!Settings.CameraModeAsset.IsNull())
 	{
-	case EHktAnimCaptureCameraPreset::RtsView:
-		Proj = ECameraProjectionMode::Perspective;
-		FOV = 90.0f;
-		Pitch = -60.0f;
-		ArmLength = 2000.0f;
-		break;
+		if (UHktCameraModeBase* ModeAsset = Settings.CameraModeAsset.LoadSynchronous())
+		{
+			if (UHktCameraFramingProfile* Profile = ModeAsset->Framing)
+			{
+				Proj         = Profile->ProjectionMode;
+				FOV          = Profile->FieldOfView;
+				OrthoW       = Profile->OrthoWidth;
+				Pitch        = Profile->DefaultPitch;
+				ArmLength    = Profile->DefaultArmLength;
+				SocketOffset = Profile->SocketOffset;
+				bResolvedFromAsset = true;
+			}
+			else
+			{
+				UE_LOG(LogHktAnimCapture, Warning,
+					TEXT("CameraModeAsset(%s) 에 Framing 프로필이 없음 — 프리셋으로 폴백"),
+					*ModeAsset->GetPathName());
+			}
+		}
+	}
 
-	case EHktAnimCaptureCameraPreset::ShoulderView:
-		Proj = ECameraProjectionMode::Perspective;
-		FOV = 90.0f;
-		Pitch = -15.0f;
-		ArmLength = 300.0f;
-		break;
+	// 2순위: enum 프리셋 디폴트 (BP 미지정 또는 Framing 누락 시).
+	if (!bResolvedFromAsset)
+	{
+		switch (Settings.CameraPreset)
+		{
+		case EHktAnimCaptureCameraPreset::RtsView:
+			Proj = ECameraProjectionMode::Perspective;
+			FOV = 90.0f;
+			Pitch = -60.0f;
+			ArmLength = 2000.0f;
+			break;
 
-	case EHktAnimCaptureCameraPreset::IsometricOrtho:
-		Proj = ECameraProjectionMode::Orthographic;
-		OrthoW = (Settings.OrthoWidth > 0.0f) ? Settings.OrthoWidth : 2500.0f;
-		Pitch = -30.0f;
-		ArmLength = 2000.0f;
-		break;
+		case EHktAnimCaptureCameraPreset::ShoulderView:
+			Proj = ECameraProjectionMode::Perspective;
+			FOV = 90.0f;
+			Pitch = -15.0f;
+			ArmLength = 300.0f;
+			SocketOffset = FVector(0.0f, 50.0f, 80.0f);
+			break;
 
-	case EHktAnimCaptureCameraPreset::IsometricGame:
-		Proj = ECameraProjectionMode::Perspective;
-		FOV = 20.0f;
-		Pitch = -55.0f;
-		ArmLength = 2500.0f;
-		break;
+		case EHktAnimCaptureCameraPreset::IsometricOrtho:
+			Proj = ECameraProjectionMode::Orthographic;
+			OrthoW = (Settings.OrthoWidth > 0.0f) ? Settings.OrthoWidth : 2500.0f;
+			Pitch = -30.0f;
+			ArmLength = 2000.0f;
+			break;
 
-	case EHktAnimCaptureCameraPreset::Custom:
-	default:
-		break;
+		case EHktAnimCaptureCameraPreset::IsometricGame:
+			Proj = ECameraProjectionMode::Perspective;
+			FOV = 20.0f;
+			Pitch = -55.0f;
+			ArmLength = 2500.0f;
+			break;
+
+		case EHktAnimCaptureCameraPreset::Custom:
+		default:
+			break;
+		}
 	}
 
 	CaptureComp->ProjectionType = Proj;
@@ -223,6 +256,7 @@ void FHktAnimCaptureScene::ApplyCameraFraming(const FHktAnimCaptureSettings& Set
 	CachedSettings.OrthoWidth     = OrthoW;
 	CachedSettings.Pitch          = Pitch;
 	CachedSettings.ArmLength      = ArmLength;
+	CachedSocketOffset            = SocketOffset;
 }
 
 void FHktAnimCaptureScene::SetDirectionIndex(int32 DirectionIdx)
@@ -243,9 +277,18 @@ void FHktAnimCaptureScene::UpdateCameraTransform()
 
 	// 카메라 위치: Subject 주위를 (Pitch, Yaw) 로 도는 ArmLength 떨어진 점.
 	const FRotator Rot(CamPitch, CamYaw, 0.0f);
-	const FVector Dir = Rot.Vector(); // Subject 에서 카메라로 향하는 단위벡터의 반대(=시선 방향)
-	// Dir 은 카메라가 바라보는 방향. 카메라 위치는 Subject - Dir * Arm.
-	const FVector CamLoc = SubjectFocus - Dir * CachedSettings.ArmLength;
+	const FVector Forward = Rot.Vector(); // 카메라가 바라보는 방향
+	const FVector Right   = FRotationMatrix(Rot).GetUnitAxis(EAxis::Y);
+	const FVector Up      = FRotationMatrix(Rot).GetUnitAxis(EAxis::Z);
+
+	// SocketOffset 은 HktCameraFramingProfile::SocketOffset 과 동일 — SpringArm 의
+	// (Forward, Right, Up) 좌표계에서 카메라를 미는 오프셋.
+	const FVector Socket =
+		Forward * CachedSocketOffset.X +
+		Right   * CachedSocketOffset.Y +
+		Up      * CachedSocketOffset.Z;
+
+	const FVector CamLoc = SubjectFocus - Forward * CachedSettings.ArmLength + Socket;
 
 	CaptureComp->SetWorldLocationAndRotation(CamLoc, Rot);
 }

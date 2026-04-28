@@ -36,9 +36,11 @@ private:
 
 	void OnSkeletalMeshChanged(const FAssetData& Asset);
 	void OnAnimSequenceChanged(const FAssetData& Asset);
+	void OnCameraModeAssetChanged(const FAssetData& Asset);
 
 	FString GetSkeletalMeshPath() const;
 	FString GetAnimSequencePath() const;
+	FString GetCameraModeAssetPath() const;
 
 	void RebuildSettingsFromUI();
 	void ApplyPresetToCustomFields(EHktAnimCaptureCameraPreset Preset);
