@@ -36,6 +36,11 @@ public class HktSpriteGenerator : ModuleRules
 				"WorkspaceMenuStructure",
 				"InputCore",
 				"DesktopPlatform",
+				// AnimCaptureEditor (애니메이션 8방향 캡처 툴)
+				"RenderCore",
+				"RHI",
+				"PropertyEditor",
+				"EditorWidgets",
 			}
 		);
 	}

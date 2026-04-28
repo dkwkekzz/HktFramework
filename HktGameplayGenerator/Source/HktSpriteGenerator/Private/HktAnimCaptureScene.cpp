@@ -1,0 +1,398 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+
+#include "HktAnimCaptureScene.h"
+
+#include "Animation/AnimSequence.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/World.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
+#include "PreviewScene.h"
+#include "RenderingThread.h"
+#include "TextureResource.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogHktAnimCapture, Log, All);
+
+namespace HktAnimCaptureScenePrivate
+{
+	/**
+	 * 캡처용 표준 8방향 인덱스 → 카메라 yaw(도).
+	 *
+	 * 인덱스 ↔ 파일명 ↔ 시각:
+	 *   0=N(back), 1=NE, 2=E, 3=SE, 4=S(front), 5=SW, 6=W, 7=NW
+	 *
+	 * 매핑 근거:
+	 *   - UE 의 표준 SkeletalMesh 는 보통 +X 가 "정면(face)" 이다 (Mannequin 등).
+	 *   - 카메라 yaw=0 → 카메라가 -X 위치에서 +X 를 향해 본다 → 캐릭터 BACK 시점.
+	 *   - 카메라 yaw=180 → +X 위치에서 -X 를 향해 본다 → 캐릭터 FRONT 시점.
+	 *   - 그러므로 N(back)=0, S(front)=180 으로 직선 매핑한다.
+	 *
+	 * 캐릭터 메시가 다른 축을 정면으로 가질 경우 Settings.YawOffset 으로 보정한다.
+	 *
+	 * SpriteGenerator 디렉터리 스캐너(kDirectionNames) 도 N/NE/E/SE/S/SW/W/NW 순서로
+	 * 인덱스를 부여하므로 파일명 suffix 와 정렬된다.
+	 */
+	static float DirectionIndexToCameraYaw(int32 Idx, int32 NumDirections)
+	{
+		if (NumDirections <= 1) return 180.0f; // Front-facing camera (Mesh +X 정면 가정)
+		const float Step = 360.0f / static_cast<float>(NumDirections);
+		return FMath::Fmod(Step * Idx, 360.0f);
+	}
+}
+
+FHktAnimCaptureScene::FHktAnimCaptureScene() = default;
+
+FHktAnimCaptureScene::~FHktAnimCaptureScene()
+{
+	// FPreviewScene 의 소멸자가 World/Components 를 정리한다. UPROPERTY 가 아니므로
+	// 약한 참조 해제만 명시적으로 끊어준다.
+	MeshComp = nullptr;
+	CaptureComp = nullptr;
+	RenderTarget = nullptr;
+	Preview.Reset();
+}
+
+bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, FString& OutError)
+{
+	CachedSettings = Settings;
+
+	USkeletalMesh* Mesh = Settings.SkeletalMesh.LoadSynchronous();
+	if (!Mesh)
+	{
+		OutError = TEXT("SkeletalMesh 를 로드할 수 없음");
+		return false;
+	}
+
+	UAnimSequence* Anim = Settings.AnimSequence.LoadSynchronous();
+	// Anim 이 null 이어도 정적 포즈 캡처는 가능 — 단 길이는 0.
+
+	// === Preview Scene ===
+	FPreviewScene::ConstructionValues CVS;
+	CVS.bAllowAudioPlayback = false;
+	CVS.bShouldSimulatePhysics = false;
+	CVS.bCreatePhysicsScene = false;
+	CVS.bDefaultLighting = true;
+	CVS.bForceMipsResident = true;
+	Preview = MakeUnique<FPreviewScene>(CVS);
+
+	UWorld* World = Preview->GetWorld();
+	if (!World)
+	{
+		OutError = TEXT("PreviewScene World 생성 실패");
+		return false;
+	}
+
+	// === SkeletalMesh ===
+	MeshComp = NewObject<USkeletalMeshComponent>(GetTransientPackage(), USkeletalMeshComponent::StaticClass(), NAME_None, RF_Transient);
+	MeshComp->SetSkeletalMeshAsset(Mesh);
+	MeshComp->SetMobility(EComponentMobility::Movable);
+	if (Anim)
+	{
+		MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		MeshComp->SetAnimation(Anim);
+		MeshComp->SetPlayRate(0.0f);   // 외부에서 SetPosition 으로 시간 제어.
+		MeshComp->Stop();
+		AnimLengthSec = Anim->GetPlayLength();
+	}
+	else
+	{
+		MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		AnimLengthSec = 0.0f;
+	}
+	Preview->AddComponent(MeshComp, FTransform::Identity);
+
+	// 본 업데이트가 캡처 전 항상 평가되도록 — 보이지 않을 때도 동작 필요.
+	MeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	MeshComp->bUpdateJointsFromAnimation = true;
+	MeshComp->RefreshBoneTransforms();
+
+	const FBoxSphereBounds Bounds = MeshComp->Bounds;
+	SubjectFocus = Bounds.Origin;
+	SubjectRadius = FMath::Max(50.0f, Bounds.SphereRadius);
+
+	// === RenderTarget ===
+	const int32 W = FMath::Clamp(Settings.OutputWidth,  16, 4096);
+	const int32 H = FMath::Clamp(Settings.OutputHeight, 16, 4096);
+
+	RenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
+	RenderTarget->RenderTargetFormat = RTF_RGBA8;
+	RenderTarget->ClearColor = Settings.bTransparentBackground
+		? FLinearColor(0.0f, 0.0f, 0.0f, 0.0f)
+		: Settings.BackgroundColor;
+	RenderTarget->bAutoGenerateMips = false;
+	RenderTarget->InitAutoFormat(W, H);
+	RenderTarget->UpdateResourceImmediate(true);
+
+	// === SceneCapture ===
+	CaptureComp = NewObject<USceneCaptureComponent2D>(GetTransientPackage(), USceneCaptureComponent2D::StaticClass(), NAME_None, RF_Transient);
+	CaptureComp->TextureTarget = RenderTarget;
+	CaptureComp->bCaptureEveryFrame = false;
+	CaptureComp->bCaptureOnMovement = false;
+	CaptureComp->bAlwaysPersistRenderingState = true;
+	CaptureComp->ShowFlags.SetAtmosphere(false);
+	CaptureComp->ShowFlags.SetFog(false);
+	CaptureComp->ShowFlags.SetMotionBlur(false);
+	if (Settings.bTransparentBackground)
+	{
+		// Final color with alpha — 알파 채널 보존 캡처. ATM/Fog 비활성과 함께
+		// "캐릭터 외 영역은 알파=0" 를 보장.
+		CaptureComp->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+		CaptureComp->bUseRayTracingIfEnabled = false;
+
+		// 알파 보존을 위해 Ortho/Perspective 양쪽 모두 SCS_FinalColorLDR 사용.
+		// (SCS_SceneColorHDR 도 가능하지만 후처리 결과가 더 자연스러움)
+	}
+	else
+	{
+		CaptureComp->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	}
+
+	Preview->AddComponent(CaptureComp, FTransform::Identity);
+
+	ApplyCameraFraming(Settings);
+	UpdateCameraTransform();
+
+	return true;
+}
+
+void FHktAnimCaptureScene::ApplyCameraFraming(const FHktAnimCaptureSettings& Settings)
+{
+	if (!CaptureComp) return;
+
+	// 프리셋 디폴트(HktPresentation 의 HktCameraMode_*.cpp 와 일치).
+	float Pitch = Settings.Pitch;
+	float ArmLength = Settings.ArmLength;
+	ECameraProjectionMode::Type Proj = Settings.ProjectionMode;
+	float FOV = Settings.FieldOfView;
+	float OrthoW = Settings.OrthoWidth;
+
+	switch (Settings.CameraPreset)
+	{
+	case EHktAnimCaptureCameraPreset::RtsView:
+		Proj = ECameraProjectionMode::Perspective;
+		FOV = 90.0f;
+		Pitch = -60.0f;
+		ArmLength = 2000.0f;
+		break;
+
+	case EHktAnimCaptureCameraPreset::ShoulderView:
+		Proj = ECameraProjectionMode::Perspective;
+		FOV = 90.0f;
+		Pitch = -15.0f;
+		ArmLength = 300.0f;
+		break;
+
+	case EHktAnimCaptureCameraPreset::IsometricOrtho:
+		Proj = ECameraProjectionMode::Orthographic;
+		OrthoW = (Settings.OrthoWidth > 0.0f) ? Settings.OrthoWidth : 2500.0f;
+		Pitch = -30.0f;
+		ArmLength = 2000.0f;
+		break;
+
+	case EHktAnimCaptureCameraPreset::IsometricGame:
+		Proj = ECameraProjectionMode::Perspective;
+		FOV = 20.0f;
+		Pitch = -55.0f;
+		ArmLength = 2500.0f;
+		break;
+
+	case EHktAnimCaptureCameraPreset::Custom:
+	default:
+		break;
+	}
+
+	CaptureComp->ProjectionType = Proj;
+	if (Proj == ECameraProjectionMode::Perspective)
+	{
+		CaptureComp->FOVAngle = FMath::Clamp(FOV, 5.0f, 170.0f);
+	}
+	else
+	{
+		CaptureComp->OrthoWidth = FMath::Max(100.0f, OrthoW);
+	}
+
+	// 캐시 — UpdateCameraTransform 에서 읽음.
+	CachedSettings.ProjectionMode = Proj;
+	CachedSettings.FieldOfView    = FOV;
+	CachedSettings.OrthoWidth     = OrthoW;
+	CachedSettings.Pitch          = Pitch;
+	CachedSettings.ArmLength      = ArmLength;
+}
+
+void FHktAnimCaptureScene::SetDirectionIndex(int32 DirectionIdx)
+{
+	const int32 N = FMath::Clamp(CachedSettings.NumDirections, 1, 8);
+	CurrentDirectionIdx = ((DirectionIdx % N) + N) % N;
+	UpdateCameraTransform();
+}
+
+void FHktAnimCaptureScene::UpdateCameraTransform()
+{
+	if (!CaptureComp) return;
+
+	const int32 N = FMath::Clamp(CachedSettings.NumDirections, 1, 8);
+	const float CamYaw = HktAnimCaptureScenePrivate::DirectionIndexToCameraYaw(CurrentDirectionIdx, N)
+	                   + CachedSettings.YawOffset;
+	const float CamPitch = CachedSettings.Pitch;
+
+	// 카메라 위치: Subject 주위를 (Pitch, Yaw) 로 도는 ArmLength 떨어진 점.
+	const FRotator Rot(CamPitch, CamYaw, 0.0f);
+	const FVector Dir = Rot.Vector(); // Subject 에서 카메라로 향하는 단위벡터의 반대(=시선 방향)
+	// Dir 은 카메라가 바라보는 방향. 카메라 위치는 Subject - Dir * Arm.
+	const FVector CamLoc = SubjectFocus - Dir * CachedSettings.ArmLength;
+
+	CaptureComp->SetWorldLocationAndRotation(CamLoc, Rot);
+}
+
+void FHktAnimCaptureScene::SetAnimationTime(float TimeSec)
+{
+	if (!MeshComp) return;
+	if (AnimLengthSec <= 0.0f) { TickPose(); return; }
+
+	const float ClampedTime = FMath::Clamp(TimeSec, 0.0f, AnimLengthSec);
+	MeshComp->SetPosition(ClampedTime, /*bFireNotifies*/ false);
+	TickPose();
+}
+
+void FHktAnimCaptureScene::TickPose()
+{
+	if (!MeshComp) return;
+	// Anim Single Node 모드: SetPosition 후 RefreshBoneTransforms 으로 즉시 평가.
+	MeshComp->TickAnimation(0.0f, /*bNeedsValidRootMotion*/ false);
+	MeshComp->RefreshBoneTransforms();
+	MeshComp->MarkRenderTransformDirty();
+	MeshComp->MarkRenderDynamicDataDirty();
+}
+
+bool FHktAnimCaptureScene::CaptureToFile(const FString& AbsolutePngPath, FString& OutError)
+{
+	if (!CaptureComp || !RenderTarget)
+	{
+		OutError = TEXT("CaptureComp / RenderTarget 미초기화");
+		return false;
+	}
+
+	// 본 업데이트가 GPU 까지 반영되도록 한 번 더 강제.
+	TickPose();
+	CaptureComp->CaptureScene();
+
+	// CaptureScene 은 RenderCmd 를 enqueue 한다 — 픽셀을 읽기 전에 flush.
+	FlushRenderingCommands();
+
+	TArray64<uint8> Png;
+	if (!EncodePng(Png, OutError))
+	{
+		return false;
+	}
+
+	const FString Dir = FPaths::GetPath(AbsolutePngPath);
+	if (!Dir.IsEmpty())
+	{
+		IFileManager::Get().MakeDirectory(*Dir, /*Tree*/ true);
+	}
+
+	if (!FFileHelper::SaveArrayToFile(Png, *AbsolutePngPath))
+	{
+		OutError = FString::Printf(TEXT("PNG 저장 실패: %s"), *AbsolutePngPath);
+		return false;
+	}
+	return true;
+}
+
+bool FHktAnimCaptureScene::EncodePng(TArray64<uint8>& OutPng, FString& OutError) const
+{
+	if (!RenderTarget) { OutError = TEXT("RT 없음"); return false; }
+
+	FTextureRenderTargetResource* Res = RenderTarget->GameThread_GetRenderTargetResource();
+	if (!Res) { OutError = TEXT("RT 리소스 없음"); return false; }
+
+	const int32 W = RenderTarget->SizeX;
+	const int32 H = RenderTarget->SizeY;
+
+	TArray<FColor> Pixels;
+	Pixels.SetNumUninitialized(W * H);
+
+	FReadSurfaceDataFlags ReadFlags(RCM_UNorm, CubeFace_MAX);
+	ReadFlags.SetLinearToGamma(false);
+	if (!Res->ReadPixels(Pixels, ReadFlags))
+	{
+		OutError = TEXT("RT ReadPixels 실패");
+		return false;
+	}
+
+	int32 OutW = W;
+	int32 OutH = H;
+	TArray<FColor> Out;
+
+	if (CachedSettings.bAutoCropToContent)
+	{
+		// 알파 > 0 인 영역의 바운딩 박스 계산.
+		int32 MinX = W, MinY = H, MaxX = -1, MaxY = -1;
+		for (int32 y = 0; y < H; ++y)
+		{
+			for (int32 x = 0; x < W; ++x)
+			{
+				if (Pixels[y * W + x].A > 0)
+				{
+					if (x < MinX) MinX = x;
+					if (y < MinY) MinY = y;
+					if (x > MaxX) MaxX = x;
+					if (y > MaxY) MaxY = y;
+				}
+			}
+		}
+
+		if (MaxX < MinX || MaxY < MinY)
+		{
+			// 빈 프레임 — 원본 그대로 출력.
+			Out = MoveTemp(Pixels);
+		}
+		else
+		{
+			const int32 Pad = FMath::Max(0, CachedSettings.CropPaddingPx);
+			MinX = FMath::Max(0, MinX - Pad);
+			MinY = FMath::Max(0, MinY - Pad);
+			MaxX = FMath::Min(W - 1, MaxX + Pad);
+			MaxY = FMath::Min(H - 1, MaxY + Pad);
+
+			OutW = MaxX - MinX + 1;
+			OutH = MaxY - MinY + 1;
+			Out.SetNumUninitialized(OutW * OutH);
+			for (int32 y = 0; y < OutH; ++y)
+			{
+				FMemory::Memcpy(
+					&Out[y * OutW],
+					&Pixels[(MinY + y) * W + MinX],
+					sizeof(FColor) * OutW);
+			}
+		}
+	}
+	else
+	{
+		Out = MoveTemp(Pixels);
+	}
+
+	// PNG 인코딩.
+	IImageWrapperModule& IWM = FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper");
+	TSharedPtr<IImageWrapper> Wrapper = IWM.CreateImageWrapper(EImageFormat::PNG);
+	if (!Wrapper.IsValid())
+	{
+		OutError = TEXT("PNG ImageWrapper 생성 실패");
+		return false;
+	}
+
+	if (!Wrapper->SetRaw(Out.GetData(), static_cast<int64>(Out.Num()) * sizeof(FColor), OutW, OutH, ERGBFormat::BGRA, 8))
+	{
+		OutError = TEXT("PNG SetRaw 실패");
+		return false;
+	}
+
+	OutPng = Wrapper->GetCompressed();
+	return OutPng.Num() > 0;
+}
