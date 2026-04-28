@@ -2,6 +2,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "SHktSpriteBuilderPanel.h"
+#include "SHktAnimCapturePanel.h"
 #include "HktSpriteBillboardMaterialBuilder.h"
 #include "HktSpriteCoreLog.h"
 #include "Framework/Docking/TabManager.h"
@@ -15,6 +16,7 @@ class FHktSpriteGeneratorModule : public IModuleInterface
 {
 public:
 	static const FName BuilderTabName;
+	static const FName AnimCaptureTabName;
 
 	virtual void StartupModule() override
 	{
@@ -26,12 +28,29 @@ public:
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			AnimCaptureTabName,
+			FOnSpawnTab::CreateStatic(&FHktSpriteGeneratorModule::SpawnAnimCaptureTab))
+			.SetDisplayName(NSLOCTEXT("HktSpriteGen", "AnimCapTab", "HKT Anim Capture"))
+			.SetTooltipText(NSLOCTEXT("HktSpriteGen", "AnimCapTabTip", "Capture a SkeletalMesh + AnimSequence as 8-direction PNG sequence and pack to a sprite atlas."))
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
 		ConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("HktSprite.Builder"),
 			TEXT("Open HKT Sprite Part Builder panel"),
 			FConsoleCommandDelegate::CreateLambda([]()
 			{
 				FGlobalTabmanager::Get()->TryInvokeTab(BuilderTabName);
+			}),
+			ECVF_Default);
+
+		AnimCaptureCommand = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("HktSprite.AnimCapture"),
+			TEXT("Open HKT Animation Capture panel (8-direction SkeletalMesh recorder)"),
+			FConsoleCommandDelegate::CreateLambda([]()
+			{
+				FGlobalTabmanager::Get()->TryInvokeTab(AnimCaptureTabName);
 			}),
 			ECVF_Default);
 
@@ -56,6 +75,11 @@ public:
 			IConsoleManager::Get().UnregisterConsoleObject(ConsoleCommand);
 			ConsoleCommand = nullptr;
 		}
+		if (AnimCaptureCommand)
+		{
+			IConsoleManager::Get().UnregisterConsoleObject(AnimCaptureCommand);
+			AnimCaptureCommand = nullptr;
+		}
 		if (BuildBillboardCommand)
 		{
 			IConsoleManager::Get().UnregisterConsoleObject(BuildBillboardCommand);
@@ -70,6 +94,10 @@ public:
 		{
 			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuilderTabName);
 		}
+		if (FGlobalTabmanager::Get()->HasTabSpawner(AnimCaptureTabName))
+		{
+			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(AnimCaptureTabName);
+		}
 	}
 
 private:
@@ -79,6 +107,14 @@ private:
 			.TabRole(NomadTab)
 			.Label(NSLOCTEXT("HktSpriteGen", "BuilderTabLabel", "HKT Sprite Builder"))
 			[ SNew(SHktSpriteBuilderPanel) ];
+	}
+
+	static TSharedRef<SDockTab> SpawnAnimCaptureTab(const FSpawnTabArgs& Args)
+	{
+		return SNew(SDockTab)
+			.TabRole(NomadTab)
+			.Label(NSLOCTEXT("HktSpriteGen", "AnimCapTabLabel", "HKT Anim Capture"))
+			[ SNew(SHktAnimCapturePanel) ];
 	}
 
 	static void EnsureBillboardMaterial()
@@ -104,10 +140,12 @@ private:
 	}
 
 	IConsoleObject* ConsoleCommand         = nullptr;
+	IConsoleObject* AnimCaptureCommand     = nullptr;
 	IConsoleObject* BuildBillboardCommand  = nullptr;
 	FDelegateHandle PostEngineInitHandle;
 };
 
 const FName FHktSpriteGeneratorModule::BuilderTabName(TEXT("HktSpriteBuilder"));
+const FName FHktSpriteGeneratorModule::AnimCaptureTabName(TEXT("HktAnimCapture"));
 
 IMPLEMENT_MODULE(FHktSpriteGeneratorModule, HktSpriteGenerator)

@@ -23,7 +23,7 @@ class UHktCameraFramingProfile;
  * 특수 입력(어깨뷰 마우스룩, 아이소 Yaw 회전 등)이 필요한 경우에만 Tick을 오버라이드.
  */
 UCLASS(Abstract, Blueprintable, DefaultToInstanced, EditInlineNew)
-class UHktCameraModeBase : public UObject
+class HKTPRESENTATION_API UHktCameraModeBase : public UObject
 {
 	GENERATED_BODY()
 
