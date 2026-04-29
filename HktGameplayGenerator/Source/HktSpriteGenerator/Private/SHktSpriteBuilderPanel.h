@@ -6,7 +6,6 @@
 #include "HktSpriteGeneratorFunctionLibrary.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SCheckBox;
 class SEditableTextBox;
 class SMultiLineEditableTextBox;
 class STextBlock;
@@ -47,12 +46,15 @@ private:
 	bool IsModeDirectory() const { return CurrentMode == EBuilderMode::Directory; }
 	bool IsModeVideo()     const { return CurrentMode == EBuilderMode::Video; }
 
-	EVisibility GetAutoModeVisibility() const;
-	EVisibility GetAtlasModeVisibility() const;
-	EVisibility GetDirectoryModeVisibility() const;
-	EVisibility GetVideoModeVisibility() const;
+	// === 입력 가시성 헬퍼 ===
+	// AnimTag: Auto / Atlas 모드에서 노출 (Atlas API 가 AnimTagStr 파라미터를 받음).
+	EVisibility GetAnimTagVisibility() const;
+	// CellSize: Auto / Atlas 모드. Auto+Bundle/Video 는 0=auto, Atlas 는 필수.
 	EVisibility GetCellSizeVisibility() const;
-	EVisibility GetVideoOnlyVisibility() const;
+	// Looping/Mirror/FrameDuration: Low-level 전용 (Auto 는 BuildSpriteAnim 이 자동 추론).
+	EVisibility GetLowLevelOnlyVisibility() const;
+	// Video Low-level 전용 (FrameRate / MaxFrames / Start/End / ActionId).
+	EVisibility GetVideoLowLevelVisibility() const;
 
 	// 액션.
 	FReply OnBrowseSourcePath();

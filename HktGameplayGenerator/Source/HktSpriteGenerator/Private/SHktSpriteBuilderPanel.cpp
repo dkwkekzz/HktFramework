@@ -134,7 +134,8 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
 					SNew(SVerticalBox)
-					.Visibility(this, &SHktSpriteBuilderPanel::GetAutoModeVisibility)
+					.Visibility_Lambda([this]() {
+						return IsModeAuto() ? EVisibility::Visible : EVisibility::Collapsed; })
 					+ SVerticalBox::Slot().AutoHeight()
 					[ MakeRow(LOCTEXT("STLbl", "Source Type"),
 						SAssignNew(SourceTypeCombo, SComboBox<TSharedPtr<EHktSpriteSourceType>>)
@@ -162,7 +163,7 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
 					SNew(SVerticalBox)
-					.Visibility(this, &SHktSpriteBuilderPanel::GetAutoModeVisibility)
+					.Visibility(this, &SHktSpriteBuilderPanel::GetAnimTagVisibility)
 					+ SVerticalBox::Slot().AutoHeight()
 					[ MakeRow(LOCTEXT("AnimLbl", "Anim Tag"),
 						SAssignNew(AnimTagBox, SEditableTextBox)
@@ -173,7 +174,7 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
 					SNew(SVerticalBox)
-					.Visibility(this, &SHktSpriteBuilderPanel::GetVideoOnlyVisibility)
+					.Visibility(this, &SHktSpriteBuilderPanel::GetVideoLowLevelVisibility)
 					+ SVerticalBox::Slot().AutoHeight()
 					[ MakeRow(LOCTEXT("ActLbl", "Action Id"),
 						SAssignNew(ActionIdBox, SEditableTextBox)
@@ -219,7 +220,7 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
 					SNew(SVerticalBox)
-					.Visibility(this, &SHktSpriteBuilderPanel::GetVideoOnlyVisibility)
+					.Visibility(this, &SHktSpriteBuilderPanel::GetVideoLowLevelVisibility)
 					+ SVerticalBox::Slot().AutoHeight()
 					[
 						SNew(SUniformGridPanel).SlotPadding(FMargin(4))
@@ -248,37 +249,46 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 						.Text(FText::FromString(TEXT("/Game/Generated/Sprites")))
 				) ]
 
+				// PixelToWorld 는 모든 모드에서 사용.
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
-				[
-					SNew(SUniformGridPanel).SlotPadding(FMargin(4))
-					+ SUniformGridPanel::Slot(0,0)[ MakeRow(LOCTEXT("P2WLbl", "PixelToWorld"),
-						SAssignNew(PixelToWorldBox, SEditableTextBox)
-							.Text(FText::FromString(TEXT("2.0"))) ) ]
-					+ SUniformGridPanel::Slot(1,0)[ MakeRow(LOCTEXT("FDLbl", "FrameDuration (ms)"),
-						SAssignNew(FrameDurationBox, SEditableTextBox)
-							.Text(FText::FromString(TEXT("100"))) ) ]
-				]
+				[ MakeRow(LOCTEXT("P2WLbl", "PixelToWorld"),
+					SAssignNew(PixelToWorldBox, SEditableTextBox)
+						.Text(FText::FromString(TEXT("2.0")))
+				) ]
 
+				// FrameDuration / Looping / Mirror — Low-level 전용 (Auto 는 자동 추론).
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)
+					SNew(SVerticalBox)
+					.Visibility(this, &SHktSpriteBuilderPanel::GetLowLevelOnlyVisibility)
+
+					+ SVerticalBox::Slot().AutoHeight().Padding(0,0,0,4)
+					[ MakeRow(LOCTEXT("FDLbl", "FrameDuration (ms)"),
+						SAssignNew(FrameDurationBox, SEditableTextBox)
+							.Text(FText::FromString(TEXT("100")))
+					) ]
+
+					+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 					[
-						SNew(SCheckBox)
-						.IsChecked_Lambda([this]() {
-							return bLooping ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){
-							bLooping = (S == ECheckBoxState::Checked); })
-						[ SNew(STextBlock).Text(LOCTEXT("Looping", "Looping")) ]
-					]
-					+ SHorizontalBox::Slot().AutoWidth()
-					[
-						SNew(SCheckBox)
-						.IsChecked_Lambda([this]() {
-							return bMirrorWestFromEast ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){
-							bMirrorWestFromEast = (S == ECheckBoxState::Checked); })
-						[ SNew(STextBlock).Text(LOCTEXT("Mirror", "Mirror W/SW/NW from E/SE/NE")) ]
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)
+						[
+							SNew(SCheckBox)
+							.IsChecked_Lambda([this]() {
+								return bLooping ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							.OnCheckStateChanged_Lambda([this](ECheckBoxState S){
+								bLooping = (S == ECheckBoxState::Checked); })
+							[ SNew(STextBlock).Text(LOCTEXT("Looping", "Looping")) ]
+						]
+						+ SHorizontalBox::Slot().AutoWidth()
+						[
+							SNew(SCheckBox)
+							.IsChecked_Lambda([this]() {
+								return bMirrorWestFromEast ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							.OnCheckStateChanged_Lambda([this](ECheckBoxState S){
+								bMirrorWestFromEast = (S == ECheckBoxState::Checked); })
+							[ SNew(STextBlock).Text(LOCTEXT("Mirror", "Mirror W/SW/NW from E/SE/NE")) ]
+						]
 					]
 				]
 
@@ -334,42 +344,39 @@ FText SHktSpriteBuilderPanel::GetCurrentSourceTypeText() const
 }
 
 // ============================================================================
-// Visibility 헬퍼 — 모드/Source Type 별 입력 필드 노출
+// Visibility 헬퍼 — 각 빌더 함수의 실제 시그니처에 맞춰 입력 필드 노출
 // ============================================================================
 
-EVisibility SHktSpriteBuilderPanel::GetAutoModeVisibility() const
+EVisibility SHktSpriteBuilderPanel::GetAnimTagVisibility() const
 {
-	return IsModeAuto() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility SHktSpriteBuilderPanel::GetAtlasModeVisibility() const
-{
-	return IsModeAtlas() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility SHktSpriteBuilderPanel::GetDirectoryModeVisibility() const
-{
-	return IsModeDirectory() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility SHktSpriteBuilderPanel::GetVideoModeVisibility() const
-{
-	return IsModeVideo() ? EVisibility::Visible : EVisibility::Collapsed;
+	// BuildSpriteAnim 와 EditorBuildSpriteCharacterFromAtlas 가 AnimTag 를 받음.
+	// Directory/Video 는 파일명/ActionId 에서 anim 을 파생 — AnimTag 직접 입력 없음.
+	if (IsModeAuto() || IsModeAtlas()) return EVisibility::Visible;
+	return EVisibility::Collapsed;
 }
 
 EVisibility SHktSpriteBuilderPanel::GetCellSizeVisibility() const
 {
-	// Atlas 가 관여하는 모든 케이스에서 셀 크기 노출.
+	// Auto 모드: Atlas 소스는 필수, 그 외는 0=auto-detect (선택). Atlas low-level 도 필수.
+	// Directory low-level 은 폴더 패킹이 자동 결정. Video low-level 은 ffmpeg 옵션과 분리.
 	if (IsModeAtlas()) return EVisibility::Visible;
 	if (IsModeAuto() && CurrentSourceType == EHktSpriteSourceType::Atlas) return EVisibility::Visible;
+	if (IsModeVideo()) return EVisibility::Visible;  // FrameW/H 가 ffmpeg scale 필터로 사용됨
 	return EVisibility::Collapsed;
 }
 
-EVisibility SHktSpriteBuilderPanel::GetVideoOnlyVisibility() const
+EVisibility SHktSpriteBuilderPanel::GetLowLevelOnlyVisibility() const
 {
-	if (IsModeVideo()) return EVisibility::Visible;
-	if (IsModeAuto() && CurrentSourceType == EHktSpriteSourceType::Video) return EVisibility::Visible;
-	return EVisibility::Collapsed;
+	// FrameDuration / Looping / Mirror — Low-level 전용.
+	// Auto(BuildSpriteAnim) 는 AnimTag 에서 looping 추론, FrameDuration=100 고정.
+	return IsModeAuto() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+EVisibility SHktSpriteBuilderPanel::GetVideoLowLevelVisibility() const
+{
+	// ActionId / FrameRate / MaxFrames / StartTime / EndTime — EditorBuildSpriteCharacterFromVideo 전용.
+	// Auto+Video(BuildSpriteAnim) 는 ffmpeg 옵션 없이 동영상 → 자동 처리.
+	return IsModeVideo() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 // ============================================================================
