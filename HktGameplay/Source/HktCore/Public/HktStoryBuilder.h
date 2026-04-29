@@ -258,6 +258,13 @@ public:
      */
     FHktVar ResolveOrCreateNamedVar(const FString& Name);
 
+    /**
+     * 같은 이름은 같은 FHktVarBlock 으로 해석 — JSON `{"block":"name"}` 폼이 사용한다.
+     * 이름이 처음 등장하면 NewVarBlock(Count) 으로 새 블록을 발급한다.
+     * 같은 이름으로 다른 Count 가 요청되면 처음 등록된 블록을 그대로 반환한다 (호출자 책임).
+     */
+    FHktVarBlock ResolveOrCreateNamedBlock(const FString& Name, int32 Count);
+
     // ---- 데이터 ----
     FHktStoryBuilder& LoadConst(FHktVar Dst, int32 Value);
     FHktStoryBuilder& LoadStore(FHktVar Dst, uint16 PropertyId);
@@ -896,6 +903,11 @@ private:
 
     // 신 FHktVar API 의 이름 기반 변수 매핑 (JSON schema 2 의 {"var":"name"} 해석용)
     TMap<FString, FHktVRegHandle> NamedVarMap;
+
+    // 신 FHktVar API 의 이름 기반 블록 매핑 (JSON schema 2 의 {"block":"name"} 해석용).
+    // Base VReg + Count 를 보관하여 같은 이름 호출 시 동일 블록을 재사용한다.
+    struct FNamedBlockEntry { FHktVRegHandle Base; int32 Count; };
+    TMap<FString, FNamedBlockEntry> NamedBlockMap;
 
     // Flow 모드 — Self/Target 엔티티 없음
     bool bFlowMode = false;

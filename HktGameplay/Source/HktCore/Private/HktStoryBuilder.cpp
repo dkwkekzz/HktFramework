@@ -198,6 +198,18 @@ FHktVar FHktStoryBuilder::ResolveOrCreateNamedVar(const FString& Name)
     return FHktVar(Id);
 }
 
+FHktVarBlock FHktStoryBuilder::ResolveOrCreateNamedBlock(const FString& Name, int32 Count)
+{
+    if (FNamedBlockEntry* Found = NamedBlockMap.Find(Name))
+    {
+        return FHktVarBlock(Found->Base, Found->Count);
+    }
+    check(Count > 0 && Count <= 10);
+    const FHktVRegId Base = ActiveSection->RegPool.NewAnonymousBlock(Count, *Name);
+    NamedBlockMap.Add(Name, FNamedBlockEntry{ Base, Count });
+    return FHktVarBlock(Base, Count);
+}
+
 int32 FHktStoryBuilder::AddString(const FString& Str)
 {
     int32 Index = ActiveSection->Strings.IndexOfByKey(Str);

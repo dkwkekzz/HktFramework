@@ -94,9 +94,8 @@ FHktVar FHktStoryCmdArgs::GetVar(FHktStoryBuilder& B, const FString& Key) const
 		if ((*Obj)->TryGetStringField(TEXT("block"), BlockName) &&
 		    (*Obj)->TryGetNumberField(TEXT("index"), IdxNum))
 		{
-			// {"block":"name", "index":i} — 같은 이름의 블록이 미리 발급되어 있어야 일관된 핀 결과.
-			// 단순화를 위해 매번 새 size-3 블록을 발급한다 (PR-3에서 NamedBlockMap 도입 예정).
-			FHktVarBlock Blk = B.NewVarBlock(3, *BlockName);
+			// {"block":"name", "index":i} — NamedBlockMap 으로 같은 이름은 같은 블록을 재사용.
+			FHktVarBlock Blk = B.ResolveOrCreateNamedBlock(BlockName, 3);
 			const int32 Idx = static_cast<int32>(IdxNum);
 			if (Idx >= 0 && Idx < Blk.Num())
 			{
@@ -154,10 +153,8 @@ FHktVarBlock FHktStoryCmdArgs::GetVarBlock(FHktStoryBuilder& B, const FString& K
 		FString Name;
 		if ((*Obj)->TryGetStringField(TEXT("block"), Name))
 		{
-			// 같은 이름의 블록은 같은 핸들을 반환 — Builder 의 NamedVarMap 을 NamedVarBlock 처럼 재활용.
-			// 여기서는 Builder 가 별도 블록 맵을 노출하지 않으므로 매번 새 블록을 발급한다.
-			// (PR-3 마이그레이션 시 Builder 에 NamedBlockMap 추가 예정)
-			return B.NewVarBlock(Count, *Name);
+			// NamedBlockMap 을 통해 같은 이름의 블록을 재사용한다 (Builder 측에 매핑 보관).
+			return B.ResolveOrCreateNamedBlock(Name, Count);
 		}
 	}
 	Errors.Add(FString::Printf(TEXT("Step %d (%s): block '%s' must be {\"block\":\"name\"}"), StepIndex, *OpName, *Key));
@@ -421,6 +418,28 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 	if (Root->TryGetBoolField(TEXT("cancelOnDuplicate"), bCancelOnDuplicate) && bCancelOnDuplicate)
 	{
 		Builder.CancelOnDuplicate();
+	}
+
+	// FlowMode — Self/Target 엔티티 없는 Story (Spawner 등). Validator 가 Self/Target 유효성을 강제하지 않음.
+	bool bFlowMode = false;
+	if (Root->TryGetBoolField(TEXT("flowMode"), bFlowMode) && bFlowMode)
+	{
+		Builder.SetFlowMode();
+	}
+
+	// RequiresTrait — Self 가 해당 Trait 을 보유해야만 Story 실행. C++ precondition 자동 등록.
+	FString RequiresTraitStr;
+	if (Root->TryGetStringField(TEXT("requiresTrait"), RequiresTraitStr) && !RequiresTraitStr.IsEmpty())
+	{
+		const FHktPropertyTrait* Trait = ResolveTraitByName(RequiresTraitStr);
+		if (Trait)
+		{
+			Builder.RequiresTrait(Trait);
+		}
+		else
+		{
+			Result.Warnings.Add(FString::Printf(TEXT("requiresTrait: unknown trait '%s'"), *RequiresTraitStr));
+		}
 	}
 
 	// Alias 해결 + 참조 태그 수집을 포함하는 태그 해석기
@@ -1148,6 +1167,183 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
     });
     RegisterCommandV2(TEXT("ApplyEffect"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
         B.ApplyEffect(A.GetVar(B, TEXT("target")), A.GetTag(TEXT("effectTag")));
+    });
+    RegisterCommandV2(TEXT("RemoveEffect"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.RemoveEffect(A.GetVar(B, TEXT("target")), A.GetTag(TEXT("effectTag")));
+    });
+
+    // ---- Position & Block I/O ----
+    // GetPosition: out 으로 명시된 named block 에 결과 위치(3슬롯) 를 바인딩한다.
+    RegisterCommandV2(TEXT("GetPosition"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        FString OutName;
+        if (!A.Step->TryGetStringField(TEXT("out"), OutName) || OutName.IsEmpty())
+        {
+            A.Errors.Add(FString::Printf(TEXT("Step %d (GetPosition): missing 'out' (block name)"), A.StepIndex));
+            return;
+        }
+        FHktVarBlock OutBlock = B.ResolveOrCreateNamedBlock(OutName, 3);
+        FHktVarBlock Tmp = B.GetPosition(A.GetVar(B, TEXT("entity")));
+        // GetPosition 은 매번 새 블록을 발급하므로 named block 으로 옮긴다.
+        B.Move(OutBlock.Element(0), Tmp.Element(0));
+        B.Move(OutBlock.Element(1), Tmp.Element(1));
+        B.Move(OutBlock.Element(2), Tmp.Element(2));
+    });
+    RegisterCommandV2(TEXT("SetPosition"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SetPosition(A.GetVar(B, TEXT("entity")), A.GetVarBlock(B, TEXT("pos"), 3));
+    });
+    RegisterCommandV2(TEXT("MoveToward"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.MoveToward(A.GetVar(B, TEXT("entity")), A.GetVarBlock(B, TEXT("targetPos"), 3), A.GetInt(TEXT("force")));
+    });
+    RegisterCommandV2(TEXT("PlayVFX"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.PlayVFX(A.GetVarBlock(B, TEXT("pos"), 3), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("PlaySoundAtLocation"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.PlaySoundAtLocation(A.GetVarBlock(B, TEXT("pos"), 3), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("LookAt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.LookAt(A.GetVar(B, TEXT("entity")), A.GetVar(B, TEXT("target")));
+    });
+    RegisterCommandV2(TEXT("ApplyJump"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.ApplyJump(A.GetVar(B, TEXT("entity")), A.GetInt(TEXT("impulseVelZ")));
+    });
+    RegisterCommandV2(TEXT("GetDistance"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.GetDistance(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("entity1")), A.GetVar(B, TEXT("entity2")));
+    });
+
+    // ---- Wait variants ----
+    // WaitCollision 은 기존 v2 핸들러를 덮어써 out 바인딩을 지원한다.
+    RegisterCommandV2(TEXT("WaitCollision"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        FHktVar Hit = B.WaitCollision(A.GetVar(B, TEXT("entity")));
+        FString OutName;
+        if (A.Step->TryGetStringField(TEXT("out"), OutName) && !OutName.IsEmpty())
+        {
+            B.Move(B.ResolveOrCreateNamedVar(OutName), Hit);
+        }
+    });
+    RegisterCommandV2(TEXT("WaitAnimEnd"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.WaitAnimEnd(A.GetVar(B, TEXT("entity")));
+    });
+    RegisterCommandV2(TEXT("WaitMoveEnd"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.WaitMoveEnd(A.GetVar(B, TEXT("entity")));
+    });
+    RegisterCommandV2(TEXT("WaitGrounded"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.WaitGrounded(A.GetVar(B, TEXT("entity")));
+    });
+
+    // ---- Spatial Query ----
+    RegisterCommandV2(TEXT("FindInRadius"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.FindInRadius(A.GetVar(B, TEXT("center")), A.GetInt(TEXT("radius")));
+    });
+    RegisterCommandV2(TEXT("FindInRadiusEx"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.FindInRadiusEx(A.GetVar(B, TEXT("center")), A.GetInt(TEXT("radius")), static_cast<uint32>(A.GetInt(TEXT("filter"))));
+    });
+    RegisterCommandV2(TEXT("ForEachInRadius"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.ForEachInRadius_Begin(A.GetVar(B, TEXT("center")), A.GetInt(TEXT("radius")));
+    });
+    // EndForEach / NextFound 는 인자가 없어 v1 핸들러로도 충분하지만 명시 등록하여 V2 우선 디스패치 시 일관성 확보.
+    RegisterCommandV2(TEXT("EndForEach"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.ForEachInRadius_End();
+    });
+    RegisterCommandV2(TEXT("NextFound"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.NextFound();
+    });
+
+    // ---- Tags / Traits ----
+    RegisterCommandV2(TEXT("CheckTrait"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const FString TraitName = A.GetString(TEXT("trait"));
+        const FHktPropertyTrait* Trait = ResolveTraitByName(TraitName);
+        if (!Trait)
+        {
+            A.Errors.Add(FString::Printf(TEXT("CheckTrait: unknown trait '%s'"), *TraitName));
+            return;
+        }
+        B.CheckTrait(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("entity")), Trait);
+    });
+    RegisterCommandV2(TEXT("IfHasTrait"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const FString TraitName = A.GetString(TEXT("trait"));
+        const FHktPropertyTrait* Trait = ResolveTraitByName(TraitName);
+        if (!Trait)
+        {
+            A.Errors.Add(FString::Printf(TEXT("IfHasTrait: unknown trait '%s'"), *TraitName));
+            return;
+        }
+        B.IfHasTrait(A.GetVar(B, TEXT("entity")), Trait);
+    });
+    RegisterCommandV2(TEXT("CountByTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CountByTag(A.GetVar(B, TEXT("dst")), A.GetTag(TEXT("tag")));
+    });
+
+    // ---- World / Item ----
+    RegisterCommandV2(TEXT("GetWorldTime"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.GetWorldTime(A.GetVar(B, TEXT("dst")));
+    });
+    RegisterCommandV2(TEXT("RandomInt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // Builder 시그니처는 (Dst, ModulusVar). JSON 은 modulus VarRef 를 받는다.
+        B.RandomInt(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("modulus")));
+    });
+    RegisterCommandV2(TEXT("HasPlayerInGroup"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.HasPlayerInGroup(A.GetVar(B, TEXT("dst")));
+    });
+    RegisterCommandV2(TEXT("CountByOwner"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CountByOwner(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("owner")), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("FindByOwner"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // Builder 시그니처는 (OwnerEntity, Tag) 만. dst/failLabel 은 v1 형식의 잔재이므로 무시된다.
+        B.FindByOwner(A.GetVar(B, TEXT("owner")), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("SetOwnerUid"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SetOwnerUid(A.GetVar(B, TEXT("entity")));
+    });
+    RegisterCommandV2(TEXT("ClearOwnerUid"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.ClearOwnerUid(A.GetVar(B, TEXT("entity")));
+    });
+
+    // ---- Stance / Item skill ----
+    RegisterCommandV2(TEXT("SetStance"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SetStance(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("stanceTag")));
+    });
+    RegisterCommandV2(TEXT("SetItemSkillTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SetItemSkillTag(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("skillTag")));
+    });
+
+    // ---- Event Dispatch ----
+    RegisterCommandV2(TEXT("DispatchEventTo"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.DispatchEventTo(A.GetTag(TEXT("eventTag")), A.GetVar(B, TEXT("target")));
+    });
+    RegisterCommandV2(TEXT("DispatchEventFrom"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.DispatchEventFrom(A.GetTag(TEXT("eventTag")), A.GetVar(B, TEXT("source")));
+    });
+
+    // ---- Structured Control Flow ----
+    RegisterCommandV2(TEXT("If"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.If(A.GetVar(B, TEXT("cond")));
+    });
+    RegisterCommandV2(TEXT("IfNot"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.IfNot(A.GetVar(B, TEXT("cond")));
+    });
+    // Else / EndIf 는 인자 없음 — v1 핸들러로 충분하지만 일관성 위해 등록.
+    RegisterCommandV2(TEXT("Else"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.Else();
+    });
+    RegisterCommandV2(TEXT("EndIf"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.EndIf();
+    });
+    RegisterCommandV2(TEXT("JumpIf"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.JumpIf(A.GetVar(B, TEXT("cond")), B.ResolveLabel(A.GetString(TEXT("label"))));
+    });
+    RegisterCommandV2(TEXT("JumpIfNot"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.JumpIfNot(A.GetVar(B, TEXT("cond")), B.ResolveLabel(A.GetString(TEXT("label"))));
+    });
+
+    // ---- Comparison (보강) ----
+    RegisterCommandV2(TEXT("CmpLe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CmpLe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+    RegisterCommandV2(TEXT("CmpGt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CmpGt(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
+    });
+    RegisterCommandV2(TEXT("CmpGe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.CmpGe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
     });
 }
 

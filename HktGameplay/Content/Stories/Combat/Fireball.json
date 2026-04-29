@@ -26,12 +26,11 @@
     { "op": "PlaySound",    "tag": "SoundLaunch" },
 
     { "op": "Log", "message": "Fireball: 충돌 대기 중..." },
-    { "op": "WaitCollision", "entity": {"var": "fireball"} },
-    { "op": "Move", "dst": {"var": "hitTarget"}, "src": "Hit" },
+    { "op": "WaitCollision", "entity": {"var": "fireball"}, "out": "hitTarget" },
 
     { "op": "Log", "message": "Fireball: 충돌! 폭발 처리" },
 
-    { "op": "GetPosition", "dst": "R0", "entity": "Spawned" },
+    { "op": "GetPosition",  "entity": {"var": "fireball"}, "out": "explosionPos" },
 
     { "op": "DestroyEntity", "entity": {"var": "fireball"} },
 
@@ -40,8 +39,8 @@
 
     { "op": "SnippetCheckDeath", "entity": {"var": "hitTarget"}, "deadTag": "StateDead" },
 
-    { "op": "PlayVFX",            "pos": "R0", "tag": "VFXExplode" },
-    { "op": "PlaySoundAtLocation","pos": "R0", "tag": "SoundExplode" },
+    { "op": "PlayVFX",            "pos": {"block": "explosionPos"}, "tag": "VFXExplode" },
+    { "op": "PlaySoundAtLocation","pos": {"block": "explosionPos"}, "tag": "SoundExplode" },
 
     { "op": "Log", "message": "Fireball: 범위 피해 적용" },
 
