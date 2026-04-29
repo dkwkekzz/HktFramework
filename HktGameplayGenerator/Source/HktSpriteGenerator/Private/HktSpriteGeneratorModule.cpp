@@ -1,8 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Modules/ModuleManager.h"
-#include "SHktSpriteBuilderPanel.h"
-#include "SHktAnimCapturePanel.h"
+#include "SHktSpriteToolsWindow.h"
 #include "HktSpriteBillboardMaterialBuilder.h"
 #include "HktSpriteCoreLog.h"
 #include "Framework/Docking/TabManager.h"
@@ -15,42 +14,45 @@
 class FHktSpriteGeneratorModule : public IModuleInterface
 {
 public:
-	static const FName BuilderTabName;
-	static const FName AnimCaptureTabName;
+	static const FName ToolsTabName;
 
 	virtual void StartupModule() override
 	{
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			BuilderTabName,
-			FOnSpawnTab::CreateStatic(&FHktSpriteGeneratorModule::SpawnBuilderTab))
-			.SetDisplayName(NSLOCTEXT("HktSpriteGen", "BuilderTab", "HKT Sprite Builder"))
-			.SetTooltipText(NSLOCTEXT("HktSpriteGen", "BuilderTabTip", "Pack textures into an atlas and build UHktSpriteCharacterTemplate."))
+			ToolsTabName,
+			FOnSpawnTab::CreateStatic(&FHktSpriteGeneratorModule::SpawnToolsTab))
+			.SetDisplayName(NSLOCTEXT("HktSpriteGen", "ToolsTab", "HKT Sprite Tools"))
+			.SetTooltipText(NSLOCTEXT("HktSpriteGen", "ToolsTabTip",
+				"통합 Sprite 도구 창 — Builder / Anim Capture / Video / Terrain / MCP JSON 탭."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			AnimCaptureTabName,
-			FOnSpawnTab::CreateStatic(&FHktSpriteGeneratorModule::SpawnAnimCaptureTab))
-			.SetDisplayName(NSLOCTEXT("HktSpriteGen", "AnimCapTab", "HKT Anim Capture"))
-			.SetTooltipText(NSLOCTEXT("HktSpriteGen", "AnimCapTabTip", "Capture a SkeletalMesh + AnimSequence as 8-direction PNG sequence and pack to a sprite atlas."))
-			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
-			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
-
-		ConsoleCommand = IConsoleManager::Get().RegisterConsoleCommand(
-			TEXT("HktSprite.Builder"),
-			TEXT("Open HKT Sprite Part Builder panel"),
+		// 통합 창 — 새 표준 명령.
+		ToolsCommand = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("HktSprite.Tools"),
+			TEXT("Open HKT Sprite Tools (unified Builder / AnimCapture / Video / Terrain / McpJson tabs)"),
 			FConsoleCommandDelegate::CreateLambda([]()
 			{
-				FGlobalTabmanager::Get()->TryInvokeTab(BuilderTabName);
+				FHktSpriteGeneratorModule::OpenToolsTab(SHktSpriteToolsWindow::ETabId::Builder);
+			}),
+			ECVF_Default);
+
+		// 호환성: 기존 명령은 통합 창의 해당 탭으로 점프.
+		BuilderCommand = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("HktSprite.Builder"),
+			TEXT("Open HKT Sprite Tools (Builder tab)"),
+			FConsoleCommandDelegate::CreateLambda([]()
+			{
+				FHktSpriteGeneratorModule::OpenToolsTab(SHktSpriteToolsWindow::ETabId::Builder);
 			}),
 			ECVF_Default);
 
 		AnimCaptureCommand = IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("HktSprite.AnimCapture"),
-			TEXT("Open HKT Animation Capture panel (8-direction SkeletalMesh recorder)"),
+			TEXT("Open HKT Sprite Tools (Anim Capture tab)"),
 			FConsoleCommandDelegate::CreateLambda([]()
 			{
-				FGlobalTabmanager::Get()->TryInvokeTab(AnimCaptureTabName);
+				FHktSpriteGeneratorModule::OpenToolsTab(SHktSpriteToolsWindow::ETabId::AnimCapture);
 			}),
 			ECVF_Default);
 
@@ -70,51 +72,47 @@ public:
 
 	virtual void ShutdownModule() override
 	{
-		if (ConsoleCommand)
+		auto Unregister = [](IConsoleObject*& Cmd)
 		{
-			IConsoleManager::Get().UnregisterConsoleObject(ConsoleCommand);
-			ConsoleCommand = nullptr;
-		}
-		if (AnimCaptureCommand)
-		{
-			IConsoleManager::Get().UnregisterConsoleObject(AnimCaptureCommand);
-			AnimCaptureCommand = nullptr;
-		}
-		if (BuildBillboardCommand)
-		{
-			IConsoleManager::Get().UnregisterConsoleObject(BuildBillboardCommand);
-			BuildBillboardCommand = nullptr;
-		}
+			if (Cmd) { IConsoleManager::Get().UnregisterConsoleObject(Cmd); Cmd = nullptr; }
+		};
+		Unregister(ToolsCommand);
+		Unregister(BuilderCommand);
+		Unregister(AnimCaptureCommand);
+		Unregister(BuildBillboardCommand);
+
 		if (PostEngineInitHandle.IsValid())
 		{
 			FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 			PostEngineInitHandle.Reset();
 		}
-		if (FGlobalTabmanager::Get()->HasTabSpawner(BuilderTabName))
+		if (FGlobalTabmanager::Get()->HasTabSpawner(ToolsTabName))
 		{
-			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuilderTabName);
-		}
-		if (FGlobalTabmanager::Get()->HasTabSpawner(AnimCaptureTabName))
-		{
-			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(AnimCaptureTabName);
+			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ToolsTabName);
 		}
 	}
 
 private:
-	static TSharedRef<SDockTab> SpawnBuilderTab(const FSpawnTabArgs& Args)
+	static TSharedRef<SDockTab> SpawnToolsTab(const FSpawnTabArgs& Args)
 	{
+		TSharedRef<SHktSpriteToolsWindow> Window = SNew(SHktSpriteToolsWindow);
+		// 새로 스폰된 창 핸들을 약하게 저장해 다음 콘솔 명령에서 SelectTab 호출 가능.
+		ActiveWindow = Window;
 		return SNew(SDockTab)
 			.TabRole(NomadTab)
-			.Label(NSLOCTEXT("HktSpriteGen", "BuilderTabLabel", "HKT Sprite Builder"))
-			[ SNew(SHktSpriteBuilderPanel) ];
+			.Label(NSLOCTEXT("HktSpriteGen", "ToolsTabLabel", "HKT Sprite Tools"))
+			[ Window ];
 	}
 
-	static TSharedRef<SDockTab> SpawnAnimCaptureTab(const FSpawnTabArgs& Args)
+	static void OpenToolsTab(SHktSpriteToolsWindow::ETabId InitialTab)
 	{
-		return SNew(SDockTab)
-			.TabRole(NomadTab)
-			.Label(NSLOCTEXT("HktSpriteGen", "AnimCapTabLabel", "HKT Anim Capture"))
-			[ SNew(SHktAnimCapturePanel) ];
+		FGlobalTabmanager::Get()->TryInvokeTab(ToolsTabName);
+		// TryInvokeTab 후에는 SpawnToolsTab 이 실행되어 ActiveWindow 가 갱신됐을 수도,
+		// 이미 떠 있던 창을 재활성화한 것일 수도 있다. 어느 쪽이든 활성 창에 탭을 지정.
+		if (TSharedPtr<SHktSpriteToolsWindow> W = ActiveWindow.Pin())
+		{
+			W->SelectTab(static_cast<int32>(InitialTab));
+		}
 	}
 
 	static void EnsureBillboardMaterial()
@@ -139,13 +137,17 @@ private:
 		HktSpriteBillboardMaterialBuilder::BuildAndSave(/*bForceOverwrite=*/true);
 	}
 
-	IConsoleObject* ConsoleCommand         = nullptr;
-	IConsoleObject* AnimCaptureCommand     = nullptr;
-	IConsoleObject* BuildBillboardCommand  = nullptr;
+	IConsoleObject* ToolsCommand          = nullptr;
+	IConsoleObject* BuilderCommand        = nullptr;
+	IConsoleObject* AnimCaptureCommand    = nullptr;
+	IConsoleObject* BuildBillboardCommand = nullptr;
 	FDelegateHandle PostEngineInitHandle;
+
+	// 콘솔 명령으로 탭을 지정하기 위해 마지막으로 스폰된 창을 약하게 보관.
+	static TWeakPtr<SHktSpriteToolsWindow> ActiveWindow;
 };
 
-const FName FHktSpriteGeneratorModule::BuilderTabName(TEXT("HktSpriteBuilder"));
-const FName FHktSpriteGeneratorModule::AnimCaptureTabName(TEXT("HktAnimCapture"));
+const FName FHktSpriteGeneratorModule::ToolsTabName(TEXT("HktSpriteTools"));
+TWeakPtr<SHktSpriteToolsWindow> FHktSpriteGeneratorModule::ActiveWindow;
 
 IMPLEMENT_MODULE(FHktSpriteGeneratorModule, HktSpriteGenerator)
