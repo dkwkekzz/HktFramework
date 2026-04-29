@@ -1,8 +1,8 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "Terrain/HktAdvTerrainLayers.h"
-#include "Terrain/HktTerrainNoiseFloat.h"
-#include "Terrain/HktAdvTerrainTypes.h"
+#include "HktAdvTerrainLayers.h"
+#include "HktTerrainNoiseFloat.h"
+#include "HktAdvTerrainTypes.h"
 
 using namespace HktTerrainHash;
 using namespace HktAdvTerrainType;

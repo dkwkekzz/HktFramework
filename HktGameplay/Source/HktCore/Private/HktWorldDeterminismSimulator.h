@@ -6,7 +6,7 @@
 #include "HktSimulationSystems.h"
 #include "VM/HktVMWorldStateProxy.h"
 #include "Terrain/HktTerrainState.h"
-#include "Terrain/HktTerrainGenerator.h"
+#include "Terrain/HktTerrainDataSource.h"
 
 class FHktVMRuntimePool;
 class FHktVMInterpreter;
@@ -75,6 +75,6 @@ private:
 
     // 지형 상태
     FHktTerrainState TerrainState;
-    TUniquePtr<FHktTerrainGenerator> TerrainGenerator;
+    TUniquePtr<IHktTerrainDataSource> TerrainSource;
     TArray<FHktVoxelDelta> PendingVoxelDeltas;
 };

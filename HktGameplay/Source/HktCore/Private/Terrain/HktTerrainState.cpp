@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Terrain/HktTerrainState.h"
-#include "Terrain/HktTerrainGenerator.h"
+#include "Terrain/HktTerrainDataSource.h"
 
 // ============================================================================
 // 좌표 변환 헬퍼
@@ -46,10 +46,10 @@ void FHktTerrainState::LocalIndexToXYZ(uint16 Index, int32& OutX, int32& OutY, i
 // 청크 생명주기
 // ============================================================================
 
-void FHktTerrainState::LoadChunk(const FIntVector& Coord, const FHktTerrainGenerator& Generator)
+void FHktTerrainState::LoadChunk(const FIntVector& Coord, const IHktTerrainDataSource& Source)
 {
-	// Generator의 Config에서 VoxelSize를 전파 (단일 출처 일관성 유지)
-	VoxelSizeCm = Generator.GetConfig().VoxelSizeCm;
+	// Source의 Config에서 VoxelSize를 전파 (단일 출처 일관성 유지)
+	VoxelSizeCm = Source.GetConfig().VoxelSizeCm;
 
 	if (LoadedChunks.Contains(Coord))
 	{
@@ -59,8 +59,8 @@ void FHktTerrainState::LoadChunk(const FIntVector& Coord, const FHktTerrainGener
 	TArray<FHktTerrainVoxel>& ChunkData = LoadedChunks.Add(Coord);
 	ChunkData.SetNumUninitialized(VoxelsPerChunk);
 
-	// 생성기로 청크 생성
-	Generator.GenerateChunk(Coord.X, Coord.Y, Coord.Z, ChunkData.GetData());
+	// 데이터 소스로 청크 생성
+	Source.GenerateChunk(Coord.X, Coord.Y, Coord.Z, ChunkData.GetData());
 
 	// Modifications 오버레이 적용
 	if (const TMap<uint16, FHktTerrainVoxel>* Mods = Modifications.Find(Coord))

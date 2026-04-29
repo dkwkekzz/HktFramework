@@ -9,7 +9,7 @@
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMWorldStateProxy.h"
 #include "Terrain/HktTerrainState.h"
-#include "Terrain/HktTerrainGenerator.h"
+#include "Terrain/HktTerrainDataSource.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
@@ -481,13 +481,13 @@ FIntVector FHktTerrainSystem::VoxelToCm(int32 VX, int32 VY, int32 VZ, float Voxe
 void FHktTerrainSystem::Process(
     const FHktWorldState& WorldState,
     FHktTerrainState& TerrainState,
-    const FHktTerrainGenerator& Generator,
+    const IHktTerrainDataSource& Source,
     const TArray<FHktEvent>* PendingEvents)
 {
     RequiredChunks.Reset();
 
-    // 단일 출처: Generator의 Config에서 모든 스트리밍 파라미터 획득
-    const FHktTerrainGeneratorConfig& Cfg = Generator.GetConfig();
+    // 단일 출처: Source의 Config에서 모든 스트리밍 파라미터 획득
+    const FHktTerrainGeneratorConfig& Cfg = Source.GetConfig();
     const float VS            = Cfg.VoxelSizeCm;
     const int32 LoadRadiusXY  = Cfg.SimLoadRadiusXY;
     const int32 LoadRadiusZ   = Cfg.SimLoadRadiusZ;
@@ -558,7 +558,7 @@ void FHktTerrainSystem::Process(
             {
                 break;  // 나머지는 다음 프레임에 로드
             }
-            TerrainState.LoadChunk(Coord, Generator);
+            TerrainState.LoadChunk(Coord, Source);
             ++LoadedThisFrame;
         }
     }

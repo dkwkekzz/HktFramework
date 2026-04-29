@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Terrain/HktTerrainGenerator.h"
+#include "HktTerrainGenerator.h"
 #include "HktBiomeLandscapeLayer.h"
 #include "HktLandscapeTerrainActor.generated.h"
 

@@ -52,7 +52,7 @@ struct FHktBiomeMaterialRule
  *
  * 높이가 일정 이상이면 Mountain으로 오버라이드.
  */
-class HKTCORE_API FHktTerrainBiomeMap
+class HKTTERRAIN_API FHktTerrainBiomeMap
 {
 public:
 	using Fixed = FHktFixed32;

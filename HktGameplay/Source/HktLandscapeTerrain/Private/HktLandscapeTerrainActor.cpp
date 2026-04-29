@@ -9,7 +9,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Components/SceneComponent.h"
 
-#include "Terrain/HktTerrainGenerator.h"
+#include "HktTerrainGenerator.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 AHktLandscapeTerrainActor::AHktLandscapeTerrainActor()

@@ -14,7 +14,7 @@ class FHktVMInterpreter;
 class FHktVMRuntimePool;
 struct FHktVMWorldStateProxy;
 struct FHktTerrainState;
-class FHktTerrainGenerator;
+class IHktTerrainDataSource;
 
 /** Private: Physics 이벤트 (시스템 내부용) */
 struct FHktPhysicsEvent
@@ -78,11 +78,11 @@ struct HKTCORE_API FHktTerrainSystem
     void Process(
         const FHktWorldState& WorldState,
         FHktTerrainState& TerrainState,
-        const FHktTerrainGenerator& Generator,
+        const IHktTerrainDataSource& Source,
         const TArray<FHktEvent>* PendingEvents = nullptr
     );
 
-    /** cm 위치 → 복셀 좌표 변환 (VoxelSize는 호출자가 TerrainState/Generator에서 획득) */
+    /** cm 위치 → 복셀 좌표 변환 (VoxelSize는 호출자가 TerrainState/Source에서 획득) */
     static FIntVector CmToVoxel(int32 X, int32 Y, int32 Z, float VoxelSizeCm);
     static FIntVector CmToVoxel(float X, float Y, float Z, float VoxelSizeCm);
 

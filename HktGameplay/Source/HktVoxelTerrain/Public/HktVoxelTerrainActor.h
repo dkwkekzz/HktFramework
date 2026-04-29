@@ -8,11 +8,10 @@
 #include "Data/HktVoxelRenderCache.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "HktVoxelChunkLoader.h"
-#include "Terrain/HktTerrainGenerator.h"
+#include "HktTerrainGenerator.h"
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "HktVoxelTerrainActor.generated.h"
 
-struct FHktTerrainGeneratorConfig;
 class UHktVoxelChunkComponent;
 class UHktVoxelTileAtlas;
 class UHktVoxelMaterialLUT;

@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "Terrain/HktTerrainNoiseFloat.h"
+#include "HktTerrainNoiseFloat.h"
 
 // ============================================================================
 // 순열 테이블 초기화

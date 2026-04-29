@@ -14,7 +14,7 @@
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "Rendering/HktVoxelTileAtlas.h"
 #include "Rendering/HktVoxelMaterialLUT.h"
-#include "Terrain/HktTerrainGenerator.h"
+#include "HktTerrainGenerator.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "Terrain/HktFixed32.h"
 #include "LOD/HktVoxelLOD.h"

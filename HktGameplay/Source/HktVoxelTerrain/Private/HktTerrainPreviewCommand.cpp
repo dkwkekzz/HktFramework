@@ -10,8 +10,8 @@
 #include "IImageWrapperModule.h"
 
 #include "Settings/HktRuntimeGlobalSetting.h"
-#include "Terrain/HktTerrainGenerator.h"
-#include "Terrain/HktAdvTerrainTypes.h"
+#include "HktTerrainGenerator.h"
+#include "HktAdvTerrainTypes.h"
 
 /*
  * hkt.terrain.preview [radiusChunks=16] [centerChunkX=0] [centerChunkY=0]

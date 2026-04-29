@@ -28,6 +28,7 @@ public class HktLandscapeTerrain : ModuleRules
 				"RenderCore",
 				"Landscape",
 				"HktCore",
+				"HktTerrain",
 			}
 		);
 
