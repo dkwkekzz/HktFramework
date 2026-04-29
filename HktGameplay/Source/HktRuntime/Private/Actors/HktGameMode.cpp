@@ -158,7 +158,7 @@ void AHktGameMode::RebindTerrainProvider()
         });
 
     UE_LOG(LogHktRuntime, Log,
-        TEXT("[GameMode] Terrain Provider 재바인딩 — VoxelSizeCm=%d ChunkSize=%d"),
+        TEXT("[GameMode] Terrain Provider 재바인딩 — VoxelSizeCm=%.1f ChunkSize=%d"),
         EffectiveCfg.VoxelSizeCm, FHktTerrainGeneratorConfig::ChunkSize);
 }
 

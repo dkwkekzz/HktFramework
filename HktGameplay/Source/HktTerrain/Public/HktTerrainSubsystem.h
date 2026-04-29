@@ -9,9 +9,8 @@
 #include "Terrain/HktTerrainGeneratorConfig.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "HktTerrainBakedAsset.h"
+#include "HktTerrainGenerator.h"
 #include "HktTerrainSubsystem.generated.h"
-
-class FHktTerrainGenerator;
 struct FHktTerrainPreviewRegion;
 
 /**

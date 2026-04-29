@@ -6,9 +6,8 @@
 #include "HktWorldState.h"
 #include "HktCoreEventLog.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
+#include "Terrain/HktTerrainDataSource.h"
 #include "Templates/UniquePtr.h"
-
-class IHktTerrainDataSource;
 
 // ============================================================================
 // FHktVMDebugInfo — VM 실행 상태 디버그 정보 (Public, 순수 데이터)

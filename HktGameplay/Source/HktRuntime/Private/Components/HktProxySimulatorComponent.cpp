@@ -341,6 +341,6 @@ void UHktProxySimulatorComponent::RebindTerrainProvider()
     Simulator->SetTerrainSource(MakeUnique<FHktTerrainProvider>(Sub, EffectiveCfg));
 
     HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
-        FString::Printf(TEXT("[ProxySim] Terrain Provider 재바인딩 — VoxelSizeCm=%d"),
+        FString::Printf(TEXT("[ProxySim] Terrain Provider 재바인딩 — VoxelSizeCm=%.1f"),
             EffectiveCfg.VoxelSizeCm));
 }
