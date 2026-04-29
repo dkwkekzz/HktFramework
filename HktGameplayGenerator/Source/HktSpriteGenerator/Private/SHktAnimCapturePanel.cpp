@@ -327,21 +327,31 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 					[
 						SNew(SCheckBox)
 						.IsChecked_Lambda([this]() { return Settings.bUseDefaultLighting ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){ Settings.bUseDefaultLighting = (S==ECheckBoxState::Checked); })
+						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){
+							Settings.bUseDefaultLighting = (S==ECheckBoxState::Checked);
+							// FPreviewScene 의 bDefaultLighting 은 생성 시점에 박혀 있어 — 재생성 필요.
+							RebuildPreviewScene();
+						})
 						[ SNew(STextBlock).Text(LOCTEXT("DefLightChk", "Use Default Scene Lighting")) ]
 					]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)
 					[
 						SNew(SCheckBox)
 						.IsChecked_Lambda([this]() { return Settings.bEnableKeyLight ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){ Settings.bEnableKeyLight = (S==ECheckBoxState::Checked); })
+						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){
+							Settings.bEnableKeyLight = (S==ECheckBoxState::Checked);
+							ApplyLightingFromUI();
+						})
 						[ SNew(STextBlock).Text(LOCTEXT("KeyLightChk", "Add Key Light")) ]
 					]
 					+ SHorizontalBox::Slot().AutoWidth()
 					[
 						SNew(SCheckBox)
 						.IsChecked_Lambda([this]() { return Settings.bEnableFillLight ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){ Settings.bEnableFillLight = (S==ECheckBoxState::Checked); })
+						.OnCheckStateChanged_Lambda([this](ECheckBoxState S){
+							Settings.bEnableFillLight = (S==ECheckBoxState::Checked);
+							ApplyLightingFromUI();
+						})
 						[ SNew(STextBlock).Text(LOCTEXT("FillLightChk", "Add Fill Light")) ]
 					]
 				]
@@ -350,7 +360,9 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				[
 					SNew(SUniformGridPanel).SlotPadding(FMargin(4))
 					+ SUniformGridPanel::Slot(0,0)[ MakeRow(LOCTEXT("KLIntLbl", "Key Light Intensity"),
-						SAssignNew(KeyLightIntensityBox, SEditableTextBox).Text(FloatText(Settings.KeyLightIntensity))) ]
+						SAssignNew(KeyLightIntensityBox, SEditableTextBox)
+							.Text(FloatText(Settings.KeyLightIntensity))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyLightingFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,0)[ MakeRow(LOCTEXT("KLColorLbl", "Key Light Color"),
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
@@ -364,12 +376,18 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 							]
 						]) ]
 					+ SUniformGridPanel::Slot(0,1)[ MakeRow(LOCTEXT("KLPitchLbl", "Key Light Pitch"),
-						SAssignNew(KeyLightPitchBox, SEditableTextBox).Text(FloatText(Settings.KeyLightRotation.Pitch))) ]
+						SAssignNew(KeyLightPitchBox, SEditableTextBox)
+							.Text(FloatText(Settings.KeyLightRotation.Pitch))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyLightingFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,1)[ MakeRow(LOCTEXT("KLYawLbl", "Key Light Yaw"),
-						SAssignNew(KeyLightYawBox, SEditableTextBox).Text(FloatText(Settings.KeyLightRotation.Yaw))) ]
+						SAssignNew(KeyLightYawBox, SEditableTextBox)
+							.Text(FloatText(Settings.KeyLightRotation.Yaw))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyLightingFromUI(); })) ]
 
 					+ SUniformGridPanel::Slot(0,2)[ MakeRow(LOCTEXT("FLIntLbl", "Fill Light Intensity"),
-						SAssignNew(FillLightIntensityBox, SEditableTextBox).Text(FloatText(Settings.FillLightIntensity))) ]
+						SAssignNew(FillLightIntensityBox, SEditableTextBox)
+							.Text(FloatText(Settings.FillLightIntensity))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyLightingFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,2)[ MakeRow(LOCTEXT("FLColorLbl", "Fill Light Color"),
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
@@ -383,12 +401,18 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 							]
 						]) ]
 					+ SUniformGridPanel::Slot(0,3)[ MakeRow(LOCTEXT("FLPitchLbl", "Fill Light Pitch"),
-						SAssignNew(FillLightPitchBox, SEditableTextBox).Text(FloatText(Settings.FillLightRotation.Pitch))) ]
+						SAssignNew(FillLightPitchBox, SEditableTextBox)
+							.Text(FloatText(Settings.FillLightRotation.Pitch))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyLightingFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,3)[ MakeRow(LOCTEXT("FLYawLbl", "Fill Light Yaw"),
-						SAssignNew(FillLightYawBox, SEditableTextBox).Text(FloatText(Settings.FillLightRotation.Yaw))) ]
+						SAssignNew(FillLightYawBox, SEditableTextBox)
+							.Text(FloatText(Settings.FillLightRotation.Yaw))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyLightingFromUI(); })) ]
 
 					+ SUniformGridPanel::Slot(0,4)[ MakeRow(LOCTEXT("SkyIntLbl", "Extra SkyLight Intensity"),
-						SAssignNew(SkyLightIntensityBox, SEditableTextBox).Text(FloatText(Settings.ExtraSkyLightIntensity))) ]
+						SAssignNew(SkyLightIntensityBox, SEditableTextBox)
+							.Text(FloatText(Settings.ExtraSkyLightIntensity))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyLightingFromUI(); })) ]
 				]
 
 				// === 캡처 ===
@@ -725,6 +749,30 @@ FReply SHktAnimCapturePanel::OnCaptureClicked()
 	return FReply::Handled();
 }
 
+void SHktAnimCapturePanel::ApplyLightingFromUI()
+{
+	auto GetFlt = [](const TSharedPtr<SEditableTextBox>& Box, float Def) -> float {
+		if (!Box.IsValid()) return Def;
+		const FString S = Box->GetText().ToString();
+		return S.IsEmpty() ? Def : FCString::Atof(*S);
+	};
+
+	Settings.KeyLightIntensity      = FMath::Max(0.0f, GetFlt(KeyLightIntensityBox,  Settings.KeyLightIntensity));
+	Settings.KeyLightRotation.Pitch = GetFlt(KeyLightPitchBox, Settings.KeyLightRotation.Pitch);
+	Settings.KeyLightRotation.Yaw   = GetFlt(KeyLightYawBox,   Settings.KeyLightRotation.Yaw);
+
+	Settings.FillLightIntensity      = FMath::Max(0.0f, GetFlt(FillLightIntensityBox, Settings.FillLightIntensity));
+	Settings.FillLightRotation.Pitch = GetFlt(FillLightPitchBox, Settings.FillLightRotation.Pitch);
+	Settings.FillLightRotation.Yaw   = GetFlt(FillLightYawBox,   Settings.FillLightRotation.Yaw);
+
+	Settings.ExtraSkyLightIntensity  = FMath::Max(0.0f, GetFlt(SkyLightIntensityBox, Settings.ExtraSkyLightIntensity));
+
+	if (PreviewScene.IsValid())
+	{
+		PreviewScene->UpdateLightingSettings(Settings);
+	}
+}
+
 void SHktAnimCapturePanel::OnCaptureProgress(int32 DoneFrames, int32 TotalFrames, const FString& Status)
 {
 	if (TotalFrames > 0)
@@ -747,14 +795,20 @@ FReply SHktAnimCapturePanel::OpenColorPicker(FLinearColor* TargetColor, TSharedP
 	FColorPickerArgs Args;
 	Args.bIsModal = true;
 	Args.bUseAlpha = true;
+	// 드래그 중에도 OnColorCommitted 가 호출되도록 — 실시간 프리뷰 갱신용.
 	Args.bOnlyRefreshOnMouseUp = false;
 	Args.InitialColor = *TargetColor;
-	Args.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([TargetColor, Block](FLinearColor NewColor)
+	TWeakPtr<SHktAnimCapturePanel> WeakSelf = SharedThis(this);
+	Args.OnColorCommitted = FOnLinearColorValueChanged::CreateLambda([TargetColor, Block, WeakSelf](FLinearColor NewColor)
 	{
 		*TargetColor = NewColor;
 		if (Block.IsValid())
 		{
 			Block->Invalidate(EInvalidateWidgetReason::Paint);
+		}
+		if (TSharedPtr<SHktAnimCapturePanel> Self = WeakSelf.Pin())
+		{
+			Self->ApplyLightingFromUI();
 		}
 	});
 
