@@ -99,7 +99,14 @@ struct FHktVoxelSurfaceCell
  *   기존 UHktVoxelPalette(HktSpriteCore) 관행과 동일.
  * ============================================================================
  */
-UCLASS(ClassGroup = (HktVoxel))
+/**
+ * @deprecated PR-D 에서 `AHktSpriteTerrainActor` (HktSpriteTerrain 모듈) 로 대체.
+ *             신규 버전은 RenderCache 의존을 제거하고 `UHktTerrainSubsystem` 단일
+ *             출처에서 청크 데이터를 받는다. 본 클래스는 1 릴리스 유지 후 제거 예정.
+ */
+UCLASS(ClassGroup = (HktVoxel),
+	meta = (DeprecatedNode,
+		DeprecationMessage = "AHktVoxelSpriteTerrainActor 는 PR-D 에서 AHktSpriteTerrainActor (HktSpriteTerrain 모듈) 로 대체되었다. RenderCache 의존을 제거하고 UHktTerrainSubsystem 단일 출처를 사용한다. 본 클래스는 1 릴리스 후 제거 예정."))
 class HKTVOXELTERRAIN_API AHktVoxelSpriteTerrainActor : public AActor
 {
 	GENERATED_BODY()

@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "HktVoxelChunkLoader.h"
+#include "HktTerrainChunkLoader.h"
 
 namespace
 {
@@ -19,10 +19,10 @@ namespace
 	// Legacy — 단일 반경 내 모든 청크를 Tier::Near로 로드. 회전 완전 무시.
 	// LOD 파이프라인 문제 시 안전한 폴백.
 	// ======================================================================
-	class FHktLegacyChunkLoader final : public IHktVoxelChunkLoader
+	class FHktLegacyChunkLoader final : public IHktTerrainChunkLoader
 	{
 	public:
-		virtual void Configure(const FHktVoxelLoaderConfig& Cfg) override
+		virtual void Configure(const FHktTerrainLoaderConfig& Cfg) override
 		{
 			const float NewRadius = FMath::Max(1.f, Cfg.PrimaryRadius);
 			if (!FMath::IsNearlyEqual(NewRadius, StreamRadius))
@@ -41,7 +41,7 @@ namespace
 		virtual const TArray<FHktChunkTierRequest>& GetChunksToLoad() const override { return ChunksToLoad; }
 		virtual const TArray<FIntVector>& GetChunksToUnload() const override { return ChunksToUnload; }
 		virtual const TArray<FHktChunkTierRequest>& GetChunksToRetier() const override { return EmptyRetier; }
-		virtual const TMap<FIntVector, EHktVoxelChunkTier>& GetLoadedChunks() const override { return LoadedChunks; }
+		virtual const TMap<FIntVector, EHktTerrainChunkTier>& GetLoadedChunks() const override { return LoadedChunks; }
 
 		virtual void GetTierHistogram(int32 OutCounts[2]) const override
 		{
@@ -59,7 +59,7 @@ namespace
 		}
 
 	private:
-		TMap<FIntVector, EHktVoxelChunkTier> LoadedChunks;
+		TMap<FIntVector, EHktTerrainChunkTier> LoadedChunks;
 		TArray<FHktChunkTierRequest> ChunksToLoad;
 		TArray<FIntVector> ChunksToUnload;
 		TArray<FHktChunkTierRequest> EmptyRetier;  // Legacy는 Tier 전이 없음
@@ -120,7 +120,7 @@ namespace
 			}
 		}
 
-		for (const TPair<FIntVector, EHktVoxelChunkTier>& Pair : LoadedChunks)
+		for (const TPair<FIntVector, EHktTerrainChunkTier>& Pair : LoadedChunks)
 		{
 			if (!ScratchDesired.Contains(Pair.Key))
 			{
@@ -149,7 +149,7 @@ namespace
 
 		for (int32 i = 0; i < Allowed && i < LoadCandidates.Num(); ++i)
 		{
-			ChunksToLoad.Add({ LoadCandidates[i], EHktVoxelChunkTier::Near });
+			ChunksToLoad.Add({ LoadCandidates[i], EHktTerrainChunkTier::Near });
 		}
 
 		for (const FIntVector& Coord : ChunksToUnload)
@@ -178,10 +178,10 @@ namespace
 	// Proximity — 근거리(Tier::Near, 풀 디테일) + 원거리(Tier::Far, 간이) 2링.
 	// 회전 무관. Tier 전이는 카메라가 청크 경계를 넘을 때만 발생.
 	// ======================================================================
-	class FHktProximityChunkLoader final : public IHktVoxelChunkLoader
+	class FHktProximityChunkLoader final : public IHktTerrainChunkLoader
 	{
 	public:
-		virtual void Configure(const FHktVoxelLoaderConfig& Cfg) override
+		virtual void Configure(const FHktTerrainLoaderConfig& Cfg) override
 		{
 			const float NewNear = FMath::Max(1.f, Cfg.PrimaryRadius);
 			const float NewFar = FMath::Max(NewNear + 1.f, Cfg.SecondaryRadius);
@@ -202,13 +202,13 @@ namespace
 		virtual const TArray<FHktChunkTierRequest>& GetChunksToLoad() const override { return ChunksToLoad; }
 		virtual const TArray<FIntVector>& GetChunksToUnload() const override { return ChunksToUnload; }
 		virtual const TArray<FHktChunkTierRequest>& GetChunksToRetier() const override { return ChunksToRetier; }
-		virtual const TMap<FIntVector, EHktVoxelChunkTier>& GetLoadedChunks() const override { return LoadedChunks; }
+		virtual const TMap<FIntVector, EHktTerrainChunkTier>& GetLoadedChunks() const override { return LoadedChunks; }
 
 		virtual void GetTierHistogram(int32 OutCounts[2]) const override
 		{
 			OutCounts[0] = 0;
 			OutCounts[1] = 0;
-			for (const TPair<FIntVector, EHktVoxelChunkTier>& Pair : LoadedChunks)
+			for (const TPair<FIntVector, EHktTerrainChunkTier>& Pair : LoadedChunks)
 			{
 				const int32 Idx = static_cast<int32>(Pair.Value);
 				if (Idx >= 0 && Idx < 2) { ++OutCounts[Idx]; }
@@ -226,11 +226,11 @@ namespace
 		}
 
 	private:
-		TMap<FIntVector, EHktVoxelChunkTier> LoadedChunks;
+		TMap<FIntVector, EHktTerrainChunkTier> LoadedChunks;
 		TArray<FHktChunkTierRequest> ChunksToLoad;
 		TArray<FIntVector> ChunksToUnload;
 		TArray<FHktChunkTierRequest> ChunksToRetier;
-		TMap<FIntVector, EHktVoxelChunkTier> ScratchDesired;
+		TMap<FIntVector, EHktTerrainChunkTier> ScratchDesired;
 
 		float NearRadius = 1500.f;
 		float FarRadius  = 8000.f;
@@ -284,9 +284,9 @@ namespace
 				{
 					continue;
 				}
-				const EHktVoxelChunkTier Tier = (DistSqXY <= NearRadiusSq)
-					? EHktVoxelChunkTier::Near
-					: EHktVoxelChunkTier::Far;
+				const EHktTerrainChunkTier Tier = (DistSqXY <= NearRadiusSq)
+					? EHktTerrainChunkTier::Near
+					: EHktTerrainChunkTier::Far;
 				for (int32 Z = HeightMinZ; Z <= HeightMaxZ; ++Z)
 				{
 					ScratchDesired.Add(FIntVector(CX, CY, Z), Tier);
@@ -294,7 +294,7 @@ namespace
 			}
 		}
 
-		for (const TPair<FIntVector, EHktVoxelChunkTier>& Pair : LoadedChunks)
+		for (const TPair<FIntVector, EHktTerrainChunkTier>& Pair : LoadedChunks)
 		{
 			if (!ScratchDesired.Contains(Pair.Key))
 			{
@@ -304,9 +304,9 @@ namespace
 
 		TArray<FHktChunkTierRequest> LoadCandidates;
 		LoadCandidates.Reserve(ScratchDesired.Num());
-		for (const TPair<FIntVector, EHktVoxelChunkTier>& Pair : ScratchDesired)
+		for (const TPair<FIntVector, EHktTerrainChunkTier>& Pair : ScratchDesired)
 		{
-			const EHktVoxelChunkTier* ExistingTier = LoadedChunks.Find(Pair.Key);
+			const EHktTerrainChunkTier* ExistingTier = LoadedChunks.Find(Pair.Key);
 			if (!ExistingTier)
 			{
 				LoadCandidates.Add({ Pair.Key, Pair.Value });
@@ -372,13 +372,13 @@ namespace
 	}
 }  // namespace
 
-TUniquePtr<IHktVoxelChunkLoader> CreateVoxelChunkLoader(EHktVoxelLoaderType Type)
+TUniquePtr<IHktTerrainChunkLoader> CreateTerrainChunkLoader(EHktTerrainLoaderType Type)
 {
 	switch (Type)
 	{
-		case EHktVoxelLoaderType::Legacy:
+		case EHktTerrainLoaderType::Legacy:
 			return MakeUnique<FHktLegacyChunkLoader>();
-		case EHktVoxelLoaderType::Proximity:
+		case EHktTerrainLoaderType::Proximity:
 		default:
 			return MakeUnique<FHktProximityChunkLoader>();
 	}

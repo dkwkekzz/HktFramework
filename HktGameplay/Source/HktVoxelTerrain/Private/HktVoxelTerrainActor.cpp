@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVoxelTerrainActor.h"
-#include "HktVoxelChunkLoader.h"
+#include "HktTerrainChunkLoader.h"
 #include "HktVoxelTerrainLog.h"
 #include "HktVoxelTerrainStyleSet.h"
 #if WITH_EDITOR
@@ -86,7 +86,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 	}
 
 	// 청크 로더 초기화 — LoaderType은 BeginPlay 시점에 확정되어 런타임 스왑하지 않는다.
-	Loader = CreateVoxelChunkLoader(LoaderType);
+	Loader = CreateTerrainChunkLoader(LoaderType);
 	SyncLoaderParams();
 
 	PrewarmPool(InitialPoolSize);
@@ -108,7 +108,7 @@ void AHktVoxelTerrainActor::BeginPlay()
 				 "자동 사용됩니다. 프로덕션에서는 커스텀 Surface 머티리얼을 할당하세요."));
 	}
 
-	const TCHAR* LoaderName = (LoaderType == EHktVoxelLoaderType::Legacy)
+	const TCHAR* LoaderName = (LoaderType == EHktTerrainLoaderType::Legacy)
 		? TEXT("Legacy") : TEXT("Proximity");
 	UE_LOG(LogHktVoxelTerrain, Log,
 		TEXT("Terrain Actor initialized — Seed=%lld, VoxelSize=%.1f, ChunkWorld=%.0f, "
@@ -206,13 +206,13 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 	if (bNormalChanged)
 	{
 		PrevNormalMapStrength = NormalMapStrength;
-		const TMap<FIntVector, EHktVoxelChunkTier>& LoadedTiers = Loader->GetLoadedChunks();
+		const TMap<FIntVector, EHktTerrainChunkTier>& LoadedTiers = Loader->GetLoadedChunks();
 		for (auto& Pair : ActiveChunks)
 		{
 			if (Pair.Value)
 			{
-				const EHktVoxelChunkTier* TierPtr = LoadedTiers.Find(Pair.Key);
-				const EHktVoxelChunkTier Tier = TierPtr ? *TierPtr : EHktVoxelChunkTier::Near;
+				const EHktTerrainChunkTier* TierPtr = LoadedTiers.Find(Pair.Key);
+				const EHktTerrainChunkTier Tier = TierPtr ? *TierPtr : EHktTerrainChunkTier::Near;
 				ApplyTierToComponent(Pair.Value, Tier);
 			}
 		}
@@ -272,7 +272,7 @@ void AHktVoxelTerrainActor::DrawChunkDebug() const
 		FColor(255, 128, 0),
 	};
 
-	const TMap<FIntVector, EHktVoxelChunkTier>& LoadedTiers = Loader->GetLoadedChunks();
+	const TMap<FIntVector, EHktTerrainChunkTier>& LoadedTiers = Loader->GetLoadedChunks();
 
 	for (const TPair<FIntVector, UHktVoxelChunkComponent*>& Pair : ActiveChunks)
 	{
@@ -283,7 +283,7 @@ void AHktVoxelTerrainActor::DrawChunkDebug() const
 			continue;
 		}
 
-		const EHktVoxelChunkTier* TierPtr = LoadedTiers.Find(Coord);
+		const EHktTerrainChunkTier* TierPtr = LoadedTiers.Find(Coord);
 		const int32 TierIdx = TierPtr
 			? FMath::Clamp(static_cast<int32>(*TierPtr), 0, 1)
 			: 0;
@@ -345,13 +345,13 @@ void AHktVoxelTerrainActor::LogStreamingStatsPeriodic()
 	const int32 ActiveComps = ActiveChunks.Num();
 
 	// 예상 스캔 셀 수 (로더별 외곽 반경)
-	const float OuterCm = (LoaderType == EHktVoxelLoaderType::Legacy)
+	const float OuterCm = (LoaderType == EHktTerrainLoaderType::Legacy)
 		? LegacyStreamRadius
 		: ProximityFarRadius;
 	const int32 OuterRadiusChunks = FMath::CeilToInt(OuterCm / FMath::Max(1.f, ChunkWorldCm));
 	const int32 ScanCells = (2 * OuterRadiusChunks + 1) * (2 * OuterRadiusChunks + 1);
 
-	const TCHAR* LoaderName = (LoaderType == EHktVoxelLoaderType::Legacy)
+	const TCHAR* LoaderName = (LoaderType == EHktTerrainLoaderType::Legacy)
 		? TEXT("Legacy") : TEXT("Proximity");
 
 	UE_LOG(LogHktVoxelTerrain, Log,
@@ -432,8 +432,8 @@ void AHktVoxelTerrainActor::SyncLoaderParams()
 	{
 		return;
 	}
-	FHktVoxelLoaderConfig Cfg;
-	Cfg.PrimaryRadius = (LoaderType == EHktVoxelLoaderType::Legacy)
+	FHktTerrainLoaderConfig Cfg;
+	Cfg.PrimaryRadius = (LoaderType == EHktTerrainLoaderType::Legacy)
 		? LegacyStreamRadius
 		: ProximityNearRadius;
 	Cfg.SecondaryRadius = ProximityFarRadius;  // Legacy는 무시
@@ -446,10 +446,10 @@ void AHktVoxelTerrainActor::SyncLoaderParams()
 
 void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 {
-	GenerateAndLoadChunk(ChunkCoord, EHktVoxelChunkTier::Near);
+	GenerateAndLoadChunk(ChunkCoord, EHktTerrainChunkTier::Near);
 }
 
-void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier Tier)
+void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, EHktTerrainChunkTier Tier)
 {
 	// UHktTerrainSubsystem 단일 출처에서 청크 데이터 획득 (baked-first + 폴백).
 	// Subsystem 의 buffer-out API 가 호출자 버퍼를 직접 채워주므로 dangling 위험 0.
@@ -484,7 +484,7 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, E
 	AcquireAndConfigureComponent(ChunkCoord, Tier);
 }
 
-UHktVoxelChunkComponent* AHktVoxelTerrainActor::AcquireAndConfigureComponent(const FIntVector& ChunkCoord, EHktVoxelChunkTier Tier)
+UHktVoxelChunkComponent* AHktVoxelTerrainActor::AcquireAndConfigureComponent(const FIntVector& ChunkCoord, EHktTerrainChunkTier Tier)
 {
 	UHktVoxelChunkComponent* Comp = AcquireComponent();
 	if (!Comp)
@@ -504,7 +504,7 @@ UHktVoxelChunkComponent* AHktVoxelTerrainActor::AcquireAndConfigureComponent(con
 	return Comp;
 }
 
-void AHktVoxelTerrainActor::RetierChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier NewTier)
+void AHktVoxelTerrainActor::RetierChunk(const FIntVector& ChunkCoord, EHktTerrainChunkTier NewTier)
 {
 	// 모든 tier가 LOD 0을 공유하므로 메시 재생성은 불필요 — 컴포넌트 설정만 갱신.
 	if (UHktVoxelChunkComponent** Found = ActiveChunks.Find(ChunkCoord))
@@ -513,7 +513,7 @@ void AHktVoxelTerrainActor::RetierChunk(const FIntVector& ChunkCoord, EHktVoxelC
 	}
 }
 
-void AHktVoxelTerrainActor::ApplyTierToComponent(UHktVoxelChunkComponent* Comp, EHktVoxelChunkTier Tier)
+void AHktVoxelTerrainActor::ApplyTierToComponent(UHktVoxelChunkComponent* Comp, EHktTerrainChunkTier Tier)
 {
 	if (!Comp)
 	{
@@ -525,13 +525,13 @@ void AHktVoxelTerrainActor::ApplyTierToComponent(UHktVoxelChunkComponent* Comp, 
 	FHktVoxelLODComponentSettings Settings;
 	switch (Tier)
 	{
-		case EHktVoxelChunkTier::Near:
+		case EHktTerrainChunkTier::Near:
 			Settings.NormalMapScale = 1.0f;
 			Settings.ShadowDistance = 0.0f;   // 0 = 항상 ON
 			Settings.bCastShadow = true;
 			Settings.bCollision = true;
 			break;
-		case EHktVoxelChunkTier::Far:
+		case EHktTerrainChunkTier::Far:
 		default:
 			Settings.NormalMapScale = 0.0f;
 			Settings.ShadowDistance = 0.0f;
@@ -549,7 +549,7 @@ void AHktVoxelTerrainActor::ProcessStreamingResults()
 	const TArray<FHktChunkTierRequest>& ToLoad = Loader->GetChunksToLoad();
 	const TArray<FHktChunkTierRequest>& ToRetier = Loader->GetChunksToRetier();
 
-	auto TierName = [](EHktVoxelChunkTier T) { return T == EHktVoxelChunkTier::Near ? TEXT("Near") : TEXT("Far"); };
+	auto TierName = [](EHktTerrainChunkTier T) { return T == EHktTerrainChunkTier::Near ? TEXT("Near") : TEXT("Far"); };
 
 	// 언로드 — 태스크가 TSharedPtr<FHktVoxelChunk>를 캡처하므로 Flush 불필요.
 	// UnloadChunk은 맵에서 제거만 하고, 실제 메모리는 태스크의 TSharedPtr 해제 시 반환.
@@ -710,10 +710,10 @@ void AHktVoxelTerrainActor::LoadTerrainChunk(const FIntVector& ChunkCoord, const
 
 	if (Loader)
 	{
-		const TMap<FIntVector, EHktVoxelChunkTier>& Loaded = Loader->GetLoadedChunks();
-		if (const EHktVoxelChunkTier* TierPtr = Loaded.Find(ChunkCoord))
+		const TMap<FIntVector, EHktTerrainChunkTier>& Loaded = Loader->GetLoadedChunks();
+		if (const EHktTerrainChunkTier* TierPtr = Loaded.Find(ChunkCoord))
 		{
-			const EHktVoxelChunkTier Tier = *TierPtr;
+			const EHktTerrainChunkTier Tier = *TierPtr;
 			if (FHktVoxelChunkRef ChunkRef = TerrainCache->GetChunkRef(ChunkCoord))
 			{
 				ChunkRef->RequestedLOD.store(0, std::memory_order_release);
@@ -1354,7 +1354,7 @@ namespace
 			int32 TierCount[2] = { 0, 0 };
 			A->GetTierHistogram(TierCount);
 			const int32 Total = TierCount[0] + TierCount[1];
-			const TCHAR* Name = (A->LoaderType == EHktVoxelLoaderType::Legacy)
+			const TCHAR* Name = (A->LoaderType == EHktTerrainLoaderType::Legacy)
 				? TEXT("Legacy") : TEXT("Proximity");
 			UE_LOG(LogConsoleResponse, Display,
 				TEXT("[Terrain] %s — Loader=%s, Near=%d, Far=%d (Total=%d), Budget=%d/frame, MaxLoaded=%d"),
