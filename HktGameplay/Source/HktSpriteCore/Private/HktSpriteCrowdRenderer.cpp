@@ -584,5 +584,10 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	HISM->SetCustomDataValue(State.InstanceIndex, 12, Tint.A, false);
 	HISM->SetCustomDataValue(State.InstanceIndex, 13, static_cast<float>(Update.PaletteIndex), false);
 	HISM->SetCustomDataValue(State.InstanceIndex, 14, FlipValue, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 15, static_cast<float>(Frame.ZBias), true);
+	// CPD slot 15 = ZBias (cm, 카메라 쪽으로 밀어내기). 3 source 합산:
+	//   Frame.ZBias        — 애니메이션 정의 (캐릭터 내 프레임 간 z-fighting 해소)
+	//   Update.ZBias       — 호출자 인스턴스 단위 (특정 엔터티만 미세 조정)
+	//   ComponentZBias     — 컴포넌트 단위 일괄 (Crowd ↔ Terrain 등 그룹 정렬)
+	const float CombinedZBias = static_cast<float>(Frame.ZBias) + Update.ZBias + ComponentZBias;
+	HISM->SetCustomDataValue(State.InstanceIndex, 15, CombinedZBias, true);
 }

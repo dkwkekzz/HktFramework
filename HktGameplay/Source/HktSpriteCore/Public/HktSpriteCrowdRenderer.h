@@ -57,6 +57,12 @@ struct FHktSpriteEntityUpdate
 	float PlayRate = 1.f;
 	FLinearColor TintOverride = FLinearColor::White;
 	int32 PaletteIndex = 0;
+
+	/**
+	 * 인스턴스 단위 Z-bias (cm). 컴포넌트 ZBias 와 합산되어 CPD slot 15 에 들어간다.
+	 * 같은 atlas HISM 안에서 특정 엔터티만 카메라 쪽으로 미세하게 밀어 정렬용으로 사용.
+	 */
+	float ZBias = 0.f;
 };
 
 /**
@@ -85,6 +91,20 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="HKT|Sprite", meta=(ClampMin="0.01"))
 	float GlobalWorldScale = 1.f;
+
+	/**
+	 * 본 컴포넌트의 모든 인스턴스에 일괄 적용되는 Z-bias (cm).
+	 *
+	 * `FHktSpriteEntityUpdate::ZBias` 와 합산되어 CPD slot 15 에 들어간다.
+	 * 머티리얼 WPO 가 카메라 쪽으로 cm 만큼 밀어내며 depth-buffer 에 반영된다.
+	 *
+	 * 사용 예 — 캐릭터 ↔ 지형 정렬:
+	 *   - SpriteTerrain (지형) : ComponentZBias = 0   (베이스라인)
+	 *   - 본 컴포넌트 (캐릭터)  : ComponentZBias = +1  (지형 위)
+	 * 양수일수록 카메라 쪽 (= 다른 그룹 앞).
+	 */
+	UPROPERTY(EditAnywhere, Category="HKT|Sprite|Depth")
+	float ComponentZBias = 0.f;
 
 	void RegisterEntity(FHktEntityId Id);
 	void UnregisterEntity(FHktEntityId Id);

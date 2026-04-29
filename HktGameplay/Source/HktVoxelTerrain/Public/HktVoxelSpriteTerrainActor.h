@@ -99,6 +99,19 @@ struct FHktVoxelSurfaceCell
  *   기존 UHktVoxelPalette(HktSpriteCore) 관행과 동일.
  * ============================================================================
  */
+/**
+ * @deprecated PR-D 에서 `AHktSpriteTerrainActor` (HktSpriteTerrain 모듈) 로 대체.
+ *             신규 버전은 RenderCache 의존을 제거하고 `UHktTerrainSubsystem` 단일
+ *             출처에서 청크 데이터를 받는다. 본 클래스는 1 릴리스 유지 후 제거 예정.
+ *
+ * 마이그레이션:
+ *   1. 월드 배치된 본 액터를 `AHktSpriteTerrainActor` 로 교체.
+ *   2. QuadMesh / TerrainMaterial / AtlasTexture / PaletteLUT 등 UPROPERTY 그대로 복사.
+ *   3. 기존 본 액터의 데이터 의존(`AHktVoxelTerrainActor` RenderCache) 은 제거 — 신 액터는
+ *      Subsystem 단일 출처라 Voxel actor 가 같은 월드에 없어도 동작.
+ *
+ * 본 클래스는 BeginPlay 시 EventLog Warning 을 1회 emit 하여 콘텐츠 referencer 를 추적한다.
+ */
 UCLASS(ClassGroup = (HktVoxel))
 class HKTVOXELTERRAIN_API AHktVoxelSpriteTerrainActor : public AActor
 {

@@ -7,7 +7,7 @@
 #include "IHktHitRefinementProvider.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
-#include "HktVoxelChunkLoader.h"
+#include "HktTerrainChunkLoader.h"
 #include "HktTerrainBakedAsset.h"
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "HktVoxelTerrainActor.generated.h"
@@ -134,13 +134,13 @@ public:
 	 * BeginPlay 1회 생성이라 런타임 스왑하지 않는다 — 변경 시 PIE 재시작 필요.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming")
-	EHktVoxelLoaderType LoaderType = EHktVoxelLoaderType::Proximity;
+	EHktTerrainLoaderType LoaderType = EHktTerrainLoaderType::Proximity;
 
 	// === Legacy 로더 파라미터 ===
 
 	/** Legacy 모드에서 사용할 단일 스트리밍 반경 (UE 유닛). 기본 8000 = 80m */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Legacy",
-		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Legacy",
+		meta = (EditCondition = "LoaderType == EHktTerrainLoaderType::Legacy",
 				ClampMin = 1600, ClampMax = 1024000))
 	float LegacyStreamRadius = 8000.f;
 
@@ -148,13 +148,13 @@ public:
 
 	/** 근거리(풀 디테일) 링 반경. 기본 1500 = 15m (~3 청크 @ 480cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Proximity",
-		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Proximity",
+		meta = (EditCondition = "LoaderType == EHktTerrainLoaderType::Proximity",
 				ClampMin = 480, ClampMax = 102400))
 	float ProximityNearRadius = 1500.f;
 
 	/** 원거리(간이 메시) 링 반경. 기본 8000 = 80m (~16 청크 @ 480cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Streaming|Proximity",
-		meta = (EditCondition = "LoaderType == EHktVoxelLoaderType::Proximity",
+		meta = (EditCondition = "LoaderType == EHktTerrainLoaderType::Proximity",
 				ClampMin = 480, ClampMax = 1024000))
 	float ProximityFarRadius = 8000.f;
 
@@ -338,17 +338,17 @@ private:
 	void GenerateAndLoadChunk(const FIntVector& ChunkCoord);
 
 	/** Tier-aware 절차적 생성 + 로드 + 컴포넌트 할당 */
-	void GenerateAndLoadChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier Tier);
+	void GenerateAndLoadChunk(const FIntVector& ChunkCoord, EHktTerrainChunkTier Tier);
 
 	/**
 	 * 이미 로드된 청크의 Tier만 변경 — RequestedLOD store + bMeshDirty=true + MeshGeneration++.
 	 * Voxel 데이터는 재생성하지 않고 메시만 다음 틱에 새 LOD로 재생성된다.
 	 * 머티리얼/그림자/콜리전 등 컴포넌트 설정도 동시에 반영.
 	 */
-	void RetierChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier NewTier);
+	void RetierChunk(const FIntVector& ChunkCoord, EHktTerrainChunkTier NewTier);
 
 	/** Tier에 해당하는 컴포넌트 설정 적용 (액터 글로벌 강도 합성) */
-	void ApplyTierToComponent(UHktVoxelChunkComponent* Comp, EHktVoxelChunkTier Tier);
+	void ApplyTierToComponent(UHktVoxelChunkComponent* Comp, EHktTerrainChunkTier Tier);
 
 	/** 스트리밍 결과 반영 — 청크 로드/언로드 + 컴포넌트 할당 */
 	void ProcessStreamingResults();
@@ -386,7 +386,7 @@ private:
 	 * 풀에서 컴포넌트 1개를 획득해 머티리얼/Tier/스타일/ActiveChunks 등록까지 일괄 처리.
 	 * GenerateAndLoadChunk와 LoadTerrainChunk의 공통 초기화 경로. nullptr 반환 시 스킵.
 	 */
-	UHktVoxelChunkComponent* AcquireAndConfigureComponent(const FIntVector& ChunkCoord, EHktVoxelChunkTier Tier);
+	UHktVoxelChunkComponent* AcquireAndConfigureComponent(const FIntVector& ChunkCoord, EHktTerrainChunkTier Tier);
 
 	/** BlockStyles 배열로부터 Texture2DArray + LUT + MaterialLUT를 빌드 */
 	void BuildTerrainStyle();
@@ -398,7 +398,7 @@ private:
 
 	TUniquePtr<FHktVoxelRenderCache> TerrainCache;
 	TUniquePtr<FHktVoxelMeshScheduler> TerrainMeshScheduler;
-	TUniquePtr<IHktVoxelChunkLoader> Loader;
+	TUniquePtr<IHktTerrainChunkLoader> Loader;
 
 	/** 활성 청크 → 컴포넌트 매핑 */
 	TMap<FIntVector, UHktVoxelChunkComponent*> ActiveChunks;
