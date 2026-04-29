@@ -38,3 +38,7 @@ Automated VM and story test suite. Uses `FHktAutomationTestHarness` — a self-c
 - `HktStoryIntegrityTests` — Program structure, register flow, precondition enforcement
 - `HktStoryScenarioTests` — End-to-end story execution via harness
 - `HktStoryJsonParserTests` — JSON schema and Story builder fluent API
+
+## Agent 테스트 자동화
+
+`Tools/` — 헤드리스 Automation 러너 + `/test-fix` 슬래시 커맨드. 상세: [Tools/README.md](Tools/README.md)
