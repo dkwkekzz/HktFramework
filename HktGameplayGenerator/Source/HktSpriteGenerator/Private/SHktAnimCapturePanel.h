@@ -8,9 +8,11 @@
 #include "Styling/SlateBrush.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SColorBlock;
 class SEditableTextBox;
 class SImage;
 class SMultiLineEditableTextBox;
+class SProgressBar;
 
 /**
  * SHktAnimCapturePanel — 에디터 단독 애니메이션 캡처 UI.
@@ -58,6 +60,22 @@ private:
 	void RebuildSettingsFromUI();
 	void ApplyPresetToCustomFields(EHktAnimCaptureCameraPreset Preset);
 
+	// UI 라이트 값을 Settings 에 거둬 PreviewScene 에 즉시 적용 — 씬 재생성 없이.
+	void ApplyLightingFromUI();
+
+	// UI 카메라/방향 값을 Settings 에 거둬 PreviewScene 에 즉시 적용 — 씬 재생성 없이.
+	void ApplyCameraFromUI();
+
+	// 캡처 진행 콜백 — UHktAnimCaptureFunctionLibrary 가 매 프레임 호출.
+	void OnCaptureProgress(int32 DoneFrames, int32 TotalFrames, const FString& Status);
+
+	// 라이트 컬러 피커 — 클릭 시 SColorPicker 모달.
+	FReply OpenColorPicker(FLinearColor* TargetColor, TSharedPtr<SColorBlock> Block);
+
+	// 마지막 사용 세팅 영구 저장/복원.
+	void LoadPersistedSettings();
+	void SavePersistedSettings();
+
 	// 위젯 핸들 ===========================================================
 	TSharedPtr<SEditableTextBox> CharacterTagBox;
 	TSharedPtr<SEditableTextBox> ActionIdBox;
@@ -81,6 +99,25 @@ private:
 	TSharedPtr<SEditableTextBox> PixelToWorldBox;
 	TSharedPtr<SEditableTextBox> FrameDurationBox;
 	TSharedPtr<SEditableTextBox> CropPaddingBox;
+
+	// === Lighting ===
+	TSharedPtr<SEditableTextBox> KeyLightIntensityBox;
+	TSharedPtr<SEditableTextBox> KeyLightPitchBox;
+	TSharedPtr<SEditableTextBox> KeyLightYawBox;
+	TSharedPtr<SColorBlock>      KeyLightColorBlock;
+
+	TSharedPtr<SEditableTextBox> FillLightIntensityBox;
+	TSharedPtr<SEditableTextBox> FillLightPitchBox;
+	TSharedPtr<SEditableTextBox> FillLightYawBox;
+	TSharedPtr<SColorBlock>      FillLightColorBlock;
+
+	TSharedPtr<SEditableTextBox> SkyLightIntensityBox;
+
+	// === Capture Progress ===
+	TSharedPtr<SProgressBar>     CaptureProgressBar;
+	TSharedPtr<class STextBlock> CaptureProgressText;
+	float                        CaptureProgressFraction = 0.0f;
+	bool                         bCaptureInProgress = false;
 
 	TSharedPtr<SMultiLineEditableTextBox> ResultBox;
 

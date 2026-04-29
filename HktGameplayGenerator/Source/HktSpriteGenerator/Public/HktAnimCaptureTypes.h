@@ -162,6 +162,49 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 		meta = (EditCondition = "!bTransparentBackground"))
 	FLinearColor BackgroundColor = FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
+	// === 조명 ===
+	//
+	// FPreviewScene 가 기본 키 라이트(+스카이라이트)를 자동 생성한다(bUseDefaultLighting).
+	// 그 위에 사용자 정의 KeyLight/FillLight 두 개의 추가 방향성광과 SkyLight 강도를
+	// 노출하여 캐릭터 측면이 어둡게 보이는 문제를 해소한다. 색상은 FLinearColor.
+	//
+	// 디폴트 값은 종전(레거시) 동작과 1:1 일치하도록 잡는다 — bUseDefaultLighting=true,
+	// FillLight 만 활성, KeyLight/SkyLight 추가는 비활성.
+
+	/** FPreviewScene 의 기본 라이팅(키 라이트+스카이) 사용 여부. False 면 사용자 정의만 적용. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+	bool bUseDefaultLighting = true;
+
+	/** True 면 KeyLight 적용. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+	bool bEnableKeyLight = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting", meta = (ClampMin = "0.0", EditCondition = "bEnableKeyLight"))
+	float KeyLightIntensity = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting", meta = (EditCondition = "bEnableKeyLight"))
+	FLinearColor KeyLightColor = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting", meta = (EditCondition = "bEnableKeyLight"))
+	FRotator KeyLightRotation = FRotator(-45.0f, -30.0f, 0.0f);
+
+	/** True 면 FillLight 적용. 기본 ON — 측면 fill. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+	bool bEnableFillLight = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting", meta = (ClampMin = "0.0", EditCondition = "bEnableFillLight"))
+	float FillLightIntensity = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting", meta = (EditCondition = "bEnableFillLight"))
+	FLinearColor FillLightColor = FLinearColor(0.9f, 0.95f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting", meta = (EditCondition = "bEnableFillLight"))
+	FRotator FillLightRotation = FRotator(-25.0f, 135.0f, 0.0f);
+
+	/** 추가 SkyLight 강도(주변광). 0=비활성. bUseDefaultLighting 가 OFF 일 때 특히 유용. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting", meta = (ClampMin = "0.0"))
+	float ExtraSkyLightIntensity = 0.0f;
+
 	// === 프레임 자르기/리사이즈 ===
 
 	/** True 이면 캡처 후 알파>0 영역만 남기고 자동 크롭(빈 여백 제거). */

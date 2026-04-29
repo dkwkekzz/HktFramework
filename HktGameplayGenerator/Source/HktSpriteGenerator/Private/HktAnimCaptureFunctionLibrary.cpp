@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 
@@ -69,6 +70,13 @@ namespace HktAnimCaptureLibPrivate
 
 FString UHktAnimCaptureFunctionLibrary::CaptureAnimation(const FHktAnimCaptureSettings& InSettings)
 {
+	return CaptureAnimationWithProgress(InSettings, FHktAnimCaptureProgressDelegate());
+}
+
+FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
+	const FHktAnimCaptureSettings& InSettings,
+	const FHktAnimCaptureProgressDelegate& ProgressCallback)
+{
 	using namespace HktAnimCaptureLibPrivate;
 
 	FHktAnimCaptureSettings Settings = InSettings;
@@ -122,6 +130,13 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimation(const FHktAnimCaptureSe
 	// === 캡처 루프 ===
 	int32 SavedFrames = 0;
 	const FString ActionLower = Settings.ActionId.IsEmpty() ? TEXT("idle") : Settings.ActionId.ToLower();
+	const int32 TotalFrames = FMath::Max(1, Settings.NumDirections * FrameCount);
+
+	// FScopedSlowTask: 표준 Unreal 진행 다이얼로그(취소 가능). EnterProgressFrame 가 Slate
+	// 도 함께 펌프하므로 동시에 패널에 바인딩된 SProgressBar 도 실시간 갱신된다.
+	FScopedSlowTask SlowTask(static_cast<float>(TotalFrames),
+		NSLOCTEXT("HktAnimCapture", "Capturing", "Capturing animation frames..."));
+	SlowTask.MakeDialog(/*bShowCancelButton*/ true);
 
 	for (int32 Dir = 0; Dir < Settings.NumDirections; ++Dir)
 	{
@@ -134,6 +149,18 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimation(const FHktAnimCaptureSe
 
 		for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 		{
+			if (SlowTask.ShouldCancel())
+			{
+				return MakeJsonError(FString::Printf(TEXT("사용자 취소(저장된 프레임=%d/%d)"), SavedFrames, TotalFrames));
+			}
+
+			const FString StatusMsg = FString::Printf(TEXT("Dir %s (%d/%d)  Frame %d/%d"),
+				DirName, Dir + 1, Settings.NumDirections, Frame + 1, FrameCount);
+
+			SlowTask.EnterProgressFrame(1.0f, FText::FromString(StatusMsg));
+
+			ProgressCallback.ExecuteIfBound(SavedFrames, TotalFrames, StatusMsg);
+
 			const float T = (AnimLen > 0.0f) ? (StartT + TimeStep * Frame) : 0.0f;
 			Scene.SetAnimationTime(T);
 
@@ -149,6 +176,10 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimation(const FHktAnimCaptureSe
 			++SavedFrames;
 		}
 	}
+
+	// 마지막 갱신 — 100% 도달 알림.
+	ProgressCallback.ExecuteIfBound(SavedFrames, TotalFrames,
+		FString::Printf(TEXT("Captured %d frames"), SavedFrames));
 
 	UE_LOG(LogHktAnimCaptureLib, Log,
 		TEXT("AnimCapture 완료: 방향=%d 프레임=%d 총=%d → %s"),
