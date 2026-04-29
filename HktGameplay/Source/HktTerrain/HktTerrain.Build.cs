@@ -37,10 +37,14 @@ public class HktTerrain : ModuleRules
 			}
 		);
 
-		// 에디터 전용 — 베이크 라이브러리(Phase 3 에서 추가). 현재 단계에선 의존 없음.
+		// 에디터 전용 — 베이크 라이브러리(UHktTerrainBakeLibrary)가 패키지 저장 / 자산 등록을 수행.
+		// AssetRegistry 는 UnrealEd 가 transitive 하게 끌어오므로 별도 명시 불필요.
 		if (Target.bBuildEditor)
 		{
-			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.AddRange(new string[]
+			{
+				"UnrealEd",
+			});
 		}
 
 		DynamicallyLoadedModuleNames.AddRange(
