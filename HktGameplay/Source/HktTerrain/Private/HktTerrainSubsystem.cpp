@@ -6,6 +6,33 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
+#include "HktCoreDataCollector.h"
+#include "HAL/PlatformTime.h"
+
+#if ENABLE_HKT_INSIGHTS
+// Insights 카테고리 — HktGameplayDeveloper 의 인사이트 패널이 본 키들을 읽어 표시한다.
+// 모든 카운터는 Subsystem 인스턴스 단위 (월드 단위) — 멀티 World 환경에선 마지막 갱신이 표시된다.
+static const FString GHktTerrainInsightsCategory = TEXT("Terrain.Subsystem");
+
+namespace
+{
+	void PublishCounter(const TCHAR* Key, int32 Value)
+	{
+		HKT_INSIGHT_COLLECT(GHktTerrainInsightsCategory, FString(Key),
+			FString::Printf(TEXT("%d"), Value));
+	}
+	void PublishMs(const TCHAR* Key, double Ms)
+	{
+		HKT_INSIGHT_COLLECT(GHktTerrainInsightsCategory, FString(Key),
+			FString::Printf(TEXT("%.3f ms"), Ms));
+	}
+	void PublishUs(const TCHAR* Key, double Us)
+	{
+		HKT_INSIGHT_COLLECT(GHktTerrainInsightsCategory, FString(Key),
+			FString::Printf(TEXT("%.1f us"), Us));
+	}
+}
+#endif // ENABLE_HKT_INSIGHTS
 
 // 폴백 인자 출처 우선순위:
 //   1. BakedAsset->GeneratorConfig
@@ -78,6 +105,8 @@ void UHktTerrainSubsystem::LoadBakedAsset(
 		return;
 	}
 
+	const double LoadStartSec = FPlatformTime::Seconds();
+
 	// 이미 로드된 자산이면 즉시 콜백 (캐시 무효화 책임은 호출자).
 	if (UHktTerrainBakedAsset* Already = SoftRef.Get())
 	{
@@ -85,10 +114,13 @@ void UHktTerrainSubsystem::LoadBakedAsset(
 		ChunkCache.Reset();
 		FallbackGenerator.Reset();
 		bFallbackConfigCached = false;
+		const double ElapsedMs = (FPlatformTime::Seconds() - LoadStartSec) * 1000.0;
+		LastBakeLoadMs = ElapsedMs;
 		UE_LOG(LogHktTerrain, Log,
-			TEXT("LoadBakedAsset: '%s' 이미 로드됨 — 즉시 결합. ChunkCount=%d"),
-			*GetNameSafe(Already), Already->Chunks.Num());
+			TEXT("LoadBakedAsset: '%s' 이미 로드됨 — 즉시 결합. ChunkCount=%d (%.3f ms)"),
+			*GetNameSafe(Already), Already->Chunks.Num(), ElapsedMs);
 		OnEffectiveConfigChanged.Broadcast(GetEffectiveConfig());
+		PublishInsights();
 		if (OnLoaded) OnLoaded(Already);
 		return;
 	}
@@ -99,7 +131,7 @@ void UHktTerrainSubsystem::LoadBakedAsset(
 
 	PendingLoadHandle = Streamable.RequestAsyncLoad(
 		SoftRef.ToSoftObjectPath(),
-		FStreamableDelegate::CreateLambda([WeakThis, SoftRef, OnLoaded]()
+		FStreamableDelegate::CreateLambda([WeakThis, SoftRef, OnLoaded, LoadStartSec]()
 		{
 			UHktTerrainSubsystem* Self = WeakThis.Get();
 			if (!Self) { if (OnLoaded) OnLoaded(nullptr); return; }
@@ -111,20 +143,24 @@ void UHktTerrainSubsystem::LoadBakedAsset(
 			Self->bFallbackConfigCached = false;
 			Self->PendingLoadHandle.Reset();
 
+			const double ElapsedMs = (FPlatformTime::Seconds() - LoadStartSec) * 1000.0;
+			Self->LastBakeLoadMs = ElapsedMs;
+
 			if (Loaded)
 			{
 				UE_LOG(LogHktTerrain, Log,
-					TEXT("LoadBakedAsset: '%s' 로드 완료 — ChunkCount=%d Region=[%s, %s]"),
+					TEXT("LoadBakedAsset: '%s' 로드 완료 — ChunkCount=%d Region=[%s, %s] (%.3f ms)"),
 					*GetNameSafe(Loaded), Loaded->Chunks.Num(),
-					*Loaded->RegionMin.ToString(), *Loaded->RegionMax.ToString());
+					*Loaded->RegionMin.ToString(), *Loaded->RegionMax.ToString(), ElapsedMs);
 			}
 			else
 			{
 				UE_LOG(LogHktTerrain, Warning,
-					TEXT("LoadBakedAsset: 비동기 로드 실패 — 폴백 경로만 동작합니다."));
+					TEXT("LoadBakedAsset: 비동기 로드 실패 — 폴백 경로만 동작합니다. (%.3f ms)"), ElapsedMs);
 			}
 
 			Self->OnEffectiveConfigChanged.Broadcast(Self->GetEffectiveConfig());
+			Self->PublishInsights();
 			if (OnLoaded) OnLoaded(Loaded);
 		}),
 		FStreamableManager::AsyncLoadHighPriority);
@@ -135,19 +171,24 @@ UHktTerrainBakedAsset* UHktTerrainSubsystem::LoadBakedAssetSync(
 {
 	if (SoftRef.IsNull()) return nullptr;
 
+	const double LoadStartSec = FPlatformTime::Seconds();
 	UHktTerrainBakedAsset* Loaded = SoftRef.LoadSynchronous();
 	BakedAsset = Loaded;
 	ChunkCache.Reset();
 	FallbackGenerator.Reset();
 	bFallbackConfigCached = false;
 
+	const double ElapsedMs = (FPlatformTime::Seconds() - LoadStartSec) * 1000.0;
+	LastBakeLoadMs = ElapsedMs;
+
 	if (Loaded)
 	{
 		UE_LOG(LogHktTerrain, Log,
-			TEXT("LoadBakedAssetSync: '%s' — ChunkCount=%d"),
-			*GetNameSafe(Loaded), Loaded->Chunks.Num());
+			TEXT("LoadBakedAssetSync: '%s' — ChunkCount=%d (%.3f ms)"),
+			*GetNameSafe(Loaded), Loaded->Chunks.Num(), ElapsedMs);
 	}
 	OnEffectiveConfigChanged.Broadcast(GetEffectiveConfig());
+	PublishInsights();
 	return Loaded;
 }
 
@@ -223,12 +264,17 @@ bool UHktTerrainSubsystem::AcquireChunk(const FIntVector& Coord,
 		return false;
 	}
 
+	const double AcquireStartSec = FPlatformTime::Seconds();
+
 	// 1. 캐시 적중 — 메모이즈된 결과를 호출자 버퍼로 memcpy.
 	if (TSharedPtr<FCachedChunk>* Existing = ChunkCache.Find(Coord))
 	{
 		(*Existing)->LastAccessTick = ++NextAccessTick;
 		FMemory::Memcpy(OutVoxels.GetData(), (*Existing)->Voxels.GetData(),
 		                sizeof(FHktTerrainVoxel) * Expected);
+		++CacheHitCount;
+		LastAcquireUs = (FPlatformTime::Seconds() - AcquireStartSec) * 1e6;
+		PublishInsights();
 		return true;
 	}
 
@@ -246,6 +292,8 @@ bool UHktTerrainSubsystem::AcquireChunk(const FIntVector& Coord,
 		                sizeof(FHktTerrainVoxel) * Expected);
 		ChunkCache.Add(Coord, Entry);
 		EvictIfNeeded();
+		LastAcquireUs = (FPlatformTime::Seconds() - AcquireStartSec) * 1e6;
+		PublishInsights();
 		return true;
 	}
 
@@ -265,6 +313,8 @@ bool UHktTerrainSubsystem::AcquireChunk(const FIntVector& Coord,
 	                sizeof(FHktTerrainVoxel) * Expected);
 	ChunkCache.Add(Coord, Entry);
 	EvictIfNeeded();
+	LastAcquireUs = (FPlatformTime::Seconds() - AcquireStartSec) * 1e6;
+	PublishInsights();
 	return true;
 }
 
@@ -303,4 +353,22 @@ void UHktTerrainSubsystem::SamplePreview(
 {
 	const FHktTerrainGenerator& Gen = EnsureFallbackGenerator();
 	Gen.SamplePreviewRegion(MinWorldX, MinWorldY, Width, Height, OutRegion);
+}
+
+void UHktTerrainSubsystem::PublishInsights() const
+{
+#if ENABLE_HKT_INSIGHTS
+	HKT_INSIGHT_COLLECT(GHktTerrainInsightsCategory, TEXT("BakedAsset"),
+		BakedAsset ? GetNameSafe(BakedAsset) : FString(TEXT("None")));
+	PublishCounter(TEXT("BakedHits"),    BakedHitCount);
+	PublishCounter(TEXT("FallbackHits"), FallbackHitCount);
+	PublishCounter(TEXT("CacheHits"),    CacheHitCount);
+	PublishCounter(TEXT("CacheSize"),    ChunkCache.Num());
+	PublishMs    (TEXT("LastBakeLoad"), LastBakeLoadMs);
+	PublishUs    (TEXT("LastAcquire"),  LastAcquireUs);
+	HKT_INSIGHT_COLLECT(GHktTerrainInsightsCategory, TEXT("FallbackOrigin"),
+		bInjectedFallbackConfigSet
+			? FString(TEXT("Injected"))
+			: (BakedAsset ? FString(TEXT("BakedAsset")) : FString(TEXT("CompileDefault"))));
+#endif
 }

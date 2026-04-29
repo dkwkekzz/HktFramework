@@ -4,24 +4,29 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "HktTerrainGenerator.h"
 #include "HktBiomeLandscapeLayer.h"
+#include "HktTerrainBakedAsset.h"
 #include "HktLandscapeTerrainActor.generated.h"
 
 class ALandscape;
 class UMaterialInterface;
+class UHktTerrainSubsystem;
 
 /**
  * AHktLandscapeTerrainActor
  *
  * AHktVoxelTerrainActor 의 Landscape 판 병렬 형제.
  *
- * 동작:
- *   1. BeginPlay에서 UHktRuntimeGlobalSetting::ToTerrainConfig() 로부터 지형 설정을 읽음
- *   2. FHktTerrainGenerator 를 구성하고 SamplePreviewRegion 으로 2D 하이트 + 바이옴 샘플링
- *      (bAdvancedTerrain true/false 둘 다 단일 API로 처리됨)
- *   3. 샘플을 uint16 하이트맵과 바이옴 가중치 맵으로 변환
- *   4. ALandscape 를 월드에 스폰하고 ALandscape::Import(...) 런타임 호출로 지형 구성
+ * 동작 (PR-E 이후):
+ *   1. BeginPlay에서 UHktTerrainSubsystem 을 획득하고 UHktRuntimeGlobalSetting 기반
+ *      fallback Config 를 주입 (GameMode 가 PIE/Game 에서 먼저 주입했어도 idempotent).
+ *   2. BakedAsset 이 지정되어 있으면 Subsystem 에 비동기 로드 요청 — Voxel/Sprite Actor 와
+ *      동일한 단일 출처를 공유.
+ *   3. UHktTerrainSubsystem::SamplePreview 로 2D 하이트 + 바이옴 샘플링
+ *      (bAdvancedTerrain true/false 모두 단일 API. 결정론: baked Config 와 fallback Config
+ *      의 효과적 Config 가 동일하면 결과가 비트 단위 일치한다.)
+ *   4. 샘플을 uint16 하이트맵과 바이옴 가중치 맵으로 변환
+ *   5. ALandscape 를 월드에 스폰하고 ALandscape::Import(...) 런타임 호출로 지형 구성
  *
  * 동일한 TerrainSeed 를 사용하면 AHktVoxelTerrainActor 의 지형과 외형이 일치한다.
  */
@@ -78,6 +83,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|Material")
 	TArray<FHktBiomeLandscapeLayer> BiomeLayerMapping;
 
+	// === 베이크 자산 ===
+
+	/**
+	 * 베이크된 청크 자산 (옵션). 지정되어 있으면 BeginPlay 에서 Subsystem 에 비동기 로드 요청.
+	 * Voxel/Sprite Terrain Actor 와 동일 자산을 공유하여 단일 출처를 유지한다.
+	 *
+	 * 결정론 보장: 미지정/로드 전에도 Generator 폴백이 동일 Config 로 동일 결과를 산출한다.
+	 * 따라서 Landscape 의 외형은 baked 로드 완료 여부와 무관하게 일관된다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|Bake")
+	TSoftObjectPtr<UHktTerrainBakedAsset> BakedAsset;
+
 	// === 런타임 미러 (UHktRuntimeGlobalSetting 에서 초기화) ===
 
 	/** 복셀 1개의 월드 크기 (cm). 전역 설정이 단일 출처. */
@@ -121,7 +138,6 @@ private:
 
 	// === 내부 상태 ===
 
-	TUniquePtr<FHktTerrainGenerator> Generator;
 	TWeakObjectPtr<ALandscape>       SpawnedLandscape;
 	FGuid                            LandscapeGuid;
 	int32                            HeightmapVertsX = 0;
