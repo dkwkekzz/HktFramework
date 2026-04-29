@@ -3,6 +3,8 @@
 #include "HktCoreEventLog.h"
 #include "HktRuntimeCommon.h"
 #include "HktCoreDataCollector.h"
+#include "HktTerrainSubsystem.h"
+#include "HktTerrainProvider.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 UHktProxySimulatorComponent::UHktProxySimulatorComponent()
@@ -31,6 +33,21 @@ void UHktProxySimulatorComponent::BeginPlay()
 
 void UHktProxySimulatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    if (TerrainConfigChangedHandle.IsValid())
+    {
+        if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+        {
+            Sub->OnEffectiveConfigChanged.Remove(TerrainConfigChangedHandle);
+        }
+        TerrainConfigChangedHandle.Reset();
+    }
+
+    if (Simulator)
+    {
+        // 지형 소스 해제 — Subsystem 무효화 이전에 Provider weak ref dangling 차단.
+        Simulator->SetTerrainSource(nullptr);
+    }
+
     Simulator.Reset();
     Super::EndPlay(EndPlayReason);
 }
@@ -243,11 +260,37 @@ void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, in
             InState.FrameNumber, InState.GetEntityCount(), InGroupIndex));
     Simulator->RestoreWorldState(InState);
 
-    // 클라이언트 시뮬레이터에도 TerrainConfig 설정 — 서버와 동일한 물리 바닥 탐색
+    // 클라이언트 시뮬레이터에도 지형 wiring — 서버와 동일한 물리 바닥 탐색.
+    //
+    // 순서 (서버 GameMode 와 동일 패턴):
+    //   1) Sub->SetFallbackConfig(SettingsCfg) — BakedAsset 부재 시 effective Config 출처 주입
+    //   2) OnEffectiveConfigChanged 1회 등록 (재진입 방지)
+    //   3) RebindTerrainProvider — 클라 Simulator 에 Subsystem-aware Provider 직접 주입
+    //
+    // SetTerrainConfig 는 baseline 으로 항상 호출 — RebindTerrainProvider 가 SetTerrainSource 로
+    // 덮어쓰지만, Subsystem 부재 환경(테스트/스탠드얼론 등) 에서도 VoxelSize 가 보장된다.
     const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
     if (Settings)
     {
-        Simulator->SetTerrainConfig(Settings->ToTerrainConfig());
+        const FHktTerrainGeneratorConfig SettingsCfg = Settings->ToTerrainConfig();
+        Simulator->SetTerrainConfig(SettingsCfg);
+
+        if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+        {
+            Sub->SetFallbackConfig(SettingsCfg);
+
+            if (!TerrainConfigChangedHandle.IsValid())
+            {
+                TerrainConfigChangedHandle = Sub->OnEffectiveConfigChanged.AddWeakLambda(
+                    this,
+                    [this](const FHktTerrainGeneratorConfig& /*NewConfig*/)
+                    {
+                        RebindTerrainProvider();
+                    });
+            }
+
+            RebindTerrainProvider();
+        }
     }
 
     CachedGroupIndex = InGroupIndex;
@@ -277,4 +320,27 @@ const FHktWorldState& UHktProxySimulatorComponent::GetWorldState() const
 bool UHktProxySimulatorComponent::IsInitialized() const
 {
     return bInitialized;
+}
+
+void UHktProxySimulatorComponent::RebindTerrainProvider()
+{
+    if (!Simulator) { return; }
+
+    UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this);
+    if (!Sub)
+    {
+        // Subsystem 부재 — RestoreState 가 이미 SetTerrainConfig 로 baseline 을 주입했으므로
+        // Provider 등록 없이 기본 Generator 경로 유지.
+        return;
+    }
+
+    const FHktTerrainGeneratorConfig EffectiveCfg = Sub->GetEffectiveConfig();
+
+    // Provider 의 Config 는 본 함수 호출 시점의 정적 스냅샷.
+    // Subsystem 무효화 시 Provider 내부 weakptr 이 빈 청크(zero-init)로 폴백.
+    Simulator->SetTerrainSource(MakeUnique<FHktTerrainProvider>(Sub, EffectiveCfg));
+
+    HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
+        FString::Printf(TEXT("[ProxySim] Terrain Provider 재바인딩 — VoxelSizeCm=%d"),
+            EffectiveCfg.VoxelSizeCm));
 }
