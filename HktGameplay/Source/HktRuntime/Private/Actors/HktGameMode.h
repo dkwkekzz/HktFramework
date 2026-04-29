@@ -78,4 +78,20 @@ private:
     IHktFrameManager*           CachedFrameManager            = nullptr;
     IHktRelevancyGraph*         CachedRelevancyGraph          = nullptr;
     IHktWorldDatabase*          CachedWorldDatabase           = nullptr;
+
+    /**
+     * RelevancyGraph 의 시뮬레이터(들)에 Subsystem-aware Provider 를 (재)주입.
+     *
+     * 호출 시점:
+     *   1. InitGame 직후 — Subsystem 의 effective Config 로 첫 Provider 등록.
+     *   2. UHktTerrainSubsystem::OnEffectiveConfigChanged 콜백 — BakedAsset 로드 후
+     *      Config 가 갱신되었을 때 정적 스냅샷 재바인딩.
+     *
+     * Provider 의 Config 는 호출 시점의 정적 스냅샷이며, BakedAsset 변경 등으로
+     * effective Config 가 바뀌면 본 함수가 다시 호출되어 새 Provider 인스턴스가 그룹별로 분배된다.
+     */
+    void RebindTerrainProvider();
+
+    /** Subsystem 델리게이트 핸들 — EndPlay 에서 안전 해제. */
+    FDelegateHandle TerrainConfigChangedHandle;
 };

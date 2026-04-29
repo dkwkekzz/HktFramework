@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSingleRelevancyComponent.h"
+#include "Terrain/HktTerrainDataSource.h"
 
 UHktSingleRelevancyComponent::UHktSingleRelevancyComponent()
 {
@@ -72,4 +73,18 @@ int32 UHktSingleRelevancyComponent::GetRelevancyGroupIndex(int64 PlayerUid) cons
 void UHktSingleRelevancyComponent::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
 {
     if (Simulator) { Simulator->SetTerrainConfig(Config); }
+}
+
+void UHktSingleRelevancyComponent::SetTerrainSource(FTerrainSourceFactory Factory)
+{
+    if (!Simulator) { return; }
+    if (Factory)
+    {
+        Simulator->SetTerrainSource(Factory());
+    }
+    else
+    {
+        // nullptr 팩토리 = 기본 소스로 복귀 (지형 비활성).
+        Simulator->SetTerrainSource(nullptr);
+    }
 }

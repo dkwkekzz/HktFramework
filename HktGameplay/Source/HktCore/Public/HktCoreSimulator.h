@@ -6,6 +6,9 @@
 #include "HktWorldState.h"
 #include "HktCoreEventLog.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
+#include "Templates/UniquePtr.h"
+
+class IHktTerrainDataSource;
 
 // ============================================================================
 // FHktVMDebugInfo — VM 실행 상태 디버그 정보 (Public, 순수 데이터)
@@ -42,6 +45,24 @@ public:
 
     /** 지형 생성기 설정 — 설정 시 시뮬레이션이 복셀 지형을 인지하기 시작함 */
     virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) {}
+
+    /**
+     * 지형 데이터 소스 직접 주입.
+     *
+     * `SetTerrainConfig` 가 등록된 팩토리(`HktTerrain::CreateDataSource`)로
+     * 기본 `FHktTerrainGenerator` 를 만드는 반면, 본 API 는 호출자가 만든
+     * 임의의 `IHktTerrainDataSource` (예: Subsystem 어댑터인 `FHktTerrainProvider`)
+     * 를 그대로 보유하도록 한다.
+     *
+     * Use case (PR-C 액터 와이어링):
+     *   1. `SetTerrainConfig(Cfg)` 가 GameMode 시점에 한 번 호출되어 폴백 Generator 가 활성화됨.
+     *   2. `UHktTerrainSubsystem::LoadBakedAsset` 완료 콜백에서 Actor 가
+     *      `MakeUnique<FHktTerrainProvider>(Sub, Cfg)` 를 만들어 본 API 로 교체 주입.
+     *   3. 이후 시뮬레이션은 baked-first + 폴백 정책을 자동 적용받음.
+     *
+     * 절대 원칙: 인자가 nullptr 이면 지형 파이프라인 비활성화. 기존 소스는 안전 해제.
+     */
+    virtual void SetTerrainSource(TUniquePtr<IHktTerrainDataSource> InSource) {}
 };
 
 // ============================================================================

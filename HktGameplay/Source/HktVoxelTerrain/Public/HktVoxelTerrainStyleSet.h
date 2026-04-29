@@ -65,6 +65,10 @@ struct FHktBakedMaterialEntry
  *   3. TileMappings: TypeID → (Top/Side/Bottom 슬라이스)
  *   4. Materials   : TypeID → (Roughness/Metallic/Specular)
  *
+ * 본 자산은 **Voxel 렌더링 전용**이다 — Top/Side/Bottom 면 슬라이스, per-face PBR 등
+ * 모두 voxel face-meshing 파이프라인에 묶인 데이터. Sprite/HISM 경로는 별도 자산
+ * (`UHktSpriteTerrainStyleSet`, PR-D 신설 예정) 을 사용한다.
+ *
  * 런타임에는 ApplyTo()로 UHktVoxelTileAtlas / UHktVoxelMaterialLUT 에
  * 즉시 주입한다. UpdateSourceFromSourceTextures 같은 DDC 트리거 경로를
  * 거치지 않으므로 BCn 컴파일 메모리 폭증이 발생하지 않는다.

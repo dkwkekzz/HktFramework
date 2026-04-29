@@ -7,30 +7,13 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 
-namespace
-{
-	/**
-	 * 폴백 인자 출처 우선순위 결정 헬퍼.
-	 *
-	 *  1. Subsystem 의 BakedAsset->GeneratorConfig
-	 *  2. UHktRuntimeGlobalSetting::ToTerrainConfig() — HktRuntime 모듈 의존을
-	 *     피하기 위해 여기서는 직접 호출하지 않고 호출자가 SetFallbackConfig 로
-	 *     주입하도록 한다 (HktTerrain 은 HktRuntime 에 의존하지 않음).
-	 *  3. 컴파일 기본값 (FHktTerrainGeneratorConfig 의 in-class initializer).
-	 *
-	 * 현재 구현은 1, 3 만 사용 — 2는 호출 측(예: AHktVoxelTerrainActor)이
-	 * 첫 LoadBakedAsset 호출 전에 기본 Config 를 별도 경로로 SetTerrainConfig
-	 * 하여 시뮬레이션 측에 전달하는 기존 흐름을 유지한다.
-	 */
-	FHktTerrainGeneratorConfig PickEffectiveConfig(const UHktTerrainBakedAsset* BakedAsset)
-	{
-		if (BakedAsset)
-		{
-			return BakedAsset->GeneratorConfig.ToConfig();
-		}
-		return FHktTerrainGeneratorConfig{};
-	}
-}
+// 폴백 인자 출처 우선순위:
+//   1. BakedAsset->GeneratorConfig
+//   2. SetFallbackConfig 로 주입된 Config (예: AHktGameMode 가 ProjectSettings 기반으로 주입)
+//   3. 컴파일 기본값 (FHktTerrainGeneratorConfig 의 in-class initializer)
+//
+// HktTerrain → HktRuntime 역의존 차단을 위해 ProjectSettings 는 Subsystem 이 직접 읽지 않고
+// 호출자가 SetFallbackConfig 로 주입한다. 출처 추적은 EffectiveConfigSource 로 표현.
 
 UHktTerrainSubsystem::UHktTerrainSubsystem() = default;
 
@@ -74,6 +57,7 @@ void UHktTerrainSubsystem::Deinitialize()
 	FallbackGenerator.Reset();
 	BakedAsset = nullptr;
 	bFallbackConfigCached = false;
+	bInjectedFallbackConfigSet = false;
 
 	UE_LOG(LogHktTerrain, Log,
 		TEXT("UHktTerrainSubsystem Deinitialized — BakedHits=%d FallbackHits=%d"),
@@ -104,6 +88,7 @@ void UHktTerrainSubsystem::LoadBakedAsset(
 		UE_LOG(LogHktTerrain, Log,
 			TEXT("LoadBakedAsset: '%s' 이미 로드됨 — 즉시 결합. ChunkCount=%d"),
 			*GetNameSafe(Already), Already->Chunks.Num());
+		OnEffectiveConfigChanged.Broadcast(GetEffectiveConfig());
 		if (OnLoaded) OnLoaded(Already);
 		return;
 	}
@@ -139,6 +124,7 @@ void UHktTerrainSubsystem::LoadBakedAsset(
 					TEXT("LoadBakedAsset: 비동기 로드 실패 — 폴백 경로만 동작합니다."));
 			}
 
+			Self->OnEffectiveConfigChanged.Broadcast(Self->GetEffectiveConfig());
 			if (OnLoaded) OnLoaded(Loaded);
 		}),
 		FStreamableManager::AsyncLoadHighPriority);
@@ -161,17 +147,46 @@ UHktTerrainBakedAsset* UHktTerrainSubsystem::LoadBakedAssetSync(
 			TEXT("LoadBakedAssetSync: '%s' — ChunkCount=%d"),
 			*GetNameSafe(Loaded), Loaded->Chunks.Num());
 	}
+	OnEffectiveConfigChanged.Broadcast(GetEffectiveConfig());
 	return Loaded;
 }
 
 FHktTerrainGeneratorConfig UHktTerrainSubsystem::GetEffectiveConfig() const
 {
-	return PickEffectiveConfig(BakedAsset);
+	if (BakedAsset)
+	{
+		return BakedAsset->GeneratorConfig.ToConfig();
+	}
+	if (bInjectedFallbackConfigSet)
+	{
+		return InjectedFallbackConfig;
+	}
+	return FHktTerrainGeneratorConfig{};
+}
+
+void UHktTerrainSubsystem::SetFallbackConfig(const FHktTerrainGeneratorConfig& InConfig)
+{
+	const bool bAlreadySet = bInjectedFallbackConfigSet;
+	const bool bChanged = !bAlreadySet ||
+		FMemory::Memcmp(&InConfig, &InjectedFallbackConfig, sizeof(FHktTerrainGeneratorConfig)) != 0;
+
+	InjectedFallbackConfig      = InConfig;
+	bInjectedFallbackConfigSet  = true;
+
+	// BakedAsset 이 부재한 동안에만 effective Config 가 실제로 바뀐다.
+	// BakedAsset 이 있으면 그 Config 가 우선이므로 알릴 필요 없음.
+	if (bChanged && !BakedAsset)
+	{
+		// 폴백 Generator 캐시도 무효화 — 다음 호출에서 새 Config 로 재생성.
+		FallbackGenerator.Reset();
+		bFallbackConfigCached = false;
+		OnEffectiveConfigChanged.Broadcast(GetEffectiveConfig());
+	}
 }
 
 const FHktTerrainGenerator& UHktTerrainSubsystem::EnsureFallbackGenerator()
 {
-	const FHktTerrainGeneratorConfig EffectiveConfig = PickEffectiveConfig(BakedAsset);
+	const FHktTerrainGeneratorConfig EffectiveConfig = GetEffectiveConfig();
 
 	const bool bConfigChanged =
 		!bFallbackConfigCached ||
@@ -194,45 +209,63 @@ void UHktTerrainSubsystem::LogFallbackOriginOnce(const TCHAR* Origin)
 		TEXT("Terrain fallback Config 출처: %s — 첫 폴백 호출에서 1회만 출력."), Origin);
 }
 
-const FHktTerrainVoxel* UHktTerrainSubsystem::AcquireChunk(const FIntVector& Coord)
+bool UHktTerrainSubsystem::AcquireChunk(const FIntVector& Coord,
+                                        TArrayView<FHktTerrainVoxel> OutVoxels)
 {
-	// 1. 캐시 적중
+	const int32 Expected = GetVoxelsPerChunk();
+	if (OutVoxels.Num() != Expected)
+	{
+		UE_LOG(LogHktTerrain, Error,
+			TEXT("AcquireChunk: 출력 버퍼 크기 %d != 기대값 %d (Coord=%s)"),
+			OutVoxels.Num(), Expected, *Coord.ToString());
+		// 호출자 버그 방어 — zero-init 으로 안전한 디폴트 보장.
+		FMemory::Memzero(OutVoxels.GetData(), sizeof(FHktTerrainVoxel) * OutVoxels.Num());
+		return false;
+	}
+
+	// 1. 캐시 적중 — 메모이즈된 결과를 호출자 버퍼로 memcpy.
 	if (TSharedPtr<FCachedChunk>* Existing = ChunkCache.Find(Coord))
 	{
 		(*Existing)->LastAccessTick = ++NextAccessTick;
-		return (*Existing)->Voxels.GetData();
+		FMemory::Memcpy(OutVoxels.GetData(), (*Existing)->Voxels.GetData(),
+		                sizeof(FHktTerrainVoxel) * Expected);
+		return true;
 	}
 
-	// 2. Baked 자산 조회
+	// 2. Baked 자산 조회 — 디컴프레스 직접 호출자 버퍼로.
 	TSharedPtr<FCachedChunk> Entry = MakeShared<FCachedChunk>();
 	Entry->Coord = Coord;
-	Entry->Voxels.SetNumUninitialized(FHktTerrainGeneratorConfig::ChunkSize *
-	                                  FHktTerrainGeneratorConfig::ChunkSize *
-	                                  FHktTerrainGeneratorConfig::ChunkSize);
+	Entry->Voxels.SetNumUninitialized(Expected);
 	Entry->LastAccessTick = ++NextAccessTick;
 
 	if (BakedAsset && BakedAsset->TryDecompressChunk(Coord, Entry->Voxels.GetData()))
 	{
 		Entry->bFromBaked = true;
 		++BakedHitCount;
+		FMemory::Memcpy(OutVoxels.GetData(), Entry->Voxels.GetData(),
+		                sizeof(FHktTerrainVoxel) * Expected);
 		ChunkCache.Add(Coord, Entry);
 		EvictIfNeeded();
-		return Entry->Voxels.GetData();
+		return true;
 	}
 
 	// 3. 폴백 — 동일 Generator 로 즉시 생성 + 경고 로그
 	UE_LOG(LogHktTerrain, Warning,
 		TEXT("Chunk %s 베이크 미존재 — 런타임 생성 폴백"), *Coord.ToString());
-	LogFallbackOriginOnce(BakedAsset ? TEXT("BakedAsset->GeneratorConfig")
-	                                 : TEXT("CompileDefault (FHktTerrainGeneratorConfig{})"));
+	const TCHAR* OriginLabel = BakedAsset                 ? TEXT("BakedAsset->GeneratorConfig")
+	                          : bInjectedFallbackConfigSet ? TEXT("Injected (e.g., ProjectSettings)")
+	                                                       : TEXT("CompileDefault (FHktTerrainGeneratorConfig{})");
+	LogFallbackOriginOnce(OriginLabel);
 
 	const FHktTerrainGenerator& Gen = EnsureFallbackGenerator();
 	Gen.GenerateChunk(Coord.X, Coord.Y, Coord.Z, Entry->Voxels.GetData());
 	Entry->bFromBaked = false;
 	++FallbackHitCount;
+	FMemory::Memcpy(OutVoxels.GetData(), Entry->Voxels.GetData(),
+	                sizeof(FHktTerrainVoxel) * Expected);
 	ChunkCache.Add(Coord, Entry);
 	EvictIfNeeded();
-	return Entry->Voxels.GetData();
+	return true;
 }
 
 void UHktTerrainSubsystem::ReleaseChunk(const FIntVector& Coord)

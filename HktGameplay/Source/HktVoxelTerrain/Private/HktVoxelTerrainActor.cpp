@@ -14,7 +14,7 @@
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "Rendering/HktVoxelTileAtlas.h"
 #include "Rendering/HktVoxelMaterialLUT.h"
-#include "HktTerrainGenerator.h"
+#include "HktTerrainSubsystem.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "Terrain/HktFixed32.h"
 #include "LOD/HktVoxelLOD.h"
@@ -64,8 +64,26 @@ void AHktVoxelTerrainActor::BeginPlay()
 	TerrainMeshScheduler->SetVoxelSize(VoxelSize);
 	TerrainMeshScheduler->SetDoubleSided(false);  // terrain은 단면 렌더링 — 삼각형 수 절반
 
-	// 지형 생성기 초기화
-	Generator = MakeUnique<FHktTerrainGenerator>(GenConfig);
+	// 청크 데이터는 UHktTerrainSubsystem 이 단일 출처. Actor 는 직접 Generator 를 보유하지 않는다.
+	// BakedAsset 이 지정되어 있으면 비동기 로드 — 완료 시 Subsystem 의
+	// OnEffectiveConfigChanged 가 발화되어 GameMode 가 Provider 를 재바인딩한다.
+	if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+	{
+		if (!BakedAsset.IsNull())
+		{
+			Sub->LoadBakedAsset(BakedAsset);
+		}
+		else
+		{
+			UE_LOG(LogHktVoxelTerrain, Log,
+				TEXT("[TerrainActor] BakedAsset 미지정 — 전체 영역에서 런타임 폴백 Generator 경로 사용."));
+		}
+	}
+	else
+	{
+		UE_LOG(LogHktVoxelTerrain, Warning,
+			TEXT("[TerrainActor] UHktTerrainSubsystem 부재 — 청크 스트리밍 비활성. Subsystem 가용 World 인지 확인."));
+	}
 
 	// 청크 로더 초기화 — LoaderType은 BeginPlay 시점에 확정되어 런타임 스왑하지 않는다.
 	Loader = CreateVoxelChunkLoader(LoaderType);
@@ -134,7 +152,6 @@ void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	// 5. 나머지 리소스 해제 — 캐시의 TSharedPtr 해제로 최종 청크 메모리 반환
 	TerrainCache.Reset();
-	Generator.Reset();
 	Loader.Reset();
 
 	Super::EndPlay(EndPlayReason);
@@ -144,7 +161,7 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!TerrainCache || !TerrainMeshScheduler || !Loader || !Generator)
+	if (!TerrainCache || !TerrainMeshScheduler || !Loader)
 	{
 		return;
 	}
@@ -434,14 +451,27 @@ void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord)
 
 void AHktVoxelTerrainActor::GenerateAndLoadChunk(const FIntVector& ChunkCoord, EHktVoxelChunkTier Tier)
 {
-	// 절차적 생성 (힙 할당 — 128KB는 워커 스레드 스택에 위험)
+	// UHktTerrainSubsystem 단일 출처에서 청크 데이터 획득 (baked-first + 폴백).
+	// Subsystem 의 buffer-out API 가 호출자 버퍼를 직접 채워주므로 dangling 위험 0.
+	UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this);
+	if (!Sub)
+	{
+		return;
+	}
+
 	constexpr int32 ChunkVoxelCount = 32 * 32 * 32;
-	TArray<FHktTerrainVoxel> GeneratedVoxels;
-	GeneratedVoxels.SetNumUninitialized(ChunkVoxelCount);
-	Generator->GenerateChunk(ChunkCoord.X, ChunkCoord.Y, ChunkCoord.Z, GeneratedVoxels.GetData());
+	TArray<FHktTerrainVoxel> Voxels;
+	Voxels.SetNumUninitialized(ChunkVoxelCount);
+	if (!Sub->AcquireChunk(ChunkCoord, Voxels))
+	{
+		UE_LOG(LogHktVoxelTerrain, Warning,
+			TEXT("[TerrainActor] AcquireChunk 실패 (%d,%d,%d) — 청크 로드 스킵"),
+			ChunkCoord.X, ChunkCoord.Y, ChunkCoord.Z);
+		return;
+	}
 
 	// FHktTerrainVoxel → FHktVoxel (동일 4바이트 레이아웃)
-	const FHktVoxel* VoxelData = reinterpret_cast<const FHktVoxel*>(GeneratedVoxels.GetData());
+	const FHktVoxel* VoxelData = reinterpret_cast<const FHktVoxel*>(Voxels.GetData());
 	TerrainCache->LoadChunk(ChunkCoord, VoxelData, ChunkVoxelCount);
 
 	// Tier와 무관하게 모든 청크는 LOD 0으로 메싱 (LOD 다운샘플은 인접 청크와의 실루엣 불일치로

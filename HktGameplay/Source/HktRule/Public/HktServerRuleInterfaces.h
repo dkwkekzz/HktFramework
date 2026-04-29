@@ -10,11 +10,14 @@
 #include "HktWorldState.h"
 #include "HktBagTypes.h"
 #include "Containers/ArrayView.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
 #include "HktServerRuleInterfaces.generated.h"
 
 // Forward declarations
 class AActor;
 class IHktRelevancyGraph;
+class IHktTerrainDataSource;
 
 /**
  * FHktPlayerRecord - 플레이어의 영구 저장 데이터
@@ -141,6 +144,28 @@ public:
 
 	/** InitGame에서 첫 AdvanceFrame 이전에 호출 필수 — 시뮬레이션 지형 인지 활성화 */
 	virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) {}
+
+	/**
+	 * 지형 데이터 소스를 모든 시뮬레이터에 직접 주입.
+	 *
+	 * `SetTerrainConfig` 의 팩토리 경로(기본 `FHktTerrainGenerator`) 를 우회하여
+	 * Subsystem-aware Provider 같은 컨텍스트가 필요한 구현체를 그대로 보유시킨다.
+	 *
+	 * 호출 시점 (PR-C 액터 와이어링):
+	 *   - GameMode 가 Subsystem 가용 시점에 1회 호출 — 폴백 정책 + baked 우선 활성화.
+	 *   - BakedAsset 재로드 후 Provider Config 갱신 시 다시 호출 (정적 스냅샷 재바인딩).
+	 *
+	 * 인자(Factory) 가 비어있으면(nullptr / empty TFunction) 모든 그룹의 지형 소스가
+	 * 해제된다 — 시뮬레이터의 지형 파이프라인 완전 비활성화. 이 동작은 EndPlay 등
+	 * "지형 사용 종료" 시점의 명시적 cleanup 용도이며, "기본 Generator 로 복귀" 의미가
+	 * 아니다. 기본 Generator 경로는 `SetTerrainConfig` 가 따로 담당.
+	 *
+	 * 노트: 본 인터페이스는 단일 호출당 단일 팩토리를 받는다. 다중 그룹(Grid)인 경우
+	 * 구현체가 그룹별로 팩토리를 호출하여 각 시뮬레이터에 별도 인스턴스를 분배한다
+	 * — 각 그룹 시뮬레이터는 자체 lifetime 의 데이터 소스를 보유해야 하기 때문.
+	 */
+	using FTerrainSourceFactory = TFunction<TUniquePtr<IHktTerrainDataSource>()>;
+	virtual void SetTerrainSource(FTerrainSourceFactory Factory) {}
 };
 
 //=============================================================================

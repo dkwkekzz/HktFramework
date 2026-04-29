@@ -8,7 +8,7 @@
 #include "Data/HktVoxelRenderCache.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "HktVoxelChunkLoader.h"
-#include "HktTerrainGenerator.h"
+#include "HktTerrainBakedAsset.h"
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "HktVoxelTerrainActor.generated.h"
 
@@ -89,7 +89,7 @@ struct FHktVoxelBlockStyle
  * 카메라 기반 스트리밍으로 ChunkComponent를 동적 생성/풀링한다.
  *
  * 데이터 흐름:
- *   Loader → Generator.GenerateChunk() → RenderCache → MeshScheduler → ChunkComponent → GPU
+ *   Loader → UHktTerrainSubsystem::AcquireChunk() → RenderCache → MeshScheduler → ChunkComponent → GPU
  */
 UCLASS(ClassGroup = (HktVoxel))
 class HKTVOXELTERRAIN_API AHktVoxelTerrainActor
@@ -245,6 +245,15 @@ public:
 	TArray<FHktVoxelBlockStyle> BlockStyles;
 
 	/**
+	 * 베이크된 청크 자산 (권장 경로). UHktTerrainSubsystem 이 비동기 로드.
+	 *
+	 * 미할당 / 로드 영역 밖 청크는 런타임 폴백 (FHktTerrainGenerator) 으로 동일하게 생성된다 —
+	 * 결정론(FHktFixed32) 보장. 생성 출처는 첫 폴백 호출 시 1회 INFO 로그.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Source")
+	TSoftObjectPtr<UHktTerrainBakedAsset> BakedAsset;
+
+	/**
 	 * 베이크된 스타일 자산 (권장 경로).
 	 *
 	 * 설정되어 있으면 BlockStyles 직접 빌드 경로를 우회하고 이 자산만 적용한다.
@@ -390,7 +399,6 @@ private:
 	TUniquePtr<FHktVoxelRenderCache> TerrainCache;
 	TUniquePtr<FHktVoxelMeshScheduler> TerrainMeshScheduler;
 	TUniquePtr<IHktVoxelChunkLoader> Loader;
-	TUniquePtr<FHktTerrainGenerator> Generator;
 
 	/** 활성 청크 → 컴포넌트 매핑 */
 	TMap<FIntVector, UHktVoxelChunkComponent*> ActiveChunks;

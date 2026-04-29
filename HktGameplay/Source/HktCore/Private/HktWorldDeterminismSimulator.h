@@ -34,6 +34,7 @@ public:
     virtual void RestoreWorldState(const FHktWorldState& InState) override;
     virtual void UndoDiff(const FHktSimulationDiff& Diff) override;
     virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) override;
+    virtual void SetTerrainSource(TUniquePtr<IHktTerrainDataSource> InSource) override;
 
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);

@@ -46,6 +46,19 @@ private:
     /** Diff를 PendingDiff에 누적 (Presentation 전달용) */
     void AccumulateDiff(FHktSimulationDiff& InDiff);
 
+    /**
+     * 로컬(클라) 시뮬레이터에 Subsystem-aware Provider 를 (재)주입.
+     *
+     * 호출 시점:
+     *   1. RestoreState 직후 — Subsystem 의 effective Config 로 첫 Provider 등록.
+     *   2. UHktTerrainSubsystem::OnEffectiveConfigChanged 콜백 — BakedAsset 로드/언로드 후
+     *      Config 가 갱신되었을 때 정적 스냅샷 재바인딩.
+     *
+     * 서버 측 AHktGameMode::RebindTerrainProvider 의 클라 단일-그룹 버전 — RelevancyGraph 우회,
+     * 컴포넌트 자체가 보유한 Simulator 에 직접 SetTerrainSource.
+     */
+    void RebindTerrainProvider();
+
     // --- 코어 시뮬레이터 ---
     TUniquePtr<IHktDeterminismSimulator> Simulator;
     bool bInitialized = false;
@@ -73,4 +86,7 @@ private:
 
     // --- 연결 생존 판정 ---
     static constexpr double HeartbeatTimeoutSec = 10.0;
+
+    /** UHktTerrainSubsystem::OnEffectiveConfigChanged 핸들 — EndPlay 에서 안전 해제. */
+    FDelegateHandle TerrainConfigChangedHandle;
 };

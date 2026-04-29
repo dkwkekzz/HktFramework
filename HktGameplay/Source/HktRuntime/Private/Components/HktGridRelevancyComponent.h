@@ -30,6 +30,7 @@ public:
     bool HasPlayer(int64 Uid) const;
 
     void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config);
+    void SetTerrainSource(TUniquePtr<IHktTerrainDataSource> InSource);
 
 private:
     TUniquePtr<IHktDeterminismSimulator> Simulator;
@@ -56,6 +57,7 @@ public:
     virtual int32 GetRelevancyGroupIndex(int64 PlayerUid) const override;
     virtual int32 CalculateRelevancyGroupIndex(FVector PlayerPos) const override;
     virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) override;
+    virtual void SetTerrainSource(FTerrainSourceFactory Factory) override;
 
     FIntPoint LocationToCell(const FVector& Location) const;
 

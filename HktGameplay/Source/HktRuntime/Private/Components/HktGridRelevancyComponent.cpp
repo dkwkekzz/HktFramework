@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktGridRelevancyComponent.h"
+#include "Terrain/HktTerrainDataSource.h"
 
 FHktRelevancyGroupImpl::FHktRelevancyGroupImpl()
 {
@@ -31,6 +32,11 @@ bool FHktRelevancyGroupImpl::HasPlayer(int64 Uid) const
 void FHktRelevancyGroupImpl::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
 {
     if (Simulator) { Simulator->SetTerrainConfig(Config); }
+}
+
+void FHktRelevancyGroupImpl::SetTerrainSource(TUniquePtr<IHktTerrainDataSource> InSource)
+{
+    if (Simulator) { Simulator->SetTerrainSource(MoveTemp(InSource)); }
 }
 
 UHktGridRelevancyComponent::UHktGridRelevancyComponent() { PrimaryComponentTick.bCanEverTick = false; }
@@ -96,5 +102,15 @@ void UHktGridRelevancyComponent::SetTerrainConfig(const FHktTerrainGeneratorConf
     for (FHktRelevancyGroupImpl& Group : Groups)
     {
         Group.SetTerrainConfig(Config);
+    }
+}
+
+void UHktGridRelevancyComponent::SetTerrainSource(FTerrainSourceFactory Factory)
+{
+    // 그룹별 시뮬레이터는 각자 lifetime 의 데이터 소스를 보유해야 한다 — 팩토리를 그룹마다 호출해
+    // 동일 정책의 새 인스턴스를 분배. 팩토리 nullptr 이면 모든 그룹의 소스를 해제(지형 비활성).
+    for (FHktRelevancyGroupImpl& Group : Groups)
+    {
+        Group.SetTerrainSource(Factory ? Factory() : TUniquePtr<IHktTerrainDataSource>());
     }
 }
