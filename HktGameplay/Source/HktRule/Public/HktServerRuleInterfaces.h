@@ -155,11 +155,14 @@ public:
 	 *   - GameMode 가 Subsystem 가용 시점에 1회 호출 — 폴백 정책 + baked 우선 활성화.
 	 *   - BakedAsset 재로드 후 Provider Config 갱신 시 다시 호출 (정적 스냅샷 재바인딩).
 	 *
-	 * 인자가 nullptr 이면 지형 비활성. 그룹별 시뮬레이터 모두에 분배.
+	 * 인자(Factory) 가 비어있으면(nullptr / empty TFunction) 모든 그룹의 지형 소스가
+	 * 해제된다 — 시뮬레이터의 지형 파이프라인 완전 비활성화. 이 동작은 EndPlay 등
+	 * "지형 사용 종료" 시점의 명시적 cleanup 용도이며, "기본 Generator 로 복귀" 의미가
+	 * 아니다. 기본 Generator 경로는 `SetTerrainConfig` 가 따로 담당.
 	 *
-	 * 노트: 본 인터페이스는 단일 호출당 단일 소스를 받는다. 다중 그룹(Grid)인 경우
-	 * 구현체가 그룹별로 별도 인스턴스를 만들어 분배할 책임을 진다 — 각 그룹 시뮬레이터가
-	 * 자체 lifetime 의 데이터 소스를 보유해야 하기 때문.
+	 * 노트: 본 인터페이스는 단일 호출당 단일 팩토리를 받는다. 다중 그룹(Grid)인 경우
+	 * 구현체가 그룹별로 팩토리를 호출하여 각 시뮬레이터에 별도 인스턴스를 분배한다
+	 * — 각 그룹 시뮬레이터는 자체 lifetime 의 데이터 소스를 보유해야 하기 때문.
 	 */
 	using FTerrainSourceFactory = TFunction<TUniquePtr<IHktTerrainDataSource>()>;
 	virtual void SetTerrainSource(FTerrainSourceFactory Factory) {}

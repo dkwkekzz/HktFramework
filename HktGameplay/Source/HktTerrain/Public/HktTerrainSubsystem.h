@@ -15,6 +15,16 @@ class FHktTerrainGenerator;
 struct FHktTerrainPreviewRegion;
 
 /**
+ * BakedAsset 또는 fallback Config 변경으로 effective Config 가 갱신되었을 때 발화.
+ *
+ * Provider 의 Config 갱신 정책 (정적 스냅샷 + 재바인딩) 의 트리거.
+ * GameMode 는 본 델리게이트를 받으면 SetTerrainSource 를 다시 호출하여 그룹별
+ * 시뮬레이터의 Provider 인스턴스를 새 Config 로 교체한다.
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FHktTerrainEffectiveConfigChanged,
+                                    const FHktTerrainGeneratorConfig& /*NewConfig*/);
+
+/**
  * UHktTerrainSubsystem — 청크 데이터 단일 출처 (월드 단위).
  *
  * 책임:
@@ -26,24 +36,19 @@ struct FHktTerrainPreviewRegion;
  *
  * 절대 원칙 (CLAUDE.md):
  *   - 결정론: 베이크 결과와 폴백 결과가 비트 단위 동일해야 함 (Generator 알고리즘 동일).
- *   - 폴백 인자 결정 순서: BakedAsset->GeneratorConfig → ProjectSettings → 컴파일 기본값.
+ *   - 폴백 인자 결정 순서: BakedAsset->GeneratorConfig → Injected Fallback → 컴파일 기본값.
+ *     Injected Fallback 은 호출자(예: AHktGameMode)가 `SetFallbackConfig` 로 주입.
+ *     HktTerrain → HktRuntime 역의존 차단을 위한 inversion-of-control 패턴.
  *
  * 호출자:
  *   - HktVoxelTerrain — Voxel 메싱 입력
  *   - HktSpriteTerrain — 표면 셀 추출
  *   - HktLandscapeTerrain — 프리뷰 샘플링
  *   - HktCore (FHktTerrainProvider 경유) — 시뮬레이션 청크 데이터
- */
-/**
- * BakedAsset 로드/언로드로 인해 effective Config 가 변경되었을 때 발화.
  *
- * Provider 의 Config 갱신 정책 (정적 스냅샷 + 재바인딩) 의 트리거.
- * GameMode 는 본 델리게이트를 받으면 SetTerrainSource 를 다시 호출하여 그룹별
- * 시뮬레이터의 Provider 인스턴스를 새 Config 로 교체한다.
+ * 단일 BakedAsset 정책: 한 World 에 단일 인스턴스. 여러 Actor 가 LoadBakedAsset 을
+ * 호출하면 가장 최근 호출이 우선 — 단일 VoxelTerrainActor 배치를 권장한다.
  */
-DECLARE_MULTICAST_DELEGATE_OneParam(FHktTerrainEffectiveConfigChanged,
-                                    const FHktTerrainGeneratorConfig& /*NewConfig*/);
-
 UCLASS(BlueprintType)
 class HKTTERRAIN_API UHktTerrainSubsystem : public UWorldSubsystem
 {
@@ -110,10 +115,25 @@ public:
 	/** 현재 베이크 자산. 없으면 nullptr. */
 	UHktTerrainBakedAsset* GetBakedAsset() const { return BakedAsset; }
 
-	/** 폴백 시 사용되는 Config (로드 자산 우선, 없으면 ProjectSettings). */
+	/** 폴백 시 사용되는 Config (BakedAsset → Injected Fallback → 컴파일 기본값). */
 	FHktTerrainGeneratorConfig GetEffectiveConfig() const;
 
-	/** Effective Config 변경 통지 (BakedAsset 로드/언로드). GameMode 가 Provider 재바인딩 트리거로 사용. */
+	/**
+	 * BakedAsset 부재 시 사용할 fallback Config 주입 (예: ProjectSettings 기반).
+	 *
+	 * HktTerrain 모듈은 HktRuntime 의존이 없으므로 `UHktRuntimeGlobalSetting` 을 직접
+	 * 알 수 없다 — 호출자(예: AHktGameMode::InitGame)가 본 API 로 주입해야 한다.
+	 *
+	 * 호출 시점:
+	 *   - GameMode InitGame 직후 (1회)
+	 *   - Settings 변경에 반응할 필요가 있다면 다시 호출
+	 *
+	 * 주입된 Config 가 BakedAsset 부재 시 effective 가 되며, OnEffectiveConfigChanged 가
+	 * (실제 변경된 경우에만) 발화되어 GameMode 가 Provider 를 재바인딩하도록 한다.
+	 */
+	void SetFallbackConfig(const FHktTerrainGeneratorConfig& InConfig);
+
+	/** Effective Config 변경 통지 (BakedAsset 로드/언로드, fallback 갱신). GameMode 가 Provider 재바인딩 트리거로 사용. */
 	FHktTerrainEffectiveConfigChanged OnEffectiveConfigChanged;
 
 	/** LRU 캐시 최대 항목 수. 기본 256 청크 (= 32MB raw). */
@@ -142,6 +162,10 @@ private:
 	TUniquePtr<FHktTerrainGenerator> FallbackGenerator;
 	FHktTerrainGeneratorConfig FallbackConfigCached;
 	bool bFallbackConfigCached = false;
+
+	/** 호출자(GameMode 등) 가 주입한 fallback Config — BakedAsset 부재 시 우선 사용. */
+	FHktTerrainGeneratorConfig InjectedFallbackConfig;
+	bool bInjectedFallbackConfigSet = false;
 
 	bool bFallbackOriginLogged = false;
 	int32 FallbackHitCount = 0;

@@ -64,15 +64,22 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     if (CachedRelevancyGraph)
     {
         const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
-        CachedRelevancyGraph->SetTerrainConfig(Settings->ToTerrainConfig());
+        const FHktTerrainGeneratorConfig SettingsCfg = Settings->ToTerrainConfig();
+        CachedRelevancyGraph->SetTerrainConfig(SettingsCfg);
 
         // Subsystem-aware Provider 주입 — baked-first + 폴백 정책 활성화.
-        // BakedAsset 이 아직 로드되지 않았어도 Subsystem 가용 시점에 1회 등록한다.
-        // 이후 LoadBakedAsset 완료 시 OnEffectiveConfigChanged 가 발화되어 RebindTerrainProvider 가 재호출.
-        RebindTerrainProvider();
-
+        //
+        // 순서:
+        //   1) Subsystem 에 fallback Config 주입 (BakedAsset 부재 시 effective Config 의 출처)
+        //   2) RebindTerrainProvider — Sub->GetEffectiveConfig() 가 SettingsCfg 를 반환
+        //   3) 델리게이트 등록 — 이후 BakedAsset 로드 완료 시 자동 재바인딩
+        //
+        // (1) 은 (2) 보다 먼저여야 한다. 그렇지 않으면 BakedAsset 로드 전 윈도에서
+        // Provider 가 컴파일-기본값 Config 로 만들어져 시뮬레이터의 VoxelSize 등이 stale 해진다.
         if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
         {
+            Sub->SetFallbackConfig(SettingsCfg);
+
             TerrainConfigChangedHandle = Sub->OnEffectiveConfigChanged.AddWeakLambda(
                 this,
                 [this](const FHktTerrainGeneratorConfig& /*NewConfig*/)
@@ -80,6 +87,8 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
                     RebindTerrainProvider();
                 });
         }
+
+        RebindTerrainProvider();
     }
 
     // 월드 최초 생성 Story 트리거 — 에디터에서 지정한 Tag를 Rule에 전달
