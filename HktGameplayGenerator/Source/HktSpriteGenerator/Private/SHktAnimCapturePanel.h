@@ -63,6 +63,9 @@ private:
 	// UI 라이트 값을 Settings 에 거둬 PreviewScene 에 즉시 적용 — 씬 재생성 없이.
 	void ApplyLightingFromUI();
 
+	// UI 카메라/방향 값을 Settings 에 거둬 PreviewScene 에 즉시 적용 — 씬 재생성 없이.
+	void ApplyCameraFromUI();
+
 	// 캡처 진행 콜백 — UHktAnimCaptureFunctionLibrary 가 매 프레임 호출.
 	void OnCaptureProgress(int32 DoneFrames, int32 TotalFrames, const FString& Status);
 

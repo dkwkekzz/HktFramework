@@ -161,6 +161,7 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 					SAssignNew(CharacterTagBox, SEditableTextBox)
 						.Text(FText::FromString(Settings.CharacterTag))
 						.HintText(LOCTEXT("TagHint", "Sprite.Character.Knight"))
+						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })
 				) ]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
@@ -168,6 +169,7 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 					SAssignNew(ActionIdBox, SEditableTextBox)
 						.Text(FText::FromString(Settings.ActionId))
 						.HintText(LOCTEXT("ActionHint", "idle / walk / run / attack"))
+						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })
 				) ]
 
 				// === 카메라 프리셋 ===
@@ -216,6 +218,8 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 								if (FovBox.IsValid())        FovBox->SetText(FloatText(Settings.FieldOfView));
 								if (OrthoWidthBox.IsValid()) OrthoWidthBox->SetText(FloatText(Settings.OrthoWidth));
 								if (ArmLengthBox.IsValid())  ArmLengthBox->SetText(FloatText(Settings.ArmLength));
+								// 텍스트 갱신 후 즉시 카메라 적용 — 프리뷰 라이브 갱신.
+								ApplyCameraFromUI();
 							}
 						})
 						.InitiallySelectedItem(GetPresetOptions()[2])  // IsoOrtho
@@ -229,15 +233,25 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				[
 					SNew(SUniformGridPanel).SlotPadding(FMargin(4))
 					+ SUniformGridPanel::Slot(0,0)[ MakeRow(LOCTEXT("PitchLbl", "Pitch (deg)"),
-						SAssignNew(PitchBox, SEditableTextBox).Text(FloatText(Settings.Pitch))) ]
+						SAssignNew(PitchBox, SEditableTextBox)
+							.Text(FloatText(Settings.Pitch))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,0)[ MakeRow(LOCTEXT("YawOffLbl", "Yaw Offset (deg)"),
-						SAssignNew(YawOffsetBox, SEditableTextBox).Text(FloatText(Settings.YawOffset))) ]
+						SAssignNew(YawOffsetBox, SEditableTextBox)
+							.Text(FloatText(Settings.YawOffset))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
 					+ SUniformGridPanel::Slot(0,1)[ MakeRow(LOCTEXT("FovLbl", "FOV (Persp)"),
-						SAssignNew(FovBox, SEditableTextBox).Text(FloatText(Settings.FieldOfView))) ]
+						SAssignNew(FovBox, SEditableTextBox)
+							.Text(FloatText(Settings.FieldOfView))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,1)[ MakeRow(LOCTEXT("OrthoLbl", "Ortho Width"),
-						SAssignNew(OrthoWidthBox, SEditableTextBox).Text(FloatText(Settings.OrthoWidth))) ]
+						SAssignNew(OrthoWidthBox, SEditableTextBox)
+							.Text(FloatText(Settings.OrthoWidth))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
 					+ SUniformGridPanel::Slot(0,2)[ MakeRow(LOCTEXT("ArmLbl", "Arm Length"),
-						SAssignNew(ArmLengthBox, SEditableTextBox).Text(FloatText(Settings.ArmLength))) ]
+						SAssignNew(ArmLengthBox, SEditableTextBox)
+							.Text(FloatText(Settings.ArmLength))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
 				]
 
 				// === Preview ===
@@ -426,21 +440,37 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				[
 					SNew(SUniformGridPanel).SlotPadding(FMargin(4))
 					+ SUniformGridPanel::Slot(0,0)[ MakeRow(LOCTEXT("WLbl", "Output Width (px)"),
-						SAssignNew(WidthBox, SEditableTextBox).Text(IntText(Settings.OutputWidth))) ]
+						SAssignNew(WidthBox, SEditableTextBox)
+							.Text(IntText(Settings.OutputWidth))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,0)[ MakeRow(LOCTEXT("HLbl", "Output Height (px)"),
-						SAssignNew(HeightBox, SEditableTextBox).Text(IntText(Settings.OutputHeight))) ]
+						SAssignNew(HeightBox, SEditableTextBox)
+							.Text(IntText(Settings.OutputHeight))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 					+ SUniformGridPanel::Slot(0,1)[ MakeRow(LOCTEXT("NDirLbl", "Num Directions (1 or 8)"),
-						SAssignNew(NumDirBox, SEditableTextBox).Text(IntText(Settings.NumDirections))) ]
+						SAssignNew(NumDirBox, SEditableTextBox)
+							.Text(IntText(Settings.NumDirections))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,1)[ MakeRow(LOCTEXT("FpsLbl", "Capture FPS"),
-						SAssignNew(FpsBox, SEditableTextBox).Text(FloatText(Settings.CaptureFPS))) ]
+						SAssignNew(FpsBox, SEditableTextBox)
+							.Text(FloatText(Settings.CaptureFPS))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 					+ SUniformGridPanel::Slot(0,2)[ MakeRow(LOCTEXT("FCntLbl", "Frame Count (0=Auto)"),
-						SAssignNew(FrameCountBox, SEditableTextBox).Text(IntText(Settings.FrameCount))) ]
+						SAssignNew(FrameCountBox, SEditableTextBox)
+							.Text(IntText(Settings.FrameCount))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,2)[ MakeRow(LOCTEXT("StartLbl", "Start Time (sec)"),
-						SAssignNew(StartTimeBox, SEditableTextBox).Text(FloatText(Settings.StartTime))) ]
+						SAssignNew(StartTimeBox, SEditableTextBox)
+							.Text(FloatText(Settings.StartTime))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 					+ SUniformGridPanel::Slot(0,3)[ MakeRow(LOCTEXT("EndLbl", "End Time (0=Full)"),
-						SAssignNew(EndTimeBox, SEditableTextBox).Text(FloatText(Settings.EndTime))) ]
+						SAssignNew(EndTimeBox, SEditableTextBox)
+							.Text(FloatText(Settings.EndTime))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,3)[ MakeRow(LOCTEXT("PadLbl", "Crop Padding (px)"),
-						SAssignNew(CropPaddingBox, SEditableTextBox).Text(IntText(Settings.CropPaddingPx))) ]
+						SAssignNew(CropPaddingBox, SEditableTextBox)
+							.Text(IntText(Settings.CropPaddingPx))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
@@ -475,7 +505,8 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 					+ SHorizontalBox::Slot().FillWidth(1.f)
 					[ SAssignNew(DiskOutDirBox, SEditableTextBox)
 						.Text(FText::FromString(Settings.DiskOutputDir))
-						.HintText(LOCTEXT("DiskHint", "비워두면 <Project>/Saved/SpriteGenerator/AnimCapture/...")) ]
+						.HintText(LOCTEXT("DiskHint", "비워두면 <Project>/Saved/SpriteGenerator/AnimCapture/..."))
+						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); }) ]
 					+ SHorizontalBox::Slot().AutoWidth().Padding(4,0,0,0)
 					[ SNew(SButton).Text(LOCTEXT("Browse", "Browse..."))
 						.OnClicked(this, &SHktAnimCapturePanel::OnBrowseDiskOutputDir) ]
@@ -485,15 +516,20 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				[ MakeRow(LOCTEXT("AssetLbl", "Asset Output Dir (UE)"),
 					SAssignNew(AssetOutDirBox, SEditableTextBox)
 						.Text(FText::FromString(Settings.AssetOutputDir))
+						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })
 				) ]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
 					SNew(SUniformGridPanel).SlotPadding(FMargin(4))
 					+ SUniformGridPanel::Slot(0,0)[ MakeRow(LOCTEXT("P2WLbl", "PixelToWorld"),
-						SAssignNew(PixelToWorldBox, SEditableTextBox).Text(FloatText(Settings.PixelToWorld))) ]
+						SAssignNew(PixelToWorldBox, SEditableTextBox)
+							.Text(FloatText(Settings.PixelToWorld))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 					+ SUniformGridPanel::Slot(1,0)[ MakeRow(LOCTEXT("FrDurLbl", "FrameDuration (ms)"),
-						SAssignNew(FrameDurationBox, SEditableTextBox).Text(FloatText(Settings.FrameDurationMs))) ]
+						SAssignNew(FrameDurationBox, SEditableTextBox)
+							.Text(FloatText(Settings.FrameDurationMs))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
@@ -597,6 +633,8 @@ void SHktAnimCapturePanel::OnCameraModeClassChanged(const UClass* NewClass)
 	Settings.CameraModeClass = NewClass
 		? TSoftClassPtr<UHktCameraModeBase>(const_cast<UClass*>(NewClass))
 		: TSoftClassPtr<UHktCameraModeBase>();
+	// 클래스 CDO 의 Framing 이 카메라에 반영되도록 즉시 적용.
+	ApplyCameraFromUI();
 }
 
 FString SHktAnimCapturePanel::GetSkeletalMeshPath() const
@@ -656,6 +694,7 @@ FReply SHktAnimCapturePanel::OnBrowseDiskOutputDir()
 	if (bOK && DiskOutDirBox.IsValid())
 	{
 		DiskOutDirBox->SetText(FText::FromString(OutPath));
+		Settings.DiskOutputDir = OutPath;
 	}
 	return FReply::Handled();
 }
@@ -747,6 +786,42 @@ FReply SHktAnimCapturePanel::OnCaptureClicked()
 		ResultBox->SetText(FText::FromString(Result));
 	}
 	return FReply::Handled();
+}
+
+void SHktAnimCapturePanel::ApplyCameraFromUI()
+{
+	auto GetFlt = [](const TSharedPtr<SEditableTextBox>& Box, float Def) -> float {
+		if (!Box.IsValid()) return Def;
+		const FString S = Box->GetText().ToString();
+		return S.IsEmpty() ? Def : FCString::Atof(*S);
+	};
+	auto GetInt = [](const TSharedPtr<SEditableTextBox>& Box, int32 Def) -> int32 {
+		if (!Box.IsValid()) return Def;
+		const FString S = Box->GetText().ToString();
+		return S.IsEmpty() ? Def : FCString::Atoi(*S);
+	};
+
+	Settings.Pitch       = GetFlt(PitchBox,       Settings.Pitch);
+	Settings.YawOffset   = GetFlt(YawOffsetBox,   Settings.YawOffset);
+	Settings.FieldOfView = GetFlt(FovBox,         Settings.FieldOfView);
+	Settings.OrthoWidth  = GetFlt(OrthoWidthBox,  Settings.OrthoWidth);
+	Settings.ArmLength   = GetFlt(ArmLengthBox,   Settings.ArmLength);
+
+	// NumDirections 는 Capture 섹션에 있지만 프리뷰 ◀▶ 네비게이션에 직접 영향 — 함께 처리.
+	{
+		const int32 RawN = GetInt(NumDirBox, Settings.NumDirections);
+		Settings.NumDirections = (RawN <= 1) ? 1 : 8;
+	}
+
+	if (PreviewScene.IsValid())
+	{
+		PreviewScene->UpdateCameraSettings(Settings);
+		// UpdateCameraSettings 내부에서 NumDirections 클램프 후 CurrentDirection 도 보정하지만,
+		// 패널 측 PreviewDirectionIdx 는 우리가 따로 관리하므로 추가 클램프.
+		const int32 NumDir = FMath::Clamp(Settings.NumDirections, 1, 8);
+		PreviewDirectionIdx = FMath::Clamp(PreviewDirectionIdx, 0, NumDir - 1);
+		PreviewScene->SetDirectionIndex(PreviewDirectionIdx);
+	}
 }
 
 void SHktAnimCapturePanel::ApplyLightingFromUI()
