@@ -3,8 +3,7 @@
 #include "HktVoxelTerrainActor.h"
 #include "HktVoxelChunkLoader.h"
 #include "HktVoxelTerrainLog.h"
-#include "HktTerrainStyleSet.h"
-#include "HktVoxelTerrainStyleApply.h"
+#include "HktVoxelTerrainStyleSet.h"
 #if WITH_EDITOR
 #include "HktVoxelTerrainBakeLibrary.h"
 #endif
@@ -818,7 +817,7 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 	{
 		BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
 		BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);
-		HktApplyTerrainStyleSetToVoxelAtlas(BakedStyleSet, BuiltTileAtlas, BuiltMaterialLUT);
+		BakedStyleSet->ApplyTo(BuiltTileAtlas, BuiltMaterialLUT);
 
 		// 기본 팔레트 텍스처 (8×256 흰색) — GWhiteTexture OOB 방지용. Build 경로와 동일.
 		{
@@ -1465,7 +1464,7 @@ void AHktVoxelTerrainActor::BakeStyleSet()
 		return;
 	}
 
-	UHktTerrainStyleSet* NewAsset =
+	UHktVoxelTerrainStyleSet* NewAsset =
 		UHktVoxelTerrainBakeLibrary::BakeStyleSet(BlockStyles, BakeStyleSetSavePath);
 
 	if (NewAsset)

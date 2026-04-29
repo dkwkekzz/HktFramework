@@ -15,7 +15,7 @@
 class UHktVoxelChunkComponent;
 class UHktVoxelTileAtlas;
 class UHktVoxelMaterialLUT;
-class UHktTerrainStyleSet;
+class UHktVoxelTerrainStyleSet;
 
 /**
  * FHktVoxelBlockStyle — TypeID별 시각 정의
@@ -264,7 +264,7 @@ public:
 	 *       UHktVoxelTerrainBakeLibrary::BakeStyleSet(...) 호출.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Style")
-	TObjectPtr<UHktTerrainStyleSet> BakedStyleSet;
+	TObjectPtr<UHktVoxelTerrainStyleSet> BakedStyleSet;
 
 #if WITH_EDITORONLY_DATA
 	/**

@@ -44,7 +44,6 @@ HktTerrain (신규, 생성기 + UObject 레이어 소유)  ← 지형 데이터 
   ├─ FHktTerrainBiome           — HktCore 에서 이관
   ├─ FHktAdvTerrain* (Types/Fill/Layers) — HktCore 에서 이관
   ├─ UHktTerrainBakedAsset      — 청크별 미리 구운 FHktTerrainVoxel 블롭(.uasset)
-  ├─ UHktTerrainStyleSet        — 기존 HktVoxelTerrainStyleSet 이관(텍스처/팔레트)
   ├─ UHktTerrainSubsystem       — WorldSubsystem. baked 우선 + 미존재 시 런타임 생성 폴백
   ├─ FHktTerrainStreamRequest   — 카메라 좌표 기반 큐
   ├─ IHktTerrainChunkLoader     — HktVoxelChunkLoader 인터페이스 일반화하여 이관
@@ -185,19 +184,27 @@ FHktTerrainProvider (IHktTerrainDataSource 구현, HktCore 어댑터)
 2. `IHktTerrainChunkLoader` 인터페이스를 `HktVoxelTerrain` 에서 `HktTerrain` 으로 이관(이름도 `HktTerrainChunkLoader` 로 정규화). Legacy/Proximity 구현체도 함께 이동.
 3. `FHktTerrainProvider`: `IHktTerrainDataSource` 구현체. `FHktVMWorldStateProxy` 를 받아 `SetPropertyDirty` 경유로 `FHktTerrainState::LoadChunk` 트리거. 시뮬레이션 부트업 시 HktCore 에 등록.
 
-### Phase 5 — 스타일/팔레트 자산 이관
+### Phase 5 — 스타일/팔레트 자산 정책 (부결, 잔류)
 
-1. `UHktVoxelTerrainStyleSet` → `UHktTerrainStyleSet` 으로 리네임 + 이동(HktTerrain).
-2. Atlas 텍스처(`T_HktSpriteTerrainAtlas`), `PaletteLUT` 도 동일 이관.
-3. 콘텐츠 referencer redirector 처리(`-FixupRedirectors`).
+PR-C 진행 중 재검토 결과, 스타일 자산은 **렌더러별 모듈에 잔류**시키는 것이 맞다.
+
+근거:
+- `UHktVoxelTerrainStyleSet` 의 모든 멤버(`TileArray`, `NormalArray`, `TileMappings`(Top/Side/Bottom), `Materials`(per-face PBR))가 voxel face-meshing 파이프라인에 묶여있다 — 100% Voxel-specific.
+- Sprite 경로는 빌보드/HISM 기반이라 `Side` 면 개념도 PBR per-face도 무의미. 별도 자산 구조(스프라이트 atlas slot, billboard scale variance, HISM mesh ref) 가 필요하다.
+- 진짜 공용일 만한 메타(TypeID → 시맨틱 이름/걷기-가능 플래그) 는 이미 `FHktTerrainVoxelDef` (HktCore) 가 담당.
+
+확정된 위치:
+1. `UHktVoxelTerrainStyleSet` — `HktVoxelTerrain` 모듈 잔류. ApplyTo()는 멤버 메서드.
+2. `UHktSpriteTerrainStyleSet` (PR-D) — `HktSpriteTerrain` 모듈에 신설. 데이터 구조는 sprite 렌더링 전용으로 별도 정의.
+3. 콘텐츠 redirector 불요 (이름/경로 변경 없음).
 
 ### Phase 6 — `HktVoxelTerrain` 축소 리팩터
 
 1. `AHktVoxelTerrainActor` 에서 `FHktTerrainGenerator GeneratorMember` 제거.
 2. `BeginPlay` → `UHktTerrainSubsystem::Get(World)->LoadBakedAsset(BakedRef)`.
-3. `GenerateAndLoadChunk()` → `LoadChunkFromSubsystem()` 로 변경: Subsystem 에서 받아 `FHktVoxelRenderCache::LoadChunk` 그대로 캐스팅.
-4. 청크 로더 사용처를 `HktTerrain` 의 인터페이스로 갱신.
-5. 베이크 라이브러리(`UHktVoxelTerrainBakeLibrary`) 는 StyleSet 부분만 남기고 `HktTerrain` 에서 import.
+3. `GenerateAndLoadChunk()` 가 `Subsystem->AcquireChunk(buffer-out)` 호출 → `FHktVoxelRenderCache::LoadChunk` 로 전달.
+4. 청크 로더 사용처를 `HktTerrain` 의 인터페이스로 갱신 (PR-D 의 Sprite 모듈 신설 시 일반화와 함께 처리).
+5. 베이크 라이브러리(`UHktVoxelTerrainBakeLibrary`) 는 입력이 voxel-specific(`FHktVoxelBlockStyle`) 이므로 모듈 잔류, StyleSet 도 함께 잔류.
 
 ### Phase 7 — `HktSpriteTerrain` 신규 모듈
 
@@ -246,7 +253,7 @@ FHktTerrainProvider (IHktTerrainDataSource 구현, HktCore 어댑터)
 |---|---|---|
 | PR-A | Phase 1, 2 | 모듈 스켈레톤 + **생성기 이관** (가장 위험, 단독 PR). 기존 동작은 라우팅만 변경. |
 | PR-B | Phase 3, 4 | 베이크 자산 + 서브시스템 + 폴백. 기존 코드 영향 없음(추가만). |
-| PR-C | Phase 5, 6 | 스타일 자산 이관 + VoxelTerrain 새 경로 전환. |
+| PR-C | Phase 5(부결), 6 | VoxelTerrain 새 경로 전환 + Subsystem-aware Provider wiring. 스타일 자산은 렌더러별 모듈 잔류로 부결. |
 | PR-D | Phase 7 | SpriteTerrain 신규 모듈. |
 | PR-E | Phase 8, 9, 10 | Landscape 정리 + VM 점검 + 문서. |
 
@@ -267,7 +274,8 @@ FHktTerrainProvider (IHktTerrainDataSource 구현, HktCore 어댑터)
 | `AHktVoxelTerrainActor` | `HktVoxelTerrain/Public/HktVoxelTerrainActor.h` | (유지, 내용 축소) |
 | `AHktVoxelSpriteTerrainActor` | `HktVoxelTerrain/Public/HktVoxelSpriteTerrainActor.h` | **`HktSpriteTerrain/Public/HktSpriteTerrainActor.h`** (이관 + 리네임) |
 | `UHktVoxelChunkLoader` | `HktVoxelTerrain/Public/HktVoxelChunkLoader.h` | **`HktTerrain/Public/HktTerrainChunkLoader.h`** |
-| `UHktVoxelTerrainBakeLibrary` | `HktVoxelTerrain/Public/HktVoxelTerrainBakeLibrary.h` | StyleSet 부분만 잔류, 청크 베이크는 **`HktTerrain/Public/HktTerrainBakeLibrary.h`** |
+| `UHktVoxelTerrainStyleSet` | `HktVoxelTerrain/Public/HktVoxelTerrainStyleSet.h` | (유지 — Voxel-specific 데이터, 부결) |
+| `UHktVoxelTerrainBakeLibrary` | `HktVoxelTerrain/Public/HktVoxelTerrainBakeLibrary.h` | (유지 — 입력이 voxel-specific). 청크 베이크는 **`HktTerrain/Public/HktTerrainBakeLibrary.h`** |
 | `FHktVoxel` / `FHktVoxelChunk` | `HktVoxelCore/Public/HktVoxelTypes.h` | (유지) |
 | `FHktVoxelRenderCache` | `HktVoxelCore/Public/HktVoxelRenderCache.h` | (유지) |
 | `AHktLandscapeTerrainActor` | `HktLandscapeTerrain/Public/HktLandscapeTerrainActor.h` | (유지, Subsystem 사용) |
