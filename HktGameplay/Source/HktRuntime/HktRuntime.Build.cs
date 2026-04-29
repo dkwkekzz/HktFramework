@@ -31,6 +31,7 @@ public class HktRuntime : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"HktCore",
+				"HktTerrain",
 				"HktRule",
 				"HktAsset"
 			}

@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class HktVoxelTerrain : ModuleRules
+public class HktTerrain : ModuleRules
 {
-	public HktVoxelTerrain(ReadOnlyTargetRules Target) : base(Target)
+	public HktTerrain(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -18,30 +18,26 @@ public class HktVoxelTerrain : ModuleRules
 			}
 		);
 
+		// 지형 데이터 생성/관리/스트리밍 모듈.
+		// HktCore 의 IHktTerrainDataSource 를 구현하며, 베이크/런타임 양 경로를 단일 모듈에서 소유한다.
+		// HktCore 는 이 모듈에 의존하지 않는다 (단방향: HktTerrain → HktCore).
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"RHI",
-				"RenderCore",
 				"HktCore",
-				"HktTerrain",
-				"HktVoxelCore",
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"HktRuntime",
-				"ImageWrapper",
 			}
 		);
 
-		// 에디터 전용 — 스타일 셋 베이킹 (UHktVoxelTerrainBakeLibrary).
-		// Runtime/Shipping 빌드에는 누설되지 않는다.
+		// 에디터 전용 — 베이크 라이브러리(Phase 3 에서 추가). 현재 단계에선 의존 없음.
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");

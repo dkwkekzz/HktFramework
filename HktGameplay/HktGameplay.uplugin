@@ -71,6 +71,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "HktTerrain",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "HktVoxelTerrain",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

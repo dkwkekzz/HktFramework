@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "Terrain/HktTerrainBiome.h"
-#include "Terrain/HktTerrainNoise.h"
+#include "HktTerrainBiome.h"
+#include "HktTerrainNoise.h"
 
 using Fixed = FHktFixed32;
 

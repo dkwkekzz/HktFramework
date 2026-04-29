@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Terrain/HktAdvTerrainTypes.h"
+#include "HktAdvTerrainTypes.h"
 
 class FHktTerrainNoiseFloat;
 

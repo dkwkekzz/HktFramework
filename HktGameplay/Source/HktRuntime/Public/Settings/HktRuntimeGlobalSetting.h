@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "Engine/World.h"
-#include "Terrain/HktTerrainGenerator.h"
+#include "Terrain/HktTerrainGeneratorConfig.h"
 #include "HktRuntimeGlobalSetting.generated.h"
 
 /**

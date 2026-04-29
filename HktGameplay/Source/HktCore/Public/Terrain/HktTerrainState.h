@@ -6,13 +6,13 @@
 #include "Terrain/HktTerrainVoxel.h"
 #include "HktCoreEvents.h"
 
-class FHktTerrainGenerator;
+class IHktTerrainDataSource;
 
 /**
  * FHktTerrainState — 시뮬레이션 런타임 지형 상태
  *
  * 결정론적 시뮬레이션에서 복셀 지형을 관리한다.
- * 생성기(FHktTerrainGenerator)로 청크를 로드하고,
+ * 데이터 소스(IHktTerrainDataSource — HktTerrain 모듈이 구현)로 청크를 로드하고,
  * 플레이어/VM 변형을 오버레이로 추적한다.
  *
  * 순수 C++ — UObject/UWorld 참조 없음.
@@ -62,8 +62,8 @@ struct HKTCORE_API FHktTerrainState
 	// 청크 생명주기
 	// ============================================================================
 
-	/** 생성기로 청크를 생성하여 캐시에 로드. 이미 로드된 경우 무시. */
-	void LoadChunk(const FIntVector& Coord, const FHktTerrainGenerator& Generator);
+	/** 데이터 소스로 청크를 생성하여 캐시에 로드. 이미 로드된 경우 무시. */
+	void LoadChunk(const FIntVector& Coord, const IHktTerrainDataSource& Source);
 
 	/** 청크를 캐시에서 언로드 (Modifications는 유지). */
 	void UnloadChunk(const FIntVector& Coord);

@@ -61,10 +61,10 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     EntityArrangeSystem.Process(WorldState, Event.RemovedOwnerIds);
 
     // Terrain: 엔티티 위치 + 이벤트 Location 기반 청크 로드/언로드
-    if (TerrainGenerator)
+    if (TerrainSource)
     {
         PendingVoxelDeltas.Reset();
-        TerrainSystem.Process(WorldState, TerrainState, *TerrainGenerator, &Event.NewEvents);
+        TerrainSystem.Process(WorldState, TerrainState, *TerrainSource, &Event.NewEvents);
     }
 
     VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),
@@ -109,10 +109,10 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     // Gravity → Movement → Physics 순서: 중력이 VelZ 를 세팅, Movement 는 순수 적분,
     // Physics Phase 1 이 지형 제약(벽/계단/천장/지면)을 해결한다.
 #if ENABLE_HKT_INSIGHTS
-    if (!TerrainGenerator && Event.FrameNumber % 300 == 0)
+    if (!TerrainSource && Event.FrameNumber % 300 == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[HktSim] TerrainGenerator is NULL — Physics Phase1 (floor snap) 비활성. "
-            "SetTerrainConfig() 호출 여부 확인 필요. LoadedChunks=%d"),
+        UE_LOG(LogTemp, Warning, TEXT("[HktSim] TerrainSource is NULL — Physics Phase1 (floor snap) 비활성. "
+            "SetTerrainConfig() 호출 여부 + HktTerrain 모듈 로드 여부 확인 필요. LoadedChunks=%d"),
             TerrainState.LoadedChunks.Num());
     }
 #endif
@@ -130,7 +130,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
                           GeneratedPhysicsEvents,
                           GeneratedGroundedEvents,
                           FramePreMovePositions,
-                          TerrainGenerator ? &TerrainState : nullptr,
+                          TerrainSource ? &TerrainState : nullptr,
                           FixedDeltaSeconds);
 
     for (const FHktPendingEvent& GE : GeneratedGroundedEvents)
@@ -468,8 +468,17 @@ void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
 void FHktWorldDeterminismSimulator::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
 {
     // Interpreter의 TerrainState/PendingVoxelDeltas 포인터는 생성자에서 이미 전달됨.
-    // Generator만 생성하면 ProcessBatch의 if(TerrainGenerator) 가드가 지형 파이프라인을 활성화.
-    TerrainGenerator = MakeUnique<FHktTerrainGenerator>(Config);
+    // 데이터 소스만 생성하면 ProcessBatch의 if(TerrainSource) 가드가 지형 파이프라인을 활성화.
+    // 구체 구현(FHktTerrainGenerator)은 HktTerrain 모듈이 StartupModule 시점에
+    // HktTerrain::RegisterDataSourceFactory 로 등록한다 — HktCore 는 구현체를 알지 못한다.
+    TerrainSource = HktTerrain::CreateDataSource(Config);
+
+    if (!TerrainSource)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[HktSim] HktTerrain::CreateDataSource 가 nullptr 반환 — HktTerrain 모듈이 로드되지 않았거나 "
+                 "StartupModule 에서 팩토리 등록이 실패함. 지형 파이프라인 비활성."));
+    }
 
     // 첫 LoadChunk 호출 전에도 TerrainState가 조회될 수 있으므로 VoxelSize를 즉시 전파
     TerrainState.VoxelSizeCm = Config.VoxelSizeCm;

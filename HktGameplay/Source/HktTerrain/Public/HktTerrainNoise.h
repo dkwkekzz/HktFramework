@@ -20,7 +20,7 @@
  *   - 동굴 카빙 (3D)
  *   - 광물 분포 (3D)
  */
-class HKTCORE_API FHktTerrainNoise
+class HKTTERRAIN_API FHktTerrainNoise
 {
 public:
 	using Fixed = FHktFixed32;

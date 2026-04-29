@@ -1,6 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "Terrain/HktTerrainNoise.h"
+#include "HktTerrainNoise.h"
 
 using Fixed = FHktFixed32;
 

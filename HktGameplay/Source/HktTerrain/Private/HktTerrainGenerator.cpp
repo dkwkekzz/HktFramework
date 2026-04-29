@@ -1,9 +1,9 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
-#include "Terrain/HktTerrainGenerator.h"
-#include "Terrain/HktAdvTerrainTypes.h"
-#include "Terrain/HktAdvTerrainLayers.h"
-#include "Terrain/HktAdvTerrainFill.h"
+#include "HktTerrainGenerator.h"
+#include "HktAdvTerrainTypes.h"
+#include "HktAdvTerrainLayers.h"
+#include "HktAdvTerrainFill.h"
 
 using Fixed = FHktFixed32;
 

@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Settings/HktRuntimeGlobalSetting.h"
+#include "HktTerrainGenerator.h"
 
 UHktRuntimeGlobalSetting::UHktRuntimeGlobalSetting()
 {
