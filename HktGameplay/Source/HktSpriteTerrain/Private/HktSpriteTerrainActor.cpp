@@ -140,6 +140,18 @@ void AHktSpriteTerrainActor::Tick(float DeltaSeconds)
 	}
 	CachedChunkWorldSize = ChunkWorldSize;
 
+	// Baseline (ComponentZBias / ChunkWorldSize) 변경 감지 — 기존 인스턴스의 slot 7/8/15 일괄 refresh.
+	// Loader 의 ChunksToLoad 는 신규만 emit 하므로 기존 인스턴스의 CPD 는 별도로 갱신해야 한다.
+	const bool bBaselineChanged =
+		!FMath::IsNearlyEqual(PrevComponentZBias, ComponentZBias) ||
+		!FMath::IsNearlyEqual(PrevChunkWorldSize, ChunkWorldSize);
+	if (bBaselineChanged)
+	{
+		RefreshAllInstanceBaseline();
+		PrevComponentZBias = ComponentZBias;
+		PrevChunkWorldSize = ChunkWorldSize;
+	}
+
 	SyncLoaderConfig(Sub);
 
 	const FVector CameraPos = GetViewCenterWorldPos();
@@ -191,8 +203,13 @@ float AHktSpriteTerrainActor::ComputeChunkWorldSize(UHktTerrainSubsystem* Sub) c
 bool AHktSpriteTerrainActor::ExtractTopSurfaceCell(UHktTerrainSubsystem* Sub,
 	const FIntVector& Coord, FHktSpriteTerrainSurfaceCell& OutCell) const
 {
-	TArray<FHktTerrainVoxel> Voxels;
-	Voxels.SetNumUninitialized(kVoxelsPerChunk);
+	// 멤버 스크래치 버퍼 재사용 — Tick 당 다수 청크 처리 시 매번 128KB 할당 회피.
+	// const_cast: 본 메서드는 logical const (행위는 read-only) 지만 내부 버퍼 풀은 최적화 캐시로 mutable 와 동일 의미.
+	TArray<FHktTerrainVoxel>& Voxels = const_cast<AHktSpriteTerrainActor*>(this)->ChunkVoxelScratch;
+	if (Voxels.Num() != kVoxelsPerChunk)
+	{
+		Voxels.SetNumUninitialized(kVoxelsPerChunk);
+	}
 	if (!Sub->AcquireChunk(Coord, Voxels))
 	{
 		return false;
@@ -357,6 +374,25 @@ void AHktSpriteTerrainActor::FillCustomData(
 	OutData[13] = static_cast<float>(Cell.PaletteIndex);
 	OutData[14] = 0.f;
 	OutData[15] = ComponentZBias;
+}
+
+void AHktSpriteTerrainActor::RefreshAllInstanceBaseline()
+{
+	if (!HISMComponent || InstanceMap.Num() == 0)
+	{
+		return;
+	}
+
+	const float HalfChunk = CachedChunkWorldSize * 0.5f;
+	for (const TPair<FIntVector, int32>& Pair : InstanceMap)
+	{
+		const int32 Idx = Pair.Value;
+		// slot 7,8 = ScaleX/Y (HalfChunk), slot 15 = ZBias.
+		// 다른 슬롯은 셀 단위라 baseline 변경과 무관 — 갱신 불필요.
+		HISMComponent->SetCustomDataValue(Idx, 7, HalfChunk, /*bMarkRenderStateDirty=*/false);
+		HISMComponent->SetCustomDataValue(Idx, 8, HalfChunk, /*bMarkRenderStateDirty=*/false);
+		HISMComponent->SetCustomDataValue(Idx, 15, ComponentZBias, /*bMarkRenderStateDirty=*/false);
+	}
 }
 
 FVector AHktSpriteTerrainActor::GetViewCenterWorldPos() const

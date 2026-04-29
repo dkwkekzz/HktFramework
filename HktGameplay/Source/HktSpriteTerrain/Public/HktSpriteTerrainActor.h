@@ -232,4 +232,17 @@ private:
 
 	/** Subsystem 으로부터 캐시된 청크 월드 크기 — Config 변경 시 재계산. */
 	float CachedChunkWorldSize = 0.f;
+
+	/** ComponentZBias / ChunkWorldSize 변경 감지용 — 전체 인스턴스 일괄 refresh 트리거. */
+	float PrevComponentZBias = FLT_MAX;
+	float PrevChunkWorldSize = 0.f;
+
+	/**
+	 * AcquireChunk 임시 버퍼 — Tick 당 여러 청크 처리 시 재사용 (32768 voxel × 4B = 128 KB).
+	 * 매 호출마다 SetNumUninitialized 로 재할당하지 않도록 멤버 풀로 보관.
+	 */
+	TArray<FHktTerrainVoxel> ChunkVoxelScratch;
+
+	/** 변경된 baseline (ComponentZBias / ChunkWorldSize) 을 모든 인스턴스에 일괄 반영. */
+	void RefreshAllInstanceBaseline();
 };

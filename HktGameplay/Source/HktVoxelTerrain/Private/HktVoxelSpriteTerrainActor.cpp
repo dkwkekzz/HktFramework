@@ -2,6 +2,7 @@
 
 #include "HktVoxelSpriteTerrainActor.h"
 #include "HktVoxelTerrainActor.h"
+#include "HktVoxelTerrainLog.h"
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelTypes.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -38,6 +39,11 @@ AHktVoxelSpriteTerrainActor::AHktVoxelSpriteTerrainActor()
 void AHktVoxelSpriteTerrainActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	UE_LOG(LogHktVoxelTerrain, Warning,
+		TEXT("[Deprecated] AHktVoxelSpriteTerrainActor 는 PR-D 에서 AHktSpriteTerrainActor (HktSpriteTerrain 모듈) 로 대체되었다. ")
+		TEXT("월드(%s)에 배치된 본 액터를 마이그레이션할 것 — 1 릴리스 후 제거 예정."),
+		GetWorld() ? *GetWorld()->GetName() : TEXT("<null>"));
 
 	if (HISMComponent && QuadMesh)
 	{
