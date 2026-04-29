@@ -9,7 +9,8 @@
 #include "Materials/MaterialInterface.h"
 #include "Components/SceneComponent.h"
 
-#include "HktTerrainGenerator.h"
+#include "HktTerrainGenerator.h"        // FHktTerrainPreviewRegion 정의
+#include "HktTerrainSubsystem.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 AHktLandscapeTerrainActor::AHktLandscapeTerrainActor()
@@ -84,9 +85,9 @@ void AHktLandscapeTerrainActor::TeardownLandscape()
 		Existing->Destroy();
 	}
 	SpawnedLandscape.Reset();
-	Generator.Reset();
 	HeightmapVertsX = 0;
 	HeightmapVertsY = 0;
+	// Generator 는 더 이상 보유하지 않는다 — UHktTerrainSubsystem 이 단일 출처.
 }
 
 // ── 생성 파이프라인 ─────────────────────────────────────────────────
@@ -100,33 +101,54 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 		return;
 	}
 
-	// 1. 전역 설정에서 지형 파라미터 읽기 (단일 출처)
+	// 1. UHktTerrainSubsystem 단일 출처 — Voxel/Sprite Actor 와 동일 경로.
+	//    Subsystem 부재 시 (ShouldCreateSubsystem 가 false 인 비-게임 World) 폴백 없이 종료.
+	UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(World);
+	if (!Sub)
+	{
+		UE_LOG(LogHktLandscapeTerrain, Warning,
+			TEXT("[%s] UHktTerrainSubsystem 부재 — Landscape 생성을 건너뜁니다 (World 타입 확인)."), *GetName());
+		return;
+	}
+
+	// 2. UHktRuntimeGlobalSetting 기반 fallback Config 주입 (idempotent).
+	//    - PIE/Game: GameMode::InitGame 에서 먼저 주입했어도 SetFallbackConfig 는 동일값이면 no-op.
+	//    - Editor (RegenerateLandscape): GameMode 가 없으므로 본 호출이 effective Config 를 채운다.
 	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
 	if (!Settings)
 	{
 		UE_LOG(LogHktLandscapeTerrain, Error, TEXT("[%s] UHktRuntimeGlobalSetting CDO 접근 실패"), *GetName());
 		return;
 	}
-	const FHktTerrainGeneratorConfig GenConfig = Settings->ToTerrainConfig();
-	VoxelSize  = GenConfig.VoxelSizeCm;
-	HeightMinZ = GenConfig.HeightMinZ;
-	HeightMaxZ = GenConfig.HeightMaxZ;
+	Sub->SetFallbackConfig(Settings->ToTerrainConfig());
 
-	// 2. 그리드 파라미터 검증 / 클램프
+	// 3. BakedAsset 이 지정되어 있다면 비동기 로드 시작 — Voxel/Sprite Actor 와 단일 출처 공유.
+	//    SamplePreview 는 비동기 로드 완료를 기다리지 않는다(결정론 — 동일 Config 로 Generator
+	//    가 동일 결과를 산출하므로 외형은 비트 단위 일치한다).
+	if (!BakedAsset.IsNull())
+	{
+		Sub->LoadBakedAsset(BakedAsset);
+	}
+
+	// 4. Effective Config 조회 — VoxelSize/Min/Max 미러 동기화 (BakedAsset 우선, 부재 시 fallback).
+	const FHktTerrainGeneratorConfig EffectiveCfg = Sub->GetEffectiveConfig();
+	VoxelSize  = EffectiveCfg.VoxelSizeCm;
+	HeightMinZ = EffectiveCfg.HeightMinZ;
+	HeightMaxZ = EffectiveCfg.HeightMaxZ;
+
+	// 5. 그리드 파라미터 검증 / 클램프
 	ValidateGridParameters();
 
-	// 3. 제너레이터 구성 (FHktTerrainGenerator 그대로 재사용)
-	Generator = MakeUnique<FHktTerrainGenerator>(GenConfig);
-
-	// 4. Landscape 버텍스 그리드 크기 산출
+	// 6. Landscape 버텍스 그리드 크기 산출
 	const int32 QuadsPerComponent = QuadsPerSection * SectionsPerComponent;
 	HeightmapVertsX = ComponentCountX * QuadsPerComponent + 1;
 	HeightmapVertsY = ComponentCountY * QuadsPerComponent + 1;
 	const int32 NumSamples = HeightmapVertsX * HeightmapVertsY;
 
-	// 5. 2D 하이트 + 바이옴 샘플링 — bAdvancedTerrain true/false 둘 다 이 단일 API로 처리됨
+	// 7. 2D 하이트 + 바이옴 샘플링 — Subsystem 경유 (Effective Config 기반 결정론적 결과).
+	//    Subsystem 내부에서 EnsureFallbackGenerator() 가 baked/fallback Config 우선순위를 적용한다.
 	FHktTerrainPreviewRegion Region;
-	Generator->SamplePreviewRegion(
+	Sub->SamplePreview(
 		LandscapeOriginWorldVoxels.X,
 		LandscapeOriginWorldVoxels.Y,
 		HeightmapVertsX,
@@ -136,9 +158,8 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	if (Region.Samples.Num() != NumSamples)
 	{
 		UE_LOG(LogHktLandscapeTerrain, Error,
-			TEXT("[%s] SamplePreviewRegion 결과 크기 불일치: 기대 %d, 실제 %d"),
+			TEXT("[%s] SamplePreview 결과 크기 불일치: 기대 %d, 실제 %d"),
 			*GetName(), NumSamples, Region.Samples.Num());
-		Generator.Reset();
 		return;
 	}
 
@@ -221,7 +242,6 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	if (!NewLandscape)
 	{
 		UE_LOG(LogHktLandscapeTerrain, Error, TEXT("[%s] ALandscape SpawnActor 실패"), *GetName());
-		Generator.Reset();
 		return;
 	}
 	NewLandscape->SetActorScale3D(LandscapeScale);
@@ -254,9 +274,11 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	if (bLogGenerationStats)
 	{
 		UE_LOG(LogHktLandscapeTerrain, Log,
-			TEXT("[%s] Landscape 생성 완료: Verts=%dx%d Components=%dx%d QuadsPerSection=%d Layers=%d Advanced=%s"),
+			TEXT("[%s] Landscape 생성 완료: Verts=%dx%d Components=%dx%d QuadsPerSection=%d Layers=%d Advanced=%s Source=%s"),
 			*GetName(), HeightmapVertsX, HeightmapVertsY,
 			ComponentCountX, ComponentCountY, QuadsPerSection,
-			LayerCount, GenConfig.bAdvancedTerrain ? TEXT("true") : TEXT("false"));
+			LayerCount,
+			EffectiveCfg.bAdvancedTerrain ? TEXT("true") : TEXT("false"),
+			Sub->GetBakedAsset() ? TEXT("Subsystem(BakedConfig)") : TEXT("Subsystem(Fallback)"));
 	}
 }

@@ -6,7 +6,7 @@ HktGameplay 플러그인의 런타임 시뮬레이션 / 네트워킹 / 프레젠
 
 ```
 HktGameplay (Runtime)
-├── HktCore             — 순수 C++ SOA 결정론적 VM (UObject 0)
+├── HktCore             — 순수 C++ SOA 결정론적 VM (UObject 0). 지형 데이터는 IHktTerrainDataSource 로만 소비
 ├── HktStory            — 재사용 가능한 바이트코드 스니펫 라이브러리 (fluent API)
 ├── HktRule             — 서버/클라이언트 룰 인터페이스
 │   └── HktRuntime      — 네트워킹, GGPO 롤백 동기화 (30Hz)
@@ -14,13 +14,17 @@ HktGameplay (Runtime)
 ├── HktPresentation     — 읽기 전용 UE5 시각화 (OnWorldViewUpdated)
 │   └── HktVFX          — Niagara VFX 인텐트 해석 (클라이언트 전용)
 ├── HktUI               — 데이터 드리븐 Slate UI (anchor strategy 패턴)
-├── HktLandscapeTerrain — Landscape 기반 지형 (HktVoxel과 별개 경로)
+├── HktTerrain          — 지형 데이터 생성/베이크/스트리밍 단일 출처 (UHktTerrainSubsystem). HktCore IHktTerrainDataSource 구현
+│   ├── HktLandscapeTerrain — Landscape 렌더 경로 (Subsystem 경유 SamplePreview)
+│   └── HktSpriteTerrain    — 스프라이트(HISM) 렌더 경로 (Subsystem 경유 AcquireChunk + 표면 셀 추출)
 ├── HktSpriteCore       — 스프라이트 렌더링
 └── HktVoxelCore        [PostConfigInit — Default 단계보다 선행]
-    ├── HktVoxelTerrain — 지형 생성/파괴 (HktRuntime 의존)
+    ├── HktVoxelTerrain — Voxel 렌더 경로 (Subsystem 경유 AcquireChunk → RenderCache)
     ├── HktVoxelSkin    — 메시 스키닝/베이킹 (Editor에서 UnrealEd 조건부)
     └── HktVoxelVFX     — 파괴 VFX (Niagara 의존)
 ```
+
+**HktTerrain 단일 출처 원칙**: Voxel/Sprite/Landscape 3개 렌더 경로는 모두 `UHktTerrainSubsystem` (월드 단위 단일 인스턴스) 을 경유하여 청크/프리뷰 데이터를 받는다. 직접 `FHktTerrainGenerator` 인스턴스화 금지. 자세한 데이터 흐름은 [HktTerrain/CLAUDE.md](Source/HktTerrain/CLAUDE.md) 참조.
 
 ## HktCore — 결정론적 시뮬레이션 엔진
 
@@ -93,10 +97,25 @@ HktPresentation 의존 없음 (인터페이스/델리게이트만 사용).
 - `UHktVFXAssetBank` — VFX 에셋 저장 + Intent → Niagara/텍스처 런타임 해석
 - `UHktVFXRuntimeResolver` — 런타임 VFX 스폰 컴포넌트
 
-## HktLandscapeTerrain / HktSpriteCore
+## HktTerrain — 지형 데이터 단일 출처
 
-- **HktLandscapeTerrain** — UE5 Landscape 기반 지형 시스템 (HktVoxel과 독립적인 대안 경로).
+상세 가이드: [Source/HktTerrain/CLAUDE.md](Source/HktTerrain/CLAUDE.md).
+
+- **`UHktTerrainSubsystem`** (UWorldSubsystem) — 청크 데이터 단일 출처. baked-first + Generator 폴백 정책. LRU 캐시.
+- **`UHktTerrainBakedAsset`** — Editor 베이크 산출물. 청크별 oodle 압축 voxel + `FHktTerrainBakedConfig` (시드/파라미터 캡처).
+- **`FHktTerrainProvider`** — `IHktTerrainDataSource` 구현체. `FHktVMWorldStateProxy` 경유 시뮬레이션 측에 청크 주입 (TerrainState 캐시는 VM property 와 독립 저장소).
+- **`UHktTerrainBakeLibrary`** (Editor) — `BakeRegion(Config, ChunkRange) → UAsset`.
+- **결정론**: 베이크 결과와 폴백 Generator 결과는 비트 단위 동일 (`FHktFixed32` 고정소수점). Phase 2 회귀 테스트가 SHA256 으로 보장.
+- **Insights** (`ENABLE_HKT_INSIGHTS=1`): `Terrain.Subsystem` 카테고리에서 `BakedHits/FallbackHits/CacheSize/LastBakeLoad/LastAcquire` 노출.
+
+## HktSpriteCore / HktSpriteTerrain
+
 - **HktSpriteCore** — 스프라이트 기반 렌더링 코어. 스프라이트 어셋 자동화는 `HktGameplayGenerator/HktSpriteGenerator` 참조.
+- **HktSpriteTerrain** — Subsystem 경유 청크 데이터에서 top-surface 셀을 추출해 HISM 으로 렌더. 자세한 흐름: [Source/HktSpriteTerrain/CLAUDE.md](Source/HktSpriteTerrain/CLAUDE.md).
+
+## HktLandscapeTerrain
+
+UE5 Landscape 액터 기반 지형. `UHktTerrainSubsystem::SamplePreview` 로 2D 하이트/바이옴 샘플링 (PR-E 부터 Subsystem 경유). 직접 `FHktTerrainGenerator` 인스턴스화 금지.
 
 ## HktVoxel — 복셀 서브시스템 (4모듈)
 
@@ -107,7 +126,7 @@ HktPresentation 의존 없음 (인터페이스/델리게이트만 사용).
 - 의존: RenderCore, RHI, Renderer, HktCore
 
 나머지 3모듈은 HktVoxelCore 위에 레이어:
-- **HktVoxelTerrain** — 지형 생성/파괴, HktRuntime 의존
+- **HktVoxelTerrain** — 메싱 + 청크 스트리밍. `UHktTerrainSubsystem::AcquireChunk` 로 청크를 받아 `FHktVoxelRenderCache` 에 주입. Generator 직접 호출 금지.
 - **HktVoxelSkin** — 메시 스키닝/베이킹, Editor 빌드에서 UnrealEd 조건부 의존
 - **HktVoxelVFX** — 파괴 VFX, Niagara 의존
 
@@ -118,6 +137,8 @@ HktPresentation 의존 없음 (인터페이스/델리게이트만 사용).
 1. **HktVoxelCore PostConfigInit** — 렌더 서브시스템 선행 초기화를 위해 Default보다 먼저 로드. `LoadingPhase` 변경 금지.
 2. **HktVoxelSkin Editor 의존성** — Editor 빌드에서만 UnrealEd 조건부 링크. Runtime/Shipping에서 누설 금지.
 3. **HktUI ↔ HktPresentation 단방향** — HktUI는 HktPresentation에 의존하지 않음 (인터페이스/델리게이트만 사용).
+4. **HktCore 단방향 의존** — `HktCore` 는 `HktTerrain` 헤더를 include 하지 않는다. 지형 데이터는 `IHktTerrainDataSource` 인터페이스로만 소비. `FHktTerrainGenerator` 등 생성기는 `HktTerrain` 모듈 단독 소유.
+5. **지형 데이터 단일 출처** — Voxel/Sprite/Landscape Actor 가 직접 `FHktTerrainGenerator` 를 인스턴스화하지 않는다. 모든 청크/프리뷰 데이터는 `UHktTerrainSubsystem::AcquireChunk` / `SamplePreview` 경유.
 
 ## Plugin-Local Conventions
 

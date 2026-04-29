@@ -170,6 +170,13 @@ private:
 	bool bFallbackOriginLogged = false;
 	int32 FallbackHitCount = 0;
 	int32 BakedHitCount = 0;
+	int32 CacheHitCount = 0;
+
+	/** 마지막 베이크 자산 로드 소요 시간 (ms). 동기/비동기 양 경로에서 갱신. */
+	double LastBakeLoadMs = 0.0;
+
+	/** 마지막 AcquireChunk 호출 latency (us). 호출 직후 갱신. */
+	double LastAcquireUs = 0.0;
 
 	/** Config 결정 + 변경 감지하여 FallbackGenerator 갱신. */
 	const FHktTerrainGenerator& EnsureFallbackGenerator();
@@ -179,4 +186,10 @@ private:
 
 	/** 폴백 호출 시 1회 INFO 로그 — Config 출처 확인용. */
 	void LogFallbackOriginOnce(const TCHAR* Origin);
+
+	/**
+	 * Insights 키 일괄 갱신 — Shipping 빌드에서는 매크로가 no-op.
+	 * 호출 빈도가 높은 AcquireChunk 안에서도 호출되므로 가벼워야 함 (단순 SetValue).
+	 */
+	void PublishInsights() const;
 };
