@@ -484,6 +484,21 @@ void FHktWorldDeterminismSimulator::SetTerrainConfig(const FHktTerrainGeneratorC
     TerrainState.VoxelSizeCm = Config.VoxelSizeCm;
 }
 
+void FHktWorldDeterminismSimulator::SetTerrainSource(TUniquePtr<IHktTerrainDataSource> InSource)
+{
+    // 외부 (HktTerrain 의 FHktTerrainProvider 등) 가 만든 데이터 소스를 직접 주입.
+    // SetTerrainConfig 의 팩토리 경로를 우회하여, Subsystem-aware Provider 같은
+    // 컨텍스트가 필요한 구현체를 시뮬레이터에 보유시킨다. nullptr 이면 지형 비활성.
+    TerrainSource = MoveTemp(InSource);
+
+    if (TerrainSource)
+    {
+        // 새 소스의 Config 도 즉시 반영 — VoxelSize 등 시뮬레이션 파이프라인 의존 값.
+        const FHktTerrainGeneratorConfig& Cfg = TerrainSource->GetConfig();
+        TerrainState.VoxelSizeCm = Cfg.VoxelSizeCm;
+    }
+}
+
 // ============================================================================
 // Factory
 // ============================================================================

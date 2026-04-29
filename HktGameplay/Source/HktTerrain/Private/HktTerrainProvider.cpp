@@ -37,11 +37,11 @@ void FHktTerrainProvider::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 ChunkZ
 		return;
 	}
 
-	const FHktTerrainVoxel* Cached = Sub->AcquireChunk(FIntVector(ChunkX, ChunkY, ChunkZ));
-	if (!Cached)
+	// Subsystem 의 buffer-out API 가 호출자 버퍼로 직접 채워준다 — 추가 memcpy 불요.
+	TArrayView<FHktTerrainVoxel> View(OutVoxels, VoxelsPerChunk);
+	if (!Sub->AcquireChunk(FIntVector(ChunkX, ChunkY, ChunkZ), View))
 	{
+		// AcquireChunk 가 실패해도 zero-init 은 자체적으로 보장하지만, 명시적으로 한 번 더.
 		FMemory::Memzero(OutVoxels, sizeof(FHktTerrainVoxel) * VoxelsPerChunk);
-		return;
 	}
-	FMemory::Memcpy(OutVoxels, Cached, sizeof(FHktTerrainVoxel) * VoxelsPerChunk);
 }

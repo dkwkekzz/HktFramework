@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/StreamableManager.h"
+#include "Containers/ArrayView.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "HktTerrainBakedAsset.h"
@@ -33,6 +34,16 @@ struct FHktTerrainPreviewRegion;
  *   - HktLandscapeTerrain — 프리뷰 샘플링
  *   - HktCore (FHktTerrainProvider 경유) — 시뮬레이션 청크 데이터
  */
+/**
+ * BakedAsset 로드/언로드로 인해 effective Config 가 변경되었을 때 발화.
+ *
+ * Provider 의 Config 갱신 정책 (정적 스냅샷 + 재바인딩) 의 트리거.
+ * GameMode 는 본 델리게이트를 받으면 SetTerrainSource 를 다시 호출하여 그룹별
+ * 시뮬레이터의 Provider 인스턴스를 새 Config 로 교체한다.
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FHktTerrainEffectiveConfigChanged,
+                                    const FHktTerrainGeneratorConfig& /*NewConfig*/);
+
 UCLASS(BlueprintType)
 class HKTTERRAIN_API UHktTerrainSubsystem : public UWorldSubsystem
 {
@@ -62,18 +73,31 @@ public:
 	UHktTerrainBakedAsset* LoadBakedAssetSync(const TSoftObjectPtr<UHktTerrainBakedAsset>& SoftRef);
 
 	/**
-	 * 청크 데이터 획득.
-	 *  1. BakedAsset 에 존재하면 디컴프레스 결과 반환 (LRU 캐시에 보관).
-	 *  2. 미존재 시 폴백 경로 — Generator 로 즉시 생성 + 경고 로그 1회 + 캐시.
+	 * 청크 데이터 획득 (buffer-out 형식).
+	 *
+	 *  1. BakedAsset 에 존재하면 디컴프레스 결과를 OutVoxels 로 복사.
+	 *  2. 미존재 시 폴백 경로 — Generator 로 즉시 생성 + 경고 로그 1회 + 내부 캐시.
 	 *  3. 폴백 인자 출처를 첫 호출 시 1회 INFO 로그.
 	 *
-	 * 반환된 포인터는 다음 EvictCache / Subsystem 종료 시까지 유효.
-	 * 호출자는 데이터를 32768개 시퀀스로 안전하게 읽을 수 있다.
+	 * @param Coord       청크 좌표
+	 * @param OutVoxels   호출자 버퍼 — `Num() == VoxelsPerChunk` 필요. 부족 시 false.
+	 * @return 데이터 채움 성공 여부. false 인 경우 OutVoxels 는 zero-init 보장.
+	 *
+	 * 내부 LRU 캐시는 폴백/디컴프레스 결과 메모이제이션에만 사용 — 외부 포인터 노출 없음.
+	 * 호출자는 결과 버퍼를 안전하게 보유/소유할 수 있다 (dangling 위험 0).
 	 */
-	const FHktTerrainVoxel* AcquireChunk(const FIntVector& Coord);
+	bool AcquireChunk(const FIntVector& Coord, TArrayView<FHktTerrainVoxel> OutVoxels);
 
-	/** LRU 캐시에서 청크를 명시적으로 해제. 호출하지 않아도 LRU 가 자동 정리. */
+	/** LRU 캐시 힌트 — 더 이상 필요 없는 청크를 명시적으로 축출. 호출 생략 가능 (LRU 자동 정리). */
 	void ReleaseChunk(const FIntVector& Coord);
+
+	/** 한 청크에 들어가는 voxel 개수 (= ChunkSize^3). 호출자 버퍼 사이즈 체크용. */
+	static constexpr int32 GetVoxelsPerChunk()
+	{
+		return FHktTerrainGeneratorConfig::ChunkSize *
+		       FHktTerrainGeneratorConfig::ChunkSize *
+		       FHktTerrainGeneratorConfig::ChunkSize;
+	}
 
 	/**
 	 * Top-down 프리뷰 샘플링 — Landscape/UI 미니맵용.
@@ -88,6 +112,9 @@ public:
 
 	/** 폴백 시 사용되는 Config (로드 자산 우선, 없으면 ProjectSettings). */
 	FHktTerrainGeneratorConfig GetEffectiveConfig() const;
+
+	/** Effective Config 변경 통지 (BakedAsset 로드/언로드). GameMode 가 Provider 재바인딩 트리거로 사용. */
+	FHktTerrainEffectiveConfigChanged OnEffectiveConfigChanged;
 
 	/** LRU 캐시 최대 항목 수. 기본 256 청크 (= 32MB raw). */
 	UPROPERTY(EditAnywhere, Category = "Cache")

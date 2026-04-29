@@ -7,13 +7,13 @@
 #include "HktVoxelTerrainActor.h"  // FHktVoxelBlockStyle USTRUCT (UFUNCTION param)
 #include "HktVoxelTerrainBakeLibrary.generated.h"
 
-class UHktVoxelTerrainStyleSet;
+class UHktTerrainStyleSet;
 
 /**
  * 복셀 지형 스타일 베이킹 유틸리티.
  *
  * AHktVoxelTerrainActor::BlockStyles 배열을 에디터-타임에 컴파일하여
- * UHktVoxelTerrainStyleSet (.uasset) 으로 저장한다. 이 한 번의 베이크가
+ * UHktTerrainStyleSet (.uasset) 으로 저장한다. 이 한 번의 베이크가
  * BCn 텍스처 배열 컴파일을 DDC 에 캐시하므로, 런타임 BeginPlay 에서는
  * 단순 자산 로드만 수행된다 (TextureDerivedData 메모리 폭증 회피).
  *
@@ -32,7 +32,7 @@ class HKTVOXELTERRAIN_API UHktVoxelTerrainBakeLibrary : public UBlueprintFunctio
 
 public:
 	/**
-	 * BlockStyles 배열을 베이크하여 UHktVoxelTerrainStyleSet 자산으로 저장.
+	 * BlockStyles 배열을 베이크하여 UHktTerrainStyleSet 자산으로 저장.
 	 *
 	 * 동작:
 	 *   1. 소스 텍스처 호환성 검증 (해상도/포맷 동일성)
@@ -47,7 +47,7 @@ public:
 	 * @return 생성된 자산 (실패 시 nullptr)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|VoxelTerrain|Bake", meta = (DevelopmentOnly))
-	static UHktVoxelTerrainStyleSet* BakeStyleSet(
+	static UHktTerrainStyleSet* BakeStyleSet(
 		const TArray<FHktVoxelBlockStyle>& BlockStyles,
 		const FString& SavePath = TEXT("/Game/VoxelTerrain/SS_Default"));
 };

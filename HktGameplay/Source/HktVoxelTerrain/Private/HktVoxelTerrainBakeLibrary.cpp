@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVoxelTerrainBakeLibrary.h"
-#include "HktVoxelTerrainStyleSet.h"
+#include "HktTerrainStyleSet.h"
 #include "HktVoxelTerrainActor.h"  // FHktVoxelBlockStyle
 #include "HktVoxelTerrainLog.h"
 #include "Engine/Texture2D.h"
@@ -139,7 +139,7 @@ namespace
 	}
 }
 
-UHktVoxelTerrainStyleSet* UHktVoxelTerrainBakeLibrary::BakeStyleSet(
+UHktTerrainStyleSet* UHktVoxelTerrainBakeLibrary::BakeStyleSet(
 	const TArray<FHktVoxelBlockStyle>& BlockStyles,
 	const FString& SavePath)
 {
@@ -179,7 +179,7 @@ UHktVoxelTerrainStyleSet* UHktVoxelTerrainBakeLibrary::BakeStyleSet(
 	}
 	Package->FullyLoad();
 
-	UHktVoxelTerrainStyleSet* Asset = NewObject<UHktVoxelTerrainStyleSet>(
+	UHktTerrainStyleSet* Asset = NewObject<UHktTerrainStyleSet>(
 		Package, *AssetName, RF_Public | RF_Standalone);
 
 	// --- 4. TileArray (BaseColor) 빌드 — inner subobject ---

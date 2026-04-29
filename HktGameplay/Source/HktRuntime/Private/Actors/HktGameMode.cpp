@@ -10,6 +10,8 @@
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
+#include "HktTerrainSubsystem.h"
+#include "HktTerrainProvider.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 DEFINE_LOG_CATEGORY(LogHktRuntime);
@@ -63,6 +65,21 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     {
         const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
         CachedRelevancyGraph->SetTerrainConfig(Settings->ToTerrainConfig());
+
+        // Subsystem-aware Provider 주입 — baked-first + 폴백 정책 활성화.
+        // BakedAsset 이 아직 로드되지 않았어도 Subsystem 가용 시점에 1회 등록한다.
+        // 이후 LoadBakedAsset 완료 시 OnEffectiveConfigChanged 가 발화되어 RebindTerrainProvider 가 재호출.
+        RebindTerrainProvider();
+
+        if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+        {
+            TerrainConfigChangedHandle = Sub->OnEffectiveConfigChanged.AddWeakLambda(
+                this,
+                [this](const FHktTerrainGeneratorConfig& /*NewConfig*/)
+                {
+                    RebindTerrainProvider();
+                });
+        }
     }
 
     // 월드 최초 생성 Story 트리거 — 에디터에서 지정한 Tag를 Rule에 전달
@@ -79,12 +96,61 @@ void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
         CachedServerRule->BindContext(nullptr, nullptr, nullptr);
     }
 
+    if (TerrainConfigChangedHandle.IsValid())
+    {
+        if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+        {
+            Sub->OnEffectiveConfigChanged.Remove(TerrainConfigChangedHandle);
+        }
+        TerrainConfigChangedHandle.Reset();
+    }
+
+    if (CachedRelevancyGraph)
+    {
+        // 그룹별 시뮬레이터에서 Provider 해제 — Subsystem 무효화 이전에 dangling 차단.
+        CachedRelevancyGraph->SetTerrainSource(nullptr);
+    }
+
     CachedServerRule             = nullptr;
     CachedFrameManager           = nullptr;
     CachedRelevancyGraph         = nullptr;
     CachedWorldDatabase          = nullptr;
 
     Super::EndPlay(EndPlayReason);
+}
+
+void AHktGameMode::RebindTerrainProvider()
+{
+    if (!CachedRelevancyGraph) { return; }
+
+    UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this);
+    if (!Sub)
+    {
+        // Subsystem 부재 — Provider 없이 SetTerrainConfig 만으로 동작 (폴백 Generator).
+        UE_LOG(LogHktRuntime, Log,
+            TEXT("[GameMode] UHktTerrainSubsystem 부재 — Provider 등록 생략, 기본 Generator 경로 유지"));
+        return;
+    }
+
+    const FHktTerrainGeneratorConfig EffectiveCfg = Sub->GetEffectiveConfig();
+    TWeakObjectPtr<UHktTerrainSubsystem> WeakSub(Sub);
+
+    // 그룹별 시뮬레이터마다 별도 인스턴스 — RelevancyGraph 가 각 그룹마다 팩토리를 호출.
+    // Provider 의 Config 는 본 함수 호출 시점의 정적 스냅샷 (CLAUDE.md 절대원칙: 결정론).
+    CachedRelevancyGraph->SetTerrainSource(
+        [WeakSub, EffectiveCfg]() -> TUniquePtr<IHktTerrainDataSource>
+        {
+            UHktTerrainSubsystem* CapturedSub = WeakSub.Get();
+            if (!CapturedSub)
+            {
+                return TUniquePtr<IHktTerrainDataSource>();
+            }
+            return MakeUnique<FHktTerrainProvider>(CapturedSub, EffectiveCfg);
+        });
+
+    UE_LOG(LogHktRuntime, Log,
+        TEXT("[GameMode] Terrain Provider 재바인딩 — VoxelSizeCm=%d ChunkSize=%d"),
+        EffectiveCfg.VoxelSizeCm, FHktTerrainGeneratorConfig::ChunkSize);
 }
 
 void AHktGameMode::Tick(float DeltaSeconds)
