@@ -12,6 +12,7 @@ class UAnimSequence;
 class USkeletalMeshComponent;
 class USceneCaptureComponent2D;
 class UDirectionalLightComponent;
+class USkyLightComponent;
 class UTextureRenderTarget2D;
 
 /**
@@ -67,6 +68,9 @@ public:
 	/** 카메라/프리셋/오프셋이 변경됐을 때 씬 재구성 없이 SCC 만 갱신. */
 	void UpdateCameraSettings(const FHktAnimCaptureSettings& NewSettings);
 
+	/** 조명 설정만 갱신 — 메시/RT 그대로, 라이트 컴포넌트만 재구성. */
+	void UpdateLightingSettings(const FHktAnimCaptureSettings& NewSettings);
+
 	UTextureRenderTarget2D* GetPreviewRenderTarget() const { return PreviewRT; }
 
 	// FGCObject ===========================================================
@@ -75,6 +79,7 @@ public:
 
 private:
 	void ApplyCameraFraming(const FHktAnimCaptureSettings& Settings);
+	void ApplyLighting(const FHktAnimCaptureSettings& Settings);
 	void UpdateCameraTransform();
 	void TickPose();
 
@@ -88,8 +93,11 @@ private:
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget = nullptr;
 	// 에디터 프리뷰 패널용 RT — 출력 RT 와 별개. 미사용 시 nullptr.
 	TObjectPtr<UTextureRenderTarget2D> PreviewRT = nullptr;
-	// 추가 fill light(시인성 향상) — FPreviewScene::bDefaultLighting 의 키 라이트 보조.
+	// Settings 의 KeyLight/FillLight 가 만들어지는 추가 광원. bEnable* 가 false 면 nullptr.
+	TObjectPtr<UDirectionalLightComponent> KeyLight = nullptr;
 	TObjectPtr<UDirectionalLightComponent> FillLight = nullptr;
+	// 추가 ambient — Settings.ExtraSkyLightIntensity > 0 일 때만.
+	TObjectPtr<USkyLightComponent> ExtraSkyLight = nullptr;
 
 	FHktAnimCaptureSettings CachedSettings;
 

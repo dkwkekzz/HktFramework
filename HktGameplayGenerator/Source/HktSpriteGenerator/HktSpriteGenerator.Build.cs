@@ -32,6 +32,7 @@ public class HktSpriteGenerator : ModuleRules
 				"ImageWrapper",
 				"Slate",
 				"SlateCore",
+				"AppFramework",          // SColorPicker (라이트 컬러 선택용)
 				"EditorStyle",
 				"ToolMenus",
 				"WorkspaceMenuStructure",

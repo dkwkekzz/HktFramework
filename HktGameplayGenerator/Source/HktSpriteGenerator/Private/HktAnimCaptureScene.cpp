@@ -8,6 +8,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
@@ -59,7 +60,9 @@ FHktAnimCaptureScene::~FHktAnimCaptureScene()
 	CaptureComp = nullptr;
 	RenderTarget = nullptr;
 	PreviewRT = nullptr;
+	KeyLight = nullptr;
 	FillLight = nullptr;
+	ExtraSkyLight = nullptr;
 	Preview.Reset();
 }
 
@@ -71,7 +74,9 @@ void FHktAnimCaptureScene::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(CaptureComp);
 	Collector.AddReferencedObject(RenderTarget);
 	Collector.AddReferencedObject(PreviewRT);
+	Collector.AddReferencedObject(KeyLight);
 	Collector.AddReferencedObject(FillLight);
+	Collector.AddReferencedObject(ExtraSkyLight);
 }
 
 bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, FString& OutError)
@@ -93,7 +98,9 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	CVS.bAllowAudioPlayback = false;
 	CVS.bShouldSimulatePhysics = false;
 	CVS.bCreatePhysicsScene = false;
-	CVS.bDefaultLighting = true;
+	// 사용자 설정의 bUseDefaultLighting 가 키 라이트/스카이 자동 생성 여부를 결정.
+	// 이후 ApplyLighting 에서 사용자 정의 KeyLight/FillLight 를 추가로 부착한다.
+	CVS.bDefaultLighting = Settings.bUseDefaultLighting;
 	CVS.bForceMipsResident = true;
 	Preview = MakeUnique<FPreviewScene>(CVS);
 
@@ -137,14 +144,8 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	const FBoxSphereBounds Bounds = MeshComp->Bounds;
 	SubjectFocus = Bounds.Origin;
 
-	// === Fill Light ===
-	// FPreviewScene::bDefaultLighting 가 키 라이트 + 스카이라이트를 자동 추가하지만,
-	// 캐릭터의 측면이 어둡게 보이는 경우가 잦아 반대 방향 약한 fill 을 보강.
-	FillLight = NewObject<UDirectionalLightComponent>(GetTransientPackage(), UDirectionalLightComponent::StaticClass(), NAME_None, RF_Transient);
-	FillLight->SetIntensity(2.0f);
-	FillLight->SetLightColor(FLinearColor(0.9f, 0.95f, 1.0f));
-	FillLight->SetMobility(EComponentMobility::Movable);
-	Preview->AddComponent(FillLight, FTransform(FRotator(-25.0f, 135.0f, 0.0f)));
+	// === 사용자 정의 라이팅 ===
+	ApplyLighting(Settings);
 
 	// === RenderTarget ===
 	const int32 W = FMath::Clamp(Settings.OutputWidth,  16, 4096);
@@ -296,6 +297,84 @@ void FHktAnimCaptureScene::ApplyCameraFraming(const FHktAnimCaptureSettings& Set
 	CachedSettings.Pitch          = Pitch;
 	CachedSettings.ArmLength      = ArmLength;
 	CachedSocketOffset            = SocketOffset;
+}
+
+void FHktAnimCaptureScene::ApplyLighting(const FHktAnimCaptureSettings& Settings)
+{
+	if (!Preview) return;
+
+	// 라이트 컴포넌트는 PreviewScene 의 World 에 attach 되어 있어, 단순 nullptr 만으로는
+	// 씬에서 사라지지 않는다 — Detach + UnregisterComponent 로 명시적으로 떼어야 한다.
+	auto DetachAndDrop = [this](UActorComponent*& Comp)
+	{
+		if (Comp)
+		{
+			if (Comp->IsRegistered())
+			{
+				Comp->UnregisterComponent();
+			}
+			if (USceneComponent* SC = Cast<USceneComponent>(Comp))
+			{
+				SC->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+			}
+			Comp = nullptr;
+		}
+	};
+
+	{
+		UActorComponent* Tmp = KeyLight;       DetachAndDrop(Tmp); KeyLight = Cast<UDirectionalLightComponent>(Tmp);
+	}
+	{
+		UActorComponent* Tmp = FillLight;      DetachAndDrop(Tmp); FillLight = Cast<UDirectionalLightComponent>(Tmp);
+	}
+	{
+		UActorComponent* Tmp = ExtraSkyLight;  DetachAndDrop(Tmp); ExtraSkyLight = Cast<USkyLightComponent>(Tmp);
+	}
+
+	if (Settings.bEnableKeyLight)
+	{
+		KeyLight = NewObject<UDirectionalLightComponent>(GetTransientPackage(), UDirectionalLightComponent::StaticClass(), NAME_None, RF_Transient);
+		KeyLight->SetIntensity(Settings.KeyLightIntensity);
+		KeyLight->SetLightColor(Settings.KeyLightColor);
+		KeyLight->SetMobility(EComponentMobility::Movable);
+		Preview->AddComponent(KeyLight, FTransform(Settings.KeyLightRotation));
+	}
+
+	if (Settings.bEnableFillLight)
+	{
+		FillLight = NewObject<UDirectionalLightComponent>(GetTransientPackage(), UDirectionalLightComponent::StaticClass(), NAME_None, RF_Transient);
+		FillLight->SetIntensity(Settings.FillLightIntensity);
+		FillLight->SetLightColor(Settings.FillLightColor);
+		FillLight->SetMobility(EComponentMobility::Movable);
+		Preview->AddComponent(FillLight, FTransform(Settings.FillLightRotation));
+	}
+
+	if (Settings.ExtraSkyLightIntensity > 0.0f)
+	{
+		ExtraSkyLight = NewObject<USkyLightComponent>(GetTransientPackage(), USkyLightComponent::StaticClass(), NAME_None, RF_Transient);
+		ExtraSkyLight->SetIntensity(Settings.ExtraSkyLightIntensity);
+		ExtraSkyLight->SetMobility(EComponentMobility::Movable);
+		// SLS_CapturedScene 가 기본 — 별도 큐브맵 없이 PreviewScene 의 환경을 캡처.
+		Preview->AddComponent(ExtraSkyLight, FTransform::Identity);
+		ExtraSkyLight->RecaptureSky();
+	}
+}
+
+void FHktAnimCaptureScene::UpdateLightingSettings(const FHktAnimCaptureSettings& NewSettings)
+{
+	// 라이트만 갱신 — bUseDefaultLighting 토글은 PreviewScene 재생성이 필요하므로 적용 못함.
+	// (호출 측에서 RebuildPreviewScene 으로 처리할 것.)
+	CachedSettings.bEnableKeyLight        = NewSettings.bEnableKeyLight;
+	CachedSettings.KeyLightIntensity      = NewSettings.KeyLightIntensity;
+	CachedSettings.KeyLightColor          = NewSettings.KeyLightColor;
+	CachedSettings.KeyLightRotation       = NewSettings.KeyLightRotation;
+	CachedSettings.bEnableFillLight       = NewSettings.bEnableFillLight;
+	CachedSettings.FillLightIntensity     = NewSettings.FillLightIntensity;
+	CachedSettings.FillLightColor         = NewSettings.FillLightColor;
+	CachedSettings.FillLightRotation      = NewSettings.FillLightRotation;
+	CachedSettings.ExtraSkyLightIntensity = NewSettings.ExtraSkyLightIntensity;
+
+	ApplyLighting(CachedSettings);
 }
 
 void FHktAnimCaptureScene::SetDirectionIndex(int32 DirectionIdx)
