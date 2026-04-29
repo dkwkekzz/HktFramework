@@ -42,6 +42,7 @@ public:
 	UHktTerrainSubsystem();
 
 	// USubsystem ------------------------------------------------------------
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	// -----------------------------------------------------------------------

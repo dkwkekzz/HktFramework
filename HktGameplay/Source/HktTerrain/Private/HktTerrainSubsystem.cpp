@@ -34,6 +34,19 @@ namespace
 
 UHktTerrainSubsystem::UHktTerrainSubsystem() = default;
 
+bool UHktTerrainSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	// Game / PIE / Editor 월드에서만 인스턴스화. Preview / Inactive 월드(에셋 썸네일,
+	// 애니메이션 캡처 프리뷰 등)에서는 지형 데이터가 불필요하므로 생성을 건너뛴다.
+	const UWorld* World = Cast<UWorld>(Outer);
+	if (!World) return false;
+
+	const EWorldType::Type Type = World->WorldType;
+	return Type == EWorldType::Game
+	    || Type == EWorldType::PIE
+	    || Type == EWorldType::Editor;
+}
+
 UHktTerrainSubsystem* UHktTerrainSubsystem::Get(const UObject* WorldContext)
 {
 	if (!WorldContext) return nullptr;
