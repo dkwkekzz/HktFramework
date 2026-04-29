@@ -1345,5 +1345,64 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
     RegisterCommandV2(TEXT("CmpGe"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
         B.CmpGe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src1")), A.GetVar(B, TEXT("src2")));
     });
+
+    // ---- Terrain (FHktVarBlock 기반) ----
+    RegisterCommandV2(TEXT("SetVoxel"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.SetVoxel(A.GetVarBlock(B, TEXT("pos"), 3), A.GetVar(B, TEXT("type")));
+    });
+    RegisterCommandV2(TEXT("DestroyVoxelAt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.DestroyVoxelAt(A.GetVarBlock(B, TEXT("pos"), 3));
+    });
+    RegisterCommandV2(TEXT("GetTerrainHeight"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.GetTerrainHeight(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("voxelX")), A.GetVar(B, TEXT("voxelY")));
+    });
+
+    // ---- Presentation (보강) ----
+    RegisterCommandV2(TEXT("PlayVFXAtEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.PlayVFXAtEntity(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("PlaySoundAtEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.PlaySoundAtEntity(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
+
+    // ---- Comparison vs Constant (분해 emit) ----
+    // FHktVar API 에 *Const 오버로드가 없으므로, JSON 핸들러 단에서 LoadConst + Cmp 로 풀어 emit 한다.
+    // 의미는 cpp 의 CmpXxConst 와 동일 (Dst = Src CMP_OP Value).
+    RegisterCommandV2(TEXT("CmpEqConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("cmp_eq_const_%d"), V));
+        B.LoadConst(Tmp, V);
+        B.CmpEq(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), Tmp);
+    });
+    RegisterCommandV2(TEXT("CmpNeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("cmp_ne_const_%d"), V));
+        B.LoadConst(Tmp, V);
+        B.CmpNe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), Tmp);
+    });
+    RegisterCommandV2(TEXT("CmpLtConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("cmp_lt_const_%d"), V));
+        B.LoadConst(Tmp, V);
+        B.CmpLt(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), Tmp);
+    });
+    RegisterCommandV2(TEXT("CmpLeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("cmp_le_const_%d"), V));
+        B.LoadConst(Tmp, V);
+        B.CmpLe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), Tmp);
+    });
+    RegisterCommandV2(TEXT("CmpGtConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("cmp_gt_const_%d"), V));
+        B.LoadConst(Tmp, V);
+        B.CmpGt(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), Tmp);
+    });
+    RegisterCommandV2(TEXT("CmpGeConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("cmp_ge_const_%d"), V));
+        B.LoadConst(Tmp, V);
+        B.CmpGe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), Tmp);
+    });
 }
 

@@ -237,8 +237,13 @@ void InitializeHktArchetypes()
 
     R.Register(EHktArchetype::Debris, TEXT("Debris"),
         HktArchetypeTags::Entity_Debris,
-        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Ownable},
+        // Movable: GravitySystem 이 IsGrounded/VelZ 로 낙하 처리 (Crumble/Crack/Shatter 의 튕김/낙하).
+        {HktTrait::Movable, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Ownable},
         {
             HktProperty::TerrainTypeId,
+            // 복셀 파괴 시 원래 위치를 기록하여 Debris Lifecycle 이 복원/소멸 처리에 사용.
+            HktProperty::DebrisOriginX,
+            HktProperty::DebrisOriginY,
+            HktProperty::DebrisOriginZ,
         });
 }

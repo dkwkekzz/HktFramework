@@ -54,10 +54,32 @@ public:
 	/** 단일 틱 실행 (Yield/WaitingEvent 테스트용) */
 	EVMStatus ExecuteTick();
 
+	// ========== Wait 분리 실행 (Phase 2c — 외부 이벤트 주입과 결합) ==========
+
+	/**
+	 * VM 이 Wait* op (Collision/MoveEnd/Grounded 등 비-Timer) 에 도달할 때까지 진행한다.
+	 * Yield 와 WaitingEvent::Timer 는 자동 소화. 도달 시 OutWaitKind 에 EventWait.Type 반환.
+	 * Halt/Failed 도달 시 OutWaitKind = EWaitEventType::None.
+	 */
+	EVMStatus ExecuteUntilWait(
+		const FHktVMProgram* Program,
+		FHktEntityId Source,
+		FHktEntityId Target,
+		int32 MaxTicks,
+		EWaitEventType& OutWaitKind);
+
+	/**
+	 * Wait 해소 후 (Inject 또는 AdvanceTimer 호출 후) 또는 일반 진행 — Halt/Failed 까지 실행.
+	 * ExecuteProgram 과 동일 정책 (Yield 자동, Timer 자동, 비-Timer 도달 시 멈춤).
+	 */
+	EVMStatus ResumeUntilDone(int32 MaxTicks);
+
 	// ========== 외부 이벤트 주입 ==========
 
 	void InjectCollisionEvent(FHktEntityId HitEntity);
 	void InjectMoveEndEvent();
+	/** Grounded 이벤트 주입 — WaitGrounded 해소 (Jump 류 Story 검증용). */
+	void InjectGroundedEvent();
 	void AdvanceTimer(float DeltaSeconds);
 
 	// ========== 검증 헬퍼 ==========
