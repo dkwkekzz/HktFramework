@@ -57,3 +57,7 @@ __pycache__/
 
 # Etc
 working_changes.txt
+
+# HktAutomationTests local config (engine/project paths are per-developer)
+HktGameplayDeveloper/Tools/.hkt-test.env
+
