@@ -303,33 +303,11 @@ void FHktAnimCaptureScene::ApplyLighting(const FHktAnimCaptureSettings& Settings
 {
 	if (!Preview) return;
 
-	// 라이트 컴포넌트는 PreviewScene 의 World 에 attach 되어 있어, 단순 nullptr 만으로는
-	// 씬에서 사라지지 않는다 — Detach + UnregisterComponent 로 명시적으로 떼어야 한다.
-	auto DetachAndDrop = [this](UActorComponent*& Comp)
-	{
-		if (Comp)
-		{
-			if (Comp->IsRegistered())
-			{
-				Comp->UnregisterComponent();
-			}
-			if (USceneComponent* SC = Cast<USceneComponent>(Comp))
-			{
-				SC->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-			}
-			Comp = nullptr;
-		}
-	};
-
-	{
-		UActorComponent* Tmp = KeyLight;       DetachAndDrop(Tmp); KeyLight = Cast<UDirectionalLightComponent>(Tmp);
-	}
-	{
-		UActorComponent* Tmp = FillLight;      DetachAndDrop(Tmp); FillLight = Cast<UDirectionalLightComponent>(Tmp);
-	}
-	{
-		UActorComponent* Tmp = ExtraSkyLight;  DetachAndDrop(Tmp); ExtraSkyLight = Cast<USkyLightComponent>(Tmp);
-	}
+	// FPreviewScene::Components 는 GC 루트 — UnregisterComponent 만으로는 배열에 잔존하여
+	// 라이트 값을 자주 갱신하면 누적된다. RemoveComponent 가 unregister + 배열 제거를 함께 처리.
+	if (KeyLight)       { Preview->RemoveComponent(KeyLight);      KeyLight = nullptr; }
+	if (FillLight)      { Preview->RemoveComponent(FillLight);     FillLight = nullptr; }
+	if (ExtraSkyLight)  { Preview->RemoveComponent(ExtraSkyLight); ExtraSkyLight = nullptr; }
 
 	if (Settings.bEnableKeyLight)
 	{
