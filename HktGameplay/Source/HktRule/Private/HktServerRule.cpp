@@ -381,7 +381,6 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		FHktSimulationEvent& GroupBatch = GroupEventSend.Batch;
 
 		GroupBatch.FrameNumber = CurrentFrameNumber;
-		GroupBatch.DeltaSeconds = InDeltaTime;
 		GroupBatch.RandomSeed = HashCombineHelper(CurrentFrameNumber, GroupIndex);
 		GroupBatch.NewEvents.Append(MoveTemp(PendingGroupIntents[GroupIndex]));
 

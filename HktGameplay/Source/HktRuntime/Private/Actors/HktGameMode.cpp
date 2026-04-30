@@ -10,6 +10,7 @@
 #include "HktRuntimeTypes.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
+#include "HktSimulationTick.h"
 #include "HktTerrainSubsystem.h"
 #include "HktTerrainProvider.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
@@ -171,7 +172,8 @@ void AHktGameMode::Tick(float DeltaSeconds)
         return;
     }
 
-    // 고정 간격 시뮬레이션 (결정론적: 서버도 1/30초 고정 틱)
+    // 고정 간격 시뮬레이션 — hkt.Sim.FramesPerSecond CVar 단일 출처
+    const float FixedDeltaTime = HktGetSimFixedDeltaSeconds();
     FrameAccumulator += DeltaSeconds;
     while (FrameAccumulator >= FixedDeltaTime)
     {
@@ -193,6 +195,7 @@ void AHktGameMode::SimulationTick()
         return;
     }
 
+    const float FixedDeltaTime = HktGetSimFixedDeltaSeconds();
     const FHktEventGameModeTickResult TickResult = Rule->OnEvent_GameModeTick(FixedDeltaTime);
     if (GroupHeartbeatAccumulators.Num() != TickResult.EventSends.Num())
     {

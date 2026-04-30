@@ -17,4 +17,7 @@ namespace HktLimits
     constexpr int32 MaxPendingEvents = 1024;
     constexpr int32 MaxPhysicsEvents = 512;
     constexpr int32 WarmPropertyCapacity = 16;
+
+    // 고정 시뮬레이션 틱은 콘솔변수 hkt.Sim.FramesPerSecond 로 정의된다.
+    // 접근자: HktSimulationTick.h — HktGetSimFramesPerSecond() / HktGetSimInvFramesPerSecond() 등.
 }

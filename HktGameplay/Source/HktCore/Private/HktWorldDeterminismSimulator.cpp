@@ -74,8 +74,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     static constexpr int32 MaxDispatchRounds = 4;
     for (int32 Round = 0; Round < MaxDispatchRounds; ++Round)
     {
-        VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
-                                Event.DeltaSeconds, PendingExternalEvents);
+        VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool, PendingExternalEvents);
 
         // 모든 VM에서 PendingDispatchedEvents를 수집
         DispatchedEvents.Reset();
@@ -117,10 +116,10 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     }
 #endif
 
-    GravitySystem.Process(WorldState, VMProxy, FixedDeltaSeconds);
+    GravitySystem.Process(WorldState, VMProxy);
 
     MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
-                           FramePreMovePositions, FixedDeltaSeconds);
+                           FramePreMovePositions);
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
     {
         PendingExternalEvents.Add(ME);
@@ -130,8 +129,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
                           GeneratedPhysicsEvents,
                           GeneratedGroundedEvents,
                           FramePreMovePositions,
-                          TerrainSource ? &TerrainState : nullptr,
-                          FixedDeltaSeconds);
+                          TerrainSource ? &TerrainState : nullptr);
 
     for (const FHktPendingEvent& GE : GeneratedGroundedEvents)
     {
@@ -156,8 +154,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     // 물리/이동 이벤트를 같은 프레임 내에서 즉시 소비 — 1프레임 지연 제거
     if (PendingExternalEvents.Num() > 0)
     {
-        VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool,
-                                Event.DeltaSeconds, PendingExternalEvents);
+        VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool, PendingExternalEvents);
     }
 
     VMCleanupSystem.Process(CompletedVMs, *VMPool, WorldState, VMProxy);
@@ -185,7 +182,7 @@ void FHktWorldDeterminismSimulator::CaptureVMSnapshots()
         Snap.WaitFrames = Runtime->WaitFrames;
         Snap.WaitType = static_cast<uint8>(Runtime->EventWait.Type);
         Snap.WaitWatchedEntity = Runtime->EventWait.WatchedEntity;
-        Snap.WaitRemainingTime = Runtime->EventWait.RemainingTime;
+        Snap.WaitRemainingFrames = Runtime->EventWait.RemainingFrames;
         Snap.PlayerUid = Runtime->PlayerUid;
         Snap.CreationFrame = Runtime->CreationFrame;
 
@@ -260,7 +257,7 @@ void FHktWorldDeterminismSimulator::RehydrateVMPool()
         Runtime->WaitFrames = Snap.WaitFrames;
         Runtime->EventWait.Type = static_cast<EWaitEventType>(Snap.WaitType);
         Runtime->EventWait.WatchedEntity = Snap.WaitWatchedEntity;
-        Runtime->EventWait.RemainingTime = Snap.WaitRemainingTime;
+        Runtime->EventWait.RemainingFrames = Snap.WaitRemainingFrames;
         Runtime->PendingDispatchedEvents = Snap.PendingDispatchedEvents;
         Runtime->SpatialQuery.Reset();
 

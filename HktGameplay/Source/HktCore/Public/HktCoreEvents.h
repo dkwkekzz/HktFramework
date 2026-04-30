@@ -115,7 +115,7 @@ struct HKTCORE_API FHktVMSnapshot
     int32 WaitFrames = 0;
     uint8 WaitType = 0;
     FHktEntityId WaitWatchedEntity = InvalidEntityId;
-    float WaitRemainingTime = 0.0f;
+    int32 WaitRemainingFrames = 0;
     int64 PlayerUid = 0;
     int32 CreationFrame = 0;
     FHktEntityId SourceEntity = InvalidEntityId;
@@ -134,7 +134,7 @@ struct HKTCORE_API FHktVMSnapshot
         Ar << S.EventTag;
         Ar << S.PC;
         for (int32 i = 0; i < MaxRegisters; ++i) Ar << S.Registers[i];
-        Ar << S.Status << S.WaitFrames << S.WaitType << S.WaitWatchedEntity << S.WaitRemainingTime;
+        Ar << S.Status << S.WaitFrames << S.WaitType << S.WaitWatchedEntity << S.WaitRemainingFrames;
         Ar << S.PlayerUid << S.CreationFrame;
         Ar << S.SourceEntity << S.TargetEntity;
         Ar << S.EventParam0 << S.EventParam1 << S.EventParam2 << S.EventParam3;
@@ -180,27 +180,26 @@ struct HKTCORE_API FHktSimulationEvent
 {
     int64 FrameNumber = 0;
     int32 RandomSeed = 0;
-    float DeltaSeconds = 0.0f;
     TArray<int64> RemovedOwnerIds;
     TArray<FHktEvent> NewEvents;
     TArray<FHktEntityState> NewEntityStates;  // ← 추가: 신규 진입자 엔티티
 
     FString ToString() const
     {
-        return FString::Printf(TEXT("Frame=%lld Seed=%d Dt=%.3f Removed=%d Events=%d NewStates=%d"),
-            FrameNumber, RandomSeed, DeltaSeconds, RemovedOwnerIds.Num(), NewEvents.Num(), NewEntityStates.Num());
+        return FString::Printf(TEXT("Frame=%lld Seed=%d Removed=%d Events=%d NewStates=%d"),
+            FrameNumber, RandomSeed, RemovedOwnerIds.Num(), NewEvents.Num(), NewEntityStates.Num());
     }
 
     void Reset()
     {
-        FrameNumber = 0; RandomSeed = 0; DeltaSeconds = 0.0f;
+        FrameNumber = 0; RandomSeed = 0;
         RemovedOwnerIds.Reset(); NewEvents.Reset();
         NewEntityStates.Reset();  // ← 추가
     }
 
     bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
     {
-        Ar << FrameNumber << RandomSeed << DeltaSeconds << RemovedOwnerIds << NewEvents;
+        Ar << FrameNumber << RandomSeed << RemovedOwnerIds << NewEvents;
         bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<1024>(Ar, NewEntityStates, Map);
         return bOutSuccess;
     }

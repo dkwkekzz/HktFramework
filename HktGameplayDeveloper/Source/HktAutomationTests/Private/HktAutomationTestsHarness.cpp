@@ -107,11 +107,10 @@ EVMStatus FHktAutomationTestHarness::ExecuteProgram(
 
 		if (Status == EVMStatus::WaitingEvent)
 		{
-			// Timer 타입은 자동 진행
+			// Timer 타입은 자동 진행 — 하니스 1틱 = 1프레임
 			if (Runtime.EventWait.Type == EWaitEventType::Timer)
 			{
-				Runtime.EventWait.RemainingTime -= 0.016f; // ~60fps
-				if (Runtime.EventWait.RemainingTime <= 0.0f)
+				if (--Runtime.EventWait.RemainingFrames <= 0)
 				{
 					Runtime.EventWait.Reset();
 					Runtime.Status = EVMStatus::Ready;
@@ -168,11 +167,10 @@ namespace
 
 			if (Status == EVMStatus::WaitingEvent)
 			{
-				// Timer 는 자동 진행 (양 모드 공통).
+				// Timer 는 자동 진행 (양 모드 공통). 하니스 1틱 = 1프레임.
 				if (Runtime.EventWait.Type == EWaitEventType::Timer)
 				{
-					Runtime.EventWait.RemainingTime -= 0.016f; // ~60fps
-					if (Runtime.EventWait.RemainingTime <= 0.0f)
+					if (--Runtime.EventWait.RemainingFrames <= 0)
 					{
 						Runtime.EventWait.Reset();
 						Runtime.Status = EVMStatus::Ready;
@@ -256,12 +254,12 @@ void FHktAutomationTestHarness::InjectGroundedEvent()
 	}
 }
 
-void FHktAutomationTestHarness::AdvanceTimer(float DeltaSeconds)
+void FHktAutomationTestHarness::AdvanceTimerFrames(int32 Frames)
 {
 	if (Runtime.EventWait.Type == EWaitEventType::Timer)
 	{
-		Runtime.EventWait.RemainingTime -= DeltaSeconds;
-		if (Runtime.EventWait.RemainingTime <= 0.0f)
+		Runtime.EventWait.RemainingFrames -= Frames;
+		if (Runtime.EventWait.RemainingFrames <= 0)
 		{
 			Runtime.EventWait.Reset();
 			Runtime.Status = EVMStatus::Ready;

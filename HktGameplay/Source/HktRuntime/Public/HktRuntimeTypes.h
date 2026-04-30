@@ -150,7 +150,6 @@ struct HKTRUNTIME_API FHktRuntimeBatch
     {
         Value.FrameNumber = 0;
         Value.RandomSeed = 0;
-        Value.DeltaSeconds = 0.0f;
         Value.RemovedOwnerIds.Reset();
         Value.NewEvents.Reset();
         Value.NewEntityStates.Reset();

@@ -47,7 +47,11 @@ struct HKTCORE_API FHktVMBuildSystem
     );
 };
 
-/** 3. VM Process System: 바이트코드 실행 */
+/** 3. VM Process System: 바이트코드 실행
+ *
+ * 시간 기반 Wait(Timer 등)는 hkt.Sim.FramesPerSecond CVar 단위 정수 프레임 카운트로 표현된다.
+ * DeltaSeconds 입력은 받지 않는다 — 결정론.
+ */
 struct HKTCORE_API FHktVMProcessSystem
 {
     EHktLogSource LogSource = EHktLogSource::Server;
@@ -58,7 +62,6 @@ struct HKTCORE_API FHktVMProcessSystem
         TArray<FHktVMHandle>& ActiveVMs,
         TArray<FHktVMHandle>& OutCompletedVMs,
         FHktVMRuntimePool& Pool,
-        float DeltaSeconds,
         TArray<FHktPendingEvent>& PendingExternalEvents
     );
 };
@@ -99,10 +102,10 @@ struct HKTCORE_API FHktGravitySystem
 {
     EHktLogSource LogSource = EHktLogSource::Server;
 
+    /** 고정 프레임 시뮬레이션 (hkt.Sim.FramesPerSecond). DeltaSeconds 입력은 받지 않는다 — 결정론. */
     void Process(
         FHktWorldState& WorldState,
-        FHktVMWorldStateProxy& VMProxy,
-        float DeltaSeconds
+        FHktVMWorldStateProxy& VMProxy
     );
 };
 
@@ -118,7 +121,8 @@ struct HKTCORE_API FHktGravitySystem
  *   - step-height / 천장 검사
  *   - 지면 스냅 / IsGrounded 갱신
  *
- * 고정 프레임 1/30 초로 호출된다 (DeltaSeconds 파라미터).
+ * 고정 프레임 시뮬레이션. DeltaSeconds 입력은 받지 않는다 — 결정론.
+ * 모든 시간 종속 적분은 hkt.Sim.FramesPerSecond CVar (HktSimulationTick.h) 로부터 파생된다.
  */
 struct HKTCORE_API FHktMovementSystem
 {
@@ -128,8 +132,7 @@ struct HKTCORE_API FHktMovementSystem
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
         TArray<FHktPendingEvent>& OutMoveEndEvents,
-        TArray<FIntVector>& OutPreMovePositions,  // Slot 인덱스로 접근 — Physics 가 revert/슬라이드에 사용
-        float DeltaSeconds
+        TArray<FIntVector>& OutPreMovePositions  // Slot 인덱스로 접근 — Physics 가 revert/슬라이드에 사용
     );
 };
 
@@ -164,14 +167,14 @@ struct HKTCORE_API FHktPhysicsSystem
     /** 엔터티 쌍 중복 검사 방지용 (프레임 간 재사용) */
     TSet<uint64> TestedPairs;
 
+    /** 고정 프레임 시뮬레이션 (hkt.Sim.FramesPerSecond). DeltaSeconds 입력은 받지 않는다 — 결정론. */
     void Process(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
         TArray<FHktPhysicsEvent>& OutPhysicsEvents,
         TArray<FHktPendingEvent>& OutGroundedEvents,
         const TArray<FIntVector>& PreMovePositions,
-        const FHktTerrainState* TerrainState,
-        float DeltaSeconds
+        const FHktTerrainState* TerrainState
     );
 };
 

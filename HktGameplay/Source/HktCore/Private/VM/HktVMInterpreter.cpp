@@ -8,6 +8,7 @@
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
+#include "HktSimulationTick.h"
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
                                    FHktTerrainState* InTerrainState, TArray<FHktVoxelDelta>* InPendingVoxelDeltas)
@@ -153,8 +154,14 @@ EVMStatus FHktVMInterpreter::Op_Yield(FHktVMRuntime& Runtime, int32 Frames)
 
 EVMStatus FHktVMInterpreter::Op_YieldSeconds(FHktVMRuntime& Runtime, int32 DeciMillis)
 {
+    // DeciMillis 의 인코딩: HktStoryBuilder::WaitSeconds 가 Seconds*100 으로 emit.
+    // 즉 1 unit = 10ms, 1초 = 100 unit. 따라서 frames = (DeciMillis * FPS) / 100.
+    // 반올림 + 결정론을 위해 정수 산술만 사용. ex) WaitSeconds(0.5) @60Hz =
+    // (50*60 + 50)/100 = 30 frames.
+    const int32 FPS = HktGetSimFramesPerSecond();
     Runtime.EventWait.Type = EWaitEventType::Timer;
-    Runtime.EventWait.RemainingTime = DeciMillis / 100.0f;
+    Runtime.EventWait.RemainingFrames =
+        FMath::Max(1, (DeciMillis * FPS + 50) / 100);
     return EVMStatus::WaitingEvent;
 }
 
@@ -206,14 +213,14 @@ EVMStatus FHktVMInterpreter::Op_WaitGrounded(FHktVMRuntime& Runtime, RegisterInd
 
 EVMStatus FHktVMInterpreter::Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
 {
-    // 결정론적 고정 시간 대기 — 서버/클라 동일한 Timer 사용
+    // 결정론적 고정 프레임 대기 — 서버/클라 동일한 Timer 사용 (1초 = hkt.Sim.FramesPerSecond).
     // 실제 몽타주 길이와 정확히 일치하지 않아도 됨 (태그 제거만 하면 됨)
-    static constexpr float DefaultAnimWaitSeconds = 1.0f;
+    const int32 DefaultAnimWaitFrames = HktGetSimFramesPerSecond();
     Runtime.EventWait.Type = EWaitEventType::Timer;
-    Runtime.EventWait.RemainingTime = DefaultAnimWaitSeconds;
+    Runtime.EventWait.RemainingFrames = DefaultAnimWaitFrames;
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_WaitAnimEnd WatchEntity=%d (Timer=%.1fs)"),
-        Runtime.GetRegEntity(WatchEntity), DefaultAnimWaitSeconds),
+        FString::Printf(TEXT("Op_WaitAnimEnd WatchEntity=%d (Timer=%dframes)"),
+        Runtime.GetRegEntity(WatchEntity), DefaultAnimWaitFrames),
         Runtime.GetRegEntity(WatchEntity));
     return EVMStatus::WaitingEvent;
 }
