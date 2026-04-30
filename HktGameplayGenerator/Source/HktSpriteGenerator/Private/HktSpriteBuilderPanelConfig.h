@@ -11,9 +11,10 @@
 /**
  * FHktSpriteBuilderAnimEntry
  *
- * SpriteBuilder 패널에 등록된 1개 애니메이션의 입력 — 태그 + 재료 + 셀 크기.
- * 캐릭터 단위 공통 설정(CharacterTag/OutputDir/PixelToWorld)은 패널 상단에 따로
- * 보관하고, 이 엔트리는 "이 캐릭터에 추가할 애니메이션 한 개" 단위만 담는다.
+ * SpriteBuilder 패널에 등록된 1개 애니메이션의 입력 — 태그 + 재료(소스 타입/경로)만.
+ * 셀 크기 등 캐릭터 단위 공통 값(CellWidth/Height/PixelToWorld/OutputDir)은
+ * 패널 상단 Common 영역에 따로 보관 — 사용자가 한 캐릭터의 모든 애니가 같은
+ * 셀 크기를 공유한다고 명시했기 때문.
  */
 USTRUCT(BlueprintType)
 struct FHktSpriteBuilderAnimEntry
@@ -33,17 +34,12 @@ struct FHktSpriteBuilderAnimEntry
 	 *   - Video         : 동영상 파일 절대 경로
 	 *   - Atlas         : `/Game/...` UE 텍스처 또는 PNG 절대 경로
 	 *   - TextureBundle : 이미지 폴더 절대 경로
+	 *
+	 * 디렉터리·파일이 모두 가능하므로 FString 으로 둠 — 표준 텍스트 박스로 표시되며
+	 * 사용자가 경로를 직접 붙여넣는다(전용 피커가 필요하면 별도 위젯 추가 필요).
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (FilePathFilter = "All Files (*.*)|*.*"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	FString SourcePath;
-
-	/** Atlas 소스에서 셀 가로 px (Atlas 는 필수, 그 외는 0=auto). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (ClampMin = "0"))
-	int32 CellWidth = 0;
-
-	/** Atlas 소스에서 셀 세로 px (Atlas 는 필수, 그 외는 0=auto). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation", meta = (ClampMin = "0"))
-	int32 CellHeight = 0;
 };
 
 /**
@@ -72,6 +68,18 @@ public:
 	/** 픽셀 → 월드 단위 (cm/px). 모든 애니메이션 공통. */
 	UPROPERTY(EditAnywhere, Config, Category = "Common", meta = (ClampMin = "0.1"))
 	float PixelToWorld = 2.0f;
+
+	/**
+	 * 셀(프레임) 가로 px — 모든 애니메이션 공통. Atlas 소스에서 필수, 그 외는 0=auto.
+	 * 한 캐릭터의 모든 애니가 동일 크기를 가진다고 가정 — 다르면 BuildSpriteAnim 을
+	 * 직접 호출하거나 추후 per-anim override 추가.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = "Common", meta = (ClampMin = "0"))
+	int32 CellWidth = 0;
+
+	/** 셀(프레임) 세로 px — CellWidth 와 동일 의미. */
+	UPROPERTY(EditAnywhere, Config, Category = "Common", meta = (ClampMin = "0"))
+	int32 CellHeight = 0;
 
 	/** 등록할 애니메이션 목록 — Build All 시 위에서 아래로 순차 빌드. */
 	UPROPERTY(EditAnywhere, Config, Category = "Animations")

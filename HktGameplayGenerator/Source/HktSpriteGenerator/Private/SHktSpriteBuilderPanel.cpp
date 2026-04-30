@@ -10,35 +10,37 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "HktSpriteBuilder"
 
 void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 {
-	// CDO 를 직접 사용 — Config UObject 라이프타임을 길게 가져가도 안전.
+	// CDO 를 직접 사용 — 엔진이 root 로 잡고 있어 GC 안전.
 	UHktSpriteBuilderPanelConfig* Cfg = GetMutableDefault<UHktSpriteBuilderPanelConfig>();
 	Cfg->LoadConfig();
 	Config = TStrongObjectPtr<UHktSpriteBuilderPanelConfig>(Cfg);
 
-	// IDetailsView — UE 표준 디테일 패널. UPROPERTY(EditAnywhere) 모든 필드를 자동으로
-	// 그리며, FGameplayTag 는 GameplayTagsEditor 가 등록한 PropertyTypeCustomization
-	// 으로 표준 태그 피커가 자동 적용된다. Animations 배열은 ± 버튼으로 추가/제거.
+	// IDetailsView — UPROPERTY(EditAnywhere) 모든 필드를 자동 그림. FGameplayTag 는
+	// GameplayTagsEditor 의 PropertyTypeCustomization 으로 표준 태그 피커가 적용.
+	// Animations 배열은 ± 버튼으로 추가/제거.
 	FPropertyEditorModule& PEM = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 	FDetailsViewArgs Args;
 	Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	Args.bAllowSearch = false;
 	Args.bShowOptions = false;
-	Args.bShowScrollBar = false;
 	Args.bHideSelectionTip = true;
 	Args.bLockable = false;
 	Args.bUpdatesFromSelection = false;
+	// IDetailsView 자체 스크롤바를 그대로 사용 — SScrollBox 로 한 번 더 감싸지 않음.
+	Args.bShowScrollBar = true;
 	DetailsView = PEM.CreateDetailView(Args);
 	DetailsView->SetObject(Config.Get());
-	// 어떤 필드가 변경되더라도 즉시 INI 에 저장 — 사용자의 마지막 입력이 항상 보존되게.
-	DetailsView->OnFinishedChangingProperties().AddLambda(
-		[this](const FPropertyChangedEvent&) { SaveConfig(); });
+	// 어떤 필드가 변경되더라도 즉시 INI 에 저장 — 사용자의 마지막 입력이 항상 보존.
+	// AddSP 는 SCompoundWidget 의 SharedFromThis 를 weak 로 잡아 라이프타임 안전.
+	DetailsView->OnFinishedChangingProperties().AddSP(
+		this, &SHktSpriteBuilderPanel::OnAnyPropertyChanged);
 
 	const FSlateFontInfo HeaderFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
 
@@ -59,20 +61,15 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				SNew(STextBlock)
 				.Text(LOCTEXT("Hint",
 					"한 캐릭터(CharacterTag)에 여러 애니메이션을 한 번에 누적 빌드합니다. "
-					"Common 영역에서 공통 설정을, Animations 배열에서 각 애니의 태그/재료/셀 크기를 지정. "
+					"Common 영역에서 공통 설정(태그/경로/셀크기)을, Animations 배열에서 각 애니의 태그/재료를 지정. "
 					"Build All 클릭 시 위에서 아래로 BuildSpriteAnim 을 반복 호출합니다."))
 				.AutoWrapText(true)
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 			]
 
-			// 디테일 뷰 — 스크롤 가능한 영역에 넣어 항목이 많아도 안전.
 			+ SVerticalBox::Slot().FillHeight(1.f).Padding(0,4)
 			[
-				SNew(SScrollBox)
-				+ SScrollBox::Slot()
-				[
-					DetailsView.ToSharedRef()
-				]
+				DetailsView.ToSharedRef()
 			]
 
 			+ SVerticalBox::Slot().AutoHeight().Padding(0,12,0,4)
@@ -84,12 +81,15 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SHktSpriteBuilderPanel::OnBuildAllClicked)
 			]
 
-			+ SVerticalBox::Slot().AutoHeight().Padding(0,8,0,0).MaxHeight(220.f)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0,8,0,0)
 			[
-				SAssignNew(ResultBox, SMultiLineEditableTextBox)
-					.IsReadOnly(true)
-					.AllowMultiLine(true)
-					.HintText(LOCTEXT("ResultHint", "빌드 결과 JSON 이 여기 표시됩니다"))
+				SNew(SBox).MaxDesiredHeight(220.f)
+				[
+					SAssignNew(ResultBox, SMultiLineEditableTextBox)
+						.IsReadOnly(true)
+						.AllowMultiLine(true)
+						.HintText(LOCTEXT("ResultHint", "빌드 결과 JSON 이 여기 표시됩니다"))
+				]
 			]
 		]
 	];
@@ -98,6 +98,11 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 SHktSpriteBuilderPanel::~SHktSpriteBuilderPanel()
 {
 	// 패널이 닫힐 때도 한 번 더 저장 — IDetailsView 콜백을 놓친 마지막 변경 방지.
+	SaveConfig();
+}
+
+void SHktSpriteBuilderPanel::OnAnyPropertyChanged(const FPropertyChangedEvent& /*Event*/)
+{
 	SaveConfig();
 }
 
@@ -137,6 +142,8 @@ FReply SHktSpriteBuilderPanel::OnBuildAllClicked()
 
 	const FString OutputDir = Config->OutputDir.IsEmpty() ? TEXT("/Game/Generated/Sprites") : Config->OutputDir;
 	const float   P2W       = (Config->PixelToWorld > 0.0f) ? Config->PixelToWorld : 2.0f;
+	const int32   CellW     = FMath::Max(0, Config->CellWidth);
+	const int32   CellH     = FMath::Max(0, Config->CellHeight);
 
 	// 각 애니메이션을 순차로 BuildSpriteAnim 호출. 각 결과 JSON 을 한 줄씩 모아 표시.
 	FString Aggregate;
@@ -157,13 +164,12 @@ FReply SHktSpriteBuilderPanel::OnBuildAllClicked()
 			AnimTagStr,
 			E.SourcePath,
 			E.SourceType,
-			E.CellWidth,
-			E.CellHeight,
+			CellW,
+			CellH,
 			P2W,
 			OutputDir);
 
 		Aggregate += FString::Printf(TEXT("[%d] %s → %s\n"), Idx, *AnimTagStr, *OneResult);
-		// 결과 JSON 에 "success":true 가 있으면 ok 로 카운트.
 		if (OneResult.Contains(TEXT("\"success\":true"))) ++OkCount;
 	}
 

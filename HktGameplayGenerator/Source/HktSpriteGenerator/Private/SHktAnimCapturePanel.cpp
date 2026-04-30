@@ -938,16 +938,10 @@ void SHktAnimCapturePanel::LoadPersistedSettings()
 	if (!Cfg) return;
 
 	// LoadConfig() 는 INI 파일에서 UPROPERTY(Config) 멤버를 다시 읽어 채운다.
-	// 파일이 없거나 키가 없으면 기존 디폴트 값(생성자 / 우리가 세팅한 값) 유지.
+	// 파일이 없거나 키가 없으면 멤버는 구조체 기본값을 유지하므로, 항상
+	// LastSettings → Settings 로 복사해도 안전(첫 실행은 디폴트 그대로 들어감).
 	Cfg->LoadConfig();
-
-	// 저장 파일 존재 여부는 OutputWidth(>0 으로 강제 클램프되는 필수 캡처 파라미터) 로
-	// 판정한다 — Skeletal/Anim 만으로 판정하던 기존 로직은 사용자가 태그만 입력해두고
-	// 닫은 경우 다음 세션에서 그 태그가 사라지는 문제가 있었다.
-	if (Cfg->LastSettings.OutputWidth > 0)
-	{
-		Settings = Cfg->LastSettings;
-	}
+	Settings = Cfg->LastSettings;
 }
 
 void SHktAnimCapturePanel::SavePersistedSettings()
