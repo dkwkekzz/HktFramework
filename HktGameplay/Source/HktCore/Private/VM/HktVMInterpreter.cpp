@@ -154,12 +154,14 @@ EVMStatus FHktVMInterpreter::Op_Yield(FHktVMRuntime& Runtime, int32 Frames)
 
 EVMStatus FHktVMInterpreter::Op_YieldSeconds(FHktVMRuntime& Runtime, int32 DeciMillis)
 {
-    // DeciMillis(=ms*10) → hkt.Sim.FramesPerSecond 프레임 정수 변환 (반올림).
-    // float 사용 금지 — 결정론. ex) 1초(=10000) * 60 = 600000, /10000 = 60 frames @ 60Hz
+    // DeciMillis 의 인코딩: HktStoryBuilder::WaitSeconds 가 Seconds*100 으로 emit.
+    // 즉 1 unit = 10ms, 1초 = 100 unit. 따라서 frames = (DeciMillis * FPS) / 100.
+    // 반올림 + 결정론을 위해 정수 산술만 사용. ex) WaitSeconds(0.5) @60Hz =
+    // (50*60 + 50)/100 = 30 frames.
     const int32 FPS = HktGetSimFramesPerSecond();
     Runtime.EventWait.Type = EWaitEventType::Timer;
     Runtime.EventWait.RemainingFrames =
-        FMath::Max(1, (DeciMillis * FPS + 5000) / 10000);
+        FMath::Max(1, (DeciMillis * FPS + 50) / 100);
     return EVMStatus::WaitingEvent;
 }
 
