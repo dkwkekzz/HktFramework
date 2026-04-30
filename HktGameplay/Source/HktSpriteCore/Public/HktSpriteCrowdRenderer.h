@@ -133,6 +133,14 @@ private:
 	/** 아틀라스 SoftObjectPath → ISM (고유 아틀라스당 하나) */
 	TMap<FSoftObjectPath, UInstancedStaticMeshComponent*> AtlasHISMs;
 
+	/**
+	 * GetOrCreateHISM 등록 직후 HISM → 등록 프레임 번호.
+	 * 첫 PIE 에서 텍스처 RHI 가 막 valid 로 전이된 직후 SetTextureParameterValue 의 propagation
+	 * 이 첫 proxy 생성과 race 해 stale binding 으로 굳는 케이스 방어. 등록 다음 프레임에 한 번만
+	 * MID 파라미터 재바인딩 + MarkRenderStateDirty 로 proxy 를 강제로 다시 잡는다.
+	 */
+	TMap<UInstancedStaticMeshComponent*, uint64> HISMPrimePending;
+
 	UPROPERTY(Transient)
 	TMap<FGameplayTag, TObjectPtr<UHktSpriteCharacterTemplate>> TemplateCache;
 

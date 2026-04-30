@@ -175,6 +175,7 @@ void UHktSpriteCrowdRenderer::ClearAll()
 	{
 		if (H) H->ClearInstances();
 	}
+	HISMPrimePending.Empty();
 }
 
 // ============================================================================
@@ -277,6 +278,8 @@ UInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateHISM(
 
 	AtlasHISMs.Add(AtlasPath, HISM);
 	AllHISMs.Add(HISM);
+	// 등록 다음 프레임에 prime — RHI/MID propagation race 로 잡힌 stale binding 덮어쓰기 위함.
+	HISMPrimePending.Add(HISM, GFrameCounter);
 	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 신규 생성 (atlas=%s, %dx%d px)"),
 			*AtlasPath.ToString(), AtlasTex->GetSizeX(), AtlasTex->GetSizeY()));
@@ -586,6 +589,26 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 	UInstancedStaticMeshComponent* HISM = *HPtr;
+
+	// HISM 등록 후 처음으로 다른 프레임에 진입한 시점에 한 번 — MID 파라미터 재바인딩 + proxy 재생성.
+	// 첫 PIE 에서 RHI 가 막 valid 로 전이된 직후 처음 SetTextureParameterValue 가 race 해 stale 로
+	// 굳는 케이스 방어. 같은 프레임 (=등록 프레임) 에서는 propagation 시간이 부족하므로 스킵.
+	if (uint64* RegFrame = HISMPrimePending.Find(HISM); RegFrame && GFrameCounter > *RegFrame)
+	{
+		if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(HISM->GetMaterial(0)))
+		{
+			MID->SetTextureParameterValue(HktSpriteBillboardMaterial::AtlasParamName, AtlasTex);
+			MID->SetVectorParameterValue(
+				HktSpriteBillboardMaterial::AtlasSizeParamName,
+				FLinearColor(static_cast<float>(AtlasTex->GetSizeX()),
+							 static_cast<float>(AtlasTex->GetSizeY()), 0.f, 0.f));
+		}
+		HISM->MarkRenderStateDirty();
+		HISMPrimePending.Remove(HISM);
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|CrowdRenderer: HISM prime 재바인딩 (atlas=%s)"),
+				*State.CurrentAtlasPath.ToString()));
+	}
 
 	// 정상 경로 — 이전 실패 상태 클리어 + 복구 로그(전이 시 1회).
 	// 비대칭 로깅(실패만 emit)을 제거해 EventLog에서 "정상화 시점"을 직접 추적할 수 있게 한다.
