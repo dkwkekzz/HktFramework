@@ -382,76 +382,15 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 
-	if (State.CurrentAtlasPath != AtlasPath)
-	{
-		const FSoftObjectPath OldPath = State.CurrentAtlasPath;
-		if (State.InstanceIndex != INDEX_NONE)
-		{
-			RemoveInstanceAndRemap(State.CurrentAtlasPath, State.InstanceIndex);
-			State.InstanceIndex = INDEX_NONE;
-		}
-		UInstancedStaticMeshComponent* NewHISM = GetOrCreateHISM(AtlasPath, AtlasTex);
-		if (!NewHISM)
-		{
-			if (State.LastUpdateStatus != EHktSpriteUpdateStatus::HISMCreateFailed)
-			{
-				State.LastUpdateStatus = EHktSpriteUpdateStatus::HISMCreateFailed;
-				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-					FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 생성 실패 (atlas=%s) — QuadMesh/Owner 누락 의심"),
-						*AtlasPath.ToString()),
-					Id);
-			}
-			return;
-		}
-		State.InstanceIndex    = NewHISM->AddInstance(FTransform::Identity, /*bWorldSpace=*/true);
-		State.CurrentAtlasPath = AtlasPath;
-
-		if (State.InstanceIndex == INDEX_NONE)
-		{
-			// AddInstance가 INDEX_NONE을 반환 — HISM 내부 자원 부족/엔진 이슈로 매우 드물지만
-			// 다음 프레임부터 마이그레이션 가드(CurrentAtlasPath==AtlasPath)로 조용히 스킵되므로
-			// 반드시 한 번은 EventLog에 남긴다.
-			if (State.LastUpdateStatus != EHktSpriteUpdateStatus::AddInstanceFailed)
-			{
-				State.LastUpdateStatus = EHktSpriteUpdateStatus::AddInstanceFailed;
-				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-					FString::Printf(TEXT("Sprite|CrowdRenderer: HISM AddInstance 실패 (atlas=%s, anim=%s) — 인스턴스 미생성"),
-						*AtlasPath.ToString(), *Update.AnimTag.ToString()),
-					Id);
-			}
-			return;
-		}
-
-		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
-			FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas migrate %s → %s (inst=%d, anim=%s)"),
-				*OldPath.ToString(), *AtlasPath.ToString(), State.InstanceIndex, *Update.AnimTag.ToString()),
-			Id);
-	}
-
-	if (State.InstanceIndex == INDEX_NONE)
-	{
-		// 마이그레이션 분기 밖에서 InstanceIndex가 INDEX_NONE — 이전 프레임에 status=9로 진입했다가
-		// CurrentAtlasPath만 갱신된 상태. 여기서는 status=9를 유지(중복 로그 방지).
-		return;
-	}
-
-	UInstancedStaticMeshComponent** HPtr = AtlasHISMs.Find(State.CurrentAtlasPath);
-	if (!HPtr || !*HPtr)
-	{
-		// AtlasHISMs 룩업이 프레임 중간에 사라진 케이스 — RemoveInstanceAndRemap 등에서 외부 변경 가능성.
-		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::HISMLookupLost)
-		{
-			State.LastUpdateStatus = EHktSpriteUpdateStatus::HISMLookupLost;
-			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 룩업 손실 (atlas=%s) — AtlasHISMs 맵에서 제거됨"),
-					*State.CurrentAtlasPath.ToString()),
-				Id);
-		}
-		return;
-	}
-	UInstancedStaticMeshComponent* HISM = *HPtr;
-
-	// --- 2. 프레임 해석 ---
+	// --- 2. 프레임 해석 (마이그레이션 보다 먼저) ---
+	// 첫 PIE 시 "atlas 통째 / 벌집" 증상의 근본 원인:
+	//   기존 흐름이 AddInstance(Identity) → 검증 → UpdateInstanceTransform/CPD 순서였기 때문에,
+	//   검증 실패로 early-return 되거나 첫 렌더 프레임이 CPD/transform 채우기 전에 잡히면
+	//   GPU 가 (Identity 위치, CPD 미설정) 인스턴스를 그렸다. CPD 가 미바인딩이면 텍스처 샘플러가
+	//   Custom UV 대신 InTexCoord(0..1) 를 사용해 quad 마다 atlas 통째로 출력 → 다수 인스턴스가
+	//   벌집처럼 보였다. 두 번째 PIE 부터는 PSO/CPD 캐시가 채워져 정상화.
+	// 해결: 모든 검증을 마이그레이션 이전에 수행 + AddInstance 시점에 실제 WorldXform 와
+	//       16 슬롯 CPD 를 한 번에 채운다 (markDirty=true 한 번 묶음).
 	FHktSpriteFrameResolveInput In;
 	In.Animation      = Animation;
 	In.AnimStartTick  = Update.AnimStartTick;
@@ -523,6 +462,131 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 
+	// --- 3. 트랜스폼 + CPD 값 미리 계산 (마이그레이션/일반 경로 공용) ---
+	FTransform WorldXform = FTransform::Identity;
+	WorldXform.SetLocation(Update.WorldLocation);
+
+	const FVector2f Pivot = Frame.PivotOffset.IsNearlyZero()
+		? Animation->PivotOffset
+		: Frame.PivotOffset;
+
+	const float AtlasIndexF = static_cast<float>(Frame.AtlasIndex);
+	const float CellW = CellSize.X;
+	const float CellH = CellSize.Y;
+	// PivotOffset 은 셀 좌상단 기준 픽셀 좌표(예: (CellW/2, CellH) = 하단-중앙).
+	// 셰이더 Quad 는 이미 하단-중앙이 (0,0) 이도록 구성되어 있으므로,
+	// 셀 중심/하단을 기준점으로 변환한 뒤 PxToWorld 와 Frame.Scale 을 곱해야
+	// pivot 픽셀이 정확히 entity 위치(WorldLocation)에 놓인다.
+	const FVector2f Offset(
+		(CellW * 0.5f - Pivot.X) * PxToWorld * Frame.Scale.X,
+		(CellH        - Pivot.Y) * PxToWorld * Frame.Scale.Y);
+	const FLinearColor Tint = Frame.Tint * Update.TintOverride;
+	const float FlipValue = Res.bFlipX ? 1.f : 0.f;
+	const float HalfWWorld = Frame.Scale.X * PxToWorld * CellW * 0.5f;
+	const float HalfHWorld = Frame.Scale.Y * PxToWorld * CellH * 0.5f;
+	const float RotRad     = FMath::DegreesToRadians(Frame.Rotation);
+	// CPD slot 15 = ZBias (cm, 카메라 쪽으로 밀어내기). 3 source 합산:
+	//   Frame.ZBias        — 애니메이션 정의 (캐릭터 내 프레임 간 z-fighting 해소)
+	//   Update.ZBias       — 호출자 인스턴스 단위 (특정 엔터티만 미세 조정)
+	//   ComponentZBias     — 컴포넌트 단위 일괄 (Crowd ↔ Terrain 등 그룹 정렬)
+	const float CombinedZBias = static_cast<float>(Frame.ZBias) + Update.ZBias + ComponentZBias;
+
+	auto FillCpd = [&](UInstancedStaticMeshComponent* Target, int32 Idx)
+	{
+		Target->SetCustomDataValue(Idx, 0, AtlasIndexF, false);
+		Target->SetCustomDataValue(Idx, 1, CellW, false);
+		Target->SetCustomDataValue(Idx, 2, CellH, false);
+		Target->SetCustomDataValue(Idx, 3, 0.f, false);
+		Target->SetCustomDataValue(Idx, 4, Offset.X, false);
+		Target->SetCustomDataValue(Idx, 5, Offset.Y, false);
+		Target->SetCustomDataValue(Idx, 6, RotRad, false);
+		Target->SetCustomDataValue(Idx, 7, HalfWWorld, false);
+		Target->SetCustomDataValue(Idx, 8, HalfHWorld, false);
+		Target->SetCustomDataValue(Idx, 9,  Tint.R, false);
+		Target->SetCustomDataValue(Idx, 10, Tint.G, false);
+		Target->SetCustomDataValue(Idx, 11, Tint.B, false);
+		Target->SetCustomDataValue(Idx, 12, Tint.A, false);
+		Target->SetCustomDataValue(Idx, 13, static_cast<float>(Update.PaletteIndex), false);
+		Target->SetCustomDataValue(Idx, 14, FlipValue, false);
+		Target->SetCustomDataValue(Idx, 15, CombinedZBias, /*bMarkRenderStateDirty=*/true);
+	};
+
+	// --- 4. 아틀라스 마이그레이션 (검증/CPD 계산이 모두 끝난 뒤) ---
+	if (State.CurrentAtlasPath != AtlasPath)
+	{
+		const FSoftObjectPath OldPath = State.CurrentAtlasPath;
+		if (State.InstanceIndex != INDEX_NONE)
+		{
+			RemoveInstanceAndRemap(State.CurrentAtlasPath, State.InstanceIndex);
+			State.InstanceIndex = INDEX_NONE;
+		}
+		UInstancedStaticMeshComponent* NewHISM = GetOrCreateHISM(AtlasPath, AtlasTex);
+		if (!NewHISM)
+		{
+			if (State.LastUpdateStatus != EHktSpriteUpdateStatus::HISMCreateFailed)
+			{
+				State.LastUpdateStatus = EHktSpriteUpdateStatus::HISMCreateFailed;
+				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+					FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 생성 실패 (atlas=%s) — QuadMesh/Owner 누락 의심"),
+						*AtlasPath.ToString()),
+					Id);
+			}
+			return;
+		}
+		// 실제 WorldXform 으로 AddInstance — Identity 중간 상태 제거.
+		// 첫 GPU 업로드 시점에 트랜스폼/CPD 가 모두 유효해 atlas-honeycomb 회피.
+		State.InstanceIndex    = NewHISM->AddInstance(WorldXform, /*bWorldSpace=*/true);
+		State.CurrentAtlasPath = AtlasPath;
+
+		if (State.InstanceIndex == INDEX_NONE)
+		{
+			// AddInstance가 INDEX_NONE을 반환 — HISM 내부 자원 부족/엔진 이슈로 매우 드물지만
+			// 다음 프레임부터 마이그레이션 가드(CurrentAtlasPath==AtlasPath)로 조용히 스킵되므로
+			// 반드시 한 번은 EventLog에 남긴다.
+			if (State.LastUpdateStatus != EHktSpriteUpdateStatus::AddInstanceFailed)
+			{
+				State.LastUpdateStatus = EHktSpriteUpdateStatus::AddInstanceFailed;
+				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+					FString::Printf(TEXT("Sprite|CrowdRenderer: HISM AddInstance 실패 (atlas=%s, anim=%s) — 인스턴스 미생성"),
+						*AtlasPath.ToString(), *Update.AnimTag.ToString()),
+					Id);
+			}
+			return;
+		}
+
+		// 신규 인스턴스 — 16 슬롯 CPD 를 한 번에 채운다 (마지막에 markDirty=true).
+		// AddInstance 와 같은 호출 안에서 끝내, 다음 렌더 프레임에 미완성 인스턴스가 노출되지 않도록.
+		FillCpd(NewHISM, State.InstanceIndex);
+
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas migrate %s → %s (inst=%d, anim=%s)"),
+				*OldPath.ToString(), *AtlasPath.ToString(), State.InstanceIndex, *Update.AnimTag.ToString()),
+			Id);
+	}
+
+	if (State.InstanceIndex == INDEX_NONE)
+	{
+		// 마이그레이션 분기 밖에서 InstanceIndex가 INDEX_NONE — 이전 프레임에 status=9로 진입했다가
+		// CurrentAtlasPath만 갱신된 상태. 여기서는 status=9를 유지(중복 로그 방지).
+		return;
+	}
+
+	UInstancedStaticMeshComponent** HPtr = AtlasHISMs.Find(State.CurrentAtlasPath);
+	if (!HPtr || !*HPtr)
+	{
+		// AtlasHISMs 룩업이 프레임 중간에 사라진 케이스 — RemoveInstanceAndRemap 등에서 외부 변경 가능성.
+		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::HISMLookupLost)
+		{
+			State.LastUpdateStatus = EHktSpriteUpdateStatus::HISMLookupLost;
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 룩업 손실 (atlas=%s) — AtlasHISMs 맵에서 제거됨"),
+					*State.CurrentAtlasPath.ToString()),
+				Id);
+		}
+		return;
+	}
+	UInstancedStaticMeshComponent* HISM = *HPtr;
+
 	// 정상 경로 — 이전 실패 상태 클리어 + 복구 로그(전이 시 1회).
 	// 비대칭 로깅(실패만 emit)을 제거해 EventLog에서 "정상화 시점"을 직접 추적할 수 있게 한다.
 	const EHktSpriteUpdateStatus PrevStatus = State.LastUpdateStatus;
@@ -540,54 +604,11 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 			Id);
 	}
 
-	const FVector2f Pivot = Frame.PivotOffset.IsNearlyZero()
-		? Animation->PivotOffset
-		: Frame.PivotOffset;
-
-	// --- 3. 트랜스폼 + CPD ---
-	FTransform WorldXform = FTransform::Identity;
-	WorldXform.SetLocation(Update.WorldLocation);
+	// --- 5. 매 프레임 트랜스폼 + CPD 갱신 (일반 경로) ---
 	// UE5.7 ISM: bMarkRenderStateDirty=false 시 트랜스폼 업데이트가 별도 cmd buffer로
 	// 큐잉되어 CPD 의 MarkRenderStateDirty 와 같이 flush되지 않는 케이스가 있다.
 	// 인스턴스가 매 프레임 이동하므로 여기서 직접 dirty 를 마크해 GPU 업로드 보장.
 	HISM->UpdateInstanceTransform(State.InstanceIndex, WorldXform, /*bWorldSpace=*/true,
 		/*bMarkRenderStateDirty=*/true, /*bTeleport=*/true);
-
-	const float AtlasIndexF = static_cast<float>(Frame.AtlasIndex);
-	const float CellW = CellSize.X;
-	const float CellH = CellSize.Y;
-	// PivotOffset 은 셀 좌상단 기준 픽셀 좌표(예: (CellW/2, CellH) = 하단-중앙).
-	// 셰이더 Quad 는 이미 하단-중앙이 (0,0) 이도록 구성되어 있으므로,
-	// 셀 중심/하단을 기준점으로 변환한 뒤 PxToWorld 와 Frame.Scale 을 곱해야
-	// pivot 픽셀이 정확히 entity 위치(WorldLocation)에 놓인다.
-	const FVector2f Offset(
-		(CellW * 0.5f - Pivot.X) * PxToWorld * Frame.Scale.X,
-		(CellH        - Pivot.Y) * PxToWorld * Frame.Scale.Y);
-
-	const FLinearColor Tint = Frame.Tint * Update.TintOverride;
-	const float FlipValue = Res.bFlipX ? 1.f : 0.f;
-
-	HISM->SetCustomDataValue(State.InstanceIndex, 0, AtlasIndexF, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 1, CellW, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 2, CellH, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 3, 0.f, false);
-
-	HISM->SetCustomDataValue(State.InstanceIndex, 4, Offset.X, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 5, Offset.Y, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 6, FMath::DegreesToRadians(Frame.Rotation), false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 7, Frame.Scale.X * PxToWorld * CellW * 0.5f, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 8, Frame.Scale.Y * PxToWorld * CellH * 0.5f, false);
-
-	HISM->SetCustomDataValue(State.InstanceIndex, 9,  Tint.R, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 10, Tint.G, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 11, Tint.B, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 12, Tint.A, false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 13, static_cast<float>(Update.PaletteIndex), false);
-	HISM->SetCustomDataValue(State.InstanceIndex, 14, FlipValue, false);
-	// CPD slot 15 = ZBias (cm, 카메라 쪽으로 밀어내기). 3 source 합산:
-	//   Frame.ZBias        — 애니메이션 정의 (캐릭터 내 프레임 간 z-fighting 해소)
-	//   Update.ZBias       — 호출자 인스턴스 단위 (특정 엔터티만 미세 조정)
-	//   ComponentZBias     — 컴포넌트 단위 일괄 (Crowd ↔ Terrain 등 그룹 정렬)
-	const float CombinedZBias = static_cast<float>(Frame.ZBias) + Update.ZBias + ComponentZBias;
-	HISM->SetCustomDataValue(State.InstanceIndex, 15, CombinedZBias, true);
+	FillCpd(HISM, State.InstanceIndex);
 }
