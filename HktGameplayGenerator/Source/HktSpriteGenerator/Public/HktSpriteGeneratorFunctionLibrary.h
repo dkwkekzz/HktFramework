@@ -165,6 +165,11 @@ public:
 	 * 디렉터리의 이미지들을 스캔 → Atlas 패킹 → DataAsset 생성.
 	 * 파일명 규칙: {action}[_{direction}][_{frame_idx}].{png|tga|…}
 	 *
+	 * @param AnimTagOverride  비워두면 파일명의 action 으로부터 자동 추론
+	 *                         (`Anim.FullBody.<Action>`). 지정하면 그대로 사용 —
+	 *                         파일명에서 액션을 라운드트립할 때 발생하던 태그
+	 *                         망가짐(예: "Anim.FullBody.Anim_fullbody_idle")을 회피.
+	 *
 	 * 반환: McpBuildSpriteCharacter와 동일 JSON.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
@@ -175,7 +180,8 @@ public:
 		float PixelToWorld             = 2.0f,
 		float FrameDurationMs          = 100.f,
 		bool bLooping                  = true,
-		bool bMirrorWestFromEast       = true);
+		bool bMirrorWestFromEast       = true,
+		const FString& AnimTagOverride = TEXT(""));
 
 	/**
 	 * 동영상 → ffmpeg 프레임 추출 (frame_0001.png …).

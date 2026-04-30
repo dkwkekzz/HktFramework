@@ -4,24 +4,27 @@
 
 #include "CoreMinimal.h"
 #include "HktSpriteGeneratorFunctionLibrary.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SEditableTextBox;
+class IDetailsView;
 class SMultiLineEditableTextBox;
-class STextBlock;
-
-template <typename T> class SComboBox;
+class UHktSpriteBuilderPanelConfig;
 
 /**
- * SHktSpriteBuilderPanel — UHktSpriteGeneratorFunctionLibrary 의 빌더 API 통합 UI.
+ * SHktSpriteBuilderPanel
  *
- * 모드:
- *   - **Auto (BuildSpriteAnim)** — 단일 진입점. SourceType 만 골라 CharacterTag/AnimTag/SourcePath 로 빌드.
- *   - **Atlas (Low-level)**     — EditorBuildSpriteCharacterFromAtlas. UE 텍스처 자산 경로 + 셀 크기.
- *   - **Directory (Low-level)** — EditorBuildSpriteCharacterFromDirectory. 이미지 폴더 패킹.
- *   - **Video (Low-level)**     — EditorBuildSpriteCharacterFromVideo. ffmpeg 추출 → 패킹 → DataAsset.
+ * 캐릭터 1명 단위로 여러 애니메이션을 한 번에 등록하는 빌더 UI.
  *
- * 모드별로 유효한 입력만 동적으로 활성화된다.
+ * 구조:
+ *   - 공통(Common): CharacterTag / OutputDir / PixelToWorld / CellW / CellH
+ *   - 애니메이션 목록(Animations): TArray<FHktSpriteBuilderAnimEntry>
+ *       각 엔트리 = AnimTag + SourceType + SourcePath
+ *   - "Build All" 버튼 — 위에서 아래로 BuildSpriteAnim 반복 호출
+ *
+ * 모든 입력은 UE 표준 IDetailsView 로 그려진다 — FGameplayTag 피커, enum 콤보,
+ * 배열 ± 버튼이 자동 제공되며 UPROPERTY(Config) 직렬화로 다음 세션에 그대로
+ * 복원된다(= 사용자의 마지막 입력 보존).
  */
 class SHktSpriteBuilderPanel : public SCompoundWidget
 {
@@ -30,72 +33,18 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
-
-	enum class EBuilderMode : uint8
-	{
-		Auto = 0,           // BuildSpriteAnim
-		Atlas,              // EditorBuildSpriteCharacterFromAtlas
-		Directory,          // EditorBuildSpriteCharacterFromDirectory
-		Video,              // EditorBuildSpriteCharacterFromVideo
-	};
+	virtual ~SHktSpriteBuilderPanel() override;
 
 private:
-	// 모드별 입력 가시성 토글.
-	bool IsModeAuto()      const { return CurrentMode == EBuilderMode::Auto; }
-	bool IsModeAtlas()     const { return CurrentMode == EBuilderMode::Atlas; }
-	bool IsModeDirectory() const { return CurrentMode == EBuilderMode::Directory; }
-	bool IsModeVideo()     const { return CurrentMode == EBuilderMode::Video; }
+	FReply OnBuildAllClicked();
 
-	// === 입력 가시성 헬퍼 ===
-	// AnimTag: Auto / Atlas 모드에서 노출 (Atlas API 가 AnimTagStr 파라미터를 받음).
-	EVisibility GetAnimTagVisibility() const;
-	// CellSize: Auto / Atlas 모드. Auto+Bundle/Video 는 0=auto, Atlas 는 필수.
-	EVisibility GetCellSizeVisibility() const;
-	// Looping/Mirror/FrameDuration: Low-level 전용 (Auto 는 BuildSpriteAnim 이 자동 추론).
-	EVisibility GetLowLevelOnlyVisibility() const;
-	// Video Low-level 전용 (FrameRate / MaxFrames / Start/End / ActionId).
-	EVisibility GetVideoLowLevelVisibility() const;
+	// IDetailsView 의 OnFinishedChangingProperties 가 호출 — 즉시 영구 저장.
+	void OnAnyPropertyChanged(const struct FPropertyChangedEvent& Event);
 
-	// 액션.
-	FReply OnBrowseSourcePath();
-	FReply OnBuildClicked();
+	// Config 가 직접 SaveConfig 를 가지고 있어 영구 저장은 호출 한 줄.
+	void SaveConfig();
 
-	// 헬퍼.
-	FString GetSourceHintText() const;
-	FString RunBuild() const;
-
-	// 모드 전환.
-	void OnModeChanged(TSharedPtr<EBuilderMode> NewMode, ESelectInfo::Type Info);
-	FText GetCurrentModeText() const;
-	void OnSourceTypeChanged(TSharedPtr<EHktSpriteSourceType> NewType, ESelectInfo::Type Info);
-	FText GetCurrentSourceTypeText() const;
-
-	// 위젯 ===============================================================
-	TSharedPtr<SComboBox<TSharedPtr<EBuilderMode>>>          ModeCombo;
-	TSharedPtr<SComboBox<TSharedPtr<EHktSpriteSourceType>>>  SourceTypeCombo;
-
-	TSharedPtr<SEditableTextBox> CharTagBox;
-	TSharedPtr<SEditableTextBox> AnimTagBox;
-	TSharedPtr<SEditableTextBox> SourcePathBox;
-	TSharedPtr<SEditableTextBox> OutputDirBox;
-	TSharedPtr<SEditableTextBox> CellWidthBox;
-	TSharedPtr<SEditableTextBox> CellHeightBox;
-	TSharedPtr<SEditableTextBox> PixelToWorldBox;
-	TSharedPtr<SEditableTextBox> FrameDurationBox;
-
-	// Video low-level 전용.
-	TSharedPtr<SEditableTextBox> ActionIdBox;
-	TSharedPtr<SEditableTextBox> FrameRateBox;
-	TSharedPtr<SEditableTextBox> MaxFramesBox;
-	TSharedPtr<SEditableTextBox> StartTimeBox;
-	TSharedPtr<SEditableTextBox> EndTimeBox;
-
+	TStrongObjectPtr<UHktSpriteBuilderPanelConfig> Config;
+	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<SMultiLineEditableTextBox> ResultBox;
-
-	// 상태 ===============================================================
-	EBuilderMode             CurrentMode       = EBuilderMode::Auto;
-	EHktSpriteSourceType     CurrentSourceType = EHktSpriteSourceType::TextureBundle;
-
-	bool bLooping             = true;
-	bool bMirrorWestFromEast  = true;
 };

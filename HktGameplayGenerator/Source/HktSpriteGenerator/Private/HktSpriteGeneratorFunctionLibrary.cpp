@@ -714,7 +714,8 @@ namespace HktSpriteGen
 		int32 CellW, int32 CellH, float PixelToWorld, const FString& OutputDir,
 		const TArray<FFrameEntry>& Frames,
 		const TMap<TTuple<FString,int32,int32>, int32>& IndexMap,
-		float FrameDurationMs, bool bLooping, bool bMirrorWestFromEast)
+		float FrameDurationMs, bool bLooping, bool bMirrorWestFromEast,
+		const FString& AnimTagOverride)
 	{
 		// action → dirIdx → sorted frames
 		TMap<FString, TArray<TArray<const FFrameEntry*>>> Grouped;
@@ -758,7 +759,11 @@ namespace HktSpriteGen
 			if (MaxFrames == 0) continue;
 
 			W->WriteObjectStart();
-			W->WriteValue(TEXT("animTag"), ActionNameToAnimTagString(ActionId));
+			// AnimTagOverride 가 지정된 경우 파일명 추론 결과를 무시하고 그대로 사용.
+			// 단일 캡처 세션은 항상 ActionId 가 1개이므로 override 도 1:1 매핑.
+			const FString AnimTagStr = AnimTagOverride.IsEmpty()
+				? ActionNameToAnimTagString(ActionId) : AnimTagOverride;
+			W->WriteValue(TEXT("animTag"), AnimTagStr);
 			W->WriteValue(TEXT("numDirections"),      kNumDirections);
 			W->WriteValue(TEXT("framesPerDirection"), MaxFrames);
 			W->WriteValue(TEXT("pivotX"), static_cast<float>(CellW) * 0.5f);
@@ -807,7 +812,8 @@ namespace HktSpriteGen
 FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromDirectory(
 	const FString& CharacterTag, const FString& InputDir,
 	const FString& OutputDir, float PixelToWorld, float FrameDurationMs,
-	bool bLooping, bool bMirrorWestFromEast)
+	bool bLooping, bool bMirrorWestFromEast,
+	const FString& AnimTagOverride)
 {
 	using namespace HktSpriteGen;
 
@@ -838,7 +844,8 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromDirect
 
 	const FString Spec = BuildSpecJson(CharacterTag, AtlasPng, CellW, CellH, PixelToWorld,
 	                                   OutputDir, Frames, IndexMap,
-	                                   FrameDurationMs, bLooping, bMirrorWestFromEast);
+	                                   FrameDurationMs, bLooping, bMirrorWestFromEast,
+	                                   AnimTagOverride);
 
 	UE_LOG(LogHktSpriteGenerator, Log, TEXT("EditorBuild: %d frames → Cell=%dx%d Grid=%dx%d"),
 		Frames.Num(), CellW, CellH, Cols, Rows);

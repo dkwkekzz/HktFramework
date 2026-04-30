@@ -15,7 +15,10 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDesktopPlatform.h"
+#include "IDetailsView.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorModule.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Colors/SColorPicker.h"
@@ -155,20 +158,42 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 						.ThumbnailPool(UThumbnailManager::Get().GetSharedThumbnailPool())
 				) ]
 
-				// === 식별 ===
+				// === 식별 (UE 표준 GameplayTag 피커) ===
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
-				[ MakeRow(LOCTEXT("TagLbl", "Character Tag"),
-					SAssignNew(CharacterTagBox, SEditableTextBox)
-						.Text(FText::FromString(Settings.CharacterTag))
-						.HintText(LOCTEXT("TagHint", "Sprite.Character.Knight"))
-						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })
-				) ]
+				[
+					[&]() -> TSharedRef<SWidget>
+					{
+						// 패널 라이프타임 동안 유지되는 태그 holder 를 만들고 Settings 의 현재 값으로 동기화.
+						TagHolder = TStrongObjectPtr<UHktAnimCaptureTagHolder>(
+							NewObject<UHktAnimCaptureTagHolder>(GetTransientPackage()));
+						TagHolder->CharacterTag = Settings.CharacterTag;
+						TagHolder->AnimTag      = Settings.AnimTag;
+
+						// IDetailsView 는 holder 의 모든 UPROPERTY(EditAnywhere) 를 자동으로 그리며,
+						// FGameplayTag 는 GameplayTagsEditor 가 등록한 PropertyTypeCustomization 으로
+						// UE 표준 태그 피커(트리/검색/신규 추가) 가 자동 적용된다.
+						FPropertyEditorModule& PEM = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+						FDetailsViewArgs Args;
+						Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+						Args.bAllowSearch = false;
+						Args.bShowOptions = false;
+						Args.bShowScrollBar = false;
+						Args.bHideSelectionTip = true;
+						Args.bLockable = false;
+						Args.bUpdatesFromSelection = false;
+						TSharedRef<IDetailsView> DetailsView = PEM.CreateDetailView(Args);
+						DetailsView->SetObject(TagHolder.Get());
+						DetailsView->OnFinishedChangingProperties().AddSP(
+							this, &SHktAnimCapturePanel::OnTagHolderPropertyChanged);
+						return DetailsView;
+					}()
+				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
-				[ MakeRow(LOCTEXT("ActionLbl", "Action Id"),
+				[ MakeRow(LOCTEXT("ActionLbl", "Action Id (file prefix, optional)"),
 					SAssignNew(ActionIdBox, SEditableTextBox)
 						.Text(FText::FromString(Settings.ActionId))
-						.HintText(LOCTEXT("ActionHint", "idle / walk / run / attack"))
+						.HintText(LOCTEXT("ActionHint", "비워두면 AnimTag 의 leaf 자동 사용"))
 						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })
 				) ]
 
@@ -699,6 +724,17 @@ FReply SHktAnimCapturePanel::OnBrowseDiskOutputDir()
 	return FReply::Handled();
 }
 
+void SHktAnimCapturePanel::OnTagHolderPropertyChanged(const FPropertyChangedEvent& /*Event*/)
+{
+	if (TagHolder.IsValid())
+	{
+		Settings.CharacterTag = TagHolder->CharacterTag;
+		Settings.AnimTag      = TagHolder->AnimTag;
+		// 태그가 바뀌면 설정을 즉시 영구 저장 — 다음 세션에서 그대로 복원.
+		SavePersistedSettings();
+	}
+}
+
 void SHktAnimCapturePanel::RebuildSettingsFromUI()
 {
 	auto GetStr = [](const TSharedPtr<SEditableTextBox>& Box) -> FString {
@@ -713,7 +749,12 @@ void SHktAnimCapturePanel::RebuildSettingsFromUI()
 		return S.IsEmpty() ? Def : FCString::Atof(*S);
 	};
 
-	Settings.CharacterTag    = GetStr(CharacterTagBox);
+	// 태그는 holder UObject 가 source-of-truth — UI 가 즉시 반영한 값을 거둔다.
+	if (TagHolder.IsValid())
+	{
+		Settings.CharacterTag = TagHolder->CharacterTag;
+		Settings.AnimTag      = TagHolder->AnimTag;
+	}
 	Settings.ActionId        = GetStr(ActionIdBox);
 	Settings.DiskOutputDir   = GetStr(DiskOutDirBox);
 	Settings.AssetOutputDir  = GetStr(AssetOutDirBox);
@@ -897,17 +938,10 @@ void SHktAnimCapturePanel::LoadPersistedSettings()
 	if (!Cfg) return;
 
 	// LoadConfig() 는 INI 파일에서 UPROPERTY(Config) 멤버를 다시 읽어 채운다.
-	// 파일이 없거나 키가 없으면 기존 디폴트 값(생성자 / 우리가 세팅한 값) 유지.
+	// 파일이 없거나 키가 없으면 멤버는 구조체 기본값을 유지하므로, 항상
+	// LastSettings → Settings 로 복사해도 안전(첫 실행은 디폴트 그대로 들어감).
 	Cfg->LoadConfig();
-
-	// 빈 INI 의 경우 LastSettings 의 SkeletalMesh 등은 null 로 남는데, 우리는 위에서
-	// 패널 디폴트(Settings)에 일부 값을 이미 채워놨다. 저장된 SkeletalMesh 가 비어있으면
-	// 패널 디폴트 유지. 채워져 있으면 전체 교체.
-	if (!Cfg->LastSettings.SkeletalMesh.IsNull() || !Cfg->LastSettings.AnimSequence.IsNull()
-		|| Cfg->LastSettings.OutputWidth > 0)
-	{
-		Settings = Cfg->LastSettings;
-	}
+	Settings = Cfg->LastSettings;
 }
 
 void SHktAnimCapturePanel::SavePersistedSettings()

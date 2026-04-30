@@ -6,6 +6,7 @@
 #include "HktAnimCaptureScene.h"
 #include "HktAnimCaptureTypes.h"
 #include "Styling/SlateBrush.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SColorBlock;
@@ -13,6 +14,7 @@ class SEditableTextBox;
 class SImage;
 class SMultiLineEditableTextBox;
 class SProgressBar;
+class UHktAnimCaptureTagHolder;
 
 /**
  * SHktAnimCapturePanel — 에디터 단독 애니메이션 캡처 UI.
@@ -76,8 +78,13 @@ private:
 	void LoadPersistedSettings();
 	void SavePersistedSettings();
 
+	// === 태그 피커 (UE 표준) =============================================
+	// 두 FGameplayTag 를 IDetailsView 로 노출 — GameplayTagsEditor 가 등록한
+	// PropertyTypeCustomization 이 UE 표준 태그 피커(트리/검색/신규 추가) 를 자동 적용.
+	TStrongObjectPtr<UHktAnimCaptureTagHolder> TagHolder;
+	void OnTagHolderPropertyChanged(const struct FPropertyChangedEvent& Event);
+
 	// 위젯 핸들 ===========================================================
-	TSharedPtr<SEditableTextBox> CharacterTagBox;
 	TSharedPtr<SEditableTextBox> ActionIdBox;
 	TSharedPtr<SEditableTextBox> DiskOutDirBox;
 	TSharedPtr<SEditableTextBox> AssetOutDirBox;
