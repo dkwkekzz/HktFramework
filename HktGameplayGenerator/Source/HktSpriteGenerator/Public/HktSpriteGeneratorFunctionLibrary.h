@@ -204,6 +204,49 @@ public:
 		float EndTimeSec               = 0.0f);
 
 	/**
+	 * 동영상 → ffmpeg 프레임 추출 → Atlas 패킹까지 일괄 수행 (DataAsset 빌드는 안 함).
+	 *
+	 * 산출물:
+	 *   - TextureBundle 폴더: {OutputDir}/{SafeAnimTag}/frame_*.png
+	 *   - Atlas PNG:        {OutputDir}/{SafeAnimTag}_atlas.png
+	 *
+	 * OutputDir 가 비어있으면 기본 루트는 {ProjectSavedDir}/SpriteGenerator/{SafeCharTag}.
+	 * 이 규칙은 BuildSpriteAnim 의 SourcePath 자동 해석 규칙과 동일 — 사용자가 같은
+	 * CharacterTag 만 입력하면 SpriteBuilder 가 SourcePath 없이도 산출물을 찾아낸다.
+	 *
+	 * 반환: {"success":bool, "characterTag":…, "animTag":…, "bundleDir":…,
+	 *        "atlasPath":…, "frameCount":…, "cellW":…, "cellH":…, "error":…}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorExtractAtlasAndBundle(
+		const FString& CharacterTagStr,
+		const FString& AnimTagStr,
+		const FString& VideoPath,
+		int32 FrameWidth               = 0,
+		int32 FrameHeight              = 0,
+		float FrameRate                = 10.0f,
+		int32 MaxFrames                = 0,
+		float StartTimeSec             = 0.0f,
+		float EndTimeSec               = 0.0f,
+		const FString& OutputDir       = TEXT(""));
+
+	/**
+	 * VideoExtract / BuildSpriteAnim 이 공유하는 규약 경로 헬퍼.
+	 *
+	 *   GetConventionBundleRoot(CharTag)              → {ProjectSavedDir}/SpriteGenerator/{SafeCharTag}
+	 *   GetConventionBundleDir(CharTag, AnimTag)      → {Root}/{SafeAnimTag}                 (TextureBundle 폴더)
+	 *   GetConventionAtlasPng(CharTag, AnimTag)       → {Root}/{SafeAnimTag}_atlas.png       (Atlas PNG)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString GetConventionBundleRoot(const FString& CharacterTagStr);
+
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString GetConventionBundleDir(const FString& CharacterTagStr, const FString& AnimTagStr);
+
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString GetConventionAtlasPng(const FString& CharacterTagStr, const FString& AnimTagStr);
+
+	/**
 	 * 33프레임 1D 가로 strip 테레인 아틀라스를 폴더에서 빌드 (T_HktSpriteTerrainAtlas).
 	 *
 	 * 동작:

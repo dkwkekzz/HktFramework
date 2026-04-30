@@ -68,6 +68,26 @@ namespace HktSpriteGen
 	}
 
 	/**
+	 * VideoExtract / BuildSpriteAnim 가 공유하는 산출물 규약 경로.
+	 *   {ProjectSavedDir}/SpriteGenerator/{SafeCharTag}
+	 * 이 한 곳을 두 코드 경로가 모두 보면 SourcePath 자동 해석이 일관된다.
+	 */
+	static FString ConventionBundleRoot(const FString& CharacterTagStr)
+	{
+		return FPaths::ProjectSavedDir() / TEXT("SpriteGenerator") / SanitizeForAssetName(CharacterTagStr);
+	}
+
+	static FString ConventionBundleDir(const FString& CharacterTagStr, const FString& AnimTagStr)
+	{
+		return ConventionBundleRoot(CharacterTagStr) / SanitizeForAssetName(AnimTagStr);
+	}
+
+	static FString ConventionAtlasPng(const FString& CharacterTagStr, const FString& AnimTagStr)
+	{
+		return ConventionBundleRoot(CharacterTagStr) / (SanitizeForAssetName(AnimTagStr) + TEXT("_atlas.png"));
+	}
+
+	/**
 	 * 파일명에서 뽑아낸 action 문자열("idle","walk",...)을 표준 anim tag로 승격.
 	 */
 	static FString ActionNameToAnimTagString(const FString& ActionName)
@@ -991,6 +1011,119 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorExtractVideoFrames(
 	});
 }
 
+// ============================================================================
+// EditorExtractAtlasAndBundle — VideoPanel 전용 진입점
+//   동영상 → 프레임 폴더(TextureBundle) + 패킹 Atlas PNG 까지만 만들고 종료.
+//   DataAsset 빌드는 SpriteBuilder 가 같은 CharacterTag/AnimTag 로 호출 시 수행.
+// ============================================================================
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorExtractAtlasAndBundle(
+	const FString& CharacterTagStr,
+	const FString& AnimTagStr,
+	const FString& VideoPath,
+	int32 FrameWidth, int32 FrameHeight, float FrameRate,
+	int32 MaxFrames, float StartTimeSec, float EndTimeSec,
+	const FString& OutputDir)
+{
+	using namespace HktSpriteGen;
+
+	if (CharacterTagStr.IsEmpty()) return MakeSpriteError(TEXT("CharacterTag 필수"));
+	if (AnimTagStr.IsEmpty())      return MakeSpriteError(TEXT("AnimTag 필수"));
+	if (VideoPath.IsEmpty())       return MakeSpriteError(TEXT("VideoPath 필수"));
+	if (!FPaths::FileExists(VideoPath))
+	{
+		return MakeSpriteError(FString::Printf(TEXT("동영상 파일 없음: %s"), *VideoPath));
+	}
+
+	const FString SafeAnim = SanitizeForAssetName(AnimTagStr);
+
+	// OutputDir 가 지정되면 그 아래에 동일 규칙 적용 — 사용자가 임의 경로 지정 시에도
+	// SpriteBuilder 의 SourcePath 자동 해석 규칙(파일명 패턴)이 그대로 동작.
+	const FString ResolvedRoot = OutputDir.IsEmpty()
+		? ConventionBundleRoot(CharacterTagStr)
+		: OutputDir;
+	const FString BundleDir = ResolvedRoot / SafeAnim;
+	const FString AtlasPng  = ResolvedRoot / (SafeAnim + TEXT("_atlas.png"));
+
+	IFileManager& FM = IFileManager::Get();
+	// 이전 산출물 정리 — 다른 길이의 동영상으로 재실행 시 stale 프레임이 남지 않도록.
+	FM.DeleteDirectory(*BundleDir, /*RequireExists*/ false, /*Tree*/ true);
+	FM.MakeDirectory(*BundleDir, /*Tree*/ true);
+	if (FPaths::FileExists(AtlasPng)) FM.Delete(*AtlasPng);
+	FM.MakeDirectory(*ResolvedRoot, /*Tree*/ true);
+
+	int32 FrameCount = 0;
+	FString Err;
+	if (!ExtractVideoFramesImpl(VideoPath, BundleDir,
+		FrameWidth, FrameHeight, FrameRate, MaxFrames,
+		StartTimeSec, EndTimeSec, FrameCount, Err))
+	{
+		return MakeSpriteError(Err);
+	}
+
+	// 추출 결과를 단일 방향 N프레임으로 라벨링한 뒤 PackAtlas 로 전달.
+	TArray<FFrameEntry> Frames;
+	TArray<FString> Files;
+	FM.FindFiles(Files, *(BundleDir / TEXT("frame_*.png")), /*Files*/ true, /*Dirs*/ false);
+	Files.Sort();
+	for (int32 i = 0; i < Files.Num(); ++i)
+	{
+		FFrameEntry E;
+		E.Action       = TEXT("anim");
+		E.DirectionIdx = 0;
+		E.FrameIdx     = i;
+		E.FilePath     = BundleDir / Files[i];
+		Frames.Add(MoveTemp(E));
+	}
+	if (Frames.IsEmpty())
+	{
+		return MakeSpriteError(TEXT("추출된 프레임 없음"));
+	}
+
+	int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
+	TMap<TTuple<FString,int32,int32>, int32> IndexMap;
+	FString PackErr;
+	if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackErr))
+	{
+		return MakeSpriteError(PackErr);
+	}
+
+	UE_LOG(LogHktSpriteGenerator, Log,
+		TEXT("ExtractAtlasAndBundle: Char=%s Anim=%s Frames=%d Cell=%dx%d Bundle=%s Atlas=%s"),
+		*CharacterTagStr, *AnimTagStr, Frames.Num(), CellW, CellH, *BundleDir, *AtlasPng);
+
+	return MakeResult(true, {
+		{ TEXT("characterTag"), CharacterTagStr },
+		{ TEXT("animTag"),      AnimTagStr },
+		{ TEXT("bundleDir"),    BundleDir },
+		{ TEXT("atlasPath"),    AtlasPng },
+		{ TEXT("frameCount"),   FString::FromInt(Frames.Num()) },
+		{ TEXT("cellW"),        FString::FromInt(CellW) },
+		{ TEXT("cellH"),        FString::FromInt(CellH) },
+	});
+}
+
+// ============================================================================
+// Convention 경로 헬퍼 — Public API 노출용 wrapper.
+// ============================================================================
+
+FString UHktSpriteGeneratorFunctionLibrary::GetConventionBundleRoot(const FString& CharacterTagStr)
+{
+	return HktSpriteGen::ConventionBundleRoot(CharacterTagStr);
+}
+
+FString UHktSpriteGeneratorFunctionLibrary::GetConventionBundleDir(
+	const FString& CharacterTagStr, const FString& AnimTagStr)
+{
+	return HktSpriteGen::ConventionBundleDir(CharacterTagStr, AnimTagStr);
+}
+
+FString UHktSpriteGeneratorFunctionLibrary::GetConventionAtlasPng(
+	const FString& CharacterTagStr, const FString& AnimTagStr)
+{
+	return HktSpriteGen::ConventionAtlasPng(CharacterTagStr, AnimTagStr);
+}
+
 FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromVideo(
 	const FString& CharacterTag, const FString& VideoPath,
 	const FString& ActionId,
@@ -1319,7 +1452,25 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	// --- 입력 검증 ---
 	if (CharacterTagStr.IsEmpty()) return MakeSpriteError(TEXT("CharacterTagStr 필수"));
 	if (AnimTagStr.IsEmpty())      return MakeSpriteError(TEXT("AnimTagStr 필수"));
-	if (SourcePath.IsEmpty())      return MakeSpriteError(TEXT("SourcePath 필수"));
+
+	// SourcePath 가 비어있으면 VideoExtract 패널이 쓴 규약 경로로 자동 해석 —
+	// 사용자는 같은 CharacterTag 만 맞추면 SourcePath 입력 없이 빌드 가능.
+	FString ResolvedSource = SourcePath;
+	if (ResolvedSource.IsEmpty())
+	{
+		if (SourceType == EHktSpriteSourceType::TextureBundle)
+		{
+			ResolvedSource = ConventionBundleDir(CharacterTagStr, AnimTagStr);
+		}
+		else if (SourceType == EHktSpriteSourceType::Atlas)
+		{
+			ResolvedSource = ConventionAtlasPng(CharacterTagStr, AnimTagStr);
+		}
+		else
+		{
+			return MakeSpriteError(TEXT("Video 소스는 SourcePath 필수 (자동 해석 불가)"));
+		}
+	}
 
 	const FString ResolvedOutDir  = OutputDir.IsEmpty() ? kDefaultOutputDir : OutputDir;
 	const bool    bLoop           = InferLooping(AnimTagStr);
@@ -1353,22 +1504,22 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 			return MakeSpriteError(TEXT("Atlas 소스는 CellWidth/CellHeight 필수"));
 		}
 
-		if (SourcePath.StartsWith(TEXT("/Game/")) || SourcePath.StartsWith(TEXT("/Plugin/")))
+		if (ResolvedSource.StartsWith(TEXT("/Game/")) || ResolvedSource.StartsWith(TEXT("/Plugin/")))
 		{
-			AtlasTex = LoadObject<UTexture2D>(nullptr, *SourcePath);
+			AtlasTex = LoadObject<UTexture2D>(nullptr, *ResolvedSource);
 			if (!AtlasTex)
 			{
-				return MakeSpriteError(FString::Printf(TEXT("Atlas 에셋 로드 실패: %s"), *SourcePath));
+				return MakeSpriteError(FString::Printf(TEXT("Atlas 에셋 로드 실패: %s"), *ResolvedSource));
 			}
-			AtlasObjPath = SourcePath;
+			AtlasObjPath = ResolvedSource;
 		}
 		else
 		{
-			if (!FPaths::FileExists(SourcePath))
+			if (!FPaths::FileExists(ResolvedSource))
 			{
-				return MakeSpriteError(FString::Printf(TEXT("Atlas PNG 파일 없음: %s"), *SourcePath));
+				return MakeSpriteError(FString::Printf(TEXT("Atlas PNG 파일 없음: %s"), *ResolvedSource));
 			}
-			AtlasTex = ImportAtlasTexture(SourcePath, AtlasPkg, AtlasName);
+			AtlasTex = ImportAtlasTexture(ResolvedSource, AtlasPkg, AtlasName);
 			if (!AtlasTex) return MakeSpriteError(TEXT("Atlas PNG 임포트 실패"));
 			AtlasObjPath = FString::Printf(TEXT("%s.%s"), *AtlasPkg, *AtlasName);
 		}
@@ -1395,7 +1546,7 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 		int32 FrameCount = 0;
 		FString Err;
 		// FrameRate=0 → fps 필터 생략, 원본 프레임을 그대로 보존(화질 우선).
-		if (!ExtractVideoFramesImpl(SourcePath, WorkRoot, FinalCellW, FinalCellH, 0.f, 0, 0.f, 0.f, FrameCount, Err))
+		if (!ExtractVideoFramesImpl(ResolvedSource, WorkRoot, FinalCellW, FinalCellH, 0.f, 0, 0.f, 0.f, FrameCount, Err))
 		{
 			return MakeSpriteError(Err);
 		}
@@ -1444,14 +1595,14 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	else // TextureBundle
 	{
 		// --- TextureBundle: 이미지 폴더 스캔 → Atlas 패킹 ---
-		if (!IFileManager::Get().DirectoryExists(*SourcePath))
+		if (!IFileManager::Get().DirectoryExists(*ResolvedSource))
 		{
-			return MakeSpriteError(FString::Printf(TEXT("TextureBundle 폴더 없음: %s"), *SourcePath));
+			return MakeSpriteError(FString::Printf(TEXT("TextureBundle 폴더 없음: %s"), *ResolvedSource));
 		}
 
 		TArray<FFrameEntry> Frames;
 		FString ScanErr;
-		if (!ScanDirectory(SourcePath, Frames, ScanErr))
+		if (!ScanDirectory(ResolvedSource, Frames, ScanErr))
 		{
 			return MakeSpriteError(ScanErr);
 		}
