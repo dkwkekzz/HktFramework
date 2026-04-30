@@ -59,12 +59,12 @@ static TAutoConsoleVariable<int32> CVarTerrainDebugEntity(
 
 // ============================================================================
 // 고정 시뮬레이션 틱 — Public 접근자(HktSimulationTick.h)의 단일 출처.
-// 결정론을 위해 서버/클라가 동일 값을 사용해야 한다. 기본 60Hz.
+// 결정론을 위해 서버/클라가 동일 값을 사용해야 한다. 기본 30Hz.
 // ============================================================================
 
 static TAutoConsoleVariable<int32> CVarSimFramesPerSecond(
     TEXT("hkt.Sim.FramesPerSecond"),
-    60, // 기존 게임플레이 튜닝값(60fps 기준)을 보존하기 위한 기본값
+    30, // 서버 부하/네트워크 비용을 고려한 기본 시뮬레이션 틱 (30Hz)
     TEXT("Fixed simulation tick rate (frames per second). 모든 시간 종속 변형의 단일 출처. "
          "런타임 변경 가능하나 서버/클라 동일 값 유지 필수 — 결정론."),
     ECVF_Default);
@@ -72,7 +72,7 @@ static TAutoConsoleVariable<int32> CVarSimFramesPerSecond(
 int32 HktGetSimFramesPerSecond()
 {
     const int32 V = CVarSimFramesPerSecond.GetValueOnAnyThread();
-    return V > 0 ? V : 60;  // CVar가 0/음수면 기본값으로 폴백
+    return V > 0 ? V : 30;  // CVar가 0/음수면 기본값으로 폴백
 }
 
 float HktGetSimInvFramesPerSecond()
