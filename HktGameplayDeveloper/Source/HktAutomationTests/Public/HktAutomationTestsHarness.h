@@ -69,7 +69,7 @@ public:
 		EWaitEventType& OutWaitKind);
 
 	/**
-	 * Wait 해소 후 (Inject 또는 AdvanceTimer 호출 후) 또는 일반 진행 — Halt/Failed 까지 실행.
+	 * Wait 해소 후 (Inject 또는 AdvanceTimerFrames 호출 후) 또는 일반 진행 — Halt/Failed 까지 실행.
 	 * ExecuteProgram 과 동일 정책 (Yield 자동, Timer 자동, 비-Timer 도달 시 멈춤).
 	 */
 	EVMStatus ResumeUntilDone(int32 MaxTicks);
@@ -80,7 +80,8 @@ public:
 	void InjectMoveEndEvent();
 	/** Grounded 이벤트 주입 — WaitGrounded 해소 (Jump 류 Story 검증용). */
 	void InjectGroundedEvent();
-	void AdvanceTimer(float DeltaSeconds);
+	/** Timer Wait 진행 — 호출자가 명시한 프레임 수만큼 차감. 결정론적(정수). */
+	void AdvanceTimerFrames(int32 Frames);
 
 	// ========== 검증 헬퍼 ==========
 

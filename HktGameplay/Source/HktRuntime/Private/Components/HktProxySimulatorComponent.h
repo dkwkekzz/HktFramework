@@ -37,8 +37,8 @@ protected:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
-    /** 로컬 Batch 생성 (결정론적 시드) */
-    FHktSimulationEvent BuildLocalBatch(int64 Frame, float DeltaSeconds) const;
+    /** 로컬 Batch 생성 (결정론적 시드) — 시간 종속 변형은 시뮬레이터가 FrameNumber 로 처리한다. */
+    FHktSimulationEvent BuildLocalBatch(int64 Frame) const;
 
     /** 서버 Batch 큐 처리 — Diff 역적용으로 롤백(클라 빠름) / 빨리감기(클라 느림) */
     void ProcessPendingServerBatches();

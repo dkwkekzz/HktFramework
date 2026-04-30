@@ -4,6 +4,7 @@
 #include "HktCoreLog.h"
 #include "HktCoreProperties.h"
 #include "HktCollisionLayers.h"
+#include "HktSimulationLimits.h"
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
@@ -122,14 +123,14 @@ static void CollectVMDetailInsights(FHktVMRuntimePool& Pool, const FString& Sour
         FString VMKey = FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index));
         FString Detail = FString::Printf(
             TEXT("Status=%s | Event=%s | Src=%d | Tgt=%d | PC=%d | CodeSize=%d | CreationFrame=%d | PlayerUid=%lld")
-            TEXT(" | WaitType=%s | WaitEntity=%d | WaitTime=%.2f | WaitFrames=%d")
+            TEXT(" | WaitType=%s | WaitEntity=%d | WaitRemainFrames=%d | WaitFrames=%d")
             TEXT(" | R0=%d | R1=%d | R2=%d | R3=%d | R4=%d | R5=%d | R6=%d | R7=%d")
             TEXT(" | R8=%d | Self=%d | Target=%d | Spawned=%d | Hit=%d | Iter=%d | Flag=%d")
             TEXT(" | Op=%s"),
             *VMStatusToString(Runtime.Status), *EventTag, SrcEntity, TgtEntity,
             Runtime.PC, CodeSize, Runtime.CreationFrame, Runtime.PlayerUid,
             WaitEventTypeToString(Runtime.EventWait.Type), Runtime.EventWait.WatchedEntity,
-            Runtime.EventWait.RemainingTime, Runtime.WaitFrames,
+            Runtime.EventWait.RemainingFrames, Runtime.WaitFrames,
             Runtime.Registers[0], Runtime.Registers[1], Runtime.Registers[2], Runtime.Registers[3],
             Runtime.Registers[4], Runtime.Registers[5], Runtime.Registers[6], Runtime.Registers[7],
             Runtime.Registers[8], Runtime.Registers[Reg::Self], Runtime.Registers[Reg::Target],
@@ -311,7 +312,6 @@ void FHktVMProcessSystem::Process(
     TArray<FHktVMHandle>& ActiveVMs,
     TArray<FHktVMHandle>& OutCompletedVMs,
     FHktVMRuntimePool& Pool,
-    float DeltaSeconds,
     TArray<FHktPendingEvent>& PendingExternalEvents)
 {
     ScratchEvents.Reset();
@@ -323,8 +323,8 @@ void FHktVMProcessSystem::Process(
         {
             if (Runtime.EventWait.Type == EWaitEventType::Timer)
             {
-                Runtime.EventWait.RemainingTime -= DeltaSeconds;
-                if (Runtime.EventWait.RemainingTime <= 0.0f)
+                // 30Hz 고정 프레임 카운트 — DeltaSeconds 비종속.
+                if (--Runtime.EventWait.RemainingFrames <= 0)
                 {
                     Runtime.EventWait.Reset();
                     Runtime.Status = EVMStatus::Ready;
@@ -590,11 +590,13 @@ void FHktTerrainSystem::Process(
 
 void FHktGravitySystem::Process(
     FHktWorldState& WorldState,
-    FHktVMWorldStateProxy& VMProxy,
-    float DeltaSeconds)
+    FHktVMWorldStateProxy& VMProxy)
 {
+    // CVar 단위는 cm/s² (튜닝 직관성). 30Hz 고정 프레임당 변화량으로 환산.
     const float Gravity = CVarJumpGravity.GetValueOnAnyThread();
     const float MaxFall = CVarJumpMaxFallSpeed.GetValueOnAnyThread();
+    constexpr float InvFramesPerSecond = 1.0f / static_cast<float>(HktLimits::FramesPerSecond);
+    const float GravityPerFrame = Gravity * InvFramesPerSecond;
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
@@ -603,7 +605,7 @@ void FHktGravitySystem::Process(
             return;
 
         float VZ = static_cast<float>(WorldState.GetProperty(Id, PropertyId::VelZ));
-        VZ -= Gravity * DeltaSeconds;
+        VZ -= GravityPerFrame;
         if (VZ < -MaxFall)
             VZ = -MaxFall;
 
@@ -631,8 +633,7 @@ void FHktMovementSystem::Process(
     FHktWorldState& WorldState,
     FHktVMWorldStateProxy& VMProxy,
     TArray<FHktPendingEvent>& OutMoveEndEvents,
-    TArray<FIntVector>& OutPreMovePositions,
-    float DeltaSeconds)
+    TArray<FIntVector>& OutPreMovePositions)
 {
     OutMoveEndEvents.Reset();
     // PreMovePositions 는 slot 인덱스로 접근한다. 슬롯이 빈 자리는 사용되지 않으므로 uninitialized 로 둔다.
@@ -640,6 +641,7 @@ void FHktMovementSystem::Process(
 
     static constexpr float ArrivalThresholdSq = 16.0f;  // 4cm (도착 판정)
     static constexpr float DefaultMaxSpeed = 600.0f;     // PropertyId::MaxSpeed <= 0 일 때 fallback
+    constexpr float InvFramesPerSecond = 1.0f / static_cast<float>(HktLimits::FramesPerSecond);
 
     // 콘솔 변수 조회 (루프 진입 전 1회만 캐싱)
     const float AccelMultiplier = CVarMoveAccelMultiplier.GetValueOnAnyThread();
@@ -738,14 +740,14 @@ void FHktMovementSystem::Process(
             const float Force = static_cast<float>(MoveForce);
             const float Mass = static_cast<float>(FMath::Max(WorldState.GetProperty(Id, PropertyId::Mass), 1));
             const float Accel = (Force / Mass) * AccelMultiplier;
-            const float MaxSpeedChange = Accel * DeltaSeconds;
+            const float MaxSpeedChange = Accel * InvFramesPerSecond;
 
             if (HSpeed < DesiredSpeed)
                 HSpeed = FMath::Min(HSpeed + MaxSpeedChange, DesiredSpeed);
             else if (HSpeed > DesiredSpeed)
                 HSpeed = FMath::Max(HSpeed - MaxSpeedChange, DesiredSpeed);
 
-            const float MoveStep = HSpeed * DeltaSeconds;
+            const float MoveStep = HSpeed * InvFramesPerSecond;
 
             // XY 오버슈트 방지 — 수평 거리로만 판정 (Z 낙하/점프와 독립)
             if (HDist > SMALL_NUMBER && MoveStep >= HDist)
@@ -774,14 +776,14 @@ void FHktMovementSystem::Process(
                 const float DirY = DY * InvHDist;
                 VX = DirX * HSpeed;
                 VY = DirY * HSpeed;
-                NewX = CurX + VX * DeltaSeconds;
-                NewY = CurY + VY * DeltaSeconds;
+                NewX = CurX + VX * InvFramesPerSecond;
+                NewY = CurY + VY * InvFramesPerSecond;
             }
             // else: HDist 거의 0 — XY 는 그대로 두고 Z 만 적분
         }
 
         // 4) Z 적분 — VelZ 는 Gravity 가 세팅해 놓은 값. 접지 엔티티는 VelZ==0 이므로 변화 없음.
-        const float NewZ = CurZ + VZ * DeltaSeconds;
+        const float NewZ = CurZ + VZ * InvFramesPerSecond;
 
         // 5) 기대 위치 쓰기 (Physics Phase 1 이 지형 제약 적용)
         VMProxy.SetPosition(WorldState, Id,
@@ -810,8 +812,7 @@ void FHktPhysicsSystem::Process(
     TArray<FHktPhysicsEvent>& OutPhysicsEvents,
     TArray<FHktPendingEvent>& OutGroundedEvents,
     const TArray<FIntVector>& PreMovePositions,
-    const FHktTerrainState* TerrainState,
-    float DeltaSeconds)
+    const FHktTerrainState* TerrainState)
 {
     OutPhysicsEvents.Reset();
     OutGroundedEvents.Reset();

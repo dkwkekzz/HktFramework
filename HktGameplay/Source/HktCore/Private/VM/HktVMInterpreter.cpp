@@ -8,6 +8,7 @@
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
+#include "HktSimulationLimits.h"
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
                                    FHktTerrainState* InTerrainState, TArray<FHktVoxelDelta>* InPendingVoxelDeltas)
@@ -153,8 +154,11 @@ EVMStatus FHktVMInterpreter::Op_Yield(FHktVMRuntime& Runtime, int32 Frames)
 
 EVMStatus FHktVMInterpreter::Op_YieldSeconds(FHktVMRuntime& Runtime, int32 DeciMillis)
 {
+    // DeciMillis(=ms*10) → 30Hz 프레임 정수 변환 (반올림). float 사용 금지 — 결정론.
+    // ex) 1초(=10000) * 30 = 300000, /10000 = 30 frames
     Runtime.EventWait.Type = EWaitEventType::Timer;
-    Runtime.EventWait.RemainingTime = DeciMillis / 100.0f;
+    Runtime.EventWait.RemainingFrames =
+        FMath::Max(1, (DeciMillis * HktLimits::FramesPerSecond + 5000) / 10000);
     return EVMStatus::WaitingEvent;
 }
 
@@ -206,14 +210,14 @@ EVMStatus FHktVMInterpreter::Op_WaitGrounded(FHktVMRuntime& Runtime, RegisterInd
 
 EVMStatus FHktVMInterpreter::Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
 {
-    // 결정론적 고정 시간 대기 — 서버/클라 동일한 Timer 사용
+    // 결정론적 고정 프레임 대기 — 서버/클라 동일한 Timer 사용 (1초 = FramesPerSecond)
     // 실제 몽타주 길이와 정확히 일치하지 않아도 됨 (태그 제거만 하면 됨)
-    static constexpr float DefaultAnimWaitSeconds = 1.0f;
+    static constexpr int32 DefaultAnimWaitFrames = HktLimits::FramesPerSecond;
     Runtime.EventWait.Type = EWaitEventType::Timer;
-    Runtime.EventWait.RemainingTime = DefaultAnimWaitSeconds;
+    Runtime.EventWait.RemainingFrames = DefaultAnimWaitFrames;
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_WaitAnimEnd WatchEntity=%d (Timer=%.1fs)"),
-        Runtime.GetRegEntity(WatchEntity), DefaultAnimWaitSeconds),
+        FString::Printf(TEXT("Op_WaitAnimEnd WatchEntity=%d (Timer=%dframes)"),
+        Runtime.GetRegEntity(WatchEntity), DefaultAnimWaitFrames),
         Runtime.GetRegEntity(WatchEntity));
     return EVMStatus::WaitingEvent;
 }

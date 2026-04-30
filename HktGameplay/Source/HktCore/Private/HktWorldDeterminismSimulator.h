@@ -22,8 +22,8 @@ struct FHktPendingEvent;
 class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
 {
 public:
-    // 고정 시뮬레이션 틱 (30Hz). 과거 FHktMovementSystem::FixedDeltaSeconds 에서 승격.
-    static constexpr float FixedDeltaSeconds = 1.0f / 30.0f;
+    // 고정 시뮬레이션 틱은 HktLimits::FramesPerSecond 로 단일화됨 (30Hz).
+    // 시뮬레이션 시스템은 DeltaSeconds 를 입력으로 받지 않는다 — 결정론.
 
     FHktWorldDeterminismSimulator(EHktLogSource InLogSource);
     ~FHktWorldDeterminismSimulator();

@@ -124,11 +124,11 @@ void UHktProxySimulatorComponent::AccumulateDiff(FHktSimulationDiff& InDiff)
     bHasPendingDiff = true;
 }
 
-void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
+void UHktProxySimulatorComponent::AdvanceLocalFrame(float /*DeltaSeconds*/)
 {
     LocalFrame++;
 
-    FHktSimulationEvent LocalBatch = BuildLocalBatch(LocalFrame, DeltaSeconds);
+    FHktSimulationEvent LocalBatch = BuildLocalBatch(LocalFrame);
     FHktSimulationDiff Diff = Simulator->AdvanceFrame(LocalBatch);
 
     // 실제 변경이 있는 Diff만 히스토리에 기록 (역적용 롤백용)
@@ -152,12 +152,10 @@ void UHktProxySimulatorComponent::AdvanceLocalFrame(float DeltaSeconds)
     // 연결 상태 판정은 heartbeat/서버 신호 시각 기반으로 TickComponent에서 처리한다.
 }
 
-FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(
-    int64 Frame, float DeltaSeconds) const
+FHktSimulationEvent UHktProxySimulatorComponent::BuildLocalBatch(int64 Frame) const
 {
     FHktSimulationEvent Batch;
     Batch.FrameNumber = Frame;
-    Batch.DeltaSeconds = DeltaSeconds;
     Batch.RandomSeed = HktRuntimeCommon::HashCombineHelper(Frame, CachedGroupIndex);
     return Batch;
 }
@@ -222,7 +220,7 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
         int64 CurrentFrame = Simulator->GetWorldState().FrameNumber;
         for (int64 F = CurrentFrame + 1; F < ServerFrame; ++F)
         {
-            FHktSimulationEvent GapBatch = BuildLocalBatch(F, FixedDeltaTime);
+            FHktSimulationEvent GapBatch = BuildLocalBatch(F);
             FHktSimulationDiff GapDiff = Simulator->AdvanceFrame(GapBatch);
             AccumulateDiff(GapDiff);
         }
