@@ -51,7 +51,7 @@ struct FEventWaitState
 {
     EWaitEventType Type = EWaitEventType::None;
     FHktEntityId WatchedEntity = InvalidEntityId;
-    int32 RemainingFrames = 0;  // Timer용 — 30Hz 고정 프레임 단위
+    int32 RemainingFrames = 0;  // Timer용 — hkt.Sim.FramesPerSecond 단위 정수 프레임
 
     void Reset()
     {

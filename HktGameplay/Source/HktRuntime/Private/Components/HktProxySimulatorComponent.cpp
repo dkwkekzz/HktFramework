@@ -3,6 +3,7 @@
 #include "HktCoreEventLog.h"
 #include "HktRuntimeCommon.h"
 #include "HktCoreDataCollector.h"
+#include "HktSimulationTick.h"
 #include "HktTerrainSubsystem.h"
 #include "HktTerrainProvider.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
@@ -62,7 +63,8 @@ void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
     if (!bInitialized) return;
 
-    // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행
+    // 서버 Batch 없을 때만 고정 타임스텝 로컬 예측 실행 — FPS 는 hkt.Sim.FramesPerSecond CVar
+    const float FixedDeltaTime = HktGetSimFixedDeltaSeconds();
     FrameAccumulator += DeltaTime;
     while (FrameAccumulator >= FixedDeltaTime)
     {

@@ -5,6 +5,7 @@
 #include "HktCoreProperties.h"
 #include "HktCollisionLayers.h"
 #include "HktSimulationLimits.h"
+#include "HktSimulationTick.h"
 #include "VM/HktVMProgram.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
@@ -55,6 +56,34 @@ static TAutoConsoleVariable<int32> CVarTerrainDebugEntity(
     -1,
     TEXT("지형 충돌 디버그 대상 엔티티 ID. -1=끄기, 0+=해당 엔티티의 충돌 상세 로그 수집"),
     ECVF_Default);
+
+// ============================================================================
+// 고정 시뮬레이션 틱 — Public 접근자(HktSimulationTick.h)의 단일 출처.
+// 결정론을 위해 서버/클라가 동일 값을 사용해야 한다. 기본 60Hz.
+// ============================================================================
+
+static TAutoConsoleVariable<int32> CVarSimFramesPerSecond(
+    TEXT("hkt.Sim.FramesPerSecond"),
+    60, // 기존 게임플레이 튜닝값(60fps 기준)을 보존하기 위한 기본값
+    TEXT("Fixed simulation tick rate (frames per second). 모든 시간 종속 변형의 단일 출처. "
+         "런타임 변경 가능하나 서버/클라 동일 값 유지 필수 — 결정론."),
+    ECVF_Default);
+
+int32 HktGetSimFramesPerSecond()
+{
+    const int32 V = CVarSimFramesPerSecond.GetValueOnAnyThread();
+    return V > 0 ? V : 60;  // CVar가 0/음수면 기본값으로 폴백
+}
+
+float HktGetSimInvFramesPerSecond()
+{
+    return 1.0f / static_cast<float>(HktGetSimFramesPerSecond());
+}
+
+float HktGetSimFixedDeltaSeconds()
+{
+    return HktGetSimInvFramesPerSecond();
+}
 
 
 #if ENABLE_HKT_INSIGHTS
@@ -323,7 +352,7 @@ void FHktVMProcessSystem::Process(
         {
             if (Runtime.EventWait.Type == EWaitEventType::Timer)
             {
-                // 30Hz 고정 프레임 카운트 — DeltaSeconds 비종속.
+                // hkt.Sim.FramesPerSecond 단위 정수 카운트 — DeltaSeconds 비종속.
                 if (--Runtime.EventWait.RemainingFrames <= 0)
                 {
                     Runtime.EventWait.Reset();
@@ -592,10 +621,10 @@ void FHktGravitySystem::Process(
     FHktWorldState& WorldState,
     FHktVMWorldStateProxy& VMProxy)
 {
-    // CVar 단위는 cm/s² (튜닝 직관성). 30Hz 고정 프레임당 변화량으로 환산.
+    // CVar 단위는 cm/s² (튜닝 직관성). 고정 시뮬레이션 틱(hkt.Sim.FramesPerSecond)당 변화량으로 환산.
     const float Gravity = CVarJumpGravity.GetValueOnAnyThread();
     const float MaxFall = CVarJumpMaxFallSpeed.GetValueOnAnyThread();
-    constexpr float InvFramesPerSecond = 1.0f / static_cast<float>(HktLimits::FramesPerSecond);
+    const float InvFramesPerSecond = HktGetSimInvFramesPerSecond();
     const float GravityPerFrame = Gravity * InvFramesPerSecond;
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
@@ -641,9 +670,9 @@ void FHktMovementSystem::Process(
 
     static constexpr float ArrivalThresholdSq = 16.0f;  // 4cm (도착 판정)
     static constexpr float DefaultMaxSpeed = 600.0f;     // PropertyId::MaxSpeed <= 0 일 때 fallback
-    constexpr float InvFramesPerSecond = 1.0f / static_cast<float>(HktLimits::FramesPerSecond);
 
-    // 콘솔 변수 조회 (루프 진입 전 1회만 캐싱)
+    // 콘솔 변수 조회 (루프 진입 전 1회만 캐싱) — FPS 포함
+    const float InvFramesPerSecond = HktGetSimInvFramesPerSecond();
     const float AccelMultiplier = CVarMoveAccelMultiplier.GetValueOnAnyThread();
     const float SlowingRadius = CVarMoveSlowingRadius.GetValueOnAnyThread();
     const float MinSpeed = CVarMoveMinSpeed.GetValueOnAnyThread();

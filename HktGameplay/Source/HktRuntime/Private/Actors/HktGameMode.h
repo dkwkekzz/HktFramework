@@ -62,9 +62,8 @@ private:
     /** 고정 시뮬레이션 틱 (결정론적 시뮬레이션) */
     void SimulationTick();
 
-    /** 고정 타임스텝 어큐뮬레이터 (서버도 30Hz 고정 간격 시뮬레이션) */
+    /** 고정 타임스텝 어큐뮬레이터 — 서버도 hkt.Sim.FramesPerSecond CVar 로 단일화. */
     float FrameAccumulator = 0.0f;
-    static constexpr float FixedDeltaTime = 1.0f / 30.0f;
     TArray<float> GroupHeartbeatAccumulators;
     static constexpr float HeartbeatInterval = 1.0f; // 5Hz
 

@@ -8,7 +8,7 @@
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
-#include "HktSimulationLimits.h"
+#include "HktSimulationTick.h"
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
                                    FHktTerrainState* InTerrainState, TArray<FHktVoxelDelta>* InPendingVoxelDeltas)
@@ -154,11 +154,12 @@ EVMStatus FHktVMInterpreter::Op_Yield(FHktVMRuntime& Runtime, int32 Frames)
 
 EVMStatus FHktVMInterpreter::Op_YieldSeconds(FHktVMRuntime& Runtime, int32 DeciMillis)
 {
-    // DeciMillis(=ms*10) → 30Hz 프레임 정수 변환 (반올림). float 사용 금지 — 결정론.
-    // ex) 1초(=10000) * 30 = 300000, /10000 = 30 frames
+    // DeciMillis(=ms*10) → hkt.Sim.FramesPerSecond 프레임 정수 변환 (반올림).
+    // float 사용 금지 — 결정론. ex) 1초(=10000) * 60 = 600000, /10000 = 60 frames @ 60Hz
+    const int32 FPS = HktGetSimFramesPerSecond();
     Runtime.EventWait.Type = EWaitEventType::Timer;
     Runtime.EventWait.RemainingFrames =
-        FMath::Max(1, (DeciMillis * HktLimits::FramesPerSecond + 5000) / 10000);
+        FMath::Max(1, (DeciMillis * FPS + 5000) / 10000);
     return EVMStatus::WaitingEvent;
 }
 
@@ -210,9 +211,9 @@ EVMStatus FHktVMInterpreter::Op_WaitGrounded(FHktVMRuntime& Runtime, RegisterInd
 
 EVMStatus FHktVMInterpreter::Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity)
 {
-    // 결정론적 고정 프레임 대기 — 서버/클라 동일한 Timer 사용 (1초 = FramesPerSecond)
+    // 결정론적 고정 프레임 대기 — 서버/클라 동일한 Timer 사용 (1초 = hkt.Sim.FramesPerSecond).
     // 실제 몽타주 길이와 정확히 일치하지 않아도 됨 (태그 제거만 하면 됨)
-    static constexpr int32 DefaultAnimWaitFrames = HktLimits::FramesPerSecond;
+    const int32 DefaultAnimWaitFrames = HktGetSimFramesPerSecond();
     Runtime.EventWait.Type = EWaitEventType::Timer;
     Runtime.EventWait.RemainingFrames = DefaultAnimWaitFrames;
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,

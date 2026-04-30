@@ -79,8 +79,6 @@ private:
     double LastServerSignalTimeSec = 0.0;
     bool bTimeoutNotified = false;
 
-    static constexpr float FixedDeltaTime = 1.0f / 30.0f;
-
     // --- 그룹 인덱스 (결정론적 시드 생성용) ---
     int32 CachedGroupIndex = 0;
 

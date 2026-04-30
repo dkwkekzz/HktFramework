@@ -22,7 +22,7 @@ struct FHktPendingEvent;
 class HKTCORE_API FHktWorldDeterminismSimulator : public IHktDeterminismSimulator
 {
 public:
-    // 고정 시뮬레이션 틱은 HktLimits::FramesPerSecond 로 단일화됨 (30Hz).
+    // 고정 시뮬레이션 틱은 hkt.Sim.FramesPerSecond CVar (HktSimulationTick.h) 로 단일화됨.
     // 시뮬레이션 시스템은 DeltaSeconds 를 입력으로 받지 않는다 — 결정론.
 
     FHktWorldDeterminismSimulator(EHktLogSource InLogSource);

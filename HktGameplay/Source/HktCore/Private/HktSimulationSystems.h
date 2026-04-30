@@ -49,7 +49,7 @@ struct HKTCORE_API FHktVMBuildSystem
 
 /** 3. VM Process System: 바이트코드 실행
  *
- * 시간 기반 Wait(Timer 등)는 30Hz 고정 프레임 카운트로 표현된다.
+ * 시간 기반 Wait(Timer 등)는 hkt.Sim.FramesPerSecond CVar 단위 정수 프레임 카운트로 표현된다.
  * DeltaSeconds 입력은 받지 않는다 — 결정론.
  */
 struct HKTCORE_API FHktVMProcessSystem
@@ -102,7 +102,7 @@ struct HKTCORE_API FHktGravitySystem
 {
     EHktLogSource LogSource = EHktLogSource::Server;
 
-    /** 30Hz 고정 프레임. DeltaSeconds 입력은 받지 않는다 — 결정론. */
+    /** 고정 프레임 시뮬레이션 (hkt.Sim.FramesPerSecond). DeltaSeconds 입력은 받지 않는다 — 결정론. */
     void Process(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy
@@ -121,8 +121,8 @@ struct HKTCORE_API FHktGravitySystem
  *   - step-height / 천장 검사
  *   - 지면 스냅 / IsGrounded 갱신
  *
- * 30Hz 고정 프레임. DeltaSeconds 입력은 받지 않는다 — 결정론.
- * 모든 시간 종속 적분은 HktLimits::FramesPerSecond 로부터 파생된다.
+ * 고정 프레임 시뮬레이션. DeltaSeconds 입력은 받지 않는다 — 결정론.
+ * 모든 시간 종속 적분은 hkt.Sim.FramesPerSecond CVar (HktSimulationTick.h) 로부터 파생된다.
  */
 struct HKTCORE_API FHktMovementSystem
 {
@@ -167,7 +167,7 @@ struct HKTCORE_API FHktPhysicsSystem
     /** 엔터티 쌍 중복 검사 방지용 (프레임 간 재사용) */
     TSet<uint64> TestedPairs;
 
-    /** 30Hz 고정 프레임. DeltaSeconds 입력은 받지 않는다 — 결정론. */
+    /** 고정 프레임 시뮬레이션 (hkt.Sim.FramesPerSecond). DeltaSeconds 입력은 받지 않는다 — 결정론. */
     void Process(
         FHktWorldState& WorldState,
         FHktVMWorldStateProxy& VMProxy,
