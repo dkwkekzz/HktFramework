@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Camera/CameraTypes.h"
+#include "GameplayTagContainer.h"
 #include "HktAnimCaptureTypes.generated.h"
 
 class USkeletalMesh;
@@ -60,13 +61,27 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 
 	// === 식별 ===
 
-	/** 스프라이트 캐릭터 식별 태그. 비어있으면 자동 빌드(Atlas 생성)는 비활성. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
-	FString CharacterTag = TEXT("Sprite.Character.Knight");
+	/**
+	 * 스프라이트 캐릭터 식별 태그 — UE GameplayTag 피커로 입력. 비어있으면
+	 * 자동 빌드(Atlas 생성)는 비활성. 다운스트림 API 가 FString 을 요구하면
+	 * `CharacterTag.ToString()` 으로 변환해 사용한다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity", meta = (Categories = "Sprite"))
+	FGameplayTag CharacterTag;
 
-	/** 액션 식별자(파일 prefix). 예: "idle","walk","attack". */
+	/**
+	 * 애니메이션 식별 태그 — 등록 시 그대로 보존된다(파일명 derive 거치지 않음).
+	 * 비워두면 ActionId 로부터 추론(레거시 동작).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity", meta = (Categories = "Anim"))
+	FGameplayTag AnimTag;
+
+	/**
+	 * 액션 식별자(파일 prefix). 예: "idle","walk","attack". 비어있으면 AnimTag 의
+	 * 마지막 세그먼트(소문자)로 자동 결정되며, AnimTag 도 비어있으면 "idle".
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
-	FString ActionId = TEXT("idle");
+	FString ActionId;
 
 	// === 카메라 ===
 

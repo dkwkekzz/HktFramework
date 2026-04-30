@@ -51,6 +51,21 @@ namespace HktAnimCaptureLibPrivate
 	}
 
 	/**
+	 * AnimTag 의 leaf 세그먼트(소문자) 를 file prefix 로 사용 — 사용자가 ActionId 를 비워도
+	 * 캡처가 동작하도록. 예: Anim.FullBody.Locomotion.Idle → "idle".
+	 * AnimTag 도 비어 있으면 "idle" 폴백.
+	 */
+	static FString DeriveActionIdFromAnimTag(const FGameplayTag& AnimTag)
+	{
+		if (!AnimTag.IsValid()) return TEXT("idle");
+		const FString TagStr = AnimTag.ToString();
+		int32 LastDot = INDEX_NONE;
+		TagStr.FindLastChar(TEXT('.'), LastDot);
+		const FString Leaf = (LastDot == INDEX_NONE) ? TagStr : TagStr.Mid(LastDot + 1);
+		return Leaf.IsEmpty() ? TEXT("idle") : Leaf.ToLower();
+	}
+
+	/**
 	 * 캡처 시작 전 출력 폴더를 비운다 — 이전 캡처의 잔존 프레임이 새로
 	 * 패킹될 아틀라스에 섞이는 것을 방지.
 	 */
@@ -86,10 +101,18 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 		return MakeJsonError(TEXT("SkeletalMesh 미지정"));
 	}
 
+	// ActionId 가 비어있으면 AnimTag 의 leaf 로부터 자동 결정 — 사용자가 태그만
+	// 지정하고 file prefix 는 신경 안 써도 동작하게.
+	const FString CharacterTagStr = Settings.CharacterTag.ToString();
+	if (Settings.ActionId.IsEmpty())
+	{
+		Settings.ActionId = DeriveActionIdFromAnimTag(Settings.AnimTag);
+	}
+
 	// 출력 폴더 결정.
 	if (Settings.DiskOutputDir.IsEmpty())
 	{
-		Settings.DiskOutputDir = DefaultDiskOutputDir(Settings.CharacterTag, Settings.ActionId);
+		Settings.DiskOutputDir = DefaultDiskOutputDir(CharacterTagStr, Settings.ActionId);
 	}
 	Settings.DiskOutputDir = FPaths::ConvertRelativePathToFull(Settings.DiskOutputDir);
 	ClearDirectoryContents(Settings.DiskOutputDir);
@@ -187,16 +210,20 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 
 	// === Atlas 자동 빌드 ===
 	FString AtlasResult;
-	if (Settings.bAutoBuildAtlas && !Settings.CharacterTag.IsEmpty())
+	if (Settings.bAutoBuildAtlas && !CharacterTagStr.IsEmpty())
 	{
+		// AnimTag 가 지정되면 그대로 사용해 등록 — 파일명 round-trip 으로 발생하던
+		// "Anim.FullBody.Anim_..." 같은 망가진 태그를 방지.
+		const FString AnimTagOverride = Settings.AnimTag.IsValid() ? Settings.AnimTag.ToString() : FString();
 		AtlasResult = UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromDirectory(
-			Settings.CharacterTag,
+			CharacterTagStr,
 			Settings.DiskOutputDir,
 			Settings.AssetOutputDir,
 			Settings.PixelToWorld,
 			Settings.FrameDurationMs,
 			Settings.bLooping,
-			Settings.bMirrorWestFromEast);
+			Settings.bMirrorWestFromEast,
+			AnimTagOverride);
 	}
 
 	// === 결과 JSON ===
@@ -206,7 +233,8 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 		W->WriteObjectStart();
 		W->WriteValue(TEXT("success"),       true);
 		W->WriteValue(TEXT("diskOutputDir"), Settings.DiskOutputDir);
-		W->WriteValue(TEXT("characterTag"),  Settings.CharacterTag);
+		W->WriteValue(TEXT("characterTag"),  CharacterTagStr);
+		W->WriteValue(TEXT("animTag"),       Settings.AnimTag.IsValid() ? Settings.AnimTag.ToString() : FString());
 		W->WriteValue(TEXT("actionId"),      Settings.ActionId);
 		W->WriteValue(TEXT("directions"),    Settings.NumDirections);
 		W->WriteValue(TEXT("framesPerDir"),  FrameCount);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "HktAnimCaptureTypes.h"
 #include "UObject/Object.h"
 #include "HktAnimCapturePanelConfig.generated.h"
@@ -26,4 +27,28 @@ class UHktAnimCapturePanelConfig : public UObject
 public:
 	UPROPERTY(Config)
 	FHktAnimCaptureSettings LastSettings;
+};
+
+/**
+ * UHktAnimCaptureTagHolder
+ *
+ * 패널 인스턴스가 일시적으로 보유하는 UObject — 단일 FGameplayTag 두 개(캐릭터/애니)
+ * 를 UPROPERTY 로 노출해 PropertyEditor 의 SinglePropertyView 가 UE 표준 태그
+ * 피커(드롭다운/검색/새 태그 추가 등)를 그대로 그려주도록 한다.
+ *
+ * 라이프타임은 SHktAnimCapturePanel 가 TStrongObjectPtr 로 잡고 있으며, 패널이
+ * 파괴될 때 함께 GC 된다. Config 직렬화는 하지 않고 — 진짜 저장은 UHktAnimCapturePanelConfig
+ * 의 LastSettings 가 담당한다(태그도 LastSettings 안에 들어 있다).
+ */
+UCLASS()
+class UHktAnimCaptureTagHolder : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Identity", meta = (Categories = "Sprite"))
+	FGameplayTag CharacterTag;
+
+	UPROPERTY(EditAnywhere, Category = "Identity", meta = (Categories = "Anim"))
+	FGameplayTag AnimTag;
 };
