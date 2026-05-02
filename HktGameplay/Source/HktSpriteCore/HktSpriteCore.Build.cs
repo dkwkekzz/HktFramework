@@ -22,6 +22,9 @@ public class HktSpriteCore : ModuleRules
 		// HISM 기반 Crowd 렌더러 + Presentation Processor.
 		// HktCore / HktRuntime / HktPresentation / HktAsset에 의존.
 		// HktRuntime은 Anim.* GameplayTag 공유 선언(HktRuntimeTags.h) 때문에 필요.
+		// Paper2D 는 UHktPaperCharacterTemplate / UHktPaperActorVisualDataAsset 가
+		// UPaperFlipbook 을 하드 참조하기 때문에 (Public 헤더에서 forward declare
+		// 한 뒤 cpp 에서 include 하지만, UPROPERTY 직렬화 경로상 모듈 의존이 필수).
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -33,6 +36,7 @@ public class HktSpriteCore : ModuleRules
 				"HktRuntime",
 				"HktPresentation",
 				"HktAsset",
+				"Paper2D",
 			}
 		);
 
