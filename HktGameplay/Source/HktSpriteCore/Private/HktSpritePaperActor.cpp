@@ -60,8 +60,10 @@ void AHktSpritePaperActor::OnVisualAssetLoaded(UHktTagDataAsset* InAsset)
 
 void AHktSpritePaperActor::ApplyTransform(const FHktTransformView& V)
 {
-	const FVector Render = V.RenderLocation.Get();
-	CachedRenderLocation = Render.IsZero() ? V.Location.Get() : Render;
+	// 액터는 ActorProcessor::SpawnActorFromResolvedAsset 시점에 RenderLocation 으로
+	// spawn 됨 — 이후 ApplyTransform 시점에는 항상 valid. HktSpriteCrowdHost 가 갖는
+	// IsZero 폴백은 sprite-host path 전용(액터 lifecycle 우회) 이라 여기선 불필요.
+	CachedRenderLocation = V.RenderLocation.Get();
 	if (!bHasInitialTransform)
 	{
 		InterpLocation = CachedRenderLocation;
@@ -125,17 +127,12 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 
 	LocalNowSec += static_cast<double>(DeltaTime);
 
-	// --- 위치 보간 (HktUnitActor 와 동일 패턴) ---
+	// --- 위치 보간 + 빌보드 (RootScene yaw = 카메라 yaw) — 한 번에 적용 ---
 	constexpr float InterpSpeed = 15.f;
 	InterpLocation = FMath::VInterpTo(InterpLocation, CachedRenderLocation, DeltaTime, InterpSpeed);
-	SetActorLocation(InterpLocation, false, nullptr, ETeleportType::TeleportPhysics);
-
-	// --- 빌보드: RootScene yaw = 카메라 yaw ---
 	const float CameraYaw = QueryCameraYaw();
-	if (RootScene)
-	{
-		RootScene->SetWorldRotation(FRotator(0.f, CameraYaw, 0.f));
-	}
+	SetActorLocationAndRotation(InterpLocation, FRotator(0.f, CameraYaw, 0.f),
+		false, nullptr, ETeleportType::TeleportPhysics);
 
 	if (!Template || !FlipbookComp) return;
 
