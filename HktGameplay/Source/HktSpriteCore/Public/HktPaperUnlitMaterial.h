@@ -7,23 +7,16 @@
 class UMaterialInterface;
 
 // ============================================================================
-// HktPaperUnlitMaterial — Paper2D 경로 디폴트 Unlit 머티리얼 런타임 로더.
+// HktPaperUnlitMaterial — Paper2D 경로 디폴트 머티리얼 런타임 로더.
 //
-// `AHktSpritePaperActor` (PR-2) 가 `UPaperFlipbookComponent::SetMaterial` 또는
-// `UPaperSprite::Material` 로 사용한다.
+// `AHktSpritePaperActor` (PR-2) 가 `UPaperFlipbookComponent::SetMaterial` 로 사용한다.
 //
-// 실물 `UMaterial` 에셋: /HktGameplay/Materials/M_HktPaperUnlit
-//   → 디스크: HktGameplay/Content/Materials/M_HktPaperUnlit.uasset
-//   → 빌더: HktPaper2DGenerator(Editor) — `HktPaperSprite.BuildUnlitMaterial`.
-//   → 모듈 startup 시 자동 체크·생성. 없으면 엔진 기본 머티리얼로 폴백.
+// 엔진 기본 Paper2D 머티리얼(`/Paper2D/MaskedUnlitSpriteMaterial`) 을 그대로
+// 사용한다 — Unlit / Masked / TwoSided / bUsedWithSprite + ParticleColor × Texture
+// 가 정확히 본 경로 요구사항과 일치하므로 커스텀 빌드 불필요.
 //
-// 머티리얼 특성:
-//   - Shading Model = Unlit, Blend Mode = Masked, OpacityMaskClipValue = 0.5
-//   - Two Sided = true
-//   - bUsedWithSprite = true (Paper2D 호환 필수 플래그)
-//   - BaseColor   = ParticleColor.RGB * SpriteTexture.RGB  (`Texture` 파라미터)
-//   - OpacityMask = SpriteTexture.A   * ParticleColor.A
-//   → Tint 는 `UPaperFlipbookComponent::SetSpriteColor` 가 ParticleColor 로 자동 바인딩.
+// 미래에 PaletteIndex 등 커스텀 파라미터가 필요해지면 본 헤더의 경로 상수만
+// 교체하고 별도 빌더 모듈을 추가한다 (PR-3).
 // ============================================================================
 
 namespace HktPaperUnlitMaterial
@@ -31,15 +24,9 @@ namespace HktPaperUnlitMaterial
 	/** Paper2D 텍스처 파라미터 이름 — UE 표준 sprite 머티리얼과 동일. */
 	HKTSPRITECORE_API extern const FName TextureParamName;
 
-	/** 기본 머티리얼 에셋 패키지 경로 (롱 패키지 네임). */
-	HKTSPRITECORE_API extern const TCHAR* PackagePath;
-
-	/** 기본 머티리얼 에셋 오브젝트 경로 (LoadObject 인자). */
+	/** 디폴트 Paper2D 머티리얼 — 엔진 Paper2D 플러그인 기본 자산. */
 	HKTSPRITECORE_API extern const TCHAR* AssetObjectPath;
 
-	/** 기본 머티리얼 오브젝트 이름. */
-	HKTSPRITECORE_API extern const TCHAR* MaterialName;
-
-	/** 디폴트 Paper2D Unlit 머티리얼을 로드해 반환(캐시됨). 실패 시 엔진 기본. */
+	/** 디폴트 Paper2D 머티리얼을 로드해 반환(캐시됨). 실패 시 엔진 기본 Surface 머티리얼. */
 	HKTSPRITECORE_API UMaterialInterface* GetDefault();
 }
