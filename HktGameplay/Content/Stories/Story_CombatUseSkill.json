@@ -1,0 +1,109 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Combat.UseSkill",
+  "tags": {
+    "StoryBasicAttack": "Story.Event.Attack.Basic",
+    "StoryFireball":    "Story.Event.Skill.Fireball",
+    "StoryHeal":        "Story.Event.Skill.Heal",
+    "StoryLightning":   "Story.Event.Skill.Lightning",
+    "StoryBuff":        "Story.Event.Skill.Buff",
+    "SkillFireball":    "Entity.Attr.Skill.Fireball",
+    "SkillHeal":        "Entity.Attr.Skill.Heal",
+    "SkillLightning":   "Entity.Attr.Skill.Lightning",
+    "SkillBuff":        "Entity.Attr.Skill.Buff",
+    "AnimUpperBody":    "Anim.UpperBody.Combat.Skill",
+    "AnimMontage":      "Anim.Montage.Skill",
+    "VfxSkillHit":      "VFX.Niagara.SkillHit",
+    "SndSkillHit":      "Sound.SkillHit",
+    "StateDead":        "State.Dead"
+  },
+  "preconditions": [
+    { "op": "GetWorldTime", "dst": {"var":"now"} },
+    { "op": "LoadStore", "dst": {"var":"next"}, "property": "NextActionFrame" },
+    { "op": "CmpLt", "dst": "Flag", "src1": {"var":"now"}, "src2": {"var":"next"} },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+    { "op": "LoadConst", "dst": "Flag", "value": 1 },
+    { "op": "Halt" },
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ],
+  "steps": [
+    { "op": "SnippetCooldownCheck", "failLabel": "fail" },
+
+    { "op": "WriteConst", "property": "NextActionFrame", "value": 2147483647 },
+
+    { "op": "ReadProperty", "dst": {"var":"override"}, "property": "Param0" },
+    { "op": "CmpNeConst", "dst": "Flag", "src": {"var":"override"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "after_override" },
+    { "op": "Move", "dst": "Target", "src": {"var":"override"} },
+    { "op": "Label", "name": "after_override" },
+
+    { "op": "SnippetLoadItemFromSlot", "dst": {"var":"item"}, "failLabel": "innate" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"cost"}, "entity": {"var":"item"}, "property": "SkillCPCost" },
+    { "op": "ReadProperty", "dst": {"var":"cp"}, "property": "CP" },
+    { "op": "CmpLt", "dst": "Flag", "src1": {"var":"cp"}, "src2": {"var":"cost"} },
+    { "op": "JumpIf", "cond": "Flag", "label": "innate" },
+
+    { "op": "Sub", "dst": {"var":"cp"}, "src1": {"var":"cp"}, "src2": {"var":"cost"} },
+    { "op": "WriteProperty", "property": "CP", "src": {"var":"cp"} },
+
+    { "op": "HasTag", "dst": "Flag", "entity": {"var":"item"}, "tag": "SkillFireball" },
+    { "op": "JumpIf", "cond": "Flag", "label": "dispatch_fireball" },
+    { "op": "HasTag", "dst": "Flag", "entity": {"var":"item"}, "tag": "SkillHeal" },
+    { "op": "JumpIf", "cond": "Flag", "label": "dispatch_heal" },
+    { "op": "HasTag", "dst": "Flag", "entity": {"var":"item"}, "tag": "SkillLightning" },
+    { "op": "JumpIf", "cond": "Flag", "label": "dispatch_lightning" },
+    { "op": "HasTag", "dst": "Flag", "entity": {"var":"item"}, "tag": "SkillBuff" },
+    { "op": "JumpIf", "cond": "Flag", "label": "dispatch_buff" },
+
+    { "op": "SnippetCooldownUpdateFromEntity", "item": {"var":"item"} },
+
+    { "op": "AddTag", "entity": "Self", "tag": "AnimUpperBody" },
+    { "op": "AddTag", "entity": "Self", "tag": "AnimMontage" },
+    { "op": "WaitAnimEnd", "entity": "Self" },
+
+    { "op": "ReadProperty", "dst": {"var":"atk"}, "property": "AttackPower" },
+    { "op": "LoadConst", "dst": {"var":"two"}, "value": 2 },
+    { "op": "Mul", "dst": {"var":"atk"}, "src1": {"var":"atk"}, "src2": {"var":"two"} },
+    { "op": "ApplyDamage", "target": "Target", "amount": {"var":"atk"} },
+    { "op": "PlayVFXAttached", "entity": "Target", "tag": "VfxSkillHit" },
+    { "op": "PlaySound", "tag": "SndSkillHit" },
+
+    { "op": "SnippetCheckDeath", "entity": "Target", "deadTag": "StateDead" },
+
+    { "op": "RemoveTag", "entity": "Self", "tag": "AnimUpperBody" },
+    { "op": "RemoveTag", "entity": "Self", "tag": "AnimMontage" },
+
+    { "op": "Log", "message": "UseSkill: 아이템 기본 스킬 완료" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "dispatch_fireball" },
+    { "op": "Log", "message": "UseSkill: → Fireball" },
+    { "op": "DispatchEvent", "eventTag": "StoryFireball" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "dispatch_heal" },
+    { "op": "Log", "message": "UseSkill: → Heal" },
+    { "op": "DispatchEvent", "eventTag": "StoryHeal" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "dispatch_lightning" },
+    { "op": "Log", "message": "UseSkill: → Lightning" },
+    { "op": "DispatchEvent", "eventTag": "StoryLightning" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "dispatch_buff" },
+    { "op": "Log", "message": "UseSkill: → Buff" },
+    { "op": "DispatchEvent", "eventTag": "StoryBuff" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "innate" },
+    { "op": "Log", "message": "UseSkill: → 본연 스킬 (BasicAttack)" },
+    { "op": "DispatchEvent", "eventTag": "StoryBasicAttack" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ]
+}

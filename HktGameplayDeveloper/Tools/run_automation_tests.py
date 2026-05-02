@@ -91,21 +91,35 @@ def _load_env_file(path: Path) -> dict[str, str]:
     return out
 
 
-def _resolve_unreal_cmd(engine_path: str) -> Path:
-    """엔진 루트에서 UnrealEditor-Cmd 실행 파일 위치를 추론한다."""
+def _resolve_unreal_cmd(engine_path: str, build_config: str = "Development") -> Path:
+    """엔진 루트에서 UnrealEditor-Cmd 실행 파일 위치를 추론한다.
+
+    build_config:
+      - "Development" (기본) → UnrealEditor-Cmd.exe
+      - "DebugGame"          → UnrealEditor-Win64-DebugGame-Cmd.exe
+    """
     root = Path(engine_path).expanduser().resolve()
-    candidates = [
-        root / "Engine" / "Binaries" / "Win64" / "UnrealEditor-Cmd.exe",
-        root / "Engine" / "Binaries" / "Linux" / "UnrealEditor-Cmd",
-        root / "Engine" / "Binaries" / "Mac" / "UnrealEditor-Cmd",
-        # 사용자가 이미 실행 파일 자체 경로를 준 경우
-        root,
-    ]
+
+    if build_config == "DebugGame":
+        primary = [
+            root / "Engine" / "Binaries" / "Win64" / "UnrealEditor-Win64-DebugGame-Cmd.exe",
+            root / "Engine" / "Binaries" / "Linux" / "UnrealEditor-Linux-DebugGame-Cmd",
+            root / "Engine" / "Binaries" / "Mac" / "UnrealEditor-Mac-DebugGame-Cmd",
+        ]
+    else:
+        primary = [
+            root / "Engine" / "Binaries" / "Win64" / "UnrealEditor-Cmd.exe",
+            root / "Engine" / "Binaries" / "Linux" / "UnrealEditor-Cmd",
+            root / "Engine" / "Binaries" / "Mac" / "UnrealEditor-Cmd",
+        ]
+
+    candidates = primary + [root]  # 사용자가 실행 파일 절대경로를 준 경우 fallback
     for c in candidates:
         if c.is_file():
             return c
     raise FileNotFoundError(
-        f"UnrealEditor-Cmd 실행 파일을 찾지 못했습니다. UE_ENGINE_PATH={engine_path}"
+        f"UnrealEditor-Cmd 실행 파일을 찾지 못했습니다. "
+        f"UE_ENGINE_PATH={engine_path}, BUILD_CONFIG={build_config}"
     )
 
 
@@ -119,7 +133,7 @@ def _parse_report(report_dir: Path) -> tuple[int, int, int, list[TestFailure], f
             raise FileNotFoundError(f"index.json 을 {report_dir} 에서 찾지 못함")
         index = candidates[0]
 
-    data = json.loads(index.read_text(encoding="utf-8"))
+    data = json.loads(index.read_text(encoding="utf-8-sig"))
 
     failures: list[TestFailure] = []
     passed = 0
@@ -180,8 +194,9 @@ def run(
     test_filter: str,
     timeout_seconds: float,
     report_dir: Path | None = None,
+    build_config: str = "Development",
 ) -> TestRunSummary:
-    cmd_exe = _resolve_unreal_cmd(engine_path)
+    cmd_exe = _resolve_unreal_cmd(engine_path, build_config)
     project_file = Path(uproject).expanduser().resolve()
     if not project_file.is_file():
         raise FileNotFoundError(f".uproject 파일이 없습니다: {project_file}")
@@ -211,13 +226,14 @@ def run(
     proc = subprocess.run(
         args,
         capture_output=True,
-        text=True,
         timeout=timeout_seconds,
         check=False,
     )
 
-    stdout = proc.stdout or ""
-    stderr = proc.stderr or ""
+    # UE는 stdout을 UTF-8로 출력하지만 Windows 기본 코덱이 cp949라 text=True가 깨진다.
+    # 명시적으로 utf-8 errors=replace 로 디코드.
+    stdout = (proc.stdout or b"").decode("utf-8", errors="replace")
+    stderr = (proc.stderr or b"").decode("utf-8", errors="replace")
 
     try:
         passed, failed, skipped, failures, total_duration = _parse_report(report_dir)
@@ -273,6 +289,9 @@ def main() -> int:
                         help="리포트 출력 디렉토리. 미지정 시 임시폴더")
     parser.add_argument("--full", action="store_true",
                         help="stdout 꼬리 포함 전체 결과 출력")
+    parser.add_argument("--config", default=None,
+                        choices=["Development", "DebugGame"],
+                        help="UE 빌드 컨피그 (default: env UE_BUILD_CONFIG, 미설정 시 Development)")
     args = parser.parse_args()
 
     env_file_vals = _load_env_file(ENV_FILE)
@@ -293,6 +312,12 @@ def main() -> int:
         or env_file_vals.get("HKT_TEST_FILTER")
         or DEFAULT_FILTER
     )
+    build_config = (
+        args.config
+        or os.environ.get("UE_BUILD_CONFIG")
+        or env_file_vals.get("UE_BUILD_CONFIG")
+        or "Development"
+    )
 
     if not engine_path or not uproject:
         sys.stderr.write(
@@ -309,6 +334,7 @@ def main() -> int:
             test_filter=test_filter,
             timeout_seconds=args.timeout,
             report_dir=Path(args.report_dir) if args.report_dir else None,
+            build_config=build_config,
         )
     except subprocess.TimeoutExpired:
         sys.stderr.write(f"[run_automation_tests] 타임아웃 ({args.timeout}s) 초과\n")

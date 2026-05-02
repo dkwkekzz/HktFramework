@@ -1,0 +1,63 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Item.Pickup",
+  "preconditions": [
+    { "op": "LoadStoreEntity", "dst": {"var":"state"}, "entity": "Target", "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"state"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+
+    { "op": "GetDistance", "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpLeConst", "dst": "Flag", "src": {"var":"dist"}, "value": 300 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot0" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot1" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot2" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot3" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot4" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot5" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot6" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot7" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+    { "op": "LoadStore", "dst": {"var":"slot"}, "property": "EquipSlot8" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"slot"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "pass" },
+
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" },
+
+    { "op": "Label", "name": "pass" },
+    { "op": "Halt" }
+  ],
+  "steps": [
+    { "op": "SnippetValidateItemState", "entity": "Target", "expectedState": 0, "failLabel": "fail" },
+
+    { "op": "GetDistance", "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"dist"}, "value": 300 },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+
+    { "op": "SnippetFindEmptyEquipSlot", "dst": {"var":"emptySlot"}, "failLabel": "fail" },
+    { "op": "SnippetAssignOwnership", "entity": "Target", "owner": "Self" },
+    { "op": "SnippetActivateInSlot", "item": "Target", "slotIndex": {"var":"emptySlot"}, "character": "Self" },
+
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ]
+}

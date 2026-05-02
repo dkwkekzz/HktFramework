@@ -1,0 +1,22 @@
+{
+  "storyTag": "Story.Event.Combat.UseSkill",
+  "description": "UseSkill: precondition (쿨타임) 통과 후 본문. 본 spec 은 main body 만 검증 (spec runner 가 precondition 미실행). 슬롯에 아이템 없음 → SnippetLoadItemFromSlot 실패 → innate 분기 → DispatchEvent BasicAttack + Halt.",
+  "scenarios": [
+    {
+      "name": "innate_dispatch_when_no_item_in_slot",
+      "description": "Param1 슬롯 미설정. 인라인 분기 진입 전 SnippetLoadItemFromSlot 가 innate label 로 점프. DispatchEvent + Halt → Completed. NextActionFrame 은 본문이 0x7FFFFFFF 로 잠근 상태.",
+      "given": {
+        "self": {
+          "properties": { "AttackPower": 10, "AttackSpeed": 100, "NextActionFrame": 0, "MaxCP": 100, "CP": 50 }
+        },
+        "target": {
+          "properties": { "Health": 200 }
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": { "properties": { "NextActionFrame": 2147483647 } }
+      }
+    }
+  ]
+}

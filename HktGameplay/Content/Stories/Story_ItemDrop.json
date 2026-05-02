@@ -1,0 +1,30 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Item.Drop",
+  "preconditions": [
+    { "op": "LoadStoreEntity", "dst": {"var":"owner"}, "entity": "Target", "property": "OwnerEntity" },
+    { "op": "CmpEq", "dst": "Flag", "src1": {"var":"owner"}, "src2": "Self" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+    { "op": "Halt" },
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ],
+  "steps": [
+    { "op": "SnippetValidateOwnership", "entity": "Target", "failLabel": "fail" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"itemState"}, "entity": "Target", "property": "ItemState" },
+    { "op": "CmpNeConst", "dst": "Flag", "src": {"var":"itemState"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "drop_exec" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"equipIdx"}, "entity": "Target", "property": "EquipIndex" },
+    { "op": "SnippetClearEquipSlot", "slotIndex": {"var":"equipIdx"} },
+    { "op": "SnippetRemoveItemStats", "item": "Target", "character": "Self" },
+
+    { "op": "Label", "name": "drop_exec" },
+    { "op": "SnippetDropToGround", "item": "Target", "posSource": "Self" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ]
+}

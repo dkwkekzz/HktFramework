@@ -1,0 +1,20 @@
+{
+  "storyTag": "Story.Event.Item.Drop",
+  "description": "Drop fail path: Target.OwnerEntity 미설정 (0) → SnippetValidateOwnership 실패 → Fail. spec 의 given 은 entity id 동적 참조를 지원하지 않아 happy-path 검증 어려움 — 본 시나리오는 ownership guard 가 실제 동작함을 검증.",
+  "scenarios": [
+    {
+      "name": "fail_when_target_not_owned_by_self",
+      "given": {
+        "self": {
+          "properties": { "AttackPower": 10 }
+        },
+        "target": {
+          "properties": { "ItemState": 2, "OwnerEntity": 0, "AttackPower": 5 }
+        }
+      },
+      "expect": {
+        "status": "Failed"
+      }
+    }
+  ]
+}

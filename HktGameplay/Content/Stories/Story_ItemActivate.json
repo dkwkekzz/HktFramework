@@ -1,0 +1,50 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Item.Activate",
+  "tags": {
+    "EntityItem": "Entity.Item"
+  },
+  "preconditions": [
+    { "op": "LoadStoreEntity", "dst": {"var":"state"}, "entity": "Target", "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"state"}, "value": 1 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"owner"}, "entity": "Target", "property": "OwnerEntity" },
+    { "op": "CmpEq", "dst": "Flag", "src1": {"var":"owner"}, "src2": "Self" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+    { "op": "Halt" },
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ],
+  "steps": [
+    { "op": "SnippetValidateItemState", "entity": "Target", "expectedState": 1, "failLabel": "fail" },
+    { "op": "SnippetValidateOwnership", "entity": "Target", "failLabel": "fail" },
+
+    { "op": "ReadProperty", "dst": {"var":"equipIdx"}, "property": "EquipIndex" },
+
+    { "op": "FindByOwner", "owner": "Self", "tag": "EntityItem" },
+
+    { "op": "Label", "name": "evict_loop" },
+    { "op": "NextFound" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "evict_done" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"itemState"}, "entity": "Iter", "property": "ItemState" },
+    { "op": "CmpNeConst", "dst": "Flag", "src": {"var":"itemState"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "evict_loop" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"iterIdx"}, "entity": "Iter", "property": "EquipIndex" },
+    { "op": "CmpNe", "dst": "Flag", "src1": {"var":"iterIdx"}, "src2": {"var":"equipIdx"} },
+    { "op": "JumpIf", "cond": "Flag", "label": "evict_loop" },
+
+    { "op": "SnippetDeactivateToBag", "item": "Iter", "character": "Self" },
+    { "op": "Log", "message": "ItemActivate: 기존 EquipIndex 충돌 아이템 비활성화" },
+    { "op": "Jump", "label": "evict_loop" },
+
+    { "op": "Label", "name": "evict_done" },
+    { "op": "SnippetActivateInSlot", "item": "Target", "slotIndex": {"var":"equipIdx"}, "character": "Self" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ]
+}

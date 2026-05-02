@@ -1,0 +1,23 @@
+{
+  "storyTag": "Story.Event.Item.Pickup",
+  "description": "Pickup happy path: Target=Ground 아이템, 거리 ≤ 300cm, Self EquipSlot0 비어있음 → AssignOwnership + ActivateInSlot. spec runner 가 precondition 미실행이므로 main body 만 검증.",
+  "scenarios": [
+    {
+      "name": "ground_item_within_range_picked_up",
+      "given": {
+        "self": {
+          "properties": { "AttackPower": 0, "Defense": 0 },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "properties": { "ItemState": 0, "AttackPower": 5, "Defense": 0, "Equippable": 0, "ItemId": 100 },
+          "position": [100, 0, 0]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "target": { "properties": { "ItemState": 2 } }
+      }
+    }
+  ]
+}

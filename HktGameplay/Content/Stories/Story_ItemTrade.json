@@ -1,0 +1,60 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Item.Trade",
+  "preconditions": [
+    { "op": "LoadStore", "dst": {"var":"offer"}, "property": "Param0" },
+    { "op": "LoadStore", "dst": {"var":"req"},   "property": "Param1" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"tmp"}, "entity": {"var":"offer"}, "property": "OwnerEntity" },
+    { "op": "CmpEq", "dst": "Flag", "src1": {"var":"tmp"}, "src2": "Self" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"tmp"}, "entity": {"var":"req"}, "property": "OwnerEntity" },
+    { "op": "CmpEq", "dst": "Flag", "src1": {"var":"tmp"}, "src2": "Target" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"tmp"}, "entity": {"var":"offer"}, "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"tmp"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"tmp"}, "entity": {"var":"req"}, "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"tmp"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadConst", "dst": "Flag", "value": 1 },
+    { "op": "Halt" },
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ],
+  "steps": [
+    { "op": "ReadProperty", "dst": {"var":"offer"}, "property": "Param0" },
+    { "op": "ReadProperty", "dst": {"var":"req"},   "property": "Param1" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"tmp"}, "entity": {"var":"offer"}, "property": "OwnerEntity" },
+    { "op": "CmpNe", "dst": "Flag", "src1": {"var":"tmp"}, "src2": "Self" },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"tmp"}, "entity": {"var":"req"}, "property": "OwnerEntity" },
+    { "op": "CmpNe", "dst": "Flag", "src1": {"var":"tmp"}, "src2": "Target" },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"tmp"}, "entity": {"var":"offer"}, "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"tmp"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"tmp"}, "entity": {"var":"req"}, "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"tmp"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "fail" },
+
+    { "op": "SaveEntityProperty", "entity": {"var":"offer"}, "property": "OwnerEntity", "src": "Target" },
+    { "op": "SaveEntityProperty", "entity": {"var":"req"},   "property": "OwnerEntity", "src": "Self" },
+
+    { "op": "ClearOwnerUid", "entity": {"var":"offer"} },
+    { "op": "ClearOwnerUid", "entity": {"var":"req"} },
+
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ]
+}

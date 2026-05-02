@@ -1,0 +1,62 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Item.Deactivate",
+  "tags": {
+    "EntityItem": "Entity.Item",
+    "StanceUnarmed": "Entity.Stance.Unarmed"
+  },
+  "preconditions": [
+    { "op": "LoadStoreEntity", "dst": {"var":"state"}, "entity": "Target", "property": "ItemState" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"state"}, "value": 2 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"owner"}, "entity": "Target", "property": "OwnerEntity" },
+    { "op": "CmpEq", "dst": "Flag", "src1": {"var":"owner"}, "src2": "Self" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+    { "op": "Halt" },
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ],
+  "steps": [
+    { "op": "SnippetValidateItemState", "entity": "Target", "expectedState": 2, "failLabel": "fail" },
+    { "op": "SnippetValidateOwnership", "entity": "Target", "failLabel": "fail" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"equipIdx"}, "entity": "Target", "property": "EquipIndex" },
+    { "op": "SnippetClearEquipSlot", "slotIndex": {"var":"equipIdx"} },
+    { "op": "SnippetDeactivateToBag", "item": "Target", "character": "Self" },
+
+    { "op": "FindByOwner", "owner": "Self", "tag": "EntityItem" },
+    { "op": "LoadConst", "dst": {"var":"hasActive"}, "value": 0 },
+
+    { "op": "Label", "name": "check_loop" },
+    { "op": "NextFound" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "check_done" },
+
+    { "op": "CmpEq", "dst": "Flag", "src1": "Iter", "src2": "Target" },
+    { "op": "JumpIf", "cond": "Flag", "label": "check_loop" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"iterState"}, "entity": "Iter", "property": "ItemState" },
+    { "op": "CmpNeConst", "dst": "Flag", "src": {"var":"iterState"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "check_loop" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"equippable"}, "entity": "Iter", "property": "Equippable" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"equippable"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "check_loop" },
+
+    { "op": "LoadEntityProperty", "dst": {"var":"iterStance"}, "entity": "Iter", "property": "Stance" },
+    { "op": "SaveEntityProperty", "entity": "Self", "property": "Stance", "src": {"var":"iterStance"} },
+    { "op": "LoadConst", "dst": {"var":"hasActive"}, "value": 1 },
+    { "op": "Jump", "label": "done" },
+
+    { "op": "Label", "name": "check_done" },
+    { "op": "CmpNeConst", "dst": "Flag", "src": {"var":"hasActive"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "done" },
+    { "op": "SetStance", "entity": "Self", "stanceTag": "StanceUnarmed" },
+
+    { "op": "Label", "name": "done" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ]
+}
