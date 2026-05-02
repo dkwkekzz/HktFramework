@@ -87,12 +87,23 @@ void AHktSpriteCrowdHost::Teardown()
 		Renderer->ClearAll();
 	}
 	AnimFragments.Empty();
+	AnimStartLocalMs.Empty();
+	LastAuthoritativeAnimStartTick.Empty();
+	LocalNowMs = 0.0;
 }
 
 void AHktSpriteCrowdHost::OnCameraViewChanged(FHktPresentationState& State)
 {
-	// 카메라 yaw 변화 시 Facing 변환이 달라지므로 전체 Sync 강제.
-	Sync(State);
+	// 카메라 yaw 변화 시 Facing 변환이 달라지므로 즉시 재반영.
+	UpdateEntitiesPerFrame(State);
+}
+
+void AHktSpriteCrowdHost::Tick(FHktPresentationState& State, float DeltaTime)
+{
+	// 로컬 실시간 클럭 누적 — 서버 batch 가 없어도 애니메이션이 진행되도록 함.
+	LocalNowMs += static_cast<double>(DeltaTime) * 1000.0;
+
+	UpdateEntitiesPerFrame(State);
 }
 
 void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
@@ -106,6 +117,8 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 	{
 		Renderer->UnregisterEntity(Id);
 		AnimFragments.Remove(Id);
+		AnimStartLocalMs.Remove(Id);
+		LastAuthoritativeAnimStartTick.Remove(Id);
 	}
 
 	// --- 2. Spawned: FHktSpriteView가 할당된 엔터티만 처리 ---
@@ -126,6 +139,10 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 			FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
 			HktSpriteAnimProcessor::SyncFromTagContainer(Frag, AV->Tags);
 		}
+
+		// Spawn 시점의 로컬 시각을 anim 시작 시각으로 등록.
+		AnimStartLocalMs.Add(Id, LocalNowMs);
+		LastAuthoritativeAnimStartTick.Add(Id, SV->AnimStartTick.Get());
 	}
 
 	// --- 3. Character diff: CharacterTemplate 태그 변경분만 반영 ---
@@ -137,10 +154,14 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		Renderer->SetCharacter(Id, SV.Character.Get());
 	}
 
-	// --- 4. 매 프레임 UpdateEntity ---
-	//     모든 스프라이트 엔터티를 순회해 AnimFragment 상태 갱신 → 프레임/트랜스폼 재적용.
-	//     NowTick으로는 State.GetCurrentFrame()을 사용 (히트스톱은 후속 확장).
-	const int64 NowTick = Frame;
+	// per-entity frame cursor 계산은 Tick(UpdateEntitiesPerFrame)에서 수행 — 매 render frame 진행.
+}
+
+void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
+{
+	if (!Renderer) return;
+
+	const int64 Frame = State.GetCurrentFrame();
 
 	for (auto It = State.Sprites.CreateConstIterator(); It; ++It)
 	{
@@ -153,7 +174,8 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
 
 		// Fragment 입력: Movement/Combat/Animation 뷰에서 파라미터 흡수.
-		// (AHktUnitActor::ApplyMovement/ApplyCombat/ApplyAnimation과 동일 역할 통합)
+		// IsDirty(Frame) 은 sim batch 가 막 도착한 프레임에서만 true — 이후 render frame 들에서는
+		// false 가 되어 idempotent. 새 batch 도착 시점에만 갱신 시도.
 		if (const FHktMovementView* MV = State.GetMovement(Id))
 		{
 			if (MV->bIsMoving.IsDirty(Frame))  Frag.bIsMoving  = MV->bIsMoving.Get();
@@ -182,12 +204,10 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 
 		if (FHktAnimationView* AV = State.GetMutableAnimation(Id))
 		{
-			// Stance는 Sprite에서 사용하지 않음 — 3D actor 전용으로 남김.
 			if (AV->TagsDirtyFrame == Frame)
 			{
 				HktSpriteAnimProcessor::SyncFromTagContainer(Frag, AV->Tags);
 			}
-			// 일회성 트리거 소비 (AHktUnitActor::ApplyAnimation과 동일)
 			if (AV->PendingAnimTriggers.Num() > 0)
 			{
 				for (const FGameplayTag& AnimTag : AV->PendingAnimTriggers)
@@ -198,19 +218,35 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 			}
 		}
 
+		// --- 서버 권위 AnimStartTick → 로컬 ms 시각으로 변환 ---
+		// 서버는 sim frame 단위 정수 AnimStartTick 만 통보. 클라는 그 값이 *변할 때마다*
+		// 로컬 실시간 시각(LocalNowMs)을 anim 시작점으로 캡처해서 매 render frame 진행시킨다.
+		// 이렇게 하면 idle 처럼 서버가 추가 batch 를 안 보내도 frame cursor 가 멈추지 않는다.
+		const int32 ServerStartTick = SV.AnimStartTick.Get();
+		int32* LastSeen = LastAuthoritativeAnimStartTick.Find(Id);
+		if (!LastSeen || *LastSeen != ServerStartTick)
+		{
+			AnimStartLocalMs.FindOrAdd(Id) = LocalNowMs;
+			LastAuthoritativeAnimStartTick.FindOrAdd(Id) = ServerStartTick;
+		}
+		const double EntityAnimStartMs = AnimStartLocalMs.FindOrAdd(Id);
+
 		// 최종 렌더 출력 결정 (AnimTag / PlayRate).
-		// AnimStartTick은 서버 VM이 PropertyId::AnimStartTick 으로 권위 갱신 → SV값 그대로 사용.
 		FGameplayTag AnimTag;
 		float PlayRate = 1.f;
 		HktSpriteAnimProcessor::ResolveRenderOutputs(Frag, AnimTag, PlayRate, bLoggedResolveRenderOutputsFailure);
 
+		// FrameResolver 에 ms 도메인으로 전달:
+		//   ElapsedMs = (NowTick - AnimStartTick) * TickDurationMs
+		// 여기서 NowTick=LocalNowMs, AnimStartTick=EntityAnimStartMs, TickDurationMs=1.0
+		// 이면 ElapsedMs == LocalNowMs - EntityAnimStartMs (실시간 ms).
 		FHktSpriteEntityUpdate Update;
 		Update.WorldLocation  = TV->RenderLocation.Get().IsZero() ? TV->Location.Get() : TV->RenderLocation.Get();
 		Update.Facing         = static_cast<EHktSpriteFacing>(SV.Facing.Get() & 0x07);
 		Update.AnimTag        = AnimTag;
-		Update.AnimStartTick  = SV.AnimStartTick.Get();
-		Update.NowTick        = NowTick;
-		Update.TickDurationMs = TickDurationMs;
+		Update.AnimStartTick  = static_cast<int64>(EntityAnimStartMs);
+		Update.NowTick        = static_cast<int64>(LocalNowMs);
+		Update.TickDurationMs = 1.0f;
 		Update.PlayRate       = PlayRate;
 		Update.TintOverride   = FLinearColor::White;
 		Update.PaletteIndex   = 0;

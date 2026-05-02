@@ -183,15 +183,22 @@ void UHktSpriteCrowdRenderer::ClearAll()
 // ============================================================================
 
 UTexture2D* UHktSpriteCrowdRenderer::ResolveAtlas(const FHktSpriteAnimation& Anim,
-	UHktSpriteCharacterTemplate* Template, FSoftObjectPath& OutPath, FVector2f& OutCellSize)
+	int32 DirIdx, UHktSpriteCharacterTemplate* Template,
+	FSoftObjectPath& OutPath, FVector2f& OutCellSize)
 {
-	const TSoftObjectPtr<UTexture2D>& Ref = Anim.Atlas.IsNull() ? Template->Atlas : Anim.Atlas;
+	// 방향 → (Animation slot 또는 단일 Anim.Atlas) 1차 해석.
+	TSoftObjectPtr<UTexture2D> Ref;
+	FVector2f CellSize = FVector2f::ZeroVector;
+	Anim.ResolveAtlasForDirection(DirIdx, Ref, CellSize);
+
+	// Template 폴백 (Animation 단계에서 비어있을 때만).
+	if (Ref.IsNull()) Ref = Template->Atlas;
+	if (CellSize.X <= 0.f || CellSize.Y <= 0.f) CellSize = Template->AtlasCellSize;
+
 	if (Ref.IsNull()) return nullptr;
 
 	OutPath = Ref.ToSoftObjectPath();
-	OutCellSize = (Anim.AtlasCellSize.X > 0.f && Anim.AtlasCellSize.Y > 0.f)
-		? Anim.AtlasCellSize
-		: Template->AtlasCellSize;
+	OutCellSize = CellSize;
 
 	UTexture2D* Tex = Ref.LoadSynchronous();
 	if (!Tex) return nullptr;
@@ -356,44 +363,14 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 
-	// --- 1. 아틀라스 해석 + HISM 결정 (필요 시 migrate) ---
-	FSoftObjectPath AtlasPath;
-	FVector2f CellSize = FVector2f::ZeroVector;
-	UTexture2D* AtlasTex = ResolveAtlas(*Animation, Template, AtlasPath, CellSize);
-	if (!AtlasTex)
-	{
-		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::AtlasNull)
-		{
-			State.LastUpdateStatus = EHktSpriteUpdateStatus::AtlasNull;
-			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas 텍스처 로드 실패 (char=%s, anim=%s) — Animation.Atlas/Template.Atlas 모두 비어있거나 LoadSynchronous 실패"),
-					*State.CharacterTag.ToString(), *Update.AnimTag.ToString()),
-				Id, Update.AnimTag);
-		}
-		return;
-	}
-	if (CellSize.X <= 0.f || CellSize.Y <= 0.f)
-	{
-		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::InvalidCellSize)
-		{
-			State.LastUpdateStatus = EHktSpriteUpdateStatus::InvalidCellSize;
-			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: AtlasCellSize 유효하지 않음 (%.1f x %.1f) char=%s anim=%s"),
-					CellSize.X, CellSize.Y, *State.CharacterTag.ToString(), *Update.AnimTag.ToString()),
-				Id, Update.AnimTag);
-		}
-		return;
-	}
-
-	// --- 2. 프레임 해석 (마이그레이션 보다 먼저) ---
-	// 첫 PIE 시 "atlas 통째 / 벌집" 증상의 근본 원인:
-	//   기존 흐름이 AddInstance(Identity) → 검증 → UpdateInstanceTransform/CPD 순서였기 때문에,
-	//   검증 실패로 early-return 되거나 첫 렌더 프레임이 CPD/transform 채우기 전에 잡히면
-	//   GPU 가 (Identity 위치, CPD 미설정) 인스턴스를 그렸다. CPD 가 미바인딩이면 텍스처 샘플러가
-	//   Custom UV 대신 InTexCoord(0..1) 를 사용해 quad 마다 atlas 통째로 출력 → 다수 인스턴스가
-	//   벌집처럼 보였다. 두 번째 PIE 부터는 PSO/CPD 캐시가 채워져 정상화.
-	// 해결: 모든 검증을 마이그레이션 이전에 수행 + AddInstance 시점에 실제 WorldXform 와
-	//       16 슬롯 CPD 를 한 번에 채운다 (markDirty=true 한 번 묶음).
+	// --- 1. 프레임 해석 (Atlas 해석보다 먼저) ---
+	// AtlasSlots(분할) 도입으로 atlas 는 프레임 단위로 결정된다. 프레임을 먼저 결정한 뒤,
+	// 그 프레임의 AtlasSlotIdx 로 atlas/cellSize 를 해석한다.
+	//
+	// 첫 PIE "atlas 통째 / 벌집" 증상 회피 원칙은 그대로 유지: 모든 검증을 마이그레이션
+	// 이전에 수행 + AddInstance 시점에 실제 WorldXform + 16 슬롯 CPD 를 한 번에 채움
+	// (markDirty=true 한 번 묶음). CPD 미바인딩 상태로 GPU 가 quad 를 그리면 atlas 가 통째로
+	// 출력되어 벌집처럼 보였던 이슈.
 	FHktSpriteFrameResolveInput In;
 	In.Animation      = Animation;
 	In.AnimStartTick  = Update.AnimStartTick;
@@ -443,21 +420,46 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 
-	const FHktSpriteFrame Frame = Animation->MakeFrame(DirIdx, Res.FrameIndex);
+	// --- 2. 아틀라스 해석 (dirIdx == AtlasSlotIdx 규약) ---
+	FSoftObjectPath AtlasPath;
+	FVector2f CellSize = FVector2f::ZeroVector;
+	UTexture2D* AtlasTex = ResolveAtlas(*Animation, DirIdx, Template, AtlasPath, CellSize);
+	if (!AtlasTex)
+	{
+		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::AtlasNull)
+		{
+			State.LastUpdateStatus = EHktSpriteUpdateStatus::AtlasNull;
+			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas 텍스처 로드 실패 (char=%s, anim=%s, dir=%d) — Animation/Template Atlas 모두 비어있거나 LoadSynchronous 실패"),
+					*State.CharacterTag.ToString(), *Update.AnimTag.ToString(), DirIdx),
+				Id, Update.AnimTag);
+		}
+		return;
+	}
+	if (CellSize.X <= 0.f || CellSize.Y <= 0.f)
+	{
+		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::InvalidCellSize)
+		{
+			State.LastUpdateStatus = EHktSpriteUpdateStatus::InvalidCellSize;
+			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: AtlasCellSize 유효하지 않음 (%.1f x %.1f) char=%s anim=%s dir=%d"),
+					CellSize.X, CellSize.Y, *State.CharacterTag.ToString(), *Update.AnimTag.ToString(), DirIdx),
+				Id, Update.AnimTag);
+		}
+		return;
+	}
 
 	// --- 쿼드 크기 0 가드 ---
-	// Frame.Scale은 UPROPERTY 디폴트(1,1)이지만 JSON 로더/Generator가 비워두면 (0,0)으로 들어올 수 있다.
-	// PixelToWorld는 ClampMin=0.1, GlobalWorldScale은 ClampMin=0.01이지만 BP 비정상 설정 가능성 방어.
-	// HalfW/HalfH가 0이면 머티리얼이 World Position Offset을 0배 → 쿼드 면적 0 → 보이지 않음.
+	// Animation.Scale은 UPROPERTY 디폴트(1,1). JSON/Generator가 0으로 주입하지 않는 한 통과.
 	const float PxToWorld = Template->PixelToWorld * GlobalWorldScale;
-	if (Frame.Scale.X <= 0.f || Frame.Scale.Y <= 0.f || PxToWorld <= 0.f)
+	if (Animation->Scale.X <= 0.f || Animation->Scale.Y <= 0.f || PxToWorld <= 0.f)
 	{
 		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::ZeroQuadSize)
 		{
 			State.LastUpdateStatus = EHktSpriteUpdateStatus::ZeroQuadSize;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: 쿼드 크기 0 — Frame.Scale=(%.3f, %.3f), PxToWorld=%.3f (PixelToWorld=%.3f, GlobalScale=%.3f), Cell=(%.1f, %.1f) [char=%s, anim=%s, dir=%d, frame=%d]"),
-					Frame.Scale.X, Frame.Scale.Y, PxToWorld, Template->PixelToWorld, GlobalWorldScale,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: 쿼드 크기 0 — Anim.Scale=(%.3f, %.3f), PxToWorld=%.3f (PixelToWorld=%.3f, GlobalScale=%.3f), Cell=(%.1f, %.1f) [char=%s, anim=%s, dir=%d, frame=%d]"),
+					Animation->Scale.X, Animation->Scale.Y, PxToWorld, Template->PixelToWorld, GlobalWorldScale,
 					CellSize.X, CellSize.Y,
 					*State.CharacterTag.ToString(), *Update.AnimTag.ToString(), DirIdx, Res.FrameIndex),
 				Id, Update.AnimTag);
@@ -466,33 +468,30 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	}
 
 	// --- 3. 트랜스폼 + CPD 값 미리 계산 (마이그레이션/일반 경로 공용) ---
+	// 그리드 규약: AtlasIndex=frameIdx, AtlasSlotIdx=dirIdx. 그 외 속성은 Animation 공통값.
 	FTransform WorldXform = FTransform::Identity;
 	WorldXform.SetLocation(Update.WorldLocation);
 
-	const FVector2f Pivot = Frame.PivotOffset.IsNearlyZero()
-		? Animation->PivotOffset
-		: Frame.PivotOffset;
+	const FVector2f Pivot = Animation->PivotOffset;
+	const FVector2f Scale = Animation->Scale;
 
-	const float AtlasIndexF = static_cast<float>(Frame.AtlasIndex);
+	const float AtlasIndexF = static_cast<float>(Res.FrameIndex);
 	const float CellW = CellSize.X;
 	const float CellH = CellSize.Y;
 	// PivotOffset 은 셀 좌상단 기준 픽셀 좌표(예: (CellW/2, CellH) = 하단-중앙).
 	// 셰이더 Quad 는 이미 하단-중앙이 (0,0) 이도록 구성되어 있으므로,
-	// 셀 중심/하단을 기준점으로 변환한 뒤 PxToWorld 와 Frame.Scale 을 곱해야
+	// 셀 중심/하단을 기준점으로 변환한 뒤 PxToWorld 와 Scale 을 곱해야
 	// pivot 픽셀이 정확히 entity 위치(WorldLocation)에 놓인다.
 	const FVector2f Offset(
-		(CellW * 0.5f - Pivot.X) * PxToWorld * Frame.Scale.X,
-		(CellH        - Pivot.Y) * PxToWorld * Frame.Scale.Y);
-	const FLinearColor Tint = Frame.Tint * Update.TintOverride;
+		(CellW * 0.5f - Pivot.X) * PxToWorld * Scale.X,
+		(CellH        - Pivot.Y) * PxToWorld * Scale.Y);
+	const FLinearColor Tint = Animation->Tint * Update.TintOverride;
 	const float FlipValue = Res.bFlipX ? 1.f : 0.f;
-	const float HalfWWorld = Frame.Scale.X * PxToWorld * CellW * 0.5f;
-	const float HalfHWorld = Frame.Scale.Y * PxToWorld * CellH * 0.5f;
-	const float RotRad     = FMath::DegreesToRadians(Frame.Rotation);
-	// CPD slot 15 = ZBias (cm, 카메라 쪽으로 밀어내기). 3 source 합산:
-	//   Frame.ZBias        — 애니메이션 정의 (캐릭터 내 프레임 간 z-fighting 해소)
-	//   Update.ZBias       — 호출자 인스턴스 단위 (특정 엔터티만 미세 조정)
-	//   ComponentZBias     — 컴포넌트 단위 일괄 (Crowd ↔ Terrain 등 그룹 정렬)
-	const float CombinedZBias = static_cast<float>(Frame.ZBias) + Update.ZBias + ComponentZBias;
+	const float HalfWWorld = Scale.X * PxToWorld * CellW * 0.5f;
+	const float HalfHWorld = Scale.Y * PxToWorld * CellH * 0.5f;
+	const float RotRad     = FMath::DegreesToRadians(Animation->Rotation);
+	// CPD slot 15 = ZBias (cm, 카메라 쪽으로 밀어내기). 호출자/컴포넌트 단위 합산.
+	const float CombinedZBias = Update.ZBias + ComponentZBias;
 
 	auto FillCpd = [&](UInstancedStaticMeshComponent* Target, int32 Idx)
 	{
@@ -620,7 +619,7 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 			FString::Printf(TEXT("Sprite|CrowdRenderer: 렌더 정상화 (prev=%s, anim=%s, dir=%d, frame=%d, atlasIdx=%d, cell=(%.1f,%.1f), atlasPx=(%d,%d), numDir=%d, FPD=%d, atlas=%s)"),
 				*StaticEnum<EHktSpriteUpdateStatus>()->GetNameStringByValue(static_cast<int64>(PrevStatus)),
 				*Update.AnimTag.ToString(), DirIdx, Res.FrameIndex,
-				Frame.AtlasIndex, CellSize.X, CellSize.Y,
+				Res.FrameIndex, CellSize.X, CellSize.Y,
 				AtlasTex->GetSizeX(), AtlasTex->GetSizeY(),
 				Animation->NumDirections, Animation->FramesPerDirection,
 				*State.CurrentAtlasPath.ToString()),

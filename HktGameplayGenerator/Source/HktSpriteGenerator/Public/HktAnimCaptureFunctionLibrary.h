@@ -1,4 +1,4 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,18 +21,24 @@ DECLARE_DELEGATE_ThreeParams(FHktAnimCaptureProgressDelegate, int32 /*DoneFrames
 // ============================================================================
 // UHktAnimCaptureFunctionLibrary
 //
-// 에디터 환경에서 SkeletalMesh + AnimSequence 를 8(또는 1·4)방향으로 회전시켜
-// SceneCaptureComponent2D 로 프레임별 PNG 를 디스크에 기록하고, 옵션으로
-// HktSpriteGenerator 의 TextureBundle → Atlas 빌더까지 연결한다.
+// 에디터 환경에서 SkeletalMesh + AnimSequence 를 8(또는 1)방향으로 회전시켜
+// SceneCaptureComponent2D 로 프레임별 PNG 를 방향별 서브폴더에 기록한다.
+// 옵션으로 캡처 직후 EditorPackBundleFolderToAtlasPng 를 8회 호출해 방향별
+// strip atlas PNG 까지 만든다. UE 측 산출물(Texture2D / DataAsset) 은 만들지 않음 —
+// 결과물은 모두 DiskOutputDir 아래 PNG 로만 떨어진다.
+//
+// 산출물:
+//   {DiskOutputDir}/{N|NE|...|NW}/frame_{nnn:03d}.png      (TextureBundle, 방향별)
+//   {DiskOutputDir}/atlas_{N|NE|...|NW}.png                (방향별 패킹 atlas PNG)
 //
 // 사용 흐름:
 //   FHktAnimCaptureSettings S;
 //   S.SkeletalMesh = ...;  S.AnimSequence = ...;
-//   S.CharacterTag = "Sprite.Character.Knight";  S.ActionId = "idle";
+//   S.CharacterTag = "Sprite.Character.Knight";  S.AnimTag = "Anim.FullBody.Locomotion.Idle";
 //   const FString ResultJson = UHktAnimCaptureFunctionLibrary::CaptureAnimation(S);
 //
-// 결과 JSON: {"success":bool, "diskOutputDir":..., "frameCount":..., "directions":...,
-//             "atlasResult":{...최상위 EditorBuildSpriteCharacterFromDirectory 결과...},
+// 결과 JSON: {"success":bool, "diskOutputDir":..., "framesPerDir":..., "directions":...,
+//             "atlasResults":{...EditorPackDirectionalAtlases 결과 (success/count/items)...},
 //             "error":...}
 // ============================================================================
 

@@ -1,0 +1,23 @@
+{
+  "storyTag": "Story.Event.Move.ToLocation",
+  "description": "MoveTo: TargetPos* 이벤트 페이로드 기반 이동. WaitMoveEnd 도달 → MoveEnd 주입 → StopMovement 후 Halt.",
+  "scenarios": [
+    {
+      "name": "move_to_target_then_stop",
+      "given": {
+        "self": {
+          "properties": { "MaxSpeed": 200 },
+          "position": [0, 0, 0]
+        },
+        "event": { "targetPosX": 1000, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "events": [
+        { "inject": "MoveEnd" }
+      ],
+      "expect": {
+        "status": "Completed",
+        "self": { "properties": { "IsMoving": 0 } }
+      }
+    }
+  ]
+}

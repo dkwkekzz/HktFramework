@@ -1,0 +1,13 @@
+{
+  "storyTag": "Story.Flow.World.Init",
+  "description": "WorldInit: Param0/Param1 좌표를 시드로 3 NPC (Goblin/Skeleton/Zombie) 를 SpawnEntity + 스탯 세팅 + NPCLifecycle 디스패치. DispatchEventFrom 는 PendingDispatchedEvents 큐잉만.",
+  "scenarios": [
+    {
+      "name": "spawn_three_npcs",
+      "given": {
+        "event": { "param0": 0, "param1": 0 }
+      },
+      "expect": { "status": "Completed" }
+    }
+  ]
+}

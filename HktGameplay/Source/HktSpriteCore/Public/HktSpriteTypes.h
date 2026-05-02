@@ -28,42 +28,42 @@ enum class EHktSpriteFacing : uint8
 };
 
 // ============================================================================
-// FHktSpriteFrame — 한 프레임의 렌더 속성
-// Crowd Renderer Custom Primitive Data 슬롯에 그대로 매핑.
+// FHktSpriteAtlasSlot — Animation 의 atlas 풀 항목
+//
+// 한 애니메이션이 여러 atlas 텍스처를 가질 수 있도록 하는 간접 참조.
+// 분할(테스트) 단계에서는 방향별 atlas 를 N 개 슬롯으로, 통합 단계에서는 단일 슬롯으로
+// 표현한다. 렌더러는 슬롯 수에 무관하게 (dirIdx → AtlasSlotIdx) 규약으로 동일 코드
+// 경로로 동작한다.
 // ============================================================================
 
 USTRUCT(BlueprintType)
-struct HKTSPRITECORE_API FHktSpriteFrame
+struct HKTSPRITECORE_API FHktSpriteAtlasSlot
 {
 	GENERATED_BODY()
 
-	/** 아틀라스 내 셀 인덱스(좌→우, 위→아래). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) int32 AtlasIndex = 0;
+	/** 이 슬롯의 atlas 텍스처. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TSoftObjectPtr<UTexture2D> Atlas;
 
-	/** 스프라이트 pivot 오프셋 (픽셀, 프레임 좌상단 기준). 비워두면 애니메이션 공통값. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector2f PivotOffset = FVector2f::ZeroVector;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector2f Scale = FVector2f(1.f, 1.f);
-
-	/** degrees, Y-axis 빌보드 평면 내 회전 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) float Rotation = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FLinearColor Tint = FLinearColor::White;
-
-	/** 같은 캐릭터 안에서 프레임 간 Z-fighting 해소용 오프셋. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) int32 ZBias = 0;
+	/**
+	 * 이 슬롯의 셀 크기 (px). 0 이면 Animation.AtlasCellSize → Template.AtlasCellSize 순으로 폴백.
+	 * 슬롯 별로 셀 크기가 다른 경우(예: 공격 모션의 큰 프레임) 채운다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FVector2f CellSize = FVector2f::ZeroVector;
 };
 
 // ============================================================================
-// FHktSpriteAnimation — 한 애니메이션(AnimTag)의 재생 정보 + 프레임 리스트
+// FHktSpriteAnimation — 한 애니메이션(AnimTag)의 재생 정보
 //
 // 한 캐릭터의 모든 애니메이션이 단일 아틀라스/머티리얼에 녹아 있으므로, 애니메이션
-// 단위로는 "어느 셀 범위를 어떤 순서로 재생할지" + "프레임별 렌더 속성"만 들고 있다.
+// 단위로는 "어느 셀 범위를 어떤 순서로 재생할지" + "공통 렌더 속성"만 들고 있다.
 //
-// 그리드 파라미터(NumDirections × FramesPerDirection)는 Frames 배열과 중복처럼 보이지만,
-// FrameResolver가 "현재 방향의 N번째 프레임"을 O(1)로 매핑하기 위해 필요하다.
-// Frames.Num() >= NumDirections * FramesPerDirection 이어야 하며,
-// 인덱싱: Frames[ dir * FramesPerDirection + frame ].
+// 그리드 규약 — 프레임별 데이터는 모두 (dir, frame) 좌표로부터 합성한다:
+//   - AtlasSlotIdx = dirIdx  (Frames[d*FPD+f].AtlasSlotIdx 를 따로 저장하지 않음)
+//   - AtlasIndex   = frameIdx
+//   - 그 외 PivotOffset/Scale/Rotation/Tint 은 Animation 공통값.
+// 따라서 NumDirections × FramesPerDirection 만큼의 per-frame 배열은 갖지 않는다.
 // ============================================================================
 
 USTRUCT(BlueprintType)
@@ -72,18 +72,26 @@ struct HKTSPRITECORE_API FHktSpriteAnimation
 	GENERATED_BODY()
 
 	/**
-	 * 이 애니메이션 전용 아틀라스. Null이면 CharacterTemplate의 Atlas(폴백) 사용.
-	 * 애니별로 개별 PNG를 빌드한 캐릭터에서 필수.
+	 * 애니별 단일 atlas (구식 / 통합 경로). Null 이면 CharacterTemplate.Atlas 폴백.
+	 * AtlasSlots 가 비어있을 때만 사용된다. AtlasSlots 가 있으면 그쪽이 우선.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSoftObjectPtr<UTexture2D> Atlas;
 
 	/**
-	 * 이 애니메이션의 셀 크기(px). 0이면 CharacterTemplate의 AtlasCellSize(폴백) 사용.
-	 * Atlas가 애니별로 다른 셀 크기를 가질 때(예: 공격 모션 큰 프레임) 사용.
+	 * 단일 atlas 의 셀 크기(px). 0이면 CharacterTemplate.AtlasCellSize 폴백.
+	 * AtlasSlots 의 슬롯이 자체 CellSize=0 일 때도 폴백으로 참조된다.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FVector2f AtlasCellSize = FVector2f::ZeroVector;
+
+	/**
+	 * 애니별 atlas 풀. 비어있으면 단일 Atlas 경로(위 두 필드)를 사용.
+	 * 분할 atlas: 슬롯 N=NumDirections 개, 슬롯 인덱스가 곧 dirIdx.
+	 * 통합 atlas: 슬롯 1 개 (모든 dir 이 슬롯 0).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TArray<FHktSpriteAtlasSlot> AtlasSlots;
 
 	/** 저장된 방향 수: 1(단일), 5(N/NE/E/SE/S+미러), 8(전체). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1", ClampMax="8"))
@@ -95,6 +103,15 @@ struct HKTSPRITECORE_API FHktSpriteAnimation
 
 	/** 모든 프레임의 공통 피벗(픽셀, 프레임 좌상단 기준). 보통 (CellW/2, CellH) — 바닥 중앙. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector2f PivotOffset = FVector2f::ZeroVector;
+
+	/** 공통 스케일. 0/음수면 렌더러가 quad 0 로 거부. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector2f Scale = FVector2f(1.f, 1.f);
+
+	/** 공통 회전 (degrees, Y-axis 빌보드 평면 내). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly) float Rotation = 0.f;
+
+	/** 공통 틴트 (Update.TintOverride 와 곱). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly) FLinearColor Tint = FLinearColor::White;
 
 	/** 고정 프레임 길이 (ms). PerFrameDurationMs가 비어있을 때 사용. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1.0"))
@@ -112,25 +129,20 @@ struct HKTSPRITECORE_API FHktSpriteAnimation
 	/** W/SW/NW를 E/SE/NE 미러로 처리 (NumDirections=5일 때만 의미 있음). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bMirrorWestFromEast = true;
 
-	/**
-	 * 프레임 리스트. 크기는 NumDirections × FramesPerDirection.
-	 * 인덱싱: Frames[ dir * FramesPerDirection + frame ].
-	 * Generator가 채우므로 FrameOverride 같은 부분 덮어쓰기는 사용하지 않는다.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TArray<FHktSpriteFrame> Frames;
-
 	// --- 런타임 헬퍼 ---
 
 	/** 해당 방향의 프레임 수. 현재는 모든 방향 동일 = FramesPerDirection. */
 	FORCEINLINE int32 GetNumFrames(int32 /*DirIdx*/) const { return FMath::Max(FramesPerDirection, 0); }
 
-	/**
-	 * (dir, frameIdx) → 실제 프레임 속성. Frames 배열에서 직접 꺼낸다.
-	 * 범위를 벗어나면 grid 기본 속성(PivotOffset만 채운 FHktSpriteFrame)을 반환.
-	 */
-	FHktSpriteFrame MakeFrame(int32 DirIdx, int32 FrameIdx) const;
-
 	/** bMirrorWestFromEast + NumDirections를 반영해 저장된 방향과 flipX를 계산. */
 	static EHktSpriteFacing ResolveStoredFacing(EHktSpriteFacing In, int32 NumDirections, bool bMirror, bool& OutFlipX);
+
+	/**
+	 * (dirIdx) → atlas/cellSize 해석.
+	 * - AtlasSlots 가 있고 dirIdx 가 유효하면 그 슬롯 사용 (CellSize 0 이면 Animation.AtlasCellSize 폴백).
+	 * - 그렇지 않으면 Animation.Atlas/AtlasCellSize 폴백.
+	 * - 둘 다 비어있으면 OutAtlas 는 Null, OutCellSize 는 0 — 호출자가 Template 폴백 처리.
+	 */
+	void ResolveAtlasForDirection(int32 DirIdx,
+		TSoftObjectPtr<UTexture2D>& OutAtlas, FVector2f& OutCellSize) const;
 };

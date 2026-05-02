@@ -1,4 +1,4 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteBillboardMaterialBuilder.h"
 #include "HktSpriteBillboardMaterial.h"  // HktSpriteCore의 상수·런타임 로더 공유

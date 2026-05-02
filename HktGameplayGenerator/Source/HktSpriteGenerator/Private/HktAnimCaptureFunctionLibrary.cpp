@@ -1,4 +1,4 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktAnimCaptureFunctionLibrary.h"
 
@@ -6,11 +6,14 @@
 #include "HktSpriteGeneratorFunctionLibrary.h"
 
 #include "Animation/AnimSequence.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
 #include "Engine/SkeletalMesh.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 
@@ -43,8 +46,19 @@ namespace HktAnimCaptureLibPrivate
 		return Json;
 	}
 
-	static FString DefaultDiskOutputDir(const FString& CharacterTag, const FString& ActionId)
+	/**
+	 * 방향별 TextureBundle 컨벤션 루트.
+	 *   {ProjectSavedDir}/SpriteGenerator/{SafeChar}/{SafeAnim}/
+	 * 하위에 {DirName}/frame_{nnn:03d}.png 가 쌓이고,
+	 * 캡처 산출물(방향별 frame_*.png + atlas_{Dir}.png) 의 루트.
+	 */
+	static FString DefaultDiskOutputDir(const FString& CharacterTag, const FString& AnimTagStr, const FString& ActionId)
 	{
+		// AnimTag 가 있으면 컨벤션 경로 사용. 없으면 ActionId 폴백.
+		if (!CharacterTag.IsEmpty() && !AnimTagStr.IsEmpty())
+		{
+			return UHktSpriteGeneratorFunctionLibrary::GetConventionBundleDir(CharacterTag, AnimTagStr);
+		}
 		const FString Safe = (CharacterTag.IsEmpty() ? TEXT("Untagged") : CharacterTag).Replace(TEXT("."), TEXT("_"));
 		const FString Action = ActionId.IsEmpty() ? TEXT("idle") : ActionId;
 		return FPaths::ProjectSavedDir() / TEXT("SpriteGenerator") / TEXT("AnimCapture") / Safe / Action;
@@ -66,17 +80,29 @@ namespace HktAnimCaptureLibPrivate
 	}
 
 	/**
-	 * 캡처 시작 전 출력 폴더를 비운다 — 이전 캡처의 잔존 프레임이 새로
-	 * 패킹될 아틀라스에 섞이는 것을 방지.
+	 * 캡처 시작 전 방향별 서브트리를 통째로 비운다 — 이전 캡처의 stale 프레임이
+	 * 새로 패킹될 방향별 atlas 에 섞이는 것을 방지.
+	 *   {Dir}/{N,NE,E,SE,S,SW,W,NW}/frame_*.png  +  {Dir}/atlas_*.png
 	 */
-	static void ClearDirectoryContents(const FString& Dir)
+	static void ClearPerDirectionContents(const FString& Dir)
 	{
 		IFileManager& FM = IFileManager::Get();
 		if (!FM.DirectoryExists(*Dir)) { FM.MakeDirectory(*Dir, /*Tree*/ true); return; }
 
-		TArray<FString> Files;
-		FM.FindFiles(Files, *(Dir / TEXT("*.png")), /*Files*/ true, /*Dirs*/ false);
-		for (const FString& F : Files)
+		static const TCHAR* DirNames[8] = {
+			TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"),
+			TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW")
+		};
+		for (const TCHAR* Name : DirNames)
+		{
+			const FString Sub = Dir / Name;
+			FM.DeleteDirectory(*Sub, /*RequireExists*/ false, /*Tree*/ true);
+		}
+
+		// 방향별 atlas PNG 도 정리 — Stage 2 가 다시 만든다.
+		TArray<FString> AtlasFiles;
+		FM.FindFiles(AtlasFiles, *(Dir / TEXT("atlas_*.png")), /*Files*/ true, /*Dirs*/ false);
+		for (const FString& F : AtlasFiles)
 		{
 			FM.Delete(*(Dir / F), /*RequireExists*/ false, /*EvenReadOnly*/ true);
 		}
@@ -109,13 +135,15 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 		Settings.ActionId = DeriveActionIdFromAnimTag(Settings.AnimTag);
 	}
 
-	// 출력 폴더 결정.
+	// 출력 폴더 결정 — 기본값은 컨벤션 경로
+	// (ConventionBundleDir = {Saved}/SpriteGenerator/{SafeChar}/{SafeAnim}/).
+	const FString AnimTagStr = Settings.AnimTag.IsValid() ? Settings.AnimTag.ToString() : FString();
 	if (Settings.DiskOutputDir.IsEmpty())
 	{
-		Settings.DiskOutputDir = DefaultDiskOutputDir(CharacterTagStr, Settings.ActionId);
+		Settings.DiskOutputDir = DefaultDiskOutputDir(CharacterTagStr, AnimTagStr, Settings.ActionId);
 	}
 	Settings.DiskOutputDir = FPaths::ConvertRelativePathToFull(Settings.DiskOutputDir);
-	ClearDirectoryContents(Settings.DiskOutputDir);
+	ClearPerDirectionContents(Settings.DiskOutputDir);
 
 	// 방향 수 강제: 1 또는 8 만 허용. 그 외(2/3/4/5/6/7)는 yaw step 과
 	// SpriteGenerator 의 N/NE/E/SE/S/SW/W/NW 파일명 인덱스 매핑이 어긋나
@@ -152,7 +180,6 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 
 	// === 캡처 루프 ===
 	int32 SavedFrames = 0;
-	const FString ActionLower = Settings.ActionId.IsEmpty() ? TEXT("idle") : Settings.ActionId.ToLower();
 	const int32 TotalFrames = FMath::Max(1, Settings.NumDirections * FrameCount);
 
 	// FScopedSlowTask: 표준 Unreal 진행 다이얼로그(취소 가능). EnterProgressFrame 가 Slate
@@ -169,6 +196,9 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 		// 사용자가 NumDirections=1 또는 4 를 골라도, 우리는 N..NW 매핑 이름을 그대로 쓴다.
 		// (N=0 → 정면 캡처, 이후 균등 분할)
 		const TCHAR* DirName = DirectionName(Dir);
+
+		// 방향별 서브폴더 생성 — 첫 진입 시 없으면 만든다.
+		IFileManager::Get().MakeDirectory(*(Settings.DiskOutputDir / DirName), /*Tree*/ true);
 
 		for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 		{
@@ -187,9 +217,11 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 			const float T = (AnimLen > 0.0f) ? (StartT + TimeStep * Frame) : 0.0f;
 			Scene.SetAnimationTime(T);
 
-			// 파일명: {action}_{dir}_{frame:03d}.png — HktSpriteGenerator ParseFlatStem 호환.
-			const FString FileName = FString::Printf(TEXT("%s_%s_%03d.png"), *ActionLower, DirName, Frame);
-			const FString FullPath = Settings.DiskOutputDir / FileName;
+			// 방향별 서브폴더 + frame_{nnn:03d}.png — Stage 2 패커가
+			// {Root}/{DirName}/frame_*.png 글롭으로 스캔하는 컨벤션과 일치.
+			const FString DirSubPath = Settings.DiskOutputDir / DirName;
+			const FString FileName   = FString::Printf(TEXT("frame_%03d.png"), Frame);
+			const FString FullPath   = DirSubPath / FileName;
 
 			FString CaptureErr;
 			if (!Scene.CaptureToFile(FullPath, CaptureErr))
@@ -208,22 +240,55 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 		TEXT("AnimCapture 완료: 방향=%d 프레임=%d 총=%d → %s"),
 		Settings.NumDirections, FrameCount, SavedFrames, *Settings.DiskOutputDir);
 
-	// === Atlas 자동 빌드 ===
-	FString AtlasResult;
-	if (Settings.bAutoBuildAtlas && !CharacterTagStr.IsEmpty())
+	// === 방향별 Atlas PNG 패킹 (UE 임포트 없음, DataAsset 없음) ===
+	// {DiskOutputDir}/{DirName}/frame_*.png  →  {DiskOutputDir}/atlas_{DirName}.png 만 생성.
+	int32 AtlasOkCount = 0;
+	FString AtlasFirstError;
+	TArray<TSharedPtr<FJsonValue>> AtlasItems;
+	if (Settings.bAutoBuildAtlas)
 	{
-		// AnimTag 가 지정되면 그대로 사용해 등록 — 파일명 round-trip 으로 발생하던
-		// "Anim.FullBody.Anim_..." 같은 망가진 태그를 방지.
-		const FString AnimTagOverride = Settings.AnimTag.IsValid() ? Settings.AnimTag.ToString() : FString();
-		AtlasResult = UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromDirectory(
-			CharacterTagStr,
-			Settings.DiskOutputDir,
-			Settings.AssetOutputDir,
-			Settings.PixelToWorld,
-			Settings.FrameDurationMs,
-			Settings.bLooping,
-			Settings.bMirrorWestFromEast,
-			AnimTagOverride);
+		for (int32 d = 0; d < Settings.NumDirections; ++d)
+		{
+			const TCHAR* DirName = DirectionName(d);
+			const FString DirBundle = Settings.DiskOutputDir / DirName;
+			const FString AtlasPng  = Settings.DiskOutputDir / FString::Printf(TEXT("atlas_%s.png"), DirName);
+
+			const FString PackJson = UHktSpriteGeneratorFunctionLibrary::EditorPackBundleFolderToAtlasPng(
+				DirBundle, AtlasPng);
+
+			TSharedPtr<FJsonObject> Parsed;
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(PackJson);
+			if (FJsonSerializer::Deserialize(Reader, Parsed) && Parsed.IsValid())
+			{
+				bool bOk = false;
+				Parsed->TryGetBoolField(TEXT("success"), bOk);
+				if (bOk)
+				{
+					Parsed->SetStringField(TEXT("direction"), DirName);
+					AtlasItems.Add(MakeShared<FJsonValueObject>(Parsed));
+					++AtlasOkCount;
+				}
+				else if (AtlasFirstError.IsEmpty())
+				{
+					Parsed->TryGetStringField(TEXT("error"), AtlasFirstError);
+				}
+			}
+		}
+	}
+
+	FString AtlasResults;
+	if (Settings.bAutoBuildAtlas)
+	{
+		TSharedRef<TJsonWriter<>> AW = TJsonWriterFactory<>::Create(&AtlasResults);
+		TSharedRef<FJsonObject> AObj = MakeShared<FJsonObject>();
+		AObj->SetBoolField(TEXT("success"),   AtlasOkCount > 0);
+		AObj->SetNumberField(TEXT("count"),   AtlasOkCount);
+		AObj->SetArrayField(TEXT("items"),    AtlasItems);
+		if (AtlasOkCount == 0 && !AtlasFirstError.IsEmpty())
+		{
+			AObj->SetStringField(TEXT("error"), AtlasFirstError);
+		}
+		FJsonSerializer::Serialize(AObj, AW);
 	}
 
 	// === 결과 JSON ===
@@ -240,10 +305,10 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 		W->WriteValue(TEXT("framesPerDir"),  FrameCount);
 		W->WriteValue(TEXT("totalFrames"),   SavedFrames);
 		W->WriteValue(TEXT("animLength"),    AnimLen);
-		if (!AtlasResult.IsEmpty())
+		if (!AtlasResults.IsEmpty())
 		{
-			W->WriteIdentifierPrefix(TEXT("atlasResult"));
-			W->WriteRawJSONValue(AtlasResult);
+			W->WriteIdentifierPrefix(TEXT("atlasResults"));
+			W->WriteRawJSONValue(AtlasResults);
 		}
 		W->WriteObjectEnd();
 		W->Close();

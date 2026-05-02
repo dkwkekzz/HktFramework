@@ -1,0 +1,14 @@
+{
+  "storyTag": "Story.State.Player.Init",
+  "description": "PlayerInit: 캐릭터 SpawnEntity → Move Self←Spawned → 위치/스탯 세팅 → 첫 실행 시 목검 SpawnEntity + 장비/스탯 세팅. CountByOwner 분기로 두 번째 실행부터는 skip_grant.",
+  "scenarios": [
+    {
+      "name": "first_run_spawns_character_and_grants_sword",
+      "description": "초기 상태 (소유 아이템 0) 에서 PlayerInit 실행 → 캐릭터 + 목검 스폰. 정확한 Self 엔티티는 spec 의 self 블록이 만든 dummy 가 아닌 SpawnEntity 결과로 갈아치워지므로 properties 매처는 적용 어렵다. 본 시나리오는 status=Completed 만 검증.",
+      "given": {
+        "event": { "targetPosX": 100, "targetPosY": 200, "targetPosZ": 0 }
+      },
+      "expect": { "status": "Completed" }
+    }
+  ]
+}

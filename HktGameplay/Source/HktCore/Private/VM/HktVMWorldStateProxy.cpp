@@ -51,15 +51,23 @@ void FHktVMWorldStateProxy::SetPropertyDirty(FHktWorldState& WS, FHktEntityId En
 {
     if (!WS.IsValidEntity(Entity)) return;
     const int32 Slot = WS.GetSlot(Entity);
-    SetDirty(WS, Slot, PropId, Value);
 
     // Anim 상태 전환을 유발하는 property에는 AnimStartTick도 함께 갱신.
-    // AnimStartTick 자체 쓰기에 대한 재귀는 당연히 회피.
-    if (PropId != PropertyId::AnimStartTick
-        && (PropId == PropertyId::IsMoving
-         || PropId == PropertyId::IsGrounded
-         || PropId == PropertyId::AnimState
-         || PropId == PropertyId::AnimStateUpper))
+    // 단, 동일 값을 매 틱 재기록하는 호출자(Story 루프, Phase 1 등)에 의해
+    // AnimStartTick이 매 프레임 리셋되어 ElapsedTicks=0이 되는 것을 막기 위해
+    // 실제 값이 변경된 경우에만 Touch한다.
+    const bool bAnimTrigger =
+        PropId != PropertyId::AnimStartTick &&
+        (PropId == PropertyId::IsMoving ||
+         PropId == PropertyId::IsGrounded ||
+         PropId == PropertyId::AnimState ||
+         PropId == PropertyId::AnimStateUpper);
+
+    const bool bChanged = bAnimTrigger ? (WS.Get(Slot, PropId) != Value) : false;
+
+    SetDirty(WS, Slot, PropId, Value);
+
+    if (bAnimTrigger && bChanged)
     {
         TouchAnimStartTickBySlot(WS, Slot);
     }

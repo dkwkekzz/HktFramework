@@ -23,6 +23,10 @@ struct HKTCORE_API FHktVMWorldStateProxy
     TArray<uint8>  TagsDirtyMask;
     TArray<int32>  TagsDirtySlots;
 
+    // Op_PlayAnim 동일 태그 재호출 시 AnimStartTick이 매 틱 리셋되어 프레임 커서가
+    // 0에 머무는 것을 막기 위한 per-slot 마지막 재생 태그 해시. 프레임 경계를 넘어 유지.
+    TArray<uint32> LastPlayAnimTagHashBySlot;
+
     // PreFrame 스냅샷 (3-Tier)
     TArray<int32>  PreFrameHotData;
     TArray<FHktPropertyPair> PreFrameWarmData;
@@ -63,6 +67,10 @@ struct HKTCORE_API FHktVMWorldStateProxy
     {
         if (!WS.IsValidEntity(Entity)) return;
         int32 Slot = WS.GetSlot(Entity);
+        // 이미 보유한 태그를 매 틱 재추가하면 AnimStartTick이 리셋되어 프레임 커서가 0에 머문다.
+        // 실제 추가가 일어난 경우에만 dirty/Touch.
+        const bool bHad = WS.TagContainers[Slot].HasTagExact(Tag);
+        if (bHad) return;
         WS.TagContainers[Slot].AddTag(Tag);
         SetTagsDirty(Slot);
         if (IsAnimTag(Tag)) TouchAnimStartTickBySlot(WS, Slot);
@@ -72,6 +80,8 @@ struct HKTCORE_API FHktVMWorldStateProxy
     {
         if (!WS.IsValidEntity(Entity)) return;
         int32 Slot = WS.GetSlot(Entity);
+        const bool bHad = WS.TagContainers[Slot].HasTagExact(Tag);
+        if (!bHad) return;
         WS.TagContainers[Slot].RemoveTag(Tag);
         SetTagsDirty(Slot);
         if (IsAnimTag(Tag)) TouchAnimStartTickBySlot(WS, Slot);

@@ -1,8 +1,9 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "SHktSpriteToolsWindow.h"
 
 #include "SHktAnimCapturePanel.h"
+#include "SHktSpriteAtlasPackPanel.h"
 #include "SHktSpriteBuilderPanel.h"
 #include "SHktSpriteMcpJsonPanel.h"
 #include "SHktSpriteTerrainAtlasPanel.h"
@@ -28,11 +29,13 @@ namespace HktSpriteToolsPrivate
 	{
 		static const TArray<FTabDef> Defs = {
 			{ LOCTEXT("Tab_Builder",      "Sprite Builder"),
-			  LOCTEXT("TabTip_Builder",   "BuildSpriteAnim — Video/Atlas/TextureBundle 단일 진입점") },
+			  LOCTEXT("TabTip_Builder",   "Stage 3 — BuildSpriteAnim 단일 진입점 (Video/Atlas/TextureBundle/DirectionalAtlas)") },
 			{ LOCTEXT("Tab_AnimCap",      "Anim Capture"),
 			  LOCTEXT("TabTip_AnimCap",   "SkeletalMesh + AnimSequence → 8방향 캡처") },
-			{ LOCTEXT("Tab_VideoExtract", "Video Tools"),
-			  LOCTEXT("TabTip_VideoExtract", "ffmpeg 으로 동영상 → PNG 프레임 추출") },
+			{ LOCTEXT("Tab_VideoExtract", "Video Extract"),
+			  LOCTEXT("TabTip_VideoExtract", "Stage 1 — 동영상 → 단일 방향 TextureBundle (atlas 미생성)") },
+			{ LOCTEXT("Tab_AtlasPack",    "Atlas Pack"),
+			  LOCTEXT("TabTip_AtlasPack", "Stage 2 — 방향별 TextureBundle → 방향별 Atlas PNG/Texture2D") },
 			{ LOCTEXT("Tab_TerrainAtlas", "Terrain Atlas"),
 			  LOCTEXT("TabTip_TerrainAtlas", "33-frame 1D strip 테레인 아틀라스 빌드") },
 			{ LOCTEXT("Tab_McpJson",      "MCP JSON"),
@@ -52,6 +55,7 @@ void SHktSpriteToolsWindow::Construct(const FArguments& InArgs)
 	TabSwitcher->AddSlot()[ SNew(SHktSpriteBuilderPanel) ];
 	TabSwitcher->AddSlot()[ SNew(SHktAnimCapturePanel) ];
 	TabSwitcher->AddSlot()[ SNew(SHktSpriteVideoExtractPanel) ];
+	TabSwitcher->AddSlot()[ SNew(SHktSpriteAtlasPackPanel) ];
 	TabSwitcher->AddSlot()[ SNew(SHktSpriteTerrainAtlasPanel) ];
 	TabSwitcher->AddSlot()[ SNew(SHktSpriteMcpJsonPanel) ];
 

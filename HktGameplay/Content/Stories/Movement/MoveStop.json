@@ -1,9 +1,0 @@
-{
-  "schema": 2,
-  "storyTag": "Story.V2.Event.Move.Stop",
-  "cancelOnDuplicate": true,
-  "steps": [
-    { "op": "StopMovement", "entity": {"self": true} },
-    { "op": "Halt" }
-  ]
-}

@@ -107,6 +107,17 @@ void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 TagIndex)
             {
                 VMProxy->SetOwnerUid(*WorldState, NewEntity, Runtime.PlayerUid);
             }
+
+            // 슬롯 재사용 시 이전 엔티티의 PlayAnim 태그 해시가 남아있으면 새 엔티티의
+            // 첫 PlayAnim 호출에서 Touch가 누락될 수 있다. 신규 엔티티 슬롯의 해시를 비운다.
+            if (VMProxy)
+            {
+                const int32 NewSlot = WorldState->GetSlot(NewEntity);
+                if (NewSlot >= 0 && NewSlot < VMProxy->LastPlayAnimTagHashBySlot.Num())
+                {
+                    VMProxy->LastPlayAnimTagHashBySlot[NewSlot] = 0;
+                }
+            }
         }
     }
 }
@@ -349,7 +360,22 @@ void FHktVMInterpreter::Op_PlayAnim(FHktVMRuntime& Runtime, RegisterIndex Entity
     VMProxy->PendingAnimEvents.Add({ Tag, E });
 
     // 원샷 Montage도 클라가 프레임 커서 0부터 재생하도록 서버 권위 AnimStartTick 갱신.
-    if (WorldState) VMProxy->TouchAnimStartTick(*WorldState, E);
+    // 단, 동일 태그를 매 틱 재호출하는 story 루프에서 AnimStartTick이 매 프레임 리셋되어
+    // 프레임 커서가 0에 머무는 것을 막기 위해 per-slot 마지막 태그 해시와 비교.
+    if (WorldState && WorldState->IsValidEntity(E))
+    {
+        const int32 Slot = WorldState->GetSlot(E);
+        const uint32 NewHash = GetTypeHash(Tag);
+        if (Slot >= VMProxy->LastPlayAnimTagHashBySlot.Num())
+        {
+            VMProxy->LastPlayAnimTagHashBySlot.SetNumZeroed(Slot + 1, EAllowShrinking::No);
+        }
+        if (VMProxy->LastPlayAnimTagHashBySlot[Slot] != NewHash)
+        {
+            VMProxy->LastPlayAnimTagHashBySlot[Slot] = NewHash;
+            VMProxy->TouchAnimStartTickBySlot(*WorldState, Slot);
+        }
+    }
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_PlayAnim Id=%d Anim=%s"), E, *Tag.ToString()), E);

@@ -1,8 +1,9 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HktAnimCapturePanelConfig.h"
 #include "HktAnimCaptureScene.h"
 #include "HktAnimCaptureTypes.h"
 #include "Styling/SlateBrush.h"
@@ -14,7 +15,6 @@ class SEditableTextBox;
 class SImage;
 class SMultiLineEditableTextBox;
 class SProgressBar;
-class UHktAnimCaptureTagHolder;
 
 /**
  * SHktAnimCapturePanel — 에디터 단독 애니메이션 캡처 UI.

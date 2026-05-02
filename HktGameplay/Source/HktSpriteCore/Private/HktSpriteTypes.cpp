@@ -50,23 +50,23 @@ EHktSpriteFacing FHktSpriteAnimation::ResolveStoredFacing(
 }
 
 // ============================================================================
-// FHktSpriteAnimation::MakeFrame — Frames[dir * FPD + frameIdx] 조회
+// FHktSpriteAnimation::ResolveAtlasForDirection — slot 또는 단일 Atlas 폴백
+// 규약: AtlasSlotIdx == dirIdx.
 // ============================================================================
 
-FHktSpriteFrame FHktSpriteAnimation::MakeFrame(int32 DirIdx, int32 FrameIdx) const
+void FHktSpriteAnimation::ResolveAtlasForDirection(int32 DirIdx,
+	TSoftObjectPtr<UTexture2D>& OutAtlas, FVector2f& OutCellSize) const
 {
-	const int32 SafeDir   = FMath::Max(DirIdx, 0);
-	const int32 SafeFrame = FMath::Max(FrameIdx, 0);
-	const int32 FPD       = FMath::Max(FramesPerDirection, 1);
-	const int32 Linear    = SafeDir * FPD + SafeFrame;
-
-	if (Frames.IsValidIndex(Linear))
+	if (AtlasSlots.Num() > 0)
 	{
-		return Frames[Linear];
+		// 인덱스 초과 시 슬롯 0 으로 클램프 — 데이터/방향 불일치에 대한 안전망.
+		const FHktSpriteAtlasSlot& Slot = AtlasSlots[AtlasSlots.IsValidIndex(DirIdx) ? DirIdx : 0];
+		OutAtlas = Slot.Atlas;
+		OutCellSize = (Slot.CellSize.X > 0.f && Slot.CellSize.Y > 0.f) ? Slot.CellSize : AtlasCellSize;
+		return;
 	}
 
-	// 배열이 비거나 잘렸으면 피벗만 채운 기본 프레임 반환 — 렌더러 측 안전망.
-	FHktSpriteFrame Fallback;
-	Fallback.PivotOffset = PivotOffset;
-	return Fallback;
+	// 단일 atlas 경로 — 구식/통합 데이터.
+	OutAtlas = Atlas;
+	OutCellSize = AtlasCellSize;
 }

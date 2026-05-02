@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktAutomationTestsHarness.h"
+#include "HktSimulationTick.h"
 #include "VM/HktVMProgram.h"
 
 void FHktAutomationTestHarness::Setup()
@@ -265,6 +266,25 @@ void FHktAutomationTestHarness::AdvanceTimerFrames(int32 Frames)
 			Runtime.Status = EVMStatus::Ready;
 		}
 	}
+}
+
+void FHktAutomationTestHarness::SetEventParams(int32 P0, int32 P1, int32 P2, int32 P3,
+                                               int32 TargetPosX, int32 TargetPosY, int32 TargetPosZ)
+{
+	Context.EventParam0 = P0;
+	Context.EventParam1 = P1;
+	Context.EventParam2 = P2;
+	Context.EventParam3 = P3;
+	Context.EventTargetPosX = TargetPosX;
+	Context.EventTargetPosY = TargetPosY;
+	Context.EventTargetPosZ = TargetPosZ;
+}
+
+void FHktAutomationTestHarness::InjectAnimEndEvent()
+{
+	// WaitAnimEnd 는 EWaitEventType::Timer 로 SimFPS 프레임을 세팅한다 (HktVMInterpreter::Op_WaitAnimEnd).
+	// Timer 한 호흡 분량을 한 번에 진행하여 Wait 를 해소.
+	AdvanceTimerFrames(HktGetSimFramesPerSecond());
 }
 
 int32 FHktAutomationTestHarness::GetRegister(RegisterIndex Idx) const

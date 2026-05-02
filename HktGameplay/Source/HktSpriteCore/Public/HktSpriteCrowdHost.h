@@ -40,7 +40,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// --- IHktPresentationProcessor ---
-	virtual void Tick(FHktPresentationState& State, float DeltaTime) override {}
+	virtual void Tick(FHktPresentationState& State, float DeltaTime) override;
 	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
 	/** 애니메이션은 VM 델타 없이도 매 프레임 진행해야 하므로 항상 true. */
@@ -73,8 +73,28 @@ private:
 	float CameraYawDeg = 0.f;
 	float TickDurationMs = 1000.f / 30.f;
 
+	/** 매 render 프레임마다 모든 sprite 엔터티의 frame cursor 를 재계산 — 서버 batch 가 없어도 진행. */
+	void UpdateEntitiesPerFrame(FHktPresentationState& State);
+
 	/** Entity별 sprite anim 런타임 상태(POD fragment). */
 	TMap<FHktEntityId, FHktSpriteAnimFragment> AnimFragments;
+
+	/**
+	 * 로컬 실시간 클럭 (ms). 매 Tick 에서 DeltaTime*1000 누적.
+	 * 서버 batch 가 멈춰도 (state delta 없음) 애니메이션이 계속 진행되도록 하는 단일 시간 출처.
+	 */
+	double LocalNowMs = 0.0;
+
+	/**
+	 * 엔터티별 anim start 의 로컬 ms 시각.
+	 * 서버 권위 AnimStartTick 값이 바뀌면(즉, 서버가 anim 전환을 통보) 그 시점의 LocalNowMs 로 갱신.
+	 */
+	TMap<FHktEntityId, double> AnimStartLocalMs;
+
+	/**
+	 * 엔터티별 마지막으로 관측한 서버 권위 AnimStartTick 값. 변화 감지로 AnimStartLocalMs 재캡처 트리거.
+	 */
+	TMap<FHktEntityId, int32> LastAuthoritativeAnimStartTick;
 
 	/**
 	 * HktSpriteAnimProcessor::ResolveRenderOutputs 태그 해석 실패 dedup.

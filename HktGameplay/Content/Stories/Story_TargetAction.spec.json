@@ -1,0 +1,24 @@
+{
+  "storyTag": "Story.Event.Target.Action",
+  "description": "TargetAction: 대상의 ItemId/IsNPC 에 따라 pickup/skill/move 분기. DispatchEvent 는 PendingDispatchedEvents 큐잉만 하므로 본 Story 자체는 즉시 Completed.",
+  "scenarios": [
+    {
+      "name": "non_item_non_npc_falls_through_to_dispatch_move",
+      "description": "ItemId<=0 + IsNPC=0 → dispatch_move 분기 → DispatchEvent(Story.Event.Move.ToLocation) → Halt.",
+      "given": {
+        "self":   { "properties": { "AttackRange": 200 }, "position": [0, 0, 0] },
+        "target": { "properties": { "ItemId": 0, "IsNPC": 0 }, "position": [100, 0, 0] }
+      },
+      "expect": { "status": "Completed" }
+    },
+    {
+      "name": "item_in_range_dispatches_pickup",
+      "description": "ItemId>0 + ItemState=0 (월드 드롭) + 거리 <=300 → item_pickup 라벨 → DispatchEvent(ItemPickup) → Halt.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "properties": { "ItemId": 100, "ItemState": 0 }, "position": [200, 0, 0] }
+      },
+      "expect": { "status": "Completed" }
+    }
+  ]
+}

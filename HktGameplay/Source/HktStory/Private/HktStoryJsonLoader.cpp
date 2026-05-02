@@ -66,6 +66,12 @@ int32 FHktStoryJsonLoader::LoadAllFromDirectory(const FString& DirectoryPath)
 	TArray<FString> JsonFiles;
 	IFileManager::Get().FindFilesRecursive(JsonFiles, *DirectoryPath, TEXT("*.json"), /*Files=*/true, /*Directories=*/false);
 
+	// `.spec.json` 사이드카는 Story 본문이 아닌 시나리오 검증 입력 — HktAutomationTests 의 SpecRunner 가 별도 처리.
+	JsonFiles.RemoveAllSwap([](const FString& Path)
+	{
+		return Path.EndsWith(TEXT(".spec.json"));
+	});
+
 	int32 SuccessCount = 0;
 	int32 TotalCount = JsonFiles.Num();
 

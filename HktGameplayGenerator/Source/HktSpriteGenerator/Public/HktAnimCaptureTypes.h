@@ -1,4 +1,4 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -233,32 +233,40 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 	// === 출력 ===
 
 	/**
-	 * 디스크 출력 폴더(절대 경로). 비어있으면
-	 * <Project>/Saved/SpriteGenerator/AnimCapture/<CharacterTag>/<ActionId>/ 사용.
+	 * 디스크 출력 폴더(절대 경로). 모든 산출물의 루트.
+	 *   {DiskOutputDir}/{N|NE|...|NW}/frame_{nnn:03d}.png   (TextureBundle, 방향별)
+	 *   {DiskOutputDir}/atlas_{N|NE|...|NW}.png              (방향별 strip atlas PNG)
+	 *
+	 * 비어있으면 컨벤션 경로 사용:
+	 *   <Project>/Saved/SpriteGenerator/<SafeChar>/<SafeAnim>/
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	FString DiskOutputDir;
 
-	/** UE 컨텐트 출력 경로 (DataAsset/Atlas 저장용). */
+	/** [Deprecated] UE 측 산출물(Texture2D/DataAsset) 을 만들지 않으므로 사용되지 않음. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	FString AssetOutputDir = TEXT("/Game/Generated/Sprites");
 
+	/** [Deprecated] 방향별 분리 흐름에선 사용되지 않음 — DataAsset 빌드를 제거. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	float PixelToWorld = 2.0f;
 
+	/** [Deprecated] 방향별 분리 흐름에선 사용되지 않음 — DataAsset 빌드를 제거. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	float FrameDurationMs = 100.0f;
 
+	/** [Deprecated] 방향별 분리 흐름에선 사용되지 않음 — DataAsset 빌드를 제거. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool bLooping = true;
 
 	/**
-	 * True 이면 캡처 종료 후 디스크 폴더를 즉시
-	 * UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromDirectory 로 패킹.
+	 * True 이면 캡처 종료 후 방향별 폴더를 즉시 strip atlas PNG 로 패킹 —
+	 * {DiskOutputDir}/atlas_{Dir}.png 만 생성. UE Texture2D / DataAsset 은 만들지 않는다.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool bAutoBuildAtlas = true;
 
+	/** [Deprecated] 방향별 분리 흐름에선 사용되지 않음 — 8방향 모두 직접 캡처. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool bMirrorWestFromEast = false;
 };

@@ -1,4 +1,5 @@
 {
+  "schema": 2,
   "storyTag": "Story.Flow.World.Init",
   "cancelOnDuplicate": false,
   "tags": {
@@ -13,9 +14,9 @@
   "steps": [
     { "op": "Log", "message": "WorldInit: 스폰 3 NPC" },
 
-    { "op": "ReadProperty", "dst": "R0", "property": "Param0" },
-    { "op": "ReadProperty", "dst": "R1", "property": "Param1" },
-    { "op": "LoadConst",    "dst": "R2", "value": 0 },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":0}, "property": "Param0" },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":1}, "property": "Param1" },
+    { "op": "LoadConst", "dst": {"block":"spawnPos","index":2}, "value": 0 },
 
     { "op": "SpawnEntity",     "classTag": "NpcGoblin" },
     { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC",       "value": 1 },
@@ -29,10 +30,10 @@
     { "op": "AddTag",          "entity": "Spawned", "tag": "NpcHostile" },
     { "op": "SetStance",       "entity": "Spawned", "stanceTag": "StanceUnarmed" },
     { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed",    "value": 120 },
-    { "op": "SetPosition",     "entity": "Spawned", "src": "R0" },
+    { "op": "SetPosition",     "entity": "Spawned", "pos": {"block":"spawnPos"} },
     { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": "Spawned" },
 
-    { "op": "AddImm", "dst": "R0", "src": "R0", "imm": 500 },
+    { "op": "AddImm", "dst": {"block":"spawnPos","index":0}, "src": {"block":"spawnPos","index":0}, "imm": 500 },
 
     { "op": "SpawnEntity",     "classTag": "NpcSkeleton" },
     { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC",       "value": 1 },
@@ -46,10 +47,10 @@
     { "op": "AddTag",          "entity": "Spawned", "tag": "NpcHostile" },
     { "op": "SetStance",       "entity": "Spawned", "stanceTag": "StanceUnarmed" },
     { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed",    "value": 100 },
-    { "op": "SetPosition",     "entity": "Spawned", "src": "R0" },
+    { "op": "SetPosition",     "entity": "Spawned", "pos": {"block":"spawnPos"} },
     { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": "Spawned" },
 
-    { "op": "AddImm", "dst": "R0", "src": "R0", "imm": -1000 },
+    { "op": "AddImm", "dst": {"block":"spawnPos","index":0}, "src": {"block":"spawnPos","index":0}, "imm": -1000 },
 
     { "op": "SpawnEntity",     "classTag": "NpcZombie" },
     { "op": "SaveConstEntity", "entity": "Spawned", "property": "IsNPC",       "value": 1 },
@@ -63,7 +64,7 @@
     { "op": "AddTag",          "entity": "Spawned", "tag": "NpcHostile" },
     { "op": "SetStance",       "entity": "Spawned", "stanceTag": "StanceUnarmed" },
     { "op": "SaveConstEntity", "entity": "Spawned", "property": "MaxSpeed",    "value": 80 },
-    { "op": "SetPosition",     "entity": "Spawned", "src": "R0" },
+    { "op": "SetPosition",     "entity": "Spawned", "pos": {"block":"spawnPos"} },
     { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": "Spawned" },
 
     { "op": "Log", "message": "WorldInit: 3 NPC 스폰 완료" },

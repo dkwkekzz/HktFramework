@@ -1,14 +1,14 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HktSpriteVideoExtractPanelConfig.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 
 class IDetailsView;
 class SMultiLineEditableTextBox;
-class UHktSpriteVideoExtractPanelConfig;
 
 /**
  * SHktSpriteVideoExtractPanel

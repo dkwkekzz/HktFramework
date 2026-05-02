@@ -1,4 +1,4 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "SHktAnimCapturePanel.h"
 
@@ -161,7 +161,7 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				// === 식별 (UE 표준 GameplayTag 피커) ===
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
-					[&]() -> TSharedRef<SWidget>
+					([&]() -> TSharedRef<SWidget>
 					{
 						// 패널 라이프타임 동안 유지되는 태그 holder 를 만들고 Settings 의 현재 값으로 동기화.
 						TagHolder = TStrongObjectPtr<UHktAnimCaptureTagHolder>(
@@ -186,7 +186,7 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 						DetailsView->OnFinishedChangingProperties().AddSP(
 							this, &SHktAnimCapturePanel::OnTagHolderPropertyChanged);
 						return DetailsView;
-					}()
+					}())
 				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)

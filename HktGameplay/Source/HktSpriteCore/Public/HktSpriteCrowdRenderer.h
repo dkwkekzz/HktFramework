@@ -156,11 +156,11 @@ private:
 	void RemoveInstanceAndRemap(const FSoftObjectPath& AtlasPath, int32 InstanceIndex);
 
 	/**
-	 * 애니별 아틀라스/셀크기 해석 — Animation 쪽이 비어있으면 Template 폴백.
+	 * 방향 단위 atlas/셀크기 해석 — Animation.AtlasSlots(분할) 또는 단일 Anim.Atlas/Template.Atlas 폴백.
 	 * 반환 텍스처는 LoadSynchronous 결과. 실패 시 nullptr.
 	 */
-	static UTexture2D* ResolveAtlas(const FHktSpriteAnimation& Anim, UHktSpriteCharacterTemplate* Template,
-		FSoftObjectPath& OutPath, FVector2f& OutCellSize);
+	static UTexture2D* ResolveAtlas(const FHktSpriteAnimation& Anim, int32 DirIdx,
+		UHktSpriteCharacterTemplate* Template, FSoftObjectPath& OutPath, FVector2f& OutCellSize);
 
 	void ApplyEntityInstanceTransform(FHktEntityId Id, const FHktSpriteEntityUpdate& Update,
 		UHktSpriteCharacterTemplate* Template, FEntityState& State);

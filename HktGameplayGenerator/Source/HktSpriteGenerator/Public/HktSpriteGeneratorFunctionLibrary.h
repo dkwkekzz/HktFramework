@@ -1,4 +1,4 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -34,6 +34,13 @@ enum class EHktSpriteSourceType : uint8
 	 * → 자동으로 아틀라스를 패킹한 뒤 DataAsset 생성/갱신.
 	 */
 	TextureBundle UMETA(DisplayName = "Texture Bundle (image folder)"),
+
+	/**
+	 * 방향별로 분할된 N 개의 atlas (Stage 3 BuildSpriteAnim 의 유일한 모드).
+	 * Workspace ({Saved}/SpriteGenerator/{Char}/{Anim}/atlas_{Dir}.png) 의 PNG 들을
+	 * 임포트해 AtlasSlots 로 묶는다.
+	 */
+	DirectionalAtlas UMETA(DisplayName = "Directional Atlas (per-direction, by convention)"),
 };
 
 // ============================================================================
@@ -43,18 +50,17 @@ enum class EHktSpriteSourceType : uint8
 /**
  * HktSprite 자동화 API.
  *
- * === 단일 진입점 ===
+ * === 단일 진입점 (Stage 3) ===
  *
- *   BuildSpriteAnim(AnimTag, SourcePath, SourceType, CellW, CellH, ...)
+ *   BuildSpriteAnim(CharacterTag, AnimTag, CellW, CellH, PixelToWorld)
  *
- * 최소 3개(AnimTag + SourcePath + SourceType)만 넣으면 나머지는 자동 추론:
- *   - CharacterTag     → AnimTagStr 그대로 사용 (또는 명시 지정)
- *   - NumDirections    → 아틀라스 행 수로 자동 감지 (1·5·8 양자화)
- *   - FramesPerDir     → 아틀라스 열 수로 자동 감지
+ * Workspace ({Saved}/SpriteGenerator/{SafeChar}) 의 컨벤션 경로에서 atlas_{Dir}.png 를
+ * 자동 발견·임포트해 DA_SpriteCharacter_{Char} 에 누적. 나머지는 자동 추론:
+ *   - NumDirections    → 발견된 슬롯 수로 1/5/8 양자화
+ *   - FramesPerDir     → 아틀라스 너비 / CellW
  *   - PivotOffset      → 셀 중앙·하단 (CellW/2, CellH)
- *   - bLooping         → AnimTag에 "Locomotion" 포함 시 true, "Montage" 포함 시 false
- *   - FrameDurationMs  → 100 ms
- *   - OutputDir        → /Game/Generated/Sprites
+ *   - bLooping         → AnimTag 키워드 (Locomotion=true, Attack/Hit/Death=false)
+ *   - 셀 크기          → 사용자 입력 우선 → atlas_meta.json (Stage 2 산출) → atlas 종횡비 폴백
  *   - Upsert           → 기존 DataAsset이 있으면 해당 AnimTag 항목만 추가/교체
  *
  * === 저수준 API (MCP Python 호환) ===
@@ -94,16 +100,17 @@ public:
 	 * 반환: {"success":bool, "dataAssetPath":…, "atlasAssetPath":…, "animTag":…,
 	 *        "characterTag":…, "numDirections":…, "framesPerDir":…, "error":…}
 	 */
+	/**
+	 * Stage 3 — Workspace ({Saved}/SpriteGenerator/{SafeChar}) 의 컨벤션 경로에서
+	 * 방향별 atlas PNG 를 자동 발견·임포트하여 DataAsset 에 누적. CellWidth/Height 는 anim별 입력.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator")
 	static FString BuildSpriteAnim(
 		const FString& CharacterTagStr,
 		const FString& AnimTagStr,
-		const FString& SourcePath,
-		EHktSpriteSourceType SourceType,
 		int32 CellWidth      = 0,
 		int32 CellHeight     = 0,
-		float PixelToWorld   = 2.0f,
-		const FString& OutputDir = TEXT(""));
+		float PixelToWorld   = 2.0f);
 
 	// ========================================================================
 	// 저수준 API — MCP Python 및 직접 호출용 (기존 인터페이스 유지)
@@ -217,6 +224,67 @@ public:
 	 * 반환: {"success":bool, "characterTag":…, "animTag":…, "bundleDir":…,
 	 *        "atlasPath":…, "frameCount":…, "cellW":…, "cellH":…, "error":…}
 	 */
+	/**
+	 * Stage 1 — 동영상 → **단일 방향**의 TextureBundle 만 추출 (atlas 생성 안 함).
+	 *
+	 * 산출물: {Root}/{SafeAnimTag}/{DirName}/frame_*.png  ({DirName} = N|NE|E|…|NW)
+	 * 같은 방향을 재추출하면 디렉터리 내 frame_*.png 만 정리하고 새로 채운다.
+	 *
+	 * @param DirectionIdx  0..7. EHktSpriteFacing 의 정수값과 일치(N=0, NE=1, …, NW=7).
+	 *
+	 * 반환: {"success":bool, "characterTag":…, "animTag":…, "direction":…,
+	 *        "bundleDir":…, "frameCount":…, "error":…}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorExtractVideoBundle(
+		const FString& CharacterTagStr,
+		const FString& AnimTagStr,
+		int32 DirectionIdx,
+		const FString& VideoPath,
+		int32 FrameWidth               = 0,
+		int32 FrameHeight              = 0,
+		float FrameRate                = 10.0f,
+		int32 MaxFrames                = 0,
+		float StartTimeSec             = 0.0f,
+		float EndTimeSec               = 0.0f);
+
+	/**
+	 * Stage 2 — 컨벤션 경로의 방향별 TextureBundle 들을 스캔해 방향별 Atlas PNG 패킹 + UE Texture2D 임포트.
+	 *
+	 * 동작:
+	 *   1) {Root}/{Anim}/{Dir}/frame_*.png 가 존재하는 (Anim, Dir) 조합을 모두 발견.
+	 *      AnimTagFilter 가 비어있지 않으면 그 anim 만 처리.
+	 *   2) 각 방향별로 1행 N열 strip atlas → {Root}/{Anim}/atlas_{Dir}.png 저장 후
+	 *      {OutputDir}/T_SpriteAtlas_{SafeChar}_{SafeAnim}_{Dir} 로 임포트.
+	 *
+	 * @param ForcedCellW/H 0이면 디코드된 첫 프레임에서 자동 검출.
+	 *
+	 * 반환: {"success":bool, "items":[ {animTag, direction, atlasAssetPath, cellW, cellH, frameCount}, ... ], "error":…}
+	 */
+	/**
+	 * Stage 2 — Workspace 의 {SafeAnim}/{Dir}/frame_*.png 를 방향별 strip atlas PNG 로 패킹.
+	 * UE 임포트는 하지 않는다 (Stage 3 가 빌드 시점에 임포트). 셀 크기/프레임 수 메타는
+	 * {Workspace}/{SafeAnim}/atlas_meta.json 에 사이드카로 남긴다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorPackDirectionalAtlases(
+		const FString& CharacterTagStr,
+		const FString& AnimTagFilter   = TEXT(""));
+
+	/**
+	 * 단일 폴더의 frame_*.png 들을 1행 N열 strip atlas PNG 한 장으로 패킹 (UE 임포트 없음).
+	 * 디스크 PNG 산출만 — DataAsset/UTexture2D 모두 만들지 않는다.
+	 *
+	 * 셀 크기는 디코드된 첫 프레임 max(W,H) 기반(자동). 출력 부모 디렉터리는 자동 생성,
+	 * 기존 파일은 덮어쓴다.
+	 *
+	 * 반환: {"success":bool, "atlasPath":…, "frameCount":…, "cellW":…, "cellH":…, "error":…}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorPackBundleFolderToAtlasPng(
+		const FString& InputDir,
+		const FString& OutputPngPath);
+
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorExtractAtlasAndBundle(
 		const FString& CharacterTagStr,
@@ -245,6 +313,21 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString GetConventionAtlasPng(const FString& CharacterTagStr, const FString& AnimTagStr);
+
+	/**
+	 * 방향별(분할) 컨벤션 경로 헬퍼.
+	 *   GetConventionDirectionalBundleDir(Char,Anim,DirIdx) → {Root}/{SafeAnim}/{DirName}
+	 *   GetConventionDirectionalAtlasPng(Char,Anim,DirIdx)  → {Root}/{SafeAnim}/atlas_{DirName}.png
+	 *   GetConventionDirectionalAtlasAssetPath(Char,Anim,DirIdx,OutputDir) → {OutputDir}/T_SpriteAtlas_{SafeChar}_{SafeAnim}_{DirName}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString GetConventionDirectionalBundleDir(const FString& CharacterTagStr, const FString& AnimTagStr, int32 DirectionIdx);
+
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString GetConventionDirectionalAtlasPng(const FString& CharacterTagStr, const FString& AnimTagStr, int32 DirectionIdx);
+
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString GetConventionDirectionalAtlasAssetPath(const FString& CharacterTagStr, const FString& AnimTagStr, int32 DirectionIdx, const FString& OutputDir);
 
 	/**
 	 * 33프레임 1D 가로 strip 테레인 아틀라스를 폴더에서 빌드 (T_HktSpriteTerrainAtlas).

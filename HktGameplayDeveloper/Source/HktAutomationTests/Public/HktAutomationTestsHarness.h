@@ -82,6 +82,19 @@ public:
 	void InjectGroundedEvent();
 	/** Timer Wait 진행 — 호출자가 명시한 프레임 수만큼 차감. 결정론적(정수). */
 	void AdvanceTimerFrames(int32 Frames);
+	/**
+	 * AnimEnd 의제 주입. WaitAnimEnd 가 내부적으로 Timer (= SimFPS 프레임) 로 디스패치되므로,
+	 * Timer 를 한 번에 SimFPS 만큼 진행시키는 편의 래퍼. VM/EWaitEventType 변경 없음.
+	 */
+	void InjectAnimEndEvent();
+
+	/**
+	 * Context.EventParam0..3 / EventTargetPos* 직접 세팅. 실제 게임에선 이벤트 디스패치
+	 * (HktSimulationSystems) 가 채우지만, 하니스는 이벤트 우회 직접 실행이라 spec 에서 명시 필요.
+	 * ExecuteProgram 호출 직전에 사용.
+	 */
+	void SetEventParams(int32 P0, int32 P1, int32 P2, int32 P3,
+	                    int32 TargetPosX, int32 TargetPosY, int32 TargetPosZ);
 
 	// ========== 검증 헬퍼 ==========
 

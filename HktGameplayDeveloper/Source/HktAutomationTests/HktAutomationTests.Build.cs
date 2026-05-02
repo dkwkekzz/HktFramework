@@ -15,6 +15,8 @@ public class HktAutomationTests : ModuleRules
             "CoreUObject",
             "Engine",
             "GameplayTags",
+            "Json",
+            "JsonUtilities",
             "HktCore"
         });
 

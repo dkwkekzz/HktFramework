@@ -1,4 +1,5 @@
 {
+  "schema": 2,
   "storyTag": "Story.Flow.NPC.Lifecycle",
   "cancelOnDuplicate": false,
   "tags": {
@@ -7,26 +8,26 @@
   },
   "steps": [
     { "op": "Label", "name": "check" },
-    { "op": "HasTag", "dst": "R0", "entity": "Self", "tag": "State.Dead" },
-    { "op": "JumpIf", "cond": "R0", "label": "die" },
+    { "op": "HasTag", "dst": {"var":"isDead"}, "entity": "Self", "tag": "State.Dead" },
+    { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "die" },
     { "op": "WaitSeconds", "seconds": 1.0 },
     { "op": "Jump", "label": "check" },
 
     { "op": "Label", "name": "die" },
     { "op": "Log", "message": "NPC died -- random loot drop" },
 
-    { "op": "LoadConst", "dst": "R0", "value": 4 },
-    { "op": "RandomInt", "dst": "R1", "modulus": "R0" },
+    { "op": "LoadConst", "dst": {"var":"modulus"}, "value": 4 },
+    { "op": "RandomInt", "dst": {"var":"rand"}, "modulus": {"var":"modulus"} },
 
-    { "op": "IfEqConst", "src": "R1", "value": 0 },
+    { "op": "IfEqConst", "src": {"var":"rand"}, "value": 0 },
       { "op": "Jump", "label": "drop_staff" },
     { "op": "EndIf" },
 
-    { "op": "IfEqConst", "src": "R1", "value": 1 },
+    { "op": "IfEqConst", "src": {"var":"rand"}, "value": 1 },
       { "op": "Jump", "label": "drop_bandage" },
     { "op": "EndIf" },
 
-    { "op": "IfEqConst", "src": "R1", "value": 2 },
+    { "op": "IfEqConst", "src": {"var":"rand"}, "value": 2 },
       { "op": "Jump", "label": "drop_hammer" },
     { "op": "EndIf" },
 

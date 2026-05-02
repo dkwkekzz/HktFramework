@@ -1365,6 +1365,134 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
         B.PlaySoundAtEntity(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
     });
 
+    // ---- Property Aliases (V2 — V1 ReadProperty/WriteProperty/WriteConst/AddImm 등의 schema 2 대응) ----
+    // V2 schema 에서 같은 op 가 V1-only 핸들러로 폴백되면 RegisterIndex 슬롯이 고정 할당되어
+    // VReg 할당기를 우회 → REGFLOW 경고가 잔존. 본 핸들러 묶음은 모든 V1 fallback 을 V2 builder
+    // 메서드 또는 합성으로 대체하여 schema 2 root JSON 의 경고를 제거한다.
+    RegisterCommandV2(TEXT("ReadProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // ReadProperty ≡ LoadStore (caller 엔티티의 단일 property → var).
+        B.LoadStore(A.GetVar(B, TEXT("dst")), A.GetPropertyId(TEXT("property")));
+    });
+    RegisterCommandV2(TEXT("WriteProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // WriteProperty ≡ SaveStore.
+        B.SaveStore(A.GetPropertyId(TEXT("property")), A.GetVar(B, TEXT("src")));
+    });
+    RegisterCommandV2(TEXT("WriteConst"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // WriteConst (prop, value) ≡ LoadConst tmp + SaveStore prop tmp.
+        FHktVar Tmp = B.NewVar(TEXT("WriteConst.Tmp"));
+        B.LoadConst(Tmp, A.GetInt(TEXT("value")));
+        B.SaveStore(A.GetPropertyId(TEXT("property")), Tmp);
+    });
+    RegisterCommandV2(TEXT("LoadEntityProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // LoadEntityProperty ≡ LoadStoreEntity (V2 alias).
+        B.LoadStoreEntity(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("entity")), A.GetPropertyId(TEXT("property")));
+    });
+    RegisterCommandV2(TEXT("SaveEntityProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // SaveEntityProperty ≡ SaveStoreEntity.
+        B.SaveStoreEntity(A.GetVar(B, TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetVar(B, TEXT("src")));
+    });
+    RegisterCommandV2(TEXT("AddImm"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.AddImm(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), A.GetInt(TEXT("imm")));
+    });
+
+    // MoveTowardProperty: 3 LoadStore (caller property) + MoveToward block. V1 builder는 FHktScopedRegBlock
+    // 으로 V1 슬롯을 잡아 REGFLOW 의 경고원이 됨. V2 합성으로 익명 VarBlock 사용.
+    RegisterCommandV2(TEXT("MoveTowardProperty"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        const uint16 BaseProp = A.GetPropertyId(TEXT("baseProp"));
+        FHktVarBlock Tgt = B.NewVarBlock(3, TEXT("MoveTowardProperty.target"));
+        B.LoadStore(Tgt.Element(0), BaseProp);
+        B.LoadStore(Tgt.Element(1), static_cast<uint16>(BaseProp + 1));
+        B.LoadStore(Tgt.Element(2), static_cast<uint16>(BaseProp + 2));
+        B.MoveToward(A.GetVar(B, TEXT("entity")), Tgt, A.GetInt(TEXT("force")));
+    });
+
+    // ---- Structured If 합성 (V1 IfEqConst/IfNe 등은 RegisterIndex 전용. CmpXx + If 로 합성) ----
+    // CmpEq/CmpNe/CmpLt/CmpLe/CmpGt/CmpGe 모두 시그니처 동일 — FHktStoryBuilder& (FHktVar, FHktVar, FHktVar).
+    using CmpMemFn = FHktStoryBuilder& (FHktStoryBuilder::*)(FHktVar, FHktVar, FHktVar);
+    auto SynthIfConst = [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A, CmpMemFn Fn)
+    {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar Tmp  = B.NewVar(TEXT("If_Const_Tmp"));
+        FHktVar Flag = B.NewVar(TEXT("If_Const_Flag"));
+        B.LoadConst(Tmp, V);
+        (B.*Fn)(Flag, A.GetVar(B, TEXT("src")), Tmp);
+        B.If(Flag);
+    };
+    RegisterCommandV2(TEXT("IfEqConst"), [SynthIfConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfConst(B, A, &FHktStoryBuilder::CmpEq);
+    });
+    RegisterCommandV2(TEXT("IfNeConst"), [SynthIfConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfConst(B, A, &FHktStoryBuilder::CmpNe);
+    });
+    RegisterCommandV2(TEXT("IfLtConst"), [SynthIfConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfConst(B, A, &FHktStoryBuilder::CmpLt);
+    });
+    RegisterCommandV2(TEXT("IfLeConst"), [SynthIfConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfConst(B, A, &FHktStoryBuilder::CmpLe);
+    });
+    RegisterCommandV2(TEXT("IfGtConst"), [SynthIfConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfConst(B, A, &FHktStoryBuilder::CmpGt);
+    });
+    RegisterCommandV2(TEXT("IfGeConst"), [SynthIfConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfConst(B, A, &FHktStoryBuilder::CmpGe);
+    });
+
+    auto SynthIfReg = [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A, CmpMemFn Fn)
+    {
+        FHktVar Flag = B.NewVar(TEXT("If_Reg_Flag"));
+        (B.*Fn)(Flag, A.GetVar(B, TEXT("a")), A.GetVar(B, TEXT("b")));
+        B.If(Flag);
+    };
+    RegisterCommandV2(TEXT("IfEq"), [SynthIfReg](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfReg(B, A, &FHktStoryBuilder::CmpEq);
+    });
+    RegisterCommandV2(TEXT("IfNe"), [SynthIfReg](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfReg(B, A, &FHktStoryBuilder::CmpNe);
+    });
+    RegisterCommandV2(TEXT("IfLt"), [SynthIfReg](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfReg(B, A, &FHktStoryBuilder::CmpLt);
+    });
+    RegisterCommandV2(TEXT("IfLe"), [SynthIfReg](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfReg(B, A, &FHktStoryBuilder::CmpLe);
+    });
+    RegisterCommandV2(TEXT("IfGt"), [SynthIfReg](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfReg(B, A, &FHktStoryBuilder::CmpGt);
+    });
+    RegisterCommandV2(TEXT("IfGe"), [SynthIfReg](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfReg(B, A, &FHktStoryBuilder::CmpGe);
+    });
+
+    // IfPropertyXx — entity 의 property 를 읽고 const 와 비교 + If.
+    auto SynthIfPropertyConst = [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A, CmpMemFn Fn)
+    {
+        const int32 V = A.GetInt(TEXT("value"));
+        FHktVar PropVal = B.NewVar(TEXT("IfProperty.Val"));
+        FHktVar ConstV  = B.NewVar(TEXT("IfProperty.Const"));
+        FHktVar Flag    = B.NewVar(TEXT("IfProperty.Flag"));
+        B.LoadStoreEntity(PropVal, A.GetVar(B, TEXT("entity")), A.GetPropertyId(TEXT("property")));
+        B.LoadConst(ConstV, V);
+        (B.*Fn)(Flag, PropVal, ConstV);
+        B.If(Flag);
+    };
+    RegisterCommandV2(TEXT("IfPropertyEq"), [SynthIfPropertyConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfPropertyConst(B, A, &FHktStoryBuilder::CmpEq);
+    });
+    RegisterCommandV2(TEXT("IfPropertyNe"), [SynthIfPropertyConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfPropertyConst(B, A, &FHktStoryBuilder::CmpNe);
+    });
+    RegisterCommandV2(TEXT("IfPropertyLt"), [SynthIfPropertyConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfPropertyConst(B, A, &FHktStoryBuilder::CmpLt);
+    });
+    RegisterCommandV2(TEXT("IfPropertyLe"), [SynthIfPropertyConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfPropertyConst(B, A, &FHktStoryBuilder::CmpLe);
+    });
+    RegisterCommandV2(TEXT("IfPropertyGt"), [SynthIfPropertyConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfPropertyConst(B, A, &FHktStoryBuilder::CmpGt);
+    });
+    RegisterCommandV2(TEXT("IfPropertyGe"), [SynthIfPropertyConst](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        SynthIfPropertyConst(B, A, &FHktStoryBuilder::CmpGe);
+    });
+
     // ---- Comparison vs Constant (분해 emit) ----
     // FHktVar API 에 *Const 오버로드가 없으므로, JSON 핸들러 단에서 LoadConst + Cmp 로 풀어 emit 한다.
     // 의미는 cpp 의 CmpXxConst 와 동일 (Dst = Src CMP_OP Value).

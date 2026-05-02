@@ -41,6 +41,10 @@ public class HktSpriteCore : ModuleRules
 			{
 				"RHI",
 				"RenderCore",
+				// Niagara 기반 신규 크라우드 렌더러 (UHktSpriteNiagaraCrowdRenderer).
+				// 기존 HISM 경로와 평행 운용 — CVar hkt.Sprite.Renderer 로 토글.
+				"Niagara",
+				"NiagaraCore",
 			}
 		);
 

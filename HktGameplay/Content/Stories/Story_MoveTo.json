@@ -1,4 +1,5 @@
 {
+  "schema": 2,
   "storyTag": "Story.Event.Move.ToLocation",
   "cancelOnDuplicate": true,
   "steps": [

@@ -1,5 +1,8 @@
 # HktStory JSON Schema
 
+> 사이드카: 신규 Story 추가 시 동일 디렉토리에 `<Story>.spec.json` 시나리오 파일을 함께 작성하면
+> `HktCore.Story.Spec.*` 자동화 테스트로 의도-동작 등가성이 영구 검증된다. 스펙 스키마: [SPEC.md](SPEC.md).
+
 이 문서는 `HktStoryJsonParser` 가 인식하는 JSON Story 의 전체 스키마를 기술한다.
 정의 진실원(source of truth):
 

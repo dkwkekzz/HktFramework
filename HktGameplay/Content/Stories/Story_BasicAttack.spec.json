@@ -1,0 +1,45 @@
+{
+  "storyTag": "Story.Event.Attack.Basic",
+  "description": "BasicAttack: ForEachInRadius(Self,200) 안의 Hittable 엔티티에 ApplyDamage. WaitAnimEnd 는 Timer wait 으로 하니스가 자동 진행.",
+  "scenarios": [
+    {
+      "name": "damage_hittable_target_in_radius",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": { "AttackPower": 20, "AttackSpeed": 100 },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "NPC",
+          "properties": { "Health": 100, "MaxHealth": 100, "Defense": 0 },
+          "position": [50, 0, 0]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "target": { "properties": { "Health": 80 } }
+      }
+    },
+    {
+      "name": "non_hittable_target_takes_no_damage",
+      "description": "Hittable 트레이트가 없는 archetype (Projectile) 대상은 IfHasTrait 분기에서 걸러져야 한다.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": { "AttackPower": 20, "AttackSpeed": 100 },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "Projectile",
+          "properties": { "Health": 100, "MaxHealth": 100 },
+          "position": [50, 0, 0]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "target": { "properties": { "Health": 100 } }
+      }
+    }
+  ]
+}

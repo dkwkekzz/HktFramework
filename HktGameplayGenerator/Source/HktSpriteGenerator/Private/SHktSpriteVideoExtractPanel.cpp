@@ -1,4 +1,4 @@
-// Copyright Hkt Studios, Inc. All Rights Reserved.
+﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "SHktSpriteVideoExtractPanel.h"
 
@@ -50,16 +50,15 @@ void SHktSpriteVideoExtractPanel::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0,0,0,8)
 			[
 				SNew(STextBlock).Font(HeaderFont)
-				.Text(LOCTEXT("Title", "Video → Atlas + TextureBundle"))
+				.Text(LOCTEXT("Title", "Stage 1 — Video → Directional Texture Bundle"))
 			]
 
 			+ SVerticalBox::Slot().AutoHeight().Padding(0,0,0,8)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("Hint",
-					"동영상에서 프레임 시퀀스(TextureBundle)와 패킹된 Atlas PNG 를 동시에 산출합니다. "
-					"OutputDir 를 비워두면 {ProjectSavedDir}/SpriteGenerator/{CharacterTag} 가 기본 위치로 사용되며, "
-					"SpriteBuilder 가 같은 CharacterTag 만 입력해도 SourcePath 없이 DataAsset 빌드가 가능합니다. "
+					"동영상 1개에서 단일 방향의 프레임 시퀀스(TextureBundle)를 추출합니다. Atlas 는 만들지 않습니다 — Stage 2 (Atlas Pack) 에서 별도 처리. "
+					"산출 경로: {Root}/{AnimTag}/{Direction}/frame_*.png. 8 방향이 필요하면 Direction 만 바꿔 8 회 실행. "
 					"ffmpeg 경로는 Project Settings > Plugins > HKT Sprite Generator > FFmpeg Directory."))
 				.AutoWrapText(true)
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
@@ -99,7 +98,7 @@ void SHktSpriteVideoExtractPanel::Construct(const FArguments& InArgs)
 				SNew(SButton)
 				.HAlign(HAlign_Center)
 				.ContentPadding(FMargin(24, 8))
-				.Text(LOCTEXT("Extract", "Extract Atlas + TextureBundle"))
+				.Text(LOCTEXT("Extract", "Extract TextureBundle (single direction)"))
 				.OnClicked(this, &SHktSpriteVideoExtractPanel::OnExtractClicked)
 			]
 
@@ -138,12 +137,7 @@ void SHktSpriteVideoExtractPanel::SaveConfig()
 FText SHktSpriteVideoExtractPanel::GetResolvedOutputDirText() const
 {
 	if (!Config.IsValid()) return FText::GetEmpty();
-
 	const FString CharStr = Config->CharacterTag.IsValid() ? Config->CharacterTag.ToString() : FString();
-	if (!Config->OutputDir.Path.IsEmpty())
-	{
-		return FText::FromString(Config->OutputDir.Path);
-	}
 	if (CharStr.IsEmpty())
 	{
 		return LOCTEXT("ResolvedNeedsTag", "<CharacterTag 를 먼저 지정하세요>");
@@ -155,9 +149,8 @@ FReply SHktSpriteVideoExtractPanel::OnOpenOutputDirClicked()
 {
 	if (!Config.IsValid()) return FReply::Handled();
 	const FString CharStr = Config->CharacterTag.IsValid() ? Config->CharacterTag.ToString() : FString();
-	const FString Root = Config->OutputDir.Path.IsEmpty()
-		? (CharStr.IsEmpty() ? FString() : UHktSpriteGeneratorFunctionLibrary::GetConventionBundleRoot(CharStr))
-		: Config->OutputDir.Path;
+	if (CharStr.IsEmpty()) return FReply::Handled();
+	const FString Root = UHktSpriteGeneratorFunctionLibrary::GetConventionBundleRoot(CharStr);
 	if (Root.IsEmpty()) return FReply::Handled();
 
 	IFileManager& FM = IFileManager::Get();
@@ -183,12 +176,12 @@ FReply SHktSpriteVideoExtractPanel::OnExtractClicked()
 		return FReply::Handled();
 	}
 
-	const FString Result = UHktSpriteGeneratorFunctionLibrary::EditorExtractAtlasAndBundle(
-		CharStr, AnimStr,
+	const int32 DirIdx = static_cast<int32>(Config->Direction);
+	const FString Result = UHktSpriteGeneratorFunctionLibrary::EditorExtractVideoBundle(
+		CharStr, AnimStr, DirIdx,
 		Config->VideoPath.FilePath,
 		Config->FrameWidth, Config->FrameHeight, Config->FrameRate,
-		Config->MaxFrames, Config->StartTimeSec, Config->EndTimeSec,
-		Config->OutputDir.Path);
+		Config->MaxFrames, Config->StartTimeSec, Config->EndTimeSec);
 
 	if (ResultBox.IsValid())
 	{
