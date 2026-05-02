@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "IHktPresentableActor.h"
+#include "Actors/IHktPresentableActor.h"
 #include "HktDebrisActor.generated.h"
 
 /**

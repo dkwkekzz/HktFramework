@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "HktSelectable.h"
-#include "IHktPresentableActor.h"
+#include "Actors/IHktPresentableActor.h"
 #include "HktItemActor.generated.h"
 
 /**

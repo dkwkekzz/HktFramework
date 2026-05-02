@@ -7,6 +7,7 @@
 
 #include "HktPaperCharacterTemplate.h"
 #include "HktPaperActorVisualDataAsset.h"
+#include "HktSpritePaperActor.h"
 #include "HktSpriteGeneratorFunctionLibrary.h"
 
 #include "PaperSprite.h"
@@ -337,10 +338,7 @@ namespace HktPaperAssetBuilder
 		// (UHktActorVisualDataAsset 도 같은 필드를 EditDefaultsOnly 로 노출.)
 		Visual->IdentifierTag = IdentifierTag;
 		Visual->Animation     = Template;
-
-		// ActorClass 는 PR-2 에서 AHktSpritePaperActor 가 도착하면 자동 할당된다.
-		// PR-1 단계에서는 비워 둔다 — 사용자가 에디터에서 채워도 되고, PR-2 가
-		// FindObject 로 클래스를 찾아 in-place 갱신한다.
+		Visual->ActorClass    = AHktSpritePaperActor::StaticClass();
 
 		return Visual;
 	}
