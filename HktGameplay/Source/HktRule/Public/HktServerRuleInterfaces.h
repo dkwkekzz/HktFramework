@@ -37,7 +37,7 @@ struct HKTRULE_API FHktPlayerRecord
 	FDateTime CreatedTime;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
-	FVector LastPosition;
+	FVector LastPosition = FVector::ZeroVector;
 
 	// TODO: ...
 	TArray<FHktEvent> ActiveEvents;
