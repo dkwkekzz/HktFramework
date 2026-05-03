@@ -86,7 +86,6 @@ HktGameplayGenerator/Source/HktPaper2DGenerator/
     ├── HktPaper2DGeneratorModule.cpp
     ├── HktPaperSpriteBuilderFunctionLibrary.cpp
     ├── HktPaperAssetBuilder.{h,cpp}        (UTexture2D/UPaperSprite/UPaperFlipbook 빌드)
-    ├── HktPaperUnlitMaterialBuilder.{h,cpp}(M_HktPaperUnlit 자동 생성)
     └── HktPaperWorkspaceScanner.{h,cpp}    (워크스페이스 발견·메타 파싱)
 ```
 
@@ -232,7 +231,7 @@ public:
    - `Sprite->InitializeSprite(InitParams)`
    - `Sprite->SetPivotMode(ESpritePivotMode::Custom_Cell, PivotPx);` 기본 `(cellW/2, cellH)` (셀 하단 중앙)
    - `Sprite->PixelsPerUnrealUnit = 1.f / PixelToWorld;`
-   - `Sprite->Material = M_HktPaperUnlit;` (없으면 생성)
+   - 머티리얼은 자산에 박지 않는다 — 엔진 Paper2D 디폴트(`/Paper2D/MaskedUnlitSpriteMaterial`) 가 자동 적용된다(§6).
    - 미러 dir(W/SW/NW) 은 sprite 자체를 안 만든다 — 동일 sprite 를 액터가 X-스케일로 미러.
 
 5. **UPaperFlipbook 생성** — `FScopedFlipbookMutator` 로 KeyFrames 채우고 `FramesPerSecond = 1000.f / FrameDurationMs`. **Looping 플래그는 자산이 안 들고 있음** — 액터의 `UPaperFlipbookComponent::SetLooping(bLooping)` 에서 적용.
@@ -257,18 +256,28 @@ public:
   "atlases":  [...], "flipbooks": [...] }
 ```
 
-## 6. 머티리얼 — `M_HktPaperUnlit`
+## 6. 머티리얼 — 엔진 기본 사용 (커스텀 빌더 없음)
 
-`HktPaperUnlitMaterialBuilder` 가 자동 빌드 (`HktSpriteBillboardMaterialBuilder` 와 동일 패턴). 콘솔 명령: `HktPaperSprite.BuildUnlitMaterial`.
+본 경로는 **커스텀 머티리얼을 만들지 않는다**. 엔진 Paper2D 플러그인이 제공하는
+`/Paper2D/MaskedUnlitSpriteMaterial` 가 본 경로의 요구사항(Unlit / Masked /
+TwoSided / `bUsedWithSprite` + `ParticleColor × Texture`) 과 정확히 일치하므로,
+별도 자산을 자동 생성하지 않고 그대로 로드해 사용한다.
 
-- `Shading Model = Unlit`
-- `Blend Mode = Masked`, `OpacityMaskClipValue = 0.5`
-- `Two Sided = true`
-- `Used With Sprite = true` (필수)
-- 노드:
-  - `BaseColor = ParticleColor.RGB * SpriteTexture.RGB`
-  - `OpacityMask = SpriteTexture.A * ParticleColor.A`
-- Tint 는 `UPaperFlipbookComponent::SetSpriteColor` 가 자동으로 ParticleColor 에 바인딩됨.
+- 적용 위치: `UPaperSprite` 자산엔 머티리얼을 박지 않는다 (`HktPaperAssetBuilder`
+  는 `Sprite->Material` 을 설정하지 않는다 — 사용자가 에디터에서 다른 머티리얼로
+  swap 하기 쉽게).
+- 런타임: `AHktSpritePaperActor::OnVisualAssetLoaded` 에서
+  `FlipbookComp->SetMaterial(0, HktPaperUnlitMaterial::GetDefault())` 호출 — 엔진
+  디폴트가 미래에 lit 으로 바뀌어도 본 경로는 항상 Masked Unlit 으로 고정.
+- 헬퍼: `HktSpriteCore/Public/HktPaperUnlitMaterial.h` 의 `GetDefault()` 가 자산
+  경로를 캐싱 로드. Paper2D 플러그인 비활성 시 엔진 디폴트 Surface 머티리얼로
+  안전 폴백 + Warning 로그.
+- Tint 는 `UPaperFlipbookComponent::SetSpriteColor` 가 자동으로 ParticleColor 에
+  바인딩됨.
+
+**미래 확장(PaletteIndex 등 셰이더 레벨 파라미터)** 가 실제로 필요해질 때
+`HktPaperUnlitMaterial.h` 의 경로 상수만 교체하고 별도 자동 빌더 모듈을 추가한다.
+1차 시점엔 의도적으로 도입 보류.
 
 ## 7. 런타임 액터 — `AHktSpritePaperActor`
 
@@ -390,7 +399,7 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 - **PR-1 — 데이터 빌더 + 자산 정의**
   - 신규 `HktPaper2DGenerator` 모듈
   - 신규 `UHktPaperCharacterTemplate`
-  - `M_HktPaperUnlit` 자동 빌더 + 콘솔 명령 `HktPaperSprite.BuildUnlitMaterial`
+  - 머티리얼: 엔진 기본 `/Paper2D/MaskedUnlitSpriteMaterial` 사용 — 자동 빌더 / 콘솔 명령 없음 (§6)
   - `BuildPaperSpriteAnim` / `BuildPaperCharacter` + 콘솔 명령 `HktPaperSprite.BuildCharacter <CharacterTag>`
   - `UHktActorVisualDataAsset` 슬롯 결정(B-1/B-2)
   - 런타임 변경 0.

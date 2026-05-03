@@ -4,6 +4,7 @@
 
 #include "HktPaperActorVisualDataAsset.h"
 #include "HktPaperCharacterTemplate.h"
+#include "HktPaperUnlitMaterial.h"
 #include "HktSpriteCoreLog.h"
 #include "HktSpriteTypes.h"
 #include "HktPresentationState.h"
@@ -14,6 +15,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Materials/MaterialInterface.h"
 #include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"
 
@@ -51,6 +53,16 @@ void AHktSpritePaperActor::OnVisualAssetLoaded(UHktTagDataAsset* InAsset)
 		UE_LOG(LogHktSpriteCore, Warning,
 			TEXT("AHktSpritePaperActor[%d]: Visual->Animation 비어 있음 (%s)"),
 			CachedEntityId, *GetNameSafe(InAsset));
+	}
+
+	// 본 경로 머티리얼은 엔진 Paper2D 디폴트(`/Paper2D/MaskedUnlitSpriteMaterial`) 고정.
+	// PaperSprite 자산엔 머티리얼을 박지 않으므로(빌더 정책) 여기서 컴포넌트에 명시 적용.
+	if (FlipbookComp)
+	{
+		if (UMaterialInterface* DefaultMat = HktPaperUnlitMaterial::GetDefault())
+		{
+			FlipbookComp->SetMaterial(0, DefaultMat);
+		}
 	}
 }
 
