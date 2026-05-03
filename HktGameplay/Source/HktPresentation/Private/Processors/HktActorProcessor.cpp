@@ -236,6 +236,16 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 			P->ApplyVoxelSkin(*It, Frame, bForce);
 	}
 
+	// Sprite 패스 — Paper2D 액터 등 sprite 캐릭터 전용 권위 상태(Facing/AnimStartTick).
+	for (auto It = State.Sprites.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const bool bForce = IsForced(Id);
+		if (!bForce && !It->AnyDirty(Frame)) continue;
+		if (IHktPresentableActor* P = FindActorInterface(Id))
+			P->ApplySprite(*It, Frame, bForce);
+	}
+
 	// TerrainDebris 패스
 	for (auto It = State.TerrainDebris.CreateConstIterator(); It; ++It)
 	{

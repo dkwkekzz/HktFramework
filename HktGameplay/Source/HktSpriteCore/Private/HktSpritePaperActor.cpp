@@ -4,16 +4,16 @@
 
 #include "HktPaperActorVisualDataAsset.h"
 #include "HktPaperCharacterTemplate.h"
+#include "HktPaperUnlitMaterial.h"
 #include "HktSpriteCoreLog.h"
 #include "HktSpriteTypes.h"
 #include "HktPresentationState.h"
-#include "HktPresentationSubsystem.h"
 
 #include "Camera/PlayerCameraManager.h"
 #include "Components/SceneComponent.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Materials/MaterialInterface.h"
 #include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"
 
@@ -28,7 +28,7 @@ AHktSpritePaperActor::AHktSpritePaperActor()
 	FlipbookComp->SetupAttachment(RootScene);
 	FlipbookComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	// Paper2D PaperSprite 의 기본 평면 normal 은 -Y. RootScene 의 Yaw 가 카메라 yaw 를 따라가면서
-	// 스프라이트가 카메라를 향한다. 추가 보정(예: yaw + 90) 이 필요하면 PR-3 에서 시각 검증 후 적용.
+	// 스프라이트가 카메라를 향한다. 추가 보정(예: yaw + 90) 이 필요하면 시각 검증 후 적용.
 }
 
 // ----------------------------------------------------------------------------
@@ -51,6 +51,16 @@ void AHktSpritePaperActor::OnVisualAssetLoaded(UHktTagDataAsset* InAsset)
 		UE_LOG(LogHktSpriteCore, Warning,
 			TEXT("AHktSpritePaperActor[%d]: Visual->Animation 비어 있음 (%s)"),
 			CachedEntityId, *GetNameSafe(InAsset));
+	}
+
+	// 본 경로 머티리얼은 엔진 Paper2D 디폴트(`/Paper2D/MaskedUnlitSpriteMaterial`) 고정.
+	// PaperSprite 자산엔 머티리얼을 박지 않으므로(빌더 정책) 여기서 컴포넌트에 명시 적용.
+	if (FlipbookComp)
+	{
+		if (UMaterialInterface* DefaultMat = HktPaperUnlitMaterial::GetDefault())
+		{
+			FlipbookComp->SetMaterial(0, DefaultMat);
+		}
 	}
 }
 
@@ -117,6 +127,21 @@ void AHktSpritePaperActor::ApplyAnimation(FHktAnimationView& V, int64 Frame, boo
 	}
 }
 
+void AHktSpritePaperActor::ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce)
+{
+	// F-2: ActorProcessor 의 sprite 패스가 권위 입력을 직접 푸시.
+	// 캐시해 두고 Tick 에서 resolve — 동일 프레임 중복 호출 비용 0.
+	if (bForce || V.Facing.IsDirty(Frame))
+	{
+		ServerFacing = V.Facing.Get();
+	}
+	if (bForce || V.AnimStartTick.IsDirty(Frame))
+	{
+		ServerAuthoritativeAnimStartTick = V.AnimStartTick.Get();
+	}
+	bHasSpriteState = true;
+}
+
 // ----------------------------------------------------------------------------
 // Tick — 위치 보간 + Flipbook resolve + 빌보드
 // ----------------------------------------------------------------------------
@@ -136,15 +161,13 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 
 	if (!Template || !FlipbookComp) return;
 
-	// --- 서버 권위 sprite state (F-3): Facing + AnimStartTick ---
-	uint8 RawFacing = static_cast<uint8>(EHktSpriteFacing::S);
-	int32 AuthStartTick = 0;
-	const bool bHaveServerState = QueryServerSpriteState(RawFacing, AuthStartTick);
-	if (!bHaveServerState)
+	// --- 서버 권위 sprite state (F-2): ApplySprite 가 캐시. 첫 sync 전이면 대기. ---
+	if (!bHasSpriteState)
 	{
-		// 아직 SpriteView 가 도착 전 — 다음 프레임에 재시도. flipbook 미설정 상태로 유지.
 		return;
 	}
+	const uint8 RawFacing = ServerFacing;
+	const int32 AuthStartTick = ServerAuthoritativeAnimStartTick;
 
 	// --- AnimTag / PlayRate 결정 ---
 	FGameplayTag AnimTag;
@@ -237,18 +260,4 @@ float AHktSpritePaperActor::QueryCameraYaw() const
 	APlayerController* PC = World->GetFirstPlayerController();
 	if (!PC || !PC->PlayerCameraManager) return 0.f;
 	return PC->PlayerCameraManager->GetCameraRotation().Yaw;
-}
-
-bool AHktSpritePaperActor::QueryServerSpriteState(uint8& OutFacing, int32& OutAuthoritativeAnimStartTick) const
-{
-	UWorld* World = GetWorld();
-	if (!World) return false;
-	APlayerController* PC = World->GetFirstPlayerController();
-	UHktPresentationSubsystem* PS = UHktPresentationSubsystem::Get(PC);
-	if (!PS) return false;
-	const FHktSpriteView* SV = PS->GetState().GetSprite(CachedEntityId);
-	if (!SV) return false;
-	OutFacing = SV->Facing.Get();
-	OutAuthoritativeAnimStartTick = SV->AnimStartTick.Get();
-	return true;
 }
