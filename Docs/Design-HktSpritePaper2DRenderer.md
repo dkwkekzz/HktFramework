@@ -385,9 +385,9 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 
 ## 9. 트레이드오프 / 위험
 
-- **자산 폭증**: 캐릭터 1명 = `Animations × Directions × FramesPerDir` 개의 `UPaperSprite`. 8 × 6 × 10 = 480 개. 미러 절약(8→5) 평균 60%. 1차 PR 은 그대로 디스크에 출력. PR-3 에서 sprite 를 transient package 로 만들고 flipbook 만 디스크에 두는 옵션 검토.
+- **자산 폭증**: 캐릭터 1명 = `Animations × Directions × FramesPerDir` 개의 `UPaperSprite`. 8 × 6 × 10 = 480 개. 미러 절약(8→5) 평균 60%. 1차 PR 은 그대로 디스크에 출력. PR-5 에서 sprite 를 transient package 로 만들고 flipbook 만 디스크에 두는 옵션 검토.
 - **인스턴싱 부재**: 엔티티 1명 = 액터 1개 + 컴포넌트 1개 + 드로콜 1개. 1000 엔티티 시 무거움 — 본 경로의 **명시적 제약**. 대규모 크라우드는 HISM/Niagara 그대로 유지.
-- **빌보드 비용**: 매 프레임 액터 N개의 `SetWorldRotation`. yaw 변화량 임계값 dirty check 필요(PR-4 후속).
+- **빌보드 비용**: 매 프레임 액터 N개의 `SetWorldRotation`. yaw 변화량 임계값 dirty check 필요(PR-5 후속).
 - **Facing 입수**: PR-3 에서 F-2 로 정착 — F-3 의 매 프레임 Subsystem 룩업 비용 제거 완료.
 - **`UHktActorVisualDataAsset` 슬롯**: 캐릭터 데이터(`UHktPaperCharacterTemplate*`) 를 어디에 둘지(B-1/B-2)는 1차 PR 의 첫 단계에서 자산 정의 확인 후 결정.
 - **머티리얼 단일**: PaletteIndex(HISM CPD slot 13) 같은 셰이더 레벨 확장은 미지원. 도입 시 머티리얼 파라미터 컬렉션/MID 추가.

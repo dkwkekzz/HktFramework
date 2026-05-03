@@ -28,7 +28,7 @@ AHktSpritePaperActor::AHktSpritePaperActor()
 	FlipbookComp->SetupAttachment(RootScene);
 	FlipbookComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	// Paper2D PaperSprite 의 기본 평면 normal 은 -Y. RootScene 의 Yaw 가 카메라 yaw 를 따라가면서
-	// 스프라이트가 카메라를 향한다. 추가 보정(예: yaw + 90) 이 필요하면 PR-3 에서 시각 검증 후 적용.
+	// 스프라이트가 카메라를 향한다. 추가 보정(예: yaw + 90) 이 필요하면 시각 검증 후 적용.
 }
 
 // ----------------------------------------------------------------------------
