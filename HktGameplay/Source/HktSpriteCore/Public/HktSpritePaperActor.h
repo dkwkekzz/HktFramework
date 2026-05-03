@@ -15,6 +15,7 @@ class UPaperFlipbookComponent;
 class UPaperFlipbook;
 class UHktPaperCharacterTemplate;
 class UHktTagDataAsset;
+struct FHktSpriteView;
 
 /**
  * AHktSpritePaperActor — Paper2D 경로의 엔터티당 1액터.
@@ -32,12 +33,13 @@ class UHktTagDataAsset;
  *  - ApplyAnimation     : Tag 컨테이너 → AnimFragment (HktSpriteAnimProcessor 위임)
  *  - ApplyMovement      : bIsMoving / bIsFalling / Velocity → AnimFragment
  *  - ApplyCombat        : MotionPlayRate / AttackSpeed / CPRatio → AnimFragment
+ *  - ApplySprite        : Facing / AnimStartTick 권위 입력 캐시 (F-2 정식 경로)
  *  - OnVisualAssetLoaded: UHktPaperActorVisualDataAsset → Template 캐싱
  *
  * Tick 에서 매 프레임:
  *  1. 위치 보간 (RenderLocation → InterpLocation)
  *  2. ResolveRenderOutputs(AnimFragment) → (AnimTag, PlayRate)
- *  3. F-3 룩업: UHktPresentationSubsystem → FHktSpriteView::Facing
+ *  3. F-2: ApplySprite 가 매 sync 마다 ServerFacing / ServerAnimStartTick 캐시
  *  4. ResolveStoredFacing → KeyDir + bFlipX (W/SW/NW 미러)
  *  5. (AnimTag, KeyDir) 변경 시 Template->Flipbooks[{...}] → SetFlipbook
  *  6. ElapsedSec = (NowLocalSec - AnimStartLocalSec) * PlayRate
@@ -62,6 +64,7 @@ public:
 	virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;
 	virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;
 	virtual void ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce) override;
+	virtual void ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce) override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|PaperSprite")
@@ -73,9 +76,6 @@ protected:
 private:
 	/** 카메라 yaw 조회 (PlayerCameraManager). 미초기화 시 0. */
 	float QueryCameraYaw() const;
-
-	/** F-3: PresentationSubsystem 에서 자기 EntityId 의 FHktSpriteView 직접 read. */
-	bool QueryServerSpriteState(uint8& OutFacing, int32& OutAuthoritativeAnimStartTick) const;
 
 	/** (AnimTag, DirIdx) 변경 시 Flipbook 리바인드. */
 	void RebindFlipbookIfNeeded(const FGameplayTag& AnimTag, uint8 KeyDir, bool bFlipX,
@@ -93,6 +93,11 @@ private:
 	FGameplayTag CurrentAnimTag;
 	uint8        CurrentKeyDir = 0xFF;
 	bool         bCurrentFlipX = false;
+
+	/** F-2: ApplySprite 가 매 sync 마다 캐시 — Tick 은 이 값으로 flipbook resolve. */
+	bool   bHasSpriteState = false;
+	uint8  ServerFacing = 4; // EHktSpriteFacing::S
+	int32  ServerAuthoritativeAnimStartTick = 0;
 
 	/** 서버 권위 AnimStartTick 변경 감지 → 로컬 시각 캡처. */
 	int32  LastAuthoritativeAnimStartTick = MIN_int32;

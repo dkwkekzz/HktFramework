@@ -15,6 +15,7 @@ struct FHktAnimationView;
 struct FHktVisualizationView;
 struct FHktItemView;
 struct FHktVoxelSkinView;
+struct FHktSpriteView;
 struct FHktTerrainDebrisView;
 class AActor;
 class UHktTagDataAsset;
@@ -49,6 +50,8 @@ public:
 	/** Item 뷰는 OwnerEntity 룩업을 위해 Actor 조회 콜백 필요 */
 	virtual void ApplyItem(const FHktItemView& V, int64 Frame, bool bForce, TFunctionRef<AActor*(FHktEntityId)> GetActorFunc) {}
 	virtual void ApplyVoxelSkin(const FHktVoxelSkinView& V, int64 Frame, bool bForce) {}
+	/** 2D 스프라이트 캐릭터 전용. Facing / AnimStartTick 등 Paper2D / HISM 양 경로의 권위 입력. */
+	virtual void ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce) {}
 	virtual void ApplyTerrainDebris(const FHktTerrainDebrisView& V, int64 Frame, bool bForce) {}
 
 	/** Processor가 에셋 로드 후 호출. Actor가 필요한 타입으로 Cast해서 사용. */

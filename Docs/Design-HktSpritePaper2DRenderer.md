@@ -341,7 +341,7 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 액터는 이를 `FHktSpriteAnimFragment` 로 흡수(기존 `HktSpriteAnimProcessor::SyncFromTagContainer / ApplyAnimTag` 그대로 재사용)한 뒤, `Tick(DeltaTime)` 에서:
 
 1. `HktSpriteAnimProcessor::ResolveRenderOutputs(AnimFragment, OutAnimTag, OutPlayRate)` — 최종 anim/playrate 결정.
-2. `HktResolveSpriteFrame(...)` — `(StoredFacing=DirIdx, FrameIdx, bFlipX)` 결정. (Facing 은 별도 SOA 뷰 — `FHktSpriteView::Facing` — 인데 액터에는 직접 안 들어옴. 옵션 1: Facing 도 `IHktPresentableActor` 에 새 Apply* 추가. 옵션 2: 액터가 World 에서 자기 velocity 로 추정. → 1차 PR 은 옵션 1 — `IHktPresentableActor` 에 신규 메서드 추가는 인터페이스 영역이라 신중하게: §11 트레이드오프 참고.)
+2. `HktResolveSpriteFrame(...)` — `(StoredFacing=DirIdx, FrameIdx, bFlipX)` 결정. Facing / AnimStartTick 은 `IHktPresentableActor::ApplySprite` 가 매 sync 마다 푸시(F-2). 액터는 `bHasSpriteState / ServerFacing / ServerAuthoritativeAnimStartTick` 로 캐시.
 3. `KeyDir = bFlipX ? 미러원본Dir(W↦E, SW↦SE, NW↦NE) : DirIdx`, `bMirrored = bFlipX && bMirrorWestFromEast`.
 4. `(AnimTag, KeyDir)` 가 변경되면 `Template->Flipbooks[{AnimTag, KeyDir}]` 룩업 → `FlipbookComp->SetFlipbook(FB)`, `SetLooping(meta.bLooping)`, `SetSpriteColor(meta.Tint)`.
 5. `ElapsedSec = (NowLocalSec - AnimStartLocalSec) * PlayRate`. `FlipbookComp->SetPlaybackPosition(ElapsedSec, /*bFireEvents=*/false)`.
@@ -356,16 +356,15 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 
 → 1차 PR 은 C-1. 액터 수가 많아지면 C-2 로 전환.
 
-### Facing 입수
+### Facing 입수 — F-2 정착
 
-기존 HISM 경로는 `AHktSpriteCrowdHost::Sync` 가 `FHktSpriteView::Facing` 을 직접 읽는다. `IHktPresentableActor` 인터페이스에는 `ApplySprite(const FHktSpriteView&)` 같은 메서드가 없다.
+기존 HISM 경로는 `AHktSpriteCrowdHost::Sync` 가 `FHktSpriteView::Facing` 을 직접 읽는다. Paper2D 액터는 PR-2 까지 F-3 (`UHktPresentationSubsystem` 룩업) 으로 임시 운용했고, **PR-3 에서 F-2 로 마이그레이션 완료**:
 
-옵션:
-- **F-1**: 액터가 자기 위치/속도(`FHktMovementView::Velocity`) 로 facing 추정. 서버 권위 facing 과 미세 어긋남 발생 가능.
-- **F-2**: `IHktPresentableActor` 에 `ApplySprite(const FHktSpriteView&, ...)` 신규 메서드 + `FHktActorProcessor::Sync` 안에 sprite 뷰 패스 추가. **HktPresentation 변경**이 필요 — 인터페이스 default empty body 라 기존 액터들 영향 0. 단, 모듈 의존(HktPresentation → FHktSpriteView 정의 위치) 정리 필요.
-- **F-3**: 액터가 `UHktPresentationSubsystem` 에서 자기 EntityId 로 `FHktSpriteView` 를 직접 read. 인터페이스 무변경. 단, 매 프레임 룩업 비용.
+- `IHktPresentableActor::ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce)` 추가 — default empty body 라 다른 actor(`AHktUnitActor`/`AHktVoxelUnitActorBase`/`AHktItemActor`/`AHktDebrisActor`) 컴파일 영향 0.
+- `FHktActorProcessor::Sync` 에 sprite 패스 추가 (`State.Sprites` 순회 → `P->ApplySprite`).
+- `AHktSpritePaperActor` 가 `ApplySprite` override — `ServerFacing`/`ServerAuthoritativeAnimStartTick` 캐시. Tick 은 캐시 read 로 매 프레임 Subsystem 룩업 비용 제거. F-3 헬퍼(`QueryServerSpriteState`) + `HktPresentationSubsystem` include 제거.
 
-→ 1차 PR 은 F-3. 안정화 후 F-2 로 정착(인터페이스 정식 추가).
+> 참고: F-1(velocity 추정) 안은 서버 권위와 어긋날 수 있어 채택 안 함.
 
 ## 8. 변경 영역 요약 (한 줄 정리)
 
@@ -381,14 +380,15 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 | `HktGameplay/Source/HktSpriteCore/HktSpriteCrowdRenderer.{h,cpp}` | | **수정 0** |
 | `HktGameplay/Source/HktSpriteCore/HktSpriteNiagaraCrowdRenderer.{h,cpp}` | | **수정 0** |
 | `HktGameplay/Source/HktSpriteCore/HktSpriteCrowdHost.{h,cpp}` | | **수정 0** |
-| `HktGameplay/Source/HktPresentation/...` | | (F-3 채택 시) **수정 0** / (F-2 채택 시) `IHktPresentableActor.h` 만 메서드 1개 추가 |
+| `HktGameplay/Source/HktPresentation/Public/Actors/IHktPresentableActor.h` | | (PR-3) `ApplySprite` 메서드 1개 추가 + `FHktSpriteView` forward decl |
+| `HktGameplay/Source/HktPresentation/Private/Processors/HktActorProcessor.cpp` | | (PR-3) Sprite 패스 1블록 추가 |
 
 ## 9. 트레이드오프 / 위험
 
 - **자산 폭증**: 캐릭터 1명 = `Animations × Directions × FramesPerDir` 개의 `UPaperSprite`. 8 × 6 × 10 = 480 개. 미러 절약(8→5) 평균 60%. 1차 PR 은 그대로 디스크에 출력. PR-3 에서 sprite 를 transient package 로 만들고 flipbook 만 디스크에 두는 옵션 검토.
 - **인스턴싱 부재**: 엔티티 1명 = 액터 1개 + 컴포넌트 1개 + 드로콜 1개. 1000 엔티티 시 무거움 — 본 경로의 **명시적 제약**. 대규모 크라우드는 HISM/Niagara 그대로 유지.
-- **빌보드 비용**: 매 프레임 액터 N개의 `SetWorldRotation`. yaw 변화량 임계값 dirty check 필요(PR-3).
-- **Facing 입수**: §7 의 F-3 → F-2 마이그레이션 빚을 진다. F-3 은 매 프레임 Subsystem 룩업 비용.
+- **빌보드 비용**: 매 프레임 액터 N개의 `SetWorldRotation`. yaw 변화량 임계값 dirty check 필요(PR-4 후속).
+- **Facing 입수**: PR-3 에서 F-2 로 정착 — F-3 의 매 프레임 Subsystem 룩업 비용 제거 완료.
 - **`UHktActorVisualDataAsset` 슬롯**: 캐릭터 데이터(`UHktPaperCharacterTemplate*`) 를 어디에 둘지(B-1/B-2)는 1차 PR 의 첫 단계에서 자산 정의 확인 후 결정.
 - **머티리얼 단일**: PaletteIndex(HISM CPD slot 13) 같은 셰이더 레벨 확장은 미지원. 도입 시 머티리얼 파라미터 컬렉션/MID 추가.
 - **시간축 일치**: HISM 경로는 `FrameResolver` 결과 `FrameIdx` 를 GPU 로 바로 보냄. Paper2D 는 `SetPlaybackPosition(elapsedSec)` 으로 위임 — loop wrap, 마지막 프레임 hold 등 미세 차이. 1차 PR 은 `SetPlaybackPositionInFrames(FrameIdx, false)` 로 명시 강제 후 비교.
@@ -411,11 +411,20 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
   - PIE 검증: VisualTag = `PaperSprite.Character.Knight` 로 SpawnEntity → 자동으로 Paper2D 액터 스폰 → flipbook 재생
   - 호스트/HISM/Niagara 경로 변경 0.
 
-- **PR-3 — 옵션**
-  - `SHktPaperSpriteBuilderPanel` (기존 `SHktSpriteBuilderPanel` UX 미러)
-  - MCP Python 도구 `editor_build_paper_sprite_character`
-  - `IHktPresentableActor::ApplySprite` 정식 추가 (F-3 → F-2 마이그레이션)
-  - 카메라 yaw dirty check / sprite transient package 옵션 / 자산 메모리 최적화
+- **PR-3 — F-2 마이그레이션 (현재 PR)**
+  - `IHktPresentableActor::ApplySprite(const FHktSpriteView&, int64, bool)` 정식 추가 — default empty body, 기존 5개 implementer 영향 0.
+  - `FHktActorProcessor::Sync` 에 Sprite 패스 추가 (`State.Sprites` 순회).
+  - `AHktSpritePaperActor` F-3 → F-2: `QueryServerSpriteState` 헬퍼 + `HktPresentationSubsystem` include 제거. `ApplySprite` override 가 `ServerFacing` / `ServerAuthoritativeAnimStartTick` / `bHasSpriteState` 캐시.
+  - 빌더/Niagara/HISM 경로 변경 0. PIE 회귀 0 검증.
+
+- **PR-4 — UX / 도구 (보류)**
+  - `SHktPaperSpriteBuilderPanel` (기존 `SHktSpriteBuilderPanel` UX 미러).
+  - MCP Python 도구 `editor_build_paper_sprite_character`.
+
+- **PR-5 — 성능 / 메모리 (보류)**
+  - 카메라 yaw dirty check (`SetWorldRotation` 빈도 절감).
+  - sprite transient package 옵션 (디스크 자산 폭증 완화).
+  - `bMirrorWestFromEast` 캐릭터별 사이드카, 셀 메타 폴백 우선순위 등 §12 미해결 항목 정리.
 
 ## 11. 검증
 
@@ -430,10 +439,18 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
   - 1000 엔티티 PIE — Paper2D 경로 FPS 측정 → 한계치 문서화.
   - 기존 HISM/Niagara 경로 회귀 0 (코드 변경 0이므로 컴파일/스크린샷 비교만).
 
+- **PR-3 (F-2 마이그레이션)**
+  - 컴파일: `IHktPresentableActor` 5개 implementer (`AHktUnitActor`/`AHktVoxelUnitActorBase`/`AHktItemActor`/`AHktDebrisActor`/`AHktSpritePaperActor`) 모두 빌드 성공 — default empty body 라 override 안 한 4개는 영향 0.
+  - PIE: Paper2D 액터 첫 sync 전(즉 `bHasSpriteState=false`) 에 flipbook 미설정 상태 유지. 첫 ApplySprite 후 정상 재생.
+  - PIE: Server Facing 전환 시 액터가 즉시(다음 sync) 반영 — 매 프레임 Subsystem 룩업이 사라졌으므로 `stat HktPresentation` 의 Subsystem 호출 0.
+  - HISM/Niagara 경로 회귀 0 (해당 actors 는 ApplySprite 호출 받아도 default no-op).
+
 ## 12. 미해결 / 후속 결정
 
-- `UHktActorVisualDataAsset` 의 캐릭터 데이터 슬롯 존재 여부 — 1차 PR 첫 작업.
-- Facing 흐름: F-3 (런타임 룩업) vs F-2 (`IHktPresentableActor` 정식 추가) — PR-3 에서 F-2 로 정착.
+- `UHktActorVisualDataAsset` 의 캐릭터 데이터 슬롯 존재 여부 — PR-1 첫 작업으로 해결됨 (B-2 채택, 별도 `UHktPaperActorVisualDataAsset` 신설).
+- Facing 흐름: ~~F-3 (런타임 룩업) vs F-2 (`IHktPresentableActor` 정식 추가)~~ — **PR-3 에서 F-2 로 정착 완료**.
 - 자산 출력 루트 (`/Game/Generated/PaperSprites/{SafeChar}` vs Project Settings 의 `ConventionRootDirectory`).
-- `bMirrorWestFromEast` 디폴트 — 캐릭터별로 다르면 워크스페이스 사이드카 추가 필요.
-- 셀 메타 폴백 우선순위 (현 안: `atlas_meta.json` > 인자 > 종횡비).
+- `bMirrorWestFromEast` 디폴트 — 캐릭터별로 다르면 워크스페이스 사이드카 추가 필요. (PR-5 후속)
+- 셀 메타 폴백 우선순위 (현 안: `atlas_meta.json` > 인자 > 종횡비). (PR-5 후속)
+- PR-4: `SHktPaperSpriteBuilderPanel` UX + MCP Python 도구 `editor_build_paper_sprite_character` — 콘솔 명령(`HktPaperSprite.BuildCharacter`)으로 빌드 가능하므로 우선순위 보류.
+- PR-5: 카메라 yaw dirty check, sprite transient package 옵션 등 성능/메모리 최적화 — N개 액터 시점 측정 후 진행.
