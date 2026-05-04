@@ -45,6 +45,69 @@ namespace HktPaperWorkspace
 		return OutAnimSafeNames.Num() > 0;
 	}
 
+	bool LoadCharacterMeta(const FString& CharacterTagStr, FCharacterMeta& OutMeta)
+	{
+		OutMeta = FCharacterMeta{};
+
+		const FString Root = UHktSpriteGeneratorFunctionLibrary::GetConventionBundleRoot(CharacterTagStr);
+		if (Root.IsEmpty()) return false;
+
+		const FString MetaPath = Root / TEXT("paper_character_meta.json");
+		if (!FPaths::FileExists(MetaPath))
+		{
+			return false;
+		}
+
+		FString Json;
+		if (!FFileHelper::LoadFileToString(Json, *MetaPath))
+		{
+			UE_LOG(LogHktPaper2DGenerator, Warning,
+				TEXT("[HktPaperWorkspace] paper_character_meta.json 로드 실패: %s"), *MetaPath);
+			return false;
+		}
+
+		TSharedPtr<FJsonObject> RootObj;
+		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+		if (!FJsonSerializer::Deserialize(Reader, RootObj) || !RootObj.IsValid())
+		{
+			UE_LOG(LogHktPaper2DGenerator, Warning,
+				TEXT("[HktPaperWorkspace] paper_character_meta.json 파싱 실패: %s"), *MetaPath);
+			return false;
+		}
+
+		bool bMirror = false;
+		if (RootObj->TryGetBoolField(TEXT("bMirrorWestFromEast"), bMirror)
+			|| RootObj->TryGetBoolField(TEXT("mirrorWestFromEast"), bMirror))
+		{
+			OutMeta.bHasMirrorWestFromEast = true;
+			OutMeta.bMirrorWestFromEast    = bMirror;
+		}
+
+		double FrameDur = 0.0;
+		if (RootObj->TryGetNumberField(TEXT("frameDurationMs"), FrameDur) && FrameDur > 0.0)
+		{
+			OutMeta.bHasFrameDurationMs = true;
+			OutMeta.FrameDurationMs     = static_cast<float>(FrameDur);
+		}
+
+		double P2W = 0.0;
+		if (RootObj->TryGetNumberField(TEXT("pixelToWorld"), P2W) && P2W > 0.0)
+		{
+			OutMeta.bHasPixelToWorld = true;
+			OutMeta.PixelToWorld     = static_cast<float>(P2W);
+		}
+
+		bool bLoop = false;
+		if (RootObj->TryGetBoolField(TEXT("looping"), bLoop)
+			|| RootObj->TryGetBoolField(TEXT("bLooping"), bLoop))
+		{
+			OutMeta.bHasLooping = true;
+			OutMeta.bLooping    = bLoop;
+		}
+
+		return true;
+	}
+
 	bool LoadAtlasMeta(const FString& MetaJsonPath, TArray<FDirMeta>& OutDirs)
 	{
 		OutDirs.Reset();

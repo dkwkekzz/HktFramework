@@ -31,4 +31,28 @@ namespace HktPaperWorkspace
 		int32 FrameCount = 0;
 	};
 	bool LoadAtlasMeta(const FString& MetaJsonPath, TArray<FDirMeta>& OutDirs);
+
+	/**
+	 * 캐릭터 워크스페이스 루트의 사이드카(`paper_character_meta.json`) 파싱.
+	 *  - bMirrorWestFromEast (override) : 캐릭터별로 미러 비활성 가능.
+	 *  - frameDurationMs                : 캐릭터별 기본 프레임 지속.
+	 *  - pixelToWorld                   : 캐릭터별 기본 PixelToWorld.
+	 *  - looping                        : 캐릭터별 기본 looping.
+	 * 모든 필드가 optional — 미지정이면 OutHas* false. PR-5 캐릭터별 override 진입점.
+	 */
+	struct FCharacterMeta
+	{
+		bool bHasMirrorWestFromEast = false;
+		bool bMirrorWestFromEast    = true;
+
+		bool  bHasFrameDurationMs   = false;
+		float FrameDurationMs       = 100.f;
+
+		bool  bHasPixelToWorld      = false;
+		float PixelToWorld          = 2.f;
+
+		bool  bHasLooping           = false;
+		bool  bLooping              = true;
+	};
+	bool LoadCharacterMeta(const FString& CharacterTagStr, FCharacterMeta& OutMeta);
 }

@@ -92,6 +92,10 @@ FString UHktPaperSpriteBuilderFunctionLibrary::BuildPaperSpriteAnim(
 	const FString SafeChar  = HktPaperAssetBuilder::SanitizeForAssetName(CharacterTagStr);
 	const FString OutDir    = ResolveOutputDir(OutputDir, SafeChar);
 
+	// PR-5: 캐릭터별 사이드카는 BuildPaperCharacter 가 로드해 인자로 명시 전달한다.
+	// 단일 anim 호출(BuildPaperSpriteAnim)은 호출자의 인자가 항상 우선 — 사이드카
+	// 자동 적용은 의도와 어긋난다(에디터 패널에서 anim 별 미세 튜닝 케이스).
+
 	// 태그 등록 보장.
 	EnsureTag(AnimTagStr);
 	const FString VisualIdent = ResolveVisualIdentifierTag(VisualIdentifierTagStr, CharacterTagStr);
@@ -170,6 +174,19 @@ FString UHktPaperSpriteBuilderFunctionLibrary::BuildPaperCharacter(
 			TEXT("Workspace 에 anim 폴더가 없음 (char=%s)"), *CharacterTagStr));
 	}
 
+	// PR-5: 캐릭터별 사이드카(`paper_character_meta.json`) 로드 — 발견되면 anim 별
+	// 빌드 시 인자로 명시 전달해 캐릭터별 override 로 동작.
+	HktPaperWorkspace::FCharacterMeta CharMeta;
+	const bool bHasCharMeta = HktPaperWorkspace::LoadCharacterMeta(CharacterTagStr, CharMeta);
+	const float ResolvedPixelToWorld    = (bHasCharMeta && CharMeta.bHasPixelToWorld)
+		? CharMeta.PixelToWorld : PixelToWorld;
+	const float ResolvedFrameDurationMs = (bHasCharMeta && CharMeta.bHasFrameDurationMs)
+		? CharMeta.FrameDurationMs : 100.f;
+	const bool  ResolvedLooping         = (bHasCharMeta && CharMeta.bHasLooping)
+		? CharMeta.bLooping : true;
+	const bool  ResolvedMirrorWFE       = (bHasCharMeta && CharMeta.bHasMirrorWestFromEast)
+		? CharMeta.bMirrorWestFromEast : true;
+
 	// 디스커버된 SafeAnim 들은 SanitizeForAssetName 결과로, 원본 anim 태그 문자열을 복원하기 어렵다.
 	// HktSpriteGenerator 컨벤션은 "Anim.FullBody.Locomotion.Idle" → "Anim_FullBody_Locomotion_Locomotion_Idle"
 	// 식의 무손실 1:1 매핑이 아니다 — 워크스페이스 자체가 SafeName 기준으로 정착돼 있다.
@@ -186,8 +203,8 @@ FString UHktPaperSpriteBuilderFunctionLibrary::BuildPaperCharacter(
 		const FString Single = BuildPaperSpriteAnim(
 			CharacterTagStr, GuessTag,
 			/*CellWidth*/ 0, /*CellHeight*/ 0,
-			PixelToWorld, /*FrameDurationMs*/ 100.f,
-			/*bLooping*/ true, /*bMirrorWestFromEast*/ true,
+			ResolvedPixelToWorld, ResolvedFrameDurationMs,
+			ResolvedLooping, ResolvedMirrorWFE,
 			VisualIdentifierTagStr, OutDir);
 
 		TSharedPtr<FJsonObject> Obj;
@@ -210,6 +227,16 @@ FString UHktPaperSpriteBuilderFunctionLibrary::BuildPaperCharacter(
 	Root->SetNumberField(TEXT("animCount"), AnimResults.Num());
 	Root->SetNumberField(TEXT("okCount"), OkCount);
 	Root->SetArrayField(TEXT("anims"), AnimResults);
+	Root->SetBoolField(TEXT("characterMetaLoaded"), bHasCharMeta);
+	if (bHasCharMeta)
+	{
+		TSharedPtr<FJsonObject> Meta = MakeShared<FJsonObject>();
+		Meta->SetNumberField(TEXT("pixelToWorld"),    ResolvedPixelToWorld);
+		Meta->SetNumberField(TEXT("frameDurationMs"), ResolvedFrameDurationMs);
+		Meta->SetBoolField  (TEXT("looping"),         ResolvedLooping);
+		Meta->SetBoolField  (TEXT("mirrorWestFromEast"), ResolvedMirrorWFE);
+		Root->SetObjectField(TEXT("characterMeta"), Meta);
+	}
 	if (OkCount == 0)
 	{
 		Root->SetStringField(TEXT("error"), TEXT("모든 anim 빌드 실패"));
