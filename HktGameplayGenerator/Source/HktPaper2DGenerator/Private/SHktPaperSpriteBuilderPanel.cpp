@@ -2,11 +2,8 @@
 
 #include "SHktPaperSpriteBuilderPanel.h"
 
-#include "HAL/FileManager.h"
 #include "HktPaperSpriteBuilderFunctionLibrary.h"
-#include "HktSpriteGeneratorFunctionLibrary.h"
 #include "IDetailsView.h"
-#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
@@ -14,43 +11,6 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
-
-namespace
-{
-	// Workspace 의 anim 디렉터리들을 스캔 — 각 anim 폴더 안에 atlas_{Dir}.png 가 하나라도 있으면
-	// 빌드 후보로 본다. 폴더명은 SafeName 컨벤션이라 '_' 를 '.' 로 복원해 GameplayTag 추정.
-	static TArray<FHktPaperBuilderAnimEntry> DiscoverConventionEntries(const FString& CharacterTagStr)
-	{
-		TArray<FHktPaperBuilderAnimEntry> Out;
-		const FString Root = UHktSpriteGeneratorFunctionLibrary::GetConventionBundleRoot(CharacterTagStr);
-		if (Root.IsEmpty()) return Out;
-
-		IFileManager& FM = IFileManager::Get();
-		if (!FM.DirectoryExists(*Root)) return Out;
-
-		TArray<FString> Dirs;
-		FM.FindFiles(Dirs, *(Root / TEXT("*")), /*Files*/ false, /*Dirs*/ true);
-		for (const FString& D : Dirs)
-		{
-			if (D.IsEmpty() || D == TEXT(".") || D == TEXT("..")) continue;
-
-			TArray<FString> Atlases;
-			FM.FindFiles(Atlases, *(Root / D / TEXT("atlas_*.png")), /*Files*/ true, /*Dirs*/ false);
-			if (Atlases.IsEmpty()) continue;
-
-			FHktPaperBuilderAnimEntry E;
-			// SafeAnim ('_' 구분) → GameplayTag ('.' 구분) 복원 추정.
-			E.AnimTag = FGameplayTag::RequestGameplayTag(
-				FName(*D.Replace(TEXT("_"), TEXT("."))), /*ErrorIfNotFound*/ false);
-			if (E.AnimTag.IsValid())
-			{
-				Out.Add(MoveTemp(E));
-			}
-		}
-
-		return Out;
-	}
-}
 
 #define LOCTEXT_NAMESPACE "HktPaperSpriteBuilder"
 

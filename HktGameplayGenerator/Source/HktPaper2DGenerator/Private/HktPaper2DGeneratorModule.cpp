@@ -42,7 +42,7 @@ public:
 			TEXT("Open HKT Paper2D Sprite Builder panel."),
 			FConsoleCommandDelegate::CreateLambda([]()
 			{
-				FGlobalTabmanager::Get()->TryInvokeTab(BuilderTabName);
+				FGlobalTabmanager::Get()->TryInvokeTab(FHktPaper2DGeneratorModule::BuilderTabName);
 			}),
 			ECVF_Default);
 	}
