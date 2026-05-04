@@ -135,9 +135,14 @@ private:
 
 	/**
 	 * GetOrCreateHISM 등록 직후 HISM → 등록 프레임 번호.
-	 * 첫 PIE 에서 텍스처 RHI 가 막 valid 로 전이된 직후 SetTextureParameterValue 의 propagation
-	 * 이 첫 proxy 생성과 race 해 stale binding 으로 굳는 케이스 방어. 등록 다음 프레임에 한 번만
-	 * MID 파라미터 재바인딩 + MarkRenderStateDirty 로 proxy 를 강제로 다시 잡는다.
+	 *
+	 * 1차 방어는 GetOrCreateHISM 의 `SetPSOPrecacheProxyCreationStrategy(DelayUntilPSOPrecached)`
+	 * 가 담당한다 (PSO 컴파일 전 proxy 가 생성돼 fallback 머티리얼이 atlas 통째 출력하는 경로 차단).
+	 *
+	 * 본 맵은 그 뒤에도 남는 in-depth 방어 — 첫 PIE 에서 텍스처 RHI 가 막 valid 로 전이된 직후
+	 * SetTextureParameterValue 의 propagation 이 첫 proxy 생성과 race 해 stale binding 으로 굳는
+	 * 케이스를 잡는다. 등록 다음 프레임에 한 번만 MID 파라미터 재바인딩 + MarkRenderStateDirty 로
+	 * proxy 를 강제로 다시 잡는다.
 	 */
 	TMap<UInstancedStaticMeshComponent*, uint64> HISMPrimePending;
 
