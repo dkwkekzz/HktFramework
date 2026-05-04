@@ -22,10 +22,36 @@
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectGlobals.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+
+// ----------------------------------------------------------------------------
+// 콘솔 변수 — Sprite 임베드 (PR-5)
+// ----------------------------------------------------------------------------
+//
+// 캐릭터 1명 = Animations × Directions × FramesPerDir 개의 UPaperSprite. 8 × 6 × 10
+// = 480 개 — 미러 절약(8→5) 적용해도 캐릭터당 수백 개의 디스크 자산이 생긴다.
+// EmbedSpritesInFlipbook=1 이면 sprite 의 Outer 를 Flipbook 패키지로 두어 Flipbook
+// 자산의 inner subobject 로 만든다 → sprite 별도 디스크 자산 0, AssetRegistry 항목
+// N분의 1.
+//
+// 트레이드오프:
+//   - 에디터에서 sprite 를 Content Browser 로 직접 swap 하기는 불편 (일반적으로
+//     불필요 — Paper2D 워크플로우는 sprite asset 직접 편집이 드물다).
+//   - 같은 atlas 의 sprite 를 다른 flipbook 이 공유할 수 없음 (본 빌더는 dir 별로
+//     별개 atlas + 별개 flipbook 이라 공유 사례 없음).
+//
+// 기본값 1 — 디스크 폭증 완화가 명확한 이득. 0 이면 PR-5 이전 동작(별도 패키지).
+static TAutoConsoleVariable<int32> CVarHktPaperEmbedSprites(
+	TEXT("hkt.PaperSprite.EmbedSpritesInFlipbook"),
+	1,
+	TEXT("1=UPaperSprite 를 UPaperFlipbook 패키지의 inner subobject 로 임베드 ")
+	TEXT("(별도 디스크 자산 생성 안 함, 디폴트). ")
+	TEXT("0=각 sprite 별 별도 패키지(.uasset) 생성 (PR-5 이전 동작)."),
+	ECVF_Default);
 
 namespace HktPaperAssetBuilder
 {
@@ -156,10 +182,17 @@ namespace HktPaperAssetBuilder
 		int32 OriginX, int32 OriginY,
 		int32 CellW, int32 CellH,
 		float PixelToWorld,
-		UMaterialInterface* Material)
+		UMaterialInterface* Material,
+		bool bStandaloneTopLevel)
 	{
+		// PR-5: 임베드 모드(bStandaloneTopLevel=false)에서는 RF_Standalone 을 제외 —
+		// sprite 는 flipbook 의 inner subobject 라 top-level 자산이 아니다. flipbook 의
+		// KeyFrames TArray 가 strong reference 라 GC 보존은 자동.
+		const EObjectFlags Flags = bStandaloneTopLevel
+			? (RF_Public | RF_Standalone)
+			: RF_Public;
 		UPaperSprite* Sprite = NewObject<UPaperSprite>(
-			Pkg, FName(*AssetName), RF_Public | RF_Standalone);
+			Pkg, FName(*AssetName), Flags);
 
 		FSpriteAssetInitParameters InitParams;
 		InitParams.SetTextureAndFill(
@@ -222,16 +255,24 @@ namespace HktPaperAssetBuilder
 				FlipbookPkg, FlipbookName, RF_Public | RF_Standalone);
 		}
 
-		// 모든 sprite 를 sprite 전용 패키지에 둔다.
+		// PR-5: 임베드 모드면 sprite 의 Outer 를 Flipbook 패키지로 두어 별도 디스크 자산
+		// 생성 자체를 회피. 0(legacy) 이면 dir 의 각 sprite 를 별도 패키지로 저장.
+		const bool bEmbedSprites = CVarHktPaperEmbedSprites.GetValueOnAnyThread() != 0;
+
 		TArray<UPaperSprite*> Sprites;
 		Sprites.Reserve(FrameCount);
 		for (int32 i = 0; i < FrameCount; ++i)
 		{
 			const FString SpriteAssetName = FString::Printf(TEXT("PS_%s_%d"), *BaseAssetName, i);
-			const FString SpritePackagePath = OutputPackageDir / SpriteAssetName;
-			UPackage* SpritePkg = CreatePackage(*SpritePackagePath);
-			if (!SpritePkg) continue;
-			SpritePkg->FullyLoad();
+
+			UPackage* SpritePkg     = bEmbedSprites ? FlipbookPkg : nullptr;
+			FString   SpritePkgPath = bEmbedSprites ? FlipbookPackagePath : (OutputPackageDir / SpriteAssetName);
+			if (!bEmbedSprites)
+			{
+				SpritePkg = CreatePackage(*SpritePkgPath);
+				if (!SpritePkg) continue;
+				SpritePkg->FullyLoad();
+			}
 
 			// 동일 이름이 이미 있으면 재생성 — 셀 좌표나 atlas 변경에 대응.
 			UPaperSprite* Sprite = FindObject<UPaperSprite>(SpritePkg, *SpriteAssetName);
@@ -243,18 +284,22 @@ namespace HktPaperAssetBuilder
 			Sprite = BuildSprite(
 				SpritePkg, SpriteAssetName, AtlasTex,
 				/*OriginX*/ i * CellW, /*OriginY*/ 0,
-				CellW, CellH, PixelToWorld, Material);
+				CellW, CellH, PixelToWorld, Material,
+				/*bStandaloneTopLevel*/ !bEmbedSprites);
 
-			FAssetRegistryModule::AssetCreated(Sprite);
-			SpritePkg->MarkPackageDirty();
+			if (!bEmbedSprites)
+			{
+				FAssetRegistryModule::AssetCreated(Sprite);
+				SpritePkg->MarkPackageDirty();
 
-			const FString SpriteFile = FPackageName::LongPackageNameToFilename(
-				SpritePackagePath, FPackageName::GetAssetPackageExtension());
-			FSavePackageArgs SaveArgs;
-			SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
-			SaveArgs.SaveFlags     = SAVE_NoError;
-			SaveArgs.Error         = GLog;
-			UPackage::SavePackage(SpritePkg, Sprite, *SpriteFile, SaveArgs);
+				const FString SpriteFile = FPackageName::LongPackageNameToFilename(
+					SpritePkgPath, FPackageName::GetAssetPackageExtension());
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+				SaveArgs.SaveFlags     = SAVE_NoError;
+				SaveArgs.Error         = GLog;
+				UPackage::SavePackage(SpritePkg, Sprite, *SpriteFile, SaveArgs);
+			}
 
 			Sprites.Add(Sprite);
 		}
@@ -416,15 +461,20 @@ namespace HktPaperAssetBuilder
 			}
 			Result.AtlasAssetPaths.Add(TexPackagePath);
 
-			// 셀 크기 우선순위: 인자 override > meta sidecar > atlas 종횡비 폴백.
-			int32 UseW = CellWidthOverride;
-			int32 UseH = CellHeightOverride;
+			// 셀 크기 우선순위 (PR-5 정리): atlas_meta.json > 인자 override > 종횡비 폴백.
+			// meta 가 우선인 이유 — generator(Stage 2) 가 셀 크기를 atlas pack 시 결정·기록하므로
+			// 인자보다 권위 있다. 인자는 meta 가 없을 때만 의미.
 			const HktPaperWorkspace::FDirMeta* DirMeta = MetaByDir.Find(d);
+			int32 UseW = 0;
+			int32 UseH = 0;
 			if (DirMeta)
 			{
-				if (UseW <= 0) UseW = DirMeta->CellW;
-				if (UseH <= 0) UseH = DirMeta->CellH;
+				UseW = DirMeta->CellW;
+				UseH = DirMeta->CellH;
 			}
+			if (UseW <= 0) UseW = CellWidthOverride;
+			if (UseH <= 0) UseH = CellHeightOverride;
+
 			const int32 AtlasW = AtlasTex->GetSizeX();
 			const int32 AtlasH = AtlasTex->GetSizeY();
 			if (UseH <= 0) UseH = AtlasH;

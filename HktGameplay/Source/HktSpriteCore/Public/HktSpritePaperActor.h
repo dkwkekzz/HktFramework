@@ -109,6 +109,10 @@ private:
 	FVector InterpLocation       = FVector::ZeroVector;
 	bool    bHasInitialTransform = false;
 
+	/** 마지막으로 적용한 빌보드 yaw (도). PR-5 dirty check 비교 기준. */
+	float LastAppliedYawDeg = 0.f;
+	bool  bHasAppliedYaw    = false;
+
 	/** 태그 해석 실패 dedup (HktSpriteCrowdHost 와 동일 패턴). */
 	bool bLoggedResolveRenderOutputsFailure = false;
 };

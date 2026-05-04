@@ -390,12 +390,17 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 | `HktGameplayGenerator/Source/HktPaper2DGenerator/HktPaper2DGenerator.Build.cs` | | (PR-4) `Slate`/`SlateCore`/`InputCore`/`PropertyEditor`/`WorkspaceMenuStructure`/`ToolMenus` 의존 추가 |
 | `HktGameplayGenerator/McpServer/src/hkt_mcp/tools/sprite_tools.py` | | (PR-4) `build_paper_sprite_character` / `build_paper_sprite_anim` 추가 |
 | `HktGameplayGenerator/McpServer/src/hkt_mcp/server.py` | | (PR-4) 두 도구 등록 + dispatch 분기 |
+| `HktGameplay/Source/HktSpriteCore/Public/HktSpritePaperActor.h` | | (PR-5) `LastAppliedYawDeg` / `bHasAppliedYaw` 필드 추가 |
+| `HktGameplay/Source/HktSpriteCore/Private/HktSpritePaperActor.cpp` | | (PR-5) `hkt.PaperSprite.YawDirtyDeg` CVar + Tick yaw dirty check |
+| `HktGameplayGenerator/Source/HktPaper2DGenerator/Private/HktPaperWorkspaceScanner.{h,cpp}` | | (PR-5) `LoadCharacterMeta` (사이드카 `paper_character_meta.json`) 추가 |
+| `HktGameplayGenerator/Source/HktPaper2DGenerator/Private/HktPaperAssetBuilder.cpp` | | (PR-5) `hkt.PaperSprite.EmbedSpritesInFlipbook` CVar + sprite 임베드 분기 + 셀 메타 우선순위 정리 |
+| `HktGameplayGenerator/Source/HktPaper2DGenerator/Private/HktPaperSpriteBuilderFunctionLibrary.cpp` | | (PR-5) `BuildPaperCharacter` 가 사이드카 로드 → anim 빌드에 명시 전달 |
 
 ## 9. 트레이드오프 / 위험
 
-- **자산 폭증**: 캐릭터 1명 = `Animations × Directions × FramesPerDir` 개의 `UPaperSprite`. 8 × 6 × 10 = 480 개. 미러 절약(8→5) 평균 60%. 1차 PR 은 그대로 디스크에 출력. PR-5 에서 sprite 를 transient package 로 만들고 flipbook 만 디스크에 두는 옵션 검토.
+- **자산 폭증**: 캐릭터 1명 = `Animations × Directions × FramesPerDir` 개의 `UPaperSprite`. 8 × 6 × 10 = 480 개. 미러 절약(8→5) 평균 60%. **PR-5 에서 sprite 임베드 옵션** (`hkt.PaperSprite.EmbedSpritesInFlipbook=1`, 기본 ON) — sprite Outer 를 flipbook 패키지로 두어 별도 디스크 자산 생성 회피. 0 이면 PR-1 동작과 동일.
 - **인스턴싱 부재**: 엔티티 1명 = 액터 1개 + 컴포넌트 1개 + 드로콜 1개. 1000 엔티티 시 무거움 — 본 경로의 **명시적 제약**. 대규모 크라우드는 HISM/Niagara 그대로 유지.
-- **빌보드 비용**: 매 프레임 액터 N개의 `SetWorldRotation`. yaw 변화량 임계값 dirty check 필요(PR-5 후속).
+- **빌보드 비용**: 매 프레임 액터 N개의 `SetWorldRotation`. **PR-5 에서 yaw dirty check** — `hkt.PaperSprite.YawDirtyDeg` 미만의 변화량은 회전 적용 생략. 위치는 매 프레임 적용 (보간 필수).
 - **Facing 입수**: PR-3 에서 F-2 로 정착 — F-3 의 매 프레임 Subsystem 룩업 비용 제거 완료.
 - **`UHktActorVisualDataAsset` 슬롯**: 캐릭터 데이터(`UHktPaperCharacterTemplate*`) 를 어디에 둘지(B-1/B-2)는 1차 PR 의 첫 단계에서 자산 정의 확인 후 결정.
 - **머티리얼 단일**: PaletteIndex(HISM CPD slot 13) 같은 셰이더 레벨 확장은 미지원. 도입 시 머티리얼 파라미터 컬렉션/MID 추가.
@@ -431,10 +436,12 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
   - MCP Python 도구: `build_paper_sprite_character` (워크스페이스 자동) + `build_paper_sprite_anim` (단일 anim). 신규 UFUNCTION 0 — 기존 `BuildPaperCharacter` / `BuildPaperSpriteAnim` 이 이미 `UFUNCTION(BlueprintCallable)` 라 Remote Control 로 직접 호출 (`PAPER_OBJECT_PATH = /Script/HktPaper2DGenerator.Default__HktPaperSpriteBuilderFunctionLibrary`).
   - 빌더 / 런타임 액터 / HISM / Niagara 코드 변경 0.
 
-- **PR-5 — 성능 / 메모리 (보류)**
-  - 카메라 yaw dirty check (`SetWorldRotation` 빈도 절감).
-  - sprite transient package 옵션 (디스크 자산 폭증 완화).
-  - `bMirrorWestFromEast` 캐릭터별 사이드카, 셀 메타 폴백 우선순위 등 §12 미해결 항목 정리.
+- **PR-5 — 성능 / 메모리 (현재 PR)**
+  - **카메라 yaw dirty check** — `AHktSpritePaperActor::Tick` 에서 yaw 변화량이 임계값 미만이면 `SetActorLocationAndRotation` 대신 `SetActorLocation` 만 호출. CVar `hkt.PaperSprite.YawDirtyDeg` (기본 0.5도) 로 튜닝 — 0 으로 두면 PR-5 이전 동작과 동일.
+  - **sprite 임베드 옵션** — `UPaperSprite` 의 Outer 를 `UPaperFlipbook` 패키지로 두어 별도 디스크 자산 생성 회피. CVar `hkt.PaperSprite.EmbedSpritesInFlipbook` (기본 1) 로 토글. 캐릭터당 sprite 디스크 자산 0 — AssetRegistry 항목 N분의 1, 디스크 폭증 완화. RF_Standalone 은 임베드 모드에서 자동 제거(top-level 자산 아님). flipbook 의 `KeyFrames` strong reference 가 GC 보존.
+  - **`bMirrorWestFromEast` 캐릭터별 사이드카** — 워크스페이스 루트(`{Saved}/SpriteGenerator/{SafeChar}/paper_character_meta.json`) 에서 `bMirrorWestFromEast` / `frameDurationMs` / `pixelToWorld` / `looping` 을 캐릭터별로 override. `BuildPaperCharacter` 가 사이드카를 로드해 `BuildPaperSpriteAnim` 에 인자로 명시 전달 — 단일 anim 호출은 호출자 인자가 항상 우선.
+  - **셀 메타 폴백 우선순위 정리** — `atlas_meta.json` > 인자 override > atlas 종횡비. (PR-2 시점엔 인자 우선이었는데 generator(Stage 2) 가 권위적 출처라 meta 우선이 자연스럽다.)
+  - 빌더 / HISM / Niagara / 런타임 액터 일부(yaw dirty check 외)는 변경 0.
 
 ## 11. 검증
 
@@ -462,12 +469,19 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
   - MCP: `build_paper_sprite_character` 호출 → Remote Control 로 `BuildPaperCharacter` 도달, 동일 결과. `build_paper_sprite_anim` 으로 단일 anim 빌드.
   - 빌더 / 런타임 액터 / HISM / Niagara 회귀 0 — `HktPaper2DGenerator` 모듈만 변경 + Python tool 추가.
 
+- **PR-5 (성능 / 메모리)**
+  - **yaw dirty check**: PIE 에서 카메라를 정지 → `stat HktPresentation` (또는 액터 transform 갱신 카운터) 의 `SetActorRotation` 호출이 0 으로 떨어짐. 카메라 회전 시작 → 즉시 따라옴. CVar `hkt.PaperSprite.YawDirtyDeg 0` 으로 두면 PR-1 동작 복원.
+  - **sprite 임베드**: `BuildPaperCharacter` 실행 후 Content Browser 에서 `/Game/Generated/PaperSprites/{Char}/` 안의 자산을 보면 — 기본(`=1`) 시 `T_PaperAtlas_*`, `PFB_*`, `DA_PaperCharacter_*`, `DA_PaperVisual_*` 만 보이고 `PS_*` 별도 자산은 없음. CVar `hkt.PaperSprite.EmbedSpritesInFlipbook 0` 으로 재빌드 시 `PS_*` 자산이 다시 N개 출력됨.
+  - **캐릭터 사이드카**: `{Saved}/SpriteGenerator/Knight/paper_character_meta.json` 에 `{"bMirrorWestFromEast": false}` 작성 → `BuildPaperCharacter("Sprite.Character.Knight")` → 결과 JSON 의 `characterMeta.mirrorWestFromEast = false` 확인 + W/SW/NW dir 도 모두 빌드됨.
+  - **셀 메타 우선순위**: `atlas_meta.json` 의 `cellW=64` 가 있고 인자 `CellWidth=128` 을 줘도 64 가 적용됨 (meta 우선). meta 없을 때는 인자 우선.
+  - HISM / Niagara / 빌더 IO / 다른 IHktPresentableActor 구현체 회귀 0.
+
 ## 12. 미해결 / 후속 결정
 
 - `UHktActorVisualDataAsset` 의 캐릭터 데이터 슬롯 존재 여부 — PR-1 첫 작업으로 해결됨 (B-2 채택, 별도 `UHktPaperActorVisualDataAsset` 신설).
 - Facing 흐름: ~~F-3 (런타임 룩업) vs F-2 (`IHktPresentableActor` 정식 추가)~~ — **PR-3 에서 F-2 로 정착 완료**.
 - 자산 출력 루트 (`/Game/Generated/PaperSprites/{SafeChar}` vs Project Settings 의 `ConventionRootDirectory`).
-- `bMirrorWestFromEast` 디폴트 — 캐릭터별로 다르면 워크스페이스 사이드카 추가 필요. (PR-5 후속)
-- 셀 메타 폴백 우선순위 (현 안: `atlas_meta.json` > 인자 > 종횡비). (PR-5 후속)
+- ~~`bMirrorWestFromEast` 디폴트 — 캐릭터별로 다르면 워크스페이스 사이드카 추가 필요.~~ — **PR-5 에서 `paper_character_meta.json` 사이드카 도입**.
+- ~~셀 메타 폴백 우선순위 (현 안: `atlas_meta.json` > 인자 > 종횡비).~~ — **PR-5 에서 `atlas_meta.json` 우선으로 정리** (generator 출처가 가장 권위 있음).
 - ~~PR-4: `SHktPaperSpriteBuilderPanel` UX + MCP Python 도구 `editor_build_paper_sprite_character`~~ — **PR-4 에서 완료**. MCP 도구는 `build_paper_sprite_character` / `build_paper_sprite_anim` 두 갈래로 정착.
-- PR-5: 카메라 yaw dirty check, sprite transient package 옵션 등 성능/메모리 최적화 — N개 액터 시점 측정 후 진행.
+- ~~PR-5: 카메라 yaw dirty check, sprite transient package 옵션 등 성능/메모리 최적화~~ — **PR-5 에서 완료**. yaw dirty check (`hkt.PaperSprite.YawDirtyDeg`), sprite 임베드 (`hkt.PaperSprite.EmbedSpritesInFlipbook`) CVar 노출.

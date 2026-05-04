@@ -13,9 +13,28 @@
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInterface.h"
 #include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"
+
+// ----------------------------------------------------------------------------
+// 콘솔 변수 — 빌보드 회전 dirty check (PR-5)
+// ----------------------------------------------------------------------------
+//
+// 액터 N개가 매 프레임 SetActorRotation 을 호출하면 transform marshalling 비용이
+// 누적된다. yaw 변화량이 임계값 미만이면 회전 적용 자체를 생략 — 위치 갱신은
+// 항상 필요하므로 위치만 SetActorLocation 으로 따로 호출한다.
+//
+//   0.0 → 항상 적용 (PR-5 이전 동작)
+//   0.5 → 카메라 yaw 가 0.5도 이상 변할 때만 적용 (기본)
+static TAutoConsoleVariable<float> CVarHktPaperSpriteYawDirtyDeg(
+	TEXT("hkt.PaperSprite.YawDirtyDeg"),
+	0.5f,
+	TEXT("AHktSpritePaperActor 빌보드 회전 dirty 임계값(도). ")
+	TEXT("이전 적용한 yaw 와의 차이가 이 값 미만이면 SetActorRotation 을 생략. ")
+	TEXT("0 이면 항상 적용 (PR-5 이전 동작)."),
+	ECVF_Default);
 
 AHktSpritePaperActor::AHktSpritePaperActor()
 {
@@ -152,12 +171,30 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 
 	LocalNowSec += static_cast<double>(DeltaTime);
 
-	// --- 위치 보간 + 빌보드 (RootScene yaw = 카메라 yaw) — 한 번에 적용 ---
+	// --- 위치 보간 + 빌보드 (PR-5: yaw dirty check) ---
+	// 위치는 매 프레임 보간/적용. 회전은 yaw 변화량이 임계값 이상일 때만 적용 —
+	// CVar `hkt.PaperSprite.YawDirtyDeg` 로 임계값 조정.
 	constexpr float InterpSpeed = 15.f;
 	InterpLocation = FMath::VInterpTo(InterpLocation, CachedRenderLocation, DeltaTime, InterpSpeed);
-	const float CameraYaw = QueryCameraYaw();
-	SetActorLocationAndRotation(InterpLocation, FRotator(0.f, CameraYaw, 0.f),
-		false, nullptr, ETeleportType::TeleportPhysics);
+
+	const float CameraYaw    = QueryCameraYaw();
+	const float YawDirtyDeg  = FMath::Max(0.f, CVarHktPaperSpriteYawDirtyDeg.GetValueOnGameThread());
+	const float DeltaYaw     = bHasAppliedYaw
+		? FMath::Abs(FRotator::NormalizeAxis(CameraYaw - LastAppliedYawDeg))
+		: TNumericLimits<float>::Max();
+	const bool  bYawDirty    = !bHasAppliedYaw || DeltaYaw >= YawDirtyDeg;
+
+	if (bYawDirty)
+	{
+		SetActorLocationAndRotation(InterpLocation, FRotator(0.f, CameraYaw, 0.f),
+			false, nullptr, ETeleportType::TeleportPhysics);
+		LastAppliedYawDeg = CameraYaw;
+		bHasAppliedYaw    = true;
+	}
+	else
+	{
+		SetActorLocation(InterpLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	}
 
 	if (!Template || !FlipbookComp) return;
 
