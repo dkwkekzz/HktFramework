@@ -139,3 +139,22 @@ def test_pre_scanned_tags_are_used(tmp_path: Path) -> None:
     # 빈 tags 리스트 → 코드에 태그가 없는 것처럼 동작 → MissingTag 경고
     issues = check_consistency([g], tmp_path, tags=[])
     assert any(i.rule == "MissingTag" for i in issues)
+
+
+def test_glob_zero_match_reports_only_realizes_path_missing(tmp_path: Path) -> None:
+    """글로브 패턴이 0개 매치이면 RealizesPathMissing 만 보고 — MissingTag 중복 X."""
+
+    g = _goal("G-0142", ["Source/Nonexistent/*.cpp"])
+    issues = check_consistency([g], tmp_path)
+    rules = [i.rule for i in issues]
+    assert rules.count("RealizesPathMissing") == 1
+    # 중복 가드: 같은 경로에 대해 MissingTag 까지 띄우지 않는다.
+    assert "MissingTag" not in rules
+
+
+def test_missing_path_reports_only_realizes_path_missing(tmp_path: Path) -> None:
+    g = _goal("G-0142", ["Source/Missing.cpp"])
+    issues = check_consistency([g], tmp_path)
+    rules = [i.rule for i in issues]
+    assert rules.count("RealizesPathMissing") == 1
+    assert "MissingTag" not in rules

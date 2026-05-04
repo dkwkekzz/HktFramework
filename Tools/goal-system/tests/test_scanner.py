@@ -33,6 +33,78 @@ def test_scan_text_ignores_garbage() -> None:
     assert tags == []
 
 
+# ---------------------------------------------------------------------------
+# B — 코멘트 prefix 가 없으면 인라인 태그를 인식하지 않는다.
+# ---------------------------------------------------------------------------
+
+
+def test_scan_text_requires_comment_prefix() -> None:
+    # 코드 문자열 안의 표기 — `//` 같은 코멘트 마커가 없으므로 거부.
+    text = 'const char* tag = "@goal: G-0142";\n'
+    assert scan_text(text) == []
+
+
+def test_scan_text_recognizes_python_hash_comment() -> None:
+    text = "# @goal: G-0142 (Python module)\n"
+    tags = scan_text(text)
+    assert len(tags) == 1
+    assert tags[0].goal_id == "G-0142"
+
+
+def test_scan_text_recognizes_block_comment_star_prefix() -> None:
+    # 블록 코멘트 내부 라인 — 라인 선두의 ``*`` 만으로도 인식.
+    text = " * @goal: G-0142\n"
+    tags = scan_text(text)
+    assert len(tags) == 1
+    assert tags[0].goal_id == "G-0142"
+
+
+def test_scan_text_recognizes_lua_dash_dash() -> None:
+    text = "-- @goal: G-0142\n"
+    tags = scan_text(text)
+    assert len(tags) == 1
+    assert tags[0].kind == "realizes"
+
+
+# ---------------------------------------------------------------------------
+# A — constraint 마커는 ID 우측·괄호 밖에서만 인식된다.
+# ---------------------------------------------------------------------------
+
+
+def test_constraint_in_parentheses_not_misclassified() -> None:
+    # Goal 제목에 "제약" 단어가 있어도 괄호 안이면 realizes 로 분류.
+    text = "// @goal: G-0142 (제약 관리 시스템)\n"
+    tags = scan_text(text)
+    assert len(tags) == 1
+    assert tags[0].kind == "realizes"
+
+
+def test_constraint_marker_outside_parens_classified() -> None:
+    text = "// @goal: G-0001 (결정성 보존)  // 제약\n"
+    tags = scan_text(text)
+    assert len(tags) == 1
+    assert tags[0].kind == "constraint"
+
+
+def test_constraint_marker_left_of_id_does_not_apply() -> None:
+    # ID 좌측의 "constraint" 단어는 분류에 영향을 주지 않는다.
+    text = "// constraint check: @goal: G-0142\n"
+    tags = scan_text(text)
+    assert len(tags) == 1
+    assert tags[0].kind == "realizes"
+
+
+def test_two_ids_on_same_line_classified_independently() -> None:
+    # 한 라인에 두 ID 가 있을 때, 각자의 우측 텍스트만 영향.
+    text = "// @goal: G-0142  @goal: G-0001 // 제약\n"
+    tags = scan_text(text)
+    assert len(tags) == 2
+    assert tags[0].goal_id == "G-0142"
+    assert tags[0].kind == "realizes"
+    assert tags[1].goal_id == "G-0001"
+    assert tags[1].kind == "constraint"
+
+
 def test_scan_repo_inline(tmp_path: Path) -> None:
     src = tmp_path / "Source/Module/File.cpp"
     src.parent.mkdir(parents=True)

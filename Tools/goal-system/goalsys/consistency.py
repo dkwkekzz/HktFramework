@@ -26,7 +26,7 @@ from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .parser import Goal
-from .realizes import RealizesError, validate_realizes
+from .realizes import RealizesError, collect_realizes_paths, validate_realizes
 from .scanner import CodeTag, scan_repo
 
 
@@ -148,11 +148,9 @@ def check_consistency(
     #
     # 두 방향 모두 "매칭" 정의가 동일 — goal_path 가 tag.file_path 를 포함하면 OK.
 
-    # 빠른 조회: goal_id → list of normalized realizes paths
-    realizes_by_goal: Dict[str, List[str]] = {}
-    for g in goals:
-        paths = [_norm(e.get("path", "")) for e in g.realizes if isinstance(e, dict)]
-        realizes_by_goal[g.id] = [p for p in paths if p]
+    # 빠른 조회: goal_id → list of normalized realizes paths.
+    # collect_realizes_paths 는 이미 정규화/공백 제거를 수행한다.
+    realizes_by_goal: Dict[str, List[str]] = collect_realizes_paths(goals)
 
     # tag 인덱스: goal_id → list of normalized tag paths (inline + goals_md)
     tags_by_goal: Dict[str, List[Tuple[str, CodeTag]]] = {}
@@ -161,16 +159,23 @@ def check_consistency(
             continue  # 별도 보고됨
         tags_by_goal.setdefault(tag.goal_id, []).append((_norm(str(tag.file_path)), tag))
 
-    # (3a) Goal → Code: 각 realizes 경로에 매칭되는 태그가 있는지
+    # (3a) Goal → Code: 각 realizes 경로에 매칭되는 태그가 있는지.
+    # 경로가 (1) 에서 이미 RealizesPathMissing 으로 보고됐다면 중복으로 MissingTag
+    # 까지 띄우지 않는다 — 사용자에겐 같은 문제의 두 시각일 뿐.
     for goal_id, paths in realizes_by_goal.items():
         if not paths:
             continue
         tag_paths = [tp for tp, _ in tags_by_goal.get(goal_id, [])]
         for gp in paths:
-            # 1. 경로가 실제로 존재하지 않으면 (1) 에서 이미 보고 — 중복 방지.
-            full = (root / gp) if not Path(gp).is_absolute() else Path(gp)
-            if not _is_glob(gp) and not full.exists():
-                continue
+            if _is_glob(gp):
+                if Path(gp).is_absolute():
+                    continue  # 절대 글로브는 미지원 — (1) 에서 이미 보고됨
+                if not any(root.glob(gp)):
+                    continue  # 0개 매치 — (1) 에서 이미 보고됨
+            else:
+                full = (root / gp) if not Path(gp).is_absolute() else Path(gp)
+                if not full.exists():
+                    continue
             matched = any(_path_matches(gp, tp) for tp in tag_paths)
             if matched:
                 continue

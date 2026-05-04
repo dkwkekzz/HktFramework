@@ -8,8 +8,12 @@
        // @goal: G-0001 (결정성 보존)  // 제약
 
    - ``@goal:`` 또는 ``@goal`` 직후 공백, 그리고 ``G-NNNN`` ID.
-   - 같은 라인 내에 ``제약`` / ``constraint`` 가 등장하면
-     :attr:`CodeTag.kind` 가 ``"constraint"`` 가 된다 (그 외는 ``"realizes"``).
+   - ID 위치 **이전** 에 코멘트 시작 마커(``//``, ``/*``, ``#``, ``--``,
+     ``;``, ``<!--``, 또는 라인 선두의 ``*``) 가 있어야만 인식한다 — 코드
+     문자열 안의 거짓양성 차단용.
+   - ID **뒤** 의 텍스트 중 *괄호 밖* 영역에 ``제약`` 또는 ``constraint``
+     가 등장하면 :attr:`CodeTag.kind` 가 ``"constraint"`` 가 된다 (그 외는
+     ``"realizes"``). Goal 제목이 괄호 안에 들어 있어도 오분류되지 않는다.
 
 2) **모듈 문서** — 모듈 디렉토리의 ``GOALS.md`` 파일:
 
@@ -36,8 +40,13 @@ from typing import Iterable, List, Optional, Sequence
 
 # 인라인 태그용 정규식 — `@goal` 다음에 선택적 콜론, 공백, 그리고 ID.
 _INLINE_TAG_RE = re.compile(r"@goal\s*:?\s*(?P<id>G-\d{4,})")
-# 같은 라인 내 제약 마커 — `// 제약` / `constraint` / `Constraint`.
+# 코멘트 시작 마커 — ID 가 코드 문자열이 아닌 코멘트 안에 있어야 한다는
+# 약한 보장(완전한 토크나이저는 아니지만 대부분의 거짓양성을 차단).
+# 인식 대상: //, /*, *(블록 코멘트 라인), #, --, ;, <!--
+_COMMENT_PREFIX_RE = re.compile(r"(//|/\*|^\s*\*|#|--|;|<!--)")
+# 같은 라인 내 제약 마커 — 괄호 밖 텍스트에서 검색해야 거짓양성이 줄어든다.
 _CONSTRAINT_MARK_RE = re.compile(r"제약|constraint", re.IGNORECASE)
+_PAREN_RE = re.compile(r"\([^)]*\)")
 # GOALS.md 의 H2 헤더.
 _H2_RE = re.compile(r"^##\s+(?P<title>.+?)\s*$", re.MULTILINE)
 # GOALS.md 본문 라인의 ID 추출 — `- G-0142: ...`, `- G-0142 ...`, `* G-0142`.
@@ -83,6 +92,62 @@ def _is_excluded_dir(rel: Path, excludes: Iterable[str]) -> bool:
     return any(ex in parts for ex in excludes)
 
 
+def _has_comment_prefix(line: str, id_start: int) -> bool:
+    """ID 시작 위치 이전 텍스트에 코멘트 시작 마커가 있는가.
+
+    완전한 토크나이저는 아니다. 멀티라인 docstring/문자열 안의 예시는
+    여전히 매치될 수 있다 — 그러나 코드 변수에 우연히 들어간 ``"@goal: G-0142"``
+    같은 거짓양성은 차단된다.
+    """
+
+    return bool(_COMMENT_PREFIX_RE.search(line[:id_start]))
+
+
+def _is_constraint_marker(line_after_id: str) -> bool:
+    """ID 뒤 텍스트에서 괄호 밖에 ``제약``/``constraint`` 가 등장하는가.
+
+    설계 §5.2:
+
+        // @goal: G-0001 (결정성 보존)  // 제약   ← 괄호는 Goal 제목, 마커는 그 밖.
+
+    괄호 안 텍스트에 우연히 "제약 관리" 같은 단어가 들어가도 오분류되지 않게 한다.
+    """
+
+    stripped = _PAREN_RE.sub("", line_after_id)
+    return bool(_CONSTRAINT_MARK_RE.search(stripped))
+
+
+def _extract_inline_tags(
+    line: str,
+    *,
+    line_no: int,
+    rel: Path,
+) -> List["CodeTag"]:
+    """단일 라인의 모든 인라인 태그를 추출한다 (코멘트 prefix 보장).
+
+    한 라인에 여러 ID 가 있을 수 있으므로, 각 ID 의 트레일링 텍스트는
+    *다음 ID 직전* 까지만 검사하여 마커가 옆 태그로 누설되지 않게 한다.
+    """
+
+    out: List[CodeTag] = []
+    matches = list(_INLINE_TAG_RE.finditer(line))
+    for i, match in enumerate(matches):
+        if not _has_comment_prefix(line, match.start()):
+            continue
+        next_start = matches[i + 1].start() if i + 1 < len(matches) else len(line)
+        trailing = line[match.end():next_start]
+        kind = "constraint" if _is_constraint_marker(trailing) else "realizes"
+        out.append(CodeTag(
+            goal_id=match.group("id"),
+            file_path=rel,
+            line_no=line_no,
+            kind=kind,
+            source_kind="inline",
+            raw=line.strip(),
+        ))
+    return out
+
+
 def _iter_files(
     repo_root: Path,
     *,
@@ -116,18 +181,7 @@ def _scan_inline_file(path: Path, rel: Path) -> List[CodeTag]:
     except OSError:
         return out
     for line_no, line in enumerate(text.splitlines(), start=1):
-        # 한 라인에 여러 ID 가 등장할 수도 있다 — finditer 사용.
-        is_constraint_line = bool(_CONSTRAINT_MARK_RE.search(line))
-        for match in _INLINE_TAG_RE.finditer(line):
-            kind = "constraint" if is_constraint_line else "realizes"
-            out.append(CodeTag(
-                goal_id=match.group("id"),
-                file_path=rel,
-                line_no=line_no,
-                kind=kind,
-                source_kind="inline",
-                raw=line.strip(),
-            ))
+        out.extend(_extract_inline_tags(line, line_no=line_no, rel=rel))
     return out
 
 
@@ -250,15 +304,5 @@ def scan_text(text: str, file_path: Path | str = Path("<memory>")) -> List[CodeT
     rel = Path(file_path)
     out: List[CodeTag] = []
     for line_no, line in enumerate(text.splitlines(), start=1):
-        is_constraint_line = bool(_CONSTRAINT_MARK_RE.search(line))
-        for match in _INLINE_TAG_RE.finditer(line):
-            kind = "constraint" if is_constraint_line else "realizes"
-            out.append(CodeTag(
-                goal_id=match.group("id"),
-                file_path=rel,
-                line_no=line_no,
-                kind=kind,
-                source_kind="inline",
-                raw=line.strip(),
-            ))
+        out.extend(_extract_inline_tags(line, line_no=line_no, rel=rel))
     return out
