@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVoxelRigidUnitActor.h"
+#include "HktPresentationLog.h"
 #include "HktVoxelSkinLayerAsset.h"
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "Data/HktVoxelRenderCache.h"
@@ -138,7 +139,7 @@ void AHktVoxelRigidUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGro
 	}
 
 	bBoneAnimatedMode = true;
-	UE_LOG(LogTemp, Log, TEXT("[VoxelRigidUnit] InitializeBoneChunks: %d bone chunks created"), BoneChunks.Num());
+	UE_LOG(LogHktPresentation, Log, TEXT("[VoxelRigidUnit] InitializeBoneChunks: %d bone chunks created"), BoneChunks.Num());
 }
 
 void AHktVoxelRigidUnitActor::TeardownBoneChunks()

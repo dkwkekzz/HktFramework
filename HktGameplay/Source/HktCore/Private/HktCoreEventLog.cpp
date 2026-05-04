@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktCoreEventLog.h"
+#include "HktCoreLog.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -179,11 +180,11 @@ FString FHktCoreEventLog::DumpToFile(const FString& OptionalPath) const
 	// 파일 쓰기 (Lock 밖)
 	if (FFileHelper::SaveStringToFile(Content, *FilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
 	{
-		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Dumped to %s"), *FilePath);
+		UE_LOG(LogHktCore, Log, TEXT("HktEventLog: Dumped to %s"), *FilePath);
 		return FilePath;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("HktEventLog: Failed to write to %s"), *FilePath);
+	UE_LOG(LogHktCore, Warning, TEXT("HktEventLog: Failed to write to %s"), *FilePath);
 	return FString();
 }
 
@@ -205,7 +206,7 @@ static FAutoConsoleCommand GHktEventLogStartCmd(
 	FConsoleCommandDelegate::CreateLambda([]()
 	{
 		FHktCoreEventLog::Get().SetActive(true);
-		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Collection started."));
+		UE_LOG(LogHktCore, Log, TEXT("HktEventLog: Collection started."));
 	})
 );
 
@@ -215,7 +216,7 @@ static FAutoConsoleCommand GHktEventLogStopCmd(
 	FConsoleCommandDelegate::CreateLambda([]()
 	{
 		FHktCoreEventLog::Get().SetActive(false);
-		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Collection stopped."));
+		UE_LOG(LogHktCore, Log, TEXT("HktEventLog: Collection stopped."));
 	})
 );
 
@@ -227,11 +228,11 @@ static FAutoConsoleCommand GHktEventLogDumpCmd(
 		const FString Path = FHktCoreEventLog::Get().DumpToFile();
 		if (!Path.IsEmpty())
 		{
-			UE_LOG(LogTemp, Log, TEXT("HktEventLog: Dump complete -> %s"), *Path);
+			UE_LOG(LogHktCore, Log, TEXT("HktEventLog: Dump complete -> %s"), *Path);
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("HktEventLog: No entries to dump or write failed."));
+			UE_LOG(LogHktCore, Warning, TEXT("HktEventLog: No entries to dump or write failed."));
 		}
 	})
 );
@@ -242,7 +243,7 @@ static FAutoConsoleCommand GHktEventLogClearCmd(
 	FConsoleCommandDelegate::CreateLambda([]()
 	{
 		FHktCoreEventLog::Get().Clear();
-		UE_LOG(LogTemp, Log, TEXT("HktEventLog: Buffer cleared."));
+		UE_LOG(LogHktCore, Log, TEXT("HktEventLog: Buffer cleared."));
 	})
 );
 
@@ -254,14 +255,14 @@ static FAutoConsoleCommand GHktEventLogLevelCmd(
 		if (Args.Num() < 1)
 		{
 			const EHktLogLevel Cur = FHktCoreEventLog::Get().GetMinLogLevel();
-			UE_LOG(LogTemp, Log, TEXT("HktEventLog: Current MinLevel=%d (%s). Usage: hkt.EventLog.Level <0-3>"),
+			UE_LOG(LogHktCore, Log, TEXT("HktEventLog: Current MinLevel=%d (%s). Usage: hkt.EventLog.Level <0-3>"),
 				static_cast<int32>(Cur), GetLogLevelName(Cur));
 			return;
 		}
 		const int32 Val = FCString::Atoi(*Args[0]);
 		const EHktLogLevel NewLevel = static_cast<EHktLogLevel>(FMath::Clamp(Val, 0, 3));
 		FHktCoreEventLog::Get().SetMinLogLevel(NewLevel);
-		UE_LOG(LogTemp, Log, TEXT("HktEventLog: MinLevel set to %d (%s)"),
+		UE_LOG(LogHktCore, Log, TEXT("HktEventLog: MinLevel set to %d (%s)"),
 			static_cast<int32>(NewLevel), GetLogLevelName(NewLevel));
 	})
 );

@@ -932,7 +932,7 @@ void FHktPhysicsSystem::Process(
 
         if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
         {
-            UE_LOG(LogTemp, Warning,
+            UE_LOG(LogHktCore, Warning,
                 TEXT("[Physics Step2] E%d Pos=(%.0f,%.0f,%.0f) Vel=(%.1f,%.1f,%.1f) R=%.0f HH=%.0f Mass=%.0f "
                      "Cells=(%d,%d,%d)->(%d,%d,%d)"),
                 ED.Id, ED.ExpectedPos.X, ED.ExpectedPos.Y, ED.ExpectedPos.Z,
@@ -1088,7 +1088,7 @@ void FHktPhysicsSystem::Process(
                     (A.Id == static_cast<FHktEntityId>(DebugEntityId) ||
                      B.Id == static_cast<FHktEntityId>(DebugEntityId)))
                 {
-                    UE_LOG(LogTemp, Warning,
+                    UE_LOG(LogHktCore, Warning,
                         TEXT("[Physics Step5 Capsule] E%d(R=%.0f HH=%.0f)<->E%d(R=%.0f HH=%.0f) Dist=%.1f CombR=%.1f Overlap=%.1f "
                              "MassA=%.0f MassB=%.0f PushA=(%.1f,%.1f,%.1f) PushB=(%.1f,%.1f,%.1f)"),
                         A.Id, A.Radius, A.HalfHeight, B.Id, B.Radius, B.HalfHeight,
@@ -1158,7 +1158,7 @@ void FHktPhysicsSystem::Process(
 
                     if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
                     {
-                        UE_LOG(LogTemp, Warning,
+                        UE_LOG(LogHktCore, Warning,
                             TEXT("[Physics Floor] E%d FootVZ=%d ScanHit=%d GroundZ=%.0f Gap=%.1f VS=%.1f"),
                             ED.Id, FootVZ, ScanVZ, GroundZ, Gap, VS);
                     }
@@ -1180,7 +1180,7 @@ void FHktPhysicsSystem::Process(
                 {
                     if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
                     {
-                        UE_LOG(LogTemp, Warning,
+                        UE_LOG(LogHktCore, Warning,
                             TEXT("[Physics Floor] E%d FootVZ=%d — 아래에 지면 없음 (스캔 %d까지)"),
                             ED.Id, FootVZ, ScanFloor);
                     }
@@ -1207,7 +1207,7 @@ void FHktPhysicsSystem::Process(
         // Z < 0 절대 방어 — 어떤 경우에도 바닥 아래로 내려갈 수 없음
         if (FinalPos.Z < 0.0f)
         {
-            UE_LOG(LogTemp, Error,
+            UE_LOG(LogHktCore, Error,
                 TEXT("[Physics] E%d Z<0 감지! Pos=(%.1f,%.1f,%.1f) Expected=(%.1f,%.1f,%.1f) "
                      "React=(%.1f,%.1f,%.1f) Terrain=%s → Z=0 클램프"),
                 ED.Id, FinalPos.X, FinalPos.Y, FinalPos.Z,
@@ -1277,7 +1277,7 @@ void FHktPhysicsSystem::Process(
 
         if (DebugEntityId >= 0 && ED.Id == static_cast<FHktEntityId>(DebugEntityId))
         {
-            UE_LOG(LogTemp, Warning,
+            UE_LOG(LogHktCore, Warning,
                 TEXT("[Physics] E%d Final=(%d,%d,%d) React=(%.1f,%.1f,%.1f) "
                      "Vel=(%d,%d,%d) Grounded=%s Snap=%s"),
                 ED.Id, NewPX, NewPY, NewPZ,

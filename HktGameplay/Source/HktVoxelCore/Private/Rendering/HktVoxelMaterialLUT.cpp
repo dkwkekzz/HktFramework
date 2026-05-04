@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Rendering/HktVoxelMaterialLUT.h"
+#include "HktVoxelCoreLog.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
 
@@ -85,7 +86,7 @@ void UHktVoxelMaterialLUT::BuildLUTTexture()
 	MaterialLUT->AddressY = TA_Clamp;
 	MaterialLUT->UpdateResource();
 
-	UE_LOG(LogTemp, Log, TEXT("[HktMaterialLUT] Built 256x1 material LUT texture"));
+	UE_LOG(LogHktVoxelCore, Log, TEXT("[HktMaterialLUT] Built 256x1 material LUT texture"));
 }
 
 void UHktVoxelMaterialLUT::CreateDefaultTerrainLUT()
@@ -107,5 +108,5 @@ void UHktVoxelMaterialLUT::CreateDefaultTerrainLUT()
 
 	BuildLUTTexture();
 
-	UE_LOG(LogTemp, Log, TEXT("[HktMaterialLUT] Created default terrain PBR mappings"));
+	UE_LOG(LogHktVoxelCore, Log, TEXT("[HktMaterialLUT] Created default terrain PBR mappings"));
 }
