@@ -259,6 +259,17 @@ UInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateHISM(
 	// (HISM 의 cluster tree 컬링 이슈를 회피하기 위해 ISM 사용.)
 	HISM->BoundsScale = 1000.f;
 
+	// 첫 PIE "atlas 통째" 회피 — PSO 가 컴파일되기 전에 proxy 가 만들어지면 엔진이
+	// fallback 머티리얼로 quad 를 그려버려 (CPD 미바인딩 + InTexCoord 0..1 직통)
+	// atlas 가 통째로 출력된다. 두 번째 PIE 부터는 PSO 캐시가 살아 있어 안 보이지만,
+	// 첫 PIE 의 idle→run 마이그레이션 같이 카메라 정면에서 새 HISM 이 만들어지는
+	// 시나리오에서는 그대로 노출된다. DelayUntilPSOPrecached 로 PSO 가 준비될 때까지
+	// proxy 자체를 미루면, 준비 직후 프레임에 모든 CPU 측 상태(MID 파라미터·CPD)가
+	// 정합된 채로 첫 draw 가 나간다. 보이는 trade-off 는 첫 등록 직후 1~수 프레임
+	// 동안 인스턴스가 비표시되는 것뿐 — 깨진 atlas 노출보다 훨씬 가벼움.
+	HISM->SetPSOPrecacheProxyCreationStrategy(
+		EPSOPrecacheProxyCreationStrategy::DelayUntilPSOPrecached);
+
 	UMaterialInterface* BaseMat = SpriteMaterialTemplate
 		? static_cast<UMaterialInterface*>(SpriteMaterialTemplate)
 		: HktSpriteBillboardMaterial::GetDefault();
