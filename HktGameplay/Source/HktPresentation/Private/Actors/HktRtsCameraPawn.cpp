@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Actors/HktRtsCameraPawn.h"
+#include "HktPresentationLog.h"
 #include "HktPresentationSubsystem.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "Camera/HktCameraModeBase.h"
@@ -276,7 +277,7 @@ static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 		{
 			if (Args.Num() < 1)
 			{
-				UE_LOG(LogTemp, Warning,
+				UE_LOG(LogHktPresentation, Warning,
 					TEXT("hkt.Camera.SetMode: 모드를 지정하세요. (RtsView, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3)"));
 				return;
 			}
@@ -284,7 +285,7 @@ static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 			EHktCameraMode NewMode;
 			if (!StringToCameraMode(Args[0], NewMode))
 			{
-				UE_LOG(LogTemp, Warning,
+				UE_LOG(LogHktPresentation, Warning,
 					TEXT("hkt.Camera.SetMode: 알 수 없는 모드 '%s'. (RtsView, ShoulderView, IsometricOrtho, IsometricGame, 0, 1, 2, 3)"),
 					*Args[0]);
 				return;
@@ -293,12 +294,12 @@ static FAutoConsoleCommandWithWorldAndArgs GHktCameraSetModeCmd(
 			AHktRtsCameraPawn* Pawn = FindLocalCameraPawn(World);
 			if (!Pawn)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("hkt.Camera.SetMode: CameraPawn을 찾을 수 없습니다."));
+				UE_LOG(LogHktPresentation, Warning, TEXT("hkt.Camera.SetMode: CameraPawn을 찾을 수 없습니다."));
 				return;
 			}
 
 			Pawn->SetCameraMode(NewMode);
-			UE_LOG(LogTemp, Log, TEXT("hkt.Camera.SetMode: %s"), CameraModeToString(NewMode));
+			UE_LOG(LogHktPresentation, Log, TEXT("hkt.Camera.SetMode: %s"), CameraModeToString(NewMode));
 		})
 );
 
@@ -311,10 +312,10 @@ static FAutoConsoleCommandWithWorldAndArgs GHktCameraGetModeCmd(
 			AHktRtsCameraPawn* Pawn = FindLocalCameraPawn(World);
 			if (!Pawn)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("hkt.Camera.GetMode: CameraPawn을 찾을 수 없습니다."));
+				UE_LOG(LogHktPresentation, Warning, TEXT("hkt.Camera.GetMode: CameraPawn을 찾을 수 없습니다."));
 				return;
 			}
 
-			UE_LOG(LogTemp, Log, TEXT("hkt.Camera.GetMode: %s"), CameraModeToString(Pawn->GetCameraMode()));
+			UE_LOG(LogHktPresentation, Log, TEXT("hkt.Camera.GetMode: %s"), CameraModeToString(Pawn->GetCameraMode()));
 		})
 );

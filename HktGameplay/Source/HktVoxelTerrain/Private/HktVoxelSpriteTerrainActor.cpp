@@ -386,7 +386,7 @@ FHktVoxelRenderCache* AHktVoxelSpriteTerrainActor::ResolveRenderCache() const
 
 	if (!VoxelActor->IsHidden())
 	{
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogHktVoxelTerrain, Warning,
 			TEXT("[HktVoxelSpriteTerrain] AHktVoxelTerrainActor also visible — Z-fighting ")
 			TEXT("possible. Hide one actor (bHiddenInGame) for clean A/B or single render."));
 	}

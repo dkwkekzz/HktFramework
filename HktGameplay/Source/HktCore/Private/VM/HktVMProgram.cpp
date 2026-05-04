@@ -4,6 +4,7 @@
 #include "HktVMInterpreter.h"
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
+#include "HktCoreLog.h"
 
 // ============================================================================
 // FHktVMProgramRegistry
@@ -31,7 +32,7 @@ void FHktVMProgramRegistry::RegisterProgram(TSharedRef<FHktVMProgram> Program)
     FGameplayTag Tag = Program->Tag;
     if (Programs.Contains(Tag))
     {
-        UE_LOG(LogTemp, Log, TEXT("FHktVMProgramRegistry: overwriting existing program for tag '%s' (JSON override?)"),
+        UE_LOG(LogHktCore, Log, TEXT("FHktVMProgramRegistry: overwriting existing program for tag '%s' (JSON override?)"),
             *Tag.ToString());
     }
     Programs.Add(Tag, Program);

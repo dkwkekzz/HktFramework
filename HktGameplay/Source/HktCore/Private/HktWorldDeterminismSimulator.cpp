@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktWorldDeterminismSimulator.h"
+#include "HktCoreLog.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMContext.h"
@@ -110,7 +111,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 #if ENABLE_HKT_INSIGHTS
     if (!TerrainSource && Event.FrameNumber % 300 == 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[HktSim] TerrainSource is NULL — Physics Phase1 (floor snap) 비활성. "
+        UE_LOG(LogHktCore, Warning, TEXT("[HktSim] TerrainSource is NULL — Physics Phase1 (floor snap) 비활성. "
             "SetTerrainConfig() 호출 여부 + HktTerrain 모듈 로드 여부 확인 필요. LoadedChunks=%d"),
             TerrainState.LoadedChunks.Num());
     }
@@ -472,7 +473,7 @@ void FHktWorldDeterminismSimulator::SetTerrainConfig(const FHktTerrainGeneratorC
 
     if (!TerrainSource)
     {
-        UE_LOG(LogTemp, Warning,
+        UE_LOG(LogHktCore, Warning,
             TEXT("[HktSim] HktTerrain::CreateDataSource 가 nullptr 반환 — HktTerrain 모듈이 로드되지 않았거나 "
                  "StartupModule 에서 팩토리 등록이 실패함. 지형 파이프라인 비활성."));
     }

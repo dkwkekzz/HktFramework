@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "Rendering/HktVoxelTileAtlas.h"
+#include "HktVoxelCoreLog.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
@@ -204,7 +205,7 @@ void UHktVoxelTileAtlas::CreateDebugTileArray(int32 NumSlices)
 	TileArray->AddressY = TA_Wrap;
 	TileArray->UpdateResource();
 
-	UE_LOG(LogTemp, Log, TEXT("[HktTileAtlas] Created debug Texture2DArray: %d slices, %dx%d"),
+	UE_LOG(LogHktVoxelCore, Log, TEXT("[HktTileAtlas] Created debug Texture2DArray: %d slices, %dx%d"),
 		NumSlices, TileSize, TileSize);
 }
 
@@ -239,5 +240,5 @@ void UHktVoxelTileAtlas::CreateDebugLUT()
 
 	BuildLUTTexture();
 
-	UE_LOG(LogTemp, Log, TEXT("[HktTileAtlas] Created debug LUT with terrain type mappings"));
+	UE_LOG(LogHktVoxelCore, Log, TEXT("[HktTileAtlas] Created debug LUT with terrain type mappings"));
 }

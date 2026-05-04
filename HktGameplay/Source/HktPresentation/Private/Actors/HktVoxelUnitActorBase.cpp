@@ -2,6 +2,7 @@
 
 #include "HktVoxelUnitActorBase.h"
 #include "HktAnimInstance.h"
+#include "HktPresentationLog.h"
 #include "HktPresentationState.h"
 #include "HktCoreProperties.h"
 #include "HktVoxelSkinLayerAsset.h"
@@ -328,7 +329,7 @@ void AHktVoxelUnitActorBase::EnsureSkeletonMesh()
 			if (SkelMesh)
 			{
 				HiddenSkeleton->SetSkeletalMeshAsset(SkelMesh);
-				UE_LOG(LogTemp, Log, TEXT("[VoxelUnit] HiddenSkeleton: SkeletalMesh set from VoxelLayerAsset SourceMesh"));
+				UE_LOG(LogHktPresentation, Log, TEXT("[VoxelUnit] HiddenSkeleton: SkeletalMesh set from VoxelLayerAsset SourceMesh"));
 				break;
 			}
 		}

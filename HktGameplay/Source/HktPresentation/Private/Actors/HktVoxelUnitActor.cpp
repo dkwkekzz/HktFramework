@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktVoxelUnitActor.h"
+#include "HktPresentationLog.h"
 #include "HktVoxelSkinLayerAsset.h"
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "Data/HktVoxelRenderCache.h"
@@ -91,7 +92,7 @@ void AHktVoxelUnitActor::InitializeGPUSkinning(const TArray<FHktVoxelBoneGroup>&
 	}
 
 	bGPUSkinningActive = true;
-	UE_LOG(LogTemp, Log, TEXT("[VoxelUnit] GPU Skinning initialized: %d bones"), BoneNameToIndex.Num());
+	UE_LOG(LogHktPresentation, Log, TEXT("[VoxelUnit] GPU Skinning initialized: %d bones"), BoneNameToIndex.Num());
 }
 
 void AHktVoxelUnitActor::UpdateBoneTransformsFromSkeleton()
