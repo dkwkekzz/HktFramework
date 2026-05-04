@@ -39,6 +39,13 @@ public class HktPaper2DGenerator : ModuleRules
 				"Paper2DEditor",   // FSpriteAssetInitParameters / FScopedFlipbookMutator
 				// 입력 헬퍼 — public static convention helper 호출 전용 (UHktSpriteGeneratorFunctionLibrary).
 				"HktSpriteGenerator",
+				// SHktPaperSpriteBuilderPanel — 기존 SHktSpriteBuilderPanel 미러 패널 (PR-4).
+				"Slate",
+				"SlateCore",
+				"InputCore",
+				"PropertyEditor",
+				"WorkspaceMenuStructure",
+				"ToolMenus",
 			}
 		);
 	}

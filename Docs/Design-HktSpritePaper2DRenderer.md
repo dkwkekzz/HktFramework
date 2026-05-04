@@ -85,8 +85,10 @@ HktGameplayGenerator/Source/HktPaper2DGenerator/
 └── Private/
     ├── HktPaper2DGeneratorModule.cpp
     ├── HktPaperSpriteBuilderFunctionLibrary.cpp
-    ├── HktPaperAssetBuilder.{h,cpp}        (UTexture2D/UPaperSprite/UPaperFlipbook 빌드)
-    └── HktPaperWorkspaceScanner.{h,cpp}    (워크스페이스 발견·메타 파싱)
+    ├── HktPaperAssetBuilder.{h,cpp}            (UTexture2D/UPaperSprite/UPaperFlipbook 빌드)
+    ├── HktPaperWorkspaceScanner.{h,cpp}        (워크스페이스 발견·메타 파싱)
+    ├── HktPaperSpriteBuilderPanelConfig.h      (PR-4, EditorPerProjectUserSettings UCLASS)
+    ├── SHktPaperSpriteBuilderPanel.{h,cpp}     (PR-4, SHktSpriteBuilderPanel 미러)
 ```
 
 `Build.cs` 의존:
@@ -382,6 +384,12 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 | `HktGameplay/Source/HktSpriteCore/HktSpriteCrowdHost.{h,cpp}` | | **수정 0** |
 | `HktGameplay/Source/HktPresentation/Public/Actors/IHktPresentableActor.h` | | (PR-3) `ApplySprite` 메서드 1개 추가 + `FHktSpriteView` forward decl |
 | `HktGameplay/Source/HktPresentation/Private/Processors/HktActorProcessor.cpp` | | (PR-3) Sprite 패스 1블록 추가 |
+| `HktGameplayGenerator/Source/HktPaper2DGenerator/Private/HktPaperSpriteBuilderPanelConfig.h` | | (PR-4) **신규** — 패널 영구 입력 |
+| `HktGameplayGenerator/Source/HktPaper2DGenerator/Private/SHktPaperSpriteBuilderPanel.{h,cpp}` | | (PR-4) **신규** — Slate 빌더 패널 |
+| `HktGameplayGenerator/Source/HktPaper2DGenerator/Private/HktPaper2DGeneratorModule.cpp` | | (PR-4) Nomad 탭 + `HktPaperSprite.Builder` 콘솔 명령 추가 |
+| `HktGameplayGenerator/Source/HktPaper2DGenerator/HktPaper2DGenerator.Build.cs` | | (PR-4) `Slate`/`SlateCore`/`InputCore`/`PropertyEditor`/`WorkspaceMenuStructure`/`ToolMenus` 의존 추가 |
+| `HktGameplayGenerator/McpServer/src/hkt_mcp/tools/sprite_tools.py` | | (PR-4) `build_paper_sprite_character` / `build_paper_sprite_anim` 추가 |
+| `HktGameplayGenerator/McpServer/src/hkt_mcp/server.py` | | (PR-4) 두 도구 등록 + dispatch 분기 |
 
 ## 9. 트레이드오프 / 위험
 
@@ -417,9 +425,11 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
   - `AHktSpritePaperActor` F-3 → F-2: `QueryServerSpriteState` 헬퍼 + `HktPresentationSubsystem` include 제거. `ApplySprite` override 가 `ServerFacing` / `ServerAuthoritativeAnimStartTick` / `bHasSpriteState` 캐시.
   - 빌더/Niagara/HISM 경로 변경 0. PIE 회귀 0 검증.
 
-- **PR-4 — UX / 도구 (보류)**
-  - `SHktPaperSpriteBuilderPanel` (기존 `SHktSpriteBuilderPanel` UX 미러).
-  - MCP Python 도구 `editor_build_paper_sprite_character`.
+- **PR-4 — UX / 도구 (현재 PR)**
+  - `SHktPaperSpriteBuilderPanel` — 기존 `SHktSpriteBuilderPanel` UX 미러. `UHktPaperSpriteBuilderPanelConfig` (EditorPerProjectUserSettings) 로 입력 영구화. Animations 가 비어있으면 `BuildPaperCharacter` 한 번에 워크스페이스 자동 빌드, 채워져 있으면 anim별 `BuildPaperSpriteAnim` 순차 호출.
+  - 콘솔 명령: `HktPaperSprite.Builder` (탭 오픈) / 기존 `HktPaperSprite.BuildCharacter <CharTag> [P2W] [VisualTag]` (헤드리스) 둘 다 지원.
+  - MCP Python 도구: `build_paper_sprite_character` (워크스페이스 자동) + `build_paper_sprite_anim` (단일 anim). 신규 UFUNCTION 0 — 기존 `BuildPaperCharacter` / `BuildPaperSpriteAnim` 이 이미 `UFUNCTION(BlueprintCallable)` 라 Remote Control 로 직접 호출 (`PAPER_OBJECT_PATH = /Script/HktPaper2DGenerator.Default__HktPaperSpriteBuilderFunctionLibrary`).
+  - 빌더 / 런타임 액터 / HISM / Niagara 코드 변경 0.
 
 - **PR-5 — 성능 / 메모리 (보류)**
   - 카메라 yaw dirty check (`SetWorldRotation` 빈도 절감).
@@ -445,6 +455,13 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
   - PIE: Server Facing 전환 시 액터가 즉시(다음 sync) 반영 — 매 프레임 Subsystem 룩업이 사라졌으므로 `stat HktPresentation` 의 Subsystem 호출 0.
   - HISM/Niagara 경로 회귀 0 (해당 actors 는 ApplySprite 호출 받아도 default no-op).
 
+- **PR-4 (UX / 도구)**
+  - 에디터에서 `HktPaperSprite.Builder` 콘솔 명령 → "HKT Paper2D Sprite Builder" 탭 오픈, IDetailsView 자동 그려짐.
+  - 패널의 CharacterTag 만 채우고 Animations 비워둔 채 "Build All" → `BuildPaperCharacter` 1회 호출 → 워크스페이스의 모든 anim 빌드 완료, 결과 JSON 표시.
+  - Animations 에 항목 추가 후 "Build All" → 각 anim 마다 `BuildPaperSpriteAnim` 순차 호출, 항목별 결과 JSON 누적 표시. 패널 닫고 다시 열면 마지막 입력 그대로 복원.
+  - MCP: `build_paper_sprite_character` 호출 → Remote Control 로 `BuildPaperCharacter` 도달, 동일 결과. `build_paper_sprite_anim` 으로 단일 anim 빌드.
+  - 빌더 / 런타임 액터 / HISM / Niagara 회귀 0 — `HktPaper2DGenerator` 모듈만 변경 + Python tool 추가.
+
 ## 12. 미해결 / 후속 결정
 
 - `UHktActorVisualDataAsset` 의 캐릭터 데이터 슬롯 존재 여부 — PR-1 첫 작업으로 해결됨 (B-2 채택, 별도 `UHktPaperActorVisualDataAsset` 신설).
@@ -452,5 +469,5 @@ ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
 - 자산 출력 루트 (`/Game/Generated/PaperSprites/{SafeChar}` vs Project Settings 의 `ConventionRootDirectory`).
 - `bMirrorWestFromEast` 디폴트 — 캐릭터별로 다르면 워크스페이스 사이드카 추가 필요. (PR-5 후속)
 - 셀 메타 폴백 우선순위 (현 안: `atlas_meta.json` > 인자 > 종횡비). (PR-5 후속)
-- PR-4: `SHktPaperSpriteBuilderPanel` UX + MCP Python 도구 `editor_build_paper_sprite_character` — 콘솔 명령(`HktPaperSprite.BuildCharacter`)으로 빌드 가능하므로 우선순위 보류.
+- ~~PR-4: `SHktPaperSpriteBuilderPanel` UX + MCP Python 도구 `editor_build_paper_sprite_character`~~ — **PR-4 에서 완료**. MCP 도구는 `build_paper_sprite_character` / `build_paper_sprite_anim` 두 갈래로 정착.
 - PR-5: 카메라 yaw dirty check, sprite transient package 옵션 등 성능/메모리 최적화 — N개 액터 시점 측정 후 진행.
