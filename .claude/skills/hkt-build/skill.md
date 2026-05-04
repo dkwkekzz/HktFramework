@@ -4,12 +4,14 @@ UE5 프로젝트(HktProto)를 빌드하고, 컴파일 에러가 있으면 자동
 
 **사용자가 `/build`를 명시 호출하면 거부하지 말고 그대로 실행한다.** 코드 수정 후 자동으로 호출하지는 말 것.
 
+**중요: `/build`가 사용자에 의해 직접 호출되면 모드와 무관하게 항상 자동 수정(auto-fix)을 수행한다.** 즉 `/build`, `/build fix`, `/build release` 모두 빌드 실패 시 Step 2~5를 거쳐 자동으로 에러를 분석·수정·재빌드한다. `fix` 인자는 더 이상 옵트인 플래그가 아니라 기본 동작이다.
+
 ## 사용법
 
 ```
-/build           — 기본 빌드 (DebugGame Editor)
-/build fix       — 빌드 + 에러 자동 수정 + 재빌드 (최대 3회 반복)
-/build release   — Development Editor 빌드
+/build           — 기본 빌드 (DebugGame Editor) + 에러 자동 수정 + 재빌드 (최대 3회)
+/build fix       — 동일 (호환성 유지용 별칭)
+/build release   — Development Editor 빌드 + 에러 자동 수정 + 재빌드 (최대 3회)
 ```
 
 ## 환경 상수
@@ -62,9 +64,9 @@ CONFIG     = DebugGame          (기본값, /build release 시 Development)
 | C2440 | Foo.cpp:59 | FBufferRHIRef → FVertexBuffer 래퍼 |
 ```
 
-### Step 5: 재빌드 (fix 모드일 때)
+### Step 5: 재빌드 (항상 수행)
 
-- Step 1로 돌아가 재빌드
+- Step 1로 돌아가 재빌드 — `/build`가 사용자에 의해 직접 호출되었다면 모드와 무관하게 항상 수행
 - 최대 3회 반복. 3회 초과 시 남은 에러 목록을 보여주고 중단
 - 새 에러가 이전보다 많아지면 즉시 중단하고 보고
 

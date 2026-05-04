@@ -194,11 +194,20 @@ namespace HktPaperAssetBuilder
 		UPaperSprite* Sprite = NewObject<UPaperSprite>(
 			Pkg, FName(*AssetName), Flags);
 
+		// UE 5.7: SetTextureAndFill 은 1-인자 (전체 텍스처)만 지원. atlas 의 cell
+		// 부분 영역을 가리키려면 Texture/Offset/Dimension 을 직접 지정해야 한다.
 		FSpriteAssetInitParameters InitParams;
-		InitParams.SetTextureAndFill(
-			AtlasTex,
-			FVector2D(OriginX, OriginY),
-			FVector2D(CellW, CellH));
+		InitParams.Texture = AtlasTex;
+		InitParams.Offset = FIntPoint(OriginX, OriginY);
+		InitParams.Dimension = FIntPoint(CellW, CellH);
+
+		// 1 픽셀 = PixelToWorld cm — UPaperSprite::PixelsPerUnrealUnit 은 그 역수.
+		// (PixelsPerUnrealUnit 멤버는 protected — InitParams 경유로만 설정 가능.)
+		if (PixelToWorld > KINDA_SMALL_NUMBER)
+		{
+			InitParams.SetPixelsPerUnrealUnit(1.f / PixelToWorld);
+		}
+
 		Sprite->InitializeSprite(InitParams);
 
 		// 머티리얼은 PR-2 의 `AHktSpritePaperActor` 가 `UPaperFlipbookComponent::SetMaterial`
@@ -211,12 +220,6 @@ namespace HktPaperAssetBuilder
 		Sprite->SetPivotMode(
 			ESpritePivotMode::Custom,
 			FVector2D(OriginX + CellW * 0.5f, OriginY + CellH));
-
-		// 1 픽셀 = PixelToWorld cm — UPaperSprite::PixelsPerUnrealUnit 은 그 역수.
-		if (PixelToWorld > KINDA_SMALL_NUMBER)
-		{
-			Sprite->PixelsPerUnrealUnit = 1.f / PixelToWorld;
-		}
 
 		Sprite->PostEditChange();
 		return Sprite;
