@@ -14,10 +14,21 @@
 `Tools/goal-system/` — 파서·검증기·뷰 생성기.
 
 ```bash
-# 검증
+# 스키마 단독 (CI 차단) — tooling §7.2
+python -m goalsys.cli validate-schema Docs/goals
+
+# DAG 단독 (경고)
+python -m goalsys.cli validate-dag Docs/goals
+
+# 일괄 검증 (별칭)
 python -m goalsys.cli validate Docs/goals
 
-# 인덱스 재생성
+# 뷰 재생성 — 개별
+python -m goalsys.cli render-index Docs/goals
+python -m goalsys.cli render-tree  Docs/goals
+python -m goalsys.cli render-graph Docs/goals
+
+# 뷰 일괄 (별칭)
 python -m goalsys.cli build-views Docs/goals
 ```
 
