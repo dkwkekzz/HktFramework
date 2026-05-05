@@ -27,8 +27,8 @@
 /goal find <조건>           — 필터 조회
 /goal new                   — 새 Goal 작성 (대화형)
 /goal edit <ID>             — Goal 수정
-/goal abandon <ID>          — Goal 폐기
-/goal supersede <ID> <YYYY> — Goal 대체 (superseded_by:G-YYYY)
+/goal abandon <ID>            — Goal 폐기
+/goal supersede <ID> <NEW_ID> — Goal 대체 (superseded_by:NEW_ID)
 /goal plan <ID>             — Goal 분해 → Task 후보 도출
 /goal serve <ID>            — Goal 봉사 작업 (코드 작성)
 /goal verify <ID>           — success_criteria 자동 검증
@@ -55,9 +55,9 @@
 
 | # | 단계 |
 |---|------|
-| 1 | 대화로 title / intent / parents / constraints / success_criteria 채움 |
-| 2 | 초안 제시 → 사용자 검토 |
-| 3 | `next-id` 로 ID 할당 |
+| 1 | `next-id` 로 ID 할당 |
+| 2 | 대화로 title / intent / parents / constraints / success_criteria 채움 |
+| 3 | 초안 제시 → 사용자 검토 |
 | 4 | 파일 작성 (`Docs/goals/G-XXXX.md`) |
 | 5 | `validate` + `build-views` 실행 |
 
@@ -205,8 +205,8 @@ Task 시스템 자체는 본 가이드 범위 밖.
 ### 3.7 Goal 폐기·대체
 
 ```
-/goal abandon G-0142          # 폐기
-/goal supersede G-0142 0200   # G-0200 으로 대체
+/goal abandon G-0142            # 폐기
+/goal supersede G-0142 G-0200   # G-0200 으로 대체
 ```
 
 | 작업 | 처리 | 파일 |
@@ -232,7 +232,13 @@ ID 는 영구 불변 — 폐기되어도 재사용 금지.
 /goal validate
 ```
 
-스키마 + DAG (R1~R6) + 양방향 일관성 (C1~C4) 일괄 점검.
+스키마 + DAG (R1~R6) 점검 — 내부적으로 `goalsys validate` 호출. 코드 ↔ Goal 일관성(C1~C4) 까지 보려면:
+
+```
+/goal validate full
+```
+
+→ `validate-bidirectional` 도 함께 실행. 두 검사 모두 위반은 경고 — 차단 X (tooling §7.2 강제 금지 원칙).
 
 ---
 
@@ -301,11 +307,12 @@ ID 는 영구 불변 — 폐기되어도 재사용 금지.
 
 ## 8. 시작 지점
 
-현재(2026-05-05) `Docs/goals/` 는 비어 있다. 설계 §9.3 (Phase 3) 에 따라:
+현재(2026-05-05) `Docs/goals/` 는 비어 있다. 설계 §3.6 ID 범위에 따른 권장 진입 순서:
 
-1. 최상위 Pillar Goal 4개 작성 (`G-0001` ~ `G-0099` 범위)
-2. 횡단 Constraint Goal 3개 작성 (같은 범위, `tags: [constraint]`)
-3. 그 이후 시스템·일반 Goal 추가
+1. 최상위 Pillar Goal — `G-0001` ~ `G-0099` 범위, `tags: [pillar:*]`
+2. 횡단 Constraint Goal — 같은 범위, `tags: [constraint]`
+3. 시스템 수준 Goal — `G-0100` ~ `G-0999`
+4. 일반 Goal — `G-1000` ~
 
 첫 사용:
 

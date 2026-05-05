@@ -7,18 +7,18 @@
 ## 사용법
 
 ```
-/goal show <ID>            — Goal 표시 (Q)
-/goal find <조건>          — 필터 조회 — 예: status:active, tag:layer:vm, parent:G-0010 (Q)
-/goal new                  — 새 Goal 작성 — 대화형 (A)
-/goal edit <ID>            — Goal 수정 (A)
-/goal abandon <ID>         — Goal 폐기 (A)
-/goal supersede <ID> <YYYY> — Goal 대체 — superseded_by:G-YYYY (A)
-/goal plan <ID>            — Goal 분해 → Task 후보 도출 (P)
-/goal serve <ID>           — Goal 봉사 작업 — intent/constraints 컨텍스트 로드 (S)
-/goal verify <ID>          — success_criteria 자동 검증 (V)
-/goal sync                 — 코드 @goal 태그 ↔ Goal.realizes 동기화 — dry-run 우선
-/goal classify "<발화>"     — 작업 분류 시뮬레이션 (Goal/의도/봉사/자유)
-/goal validate             — 스키마 + DAG + 양방향 일관성 일괄 검증
+/goal show <ID>               — Goal 표시 (Q)
+/goal find <조건>             — 필터 조회 — 예: status:active, tag:layer:vm, parent:G-0010 (Q)
+/goal new                     — 새 Goal 작성 — 대화형 (A)
+/goal edit <ID>               — Goal 수정 (A)
+/goal abandon <ID>            — Goal 폐기 (A)
+/goal supersede <ID> <NEW_ID> — Goal 대체 — superseded_by:NEW_ID (A)
+/goal plan <ID>               — Goal 분해 → Task 후보 도출 (P)
+/goal serve <ID>              — Goal 봉사 작업 — intent/constraints 컨텍스트 로드 (S)
+/goal verify <ID>             — success_criteria 자동 검증 (V)
+/goal sync                    — 코드 @goal 태그 ↔ Goal.realizes 동기화 — dry-run 우선
+/goal classify "<발화>"        — 작업 분류 시뮬레이션 (Goal/의도/봉사/자유)
+/goal validate [full]         — 스키마+DAG 검증 (full 시 양방향 일관성 추가)
 ```
 
 `/goal` 단독 호출 시 사용자에게 무엇을 하고 싶은지 묻는다. 자동 분류 금지.
@@ -71,7 +71,7 @@ CLI 호출은 `cd Tools/goal-system && python -m goalsys.cli ...` 패턴. 경로
 |---|------|------|------|
 | 1 | 증상이 기존 Goal 의 success criterion 위반? | B1 | 봉사 작업 (S). 회귀 테스트를 success criterion 측정에 통합. |
 | 2 | 증상이 Constraint Goal 위반? | B2 | 봉사 작업 (S). **다른 작업 중단**. 위반 경로 분석을 보고에 포함. |
-| 3 | 수정 중 명시되지 않은 의도가 드러나는가? | B3 | 1) 수정 완료 → 2) 사용자에게 Goal 작성 제안 → 3) 수락 시 §3.A, 거부 시 종결. |
+| 3 | 수정 중 명시되지 않은 의도가 드러나는가? | B3 | 1) 수정 완료 → 2) 사용자에게 Goal 작성 제안 → 3) 수락 시 §3.A.1 신규 작성 절차 진입, 거부 시 종결. |
 | 4 | 모두 No | B4 | 결합 없이 수정. |
 
 ### 2.1 B3 제안 형식 (binding §3.4)
@@ -139,9 +139,18 @@ for g in gs:
 | 1 | ID 할당 | `cd Tools/goal-system && python -m goalsys.cli next-id <pillar\|system\|general> ../../Docs/goals` |
 | 2 | 사용자 대화로 필수 필드 채움 — title / intent / success_criteria / parents / constraints | — |
 | 3 | 초안 제시 → 사용자 검토 (§3.A.2 형식) | — |
-| 4 | 새 파일 작성 (Write) — 또는 `new-goal` CLI 사용 | `python -m goalsys.cli new-goal <category> ../../Docs/goals --title "..." --parents G-0010,G-0020 --tags layer:rendering` |
+| 4 | 파일 작성 — 아래 두 경로 중 택1 | (아래) |
 | 5 | 무결성 검증 | `python -m goalsys.cli validate ../../Docs/goals` |
 | 6 | 자동 생성 뷰 갱신 | `python -m goalsys.cli build-views ../../Docs/goals` |
+
+step 4 — 파일 작성 경로:
+
+| 경로 | 용도 | 명령 |
+|------|------|------|
+| (a) Write 직접 | 본문(Intent / Success Criteria 마크다운) 까지 한 번에 작성 — 기본 권장 | `Write Docs/goals/G-XXXX.md` (frontmatter + 본문) |
+| (b) `new-goal` CLI | TODO 본문 골격만 빠르게 만들고 나중에 채움 | `python -m goalsys.cli new-goal <category> ../../Docs/goals --title "..." --parents G-0010,G-0020 --tags layer:rendering` |
+
+(b) 사용 시 `next-id` 가 내부 호출되므로 step 1 은 생략 가능. (a) 사용 시 step 1 의 ID 가 frontmatter 에 들어간다.
 
 #### 3.A.2 초안 제시 형식 (binding §4.2.2)
 
@@ -309,3 +318,18 @@ Criterion 2: ...
 
 1. `python -m goalsys.cli verify-goal G-XXXX ../../Docs/goals` 결과 텍스트 출력 그대로 보고
 2. status 변경 권장은 **제안만** — 사용자 확정 전 파일 수정 금지
+
+### `/goal validate` 수행 시
+
+| 인자 | 절차 |
+|------|------|
+| (없음) | `python -m goalsys.cli validate ../../Docs/goals` — 스키마 + DAG (R1~R6) |
+| `full` | 위 + `python -m goalsys.cli validate-bidirectional ../../Docs/goals ../..` — C1~C4 추가 |
+
+위반은 모두 **경고** — 차단하지 않는다 (tooling §7.2 강제 금지 원칙). `--strict` 모드 사용 금지.
+
+### `/goal sync` 수행 시
+
+1. 항상 `python -m goalsys.cli sync-realizes ../../Docs/goals ../.. --dry-run` 부터 — 변경 미리보기 출력
+2. 사용자 확인 후 `--dry-run` 제거하여 실수행
+3. 자동 실행 금지 — 명시 호출 시에만 (tooling §5.3 규칙)

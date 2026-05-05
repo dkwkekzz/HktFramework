@@ -26,8 +26,9 @@ python -m goalsys.cli build-views Docs/goals
 
 ## 작성 시작 지점
 
-설계 §9.3 (Phase 3) — 최상위 Pillar Goal 4개와 횡단 제약 Goal 3개를 먼저 작성한다.
-현재(Phase 1) 단계에서는 도구만 준비되었고 실제 Goal 파일은 아직 비어있다.
+설계 §3.6 ID 범위에 따라 최상위 Pillar Goal (`G-0001`~`G-0099`, `tags: [pillar:*]`)
+과 횡단 Constraint Goal (같은 범위, `tags: [constraint]`) 부터 작성한다.
+현재 단계에서는 도구만 준비되었고 실제 Goal 파일은 아직 비어있다.
 
 ## 운영 절차 (사용자 명시 호출형)
 
