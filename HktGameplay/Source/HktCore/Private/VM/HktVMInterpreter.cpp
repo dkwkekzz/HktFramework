@@ -299,7 +299,13 @@ void FHktVMInterpreter::Op_SaveStoreEntity(FHktVMRuntime& Runtime, RegisterIndex
 
 void FHktVMInterpreter::Op_Move(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex Src)
 {
-    Runtime.SetReg(Dst, Runtime.GetReg(Src));
+    const int32 SrcVal = Runtime.GetReg(Src);
+    // [DIAG-PlayerInitV2] schema 2 회귀 진단 — Self←Spawned 등 entity 전이 추적용. 안정화 후 제거.
+    HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+        FString::Printf(TEXT("[DIAG] Op_Move R%d <- R%d (val=%d) [%s]"),
+            static_cast<int32>(Dst), static_cast<int32>(Src), SrcVal,
+            Runtime.Program ? *Runtime.Program->Tag.ToString() : TEXT("?")));
+    Runtime.SetReg(Dst, SrcVal);
 }
 
 // ============================================================================

@@ -138,11 +138,12 @@ HktGameplay/Content/Stories/
 |---|---|---|
 | Phase 2a/2b/2c | V2 JSON 본문 작성 (32 → 36개) | ✅ 완료 (Phase 2e 에서 V2 sidecar 일괄 폐기됨 — 아래 참조) |
 | **Phase 2d (재정의)** | Story Spec 시스템 인프라 + 선행 적용 | ✅ 완료 |
-| **Phase 2e (재정의)** | **Story 정리 + V1 root JSON 진실원화 + Spec 작성 + REGFLOW 청소** | 🚧 진행 중 (아래) |
-| Phase 2f | precondition 람다 / CombatUseSkill V2 변환 마무리 (구 Phase 2d 잔여) | 대기 |
+| **Phase 2e (재정의)** | **Story 정리 + V1 root JSON 진실원화 + Spec 작성 + REGFLOW 청소** | ✅ 완료 (PlayerInit schema 2 보류) |
+| **Phase 2f (재정의)** | **precondition op-code JSON 화 + CombatUseSkill / Item* 5종 root JSON + Spec** | ✅ 완료 (PlayerInit schema 2 재시도 회귀 → 재롤백) |
 | Phase 2g | 호출지점 retarget (이제 `Story.V2.*` 가 아닌 base tag 로 통일) | 자연 해소 |
 | Phase 2h | cpp Story 본문 제거 (V1 root JSON 이 진실원이 된 후) | 대기 |
 | Phase 2i | (Phase 2g 자연 해소로 불필요) | 폐기 |
+| (별도) | PlayerInit schema 2 회귀 진단 — V2 register coloring × presentation 사이드 이펙트 | 미해결 |
 
 ## Phase 2e (재정의) — Story 정리 + V1 root JSON 진실원화
 
@@ -224,6 +225,78 @@ Phase 2d 진입 후 사용자 결정으로 **V2 sidecar (`Stories/<Category>/*.j
 
 #### 6. 후속 검증 — Heal 회귀는 오진이었음
 Phase 2d 종료 시 의심된 Heal V2 `partial_heal_under_max` 회귀는 **VM 회귀가 아닌 spec 셋업 누락**이었음 — `Param0` 은 entity 컬럼이 아닌 `Context.EventParam0` 에서 읽힘. `given.event` 블록 도입으로 자연 해소됨. Heal Story 자체는 cpp 정의로 정상 동작.
+
+## Phase 2f (재정의) — precondition op-code JSON 화 + Combat/Item root JSON 신규
+
+### 방향
+
+원안(구 Phase 2d 잔여) 의 *cpp precondition 람다 분류 + CombatUseSkill V2 sidecar 변환* 은 Phase 2e 의 V2 sidecar 폐기 + V1 root JSON 진실원화 결정 이후 다음과 같이 재해석:
+
+1. precondition 은 op-code 시퀀스 형식 JSON 으로 **모두 변환** (분류 후 skip 폐지). 단, 임의 C++ 로직(예: `IsValidEntity` 가드 같은 dispatcher 자동 가드 의존) 은 read-only op 시퀀스로 표현 가능한 범위만 작성.
+2. CombatUseSkill + 5 Item* 는 root JSON 부재 상태였으므로 **신규 root JSON 작성** (schema 2). cpp 본문은 그대로 유지 — JSON 이 같은 base tag 로 등록되어 cpp 를 덮어쓴다 (`overwriting existing program (JSON override?)` 로그 정상).
+3. JSON 진영을 schema 2 로 통일하면 V1/V2 혼용 슬롯 충돌이 사라져 PlayerInit 회귀도 자연 해소될 가설로 schema 2 재시도 — **재회귀** (아래 5 항목 참조).
+
+### 인프라 — 코드 변경 0
+
+precondition JSON 인프라는 Phase 2 이전부터 존재:
+
+- 메타 키 `preconditions` 배열 — `HktStoryJsonParser::ParsePreconditions`
+- 화이트리스트 `IsReadOnlyOp` (제어흐름 / 비교 / 산술 / `LoadStore*` / `IfPropertyXx` / `HasTag` / `GetDistance` / `GetWorldTime` / `RandomInt` / `CountByOwner` / `Log`)
+- 빌더 `BeginPrecondition()` / `EndPrecondition()` — `PreconditionSection` 별도 `FCodeSection`
+- VM `FHktVMInterpreter::ExecutePrecondition` — `Reg::Flag != 0` 결과 또는 `Fail` op 시 false. 1000 인스트럭션 상한.
+
+작성 컨벤션:
+
+```jsonc
+"preconditions": [
+  // ... read-only ops, 분기시 fail 라벨로 점프 ...
+  { "op": "LoadConst", "dst": "Flag", "value": 1 },
+  { "op": "Halt" },
+  { "op": "Label", "name": "fail" },
+  { "op": "Fail" }
+]
+```
+
+### 1. 신규 root JSON 6개 ✅
+
+| 파일 | precondition 본문 (요약) |
+|---|---|
+| `Story_CombatUseSkill.json` | `WorldTime < NextActionFrame(Self)` → fail. 본문: `SnippetCooldownCheck` + `WriteConst NextActionFrame 0x7FFFFFFF` 잠금 + 5 dispatch 분기(Fireball/Heal/Lightning/Buff + innate BasicAttack) + 인라인 일괄 데미지(AttackPower×2). |
+| `Story_ItemDrop.json` | `OwnerEntity(Target) == Self`. 본문: ValidateOwnership + Active 였으면 ClearEquipSlot + RemoveItemStats + DropToGround. |
+| `Story_ItemActivate.json` | `ItemState(Target)==1 && OwnerEntity(Target)==Self`. 본문: 동일 EquipIndex 충돌 아이템 evict 후 ActivateInSlot. |
+| `Story_ItemDeactivate.json` | `ItemState(Target)==2 && OwnerEntity(Target)==Self`. 본문: ClearEquipSlot + DeactivateToBag + 다른 활성 아이템 탐색하여 Stance 복원/Unarmed. |
+| `Story_ItemPickup.json` | `ItemState(Target)==0 && Distance≤300 && EquipSlot0..8 중 0 존재`. 본문: ValidateItemState + 거리 재검증 + FindEmptyEquipSlot + AssignOwnership + ActivateInSlot. |
+| `Story_ItemTrade.json` | `Param0/Param1` 동적 entity, 양측 OwnerEntity / ItemState!=2. 본문: 동일 검증 후 OwnerEntity swap + ClearOwnerUid. |
+
+ini / GameplayTag 등록 변경 없음 — 모든 storyTag 가 cpp `UE_DEFINE_GAMEPLAY_TAG_COMMENT` 으로 이미 등록.
+
+### 2. PlayerInit schema 2 재시도 → 재롤백 ⏸️
+
+JSON 진영 schema 통일 가설 검증 차원에서 schema 2 마이그레이션 재시도:
+
+- `LoadStore R1/R2/R3 TargetPosX/Y/Z` → `{block:"spawnPos", index:0..2}` 명명 블록
+- `SetPosition entity=Self src=R1` → `pos: {block:"spawnPos"}` V2 block 인자
+- `CountByOwner dst=R0` → `{var:"itemCount"}` 의미적 var 명
+- 다른 op 들은 register 인자 없거나 entity 슬롯 (Self/Spawned) 만 사용 → 문자열 그대로 유지
+
+**결과: Phase 2e 5.2 와 동일한 회귀 재발** — character entity 의 tag 가 anim tag 로 잘못 분류되는 현상. `AllocateViewsForEntity id=0 + anim tag` 로그 패턴 동일.
+
+가설("schema 2 통일이 V1/V2 슬롯 충돌을 해소") 은 **반증됨**. 회귀 원인은 V1/V2 혼용이 아닌 **V2 register coloring × presentation 사이드 이펙트의 단독 상호작용**으로 좁혀짐. 추가 조사 항목 (별도 단계):
+
+- `Move dst=Self src=Spawned` 후 Self pinned VReg 가 후속 `SetStance/PlayVFXAttached/SetItemSkillTag` 의 entity 인자에서 어떻게 해소되는지 디스어셈블
+- presentation 옵저버가 GameplayTag 컨테이너 → anim 매핑 시 어느 채널에서 잘못된 tag id 가 주입되는지 추적
+- `TagToInt(SetItemSkillTag.SkillTag)` 와 anim tag id 공간 충돌 가능성 검사
+
+PlayerInit 은 V1 schema 로 재롤백 (`Story_PlayerInit.json`). 게임플레이 무회귀 상태 유지. REGFLOW 경고는 잔존하지만 부팅 1회 실행이라 비치명적.
+
+### 3. Spec 작성 ✅ (3/6 — 셋업 한계로 happy-path 일부 보류)
+
+- [x] `Story_CombatUseSkill.spec.json` — innate dispatch (Param1 슬롯 미설정 → SnippetLoadItemFromSlot 실패 → DispatchEvent BasicAttack + Halt). `NextActionFrame=0x7FFFFFFF` 잠금 검증.
+- [x] `Story_ItemPickup.spec.json` — happy path: Target=Ground, 거리 ≤300, 슬롯 0 비어있음 → ItemState=2.
+- [x] `Story_ItemDrop.spec.json` — fail path: `OwnerEntity=0` (미설정) → SnippetValidateOwnership Fail.
+- [⏸] ItemActivate/Deactivate/Trade happy-path + Pickup OwnerEntity 검증 — spec 의 given 이 entity id 동적 참조(`"OwnerEntity": "self"` 류)를 지원하지 않음. spec parser 확장 필요 → 별도 단계로 이관.
+
+spec runner (`FHktStorySpecAutomationTest::RunTest`) 는 `ExecuteProgram` 직접 호출이라 **precondition 미실행**. main body 만 검증되며, precondition 구조 검증은 별도 `HktStoryIntegrityTests::RunPreconditionIntegrity` 가 담당.
 
 ## 본 작업 (Phase 2d 재정의) — 작업 리스트 [완료]
 
@@ -320,18 +393,17 @@ Heal.spec.json 의 `partial_heal_under_max` 시나리오 (Param0=30, Health=100�
 
 ## 미해결 / 후속 이슈
 
-1. **Heal V2 회귀** — `Story.V2.Event.Skill.Heal` 의 `LoadStore Param0` + `CmpEqConst (==0)` 결합에서 비-0 Param0 가 0 으로 읽힘. Phase 2e 첫 조사 항목.
-2. **Session Frontend 캐시** — spec 추가/제거 후 사용자가 "Refresh Tests" 클릭 필요. UE Automation 프레임워크 레벨이라 런너 코드로 우회 불가 — 가이드만 명시.
-3. **`tagsExact` 의 역방향 검출** — 현재 명시 태그 부재만 검출, 추가 태그 검출은 미구현. WorldState 컨테이너 enumerate 헬퍼 추가 시 보강.
-4. **`spawned` ref / `dispatched` 매처** — TargetAction 류 dispatcher Story 검증 시 필요. Phase 2e 32 Story 작업 중 출현 시점에 도입.
+1. **PlayerInit schema 2 회귀 (재현)** — Phase 2e 5.2 → Phase 2f 두 차례 시도 모두 동일 회귀(`AllocateViewsForEntity id=0 + anim tag`, character entity 의 tag 가 anim 로 분류). JSON 진영 schema 통일 가설로는 미해결 → V2 register coloring × presentation 사이드 이펙트 단독 상호작용으로 좁혀짐. 진단 항목: ① `Move dst=Self src=Spawned` 후 Self pinned VReg 의 후속 entity 인자 해소 디스어셈블, ② presentation tag → anim 매핑 채널 추적, ③ `TagToInt` id 공간 충돌. 별도 단계 (2g/2h 가 아닌 독립 진단).
+2. **Item* spec happy-path 미작성 (4개)** — ItemActivate / ItemDeactivate / ItemTrade + Pickup 의 OwnerEntity 검증. spec 의 `given.entity.properties` 가 entity id 동적 참조를 지원하지 않아 `OwnerEntity = self.id` 셋업 불가. spec parser 확장 (`"OwnerEntity": {"ref":"self"}` 류) 필요 — 별도 PR.
+3. **CombatUseSkill — 4 dispatch 분기 spec 미작성** — Fireball/Heal/Lightning/Buff 의 HasTag 분기 검증. Item entity + tag 셋업 + 슬롯 셋업이 필요 — Item* spec 와 동일 셋업 한계.
+4. **Heal V2 회귀** (Phase 2d 종료 시점 의심) — Phase 2e 6 항에서 오진으로 확인. `Param0` 이 `Context.EventParam0` 에서 읽히는 점을 spec 의 `given.event` 블록 도입으로 해소. **종결**.
+5. **Session Frontend 캐시** — spec 추가/제거 후 사용자가 "Refresh Tests" 클릭 필요. UE Automation 프레임워크 레벨이라 런너 코드로 우회 불가 — 가이드만 명시.
+6. **`tagsExact` 의 역방향 검출** — 현재 명시 태그 부재만 검출, 추가 태그 검출은 미구현. WorldState 컨테이너 enumerate 헬퍼 추가 시 보강.
+7. **`spawned` ref / `dispatched` 매처** — TargetAction 류 dispatcher Story 검증 시 필요. 32 Story 작업 중 출현 시점에 도입.
 
-## V2 prefix 처리 (확정안)
+## V2 prefix 처리 (확정안 → 사실상 폐기)
 
-Spec storyTag 는 V2 prefix **없이** 작성한다 (`Story.Event.Move.Stop`). 런너는 lookup 시:
-1. `Story.V2.<rest>` 우선 (Phase 2g retarget 전 cpp 점유 회피)
-2. base tag fallback (Phase 2i rename 후 자동 호환)
-
-→ Phase 2g/2h/2i 진행 중 spec 파일 수정 불필요.
+Phase 2e 의 V2 sidecar 일괄 폐기 + base tag 통일로 `Story.V2.*` prefix 자체가 사라짐. spec storyTag 는 base tag (`Story.Event.Move.Stop`) 로 작성하며, 런너는 base tag 만 lookup 한다. Phase 2g 의 retarget 도 자연 해소 (cpp 가 base tag 점유, JSON 이 같은 base tag 로 덮어씀).
 
 ## 보고 형식 (한국어)
 

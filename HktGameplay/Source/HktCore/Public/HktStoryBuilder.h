@@ -324,6 +324,7 @@ public:
     // ---- Spatial Query ----
     FHktStoryBuilder& FindInRadius(FHktVar CenterEntity, int32 RadiusCm);
     FHktStoryBuilder& FindInRadiusEx(FHktVar CenterEntity, int32 RadiusCm, uint32 FilterMask);
+    FHktStoryBuilder& InteractTerrain(FHktVar CenterEntity, int32 RadiusCm);
 
     /**
      * 콜백 형태 ForEach — Body 람다는 Iter VReg(FHktVar) 를 인자로 받는다.

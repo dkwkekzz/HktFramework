@@ -18,6 +18,9 @@ struct FHktSpecPropPair
 {
 	FString Name;
 	int32 Value = 0;
+	// 객체 폼 {"ref":"self|target|entities[N]"} 로 지정된 경우 채움 — 런타임에서 ResolveRef 후 EntityId 를 Value 자리로 사용.
+	// 빈 문자열이면 Value 가 정수 상수.
+	FString ValueRef;
 };
 
 struct FHktSpecEntity

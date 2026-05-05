@@ -7,6 +7,7 @@
 #include "HktCoreDefs.h"
 #include "GameplayTagContainer.h"
 #include "UObject/SoftObjectPath.h"
+#include "Engine/StreamableManager.h"
 #include "HktSpriteTypes.h"
 #include "HktSpriteCrowdRenderer.generated.h"
 
@@ -15,6 +16,7 @@ class UStaticMesh;
 class UMaterialInterface;
 class UTexture2D;
 class UHktSpriteCharacterTemplate;
+class UHktTagDataAsset;
 
 /**
  * EHktSpriteUpdateStatus — UpdateEntity의 마지막 결과 코드.
@@ -40,6 +42,7 @@ enum class EHktSpriteUpdateStatus : uint8
 	AddInstanceFailed   = 9,
 	HISMLookupLost      = 10,
 	ZeroQuadSize        = 11,
+	WaitingResources    = 12,
 };
 
 /**
@@ -133,27 +136,48 @@ private:
 	/** 아틀라스 SoftObjectPath → ISM (고유 아틀라스당 하나) */
 	TMap<FSoftObjectPath, UInstancedStaticMeshComponent*> AtlasHISMs;
 
-	/**
-	 * GetOrCreateHISM 등록 직후 HISM → 등록 프레임 번호.
-	 *
-	 * 1차 방어는 GetOrCreateHISM 의 `SetPSOPrecacheProxyCreationStrategy(DelayUntilPSOPrecached)`
-	 * 가 담당한다 (PSO 컴파일 전 proxy 가 생성돼 fallback 머티리얼이 atlas 통째 출력하는 경로 차단).
-	 *
-	 * 본 맵은 그 뒤에도 남는 in-depth 방어 — 첫 PIE 에서 텍스처 RHI 가 막 valid 로 전이된 직후
-	 * SetTextureParameterValue 의 propagation 이 첫 proxy 생성과 race 해 stale binding 으로 굳는
-	 * 케이스를 잡는다. 등록 다음 프레임에 한 번만 MID 파라미터 재바인딩 + MarkRenderStateDirty 로
-	 * proxy 를 강제로 다시 잡는다.
-	 */
-	TMap<UInstancedStaticMeshComponent*, uint64> HISMPrimePending;
-
 	UPROPERTY(Transient)
 	TMap<FGameplayTag, TObjectPtr<UHktSpriteCharacterTemplate>> TemplateCache;
 
 	TMap<FHktEntityId, FEntityState> Entities;
 
-	TSet<FGameplayTag> PendingTemplateLoads;
+	// ========================================================================
+	// Template Readiness — 첫 PIE atlas-honeycomb 회피의 핵심.
+	//
+	// 모든 atlas 텍스처 + RHI 준비 + HISM proxy 생성 + MID 파라미터 propagation 까지
+	// 완료된 뒤에야 첫 AddInstance 를 허용한다. 단순 1-프레임 prime 으로는 UE5.7 PIE 의
+	// 콜드 스타트 race (proxy + instance + 미반영 MID) 가 잡히지 않아 readiness state
+	// machine 으로 격상.
+	// ========================================================================
+
+	enum class ETemplateReadyStage : uint8
+	{
+		LoadingTemplate = 0,
+		LoadingAtlases  = 1,
+		WaitingAtlasRHI = 2,
+		WarmupHISMs     = 3,
+		Ready           = 4,
+		Failed          = 5,
+	};
+
+	struct FTemplateReady
+	{
+		ETemplateReadyStage Stage = ETemplateReadyStage::LoadingTemplate;
+		TArray<FSoftObjectPath> AtlasPaths;
+		TSharedPtr<FStreamableHandle> AtlasLoadHandle;
+		uint64 WarmupStartFrame = 0;
+	};
+
+	TMap<FGameplayTag, FTemplateReady> TemplateReadiness;
 
 	void RequestTemplateLoad(FGameplayTag Tag);
+	void OnTemplateLoaded(FGameplayTag Tag, UHktTagDataAsset* Loaded);
+	void OnAtlasesLoaded(FGameplayTag Tag);
+	/** UpdateEntity 진입 시 호출. true 반환 = Ready 단계, 그릴 수 있음. */
+	bool AdvanceTemplateReadiness(FGameplayTag Tag);
+	static void CollectAtlasPaths(const UHktSpriteCharacterTemplate* T, TArray<FSoftObjectPath>& OutPaths);
+	static bool AreAllAtlasesRHIReady(const TArray<FSoftObjectPath>& Paths);
+	void PrecreateHISMs(const TArray<FSoftObjectPath>& Paths);
 
 	UInstancedStaticMeshComponent* GetOrCreateHISM(const FSoftObjectPath& AtlasPath, UTexture2D* AtlasTex);
 

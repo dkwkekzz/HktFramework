@@ -87,6 +87,14 @@ HktCore.Story.Spec.<StoryTag 정규화>.<ScenarioName 정규화>
 
 - `"self"`, `"target"` — 고정 슬롯
 - `"entities[N]"` — `given.entities` 배열의 0-based 인덱스
+- `"spawned"` — Story 가 `SpawnEntity` 로 만든 마지막 엔티티 (`Reg::Spawned`). VM 종료 후 expect 매처에서만 의미 있음
+
+### properties 값 표기 (given / expect 공통)
+
+- 정수 상수 — `"Health": 100`
+- entity id 동적 참조 — `"OwnerEntity": {"ref":"self"}` / `{"ref":"target"}` / `{"ref":"entities[N]"}` / `{"ref":"spawned"}`
+  - given: 모든 엔티티 할당 후 ref 해석 → property 에 entity id 기록 (예: target.OwnerEntity = self.id)
+  - expect: ref 해석한 entity id 와 actual 값 비교
 
 ## 6. expect — 종료 매처
 
@@ -101,7 +109,7 @@ HktCore.Story.Spec.<StoryTag 정규화>.<ScenarioName 정규화>
 |---|---|
 | `properties: { name: int }` | **정확 일치** (모든 키가 일치해야 PASS) |
 | `tags: [string]` | **부분 일치** — 명시된 모든 태그가 컨테이너에 있으면 PASS |
-| `tagsExact: [string]` | **정확 일치** — 정렬 후 set 비교 |
+| `tagsExact: [string]` | **정확 일치 set 비교** — 명시 태그가 모두 있고, 명시 외 태그는 모두 부재해야 PASS |
 | `tagsAbsent: [string]` | 명시된 태그가 **모두 없어야** PASS |
 
 태그 표기에는 spec 파일의 `tags` alias 맵이 따로 없다 — 항상 fully-qualified GameplayTag 문자열을 사용한다 (`Anim.Montage.HitReaction` 등).

@@ -52,7 +52,7 @@ class UHktPaperSpriteBuilderPanelConfig : public UObject
 
 public:
 	/** 모든 애니메이션이 공유할 캐릭터 태그 (예: Sprite.Character.Knight). */
-	UPROPERTY(EditAnywhere, Config, Category = "Common", meta = (Categories = "Entity.Character,Sprite.Character"))
+	UPROPERTY(EditAnywhere, Config, Category = "Common", meta = (Categories = "Entity.Character"))
 	FGameplayTag CharacterTag;
 
 	/**
@@ -60,7 +60,7 @@ public:
 	 * 비우면 `PaperSprite.Character.{Char}` 자동 생성. 서버 SpawnEntity 의 VisualTag 와 일치해야
 	 * `FHktActorProcessor` 가 `AHktSpritePaperActor` 를 스폰한다.
 	 */
-	UPROPERTY(EditAnywhere, Config, Category = "Common", meta = (Categories = "PaperSprite.Character"))
+	UPROPERTY(EditAnywhere, Config, Category = "Common", meta = (Categories = "Entity.Character"))
 	FGameplayTag VisualIdentifierTag;
 
 	/** 픽셀 → 월드 단위(cm/px). 모든 애니메이션 공통. */

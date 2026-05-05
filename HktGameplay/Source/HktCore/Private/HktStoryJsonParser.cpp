@@ -465,7 +465,7 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 	const TArray<TSharedPtr<FJsonValue>>* Preconditions;
 	if (Root->TryGetArrayField(TEXT("preconditions"), Preconditions))
 	{
-		if (!ParsePreconditions(*Preconditions, ResolveTagWithAlias, Builder, Result))
+		if (!ParsePreconditions(*Preconditions, ResolveTagWithAlias, Builder, Result, SchemaVersion))
 		{
 			return Result;
 		}
@@ -565,7 +565,8 @@ bool FHktStoryJsonParser::ParsePreconditions(
 	const TArray<TSharedPtr<FJsonValue>>& PreconditionArray,
 	const TFunction<FGameplayTag(const FString&)>& ResolveTag,
 	FHktStoryBuilder& Builder,
-	FHktStoryParseResult& Result)
+	FHktStoryParseResult& Result,
+	int32 SchemaVersion)
 {
 	Builder.BeginPrecondition();
 
@@ -595,6 +596,7 @@ bool FHktStoryJsonParser::ParsePreconditions(
 
 		FHktStoryCmdArgs Args(*StepObj, i, OpName);
 		Args.ResolveTagFunc = ResolveTag;
+		Args.SchemaVersion = SchemaVersion;
 
 		if (!ApplyCommand(Builder, Args))
 		{
@@ -1531,6 +1533,29 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
         FHktVar Tmp = B.NewVar(*FString::Printf(TEXT("cmp_ge_const_%d"), V));
         B.LoadConst(Tmp, V);
         B.CmpGe(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("src")), Tmp);
+    });
+
+    // ---- 단발 op (V1 fallback 잔재 청소) ----
+    // 아래 4 op 는 schema 2 root JSON 에서 사용되지만 V2 핸들러 미등록 상태였음.
+    // V1 fallback 시 RegisterIndex 슬롯 할당 또는 미관련 경고 채널이 잔존 → 명시적 V2 재등록.
+    RegisterCommandV2(TEXT("InteractTerrain"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // center 미지정 시 Self 로 폴백 (V1 GetRegOpt 와 등가).
+        FHktVar Center = A.Step->Values.Contains(TEXT("center"))
+            ? A.GetVar(B, TEXT("center"))
+            : B.Self();
+        B.InteractTerrain(Center, A.GetInt(TEXT("radius")));
+    });
+    RegisterCommandV2(TEXT("PlaySound"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // 인자 없는 단발 발음 op — V1 빌더 메서드 그대로.
+        B.PlaySound(A.GetTag(TEXT("tag")));
+    });
+    RegisterCommandV2(TEXT("DispatchEvent"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // 현재 Source/Target/Location 유지하면서 다른 Story 디스패치 — register 인자 없음.
+        B.DispatchEvent(A.GetTag(TEXT("eventTag")));
+    });
+    RegisterCommandV2(TEXT("WaitSeconds"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // 시간 대기 — register 인자 없음.
+        B.WaitSeconds(A.GetFloatOpt(TEXT("seconds"), 1.0f));
     });
 }
 

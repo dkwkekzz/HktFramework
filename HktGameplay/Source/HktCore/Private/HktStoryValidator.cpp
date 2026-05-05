@@ -245,10 +245,18 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 		if (R >= NumGPRegs) return;
 		if (State[R] == ERegState::Written)
 		{
+			// 진단 — 두 시점의 raw bytecode 를 함께 출력해 어떤 op 가 충돌 일으키는지 추적.
+			const FInstruction& Cur  = Code[PC];
+			const FInstruction& Prev = Code[WritePC[R]];
 			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(
 				TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Dead Write. "
-					 "PC=%d에서 쓴 값을 읽지 않고 덮어쓰고 있습니다. 레지스터 충돌을 확인하세요."),
-				*Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R]));
+					 "PC=%d에서 쓴 값을 읽지 않고 덮어쓰고 있습니다. 레지스터 충돌을 확인하세요. "
+					 "[DIAG cur(raw=0x%08X Dst=%u Src1=%u Src2=%u Imm12=%u Imm20=%u) "
+					 "prev@PC=%d Op=%s (raw=0x%08X Dst=%u Src1=%u Src2=%u Imm12=%u Imm20=%u)]"),
+				*Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R],
+				Cur.Raw,  static_cast<uint32>(Cur.Dst),  static_cast<uint32>(Cur.Src1),  static_cast<uint32>(Cur.Src2),  static_cast<uint32>(Cur.Imm12),  static_cast<uint32>(Cur.Imm20),
+				WritePC[R], GetOpCodeName(Prev.GetOpCode()),
+				Prev.Raw, static_cast<uint32>(Prev.Dst), static_cast<uint32>(Prev.Src1), static_cast<uint32>(Prev.Src2), static_cast<uint32>(Prev.Imm12), static_cast<uint32>(Prev.Imm20)));
 			++WarningCount;
 		}
 		State[R] = ERegState::Written;
@@ -270,13 +278,62 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 		EOpCode Op = Inst.GetOpCode();
 		FOpRegInfo Info = GetOpRegInfo(Op);
 
-		// Read를 먼저 처리 (같은 명령에서 Read+Write면 Read가 먼저 발생)
-		if (Info.Src1 == ERegRole::Read)
-			MarkRead(PC, Op, Inst.Src1);
-		if (Info.Src2 == ERegRole::Read)
-			MarkRead(PC, Op, Inst.Src2);
+		// Imm20 인코딩 op — Src1/Src2/Imm12 비트가 모두 immediate 의 일부.
+		// FInstruction 만 들고는 Imm20 인지 알 수 없으므로 op 별 화이트리스트.
+		// X-매크로의 (_, R/W, _) 표기는 무시하고, entity 를 Dst 슬롯에서 읽는다.
+		const bool bImm20Encoded =
+			Op == EOpCode::LoadConst        ||  // (W, _, _)  Dst = target VReg (write)
+			Op == EOpCode::DispatchEventTo  ||  // (_, R, _)  Dst = target entity (read)
+			Op == EOpCode::DispatchEventFrom||  // (_, R, _)  Dst = source entity (read)
+			Op == EOpCode::Yield            ||  // (_, _, _)
+			Op == EOpCode::YieldSeconds     ||  // (_, _, _)
+			Op == EOpCode::PlaySound        ||  // (_, _, _)
+			Op == EOpCode::Log;                 // (_, _, _)
 
-		// Write 처리
+		if (bImm20Encoded)
+		{
+			// Imm20 op — X-매크로 의 Src1/Src2 표기는 거짓이므로 무시. 대신 Dst 슬롯이 entity Read 인 것만 처리.
+			if (Op == EOpCode::DispatchEventTo || Op == EOpCode::DispatchEventFrom)
+			{
+				MarkRead(PC, Op, Inst.Dst);
+			}
+		}
+		else
+		{
+			// 3-operand 인코딩 — X-매크로 신뢰. Read 먼저 (Read+Write 합산 시).
+			if (Info.Src1 == ERegRole::Read)
+				MarkRead(PC, Op, Inst.Src1);
+			if (Info.Src2 == ERegRole::Read)
+				MarkRead(PC, Op, Inst.Src2);
+
+			// 블록 읽기 op — FInstruction 은 Src1 (= PosBase) 만 인코딩하지만 VM 은 Src1+1, +2 도 읽는다.
+			// FOpRegInfo 로는 표현 불가하므로 op 별 특수처리. (FHktVarBlock 인자를 받는 빌더 메서드 기준)
+			int32 BlockReadFromSrc1 = 0;
+			switch (Op)
+			{
+			case EOpCode::PlayVFX:               // PosBase X/Y/Z 3 read
+			case EOpCode::PlaySoundAtLocation:   // PosBase X/Y/Z 3 read
+			case EOpCode::SetVoxel:              // PosBase X/Y/Z 3 read (+ Src2 = TypeReg, X-매크로로 처리됨)
+				BlockReadFromSrc1 = 3;
+				break;
+			case EOpCode::IsTerrainSolid:        // PosBase X/Y 2 read (Z 는 Src2)
+				BlockReadFromSrc1 = 2;
+				break;
+			default:
+				break;
+			}
+			for (int32 i = 1; i < BlockReadFromSrc1; ++i)
+			{
+				MarkRead(PC, Op, static_cast<RegisterIndex>(Inst.Src1 + i));
+			}
+
+			// LoadConstHigh: VM 동작이 Dst RMW (low 20bit 보존하며 high OR-in). X-매크로는 Write 만 명시 →
+			// 여기서 Read 를 보강. 결과: LoadConst+LoadConstHigh 페어가 dead write 로 잘못 표기되지 않는다.
+			if (Op == EOpCode::LoadConstHigh)
+				MarkRead(PC, Op, Inst.Dst);
+		}
+
+		// Write 처리 — Imm20 LoadConst / 3-operand W 모두 Dst 가 write 슬롯이면 동일 처리.
 		if (Info.Dst == ERegRole::Write)
 			MarkWrite(PC, Op, Inst.Dst);
 	}

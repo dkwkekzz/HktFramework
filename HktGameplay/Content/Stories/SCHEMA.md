@@ -164,7 +164,7 @@ V2 (schema 2) 컬럼이 비어있으면 v1 핸들러로 폴백한다 (인자 형
 | `FindInRadiusEx` | `FindInRadiusEx` | `center`, `radius`, `filter: int` | v1만 |
 | `ForEachInRadiusEx` | `ForEachInRadiusEx` | `center`, `radius`, `filter: int` | v1만 |
 | `EndForEach` | `EndForEach` | (없음) | (공통) |
-| `InteractTerrain` | `InteractTerrain` | `center` (opt Self), `radius: int` | v1만 |
+| `InteractTerrain` | `InteractTerrain` | `center` (opt Self), `radius: int` | v2: VarRef |
 
 ### 3.8 전투 (Combat)
 
@@ -182,7 +182,7 @@ V2 (schema 2) 컬럼이 비어있으면 v1 핸들러로 폴백한다 (인자 형
 | `PlayVFX` | `PlayVFX` | `pos` (block base), `tag` | v1만 |
 | `PlayVFXAttached` | `PlayVFXAttached` | `entity`, `tag` | v2: VarRef |
 | `PlayVFXAtEntity` | `PlayVFXAtEntity` | `entity`, `tag` | v1만 |
-| `PlaySound` | `PlaySound` | `tag` | (공통, 인자 무관) |
+| `PlaySound` | `PlaySound` | `tag` | (공통) |
 | `PlaySoundAtLocation` | `PlaySoundAtLocation` | `pos` (block base), `tag` | v1만 |
 | `PlaySoundAtEntity` | `PlaySoundAtEntity` | `entity`, `tag` | v1만 |
 | `PlayAnim` | `PlayAnim` | `entity`, `tag` | v2: VarRef |

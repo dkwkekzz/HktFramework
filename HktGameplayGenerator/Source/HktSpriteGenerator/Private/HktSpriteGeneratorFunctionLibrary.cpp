@@ -544,9 +544,15 @@ namespace HktSpriteGen
 		int32 Height = 0;
 	};
 
+	// bSingleRow=true → 단일-방향(N프레임) 패킹용. cols=CellCount(가로 한 줄), rows=1.
+	//   가로 8192px 한계만 지킨다. atlas PNG 의 소비자(예: HktPaperAssetBuilder)가
+	//   OriginY=0 고정으로 가로 한 줄만 슬라이스하는 경로를 위한 옵션.
+	// bSingleRow=false (기본) → 다방향 그리드 패킹용. cols=min(8, CellCount) 캡 적용 →
+	//   N개 dir × M frame 레이아웃을 가정하는 BuildSpecJson 등 기존 경로 호환.
 	static bool PackAtlas(TArray<FFrameEntry>& Frames, const FString& OutPngPath,
 	                      int32& OutCellW, int32& OutCellH, int32& OutCols, int32& OutRows,
-	                      TMap<TTuple<FString,int32,int32>, int32>& OutIndexMap, FString& OutError)
+	                      TMap<TTuple<FString,int32,int32>, int32>& OutIndexMap, FString& OutError,
+	                      bool bSingleRow = false)
 	{
 		TMap<FString, FDecodedImage> DecodedByPath;
 		int32 MaxW = 0, MaxH = 0;
@@ -627,7 +633,7 @@ namespace HktSpriteGen
 		const int32 CellCount = CellOrder.Num();
 
 		// 아틀라스 한 변을 8192 이하로 제한(GPU 한계·LODGroup 캡 회피).
-		// 1) 기본 cols = min(kNumDirections, CellCount)
+		// 1) 기본 cols = bSingleRow ? CellCount : min(kNumDirections, CellCount)
 		// 2) Width 캡: cols ≤ 8192 / CellW
 		// 3) Height 캡: rows ≤ 8192 / CellH → 필요 시 cols를 늘려 행 수를 줄임
 		// 4) 셀 자체가 너무 커 둘 다 못 맞추는 경우 경고 로그 후 진행.
@@ -636,7 +642,7 @@ namespace HktSpriteGen
 		const int32 MaxRowsByHeight = FMath::Max(1, kMaxAtlasDim / FMath::Max(1, OutCellH));
 		const int32 MinColsByRows   = FMath::DivideAndRoundUp(CellCount, MaxRowsByHeight);
 
-		int32 PreferredCols = FMath::Min(kNumDirections, CellCount);
+		int32 PreferredCols = bSingleRow ? CellCount : FMath::Min(kNumDirections, CellCount);
 		PreferredCols = FMath::Max(PreferredCols, MinColsByRows);
 		PreferredCols = FMath::Min(PreferredCols, MaxColsByWidth);
 		OutCols = FMath::Max(1, PreferredCols);
@@ -1049,7 +1055,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorExtractAtlasAndBundle(
 	int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
 	TMap<TTuple<FString,int32,int32>, int32> IndexMap;
 	FString PackErr;
-	if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackErr))
+	if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackErr, /*bSingleRow*/true))
 	{
 		return MakeSpriteError(PackErr);
 	}
@@ -1253,7 +1259,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorPackDirectionalAtlases(
 			int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
 			TMap<TTuple<FString,int32,int32>, int32> IndexMap;
 			FString PackErr;
-			if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackErr))
+			if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackErr, /*bSingleRow*/true))
 			{
 				if (FirstError.IsEmpty()) FirstError = PackErr;
 				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("PackAtlas 실패 (%s, %s): %s"),
@@ -1360,7 +1366,7 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorPackBundleFolderToAtlasPng(
 	int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
 	TMap<TTuple<FString,int32,int32>, int32> IndexMap;
 	FString PackErr;
-	if (!PackAtlas(Frames, OutputPngPath, CellW, CellH, Cols, Rows, IndexMap, PackErr))
+	if (!PackAtlas(Frames, OutputPngPath, CellW, CellH, Cols, Rows, IndexMap, PackErr, /*bSingleRow*/true))
 	{
 		return MakeSpriteError(PackErr);
 	}

@@ -46,6 +46,8 @@ namespace HktPaperAssetBuilder
 
 	/**
 	 * 한 dir 의 atlas 텍스처에서 cell 단위로 UPaperSprite N 개 + UPaperFlipbook 1 개를 빌드.
+	 * Cols 가 양수면 (col, row) 그리드로 슬라이스: OriginX=(i%Cols)*CellW, OriginY=(i/Cols)*CellH.
+	 * Cols<=0 이면 단일-행으로 폴백.
 	 * 반환: 빌드된 Flipbook (이미 존재하면 in-place 갱신).
 	 */
 	UPaperFlipbook* BuildDirFlipbook(
@@ -53,6 +55,7 @@ namespace HktPaperAssetBuilder
 		const FString& OutputPackageDir,   // /Game/Generated/PaperSprites/{SafeChar}
 		const FString& BaseAssetName,      // PFB_{SafeChar}_{SafeAnim}_{Dir} 의 베이스
 		int32 CellW, int32 CellH,
+		int32 Cols,
 		int32 FrameCount,
 		float PixelToWorld,
 		float FrameDurationMs);

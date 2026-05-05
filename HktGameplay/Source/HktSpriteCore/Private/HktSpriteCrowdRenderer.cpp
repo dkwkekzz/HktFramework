@@ -14,6 +14,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
+#include "Engine/AssetManager.h"
 
 namespace
 {
@@ -21,6 +22,12 @@ namespace
 	// CPD 레이아웃: 0=AtlasIndex, 1=CellW, 2=CellH, 3=reserved,
 	// 4~5=Pivot(world), 6=Rot(rad), 7~8=Scale(halfWidth/Height world),
 	// 9~12=Tint RGBA, 13=Palette, 14=FlipX, 15=ZBias
+
+	// Pre-create HISM 후 첫 AddInstance 까지 대기할 프레임 수.
+	// (1) RegisterComponent 의 FCreateRenderStateCommand 가 RT 에 도달
+	// (2) MID SetTextureParameterValue 의 propagation 렌더 커맨드가 RT 에 도달
+	// 두 단계가 RT 에서 처리되어 proxy 가 정합 상태로 베이크되도록 여유 확보.
+	constexpr uint64 kWarmupFrames = 3;
 }
 
 UHktSpriteCrowdRenderer::UHktSpriteCrowdRenderer()
@@ -90,7 +97,7 @@ void UHktSpriteCrowdRenderer::SetCharacter(FHktEntityId Id, FGameplayTag Charact
 			*OldTag.ToString(), *CharacterTag.ToString()),
 		Id);
 
-	if (CharacterTag.IsValid() && !TemplateCache.Contains(CharacterTag))
+	if (CharacterTag.IsValid() && !TemplateReadiness.Contains(CharacterTag))
 	{
 		RequestTemplateLoad(CharacterTag);
 	}
@@ -150,16 +157,35 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 	UHktSpriteCharacterTemplate* Template = Found ? Found->Get() : nullptr;
 	if (!Template)
 	{
-		// 템플릿 아직 로딩 중 — 전이 시 1회만 경고(PendingTemplateLoads에 없으면 비정상).
+		// 템플릿 아직 로딩 중 — 전이 시 1회만 경고. Readiness 가 LoadingTemplate 에 있으면
+		// 정상 in-flight, 그 외(맵에 없음 / Failed)면 비정상.
 		if (State->LastUpdateStatus != EHktSpriteUpdateStatus::TemplateMissing)
 		{
 			State->LastUpdateStatus = EHktSpriteUpdateStatus::TemplateMissing;
-			const bool bPending = PendingTemplateLoads.Contains(State->CharacterTag);
+			const FTemplateReady* Ready = TemplateReadiness.Find(State->CharacterTag);
+			const bool bPending = Ready && Ready->Stage == ETemplateReadyStage::LoadingTemplate;
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
 				bPending ? EHktLogLevel::Verbose : EHktLogLevel::Warning,
 				EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: UpdateEntity — Template 미준비 (tag=%s, pending=%d)"),
 					*State->CharacterTag.ToString(), bPending ? 1 : 0),
+				Id);
+		}
+		return;
+	}
+
+	// 모든 atlas 텍스처 + RHI + HISM proxy + MID propagation 이 settle 되기 전에는
+	// AddInstance 자체를 시도하지 않는다 (첫 PIE atlas-honeycomb 의 근본 원인 차단).
+	if (!AdvanceTemplateReadiness(State->CharacterTag))
+	{
+		if (State->LastUpdateStatus != EHktSpriteUpdateStatus::WaitingResources)
+		{
+			State->LastUpdateStatus = EHktSpriteUpdateStatus::WaitingResources;
+			const FTemplateReady* Ready = TemplateReadiness.Find(State->CharacterTag);
+			const int32 StageVal = Ready ? static_cast<int32>(Ready->Stage) : -1;
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: 리소스 로딩 대기 (tag=%s, stage=%d)"),
+					*State->CharacterTag.ToString(), StageVal),
 				Id);
 		}
 		return;
@@ -175,7 +201,7 @@ void UHktSpriteCrowdRenderer::ClearAll()
 	{
 		if (H) H->ClearInstances();
 	}
-	HISMPrimePending.Empty();
+	// TemplateReadiness / TemplateCache / HISM 자체는 보존 — 다음 사이클에 readiness 재진입 비용을 회피.
 }
 
 // ============================================================================
@@ -259,11 +285,6 @@ UInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateHISM(
 	// (HISM 의 cluster tree 컬링 이슈를 회피하기 위해 ISM 사용.)
 	HISM->BoundsScale = 1000.f;
 
-	// 첫 PIE "atlas 통째" 회피 — UE 5.7 에서 per-component
-	// SetPSOPrecacheProxyCreationStrategy API 가 제거되었다. 전략은 이제 전역 cvar
-	// `r.PSOPrecache.ProxyCreationWhenPSOReady` 로 제어 (DelayUntilPSOPrecached=2).
-	// 프로젝트 DefaultEngine.ini 또는 cvar 설정으로 일괄 적용.
-
 	UMaterialInterface* BaseMat = SpriteMaterialTemplate
 		? static_cast<UMaterialInterface*>(SpriteMaterialTemplate)
 		: HktSpriteBillboardMaterial::GetDefault();
@@ -290,8 +311,6 @@ UInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateHISM(
 
 	AtlasHISMs.Add(AtlasPath, HISM);
 	AllHISMs.Add(HISM);
-	// 등록 다음 프레임에 prime — RHI/MID propagation race 로 잡힌 stale binding 덮어쓰기 위함.
-	HISMPrimePending.Add(HISM, GFrameCounter);
 	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("Sprite|CrowdRenderer: HISM 신규 생성 (atlas=%s, %dx%d px)"),
 			*AtlasPath.ToString(), AtlasTex->GetSizeX(), AtlasTex->GetSizeY()));
@@ -305,8 +324,7 @@ UInstancedStaticMeshComponent* UHktSpriteCrowdRenderer::GetOrCreateHISM(
 void UHktSpriteCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 {
 	if (!Tag.IsValid()) return;
-	if (PendingTemplateLoads.Contains(Tag)) return;
-	if (TemplateCache.Contains(Tag)) return;
+	if (TemplateReadiness.Contains(Tag)) return;
 
 	UWorld* World = GetWorld();
 	UHktAssetSubsystem* AssetSub = World ? UHktAssetSubsystem::Get(World) : nullptr;
@@ -320,29 +338,162 @@ void UHktSpriteCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 		return;
 	}
 
-	PendingTemplateLoads.Add(Tag);
+	FTemplateReady& Ready = TemplateReadiness.Add(Tag);
+	Ready.Stage = ETemplateReadyStage::LoadingTemplate;
 
 	TWeakObjectPtr<UHktSpriteCrowdRenderer> WeakThis(this);
 	AssetSub->LoadAssetAsync(Tag, [WeakThis, Tag](UHktTagDataAsset* Loaded)
 	{
-		UHktSpriteCrowdRenderer* Self = WeakThis.Get();
-		if (!Self) return;
-
-		Self->PendingTemplateLoads.Remove(Tag);
-
-		UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
-		if (!Template)
+		if (UHktSpriteCrowdRenderer* Self = WeakThis.Get())
 		{
-			UE_LOG(LogHktSpriteCore, Warning, TEXT("CharacterTemplate 로드 실패 또는 타입 불일치 tag=%s"), *Tag.ToString());
-			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: CharacterTemplate 로드 실패/타입 불일치 (tag=%s, loaded=%s)"),
-					*Tag.ToString(), Loaded ? *Loaded->GetName() : TEXT("null")));
-			return;
+			Self->OnTemplateLoaded(Tag, Loaded);
 		}
-		Self->TemplateCache.Add(Tag, Template);
-		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
-			FString::Printf(TEXT("Sprite|CrowdRenderer: CharacterTemplate 로드 완료 (tag=%s)"), *Tag.ToString()));
 	});
+}
+
+void UHktSpriteCrowdRenderer::OnTemplateLoaded(FGameplayTag Tag, UHktTagDataAsset* Loaded)
+{
+	FTemplateReady* Ready = TemplateReadiness.Find(Tag);
+	if (!Ready) return;
+
+	UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
+	if (!Template)
+	{
+		Ready->Stage = ETemplateReadyStage::Failed;
+		UE_LOG(LogHktSpriteCore, Warning, TEXT("CharacterTemplate 로드 실패 또는 타입 불일치 tag=%s"), *Tag.ToString());
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|CrowdRenderer: CharacterTemplate 로드 실패/타입 불일치 (tag=%s, loaded=%s)"),
+				*Tag.ToString(), Loaded ? *Loaded->GetName() : TEXT("null")));
+		return;
+	}
+	TemplateCache.Add(Tag, Template);
+
+	CollectAtlasPaths(Template, Ready->AtlasPaths);
+	if (Ready->AtlasPaths.Num() == 0)
+	{
+		// Atlas 가 하나도 등록되지 않은 템플릿 — 그릴 게 없으니 Ready 로. 실제 첫 ApplyEntityInstanceTransform
+		// 에서 ResolveAtlas 가 AtlasNull 로 실패하며 그 단계에서 정확한 에러 로그가 emit 된다.
+		Ready->Stage = ETemplateReadyStage::Ready;
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|CrowdRenderer: Template 로드 완료(atlas 0개) — Ready (tag=%s)"), *Tag.ToString()));
+		return;
+	}
+
+	Ready->Stage = ETemplateReadyStage::LoadingAtlases;
+
+	TWeakObjectPtr<UHktSpriteCrowdRenderer> WeakThis(this);
+	Ready->AtlasLoadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+		Ready->AtlasPaths,
+		FStreamableDelegate::CreateLambda([WeakThis, Tag]()
+		{
+			if (UHktSpriteCrowdRenderer* Self = WeakThis.Get())
+			{
+				Self->OnAtlasesLoaded(Tag);
+			}
+		}));
+
+	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("Sprite|CrowdRenderer: Template 로드 완료, atlas %d개 비동기 로드 시작 (tag=%s)"),
+			Ready->AtlasPaths.Num(), *Tag.ToString()));
+}
+
+void UHktSpriteCrowdRenderer::OnAtlasesLoaded(FGameplayTag Tag)
+{
+	FTemplateReady* Ready = TemplateReadiness.Find(Tag);
+	if (!Ready) return;
+	Ready->AtlasLoadHandle.Reset();
+	Ready->Stage = ETemplateReadyStage::WaitingAtlasRHI;
+	HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas %d개 메모리 로드 완료 — RHI 대기 (tag=%s)"),
+			Ready->AtlasPaths.Num(), *Tag.ToString()));
+}
+
+void UHktSpriteCrowdRenderer::CollectAtlasPaths(const UHktSpriteCharacterTemplate* T, TArray<FSoftObjectPath>& OutPaths)
+{
+	OutPaths.Reset();
+	if (!T) return;
+
+	TSet<FSoftObjectPath> Unique;
+	auto Add = [&Unique](const TSoftObjectPtr<UTexture2D>& Ref)
+	{
+		if (Ref.IsNull()) return;
+		const FSoftObjectPath P = Ref.ToSoftObjectPath();
+		if (P.IsValid()) Unique.Add(P);
+	};
+
+	Add(T->Atlas); // 캐릭터 폴백 atlas
+	for (const TPair<FGameplayTag, FHktSpriteAnimation>& AnimPair : T->Animations)
+	{
+		const FHktSpriteAnimation& Anim = AnimPair.Value;
+		Add(Anim.Atlas);
+		for (const FHktSpriteAtlasSlot& Slot : Anim.AtlasSlots)
+		{
+			Add(Slot.Atlas);
+		}
+	}
+
+	OutPaths = Unique.Array();
+}
+
+bool UHktSpriteCrowdRenderer::AreAllAtlasesRHIReady(const TArray<FSoftObjectPath>& Paths)
+{
+	for (const FSoftObjectPath& P : Paths)
+	{
+		UTexture2D* Tex = Cast<UTexture2D>(P.ResolveObject());
+		if (!Tex) return false;
+		const FTextureResource* R = Tex->GetResource();
+		if (!R || !R->TextureRHI.IsValid()) return false;
+	}
+	return true;
+}
+
+void UHktSpriteCrowdRenderer::PrecreateHISMs(const TArray<FSoftObjectPath>& Paths)
+{
+	for (const FSoftObjectPath& P : Paths)
+	{
+		UTexture2D* Tex = Cast<UTexture2D>(P.ResolveObject());
+		if (!Tex) continue;
+		// 결과 무시 — GetOrCreateHISM 이 AtlasHISMs 에 등록하면 그걸로 충분.
+		GetOrCreateHISM(P, Tex);
+	}
+}
+
+bool UHktSpriteCrowdRenderer::AdvanceTemplateReadiness(FGameplayTag Tag)
+{
+	FTemplateReady* Ready = TemplateReadiness.Find(Tag);
+	if (!Ready) return false;
+
+	switch (Ready->Stage)
+	{
+	case ETemplateReadyStage::LoadingTemplate:
+	case ETemplateReadyStage::LoadingAtlases:
+		return false;
+	case ETemplateReadyStage::WaitingAtlasRHI:
+		if (AreAllAtlasesRHIReady(Ready->AtlasPaths))
+		{
+			PrecreateHISMs(Ready->AtlasPaths);
+			Ready->WarmupStartFrame = GFrameCounter;
+			Ready->Stage = ETemplateReadyStage::WarmupHISMs;
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas RHI 준비 완료 — HISM 사전 생성, %llu 프레임 warmup 시작 (tag=%s)"),
+					kWarmupFrames, *Tag.ToString()));
+		}
+		return false;
+	case ETemplateReadyStage::WarmupHISMs:
+		if (GFrameCounter - Ready->WarmupStartFrame >= kWarmupFrames)
+		{
+			Ready->Stage = ETemplateReadyStage::Ready;
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: Template 완전 준비 — Draw 허용 (tag=%s)"), *Tag.ToString()));
+			return true;
+		}
+		return false;
+	case ETemplateReadyStage::Ready:
+		return true;
+	case ETemplateReadyStage::Failed:
+	default:
+		return false;
+	}
 }
 
 // ============================================================================
@@ -540,8 +691,9 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 			}
 			return;
 		}
-		// 실제 WorldXform 으로 AddInstance — Identity 중간 상태 제거.
-		// 첫 GPU 업로드 시점에 트랜스폼/CPD 가 모두 유효해 atlas-honeycomb 회피.
+		// Readiness gate (UpdateEntity 진입 시점)에서 이미 HISM 사전 생성 + N 프레임 warmup 을
+		// 마쳤으므로 prime 보류 없이 즉시 AddInstance. 첫 GPU 업로드 시점에 트랜스폼/CPD 가
+		// 모두 유효 — atlas-honeycomb 차단됨.
 		State.InstanceIndex    = NewHISM->AddInstance(WorldXform, /*bWorldSpace=*/true);
 		State.CurrentAtlasPath = AtlasPath;
 
@@ -593,26 +745,6 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 		return;
 	}
 	UInstancedStaticMeshComponent* HISM = *HPtr;
-
-	// HISM 등록 후 처음으로 다른 프레임에 진입한 시점에 한 번 — MID 파라미터 재바인딩 + proxy 재생성.
-	// 첫 PIE 에서 RHI 가 막 valid 로 전이된 직후 처음 SetTextureParameterValue 가 race 해 stale 로
-	// 굳는 케이스 방어. 같은 프레임 (=등록 프레임) 에서는 propagation 시간이 부족하므로 스킵.
-	if (uint64* RegFrame = HISMPrimePending.Find(HISM); RegFrame && GFrameCounter > *RegFrame)
-	{
-		if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(HISM->GetMaterial(0)))
-		{
-			MID->SetTextureParameterValue(HktSpriteBillboardMaterial::AtlasParamName, AtlasTex);
-			MID->SetVectorParameterValue(
-				HktSpriteBillboardMaterial::AtlasSizeParamName,
-				FLinearColor(static_cast<float>(AtlasTex->GetSizeX()),
-							 static_cast<float>(AtlasTex->GetSizeY()), 0.f, 0.f));
-		}
-		HISM->MarkRenderStateDirty();
-		HISMPrimePending.Remove(HISM);
-		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-			FString::Printf(TEXT("Sprite|CrowdRenderer: HISM prime 재바인딩 (atlas=%s)"),
-				*State.CurrentAtlasPath.ToString()));
-	}
 
 	// 정상 경로 — 이전 실패 상태 클리어 + 복구 로그(전이 시 1회).
 	// 비대칭 로깅(실패만 emit)을 제거해 EventLog에서 "정상화 시점"을 직접 추적할 수 있게 한다.

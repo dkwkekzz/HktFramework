@@ -1,8 +1,9 @@
 {
+  "schema": 2,
   "storyTag": "Story.State.Player.Init",
   "cancelOnDuplicate": false,
   "tags": {
-    "EntityPlayer": "Entity.Character.Hikito.Beginner",
+    "EntityPlayer": "Entity.Character.Paper.Hikito.Beginner",
     "EntityItem": "Entity.Item",
     "EntityWoodenSword": "Entity.Item.WoodenSword",
     "TagWeaponSword": "Entity.Attr.Weapon.Sword",
@@ -28,23 +29,34 @@
     },
     {
       "op": "LoadStore",
-      "dst": "R1",
+      "dst": {
+        "block": "spawnPos",
+        "index": 0
+      },
       "property": "TargetPosX"
     },
     {
       "op": "LoadStore",
-      "dst": "R2",
+      "dst": {
+        "block": "spawnPos",
+        "index": 1
+      },
       "property": "TargetPosY"
     },
     {
       "op": "LoadStore",
-      "dst": "R3",
+      "dst": {
+        "block": "spawnPos",
+        "index": 2
+      },
       "property": "TargetPosZ"
     },
     {
       "op": "SetPosition",
       "entity": "Self",
-      "src": "R1"
+      "pos": {
+        "block": "spawnPos"
+      }
     },
     {
       "op": "PlayVFXAttached",
@@ -92,19 +104,27 @@
     },
     {
       "op": "CountByOwner",
-      "dst": "R0",
+      "dst": {
+        "var": "itemCount"
+      },
       "owner": "Self",
       "tag": "EntityItem"
     },
     {
       "op": "CmpNeConst",
-      "dst": "Flag",
-      "src": "R0",
+      "dst": {
+        "var": "hasItems"
+      },
+      "src": {
+        "var": "itemCount"
+      },
       "value": 0
     },
     {
       "op": "JumpIf",
-      "cond": "Flag",
+      "cond": {
+        "var": "hasItems"
+      },
       "label": "skip_grant"
     },
     {

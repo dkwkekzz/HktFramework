@@ -1608,8 +1608,10 @@ FHktStoryBuilder& FHktStoryBuilder::IfNot(FHktVar Cond)
 FHktVar FHktStoryBuilder::SpawnEntityVar(const FGameplayTag& ClassTag)
 {
     int32 TagIdx = TagToInt(ClassTag);
-    EmitV_Imm20NoDst(EOpCode::SpawnEntity, TagIdx & 0xFFF);
-    // 단계 2: SpawnEntity 의 결과 슬롯은 여전히 Reg::Spawned (VM 시맨틱). 명시 반환은 그 핸들.
+    // VM 은 SpawnEntity 를 Imm12 (bits 20-31) 로 디스패치 — Imm20 인코딩 금지.
+    // V1 의 Make(SpawnEntity, 0,0,0, TagIdx&0xFFF) 와 byte-identical 한 출력을 낸다.
+    EmitV(EOpCode::SpawnEntity, VNone(), VNone(), VNone(), static_cast<uint16>(TagIdx & 0xFFF));
+    // SpawnEntity 의 결과 슬롯은 Reg::Spawned (VM 시맨틱). 명시 반환은 그 핸들.
     SpawnedArchetype = FHktArchetypeRegistry::Get().FindByTag(ClassTag);
     return SpawnedVar();
 }
@@ -1700,6 +1702,13 @@ FHktStoryBuilder& FHktStoryBuilder::LookAt(FHktVar Entity, FHktVar TargetEntity)
 FHktStoryBuilder& FHktStoryBuilder::FindInRadius(FHktVar CenterEntity, int32 RadiusCm)
 {
     EmitV(EOpCode::FindInRadius, FlagVar(), CenterEntity, VNone(), static_cast<uint16>(RadiusCm & 0xFFF));
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::InteractTerrain(FHktVar CenterEntity, int32 RadiusCm)
+{
+    // 단발 호출 — V1 의 Emit(InteractTerrain, 0, CenterReg, 0, Radius) 와 등가.
+    EmitV(EOpCode::InteractTerrain, VNone(), CenterEntity, VNone(), static_cast<uint16>(RadiusCm & 0xFFF));
     return *this;
 }
 

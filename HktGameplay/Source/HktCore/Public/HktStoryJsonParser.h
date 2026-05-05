@@ -164,7 +164,8 @@ private:
 		const TArray<TSharedPtr<FJsonValue>>& PreconditionArray,
 		const TFunction<FGameplayTag(const FString&)>& ResolveTag,
 		FHktStoryBuilder& Builder,
-		FHktStoryParseResult& Result);
+		FHktStoryParseResult& Result,
+		int32 SchemaVersion);
 
 	TMap<FString, FHktStoryCommandHandler> CommandMap;
 	TMap<FString, FHktStoryCommandHandler> CommandMapV2;

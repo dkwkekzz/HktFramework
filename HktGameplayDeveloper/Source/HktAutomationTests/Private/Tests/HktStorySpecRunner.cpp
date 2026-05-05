@@ -89,11 +89,21 @@ namespace HktStorySpecRunner
 		return R.bSuccess;
 	}
 
+	// ValueRef 가 채워진 property 는 entity id 가 모두 결정된 후에야 풀 수 있다 (예: target.OwnerEntity = self.id).
+	// BuildEntity 가 이 항목들을 outparam 으로 모아두고, 호출자가 ResolveRef 람다 정의 직후 일괄 적용한다.
+	struct FDeferredRefProp
+	{
+		FHktEntityId TargetEid;
+		FString      PropName;
+		FString      ValueRef;
+	};
+
 	static FHktEntityId BuildEntity(
 		FHktAutomationTestHarness& H,
 		const FHktSpecEntity& E,
 		TArray<FString>& OutUnknownProps,
-		TArray<FString>& OutUnknownArchetypes)
+		TArray<FString>& OutUnknownArchetypes,
+		TArray<FDeferredRefProp>& OutDeferred)
 	{
 		FHktWorldState& W = H.GetWorldState();
 		const FHktEntityId Id = W.AllocateEntity();
@@ -113,14 +123,17 @@ namespace HktStorySpecRunner
 		for (const FHktSpecPropPair& P : E.Properties)
 		{
 			const FHktPropertyDef* Def = HktProperty::FindByName(P.Name);
-			if (Def)
-			{
-				W.SetProperty(Id, *Def, P.Value);
-			}
-			else
+			if (!Def)
 			{
 				OutUnknownProps.Add(P.Name);
+				continue;
 			}
+			if (!P.ValueRef.IsEmpty())
+			{
+				OutDeferred.Add({Id, P.Name, P.ValueRef});
+				continue;
+			}
+			W.SetProperty(Id, *Def, P.Value);
 		}
 		if (E.bHasPosition)
 		{
@@ -219,16 +232,17 @@ bool FHktStorySpecAutomationTest::RunTest(const FString& Parameters)
 
 	TArray<FString> UnknownProps;
 	TArray<FString> UnknownArchetypes;
-	const FHktEntityId Self = HktStorySpecRunner::BuildEntity(H, S.Given.Self, UnknownProps, UnknownArchetypes);
+	TArray<HktStorySpecRunner::FDeferredRefProp> DeferredRefProps;
+	const FHktEntityId Self = HktStorySpecRunner::BuildEntity(H, S.Given.Self, UnknownProps, UnknownArchetypes, DeferredRefProps);
 	FHktEntityId Target = InvalidEntityId;
 	if (S.Given.bHasTarget)
 	{
-		Target = HktStorySpecRunner::BuildEntity(H, S.Given.Target, UnknownProps, UnknownArchetypes);
+		Target = HktStorySpecRunner::BuildEntity(H, S.Given.Target, UnknownProps, UnknownArchetypes, DeferredRefProps);
 	}
 	TArray<FHktEntityId> EntityIds;
 	for (const FHktSpecEntity& E : S.Given.Entities)
 	{
-		EntityIds.Add(HktStorySpecRunner::BuildEntity(H, E, UnknownProps, UnknownArchetypes));
+		EntityIds.Add(HktStorySpecRunner::BuildEntity(H, E, UnknownProps, UnknownArchetypes, DeferredRefProps));
 	}
 	if (UnknownProps.Num() > 0)
 	{
@@ -243,18 +257,17 @@ bool FHktStorySpecAutomationTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// given.event 가 있으면 Context.EventParam* 세팅 (LoadStore Param0 류 op 가 entity 컬럼이 아닌 Context local 을 읽음).
-	if (S.Given.Event.bSet)
-	{
-		H.SetEventParams(
-			S.Given.Event.Param0, S.Given.Event.Param1, S.Given.Event.Param2, S.Given.Event.Param3,
-			S.Given.Event.TargetPosX, S.Given.Event.TargetPosY, S.Given.Event.TargetPosZ);
-	}
-
 	auto ResolveRef = [&](const FString& Ref) -> FHktEntityId
 	{
 		if (Ref == TEXT("self"))   return Self;
 		if (Ref == TEXT("target")) return Target;
+		// Story 가 SpawnEntity 로 만든 마지막 엔티티 — Reg::Spawned 가 보유.
+		// VM 종료 후에만 의미가 있다 (실행 전 / given 단계에서는 InvalidEntityId).
+		if (Ref == TEXT("spawned"))
+		{
+			const int32 V = H.GetRegister(Reg::Spawned);
+			return (V > 0) ? static_cast<FHktEntityId>(V) : InvalidEntityId;
+		}
 		if (Ref.StartsWith(TEXT("entities[")) && Ref.EndsWith(TEXT("]")))
 		{
 			const FString Inner = Ref.Mid(9, Ref.Len() - 10);
@@ -263,6 +276,29 @@ bool FHktStorySpecAutomationTest::RunTest(const FString& Parameters)
 		}
 		return InvalidEntityId;
 	};
+
+	// 모든 엔티티가 할당된 후 ref 형식 property 적용 (예: target.OwnerEntity = self.id).
+	for (const HktStorySpecRunner::FDeferredRefProp& D : DeferredRefProps)
+	{
+		const FHktEntityId Refed = ResolveRef(D.ValueRef);
+		if (Refed == InvalidEntityId)
+		{
+			AddError(FString::Printf(TEXT("given.properties.%s: ref 해석 실패 '%s' (given 에선 self/target/entities[N] 만 가능 — spawned 는 expect 매처 한정)"),
+				*D.PropName, *D.ValueRef));
+			return false;
+		}
+		const FHktPropertyDef* Def = HktProperty::FindByName(D.PropName);
+		// 존재 보장 — BuildEntity 가 미존재 시 ValueRef 분기 진입 전에 OutUnknownProps 로 거른다.
+		H.GetWorldState().SetProperty(D.TargetEid, *Def, static_cast<int32>(Refed));
+	}
+
+	// given.event 가 있으면 Context.EventParam* 세팅 (LoadStore Param0 류 op 가 entity 컬럼이 아닌 Context local 을 읽음).
+	if (S.Given.Event.bSet)
+	{
+		H.SetEventParams(
+			S.Given.Event.Param0, S.Given.Event.Param1, S.Given.Event.Param2, S.Given.Event.Param3,
+			S.Given.Event.TargetPosX, S.Given.Event.TargetPosY, S.Given.Event.TargetPosZ);
+	}
 
 	// 실행 — events 가 비어있으면 단발 ExecuteProgram (Timer 자동 진행).
 	EVMStatus Status;
@@ -311,7 +347,7 @@ bool FHktStorySpecAutomationTest::RunTest(const FString& Parameters)
 			continue;
 		}
 
-		// properties — 정확 일치
+		// properties — 정확 일치 (ValueRef 가 있으면 entity id 해석 후 비교).
 		for (const FHktSpecPropPair& P : M.Properties)
 		{
 			const FHktPropertyDef* Def = HktProperty::FindByName(P.Name);
@@ -322,11 +358,24 @@ bool FHktStorySpecAutomationTest::RunTest(const FString& Parameters)
 				bAllPass = false;
 				continue;
 			}
+			int32 ExpectedV = P.Value;
+			if (!P.ValueRef.IsEmpty())
+			{
+				const FHktEntityId Refed = ResolveRef(P.ValueRef);
+				if (Refed == InvalidEntityId)
+				{
+					AddError(FString::Printf(TEXT("expect.%s.properties.%s: ref 해석 실패 '%s' %s"),
+						*M.EntityRef, *P.Name, *P.ValueRef, *DiagPrefix));
+					bAllPass = false;
+					continue;
+				}
+				ExpectedV = static_cast<int32>(Refed);
+			}
 			const int32 Actual = H.GetProperty(Eid, *Def);
-			if (Actual != P.Value)
+			if (Actual != ExpectedV)
 			{
 				AddError(FString::Printf(TEXT("expect.%s.properties.%s: expected=%d actual=%d %s"),
-					*M.EntityRef, *P.Name, P.Value, Actual, *DiagPrefix));
+					*M.EntityRef, *P.Name, ExpectedV, Actual, *DiagPrefix));
 				bAllPass = false;
 			}
 		}
@@ -355,15 +404,38 @@ bool FHktStorySpecAutomationTest::RunTest(const FString& Parameters)
 			}
 		}
 
-		// tagsExact — 명시 태그가 모두 있어야 PASS (역방향 추가 태그 검출은 Phase 2e 보강).
-		for (const FString& T : M.TagsExact)
+		// tagsExact — set 비교: 명시 태그 모두 있고, 명시 외 태그는 모두 부재.
+		if (M.TagsExact.Num() > 0)
 		{
-			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*T), false);
-			if (!Tag.IsValid() || !H.HasTag(Eid, Tag))
+			TSet<FGameplayTag> Expected;
+			for (const FString& T : M.TagsExact)
 			{
-				AddError(FString::Printf(TEXT("expect.%s.tagsExact: '%s' 부재 %s"),
-					*M.EntityRef, *T, *DiagPrefix));
-				bAllPass = false;
+				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*T), false);
+				if (!Tag.IsValid())
+				{
+					AddError(FString::Printf(TEXT("expect.%s.tagsExact: 알 수 없는 GameplayTag '%s' %s"),
+						*M.EntityRef, *T, *DiagPrefix));
+					bAllPass = false;
+					continue;
+				}
+				Expected.Add(Tag);
+				if (!H.HasTag(Eid, Tag))
+				{
+					AddError(FString::Printf(TEXT("expect.%s.tagsExact: '%s' 부재 %s"),
+						*M.EntityRef, *T, *DiagPrefix));
+					bAllPass = false;
+				}
+			}
+			// 역방향 — actual 에 명시 외 태그가 남아있는지 검출.
+			const FGameplayTagContainer& Actual = H.GetWorldState().GetTags(Eid);
+			for (auto It = Actual.CreateConstIterator(); It; ++It)
+			{
+				if (!Expected.Contains(*It))
+				{
+					AddError(FString::Printf(TEXT("expect.%s.tagsExact: 명시 외 태그 잔존 '%s' %s"),
+						*M.EntityRef, *It->ToString(), *DiagPrefix));
+					bAllPass = false;
+				}
 			}
 		}
 	}

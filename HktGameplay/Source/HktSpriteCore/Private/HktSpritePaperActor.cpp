@@ -46,8 +46,8 @@ AHktSpritePaperActor::AHktSpritePaperActor()
 	FlipbookComp = CreateDefaultSubobject<UPaperFlipbookComponent>(TEXT("Flipbook"));
 	FlipbookComp->SetupAttachment(RootScene);
 	FlipbookComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	// Paper2D PaperSprite 의 기본 평면 normal 은 -Y. RootScene 의 Yaw 가 카메라 yaw 를 따라가면서
-	// 스프라이트가 카메라를 향한다. 추가 보정(예: yaw + 90) 이 필요하면 시각 검증 후 적용.
+	// Paper2D PaperSprite 의 기본 평면 normal 은 로컬 -Y. 카메라를 정면으로 향하게 하려면
+	// 액터 Yaw = CameraYaw - 90° (Tick 의 빌보드 회전 적용 위치 참조).
 }
 
 // ----------------------------------------------------------------------------
@@ -186,7 +186,9 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 
 	if (bYawDirty)
 	{
-		SetActorLocationAndRotation(InterpLocation, FRotator(0.f, CameraYaw, 0.f),
+		// PaperSprite 로컬 평면 normal 이 -Y 이므로 카메라를 정면으로 향하려면 -90° 보정.
+		// (액터 yaw θ → 로컬 -Y 가 world (sin θ,-cos θ,0); -CameraForward 와 일치시키면 θ = α-90°)
+		SetActorLocationAndRotation(InterpLocation, FRotator(0.f, CameraYaw - 90.f, 0.f),
 			false, nullptr, ETeleportType::TeleportPhysics);
 		LastAppliedYawDeg = CameraYaw;
 		bHasAppliedYaw    = true;

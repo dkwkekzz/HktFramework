@@ -2,6 +2,7 @@
 
 #include "HktPresentationState.h"
 #include "GameplayTagsManager.h"
+#include "HktPresentationLog.h"
 #include "HktRuntimeTags.h"
 
 namespace
@@ -366,6 +367,11 @@ FLinearColor FHktPresentationState::GetTeamColor(int32 TeamIndex)
 
 void FHktPresentationState::AllocateViewsForEntity(FHktEntityId Id, EHktRenderCategory Category, const FGameplayTagContainer& Tags)
 {
+	// [DIAG-PlayerInitV2] schema 2 회귀 진단 — id=0 + anim tag 패턴 추적용. 안정화 후 제거.
+	UE_LOG(LogHktPresentation, Warning,
+		TEXT("[DIAG] AllocateViewsForEntity Id=%d Category=%d Tags=[%s]"),
+		static_cast<int32>(Id), static_cast<int32>(Category), *Tags.ToStringSimple());
+
 	const int32 Index = static_cast<int32>(Id);
 
 	// 재할당 안전성: 같은 ID로 AddEntity가 다시 호출되면 기존 뷰를 초기화.

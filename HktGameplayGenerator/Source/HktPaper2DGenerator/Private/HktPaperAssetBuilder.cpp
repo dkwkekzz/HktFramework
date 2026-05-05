@@ -44,13 +44,17 @@
 //   - 같은 atlas 의 sprite 를 다른 flipbook 이 공유할 수 없음 (본 빌더는 dir 별로
 //     별개 atlas + 별개 flipbook 이라 공유 사례 없음).
 //
-// 기본값 1 — 디스크 폭증 완화가 명확한 이득. 0 이면 PR-5 이전 동작(별도 패키지).
+// 기본값 0 (검증 모드) — PS_* 가 Content Browser 에 별도 자산으로 노출되어 Sprite Editor
+// 로 SourceUV/SourceDimension/BakedRenderData 를 직접 확인 가능. cell 단위 자르기가
+// 정상 동작함을 검증한 뒤 1 로 올려 디스크 절감 효과를 누린다.
+//   0 → 각 sprite 별 별도 패키지(.uasset) 생성 (검증/디폴트)
+//   1 → UPaperSprite 를 UPaperFlipbook 패키지의 inner subobject 로 임베드 (별도 디스크 자산 X)
 static TAutoConsoleVariable<int32> CVarHktPaperEmbedSprites(
 	TEXT("hkt.PaperSprite.EmbedSpritesInFlipbook"),
-	1,
+	0,
+	TEXT("0=각 sprite 별 별도 패키지(.uasset) 생성 — Content Browser 노출 (디폴트, 검증 용이). ")
 	TEXT("1=UPaperSprite 를 UPaperFlipbook 패키지의 inner subobject 로 임베드 ")
-	TEXT("(별도 디스크 자산 생성 안 함, 디폴트). ")
-	TEXT("0=각 sprite 별 별도 패키지(.uasset) 생성 (PR-5 이전 동작)."),
+	TEXT("(별도 디스크 자산 생성 안 함 — 디스크 폭증 완화)."),
 	ECVF_Default);
 
 namespace HktPaperAssetBuilder
@@ -194,11 +198,18 @@ namespace HktPaperAssetBuilder
 		UPaperSprite* Sprite = NewObject<UPaperSprite>(
 			Pkg, FName(*AssetName), Flags);
 
-		// UE 5.7: SetTextureAndFill 은 1-인자 (전체 텍스처)만 지원. atlas 의 cell
-		// 부분 영역을 가리키려면 Texture/Offset/Dimension 을 직접 지정해야 한다.
+		// UE 5.7: SetTextureAndFill 은 1-인자 (전체 텍스처)만 지원. atlas 의 cell 부분
+		// 영역을 가리키려면 Texture/Offset/Dimension 을 직접 지정. 시퀀스는 엔진 정식
+		// 패턴(PaperSpriteFactory / PaperJsonSpriteSheetImporter) 을 따른다:
+		//   1) InitializeSprite(bRebuildData=false)
+		//   2) SetTrim(false, ..., bRebuildData=false)
+		//   3) SetPivotMode(..., bRebuildData=false)
+		//   4) 마지막에 RebuildData() 한 번
+		// PostEditChange() 는 호출하지 않는다 — bRebuilAtlas 경로가 BakedSourceTexture/UV/
+		// Dimension 을 일순간 0 으로 만들어 atlas 전체가 셀로 잡히는 사고가 발생한다.
 		FSpriteAssetInitParameters InitParams;
-		InitParams.Texture = AtlasTex;
-		InitParams.Offset = FIntPoint(OriginX, OriginY);
+		InitParams.Texture   = AtlasTex;
+		InitParams.Offset    = FIntPoint(OriginX, OriginY);
 		InitParams.Dimension = FIntPoint(CellW, CellH);
 
 		// 1 픽셀 = PixelToWorld cm — UPaperSprite::PixelsPerUnrealUnit 은 그 역수.
@@ -208,7 +219,10 @@ namespace HktPaperAssetBuilder
 			InitParams.SetPixelsPerUnrealUnit(1.f / PixelToWorld);
 		}
 
-		Sprite->InitializeSprite(InitParams);
+		Sprite->InitializeSprite(InitParams, /*bRebuildData=*/false);
+
+		// 트림은 사용 안 함 — 명시 false 로 박아 둬야 cell 영역 외 잔여 데이터가 안 섞인다.
+		Sprite->SetTrim(false, FVector2D::ZeroVector, FVector2D(CellW, CellH), /*bRebuildData=*/false);
 
 		// 머티리얼은 PR-2 의 `AHktSpritePaperActor` 가 `UPaperFlipbookComponent::SetMaterial`
 		// 로 직접 적용 (M_HktPaperUnlit). 자산 자체엔 기록 X — 사용자가 에디터에서 다른
@@ -219,9 +233,10 @@ namespace HktPaperAssetBuilder
 		// 셀 origin 을 더해 atlas 안에서의 절대 픽셀 위치로 지정.
 		Sprite->SetPivotMode(
 			ESpritePivotMode::Custom,
-			FVector2D(OriginX + CellW * 0.5f, OriginY + CellH));
+			FVector2D(OriginX + CellW * 0.5f, OriginY + CellH),
+			/*bRebuildData=*/false);
 
-		Sprite->PostEditChange();
+		Sprite->RebuildData();
 		return Sprite;
 	}
 
@@ -233,6 +248,7 @@ namespace HktPaperAssetBuilder
 		const FString& OutputPackageDir,
 		const FString& BaseAssetName,
 		int32 CellW, int32 CellH,
+		int32 Cols,
 		int32 FrameCount,
 		float PixelToWorld,
 		float FrameDurationMs)
@@ -241,6 +257,8 @@ namespace HktPaperAssetBuilder
 		{
 			return nullptr;
 		}
+		// Cols<=0 폴백 — 단일 행 가정 (FrameCount 만큼 가로로 정렬).
+		if (Cols <= 0) Cols = FrameCount;
 
 		// Sprite 들은 자기 패키지에 둔다 (Flipbook 패키지는 별도) — 에디터에서 개별 swap 용이.
 		// 머티리얼은 PR-2 액터에서 적용하므로 여기서는 nullptr 전달.
@@ -284,9 +302,11 @@ namespace HktPaperAssetBuilder
 				Sprite->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
 				Sprite = nullptr;
 			}
+			const int32 Col = i % Cols;
+			const int32 Row = i / Cols;
 			Sprite = BuildSprite(
 				SpritePkg, SpriteAssetName, AtlasTex,
-				/*OriginX*/ i * CellW, /*OriginY*/ 0,
+				/*OriginX*/ Col * CellW, /*OriginY*/ Row * CellH,
 				CellW, CellH, PixelToWorld, Material,
 				/*bStandaloneTopLevel*/ !bEmbedSprites);
 
@@ -494,20 +514,35 @@ namespace HktPaperAssetBuilder
 					HktPaperWorkspace::GetDirectionName(d), AtlasW, AtlasH);
 				continue;
 			}
-			// frameCount 정수 검증.
+			// 셀 정수 분할 검증 — atlas 가 cell 의 정수배가 아니면 끝쪽 잘림 경고.
 			if (AtlasW % UseW != 0)
 			{
 				UE_LOG(LogHktPaper2DGenerator, Warning,
 					TEXT("[BuildAnim] Dir=%s AtlasW(%d) %% CellW(%d) != 0 — 마지막 cell 잘림"),
 					HktPaperWorkspace::GetDirectionName(d), AtlasW, UseW);
 			}
-			const int32 FrameCount = FMath::Max(1, AtlasW / UseW);
+			if (AtlasH % UseH != 0)
+			{
+				UE_LOG(LogHktPaper2DGenerator, Warning,
+					TEXT("[BuildAnim] Dir=%s AtlasH(%d) %% CellH(%d) != 0 — 마지막 row 잘림"),
+					HktPaperWorkspace::GetDirectionName(d), AtlasH, UseH);
+			}
+
+			// 프레임 수: 가로·세로 모두 반영. atlas_meta.json 의 frameCount 가 있으면
+			// 그것을 권위로 (마지막 row 가 부분 채움인 경우 정확). 없으면 Cols × Rows.
+			const int32 Cols = FMath::Max(1, AtlasW / UseW);
+			const int32 Rows = FMath::Max(1, AtlasH / UseH);
+			const int32 GridCount  = Cols * Rows;
+			const int32 MetaFrames = (DirMeta && DirMeta->FrameCount > 0) ? DirMeta->FrameCount : 0;
+			const int32 FrameCount = (MetaFrames > 0)
+				? FMath::Clamp(MetaFrames, 1, GridCount)
+				: GridCount;
 
 			const FString FlipbookBase = FString::Printf(TEXT("%s_%s_%s"),
 				*SafeChar, *SafeAnim, HktPaperWorkspace::GetDirectionName(d));
 			UPaperFlipbook* Flipbook = BuildDirFlipbook(
 				AtlasTex, OutputPackageDir, FlipbookBase,
-				UseW, UseH, FrameCount, PixelToWorld, FrameDurationMs);
+				UseW, UseH, Cols, FrameCount, PixelToWorld, FrameDurationMs);
 			if (!Flipbook)
 			{
 				continue;

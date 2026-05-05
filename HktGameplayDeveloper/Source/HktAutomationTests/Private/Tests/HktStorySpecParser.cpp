@@ -19,18 +19,49 @@ namespace
 		return Default;
 	}
 
+	// 정수 또는 {"ref":"self|target|entities[N]"} 객체를 받아 PropPair 의 Value/ValueRef 를 채운다.
+	// EntityId 를 동적으로 다른 엔티티로 채우는 케이스 (예: OwnerEntity = self.id) 를 spec 단에서 표현하기 위함.
+	bool ReadPropValue(const TSharedPtr<FJsonValue>& V, FHktSpecPropPair& Out, FString& OutError)
+	{
+		if (!V.IsValid())
+		{
+			Out.Value = 0;
+			return true;
+		}
+		const TSharedPtr<FJsonObject>* RefObj = nullptr;
+		if (V->TryGetObject(RefObj) && RefObj && (*RefObj).IsValid())
+		{
+			FString RefStr;
+			if (!(*RefObj)->TryGetStringField(TEXT("ref"), RefStr) || RefStr.IsEmpty())
+			{
+				OutError = FString::Printf(TEXT("properties.%s: 객체 폼은 {\"ref\":\"self|target|entities[N]\"} 만 허용"), *Out.Name);
+				return false;
+			}
+			Out.ValueRef = RefStr;
+			return true;
+		}
+		double D = 0.0;
+		if (V->TryGetNumber(D))
+		{
+			Out.Value = static_cast<int32>(D);
+			return true;
+		}
+		OutError = FString::Printf(TEXT("properties.%s: 정수 또는 {\"ref\":\"...\"} 만 허용"), *Out.Name);
+		return false;
+	}
+
 	bool ParseEntity(const TSharedPtr<FJsonObject>& Obj, FHktSpecEntity& Out, FString& OutError)
 	{
 		if (!Obj.IsValid()) return true; // 미명시 OK — 기본값 유지
 
 		Obj->TryGetStringField(TEXT("archetype"), Out.Archetype);
 
-		// properties: { name: int }
+		// properties: { name: int | {"ref":"self|target|entities[N]"} }
 		const TSharedPtr<FJsonObject>* PropsObj = nullptr;
 		if (Obj->TryGetObjectField(TEXT("properties"), PropsObj) && PropsObj && PropsObj->IsValid())
 		{
 			// 중복 키 검출용 TMap (load time 한정).
-			TMap<FString, int32> Seen;
+			TSet<FString> Seen;
 			for (const auto& Pair : (*PropsObj)->Values)
 			{
 				if (Seen.Contains(Pair.Key))
@@ -38,9 +69,11 @@ namespace
 					OutError = FString::Printf(TEXT("properties 중복 키: %s"), *Pair.Key);
 					return false;
 				}
-				const int32 V = AsInt(Pair.Value);
-				Seen.Add(Pair.Key, V);
-				Out.Properties.Add({Pair.Key, V});
+				Seen.Add(Pair.Key);
+				FHktSpecPropPair P;
+				P.Name = Pair.Key;
+				if (!ReadPropValue(Pair.Value, P, OutError)) return false;
+				Out.Properties.Add(MoveTemp(P));
 			}
 		}
 
@@ -184,7 +217,7 @@ namespace
 		const TSharedPtr<FJsonObject>* PropsObj = nullptr;
 		if (MObj->TryGetObjectField(TEXT("properties"), PropsObj) && PropsObj && PropsObj->IsValid())
 		{
-			TMap<FString, int32> Seen;
+			TSet<FString> Seen;
 			for (const auto& Pair : (*PropsObj)->Values)
 			{
 				if (Seen.Contains(Pair.Key))
@@ -192,9 +225,15 @@ namespace
 					OutError = FString::Printf(TEXT("expect.%s.properties 중복 키: %s"), *EntityRef, *Pair.Key);
 					return false;
 				}
-				const int32 V = AsInt(Pair.Value);
-				Seen.Add(Pair.Key, V);
-				Out.Properties.Add({Pair.Key, V});
+				Seen.Add(Pair.Key);
+				FHktSpecPropPair P;
+				P.Name = Pair.Key;
+				if (!ReadPropValue(Pair.Value, P, OutError))
+				{
+					OutError = FString::Printf(TEXT("expect.%s.%s"), *EntityRef, *OutError);
+					return false;
+				}
+				Out.Properties.Add(MoveTemp(P));
 			}
 		}
 
