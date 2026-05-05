@@ -13,6 +13,7 @@
 #include "Slate/SHktVMStatePanel.h"
 #include "Slate/SHktRuntimeInsightsPanel.h"
 #include "Slate/SHktGameplayLogPanel.h"
+#include "Slate/SHktViewModelStatePanel.h"
 
 #define LOCTEXT_NAMESPACE "HktInsightsEditor"
 
@@ -22,6 +23,7 @@ static const FName HktVMStateTabName(TEXT("HktVMStateTab"));
 static const FName HktRuntimeInsightsTabName(TEXT("HktRuntimeInsightsTab"));
 static const FName HktWorldStateTabName(TEXT("HktWorldStateTab"));
 static const FName HktGameplayLogTabName(TEXT("HktGameplayLogTab"));
+static const FName HktViewModelStateTabName(TEXT("HktViewModelStateTab"));
 
 /**
  * HktInsightsEditor 모듈 — 에디터 탭 등록 및 메뉴 통합
@@ -37,6 +39,7 @@ private:
     TSharedRef<SDockTab> SpawnRuntimeTab(const FSpawnTabArgs& Args);
     TSharedRef<SDockTab> SpawnWorldStateTab(const FSpawnTabArgs& Args);
     TSharedRef<SDockTab> SpawnGameplayLogTab(const FSpawnTabArgs& Args);
+    TSharedRef<SDockTab> SpawnViewModelStateTab(const FSpawnTabArgs& Args);
 
     void RegisterMenuExtensions();
     void UnregisterMenuExtensions();
@@ -86,6 +89,15 @@ void FHktInsightsEditorModule::StartupModule()
         .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
         .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
 
+    // ViewModel State 탭
+    FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+        HktViewModelStateTabName,
+        FOnSpawnTab::CreateRaw(this, &FHktInsightsEditorModule::SpawnViewModelStateTab))
+        .SetDisplayName(LOCTEXT("ViewModelStateTabTitle", "HKT ViewModel State"))
+        .SetTooltipText(LOCTEXT("ViewModelStateTabTooltip", "PresentationState (ViewModel) entity/view inspector"))
+        .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
+        .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
+
     bTabSpawnerRegistered = true;
 
     RegisterMenuExtensions();
@@ -105,6 +117,7 @@ void FHktInsightsEditorModule::ShutdownModule()
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktRuntimeInsightsTabName);
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktWorldStateTabName);
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktGameplayLogTabName);
+        FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktViewModelStateTabName);
         bTabSpawnerRegistered = false;
     }
 
@@ -148,6 +161,16 @@ TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnGameplayLogTab(const FSpawnT
         .Label(LOCTEXT("GameplayLogTabLabel", "HKT Gameplay Log"))
         [
             SNew(SHktGameplayLogPanel)
+        ];
+}
+
+TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnViewModelStateTab(const FSpawnTabArgs& Args)
+{
+    return SNew(SDockTab)
+        .TabRole(ETabRole::NomadTab)
+        .Label(LOCTEXT("ViewModelStateTabLabel", "HKT ViewModel State"))
+        [
+            SNew(SHktViewModelStatePanel)
         ];
 }
 
@@ -195,6 +218,15 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                 {
                     FGlobalTabmanager::Get()->TryInvokeTab(HktGameplayLogTabName);
                 })));
+
+            Section.AddMenuEntry("HktViewModelState",
+                LOCTEXT("ViewModelStateMenu", "HKT ViewModel State"),
+                LOCTEXT("ViewModelStateMenuTooltip", "Open PresentationState (ViewModel) inspector"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktViewModelStateTabName);
+                })));
         }
 
         // Tools 메뉴에도 추가
@@ -237,6 +269,15 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                 FUIAction(FExecuteAction::CreateLambda([]()
                 {
                     FGlobalTabmanager::Get()->TryInvokeTab(HktGameplayLogTabName);
+                })));
+
+            Section.AddMenuEntry("HktViewModelStateTools",
+                LOCTEXT("ViewModelStateToolsMenu", "HKT ViewModel State"),
+                LOCTEXT("ViewModelStateToolsTooltip", "Open PresentationState (ViewModel) inspector"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktViewModelStateTabName);
                 })));
         }
     }));

@@ -13,6 +13,7 @@
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
+#include "HktCoreDataCollector.h"
 #include "HktCoreProperties.h"
 #include "HktRuntimeTags.h"
 #include "Engine/World.h"
@@ -331,9 +332,231 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 		}
 	}
 
+#if ENABLE_HKT_INSIGHTS
+	// 디버그 패널용 publish — ClearFrameChanges 전에 (이번 프레임 더티 정보 활용)
+	PublishStateToCollector();
+#endif
+
 	// Processor가 소비한 후 프레임 변경 데이터 정리
 	State.ClearFrameChanges();
 }
+
+#if ENABLE_HKT_INSIGHTS
+
+namespace HktPresentationInsights
+{
+	static FString VecToString(const FVector& V)
+	{
+		return FString::Printf(TEXT("(%.1f,%.1f,%.1f)"), V.X, V.Y, V.Z);
+	}
+	static FString RotToString(const FRotator& R)
+	{
+		return FString::Printf(TEXT("(%.1f,%.1f,%.1f)"), R.Pitch, R.Yaw, R.Roll);
+	}
+	static FString ColorToString(const FLinearColor& C)
+	{
+		return FString::Printf(TEXT("(%.2f,%.2f,%.2f,%.2f)"), C.R, C.G, C.B, C.A);
+	}
+	static const TCHAR* RenderCategoryToString(EHktRenderCategory C)
+	{
+		switch (C)
+		{
+		case EHktRenderCategory::Actor:      return TEXT("Actor");
+		case EHktRenderCategory::MassEntity: return TEXT("MassEntity");
+		case EHktRenderCategory::FX:         return TEXT("FX");
+		case EHktRenderCategory::Debris:     return TEXT("Debris");
+		default:                             return TEXT("None");
+		}
+	}
+
+	/**
+	 * THktVisualField 의 (값, 더티여부) 를 PropSummary 에 append 한다.
+	 * 더티이면 prefix '*' 로 표시 — 패널이 하이라이트 가능.
+	 */
+	template <typename T, typename FmtFn>
+	static void AppendField(FString& Out, const TCHAR* Name, const THktVisualField<T>& F,
+	                        int64 CurrentFrame, FmtFn&& Fmt)
+	{
+		const TCHAR* Prefix = F.IsDirty(CurrentFrame) ? TEXT("*") : TEXT("");
+		Out += FString::Printf(TEXT(" | %s%s=%s"), Prefix, Name, *Fmt(F.Get()));
+	}
+}
+
+void UHktPresentationSubsystem::PublishStateToCollector()
+{
+	using namespace HktPresentationInsights;
+
+	// SourceName: NetMode 기반 — WorldState 와 동일한 명명 규칙 ("Server"/"Client"/"Standalone")
+	FString SourceName = TEXT("Standalone");
+	if (ULocalPlayer* LP = GetLocalPlayer())
+	{
+		if (UWorld* W = LP->GetWorld())
+		{
+			switch (W->GetNetMode())
+			{
+			case NM_Client:        SourceName = TEXT("Client"); break;
+			case NM_ListenServer:
+			case NM_DedicatedServer: SourceName = TEXT("Server"); break;
+			case NM_Standalone:
+			default:               SourceName = TEXT("Standalone"); break;
+			}
+		}
+	}
+
+	const FString Category = FString::Printf(TEXT("Presentation.%s"), *SourceName);
+	HKT_INSIGHT_CLEAR_CATEGORY(Category);
+
+	const int64 CF = State.CurrentFrame;
+	HKT_INSIGHT_COLLECT(Category, TEXT("_Frame"), FString::Printf(TEXT("%lld"), CF));
+
+	// 살아있는 엔티티 카운트
+	int32 AliveCount = 0;
+	for (auto It = State.Metas.CreateConstIterator(); It; ++It)
+	{
+		if (It->IsAlive()) ++AliveCount;
+	}
+	HKT_INSIGHT_COLLECT(Category, TEXT("_EntityCount"), FString::FromInt(AliveCount));
+	HKT_INSIGHT_COLLECT(Category, TEXT("_DirtyThisFrame"), FString::FromInt(State.DirtyThisFrame.Num()));
+	HKT_INSIGHT_COLLECT(Category, TEXT("_SpawnedThisFrame"), FString::FromInt(State.SpawnedThisFrame.Num()));
+	HKT_INSIGHT_COLLECT(Category, TEXT("_RemovedThisFrame"), FString::FromInt(State.RemovedThisFrame.Num()));
+
+	// 엔티티별 — Meta + 모든 View
+	for (auto It = State.Metas.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityMeta& Meta = *It;
+		if (!Meta.IsAlive()) continue;
+
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		FString Sum;
+
+		// Meta 섹션 (prefix 없음 — 메타 정보로 헤더에 표시)
+		Sum += FString::Printf(TEXT("RenderCategory=%s"), RenderCategoryToString(Meta.RenderCategory));
+		Sum += FString::Printf(TEXT(" | SpawnedFrame=%lld"), Meta.SpawnedFrame);
+		Sum += FString::Printf(TEXT(" | LastDirtyFrame=%lld"), Meta.LastDirtyFrame);
+
+		// Transform
+		if (const FHktTransformView* V = State.GetTransform(Id))
+		{
+			AppendField(Sum, TEXT("Transform.Location"),       V->Location,       CF, [](const FVector& X){ return VecToString(X); });
+			AppendField(Sum, TEXT("Transform.Rotation"),       V->Rotation,       CF, [](const FRotator& X){ return RotToString(X); });
+			AppendField(Sum, TEXT("Transform.RenderLocation"), V->RenderLocation, CF, [](const FVector& X){ return VecToString(X); });
+		}
+
+		// Physics
+		if (const FHktPhysicsView* V = State.GetPhysics(Id))
+		{
+			AppendField(Sum, TEXT("Physics.CollisionRadius"),     V->CollisionRadius,     CF, [](float X){ return FString::SanitizeFloat(X); });
+			AppendField(Sum, TEXT("Physics.CollisionHalfHeight"), V->CollisionHalfHeight, CF, [](float X){ return FString::SanitizeFloat(X); });
+			AppendField(Sum, TEXT("Physics.CollisionLayer"),      V->CollisionLayer,      CF, [](int32 X){ return FString::FromInt(X); });
+		}
+
+		// Movement
+		if (const FHktMovementView* V = State.GetMovement(Id))
+		{
+			AppendField(Sum, TEXT("Movement.MoveTarget"), V->MoveTarget, CF, [](const FVector& X){ return VecToString(X); });
+			AppendField(Sum, TEXT("Movement.MoveForce"), V->MoveForce, CF, [](float X){ return FString::SanitizeFloat(X); });
+			AppendField(Sum, TEXT("Movement.IsMoving"),  V->bIsMoving,  CF, [](bool X){ return FString(X ? TEXT("true") : TEXT("false")); });
+			AppendField(Sum, TEXT("Movement.IsJumping"), V->bIsJumping, CF, [](bool X){ return FString(X ? TEXT("true") : TEXT("false")); });
+			AppendField(Sum, TEXT("Movement.Velocity"),  V->Velocity,   CF, [](const FVector& X){ return VecToString(X); });
+		}
+
+		// Vitals
+		if (const FHktVitalsView* V = State.GetVitals(Id))
+		{
+			AppendField(Sum, TEXT("Vitals.Health"),      V->Health,      CF, [](float X){ return FString::SanitizeFloat(X); });
+			AppendField(Sum, TEXT("Vitals.MaxHealth"),   V->MaxHealth,   CF, [](float X){ return FString::SanitizeFloat(X); });
+			AppendField(Sum, TEXT("Vitals.HealthRatio"), V->HealthRatio, CF, [](float X){ return FString::Printf(TEXT("%.3f"), X); });
+			AppendField(Sum, TEXT("Vitals.Mana"),        V->Mana,        CF, [](float X){ return FString::SanitizeFloat(X); });
+			AppendField(Sum, TEXT("Vitals.MaxMana"),     V->MaxMana,     CF, [](float X){ return FString::SanitizeFloat(X); });
+			AppendField(Sum, TEXT("Vitals.ManaRatio"),   V->ManaRatio,   CF, [](float X){ return FString::Printf(TEXT("%.3f"), X); });
+		}
+
+		// Combat
+		if (const FHktCombatView* V = State.GetCombat(Id))
+		{
+			AppendField(Sum, TEXT("Combat.AttackPower"),    V->AttackPower,    CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Combat.Defense"),        V->Defense,        CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Combat.CP"),             V->CP,             CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Combat.MaxCP"),          V->MaxCP,          CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Combat.CPRatio"),        V->CPRatio,        CF, [](float X){ return FString::Printf(TEXT("%.3f"), X); });
+			AppendField(Sum, TEXT("Combat.AttackSpeed"),    V->AttackSpeed,    CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Combat.MotionPlayRate"), V->MotionPlayRate, CF, [](int32 X){ return FString::FromInt(X); });
+		}
+
+		// Ownership
+		if (const FHktOwnershipView* V = State.GetOwnership(Id))
+		{
+			AppendField(Sum, TEXT("Ownership.Team"),           V->Team,           CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Ownership.OwnedPlayerUid"), V->OwnedPlayerUid, CF, [](int64 X){ return FString::Printf(TEXT("%lld"), X); });
+			AppendField(Sum, TEXT("Ownership.OwnerLabel"),     V->OwnerLabel,     CF, [](const FString& X){ return X; });
+			AppendField(Sum, TEXT("Ownership.TeamColor"),      V->TeamColor,      CF, [](const FLinearColor& X){ return ColorToString(X); });
+		}
+
+		// Animation
+		if (const FHktAnimationView* V = State.GetAnimation(Id))
+		{
+			AppendField(Sum, TEXT("Animation.AnimState"),      V->AnimState,      CF, [](const FGameplayTag& X){ return X.ToString(); });
+			AppendField(Sum, TEXT("Animation.MontageState"),   V->MontageState,   CF, [](const FGameplayTag& X){ return X.ToString(); });
+			AppendField(Sum, TEXT("Animation.AnimStateUpper"), V->AnimStateUpper, CF, [](const FGameplayTag& X){ return X.ToString(); });
+			AppendField(Sum, TEXT("Animation.Stance"),         V->Stance,         CF, [](const FGameplayTag& X){ return X.ToString(); });
+
+			const TCHAR* TagsPrefix = (V->TagsDirtyFrame == CF) ? TEXT("*") : TEXT("");
+			Sum += FString::Printf(TEXT(" | %sAnimation.Tags=%s"), TagsPrefix, *V->Tags.ToStringSimple());
+			if (V->PendingAnimTriggers.Num() > 0)
+			{
+				FString Triggers;
+				for (const FGameplayTag& T : V->PendingAnimTriggers)
+				{
+					if (!Triggers.IsEmpty()) Triggers += TEXT(",");
+					Triggers += T.ToString();
+				}
+				Sum += FString::Printf(TEXT(" | *Animation.PendingTriggers=%s"), *Triggers);
+			}
+		}
+
+		// Visualization
+		if (const FHktVisualizationView* V = State.GetVisualization(Id))
+		{
+			AppendField(Sum, TEXT("Visualization.VisualElement"),     V->VisualElement,     CF, [](const FGameplayTag& X){ return X.ToString(); });
+			AppendField(Sum, TEXT("Visualization.ResolvedAssetPath"), V->ResolvedAssetPath, CF, [](const FSoftObjectPath& X){ return X.ToString(); });
+		}
+
+		// Item
+		if (const FHktItemView* V = State.GetItem(Id))
+		{
+			AppendField(Sum, TEXT("Item.OwnerEntity"), V->OwnerEntity, CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Item.EquipIndex"),  V->EquipIndex,  CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Item.ItemState"),   V->ItemState,   CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Item.Equippable"),  V->Equippable,  CF, [](int32 X){ return FString::FromInt(X); });
+		}
+
+		// VoxelSkin
+		if (const FHktVoxelSkinView* V = State.GetVoxelSkin(Id))
+		{
+			AppendField(Sum, TEXT("VoxelSkin.SkinSet"), V->VoxelSkinSet, CF, [](int32 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("VoxelSkin.Palette"), V->VoxelPalette, CF, [](int32 X){ return FString::FromInt(X); });
+		}
+
+		// Sprite
+		if (const FHktSpriteView* V = State.GetSprite(Id))
+		{
+			AppendField(Sum, TEXT("Sprite.Character"),     V->Character,     CF, [](const FGameplayTag& X){ return X.ToString(); });
+			AppendField(Sum, TEXT("Sprite.Facing"),        V->Facing,        CF, [](uint8 X){ return FString::FromInt(X); });
+			AppendField(Sum, TEXT("Sprite.AnimStartTick"), V->AnimStartTick, CF, [](int32 X){ return FString::FromInt(X); });
+		}
+
+		// TerrainDebris
+		if (const FHktTerrainDebrisView* V = State.GetTerrainDebris(Id))
+		{
+			AppendField(Sum, TEXT("TerrainDebris.TypeId"), V->TerrainTypeId, CF, [](int32 X){ return FString::FromInt(X); });
+		}
+
+		const FString Key = FString::Printf(TEXT("E_%d"), Id);
+		HKT_INSIGHT_COLLECT(Category, Key, Sum);
+	}
+}
+
+#endif // ENABLE_HKT_INSIGHTS
 
 void UHktPresentationSubsystem::NotifyCameraViewChanged()
 {

@@ -75,6 +75,11 @@ private:
 
 	void OnTick(float DeltaSeconds);
 
+#if ENABLE_HKT_INSIGHTS
+	/** PresentationState 의 모든 엔티티/View 를 FHktCoreDataCollector 에 publish (매 OnTick). */
+	void PublishStateToCollector();
+#endif
+
 	FDelegateHandle TickHandle;
 	FHktPresentationState State;
 
