@@ -53,9 +53,10 @@ def test_referential_integrity_missing_id() -> None:
 
 
 def test_self_reference_in_parents() -> None:
+    """자기 참조는 길이 1의 순환 — R1 Acyclicity 로 분류된다."""
     goals = [_g("G-0010", parents=["G-0010"], tags=["pillar:x"])]
     errors, _ = validate_dag(goals)
-    assert any(e.rule == "ReferentialIntegrity" for e in errors)
+    assert any(e.rule == "Acyclicity" for e in errors)
 
 
 def test_bidirectional_inconsistency() -> None:

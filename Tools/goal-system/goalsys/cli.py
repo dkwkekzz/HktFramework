@@ -23,23 +23,26 @@ from .bidirectional import sync_realizes, validate_bidirectional
 from .codescan import scan_code_tags
 from .dag import validate_dag
 from .lifecycle import IdExhaustedError, NewGoalRequest, new_goal, next_id
-from .parser import GoalParseError, goals_by_id, load_goals
+from .parser import Goal, GoalParseError, goals_by_id, load_goals
 from .schema import validate_goals
 from .verify import format_report, verify_goal
 from .views import generate_graph, generate_index, generate_tree
 
 
-# ---------------------------------------------------------------------------
-# Phase 1: validate / build-views
-# ---------------------------------------------------------------------------
+def _load_or_exit(goals_dir: Path) -> tuple[list[Goal] | None, int]:
+    """``load_goals`` 의 표준 오류 처리 — 실패 시 (None, exit_code) 반환."""
+
+    try:
+        return load_goals(goals_dir), 0
+    except (GoalParseError, FileNotFoundError) as exc:
+        print(f"파싱 오류: {exc}", file=sys.stderr)
+        return None, 2
 
 
 def cmd_validate(goals_dir: Path, *, strict: bool) -> int:
-    try:
-        goals = load_goals(goals_dir)
-    except (GoalParseError, FileNotFoundError) as exc:
-        print(f"파싱 오류: {exc}", file=sys.stderr)
-        return 2
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
     if not goals:
         print(f"경고: {goals_dir} 에 Goal 파일이 없다.", file=sys.stderr)
         return 0
@@ -73,11 +76,9 @@ def cmd_validate(goals_dir: Path, *, strict: bool) -> int:
 
 
 def cmd_build_views(goals_dir: Path) -> int:
-    try:
-        goals = load_goals(goals_dir)
-    except (GoalParseError, FileNotFoundError) as exc:
-        print(f"파싱 오류: {exc}", file=sys.stderr)
-        return 2
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
     if not goals:
         print(f"경고: {goals_dir} 에 Goal 파일이 없다.", file=sys.stderr)
     (goals_dir / "INDEX.md").write_text(generate_index(goals), encoding="utf-8")
@@ -85,11 +86,6 @@ def cmd_build_views(goals_dir: Path) -> int:
     (goals_dir / "graph.mmd").write_text(generate_graph(goals), encoding="utf-8")
     print(f"생성 완료: INDEX.md / TREE.md / graph.mmd ({len(goals)} goals)")
     return 0
-
-
-# ---------------------------------------------------------------------------
-# Phase 2: scan-code-tags / validate-bidirectional / sync-realizes
-# ---------------------------------------------------------------------------
 
 
 def cmd_scan_code_tags(root: Path, *, as_json: bool) -> int:
@@ -118,11 +114,9 @@ def cmd_scan_code_tags(root: Path, *, as_json: bool) -> int:
 
 
 def cmd_validate_bidirectional(goals_dir: Path, project_root: Path, *, strict: bool) -> int:
-    try:
-        goals = load_goals(goals_dir)
-    except (GoalParseError, FileNotFoundError) as exc:
-        print(f"파싱 오류: {exc}", file=sys.stderr)
-        return 2
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
     code_index = scan_code_tags(project_root)
     violations = validate_bidirectional(goals, code_index, project_root)
     for v in violations:
@@ -134,11 +128,9 @@ def cmd_validate_bidirectional(goals_dir: Path, project_root: Path, *, strict: b
 
 
 def cmd_sync_realizes(goals_dir: Path, project_root: Path, *, dry_run: bool) -> int:
-    try:
-        goals = load_goals(goals_dir)
-    except (GoalParseError, FileNotFoundError) as exc:
-        print(f"파싱 오류: {exc}", file=sys.stderr)
-        return 2
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
     code_index = scan_code_tags(project_root)
     actions = sync_realizes(goals, code_index, dry_run=dry_run)
     for a in actions:
@@ -150,11 +142,6 @@ def cmd_sync_realizes(goals_dir: Path, project_root: Path, *, dry_run: bool) -> 
     else:
         print(f"-- 적용 완료: {len(actions)} 항목 --", file=sys.stderr)
     return 0
-
-
-# ---------------------------------------------------------------------------
-# Phase 3: next-id / new-goal
-# ---------------------------------------------------------------------------
 
 
 def cmd_next_id(category: str, goals_dir: Path) -> int:
@@ -192,17 +179,10 @@ def cmd_new_goal(
     return 0
 
 
-# ---------------------------------------------------------------------------
-# Phase 4: verify-goal
-# ---------------------------------------------------------------------------
-
-
 def cmd_verify_goal(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
-    try:
-        goals = load_goals(goals_dir)
-    except (GoalParseError, FileNotFoundError) as exc:
-        print(f"파싱 오류: {exc}", file=sys.stderr)
-        return 2
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
     target = next((g for g in goals if g.id == goal_id), None)
     if target is None:
         print(f"오류: Goal {goal_id} 없음 (in {goals_dir})", file=sys.stderr)
@@ -213,11 +193,6 @@ def cmd_verify_goal(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
     else:
         print(format_report(report))
     return 0
-
-
-# ---------------------------------------------------------------------------
-# argparse 라우팅
-# ---------------------------------------------------------------------------
 
 
 def _split_csv(value: str | None) -> List[str] | None:
@@ -231,38 +206,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="goalsys", description="Goal 시스템 CLI")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    # validate
     p_val = sub.add_parser("validate", help="스키마 + DAG 검증")
     p_val.add_argument("goals_dir", type=Path)
     p_val.add_argument("--strict", action="store_true", help="경고도 실패로 취급")
 
-    # build-views
     p_build = sub.add_parser("build-views", help="INDEX/TREE/graph.mmd 자동 생성")
     p_build.add_argument("goals_dir", type=Path)
 
-    # scan-code-tags
     p_scan = sub.add_parser("scan-code-tags", help="코드의 @goal 태그 / GOALS.md 스캔")
     p_scan.add_argument("root", type=Path, help="스캔 시작 경로 (프로젝트 루트 권장)")
     p_scan.add_argument("--json", action="store_true", help="JSON 출력")
 
-    # validate-bidirectional
     p_bi = sub.add_parser("validate-bidirectional", help="C1~C4 양방향 일관성 검증")
     p_bi.add_argument("goals_dir", type=Path)
     p_bi.add_argument("project_root", type=Path, help="realizes 경로 기준 루트")
     p_bi.add_argument("--strict", action="store_true", help="위반 시 exit 1")
 
-    # sync-realizes
     p_sync = sub.add_parser("sync-realizes", help="코드 태그 → Goal.realizes 동기화")
     p_sync.add_argument("goals_dir", type=Path)
     p_sync.add_argument("project_root", type=Path)
     p_sync.add_argument("--dry-run", action="store_true", help="파일 수정 없이 미리보기")
 
-    # next-id
     p_nid = sub.add_parser("next-id", help="다음 가용 Goal ID 출력")
     p_nid.add_argument("category", choices=["pillar", "system", "general"])
     p_nid.add_argument("goals_dir", type=Path)
 
-    # new-goal
     p_new = sub.add_parser("new-goal", help="초안 Goal 파일 생성")
     p_new.add_argument("category", choices=["pillar", "system", "general"])
     p_new.add_argument("goals_dir", type=Path)
@@ -271,7 +239,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_new.add_argument("--constraints", default=None)
     p_new.add_argument("--tags", default=None)
 
-    # verify-goal
     p_ver = sub.add_parser("verify-goal", help="Goal 의 success_criteria 자동 검증")
     p_ver.add_argument("goal_id")
     p_ver.add_argument("goals_dir", type=Path)

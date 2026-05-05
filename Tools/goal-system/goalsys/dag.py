@@ -62,15 +62,16 @@ def _check_referential_integrity(
             ("constraints", g.constraints),
         ):
             for ref in ids:
-                if ref not in goals_by_id:
+                if ref == gid:
+                    # 자기 참조 = 길이 1의 순환. R1 (Acyclicity) 로 분류.
+                    errors.append(DagError(
+                        "Acyclicity", gid,
+                        f"{field_name} 가 자기 자신({ref})을 가리킨다",
+                    ))
+                elif ref not in goals_by_id:
                     errors.append(DagError(
                         "ReferentialIntegrity", gid,
                         f"{field_name} 의 ID {ref} 가 실재하지 않는다",
-                    ))
-                if ref == gid:
-                    errors.append(DagError(
-                        "ReferentialIntegrity", gid,
-                        f"{field_name} 가 자기 자신({ref})을 가리킨다",
                     ))
         if g.superseded_by and g.superseded_by not in goals_by_id:
             errors.append(DagError(

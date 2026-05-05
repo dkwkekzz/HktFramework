@@ -14,8 +14,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Literal, Optional, Sequence
 
-from .parser import Goal, load_goals
-
 
 Category = Literal["pillar", "system", "general"]
 
@@ -39,28 +37,20 @@ class IdExhaustedError(RuntimeError):
 
 
 def used_ids(goals_dir: Path | str) -> set[int]:
-    """``goals_dir`` 내 모든 Goal 파일의 ID 정수부 집합."""
+    """``goals_dir`` 내 모든 Goal 파일의 ID 정수부 집합.
+
+    ID 가 영구 불변이라는 전제(§3.4)에서 파일명만 신뢰한다 — frontmatter 와의
+    불일치는 ``validate-schema`` 가 따로 차단한다.
+    """
 
     base = Path(goals_dir)
     if not base.is_dir():
         return set()
     used: set[int] = set()
-    # 이름 패턴만 스캔해도 충분하지만, frontmatter 내부 id 와 파일명 ID 가 다를 수 있으니
-    # 둘 다 본다.
     for f in base.glob("**/G-*.md"):
-        if f.name in {"INDEX.md", "TREE.md"}:
-            continue
         m = _ID_NUM_RE.search(f.name)
         if m:
             used.add(int(m.group(1)))
-    try:
-        for g in load_goals(base):
-            m = _ID_NUM_RE.search(g.id)
-            if m:
-                used.add(int(m.group(1)))
-    except Exception:
-        # 일부 파일이 깨졌어도 next-id 는 동작해야 한다 — 파일명만 신뢰.
-        pass
     return used
 
 

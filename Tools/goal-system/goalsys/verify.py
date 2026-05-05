@@ -11,10 +11,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence
 
 from .parser import Goal
 
+
+Result = Literal["pass", "fail", "manual_required"]
+
+PASS: Result = "pass"
+FAIL: Result = "fail"
+MANUAL: Result = "manual_required"
 
 CriterionResult = Dict[str, Any]
 MeasureHandler = Callable[[Goal, Dict[str, Any]], CriterionResult]
@@ -34,8 +40,8 @@ class VerifyReport:
 
     @property
     def summary(self) -> Dict[str, int]:
-        passed = sum(1 for c in self.criteria if c.get("result") == "pass")
-        failed = sum(1 for c in self.criteria if c.get("result") == "fail")
+        passed = sum(1 for c in self.criteria if c.get("result") == PASS)
+        failed = sum(1 for c in self.criteria if c.get("result") == FAIL)
         return {"passed": passed, "failed": failed, "total": len(self.criteria)}
 
     def to_dict(self) -> Dict[str, Any]:
@@ -94,24 +100,24 @@ def verify_goal(goal: Goal) -> VerifyReport:
     for sc in goal.success_criteria or []:
         if not isinstance(sc, dict):
             continue
-        description = sc.get("description", "")
         measurable = bool(sc.get("measurable"))
         measure = sc.get("measure")
         entry: CriterionResult = {
-            "description": description,
+            "description": sc.get("description", ""),
             "measurable": measurable,
             "measure": measure,
             "automated": False,
-            "result": "manual_required",
+            "result": MANUAL,
             "current_value": None,
         }
         if measurable and isinstance(measure, str):
             handler = _find_handler(measure)
             if handler is not None:
+                # 핸들러 예외는 측정 실패로 취급. status 는 자동 변경하지 않으므로 안전.
                 try:
                     out = handler(goal, sc) or {}
                 except Exception as exc:  # pragma: no cover — defensive
-                    out = {"result": "fail", "current_value": f"handler error: {exc}"}
+                    out = {"result": FAIL, "current_value": f"handler error: {exc}"}
                 entry["automated"] = True
                 entry.update(out)
         report.criteria.append(entry)
@@ -138,12 +144,12 @@ def format_report(report: VerifyReport) -> str:
     """도구 §4.5 의 사람이 읽는 형식."""
 
     out: List[str] = []
+    markers = {PASS: "✅ pass", FAIL: "❌ fail", MANUAL: "⚠ manual_required"}
     out.append(f"{report.goal_id} 검증 결과")
     out.append("")
     for i, crit in enumerate(report.criteria, start=1):
-        result = crit.get("result", "manual_required")
-        marker = {"pass": "✅ pass", "fail": "❌ fail",
-                  "manual_required": "⚠ manual_required"}.get(result, result)
+        result = crit.get("result", MANUAL)
+        marker = markers.get(result, result)
         out.append(f"Criterion {i}: {crit.get('description', '')}")
         if crit.get("measure"):
             out.append(f"  측정: {crit['measure']}")

@@ -17,17 +17,11 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 
-# ---------------------------------------------------------------------------
-# 정규식·상수
-# ---------------------------------------------------------------------------
-
-# 도구 §5.1 의 정규식. 4자리 이상의 숫자도 허용 (스키마는 별도 검증).
 _GOAL_TAG_RE = re.compile(r"@goal:\s*(G-\d{4,})\b")
 _REALIZES_HEADER_RE = re.compile(r"^##\s+Realizes\s*$", re.IGNORECASE)
 _NEXT_HEADER_RE = re.compile(r"^##\s+\S")
 _GOAL_BULLET_RE = re.compile(r"^\s*[-*]\s+\*?\*?(G-\d{4,})\*?\*?")
 
-# 코드 파일로 인식할 확장자.
 _CODE_EXTENSIONS: frozenset[str] = frozenset({
     ".h", ".hpp", ".hh", ".hxx", ".inl",
     ".c", ".cc", ".cpp", ".cxx",
@@ -39,7 +33,6 @@ _CODE_EXTENSIONS: frozenset[str] = frozenset({
     ".cmake",
 })
 
-# 무시할 디렉토리 이름 (어느 깊이에서든 매칭).
 _IGNORED_DIRS: frozenset[str] = frozenset({
     ".git", ".hg", ".svn",
     "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
@@ -48,7 +41,6 @@ _IGNORED_DIRS: frozenset[str] = frozenset({
     "build", "Build", "out", "dist", "target",
 })
 
-# 무시할 파일 확장자 (컴파일 산출물·바이너리).
 _IGNORED_EXTENSIONS: frozenset[str] = frozenset({
     ".o", ".obj", ".exe", ".bin", ".lib", ".a",
     ".so", ".dll", ".dylib", ".pdb",
@@ -57,13 +49,7 @@ _IGNORED_EXTENSIONS: frozenset[str] = frozenset({
     ".zip", ".tar", ".gz", ".7z",
 })
 
-# 헤더 영역으로 간주할 최대 라인 수 — `@goal:` 태그를 검색할 윈도우.
 HEADER_SCAN_LINES = 50
-
-
-# ---------------------------------------------------------------------------
-# 결과 자료구조
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -100,10 +86,10 @@ class CodeTagIndex:
 
         add(self.file_tags.get(rel_path, []))
 
-        # 상위 디렉토리들의 GOALS.md 도 적용 — 가까운 디렉토리부터.
-        rel = Path(rel_path)
-        for d in [rel.parent, *rel.parents]:
-            key = _normalize_rel(d)
+        # 상위 디렉토리들의 GOALS.md 도 가까운 순으로 적용. ``Path.parents`` 는
+        # 이미 즉시 부모를 첫 원소로 포함한다.
+        for d in Path(rel_path).parents:
+            key = normalize_rel(d)
             if key in self.dir_tags:
                 add(self.dir_tags[key])
         return out
@@ -141,27 +127,16 @@ def extract_header_tags(text: str, *, max_lines: int = HEADER_SCAN_LINES) -> Lis
     return out
 
 
-def _looks_like_header(line: str) -> bool:
-    """라인이 (잠재적으로) 주석/메타데이터로 보이면 True. 첫 코드 줄을 식별하기 위한 휴리스틱."""
+_HEADER_PREFIXES: tuple[str, ...] = (
+    "#!", "//", "/*", "*", "#", "--", ";;",
+    '"""', "'''", "---",
+)
 
-    if not line:
-        return True
-    # 셔뱅·encoding 선언.
-    if line.startswith("#!"):
-        return True
-    # C/C++ 주석.
-    if line.startswith("//") or line.startswith("/*") or line.startswith("*"):
-        return True
-    # python/shell 주석.
-    if line.startswith("#"):
-        return True
-    # SQL/Lua/Haskell.
-    if line.startswith("--") or line.startswith(";;"):
-        return True
-    # docstring 또는 markdown frontmatter.
-    if line.startswith('"""') or line.startswith("'''") or line.startswith("---"):
-        return True
-    return False
+
+def _looks_like_header(line: str) -> bool:
+    """라인이 주석/메타데이터로 보이면 True — 첫 코드 줄 식별을 위한 휴리스틱."""
+
+    return not line or line.startswith(_HEADER_PREFIXES)
 
 
 def parse_goals_md(text: str) -> List[str]:
@@ -197,15 +172,16 @@ def parse_goals_md(text: str) -> List[str]:
 # ---------------------------------------------------------------------------
 
 
-def _normalize_rel(path: Path) -> str:
+def normalize_rel(path: Path | str) -> str:
     """경로를 프로젝트 루트 기준 상대 경로 + POSIX 슬래시로 정규화한다.
 
-    빈 경로(`Path('.')`) 는 빈 문자열로 표현해 일관된 키로 쓴다.
+    빈 경로(``Path('.')``) 는 빈 문자열 — 인덱스 키의 일관성을 위해.
     """
 
-    if str(path) in {".", ""}:
+    s = str(path)
+    if s in {".", ""}:
         return ""
-    return str(path).replace("\\", "/")
+    return s.replace("\\", "/")
 
 
 def _is_ignored_dir(name: str) -> bool:
@@ -276,7 +252,7 @@ def _scan_file(path: Path, root: Path, index: CodeTagIndex) -> None:
             return
         goals = parse_goals_md(text)
         if goals:
-            index.dir_tags[_normalize_rel(rel_path.parent)] = goals
+            index.dir_tags[normalize_rel(rel_path.parent)] = goals
         return
 
     if not _is_code_file(name):
@@ -288,4 +264,4 @@ def _scan_file(path: Path, root: Path, index: CodeTagIndex) -> None:
         return
     tags = extract_header_tags(text)
     if tags:
-        index.file_tags[_normalize_rel(rel_path)] = tags
+        index.file_tags[normalize_rel(rel_path)] = tags

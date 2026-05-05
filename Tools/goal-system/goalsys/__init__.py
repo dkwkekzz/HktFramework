@@ -16,11 +16,13 @@ from .views import generate_index, generate_tree, generate_graph
 from .codescan import (
     CodeTagIndex,
     extract_header_tags,
+    normalize_rel,
     parse_goals_md,
     scan_code_tags,
 )
 from .bidirectional import (
     BidirectionalViolation,
+    Condition,
     SyncAction,
     sync_realizes,
     validate_bidirectional,
@@ -66,10 +68,12 @@ __all__ = [
     # codescan
     "CodeTagIndex",
     "extract_header_tags",
+    "normalize_rel",
     "parse_goals_md",
     "scan_code_tags",
     # bidirectional
     "BidirectionalViolation",
+    "Condition",
     "SyncAction",
     "sync_realizes",
     "validate_bidirectional",

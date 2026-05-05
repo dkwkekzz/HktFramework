@@ -9,30 +9,28 @@ Goal `realizes` 와 코드 ``@goal:`` 태그(또는 디렉토리 ``GOALS.md``) �
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Literal, Optional, Sequence
 
 import yaml
 
-from .codescan import CodeTagIndex, _normalize_rel  # type: ignore[attr-defined]
+from .codescan import CodeTagIndex
 from .parser import Goal
 
 
-# ---------------------------------------------------------------------------
-# 결과 자료구조
-# ---------------------------------------------------------------------------
+Condition = Literal["C1", "C2", "C3", "C4"]
 
 
 @dataclass
 class BidirectionalViolation:
     """C1~C4 위반 — 항상 ``severity: warning`` (도구 §5.2)."""
 
-    condition: str  # "C1" | "C2" | "C3" | "C4"
+    condition: Condition
     goal_id: Optional[str]
     path: Optional[str]
     message: str
-    severity: str = "warning"
+    severity: Literal["warning"] = "warning"
 
     def __str__(self) -> str:
         loc = self.goal_id or self.path or "?"
@@ -75,14 +73,22 @@ def validate_bidirectional(
     violations: List[BidirectionalViolation] = []
 
     by_id: Dict[str, Goal] = {g.id: g for g in goals}
+    realizes_index: Dict[str, set[str]] = {
+        gid: {e.get("path", "") for e in g.realizes if e.get("path")}
+        for gid, g in by_id.items()
+    }
+    # realizes.path 의 존재 여부를 사전에 한 번만 stat 한다 (C1·C3 가 공유).
+    exists_cache: Dict[str, bool] = {
+        path: (root / path).exists()
+        for paths in realizes_index.values()
+        for path in paths
+    }
 
-    # --- C1: realizes.path 의 파일 시스템 실재 ---
+    # C1: realizes.path 의 파일 시스템 실재.
     for g in goals:
         for entry in g.realizes:
             path = entry.get("path", "")
-            if not path:
-                continue
-            if not (root / path).exists():
+            if path and not exists_cache.get(path, False):
                 violations.append(BidirectionalViolation(
                     condition="C1",
                     goal_id=g.id,
@@ -90,7 +96,7 @@ def validate_bidirectional(
                     message="realizes.path 가 파일 시스템에 없다",
                 ))
 
-    # --- C2: 코드 태그의 ID 가 실재 Goal ---
+    # C2: 코드 태그의 ID 가 실재 Goal.
     for path, ids in code_index.file_tags.items():
         for gid in ids:
             if gid not in by_id:
@@ -110,14 +116,11 @@ def validate_bidirectional(
                     message=f"GOALS.md 가 가리키는 Goal {gid} 이 존재하지 않는다",
                 ))
 
-    # --- C3: A.realizes 에 X → X 의 태그 또는 X 디렉토리 GOALS.md 에 A ---
+    # C3: A.realizes 에 X → X 의 태그 또는 X 디렉토리 GOALS.md 에 A.
     for g in goals:
         for entry in g.realizes:
             path = entry.get("path", "")
-            if not path:
-                continue
-            if not (root / path).exists():
-                # C1 에서 이미 보고됨 — 중복 진단 회피.
+            if not path or not exists_cache.get(path, False):
                 continue
             if g.id not in code_index.tags_for(path):
                 violations.append(BidirectionalViolation(
@@ -130,9 +133,7 @@ def validate_bidirectional(
                     ),
                 ))
 
-    # --- C4: X 의 태그에 A → A.realizes 에 X ---
-    realizes_index: Dict[str, set[str]] = {gid: {e.get("path", "") for e in g.realizes}
-                                            for gid, g in by_id.items()}
+    # C4: X 의 태그에 A → A.realizes 에 X.
     for path, ids in code_index.file_tags.items():
         for gid in ids:
             if gid not in by_id:
