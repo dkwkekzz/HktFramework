@@ -28,3 +28,17 @@ python -m goalsys.cli build-views Docs/goals
 
 설계 §9.3 (Phase 3) — 최상위 Pillar Goal 4개와 횡단 제약 Goal 3개를 먼저 작성한다.
 현재(Phase 1) 단계에서는 도구만 준비되었고 실제 Goal 파일은 아직 비어있다.
+
+## 운영 절차 (사용자 명시 호출형)
+
+Goal 라이프사이클 작업(조회·작성·분해·봉사·검증)은
+[`Docs/agent-goal-binding.md`](../agent-goal-binding.md) 운영 절차를 따른다.
+Claude Code 에서는 `/goal` 슬래시 커맨드로 호출 — 일반 작업에 자동 적용되지 않는다.
+
+```
+/goal show <ID>      /goal find <조건>     /goal new           /goal edit <ID>
+/goal plan <ID>      /goal serve <ID>      /goal verify <ID>   /goal sync
+/goal classify "..." /goal validate
+```
+
+스킬 정의: [`.claude/skills/goal/skill.md`](../../.claude/skills/goal/skill.md).
