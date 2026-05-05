@@ -53,9 +53,10 @@ def test_referential_integrity_missing_id() -> None:
 
 
 def test_self_reference_in_parents() -> None:
+    """자기 참조는 길이 1의 순환 — R1 Acyclicity 로 분류된다."""
     goals = [_g("G-0010", parents=["G-0010"], tags=["pillar:x"])]
     errors, _ = validate_dag(goals)
-    assert any(e.rule == "ReferentialIntegrity" for e in errors)
+    assert any(e.rule == "Acyclicity" for e in errors)
 
 
 def test_bidirectional_inconsistency() -> None:
@@ -135,3 +136,25 @@ def test_achieved_without_marker_warns() -> None:
     # success_criteria 가 충족 표시 없음.
     _, warnings = validate_dag([goal])
     assert any(w.rule == "StatusConsistency" for w in warnings)
+
+
+def test_constraint_target_must_be_constraint_goal() -> None:
+    """R6 — ``constraints`` 가 가리키는 Goal 은 ``tags`` 에 ``constraint`` 가 있어야 한다."""
+
+    goals = [
+        _g("G-0001", tags=["constraint"]),  # 진짜 constraint
+        _g("G-0010", tags=["pillar:x"]),    # constraint 가 아님
+        _g("G-1000", parents=["G-0010"], constraints=["G-0010"]),  # 위반
+    ]
+    errors, _ = validate_dag(goals)
+    assert any(e.rule == "ConstraintTarget" and e.goal_id == "G-1000" for e in errors)
+
+
+def test_constraint_target_valid() -> None:
+    goals = [
+        _g("G-0001", tags=["constraint"]),
+        _g("G-0010", tags=["pillar:x"]),
+        _g("G-1000", parents=["G-0010"], constraints=["G-0001"]),
+    ]
+    errors, _ = validate_dag(goals)
+    assert not any(e.rule == "ConstraintTarget" for e in errors)

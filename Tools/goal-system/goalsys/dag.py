@@ -1,13 +1,15 @@
 """Task 1.3 — DAG 무결성 검증.
 
-설계 §4.2 의 5가지 규칙:
-1. 순환 금지 (Acyclicity)
-2. 고아 금지 (No orphans) — 최상위 Pillar 외 모든 Goal 은 parents 1+ 필수
-3. 참조 무결성 (Referential integrity) — 모든 ID 가 실재
-4. 양방향 일관성 (Bidirectional consistency) — A.parents 에 B 면 B.children 에 A
-5. 상태 일관성 (Status consistency)
-   - achieved: success_criteria 가 충족 표시되어야 한다 (`achieved: true`)
-   - abandoned: 자식들은 abandoned 또는 다른 부모로 재배치되어야 한다
+설계 §4.2 의 6가지 규칙:
+- R1 순환 금지 (Acyclicity)
+- R2 고아 금지 (No orphans) — Pillar/Constraint Goal 만 ``parents=[]`` 허용
+- R3 참조 무결성 (Referential integrity) — 모든 ID 가 실재
+- R4 양방향 일관성 (Bidirectional consistency) — A.parents 에 B 면 B.children 에 A
+- R5 상태 일관성 (Status consistency)
+  * achieved: success_criteria 가 충족 표시되어야 한다 (``achieved: true``)
+  * abandoned: 자식들은 abandoned 또는 다른 부모로 재배치되어야 한다
+  * superseded: ``superseded_by`` 필수
+- R6 ``constraints`` 의 참조 대상은 ``tags`` 에 ``constraint`` 포함
 """
 
 from __future__ import annotations
@@ -60,15 +62,16 @@ def _check_referential_integrity(
             ("constraints", g.constraints),
         ):
             for ref in ids:
-                if ref not in goals_by_id:
+                if ref == gid:
+                    # 자기 참조 = 길이 1의 순환. R1 (Acyclicity) 로 분류.
+                    errors.append(DagError(
+                        "Acyclicity", gid,
+                        f"{field_name} 가 자기 자신({ref})을 가리킨다",
+                    ))
+                elif ref not in goals_by_id:
                     errors.append(DagError(
                         "ReferentialIntegrity", gid,
                         f"{field_name} 의 ID {ref} 가 실재하지 않는다",
-                    ))
-                if ref == gid:
-                    errors.append(DagError(
-                        "ReferentialIntegrity", gid,
-                        f"{field_name} 가 자기 자신({ref})을 가리킨다",
                     ))
         if g.superseded_by and g.superseded_by not in goals_by_id:
             errors.append(DagError(
@@ -233,8 +236,25 @@ def _check_status_consistency(
     return errors, warnings
 
 
+def _check_constraint_targets(goals_by_id: Dict[str, Goal]) -> List[DagError]:
+    """R6 — ``constraints`` 가 가리키는 Goal 은 ``tags`` 에 ``constraint`` 가 있어야 한다."""
+
+    errors: List[DagError] = []
+    for gid, g in goals_by_id.items():
+        for ref in g.constraints:
+            target = goals_by_id.get(ref)
+            if target is None:
+                continue  # ReferentialIntegrity 가 따로 보고
+            if "constraint" not in target.tags:
+                errors.append(DagError(
+                    "ConstraintTarget", gid,
+                    f"constraints 의 {ref} 가 Constraint Goal 이 아니다 (tags 에 'constraint' 없음)",
+                ))
+    return errors
+
+
 def validate_dag(goals: Iterable[Goal]) -> Tuple[List[DagError], List[DagWarning]]:
-    """5가지 DAG 규칙을 일괄 검증한다.
+    """6가지 DAG 규칙(R1~R6)을 일괄 검증한다.
 
     Returns:
         (errors, warnings) 튜플. errors 가 비어있으면 DAG 가 유효하다.
@@ -259,5 +279,7 @@ def validate_dag(goals: Iterable[Goal]) -> Tuple[List[DagError], List[DagWarning
     sc_errors, sc_warnings = _check_status_consistency(by_id)
     errors.extend(sc_errors)
     warnings.extend(sc_warnings)
+
+    errors.extend(_check_constraint_targets(by_id))
 
     return errors, warnings
