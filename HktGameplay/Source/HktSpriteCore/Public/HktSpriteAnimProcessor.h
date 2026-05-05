@@ -35,6 +35,14 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 	float MoveSpeed    = 0.f;
 	float FallingSpeed = 0.f;
 
+	/**
+	 * 최근 XY 속도(cm/s, world space). 임계 속도 이상으로 움직였을 때만 갱신되며
+	 * 정지 후에도 마지막 방향이 유지(sticky)된다. Facing 은 서버 VM 이 아닌 클라이언트가
+	 * 매 프레임 (atan2(LastMoveDirXY), CameraYaw) 로 재산출하므로 카메라 회전에도
+	 * 자연스럽게 반응한다 (UHktAnimInstance 의 Velocity → Locomotion 패턴 동일).
+	 */
+	FVector2D LastMoveDirXY = FVector2D::ZeroVector;
+
 	// --- 전투 ---
 	/** AttackSpeed/MotionPlayRate에서 파생된 전투 애니 재생 속도. */
 	float AttackPlayRate = 1.f;

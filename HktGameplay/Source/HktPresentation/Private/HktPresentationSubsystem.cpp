@@ -13,6 +13,7 @@
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
 #include "HktCoreEventLog.h"
+#include "HktCoreProperties.h"
 #include "HktRuntimeTags.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -231,10 +232,14 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	}
 
 	// --- Property 델타 인라인 적용 ---
-	View.ForEachDelta([this, &View](FHktEntityId Id, uint16 PropId, int32 NewValue)
+	View.ForEachDelta([this, &View](FHktEntityId Id, uint16 PropId, int32 NewValue, int32 OldValue)
 	{
+		const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-			FString::Printf(TEXT("PropertyDelta Frame=%lld Prop=%d Value=%d"), View.FrameNumber, PropId, NewValue), Id);
+			FString::Printf(TEXT("PropertyDelta Frame=%lld %s: %d -> %d"),
+				View.FrameNumber,
+				PropName ? PropName : TEXT("Unknown"),
+				OldValue, NewValue), Id);
 		State.ApplyDelta(Id, PropId, NewValue);
 	});
 

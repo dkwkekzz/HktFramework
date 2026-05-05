@@ -5,12 +5,24 @@
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteFrameResolver.h"
 #include "HktSpriteCoreLog.h"
+#include "HktCoreEventLog.h"
 #include "HktPresentationSubsystem.h"
 #include "Components/SceneComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
+
+// Facing 산출 시 LastMoveDirXY 를 갱신할 최소 속도(cm/s). 임계 미만 입력은 sticky
+// 직전 방향을 유지 — 정지 → idle 에서 facing 이 임의로 S 로 튀지 않게 한다.
+// PaperActor 에서도 동일 CVar 를 공용하므로 외부 연결(non-static).
+TAutoConsoleVariable<float> CVarHktSpriteFacingMinSpeed(
+	TEXT("hkt.Sprite.Facing.MinSpeed"),
+	5.f,
+	TEXT("AHktSpriteCrowdHost / AHktSpritePaperActor 클라이언트 facing 산출의 ")
+	TEXT("최소 XY 속도(cm/s). 이 미만이면 LastMoveDirXY 갱신 생략(sticky)."),
+	ECVF_Default);
 
 AHktSpriteCrowdHost::AHktSpriteCrowdHost()
 {
@@ -183,8 +195,16 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 			if (MV->Velocity.IsDirty(Frame))
 			{
 				const FVector Vel = MV->Velocity.Get();
-				Frag.MoveSpeed    = FVector2D(Vel.X, Vel.Y).Size();
+				const FVector2D VelXY(Vel.X, Vel.Y);
+				Frag.MoveSpeed    = VelXY.Size();
 				Frag.FallingSpeed = Vel.Z;
+
+				// Sticky: 임계 이상으로 움직였을 때만 facing 입력 갱신.
+				const float MinSpeed = CVarHktSpriteFacingMinSpeed.GetValueOnGameThread();
+				if (Frag.MoveSpeed >= MinSpeed)
+				{
+					Frag.LastMoveDirXY = VelXY;
+				}
 			}
 		}
 
@@ -240,9 +260,21 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 		//   ElapsedMs = (NowTick - AnimStartTick) * TickDurationMs
 		// 여기서 NowTick=LocalNowMs, AnimStartTick=EntityAnimStartMs, TickDurationMs=1.0
 		// 이면 ElapsedMs == LocalNowMs - EntityAnimStartMs (실시간 ms).
+		// Facing 은 클라 viewmodel 산출 — 서버 SV.Facing 무시.
+		// 카메라 yaw 가 회전해도 매 프레임 자연스럽게 따라가도록 LastMoveDirXY(world) 와
+		// 현재 CameraYawDeg 로 매 프레임 재계산. 한 번도 움직이지 않은 엔터티는 카메라
+		// 정면(S) 폴백.
+		EHktSpriteFacing ClientFacing = EHktSpriteFacing::S;
+		if (!Frag.LastMoveDirXY.IsNearlyZero())
+		{
+			const float DirYawDeg = FMath::RadiansToDegrees(
+				FMath::Atan2(Frag.LastMoveDirXY.Y, Frag.LastMoveDirXY.X));
+			ClientFacing = HktFacingFromYaw(DirYawDeg, CameraYawDeg);
+		}
+
 		FHktSpriteEntityUpdate Update;
 		Update.WorldLocation  = TV->RenderLocation.Get().IsZero() ? TV->Location.Get() : TV->RenderLocation.Get();
-		Update.Facing         = static_cast<EHktSpriteFacing>(SV.Facing.Get() & 0x07);
+		Update.Facing         = ClientFacing;
 		Update.AnimTag        = AnimTag;
 		Update.AnimStartTick  = static_cast<int64>(EntityAnimStartMs);
 		Update.NowTick        = static_cast<int64>(LocalNowMs);

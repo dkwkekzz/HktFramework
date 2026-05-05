@@ -134,18 +134,21 @@ FHktSpriteFrameResolveResult HktResolveSpriteFrame(const FHktSpriteFrameResolveI
 
 EHktSpriteFacing HktFacingFromYaw(float EntityYawDegrees, float CameraYawDegrees)
 {
-	// 카메라 기준 상대 yaw (도)
+	// 카메라 기준 상대 yaw (도). UE: +X yaw=0, +Y yaw=90 (시계 방향, +Y=오른쪽).
+	// 카메라 forward 와 일치하는 방향(=캐릭터가 카메라 반대쪽으로 멀어짐) 을 N(=화면 위) 으로 정렬.
+	//
+	//   Rel=   0  → 카메라 시선과 같은 방향 = 멀어짐 = 화면 위 = N
+	//   Rel= +90  → 카메라 오른쪽 = 화면 오른쪽 = E
+	//   Rel=±180  → 카메라 쪽으로 다가옴 = 화면 아래 = S
+	//   Rel= -90  → 카메라 왼쪽 = 화면 왼쪽 = W
+	//
+	// 8 섹터, 각 45도. 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW.
 	float Rel = EntityYawDegrees - CameraYawDegrees;
-	Rel = FMath::UnwindDegrees(Rel);
-	// UE yaw: +X=0도(동), 회전 반시계(+). 스크린 "남쪽(아래)" = 카메라 전방 → 0도로 정렬.
-	// N(0), NE(1), E(2), SE(3), S(4), SW(5), W(6), NW(7) 매핑.
-	// 0도를 S로 오프셋: S=0, SW=45, W=90, NW=135, N=180(-180), NE=-135, E=-90, SE=-45
-	// 8개 섹터, 각 45도.
-	float Shifted = Rel + 180.f; // [0, 360]
-	if (Shifted < 0.f) Shifted += 360.f;
-	if (Shifted >= 360.f) Shifted -= 360.f;
+	Rel = FMath::UnwindDegrees(Rel); // [-180, 180]
+	float Norm = Rel;
+	if (Norm < 0.f) Norm += 360.f;
+	if (Norm >= 360.f) Norm -= 360.f;
 
-	// 0 = N, 45 = NE, 90 = E, 135 = SE, 180 = S, 225 = SW, 270 = W, 315 = NW
-	const int32 Sector = static_cast<int32>(FMath::FloorToInt((Shifted + 22.5f) / 45.f)) % 8;
+	const int32 Sector = static_cast<int32>(FMath::FloorToInt((Norm + 22.5f) / 45.f)) % 8;
 	return static_cast<EHktSpriteFacing>(Sector);
 }

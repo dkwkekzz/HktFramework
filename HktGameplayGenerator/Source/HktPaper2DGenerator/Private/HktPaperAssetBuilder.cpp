@@ -51,7 +51,7 @@
 //   1 → UPaperSprite 를 UPaperFlipbook 패키지의 inner subobject 로 임베드 (별도 디스크 자산 X)
 static TAutoConsoleVariable<int32> CVarHktPaperEmbedSprites(
 	TEXT("hkt.PaperSprite.EmbedSpritesInFlipbook"),
-	0,
+	1,
 	TEXT("0=각 sprite 별 별도 패키지(.uasset) 생성 — Content Browser 노출 (디폴트, 검증 용이). ")
 	TEXT("1=UPaperSprite 를 UPaperFlipbook 패키지의 inner subobject 로 임베드 ")
 	TEXT("(별도 디스크 자산 생성 안 함 — 디스크 폭증 완화)."),
@@ -599,12 +599,42 @@ namespace HktPaperAssetBuilder
 		Meta.Scale                = FVector2f(1.f, 1.f);
 		Template->Animations.Add(Result.AnimTag, Meta);
 
+		// 빌드 시점에 (AnimTag, DirIdx) → Flipbook 매핑을 명시적으로 로그.
+		// 런타임의 "AnimResolve" 진단 로그와 직접 비교해 dir/key 어긋남을 잡기 위함.
 		for (const FDirBuilt& B : Built)
 		{
 			FHktPaperAnimDirKey Key;
 			Key.AnimTag = Result.AnimTag;
 			Key.DirIdx  = static_cast<uint8>(B.DirIdx);
 			Template->Flipbooks.Add(Key, B.Flipbook);
+
+			UE_LOG(LogHktPaper2DGenerator, Log,
+				TEXT("[BuildAnim] Flipbooks.Add anim=%s, DirIdx=%u (%s), FB=%s, frames=%d"),
+				*Result.AnimTag.ToString(), Key.DirIdx,
+				HktPaperWorkspace::GetDirectionName(B.DirIdx),
+				*GetNameSafe(B.Flipbook), B.FrameCount);
+		}
+
+		// 누적된 Template->Flipbooks 의 anim 별 키 분포 요약 — 이전 빌드 잔존 키도 포함.
+		{
+			TArray<uint8> DirsForThisAnim;
+			for (const TPair<FHktPaperAnimDirKey, TObjectPtr<UPaperFlipbook>>& Pair : Template->Flipbooks)
+			{
+				if (Pair.Key.AnimTag == Result.AnimTag)
+				{
+					DirsForThisAnim.Add(Pair.Key.DirIdx);
+				}
+			}
+			DirsForThisAnim.Sort();
+			FString DirList;
+			for (uint8 D : DirsForThisAnim)
+			{
+				DirList += FString::Printf(TEXT("%u(%s) "), D, HktPaperWorkspace::GetDirectionName(D));
+			}
+			UE_LOG(LogHktPaper2DGenerator, Log,
+				TEXT("[BuildAnim] Template Flipbooks summary anim=%s NumDir=%d bMirror=%d → keys=[%s] (Built=%d)"),
+				*Result.AnimTag.ToString(), Meta.NumDirections, Meta.bMirrorWestFromEast ? 1 : 0,
+				*DirList, Built.Num());
 		}
 
 		// DefaultAnimTag 가 비어 있으면 첫 빌드의 anim 으로.

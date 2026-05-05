@@ -143,7 +143,8 @@ HktGameplay/Content/Stories/
 | Phase 2g | 호출지점 retarget (이제 `Story.V2.*` 가 아닌 base tag 로 통일) | 자연 해소 |
 | Phase 2h | cpp Story 본문 제거 (V1 root JSON 이 진실원이 된 후) | 대기 |
 | Phase 2i | (Phase 2g 자연 해소로 불필요) | 폐기 |
-| (별도) | PlayerInit schema 2 회귀 진단 — V2 register coloring × presentation 사이드 이펙트 | 미해결 |
+| **Phase 2 보강** | **V2 핸들러 4종 + Spec 인프라 확장 + Validator false positive 수정 + NamedVarMap section bug fix** | ✅ 완료 |
+| (별도) | PlayerInit schema 2 회귀 진단 — 진짜 원인은 NamedVarMap cross-section stale ID. Phase 2 보강 4 항에서 종결. | ✅ 종결 |
 
 ## Phase 2e (재정의) — Story 정리 + V1 root JSON 진실원화
 
@@ -221,7 +222,7 @@ Phase 2d 진입 후 사용자 결정으로 **V2 sidecar (`Stories/<Category>/*.j
 - [x] `Story_MoveTo.json` — `"schema": 2` 만 표기 (레지스터 미사용; MoveTowardProperty 는 V2 합성 핸들러로 자연 해소)
 - [x] `Story_BasicAttack.json` — 모든 R0/R1/R2 → 의미적 var 명 (`now/recovery/speed/rateNum/atk` 등). `InteractTerrain` 은 V1 fallback 유지 (단순 단발 op, ScopedReg 미사용 → 충돌 없음). **`damage_hittable_target_in_radius` Health=80 회귀 원인 = V1 builder 의 `IfHasTrait` 가 `FHktScopedReg` 로 R0 슬롯을 덮어써 AttackPower 를 0 으로 만들고 있었음. schema 2 마이그레이션으로 자연 해소.**
 - [x] `Story_TargetAction.json` — 모든 R0~R4 → 의미적 var 명 (`itemId/itemState/dist/isNpc/item/range/now/nextFrame`). 위치 블록은 `{"block":"targetPos"}` (V1 의 R2/R3/R4 contiguous read 대체). `GetPosition` 은 `out: "targetPos"` 형식.
-- [⏸️] `Story_PlayerInit.json` — schema 2 마이그레이션 시도 후 **롤백 (V1 schema 유지)**. 부팅 시 `AllocateViewsForEntity` 가 id=0 + anim tag 로 호출되는 회귀 발생. `Move dst=Self src=Spawned` + `SetStance/PlayVFXAttached/SetItemSkillTag` 등 presentation 사이드 이펙트가 V2 register coloring 의 pinned VReg 처리와 어떻게 상호작용하는지 추가 조사 필요. PlayerInit 은 세션 시작에 1 회만 실행 → REGFLOW 경고 무시 가능, 안정성 우선.
+- [x] `Story_PlayerInit.json` — schema 2 마이그레이션 완료. 두 차례 재롤백된 회귀 (`AllocateViewsForEntity id=0 + anim tag`) 의 진짜 원인은 **NamedVarMap cross-section stale ID** (Phase 2 보강 4 항 참조) 였음. cpp Story 도 같은 named var 를 precondition 람다 + main body 양쪽에서 쓰면 잠재적 동일 패턴이지만, V1 schema 는 이름 ref 가 없어 노출 안 됨. schema 2 로 전환 시 NamedVarMap 매핑이 main body 의 신규 anonymous VReg 와 ID 충돌 → coloring 충돌.
 
 #### 6. 후속 검증 — Heal 회귀는 오진이었음
 Phase 2d 종료 시 의심된 Heal V2 `partial_heal_under_max` 회귀는 **VM 회귀가 아닌 spec 셋업 누락**이었음 — `Param0` 은 entity 컬럼이 아닌 `Context.EventParam0` 에서 읽힘. `given.event` 블록 도입으로 자연 해소됨. Heal Story 자체는 cpp 정의로 정상 동작.
@@ -270,24 +271,19 @@ precondition JSON 인프라는 Phase 2 이전부터 존재:
 
 ini / GameplayTag 등록 변경 없음 — 모든 storyTag 가 cpp `UE_DEFINE_GAMEPLAY_TAG_COMMENT` 으로 이미 등록.
 
-### 2. PlayerInit schema 2 재시도 → 재롤백 ⏸️
+### 2. PlayerInit schema 2 — 두 차례 회귀 → Phase 2 보강에서 NamedVarMap fix 로 종결 ✅
 
-JSON 진영 schema 통일 가설 검증 차원에서 schema 2 마이그레이션 재시도:
+JSON 진영 schema 통일 가설 검증 차원에서 schema 2 마이그레이션 시도 시 두 번 모두 동일 회귀 (`AllocateViewsForEntity id=0 + anim tag`) 발생.
 
-- `LoadStore R1/R2/R3 TargetPosX/Y/Z` → `{block:"spawnPos", index:0..2}` 명명 블록
-- `SetPosition entity=Self src=R1` → `pos: {block:"spawnPos"}` V2 block 인자
-- `CountByOwner dst=R0` → `{var:"itemCount"}` 의미적 var 명
-- 다른 op 들은 register 인자 없거나 entity 슬롯 (Self/Spawned) 만 사용 → 문자열 그대로 유지
+당시 가설 ("V2 register coloring × presentation 사이드 이펙트") 은 **오진**이었음. 실제 원인은 Phase 2 보강 4 항에서 ItemPickup 의 `dist` 변수 충돌을 추적하다 발견된 `FHktStoryBuilder::NamedVarMap` 의 cross-section stale ID 버그:
 
-**결과: Phase 2e 5.2 와 동일한 회귀 재발** — character entity 의 tag 가 anim tag 로 잘못 분류되는 현상. `AllocateViewsForEntity id=0 + anim tag` 로그 패턴 동일.
+- `NamedVarMap` 은 Builder 레벨 (section 무관) 로 `name → VRegId` 캐시.
+- VRegId 는 section-local index (`PreconditionSection.RegPool` vs `MainSection.RegPool`).
+- precondition 에서 `{"var":"foo"}` 등록 시 NamedVarMap["foo"] = Precondition.RegPool 의 인덱스 N.
+- main body 가 같은 이름을 참조하면 NamedVarMap 매치되어 FHktVar(N) 반환. 그런데 N 은 MainSection.RegPool 의 다른 anonymous VReg (대개 신규 NewVar 가 같은 인덱스 점유) 를 가리킴.
+- 결과: 두 다른 VReg 가 같은 ID 로 합쳐져 같은 physical R 로 colored → silent corruption.
 
-가설("schema 2 통일이 V1/V2 슬롯 충돌을 해소") 은 **반증됨**. 회귀 원인은 V1/V2 혼용이 아닌 **V2 register coloring × presentation 사이드 이펙트의 단독 상호작용**으로 좁혀짐. 추가 조사 항목 (별도 단계):
-
-- `Move dst=Self src=Spawned` 후 Self pinned VReg 가 후속 `SetStance/PlayVFXAttached/SetItemSkillTag` 의 entity 인자에서 어떻게 해소되는지 디스어셈블
-- presentation 옵저버가 GameplayTag 컨테이너 → anim 매핑 시 어느 채널에서 잘못된 tag id 가 주입되는지 추적
-- `TagToInt(SetItemSkillTag.SkillTag)` 와 anim tag id 공간 충돌 가능성 검사
-
-PlayerInit 은 V1 schema 로 재롤백 (`Story_PlayerInit.json`). 게임플레이 무회귀 상태 유지. REGFLOW 경고는 잔존하지만 부팅 1회 실행이라 비치명적.
+PlayerInit 의 anim tag 분류 회귀는 이 메커니즘으로 entity id 가 다른 VReg 로 흘러가서 발생. `BeginPrecondition()` / `EndPrecondition()` 에서 `NamedVarMap.Reset()` 추가로 종결 (Phase 2 보강 4 항).
 
 ### 3. Spec 작성 ✅ (3/6 — 셋업 한계로 happy-path 일부 보류)
 
@@ -297,6 +293,61 @@ PlayerInit 은 V1 schema 로 재롤백 (`Story_PlayerInit.json`). 게임플레�
 - [⏸] ItemActivate/Deactivate/Trade happy-path + Pickup OwnerEntity 검증 — spec 의 given 이 entity id 동적 참조(`"OwnerEntity": "self"` 류)를 지원하지 않음. spec parser 확장 필요 → 별도 단계로 이관.
 
 spec runner (`FHktStorySpecAutomationTest::RunTest`) 는 `ExecuteProgram` 직접 호출이라 **precondition 미실행**. main body 만 검증되며, precondition 구조 검증은 별도 `HktStoryIntegrityTests::RunPreconditionIntegrity` 가 담당.
+
+## Phase 2 보강 — V2 잔여 핸들러 + Spec 인프라 + Validator + NamedVarMap fix
+
+Phase 2f 종료 후 V2 측 잔여 항목 + 핫리로드 검증 중 노출된 REGFLOW 경고를 추적하다 **PlayerInit 회귀의 진짜 원인**을 발견하고 함께 종결한 보강 단계.
+
+### 1. V2 핸들러 4종 추가 ✅
+
+`HktStoryJsonParser::InitializeCoreCommandsV2` 에 누락되어 V1 fallback 으로 처리되던 op 보강:
+
+- [x] `InteractTerrain` — FHktVar 오버로드 신설 (`HktStoryBuilder.h/cpp`), V2 핸들러 등록
+- [x] `PlaySound` — 인자 없는 단발 발음 op, V2 핸들러 등록 (V1 동일)
+- [x] `DispatchEvent` (단순형, target/source 없음) — V2 핸들러 등록 (V1 동일)
+- [x] `WaitSeconds` — V2 핸들러 등록 (V1 동일)
+- [x] `SCHEMA.md` 갱신 — `InteractTerrain` v1만 → v2: VarRef 표기
+
+### 2. Spec 인프라 확장 ✅
+
+- [x] **Entity id 동적 참조** — `FHktSpecPropPair::ValueRef` 필드 추가. `{"ref":"self|target|entities[N]|spawned"}` 객체 폼 수용. given 단계에서 deferred 적용 (모든 엔티티 할당 후 ResolveRef → SetProperty), expect 단계에서 ref 해석 후 비교. → Item* happy-path 시나리오의 `"OwnerEntity": {"ref":"self"}` 셋업 가능.
+- [x] **`spawned` ref** — `ResolveRef` 람다에 `spawned` 케이스 추가 (= `H.GetRegister(Reg::Spawned)`). VM 종료 후 expect 매처 한정 의미 있음. given 에서 사용 시 InvalidEntityId 반환 + 명시적 에러.
+- [x] **`tagsExact` 역방향 검출** — `TSet<FGameplayTag>` 기반 set 비교. 명시 태그가 모두 있고 동시에 명시 외 태그가 모두 부재해야 PASS. `H.GetWorldState().GetTags(Eid)` enumerate.
+- [x] `SPEC.md` 갱신 — properties 값 표기 절 (정수 / ref 객체 폼) + spawned ref + tagsExact 시멘틱.
+
+### 3. Validator false positive 수정 (`HktStoryValidator::ValidateRegisterFlow`) ✅
+
+X-매크로 `FOpRegInfo` 가 표현 못 하는 op 시맨틱 보강:
+
+- [x] **`LoadConstHigh` RMW** — VM 실제 동작 `Dst = (Dst & 0xFFFFF) | (HighBits << 20)` 인데 X-매크로는 `(W,_,_)` 만. validator 가 Dst 를 Read 로 먼저 마킹하도록 보강. 결과: 32-bit 상수의 `LoadConst + LoadConstHigh` 페어가 dead-write false positive 제거.
+- [x] **블록 read** — `PlayVFX` / `PlaySoundAtLocation` / `SetVoxel` 의 `PosBase + 0/1/2` (3-element), `IsTerrainSolid` 의 `PosBase + 0/1` (2-element). `Inst.Src1` 외에 `Src1+1`/`Src1+2` 도 Read 마킹. 결과: `GetPosition + PlayVFX` 시퀀스의 block element write 가 dead-write false positive 제거 (BasicAttack PC=43-49 등).
+- [x] **Imm20 인코딩 op** — `LoadConst` / `DispatchEventTo` / `DispatchEventFrom` / `Yield` / `YieldSeconds` / `PlaySound` / `Log`. X-매크로의 Src1/Src2 표기가 거짓 (Src1/Src2 비트가 immediate 의 일부). validator 가 Src1/Src2 read 를 무시하도록 분기. `DispatchEventTo/From` 만 별도로 `Inst.Dst` 를 entity Read 로 마킹. 결과: Voxel.Break/Crack/Crumble/Shatter 의 R8 read-before-write false positive 제거.
+
+### 4. NamedVarMap section-local bug fix ✅ (PlayerInit 회귀 종결)
+
+**증상**: schema 2 ItemPickup 에서 `PC=6 LoadConst R0 Dead Write vs PC=5 GetDistance` REGFLOW 경고. 디스어셈블 결과 `PC=7 CmpGt R15 R0 R0` — `dist` 와 `cmp_gt_const_300` tmp 가 같은 R0 으로 colored.
+
+**원인**: `FHktStoryBuilder::NamedVarMap` 은 Builder 멤버로 section 무관 `name → FHktVRegId` 캐시. 그러나 VRegId 는 **section-local index** (`PreconditionSection.RegPool.Metas` vs `MainSection.RegPool.Metas`). precondition 에서 `{"var":"dist"}` 등록 시 NamedVarMap["dist"] = Precondition.RegPool 의 인덱스 N. main body 에서 같은 이름 참조 시 NamedVarMap["dist"]=N 매치되어 `FHktVar(N)` 반환하지만, 이 N 은 MainSection.RegPool 의 다른 anonymous VReg (대개 신규 NewVar 가 같은 인덱스 점유) 를 가리킴. → 두 다른 VReg 가 같은 ID 로 합쳐져 같은 physical R 로 colored.
+
+**연쇄 영향**:
+- ItemPickup 의 `dist` (precondition + main body 양쪽 사용) → 거리 검증 무력화 (CmpGt 가 자기 자신과 비교).
+- PlayerInit schema 2 회귀 (`AllocateViewsForEntity id=0 + anim tag`) — entity id 가 다른 VReg 로 흘러간 동일 메커니즘. 두 차례 롤백 (Phase 2e 5.2 / Phase 2f 2) 의 진짜 원인.
+
+**Fix** (`HktStoryBuilder.cpp::BeginPrecondition` / `EndPrecondition`):
+```cpp
+NamedVarMap.Reset();
+NamedBlockMap.Reset();
+```
+Section 진입/퇴출 시 매핑 클리어. 같은 section 내의 named ref 재사용은 정상 동작 유지.
+
+### 5. 진단 인프라 (한시)
+
+위 NamedVarMap fix 가 도출되기까지 추가했다가 fix 후 제거한 진단:
+
+- `HktVRegAllocator::Allocate` — anonymous VReg 의 final coloring + interval dump (ItemPickup 한정). VReg ID 와 debug name + physical R + interval 출력.
+- `HktStoryValidator::ValidateRegisterFlow` — dead-write 발생 시점 주변 PC 의 raw FInstruction window dump.
+
+차후 유사 이슈 추적 시 재투입 가능. CVar 기반 토글로 영구 인프라화 검토 가치 있음.
 
 ## 본 작업 (Phase 2d 재정의) — 작업 리스트 [완료]
 
@@ -349,6 +400,12 @@ spec runner (`FHktStorySpecAutomationTest::RunTest`) 는 `ExecuteProgram` 직접
 - cpp Story 본문 수정 (`Definitions/*.cpp`) — Phase 2g 이후 retarget 단계에서 다룸
 - 코드/JSON 주석은 한국어
 
+## 교훈 (Phase 2 보강 4 항 도출)
+
+- `FHktStoryBuilder` 의 Builder-level 캐시 (NamedVarMap / NamedBlockMap / 향후 추가될 유사 매핑) 는 **section-local 한 ID 를 보관하지 않도록** 주의. section 전환 (Begin/End Precondition 등) 시 클리어 필수.
+- X-매크로 `FOpRegInfo` 는 op 시맨틱의 진실원이 아님. Imm20 인코딩 / RMW / 블록 read 등은 표현 한계. validator/allocator 가 X-매크로만 신뢰하면 silent corruption 가능 → 명시적 special-case 필요.
+- REGFLOW 경고는 **false positive** 와 **진짜 coloring 충돌** 두 종류가 섞여있음. 진단 로그 (interval dump + raw FInstruction window) 없이 추측만으로 분류하면 진짜 버그를 놓침.
+
 ## 핵심 참조 파일
 
 - `HktGameplay/Source/HktCore/Public/HktCoreProperties.h` — PropertyId 카탈로그
@@ -393,13 +450,15 @@ Heal.spec.json 의 `partial_heal_under_max` 시나리오 (Param0=30, Health=100�
 
 ## 미해결 / 후속 이슈
 
-1. **PlayerInit schema 2 회귀 (재현)** — Phase 2e 5.2 → Phase 2f 두 차례 시도 모두 동일 회귀(`AllocateViewsForEntity id=0 + anim tag`, character entity 의 tag 가 anim 로 분류). JSON 진영 schema 통일 가설로는 미해결 → V2 register coloring × presentation 사이드 이펙트 단독 상호작용으로 좁혀짐. 진단 항목: ① `Move dst=Self src=Spawned` 후 Self pinned VReg 의 후속 entity 인자 해소 디스어셈블, ② presentation tag → anim 매핑 채널 추적, ③ `TagToInt` id 공간 충돌. 별도 단계 (2g/2h 가 아닌 독립 진단).
-2. **Item* spec happy-path 미작성 (4개)** — ItemActivate / ItemDeactivate / ItemTrade + Pickup 의 OwnerEntity 검증. spec 의 `given.entity.properties` 가 entity id 동적 참조를 지원하지 않아 `OwnerEntity = self.id` 셋업 불가. spec parser 확장 (`"OwnerEntity": {"ref":"self"}` 류) 필요 — 별도 PR.
-3. **CombatUseSkill — 4 dispatch 분기 spec 미작성** — Fireball/Heal/Lightning/Buff 의 HasTag 분기 검증. Item entity + tag 셋업 + 슬롯 셋업이 필요 — Item* spec 와 동일 셋업 한계.
+1. **PlayerInit schema 2 회귀** — Phase 2 보강 4 항 (NamedVarMap fix) 에서 종결. **종결**.
+2. **Item* spec happy-path (4개)** — ItemActivate / ItemDeactivate / ItemTrade + Pickup 의 OwnerEntity 검증. **인프라는 Phase 2 보강 2 항에서 추가됨** (`{"ref":"self|target|entities[N]|spawned"}` 형식 수용). spec 파일 작성만 남음.
+3. **CombatUseSkill — 4 dispatch 분기 spec 미작성** — Fireball/Heal/Lightning/Buff 의 HasTag 분기 검증. Item entity + tag 셋업 + 슬롯 셋업 필요. entity ref 인프라는 갖춰졌으니 작성 가능.
 4. **Heal V2 회귀** (Phase 2d 종료 시점 의심) — Phase 2e 6 항에서 오진으로 확인. `Param0` 이 `Context.EventParam0` 에서 읽히는 점을 spec 의 `given.event` 블록 도입으로 해소. **종결**.
 5. **Session Frontend 캐시** — spec 추가/제거 후 사용자가 "Refresh Tests" 클릭 필요. UE Automation 프레임워크 레벨이라 런너 코드로 우회 불가 — 가이드만 명시.
-6. **`tagsExact` 의 역방향 검출** — 현재 명시 태그 부재만 검출, 추가 태그 검출은 미구현. WorldState 컨테이너 enumerate 헬퍼 추가 시 보강.
-7. **`spawned` ref / `dispatched` 매처** — TargetAction 류 dispatcher Story 검증 시 필요. 32 Story 작업 중 출현 시점에 도입.
+6. **`tagsExact` 의 역방향 검출** — Phase 2 보강 2 항에서 추가 (TSet 기반 set 비교). **종결**.
+7. **`spawned` ref / `dispatched` 매처** — `spawned` ref 는 Phase 2 보강 2 항에서 추가 (= `Reg::Spawned` readback). `dispatched` 매처 (TargetAction 류 dispatcher Story 의 `PendingDispatchedEvents` 큐 검증) 는 미구현.
+8. **PreconditionSection validator 미통과** — `FHktStoryValidator` 는 현재 `Program->Code` (main body) 만 검증. PreconditionSection 도 register-flow 검증 대상에 포함시키면 NamedVarMap 류 잠재 버그를 자동 검출 가능. 별도 PR.
+9. **NamedVarMap fix 영향 회귀 검증** — 이번 fix 가 다른 schema 2 Story 에 영향 가능성. precondition + main body 양쪽에서 같은 named var 를 쓴 케이스 (`now`/`next`/`item` 등) 가 잠재 위험. 핫리로드 후 spec 통과 여부로 자연 검증 가능.
 
 ## V2 prefix 처리 (확정안 → 사실상 폐기)
 

@@ -450,6 +450,7 @@ bool Allocate(FCodeSection& Section, const FGameplayTag& StoryTag, TArray<FStrin
             Mut.PinnedPhysical = 0;
         }
     }
+
     return true;
 }
 

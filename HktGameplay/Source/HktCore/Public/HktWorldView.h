@@ -56,7 +56,7 @@ struct HKTCORE_API FHktWorldView
 	{
 		if (PropertyDeltas)
 			for (const FHktPropertyDelta& D : *PropertyDeltas)
-				Cb(D.EntityId, D.PropertyId, D.NewValue);
+				Cb(D.EntityId, D.PropertyId, D.NewValue, D.OldValue);
 	}
 
 	template<typename F>

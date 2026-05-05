@@ -7,6 +7,7 @@
 #include "HktPaperUnlitMaterial.h"
 #include "HktSpriteCoreLog.h"
 #include "HktSpriteTypes.h"
+#include "HktCoreEventLog.h"
 #include "HktPresentationState.h"
 
 #include "Camera/PlayerCameraManager.h"
@@ -14,9 +15,15 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "HktSpriteFrameResolver.h"
 #include "Materials/MaterialInterface.h"
+#include "Math/RotationMatrix.h"
 #include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"
+
+// Facing 산출 시 LastMoveDirXY 갱신 최소 속도(cm/s). 임계 미만은 sticky.
+// CrowdHost 와 동일 의미 — 같은 CVar 를 공용한다.
+extern TAutoConsoleVariable<float> CVarHktSpriteFacingMinSpeed;
 
 // ----------------------------------------------------------------------------
 // 콘솔 변수 — 빌보드 회전 dirty check (PR-5)
@@ -32,8 +39,18 @@ static TAutoConsoleVariable<float> CVarHktPaperSpriteYawDirtyDeg(
 	TEXT("hkt.PaperSprite.YawDirtyDeg"),
 	0.5f,
 	TEXT("AHktSpritePaperActor 빌보드 회전 dirty 임계값(도). ")
-	TEXT("이전 적용한 yaw 와의 차이가 이 값 미만이면 SetActorRotation 을 생략. ")
+	TEXT("Yaw 또는 Pitch 변화량이 이 값 미만이면 SetActorRotation 을 생략. ")
 	TEXT("0 이면 항상 적용 (PR-5 이전 동작)."),
+	ECVF_Default);
+
+// 빌보드를 카메라 pitch 까지 따라가게 할지 토글. ShoulderView 처럼 pitch 가 바뀌는
+// 모드에서는 켜야 sprite 평면이 카메라를 정면으로 본다. RTS-탑다운 같이 pitch 가
+// 거의 고정인 모드에서는 꺼서 sprite 직립 유지가 가능.
+static TAutoConsoleVariable<int32> CVarHktPaperSpriteViewAlignedBillboard(
+	TEXT("hkt.PaperSprite.ViewAlignedBillboard"),
+	1,
+	TEXT("1: 카메라 위치를 기준으로 view-aligned billboard (pitch 보정 포함). ")
+	TEXT("0: yaw 만 추적하는 cylindrical billboard."),
 	ECVF_Default);
 
 AHktSpritePaperActor::AHktSpritePaperActor()
@@ -108,8 +125,16 @@ void AHktSpritePaperActor::ApplyMovement(const FHktMovementView& V, int64 Frame,
 	if (bForce || V.Velocity.IsDirty(Frame))
 	{
 		const FVector Vel = V.Velocity.Get();
-		AnimFragment.MoveSpeed    = FVector2D(Vel.X, Vel.Y).Size();
+		const FVector2D VelXY(Vel.X, Vel.Y);
+		AnimFragment.MoveSpeed    = VelXY.Size();
 		AnimFragment.FallingSpeed = Vel.Z;
+
+		// Sticky: 임계 이상으로 움직였을 때만 facing 입력 갱신.
+		const float MinSpeed = CVarHktSpriteFacingMinSpeed.GetValueOnGameThread();
+		if (AnimFragment.MoveSpeed >= MinSpeed)
+		{
+			AnimFragment.LastMoveDirXY = VelXY;
+		}
 	}
 }
 
@@ -150,10 +175,7 @@ void AHktSpritePaperActor::ApplySprite(const FHktSpriteView& V, int64 Frame, boo
 {
 	// F-2: ActorProcessor 의 sprite 패스가 권위 입력을 직접 푸시.
 	// 캐시해 두고 Tick 에서 resolve — 동일 프레임 중복 호출 비용 0.
-	if (bForce || V.Facing.IsDirty(Frame))
-	{
-		ServerFacing = V.Facing.Get();
-	}
+	// Facing 은 서버 권위가 아닌 클라 viewmodel 산출(ApplyMovement 의 LastMoveDirXY 사용).
 	if (bForce || V.AnimStartTick.IsDirty(Frame))
 	{
 		ServerAuthoritativeAnimStartTick = V.AnimStartTick.Get();
@@ -177,21 +199,51 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	constexpr float InterpSpeed = 15.f;
 	InterpLocation = FMath::VInterpTo(InterpLocation, CachedRenderLocation, DeltaTime, InterpSpeed);
 
-	const float CameraYaw    = QueryCameraYaw();
-	const float YawDirtyDeg  = FMath::Max(0.f, CVarHktPaperSpriteYawDirtyDeg.GetValueOnGameThread());
-	const float DeltaYaw     = bHasAppliedYaw
-		? FMath::Abs(FRotator::NormalizeAxis(CameraYaw - LastAppliedYawDeg))
-		: TNumericLimits<float>::Max();
-	const bool  bYawDirty    = !bHasAppliedYaw || DeltaYaw >= YawDirtyDeg;
+	const FCameraView CamView = QueryCameraView();
+	const float CameraYaw     = CamView.Rotation.Yaw;
 
-	if (bYawDirty)
+	// --- 빌보드 타깃 회전 산출 ---
+	// PaperSprite 로컬 평면 normal 은 -Y. 카메라를 정면으로 향하려면 액터의 +Y 축이
+	// (Actor → Camera) 의 반대 방향(=즉 -Y 가 카메라를 가리킴)이 되도록 회전.
+	// MakeFromYZ(YAxis, ZHint): Y 를 우선 정렬하고 Z 는 ZHint 의 직교 성분으로 보정 →
+	// sprite 가 가능한 한 직립을 유지하면서 pitch 만 카메라 쪽으로 기울어짐.
+	FRotator TargetRot;
+	const bool bViewAligned = CVarHktPaperSpriteViewAlignedBillboard.GetValueOnGameThread() != 0;
+	if (bViewAligned && CamView.bValid)
 	{
-		// PaperSprite 로컬 평면 normal 이 -Y 이므로 카메라를 정면으로 향하려면 -90° 보정.
+		const FVector ToCam = CamView.Location - InterpLocation;
+		if (!ToCam.IsNearlyZero())
+		{
+			const FVector ToCamN = ToCam.GetSafeNormal();
+			TargetRot = FRotationMatrix::MakeFromYZ(-ToCamN, FVector::UpVector).Rotator();
+		}
+		else
+		{
+			TargetRot = FRotator(0.f, CameraYaw - 90.f, 0.f);
+		}
+	}
+	else
+	{
+		// Cylindrical billboard: yaw 만 추적.
 		// (액터 yaw θ → 로컬 -Y 가 world (sin θ,-cos θ,0); -CameraForward 와 일치시키면 θ = α-90°)
-		SetActorLocationAndRotation(InterpLocation, FRotator(0.f, CameraYaw - 90.f, 0.f),
+		TargetRot = FRotator(0.f, CameraYaw - 90.f, 0.f);
+	}
+
+	const float DirtyDeg = FMath::Max(0.f, CVarHktPaperSpriteYawDirtyDeg.GetValueOnGameThread());
+	const float DeltaYaw = bHasAppliedRotation
+		? FMath::Abs(FRotator::NormalizeAxis(TargetRot.Yaw   - LastAppliedRotation.Yaw))
+		: TNumericLimits<float>::Max();
+	const float DeltaPitch = bHasAppliedRotation
+		? FMath::Abs(FRotator::NormalizeAxis(TargetRot.Pitch - LastAppliedRotation.Pitch))
+		: TNumericLimits<float>::Max();
+	const bool bRotDirty = !bHasAppliedRotation || DeltaYaw >= DirtyDeg || DeltaPitch >= DirtyDeg;
+
+	if (bRotDirty)
+	{
+		SetActorLocationAndRotation(InterpLocation, TargetRot,
 			false, nullptr, ETeleportType::TeleportPhysics);
-		LastAppliedYawDeg = CameraYaw;
-		bHasAppliedYaw    = true;
+		LastAppliedRotation = TargetRot;
+		bHasAppliedRotation = true;
 	}
 	else
 	{
@@ -205,8 +257,19 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	{
 		return;
 	}
-	const uint8 RawFacing = ServerFacing;
 	const int32 AuthStartTick = ServerAuthoritativeAnimStartTick;
+
+	// --- Facing 은 클라이언트 viewmodel: LastMoveDirXY(world) + 현재 카메라 yaw ---
+	// 카메라 회전에 맞춰 facing 이 즉시 따라가도록 매 Tick 재계산. 한 번도
+	// 움직이지 않은 엔터티는 카메라 정면(S) 폴백.
+	EHktSpriteFacing ClientFacing = EHktSpriteFacing::S;
+	if (!AnimFragment.LastMoveDirXY.IsNearlyZero())
+	{
+		const float DirYawDeg = FMath::RadiansToDegrees(
+			FMath::Atan2(AnimFragment.LastMoveDirXY.Y, AnimFragment.LastMoveDirXY.X));
+		ClientFacing = HktFacingFromYaw(DirYawDeg, CameraYaw);
+	}
+	const uint8 RawFacing = static_cast<uint8>(ClientFacing);
 
 	// --- AnimTag / PlayRate 결정 ---
 	FGameplayTag AnimTag;
@@ -234,6 +297,39 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	{
 		LastAuthoritativeAnimStartTick = AuthStartTick;
 		AnimStartLocalSec = LocalNowSec;
+	}
+
+	// --- 진단 로그: (ClientFacing → StoredFacing/KeyDir → Flipbook) 매칭 결과 ---
+	// (ResolvedTag, KeyDir, bFlipX) 또는 Flipbook 존재 여부가 직전과 달라질 때만 emit.
+	// "ClientFacing 은 바뀌는데 그림이 안 바뀌면" Flipbook 미존재 / NumDirections=1 로 KeyDir 가
+	// 항상 0 이라 같은 dir 키만 룩업되는 등의 원인이 즉시 보인다.
+	{
+		const FHktPaperAnimDirKey Key{ ResolvedTag, KeyDir };
+		const TObjectPtr<UPaperFlipbook>* Found = Template->Flipbooks.Find(Key);
+		const bool bHasFB = Found && Found->Get() != nullptr;
+		const bool bChanged = !bLastDiagSnapshotValid
+			|| LastDiagAnimTag != ResolvedTag
+			|| LastDiagKeyDir != KeyDir
+			|| bLastDiagFlipX != bFlipX
+			|| bLastDiagHadFlipbook != bHasFB;
+		if (bChanged)
+		{
+			LastDiagAnimTag = ResolvedTag;
+			LastDiagKeyDir = KeyDir;
+			bLastDiagFlipX = bFlipX;
+			bLastDiagHadFlipbook = bHasFB;
+			bLastDiagSnapshotValid = true;
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
+				bHasFB ? EHktLogLevel::Info : EHktLogLevel::Warning,
+				EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|PaperActor: AnimResolve InFacing=%d → StoredFacing=%d (NumDir=%d, bMirror=%d, flipX=%d), AnimTag=%s, KeyDir=%u, FB=%s, Flipbooks.Num=%d"),
+					static_cast<int32>(InFacing), static_cast<int32>(StoredFacing),
+					Meta->NumDirections, Meta->bMirrorWestFromEast ? 1 : 0, bFlipX ? 1 : 0,
+					*ResolvedTag.ToString(), KeyDir,
+					bHasFB ? TEXT("OK") : TEXT("MISSING"),
+					Template->Flipbooks.Num()),
+				CachedEntityId);
+		}
 	}
 
 	// --- (AnimTag, KeyDir, bFlipX) 변경 시 Flipbook 리바인드 ---
@@ -292,11 +388,15 @@ void AHktSpritePaperActor::RebindFlipbookIfNeeded(
 // Helpers
 // ----------------------------------------------------------------------------
 
-float AHktSpritePaperActor::QueryCameraYaw() const
+AHktSpritePaperActor::FCameraView AHktSpritePaperActor::QueryCameraView() const
 {
+	FCameraView Out;
 	UWorld* World = GetWorld();
-	if (!World) return 0.f;
+	if (!World) return Out;
 	APlayerController* PC = World->GetFirstPlayerController();
-	if (!PC || !PC->PlayerCameraManager) return 0.f;
-	return PC->PlayerCameraManager->GetCameraRotation().Yaw;
+	if (!PC || !PC->PlayerCameraManager) return Out;
+	Out.Location = PC->PlayerCameraManager->GetCameraLocation();
+	Out.Rotation = PC->PlayerCameraManager->GetCameraRotation();
+	Out.bValid   = true;
+	return Out;
 }

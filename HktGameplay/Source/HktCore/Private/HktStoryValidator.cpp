@@ -245,18 +245,10 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 		if (R >= NumGPRegs) return;
 		if (State[R] == ERegState::Written)
 		{
-			// 진단 — 두 시점의 raw bytecode 를 함께 출력해 어떤 op 가 충돌 일으키는지 추적.
-			const FInstruction& Cur  = Code[PC];
-			const FInstruction& Prev = Code[WritePC[R]];
 			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(
 				TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Dead Write. "
-					 "PC=%d에서 쓴 값을 읽지 않고 덮어쓰고 있습니다. 레지스터 충돌을 확인하세요. "
-					 "[DIAG cur(raw=0x%08X Dst=%u Src1=%u Src2=%u Imm12=%u Imm20=%u) "
-					 "prev@PC=%d Op=%s (raw=0x%08X Dst=%u Src1=%u Src2=%u Imm12=%u Imm20=%u)]"),
-				*Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R],
-				Cur.Raw,  static_cast<uint32>(Cur.Dst),  static_cast<uint32>(Cur.Src1),  static_cast<uint32>(Cur.Src2),  static_cast<uint32>(Cur.Imm12),  static_cast<uint32>(Cur.Imm20),
-				WritePC[R], GetOpCodeName(Prev.GetOpCode()),
-				Prev.Raw, static_cast<uint32>(Prev.Dst), static_cast<uint32>(Prev.Src1), static_cast<uint32>(Prev.Src2), static_cast<uint32>(Prev.Imm12), static_cast<uint32>(Prev.Imm20)));
+					 "PC=%d에서 쓴 값을 읽지 않고 덮어쓰고 있습니다. 레지스터 충돌을 확인하세요."),
+				*Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R]));
 			++WarningCount;
 		}
 		State[R] = ERegState::Written;

@@ -269,6 +269,12 @@ FHktStoryBuilder& FHktStoryBuilder::BeginPrecondition()
 {
     check(ActiveSection == MainSection.Get());
     ActiveSection = PreconditionSection.Get();
+    // NamedVarMap / NamedBlockMap 은 VRegId 를 캐시하지만 VRegId 는 section-local 이다.
+    // Section 전환 시 MainSection 에 들어있던 매핑이 PreconditionSection 의 RegPool 에 잘못 적용되면
+    // 다른 anonymous VReg 를 가리키는 stale id 가 되어 coloring 충돌 발생.
+    // 따라서 section 진입 시 매핑을 비운다 (precondition 본문은 자기 안에서만 named ref 재사용).
+    NamedVarMap.Reset();
+    NamedBlockMap.Reset();
     return *this;
 }
 
@@ -278,6 +284,9 @@ FHktStoryBuilder& FHktStoryBuilder::EndPrecondition()
     // 단계 1: PreconditionSection의 FInstruction emit은 Build에서 일괄 처리한다.
     // 라벨 해소는 VInst 단계에서도 가능하지만 단순화를 위해 Build로 일원화.
     ActiveSection = MainSection.Get();
+    // 위 BeginPrecondition 의 사유와 동일 — MainSection 으로 돌아갈 때도 cross-section stale id 방지.
+    NamedVarMap.Reset();
+    NamedBlockMap.Reset();
     return *this;
 }
 

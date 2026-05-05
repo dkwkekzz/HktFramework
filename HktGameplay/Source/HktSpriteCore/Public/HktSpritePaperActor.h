@@ -7,6 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "HktCoreDefs.h"
 #include "HktSpriteAnimProcessor.h"
+#include "HktSpriteTypes.h"
 #include "Actors/IHktPresentableActor.h"
 #include "HktSpritePaperActor.generated.h"
 
@@ -74,8 +75,9 @@ protected:
 	TObjectPtr<UPaperFlipbookComponent> FlipbookComp;
 
 private:
-	/** 카메라 yaw 조회 (PlayerCameraManager). 미초기화 시 0. */
-	float QueryCameraYaw() const;
+	/** 카메라 위치/회전 조회 (PlayerCameraManager). 미초기화 시 bValid=false. */
+	struct FCameraView { FVector Location = FVector::ZeroVector; FRotator Rotation = FRotator::ZeroRotator; bool bValid = false; };
+	FCameraView QueryCameraView() const;
 
 	/** (AnimTag, DirIdx) 변경 시 Flipbook 리바인드. */
 	void RebindFlipbookIfNeeded(const FGameplayTag& AnimTag, uint8 KeyDir, bool bFlipX,
@@ -94,9 +96,9 @@ private:
 	uint8        CurrentKeyDir = 0xFF;
 	bool         bCurrentFlipX = false;
 
-	/** F-2: ApplySprite 가 매 sync 마다 캐시 — Tick 은 이 값으로 flipbook resolve. */
+	/** F-2: ApplySprite 가 매 sync 마다 캐시 — Tick 은 이 값으로 flipbook resolve.
+	 *  Facing 은 서버 권위가 아닌 클라이언트 viewmodel(AnimFragment.LastMoveDirXY) 로 산출. */
 	bool   bHasSpriteState = false;
-	uint8  ServerFacing = 4; // EHktSpriteFacing::S
 	int32  ServerAuthoritativeAnimStartTick = 0;
 
 	/** 서버 권위 AnimStartTick 변경 감지 → 로컬 시각 캡처. */
@@ -109,10 +111,18 @@ private:
 	FVector InterpLocation       = FVector::ZeroVector;
 	bool    bHasInitialTransform = false;
 
-	/** 마지막으로 적용한 빌보드 yaw (도). PR-5 dirty check 비교 기준. */
-	float LastAppliedYawDeg = 0.f;
-	bool  bHasAppliedYaw    = false;
+	/** 마지막으로 적용한 빌보드 회전. PR-5 dirty check 비교 기준 (Yaw+Pitch). */
+	FRotator LastAppliedRotation = FRotator::ZeroRotator;
+	bool     bHasAppliedRotation = false;
 
 	/** 태그 해석 실패 dedup (HktSpriteCrowdHost 와 동일 패턴). */
 	bool bLoggedResolveRenderOutputsFailure = false;
+
+	/** Animation 해석(StoredFacing/Flipbook 매칭) 진단 dedup. 마지막으로 emit 한 (AnimTag,KeyDir,bFlipX) 와
+	 *  Flipbook 존재 여부를 기억해 전이 시점에만 로그를 남긴다. */
+	FGameplayTag LastDiagAnimTag;
+	uint8        LastDiagKeyDir = 0xFF;
+	bool         bLastDiagFlipX = false;
+	bool         bLastDiagHadFlipbook = false;
+	bool         bLastDiagSnapshotValid = false;
 };
