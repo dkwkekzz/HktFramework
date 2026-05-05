@@ -41,4 +41,5 @@ Claude Code 에서는 `/goal` 슬래시 커맨드로 호출 — 일반 작업에
 /goal classify "..." /goal validate
 ```
 
-스킬 정의: [`.claude/skills/goal/skill.md`](../../.claude/skills/goal/skill.md).
+- 사용자 가이드: [`Docs/goal-skill-usage.md`](../goal-skill-usage.md)
+- 스킬 정의: [`.claude/skills/goal/skill.md`](../../.claude/skills/goal/skill.md)
