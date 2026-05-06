@@ -33,6 +33,20 @@ from .parser import (
     parse_goal_file,
 )
 from .schema import validate_goals
+from .tasks import (
+    NewTaskRequest,
+    Task,
+    TaskIdExhaustedError,
+    TaskParseError,
+    TaskTransitionError,
+    close_task,
+    generate_task_index,
+    load_tasks,
+    new_task,
+    start_task,
+    validate_task_refs,
+    validate_tasks,
+)
 from .verify import format_report, verify_goal
 from .views import generate_graph, generate_index, generate_tree
 
@@ -297,6 +311,131 @@ def cmd_new_goal(
     return 0
 
 
+def _load_tasks_or_exit(tasks_dir: Path) -> tuple[list[Task] | None, int]:
+    try:
+        return load_tasks(tasks_dir), 0
+    except (TaskParseError, FileNotFoundError) as exc:
+        print(f"Task 파싱 오류: {exc}", file=sys.stderr)
+        return None, 2
+
+
+def cmd_new_task(
+    tasks_dir: Path,
+    *,
+    title: str,
+    goal_ids: list[str],
+    description: str | None,
+    constraint_violation: str | None,
+) -> int:
+    if not goal_ids:
+        print("오류: --goal 최소 1개 필요", file=sys.stderr)
+        return 2
+    req = NewTaskRequest(
+        title=title,
+        goal_ids=goal_ids,
+        description=description or "",
+        constraint_violation=constraint_violation,
+    )
+    try:
+        path = new_task(req, tasks_dir)
+    except (FileExistsError, TaskIdExhaustedError) as exc:
+        print(f"오류: {exc}", file=sys.stderr)
+        return 2
+    print(str(path))
+    return 0
+
+
+def cmd_start_task(task_id: str, tasks_dir: Path) -> int:
+    try:
+        path = start_task(task_id, tasks_dir)
+    except (FileNotFoundError, TaskTransitionError, ValueError) as exc:
+        print(f"오류: {exc}", file=sys.stderr)
+        return 2
+    print(str(path))
+    return 0
+
+
+def cmd_close_task(
+    task_id: str,
+    tasks_dir: Path,
+    *,
+    final_status: str,
+    commit: str | None,
+    pr: int | None,
+) -> int:
+    try:
+        path = close_task(
+            task_id, tasks_dir, final_status=final_status, commit=commit, pr=pr,
+        )
+    except (FileNotFoundError, TaskTransitionError, ValueError) as exc:
+        print(f"오류: {exc}", file=sys.stderr)
+        return 2
+    print(str(path))
+    return 0
+
+
+def cmd_list_tasks(
+    tasks_dir: Path,
+    *,
+    status: str | None,
+    goal_id: str | None,
+) -> int:
+    tasks, rc = _load_tasks_or_exit(tasks_dir)
+    if tasks is None:
+        return rc
+    filtered = tasks
+    if status:
+        filtered = [t for t in filtered if t.status == status]
+    if goal_id:
+        filtered = [t for t in filtered if goal_id in t.goal_ids]
+    for t in sorted(filtered, key=lambda x: x.id):
+        goals_str = ",".join(t.goal_ids)
+        print(f"{t.id}\t{t.status}\t→ {goals_str}\t{t.title}")
+    print(f"-- {len(filtered)} task(s) --", file=sys.stderr)
+    return 0
+
+
+def cmd_validate_tasks(tasks_dir: Path, goals_dir: Path | None) -> int:
+    tasks, rc = _load_tasks_or_exit(tasks_dir)
+    if tasks is None:
+        return rc
+    errors = validate_tasks(tasks)
+    # 참조 검증 — Goal 디렉토리가 있을 때만 (T-R1, T-R3)
+    if goals_dir is not None:
+        goals, grc = _load_or_exit(goals_dir)
+        if goals is None:
+            return grc
+        goal_id_set = {g.id for g in goals}
+        constraint_id_set = {g.id for g in goals if "constraint" in g.tags}
+        errors.extend(validate_task_refs(
+            tasks,
+            goal_ids=goal_id_set,
+            constraint_ids=constraint_id_set,
+        ))
+    for e in errors:
+        print(f"[Task] {e}", file=sys.stderr)
+    if errors:
+        print(f"검증 실패 — {len(errors)} 위반", file=sys.stderr)
+        return 1
+    print(f"OK — {len(tasks)} tasks, 위반 없음")
+    return 0
+
+
+def cmd_render_task_index(tasks_dir: Path, goals_dir: Path | None) -> int:
+    tasks, rc = _load_tasks_or_exit(tasks_dir)
+    if tasks is None:
+        return rc
+    titles: dict[str, str] = {}
+    if goals_dir is not None and goals_dir.is_dir():
+        goals, grc = _load_or_exit(goals_dir)
+        if goals is not None:
+            titles = {g.id: g.title for g in goals}
+    text = generate_task_index(tasks, goal_titles=titles)
+    (tasks_dir / "INDEX.md").write_text(text, encoding="utf-8")
+    print(f"생성 완료: {tasks_dir / 'INDEX.md'} ({len(tasks)} tasks)")
+    return 0
+
+
 def cmd_verify_goal(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
     goals, rc = _load_or_exit(goals_dir)
     if goals is None:
@@ -387,6 +526,46 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_ver.add_argument("goals_dir", type=Path)
     p_ver.add_argument("--json", action="store_true")
 
+    # --- Task 시스템 ---
+
+    p_nt = sub.add_parser("new-task", help="새 Task 파일 생성")
+    p_nt.add_argument("tasks_dir", type=Path)
+    p_nt.add_argument("--title", required=True)
+    p_nt.add_argument("--goal", action="append", default=[], dest="goal_ids",
+                      help="봉사 Goal ID — 복수 지정 가능")
+    p_nt.add_argument("--description", default=None)
+    p_nt.add_argument("--constraint-violation", default=None,
+                      help="B2 긴급 표시 — 위반 constraint Goal ID")
+
+    p_st = sub.add_parser("start-task", help="Task 착수 — todo → in_progress")
+    p_st.add_argument("task_id")
+    p_st.add_argument("tasks_dir", type=Path)
+
+    p_ct = sub.add_parser("close-task", help="Task 종결 — done | cancelled")
+    p_ct.add_argument("task_id")
+    p_ct.add_argument("tasks_dir", type=Path)
+    p_ct.add_argument("--cancelled", action="store_true",
+                      help="done 대신 cancelled 로 종결")
+    p_ct.add_argument("--commit", default=None, help="related_commits 에 추가")
+    p_ct.add_argument("--pr", type=int, default=None, help="related_pr 설정")
+
+    p_lt = sub.add_parser("list-tasks", help="Task 목록 조회")
+    p_lt.add_argument("tasks_dir", type=Path)
+    p_lt.add_argument("--status", default=None,
+                      help="todo | in_progress | done | cancelled")
+    p_lt.add_argument("--goal", default=None, dest="goal_id",
+                      help="특정 Goal 에 봉사하는 Task 만")
+
+    p_vt = sub.add_parser("validate-tasks", help="Task 스키마 + 참조 검증")
+    p_vt.add_argument("tasks_dir", type=Path)
+    p_vt.add_argument("goals_dir", type=Path, nargs="?", default=None,
+                      help="제공 시 T-R1/T-R3 참조 검증 추가")
+
+    p_rti = sub.add_parser("render-task-index", help="Tasks INDEX.md 생성")
+    p_rti.add_argument("tasks_dir", type=Path)
+    p_rti.add_argument("goals_dir", type=Path, nargs="?", default=None,
+                      help="제공 시 Goal 제목까지 포함")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "parse":
@@ -424,6 +603,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.cmd == "verify-goal":
         return cmd_verify_goal(args.goal_id, args.goals_dir, as_json=args.json)
+    if args.cmd == "new-task":
+        return cmd_new_task(
+            args.tasks_dir,
+            title=args.title,
+            goal_ids=args.goal_ids,
+            description=args.description,
+            constraint_violation=args.constraint_violation,
+        )
+    if args.cmd == "start-task":
+        return cmd_start_task(args.task_id, args.tasks_dir)
+    if args.cmd == "close-task":
+        return cmd_close_task(
+            args.task_id,
+            args.tasks_dir,
+            final_status="cancelled" if args.cancelled else "done",
+            commit=args.commit,
+            pr=args.pr,
+        )
+    if args.cmd == "list-tasks":
+        return cmd_list_tasks(args.tasks_dir, status=args.status, goal_id=args.goal_id)
+    if args.cmd == "validate-tasks":
+        return cmd_validate_tasks(args.tasks_dir, args.goals_dir)
+    if args.cmd == "render-task-index":
+        return cmd_render_task_index(args.tasks_dir, args.goals_dir)
 
     parser.error(f"unknown command: {args.cmd}")
     return 2

@@ -88,6 +88,7 @@
 
 | 범위 | 용도 |
 |------|------|
+| `G-0000` | 예약 — Goal/Task 시스템 자체에 봉사하는 메타-Pillar (`pillar:meta` 태그). 메타 Task 의 `goal_ids` 앵커. |
 | `G-0001` ~ `G-0099` | Pillar Goal, Constraint Goal |
 | `G-0100` ~ `G-0999` | 시스템 수준 Goal |
 | `G-1000` ~ | 일반 Goal |
