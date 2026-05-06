@@ -1,4 +1,4 @@
-%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T09:10:20+00:00
+%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T09:18:40+00:00
 graph TD
   G0000["G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성"]:::pillar
   G0001["G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0"]:::constraint
@@ -25,6 +25,7 @@ graph TD
   G0110["G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다"]
   G0111["G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다"]
   G0112["G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0"]
+  G0117["G-0117 Sprite 기반 지형 렌더링 — TerrainSubsystem 청크에서 top-surface 만 추출하여 단일 HISM 인스턴싱"]
   G1000["G-1000 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다"]
   G1001["G-1001 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화"]
   G1002["G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신"]
@@ -42,6 +43,7 @@ graph TD
   G0020 --> G0110
   G0020 --> G0111
   G0020 --> G0112
+  G0020 --> G0117
   G0108 --> G1000
   G0108 --> G1001
   G0108 --> G1002
@@ -73,6 +75,7 @@ graph TD
   G0003 -. 제약 .-> G0110
   G0004 -. 제약 .-> G0110
   G0004 -. 제약 .-> G0111
+  G0006 -. 제약 .-> G0117
   G0003 -. 제약 .-> G1000
   G0004 -. 제약 .-> G1000
   G0004 -. 제약 .-> G1001
