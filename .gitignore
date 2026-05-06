@@ -50,10 +50,9 @@ __pycache__/
 # Legacy
 .legacy/*
 
-# Claude
-.claude/*
-!.claude/commands/
-!.claude/skills/
+# Claude — 머신 전용 파일만 제외, skills/commands/settings.json 은 추적
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Etc
 working_changes.txt
