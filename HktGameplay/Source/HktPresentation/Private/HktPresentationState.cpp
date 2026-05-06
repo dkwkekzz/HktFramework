@@ -5,6 +5,7 @@
 #include "HktPresentationLog.h"
 #include "HktRuntimeTags.h"
 #include "HktAssetSubsystem.h"
+#include "HktCoreEventLog.h"
 
 namespace
 {
@@ -346,12 +347,29 @@ namespace
 
 EHktRenderCategory FHktPresentationState::DetermineRenderCategory(const FHktWorldState& WS, FHktEntityId Id, const UHktAssetSubsystem* AssetSubsystem)
 {
-	if (!AssetSubsystem) return EHktRenderCategory::None;
+	if (!AssetSubsystem)
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("RenderCategory=None: AssetSubsystem 미주입 (시각적으로 보이지 않음)"), Id);
+		return EHktRenderCategory::None;
+	}
 
 	const FGameplayTag VisualTag = IndexToTag(WS.GetProperty(Id, PropertyId::EntitySpawnTag));
-	if (!VisualTag.IsValid()) return EHktRenderCategory::None;
+	if (!VisualTag.IsValid())
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("RenderCategory=None: EntitySpawnTag 미설정 (시각적으로 보이지 않음)"), Id);
+		return EHktRenderCategory::None;
+	}
 
-	return AssetSubsystem->GetTagRenderCategory(VisualTag);
+	const EHktRenderCategory Category = AssetSubsystem->GetTagRenderCategory(VisualTag);
+	if (Category == EHktRenderCategory::None)
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("RenderCategory=None: Tag=%s 에 매핑된 TagDataAsset 없음 또는 GetRenderCategory()=None (시각적으로 보이지 않음)"), *VisualTag.ToString()),
+			Id);
+	}
+	return Category;
 }
 
 FLinearColor FHktPresentationState::GetTeamColor(int32 TeamIndex)
