@@ -343,16 +343,59 @@ namespace
 // FHktPresentationState — 정적 유틸
 // ============================================================================
 
+namespace
+{
+	// 스폰 태그에 포함된 렌더 모드 segment 식별.
+	// 컨벤션: Entity.{Archetype}.{RenderMode}.{Name}
+	//   예) Entity.Character.3DActor.Knight    → ThreeDActor
+	//       Entity.Character.Paper.Hikito.X    → Paper
+	//       Entity.NPC.CrowdSprite.Goblin      → CrowdSprite
+	enum class EHktRenderMode : uint8
+	{
+		Unknown,
+		ThreeDActor,
+		Paper,
+		CrowdSprite,
+	};
+
+	FORCEINLINE bool TagHasSegment(const FString& TagStr, const TCHAR* Segment)
+	{
+		// ".Segment." (중간) 또는 ".Segment" (끝) 매칭. 첫 segment 는 항상 "Entity" 이므로 leading dot 으로 충분.
+		const FString DotMid = FString::Printf(TEXT(".%s."), Segment);
+		const FString DotEnd = FString::Printf(TEXT(".%s"), Segment);
+		return TagStr.Contains(DotMid) || TagStr.EndsWith(DotEnd);
+	}
+
+	EHktRenderMode DetermineRenderMode(const FGameplayTagContainer& Tags)
+	{
+		for (const FGameplayTag& Tag : Tags)
+		{
+			const FString TagStr = Tag.ToString();
+			if (TagHasSegment(TagStr, TEXT("3DActor")))     return EHktRenderMode::ThreeDActor;
+			if (TagHasSegment(TagStr, TEXT("Paper")))       return EHktRenderMode::Paper;
+			if (TagHasSegment(TagStr, TEXT("CrowdSprite"))) return EHktRenderMode::CrowdSprite;
+		}
+		return EHktRenderMode::Unknown;
+	}
+}
+
 EHktRenderCategory FHktPresentationState::DetermineRenderCategory(const FGameplayTagContainer& Tags)
 {
-	if (Tags.HasTag(HktArchetypeTags::Entity_Character)
-		|| Tags.HasTag(HktArchetypeTags::Entity_NPC)
-		|| Tags.HasTag(HktArchetypeTags::Entity_Building))
+	// 1) 스폰 태그의 렌더 모드 segment 로 카테고리 결정 — Archetype 과 직교.
+	switch (DetermineRenderMode(Tags))
+	{
+		case EHktRenderMode::ThreeDActor: return EHktRenderCategory::Actor;
+		case EHktRenderMode::Paper:       return EHktRenderCategory::Actor;
+		case EHktRenderMode::CrowdSprite: return EHktRenderCategory::MassEntity;
+		default: break;
+	}
+
+	// 2) 렌더 모드 segment 가 없는 경우 — Item/Projectile 만 archetype 기반 fallback.
+	//    Character/NPC/Building 은 반드시 명시적 렌더 모드를 선언해야 한다.
+	if (Tags.HasTag(HktArchetypeTags::Entity_Item))
 		return EHktRenderCategory::Actor;
 	if (Tags.HasTag(HktArchetypeTags::Entity_Projectile))
 		return EHktRenderCategory::MassEntity;
-	if (Tags.HasTag(HktArchetypeTags::Entity_Item))
-		return EHktRenderCategory::Actor;
 	return EHktRenderCategory::None;
 }
 
@@ -388,6 +431,11 @@ void FHktPresentationState::AllocateViewsForEntity(FHktEntityId Id, EHktRenderCa
 	// Transform은 거의 모든 엔터티가 필요
 	EnsureSlot(Transforms);
 
+	const EHktRenderMode Mode = DetermineRenderMode(Tags);
+	const bool bIs3DActor    = (Mode == EHktRenderMode::ThreeDActor);
+	const bool bIsPaper      = (Mode == EHktRenderMode::Paper);
+	const bool bIsCrowdSprite= (Mode == EHktRenderMode::CrowdSprite);
+
 	const bool bIsItem       = Tags.HasTag(HktArchetypeTags::Entity_Item);
 	const bool bIsActor      = (Category == EHktRenderCategory::Actor);
 	const bool bIsMassEntity = (Category == EHktRenderCategory::MassEntity);
@@ -400,17 +448,21 @@ void FHktPresentationState::AllocateViewsForEntity(FHktEntityId Id, EHktRenderCa
 	if (bIsCharacter || bIsBuilding)    EnsureSlot(Vitals);
 	if (bIsCharacter)                   EnsureSlot(Combat);
 	if (bIsActor)                       EnsureSlot(Ownership);
-	if (bIsCharacter)                   EnsureSlot(Animation);
 	if (bIsActor || bIsMassEntity)      EnsureSlot(Visualization);
 	if (bIsItem)                        EnsureSlot(Items);
 
-	// VoxelSkin — 복셀 캐릭터만 사용. 현재 태그 체계에 별도 구분 태그가 없어
-	// Character 전원에 배치. 추후 Entity_VoxelCharacter 태그 도입 시 gate.
-	if (bIsCharacter)                   EnsureSlot(VoxelSkins);
+	// Animation / VoxelSkin — 3D 액터 캐릭터 전용 (UE Animation + Voxel 메시 스키닝)
+	if (bIs3DActor && bIsCharacter)
+	{
+		EnsureSlot(Animation);
+		EnsureSlot(VoxelSkins);
+	}
 
-	// Sprite — 2D 라그나로크 방식 캐릭터. 현재는 Character/NPC 전원에 배치.
-	// 추후 Entity_SpriteCharacter 태그 도입 시 gate.
-	if (bIsCharacter)                   EnsureSlot(Sprites);
+	// Sprite — Paper2D / CrowdSprite (Niagara billboard) 캐릭터 전용
+	if ((bIsPaper || bIsCrowdSprite) && bIsCharacter)
+	{
+		EnsureSlot(Sprites);
+	}
 
 	// TerrainDebris — 분류되지 않은 엔터티를 Debris로 간주 (현재 Entity_Debris 태그 부재)
 	if (Category == EHktRenderCategory::None)
