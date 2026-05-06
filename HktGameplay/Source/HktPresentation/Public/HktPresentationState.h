@@ -9,9 +9,39 @@
 #include "HktTagDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Math/Color.h"
+#include "Misc/EnumClassFlags.h"
 #include "UObject/SoftObjectPath.h"
 
 class UHktAssetSubsystem;
+
+/**
+ * Delta 적용 실패(drop) 사유 비트플래그.
+ * 동일 (Entity, Reason) 조합당 1회만 로그하기 위해 엔터티별 비트마스크로 누적된다.
+ * RemoveEntity 시 해당 엔터티 슬롯 제거 → 재spawn 시 재로깅 가능.
+ *
+ * 설계 노트:
+ *  - PropId 별로 분리하지 않는 이유: 같은 뷰 미할당으로 인한 cascade(예: Movement 뷰 부재 →
+ *    VelX/Y/Z + MoveTargetX/Y/Z + MoveForce + IsMoving + IsGrounded = 9개 PropId 가 모두 drop)는
+ *    근본 원인이 하나이므로 카테고리 단위 1회 로그로 충분. 첫 로그 메시지에 trigger PropId 가
+ *    포함되므로 진단 시작점도 명확.
+ *  - 저장소: TSparseArray<EHktDropReason> (엔터티당 uint16 2바이트, 다른 SOA 뷰들과 동일 패턴).
+ *  - 게이트: ShouldLogDropOnce 가 EventLog 활성 + Level 조건도 함께 검사 → 패널 닫힌 동안에는
+ *    dedup 비트도 set 되지 않음 (패널 열리면 그때 첫 로그 정상 출력).
+ */
+enum class EHktDropReason : uint16
+{
+	None                      = 0,
+	Property_InvalidEntity    = 1 << 0,
+	Property_PropIdRange      = 1 << 1,
+	Property_NoDispatcher     = 1 << 2,
+	Property_ViewMissing      = 1 << 3,
+	Owner_InvalidEntity       = 1 << 4,
+	Owner_ViewMissing         = 1 << 5,
+	Tag_InvalidEntity         = 1 << 6,
+	Tag_ViewMissing           = 1 << 7,   // 의도적 스킵 — Verbose
+	AnimTrigger_InvalidEntity = 1 << 8,
+};
+ENUM_CLASS_FLAGS(EHktDropReason);
 
 // ============================================================================
 // Per-entity lifecycle / metadata — 모든 유효 엔터티에 할당
@@ -264,6 +294,23 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TArray<FHktPendingVFXEvent>  PendingVFXEvents;
 	TArray<FHktPendingVFXAttach> PendingVFXAttachments;
 	TArray<FHktPendingVFXDetach> PendingVFXDetachments;
+
+	/**
+	 * Delta 적용 실패(drop) 로그 dedup — 엔터티별 사유 비트마스크.
+	 * 동일 (Entity, Reason) 조합당 1회만 출력. RemoveEntity 시 슬롯 제거 → 재spawn 시 재로깅.
+	 * 매 틱 발생 가능한 silent-drop(예: VelX 가 매 틱 변경되는데 Movement 뷰 부재)이
+	 * 로그를 도배하는 것을 원천 차단한다.
+	 *
+	 * 다른 SOA 뷰들과 동일하게 EntityId 인덱싱 TSparseArray 사용 — TMap 해시 오버헤드 회피,
+	 * 캐시 친화적 dense layout.
+	 */
+	TSparseArray<EHktDropReason> LoggedDropFlags;
+
+	/**
+	 * Id < 0 (네트워크/직렬화 버그) 케이스 dedup — sparse array 인덱싱 불가능하므로 단일 필드 사용.
+	 * 모든 음수 Id 가 공유 (rare path 이므로 충분).
+	 */
+	EHktDropReason NegativeIdLoggedFlags = EHktDropReason::None;
 
 	// --- 프레임 관리 ---
 	void BeginFrame(int64 Frame);
