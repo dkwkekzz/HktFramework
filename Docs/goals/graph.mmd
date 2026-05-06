@@ -1,4 +1,4 @@
-%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T09:33:21+00:00
+%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T10:04:09+00:00
 graph TD
   G0000["G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성"]:::pillar
   G0001["G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0"]:::constraint
@@ -32,6 +32,7 @@ graph TD
   G0121["G-0121 HktMap 빌드 — terrain_spec JSON → Landscape/Spawner/Region 파이프라인"]
   G0122["G-0122 Story Schema 2 컴파일 — JSON → HktCore 바이트코드 + 의존성 추적"]
   G0123["G-0123 Generator Prompt 패널 + Claude CLI Subprocess — 인터랙티브 생성 UI"]
+  G0124["G-0124 스프라이트 어셋 자동 생성 — Anim Capture → 3-stage Pipeline (Video / Atlas / DA Build)"]
   G1000["G-1000 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다"]
   G1001["G-1001 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화"]
   G1002["G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신"]
@@ -56,6 +57,7 @@ graph TD
   G0030 --> G0121
   G0030 --> G0122
   G0030 --> G0123
+  G0030 --> G0124
   G0108 --> G1000
   G0108 --> G1001
   G0108 --> G1002
