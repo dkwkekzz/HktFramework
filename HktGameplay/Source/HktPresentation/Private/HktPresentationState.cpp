@@ -4,6 +4,8 @@
 #include "GameplayTagsManager.h"
 #include "HktPresentationLog.h"
 #include "HktRuntimeTags.h"
+#include "HktAssetSubsystem.h"
+#include "HktCoreEventLog.h"
 
 namespace
 {
@@ -343,17 +345,31 @@ namespace
 // FHktPresentationState — 정적 유틸
 // ============================================================================
 
-EHktRenderCategory FHktPresentationState::DetermineRenderCategory(const FGameplayTagContainer& Tags)
+EHktRenderCategory FHktPresentationState::DetermineRenderCategory(const FHktWorldState& WS, FHktEntityId Id, const UHktAssetSubsystem* AssetSubsystem)
 {
-	if (Tags.HasTag(HktArchetypeTags::Entity_Character)
-		|| Tags.HasTag(HktArchetypeTags::Entity_NPC)
-		|| Tags.HasTag(HktArchetypeTags::Entity_Building))
-		return EHktRenderCategory::Actor;
-	if (Tags.HasTag(HktArchetypeTags::Entity_Projectile))
-		return EHktRenderCategory::MassEntity;
-	if (Tags.HasTag(HktArchetypeTags::Entity_Item))
-		return EHktRenderCategory::Actor;
-	return EHktRenderCategory::None;
+	if (!AssetSubsystem)
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("RenderCategory=None: AssetSubsystem 미주입 (시각적으로 보이지 않음)"), Id);
+		return EHktRenderCategory::None;
+	}
+
+	const FGameplayTag VisualTag = IndexToTag(WS.GetProperty(Id, PropertyId::EntitySpawnTag));
+	if (!VisualTag.IsValid())
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("RenderCategory=None: EntitySpawnTag 미설정 (시각적으로 보이지 않음)"), Id);
+		return EHktRenderCategory::None;
+	}
+
+	const EHktRenderCategory Category = AssetSubsystem->GetTagRenderCategory(VisualTag);
+	if (Category == EHktRenderCategory::None)
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("RenderCategory=None: Tag=%s 에 매핑된 TagDataAsset 없음 또는 GetRenderCategory()=None (시각적으로 보이지 않음)"), *VisualTag.ToString()),
+			Id);
+	}
+	return Category;
 }
 
 FLinearColor FHktPresentationState::GetTeamColor(int32 TeamIndex)
@@ -570,13 +586,13 @@ void FHktPresentationState::TouchDirty(FHktEntityId Id)
 // 엔터티 생명주기
 // ============================================================================
 
-void FHktPresentationState::AddEntity(const FHktWorldState& WS, FHktEntityId Id)
+void FHktPresentationState::AddEntity(const FHktWorldState& WS, FHktEntityId Id, const UHktAssetSubsystem* AssetSubsystem)
 {
 	if (Id < 0) return;
 
 	const int32 Index = static_cast<int32>(Id);
 	const FGameplayTagContainer Tags = WS.GetTags(Id);
-	const EHktRenderCategory Category = DetermineRenderCategory(Tags);
+	const EHktRenderCategory Category = DetermineRenderCategory(WS, Id, AssetSubsystem);
 
 	// Meta 삽입
 	FHktEntityMeta Meta;

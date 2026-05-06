@@ -43,4 +43,6 @@ public:
 	/** 메시 스케일 오버라이드 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
 	FVector MeshScale = FVector::OneVector;
+
+	virtual EHktRenderCategory GetRenderCategory() const override { return EHktRenderCategory::Actor; }
 };

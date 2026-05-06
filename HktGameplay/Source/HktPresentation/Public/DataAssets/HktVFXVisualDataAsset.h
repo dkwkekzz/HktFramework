@@ -22,4 +22,6 @@ public:
 	/** 이 VFX 태그에 대응하는 Niagara System */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|VFX")
 	TObjectPtr<UNiagaraSystem> NiagaraSystem;
+
+	virtual EHktRenderCategory GetRenderCategory() const override { return EHktRenderCategory::FX; }
 };

@@ -6,19 +6,12 @@
 #include "HktVisualField.h"
 #include "HktWorldState.h"
 #include "HktCoreProperties.h"
+#include "HktTagDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Math/Color.h"
 #include "UObject/SoftObjectPath.h"
 
-/** 엔터티의 렌더 카테고리 (어떤 렌더러가 담당할지 결정) */
-enum class EHktRenderCategory : uint8
-{
-	None = 0,
-	Actor,
-	MassEntity,
-	FX,
-	Debris,
-};
+class UHktAssetSubsystem;
 
 // ============================================================================
 // Per-entity lifecycle / metadata — 모든 유효 엔터티에 할당
@@ -277,7 +270,9 @@ struct HKTPRESENTATION_API FHktPresentationState
 	void ClearFrameChanges();
 
 	// --- 엔터티 생명주기 ---
-	void AddEntity(const FHktWorldState& WS, FHktEntityId Id);
+	// AssetSubsystem 은 visual tag → TagDataAsset 클래스 → RenderCategory 해석에 사용.
+	// nullptr 이면 RenderCategory = None 으로 처리 (테스트/헤드리스 경로 호환).
+	void AddEntity(const FHktWorldState& WS, FHktEntityId Id, const UHktAssetSubsystem* AssetSubsystem);
 	void RemoveEntity(FHktEntityId Id);
 
 	// --- 델타 적용 ---
@@ -317,7 +312,13 @@ struct HKTPRESENTATION_API FHktPresentationState
 	void Clear();
 
 	// --- 유틸 ---
-	static EHktRenderCategory DetermineRenderCategory(const FGameplayTagContainer& Tags);
+	/**
+	 * 엔터티의 렌더 카테고리 결정. 우선순위:
+	 *   1) WS 의 EntitySpawnTag(visual tag) 로 AssetSubsystem 에 매핑된 TagDataAsset 클래스 → GetRenderCategory()
+	 *   2) 매핑 실패 시 EHktRenderCategory::None
+	 * 기존 archetype 태그(Entity_Character/NPC/...) 분기는 더 이상 사용하지 않음.
+	 */
+	static EHktRenderCategory DetermineRenderCategory(const FHktWorldState& WS, FHktEntityId Id, const UHktAssetSubsystem* AssetSubsystem);
 	static FLinearColor GetTeamColor(int32 TeamIndex);
 
 private:

@@ -31,6 +31,7 @@ UHktAssetSubsystem* UHktAssetSubsystem::Get(UWorld* World)
 void UHktAssetSubsystem::RebuildTagMap()
 {
     TagToPathMap.Empty();
+    TagToRenderCategoryMap.Empty();
 
     FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
     IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
@@ -52,11 +53,55 @@ void UHktAssetSubsystem::RebuildTagMap()
             {
                 // SoftObjectPath만 저장하여 메모리 절약
                 TagToPathMap.Add(FoundTag, AssetData.ToSoftObjectPath());
+
+                // 클래스 CDO 로부터 렌더 카테고리 미리 해석. 에셋 자체는 로드하지 않음.
+                if (UClass* AssetClass = AssetData.GetClass())
+                {
+                    if (const UHktTagDataAsset* CDO = Cast<UHktTagDataAsset>(AssetClass->GetDefaultObject()))
+                    {
+                        const EHktRenderCategory Cat = CDO->GetRenderCategory();
+                        if (Cat != EHktRenderCategory::None)
+                        {
+                            TagToRenderCategoryMap.Add(FoundTag, Cat);
+                        }
+                    }
+                }
             }
         }
     }
 
     HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("RebuildTagMap: %d tags registered"), TagToPathMap.Num()));
+}
+
+EHktRenderCategory UHktAssetSubsystem::ResolveRenderCategoryForPath(const FSoftObjectPath& Path) const
+{
+    if (!Path.IsValid()) return EHktRenderCategory::None;
+
+    // 클래스 경로에서 UClass 만 가볍게 해석 (에셋 본체는 로드하지 않음).
+    // FSoftObjectPath 는 AssetClassPath 를 직접 노출하지 않으므로 AssetRegistry 를 경유.
+    FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+    IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+    const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(Path);
+    if (!AssetData.IsValid()) return EHktRenderCategory::None;
+
+    UClass* AssetClass = AssetData.GetClass();
+    if (!AssetClass) return EHktRenderCategory::None;
+
+    if (const UHktTagDataAsset* CDO = Cast<UHktTagDataAsset>(AssetClass->GetDefaultObject()))
+    {
+        return CDO->GetRenderCategory();
+    }
+    return EHktRenderCategory::None;
+}
+
+EHktRenderCategory UHktAssetSubsystem::GetTagRenderCategory(const FGameplayTag& Tag) const
+{
+    if (const EHktRenderCategory* C = TagToRenderCategoryMap.Find(Tag))
+    {
+        return *C;
+    }
+    return EHktRenderCategory::None;
 }
 
 // ============================================================================
@@ -81,6 +126,11 @@ FSoftObjectPath UHktAssetSubsystem::ResolvePath(FGameplayTag Tag)
         if (GeneratedPath.IsValid())
         {
             TagToPathMap.Add(Tag, GeneratedPath);
+            const EHktRenderCategory Cat = ResolveRenderCategoryForPath(GeneratedPath);
+            if (Cat != EHktRenderCategory::None)
+            {
+                TagToRenderCategoryMap.Add(Tag, Cat);
+            }
             HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("OnTagMiss resolved: %s → %s"), *Tag.ToString(), *GeneratedPath.ToString()));
             return GeneratedPath;
         }
@@ -128,6 +178,12 @@ void UHktAssetSubsystem::RegisterTagPath(FGameplayTag Tag, FSoftObjectPath Path)
     if (Tag.IsValid() && Path.IsValid())
     {
         TagToPathMap.Add(Tag, Path);
+
+        const EHktRenderCategory Cat = ResolveRenderCategoryForPath(Path);
+        if (Cat != EHktRenderCategory::None)
+        {
+            TagToRenderCategoryMap.Add(Tag, Cat);
+        }
         HKT_EVENT_LOG(HktLogTags::Asset, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("RegisterTagPath: %s → %s"), *Tag.ToString(), *Path.ToString()));
     }
 }

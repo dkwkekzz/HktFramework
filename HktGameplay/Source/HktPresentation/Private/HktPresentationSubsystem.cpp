@@ -3,6 +3,7 @@
 #include "HktPresentationSubsystem.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "HktRuntimeTypes.h"
+#include "HktAssetSubsystem.h"
 #include "Processors/HktActorProcessor.h"
 #include "Processors/HktMassEntityProcessor.h"
 #include "Processors/HktVFXProcessor.h"
@@ -191,9 +192,13 @@ void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 {
 	State.Clear();
 	State.BeginFrame(View.FrameNumber);
-	View.ForEachEntity([this, &View](FHktEntityId Id, int32)
+
+	UWorld* World = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+	const UHktAssetSubsystem* AssetSub = World ? UHktAssetSubsystem::Get(World) : nullptr;
+
+	View.ForEachEntity([this, &View, AssetSub](FHktEntityId Id, int32)
 	{
-		State.AddEntity(*View.WorldState, Id);
+		State.AddEntity(*View.WorldState, Id, AssetSub);
 		const FHktVisualizationView* V = State.GetVisualization(Id);
 		if (V && V->VisualElement.Get().IsValid())
 		{
@@ -215,10 +220,12 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	});
 
 	// --- Spawn: State 즉시 갱신 + PendingSpawns에 비동기 에셋 해석 요청 적재 ---
+	UWorld* SpawnWorld = GetLocalPlayer() ? GetLocalPlayer()->GetWorld() : nullptr;
+	const UHktAssetSubsystem* SpawnAssetSub = SpawnWorld ? UHktAssetSubsystem::Get(SpawnWorld) : nullptr;
 	int32 SpawnedCount = 0;
-	View.ForEachSpawned([this, &View, &SpawnedCount](const FHktEntityState& ES)
+	View.ForEachSpawned([this, &View, &SpawnedCount, SpawnAssetSub](const FHktEntityState& ES)
 	{
-		State.AddEntity(*View.WorldState, ES.EntityId);
+		State.AddEntity(*View.WorldState, ES.EntityId, SpawnAssetSub);
 		const FHktVisualizationView* V = State.GetVisualization(ES.EntityId);
 		if (V && V->VisualElement.Get().IsValid())
 		{
