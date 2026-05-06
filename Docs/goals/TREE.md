@@ -1,7 +1,7 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T09:18:40+00:00
+> Last generated: 2026-05-06T10:04:08+00:00
 
 - G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
@@ -25,6 +25,13 @@
   - G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0
   - G-0117 Sprite 기반 지형 렌더링 — TerrainSubsystem 청크에서 top-surface 만 추출하여 단일 HISM 인스턴싱
 - G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
+  - G-0118 MCP 서버 ↔ UE5 에디터/런타임 브릿지 — LLM 에이전트 통신 인프라
+  - G-0119 8-step Generator Pipeline 오케스트레이션 — Step Store + Feature Worker
+  - G-0120 Tag 디스패치 + Generator Router — 어셋 자동 생성 라우팅
+  - G-0121 HktMap 빌드 — terrain_spec JSON → Landscape/Spawner/Region 파이프라인
+  - G-0122 Story Schema 2 컴파일 — JSON → HktCore 바이트코드 + 의존성 추적
+  - G-0123 Generator Prompt 패널 + Claude CLI Subprocess — 인터랙티브 생성 UI
+  - G-0124 스프라이트 어셋 자동 생성 — Anim Capture → 3-stage Pipeline (Video / Atlas / DA Build)
 - G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
 
