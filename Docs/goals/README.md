@@ -35,6 +35,11 @@ python -m goalsys.cli build-views Docs/goals
 상세는 [`Tools/goal-system/README.md`](../../Tools/goal-system/README.md) 와
 [`Docs/goal-system-design.md`](../goal-system-design.md) 참고.
 
+## Task 시스템 연계
+
+Goal 의 success_criteria 미달분은 [`Docs/tasks/`](../tasks/) 에 Task 로 영속화한다.
+설계: [`Docs/task-system-design.md`](../task-system-design.md). 도구는 위 CLI 와 통합 — `new-task` / `close-task` / `list-tasks` / `validate-tasks` / `render-task-index`.
+
 ## 작성 시작 지점
 
 설계 §3.6 ID 범위에 따라 최상위 Pillar Goal (`G-0001`~`G-0099`, `tags: [pillar:*]`)
