@@ -7,14 +7,20 @@
 #include "HktAssetSubsystem.h"
 #include "HktCoreEventLog.h"
 
-// Delta 적용 실패(엔터티 미존재/뷰 미할당/PropId 미등록)는 기본적으로 정상 케이스가 다수.
-// 디버깅이 필요할 때만 CVar 로 켜서 정확한 사유를 로그한다.
-static TAutoConsoleVariable<int32> CVarHktLogDroppedDeltas(
-	TEXT("hkt.Presentation.LogDroppedDeltas"),
-	0,
-	TEXT("VM Delta 가 ViewModel 에 적용되지 못한 모든 케이스를 로그한다. 0=off(기본), 1=on. ")
-	TEXT("로그 사유: InvalidEntityId / EntityNotInMetas / EntityDead / PropIdOutOfRange / NoDispatcher / ViewNotAllocated."),
-	ECVF_Default);
+// Delta 적용 실패(drop) 사유 코드 — LoggedDropKeys dedup 키의 상위 16비트로 인코딩.
+// 동일 (Entity, Reason, PropId/Slot) 조합당 1회만 로그한다 (틱당 중복 방지).
+namespace HktDropReason
+{
+	constexpr uint8 Property_InvalidEntity   = 1;
+	constexpr uint8 Property_PropIdRange     = 2;
+	constexpr uint8 Property_NoDispatcher    = 3;
+	constexpr uint8 Property_ViewMissing     = 4;
+	constexpr uint8 Owner_InvalidEntity      = 5;
+	constexpr uint8 Owner_ViewMissing        = 6;
+	constexpr uint8 Tag_InvalidEntity        = 7;
+	constexpr uint8 Tag_ViewMissing          = 8;   // 의도적 스킵 — Verbose
+	constexpr uint8 AnimTrigger_InvalidEntity = 9;
+}
 
 namespace
 {
@@ -694,6 +700,9 @@ void FHktPresentationState::RemoveEntity(FHktEntityId Id)
 	if (Sprites.IsValidIndex(Index))        Sprites.RemoveAt(Index);
 	if (TerrainDebris.IsValidIndex(Index))  TerrainDebris.RemoveAt(Index);
 
+	// Drop 로그 dedup 키 정리 — 재spawn 시 같은 사유의 drop 이 다시 한 번 로그될 수 있도록.
+	LoggedDropKeys.Remove(Id);
+
 	// Meta는 유지 (RemovedFrame 추적용). Clear()에서만 Meta 제거.
 }
 
@@ -711,19 +720,34 @@ namespace
 		if (!S.Metas[Id].IsAlive())              return TEXT("EntityDead(이미 Remove 됨)");
 		return TEXT("Unknown");
 	}
+
+	/**
+	 * Drop 로그 1회성 게이트 — 동일 (Entity, Reason, PropOrSlot) 조합은 한 번만 통과.
+	 * 매 틱 변경되는 Hot 프로퍼티(PosX, VelX 등)에 대해 뷰 미할당 같은 영구 미스매치가
+	 * 매 틱 로그를 찍는 것을 원천 차단한다. RemoveEntity 시 키 정리 → 재spawn 시 재로깅.
+	 *
+	 * 주의: Id < 0 (네트워크/직렬화 버그) 인 경우에도 dedup 으로 1회 한정.
+	 *       해당 키는 RemoveEntity 가 호출되지 않으므로 Clear() 에서만 정리.
+	 */
+	static bool ShouldLogDropOnce(FHktPresentationState& S, FHktEntityId Id, uint8 ReasonCode, uint16 PropOrSlot)
+	{
+		const uint32 Key = (static_cast<uint32>(ReasonCode) << 16) | static_cast<uint32>(PropOrSlot);
+		TSet<uint32>& Set = S.LoggedDropKeys.FindOrAdd(Id);
+		bool bAlreadyIn = false;
+		Set.Add(Key, &bAlreadyIn);
+		return !bAlreadyIn;
+	}
 }
 
 void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 NewValue)
 {
-	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
-
 	if (!IsValid(Id))
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_InvalidEntity, PropId))
 		{
 			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=%s"),
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=%s (이후 동일 키는 dedup)"),
 					CurrentFrame, PropName ? PropName : TEXT("?"), PropId, NewValue,
 					DiagInvalidReason(*this, Id)),
 				Id);
@@ -734,10 +758,10 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	const TArray<FHktDeltaApplier>& Table = GetDeltaDispatchTable();
 	if (PropId >= Table.Num())
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_PropIdRange, PropId))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld PropId=%u Value=%d Reason=PropIdOutOfRange(Table=%d)"),
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld PropId=%u Value=%d Reason=PropIdOutOfRange(Table=%d) (이후 동일 키는 dedup)"),
 					CurrentFrame, PropId, NewValue, Table.Num()),
 				Id);
 		}
@@ -746,11 +770,11 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	FHktDeltaApplier Fn = Table[PropId];
 	if (!Fn)
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_NoDispatcher, PropId))
 		{
 			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=NoDispatcher(디스패치 테이블 미등록)"),
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=NoDispatcher(디스패치 테이블 미등록) (이후 동일 키는 dedup)"),
 					CurrentFrame, PropName ? PropName : TEXT("?"), PropId, NewValue),
 				Id);
 		}
@@ -760,12 +784,12 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	const bool bApplied = Fn(*this, Id, NewValue, CurrentFrame);
 	if (!bApplied)
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_ViewMissing, PropId))
 		{
 			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 			const FHktEntityMeta* M = GetMeta(Id);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=ViewNotAllocated(Category=%d) — 해당 PropertyId 가 요구하는 뷰가 이 엔터티 카테고리에서 미할당. AllocateViewsForEntity 매핑 확인 필요."),
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=ViewNotAllocated(Category=%d) — 이 PropertyId 가 요구하는 뷰가 이 엔터티 카테고리에서 미할당. AllocateViewsForEntity 매핑 확인 필요. (이후 동일 키는 dedup)"),
 					CurrentFrame, PropName ? PropName : TEXT("?"), PropId, NewValue,
 					M ? static_cast<int32>(M->RenderCategory) : -1),
 				Id);
@@ -779,14 +803,12 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 
 void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 {
-	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
-
 	if (!IsValid(Id))
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Owner_InvalidEntity, 0))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP OwnerDelta Frame=%lld Owner=%lld Reason=%s"),
+				FString::Printf(TEXT("DROP OwnerDelta Frame=%lld Owner=%lld Reason=%s (이후 동일 키는 dedup)"),
 					CurrentFrame, NewOwnerUid, DiagInvalidReason(*this, Id)),
 				Id);
 		}
@@ -795,11 +817,11 @@ void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 	const int32 Index = static_cast<int32>(Id);
 	if (!Ownership.IsValidIndex(Index))
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Owner_ViewMissing, 0))
 		{
 			const FHktEntityMeta* M = GetMeta(Id);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP OwnerDelta Frame=%lld Owner=%lld Reason=OwnershipViewNotAllocated(Category=%d) — Actor 가 아닌 카테고리에는 Ownership 뷰 미할당."),
+				FString::Printf(TEXT("DROP OwnerDelta Frame=%lld Owner=%lld Reason=OwnershipViewNotAllocated(Category=%d) — Actor 가 아닌 카테고리에는 Ownership 뷰 미할당. (이후 동일 키는 dedup)"),
 					CurrentFrame, NewOwnerUid, M ? static_cast<int32>(M->RenderCategory) : -1),
 				Id);
 		}
@@ -814,14 +836,12 @@ void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 
 void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagContainer& NewTags)
 {
-	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
-
 	if (!IsValid(Id))
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Tag_InvalidEntity, 0))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP TagDelta Frame=%lld Tags=%s Reason=%s"),
+				FString::Printf(TEXT("DROP TagDelta Frame=%lld Tags=%s Reason=%s (이후 동일 키는 dedup)"),
 					CurrentFrame, *NewTags.ToString(), DiagInvalidReason(*this, Id)),
 				Id);
 		}
@@ -830,14 +850,13 @@ void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagCon
 	const int32 Index = static_cast<int32>(Id);
 	if (!Animation.IsValidIndex(Index))
 	{
-		// 태그만 변경되는 Item/Debris 엔터티의 경우 — 필요하면 lazy 할당
-		// 현재는 태그를 필요로 하는 건 AnimInstance뿐이므로 의도적으로 스킵.
-		// 다만 진단 모드에서는 어떤 카테고리가 누락됐는지 가시화한다.
-		if (bDiag)
+		// 태그만 변경되는 Item/Debris 엔터티의 경우 — Animation 뷰가 없는 카테고리는 의도적 스킵.
+		// 정상 동작이지만 진단 가시성을 위해 Verbose 1회 로그 (EventLog 기본 MinLevel=Info 라 수집 안 됨).
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::Tag_ViewMissing, 0))
 		{
 			const FHktEntityMeta* M = GetMeta(Id);
-			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
-				FString::Printf(TEXT("SKIP TagDelta Frame=%lld Tags=%s Reason=AnimationViewNotAllocated(Category=%d) — Item/Debris 등 비-Character 엔터티는 의도적 스킵."),
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("SKIP TagDelta Frame=%lld Tags=%s Reason=AnimationViewNotAllocated(Category=%d) — 비-Character 엔터티는 의도적 스킵"),
 					CurrentFrame, *NewTags.ToString(), M ? static_cast<int32>(M->RenderCategory) : -1),
 				Id);
 		}
@@ -851,14 +870,12 @@ void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagCon
 
 void FHktPresentationState::AddAnimTrigger(FHktEntityId Id, const FGameplayTag& Tag)
 {
-	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
-
 	if (!IsValid(Id))
 	{
-		if (bDiag)
+		if (ShouldLogDropOnce(*this, Id, HktDropReason::AnimTrigger_InvalidEntity, 0))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("DROP AnimTrigger Frame=%lld Tag=%s Reason=%s"),
+				FString::Printf(TEXT("DROP AnimTrigger Frame=%lld Tag=%s Reason=%s (이후 동일 키는 dedup)"),
 					CurrentFrame, *Tag.ToString(), DiagInvalidReason(*this, Id)),
 				Id);
 		}
@@ -896,5 +913,6 @@ void FHktPresentationState::Clear()
 	PendingVFXEvents.Reset();
 	PendingVFXAttachments.Reset();
 	PendingVFXDetachments.Reset();
+	LoggedDropKeys.Empty();
 	CurrentFrame = 0;
 }

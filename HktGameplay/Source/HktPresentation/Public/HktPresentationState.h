@@ -265,6 +265,15 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TArray<FHktPendingVFXAttach> PendingVFXAttachments;
 	TArray<FHktPendingVFXDetach> PendingVFXDetachments;
 
+	/**
+	 * Delta 적용 실패(drop) 로그 dedup.
+	 * 키 = (ReasonCode << 16) | PropOrSlot. 동일 (Entity, Reason, PropId/Slot) 조합당 1회만 출력.
+	 * RemoveEntity 시 해당 Id 제거 → 재spawn 시 재로깅.
+	 * 매 틱 발생 가능한 silent-drop(예: VelX 가 매 틱 변경되는데 Movement 뷰 부재)이
+	 * 로그를 도배하는 것을 원천 차단한다.
+	 */
+	TMap<FHktEntityId, TSet<uint32>> LoggedDropKeys;
+
 	// --- 프레임 관리 ---
 	void BeginFrame(int64 Frame);
 	void ClearFrameChanges();
