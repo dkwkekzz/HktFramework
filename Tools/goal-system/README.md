@@ -17,6 +17,7 @@
 | `goalsys/bidirectional.py` | C1~C4 양방향 검증 + sync-realizes | tooling §5.2~§5.3 |
 | `goalsys/lifecycle.py`     | next-id + new-goal | tooling §6.1~§6.2 |
 | `goalsys/verify.py`        | verify-goal (자동 측정 후크) | tooling §6.3 |
+| `goalsys/tasks.py`         | Task 모델 + CLI 백엔드 (new/close/list/validate/render-index) | task-system-design |
 | `goalsys/cli.py`           | 모든 서브커맨드 진입점 | tooling §7 |
 
 ## CLI
@@ -59,6 +60,25 @@ python -m goalsys.cli verify-goal G-0142 ../../Docs/goals
 ```bash
 python -m goalsys.cli validate    ../../Docs/goals  # = validate-schema + validate-dag
 python -m goalsys.cli build-views ../../Docs/goals  # = render-index + render-tree + render-graph
+```
+
+### Task 시스템
+
+`Docs/task-system-design.md` 의 구현체. Task 는 Goal success_criteria 미달분을 영속화한다.
+
+```bash
+# 라이프사이클
+python -m goalsys.cli new-task ../../Docs/tasks \
+    --title "..." --goal G-0100 [--goal G-0101] \
+    [--description "..."] [--constraint-violation G-0002]
+python -m goalsys.cli close-task T-00001 ../../Docs/tasks [--cancelled] [--commit <sha>] [--pr <num>]
+python -m goalsys.cli list-tasks ../../Docs/tasks [--status todo] [--goal G-0100]
+
+# 검증 — Goal 디렉토리 제공 시 T-R1/T-R3 참조 검사 추가
+python -m goalsys.cli validate-tasks ../../Docs/tasks ../../Docs/goals
+
+# INDEX.md 재생성 — Goal 디렉토리 제공 시 Goal 제목 포함
+python -m goalsys.cli render-task-index ../../Docs/tasks ../../Docs/goals
 ```
 
 ### CI 통합 (tooling §7.2)
