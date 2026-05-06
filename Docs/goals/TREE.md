@@ -1,7 +1,7 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T04:22:28+00:00
+> Last generated: 2026-05-06T06:12:07+00:00
 
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
 - G-0020 엔터티 시각화 — Tag/DataAsset 기반 리소스 연결과 대량 엔터티 렌더링 성능

@@ -1,7 +1,7 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T04:22:28+00:00
+> Last generated: 2026-05-06T06:12:07+00:00
 > Total goals: 11
 
 ## By Pillar
