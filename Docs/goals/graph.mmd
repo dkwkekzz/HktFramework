@@ -1,4 +1,4 @@
-%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T07:58:22+00:00
+%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T08:50:06+00:00
 graph TD
   G0000["G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성"]:::pillar
   G0001["G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0"]:::constraint
@@ -25,6 +25,7 @@ graph TD
   G0110["G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다"]
   G0111["G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다"]
   G0112["G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0"]
+  G0113["G-0113 스프라이트 캐릭터가 단일 애니 상태기계로 Paper / Crowd 두 경로에 동일 결과를 산출한다"]
   G0010 --> G0100
   G0010 --> G0101
   G0010 --> G0102
@@ -38,6 +39,7 @@ graph TD
   G0020 --> G0110
   G0020 --> G0111
   G0020 --> G0112
+  G0020 --> G0113
   G0001 -. 제약 .-> G0010
   G0002 -. 제약 .-> G0010
   G0003 -. 제약 .-> G0010
@@ -65,5 +67,7 @@ graph TD
   G0003 -. 제약 .-> G0110
   G0004 -. 제약 .-> G0110
   G0004 -. 제약 .-> G0111
+  G0003 -. 제약 .-> G0113
+  G0004 -. 제약 .-> G0113
   classDef pillar fill:#fef3c7,stroke:#b45309,stroke-width:2px;
   classDef constraint fill:#fee2e2,stroke:#b91c1c,stroke-width:1px,stroke-dasharray: 3 3;
