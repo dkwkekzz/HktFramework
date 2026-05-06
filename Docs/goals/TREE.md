@@ -1,7 +1,7 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T10:37:10+00:00
+> Last generated: 2026-05-06T11:06:30+00:00
 
 - G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
@@ -38,6 +38,9 @@
   - G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
   - G-0128 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
+  - G-0129 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+  - G-0130 In-engine 테스트 하니스 — VM/Story 자기완결 미니 런타임 + Automation 등록
+  - G-0131 /test-fix 슬래시 커맨드 — 실행→분석→수정→재실행 LLM 자동 루프
 
 ## Constraints (횡단 제약)
 

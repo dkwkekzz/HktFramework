@@ -1,8 +1,8 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T10:37:10+00:00
-> Total goals: 41
+> Last generated: 2026-05-06T11:06:30+00:00
+> Total goals: 44
 
 ## By Pillar
 
@@ -53,11 +53,25 @@ _(하위 Goal 없음)_
 
 ### G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
 
+- G-0129 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+- G-0130 In-engine 테스트 하니스 — VM/Story 자기완결 미니 런타임 + Automation 등록
+- G-0131 /test-fix 슬래시 커맨드 — 실행→분석→수정→재실행 LLM 자동 루프
+
+### G-0129 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+
+_(하위 Goal 없음)_
+
+### G-0130 In-engine 테스트 하니스 — VM/Story 자기완결 미니 런타임 + Automation 등록
+
+_(하위 Goal 없음)_
+
+### G-0131 /test-fix 슬래시 커맨드 — 실행→분석→수정→재실행 LLM 자동 루프
+
 _(하위 Goal 없음)_
 
 ## By Status
 
-### Active (41)
+### Active (44)
 
 - G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
@@ -96,6 +110,9 @@ _(하위 Goal 없음)_
 - G-0126 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯
 - G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
 - G-0128 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}
+- G-0129 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+- G-0130 In-engine 테스트 하니스 — VM/Story 자기완결 미니 런타임 + Automation 등록
+- G-0131 /test-fix 슬래시 커맨드 — 실행→분석→수정→재실행 LLM 자동 루프
 - G-1000 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다
 - G-1001 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화
 - G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
@@ -143,12 +160,15 @@ _(없음)_
 - G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
 - G-1003 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
-### layer:devtools (4)
+### layer:devtools (7)
 
 - G-0125 인사이트 데이터 수집 게이트웨이 — HktCore 싱글톤 수집기 + 이벤트 링 버퍼
 - G-0126 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯
 - G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
 - G-0128 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}
+- G-0129 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+- G-0130 In-engine 테스트 하니스 — VM/Story 자기완결 미니 런타임 + Automation 등록
+- G-0131 /test-fix 슬래시 커맨드 — 실행→분석→수정→재실행 LLM 자동 루프
 
 ### layer:editor (1)
 
@@ -230,9 +250,12 @@ _(없음)_
 
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
 
-### pillar:test-automation (1)
+### pillar:test-automation (4)
 
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
+- G-0129 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+- G-0130 In-engine 테스트 하니스 — VM/Story 자기완결 미니 런타임 + Automation 등록
+- G-0131 /test-fix 슬래시 커맨드 — 실행→분석→수정→재실행 LLM 자동 루프
 
 ### system:authoring (7)
 
