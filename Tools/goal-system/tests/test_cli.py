@@ -12,6 +12,28 @@ from goalsys.cli import main
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def _write_minimal_goal(
+    path: Path,
+    *,
+    goal_id: str = "G-0010",
+    status: str = "active",
+    tags: str = "[pillar:test]",
+    extra_frontmatter: str = "",
+) -> Path:
+    """테스트용 최소 Goal 파일. 여러 테스트가 거의 동일한 픽스처를 쓰므로 빌더로 통일."""
+
+    body = (
+        f"---\nid: {goal_id}\ntitle: t\nstatus: {status}\n"
+        f"created_at: 2026-05-04\nupdated_at: 2026-05-04\n"
+        f"parents: []\nchildren: []\nconstraints: []\n"
+        f"tags: {tags}\n"
+        f"{extra_frontmatter}"
+        f"---\n## Intent\nx\n## Success Criteria\n- description: x\n  measurable: false\n"
+    )
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
 def test_validate_passes_on_fixtures(capsys) -> None:
     rc = main(["validate", str(FIXTURES)])
     assert rc == 0
@@ -19,7 +41,8 @@ def test_validate_passes_on_fixtures(capsys) -> None:
     assert "OK" in captured.out
 
 
-def test_validate_fails_on_dangling_reference(tmp_path, capsys) -> None:
+def test_validate_reports_dangling_reference(tmp_path, capsys) -> None:
+    # spec §7.2: validate-dag 는 기본 비차단(경고). --strict 시에만 차단.
     # 픽스처 디렉토리에 원본 보존 — tmp_path 로 복사 후 한 파일에 dangling ref 추가.
     for f in FIXTURES.glob("*.md"):
         shutil.copy(f, tmp_path / f.name)
@@ -31,7 +54,12 @@ def test_validate_fails_on_dangling_reference(tmp_path, capsys) -> None:
     bad.write_text(text, encoding="utf-8")
 
     rc = main(["validate", str(tmp_path)])
-    assert rc == 1
+    assert rc == 0  # 위반 경고지만 차단 X
+    err = capsys.readouterr().err
+    assert "ReferentialIntegrity" in err
+
+    rc_strict = main(["validate", str(tmp_path), "--strict"])
+    assert rc_strict == 1  # --strict 에서 차단
 
 
 def test_build_views_writes_three_files(tmp_path) -> None:
@@ -59,14 +87,7 @@ def test_scan_code_tags_outputs(tmp_path, capsys) -> None:
 def test_validate_bidirectional_reports_violations(tmp_path, capsys) -> None:
     goals_dir = tmp_path / "goals"
     goals_dir.mkdir()
-    (goals_dir / "G-0010.md").write_text(
-        "---\nid: G-0010\ntitle: t\nstatus: active\n"
-        "created_at: 2026-05-04\nupdated_at: 2026-05-04\n"
-        "parents: []\nchildren: []\nconstraints: []\n"
-        "tags: [pillar:test]\n"
-        "---\n## Intent\nx\n## Success Criteria\n- description: x\n  measurable: false\n",
-        encoding="utf-8",
-    )
+    _write_minimal_goal(goals_dir / "G-0010.md")
     src = tmp_path / "src"
     src.mkdir()
     (src / "Foo.cpp").write_text("// @goal: G-0010\nvoid f() {}\n", encoding="utf-8")
@@ -83,14 +104,7 @@ def test_validate_bidirectional_reports_violations(tmp_path, capsys) -> None:
 def test_sync_realizes_dry_run(tmp_path, capsys) -> None:
     goals_dir = tmp_path / "goals"
     goals_dir.mkdir()
-    (goals_dir / "G-0010.md").write_text(
-        "---\nid: G-0010\ntitle: t\nstatus: active\n"
-        "created_at: 2026-05-04\nupdated_at: 2026-05-04\n"
-        "parents: []\nchildren: []\nconstraints: []\n"
-        "tags: [pillar:test]\n"
-        "---\n## Intent\nx\n## Success Criteria\n- description: x\n  measurable: false\n",
-        encoding="utf-8",
-    )
+    _write_minimal_goal(goals_dir / "G-0010.md")
     (tmp_path / "Foo.cpp").write_text(
         "// @goal: G-0010\nvoid f() {}\n", encoding="utf-8")
 
@@ -162,47 +176,25 @@ def test_validate_schema_passes_on_fixtures(capsys) -> None:
 
 
 def test_validate_schema_blocks_on_violation(tmp_path, capsys) -> None:
-    bad = tmp_path / "G-0010.md"
-    bad.write_text(
-        "---\nid: G-0010\ntitle: t\nstatus: bogus\n"
-        "created_at: 2026-05-04\nupdated_at: 2026-05-04\n"
-        "parents: []\nchildren: []\nconstraints: []\n"
-        "tags: [pillar:test]\n"
-        "---\n## Intent\nx\n## Success Criteria\n- description: x\n  measurable: false\n",
-        encoding="utf-8",
-    )
+    _write_minimal_goal(tmp_path / "G-0010.md", status="bogus")
     rc = main(["validate-schema", str(tmp_path)])
     # tooling §7.2: validate-schema 는 위반 시 차단.
     assert rc == 1
 
 
 def test_validate_schema_json_payload(tmp_path, capsys) -> None:
-    bad = tmp_path / "G-0010.md"
-    bad.write_text(
-        "---\nid: G-0010\ntitle: t\nstatus: bogus\n"
-        "created_at: 2026-05-04\nupdated_at: 2026-05-04\n"
-        "parents: []\nchildren: []\nconstraints: []\n"
-        "tags: [pillar:test]\n"
-        "---\n## Intent\nx\n## Success Criteria\n- description: x\n  measurable: false\n",
-        encoding="utf-8",
-    )
+    _write_minimal_goal(tmp_path / "G-0010.md", status="bogus")
     rc = main(["validate-schema", str(tmp_path), "--json"])
     assert rc == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["passed"] is False
-    assert any(v["field"] == "status" for v in payload["violations"])
+    assert any(v.get("field") == "status" for v in payload["violations"])
+    assert all(v["issue"] == "schema_violation" for v in payload["violations"])
 
 
 def test_validate_dag_warns_but_does_not_block(tmp_path, capsys) -> None:
     # 일반 Goal 인데 parents 가 비어있어 NoOrphan 위반.
-    (tmp_path / "G-1500.md").write_text(
-        "---\nid: G-1500\ntitle: orphan\nstatus: active\n"
-        "created_at: 2026-05-04\nupdated_at: 2026-05-04\n"
-        "parents: []\nchildren: []\nconstraints: []\n"
-        "tags: []\n"
-        "---\n## Intent\nx\n## Success Criteria\n- description: x\n  measurable: false\n",
-        encoding="utf-8",
-    )
+    _write_minimal_goal(tmp_path / "G-1500.md", goal_id="G-1500", tags="[]")
     rc = main(["validate-dag", str(tmp_path)])
     # tooling §7.2: validate-dag 는 기본 차단 X.
     assert rc == 0
@@ -211,14 +203,7 @@ def test_validate_dag_warns_but_does_not_block(tmp_path, capsys) -> None:
 
 
 def test_validate_dag_strict_blocks_on_violation(tmp_path) -> None:
-    (tmp_path / "G-1500.md").write_text(
-        "---\nid: G-1500\ntitle: orphan\nstatus: active\n"
-        "created_at: 2026-05-04\nupdated_at: 2026-05-04\n"
-        "parents: []\nchildren: []\nconstraints: []\n"
-        "tags: []\n"
-        "---\n## Intent\nx\n## Success Criteria\n- description: x\n  measurable: false\n",
-        encoding="utf-8",
-    )
+    _write_minimal_goal(tmp_path / "G-1500.md", goal_id="G-1500", tags="[]")
     rc = main(["validate-dag", str(tmp_path), "--strict"])
     assert rc == 1
 
