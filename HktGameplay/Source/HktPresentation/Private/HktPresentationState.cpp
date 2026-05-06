@@ -7,21 +7,6 @@
 #include "HktAssetSubsystem.h"
 #include "HktCoreEventLog.h"
 
-// Delta 적용 실패(drop) 사유 코드 — LoggedDropKeys dedup 키의 상위 16비트로 인코딩.
-// 동일 (Entity, Reason, PropId/Slot) 조합당 1회만 로그한다 (틱당 중복 방지).
-namespace HktDropReason
-{
-	constexpr uint8 Property_InvalidEntity   = 1;
-	constexpr uint8 Property_PropIdRange     = 2;
-	constexpr uint8 Property_NoDispatcher    = 3;
-	constexpr uint8 Property_ViewMissing     = 4;
-	constexpr uint8 Owner_InvalidEntity      = 5;
-	constexpr uint8 Owner_ViewMissing        = 6;
-	constexpr uint8 Tag_InvalidEntity        = 7;
-	constexpr uint8 Tag_ViewMissing          = 8;   // 의도적 스킵 — Verbose
-	constexpr uint8 AnimTrigger_InvalidEntity = 9;
-}
-
 namespace
 {
 	static FGameplayTag IndexToTag(int32 InTagNetIndex)
@@ -700,8 +685,8 @@ void FHktPresentationState::RemoveEntity(FHktEntityId Id)
 	if (Sprites.IsValidIndex(Index))        Sprites.RemoveAt(Index);
 	if (TerrainDebris.IsValidIndex(Index))  TerrainDebris.RemoveAt(Index);
 
-	// Drop 로그 dedup 키 정리 — 재spawn 시 같은 사유의 drop 이 다시 한 번 로그될 수 있도록.
-	LoggedDropKeys.Remove(Id);
+	// Drop 로그 dedup 정리 — 재spawn 시 같은 사유의 drop 이 다시 한 번 로그될 수 있도록.
+	LoggedDropFlags.Remove(Id);
 
 	// Meta는 유지 (RemovedFrame 추적용). Clear()에서만 Meta 제거.
 }
@@ -722,20 +707,20 @@ namespace
 	}
 
 	/**
-	 * Drop 로그 1회성 게이트 — 동일 (Entity, Reason, PropOrSlot) 조합은 한 번만 통과.
+	 * Drop 로그 1회성 게이트 — 동일 (Entity, Reason) 조합은 한 번만 통과.
 	 * 매 틱 변경되는 Hot 프로퍼티(PosX, VelX 등)에 대해 뷰 미할당 같은 영구 미스매치가
 	 * 매 틱 로그를 찍는 것을 원천 차단한다. RemoveEntity 시 키 정리 → 재spawn 시 재로깅.
 	 *
 	 * 주의: Id < 0 (네트워크/직렬화 버그) 인 경우에도 dedup 으로 1회 한정.
 	 *       해당 키는 RemoveEntity 가 호출되지 않으므로 Clear() 에서만 정리.
 	 */
-	static bool ShouldLogDropOnce(FHktPresentationState& S, FHktEntityId Id, uint8 ReasonCode, uint16 PropOrSlot)
+	static bool ShouldLogDropOnce(FHktPresentationState& S, FHktEntityId Id, EHktDropReason Reason)
 	{
-		const uint32 Key = (static_cast<uint32>(ReasonCode) << 16) | static_cast<uint32>(PropOrSlot);
-		TSet<uint32>& Set = S.LoggedDropKeys.FindOrAdd(Id);
-		bool bAlreadyIn = false;
-		Set.Add(Key, &bAlreadyIn);
-		return !bAlreadyIn;
+		EHktDropReason& Flags = S.LoggedDropFlags.FindOrAdd(Id, EHktDropReason::None);
+		if (EnumHasAnyFlags(Flags, Reason))
+			return false;
+		Flags |= Reason;
+		return true;
 	}
 }
 
@@ -743,7 +728,7 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 {
 	if (!IsValid(Id))
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_InvalidEntity, PropId))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Property_InvalidEntity))
 		{
 			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
@@ -758,7 +743,7 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	const TArray<FHktDeltaApplier>& Table = GetDeltaDispatchTable();
 	if (PropId >= Table.Num())
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_PropIdRange, PropId))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Property_PropIdRange))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld PropId=%u Value=%d Reason=PropIdOutOfRange(Table=%d) (이후 동일 키는 dedup)"),
@@ -770,7 +755,7 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	FHktDeltaApplier Fn = Table[PropId];
 	if (!Fn)
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_NoDispatcher, PropId))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Property_NoDispatcher))
 		{
 			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
@@ -784,7 +769,7 @@ void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 New
 	const bool bApplied = Fn(*this, Id, NewValue, CurrentFrame);
 	if (!bApplied)
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Property_ViewMissing, PropId))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Property_ViewMissing))
 		{
 			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 			const FHktEntityMeta* M = GetMeta(Id);
@@ -805,7 +790,7 @@ void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 {
 	if (!IsValid(Id))
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Owner_InvalidEntity, 0))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Owner_InvalidEntity))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("DROP OwnerDelta Frame=%lld Owner=%lld Reason=%s (이후 동일 키는 dedup)"),
@@ -817,7 +802,7 @@ void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 	const int32 Index = static_cast<int32>(Id);
 	if (!Ownership.IsValidIndex(Index))
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Owner_ViewMissing, 0))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Owner_ViewMissing))
 		{
 			const FHktEntityMeta* M = GetMeta(Id);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
@@ -838,7 +823,7 @@ void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagCon
 {
 	if (!IsValid(Id))
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Tag_InvalidEntity, 0))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Tag_InvalidEntity))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("DROP TagDelta Frame=%lld Tags=%s Reason=%s (이후 동일 키는 dedup)"),
@@ -852,7 +837,7 @@ void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagCon
 	{
 		// 태그만 변경되는 Item/Debris 엔터티의 경우 — Animation 뷰가 없는 카테고리는 의도적 스킵.
 		// 정상 동작이지만 진단 가시성을 위해 Verbose 1회 로그 (EventLog 기본 MinLevel=Info 라 수집 안 됨).
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::Tag_ViewMissing, 0))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::Tag_ViewMissing))
 		{
 			const FHktEntityMeta* M = GetMeta(Id);
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
@@ -872,7 +857,7 @@ void FHktPresentationState::AddAnimTrigger(FHktEntityId Id, const FGameplayTag& 
 {
 	if (!IsValid(Id))
 	{
-		if (ShouldLogDropOnce(*this, Id, HktDropReason::AnimTrigger_InvalidEntity, 0))
+		if (ShouldLogDropOnce(*this, Id, EHktDropReason::AnimTrigger_InvalidEntity))
 		{
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("DROP AnimTrigger Frame=%lld Tag=%s Reason=%s (이후 동일 키는 dedup)"),
@@ -913,6 +898,6 @@ void FHktPresentationState::Clear()
 	PendingVFXEvents.Reset();
 	PendingVFXAttachments.Reset();
 	PendingVFXDetachments.Reset();
-	LoggedDropKeys.Empty();
+	LoggedDropFlags.Empty();
 	CurrentFrame = 0;
 }

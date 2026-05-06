@@ -9,9 +9,37 @@
 #include "HktTagDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Math/Color.h"
+#include "Misc/EnumClassFlags.h"
 #include "UObject/SoftObjectPath.h"
 
 class UHktAssetSubsystem;
+
+/**
+ * Delta 적용 실패(drop) 사유 비트플래그.
+ * 동일 (Entity, Reason) 조합당 1회만 로그하기 위해 엔터티별 비트마스크로 누적된다.
+ * RemoveEntity 시 해당 엔터티 키 제거 → 재spawn 시 재로깅 가능.
+ *
+ * 설계 노트:
+ *  - PropId 별로 분리하지 않는 이유: 같은 뷰 미할당으로 인한 cascade(예: Movement 뷰 부재 →
+ *    VelX/Y/Z + MoveTargetX/Y/Z + MoveForce + IsMoving + IsGrounded = 9개 PropId 가 모두 drop)는
+ *    근본 원인이 하나이므로 카테고리 단위 1회 로그로 충분. 첫 로그 메시지에 trigger PropId 가
+ *    포함되므로 진단 시작점도 명확.
+ *  - 메모리: 엔터티당 uint16 2바이트 (vs. 이전 TSet<uint32>: 엔터티당 최대 ~10KB).
+ */
+enum class EHktDropReason : uint16
+{
+	None                      = 0,
+	Property_InvalidEntity    = 1 << 0,
+	Property_PropIdRange      = 1 << 1,
+	Property_NoDispatcher     = 1 << 2,
+	Property_ViewMissing      = 1 << 3,
+	Owner_InvalidEntity       = 1 << 4,
+	Owner_ViewMissing         = 1 << 5,
+	Tag_InvalidEntity         = 1 << 6,
+	Tag_ViewMissing           = 1 << 7,   // 의도적 스킵 — Verbose
+	AnimTrigger_InvalidEntity = 1 << 8,
+};
+ENUM_CLASS_FLAGS(EHktDropReason);
 
 // ============================================================================
 // Per-entity lifecycle / metadata — 모든 유효 엔터티에 할당
@@ -266,13 +294,12 @@ struct HKTPRESENTATION_API FHktPresentationState
 	TArray<FHktPendingVFXDetach> PendingVFXDetachments;
 
 	/**
-	 * Delta 적용 실패(drop) 로그 dedup.
-	 * 키 = (ReasonCode << 16) | PropOrSlot. 동일 (Entity, Reason, PropId/Slot) 조합당 1회만 출력.
-	 * RemoveEntity 시 해당 Id 제거 → 재spawn 시 재로깅.
+	 * Delta 적용 실패(drop) 로그 dedup — 엔터티별 사유 비트마스크.
+	 * 동일 (Entity, Reason) 조합당 1회만 출력. RemoveEntity 시 해당 Id 제거 → 재spawn 시 재로깅.
 	 * 매 틱 발생 가능한 silent-drop(예: VelX 가 매 틱 변경되는데 Movement 뷰 부재)이
 	 * 로그를 도배하는 것을 원천 차단한다.
 	 */
-	TMap<FHktEntityId, TSet<uint32>> LoggedDropKeys;
+	TMap<FHktEntityId, EHktDropReason> LoggedDropFlags;
 
 	// --- 프레임 관리 ---
 	void BeginFrame(int64 Frame);
