@@ -4,6 +4,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Engine/StreamableManager.h"
+#include "HktTagDataAsset.h"
 #include "HktAssetSubsystem.generated.h"
 
 class UHktTagDataAsset;
@@ -73,6 +74,14 @@ public:
     /** TagMap 강제 재구축 */
     void ForceRebuildTagMap();
 
+    // =========================================================================
+    // 렌더 카테고리 조회 — TagDataAsset 클래스 타입 → EHktRenderCategory
+    // 에셋을 로드하지 않고, RebuildTagMap 시점에 CDO 의 GetRenderCategory() 결과를 캐싱.
+    // =========================================================================
+
+    /** 태그에 매핑된 TagDataAsset 클래스의 렌더 카테고리. 미매핑이면 None. */
+    EHktRenderCategory GetTagRenderCategory(const FGameplayTag& Tag) const;
+
 protected:
     void RebuildTagMap();
 
@@ -85,6 +94,12 @@ protected:
 private:
     // Tag와 SoftObjectPath를 매핑합니다.
     TMap<FGameplayTag, FSoftObjectPath> TagToPathMap;
+
+    // Tag → TagDataAsset CDO 의 GetRenderCategory() 결과 캐시. RebuildTagMap / RegisterTagPath 시점에 갱신.
+    TMap<FGameplayTag, EHktRenderCategory> TagToRenderCategoryMap;
+
+    // 내부 헬퍼: Path 의 타깃 클래스 CDO 를 통해 카테고리를 결정. 클래스가 미로드면 None.
+    EHktRenderCategory ResolveRenderCategoryForPath(const FSoftObjectPath& Path) const;
 
     // 비동기 로딩 핸들 관리 (Garbage Collection 방지용으로 핸들을 잡아두고 싶다면 TSharedPtr<FStreamableHandle>을 저장해야 함)
     // 여기서는 단순 로드 요청용으로 사용합니다.

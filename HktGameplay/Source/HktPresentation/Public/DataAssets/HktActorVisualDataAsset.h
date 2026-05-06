@@ -21,4 +21,6 @@ public:
 	/** 이 시각 태그에 대응하는 액터 또는 블루프린트 클래스 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Visual")
 	TSubclassOf<AActor> ActorClass;
+
+	virtual EHktRenderCategory GetRenderCategory() const override { return EHktRenderCategory::Actor; }
 };

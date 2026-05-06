@@ -64,4 +64,6 @@ public:
 
 	/** FindAnimation 실패 시 DefaultAnimTag → 맵의 첫 원소 순으로 폴백. */
 	const FHktSpriteAnimation* FindAnimationOrFallback(const FGameplayTag& AnimTag) const;
+
+	virtual EHktRenderCategory GetRenderCategory() const override { return EHktRenderCategory::MassEntity; }
 };
