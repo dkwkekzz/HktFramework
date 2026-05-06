@@ -1,9 +1,14 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T04:22:28+00:00
+> Last generated: 2026-05-06T05:43:20+00:00
 
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
+  - G-0100 SOA WorldState — Property별 컬럼 기반 시뮬레이션 스냅샷
+  - G-0101 결정론 바이트코드 VM 인터프리터 — VReg IR + byte-identical 컴파일
+  - G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff
+  - G-0103 GGPO 30Hz 클라이언트 롤백/예측/빨리감기
+  - G-0104 HktStory 바이트코드 스니펫 라이브러리 — JSON / Fluent 두 정의 경로
 - G-0020 엔터티 시각화 — Tag/DataAsset 기반 리소스 연결과 대량 엔터티 렌더링 성능
 - G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
 - G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
