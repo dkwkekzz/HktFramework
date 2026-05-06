@@ -1,8 +1,8 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T08:50:06+00:00
-> Total goals: 26
+> Last generated: 2026-05-06T09:04:14+00:00
+> Total goals: 29
 
 ## By Pillar
 
@@ -23,12 +23,15 @@ _(하위 Goal 없음)_
 - G-0105 WorldView 변경이 동일 프레임 내 시각 표현에 반영된다
 - G-0106 시각 리소스가 GameplayTag 만으로 비동기 해결된다 — 동기 로드 0
 - G-0107 Actor 카테고리 엔터티는 변경된 엔터티에만 작업이 수행된다
-- G-0108 200+ 스프라이트 엔터티를 60fps 로 크라우드 렌더링한다
+- G-0108 스프라이트 캐릭터 시각화 — Paper / Crowd 두 경로와 공유 상태기계로 200+ 엔터티 60fps
 - G-0109 Voxel 청크가 Greedy Meshing 으로 압축되어 GPU 에 직접 업로드된다
 - G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다
 - G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다
 - G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0
-- G-0113 스프라이트 캐릭터가 단일 애니 상태기계로 Paper / Crowd 두 경로에 동일 결과를 산출한다
+- G-0113 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다
+- G-0114 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화
+- G-0115 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
+- G-0116 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
 ### G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
 
@@ -44,7 +47,7 @@ _(하위 Goal 없음)_
 
 ## By Status
 
-### Active (26)
+### Active (29)
 
 - G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
@@ -66,12 +69,15 @@ _(하위 Goal 없음)_
 - G-0105 WorldView 변경이 동일 프레임 내 시각 표현에 반영된다
 - G-0106 시각 리소스가 GameplayTag 만으로 비동기 해결된다 — 동기 로드 0
 - G-0107 Actor 카테고리 엔터티는 변경된 엔터티에만 작업이 수행된다
-- G-0108 200+ 스프라이트 엔터티를 60fps 로 크라우드 렌더링한다
+- G-0108 스프라이트 캐릭터 시각화 — Paper / Crowd 두 경로와 공유 상태기계로 200+ 엔터티 60fps
 - G-0109 Voxel 청크가 Greedy Meshing 으로 압축되어 GPU 에 직접 업로드된다
 - G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다
 - G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다
 - G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0
-- G-0113 스프라이트 캐릭터가 단일 애니 상태기계로 Paper / Crowd 두 경로에 동일 결과를 산출한다
+- G-0113 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다
+- G-0114 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화
+- G-0115 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
+- G-0116 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
 ### Proposed (0)
 
@@ -108,9 +114,12 @@ _(없음)_
 
 - G-0106 시각 리소스가 GameplayTag 만으로 비동기 해결된다 — 동기 로드 0
 
-### layer:character (1)
+### layer:character (4)
 
-- G-0113 스프라이트 캐릭터가 단일 애니 상태기계로 Paper / Crowd 두 경로에 동일 결과를 산출한다
+- G-0113 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다
+- G-0114 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화
+- G-0115 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
+- G-0116 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
 ### layer:editor-tool (1)
 
@@ -126,11 +135,13 @@ _(없음)_
 - G-0105 WorldView 변경이 동일 프레임 내 시각 표현에 반영된다
 - G-0107 Actor 카테고리 엔터티는 변경된 엔터티에만 작업이 수행된다
 
-### layer:rendering (3)
+### layer:rendering (5)
 
-- G-0108 200+ 스프라이트 엔터티를 60fps 로 크라우드 렌더링한다
+- G-0108 스프라이트 캐릭터 시각화 — Paper / Crowd 두 경로와 공유 상태기계로 200+ 엔터티 60fps
 - G-0109 Voxel 청크가 Greedy Meshing 으로 압축되어 GPU 에 직접 업로드된다
-- G-0113 스프라이트 캐릭터가 단일 애니 상태기계로 Paper / Crowd 두 경로에 동일 결과를 산출한다
+- G-0114 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화
+- G-0115 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
+- G-0116 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
 ### layer:terrain (2)
 
@@ -155,9 +166,11 @@ _(없음)_
 - G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff
 - G-0104 HktStory JSON 정의 — GameplayTag → FHktVMProgram 컴파일 파이프라인
 
-### perf (1)
+### perf (3)
 
-- G-0108 200+ 스프라이트 엔터티를 60fps 로 크라우드 렌더링한다
+- G-0108 스프라이트 캐릭터 시각화 — Paper / Crowd 두 경로와 공유 상태기계로 200+ 엔터티 60fps
+- G-0115 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
+- G-0116 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
 ### pillar:authoring (1)
 
