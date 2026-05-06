@@ -1,9 +1,15 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T06:55:59+00:00
+> Last generated: 2026-05-06T07:58:22+00:00
 
+- G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
+  - G-0100 SOA WorldState — Property별 컬럼 기반 시뮬레이션 스냅샷
+  - G-0101 결정론 바이트코드 VM 인터프리터 — VReg IR + byte-identical 컴파일
+  - G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff
+  - G-0103 GGPO 30Hz 클라이언트 롤백/예측/빨리감기
+  - G-0104 HktStory JSON 정의 — GameplayTag → FHktVMProgram 컴파일 파이프라인
 - G-0020 엔터티 시각화 — Tag/DataAsset 기반 리소스 연결과 대량 엔터티 렌더링 성능
   - G-0105 WorldView 변경이 동일 프레임 내 시각 표현에 반영된다
   - G-0106 시각 리소스가 GameplayTag 만으로 비동기 해결된다 — 동기 로드 0
