@@ -1,0 +1,116 @@
+{
+  "storyTag": "Story.Event.Item.Trade",
+  "description": "ItemTrade 본문: Param0/Param1 으로 동적 entity (offer/req 아이템) 참조. 양측 OwnerEntity 검증 + ItemState!=2 검증 후 OwnerEntity swap + ClearOwnerUid. spec runner 가 precondition 미실행이지만 본문도 동일 가드를 재수행. event.param 의 entity id 는 BuildEntity 할당 순서로 결정 (Self=0, Target=1, entities[N]=2+N).",
+  "scenarios": [
+    {
+      "name": "swap_ownership_between_two_traders",
+      "description": "Self(Id=0) 가 entities[0](Id=2, offer item) 을, Target(Id=1) 가 entities[1](Id=3, req item) 을 소유. 양쪽 InBag(1) 상태 → 본문 검증 통과 → swap. offer.OwnerEntity → Target, req.OwnerEntity → Self.",
+      "given": {
+        "self": {
+          "archetype": "Character"
+        },
+        "target": {
+          "archetype": "Character"
+        },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": {
+              "ItemState": 1,
+              "OwnerEntity": {"ref": "self"},
+              "ItemId": 100
+            },
+            "tags": ["Entity.Item"]
+          },
+          {
+            "archetype": "Item",
+            "properties": {
+              "ItemState": 1,
+              "OwnerEntity": {"ref": "target"},
+              "ItemId": 200
+            },
+            "tags": ["Entity.Item"]
+          }
+        ],
+        "event": { "param0": 2, "param1": 3 }
+      },
+      "expect": {
+        "status": "Completed",
+        "entities[0]": {
+          "properties": {
+            "OwnerEntity": {"ref": "target"}
+          }
+        },
+        "entities[1]": {
+          "properties": {
+            "OwnerEntity": {"ref": "self"}
+          }
+        }
+      }
+    },
+    {
+      "name": "fail_when_offer_not_owned_by_self",
+      "description": "Offer 아이템의 OwnerEntity 가 Self 가 아님 (다른 character) → 본문 첫 가드에서 fail.",
+      "given": {
+        "self": { "archetype": "Character" },
+        "target": { "archetype": "Character" },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": {
+              "ItemState": 1,
+              "OwnerEntity": {"ref": "target"},
+              "ItemId": 100
+            },
+            "tags": ["Entity.Item"]
+          },
+          {
+            "archetype": "Item",
+            "properties": {
+              "ItemState": 1,
+              "OwnerEntity": {"ref": "target"},
+              "ItemId": 200
+            },
+            "tags": ["Entity.Item"]
+          }
+        ],
+        "event": { "param0": 2, "param1": 3 }
+      },
+      "expect": {
+        "status": "Failed"
+      }
+    },
+    {
+      "name": "fail_when_offer_is_active",
+      "description": "Offer 아이템이 Active(ItemState=2) 상태 → 거래 불가 가드에서 fail.",
+      "given": {
+        "self": { "archetype": "Character" },
+        "target": { "archetype": "Character" },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": {
+              "ItemState": 2,
+              "OwnerEntity": {"ref": "self"},
+              "ItemId": 100
+            },
+            "tags": ["Entity.Item"]
+          },
+          {
+            "archetype": "Item",
+            "properties": {
+              "ItemState": 1,
+              "OwnerEntity": {"ref": "target"},
+              "ItemId": 200
+            },
+            "tags": ["Entity.Item"]
+          }
+        ],
+        "event": { "param0": 2, "param1": 3 }
+      },
+      "expect": {
+        "status": "Failed"
+      }
+    }
+  ]
+}

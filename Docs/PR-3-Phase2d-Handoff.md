@@ -451,8 +451,8 @@ Heal.spec.json 의 `partial_heal_under_max` 시나리오 (Param0=30, Health=100�
 ## 미해결 / 후속 이슈
 
 1. **PlayerInit schema 2 회귀** — Phase 2 보강 4 항 (NamedVarMap fix) 에서 종결. **종결**.
-2. **Item* spec happy-path (4개)** — ItemActivate / ItemDeactivate / ItemTrade + Pickup 의 OwnerEntity 검증. **인프라는 Phase 2 보강 2 항에서 추가됨** (`{"ref":"self|target|entities[N]|spawned"}` 형식 수용). spec 파일 작성만 남음.
-3. **CombatUseSkill — 4 dispatch 분기 spec 미작성** — Fireball/Heal/Lightning/Buff 의 HasTag 분기 검증. Item entity + tag 셋업 + 슬롯 셋업 필요. entity ref 인프라는 갖춰졌으니 작성 가능.
+2. **Item* spec happy-path (4개)** — ItemActivate / ItemDeactivate / ItemTrade + Pickup 의 OwnerEntity 검증. Phase 2 보강 2 항 entity ref 인프라 활용해 작성 완료 (`Story_ItemActivate.spec.json` / `Story_ItemDeactivate.spec.json` / `Story_ItemTrade.spec.json` 신규, `Story_ItemPickup.spec.json` 에 OwnerEntity ref 매처 + out-of-range fail 시나리오 추가). **종결**. 잠재 디버그: ItemActivate JSON 의 `ReadProperty EquipIndex` 가 cpp `ItemActivateParams::EquipIndex(=Param0)` alias 와 달리 Self.EquipIndex 컬럼을 읽음 — spec 은 JSON 동작 기준으로 셋업.
+3. **CombatUseSkill — 4 dispatch 분기 spec** — Fireball/Heal/Lightning/Buff 의 HasTag 분기 + CP 차감 검증. 각 분기마다 1 시나리오 + CP 부족시 innate 폴백 시나리오 추가 (`Story_CombatUseSkill.spec.json`). **종결**.
 4. **Heal V2 회귀** (Phase 2d 종료 시점 의심) — Phase 2e 6 항에서 오진으로 확인. `Param0` 이 `Context.EventParam0` 에서 읽히는 점을 spec 의 `given.event` 블록 도입으로 해소. **종결**.
 5. **Session Frontend 캐시** — spec 추가/제거 후 사용자가 "Refresh Tests" 클릭 필요. UE Automation 프레임워크 레벨이라 런너 코드로 우회 불가 — 가이드만 명시.
 6. **`tagsExact` 의 역방향 검출** — Phase 2 보강 2 항에서 추가 (TSet 기반 set 비교). **종결**.

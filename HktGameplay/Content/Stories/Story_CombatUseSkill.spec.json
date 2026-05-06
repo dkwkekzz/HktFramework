@@ -1,21 +1,198 @@
 {
   "storyTag": "Story.Event.Combat.UseSkill",
-  "description": "UseSkill: precondition (쿨타임) 통과 후 본문. 본 spec 은 main body 만 검증 (spec runner 가 precondition 미실행). 슬롯에 아이템 없음 → SnippetLoadItemFromSlot 실패 → innate 분기 → DispatchEvent BasicAttack + Halt.",
+  "description": "UseSkill 본문: precondition (쿨타임) 통과 후 SnippetLoadItemFromSlot → CP 차감 → HasTag 분기 (Fireball/Heal/Lightning/Buff) 또는 innate. spec runner 가 precondition 미실행 → 본문이 SnippetCooldownCheck 로 자체 가드. DispatchEvent 는 PendingDispatchedEvents 큐잉만 → 현재 Story 즉시 Halt.",
   "scenarios": [
     {
       "name": "innate_dispatch_when_no_item_in_slot",
-      "description": "Param1 슬롯 미설정. 인라인 분기 진입 전 SnippetLoadItemFromSlot 가 innate label 로 점프. DispatchEvent + Halt → Completed. NextActionFrame 은 본문이 0x7FFFFFFF 로 잠근 상태.",
+      "description": "Param1=0(슬롯) 슬롯 미설정. SnippetLoadItemFromSlot 가 innate label 로 점프. DispatchEvent BasicAttack + Halt → Completed. NextActionFrame 0x7FFFFFFF 잠금 검증.",
       "given": {
         "self": {
+          "archetype": "Character",
           "properties": { "AttackPower": 10, "AttackSpeed": 100, "NextActionFrame": 0, "MaxCP": 100, "CP": 50 }
         },
         "target": {
+          "archetype": "NPC",
           "properties": { "Health": 200 }
         }
       },
       "expect": {
         "status": "Completed",
         "self": { "properties": { "NextActionFrame": 2147483647 } }
+      }
+    },
+    {
+      "name": "dispatch_fireball_when_item_has_fireball_tag",
+      "description": "Self.EquipSlot0 = entities[0] (Fireball 스킬 아이템). CP 충분 → Sub + WriteProperty CP, HasTag Fireball 매치 → DispatchEvent(Fireball) + Halt.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": {
+            "AttackPower": 10, "AttackSpeed": 100, "NextActionFrame": 0,
+            "MaxCP": 100, "CP": 50,
+            "EquipSlot0": {"ref": "entities[0]"}
+          }
+        },
+        "target": {
+          "archetype": "NPC",
+          "properties": { "Health": 200 }
+        },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": { "ItemState": 2, "SkillCPCost": 10, "OwnerEntity": {"ref": "self"} },
+            "tags": ["Entity.Item", "Entity.Attr.Skill.Fireball"]
+          }
+        ],
+        "event": { "param1": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": {
+          "properties": {
+            "CP": 40,
+            "NextActionFrame": 2147483647
+          }
+        }
+      }
+    },
+    {
+      "name": "dispatch_heal_when_item_has_heal_tag",
+      "description": "Self.EquipSlot1 = entities[0] (Heal 스킬). Param1=1 으로 슬롯 1 로딩. HasTag Heal 매치 → DispatchEvent(Heal) + Halt.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": {
+            "AttackPower": 10, "AttackSpeed": 100, "NextActionFrame": 0,
+            "MaxCP": 100, "CP": 80,
+            "EquipSlot1": {"ref": "entities[0]"}
+          }
+        },
+        "target": {
+          "archetype": "Character",
+          "properties": { "Health": 50, "MaxHealth": 100 }
+        },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": { "ItemState": 2, "SkillCPCost": 25, "OwnerEntity": {"ref": "self"} },
+            "tags": ["Entity.Item", "Entity.Attr.Skill.Heal"]
+          }
+        ],
+        "event": { "param1": 1 }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": {
+          "properties": {
+            "CP": 55,
+            "NextActionFrame": 2147483647
+          }
+        }
+      }
+    },
+    {
+      "name": "dispatch_lightning_when_item_has_lightning_tag",
+      "description": "Self.EquipSlot0 = entities[0] (Lightning 스킬). HasTag Fireball/Heal 미매치 후 Lightning 매치 → DispatchEvent(Lightning) + Halt.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": {
+            "AttackPower": 10, "AttackSpeed": 100, "NextActionFrame": 0,
+            "MaxCP": 100, "CP": 100,
+            "EquipSlot0": {"ref": "entities[0]"}
+          }
+        },
+        "target": {
+          "archetype": "NPC",
+          "properties": { "Health": 200 }
+        },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": { "ItemState": 2, "SkillCPCost": 30, "OwnerEntity": {"ref": "self"} },
+            "tags": ["Entity.Item", "Entity.Attr.Skill.Lightning"]
+          }
+        ],
+        "event": { "param1": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": {
+          "properties": {
+            "CP": 70,
+            "NextActionFrame": 2147483647
+          }
+        }
+      }
+    },
+    {
+      "name": "dispatch_buff_when_item_has_buff_tag",
+      "description": "Self.EquipSlot0 = entities[0] (Buff 스킬). 위 3분기 미매치 후 Buff 매치 → DispatchEvent(Buff) + Halt.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": {
+            "AttackPower": 10, "AttackSpeed": 100, "NextActionFrame": 0,
+            "MaxCP": 100, "CP": 60,
+            "EquipSlot0": {"ref": "entities[0]"}
+          }
+        },
+        "target": {
+          "archetype": "Character",
+          "properties": { "Health": 100 }
+        },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": { "ItemState": 2, "SkillCPCost": 15, "OwnerEntity": {"ref": "self"} },
+            "tags": ["Entity.Item", "Entity.Attr.Skill.Buff"]
+          }
+        ],
+        "event": { "param1": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": {
+          "properties": {
+            "CP": 45,
+            "NextActionFrame": 2147483647
+          }
+        }
+      }
+    },
+    {
+      "name": "innate_when_cp_below_skill_cost",
+      "description": "Self.EquipSlot0 = entities[0] (Fireball, SkillCPCost=50) 지만 Self.CP=10 (부족) → CmpLt true → innate label 점프 → DispatchEvent BasicAttack + Halt. CP 미차감.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": {
+            "AttackPower": 10, "AttackSpeed": 100, "NextActionFrame": 0,
+            "MaxCP": 100, "CP": 10,
+            "EquipSlot0": {"ref": "entities[0]"}
+          }
+        },
+        "target": {
+          "archetype": "NPC",
+          "properties": { "Health": 200 }
+        },
+        "entities": [
+          {
+            "archetype": "Item",
+            "properties": { "ItemState": 2, "SkillCPCost": 50, "OwnerEntity": {"ref": "self"} },
+            "tags": ["Entity.Item", "Entity.Attr.Skill.Fireball"]
+          }
+        ],
+        "event": { "param1": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": {
+          "properties": {
+            "CP": 10,
+            "NextActionFrame": 2147483647
+          }
+        }
       }
     }
   ]
