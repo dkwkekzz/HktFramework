@@ -9,8 +9,11 @@
           "properties": { "AttackPower": 10 }
         },
         "target": {
-          "properties": { "ItemState": 2, "OwnerEntity": 0, "AttackPower": 5 }
-        }
+          "properties": { "ItemState": 2, "OwnerEntity": {"ref": "entities[0]"}, "AttackPower": 5 }
+        },
+        "entities": [
+          { "properties": { "AttackPower": 1 } }
+        ]
       },
       "expect": {
         "status": "Failed"

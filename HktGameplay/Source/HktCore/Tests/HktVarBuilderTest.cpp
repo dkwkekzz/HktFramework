@@ -103,7 +103,7 @@ bool FHktVarBuilder_MiniFireball::RunTest(const FString& Parameters)
     FHktVarBlock ExplosionPos = B.GetPosition(Spawned);
     B.DestroyEntity(Spawned);
     B.ApplyDamageConst(HitTarget, 100);
-    if (VFXTag.IsValid()) B.PlayVFXAttached(HitTarget, VFXTag);
+    if (VFXTag.IsValid()) B.PlayVFX(ExplosionPos, VFXTag);
 
     if (CastTag.IsValid()) B.RemoveTag(Self, CastTag);
     B.Halt();

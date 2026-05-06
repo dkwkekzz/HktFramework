@@ -39,6 +39,10 @@ public:
 
 	const FHktPresentationState& GetState() const { return State; }
 
+	/** 클라 산출 viewmodel 값을 직접 기록할 때만 사용 (예: 스프라이트 Facing).
+	 *  WorldState delta 적용 경로(서버 권위)는 ProcessDiff 내부 dispatcher 만 사용. */
+	FHktPresentationState& GetMutableState() { return State; }
+
 	/** 엔티티의 프레젠테이션 위치 반환. 유효하지 않으면 ZeroVector. */
 	FVector GetEntityLocation(FHktEntityId Id) const;
 

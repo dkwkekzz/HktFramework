@@ -185,6 +185,10 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 
 		FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
 
+		// Facing ViewModel 기록 트리거 — 소스(LastMoveDirXY) 또는 anim tag 가 dirty 일 때만.
+		// 카메라 yaw 변화로 인한 재계산은 ViewModel 에 반영하지 않음 (렌더러만 사용).
+		bool bFacingSourceDirty = false;
+
 		// Fragment 입력: Movement/Combat/Animation 뷰에서 파라미터 흡수.
 		// IsDirty(Frame) 은 sim batch 가 막 도착한 프레임에서만 true — 이후 render frame 들에서는
 		// false 가 되어 idempotent. 새 batch 도착 시점에만 갱신 시도.
@@ -204,6 +208,7 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 				if (Frag.MoveSpeed >= MinSpeed)
 				{
 					Frag.LastMoveDirXY = VelXY;
+					bFacingSourceDirty = true;
 				}
 			}
 		}
@@ -235,6 +240,7 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 					HktSpriteAnimProcessor::ApplyAnimTag(Frag, AnimTag);
 				}
 				AV->PendingAnimTriggers.Reset();
+				bFacingSourceDirty = true; // anim tag 직접 전달 시 facing 스냅샷 갱신
 			}
 		}
 
@@ -270,6 +276,16 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 			const float DirYawDeg = FMath::RadiansToDegrees(
 				FMath::Atan2(Frag.LastMoveDirXY.Y, Frag.LastMoveDirXY.X));
 			ClientFacing = HktFacingFromYaw(DirYawDeg, CameraYawDeg);
+		}
+
+		// 클라 산출 Facing 을 ViewModel 에 기록 — 소스(LastMoveDirXY) 또는 anim tag dirty 인 프레임에만.
+		// 카메라 yaw 회전만으로는 ViewModel 을 갱신하지 않음 (렌더러는 위 ClientFacing 으로 즉시 반영).
+		if (bFacingSourceDirty)
+		{
+			if (FHktSpriteView* MutableSV = State.GetMutableSprite(Id))
+			{
+				MutableSV->Facing.Set(static_cast<uint8>(ClientFacing), Frame);
+			}
 		}
 
 		FHktSpriteEntityUpdate Update;

@@ -198,11 +198,10 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(DebrisOriginZ,   Cold)   // 70 — Debris 원래 복셀 위치 Z (cm)
 
     // 2D 스프라이트 (HktSpriteCore)
-    // VM은 프레임을 모른다 — Facing/AnimStartTick만 저장.
     // 캐릭터 Template 키는 EntitySpawnTag(19)를 그대로 재사용 — SpawnEntity의 ClassTag가 곧 Template Tag.
     // 프레임 선택은 Presentation의 HktResolveSpriteFrame 순수 함수가 담당.
-    HKT_DEFINE_PROPERTY(Facing,               Cold) // 71 — 8방향 (0=N, 1=NE, ..., 7=NW)
-    HKT_DEFINE_PROPERTY(AnimStartTick,        Cold) // 72 — AnimState 전환 시점 (VM frame)
+    // 주: Facing 은 클라 viewmodel 산출(LastMoveDirXY + 카메라 yaw) — VM 권위 프로퍼티 아님.
+    HKT_DEFINE_PROPERTY(AnimStartTick,        Cold) // AnimState 전환 시점 (VM frame)
 
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계

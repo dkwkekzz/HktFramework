@@ -83,6 +83,10 @@ private:
 	void RebindFlipbookIfNeeded(const FGameplayTag& AnimTag, uint8 KeyDir, bool bFlipX,
 		const struct FHktPaperAnimMeta& Meta);
 
+	/** 클라 산출 Facing 을 ViewModel(FHktSpriteView) 에 기록. 소스(LastMoveDirXY) 또는
+	 *  anim tag 가 dirty 인 시점에만 호출 — 카메라 yaw 회전만으로는 호출하지 않는다. */
+	void WriteFacingToViewModel();
+
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
 	UPROPERTY(Transient)

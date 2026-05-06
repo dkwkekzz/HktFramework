@@ -345,12 +345,8 @@ namespace
 			};
 
 			// --- Sprite (2D 라그나로크 방식) ---
-			T[PropertyId::Facing] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
-			{
-				if (!S.Sprites.IsValidIndex(Id)) return false;
-				S.Sprites[Id].Facing.Set(static_cast<uint8>(V & 0x07), F);
-				return true;
-			};
+			// Facing 은 VM 권위가 아님 — 클라(HktSpriteCrowdHost / HktSpritePaperActor)가
+			// LastMoveDirXY + 카메라 yaw 로 산출 후 Sprites[Id].Facing 에 직접 기록.
 			T[PropertyId::AnimStartTick] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
 				if (!S.Sprites.IsValidIndex(Id)) return false;
@@ -570,7 +566,7 @@ void FHktPresentationState::InitSpriteFromWS(const FHktWorldState& WS, FHktEntit
 {
 	// Character Template Tag = SpawnEntity의 ClassTag (EntitySpawnTag). 별도 프로퍼티 없음.
 	V.Character.Set(IndexToTag(WS.GetProperty(Id, PropertyId::EntitySpawnTag)), F);
-	V.Facing.Set(static_cast<uint8>(WS.GetProperty(Id, PropertyId::Facing) & 0x07), F);
+	// Facing 은 VM 권위 아님 — 클라가 매 프레임 산출하므로 초기값은 기본(S=4) 유지.
 	V.AnimStartTick.Set(WS.GetProperty(Id, PropertyId::AnimStartTick), F);
 }
 

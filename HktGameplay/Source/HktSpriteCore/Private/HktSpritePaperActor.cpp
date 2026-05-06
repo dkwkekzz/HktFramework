@@ -9,6 +9,7 @@
 #include "HktSpriteTypes.h"
 #include "HktCoreEventLog.h"
 #include "HktPresentationState.h"
+#include "HktPresentationSubsystem.h"
 
 #include "Camera/PlayerCameraManager.h"
 #include "Components/SceneComponent.h"
@@ -134,6 +135,8 @@ void AHktSpritePaperActor::ApplyMovement(const FHktMovementView& V, int64 Frame,
 		if (AnimFragment.MoveSpeed >= MinSpeed)
 		{
 			AnimFragment.LastMoveDirXY = VelXY;
+			// 소스 변경 시점에만 ViewModel 에 facing 기록.
+			WriteFacingToViewModel();
 		}
 	}
 }
@@ -168,6 +171,32 @@ void AHktSpritePaperActor::ApplyAnimation(FHktAnimationView& V, int64 Frame, boo
 			HktSpriteAnimProcessor::ApplyAnimTag(AnimFragment, AnimTag);
 		}
 		V.PendingAnimTriggers.Reset();
+		// anim tag 직접 전달 시 facing 스냅샷 갱신.
+		WriteFacingToViewModel();
+	}
+}
+
+void AHktSpritePaperActor::WriteFacingToViewModel()
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UHktPresentationSubsystem* PS = UHktPresentationSubsystem::Get(W->GetFirstPlayerController());
+	if (!PS) return;
+
+	// 현재 카메라 yaw 로 facing 산출 (산출 시점 카메라 기준 — 이후 카메라 회전은 ViewModel 에 반영 안 함).
+	const FCameraView CamView = QueryCameraView();
+	EHktSpriteFacing ClientFacing = EHktSpriteFacing::S;
+	if (!AnimFragment.LastMoveDirXY.IsNearlyZero())
+	{
+		const float DirYawDeg = FMath::RadiansToDegrees(
+			FMath::Atan2(AnimFragment.LastMoveDirXY.Y, AnimFragment.LastMoveDirXY.X));
+		ClientFacing = HktFacingFromYaw(DirYawDeg, CamView.Rotation.Yaw);
+	}
+
+	FHktPresentationState& PState = PS->GetMutableState();
+	if (FHktSpriteView* MutableSV = PState.GetMutableSprite(CachedEntityId))
+	{
+		MutableSV->Facing.Set(static_cast<uint8>(ClientFacing), PState.GetCurrentFrame());
 	}
 }
 

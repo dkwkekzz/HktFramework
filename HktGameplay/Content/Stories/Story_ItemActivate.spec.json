@@ -60,16 +60,19 @@
     },
     {
       "name": "fail_when_target_not_owned_by_self",
-      "description": "Target.ItemState=1 OK 지만 OwnerEntity 미설정(0) → SnippetValidateOwnership fail.",
+      "description": "Target.ItemState=1 OK 지만 OwnerEntity 가 Self 가 아닌 다른 엔티티 → SnippetValidateOwnership fail. (literal 0 사용 금지 — 첫 할당 entity id=0 이라 Self 와 충돌)",
       "given": {
         "self": { "archetype": "Character" },
         "target": {
           "archetype": "Item",
           "properties": {
             "ItemState": 1,
-            "OwnerEntity": 0
+            "OwnerEntity": {"ref": "entities[0]"}
           }
-        }
+        },
+        "entities": [
+          { "archetype": "Character" }
+        ]
       },
       "expect": {
         "status": "Failed"
