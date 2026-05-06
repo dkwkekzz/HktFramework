@@ -685,8 +685,8 @@ void FHktPresentationState::RemoveEntity(FHktEntityId Id)
 	if (Sprites.IsValidIndex(Index))        Sprites.RemoveAt(Index);
 	if (TerrainDebris.IsValidIndex(Index))  TerrainDebris.RemoveAt(Index);
 
-	// Drop 로그 dedup 정리 — 재spawn 시 같은 사유의 drop 이 다시 한 번 로그될 수 있도록.
-	LoggedDropFlags.Remove(Id);
+	// Drop 로그 dedup 슬롯 정리 — 재spawn 시 같은 사유의 drop 이 다시 한 번 로그될 수 있도록.
+	if (LoggedDropFlags.IsValidIndex(Index)) LoggedDropFlags.RemoveAt(Index);
 
 	// Meta는 유지 (RemovedFrame 추적용). Clear()에서만 Meta 제거.
 }
@@ -709,17 +709,32 @@ namespace
 	/**
 	 * Drop 로그 1회성 게이트 — 동일 (Entity, Reason) 조합은 한 번만 통과.
 	 * 매 틱 변경되는 Hot 프로퍼티(PosX, VelX 등)에 대해 뷰 미할당 같은 영구 미스매치가
-	 * 매 틱 로그를 찍는 것을 원천 차단한다. RemoveEntity 시 키 정리 → 재spawn 시 재로깅.
+	 * 매 틱 로그를 찍는 것을 원천 차단한다. RemoveEntity 시 슬롯 정리 → 재spawn 시 재로깅.
 	 *
-	 * 주의: Id < 0 (네트워크/직렬화 버그) 인 경우에도 dedup 으로 1회 한정.
-	 *       해당 키는 RemoveEntity 가 호출되지 않으므로 Clear() 에서만 정리.
+	 * Id < 0 (네트워크/직렬화 버그) 케이스는 sparse array 인덱싱 불가하므로
+	 * 모든 음수 Id 가 공유하는 단일 필드 NegativeIdLoggedFlags 로 1회 한정.
+	 * (Clear() 에서만 리셋.)
 	 */
 	static bool ShouldLogDropOnce(FHktPresentationState& S, FHktEntityId Id, EHktDropReason Reason)
 	{
-		EHktDropReason& Flags = S.LoggedDropFlags.FindOrAdd(Id, EHktDropReason::None);
-		if (EnumHasAnyFlags(Flags, Reason))
+		EHktDropReason* Flags;
+		if (Id < 0)
+		{
+			Flags = &S.NegativeIdLoggedFlags;
+		}
+		else
+		{
+			const int32 Index = static_cast<int32>(Id);
+			if (!S.LoggedDropFlags.IsValidIndex(Index))
+			{
+				S.LoggedDropFlags.Insert(Index, EHktDropReason::None);
+			}
+			Flags = &S.LoggedDropFlags[Index];
+		}
+
+		if (EnumHasAnyFlags(*Flags, Reason))
 			return false;
-		Flags |= Reason;
+		*Flags |= Reason;
 		return true;
 	}
 }
@@ -899,5 +914,6 @@ void FHktPresentationState::Clear()
 	PendingVFXAttachments.Reset();
 	PendingVFXDetachments.Reset();
 	LoggedDropFlags.Empty();
+	NegativeIdLoggedFlags = EHktDropReason::None;
 	CurrentFrame = 0;
 }

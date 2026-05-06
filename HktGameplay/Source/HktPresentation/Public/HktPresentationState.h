@@ -295,11 +295,20 @@ struct HKTPRESENTATION_API FHktPresentationState
 
 	/**
 	 * Delta 적용 실패(drop) 로그 dedup — 엔터티별 사유 비트마스크.
-	 * 동일 (Entity, Reason) 조합당 1회만 출력. RemoveEntity 시 해당 Id 제거 → 재spawn 시 재로깅.
+	 * 동일 (Entity, Reason) 조합당 1회만 출력. RemoveEntity 시 슬롯 제거 → 재spawn 시 재로깅.
 	 * 매 틱 발생 가능한 silent-drop(예: VelX 가 매 틱 변경되는데 Movement 뷰 부재)이
 	 * 로그를 도배하는 것을 원천 차단한다.
+	 *
+	 * 다른 SOA 뷰들과 동일하게 EntityId 인덱싱 TSparseArray 사용 — TMap 해시 오버헤드 회피,
+	 * 캐시 친화적 dense layout.
 	 */
-	TMap<FHktEntityId, EHktDropReason> LoggedDropFlags;
+	TSparseArray<EHktDropReason> LoggedDropFlags;
+
+	/**
+	 * Id < 0 (네트워크/직렬화 버그) 케이스 dedup — sparse array 인덱싱 불가능하므로 단일 필드 사용.
+	 * 모든 음수 Id 가 공유 (rare path 이므로 충분).
+	 */
+	EHktDropReason NegativeIdLoggedFlags = EHktDropReason::None;
 
 	// --- 프레임 관리 ---
 	void BeginFrame(int64 Frame);
