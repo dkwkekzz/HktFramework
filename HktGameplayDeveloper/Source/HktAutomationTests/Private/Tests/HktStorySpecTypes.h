@@ -82,10 +82,27 @@ struct FHktSpecMatcher
 	TArray<FString> TagsAbsent;             // 모두 부재
 };
 
+// dispatched 매처의 단일 항목. eventTag 외 필드는 optional — 미지정 시 해당 필드 비교 생략.
+// source/target 은 entity ref 문자열 ("self"/"target"/"entities[N]"/"spawned") 또는 정수 EntityId.
+struct FHktSpecDispatchedEvent
+{
+	FString EventTag;          // 필수 — fully-qualified GameplayTag 문자열
+	FString SourceRef;         // optional — 비어있으면 비교 생략
+	FString TargetRef;         // optional — 비어있으면 비교 생략
+	bool bHasParam0 = false;
+	int32 Param0 = 0;
+	bool bHasParam1 = false;
+	int32 Param1 = 0;
+};
+
 struct FHktSpecExpect
 {
 	EVMStatus Status = EVMStatus::Completed;
 	TArray<FHktSpecMatcher> Matchers;
+	// dispatched: VM 종료 후 Runtime.PendingDispatchedEvents 큐와 위치 기반 정확 일치 비교.
+	// bHasDispatched=false 이면 비교 생략 (기존 spec 호환).
+	bool bHasDispatched = false;
+	TArray<FHktSpecDispatchedEvent> Dispatched;
 };
 
 struct FHktSpecScenario

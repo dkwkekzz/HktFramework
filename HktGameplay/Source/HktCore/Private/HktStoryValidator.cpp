@@ -9,10 +9,12 @@ FHktStoryValidator::FHktStoryValidator(
 	const FGameplayTag& InTag,
 	const TMap<FName, int32>& InLabels,
 	const TMap<int32, int32>& InIntLabels,
-	bool bInFlowMode)
+	bool bInFlowMode,
+	const TCHAR* InSectionName)
 	: Code(InCode)
 	, Tag(InTag)
 	, bFlowMode(bInFlowMode)
+	, SectionName(InSectionName ? InSectionName : TEXT(""))
 {
 	for (const auto& Pair : InLabels)
 	{
@@ -232,9 +234,9 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 		if (State[R] == ERegState::Unknown)
 		{
 			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(
-				TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Read-before-Write. "
+				TEXT("Story REGFLOW: %s%s PC=%d Op=%s — R%d Read-before-Write. "
 					 "초기화되지 않은 레지스터를 읽고 있습니다."),
-				*Tag.ToString(), PC, GetOpCodeName(Op), R));
+				*Tag.ToString(), SectionName, PC, GetOpCodeName(Op), R));
 			++WarningCount;
 		}
 		State[R] = ERegState::Read;
@@ -246,9 +248,9 @@ int32 FHktStoryValidator::ValidateRegisterFlow()
 		if (State[R] == ERegState::Written)
 		{
 			HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Warning, EHktLogSource::Server, FString::Printf(
-				TEXT("Story REGFLOW: %s PC=%d Op=%s — R%d Dead Write. "
+				TEXT("Story REGFLOW: %s%s PC=%d Op=%s — R%d Dead Write. "
 					 "PC=%d에서 쓴 값을 읽지 않고 덮어쓰고 있습니다. 레지스터 충돌을 확인하세요."),
-				*Tag.ToString(), PC, GetOpCodeName(Op), R, WritePC[R]));
+				*Tag.ToString(), SectionName, PC, GetOpCodeName(Op), R, WritePC[R]));
 			++WarningCount;
 		}
 		State[R] = ERegState::Written;

@@ -17,7 +17,10 @@
       },
       "expect": {
         "status": "Completed",
-        "self": { "properties": { "NextActionFrame": 2147483647 } }
+        "self": { "properties": { "NextActionFrame": 2147483647 } },
+        "dispatched": [
+          { "eventTag": "Story.Event.Attack.Basic", "source": "self", "target": "target" }
+        ]
       }
     },
     {
@@ -52,7 +55,10 @@
             "CP": 40,
             "NextActionFrame": 2147483647
           }
-        }
+        },
+        "dispatched": [
+          { "eventTag": "Story.Event.Skill.Fireball", "source": "self", "target": "target" }
+        ]
       }
     },
     {
@@ -87,7 +93,10 @@
             "CP": 55,
             "NextActionFrame": 2147483647
           }
-        }
+        },
+        "dispatched": [
+          { "eventTag": "Story.Event.Skill.Heal", "source": "self", "target": "target" }
+        ]
       }
     },
     {
@@ -122,7 +131,10 @@
             "CP": 70,
             "NextActionFrame": 2147483647
           }
-        }
+        },
+        "dispatched": [
+          { "eventTag": "Story.Event.Skill.Lightning", "source": "self", "target": "target" }
+        ]
       }
     },
     {
@@ -157,7 +169,10 @@
             "CP": 45,
             "NextActionFrame": 2147483647
           }
-        }
+        },
+        "dispatched": [
+          { "eventTag": "Story.Event.Skill.Buff", "source": "self", "target": "target" }
+        ]
       }
     },
     {
@@ -192,7 +207,10 @@
             "CP": 10,
             "NextActionFrame": 2147483647
           }
-        }
+        },
+        "dispatched": [
+          { "eventTag": "Story.Event.Attack.Basic", "source": "self", "target": "target" }
+        ]
       }
     }
   ]

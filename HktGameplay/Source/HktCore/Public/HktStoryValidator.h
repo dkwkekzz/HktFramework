@@ -37,7 +37,8 @@ public:
 		const FGameplayTag& InTag,
 		const TMap<FName, int32>& InLabels,
 		const TMap<int32, int32>& InIntLabels = {},
-		bool bInFlowMode = false);
+		bool bInFlowMode = false,
+		const TCHAR* InSectionName = TEXT(""));
 
 	/**
 	 * 엔티티 레지스터 초기화 검증
@@ -61,4 +62,5 @@ private:
 	const FGameplayTag& Tag;
 	TSet<int32> LabelPCs;
 	bool bFlowMode = false;
+	const TCHAR* SectionName = TEXT(""); // 로그 prefix — main body 와 precondition 을 구분 (예: "[Precondition]")
 };

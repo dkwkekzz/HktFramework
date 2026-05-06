@@ -456,8 +456,8 @@ Heal.spec.json 의 `partial_heal_under_max` 시나리오 (Param0=30, Health=100�
 4. **Heal V2 회귀** (Phase 2d 종료 시점 의심) — Phase 2e 6 항에서 오진으로 확인. `Param0` 이 `Context.EventParam0` 에서 읽히는 점을 spec 의 `given.event` 블록 도입으로 해소. **종결**.
 5. **Session Frontend 캐시** — spec 추가/제거 후 사용자가 "Refresh Tests" 클릭 필요. UE Automation 프레임워크 레벨이라 런너 코드로 우회 불가 — 가이드만 명시.
 6. **`tagsExact` 의 역방향 검출** — Phase 2 보강 2 항에서 추가 (TSet 기반 set 비교). **종결**.
-7. **`spawned` ref / `dispatched` 매처** — `spawned` ref 는 Phase 2 보강 2 항에서 추가 (= `Reg::Spawned` readback). `dispatched` 매처 (TargetAction 류 dispatcher Story 의 `PendingDispatchedEvents` 큐 검증) 는 미구현.
-8. **PreconditionSection validator 미통과** — `FHktStoryValidator` 는 현재 `Program->Code` (main body) 만 검증. PreconditionSection 도 register-flow 검증 대상에 포함시키면 NamedVarMap 류 잠재 버그를 자동 검출 가능. 별도 PR.
+7. **`spawned` ref / `dispatched` 매처** — `spawned` ref 는 Phase 2 보강 2 항에서 추가. **`dispatched` 매처도 추가됨** — `expect.dispatched` 배열로 `Runtime.PendingDispatchedEvents` 큐와 위치 기반 정확 일치 비교 (`eventTag` 필수, `source`/`target`/`param0`/`param1` optional). TargetAction (2 시나리오), CombatUseSkill (5 시나리오), WorldInit (1 시나리오) 에 적용. **종결**.
+8. **PreconditionSection validator** — `FHktStoryValidator::ValidateRegisterFlow` 가 `Program->PreconditionCode` 도 검증하도록 `Build()` 끝에서 별도 인스턴스 호출 (`PreconditionSection->Labels`/`IntLabels` 사용). 로그 prefix `[Precondition]` 으로 main body 와 구분. NamedVarMap 류 cross-section 잠재 버그를 자동 검출. **종결**.
 9. **NamedVarMap fix 영향 회귀 검증** — 이번 fix 가 다른 schema 2 Story 에 영향 가능성. precondition + main body 양쪽에서 같은 named var 를 쓴 케이스 (`now`/`next`/`item` 등) 가 잠재 위험. 핫리로드 후 spec 통과 여부로 자연 검증 가능.
 
 ## V2 prefix 처리 (확정안 → 사실상 폐기)
