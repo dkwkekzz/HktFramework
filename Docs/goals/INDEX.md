@@ -1,8 +1,8 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T06:12:37+00:00
-> Total goals: 11
+> Last generated: 2026-05-06T07:01:54+00:00
+> Total goals: 17
 
 ## By Pillar
 
@@ -16,7 +16,12 @@ _(하위 Goal 없음)_
 
 ### G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
 
-_(하위 Goal 없음)_
+- G-0100 MCP 서버 ↔ UE5 에디터/런타임 브릿지 — LLM 에이전트 통신 인프라
+- G-0101 8-step Generator Pipeline 오케스트레이션 — Step Store + Feature Worker
+- G-0102 Tag 디스패치 + Generator Router — 어셋 자동 생성 라우팅
+- G-0103 HktMap 빌드 — terrain_spec JSON → Landscape/Spawner/Region 파이프라인
+- G-0104 Story Schema 2 컴파일 — JSON → HktCore 바이트코드 + 의존성 추적
+- G-0105 Generator Prompt 패널 + Claude CLI Subprocess — 인터랙티브 생성 UI
 
 ### G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
 
@@ -28,7 +33,7 @@ _(하위 Goal 없음)_
 
 ## By Status
 
-### Active (11)
+### Active (17)
 
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
 - G-0002 시뮬레이션 결정성 보존 — 동일 입력 시퀀스에 동일 상태 산출
@@ -41,6 +46,12 @@ _(하위 Goal 없음)_
 - G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
 - G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
+- G-0100 MCP 서버 ↔ UE5 에디터/런타임 브릿지 — LLM 에이전트 통신 인프라
+- G-0101 8-step Generator Pipeline 오케스트레이션 — Step Store + Feature Worker
+- G-0102 Tag 디스패치 + Generator Router — 어셋 자동 생성 라우팅
+- G-0103 HktMap 빌드 — terrain_spec JSON → Landscape/Spawner/Region 파이프라인
+- G-0104 Story Schema 2 컴파일 — JSON → HktCore 바이트코드 + 의존성 추적
+- G-0105 Generator Prompt 패널 + Claude CLI Subprocess — 인터랙티브 생성 UI
 
 ### Proposed (0)
 
@@ -106,3 +117,12 @@ _(없음)_
 ### pillar:test-automation (1)
 
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
+
+### system:authoring (6)
+
+- G-0100 MCP 서버 ↔ UE5 에디터/런타임 브릿지 — LLM 에이전트 통신 인프라
+- G-0101 8-step Generator Pipeline 오케스트레이션 — Step Store + Feature Worker
+- G-0102 Tag 디스패치 + Generator Router — 어셋 자동 생성 라우팅
+- G-0103 HktMap 빌드 — terrain_spec JSON → Landscape/Spawner/Region 파이프라인
+- G-0104 Story Schema 2 컴파일 — JSON → HktCore 바이트코드 + 의존성 추적
+- G-0105 Generator Prompt 패널 + Claude CLI Subprocess — 인터랙티브 생성 UI
