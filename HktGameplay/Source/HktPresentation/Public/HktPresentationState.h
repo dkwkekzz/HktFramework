@@ -17,14 +17,16 @@ class UHktAssetSubsystem;
 /**
  * Delta 적용 실패(drop) 사유 비트플래그.
  * 동일 (Entity, Reason) 조합당 1회만 로그하기 위해 엔터티별 비트마스크로 누적된다.
- * RemoveEntity 시 해당 엔터티 키 제거 → 재spawn 시 재로깅 가능.
+ * RemoveEntity 시 해당 엔터티 슬롯 제거 → 재spawn 시 재로깅 가능.
  *
  * 설계 노트:
  *  - PropId 별로 분리하지 않는 이유: 같은 뷰 미할당으로 인한 cascade(예: Movement 뷰 부재 →
  *    VelX/Y/Z + MoveTargetX/Y/Z + MoveForce + IsMoving + IsGrounded = 9개 PropId 가 모두 drop)는
  *    근본 원인이 하나이므로 카테고리 단위 1회 로그로 충분. 첫 로그 메시지에 trigger PropId 가
  *    포함되므로 진단 시작점도 명확.
- *  - 메모리: 엔터티당 uint16 2바이트 (vs. 이전 TSet<uint32>: 엔터티당 최대 ~10KB).
+ *  - 저장소: TSparseArray<EHktDropReason> (엔터티당 uint16 2바이트, 다른 SOA 뷰들과 동일 패턴).
+ *  - 게이트: ShouldLogDropOnce 가 EventLog 활성 + Level 조건도 함께 검사 → 패널 닫힌 동안에는
+ *    dedup 비트도 set 되지 않음 (패널 열리면 그때 첫 로그 정상 출력).
  */
 enum class EHktDropReason : uint16
 {
