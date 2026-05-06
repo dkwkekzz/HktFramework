@@ -20,7 +20,7 @@
     { "op": "SnippetValidateItemState", "entity": "Target", "expectedState": 1, "failLabel": "fail" },
     { "op": "SnippetValidateOwnership", "entity": "Target", "failLabel": "fail" },
 
-    { "op": "ReadProperty", "dst": {"var":"equipIdx"}, "property": "EquipIndex" },
+    { "op": "ReadProperty", "dst": {"var":"equipIdx"}, "property": "Param0" },
 
     { "op": "FindByOwner", "owner": "Self", "tag": "EntityItem" },
 
