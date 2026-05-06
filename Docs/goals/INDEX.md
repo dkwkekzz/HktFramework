@@ -1,7 +1,7 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T05:43:20+00:00
+> Last generated: 2026-05-06T06:36:47+00:00
 > Total goals: 16
 
 ## By Pillar
@@ -12,7 +12,7 @@
 - G-0101 결정론 바이트코드 VM 인터프리터 — VReg IR + byte-identical 컴파일
 - G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff
 - G-0103 GGPO 30Hz 클라이언트 롤백/예측/빨리감기
-- G-0104 HktStory 바이트코드 스니펫 라이브러리 — JSON / Fluent 두 정의 경로
+- G-0104 HktStory JSON 정의 — GameplayTag → FHktVMProgram 컴파일 파이프라인
 
 ### G-0020 엔터티 시각화 — Tag/DataAsset 기반 리소스 연결과 대량 엔터티 렌더링 성능
 
@@ -49,7 +49,7 @@ _(하위 Goal 없음)_
 - G-0101 결정론 바이트코드 VM 인터프리터 — VReg IR + byte-identical 컴파일
 - G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff
 - G-0103 GGPO 30Hz 클라이언트 롤백/예측/빨리감기
-- G-0104 HktStory 바이트코드 스니펫 라이브러리 — JSON / Fluent 두 정의 경로
+- G-0104 HktStory JSON 정의 — GameplayTag → FHktVMProgram 컴파일 파이프라인
 
 ### Proposed (0)
 
@@ -99,7 +99,7 @@ _(없음)_
 - G-0100 SOA WorldState — Property별 컬럼 기반 시뮬레이션 스냅샷
 - G-0101 결정론 바이트코드 VM 인터프리터 — VReg IR + byte-identical 컴파일
 - G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff
-- G-0104 HktStory 바이트코드 스니펫 라이브러리 — JSON / Fluent 두 정의 경로
+- G-0104 HktStory JSON 정의 — GameplayTag → FHktVMProgram 컴파일 파이프라인
 
 ### pillar:authoring (1)
 
