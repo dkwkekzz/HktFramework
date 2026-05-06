@@ -5,9 +5,10 @@
 namespace HktStoryTags
 {
 	// --- Entity Filter (Story-specific sub-tags) ---
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player,      "Entity.Character.Player",  "Player character entity.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin,            "Entity.NPC.Goblin",        "Goblin NPC entity.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton,          "Entity.NPC.Skeleton",      "Skeleton NPC entity.");
+	// 컨벤션: Entity.{Archetype}.{RenderMode}.{Name} (RenderMode: 3DActor / 2DPaper / 2DCrowdSprite / 2DNiagaraSprite)
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player,      "Entity.Character.3DActor.Player",  "Player character entity (3D actor).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin,            "Entity.NPC.3DActor.Goblin",        "Goblin NPC entity (3D actor).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton,          "Entity.NPC.3DActor.Skeleton",      "Skeleton NPC entity (3D actor).");
 
 	// --- Entity Attr ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile,              "Entity.Attr.NPC.Hostile",   "Hostile NPC tag.");

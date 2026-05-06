@@ -18,9 +18,11 @@
 namespace HktStoryTags
 {
 	// --- Entity Filter (Story-specific sub-tags) ---
-	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Character_Player);      // Entity.Character.Player
-	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Goblin);            // Entity.NPC.Goblin
-	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Skeleton);          // Entity.NPC.Skeleton
+	// 컨벤션: Entity.{Archetype}.{RenderMode}.{Name}
+	// RenderMode: 3DActor / 2DPaper / 2DCrowdSprite / 2DNiagaraSprite
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Character_Player);      // Entity.Character.3DActor.Player
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Goblin);            // Entity.NPC.3DActor.Goblin
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Skeleton);          // Entity.NPC.3DActor.Skeleton
 
 	// --- Entity Attr ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_NPC_Hostile);              // Entity.Attr.NPC.Hostile

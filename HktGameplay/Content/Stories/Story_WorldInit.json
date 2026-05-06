@@ -3,9 +3,9 @@
   "storyTag": "Story.Flow.World.Init",
   "cancelOnDuplicate": false,
   "tags": {
-    "NpcGoblin":     "Entity.NPC.Goblin",
-    "NpcSkeleton":   "Entity.NPC.Skeleton",
-    "NpcZombie":     "Entity.NPC.Zombie",
+    "NpcGoblin":     "Entity.NPC.3DActor.Goblin",
+    "NpcSkeleton":   "Entity.NPC.3DActor.Skeleton",
+    "NpcZombie":     "Entity.NPC.3DActor.Zombie",
     "EntityNPC":     "Entity.NPC",
     "NpcHostile":    "Entity.Attr.NPC.Hostile",
     "StanceUnarmed": "Entity.Stance.Unarmed",

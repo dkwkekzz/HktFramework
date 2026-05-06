@@ -314,7 +314,7 @@ FString FHktStoryJsonCompiler::GetStoryExamples()
     "story": {
       "storyTag": "Flow.Spawner.Wave.Arena",
       "tags": {
-        "NPC_Goblin": "Entity.NPC.Goblin",
+        "NPC_Goblin": "Entity.NPC.3DActor.Goblin",
         "NPC_Tag": "Entity.NPC",
         "Hostile": "NPC.Hostile"
       },

@@ -347,15 +347,17 @@ namespace
 {
 	// 스폰 태그에 포함된 렌더 모드 segment 식별.
 	// 컨벤션: Entity.{Archetype}.{RenderMode}.{Name}
-	//   예) Entity.Character.3DActor.Knight    → ThreeDActor
-	//       Entity.Character.Paper.Hikito.X    → Paper
-	//       Entity.NPC.CrowdSprite.Goblin      → CrowdSprite
+	//   예) Entity.Character.3DActor.Knight        → ThreeDActor
+	//       Entity.Character.2DPaper.Hikito.X      → TwoDPaper
+	//       Entity.NPC.2DCrowdSprite.Goblin        → TwoDCrowdSprite
+	//       Entity.NPC.2DNiagaraSprite.Bat         → TwoDNiagaraSprite
 	enum class EHktRenderMode : uint8
 	{
 		Unknown,
 		ThreeDActor,
-		Paper,
-		CrowdSprite,
+		TwoDPaper,
+		TwoDCrowdSprite,
+		TwoDNiagaraSprite,
 	};
 
 	FORCEINLINE bool TagHasSegment(const FString& TagStr, const TCHAR* Segment)
@@ -371,9 +373,10 @@ namespace
 		for (const FGameplayTag& Tag : Tags)
 		{
 			const FString TagStr = Tag.ToString();
-			if (TagHasSegment(TagStr, TEXT("3DActor")))     return EHktRenderMode::ThreeDActor;
-			if (TagHasSegment(TagStr, TEXT("Paper")))       return EHktRenderMode::Paper;
-			if (TagHasSegment(TagStr, TEXT("CrowdSprite"))) return EHktRenderMode::CrowdSprite;
+			if (TagHasSegment(TagStr, TEXT("3DActor")))           return EHktRenderMode::ThreeDActor;
+			if (TagHasSegment(TagStr, TEXT("2DPaper")))           return EHktRenderMode::TwoDPaper;
+			if (TagHasSegment(TagStr, TEXT("2DCrowdSprite")))     return EHktRenderMode::TwoDCrowdSprite;
+			if (TagHasSegment(TagStr, TEXT("2DNiagaraSprite")))   return EHktRenderMode::TwoDNiagaraSprite;
 		}
 		return EHktRenderMode::Unknown;
 	}
@@ -384,9 +387,10 @@ EHktRenderCategory FHktPresentationState::DetermineRenderCategory(const FGamepla
 	// 1) 스폰 태그의 렌더 모드 segment 로 카테고리 결정 — Archetype 과 직교.
 	switch (DetermineRenderMode(Tags))
 	{
-		case EHktRenderMode::ThreeDActor: return EHktRenderCategory::Actor;
-		case EHktRenderMode::Paper:       return EHktRenderCategory::Actor;
-		case EHktRenderMode::CrowdSprite: return EHktRenderCategory::MassEntity;
+		case EHktRenderMode::ThreeDActor:       return EHktRenderCategory::Actor;
+		case EHktRenderMode::TwoDPaper:         return EHktRenderCategory::Actor;
+		case EHktRenderMode::TwoDCrowdSprite:   return EHktRenderCategory::MassEntity;
+		case EHktRenderMode::TwoDNiagaraSprite: return EHktRenderCategory::MassEntity;
 		default: break;
 	}
 
@@ -432,9 +436,11 @@ void FHktPresentationState::AllocateViewsForEntity(FHktEntityId Id, EHktRenderCa
 	EnsureSlot(Transforms);
 
 	const EHktRenderMode Mode = DetermineRenderMode(Tags);
-	const bool bIs3DActor    = (Mode == EHktRenderMode::ThreeDActor);
-	const bool bIsPaper      = (Mode == EHktRenderMode::Paper);
-	const bool bIsCrowdSprite= (Mode == EHktRenderMode::CrowdSprite);
+	const bool bIs3DActor          = (Mode == EHktRenderMode::ThreeDActor);
+	const bool bIs2DPaper          = (Mode == EHktRenderMode::TwoDPaper);
+	const bool bIs2DCrowdSprite    = (Mode == EHktRenderMode::TwoDCrowdSprite);
+	const bool bIs2DNiagaraSprite  = (Mode == EHktRenderMode::TwoDNiagaraSprite);
+	const bool bIsAnySprite        = bIs2DPaper || bIs2DCrowdSprite || bIs2DNiagaraSprite;
 
 	const bool bIsItem       = Tags.HasTag(HktArchetypeTags::Entity_Item);
 	const bool bIsActor      = (Category == EHktRenderCategory::Actor);
@@ -458,8 +464,8 @@ void FHktPresentationState::AllocateViewsForEntity(FHktEntityId Id, EHktRenderCa
 		EnsureSlot(VoxelSkins);
 	}
 
-	// Sprite — Paper2D / CrowdSprite (Niagara billboard) 캐릭터 전용
-	if ((bIsPaper || bIsCrowdSprite) && bIsCharacter)
+	// Sprite — 2D 캐릭터 (Paper2D / CrowdSprite / NiagaraSprite) 전용
+	if (bIsAnySprite && bIsCharacter)
 	{
 		EnsureSlot(Sprites);
 	}
