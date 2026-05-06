@@ -1,10 +1,14 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T06:36:47+00:00
-> Total goals: 16
+> Last generated: 2026-05-06T07:45:17+00:00
+> Total goals: 17
 
 ## By Pillar
+
+### G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
+
+_(하위 Goal 없음)_
 
 ### G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
 
@@ -32,8 +36,9 @@ _(하위 Goal 없음)_
 
 ## By Status
 
-### Active (16)
+### Active (17)
 
+- G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
 - G-0002 시뮬레이션 결정성 보존 — 동일 입력 시퀀스에 동일 상태 산출
 - G-0003 서버 권위 모델 — 클라이언트는 읽기 전용 FHktWorldView 만 수신
@@ -108,6 +113,10 @@ _(없음)_
 ### pillar:devtools (1)
 
 - G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
+
+### pillar:meta (1)
+
+- G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 
 ### pillar:presentation (1)
 

@@ -1,8 +1,9 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T06:36:47+00:00
+> Last generated: 2026-05-06T07:45:17+00:00
 
+- G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
   - G-0100 SOA WorldState — Property별 컬럼 기반 시뮬레이션 스냅샷
   - G-0101 결정론 바이트코드 VM 인터프리터 — VReg IR + byte-identical 컴파일

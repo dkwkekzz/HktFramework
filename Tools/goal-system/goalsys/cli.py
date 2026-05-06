@@ -38,10 +38,12 @@ from .tasks import (
     Task,
     TaskIdExhaustedError,
     TaskParseError,
+    TaskTransitionError,
     close_task,
     generate_task_index,
     load_tasks,
     new_task,
+    start_task,
     validate_task_refs,
     validate_tasks,
 )
@@ -343,6 +345,16 @@ def cmd_new_task(
     return 0
 
 
+def cmd_start_task(task_id: str, tasks_dir: Path) -> int:
+    try:
+        path = start_task(task_id, tasks_dir)
+    except (FileNotFoundError, TaskTransitionError, ValueError) as exc:
+        print(f"오류: {exc}", file=sys.stderr)
+        return 2
+    print(str(path))
+    return 0
+
+
 def cmd_close_task(
     task_id: str,
     tasks_dir: Path,
@@ -355,7 +367,7 @@ def cmd_close_task(
         path = close_task(
             task_id, tasks_dir, final_status=final_status, commit=commit, pr=pr,
         )
-    except (FileNotFoundError, ValueError) as exc:
+    except (FileNotFoundError, TaskTransitionError, ValueError) as exc:
         print(f"오류: {exc}", file=sys.stderr)
         return 2
     print(str(path))
@@ -525,6 +537,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_nt.add_argument("--constraint-violation", default=None,
                       help="B2 긴급 표시 — 위반 constraint Goal ID")
 
+    p_st = sub.add_parser("start-task", help="Task 착수 — todo → in_progress")
+    p_st.add_argument("task_id")
+    p_st.add_argument("tasks_dir", type=Path)
+
     p_ct = sub.add_parser("close-task", help="Task 종결 — done | cancelled")
     p_ct.add_argument("task_id")
     p_ct.add_argument("tasks_dir", type=Path)
@@ -595,6 +611,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             description=args.description,
             constraint_violation=args.constraint_violation,
         )
+    if args.cmd == "start-task":
+        return cmd_start_task(args.task_id, args.tasks_dir)
     if args.cmd == "close-task":
         return cmd_close_task(
             args.task_id,

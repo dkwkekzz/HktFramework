@@ -163,7 +163,8 @@ related_pr: null
 | 명령 | 용도 |
 |------|------|
 | `new-task <tasks_dir> --title ... --goal G-XXXX [--description ...] [--constraint-violation G-YYYY]` | 새 Task 파일 생성. `next_task_id` 자동 할당. |
-| `close-task <T-ID> <tasks_dir> [--cancelled] [--commit <sha>] [--pr <num>]` | Terminal status 전환. 기본 `done`. `--cancelled` 로 취소. |
+| `start-task <T-ID> <tasks_dir>` | `todo` → `in_progress` 전이. 다른 source status 거부. |
+| `close-task <T-ID> <tasks_dir> [--cancelled] [--commit <sha>] [--pr <num>]` | Terminal 전이. 기본 `done` (in_progress 에서만), `--cancelled` 는 todo/in_progress 모두 허용. terminal 재닫기 거부. |
 | `list-tasks <tasks_dir> [--status ...] [--goal G-XXXX]` | 필터 조회. |
 | `validate-tasks <tasks_dir> [<goals_dir>]` | 스키마 검증 + (goals_dir 제공 시) T-R1/T-R3 참조 검증. |
 | `render-task-index <tasks_dir> [<goals_dir>]` | INDEX.md 재생성. |

@@ -46,6 +46,18 @@ _H2_RE = re.compile(r"^##\s+(?P<title>.+?)\s*$", re.MULTILINE)
 VALID_STATUSES = ("todo", "in_progress", "done", "cancelled")
 TERMINAL_STATUSES = ("done", "cancelled")
 
+# 설계 §3.4 — 허용 전이. {source: {target, ...}}.
+ALLOWED_TRANSITIONS: Dict[str, frozenset] = {
+    "todo": frozenset({"in_progress", "cancelled"}),
+    "in_progress": frozenset({"done", "cancelled"}),
+    "done": frozenset(),
+    "cancelled": frozenset(),
+}
+
+
+class TaskTransitionError(ValueError):
+    """status 전이가 ALLOWED_TRANSITIONS 위반."""
+
 
 class TaskParseError(ValueError):
     """파싱 단계 오류 — 위치 정보 포함."""
@@ -284,8 +296,8 @@ def _format_yaml_list(items: Iterable[str]) -> str:
     return "[" + ", ".join(items) + "]"
 
 
-def render_task(task: Task) -> str:
-    """Task 객체를 파일 텍스트로 직렬화 (라운드트립)."""
+def _render_frontmatter(task: Task) -> str:
+    """Frontmatter 블록만 렌더 — body 와 합치는 것은 호출자 책임."""
 
     lines: List[str] = []
     lines.append("---")
@@ -301,12 +313,30 @@ def render_task(task: Task) -> str:
     lines.append(f"related_commits: {_format_yaml_list(task.related_commits)}")
     lines.append(f"related_pr: {task.related_pr if task.related_pr is not None else 'null'}")
     lines.append("---")
-    lines.append("")
-    lines.append("## Description")
-    lines.append("")
-    lines.append(task.description or "TODO")
-    lines.append("")
     return "\n".join(lines)
+
+
+def render_task(task: Task) -> str:
+    """Task 객체를 파일 텍스트로 직렬화 (라운드트립).
+
+    raw_body 가 있으면 그대로 보존 — 사용자가 추가한 ``## Notes`` 같은 보조 섹션
+    이 close-task 등에서 손실되지 않도록 한다. raw_body 가 비어있으면 표준
+    ``## Description`` 골격 + ``description`` 필드로 신규 생성 형식을 따른다.
+    """
+
+    fm = _render_frontmatter(task)
+    body = task.raw_body or ""
+    if body.strip():
+        # raw_body 는 파서가 frontmatter 직후부터 보존한 텍스트. 선두 개행이
+        # 0~N 개일 수 있으므로 모두 제거 후 항상 빈 줄 1개 (= "\n\n") 보장.
+        return fm + "\n\n" + body.lstrip("\n")
+    # 신규 Task — 표준 골격
+    return (
+        fm
+        + "\n\n## Description\n\n"
+        + (task.description or "TODO")
+        + "\n"
+    )
 
 
 def render_new_task(req: NewTaskRequest, *, task_id: str, now: Optional[str] = None) -> str:
@@ -341,6 +371,32 @@ def new_task(
     return target
 
 
+def _transition(task: Task, new_status: str) -> None:
+    """ALLOWED_TRANSITIONS 강제 — 위반 시 TaskTransitionError."""
+
+    allowed = ALLOWED_TRANSITIONS.get(task.status, frozenset())
+    if new_status not in allowed:
+        raise TaskTransitionError(
+            f"{task.id}: {task.status} → {new_status} 전이 불가 "
+            f"(허용: {sorted(allowed) or 'terminal'})"
+        )
+    task.status = new_status
+
+
+def start_task(task_id: str, tasks_dir: Path | str) -> Path:
+    """todo → in_progress 전이."""
+
+    base = Path(tasks_dir)
+    target = base / f"{task_id}.md"
+    if not target.exists():
+        raise FileNotFoundError(f"Task 파일 없음: {target}")
+    task = parse_task_file(target)
+    _transition(task, "in_progress")
+    task.updated_at = _now_iso()
+    target.write_text(render_task(task), encoding="utf-8")
+    return target
+
+
 def close_task(
     task_id: str,
     tasks_dir: Path | str,
@@ -349,6 +405,12 @@ def close_task(
     commit: Optional[str] = None,
     pr: Optional[int] = None,
 ) -> Path:
+    """terminal status (done/cancelled) 로 전이.
+
+    설계 §3.4 강제: done 은 in_progress 에서만, cancelled 는 todo/in_progress
+    에서. 이미 terminal 인 Task 재닫기 차단.
+    """
+
     if final_status not in TERMINAL_STATUSES:
         raise ValueError(
             f"final_status 는 {TERMINAL_STATUSES} 중 하나. 실제: {final_status!r}"
@@ -359,8 +421,8 @@ def close_task(
         raise FileNotFoundError(f"Task 파일 없음: {target}")
 
     task = parse_task_file(target)
+    _transition(task, final_status)
     now = _now_iso()
-    task.status = final_status
     task.updated_at = now
     task.closed_at = now
     if commit and commit not in task.related_commits:
