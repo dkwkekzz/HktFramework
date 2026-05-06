@@ -1,8 +1,8 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T10:04:08+00:00
-> Total goals: 37
+> Last generated: 2026-05-06T10:37:10+00:00
+> Total goals: 41
 
 ## By Pillar
 
@@ -46,7 +46,10 @@ _(하위 Goal 없음)_
 
 ### G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
 
-_(하위 Goal 없음)_
+- G-0125 인사이트 데이터 수집 게이트웨이 — HktCore 싱글톤 수집기 + 이벤트 링 버퍼
+- G-0126 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯
+- G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
+- G-0128 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}
 
 ### G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
 
@@ -54,7 +57,7 @@ _(하위 Goal 없음)_
 
 ## By Status
 
-### Active (37)
+### Active (41)
 
 - G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
@@ -89,6 +92,10 @@ _(하위 Goal 없음)_
 - G-0122 Story Schema 2 컴파일 — JSON → HktCore 바이트코드 + 의존성 추적
 - G-0123 Generator Prompt 패널 + Claude CLI Subprocess — 인터랙티브 생성 UI
 - G-0124 스프라이트 어셋 자동 생성 — Anim Capture → 3-stage Pipeline (Video / Atlas / DA Build)
+- G-0125 인사이트 데이터 수집 게이트웨이 — HktCore 싱글톤 수집기 + 이벤트 링 버퍼
+- G-0126 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯
+- G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
+- G-0128 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}
 - G-1000 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다
 - G-1001 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화
 - G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
@@ -136,6 +143,17 @@ _(없음)_
 - G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
 - G-1003 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
+### layer:devtools (4)
+
+- G-0125 인사이트 데이터 수집 게이트웨이 — HktCore 싱글톤 수집기 + 이벤트 링 버퍼
+- G-0126 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯
+- G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
+- G-0128 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}
+
+### layer:editor (1)
+
+- G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
+
 ### layer:editor-tool (1)
 
 - G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0
@@ -165,15 +183,16 @@ _(없음)_
 - G-0109 Voxel 청크가 Greedy Meshing 으로 압축되어 GPU 에 직접 업로드된다
 - G-0117 Sprite 기반 지형 렌더링 — TerrainSubsystem 청크에서 top-surface 만 추출하여 단일 HISM 인스턴싱
 
-### layer:ui (1)
+### layer:ui (2)
 
 - G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다
+- G-0126 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯
 
 ### layer:vfx (1)
 
 - G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다
 
-### layer:vm (7)
+### layer:vm (8)
 
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
 - G-0002 시뮬레이션 결정성 보존 — 동일 입력 시퀀스에 동일 상태 산출
@@ -182,6 +201,7 @@ _(없음)_
 - G-0101 결정론 바이트코드 VM 인터프리터 — VReg IR + byte-identical 컴파일
 - G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff
 - G-0104 HktStory JSON 정의 — GameplayTag → FHktVMProgram 컴파일 파이프라인
+- G-0125 인사이트 데이터 수집 게이트웨이 — HktCore 싱글톤 수집기 + 이벤트 링 버퍼
 
 ### perf (4)
 

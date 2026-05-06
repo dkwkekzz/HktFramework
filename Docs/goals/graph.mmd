@@ -1,4 +1,4 @@
-%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T10:04:09+00:00
+%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T10:37:10+00:00
 graph TD
   G0000["G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성"]:::pillar
   G0001["G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0"]:::constraint
@@ -33,6 +33,10 @@ graph TD
   G0122["G-0122 Story Schema 2 컴파일 — JSON → HktCore 바이트코드 + 의존성 추적"]
   G0123["G-0123 Generator Prompt 패널 + Claude CLI Subprocess — 인터랙티브 생성 UI"]
   G0124["G-0124 스프라이트 어셋 자동 생성 — Anim Capture → 3-stage Pipeline (Video / Atlas / DA Build)"]
+  G0125["G-0125 인사이트 데이터 수집 게이트웨이 — HktCore 싱글톤 수집기 + 이벤트 링 버퍼"]
+  G0126["G-0126 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯"]
+  G0127["G-0127 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴"]
+  G0128["G-0128 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}"]
   G1000["G-1000 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다"]
   G1001["G-1001 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화"]
   G1002["G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신"]
@@ -58,6 +62,10 @@ graph TD
   G0030 --> G0122
   G0030 --> G0123
   G0030 --> G0124
+  G0040 --> G0125
+  G0040 --> G0126
+  G0040 --> G0127
+  G0040 --> G0128
   G0108 --> G1000
   G0108 --> G1001
   G0108 --> G1002
@@ -91,6 +99,8 @@ graph TD
   G0004 -. 제약 .-> G0111
   G0006 -. 제약 .-> G0117
   G0006 -. 제약 .-> G0121
+  G0001 -. 제약 .-> G0125
+  G0004 -. 제약 .-> G0126
   G0003 -. 제약 .-> G1000
   G0004 -. 제약 .-> G1000
   G0004 -. 제약 .-> G1001
