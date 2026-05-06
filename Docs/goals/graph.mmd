@@ -1,4 +1,4 @@
-%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T07:45:17+00:00
+%% 자동 생성 — 직접 수정 금지. Last generated: 2026-05-06T09:18:40+00:00
 graph TD
   G0000["G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성"]:::pillar
   G0001["G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0"]:::constraint
@@ -17,11 +17,37 @@ graph TD
   G0102["G-0102 FHktSimulationDiff — 가역적 프레임 변경 추적과 UndoDiff"]
   G0103["G-0103 GGPO 30Hz 클라이언트 롤백/예측/빨리감기"]
   G0104["G-0104 HktStory JSON 정의 — GameplayTag → FHktVMProgram 컴파일 파이프라인"]
+  G0105["G-0105 WorldView 변경이 동일 프레임 내 시각 표현에 반영된다"]
+  G0106["G-0106 시각 리소스가 GameplayTag 만으로 비동기 해결된다 — 동기 로드 0"]
+  G0107["G-0107 Actor 카테고리 엔터티는 변경된 엔터티에만 작업이 수행된다"]
+  G0108["G-0108 스프라이트 캐릭터 시각화 — Paper / Crowd 두 경로와 공유 상태기계로 200+ 엔터티 60fps"]
+  G0109["G-0109 Voxel 청크가 Greedy Meshing 으로 압축되어 GPU 에 직접 업로드된다"]
+  G0110["G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다"]
+  G0111["G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다"]
+  G0112["G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0"]
+  G0117["G-0117 Sprite 기반 지형 렌더링 — TerrainSubsystem 청크에서 top-surface 만 추출하여 단일 HISM 인스턴싱"]
+  G1000["G-1000 스프라이트 애니 상태기계 — Paper / Crowd 가 동일 결정 함수를 공유한다"]
+  G1001["G-1001 Paper2D 단일 액터 경로 — 엔터티당 1액터, 저밀도/디버그 시각화"]
+  G1002["G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신"]
+  G1003["G-1003 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push"]
   G0010 --> G0100
   G0010 --> G0101
   G0010 --> G0102
   G0010 --> G0103
   G0010 --> G0104
+  G0020 --> G0105
+  G0020 --> G0106
+  G0020 --> G0107
+  G0020 --> G0108
+  G0020 --> G0109
+  G0020 --> G0110
+  G0020 --> G0111
+  G0020 --> G0112
+  G0020 --> G0117
+  G0108 --> G1000
+  G0108 --> G1001
+  G0108 --> G1002
+  G0108 --> G1003
   G0001 -. 제약 .-> G0010
   G0002 -. 제약 .-> G0010
   G0003 -. 제약 .-> G0010
@@ -39,5 +65,21 @@ graph TD
   G0002 -. 제약 .-> G0103
   G0003 -. 제약 .-> G0103
   G0002 -. 제약 .-> G0104
+  G0003 -. 제약 .-> G0105
+  G0004 -. 제약 .-> G0105
+  G0004 -. 제약 .-> G0106
+  G0003 -. 제약 .-> G0107
+  G0004 -. 제약 .-> G0107
+  G0004 -. 제약 .-> G0108
+  G0006 -. 제약 .-> G0109
+  G0003 -. 제약 .-> G0110
+  G0004 -. 제약 .-> G0110
+  G0004 -. 제약 .-> G0111
+  G0006 -. 제약 .-> G0117
+  G0003 -. 제약 .-> G1000
+  G0004 -. 제약 .-> G1000
+  G0004 -. 제약 .-> G1001
+  G0004 -. 제약 .-> G1002
+  G0004 -. 제약 .-> G1003
   classDef pillar fill:#fef3c7,stroke:#b45309,stroke-width:2px;
   classDef constraint fill:#fee2e2,stroke:#b91c1c,stroke-width:1px,stroke-dasharray: 3 3;
