@@ -7,6 +7,15 @@
 #include "HktAssetSubsystem.h"
 #include "HktCoreEventLog.h"
 
+// Delta 적용 실패(엔터티 미존재/뷰 미할당/PropId 미등록)는 기본적으로 정상 케이스가 다수.
+// 디버깅이 필요할 때만 CVar 로 켜서 정확한 사유를 로그한다.
+static TAutoConsoleVariable<int32> CVarHktLogDroppedDeltas(
+	TEXT("hkt.Presentation.LogDroppedDeltas"),
+	0,
+	TEXT("VM Delta 가 ViewModel 에 적용되지 못한 모든 케이스를 로그한다. 0=off(기본), 1=on. ")
+	TEXT("로그 사유: InvalidEntityId / EntityNotInMetas / EntityDead / PropIdOutOfRange / NoDispatcher / ViewNotAllocated."),
+	ECVF_Default);
+
 namespace
 {
 	static FGameplayTag IndexToTag(int32 InTagNetIndex)
@@ -43,7 +52,10 @@ namespace
 	// switch의 case 레이블로 쓸 수 없기 때문에 런타임 테이블 룩업으로 디스패치.
 	// 테이블은 첫 호출 시 한 번만 초기화되며, 미등록 슬롯은 nullptr로 남아 자동 스킵.
 	// ============================================================================
-	using FHktDeltaApplier = void(*)(FHktPresentationState&, FHktEntityId, int32, int64);
+	// 디스패처 반환값:
+	//   true  = 대상 뷰가 할당돼 있어 정상 적용됨
+	//   false = 뷰 미할당 (해당 엔터티 카테고리에서 의도적으로 누락된 뷰; ApplyDelta 가 사유 로그)
+	using FHktDeltaApplier = bool(*)(FHktPresentationState&, FHktEntityId, int32, int64);
 
 	const TArray<FHktDeltaApplier>& GetDeltaDispatchTable()
 	{
@@ -54,285 +66,313 @@ namespace
 
 			// --- Transform ---
 			// Location/RenderLocation 동시 갱신 (단일 축 반영)
-			T[PropertyId::PosX] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::PosX] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (FHktTransformView* Tv = S.GetMutableTransform(Id))
-				{
-					Tv->Location.Value.X = static_cast<float>(V);
-					Tv->Location.Set(Tv->Location.Value, F);
-					Tv->RenderLocation.Set(Tv->Location.Value, F);
-				}
+				FHktTransformView* Tv = S.GetMutableTransform(Id);
+				if (!Tv) return false;
+				Tv->Location.Value.X = static_cast<float>(V);
+				Tv->Location.Set(Tv->Location.Value, F);
+				Tv->RenderLocation.Set(Tv->Location.Value, F);
+				return true;
 			};
-			T[PropertyId::PosY] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::PosY] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (FHktTransformView* Tv = S.GetMutableTransform(Id))
-				{
-					Tv->Location.Value.Y = static_cast<float>(V);
-					Tv->Location.Set(Tv->Location.Value, F);
-					Tv->RenderLocation.Set(Tv->Location.Value, F);
-				}
+				FHktTransformView* Tv = S.GetMutableTransform(Id);
+				if (!Tv) return false;
+				Tv->Location.Value.Y = static_cast<float>(V);
+				Tv->Location.Set(Tv->Location.Value, F);
+				Tv->RenderLocation.Set(Tv->Location.Value, F);
+				return true;
 			};
-			T[PropertyId::PosZ] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::PosZ] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (FHktTransformView* Tv = S.GetMutableTransform(Id))
-				{
-					Tv->Location.Value.Z = static_cast<float>(V);
-					Tv->Location.Set(Tv->Location.Value, F);
-					Tv->RenderLocation.Set(Tv->Location.Value, F);
-				}
+				FHktTransformView* Tv = S.GetMutableTransform(Id);
+				if (!Tv) return false;
+				Tv->Location.Value.Z = static_cast<float>(V);
+				Tv->Location.Set(Tv->Location.Value, F);
+				Tv->RenderLocation.Set(Tv->Location.Value, F);
+				return true;
 			};
-			T[PropertyId::RotYaw] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::RotYaw] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (FHktTransformView* Tv = S.GetMutableTransform(Id))
-				{
-					Tv->Rotation.Value.Yaw = static_cast<float>(V);
-					Tv->Rotation.Set(Tv->Rotation.Value, F);
-				}
+				FHktTransformView* Tv = S.GetMutableTransform(Id);
+				if (!Tv) return false;
+				Tv->Rotation.Value.Yaw = static_cast<float>(V);
+				Tv->Rotation.Set(Tv->Rotation.Value, F);
+				return true;
 			};
 
 			// --- Physics ---
-			T[PropertyId::CollisionRadius] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::CollisionRadius] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Physics.IsValidIndex(Id))
-					S.Physics[Id].CollisionRadius.Set(FMath::Max(static_cast<float>(V), 50.f), F);
+				if (!S.Physics.IsValidIndex(Id)) return false;
+				S.Physics[Id].CollisionRadius.Set(FMath::Max(static_cast<float>(V), 50.f), F);
+				return true;
 			};
-			T[PropertyId::CollisionHalfHeight] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::CollisionHalfHeight] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Physics.IsValidIndex(Id))
-					S.Physics[Id].CollisionHalfHeight.Set(FMath::Max(static_cast<float>(V), 30.f), F);
+				if (!S.Physics.IsValidIndex(Id)) return false;
+				S.Physics[Id].CollisionHalfHeight.Set(FMath::Max(static_cast<float>(V), 30.f), F);
+				return true;
 			};
-			T[PropertyId::CollisionLayer] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::CollisionLayer] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Physics.IsValidIndex(Id))
-					S.Physics[Id].CollisionLayer.Set(V, F);
+				if (!S.Physics.IsValidIndex(Id)) return false;
+				S.Physics[Id].CollisionLayer.Set(V, F);
+				return true;
 			};
 
 			// --- Movement ---
-			T[PropertyId::MoveTargetX] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MoveTargetX] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-				{
-					FHktMovementView& M = S.Movement[Id];
-					M.MoveTarget.Value.X = static_cast<float>(V);
-					M.MoveTarget.Set(M.MoveTarget.Value, F);
-				}
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				FHktMovementView& M = S.Movement[Id];
+				M.MoveTarget.Value.X = static_cast<float>(V);
+				M.MoveTarget.Set(M.MoveTarget.Value, F);
+				return true;
 			};
-			T[PropertyId::MoveTargetY] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MoveTargetY] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-				{
-					FHktMovementView& M = S.Movement[Id];
-					M.MoveTarget.Value.Y = static_cast<float>(V);
-					M.MoveTarget.Set(M.MoveTarget.Value, F);
-				}
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				FHktMovementView& M = S.Movement[Id];
+				M.MoveTarget.Value.Y = static_cast<float>(V);
+				M.MoveTarget.Set(M.MoveTarget.Value, F);
+				return true;
 			};
-			T[PropertyId::MoveTargetZ] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MoveTargetZ] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-				{
-					FHktMovementView& M = S.Movement[Id];
-					M.MoveTarget.Value.Z = static_cast<float>(V);
-					M.MoveTarget.Set(M.MoveTarget.Value, F);
-				}
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				FHktMovementView& M = S.Movement[Id];
+				M.MoveTarget.Value.Z = static_cast<float>(V);
+				M.MoveTarget.Set(M.MoveTarget.Value, F);
+				return true;
 			};
-			T[PropertyId::MoveForce] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MoveForce] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-					S.Movement[Id].MoveForce.Set(static_cast<float>(V), F);
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				S.Movement[Id].MoveForce.Set(static_cast<float>(V), F);
+				return true;
 			};
-			T[PropertyId::IsMoving] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::IsMoving] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-					S.Movement[Id].bIsMoving.Set(V != 0, F);
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				S.Movement[Id].bIsMoving.Set(V != 0, F);
+				return true;
 			};
-			T[PropertyId::IsGrounded] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::IsGrounded] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-					S.Movement[Id].bIsJumping.Set(V == 0, F);
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				S.Movement[Id].bIsJumping.Set(V == 0, F);
+				return true;
 			};
-			T[PropertyId::VelX] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::VelX] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-				{
-					FHktMovementView& M = S.Movement[Id];
-					M.Velocity.Value.X = static_cast<float>(V);
-					M.Velocity.Set(M.Velocity.Value, F);
-				}
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				FHktMovementView& M = S.Movement[Id];
+				M.Velocity.Value.X = static_cast<float>(V);
+				M.Velocity.Set(M.Velocity.Value, F);
+				return true;
 			};
-			T[PropertyId::VelY] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::VelY] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-				{
-					FHktMovementView& M = S.Movement[Id];
-					M.Velocity.Value.Y = static_cast<float>(V);
-					M.Velocity.Set(M.Velocity.Value, F);
-				}
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				FHktMovementView& M = S.Movement[Id];
+				M.Velocity.Value.Y = static_cast<float>(V);
+				M.Velocity.Set(M.Velocity.Value, F);
+				return true;
 			};
-			T[PropertyId::VelZ] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::VelZ] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Movement.IsValidIndex(Id))
-				{
-					FHktMovementView& M = S.Movement[Id];
-					M.Velocity.Value.Z = static_cast<float>(V);
-					M.Velocity.Set(M.Velocity.Value, F);
-				}
+				if (!S.Movement.IsValidIndex(Id)) return false;
+				FHktMovementView& M = S.Movement[Id];
+				M.Velocity.Value.Z = static_cast<float>(V);
+				M.Velocity.Set(M.Velocity.Value, F);
+				return true;
 			};
 
 			// --- Vitals (비율은 같은 뷰 안에서 상호 의존) ---
-			T[PropertyId::Health] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::Health] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Vitals.IsValidIndex(Id))
-				{
-					FHktVitalsView& Vi = S.Vitals[Id];
-					Vi.Health.Set(static_cast<float>(V), F);
-					Vi.HealthRatio.Set((Vi.MaxHealth.Get() > 0.f) ? static_cast<float>(V) / Vi.MaxHealth.Get() : 0.f, F);
-				}
+				if (!S.Vitals.IsValidIndex(Id)) return false;
+				FHktVitalsView& Vi = S.Vitals[Id];
+				Vi.Health.Set(static_cast<float>(V), F);
+				Vi.HealthRatio.Set((Vi.MaxHealth.Get() > 0.f) ? static_cast<float>(V) / Vi.MaxHealth.Get() : 0.f, F);
+				return true;
 			};
-			T[PropertyId::MaxHealth] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MaxHealth] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Vitals.IsValidIndex(Id))
-				{
-					FHktVitalsView& Vi = S.Vitals[Id];
-					Vi.MaxHealth.Set(static_cast<float>(V), F);
-					Vi.HealthRatio.Set((V > 0) ? Vi.Health.Get() / static_cast<float>(V) : 0.f, F);
-				}
+				if (!S.Vitals.IsValidIndex(Id)) return false;
+				FHktVitalsView& Vi = S.Vitals[Id];
+				Vi.MaxHealth.Set(static_cast<float>(V), F);
+				Vi.HealthRatio.Set((V > 0) ? Vi.Health.Get() / static_cast<float>(V) : 0.f, F);
+				return true;
 			};
-			T[PropertyId::Mana] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::Mana] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Vitals.IsValidIndex(Id))
-				{
-					FHktVitalsView& Vi = S.Vitals[Id];
-					Vi.Mana.Set(static_cast<float>(V), F);
-					Vi.ManaRatio.Set((Vi.MaxMana.Get() > 0.f) ? static_cast<float>(V) / Vi.MaxMana.Get() : 0.f, F);
-				}
+				if (!S.Vitals.IsValidIndex(Id)) return false;
+				FHktVitalsView& Vi = S.Vitals[Id];
+				Vi.Mana.Set(static_cast<float>(V), F);
+				Vi.ManaRatio.Set((Vi.MaxMana.Get() > 0.f) ? static_cast<float>(V) / Vi.MaxMana.Get() : 0.f, F);
+				return true;
 			};
-			T[PropertyId::MaxMana] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MaxMana] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Vitals.IsValidIndex(Id))
-				{
-					FHktVitalsView& Vi = S.Vitals[Id];
-					Vi.MaxMana.Set(static_cast<float>(V), F);
-					Vi.ManaRatio.Set((V > 0) ? Vi.Mana.Get() / static_cast<float>(V) : 0.f, F);
-				}
+				if (!S.Vitals.IsValidIndex(Id)) return false;
+				FHktVitalsView& Vi = S.Vitals[Id];
+				Vi.MaxMana.Set(static_cast<float>(V), F);
+				Vi.ManaRatio.Set((V > 0) ? Vi.Mana.Get() / static_cast<float>(V) : 0.f, F);
+				return true;
 			};
 
 			// --- Combat ---
-			T[PropertyId::AttackPower] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::AttackPower] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Combat.IsValidIndex(Id)) S.Combat[Id].AttackPower.Set(V, F);
+				if (!S.Combat.IsValidIndex(Id)) return false;
+				S.Combat[Id].AttackPower.Set(V, F);
+				return true;
 			};
-			T[PropertyId::Defense] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::Defense] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Combat.IsValidIndex(Id)) S.Combat[Id].Defense.Set(V, F);
+				if (!S.Combat.IsValidIndex(Id)) return false;
+				S.Combat[Id].Defense.Set(V, F);
+				return true;
 			};
-			T[PropertyId::CP] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::CP] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Combat.IsValidIndex(Id))
-				{
-					FHktCombatView& C = S.Combat[Id];
-					C.CP.Set(V, F);
-					C.CPRatio.Set((C.MaxCP.Get() > 0) ? static_cast<float>(V) / static_cast<float>(C.MaxCP.Get()) : 0.f, F);
-				}
+				if (!S.Combat.IsValidIndex(Id)) return false;
+				FHktCombatView& C = S.Combat[Id];
+				C.CP.Set(V, F);
+				C.CPRatio.Set((C.MaxCP.Get() > 0) ? static_cast<float>(V) / static_cast<float>(C.MaxCP.Get()) : 0.f, F);
+				return true;
 			};
-			T[PropertyId::MaxCP] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MaxCP] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Combat.IsValidIndex(Id))
-				{
-					FHktCombatView& C = S.Combat[Id];
-					C.MaxCP.Set(V, F);
-					C.CPRatio.Set((V > 0) ? static_cast<float>(C.CP.Get()) / static_cast<float>(V) : 0.f, F);
-				}
+				if (!S.Combat.IsValidIndex(Id)) return false;
+				FHktCombatView& C = S.Combat[Id];
+				C.MaxCP.Set(V, F);
+				C.CPRatio.Set((V > 0) ? static_cast<float>(C.CP.Get()) / static_cast<float>(V) : 0.f, F);
+				return true;
 			};
-			T[PropertyId::AttackSpeed] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::AttackSpeed] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Combat.IsValidIndex(Id)) S.Combat[Id].AttackSpeed.Set(V, F);
+				if (!S.Combat.IsValidIndex(Id)) return false;
+				S.Combat[Id].AttackSpeed.Set(V, F);
+				return true;
 			};
-			T[PropertyId::MotionPlayRate] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::MotionPlayRate] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Combat.IsValidIndex(Id)) S.Combat[Id].MotionPlayRate.Set(V, F);
+				if (!S.Combat.IsValidIndex(Id)) return false;
+				S.Combat[Id].MotionPlayRate.Set(V, F);
+				return true;
 			};
 
 			// --- Ownership ---
-			T[PropertyId::Team] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::Team] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Ownership.IsValidIndex(Id))
-				{
-					FHktOwnershipView& O = S.Ownership[Id];
-					O.Team.Set(V, F);
-					O.TeamColor.Set(FHktPresentationState::GetTeamColor(V), F);
-				}
+				if (!S.Ownership.IsValidIndex(Id)) return false;
+				FHktOwnershipView& O = S.Ownership[Id];
+				O.Team.Set(V, F);
+				O.TeamColor.Set(FHktPresentationState::GetTeamColor(V), F);
+				return true;
 			};
 
 			// --- Animation ---
-			T[PropertyId::AnimState] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::AnimState] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Animation.IsValidIndex(Id)) S.Animation[Id].AnimState.Set(IndexToTag(V), F);
+				if (!S.Animation.IsValidIndex(Id)) return false;
+				S.Animation[Id].AnimState.Set(IndexToTag(V), F);
+				return true;
 			};
-			T[PropertyId::VisualState] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::VisualState] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Animation.IsValidIndex(Id)) S.Animation[Id].MontageState.Set(IndexToTag(V), F);
+				if (!S.Animation.IsValidIndex(Id)) return false;
+				S.Animation[Id].MontageState.Set(IndexToTag(V), F);
+				return true;
 			};
-			T[PropertyId::AnimStateUpper] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::AnimStateUpper] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Animation.IsValidIndex(Id)) S.Animation[Id].AnimStateUpper.Set(IndexToTag(V), F);
+				if (!S.Animation.IsValidIndex(Id)) return false;
+				S.Animation[Id].AnimStateUpper.Set(IndexToTag(V), F);
+				return true;
 			};
-			T[PropertyId::Stance] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::Stance] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Animation.IsValidIndex(Id)) S.Animation[Id].Stance.Set(IndexToTag(V), F);
+				if (!S.Animation.IsValidIndex(Id)) return false;
+				S.Animation[Id].Stance.Set(IndexToTag(V), F);
+				return true;
 			};
 
 			// --- Visualization & Sprite (둘 다 EntitySpawnTag = 캐릭터 Template Tag로 재사용) ---
-			T[PropertyId::EntitySpawnTag] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			// Visualization 또는 Sprites 중 하나라도 적용되면 성공으로 간주.
+			T[PropertyId::EntitySpawnTag] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
 				const FGameplayTag Tag = IndexToTag(V);
-				if (S.Visualization.IsValidIndex(Id)) S.Visualization[Id].VisualElement.Set(Tag, F);
-				if (S.Sprites.IsValidIndex(Id))      S.Sprites[Id].Character.Set(Tag, F);
+				bool bApplied = false;
+				if (S.Visualization.IsValidIndex(Id)) { S.Visualization[Id].VisualElement.Set(Tag, F); bApplied = true; }
+				if (S.Sprites.IsValidIndex(Id))      { S.Sprites[Id].Character.Set(Tag, F);      bApplied = true; }
+				return bApplied;
 			};
 
 			// --- Item ---
-			T[PropertyId::OwnerEntity] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::OwnerEntity] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Items.IsValidIndex(Id)) S.Items[Id].OwnerEntity.Set(V, F);
+				if (!S.Items.IsValidIndex(Id)) return false;
+				S.Items[Id].OwnerEntity.Set(V, F);
+				return true;
 			};
-			T[PropertyId::EquipIndex] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::EquipIndex] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Items.IsValidIndex(Id)) S.Items[Id].EquipIndex.Set(V, F);
+				if (!S.Items.IsValidIndex(Id)) return false;
+				S.Items[Id].EquipIndex.Set(V, F);
+				return true;
 			};
-			T[PropertyId::ItemState] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::ItemState] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Items.IsValidIndex(Id)) S.Items[Id].ItemState.Set(V, F);
+				if (!S.Items.IsValidIndex(Id)) return false;
+				S.Items[Id].ItemState.Set(V, F);
+				return true;
 			};
-			T[PropertyId::Equippable] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::Equippable] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Items.IsValidIndex(Id)) S.Items[Id].Equippable.Set(V, F);
+				if (!S.Items.IsValidIndex(Id)) return false;
+				S.Items[Id].Equippable.Set(V, F);
+				return true;
 			};
 
 			// --- Voxel Skin ---
-			T[PropertyId::VoxelSkinSet] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::VoxelSkinSet] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.VoxelSkins.IsValidIndex(Id)) S.VoxelSkins[Id].VoxelSkinSet.Set(V, F);
+				if (!S.VoxelSkins.IsValidIndex(Id)) return false;
+				S.VoxelSkins[Id].VoxelSkinSet.Set(V, F);
+				return true;
 			};
-			T[PropertyId::VoxelPalette] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::VoxelPalette] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.VoxelSkins.IsValidIndex(Id)) S.VoxelSkins[Id].VoxelPalette.Set(V, F);
+				if (!S.VoxelSkins.IsValidIndex(Id)) return false;
+				S.VoxelSkins[Id].VoxelPalette.Set(V, F);
+				return true;
 			};
 
 			// --- Sprite (2D 라그나로크 방식) ---
-			T[PropertyId::Facing] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::Facing] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Sprites.IsValidIndex(Id))
-					S.Sprites[Id].Facing.Set(static_cast<uint8>(V & 0x07), F);
+				if (!S.Sprites.IsValidIndex(Id)) return false;
+				S.Sprites[Id].Facing.Set(static_cast<uint8>(V & 0x07), F);
+				return true;
 			};
-			T[PropertyId::AnimStartTick] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			T[PropertyId::AnimStartTick] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
-				if (S.Sprites.IsValidIndex(Id)) S.Sprites[Id].AnimStartTick.Set(V, F);
+				if (!S.Sprites.IsValidIndex(Id)) return false;
+				S.Sprites[Id].AnimStartTick.Set(V, F);
+				return true;
 			};
 
-			// --- Terrain Debris (뷰가 없으면 lazy 할당) ---
-			T[PropertyId::TerrainTypeId] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F)
+			// --- Terrain Debris (뷰가 없으면 lazy 할당 — 항상 성공) ---
+			T[PropertyId::TerrainTypeId] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
 				FHktTerrainDebrisView& Dv = EnsureView(S.TerrainDebris, Id);
 				Dv.TerrainTypeId.Set(V, F);
+				return true;
 			};
 
 			return T;
@@ -661,25 +701,110 @@ void FHktPresentationState::RemoveEntity(FHktEntityId Id)
 // 델타 적용 — PropertyId → 해당 뷰 필드로 디스패치
 // ============================================================================
 
+namespace
+{
+	/** Id 가 유효하지 않을 때의 사유 분류 — 진단 로그 전용 */
+	static const TCHAR* DiagInvalidReason(const FHktPresentationState& S, FHktEntityId Id)
+	{
+		if (Id < 0)                              return TEXT("InvalidEntityId(<0)");
+		if (!S.Metas.IsValidIndex(Id))           return TEXT("EntityNotInMetas(미스폰/InitialSync 미완)");
+		if (!S.Metas[Id].IsAlive())              return TEXT("EntityDead(이미 Remove 됨)");
+		return TEXT("Unknown");
+	}
+}
+
 void FHktPresentationState::ApplyDelta(FHktEntityId Id, uint16 PropId, int32 NewValue)
 {
-	if (!IsValid(Id)) return;
+	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
+
+	if (!IsValid(Id))
+	{
+		if (bDiag)
+		{
+			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=%s"),
+					CurrentFrame, PropName ? PropName : TEXT("?"), PropId, NewValue,
+					DiagInvalidReason(*this, Id)),
+				Id);
+		}
+		return;
+	}
 
 	const TArray<FHktDeltaApplier>& Table = GetDeltaDispatchTable();
-	if (PropId >= Table.Num()) return;
+	if (PropId >= Table.Num())
+	{
+		if (bDiag)
+		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld PropId=%u Value=%d Reason=PropIdOutOfRange(Table=%d)"),
+					CurrentFrame, PropId, NewValue, Table.Num()),
+				Id);
+		}
+		return;
+	}
 	FHktDeltaApplier Fn = Table[PropId];
-	if (!Fn) return;
+	if (!Fn)
+	{
+		if (bDiag)
+		{
+			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=NoDispatcher(디스패치 테이블 미등록)"),
+					CurrentFrame, PropName ? PropName : TEXT("?"), PropId, NewValue),
+				Id);
+		}
+		return;
+	}
 
-	Fn(*this, Id, NewValue, CurrentFrame);
+	const bool bApplied = Fn(*this, Id, NewValue, CurrentFrame);
+	if (!bApplied)
+	{
+		if (bDiag)
+		{
+			const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
+			const FHktEntityMeta* M = GetMeta(Id);
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP PropertyDelta Frame=%lld Prop=%s(%u) Value=%d Reason=ViewNotAllocated(Category=%d) — 해당 PropertyId 가 요구하는 뷰가 이 엔터티 카테고리에서 미할당. AllocateViewsForEntity 매핑 확인 필요."),
+					CurrentFrame, PropName ? PropName : TEXT("?"), PropId, NewValue,
+					M ? static_cast<int32>(M->RenderCategory) : -1),
+				Id);
+		}
+		return;
+	}
+
 	TouchDirty(Id);
 }
 
 
 void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 {
-	if (!IsValid(Id)) return;
+	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
+
+	if (!IsValid(Id))
+	{
+		if (bDiag)
+		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP OwnerDelta Frame=%lld Owner=%lld Reason=%s"),
+					CurrentFrame, NewOwnerUid, DiagInvalidReason(*this, Id)),
+				Id);
+		}
+		return;
+	}
 	const int32 Index = static_cast<int32>(Id);
-	if (!Ownership.IsValidIndex(Index)) return;
+	if (!Ownership.IsValidIndex(Index))
+	{
+		if (bDiag)
+		{
+			const FHktEntityMeta* M = GetMeta(Id);
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP OwnerDelta Frame=%lld Owner=%lld Reason=OwnershipViewNotAllocated(Category=%d) — Actor 가 아닌 카테고리에는 Ownership 뷰 미할당."),
+					CurrentFrame, NewOwnerUid, M ? static_cast<int32>(M->RenderCategory) : -1),
+				Id);
+		}
+		return;
+	}
 
 	FHktOwnershipView& V = Ownership[Index];
 	V.OwnedPlayerUid.Set(NewOwnerUid, CurrentFrame);
@@ -689,12 +814,33 @@ void FHktPresentationState::ApplyOwnerDelta(FHktEntityId Id, int64 NewOwnerUid)
 
 void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagContainer& NewTags)
 {
-	if (!IsValid(Id)) return;
+	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
+
+	if (!IsValid(Id))
+	{
+		if (bDiag)
+		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP TagDelta Frame=%lld Tags=%s Reason=%s"),
+					CurrentFrame, *NewTags.ToString(), DiagInvalidReason(*this, Id)),
+				Id);
+		}
+		return;
+	}
 	const int32 Index = static_cast<int32>(Id);
 	if (!Animation.IsValidIndex(Index))
 	{
 		// 태그만 변경되는 Item/Debris 엔터티의 경우 — 필요하면 lazy 할당
-		// 현재는 태그를 필요로 하는 건 AnimInstance뿐이므로 스킵
+		// 현재는 태그를 필요로 하는 건 AnimInstance뿐이므로 의도적으로 스킵.
+		// 다만 진단 모드에서는 어떤 카테고리가 누락됐는지 가시화한다.
+		if (bDiag)
+		{
+			const FHktEntityMeta* M = GetMeta(Id);
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("SKIP TagDelta Frame=%lld Tags=%s Reason=AnimationViewNotAllocated(Category=%d) — Item/Debris 등 비-Character 엔터티는 의도적 스킵."),
+					CurrentFrame, *NewTags.ToString(), M ? static_cast<int32>(M->RenderCategory) : -1),
+				Id);
+		}
 		return;
 	}
 	FHktAnimationView& V = Animation[Index];
@@ -705,7 +851,19 @@ void FHktPresentationState::ApplyTagDelta(FHktEntityId Id, const FGameplayTagCon
 
 void FHktPresentationState::AddAnimTrigger(FHktEntityId Id, const FGameplayTag& Tag)
 {
-	if (!IsValid(Id)) return;
+	const bool bDiag = CVarHktLogDroppedDeltas.GetValueOnAnyThread() != 0;
+
+	if (!IsValid(Id))
+	{
+		if (bDiag)
+		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
+				FString::Printf(TEXT("DROP AnimTrigger Frame=%lld Tag=%s Reason=%s"),
+					CurrentFrame, *Tag.ToString(), DiagInvalidReason(*this, Id)),
+				Id);
+		}
+		return;
+	}
 	FHktAnimationView& V = EnsureView(Animation, Id);
 	V.PendingAnimTriggers.Add(Tag);
 	TouchDirty(Id);

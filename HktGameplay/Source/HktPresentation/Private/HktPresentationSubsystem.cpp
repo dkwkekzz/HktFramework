@@ -240,11 +240,14 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	}
 
 	// --- Property 델타 인라인 적용 ---
+	// 주의: 아래 Verbose 로그는 "수신" 트레이스. 실제 적용 실패(엔터티/뷰 미할당 등)는
+	// FHktPresentationState::ApplyDelta 내부에서 CVar `hkt.Presentation.LogDroppedDeltas` 로
+	// Warning 레벨 "DROP PropertyDelta..." 로그로 별도 출력된다.
 	View.ForEachDelta([this, &View](FHktEntityId Id, uint16 PropId, int32 NewValue, int32 OldValue)
 	{
 		const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-			FString::Printf(TEXT("PropertyDelta Frame=%lld %s: %d -> %d"),
+			FString::Printf(TEXT("RECV PropertyDelta Frame=%lld %s: %d -> %d"),
 				View.FrameNumber,
 				PropName ? PropName : TEXT("Unknown"),
 				OldValue, NewValue), Id);
@@ -252,18 +255,20 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	});
 
 	// --- Owner 델타 인라인 적용 ---
+	// (적용 실패는 ApplyOwnerDelta 내부의 "DROP OwnerDelta..." 로그 참조)
 	View.ForEachOwnerDelta([this, &View](FHktEntityId Id, int64 NewOwnerUid)
 	{
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-			FString::Printf(TEXT("OwnerDelta Frame=%lld Owner=%lld"), View.FrameNumber, NewOwnerUid), Id);
+			FString::Printf(TEXT("RECV OwnerDelta Frame=%lld Owner=%lld"), View.FrameNumber, NewOwnerUid), Id);
 		State.ApplyOwnerDelta(Id, NewOwnerUid);
 	});
 
 	// --- Tag 델타 인라인 적용 + VFX attach/detach 감지 ---
+	// (적용 실패는 ApplyTagDelta 내부의 "DROP/SKIP TagDelta..." 로그 참조)
 	View.ForEachTagDelta([this, &View](FHktEntityId Id, const FGameplayTagContainer& Tags, const FGameplayTagContainer& OldTags)
 	{
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-			FString::Printf(TEXT("TagDelta Frame=%lld Tags=%s"), View.FrameNumber, *Tags.ToString()), Id);
+			FString::Printf(TEXT("RECV TagDelta Frame=%lld Tags=%s"), View.FrameNumber, *Tags.ToString()), Id);
 		State.ApplyTagDelta(Id, Tags);
 
 		// VFX 태그 변경 감지
