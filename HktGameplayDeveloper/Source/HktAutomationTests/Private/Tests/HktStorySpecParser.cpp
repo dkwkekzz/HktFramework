@@ -252,6 +252,33 @@ namespace
 		return true;
 	}
 
+	bool ParseDispatched(const TArray<TSharedPtr<FJsonValue>>* Arr, TArray<FHktSpecDispatchedEvent>& Out, FString& OutError)
+	{
+		if (!Arr) return true;
+		for (int32 i = 0; i < Arr->Num(); ++i)
+		{
+			const TSharedPtr<FJsonObject>* DObj = nullptr;
+			if (!(*Arr)[i]->TryGetObject(DObj))
+			{
+				OutError = FString::Printf(TEXT("expect.dispatched[%d] 가 객체가 아니다"), i);
+				return false;
+			}
+			FHktSpecDispatchedEvent D;
+			if (!(*DObj)->TryGetStringField(TEXT("eventTag"), D.EventTag) || D.EventTag.IsEmpty())
+			{
+				OutError = FString::Printf(TEXT("expect.dispatched[%d].eventTag 누락"), i);
+				return false;
+			}
+			(*DObj)->TryGetStringField(TEXT("source"), D.SourceRef);
+			(*DObj)->TryGetStringField(TEXT("target"), D.TargetRef);
+			double DV = 0.0;
+			if ((*DObj)->TryGetNumberField(TEXT("param0"), DV)) { D.bHasParam0 = true; D.Param0 = static_cast<int32>(DV); }
+			if ((*DObj)->TryGetNumberField(TEXT("param1"), DV)) { D.bHasParam1 = true; D.Param1 = static_cast<int32>(DV); }
+			Out.Add(MoveTemp(D));
+		}
+		return true;
+	}
+
 	bool ParseExpect(const TSharedPtr<FJsonObject>& Obj, FHktSpecExpect& Out, FString& OutError)
 	{
 		if (!Obj.IsValid())
@@ -273,10 +300,19 @@ namespace
 			}
 		}
 
-		// entityRef 키들을 매처로 수집 (status 외 모든 객체 키).
+		// dispatched: 배열 — entity ref 매처와 별도 처리 (예약어).
+		const TArray<TSharedPtr<FJsonValue>>* DispatchedArr = nullptr;
+		if (Obj->TryGetArrayField(TEXT("dispatched"), DispatchedArr))
+		{
+			Out.bHasDispatched = true;
+			if (!ParseDispatched(DispatchedArr, Out.Dispatched, OutError)) return false;
+		}
+
+		// entityRef 키들을 매처로 수집 (status / dispatched 외 모든 객체 키).
 		for (const auto& Pair : Obj->Values)
 		{
 			if (Pair.Key == TEXT("status")) continue;
+			if (Pair.Key == TEXT("dispatched")) continue;
 			const TSharedPtr<FJsonObject>* MObj = nullptr;
 			if (!Pair.Value->TryGetObject(MObj))
 			{

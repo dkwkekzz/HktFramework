@@ -22,9 +22,11 @@
 #include "HktAutomationTestsHarness.h"
 #include "HktCoreProperties.h"
 #include "HktCoreArchetype.h"
+#include "HktCoreEvents.h"
 #include "HktStoryRegistry.h"
 #include "HktStoryJsonParser.h"
 #include "VM/HktVMProgram.h"
+#include "VM/HktVMRuntime.h"
 
 #include "HktStorySpecParser.h"
 
@@ -436,6 +438,86 @@ bool FHktStorySpecAutomationTest::RunTest(const FString& Parameters)
 						*M.EntityRef, *It->ToString(), *DiagPrefix));
 					bAllPass = false;
 				}
+			}
+		}
+	}
+
+	// dispatched — Runtime.PendingDispatchedEvents 와 위치 기반 정확 일치 비교.
+	// DispatchEvent / DispatchEventTo / DispatchEventFrom 가 큐잉한 이벤트 검증.
+	if (S.Expect.bHasDispatched)
+	{
+		const TArray<FHktEvent>& Pending = H.GetRuntime().PendingDispatchedEvents;
+		if (Pending.Num() != S.Expect.Dispatched.Num())
+		{
+			AddError(FString::Printf(TEXT("dispatched: count expected=%d actual=%d %s"),
+				S.Expect.Dispatched.Num(), Pending.Num(), *DiagPrefix));
+			bAllPass = false;
+		}
+		const int32 PairN = FMath::Min(Pending.Num(), S.Expect.Dispatched.Num());
+		for (int32 i = 0; i < PairN; ++i)
+		{
+			const FHktSpecDispatchedEvent& SpecD = S.Expect.Dispatched[i];
+			const FHktEvent& ActualEv = Pending[i];
+
+			const FGameplayTag ExpectedTag = FGameplayTag::RequestGameplayTag(FName(*SpecD.EventTag), false);
+			if (!ExpectedTag.IsValid())
+			{
+				AddError(FString::Printf(TEXT("dispatched[%d].eventTag: 알 수 없는 GameplayTag '%s' %s"),
+					i, *SpecD.EventTag, *DiagPrefix));
+				bAllPass = false;
+			}
+			else if (ActualEv.EventTag != ExpectedTag)
+			{
+				AddError(FString::Printf(TEXT("dispatched[%d].eventTag: expected=%s actual=%s %s"),
+					i, *SpecD.EventTag, *ActualEv.EventTag.ToString(), *DiagPrefix));
+				bAllPass = false;
+			}
+
+			if (!SpecD.SourceRef.IsEmpty())
+			{
+				const FHktEntityId Refed = ResolveRef(SpecD.SourceRef);
+				if (Refed == InvalidEntityId)
+				{
+					AddError(FString::Printf(TEXT("dispatched[%d].source: ref 해석 실패 '%s' %s"),
+						i, *SpecD.SourceRef, *DiagPrefix));
+					bAllPass = false;
+				}
+				else if (ActualEv.SourceEntity != Refed)
+				{
+					AddError(FString::Printf(TEXT("dispatched[%d].source: expected=%d actual=%d %s"),
+						i, Refed, ActualEv.SourceEntity, *DiagPrefix));
+					bAllPass = false;
+				}
+			}
+
+			if (!SpecD.TargetRef.IsEmpty())
+			{
+				const FHktEntityId Refed = ResolveRef(SpecD.TargetRef);
+				if (Refed == InvalidEntityId)
+				{
+					AddError(FString::Printf(TEXT("dispatched[%d].target: ref 해석 실패 '%s' %s"),
+						i, *SpecD.TargetRef, *DiagPrefix));
+					bAllPass = false;
+				}
+				else if (ActualEv.TargetEntity != Refed)
+				{
+					AddError(FString::Printf(TEXT("dispatched[%d].target: expected=%d actual=%d %s"),
+						i, Refed, ActualEv.TargetEntity, *DiagPrefix));
+					bAllPass = false;
+				}
+			}
+
+			if (SpecD.bHasParam0 && ActualEv.Param0 != SpecD.Param0)
+			{
+				AddError(FString::Printf(TEXT("dispatched[%d].param0: expected=%d actual=%d %s"),
+					i, SpecD.Param0, ActualEv.Param0, *DiagPrefix));
+				bAllPass = false;
+			}
+			if (SpecD.bHasParam1 && ActualEv.Param1 != SpecD.Param1)
+			{
+				AddError(FString::Printf(TEXT("dispatched[%d].param1: expected=%d actual=%d %s"),
+					i, SpecD.Param1, ActualEv.Param1, *DiagPrefix));
+				bAllPass = false;
 			}
 		}
 	}

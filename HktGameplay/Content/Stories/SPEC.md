@@ -102,6 +102,7 @@ HktCore.Story.Spec.<StoryTag 정규화>.<ScenarioName 정규화>
 |---|---|---|
 | `status` | string | `"Completed"` (기본) / `"Failed"` / `"Waiting"` — VM 종료 상태 |
 | `<entityRef>` | object | 엔티티별 매처 (아래) |
+| `dispatched` | array | `Runtime.PendingDispatchedEvents` 큐와 위치 기반 정확 일치 비교 — `DispatchEvent` / `DispatchEventTo` / `DispatchEventFrom` 가 큐잉한 이벤트 검증. 키는 예약어 (entity ref 와 충돌 안 함). |
 
 ### 엔티티별 매처
 
@@ -113,6 +114,29 @@ HktCore.Story.Spec.<StoryTag 정규화>.<ScenarioName 정규화>
 | `tagsAbsent: [string]` | 명시된 태그가 **모두 없어야** PASS |
 
 태그 표기에는 spec 파일의 `tags` alias 맵이 따로 없다 — 항상 fully-qualified GameplayTag 문자열을 사용한다 (`Anim.Montage.HitReaction` 등).
+
+### 6.1 dispatched 매처 — DispatchEvent 큐 검증
+
+`expect.dispatched` 는 VM 실행 종료 후 `Runtime.PendingDispatchedEvents` 와 **count + 위치 기반** 비교한다 (큐 순서를 그대로 검증). 각 항목 필드:
+
+| 키 | 타입 | 시멘틱 |
+|---|---|---|
+| `eventTag` | string | 필수 — fully-qualified GameplayTag (예: `"Story.Event.Skill.Fireball"`) |
+| `source` | string | 선택 — entity ref (`"self"`/`"target"`/`"entities[N]"`/`"spawned"`). 미지정 시 비교 생략. |
+| `target` | string | 선택 — entity ref. 미지정 시 비교 생략. |
+| `param0` | int | 선택 — `FHktEvent::Param0` 비교. 미지정 시 생략. |
+| `param1` | int | 선택 — `FHktEvent::Param1` 비교. 미지정 시 생략. |
+
+```json
+"expect": {
+  "status": "Completed",
+  "dispatched": [
+    { "eventTag": "Story.Event.Skill.Fireball", "source": "self", "target": "target" }
+  ]
+}
+```
+
+`expect.dispatched` 미명시 시 큐 검증 자체를 생략 (기존 spec 호환). 명시했는데 큐가 비었거나 항목 수가 다르면 fail.
 
 ## 7. 실패 출력 형식
 

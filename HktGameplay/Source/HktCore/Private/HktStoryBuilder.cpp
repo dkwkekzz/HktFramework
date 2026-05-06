@@ -1472,6 +1472,25 @@ TSharedPtr<FHktVMProgram> FHktStoryBuilder::Build()
         }
         Program->PreconditionConstants = MoveTemp(PreconditionSection->Constants);
         Program->PreconditionStrings = MoveTemp(PreconditionSection->Strings);
+
+        // PreconditionCode 도 main body 와 동일한 레지스터 흐름 검증을 적용.
+        // NamedVarMap 의 cross-section stale ID 류 잠재 버그를 자동 검출하기 위함 (Phase 2 보강 4 항 참조).
+        // PreconditionSection 의 Labels / IntLabels 는 main body 와 별개이므로 별도 인스턴스 생성.
+        FHktStoryValidator PreValidator(Program->PreconditionCode, Program->Tag,
+            PreconditionSection->Labels, PreconditionSection->IntLabels, bFlowMode,
+            TEXT(" [Precondition]"));
+        const int32 PreRegFlowWarnings = PreValidator.ValidateRegisterFlow();
+#if !WITH_EDITOR
+        if (PreRegFlowWarnings > 0)
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_Story, EHktLogLevel::Error, EHktLogSource::Server, FString::Printf(
+                TEXT("Story BUILD FAILED: %s — Precondition 레지스터 흐름 검증에서 %d건의 경고 발견. 이 Story는 등록되지 않습니다."),
+                *Program->Tag.ToString(), PreRegFlowWarnings));
+            return nullptr;
+        }
+#else
+        (void)PreRegFlowWarnings;
+#endif
     }
 
     return Program;
