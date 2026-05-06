@@ -1,14 +1,16 @@
 """Goal 시스템 CLI 진입점.
 
-사용 예:
-    python -m goalsys.cli validate Docs/goals
-    python -m goalsys.cli build-views Docs/goals
-    python -m goalsys.cli scan-code-tags .
-    python -m goalsys.cli validate-bidirectional Docs/goals .
-    python -m goalsys.cli sync-realizes Docs/goals . --dry-run
-    python -m goalsys.cli next-id system Docs/goals
-    python -m goalsys.cli new-goal system Docs/goals --title "..."
-    python -m goalsys.cli verify-goal G-0142 Docs/goals
+원자 서브커맨드 (tooling §7.1):
+    parse / validate-schema / validate-dag /
+    render-index / render-tree / render-graph /
+    scan-code-tags / validate-bidirectional / sync-realizes /
+    next-id / new-goal / verify-goal
+
+복합 별칭 (운영 편의):
+    validate     = validate-schema + validate-dag
+    build-views  = render-index + render-tree + render-graph
+
+CI 통합 (§7.2): ``validate-schema`` 만 차단(exit 1), 나머지 검증은 경고.
 """
 
 from __future__ import annotations
@@ -17,16 +19,34 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Sequence
+from typing import Callable, Sequence
 
 from .bidirectional import sync_realizes, validate_bidirectional
 from .codescan import scan_code_tags
 from .dag import validate_dag
 from .lifecycle import IdExhaustedError, NewGoalRequest, new_goal, next_id
-from .parser import Goal, GoalParseError, goals_by_id, load_goals
+from .parser import (
+    Goal,
+    GoalParseError,
+    goals_by_id,
+    load_goals,
+    parse_goal_file,
+)
 from .schema import validate_goals
 from .verify import format_report, verify_goal
 from .views import generate_graph, generate_index, generate_tree
+
+
+# tooling §3.2~§3.3 — JSON 페이로드의 issue discriminator.
+ISSUE_SCHEMA_VIOLATION = "schema_violation"
+ISSUE_DUPLICATE_ID = "duplicate_id"
+
+# 뷰 파일명 → 생성기. render-* / build-views 가 공유한다.
+_VIEW_RENDERERS: dict[str, Callable[[Sequence[Goal]], str]] = {
+    "INDEX.md": generate_index,
+    "TREE.md": generate_tree,
+    "graph.mmd": generate_graph,
+}
 
 
 def _load_or_exit(goals_dir: Path) -> tuple[list[Goal] | None, int]:
@@ -39,53 +59,151 @@ def _load_or_exit(goals_dir: Path) -> tuple[list[Goal] | None, int]:
         return None, 2
 
 
-def cmd_validate(goals_dir: Path, *, strict: bool) -> int:
+def _goal_to_payload(goal: Goal) -> dict:
+    """tooling §3.1 — parse 출력의 객체 형태."""
+
+    return {
+        "frontmatter": goal.raw_frontmatter,
+        "body": goal.raw_body,
+        "source": str(goal.source_path) if goal.source_path else None,
+    }
+
+
+def cmd_parse(path: Path) -> int:
+    """tooling §3.1 — Goal 파일/디렉토리를 파싱해 JSON 출력."""
+
+    try:
+        if path.is_dir():
+            goals = load_goals(path)
+            payload: list[dict] | dict = [_goal_to_payload(g) for g in goals]
+        elif path.is_file():
+            payload = _goal_to_payload(parse_goal_file(path))
+        else:
+            print(f"오류: {path} 가 파일도 디렉토리도 아니다", file=sys.stderr)
+            return 2
+    except (GoalParseError, FileNotFoundError) as exc:
+        print(f"파싱 오류: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(payload, ensure_ascii=False, indent=2, default=str, sort_keys=True))
+    return 0
+
+
+def cmd_validate_schema(goals_dir: Path, *, as_json: bool) -> int:
+    """tooling §3.2 — 스키마 단독 검증. 위반 시 exit 1 (CI 차단)."""
+
     goals, rc = _load_or_exit(goals_dir)
     if goals is None:
         return rc
-    if not goals:
-        print(f"경고: {goals_dir} 에 Goal 파일이 없다.", file=sys.stderr)
-        return 0
 
-    schema_errors = validate_goals(goals)
-    for err in schema_errors:
-        print(f"[Schema] {err}", file=sys.stderr)
-
+    violations: list[dict] = [err.to_dict() for err in validate_goals(goals)]
+    # 중복 ID 도 스키마 위반으로 취급 — schema 단계에서 한 번에 보고.
     try:
         goals_by_id(goals)
     except GoalParseError as exc:
-        print(f"[Duplicate] {exc}", file=sys.stderr)
-        return 2
+        violations.append({"issue": ISSUE_DUPLICATE_ID, "message": str(exc)})
 
-    dag_errors, dag_warnings = validate_dag(goals)
-    for err in dag_errors:
-        print(f"[DAG] {err}", file=sys.stderr)
-    for warn in dag_warnings:
-        print(f"[DAG/warn] {warn}", file=sys.stderr)
-
-    failed = bool(schema_errors) or bool(dag_errors) or (strict and bool(dag_warnings))
-    if failed:
-        print(
-            f"검증 실패 — schema={len(schema_errors)}, dag_errors={len(dag_errors)}, "
-            f"dag_warnings={len(dag_warnings)}",
-            file=sys.stderr,
-        )
-        return 1
-    print(f"OK — {len(goals)} goals, dag_warnings={len(dag_warnings)}")
-    return 0
+    passed = not violations
+    if as_json:
+        print(json.dumps({"passed": passed, "violations": violations},
+                         ensure_ascii=False, indent=2))
+    else:
+        for v in violations:
+            tag = "Duplicate" if v["issue"] == ISSUE_DUPLICATE_ID else "Schema"
+            print(f"[{tag}] {_format_violation(v)}", file=sys.stderr)
+        if passed:
+            print(f"OK — {len(goals)} goals, schema 위반 없음")
+        else:
+            print(f"검증 실패 — schema 위반 {len(violations)}개", file=sys.stderr)
+    return 0 if passed else 1
 
 
-def cmd_build_views(goals_dir: Path) -> int:
+def _format_violation(v: dict) -> str:
+    """JSON 페이로드 형태의 violation 한 건을 사람이 읽는 한 줄로."""
+
+    if v["issue"] == ISSUE_DUPLICATE_ID:
+        return v["message"]
+    if v["issue"] == ISSUE_SCHEMA_VIOLATION:
+        loc = f"{v['goal']}.{v['field']}"
+        prefix = f"[{v['source']}] " if v.get("source") else ""
+        return f"{prefix}{loc}: {v['message']}"
+    # dag_error / dag_warning
+    return f"[{v['rule']}] {v['goal']}: {v['message']}"
+
+
+def cmd_validate_dag(goals_dir: Path, *, strict: bool, as_json: bool) -> int:
+    """tooling §3.3 — DAG 단독 검증. 기본 exit 0 (경고), --strict 시 exit 1."""
+
     goals, rc = _load_or_exit(goals_dir)
     if goals is None:
         return rc
-    if not goals:
-        print(f"경고: {goals_dir} 에 Goal 파일이 없다.", file=sys.stderr)
-    (goals_dir / "INDEX.md").write_text(generate_index(goals), encoding="utf-8")
-    (goals_dir / "TREE.md").write_text(generate_tree(goals), encoding="utf-8")
-    (goals_dir / "graph.mmd").write_text(generate_graph(goals), encoding="utf-8")
-    print(f"생성 완료: INDEX.md / TREE.md / graph.mmd ({len(goals)} goals)")
+
+    dag_errors, dag_warnings = validate_dag(goals)
+    violations = [e.to_dict() for e in dag_errors] + [w.to_dict() for w in dag_warnings]
+    passed = not violations
+
+    if as_json:
+        print(json.dumps({"passed": passed, "violations": violations},
+                         ensure_ascii=False, indent=2))
+    else:
+        for err in dag_errors:
+            print(f"[DAG] {err}", file=sys.stderr)
+        for warn in dag_warnings:
+            print(f"[DAG/warn] {warn}", file=sys.stderr)
+        summary = (
+            f"DAG — {len(goals)} goals, errors={len(dag_errors)}, "
+            f"warnings={len(dag_warnings)}"
+        )
+        # tooling §7.2: validate-dag 는 기본 차단 X. --strict 시에만 exit 1.
+        will_block = strict and not passed
+        print(summary, file=sys.stderr if will_block else sys.stdout)
+
+    return 1 if (strict and not passed) else 0
+
+
+def _render_view(goals_dir: Path, filename: str) -> int:
+    """단일 뷰 파일 생성. render-index/tree/graph 공통 본체."""
+
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
+    (goals_dir / filename).write_text(_VIEW_RENDERERS[filename](goals), encoding="utf-8")
+    print(f"생성 완료: {filename} ({len(goals)} goals)")
     return 0
+
+
+def cmd_render_index(goals_dir: Path) -> int:
+    """tooling §4.2."""
+    return _render_view(goals_dir, "INDEX.md")
+
+
+def cmd_render_tree(goals_dir: Path) -> int:
+    """tooling §4.3."""
+    return _render_view(goals_dir, "TREE.md")
+
+
+def cmd_render_graph(goals_dir: Path) -> int:
+    """tooling §4.4."""
+    return _render_view(goals_dir, "graph.mmd")
+
+
+def cmd_validate(goals_dir: Path, *, strict: bool) -> int:
+    """복합 별칭 — validate-schema + validate-dag.
+
+    스키마 위반은 항상 차단. DAG 는 ``--strict`` 시에만 차단.
+    """
+
+    rc_schema = cmd_validate_schema(goals_dir, as_json=False)
+    rc_dag = cmd_validate_dag(goals_dir, strict=strict, as_json=False)
+    return max(rc_schema, rc_dag)
+
+
+def cmd_build_views(goals_dir: Path) -> int:
+    """복합 별칭 — render-index + render-tree + render-graph."""
+
+    worst = 0
+    for filename in _VIEW_RENDERERS:
+        worst = max(worst, _render_view(goals_dir, filename))
+    return worst
 
 
 def cmd_scan_code_tags(root: Path, *, as_json: bool) -> int:
@@ -159,9 +277,9 @@ def cmd_new_goal(
     goals_dir: Path,
     *,
     title: str | None,
-    parents: List[str] | None,
-    constraints: List[str] | None,
-    tags: List[str] | None,
+    parents: list[str] | None,
+    constraints: list[str] | None,
+    tags: list[str] | None,
 ) -> int:
     req = NewGoalRequest(
         category=category,
@@ -195,7 +313,7 @@ def cmd_verify_goal(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
     return 0
 
 
-def _split_csv(value: str | None) -> List[str] | None:
+def _split_csv(value: str | None) -> list[str] | None:
     if value is None:
         return None
     items = [s.strip() for s in value.split(",") if s.strip()]
@@ -206,11 +324,36 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="goalsys", description="Goal 시스템 CLI")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p_val = sub.add_parser("validate", help="스키마 + DAG 검증")
+    # --- 원자 명령 (tooling §7.1) ---
+
+    p_parse = sub.add_parser("parse", help="Goal 파일/디렉토리 파싱 → JSON")
+    p_parse.add_argument("path", type=Path, help="Goal 파일 또는 디렉토리")
+
+    p_vs = sub.add_parser("validate-schema", help="스키마 단독 검증 (CI 차단)")
+    p_vs.add_argument("goals_dir", type=Path)
+    p_vs.add_argument("--json", action="store_true", help="JSON 출력")
+
+    p_vd = sub.add_parser("validate-dag", help="DAG 단독 검증 (기본 경고)")
+    p_vd.add_argument("goals_dir", type=Path)
+    p_vd.add_argument("--strict", action="store_true", help="위반 시 exit 1")
+    p_vd.add_argument("--json", action="store_true", help="JSON 출력")
+
+    p_ri = sub.add_parser("render-index", help="INDEX.md 단독 생성")
+    p_ri.add_argument("goals_dir", type=Path)
+
+    p_rt = sub.add_parser("render-tree", help="TREE.md 단독 생성")
+    p_rt.add_argument("goals_dir", type=Path)
+
+    p_rg = sub.add_parser("render-graph", help="graph.mmd 단독 생성")
+    p_rg.add_argument("goals_dir", type=Path)
+
+    # --- 복합 별칭 (운영 편의) ---
+
+    p_val = sub.add_parser("validate", help="스키마 + DAG 일괄 검증 (별칭)")
     p_val.add_argument("goals_dir", type=Path)
     p_val.add_argument("--strict", action="store_true", help="경고도 실패로 취급")
 
-    p_build = sub.add_parser("build-views", help="INDEX/TREE/graph.mmd 자동 생성")
+    p_build = sub.add_parser("build-views", help="INDEX/TREE/graph.mmd 일괄 생성 (별칭)")
     p_build.add_argument("goals_dir", type=Path)
 
     p_scan = sub.add_parser("scan-code-tags", help="코드의 @goal 태그 / GOALS.md 스캔")
@@ -246,6 +389,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
+    if args.cmd == "parse":
+        return cmd_parse(args.path)
+    if args.cmd == "validate-schema":
+        return cmd_validate_schema(args.goals_dir, as_json=args.json)
+    if args.cmd == "validate-dag":
+        return cmd_validate_dag(args.goals_dir, strict=args.strict, as_json=args.json)
+    if args.cmd == "render-index":
+        return cmd_render_index(args.goals_dir)
+    if args.cmd == "render-tree":
+        return cmd_render_tree(args.goals_dir)
+    if args.cmd == "render-graph":
+        return cmd_render_graph(args.goals_dir)
     if args.cmd == "validate":
         return cmd_validate(args.goals_dir, strict=args.strict)
     if args.cmd == "build-views":

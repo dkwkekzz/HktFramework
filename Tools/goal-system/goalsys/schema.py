@@ -34,6 +34,17 @@ class SchemaError:
             return f"[{self.source}] {loc}: {self.message}"
         return f"{loc}: {self.message}"
 
+    def to_dict(self) -> dict:
+        """tooling §3.2 — JSON 페이로드용 직렬화."""
+
+        return {
+            "issue": "schema_violation",
+            "goal": self.goal_id,
+            "field": self.field,
+            "message": self.message,
+            "source": self.source,
+        }
+
 
 def _is_iso8601(value: str) -> bool:
     """ISO8601 (date 또는 datetime) 인지 검증."""

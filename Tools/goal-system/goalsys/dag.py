@@ -31,6 +31,14 @@ class DagError:
     def __str__(self) -> str:
         return f"[{self.rule}] {self.goal_id}: {self.message}"
 
+    def to_dict(self) -> dict:
+        return {
+            "issue": "dag_error",
+            "rule": self.rule,
+            "goal": self.goal_id,
+            "message": self.message,
+        }
+
 
 @dataclass
 class DagWarning:
@@ -42,6 +50,14 @@ class DagWarning:
 
     def __str__(self) -> str:
         return f"[{self.rule}] {self.goal_id}: {self.message}"
+
+    def to_dict(self) -> dict:
+        return {
+            "issue": "dag_warning",
+            "rule": self.rule,
+            "goal": self.goal_id,
+            "message": self.message,
+        }
 
 
 def _index(goals: Iterable[Goal]) -> Dict[str, Goal]:

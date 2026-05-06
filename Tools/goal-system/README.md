@@ -21,30 +21,60 @@
 
 ## CLI
 
-```bash
-# Phase 1 — 파서·검증·뷰
-python -m goalsys.cli validate ../../Docs/goals
-python -m goalsys.cli build-views ../../Docs/goals
+서브커맨드는 두 묶음으로 나뉜다 — **원자(atomic) 명령**은 tooling §7.1 의
+1:1 매핑이고, **복합 별칭**은 운영 편의용이다.
 
-# Phase 2 — 코드 ↔ Goal 양방향
+### 원자 명령 (tooling §7.1)
+
+```bash
+# 파싱
+python -m goalsys.cli parse ../../Docs/goals          # 디렉토리 → JSON 배열
+python -m goalsys.cli parse ../../Docs/goals/G-0142.md # 파일 → JSON 객체
+
+# 검증 — 스키마(차단) / DAG(경고)
+python -m goalsys.cli validate-schema ../../Docs/goals [--json]
+python -m goalsys.cli validate-dag    ../../Docs/goals [--strict] [--json]
+
+# 뷰 생성 — 개별 호출
+python -m goalsys.cli render-index ../../Docs/goals
+python -m goalsys.cli render-tree  ../../Docs/goals
+python -m goalsys.cli render-graph ../../Docs/goals
+
+# 코드 ↔ Goal 양방향
 python -m goalsys.cli scan-code-tags ../../
 python -m goalsys.cli validate-bidirectional ../../Docs/goals ../../
 python -m goalsys.cli sync-realizes ../../Docs/goals ../../ --dry-run
 
-# Phase 3 — 라이프사이클 보조
+# 라이프사이클 보조
 python -m goalsys.cli next-id system ../../Docs/goals
 python -m goalsys.cli new-goal system ../../Docs/goals \
   --title "예시 Goal" --parents G-0010,G-0020 --tags layer:rendering
 
-# Phase 4 — 자동 검증
+# 자동 검증
 python -m goalsys.cli verify-goal G-0142 ../../Docs/goals
 ```
 
-`validate` / `validate-bidirectional` 종료 코드:
+### 복합 별칭
 
-- `0` — 통과 (또는 위반이 모두 ``warning``)
-- `1` — 검증 실패 (스키마 또는 DAG 오류, ``--strict`` 시 경고 포함)
-- `2` — 파싱 실패
+```bash
+python -m goalsys.cli validate    ../../Docs/goals  # = validate-schema + validate-dag
+python -m goalsys.cli build-views ../../Docs/goals  # = render-index + render-tree + render-graph
+```
+
+### CI 통합 (tooling §7.2)
+
+| 명령 | CI 차단 | 비고 |
+|---|---|---|
+| `validate-schema` | **예** (위반 시 exit 1) | 스키마 무결성 보장 |
+| `validate-dag` | 아니오 (경고) | `--strict` 시에만 차단 |
+| `validate-bidirectional` | 아니오 (경고) | `--strict` 시에만 차단 |
+| `render-index/tree/graph` | 아니오 | 자동 갱신 |
+
+### 종료 코드
+
+- `0` — 통과 (또는 위반이 경고 수준)
+- `1` — 검증 실패 (스키마 위반, 또는 `--strict` 시 DAG·양방향 위반)
+- `2` — 파싱 실패 또는 인자 오류
 
 ## 테스트
 
@@ -69,6 +99,9 @@ python -m pytest tests/ -v
 - [x] Phase 3 — scan-code-tags / validate-bidirectional
 - [x] Phase 4 — next-id / new-goal
 - [x] Phase 5 — sync-realizes / verify-goal
+
+§7.1 의 12개 원자 서브커맨드가 모두 1:1 노출되며, `validate` / `build-views` 는
+원자 명령 묶음의 별칭으로만 유지된다.
 
 ## 확장 후크
 
