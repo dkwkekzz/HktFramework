@@ -1,8 +1,8 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T04:22:28+00:00
-> Total goals: 11
+> Last generated: 2026-05-06T06:14:08+00:00
+> Total goals: 12
 
 ## By Pillar
 
@@ -24,11 +24,15 @@ _(하위 Goal 없음)_
 
 ### G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
 
+- G-0100 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+
+### G-0100 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+
 _(하위 Goal 없음)_
 
 ## By Status
 
-### Active (11)
+### Active (12)
 
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
 - G-0002 시뮬레이션 결정성 보존 — 동일 입력 시퀀스에 동일 상태 산출
@@ -41,6 +45,7 @@ _(하위 Goal 없음)_
 - G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
 - G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
+- G-0100 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
 
 ### Proposed (0)
 
@@ -73,6 +78,10 @@ _(없음)_
 
 - G-0004 ISP 3-Layer 분리 — Intent → Simulation → Presentation 단방향
 
+### layer:devtools (1)
+
+- G-0100 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
+
 ### layer:net (1)
 
 - G-0003 서버 권위 모델 — 클라이언트는 읽기 전용 FHktWorldView 만 수신
@@ -103,6 +112,7 @@ _(없음)_
 
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
 
-### pillar:test-automation (1)
+### pillar:test-automation (2)
 
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
+- G-0100 헤드리스 Automation 테스트 러너 — 구조화 JSON 출력 계약
