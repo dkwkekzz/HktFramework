@@ -1,12 +1,16 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T06:12:07+00:00
+> Last generated: 2026-05-06T07:00:06+00:00
 
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
 - G-0020 엔터티 시각화 — Tag/DataAsset 기반 리소스 연결과 대량 엔터티 렌더링 성능
 - G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
 - G-0040 개발 관련 디버깅 시각화 — Insights 패널과 에디터 도킹 탭
+  - G-0410 인사이트 데이터 수집 게이트웨이 — HktCore 싱글톤 수집기 + 이벤트 링 버퍼
+  - G-0420 런타임 디버그 Slate 패널 — VM/WorldState/Runtime/Log/ViewModel 6 위젯
+  - G-0430 UE5 에디터 도킹 탭 통합 — Window / Tools > Instrumentation 메뉴
+  - G-0440 인사이트 콘솔 명령 — hkt.insights.{clear, categories, dump}
 - G-0050 LLM 기반 검증 테스트 자동화 — 헤드리스 Automation 러너 + 자동 수정 사이클
 
 ## Constraints (횡단 제약)
