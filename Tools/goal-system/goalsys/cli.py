@@ -32,7 +32,16 @@ from .parser import (
     load_goals,
     parse_goal_file,
 )
+from .query import (
+    FindFilter,
+    find_goals,
+    neighbors,
+    parse_filter_tokens,
+    serve_context,
+    which_goal,
+)
 from .schema import validate_goals
+from .sitegen import generate_site
 from .tasks import (
     NewTaskRequest,
     Task,
@@ -218,6 +227,18 @@ def cmd_build_views(goals_dir: Path) -> int:
     for filename in _VIEW_RENDERERS:
         worst = max(worst, _render_view(goals_dir, filename))
     return worst
+
+
+def cmd_build_site(goals_dir: Path, output: Path) -> int:
+    """단일 HTML 사이트 생성 — 그래프 + 검색 + Goal 본문 패널."""
+
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(generate_site(goals), encoding="utf-8")
+    print(f"생성 완료: {output} ({len(goals)} goals)")
+    return 0
 
 
 def cmd_scan_code_tags(root: Path, *, as_json: bool) -> int:
@@ -436,6 +457,207 @@ def cmd_render_task_index(tasks_dir: Path, goals_dir: Path | None) -> int:
     return 0
 
 
+def _find_goal_or_exit(
+    goal_id: str, goals_dir: Path,
+) -> tuple[Goal | None, list[Goal] | None, int]:
+    """``goal_id`` 와 전체 목록을 함께 반환 — 검색 명령 공용 헬퍼."""
+
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return None, None, rc
+    target = next((g for g in goals if g.id == goal_id), None)
+    if target is None:
+        print(f"오류: Goal {goal_id} 없음 (in {goals_dir})", file=sys.stderr)
+        return None, None, 2
+    return target, goals, 0
+
+
+def cmd_show(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
+    """Goal ID 단일 표시 — frontmatter + 본문. JSON 또는 사람용 요약."""
+
+    target, _, rc = _find_goal_or_exit(goal_id, goals_dir)
+    if target is None:
+        return rc
+    if as_json:
+        payload = {
+            "frontmatter": target.raw_frontmatter,
+            "intent": target.intent,
+            "success_criteria": target.success_criteria,
+            "rationale": target.rationale,
+            "alternatives_considered": target.alternatives_considered,
+            "source": str(target.source_path) if target.source_path else None,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str, sort_keys=True))
+        return 0
+    # 사람용 요약 — 핵심만
+    print(f"# {target.id} {target.title}")
+    print(f"status: {target.status}")
+    if target.tags:
+        print(f"tags: {', '.join(target.tags)}")
+    if target.parents:
+        print(f"parents: {', '.join(target.parents)}")
+    if target.constraints:
+        print(f"constraints: {', '.join(target.constraints)}")
+    if target.realizes:
+        print("realizes:")
+        for entry in target.realizes:
+            path = entry.get("path", "")
+            role = entry.get("role", "")
+            print(f"  - {path}  ({role})" if role else f"  - {path}")
+    if target.intent:
+        print()
+        print("## Intent")
+        print(target.intent)
+    if target.success_criteria:
+        print()
+        print("## Success Criteria")
+        for sc in target.success_criteria:
+            if not isinstance(sc, dict):
+                continue
+            desc = sc.get("description", "")
+            measure = sc.get("measure", "")
+            mark = "✓" if sc.get("achieved") or sc.get("met") else " "
+            line = f"- [{mark}] {desc}"
+            if measure:
+                line += f"  (측정: {measure})"
+            print(line)
+    return 0
+
+
+def cmd_find(
+    goals_dir: Path, tokens: list[str], *, as_json: bool, full: bool,
+) -> int:
+    """``parent:G-0010 status:active`` 형태 토큰 → 매칭 Goal 목록."""
+
+    goals, rc = _load_or_exit(goals_dir)
+    if goals is None:
+        return rc
+    flt = parse_filter_tokens(tokens) if tokens else FindFilter()
+    matched = find_goals(goals, flt)
+    if as_json:
+        payload = [
+            {
+                "id": g.id,
+                "title": g.title,
+                "status": g.status,
+                "tags": g.tags,
+                "parents": g.parents,
+                **({"intent": g.intent, "success_criteria": g.success_criteria} if full else {}),
+            }
+            for g in matched
+        ]
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        for g in matched:
+            multi_parent = f" (parents: {', '.join(g.parents)})" if len(g.parents) > 1 else ""
+            print(f"{g.id}\t{g.status}\t{g.title}{multi_parent}")
+        print(f"-- {len(matched)} / {len(goals)} match --", file=sys.stderr)
+    return 0
+
+
+def cmd_neighbors(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
+    """단일 Goal 의 직접 연결 요약 — 부모/자식/형제/제약/realizes."""
+
+    _, goals, rc = _find_goal_or_exit(goal_id, goals_dir)
+    if goals is None:
+        return rc
+    nbr = neighbors(goal_id, goals)
+    if nbr is None:
+        # _find_goal_or_exit 가 이미 보고했지만 안전장치
+        return 2
+    if as_json:
+        print(json.dumps(nbr.to_dict(), ensure_ascii=False, indent=2))
+        return 0
+    print(f"# {nbr.goal_id} 이웃")
+    print(f"parents:       {', '.join(nbr.parents) or '-'}")
+    print(f"children:      {', '.join(nbr.children) or '-'}")
+    print(f"siblings:      {', '.join(nbr.siblings) or '-'}")
+    print(f"constraints:   {', '.join(nbr.constraints) or '-'}")
+    print(f"constrained_by:{', '.join(nbr.constrained_by) or '-'}")
+    if nbr.realizes_paths:
+        print("realizes:")
+        for p in nbr.realizes_paths:
+            print(f"  - {p}")
+    return 0
+
+
+def cmd_serve_context(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
+    """봉사 작업 시작 시 한 번에 로드할 컨텍스트 번들."""
+
+    _, goals, rc = _find_goal_or_exit(goal_id, goals_dir)
+    if goals is None:
+        return rc
+    ctx = serve_context(goal_id, goals)
+    if ctx is None:
+        return 2
+    if as_json:
+        print(json.dumps(ctx.to_dict(), ensure_ascii=False, indent=2))
+        return 0
+    print(f"# Serve Context — {ctx.goal.id} {ctx.goal.title}")
+    print()
+    print("## Intent")
+    print(ctx.goal.intent or "(미작성)")
+    if ctx.goal.success_criteria:
+        print()
+        print("## Success Criteria")
+        for sc in ctx.goal.success_criteria:
+            if isinstance(sc, dict):
+                desc = sc.get("description", "")
+                measure = sc.get("measure", "")
+                line = f"- {desc}"
+                if measure:
+                    line += f"  (측정: {measure})"
+                print(line)
+    if ctx.parents:
+        print()
+        print("## 상위 의도 (parents)")
+        for p in ctx.parents:
+            print(f"- {p.id} {p.title}")
+    if ctx.constraint_goals:
+        print()
+        print("## 제약 (transitive constraints)")
+        for c in ctx.constraint_goals:
+            print(f"### {c.id} {c.title}")
+            if c.intent:
+                print(c.intent)
+            print()
+    if ctx.realizes_paths:
+        print()
+        print("## 봉사 코드 경로 (자기 + 후손)")
+        for p in ctx.realizes_paths:
+            print(f"- {p}")
+    return 0
+
+
+def cmd_which_goal(
+    rel_path: str, project_root: Path, goals_dir: Path | None, *, as_json: bool,
+) -> int:
+    """파일 경로 → 해당 파일에 적용되는 Goal ID 목록.
+
+    ``goals_dir`` 가 주어지면 frontmatter ``realizes`` 도 함께 매칭한다.
+    """
+
+    try:
+        index = scan_code_tags(project_root)
+    except FileNotFoundError as exc:
+        print(f"오류: {exc}", file=sys.stderr)
+        return 2
+    goals: list[Goal] | None = None
+    if goals_dir is not None:
+        goals, rc = _load_or_exit(goals_dir)
+        if goals is None:
+            return rc
+    ids = which_goal(rel_path, index, goals)
+    if as_json:
+        print(json.dumps({"path": rel_path, "goals": ids}, ensure_ascii=False, indent=2))
+    else:
+        if not ids:
+            print(f"{rel_path}: (태그 없음)")
+        else:
+            print(f"{rel_path}: {', '.join(ids)}")
+    return 0
+
+
 def cmd_verify_goal(goal_id: str, goals_dir: Path, *, as_json: bool) -> int:
     goals, rc = _load_or_exit(goals_dir)
     if goals is None:
@@ -495,6 +717,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_build = sub.add_parser("build-views", help="INDEX/TREE/graph.mmd 일괄 생성 (별칭)")
     p_build.add_argument("goals_dir", type=Path)
 
+    p_site = sub.add_parser("build-site", help="단일 HTML 사이트 생성 (그래프 + 검색 + 본문)")
+    p_site.add_argument("goals_dir", type=Path)
+    p_site.add_argument("--out", type=Path, default=None,
+                        help="출력 경로 (기본: <goals_dir>/site.html)")
+
     p_scan = sub.add_parser("scan-code-tags", help="코드의 @goal 태그 / GOALS.md 스캔")
     p_scan.add_argument("root", type=Path, help="스캔 시작 경로 (프로젝트 루트 권장)")
     p_scan.add_argument("--json", action="store_true", help="JSON 출력")
@@ -525,6 +752,46 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_ver.add_argument("goal_id")
     p_ver.add_argument("goals_dir", type=Path)
     p_ver.add_argument("--json", action="store_true")
+
+    # --- 쿼리/네비게이션 ---
+
+    p_show = sub.add_parser("show", help="Goal ID 단일 표시 (frontmatter + body)")
+    p_show.add_argument("goal_id")
+    p_show.add_argument("goals_dir", type=Path)
+    p_show.add_argument("--json", action="store_true")
+
+    p_find = sub.add_parser(
+        "find",
+        help="필터 검색 — 토큰 예: status:active tag:layer:vm parent:G-0010 text:바이트코드",
+    )
+    p_find.add_argument("goals_dir", type=Path)
+    p_find.add_argument("tokens", nargs="*", help="필터 토큰들 (AND 결합)")
+    p_find.add_argument("--json", action="store_true")
+    p_find.add_argument("--full", action="store_true",
+                        help="JSON 출력에 intent/success_criteria 포함")
+
+    p_nbr = sub.add_parser("neighbors", help="Goal 의 직접 이웃 — 부모/자식/형제/제약")
+    p_nbr.add_argument("goal_id")
+    p_nbr.add_argument("goals_dir", type=Path)
+    p_nbr.add_argument("--json", action="store_true")
+
+    p_ctx = sub.add_parser(
+        "serve-context",
+        help="봉사 컨텍스트 번들 — Goal + transitive constraints + realizes 경로",
+    )
+    p_ctx.add_argument("goal_id")
+    p_ctx.add_argument("goals_dir", type=Path)
+    p_ctx.add_argument("--json", action="store_true")
+
+    p_wg = sub.add_parser(
+        "which-goal",
+        help="파일 경로 → 해당 파일에 적용되는 Goal ID (헤더 + GOALS.md + frontmatter realizes)",
+    )
+    p_wg.add_argument("rel_path", help="project_root 기준 상대 경로")
+    p_wg.add_argument("project_root", type=Path)
+    p_wg.add_argument("goals_dir", type=Path, nargs="?", default=None,
+                      help="제공 시 frontmatter realizes 까지 함께 매칭")
+    p_wg.add_argument("--json", action="store_true")
 
     # --- Task 시스템 ---
 
@@ -584,6 +851,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return cmd_validate(args.goals_dir, strict=args.strict)
     if args.cmd == "build-views":
         return cmd_build_views(args.goals_dir)
+    if args.cmd == "build-site":
+        out = args.out if args.out is not None else (args.goals_dir / "site.html")
+        return cmd_build_site(args.goals_dir, out)
     if args.cmd == "scan-code-tags":
         return cmd_scan_code_tags(args.root, as_json=args.json)
     if args.cmd == "validate-bidirectional":
@@ -603,6 +873,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.cmd == "verify-goal":
         return cmd_verify_goal(args.goal_id, args.goals_dir, as_json=args.json)
+    if args.cmd == "show":
+        return cmd_show(args.goal_id, args.goals_dir, as_json=args.json)
+    if args.cmd == "find":
+        return cmd_find(args.goals_dir, args.tokens, as_json=args.json, full=args.full)
+    if args.cmd == "neighbors":
+        return cmd_neighbors(args.goal_id, args.goals_dir, as_json=args.json)
+    if args.cmd == "serve-context":
+        return cmd_serve_context(args.goal_id, args.goals_dir, as_json=args.json)
+    if args.cmd == "which-goal":
+        return cmd_which_goal(
+            args.rel_path, args.project_root, args.goals_dir, as_json=args.json,
+        )
     if args.cmd == "new-task":
         return cmd_new_task(
             args.tasks_dir,
