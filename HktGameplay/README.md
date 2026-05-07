@@ -169,3 +169,35 @@ UE5 Landscape 액터 기반 지형. `UHktTerrainSubsystem::SamplePreview` 로 2D
 - **로그 파일**: `Saved/Logs/HktEventLog.log`
 - **콘솔 명령**: `hkt.EventLog.Start` / `hkt.EventLog.Stop` / `hkt.EventLog.Dump` / `hkt.EventLog.Clear`
 - **AI 디버깅 스킬**: `/debug-logs <증상>` — 로그 파일을 읽고 원인 분석
+
+## 2D 렌더 품질 설정 (G-0113)
+
+스프라이트 외곽선·픽셀 무결성 보존 정책. 일부 항목은 본 플러그인 외부 — 이 플러그인을 사용하는 **게임 프로젝트 측 `Config/DefaultEngine.ini`** 와 **레벨/게임모드 PPV 자산** 에 박혀야 한다.
+
+### 외부 프로젝트 측 — DefaultEngine.ini
+
+```ini
+[SystemSettings]
+r.AntiAliasingMethod=0    ; TSR 누적 블렌딩 잔상 (움직임 시 뭉개짐) 차단
+r.TonemapperFilm=0        ; linear passthrough (HDR / 포스트 LUT 포기 트레이드오프)
+```
+
+### 외부 프로젝트 측 — 기본 PostProcessVolume
+
+레벨 또는 게임모드에 PPV 자산을 두고 다음 값을 박는다 (SystemSettings 단독으로는 톤매퍼 차단 불완전 — PPV 병행 필요).
+
+- `AutoExposureMethod = AEM_Manual`
+- `AutoExposureBias = 0`
+- `ColorGrading.Saturation = 1.0`
+- `ColorGrading.Gain = 1.0`
+
+### 본 플러그인 측 — 스프라이트 atlas 텍스처 임포트 정책
+
+`HktSpriteCore` / `HktSpriteTerrain` / `HktSpriteGenerator` 가 사용하는 atlas 텍스처의 표준 메타.
+
+- `CompressionSettings = TC_EditorIcon` 또는 `TC_BC7` (엔진 기본 `Default(DXT1/5)` 의 알파 외곽선 artifact 회피)
+- `MipGenSettings = TMGS_NoMipmaps` (카메라 거리에 따른 흐려짐 차단)
+- `Filter = TF_Bilinear` (일러스트/카툰 톤이 본 프로젝트 기준). 픽셀아트 자산만 자산-단위 `TF_Nearest` 오버라이드.
+- `LODGroup = TEXTUREGROUP_Pixels2D` (전역 통제 진입점)
+
+`HktSpriteGeneratorFunctionLibrary` 가 atlas 자동 생성 시 위 정책 적용 — `@goal: G-0113`.
