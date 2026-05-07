@@ -30,6 +30,9 @@ python -m goalsys.cli render-graph Docs/goals
 
 # 뷰 일괄 (별칭)
 python -m goalsys.cli build-views Docs/goals
+
+# 단일 HTML 사이트 — 어디서든 시각 탐색 + 핸드오프 클립보드 복사
+python -m goalsys.cli build-site  Docs/goals
 ```
 
 상세는 [`Tools/goal-system/README.md`](../../Tools/goal-system/README.md) 와
@@ -53,8 +56,9 @@ Goal 라이프사이클 작업(조회·작성·분해·봉사·검증)은
 Claude Code 에서는 `/goal` 슬래시 커맨드로 호출 — 일반 작업에 자동 적용되지 않는다.
 
 ```
-/goal show <ID>      /goal find <조건>     /goal new           /goal edit <ID>
-/goal plan <ID>      /goal serve <ID>      /goal verify <ID>   /goal sync
+/goal show <ID>      /goal find <조건>     /goal neighbors <ID>  /goal which <PATH>
+/goal site           /goal new             /goal edit <ID>
+/goal plan <ID>      /goal serve <ID>      /goal verify <ID>     /goal sync
 /goal classify "..." /goal validate
 ```
 
