@@ -1,7 +1,7 @@
 # Goals Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-07T00:58:27+00:00
+> Last generated: 2026-05-07T01:58:20+00:00
 > Total goals: 45
 
 ## By Pillar
@@ -72,7 +72,7 @@ _(하위 Goal 없음)_
 
 ## By Status
 
-### Active (44)
+### Active (45)
 
 - G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0001 HktCore 순수 C++ — UObject/UWorld/UE 런타임 의존 0
@@ -99,6 +99,7 @@ _(하위 Goal 없음)_
 - G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다
 - G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다
 - G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0
+- G-0113 2D 스프라이트 렌더 품질 — PostProcess/AA + 텍스처 임포트 파이프라인 규격
 - G-0117 Sprite 기반 지형 렌더링 — TerrainSubsystem 청크에서 top-surface 만 추출하여 단일 HISM 인스턴싱
 - G-0118 MCP 서버 ↔ UE5 에디터/런타임 브릿지 — LLM 에이전트 통신 인프라
 - G-0119 8-step Generator Pipeline 오케스트레이션 — Step Store + Feature Worker
@@ -119,9 +120,9 @@ _(하위 Goal 없음)_
 - G-1002 HISM 스프라이트 크라우드 경로 — atlas 별 1 HISM 으로 200+ 인스턴스 transform 갱신
 - G-1003 Niagara 스프라이트 크라우드 경로 — atlas 별 1 NiagaraComponent + NDI Array push
 
-### Proposed (1)
+### Proposed (0)
 
-- G-0113 2D 스프라이트 렌더 품질 — PostProcess/AA + 텍스처 임포트 파이프라인 규격
+_(없음)_
 
 ### Achieved (0)
 
