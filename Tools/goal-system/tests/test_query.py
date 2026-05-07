@@ -13,7 +13,6 @@ from goalsys.query import (
     find_goals,
     neighbors,
     parse_filter_tokens,
-    path_between,
     serve_context,
     which_goal,
 )
@@ -33,17 +32,6 @@ def test_ancestors_descendants_transitive() -> None:
     assert ancestors("G-0142", by_id) == {"G-0010", "G-0020"}
     # G-0010 의 후손은 G-0142 (children 통해)
     assert "G-0142" in descendants("G-0010", by_id)
-
-
-def test_path_between_forward_and_reverse() -> None:
-    goals = load_goals(FIXTURES)
-    by_id = _by_id(goals)
-    fwd = path_between("G-0010", "G-0142", by_id)
-    assert fwd == ["G-0010", "G-0142"]
-    rev = path_between("G-0142", "G-0010", by_id)
-    assert rev == ["G-0142", "G-0010"]
-    # 동일 노드
-    assert path_between("G-0010", "G-0010", by_id) == ["G-0010"]
 
 
 def test_neighbors_includes_constrained_by_and_siblings() -> None:

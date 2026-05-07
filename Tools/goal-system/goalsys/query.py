@@ -3,18 +3,14 @@
 검색·서빙 컨텍스트 번들·역참조의 단일 진입점. CLI (`show`, `find`,
 `neighbors`, `serve-context`, `which-goal`) 와 HTML 사이트 생성기가 함께 사용한다.
 
-설계 원칙:
-- 결과는 ``Goal`` / ``GoalId`` 단순 자료. 출력 포매팅은 호출자(CLI/뷰)에서.
-- DAG 탐색은 ``children``/``parents`` 양방향 모두 활용 — DAG 검증을 통과한
-  데이터라면 두 방향이 일관됨이 보장된다. 통과 안 된 경우에도 가능한
-  방향으로 폴백한다.
+설계 원칙: 결과는 ``Goal`` / ``GoalId`` 단순 자료. 출력 포매팅은 호출자(CLI/뷰)에서.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Set
+from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 from .codescan import CodeTagIndex, normalize_rel
 from .parser import Goal
@@ -66,57 +62,6 @@ def descendants(goal_id: GoalId, by_id: Dict[GoalId, Goal]) -> Set[GoalId]:
             seen.add(c)
             stack.append(c)
     return seen
-
-
-def path_between(
-    src: GoalId,
-    dst: GoalId,
-    by_id: Dict[GoalId, Goal],
-) -> Optional[List[GoalId]]:
-    """``src`` 에서 ``dst`` 까지 children 방향 BFS 경로. 없으면 ``None``.
-
-    역방향(자식→부모) 도 시도한다 — UI 에서 두 Goal 사이 연결을 탐색할 때 유용.
-    """
-
-    forward = _bfs(src, dst, by_id, lambda g: g.children)
-    if forward is not None:
-        return forward
-    reverse = _bfs(src, dst, by_id, lambda g: g.parents)
-    return reverse
-
-
-def _bfs(
-    src: GoalId,
-    dst: GoalId,
-    by_id: Dict[GoalId, Goal],
-    edges: Callable[[Goal], Sequence[GoalId]],
-) -> Optional[List[GoalId]]:
-    if src == dst:
-        return [src]
-    if src not in by_id or dst not in by_id:
-        return None
-    prev: Dict[GoalId, GoalId] = {}
-    seen: Set[GoalId] = {src}
-    queue: List[GoalId] = [src]
-    while queue:
-        cur = queue.pop(0)
-        node = by_id.get(cur)
-        if node is None:
-            continue
-        for nxt in edges(node):
-            if nxt in seen or nxt not in by_id:
-                continue
-            seen.add(nxt)
-            prev[nxt] = cur
-            if nxt == dst:
-                # 경로 복원
-                path: List[GoalId] = [dst]
-                while path[-1] != src:
-                    path.append(prev[path[-1]])
-                path.reverse()
-                return path
-            queue.append(nxt)
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -200,12 +145,6 @@ class FindFilter:
     text: Optional[str] = None  # 제목 + intent 부분일치 (대소문자 무시)
     has_constraint: Optional[GoalId] = None  # constraints 포함
 
-    def is_empty(self) -> bool:
-        return all(v is None for v in (
-            self.status, self.tag, self.parent, self.ancestor,
-            self.child, self.descendant, self.text, self.has_constraint,
-        ))
-
 
 def find_goals(goals: Sequence[Goal], flt: FindFilter) -> List[Goal]:
     """필터에 매칭되는 Goal 목록. 입력 순서를 ID 오름차순으로 정규화한다."""
@@ -246,14 +185,6 @@ def find_goals(goals: Sequence[Goal], flt: FindFilter) -> List[Goal]:
         out.append(g)
     out.sort(key=lambda x: x.id)
     return out
-
-
-# ``status:active``, ``tag:layer:vm``, ``parent:G-0010`` 형태의 토큰을 받아
-# ``FindFilter`` 로 구성한다. 첫 토큰의 prefix 가 알려진 키가 아니면 ``text`` 로 처리.
-_TOKEN_KEYS = {
-    "status", "tag", "parent", "ancestor",
-    "child", "descendant", "text", "constraint",
-}
 
 
 def parse_filter_tokens(tokens: Iterable[str]) -> FindFilter:

@@ -347,31 +347,52 @@ _HTML_TEMPLATE = r"""<!doctype html>
          + ` <span class="status ${g.status}">${g.status}</span>${pill}</li>`;
   }
 
-  function renderSection(arrow, label, ids, opts = {}) {
-    const limit = opts.limit || 0;  // 0 = 무제한
+  function renderSection(arrow, label, ids, limit = 0) {
     const total = ids.length;
-    const head = `<div class="section-head">`
-               + `<span><span class="arrow">${arrow}</span>${label}</span>`
-               + `<span class="count">${total}</span></div>`;
+    const section = document.createElement("div");
+    section.className = "relation-section";
+    const head = document.createElement("div");
+    head.className = "section-head";
+    head.innerHTML = `<span><span class="arrow">${arrow}</span>${escape(label)}</span>`
+                   + `<span class="count">${total}</span>`;
+    section.appendChild(head);
     if (total === 0) {
-      return `<div class="relation-section">${head}<div class="none">(없음)</div></div>`;
+      const none = document.createElement("div");
+      none.className = "none";
+      none.textContent = "(없음)";
+      section.appendChild(none);
+      return section;
     }
-    const visible = (limit > 0 && total > limit) ? ids.slice(0, limit) : ids;
-    const items = visible.map(relationItem).join("");
-    let more = "";
+    const ul = document.createElement("ul");
+    section.appendChild(ul);
+    const renderItems = (slice) => {
+      ul.innerHTML = slice.map(relationItem).join("");
+      ul.querySelectorAll("[data-goto]").forEach(el => {
+        el.addEventListener("click", () => select(el.dataset.goto));
+      });
+    };
     if (limit > 0 && total > limit) {
-      more = `<div class="toggle-more" data-expand>+ ${total - limit}개 더 보기</div>`;
+      renderItems(ids.slice(0, limit));
+      const more = document.createElement("div");
+      more.className = "toggle-more";
+      more.textContent = `+ ${total - limit}개 더 보기`;
+      more.addEventListener("click", () => {
+        renderItems(ids);
+        more.remove();
+      });
+      section.appendChild(more);
+    } else {
+      renderItems(ids);
     }
-    return `<div class="relation-section" data-section="${label}">`
-         + `${head}<ul>${items}</ul>${more}</div>`;
+    return section;
   }
 
   function renderRelations(g) {
+    relationsEl.innerHTML = "";
     if (!g) {
       relationsEl.innerHTML = `<p class="empty-hint">왼쪽에서 Goal 을 선택하세요.</p>`;
       return;
     }
-    const tags = (g.tags || []).map(t => `<span class="tag">${escape(t)}</span>`).join("");
     const ancestors = ancestorsOf(g.id).filter(a => !(g.parents || []).includes(a))
                                        .sort();
     const descendants = descendantsOf(g.id).filter(d => !(g.children || []).includes(d))
@@ -380,42 +401,23 @@ _HTML_TEMPLATE = r"""<!doctype html>
     const constrainedBy = (constrainedByIndex[g.id] || []).slice().sort();
     const constraints = (g.constraints || []).slice();
 
-    relationsEl.innerHTML = `
-      ${renderSection("↑↑", "ancestors (전이)", ancestors, { limit: 8 })}
-      ${renderSection("↑", "parents", g.parents || [])}
-      <div class="center-card">
-        <span class="id">${g.id}</span>
-        <span class="status ${g.status}">${g.status}</span>
-        <h3>${escape(g.title)}</h3>
-        <div class="tags">${tags}</div>
-      </div>
-      ${renderSection("⊂", "constraints", constraints)}
-      ${renderSection("⊃", "constrained by (역참조)", constrainedBy)}
-      ${renderSection("↔", "siblings (부모 공유)", siblings, { limit: 10 })}
-      ${renderSection("↓", "children", g.children || [])}
-      ${renderSection("↓↓", "descendants (전이)", descendants, { limit: 12 })}
-    `;
+    relationsEl.appendChild(renderSection("↑↑", "ancestors (전이)", ancestors, 8));
+    relationsEl.appendChild(renderSection("↑", "parents", g.parents || []));
 
-    relationsEl.querySelectorAll("[data-goto]").forEach(el => {
-      el.addEventListener("click", () => select(el.dataset.goto));
-    });
-    relationsEl.querySelectorAll("[data-expand]").forEach(el => {
-      el.addEventListener("click", () => {
-        // 한 번 더 렌더 — 해당 섹션의 limit 을 무시. 간단히 전체 재렌더 + flag.
-        el.parentElement.querySelector("ul").innerHTML = (() => {
-          const label = el.parentElement.dataset.section;
-          let ids = [];
-          if (label === "ancestors (전이)") ids = ancestors;
-          else if (label === "siblings (부모 공유)") ids = siblings;
-          else if (label === "descendants (전이)") ids = descendants;
-          return ids.map(relationItem).join("");
-        })();
-        el.remove();
-        relationsEl.querySelectorAll("[data-goto]").forEach(e2 => {
-          e2.addEventListener("click", () => select(e2.dataset.goto));
-        });
-      });
-    });
+    const tags = (g.tags || []).map(t => `<span class="tag">${escape(t)}</span>`).join("");
+    const card = document.createElement("div");
+    card.className = "center-card";
+    card.innerHTML = `<span class="id">${g.id}</span>`
+                   + `<span class="status ${g.status}">${g.status}</span>`
+                   + `<h3>${escape(g.title)}</h3>`
+                   + `<div class="tags">${tags}</div>`;
+    relationsEl.appendChild(card);
+
+    relationsEl.appendChild(renderSection("⊂", "constraints", constraints));
+    relationsEl.appendChild(renderSection("⊃", "constrained by (역참조)", constrainedBy));
+    relationsEl.appendChild(renderSection("↔", "siblings (부모 공유)", siblings, 10));
+    relationsEl.appendChild(renderSection("↓", "children", g.children || []));
+    relationsEl.appendChild(renderSection("↓↓", "descendants (전이)", descendants, 12));
   }
 
   // --- 본문 ---
