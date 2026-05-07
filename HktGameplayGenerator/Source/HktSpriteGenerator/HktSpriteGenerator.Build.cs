@@ -43,6 +43,8 @@ public class HktSpriteGenerator : ModuleRules
 				"RHI",
 				"PropertyEditor",
 				"EditorWidgets",
+				// FAdvancedPreviewScene — 에디터 표준 HDRI 스카이박스 프리뷰 씬
+				"AdvancedPreviewScene",
 			}
 		);
 	}
