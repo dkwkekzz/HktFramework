@@ -3,7 +3,7 @@
 > **종류:** 사용자 가이드
 > **대상:** Goal 시스템과 `/goal` 슬래시 커맨드를 처음 사용하는 사람
 > **의존 문서:** [`agent-goal-binding.md`](./agent-goal-binding.md) (운영 절차 원본)
-> **상태:** v0.1 / 2026-05-05
+> **상태:** v0.2 / 2026-05-07
 
 ---
 
@@ -25,6 +25,9 @@
 ```
 /goal show <ID>             — Goal 표시
 /goal find <조건>           — 필터 조회
+/goal neighbors <ID>        — 부모/자식/형제/제약/realizes 한 번에
+/goal which <PATH>          — 코드 경로 → 적용 Goal ID 역참조
+/goal site                  — 단일 HTML 사이트 생성 (Docs/goals/site.html)
 /goal new                   — 새 Goal 작성 (대화형)
 /goal edit <ID>             — Goal 수정
 /goal abandon <ID>            — Goal 폐기
@@ -65,18 +68,42 @@
 
 ### 3.2 기존 Goal 조회
 
+네 가지 진입점 — 목적별로 골라 쓴다.
+
 ```
-/goal show G-0142
-/goal find status:active tag:layer:vm
-/goal find parent:G-0010
+/goal show G-0142                              # 단일 본문
+/goal neighbors G-0142                         # 부모/자식/형제/제약/realizes
+/goal find status:active tag:layer:vm          # 필터 검색
+/goal which HktGameplay/Source/HktCore/Foo.h   # 파일 → Goal 역참조
+/goal site                                     # 시각 탐색용 HTML
 ```
+
+#### `/goal find` 토큰 키
+
+모든 토큰은 AND 결합. 키 없는 토큰은 자유 텍스트 (제목 + intent 부분일치).
+
+| 키 | 예 | 의미 |
+|---|---|---|
+| `status` | `status:active` | active / proposed / achieved / abandoned / superseded |
+| `tag` | `tag:layer:vm` | tags 배열에 포함 |
+| `parent` | `parent:G-0010` | 직속 부모가 G-0010 |
+| `ancestor` | `ancestor:G-0010` | 전이 — G-0010 의 후손 전체 |
+| `child` | `child:G-0142` | 직속 자식이 G-0142 |
+| `descendant` | `descendant:G-0142` | 전이 — G-0142 의 조상 전체 |
+| `constraint` | `constraint:G-0001` | constraints 에 G-0001 포함 |
+| `text` | `text:60fps` | 키 없이 `60fps` 만 써도 동일 |
+
+#### 조회 종류별 처리
 
 | 조회 종류 | 처리 |
 |----------|------|
-| 단순 조회 | `Docs/goals/INDEX.md` / `TREE.md` / `graph.mmd` 우선 |
-| 복잡 필터 | frontmatter 기반 Python 한 줄 호출 |
+| 카탈로그 훑기 | `Docs/goals/INDEX.md` / `TREE.md` / `graph.mmd` 또는 `site.html` |
+| 단일 Goal | `/goal show <ID>` |
+| 관계 탐색 | `/goal neighbors <ID>` 또는 `site.html` 의 관계 패널 |
+| 필터 검색 | `/goal find <토큰..>` |
+| 코드 → Goal | `/goal which <파일경로>` |
 
-출력 형식:
+출력 형식 (`/goal find`):
 
 ```
 조회 결과 (필터: status=active, tag=layer:vm)
@@ -84,6 +111,18 @@
 - G-0142 <title> (active) — 다중 부모: G-0010, G-0020
 총 N 개. 상세: Docs/goals/G-XXXX.md
 ```
+
+#### HTML 시각 탐색 — `/goal site`
+
+`Docs/goals/site.html` 단일 파일. 외부 의존성 0 (오프라인 100% 동작). 3 패널:
+
+| 패널 | 역할 |
+|------|------|
+| 좌 | 검색 + status/tag 필터 + 전체 리스트. ↑↓ 키 네비 |
+| 중 | 선택 Goal 의 관계 — ancestors / parents / [자기] / constraints / constrained_by / siblings / children / descendants. **모든 항목 클릭 시 선택 이동** |
+| 우 | intent / success criteria / realizes + 핸드오프 버튼 (`/goal serve` / `/goal show` / 자연어 프롬프트 클립보드 복사) |
+
+URL hash 동기화 — `site.html#G-0107` 으로 북마크/공유 가능. Goal 변경 후엔 `/goal site` 재실행해야 갱신된다.
 
 ### 3.3 Goal 봉사 코드 작성 (봉사 작업)
 
@@ -103,7 +142,7 @@ G-0142 봉사하는 HISM 렌더러 구현해줘
 
 | # | 단계 |
 |---|------|
-| 1 | `Docs/goals/G-0142.md` + `constraints` 참조 Goal 컨텍스트 로드 |
+| 1 | `serve-context G-0142` 한 호출로 Goal + transitive constraints + 후손 realizes 경로를 한꺼번에 로드 |
 | 2 | constraints 위반 가능성 사전 점검 |
 | 3 | 코드 작성 |
 | 4 | 헤더에 `// @goal: G-0142` 태그 추가 |
@@ -249,10 +288,20 @@ ID 는 영구 불변 — 폐기되어도 재사용 금지.
 | # | 질문 | Yes → 분류 | 처리 |
 |---|------|----------|------|
 | 1 | Goal ID 명시? | 봉사 작업 | §3.3 |
-| 2 | Goal 자체를 다루는 동사 ("보여줘", "만들어줘", "검증해줘")? | Goal 작업 | §3.1, §3.2, §3.4, §3.7 |
+| 2 | Goal 자체를 다루는 동사 ("보여줘", "이웃", "찾아줘", "만들어줘", "검증해줘", "어떤 Goal 인지")? | Goal 작업 (조회/작성/검증) | §3.1, §3.2, §3.4, §3.7 |
 | 3 | 버그 수정/증상 보고? | 버그 양상 분류 | §3.5 |
 | 4 | 새 시스템·기능·아키텍처 추가? | 의도 작업 | Goal 작성 제안 (수락 시 §3.1) |
 | 5 | 모두 No | 자유 작업 | 결합 없음 |
+
+조회 동사 매핑 — 첫 번째 분류로 들어왔을 때 어느 하위 명령으로 라우팅되는지:
+
+| 발화 단서 | 명령 |
+|---|---|
+| "보여줘" / "내용" / "본문" | `/goal show` |
+| "이웃" / "관계" / "부모" / "자식" / "형제" | `/goal neighbors` |
+| "찾아줘" / "필터" / "active" / "tag" | `/goal find` |
+| "이 파일이 어느 Goal" / "코드 → Goal" | `/goal which` |
+| "그래프" / "한눈에" / "시각화" | `/goal site` |
 
 분류는 **에이전트 제안**. 사용자가 다른 분류를 명시하면 따른다.
 
@@ -298,10 +347,11 @@ ID 는 영구 불변 — 폐기되어도 재사용 금지.
 |------|------|--------|-------------|
 | 의도 정립 | Claude Chat | Goal 파일 | A (작성) |
 | 일감 분해 | Claude Chat | Task 목록 (Goal ID 포함) | P (분해) |
+| **시각 탐색·핸드오프 트리거** | **`Docs/goals/site.html` (브라우저)** | **클립보드: `/goal serve G-XXXX`** | — |
 | 구현 | Claude Code | 코드 + `@goal:` 태그 | S (봉사) |
 | 검증 | Claude Code 또는 CI | 검증 보고서 | V (검증) |
 
-핸드오프 매개는 **Goal ID**. Code 측은 Goal ID 로 `Docs/goals/G-XXXX.md` 를 읽어 intent / constraints / success_criteria 를 컨텍스트에 로드한다.
+핸드오프 매개는 **Goal ID**. Code 측은 Goal ID 로 `serve-context` 한 호출에서 intent / constraints / success_criteria / realizes 를 한꺼번에 컨텍스트에 로드한다.
 
 ---
 
@@ -334,6 +384,28 @@ ID 는 영구 불변 — 폐기되어도 재사용 금지.
 | [`.claude/skills/goal/skill.md`](../.claude/skills/goal/skill.md) | 에이전트 스킬 정의 |
 | [`Tools/goal-system/README.md`](../Tools/goal-system/README.md) | CLI 구현체 |
 
-## 부록 B — 변경 이력
+## 부록 B — 데이터 변경 후 갱신 루틴
 
+Goal 파일 신규/수정 후 자동 생성 산출물(`INDEX.md`/`TREE.md`/`graph.mmd`/`site.html`)을 갱신:
+
+```bash
+cd Tools/goal-system
+python -m goalsys.cli validate    ../../Docs/goals  # 스키마 + DAG
+python -m goalsys.cli build-views ../../Docs/goals  # INDEX/TREE/graph
+python -m goalsys.cli build-site  ../../Docs/goals  # site.html
+```
+
+또는 한 줄로:
+
+```bash
+python -m goalsys.cli validate ../../Docs/goals \
+  && python -m goalsys.cli build-views ../../Docs/goals \
+  && python -m goalsys.cli build-site ../../Docs/goals
+```
+
+git pre-commit hook 또는 별도 스크립트로 묶으면 잊지 않고 갱신된다.
+
+## 부록 C — 변경 이력
+
+- v0.2: 신규 명령 (`neighbors`, `which`, `site`) + `find` 토큰 키 표 + HTML 시각 탐색 + serve-context 핸드오프 단순화.
 - v0.1: 초안. binding v0.3 의 사용자 관점 정리.

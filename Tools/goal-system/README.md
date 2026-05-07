@@ -13,6 +13,8 @@
 | `goalsys/schema.py`        | 필수 필드/타입/ID 형식 검증 | design §3, §3.4 |
 | `goalsys/dag.py`           | DAG 6규칙 검증 (R1~R6) | design §4.2 |
 | `goalsys/views.py`         | INDEX/TREE/graph.mmd 생성 | design §6.5 |
+| `goalsys/query.py`         | 검색·이웃·서빙 컨텍스트·역참조 | (find/neighbors/serve-context/which-goal) |
+| `goalsys/sitegen.py`       | 단일 HTML 사이트 (그래프+검색+본문) | (build-site) |
 | `goalsys/codescan.py`      | 코드 ``@goal:`` 태그 + ``GOALS.md`` 스캔 | tooling §5.1 |
 | `goalsys/bidirectional.py` | C1~C4 양방향 검증 + sync-realizes | tooling §5.2~§5.3 |
 | `goalsys/lifecycle.py`     | next-id + new-goal | tooling §6.1~§6.2 |
@@ -60,6 +62,31 @@ python -m goalsys.cli verify-goal G-0142 ../../Docs/goals
 ```bash
 python -m goalsys.cli validate    ../../Docs/goals  # = validate-schema + validate-dag
 python -m goalsys.cli build-views ../../Docs/goals  # = render-index + render-tree + render-graph
+python -m goalsys.cli build-site  ../../Docs/goals  # 단일 HTML — 그래프 + 검색 + 본문 패널
+```
+
+### 쿼리·네비게이션
+
+`/goal` 워크플로의 조회·서빙 단계를 지원한다.
+
+```bash
+# ID 단일 표시 (frontmatter + body 요약)
+python -m goalsys.cli show G-0107 ../../Docs/goals [--json]
+
+# 필터 검색 — AND 결합. 토큰 키:
+#   status / tag / parent / ancestor / child / descendant / constraint / text
+python -m goalsys.cli find ../../Docs/goals status:active tag:layer:rendering
+python -m goalsys.cli find ../../Docs/goals ancestor:G-0010 [--json] [--full]
+python -m goalsys.cli find ../../Docs/goals "60fps"  # 자유 텍스트 — title+intent 부분 일치
+
+# 직접 이웃 — 부모/자식/형제/constraints/constrained_by/realizes
+python -m goalsys.cli neighbors G-0107 ../../Docs/goals
+
+# 봉사 컨텍스트 번들 — Goal + transitive constraints + 후손 realizes 한 번에
+python -m goalsys.cli serve-context G-0107 ../../Docs/goals [--json]
+
+# 코드 → Goal 역참조 (헤더 @goal + 상위 GOALS.md + frontmatter realizes)
+python -m goalsys.cli which-goal HktGameplay/Source/HktCore/Foo.h ../../ ../../Docs/goals
 ```
 
 ### Task 시스템

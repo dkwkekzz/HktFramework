@@ -9,6 +9,9 @@
 ```
 /goal show <ID>               — Goal 표시 (Q)
 /goal find <조건>             — 필터 조회 — 예: status:active, tag:layer:vm, parent:G-0010 (Q)
+/goal neighbors <ID>          — 부모/자식/형제/제약/realizes 한 번에 (Q)
+/goal which <PATH>            — 코드 경로 → 적용 Goal ID 역참조 (Q)
+/goal site                    — 단일 HTML 사이트 생성 (Docs/goals/site.html)
 /goal new                     — 새 Goal 작성 — 대화형 (A)
 /goal edit <ID>               — Goal 수정 (A)
 /goal abandon <ID>            — Goal 폐기 (A)
@@ -100,26 +103,31 @@ Goal 로 추가 시 효과:
 
 5종 작업: **Q**uery / **A**uthor / **P**lan / **S**erve / **V**erify.
 
-### 3.Q — 조회 (`/goal show`, `/goal find`)
+### 3.Q — 조회 (`/goal show`, `/goal find`, `/goal neighbors`, `/goal which`)
 
 | # | 단계 |
 |---|------|
-| 1 | 단순 조회는 자동 생성 뷰 (`Docs/goals/INDEX.md` / `TREE.md` / `graph.mmd`) 우선 사용 |
-| 2 | 복잡 조회는 frontmatter 필터링 — 아래 한 줄 호출 사용 |
-| 3 | 결과를 ID 목록 + 요약으로 출력 |
+| 1 | 단순 조회는 자동 생성 뷰 (`Docs/goals/INDEX.md` / `TREE.md` / `graph.mmd` / `site.html`) 우선 사용 |
+| 2 | ID 단일 조회는 `show`, 그래프 이웃은 `neighbors`, 필터 검색은 `find` |
+| 3 | 코드 경로에서 Goal 역참조는 `which-goal` |
+| 4 | 결과를 ID 목록 + 요약으로 출력 |
 
-복잡 필터 — 임시 Python 호출 예 (필터는 자유 변형):
+CLI 호출 패턴:
 
 ```bash
-cd Tools/goal-system && python -c "
-from pathlib import Path
-from goalsys.parser import load_goals
-gs = load_goals(Path('../../Docs/goals'))
-for g in gs:
-    if g.status == 'active' and 'layer:rendering' in (g.tags or []):
-        print(g.id, g.title)
-"
+# ID 단일 — frontmatter + body 요약
+cd Tools/goal-system && python -m goalsys.cli show G-0107 ../../Docs/goals
+# 필터 검색 — AND 결합. 토큰 키: status / tag / parent / ancestor / child / descendant / constraint / text
+python -m goalsys.cli find ../../Docs/goals status:active tag:layer:rendering
+python -m goalsys.cli find ../../Docs/goals ancestor:G-0010 status:active
+python -m goalsys.cli find ../../Docs/goals "60fps"  # 자유 텍스트 — title + intent 부분일치
+# 이웃 — 부모/자식/형제/constraints/constrained_by/realizes
+python -m goalsys.cli neighbors G-0107 ../../Docs/goals
+# 코드 → Goal — 헤더 @goal 태그 + 상위 GOALS.md + frontmatter realizes (goals_dir 인자 시)
+python -m goalsys.cli which-goal HktGameplay/Source/HktCore/Foo.h ../.. ../../Docs/goals
 ```
+
+기존 임시 Python 한 줄 호출은 `find` 가 대체. 복잡 조건은 `--json` 으로 받아 후처리.
 
 출력 형식 (binding §4.1):
 
@@ -213,7 +221,7 @@ created_at: <ISO8601>
 
 | # | 단계 |
 |---|------|
-| 1 | 봉사 Goal 의 `intent` + `constraints` 컨텍스트 로드 — `Docs/goals/G-XXXX.md` 와 `constraints` 참조 Goal 파일 모두 Read |
+| 1 | 봉사 Goal 의 `intent` + `constraints` + realizes 경로를 한 번에 로드 — `python -m goalsys.cli serve-context G-XXXX ../../Docs/goals` (한 호출이 transitive constraints 와 후손 realizes 까지 묶어서 출력) |
 | 2 | constraints 위반 가능성 사전 점검 (§3.S.1) |
 | 3 | 코드 작성/수정 |
 | 4 | 새/변경 코드 헤더에 `// @goal: G-XXXX` 태그 추가/유지 — 정규식 `@goal:\s*G-\d{4}\b` 매치 (design §5.3 방식 A). 모듈 단위 봉사라면 디렉토리 `GOALS.md` 의 `## Realizes` 섹션 사용 (방식 B). |
@@ -327,6 +335,14 @@ Criterion 2: ...
 | `full` | 위 + `python -m goalsys.cli validate-bidirectional ../../Docs/goals ../..` — C1~C4 추가 |
 
 위반은 모두 **경고** — 차단하지 않는다 (tooling §7.2 강제 금지 원칙). `--strict` 모드 사용 금지.
+
+### `/goal site` 수행 시
+
+1. `cd Tools/goal-system && python -m goalsys.cli build-site ../../Docs/goals` — `Docs/goals/site.html` 생성
+2. 필요 시 `--out` 으로 다른 경로 지정 가능
+3. 단일 HTML — 외부 의존은 Mermaid CDN 1개. 오프라인이면 그래프만 비어 있고 좌측 검색·우측 본문 패널은 동작
+4. 노드 클릭 → 우측 패널 + "AI 핸드오프" 버튼 (클립보드: `/goal serve G-XXXX` / `/goal show G-XXXX` / 자연어 프롬프트)
+5. `Docs/goals/site.html` 은 git 에 커밋해도 됨 — "어디서든" 보려면 GitHub raw 또는 Pages 가 가장 빠름. 단, build-views 처럼 변경 시 사람이 의식적으로 재생성해야 일관성이 유지됨
 
 ### `/goal sync` 수행 시
 
