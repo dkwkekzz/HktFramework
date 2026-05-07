@@ -1,7 +1,7 @@
 # Goal Tree
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli build-views` 로 재생성한다.
-> Last generated: 2026-05-06T11:06:30+00:00
+> Last generated: 2026-05-07T00:58:27+00:00
 
 - G-0000 Goal/Task 시스템 무결성 — 의도→일감 추적의 신뢰성
 - G-0010 결정론적 멀티플레이어 시뮬레이션 프레임워크
@@ -23,6 +23,7 @@
   - G-0110 VFX / 파괴 이펙트가 Tag/Intent 기반 Niagara 자산으로 비동기 스폰된다
   - G-0111 Slate UI 가 Tag/DataAsset/Strategy 3축으로 동적 생성된다
   - G-0112 Voxel Skin 메시 베이킹은 Editor 한정 — Runtime/Shipping 누설 0
+  - G-0113 2D 스프라이트 렌더 품질 — PostProcess/AA + 텍스처 임포트 파이프라인 규격 _[proposed]_
   - G-0117 Sprite 기반 지형 렌더링 — TerrainSubsystem 청크에서 top-surface 만 추출하여 단일 HISM 인스턴싱
 - G-0030 LLM 기반 게임플레이 월드 제작 — 컨셉 입력에서 지형/스토리/에셋 자동 생성
   - G-0118 MCP 서버 ↔ UE5 에디터/런타임 브릿지 — LLM 에이전트 통신 인프라
