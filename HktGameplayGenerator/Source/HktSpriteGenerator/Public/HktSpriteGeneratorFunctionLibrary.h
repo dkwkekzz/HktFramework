@@ -280,10 +280,15 @@ public:
 	 *
 	 * 반환: {"success":bool, "atlasPath":…, "frameCount":…, "cellW":…, "cellH":…, "error":…}
 	 */
+	/**
+	 * MaxAtlasPixelWidth: 0 = 무제한(GPU 한계 8192 까지 strip), >0 = 가로 픽셀 상한 —
+	 * 초과분은 다음 행으로 wrap 되어 그리드로 패킹된다.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorPackBundleFolderToAtlasPng(
 		const FString& InputDir,
-		const FString& OutputPngPath);
+		const FString& OutputPngPath,
+		int32 MaxAtlasPixelWidth = 0);
 
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorExtractAtlasAndBundle(

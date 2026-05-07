@@ -138,6 +138,14 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	MeshComp->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	MeshComp->bUpdateJointsFromAnimation = true;
 
+	// 스프라이트 캡처는 평면 라이팅이 목표 — self-shadow 가 캐릭터를 어둡게 덮으면
+	// 색감이 죽고 알파 매트도 지저분해진다. 메시 자체의 캐스트/리시브를 모두 끔.
+	MeshComp->SetCastShadow(false);
+	MeshComp->bCastDynamicShadow = false;
+	MeshComp->bCastStaticShadow = false;
+	MeshComp->bAffectDynamicIndirectLighting = false;
+	MeshComp->bAffectDistanceFieldLighting = false;
+
 	Preview->AddComponent(MeshComp, FTransform::Identity);
 
 	if (Anim)
@@ -187,6 +195,12 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	CaptureComp->ShowFlags.SetAtmosphere(false);
 	CaptureComp->ShowFlags.SetFog(false);
 	CaptureComp->ShowFlags.SetMotionBlur(false);
+	// 스프라이트 캡처는 평면(flat) 라이팅이 목표 — 라이트 N·L 디퓨즈 항이 들어가면
+	// 캐릭터의 라이트 반대편이 항상 어둡게 깔린다. SkyLight/FillLight 를 아무리
+	// 더해도 메시 셀프-오클루전(법선 반대) 때문에 음영을 완전히 지울 수 없음.
+	// → Lighting ShowFlag 자체를 OFF 하면 SceneCapture 가 BaseColor 풀브라이트로
+	//   렌더 → 전체가 균일하게 밝고, 텍스처 디테일은 그대로 보존된다.
+	CaptureComp->ShowFlags.SetLighting(false);
 	if (Settings.bTransparentBackground)
 	{
 		// Final color with alpha — 알파 채널 보존 캡처. ATM/Fog 비활성과 함께
@@ -333,6 +347,7 @@ void FHktAnimCaptureScene::ApplyLighting(const FHktAnimCaptureSettings& Settings
 		KeyLight->SetIntensity(Settings.KeyLightIntensity);
 		KeyLight->SetLightColor(Settings.KeyLightColor);
 		KeyLight->SetMobility(EComponentMobility::Movable);
+		KeyLight->SetCastShadows(false);
 		Preview->AddComponent(KeyLight, FTransform(Settings.KeyLightRotation));
 	}
 
@@ -342,6 +357,7 @@ void FHktAnimCaptureScene::ApplyLighting(const FHktAnimCaptureSettings& Settings
 		FillLight->SetIntensity(Settings.FillLightIntensity);
 		FillLight->SetLightColor(Settings.FillLightColor);
 		FillLight->SetMobility(EComponentMobility::Movable);
+		FillLight->SetCastShadows(false);
 		Preview->AddComponent(FillLight, FTransform(Settings.FillLightRotation));
 	}
 
@@ -402,7 +418,10 @@ void FHktAnimCaptureScene::UpdateCameraTransform()
 		Right   * CachedSocketOffset.Y +
 		Up      * CachedSocketOffset.Z;
 
-	const FVector CamLoc = SubjectFocus - Forward * CachedSettings.ArmLength + Socket;
+	// SubjectFocusOffset: 메시는 그대로 두고 카메라의 LookAt 만 이동시킴 → 캐릭터가
+	// 프레임 안에서 반대 방향으로 시프트되어 보인다(프리뷰/캡처 1:1).
+	const FVector EffectiveFocus = SubjectFocus + CachedSettings.SubjectFocusOffset;
+	const FVector CamLoc = EffectiveFocus - Forward * CachedSettings.ArmLength + Socket;
 
 	CaptureComp->SetWorldLocationAndRotation(CamLoc, Rot);
 }

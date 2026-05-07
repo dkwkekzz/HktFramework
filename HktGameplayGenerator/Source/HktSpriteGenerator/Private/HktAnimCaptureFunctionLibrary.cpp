@@ -254,7 +254,7 @@ FString UHktAnimCaptureFunctionLibrary::CaptureAnimationWithProgress(
 			const FString AtlasPng  = Settings.DiskOutputDir / FString::Printf(TEXT("atlas_%s.png"), DirName);
 
 			const FString PackJson = UHktSpriteGeneratorFunctionLibrary::EditorPackBundleFolderToAtlasPng(
-				DirBundle, AtlasPng);
+				DirBundle, AtlasPng, Settings.MaxAtlasPixelWidth);
 
 			TSharedPtr<FJsonObject> Parsed;
 			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(PackJson);

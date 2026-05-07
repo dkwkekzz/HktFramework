@@ -133,6 +133,21 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Custom")
 	float YawOffset = 0.0f;
 
+	/**
+	 * SubjectFocus(=메시 바운드 중심) 에 더해질 월드-공간 오프셋(cm).
+	 * 메시는 월드 원점에 그대로 두고 카메라의 LookAt 만 이 만큼 이동시키므로,
+	 * 결과적으로 프레임 안에서 캐릭터가 반대 방향으로 시프트된다.
+	 *
+	 *   X+ : 캐릭터를 화면에서 -X(보통 뒤로) 시프트
+	 *   Z+ : 캐릭터를 화면에서 아래로 시프트  (LookAt 가 위로 가니까)
+	 *
+	 * IsoOrtho/RtsView 등에서 캐릭터가 프레임 밖으로 튀어나갈 때 사용.
+	 * 캡처와 프리뷰가 동일한 프레이밍을 공유하므로 프리뷰에서 확인한 위치가
+	 * 그대로 출력 PNG/atlas 에도 반영된다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Custom")
+	FVector SubjectFocusOffset = FVector::ZeroVector;
+
 	// === 캡처 ===
 
 	/** 출력 텍스처 1프레임당 가로/세로 픽셀. */
@@ -265,6 +280,19 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool bAutoBuildAtlas = true;
+
+	/**
+	 * 산출 atlas PNG 의 가로 픽셀 상한.
+	 *  0 또는 음수 → GPU 한계(8192) 까지 단일 행(strip) 패킹.
+	 *  > 0      → 이 값을 초과하지 않도록 가로 셀 수를 제한, 초과분은 다음 행으로 wrap.
+	 *
+	 * 예) 8 frame × 256px = 2048 셀, MaxAtlasPixelWidth=1024 → 4×2 그리드(=1024×512).
+	 *
+	 * 텍스처 LOD/타일 한계나 외부 도구의 텍스처 크기 제약을 만족시키기 위함.
+	 * 방향별 atlas 가 8 개 생성되며 각각에 동일한 한계가 적용된다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (ClampMin = "0"))
+	int32 MaxAtlasPixelWidth = 0;
 
 	/** [Deprecated] 방향별 분리 흐름에선 사용되지 않음 — 8방향 모두 직접 캡처. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")

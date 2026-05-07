@@ -106,6 +106,12 @@ private:
 	TSharedPtr<SEditableTextBox> PixelToWorldBox;
 	TSharedPtr<SEditableTextBox> FrameDurationBox;
 	TSharedPtr<SEditableTextBox> CropPaddingBox;
+	TSharedPtr<SEditableTextBox> MaxAtlasWidthBox;
+
+	// Subject focus 오프셋 — 메시 자체를 옮기지 않고 카메라 LookAt 만 시프트.
+	TSharedPtr<SEditableTextBox> FocusOffsetXBox;
+	TSharedPtr<SEditableTextBox> FocusOffsetYBox;
+	TSharedPtr<SEditableTextBox> FocusOffsetZBox;
 
 	// === Lighting ===
 	TSharedPtr<SEditableTextBox> KeyLightIntensityBox;

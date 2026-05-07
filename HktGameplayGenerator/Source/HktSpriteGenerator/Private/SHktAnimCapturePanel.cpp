@@ -279,6 +279,34 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
 				]
 
+				// === Focus Offset (캐릭터 프레이밍) ===
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,4,0,0)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("FocusOffHint",
+						"Subject Focus Offset (cm) — 메시 위치는 그대로, 카메라 LookAt 만 이동시켜 "
+						"프레임 안에서 캐릭터 위치를 조정. 캐릭터가 프레임 밖으로 나갈 때 사용."))
+					.AutoWrapText(true)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
+				[
+					SNew(SUniformGridPanel).SlotPadding(FMargin(4))
+					+ SUniformGridPanel::Slot(0,0)[ MakeRow(LOCTEXT("FocusXLbl", "Focus Offset X"),
+						SAssignNew(FocusOffsetXBox, SEditableTextBox)
+							.Text(FloatText(Settings.SubjectFocusOffset.X))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
+					+ SUniformGridPanel::Slot(1,0)[ MakeRow(LOCTEXT("FocusYLbl", "Focus Offset Y"),
+						SAssignNew(FocusOffsetYBox, SEditableTextBox)
+							.Text(FloatText(Settings.SubjectFocusOffset.Y))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
+					+ SUniformGridPanel::Slot(0,1)[ MakeRow(LOCTEXT("FocusZLbl", "Focus Offset Z"),
+						SAssignNew(FocusOffsetZBox, SEditableTextBox)
+							.Text(FloatText(Settings.SubjectFocusOffset.Z))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ ApplyCameraFromUI(); })) ]
+				]
+
 				// === Preview ===
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,8,0,4)
 				[
@@ -555,6 +583,10 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 						SAssignNew(FrameDurationBox, SEditableTextBox)
 							.Text(FloatText(Settings.FrameDurationMs))
 							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
+					+ SUniformGridPanel::Slot(0,1)[ MakeRow(LOCTEXT("AtlasMaxWLbl", "Max Atlas Width (px, 0=∞)"),
+						SAssignNew(MaxAtlasWidthBox, SEditableTextBox)
+							.Text(IntText(Settings.MaxAtlasPixelWidth))
+							.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type){ RebuildSettingsFromUI(); })) ]
 				]
 
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
@@ -780,6 +812,11 @@ void SHktAnimCapturePanel::RebuildSettingsFromUI()
 	Settings.PixelToWorld    = GetFlt(PixelToWorldBox,  Settings.PixelToWorld);
 	Settings.FrameDurationMs = GetFlt(FrameDurationBox, Settings.FrameDurationMs);
 	Settings.CropPaddingPx   = FMath::Max(0, GetInt(CropPaddingBox, Settings.CropPaddingPx));
+	Settings.MaxAtlasPixelWidth = FMath::Max(0, GetInt(MaxAtlasWidthBox, Settings.MaxAtlasPixelWidth));
+
+	Settings.SubjectFocusOffset.X = GetFlt(FocusOffsetXBox, Settings.SubjectFocusOffset.X);
+	Settings.SubjectFocusOffset.Y = GetFlt(FocusOffsetYBox, Settings.SubjectFocusOffset.Y);
+	Settings.SubjectFocusOffset.Z = GetFlt(FocusOffsetZBox, Settings.SubjectFocusOffset.Z);
 
 	// === Lighting ===
 	Settings.KeyLightIntensity      = FMath::Max(0.0f, GetFlt(KeyLightIntensityBox,  Settings.KeyLightIntensity));
@@ -847,6 +884,10 @@ void SHktAnimCapturePanel::ApplyCameraFromUI()
 	Settings.FieldOfView = GetFlt(FovBox,         Settings.FieldOfView);
 	Settings.OrthoWidth  = GetFlt(OrthoWidthBox,  Settings.OrthoWidth);
 	Settings.ArmLength   = GetFlt(ArmLengthBox,   Settings.ArmLength);
+
+	Settings.SubjectFocusOffset.X = GetFlt(FocusOffsetXBox, Settings.SubjectFocusOffset.X);
+	Settings.SubjectFocusOffset.Y = GetFlt(FocusOffsetYBox, Settings.SubjectFocusOffset.Y);
+	Settings.SubjectFocusOffset.Z = GetFlt(FocusOffsetZBox, Settings.SubjectFocusOffset.Z);
 
 	// NumDirections 는 Capture 섹션에 있지만 프리뷰 ◀▶ 네비게이션에 직접 영향 — 함께 처리.
 	{

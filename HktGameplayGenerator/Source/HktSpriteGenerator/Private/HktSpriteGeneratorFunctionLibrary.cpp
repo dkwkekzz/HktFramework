@@ -554,7 +554,8 @@ namespace HktSpriteGen
 	static bool PackAtlas(TArray<FFrameEntry>& Frames, const FString& OutPngPath,
 	                      int32& OutCellW, int32& OutCellH, int32& OutCols, int32& OutRows,
 	                      TMap<TTuple<FString,int32,int32>, int32>& OutIndexMap, FString& OutError,
-	                      bool bSingleRow = false)
+	                      bool bSingleRow = false,
+	                      int32 InMaxAtlasPixelWidth = 0)
 	{
 		TMap<FString, FDecodedImage> DecodedByPath;
 		int32 MaxW = 0, MaxH = 0;
@@ -640,7 +641,11 @@ namespace HktSpriteGen
 		// 3) Height 캡: rows ≤ 8192 / CellH → 필요 시 cols를 늘려 행 수를 줄임
 		// 4) 셀 자체가 너무 커 둘 다 못 맞추는 경우 경고 로그 후 진행.
 		constexpr int32 kMaxAtlasDim = 8192;
-		const int32 MaxColsByWidth  = FMath::Max(1, kMaxAtlasDim / FMath::Max(1, OutCellW));
+		// 사용자 가로 한계가 지정되면 GPU 한계(8192) 와 함께 둘 중 작은 값을 적용.
+		const int32 EffectiveMaxWidth = (InMaxAtlasPixelWidth > 0)
+			? FMath::Min(InMaxAtlasPixelWidth, kMaxAtlasDim)
+			: kMaxAtlasDim;
+		const int32 MaxColsByWidth  = FMath::Max(1, EffectiveMaxWidth / FMath::Max(1, OutCellW));
 		const int32 MaxRowsByHeight = FMath::Max(1, kMaxAtlasDim / FMath::Max(1, OutCellH));
 		const int32 MinColsByRows   = FMath::DivideAndRoundUp(CellCount, MaxRowsByHeight);
 
@@ -1329,7 +1334,8 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorPackDirectionalAtlases(
 
 FString UHktSpriteGeneratorFunctionLibrary::EditorPackBundleFolderToAtlasPng(
 	const FString& InputDir,
-	const FString& OutputPngPath)
+	const FString& OutputPngPath,
+	int32 MaxAtlasPixelWidth)
 {
 	using namespace HktSpriteGen;
 
@@ -1368,14 +1374,15 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorPackBundleFolderToAtlasPng(
 	int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
 	TMap<TTuple<FString,int32,int32>, int32> IndexMap;
 	FString PackErr;
-	if (!PackAtlas(Frames, OutputPngPath, CellW, CellH, Cols, Rows, IndexMap, PackErr, /*bSingleRow*/true))
+	if (!PackAtlas(Frames, OutputPngPath, CellW, CellH, Cols, Rows, IndexMap, PackErr,
+		/*bSingleRow*/true, MaxAtlasPixelWidth))
 	{
 		return MakeSpriteError(PackErr);
 	}
 
 	UE_LOG(LogHktSpriteGenerator, Log,
-		TEXT("PackBundleFolderToAtlasPng: Frames=%d Cell=%dx%d → %s"),
-		Frames.Num(), CellW, CellH, *OutputPngPath);
+		TEXT("PackBundleFolderToAtlasPng: Frames=%d Cell=%dx%d Cols=%d Rows=%d MaxW=%d → %s"),
+		Frames.Num(), CellW, CellH, Cols, Rows, MaxAtlasPixelWidth, *OutputPngPath);
 
 	return MakeResult(true, {
 		{ TEXT("atlasPath"),  OutputPngPath },
