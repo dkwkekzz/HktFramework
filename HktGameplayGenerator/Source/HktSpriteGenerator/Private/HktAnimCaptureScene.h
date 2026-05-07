@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PreviewScene.h"
+#include "AdvancedPreviewScene.h"
 #include "UObject/GCObject.h"
 #include "HktAnimCaptureTypes.h"
 
@@ -86,7 +86,10 @@ private:
 	// Render-target 픽셀을 읽어 PNG 바이너리로 인코딩(필요 시 자르기/패딩 적용).
 	bool EncodePng(TArray64<uint8>& OutPng, FString& OutError) const;
 
-	TUniquePtr<FPreviewScene> Preview;
+	// FAdvancedPreviewScene — 엔진 표준 SkeletalMesh 에디터 프리뷰와 동일한
+	// HDRI 스카이/큐브맵을 제공. 캡처용 SCC 의 Atmosphere/Fog ShowFlag 를
+	// 토글하여 프리뷰 시점에만 스카이가 보이게 한다(캡처 시는 OFF — 알파 보존).
+	TUniquePtr<FAdvancedPreviewScene> Preview;
 
 	TObjectPtr<USkeletalMeshComponent> MeshComp = nullptr;
 	TObjectPtr<USceneCaptureComponent2D> CaptureComp = nullptr;

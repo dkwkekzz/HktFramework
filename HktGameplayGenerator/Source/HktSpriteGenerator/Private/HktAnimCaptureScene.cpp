@@ -17,7 +17,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "PreviewScene.h"
+#include "AdvancedPreviewScene.h"
 #include "RenderingThread.h"
 #include "TextureResource.h"
 
@@ -94,15 +94,30 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	// Anim 이 null 이어도 정적 포즈 캡처는 가능 — 단 길이는 0.
 
 	// === Preview Scene ===
+	// FAdvancedPreviewScene 은 엔진 SkeletalMesh/애니메이션 에디터가 쓰는 그 프리뷰 —
+	// 자동으로 (1) 큐브맵 스카이스피어, (2) SkyLight, (3) DirectionalLight, (4) 포스트프로세스를 구성.
+	// 플로어 메시는 캐릭터 캡처에 불필요하므로 끈다.
 	FPreviewScene::ConstructionValues CVS;
 	CVS.bAllowAudioPlayback = false;
 	CVS.bShouldSimulatePhysics = false;
 	CVS.bCreatePhysicsScene = false;
-	// 사용자 설정의 bUseDefaultLighting 가 키 라이트/스카이 자동 생성 여부를 결정.
-	// 이후 ApplyLighting 에서 사용자 정의 KeyLight/FillLight 를 추가로 부착한다.
-	CVS.bDefaultLighting = Settings.bUseDefaultLighting;
+	// AdvancedPreviewScene 이 자체적으로 디폴트 라이팅/스카이를 만들기 때문에
+	// 부모 FPreviewScene 의 bDefaultLighting 은 항상 false 로 둔다(중복 라이트 방지).
+	CVS.bDefaultLighting = false;
 	CVS.bForceMipsResident = true;
-	Preview = MakeUnique<FPreviewScene>(CVS);
+	Preview = MakeUnique<FAdvancedPreviewScene>(CVS);
+
+	// 플로어 메시 숨김 — 스프라이트 캡처에는 캐릭터 외 잡요소가 들어가면 안 된다.
+	// (스카이스피어는 ShowFlags.Atmosphere 로 프리뷰 시점에만 노출.)
+	Preview->SetFloorVisibility(false, /*bDirect*/ true);
+
+	// 사용자가 디폴트 라이팅(스카이+키 라이트)을 끈 경우 — AdvancedPreviewScene 의 자동
+	// SkyLight 도 약화시키고 스카이스피어 자체를 비활성.
+	if (!Settings.bUseDefaultLighting)
+	{
+		Preview->SetSkyBrightness(0.0f);
+		Preview->SetEnvironmentVisibility(false, /*bDirect*/ true);
+	}
 
 	UWorld* World = Preview->GetWorld();
 	if (!World)
@@ -166,6 +181,9 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	CaptureComp->bCaptureEveryFrame = false;
 	CaptureComp->bCaptureOnMovement = false;
 	CaptureComp->bAlwaysPersistRenderingState = true;
+	// 캡처 기본값: Atmosphere/Fog OFF — 스프라이트용 알파 보존 / 단색 배경 유지.
+	// RenderPreview 진입 시점에만 이 두 플래그를 일시적으로 ON 으로 토글하여
+	// FAdvancedPreviewScene 이 만든 스카이스피어가 슬레이트 미리보기에 보이게 한다.
 	CaptureComp->ShowFlags.SetAtmosphere(false);
 	CaptureComp->ShowFlags.SetFog(false);
 	CaptureComp->ShowFlags.SetMotionBlur(false);
@@ -549,7 +567,9 @@ bool FHktAnimCaptureScene::InitializePreviewRT(int32 PreviewWidth, int32 Preview
 
 	PreviewRT = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
 	PreviewRT->RenderTargetFormat = RTF_RGBA8;
-	// 프리뷰는 캐릭터가 잘 보이도록 어두운 배경 — 투명 배경 캡처라도 프리뷰는 중성 회색.
+	// 프리뷰 ClearColor — RenderPreview 가 Atmosphere/Fog ShowFlag 를 잠시 ON 으로 켜면
+	// FAdvancedPreviewScene 의 스카이스피어가 화면 전체를 덮으므로 이 색은 거의 안 보인다.
+	// 그래도 디폴트 라이팅을 사용자가 끈 경우(=스카이 비활성)를 위해 중성 회색으로.
 	PreviewRT->ClearColor = FLinearColor(0.12f, 0.12f, 0.13f, 1.0f);
 	PreviewRT->bAutoGenerateMips = false;
 	PreviewRT->InitAutoFormat(W, H);
@@ -562,13 +582,22 @@ void FHktAnimCaptureScene::RenderPreview()
 	if (!CaptureComp || !PreviewRT) return;
 
 	UTextureRenderTarget2D* SavedTarget = CaptureComp->TextureTarget;
-	const FLinearColor SavedClear = SavedTarget ? SavedTarget->ClearColor : FLinearColor::Black;
+
+	// 프리뷰에서만 스카이박스/Fog 가시화 — 스프라이트 캡처는 알파 보존을 위해 두 플래그가 OFF.
+	const bool bSavedAtmosphere = CaptureComp->ShowFlags.Atmosphere;
+	const bool bSavedFog        = CaptureComp->ShowFlags.Fog;
+	CaptureComp->ShowFlags.SetAtmosphere(true);
+	CaptureComp->ShowFlags.SetFog(true);
 
 	// 프리뷰 1프레임 렌더 — 출력 RT 상태는 보존.
 	CaptureComp->TextureTarget = PreviewRT;
 	TickPose();
 	CaptureComp->CaptureScene();
 	CaptureComp->TextureTarget = SavedTarget;
+
+	// ShowFlag 복원 — 다음 캡처 호출이 알파 보존 상태로 이어지도록.
+	CaptureComp->ShowFlags.SetAtmosphere(bSavedAtmosphere);
+	CaptureComp->ShowFlags.SetFog(bSavedFog);
 }
 
 void FHktAnimCaptureScene::UpdateCameraSettings(const FHktAnimCaptureSettings& NewSettings)
