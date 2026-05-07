@@ -1,12 +1,12 @@
 # Tasks Index
 
 > ⚠️ 자동 생성 — 직접 수정 금지. `python -m goalsys.cli render-task-index` 로 재생성한다.
-> Last generated: 2026-05-06T10:59:24+00:00
-> Total tasks: 16
+> Last generated: 2026-05-07T04:03:19+00:00
+> Total tasks: 19
 
 ## By Status
 
-### todo (16)
+### todo (19)
 
 - T-00001 GravitySystem 컬럼 포인터 호이스팅 _(→ G-0100)_
 - T-00002 MovementSystem 컬럼 포인터 호이스팅 _(→ G-0100)_
@@ -24,6 +24,9 @@
 - T-00014 hkt.Sprite.Renderer CVar 등록 + CrowdHost Niagara dispatch 분기 _(→ G-0108, G-1002, G-1003)_
 - T-00015 Sprite Terrain PR-D — StyleSet 도입 + deprecated 제거 + 표면 재추출 트리거 _(→ G-0117)_
 - T-00016 HktTerrainPreviewCommand FHktTerrainGenerator 직접 인스턴스화 제거 _(→ G-0109, G-0020)_
+- T-00017 스프라이트 atlas 텍스처 메타 일괄 검증 도구 _(→ G-0113)_
+- T-00018 표준 PostProcessVolume 자산 정의 + 기본 게임모드 결합 _(→ G-0113)_
+- T-00019 스프라이트 atlas 임포트 정책 자동 적용 진입점 _(→ G-0113)_
 
 ### in_progress (0)
 
@@ -88,6 +91,12 @@ _(없음)_
 
 - T-00011 HktUI → HktPresentation 모듈 의존 제거 _(status: todo)_
 
+### G-0113 2D 스프라이트 렌더 품질 — PostProcess/AA + 텍스처 임포트 파이프라인 규격 (3)
+
+- T-00017 스프라이트 atlas 텍스처 메타 일괄 검증 도구 _(status: todo)_
+- T-00018 표준 PostProcessVolume 자산 정의 + 기본 게임모드 결합 _(status: todo)_
+- T-00019 스프라이트 atlas 임포트 정책 자동 적용 진입점 _(status: todo)_
+
 ### G-0117 Sprite 기반 지형 렌더링 — TerrainSubsystem 청크에서 top-surface 만 추출하여 단일 HISM 인스턴싱 (1)
 
 - T-00015 Sprite Terrain PR-D — StyleSet 도입 + deprecated 제거 + 표면 재추출 트리거 _(status: todo)_
@@ -100,7 +109,7 @@ _(없음)_
 
 - T-00014 hkt.Sprite.Renderer CVar 등록 + CrowdHost Niagara dispatch 분기 _(status: todo)_
 
-## Open Backlog (16)
+## Open Backlog (19)
 
 - T-00001 _(created 2026-05-06T07:16:55+00:00)_ — GravitySystem 컬럼 포인터 호이스팅 → G-0100
 - T-00002 _(created 2026-05-06T07:16:55+00:00)_ — MovementSystem 컬럼 포인터 호이스팅 → G-0100
@@ -118,3 +127,6 @@ _(없음)_
 - T-00014 _(created 2026-05-06T10:58:55+00:00)_ — hkt.Sprite.Renderer CVar 등록 + CrowdHost Niagara dispatch 분기 → G-0108, G-1002, G-1003
 - T-00015 _(created 2026-05-06T10:59:03+00:00)_ — Sprite Terrain PR-D — StyleSet 도입 + deprecated 제거 + 표면 재추출 트리거 → G-0117
 - T-00016 _(created 2026-05-06T10:59:09+00:00)_ — HktTerrainPreviewCommand FHktTerrainGenerator 직접 인스턴스화 제거 → G-0109, G-0020
+- T-00017 _(created 2026-05-07T03:18:35+00:00)_ — 스프라이트 atlas 텍스처 메타 일괄 검증 도구 → G-0113
+- T-00018 _(created 2026-05-07T04:03:14+00:00)_ — 표준 PostProcessVolume 자산 정의 + 기본 게임모드 결합 → G-0113
+- T-00019 _(created 2026-05-07T04:03:14+00:00)_ — 스프라이트 atlas 임포트 정책 자동 적용 진입점 → G-0113

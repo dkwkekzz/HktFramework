@@ -170,11 +170,13 @@ namespace HktSpriteGen
 		UTexture2D* Tex = Cast<UTexture2D>(Imported);
 		if (!Tex) return nullptr;
 
-		// 스프라이트 아틀라스 표준 설정: 픽셀아트 Nearest, NoMipmap, 비압축.
+		// @goal: G-0113
+		// 스프라이트 아틀라스 임포트 정책 (G-0113): 본 프로젝트 기준 톤은 일러스트/카툰 — Filter=TF_Bilinear.
 		// LODGroup=UI 는 BaseDeviceProfiles.ini의 MaxLODSize 캡(보통 2048~4096)에 걸려
 		// 큰 비디오 아틀라스가 강제 다운스케일된다. Pixels2D + MaxTextureSize=0 으로 원본 보존.
+		// 픽셀아트 스타일이 필요한 호출자는 자산-단위에서 TF_Nearest 오버라이드.
 		Tex->CompressionSettings = TC_EditorIcon;
-		Tex->Filter              = TF_Nearest;
+		Tex->Filter              = TF_Bilinear;
 		Tex->MipGenSettings      = TMGS_NoMipmaps;
 		Tex->LODGroup            = TEXTUREGROUP_Pixels2D;
 		Tex->MaxTextureSize      = 0;
