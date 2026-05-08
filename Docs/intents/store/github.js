@@ -178,7 +178,7 @@ function _serializeIntent(intent) {
     return '[' + arr.join(', ') + ']';
   }
 
-  const fm = [
+  const lines = [
     '---',
     `id: ${intent.id}`,
     `title: ${intent.title}`,
@@ -188,8 +188,10 @@ function _serializeIntent(intent) {
     `parents: ${fmtList(intent.parents)}`,
     `children: ${fmtList(intent.children)}`,
     `tags: ${fmtList(intent.tags)}`,
-    '---',
-  ].join('\n');
+  ];
+  if (intent.goals && intent.goals.length) lines.push(`goals: ${fmtList(intent.goals)}`);
+  lines.push('---');
+  const fm = lines.join('\n');
 
   const body = `\n## Intent\n\n${intent.intent || ''}`;
   return fm + '\n' + body + '\n';
@@ -430,12 +432,35 @@ class GitHubStore extends IntentStore {
     const id = `I-${String(next).padStart(4, '0')}`;
 
     const intent = { ...input, id };
-    const content = _serializeIntent(intent);
-    const path = `${this.intentsPath}/${id}.md`;
+    const additions = [{
+      path: `${this.intentsPath}/${id}.md`,
+      contents: _btoaUtf8(_serializeIntent(intent)),
+    }];
+
+    // 양방향 일관성 — 부모의 children 과 자식의 parents 에 자기 자신을 미러링.
+    const byId = Object.fromEntries(existing.map(it => [it.id, it]));
+    for (const pid of intent.parents || []) {
+      const parent = byId[pid];
+      if (!parent || (parent.children || []).includes(id)) continue;
+      const updated = { ...parent, children: [...(parent.children || []), id] };
+      additions.push({
+        path: `${this.intentsPath}/${pid}.md`,
+        contents: _btoaUtf8(_serializeIntent(updated)),
+      });
+    }
+    for (const cid of intent.children || []) {
+      const child = byId[cid];
+      if (!child || (child.parents || []).includes(id)) continue;
+      const updated = { ...child, parents: [...(child.parents || []), id] };
+      additions.push({
+        path: `${this.intentsPath}/${cid}.md`,
+        contents: _btoaUtf8(_serializeIntent(updated)),
+      });
+    }
 
     const newOid = await this._graphqlCommit({
       headline: `intent: ${id} 추가 — ${intent.title}`,
-      additions: [{ path, contents: _btoaUtf8(content) }],
+      additions,
       deletions: [],
     });
 
@@ -453,25 +478,66 @@ class GitHubStore extends IntentStore {
    */
   async update(id, patch, baseVersion) {
     this._requireToken();
-    const current = await this.get(id);
+    const all = await this.list();
+    const byId = Object.fromEntries(all.map(it => [it.id, it]));
+    const current = byId[id];
     if (!current) throw new Error(`Intent ${id} 를 찾을 수 없음`);
 
     const merged = { ...current, ...patch, id };
-    const content = _serializeIntent(merged);
-    const path = `${this.intentsPath}/${id}.md`;
+    const additions = [{
+      path: `${this.intentsPath}/${id}.md`,
+      contents: _btoaUtf8(_serializeIntent(merged)),
+    }];
 
-    let newOid;
-    try {
-      newOid = await this._graphqlCommit({
-        headline: `intent: ${id} 수정 — ${merged.title}`,
-        additions: [{ path, contents: _btoaUtf8(content) }],
-        deletions: [],
-        expectedHeadOid: baseVersion,
+    // 부모/자식 관계의 추가·제거를 affected 다른 intent .md 에도 미러링.
+    const oldParents = new Set(current.parents || []);
+    const newParents = new Set(merged.parents || []);
+    const oldChildren = new Set(current.children || []);
+    const newChildren = new Set(merged.children || []);
+    const touched = new Set();
+    function pushAddition(intent) {
+      if (touched.has(intent.id)) return;
+      touched.add(intent.id);
+      additions.push({
+        path: `${this.intentsPath}/${intent.id}.md`,
+        contents: _btoaUtf8(_serializeIntent(intent)),
       });
-    } catch (e) {
-      if (e.name === 'StaleError') throw e;
-      throw e;
     }
+    const pushAdd = pushAddition.bind(this);
+
+    // parents 추가됨 → 그 부모의 children 에 id 추가
+    for (const pid of newParents) {
+      if (oldParents.has(pid)) continue;
+      const parent = byId[pid]; if (!parent) continue;
+      if ((parent.children || []).includes(id)) continue;
+      pushAdd({ ...parent, children: [...(parent.children || []), id] });
+    }
+    // parents 제거됨 → 그 부모의 children 에서 id 제거
+    for (const pid of oldParents) {
+      if (newParents.has(pid)) continue;
+      const parent = byId[pid]; if (!parent) continue;
+      pushAdd({ ...parent, children: (parent.children || []).filter(c => c !== id) });
+    }
+    // children 추가됨 → 그 자식의 parents 에 id 추가
+    for (const cid of newChildren) {
+      if (oldChildren.has(cid)) continue;
+      const child = byId[cid]; if (!child) continue;
+      if ((child.parents || []).includes(id)) continue;
+      pushAdd({ ...child, parents: [...(child.parents || []), id] });
+    }
+    // children 제거됨 → 그 자식의 parents 에서 id 제거
+    for (const cid of oldChildren) {
+      if (newChildren.has(cid)) continue;
+      const child = byId[cid]; if (!child) continue;
+      pushAdd({ ...child, parents: (child.parents || []).filter(p => p !== id) });
+    }
+
+    const newOid = await this._graphqlCommit({
+      headline: `intent: ${id} 수정 — ${merged.title}`,
+      additions,
+      deletions: [],
+      expectedHeadOid: baseVersion,
+    });
 
     this._headSha = newOid;
     return { ...merged, baseVersion: newOid };
@@ -486,12 +552,35 @@ class GitHubStore extends IntentStore {
    */
   async remove(id, baseVersion) {
     this._requireToken();
-    const path = `${this.intentsPath}/${id}.md`;
+    const all = await this.list();
+    const byId = Object.fromEntries(all.map(it => [it.id, it]));
+    const current = byId[id];
+
+    const additions = [];
+    if (current) {
+      // 부모의 children 에서 id 제거, 자식의 parents 에서 id 제거.
+      for (const pid of current.parents || []) {
+        const parent = byId[pid]; if (!parent) continue;
+        const updated = { ...parent, children: (parent.children || []).filter(c => c !== id) };
+        additions.push({
+          path: `${this.intentsPath}/${pid}.md`,
+          contents: _btoaUtf8(_serializeIntent(updated)),
+        });
+      }
+      for (const cid of current.children || []) {
+        const child = byId[cid]; if (!child) continue;
+        const updated = { ...child, parents: (child.parents || []).filter(p => p !== id) };
+        additions.push({
+          path: `${this.intentsPath}/${cid}.md`,
+          contents: _btoaUtf8(_serializeIntent(updated)),
+        });
+      }
+    }
 
     const newOid = await this._graphqlCommit({
       headline: `intent: ${id} 삭제`,
-      additions: [],
-      deletions: [{ path }],
+      additions,
+      deletions: [{ path: `${this.intentsPath}/${id}.md` }],
       expectedHeadOid: baseVersion,
     });
 
