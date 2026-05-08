@@ -134,9 +134,15 @@ function _parseMd(text) {
     i++;
   }
 
-  // ## Intent 섹션 추출
-  const intentMatch = body.match(/^##\s+Intent\s*\r?\n([\s\S]*?)(?=^##\s+|\Z)/m);
-  const intentText = intentMatch ? intentMatch[1].trim() : '';
+  // ## Intent 섹션 추출 — JS regex 는 \Z 미지원이라 수동으로 자른다.
+  let intentText = '';
+  const headerRe = /^##\s+Intent\s*$/m;
+  const headerMatch = body.match(headerRe);
+  if (headerMatch) {
+    const after = body.slice(headerMatch.index + headerMatch[0].length);
+    const next = after.search(/^##\s+/m);
+    intentText = (next === -1 ? after : after.slice(0, next)).trim();
+  }
 
   return {
     id: fm['id'] || '',

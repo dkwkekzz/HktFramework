@@ -337,6 +337,10 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
   .multi-sel { border:1px solid var(--line); border-radius:4px; max-height:140px; overflow-y:auto; background:var(--bg); margin-top:4px; }
   .multi-sel label { padding:4px 8px; cursor:pointer; color:var(--text); display:flex; align-items:center; gap:6px; margin-bottom:0; font-size:13px; }
   .multi-sel label:hover { background:var(--panel); }
+  /* `dialog label > input` 룰이 .multi-sel 내부 체크박스까지 잡아 너비/패딩이 깨지므로 reset. */
+  .multi-sel label > input[type="checkbox"] { width:auto; padding:0; margin:0; flex:0 0 auto; display:inline-block; }
+  .btn-add-child { background:transparent; border:1px solid var(--line); color:var(--accent); padding:0 6px; border-radius:3px; cursor:pointer; font:inherit; font-size:11px; line-height:1.4; margin-left:6px; }
+  .btn-add-child:hover { background:var(--panel); }
   #auth-indicator { font-size:11px; color:var(--muted); flex:0 0 auto; }
   #auth-indicator.ok { color:var(--active); }
 </style>
@@ -582,9 +586,12 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
   }
 
   // ── 렌더링: 카드 ────────────────────────────────────────────────────────────
-  function renderRelationSection(arrow, label, ids, ownerCardIdx, limit) {
+  function renderRelationSection(arrow, label, ids, ownerCardIdx, limit, addChildOf) {
     const total = ids.length;
-    let html = `<h2><span><span class="arrow">${arrow}</span>${escape(label)}</span>`
+    const addBtn = addChildOf
+      ? `<button class="btn-add-child" data-add-child-of="${escape(addChildOf)}" title="자식 Intent 추가">＋</button>`
+      : '';
+    let html = `<h2><span><span class="arrow">${arrow}</span>${escape(label)}${addBtn}</span>`
              + `<span class="count">${total}</span></h2>`;
     if (total === 0) return html + `<div class="none">(없음)</div>`;
     const useLimit = limit > 0 && total > limit;
@@ -658,7 +665,7 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
         + renderRelationSection('↑', 'parents', it.parents || [], idx, 0)
         + renderRelationSection('↑↑', 'ancestors (전이)', ancestors, idx, 8)
         + renderRelationSection('↔', 'siblings (부모 공유)', siblings, idx, 10)
-        + renderRelationSection('↓', 'children', it.children || [], idx, 0)
+        + renderRelationSection('↓', 'children', it.children || [], idx, 0, it.id)
         + renderRelationSection('↓↓', 'descendants (전이)', descendants, idx, 12)
       + `</section>`;
     return card;
@@ -1103,8 +1110,17 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
     openEditModal({ id: '', title: '', status: 'proposed', intent: '', parents: [], children: [], tags: [], baseVersion: null }, true);
   });
 
-  // ── ✎ 버튼 (이벤트 위임) ──────────────────────────────────────────────────
+  // ── ✎ / ＋ 버튼 (이벤트 위임) ─────────────────────────────────────────────
   stackEl.addEventListener('click', e => {
+    const addBtn = e.target.closest('[data-add-child-of]');
+    if (addBtn) {
+      e.stopPropagation();
+      if (!store || !store.token) { tokenModal.showModal(); return; }
+      const parentId = addBtn.dataset.addChildOf;
+      openEditModal({ id: '', title: '', status: 'proposed', intent: '',
+        parents: [parentId], children: [], tags: [], baseVersion: null }, true);
+      return;
+    }
     const btn = e.target.closest('[data-edit-id]');
     if (!btn) return;
     e.stopPropagation();
