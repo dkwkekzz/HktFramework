@@ -55,24 +55,6 @@ public:
 	/** AnimSequence 의 길이(초). 미지정 시 0. */
 	float GetAnimSequenceLength() const { return AnimLengthSec; }
 
-	// === Editor Preview =================================================
-	// 캡처 출력 RT 와 별도로, 에디터 패널에 실시간 표시할 프리뷰 RT 를 운영한다.
-	// 같은 SceneCaptureComponent 를 공유하되, 캡처 시에는 출력 RT 로 잠시 swap.
-
-	/** 프리뷰용 RT 를 (재)생성. Initialize 이후 호출 가능. */
-	bool InitializePreviewRT(int32 PreviewWidth, int32 PreviewHeight, FString& OutError);
-
-	/** 프리뷰 1프레임 렌더 — 출력 RT 는 건드리지 않는다. */
-	void RenderPreview();
-
-	/** 카메라/프리셋/오프셋이 변경됐을 때 씬 재구성 없이 SCC 만 갱신. */
-	void UpdateCameraSettings(const FHktAnimCaptureSettings& NewSettings);
-
-	/** 조명 설정만 갱신 — 메시/RT 그대로, 라이트 컴포넌트만 재구성. */
-	void UpdateLightingSettings(const FHktAnimCaptureSettings& NewSettings);
-
-	UTextureRenderTarget2D* GetPreviewRenderTarget() const { return PreviewRT; }
-
 	// FGCObject ===========================================================
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override { return TEXT("FHktAnimCaptureScene"); }
@@ -94,8 +76,6 @@ private:
 	TObjectPtr<USkeletalMeshComponent> MeshComp = nullptr;
 	TObjectPtr<USceneCaptureComponent2D> CaptureComp = nullptr;
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget = nullptr;
-	// 에디터 프리뷰 패널용 RT — 출력 RT 와 별개. 미사용 시 nullptr.
-	TObjectPtr<UTextureRenderTarget2D> PreviewRT = nullptr;
 	// Settings 의 KeyLight/FillLight 가 만들어지는 추가 광원. bEnable* 가 false 면 nullptr.
 	TObjectPtr<UDirectionalLightComponent> KeyLight = nullptr;
 	TObjectPtr<UDirectionalLightComponent> FillLight = nullptr;

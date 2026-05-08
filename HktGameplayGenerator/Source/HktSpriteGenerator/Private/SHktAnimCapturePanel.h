@@ -4,15 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "HktAnimCapturePanelConfig.h"
-#include "HktAnimCaptureScene.h"
 #include "HktAnimCaptureTypes.h"
-#include "Styling/SlateBrush.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SColorBlock;
 class SEditableTextBox;
-class SImage;
+class SHktAnimPreviewViewport;
 class SMultiLineEditableTextBox;
 class SProgressBar;
 
@@ -46,10 +44,8 @@ private:
 	FReply OnNextDirectionClicked();
 
 	void OnPlayPauseChanged(ECheckBoxState NewState);
-	EActiveTimerReturnType TickPreview(double InCurrentTime, float InDeltaTime);
 
-	void RebuildPreviewScene();
-	void DestroyPreviewScene();
+	void RebuildPreview();
 
 	void OnSkeletalMeshChanged(const FAssetData& Asset);
 	void OnAnimSequenceChanged(const FAssetData& Asset);
@@ -64,10 +60,10 @@ private:
 	void RebuildSettingsFromUI();
 	void ApplyPresetToCustomFields(EHktAnimCaptureCameraPreset Preset);
 
-	// UI 라이트 값을 Settings 에 거둬 PreviewScene 에 즉시 적용 — 씬 재생성 없이.
+	// UI 라이트 값을 Settings 에 거둬 PreviewViewport 에 즉시 적용 — 씬 재생성 없이.
 	void ApplyLightingFromUI();
 
-	// UI 카메라/방향 값을 Settings 에 거둬 PreviewScene 에 즉시 적용 — 씬 재생성 없이.
+	// UI 카메라/방향 값을 Settings 에 거둬 PreviewViewport 에 즉시 적용 — 씬 재생성 없이.
 	void ApplyCameraFromUI();
 
 	// 캡처 진행 콜백 — UHktAnimCaptureFunctionLibrary 가 매 프레임 호출.
@@ -137,16 +133,12 @@ private:
 	TSharedPtr<SMultiLineEditableTextBox> ResultBox;
 
 	// === Preview =========================================================
-	TSharedPtr<SImage> PreviewImage;
-	TSharedPtr<FSlateBrush> PreviewBrush;
-	TSharedPtr<class STextBlock> PreviewStatusText;
-	TSharedPtr<class FActiveTimerHandle> PreviewTimerHandle;
+	// SkeletalMesh 에디터와 동일한 표준 에디터 렌더 경로(SEditorViewport +
+	// FEditorViewportClient + FAdvancedPreviewScene). SceneCapture2D 의 라이팅
+	// 한계(동적 메시 ambient 미적용 등)를 회피한다 — 캡처 씬과는 별개.
+	TSharedPtr<SHktAnimPreviewViewport> PreviewViewport;
+	TSharedPtr<class STextBlock>        PreviewStatusText;
 
-	// 캡처 씬을 그대로 프리뷰에도 사용 — 카메라/프레이밍 = 캡처 결과와 1:1.
-	TUniquePtr<FHktAnimCaptureScene> PreviewScene;
-
-	bool bPreviewPlaying = true;
-	float PreviewTimeSec = 0.0f;
 	int32 PreviewDirectionIdx = 0;
 
 	// 상태 ===============================================================
