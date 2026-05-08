@@ -343,6 +343,17 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
   .btn-add-child:hover { background:var(--panel); }
   #auth-indicator { font-size:11px; color:var(--muted); flex:0 0 auto; }
   #auth-indicator.ok { color:var(--active); }
+  /* --- Pending(예약) 표시 --- */
+  .card.pending-create, .card.pending-update { background:rgba(252,211,77,0.10); }
+  .card.pending-create.tip, .card.pending-update.tip { background:rgba(252,211,77,0.20); }
+  .card.pending-delete { background:rgba(239,68,68,0.10); }
+  .card.pending-delete.tip { background:rgba(239,68,68,0.18); }
+  .pending-chip { display:inline-block; background:var(--proposed); color:#422006; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600; margin-left:4px; }
+  .pending-chip.delete { background:#f87171; color:#450a0a; }
+  ul.list li.pending-create, ul.list li.pending-update { background:rgba(252,211,77,0.12); }
+  ul.list li.pending-delete { background:rgba(239,68,68,0.12); text-decoration:line-through; opacity:0.7; }
+  ul.rel li.pending-create, ul.rel li.pending-update { background:rgba(252,211,77,0.12) !important; }
+  ul.rel li.pending-delete { background:rgba(239,68,68,0.12) !important; text-decoration:line-through; opacity:0.7; }
 </style>
 <script type="application/json" id="validation-rules">__RULES_JSON__</script>
 <script src="store/intent-store.js"></script>
@@ -460,8 +471,12 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
   const toastWrap     = document.getElementById('toast-wrap');
 
   // ── 데이터 상태 (라이브) ────────────────────────────────────────────────────
+  // baseIntents: 서버에서 마지막으로 가져온 진본
+  // DATA.intents: baseIntents + pendingChanges 머지된 view (UI 가 읽음)
   const DATA = { intents: [] };
   const intentsById = Object.create(null);
+  let baseIntents = [];
+  const baseIntentsById = Object.create(null);
   let store = null;
   let pendingChanges = [];
   let editTarget = null;
@@ -605,6 +620,7 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
       const cls = [];
       if (overflow) cls.push('overflow');
       if (inStack(id)) cls.push(isTip(id) ? 'tip' : 'in-stack');
+      if (it._pending) cls.push('pending-' + it._pending);
       return `<li class="${cls.join(' ')}"${overflow ? ' hidden' : ''}`
            + ` data-goto="${escape(id)}" data-from="${ownerCardIdx}"`
            + ` title="${escape(it.title)}">`
@@ -631,6 +647,13 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
       return card;
     }
 
+    if (it._pending) card.classList.add('pending-' + it._pending);
+    const pendingChip = it._pending
+      ? (it._pending === 'delete'
+         ? `<span class="pending-chip delete">삭제 예약</span>`
+         : `<span class="pending-chip">${it._pending === 'create' ? '추가' : '수정'} 예약</span>`)
+      : '';
+
     const tags = (it.tags || []).map(t => `<span class="tag">${escape(t)}</span>`).join('');
     const goalsHtml = (it.goals || []).map(gid =>
       `<li><code>${escape(gid)}</code> <small style="color:var(--muted)">→ Docs/goals/${escape(gid)}.md</small></li>`
@@ -646,6 +669,7 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
           <span class="id">${escape(it.id)}</span>
           <span class="status ${escape(it.status)}">${escape(it.status)}</span>
           ${pillHtml(it)}
+          ${pendingChip}
           <button class="btn-edit" data-edit-id="${escape(it.id)}" title="편집">✎</button>
         </div>
         <h1>${escape(it.title)}</h1>
@@ -860,9 +884,15 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
       const li = document.createElement('li');
       li.dataset.id = it.id;
       if (inStack(it.id)) li.classList.add(isTip(it.id) ? 'tip' : 'in-stack');
+      if (it._pending) li.classList.add('pending-' + it._pending);
+      const liChip = it._pending
+        ? (it._pending === 'delete'
+           ? `<span class="pending-chip delete">삭제</span>`
+           : `<span class="pending-chip">${it._pending === 'create' ? '추가' : '수정'}</span>`)
+        : '';
       li.innerHTML = `<span class="id">${escape(it.id)}</span>${escape(it.title)} `
                    + `<span class="status ${escape(it.status)}">${escape(it.status)}</span>`
-                   + `${pillHtml(it)}`;
+                   + `${pillHtml(it)}${liChip}`;
       li.addEventListener('click', () => {
         setRoot(it.id);
         if (window.matchMedia('(max-width: 800px)').matches) closeDrawer();
@@ -1014,53 +1044,82 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
       children: getChecked('em-children'),
       tags: document.getElementById('em-tags').value.split(',').map(s => s.trim()).filter(Boolean),
     };
-    // 신규 intent 는 서버가 ID 를 발급하고 부모의 children 도 자동 동기화하므로,
-    // 클라이언트 사전 검증에서는 placeholder ID 를 양쪽에 미러링해 false positive 를 막는다.
-    const NEW_ID = '__new__';
+
+    // 동작 분류: 신규(브랜드뉴) / 예약된 create 편집 / 일반 update (실/예약)
+    const ed = editTarget;
+    const editingPendingCreate = !ed.isNew && ed.intent._pending === 'create';
+    const isCreate = ed.isNew || editingPendingCreate;
+
+    // 새 ID 결정 — 예약된 create 편집은 기존 ID 유지, 브랜드뉴는 다음 가용 ID.
+    let myId;
+    if (editingPendingCreate) myId = ed.intent.id;
+    else if (ed.isNew) myId = nextAvailableId();
+    else myId = ed.intent.id;
+
+    // 검증용 테스트 리스트 — 부모/자식 양방향을 미러링해 양방향 일관성 false positive 방지.
     let testList;
-    if (editTarget.isNew) {
+    if (isCreate) {
       const parentSet = new Set(patch.parents);
       const childSet = new Set(patch.children);
-      testList = DATA.intents.map(x => {
-        let copy = x;
-        if (parentSet.has(x.id)) copy = { ...copy, children: [...(copy.children || []), NEW_ID] };
-        if (childSet.has(x.id)) copy = { ...copy, parents: [...(copy.parents || []), NEW_ID] };
+      testList = baseIntents.map(x => {
+        let copy = { ...x };
+        if (parentSet.has(x.id)) copy.children = [...(copy.children || []), myId];
+        if (childSet.has(x.id)) copy.parents = [...(copy.parents || []), myId];
         return copy;
       });
-      testList.push(Object.assign({ id: NEW_ID }, patch));
+      testList.push(Object.assign({ id: myId }, patch));
     } else {
-      testList = DATA.intents.map(x => x.id === editTarget.intent.id ? Object.assign({}, x, patch) : x);
+      testList = baseIntents.map(x => x.id === myId ? Object.assign({}, x, patch) : x);
     }
     const errs = IntentValidator.validate(testList);
-    const myId = editTarget.isNew ? NEW_ID : editTarget.intent.id;
-    const relevant = errs.filter(e =>
-      e.id === myId && !(editTarget.isNew && e.field === 'id')
-    );
+    const relevant = errs.filter(e => e.id === myId);
     if (relevant.length) { showFormError(relevant.map(e => '[' + e.field + '] ' + e.message).join('\n')); return; }
 
-    if (editTarget.isNew) {
-      pendingChanges.push({ type: 'create', intent: patch });
+    if (isCreate) {
+      // 기존 동일 ID 의 예약된 create 가 있으면 제거 후 재추가.
+      pendingChanges = pendingChanges.filter(c => !(c.type === 'create' && c.intent.id === myId));
+      pendingChanges.push({ type: 'create', intent: Object.assign({ id: myId }, patch) });
     } else {
-      const id = editTarget.intent.id;
-      pendingChanges = pendingChanges.filter(c => !(c.type !== 'create' && c.intent.id === id));
-      pendingChanges.push({ type: 'update', intent: Object.assign({}, editTarget.intent, patch), baseVersion: editTarget.intent.baseVersion });
+      pendingChanges = pendingChanges.filter(c => !(c.type !== 'create' && c.intent.id === myId));
+      const baseIt = baseIntentsById[myId] || ed.intent;
+      pendingChanges.push({ type: 'update', intent: Object.assign({}, baseIt, patch, { id: myId }), baseVersion: baseIt.baseVersion });
     }
+    applyView();
     editModal.close();
     markUnsaved();
+    rebuildTagFilter();
+    renderList();
+    renderStack();
     showToast('변경 예약됨. [저장] 을 눌러 커밋하세요');
   });
 
   document.getElementById('em-delete').addEventListener('click', async () => {
     const intent = editTarget.intent;
-    const hasChildren = DATA.intents.some(x => (x.parents || []).includes(intent.id));
+    const hasChildren = DATA.intents.some(x =>
+      x.id !== intent.id && (x.parents || []).includes(intent.id) && x._pending !== 'delete'
+    );
     if (hasChildren) { showFormError('자식 Intent 가 있어 삭제할 수 없습니다'); return; }
     editModal.close();
     const ok = await confirm$('"' + intent.id + '" 를 삭제하시겠습니까?');
     if (!ok) return;
-    pendingChanges = pendingChanges.filter(c => c.intent.id !== intent.id);
-    pendingChanges.push({ type: 'delete', intent, baseVersion: intent.baseVersion });
-    markUnsaved();
-    showToast('삭제 예약됨. [저장] 을 눌러 커밋하세요');
+    if (intent._pending === 'create') {
+      // 아직 서버에 없는 예약된 create — 그냥 예약을 취소.
+      pendingChanges = pendingChanges.filter(c => !(c.type === 'create' && c.intent.id === intent.id));
+    } else {
+      pendingChanges = pendingChanges.filter(c => c.intent.id !== intent.id);
+      const baseIt = baseIntentsById[intent.id] || intent;
+      pendingChanges.push({ type: 'delete', intent: baseIt, baseVersion: baseIt.baseVersion });
+    }
+    applyView();
+    if (pendingChanges.length === 0) clearUnsaved(); else markUnsaved();
+    rebuildTagFilter();
+    renderList();
+    // 스택에서 삭제된 ID 정리.
+    stackIds = stackIds.filter(id => intentsById[id]);
+    if (!stackIds.length && DATA.intents.length) stackIds = [DATA.intents[0].id];
+    renderBreadcrumb();
+    renderStack();
+    showToast(intent._pending === 'create' ? '추가 예약 취소됨' : '삭제 예약됨. [저장] 을 눌러 커밋하세요');
   });
 
   // ── Unsaved / Save ─────────────────────────────────────────────────────────
@@ -1176,6 +1235,46 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
     for (const it of intents) intentsById[it.id] = it;
   }
 
+  function setBaseIntents(intents) {
+    baseIntents = intents.slice();
+    for (const k of Object.keys(baseIntentsById)) delete baseIntentsById[k];
+    for (const it of baseIntents) baseIntentsById[it.id] = it;
+    applyView();
+  }
+
+  /** baseIntents 위에 pendingChanges 를 머지하여 DATA.intents 를 갱신한다. */
+  function applyView() {
+    const map = new Map();
+    for (const it of baseIntents) map.set(it.id, { ...it });
+    for (const ch of pendingChanges) {
+      if (ch.type === 'create') {
+        map.set(ch.intent.id, { ...ch.intent, _pending: 'create', baseVersion: null });
+      } else if (ch.type === 'update') {
+        const cur = map.get(ch.intent.id);
+        if (cur) {
+          map.set(ch.intent.id, { ...cur, ...ch.intent, _pending: 'update' });
+        }
+      } else if (ch.type === 'delete') {
+        const cur = map.get(ch.intent.id);
+        if (cur) map.set(ch.intent.id, { ...cur, _pending: 'delete' });
+      }
+    }
+    const merged = [...map.values()].sort((a, b) => a.id.localeCompare(b.id));
+    applyIntents(merged);
+  }
+
+  /** 다음 사용 가능한 I-NNNN ID — baseIntents + pending creates 를 모두 회피. */
+  function nextAvailableId(excludeId) {
+    const used = new Set();
+    for (const it of baseIntents) used.add(it.id);
+    for (const ch of pendingChanges) {
+      if (ch.type === 'create' && ch.intent.id !== excludeId) used.add(ch.intent.id);
+    }
+    let n = 1;
+    while (used.has(`I-${String(n).padStart(4, '0')}`)) n++;
+    return `I-${String(n).padStart(4, '0')}`;
+  }
+
   function diagnoseFetchError(err) {
     const msg = (err && err.message) ? String(err.message) : String(err);
     if (msg.includes('404')) {
@@ -1192,7 +1291,7 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
     if (!store) return;
     try {
       const intents = await store.list();
-      applyIntents(intents);
+      setBaseIntents(intents);
       // 스택 정합성 — 사라진 ID 는 제거.
       stackIds = stackIds.filter(id => intentsById[id]);
       if (!stackIds.length && DATA.intents.length) stackIds = [DATA.intents[0].id];
@@ -1235,7 +1334,7 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
 
     try {
       const intents = await store.list();
-      applyIntents(intents);
+      setBaseIntents(intents);
       rebuildTagFilter();
       renderList();
 
