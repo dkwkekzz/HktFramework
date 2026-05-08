@@ -15,6 +15,7 @@ from __future__ import annotations
 import html
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Sequence
 
 from .parser import Intent
@@ -46,8 +47,13 @@ def generate_site(intents: Sequence[Intent], *, generated_at: str | None = None)
     }
     data_json = json.dumps(payload, ensure_ascii=False)
 
-    return _HTML_TEMPLATE.replace("__DATA_JSON__", _safe_script_json(data_json)) \
-                         .replace("__GENERATED_AT__", html.escape(timestamp))
+    rules_path = Path(__file__).parent / "rules.json"
+    rules_json = rules_path.read_text(encoding="utf-8") if rules_path.exists() else "{}"
+
+    return (_HTML_TEMPLATE
+            .replace("__DATA_JSON__", _safe_script_json(data_json))
+            .replace("__GENERATED_AT__", html.escape(timestamp))
+            .replace("__RULES_JSON__", _safe_script_json(rules_json)))
 
 
 def _safe_script_json(s: str) -> str:
@@ -299,13 +305,57 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
     #drawer { width: 100%; max-width: 100%; }
     .card-body { padding-bottom: 60px; }
   }
+
+  /* --- Edit UI (Phase 1) --- */
+  dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:20px; min-width:340px; max-width:620px; width:90vw; }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+  dialog h3 { margin:0 0 12px; font-size:15px; }
+  dialog label { display:block; font-size:12px; color:var(--muted); margin-bottom:10px; }
+  dialog label > input, dialog label > textarea, dialog label > select {
+    display:block; width:100%; margin-top:4px;
+    background:var(--bg); color:var(--text); border:1px solid var(--line);
+    padding:7px 9px; border-radius:4px; font:inherit;
+  }
+  dialog label > textarea { resize:vertical; min-height:100px; }
+  .modal-actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .modal-actions button {
+    background:var(--panel2); color:var(--text); border:1px solid var(--line);
+    padding:7px 14px; border-radius:4px; cursor:pointer; font:inherit;
+  }
+  .modal-actions button:hover { border-color:var(--accent); }
+  .modal-actions button.primary { background:var(--accent-deep); border-color:var(--accent); }
+  .modal-actions button.danger { color:#f87171; border-color:#f87171; }
+  .modal-errors { color:#f87171; font-size:12px; margin-top:8px; white-space:pre-line; }
+  .badge-unsaved { display:inline-block; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:600; background:#d97706; color:#fff; }
+  #toast-wrap { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+  .toast { background:var(--panel2); color:var(--text); border:1px solid var(--line); padding:10px 18px; border-radius:6px; font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.4); animation:toast-in .2s ease-out; pointer-events:auto; }
+  .toast.error { border-color:#f87171; }
+  .toast.success { border-color:var(--active); }
+  @keyframes toast-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .btn-edit { background:transparent; border:1px solid var(--line); color:var(--muted); padding:2px 6px; border-radius:3px; cursor:pointer; font:inherit; font-size:11px; }
+  .btn-edit:hover { color:var(--text); border-color:var(--accent); }
+  .multi-sel { border:1px solid var(--line); border-radius:4px; max-height:140px; overflow-y:auto; background:var(--bg); margin-top:4px; }
+  .multi-sel label { padding:4px 8px; cursor:pointer; color:var(--text); display:flex; align-items:center; gap:6px; margin-bottom:0; font-size:13px; }
+  .multi-sel label:hover { background:var(--panel); }
+  #auth-indicator { font-size:11px; color:var(--muted); flex:0 0 auto; }
+  #auth-indicator.ok { color:var(--active); }
 </style>
+<script type="application/json" id="validation-rules">__RULES_JSON__</script>
+<script src="store/intent-store.js"></script>
+<script src="store/validator.js"></script>
+<script src="store/github.js"></script>
 </head>
 <body>
   <header id="topbar">
     <button id="btn-menu" title="목록 (/) " aria-label="목록">≡</button>
     <button id="btn-back" title="뒤로 (Backspace)" aria-label="뒤로" disabled>←</button>
     <nav id="breadcrumb" aria-label="navigation stack"></nav>
+    <span id="unsaved-badge" class="badge-unsaved" hidden>Unsaved</span>
+    <button id="btn-save" hidden disabled>저장</button>
+    <button id="btn-create-pr" hidden>PR 생성</button>
+    <button id="btn-new" title="새 Intent 추가" hidden>＋</button>
+    <span id="auth-indicator"></span>
+    <button id="btn-settings" title="GitHub 설정">⚙</button>
     <span id="generated" title="last generated">__GENERATED_AT__</span>
   </header>
   <div id="drawer-scrim"></div>
@@ -328,6 +378,47 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
     <div class="drawer-body"><ul id="list" class="list"></ul></div>
   </aside>
   <main id="stack" aria-live="polite"></main>
+  <div id="toast-wrap"></div>
+  <dialog id="token-modal">
+    <h3>GitHub 연결 설정</h3>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 12px">fine-grained PAT (Contents: read+write) — IndexedDB 에만 저장</p>
+    <label>Owner / Repo<input id="ti-repo" placeholder="owner/repo" autocomplete="off"></label>
+    <label>Token<input id="ti-token" type="password" placeholder="ghp_..." autocomplete="off"></label>
+    <div class="modal-actions">
+      <button id="ti-save" class="primary">저장</button>
+      <button id="ti-cancel">취소</button>
+      <button id="ti-clear" class="danger">토큰 지우기</button>
+    </div>
+  </dialog>
+  <dialog id="edit-modal">
+    <h3 id="em-heading">Intent 편집</h3>
+    <label>제목<input id="em-title" type="text" maxlength="200"></label>
+    <label>Status
+      <select id="em-status">
+        <option value="active">active</option>
+        <option value="proposed">proposed</option>
+        <option value="realized">realized</option>
+        <option value="abandoned">abandoned</option>
+      </select>
+    </label>
+    <label>Intent 본문<textarea id="em-intent" rows="7"></textarea></label>
+    <label>Parents<div class="multi-sel" id="em-parents"></div></label>
+    <label>Children<div class="multi-sel" id="em-children"></div></label>
+    <label>Tags (쉼표 구분)<input id="em-tags" placeholder="tag1, tag2"></label>
+    <div class="modal-errors" id="em-errors" hidden></div>
+    <div class="modal-actions">
+      <button id="em-ok" class="primary">저장 예약</button>
+      <button id="em-cancel">취소</button>
+      <button id="em-delete" class="danger">삭제</button>
+    </div>
+  </dialog>
+  <dialog id="confirm-modal">
+    <h3 id="cm-msg">삭제하시겠습니까?</h3>
+    <div class="modal-actions">
+      <button id="cm-ok" class="danger">확인</button>
+      <button id="cm-cancel">취소</button>
+    </div>
+  </dialog>
 
 <script type="application/json" id="intent-data">__DATA_JSON__</script>
 <script>
@@ -499,6 +590,7 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
           <span class="id">${escape(it.id)}</span>
           <span class="status ${escape(it.status)}">${escape(it.status)}</span>
           ${pillHtml(it)}
+          <button class="btn-edit" data-edit-id="${escape(it.id)}" title="편집">✎</button>
         </div>
         <h1>${escape(it.title)}</h1>
         <div class="tags">${tags}</div>
@@ -797,6 +889,305 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
   renderBreadcrumb();
   renderListSelection();
   renderStack();
+
+  window.renderList = renderList;
+  window.renderBreadcrumb = renderBreadcrumb;
+  window.renderStack = renderStack;
+  window.DATA = DATA;
+  window.intentsById = intentsById;
+})();
+</script>
+<script>
+// ─── Phase 1 Edit Mode ───────────────────────────────────────────────────────
+// GitHubStore / IntentValidator / StaleError が store/JS から読み込まれ済みを前提とする.
+// window.DATA, window.intentsById, window.renderList/Breadcrumb/Stack をメインIIFEが公開.
+(() => {
+  'use strict';
+  if (typeof GitHubStore === 'undefined') return; // store JS が未ロード
+
+  let store = null;
+  let liveIntents = null;
+  let pendingChanges = [];
+  let editTarget = null;
+  let saveTimer = null;
+
+  const btnNew       = document.getElementById('btn-new');
+  const btnSave      = document.getElementById('btn-save');
+  const btnPR        = document.getElementById('btn-create-pr');
+  const btnSettings  = document.getElementById('btn-settings');
+  const unsavedBadge = document.getElementById('unsaved-badge');
+  const authIndicator= document.getElementById('auth-indicator');
+  const tokenModal   = document.getElementById('token-modal');
+  const editModal    = document.getElementById('edit-modal');
+  const confirmModal = document.getElementById('confirm-modal');
+  const toastWrap    = document.getElementById('toast-wrap');
+  const stackEl      = document.getElementById('stack');
+
+  // ── 토스트 ──────────────────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (type ? ' ' + type : '');
+    el.textContent = msg;
+    toastWrap.appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+  }
+
+  // ── 확인 다이얼로그 ──────────────────────────────────────────────────────────
+  let _confirmResolve = null;
+  document.getElementById('cm-ok').addEventListener('click', () => {
+    confirmModal.close(); _confirmResolve && _confirmResolve(true);
+  });
+  document.getElementById('cm-cancel').addEventListener('click', () => {
+    confirmModal.close(); _confirmResolve && _confirmResolve(false);
+  });
+  function confirm$(msg) {
+    return new Promise(res => {
+      _confirmResolve = res;
+      document.getElementById('cm-msg').textContent = msg;
+      confirmModal.showModal();
+    });
+  }
+
+  // ── 인증 UI 갱신 ─────────────────────────────────────────────────────────────
+  function updateAuthUI(ok) {
+    authIndicator.textContent = ok ? '● 연결됨' : '';
+    authIndicator.className = ok ? 'ok' : '';
+    [btnNew, btnSave, btnPR].forEach(b => { b.hidden = !ok; });
+    if (!ok) unsavedBadge.hidden = true;
+  }
+
+  // ── 토큰 모달 ───────────────────────────────────────────────────────────────
+  btnSettings.addEventListener('click', async () => {
+    const cfg = await GitHubStore.loadConfig().catch(() => null);
+    document.getElementById('ti-repo').value = cfg ? cfg.owner + '/' + cfg.repo : '';
+    document.getElementById('ti-token').value = cfg ? cfg.token : '';
+    tokenModal.showModal();
+  });
+  document.getElementById('ti-cancel').addEventListener('click', () => tokenModal.close());
+  document.getElementById('ti-save').addEventListener('click', async () => {
+    const raw = document.getElementById('ti-repo').value.trim();
+    const token = document.getElementById('ti-token').value.trim();
+    const parts = raw.split('/');
+    if (parts.length < 2 || !parts[0] || !parts[1] || !token) {
+      showToast('owner/repo 와 token 을 입력하세요', 'error'); return;
+    }
+    await GitHubStore.saveConfig({ owner: parts[0], repo: parts.slice(1).join('/'), token });
+    tokenModal.close();
+    await initStore();
+  });
+  document.getElementById('ti-clear').addEventListener('click', async () => {
+    await GitHubStore.clearConfig().catch(() => {});
+    store = null; liveIntents = null; pendingChanges = [];
+    updateAuthUI(false);
+    tokenModal.close();
+    showToast('토큰이 삭제되었습니다');
+  });
+
+  // ── multi-select 빌더 ────────────────────────────────────────────────────────
+  function buildMultiSel(containerId, excludeId, selected) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    const source = liveIntents || DATA.intents;
+    for (const it of source) {
+      if (it.id === excludeId) continue;
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.value = it.id;
+      if ((selected || []).includes(it.id)) cb.checked = true;
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(' ' + it.id + ' ' + it.title.slice(0, 40)));
+      container.appendChild(label);
+    }
+  }
+  function getChecked(containerId) {
+    return [...document.querySelectorAll('#' + containerId + ' input:checked')].map(cb => cb.value);
+  }
+
+  // ── 편집 모달 ────────────────────────────────────────────────────────────────
+  function openEditModal(intent, isNew) {
+    editTarget = { intent: Object.assign({}, intent), isNew };
+    document.getElementById('em-heading').textContent = isNew ? '새 Intent' : '편집: ' + intent.id;
+    document.getElementById('em-title').value = intent.title || '';
+    document.getElementById('em-status').value = intent.status || 'proposed';
+    document.getElementById('em-intent').value = intent.intent || '';
+    document.getElementById('em-tags').value = (intent.tags || []).join(', ');
+    document.getElementById('em-errors').hidden = true;
+    document.getElementById('em-delete').style.display = isNew ? 'none' : '';
+    buildMultiSel('em-parents', isNew ? null : intent.id, intent.parents || []);
+    buildMultiSel('em-children', isNew ? null : intent.id, intent.children || []);
+    editModal.showModal();
+  }
+  document.getElementById('em-cancel').addEventListener('click', () => editModal.close());
+
+  document.getElementById('em-ok').addEventListener('click', () => {
+    const title = document.getElementById('em-title').value.trim();
+    if (!title) { showFormError('제목을 입력하세요'); return; }
+    const patch = {
+      title,
+      status: document.getElementById('em-status').value,
+      intent: document.getElementById('em-intent').value.trim(),
+      parents: getChecked('em-parents'),
+      children: getChecked('em-children'),
+      tags: document.getElementById('em-tags').value.split(',').map(s => s.trim()).filter(Boolean),
+    };
+    const source = liveIntents || DATA.intents;
+    const testList = editTarget.isNew
+      ? source.concat([Object.assign({ id: '__new__' }, patch)])
+      : source.map(x => x.id === editTarget.intent.id ? Object.assign({}, x, patch) : x);
+    const errs = IntentValidator.validate(testList);
+    const myId = editTarget.isNew ? '__new__' : editTarget.intent.id;
+    const relevant = errs.filter(e => e.id === myId);
+    if (relevant.length) { showFormError(relevant.map(e => '[' + e.field + '] ' + e.message).join('\n')); return; }
+
+    if (editTarget.isNew) {
+      pendingChanges.push({ type: 'create', intent: patch });
+    } else {
+      const id = editTarget.intent.id;
+      pendingChanges = pendingChanges.filter(c => !(c.type !== 'create' && c.intent.id === id));
+      pendingChanges.push({ type: 'update', intent: Object.assign({}, editTarget.intent, patch), baseVersion: editTarget.intent.baseVersion });
+    }
+    editModal.close();
+    markUnsaved();
+    scheduleAutoSave();
+    showToast('변경 예약됨. 30초 후 자동 저장됩니다');
+  });
+
+  document.getElementById('em-delete').addEventListener('click', async () => {
+    const intent = editTarget.intent;
+    const source = liveIntents || DATA.intents;
+    const hasChildren = source.some(x => (x.parents || []).includes(intent.id));
+    if (hasChildren) { showFormError('자식 Intent 가 있어 삭제할 수 없습니다'); return; }
+    editModal.close();
+    const ok = await confirm$('"' + intent.id + '" 를 삭제하시겠습니까?');
+    if (!ok) return;
+    pendingChanges = pendingChanges.filter(c => c.intent.id !== intent.id);
+    pendingChanges.push({ type: 'delete', intent, baseVersion: intent.baseVersion });
+    markUnsaved();
+    scheduleAutoSave();
+    showToast('삭제 예약됨. 30초 후 자동 저장됩니다');
+  });
+
+  function showFormError(msg) {
+    const el = document.getElementById('em-errors');
+    el.textContent = msg; el.hidden = false;
+  }
+
+  // ── Unsaved / Save ───────────────────────────────────────────────────────────
+  function markUnsaved() {
+    unsavedBadge.hidden = false;
+    btnSave.disabled = false;
+  }
+  function clearUnsaved() {
+    unsavedBadge.hidden = true;
+    btnSave.disabled = true;
+    pendingChanges = [];
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  }
+  function scheduleAutoSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 30000);
+  }
+  btnSave.addEventListener('click', () => { if (saveTimer) clearTimeout(saveTimer); doSave(); });
+
+  async function doSave() {
+    if (!store) { showToast('GitHub 토큰을 먼저 설정하세요', 'error'); return; }
+    if (!pendingChanges.length) return;
+    const origText = btnSave.textContent;
+    btnSave.textContent = '저장 중…'; btnSave.disabled = true;
+    const snapshot = pendingChanges.slice();
+    try {
+      for (const ch of snapshot) {
+        if (ch.type === 'create') {
+          const created = await store.create(ch.intent);
+          showToast(created.id + ' 생성됨', 'success');
+        } else if (ch.type === 'update') {
+          await store.update(ch.intent.id, ch.intent, ch.baseVersion);
+        } else if (ch.type === 'delete') {
+          await store.remove(ch.intent.id, ch.baseVersion);
+        }
+      }
+      clearUnsaved();
+      showToast('저장 완료', 'success');
+      await refreshFromGitHub();
+    } catch (e) {
+      if (e.name === 'StaleError') {
+        showToast('외부에서 변경됨 — 새로고침 후 다시 시도하세요', 'error');
+      } else {
+        showToast('저장 실패: ' + e.message, 'error');
+        btnSave.disabled = false;
+      }
+    } finally {
+      btnSave.textContent = origText;
+      if (pendingChanges.length) btnSave.disabled = false;
+    }
+  }
+
+  // ── PR 생성 ──────────────────────────────────────────────────────────────────
+  btnPR.addEventListener('click', async () => {
+    if (!store) { showToast('GitHub 토큰을 먼저 설정하세요', 'error'); return; }
+    if (pendingChanges.length) { showToast('먼저 [저장]을 완료하세요', 'error'); return; }
+    try {
+      const url = await store.createPR('intent: 의도 편집', 'intents/draft → main\n\n자동 생성된 PR');
+      showToast('PR 생성됨', 'success');
+      window.open(url, '_blank');
+    } catch (e) { showToast('PR 생성 실패: ' + e.message, 'error'); }
+  });
+
+  // ── 새 Intent 버튼 ───────────────────────────────────────────────────────────
+  btnNew.addEventListener('click', () => {
+    if (!store) { tokenModal.showModal(); return; }
+    openEditModal({ id: '', title: '', status: 'proposed', intent: '', parents: [], children: [], tags: [], baseVersion: null }, true);
+  });
+
+  // ── ✎ 버튼 이벤트 위임 (data-edit-id) ──────────────────────────────────────
+  stackEl.addEventListener('click', e => {
+    const btn = e.target.closest('[data-edit-id]');
+    if (!btn) return;
+    e.stopPropagation();
+    const id = btn.dataset.editId;
+    if (!store) { tokenModal.showModal(); return; }
+    const it = (liveIntents || DATA.intents).find(x => x.id === id);
+    if (!it) return;
+    openEditModal(it, false);
+  });
+
+  // ── GitHub 데이터 갱신 ───────────────────────────────────────────────────────
+  async function refreshFromGitHub() {
+    if (!store) return;
+    try {
+      const intents = await store.list();
+      liveIntents = intents;
+      DATA.intents.length = 0;
+      for (const it of intents) DATA.intents.push(it);
+      for (const k of Object.keys(intentsById)) delete intentsById[k];
+      for (const it of intents) intentsById[it.id] = it;
+      renderList();
+      renderBreadcrumb();
+      renderStack();
+    } catch (e) {
+      console.warn('refreshFromGitHub 실패:', e);
+    }
+  }
+
+  // ── Store 초기화 ──────────────────────────────────────────────────────────────
+  async function initStore() {
+    const cfg = await GitHubStore.loadConfig().catch(() => null);
+    if (!cfg) { updateAuthUI(false); return; }
+    store = new GitHubStore(cfg);
+    updateAuthUI(true);
+    try {
+      await refreshFromGitHub();
+      store.subscribe(async () => {
+        if (pendingChanges.length) return;
+        await refreshFromGitHub();
+      });
+    } catch (e) {
+      showToast('GitHub 연결 실패: ' + e.message, 'error');
+      updateAuthUI(false);
+    }
+  }
+
+  initStore();
 })();
 </script>
 </body>
