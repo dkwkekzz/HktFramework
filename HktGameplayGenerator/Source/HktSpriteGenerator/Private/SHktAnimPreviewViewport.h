@@ -6,7 +6,6 @@
 #include "EditorViewportClient.h"
 #include "HktAnimCaptureTypes.h"
 #include "SEditorViewport.h"
-#include "UObject/GCObject.h"
 
 class FAdvancedPreviewScene;
 class UAnimSequence;
@@ -28,7 +27,7 @@ class UHktCameraFramingProfile;
  * 캡처(PNG 출력)는 별도 경로 — `FHktAnimCaptureScene` 의 SceneCapture2D 가 의도된
  * "평면(BaseColor) 알파 보존" 출력을 그대로 만든다. 본 위젯은 프리뷰 전용.
  */
-class FHktAnimPreviewViewportClient : public FEditorViewportClient, public FGCObject
+class FHktAnimPreviewViewportClient : public FEditorViewportClient
 {
 public:
 	FHktAnimPreviewViewportClient(
@@ -38,7 +37,7 @@ public:
 	// FEditorViewportClient ===============================================
 	virtual void Tick(float DeltaSeconds) override;
 
-	// FGCObject ===========================================================
+	// FGCObject (FEditorViewportClient 가 이미 상속 — 다중 상속 금지, override 만) ===
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override { return TEXT("FHktAnimPreviewViewportClient"); }
 

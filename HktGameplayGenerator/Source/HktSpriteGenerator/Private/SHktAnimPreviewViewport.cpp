@@ -52,6 +52,10 @@ FHktAnimPreviewViewportClient::FHktAnimPreviewViewportClient(
 
 void FHktAnimPreviewViewportClient::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	// 부모(FEditorViewportClient → FGCObject)도 자체 참조를 등록 — 빠뜨리면 PostProcess 등
+	// 내부 UObject 가 GC 로 회수될 위험.
+	FEditorViewportClient::AddReferencedObjects(Collector);
+
 	Collector.AddReferencedObject(MeshComp);
 	Collector.AddReferencedObject(KeyLight);
 	Collector.AddReferencedObject(FillLight);
@@ -62,10 +66,11 @@ void FHktAnimPreviewViewportClient::Tick(float DeltaSeconds)
 {
 	FEditorViewportClient::Tick(DeltaSeconds);
 
-	// AdvancedPreviewScene World tick — Sequencer/Anim 평가에 필요.
-	if (PreviewScene.IsValid())
+	// AdvancedPreviewScene World tick — Sequencer/Anim 평가에 필요. World 가 만들어지지
+	// 않은 비정상 경로에서는 진입하지 않도록 가드.
+	if (UWorld* World = PreviewScene->GetWorld())
 	{
-		PreviewScene->GetWorld()->Tick(LEVELTICK_All, DeltaSeconds);
+		World->Tick(LEVELTICK_All, DeltaSeconds);
 	}
 
 	if (!MeshComp || AnimLengthSec <= 0.0f)
@@ -103,8 +108,6 @@ void FHktAnimPreviewViewportClient::Rebuild(const FHktAnimCaptureSettings& Setti
 
 void FHktAnimPreviewViewportClient::RebuildMesh(const FHktAnimCaptureSettings& Settings)
 {
-	if (!PreviewScene.IsValid()) return;
-
 	if (MeshComp)
 	{
 		PreviewScene->RemoveComponent(MeshComp);
@@ -112,9 +115,23 @@ void FHktAnimPreviewViewportClient::RebuildMesh(const FHktAnimCaptureSettings& S
 	}
 
 	USkeletalMesh* Mesh = Settings.SkeletalMesh.LoadSynchronous();
-	if (!Mesh) return;
+	if (!Mesh)
+	{
+		UE_LOG(LogHktAnimPreview, Warning,
+			TEXT("RebuildMesh: SkeletalMesh 로드 실패 (path=%s) — 프리뷰 메시가 비어 있게 됩니다."),
+			*Settings.SkeletalMesh.ToSoftObjectPath().ToString());
+		AnimLengthSec = 0.0f;
+		return;
+	}
 
 	UAnimSequence* Anim = Settings.AnimSequence.LoadSynchronous();
+	if (!Settings.AnimSequence.IsNull() && !Anim)
+	{
+		// 경로는 지정됐는데 로드 실패 — 정적 포즈로 폴백. 사용자에게 명시.
+		UE_LOG(LogHktAnimPreview, Warning,
+			TEXT("RebuildMesh: AnimSequence 로드 실패 (path=%s) — 정적 포즈로 폴백."),
+			*Settings.AnimSequence.ToSoftObjectPath().ToString());
+	}
 
 	// 등록 전에 ticking/visibility 옵션 세팅 — InitAnim 이 등록 시점에 본다.
 	MeshComp = NewObject<USkeletalMeshComponent>(GetTransientPackage(), USkeletalMeshComponent::StaticClass(), NAME_None, RF_Transient);
@@ -146,6 +163,12 @@ void FHktAnimPreviewViewportClient::RebuildMesh(const FHktAnimCaptureSettings& S
 	SubjectFocus = MeshComp->Bounds.Origin;
 
 	CurrentTimeSec = 0.0f;
+
+	UE_LOG(LogHktAnimPreview, Log,
+		TEXT("RebuildMesh OK — Mesh=%s, Anim=%s, Length=%.2fs, Focus=(%.1f,%.1f,%.1f)"),
+		*Mesh->GetName(),
+		Anim ? *Anim->GetName() : TEXT("(none)"),
+		AnimLengthSec, SubjectFocus.X, SubjectFocus.Y, SubjectFocus.Z);
 }
 
 void FHktAnimPreviewViewportClient::UpdateLighting(const FHktAnimCaptureSettings& Settings)
@@ -165,7 +188,12 @@ void FHktAnimPreviewViewportClient::UpdateLighting(const FHktAnimCaptureSettings
 
 void FHktAnimPreviewViewportClient::ApplyLighting(const FHktAnimCaptureSettings& Settings)
 {
-	if (!PreviewScene.IsValid()) return;
+	UE_LOG(LogHktAnimPreview, Verbose,
+		TEXT("ApplyLighting — Default=%d Key=%d(I=%.2f) Fill=%d(I=%.2f) ExtraSky=%.2f"),
+		Settings.bUseDefaultLighting ? 1 : 0,
+		Settings.bEnableKeyLight ? 1 : 0, Settings.KeyLightIntensity,
+		Settings.bEnableFillLight ? 1 : 0, Settings.FillLightIntensity,
+		Settings.ExtraSkyLightIntensity);
 
 	// FAdvancedPreviewScene 의 디폴트 sky/key light 는 살아있다. 사용자가 끄겠다고 한 경우
 	// SkyBrightness 와 EnvironmentVisibility 만 조절. (라이트맵/Lumen/DFAO 가 표준 에디터
@@ -253,22 +281,37 @@ void FHktAnimPreviewViewportClient::ApplyCameraFraming(const FHktAnimCaptureSett
 	{
 		if (UClass* ModeClass = Settings.CameraModeClass.LoadSynchronous())
 		{
-			if (!ModeClass->HasAnyClassFlags(CLASS_Abstract))
+			if (ModeClass->HasAnyClassFlags(CLASS_Abstract))
 			{
-				if (UHktCameraModeBase* CDO = ModeClass->GetDefaultObject<UHktCameraModeBase>())
+				UE_LOG(LogHktAnimPreview, Warning,
+					TEXT("ApplyCameraFraming: CameraModeClass(%s) 가 Abstract — 파생 BP 또는 네이티브 구상 클래스를 골라야 한다. 프리셋으로 폴백."),
+					*ModeClass->GetPathName());
+			}
+			else if (UHktCameraModeBase* CDO = ModeClass->GetDefaultObject<UHktCameraModeBase>())
+			{
+				if (UHktCameraFramingProfile* Profile = CDO->Framing)
 				{
-					if (UHktCameraFramingProfile* Profile = CDO->Framing)
-					{
-						Proj      = Profile->ProjectionMode;
-						FOV       = Profile->FieldOfView;
-						OrthoW    = Profile->OrthoWidth;
-						Pitch     = Profile->DefaultPitch;
-						ArmLength = Profile->DefaultArmLength;
-						SocketOff = Profile->SocketOffset;
-						bResolvedFromAsset = true;
-					}
+					Proj      = Profile->ProjectionMode;
+					FOV       = Profile->FieldOfView;
+					OrthoW    = Profile->OrthoWidth;
+					Pitch     = Profile->DefaultPitch;
+					ArmLength = Profile->DefaultArmLength;
+					SocketOff = Profile->SocketOffset;
+					bResolvedFromAsset = true;
+				}
+				else
+				{
+					UE_LOG(LogHktAnimPreview, Warning,
+						TEXT("ApplyCameraFraming: CameraModeClass(%s) CDO 에 Framing 프로필이 없음 — 프리셋으로 폴백."),
+						*ModeClass->GetPathName());
 				}
 			}
+		}
+		else
+		{
+			UE_LOG(LogHktAnimPreview, Warning,
+				TEXT("ApplyCameraFraming: CameraModeClass 로드 실패 (path=%s) — 프리셋으로 폴백."),
+				*Settings.CameraModeClass.ToSoftObjectPath().ToString());
 		}
 	}
 
@@ -298,19 +341,25 @@ void FHktAnimPreviewViewportClient::ApplyCameraFraming(const FHktAnimCaptureSett
 	CachedSettings.ArmLength      = ArmLength;
 	CachedSocketOffset            = SocketOff;
 
-	// EditorViewport 측 카메라 모드 적용.
+	// EditorViewport 측 카메라 모드 적용 — 표준 setter 경유(부모 viewport 가 내부 상태 갱신).
 	if (Proj == ECameraProjectionMode::Perspective)
 	{
-		ViewportType = LVT_Perspective;
+		SetViewportType(LVT_Perspective);
 		ViewFOV = FMath::Clamp(FOV, 5.0f, 170.0f);
 	}
 	else
 	{
-		// LVT_OrthoFreelook — 자유 회전 가능한 ortho. SetOrthoZoom 단위는 viewport width
+		// LVT_OrthoFreelook — 자유 회전 가능한 ortho. OrthoZoom 단위는 viewport width
 		// (in unreal units). SceneCapture 의 OrthoWidth 와 동일 의미로 사용.
-		ViewportType = LVT_OrthoFreelook;
+		SetViewportType(LVT_OrthoFreelook);
 		SetOrthoZoom(FMath::Max(100.0f, OrthoW));
 	}
+
+	UE_LOG(LogHktAnimPreview, Verbose,
+		TEXT("ApplyCameraFraming — %s, Pitch=%.1f, Arm=%.1f, FOV=%.1f, OrthoW=%.1f, Socket=(%.1f,%.1f,%.1f), %s"),
+		(Proj == ECameraProjectionMode::Perspective) ? TEXT("Perspective") : TEXT("Ortho"),
+		Pitch, ArmLength, FOV, OrthoW, SocketOff.X, SocketOff.Y, SocketOff.Z,
+		bResolvedFromAsset ? TEXT("from CDO") : TEXT("from preset"));
 }
 
 void FHktAnimPreviewViewportClient::UpdateCameraTransform()
@@ -370,9 +419,21 @@ void SHktAnimPreviewViewport::Construct(const FArguments& InArgs)
 	PreviewScene = MakeShared<FAdvancedPreviewScene>(CVS);
 	PreviewScene->SetFloorVisibility(false, /*bDirect*/ true);
 
+	if (!PreviewScene->GetWorld())
+	{
+		UE_LOG(LogHktAnimPreview, Error,
+			TEXT("SHktAnimPreviewViewport::Construct: FAdvancedPreviewScene World 생성 실패. 프리뷰가 동작하지 않습니다."));
+	}
+
 	// SEditorViewport::Construct 가 MakeEditorViewportClient() 를 호출 — 그 안에서
 	// ViewportClient 가 만들어진다. PreviewScene 은 이 시점에 이미 준비되어 있어야 함.
 	SEditorViewport::Construct(SEditorViewport::FArguments());
+
+	if (!ViewportClient.IsValid())
+	{
+		UE_LOG(LogHktAnimPreview, Error,
+			TEXT("SHktAnimPreviewViewport::Construct: MakeEditorViewportClient 가 ViewportClient 를 만들지 않았습니다."));
+	}
 
 	// Construct 도중 Pending 이 있었다면 위젯 사이클이 끝난 직후 적용.
 	if (PendingRebuild.IsSet() && ViewportClient.IsValid())
@@ -390,8 +451,9 @@ SHktAnimPreviewViewport::~SHktAnimPreviewViewport()
 
 TSharedRef<FEditorViewportClient> SHktAnimPreviewViewport::MakeEditorViewportClient()
 {
-	check(PreviewScene.IsValid());
+	checkf(PreviewScene.IsValid(), TEXT("MakeEditorViewportClient 가 Construct 의 PreviewScene 생성 이전에 호출됨"));
 	ViewportClient = MakeShared<FHktAnimPreviewViewportClient>(SharedThis(this), PreviewScene.ToSharedRef());
+	UE_LOG(LogHktAnimPreview, Log, TEXT("SHktAnimPreviewViewport: ViewportClient 생성됨"));
 	return ViewportClient.ToSharedRef();
 }
 
@@ -403,7 +465,10 @@ void SHktAnimPreviewViewport::Rebuild(const FHktAnimCaptureSettings& Settings)
 	}
 	else
 	{
+		// Construct 가 끝나기 전(SEditorViewport::Construct 내부에서 콜백이 들어오는 경우)에는
+		// 보류했다가 Construct 마지막 단계에서 일괄 적용한다.
 		PendingRebuild = Settings;
+		UE_LOG(LogHktAnimPreview, Verbose, TEXT("Rebuild deferred — ViewportClient 가 아직 생성 전."));
 	}
 }
 
@@ -413,6 +478,10 @@ void SHktAnimPreviewViewport::UpdateLighting(const FHktAnimCaptureSettings& Sett
 	{
 		ViewportClient->UpdateLighting(Settings);
 	}
+	else
+	{
+		UE_LOG(LogHktAnimPreview, Warning, TEXT("UpdateLighting 호출 시 ViewportClient 가 없음 — 무시."));
+	}
 }
 
 void SHktAnimPreviewViewport::UpdateCamera(const FHktAnimCaptureSettings& Settings)
@@ -420,6 +489,10 @@ void SHktAnimPreviewViewport::UpdateCamera(const FHktAnimCaptureSettings& Settin
 	if (ViewportClient.IsValid())
 	{
 		ViewportClient->UpdateCamera(Settings);
+	}
+	else
+	{
+		UE_LOG(LogHktAnimPreview, Warning, TEXT("UpdateCamera 호출 시 ViewportClient 가 없음 — 무시."));
 	}
 }
 

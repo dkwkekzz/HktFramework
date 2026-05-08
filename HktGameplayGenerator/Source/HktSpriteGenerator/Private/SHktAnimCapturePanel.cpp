@@ -993,6 +993,12 @@ void SHktAnimCapturePanel::RebuildPreview()
 
 	if (!PreviewViewport.IsValid())
 	{
+		// 위젯 트리가 아직 안 만들어진 시점 — 일반적으로 발생하지 않음. 발생하면 명시.
+		if (PreviewStatusText.IsValid())
+		{
+			PreviewStatusText->SetText(LOCTEXT("PreviewNoViewport",
+				"PreviewViewport 위젯 미초기화 — 패널을 다시 열어주세요."));
+		}
 		return;
 	}
 
@@ -1000,7 +1006,8 @@ void SHktAnimCapturePanel::RebuildPreview()
 	{
 		if (PreviewStatusText.IsValid())
 		{
-			PreviewStatusText->SetText(LOCTEXT("PreviewNoMesh", "SkeletalMesh 가 지정되지 않음."));
+			PreviewStatusText->SetText(LOCTEXT("PreviewNoMesh",
+				"SkeletalMesh 가 지정되지 않음 — 어셋 피커에서 메시를 선택하세요."));
 		}
 		return;
 	}
