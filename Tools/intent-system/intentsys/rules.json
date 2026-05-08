@@ -1,0 +1,12 @@
+{
+  "version": "1",
+  "id_pattern": "^I-\\d{4}$",
+  "required_fields": ["id", "title", "status"],
+  "valid_statuses": ["active", "proposed", "realized", "abandoned"],
+  "max_title_length": 200,
+  "checks": {
+    "dag_no_cycle": true,
+    "parent_child_bidirectional": true,
+    "refs_exist": true
+  }
+}
