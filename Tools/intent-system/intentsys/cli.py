@@ -42,11 +42,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="출력 HTML 경로 (기본: Docs/intents/site.html)")
 
     args = parser.parse_args(argv)
-
     if args.cmd == "build-site":
         return cmd_build_site(args.intents_dir, args.output)
-    parser.error(f"알 수 없는 명령: {args.cmd}")
-    return 2
+    raise AssertionError(f"unreachable: argparse should reject unknown cmd {args.cmd!r}")
 
 
 if __name__ == "__main__":

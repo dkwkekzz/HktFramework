@@ -36,7 +36,6 @@ class Intent:
     tags: List[str] = field(default_factory=list)
     goals: List[str] = field(default_factory=list)  # leaf Intent → Goal 다리 (선택)
     intent: str = ""
-    raw_frontmatter: Dict[str, Any] = field(default_factory=dict)
     source_path: Optional[Path] = None
 
 
@@ -92,7 +91,6 @@ def parse_intent_text(text: str, source: Optional[Path] = None) -> Intent:
         tags=[str(x) for x in (fm.get("tags") or [])],
         goals=[str(x) for x in (fm.get("goals") or [])],
         intent=sections.get("Intent", "").strip(),
-        raw_frontmatter=fm,
         source_path=source,
     )
 
@@ -107,7 +105,7 @@ def load_intents(directory: Path | str, pattern: str = "I-*.md") -> List[Intent]
     base = Path(directory)
     if not base.is_dir():
         raise FileNotFoundError(f"Intents 디렉토리 없음: {base}")
-    files = sorted({*base.glob(pattern), *base.glob(f"**/{pattern}")})
+    files = sorted(base.glob(f"**/{pattern}"))
     out: List[Intent] = []
     for f in files:
         if f.name in {"INDEX.md", "TREE.md"}:

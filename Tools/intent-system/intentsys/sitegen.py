@@ -57,7 +57,9 @@ def _safe_script_json(s: str) -> str:
     return s.replace("</", "<\\/")
 
 
-_HTML_TEMPLATE = r"""<!doctype html>
+_HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
+<!-- Last generated: __GENERATED_AT__ -->
+<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -453,12 +455,20 @@ _HTML_TEMPLATE = r"""<!doctype html>
 
   function select(id) {
     if (!intentsById[id]) return;
+    const prev = selectedId;
     selectedId = id;
-    renderList();
+    // 좌측 리스트는 클래스 토글만 — 풀 리렌더 회피.
+    if (prev) {
+      const prevLi = listEl.querySelector(`li[data-id="${CSS.escape(prev)}"]`);
+      if (prevLi) prevLi.classList.remove("selected");
+    }
+    const li = listEl.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+    if (li) {
+      li.classList.add("selected");
+      li.scrollIntoView({ block: "nearest" });
+    }
     renderRelations(intentsById[id]);
     renderDetail(intentsById[id]);
-    const li = listEl.querySelector(`li[data-id="${CSS.escape(id)}"]`);
-    if (li) li.scrollIntoView({ block: "nearest" });
     if (location.hash !== "#" + id) location.hash = id;
   }
 
