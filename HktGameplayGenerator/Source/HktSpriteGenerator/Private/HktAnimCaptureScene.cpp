@@ -111,14 +111,11 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	// (스카이스피어는 ShowFlags.Atmosphere 로 프리뷰 시점에만 노출.)
 	Preview->SetFloorVisibility(false, /*bDirect*/ true);
 
-	// 사용자가 디폴트 라이팅(스카이+키 라이트)을 끈 경우 — 시각적 스카이스피어는 숨기되
-	// SkyLight 의 ambient 큐브맵 강도는 0 이 되지 않도록 유지한다. 0 으로 두면 사용자
-	// KeyLight 가 닿지 않는 면(N·L≤0)이 반사광 부재로 완전 검정으로 깔려 캐릭터 디테일이
-	// 사라진다. AdvancedPreviewScene 의 SkyLight 는 SLS_SpecifiedCubemap 기반이라
-	// SkySphere 가시성과 무관하게 ambient 를 제공할 수 있다.
+	// 사용자가 디폴트 라이팅(스카이+키 라이트)을 끈 경우 — AdvancedPreviewScene 의 자동
+	// SkyLight 도 약화시키고 스카이스피어 자체를 비활성.
 	if (!Settings.bUseDefaultLighting)
 	{
-		Preview->SetSkyBrightness(1.0f);
+		Preview->SetSkyBrightness(0.0f);
 		Preview->SetEnvironmentVisibility(false, /*bDirect*/ true);
 	}
 
@@ -605,25 +602,11 @@ void FHktAnimCaptureScene::RenderPreview()
 
 	UTextureRenderTarget2D* SavedTarget = CaptureComp->TextureTarget;
 
-	// 프리뷰 한정 ShowFlag — 캡처는 평면(BaseColor) 출력을 위해 Lighting 등이 OFF 이지만,
-	// 프리뷰는 사용자가 KeyLight/FillLight/SkyLight 조정 효과를 실시간으로 확인해야 하므로
-	// Lighting/ReflectionEnvironment/GlobalIllumination/SkyLighting/AmbientCubemap 모두 ON.
-	// 또한 스카이박스/Fog 도 시각화 — 캡처 시점에는 모두 원래 OFF 상태로 복원되어 알파 보존.
+	// 프리뷰에서만 스카이박스/Fog 가시화 — 스프라이트 캡처는 알파 보존을 위해 두 플래그가 OFF.
 	const bool bSavedAtmosphere = CaptureComp->ShowFlags.Atmosphere;
 	const bool bSavedFog        = CaptureComp->ShowFlags.Fog;
-	const bool bSavedLighting   = CaptureComp->ShowFlags.Lighting;
-	const bool bSavedReflEnv    = CaptureComp->ShowFlags.ReflectionEnvironment;
-	const bool bSavedGI         = CaptureComp->ShowFlags.GlobalIllumination;
-	const bool bSavedSkyLighting= CaptureComp->ShowFlags.SkyLighting;
-	const bool bSavedAmbCubemap = CaptureComp->ShowFlags.AmbientCubemap;
-
 	CaptureComp->ShowFlags.SetAtmosphere(true);
 	CaptureComp->ShowFlags.SetFog(true);
-	CaptureComp->ShowFlags.SetLighting(true);
-	CaptureComp->ShowFlags.SetReflectionEnvironment(true);
-	CaptureComp->ShowFlags.SetGlobalIllumination(true);
-	CaptureComp->ShowFlags.SetSkyLighting(true);
-	CaptureComp->ShowFlags.SetAmbientCubemap(true);
 
 	// 프리뷰 1프레임 렌더 — 출력 RT 상태는 보존.
 	CaptureComp->TextureTarget = PreviewRT;
@@ -631,14 +614,9 @@ void FHktAnimCaptureScene::RenderPreview()
 	CaptureComp->CaptureScene();
 	CaptureComp->TextureTarget = SavedTarget;
 
-	// ShowFlag 복원 — 다음 캡처 호출이 평면 BaseColor / 알파 보존 상태로 이어지도록.
+	// ShowFlag 복원 — 다음 캡처 호출이 알파 보존 상태로 이어지도록.
 	CaptureComp->ShowFlags.SetAtmosphere(bSavedAtmosphere);
 	CaptureComp->ShowFlags.SetFog(bSavedFog);
-	CaptureComp->ShowFlags.SetLighting(bSavedLighting);
-	CaptureComp->ShowFlags.SetReflectionEnvironment(bSavedReflEnv);
-	CaptureComp->ShowFlags.SetGlobalIllumination(bSavedGI);
-	CaptureComp->ShowFlags.SetSkyLighting(bSavedSkyLighting);
-	CaptureComp->ShowFlags.SetAmbientCubemap(bSavedAmbCubemap);
 }
 
 void FHktAnimCaptureScene::UpdateCameraSettings(const FHktAnimCaptureSettings& NewSettings)
