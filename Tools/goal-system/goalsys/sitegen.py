@@ -475,7 +475,7 @@ _HTML_TEMPLATE = r"""<!doctype html>
       const g = goalsById[id];
       if (!g) {
         return `<li class="missing${overflow ? " overflow" : ""}"${overflow ? " hidden" : ""}>`
-             + `<span class="id">${escape(id)}</span>(없음)</li>`;
+             + `<span class="id">${escape(id)}</span> <span class="meta">(없음)</span></li>`;
       }
       const cls = [];
       if (overflow) cls.push("overflow");
@@ -619,23 +619,49 @@ _HTML_TEMPLATE = r"""<!doctype html>
   }
 
   function renderStack() {
-    stackEl.innerHTML = "";
-    stackIds.forEach((id, idx) => {
-      const card = renderCard(id, idx);
-      if (idx === stackIds.length - 1) card.classList.add("tip");
+    // 스택의 prefix 가 그대로면 기존 카드들을 유지 — 스크롤 위치 보존, 깜빡임 제거.
+    let i = 0;
+    while (i < stackEl.children.length
+           && i < stackIds.length
+           && stackEl.children[i].dataset.id === stackIds[i]) {
+      i++;
+    }
+    while (stackEl.children.length > i) stackEl.lastElementChild.remove();
+    for (let j = i; j < stackIds.length; j++) {
+      const card = renderCard(stackIds[j], j);
       stackEl.appendChild(card);
       attachCardHandlers(card);
-    });
+    }
+    const tipIdx = stackEl.children.length - 1;
+    for (let k = 0; k < stackEl.children.length; k++) {
+      stackEl.children[k].classList.toggle("tip", k === tipIdx);
+    }
+    refreshMarkers();
     btnBack.disabled = stackIds.length <= 1;
     requestAnimationFrame(scrollToTip);
+  }
+
+  function refreshMarkers() {
+    // 유지된 카드들의 관계 리스트 마커 (in-stack / tip) 를 현재 스택에 맞춰 갱신.
+    for (const card of stackEl.children) {
+      card.querySelectorAll('ul.rel li[data-goto]').forEach(li => {
+        const id = li.dataset.goto;
+        li.classList.remove("in-stack", "tip");
+        if (inStack(id)) li.classList.add(isTip(id) ? "tip" : "in-stack");
+      });
+    }
+  }
+
+  function isMobile() {
+    return window.matchMedia && window.matchMedia("(max-width: 800px)").matches;
   }
 
   function scrollToTip() {
     const last = stackEl.lastElementChild;
     if (!last) return;
-    if (window.matchMedia("(max-width: 800px)").matches) {
-      window.scrollTo({ top: 0 });
-      last.scrollTop = 0;
+    if (isMobile()) {
+      // 모바일: tip 외 카드는 display:none — #stack 의 스크롤만 맨 위로.
+      stackEl.scrollTop = 0;
     } else {
       last.scrollIntoView({ behavior: "smooth", inline: "end", block: "nearest" });
     }
@@ -803,8 +829,18 @@ _HTML_TEMPLATE = r"""<!doctype html>
   if (!initial.length && DATA.goals.length) {
     initial = [DATA.goals[0].id];
   }
-  stackIds = initial;
-  syncHistory(true);
+  if (initial.length) {
+    // 깊은 hash (#A/B/C) 로 진입한 경우, 스택 깊이만큼 history 엔트리를 구성한다.
+    // 그래야 내부 ← 버튼 (history.back) 이 사이트를 벗어나지 않고 한 단계씩 pop 한다.
+    stackIds = [initial[0]];
+    history.replaceState({ stack: [...stackIds] }, "", "#" + stackIds.join("/"));
+    for (let i = 1; i < initial.length; i++) {
+      stackIds.push(initial[i]);
+      history.pushState({ stack: [...stackIds] }, "", "#" + stackIds.join("/"));
+    }
+  } else {
+    stackIds = [];
+  }
   renderBreadcrumb();
   renderListSelection();
   renderStack();
