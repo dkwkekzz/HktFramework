@@ -364,30 +364,15 @@ void FHktAnimCaptureScene::ApplyLighting(const FHktAnimCaptureSettings& Settings
 		Preview->AddComponent(FillLight, FTransform(Settings.FillLightRotation));
 	}
 
-	// Movable SkyLight 를 항상 부착한다 — 이게 본 모듈에서 가장 자주 회귀되는 함정이다.
-	//
-	// FAdvancedPreviewScene 의 디폴트 SkyLight 는 Stationary mobility 다. Stationary 는
-	// 동적 메시에 ambient 를 전달하려면 (a) precomputed lightmap, (b) Lumen GI, (c) DFAO
-	// 중 최소 하나를 요구하는데, 본 프리뷰 씬엔 셋 다 없고 SceneCapture2D 는 Lumen 도
-	// 받지 않는다. 결과: KeyLight 가 닿지 않는 면(N·L≤0)이 반사광 부재로 완전 검정으로
-	// 깔린다(=사용자가 보고한 "부분적으로 시커먼 부분"). bUseDefaultLighting 토글이
-	// 시각적으로 무차별인 것도 같은 이유 — 둘 다 dynamic 메시 입장에서 ambient 0.
-	//
-	// 해결: Movable SkyLight 를 우리 손으로 추가. Movable 은 매 프레임 동적 객체에 직접
-	// 적용되므로 lightmap/Lumen/DFAO 없이도 ambient 가 보장된다. 강도는 사용자 설정값
-	// 우선, 0 또는 미설정이면 1.0 fallback — 디폴트 상태에서도 바로 "반사광 받는" 결과.
-	const float SkyIntensity = (Settings.ExtraSkyLightIntensity > 0.0f)
-		? Settings.ExtraSkyLightIntensity
-		: 1.0f;
-	ExtraSkyLight = NewObject<USkyLightComponent>(GetTransientPackage(), USkyLightComponent::StaticClass(), NAME_None, RF_Transient);
-	ExtraSkyLight->SetIntensity(SkyIntensity);
-	ExtraSkyLight->SetMobility(EComponentMobility::Movable);
-	ExtraSkyLight->SourceType = SLS_CapturedScene;
-	// 매 프레임 캡처 — 프리뷰에서 라이트/씬이 바뀌어도 큐브맵 갱신 보장. 에디터 전용
-	// 1회성 프리뷰라 성능 비용은 무시 가능.
-	ExtraSkyLight->bRealTimeCapture = true;
-	Preview->AddComponent(ExtraSkyLight, FTransform::Identity);
-	ExtraSkyLight->RecaptureSky();
+	if (Settings.ExtraSkyLightIntensity > 0.0f)
+	{
+		ExtraSkyLight = NewObject<USkyLightComponent>(GetTransientPackage(), USkyLightComponent::StaticClass(), NAME_None, RF_Transient);
+		ExtraSkyLight->SetIntensity(Settings.ExtraSkyLightIntensity);
+		ExtraSkyLight->SetMobility(EComponentMobility::Movable);
+		// SLS_CapturedScene 가 기본 — 별도 큐브맵 없이 PreviewScene 의 환경을 캡처.
+		Preview->AddComponent(ExtraSkyLight, FTransform::Identity);
+		ExtraSkyLight->RecaptureSky();
+	}
 }
 
 void FHktAnimCaptureScene::UpdateLightingSettings(const FHktAnimCaptureSettings& NewSettings)
