@@ -15,6 +15,14 @@ function _btoaUtf8(str) {
   return btoa(unescape(encodeURIComponent(str)));
 }
 
+/** base64 를 UTF-8 문자열로 디코딩 (한국어 등 멀티바이트 포함) */
+function _atobUtf8(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
 /** IndexedDB 헬퍼 — Promise 래핑 */
 function _openDb() {
   return new Promise((resolve, reject) => {
@@ -348,7 +356,7 @@ class GitHubStore extends IntentStore {
       );
       if (!blobResp.ok) return null;
       const blobData = await blobResp.json();
-      const text = atob((blobData.content || '').replace(/\n/g, ''));
+      const text = _atobUtf8((blobData.content || '').replace(/\n/g, ''));
       const parsed = _parseMd(text);
       return { ...parsed, baseVersion: this._headSha };
     });
@@ -373,7 +381,7 @@ class GitHubStore extends IntentStore {
     if (resp.status === 404) return null;
     if (!resp.ok) throw new Error(`get(${id}) 실패: ${resp.status}`);
     const data = await resp.json();
-    const content = atob(data.content.replace(/\n/g, ''));
+    const content = _atobUtf8(data.content.replace(/\n/g, ''));
     const parsed = _parseMd(content);
     return { ...parsed, baseVersion: this._headSha };
   }

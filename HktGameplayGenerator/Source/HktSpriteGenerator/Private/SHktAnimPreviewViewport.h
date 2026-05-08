@@ -108,7 +108,6 @@ public:
 protected:
 	// SEditorViewport =====================================================
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
-	virtual TSharedPtr<SWidget> MakeViewportToolbar() override { return nullptr; }
 
 private:
 	TSharedPtr<FAdvancedPreviewScene>             PreviewScene;

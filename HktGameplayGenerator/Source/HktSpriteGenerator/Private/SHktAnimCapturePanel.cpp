@@ -717,7 +717,10 @@ void SHktAnimCapturePanel::OnPostProcessAnimBPChanged(const UClass* NewClass)
 		? TSoftClassPtr<UAnimInstance>(const_cast<UClass*>(NewClass))
 		: TSoftClassPtr<UAnimInstance>();
 	// PostProcess AnimBP 는 InitAnim 시점에 인스턴스화되므로 씬을 재생성해야 반영된다.
-	RebuildPreviewScene();
+	if (PreviewViewport.IsValid())
+	{
+		PreviewViewport->Rebuild(Settings);
+	}
 }
 
 FString SHktAnimCapturePanel::GetSkeletalMeshPath() const
