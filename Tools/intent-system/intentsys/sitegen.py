@@ -1014,12 +1014,28 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
       children: getChecked('em-children'),
       tags: document.getElementById('em-tags').value.split(',').map(s => s.trim()).filter(Boolean),
     };
-    const testList = editTarget.isNew
-      ? DATA.intents.concat([Object.assign({ id: '__new__' }, patch)])
-      : DATA.intents.map(x => x.id === editTarget.intent.id ? Object.assign({}, x, patch) : x);
+    // 신규 intent 는 서버가 ID 를 발급하고 부모의 children 도 자동 동기화하므로,
+    // 클라이언트 사전 검증에서는 placeholder ID 를 양쪽에 미러링해 false positive 를 막는다.
+    const NEW_ID = '__new__';
+    let testList;
+    if (editTarget.isNew) {
+      const parentSet = new Set(patch.parents);
+      const childSet = new Set(patch.children);
+      testList = DATA.intents.map(x => {
+        let copy = x;
+        if (parentSet.has(x.id)) copy = { ...copy, children: [...(copy.children || []), NEW_ID] };
+        if (childSet.has(x.id)) copy = { ...copy, parents: [...(copy.parents || []), NEW_ID] };
+        return copy;
+      });
+      testList.push(Object.assign({ id: NEW_ID }, patch));
+    } else {
+      testList = DATA.intents.map(x => x.id === editTarget.intent.id ? Object.assign({}, x, patch) : x);
+    }
     const errs = IntentValidator.validate(testList);
-    const myId = editTarget.isNew ? '__new__' : editTarget.intent.id;
-    const relevant = errs.filter(e => e.id === myId);
+    const myId = editTarget.isNew ? NEW_ID : editTarget.intent.id;
+    const relevant = errs.filter(e =>
+      e.id === myId && !(editTarget.isNew && e.field === 'id')
+    );
     if (relevant.length) { showFormError(relevant.map(e => '[' + e.field + '] ' + e.message).join('\n')); return; }
 
     if (editTarget.isNew) {
