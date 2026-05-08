@@ -315,12 +315,22 @@ class GitHubStore extends IntentStore {
     const headers = this._headers();
 
     // 1) HEAD commit SHA 와 tree SHA
-    const commitsResp = await fetch(
-      this._api(`/repos/${this.owner}/${this.repo}/commits?sha=${encodeURIComponent(this.branch)}&per_page=1`),
+    //    설정 브랜치(예: intents/draft) 가 아직 없으면 main 에서 읽는다.
+    //    쓰기 시 _ensureHead 가 main 으로부터 설정 브랜치를 만든다.
+    let readBranch = this.branch;
+    let commitsResp = await fetch(
+      this._api(`/repos/${this.owner}/${this.repo}/commits?sha=${encodeURIComponent(readBranch)}&per_page=1`),
       { headers }
     );
+    if (commitsResp.status === 404 && readBranch !== 'main') {
+      readBranch = 'main';
+      commitsResp = await fetch(
+        this._api(`/repos/${this.owner}/${this.repo}/commits?sha=main&per_page=1`),
+        { headers }
+      );
+    }
     if (commitsResp.status === 404) {
-      // 브랜치 또는 저장소 부재 — 읽기는 빈 결과로 처리. 쓰기 시 _ensureHead 가 처리.
+      // main 도 없으면 정말 빈 결과.
       return [];
     }
     if (!commitsResp.ok) throw new Error(`commits 가져오기 실패: ${commitsResp.status}`);
