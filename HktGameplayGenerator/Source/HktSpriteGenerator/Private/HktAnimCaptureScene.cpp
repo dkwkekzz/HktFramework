@@ -152,10 +152,23 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	// 사용자 지정 PostProcess AnimBP — 메시 에셋의 기본값을 컴포넌트 단위로 오버라이드.
 	// 메인 AnimInstance(=AnimSingleNode) 의 시퀀스 평가 후 매 틱 실행되어,
 	// Modify Bone 등으로 본 스케일/회전을 캡처에만 한정 적용할 수 있다.
-	// SetAnimationMode 보다 먼저 호출 — InitAnim 시점에 이 클래스가 함께 인스턴스화되도록.
-	if (UClass* PPClass = Settings.PostProcessAnimBP.LoadSynchronous())
+	// 어떤 실패 케이스에서도 시퀀스 재생 자체는 영향받지 않는다 — 잘못 설정된 경우 로그만 남기고 진행.
+	UClass* ResolvedPPClass = nullptr;
+	if (!Settings.PostProcessAnimBP.IsNull())
 	{
-		MeshComp->SetOverridePostProcessAnimBP(PPClass, /*bReinitAnimInstances*/ false);
+		ResolvedPPClass = Settings.PostProcessAnimBP.LoadSynchronous();
+		if (!ResolvedPPClass)
+		{
+			UE_LOG(LogHktAnimCapture, Error,
+				TEXT("PostProcess AnimBP 클래스 로드 실패: '%s' — 경로가 잘못됐거나 어셋이 삭제됨. 시퀀스만 재생됩니다."),
+				*Settings.PostProcessAnimBP.ToString());
+		}
+		else
+		{
+			// SetAnimationMode 보다 먼저 호출 — 이어지는 InitializeAnimScriptInstance 가
+			// OverridePostProcessAnimBP 를 읽어 PostProcess 인스턴스를 함께 만든다.
+			MeshComp->SetOverridePostProcessAnimBP(ResolvedPPClass, /*bReinitAnimInstances*/ false);
+		}
 	}
 
 	if (Anim)
@@ -170,6 +183,19 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	{
 		MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		AnimLengthSec = 0.0f;
+	}
+
+	// PostProcess 인스턴스화 검증 — 클래스는 로드됐지만 Skeleton 불일치/BP 컴파일 에러 등으로
+	// PostProcessAnimInstance 가 만들어지지 않을 수 있다. 그 경우도 main(SingleNode) 평가는
+	// 정상 — 시퀀스 재생에는 영향 없으나 사용자가 의도한 본 보정이 안 들어가므로 경고.
+	if (ResolvedPPClass && !MeshComp->GetPostProcessInstance())
+	{
+		UE_LOG(LogHktAnimCapture, Warning,
+			TEXT("PostProcess AnimBP(%s) 가 인스턴스화되지 않음 — AnimBP 의 TargetSkeleton 이 ")
+			TEXT("SkeletalMesh(%s) 의 Skeleton 과 동일한지, BP 컴파일 에러가 없는지 확인하세요. ")
+			TEXT("시퀀스 재생은 정상 진행됩니다."),
+			*ResolvedPPClass->GetPathName(),
+			*Mesh->GetPathName());
 	}
 
 	MeshComp->RefreshBoneTransforms();
