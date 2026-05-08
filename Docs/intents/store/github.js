@@ -293,6 +293,12 @@ class GitHubStore extends IntentStore {
       );
       if (!createResp.ok) {
         const err = await createResp.json().catch(() => ({}));
+        if (createResp.status === 403) {
+          throw new Error(
+            `브랜치 생성 권한 부족 (403). PAT 권한을 Contents: Read and write 로 갱신하거나, ` +
+            `GitHub 웹에서 main 으로부터 '${this.branch}' 브랜치를 미리 만들어 주세요.`
+          );
+        }
         throw new Error(`브랜치 생성 실패: ${createResp.status} ${err.message || ''}`);
       }
       this._headSha = mainSha;
@@ -514,7 +520,11 @@ class GitHubStore extends IntentStore {
 
         const resp = await fetch(url, { headers: reqHeaders });
 
-        if (resp.status === 304) {
+        if (resp.status === 404) {
+          // 브랜치 부재 — 폴링 영구 비활성화 (첫 저장 시 브랜치가 생성되면 그때 다시 시작).
+          active = false;
+          return;
+        } else if (resp.status === 304) {
           // 변경 없음
         } else if (resp.ok) {
           const newEtag = resp.headers.get('ETag');
