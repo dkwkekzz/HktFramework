@@ -216,6 +216,7 @@ class GitHubStore extends IntentStore {
     this.branch = branch || (this.token ? 'intents/draft' : 'main');
     this.intentsPath = intentsPath;
     this._headSha = null;
+    this._branchEnsured = false;  // 쓰기 전 _ensureHead 가 실제로 브랜치 존재를 검증/생성했는가
     this._etag = null;
   }
 
@@ -266,6 +267,7 @@ class GitHubStore extends IntentStore {
    * 브랜치가 없으면 main 에서 생성한다.
    */
   async _ensureHead() {
+    if (this._branchEnsured) return;
     const headers = this._headers();
     const url = this._api(`/repos/${this.owner}/${this.repo}/commits?sha=${encodeURIComponent(this.branch)}&per_page=1`);
     let resp = await fetch(url, { headers });
@@ -294,12 +296,14 @@ class GitHubStore extends IntentStore {
         throw new Error(`브랜치 생성 실패: ${createResp.status} ${err.message || ''}`);
       }
       this._headSha = mainSha;
+      this._branchEnsured = true;
       return;
     }
 
     if (!resp.ok) throw new Error(`브랜치 commits 취득 실패: ${resp.status}`);
     const commits = await resp.json();
     this._headSha = commits[0].sha;
+    this._branchEnsured = true;
   }
 
   // ── CRUD ───────────────────────────────────
@@ -557,7 +561,8 @@ class GitHubStore extends IntentStore {
    * @throws {StaleError} expectedHeadOid 불일치 시
    */
   async _graphqlCommit({ headline, additions = [], deletions = [], expectedHeadOid } = {}) {
-    if (this._headSha === null) await this._ensureHead();
+    // 쓰기 시 매번 브랜치 존재를 보장 — 없으면 main 에서 생성. _branchEnsured 가 캐시.
+    await this._ensureHead();
 
     const oid = expectedHeadOid !== undefined ? expectedHeadOid : this._headSha;
 
