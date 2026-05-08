@@ -2,6 +2,7 @@
 
 #include "HktAnimCaptureScene.h"
 
+#include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
 #include "Camera/HktCameraFramingProfile.h"
 #include "Camera/HktCameraModeBase.h"
@@ -147,6 +148,15 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	MeshComp->bAffectDistanceFieldLighting = false;
 
 	Preview->AddComponent(MeshComp, FTransform::Identity);
+
+	// 사용자 지정 PostProcess AnimBP — 메시 에셋의 기본값을 컴포넌트 단위로 오버라이드.
+	// 메인 AnimInstance(=AnimSingleNode) 의 시퀀스 평가 후 매 틱 실행되어,
+	// Modify Bone 등으로 본 스케일/회전을 캡처에만 한정 적용할 수 있다.
+	// SetAnimationMode 보다 먼저 호출 — InitAnim 시점에 이 클래스가 함께 인스턴스화되도록.
+	if (UClass* PPClass = Settings.PostProcessAnimBP.LoadSynchronous())
+	{
+		MeshComp->SetOverridePostProcessAnimBP(PPClass, /*bReinitAnimInstances*/ false);
+	}
 
 	if (Anim)
 	{

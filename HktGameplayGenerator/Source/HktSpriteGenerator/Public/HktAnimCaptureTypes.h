@@ -9,6 +9,7 @@
 
 class USkeletalMesh;
 class UAnimSequence;
+class UAnimInstance;
 class UHktCameraModeBase;
 
 // ============================================================================
@@ -58,6 +59,20 @@ struct HKTSPRITEGENERATOR_API FHktAnimCaptureSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Model")
 	TSoftObjectPtr<UAnimSequence> AnimSequence;
+
+	/**
+	 * 캡처 메시에 추가로 적용할 PostProcess Anim Blueprint 클래스 (선택).
+	 *
+	 * 설정 시 `USkeletalMeshComponent::SetOverridePostProcessAnimBP` 으로
+	 * 컴포넌트 단위 오버라이드되며, AnimSingleNode 의 시퀀스 평가가 끝난
+	 * 다음 매 틱 실행된다. Modify Bone(Transform Bone) 등으로 본 스케일/
+	 * 회전 보정을 캡처에만 한정 적용할 때 사용한다(원본 SkeletalMesh 에셋의
+	 * PostProcess AnimBP 설정은 건드리지 않는다).
+	 *
+	 * 비워두면 메시 에셋의 기본 PostProcess AnimBP(있다면) 가 그대로 사용된다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Model")
+	TSoftClassPtr<UAnimInstance> PostProcessAnimBP;
 
 	// === 식별 ===
 

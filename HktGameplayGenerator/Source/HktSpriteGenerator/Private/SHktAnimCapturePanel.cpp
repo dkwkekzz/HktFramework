@@ -6,6 +6,7 @@
 #include "HktAnimCapturePanelConfig.h"
 #include "HktAnimCaptureScene.h"
 
+#include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
 #include "AssetRegistry/AssetData.h"
 #include "Camera/CameraTypes.h"
@@ -157,6 +158,30 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 						.DisplayThumbnail(true)
 						.ThumbnailPool(UThumbnailManager::Get().GetSharedThumbnailPool())
 				) ]
+
+				// === PostProcess Anim Blueprint (선택) ===
+				// 시퀀스 평가 후 매 틱 실행되는 추가 AnimBP — Modify Bone 등으로
+				// 본 스케일/회전 보정을 캡처에만 한정 적용. 메시 에셋의 PostProcess
+				// 설정은 건드리지 않으며 컴포넌트 단위 오버라이드.
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
+				[ MakeRow(LOCTEXT("PPAnimBPLbl", "PostProcess AnimBP (optional)"),
+					SNew(SClassPropertyEntryBox)
+						.MetaClass(UAnimInstance::StaticClass())
+						.SelectedClass(this, &SHktAnimCapturePanel::GetPostProcessAnimBPClass)
+						.OnSetClass(this, &SHktAnimCapturePanel::OnPostProcessAnimBPChanged)
+						.AllowAbstract(false)
+						.AllowNone(true)
+				) ]
+
+				+ SVerticalBox::Slot().AutoHeight().Padding(0,2,0,4)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("PPAnimBPHint",
+						"AnimSequence 평가 후 적용되는 PostProcess AnimBP. Modify Bone 으로 "
+						"본 스케일/회전 보정을 캡처에만 한정 적용할 때 사용."))
+					.AutoWrapText(true)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				]
 
 				// === 식별 (UE 표준 GameplayTag 피커) ===
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
@@ -694,6 +719,15 @@ void SHktAnimCapturePanel::OnCameraModeClassChanged(const UClass* NewClass)
 	ApplyCameraFromUI();
 }
 
+void SHktAnimCapturePanel::OnPostProcessAnimBPChanged(const UClass* NewClass)
+{
+	Settings.PostProcessAnimBP = NewClass
+		? TSoftClassPtr<UAnimInstance>(const_cast<UClass*>(NewClass))
+		: TSoftClassPtr<UAnimInstance>();
+	// PostProcess AnimBP 는 InitAnim 시점에 인스턴스화되므로 씬을 재생성해야 반영된다.
+	RebuildPreviewScene();
+}
+
 FString SHktAnimCapturePanel::GetSkeletalMeshPath() const
 {
 	return Settings.SkeletalMesh.IsNull() ? FString() : Settings.SkeletalMesh.ToString();
@@ -708,6 +742,11 @@ const UClass* SHktAnimCapturePanel::GetCameraModeClass() const
 {
 	// SoftClassPtr::Get() 는 이미 로드된 경우만 반환 — 미로드면 LoadSynchronous.
 	return Settings.CameraModeClass.IsNull() ? nullptr : Settings.CameraModeClass.LoadSynchronous();
+}
+
+const UClass* SHktAnimCapturePanel::GetPostProcessAnimBPClass() const
+{
+	return Settings.PostProcessAnimBP.IsNull() ? nullptr : Settings.PostProcessAnimBP.LoadSynchronous();
 }
 
 void SHktAnimCapturePanel::ApplyPresetToCustomFields(EHktAnimCaptureCameraPreset Preset)
