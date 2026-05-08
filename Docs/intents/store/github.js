@@ -79,7 +79,7 @@ function _dbDelete(db, store, key) {
  */
 function _parseMd(text) {
   // frontmatter 분리
-  const fmMatch = text.match(/\A?---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)/);
+  const fmMatch = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)/);
   if (!fmMatch) return { id: '', title: '', status: '', parents: [], children: [], tags: [], goals: [], intent: '', created_at: '', updated_at: '' };
 
   const fmText = fmMatch[1];
@@ -146,11 +146,15 @@ function _parseMd(text) {
 
 /** Intent 객체를 .md 텍스트로 직렬화한다 */
 function _serializeIntent(intent) {
-  // 현재 시각을 +09:00 오프셋으로 표현
+  // 현재 시각을 브라우저 로컬 시간대로 표현
   const now = new Date();
-  const offsetMs = -now.getTimezoneOffset() * 60000;
-  const local = new Date(now.getTime() + offsetMs);
-  const iso = local.toISOString().replace('Z', '+09:00');
+  const tzOff = -now.getTimezoneOffset(); // minutes, positive = east
+  const sign = tzOff >= 0 ? '+' : '-';
+  const absOff = Math.abs(tzOff);
+  const tzHH = String(Math.floor(absOff / 60)).padStart(2, '0');
+  const tzMM = String(absOff % 60).padStart(2, '0');
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  const iso = local.toISOString().slice(0, 19) + `${sign}${tzHH}:${tzMM}`;
 
   const created = intent.created_at || iso;
   const updated = iso;
@@ -223,13 +227,19 @@ class GitHubStore extends IntentStore {
 
   // ── 내부 헬퍼 ──────────────────────────────
 
-  /** GitHub REST API 기본 헤더 */
+  /** GitHub REST API 기본 헤더. 토큰이 없으면 Authorization 생략(공개 저장소 비인증 읽기 허용). */
   _headers() {
-    return {
-      'Authorization': `Bearer ${this.token}`,
+    const h = {
       'Accept': 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
     };
+    if (this.token) h['Authorization'] = `Bearer ${this.token}`;
+    return h;
+  }
+
+  /** 쓰기 작업 전 토큰 보유 확인. */
+  _requireToken() {
+    if (!this.token) throw new Error('쓰기 작업에는 GitHub 토큰이 필요합니다. ⚙ 설정에서 PAT를 입력하세요.');
   }
 
   /** GitHub REST API base URL */
@@ -342,6 +352,7 @@ class GitHubStore extends IntentStore {
    * @returns {Promise<Object>} 생성된 Intent (id, baseVersion 포함)
    */
   async create(input) {
+    this._requireToken();
     const existing = await this.list();
     const nums = existing
       .map(it => {
@@ -375,6 +386,7 @@ class GitHubStore extends IntentStore {
    * @throws {StaleError}
    */
   async update(id, patch, baseVersion) {
+    this._requireToken();
     const current = await this.get(id);
     if (!current) throw new Error(`Intent ${id} 를 찾을 수 없음`);
 
@@ -407,6 +419,7 @@ class GitHubStore extends IntentStore {
    * @throws {StaleError}
    */
   async remove(id, baseVersion) {
+    this._requireToken();
     const path = `${this.intentsPath}/${id}.md`;
 
     const newOid = await this._graphqlCommit({
@@ -427,6 +440,8 @@ class GitHubStore extends IntentStore {
   subscribe(onChange) {
     let etag = null;
     let active = true;
+    // subscribe 호출 시점의 HEAD SHA — 첫 폴링 전 외부 변경 감지에 사용
+    const knownSha = this._headSha;
 
     const poll = async () => {
       if (!active) return;
@@ -443,14 +458,20 @@ class GitHubStore extends IntentStore {
           // 변경 없음
         } else if (resp.ok) {
           const newEtag = resp.headers.get('ETag');
-          if (etag !== null && newEtag !== etag) {
-            const commits = await resp.json();
-            const occurredAt = commits[0]?.commit?.author?.date || new Date().toISOString();
+          const commits = await resp.json();
+          const latestSha = commits[0]?.sha;
+          const occurredAt = commits[0]?.commit?.author?.date || new Date().toISOString();
+
+          if (etag === null) {
+            // 첫 번째 폴링: subscribe 이후 외부 변경이 있었는지 SHA로 감지
+            if (knownSha && latestSha && latestSha !== knownSha) {
+              onChange({ type: 'update', id: null, occurredAt });
+            }
+          } else if (newEtag !== etag) {
+            // 이후 폴링: ETag 변경으로 감지
             onChange({ type: 'update', id: null, occurredAt });
-          } else {
-            // 첫 번째 폴링: etag 초기화만
-            await resp.json(); // body 소비
           }
+
           if (newEtag) etag = newEtag;
         }
       } catch (e) {
@@ -541,6 +562,7 @@ class GitHubStore extends IntentStore {
    * @returns {Promise<string>} PR URL
    */
   async createPR(title, body = '') {
+    this._requireToken();
     const resp = await fetch(
       this._api(`/repos/${this.owner}/${this.repo}/pulls`),
       {

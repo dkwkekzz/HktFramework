@@ -1101,9 +1101,11 @@ _HTML_TEMPLATE = r"""<!-- 자동 생성 — 직접 수정 금지 -->
           const created = await store.create(ch.intent);
           showToast(created.id + ' 생성됨', 'success');
         } else if (ch.type === 'update') {
-          await store.update(ch.intent.id, ch.intent, ch.baseVersion);
+          // 배치 커밋에서 앞선 커밋 성공 후 store._headSha 가 갱신되므로 항상 최신 HEAD 사용.
+          // 외부 push 가 있었다면 첫 커밋에서 STALE 로 차단된다.
+          await store.update(ch.intent.id, ch.intent, store._headSha);
         } else if (ch.type === 'delete') {
-          await store.remove(ch.intent.id, ch.baseVersion);
+          await store.remove(ch.intent.id, store._headSha);
         }
       }
       clearUnsaved();
