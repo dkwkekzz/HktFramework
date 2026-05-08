@@ -190,16 +190,16 @@ class GitHubStore extends IntentStore {
    * @param {Object} cfg
    * @param {string} cfg.owner
    * @param {string} cfg.repo
-   * @param {string} cfg.token
-   * @param {string} [cfg.branch='intents/draft']
+   * @param {string} [cfg.token]   미설정 시 비인증 읽기 (공개 저장소 한정, 60 req/h IP 제한).
+   * @param {string} [cfg.branch]  기본은 호출 측에서 결정. 일반적으로 token 있으면 'intents/draft', 없으면 'main'.
    * @param {string} [cfg.intentsPath='Docs/intents']
    */
-  constructor({ owner, repo, token, branch = 'intents/draft', intentsPath = 'Docs/intents' } = {}) {
+  constructor({ owner, repo, token, branch, intentsPath = 'Docs/intents' } = {}) {
     super();
     this.owner = owner;
     this.repo = repo;
-    this.token = token;
-    this.branch = branch;
+    this.token = token || undefined;
+    this.branch = branch || (this.token ? 'intents/draft' : 'main');
     this.intentsPath = intentsPath;
     this._headSha = null;
     this._etag = null;
@@ -292,37 +292,69 @@ class GitHubStore extends IntentStore {
 
   /**
    * 모든 Intent 목록을 GitHub 에서 읽는다.
+   *
+   * 구조: 1 + 1 + N 회 호출
+   *   1) commits ?sha=branch&per_page=1 — HEAD commit + tree SHA
+   *   2) git/trees/{treeSha}?recursive=1 — 전체 파일 목록 (1 호출, 깊은 트리 포함)
+   *   N) git/blobs/{blobSha}            — 각 Intent .md (Promise.all 병렬)
+   *
+   * 브랜치 미존재(404) 시 빈 배열 반환 — 자동 생성하지 않는다 (읽기 전용 의도 보존).
+   * 첫 쓰기에서 _ensureHead 가 main 으로부터 브랜치를 만든다.
+   *
    * @returns {Promise<Array>}
    */
   async list() {
-    await this._ensureHead();
     const headers = this._headers();
 
-    // 디렉토리 목록
-    const dirResp = await fetch(
-      this._api(`/repos/${this.owner}/${this.repo}/contents/${this.intentsPath}?ref=${encodeURIComponent(this.branch)}`),
+    // 1) HEAD commit SHA 와 tree SHA
+    const commitsResp = await fetch(
+      this._api(`/repos/${this.owner}/${this.repo}/commits?sha=${encodeURIComponent(this.branch)}&per_page=1`),
       { headers }
     );
-    if (!dirResp.ok) throw new Error(`디렉토리 목록 취득 실패: ${dirResp.status}`);
-    const entries = await dirResp.json();
+    if (commitsResp.status === 404) {
+      // 브랜치 또는 저장소 부재 — 읽기는 빈 결과로 처리. 쓰기 시 _ensureHead 가 처리.
+      return [];
+    }
+    if (!commitsResp.ok) throw new Error(`commits 가져오기 실패: ${commitsResp.status}`);
+    const commits = await commitsResp.json();
+    if (!Array.isArray(commits) || !commits.length) return [];
+    this._headSha = commits[0].sha;
+    const treeSha = commits[0].commit && commits[0].commit.tree && commits[0].commit.tree.sha;
+    if (!treeSha) throw new Error('commit 응답에 tree SHA 없음');
 
-    const mdFiles = Array.isArray(entries)
-      ? entries.filter(e => /^I-\d{4}\.md$/.test(e.name))
-      : [];
+    // 2) 재귀 트리
+    const treeResp = await fetch(
+      this._api(`/repos/${this.owner}/${this.repo}/git/trees/${treeSha}?recursive=1`),
+      { headers }
+    );
+    if (!treeResp.ok) throw new Error(`tree 가져오기 실패: ${treeResp.status}`);
+    const treeData = await treeResp.json();
 
-    const intents = [];
-    for (const entry of mdFiles) {
-      const fileResp = await fetch(
-        this._api(`/repos/${this.owner}/${this.repo}/contents/${entry.path}?ref=${encodeURIComponent(this.branch)}`),
+    // 3) Intent 파일만 필터링 (intentsPath 직속, I-NNNN.md 형식, 깊이 1)
+    const prefix = `${this.intentsPath}/`;
+    const intentEntries = (treeData.tree || []).filter(t =>
+      t && t.type === 'blob' &&
+      typeof t.path === 'string' &&
+      t.path.startsWith(prefix) &&
+      /^I-\d{4}\.md$/.test(t.path.slice(prefix.length))
+    );
+
+    // 4) 각 blob 병렬 페치 (base64). branch 명에 슬래시(`intents/draft`) 가 있어도
+    //    SHA 기반 git/blobs API 는 ref 모호성이 없다.
+    const fetches = intentEntries.map(async entry => {
+      const blobResp = await fetch(
+        this._api(`/repos/${this.owner}/${this.repo}/git/blobs/${entry.sha}`),
         { headers }
       );
-      if (!fileResp.ok) continue;
-      const fileData = await fileResp.json();
-      const content = atob(fileData.content.replace(/\n/g, ''));
-      const parsed = _parseMd(content);
-      intents.push({ ...parsed, baseVersion: this._headSha });
-    }
+      if (!blobResp.ok) return null;
+      const blobData = await blobResp.json();
+      const text = atob((blobData.content || '').replace(/\n/g, ''));
+      const parsed = _parseMd(text);
+      return { ...parsed, baseVersion: this._headSha };
+    });
 
+    const intents = (await Promise.all(fetches)).filter(Boolean);
+    intents.sort((a, b) => a.id.localeCompare(b.id));
     return intents;
   }
 
