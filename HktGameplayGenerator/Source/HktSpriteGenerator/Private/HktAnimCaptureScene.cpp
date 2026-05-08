@@ -59,7 +59,6 @@ FHktAnimCaptureScene::~FHktAnimCaptureScene()
 	MeshComp = nullptr;
 	CaptureComp = nullptr;
 	RenderTarget = nullptr;
-	PreviewRT = nullptr;
 	KeyLight = nullptr;
 	FillLight = nullptr;
 	ExtraSkyLight = nullptr;
@@ -73,7 +72,6 @@ void FHktAnimCaptureScene::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(MeshComp);
 	Collector.AddReferencedObject(CaptureComp);
 	Collector.AddReferencedObject(RenderTarget);
-	Collector.AddReferencedObject(PreviewRT);
 	Collector.AddReferencedObject(KeyLight);
 	Collector.AddReferencedObject(FillLight);
 	Collector.AddReferencedObject(ExtraSkyLight);
@@ -189,9 +187,8 @@ bool FHktAnimCaptureScene::Initialize(const FHktAnimCaptureSettings& Settings, F
 	CaptureComp->bCaptureEveryFrame = false;
 	CaptureComp->bCaptureOnMovement = false;
 	CaptureComp->bAlwaysPersistRenderingState = true;
-	// 캡처 기본값: Atmosphere/Fog OFF — 스프라이트용 알파 보존 / 단색 배경 유지.
-	// RenderPreview 진입 시점에만 이 두 플래그를 일시적으로 ON 으로 토글하여
-	// FAdvancedPreviewScene 이 만든 스카이스피어가 슬레이트 미리보기에 보이게 한다.
+	// 캡처 전용 ShowFlag — Atmosphere/Fog OFF 로 알파 보존, MotionBlur OFF 로 잔상 제거.
+	// (프리뷰는 별도 SHktAnimPreviewViewport 가 표준 에디터 렌더 경로로 처리한다.)
 	CaptureComp->ShowFlags.SetAtmosphere(false);
 	CaptureComp->ShowFlags.SetFog(false);
 	CaptureComp->ShowFlags.SetMotionBlur(false);
@@ -370,23 +367,6 @@ void FHktAnimCaptureScene::ApplyLighting(const FHktAnimCaptureSettings& Settings
 		Preview->AddComponent(ExtraSkyLight, FTransform::Identity);
 		ExtraSkyLight->RecaptureSky();
 	}
-}
-
-void FHktAnimCaptureScene::UpdateLightingSettings(const FHktAnimCaptureSettings& NewSettings)
-{
-	// 라이트만 갱신 — bUseDefaultLighting 토글은 PreviewScene 재생성이 필요하므로 적용 못함.
-	// (호출 측에서 RebuildPreviewScene 으로 처리할 것.)
-	CachedSettings.bEnableKeyLight        = NewSettings.bEnableKeyLight;
-	CachedSettings.KeyLightIntensity      = NewSettings.KeyLightIntensity;
-	CachedSettings.KeyLightColor          = NewSettings.KeyLightColor;
-	CachedSettings.KeyLightRotation       = NewSettings.KeyLightRotation;
-	CachedSettings.bEnableFillLight       = NewSettings.bEnableFillLight;
-	CachedSettings.FillLightIntensity     = NewSettings.FillLightIntensity;
-	CachedSettings.FillLightColor         = NewSettings.FillLightColor;
-	CachedSettings.FillLightRotation      = NewSettings.FillLightRotation;
-	CachedSettings.ExtraSkyLightIntensity = NewSettings.ExtraSkyLightIntensity;
-
-	ApplyLighting(CachedSettings);
 }
 
 void FHktAnimCaptureScene::SetDirectionIndex(int32 DirectionIdx)
@@ -573,66 +553,3 @@ bool FHktAnimCaptureScene::EncodePng(TArray64<uint8>& OutPng, FString& OutError)
 	return OutPng.Num() > 0;
 }
 
-bool FHktAnimCaptureScene::InitializePreviewRT(int32 PreviewWidth, int32 PreviewHeight, FString& OutError)
-{
-	if (!CaptureComp)
-	{
-		OutError = TEXT("Initialize 가 먼저 호출되어야 함");
-		return false;
-	}
-
-	const int32 W = FMath::Clamp(PreviewWidth, 64, 4096);
-	const int32 H = FMath::Clamp(PreviewHeight, 64, 4096);
-
-	PreviewRT = NewObject<UTextureRenderTarget2D>(GetTransientPackage(), NAME_None, RF_Transient);
-	PreviewRT->RenderTargetFormat = RTF_RGBA8;
-	// 프리뷰 ClearColor — RenderPreview 가 Atmosphere/Fog ShowFlag 를 잠시 ON 으로 켜면
-	// FAdvancedPreviewScene 의 스카이스피어가 화면 전체를 덮으므로 이 색은 거의 안 보인다.
-	// 그래도 디폴트 라이팅을 사용자가 끈 경우(=스카이 비활성)를 위해 중성 회색으로.
-	PreviewRT->ClearColor = FLinearColor(0.12f, 0.12f, 0.13f, 1.0f);
-	PreviewRT->bAutoGenerateMips = false;
-	PreviewRT->InitAutoFormat(W, H);
-	PreviewRT->UpdateResourceImmediate(true);
-	return true;
-}
-
-void FHktAnimCaptureScene::RenderPreview()
-{
-	if (!CaptureComp || !PreviewRT) return;
-
-	UTextureRenderTarget2D* SavedTarget = CaptureComp->TextureTarget;
-
-	// 프리뷰에서만 스카이박스/Fog 가시화 — 스프라이트 캡처는 알파 보존을 위해 두 플래그가 OFF.
-	const bool bSavedAtmosphere = CaptureComp->ShowFlags.Atmosphere;
-	const bool bSavedFog        = CaptureComp->ShowFlags.Fog;
-	CaptureComp->ShowFlags.SetAtmosphere(true);
-	CaptureComp->ShowFlags.SetFog(true);
-
-	// 프리뷰 1프레임 렌더 — 출력 RT 상태는 보존.
-	CaptureComp->TextureTarget = PreviewRT;
-	TickPose();
-	CaptureComp->CaptureScene();
-	CaptureComp->TextureTarget = SavedTarget;
-
-	// ShowFlag 복원 — 다음 캡처 호출이 알파 보존 상태로 이어지도록.
-	CaptureComp->ShowFlags.SetAtmosphere(bSavedAtmosphere);
-	CaptureComp->ShowFlags.SetFog(bSavedFog);
-}
-
-void FHktAnimCaptureScene::UpdateCameraSettings(const FHktAnimCaptureSettings& NewSettings)
-{
-	// 메시/애니/RT 는 그대로 — 카메라 관련 값만 갱신.
-	const int32 PrevDirCount = CachedSettings.NumDirections;
-	CachedSettings = NewSettings;
-	// NumDirections 는 외부에서 직접 적용 — 클램프 유지.
-	CachedSettings.NumDirections = FMath::Clamp(NewSettings.NumDirections, 1, 8);
-
-	ApplyCameraFraming(CachedSettings);
-
-	// 방향 인덱스 보정.
-	if (CachedSettings.NumDirections != PrevDirCount)
-	{
-		CurrentDirectionIdx = FMath::Min(CurrentDirectionIdx, CachedSettings.NumDirections - 1);
-	}
-	UpdateCameraTransform();
-}
