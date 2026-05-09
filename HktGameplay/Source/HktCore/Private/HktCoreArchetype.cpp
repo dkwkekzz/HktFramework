@@ -148,14 +148,15 @@ void InitializeHktArchetypes()
         // Spatial 프로퍼티 포함 (Register에서 AddUnique로 중복 제거)
         HktProperty::PosX, HktProperty::PosY, HktProperty::PosZ, HktProperty::RotYaw,
         HktProperty::MoveTargetX, HktProperty::MoveTargetY, HktProperty::MoveTargetZ,
-        HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::IsGrounded, HktProperty::MaxSpeed,
+        HktProperty::MoveForce, HktProperty::IsMoving, HktProperty::MaxSpeed,
         HktProperty::VelX, HktProperty::VelY, HktProperty::VelZ,
         // JumpVelZ 제거 — VelZ로 통합 (HktCoreProperties.h 의 DEPRECATED_JumpVelZ 참조)
     });
 
     HktTrait::Collidable = R.DefineTrait(TEXT("Collidable"), {
         HktProperty::CollisionLayer, HktProperty::CollisionMask,
-        HktProperty::CollisionRadius, HktProperty::CollisionHalfHeight, HktProperty::Mass,
+        HktProperty::CollisionRadius, HktProperty::CollisionHalfHeight, HktProperty::Mass, 
+        HktProperty::IsGrounded
     });
 
     // Hittable: 피격 가능 대상의 최소 조건 (Character, NPC, Building, Debris 공통)

@@ -486,10 +486,9 @@ namespace HktSpriteGen
 				for (const FString& F : Files)
 				{
 					if (!IsSupportedImageExt(FPaths::GetExtension(F))) continue;
-					int32 FrameIdx = FrameCounter++;
-					FString Stem = FPaths::GetBaseFilename(F);
-					if (Stem.IsNumeric()) FrameIdx = FCString::Atoi(*Stem);
-					AppendImage(DirPath / F, ActionLower, DirIdx, FrameIdx, OutFrames);
+					// FrameIdx 는 항상 순차 — 파일명 숫자가 띄엄띄엄(1,2,4 등) 이어도
+					// atlas 셀은 빈 칸 없이 발견 순서대로 0,1,2,… 로 채운다.
+					AppendImage(DirPath / F, ActionLower, DirIdx, FrameCounter++, OutFrames);
 				}
 			}
 			if (bHasDirSub) continue;
@@ -654,6 +653,21 @@ namespace HktSpriteGen
 		PreferredCols = FMath::Min(PreferredCols, MaxColsByWidth);
 		OutCols = FMath::Max(1, PreferredCols);
 		OutRows = FMath::DivideAndRoundUp(CellCount, OutCols);
+
+		// 빈 셀 제거 — CellCount 가 OutCols 의 배수가 아니면 마지막 행에 빈 칸이 생긴다.
+		// MaxColsByWidth 이하의 약수 중 가장 큰 값으로 OutCols 를 재선택해 grid 를 빈틈없이 채운다.
+		// 약수가 1 뿐이면(=소수) 어쩔 수 없이 1 열 strip 으로 폴백.
+		if (OutRows > 1 && (CellCount % OutCols) != 0)
+		{
+			int32 BestCols = 1;
+			const int32 ColCap = FMath::Min(OutCols, MaxColsByWidth);
+			for (int32 c = ColCap; c >= 1; --c)
+			{
+				if ((CellCount % c) == 0) { BestCols = c; break; }
+			}
+			OutCols = BestCols;
+			OutRows = CellCount / OutCols;
+		}
 
 		if (OutCols * OutCellW > kMaxAtlasDim || OutRows * OutCellH > kMaxAtlasDim)
 		{
@@ -1738,17 +1752,29 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 			*CharacterTagStr, *AnimTagStr));
 	}
 
+	// 양자화 — 발견된 DirIdx 집합으로 1/2/5/8 중 결정.
+	auto HasDir = [&Slots](int32 D)
+	{
+		return Slots.ContainsByPredicate([D](const FSlotEntry& S){ return S.DirIdx == D; });
+	};
+	const bool bHasE = HasDir(2);
+	const bool bHasW = HasDir(6);
+	const bool bOnlyEW = (Slots.Num() <= 2) && bHasE
+		&& !HasDir(0) && !HasDir(1) && !HasDir(3)
+		&& !HasDir(4) && !HasDir(5) && !HasDir(7);
+
 	int32 NumDirLocal;
-	if (Slots.Num() == 1)
+	if (Slots.Num() == 1 && !bHasE && !bHasW)
 	{
 		NumDirLocal = 1;
 	}
+	else if (bOnlyEW)
+	{
+		// {E} 또는 {E,W} → 2방향 (좌/우). W 부재 시 mirror 로 보강.
+		NumDirLocal = 2;
+	}
 	else if (Slots.Num() <= 5
-		&& Slots.ContainsByPredicate([](const FSlotEntry& S){ return S.DirIdx == 0; })
-		&& Slots.ContainsByPredicate([](const FSlotEntry& S){ return S.DirIdx == 1; })
-		&& Slots.ContainsByPredicate([](const FSlotEntry& S){ return S.DirIdx == 2; })
-		&& Slots.ContainsByPredicate([](const FSlotEntry& S){ return S.DirIdx == 3; })
-		&& Slots.ContainsByPredicate([](const FSlotEntry& S){ return S.DirIdx == 4; }))
+		&& HasDir(0) && HasDir(1) && HasDir(2) && HasDir(3) && HasDir(4))
 	{
 		NumDirLocal = 5;
 	}
@@ -1787,7 +1813,11 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	Anim.PivotOffset         = FVector2f(SlotCellW * 0.5f, static_cast<float>(SlotCellH));
 	Anim.FrameDurationMs     = 100.f;
 	Anim.bLooping            = bLoop;
-	Anim.bMirrorWestFromEast = (NumDirLocal == 5);
+	// 5방향: 항상 W/SW/NW를 동측에서 미러.
+	// 2방향: W 슬롯이 없을 때만 미러 (있으면 좌향 전용 아트 사용).
+	Anim.bMirrorWestFromEast =
+		(NumDirLocal == 5) ||
+		(NumDirLocal == 2 && !bHasW);
 
 	auto FindSlot = [&Slots](int32 DirIdx) -> const FSlotEntry*
 	{
@@ -1810,6 +1840,12 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	if (NumDirLocal == 1)
 	{
 		AssignSlot(0, Slots[0].DirIdx);
+	}
+	else if (NumDirLocal == 2)
+	{
+		// 슬롯 0 = E(idx 2), 슬롯 1 = W(idx 6). W 부재 시 빈 슬롯 — Resolver 가 mirror 로 폴백.
+		AssignSlot(0, /*E*/ 2);
+		AssignSlot(1, /*W*/ 6);
 	}
 	else
 	{

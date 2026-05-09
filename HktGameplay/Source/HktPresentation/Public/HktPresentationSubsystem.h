@@ -49,6 +49,10 @@ public:
 	/** 엔티티에 바인딩된 Actor의 실제 위치 반환. Actor가 없으면 GetEntityLocation 폴백. */
 	FVector GetEntityActorLocation(FHktEntityId Id) const;
 
+	/** 카메라/UI 추적용 "시각적 중앙" 위치. Actor 가 IHktPresentableActor 면 위임,
+	 *  아니면 GetEntityActorLocation 폴백. */
+	FVector GetEntityFocusLocation(FHktEntityId Id) const;
+
 	/** 현재 Subject 엔티티 ID (디버그 프로세서에서 사용) */
 	FHktEntityId GetSubjectEntityId() const { return CurrentSubjectEntityId; }
 

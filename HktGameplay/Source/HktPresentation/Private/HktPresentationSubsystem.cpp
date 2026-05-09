@@ -4,6 +4,7 @@
 #include "IHktPlayerInteractionInterface.h"
 #include "HktRuntimeTypes.h"
 #include "HktAssetSubsystem.h"
+#include "Actors/IHktPresentableActor.h"
 #include "Processors/HktActorProcessor.h"
 #include "Processors/HktMassEntityProcessor.h"
 #include "Processors/HktVFXProcessor.h"
@@ -606,6 +607,22 @@ FVector UHktPresentationSubsystem::GetEntityActorLocation(FHktEntityId Id) const
 		AActor* Actor = ActorProcessor->GetActor(Id);
 		if (Actor)
 		{
+			return Actor->GetActorLocation();
+		}
+	}
+	return GetEntityLocation(Id);
+}
+
+FVector UHktPresentationSubsystem::GetEntityFocusLocation(FHktEntityId Id) const
+{
+	if (ActorProcessor)
+	{
+		if (AActor* Actor = ActorProcessor->GetActor(Id))
+		{
+			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(Actor))
+			{
+				return P->GetFocusWorldLocation();
+			}
 			return Actor->GetActorLocation();
 		}
 	}

@@ -93,7 +93,7 @@ struct HKTSPRITECORE_API FHktSpriteAnimation
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<FHktSpriteAtlasSlot> AtlasSlots;
 
-	/** 저장된 방향 수: 1(단일), 5(N/NE/E/SE/S+미러), 8(전체). */
+	/** 저장된 방향 수: 1(단일), 2(좌/우 — 슬롯 0=E, 1=W), 5(N/NE/E/SE/S+미러), 8(전체). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1", ClampMax="8"))
 	int32 NumDirections = 1;
 
@@ -126,7 +126,7 @@ struct HKTSPRITECORE_API FHktSpriteAnimation
 	/** 비루프 애니 종료 후 자동 전환될 anim tag (없으면 무효 태그). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag OnCompleteTransition;
 
-	/** W/SW/NW를 E/SE/NE 미러로 처리 (NumDirections=5일 때만 의미 있음). */
+	/** W/SW/NW를 E/SE/NE 미러로 처리 (NumDirections=2 또는 5에서 의미 있음 — 2일 때 W 슬롯 부재 시 슬롯 0 X-flip). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly) bool bMirrorWestFromEast = true;
 
 	// --- 런타임 헬퍼 ---

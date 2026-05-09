@@ -60,6 +60,7 @@ public:
 
 	// === IHktPresentableActor ===
 	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
+	virtual FVector GetFocusWorldLocation() const override;
 	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
 	virtual void ApplyTransform(const FHktTransformView& V) override;
 	virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;

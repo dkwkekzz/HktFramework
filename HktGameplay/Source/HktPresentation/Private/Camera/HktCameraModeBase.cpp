@@ -85,7 +85,7 @@ void UHktCameraModeBase::TrackEntity(AHktRtsCameraPawn* Pawn, FHktEntityId Entit
 	UHktPresentationSubsystem* Sub = UHktPresentationSubsystem::Get(PC);
 	if (!Sub) return;
 
-	const FVector EntityLoc = Sub->GetEntityActorLocation(EntityId);
+	const FVector EntityLoc = Sub->GetEntityFocusLocation(EntityId);
 	if (EntityLoc.IsZero()) return;
 
 	const FVector CurrentLoc = Pawn->GetActorLocation();

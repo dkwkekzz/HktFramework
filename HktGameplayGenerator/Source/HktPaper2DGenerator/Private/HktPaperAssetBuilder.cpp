@@ -466,8 +466,10 @@ namespace HktPaperAssetBuilder
 				continue;
 			}
 
-			// 미러 dir(W=6, SW=5, NW=7) 은 빌드 스킵 — 액터가 X-스케일로 처리.
-			const bool bIsMirrored = bMirrorWestFromEast && (d == 5 || d == 6 || d == 7);
+			// 미러 dir(SW=5, NW=7) 은 빌드 스킵 — 액터가 X-스케일로 처리.
+			// W(=6) 는 2방향(좌/우) 모드에서 좌향 전용 아트로 쓰일 수 있으므로
+			// 디스크에 atlas_W.png 가 있으면 빌드 (Built 단계에서 양자화로 NumDir=2 결정).
+			const bool bIsMirrored = bMirrorWestFromEast && (d == 5 || d == 7);
 			if (bIsMirrored)
 			{
 				continue;
@@ -569,10 +571,29 @@ namespace HktPaperAssetBuilder
 			return Result;
 		}
 
-		// 양자화 — 1 / 5 / 8.
-		// (미러 dir 은 빌드 안 했으므로 발견된 non-mirror dir 수로 결정 — N(0), NE(1), E(2), SE(3), S(4))
-		int32 NumDir = 8;
-		if (Built.Num() == 1)
+		// 양자화 — 1 / 2 / 5 / 8.
+		// 발견된 source DirIdx 집합으로 결정:
+		//   {E}            → 2 (단일 방향이지만 mirror 로 좌향 처리 — slot 0=E)
+		//   {E, W}         → 2 (slot 0=E, 1=W)
+		//   1 개 (E 외)    → 1 (slot 0 만 사용)
+		//   N..S(0..4)     → 5
+		//   그 외          → 8
+		auto BuiltHas = [&Built](int32 D)
+		{
+			return Built.ContainsByPredicate([D](const FDirBuilt& B){ return B.DirIdx == D; });
+		};
+		const bool bBuiltHasE = BuiltHas(2);
+		const bool bBuiltHasW = BuiltHas(6);
+		const bool bOnlyEW = bBuiltHasE
+			&& !BuiltHas(0) && !BuiltHas(1) && !BuiltHas(3)
+			&& !BuiltHas(4) && !BuiltHas(5) && !BuiltHas(7);
+
+		int32 NumDir;
+		if (bOnlyEW)
+		{
+			NumDir = 2;
+		}
+		else if (Built.Num() == 1)
 		{
 			NumDir = 1;
 		}
@@ -580,7 +601,23 @@ namespace HktPaperAssetBuilder
 		{
 			NumDir = 5;
 		}
+		else
+		{
+			NumDir = 8;
+		}
 		Result.NumDirections = NumDir;
+
+		// source DirIdx → slot 인덱스 매핑 (런타임 ResolveStoredFacing 의 반환값 규약과 일치).
+		auto SourceDirToSlot = [NumDir](int32 SrcDir) -> int32
+		{
+			switch (NumDir)
+			{
+				case 1: return 0;                     // 단일 슬롯
+				case 2: return (SrcDir == 6) ? 1 : 0; // 0=E, 1=W
+				case 5: return SrcDir;                // 0..4 = N..S
+				case 8: default: return SrcDir;       // 0..7 그대로
+			}
+		};
 
 		// Template / Visual upsert.
 		UHktPaperCharacterTemplate* Template = LoadOrCreateTemplate(OutputPackageDir, SafeChar, PixelToWorld);
@@ -594,22 +631,34 @@ namespace HktPaperAssetBuilder
 		Meta.NumDirections        = NumDir;
 		Meta.FrameDurationMs      = FrameDurationMs;
 		Meta.bLooping             = bLooping;
-		Meta.bMirrorWestFromEast  = bMirrorWestFromEast;
+		// 2방향: W 슬롯 부재 시에만 mirror (있으면 좌향 전용 아트). 그 외는 입력 플래그 그대로.
+		Meta.bMirrorWestFromEast  = (NumDir == 2)
+			? !bBuiltHasW
+			: bMirrorWestFromEast;
 		Meta.Tint                 = FLinearColor::White;
 		Meta.Scale                = FVector2f(1.f, 1.f);
 		Template->Animations.Add(Result.AnimTag, Meta);
 
-		// 빌드 시점에 (AnimTag, DirIdx) → Flipbook 매핑을 명시적으로 로그.
-		// 런타임의 "AnimResolve" 진단 로그와 직접 비교해 dir/key 어긋남을 잡기 위함.
+		// 같은 anim 의 stale 키 제거 — 이전 빌드가 다른 NumDir 에서 등록한 키가 남아 있으면
+		// 런타임 룩업이 잘못된 슬롯에 매칭될 수 있다 (예: 5→1 로 줄였을 때 (anim,2) 잔존).
+		for (auto It = Template->Flipbooks.CreateIterator(); It; ++It)
+		{
+			if (It.Key().AnimTag == Result.AnimTag) It.RemoveCurrent();
+		}
+
+		// 빌드 시점에 (AnimTag, slotIdx) → Flipbook 매핑. 키의 DirIdx 는 source 가 아니라
+		// **slot 인덱스** — 런타임 ResolveStoredFacing 반환값과 1:1 매칭됨.
 		for (const FDirBuilt& B : Built)
 		{
+			const int32 SlotIdx = SourceDirToSlot(B.DirIdx);
+
 			FHktPaperAnimDirKey Key;
 			Key.AnimTag = Result.AnimTag;
-			Key.DirIdx  = static_cast<uint8>(B.DirIdx);
+			Key.DirIdx  = static_cast<uint8>(SlotIdx);
 			Template->Flipbooks.Add(Key, B.Flipbook);
 
 			UE_LOG(LogHktPaper2DGenerator, Log,
-				TEXT("[BuildAnim] Flipbooks.Add anim=%s, DirIdx=%u (%s), FB=%s, frames=%d"),
+				TEXT("[BuildAnim] Flipbooks.Add anim=%s, Slot=%u (source=%s), FB=%s, frames=%d"),
 				*Result.AnimTag.ToString(), Key.DirIdx,
 				HktPaperWorkspace::GetDirectionName(B.DirIdx),
 				*GetNameSafe(B.Flipbook), B.FrameCount);

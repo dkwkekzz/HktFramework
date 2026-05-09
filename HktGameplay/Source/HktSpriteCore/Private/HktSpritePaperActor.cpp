@@ -69,6 +69,27 @@ AHktSpritePaperActor::AHktSpritePaperActor()
 }
 
 // ----------------------------------------------------------------------------
+// 시각적 중앙 위치 (카메라 추적용)
+// ----------------------------------------------------------------------------
+
+FVector AHktSpritePaperActor::GetFocusWorldLocation() const
+{
+	// PaperSprite ActorLocation 은 발(엔티티 좌표) 기준. 빌보드 yaw / X-Flip 으로 인해
+	// FlipbookComp 바운드의 XY 는 매 프레임 흔들리므로 XY 는 ActorLocation 을 그대로 쓰고
+	// Z 만 sprite 바운드 중앙에서 가져와 카메라 시선이 캐릭터 중앙을 향하도록 한다.
+	const FVector Loc = GetActorLocation();
+	if (FlipbookComp && FlipbookComp->IsRegistered())
+	{
+		const FBoxSphereBounds B = FlipbookComp->Bounds;
+		if (B.BoxExtent.Z > KINDA_SMALL_NUMBER)
+		{
+			return FVector(Loc.X, Loc.Y, B.Origin.Z);
+		}
+	}
+	return Loc;
+}
+
+// ----------------------------------------------------------------------------
 // 자산 바인딩
 // ----------------------------------------------------------------------------
 

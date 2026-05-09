@@ -2,6 +2,7 @@
 #pragma once
 
 #include "UObject/Interface.h"
+#include "GameFramework/Actor.h"
 #include "HktCoreDefs.h"
 #include "IHktPresentableActor.generated.h"
 
@@ -17,7 +18,6 @@ struct FHktItemView;
 struct FHktVoxelSkinView;
 struct FHktSpriteView;
 struct FHktTerrainDebrisView;
-class AActor;
 class UHktTagDataAsset;
 
 UINTERFACE()
@@ -34,6 +34,18 @@ class IHktPresentableActor
 	GENERATED_BODY()
 public:
 	virtual void SetEntityId(FHktEntityId InEntityId) = 0;
+
+	/**
+	 * 카메라/UI 가 "엔티티의 시각적 중앙"을 보고 싶을 때 사용할 월드 위치.
+	 * 액터 타입별로 발 기준 좌표를 시각적 중앙으로 보정한다.
+	 *  - 캡슐 액터: ActorLocation (루트가 캡슐 중심) — 기본값
+	 *  - 스프라이트 액터: FlipbookComp 바운드 중앙으로 오버라이드
+	 */
+	virtual FVector GetFocusWorldLocation() const
+	{
+		const AActor* Self = Cast<const AActor>(_getUObject());
+		return Self ? Self->GetActorLocation() : FVector::ZeroVector;
+	}
 
 	/** 매 프레임 호출 (Transform 뷰가 있는 모든 엔터티) */
 	virtual void ApplyTransform(const FHktTransformView& V) {}
