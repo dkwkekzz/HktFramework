@@ -12,11 +12,12 @@
 
 ## 핵심 진입점
 
-- `AHktSpriteTerrainActor::Tick` — 카메라 → ChunkLoader → AcquireChunk → ExtractSurfaceCells → HISM add/remove (청크 단위 일괄).
+- `AHktSpriteTerrainActor::Tick` — 매 프레임 fallback wireframe (`DrawFallbackWireframes`) + throttle 된 chunk load/unload.
 - `FHktSpriteTerrainSurfaceCell` — 표면 voxel 1개 (`ChunkCoord, LocalCoord, WorldPos, TypeID, PaletteIndex, Flags`). v1 은 (LX, LY) 별 topmost-exposed solid voxel.
-- `ChunkVoxelScratch` / `AboveChunkVoxelScratch` — 멤버 풀 (각 128KB), 매 호출 재할당 금지.
-- `InitSpriteMode` / `InitFallbackMode` — BeginPlay 에서 모드 선택. AtlasTexture 유무로 결정.
-- `GetFallbackFaceMaterial` (cpp 무명 ns) — Editor 빌드에서 런타임 생성 unlit material (PerInstanceCustomData[9..11] → Emissive).
+- `ChunkVoxelScratch` / `AboveChunkVoxelScratch` — 멤버 풀 (각 128KB).
+- `InitSpriteMode` — Sprite mode HISM/머티리얼/Atlas 바인딩. Fallback mode 는 BeginPlay 에서 HISM 비활성화만.
+- `LoadedSurfaceCells` — Fallback mode 가 청크 별 cell 캐시 (DrawDebugBox 가 매 Tick 순회).
+- `GetFallbackTypeColor` (cpp 무명 ns) — HktAdvTerrainType 33 ID → FColor 매핑 테이블.
 
 ## Depth 정렬
 
@@ -27,7 +28,6 @@ Crowd (캐릭터) 와 z-fight 방지 — Terrain `ComponentZBias=0` (베이스�
 - HISM CustomData 슬롯 수정 → README 표 + 머티리얼 (`M_HktSpriteYBillboard`) 동기 갱신.
 - 표면 추출 알고리즘 변경 → 결정론 영향 검토.
 - 폴백 컬러 테이블 변경 → README 매핑 요약 / Troubleshooting 표 동기.
-- 신규 `HktAdvTerrainType` 추가 시 → `GetFallbackTypeColorLinear` 테이블 확장 (안 하면 마젠타 표시).
-- Fallback face transform 변경 (RotTop/Left/Right) → iso 카메라 가시면(+Z, -X, -Y)과 일치 유지. README 의 transform 표 동기.
+- 신규 `HktAdvTerrainType` 추가 시 → `GetFallbackTypeColor` 테이블 확장 (안 하면 마젠타 표시).
 
 `AHktVoxelSpriteTerrainActor` (HktVoxelTerrain) 는 deprecated — 1 릴리스 유예 후 제거.

@@ -11,21 +11,21 @@
 - **HktSpriteCore 비의존** — 머티리얼 / CPD 슬롯 규약 (M_HktSpriteYBillboard) 만 공유 (param 이름 하드코딩).
 - **단방향**: HktSpriteTerrain → HktTerrain → HktCore.
 
-## 렌더 방식 (v1 — SC-tile + 3-Face fallback)
+## 렌더 방식 (v1 — SC-tile + Wireframe fallback)
 
 두 가지 모드:
 
 | 모드 | 조건 | 렌더 |
 |---|---|---|
 | **Sprite** | `AtlasTexture` 할당됨 | voxel 당 upright Y-billboard quad 1장. 화가가 그린 iso voxel sprite (마름모 top + 측면 통합 PNG) art 가 carry. |
-| **Fallback** | `AtlasTexture=null` + `bUseFallbackColors=true` | voxel 당 axis-aligned face quad 3장 (top +Z, left -X, right -Y). TypeID 별 base color × 면별 음영 (Top 1.00 / Right 0.78 / Left 0.58). 런타임 생성 unlit emissive 머티리얼. |
-| (no render) | `AtlasTexture=null` + `bUseFallbackColors=false` | 인스턴스 emit 안 함. |
+| **Fallback** | `AtlasTexture=null` + `bUseFallbackColors=true` | voxel 마다 매 Tick `DrawDebugBox` 호출 → 12-line wireframe cube. TypeID 별 색. HISM/머티리얼 불필요. |
+| (no render) | `AtlasTexture=null` + `bUseFallbackColors=false` | 아무것도 안 그림. |
 
 Mode 는 BeginPlay 1회 결정 — 런타임 스왑 안 됨.
 
-카메라는 `HktCameraMode_IsometricOrtho` (pitch −30, yaw 45) 고정 — Fallback mode 의 axis-aligned face quad 들이 이 각도에서 자연스럽게 마름모 + 평행사변형으로 투영된다.
+카메라는 `HktCameraMode_IsometricOrtho` (pitch −30, yaw 45) 고정 — Fallback mode 의 wireframe 큐브가 이 각도에서 자연스럽게 마름모 + 평행사변형 outline 으로 투영된다.
 
-청크당 voxel 수: 최대 ChunkSize² = 1024. Fallback mode 는 인스턴스 3배 (3072 / 청크) — 청크 1개당 HISMFallbackTop/Left/Right 에 각 1024.
+청크당 voxel 수: 최대 ChunkSize² = 1024. Fallback mode 는 매 프레임 voxel 마다 DrawDebugBox 1회 (12 lines). ~50 chunk × 1024 cells × 12 lines = ~600k lines/frame — 현대 GPU 디버그 라인 배칭으로 충분.
 
 ## 핵심 타입
 
@@ -69,44 +69,37 @@ v1 은 청크 in-place 갱신 없음 — 지형 정적 가정. 청크는 streami
 
 `PixelToWorld` (기본 0.166) = (VoxelSize × √2) / CellW. voxel 큐브 한 변의 iso 가로 투영이 cell 폭에 맞아 들어가는 값. art / VoxelSize / CellSizePx 변경 시 재튜닝.
 
-### Fallback 컬러 face quad (`bUseFallbackColors`)
+### Fallback wireframe (`bUseFallbackColors`)
 
-`AtlasTexture` 가 **null** 이고 `bUseFallbackColors=true` (기본) 인 경우, BeginPlay 에서 fallback mode 로 진입. voxel 의 보이는 3면을 axis-aligned 평면 quad 로 직접 색칠한다 — 텍스처 픽셀 페인팅 없음. Sprite 픽셀 art 보다 단순 / 명확.
+`AtlasTexture` 가 **null** 이고 `bUseFallbackColors=true` (기본) 인 경우, BeginPlay 에서 fallback mode 로 진입. voxel 마다 매 Tick `DrawDebugBox` 호출 — 12 라인의 wireframe cube 가 그려진다. HISM / 머티리얼 / mesh 전부 불필요.
 
 ```
-        TOP  (+Z, axis-aligned 수평 quad, identity rotation)
-       /    \
-      /      \             각 면이 별도 HISM 인스턴스:
-     ╲   ◇   ╱             - HISMFallbackTop   (voxel 윗면)
-      ╲     ╱              - HISMFallbackLeft  (voxel -X 면)
-   ┌───┴───┴───┐           - HISMFallbackRight (voxel -Y 면)
-   │ L ╲   ╱ R │
-   │   ╲ ╱   │             면별 transform 으로 axis-aligned 배치,
-   │   ╳ ╲   │             iso ortho 카메라가 자연스럽게 마름모+
-   │  ╱   ╲   │             평행사변형으로 투영.
-   └─────────┘
+         iso ortho 카메라에서 자연스럽게:
+
+              ╱╲                ← voxel 의 top diamond outline
+             ╱  ╲
+            ╱    ╲
+            ╲    ╱
+             ╲  ╱
+       ┌─────┼──┼─────┐         ← voxel 의 좌·우 pillar
+       │     ╲╱      │
+       │     ╳       │
+       │    ╱╲       │
+       └───┴──┴──────┘
 ```
 
-**면별 음영** (단일 광원 NE 상부 가정 — 전형적 iso pixel-art 톤):
-- Top   = base × 1.00
-- Right = base × 0.78
-- Left  = base × 0.58
+DrawDebugBox 는 axis-aligned 큐브 12-edge 를 라인 배쳐로 출력. iso ortho 투영이 그대로 hexagonal outline 으로 보임.
 
-**TypeID 별 base color**: `HktAdvTerrainType` 33 ID 매핑 (Grass=초록, Water=파랑, OreGold=금색 등). 등록 안 된 TypeID 는 마젠타 (FF00FF) — 신규 type 추가 시 즉시 시각 식별. 정의: `Private/HktSpriteTerrainActor.cpp` 의 `GetFallbackTypeColorLinear`.
+**TypeID 별 색**: `HktAdvTerrainType` 33 ID 매핑 (Grass=초록, Water=파랑, OreGold=금색 등). 등록 안 된 TypeID 는 마젠타 (FF00FF) — 신규 type 추가 시 즉시 시각 식별. 정의: `Private/HktSpriteTerrainActor.cpp` 의 `GetFallbackTypeColor`.
 
-**머티리얼**: BeginPlay 에서 자동 생성 (`GetFallbackFaceMaterial`) — Unlit / TwoSided / Opaque, PerInstanceCustomData[9..11] (R, G, B) 을 Emissive 로 직접 출력. **Editor 빌드 전용** — Shipping 빌드에선 엔진 기본 머티리얼로 폴백 (색 안 나옴). Fallback 은 dev 용도이므로 Shipping 에선 정식 art 사용 가정.
+**파라미터**:
+- `FallbackWireThickness` (기본 0.5cm) — wireframe 라인 두께.
 
-**면별 인스턴스 transform** (voxel bottom-center = (Wx, Wy, Wz), 크기 S):
+**제약**:
+- DrawDebugBox 는 non-shipping 빌드에서만 동작. Shipping 에선 자동 no-op — 정식 `AtlasTexture` + `TerrainMaterial` 할당 가정.
+- Cell 캐시 (`LoadedSurfaceCells`) 가 메모리에 남음. 청크 unload 시 자동 cleanup.
 
-| 면 | Rotation | Position | Scale |
-|---|---|---|---|
-| Top   | `FRotator::ZeroRotator`        | `(Wx, Wy - S/2, Wz + S)`     | `(S, S, S)` |
-| Left  | `FRotator(-90, 0, 0)` (pitch)  | `(Wx - S/2, Wy - S/2, Wz + S/2)` | `(S, S, S)` |
-| Right | `FRotator(0, 0, 90)` (roll)    | `(Wx, Wy - S/2, Wz)`         | `(S, S, S)` |
-
-QuadMesh (sprite mode 와 공유, 하단-중앙 피벗 XY 평면 1×1 quad) 가 위 transform 으로 voxel 의 axis-aligned face 위치에 정확히 배치된다.
-
-**CPD 슬롯**: slot 9 = R, 10 = G, 11 = B, 12 = A. 나머지 미사용.
+**Tick 비용**: voxel 당 12 line. ~50 chunk × 1024 cells × 12 lines = ~600k lines/frame. UE 의 ULineBatchComponent 가 frame 당 1 draw call 로 배칭.
 
 ## HISM 머티리얼 스펙
 
@@ -156,8 +149,8 @@ Sprite Crowd (캐릭터, Y-axis 직립) 와의 z-fighting 은 ComponentZBias 로
 | Crowd 가 Terrain 뒤로 가려짐 | `ComponentZBias` 비교 — Crowd 가 더 작거나 같으면 z-fight. Crowd 를 +1cm 이상. |
 | Sprite 가 너무 작거나 큼 | `PixelToWorld` 또는 `CellSizePx` 재튜닝. 기본 (0.166, 128) 은 VoxelSize=15cm 가정. |
 | Sprite 가 안 보임 | `QuadMesh` / `TerrainMaterial` UPROPERTY 점검. AtlasTexture 가 null 이어도 `bUseFallbackColors=true` 면 솔리드 컬러로 가시화됨. |
-| 모든 voxel 이 마젠타 (FF00FF) | 폴백 컬러 테이블 미등록 TypeID — `HktAdvTerrainType` 범위 초과. 신규 type 추가 시 `GetFallbackTypeColorLinear` 테이블 확장. |
-| Fallback mode 에서 모두 검정/회색 | Shipping 빌드 (런타임 머티리얼 생성 미지원). 정식 `AtlasTexture` + `TerrainMaterial` 할당 필요. |
+| 모든 voxel 이 마젠타 (FF00FF) | 폴백 컬러 테이블 미등록 TypeID — `HktAdvTerrainType` 범위 초과. 신규 type 추가 시 `GetFallbackTypeColor` 테이블 확장. |
+| Fallback mode 에서 wireframe 안 보임 | Shipping 빌드 (DrawDebugBox 가 no-op). 정식 `AtlasTexture` + `TerrainMaterial` 할당 필요. 또는 PIE 의 Show > Debug Lines 옵션 확인. |
 | 인스턴스가 청크 경계에서 깜빡임 | `MaxScansPerSecond` / `StreamRadius` 점검. v1 은 청크 in-place 갱신 없음. |
 | 청크가 화면에 들어왔는데 늦게 추가됨 | `MaxLoadsPerFrame` 증가. 단, 메인스레드 비용 ↑ — 프로파일링 필수. |
 | Solid 청크 위 voxel 이 보임 (underground top 누설) | v1 한계 — 위 청크 fetch 실패 시 노출로 간주. v2 (volumetric surface) 에서 해소 예정. |
