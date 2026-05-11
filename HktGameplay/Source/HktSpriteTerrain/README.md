@@ -61,12 +61,29 @@ v1 은 청크 in-place 갱신 없음 — 지형 정적 가정. 청크는 streami
 
 ### 폴백 컬러 아틀라스 (`bUseFallbackColors`)
 
-`AtlasTexture` 가 **null** 이고 `bUseFallbackColors=true` (기본) 인 경우, BeginPlay 에서 `HktAdvTerrainType` 33 ID 별 의미 있는 솔리드 컬러로 채워진 transient 텍스처를 자동 생성해 머티리얼의 `Atlas` 파라미터에 바인딩한다.
+`AtlasTexture` 가 **null** 이고 `bUseFallbackColors=true` (기본) 인 경우, BeginPlay 에서 각 cell 안에 **iso voxel silhouette (마름모 top + 좌·우 측면 기둥)** 모양으로 색을 칠한 transient 텍스처를 자동 생성해 머티리얼의 `Atlas` 파라미터에 바인딩한다. 사각형 블록이 아니라 진짜 iso voxel 처럼 보임.
 
-- Sprite art 가 다 준비되기 전이라도 voxel 이 색깔 블록으로 보여 — 시뮬/카메라/UI 등 다른 시스템 개발 진행 가능.
-- 매핑 (요약): Air=투명, Grass=초록, Dirt=갈색, Stone=회색, Sand=황갈, Water=파랑, Snow=흰색, OreGold=금색, OreCrystal=옅청록, OreVoidstone=공허보라 등.
+- 한 cell 안 픽셀 분류 (`ClassifyIsoPixel`): 마름모 (top, 위쪽 절반) / 좌측 평행사변형 / 우측 평행사변형 / 외부 (투명).
+- 면별 음영: Top=1.00 / Right=0.78 / Left=0.58 (단일 광원 NE 상부 가정 — 전형적 iso pixel-art 톤).
+- 외부 픽셀 = 알파 0 → `M_HktSpriteYBillboard` 의 Masked 알파컷이 자동 제거.
+- TypeID 별 base color: `HktAdvTerrainType` 33 ID 매핑 (Grass=초록, Water=파랑, OreGold=금색 등).
 - 등록 안 된 TypeID 는 마젠타 (FF00FF) 로 표시 — 신규 type 추가 시 즉시 시각 식별.
-- 정의 위치: `Private/HktSpriteTerrainActor.cpp` 의 `GetFallbackTypeColor` 테이블.
+- 정의 위치: `Private/HktSpriteTerrainActor.cpp` 의 `GetFallbackTypeColor` (컬러 테이블) + `ClassifyIsoPixel` (silhouette 기하).
+
+```
+Cell 픽셀 layout (128×128 기본):
+  +-------+-------+
+  |   .       .   |   y=0     ─┐
+  | T  ╱   ╲  T   |             │ top diamond
+  |  ╱   T   ╲    |   y=cellH/4 │ (top face)
+  | ╱ ─ T ─ ╲     |             │
+  |╱ ─ ─ T ─ ╲    |   y=cellH/2 ─┴── 경계 (마름모 하단)
+  | L ╲     ╱ R   |              ┐
+  | L  ╲   ╱  R   |              │ side parallelograms
+  | L L ╲ ╱ R R   |   y=3cellH/4 │ (left + right faces)
+  | L L  ╳  R R   |              │
+  +-------+-------+   y=cellH   ─┘
+```
 
 `AtlasTexture` 가 부분만 채워진 (일부 cell 만 art 있는) 경우는 폴백이 적용되지 **않는다** — atlas-null 일 때만 트리거. v2 에서 per-cell alpha fallback 검토 예정.
 

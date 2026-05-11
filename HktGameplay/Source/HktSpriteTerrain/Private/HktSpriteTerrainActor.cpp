@@ -74,6 +74,81 @@ namespace
 		static const FColor Unknown(255,   0, 255, 255);
 		return (TypeID < HktAdvTerrainType::TypeCount) ? Table[TypeID] : Unknown;
 	}
+
+	// ------------------------------------------------------------------------
+	// Iso voxel silhouette 분류 — sprite cell 안의 한 픽셀이 (top diamond / left
+	// side / right side / outside) 어느 영역에 속하는지 판정.
+	//
+	// Cell 은 2:1 dimetric iso 기준 (마름모 폭 = cell 폭, 마름모 높이 = cell 높이 / 2):
+	//
+	//      0       cellW/2         cellW
+	//   0  +----------+--------------+   y=0
+	//      | \      / |              |
+	//      |   \  /   |  Top diamond |   y=cellH/4
+	//      | L / \ R  |              |
+	//      |  /   \   |              |   y=cellH/2
+	//      | / Lft \  | / Rgt \      |
+	//      |/   \   \ |/   /   \     |
+	//      |     \   \|   /     \    |   y=3*cellH/4
+	//      |      \   |  /            |
+	//      +-------+--+---+-----------+   y=cellH
+	//
+	// 마름모 = top face, 좌측 평행사변형 = -X face, 우측 평행사변형 = -Y face
+	// (iso yaw=45, pitch=-30 카메라 가시 면 3개와 동치).
+	// ------------------------------------------------------------------------
+	enum class EIsoFallbackFace : uint8 { Outside, Top, Left, Right };
+
+	static EIsoFallbackFace ClassifyIsoPixel(int32 PX, int32 PY, int32 CellW, int32 CellH)
+	{
+		const float Cx = CellW * 0.5f;
+		const float Cy = CellH * 0.25f;
+		const float HW = CellW * 0.5f;
+		const float HH = CellH * 0.25f;
+
+		// 마름모 (top face) 테스트 — 중심 (Cx, Cy), 반-extent (HW, HH).
+		const float NX = FMath::Abs(static_cast<float>(PX) - Cx) / FMath::Max(HW, 1.f);
+		const float NY = FMath::Abs(static_cast<float>(PY) - Cy) / FMath::Max(HH, 1.f);
+		if (NX + NY <= 1.0f)
+		{
+			return EIsoFallbackFace::Top;
+		}
+
+		// 좌·우 평행사변형 edge 의 기울기. 상단 edge 는 마름모 아래선 연장,
+		// 하단 edge 는 그 평행이동 (수직 거리 = cellH / 2).
+		const float Slope = HH / FMath::Max(HW, 1.f);  // = (cellH/4) / (cellW/2)
+
+		if (static_cast<float>(PX) <= Cx)
+		{
+			// 좌측면: top edge (0, cellH/4) → (Cx, cellH/2), bot edge (0, 3cellH/4) → (Cx, cellH)
+			const float YTop = CellH * 0.25f + Slope * static_cast<float>(PX);
+			const float YBot = CellH * 0.75f + Slope * static_cast<float>(PX);
+			if (static_cast<float>(PY) > YTop && static_cast<float>(PY) <= YBot)
+			{
+				return EIsoFallbackFace::Left;
+			}
+		}
+		else
+		{
+			// 우측면: top edge (Cx, cellH/2) → (cellW, cellH/4), bot edge (Cx, cellH) → (cellW, 3cellH/4)
+			const float YTop = CellH * 0.5f  - Slope * (static_cast<float>(PX) - Cx);
+			const float YBot = CellH         - Slope * (static_cast<float>(PX) - Cx);
+			if (static_cast<float>(PY) > YTop && static_cast<float>(PY) <= YBot)
+			{
+				return EIsoFallbackFace::Right;
+			}
+		}
+		return EIsoFallbackFace::Outside;
+	}
+
+	/** 컬러 채널 일괄 곱셈 (iso 면별 음영용). */
+	static FColor MultiplyColor(const FColor& C, float K)
+	{
+		return FColor(
+			static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(C.R * K), 0, 255)),
+			static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(C.G * K), 0, 255)),
+			static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(C.B * K), 0, 255)),
+			C.A);
+	}
 }
 
 AHktSpriteTerrainActor::AHktSpriteTerrainActor()
@@ -564,20 +639,59 @@ UTexture2D* AHktSpriteTerrainActor::BuildFallbackAtlasTexture()
 	Mip->BulkData.Lock(LOCK_READ_WRITE);
 	uint8* Bytes = static_cast<uint8*>(Mip->BulkData.Realloc(W * H * 4));
 
-	// 가로 cell index = TypeID. 세로는 모든 행이 동일 색 (frame 축 미사용).
+	// Iso voxel silhouette 음영 강도 — top 이 가장 밝고, left 가 가장 어둡다.
+	// 단일 광원 (NE 상부에서 비추는 듯한) 전형적 iso pixel-art 음영 톤.
+	constexpr float kFaceShadeTop   = 1.00f;
+	constexpr float kFaceShadeRight = 0.78f;
+	constexpr float kFaceShadeLeft  = 0.58f;
+
+	const int32 CellH = FMath::Max(1, FMath::FloorToInt(CellSizePx.Y));
+
+	// 가로 cell index = TypeID. 세로는 frame 축 (v1 미사용).
+	// 각 cell 안에 iso voxel silhouette (마름모 top + 좌·우 측면) 만 색을 칠하고
+	// 나머지는 투명 — Masked 머티리얼이 자동으로 컷.
 	for (int32 PY = 0; PY < H; ++PY)
 	{
 		for (int32 PX = 0; PX < W; ++PX)
 		{
-			const int32 CellX = PX / CellW;
+			const int32 CellX  = PX / CellW;
+			const int32 LocalX = PX - CellX * CellW;
+			// frame 축 미사용 — cell 세로는 항상 [0..CellH).
+			// 세로 cell index 계산은 (PY / CellH); LocalY 만 의미 있음.
+			const int32 LocalY = PY % CellH;
 			const uint16 TypeID = static_cast<uint16>(CellX);
-			const FColor& C = GetFallbackTypeColor(TypeID);
+
+			FColor PixelColor(0, 0, 0, 0);
+
+			// Air (TypeID 0) 는 emit 안 되지만 방어적으로 전 투명.
+			if (TypeID != 0)
+			{
+				const FColor& BaseColor = GetFallbackTypeColor(TypeID);
+				const EIsoFallbackFace Face = ClassifyIsoPixel(LocalX, LocalY, CellW, CellH);
+				switch (Face)
+				{
+					case EIsoFallbackFace::Top:
+						PixelColor = MultiplyColor(BaseColor, kFaceShadeTop);
+						break;
+					case EIsoFallbackFace::Right:
+						PixelColor = MultiplyColor(BaseColor, kFaceShadeRight);
+						break;
+					case EIsoFallbackFace::Left:
+						PixelColor = MultiplyColor(BaseColor, kFaceShadeLeft);
+						break;
+					case EIsoFallbackFace::Outside:
+					default:
+						// 알파 0 — Masked 머티리얼이 컷한다.
+						break;
+				}
+			}
+
 			uint8* P = Bytes + (PY * W + PX) * 4;
 			// PF_B8G8R8A8 layout: B, G, R, A.
-			P[0] = C.B;
-			P[1] = C.G;
-			P[2] = C.R;
-			P[3] = C.A;
+			P[0] = PixelColor.B;
+			P[1] = PixelColor.G;
+			P[2] = PixelColor.R;
+			P[3] = PixelColor.A;
 		}
 	}
 	Mip->BulkData.Unlock();
