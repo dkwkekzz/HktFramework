@@ -1,0 +1,196 @@
+"""
+bake_terrain.py — HktTerrainBakedAsset 일괄 베이크 스크립트.
+
+언리얼 에디터의 Python 콘솔에서 한 줄로 실행:
+
+    py bake_terrain.py
+
+    # 영역/시드/저장 경로 지정
+    py bake_terrain.py --min -2,-2,0 --max 2,2,3 --seed 42 --save /Game/Terrain/Baked/RegionDefault
+
+    # 고급 모드 (다층 바이옴/랜드마크/광석)
+    py bake_terrain.py --advanced
+
+전제:
+    - Editor Python Scripting 플러그인 활성
+    - 본 파일은 HktGameplay/Content/Python/ 아래 위치 (sys.path 자동 등록)
+    - HktTerrain 모듈이 빌드되어 있어야 unreal.HktTerrainBakeLibrary 노출됨
+
+호출 절차:
+    1) FHktTerrainBakedConfig 구성 (시드/노이즈/월드 단위/스트리밍)
+    2) UHktTerrainBakeLibrary.bake_region(cfg, min, max, save_path) 호출
+    3) 결과 자산 경로 + 통계 출력
+
+기본 동작:
+    cfg.seed=42, 영역=(-2,-2,0)~(2,2,3) [총 100 청크],
+    저장=/Game/Terrain/Baked/RegionDefault, advanced=False
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+
+import unreal
+
+
+# ---------------------------------------------------------------------------
+# Q16.16 고정소수점 헬퍼 — FHktFixed32 raw int32 변환
+# ---------------------------------------------------------------------------
+
+def fx(value: float) -> int:
+    """float → FHktFixed32 raw int32 (Q16.16)."""
+    return int(round(value * 65536.0))
+
+
+# ---------------------------------------------------------------------------
+# 인자 파싱
+# ---------------------------------------------------------------------------
+
+def parse_int_triple(text: str) -> unreal.IntVector:
+    parts = [p.strip() for p in text.replace(" ", ",").split(",") if p.strip()]
+    if len(parts) != 3:
+        raise ValueError(f"int triple 형식 오류 — 'X,Y,Z' 필요. 입력='{text}'")
+    return unreal.IntVector(int(parts[0]), int(parts[1]), int(parts[2]))
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        prog="bake_terrain",
+        description="HktTerrainBakedAsset 일괄 베이크",
+    )
+    p.add_argument("--min", dest="chunk_min", default="-2,-2,0",
+                   help="베이크 시작 청크 좌표 (포함). 기본 -2,-2,0")
+    p.add_argument("--max", dest="chunk_max", default="2,2,3",
+                   help="베이크 끝 청크 좌표 (포함). 기본 2,2,3")
+    p.add_argument("--save", dest="save_path",
+                   default="/Game/Terrain/Baked/RegionDefault",
+                   help="저장 경로. 기본 /Game/Terrain/Baked/RegionDefault")
+    p.add_argument("--seed", type=int, default=42, help="지형 시드. 기본 42")
+    p.add_argument("--epoch", type=int, default=0, help="재생성 사이클. 기본 0")
+    p.add_argument("--advanced", action="store_true",
+                   help="고급 다층 생성 (대륙/바이옴/랜드마크/광석)")
+    p.add_argument("--no-caves", action="store_true", help="동굴 비활성")
+    p.add_argument("--no-ore", action="store_true",
+                   help="고급 모드 광석 비활성")
+    p.add_argument("--no-scatter", action="store_true",
+                   help="고급 모드 표면 데코 비활성")
+    p.add_argument("--voxel-cm", type=float, default=15.0,
+                   help="복셀 변 길이 cm. 기본 15.0")
+    p.add_argument("--height-min-z", type=int, default=0,
+                   help="월드 최소 Z 청크. 기본 0")
+    p.add_argument("--height-max-z", type=int, default=3,
+                   help="월드 최대 Z 청크. 기본 3")
+    return p.parse_args(argv)
+
+
+# ---------------------------------------------------------------------------
+# Config 빌더
+# ---------------------------------------------------------------------------
+
+def build_config(args: argparse.Namespace) -> unreal.HktTerrainBakedConfig:
+    """CLI 인자 → FHktTerrainBakedConfig.
+
+    노이즈/혼합 파라미터는 FHktTerrainBakedConfig 의 헤더 기본값과 동일하게
+    설정한다 (HktTerrainBakedAsset.h 참고). 결정론 유지를 위해 임의 수정 시
+    `CurrentBakeVersion` 정책에 유의.
+    """
+    cfg = unreal.HktTerrainBakedConfig()
+
+    # ─── 시드 / 모드 ───
+    cfg.seed = args.seed
+    cfg.epoch = args.epoch
+    cfg.b_advanced_terrain = bool(args.advanced)
+    cfg.b_adv_enable_subsurface_ore = not args.no_ore
+    cfg.b_adv_enable_surface_scatter = not args.no_scatter
+
+    # ─── 지형 형태 (FBM) ───
+    cfg.height_scale_raw   = fx(64.0)
+    cfg.height_offset_raw  = fx(32.0)
+    cfg.terrain_freq_raw   = fx(0.008)
+    cfg.terrain_octaves    = 6
+    cfg.lacunarity_raw     = fx(2.0)
+    cfg.persistence_raw    = fx(0.5)
+
+    # ─── 산악 ───
+    cfg.mountain_freq_raw  = fx(0.004)
+    cfg.mountain_blend_raw = fx(0.4)
+
+    # ─── 수면 ───
+    cfg.water_level_raw    = fx(30.0)
+
+    # ─── 동굴 ───
+    cfg.b_enable_caves     = not args.no_caves
+    cfg.cave_freq_raw      = fx(0.03)
+    cfg.cave_threshold_raw = fx(0.6)
+
+    # ─── 바이옴 ───
+    cfg.biome_noise_scale_raw      = fx(0.002)
+    cfg.mountain_biome_threshold_raw = fx(80.0)
+
+    # ─── 월드 단위 ───
+    cfg.voxel_size_cm = float(args.voxel_cm)
+    cfg.height_min_z  = int(args.height_min_z)
+    cfg.height_max_z  = int(args.height_max_z)
+
+    # ─── 시뮬 스트리밍 (베이크 산출물에 함께 캡처) ───
+    cfg.sim_load_radius_xy           = 2
+    cfg.sim_load_radius_z            = 1
+    cfg.sim_max_chunks_loaded        = 256
+    cfg.sim_max_chunk_loads_per_frame = 4
+
+    return cfg
+
+
+# ---------------------------------------------------------------------------
+# 메인
+# ---------------------------------------------------------------------------
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+
+    chunk_min = parse_int_triple(args.chunk_min)
+    chunk_max = parse_int_triple(args.chunk_max)
+
+    if (chunk_min.x > chunk_max.x or
+            chunk_min.y > chunk_max.y or
+            chunk_min.z > chunk_max.z):
+        unreal.log_error(
+            f"베이크 영역이 잘못됨 — Min={chunk_min} Max={chunk_max}")
+        return 2
+
+    total = ((chunk_max.x - chunk_min.x + 1) *
+             (chunk_max.y - chunk_min.y + 1) *
+             (chunk_max.z - chunk_min.z + 1))
+
+    cfg = build_config(args)
+
+    unreal.log(
+        f"[bake_terrain] 시작 — Min={chunk_min} Max={chunk_max} "
+        f"Total={total} 청크 Seed={cfg.seed} "
+        f"Advanced={cfg.b_advanced_terrain} Save='{args.save_path}'")
+
+    t0 = time.perf_counter()
+    asset = unreal.HktTerrainBakeLibrary.bake_region(
+        cfg, chunk_min, chunk_max, args.save_path)
+    elapsed = time.perf_counter() - t0
+
+    if asset is None:
+        unreal.log_error(
+            f"[bake_terrain] 실패 — 자산 생성 안 됨 (저장 경로/영역 확인). "
+            f"Elapsed={elapsed:.2f}s")
+        return 1
+
+    unreal.log(
+        f"[bake_terrain] 완료 — Asset='{asset.get_path_name()}' "
+        f"Elapsed={elapsed:.2f}s")
+    unreal.log(
+        f"[bake_terrain] 액터 BakedAsset 슬롯에 위 경로를 할당하거나, "
+        f"BeginPlay 에서 LoadBakedAsset 으로 비동기 로드하세요.")
+    return 0
+
+
+if __name__ == "__main__":
+    # UE Python 콘솔의 `py script.py [args]` 호출 시 sys.argv 에 인자 전달.
+    raise SystemExit(main(sys.argv[1:]))
