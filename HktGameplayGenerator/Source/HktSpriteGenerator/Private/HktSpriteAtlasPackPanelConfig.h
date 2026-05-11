@@ -30,4 +30,12 @@ public:
 	/** 비워두면 캐릭터 하위 모든 anim 처리. 특정 anim 만 재패킹하려면 그 태그 입력. */
 	UPROPERTY(EditAnywhere, Config, Category = "Identity", meta = (Categories = "Anim"))
 	FGameplayTag AnimTagFilter;
+
+	/**
+	 * 아틀라스 가로 픽셀 상한 — 0 이면 무제한(GPU 한계 8192 까지 strip).
+	 * >0 이면 가로가 이 값을 넘지 못하도록 다음 행으로 wrap 되어 그리드로 패킹된다.
+	 * 프레임 수가 많은 anim 이 가로로 지나치게 길어지는 현상을 막을 때 사용.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = "Layout", meta = (ClampMin = "0", UIMin = "0", UIMax = "8192"))
+	int32 MaxAtlasPixelWidth = 2048;
 };

@@ -266,10 +266,15 @@ public:
 	 * UE 임포트는 하지 않는다 (Stage 3 가 빌드 시점에 임포트). 셀 크기/프레임 수 메타는
 	 * {Workspace}/{SafeAnim}/atlas_meta.json 에 사이드카로 남긴다.
 	 */
+	/**
+	 * MaxAtlasPixelWidth: 0 = 무제한(GPU 한계 8192 까지 strip), >0 = 가로 픽셀 상한 —
+	 * 초과분은 다음 행으로 wrap 되어 그리드로 패킹된다.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorPackDirectionalAtlases(
 		const FString& CharacterTagStr,
-		const FString& AnimTagFilter   = TEXT(""));
+		const FString& AnimTagFilter   = TEXT(""),
+		int32 MaxAtlasPixelWidth       = 0);
 
 	/**
 	 * 단일 폴더의 frame_*.png 들을 1행 N열 strip atlas PNG 한 장으로 패킹 (UE 임포트 없음).
