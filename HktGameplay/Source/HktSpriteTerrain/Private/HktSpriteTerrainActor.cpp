@@ -2,9 +2,11 @@
 
 #include "HktSpriteTerrainActor.h"
 #include "HktSpriteTerrainLog.h"
+#include "HktAdvTerrainTypes.h"
 #include "HktTerrainSubsystem.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -20,9 +22,55 @@ namespace
 
 	FORCEINLINE int32 VoxelIndex(int32 X, int32 Y, int32 Z)
 	{
-		// FHktTerrainGenerator 와 동일 인덱싱 가정 — Z-major (X + SIZE*Y + SIZE^2*Z).
-		// HktVoxelChunk::At 과도 일치 (FHktVoxel 과 동일 4바이트 layout).
+		// FHktTerrainGenerator 와 동일 인덱싱 — Z-major (X + SIZE*Y + SIZE^2*Z).
 		return X + kChunkSize * (Y + kChunkSize * Z);
+	}
+
+	// ------------------------------------------------------------------------
+	// 폴백 컬러 테이블 — HktAdvTerrainType ID(0..32) 별 의미 있는 색.
+	// Fallback wireframe mode 에서 voxel 별 DrawDebugBox 색에 사용.
+	// ------------------------------------------------------------------------
+	static FColor GetFallbackTypeColor(uint16 TypeID)
+	{
+		// HktAdvTerrainType:: ID 매핑 (33 종).
+		static const FColor Table[HktAdvTerrainType::TypeCount] = {
+			FColor(  0,   0,   0,   0),    // 0  Air (defensive — emit 안 됨)
+			FColor( 80, 170,  60, 255),    // 1  Grass
+			FColor(115,  75,  45, 255),    // 2  Dirt
+			FColor(125, 125, 130, 255),    // 3  Stone
+			FColor(225, 200, 135, 255),    // 4  Sand
+			FColor( 45,  95, 185, 255),    // 5  Water
+			FColor(240, 240, 245, 255),    // 6  Snow
+			FColor(170, 220, 240, 255),    // 7  Ice
+			FColor(140, 130, 120, 255),    // 8  Gravel
+			FColor(155, 100,  80, 255),    // 9  Clay
+			FColor( 80,  80,  90, 255),    // 10 Bedrock (wireframe 가시성 위해 다소 밝게)
+			FColor(200, 220, 230, 255),    // 11 Glass
+			FColor(120, 190,  90, 255),    // 12 GrassFlower
+			FColor( 95, 115,  75, 255),    // 13 StoneMossy
+			FColor(150, 210, 190, 255),    // 14 CrystalGrass
+			FColor(190, 225, 210, 255),    // 15 GrassEthereal
+			FColor(130, 225, 110, 255),    // 16 MossGlow
+			FColor( 90,  70,  50, 255),    // 17 SoilDark (wireframe 가시성 위해 다소 밝게)
+			FColor(235, 220, 180, 255),    // 18 SandBleached
+			FColor(115, 110, 105, 255),    // 19 StoneFractured
+			FColor(220, 215, 195, 255),    // 20 BoneFragment
+			FColor(200, 180, 240, 255),    // 21 CrystalShard
+			FColor(150,  95,  60, 255),    // 22 Wood
+			FColor( 60, 130,  50, 255),    // 23 Leaves
+			FColor(205, 220, 200, 255),    // 24 LeavesSnow
+			FColor( 90, 145,  85, 255),    // 25 Cactus
+			FColor(180, 120, 100, 255),    // 26 Mushroom
+			FColor(255, 130, 220, 255),    // 27 MushroomGlow
+			FColor( 80,  80,  90, 255),    // 28 OreCoal
+			FColor(185, 125,  90, 255),    // 29 OreIron
+			FColor(240, 200,  80, 255),    // 30 OreGold
+			FColor(180, 230, 255, 255),    // 31 OreCrystal
+			FColor(120,  60, 160, 255),    // 32 OreVoidstone
+		};
+		// 알 수 없는 TypeID 는 마젠타 — 누락된 등록을 시각적으로 즉시 식별.
+		static const FColor Unknown(255,   0, 255, 255);
+		return (TypeID < HktAdvTerrainType::TypeCount) ? Table[TypeID] : Unknown;
 	}
 }
 
@@ -44,39 +92,66 @@ AHktSpriteTerrainActor::AHktSpriteTerrainActor()
 	HISMComponent->CastShadow = false;
 }
 
+void AHktSpriteTerrainActor::InitSpriteMode()
+{
+	if (!HISMComponent || !QuadMesh)
+	{
+		return;
+	}
+	HISMComponent->SetStaticMesh(QuadMesh);
+	HISMComponent->NumCustomDataFloats = kNumCustomDataFloats;
+
+	if (TerrainMaterial)
+	{
+		TerrainMID = UMaterialInstanceDynamic::Create(TerrainMaterial, this);
+		if (TerrainMID)
+		{
+			// Param 이름 — M_HktSpriteYBillboard 규약 (HktSpriteCore 의 상수와 동일).
+			if (AtlasTexture)
+			{
+				TerrainMID->SetTextureParameterValue(TEXT("Atlas"), AtlasTexture);
+			}
+			if (PaletteLUT)
+			{
+				TerrainMID->SetTextureParameterValue(TEXT("PaletteLUT"), PaletteLUT);
+			}
+			TerrainMID->SetVectorParameterValue(
+				TEXT("AtlasSize"),
+				FLinearColor(AtlasSizePx.X, AtlasSizePx.Y, CellSizePx.X, CellSizePx.Y));
+			HISMComponent->SetMaterial(0, TerrainMID);
+		}
+	}
+	else
+	{
+		UE_LOG(LogHktSpriteTerrain, Warning,
+			TEXT("[SpriteTerrain] TerrainMaterial 미할당 — M_HktSpriteYBillboard 를 할당하세요."));
+	}
+}
+
 void AHktSpriteTerrainActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (HISMComponent && QuadMesh)
-	{
-		HISMComponent->SetStaticMesh(QuadMesh);
-		HISMComponent->NumCustomDataFloats = kNumCustomDataFloats;
+	// Mode 결정 — AtlasTexture 가 비었고 bUseFallbackColors=true 면 fallback (wireframe).
+	bUsingFallback = (!AtlasTexture && bUseFallbackColors);
 
-		if (TerrainMaterial)
+	if (bUsingFallback)
+	{
+		// HISM 비활성화 — fallback 은 DrawDebugBox 만 사용.
+		if (HISMComponent)
 		{
-			TerrainMID = UMaterialInstanceDynamic::Create(TerrainMaterial, this);
-			if (TerrainMID)
-			{
-				if (AtlasTexture)
-				{
-					TerrainMID->SetTextureParameterValue(TEXT("Atlas"), AtlasTexture);
-				}
-				if (PaletteLUT)
-				{
-					TerrainMID->SetTextureParameterValue(TEXT("PaletteLUT"), PaletteLUT);
-				}
-				TerrainMID->SetVectorParameterValue(
-					TEXT("AtlasSize"),
-					FLinearColor(AtlasSizePx.X, AtlasSizePx.Y, CellSizePx.X, CellSizePx.Y));
-				HISMComponent->SetMaterial(0, TerrainMID);
-			}
+			HISMComponent->SetVisibility(false);
 		}
+		UE_LOG(LogHktSpriteTerrain, Log,
+			TEXT("[SpriteTerrain] Fallback mode 활성 — voxel 마다 매 Tick DrawDebugBox 12-line cube 렌더."));
+	}
+	else
+	{
+		InitSpriteMode();
 	}
 
 	Loader = CreateTerrainChunkLoader(LoaderType);
 
-	// BakedAsset 비동기 로드 트리거 — 미존재 시 폴백 경로로 동작.
 	if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
 	{
 		if (!BakedAsset.IsNull())
@@ -97,9 +172,11 @@ void AHktSpriteTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		HISMComponent->ClearInstances();
 	}
-	InstanceMap.Reset();
-	InstanceCoordByIndex.Reset();
-	LastCellByCoord.Reset();
+	ChunkInstanceIndices.Reset();
+	InstanceChunkByIdx.Reset();
+	LoadedSurfaceCells.Reset();
+	bAboveChunkValid = false;
+
 	if (Loader)
 	{
 		Loader->Clear();
@@ -113,7 +190,7 @@ void AHktSpriteTerrainActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!HISMComponent || !QuadMesh || !Loader)
+	if (!Loader)
 	{
 		return;
 	}
@@ -124,7 +201,13 @@ void AHktSpriteTerrainActor::Tick(float DeltaSeconds)
 		return;
 	}
 
-	// 스캔 빈도 제한 — iso 카메라라 초당 N회면 충분.
+	// === Per-frame: fallback wireframe 그리기 (스캔 throttle 무관 — 매 프레임 갱신 필요) ===
+	if (bUsingFallback && CachedVoxelSize > 0.f)
+	{
+		DrawFallbackWireframes(CachedVoxelSize);
+	}
+
+	// === 스캔 빈도 제한 — chunk load/unload 만 throttle ===
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	const float MinInterval = (MaxScansPerSecond > 0.f) ? 1.f / MaxScansPerSecond : 0.f;
 	if (Now - LastScanTime < MinInterval)
@@ -139,17 +222,24 @@ void AHktSpriteTerrainActor::Tick(float DeltaSeconds)
 		return;
 	}
 	CachedChunkWorldSize = ChunkWorldSize;
+	CachedVoxelSize      = Sub->GetEffectiveConfig().VoxelSizeCm;
 
-	// Baseline (ComponentZBias / ChunkWorldSize) 변경 감지 — 기존 인스턴스의 slot 7/8/15 일괄 refresh.
-	// Loader 의 ChunksToLoad 는 신규만 emit 하므로 기존 인스턴스의 CPD 는 별도로 갱신해야 한다.
-	const bool bBaselineChanged =
-		!FMath::IsNearlyEqual(PrevComponentZBias, ComponentZBias) ||
-		!FMath::IsNearlyEqual(PrevChunkWorldSize, ChunkWorldSize);
-	if (bBaselineChanged)
+	// Sprite mode baseline 변경 감지.
+	if (!bUsingFallback && HISMComponent && QuadMesh)
 	{
-		RefreshAllInstanceBaseline();
-		PrevComponentZBias = ComponentZBias;
-		PrevChunkWorldSize = ChunkWorldSize;
+		const float CurHalfW = CellSizePx.X * PixelToWorld * 0.5f;
+		const float CurHalfH = CellSizePx.Y * PixelToWorld * 0.5f;
+		const bool bBaselineChanged =
+			!FMath::IsNearlyEqual(PrevComponentZBias, ComponentZBias) ||
+			!FMath::IsNearlyEqual(PrevHalfWWorld,    CurHalfW)        ||
+			!FMath::IsNearlyEqual(PrevHalfHWorld,    CurHalfH);
+		if (bBaselineChanged)
+		{
+			RefreshAllSpriteInstanceBaseline();
+			PrevComponentZBias = ComponentZBias;
+			PrevHalfWWorld     = CurHalfW;
+			PrevHalfHWorld     = CurHalfH;
+		}
 	}
 
 	SyncLoaderConfig(Sub);
@@ -157,25 +247,37 @@ void AHktSpriteTerrainActor::Tick(float DeltaSeconds)
 	const FVector CameraPos = GetViewCenterWorldPos();
 	Loader->Update(CameraPos, ChunkWorldSize);
 
-	// === Unload — 즉시 인스턴스 제거 ===
 	for (const FIntVector& Coord : Loader->GetChunksToUnload())
 	{
-		RemoveInstanceForCoord(Coord);
+		RemoveInstancesForChunk(Coord);
 	}
 
-	// === Load — 새 청크. AcquireChunk 로 voxel 받아 표면 추출 후 인스턴스 추가/갱신 ===
 	for (const FHktChunkTierRequest& Req : Loader->GetChunksToLoad())
 	{
-		FHktSpriteTerrainSurfaceCell Cell;
-		if (ExtractTopSurfaceCell(Sub, Req.Coord, Cell))
+		// 이미 로드된 청크 스킵.
+		if (bUsingFallback)
 		{
-			AddOrUpdateInstance(Cell);
+			if (LoadedSurfaceCells.Contains(Req.Coord)) continue;
+		}
+		else
+		{
+			if (ChunkInstanceIndices.Contains(Req.Coord)) continue;
+		}
+
+		bAboveChunkValid = false;
+		AboveChunkCachedCoord = FIntVector(INT_MIN, INT_MIN, INT_MIN);
+
+		ExtractSurfaceCells(Sub, Req.Coord, SurfaceCellsScratch);
+		if (SurfaceCellsScratch.Num() > 0)
+		{
+			AddInstancesForChunk(Req.Coord, SurfaceCellsScratch);
 		}
 	}
 
-	// Retier 는 본 액터에서 무시 — 단일 표현(평면 quad)이라 tier 분기 의미 없음.
-
-	HISMComponent->MarkRenderStateDirty();
+	if (!bUsingFallback && HISMComponent)
+	{
+		HISMComponent->MarkRenderStateDirty();
+	}
 }
 
 void AHktSpriteTerrainActor::SyncLoaderConfig(UHktTerrainSubsystem* Sub)
@@ -200,164 +302,213 @@ float AHktSpriteTerrainActor::ComputeChunkWorldSize(UHktTerrainSubsystem* Sub) c
 	return kChunkSize * VoxelSizeCm;
 }
 
-bool AHktSpriteTerrainActor::ExtractTopSurfaceCell(UHktTerrainSubsystem* Sub,
-	const FIntVector& Coord, FHktSpriteTerrainSurfaceCell& OutCell) const
+void AHktSpriteTerrainActor::ExtractSurfaceCells(UHktTerrainSubsystem* Sub,
+	const FIntVector& Coord, TArray<FHktSpriteTerrainSurfaceCell>& OutCells)
 {
-	// 멤버 스크래치 버퍼 재사용 — Tick 당 다수 청크 처리 시 매번 128KB 할당 회피.
-	// const_cast: 본 메서드는 logical const (행위는 read-only) 지만 내부 버퍼 풀은 최적화 캐시로 mutable 와 동일 의미.
-	TArray<FHktTerrainVoxel>& Voxels = const_cast<AHktSpriteTerrainActor*>(this)->ChunkVoxelScratch;
-	if (Voxels.Num() != kVoxelsPerChunk)
+	OutCells.Reset();
+
+	if (ChunkVoxelScratch.Num() != kVoxelsPerChunk)
 	{
-		Voxels.SetNumUninitialized(kVoxelsPerChunk);
+		ChunkVoxelScratch.SetNumUninitialized(kVoxelsPerChunk);
 	}
-	if (!Sub->AcquireChunk(Coord, Voxels))
+	if (!Sub->AcquireChunk(Coord, ChunkVoxelScratch))
 	{
-		return false;
+		return;
 	}
 
 	const float VoxelSize = Sub->GetEffectiveConfig().VoxelSizeCm;
 	const float ChunkWorldSize = kChunkSize * VoxelSize;
 
-	int32 BestZ = -1;
-	int32 BestX = 0;
-	int32 BestY = 0;
-	const FHktTerrainVoxel* BestVoxel = nullptr;
-
-	// Top-most 셀 — 청크 내 (X, Y) 별 최상단 비어있지 않은 voxel 1개.
-	// 본 액터는 청크 1개 = 1 인스턴스이므로 (X, Y) 평균이 아닌 가장 높은 Z 의 셀 1개를 대표로 잡는다.
-	for (int32 Y = 0; Y < kChunkSize; ++Y)
+	auto EnsureAboveChunkLoaded = [&]() -> bool
 	{
-		for (int32 X = 0; X < kChunkSize; ++X)
+		const FIntVector AboveCoord(Coord.X, Coord.Y, Coord.Z + 1);
+		if (bAboveChunkValid && AboveChunkCachedCoord == AboveCoord)
 		{
-			for (int32 Z = kChunkSize - 1; Z > BestZ; --Z)
+			return true;
+		}
+		if (AboveChunkVoxelScratch.Num() != kVoxelsPerChunk)
+		{
+			AboveChunkVoxelScratch.SetNumUninitialized(kVoxelsPerChunk);
+		}
+		bAboveChunkValid = Sub->AcquireChunk(AboveCoord, AboveChunkVoxelScratch);
+		AboveChunkCachedCoord = AboveCoord;
+		return bAboveChunkValid;
+	};
+
+	OutCells.Reserve(kChunkSize * kChunkSize);
+
+	for (int32 LY = 0; LY < kChunkSize; ++LY)
+	{
+		for (int32 LX = 0; LX < kChunkSize; ++LX)
+		{
+			int32 TopZ = -1;
+			const FHktTerrainVoxel* TopVoxel = nullptr;
+
+			for (int32 LZ = kChunkSize - 1; LZ >= 0; --LZ)
 			{
-				const FHktTerrainVoxel& V = Voxels[VoxelIndex(X, Y, Z)];
-				if (V.IsEmpty())
-				{
-					continue;
-				}
-				BestZ = Z;
-				BestX = X;
-				BestY = Y;
-				BestVoxel = &V;
+				const FHktTerrainVoxel& V = ChunkVoxelScratch[VoxelIndex(LX, LY, LZ)];
+				if (V.IsEmpty()) { continue; }
+				TopZ = LZ;
+				TopVoxel = &V;
 				break;
 			}
+			if (!TopVoxel) { continue; }
+
+			bool bExposedAbove = (TopZ < kChunkSize - 1);
+			if (!bExposedAbove)
+			{
+				if (EnsureAboveChunkLoaded())
+				{
+					const FHktTerrainVoxel& AboveV =
+						AboveChunkVoxelScratch[VoxelIndex(LX, LY, 0)];
+					bExposedAbove = AboveV.IsEmpty();
+				}
+				else
+				{
+					bExposedAbove = true;
+				}
+			}
+			if (!bExposedAbove) { continue; }
+
+			FHktSpriteTerrainSurfaceCell Cell;
+			Cell.ChunkCoord = Coord;
+			Cell.LocalCoord = FIntVector(LX, LY, TopZ);
+			Cell.WorldPos = FVector(
+				Coord.X * ChunkWorldSize + (LX + 0.5f) * VoxelSize,
+				Coord.Y * ChunkWorldSize + (LY + 0.5f) * VoxelSize,
+				Coord.Z * ChunkWorldSize +  TopZ        * VoxelSize);
+			Cell.TypeID       = TopVoxel->TypeID;
+			Cell.PaletteIndex = TopVoxel->PaletteIndex;
+			Cell.Flags        = TopVoxel->Flags;
+			OutCells.Add(Cell);
 		}
 	}
-
-	if (!BestVoxel)
-	{
-		return false;
-	}
-
-	OutCell.ChunkCoord = Coord;
-	OutCell.WorldPos = FVector(
-		Coord.X * ChunkWorldSize + (BestX + 0.5f) * VoxelSize,
-		Coord.Y * ChunkWorldSize + (BestY + 0.5f) * VoxelSize,
-		Coord.Z * ChunkWorldSize + (BestZ + 0.5f) * VoxelSize);
-	OutCell.TypeID = BestVoxel->TypeID;
-	OutCell.PaletteIndex = BestVoxel->PaletteIndex;
-	OutCell.Flags = BestVoxel->Flags;
-	return true;
 }
 
-void AHktSpriteTerrainActor::AddOrUpdateInstance(const FHktSpriteTerrainSurfaceCell& Cell)
+void AHktSpriteTerrainActor::AddInstancesForChunk(const FIntVector& Coord,
+	const TArray<FHktSpriteTerrainSurfaceCell>& Cells)
 {
-	const FTransform Xform = MakeInstanceTransform(Cell);
+	if (Cells.Num() == 0) { return; }
+
+	if (bUsingFallback)
+	{
+		// Fallback wireframe mode — 인스턴스 없이 cell 캐시만. Tick 이 매 프레임 DrawDebugBox.
+		LoadedSurfaceCells.Add(Coord, Cells);
+		return;
+	}
+
+	// Sprite mode — Y-billboard HISM 에 인스턴스 추가.
+	if (!HISMComponent) { return; }
+
+	TArray<int32>& Indices = ChunkInstanceIndices.FindOrAdd(Coord);
+	Indices.Reserve(Indices.Num() + Cells.Num());
+
 	TArray<float> CustomData;
 	CustomData.SetNumUninitialized(kNumCustomDataFloats);
-	FillCustomData(Cell, CustomData);
 
-	if (int32* ExistingIdx = InstanceMap.Find(Cell.ChunkCoord))
+	for (const FHktSpriteTerrainSurfaceCell& Cell : Cells)
 	{
-		const int32 Idx = *ExistingIdx;
-		const FHktSpriteTerrainSurfaceCell* Prev = LastCellByCoord.Find(Cell.ChunkCoord);
-		const bool bTransformChanged =
-			!Prev || !Prev->WorldPos.Equals(Cell.WorldPos, 0.01f);
-		const bool bDataChanged =
-			!Prev ||
-			Prev->TypeID != Cell.TypeID ||
-			Prev->PaletteIndex != Cell.PaletteIndex ||
-			Prev->Flags != Cell.Flags;
-
-		if (bTransformChanged)
-		{
-			HISMComponent->UpdateInstanceTransform(Idx, Xform, /*bWorldSpace=*/true,
-				/*bMarkRenderStateDirty=*/false, /*bTeleport=*/true);
-		}
-		if (bDataChanged)
-		{
-			for (int32 S = 0; S < kNumCustomDataFloats; ++S)
-			{
-				HISMComponent->SetCustomDataValue(Idx, S, CustomData[S],
-					/*bMarkRenderStateDirty=*/false);
-			}
-		}
-	}
-	else
-	{
+		const FTransform Xform = MakeSpriteInstanceTransform(Cell);
 		const int32 NewIdx = HISMComponent->AddInstance(Xform, /*bWorldSpace=*/true);
-		if (NewIdx != INDEX_NONE)
+		if (NewIdx == INDEX_NONE) { continue; }
+		FillSpriteCustomData(Cell, CustomData);
+		for (int32 S = 0; S < kNumCustomDataFloats; ++S)
 		{
-			InstanceMap.Add(Cell.ChunkCoord, NewIdx);
-			InstanceCoordByIndex.Add(NewIdx, Cell.ChunkCoord);
-			for (int32 S = 0; S < kNumCustomDataFloats; ++S)
-			{
-				HISMComponent->SetCustomDataValue(NewIdx, S, CustomData[S],
-					/*bMarkRenderStateDirty=*/false);
-			}
+			HISMComponent->SetCustomDataValue(NewIdx, S, CustomData[S], /*Dirty=*/false);
 		}
+		Indices.Add(NewIdx);
+		InstanceChunkByIdx.Add(NewIdx, Coord);
 	}
-
-	LastCellByCoord.Add(Cell.ChunkCoord, Cell);
 }
 
-void AHktSpriteTerrainActor::RemoveInstanceForCoord(const FIntVector& Coord)
+void AHktSpriteTerrainActor::RemoveInstancesForChunk(const FIntVector& Coord)
 {
-	int32 RemoveIdx = INDEX_NONE;
-	if (!InstanceMap.RemoveAndCopyValue(Coord, RemoveIdx))
+	if (bUsingFallback)
+	{
+		LoadedSurfaceCells.Remove(Coord);
+		return;
+	}
+
+	if (!HISMComponent) { return; }
+
+	TArray<int32> Indices;
+	if (!ChunkInstanceIndices.RemoveAndCopyValue(Coord, Indices))
+	{
+		return;
+	}
+	// 큰 idx 부터 제거 — swap-with-last 가 작은 idx 를 흔들지 않음.
+	Indices.Sort();
+	for (int32 i = Indices.Num() - 1; i >= 0; --i)
+	{
+		const int32 RemoveIdx = Indices[i];
+		const int32 LastIdx = HISMComponent->GetInstanceCount() - 1;
+		if (!HISMComponent->RemoveInstance(RemoveIdx))
+		{
+			InstanceChunkByIdx.Remove(RemoveIdx);
+			continue;
+		}
+		InstanceChunkByIdx.Remove(RemoveIdx);
+		if (RemoveIdx != LastIdx)
+		{
+			if (FIntVector* MovedChunk = InstanceChunkByIdx.Find(LastIdx))
+			{
+				const FIntVector ChunkOfMoved = *MovedChunk;
+				InstanceChunkByIdx.Remove(LastIdx);
+				InstanceChunkByIdx.Add(RemoveIdx, ChunkOfMoved);
+				if (TArray<int32>* MovedList = ChunkInstanceIndices.Find(ChunkOfMoved))
+				{
+					for (int32& Slot : *MovedList)
+					{
+						if (Slot == LastIdx) { Slot = RemoveIdx; break; }
+					}
+				}
+			}
+		}
+	}
+}
+
+void AHktSpriteTerrainActor::DrawFallbackWireframes(float VoxelSize) const
+{
+	UWorld* World = GetWorld();
+	if (!World || VoxelSize <= 0.f)
 	{
 		return;
 	}
 
-	const int32 LastIdx = HISMComponent->GetInstanceCount() - 1;
-	if (HISMComponent->RemoveInstance(RemoveIdx))
-	{
-		InstanceCoordByIndex.Remove(RemoveIdx);
-		LastCellByCoord.Remove(Coord);
+	const FVector HalfExtent(VoxelSize * 0.5f);
+	const float HalfV = VoxelSize * 0.5f;
 
-		// RemoveInstance 는 마지막 인스턴스를 빈 자리에 swap — 매핑 보정.
-		if (RemoveIdx != LastIdx)
+	for (const TPair<FIntVector, TArray<FHktSpriteTerrainSurfaceCell>>& Pair : LoadedSurfaceCells)
+	{
+		for (const FHktSpriteTerrainSurfaceCell& Cell : Pair.Value)
 		{
-			if (FIntVector* SwappedCoord = InstanceCoordByIndex.Find(LastIdx))
-			{
-				const FIntVector NewKey = *SwappedCoord;
-				InstanceCoordByIndex.Remove(LastIdx);
-				InstanceCoordByIndex.Add(RemoveIdx, NewKey);
-				InstanceMap[NewKey] = RemoveIdx;
-			}
+			// WorldPos = voxel 바닥-중앙 → 박스 중심은 그 위로 HalfV.
+			const FVector Center = Cell.WorldPos + FVector(0.f, 0.f, HalfV);
+			const FColor  C      = GetFallbackTypeColor(Cell.TypeID);
+			DrawDebugBox(World, Center, HalfExtent, C,
+				/*bPersistent=*/false, /*Lifetime=*/-1.f,
+				/*DepthPriority=*/0, FallbackWireThickness);
 		}
 	}
 }
 
-FTransform AHktSpriteTerrainActor::MakeInstanceTransform(const FHktSpriteTerrainSurfaceCell& Cell) const
+FTransform AHktSpriteTerrainActor::MakeSpriteInstanceTransform(const FHktSpriteTerrainSurfaceCell& Cell) const
 {
-	// quad mesh = 1×1 unit. 실제 크기는 PerInstanceCustomData slot 7,8 (ScaleX/Y)로 결정.
+	// Sprite mode — quad 는 1×1 단위, 머티리얼 WPO 가 Y-axis billboard + 카메라 정렬 처리.
 	return FTransform(FQuat::Identity, Cell.WorldPos, FVector::OneVector);
 }
 
-void AHktSpriteTerrainActor::FillCustomData(
+void AHktSpriteTerrainActor::FillSpriteCustomData(
 	const FHktSpriteTerrainSurfaceCell& Cell, TArray<float>& OutData) const
 {
 	check(OutData.Num() == kNumCustomDataFloats);
 
-	const float ChunkWorldSize = CachedChunkWorldSize > 0.f
-		? CachedChunkWorldSize
-		: kChunkSize * 15.f;  // 폴백 — VoxelSizeCm 기본값
-	const float HalfChunk = ChunkWorldSize * 0.5f;
+	const float HalfW = CellSizePx.X * PixelToWorld * 0.5f;
+	const float HalfH = CellSizePx.Y * PixelToWorld * 0.5f;
 	const bool bTranslucent = (Cell.Flags & FHktTerrainVoxel::FLAG_TRANSLUCENT) != 0;
 	const float Alpha = bTranslucent ? 0.6f : 1.0f;
 
+	// M_HktSpriteYBillboard CPD 규약.
 	OutData[0]  = static_cast<float>(Cell.TypeID);
 	OutData[1]  = CellSizePx.X;
 	OutData[2]  = CellSizePx.Y;
@@ -365,8 +516,8 @@ void AHktSpriteTerrainActor::FillCustomData(
 	OutData[4]  = 0.f;
 	OutData[5]  = 0.f;
 	OutData[6]  = 0.f;
-	OutData[7]  = HalfChunk;
-	OutData[8]  = HalfChunk;
+	OutData[7]  = HalfW;
+	OutData[8]  = HalfH;
 	OutData[9]  = 1.f;
 	OutData[10] = 1.f;
 	OutData[11] = 1.f;
@@ -376,22 +527,19 @@ void AHktSpriteTerrainActor::FillCustomData(
 	OutData[15] = ComponentZBias;
 }
 
-void AHktSpriteTerrainActor::RefreshAllInstanceBaseline()
+void AHktSpriteTerrainActor::RefreshAllSpriteInstanceBaseline()
 {
-	if (!HISMComponent || InstanceMap.Num() == 0)
-	{
-		return;
-	}
+	if (!HISMComponent || InstanceChunkByIdx.Num() == 0) { return; }
 
-	const float HalfChunk = CachedChunkWorldSize * 0.5f;
-	for (const TPair<FIntVector, int32>& Pair : InstanceMap)
+	const float HalfW = CellSizePx.X * PixelToWorld * 0.5f;
+	const float HalfH = CellSizePx.Y * PixelToWorld * 0.5f;
+
+	for (const TPair<int32, FIntVector>& Pair : InstanceChunkByIdx)
 	{
-		const int32 Idx = Pair.Value;
-		// slot 7,8 = ScaleX/Y (HalfChunk), slot 15 = ZBias.
-		// 다른 슬롯은 셀 단위라 baseline 변경과 무관 — 갱신 불필요.
-		HISMComponent->SetCustomDataValue(Idx, 7, HalfChunk, /*bMarkRenderStateDirty=*/false);
-		HISMComponent->SetCustomDataValue(Idx, 8, HalfChunk, /*bMarkRenderStateDirty=*/false);
-		HISMComponent->SetCustomDataValue(Idx, 15, ComponentZBias, /*bMarkRenderStateDirty=*/false);
+		const int32 Idx = Pair.Key;
+		HISMComponent->SetCustomDataValue(Idx, 7,  HalfW,          /*Dirty=*/false);
+		HISMComponent->SetCustomDataValue(Idx, 8,  HalfH,          /*Dirty=*/false);
+		HISMComponent->SetCustomDataValue(Idx, 15, ComponentZBias, /*Dirty=*/false);
 	}
 }
 

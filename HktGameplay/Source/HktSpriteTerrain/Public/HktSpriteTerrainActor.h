@@ -17,75 +17,58 @@ class UTexture2D;
 class UHktTerrainSubsystem;
 
 /**
- * FHktSpriteTerrainSurfaceCell — 가시 영역 top-most 셀 1개.
+ * FHktSpriteTerrainSurfaceCell — 표면 voxel 1개의 데이터.
  *
- * UHktTerrainSubsystem::AcquireChunk 가 채운 청크 voxel 버퍼에서 추출한 표면 셀.
- * ChunkCoord 가 InstanceMap 의 키 역할을 하며, 청크당 1 HISM 인스턴스로 매핑된다.
+ * v1 (SC1 동치) — 청크 내 (LocalX, LocalY) 별로 카메라에 노출된 topmost solid voxel 하나씩.
+ * Sprite mode: 셀 1개 = HISM 인스턴스 1개 (Y-billboard quad).
+ * Fallback mode: 셀 1개 = 매 Tick DrawDebugBox 12 라인.
  */
 struct FHktSpriteTerrainSurfaceCell
 {
 	FIntVector ChunkCoord = FIntVector::ZeroValue;
-	FVector WorldPos = FVector::ZeroVector;
-	uint16  TypeID = 0;
-	uint8   PaletteIndex = 0;
-	uint8   Flags = 0;
+	FIntVector LocalCoord = FIntVector::ZeroValue;     // 청크 내 (X, Y, Z) 0..ChunkSize-1
+	FVector    WorldPos   = FVector::ZeroVector;       // voxel 바닥-중앙 월드 좌표
+	uint16     TypeID      = 0;
+	uint8      PaletteIndex = 0;
+	uint8      Flags        = 0;
 };
 
 /**
  * AHktSpriteTerrainActor
  *
- * UHktTerrainSubsystem 단일 출처에서 청크 데이터를 받아 표면 셀을 추출,
- * 단일 HISM 컴포넌트에 청크당 1 인스턴스로 매핑하는 스프라이트 기반 지형 렌더러.
+ * 두 가지 렌더 경로:
  *
- * Voxel 메싱 파이프라인(HktVoxelCore RenderCache) 의존이 없으며, AcquireChunk 결과
- * (FHktTerrainVoxel[32768]) 를 직접 스캔한다. 따라서 Sprite-only 배포에서 Voxel
- * Actor 가 월드에 없어도 단독 동작한다.
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │ [Sprite mode] AtlasTexture 할당 시                                    │
+ * │  화가가 그린 iso voxel sprite (마름모 top + 측면 통합 PNG) 을 voxel    │
+ * │  당 upright Y-billboard quad 1장에 매핑. SC1 / 맵 에디터 방식.        │
+ * │  → HISMComponent (단일)                                              │
+ * ├──────────────────────────────────────────────────────────────────────┤
+ * │ [Fallback mode] AtlasTexture=null + bUseFallbackColors=true 시        │
+ * │  Sprite art 가 아직 없는 dev 단계 — voxel 마다 매 Tick DrawDebugBox  │
+ * │  로 12-line wireframe cube 를 그린다. Iso ortho 카메라가 자연스럽게  │
+ * │  마름모 + 평행사변형 outline 으로 투영. HISM/머티리얼 불필요.        │
+ * │  TypeID 별 base color 적용. Shipping 빌드에선 자동 no-op (debug 라인  │
+ * │  은 non-shipping 한정).                                              │
+ * └──────────────────────────────────────────────────────────────────────┘
+ *
+ * 카메라는 `HktCameraMode_IsometricOrtho` (pitch −30, yaw 45) 고정.
  *
  * ============================================================================
- * [HISM 렌더링 스펙]
+ * [Sprite mode CPD 슬롯 매핑] — M_HktSpriteYBillboard 규약
  * ============================================================================
- *  - 컴포넌트  : UHierarchicalInstancedStaticMeshComponent (단일)
- *  - Mesh      : 1×1 unit quad (Z-up). 인스턴스 = 청크 top tile 1개
- *  - Material  : M_HktSpriteTerrainBillboard (Z-up quad, ground 평면)
- *                ※ HktSpriteCore 의 M_HktSpriteYBillboard (Y-axis billboard,
- *                   캐릭터 직립) 와는 별개. 본 액터의 quad 는 지면에 누운다.
- *
- *  PerInstanceCustomData 매핑 (NumCustomDataFloats = 16):
  *    | slot | 용도          | 본 액터에서                                   |
  *    |------|---------------|-----------------------------------------------|
- *    | 0    | AtlasIdx      | cell.TypeID                                   |
- *    | 1    | CellW         | CellSizePx.X                                  |
- *    | 2    | CellH         | CellSizePx.Y                                  |
- *    | 3    | (reserved)    | 0                                             |
- *    | 4    | OffX          | 0                                             |
- *    | 5    | OffY          | 0                                             |
- *    | 6    | RotR          | 0 (iso 고정)                                  |
- *    | 7    | ScaleX        | ChunkWorldSize / 2                            |
- *    | 8    | ScaleY        | ChunkWorldSize / 2                            |
- *    | 9~12 | Tint RGBA     | Flags 기반 보조 (TRANSLUCENT=alpha 0.6 등)    |
+ *    | 0    | AtlasIndex    | cell.TypeID                                   |
+ *    | 1    | CellW (px)    | CellSizePx.X                                  |
+ *    | 2    | CellH (px)    | CellSizePx.Y                                  |
+ *    | 7    | HalfW (world) | CellSizePx.X × PixelToWorld × 0.5             |
+ *    | 8    | HalfH (world) | CellSizePx.Y × PixelToWorld × 0.5             |
+ *    | 9~12 | Tint RGBA     | (1,1,1, Flags 기반 alpha)                     |
  *    | 13   | PaletteIndex  | cell.PaletteIndex                             |
- *    | 14   | FlipV         | 0                                             |
- *    | 15   | ZBias         | ComponentZBias (cm; CrowdRenderer 와 동일 슬롯)|
+ *    | 15   | ZBias (cm)    | ComponentZBias                                |
  *
- * ============================================================================
- * [데이터 흐름]
- * ============================================================================
- *   IHktTerrainChunkLoader::Update(CameraPos)        (Game Thread, Tick)
- *     → 가시 영역 청크 좌표 enumerate
- *     → UHktTerrainSubsystem::AcquireChunk(coord, buffer-out)
- *     → ScanTopSurface(buffer)  → FHktSpriteTerrainSurfaceCell
- *     → diff (InstanceMap)
- *         · 신규 키        → AddInstance + SetCustomData
- *         · 변경 키        → UpdateInstanceTransform / SetCustomDataValue
- *         · 사라진 키      → RemoveInstance (스왑 보정)
- *
- * ============================================================================
- * [Crowd 와의 depth 정렬]
- * ============================================================================
- * Sprite Crowd (캐릭터, Y-axis 직립) 와의 z-fighting 은 ComponentZBias 로 해소.
- * 본 액터는 0 (베이스라인), Crowd 는 작은 양수 (예: +1cm) 로 두면 캐릭터가 항상
- * 지형 위에 안정적으로 그려진다. 모든 ZBias 는 머티리얼 WPO 가 카메라 쪽으로
- * 밀어내는 cm 단위 오프셋이며, depth-buffer 에 그대로 반영된다.
+ * Fallback mode 는 CPD / 머티리얼 미사용 — 색은 DrawDebugBox 인자.
  */
 UCLASS(ClassGroup = (HktSprite))
 class HKTSPRITETERRAIN_API AHktSpriteTerrainActor : public AActor
@@ -103,15 +86,19 @@ protected:
 public:
 	// === 렌더 컴포넌트 ===
 
+	/** Sprite mode 메인 HISM (Y-billboard quad, 1 instance per voxel). Fallback mode 에서는 미사용. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HktSprite")
 	TObjectPtr<UHierarchicalInstancedStaticMeshComponent> HISMComponent;
 
+	/** Sprite mode 메시 — 로컬 XY 평면 1×1 quad, 하단-중앙 피벗 (M_HktSpriteYBillboard 규약). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite")
 	TObjectPtr<UStaticMesh> QuadMesh;
 
+	/** Sprite mode 머티리얼 (M_HktSpriteYBillboard). Fallback mode 에선 무시. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite")
 	TObjectPtr<UMaterialInterface> TerrainMaterial;
 
+	/** Iso voxel sprite atlas. 미할당 시 Fallback mode 로 진입 (bUseFallbackColors=true 면). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite")
 	TObjectPtr<UTexture2D> AtlasTexture;
 
@@ -124,125 +111,121 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Atlas")
 	FVector2D CellSizePx = FVector2D(128.f, 128.f);
 
-	// === 데이터 소스 ===
+	/** Pixel → World 환산 (cm/px). Sprite mode 에서만 사용. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Atlas",
+		meta = (ClampMin = "0.001"))
+	float PixelToWorld = 0.166f;
 
 	/**
-	 * 베이크된 청크 자산. UHktTerrainSubsystem 이 비동기 로드.
-	 * 미할당/로드 영역 밖 청크는 런타임 폴백 (FHktTerrainGenerator) 으로 동일하게 생성된다.
-	 *
-	 * 한 World 에 단일 BakedAsset 정책 — VoxelTerrainActor 와 함께 배치되어 있다면
-	 * 어느 한 쪽이 LoadBakedAsset 을 호출하면 충분하다 (가장 최근 호출이 우선).
+	 * AtlasTexture 미할당 시 Fallback wireframe 모드 활성화.
+	 * voxel 마다 12-line debug box 를 매 Tick 그린다. false 면 미할당 시 무렌더.
 	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Fallback")
+	bool bUseFallbackColors = true;
+
+	/** Fallback wireframe 라인 두께 (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Fallback",
+		meta = (ClampMin = "0.1", ClampMax = "10.0"))
+	float FallbackWireThickness = 0.5f;
+
+	// === 데이터 소스 ===
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Source")
 	TSoftObjectPtr<UHktTerrainBakedAsset> BakedAsset;
 
 	// === 스트리밍 ===
 
-	/**
-	 * 청크 로딩 전략. Voxel 액터와 동일 인터페이스.
-	 *  - Legacy   : 단일 반경 내 모든 청크.
-	 *  - Proximity: 근거리/원거리 2링. iso 카메라에서 보통 Legacy 로 충분.
-	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming")
 	EHktTerrainLoaderType LoaderType = EHktTerrainLoaderType::Legacy;
 
-	/** 스트리밍 반경 (UE 유닛). iso ortho 카메라 기준 화면 대각 + 여유. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming",
 		meta = (ClampMin = "480", ClampMax = "1024000"))
 	float StreamRadius = 4000.f;
 
-	/** Proximity 모드에서만 사용 — 원거리 링 반경. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming",
 		meta = (ClampMin = "480", ClampMax = "1024000",
 				EditCondition = "LoaderType == EHktTerrainLoaderType::Proximity"))
 	float ProximityFarRadius = 8000.f;
 
-	/** 프레임당 최대 청크 처리 수. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming",
 		meta = (ClampMin = 1, ClampMax = 64))
 	int32 MaxLoadsPerFrame = 16;
 
-	/** 동시에 활성 가능한 최대 청크 수 (= 인스턴스 수 상한). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming",
 		meta = (ClampMin = 0))
 	int32 MaxLoadedChunks = 1024;
 
-	/** 초당 surface 스캔 횟수 상한 — 카메라/월드 변화 없으면 스킵. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Streaming",
 		meta = (ClampMin = "1.0", ClampMax = "120.0"))
 	float MaxScansPerSecond = 30.0f;
 
 	// === Depth 정렬 ===
 
-	/**
-	 * 본 컴포넌트(액터의 HISM) 의 모든 인스턴스에 일괄 적용되는 Z-bias (cm).
-	 *
-	 * 머티리얼 WPO 가 카메라 쪽으로 cm 만큼 밀어내며 depth-buffer 에 반영된다.
-	 * Sprite Crowd (캐릭터) 와의 정렬:
-	 *   - Terrain  : ComponentZBias = 0   (베이스라인)
-	 *   - Crowd    : ComponentZBias = +1  (지형 위)
-	 * 본 값은 양수일수록 카메라 쪽 (= 다른 액터 앞).
-	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Depth")
 	float ComponentZBias = 0.f;
 
 private:
-	/** UHktTerrainSubsystem 에서 청크 voxel 을 받아 top-most 셀 1개 추출. */
-	bool ExtractTopSurfaceCell(UHktTerrainSubsystem* Sub, const FIntVector& Coord,
-		FHktSpriteTerrainSurfaceCell& OutCell) const;
+	/** 청크 voxel 버퍼에서 카메라 노출 표면 voxel 들을 추출. */
+	void ExtractSurfaceCells(UHktTerrainSubsystem* Sub, const FIntVector& Coord,
+		TArray<FHktSpriteTerrainSurfaceCell>& OutCells);
 
-	/** Surface cell → HISM PerInstanceCustomData 16 floats 변환 */
-	void FillCustomData(const FHktSpriteTerrainSurfaceCell& Cell, TArray<float>& OutData) const;
+	/** Sprite mode — CPD 16 floats 채우기. */
+	void FillSpriteCustomData(const FHktSpriteTerrainSurfaceCell& Cell, TArray<float>& OutData) const;
 
-	/** Surface cell → HISM 인스턴스 Transform */
-	FTransform MakeInstanceTransform(const FHktSpriteTerrainSurfaceCell& Cell) const;
+	/** Sprite mode — 셀 1개의 인스턴스 Transform. */
+	FTransform MakeSpriteInstanceTransform(const FHktSpriteTerrainSurfaceCell& Cell) const;
 
-	/** 카메라 / 가시성 기준점 */
 	FVector GetViewCenterWorldPos() const;
 
-	/** 청크 추가 / 갱신 */
-	void AddOrUpdateInstance(const FHktSpriteTerrainSurfaceCell& Cell);
+	/** 청크 단위 일괄 추가 (mode 분기). */
+	void AddInstancesForChunk(const FIntVector& Coord,
+		const TArray<FHktSpriteTerrainSurfaceCell>& Cells);
 
-	/** 청크 인스턴스 제거 + InstanceMap 스왑 보정 */
-	void RemoveInstanceForCoord(const FIntVector& Coord);
+	/** 청크 단위 일괄 제거 (mode 분기). */
+	void RemoveInstancesForChunk(const FIntVector& Coord);
 
-	/** UPROPERTY 변경이 즉시 반영되도록 매 Tick 로더에 Config 주입 */
 	void SyncLoaderConfig(UHktTerrainSubsystem* Sub);
 
-	/** 청크 한 변의 월드 크기 (cm) — Subsystem 의 effective config 에서 산출. */
 	float ComputeChunkWorldSize(UHktTerrainSubsystem* Sub) const;
+
+	/** Sprite mode 인스턴스 baseline (slot 7/8/15) 일괄 refresh. */
+	void RefreshAllSpriteInstanceBaseline();
+
+	void InitSpriteMode();
+
+	/** Fallback mode — 매 Tick 호출, LoadedSurfaceCells 의 모든 voxel 을 DrawDebugBox. */
+	void DrawFallbackWireframes(float VoxelSize) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> TerrainMID;
 
-	/** 스트리밍 전략 (BeginPlay 1회 생성). */
 	TUniquePtr<IHktTerrainChunkLoader> Loader;
 
-	/** ChunkCoord → HISM InstanceIndex */
-	TMap<FIntVector, int32> InstanceMap;
-
-	/** InstanceIndex → ChunkCoord 역매핑 (RemoveInstance 의 스왑 보정용) */
-	TMap<int32, FIntVector> InstanceCoordByIndex;
-
-	/** ChunkCoord → 마지막 push 된 셀 (재push 여부 판정용) */
-	TMap<FIntVector, FHktSpriteTerrainSurfaceCell> LastCellByCoord;
-
-	/** 마지막 스캔 시각 (GetWorld()->GetTimeSeconds 기준) */
-	float LastScanTime = -FLT_MAX;
-
-	/** Subsystem 으로부터 캐시된 청크 월드 크기 — Config 변경 시 재계산. */
-	float CachedChunkWorldSize = 0.f;
-
-	/** ComponentZBias / ChunkWorldSize 변경 감지용 — 전체 인스턴스 일괄 refresh 트리거. */
-	float PrevComponentZBias = FLT_MAX;
-	float PrevChunkWorldSize = 0.f;
+	// === Sprite mode 인스턴스 추적 ===
+	TMap<FIntVector, TArray<int32>> ChunkInstanceIndices;
+	TMap<int32, FIntVector> InstanceChunkByIdx;
 
 	/**
-	 * AcquireChunk 임시 버퍼 — Tick 당 여러 청크 처리 시 재사용 (32768 voxel × 4B = 128 KB).
-	 * 매 호출마다 SetNumUninitialized 로 재할당하지 않도록 멤버 풀로 보관.
+	 * Fallback mode — 청크 별 로드된 surface cell 캐시 (HISM 없이 DrawDebugBox 만 사용).
+	 * Tick 마다 전체 순회해 12-line cube 를 그린다.
 	 */
-	TArray<FHktTerrainVoxel> ChunkVoxelScratch;
+	TMap<FIntVector, TArray<FHktSpriteTerrainSurfaceCell>> LoadedSurfaceCells;
 
-	/** 변경된 baseline (ComponentZBias / ChunkWorldSize) 을 모든 인스턴스에 일괄 반영. */
-	void RefreshAllInstanceBaseline();
+	/** BeginPlay 에서 결정 — true 면 fallback mode (DrawDebugBox 경로). */
+	bool bUsingFallback = false;
+
+	float LastScanTime = -FLT_MAX;
+	float CachedChunkWorldSize = 0.f;
+	float CachedVoxelSize = 0.f;
+
+	float PrevComponentZBias = FLT_MAX;
+	float PrevHalfWWorld = -1.f;
+	float PrevHalfHWorld = -1.f;
+
+	TArray<FHktTerrainVoxel> ChunkVoxelScratch;
+	TArray<FHktTerrainVoxel> AboveChunkVoxelScratch;
+	FIntVector AboveChunkCachedCoord = FIntVector(INT_MIN, INT_MIN, INT_MIN);
+	bool       bAboveChunkValid      = false;
+
+	TArray<FHktSpriteTerrainSurfaceCell> SurfaceCellsScratch;
 };

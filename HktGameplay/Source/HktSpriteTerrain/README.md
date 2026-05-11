@@ -1,21 +1,38 @@
 # HktSpriteTerrain — README
 
-`UHktTerrainSubsystem` 단일 출처에서 청크 데이터를 받아 top-surface 셀을 추출하고, 단일 HISM 컴포넌트에 청크당 1 인스턴스로 매핑한다. Voxel 메싱 파이프라인 의존이 없어 Sprite-only 배포에서 단독 동작한다.
+`UHktTerrainSubsystem` 단일 출처에서 청크 데이터를 받아 표면 voxel 들을 추출하고, 단일 HISM 컴포넌트에 voxel 1개 = upright Y-billboard quad 1장으로 매핑한다. StarCraft1 / SC 맵 에디터의 iso 타일 방식을 따른다. Voxel 메싱 파이프라인 의존이 없어 Sprite-only 배포에서 단독 동작한다.
 
 상위 가이드: [../../CLAUDE.md](../../CLAUDE.md). 지형 데이터 흐름: [../HktTerrain/README.md](../HktTerrain/README.md).
 
 ## 모듈 경계
 
-- **의존**: `Core, CoreUObject, Engine, HktCore, HktSpriteCore, HktTerrain` (Public).
+- **의존**: `Core, CoreUObject, Engine, HktCore, HktTerrain` (Public).
 - **HktVoxelCore 의존 없음** — `FHktVoxelRenderCache` / Greedy meshing 우회. 청크 voxel 버퍼를 직접 스캔.
+- **HktSpriteCore 비의존** — 머티리얼 / CPD 슬롯 규약 (M_HktSpriteYBillboard) 만 공유 (param 이름 하드코딩).
 - **단방향**: HktSpriteTerrain → HktTerrain → HktCore.
+
+## 렌더 방식 (v1 — SC-tile + Wireframe fallback)
+
+두 가지 모드:
+
+| 모드 | 조건 | 렌더 |
+|---|---|---|
+| **Sprite** | `AtlasTexture` 할당됨 | voxel 당 upright Y-billboard quad 1장. 화가가 그린 iso voxel sprite (마름모 top + 측면 통합 PNG) art 가 carry. |
+| **Fallback** | `AtlasTexture=null` + `bUseFallbackColors=true` | voxel 마다 매 Tick `DrawDebugBox` 호출 → 12-line wireframe cube. TypeID 별 색. HISM/머티리얼 불필요. |
+| (no render) | `AtlasTexture=null` + `bUseFallbackColors=false` | 아무것도 안 그림. |
+
+Mode 는 BeginPlay 1회 결정 — 런타임 스왑 안 됨.
+
+카메라는 `HktCameraMode_IsometricOrtho` (pitch −30, yaw 45) 고정 — Fallback mode 의 wireframe 큐브가 이 각도에서 자연스럽게 마름모 + 평행사변형 outline 으로 투영된다.
+
+청크당 voxel 수: 최대 ChunkSize² = 1024. Fallback mode 는 매 프레임 voxel 마다 DrawDebugBox 1회 (12 lines). ~50 chunk × 1024 cells × 12 lines = ~600k lines/frame — 현대 GPU 디버그 라인 배칭으로 충분.
 
 ## 핵심 타입
 
 | 심볼 | 위치 | 역할 |
 |---|---|---|
-| `AHktSpriteTerrainActor` | `Public/HktSpriteTerrainActor.h` | 메인 액터. HISM 컴포넌트 + 청크 스트리밍 + 표면 셀 추출. |
-| `FHktSpriteTerrainSurfaceCell` | (동) | 청크당 1 셀 (`ChunkCoord, WorldPos, TypeID, PaletteIndex, Flags`). |
+| `AHktSpriteTerrainActor` | `Public/HktSpriteTerrainActor.h` | 메인 액터. HISM + 청크 스트리밍 + 표면 voxel 추출. |
+| `FHktSpriteTerrainSurfaceCell` | (동) | 표면 voxel 1개 (`ChunkCoord, LocalCoord, WorldPos, TypeID, PaletteIndex, Flags`). |
 
 ## 데이터 흐름
 
@@ -23,39 +40,88 @@
 Tick(DeltaSeconds)
   → IHktTerrainChunkLoader::Update(CameraPos)
        — Legacy: 단일 반경 / Proximity: 근/원 2링
-  → For each visible chunk Coord:
+  → For each ChunksToUnload:
+       RemoveInstancesForChunk(Coord)   # HISM RemoveInstance × N + swap remap
+  → For each ChunksToLoad:
        UHktTerrainSubsystem::AcquireChunk(Coord, ChunkVoxelScratch)
          — baked-first / Generator 폴백 (Subsystem 정책)
-       → ExtractTopSurfaceCell(buffer)  # top-most non-empty voxel
-       → Diff vs InstanceMap:
-            · 신규  → AddInstance + SetCustomData
-            · 변경  → UpdateInstanceTransform / SetCustomDataValue
-            · 사라짐 → RemoveInstance (스왑 보정 + InstanceCoordByIndex 갱신)
+       → ExtractSurfaceCells(buffer, OutCells[])
+            · (LX, LY) 별 topmost solid voxel
+            · +Z 노출 판정: 같은 청크 안 or 위 청크 (LX, LY, 0) 비어 있어야 함
+       → AddInstancesForChunk(cells)    # HISM AddInstance × N + CPD 채움
 ```
 
-`ChunkVoxelScratch` 는 멤버 풀 (32768 voxel × 4B = 128KB) — 매 청크마다 재할당하지 않는다.
+`ChunkVoxelScratch` (128KB) / `AboveChunkVoxelScratch` (128KB, lazy) / `SurfaceCellsScratch` 는 멤버 풀로 재사용 — 매 청크 재할당하지 않는다.
+
+v1 은 청크 in-place 갱신 없음 — 지형 정적 가정. 청크는 streaming in/out 시에만 add/remove.
+
+## Sprite / Atlas 텍스처 규약
+
+**Voxel 1개를 한 sprite cell 에 통째로 그린다** — 마름모 top + 좌·우 측면 + 임의 장식 (풀잎, 이끼, 결정 광택, 잎사귀 등).
+
+- Atlas 그리드 레이아웃: **가로 = TypeID 슬롯, 세로 = 애니메이션 프레임** (v1 은 frame 1개)
+- 기본 4224×128 = 33 TypeID × 1 frame, 셀당 128×128 px
+- **셀당 art 규약**:
+  - Pivot: cell 하단-중앙 (= voxel 의 바닥-중앙과 일치)
+  - 폭: iso 마름모 양 끝 (sprite cell 폭에 맞춰)
+  - 높이: 마름모 최상단부터 기둥 바닥까지
+  - 빈 공간: 마름모 양 옆/위는 투명 OK (sprite 가 cell 의 일부만 차지해도 무방)
+
+`PixelToWorld` (기본 0.166) = (VoxelSize × √2) / CellW. voxel 큐브 한 변의 iso 가로 투영이 cell 폭에 맞아 들어가는 값. art / VoxelSize / CellSizePx 변경 시 재튜닝.
+
+### Fallback wireframe (`bUseFallbackColors`)
+
+`AtlasTexture` 가 **null** 이고 `bUseFallbackColors=true` (기본) 인 경우, BeginPlay 에서 fallback mode 로 진입. voxel 마다 매 Tick `DrawDebugBox` 호출 — 12 라인의 wireframe cube 가 그려진다. HISM / 머티리얼 / mesh 전부 불필요.
+
+```
+         iso ortho 카메라에서 자연스럽게:
+
+              ╱╲                ← voxel 의 top diamond outline
+             ╱  ╲
+            ╱    ╲
+            ╲    ╱
+             ╲  ╱
+       ┌─────┼──┼─────┐         ← voxel 의 좌·우 pillar
+       │     ╲╱      │
+       │     ╳       │
+       │    ╱╲       │
+       └───┴──┴──────┘
+```
+
+DrawDebugBox 는 axis-aligned 큐브 12-edge 를 라인 배쳐로 출력. iso ortho 투영이 그대로 hexagonal outline 으로 보임.
+
+**TypeID 별 색**: `HktAdvTerrainType` 33 ID 매핑 (Grass=초록, Water=파랑, OreGold=금색 등). 등록 안 된 TypeID 는 마젠타 (FF00FF) — 신규 type 추가 시 즉시 시각 식별. 정의: `Private/HktSpriteTerrainActor.cpp` 의 `GetFallbackTypeColor`.
+
+**파라미터**:
+- `FallbackWireThickness` (기본 0.5cm) — wireframe 라인 두께.
+
+**제약**:
+- DrawDebugBox 는 non-shipping 빌드에서만 동작. Shipping 에선 자동 no-op — 정식 `AtlasTexture` + `TerrainMaterial` 할당 가정.
+- Cell 캐시 (`LoadedSurfaceCells`) 가 메모리에 남음. 청크 unload 시 자동 cleanup.
+
+**Tick 비용**: voxel 당 12 line. ~50 chunk × 1024 cells × 12 lines = ~600k lines/frame. UE 의 ULineBatchComponent 가 frame 당 1 draw call 로 배칭.
 
 ## HISM 머티리얼 스펙
 
-- **Mesh**: 1×1 unit quad, Z-up (지면에 누운 평면).
-- **Material**: `M_HktSpriteTerrainBillboard` (Z-up quad, ground 평면). HktSpriteCore 의 `M_HktSpriteYBillboard` (Y-axis billboard, 캐릭터 직립) 와 별개.
-- **PerInstanceCustomData (NumCustomDataFloats=16)**:
+- **Mesh**: 1×1 vertical quad, 로컬 XY 평면, 피벗 하단-중앙 (HktSpriteCore Crowd Renderer 와 동일 메시 규약).
+- **Material**: `M_HktSpriteYBillboard` (Y-axis billboard) — HktSpriteCore 의 캐릭터 빌보드와 공유. 이전 default `M_HktSpriteTerrainBillboard` (Z-up plane) 는 deprecated.
+- **PerInstanceCustomData (NumCustomDataFloats=16, M_HktSpriteYBillboard 규약)**:
 
 | slot | 용도 | 본 액터에서 |
 |---|---|---|
-| 0 | AtlasIdx | `cell.TypeID` |
-| 1 | CellW | `CellSizePx.X` |
-| 2 | CellH | `CellSizePx.Y` |
+| 0 | AtlasIndex (grid cell idx) | `cell.TypeID` |
+| 1 | CellW (px) | `CellSizePx.X` |
+| 2 | CellH (px) | `CellSizePx.Y` |
 | 3 | reserved | 0 |
-| 4 | OffX | 0 |
-| 5 | OffY | 0 |
-| 6 | RotR | 0 (iso 고정) |
-| 7 | ScaleX | `ChunkWorldSize / 2` |
-| 8 | ScaleY | `ChunkWorldSize / 2` |
-| 9~12 | Tint RGBA | Flags 기반 보조 (TRANSLUCENT alpha 0.6 등) |
+| 4 | PivotOffsetX (world) | 0 (quad mesh 가 이미 bottom-center) |
+| 5 | PivotOffsetY (world) | 0 |
+| 6 | RotRad | 0 |
+| 7 | HalfWidth (world cm) | `CellSizePx.X × PixelToWorld × 0.5` |
+| 8 | HalfHeight (world cm) | `CellSizePx.Y × PixelToWorld × 0.5` |
+| 9~12 | Tint RGBA | Flags 기반 보조 (TRANSLUCENT alpha 0.6) |
 | 13 | PaletteIndex | `cell.PaletteIndex` |
-| 14 | FlipV | 0 |
-| 15 | ZBias | `ComponentZBias` (cm; CrowdRenderer 와 동일 슬롯) |
+| 14 | FlipX | 0 |
+| 15 | ZBias (cm) | `ComponentZBias` (CrowdRenderer slot 15 와 동일) |
 
 ## Crowd 와의 Depth 정렬
 
@@ -66,11 +132,11 @@ Sprite Crowd (캐릭터, Y-axis 직립) 와의 z-fighting 은 ComponentZBias 로
 | Terrain (본 액터) | 0 (베이스라인) |
 | Crowd (캐릭터) | +1cm 권장 |
 
-값이 양수일수록 카메라 쪽 (= 다른 액터 앞). 머티리얼 WPO 가 cm 만큼 밀어내며 depth-buffer 에 반영된다.
+값이 양수일수록 카메라 쪽. 머티리얼 WPO 가 cm 만큼 밀어내며 depth-buffer 에 반영된다.
 
 ## 단일 BakedAsset 정책
 
-한 World 에 단일 `UHktTerrainBakedAsset` 인스턴스. VoxelTerrainActor 와 함께 배치 시 어느 한 쪽이 `Sub->LoadBakedAsset` 호출하면 충분 (가장 최근 호출이 우선).
+한 World 에 단일 `UHktTerrainBakedAsset` 인스턴스. VoxelTerrainActor 와 함께 배치 시 어느 한 쪽이 `Sub->LoadBakedAsset` 호출하면 충분.
 
 `BakedAsset` 미할당 / 로드 영역 밖 청크는 런타임 폴백 (`FHktTerrainGenerator`) 으로 동일하게 생성된다 — 결정론 보장.
 
@@ -79,10 +145,20 @@ Sprite Crowd (캐릭터, Y-axis 직립) 와의 z-fighting 은 ComponentZBias 로
 | 증상 | 원인 / 조치 |
 |---|---|
 | `[SpriteTerrain] UHktTerrainSubsystem 없음 — Tick 무동작` | World 타입이 Subsystem 생성 정책 (`Game/PIE/Editor`) 외. 액터 배치 위치 확인. |
-| Crowd 가 Terrain 뒤로 가려짐 | `ComponentZBias` 비교 — Crowd 가 더 작거나 같으면 z-fight. Crowd 를 +1cm 이상 띄울 것. |
-| `LastCellByCoord` 만 갱신되고 인스턴스 안 보임 | `TerrainMaterial` 미할당 또는 `QuadMesh` 미할당. UPROPERTY 점검. |
-| 인스턴스가 청크 경계에서 깜빡임 | `MaxScansPerSecond` 가 너무 낮거나, `StreamRadius` 가 카메라 이동 속도 대비 부족. |
+| `[SpriteTerrain] TerrainMaterial 미할당 ...` | UPROPERTY `TerrainMaterial` 에 `M_HktSpriteYBillboard` (또는 동등 슬롯 규약 머티리얼) 할당. |
+| Crowd 가 Terrain 뒤로 가려짐 | `ComponentZBias` 비교 — Crowd 가 더 작거나 같으면 z-fight. Crowd 를 +1cm 이상. |
+| Sprite 가 너무 작거나 큼 | `PixelToWorld` 또는 `CellSizePx` 재튜닝. 기본 (0.166, 128) 은 VoxelSize=15cm 가정. |
+| Sprite 가 안 보임 | `QuadMesh` / `TerrainMaterial` UPROPERTY 점검. AtlasTexture 가 null 이어도 `bUseFallbackColors=true` 면 솔리드 컬러로 가시화됨. |
+| 모든 voxel 이 마젠타 (FF00FF) | 폴백 컬러 테이블 미등록 TypeID — `HktAdvTerrainType` 범위 초과. 신규 type 추가 시 `GetFallbackTypeColor` 테이블 확장. |
+| Fallback mode 에서 wireframe 안 보임 | Shipping 빌드 (DrawDebugBox 가 no-op). 정식 `AtlasTexture` + `TerrainMaterial` 할당 필요. 또는 PIE 의 Show > Debug Lines 옵션 확인. |
+| 인스턴스가 청크 경계에서 깜빡임 | `MaxScansPerSecond` / `StreamRadius` 점검. v1 은 청크 in-place 갱신 없음. |
 | 청크가 화면에 들어왔는데 늦게 추가됨 | `MaxLoadsPerFrame` 증가. 단, 메인스레드 비용 ↑ — 프로파일링 필수. |
+| Solid 청크 위 voxel 이 보임 (underground top 누설) | v1 한계 — 위 청크 fetch 실패 시 노출로 간주. v2 (volumetric surface) 에서 해소 예정. |
+
+## v1 한계 / 향후
+
+- **v1** (현재): (X, Y) 별 topmost-exposed solid voxel 1개. 동굴/오버행 미표시. ChunkSize²=1024 sprite/청크 상한.
+- **v2** (예정): 측면(-X, -Y) 노출 voxel 도 emit. 절벽/계단 측면 voxel 도 sprite 1장씩 그려짐. 인스턴스 수 ~2–3배.
 
 ## Deprecated 마이그레이션
 
@@ -90,7 +166,7 @@ Sprite Crowd (캐릭터, Y-axis 직립) 와의 z-fighting 은 ComponentZBias 로
 
 ## 변경 시 체크리스트
 
-- [ ] 표면 추출 알고리즘 변경 → ChunkVoxelScratch 가 32768 element 로 유지되는지 확인 + 결정론 영향 검토
-- [ ] HISM CustomData 슬롯 수정 → 본 문서 표 + 머티리얼 (M_HktSpriteTerrainBillboard) 동기 갱신
-- [ ] ChunkWorldSize 산출 변경 → `ComputeChunkWorldSize` 가 effective config 와 일치하는지 검증
+- [ ] 표면 추출 알고리즘 변경 → ChunkVoxelScratch / AboveChunkVoxelScratch 가 32768 element 로 유지되는지 + 결정론 영향 검토
+- [ ] HISM CustomData 슬롯 수정 → 본 문서 표 + 머티리얼 (M_HktSpriteYBillboard) 동기 갱신
+- [ ] PixelToWorld / CellSizePx 기본값 변경 → README sprite 규약 섹션 동기 갱신
 - [ ] ComponentZBias 정책 변경 → CrowdRenderer 와의 정렬 매트릭스 재테스트
