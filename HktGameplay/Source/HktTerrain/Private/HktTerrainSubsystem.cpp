@@ -297,7 +297,26 @@ bool UHktTerrainSubsystem::AcquireChunk(const FIntVector& Coord,
 		return true;
 	}
 
-	// 3. 폴백 — 동일 Generator 로 즉시 생성 + 경고 로그
+	// 2-bis. 의도된 빈 청크 — BakeRegion 이 전 air 청크를 스킵해 자산에 미수록.
+	// RegionMin/Max 안이면 "베이크 결과 = 전부 air" 가 결정론적으로 보장되므로
+	// 폴백 Generator 를 돌릴 필요 없이 zero-fill 로 동일 결과를 만들고 baked hit 으로 처리.
+	if (BakedAsset && BakedAsset->IsCoordInBakedRegion(Coord))
+	{
+		FMemory::Memzero(Entry->Voxels.GetData(), sizeof(FHktTerrainVoxel) * Expected);
+		Entry->bFromBaked = true;
+		++BakedHitCount;
+		FMemory::Memcpy(OutVoxels.GetData(), Entry->Voxels.GetData(),
+		                sizeof(FHktTerrainVoxel) * Expected);
+		ChunkCache.Add(Coord, Entry);
+		EvictIfNeeded();
+		LastAcquireUs = (FPlatformTime::Seconds() - AcquireStartSec) * 1e6;
+		PublishInsights();
+		return true;
+	}
+
+	// 3. 폴백 — 동일 Generator 로 즉시 생성 + 경고 로그.
+	// 베이크 영역 내 air-only 청크는 위(2-bis)에서 zero-fill 로 처리되므로
+	// 여기 도달하면 베이크 영역 밖 = 로더가 HeightMin/MaxZ 클램프 누락 등 실제 이슈.
 	UE_LOG(LogHktTerrain, Warning,
 		TEXT("Chunk %s 베이크 미존재 — 런타임 생성 폴백"), *Coord.ToString());
 	const TCHAR* OriginLabel = BakedAsset                 ? TEXT("BakedAsset->GeneratorConfig")

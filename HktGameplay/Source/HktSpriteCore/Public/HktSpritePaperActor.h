@@ -123,6 +123,12 @@ private:
 	/** 태그 해석 실패 dedup (HktSpriteCrowdHost 와 동일 패턴). */
 	bool bLoggedResolveRenderOutputsFailure = false;
 
+	/** WriteFacingToViewModel 에서 결정된 facing 캐시 — Tick 은 이 값을 그대로 소비.
+	 *  카메라 yaw 변경만으로는 갱신되지 않음(설계 선택 — 이동 dirty 또는 anim tag dirty 시점에만 산출). */
+	EHktSpriteFacing LastClientFacing = EHktSpriteFacing::S;
+	/** 화면-공간 좌우 sticky (1=우향, 0=좌향). LastMoveDirXY 부호로만 갱신. */
+	uint8 LastFacingRight = 1;
+
 	/** Animation 해석(StoredFacing/Flipbook 매칭) 진단 dedup. 마지막으로 emit 한 (AnimTag,KeyDir,bFlipX) 와
 	 *  Flipbook 존재 여부를 기억해 전이 시점에만 로그를 남긴다. */
 	FGameplayTag LastDiagAnimTag;

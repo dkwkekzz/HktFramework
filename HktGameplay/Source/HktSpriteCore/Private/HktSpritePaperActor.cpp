@@ -204,20 +204,32 @@ void AHktSpritePaperActor::WriteFacingToViewModel()
 	UHktPresentationSubsystem* PS = UHktPresentationSubsystem::Get(W->GetFirstPlayerController());
 	if (!PS) return;
 
-	// 현재 카메라 yaw 로 facing 산출 (산출 시점 카메라 기준 — 이후 카메라 회전은 ViewModel 에 반영 안 함).
+	// --- facing 산출은 모두 여기서 결정 (Tick 은 캐시 소비만) ---
+	// 8방향 Facing: LastMoveDirXY + 현재 카메라 yaw.
 	const FCameraView CamView = QueryCameraView();
-	EHktSpriteFacing ClientFacing = EHktSpriteFacing::S;
 	if (!AnimFragment.LastMoveDirXY.IsNearlyZero())
 	{
 		const float DirYawDeg = FMath::RadiansToDegrees(
 			FMath::Atan2(AnimFragment.LastMoveDirXY.Y, AnimFragment.LastMoveDirXY.X));
-		ClientFacing = HktFacingFromYaw(DirYawDeg, CamView.Rotation.Yaw);
+		LastClientFacing = HktFacingFromYaw(DirYawDeg, CamView.Rotation.Yaw);
+	}
+
+	// 좌우 sticky: Iso 카메라(yaw=45 고정) 기준 화면 우측 = world (Y - X) > 0.
+	// LastMoveDirXY 만으로 판단 — 8방향 Facing 의 N/S/NE/SE 양자화 손실을 우회.
+	if (!AnimFragment.LastMoveDirXY.IsNearlyZero())
+	{
+		const float ScreenX = AnimFragment.LastMoveDirXY.Y - AnimFragment.LastMoveDirXY.X;
+		if (FMath::Abs(ScreenX) > KINDA_SMALL_NUMBER)
+		{
+			LastFacingRight = (ScreenX > 0.f) ? 1 : 0;
+		}
 	}
 
 	FHktPresentationState& PState = PS->GetMutableState();
 	if (FHktSpriteView* MutableSV = PState.GetMutableSprite(CachedEntityId))
 	{
-		MutableSV->Facing.Set(static_cast<uint8>(ClientFacing), PState.GetCurrentFrame());
+		MutableSV->Facing.Set(static_cast<uint8>(LastClientFacing), PState.GetCurrentFrame());
+		MutableSV->FacingRight.Set(LastFacingRight, PState.GetCurrentFrame());
 	}
 }
 
@@ -309,17 +321,8 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	}
 	const int32 AuthStartTick = ServerAuthoritativeAnimStartTick;
 
-	// --- Facing 은 클라이언트 viewmodel: LastMoveDirXY(world) + 현재 카메라 yaw ---
-	// 카메라 회전에 맞춰 facing 이 즉시 따라가도록 매 Tick 재계산. 한 번도
-	// 움직이지 않은 엔터티는 카메라 정면(S) 폴백.
-	EHktSpriteFacing ClientFacing = EHktSpriteFacing::S;
-	if (!AnimFragment.LastMoveDirXY.IsNearlyZero())
-	{
-		const float DirYawDeg = FMath::RadiansToDegrees(
-			FMath::Atan2(AnimFragment.LastMoveDirXY.Y, AnimFragment.LastMoveDirXY.X));
-		ClientFacing = HktFacingFromYaw(DirYawDeg, CameraYaw);
-	}
-	const uint8 RawFacing = static_cast<uint8>(ClientFacing);
+	// --- Facing 캐시 소비 (산출은 WriteFacingToViewModel 단일 소스) ---
+	const uint8 RawFacing = static_cast<uint8>(LastClientFacing);
 
 	// --- AnimTag / PlayRate 결정 ---
 	FGameplayTag AnimTag;
@@ -336,10 +339,11 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	}
 
 	// --- Facing → 저장 dir + 미러 ---
+	// 2슬롯 경로는 ResolveStoredFacing 내부가 bFacingRight 로 직접 결정 (8방향 양자화 우회).
 	bool bFlipX = false;
 	const EHktSpriteFacing InFacing = static_cast<EHktSpriteFacing>(RawFacing & 0x07);
 	const EHktSpriteFacing StoredFacing = FHktSpriteAnimation::ResolveStoredFacing(
-		InFacing, Meta->NumDirections, Meta->bMirrorWestFromEast, bFlipX);
+		InFacing, Meta->NumDirections, Meta->bMirrorWestFromEast, bFlipX, LastFacingRight != 0);
 	const uint8 KeyDir = static_cast<uint8>(StoredFacing);
 
 	// --- 서버 권위 AnimStartTick 변화 감지 → 로컬 시각 캡처 ---

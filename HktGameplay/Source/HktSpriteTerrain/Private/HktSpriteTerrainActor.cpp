@@ -293,6 +293,14 @@ void AHktSpriteTerrainActor::SyncLoaderConfig(UHktTerrainSubsystem* Sub)
 	LoaderCfg.MaxLoadedChunks  = MaxLoadedChunks;
 	LoaderCfg.HeightMinZ       = Cfg.HeightMinZ;
 	LoaderCfg.HeightMaxZ       = Cfg.HeightMaxZ;
+
+	// BakedAsset 이 있으면 영역의 Z 범위로 클램프 — 베이크되지 않은 Z 청크 요청을 차단해
+	// `Chunk … 베이크 미존재 — 런타임 생성 폴백` Warning 의 근본 원인을 제거.
+	if (UHktTerrainBakedAsset* Baked = Sub->GetBakedAsset())
+	{
+		LoaderCfg.HeightMinZ = FMath::Max(LoaderCfg.HeightMinZ, Baked->RegionMin.Z);
+		LoaderCfg.HeightMaxZ = FMath::Min(LoaderCfg.HeightMaxZ, Baked->RegionMax.Z);
+	}
 	Loader->Configure(LoaderCfg);
 }
 
@@ -316,12 +324,29 @@ void AHktSpriteTerrainActor::ExtractSurfaceCells(UHktTerrainSubsystem* Sub,
 		return;
 	}
 
-	const float VoxelSize = Sub->GetEffectiveConfig().VoxelSizeCm;
+	const FHktTerrainGeneratorConfig EffCfg = Sub->GetEffectiveConfig();
+	const float VoxelSize = EffCfg.VoxelSizeCm;
 	const float ChunkWorldSize = kChunkSize * VoxelSize;
+
+	// 월드 최상단 청크 위쪽은 하늘(전부 air) 로 간주. AcquireChunk 호출하지 않음 —
+	// 베이크 영역 밖 좌표라 Subsystem 이 Warning 폴백 경로로 빠지는 것을 차단.
+	// BakedAsset 이 있으면 영역 Z 도 함께 고려해 더 보수적으로 컷.
+	int32 AboveZCap = EffCfg.HeightMaxZ;
+	if (UHktTerrainBakedAsset* Baked = Sub->GetBakedAsset())
+	{
+		AboveZCap = FMath::Min(AboveZCap, Baked->RegionMax.Z);
+	}
 
 	auto EnsureAboveChunkLoaded = [&]() -> bool
 	{
 		const FIntVector AboveCoord(Coord.X, Coord.Y, Coord.Z + 1);
+		if (AboveCoord.Z > AboveZCap)
+		{
+			// 하늘 — air 로 간주, AcquireChunk 생략.
+			bAboveChunkValid = false;
+			AboveChunkCachedCoord = AboveCoord;
+			return false;
+		}
 		if (bAboveChunkValid && AboveChunkCachedCoord == AboveCoord)
 		{
 			return true;

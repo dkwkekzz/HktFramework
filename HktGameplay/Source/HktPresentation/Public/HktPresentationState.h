@@ -239,12 +239,16 @@ struct FHktSpriteView
 {
 	THktVisualField<FGameplayTag> Character;      // CharacterTemplate Tag — 캐릭터당 1개
 	THktVisualField<uint8>        Facing;         // 0..7 (N,NE,E,SE,S,SW,W,NW)
+	// 화면-공간 좌우 (0=Left, 1=Right). 카메라 right vector 에 LastMoveDirXY 를
+	// 투영한 부호로 산출. 좌/우 2슬롯 sprite (NumDirections<=2) 경로가 8방향
+	// Facing 의 N/S→E 양자화 손실을 우회해 정확한 좌우 결정에 사용한다.
+	THktVisualField<uint8>        FacingRight;
 	THktVisualField<int32>        AnimStartTick;  // AnimState 전환 시점의 VM frame
 
 	FORCEINLINE bool AnyDirty(int64 F) const
 	{
 		return Character.IsDirty(F)
-			|| Facing.IsDirty(F) || AnimStartTick.IsDirty(F);
+			|| Facing.IsDirty(F) || FacingRight.IsDirty(F) || AnimStartTick.IsDirty(F);
 	}
 
 	FORCEINLINE bool IsCharacterDirty(int64 F) const

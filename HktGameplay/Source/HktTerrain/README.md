@@ -99,7 +99,7 @@ AHktGameMode::InitGame
 
 | 증상 | 원인 / 조치 |
 |---|---|
-| `Chunk (X,Y,Z) 베이크 미존재 — 런타임 생성 폴백` | 정상 — 폴백은 결정론적으로 동일 결과를 낸다. 누락 영역이 의도된 게임 영역인지 확인. 의도되었다면 `UHktTerrainBakeLibrary::BakeRegion` 으로 영역 확장. |
+| `Chunk (X,Y,Z) 베이크 미존재 — 런타임 생성 폴백` | 베이크 영역 밖 청크가 요청됨. 베이크 영역 내 air-only 청크는 zero-fill 로 조용히 처리되므로, 이 경고가 뜨면 (a) 로더가 액터의 `HeightMin/MaxZ` 를 클램프하지 않거나 (b) 의도된 게임 영역이 베이크 영역을 벗어남 → `UHktTerrainBakeLibrary::BakeRegion` 으로 영역 확장. |
 | `Terrain fallback Config 출처: CompileDefault (...)` | `SetFallbackConfig` 가 호출되지 않았다. GameMode `InitGame` 또는 Landscape Actor `BeginPlay` 에서 주입 누락. |
 | `LoadBakedAsset: 비동기 로드 실패` | SoftRef 가 가리키는 `.uasset` 가 패키지 누락. ContentBrowser 에서 자산 존재 + 의존성 확인. 또는 PIE 시작 직전 `LoadBakedAssetSync` 로 회피. |
 | `AcquireChunk: 출력 버퍼 크기 N != 기대값 32768` | 호출자 버그. `OutVoxels.Num() == GetVoxelsPerChunk()` 보장 후 호출. |

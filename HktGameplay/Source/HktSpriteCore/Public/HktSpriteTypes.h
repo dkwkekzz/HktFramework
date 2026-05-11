@@ -134,8 +134,11 @@ struct HKTSPRITECORE_API FHktSpriteAnimation
 	/** 해당 방향의 프레임 수. 현재는 모든 방향 동일 = FramesPerDirection. */
 	FORCEINLINE int32 GetNumFrames(int32 /*DirIdx*/) const { return FMath::Max(FramesPerDirection, 0); }
 
-	/** bMirrorWestFromEast + NumDirections를 반영해 저장된 방향과 flipX를 계산. */
-	static EHktSpriteFacing ResolveStoredFacing(EHktSpriteFacing In, int32 NumDirections, bool bMirror, bool& OutFlipX);
+	/** bMirrorWestFromEast + NumDirections를 반영해 저장된 방향과 flipX를 계산.
+	 *  bFacingRight: 화면-공간 우향 여부. NumDirections<=2 분기에서 사용 —
+	 *  8방향 `In` 의 N/S 양자화 손실을 우회한다 (5/8 방향에선 무시). 기본값 true 는
+	 *  레거시 호출자(미지정 시 우향 가정) 호환. */
+	static EHktSpriteFacing ResolveStoredFacing(EHktSpriteFacing In, int32 NumDirections, bool bMirror, bool& OutFlipX, bool bFacingRight = true);
 
 	/**
 	 * (dirIdx) → atlas/cellSize 해석.

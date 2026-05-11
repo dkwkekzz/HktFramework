@@ -8,16 +8,16 @@
 // NumDirections 별 매핑:
 //   1 → 항상 index 0 (no mirror).
 //   2 → 좌/우 — 슬롯 0 = E(우향), 슬롯 1 = W(좌향).
-//        x 성분이 동쪽이면 0, 서쪽이면 1, N/S는 0(우향) 기본.
-//        bMirror=true이고 W 슬롯이 비어있으면 슬롯 0 + flipX 로 미러.
-//        반환 enum 값은 슬롯 인덱스 정수와 동일 (N=0, NE=1) — 의미 무시, 인덱스만 사용.
+//        bFacingRight (화면-공간 우향) 로 결정 — 8방향 `In` 은 N/S/NE/SE 가 모두 E 로
+//        양자화되어 카메라 yaw 가 바뀐 N/S 이동의 좌우 판단이 손실되므로 사용 안 함.
+//        bMirror=true 이고 좌향이면 슬롯 0 + flipX 로 미러.
 //   5 → N=0, NE=1, E=2, SE=3, S=4. W/SW/NW는 bMirror=true면 E/SE/NE flipX,
 //        아니면 clamp(…, 4).
 //   8 → 그대로 0..7 (bMirror 무시).
 // ============================================================================
 
 EHktSpriteFacing FHktSpriteAnimation::ResolveStoredFacing(
-	EHktSpriteFacing In, int32 NumDirections, bool bMirror, bool& OutFlipX)
+	EHktSpriteFacing In, int32 NumDirections, bool bMirror, bool& OutFlipX, bool bFacingRight)
 {
 	OutFlipX = false;
 
@@ -28,21 +28,16 @@ EHktSpriteFacing FHktSpriteAnimation::ResolveStoredFacing(
 
 	if (NumDirections == 2)
 	{
-		// 입력 facing 의 동/서 성분 — N/S 는 0(우향) 기본.
-		const bool bWestward =
-			(In == EHktSpriteFacing::W)  ||
-			(In == EHktSpriteFacing::SW) ||
-			(In == EHktSpriteFacing::NW);
-		if (bWestward)
+		if (bFacingRight)
 		{
-			if (bMirror)
-			{
-				OutFlipX = true;
-				return EHktSpriteFacing::N; // 슬롯 0 (E) + flipX
-			}
-			return EHktSpriteFacing::NE;     // 슬롯 1 (W)
+			return EHktSpriteFacing::N;      // 슬롯 0 (E)
 		}
-		return EHktSpriteFacing::N;          // 슬롯 0 (E) — NE/E/SE/N/S 모두 우향 매핑
+		if (bMirror)
+		{
+			OutFlipX = true;
+			return EHktSpriteFacing::N;      // 슬롯 0 (E) + flipX
+		}
+		return EHktSpriteFacing::NE;         // 슬롯 1 (W)
 	}
 
 	if (NumDirections >= 8)

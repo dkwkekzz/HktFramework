@@ -441,6 +441,17 @@ void AHktVoxelTerrainActor::SyncLoaderParams()
 	Cfg.MaxLoadedChunks = MaxLoadedChunks;
 	Cfg.HeightMinZ = HeightMinZ;
 	Cfg.HeightMaxZ = HeightMaxZ;
+
+	// BakedAsset 이 있으면 영역의 Z 범위로 클램프 — 베이크되지 않은 Z 청크 요청을 차단해
+	// `Chunk … 베이크 미존재 — 런타임 생성 폴백` Warning 의 근본 원인을 제거.
+	if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+	{
+		if (UHktTerrainBakedAsset* Baked = Sub->GetBakedAsset())
+		{
+			Cfg.HeightMinZ = FMath::Max(Cfg.HeightMinZ, Baked->RegionMin.Z);
+			Cfg.HeightMaxZ = FMath::Min(Cfg.HeightMaxZ, Baked->RegionMax.Z);
+		}
+	}
 	Loader->Configure(Cfg);
 }
 
