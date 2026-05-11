@@ -5,8 +5,8 @@ bake_terrain.py — HktTerrainBakedAsset 일괄 베이크 스크립트.
 
     py bake_terrain.py
 
-    # 영역/시드/저장 경로 지정
-    py bake_terrain.py --min -2,-2,0 --max 2,2,3 --seed 42 --save /Game/Terrain/Baked/RegionDefault
+    # 영역/시드/저장 경로 지정 — 음수 좌표는 '=' 형식 권장 (argparse 안전)
+    py bake_terrain.py --min=-2,-2,0 --max=2,2,3 --seed 42 --save /Game/Terrain/Baked/RegionDefault
 
     # 고급 모드 (다층 바이옴/랜드마크/광석)
     py bake_terrain.py --advanced
@@ -99,11 +99,13 @@ def build_config(args: argparse.Namespace) -> unreal.HktTerrainBakedConfig:
     cfg = unreal.HktTerrainBakedConfig()
 
     # ─── 시드 / 모드 ───
+    # UE5 Python 바인딩은 C++ bool UPROPERTY 의 'b' 접두사를 제거한다.
+    # 예: bAdvancedTerrain → advanced_terrain
     cfg.seed = args.seed
     cfg.epoch = args.epoch
-    cfg.b_advanced_terrain = bool(args.advanced)
-    cfg.b_adv_enable_subsurface_ore = not args.no_ore
-    cfg.b_adv_enable_surface_scatter = not args.no_scatter
+    cfg.advanced_terrain = bool(args.advanced)
+    cfg.adv_enable_subsurface_ore = not args.no_ore
+    cfg.adv_enable_surface_scatter = not args.no_scatter
 
     # ─── 지형 형태 (FBM) ───
     cfg.height_scale_raw   = fx(64.0)
@@ -121,7 +123,7 @@ def build_config(args: argparse.Namespace) -> unreal.HktTerrainBakedConfig:
     cfg.water_level_raw    = fx(30.0)
 
     # ─── 동굴 ───
-    cfg.b_enable_caves     = not args.no_caves
+    cfg.enable_caves       = not args.no_caves
     cfg.cave_freq_raw      = fx(0.03)
     cfg.cave_threshold_raw = fx(0.6)
 
@@ -164,12 +166,19 @@ def main(argv: list[str]) -> int:
              (chunk_max.y - chunk_min.y + 1) *
              (chunk_max.z - chunk_min.z + 1))
 
+    # HktTerrain 모듈/베이크 라이브러리 노출 확인 — 친절한 에러 메시지.
+    if not hasattr(unreal, "HktTerrainBakeLibrary") or not hasattr(unreal, "HktTerrainBakedConfig"):
+        unreal.log_error(
+            "[bake_terrain] HktTerrainBakeLibrary/HktTerrainBakedConfig 미노출 — "
+            "HktGameplay 플러그인 활성화 및 Editor 빌드 여부를 확인하세요.")
+        return 3
+
     cfg = build_config(args)
 
     unreal.log(
         f"[bake_terrain] 시작 — Min={chunk_min} Max={chunk_max} "
         f"Total={total} 청크 Seed={cfg.seed} "
-        f"Advanced={cfg.b_advanced_terrain} Save='{args.save_path}'")
+        f"Advanced={cfg.advanced_terrain} Save='{args.save_path}'")
 
     t0 = time.perf_counter()
     asset = unreal.HktTerrainBakeLibrary.bake_region(
