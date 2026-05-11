@@ -2,15 +2,18 @@
 
 #include "HktSpriteTerrainActor.h"
 #include "HktSpriteTerrainLog.h"
+#include "HktAdvTerrainTypes.h"
 #include "HktTerrainSubsystem.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "TextureResource.h"
 
 namespace
 {
@@ -22,6 +25,54 @@ namespace
 	{
 		// FHktTerrainGenerator 와 동일 인덱싱 — Z-major (X + SIZE*Y + SIZE^2*Z).
 		return X + kChunkSize * (Y + kChunkSize * Z);
+	}
+
+	// ------------------------------------------------------------------------
+	// 폴백 컬러 테이블 — HktAdvTerrainType ID(0..32) 별 의미 있는 색.
+	// Sprite art 가 다 준비되기 전, AtlasTexture 미할당 시 voxel 을 색깔 블록으로
+	// 시각화하기 위한 dev fallback. 값은 sRGB FColor(R,G,B,A).
+	// ------------------------------------------------------------------------
+	static const FColor& GetFallbackTypeColor(uint16 TypeID)
+	{
+		// HktAdvTerrainType:: ID 매핑 (33 종).
+		static const FColor Table[HktAdvTerrainType::TypeCount] = {
+			FColor(  0,   0,   0,   0),  // 0  Air            (투명 — Air 는 emit 안 됨, defensive)
+			FColor( 80, 170,  60, 255),  // 1  Grass          진초록
+			FColor(115,  75,  45, 255),  // 2  Dirt           흙갈색
+			FColor(125, 125, 130, 255),  // 3  Stone          중간 회색
+			FColor(225, 200, 135, 255),  // 4  Sand           모래 황갈
+			FColor( 45,  95, 185, 255),  // 5  Water          파랑
+			FColor(240, 240, 245, 255),  // 6  Snow           눈 백색
+			FColor(170, 220, 240, 255),  // 7  Ice            얼음 옅파랑
+			FColor(140, 130, 120, 255),  // 8  Gravel         자갈 회갈
+			FColor(155, 100,  80, 255),  // 9  Clay           점토 적갈
+			FColor( 45,  45,  55, 255),  // 10 Bedrock        암반 진회색
+			FColor(200, 220, 230, 200),  // 11 Glass          유리 (반투명)
+			FColor(120, 190,  90, 255),  // 12 GrassFlower    꽃 초록
+			FColor( 95, 115,  75, 255),  // 13 StoneMossy     이끼 올리브
+			FColor(150, 210, 190, 255),  // 14 CrystalGrass   크리스탈 청록
+			FColor(190, 225, 210, 255),  // 15 GrassEthereal  옅 신비록
+			FColor(130, 225, 110, 255),  // 16 MossGlow       발광 이끼
+			FColor( 65,  50,  35, 255),  // 17 SoilDark       어둠 흙
+			FColor(235, 220, 180, 255),  // 18 SandBleached   탈색 모래
+			FColor(115, 110, 105, 255),  // 19 StoneFractured 균열 석재
+			FColor(220, 215, 195, 255),  // 20 BoneFragment   뼛가루
+			FColor(200, 180, 240, 255),  // 21 CrystalShard   크리스탈 라일락
+			FColor(110,  75,  45, 255),  // 22 Wood           목재
+			FColor( 60, 130,  50, 255),  // 23 Leaves         잎새
+			FColor(205, 220, 200, 255),  // 24 LeavesSnow     설엽
+			FColor( 90, 145,  85, 255),  // 25 Cactus         선인장
+			FColor(180, 120, 100, 255),  // 26 Mushroom       버섯 적갈
+			FColor(255, 130, 220, 255),  // 27 MushroomGlow   발광 핑크
+			FColor( 40,  40,  50, 255),  // 28 OreCoal        석탄
+			FColor(185, 125,  90, 255),  // 29 OreIron        철광 적갈
+			FColor(240, 200,  80, 255),  // 30 OreGold        금
+			FColor(180, 230, 255, 255),  // 31 OreCrystal     크리스탈 광석
+			FColor( 65,  35,  90, 255),  // 32 OreVoidstone   공허석 보라
+		};
+		// 알 수 없는 TypeID 는 마젠타 — 누락된 등록을 시각적으로 즉시 식별.
+		static const FColor Unknown(255,   0, 255, 255);
+		return (TypeID < HktAdvTerrainType::TypeCount) ? Table[TypeID] : Unknown;
 	}
 }
 
@@ -57,10 +108,24 @@ void AHktSpriteTerrainActor::BeginPlay()
 			TerrainMID = UMaterialInstanceDynamic::Create(TerrainMaterial, this);
 			if (TerrainMID)
 			{
-				// Param 이름 — M_HktSpriteYBillboard 규약. HktSpriteCore 의 상수와 동일.
-				if (AtlasTexture)
+				// AtlasTexture 미할당 + 폴백 옵션 ON → TypeID 별 솔리드 컬러 아틀라스 생성.
+				UTexture2D* AtlasToBind = AtlasTexture;
+				if (!AtlasToBind && bUseFallbackColors)
 				{
-					TerrainMID->SetTextureParameterValue(TEXT("Atlas"), AtlasTexture);
+					FallbackAtlasTexture = BuildFallbackAtlasTexture();
+					AtlasToBind = FallbackAtlasTexture;
+					if (AtlasToBind)
+					{
+						UE_LOG(LogHktSpriteTerrain, Log,
+							TEXT("[SpriteTerrain] AtlasTexture 미할당 — 폴백 컬러 아틀라스 생성 (HktAdvTerrainType %d 종)."),
+							HktAdvTerrainType::TypeCount);
+					}
+				}
+
+				// Param 이름 — M_HktSpriteYBillboard 규약. HktSpriteCore 의 상수와 동일.
+				if (AtlasToBind)
+				{
+					TerrainMID->SetTextureParameterValue(TEXT("Atlas"), AtlasToBind);
 				}
 				if (PaletteLUT)
 				{
@@ -472,4 +537,56 @@ FVector AHktSpriteTerrainActor::GetViewCenterWorldPos() const
 		}
 	}
 	return FVector::ZeroVector;
+}
+
+UTexture2D* AHktSpriteTerrainActor::BuildFallbackAtlasTexture()
+{
+	// UPROPERTY AtlasSizePx / CellSizePx 그대로 따라 사용자 atlas 의 grid 와 동일 layout 유지.
+	// 셀당 solid color, TF_Nearest 로 경계 블리딩 방지.
+	const int32 W = FMath::Max(1, FMath::FloorToInt(AtlasSizePx.X));
+	const int32 H = FMath::Max(1, FMath::FloorToInt(AtlasSizePx.Y));
+	const int32 CellW = FMath::Max(1, FMath::FloorToInt(CellSizePx.X));
+	if (W <= 0 || H <= 0)
+	{
+		return nullptr;
+	}
+
+	UTexture2D* Tex = NewObject<UTexture2D>(this,
+		TEXT("SpriteTerrainFallbackAtlas"), RF_Transient);
+	FTexturePlatformData* PD = new FTexturePlatformData();
+	PD->SizeX = W;
+	PD->SizeY = H;
+	PD->PixelFormat = PF_B8G8R8A8;
+	FTexture2DMipMap* Mip = new FTexture2DMipMap();
+	PD->Mips.Add(Mip);
+	Mip->SizeX = W;
+	Mip->SizeY = H;
+	Mip->BulkData.Lock(LOCK_READ_WRITE);
+	uint8* Bytes = static_cast<uint8*>(Mip->BulkData.Realloc(W * H * 4));
+
+	// 가로 cell index = TypeID. 세로는 모든 행이 동일 색 (frame 축 미사용).
+	for (int32 PY = 0; PY < H; ++PY)
+	{
+		for (int32 PX = 0; PX < W; ++PX)
+		{
+			const int32 CellX = PX / CellW;
+			const uint16 TypeID = static_cast<uint16>(CellX);
+			const FColor& C = GetFallbackTypeColor(TypeID);
+			uint8* P = Bytes + (PY * W + PX) * 4;
+			// PF_B8G8R8A8 layout: B, G, R, A.
+			P[0] = C.B;
+			P[1] = C.G;
+			P[2] = C.R;
+			P[3] = C.A;
+		}
+	}
+	Mip->BulkData.Unlock();
+
+	Tex->SetPlatformData(PD);
+	Tex->Filter = TF_Nearest;
+	Tex->SRGB = true;
+	Tex->AddressX = TA_Clamp;
+	Tex->AddressY = TA_Clamp;
+	Tex->UpdateResource();
+	return Tex;
 }

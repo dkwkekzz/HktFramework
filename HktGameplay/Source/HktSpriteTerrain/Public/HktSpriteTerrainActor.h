@@ -147,6 +147,21 @@ public:
 	FVector2D CellSizePx = FVector2D(128.f, 128.f);
 
 	/**
+	 * AtlasTexture 미할당 시 TypeID 별 솔리드 컬러 아틀라스를 런타임 생성해 사용.
+	 *
+	 * 화가가 sprite art 를 다 채우기 전이라도 voxel 이 색깔 블록으로 시각화되어
+	 * 다른 시스템 (시뮬 / 카메라 / UI) 개발에 지장이 없도록 하는 폴백.
+	 *
+	 * 매핑은 `HktAdvTerrainType` 33개 ID 별 의미 있는 색 (Grass=초록, Water=파랑,
+	 * OreGold=금색, …). UPROPERTY `AtlasTexture` 가 할당되면 본 폴백은 무시된다.
+	 *
+	 * v1 한계 — AtlasTexture 가 부분만 채워진 (일부 cell 만 art 있는) 경우는
+	 * 폴백이 적용되지 않는다. 본 폴백은 atlas-null 일 때만 트리거.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktSprite|Atlas")
+	bool bUseFallbackColors = true;
+
+	/**
 	 * Pixel → World 환산 (cm/px). voxel 1개를 sprite 1 cell 에 정확히 매핑하려면
 	 * 화가가 그린 sprite 의 iso 마름모 가로폭과 voxel 의 iso 가로폭이 일치해야 한다.
 	 *
@@ -233,8 +248,19 @@ private:
 	/** ComponentZBias / Sprite size 변경 시 모든 인스턴스 일괄 refresh. */
 	void RefreshAllInstanceBaseline();
 
+	/**
+	 * AtlasSizePx × 33 cell × CellSizePx 의 solid color 아틀라스를 생성.
+	 * HktAdvTerrainType 33 ID 매핑 컬러 테이블 적용. Transient 텍스처를 반환.
+	 * NewObject<UTexture2D>(this, ...) 로 actor 가 owner — actor 와 lifetime 일치.
+	 */
+	UTexture2D* BuildFallbackAtlasTexture();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> TerrainMID;
+
+	/** AtlasTexture 미할당 시 BuildFallbackAtlasTexture 로 생성된 폴백. 액터 lifetime. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> FallbackAtlasTexture;
 
 	/** 스트리밍 전략 (BeginPlay 1회 생성). */
 	TUniquePtr<IHktTerrainChunkLoader> Loader;

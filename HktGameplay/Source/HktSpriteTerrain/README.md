@@ -59,6 +59,17 @@ v1 은 청크 in-place 갱신 없음 — 지형 정적 가정. 청크는 streami
 
 `PixelToWorld` (기본 0.166) = (VoxelSize × √2) / CellW. voxel 큐브 한 변의 iso 가로 투영이 cell 폭에 맞아 들어가는 값. art / VoxelSize / CellSizePx 변경 시 재튜닝.
 
+### 폴백 컬러 아틀라스 (`bUseFallbackColors`)
+
+`AtlasTexture` 가 **null** 이고 `bUseFallbackColors=true` (기본) 인 경우, BeginPlay 에서 `HktAdvTerrainType` 33 ID 별 의미 있는 솔리드 컬러로 채워진 transient 텍스처를 자동 생성해 머티리얼의 `Atlas` 파라미터에 바인딩한다.
+
+- Sprite art 가 다 준비되기 전이라도 voxel 이 색깔 블록으로 보여 — 시뮬/카메라/UI 등 다른 시스템 개발 진행 가능.
+- 매핑 (요약): Air=투명, Grass=초록, Dirt=갈색, Stone=회색, Sand=황갈, Water=파랑, Snow=흰색, OreGold=금색, OreCrystal=옅청록, OreVoidstone=공허보라 등.
+- 등록 안 된 TypeID 는 마젠타 (FF00FF) 로 표시 — 신규 type 추가 시 즉시 시각 식별.
+- 정의 위치: `Private/HktSpriteTerrainActor.cpp` 의 `GetFallbackTypeColor` 테이블.
+
+`AtlasTexture` 가 부분만 채워진 (일부 cell 만 art 있는) 경우는 폴백이 적용되지 **않는다** — atlas-null 일 때만 트리거. v2 에서 per-cell alpha fallback 검토 예정.
+
 ## HISM 머티리얼 스펙
 
 - **Mesh**: 1×1 vertical quad, 로컬 XY 평면, 피벗 하단-중앙 (HktSpriteCore Crowd Renderer 와 동일 메시 규약).
@@ -106,7 +117,8 @@ Sprite Crowd (캐릭터, Y-axis 직립) 와의 z-fighting 은 ComponentZBias 로
 | `[SpriteTerrain] TerrainMaterial 미할당 ...` | UPROPERTY `TerrainMaterial` 에 `M_HktSpriteYBillboard` (또는 동등 슬롯 규약 머티리얼) 할당. |
 | Crowd 가 Terrain 뒤로 가려짐 | `ComponentZBias` 비교 — Crowd 가 더 작거나 같으면 z-fight. Crowd 를 +1cm 이상. |
 | Sprite 가 너무 작거나 큼 | `PixelToWorld` 또는 `CellSizePx` 재튜닝. 기본 (0.166, 128) 은 VoxelSize=15cm 가정. |
-| Sprite 가 안 보임 | `AtlasTexture` / `QuadMesh` / `TerrainMaterial` UPROPERTY 점검. |
+| Sprite 가 안 보임 | `QuadMesh` / `TerrainMaterial` UPROPERTY 점검. AtlasTexture 가 null 이어도 `bUseFallbackColors=true` 면 솔리드 컬러로 가시화됨. |
+| 모든 voxel 이 마젠타 (FF00FF) | 폴백 컬러 테이블 미등록 TypeID — `HktAdvTerrainType` 범위 초과. 신규 type 추가 시 `GetFallbackTypeColor` 테이블 확장. |
 | 인스턴스가 청크 경계에서 깜빡임 | `MaxScansPerSecond` / `StreamRadius` 점검. v1 은 청크 in-place 갱신 없음. |
 | 청크가 화면에 들어왔는데 늦게 추가됨 | `MaxLoadsPerFrame` 증가. 단, 메인스레드 비용 ↑ — 프로파일링 필수. |
 | Solid 청크 위 voxel 이 보임 (underground top 누설) | v1 한계 — 위 청크 fetch 실패 시 노출로 간주. v2 (volumetric surface) 에서 해소 예정. |
