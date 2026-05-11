@@ -50,6 +50,13 @@ FHktAnimPreviewViewportClient::FHktAnimPreviewViewportClient(
 	// 검증할 수 있게 한다. Rebuild/UpdateCamera/SetDirectionIndex 가 호출될 때만
 	// 카메라가 재설정되며, 매 Tick 에선 강제 갱신하지 않으므로 사용자 조작이 유지된다.
 	bDisableInput = false;
+
+	// 오빗 카메라 모드 — SkeletalMesh 에디터와 동일한 조작감.
+	//   휠         : 줌 (Perspective=dolly, Ortho=OrthoZoom 변경)
+	//   우클릭 드래그 : 화면 평면 팬(LookAt 이동) — 캐릭터를 시야 안으로 끌어올 때 사용
+	//   좌클릭 드래그 : LookAt 주위 오빗 회전
+	// LookAt 은 Rebuild 시 SubjectFocus 로 갱신 — 메시 중심을 중심으로 자연스럽게 회전.
+	ToggleOrbitCamera(true);
 }
 
 void FHktAnimPreviewViewportClient::AddReferencedObjects(FReferenceCollector& Collector)
@@ -389,6 +396,12 @@ void FHktAnimPreviewViewportClient::UpdateCameraTransform()
 
 	SetViewLocation(CamLoc);
 	SetViewRotation(Rot);
+
+	// 오빗 카메라 중심을 메시 포커스로 — 사용자의 좌클릭 오빗/우클릭 팬/휠 줌이
+	// 모두 이 지점을 기준으로 동작한다. bRecalculateView=false 로 우리가 방금
+	// 설정한 ViewLocation/Rotation 을 유지(SetLookAtLocation 이 카메라를 다시
+	// 계산하면 위에서 한 작업이 무효화될 수 있음).
+	SetLookAtLocation(EffectiveFocus, /*bRecalculateView*/ false);
 }
 
 void FHktAnimPreviewViewportClient::SetDirectionIndex(int32 DirIdx)
