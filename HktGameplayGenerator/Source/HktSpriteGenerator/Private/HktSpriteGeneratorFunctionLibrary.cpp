@@ -1201,7 +1201,8 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorExtractVideoBundle(
 
 FString UHktSpriteGeneratorFunctionLibrary::EditorPackDirectionalAtlases(
 	const FString& CharacterTagStr,
-	const FString& AnimTagFilter)
+	const FString& AnimTagFilter,
+	int32 MaxAtlasPixelWidth)
 {
 	using namespace HktSpriteGen;
 
@@ -1280,7 +1281,8 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorPackDirectionalAtlases(
 			int32 CellW = 0, CellH = 0, Cols = 0, Rows = 0;
 			TMap<TTuple<FString,int32,int32>, int32> IndexMap;
 			FString PackErr;
-			if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackErr, /*bSingleRow*/true))
+			if (!PackAtlas(Frames, AtlasPng, CellW, CellH, Cols, Rows, IndexMap, PackErr,
+				/*bSingleRow*/true, MaxAtlasPixelWidth))
 			{
 				if (FirstError.IsEmpty()) FirstError = PackErr;
 				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("PackAtlas 실패 (%s, %s): %s"),

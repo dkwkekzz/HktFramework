@@ -121,7 +121,7 @@ FReply SHktSpriteAtlasPackPanel::OnPackClicked()
 	}
 
 	const FString Result = UHktSpriteGeneratorFunctionLibrary::EditorPackDirectionalAtlases(
-		CharStr, FilterStr);
+		CharStr, FilterStr, Config->MaxAtlasPixelWidth);
 
 	if (ResultBox.IsValid()) ResultBox->SetText(FText::FromString(Result));
 	SaveConfig();
