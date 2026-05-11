@@ -379,13 +379,15 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot().AutoHeight().Padding(0,4)
 				[
 					SNew(SBorder)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
 					.Padding(2)
 					[
+						// 고정 크기(WidthOverride/HeightOverride) 대신 MinDesired 로 최소 보장 +
+						// 가용 가로폭을 모두 사용 — SEditorViewport 가 좁은 영역에 갇혀
+						// 캐릭터가 작게 그려지지 않도록 한다. 세로는 정사각형에 가까운
+						// 표시를 위해 충분히 크게 잡고 SScrollBox 로 전체 스크롤.
 						SNew(SBox)
-						.WidthOverride(512.f)
-						.HeightOverride(512.f)
+						.MinDesiredWidth(640.f)
+						.MinDesiredHeight(640.f)
 						[
 							SAssignNew(PreviewViewport, SHktAnimPreviewViewport)
 						]
@@ -680,6 +682,15 @@ void SHktAnimCapturePanel::Construct(const FArguments& InArgs)
 	];
 
 	// 프리뷰 위젯이 자체 FEditorViewportClient + Tick 을 보유하므로 패널 측 ActiveTimer 는 불필요.
+
+	// 패널이 열린 직후 영구 저장된 메시 경로가 있으면 자동으로 1회 Rebuild 한다.
+	// 이전엔 사용자가 "Refresh Preview" 를 누르기 전까지 뷰포트가 비어 있어
+	// 마치 캐릭터가 안 보이는 것처럼 느껴졌다. SHktAnimPreviewViewport 는 Construct 도중
+	// Rebuild 가 들어와도 PendingRebuild 로 안전하게 보류 후 1회 적용한다.
+	if (PreviewViewport.IsValid() && !Settings.SkeletalMesh.IsNull())
+	{
+		RebuildPreview();
+	}
 }
 
 SHktAnimCapturePanel::~SHktAnimCapturePanel()
@@ -695,11 +706,21 @@ SHktAnimCapturePanel::~SHktAnimCapturePanel()
 void SHktAnimCapturePanel::OnSkeletalMeshChanged(const FAssetData& Asset)
 {
 	Settings.SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(Asset.ToSoftObjectPath());
+	// 메시 교체 시 별도 "Refresh Preview" 클릭 없이도 즉시 프리뷰가 갱신되도록 한다.
+	// (이전엔 안 보이는 캐릭터를 보려고 매번 Refresh 를 눌러야 했음.)
+	if (PreviewViewport.IsValid())
+	{
+		PreviewViewport->Rebuild(Settings);
+	}
 }
 
 void SHktAnimCapturePanel::OnAnimSequenceChanged(const FAssetData& Asset)
 {
 	Settings.AnimSequence = TSoftObjectPtr<UAnimSequence>(Asset.ToSoftObjectPath());
+	if (PreviewViewport.IsValid())
+	{
+		PreviewViewport->Rebuild(Settings);
+	}
 }
 
 void SHktAnimCapturePanel::OnCameraModeClassChanged(const UClass* NewClass)

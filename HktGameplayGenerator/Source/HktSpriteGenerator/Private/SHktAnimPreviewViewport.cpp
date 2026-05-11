@@ -46,8 +46,10 @@ FHktAnimPreviewViewportClient::FHktAnimPreviewViewportClient(
 	EngineShowFlags.SetSelectionOutline(false);
 	EngineShowFlags.SetGrid(false);
 
-	// 입력으로 카메라가 흔들리지 않도록 — 우리는 매 Tick 에서 카메라를 강제 갱신.
-	bDisableInput = true;
+	// 입력을 허용해 사용자가 마우스로 직접 카메라를 회전/줌하여 캐릭터 위치를
+	// 검증할 수 있게 한다. Rebuild/UpdateCamera/SetDirectionIndex 가 호출될 때만
+	// 카메라가 재설정되며, 매 Tick 에선 강제 갱신하지 않으므로 사용자 조작이 유지된다.
+	bDisableInput = false;
 }
 
 void FHktAnimPreviewViewportClient::AddReferencedObjects(FReferenceCollector& Collector)
@@ -349,10 +351,15 @@ void FHktAnimPreviewViewportClient::ApplyCameraFraming(const FHktAnimCaptureSett
 	}
 	else
 	{
-		// LVT_OrthoFreelook — 자유 회전 가능한 ortho. OrthoZoom 단위는 viewport width
-		// (in unreal units). SceneCapture 의 OrthoWidth 와 동일 의미로 사용.
+		// LVT_OrthoFreelook — 자유 회전 가능한 ortho.
+		// 주의: FEditorViewportClient::OrthoZoom 은 USceneCaptureComponent2D::OrthoWidth 와
+		// 단위가 다르다. UE 내부 변환은 대략 `WorldUnitsPerPixel = OrthoZoom / (Width * 15)`
+		// → 즉 viewport 가로폭이 OrthoWidth 와 일치하려면 OrthoZoom = OrthoWidth * 15.
+		// 이전 코드는 OrthoWidth 값을 직접 OrthoZoom 으로 대입해 캐릭터가 1/15 스케일로 매우
+		// 작게 그려져 보이지 않았다.
 		SetViewportType(LVT_OrthoFreelook);
-		SetOrthoZoom(FMath::Max(100.0f, OrthoW));
+		const float TargetOrthoWidth = FMath::Max(100.0f, OrthoW);
+		SetOrthoZoom(TargetOrthoWidth * 15.0f);
 	}
 
 	UE_LOG(LogHktAnimPreview, Verbose,
