@@ -11,7 +11,7 @@
 ### 목표
 - `HktTerrain`이 지형 베이크와 함께 **Spawner 데이터를 단일 출처로 보유**.
 - Spawner의 동작은 **전부 Story bytecode**로 표현 (웨이브·매복·패트롤·연쇄·조건부 등 복합 패턴).
-- Bake 시점에 LLM이 (지형 컨텍스트 → Story archetype) 매핑을 정적으로 결정 → 런타임 결정론 0 비용.
+- Bake 시점에 LLM이 (지형 컨텍스트 → Story) 매핑을 정적으로 결정 → 런타임 결정론 0 비용.
 
 ### 비목표
 - 런타임 절차적 spawner 배치(추후 별도 설계).
@@ -68,10 +68,10 @@
 [신규]  Spawner = (Position, StoryTag, Param0~3)                           — Story 이벤트
 ```
 
-- 스폰 패턴(웨이브·매복·패트롤·연쇄·조건부·환경반응)은 **전부 bytecode**.
+- 스폰 패턴(웨이브·매복·패트롤·연쇄·조건부·환경반응)은 **전부 bytecode**. archetype 정형 분류 도입 금지 (§5 ADR 참조).
 - `EHktSpawnRule` enum 폐기.
 - 진입 메커니즘은 기존 `FHktEvent` + `PendingGroupIntents` 큐 그대로 — 별도 VM 진입 API 없음 (§4-a).
-- archetype 별 슬롯 의미는 `SpawnerParams::` 별칭 네임스페이스(HktStoryEventParams.h).
+- `Param0~3` 슬롯 별칭은 `SpawnerParams::` 네임스페이스(HktStoryEventParams.h) — 단지 컨벤션 헤더 (라이브러리·템플릿 아님).
 - Bake 시점 LLM 결정 → 정적 직렬화 → 런타임 결정론 0 비용.
 - HktCore는 `IHktTerrainDataSource`로만 spawner 메타를 소비 (단방향 의존 원칙 유지).
 
@@ -252,16 +252,16 @@ enum class EHktSpawnPattern : uint8 { Circle, Line, RandomSeeded };
 
 | 후보 | 동기 | 대안 | 결정 |
 |---|---|---|---|
-| `WaitPlayerInRadius(Center, RadiusRaw)` | 매복 archetype. 기존 `FindInRadius`+루프는 매 tick polling이라 비효율. | Yield-기반 polling을 VM이 내부 최적화 | **보류**. 우선 polling으로 구현 후 프로파일 결과를 보고 ADR 작성 |
+| `WaitPlayerInRadius(Center, RadiusRaw)` | 매복 패턴. 기존 `FindInRadius`+루프는 매 tick polling이라 비효율. | Yield-기반 polling을 VM이 내부 최적화 | **보류**. 우선 polling으로 구현 후 프로파일 결과를 보고 ADR 작성 |
 
 §1-3 정책에 따라 추가 시 별도 ADR 필수.
 
 ### 4-d. Schema 2 변경 없음
 
 > **설계 결정 (2026-05-12 갱신)**: spawner story 는 일반 Story 와 **구조적으로 동일**하다.
-> 별도 `spawner_bound`/`args_int`/`args_tag` 메타 필드 없이, archetype 별 인자는 본문에서
-> `LoadStore(PropertyId::Param0..3)` 로 직접 읽는다. Generator 가 archetype 템플릿 → JSON
-> 합성 시 슬롯 의미만 일관되게 유지하면 충분.
+> 별도 `spawner_bound`/`args_int`/`args_tag` 메타 필드 없이, story 본문이 자체적으로
+> 정의하는 인자는 `LoadStore(PropertyId::Param0..3)` 로 직접 읽는다. Generator 는 schema 2
+> JSON 을 자유롭게 작성하며 (§5 ADR), `SpawnerParams::` 공통 별칭만 따른다.
 
 ```json
 {
@@ -278,41 +278,47 @@ enum class EHktSpawnPattern : uint8 { Circle, Line, RandomSeeded };
 
 ---
 
-## 5. Phase 3 — Story Archetype 라이브러리
+## 5. ADR — Story Archetype 라이브러리를 도입하지 않는다
 
-> 모든 archetype은 **Schema 2 JSON**(`HktGameplay/Source/HktStory/StoryDefinitions/Spawner/*.json`). cpp 스니펫 신규 추가 금지 (§1 D4).
+> **결정 (2026-05-12)**: Phase 3 으로 8종 archetype 템플릿 + `Spawner.Archetype.*` 분류 + LLM 의 (archetype, params) 선택지를 도입하려던 설계는 **폐기**. spawner story 는 LLM 이 schema 2 JSON 으로 **자유롭게 직접 작성**한다.
 
-| Archetype Tag | 패턴 | 주요 Param 슬롯 (Param0~3) | 의존 opcode |
-|---|---|---|---|
-| `Spawner.Archetype.Always` | 진입 즉시 N개 spawn | `EntityTag`, `Count` | `SpawnEntity`, `SpawnEntityAt`(builder) |
-| `Spawner.Archetype.Wave` | 시간 분산 다중 웨이브 | `WaveCount`, `IntervalSec`, `PerWaveCount`, `Escalation` | + `YieldSeconds`, `Add` |
-| `Spawner.Archetype.Ambush` | 플레이어 근접 → 일제 출현 | `TriggerRadius`, `Count`, `HideDuration` | + polling 루프 (`FindInRadius`+`Yield`) |
-| `Spawner.Archetype.Patrol` | 경로 순찰 spawn (1회) | `EntityTag`, `PathPoints[]` | + `SetForwardTarget` |
-| `Spawner.Archetype.Chain` | 처치 시 다음 웨이브 | `ChainDepth`, `EscalationRule` | + `WaitDeath` 이벤트 |
-| `Spawner.Archetype.Conditional` | 다른 story 완료 시 트리거 | `UpstreamTag`, `DelaySec` | + `WaitEvent` |
-| `Spawner.Archetype.Guardian` | 보스 + 호위 무리 | `BossTag`, `MinionTag`, `MinionCount` | + `FindInRadius` |
-| `Spawner.Archetype.Environmental` | 특정 biome/voxel 조건만 활성 | `BiomeMask`, `VoxelFilter` | + `GetVoxelType`, `SpawnerBiome` |
+### 5-1. 폐기 사유
 
-각 archetype은:
-- 매개변수화된 Schema 2 JSON 템플릿.
-- LLM은 archetype 선택 + 파라미터만 결정 — bytecode 직접 생성하지 않음.
-- Generator가 템플릿 + 파라미터 → 최종 JSON 합성 → `McpBuildStory`로 컴파일.
+| # | 사유 |
+|---|---|
+| **R1** | **사용자 의도와 충돌** — spawner 는 "복합적이고 다양한 생성" 이 목표. 8종 정형 분류는 우리가 폐기한 `EHktSpawnRule` enum 이 이름만 바꿔 부활하는 것. |
+| **R2** | **Story 본질 훼손** — Story 는 (사실상) 튜링 완전 bytecode. 8개 템플릿으로 가두면 새 패턴마다 archetype 추가 의존이 생기고, 보스 처치 → 호위 도주 → 다른 region 에서 복수 등장 같은 복합 패턴은 어차피 표현 불가. |
+| **R3** | **Leaky abstraction** — story 자체가 이미 DSL 인데 archetype 은 그 위에 약한 DSL 을 한 층 더 쌓는 것. story-gen 이 이미 schema 2 JSON 을 생성 가능. |
+| **R4** | **Param0~3 평탄화로 의미 약화** — §3-a 갱신으로 진입 인자가 4-슬롯 정수로 단순화되면서 archetype "라이브러리" 의 무게가 사라짐. 남은 의미는 `SpawnerParams::` 별칭 컨벤션 뿐인데 이는 헤더 1개로 충분. |
+
+### 5-2. 대체 방향
+
+- **`SpawnerParams::` 네임스페이스** (`HktStoryEventParams.h`) 만 유지 — `SpawnPosX = Param0`, `SpawnPosY = Param1` 같은 공통 별칭 + spawner story 본문이 자체적으로 정의하는 `Param2/3` 의미. **강제 분류 아님**.
+- **`spawner-design` skill** (§6) 이 LLM 으로 하여금 `(위치, schema 2 story JSON, Param0~3 값)` 을 직접 출력하도록 한다. 템플릿 선택지가 아닌 자유 작성.
+- **예제는 라이브러리가 아닌 참고용** — 필요 시 1~2 개 schema 2 JSON 예제 (`Content/Stories/Spawner/Example_*.json`) 를 두되, Generator 가 의존하지 않는다.
+
+### 5-3. 무엇이 archetype 도입 트리거가 되면 다시 ADR 한다
+
+- LLM 이 spawner story 본문에서 반복적으로 동일한 명령 시퀀스를 만들어 토큰 비용이 비대해질 때
+- 그리고 그 시퀀스가 3~4 개 정도로 자연 수렴할 때 (8 개 강제 분류는 그 시점에도 거부)
+
+위 조건이 관측될 때 별도 ADR 로 재논의. 본 시점에는 도입하지 않는다.
 
 ---
 
-## 6. Phase 4 — Generator 파이프라인
+## 6. Phase 3 — Generator 파이프라인
 
 ```
 concept-design   →  terrain_spec + encounter_intent (biome별 출현 의도)
                               ↓
    map-gen       →  region별 spawner 후보 슬롯 추출 (terrain feature 기반)
                               ↓
-spawner-design   →  슬롯 × archetype 매핑 (새 skill 또는 map-gen 확장)
+spawner-design   →  슬롯별 (위치, schema 2 story JSON, Param0~3) 직접 작성  ← LLM 자유 작성
                               ↓                              ↓
    terrain-bake                                          story-gen
-   (Spawners[] 직렬화)                                   (archetype JSON 합성·컴파일)
+   (Spawners[] 직렬화)                                   (schema 2 JSON 컴파일)
                               ↓
-   검증: StoryTag 존재 / archetype 파라미터 형식 / biome 일치 / 위치 유효성
+   검증: StoryTag 존재 / Param 슬롯 본문 일관성 / biome 일치 / 위치 유효성
 ```
 
 ### 6-a. concept-design 확장
@@ -321,14 +327,15 @@ spawner-design   →  슬롯 × archetype 매핑 (새 skill 또는 map-gen 확�
   { "biome": "mountain", "intent": "ambush_predators", "intensity": 0.7 }
   ```
 
-### 6-b. map-gen 확장 (또는 신규 skill `spawner-design`)
-- 입력: terrain_spec + bake 산출 후보 슬롯 + encounter_intent
-- 출력: `slot_id → (archetype_tag, params)` 매핑
-- 권장: **신규 skill 분리** — map-gen은 region/landscape에 집중, spawner-design은 spawner 결정에 집중.
+### 6-b. spawner-design (신규 skill)
+- 입력: terrain_spec + bake 후보 슬롯 + encounter_intent + `SpawnerParams::` 컨벤션 헤더 발췌
+- 출력 (슬롯별): `(world position, schema 2 story JSON, Param0~3 값)`
+- LLM 은 archetype 선택지가 아닌 **schema 2 JSON 본문을 직접 작성**한다 (§5 ADR).
+- map-gen 과 분리 — map-gen 은 region/landscape, spawner-design 은 spawner.
 
-### 6-c. story-gen 확장
-- archetype 템플릿 8종을 `McpServer`에 등록.
-- spawner-design 결과를 받아 각 archetype 인스턴스 JSON 생성 → 컴파일.
+### 6-c. story-gen 연계
+- spawner-design 이 산출한 schema 2 JSON 을 그대로 `McpBuildStory` 로 컴파일.
+- 별도 archetype 템플릿 등록 단계 없음 (§5 ADR).
 
 ### 6-d. terrain-bake 확장
 - `UHktTerrainBakeLibrary::BakeRegion`에 spawner slot 추출 단계 추가:
@@ -340,13 +347,13 @@ spawner-design   →  슬롯 × archetype 매핑 (새 skill 또는 map-gen 확�
 
 ### 6-e. 검증 단계 (Bake 시점)
 - 각 `StoryTag`가 schema 2 컴파일 산출물에 존재하는지.
-- `Param0~3` 슬롯 의미가 archetype 의 `SpawnerParams::` 별칭과 일치하는지.
+- `Param0~3` 값이 해당 story 본문이 읽는 슬롯과 일관되는지 (정적 분석 — story 본문에서 `LoadStore(PropertyId::Param0)` 등을 추출해 미사용 슬롯에 값 부여 시 경고).
 - `BiomeId`가 청크 실제 biome과 일치하는지 (Generator 결정 ≠ 실제 지형 방지).
 - `PosRaw`가 청크 경계 내인지.
 
 ---
 
-## 7. Phase 5 — 런타임 실행
+## 7. Phase 4 — 런타임 실행
 
 ```
 [Server]
@@ -388,15 +395,15 @@ FHktWorldView 수신 → HktPresentation 렌더
 
 ---
 
-## 8. Phase 6 — 마이그레이션
+## 8. Phase 5 — 마이그레이션
 
 | 단계 | 작업 | 호환 |
 |---|---|---|
 | **M0** | 본 설계 승인 | — |
 | **M1** | `FHktTerrainSpawnerSpec` + `UHktTerrainBakedAsset` v2 추가. 빈 배열로 직렬화. | 기존 자산 영향 0 (재베이크 시 v2). |
 | **M2** | `IHktTerrainDataSource::GetChunkSpawners` 추가, `FHktTerrainProvider` 어댑터 구현. VM 변경 없음 (기존 FHktEvent 경로 재사용). | 기존 story/VM 무영향. |
-| **M3** | `FHktStoryBuilder` 헬퍼 (`SpawnEntityAt`, `SpawnEntityAround`) + `SpawnerParams::` archetype 별 Param 별칭 추가. | 기존 story 무영향. |
-| **M4** | Archetype 8종 JSON + Generator skill (`spawner-design`). | — |
+| **M3** | `FHktStoryBuilder` 헬퍼 (`SpawnEntityAt`, `SpawnEntityAround`) + `SpawnerParams::` Param 별칭 컨벤션 헤더 추가. | 기존 story 무영향. |
+| **M4** | Generator skill (`spawner-design`) — LLM 이 schema 2 JSON 을 직접 작성. archetype 템플릿 없음 (§5 ADR). | — |
 | **M5** | terrain-bake가 spawner 직렬화. `AHktSpawnerActor`는 어댑터로 변환 — `FHktMapSpawner` 입력을 받아 `FHktTerrainSpawnerSpec`으로 변환 후 spawner story 트리거. | HktMapGenerator JSON 입력 호환. |
 | **M6** | `FHktMapSpawner` / `EHktSpawnRule` / `AHktSpawnerActor` deprecated 마킹. 1 릴리즈 후 제거. | 컴파일 경고 단계. |
 | **M7** | 제거 + `HktMapGenerator`의 spawner 관련 코드 정리. | 메이저 버전. |
@@ -414,11 +421,11 @@ FHktWorldView 수신 → HktPresentation 렌더
 | `HktCore/Public/HktTerrainDataSource.h` | 인터페이스 확장 (`GetChunkSpawners`, `FHktTerrainSpawnerView`) |
 | `HktCore/Public/HktTerrainProvider.h`+cpp | 어댑터 구현 |
 | `HktCore/Public/HktStoryBuilder.h`+cpp | 신규 헬퍼 (§4-b 만 — SpawnEntityAt/Around + EHktSpawnPattern). §4-a 메서드는 폐기. |
-| `HktCore/Public/HktStoryEventParams.h` | `SpawnerParams::` 네임스페이스에 archetype 별 Param 별칭 추가 |
+| `HktCore/Public/HktStoryEventParams.h` | `SpawnerParams::` 네임스페이스 — `SpawnPosX = Param0` 등 공통 별칭 (컨벤션 헤더). archetype 분류 없음. |
 | `HktCore/Public/HktStoryTypes.h` | (조건부) 잠정 opcode — ADR 통과 시만 |
 | `HktCore/Private/HktStoryVM.cpp` | `StopInstancesBySpawnerOrigin` 만 (StartInstance 폐기) |
 | `HktRule/Private/HktServerRule.cpp` | `PendingWorldInit` 제거 + 청크 로드 시 spawner dispatch 분기 추가 |
-| `HktStory/StoryDefinitions/Spawner/*.json` | archetype 8종 (신규) |
+| `HktGameplay/Content/Stories/Spawner/Example_*.json` | (선택) 참고용 1~2 예제 — 라이브러리 아님 |
 | `HktTerrain/CLAUDE.md` | spawner 책임 추가 명시 |
 | `HktTerrain/README.md` | spawner 데이터 흐름 추가 |
 
@@ -440,9 +447,9 @@ FHktWorldView 수신 → HktPresentation 렌더
 |---|---|---|---|
 | O1 | 청크 언로드 시 이미 spawn된 엔티티 처리 | (a) 유지(엔티티는 시뮬 영속) / (b) 정리(spawner와 연동) / (c) per-archetype 정책 | High — M2 전 결정 |
 | O2 | `WaitPlayerInRadius` opcode 추가 여부 | (a) 추가 / (b) polling으로 우선 구현 후 측정 | Mid — M3에서 결정 |
-| O3 | `spawner-design`을 별도 skill로 분리 vs map-gen 확장 | (a) 분리 / (b) 통합 | Mid — M4 |
-| O4 | EntryArgs에 `float` 허용 여부 | 결정론 위반 위험. 현재 설계는 `int32`(fixed-point) + Tag만 | Resolved: int/Tag만 |
-| O5 | Archetype 8종이 충분한가 / 추가 후보 | "Roaming", "Migrating" 등 | Low — M4 |
+| O3 | `spawner-design`을 별도 skill로 분리 vs map-gen 확장 | (a) 분리 / (b) 통합 | Resolved: (a) 분리 — §6-b |
+| O4 | EntryArgs에 `float` 허용 여부 | 결정론 위반 위험. 현재 설계는 `int32` Param0~3 만 | Resolved: int32 만 |
+| O5 | ~~Archetype 8종이 충분한가~~ | ~~"Roaming", "Migrating" 등~~ | **Closed — §5 ADR 로 archetype 자체 폐기** |
 | O6 | Bake 시점 LLM 호출 비용 (대규모 region) | 슬롯당 호출 vs 배치 호출 vs 캐시 | Mid — M5 |
 | O7 | spawner SlotHash 충돌 처리 | 좌표 다중 슬롯 시 인덱스도 포함 | Resolved: hash(ChunkCoord, SlotIndex) |
 
@@ -454,3 +461,4 @@ FHktWorldView 수신 → HktPresentation 렌더
 |---|---|---|
 | 2026-05-12 | 초안 작성 | 브랜치 `claude/terrain-spawner-planning-R2Jp3` |
 | 2026-05-12 | §3-a / §4-a 정정 — TMap EntryArgs + `FHktStoryEntryArgs` 진입 메커니즘 폐기. 기존 `FHktEvent::Param0~3` + `PendingGroupIntents` 큐 재사용으로 단일 진입경로 유지. 빌더 spawner-context 메서드(SpawnerOrigin/Biome/SlotHash/EntryArg*) 제거, `bIsEntryArgSlot` vreg 플래그 제거, Spec/View 평탄화 (4-슬롯 정수). | `OnEvent_GameModeTick` 의 `HktEventBuilder::Spawner` 패턴이 이미 컨텍스트를 표현. 캐시미스/중복 진입경로 회피. |
+| 2026-05-12 | §5 Story Archetype 라이브러리 폐기 → ADR 로 전환. §6 Generator 파이프라인을 LLM 자유 작성 흐름으로 재정의 (`spawner-design` 이 schema 2 JSON 직접 출력). §6-c story-gen 의 archetype 등록 단계 제거. §8 M3/M4·§9 영향 파일·§10 O5 정리 (Phase 번호 §6→Phase 3, §7→Phase 4, §8→Phase 5 로 재정렬). | "복합적이고 다양한 생성" 의도와 archetype 정형 분류 충돌 (`EHktSpawnRule` 부활 우려). Param0~3 평탄화로 archetype 의미가 `SpawnerParams::` 별칭 헤더 1개 수준으로 축소되어 라이브러리 도입 비용/이득 역전. |
