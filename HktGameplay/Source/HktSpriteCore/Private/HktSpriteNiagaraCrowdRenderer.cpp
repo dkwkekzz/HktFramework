@@ -131,7 +131,9 @@ void UHktSpriteNiagaraCrowdRenderer::SetCharacter(FHktEntityId Id, FGameplayTag 
 			*OldTag.ToString(), *CharacterTag.ToString()),
 		Id);
 
-	if (CharacterTag.IsValid() && !TemplateCache.Contains(CharacterTag))
+	if (CharacterTag.IsValid()
+		&& !TemplateCache.Contains(CharacterTag)
+		&& !SkippedTemplateTags.Contains(CharacterTag))
 	{
 		RequestTemplateLoad(CharacterTag);
 	}
@@ -293,6 +295,7 @@ void UHktSpriteNiagaraCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 	if (!Tag.IsValid()) return;
 	if (PendingTemplateLoads.Contains(Tag)) return;
 	if (TemplateCache.Contains(Tag)) return;
+	if (SkippedTemplateTags.Contains(Tag)) return;
 
 	UWorld* World = GetWorld();
 	UHktAssetSubsystem* AssetSub = World ? UHktAssetSubsystem::Get(World) : nullptr;
@@ -317,9 +320,21 @@ void UHktSpriteNiagaraCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 		UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
 		if (!Template)
 		{
-			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|NiagaraCrowd: CharacterTemplate 로드 실패/타입 불일치 (tag=%s)"),
-					*Tag.ToString()));
+			if (Loaded)
+			{
+				// 자산은 로드됐지만 타입이 다른 경우 — 이 태그는 다른 렌더링 경로
+				// (예: Paper2D) 소유. 본 크라우드 렌더러는 의도적으로 무시 (경고 X).
+				Self->SkippedTemplateTags.Add(Tag);
+				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+					FString::Printf(TEXT("Sprite|NiagaraCrowd: 다른 경로 자산 — skip (tag=%s, loaded=%s/%s)"),
+						*Tag.ToString(), *Loaded->GetClass()->GetName(), *Loaded->GetName()));
+			}
+			else
+			{
+				HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+					FString::Printf(TEXT("Sprite|NiagaraCrowd: CharacterTemplate 로드 실패 (tag=%s)"),
+						*Tag.ToString()));
+			}
 			return;
 		}
 		Self->TemplateCache.Add(Tag, Template);
@@ -349,6 +364,12 @@ void UHktSpriteNiagaraCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpr
 	UHktSpriteCharacterTemplate* Template = Found ? Found->Get() : nullptr;
 	if (!Template)
 	{
+		// Skipped — 다른 렌더링 경로(Paper2D 등) 자산. 본 렌더러는 관여하지 않으므로
+		// 로그/상태 갱신 없이 silent no-op.
+		if (SkippedTemplateTags.Contains(State->CharacterTag))
+		{
+			return;
+		}
 		if (State->LastUpdateStatus != EHktSpriteUpdateStatus::TemplateMissing)
 		{
 			State->LastUpdateStatus = EHktSpriteUpdateStatus::TemplateMissing;

@@ -157,12 +157,18 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 	UHktSpriteCharacterTemplate* Template = Found ? Found->Get() : nullptr;
 	if (!Template)
 	{
+		const FTemplateReady* Ready = TemplateReadiness.Find(State->CharacterTag);
+		// Skipped — 다른 렌더링 경로(Paper2D 등) 자산이 로드됐다. 본 렌더러는
+		// 이 엔터티에 관여하지 않는다. 로그/상태 갱신 없이 silent no-op.
+		if (Ready && Ready->Stage == ETemplateReadyStage::Skipped)
+		{
+			return;
+		}
 		// 템플릿 아직 로딩 중 — 전이 시 1회만 경고. Readiness 가 LoadingTemplate 에 있으면
 		// 정상 in-flight, 그 외(맵에 없음 / Failed)면 비정상.
 		if (State->LastUpdateStatus != EHktSpriteUpdateStatus::TemplateMissing)
 		{
 			State->LastUpdateStatus = EHktSpriteUpdateStatus::TemplateMissing;
-			const FTemplateReady* Ready = TemplateReadiness.Find(State->CharacterTag);
 			const bool bPending = Ready && Ready->Stage == ETemplateReadyStage::LoadingTemplate;
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
 				bPending ? EHktLogLevel::Verbose : EHktLogLevel::Warning,
@@ -359,11 +365,23 @@ void UHktSpriteCrowdRenderer::OnTemplateLoaded(FGameplayTag Tag, UHktTagDataAsse
 	UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
 	if (!Template)
 	{
-		Ready->Stage = ETemplateReadyStage::Failed;
-		UE_LOG(LogHktSpriteCore, Warning, TEXT("CharacterTemplate 로드 실패 또는 타입 불일치 tag=%s"), *Tag.ToString());
-		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-			FString::Printf(TEXT("Sprite|CrowdRenderer: CharacterTemplate 로드 실패/타입 불일치 (tag=%s, loaded=%s)"),
-				*Tag.ToString(), Loaded ? *Loaded->GetName() : TEXT("null")));
+		if (Loaded)
+		{
+			// 자산은 로드됐지만 타입이 다른 경우 — 이 태그는 다른 렌더링 경로(예: Paper2D)
+			// 소유. 본 크라우드 렌더러는 의도적으로 무시 (경고 X).
+			Ready->Stage = ETemplateReadyStage::Skipped;
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: 다른 경로 자산 — skip (tag=%s, loaded=%s/%s)"),
+					*Tag.ToString(), *Loaded->GetClass()->GetName(), *Loaded->GetName()));
+		}
+		else
+		{
+			Ready->Stage = ETemplateReadyStage::Failed;
+			UE_LOG(LogHktSpriteCore, Warning, TEXT("CharacterTemplate 로드 실패 tag=%s"), *Tag.ToString());
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|CrowdRenderer: CharacterTemplate 로드 실패 (tag=%s)"),
+					*Tag.ToString()));
+		}
 		return;
 	}
 	TemplateCache.Add(Tag, Template);
@@ -491,6 +509,7 @@ bool UHktSpriteCrowdRenderer::AdvanceTemplateReadiness(FGameplayTag Tag)
 	case ETemplateReadyStage::Ready:
 		return true;
 	case ETemplateReadyStage::Failed:
+	case ETemplateReadyStage::Skipped:
 	default:
 		return false;
 	}
