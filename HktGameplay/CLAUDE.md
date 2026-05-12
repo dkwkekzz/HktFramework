@@ -7,7 +7,7 @@
 ```
 HktGameplay (Runtime)
 ├── HktCore             — 순수 C++ SOA 결정론적 VM (UObject 0). 지형은 IHktTerrainDataSource 로만 소비
-├── HktStory            — Story 정의 위치는 `HktGameplay/Content/Stories/*.json` (schema 2). cpp 의 `HKT_REGISTER_STORY_BODY` 정의는 deprecated — 더이상 사용 안 함
+├── HktStory            — 바이트코드 스니펫 라이브러리 (fluent API)
 ├── HktRule             — 서버/클라 룰 인터페이스
 │   └── HktRuntime      — 네트워킹, GGPO 롤백 (30Hz)
 ├── HktAsset            — GameplayTag → DataAsset 비동기 로딩
@@ -38,7 +38,7 @@ HktGameplay (Runtime)
 
 - **엔티티 타입**: `HktType` 네임스페이스 — Unit, Projectile, Equipment, Building.
 - **GameplayTag**: 이벤트(`FHktEvent::EventTag`), UI 위젯(`Widget.LoginHud`), 에셋 해석에 사용.
-- **Story 정의 — JSON 전용**: 모든 Story 는 `HktGameplay/Content/Stories/*.json` (schema 2) 에서 정의·수정한다. cpp 의 `HKT_REGISTER_STORY_BODY` 정의는 deprecated — 신규 작성 금지, 수정도 JSON 측에서. JSON 의 op 토큰은 `HktStoryJsonParser.cpp::RegisterCommandV2(...)` 가 builder 메서드로 매핑한다 — 새 op 를 노출하려면 parser 에 1줄 등록 후 JSON 에서 사용한다.
+- **신규 Story 코드**: `FHktVar` API 사용 (구 `RegisterIndex` 는 PR-3 에서 JSON schema 2 로 마이그레이션 예정).
 
 ## Debug Event Log
 
