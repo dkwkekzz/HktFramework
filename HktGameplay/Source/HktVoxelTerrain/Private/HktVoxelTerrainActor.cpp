@@ -166,6 +166,17 @@ void AHktVoxelTerrainActor::Tick(float DeltaTime)
 		return;
 	}
 
+	// BakedAsset 비동기 로드가 끝나기 전에는 스트리밍 보류 —
+	// 그렇지 않으면 베이크 영역의 청크가 폴백 Generator 로 잘못 생성되어
+	// 첫 PIE 진입에서 fallback terrain 이 보이는 race 가 발생한다.
+	if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+	{
+		if (Sub->IsBakedAssetPending())
+		{
+			return;
+		}
+	}
+
 	const FVector CameraPos = GetCameraWorldPos();
 
 	// 1. 로더 파라미터 동기화 (반경/버짓/높이 등) — UPROPERTY 변경이 즉시 반영되도록.

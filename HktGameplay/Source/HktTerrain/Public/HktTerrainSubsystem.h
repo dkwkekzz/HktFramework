@@ -114,6 +114,17 @@ public:
 	/** 현재 베이크 자산. 없으면 nullptr. */
 	UHktTerrainBakedAsset* GetBakedAsset() const { return BakedAsset; }
 
+	/**
+	 * 베이크 자산 비동기 로드가 진행 중인지 여부.
+	 *
+	 * 호출자(터레인 Actor)는 본 값이 true 인 동안 AcquireChunk 호출을 보류해야 한다 —
+	 * 그렇지 않으면 BakedAsset 이 nullptr 인 상태에서 폴백 Generator 경로가 실행되어
+	 * 베이크된 영역의 청크가 잘못 생성된다(첫 PIE 진입 시 한정된 race).
+	 *
+	 * 정상 상태: false 일 때만 GetBakedAsset() 결과가 결정적이다.
+	 */
+	bool IsBakedAssetPending() const { return PendingLoadHandle.IsValid(); }
+
 	/** 폴백 시 사용되는 Config (BakedAsset → Injected Fallback → 컴파일 기본값). */
 	FHktTerrainGeneratorConfig GetEffectiveConfig() const;
 

@@ -122,12 +122,13 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	}
 	Sub->SetFallbackConfig(Settings->ToTerrainConfig());
 
-	// 3. BakedAsset 이 지정되어 있다면 비동기 로드 시작 — Voxel/Sprite Actor 와 단일 출처 공유.
-	//    SamplePreview 는 비동기 로드 완료를 기다리지 않는다(결정론 — 동일 Config 로 Generator
-	//    가 동일 결과를 산출하므로 외형은 비트 단위 일치한다).
+	// 3. BakedAsset 이 지정되어 있다면 동기 로드 — InitializeLandscape 는 BeginPlay 1회 호출이고
+	//    바로 아래 GetEffectiveConfig() 가 BakedAsset->GeneratorConfig 를 반환해야 SamplePreview
+	//    가 베이크 시점과 동일한 Config 로 하이트맵을 산출한다. 비동기로 두면 첫 PIE 에서
+	//    InjectedFallbackConfig 로 랜드스케이프가 생성되어 베이크 결과와 외형이 어긋난다.
 	if (!BakedAsset.IsNull())
 	{
-		Sub->LoadBakedAsset(BakedAsset);
+		Sub->LoadBakedAssetSync(BakedAsset);
 	}
 
 	// 4. Effective Config 조회 — VoxelSize/Min/Max 미러 동기화 (BakedAsset 우선, 부재 시 fallback).
