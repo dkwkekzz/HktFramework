@@ -27,6 +27,7 @@ public class HktTerrain : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"GameplayTags",
 				"HktCore",
 			}
 		);

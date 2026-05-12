@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktTerrainProvider.h"
+#include "HktTerrainBakedAsset.h"
 #include "HktTerrainSubsystem.h"
 #include "HktTerrainLog.h"
 #include "Terrain/HktTerrainVoxel.h"
@@ -43,5 +44,52 @@ void FHktTerrainProvider::GenerateChunk(int32 ChunkX, int32 ChunkY, int32 ChunkZ
 	{
 		// AcquireChunk 가 실패해도 zero-init 은 자체적으로 보장하지만, 명시적으로 한 번 더.
 		FMemory::Memzero(OutVoxels, sizeof(FHktTerrainVoxel) * VoxelsPerChunk);
+	}
+}
+
+void FHktTerrainProvider::GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+                                           TArray<FHktTerrainSpawnerView>& OutSpawners) const
+{
+	UHktTerrainSubsystem* Sub = Subsystem.Get();
+	if (!Sub)
+	{
+		return;
+	}
+
+	const UHktTerrainBakedAsset* Asset = Sub->GetBakedAsset();
+	if (!Asset)
+	{
+		// BakedAsset 부재 — Generator 폴백 경로에는 spawner 가 없다 (Bake 시점에만 결정).
+		return;
+	}
+
+	const FIntVector Coord(ChunkX, ChunkY, ChunkZ);
+	TArray<const FHktTerrainSpawnerSpec*> Specs;
+	Asset->GetSpawnersForChunk(Coord, Specs);
+	if (Specs.Num() == 0)
+	{
+		return;
+	}
+
+	OutSpawners.Reserve(OutSpawners.Num() + Specs.Num());
+	for (const FHktTerrainSpawnerSpec* Spec : Specs)
+	{
+		if (!Spec) continue;
+
+		FHktTerrainSpawnerView View;
+		View.PosXRaw  = Spec->PosXRaw;
+		View.PosYRaw  = Spec->PosYRaw;
+		View.PosZRaw  = Spec->PosZRaw;
+		View.StoryTag = Spec->StoryTag;
+		View.Param0   = Spec->Param0;
+		View.Param1   = Spec->Param1;
+		View.Param2   = Spec->Param2;
+		View.Param3   = Spec->Param3;
+		View.ChunkX   = Spec->ChunkCoord.X;
+		View.ChunkY   = Spec->ChunkCoord.Y;
+		View.ChunkZ   = Spec->ChunkCoord.Z;
+		View.SlotHash = Spec->SlotHash;
+		View.BiomeId  = Spec->BiomeId;
+		OutSpawners.Add(View);
 	}
 }

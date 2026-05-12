@@ -36,6 +36,23 @@ struct FHktWorldState;
 struct FHktEvent;
 class FHktStoryBuilder;
 
+/**
+ * EHktSpawnPattern — `SpawnEntityAround` 의 분포 정책.
+ *
+ *  - Circle:        Center 중심 Radius 원주에 균등 배치.
+ *  - Line:          Center 에서 일정 간격 직선 배치.
+ *  - RandomSeeded:  SlotHash + RandomInt 결정론적 jitter 로 분산 배치.
+ *
+ * 본 enum 은 *Builder 매개변수* — 신규 opcode 가 아니다 (TerrainSpawner.design.md §1-3, §4-b).
+ * Builder 가 기존 opcode (SpawnEntity, SetPosition, RandomInt, Add 등) 를 조합해 emit 한다.
+ */
+enum class EHktSpawnPattern : uint8
+{
+    Circle,
+    Line,
+    RandomSeeded,
+};
+
 // ============================================================================
 // FHktVar / FHktVarBlock — 신 가상 변수 API (PR-2)
 // ============================================================================
@@ -252,6 +269,17 @@ public:
     FHktVar IterVar();      // ForEach 순회 슬롯
     FHktVar FlagVar();      // 비교/카운트 결과 슬롯
 
+    // ----- Spawner Context -----
+    //
+    // 별도의 spawner-context Builder 메서드는 도입하지 않는다.
+    // 기존 `FHktEvent::Param0~3` + `Location` + `HktEventBuilder::Spawner` 가 모든 spawner
+    // 진입 컨텍스트(위치/SlotHash/archetype params)를 인라인 정수 + FVector 로 표현하므로,
+    // Story 코드는 `LoadStore(PropertyId::Param0..3)` / 좌표 자동 매핑으로 그대로 읽는다.
+    //
+    // TerrainSpawner.design.md §4-a 갱신: 별도 prefill 메커니즘/EntryArgs 구조체 폐기.
+    // `SpawnerParams::` 네임스페이스(HktStoryEventParams.h) 에서 Param0~3 의 의미 별칭만
+    // 정의해 archetype 별 계약을 형식화한다.
+
     /**
      * 같은 이름은 같은 VReg 로 해석 — JSON `{"var":"name"}` 폼이 사용한다.
      * 이름이 처음 등장하면 anonymous VReg 를 생성한다.
@@ -305,6 +333,29 @@ public:
      * 이름이 SpawnEntity 와 동일하면 반환형만 다른 오버로드(불가) 가 되므로 별명으로 분리.
      */
     FHktVar SpawnEntityVar(const FGameplayTag& ClassTag);
+
+    /**
+     * 지정 위치에 단일 엔티티 spawn.
+     *  - 내부적으로 `SpawnEntity(ClassTag)` + `SetPosition(Spawned, Position)` 을 emit.
+     *  - 신규 opcode 추가 없음 (TerrainSpawner.design.md §1-3, §4-b).
+     * @return spawned entity 의 vreg 핸들.
+     */
+    FHktVar SpawnEntityAt(const FGameplayTag& EntityTag, FHktVarBlock Position);
+
+    /**
+     * 중심점 주변에 CountCompile 개 엔티티를 분포 패턴에 맞게 spawn.
+     *  - `Pattern`: Circle/Line/RandomSeeded.
+     *  - `RadiusRaw`: FHktFixed32 raw 반지름 (cm 단위) 를 담은 vreg.
+     *  - 본 헬퍼는 컴파일 타임에 Count 가 결정되는 케이스만 지원 — 동적 count 가 필요하면
+     *    호출자가 명시적인 Repeat/Counter 루프를 직접 구성한다.
+     *  - 신규 opcode 추가 없음 — SpawnEntity/SetPosition/RandomInt/Add 조합 emit.
+     * @return 마지막으로 spawn 된 엔티티 vreg (반복 spawn 의 최종 결과).
+     */
+    FHktVar SpawnEntityAround(const FGameplayTag& EntityTag,
+                              FHktVarBlock Center,
+                              FHktVar RadiusRaw,
+                              int32 CountCompile,
+                              EHktSpawnPattern Pattern);
 
     FHktStoryBuilder& DestroyEntity(FHktVar Entity);
 
