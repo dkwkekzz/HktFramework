@@ -127,8 +127,6 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 			this, &UHktPresentationSubsystem::OnSubjectChanged);
 		TargetChangedHandle = BoundInteraction->OnTargetChanged().AddUObject(
 			this, &UHktPresentationSubsystem::OnTargetChanged);
-		VoxelTargetChangedHandle = BoundInteraction->OnVoxelTargetChanged().AddUObject(
-			this, &UHktPresentationSubsystem::OnVoxelTargetChanged);
 
 		if (!TickHandle.IsValid())
 		{
@@ -165,11 +163,6 @@ void UHktPresentationSubsystem::UnbindInteraction()
 		{
 			BoundInteraction->OnTargetChanged().Remove(TargetChangedHandle);
 			TargetChangedHandle.Reset();
-		}
-		if (VoxelTargetChangedHandle.IsValid())
-		{
-			BoundInteraction->OnVoxelTargetChanged().Remove(VoxelTargetChangedHandle);
-			VoxelTargetChangedHandle.Reset();
 		}
 	}
 	if (TickHandle.IsValid())
@@ -716,16 +709,16 @@ void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
 
 void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 {
-	if (!VFXProcessor) return;
-
-	if (CurrentTargetEntityId != InvalidEntityId)
+	// 이전 VFX 해제 (real entity 였을 때만 — sentinel/Invalid 은 attach 한 적 없음)
+	if (VFXProcessor && IsRealEntityId(CurrentTargetEntityId))
 	{
 		VFXProcessor->DetachVFXFromEntity(Tag_VFX_SelectionTarget, CurrentTargetEntityId);
 	}
 
 	CurrentTargetEntityId = NewTarget;
 
-	if (NewTarget != InvalidEntityId)
+	// 신규 VFX attach 도 real entity 에만 (voxel sentinel 은 DrawDebug 로 표시).
+	if (VFXProcessor && IsRealEntityId(NewTarget))
 	{
 		const FHktTransformView* T = State.GetTransform(NewTarget);
 		FVector Pos = T ? T->Location.Get() : FVector::ZeroVector;
@@ -733,19 +726,10 @@ void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));
 	}
-}
-
-void UHktPresentationSubsystem::OnVoxelTargetChanged(const FHktVoxelSelection& NewVoxel)
-{
-	CurrentVoxelTarget = NewVoxel;
-
-	if (NewVoxel.bValid)
+	else if (NewTarget == VoxelTargetEntityId)
 	{
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
-			FString::Printf(TEXT("VoxelTarget set Coord=(%d,%d,%d) TypeID=%u Center=(%.0f,%.0f,%.0f)"),
-				NewVoxel.VoxelCoord.X, NewVoxel.VoxelCoord.Y, NewVoxel.VoxelCoord.Z,
-				static_cast<uint32>(NewVoxel.TypeID),
-				NewVoxel.WorldCenter.X, NewVoxel.WorldCenter.Y, NewVoxel.WorldCenter.Z));
+			TEXT("Target = Voxel (sentinel) — see GetCurrentVoxelTarget for details"));
 	}
 }
 
@@ -756,7 +740,7 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 	if (!World) return;
 
 	// Subject — 녹색 캡슐 (entity 위치 기준 + 위로 +50)
-	if (CurrentSubjectEntityId != InvalidEntityId)
+	if (IsRealEntityId(CurrentSubjectEntityId))
 	{
 		const FHktTransformView* T = State.GetTransform(CurrentSubjectEntityId);
 		if (T)
@@ -768,8 +752,8 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 		}
 	}
 
-	// Target Entity — 빨강 구
-	if (CurrentTargetEntityId != InvalidEntityId)
+	// Target — Entity(real) 는 구, Voxel(sentinel) 은 AABB 박스, Invalid 은 그리지 않음.
+	if (IsRealEntityId(CurrentTargetEntityId))
 	{
 		const FHktTransformView* T = State.GetTransform(CurrentTargetEntityId);
 		if (T)
@@ -779,15 +763,14 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 				FColor::Red, false, -1.f, 0, 2.f);
 		}
 	}
-
-	// Target Voxel — 빨강 와이어프레임 박스 (VoxelSize 기반 정확한 크기)
-	if (CurrentVoxelTarget.bValid)
+	else if (CurrentTargetEntityId == VoxelTargetEntityId && BoundInteraction)
 	{
-		const float HalfExtent = (CurrentVoxelTarget.VoxelSize > 0.f)
-			? CurrentVoxelTarget.VoxelSize * 0.5f
-			: 7.5f;  // 폴백: 기본 VoxelSize=15cm 가정
-		DrawDebugBox(World, CurrentVoxelTarget.WorldCenter,
-			FVector(HalfExtent), FColor::Red,
-			false, -1.f, 0, 1.5f);
+		const FHktVoxelSelection& Vox = BoundInteraction->GetCurrentVoxelTarget();
+		if (Vox.bValid)
+		{
+			const float HalfExtent = (Vox.VoxelSize > 0.f) ? Vox.VoxelSize * 0.5f : 7.5f;
+			DrawDebugBox(World, Vox.WorldCenter, FVector(HalfExtent),
+				FColor::Red, false, -1.f, 0, 1.5f);
+		}
 	}
 }

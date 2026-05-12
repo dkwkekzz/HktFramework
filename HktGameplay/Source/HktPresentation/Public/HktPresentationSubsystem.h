@@ -6,7 +6,6 @@
 #include "GameplayTagContainer.h"
 #include "HktCoreDefs.h"
 #include "HktWorldView.h"
-#include "HktVoxelSelection.h"
 #include "HktPresentationState.h"
 #include "HktPresentationProcessor.h"
 #include "HktPresentationSubsystem.generated.h"
@@ -78,9 +77,11 @@ private:
 	void OnIntentSubmitted(const FHktRuntimeEvent& Event);
 	void OnSubjectChanged(FHktEntityId NewSubject);
 	void OnTargetChanged(FHktEntityId NewTarget);
-	void OnVoxelTargetChanged(const FHktVoxelSelection& NewVoxel);
 
-	/** Subject/Target/Voxel 선택 상태를 DrawDebug 로 그린다. CVar hkt.selection.debug.draw 가 ON 일 때 매 틱. */
+	/**
+	 * Subject/Target 선택 상태를 DrawDebug 로 그린다. CVar hkt.selection.debug.draw 가 ON 일 때 매 틱.
+	 * Target 이 VoxelTargetEntityId 면 PC 의 GetCurrentVoxelTarget() 을 조회해 voxel AABB 를 그린다.
+	 */
 	void DrawSelectionDebug() const;
 	void ProcessInitialSync(const FHktWorldView& View);
 	void ProcessDiff(const FHktWorldView& View);
@@ -113,11 +114,9 @@ private:
 	FDelegateHandle IntentSubmittedHandle;
 	FDelegateHandle SubjectChangedHandle;
 	FDelegateHandle TargetChangedHandle;
-	FDelegateHandle VoxelTargetChangedHandle;
 
 	FHktEntityId CurrentSubjectEntityId = InvalidEntityId;
 	FHktEntityId CurrentTargetEntityId = InvalidEntityId;
-	FHktVoxelSelection CurrentVoxelTarget;
 
 	bool bInitialSyncDone = false;
 	bool bStateDirty = false;

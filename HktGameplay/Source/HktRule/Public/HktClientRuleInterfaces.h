@@ -52,16 +52,12 @@ public:
 	virtual void SetSubject(FHktEntityId InSubject) = 0;
 	virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) = 0;
 	virtual void SetCommandSlot(int32 InSlotIndex) = 0;
+
+	/**
+	 * Target 을 설정. EntityId 가 VoxelTargetEntityId 면 voxel 을 가리킨다 —
+	 * 상세는 IHktPlayerInteractionInterface::GetCurrentVoxelTarget() 으로 조회.
+	 */
 	virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) = 0;
-
-	/** Voxel target 정보를 함께 설정 (RMB 가 voxel terrain 을 클릭한 경우). */
-	virtual void SetVoxelTarget(const FHktVoxelSelection& InVoxel) = 0;
-
-	/** Voxel target 해제 — 새 Subject 선택 시 Rule 이 호출 */
-	virtual void ClearVoxelTarget() = 0;
-
-	virtual bool HasVoxelTarget() const = 0;
-	virtual const FHktVoxelSelection& GetVoxelTarget() const = 0;
 
 	virtual void ResetCommand() = 0;
 	virtual bool IsReadyToSubmit() const = 0;
@@ -94,14 +90,18 @@ public:
 
 	/**
 	 * 커서 아래 Target 을 결정한다.
-	 *  - Entity 가 있으면 OutEntity 채움 (OutLocation 은 위치 보충).
-	 *  - Voxel 지형 hit 이면 OutVoxel 채움 (OutEntity=Invalid, OutLocation=voxel 중앙).
-	 *  - 둘 다 없으면 OutLocation 만 trace 위치, OutVoxel.bValid=false.
+	 *  - Entity hit : OutEntity = entity id, OutLocation = hit 위치
+	 *  - Voxel hit  : OutEntity = VoxelTargetEntityId (sentinel), OutLocation = voxel 중앙
+	 *                상세(TypeID/Coord/...)는 GetLastResolvedVoxel() 로 조회
+	 *  - 미적중     : OutEntity = InvalidEntityId, OutLocation = ZeroVector
 	 */
-	virtual void ResolveTarget(
-		FHktEntityId& OutEntity,
-		FVector& OutLocation,
-		FHktVoxelSelection& OutVoxel) const = 0;
+	virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const = 0;
+
+	/**
+	 * 가장 최근 ResolveTarget 호출에서 적중된 voxel 정보 (있는 경우).
+	 * bValid=false 이면 마지막 호출이 voxel 이 아니었다. mutable 캐시 패턴.
+	 */
+	virtual const FHktVoxelSelection& GetLastResolvedVoxel() const = 0;
 };
 
 // ============================================================================

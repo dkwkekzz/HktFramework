@@ -215,9 +215,6 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
         HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
             FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId()),
             CachedIntentBuilder->GetSubjectEntityId());
-
-        // Rule 이 다른 Entity LMB 시 ClearVoxelTarget 을 호출했을 수 있다 — 항상 현재 상태 broadcast.
-        VoxelTargetChangedDelegate.Broadcast(CachedIntentBuilder->GetVoxelTarget());
     }
 }
 
@@ -234,8 +231,20 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
-        TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
-        VoxelTargetChangedDelegate.Broadcast(CachedIntentBuilder->GetVoxelTarget());
+        // Voxel 상세 정보는 Policy 가 최근 ResolveTarget 호출에서 캐시한 값을 그대로 사용.
+        //  - EntityId == VoxelTargetEntityId 면 voxel; 아니면 빈 voxel.
+        //  - Delegate 가 fire 되기 전에 갱신해 subscribers 가 GetCurrentVoxelTarget() 으로 즉시 조회 가능.
+        const FHktEntityId TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+        if (TargetEntity == VoxelTargetEntityId && CachedSelectionPolicy)
+        {
+            CurrentVoxelTarget = CachedSelectionPolicy->GetLastResolvedVoxel();
+        }
+        else
+        {
+            CurrentVoxelTarget = FHktVoxelSelection{};
+        }
+
+        TargetChangedDelegate.Broadcast(TargetEntity);
 
         // Rule이 빌드한 이벤트가 있으면 전송
         if (CachedIntentBuilder->HasPendingRuntimeEvent())
