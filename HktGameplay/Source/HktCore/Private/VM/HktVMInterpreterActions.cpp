@@ -786,26 +786,19 @@ void FHktVMInterpreter::Op_GetVoxelTypeAtEventLocation(FHktVMRuntime& Runtime, R
     //   Target 이 InvalidEntityId 일 때 Event.Location 이 voxel 중앙(Policy 가 채움) 이므로
     //   이 op 가 곧바로 클릭한 voxel 의 TypeID 를 반환한다.
     //   TypeID == 0 이면 빈 공간(또는 미로드 청크).
-    if (!TerrainState)
+    if (!TerrainState || !Runtime.Context)
     {
         Runtime.SetReg(Dst, 0);
         return;
     }
 
-    const float VoxelSizeCm = TerrainState->VoxelSizeCm > 0.f ? TerrainState->VoxelSizeCm : 15.f;
+    // VoxelSizeCm 은 float (기본 15.0) — 정수로 캐스팅해 결정론적 floor-div 사용.
+    // 0 이나 음수가 들어와도 1 이상으로 보정 (divide-by-zero 방지).
+    const int32 VoxSizeI = FMath::Max(1, static_cast<int32>(TerrainState->VoxelSizeCm));
 
-    auto FloorDivInt = [](int32 A, int32 B) -> int32
-    {
-        // 결정론적 floor division — 음수도 일관되게 처리.
-        const int32 Q = A / B;
-        const int32 R = A % B;
-        return (R != 0 && ((R < 0) != (B < 0))) ? Q - 1 : Q;
-    };
-
-    const int32 VoxSizeI = static_cast<int32>(VoxelSizeCm);
-    const int32 X = FloorDivInt(Runtime.Context->EventTargetPosX, VoxSizeI);
-    const int32 Y = FloorDivInt(Runtime.Context->EventTargetPosY, VoxSizeI);
-    const int32 Z = FloorDivInt(Runtime.Context->EventTargetPosZ, VoxSizeI);
+    const int32 X = FHktTerrainState::FloorDiv(Runtime.Context->EventTargetPosX, VoxSizeI);
+    const int32 Y = FHktTerrainState::FloorDiv(Runtime.Context->EventTargetPosY, VoxSizeI);
+    const int32 Z = FHktTerrainState::FloorDiv(Runtime.Context->EventTargetPosZ, VoxSizeI);
 
     const uint16 TypeID = TerrainState->GetVoxelType(X, Y, Z);
     Runtime.SetReg(Dst, static_cast<int32>(TypeID));
