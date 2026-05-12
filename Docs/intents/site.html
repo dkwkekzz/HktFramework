@@ -302,6 +302,87 @@
   ul.list li.pending-delete { background:rgba(239,68,68,0.12); text-decoration:line-through; opacity:0.7; }
   ul.rel li.pending-create, ul.rel li.pending-update { background:rgba(252,211,77,0.12) !important; }
   ul.rel li.pending-delete { background:rgba(239,68,68,0.12) !important; text-decoration:line-through; opacity:0.7; }
+
+  /* --- Inline relation editing (Obsidian-style) --- */
+  ul.rel li { position:relative; padding-right:30px; }
+  .btn-unlink {
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    background:transparent; border:0; color:var(--muted); cursor:pointer;
+    padding:2px 6px; font-size:14px; line-height:1; border-radius:3px;
+    opacity:0; transition:opacity .12s, color .12s, background .12s;
+  }
+  ul.rel li:hover .btn-unlink, .btn-unlink:focus { opacity:1; }
+  .btn-unlink:hover { color:#f87171; background:rgba(239,68,68,0.15); opacity:1; }
+  /* 터치 디바이스에서는 hover 가 없으므로 항상 노출 */
+  @media (hover: none) {
+    .btn-unlink { opacity:1; color:var(--muted); }
+  }
+  .btn-link-rel {
+    background:transparent; border:1px solid var(--line); color:var(--accent);
+    padding:0 6px; border-radius:3px; cursor:pointer; font:inherit; font-size:11px;
+    line-height:1.4; margin-left:6px;
+  }
+  .btn-link-rel:hover { background:var(--panel); border-color:var(--accent); }
+
+  /* --- Quick switcher popover --- */
+  #link-popover {
+    position:absolute; z-index:60; width:340px; max-width:92vw;
+    max-height:380px; display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid var(--accent); border-radius:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);
+  }
+  #link-popover[hidden] { display:none; }
+  #link-popover .popover-head {
+    padding:6px 10px 4px; font-size:11px; color:var(--muted);
+    border-bottom:1px solid var(--line); display:flex; justify-content:space-between;
+  }
+  #link-popover .popover-input {
+    background:var(--bg); color:var(--text); border:0;
+    padding:9px 10px; font:inherit; outline:none;
+    border-bottom:1px solid var(--line);
+  }
+  #link-popover .popover-list { overflow-y:auto; flex:1; padding:2px 0; min-height:40px; }
+  #link-popover .popover-item {
+    padding:6px 10px; cursor:pointer; font-size:13px;
+    display:flex; align-items:center; gap:6px;
+    border-left:3px solid transparent;
+    white-space:nowrap; overflow:hidden;
+  }
+  #link-popover .popover-item .ttl {
+    flex:1 1 auto; overflow:hidden; text-overflow:ellipsis;
+  }
+  #link-popover .popover-item:hover,
+  #link-popover .popover-item.active {
+    background:var(--panel2); border-left-color:var(--accent);
+  }
+  #link-popover .popover-empty {
+    padding:14px 10px; color:var(--muted); font-style:italic;
+    font-size:12px; text-align:center;
+  }
+  #link-popover .popover-create {
+    padding:8px 10px; border-top:1px solid var(--line);
+    color:var(--accent); cursor:pointer; font-size:12px;
+    display:flex; align-items:center; gap:4px;
+  }
+  #link-popover .popover-create:hover { background:var(--panel2); }
+  #link-popover .popover-create.disabled {
+    color:var(--muted); cursor:not-allowed; opacity:.5;
+  }
+
+  /* --- Multi-select with filter (edit modal) --- */
+  .multi-sel-filter {
+    width:100%; background:var(--bg); color:var(--text);
+    border:0; border-bottom:1px solid var(--line);
+    padding:6px 9px; font:inherit; font-size:12px;
+    outline:none; border-radius:0;
+  }
+  .multi-sel-list { max-height:120px; overflow-y:auto; }
+  .multi-sel-empty {
+    padding:8px 10px; color:var(--muted); font-style:italic;
+    font-size:12px; text-align:center;
+  }
+  /* `dialog label > input` 룰이 .multi-sel-filter 까지 잡아 너비/패딩이 깨지므로 reset. */
+  dialog .multi-sel-filter { margin:0; }
 </style>
 <script type="application/json" id="validation-rules">{
   "version": "1",
@@ -388,6 +469,12 @@
       <button id="em-delete" class="danger">삭제</button>
     </div>
   </dialog>
+  <div id="link-popover" hidden role="dialog" aria-label="Intent 연결">
+    <div class="popover-head"><span id="lp-title">연결할 Intent</span><span id="lp-hint">↑↓ 이동 · Enter 선택 · Esc 닫기</span></div>
+    <input class="popover-input" id="lp-input" type="search" placeholder="ID 또는 제목 검색..." autocomplete="off">
+    <div class="popover-list" id="lp-list"></div>
+    <div class="popover-create" id="lp-create" hidden></div>
+  </div>
   <dialog id="confirm-modal">
     <h3 id="cm-msg">삭제하시겠습니까?</h3>
     <div class="modal-actions">
@@ -504,6 +591,110 @@
     return [...out].sort();
   }
 
+  // ── 인라인 관계 편집 ──────────────────────────────────────────────────────
+  // 한쪽 방향 클릭으로 양쪽(parent.children, child.parents) 모두 pending 처리.
+  // store 의 양방향 미러 로직과 idempotent — 같은 상태면 no-op.
+
+  /**
+   * id 에 대한 pending update 를 보장한다. 기존 pending change(create/update) 가
+   * 있으면 그 intent 를 직접 변형, 없으면 base 의 사본으로 update 항목 생성.
+   * delete pending 이거나 base 가 없으면 null 을 반환한다.
+   */
+  function ensurePendingChange(id, mutator) {
+    for (const ch of pendingChanges) {
+      if (ch.intent.id !== id) continue;
+      if (ch.type === 'delete') return null;
+      mutator(ch.intent);
+      return ch;
+    }
+    const base = baseIntentsById[id];
+    if (!base) return null;
+    const draft = {
+      ...base,
+      parents: [...(base.parents || [])],
+      children: [...(base.children || [])],
+      tags: [...(base.tags || [])],
+    };
+    mutator(draft);
+    const ch = { type: 'update', intent: draft, baseVersion: base.baseVersion };
+    pendingChanges.push(ch);
+    return ch;
+  }
+
+  /** 변경 없는 pending update 는 제거 — 사용자가 토글한 끝에 원상복귀 시. */
+  function pruneNoopPending(id) {
+    const idx = pendingChanges.findIndex(c => c.intent.id === id && c.type === 'update');
+    if (idx === -1) return;
+    const base = baseIntentsById[id];
+    if (!base) return;
+    const ch = pendingChanges[idx];
+    const norm = v => Array.isArray(v) ? [...v].slice().sort().join('\x1f') : (v == null ? '' : String(v));
+    const same = ['title','status','intent','parents','children','tags']
+      .every(f => norm(ch.intent[f]) === norm(base[f]));
+    if (same) pendingChanges.splice(idx, 1);
+  }
+
+  function linkParentChild(parentId, childId) {
+    if (!parentId || !childId || parentId === childId) {
+      showToast('자기 자신과 연결할 수 없습니다', 'error');
+      return false;
+    }
+    const parent = intentsById[parentId];
+    const child = intentsById[childId];
+    if (!parent || !child) {
+      showToast('대상 Intent 가 존재하지 않습니다', 'error');
+      return false;
+    }
+    if (parent._pending === 'delete' || child._pending === 'delete') {
+      showToast('삭제 예약된 Intent 는 연결할 수 없습니다', 'error');
+      return false;
+    }
+    const alreadyLinked = (parent.children || []).includes(childId)
+                       && (child.parents || []).includes(parentId);
+    if (alreadyLinked) return false;
+    // 순환 방지: parent 가 child 의 자손이면 cycle 발생.
+    if (descendantsOf(childId).includes(parentId)) {
+      showToast('순환 참조가 발생하여 연결할 수 없습니다', 'error');
+      return false;
+    }
+    ensurePendingChange(parentId, p => {
+      p.children = p.children || [];
+      if (!p.children.includes(childId)) p.children.push(childId);
+    });
+    ensurePendingChange(childId, c => {
+      c.parents = c.parents || [];
+      if (!c.parents.includes(parentId)) c.parents.push(parentId);
+    });
+    pruneNoopPending(parentId);
+    pruneNoopPending(childId);
+    applyView();
+    if (pendingChanges.length) markUnsaved(); else clearUnsaved();
+    rebuildTagFilter();
+    renderList();
+    renderStack();
+    showToast(`연결됨: ${parentId} → ${childId}`, 'success');
+    return true;
+  }
+
+  function unlinkParentChild(parentId, childId) {
+    if (!parentId || !childId) return false;
+    ensurePendingChange(parentId, p => {
+      p.children = (p.children || []).filter(c => c !== childId);
+    });
+    ensurePendingChange(childId, c => {
+      c.parents = (c.parents || []).filter(pp => pp !== parentId);
+    });
+    pruneNoopPending(parentId);
+    pruneNoopPending(childId);
+    applyView();
+    if (pendingChanges.length) markUnsaved(); else clearUnsaved();
+    rebuildTagFilter();
+    renderList();
+    renderStack();
+    showToast(`연결 해제됨: ${parentId} ↛ ${childId}`);
+    return true;
+  }
+
   // ── 토스트 ──────────────────────────────────────────────────────────────────
   function showToast(msg, type) {
     const el = document.createElement('div');
@@ -561,12 +752,24 @@
   }
 
   // ── 렌더링: 카드 ────────────────────────────────────────────────────────────
-  function renderRelationSection(arrow, label, ids, ownerCardIdx, limit, addChildOf) {
+  function renderRelationSection(arrow, label, ids, ownerCardIdx, limit, opts) {
+    opts = opts || {};
     const total = ids.length;
-    const addBtn = addChildOf
-      ? `<button class="btn-add-child" data-add-child-of="${escape(addChildOf)}" title="자식 Intent 추가">＋</button>`
-      : '';
-    let html = `<h2><span><span class="arrow">${arrow}</span>${escape(label)}${addBtn}</span>`
+    const headerBtns = [];
+    if (opts.linkOf) {
+      headerBtns.push(
+        `<button class="btn-link-rel" data-link-rel-of="${escape(opts.linkOf)}"`
+        + ` data-link-rel-kind="${escape(opts.kind || '')}"`
+        + ` title="기존 Intent 연결 (검색)">🔗</button>`
+      );
+    }
+    if (opts.createChildOf) {
+      headerBtns.push(
+        `<button class="btn-add-child" data-add-child-of="${escape(opts.createChildOf)}"`
+        + ` title="새 자식 Intent 생성">＋</button>`
+      );
+    }
+    let html = `<h2><span><span class="arrow">${arrow}</span>${escape(label)}${headerBtns.join('')}</span>`
              + `<span class="count">${total}</span></h2>`;
     if (total === 0) return html + `<div class="none">(없음)</div>`;
     const useLimit = limit > 0 && total > limit;
@@ -574,19 +777,29 @@
       const overflow = useLimit && i >= limit;
       const it = intentsById[id];
       if (!it) {
+        const unlinkMissing = opts.editable && opts.linkOf
+          ? `<button class="btn-unlink" data-unlink-owner="${escape(opts.linkOf)}"`
+            + ` data-unlink-target="${escape(id)}" data-unlink-kind="${escape(opts.kind)}"`
+            + ` title="끊긴 참조 제거">×</button>`
+          : '';
         return `<li class="missing${overflow ? ' overflow' : ''}"${overflow ? ' hidden' : ''}>`
-             + `<span class="id">${escape(id)}</span> <span class="meta">(없음)</span></li>`;
+             + `<span class="id">${escape(id)}</span> <span class="meta">(없음)</span>${unlinkMissing}</li>`;
       }
       const cls = [];
       if (overflow) cls.push('overflow');
       if (inStack(id)) cls.push(isTip(id) ? 'tip' : 'in-stack');
       if (it._pending) cls.push('pending-' + it._pending);
+      const unlinkBtn = opts.editable && opts.linkOf
+        ? `<button class="btn-unlink" data-unlink-owner="${escape(opts.linkOf)}"`
+          + ` data-unlink-target="${escape(id)}" data-unlink-kind="${escape(opts.kind)}"`
+          + ` title="연결 해제">×</button>`
+        : '';
       return `<li class="${cls.join(' ')}"${overflow ? ' hidden' : ''}`
            + ` data-goto="${escape(id)}" data-from="${ownerCardIdx}"`
            + ` title="${escape(it.title)}">`
            + `<span class="id">${escape(it.id)}</span>${escape(it.title)} `
            + `<span class="status ${escape(it.status)}">${escape(it.status)}</span>`
-           + `${pillHtml(it)}</li>`;
+           + `${pillHtml(it)}${unlinkBtn}</li>`;
     }).join('');
     html += `<ul class="rel">${items}</ul>`;
     if (useLimit) {
@@ -646,10 +859,12 @@
         <h2><span><span class="arrow">🎯</span>Linked Goals</span>`
         + `<span class="count">${(it.goals || []).length}</span></h2>`
         + `<ul class="linked">${goalsHtml}</ul>`
-        + renderRelationSection('↑', 'parents', it.parents || [], idx, 0)
+        + renderRelationSection('↑', 'parents', it.parents || [], idx, 0,
+            { linkOf: it.id, kind: 'parent', editable: true })
         + renderRelationSection('↑↑', 'ancestors (전이)', ancestors, idx, 8)
         + renderRelationSection('↔', 'siblings (부모 공유)', siblings, idx, 10)
-        + renderRelationSection('↓', 'children', it.children || [], idx, 0, it.id)
+        + renderRelationSection('↓', 'children', it.children || [], idx, 0,
+            { linkOf: it.id, kind: 'child', editable: true, createChildOf: it.id })
         + renderRelationSection('↓↓', 'descendants (전이)', descendants, idx, 12)
       + `</section>`;
     return card;
@@ -956,22 +1171,61 @@
   });
 
   // ── 편집 모달 ───────────────────────────────────────────────────────────────
-  function buildMultiSel(containerId, excludeId, selected) {
+  function buildMultiSel(containerId, excludeId, initialSelected) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
-    for (const it of DATA.intents) {
-      if (it.id === excludeId) continue;
-      const label = document.createElement('label');
-      const cb = document.createElement('input');
-      cb.type = 'checkbox'; cb.value = it.id;
-      if ((selected || []).includes(it.id)) cb.checked = true;
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(' ' + it.id + ' ' + it.title.slice(0, 40)));
-      container.appendChild(label);
+    // 필터로 인해 항목이 사라져도 선택 상태가 유지되도록 Set 으로 별도 보관.
+    const selected = new Set(initialSelected || []);
+    container._selected = selected;
+
+    const filter = document.createElement('input');
+    filter.type = 'search';
+    filter.className = 'multi-sel-filter';
+    filter.placeholder = 'ID/제목 검색...';
+    filter.autocomplete = 'off';
+    container.appendChild(filter);
+
+    const listEl = document.createElement('div');
+    listEl.className = 'multi-sel-list';
+    container.appendChild(listEl);
+
+    function renderItems() {
+      const q = filter.value.trim().toLowerCase();
+      const tokens = q.split(/\s+/).filter(Boolean);
+      listEl.innerHTML = '';
+      let shown = 0;
+      for (const it of DATA.intents) {
+        if (it.id === excludeId) continue;
+        if (it._pending === 'delete') continue;
+        const hay = (it.id + ' ' + it.title).toLowerCase();
+        const matches = !tokens.length || tokens.every(t => hay.includes(t));
+        // 필터에 매치하지 않더라도 이미 선택된 항목은 항상 노출 — 실수 해제 방지.
+        if (!matches && !selected.has(it.id)) continue;
+        const label = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.value = it.id;
+        if (selected.has(it.id)) cb.checked = true;
+        cb.addEventListener('change', () => {
+          if (cb.checked) selected.add(it.id); else selected.delete(it.id);
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(' ' + it.id + ' ' + it.title.slice(0, 40)));
+        listEl.appendChild(label);
+        shown++;
+      }
+      if (!shown) {
+        const empty = document.createElement('div');
+        empty.className = 'multi-sel-empty';
+        empty.textContent = '일치하는 Intent 없음';
+        listEl.appendChild(empty);
+      }
     }
+    filter.addEventListener('input', renderItems);
+    renderItems();
   }
   function getChecked(containerId) {
-    return [...document.querySelectorAll('#' + containerId + ' input:checked')].map(cb => cb.value);
+    const container = document.getElementById(containerId);
+    return container && container._selected ? [...container._selected] : [];
   }
   function showFormError(msg) {
     const el = document.getElementById('em-errors');
@@ -1044,9 +1298,53 @@
       const baseIt = baseIntentsById[myId] || ed.intent;
       pendingChanges.push({ type: 'update', intent: Object.assign({}, baseIt, patch, { id: myId }), baseVersion: baseIt.baseVersion });
     }
+
+    // 양방향 미러 — 이웃의 parents/children 도 pending update 로 반영하여
+    // 저장 전에도 UI 가 일관되게 보이도록 한다. (인라인 편집과 동일한 동작)
+    //   "old" 는 모달 오픈 시점의 효과적(merged) 상태 = 인라인 편집 결과까지 포함.
+    //   ed.intent 는 openEditModal 에서 DATA.intents (merged view) 의 사본을 잡아둔 것.
+    let oldParents, oldChildren;
+    if (ed.isNew) {
+      oldParents = new Set();
+      oldChildren = new Set();
+    } else {
+      oldParents = new Set(ed.intent.parents || []);
+      oldChildren = new Set(ed.intent.children || []);
+    }
+    const newParents = new Set(patch.parents);
+    const newChildren = new Set(patch.children);
+    const affected = new Set();
+    for (const pid of newParents) if (!oldParents.has(pid)) {
+      ensurePendingChange(pid, p => {
+        p.children = p.children || [];
+        if (!p.children.includes(myId)) p.children.push(myId);
+      });
+      affected.add(pid);
+    }
+    for (const pid of oldParents) if (!newParents.has(pid)) {
+      ensurePendingChange(pid, p => {
+        p.children = (p.children || []).filter(c => c !== myId);
+      });
+      affected.add(pid);
+    }
+    for (const cid of newChildren) if (!oldChildren.has(cid)) {
+      ensurePendingChange(cid, c => {
+        c.parents = c.parents || [];
+        if (!c.parents.includes(myId)) c.parents.push(myId);
+      });
+      affected.add(cid);
+    }
+    for (const cid of oldChildren) if (!newChildren.has(cid)) {
+      ensurePendingChange(cid, c => {
+        c.parents = (c.parents || []).filter(p => p !== myId);
+      });
+      affected.add(cid);
+    }
+    for (const id of affected) pruneNoopPending(id);
+
     applyView();
     editModal.close();
-    markUnsaved();
+    if (pendingChanges.length) markUnsaved(); else clearUnsaved();
     rebuildTagFilter();
     renderList();
     renderStack();
@@ -1062,6 +1360,9 @@
     editModal.close();
     const ok = await confirm$('"' + intent.id + '" 를 삭제하시겠습니까?');
     if (!ok) return;
+    // 삭제 대상의 이웃에서 참조 제거를 pending update 로 미러링 (UI 즉시 반영).
+    const neighborParents = new Set(intent.parents || []);
+    const neighborChildren = new Set(intent.children || []);
     if (intent._pending === 'create') {
       // 아직 서버에 없는 예약된 create — 그냥 예약을 취소.
       pendingChanges = pendingChanges.filter(c => !(c.type === 'create' && c.intent.id === intent.id));
@@ -1070,6 +1371,20 @@
       const baseIt = baseIntentsById[intent.id] || intent;
       pendingChanges.push({ type: 'delete', intent: baseIt, baseVersion: baseIt.baseVersion });
     }
+    const affectedDel = new Set();
+    for (const pid of neighborParents) {
+      ensurePendingChange(pid, p => {
+        p.children = (p.children || []).filter(c => c !== intent.id);
+      });
+      affectedDel.add(pid);
+    }
+    for (const cid of neighborChildren) {
+      ensurePendingChange(cid, c => {
+        c.parents = (c.parents || []).filter(p => p !== intent.id);
+      });
+      affectedDel.add(cid);
+    }
+    for (const id of affectedDel) pruneNoopPending(id);
     applyView();
     if (pendingChanges.length === 0) clearUnsaved(); else markUnsaved();
     rebuildTagFilter();
@@ -1100,12 +1415,20 @@
     const origText = btnSave.textContent;
     btnSave.textContent = '저장 중…'; btnSave.disabled = true;
     const snapshot = pendingChanges.slice();
+    const norm = v => Array.isArray(v) ? [...v].slice().sort().join('\x1f') : (v == null ? '' : String(v));
+    const equalForSave = (a, b) => ['title','status','intent','parents','children','tags']
+      .every(f => norm(a[f]) === norm(b[f]));
     try {
       for (const ch of snapshot) {
         if (ch.type === 'create') {
           const created = await store.create(ch.intent);
           showToast(created.id + ' 생성됨', 'success');
         } else if (ch.type === 'update') {
+          // 인라인 관계 편집은 양쪽(부모/자식) 모두 pending 으로 기록한다.
+          // store.update 의 미러 로직이 한쪽 커밋에서 다른 쪽까지 함께 갱신하므로,
+          // 두번째 커밋이 빈 커밋으로 만들어지지 않도록 server 상태와 일치하면 skip.
+          const live = await store.get(ch.intent.id).catch(() => null);
+          if (live && equalForSave(live, ch.intent)) continue;
           // 배치 커밋에서 앞선 커밋 성공 후 store._headSha 가 갱신되므로 항상 최신 HEAD 사용.
           await store.update(ch.intent.id, ch.intent, store._headSha);
         } else if (ch.type === 'delete') {
@@ -1145,8 +1468,190 @@
     openEditModal({ id: '', title: '', status: 'proposed', intent: '', parents: [], children: [], tags: [], baseVersion: null }, true);
   });
 
-  // ── ✎ / ＋ 버튼 (이벤트 위임) ─────────────────────────────────────────────
+  // ── Quick switcher 팝오버 (Obsidian-style 연결) ───────────────────────────
+  const linkPopover  = document.getElementById('link-popover');
+  const lpInput      = document.getElementById('lp-input');
+  const lpList       = document.getElementById('lp-list');
+  const lpTitle      = document.getElementById('lp-title');
+  const lpCreate     = document.getElementById('lp-create');
+  let popoverState = null; // { ownerId, kind, activeIdx, candidates }
+
+  function popoverCandidates(filter) {
+    if (!popoverState) return [];
+    const owner = intentsById[popoverState.ownerId];
+    if (!owner) return [];
+    const linked = new Set(popoverState.kind === 'parent'
+      ? (owner.parents || []) : (owner.children || []));
+    // 순환 차단:
+    //   부모로 연결 → owner 의 자손은 부모가 될 수 없음
+    //   자식으로 연결 → owner 의 조상은 자식이 될 수 없음
+    const forbiddenCycle = new Set(popoverState.kind === 'parent'
+      ? descendantsOf(popoverState.ownerId)
+      : ancestorsOf(popoverState.ownerId));
+    const q = (filter || '').trim().toLowerCase();
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return DATA.intents.filter(it => {
+      if (it.id === popoverState.ownerId) return false;
+      if (linked.has(it.id)) return false;
+      if (forbiddenCycle.has(it.id)) return false;
+      if (it._pending === 'delete') return false;
+      if (!tokens.length) return true;
+      const hay = (it.id + ' ' + it.title).toLowerCase();
+      return tokens.every(t => hay.includes(t));
+    }).slice(0, 80);
+  }
+
+  function renderPopoverList() {
+    const cands = popoverCandidates(lpInput.value);
+    popoverState.candidates = cands;
+    if (popoverState.activeIdx >= cands.length) popoverState.activeIdx = 0;
+    lpList.innerHTML = '';
+    if (!cands.length) {
+      lpList.innerHTML = `<div class="popover-empty">일치하는 Intent 가 없습니다</div>`;
+    } else {
+      cands.forEach((it, i) => {
+        const el = document.createElement('div');
+        el.className = 'popover-item' + (i === popoverState.activeIdx ? ' active' : '');
+        el.dataset.idx = String(i);
+        const pendingChip = it._pending
+          ? `<span class="pending-chip">${it._pending === 'create' ? '추가' : '수정'}</span>`
+          : '';
+        el.innerHTML = `<span class="id">${escape(it.id)}</span>`
+                     + `<span class="ttl">${escape(it.title)}</span>`
+                     + `<span class="status ${escape(it.status)}">${escape(it.status)}</span>`
+                     + pendingChip;
+        el.addEventListener('mousedown', (ev) => { ev.preventDefault(); commitPopover(it.id); });
+        el.addEventListener('mouseenter', () => {
+          popoverState.activeIdx = i;
+          updatePopoverActive();
+        });
+        lpList.appendChild(el);
+      });
+    }
+    // 자식 추가 시 "새로 만들기" 옵션 — 부모로 연결할 땐 의미 불명확이라 생략.
+    if (popoverState.kind === 'child') {
+      const filter = lpInput.value.trim();
+      lpCreate.hidden = false;
+      lpCreate.textContent = filter
+        ? `＋ "${filter}" 새 자식 Intent 생성`
+        : '＋ 새 자식 Intent 생성';
+      lpCreate.classList.remove('disabled');
+    } else {
+      lpCreate.hidden = true;
+    }
+  }
+
+  function updatePopoverActive() {
+    const items = lpList.querySelectorAll('.popover-item');
+    items.forEach((el, i) => el.classList.toggle('active', i === popoverState.activeIdx));
+    const active = items[popoverState.activeIdx];
+    if (active) active.scrollIntoView({ block: 'nearest' });
+  }
+
+  function openLinkPopover(ownerId, kind, anchorEl) {
+    popoverState = { ownerId, kind, activeIdx: 0, candidates: [] };
+    lpInput.value = '';
+    lpTitle.textContent = kind === 'parent'
+      ? `${ownerId} 의 부모로 연결할 Intent`
+      : `${ownerId} 의 자식으로 연결할 Intent`;
+    linkPopover.hidden = false;
+    // 임시 표시 후 위치 계산 (display:none 일 때 rect 가 0).
+    const popRect = linkPopover.getBoundingClientRect();
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const top = anchorRect.bottom + 6;
+    const maxLeft = window.innerWidth - popRect.width - 8;
+    const left = Math.max(8, Math.min(maxLeft, anchorRect.left));
+    linkPopover.style.top  = `${top + window.scrollY}px`;
+    linkPopover.style.left = `${left + window.scrollX}px`;
+    renderPopoverList();
+    setTimeout(() => lpInput.focus(), 0);
+  }
+
+  function closeLinkPopover() {
+    if (!popoverState) return;
+    popoverState = null;
+    linkPopover.hidden = true;
+  }
+
+  function commitPopover(targetId) {
+    if (!popoverState) return;
+    const { ownerId, kind } = popoverState;
+    closeLinkPopover();
+    if (kind === 'parent') linkParentChild(targetId, ownerId);
+    else                   linkParentChild(ownerId, targetId);
+  }
+
+  lpInput.addEventListener('input', () => {
+    if (!popoverState) return;
+    popoverState.activeIdx = 0;
+    renderPopoverList();
+  });
+  lpInput.addEventListener('keydown', (e) => {
+    if (!popoverState) return;
+    if (e.key === 'Escape')      { e.preventDefault(); closeLinkPopover(); return; }
+    if (e.key === 'ArrowDown')   { e.preventDefault();
+      popoverState.activeIdx = Math.min((popoverState.candidates.length - 1), popoverState.activeIdx + 1);
+      updatePopoverActive(); return;
+    }
+    if (e.key === 'ArrowUp')     { e.preventDefault();
+      popoverState.activeIdx = Math.max(0, popoverState.activeIdx - 1);
+      updatePopoverActive(); return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const cand = popoverState.candidates[popoverState.activeIdx];
+      if (cand) commitPopover(cand.id);
+      else if (popoverState.kind === 'child') lpCreate.click();
+      return;
+    }
+  });
+  lpCreate.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!popoverState || popoverState.kind !== 'child') return;
+    const owner  = popoverState.ownerId;
+    const filter = lpInput.value.trim();
+    closeLinkPopover();
+    openEditModal({ id: '', title: filter, status: 'proposed', intent: '',
+      parents: [owner], children: [], tags: [], baseVersion: null }, true);
+  });
+  document.addEventListener('mousedown', (e) => {
+    if (!popoverState) return;
+    if (linkPopover.contains(e.target)) return;
+    if (e.target.closest('[data-link-rel-of]')) return;
+    closeLinkPopover();
+  });
+  window.addEventListener('resize', closeLinkPopover);
+
+  // ── ✎ / × / 🔗 / ＋ 버튼 (이벤트 위임) ────────────────────────────────────
   stackEl.addEventListener('click', e => {
+    // × 연결 해제
+    const unlinkBtn = e.target.closest('[data-unlink-owner]');
+    if (unlinkBtn) {
+      e.stopPropagation(); e.preventDefault();
+      if (!store || !store.token) { tokenModal.showModal(); return; }
+      const ownerId  = unlinkBtn.dataset.unlinkOwner;
+      const targetId = unlinkBtn.dataset.unlinkTarget;
+      const kind     = unlinkBtn.dataset.unlinkKind;
+      if (kind === 'parent') unlinkParentChild(targetId, ownerId);
+      else                   unlinkParentChild(ownerId, targetId);
+      return;
+    }
+    // 🔗 기존 Intent 연결 (팝오버)
+    const linkBtn = e.target.closest('[data-link-rel-of]');
+    if (linkBtn) {
+      e.stopPropagation();
+      if (!store || !store.token) { tokenModal.showModal(); return; }
+      const ownerId = linkBtn.dataset.linkRelOf;
+      const kind    = linkBtn.dataset.linkRelKind;
+      if (popoverState && popoverState.ownerId === ownerId && popoverState.kind === kind) {
+        closeLinkPopover();
+      } else {
+        closeLinkPopover();
+        openLinkPopover(ownerId, kind, linkBtn);
+      }
+      return;
+    }
+    // ＋ 새 자식 Intent 생성 (기존 동작)
     const addBtn = e.target.closest('[data-add-child-of]');
     if (addBtn) {
       e.stopPropagation();
@@ -1156,6 +1661,7 @@
         parents: [parentId], children: [], tags: [], baseVersion: null }, true);
       return;
     }
+    // ✎ 편집
     const btn = e.target.closest('[data-edit-id]');
     if (!btn) return;
     e.stopPropagation();
