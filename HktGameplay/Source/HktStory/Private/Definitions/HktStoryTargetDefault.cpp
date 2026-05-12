@@ -55,9 +55,9 @@ namespace HktStoryTargetDefault
 
 		B	.CancelOnDuplicate()
 
-			// Target이 Invalid이면 voxel/빈공간 분기로
+			// Target이 Invalid이면 이동
 			.CmpEqConst(Flag, Target, InvalidEntityId)
-			.JumpIf(Flag, TEXT("check_voxel"))
+			.JumpIf(Flag, TEXT("dispatch_move"))
 
 			// Target의 ItemId 확인
 			.LoadStoreEntity(r0, Target, PropertyId::ItemId)
@@ -140,20 +140,6 @@ namespace HktStoryTargetDefault
 
 		.Label(TEXT("npc_done"))
 			.Halt()
-
-		.Label(TEXT("check_voxel"))
-			// Target 이 InvalidEntityId 일 때 — 빈 공간 클릭 또는 voxel 클릭.
-			// Event.Location 에서 voxel TypeID 를 결정론적으로 조회한다 (서버 권위).
-			//   0 = 빈 공간/미로드 청크    → 단순 이동
-			//   >0 = solid voxel 클릭     → 현재는 이동만, 후속 op (채굴/파괴) 의 분기점
-			// 클라가 voxel 인지 빈 공간인지 단언하지 않음 — TerrainState 가 단일 진실 출처.
-			.GetVoxelTypeAtEventLocation(r0)
-			.CmpGtConst(Flag, r0, 0)
-			.JumpIfNot(Flag, TEXT("dispatch_move"))
-
-			// solid voxel — 후속 확장 지점 (TypeID 별 분기 / 채굴 / 파괴 / 인접 voxel 이동)
-			.Log(TEXT("TargetDefault: voxel 클릭 → 위치로 이동"))
-			// (Fallthrough)
 
 		.Label(TEXT("dispatch_move"))
 			// 이동 디스패치

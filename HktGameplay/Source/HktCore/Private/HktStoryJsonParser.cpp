@@ -1358,6 +1358,12 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
     RegisterCommandV2(TEXT("GetTerrainHeight"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
         B.GetTerrainHeight(A.GetVar(B, TEXT("dst")), A.GetVar(B, TEXT("voxelX")), A.GetVar(B, TEXT("voxelY")));
     });
+    RegisterCommandV2(TEXT("GetVoxelTypeAtEventLocation"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        // Event.Location(cm) → floor(/VoxelSizeCm) → TerrainState.GetVoxelType. dst 에 TypeID 적재.
+        // 0 = 빈 공간/미로드 청크. Selection 의 voxel-target sentinel 이 RPC 에서 풀린 뒤
+        // 서버 권위로 voxel 을 재조회하는 단일 진입점.
+        B.GetVoxelTypeAtEventLocation(A.GetVar(B, TEXT("dst")));
+    });
 
     // ---- Presentation (보강) ----
     RegisterCommandV2(TEXT("PlayVFXAtEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {

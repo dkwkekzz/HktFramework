@@ -9,7 +9,7 @@
   },
   "steps": [
     { "op": "CmpEqConst", "dst": "Flag", "src": "Target", "value": -1 },
-    { "op": "JumpIf", "cond": "Flag", "label": "dispatch_move" },
+    { "op": "JumpIf", "cond": "Flag", "label": "check_voxel" },
 
     { "op": "LoadStoreEntity", "dst": {"var":"itemId"}, "entity": "Target", "property": "ItemId" },
     { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"itemId"}, "value": 0 },
@@ -79,6 +79,13 @@
 
     { "op": "Label", "name": "npc_done" },
     { "op": "Halt" },
+
+    { "op": "Label", "name": "check_voxel" },
+    { "op": "GetVoxelTypeAtEventLocation", "dst": {"var":"voxelType"} },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"voxelType"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "dispatch_move" },
+
+    { "op": "Log", "message": "TargetAction: voxel 클릭 → 위치로 이동 (후속 채굴/파괴 분기점)" },
 
     { "op": "Label", "name": "dispatch_move" },
     { "op": "Log", "message": "TargetAction: 이동" },
