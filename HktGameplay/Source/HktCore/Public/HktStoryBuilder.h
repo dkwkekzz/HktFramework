@@ -36,6 +36,23 @@ struct FHktWorldState;
 struct FHktEvent;
 class FHktStoryBuilder;
 
+/**
+ * EHktSpawnPattern — `SpawnEntityAround` 의 분포 정책.
+ *
+ *  - Circle:        Center 중심 Radius 원주에 균등 배치.
+ *  - Line:          Center 에서 일정 간격 직선 배치.
+ *  - RandomSeeded:  SlotHash + RandomInt 결정론적 jitter 로 분산 배치.
+ *
+ * 본 enum 은 *Builder 매개변수* — 신규 opcode 가 아니다 (TerrainSpawner.design.md §1-3, §4-b).
+ * Builder 가 기존 opcode (SpawnEntity, SetPosition, RandomInt, Add 등) 를 조합해 emit 한다.
+ */
+enum class EHktSpawnPattern : uint8
+{
+    Circle,
+    Line,
+    RandomSeeded,
+};
+
 // ============================================================================
 // FHktVar / FHktVarBlock — 신 가상 변수 API (PR-2)
 // ============================================================================
@@ -252,6 +269,35 @@ public:
     FHktVar IterVar();      // ForEach 순회 슬롯
     FHktVar FlagVar();      // 비교/카운트 결과 슬롯
 
+    // ----- Spawner Context (Spawner-bound Story 전용) -----
+    //
+    // 본 메서드들은 Story 가 spawner story 인스턴스로 시작될 때 VM 이 prefill 하는
+    // entry-arg vreg 를 반환한다. 같은 빌더 내에서 동일 메서드 재호출 시 캐시된 vreg 가
+    // 그대로 반환된다 (라이브니스 분석/할당기 안정성을 위해).
+    //
+    // TerrainSpawner.design.md §4-a 컴플라이언스:
+    //  - `Reg::` 네임스페이스/RegisterIndex 신규 의미 부여 금지 (D1/D3) — 본 메서드는
+    //    `NewEntryArgSlot()` 가 발급한 anonymous vreg 만 반환한다.
+    //  - 신규 OpCode 없음 (§1-3) — 빌더 메서드 추가 + entry-arg vreg 표식만으로 표현.
+
+    /** Spawner 위치 (X, Y, Z) — 3-슬롯 entry-arg 블록. spawner-bound Story 에서만 의미 있음. */
+    FHktVarBlock SpawnerOrigin();
+
+    /** Spawner 베이크 시점 biome id. */
+    FHktVar SpawnerBiome();
+
+    /** Spawner 결정론 ID (RandomInt seed 결합에 사용). */
+    FHktVar SpawnerSlotHash();
+
+    /**
+     * 사용자 정의 정수 EntryArg — 이름으로 조회. 동일 이름 재호출 시 캐시된 vreg 반환.
+     * 미존재 인스턴스 인자에 대해서는 VM 측이 기본값 0 으로 prefill 한다.
+     */
+    FHktVar EntryArgInt(FName Name);
+
+    /** 사용자 정의 GameplayTag EntryArg — int 키로 NetIndex 가 prefill 된다. */
+    FHktVar EntryArgTag(FName Name);
+
     /**
      * 같은 이름은 같은 VReg 로 해석 — JSON `{"var":"name"}` 폼이 사용한다.
      * 이름이 처음 등장하면 anonymous VReg 를 생성한다.
@@ -305,6 +351,29 @@ public:
      * 이름이 SpawnEntity 와 동일하면 반환형만 다른 오버로드(불가) 가 되므로 별명으로 분리.
      */
     FHktVar SpawnEntityVar(const FGameplayTag& ClassTag);
+
+    /**
+     * 지정 위치에 단일 엔티티 spawn.
+     *  - 내부적으로 `SpawnEntity(ClassTag)` + `SetPosition(Spawned, Position)` 을 emit.
+     *  - 신규 opcode 추가 없음 (TerrainSpawner.design.md §1-3, §4-b).
+     * @return spawned entity 의 vreg 핸들.
+     */
+    FHktVar SpawnEntityAt(const FGameplayTag& EntityTag, FHktVarBlock Position);
+
+    /**
+     * 중심점 주변에 CountCompile 개 엔티티를 분포 패턴에 맞게 spawn.
+     *  - `Pattern`: Circle/Line/RandomSeeded.
+     *  - `RadiusRaw`: FHktFixed32 raw 반지름 (cm 단위) 를 담은 vreg.
+     *  - 본 헬퍼는 컴파일 타임에 Count 가 결정되는 케이스만 지원 — 동적 count 가 필요하면
+     *    호출자가 명시적인 Repeat/Counter 루프를 직접 구성한다.
+     *  - 신규 opcode 추가 없음 — SpawnEntity/SetPosition/RandomInt/Add 조합 emit.
+     * @return 마지막으로 spawn 된 엔티티 vreg (반복 spawn 의 최종 결과).
+     */
+    FHktVar SpawnEntityAround(const FGameplayTag& EntityTag,
+                              FHktVarBlock Center,
+                              FHktVar RadiusRaw,
+                              int32 CountCompile,
+                              EHktSpawnPattern Pattern);
 
     FHktStoryBuilder& DestroyEntity(FHktVar Entity);
 
@@ -909,6 +978,16 @@ private:
     // Base VReg + Count 를 보관하여 같은 이름 호출 시 동일 블록을 재사용한다.
     struct FNamedBlockEntry { FHktVRegHandle Base; int32 Count; };
     TMap<FString, FNamedBlockEntry> NamedBlockMap;
+
+    // ----- Spawner Context 캐시 (TerrainSpawner.design.md §4-a) -----
+    // 한 빌더 내에서 SpawnerOrigin/Biome/SlotHash 는 단 한 번씩만 vreg 를 발급해야 한다.
+    // 매 호출마다 새로 발급하면 entry-arg vreg 가 중복 생성되어 라이브니스/할당기 비용이 증가한다.
+    FHktVRegHandle SpawnerOriginBaseVReg = -1;
+    int32 SpawnerOriginCount = 0;
+    FHktVRegHandle SpawnerBiomeVReg = -1;
+    FHktVRegHandle SpawnerSlotHashVReg = -1;
+    // 사용자 정의 entry-arg — 이름별 vreg 매핑. Int/Tag 모두 같은 맵 사용 (이름 충돌은 호출자 책임).
+    TMap<FName, FHktVRegHandle> NamedEntryArgMap;
 
     // Flow 모드 — Self/Target 엔티티 없음
     bool bFlowMode = false;

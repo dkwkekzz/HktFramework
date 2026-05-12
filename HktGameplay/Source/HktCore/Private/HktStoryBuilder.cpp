@@ -2043,6 +2043,165 @@ FHktStoryBuilder& FHktStoryBuilder::WaitGrounded(FHktVar Entity)
 }
 
 // ============================================================================
+// Spawner Context (TerrainSpawner.design.md §4-a)
+//
+// 본 메서드들은 entry-arg vreg 를 발급하고 캐시한다. 동일 빌더 내에서 재호출 시
+// 같은 vreg 를 그대로 반환하여 prefill 의 단일 정의(definition) 를 보장한다.
+//
+// VM 측 prefill 은 M2 (StartInstance) 에서 wiring 된다 — 현 단계는 API 표면과
+// vreg 라이브니스 표식만 도입.
+// ============================================================================
+
+FHktVarBlock FHktStoryBuilder::SpawnerOrigin()
+{
+    if (SpawnerOriginBaseVReg < 0)
+    {
+        SpawnerOriginCount = 3;
+        SpawnerOriginBaseVReg =
+            ActiveSection->RegPool.NewEntryArgSlotBlock(SpawnerOriginCount, TEXT("SpawnerOrigin"));
+    }
+    return FHktVarBlock(SpawnerOriginBaseVReg, SpawnerOriginCount);
+}
+
+FHktVar FHktStoryBuilder::SpawnerBiome()
+{
+    if (SpawnerBiomeVReg < 0)
+    {
+        SpawnerBiomeVReg = ActiveSection->RegPool.NewEntryArgSlot(TEXT("SpawnerBiome"));
+    }
+    return FHktVar(SpawnerBiomeVReg);
+}
+
+FHktVar FHktStoryBuilder::SpawnerSlotHash()
+{
+    if (SpawnerSlotHashVReg < 0)
+    {
+        SpawnerSlotHashVReg = ActiveSection->RegPool.NewEntryArgSlot(TEXT("SpawnerSlotHash"));
+    }
+    return FHktVar(SpawnerSlotHashVReg);
+}
+
+FHktVar FHktStoryBuilder::EntryArgInt(FName Name)
+{
+    if (const FHktVRegHandle* Found = NamedEntryArgMap.Find(Name))
+    {
+        return FHktVar(*Found);
+    }
+    const FHktVRegId Id = ActiveSection->RegPool.NewEntryArgSlot(*Name.ToString());
+    NamedEntryArgMap.Add(Name, Id);
+    return FHktVar(Id);
+}
+
+FHktVar FHktStoryBuilder::EntryArgTag(FName Name)
+{
+    // Tag entry-arg 도 동일한 vreg 슬롯에 NetIndex(int32) 로 prefill 된다 —
+    // 이름 충돌은 호출자 책임 (Int/Tag 이름 공간을 분리할지는 archetype 단계에서 결정).
+    if (const FHktVRegHandle* Found = NamedEntryArgMap.Find(Name))
+    {
+        return FHktVar(*Found);
+    }
+    const FHktVRegId Id = ActiveSection->RegPool.NewEntryArgSlot(*Name.ToString());
+    NamedEntryArgMap.Add(Name, Id);
+    return FHktVar(Id);
+}
+
+// ============================================================================
+// SpawnEntityAt / SpawnEntityAround (TerrainSpawner.design.md §4-b)
+//
+// 신규 opcode 추가 없이 기존 opcode 조합으로 expansion.
+// SpawnEntity → SetPosition → (반복 시) Add 로 오프셋 적용.
+// ============================================================================
+
+FHktVar FHktStoryBuilder::SpawnEntityAt(const FGameplayTag& EntityTag, FHktVarBlock Position)
+{
+    check(Position.Num() >= 3);
+    FHktVar Spawned = SpawnEntityVar(EntityTag);
+    SetPosition(Spawned, Position);
+    return Spawned;
+}
+
+FHktVar FHktStoryBuilder::SpawnEntityAround(const FGameplayTag& EntityTag,
+                                            FHktVarBlock Center,
+                                            FHktVar RadiusRaw,
+                                            int32 CountCompile,
+                                            EHktSpawnPattern Pattern)
+{
+    check(Center.Num() >= 3);
+    check(CountCompile > 0);
+
+    // 각 슬롯의 위치는 Center + (OffsetX, OffsetY, 0) 으로 표현한다.
+    // Pattern 별 OffsetX/Y 산출 방식:
+    //  - Circle: 컴파일 시 sin/cos 정수화 (단위: 반경 1cm = 1 단위) — Radius 스케일링은
+    //            본 스캐폴드에선 LoadConst 정수로 베이크 (radius vreg 와의 Q16.16 곱셈은
+    //            M4 archetype JSON 에서 정밀 처리).
+    //  - Line:   X 축 등간격, Y=0.
+    //  - RandomSeeded: 런타임 RandomInt(RadiusRaw modulus) → 양/음 jitter 위해 Sub 로 중심화.
+    //
+    // 모든 패턴은 동일 vreg 를 재사용해 라이브니스 비용을 최소화.
+    FHktVar Spawned = FHktVar();
+    FHktVarBlock SlotPos = NewVarBlock(3, TEXT("SpawnAround.SlotPos"));
+    FHktVar OffX = NewVar(TEXT("SpawnAround.OffX"));
+    FHktVar OffY = NewVar(TEXT("SpawnAround.OffY"));
+
+    // RandomSeeded 모드 전용 보조 — Radius 와 Half 를 캐시.
+    FHktVar HalfRange = FHktVar();
+    if (Pattern == EHktSpawnPattern::RandomSeeded)
+    {
+        // Modulus = RadiusRaw * 2 → 결과 ∈ [0, 2R), Sub R 로 [-R, R) 로 중심화.
+        // RadiusRaw 의 단위(Q16.16) 이슈는 본 스캐폴드에서는 raw 정수로 다루므로
+        // 호출자가 RadiusCm raw 정수를 직접 넘기는 것을 권장.
+        HalfRange = NewVar(TEXT("SpawnAround.HalfRange"));
+        Move(HalfRange, RadiusRaw);
+    }
+
+    for (int32 i = 0; i < CountCompile; ++i)
+    {
+        switch (Pattern)
+        {
+        case EHktSpawnPattern::Circle:
+        {
+            const float Angle = (2.0f * PI * static_cast<float>(i)) / static_cast<float>(CountCompile);
+            // 100 단위 = 1m. M4 에서 RadiusRaw 결합 시 정밀화 예정.
+            const int32 OffXConst = FMath::RoundToInt(100.0f * FMath::Cos(Angle));
+            const int32 OffYConst = FMath::RoundToInt(100.0f * FMath::Sin(Angle));
+            LoadConst(OffX, OffXConst);
+            LoadConst(OffY, OffYConst);
+            break;
+        }
+        case EHktSpawnPattern::Line:
+        {
+            const int32 Half = CountCompile / 2;
+            const int32 OffXConst = (i - Half) * 100;
+            LoadConst(OffX, OffXConst);
+            LoadConst(OffY, 0);
+            break;
+        }
+        case EHktSpawnPattern::RandomSeeded:
+        default:
+        {
+            // [0, 2R) → -R 보정으로 [-R, R) 분포 (결정론 — SlotHash 가 RNG seed 로 결합되면
+            // 동일 spawner 는 매번 동일 출력).
+            FHktVar Modulus = NewVar(TEXT("SpawnAround.Modulus"));
+            Add(Modulus, RadiusRaw, RadiusRaw);
+            RandomInt(OffX, Modulus);
+            Sub(OffX, OffX, HalfRange);
+            RandomInt(OffY, Modulus);
+            Sub(OffY, OffY, HalfRange);
+            break;
+        }
+        }
+
+        Add(SlotPos.Element(0), Center.Element(0), OffX);
+        Add(SlotPos.Element(1), Center.Element(1), OffY);
+        Move(SlotPos.Element(2), Center.Element(2));
+
+        Spawned = SpawnEntityAt(EntityTag, SlotPos);
+    }
+
+    return Spawned;
+}
+
+// ============================================================================
 // Public Query API
 // ============================================================================
 

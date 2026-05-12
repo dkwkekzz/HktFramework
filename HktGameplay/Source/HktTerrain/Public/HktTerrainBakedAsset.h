@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "HktTerrainBakedAsset.generated.h"
@@ -126,6 +127,70 @@ struct HKTTERRAIN_API FHktTerrainBakedConfig
 };
 
 /**
+ * FHktTerrainSpawnerSpec — 청크 단위로 베이크된 spawner 인스턴스 명세.
+ *
+ * 각 spawner 는 (위치, Story 인스턴스) 쌍으로 표현된다. 스폰 패턴(웨이브/매복/패트롤 등)은
+ * 전부 `StoryTag` 가 가리키는 Schema 2 Story 바이트코드로 표현되며, 본 구조체는 위치/인덱싱/
+ * Story 진입 인자만 보유한다.
+ *
+ * 결정론 규칙:
+ *   - 위치는 `FHktFixed32` raw (Q16.16) 로 저장. UE float 누설 금지.
+ *   - 진입 인자는 `int32`(fixed-point) 또는 `FGameplayTag` 만 허용. `float` 금지(O4).
+ *   - `SlotHash` 는 `hash(ChunkCoord, SlotIndex)` 결과 — RNG seed 로 사용 시 재로드 시
+ *     동일한 출현이 보장된다.
+ *
+ * V2 컴플라이언스: 본 구조체는 USTRUCT POD 로, `EHktSpawnRule` 등 enum 룰 폐기 이후의
+ * 단일 진실 데이터다. UObject 의존 0(단순 직렬화 DTO).
+ */
+USTRUCT()
+struct HKTTERRAIN_API FHktTerrainSpawnerSpec
+{
+	GENERATED_BODY()
+
+	// ─── 결정론 위치 (FHktFixed32 raw, Q16.16) ───
+
+	UPROPERTY()
+	int32 PosXRaw = 0;
+
+	UPROPERTY()
+	int32 PosYRaw = 0;
+
+	UPROPERTY()
+	int32 PosZRaw = 0;
+
+	// ─── 행동 ───
+
+	/** 실행할 Story (반드시 schema 2). 미존재 시 베이크 실패. */
+	UPROPERTY()
+	FGameplayTag StoryTag;
+
+	/** Story 진입 인자 — fixed-point 정수만 허용. 부동소수 금지. */
+	UPROPERTY()
+	TMap<FName, int32> EntryArgsInt;
+
+	/** Story 진입 인자 — GameplayTag 형. */
+	UPROPERTY()
+	TMap<FName, FGameplayTag> EntryArgsTag;
+
+	// ─── 인덱싱 / 검증 ───
+
+	UPROPERTY()
+	FIntVector ChunkCoord = FIntVector::ZeroValue;
+
+	/** 결정론 ID: hash(ChunkCoord, SlotIndex). RNG seed/충돌 검증에 사용. */
+	UPROPERTY()
+	uint32 SlotHash = 0;
+
+	/** 베이크 시점 biome (런타임 검증). */
+	UPROPERTY()
+	int32 BiomeId = 0;
+
+	/** 컨텍스트 태그 ("near_cave_entrance", "mountain_peak" 등). */
+	UPROPERTY()
+	FGameplayTagContainer ContextTags;
+};
+
+/**
  * FHktTerrainBakedChunk — 단일 청크의 압축된 복셀 데이터.
  *
  * `FHktTerrainVoxel`(4바이트) × 32768 = 128KB raw 가 oodle 압축되어 CompressedData 에 저장된다.
@@ -163,8 +228,13 @@ class HKTTERRAIN_API UHktTerrainBakedAsset : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	/** 베이크 자산 포맷 버전. 호환되지 않는 변경 시 +1 후 자산 재베이크 강제. */
-	static constexpr int32 CurrentBakeVersion = 1;
+	/**
+	 * 베이크 자산 포맷 버전. 호환되지 않는 변경 시 +1 후 자산 재베이크 강제.
+	 *
+	 *  - v1: 청크 복셀 + GeneratorConfig.
+	 *  - v2: Spawners[] 추가 — Story 인스턴스 메타 (TerrainSpawner.design.md §3-b).
+	 */
+	static constexpr int32 CurrentBakeVersion = 2;
 
 	/** 베이크 시 캡처된 생성기 설정. 폴백 호출 시 동일 설정 재사용 → 결정론 유지. */
 	UPROPERTY(EditAnywhere, Category = "Bake")
@@ -183,6 +253,13 @@ public:
 	/** 모든 베이크 청크. 좌표 인덱스는 PostLoad 에서 빌드. */
 	UPROPERTY()
 	TArray<FHktTerrainBakedChunk> Chunks;
+
+	/**
+	 * 모든 베이크 spawner. 청크 좌표 인덱스는 PostLoad/RebuildIndex 에서 빌드.
+	 * v1 자산에서 로드 시 빈 배열로 시작 → 재베이크 시 채워진다.
+	 */
+	UPROPERTY()
+	TArray<FHktTerrainSpawnerSpec> Spawners;
 
 	// UObject ----------------------------------------------------------------
 	virtual void PostLoad() override;
@@ -203,7 +280,20 @@ public:
 	/** 좌표가 베이크 영역 내인지 (영역 메타만 체크 — 실제 데이터 존재는 FindChunk). */
 	bool IsCoordInBakedRegion(const FIntVector& Coord) const;
 
+	/**
+	 * 청크 좌표의 모든 spawner 스펙을 OutSpawners 에 append 한다.
+	 * 청크 미존재(spawner 없음) 시 OutSpawners 는 그대로 유지된다.
+	 */
+	void GetSpawnersForChunk(const FIntVector& Coord,
+	                         TArray<const FHktTerrainSpawnerSpec*>& OutSpawners) const;
+
 private:
 	/** 좌표 → Chunks 배열 인덱스 (메모리 매핑). 비직렬화. */
 	TMap<FIntVector, int32> CoordToIndex;
+
+	/**
+	 * 청크 좌표 → Spawners 배열 인덱스 (다중매핑). 비직렬화.
+	 * 한 청크가 N 개의 spawner 슬롯을 가질 수 있으므로 TMultiMap.
+	 */
+	TMultiMap<FIntVector, int32> ChunkCoordToSpawnerIndex;
 };

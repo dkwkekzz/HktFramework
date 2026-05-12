@@ -78,6 +78,18 @@ struct FHktVRegMeta
     int32 FirstDef = INT32_MAX;      // 최초 정의된 VInst 인덱스
     int32 LastUse = -1;              // 마지막 사용 VInst 인덱스
 
+    /**
+     * Entry-arg slot 마크 — Spawner-bound Story 의 진입 인자 (Origin/Biome/SlotHash/사용자 args)
+     * 가 VM 시작 시 prefill 되는 vreg 임을 표식한다.
+     *
+     *  - Linear-Scan 할당기는 entry-arg vreg 의 라이브니스를 entry 시점부터로 보고
+     *    GP 레지스터를 우선 점유한다 (M2 에서 wiring).
+     *  - VM 인스턴스 시작 시 `FHktStoryEntryArgs` 를 해당 GP 레지스터에 prefill 한다.
+     *  - 이름(EntryArgInt/Tag 의 `FName Name`)은 빌더의 NamedEntryArgMap 에서 보관 —
+     *    여기는 메타데이터(라이브니스/배치)에만 관여한다.
+     */
+    bool bIsEntryArgSlot = false;
+
     // 디버그/오류 메시지용 — 할당 실패 진단을 돕는다 (결정론에 영향 없음).
     FString DebugName;
 };
@@ -159,6 +171,46 @@ struct FHktVRegPool
         check(Index >= 0 && Index < Metas[BaseId].BlockSize);
         // 베이스 직후에 멤버들이 연속 추가되었으므로 BaseId + Index 가 멤버 VReg ID 이다.
         return BaseId + Index;
+    }
+
+    /**
+     * Entry-arg slot 단일 anonymous VReg 생성 (bIsEntryArgSlot=true).
+     * VM 시작 시 `FHktStoryEntryArgs` 로 prefill 되는 슬롯이다.
+     */
+    FHktVRegId NewEntryArgSlot(const TCHAR* DebugName = nullptr)
+    {
+        FHktVRegMeta Meta;
+        Meta.PinnedPhysical = -1;
+        Meta.bIsEntryArgSlot = true;
+        if (DebugName) Meta.DebugName = DebugName;
+        return Metas.Add(Meta);
+    }
+
+    /**
+     * Entry-arg slot 블록 (N개 연속) 생성. SpawnerOrigin 처럼 X/Y/Z 3-슬롯이 prefill 될 때 사용.
+     * 모든 멤버에 bIsEntryArgSlot=true 가 부여된다.
+     */
+    FHktVRegId NewEntryArgSlotBlock(int32 Count, const TCHAR* DebugName = nullptr)
+    {
+        check(Count > 0 && Count <= NumPhysicalRegs);
+        FHktVRegMeta BaseMeta;
+        BaseMeta.PinnedPhysical = -1;
+        BaseMeta.bIsBlockBase = true;
+        BaseMeta.BlockSize = Count;
+        BaseMeta.bIsEntryArgSlot = true;
+        if (DebugName) BaseMeta.DebugName = DebugName;
+        const FHktVRegId BaseId = Metas.Add(BaseMeta);
+        for (int32 i = 1; i < Count; ++i)
+        {
+            FHktVRegMeta Member;
+            Member.PinnedPhysical = -1;
+            Member.BlockBaseVReg = BaseId;
+            Member.BlockOffset = i;
+            Member.bIsEntryArgSlot = true;
+            if (DebugName) Member.DebugName = FString::Printf(TEXT("%s[%d]"), DebugName, i);
+            Metas.Add(Member);
+        }
+        return BaseId;
     }
 
     /** VReg → 물리 레지스터 인덱스 (-1이면 미할당) */

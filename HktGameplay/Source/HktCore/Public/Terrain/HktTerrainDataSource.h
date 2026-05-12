@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Map.h"
+#include "GameplayTagContainer.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/Function.h"
+#include "UObject/NameTypes.h"
 
 /**
  * IHktTerrainDataSource
@@ -19,6 +22,36 @@
  *   - HktCore 는 지형 데이터 생성에 관여하지 않는다 — 인터페이스 통한 소비만 허용.
  *   - HktCore → HktTerrain 의존 금지. 따라서 인스턴스 생성은 팩토리 등록 패턴으로 우회.
  */
+/**
+ * FHktTerrainSpawnerView — HktCore 측 POD 뷰.
+ *
+ * HktTerrain 의 `FHktTerrainSpawnerSpec`(USTRUCT) 을 HktCore 가 직접 참조하면
+ * `HktCore → HktTerrain` 역의존이 발생하므로, 본 plain POD 로 데이터만 복사해서 전달한다.
+ *
+ *  - 위치는 `FHktFixed32` raw (Q16.16).
+ *  - 진입 인자는 `int32`/`FGameplayTag` 만 — float 금지(결정론 보호).
+ */
+struct HKTCORE_API FHktTerrainSpawnerView
+{
+	// ─── 결정론 위치 (FHktFixed32 raw, Q16.16) ───
+	int32 PosXRaw = 0;
+	int32 PosYRaw = 0;
+	int32 PosZRaw = 0;
+
+	// ─── 행동 ───
+	FGameplayTag StoryTag;
+	TMap<FName, int32> EntryArgsInt;
+	TMap<FName, FGameplayTag> EntryArgsTag;
+
+	// ─── 인덱싱 / 검증 ───
+	int32 ChunkX = 0;
+	int32 ChunkY = 0;
+	int32 ChunkZ = 0;
+	uint32 SlotHash = 0;
+	int32 BiomeId = 0;
+	FGameplayTagContainer ContextTags;
+};
+
 class HKTCORE_API IHktTerrainDataSource
 {
 public:
@@ -29,6 +62,19 @@ public:
 
 	/** 시뮬레이션이 청크 스트리밍, 좌표 변환, VoxelSize 계산에 사용하는 Config */
 	virtual const FHktTerrainGeneratorConfig& GetConfig() const = 0;
+
+	/**
+	 * 청크의 spawner 메타 데이터 — HktCore 는 본 인터페이스로만 spawner 정보를 소비한다.
+	 * 구현체는 OutSpawners 에 append(append-only 시맨틱) 한다. 호출자는 미리 비울 책임.
+	 *
+	 * 기본 구현은 빈 결과(spawner 없음) — spawner 미지원 데이터 소스(예: 순수 Generator 폴백)
+	 * 가 무조건 override 하지 않아도 컴파일/런타임 모두 안전하도록 한다.
+	 */
+	virtual void GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	                              TArray<FHktTerrainSpawnerView>& OutSpawners) const
+	{
+		// no-op — 기본은 spawner 없음
+	}
 };
 
 namespace HktTerrain

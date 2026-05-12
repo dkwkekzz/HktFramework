@@ -100,6 +100,13 @@ void UHktTerrainBakedAsset::RebuildIndex()
 	{
 		CoordToIndex.Add(Chunks[i].Coord, i);
 	}
+
+	ChunkCoordToSpawnerIndex.Reset();
+	ChunkCoordToSpawnerIndex.Reserve(Spawners.Num());
+	for (int32 i = 0; i < Spawners.Num(); ++i)
+	{
+		ChunkCoordToSpawnerIndex.Add(Spawners[i].ChunkCoord, i);
+	}
 }
 
 const FHktTerrainBakedChunk* UHktTerrainBakedAsset::FindChunk(const FIntVector& Coord) const
@@ -152,4 +159,19 @@ bool UHktTerrainBakedAsset::IsCoordInBakedRegion(const FIntVector& Coord) const
 	return Coord.X >= RegionMin.X && Coord.X <= RegionMax.X
 	    && Coord.Y >= RegionMin.Y && Coord.Y <= RegionMax.Y
 	    && Coord.Z >= RegionMin.Z && Coord.Z <= RegionMax.Z;
+}
+
+void UHktTerrainBakedAsset::GetSpawnersForChunk(const FIntVector& Coord,
+                                                TArray<const FHktTerrainSpawnerSpec*>& OutSpawners) const
+{
+	TArray<int32> Indices;
+	ChunkCoordToSpawnerIndex.MultiFind(Coord, Indices);
+	OutSpawners.Reserve(OutSpawners.Num() + Indices.Num());
+	for (int32 Idx : Indices)
+	{
+		if (Spawners.IsValidIndex(Idx))
+		{
+			OutSpawners.Add(&Spawners[Idx]);
+		}
+	}
 }
