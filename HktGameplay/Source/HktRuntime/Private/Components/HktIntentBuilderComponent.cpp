@@ -45,11 +45,30 @@ void UHktIntentBuilderComponent::SetTarget(FHktEntityId InTarget, FVector InLoca
     TargetLocation = InLocation;
 }
 
+void UHktIntentBuilderComponent::SetVoxelTarget(const FHktVoxelSelection& InVoxel)
+{
+    VoxelTarget = InVoxel;
+    HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+        FString::Printf(TEXT("SetVoxelTarget Valid=%d Coord=(%d,%d,%d) TypeID=%u Center=(%.0f,%.0f,%.0f)"),
+            InVoxel.bValid,
+            InVoxel.VoxelCoord.X, InVoxel.VoxelCoord.Y, InVoxel.VoxelCoord.Z,
+            static_cast<uint32>(InVoxel.TypeID),
+            InVoxel.WorldCenter.X, InVoxel.WorldCenter.Y, InVoxel.WorldCenter.Z));
+}
+
+void UHktIntentBuilderComponent::ClearVoxelTarget()
+{
+    VoxelTarget = FHktVoxelSelection{};
+}
+
 void UHktIntentBuilderComponent::ResetCommand()
 {
     EventTag = FGameplayTag();
     TargetEntityId = InvalidEntityId;
     TargetLocation = FVector::ZeroVector;
+    // 주의: VoxelTarget 은 ResetCommand 에서 클리어하지 않는다.
+    //  - 슬롯 액션을 위한 일시적 커맨드 상태와 달리, voxel target 은 RMB 로 명시 선택된 상태.
+    //  - 새 Subject (LMB) 선택 시 Rule 이 ClearVoxelTarget 으로 명시적으로 해제.
     bTargetRequired = true;
     CommandSlotIndex = -1;
 }

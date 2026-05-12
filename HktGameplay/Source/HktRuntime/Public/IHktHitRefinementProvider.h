@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "HktVoxelSelection.h"
 #include "IHktHitRefinementProvider.generated.h"
 
 UINTERFACE(MinimalAPI)
@@ -35,4 +36,18 @@ public:
 		const FVector& TraceDir,
 		const FHitResult& CoarseHit,
 		FHitResult& OutRefinedHit) const = 0;
+
+	/**
+	 * 트레이스가 단일 복셀에 적중했을 때 그 복셀 정보를 채워 반환한다.
+	 * 기본 구현은 false (복셀이 아닌 일반 액터). 복셀 지형이 override.
+	 *
+	 * @param TraceStart    월드 좌표 ray 시작점
+	 * @param TraceDir      정규화된 ray 방향
+	 * @param OutVoxel      적중한 복셀 정보 (성공 시 bValid=true)
+	 * @return true = solid voxel 발견
+	 */
+	virtual bool TryGetVoxelHit(
+		const FVector& TraceStart,
+		const FVector& TraceDir,
+		FHktVoxelSelection& OutVoxel) const { OutVoxel = FHktVoxelSelection{}; return false; }
 };

@@ -215,6 +215,9 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
         HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
             FString::Printf(TEXT("OnSubjectAction SubjectEntityId=%d"), CachedIntentBuilder->GetSubjectEntityId()),
             CachedIntentBuilder->GetSubjectEntityId());
+
+        // Rule 이 다른 Entity LMB 시 ClearVoxelTarget 을 호출했을 수 있다 — 항상 현재 상태 broadcast.
+        VoxelTargetChangedDelegate.Broadcast(CachedIntentBuilder->GetVoxelTarget());
     }
 }
 
@@ -232,6 +235,7 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
     if (CachedIntentBuilder)
     {
         TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
+        VoxelTargetChangedDelegate.Broadcast(CachedIntentBuilder->GetVoxelTarget());
 
         // Rule이 빌드한 이벤트가 있으면 전송
         if (CachedIntentBuilder->HasPendingRuntimeEvent())

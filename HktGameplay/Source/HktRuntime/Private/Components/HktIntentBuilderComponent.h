@@ -45,6 +45,10 @@ public:
     virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) override;
     virtual void SetCommandSlot(int32 InSlotIndex) override;
     virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) override;
+    virtual void SetVoxelTarget(const FHktVoxelSelection& InVoxel) override;
+    virtual void ClearVoxelTarget() override;
+    virtual bool HasVoxelTarget() const override { return VoxelTarget.bValid; }
+    virtual const FHktVoxelSelection& GetVoxelTarget() const override { return VoxelTarget; }
     virtual void ResetCommand() override;
     virtual bool IsReadyToSubmit() const override;
     virtual bool Submit() override;
@@ -68,6 +72,7 @@ private:
     FGameplayTag EventTag;
     FHktEntityId TargetEntityId = InvalidEntityId;
     FVector TargetLocation = FVector::ZeroVector;
+    FHktVoxelSelection VoxelTarget;          // bValid=false 이면 voxel target 없음
     bool bTargetRequired = true;
     int32 CommandSlotIndex = -1;
 

@@ -21,7 +21,17 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
+#include "DrawDebugHelpers.h"
+#include "HAL/IConsoleManager.h"
 
+
+// hkt.selection.debug.draw 0|1 — Subject/Target/Voxel 선택 상태 디버그 드로우 토글.
+// 기본 ON: 시각화 1단계가 DebugDraw 자체이므로 토글로 끄지 않는 한 항상 표시.
+static TAutoConsoleVariable<int32> CVarSelectionDebugDraw(
+	TEXT("hkt.selection.debug.draw"),
+	1,
+	TEXT("Draw Subject/Target/Voxel selection markers via DrawDebug (0=off, 1=on)."),
+	ECVF_Default);
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
@@ -117,6 +127,8 @@ void UHktPresentationSubsystem::BindInteraction(IHktPlayerInteractionInterface* 
 			this, &UHktPresentationSubsystem::OnSubjectChanged);
 		TargetChangedHandle = BoundInteraction->OnTargetChanged().AddUObject(
 			this, &UHktPresentationSubsystem::OnTargetChanged);
+		VoxelTargetChangedHandle = BoundInteraction->OnVoxelTargetChanged().AddUObject(
+			this, &UHktPresentationSubsystem::OnVoxelTargetChanged);
 
 		if (!TickHandle.IsValid())
 		{
@@ -153,6 +165,11 @@ void UHktPresentationSubsystem::UnbindInteraction()
 		{
 			BoundInteraction->OnTargetChanged().Remove(TargetChangedHandle);
 			TargetChangedHandle.Reset();
+		}
+		if (VoxelTargetChangedHandle.IsValid())
+		{
+			BoundInteraction->OnVoxelTargetChanged().Remove(VoxelTargetChangedHandle);
+			VoxelTargetChangedHandle.Reset();
 		}
 	}
 	if (TickHandle.IsValid())
@@ -350,6 +367,12 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	// 디버그 패널용 publish — ClearFrameChanges 전에 (이번 프레임 더티 정보 활용)
 	PublishStateToCollector();
 #endif
+
+	// Subject/Target/Voxel 선택 표시 (1단계 시각화 — DebugDraw)
+	if (CVarSelectionDebugDraw.GetValueOnGameThread() != 0)
+	{
+		DrawSelectionDebug();
+	}
 
 	// Processor가 소비한 후 프레임 변경 데이터 정리
 	State.ClearFrameChanges();
@@ -709,5 +732,62 @@ void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 		VFXProcessor->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
 
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));
+	}
+}
+
+void UHktPresentationSubsystem::OnVoxelTargetChanged(const FHktVoxelSelection& NewVoxel)
+{
+	CurrentVoxelTarget = NewVoxel;
+
+	if (NewVoxel.bValid)
+	{
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+			FString::Printf(TEXT("VoxelTarget set Coord=(%d,%d,%d) TypeID=%u Center=(%.0f,%.0f,%.0f)"),
+				NewVoxel.VoxelCoord.X, NewVoxel.VoxelCoord.Y, NewVoxel.VoxelCoord.Z,
+				static_cast<uint32>(NewVoxel.TypeID),
+				NewVoxel.WorldCenter.X, NewVoxel.WorldCenter.Y, NewVoxel.WorldCenter.Z));
+	}
+}
+
+void UHktPresentationSubsystem::DrawSelectionDebug() const
+{
+	const ULocalPlayer* LP = GetLocalPlayer();
+	UWorld* World = LP ? LP->GetWorld() : nullptr;
+	if (!World) return;
+
+	// Subject — 녹색 캡슐 (entity 위치 기준 + 위로 +50)
+	if (CurrentSubjectEntityId != InvalidEntityId)
+	{
+		const FHktTransformView* T = State.GetTransform(CurrentSubjectEntityId);
+		if (T)
+		{
+			const FVector Pos = T->Location.Get();
+			DrawDebugCapsule(World, Pos + FVector(0, 0, 50.f), 60.f, 30.f,
+				FQuat::Identity, FColor::Green, /*bPersistent*/false,
+				/*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/2.f);
+		}
+	}
+
+	// Target Entity — 빨강 구
+	if (CurrentTargetEntityId != InvalidEntityId)
+	{
+		const FHktTransformView* T = State.GetTransform(CurrentTargetEntityId);
+		if (T)
+		{
+			const FVector Pos = T->Location.Get();
+			DrawDebugSphere(World, Pos + FVector(0, 0, 50.f), 40.f, 16,
+				FColor::Red, false, -1.f, 0, 2.f);
+		}
+	}
+
+	// Target Voxel — 빨강 와이어프레임 박스 (VoxelSize 기반 정확한 크기)
+	if (CurrentVoxelTarget.bValid)
+	{
+		const float HalfExtent = (CurrentVoxelTarget.VoxelSize > 0.f)
+			? CurrentVoxelTarget.VoxelSize * 0.5f
+			: 7.5f;  // 폴백: 기본 VoxelSize=15cm 가정
+		DrawDebugBox(World, CurrentVoxelTarget.WorldCenter,
+			FVector(HalfExtent), FColor::Red,
+			false, -1.f, 0, 1.5f);
 	}
 }

@@ -40,7 +40,7 @@ public:
     // === IHktUnitSelectionPolicy 구현 ===
 
     virtual FHktEntityId ResolveSubject() const override;
-    virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const override;
+    virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation, FHktVoxelSelection& OutVoxel) const override;
 
 private:
     bool GetHitUnderCursor(FHitResult& OutHit) const;

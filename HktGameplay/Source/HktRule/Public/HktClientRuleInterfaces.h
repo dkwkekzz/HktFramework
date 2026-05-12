@@ -9,6 +9,7 @@
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
 #include "HktBagTypes.h"
+#include "HktVoxelSelection.h"
 #include "HktClientRuleInterfaces.generated.h"
 
 class IHktWorldPlayer;
@@ -52,6 +53,16 @@ public:
 	virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) = 0;
 	virtual void SetCommandSlot(int32 InSlotIndex) = 0;
 	virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) = 0;
+
+	/** Voxel target 정보를 함께 설정 (RMB 가 voxel terrain 을 클릭한 경우). */
+	virtual void SetVoxelTarget(const FHktVoxelSelection& InVoxel) = 0;
+
+	/** Voxel target 해제 — 새 Subject 선택 시 Rule 이 호출 */
+	virtual void ClearVoxelTarget() = 0;
+
+	virtual bool HasVoxelTarget() const = 0;
+	virtual const FHktVoxelSelection& GetVoxelTarget() const = 0;
+
 	virtual void ResetCommand() = 0;
 	virtual bool IsReadyToSubmit() const = 0;
 	virtual bool Submit() = 0;
@@ -80,7 +91,17 @@ class HKTRULE_API IHktUnitSelectionPolicy
 	GENERATED_BODY()
 public:
 	virtual FHktEntityId ResolveSubject() const = 0;
-	virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const = 0;
+
+	/**
+	 * 커서 아래 Target 을 결정한다.
+	 *  - Entity 가 있으면 OutEntity 채움 (OutLocation 은 위치 보충).
+	 *  - Voxel 지형 hit 이면 OutVoxel 채움 (OutEntity=Invalid, OutLocation=voxel 중앙).
+	 *  - 둘 다 없으면 OutLocation 만 trace 위치, OutVoxel.bValid=false.
+	 */
+	virtual void ResolveTarget(
+		FHktEntityId& OutEntity,
+		FVector& OutLocation,
+		FHktVoxelSelection& OutVoxel) const = 0;
 };
 
 // ============================================================================

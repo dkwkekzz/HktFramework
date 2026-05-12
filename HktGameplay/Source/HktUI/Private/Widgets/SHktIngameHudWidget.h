@@ -18,6 +18,7 @@
 #include "HktCoreArchetype.h"
 #include "HktBagTypes.h"
 #include "HktClientRuleInterfaces.h"
+#include "HktVoxelSelection.h"
 #include "GameplayTagsManager.h"
 
 class APlayerController;
@@ -83,6 +84,7 @@ private:
 	TSharedPtr<STextBlock> TargetText;
 	void UpdateSubjectDisplay(FHktEntityId EntityId);
 	void UpdateTargetDisplay(FHktEntityId EntityId);
+	void UpdateVoxelTargetDisplay(const FHktVoxelSelection& Voxel);
 	void UpdateCommandDisplay(FGameplayTag EventTag);
 
 	TWeakObjectPtr<APlayerController> CachedPC;
@@ -91,6 +93,7 @@ private:
 	FDelegateHandle BagChangedHandle;
 	FDelegateHandle SubjectChangedHandle;
 	FDelegateHandle TargetChangedHandle;
+	FDelegateHandle VoxelTargetChangedHandle;
 	FDelegateHandle CommandChangedHandle;
 
 	int32 ActivePanel = -1; // -1 = none
@@ -404,6 +407,11 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 				UpdateTargetDisplay(EntityId);
 			});
 
+			VoxelTargetChangedHandle = Interaction->OnVoxelTargetChanged().AddLambda([this](const FHktVoxelSelection& Vox)
+			{
+				UpdateVoxelTargetDisplay(Vox);
+			});
+
 			CommandChangedHandle = Interaction->OnCommandChanged().AddLambda([this](FGameplayTag EventTag)
 			{
 				UpdateCommandDisplay(EventTag);
@@ -457,6 +465,8 @@ inline void SHktIngameHudWidget::UpdateTargetDisplay(FHktEntityId EntityId)
 
 	if (EntityId == InvalidEntityId)
 	{
+		// Entity 가 없을 때 voxel target 이 있을 수 있으므로 None 으로 덮지 않는다.
+		// UpdateVoxelTargetDisplay 가 voxel 표시를 담당. 여기서는 entity 가 사라졌을 때만 Voxel 미보유 + None 표시.
 		TargetText->SetText(FText::FromString(TEXT("None")));
 		return;
 	}
@@ -477,6 +487,24 @@ inline void SHktIngameHudWidget::UpdateTargetDisplay(FHktEntityId EntityId)
 	{
 		TargetText->SetText(FText::FromString(FString::Printf(TEXT("#%d"), EntityId)));
 	}
+}
+
+inline void SHktIngameHudWidget::UpdateVoxelTargetDisplay(const FHktVoxelSelection& Voxel)
+{
+	if (!TargetText.IsValid()) return;
+
+	if (!Voxel.bValid)
+	{
+		// 해제 알림 — Entity Target 도 없으면 None 으로. Entity Target 이 있으면 그대로 둔다.
+		// 직전 entity target 을 별도 추적하지 않으므로, 여기선 voxel 정보만 지운다는 의미로
+		// "None" 표시를 entity target 미보유 시에만 갱신. 단순화를 위해 항상 entity 표시는 건드리지 않는다.
+		return;
+	}
+
+	TargetText->SetText(FText::FromString(FString::Printf(
+		TEXT("Voxel TypeID=%u (%d,%d,%d)"),
+		static_cast<uint32>(Voxel.TypeID),
+		Voxel.VoxelCoord.X, Voxel.VoxelCoord.Y, Voxel.VoxelCoord.Z)));
 }
 
 inline void SHktIngameHudWidget::UpdateCommandDisplay(FGameplayTag EventTag)

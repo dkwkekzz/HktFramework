@@ -73,6 +73,7 @@ public:
 
     // === 델리게이트 ===
     virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
+    virtual FOnHktVoxelTargetChanged& OnVoxelTargetChanged() override { return VoxelTargetChangedDelegate; }
     virtual FOnHktCommandChanged& OnCommandChanged() override { return CommandChangedDelegate; }
 
     // === IHktPlayerInteractionInterface ===
@@ -163,6 +164,7 @@ protected:
 private:
     FOnHktSubjectChanged SubjectChangedDelegate;
     FOnHktTargetChanged TargetChangedDelegate;
+    FOnHktVoxelTargetChanged VoxelTargetChangedDelegate;
     FOnHktCommandChanged CommandChangedDelegate;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;

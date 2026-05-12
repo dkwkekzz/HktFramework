@@ -46,6 +46,12 @@ public:
 	/** 대상(Target) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
 	virtual FOnHktTargetChanged& OnTargetChanged() = 0;
 
+	/**
+	 * Voxel target 변경 시 브로드캐스트. bValid=false 페이로드는 해제 의미.
+	 * 기본 구현은 더미 — voxel 인지가 없는 PC(LoginPC 등)는 override 불필요.
+	 */
+	virtual FOnHktVoxelTargetChanged& OnVoxelTargetChanged() { static FOnHktVoxelTargetChanged Dummy; return Dummy; }
+
 	/** Intent 제출 시 브로드캐스트 (클라이언트 즉시 VFX 등에 사용). */
 	virtual FOnHktIntentSubmitted& OnIntentSubmitted() = 0;
 

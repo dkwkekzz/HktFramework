@@ -93,6 +93,13 @@ void FHktDefaultClientRule::OnUserEvent_SubjectInputAction()
 	// 소유 여부와 무관하게 선택 가능 (비소유 대상은 관찰만, 행위는 제한)
 	CachedBuilder->SetSubject(SelectedEntity);
 	CachedBuilder->ResetCommand();
+
+	// 다른 Entity 를 LMB 로 새로 선택하면 기존 Voxel Target 도 함께 해제한다.
+	// (빈 공간/voxel 자체 LMB 는 SelectedEntity 가 Invalid 이므로 이 분기 미진입 — 해제 없음)
+	if (SelectedEntity != InvalidEntityId)
+	{
+		CachedBuilder->ClearVoxelTarget();
+	}
 }
 
 void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
@@ -122,11 +129,25 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		return;
 	}
 
-	// Target 해석
+	// Target 해석 — voxel 정보 포함
 	FHktEntityId TargetEntity = InvalidEntityId;
 	FVector TargetLocation = FVector::ZeroVector;
-	CachedPolicy->ResolveTarget(TargetEntity, TargetLocation);
+	FHktVoxelSelection VoxelHit;
+	CachedPolicy->ResolveTarget(TargetEntity, TargetLocation, VoxelHit);
 	CachedBuilder->SetTarget(TargetEntity, TargetLocation);
+
+	// RMB 결과로 voxel/entity 중 무엇이 잡혔는지에 따라 Voxel target 상태 갱신.
+	//  - voxel hit  → SetVoxelTarget (다른 voxel 클릭 시 교체, entity-only 클릭 시 다음 분기로 해제)
+	//  - entity hit → 이전 voxel target 해제
+	//  - 둘 다 없음 → 이전 voxel target 유지 (빈 공간 RMB)
+	if (VoxelHit.bValid)
+	{
+		CachedBuilder->SetVoxelTarget(VoxelHit);
+	}
+	else if (TargetEntity != InvalidEntityId)
+	{
+		CachedBuilder->ClearVoxelTarget();
+	}
 
 	const int32 PendingSlot = CachedBuilder->GetCommandSlotIndex();
 

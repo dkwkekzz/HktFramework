@@ -36,6 +36,7 @@ public class HktVoxelTerrain : ModuleRules
 			new string[]
 			{
 				"HktRuntime",
+				"HktRule",
 				"ImageWrapper",
 			}
 		);
