@@ -1294,9 +1294,57 @@
       const baseIt = baseIntentsById[myId] || ed.intent;
       pendingChanges.push({ type: 'update', intent: Object.assign({}, baseIt, patch, { id: myId }), baseVersion: baseIt.baseVersion });
     }
+
+    // 양방향 미러 — 이웃의 parents/children 도 pending update 로 반영하여
+    // 저장 전에도 UI 가 일관되게 보이도록 한다. (인라인 편집과 동일한 동작)
+    //   "old" 는 편집 전 상태: 예약된 create 편집이면 이전 pending intent,
+    //   브랜드뉴면 빈 집합, 일반 update 면 base.
+    let oldParents, oldChildren;
+    if (editingPendingCreate) {
+      oldParents = new Set(ed.intent.parents || []);
+      oldChildren = new Set(ed.intent.children || []);
+    } else if (ed.isNew) {
+      oldParents = new Set();
+      oldChildren = new Set();
+    } else {
+      const baseIt = baseIntentsById[myId];
+      oldParents = new Set((baseIt || ed.intent).parents || []);
+      oldChildren = new Set((baseIt || ed.intent).children || []);
+    }
+    const newParents = new Set(patch.parents);
+    const newChildren = new Set(patch.children);
+    const affected = new Set();
+    for (const pid of newParents) if (!oldParents.has(pid)) {
+      ensurePendingChange(pid, p => {
+        p.children = p.children || [];
+        if (!p.children.includes(myId)) p.children.push(myId);
+      });
+      affected.add(pid);
+    }
+    for (const pid of oldParents) if (!newParents.has(pid)) {
+      ensurePendingChange(pid, p => {
+        p.children = (p.children || []).filter(c => c !== myId);
+      });
+      affected.add(pid);
+    }
+    for (const cid of newChildren) if (!oldChildren.has(cid)) {
+      ensurePendingChange(cid, c => {
+        c.parents = c.parents || [];
+        if (!c.parents.includes(myId)) c.parents.push(myId);
+      });
+      affected.add(cid);
+    }
+    for (const cid of oldChildren) if (!newChildren.has(cid)) {
+      ensurePendingChange(cid, c => {
+        c.parents = (c.parents || []).filter(p => p !== myId);
+      });
+      affected.add(cid);
+    }
+    for (const id of affected) pruneNoopPending(id);
+
     applyView();
     editModal.close();
-    markUnsaved();
+    if (pendingChanges.length) markUnsaved(); else clearUnsaved();
     rebuildTagFilter();
     renderList();
     renderStack();
@@ -1312,6 +1360,9 @@
     editModal.close();
     const ok = await confirm$('"' + intent.id + '" 를 삭제하시겠습니까?');
     if (!ok) return;
+    // 삭제 대상의 이웃에서 참조 제거를 pending update 로 미러링 (UI 즉시 반영).
+    const neighborParents = new Set(intent.parents || []);
+    const neighborChildren = new Set(intent.children || []);
     if (intent._pending === 'create') {
       // 아직 서버에 없는 예약된 create — 그냥 예약을 취소.
       pendingChanges = pendingChanges.filter(c => !(c.type === 'create' && c.intent.id === intent.id));
@@ -1320,6 +1371,20 @@
       const baseIt = baseIntentsById[intent.id] || intent;
       pendingChanges.push({ type: 'delete', intent: baseIt, baseVersion: baseIt.baseVersion });
     }
+    const affectedDel = new Set();
+    for (const pid of neighborParents) {
+      ensurePendingChange(pid, p => {
+        p.children = (p.children || []).filter(c => c !== intent.id);
+      });
+      affectedDel.add(pid);
+    }
+    for (const cid of neighborChildren) {
+      ensurePendingChange(cid, c => {
+        c.parents = (c.parents || []).filter(p => p !== intent.id);
+      });
+      affectedDel.add(cid);
+    }
+    for (const id of affectedDel) pruneNoopPending(id);
     applyView();
     if (pendingChanges.length === 0) clearUnsaved(); else markUnsaved();
     rebuildTagFilter();
