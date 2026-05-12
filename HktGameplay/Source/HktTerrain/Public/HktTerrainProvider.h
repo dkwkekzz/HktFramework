@@ -54,4 +54,11 @@ public:
 private:
 	TWeakObjectPtr<UHktTerrainSubsystem> Subsystem;
 	FHktTerrainGeneratorConfig Config;
+
+	/**
+	 * GetChunkSpawners 의 BakedAsset 미로드 INFO 로그 1회 게이트.
+	 * Provider 인스턴스 수명 동안 유지 — PIE 재시작 시 새 Provider 가 만들어지면서 reset.
+	 * const 메서드에서 갱신하므로 mutable.
+	 */
+	mutable bool bLoggedNoBakedAssetOnce = false;
 };

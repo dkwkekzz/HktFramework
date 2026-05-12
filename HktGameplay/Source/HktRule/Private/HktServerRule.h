@@ -50,6 +50,9 @@ private:
 
 	int32 ServerEventSequence = 0;
 
+	/** PendingWorldInit 의 NumGroups==0 경고 1회 게이트 — ServerRule 인스턴스 수명 동안 유지 (PIE 재시작 시 reset) */
+	bool bLoggedPendingWorldInitZeroGroup = false;
+
 	// [LEGACY · Phase 4 호환] 월드 최초 생성 Story (InitGame에서 등록, 첫 Tick에 소비).
 	//
 	// TerrainSpawner.design.md §7 의 dispatch 루프 (TerrainSystem 의 chunk-load → spawner

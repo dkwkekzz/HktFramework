@@ -328,15 +328,14 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 	{
 		if (NumGroups <= 0)
 		{
-			// 그룹이 없으면 큐잉 유지 — 다음 틱에서 재시도. 첫 발생만 경고.
-			static bool bLoggedZeroGroupWarning = false;
-			if (!bLoggedZeroGroupWarning)
+			// 그룹이 없으면 큐잉 유지 — 다음 틱에서 재시도. 인스턴스당 첫 발생만 경고.
+			if (!bLoggedPendingWorldInitZeroGroup)
 			{
 				const FPendingWorldInit& Init = PendingWorldInit.GetValue();
 				UE_LOG(LogHktRule, Warning,
 					TEXT("[ServerRule] PendingWorldInit 대기 중 (tag=%s) — RelevancyGroup 미생성. 플레이어 입장 후 자동 재시도."),
 					*Init.StoryTag.ToString());
-				bLoggedZeroGroupWarning = true;
+				bLoggedPendingWorldInitZeroGroup = true;
 			}
 		}
 		else

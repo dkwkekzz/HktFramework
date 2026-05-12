@@ -110,9 +110,9 @@ AHktGameMode::InitGame                              HktGameMode.cpp:26-100
   │       └─ 비동기 실패      → Warning "비동기 로드 실패 — 폴백 경로만 동작"
   │
   ├─ OnEffectiveConfigChanged 발화 → RebindTerrainProvider
-  │     HktGameMode.cpp:132-164
-  │     ├─ Subsystem 없음 → Log "UHktTerrainSubsystem 부재 — Provider 등록 생략"
-  │     └─ 성공            → Log "Terrain Provider 재바인딩 — VoxelSizeCm=… ChunkSize=…"
+  │     HktGameMode.cpp:139~  (구현부 시작)
+  │     ├─ Subsystem 없음 → Log "UHktTerrainSubsystem 부재 — Provider 등록 생략"      (line 148)
+  │     └─ 성공            → Log "Terrain Provider 재바인딩 — VoxelSizeCm=… ChunkSize=…" (line 169)
   │       └─ FHktTerrainProvider 생성 → Graph->SetTerrainSource(Provider)
   │             그룹별 시뮬레이터에 IHktTerrainDataSource 주입
   │
@@ -136,20 +136,18 @@ FHktDefaultServerRule::OnEvent_GameModeTick         HktServerRule.cpp:247
   ├─ NumGroups = Graph.NumRelevancyGroup()
   ├─ PendingGroupIntents.SetNum(NumGroups)
   │
-  ├─ [LEGACY · 현재 유일 부트스트랩 경로]
-  │  PendingWorldInit 소비                          line 318-336
+  ├─ [현재 유일 active 부트스트랩 경로]
+  │  PendingWorldInit 소비                          HktServerRule.cpp:327~
+  │     Tag invalid                                  → Warning "WorldInit story 큐잉되지 않음"
+  │     NumGroups==0 (RelevancyGroup 미생성)         → Warning 1회 + 큐 유지 (다음 틱 재시도)
+  │     Success                                       → Log "dispatched: tag=… group=… eventId=…"
   │     E = HktEventBuilder::Spawner(Tag, X, Y)
   │     E.Location = WorldInitLocation
   │     E.EventId = ++ServerEventSequence
   │     PendingGroupIntents[group].Add(E)
   │
-  │  → NumGroups==0 시 silent skip  ⚠️ 로그 없음
-  │  → 성공 dispatch 도 silent      ⚠️ 로그 없음
-  │
   └─ ParallelFor(groups) → Simulator.AdvanceFrame(GroupBatch)
-        │
-        ▼
-  FHktWorldDeterminismSimulator::ProcessBatch       HktWorldDeterminismSimulator.cpp:56
+        │  → FHktWorldDeterminismSimulator::ProcessBatch   HktWorldDeterminismSimulator.cpp:56
         │
         ├─ TerrainSystem.Process            ★ Phase 4 신규 hook
         │     HktSimulationSystems.cpp:510-626
@@ -158,15 +156,18 @@ FHktDefaultServerRule::OnEvent_GameModeTick         HktServerRule.cpp:247
         │     │
         │     ├─ for each Coord in RequiredChunks:
         │     │     if (!TerrainState.IsChunkLoaded(Coord))
-        │     │         TerrainState.LoadChunk(Coord, Source)  ⚠️ 실패 로그 없음
+        │     │         TerrainState.LoadChunk(Coord, Source)
         │     │         Source.GetChunkSpawners(Coord, OutViews)
         │     │             └─ FHktTerrainProvider::GetChunkSpawners
-        │     │                  HktTerrainProvider.cpp:50-95
-        │     │                  · BakedAsset 없음 → silent return ⚠️
-        │     │                  · Spawners[] 비어있음 → silent return ⚠️
+        │     │                  HktTerrainProvider.cpp:50-103
+        │     │                  · BakedAsset 미로드 → 인스턴스당 1회 Log "Phase 4 dormant"
+        │     │                  · Spawners[] 비어있음 → silent (의도된 경로)
         │     │         for view in OutViews:
-        │     │             if (!view.StoryTag.IsValid()) continue  ⚠️ silent skip
-        │     │             EmittedSpawnerEvents.Add(SpawnerFromView(view))
+        │     │             if (!view.StoryTag.IsValid()) ++SkippedInvalidSpawnerTags  → 프레임 단위 집계
+        │     │             else EmittedSpawnerEvents.Add(SpawnerFromView(view))
+        │     │
+        │     │     EmittedFromThisChunk > 0       → Verbose "chunk loaded — emitted N spawner event(s)"
+        │     │     SkippedInvalidSpawnerTags > 0  → Warning "N spawner skipped (invalid StoryTag)"
         │     │
         │     └─ Unload(필요 없는 청크)
         │
@@ -239,12 +240,15 @@ World->SpawnActor(BlueprintClass, Location)  — 읽기 전용 시각 액터
 
 증상별 1차 진단 카테고리 (상세는 `Saved/Logs/{Project}.log` 의 해당 카테고리 grep).
 
-| 증상 | 1차 확인 | 카테고리 |
+| 증상 | grep 키워드 | 카테고리 / 레벨 |
 |---|---|---|
-| 첫 틱에 스토리가 안 뜸 | `WorldInitStoryTag` 가 비어있거나 `IsValid()==false` | `LogHktRule` (WARN — §추가 로깅) |
-| "No program for X" 에러 | story-gen 미실행 또는 모듈 미로드 | `LogHktCore` |
-| 청크 표면이 검정/빈공간 | Generator 폴백 사용 중 | `LogHktTerrain` "런타임 생성 폴백" |
-| BakedAsset 못 찾음 | `BakedAsset` UPROPERTY 미할당 또는 SoftRef 깨짐 | `LogHktTerrain`, `LogHktVoxelTerrain` |
-| Spawner 가 안 뜸 (Phase 4 경로) | `Asset->Spawners[]` 비어있음 (Phase 3-d 미구현) | `LogHktCore` (DEBUG — §추가 로깅) |
-| Spawner StoryTag invalid | bake 출력의 일관성 깨짐 | `LogHktCore` (WARN — §추가 로깅) |
+| 첫 틱에 스토리가 안 뜸 — Tag 미설정 | `WorldInitStoryTag 가 비어있음` | `LogHktRuntime` Warning |
+| 첫 틱에 스토리가 안 뜸 — Tag 오타 | `OnEvent_GameModeInitWorld: invalid StoryTag` | `LogHktRule` Warning |
+| 스토리 큐는 됐는데 발화 안됨 | `PendingWorldInit 대기 중 ... RelevancyGroup 미생성` | `LogHktRule` Warning (1회) |
+| 정상 발화 확인 | `PendingWorldInit dispatched: tag=…` | `LogHktRule` Log |
+| "No program for X" | story-gen 미실행 또는 모듈 미로드 | `LogHktCore` Error (`HKT_EVENT_LOG`) |
+| 청크 표면이 검정/빈공간 | `런타임 생성 폴백` | `LogHktTerrain` Warning |
+| BakedAsset 못 찾음 | `BakedAsset 미지정` / `SoftRef 가 null` | `LogHktVoxelTerrain` / `LogHktTerrain` |
+| Phase 4 spawner 가 안 뜸 | `GetChunkSpawners: BakedAsset 미로드 — Phase 4 dormant` | `LogHktTerrain` Log (인스턴스당 1회) |
+| Spawner StoryTag invalid | `N spawner skipped ... bake 검증 누락 의심` | `LogHktCore` Warning (프레임당) |
 | Presentation 만 빠짐 | ConventionPath 매핑 실패 | `LogHktAsset` |
