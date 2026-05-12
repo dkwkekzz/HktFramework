@@ -60,6 +60,14 @@ void FHktTerrainProvider::GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 Chu
 	if (!Asset)
 	{
 		// BakedAsset 부재 — Generator 폴백 경로에는 spawner 가 없다 (Bake 시점에만 결정).
+		// Phase 4 chunk-load dispatch 가 "왜 안 트리거되는가" 진단을 위해 1회 INFO 로그.
+		static bool bLoggedNoBakedAsset = false;
+		if (!bLoggedNoBakedAsset)
+		{
+			UE_LOG(LogHktTerrain, Log,
+				TEXT("[TerrainProvider] GetChunkSpawners: BakedAsset 미로드 — chunk-load spawner dispatch 비활성 (Phase 4 dormant). 첫 발생만 출력."));
+			bLoggedNoBakedAsset = true;
+		}
 		return;
 	}
 

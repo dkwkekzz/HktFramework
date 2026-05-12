@@ -581,6 +581,7 @@ void FHktTerrainSystem::Process(
     //    (TerrainSpawner.design.md §7 Runtime Execution)
     EmittedSpawnerEvents.Reset();
     int32 LoadedThisFrame = 0;
+    int32 SkippedInvalidSpawnerTags = 0;
     for (const FIntVector& Coord : RequiredChunks)
     {
         if (!TerrainState.IsChunkLoaded(Coord))
@@ -599,15 +600,33 @@ void FHktTerrainSystem::Process(
             // 청크의 spawner 메타 enumerate — Source 가 미지원이면 no-op (default impl)
             ScratchSpawnerViews.Reset();
             Source.GetChunkSpawners(Coord.X, Coord.Y, Coord.Z, ScratchSpawnerViews);
+            int32 EmittedFromThisChunk = 0;
             for (const FHktTerrainSpawnerView& SView : ScratchSpawnerViews)
             {
                 if (!SView.StoryTag.IsValid())
                 {
-                    continue;  // 미설정 — bake 검증 단계에서 거르도록 의도. 런타임은 silent skip.
+                    // bake 검증 단계에서 거르도록 의도된 케이스 — 그러나 silent 하면 디버그가 어려움.
+                    ++SkippedInvalidSpawnerTags;
+                    continue;
                 }
                 EmittedSpawnerEvents.Add(HktEventBuilder::SpawnerFromView(SView));
+                ++EmittedFromThisChunk;
+            }
+
+            if (EmittedFromThisChunk > 0)
+            {
+                UE_LOG(LogHktCore, Verbose,
+                    TEXT("[TerrainSystem] Chunk(%d,%d,%d) loaded — emitted %d spawner event(s)"),
+                    Coord.X, Coord.Y, Coord.Z, EmittedFromThisChunk);
             }
         }
+    }
+
+    if (SkippedInvalidSpawnerTags > 0)
+    {
+        UE_LOG(LogHktCore, Warning,
+            TEXT("[TerrainSystem] %d spawner(s) skipped with invalid StoryTag this frame — bake 검증 누락 의심"),
+            SkippedInvalidSpawnerTags);
     }
 
     // 3. 불필요한 청크 언로드 (필요 목록에 없는 로드된 청크)
