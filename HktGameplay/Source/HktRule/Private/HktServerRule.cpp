@@ -6,6 +6,7 @@
 #include "HktCoreArchetype.h"
 #include "HktBagTypes.h"
 #include "HktStoryEventParams.h"
+#include "HktRuleLog.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
 
@@ -236,7 +237,15 @@ void FHktDefaultServerRule::OnEvent_GameModeLogout(const IHktWorldPlayer& InPlay
 
 void FHktDefaultServerRule::OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation)
 {
-	if (!InStoryTag.IsValid()) return;
+	if (!InStoryTag.IsValid())
+	{
+		UE_LOG(LogHktRule, Warning,
+			TEXT("[ServerRule] OnEvent_GameModeInitWorld: invalid StoryTag — WorldInit story 가 큐잉되지 않습니다. AHktGameMode::WorldInitStoryTag UPROPERTY 가 비어있거나 잘못된 태그입니다."));
+		return;
+	}
+	UE_LOG(LogHktRule, Log,
+		TEXT("[ServerRule] OnEvent_GameModeInitWorld: queued story=%s location=(%.0f,%.0f,%.0f)"),
+		*InStoryTag.ToString(), InLocation.X, InLocation.Y, InLocation.Z);
 	PendingWorldInit.Emplace(FPendingWorldInit{ InStoryTag, InLocation });
 }
 
@@ -315,24 +324,43 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 
 	// --- World Init Story (GameMode에서 지정한 1회성 Story) ---
 	// 지정된 위치의 그룹(또는 그룹이 없으면 0번)에 이벤트를 주입한다.
-	if (PendingWorldInit.IsSet() && NumGroups > 0)
+	if (PendingWorldInit.IsSet())
 	{
-		const FPendingWorldInit& Init = PendingWorldInit.GetValue();
-		int32 TargetGroup = Graph.CalculateRelevancyGroupIndex(Init.Location);
-		if (!PendingGroupIntents.IsValidIndex(TargetGroup))
+		if (NumGroups <= 0)
 		{
-			TargetGroup = 0;
+			// 그룹이 없으면 큐잉 유지 — 다음 틱에서 재시도. 인스턴스당 첫 발생만 경고.
+			if (!bLoggedPendingWorldInitZeroGroup)
+			{
+				const FPendingWorldInit& Init = PendingWorldInit.GetValue();
+				UE_LOG(LogHktRule, Warning,
+					TEXT("[ServerRule] PendingWorldInit 대기 중 (tag=%s) — RelevancyGroup 미생성. 플레이어 입장 후 자동 재시도."),
+					*Init.StoryTag.ToString());
+				bLoggedPendingWorldInitZeroGroup = true;
+			}
 		}
+		else
+		{
+			const FPendingWorldInit& Init = PendingWorldInit.GetValue();
+			int32 TargetGroup = Graph.CalculateRelevancyGroupIndex(Init.Location);
+			if (!PendingGroupIntents.IsValidIndex(TargetGroup))
+			{
+				TargetGroup = 0;
+			}
 
-		FHktEvent InitEvent = HktEventBuilder::Spawner(
-			Init.StoryTag,
-			static_cast<int32>(Init.Location.X),
-			static_cast<int32>(Init.Location.Y));
-		InitEvent.Location = Init.Location;
-		InitEvent.EventId = ++ServerEventSequence;
-		PendingGroupIntents[TargetGroup].Add(InitEvent);
+			FHktEvent InitEvent = HktEventBuilder::Spawner(
+				Init.StoryTag,
+				static_cast<int32>(Init.Location.X),
+				static_cast<int32>(Init.Location.Y));
+			InitEvent.Location = Init.Location;
+			InitEvent.EventId = ++ServerEventSequence;
+			PendingGroupIntents[TargetGroup].Add(InitEvent);
 
-		PendingWorldInit.Reset();
+			UE_LOG(LogHktRule, Log,
+				TEXT("[ServerRule] PendingWorldInit dispatched: tag=%s group=%d eventId=%d"),
+				*Init.StoryTag.ToString(), TargetGroup, InitEvent.EventId);
+
+			PendingWorldInit.Reset();
+		}
 	}
 
 	// --- ProcessSimulationAndPayloads ---

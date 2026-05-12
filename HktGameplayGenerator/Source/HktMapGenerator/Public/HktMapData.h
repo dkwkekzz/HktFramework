@@ -130,7 +130,21 @@ struct HKTMAPGENERATOR_API FHktMapLandscape
 };
 
 // ── Spawner ────────────────────────────────────────────────────────
-
+//
+// [DEPRECATED · Phase 5 M6 — TerrainSpawner.design.md §8]
+//   `EHktSpawnRule` / `FHktMapSpawner` / `AHktSpawnerActor` 는 정적 enum 기반 spawner.
+//   신규 단일 출처는 `FHktTerrainSpawnerSpec` (HktTerrain) + Spawner Story (HktCore).
+//   본 타입들은 1 릴리즈 컴파일 경고 단계를 거쳐 다음 메이저(M7)에서 제거된다.
+//
+//   마이그레이션:
+//     - 정적 spawner 데이터  → `UHktTerrainBakedAsset::Spawners` (Phase 3 BakeRegion 자동 추출)
+//     - 런타임 dispatch      → chunk-load → `FHktTerrainSystem::EmittedSpawnerEvents` (Phase 4)
+//     - SpawnRule:Always     → spawner story 본문에서 `SpawnEntity` 즉시 emit
+//     - SpawnRule:OnTrigger  → spawner story 의 `WaitEvent` 패턴
+//     - SpawnRule:Timed      → spawner story 의 `Wait` + 루프
+//     - SpawnRule:OnStoryStart → 시작 story 의 `DispatchEvent` 로 흡수
+//   임시 변환은 `MapSpawnerToTerrainSpec()` (본 헤더 하단) 참조.
+//
 UENUM(BlueprintType)
 enum class EHktSpawnRule : uint8
 {

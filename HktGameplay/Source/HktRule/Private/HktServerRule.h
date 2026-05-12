@@ -50,7 +50,15 @@ private:
 
 	int32 ServerEventSequence = 0;
 
-	// 월드 최초 생성 Story (InitGame에서 등록, 첫 Tick에 소비)
+	/** PendingWorldInit 의 NumGroups==0 경고 1회 게이트 — ServerRule 인스턴스 수명 동안 유지 (PIE 재시작 시 reset) */
+	bool bLoggedPendingWorldInitZeroGroup = false;
+
+	// [LEGACY · Phase 4 호환] 월드 최초 생성 Story (InitGame에서 등록, 첫 Tick에 소비).
+	//
+	// TerrainSpawner.design.md §7 의 dispatch 루프 (TerrainSystem 의 chunk-load → spawner
+	// enumerate) 가 본 패턴을 흡수하도록 설계됨. Phase 3 의 BakeRegion 자동 추출
+	// (WorldInitLocation 위치에 spawner 슬롯을 베이크에서 미리 생성) 가 완료되면
+	// 본 큐와 OnEvent_GameModeInitWorld 는 제거 예정 — 그 전까지 부트스트랩 호환성으로 유지.
 	struct FPendingWorldInit
 	{
 		FGameplayTag StoryTag;

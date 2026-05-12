@@ -8,13 +8,13 @@
 #include "HktCoreEventLog.h"
 #include "HktWorldState.h"
 #include "VM/HktVMTypes.h"
+#include "Terrain/HktTerrainDataSource.h"
 
 // Forward Declarations
 class FHktVMInterpreter;
 class FHktVMRuntimePool;
 struct FHktVMWorldStateProxy;
 struct FHktTerrainState;
-class IHktTerrainDataSource;
 
 /** Private: Physics 이벤트 (시스템 내부용) */
 struct FHktPhysicsEvent
@@ -77,6 +77,18 @@ struct HKTCORE_API FHktTerrainSystem
 
     TSet<FIntVector> RequiredChunks;  // 프레임 내 재사용 (할당 회피)
     FIntVector LastPivotChunk = FIntVector(MAX_int32);  // 이전 프레임의 피벗 청크 (변경 감지)
+
+    /**
+     * 이번 Process() 호출에서 새로 로드된 청크들의 spawner 메타로부터 생성된
+     * dispatch 이벤트 (TerrainSpawner.design.md §7). 호출자 (Simulator.ProcessBatch)
+     * 가 `Event.NewEvents` 와 합쳐 VMBuildSystem 입력으로 흘려보낸다.
+     *
+     * 매 Process() 진입 시 Reset — 프레임 내 누적 없음.
+     */
+    TArray<FHktEvent> EmittedSpawnerEvents;
+
+    /** Process() 내부 scratch — 청크당 spawner 뷰 누적 버퍼 (할당 회피) */
+    TArray<FHktTerrainSpawnerView> ScratchSpawnerViews;
 
     void Process(
         const FHktWorldState& WorldState,

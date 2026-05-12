@@ -617,6 +617,8 @@ void FHktVMInterpreter::Op_DispatchEvent(FHktVMRuntime& Runtime, int32 TagNetInd
             static_cast<float>(Runtime.Context->EventTargetPosZ));
         Event.Param0 = Runtime.Context->EventParam0;
         Event.Param1 = Runtime.Context->EventParam1;
+        Event.Param2 = Runtime.Context->EventParam2;
+        Event.Param3 = Runtime.Context->EventParam3;
     }
 
     Runtime.PendingDispatchedEvents.Add(Event);
@@ -650,6 +652,8 @@ void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex
             static_cast<float>(Runtime.Context->EventTargetPosZ));
         Event.Param0 = Runtime.Context->EventParam0;
         Event.Param1 = Runtime.Context->EventParam1;
+        Event.Param2 = Runtime.Context->EventParam2;
+        Event.Param3 = Runtime.Context->EventParam3;
     }
 
     Runtime.PendingDispatchedEvents.Add(Event);
@@ -683,6 +687,8 @@ void FHktVMInterpreter::Op_DispatchEventFrom(FHktVMRuntime& Runtime, RegisterInd
             static_cast<float>(Runtime.Context->EventTargetPosZ));
         Event.Param0 = Runtime.Context->EventParam0;
         Event.Param1 = Runtime.Context->EventParam1;
+        Event.Param2 = Runtime.Context->EventParam2;
+        Event.Param3 = Runtime.Context->EventParam3;
     }
 
     Runtime.PendingDispatchedEvents.Add(Event);

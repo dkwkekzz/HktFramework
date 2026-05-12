@@ -15,6 +15,12 @@
  * HktMap의 Spawner 데이터를 기반으로 엔티티를 스폰/관리하는 액터.
  * SpawnRule에 따라 즉시, 스토리 시작 시, 트리거 시, 타이머 기반으로 동작.
  * Region 스트리밍에 의해 활성화/비활성화된다.
+ *
+ * [DEPRECATED · Phase 5 M6 — TerrainSpawner.design.md §8]
+ *   본 액터는 정적 SpawnRule enum 기반 spawner 의 런타임 actor 측 어댑터다.
+ *   신규 흐름은 baked `FHktTerrainSpawnerSpec` → `FHktTerrainSystem` chunk-load →
+ *   `FHktEvent` dispatch (HktServerRule) → Story VM. 본 클래스는 1 릴리즈 후 제거.
+ *   임시 변환은 `HktMapSpawnerAdapter::MapSpawnerToTerrainSpec` 참조.
  */
 UCLASS()
 class HKTMAPGENERATOR_API AHktSpawnerActor : public AActor
@@ -40,7 +46,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HKT|Spawner")
 	float RespawnSeconds = 0.f;
 
-	/** FHktMapSpawner 데이터로 초기화 */
+	/** FHktMapSpawner 데이터로 초기화 — Phase 5 M6 deprecated. */
+	[[deprecated("Use HktMapSpawnerAdapter::MapSpawnerToTerrainSpec + UHktTerrainBakedAsset::Spawners (TerrainSpawner.design.md §8). 1 release after migration this method is removed.")]]
 	void InitFromSpawnerData(const FHktMapSpawner& Data);
 
 	/** Spawner 활성화 (Region 로드 시 호출) */

@@ -97,6 +97,13 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
     {
         CachedServerRule->OnEvent_GameModeInitWorld(WorldInitStoryTag, WorldInitLocation);
     }
+    else if (!WorldInitStoryTag.IsValid())
+    {
+        // WorldInitStoryTag 가 비어있으면 첫 틱에 어떤 부트스트랩 스토리도 실행되지 않는다.
+        // 현재 부트스트랩의 유일 진입점이므로 (Docs/Runtime-Pipeline.md §[E]) 명시 경고.
+        UE_LOG(LogHktRuntime, Warning,
+            TEXT("[GameMode] WorldInitStoryTag 가 비어있음 — 첫 틱에 부트스트랩 스토리가 실행되지 않습니다. AHktGameMode 의 World Settings 에서 태그를 지정하세요."));
+    }
 }
 
 void AHktGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)

@@ -4,7 +4,10 @@
 #include "HktAutomationTestsTypes.h"
 #include "HktAutomationTestsHarness.h"
 #include "HktStoryBuilder.h"
+#include "HktStoryEventParams.h"
 #include "HktCoreProperties.h"
+#include "Terrain/HktFixed32.h"
+#include "Terrain/HktTerrainDataSource.h"
 #include "VM/HktVMProgram.h"
 
 namespace HktOpcodeTests
@@ -168,6 +171,64 @@ static FHktTestResult Test_SpawnEntityAround_RandomSeeded_SpawnsN()
 }
 
 // ============================================================================
+// SpawnerFromView 헬퍼 검증 (TerrainSpawner.design.md §7)
+//
+// chunk-load dispatch 시 `FHktTerrainSpawnerView` 를 `FHktEvent` 로 변환할 때
+// 필드 매핑이 설계대로인지 확인. Harness 불필요 — 순수 함수.
+// ============================================================================
+
+static FHktTestResult Test_SpawnerFromView_FieldMapping()
+{
+	FHktTerrainSpawnerView V;
+	V.PosXRaw = FHktFixed32::FromInt(1234).Raw;   // Q16.16 raw cm
+	V.PosYRaw = FHktFixed32::FromInt(-567).Raw;
+	V.PosZRaw = FHktFixed32::FromInt(89).Raw;
+	V.StoryTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Test.Validation.Spawner")), false);
+	V.Param2 = 0xABCD;
+	V.Param3 = 42;
+
+	const FHktEvent E = HktEventBuilder::SpawnerFromView(V);
+
+	if (E.EventTag != V.StoryTag)
+		return FHktTestResult::Fail(TEXT("SpawnerFromView_FieldMapping"), TEXT("EventTag != StoryTag"));
+	if (E.Param0 != 1234)
+		return FHktTestResult::Fail(TEXT("SpawnerFromView_FieldMapping"),
+			*FString::Printf(TEXT("Param0 expected 1234, got %d"), E.Param0));
+	if (E.Param1 != -567)
+		return FHktTestResult::Fail(TEXT("SpawnerFromView_FieldMapping"),
+			*FString::Printf(TEXT("Param1 expected -567, got %d"), E.Param1));
+	if (E.Param2 != 0xABCD)
+		return FHktTestResult::Fail(TEXT("SpawnerFromView_FieldMapping"), TEXT("Param2 mismatch"));
+	if (E.Param3 != 42)
+		return FHktTestResult::Fail(TEXT("SpawnerFromView_FieldMapping"), TEXT("Param3 mismatch"));
+	// Location 은 PosRaw 의 double 표현 — Q16.16 정확 정수 입력이라 1234/-567/89 정확히 환원.
+	if (!FMath::IsNearlyEqual(E.Location.X, 1234.0, 1e-3) ||
+	    !FMath::IsNearlyEqual(E.Location.Y, -567.0, 1e-3) ||
+	    !FMath::IsNearlyEqual(E.Location.Z, 89.0, 1e-3))
+	{
+		return FHktTestResult::Fail(TEXT("SpawnerFromView_FieldMapping"),
+			*FString::Printf(TEXT("Location mismatch: (%.3f,%.3f,%.3f)"),
+				E.Location.X, E.Location.Y, E.Location.Z));
+	}
+
+	return FHktTestResult::Pass(TEXT("SpawnerFromView_FieldMapping"));
+}
+
+static FHktTestResult Test_SpawnerFromView_InvalidTagSkipped()
+{
+	// View.StoryTag 가 invalid 면 TerrainSystem dispatch 단계에서 silent skip 되도록
+	// 설계됨 (HktSimulationSystems.cpp 의 enumerate 루프). 본 테스트는 헬퍼 자체가
+	// invalid tag 도 그대로 EventTag 에 복사함을 확인 — 필터링은 호출자 책임.
+	FHktTerrainSpawnerView V;
+	V.StoryTag = FGameplayTag();  // invalid
+	const FHktEvent E = HktEventBuilder::SpawnerFromView(V);
+	if (E.EventTag.IsValid())
+		return FHktTestResult::Fail(TEXT("SpawnerFromView_InvalidTagSkipped"),
+			TEXT("Invalid StoryTag should propagate as invalid EventTag"));
+	return FHktTestResult::Pass(TEXT("SpawnerFromView_InvalidTagSkipped"));
+}
+
+// ============================================================================
 // Public
 // ============================================================================
 
@@ -178,6 +239,8 @@ FHktTestReport RunSpawnerTests()
 	Report.Add(Test_SpawnEntityAround_Line_SpawnsN());
 	Report.Add(Test_SpawnEntityAround_Circle_SpawnsN());
 	Report.Add(Test_SpawnEntityAround_RandomSeeded_SpawnsN());
+	Report.Add(Test_SpawnerFromView_FieldMapping());
+	Report.Add(Test_SpawnerFromView_InvalidTagSkipped());
 	return Report;
 }
 
