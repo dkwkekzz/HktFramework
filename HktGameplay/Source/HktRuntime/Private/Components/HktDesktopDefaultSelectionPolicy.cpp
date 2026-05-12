@@ -8,6 +8,7 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
+#include "Misc/ScopeExit.h"
 
 UHktDesktopDefaultSelectionPolicy::UHktDesktopDefaultSelectionPolicy()
 {
@@ -30,6 +31,12 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
     OutEntity = InvalidEntityId;
     OutLocation = FVector::ZeroVector;
     LastResolvedVoxel = FHktVoxelSelection{};
+    LastResolvedTargetEntityId = InvalidEntityId;
+
+    // OutEntity 가 어떤 경로로 결정되든 LastResolvedTargetEntityId 가 항상 동기화되도록 보장.
+    // IntentBuilder.TargetEntityId 는 Rule 의 ResetCommand 직후 비워지므로 PC/Presentation 이
+    // "방금 해석된 타겟" 을 사후 조회할 때 이 캐시를 사용.
+    ON_SCOPE_EXIT { LastResolvedTargetEntityId = OutEntity; };
 
     // 2D 엔티티 HUD 히트를 먼저 시도
     if (GetEntityFromEntityHud(OutEntity))
@@ -64,7 +71,13 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
             {
                 LastResolvedVoxel = VoxelHit;
                 OutEntity = VoxelTargetEntityId;   // sentinel — Rule/PC/UI 가 동일하게 EntityId 로 식별
-                OutLocation = VoxelHit.WorldCenter;
+                // 타겟 위치는 voxel 중심이 아니라 클릭된 "면"(surface) 으로 보낸다.
+                // 중심을 쓰면 캐릭터 Z 와 voxel 중심 Z 사이의 영구적 Z gap 때문에
+                // MovementSystem 의 3D 도착 판정(ArrivalThresholdSq=16cm²) 을 통과 못해
+                // MoveEnd 가 emit 되지 않고 IsMoving 이 1 로 고정되며 제자리 걸음 발생.
+                // HitNormal 방향으로 half-voxel 이동 → 윗면 클릭 시 타겟이 voxel 상단 표면이 됨.
+                const double HalfVox = static_cast<double>(VoxelHit.VoxelSize) * 0.5;
+                OutLocation = VoxelHit.WorldCenter + VoxelHit.HitNormal * HalfVox;
                 return;
             }
 

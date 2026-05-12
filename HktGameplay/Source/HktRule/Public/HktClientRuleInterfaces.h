@@ -102,6 +102,13 @@ public:
 	 * bValid=false 이면 마지막 호출이 voxel 이 아니었다. mutable 캐시 패턴.
 	 */
 	virtual const FHktVoxelSelection& GetLastResolvedVoxel() const = 0;
+
+	/**
+	 * 가장 최근 ResolveTarget 호출의 OutEntity 스냅샷.
+	 * IntentBuilder.TargetEntityId 는 ResetCommand 직후 InvalidEntityId 로 비워지므로
+	 * "방금 해석된 타겟" 을 사후 조회해야 하는 경로(PC 디버그/델리게이트)는 이 값을 사용.
+	 */
+	virtual FHktEntityId GetLastResolvedTargetEntityId() const = 0;
 };
 
 // ============================================================================

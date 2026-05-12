@@ -231,10 +231,13 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
-        // Voxel 상세 정보는 Policy 가 최근 ResolveTarget 호출에서 캐시한 값을 그대로 사용.
-        //  - EntityId == VoxelTargetEntityId 면 voxel; 아니면 빈 voxel.
-        //  - Delegate 가 fire 되기 전에 갱신해 subscribers 가 GetCurrentVoxelTarget() 으로 즉시 조회 가능.
-        const FHktEntityId TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+        // "방금 해석된 타겟" 은 Policy 의 LastResolved* 캐시에서 직접 조회.
+        // IntentBuilder.TargetEntityId 는 Rule 의 ResetCommand 직후 InvalidEntityId 로 비워지므로 사용 불가.
+        // Policy 캐시는 다음 ResolveTarget 호출 전까지 유효.
+        // Delegate 가 fire 되기 전에 갱신해 subscribers 가 GetCurrentVoxelTarget() 으로 즉시 조회 가능.
+        const FHktEntityId TargetEntity = CachedSelectionPolicy
+            ? CachedSelectionPolicy->GetLastResolvedTargetEntityId()
+            : InvalidEntityId;
         if (TargetEntity == VoxelTargetEntityId && CachedSelectionPolicy)
         {
             CurrentVoxelTarget = CachedSelectionPolicy->GetLastResolvedVoxel();

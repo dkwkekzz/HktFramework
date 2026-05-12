@@ -130,12 +130,13 @@ struct HKTCORE_API FHktTerrainState
 	/** 청크 내 로컬 인덱스 → 로컬 XYZ 좌표 */
 	static void LocalIndexToXYZ(uint16 Index, int32& OutX, int32& OutY, int32& OutZ);
 
-private:
 	/** FloorDiv: 음수 좌표를 올바르게 처리하는 정수 나눗셈 */
 	static int32 FloorDiv(int32 A, int32 B);
 
 	/** FloorMod: 음수 좌표를 올바르게 처리하는 나머지 (항상 0 이상) */
 	static int32 FloorMod(int32 A, int32 B);
+
+private:
 
 	/** 청크 로드/변형 후 해당 XY 열의 하이트맵 캐시 갱신 */
 	void RebuildHeightmapColumn(int32 WorldVoxelX, int32 WorldVoxelY);

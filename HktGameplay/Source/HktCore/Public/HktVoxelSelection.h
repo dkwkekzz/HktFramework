@@ -15,7 +15,7 @@
  * Story VM 이 voxel 을 타겟으로 다루려면 이 타입을 직접 참조하거나, 필요한
  * 필드만 FHktEvent 의 Param/Location 으로 풀어서 전달한다 — HktCore 순수성 유지.
  */
-struct HKTCORE_API FHktVoxelSelection
+struct FHktVoxelSelection
 {
 	/** 유효한 voxel 정보 여부 */
 	bool bValid = false;

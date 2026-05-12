@@ -42,6 +42,7 @@ public:
     virtual FHktEntityId ResolveSubject() const override;
     virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const override;
     virtual const FHktVoxelSelection& GetLastResolvedVoxel() const override { return LastResolvedVoxel; }
+    virtual FHktEntityId GetLastResolvedTargetEntityId() const override { return LastResolvedTargetEntityId; }
 
 private:
     bool GetHitUnderCursor(FHitResult& OutHit) const;
@@ -50,4 +51,7 @@ private:
 
     /** 가장 최근 ResolveTarget 의 voxel 적중 정보. const 메서드에서 갱신되도록 mutable. */
     mutable FHktVoxelSelection LastResolvedVoxel;
+
+    /** 가장 최근 ResolveTarget 의 OutEntity 스냅샷 (voxel 이면 VoxelTargetEntityId, 미적중이면 InvalidEntityId). */
+    mutable FHktEntityId LastResolvedTargetEntityId = InvalidEntityId;
 };
