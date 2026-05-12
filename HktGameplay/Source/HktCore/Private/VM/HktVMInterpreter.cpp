@@ -407,6 +407,8 @@ bool FHktVMInterpreter::ExecutePrecondition(
     TempContext.VMProxy = nullptr;  // 쓰기 차단
     TempContext.EventParam0 = Event.Param0;
     TempContext.EventParam1 = Event.Param1;
+    TempContext.EventParam2 = Event.Param2;
+    TempContext.EventParam3 = Event.Param3;
     TempContext.EventTargetPosX = static_cast<int32>(Event.Location.X);
     TempContext.EventTargetPosY = static_cast<int32>(Event.Location.Y);
     TempContext.EventTargetPosZ = static_cast<int32>(Event.Location.Z);

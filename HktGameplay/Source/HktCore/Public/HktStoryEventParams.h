@@ -4,6 +4,8 @@
 
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
+#include "Terrain/HktFixed32.h"
+#include "Terrain/HktTerrainDataSource.h"
 
 /**
  * HktStoryEventParams — Story별 이벤트 파라미터 계약(Contract)
@@ -30,14 +32,26 @@ namespace UseSkillParams
 }
 
 // ============================================================================
-// NPC Spawner (Wave, GoblinCamp, TreeDrop 등)
+// NPC Spawner (Wave, GoblinCamp, TreeDrop, Terrain-bake Spawner 등)
 // ============================================================================
+//
+// Terrain Spawner 통합 (TerrainSpawner.design.md §3-a, §4-a) — `FHktTerrainSpawnerSpec`
+// 의 4-슬롯 평탄화 정수가 `FHktEvent::Param0~3` 으로 1:1 매핑된다. archetype 별 정확한
+// 의미는 spawner story 본문이 자체 정의 — 본 별칭은 공통 컨벤션 헤더 (강제 분류 아님).
+//
+// 좌표는 `FHktTerrainSpawnerView::PosXRaw/PosYRaw/PosZRaw` (Q16.16 cm) 가
+// `HktEventBuilder::SpawnerFromView` 에서 정수 cm 으로 FloorToInt 변환되어 Param0/Param1
+// 에 들어간다. Story 는 cm 정수로 읽어 SpawnEntity 등에 그대로 전달 가능.
 namespace SpawnerParams
 {
-	/** Param0: 스폰 위치 X */
+	/** Param0: 스폰 위치 X (cm 정수) */
 	inline const uint16 SpawnPosX = PropertyId::Param0;
-	/** Param1: 스폰 위치 Y */
+	/** Param1: 스폰 위치 Y (cm 정수) */
 	inline const uint16 SpawnPosY = PropertyId::Param1;
+	/** Param2: archetype 별 의미 — 예: SlotHash 하위 32-bit, EntityTag NetIndex 등 */
+	inline const uint16 SpawnerSlot0 = PropertyId::Param2;
+	/** Param3: archetype 별 의미 — 예: Count, BiomeId 등 */
+	inline const uint16 SpawnerSlot1 = PropertyId::Param3;
 }
 
 // ============================================================================
@@ -138,6 +152,33 @@ namespace HktEventBuilder
 		E.EventTag = EventTag;
 		E.Param0   = SpawnPosX;
 		E.Param1   = SpawnPosY;
+		return E;
+	}
+
+	/**
+	 * Terrain spawner view 로 NPC 스포너 이벤트 생성 (TerrainSpawner.design.md §7).
+	 *
+	 * `FHktTerrainSpawnerView::PosXRaw/PosYRaw/PosZRaw` (Q16.16 cm) → 정수 cm 변환 후
+	 *   - `Event.Param0/1` = cm 정수 (SpawnerParams::SpawnPosX/Y 컨벤션)
+	 *   - `Event.Location` = FVector cm (시뮬레이션 시스템이 청크 사전 로드에 사용)
+	 *   - `Event.Param2/3` = view 의 archetype 별 슬롯
+	 *   - `Event.EventTag` = view.StoryTag (FHktDefaultServerRule 의 RuntimeEvent dispatch
+	 *     경로와 동일 — VMBuildSystem 이 StoryTag 로 Program 조회)
+	 *
+	 * EventId 는 호출자가 별도 시퀀스로 부여한다 (Insights 전용, VM 동작 영향 없음).
+	 */
+	inline FHktEvent SpawnerFromView(const FHktTerrainSpawnerView& View)
+	{
+		FHktEvent E;
+		E.EventTag = View.StoryTag;
+		E.Param0   = FHktFixed32::FromRaw(View.PosXRaw).FloorToInt();
+		E.Param1   = FHktFixed32::FromRaw(View.PosYRaw).FloorToInt();
+		E.Param2   = View.Param2;
+		E.Param3   = View.Param3;
+		E.Location = FVector(
+			FHktFixed32::FromRaw(View.PosXRaw).ToDouble(),
+			FHktFixed32::FromRaw(View.PosYRaw).ToDouble(),
+			FHktFixed32::FromRaw(View.PosZRaw).ToDouble());
 		return E;
 	}
 

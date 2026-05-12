@@ -39,6 +39,8 @@ public class HktMapGenerator : ModuleRules
 				"AssetTools",
 				"LandscapeEditor",
 				"HktStoryGenerator",
+				"HktCore",       // FHktFixed32 (HktMapSpawnerAdapter 변환용)
+				"HktTerrain",    // FHktTerrainSpawnerSpec / UHktTerrainBakedAsset (M5 어댑터)
 			}
 		);
 	}

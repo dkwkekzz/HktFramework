@@ -12,6 +12,7 @@
 #include "VM/HktVMWorldStateProxy.h"
 #include "Terrain/HktTerrainState.h"
 #include "Terrain/HktTerrainDataSource.h"
+#include "HktStoryEventParams.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
@@ -296,6 +297,8 @@ void FHktVMBuildSystem::Process(
         // 이벤트 파라미터를 Context 로컬에 저장 (SourceEntity 없이도 LoadStore로 읽기 가능)
         Context->EventParam0 = Event.Param0;
         Context->EventParam1 = Event.Param1;
+        Context->EventParam2 = Event.Param2;
+        Context->EventParam3 = Event.Param3;
         Context->EventTargetPosX = FMath::RoundToInt(Event.Location.X);
         Context->EventTargetPosY = FMath::RoundToInt(Event.Location.Y);
         Context->EventTargetPosZ = FMath::RoundToInt(Event.Location.Z);
@@ -574,6 +577,9 @@ void FHktTerrainSystem::Process(
     }
 
     // 2. 필요한 청크 로드 (프레임당 예산 제한으로 스파이크 방지)
+    //    + 새로 로드된 청크의 spawner 메타 → 이번 프레임 dispatch 이벤트로 변환
+    //    (TerrainSpawner.design.md §7 Runtime Execution)
+    EmittedSpawnerEvents.Reset();
     int32 LoadedThisFrame = 0;
     for (const FIntVector& Coord : RequiredChunks)
     {
@@ -589,6 +595,18 @@ void FHktTerrainSystem::Process(
             }
             TerrainState.LoadChunk(Coord, Source);
             ++LoadedThisFrame;
+
+            // 청크의 spawner 메타 enumerate — Source 가 미지원이면 no-op (default impl)
+            ScratchSpawnerViews.Reset();
+            Source.GetChunkSpawners(Coord.X, Coord.Y, Coord.Z, ScratchSpawnerViews);
+            for (const FHktTerrainSpawnerView& SView : ScratchSpawnerViews)
+            {
+                if (!SView.StoryTag.IsValid())
+                {
+                    continue;  // 미설정 — bake 검증 단계에서 거르도록 의도. 런타임은 silent skip.
+                }
+                EmittedSpawnerEvents.Add(HktEventBuilder::SpawnerFromView(SView));
+            }
         }
     }
 

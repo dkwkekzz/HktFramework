@@ -62,14 +62,30 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     EntityArrangeSystem.Process(WorldState, Event.RemovedOwnerIds);
 
     // Terrain: 엔티티 위치 + 이벤트 Location 기반 청크 로드/언로드
+    // + Terrain Spawner 통합 (TerrainSpawner.design.md §7): 새로 로드된 청크의
+    //   spawner 메타가 `TerrainSystem.EmittedSpawnerEvents` 로 흘러나온다.
     if (TerrainSource)
     {
         PendingVoxelDeltas.Reset();
         TerrainSystem.Process(WorldState, TerrainState, *TerrainSource, &Event.NewEvents);
     }
 
-    VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),
-                          *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
+    // VMBuildSystem 입력: 외부 NewEvents + 본 프레임에 chunk-load 로 dispatch 된 spawner 이벤트.
+    // EventId 는 SlotHash 기반 결정론 값을 부여 (Insights 만 사용; VM 동작 영향 없음).
+    if (TerrainSource && TerrainSystem.EmittedSpawnerEvents.Num() > 0)
+    {
+        TArray<FHktEvent> MergedEvents;
+        MergedEvents.Reserve(Event.NewEvents.Num() + TerrainSystem.EmittedSpawnerEvents.Num());
+        MergedEvents.Append(Event.NewEvents);
+        MergedEvents.Append(MoveTemp(TerrainSystem.EmittedSpawnerEvents));
+        VMBuildSystem.Process(MergedEvents, static_cast<int32>(Event.FrameNumber),
+                              *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
+    }
+    else
+    {
+        VMBuildSystem.Process(Event.NewEvents, static_cast<int32>(Event.FrameNumber),
+                              *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
+    }
 
     // VM 실행 + DispatchEvent 수집 루프 (최대 4회 반복으로 무한 루프 방지)
     static constexpr int32 MaxDispatchRounds = 4;

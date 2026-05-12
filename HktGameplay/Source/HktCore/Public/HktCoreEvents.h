@@ -84,6 +84,10 @@ struct HKTCORE_API FHktEvent
     int64 PlayerUid = 0;
     int32 Param0 = 0;
     int32 Param1 = 0;
+    // Param2/Param3 — Terrain Spawner 통합에서 추가된 평탄화 슬롯 (TerrainSpawner.design.md §3-a).
+    // 의미는 spawner story 본문이 자체 정의 (예: SlotHash low 32-bit, EntityTag NetIndex 등).
+    int32 Param2 = 0;
+    int32 Param3 = 0;
 
     FString ToString() const
     {
@@ -95,6 +99,7 @@ struct HKTCORE_API FHktEvent
     {
         Ar << E.EventId << E.SourceEntity << E.EventTag;
         Ar << E.TargetEntity << E.Location << E.PlayerUid << E.Param0 << E.Param1;
+        Ar << E.Param2 << E.Param3;
         return Ar;
     }
 };
