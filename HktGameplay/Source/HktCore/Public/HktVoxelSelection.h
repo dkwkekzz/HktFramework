@@ -7,11 +7,15 @@
 /**
  * FHktVoxelSelection — 선택/타겟 가능한 단일 복셀 식별자
  *
- * Selection/Target 시스템에서 Entity 외에 Voxel을 가리킬 때 사용한다.
- * HktRule 에 위치 — 정책(IHktUnitSelectionPolicy)과 인텐트(IHktIntentBuilder),
- * 그리고 히트 보정(IHktHitRefinementProvider, HktRuntime) 양쪽이 동일 타입을 공유.
+ * Selection/Target 시스템에서 Entity 외에 Voxel 을 가리킬 때 사용한다.
+ * HktCore 에 위치 — 결정론적 좌표(FIntVector) + 위치/노멀(FVector) + TypeID 의
+ * 순수 POD 이므로 Story/Rule/Runtime/Presentation/UI 모두 공유 가능.
+ * (FHktEvent 가 이미 동일한 FVector/FHktEntityId 를 HktCore 에서 사용.)
+ *
+ * Story VM 이 voxel 을 타겟으로 다루려면 이 타입을 직접 참조하거나, 필요한
+ * 필드만 FHktEvent 의 Param/Location 으로 풀어서 전달한다 — HktCore 순수성 유지.
  */
-struct HKTRULE_API FHktVoxelSelection
+struct HKTCORE_API FHktVoxelSelection
 {
 	/** 유효한 voxel 정보 여부 */
 	bool bValid = false;

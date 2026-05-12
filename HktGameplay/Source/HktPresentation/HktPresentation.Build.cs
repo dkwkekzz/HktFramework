@@ -34,7 +34,6 @@ public class HktPresentation : ModuleRules
 				"SlateCore",
 				"Niagara",
 				"HktCore",
-				"HktRule",
 				"HktRuntime",
 				"HktAsset",
 				"HktVFX",
