@@ -65,11 +65,13 @@
 
 ```
 [기존]  Spawner = (Position, EntityTag, Rule:enum, Count, Respawn)        — 정적 데이터
-[신규]  Spawner = (Position, StoryTag, EntryArgs)                          — Story 인스턴스
+[신규]  Spawner = (Position, StoryTag, Param0~3)                           — Story 이벤트
 ```
 
 - 스폰 패턴(웨이브·매복·패트롤·연쇄·조건부·환경반응)은 **전부 bytecode**.
 - `EHktSpawnRule` enum 폐기.
+- 진입 메커니즘은 기존 `FHktEvent` + `PendingGroupIntents` 큐 그대로 — 별도 VM 진입 API 없음 (§4-a).
+- archetype 별 슬롯 의미는 `SpawnerParams::` 별칭 네임스페이스(HktStoryEventParams.h).
 - Bake 시점 LLM 결정 → 정적 직렬화 → 런타임 결정론 0 비용.
 - HktCore는 `IHktTerrainDataSource`로만 spawner 메타를 소비 (단방향 의존 원칙 유지).
 
@@ -254,25 +256,25 @@ enum class EHktSpawnPattern : uint8 { Circle, Line, RandomSeeded };
 
 §1-3 정책에 따라 추가 시 별도 ADR 필수.
 
-### 4-d. Schema 2 확장
+### 4-d. Schema 2 변경 없음
 
-`McpBuildStory` 입력 JSON에 spawner-binding 필드 추가:
+> **설계 결정 (2026-05-12 갱신)**: spawner story 는 일반 Story 와 **구조적으로 동일**하다.
+> 별도 `spawner_bound`/`args_int`/`args_tag` 메타 필드 없이, archetype 별 인자는 본문에서
+> `LoadStore(PropertyId::Param0..3)` 로 직접 읽는다. Generator 가 archetype 템플릿 → JSON
+> 합성 시 슬롯 의미만 일관되게 유지하면 충분.
 
 ```json
 {
   "schema": 2,
   "tag": "Spawner.Story.AmbushWolves",
-  "entry": {
-    "spawner_bound": true,
-    "args_int": ["TriggerRadius", "Count", "HideDuration"],
-    "args_tag": ["EntityTag"]
-  },
   "vregs": [...],
-  "instructions": [...]
+  "instructions": [
+    {"op": "LoadStore", "dst": {"var":"posX"}, "prop": "Param0"},
+    {"op": "LoadStore", "dst": {"var":"posY"}, "prop": "Param1"},
+    /* ... */
+  ]
 }
 ```
-
-`spawner_bound: true`인 story는 `SpawnerOrigin/Biome/SlotHash` vreg가 자동 발급된다. Generator는 이 필드를 통해 spawner story와 일반 story를 구분.
 
 ---
 
@@ -280,7 +282,7 @@ enum class EHktSpawnPattern : uint8 { Circle, Line, RandomSeeded };
 
 > 모든 archetype은 **Schema 2 JSON**(`HktGameplay/Source/HktStory/StoryDefinitions/Spawner/*.json`). cpp 스니펫 신규 추가 금지 (§1 D4).
 
-| Archetype Tag | 패턴 | 주요 EntryArgs | 의존 opcode |
+| Archetype Tag | 패턴 | 주요 Param 슬롯 (Param0~3) | 의존 opcode |
 |---|---|---|---|
 | `Spawner.Archetype.Always` | 진입 즉시 N개 spawn | `EntityTag`, `Count` | `SpawnEntity`, `SpawnEntityAt`(builder) |
 | `Spawner.Archetype.Wave` | 시간 분산 다중 웨이브 | `WaveCount`, `IntervalSec`, `PerWaveCount`, `Escalation` | + `YieldSeconds`, `Add` |
@@ -338,7 +340,7 @@ spawner-design   →  슬롯 × archetype 매핑 (새 skill 또는 map-gen 확�
 
 ### 6-e. 검증 단계 (Bake 시점)
 - 각 `StoryTag`가 schema 2 컴파일 산출물에 존재하는지.
-- `EntryArgsInt/Tag` 키가 archetype 정의와 일치하는지.
+- `Param0~3` 슬롯 의미가 archetype 의 `SpawnerParams::` 별칭과 일치하는지.
 - `BiomeId`가 청크 실제 biome과 일치하는지 (Generator 결정 ≠ 실제 지형 방지).
 - `PosRaw`가 청크 경계 내인지.
 
@@ -352,10 +354,17 @@ UHktTerrainSubsystem::AcquireChunk(Coord)
    ↓ (HktCore 측 호출)
 IHktTerrainDataSource::LoadChunk + GetChunkSpawners
    ↓
-FHktTerrainState::OnChunkLoaded
+FHktTerrainState::OnChunkLoaded  →  IHktServerRule 알림 (or 직접 큐 주입)
    ↓
 for each spawner in chunk:
-    FHktStoryVM::StartInstance(spawner.StoryTag, BuildEntryArgs(spawner))
+    FHktEvent E = HktEventBuilder::Spawner(spawner.StoryTag,
+                                            spawner.PosXRaw, spawner.PosYRaw);
+    E.Location = ToVector(spawner.PosXRaw, ...);
+    E.Param2 = spawner.Param2;
+    E.Param3 = spawner.Param3;
+    PendingGroupIntents[Graph.CalculateRelevancyGroupIndex(E.Location)].Add(E);
+   ↓
+기존 이벤트 → Story dispatch 경로 (HktDefaultServerRule::OnEvent_GameModeTick)
    ↓
 Story bytecode 실행 (SOA WorldState dirty proxy 경유)
    ↓
@@ -365,10 +374,13 @@ FHktWorldView 갱신 (절대 원칙 3: 서버 권위)
 FHktWorldView 수신 → HktPresentation 렌더
 ```
 
+> `PendingWorldInit` 패턴 (서버 측 1회성 GameMode WorldInit Story) 은 본 통합 완료 시 위
+> dispatch 루프로 흡수되며 제거된다.
+
 ### 7-a. 청크 언로드
-- 청크가 SimMaxChunksLoaded LRU에서 제거될 때 spawner story 인스턴스를 **결정론적으로 정지**:
-  - `FHktStoryVM::StopInstancesBySpawnerOrigin(ChunkCoord)`.
-  - 이미 spawn된 엔티티는 정책에 따라 유지/정리(설계 결정 필요 — §10 오픈 이슈).
+- 청크가 SimMaxChunksLoaded LRU에서 제거될 때 해당 spawner 가 시작한 Story VM 인스턴스를
+  **결정론적으로 정지** 정책은 추후 결정 (§10 O1).
+- 이미 spawn된 엔티티 정리 정책도 §10 O1 에 종속 — 본 설계는 dispatch 까지만 다룬다.
 
 ### 7-b. 결정론
 - `SlotHash`를 RNG seed로 사용 → 동일 청크 재로드 시 동일 출현.
@@ -382,8 +394,8 @@ FHktWorldView 수신 → HktPresentation 렌더
 |---|---|---|
 | **M0** | 본 설계 승인 | — |
 | **M1** | `FHktTerrainSpawnerSpec` + `UHktTerrainBakedAsset` v2 추가. 빈 배열로 직렬화. | 기존 자산 영향 0 (재베이크 시 v2). |
-| **M2** | `IHktTerrainDataSource::GetChunkSpawners` 추가, `FHktTerrainProvider`에 빈 구현. HktCore VM 측 `StartInstance` 인프라. | HktCore 호출부 동기 갱신 필수 (CLAUDE.md "변경 시" 절차). |
-| **M3** | `FHktStoryBuilder` 신규 메서드 (`SpawnerOrigin` 등) + Schema 2 `spawner_bound` 확장. | 기존 story 무영향. |
+| **M2** | `IHktTerrainDataSource::GetChunkSpawners` 추가, `FHktTerrainProvider` 어댑터 구현. VM 변경 없음 (기존 FHktEvent 경로 재사용). | 기존 story/VM 무영향. |
+| **M3** | `FHktStoryBuilder` 헬퍼 (`SpawnEntityAt`, `SpawnEntityAround`) + `SpawnerParams::` archetype 별 Param 별칭 추가. | 기존 story 무영향. |
 | **M4** | Archetype 8종 JSON + Generator skill (`spawner-design`). | — |
 | **M5** | terrain-bake가 spawner 직렬화. `AHktSpawnerActor`는 어댑터로 변환 — `FHktMapSpawner` 입력을 받아 `FHktTerrainSpawnerSpec`으로 변환 후 spawner story 트리거. | HktMapGenerator JSON 입력 호환. |
 | **M6** | `FHktMapSpawner` / `EHktSpawnRule` / `AHktSpawnerActor` deprecated 마킹. 1 릴리즈 후 제거. | 컴파일 경고 단계. |
