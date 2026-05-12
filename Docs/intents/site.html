@@ -313,6 +313,10 @@
   }
   ul.rel li:hover .btn-unlink, .btn-unlink:focus { opacity:1; }
   .btn-unlink:hover { color:#f87171; background:rgba(239,68,68,0.15); opacity:1; }
+  /* 터치 디바이스에서는 hover 가 없으므로 항상 노출 */
+  @media (hover: none) {
+    .btn-unlink { opacity:1; color:var(--muted); }
+  }
   .btn-link-rel {
     background:transparent; border:1px solid var(--line); color:var(--accent);
     padding:0 6px; border-radius:3px; cursor:pointer; font:inherit; font-size:11px;
@@ -1297,19 +1301,15 @@
 
     // 양방향 미러 — 이웃의 parents/children 도 pending update 로 반영하여
     // 저장 전에도 UI 가 일관되게 보이도록 한다. (인라인 편집과 동일한 동작)
-    //   "old" 는 편집 전 상태: 예약된 create 편집이면 이전 pending intent,
-    //   브랜드뉴면 빈 집합, 일반 update 면 base.
+    //   "old" 는 모달 오픈 시점의 효과적(merged) 상태 = 인라인 편집 결과까지 포함.
+    //   ed.intent 는 openEditModal 에서 DATA.intents (merged view) 의 사본을 잡아둔 것.
     let oldParents, oldChildren;
-    if (editingPendingCreate) {
-      oldParents = new Set(ed.intent.parents || []);
-      oldChildren = new Set(ed.intent.children || []);
-    } else if (ed.isNew) {
+    if (ed.isNew) {
       oldParents = new Set();
       oldChildren = new Set();
     } else {
-      const baseIt = baseIntentsById[myId];
-      oldParents = new Set((baseIt || ed.intent).parents || []);
-      oldChildren = new Set((baseIt || ed.intent).children || []);
+      oldParents = new Set(ed.intent.parents || []);
+      oldChildren = new Set(ed.intent.children || []);
     }
     const newParents = new Set(patch.parents);
     const newChildren = new Set(patch.children);
