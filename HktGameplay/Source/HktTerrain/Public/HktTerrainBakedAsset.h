@@ -131,16 +131,18 @@ struct HKTTERRAIN_API FHktTerrainBakedConfig
  *
  * 각 spawner 는 (위치, Story 인스턴스) 쌍으로 표현된다. 스폰 패턴(웨이브/매복/패트롤 등)은
  * 전부 `StoryTag` 가 가리키는 Schema 2 Story 바이트코드로 표현되며, 본 구조체는 위치/인덱싱/
- * Story 진입 인자만 보유한다.
+ * archetype 별 정수 인자만 보유한다.
  *
  * 결정론 규칙:
  *   - 위치는 `FHktFixed32` raw (Q16.16) 로 저장. UE float 누설 금지.
- *   - 진입 인자는 `int32`(fixed-point) 또는 `FGameplayTag` 만 허용. `float` 금지(O4).
+ *   - 진입 인자는 4-슬롯 `int32 Params[4]` 평탄화 — `FHktEvent::Param0~3` 으로 그대로 흘려
+ *     보낼 수 있는 형식. archetype 별 슬롯 의미는 `SpawnerParams::` 네임스페이스
+ *     (HktStoryEventParams.h) 에서 별칭 정의.
  *   - `SlotHash` 는 `hash(ChunkCoord, SlotIndex)` 결과 — RNG seed 로 사용 시 재로드 시
  *     동일한 출현이 보장된다.
  *
- * V2 컴플라이언스: 본 구조체는 USTRUCT POD 로, `EHktSpawnRule` 등 enum 룰 폐기 이후의
- * 단일 진실 데이터다. UObject 의존 0(단순 직렬화 DTO).
+ * V2 컴플라이언스: 별도 진입 메커니즘/EntryArgs 구조체를 도입하지 않는다 — chunk 로드 시점에
+ * 본 스펙을 `HktEventBuilder::Spawner(...)` 로 변환해 기존 PendingGroupIntents 큐에 흘려보낸다.
  */
 USTRUCT()
 struct HKTTERRAIN_API FHktTerrainSpawnerSpec
@@ -164,13 +166,22 @@ struct HKTTERRAIN_API FHktTerrainSpawnerSpec
 	UPROPERTY()
 	FGameplayTag StoryTag;
 
-	/** Story 진입 인자 — fixed-point 정수만 허용. 부동소수 금지. */
+	/**
+	 * Story 진입 인자 — archetype 별 의미가 다른 4-슬롯 정수.
+	 * FHktEvent::Param0/1/2/3 에 그대로 매핑된다 (TMap/heap 0).
+	 * 의미 별칭은 SpawnerParams::* (HktStoryEventParams.h) 에 archetype 별로 정의.
+	 */
 	UPROPERTY()
-	TMap<FName, int32> EntryArgsInt;
+	int32 Param0 = 0;
 
-	/** Story 진입 인자 — GameplayTag 형. */
 	UPROPERTY()
-	TMap<FName, FGameplayTag> EntryArgsTag;
+	int32 Param1 = 0;
+
+	UPROPERTY()
+	int32 Param2 = 0;
+
+	UPROPERTY()
+	int32 Param3 = 0;
 
 	// ─── 인덱싱 / 검증 ───
 
@@ -184,10 +195,6 @@ struct HKTTERRAIN_API FHktTerrainSpawnerSpec
 	/** 베이크 시점 biome (런타임 검증). */
 	UPROPERTY()
 	int32 BiomeId = 0;
-
-	/** 컨텍스트 태그 ("near_cave_entrance", "mountain_peak" 등). */
-	UPROPERTY()
-	FGameplayTagContainer ContextTags;
 };
 
 /**

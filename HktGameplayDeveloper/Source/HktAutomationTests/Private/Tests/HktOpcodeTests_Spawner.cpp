@@ -4,7 +4,6 @@
 #include "HktAutomationTestsTypes.h"
 #include "HktAutomationTestsHarness.h"
 #include "HktStoryBuilder.h"
-#include "HktStoryEntryArgs.h"
 #include "HktCoreProperties.h"
 #include "VM/HktVMProgram.h"
 
@@ -12,19 +11,14 @@ namespace HktOpcodeTests
 {
 
 // ============================================================================
-// Spawner Builder API 검증 (TerrainSpawner.design.md §4)
+// Spawner Builder 헬퍼 검증 (TerrainSpawner.design.md §4-b)
 //
-// 본 테스트는 §4-a (Spawner Context Builder 메서드) 와 §4-b (SpawnEntityAt/Around
-// 헬퍼) 의 동작을 검증한다. 신규 opcode 가 추가되지 않았으므로 (§1-3 컴플라이언스)
-// 테스트는 다음 두 축으로 분리한다:
+// SpawnEntityAt / SpawnEntityAround 가 기존 opcode (SpawnEntity + SetPosition +
+// RandomInt + Add) 조합으로 expansion 되는지 런타임 실행으로 검증한다.
 //
-//  1. Builder 시맨틱 — 동일 빌더 내에서 SpawnerOrigin/Biome/SlotHash/EntryArg* 가
-//     같은 vreg 를 반환하는지 (entry-arg slot 단일 정의 보장).
-//  2. 런타임 시맨틱 — SpawnEntityAt/Around 가 SpawnEntity + SetPosition 조합으로
-//     올바른 위치에 엔티티를 생성하는지.
-//
-// VM 측 prefill (FHktStoryEntryArgs → entry-arg vreg) 은 M2 후속이므로, 본 테스트는
-// 호출자가 LoadConst 로 명시 초기화하는 케이스만 다룬다.
+// 별도 spawner-entry 메커니즘(EntryArgs / vreg prefill) 은 도입하지 않았으며,
+// spawner Story 의 컨텍스트는 `FHktEvent::Param0~3` + `Location` 으로 표현된다.
+// 따라서 본 테스트는 builder helper 의 런타임 시맨틱만 다룬다.
 // ============================================================================
 
 static FGameplayTag SpawnerTestTag()
@@ -36,115 +30,6 @@ static FGameplayTag SpawnerEntityTag()
 {
 	return FGameplayTag::RequestGameplayTag(FName(TEXT("Entity.Test.Spawner")), false);
 }
-
-// ----------------------------------------------------------------------------
-// Builder 시맨틱: vreg 캐싱
-// ----------------------------------------------------------------------------
-
-static FHktTestResult Test_SpawnerOrigin_Cached3SlotBlock()
-{
-	FHktStoryBuilder B = FHktStoryBuilder::Create(SpawnerTestTag());
-
-	FHktVarBlock A = B.SpawnerOrigin();
-	FHktVarBlock C = B.SpawnerOrigin();
-
-	if (!A.IsValid())
-		return FHktTestResult::Fail(TEXT("SpawnerOrigin_Cached3SlotBlock"), TEXT("First call should return valid block"));
-	if (A.Num() != 3)
-		return FHktTestResult::Fail(TEXT("SpawnerOrigin_Cached3SlotBlock"), TEXT("Block size should be 3"));
-	if (A.Base().GetId() != C.Base().GetId() || A.Num() != C.Num())
-		return FHktTestResult::Fail(TEXT("SpawnerOrigin_Cached3SlotBlock"), TEXT("Repeated calls should return cached block"));
-	if (!A.Element(0).IsValid() || !A.Element(1).IsValid() || !A.Element(2).IsValid())
-		return FHktTestResult::Fail(TEXT("SpawnerOrigin_Cached3SlotBlock"), TEXT("All 3 elements should be valid"));
-
-	return FHktTestResult::Pass(TEXT("SpawnerOrigin_Cached3SlotBlock"));
-}
-
-static FHktTestResult Test_SpawnerBiome_CachedSingleVar()
-{
-	FHktStoryBuilder B = FHktStoryBuilder::Create(SpawnerTestTag());
-
-	FHktVar A = B.SpawnerBiome();
-	FHktVar C = B.SpawnerBiome();
-
-	if (!A.IsValid())
-		return FHktTestResult::Fail(TEXT("SpawnerBiome_CachedSingleVar"), TEXT("First call should return valid var"));
-	if (A.GetId() != C.GetId())
-		return FHktTestResult::Fail(TEXT("SpawnerBiome_CachedSingleVar"), TEXT("Repeated calls should return cached vreg"));
-
-	return FHktTestResult::Pass(TEXT("SpawnerBiome_CachedSingleVar"));
-}
-
-static FHktTestResult Test_SpawnerSlotHash_CachedSingleVar()
-{
-	FHktStoryBuilder B = FHktStoryBuilder::Create(SpawnerTestTag());
-
-	FHktVar A = B.SpawnerSlotHash();
-	FHktVar C = B.SpawnerSlotHash();
-
-	if (!A.IsValid())
-		return FHktTestResult::Fail(TEXT("SpawnerSlotHash_CachedSingleVar"), TEXT("First call should return valid var"));
-	if (A.GetId() != C.GetId())
-		return FHktTestResult::Fail(TEXT("SpawnerSlotHash_CachedSingleVar"), TEXT("Repeated calls should return cached vreg"));
-
-	return FHktTestResult::Pass(TEXT("SpawnerSlotHash_CachedSingleVar"));
-}
-
-static FHktTestResult Test_SpawnerContext_DistinctVRegs()
-{
-	FHktStoryBuilder B = FHktStoryBuilder::Create(SpawnerTestTag());
-
-	FHktVarBlock Origin = B.SpawnerOrigin();
-	FHktVar Biome = B.SpawnerBiome();
-	FHktVar Hash = B.SpawnerSlotHash();
-
-	// 세 entry-arg 는 서로 다른 vreg 여야 한다 — 같은 GP 에 동시 prefill 될 수 없으므로.
-	if (Origin.Base().GetId() == Biome.GetId())
-		return FHktTestResult::Fail(TEXT("SpawnerContext_DistinctVRegs"), TEXT("Origin and Biome must be distinct vregs"));
-	if (Biome.GetId() == Hash.GetId())
-		return FHktTestResult::Fail(TEXT("SpawnerContext_DistinctVRegs"), TEXT("Biome and SlotHash must be distinct vregs"));
-	if (Origin.Base().GetId() == Hash.GetId())
-		return FHktTestResult::Fail(TEXT("SpawnerContext_DistinctVRegs"), TEXT("Origin and SlotHash must be distinct vregs"));
-
-	return FHktTestResult::Pass(TEXT("SpawnerContext_DistinctVRegs"));
-}
-
-static FHktTestResult Test_EntryArgInt_NamedCaching()
-{
-	FHktStoryBuilder B = FHktStoryBuilder::Create(SpawnerTestTag());
-
-	FHktVar Radius1 = B.EntryArgInt(TEXT("TriggerRadius"));
-	FHktVar Radius2 = B.EntryArgInt(TEXT("TriggerRadius"));
-	FHktVar Count   = B.EntryArgInt(TEXT("Count"));
-
-	if (!Radius1.IsValid() || !Count.IsValid())
-		return FHktTestResult::Fail(TEXT("EntryArgInt_NamedCaching"), TEXT("Named entry args should be valid"));
-	if (Radius1.GetId() != Radius2.GetId())
-		return FHktTestResult::Fail(TEXT("EntryArgInt_NamedCaching"), TEXT("Same name should return cached vreg"));
-	if (Radius1.GetId() == Count.GetId())
-		return FHktTestResult::Fail(TEXT("EntryArgInt_NamedCaching"), TEXT("Different names should yield distinct vregs"));
-
-	return FHktTestResult::Pass(TEXT("EntryArgInt_NamedCaching"));
-}
-
-static FHktTestResult Test_EntryArgTag_NamedCaching()
-{
-	FHktStoryBuilder B = FHktStoryBuilder::Create(SpawnerTestTag());
-
-	FHktVar A = B.EntryArgTag(TEXT("EntityTag"));
-	FHktVar C = B.EntryArgTag(TEXT("EntityTag"));
-
-	if (!A.IsValid())
-		return FHktTestResult::Fail(TEXT("EntryArgTag_NamedCaching"), TEXT("Tag entry arg should be valid"));
-	if (A.GetId() != C.GetId())
-		return FHktTestResult::Fail(TEXT("EntryArgTag_NamedCaching"), TEXT("Same name should return cached vreg"));
-
-	return FHktTestResult::Pass(TEXT("EntryArgTag_NamedCaching"));
-}
-
-// ----------------------------------------------------------------------------
-// 런타임 시맨틱: SpawnEntityAt / SpawnEntityAround
-// ----------------------------------------------------------------------------
 
 static FHktTestResult Test_SpawnEntityAt_PositionApplied()
 {
@@ -289,14 +174,6 @@ static FHktTestResult Test_SpawnEntityAround_RandomSeeded_SpawnsN()
 FHktTestReport RunSpawnerTests()
 {
 	FHktTestReport Report;
-	// Builder 시맨틱
-	Report.Add(Test_SpawnerOrigin_Cached3SlotBlock());
-	Report.Add(Test_SpawnerBiome_CachedSingleVar());
-	Report.Add(Test_SpawnerSlotHash_CachedSingleVar());
-	Report.Add(Test_SpawnerContext_DistinctVRegs());
-	Report.Add(Test_EntryArgInt_NamedCaching());
-	Report.Add(Test_EntryArgTag_NamedCaching());
-	// 런타임 시맨틱
 	Report.Add(Test_SpawnEntityAt_PositionApplied());
 	Report.Add(Test_SpawnEntityAround_Line_SpawnsN());
 	Report.Add(Test_SpawnEntityAround_Circle_SpawnsN());

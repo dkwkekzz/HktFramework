@@ -3,13 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/Map.h"
 #include "GameplayTagContainer.h"
 #include "Terrain/HktTerrainGeneratorConfig.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/Function.h"
-#include "UObject/NameTypes.h"
 
 /**
  * IHktTerrainDataSource
@@ -29,7 +27,8 @@
  * `HktCore → HktTerrain` 역의존이 발생하므로, 본 plain POD 로 데이터만 복사해서 전달한다.
  *
  *  - 위치는 `FHktFixed32` raw (Q16.16).
- *  - 진입 인자는 `int32`/`FGameplayTag` 만 — float 금지(결정론 보호).
+ *  - archetype 별 인자는 4-슬롯 정수 `Param0~3` — `FHktEvent::Param0~3` 으로 1:1 매핑.
+ *  - TMap/heap 0 — 청크 로드 시점의 일제 dispatch 에서도 캐시 친화적.
  */
 struct HKTCORE_API FHktTerrainSpawnerView
 {
@@ -40,8 +39,10 @@ struct HKTCORE_API FHktTerrainSpawnerView
 
 	// ─── 행동 ───
 	FGameplayTag StoryTag;
-	TMap<FName, int32> EntryArgsInt;
-	TMap<FName, FGameplayTag> EntryArgsTag;
+	int32 Param0 = 0;
+	int32 Param1 = 0;
+	int32 Param2 = 0;
+	int32 Param3 = 0;
 
 	// ─── 인덱싱 / 검증 ───
 	int32 ChunkX = 0;
@@ -49,7 +50,6 @@ struct HKTCORE_API FHktTerrainSpawnerView
 	int32 ChunkZ = 0;
 	uint32 SlotHash = 0;
 	int32 BiomeId = 0;
-	FGameplayTagContainer ContextTags;
 };
 
 class HKTCORE_API IHktTerrainDataSource

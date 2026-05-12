@@ -77,18 +77,19 @@ void FHktTerrainProvider::GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 Chu
 		if (!Spec) continue;
 
 		FHktTerrainSpawnerView View;
-		View.PosXRaw      = Spec->PosXRaw;
-		View.PosYRaw      = Spec->PosYRaw;
-		View.PosZRaw      = Spec->PosZRaw;
-		View.StoryTag     = Spec->StoryTag;
-		View.EntryArgsInt = Spec->EntryArgsInt;
-		View.EntryArgsTag = Spec->EntryArgsTag;
-		View.ChunkX       = Spec->ChunkCoord.X;
-		View.ChunkY       = Spec->ChunkCoord.Y;
-		View.ChunkZ       = Spec->ChunkCoord.Z;
-		View.SlotHash     = Spec->SlotHash;
-		View.BiomeId      = Spec->BiomeId;
-		View.ContextTags  = Spec->ContextTags;
-		OutSpawners.Add(MoveTemp(View));
+		View.PosXRaw  = Spec->PosXRaw;
+		View.PosYRaw  = Spec->PosYRaw;
+		View.PosZRaw  = Spec->PosZRaw;
+		View.StoryTag = Spec->StoryTag;
+		View.Param0   = Spec->Param0;
+		View.Param1   = Spec->Param1;
+		View.Param2   = Spec->Param2;
+		View.Param3   = Spec->Param3;
+		View.ChunkX   = Spec->ChunkCoord.X;
+		View.ChunkY   = Spec->ChunkCoord.Y;
+		View.ChunkZ   = Spec->ChunkCoord.Z;
+		View.SlotHash = Spec->SlotHash;
+		View.BiomeId  = Spec->BiomeId;
+		OutSpawners.Add(View);
 	}
 }

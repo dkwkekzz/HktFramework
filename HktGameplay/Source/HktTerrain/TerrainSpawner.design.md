@@ -96,17 +96,30 @@ struct HKTTERRAIN_API FHktTerrainSpawnerSpec
     /** 실행할 Story (반드시 schema 2). 미존재 시 베이크 실패. */
     UPROPERTY() FGameplayTag StoryTag;
 
-    /** Story 진입 인자 — fixed-point/태그만 허용. 부동소수 금지. */
-    UPROPERTY() TMap<FName, int32> EntryArgsInt;
-    UPROPERTY() TMap<FName, FGameplayTag> EntryArgsTag;
+    /**
+     * Story 진입 인자 — 4-슬롯 평탄화 정수. archetype 별 의미는 `SpawnerParams::`
+     * 네임스페이스(HktStoryEventParams.h) 에서 별칭 정의. `FHktEvent::Param0~3` 으로
+     * 1:1 매핑되어 기존 PendingGroupIntents 큐에 그대로 흘려보낼 수 있다.
+     */
+    UPROPERTY() int32 Param0 = 0;
+    UPROPERTY() int32 Param1 = 0;
+    UPROPERTY() int32 Param2 = 0;
+    UPROPERTY() int32 Param3 = 0;
 
     // ─── 인덱싱 / 검증 ───
     UPROPERTY() FIntVector ChunkCoord = FIntVector::ZeroValue;
     UPROPERTY() uint32 SlotHash = 0;        // 결정론 ID: hash(ChunkCoord, SlotIndex)
     UPROPERTY() int32 BiomeId = 0;          // 베이크 시점 biome (런타임 검증)
-    UPROPERTY() FGameplayTagContainer ContextTags;  // "near_cave_entrance", "mountain_peak"
 };
 ```
+
+> **설계 결정 (2026-05-12 갱신)**: TMap<FName, ...> EntryArgs 와 `FGameplayTagContainer ContextTags`
+> 는 폐기. 이유:
+>   - 청크 로드 시 일제 dispatch 에서 spawner 당 TMap 2개 힙 블롭 → 캐시미스 폭발.
+>   - 기존 `FHktEvent::Param0~3` + `Location` + `HktEventBuilder::Spawner` 가 이미 동일 컨텍스트를
+>     인라인 POD 로 표현 — 별도 진입 경로 도입은 중복.
+>   - archetype 별 4-슬롯이 부족하면 `SpawnerParams::` 네임스페이스에 별칭 추가로 충분 (예:
+>     `inline const uint16 BiomeId = PropertyId::Param2`).
 
 ### 3-b. `UHktTerrainBakedAsset` 확장
 
@@ -154,53 +167,59 @@ public:
 
 > §1 컴플라이언스를 만족하는 방식으로만 추가. **opcode 신설은 금지**가 기본.
 
-### 4-a. Spawner Context 주입 — VM Entry Args
+### 4-a. Spawner Context 주입 — 기존 `FHktEvent` 재사용 (별도 entry-args 메커니즘 폐기)
 
-Story가 spawner-bound 인스턴스로 시작될 때, VM이 정해진 vreg 슬롯에 entry args를 **prefill**한다. 빌더는 이 vreg를 핸들로 노출.
+> **설계 결정 (2026-05-12)**: 별도 `FHktStoryEntryArgs` 구조체 + VM `StartInstance` API +
+> entry-arg vreg prefill 메커니즘은 **모두 폐기**. 이유:
+>   - `FHktDefaultServerRule::OnEvent_GameModeTick` 의 `PendingWorldInit` 흐름이 보여주듯,
+>     `FHktEvent` (`EventTag` + `Location` + `Param0~3`) 가 이미 spawner 컨텍스트를 표현하는
+>     **단일 진입 메커니즘**이다.
+>   - 별도 진입 경로 + TMap<FName, ...> EntryArgs 는 (1) 캐시미스 (2) 진입 경로 분기 (3) 빌더
+>     메서드 중복 으로 비용만 추가.
+>   - 4-슬롯이 부족한 archetype 은 매우 드물고, 필요 시 `SpawnerParams::` 별칭으로 의미 부여.
 
-```cpp
-// HktStoryBuilder.h — 신규 메서드 (FHktVar 반환, U1·U2·U6 준수)
-class FHktStoryBuilder
-{
-public:
-    /** Spawner story 진입점에서만 유효. 위치 3-슬롯 (X,Y,Z) FHktVarBlock 반환. */
-    FHktVarBlock SpawnerOrigin();
+#### Spawner Story 가 컨텍스트를 읽는 방식
 
-    /** Spawner biome id (int32). */
-    FHktVar SpawnerBiome();
-
-    /** Spawner 결정론 ID (RandomInt seed 등에 사용). */
-    FHktVar SpawnerSlotHash();
-
-    /** EntryArgsInt 사용자 인자 — 이름으로 조회. 미존재 시 invalid var. */
-    FHktVar EntryArgInt(FName Name);
-
-    /** EntryArgsTag 사용자 인자. */
-    FHktVar EntryArgTag(FName Name);
-};
-```
-
-**내부 동작**:
-- 빌더가 entry-arg 용도 vreg를 **선할당**(pre-allocate)한 후, VRegIR에 "entry-arg slot" 표식.
-- Linear-Scan 할당기는 해당 vreg의 라이브니스를 entry 시점부터로 잡아 GP 레지스터 점유.
-- VM은 story 인스턴스 시작 시 `FHktStoryEntryArgs` 구조체를 받아 해당 GP 레지스터에 prefill.
+기존 패턴 그대로:
 
 ```cpp
-// HktCore — VM 측 (UObject 0 유지)
-struct FHktStoryEntryArgs
+// archetype 별 의미는 SpawnerParams::* 에서 별칭 정의 (HktStoryEventParams.h)
+namespace SpawnerParams
 {
-    int32 OriginXRaw = 0, OriginYRaw = 0, OriginZRaw = 0;  // FHktFixed32 raw
-    int32 BiomeId = 0;
-    uint32 SlotHash = 0;
-    TMap<FName, int32> ArgsInt;
-    TMap<FName, FGameplayTag> ArgsTag;
-};
+    inline const uint16 SpawnPosX = PropertyId::Param0;
+    inline const uint16 SpawnPosY = PropertyId::Param1;
+    // archetype 별 추가 별칭 — SlotHash, BiomeId 등 필요 시 Param2/3 에 매핑
+}
 
-// 인스턴스 시작 API
-FHktStoryHandle FHktStoryVM::StartInstance(FGameplayTag StoryTag, const FHktStoryEntryArgs& Args);
+// Story 코드 (Schema 2 JSON 또는 Builder):
+B.LoadStore(MyVar, SpawnerParams::SpawnPosX);   // Event.Param0 읽기
 ```
 
-**결정론**: `SlotHash`가 RNG seed로 사용되면 동일 spawner는 매번 동일 출력. `RandomInt` opcode는 기존 seed 모델과 결합.
+좌표 자체는 `FHktEvent::Location` (FVector) 또는 `Param0~3` 에 raw int 로 인라인되어 흘러간다.
+
+#### 청크 로드 → spawner dispatch
+
+`FHktDefaultServerRule::OnEvent_GameModeTick` 의 `PendingWorldInit` 분기는 본 통합 완료 시 제거되고,
+**TerrainSubsystem 의 청크 로드 콜백**이 spawner 를 enumerate 해 동일 `PendingGroupIntents` 큐에
+이벤트를 주입한다:
+
+```cpp
+// for each newly-loaded chunk:
+TArray<FHktTerrainSpawnerView> Spawners;
+TerrainSource->GetChunkSpawners(ChunkX, ChunkY, ChunkZ, Spawners);
+for (const FHktTerrainSpawnerView& S : Spawners)
+{
+    FHktEvent E = HktEventBuilder::Spawner(S.StoryTag,
+                                            S.PosXRaw, S.PosYRaw);  // Param0/1
+    E.Location = FVector(/* PosXRaw → cm 변환 */);
+    E.Param2 = S.Param2;   // archetype 별 의미 (e.g. SlotHash low 32-bit)
+    E.Param3 = S.Param3;
+    const int32 GroupIdx = Graph.CalculateRelevancyGroupIndex(E.Location);
+    PendingGroupIntents[GroupIdx].Add(E);
+}
+```
+
+VM 측 변경 0, 새 진입 API 0, 새 prefill 0.
 
 ### 4-b. Spawn Helper Builder 메서드 (opcode 추가 없음)
 
@@ -382,10 +401,11 @@ FHktWorldView 수신 → HktPresentation 렌더
 | `HktTerrain/Public/HktTerrainBakeLibrary.h`+cpp | spawner slot 추출 + 직렬화 |
 | `HktCore/Public/HktTerrainDataSource.h` | 인터페이스 확장 (`GetChunkSpawners`, `FHktTerrainSpawnerView`) |
 | `HktCore/Public/HktTerrainProvider.h`+cpp | 어댑터 구현 |
-| `HktCore/Public/HktStoryBuilder.h`+cpp | 신규 메서드 (§4-a, §4-b) |
+| `HktCore/Public/HktStoryBuilder.h`+cpp | 신규 헬퍼 (§4-b 만 — SpawnEntityAt/Around + EHktSpawnPattern). §4-a 메서드는 폐기. |
+| `HktCore/Public/HktStoryEventParams.h` | `SpawnerParams::` 네임스페이스에 archetype 별 Param 별칭 추가 |
 | `HktCore/Public/HktStoryTypes.h` | (조건부) 잠정 opcode — ADR 통과 시만 |
-| `HktCore/Private/HktStoryVM.cpp` | `StartInstance(EntryArgs)`, `StopInstancesBySpawnerOrigin` |
-| `HktCore/Private/HktVRegIR.cpp` | entry-arg vreg 표식 |
+| `HktCore/Private/HktStoryVM.cpp` | `StopInstancesBySpawnerOrigin` 만 (StartInstance 폐기) |
+| `HktRule/Private/HktServerRule.cpp` | `PendingWorldInit` 제거 + 청크 로드 시 spawner dispatch 분기 추가 |
 | `HktStory/StoryDefinitions/Spawner/*.json` | archetype 8종 (신규) |
 | `HktTerrain/CLAUDE.md` | spawner 책임 추가 명시 |
 | `HktTerrain/README.md` | spawner 데이터 흐름 추가 |
@@ -421,3 +441,4 @@ FHktWorldView 수신 → HktPresentation 렌더
 | 일자 | 변경 | 비고 |
 |---|---|---|
 | 2026-05-12 | 초안 작성 | 브랜치 `claude/terrain-spawner-planning-R2Jp3` |
+| 2026-05-12 | §3-a / §4-a 정정 — TMap EntryArgs + `FHktStoryEntryArgs` 진입 메커니즘 폐기. 기존 `FHktEvent::Param0~3` + `PendingGroupIntents` 큐 재사용으로 단일 진입경로 유지. 빌더 spawner-context 메서드(SpawnerOrigin/Biome/SlotHash/EntryArg*) 제거, `bIsEntryArgSlot` vreg 플래그 제거, Spec/View 평탄화 (4-슬롯 정수). | `OnEvent_GameModeTick` 의 `HktEventBuilder::Spawner` 패턴이 이미 컨텍스트를 표현. 캐시미스/중복 진입경로 회피. |

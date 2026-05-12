@@ -269,34 +269,16 @@ public:
     FHktVar IterVar();      // ForEach 순회 슬롯
     FHktVar FlagVar();      // 비교/카운트 결과 슬롯
 
-    // ----- Spawner Context (Spawner-bound Story 전용) -----
+    // ----- Spawner Context -----
     //
-    // 본 메서드들은 Story 가 spawner story 인스턴스로 시작될 때 VM 이 prefill 하는
-    // entry-arg vreg 를 반환한다. 같은 빌더 내에서 동일 메서드 재호출 시 캐시된 vreg 가
-    // 그대로 반환된다 (라이브니스 분석/할당기 안정성을 위해).
+    // 별도의 spawner-context Builder 메서드는 도입하지 않는다.
+    // 기존 `FHktEvent::Param0~3` + `Location` + `HktEventBuilder::Spawner` 가 모든 spawner
+    // 진입 컨텍스트(위치/SlotHash/archetype params)를 인라인 정수 + FVector 로 표현하므로,
+    // Story 코드는 `LoadStore(PropertyId::Param0..3)` / 좌표 자동 매핑으로 그대로 읽는다.
     //
-    // TerrainSpawner.design.md §4-a 컴플라이언스:
-    //  - `Reg::` 네임스페이스/RegisterIndex 신규 의미 부여 금지 (D1/D3) — 본 메서드는
-    //    `NewEntryArgSlot()` 가 발급한 anonymous vreg 만 반환한다.
-    //  - 신규 OpCode 없음 (§1-3) — 빌더 메서드 추가 + entry-arg vreg 표식만으로 표현.
-
-    /** Spawner 위치 (X, Y, Z) — 3-슬롯 entry-arg 블록. spawner-bound Story 에서만 의미 있음. */
-    FHktVarBlock SpawnerOrigin();
-
-    /** Spawner 베이크 시점 biome id. */
-    FHktVar SpawnerBiome();
-
-    /** Spawner 결정론 ID (RandomInt seed 결합에 사용). */
-    FHktVar SpawnerSlotHash();
-
-    /**
-     * 사용자 정의 정수 EntryArg — 이름으로 조회. 동일 이름 재호출 시 캐시된 vreg 반환.
-     * 미존재 인스턴스 인자에 대해서는 VM 측이 기본값 0 으로 prefill 한다.
-     */
-    FHktVar EntryArgInt(FName Name);
-
-    /** 사용자 정의 GameplayTag EntryArg — int 키로 NetIndex 가 prefill 된다. */
-    FHktVar EntryArgTag(FName Name);
+    // TerrainSpawner.design.md §4-a 갱신: 별도 prefill 메커니즘/EntryArgs 구조체 폐기.
+    // `SpawnerParams::` 네임스페이스(HktStoryEventParams.h) 에서 Param0~3 의 의미 별칭만
+    // 정의해 archetype 별 계약을 형식화한다.
 
     /**
      * 같은 이름은 같은 VReg 로 해석 — JSON `{"var":"name"}` 폼이 사용한다.
@@ -978,16 +960,6 @@ private:
     // Base VReg + Count 를 보관하여 같은 이름 호출 시 동일 블록을 재사용한다.
     struct FNamedBlockEntry { FHktVRegHandle Base; int32 Count; };
     TMap<FString, FNamedBlockEntry> NamedBlockMap;
-
-    // ----- Spawner Context 캐시 (TerrainSpawner.design.md §4-a) -----
-    // 한 빌더 내에서 SpawnerOrigin/Biome/SlotHash 는 단 한 번씩만 vreg 를 발급해야 한다.
-    // 매 호출마다 새로 발급하면 entry-arg vreg 가 중복 생성되어 라이브니스/할당기 비용이 증가한다.
-    FHktVRegHandle SpawnerOriginBaseVReg = -1;
-    int32 SpawnerOriginCount = 0;
-    FHktVRegHandle SpawnerBiomeVReg = -1;
-    FHktVRegHandle SpawnerSlotHashVReg = -1;
-    // 사용자 정의 entry-arg — 이름별 vreg 매핑. Int/Tag 모두 같은 맵 사용 (이름 충돌은 호출자 책임).
-    TMap<FName, FHktVRegHandle> NamedEntryArgMap;
 
     // Flow 모드 — Self/Target 엔티티 없음
     bool bFlowMode = false;
