@@ -821,6 +821,137 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 {
 	bStyleBuilt = false;
 
+	// 솔리드 컬러 폴백 판정.
+	//   1) 사용자가 명시적으로 토글 ON 했거나,
+	//   2) BakedStyleSet 가 없고 BlockStyles 중 어떤 항목도 텍스처를 가지지 않을 때 자동.
+	const bool bHasBakedTextures = (BakedStyleSet && BakedStyleSet->HasBakedData());
+	bool bAnyBlockHasTexture = false;
+	for (const FHktVoxelBlockStyle& S : BlockStyles)
+	{
+		if (S.HasAnyTexture()) { bAnyBlockHasTexture = true; break; }
+	}
+	const bool bSolidColorMode =
+		bUseSolidColorFallback
+		|| (BlockStyles.Num() > 0 && !bHasBakedTextures && !bAnyBlockHasTexture);
+
+	auto BuildPaletteTexture = [this](TFunctionRef<FColor(int32 /*TypeRow*/)> RowColor)
+	{
+		const int32 PW = 8, PH = 256;
+		DefaultPaletteTexture = NewObject<UTexture2D>(this, TEXT("DefaultPalette"), RF_Transient);
+		FTexturePlatformData* PPD = new FTexturePlatformData();
+		PPD->SizeX = PW;
+		PPD->SizeY = PH;
+		PPD->PixelFormat = PF_B8G8R8A8;
+		FTexture2DMipMap* PMip = new FTexture2DMipMap();
+		PPD->Mips.Add(PMip);
+		PMip->SizeX = PW;
+		PMip->SizeY = PH;
+		PMip->BulkData.Lock(LOCK_READ_WRITE);
+		uint8* PData = static_cast<uint8*>(PMip->BulkData.Realloc(PW * PH * 4));
+		for (int32 Row = 0; Row < PH; Row++)
+		{
+			const FColor C = RowColor(Row);
+			for (int32 Col = 0; Col < PW; Col++)
+			{
+				const int32 Off = (Row * PW + Col) * 4;
+				// PF_B8G8R8A8: 메모리 순서 B, G, R, A
+				PData[Off + 0] = C.B;
+				PData[Off + 1] = C.G;
+				PData[Off + 2] = C.R;
+				PData[Off + 3] = C.A;
+			}
+		}
+		PMip->BulkData.Unlock();
+		DefaultPaletteTexture->SetPlatformData(PPD);
+		DefaultPaletteTexture->Filter = TF_Nearest;
+		DefaultPaletteTexture->SRGB = false;
+		DefaultPaletteTexture->AddressX = TA_Clamp;
+		DefaultPaletteTexture->AddressY = TA_Clamp;
+		DefaultPaletteTexture->UpdateResource();
+	};
+
+	// === 솔리드 컬러 폴백 ===
+	// TileArray 는 1×1×1 흰색 더미 (셰이더 HktTileEnabled 바인딩 충족용),
+	// TileIndexLUT 는 전부 255 (= 미매핑) → 셰이더가 팔레트 경로만 사용,
+	// DefaultPalette 행 = TypeID 별 BaseColor (sRGB 인코딩) → 솔리드 컬러로 출력.
+	if (bSolidColorMode)
+	{
+		BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
+
+		// 1×1×1 흰색 더미 TileArray — DDC 컴파일 없이 직접 PlatformData 빌드.
+		{
+			UTexture2DArray* DummyArray = NewObject<UTexture2DArray>(
+				BuiltTileAtlas, TEXT("DummyTileArray"), RF_Transient);
+
+			FTexturePlatformData* PD = new FTexturePlatformData();
+			PD->SizeX = 1;
+			PD->SizeY = 1;
+			PD->SetNumSlices(1);
+			PD->PixelFormat = PF_B8G8R8A8;
+
+			FTexture2DMipMap* Mip = new FTexture2DMipMap();
+			PD->Mips.Add(Mip);
+			Mip->SizeX = 1;
+			Mip->SizeY = 1;
+			Mip->SizeZ = 1;
+			Mip->BulkData.Lock(LOCK_READ_WRITE);
+			uint8* TexData = static_cast<uint8*>(Mip->BulkData.Realloc(4));
+			TexData[0] = 0xFF; TexData[1] = 0xFF; TexData[2] = 0xFF; TexData[3] = 0xFF;
+			Mip->BulkData.Unlock();
+
+			DummyArray->SetPlatformData(PD);
+			DummyArray->Filter = TF_Nearest;
+			DummyArray->SRGB = true;
+			DummyArray->AddressX = TA_Clamp;
+			DummyArray->AddressY = TA_Clamp;
+			DummyArray->UpdateResource();
+
+			BuiltTileAtlas->TileArray = DummyArray;
+		}
+
+		// TileIndexLUT — 모든 매핑을 (255,255,255) 로 두면 BuildLUTTexture 는
+		// 모든 슬라이스가 미매핑 = 팔레트 경로로 처리한다.
+		BuiltTileAtlas->BuildLUTTexture();
+
+		// MaterialLUT — BlockStyle 의 PBR 값을 그대로 주입.
+		BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);
+		for (const FHktVoxelBlockStyle& Style : BlockStyles)
+		{
+			BuiltMaterialLUT->SetMaterial(Style.GetTypeID(), Style.Roughness, Style.Metallic, Style.Specular);
+		}
+		BuiltMaterialLUT->BuildLUTTexture();
+
+		// DefaultPalette — Row=TypeID 에 BaseColor 채움. 미정 행은 흰색(=GWhiteTexture 등가).
+		FColor PerTypeColor[256];
+		for (int32 i = 0; i < 256; i++) { PerTypeColor[i] = FColor::White; }
+		for (const FHktVoxelBlockStyle& Style : BlockStyles)
+		{
+			const uint16 TypeID = Style.GetTypeID();
+			if (TypeID < 256)
+			{
+				// sRGB 인코딩 — DefaultPaletteTexture 는 SRGB=false 이므로
+				// 셰이더에서 디코딩 없이 곧바로 BaseColor 로 곱해진다.
+				// 결과가 선형 공간 셰이딩과 자연스럽게 어울리려면 sRGB 로 인코딩해 둬야 함.
+				PerTypeColor[TypeID] = Style.BaseColor.ToFColor(/*bSRGB=*/true);
+			}
+		}
+		BuildPaletteTexture([&](int32 Row) -> FColor
+		{
+			return (Row >= 0 && Row < 256) ? PerTypeColor[Row] : FColor::White;
+		});
+
+		FlushRenderingCommands();
+		bStyleBuilt = true;
+
+		const TCHAR* Reason = bUseSolidColorFallback
+			? TEXT("bUseSolidColorFallback=ON")
+			: TEXT("auto: BakedStyleSet 미설정 + BlockStyle 텍스처 0");
+		UE_LOG(LogHktVoxelTerrain, Log,
+			TEXT("[TerrainStyle] 솔리드 컬러 폴백 — %s (%d styles)"),
+			Reason, BlockStyles.Num());
+		return;
+	}
+
 	// 우선순위 1) BakedStyleSet — DDC 컴파일 미경유, 단순 자산 적용.
 	//   에디터-타임에 베이크된 Texture2DArray 를 그대로 참조하므로
 	//   TextureDerivedData 워커 메모리 폭증 (~1 GiB+) 회피.
@@ -831,28 +962,7 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 		BakedStyleSet->ApplyTo(BuiltTileAtlas, BuiltMaterialLUT);
 
 		// 기본 팔레트 텍스처 (8×256 흰색) — GWhiteTexture OOB 방지용. Build 경로와 동일.
-		{
-			const int32 PW = 8, PH = 256;
-			DefaultPaletteTexture = NewObject<UTexture2D>(this, TEXT("DefaultPalette"), RF_Transient);
-			FTexturePlatformData* PPD = new FTexturePlatformData();
-			PPD->SizeX = PW;
-			PPD->SizeY = PH;
-			PPD->PixelFormat = PF_B8G8R8A8;
-			FTexture2DMipMap* PMip = new FTexture2DMipMap();
-			PPD->Mips.Add(PMip);
-			PMip->SizeX = PW;
-			PMip->SizeY = PH;
-			PMip->BulkData.Lock(LOCK_READ_WRITE);
-			uint8* PData = static_cast<uint8*>(PMip->BulkData.Realloc(PW * PH * 4));
-			FMemory::Memset(PData, 0xFF, PW * PH * 4);
-			PMip->BulkData.Unlock();
-			DefaultPaletteTexture->SetPlatformData(PPD);
-			DefaultPaletteTexture->Filter = TF_Nearest;
-			DefaultPaletteTexture->SRGB = false;
-			DefaultPaletteTexture->AddressX = TA_Clamp;
-			DefaultPaletteTexture->AddressY = TA_Clamp;
-			DefaultPaletteTexture->UpdateResource();
-		}
+		BuildPaletteTexture([](int32) { return FColor::White; });
 
 		// 작은 LUT 들의 RHI 준비를 BeginPlay 직후 보장 — 텍스처 배열은 이미
 		// cooked 상태로 로드되었으므로 여기서 flush 비용은 LUT(8×256, 256×3) 만큼만 든다.
@@ -946,7 +1056,7 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 		const uint8 BottomSlice = AssignSlice(BottomTex, BottomNorm);
 
 		BuiltTileAtlas->SetTileMapping(
-			static_cast<uint16>(Style.TypeID), TopSlice, SideSlice, BottomSlice);
+			Style.GetTypeID(), TopSlice, SideSlice, BottomSlice);
 	}
 
 	// 3. 소스 텍스처 호환성 검증 — Texture2DArray는 모든 슬라이스가 동일 포맷/해상도여야 함
@@ -1103,7 +1213,7 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 	for (const FHktVoxelBlockStyle& Style : BlockStyles)
 	{
 		BuiltMaterialLUT->SetMaterial(
-			static_cast<uint16>(Style.TypeID),
+			Style.GetTypeID(),
 			Style.Roughness, Style.Metallic, Style.Specular);
 	}
 	BuiltMaterialLUT->BuildLUTTexture();
@@ -1112,28 +1222,7 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 	//    GWhiteTexture(1x1)를 팔레트로 사용하면 셰이더의 Load(int3(PaletteIdx, VoxelType, 0))가
 	//    VoxelType>0에서 out-of-bounds → (0,0,0,0)을 반환, TileColor * 0 = 검정.
 	//    올바른 크기의 흰색 팔레트를 제공하여 PaletteTint = (1,1,1,1) 보장.
-	{
-		const int32 PW = 8, PH = 256;
-		DefaultPaletteTexture = NewObject<UTexture2D>(this, TEXT("DefaultPalette"), RF_Transient);
-		FTexturePlatformData* PPD = new FTexturePlatformData();
-		PPD->SizeX = PW;
-		PPD->SizeY = PH;
-		PPD->PixelFormat = PF_B8G8R8A8;
-		FTexture2DMipMap* PMip = new FTexture2DMipMap();
-		PPD->Mips.Add(PMip);
-		PMip->SizeX = PW;
-		PMip->SizeY = PH;
-		PMip->BulkData.Lock(LOCK_READ_WRITE);
-		uint8* PData = static_cast<uint8*>(PMip->BulkData.Realloc(PW * PH * 4));
-		FMemory::Memset(PData, 0xFF, PW * PH * 4);
-		PMip->BulkData.Unlock();
-		DefaultPaletteTexture->SetPlatformData(PPD);
-		DefaultPaletteTexture->Filter = TF_Nearest;
-		DefaultPaletteTexture->SRGB = false;
-		DefaultPaletteTexture->AddressX = TA_Clamp;
-		DefaultPaletteTexture->AddressY = TA_Clamp;
-		DefaultPaletteTexture->UpdateResource();
-	}
+	BuildPaletteTexture([](int32) { return FColor::White; });
 
 	// 7. RHI 리소스 동기 대기 — UpdateResource()는 비동기로 렌더 스레드에서 RHI를 생성하므로,
 	//    여기서 Flush하지 않으면 직후 ApplyStyleToComponent에서 GetTileArrayRHI()가 nullptr을

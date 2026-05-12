@@ -9,6 +9,7 @@
 #include "Meshing/HktVoxelMeshScheduler.h"
 #include "HktTerrainChunkLoader.h"
 #include "HktTerrainBakedAsset.h"
+#include "HktVoxelTerrainTypes.h"
 #include "Rendering/HktVoxelChunkComponent.h"
 #include "HktVoxelTerrainActor.generated.h"
 
@@ -18,36 +19,48 @@ class UHktVoxelMaterialLUT;
 class UHktVoxelTerrainStyleSet;
 
 /**
- * FHktVoxelBlockStyle — TypeID별 시각 정의
+ * FHktVoxelBlockStyle — 블록 타입별 시각 정의
  *
- * 에디터에서 블록 타입별 텍스처(Top/Side/Bottom)와 PBR 속성을 지정한다.
- * TerrainActor가 BeginPlay에서 이 배열을 Texture2DArray + MaterialLUT로 빌드.
+ * 에디터에서 블록 타입(EHktTerrainType)별 텍스처(Top/Side/Bottom)와 PBR 속성을 지정한다.
+ * 텍스처가 하나도 없으면 BaseColor(솔리드 컬러)로 폴백 렌더링.
+ * TerrainActor가 BeginPlay에서 이 배열을 Texture2DArray + MaterialLUT + Palette 로 빌드.
  */
 USTRUCT(BlueprintType)
 struct FHktVoxelBlockStyle
 {
 	GENERATED_BODY()
 
-	/** 대응하는 복셀 TypeID (HktTerrainType 참조) */
+	/** 대응하는 복셀 타입. 정수 ID 대신 의미 있는 이름으로 선택. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
-	int32 TypeID = 0;
+	EHktTerrainType BlockType = EHktTerrainType::Grass;
 
-	/** 블록 이름 (에디터 표시용) */
+	/** 블록 이름 (에디터 표시용, 비워두면 BlockType 이름 사용) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
 	FString DisplayName;
 
-	// --- 텍스처 (면 방향별) ---
+	/**
+	 * 솔리드 컬러 폴백 — Top/Side/Bottom 텍스처가 모두 비어있을 때 사용.
+	 * 텍스처가 하나라도 설정되면 무시된다.
+	 * 텍스처 없이 빠르게 블록을 구성·시각화하고 싶을 때 유용.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
+	FLinearColor BaseColor = FLinearColor::White;
 
-	/** +Z(위) 면 텍스처. nullptr이면 SideTexture 사용 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	// --- 텍스처 (면 방향별, 선택) ---
+
+	/** +Z(위) 면 BaseColor 텍스처. 비우면 SideTexture 사용 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|BaseColor",
+		meta = (DisplayName = "Top (+Z) BaseColor"))
 	TObjectPtr<UTexture2D> TopTexture;
 
-	/** ±X/±Y(옆) 면 텍스처. 필수 — nullptr이면 팔레트 폴백 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	/** ±X/±Y(옆) 면 BaseColor 텍스처. 비우면 BaseColor 솔리드 폴백 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|BaseColor",
+		meta = (DisplayName = "Side (XY) BaseColor"))
 	TObjectPtr<UTexture2D> SideTexture;
 
-	/** -Z(아래) 면 텍스처. nullptr이면 SideTexture 사용 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
+	/** -Z(아래) 면 BaseColor 텍스처. 비우면 SideTexture 사용 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|BaseColor",
+		meta = (DisplayName = "Bottom (-Z) BaseColor"))
 	TObjectPtr<UTexture2D> BottomTexture;
 
 	// --- 노멀맵 (선택) ---
@@ -55,15 +68,18 @@ struct FHktVoxelBlockStyle
 	// UE 에셋 설정은 TC_Normalmap + sRGB=off 권장. DXT5/BC5 모두 셰이더에서 z 재구성.
 
 	/** +Z(위) 면 노멀맵. TopTexture가 있을 때만 사용, 없으면 SideNormal로 폴백 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normal")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Normal",
+		meta = (DisplayName = "Top (+Z) Normal"))
 	TObjectPtr<UTexture2D> TopNormal;
 
 	/** ±X/±Y(옆) 면 노멀맵 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normal")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Normal",
+		meta = (DisplayName = "Side (XY) Normal"))
 	TObjectPtr<UTexture2D> SideNormal;
 
 	/** -Z(아래) 면 노멀맵. BottomTexture가 있을 때만 사용, 없으면 SideNormal로 폴백 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normal")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture|Normal",
+		meta = (DisplayName = "Bottom (-Z) Normal"))
 	TObjectPtr<UTexture2D> BottomNormal;
 
 	// --- PBR 속성 ---
@@ -79,6 +95,15 @@ struct FHktVoxelBlockStyle
 	/** 스페큘러 반사 강도 (0=없음, 1=최대) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float Specular = 0.5f;
+
+	/** 정수 TypeID — namespace HktTerrainType 와 호환되는 호이스트. */
+	FORCEINLINE uint16 GetTypeID() const { return static_cast<uint16>(BlockType); }
+
+	/** 텍스처가 하나라도 설정되어 있는지 — 모두 비면 BaseColor 솔리드 폴백. */
+	FORCEINLINE bool HasAnyTexture() const
+	{
+		return TopTexture != nullptr || SideTexture != nullptr || BottomTexture != nullptr;
+	}
 };
 
 /**
@@ -246,8 +271,23 @@ public:
 	 * 초과한다(약 1 GiB+). 프로덕션에서는 Bake 버튼 → BakedStyleSet 경로 사용 권장.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Style",
-		meta = (TitleProperty = "{DisplayName} (ID:{TypeID})"))
+		meta = (TitleProperty = "{BlockType} - {DisplayName}"))
 	TArray<FHktVoxelBlockStyle> BlockStyles;
+
+	/**
+	 * 솔리드 컬러 폴백 모드 — Texture2DArray / 노멀맵 빌드를 완전히 건너뛰고
+	 * BlockStyle 의 BaseColor 만으로 렌더링한다.
+	 *
+	 * 텍스처/베이크 자산이 없거나 설정이 어려운 초기 셋업 단계에서 빠르게
+	 * 블록 타입을 구분해 보기 위한 모드. 셰이더는 기존 팔레트 경로를 그대로
+	 * 사용하며, DefaultPaletteTexture 에 BlockStyle.BaseColor 가 행 단위로
+	 * 기록되어 BaseColor 가 곱연산되어 출력된다.
+	 *
+	 * 끄면(기본) 텍스처 기반 빌드 경로를 사용. 텍스처가 하나도 없을 때는
+	 * 이 토글과 무관하게 자동으로 솔리드 컬러 폴백으로 동작한다.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktTerrain|Style")
+	bool bUseSolidColorFallback = false;
 
 	/**
 	 * 베이크된 청크 자산 (권장 경로). UHktTerrainSubsystem 이 비동기 로드.
