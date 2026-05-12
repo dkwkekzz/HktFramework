@@ -387,6 +387,16 @@ public:
     // ---- Terrain ----
     FHktStoryBuilder& GetTerrainHeight(FHktVar Dst, FHktVar VoxelX, FHktVar VoxelY);
     FHktStoryBuilder& GetVoxelType(FHktVar Dst, FHktVarBlock PosXY, FHktVar ZVar);
+
+    /**
+     * Event.Location(cm) 의 voxel TypeID 를 Dst 에 적재.
+     *
+     * Selection 시스템에서 RMB 로 voxel 을 클릭하면 Event.Location 이 voxel 중앙(cm) 으로
+     * 채워진다 (TargetEntity 는 InvalidEntityId). 이 op 가 VoxelSizeCm 로 floor-div 하여
+     * 결정론적으로 voxel 좌표를 구하고 TerrainState.GetVoxelType 으로 TypeID 를 반환한다.
+     * TypeID == 0 = 빈 공간 또는 미로드 청크.
+     */
+    FHktStoryBuilder& GetVoxelTypeAtEventLocation(FHktVar Dst);
     FHktStoryBuilder& SetVoxel(FHktVarBlock Pos, FHktVar TypeVar);
     FHktStoryBuilder& IsTerrainSolid(FHktVar Dst, FHktVarBlock PosXY, FHktVar ZVar);
     FHktVarBlock     EntityPosToVoxel(FHktVar Entity, int32 VoxelSizeCm);
@@ -783,6 +793,9 @@ public:
 
     /** 복셀 좌표(PosBase, PosBase+1)의 Z=ZReg 위치 복셀 타입 → Dst */
     FHktStoryBuilder& GetVoxelType(RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+
+    /** Event.Location(cm) 의 voxel TypeID → Dst (자세한 설명은 FHktVar 변형 참고) */
+    FHktStoryBuilder& GetVoxelTypeAtEventLocation(RegisterIndex Dst);
 
     /** 복셀 좌표(PosBase, PosBase+1, PosBase+2) 위치에 TypeReg의 복셀 설정 (지형 변형) */
     FHktStoryBuilder& SetVoxel(RegisterIndex PosBase, RegisterIndex TypeReg);

@@ -141,6 +141,7 @@ private:
     // ===== Terrain =====
     void Op_GetTerrainHeight(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex XReg, RegisterIndex YReg);
     void Op_GetVoxelType(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
+    void Op_GetVoxelTypeAtEventLocation(FHktVMRuntime& Runtime, RegisterIndex Dst);
     void Op_SetVoxel(FHktVMRuntime& Runtime, RegisterIndex PosBase, RegisterIndex TypeReg);
     void Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
     void Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);

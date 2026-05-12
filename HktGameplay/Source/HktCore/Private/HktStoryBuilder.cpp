@@ -1253,6 +1253,12 @@ FHktStoryBuilder& FHktStoryBuilder::GetVoxelType(RegisterIndex Dst, RegisterInde
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::GetVoxelTypeAtEventLocation(RegisterIndex Dst)
+{
+    Emit(FInstruction::Make(EOpCode::GetVoxelTypeAtEventLocation, Dst, 0, 0));
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::SetVoxel(RegisterIndex PosBase, RegisterIndex TypeReg)
 {
     Emit(FInstruction::Make(EOpCode::SetVoxel, 0, PosBase, TypeReg));
@@ -1991,6 +1997,11 @@ FHktStoryBuilder& FHktStoryBuilder::GetVoxelType(FHktVar Dst, FHktVarBlock PosXY
 {
     check(PosXY.Num() >= 2);
     EmitV(EOpCode::GetVoxelType, Dst, PosXY.Element(0), Z, 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::GetVoxelTypeAtEventLocation(FHktVar Dst)
+{
+    EmitV(EOpCode::GetVoxelTypeAtEventLocation, Dst, VNone(), VNone(), 0);
     return *this;
 }
 FHktStoryBuilder& FHktStoryBuilder::SetVoxel(FHktVarBlock Pos, FHktVar Type)
