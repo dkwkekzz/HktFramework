@@ -21,7 +21,17 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
+#include "DrawDebugHelpers.h"
+#include "HAL/IConsoleManager.h"
 
+
+// hkt.selection.debug.draw 0|1 — Subject/Target/Voxel 선택 상태 디버그 드로우 토글.
+// 기본 ON: 시각화 1단계가 DebugDraw 자체이므로 토글로 끄지 않는 한 항상 표시.
+static TAutoConsoleVariable<int32> CVarSelectionDebugDraw(
+	TEXT("hkt.selection.debug.draw"),
+	1,
+	TEXT("Draw Subject/Target/Voxel selection markers via DrawDebug (0=off, 1=on)."),
+	ECVF_Default);
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
@@ -350,6 +360,12 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	// 디버그 패널용 publish — ClearFrameChanges 전에 (이번 프레임 더티 정보 활용)
 	PublishStateToCollector();
 #endif
+
+	// Subject/Target/Voxel 선택 표시 (1단계 시각화 — DebugDraw)
+	if (CVarSelectionDebugDraw.GetValueOnGameThread() != 0)
+	{
+		DrawSelectionDebug();
+	}
 
 	// Processor가 소비한 후 프레임 변경 데이터 정리
 	State.ClearFrameChanges();
@@ -693,21 +709,68 @@ void UHktPresentationSubsystem::OnSubjectChanged(FHktEntityId NewSubject)
 
 void UHktPresentationSubsystem::OnTargetChanged(FHktEntityId NewTarget)
 {
-	if (!VFXProcessor) return;
-
-	if (CurrentTargetEntityId != InvalidEntityId)
+	// 이전 VFX 해제 (real entity 였을 때만 — sentinel/Invalid 은 attach 한 적 없음)
+	if (VFXProcessor && IsRealEntityId(CurrentTargetEntityId))
 	{
 		VFXProcessor->DetachVFXFromEntity(Tag_VFX_SelectionTarget, CurrentTargetEntityId);
 	}
 
 	CurrentTargetEntityId = NewTarget;
 
-	if (NewTarget != InvalidEntityId)
+	// 신규 VFX attach 도 real entity 에만 (voxel sentinel 은 DrawDebug 로 표시).
+	if (VFXProcessor && IsRealEntityId(NewTarget))
 	{
 		const FHktTransformView* T = State.GetTransform(NewTarget);
 		FVector Pos = T ? T->Location.Get() : FVector::ZeroVector;
 		VFXProcessor->AttachVFXToEntity(Tag_VFX_SelectionTarget, NewTarget, Pos);
 
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SelectionTarget VFX attached Entity=%d"), NewTarget));
+	}
+	else if (NewTarget == VoxelTargetEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+			TEXT("Target = Voxel (sentinel) — see GetCurrentVoxelTarget for details"));
+	}
+}
+
+void UHktPresentationSubsystem::DrawSelectionDebug() const
+{
+	const ULocalPlayer* LP = GetLocalPlayer();
+	UWorld* World = LP ? LP->GetWorld() : nullptr;
+	if (!World) return;
+
+	// Subject — 녹색 캡슐 (entity 위치 기준 + 위로 +50)
+	if (IsRealEntityId(CurrentSubjectEntityId))
+	{
+		const FHktTransformView* T = State.GetTransform(CurrentSubjectEntityId);
+		if (T)
+		{
+			const FVector Pos = T->Location.Get();
+			DrawDebugCapsule(World, Pos + FVector(0, 0, 50.f), 60.f, 30.f,
+				FQuat::Identity, FColor::Green, /*bPersistent*/false,
+				/*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/2.f);
+		}
+	}
+
+	// Target — Entity(real) 는 구, Voxel(sentinel) 은 AABB 박스, Invalid 은 그리지 않음.
+	if (IsRealEntityId(CurrentTargetEntityId))
+	{
+		const FHktTransformView* T = State.GetTransform(CurrentTargetEntityId);
+		if (T)
+		{
+			const FVector Pos = T->Location.Get();
+			DrawDebugSphere(World, Pos + FVector(0, 0, 50.f), 40.f, 16,
+				FColor::Red, false, -1.f, 0, 2.f);
+		}
+	}
+	else if (CurrentTargetEntityId == VoxelTargetEntityId && BoundInteraction)
+	{
+		const FHktVoxelSelection& Vox = BoundInteraction->GetCurrentVoxelTarget();
+		if (Vox.bValid)
+		{
+			const float HalfExtent = (Vox.VoxelSize > 0.f) ? Vox.VoxelSize * 0.5f : 7.5f;
+			DrawDebugBox(World, Vox.WorldCenter, FVector(HalfExtent),
+				FColor::Red, false, -1.f, 0, 1.5f);
+		}
 	}
 }

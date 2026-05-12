@@ -122,11 +122,15 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		return;
 	}
 
-	// Target 해석
+	// Target 해석 — voxel 도 EntityId 로 추상화됨 (VoxelTargetEntityId sentinel).
 	FHktEntityId TargetEntity = InvalidEntityId;
 	FVector TargetLocation = FVector::ZeroVector;
 	CachedPolicy->ResolveTarget(TargetEntity, TargetLocation);
 	CachedBuilder->SetTarget(TargetEntity, TargetLocation);
+
+	// 서버/시뮬레이션은 voxel sentinel 을 알지 못한다 — 위치 기반 액션과 동일하게
+	// InvalidEntityId 로 변환해 이벤트를 빌드. 위치(TargetLocation)는 그대로 유지.
+	const FHktEntityId EventTargetEntity = IsRealEntityId(TargetEntity) ? TargetEntity : InvalidEntityId;
 
 	const int32 PendingSlot = CachedBuilder->GetCommandSlotIndex();
 
@@ -135,7 +139,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 	{
 		// SlotAction 선택됨 → 해당 슬롯의 EventTag로 UseSkill 이벤트 생성
 		FGameplayTag EventTag = CachedContainer->GetEventTagAtSlot(PendingSlot);
-		Event = HktEventBuilder::UseSkillFromSlot(EventTag, SubjectEntity, TargetEntity, TargetLocation, PendingSlot);
+		Event = HktEventBuilder::UseSkillFromSlot(EventTag, SubjectEntity, EventTargetEntity, TargetLocation, PendingSlot);
 	}
 	else
 	{
@@ -146,7 +150,7 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		{
 			TargetDefaultTag = Tag_Event_Target_Default;
 		}
-		Event = HktEventBuilder::TargetDefault(TargetDefaultTag, SubjectEntity, TargetEntity, TargetLocation);
+		Event = HktEventBuilder::TargetDefault(TargetDefaultTag, SubjectEntity, EventTargetEntity, TargetLocation);
 	}
 
 	// ValidateStory 사전조건 검증

@@ -123,6 +123,11 @@ public:
 		const FHitResult& CoarseHit,
 		FHitResult& OutRefinedHit) const override;
 
+	virtual bool TryGetVoxelHit(
+		const FVector& TraceStart,
+		const FVector& TraceDir,
+		FHktVoxelSelection& OutVoxel) const override;
+
 	// === 설정 ===
 
 	// === 청크 로더 선택 ===

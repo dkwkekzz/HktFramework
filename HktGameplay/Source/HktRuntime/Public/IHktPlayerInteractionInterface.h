@@ -10,6 +10,7 @@
 #include "HktRuntimeTypes.h"
 #include "HktRuntimeDelegates.h"
 #include "HktBagTypes.h"
+#include "HktVoxelSelection.h"
 #include "IHktPlayerInteractionInterface.generated.h"
 
 /**
@@ -43,8 +44,23 @@ public:
 	/** 선택 주체(Subject) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
 	virtual FOnHktSubjectChanged& OnSubjectChanged() = 0;
 
-	/** 대상(Target) 엔터티 변경 시 브로드캐스트. InvalidEntityId면 선택 해제. */
+	/**
+	 * 대상(Target) 변경 시 브로드캐스트.
+	 *  - 일반 entity : 정상 EntityId(>=0)
+	 *  - Voxel       : VoxelTargetEntityId — GetCurrentVoxelTarget() 으로 상세 조회
+	 *  - 해제        : InvalidEntityId
+	 */
 	virtual FOnHktTargetChanged& OnTargetChanged() = 0;
+
+	/**
+	 * 현재 voxel target 의 상세 정보. EntityId 가 VoxelTargetEntityId 일 때만 의미 있다.
+	 * 기본 구현은 빈 voxel — voxel 인지가 없는 PC(LoginPC 등)는 override 불필요.
+	 */
+	virtual const FHktVoxelSelection& GetCurrentVoxelTarget() const
+	{
+		static const FHktVoxelSelection Empty;
+		return Empty;
+	}
 
 	/** Intent 제출 시 브로드캐스트 (클라이언트 즉시 VFX 등에 사용). */
 	virtual FOnHktIntentSubmitted& OnIntentSubmitted() = 0;

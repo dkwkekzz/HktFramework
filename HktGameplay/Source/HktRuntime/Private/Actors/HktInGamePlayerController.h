@@ -74,6 +74,7 @@ public:
     // === 델리게이트 ===
     virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
     virtual FOnHktCommandChanged& OnCommandChanged() override { return CommandChangedDelegate; }
+    virtual const FHktVoxelSelection& GetCurrentVoxelTarget() const override { return CurrentVoxelTarget; }
 
     // === IHktPlayerInteractionInterface ===
     virtual void ExecuteCommand(UObject* CommandData) override;
@@ -164,6 +165,9 @@ private:
     FOnHktSubjectChanged SubjectChangedDelegate;
     FOnHktTargetChanged TargetChangedDelegate;
     FOnHktCommandChanged CommandChangedDelegate;
+
+    /** Target 이 voxel(VoxelTargetEntityId) 인 동안 유지되는 상세 정보. */
+    FHktVoxelSelection CurrentVoxelTarget;
     FOnHktIntentSubmitted IntentSubmittedDelegate;
     FOnHktWheelInput WheelInputDelegate;
     FOnHktWorldViewUpdated WorldViewUpdatedDelegate;

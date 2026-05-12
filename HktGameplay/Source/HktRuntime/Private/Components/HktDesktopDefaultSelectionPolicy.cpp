@@ -29,6 +29,7 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
 {
     OutEntity = InvalidEntityId;
     OutLocation = FVector::ZeroVector;
+    LastResolvedVoxel = FHktVoxelSelection{};
 
     // 2D 엔티티 HUD 히트를 먼저 시도
     if (GetEntityFromEntityHud(OutEntity))
@@ -51,13 +52,23 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
         return;
     }
 
-    // Phase 2: 복셀 지형 히트 시 DDA 레이캐스트로 정밀 보정
+    // 복셀 지형 히트 시 DDA 레이캐스트로 voxel 정보 추출 — voxel 도 EntityId 로 추상화.
     if (IHktHitRefinementProvider* Refiner = Cast<IHktHitRefinementProvider>(Hit.GetActor()))
     {
         APlayerController* PC = Cast<APlayerController>(GetOwner());
         FVector WorldOrigin, WorldDir;
         if (PC && PC->DeprojectMousePositionToWorld(WorldOrigin, WorldDir))
         {
+            FHktVoxelSelection VoxelHit;
+            if (Refiner->TryGetVoxelHit(WorldOrigin, WorldDir, VoxelHit))
+            {
+                LastResolvedVoxel = VoxelHit;
+                OutEntity = VoxelTargetEntityId;   // sentinel — Rule/PC/UI 가 동일하게 EntityId 로 식별
+                OutLocation = VoxelHit.WorldCenter;
+                return;
+            }
+
+            // Voxel 정보가 없으면 기존 FHitResult 정밀 보정만 시도
             FHitResult RefinedHit;
             if (Refiner->RefineHit(WorldOrigin, WorldDir, Hit, RefinedHit))
             {

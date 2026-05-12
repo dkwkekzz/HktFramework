@@ -303,6 +303,7 @@ struct FHktRegReserve
     /* Terrain */           \
     X(GetTerrainHeight,      W, R, R) \
     X(GetVoxelType,          W, R, R) \
+    X(GetVoxelTypeAtEventLocation, W, _, _) \
     X(SetVoxel,              _, R, R) \
     X(IsTerrainSolid,        W, R, R) \
     X(InteractTerrain,       _, R, _) \

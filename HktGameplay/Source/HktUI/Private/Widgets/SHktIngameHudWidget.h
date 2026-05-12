@@ -18,6 +18,7 @@
 #include "HktCoreArchetype.h"
 #include "HktBagTypes.h"
 #include "HktClientRuleInterfaces.h"
+#include "HktVoxelSelection.h"
 #include "GameplayTagsManager.h"
 
 class APlayerController;
@@ -455,16 +456,29 @@ inline void SHktIngameHudWidget::UpdateTargetDisplay(FHktEntityId EntityId)
 {
 	if (!TargetText.IsValid()) return;
 
-	if (EntityId == InvalidEntityId)
+	APlayerController* PC = CachedPC.Get();
+	IHktPlayerInteractionInterface* Interaction = PC ? Cast<IHktPlayerInteractionInterface>(PC) : nullptr;
+
+	// Voxel sentinel — 상세 정보를 PC 사이드카에서 조회해 표시.
+	if (EntityId == VoxelTargetEntityId && Interaction)
+	{
+		const FHktVoxelSelection& Voxel = Interaction->GetCurrentVoxelTarget();
+		if (Voxel.bValid)
+		{
+			TargetText->SetText(FText::FromString(FString::Printf(
+				TEXT("Voxel TypeID=%u (%d,%d,%d)"),
+				static_cast<uint32>(Voxel.TypeID),
+				Voxel.VoxelCoord.X, Voxel.VoxelCoord.Y, Voxel.VoxelCoord.Z)));
+			return;
+		}
+	}
+
+	if (!IsRealEntityId(EntityId))
 	{
 		TargetText->SetText(FText::FromString(TEXT("None")));
 		return;
 	}
 
-	APlayerController* PC = CachedPC.Get();
-	if (!PC) return;
-
-	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
 	if (!Interaction) return;
 
 	const FHktWorldState* WS = nullptr;

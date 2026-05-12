@@ -1201,6 +1201,40 @@ bool AHktVoxelTerrainActor::RefineHit(
 	return true;
 }
 
+bool AHktVoxelTerrainActor::TryGetVoxelHit(
+	const FVector& TraceStart,
+	const FVector& TraceDir,
+	FHktVoxelSelection& OutVoxel) const
+{
+	OutVoxel = FHktVoxelSelection{};
+
+	if (!TerrainCache)
+	{
+		return false;
+	}
+
+	const FHktVoxelRaycastResult Result = FHktVoxelRaycast::Trace(
+		*TerrainCache, TraceStart, TraceDir, VoxelSize);
+
+	if (!Result.bHit)
+	{
+		return false;
+	}
+
+	OutVoxel.bValid      = true;
+	OutVoxel.VoxelCoord  = Result.VoxelCoord;
+	OutVoxel.ChunkCoord  = Result.ChunkCoord;
+	OutVoxel.HitNormal   = Result.HitNormal;
+	OutVoxel.TypeID      = Result.HitTypeID;
+	OutVoxel.VoxelSize   = VoxelSize;
+	OutVoxel.WorldCenter = FVector(
+		(static_cast<double>(Result.VoxelCoord.X) + 0.5) * VoxelSize,
+		(static_cast<double>(Result.VoxelCoord.Y) + 0.5) * VoxelSize,
+		(static_cast<double>(Result.VoxelCoord.Z) + 0.5) * VoxelSize);
+
+	return true;
+}
+
 void AHktVoxelTerrainActor::ApplyStyleToComponent(UHktVoxelChunkComponent* Comp)
 {
 	if (!Comp)

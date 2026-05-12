@@ -231,7 +231,20 @@ void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 
     if (CachedIntentBuilder)
     {
-        TargetChangedDelegate.Broadcast(CachedIntentBuilder->GetTargetEntityId());
+        // Voxel 상세 정보는 Policy 가 최근 ResolveTarget 호출에서 캐시한 값을 그대로 사용.
+        //  - EntityId == VoxelTargetEntityId 면 voxel; 아니면 빈 voxel.
+        //  - Delegate 가 fire 되기 전에 갱신해 subscribers 가 GetCurrentVoxelTarget() 으로 즉시 조회 가능.
+        const FHktEntityId TargetEntity = CachedIntentBuilder->GetTargetEntityId();
+        if (TargetEntity == VoxelTargetEntityId && CachedSelectionPolicy)
+        {
+            CurrentVoxelTarget = CachedSelectionPolicy->GetLastResolvedVoxel();
+        }
+        else
+        {
+            CurrentVoxelTarget = FHktVoxelSelection{};
+        }
+
+        TargetChangedDelegate.Broadcast(TargetEntity);
 
         // Rule이 빌드한 이벤트가 있으면 전송
         if (CachedIntentBuilder->HasPendingRuntimeEvent())

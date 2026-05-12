@@ -77,6 +77,12 @@ private:
 	void OnIntentSubmitted(const FHktRuntimeEvent& Event);
 	void OnSubjectChanged(FHktEntityId NewSubject);
 	void OnTargetChanged(FHktEntityId NewTarget);
+
+	/**
+	 * Subject/Target 선택 상태를 DrawDebug 로 그린다. CVar hkt.selection.debug.draw 가 ON 일 때 매 틱.
+	 * Target 이 VoxelTargetEntityId 면 PC 의 GetCurrentVoxelTarget() 을 조회해 voxel AABB 를 그린다.
+	 */
+	void DrawSelectionDebug() const;
 	void ProcessInitialSync(const FHktWorldView& View);
 	void ProcessDiff(const FHktWorldView& View);
 	void SyncProcessors();

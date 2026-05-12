@@ -41,9 +41,13 @@ public:
 
     virtual FHktEntityId ResolveSubject() const override;
     virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const override;
+    virtual const FHktVoxelSelection& GetLastResolvedVoxel() const override { return LastResolvedVoxel; }
 
 private:
     bool GetHitUnderCursor(FHitResult& OutHit) const;
     bool GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const;
     bool GetEntityFromEntityHud(FHktEntityId& OutEntityId) const;
+
+    /** 가장 최근 ResolveTarget 의 voxel 적중 정보. const 메서드에서 갱신되도록 mutable. */
+    mutable FHktVoxelSelection LastResolvedVoxel;
 };

@@ -9,6 +9,7 @@
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
 #include "HktBagTypes.h"
+#include "HktVoxelSelection.h"
 #include "HktClientRuleInterfaces.generated.h"
 
 class IHktWorldPlayer;
@@ -51,7 +52,13 @@ public:
 	virtual void SetSubject(FHktEntityId InSubject) = 0;
 	virtual void SetCommand(FGameplayTag InEventTag, bool bInTargetRequired) = 0;
 	virtual void SetCommandSlot(int32 InSlotIndex) = 0;
+
+	/**
+	 * Target 을 설정. EntityId 가 VoxelTargetEntityId 면 voxel 을 가리킨다 —
+	 * 상세는 IHktPlayerInteractionInterface::GetCurrentVoxelTarget() 으로 조회.
+	 */
 	virtual void SetTarget(FHktEntityId InTarget, FVector InLocation) = 0;
+
 	virtual void ResetCommand() = 0;
 	virtual bool IsReadyToSubmit() const = 0;
 	virtual bool Submit() = 0;
@@ -80,7 +87,21 @@ class HKTRULE_API IHktUnitSelectionPolicy
 	GENERATED_BODY()
 public:
 	virtual FHktEntityId ResolveSubject() const = 0;
+
+	/**
+	 * 커서 아래 Target 을 결정한다.
+	 *  - Entity hit : OutEntity = entity id, OutLocation = hit 위치
+	 *  - Voxel hit  : OutEntity = VoxelTargetEntityId (sentinel), OutLocation = voxel 중앙
+	 *                상세(TypeID/Coord/...)는 GetLastResolvedVoxel() 로 조회
+	 *  - 미적중     : OutEntity = InvalidEntityId, OutLocation = ZeroVector
+	 */
 	virtual void ResolveTarget(FHktEntityId& OutEntity, FVector& OutLocation) const = 0;
+
+	/**
+	 * 가장 최근 ResolveTarget 호출에서 적중된 voxel 정보 (있는 경우).
+	 * bValid=false 이면 마지막 호출이 voxel 이 아니었다. mutable 캐시 패턴.
+	 */
+	virtual const FHktVoxelSelection& GetLastResolvedVoxel() const = 0;
 };
 
 // ============================================================================

@@ -128,6 +128,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     // Terrain
     case EOpCode::GetTerrainHeight: Op_GetTerrainHeight(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::GetVoxelType: Op_GetVoxelType(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
+    case EOpCode::GetVoxelTypeAtEventLocation: Op_GetVoxelTypeAtEventLocation(Runtime, Inst.Dst); break;
     case EOpCode::SetVoxel: Op_SetVoxel(Runtime, Inst.Src1, Inst.Src2); break;
     case EOpCode::IsTerrainSolid: Op_IsTerrainSolid(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::InteractTerrain: Op_InteractTerrain(Runtime, Inst.Src1, Inst.Imm12); break;
