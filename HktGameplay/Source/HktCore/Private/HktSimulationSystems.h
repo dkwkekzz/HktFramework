@@ -141,6 +141,14 @@ struct HKTCORE_API FHktGravitySystem
  */
 struct HKTCORE_API FHktMovementSystem
 {
+    /** 도착 판정 임계(거리²). 2D/3D 모두 동일 — `DistSq <= ArrivalThresholdSq` 면 스냅.
+     *  결정론: 서버/클라가 동일 값을 써야 함. 본질적으로 시뮬레이션 상수이므로 헤더 고정.
+     *  단위: cm². 기본 16 = 4cm 안쪽 도착 처리. */
+    static constexpr float ArrivalThresholdSq = 16.0f;
+
+    /** `PropertyId::MaxSpeed` 미설정(<=0) 시 사용되는 fallback 속력 (cm/s). */
+    static constexpr float DefaultMaxSpeed = 600.0f;
+
     EHktLogSource LogSource = EHktLogSource::Server;
 
     void Process(

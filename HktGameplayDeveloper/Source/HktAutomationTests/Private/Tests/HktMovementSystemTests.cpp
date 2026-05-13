@@ -19,6 +19,37 @@ namespace HktMovementSystemTests
 {
 
 // ============================================================================
+// 테스트 fixture 상수 — magic number 제거
+// (production 동작에 영향 X, 본 파일 안에서 의미 부여만)
+// ============================================================================
+
+namespace TestConst
+{
+    /** 적분 결정론 검증을 위한 충분히 긴 시뮬레이션 길이. */
+    constexpr int32 ParityTicksLong = 30;
+    constexpr int32 ParityTicksMid  = 20;
+
+    /** Mover 기본 파라미터 — 운동 파이프라인이 trivially 0/1 로 자명해지지 않을
+     *  "보통의" 값. 정확한 수치는 V1↔V2 비교에서 무관. */
+    constexpr int32 DefaultForce    = 10000;
+    constexpr int32 DefaultMass     = 100;
+    constexpr int32 DefaultMaxSpeed = 600;
+
+    /** 도착 판정 임계 안쪽 좌표 오프셋 (cm). production 의 ArrivalThresholdSq 에서 파생.
+     *  2 * Offset² < ArrivalThresholdSq 이면 첫 틱에 도착이 보장된다. */
+    constexpr int32 ArrivalInsideOffset = 1;
+    static_assert(2 * ArrivalInsideOffset * ArrivalInsideOffset
+                  < static_cast<int32>(FHktMovementSystem::ArrivalThresholdSq),
+        "Offset must keep target inside arrival threshold");
+
+    /** 적분이 시작되어도 도착 임계까지 한참 남는 일반 target 거리 (cm). */
+    constexpr int32 FarTargetCm = 1000;
+
+    /** Bogus / out-of-range 슬롯 인덱스 — Rebuild 가 정리하는지 확인용. */
+    constexpr int32 BogusSlotIndex = 99;
+}
+
+// ============================================================================
 // 헬퍼
 // ============================================================================
 
@@ -27,9 +58,9 @@ static FHktEntityId CreateMover(
     FHktAutomationTestHarness& H,
     int32 PX, int32 PY, int32 PZ,
     int32 TX, int32 TY, int32 TZ,
-    int32 Force = 10000,
-    int32 MaxSpd = 600,
-    int32 Mass = 100,
+    int32 Force = TestConst::DefaultForce,
+    int32 MaxSpd = TestConst::DefaultMaxSpeed,
+    int32 Mass = TestConst::DefaultMass,
     int32 IsGrounded = 1,
     int32 IsMoving = 1)
 {
@@ -55,7 +86,7 @@ static FHktEntityId CreateIdle(FHktAutomationTestHarness& H, int32 PX, int32 PY,
     Props.Add(PropertyId::PosX, PX);
     Props.Add(PropertyId::PosY, PY);
     Props.Add(PropertyId::PosZ, PZ);
-    Props.Add(PropertyId::Mass, 100);
+    Props.Add(PropertyId::Mass, TestConst::DefaultMass);
     Props.Add(PropertyId::IsGrounded, 1);
     return H.CreateEntityWithProperties(Props);
 }
@@ -152,17 +183,16 @@ static FHktTestResult Test_Parity_SingleMover()
     FHktAutomationTestHarness HA, HB;
     HA.Setup(); HB.Setup();
 
-    CreateMover(HA, /*Pos*/0, 0, 0, /*Tgt*/1000, 0, 0);
-    CreateMover(HB, 0, 0, 0, 1000, 0, 0);
+    CreateMover(HA, /*Pos*/0, 0, 0, /*Tgt*/TestConst::FarTargetCm, 0, 0);
+    CreateMover(HB, 0, 0, 0, TestConst::FarTargetCm, 0, 0);
 
     MarkAllAsActive(HA);
     MarkAllAsActive(HB);
 
-    constexpr int32 NumTicks = 30;
     TArray<FIntVector> PreA, PreB;
     TArray<FHktPendingEvent> EvA, EvB;
 
-    for (int32 T = 0; T < NumTicks; ++T)
+    for (int32 T = 0; T < TestConst::ParityTicksLong; ++T)
     {
         RunMovementV1(HA, PreA, EvA);
         RunMovementV2(HB, PreB, EvB);
@@ -190,30 +220,40 @@ static FHktTestResult Test_Parity_SingleMover()
 /** T2: 혼합(이동/정지) 다수 엔티티에 대해 V1/V2 동일 결과. PreMovePositions 도 일치. */
 static FHktTestResult Test_Parity_MixedMoversAndIdles()
 {
+    // 좌표는 V1/V2 비교 자체엔 무관 — 양 시스템이 동일 입력만 받으면 된다.
+    // 임의 산포된 fixture (mover 2 + idle 3) 로 다양한 슬롯/거리 케이스 cover.
+    struct FFixture { int32 PX, PY, PZ, TX, TY, TZ; bool bMoving; };
+    constexpr FFixture Fixtures[] = {
+        {     0,    0, 0,   500,  500, 0, true  },  // mover (대각선)
+        {  -200,  100, 0,   200,  100, 0, true  },  // mover (수평)
+        {  1000, 1000, 0,     0,    0, 0, false },  // idle (target 의미 없음)
+        {  -500,    0, 50,    0,    0, 0, false },  // idle (z!=0)
+        {     0, -300, 0,     0,    0, 0, false },  // idle
+    };
+
     FHktAutomationTestHarness HA, HB;
     HA.Setup(); HB.Setup();
-
-    // Moving entities
-    CreateMover(HA, 0, 0, 0, 500, 500, 0);
-    CreateMover(HB, 0, 0, 0, 500, 500, 0);
-    CreateMover(HA, -200, 100, 0, 200, 100, 0);
-    CreateMover(HB, -200, 100, 0, 200, 100, 0);
-    // Idle entities (PreMovePositions 가 현재 Pos 로 채워져야 함)
-    CreateIdle(HA, 1000, 1000, 0);
-    CreateIdle(HB, 1000, 1000, 0);
-    CreateIdle(HA, -500, 0, 50);
-    CreateIdle(HB, -500, 0, 50);
-    CreateIdle(HA, 0, -300, 0);
-    CreateIdle(HB, 0, -300, 0);
+    for (const FFixture& F : Fixtures)
+    {
+        if (F.bMoving)
+        {
+            CreateMover(HA, F.PX, F.PY, F.PZ, F.TX, F.TY, F.TZ);
+            CreateMover(HB, F.PX, F.PY, F.PZ, F.TX, F.TY, F.TZ);
+        }
+        else
+        {
+            CreateIdle(HA, F.PX, F.PY, F.PZ);
+            CreateIdle(HB, F.PX, F.PY, F.PZ);
+        }
+    }
 
     MarkAllAsActive(HA);
     MarkAllAsActive(HB);
 
-    constexpr int32 NumTicks = 20;
     TArray<FIntVector> PreA, PreB;
     TArray<FHktPendingEvent> EvA, EvB;
 
-    for (int32 T = 0; T < NumTicks; ++T)
+    for (int32 T = 0; T < TestConst::ParityTicksMid; ++T)
     {
         RunMovementV1(HA, PreA, EvA);
         RunMovementV2(HB, PreB, EvB);
@@ -258,9 +298,11 @@ static FHktTestResult Test_Parity_ArrivalEvent()
     FHktAutomationTestHarness HA, HB;
     HA.Setup(); HB.Setup();
 
-    // 도착 임계(ArrivalThresholdSq=16) 안쪽에서 시작 — 첫 틱에 도착.
-    CreateMover(HA, 0, 0, 0, 2, 2, 0);
-    CreateMover(HB, 0, 0, 0, 2, 2, 0);
+    // 도착 임계(`FHktMovementSystem::ArrivalThresholdSq`) 안쪽에서 시작 — 첫 틱에 도착.
+    // TestConst::ArrivalInsideOffset 가 static_assert 로 임계 안쪽임을 보장.
+    const int32 Off = TestConst::ArrivalInsideOffset;
+    CreateMover(HA, 0, 0, 0, Off, Off, 0);
+    CreateMover(HB, 0, 0, 0, Off, Off, 0);
 
     MarkAllAsActive(HA);
     MarkAllAsActive(HB);
@@ -309,7 +351,7 @@ static FHktTestResult Test_V2_PrunesIdleSlot()
     FHktAutomationTestHarness H;
     H.Setup();
 
-    const FHktEntityId Id = CreateIdle(H, 100, 200, 0);
+    const FHktEntityId Id = CreateIdle(H, /*Pos*/0, 0, 0);  // 위치는 prune 동작과 무관.
     const int32 Slot = H.GetWorldState().GetSlot(Id);
     H.GetVMProxy().MarkActiveMover(Slot);
 
@@ -345,7 +387,7 @@ static FHktTestResult Test_V2_KeepsMovingSlotActive()
     FHktAutomationTestHarness H;
     H.Setup();
 
-    const FHktEntityId Id = CreateMover(H, 0, 0, 0, 1000, 0, 0);
+    const FHktEntityId Id = CreateMover(H, 0, 0, 0, TestConst::FarTargetCm, 0, 0);
     const int32 Slot = H.GetWorldState().GetSlot(Id);
     H.GetVMProxy().MarkActiveMover(Slot);
 
@@ -389,7 +431,9 @@ static FHktTestResult Test_V2_NoDuplicateAfterPruneRemark()
     }
 
     // SetPropertyDirty hook 으로 재-mark 발생 시뮬레이션 (Physics 의 IsGrounded write 등).
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::VelZ, -100);
+    // 임의의 nonzero — 값 자체는 hook 동작과 무관 (Vel{XYZ} 는 모두 hook 대상).
+    constexpr int32 NonzeroVelZ = -100;
+    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::VelZ, NonzeroVelZ);
 
     const int32 AfterRemark = H.GetVMProxy().ActiveMoverSlots.Num();
     const uint8 AfterMask = H.GetVMProxy().ActiveMoverMask[Slot];
@@ -413,21 +457,24 @@ static FHktTestResult Test_V2_NoDuplicateOnMultipleMarks()
 
     const FHktEntityId Id = CreateIdle(H, 0, 0, 0);
 
-    // MoveToward 가 5 회 SetPropertyDirty 하는 경로를 모사.
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::MoveTargetX, 1000);
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::MoveTargetY, 0);
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::MoveTargetZ, 0);
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::MoveForce, 10000);
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::IsMoving, 1);
-
-    // 추가로 다른 hooked 프로퍼티도 — 여전히 중복 Add 금지.
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::VelX, 0);
-    H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::VelY, 0);
+    // `MoveToward` 가 emit 하는 5 개 prop write 를 모사 (MoveTarget*+MoveForce+IsMoving).
+    // 그중 MoveTarget* 는 hook 대상 아님 — MoveForce/IsMoving/Vel{XY} 만 mark 트리거.
+    // 어느 쪽이든 mask 가드로 list 에는 1 회만 Add 되어야 한다.
+    auto Write = [&](uint16 PropId, int32 Value)
+    {
+        H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropId, Value);
+    };
+    Write(PropertyId::MoveTargetX, TestConst::FarTargetCm);
+    Write(PropertyId::MoveTargetY, 0);
+    Write(PropertyId::MoveTargetZ, 0);
+    Write(PropertyId::MoveForce, TestConst::DefaultForce);
+    Write(PropertyId::IsMoving, 1);
+    Write(PropertyId::VelX, 0);
+    Write(PropertyId::VelY, 0);
 
     const int32 Count = H.GetVMProxy().ActiveMoverSlots.Num();
     H.Teardown();
 
-    // MoveTarget* 는 hook 대상이 아니지만 MoveForce/IsMoving/VelX/VelY 는 hook → 한 번만 Add.
     if (Count != 1)
         return FHktTestResult::Fail(TEXT("V2_NoDuplicateOnMultipleMarks"),
             FString::Printf(TEXT("ActiveMoverSlots 크기 1 기대, 실제 %d"), Count));
@@ -441,8 +488,14 @@ static FHktTestResult Test_V2_PreMovePositionsFilled()
     FHktAutomationTestHarness H;
     H.Setup();
 
-    const FHktEntityId Moving = CreateMover(H, 100, 200, 50, 1000, 0, 0);
-    const FHktEntityId Idle = CreateIdle(H, 300, 400, 25);
+    // 임의 위치 — 본 테스트의 검증 대상은 "Pre[Slot] == Pos" 동일성이지 좌표 값 자체가 아님.
+    const FIntVector MovingStart(100, 200, 50);
+    const FIntVector IdleStart(300, 400, 25);
+
+    const FHktEntityId Moving = CreateMover(H,
+        MovingStart.X, MovingStart.Y, MovingStart.Z,
+        TestConst::FarTargetCm, 0, 0);
+    const FHktEntityId Idle = CreateIdle(H, IdleStart.X, IdleStart.Y, IdleStart.Z);
 
     MarkAllAsActive(H);
 
@@ -453,25 +506,23 @@ static FHktTestResult Test_V2_PreMovePositionsFilled()
     const int32 SlotIdle = H.GetWorldState().GetSlot(Idle);
 
     // Idle 슬롯: prefill 로 현재 Pos 가 그대로.
-    const FIntVector ExpIdle(300, 400, 25);
-    if (!Pre.IsValidIndex(SlotIdle) || Pre[SlotIdle] != ExpIdle)
+    if (!Pre.IsValidIndex(SlotIdle) || Pre[SlotIdle] != IdleStart)
     {
         const FIntVector Got = Pre.IsValidIndex(SlotIdle) ? Pre[SlotIdle] : FIntVector::ZeroValue;
         H.Teardown();
         return FHktTestResult::Fail(TEXT("V2_PreMovePositionsFilled"),
             FString::Printf(TEXT("Idle slot %d PreMove (%d,%d,%d) 기대, 실제 (%d,%d,%d)"),
-                SlotIdle, ExpIdle.X, ExpIdle.Y, ExpIdle.Z, Got.X, Got.Y, Got.Z));
+                SlotIdle, IdleStart.X, IdleStart.Y, IdleStart.Z, Got.X, Got.Y, Got.Z));
     }
 
     // Moving 슬롯: 적분 전 위치(=처음 입력 Pos)가 저장돼야 한다.
-    const FIntVector ExpMov(100, 200, 50);
-    if (!Pre.IsValidIndex(SlotMoving) || Pre[SlotMoving] != ExpMov)
+    if (!Pre.IsValidIndex(SlotMoving) || Pre[SlotMoving] != MovingStart)
     {
         const FIntVector Got = Pre.IsValidIndex(SlotMoving) ? Pre[SlotMoving] : FIntVector::ZeroValue;
         H.Teardown();
         return FHktTestResult::Fail(TEXT("V2_PreMovePositionsFilled"),
             FString::Printf(TEXT("Moving slot %d PreMove (%d,%d,%d) 기대, 실제 (%d,%d,%d)"),
-                SlotMoving, ExpMov.X, ExpMov.Y, ExpMov.Z, Got.X, Got.Y, Got.Z));
+                SlotMoving, MovingStart.X, MovingStart.Y, MovingStart.Z, Got.X, Got.Y, Got.Z));
     }
 
     H.Teardown();
@@ -504,7 +555,7 @@ static FHktTestResult Test_V2_StaleSlotCleanup()
     FHktAutomationTestHarness H;
     H.Setup();
 
-    const FHktEntityId Id = CreateMover(H, 0, 0, 0, 1000, 0, 0);
+    const FHktEntityId Id = CreateMover(H, 0, 0, 0, TestConst::FarTargetCm, 0, 0);
     const int32 Slot = H.GetWorldState().GetSlot(Id);
     H.GetVMProxy().MarkActiveMover(Slot);
 
@@ -536,18 +587,20 @@ static FHktTestResult Test_V2_RebuildActiveMovers()
     FHktAutomationTestHarness H;
     H.Setup();
 
-    const FHktEntityId Mover = CreateMover(H, 0, 0, 0, 1000, 0, 0);
+    const FHktEntityId Mover = CreateMover(H, 0, 0, 0, TestConst::FarTargetCm, 0, 0);
 
+    // "낙하 중" — IsGrounded=0 + VelZ!=0 인 엔티티. Rebuild 가 이 조건을 active 로 인식해야 함.
+    constexpr int32 SampleFallingVelZ = -50;  // 임의의 음수 — 값 자체는 무의미.
     TMap<uint16, int32> FallingProps;
-    FallingProps.Add(PropertyId::IsGrounded, 0);  // 공중 — Gravity 대상
-    FallingProps.Add(PropertyId::VelZ, -50);
+    FallingProps.Add(PropertyId::IsGrounded, 0);
+    FallingProps.Add(PropertyId::VelZ, SampleFallingVelZ);
     const FHktEntityId Falling = H.CreateEntityWithProperties(FallingProps);
 
     const FHktEntityId IdleE = CreateIdle(H, 0, 0, 0);
 
     // 일단 list 를 의도적으로 더럽힌 뒤 Rebuild — 깨끗하게 재구성되는지 본다.
-    H.GetVMProxy().MarkActiveMover(0);  // bogus
-    H.GetVMProxy().MarkActiveMover(99); // bogus out-of-entity
+    // out-of-entity 슬롯은 Rebuild 가 stale 로 drop 해야 한다.
+    H.GetVMProxy().MarkActiveMover(TestConst::BogusSlotIndex);
 
     H.GetVMProxy().RebuildActiveMovers(H.GetWorldState());
 

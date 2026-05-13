@@ -717,9 +717,6 @@ void FHktMovementSystem::Process(
     // PreMovePositions 는 slot 인덱스로 접근한다. 슬롯이 빈 자리는 사용되지 않으므로 uninitialized 로 둔다.
     OutPreMovePositions.SetNumUninitialized(WorldState.SlotToEntity.Num());
 
-    static constexpr float ArrivalThresholdSq = 16.0f;  // 4cm (도착 판정)
-    static constexpr float DefaultMaxSpeed = 600.0f;     // PropertyId::MaxSpeed <= 0 일 때 fallback
-
     // 콘솔 변수 조회 (루프 진입 전 1회만 캐싱) — FPS 포함
     const float InvFramesPerSecond = HktGetSimInvFramesPerSecond();
     const float AccelMultiplier = CVarMoveAccelMultiplier.GetValueOnAnyThread();
@@ -895,9 +892,6 @@ void FHktMovementSystemV2::Process(
     OutMoveEndEvents.Reset();
     OutPreMovePositions.SetNumUninitialized(WorldState.SlotToEntity.Num());
 
-    static constexpr float ArrivalThresholdSq = 16.0f;
-    static constexpr float DefaultMaxSpeed = 600.0f;
-
     const float InvFramesPerSecond = HktGetSimInvFramesPerSecond();
     const float AccelMultiplier = CVarMoveAccelMultiplier.GetValueOnAnyThread();
     const float SlowingRadius = CVarMoveSlowingRadius.GetValueOnAnyThread();
@@ -997,7 +991,7 @@ void FHktMovementSystemV2::Process(
                 VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::RotYaw, YawDeg);
             }
 
-            if (DistSq <= ArrivalThresholdSq)
+            if (DistSq <= FHktMovementSystem::ArrivalThresholdSq)
             {
                 HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
                     FString::Printf(TEXT("[V2] Arrived at target (%.0f,%.0f,%.0f) dist=%.1f"),
@@ -1019,7 +1013,9 @@ void FHktMovementSystemV2::Process(
             float HSpeed = FMath::Sqrt(VX * VX + VY * VY);
 
             const int32 RawMaxSpeed = WorldState.Get(Slot, PropertyId::MaxSpeed);
-            const float MaxSpeedCm = RawMaxSpeed > 0 ? static_cast<float>(RawMaxSpeed) : DefaultMaxSpeed;
+            const float MaxSpeedCm = RawMaxSpeed > 0
+                ? static_cast<float>(RawMaxSpeed)
+                : FHktMovementSystem::DefaultMaxSpeed;
 
             const float HDist = FMath::Sqrt(DX * DX + DY * DY);
 
