@@ -13,6 +13,7 @@ namespace HktAutomationTestsRunner
 	void RunStoryTests();
 	void RunScenarioTests();
 	void RunJsonParserTests();
+	void RunMovementSystemTests();
 	void PrintLastReport();
 }
 
@@ -77,6 +78,15 @@ void FHktAutomationTestsModule::StartupModule()
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			HktAutomationTestsRunner::RunJsonParserTests();
+		}),
+		ECVF_Default));
+
+	ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("hkt.automation.movement"),
+		TEXT("Run MovementSystem V1↔V2 parity & invariant tests"),
+		FConsoleCommandDelegate::CreateLambda([]()
+		{
+			HktAutomationTestsRunner::RunMovementSystemTests();
 		}),
 		ECVF_Default));
 

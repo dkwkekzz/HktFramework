@@ -16,6 +16,9 @@ class FHktVMRuntimePool;
 struct FHktVMWorldStateProxy;
 struct FHktTerrainState;
 
+/** `hkt.Move.UseV2` CVar 조회 — 1 이면 V2(active-mover 기반) 경로 사용. */
+bool HktUseMovementV2();
+
 /** Private: Physics 이벤트 (시스템 내부용) */
 struct FHktPhysicsEvent
 {
@@ -138,6 +141,14 @@ struct HKTCORE_API FHktGravitySystem
  */
 struct HKTCORE_API FHktMovementSystem
 {
+    /** 도착 판정 임계(거리²). 2D/3D 모두 동일 — `DistSq <= ArrivalThresholdSq` 면 스냅.
+     *  결정론: 서버/클라가 동일 값을 써야 함. 본질적으로 시뮬레이션 상수이므로 헤더 고정.
+     *  단위: cm². 기본 16 = 4cm 안쪽 도착 처리. */
+    static constexpr float ArrivalThresholdSq = 16.0f;
+
+    /** `PropertyId::MaxSpeed` 미설정(<=0) 시 사용되는 fallback 속력 (cm/s). */
+    static constexpr float DefaultMaxSpeed = 600.0f;
+
     EHktLogSource LogSource = EHktLogSource::Server;
 
     void Process(
@@ -145,6 +156,29 @@ struct HKTCORE_API FHktMovementSystem
         FHktVMWorldStateProxy& VMProxy,
         TArray<FHktPendingEvent>& OutMoveEndEvents,
         TArray<FIntVector>& OutPreMovePositions  // Slot 인덱스로 접근 — Physics 가 revert/슬라이드에 사용
+    );
+};
+
+/** 3.5b Movement System V2 (실험적):
+ *
+ * V1 과 동일한 운동학을 수행하되, `WorldState.ForEachEntity` 가 아닌
+ * `VMProxy.ActiveMoverSlots` (운동 관련 프로퍼티가 한 번이라도 쓰인 슬롯) 만 순회.
+ * 정지된 대규모 엔티티 집단의 매 틱 비용을 제거하는 것이 목적.
+ *
+ * 비활성 슬롯은 PreMovePositions[Slot] = 현재 Pos 로 채워둔다 — PhysicsSystem 의
+ * Velocity = ExpectedPos - PreMovePos 불변식을 유지하기 위함.
+ *
+ * `hkt.Move.UseV2` CVar 가 1 이면 V1 대신 호출된다.
+ */
+struct HKTCORE_API FHktMovementSystemV2
+{
+    EHktLogSource LogSource = EHktLogSource::Server;
+
+    void Process(
+        FHktWorldState& WorldState,
+        FHktVMWorldStateProxy& VMProxy,
+        TArray<FHktPendingEvent>& OutMoveEndEvents,
+        TArray<FIntVector>& OutPreMovePositions
     );
 };
 
