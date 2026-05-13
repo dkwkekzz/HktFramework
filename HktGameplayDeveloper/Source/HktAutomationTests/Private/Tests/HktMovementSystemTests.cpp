@@ -697,6 +697,14 @@ static FHktTestResult Test_Integration_SimulatorParity_V1V2()
 {
     constexpr int32 NumFrames = 80;
 
+    // CVar 가 존재해야 토글이 의미 있다. 없으면 V1↔V1 비교가 되어 false-pass — 명시 실패.
+    IConsoleVariable* UseV2CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("hkt.Move.UseV2"));
+    if (!UseV2CVar)
+    {
+        return FHktTestResult::Fail(TEXT("Integration_SimulatorParity_V1V2"),
+            TEXT("`hkt.Move.UseV2` CVar 미등록 — HktCore 가 로드되지 않았거나 V2 가 제거됨"));
+    }
+
     auto Run = [](int32 UseV2Value)
     {
         FUseV2Scope CVarScope(UseV2Value);
@@ -732,7 +740,7 @@ static FHktTestResult Test_Integration_SimulatorParity_V1V2()
         return FHktTestResult::Fail(TEXT("Integration_SimulatorParity_V1V2"), Mismatch);
     }
 
-    // Sanity: 두 시뮬레이터 모두 실제로 도착했는가 (테스트 자체의 유효성 보증).
+    // Sanity: 두 시뮬레이터 모두 실제로 도착했는가 (테스트 자체의 유효성 보증 — V1 reference 검증).
     auto IsArrived = [](const IHktDeterminismSimulator* Sim) -> bool
     {
         const FHktWorldState& WS = Sim->GetWorldState();
@@ -783,6 +791,13 @@ static FHktTestResult Test_VMDriven_MarksActiveMoverViaMoveToward()
         .MoveToward(Reg::Self, Reg::R5, TestConst::DefaultForce)
         .Halt()
         .Build();
+
+    if (!Program.IsValid())
+    {
+        H.Teardown();
+        return FHktTestResult::Fail(TEXT("VMDriven_MarksActiveMoverViaMoveToward"),
+            TEXT("Story Build 실패 — bytecode 생성 단계 결함 (테스트 환경 문제)"));
+    }
 
     H.ExecuteProgram(Program, E);
 
