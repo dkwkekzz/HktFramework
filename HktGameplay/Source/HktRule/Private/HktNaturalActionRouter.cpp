@@ -12,16 +12,10 @@ namespace HktNaturalActionRouter
     {
         // Action → Event 1:1 매핑 테이블 — lazy init (init-on-first-call).
         // NativeGameplayTag 는 모듈 StartupModule 이후 유효해진다. 본 헤더는 HktRule 모듈
-        // 전역에서 처음 RouteAction 호출 시 1회 채워진다.
-        struct FActionEventEntry
+        // 전역에서 처음 RouteAction 호출 시 1회 채워진다 (function-local static thread-safe).
+        const TMap<FGameplayTag, FGameplayTag>& GetMappingTable()
         {
-            FGameplayTag Action;
-            FGameplayTag Event;
-        };
-
-        const TArray<FActionEventEntry>& GetMappingTable()
-        {
-            static const TArray<FActionEventEntry> Table = {
+            static const TMap<FGameplayTag, FGameplayTag> Table = {
                 { HktNaturalActionTags::Fell,    HktNaturalEventTags::TreeFelled     },
                 { HktNaturalActionTags::Harvest, HktNaturalEventTags::BerryHarvested },
                 { HktNaturalActionTags::Pluck,   HktNaturalEventTags::AquaticPlucked },
@@ -40,12 +34,9 @@ namespace HktNaturalActionRouter
             {
                 return FGameplayTag();
             }
-            for (const FActionEventEntry& Entry : GetMappingTable())
+            if (const FGameplayTag* Found = GetMappingTable().Find(ActionTag))
             {
-                if (Entry.Action == ActionTag)
-                {
-                    return Entry.Event;
-                }
+                return *Found;
             }
             return FGameplayTag();
         }
