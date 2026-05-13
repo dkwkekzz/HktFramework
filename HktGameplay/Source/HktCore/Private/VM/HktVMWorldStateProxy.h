@@ -37,6 +37,44 @@ struct HKTCORE_API FHktVMWorldStateProxy
     TArray<int32>  OwnerDirtySlots;
     TArray<uint8>  OwnerDirtyMask;
 
+    // --- Active Mover Tracking (MovementSystem V2 최적화용) ---
+    //
+    // 매 틱 모든 엔티티를 순회하지 않고, 이동 가능성이 있는 엔티티(슬롯)만
+    // 추적해 두기 위한 sparse 인덱스. SetPropertyDirty 가 운동 관련 프로퍼티
+    // (IsMoving / MoveForce / Vel{XYZ} / IsGrounded) 를 쓸 때 자동으로 갱신된다.
+    //
+    // V1(MovementSystem) 경로에서는 사용되지 않으며, V2 경로에서만 소비된다.
+    // 결정론: 단일 쓰기 경로(SetPropertyDirty)를 통해 갱신되므로 동일 입력 →
+    // 동일 결과가 보장된다.
+    TArray<uint8> ActiveMoverMask;
+    TArray<int32> ActiveMoverSlots;
+
+    /** Slot 을 active mover 로 표시. 이미 있으면 no-op. */
+    FORCEINLINE void MarkActiveMover(int32 Slot)
+    {
+        if (Slot < 0) return;
+        if (Slot >= ActiveMoverMask.Num())
+            ActiveMoverMask.SetNumZeroed(Slot + 1, EAllowShrinking::No);
+        if (ActiveMoverMask[Slot] == 0)
+        {
+            ActiveMoverMask[Slot] = 1;
+            ActiveMoverSlots.Add(Slot);
+        }
+    }
+
+    /** Slot 을 active mover 에서 해제. List 는 다음 Compact 시 정리됨. */
+    FORCEINLINE void UnmarkActiveMover(int32 Slot)
+    {
+        if (Slot >= 0 && Slot < ActiveMoverMask.Num())
+            ActiveMoverMask[Slot] = 0;
+    }
+
+    /** ActiveMoverSlots 에서 mask 해제된 항목을 제거 (mark-and-sweep). */
+    void CompactActiveMovers();
+
+    /** WorldState 전체를 스캔해 ActiveMoverSlots 를 처음부터 재구성 (RestoreWorldState 직후 호출). */
+    void RebuildActiveMovers(const FHktWorldState& WS);
+
     void Initialize(const FHktWorldState& WS);
     void ResetDirtyIndices(const FHktWorldState& WS);
 

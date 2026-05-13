@@ -71,6 +71,7 @@ private:
     FHktTerrainSystem       TerrainSystem;
     FHktGravitySystem       GravitySystem;
     FHktMovementSystem      MovementSystem;
+    FHktMovementSystemV2    MovementSystemV2;
     FHktPhysicsSystem       PhysicsSystem;
     FHktVMCleanupSystem     VMCleanupSystem;
 

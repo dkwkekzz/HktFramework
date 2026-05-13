@@ -21,6 +21,8 @@ void FHktVMWorldStateProxy::Initialize(const FHktWorldState& WS)
     PreFrameOwnerUids.Reserve(Reserve);
     OwnerDirtyMask.Reserve(Reserve);
     OwnerDirtySlots.Reserve(256);
+    ActiveMoverMask.Reserve(Reserve);
+    ActiveMoverSlots.Reserve(256);
 }
 
 void FHktVMWorldStateProxy::ResetDirtyIndices(const FHktWorldState& WS)
@@ -70,6 +72,62 @@ void FHktVMWorldStateProxy::SetPropertyDirty(FHktWorldState& WS, FHktEntityId En
     if (bAnimTrigger && bChanged)
     {
         TouchAnimStartTickBySlot(WS, Slot);
+    }
+
+    // MovementSystemV2 추적: 운동 관련 프로퍼티 쓰기는 슬롯을 active mover 로 표시.
+    // 쓰인 값이 0(정지)이라도 일단 mark — V2 가 처리 후 idle 이면 prune.
+    if (PropId == PropertyId::IsMoving ||
+        PropId == PropertyId::MoveForce ||
+        PropId == PropertyId::VelX ||
+        PropId == PropertyId::VelY ||
+        PropId == PropertyId::VelZ ||
+        PropId == PropertyId::IsGrounded)
+    {
+        MarkActiveMover(Slot);
+    }
+}
+
+void FHktVMWorldStateProxy::CompactActiveMovers()
+{
+    int32 Write = 0;
+    for (int32 Read = 0; Read < ActiveMoverSlots.Num(); ++Read)
+    {
+        const int32 S = ActiveMoverSlots[Read];
+        if (S >= 0 && S < ActiveMoverMask.Num() && ActiveMoverMask[S] != 0)
+        {
+            ActiveMoverSlots[Write++] = S;
+        }
+    }
+    ActiveMoverSlots.SetNum(Write, EAllowShrinking::No);
+}
+
+void FHktVMWorldStateProxy::RebuildActiveMovers(const FHktWorldState& WS)
+{
+    // 기존 인덱스 전부 비우고 WorldState 를 한 번 스캔해 재구성.
+    // RestoreWorldState (롤백/리하이드레이션) 직후 호출 — 빈도 낮음.
+    ActiveMoverMask.Reset();
+    ActiveMoverSlots.Reset();
+    ActiveMoverMask.SetNumZeroed(WS.SlotToEntity.Num());
+
+    for (int32 S = 0; S < WS.SlotToEntity.Num(); ++S)
+    {
+        if (WS.SlotToEntity[S] == InvalidEntityId) continue;
+
+        const int32 IsMoving   = WS.Get(S, PropertyId::IsMoving);
+        const int32 IsGrounded = WS.Get(S, PropertyId::IsGrounded);
+        const int32 MoveForce  = WS.Get(S, PropertyId::MoveForce);
+        const int32 VX = WS.Get(S, PropertyId::VelX);
+        const int32 VY = WS.Get(S, PropertyId::VelY);
+        const int32 VZ = WS.Get(S, PropertyId::VelZ);
+
+        const bool bMoving = (IsMoving != 0) || (IsGrounded == 0) ||
+                             (MoveForce != 0) ||
+                             (VX != 0) || (VY != 0) || (VZ != 0);
+        if (bMoving)
+        {
+            ActiveMoverMask[S] = 1;
+            ActiveMoverSlots.Add(S);
+        }
     }
 }
 

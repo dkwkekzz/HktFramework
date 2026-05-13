@@ -58,6 +58,18 @@ static TAutoConsoleVariable<int32> CVarTerrainDebugEntity(
     TEXT("지형 충돌 디버그 대상 엔티티 ID. -1=끄기, 0+=해당 엔티티의 충돌 상세 로그 수집"),
     ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarMoveUseV2(
+    TEXT("hkt.Move.UseV2"),
+    0,
+    TEXT("MovementSystem V2(active-mover 추적 기반) 활성화. 0=V1(전체 순회), 1=V2(활성 슬롯만). "
+         "결정론 검증용 토글 — 서버/클라 동일 값 유지 필수."),
+    ECVF_Default);
+
+bool HktUseMovementV2()
+{
+    return CVarMoveUseV2.GetValueOnAnyThread() != 0;
+}
+
 // ============================================================================
 // 고정 시뮬레이션 틱 — Public 접근자(HktSimulationTick.h)의 단일 출처.
 // 결정론을 위해 서버/클라가 동일 값을 사용해야 한다. 기본 30Hz.
@@ -858,6 +870,199 @@ void FHktMovementSystem::Process(
         VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, FMath::RoundToInt(VY));
         // VelZ 는 Gravity 가 이미 기록했으므로 건드리지 않음
     });
+}
+
+
+// ============================================================================
+// 3.5b Movement System V2 — active-mover 슬롯만 순회
+//
+// V1 과 동일한 운동학(skip 조건, 가속/감속, 도착/오버슈트 처리)을 그대로 수행한다.
+// 차이점은 두 가지:
+//   1) WorldState.ForEachEntity 대신 VMProxy.ActiveMoverSlots 만 순회
+//   2) 비활성 슬롯의 PreMovePositions 는 현재 Pos 로 일괄 채워 PhysicsSystem 의
+//      Velocity 계산 불변식을 유지
+//
+// 처리 종료 시 완전 정지(IsMoving=0 & IsGrounded!=0 & Vel*==0 & MoveForce==0)
+// 슬롯은 ActiveMoverMask 에서 unmark — 다음 프레임 부담을 줄인다.
+// ============================================================================
+
+void FHktMovementSystemV2::Process(
+    FHktWorldState& WorldState,
+    FHktVMWorldStateProxy& VMProxy,
+    TArray<FHktPendingEvent>& OutMoveEndEvents,
+    TArray<FIntVector>& OutPreMovePositions)
+{
+    OutMoveEndEvents.Reset();
+    OutPreMovePositions.SetNumUninitialized(WorldState.SlotToEntity.Num());
+
+    static constexpr float ArrivalThresholdSq = 16.0f;
+    static constexpr float DefaultMaxSpeed = 600.0f;
+
+    const float InvFramesPerSecond = HktGetSimInvFramesPerSecond();
+    const float AccelMultiplier = CVarMoveAccelMultiplier.GetValueOnAnyThread();
+    const float SlowingRadius = CVarMoveSlowingRadius.GetValueOnAnyThread();
+    const float MinSpeed = CVarMoveMinSpeed.GetValueOnAnyThread();
+
+    // ── 비활성 슬롯의 PreMovePositions 를 현재 Pos 로 일괄 채움 ──
+    // Physics 는 PreMovePositions[Slot] 을 모든 충돌 대상 엔티티에 대해 읽으므로,
+    // V2 가 순회하지 않는 슬롯도 올바른 기준점을 갖고 있어야 한다.
+    const int32 NumSlots = WorldState.SlotToEntity.Num();
+    for (int32 Slot = 0; Slot < NumSlots; ++Slot)
+    {
+        if (WorldState.SlotToEntity[Slot] == InvalidEntityId) continue;
+        OutPreMovePositions[Slot] = FIntVector(
+            WorldState.Get(Slot, PropertyId::PosX),
+            WorldState.Get(Slot, PropertyId::PosY),
+            WorldState.Get(Slot, PropertyId::PosZ));
+    }
+
+    // ── 활성 mover 만 순회. Compact 는 호출자(시뮬레이터)가 본 함수 전에 수행했다고 가정. ──
+    const TArray<int32>& Slots = VMProxy.ActiveMoverSlots;
+    for (int32 SlotIdx = 0; SlotIdx < Slots.Num(); ++SlotIdx)
+    {
+        const int32 Slot = Slots[SlotIdx];
+        if (Slot < 0 || Slot >= NumSlots) continue;
+        if (Slot >= VMProxy.ActiveMoverMask.Num() || VMProxy.ActiveMoverMask[Slot] == 0) continue;
+
+        const FHktEntityId Id = WorldState.SlotToEntity[Slot];
+        if (Id == InvalidEntityId)
+        {
+            // 슬롯 재사용으로 인한 stale entry — 안전하게 정리.
+            VMProxy.ActiveMoverMask[Slot] = 0;
+            continue;
+        }
+
+        // 1) 현재 위치 (PreMovePositions 는 위에서 이미 채워짐)
+        const int32 CurPX = WorldState.Get(Slot, PropertyId::PosX);
+        const int32 CurPY = WorldState.Get(Slot, PropertyId::PosY);
+        const int32 CurPZ = WorldState.Get(Slot, PropertyId::PosZ);
+
+        const int32 IsMoving   = WorldState.Get(Slot, PropertyId::IsMoving);
+        const int32 IsGrounded = WorldState.Get(Slot, PropertyId::IsGrounded);
+        const int32 MoveForce  = WorldState.Get(Slot, PropertyId::MoveForce);
+        const int32 RawVX      = WorldState.Get(Slot, PropertyId::VelX);
+        const int32 RawVY      = WorldState.Get(Slot, PropertyId::VelY);
+        const int32 RawVZ      = WorldState.Get(Slot, PropertyId::VelZ);
+
+        // 2) Skip + Prune: 완전 정지한 접지 엔티티는 unmark 하고 빠져나간다.
+        if (IsMoving == 0 && IsGrounded != 0
+            && RawVX == 0 && RawVY == 0 && RawVZ == 0
+            && MoveForce == 0)
+        {
+            VMProxy.ActiveMoverMask[Slot] = 0;
+            continue;
+        }
+
+        float CurX = static_cast<float>(CurPX);
+        float CurY = static_cast<float>(CurPY);
+        float CurZ = static_cast<float>(CurPZ);
+        float VX = static_cast<float>(RawVX);
+        float VY = static_cast<float>(RawVY);
+        float VZ = static_cast<float>(RawVZ);
+
+        float NewX = CurX;
+        float NewY = CurY;
+
+        // 3) XY 목표 지향 적분 (IsMoving == 1)
+        if (IsMoving != 0)
+        {
+            const float TgtX = static_cast<float>(WorldState.Get(Slot, PropertyId::MoveTargetX));
+            const float TgtY = static_cast<float>(WorldState.Get(Slot, PropertyId::MoveTargetY));
+            const float TgtZ = static_cast<float>(WorldState.Get(Slot, PropertyId::MoveTargetZ));
+
+            const float DX = TgtX - CurX;
+            const float DY = TgtY - CurY;
+            const float DZ = TgtZ - CurZ;
+            const float DistSq = DX * DX + DY * DY + DZ * DZ;
+
+            if (DistSq > 1.0f)
+            {
+                const int32 YawDeg = FMath::RoundToInt(FMath::Atan2(DY, DX) * (180.0f / PI));
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::RotYaw, YawDeg);
+            }
+
+            if (DistSq <= ArrivalThresholdSq)
+            {
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                    FString::Printf(TEXT("[V2] Arrived at target (%.0f,%.0f,%.0f) dist=%.1f"),
+                        TgtX, TgtY, TgtZ, FMath::Sqrt(DistSq)), Id);
+
+                VMProxy.SetPosition(WorldState, Id,
+                    FMath::RoundToInt(TgtX), FMath::RoundToInt(TgtY), FMath::RoundToInt(TgtZ));
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, 0);
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, 0);
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::IsMoving, 0);
+
+                FHktPendingEvent Evt;
+                Evt.Type = EWaitEventType::MoveEnd;
+                Evt.WatchedEntity = Id;
+                OutMoveEndEvents.Add(Evt);
+                continue;
+            }
+
+            float HSpeed = FMath::Sqrt(VX * VX + VY * VY);
+
+            const int32 RawMaxSpeed = WorldState.Get(Slot, PropertyId::MaxSpeed);
+            const float MaxSpeedCm = RawMaxSpeed > 0 ? static_cast<float>(RawMaxSpeed) : DefaultMaxSpeed;
+
+            const float HDist = FMath::Sqrt(DX * DX + DY * DY);
+
+            float DesiredSpeed = MaxSpeedCm;
+            if (HDist < SlowingRadius)
+            {
+                DesiredSpeed = FMath::Max(MaxSpeedCm * (HDist / SlowingRadius), MinSpeed);
+            }
+
+            const float Force = static_cast<float>(MoveForce);
+            const float Mass = static_cast<float>(FMath::Max(WorldState.Get(Slot, PropertyId::Mass), 1));
+            const float Accel = (Force / Mass) * AccelMultiplier;
+            const float MaxSpeedChange = Accel * InvFramesPerSecond;
+
+            if (HSpeed < DesiredSpeed)
+                HSpeed = FMath::Min(HSpeed + MaxSpeedChange, DesiredSpeed);
+            else if (HSpeed > DesiredSpeed)
+                HSpeed = FMath::Max(HSpeed - MaxSpeedChange, DesiredSpeed);
+
+            const float MoveStep = HSpeed * InvFramesPerSecond;
+
+            if (HDist > SMALL_NUMBER && MoveStep >= HDist)
+            {
+                HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+                    FString::Printf(TEXT("[V2] Overshoot snap XY to target (%.0f,%.0f) step=%.1f hdist=%.1f"),
+                        TgtX, TgtY, MoveStep, HDist), Id);
+
+                NewX = TgtX;
+                NewY = TgtY;
+                VX = 0.0f;
+                VY = 0.0f;
+                VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::IsMoving, 0);
+
+                FHktPendingEvent Evt;
+                Evt.Type = EWaitEventType::MoveEnd;
+                Evt.WatchedEntity = Id;
+                OutMoveEndEvents.Add(Evt);
+            }
+            else if (HDist > SMALL_NUMBER)
+            {
+                const float InvHDist = 1.0f / HDist;
+                const float DirX = DX * InvHDist;
+                const float DirY = DY * InvHDist;
+                VX = DirX * HSpeed;
+                VY = DirY * HSpeed;
+                NewX = CurX + VX * InvFramesPerSecond;
+                NewY = CurY + VY * InvFramesPerSecond;
+            }
+        }
+
+        // 4) Z 적분
+        const float NewZ = CurZ + VZ * InvFramesPerSecond;
+
+        // 5) 기대 위치 쓰기 (Physics Phase 1 이 지형 제약 적용)
+        VMProxy.SetPosition(WorldState, Id,
+            FMath::RoundToInt(NewX), FMath::RoundToInt(NewY), FMath::RoundToInt(NewZ));
+        VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelX, FMath::RoundToInt(VX));
+        VMProxy.SetPropertyDirty(WorldState, Id, PropertyId::VelY, FMath::RoundToInt(VY));
+    }
 }
 
 

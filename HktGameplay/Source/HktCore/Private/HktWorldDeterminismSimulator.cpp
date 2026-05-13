@@ -28,6 +28,7 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     VMProcessSystem.LogSource = LogSource;
     GravitySystem.LogSource = LogSource;
     MovementSystem.LogSource = LogSource;
+    MovementSystemV2.LogSource = LogSource;
     PhysicsSystem.LogSource = LogSource;
     VMCleanupSystem.LogSource = LogSource;
 
@@ -135,8 +136,18 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
     GravitySystem.Process(WorldState, VMProxy);
 
-    MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
-                           FramePreMovePositions);
+    if (HktUseMovementV2())
+    {
+        // V2 가 활성 슬롯 리스트만 순회하기 전에 unmark 된 항목을 정리.
+        VMProxy.CompactActiveMovers();
+        MovementSystemV2.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
+                                 FramePreMovePositions);
+    }
+    else
+    {
+        MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
+                               FramePreMovePositions);
+    }
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
     {
         PendingExternalEvents.Add(ME);
@@ -288,9 +299,17 @@ void FHktWorldDeterminismSimulator::RehydrateVMPool()
 
 FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)
 {
+    const int32 SlotCountBeforeImport = WorldState.SlotToEntity.Num();
     for (const FHktEntityState& ES : InEvent.NewEntityStates)
     {
         WorldState.ImportEntityState(ES);
+    }
+    // 외부 import 는 VMProxy 를 거치지 않으므로 active-mover 추적 hook 이 발동되지 않는다.
+    // 새로 할당된 슬롯을 보수적으로 mark — MovementSystemV2 가 idle 이면 즉시 prune 한다.
+    for (int32 S = SlotCountBeforeImport; S < WorldState.SlotToEntity.Num(); ++S)
+    {
+        if (WorldState.SlotToEntity[S] != InvalidEntityId)
+            VMProxy.MarkActiveMover(S);
     }
 
     FHktEntityId PrevNext = WorldState.NextEntityId;
@@ -472,11 +491,19 @@ void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InSt
     // 복원된 WorldState 의 ActiveVMSnapshots 에서 VMPool 재수화.
     // 이를 통해 WaitingEvent 중이던 VM 이 Late-Join 클라에서도 올바르게 재개된다.
     RehydrateVMPool();
+
+    // V2 의 active-mover 인덱스는 VMProxy 에 비결정적으로 누적된 캐시. 롤백/복원 시
+    // WorldState 와의 일관성을 잃을 수 있으므로 전체 재구성.
+    VMProxy.RebuildActiveMovers(WorldState);
 }
 
 void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
 {
     WorldState.UndoDiff(Diff);
+
+    // 롤백 후 active-mover 인덱스 재구성 — UndoDiff 는 VMProxy 를 거치지 않고
+    // 속성을 되돌리므로 캐시가 stale 해진다. (rollback 빈도는 낮아 풀스캔 비용 허용.)
+    VMProxy.RebuildActiveMovers(WorldState);
 }
 
 void FHktWorldDeterminismSimulator::SetTerrainConfig(const FHktTerrainGeneratorConfig& Config)
