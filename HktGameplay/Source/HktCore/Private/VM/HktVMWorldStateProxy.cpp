@@ -87,20 +87,6 @@ void FHktVMWorldStateProxy::SetPropertyDirty(FHktWorldState& WS, FHktEntityId En
     }
 }
 
-void FHktVMWorldStateProxy::CompactActiveMovers()
-{
-    int32 Write = 0;
-    for (int32 Read = 0; Read < ActiveMoverSlots.Num(); ++Read)
-    {
-        const int32 S = ActiveMoverSlots[Read];
-        if (S >= 0 && S < ActiveMoverMask.Num() && ActiveMoverMask[S] != 0)
-        {
-            ActiveMoverSlots[Write++] = S;
-        }
-    }
-    ActiveMoverSlots.SetNum(Write, EAllowShrinking::No);
-}
-
 void FHktVMWorldStateProxy::RebuildActiveMovers(const FHktWorldState& WS)
 {
     // 기존 인덱스 전부 비우고 WorldState 를 한 번 스캔해 재구성.

@@ -138,8 +138,8 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
     if (HktUseMovementV2())
     {
-        // V2 가 활성 슬롯 리스트만 순회하기 전에 unmark 된 항목을 정리.
-        VMProxy.CompactActiveMovers();
+        // ActiveMoverSlots 의 invariant 는 mark/prune 양쪽에서 swap-pop 으로 유지된다.
+        // 별도 compaction 단계는 불필요.
         MovementSystemV2.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
                                  FramePreMovePositions);
     }

@@ -916,19 +916,31 @@ void FHktMovementSystemV2::Process(
             WorldState.Get(Slot, PropertyId::PosZ));
     }
 
-    // ── 활성 mover 만 순회. Compact 는 호출자(시뮬레이터)가 본 함수 전에 수행했다고 가정. ──
-    const TArray<int32>& Slots = VMProxy.ActiveMoverSlots;
+    // ── 활성 mover 만 순회 ──
+    // Invariant: `ActiveMoverMask[Slot]==1` ⇔ Slot ∈ ActiveMoverSlots (정확히 1회).
+    // unmark 시 반드시 swap-pop 으로 list 에서도 즉시 제거하여 다음 MarkActiveMover
+    // 호출이 중복 Add 하는 사태를 막는다.
+    TArray<int32>& Slots = VMProxy.ActiveMoverSlots;
     for (int32 SlotIdx = 0; SlotIdx < Slots.Num(); ++SlotIdx)
     {
         const int32 Slot = Slots[SlotIdx];
-        if (Slot < 0 || Slot >= NumSlots) continue;
-        if (Slot >= VMProxy.ActiveMoverMask.Num() || VMProxy.ActiveMoverMask[Slot] == 0) continue;
+
+        // 방어: out-of-range 또는 외부에서 mask 가 깨진 stale entry — 안전하게 drop.
+        if (Slot < 0 || Slot >= NumSlots ||
+            Slot >= VMProxy.ActiveMoverMask.Num() || VMProxy.ActiveMoverMask[Slot] == 0)
+        {
+            Slots.RemoveAtSwap(SlotIdx, EAllowShrinking::No);
+            --SlotIdx;
+            continue;
+        }
 
         const FHktEntityId Id = WorldState.SlotToEntity[Slot];
         if (Id == InvalidEntityId)
         {
-            // 슬롯 재사용으로 인한 stale entry — 안전하게 정리.
+            // 슬롯 해제 후 재사용 전 stale — mask 클리어 + list 에서도 제거.
             VMProxy.ActiveMoverMask[Slot] = 0;
+            Slots.RemoveAtSwap(SlotIdx, EAllowShrinking::No);
+            --SlotIdx;
             continue;
         }
 
@@ -944,12 +956,16 @@ void FHktMovementSystemV2::Process(
         const int32 RawVY      = WorldState.Get(Slot, PropertyId::VelY);
         const int32 RawVZ      = WorldState.Get(Slot, PropertyId::VelZ);
 
-        // 2) Skip + Prune: 완전 정지한 접지 엔티티는 unmark 하고 빠져나간다.
+        // 2) Skip + Prune: 완전 정지한 접지 엔티티는 mask 클리어 + list 에서 swap-pop.
+        // list 에서 즉시 제거하지 않으면, 동일 프레임 후속 시스템(Physics)이 다시
+        // MarkActiveMover 를 호출했을 때 list 에 중복 entry 가 쌓인다.
         if (IsMoving == 0 && IsGrounded != 0
             && RawVX == 0 && RawVY == 0 && RawVZ == 0
             && MoveForce == 0)
         {
             VMProxy.ActiveMoverMask[Slot] = 0;
+            Slots.RemoveAtSwap(SlotIdx, EAllowShrinking::No);
+            --SlotIdx;
             continue;
         }
 

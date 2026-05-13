@@ -43,13 +43,18 @@ struct HKTCORE_API FHktVMWorldStateProxy
     // 추적해 두기 위한 sparse 인덱스. SetPropertyDirty 가 운동 관련 프로퍼티
     // (IsMoving / MoveForce / Vel{XYZ} / IsGrounded) 를 쓸 때 자동으로 갱신된다.
     //
-    // V1(MovementSystem) 경로에서는 사용되지 않으며, V2 경로에서만 소비된다.
+    // **Invariant**: `ActiveMoverMask[Slot] == 1` ⇔ `Slot` 이 `ActiveMoverSlots`
+    // 에 정확히 한 번 존재. 이 불변식은 다음 두 가지 규약으로 유지된다:
+    //   1) Mask 를 0 으로 내리는 측은 동시에 list 에서 해당 슬롯을 swap-pop 한다.
+    //   2) Mask 를 1 로 올릴 때는 항상 list 에 Add — 가드는 "이전 값이 0" 인 경우만.
+    //
     // 결정론: 단일 쓰기 경로(SetPropertyDirty)를 통해 갱신되므로 동일 입력 →
-    // 동일 결과가 보장된다.
+    // 동일 결과가 보장된다. V1(MovementSystem) 경로에서는 사용되지 않으며,
+    // V2 경로에서만 소비된다.
     TArray<uint8> ActiveMoverMask;
     TArray<int32> ActiveMoverSlots;
 
-    /** Slot 을 active mover 로 표시. 이미 있으면 no-op. */
+    /** Slot 을 active mover 로 표시. 이미 mask=1 이면 no-op (invariant 보존). */
     FORCEINLINE void MarkActiveMover(int32 Slot)
     {
         if (Slot < 0) return;
@@ -62,17 +67,8 @@ struct HKTCORE_API FHktVMWorldStateProxy
         }
     }
 
-    /** Slot 을 active mover 에서 해제. List 는 다음 Compact 시 정리됨. */
-    FORCEINLINE void UnmarkActiveMover(int32 Slot)
-    {
-        if (Slot >= 0 && Slot < ActiveMoverMask.Num())
-            ActiveMoverMask[Slot] = 0;
-    }
-
-    /** ActiveMoverSlots 에서 mask 해제된 항목을 제거 (mark-and-sweep). */
-    void CompactActiveMovers();
-
-    /** WorldState 전체를 스캔해 ActiveMoverSlots 를 처음부터 재구성 (RestoreWorldState 직후 호출). */
+    /** WorldState 전체를 스캔해 ActiveMover 인덱스를 처음부터 재구성
+     *  (RestoreWorldState / UndoDiff 직후 호출). */
     void RebuildActiveMovers(const FHktWorldState& WS);
 
     void Initialize(const FHktWorldState& WS);
