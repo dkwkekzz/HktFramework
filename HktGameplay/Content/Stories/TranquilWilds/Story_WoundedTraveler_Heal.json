@@ -1,0 +1,54 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Interact.Heal",
+  "tags": {
+    "TagWoundedNPC":    "Entity.NPC.WoundedTraveler",
+    "StateUnconscious": "State.Wounded.Unconscious",
+    "StateAwakeBrief":  "State.Wounded.AwakeBrief",
+    "StateSpokenFull":  "State.Wounded.SpokenFull",
+    "EvtEntryA":        "Story.Event.Beat.RuinUpstream.EntryA",
+    "AnimHealCast":     "Anim.FullBody.Action.HealCast"
+  },
+
+  "preconditions": [
+    { "op": "GetDistance", "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpLeConst",  "dst": "Flag", "src": {"var":"dist"}, "value": 300 },
+    { "op": "JumpIfNot",   "cond": "Flag", "label": "fail" },
+
+    { "op": "HasTag",      "dst": {"var":"isWounded"}, "entity": "Target", "tag": "Entity.NPC.WoundedTraveler" },
+    { "op": "JumpIfNot",   "cond": {"var":"isWounded"}, "label": "fail" },
+
+    { "op": "Halt" },
+    { "op": "Label", "name": "fail" },
+    { "op": "Fail" }
+  ],
+
+  "steps": [
+    { "op": "PlayAnim",    "entity": "Self", "tag": "Anim.FullBody.Action.HealCast" },
+    { "op": "WaitSeconds", "seconds": 1.0 },
+
+    { "op": "HasTag",      "dst": {"var":"unconscious"}, "entity": "Target", "tag": "State.Wounded.Unconscious" },
+    { "op": "JumpIf",      "cond": {"var":"unconscious"}, "label": "first_heal" },
+
+    { "op": "HasTag",      "dst": {"var":"awake"}, "entity": "Target", "tag": "State.Wounded.AwakeBrief" },
+    { "op": "JumpIf",      "cond": {"var":"awake"}, "label": "second_heal" },
+
+    { "op": "Log",  "message": "[SEED 01-A] Heal on fully-spoken NPC -- no state change" },
+    { "op": "Jump", "label": "done" },
+
+    { "op": "Label", "name": "first_heal" },
+    { "op": "Log",  "message": "[SEED 01-A] First heal: Unconscious -> AwakeBrief, dispatch EntryA" },
+    { "op": "RemoveTag", "entity": "Target", "tag": "State.Wounded.Unconscious" },
+    { "op": "AddTag",    "entity": "Target", "tag": "State.Wounded.AwakeBrief" },
+    { "op": "DispatchEventFrom", "eventTag": "Story.Event.Beat.RuinUpstream.EntryA", "source": "Target" },
+    { "op": "Jump", "label": "done" },
+
+    { "op": "Label", "name": "second_heal" },
+    { "op": "Log",  "message": "[SEED 01-A] Second heal: AwakeBrief -> SpokenFull (full dialogue unlocked)" },
+    { "op": "RemoveTag", "entity": "Target", "tag": "State.Wounded.AwakeBrief" },
+    { "op": "AddTag",    "entity": "Target", "tag": "State.Wounded.SpokenFull" },
+
+    { "op": "Label", "name": "done" },
+    { "op": "Halt" }
+  ]
+}

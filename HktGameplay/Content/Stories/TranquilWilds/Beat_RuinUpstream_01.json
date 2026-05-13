@@ -1,0 +1,134 @@
+{
+  "_doc": "PROTOTYPE: Beat 컨테이너 첫 안. 현재 HktStoryJsonParser 는 본 파일을 인식하지 않음. 본 파일은 향후 'Beat Manager' 가 소비할 데이터 양식의 prototype 으로 작성되었음. 변환 시 발견되는 빠진 필드는 본 파일을 수정하며 추출.",
+
+  "beatId":    "Beat.Seed.RuinUpstream.01",
+  "sourceDoc": "Docs/Concept01_TranquilWilds/05-seed-stories.md#3-seed-01--상류-폐허-ruin_upstream_01",
+  "phase":     "P1",
+
+  "tier": {
+    "whisper": "Beat.Tier.Whisper",
+    "tremor":  "Beat.Tier.Tremor",
+    "quake":   "Beat.Tier.Quake"
+  },
+
+  "region": "Region.TranquilWilds.RiverUpstream",
+  "parents":  [],
+
+  "entries": [
+    {
+      "id":          "A",
+      "kind":        "WoundedNPC",
+      "anchor":      { "region": "Region.TranquilWilds.RiverCorridor", "placement": "ReedsByRiverbank" },
+      "trigger":     "Story.Event.Beat.RuinUpstream.EntryA",
+      "triggerBody": "Story.Event.Interact.Heal",
+      "tier":        "Whisper",
+      "payload": {
+        "spawners":      [ { "tag": "Entity.NPC.WoundedTraveler", "initialTags": ["State.Wounded.Unconscious"] } ],
+        "interactables": [ "Interact.Heal" ],
+        "signals":       [ { "level": "S2", "modality": "Audio", "asset": "Sfx.Whisper.WoundedGroan" } ]
+      },
+      "content": {
+        "dialogue": "Docs/Concept01_TranquilWilds/09-content-texts.md#31-부상-npc-wounded_traveler--강가-진입점-a"
+      }
+    },
+
+    {
+      "id":          "B",
+      "kind":        "PeakObserve",
+      "anchor":      { "region": "Region.TranquilWilds.MountainSummit", "placement": "SummitFlatRock" },
+      "trigger":     "Story.Event.Beat.RuinUpstream.EntryB",
+      "triggerBody": "Story.Event.Interact.PeakObserve",
+      "tier":        "Whisper",
+      "unlockedBy":  "Beat.Seed.PeakVista.01.Quake",
+      "payload": {
+        "interactables": [ "Interact.PeakObserve" ],
+        "signals":       [ { "level": "S4", "modality": "Visual", "asset": "Vfx.Horizon.RuinSilhouette" } ]
+      }
+    },
+
+    {
+      "id":          "C",
+      "kind":        "CorpseInvestigate",
+      "anchor":      { "region": "Region.TranquilWilds.DeepGrass", "placement": "DriftedCorpsePile" },
+      "trigger":     "Story.Event.Beat.RuinUpstream.EntryC",
+      "triggerBody": "Story.Event.Interact.CorpseInvestigate",
+      "tier":        "Whisper",
+      "payload": {
+        "spawners":      [
+          { "tag": "Entity.Object.DriftedCorpse", "count": 2 },
+          { "tag": "Entity.NPC.CarrionCrows" }
+        ],
+        "interactables": [ "Interact.CorpseInvestigate" ],
+        "signals":       [ { "level": "S2", "modality": "Audio", "asset": "Sfx.Whisper.CrowFlock" } ]
+      }
+    }
+  ],
+
+  "transitions": [
+    {
+      "from": "Whisper",
+      "to":   "Tremor",
+      "when": { "anyEntryTriggered": ["A", "B", "C"] },
+      "effects": [
+        { "kind": "EnvModifier", "region": "Region.TranquilWilds.RiverUpstream",
+          "property": "FogWeight", "delta": 30, "mode": "Additive" },
+        { "kind": "CodexHint", "entry": "Codex.Hint.UpstreamDirection" }
+      ]
+    },
+    {
+      "from": "Tremor",
+      "to":   "Quake",
+      "when": { "playerReached": { "region": "Region.TranquilWilds.RiverUpstream", "anchor": "RuinEntrance" } },
+      "effects": [
+        { "kind": "SpawnAuthored", "tag": "Entity.NPC.PredatorBeast",
+          "variantSeed": "Variant.RuinUpstream.Predator" },
+        { "kind": "SpawnAuthored", "tag": "Entity.NPC.CoweringSurvivor", "optional": true }
+      ]
+    }
+  ],
+
+  "onResolve": {
+    "trigger": "Story.Event.Beat.RuinUpstream.Resolve",
+    "children": [
+      "Token.Gratitude.HealTraveler",
+      "Token.Gratitude.RescueSurvivor",
+      "Codex.Entry.Ruin.Upstream",
+      "Codex.Entry.Predator.NamelessVariant",
+      "Naming.Right.Predator.NamelessVariant",
+      "Journal.Fragment.07.AvailableAt.RuinDesk"
+    ],
+    "envCleanup": [
+      { "kind": "EnvModifier", "region": "Region.TranquilWilds.RiverUpstream",
+        "property": "FogWeight", "delta": -30, "mode": "Additive" }
+    ]
+  },
+
+  "bypass": {
+    "entryA_ignored_after_10min": {
+      "effect": "Entity.NPC.WoundedTraveler -> AddTag State.Dead, convert to Entity.Object.DriftedCorpse (joins entry C pool)"
+    },
+    "entryB_only_no_ruin_visit": {
+      "effect": "Map.Fragment.RuinSilhouette unlocked; Tremor active but Quake pending"
+    },
+    "entryC_only_no_upstream": {
+      "effect": "Codex hint registered; beat stays at Tremor; predator remains in ruin"
+    },
+    "all_ignored": {
+      "effect": "Beat dormant; deterministic seeds preserved for next session"
+    }
+  },
+
+  "links": {
+    "Beat.Seed.NamelessVariant.01": "shares predator entity; Quake here = entry C of NamelessVariant",
+    "Beat.Seed.DriftingJournal.01": "Quake here resolves Journal.Fragment.07 location",
+    "Beat.Seed.PeakVista.01":       "Quake of PeakVista unlocks entryB"
+  },
+
+  "_pending_schema_questions": [
+    "Beat 단계 전이는 Story VM 으로 표현할지 별도 Beat Manager 가 polling 할지",
+    "entries[].trigger 와 entries[].triggerBody 의 결합 — 현재는 triggerBody 가 'EntryA' 이벤트를 dispatch. 단방향만 prototype.",
+    "onResolve.children 항목들의 실제 소비처 (Token/Codex/Naming 저장소) — Track C5 작업 산출물",
+    "anchor.placement 의 실제 좌표 결정자 — Track C1 (region 정의) + C2 (시그널 배치)",
+    "transitions[].when 의 술어 어휘 — 'anyEntryTriggered', 'playerReached' 외 추가 필요 시 본 prototype 확장"
+  ]
+}

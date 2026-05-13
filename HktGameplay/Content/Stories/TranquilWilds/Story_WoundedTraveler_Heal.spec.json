@@ -1,0 +1,77 @@
+{
+  "storyTag": "Story.Event.Interact.Heal",
+  "description": "SEED 01-A: 강가 부상 NPC 회복. 거리/태그 precondition, 대화 단계 태그 전이(Unconscious→AwakeBrief→SpokenFull), 첫 회복 시 Beat.RuinUpstream.EntryA dispatch.",
+  "scenarios": [
+    {
+      "name": "first_heal_unconscious_to_awake_dispatches_entry_a",
+      "description": "초기 Unconscious 상태에서 첫 회복: AwakeBrief 로 전이 + EntryA dispatch 검증.",
+      "given": {
+        "self":   { "archetype": "Character", "position": [0, 0, 0] },
+        "target": {
+          "archetype": "NPC",
+          "position": [100, 0, 0],
+          "tags": ["Entity.NPC.WoundedTraveler", "State.Wounded.Unconscious"]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "target": {
+          "tags": ["Entity.NPC.WoundedTraveler", "State.Wounded.AwakeBrief"],
+          "tagsAbsent": ["State.Wounded.Unconscious"]
+        },
+        "dispatched": [
+          { "eventTag": "Story.Event.Beat.RuinUpstream.EntryA", "source": "target" }
+        ]
+      }
+    },
+
+    {
+      "name": "second_heal_awake_to_spoken_no_dispatch",
+      "description": "이미 AwakeBrief 인 NPC 재회복: SpokenFull 로 전이, EntryA 재dispatch 없음.",
+      "given": {
+        "self":   { "archetype": "Character", "position": [0, 0, 0] },
+        "target": {
+          "archetype": "NPC",
+          "position": [100, 0, 0],
+          "tags": ["Entity.NPC.WoundedTraveler", "State.Wounded.AwakeBrief"]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "target": {
+          "tags": ["Entity.NPC.WoundedTraveler", "State.Wounded.SpokenFull"],
+          "tagsAbsent": ["State.Wounded.AwakeBrief"]
+        },
+        "dispatched": []
+      }
+    },
+
+    {
+      "name": "out_of_range_fails",
+      "description": "거리 > 300 이면 precondition 실패.",
+      "given": {
+        "self":   { "archetype": "Character", "position": [0, 0, 0] },
+        "target": {
+          "archetype": "NPC",
+          "position": [10000, 0, 0],
+          "tags": ["Entity.NPC.WoundedTraveler", "State.Wounded.Unconscious"]
+        }
+      },
+      "expect": { "status": "Failed" }
+    },
+
+    {
+      "name": "non_wounded_target_fails",
+      "description": "Target 이 WoundedTraveler 가 아니면 precondition 실패.",
+      "given": {
+        "self":   { "archetype": "Character", "position": [0, 0, 0] },
+        "target": {
+          "archetype": "NPC",
+          "position": [100, 0, 0],
+          "tags": ["Entity.NPC.Generic"]
+        }
+      },
+      "expect": { "status": "Failed" }
+    }
+  ]
+}
