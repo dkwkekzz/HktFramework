@@ -33,6 +33,11 @@ namespace HktStoryJsonParserTests
 	FHktTestReport RunAllJsonParserTests();
 }
 
+namespace HktMovementSystemTests
+{
+	FHktTestReport RunAllMovementSystemTests();
+}
+
 namespace HktAutomationTestsRunner
 {
 	static FHktTestReport LastReport;
@@ -117,6 +122,16 @@ namespace HktAutomationTestsRunner
 		PrintReport(Report);
 	}
 
+	void RunMovementSystemTests()
+	{
+		UE_LOG(LogHktAutomationTests, Log, TEXT("[HktAutomationTests] Running MovementSystem V1↔V2 tests..."));
+
+		FHktTestReport Report = HktMovementSystemTests::RunAllMovementSystemTests();
+
+		LastReport = Report;
+		PrintReport(Report);
+	}
+
 	void RunAllTests()
 	{
 		UE_LOG(LogHktAutomationTests, Log, TEXT("[HktAutomationTests] Running ALL tests..."));
@@ -130,6 +145,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktStoryIntegrityTests::RunAllIntegrityTests());
 		Report.Append(HktStoryScenarioTests::RunAllScenarioTests());
 		Report.Append(HktStoryJsonParserTests::RunAllJsonParserTests());
+		Report.Append(HktMovementSystemTests::RunAllMovementSystemTests());
 
 		LastReport = Report;
 		PrintReport(Report);
