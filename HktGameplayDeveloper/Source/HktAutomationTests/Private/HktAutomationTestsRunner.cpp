@@ -38,6 +38,11 @@ namespace HktMovementSystemTests
 	FHktTestReport RunAllMovementSystemTests();
 }
 
+namespace HktNaturalRouterTests
+{
+	FHktTestReport RunAllRouterTests();
+}
+
 namespace HktAutomationTestsRunner
 {
 	static FHktTestReport LastReport;
@@ -132,6 +137,16 @@ namespace HktAutomationTestsRunner
 		PrintReport(Report);
 	}
 
+	void RunNaturalRouterTests()
+	{
+		UE_LOG(LogHktAutomationTests, Log, TEXT("[HktAutomationTests] Running NaturalActionRouter tests..."));
+
+		FHktTestReport Report = HktNaturalRouterTests::RunAllRouterTests();
+
+		LastReport = Report;
+		PrintReport(Report);
+	}
+
 	void RunAllTests()
 	{
 		UE_LOG(LogHktAutomationTests, Log, TEXT("[HktAutomationTests] Running ALL tests..."));
@@ -146,6 +161,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktStoryScenarioTests::RunAllScenarioTests());
 		Report.Append(HktStoryJsonParserTests::RunAllJsonParserTests());
 		Report.Append(HktMovementSystemTests::RunAllMovementSystemTests());
+		Report.Append(HktNaturalRouterTests::RunAllRouterTests());
 
 		LastReport = Report;
 		PrintReport(Report);

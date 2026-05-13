@@ -17,7 +17,8 @@ public class HktAutomationTests : ModuleRules
             "GameplayTags",
             "Json",
             "JsonUtilities",
-            "HktCore"
+            "HktCore",
+            "HktRule"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
