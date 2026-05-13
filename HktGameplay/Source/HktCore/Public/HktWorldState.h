@@ -63,6 +63,11 @@ struct HKTCORE_API FHktWorldState
     TArray<int64> OwnerUids;
     TArray<FHktVMSnapshot> ActiveVMSnapshots;       // 진행 중 VM 런타임 스냅샷 (세션 내 단일 진실 소스)
 
+    // --- Region Index (PR-2) ---
+    // RegionId (macro-tile packed coord) → Entity.Region row 의 EntityId.
+    // FindOrCreateRegionEntity 가 lazy-create 한다. 직렬화는 row 만 — 인덱스는 load 후 재구축.
+    TMap<uint32, FHktEntityId> RegionEntityMap;
+
 #if ENABLE_HKT_INSIGHTS
     /**
      * FHktEntityDebugInfo — 엔티티 디버그 정보 (Insights 전용)
@@ -92,6 +97,14 @@ struct HKTCORE_API FHktWorldState
     void Initialize();
     FHktEntityId AllocateEntity();
     void RemoveEntity(FHktEntityId Id);
+
+    // --- Region (PR-2) ---
+    /**
+     * RegionId 의 Entity.Region row 를 반환한다. 없으면 AllocateEntity + AddTag(Entity.Region) 으로 lazy-create.
+     * 04 §3-D1 의 핵심 결정: region 도 일반 SoA entity 로 산다 (UObject 0, GGPO 자동).
+     * RegionId 는 HktRegionId::FromChunkCoord 로 산출된 packed macro-tile 좌표.
+     */
+    FHktEntityId FindOrCreateRegionEntity(uint32 RegionId);
 
     FORCEINLINE bool IsValidEntity(FHktEntityId Id) const
     {

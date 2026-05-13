@@ -16,6 +16,7 @@ namespace HktOpcodeTests
 	FHktTestReport RunEntityTests();
 	FHktTestReport RunCompositeTests();
 	FHktTestReport RunSpawnerTests();
+	FHktTestReport RunRegionTests();
 }
 
 namespace HktStoryIntegrityTests
@@ -84,6 +85,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktOpcodeTests::RunEntityTests());
 		Report.Append(HktOpcodeTests::RunCompositeTests());
 		Report.Append(HktOpcodeTests::RunSpawnerTests());
+		Report.Append(HktOpcodeTests::RunRegionTests());
 
 		LastReport = Report;
 		PrintReport(Report);
@@ -142,6 +144,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktOpcodeTests::RunEntityTests());
 		Report.Append(HktOpcodeTests::RunCompositeTests());
 		Report.Append(HktOpcodeTests::RunSpawnerTests());
+		Report.Append(HktOpcodeTests::RunRegionTests());
 		Report.Append(HktStoryIntegrityTests::RunAllIntegrityTests());
 		Report.Append(HktStoryScenarioTests::RunAllScenarioTests());
 		Report.Append(HktStoryJsonParserTests::RunAllJsonParserTests());
