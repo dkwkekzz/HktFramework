@@ -207,6 +207,14 @@ void AHktSpriteTerrainActor::Tick(float DeltaSeconds)
 		DrawFallbackWireframes(CachedVoxelSize);
 	}
 
+	// BakedAsset 비동기 로드가 끝나기 전에는 청크 스캔/로드 보류 —
+	// 베이크 영역 청크가 폴백 Generator 로 잘못 추출되어 첫 PIE 에서
+	// fallback terrain 표면이 보이는 race 를 방지한다.
+	if (Sub->IsBakedAssetPending())
+	{
+		return;
+	}
+
 	// === 스캔 빈도 제한 — chunk load/unload 만 throttle ===
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	const float MinInterval = (MaxScansPerSecond > 0.f) ? 1.f / MaxScansPerSecond : 0.f;
