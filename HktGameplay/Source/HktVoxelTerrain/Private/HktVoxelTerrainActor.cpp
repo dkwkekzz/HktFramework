@@ -4,9 +4,6 @@
 #include "HktTerrainChunkLoader.h"
 #include "HktVoxelTerrainLog.h"
 #include "HktVoxelTerrainStyleSet.h"
-#if WITH_EDITOR
-#include "HktVoxelTerrainBakeLibrary.h"
-#endif
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelRaycast.h"
 #include "Data/HktVoxelTypes.h"
@@ -825,27 +822,15 @@ void AHktVoxelTerrainActor::PrewarmPool(int32 Count)
 }
 
 // ============================================================================
-// 블록 스타일 빌드 (BlockStyles → Texture2DArray + LUT + MaterialLUT)
+// 블록 스타일 빌드 (StyleDataSet → BuiltTileAtlas + BuiltMaterialLUT)
 // ============================================================================
 
 void AHktVoxelTerrainActor::BuildTerrainStyle()
 {
 	bStyleBuilt = false;
 
-	// 솔리드 컬러 폴백 판정.
-	//   1) 사용자가 명시적으로 토글 ON 했거나,
-	//   2) BakedStyleSet 가 없고 BlockStyles 중 어떤 항목도 텍스처를 가지지 않을 때 자동.
-	const bool bHasBakedTextures = (BakedStyleSet && BakedStyleSet->HasBakedData());
-	bool bAnyBlockHasTexture = false;
-	for (const FHktVoxelBlockStyle& S : BlockStyles)
-	{
-		if (S.HasAnyTexture()) { bAnyBlockHasTexture = true; break; }
-	}
-	const bool bSolidColorMode =
-		bUseSolidColorFallback
-		|| (BlockStyles.Num() > 0 && !bHasBakedTextures && !bAnyBlockHasTexture);
-
-	auto BuildPaletteTexture = [this](TFunctionRef<FColor(int32 /*TypeRow*/)> RowColor)
+	// 기본 팔레트 (8×256 흰색) 생성 — GWhiteTexture OOB 버그 방지용. StyleDataSet 유무와 무관.
+	auto BuildWhitePalette = [this]()
 	{
 		const int32 PW = 8, PH = 256;
 		DefaultPaletteTexture = NewObject<UTexture2D>(this, TEXT("DefaultPalette"), RF_Transient);
@@ -859,19 +844,7 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 		PMip->SizeY = PH;
 		PMip->BulkData.Lock(LOCK_READ_WRITE);
 		uint8* PData = static_cast<uint8*>(PMip->BulkData.Realloc(PW * PH * 4));
-		for (int32 Row = 0; Row < PH; Row++)
-		{
-			const FColor C = RowColor(Row);
-			for (int32 Col = 0; Col < PW; Col++)
-			{
-				const int32 Off = (Row * PW + Col) * 4;
-				// PF_B8G8R8A8: 메모리 순서 B, G, R, A
-				PData[Off + 0] = C.B;
-				PData[Off + 1] = C.G;
-				PData[Off + 2] = C.R;
-				PData[Off + 3] = C.A;
-			}
-		}
+		FMemory::Memset(PData, 0xFF, PW * PH * 4);
 		PMip->BulkData.Unlock();
 		DefaultPaletteTexture->SetPlatformData(PPD);
 		DefaultPaletteTexture->Filter = TF_Nearest;
@@ -881,390 +854,38 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 		DefaultPaletteTexture->UpdateResource();
 	};
 
-	// === 솔리드 컬러 폴백 ===
-	// TileArray 는 1×1×1 흰색 더미 (셰이더 HktTileEnabled 바인딩 충족용),
-	// TileIndexLUT 는 전부 255 (= 미매핑) → 셰이더가 팔레트 경로만 사용,
-	// DefaultPalette 행 = TypeID 별 BaseColor (sRGB 인코딩) → 솔리드 컬러로 출력.
-	if (bSolidColorMode)
+	if (!StyleDataSet)
 	{
-		BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
-
-		// 1×1×1 흰색 더미 TileArray — DDC 컴파일 없이 직접 PlatformData 빌드.
-		{
-			UTexture2DArray* DummyArray = NewObject<UTexture2DArray>(
-				BuiltTileAtlas, TEXT("DummyTileArray"), RF_Transient);
-
-			FTexturePlatformData* PD = new FTexturePlatformData();
-			PD->SizeX = 1;
-			PD->SizeY = 1;
-			PD->SetNumSlices(1);
-			PD->PixelFormat = PF_B8G8R8A8;
-
-			FTexture2DMipMap* Mip = new FTexture2DMipMap();
-			PD->Mips.Add(Mip);
-			Mip->SizeX = 1;
-			Mip->SizeY = 1;
-			Mip->SizeZ = 1;
-			Mip->BulkData.Lock(LOCK_READ_WRITE);
-			uint8* TexData = static_cast<uint8*>(Mip->BulkData.Realloc(4));
-			TexData[0] = 0xFF; TexData[1] = 0xFF; TexData[2] = 0xFF; TexData[3] = 0xFF;
-			Mip->BulkData.Unlock();
-
-			DummyArray->SetPlatformData(PD);
-			DummyArray->Filter = TF_Nearest;
-			DummyArray->SRGB = true;
-			DummyArray->AddressX = TA_Clamp;
-			DummyArray->AddressY = TA_Clamp;
-			DummyArray->UpdateResource();
-
-			BuiltTileAtlas->TileArray = DummyArray;
-		}
-
-		// TileIndexLUT — 모든 매핑을 (255,255,255) 로 두면 BuildLUTTexture 는
-		// 모든 슬라이스가 미매핑 = 팔레트 경로로 처리한다.
-		BuiltTileAtlas->BuildLUTTexture();
-
-		// MaterialLUT — BlockStyle 의 PBR 값을 그대로 주입.
-		BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);
-		for (const FHktVoxelBlockStyle& Style : BlockStyles)
-		{
-			BuiltMaterialLUT->SetMaterial(Style.GetTypeID(), Style.Roughness, Style.Metallic, Style.Specular);
-		}
-		BuiltMaterialLUT->BuildLUTTexture();
-
-		// DefaultPalette — Row=TypeID 에 BaseColor 채움. 미정 행은 흰색(=GWhiteTexture 등가).
-		FColor PerTypeColor[256];
-		for (int32 i = 0; i < 256; i++) { PerTypeColor[i] = FColor::White; }
-		for (const FHktVoxelBlockStyle& Style : BlockStyles)
-		{
-			const uint16 TypeID = Style.GetTypeID();
-			if (TypeID < 256)
-			{
-				// DefaultPaletteTexture 는 SRGB=false 라 셰이더가 원본 바이트를 곧바로 선형 값으로
-				// 사용한다. FLinearColor 도 선형 공간이므로 sRGB 감마 인코딩 없이 직접 양자화 —
-				// ToFColor(false) 가 정확히 그 동작.
-				PerTypeColor[TypeID] = Style.BaseColor.ToFColor(/*bSRGB=*/false);
-			}
-		}
-		BuildPaletteTexture([&](int32 Row) -> FColor
-		{
-			return (Row >= 0 && Row < 256) ? PerTypeColor[Row] : FColor::White;
-		});
-
-		FlushRenderingCommands();
-		bStyleBuilt = true;
-
-		const TCHAR* Reason = bUseSolidColorFallback
-			? TEXT("bUseSolidColorFallback=ON")
-			: TEXT("auto: BakedStyleSet 미설정 + BlockStyle 텍스처 0");
+		BuildWhitePalette();
 		UE_LOG(LogHktVoxelTerrain, Log,
-			TEXT("[TerrainStyle] 솔리드 컬러 폴백 — %s (%d styles)"),
-			Reason, BlockStyles.Num());
+			TEXT("[TerrainStyle] StyleDataSet 미할당 — 팔레트 폴백 렌더링"));
 		return;
 	}
 
-	// 우선순위 1) BakedStyleSet — DDC 컴파일 미경유, 단순 자산 적용.
-	//   에디터-타임에 베이크된 Texture2DArray 를 그대로 참조하므로
-	//   TextureDerivedData 워커 메모리 폭증 (~1 GiB+) 회피.
-	if (BakedStyleSet && BakedStyleSet->HasBakedData())
+	if (!StyleDataSet->HasBakedData())
 	{
-		BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
-		BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);
-		BakedStyleSet->ApplyTo(BuiltTileAtlas, BuiltMaterialLUT);
-
-		// 기본 팔레트 텍스처 (8×256 흰색) — GWhiteTexture OOB 방지용. Build 경로와 동일.
-		BuildPaletteTexture([](int32) { return FColor::White; });
-
-		// 작은 LUT 들의 RHI 준비를 BeginPlay 직후 보장 — 텍스처 배열은 이미
-		// cooked 상태로 로드되었으므로 여기서 flush 비용은 LUT(8×256, 256×3) 만큼만 든다.
-		FlushRenderingCommands();
-
-		bStyleBuilt = true;
-		UE_LOG(LogHktVoxelTerrain, Log,
-			TEXT("[TerrainStyle] BakedStyleSet 적용 — '%s' (%d styles, %d slices)"),
-			*BakedStyleSet->GetName(),
-			BakedStyleSet->SourceBlockStyleCount, BakedStyleSet->SliceCount);
+		BuildWhitePalette();
+		UE_LOG(LogHktVoxelTerrain, Warning,
+			TEXT("[TerrainStyle] StyleDataSet '%s' 베이크 미완료 — 자산에서 Bake 버튼을 눌러 주세요. 팔레트 폴백."),
+			*StyleDataSet->GetName());
 		return;
 	}
 
-	if (BlockStyles.Num() == 0)
-	{
-		UE_LOG(LogHktVoxelTerrain, Log, TEXT("[TerrainStyle] BlockStyles is empty — using palette fallback"));
-		return;
-	}
-
-	// 폴백: 런타임 빌드 경로. BCn DDC 컴파일이 발생하므로 텍스처 수/해상도가
-	// 크면 TextureDerivedData 워커 메모리 한계(~982 MiB)를 초과할 수 있다.
-	// 프로덕션은 BakeStyleSet 버튼으로 베이크된 BakedStyleSet 사용을 권장.
-	UE_LOG(LogHktVoxelTerrain, Warning,
-		TEXT("[TerrainStyle] BakedStyleSet 미할당 — BlockStyles 직접 빌드 경로 사용. "
-			 "텍스처 수/해상도가 크면 DDC 컴파일 메모리 폭증 위험. "
-			 "Details 패널의 BakeStyleSet 버튼으로 자산을 생성하세요."));
-
-	// 1. 고유 텍스처 수집 → 슬라이스 인덱스 할당 (BaseColor 키 + 병렬 Normal 트래킹)
-	//    같은 BaseColor에 서로 다른 Normal이 매핑되면 첫 번째 값을 유지하고 경고.
-	//    null로 시작한 슬롯은 이후 non-null Normal이 들어오면 승격(promote).
-	TMap<UTexture2D*, uint8> TextureToSlice;
-	TArray<UTexture2D*> SliceTextures;  // 인덱스 순서
-	TArray<UTexture2D*> SliceNormals;   // 병렬 배열 — null = 해당 슬라이스 노멀 없음
-
-	auto AssignSlice = [&](UTexture2D* Base, UTexture2D* Normal) -> uint8
-	{
-		if (!Base)
-		{
-			return 255;  // 미매핑 → 팔레트 폴백
-		}
-		if (const uint8* Found = TextureToSlice.Find(Base))
-		{
-			const uint8 Idx = *Found;
-			// 병렬 배열에서 기존 Normal과 비교 — null 승격 or 충돌 경고
-			if (Normal)
-			{
-				if (!SliceNormals[Idx])
-				{
-					SliceNormals[Idx] = Normal;  // null → 구체화
-				}
-				else if (SliceNormals[Idx] != Normal)
-				{
-					UE_LOG(LogHktVoxelTerrain, Warning,
-						TEXT("[TerrainStyle] Base 텍스처 %s는 슬라이스 %d에 이미 Normal=%s가 할당됨 — 새 Normal=%s는 무시됨."),
-						*Base->GetName(), Idx,
-						*SliceNormals[Idx]->GetName(), *Normal->GetName());
-				}
-			}
-			return Idx;
-		}
-		if (SliceTextures.Num() >= 255)
-		{
-			UE_LOG(LogHktVoxelTerrain, Warning, TEXT("[TerrainStyle] Too many unique textures (max 255)"));
-			return 255;
-		}
-		const uint8 Idx = static_cast<uint8>(SliceTextures.Num());
-		TextureToSlice.Add(Base, Idx);
-		SliceTextures.Add(Base);
-		SliceNormals.Add(Normal);
-		return Idx;
-	};
-
-	// 2. TileAtlas 생성 + 매핑
 	BuiltTileAtlas = NewObject<UHktVoxelTileAtlas>(this, TEXT("BuiltTileAtlas"), RF_Transient);
-
-	for (const FHktVoxelBlockStyle& Style : BlockStyles)
-	{
-		// BaseColor: Top이 없으면 Side로 폴백. Bottom도 동일.
-		UTexture2D* TopTex = Style.TopTexture ? Style.TopTexture.Get() : Style.SideTexture.Get();
-		UTexture2D* SideTex = Style.SideTexture.Get();
-		UTexture2D* BottomTex = Style.BottomTexture ? Style.BottomTexture.Get() : SideTex;
-
-		// Normal도 대응하는 BaseColor의 폴백 규칙을 따른다 —
-		// Top이 Side로 폴백되면 TopNormal도 SideNormal로 폴백 (같은 텍스처 쌍 유지).
-		UTexture2D* TopNorm = Style.TopTexture ? Style.TopNormal.Get() : Style.SideNormal.Get();
-		UTexture2D* SideNorm = Style.SideNormal.Get();
-		UTexture2D* BottomNorm = Style.BottomTexture ? Style.BottomNormal.Get() : Style.SideNormal.Get();
-
-		const uint8 TopSlice = AssignSlice(TopTex, TopNorm);
-		const uint8 SideSlice = AssignSlice(SideTex, SideNorm);
-		const uint8 BottomSlice = AssignSlice(BottomTex, BottomNorm);
-
-		BuiltTileAtlas->SetTileMapping(
-			Style.GetTypeID(), TopSlice, SideSlice, BottomSlice);
-	}
-
-	// 3. 소스 텍스처 호환성 검증 — Texture2DArray는 모든 슬라이스가 동일 포맷/해상도여야 함
-	if (SliceTextures.Num() > 0)
-	{
-		const int32 RefSizeX = SliceTextures[0]->GetSizeX();
-		const int32 RefSizeY = SliceTextures[0]->GetSizeY();
-		const EPixelFormat RefFormat = SliceTextures[0]->GetPixelFormat();
-		bool bAllCompatible = true;
-
-		for (int32 i = 1; i < SliceTextures.Num(); i++)
-		{
-			const UTexture2D* Tex = SliceTextures[i];
-			if (Tex->GetSizeX() != RefSizeX || Tex->GetSizeY() != RefSizeY)
-			{
-				UE_LOG(LogHktVoxelTerrain, Error,
-					TEXT("[TerrainStyle] 텍스처 크기 불일치 — 슬라이스[0]=%dx%d, 슬라이스[%d](%s)=%dx%d. "
-						 "Texture2DArray는 모든 텍스처가 동일 해상도여야 합니다."),
-					RefSizeX, RefSizeY, i, *Tex->GetName(),
-					Tex->GetSizeX(), Tex->GetSizeY());
-				bAllCompatible = false;
-			}
-			if (Tex->GetPixelFormat() != RefFormat)
-			{
-				UE_LOG(LogHktVoxelTerrain, Error,
-					TEXT("[TerrainStyle] 텍스처 포맷 불일치 — 슬라이스[0]=%s, 슬라이스[%d](%s)=%s. "
-						 "Texture2DArray는 모든 텍스처가 동일 PixelFormat이어야 합니다."),
-					GetPixelFormatString(RefFormat), i, *Tex->GetName(),
-					GetPixelFormatString(Tex->GetPixelFormat()));
-				bAllCompatible = false;
-			}
-		}
-
-		if (!bAllCompatible)
-		{
-			UE_LOG(LogHktVoxelTerrain, Error,
-				TEXT("[TerrainStyle] 텍스처 호환성 검증 실패 — Texture2DArray를 빌드할 수 없습니다. "
-					 "모든 BlockStyle 텍스처를 동일 해상도/포맷으로 통일하세요. 팔레트 폴백으로 렌더링합니다."));
-			return;
-		}
-
-		UTexture2DArray* TileArray = NewObject<UTexture2DArray>(BuiltTileAtlas, TEXT("TileArray"), RF_Transient);
-
-		TileArray->SourceTextures.Empty();
-		for (UTexture2D* Tex : SliceTextures)
-		{
-			TileArray->SourceTextures.Add(Tex);
-		}
-		TileArray->AddressX = TA_Wrap;
-		TileArray->AddressY = TA_Wrap;
-		TileArray->UpdateSourceFromSourceTextures(true);
-		TileArray->UpdateResource();
-
-		BuiltTileAtlas->TileArray = TileArray;
-	}
-
-	// 3b. NormalArray 빌드 (선택) — TileArray와 동일 슬라이스 레이아웃.
-	//     MVP 정책: all-or-nothing. 일부 슬라이스만 노멀이 있으면 전체 스킵 + 경고.
-	//     이유: 누락 슬라이스에 플레이스홀더를 삽입하려면 참조 포맷이 BC5인 경우
-	//     프로시저럴 생성이 복잡해진다. 아티스트가 명시적으로 모든 텍스처를 제공하도록 강제.
-	if (SliceNormals.Num() > 0)
-	{
-		int32 NumProvided = 0;
-		int32 FirstMissingIdx = INDEX_NONE;
-		for (int32 i = 0; i < SliceNormals.Num(); i++)
-		{
-			if (SliceNormals[i]) { NumProvided++; }
-			else if (FirstMissingIdx == INDEX_NONE) { FirstMissingIdx = i; }
-		}
-
-		if (NumProvided == 0)
-		{
-			UE_LOG(LogHktVoxelTerrain, Log,
-				TEXT("[TerrainStyle] 노멀맵 미구성 — 플랫 노멀로 렌더링 (%d 슬라이스)"),
-				SliceNormals.Num());
-		}
-		else if (NumProvided < SliceNormals.Num())
-		{
-			UE_LOG(LogHktVoxelTerrain, Warning,
-				TEXT("[TerrainStyle] 노멀맵 부분 구성 (%d/%d) — NormalArray 빌드 스킵. "
-					 "최초 누락 슬라이스[%d]=%s (BaseColor). "
-					 "모든 BlockStyle에 Top/Side/BottomNormal을 설정하거나 전부 비워 두세요."),
-				NumProvided, SliceNormals.Num(),
-				FirstMissingIdx,
-				*SliceTextures[FirstMissingIdx]->GetName());
-		}
-		else
-		{
-			// 모든 슬라이스에 노멀 제공됨 — 포맷/크기 호환성 검증 후 빌드
-			const int32 NormSizeX = SliceNormals[0]->GetSizeX();
-			const int32 NormSizeY = SliceNormals[0]->GetSizeY();
-			const EPixelFormat NormFormat = SliceNormals[0]->GetPixelFormat();
-			bool bNormalCompatible = true;
-
-			for (int32 i = 1; i < SliceNormals.Num(); i++)
-			{
-				UTexture2D* N = SliceNormals[i];
-				if (N->GetSizeX() != NormSizeX || N->GetSizeY() != NormSizeY)
-				{
-					UE_LOG(LogHktVoxelTerrain, Error,
-						TEXT("[TerrainStyle] 노멀 텍스처 크기 불일치 — [0]=%dx%d, [%d](%s)=%dx%d"),
-						NormSizeX, NormSizeY, i, *N->GetName(),
-						N->GetSizeX(), N->GetSizeY());
-					bNormalCompatible = false;
-				}
-				if (N->GetPixelFormat() != NormFormat)
-				{
-					UE_LOG(LogHktVoxelTerrain, Error,
-						TEXT("[TerrainStyle] 노멀 텍스처 포맷 불일치 — [0]=%s, [%d](%s)=%s"),
-						GetPixelFormatString(NormFormat), i, *N->GetName(),
-						GetPixelFormatString(N->GetPixelFormat()));
-					bNormalCompatible = false;
-				}
-			}
-
-			// SRGB=true는 노멀맵에서 잘못된 설정 — 경고만 출력 (포맷 변환은 엔진이 자동).
-			for (UTexture2D* N : SliceNormals)
-			{
-				if (N->SRGB)
-				{
-					UE_LOG(LogHktVoxelTerrain, Warning,
-						TEXT("[TerrainStyle] 노멀 텍스처 %s에 SRGB=true 설정됨. "
-							 "노멀맵은 Linear 데이터이므로 에셋에서 sRGB=off + TC_Normalmap 권장."),
-						*N->GetName());
-				}
-			}
-
-			if (bNormalCompatible)
-			{
-				UTexture2DArray* NArray = NewObject<UTexture2DArray>(
-					BuiltTileAtlas, TEXT("NormalArray"), RF_Transient);
-				NArray->SourceTextures.Empty();
-				for (UTexture2D* N : SliceNormals)
-				{
-					NArray->SourceTextures.Add(N);
-				}
-				NArray->AddressX = TA_Wrap;
-				NArray->AddressY = TA_Wrap;
-				NArray->SRGB = false;  // 노멀맵은 항상 linear
-				NArray->UpdateSourceFromSourceTextures(true);
-				NArray->UpdateResource();
-
-				BuiltTileAtlas->NormalArray = NArray;
-			}
-		}
-	}
-
-	// 4. TileIndexLUT 빌드
-	BuiltTileAtlas->BuildLUTTexture();
-
-	// 5. MaterialLUT 생성
 	BuiltMaterialLUT = NewObject<UHktVoxelMaterialLUT>(this, TEXT("BuiltMaterialLUT"), RF_Transient);
+	StyleDataSet->ApplyTo(BuiltTileAtlas, BuiltMaterialLUT);
 
-	for (const FHktVoxelBlockStyle& Style : BlockStyles)
-	{
-		BuiltMaterialLUT->SetMaterial(
-			Style.GetTypeID(),
-			Style.Roughness, Style.Metallic, Style.Specular);
-	}
-	BuiltMaterialLUT->BuildLUTTexture();
+	BuildWhitePalette();
 
-	// 6. 기본 팔레트 텍스처 생성 (8×256 흰색)
-	//    GWhiteTexture(1x1)를 팔레트로 사용하면 셰이더의 Load(int3(PaletteIdx, VoxelType, 0))가
-	//    VoxelType>0에서 out-of-bounds → (0,0,0,0)을 반환, TileColor * 0 = 검정.
-	//    올바른 크기의 흰색 팔레트를 제공하여 PaletteTint = (1,1,1,1) 보장.
-	BuildPaletteTexture([](int32) { return FColor::White; });
-
-	// 7. RHI 리소스 동기 대기 — UpdateResource()는 비동기로 렌더 스레드에서 RHI를 생성하므로,
-	//    여기서 Flush하지 않으면 직후 ApplyStyleToComponent에서 GetTileArrayRHI()가 nullptr을
-	//    반환한다. PumpStyleTextures가 매 틱 재시도하지만, 이미 메싱이 완료된 청크에
-	//    SceneProxy가 재생성되지 않는 한 텍스처를 주입할 기회가 제한적이다.
-	//    BeginPlay 초기화 시 1회 Flush로 모든 텍스처 RHI를 확정한다.
+	// 작은 LUT 들의 RHI 준비를 BeginPlay 직후 보장 — 텍스처 배열은 이미 cooked 상태로
+	// 로드되었으므로 flush 비용은 LUT(8×256, 256×3) 만큼만 든다.
 	FlushRenderingCommands();
 
-	// 7. RHI 유효성 검증 — TileArray는 UpdateSourceFromSourceTextures 경유로
-	//    UE5 텍스처 파이프라인이 비동기 리빌드하여 RHI가 지연될 수 있다.
-	//    null이면 경고만 출력하고 계속 진행 — PumpStyleTextures가 매 틱 재시도.
-	if (BuiltTileAtlas->TileArray && !BuiltTileAtlas->GetTileArrayRHI())
-	{
-		UE_LOG(LogHktVoxelTerrain, Warning,
-			TEXT("[TerrainStyle] TileArray RHI 미준비 (비동기 빌드 진행 중) — PumpStyleTextures가 재시도합니다."));
-	}
-	if (!BuiltTileAtlas->GetTileIndexLUTRHI())
-	{
-		UE_LOG(LogHktVoxelTerrain, Error,
-			TEXT("[TerrainStyle] TileIndexLUT RHI 생성 실패. 팔레트 폴백으로 렌더링합니다."));
-		return;
-	}
-
 	bStyleBuilt = true;
-
 	UE_LOG(LogHktVoxelTerrain, Log,
-		TEXT("[TerrainStyle] Built — %d block styles, %d unique textures, %d slices, TileArray=%dx%d %s"),
-		BlockStyles.Num(), TextureToSlice.Num(), SliceTextures.Num(),
-		SliceTextures.Num() > 0 ? SliceTextures[0]->GetSizeX() : 0,
-		SliceTextures.Num() > 0 ? SliceTextures[0]->GetSizeY() : 0,
-		SliceTextures.Num() > 0 ? GetPixelFormatString(SliceTextures[0]->GetPixelFormat()) : TEXT("N/A"));
+		TEXT("[TerrainStyle] StyleDataSet '%s' 적용 — %d styles, %d slices"),
+		*StyleDataSet->GetName(),
+		StyleDataSet->SourceBlockStyleCount, StyleDataSet->SliceCount);
 }
 
 // ============================================================================
@@ -1591,34 +1212,3 @@ namespace
 		FConsoleCommandWithArgsDelegate::CreateStatic(&Cmd_TerrainDebugDraw));
 }
 
-#if WITH_EDITOR
-void AHktVoxelTerrainActor::BakeStyleSet()
-{
-	if (BlockStyles.Num() == 0)
-	{
-		UE_LOG(LogHktVoxelTerrain, Error,
-			TEXT("[TerrainActor] BakeStyleSet: BlockStyles 가 비어있습니다."));
-		return;
-	}
-
-	if (BakeStyleSetSavePath.IsEmpty() || !BakeStyleSetSavePath.StartsWith(TEXT("/")))
-	{
-		UE_LOG(LogHktVoxelTerrain, Error,
-			TEXT("[TerrainActor] BakeStyleSet: BakeStyleSetSavePath '%s' 가 잘못됨 — '/Game/...' 형식 필요"),
-			*BakeStyleSetSavePath);
-		return;
-	}
-
-	UHktVoxelTerrainStyleSet* NewAsset =
-		UHktVoxelTerrainBakeLibrary::BakeStyleSet(BlockStyles, BakeStyleSetSavePath);
-
-	if (NewAsset)
-	{
-		BakedStyleSet = NewAsset;
-		Modify();
-		UE_LOG(LogHktVoxelTerrain, Log,
-			TEXT("[TerrainActor] BakeStyleSet 성공 — BakedStyleSet 에 자동 할당됨: '%s'"),
-			*NewAsset->GetPathName());
-	}
-}
-#endif
