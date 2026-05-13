@@ -219,6 +219,11 @@ public:
 	/**
 	 * SourceDirectory 를 스캔하여 BlockStyles 를 자동으로 채운다.
 	 * 그리드 아틀라스는 셀별 sub-Texture2D 자산으로 분해되어 사이드카로 저장된다.
+	 *
+	 * **부수효과(주의):** 아틀라스가 감지되면 `<SourceDirectory>/_Split/<Type>/<Face>.uasset`
+	 * 위치에 새 텍스처 자산을 디스크에 저장한다. 같은 디렉토리를 재임포트해도 _Split 하위는
+	 * 재스캔에서 제외되어 무한 루프는 발생하지 않지만, 콘텐츠 폴더에 파일이 추가되는 점은 인지할 것.
+	 *
 	 * 에디터-전용.
 	 */
 	UFUNCTION(CallInEditor, Category = "HKT|Source")

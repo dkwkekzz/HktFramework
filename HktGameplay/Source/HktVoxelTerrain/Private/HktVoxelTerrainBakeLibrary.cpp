@@ -158,6 +158,8 @@ bool UHktVoxelTerrainBakeLibrary::BakeStyleSet(UHktVoxelTerrainStyleSet* StyleSe
 		return false;
 	}
 
+	StyleSet->Modify();
+
 	// 기존 inner subobject 가 있다면 garbage 로 표시 (이름 충돌 방지).
 	if (StyleSet->TileArray)
 	{
@@ -290,6 +292,7 @@ UHktVoxelTerrainStyleSet* UHktVoxelTerrainBakeLibrary::CreateStyleSetFromDirecto
 	// 동일 경로의 기존 자산은 재사용 (소스 디렉토리만 갱신해 다시 import/bake).
 	UHktVoxelTerrainStyleSet* Asset =
 		FindObject<UHktVoxelTerrainStyleSet>(Package, *AssetName);
+	const bool bIsNew = (Asset == nullptr);
 	if (!Asset)
 	{
 		Asset = NewObject<UHktVoxelTerrainStyleSet>(
@@ -302,6 +305,7 @@ UHktVoxelTerrainStyleSet* UHktVoxelTerrainBakeLibrary::CreateStyleSetFromDirecto
 		return nullptr;
 	}
 
+	Asset->Modify();
 	Asset->SourceDirectory.Path = SourceDirectory;
 	Asset->BlockStyles.Reset();
 
@@ -322,7 +326,10 @@ UHktVoxelTerrainStyleSet* UHktVoxelTerrainBakeLibrary::CreateStyleSetFromDirecto
 		return nullptr;
 	}
 
-	FAssetRegistryModule::AssetCreated(Asset);
+	if (bIsNew)
+	{
+		FAssetRegistryModule::AssetCreated(Asset);
+	}
 
 	const FString FilePath = FPackageName::LongPackageNameToFilename(
 		SavePath, FPackageName::GetAssetPackageExtension());

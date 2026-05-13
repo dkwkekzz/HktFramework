@@ -105,8 +105,8 @@ namespace
 	{
 		FString Name = StripContentPrefix(AssetName);
 
-		// _N 접미 (Normal) 분리.
-		if (Name.EndsWith(TEXT("_N")) || Name.EndsWith(TEXT("_n")))
+		// _N 접미 (Normal) 분리. EndsWith 기본값 IgnoreCase 이므로 한 번이면 충분.
+		if (Name.EndsWith(TEXT("_N")))
 		{
 			OutParse.bNormal = true;
 			Name = Name.LeftChop(2);
@@ -342,6 +342,9 @@ namespace
 		NewTex->SRGB = bNormal ? false : AtlasTex->SRGB;
 		NewTex->LODGroup = AtlasTex->LODGroup;
 		NewTex->CompressionSettings = bNormal ? TC_Normalmap : AtlasTex->CompressionSettings;
+		// 픽셀 아트/타일 텍스처 의도 보존 — 아틀라스의 Filter/MipGen 세팅 그대로 승계.
+		NewTex->Filter = AtlasTex->Filter;
+		NewTex->MipGenSettings = AtlasTex->MipGenSettings;
 		NewTex->AddressX = TA_Wrap;
 		NewTex->AddressY = TA_Wrap;
 		NewTex->UpdateResource();
@@ -389,6 +392,8 @@ void UHktVoxelTerrainStyleSet::ImportFromDirectory()
 			TEXT("[Import] SourceDirectory '%s' 가 잘못됨 — '/Game/...' 형식 필요"), *ContentDir);
 		return;
 	}
+
+	Modify();
 
 	FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AR = ARM.Get();
