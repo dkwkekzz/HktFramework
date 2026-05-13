@@ -507,7 +507,7 @@ Shrub × 5..10%          (이전보다 조금 더 많음 — 천이 단계 강�
 | `Region.SuccessionPatches` | S11 | 결 변형 지도 |
 | `Region.SeenTheGrain` | S01 | VFX 강조 |
 
-> 위 카운터들은 `FHktEvent` 와 별도의 영속 store 가 필요. 본 PR 은 *이름만* 합의. 구현 (`HktCore` 측 region state) 은 후속 — `04-region-state.md` 후보.
+> 위 카운터들은 `FHktEvent` 와 별도의 영속 store 가 필요. 본 PR 은 *이름만* 합의. 데이터 모델·읽기/쓰기 API·결정론 보장은 [`04-region-state.md`](./04-region-state.md) ADR 에서 결정 — region 은 `FHktWorldState` 안의 virtual entity (`EHktEntityType::Region*`) 로 표현되며, spawner story 는 `FHktStoryBuilder::RegionAddScalar` / `RegionMapWrite` / `RegionFeatureAdd` helper 로 *기존 opcode 만* 사용해 갱신한다 (신규 opcode 0).
 
 ---
 
@@ -522,13 +522,13 @@ Shrub × 5..10%          (이전보다 조금 더 많음 — 천이 단계 강�
 | "강 곡률 부호 판정" | 베이크 시점에 `CurvatureSign` 을 Param2 로 인라인 | **불요** |
 | "region 카운터 read/write" | 서버 측 외부 state — `HktCore` 측 별도 인터페이스 필요 | **별도 ADR** — opcode 가 아닌 *시스템* 추가. 본 PR 범위 밖. |
 
-§5 의 region 카운터 시스템 도입이 **본 spec 의 진정한 신규 요소**. opcode 신설 0 으로 spawner 그래프는 표현 가능하지만, region state read/write 가 새로운 데이터 의존이다. → `04-region-state.md` 에서 별도 ADR.
+§5 의 region 카운터 시스템 도입이 **본 spec 의 진정한 신규 요소**. opcode 신설 0 으로 spawner 그래프는 표현 가능하지만, region state read/write 가 새로운 데이터 의존이다. → [`04-region-state.md`](./04-region-state.md) 에서 ADR 통과 (region = SoA virtual entity, 신규 opcode 0).
 
 ---
 
 ## 7. 후속 PR 후보
 
-- `04-region-state.md` — region 영속 카운터의 store / read API / determinism.
+- [x] `04-region-state.md` — region 영속 카운터의 store / read API / determinism (ADR 통과 — virtual entity 모델, 신규 opcode 0).
 - `05-story-dispatch-mechanics.md` — Tremor 임계치 함수, dispatch 큐 우선순위, 청크 언로드 시 in-flight dispatch 처리.
 - `06-interactions.md` — 플레이어 행위가 본 spec 의 어느 이벤트(`Event.Natural.*`) 를 발화시키는가.
 - `07-story-bodies/` — 본 spec 의 11 spawner 를 schema 2 JSON 으로 실제 작성 (1 PR 1 spawner 권장).
