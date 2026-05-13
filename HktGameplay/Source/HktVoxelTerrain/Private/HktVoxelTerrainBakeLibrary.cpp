@@ -10,6 +10,10 @@
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "UObject/Package.h"
+#include "UObject/SavePackage.h"
+#include "Misc/PackageName.h"
 #endif
 
 namespace
@@ -239,5 +243,104 @@ bool UHktVoxelTerrainBakeLibrary::BakeStyleSet(UHktVoxelTerrainStyleSet* StyleSe
 #else
 	UE_LOG(LogHktVoxelTerrain, Error, TEXT("[Bake] Editor-only (WITH_EDITOR=0)"));
 	return false;
+#endif
+}
+
+UHktVoxelTerrainStyleSet* UHktVoxelTerrainBakeLibrary::CreateStyleSetFromDirectory(
+	const FString& SourceDirectory,
+	const FString& SavePath)
+{
+#if !WITH_EDITOR
+	UE_LOG(LogHktVoxelTerrain, Error, TEXT("[Bake] CreateStyleSetFromDirectory: Editor-only"));
+	return nullptr;
+#else
+	if (SourceDirectory.IsEmpty() || !SourceDirectory.StartsWith(TEXT("/")))
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: SourceDirectory '%s' 가 잘못됨 — '/Game/...' 형식 필요"),
+			*SourceDirectory);
+		return nullptr;
+	}
+	if (SavePath.IsEmpty() || !SavePath.StartsWith(TEXT("/")))
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: SavePath '%s' 가 잘못됨 — '/Game/...' 형식 필요"),
+			*SavePath);
+		return nullptr;
+	}
+
+	const FString PackagePath = FPackageName::GetLongPackagePath(SavePath);
+	const FString AssetName   = FPackageName::GetLongPackageAssetName(SavePath);
+	if (PackagePath.IsEmpty() || AssetName.IsEmpty())
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: SavePath '%s' 가 잘못됨"), *SavePath);
+		return nullptr;
+	}
+
+	UPackage* Package = CreatePackage(*SavePath);
+	if (!Package)
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: CreatePackage 실패 '%s'"), *SavePath);
+		return nullptr;
+	}
+	Package->FullyLoad();
+
+	// 동일 경로의 기존 자산은 재사용 (소스 디렉토리만 갱신해 다시 import/bake).
+	UHktVoxelTerrainStyleSet* Asset =
+		FindObject<UHktVoxelTerrainStyleSet>(Package, *AssetName);
+	if (!Asset)
+	{
+		Asset = NewObject<UHktVoxelTerrainStyleSet>(
+			Package, *AssetName, RF_Public | RF_Standalone);
+	}
+	if (!Asset)
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: NewObject 실패 '%s'"), *AssetName);
+		return nullptr;
+	}
+
+	Asset->SourceDirectory.Path = SourceDirectory;
+	Asset->BlockStyles.Reset();
+
+	Asset->ImportFromDirectory();
+
+	if (Asset->BlockStyles.Num() == 0)
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: '%s' 임포트 후에도 BlockStyles 비어있음 — 파일명 규칙 확인"),
+			*SourceDirectory);
+		return nullptr;
+	}
+
+	if (!BakeStyleSet(Asset))
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: BakeStyleSet 실패"));
+		return nullptr;
+	}
+
+	FAssetRegistryModule::AssetCreated(Asset);
+
+	const FString FilePath = FPackageName::LongPackageNameToFilename(
+		SavePath, FPackageName::GetAssetPackageExtension());
+
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+	const bool bSaved = UPackage::SavePackage(Package, Asset, *FilePath, SaveArgs);
+	if (!bSaved)
+	{
+		UE_LOG(LogHktVoxelTerrain, Error,
+			TEXT("[Bake] CreateStyleSetFromDirectory: SavePackage 실패 '%s'"), *FilePath);
+		return nullptr;
+	}
+
+	UE_LOG(LogHktVoxelTerrain, Log,
+		TEXT("[Bake] CreateStyleSetFromDirectory 완료 — '%s' (BlockStyles=%d, Slices=%d)"),
+		*SavePath, Asset->BlockStyles.Num(), Asset->SliceCount);
+
+	return Asset;
 #endif
 }

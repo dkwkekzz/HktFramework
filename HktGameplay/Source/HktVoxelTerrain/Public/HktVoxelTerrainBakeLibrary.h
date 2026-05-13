@@ -33,4 +33,27 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|VoxelTerrain|Bake", meta = (DevelopmentOnly))
 	static bool BakeStyleSet(UHktVoxelTerrainStyleSet* StyleSet);
+
+	/**
+	 * 디렉토리 → StyleSet 자산 1방 생성 (Editor Utility / Python 용 원샷).
+	 *
+	 * 동작 순서:
+	 *   1) SavePath 위치에 UHktVoxelTerrainStyleSet 새 자산 생성 (이미 있으면 덮어씀).
+	 *   2) SourceDirectory 지정 후 ImportFromDirectory 호출 (텍스처/아틀라스 자동 분해).
+	 *   3) BakeStyleSet 호출 (TileArray + NormalArray + 매핑 빌드).
+	 *   4) UPackage::SavePackage 로 .uasset 영속화.
+	 *
+	 * Python 예:
+	 *   import unreal
+	 *   asset = unreal.HktVoxelTerrainBakeLibrary.create_style_set_from_directory(
+	 *       '/Game/VoxelTerrain/Tiles', '/Game/VoxelTerrain/SS_Default')
+	 *
+	 * @param SourceDirectory  스캔할 콘텐츠 디렉토리 (예: "/Game/VoxelTerrain/Tiles").
+	 * @param SavePath         생성될 자산 풀 패스 (예: "/Game/VoxelTerrain/SS_Default").
+	 * @return 생성·베이크·저장된 자산 (실패 시 nullptr).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|VoxelTerrain|Bake", meta = (DevelopmentOnly))
+	static UHktVoxelTerrainStyleSet* CreateStyleSetFromDirectory(
+		const FString& SourceDirectory,
+		const FString& SavePath = TEXT("/Game/VoxelTerrain/SS_Default"));
 };
