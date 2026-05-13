@@ -271,14 +271,17 @@ class GitHubStore extends IntentStore {
   async _ensureHead() {
     if (this._branchEnsured) return;
     const headers = this._headers();
+    // 모바일 브라우저(특히 iOS Safari) 는 GitHub API 의 Cache-Control: private, max-age=60
+    // 응답을 디스크 캐시에 저장해 stale HEAD SHA 를 돌려준다. 브랜치 기반 조회는 가변값이므로
+    // 항상 네트워크로 우회 (no-store) — content-addressable 한 git/blobs, git/trees 는 그대로 둔다.
     const url = this._api(`/repos/${this.owner}/${this.repo}/commits?sha=${encodeURIComponent(this.branch)}&per_page=1`);
-    let resp = await fetch(url, { headers });
+    let resp = await fetch(url, { headers, cache: 'no-store' });
 
     if (resp.status === 404 || resp.status === 422) {
       // main HEAD 취득
       const mainResp = await fetch(
         this._api(`/repos/${this.owner}/${this.repo}/commits?sha=main&per_page=1`),
-        { headers }
+        { headers, cache: 'no-store' }
       );
       if (!mainResp.ok) throw new Error(`main HEAD 취득 실패: ${mainResp.status}`);
       const mainCommits = await mainResp.json();
@@ -338,13 +341,13 @@ class GitHubStore extends IntentStore {
     let readBranch = this.branch;
     let commitsResp = await fetch(
       this._api(`/repos/${this.owner}/${this.repo}/commits?sha=${encodeURIComponent(readBranch)}&per_page=1`),
-      { headers }
+      { headers, cache: 'no-store' }
     );
     if (commitsResp.status === 404 && readBranch !== 'main') {
       readBranch = 'main';
       commitsResp = await fetch(
         this._api(`/repos/${this.owner}/${this.repo}/commits?sha=main&per_page=1`),
-        { headers }
+        { headers, cache: 'no-store' }
       );
     }
     if (commitsResp.status === 404) {
@@ -404,7 +407,7 @@ class GitHubStore extends IntentStore {
     const path = `${this.intentsPath}/${id}.md`;
     const resp = await fetch(
       this._api(`/repos/${this.owner}/${this.repo}/contents/${path}?ref=${encodeURIComponent(this.branch)}`),
-      { headers: this._headers() }
+      { headers: this._headers(), cache: 'no-store' }
     );
     if (resp.status === 404) return null;
     if (!resp.ok) throw new Error(`get(${id}) 실패: ${resp.status}`);
@@ -607,7 +610,7 @@ class GitHubStore extends IntentStore {
         const reqHeaders = { ...this._headers() };
         if (etag) reqHeaders['If-None-Match'] = etag;
 
-        const resp = await fetch(url, { headers: reqHeaders });
+        const resp = await fetch(url, { headers: reqHeaders, cache: 'no-store' });
 
         if (resp.status === 404) {
           // 브랜치 부재 — 폴링 영구 비활성화 (첫 저장 시 브랜치가 생성되면 그때 다시 시작).
