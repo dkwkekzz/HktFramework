@@ -16,6 +16,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
+#include "HktVMEventRecorder.h"
 
 // ============================================================================
 // 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
@@ -250,10 +251,21 @@ void FHktVMBuildSystem::Process(
 {
     for (const FHktEvent& Event : Events)
     {
+        // 이벤트가 VMBuildSystem 에 진입하는 시점 — Created. WorldState.FrameNumber 는
+        // ProcessBatch 가 이미 세팅해 두었으나 안전하게 CurrentFrame 인자를 사용.
+        HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+            FString::Printf(TEXT("Event CREATE: %s Src=%d Tgt=%d EventId=%d"),
+                *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity, Event.EventId),
+            Event.SourceEntity, Event.EventTag);
+        HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Created, LogSource,
+            static_cast<int64>(CurrentFrame), InsightsSource);
+
         const FHktVMProgram* Program = FHktVMProgramRegistry::Get().FindProgram(Event.EventTag);
         if (!Program)
         {
             HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, LogSource, FString::Printf(TEXT("VM Build: No program for %s — Story가 등록되지 않았습니다 (빌드 검증 실패 또는 미등록)"), *Event.EventTag.ToString()));
+            HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Discarded, LogSource,
+                static_cast<int64>(CurrentFrame), TEXT("NoProgram"));
             continue;
         }
 
@@ -345,6 +357,11 @@ void FHktVMBuildSystem::Process(
                 *Event.EventTag.ToString(), Event.SourceEntity, Event.TargetEntity,
                 Program->CodeSize()),
             Event.SourceEntity, Event.EventTag);
+
+        // 이벤트가 VM 으로 변환되어 살아있는 인스턴스에 흡수됨.
+        HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Consumed, LogSource,
+            static_cast<int64>(CurrentFrame),
+            FString::Printf(TEXT("VM_%d"), static_cast<int32>(Handle.Index)));
     }
 }
 
@@ -360,6 +377,20 @@ void FHktVMProcessSystem::Process(
 {
     ScratchEvents.Reset();
     Swap(ScratchEvents, PendingExternalEvents);
+
+#if ENABLE_HKT_INSIGHTS
+    // 진입 직후 — 이번 틱에 처리될 PendingEvent 의 Created 시점을 일괄 기록.
+    // (실제 생성은 Movement/Physics 단계지만 기록 시점은 ProcessSystem 진입이 다양한
+    //  출처를 한곳에서 묶어 추적하기 좋다.)
+    if (FHktVMEventRecorder::Get().IsActive())
+    {
+        for (const FHktPendingEvent& P : ScratchEvents)
+        {
+            HKT_VM_EVENT_RECORD_PENDING(P, EHktVMEventPhase::Created, LogSource, -1,
+                TEXT("VMProcess.Enqueued"));
+        }
+    }
+#endif
 
     Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
     {
@@ -385,6 +416,17 @@ void FHktVMProcessSystem::Process(
                         {
                             Runtime.SetRegEntity(Reg::Hit, ScratchEvents[i].HitEntity);
                         }
+
+                        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+                            FString::Printf(TEXT("PendingEvent CONSUME: type=%u watched=%d hit=%d"),
+                                static_cast<uint32>(ScratchEvents[i].Type),
+                                ScratchEvents[i].WatchedEntity,
+                                ScratchEvents[i].HitEntity),
+                            ScratchEvents[i].WatchedEntity);
+                        HKT_VM_EVENT_RECORD_PENDING(ScratchEvents[i], EHktVMEventPhase::Consumed,
+                            LogSource, -1,
+                            FString::Printf(TEXT("VM_%d.Wake"), static_cast<int32>(Handle.Index)));
+
                         Runtime.EventWait.Reset();
                         Runtime.Status = EVMStatus::Ready;
                         ScratchEvents.RemoveAtSwap(i);
@@ -484,6 +526,16 @@ void FHktVMProcessSystem::Process(
 
 #if ENABLE_HKT_INSIGHTS
     CollectVMDetailInsights(Pool, FString(GetLogSourceName(LogSource)));
+
+    // 매칭 실패로 사라지는 PendingEvent — Discarded.
+    if (FHktVMEventRecorder::Get().IsActive())
+    {
+        for (const FHktPendingEvent& Leftover : ScratchEvents)
+        {
+            HKT_VM_EVENT_RECORD_PENDING(Leftover, EHktVMEventPhase::Discarded,
+                LogSource, -1, TEXT("NoMatchingVM"));
+        }
+    }
 #endif
 }
 

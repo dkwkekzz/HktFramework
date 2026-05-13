@@ -14,6 +14,7 @@
 #include "Slate/SHktRuntimeInsightsPanel.h"
 #include "Slate/SHktGameplayLogPanel.h"
 #include "Slate/SHktViewModelStatePanel.h"
+#include "Slate/SHktVMEventPanel.h"
 
 #define LOCTEXT_NAMESPACE "HktInsightsEditor"
 
@@ -24,6 +25,7 @@ static const FName HktRuntimeInsightsTabName(TEXT("HktRuntimeInsightsTab"));
 static const FName HktWorldStateTabName(TEXT("HktWorldStateTab"));
 static const FName HktGameplayLogTabName(TEXT("HktGameplayLogTab"));
 static const FName HktViewModelStateTabName(TEXT("HktViewModelStateTab"));
+static const FName HktVMEventTabName(TEXT("HktVMEventTab"));
 
 /**
  * HktInsightsEditor 모듈 — 에디터 탭 등록 및 메뉴 통합
@@ -40,6 +42,7 @@ private:
     TSharedRef<SDockTab> SpawnWorldStateTab(const FSpawnTabArgs& Args);
     TSharedRef<SDockTab> SpawnGameplayLogTab(const FSpawnTabArgs& Args);
     TSharedRef<SDockTab> SpawnViewModelStateTab(const FSpawnTabArgs& Args);
+    TSharedRef<SDockTab> SpawnVMEventTab(const FSpawnTabArgs& Args);
 
     void RegisterMenuExtensions();
     void UnregisterMenuExtensions();
@@ -98,6 +101,15 @@ void FHktInsightsEditorModule::StartupModule()
         .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
         .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
 
+    // VM Event 탭 — FHktEvent / FHktPendingEvent / FHktPhysicsEvent 의 라이프사이클 시각화
+    FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+        HktVMEventTabName,
+        FOnSpawnTab::CreateRaw(this, &FHktInsightsEditorModule::SpawnVMEventTab))
+        .SetDisplayName(LOCTEXT("VMEventTabTitle", "HKT VM Event"))
+        .SetTooltipText(LOCTEXT("VMEventTabTooltip", "VM 이벤트(Event/Pending/Physics) 라이프사이클 시각화 및 녹화"))
+        .SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
+        .SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
+
     bTabSpawnerRegistered = true;
 
     RegisterMenuExtensions();
@@ -118,6 +130,7 @@ void FHktInsightsEditorModule::ShutdownModule()
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktWorldStateTabName);
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktGameplayLogTabName);
         FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktViewModelStateTabName);
+        FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(HktVMEventTabName);
         bTabSpawnerRegistered = false;
     }
 
@@ -174,6 +187,16 @@ TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnViewModelStateTab(const FSpa
         ];
 }
 
+TSharedRef<SDockTab> FHktInsightsEditorModule::SpawnVMEventTab(const FSpawnTabArgs& Args)
+{
+    return SNew(SDockTab)
+        .TabRole(ETabRole::NomadTab)
+        .Label(LOCTEXT("VMEventTabLabel", "HKT VM Event"))
+        [
+            SNew(SHktVMEventPanel)
+        ];
+}
+
 void FHktInsightsEditorModule::RegisterMenuExtensions()
 {
     UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateLambda([this]()
@@ -227,6 +250,15 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                 {
                     FGlobalTabmanager::Get()->TryInvokeTab(HktViewModelStateTabName);
                 })));
+
+            Section.AddMenuEntry("HktVMEvent",
+                LOCTEXT("VMEventMenu", "HKT VM Event"),
+                LOCTEXT("VMEventMenuTooltip", "Open VM event lifecycle panel (Event / Pending / Physics)"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktVMEventTabName);
+                })));
         }
 
         // Tools 메뉴에도 추가
@@ -278,6 +310,15 @@ void FHktInsightsEditorModule::RegisterMenuExtensions()
                 FUIAction(FExecuteAction::CreateLambda([]()
                 {
                     FGlobalTabmanager::Get()->TryInvokeTab(HktViewModelStateTabName);
+                })));
+
+            Section.AddMenuEntry("HktVMEventTools",
+                LOCTEXT("VMEventToolsMenu", "HKT VM Event"),
+                LOCTEXT("VMEventToolsTooltip", "Open VM event lifecycle panel (Event / Pending / Physics)"),
+                FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"),
+                FUIAction(FExecuteAction::CreateLambda([]()
+                {
+                    FGlobalTabmanager::Get()->TryInvokeTab(HktVMEventTabName);
                 })));
         }
     }));

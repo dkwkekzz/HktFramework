@@ -13,6 +13,8 @@
 #include "HktCoreDataCollector.h"
 #include "HktCoreDefs.h"
 #endif
+#include "HktVMEventRecorder.h"
+#include "HktCoreEventLog.h"
 
 FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLogSource)
     : LogSource(InLogSource)
@@ -150,6 +152,11 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     }
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
     {
+        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
+            FString::Printf(TEXT("PendingEvent CREATE: MoveEnd watched=%d"), ME.WatchedEntity),
+            ME.WatchedEntity);
+        HKT_VM_EVENT_RECORD_PENDING(ME, EHktVMEventPhase::Created, LogSource,
+            WorldState.FrameNumber, TEXT("MovementSystem.MoveEnd"));
         PendingExternalEvents.Add(ME);
     }
 
@@ -161,21 +168,37 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
     for (const FHktPendingEvent& GE : GeneratedGroundedEvents)
     {
+        HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+            FString::Printf(TEXT("PendingEvent CREATE: Grounded watched=%d"), GE.WatchedEntity),
+            GE.WatchedEntity);
+        HKT_VM_EVENT_RECORD_PENDING(GE, EHktVMEventPhase::Created, LogSource,
+            WorldState.FrameNumber, TEXT("PhysicsSystem.Grounded"));
         PendingExternalEvents.Add(GE);
     }
 
     for (const FHktPhysicsEvent& PE : GeneratedPhysicsEvents)
     {
+        HKT_EVENT_LOG(HktLogTags::Core_Physics, EHktLogLevel::Verbose, LogSource,
+            FString::Printf(TEXT("PhysicsEvent CREATE: A=%d B=%d Contact=(%.0f,%.0f,%.0f)"),
+                PE.EntityA, PE.EntityB,
+                PE.ContactPoint.X, PE.ContactPoint.Y, PE.ContactPoint.Z));
+        HKT_VM_EVENT_RECORD_PHYSICS(PE, LogSource, WorldState.FrameNumber,
+            TEXT("PhysicsSystem.Collision"));
+
         FHktPendingEvent PA;
         PA.Type = EWaitEventType::Collision;
         PA.WatchedEntity = PE.EntityA;
         PA.HitEntity = PE.EntityB;
+        HKT_VM_EVENT_RECORD_PENDING(PA, EHktVMEventPhase::Created, LogSource,
+            WorldState.FrameNumber, TEXT("Physics→Collision(A↔B)"));
         PendingExternalEvents.Add(PA);
 
         FHktPendingEvent PB;
         PB.Type = EWaitEventType::Collision;
         PB.WatchedEntity = PE.EntityB;
         PB.HitEntity = PE.EntityA;
+        HKT_VM_EVENT_RECORD_PENDING(PB, EHktVMEventPhase::Created, LogSource,
+            WorldState.FrameNumber, TEXT("Physics→Collision(B↔A)"));
         PendingExternalEvents.Add(PB);
     }
 
