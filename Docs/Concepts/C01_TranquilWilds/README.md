@@ -74,6 +74,7 @@
 - [x] `04-region-state.md` — 03 의 region 카운터를 SoA virtual entity 로 모델링하는 ADR
 - [x] `05-interactions.md` — 플레이어 행위 → `Event.Natural.*` 매핑 + 판정 책임 분리
 - [x] `06-tools.md` — `Entity.Tool.*` 카탈로그 + Action↔Tool 매트릭스 + Material tier ladder
+- [x] `Implementation-Plan.md` — 03~06 ADR 을 코드로 옮기는 4 PR 핸드오프 (PR-1 ~ PR-4+)
 
 ## 5. 후속 (TBD)
 
