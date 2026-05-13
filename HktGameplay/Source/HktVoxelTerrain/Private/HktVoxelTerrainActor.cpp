@@ -929,10 +929,10 @@ void AHktVoxelTerrainActor::BuildTerrainStyle()
 			const uint16 TypeID = Style.GetTypeID();
 			if (TypeID < 256)
 			{
-				// sRGB 인코딩 — DefaultPaletteTexture 는 SRGB=false 이므로
-				// 셰이더에서 디코딩 없이 곧바로 BaseColor 로 곱해진다.
-				// 결과가 선형 공간 셰이딩과 자연스럽게 어울리려면 sRGB 로 인코딩해 둬야 함.
-				PerTypeColor[TypeID] = Style.BaseColor.ToFColor(/*bSRGB=*/true);
+				// DefaultPaletteTexture 는 SRGB=false 라 셰이더가 원본 바이트를 곧바로 선형 값으로
+				// 사용한다. FLinearColor 도 선형 공간이므로 sRGB 감마 인코딩 없이 직접 양자화 —
+				// ToFColor(false) 가 정확히 그 동작.
+				PerTypeColor[TypeID] = Style.BaseColor.ToFColor(/*bSRGB=*/false);
 			}
 		}
 		BuildPaletteTexture([&](int32 Row) -> FColor
