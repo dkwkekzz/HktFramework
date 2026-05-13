@@ -341,7 +341,7 @@ namespace
 		NewTex->Source.Init(CellW, CellH, 1, 1, TSF_BGRA8, CellBytes.GetData());
 		NewTex->SRGB = bNormal ? false : AtlasTex->SRGB;
 		NewTex->LODGroup = AtlasTex->LODGroup;
-		NewTex->CompressionSettings = bNormal ? TC_Normalmap : AtlasTex->CompressionSettings;
+		NewTex->CompressionSettings = bNormal ? TC_Normalmap : AtlasTex->CompressionSettings.GetValue();
 		// 픽셀 아트/타일 텍스처 의도 보존 — 아틀라스의 Filter/MipGen 세팅 그대로 승계.
 		NewTex->Filter = AtlasTex->Filter;
 		NewTex->MipGenSettings = AtlasTex->MipGenSettings;

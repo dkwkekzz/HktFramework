@@ -2091,8 +2091,13 @@ FHktVar FHktStoryBuilder::SpawnEntityAround(const FGameplayTag& EntityTag,
     FHktVar OffX = NewVar(TEXT("SpawnAround.OffX"));
     FHktVar OffY = NewVar(TEXT("SpawnAround.OffY"));
 
-    // RandomSeeded 모드 전용 보조 — Radius 와 Half 를 캐시.
+    // RandomSeeded 모드 전용 보조 — Half/Modulus 를 루프 밖에서 한 번만 계산.
+    // 루프 안에서 Modulus 를 재할당하면 동시 라이브 anonymous VReg 가 11개로 부풀어
+    // GP 레지스터 풀(R0..R9, 10개) 을 초과한다 (Center3 + SlotPos3 + Radius + HalfRange
+    // + Modulus + OffX + OffY-def). 호이스팅하면 RadiusRaw 가 루프 진입 전 사망하여
+    // 피크 라이브니스가 10 으로 떨어진다.
     FHktVar HalfRange = FHktVar();
+    FHktVar Modulus = FHktVar();
     if (Pattern == EHktSpawnPattern::RandomSeeded)
     {
         // Modulus = RadiusRaw * 2 → 결과 ∈ [0, 2R), Sub R 로 [-R, R) 로 중심화.
@@ -2100,6 +2105,8 @@ FHktVar FHktStoryBuilder::SpawnEntityAround(const FGameplayTag& EntityTag,
         // 호출자가 RadiusCm raw 정수를 직접 넘기는 것을 권장.
         HalfRange = NewVar(TEXT("SpawnAround.HalfRange"));
         Move(HalfRange, RadiusRaw);
+        Modulus = NewVar(TEXT("SpawnAround.Modulus"));
+        Add(Modulus, RadiusRaw, RadiusRaw);
     }
 
     for (int32 i = 0; i < CountCompile; ++i)
@@ -2128,9 +2135,7 @@ FHktVar FHktStoryBuilder::SpawnEntityAround(const FGameplayTag& EntityTag,
         default:
         {
             // [0, 2R) → -R 보정으로 [-R, R) 분포 (결정론 — SlotHash 가 RNG seed 로 결합되면
-            // 동일 spawner 는 매번 동일 출력).
-            FHktVar Modulus = NewVar(TEXT("SpawnAround.Modulus"));
-            Add(Modulus, RadiusRaw, RadiusRaw);
+            // 동일 spawner 는 매번 동일 출력). Modulus/HalfRange 는 루프 밖에서 호이스팅됨.
             RandomInt(OffX, Modulus);
             Sub(OffX, OffX, HalfRange);
             RandomInt(OffY, Modulus);

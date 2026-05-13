@@ -14,7 +14,6 @@ namespace HktAutomationTestsRunner
 	void RunScenarioTests();
 	void RunJsonParserTests();
 	void RunMovementSystemTests();
-	void RunNaturalRouterTests();
 	void PrintLastReport();
 }
 
@@ -88,15 +87,6 @@ void FHktAutomationTestsModule::StartupModule()
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			HktAutomationTestsRunner::RunMovementSystemTests();
-		}),
-		ECVF_Default));
-
-	ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
-		TEXT("hkt.automation.router"),
-		TEXT("Run Natural Action Router tests only (PR-1)"),
-		FConsoleCommandDelegate::CreateLambda([]()
-		{
-			HktAutomationTestsRunner::RunNaturalRouterTests();
 		}),
 		ECVF_Default));
 
