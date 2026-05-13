@@ -37,10 +37,11 @@ public class HktVoxelTerrain : ModuleRules
 			{
 				"HktRuntime",
 				"ImageWrapper",
+				"AssetRegistry",
 			}
 		);
 
-		// 에디터 전용 — 스타일 셋 베이킹 (UHktVoxelTerrainBakeLibrary).
+		// 에디터 전용 — 스타일 셋 베이킹 + 디렉토리 임포트 (UHktVoxelTerrainStyleSet, BakeLibrary).
 		// Runtime/Shipping 빌드에는 누설되지 않는다.
 		if (Target.bBuildEditor)
 		{
