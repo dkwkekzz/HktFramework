@@ -108,9 +108,6 @@ private:
 	TMap<FSoftObjectPath, FAtlasContext> Atlases;
 	TMap<FHktEntityId, FEntityState> Entities;
 	TSet<FGameplayTag> PendingTemplateLoads;
-	// 로드된 자산이 다른 렌더링 경로(예: Paper2D)의 비주얼 자산이라 본 렌더러가
-	// 의도적으로 무시하는 태그 집합. UpdateEntity 에서 경고 없이 silent no-op.
-	TSet<FGameplayTag> SkippedTemplateTags;
 
 	void RequestTemplateLoad(FGameplayTag Tag);
 

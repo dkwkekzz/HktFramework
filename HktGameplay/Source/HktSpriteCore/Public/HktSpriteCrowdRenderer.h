@@ -158,9 +158,6 @@ private:
 		WarmupHISMs     = 3,
 		Ready           = 4,
 		Failed          = 5,
-		// 로드된 자산이 다른 렌더링 경로(예: Paper2D)의 비주얼 자산 — 본 크라우드
-		// 렌더러는 의도적으로 무시한다. 경고 없이 silent no-op.
-		Skipped         = 6,
 	};
 
 	struct FTemplateReady

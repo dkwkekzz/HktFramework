@@ -2,6 +2,7 @@
 
 #include "HktSpriteCrowdHost.h"
 #include "HktSpriteAnimProcessor.h"
+#include "HktSpriteCoreTags.h"
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteFrameResolver.h"
 #include "HktSpriteCoreLog.h"
@@ -23,6 +24,17 @@ TAutoConsoleVariable<float> CVarHktSpriteFacingMinSpeed(
 	TEXT("AHktSpriteCrowdHost / AHktSpritePaperActor 클라이언트 facing 산출의 ")
 	TEXT("최소 XY 속도(cm/s). 이 미만이면 LastMoveDirXY 갱신 생략(sticky)."),
 	ECVF_Default);
+
+namespace
+{
+	// CharacterTag 가 Paper2D 경로(`Entity.Character.Paper.*`) 인지 판정.
+	// HISM 크라우드 렌더러는 이 태그 하위 엔터티를 다루지 않는다 — AHktSpritePaperActor
+	// 가 별도 액터로 처리하므로 dispatch 단계에서 일찍 거른다.
+	FORCEINLINE bool IsPaperCharacterTag(const FGameplayTag& CharacterTag)
+	{
+		return CharacterTag.MatchesTag(HktSpriteCoreTags::Entity_Character_Paper);
+	}
+}
 
 AHktSpriteCrowdHost::AHktSpriteCrowdHost()
 {
@@ -139,6 +151,9 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		const FHktSpriteView* SV = State.GetSprite(Id);
 		if (!SV) continue;
 
+		// Paper2D 경로 엔터티는 AHktSpritePaperActor 가 처리 — 본 호스트는 건너뛴다.
+		if (IsPaperCharacterTag(SV->Character.Get())) continue;
+
 		Renderer->RegisterEntity(Id);
 
 		// 캐릭터 1개 = UHktSpriteCharacterTemplate 1개. SpawnEntity의 ClassTag(=EntitySpawnTag)를
@@ -163,6 +178,15 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
 		const FHktSpriteView& SV = *It;
 		if (!SV.Character.IsDirty(Frame)) continue;
+
+		// Paper2D 경로로 전환된 경우 — 기존에 등록되어 있다면 정리.
+		// (UnregisterEntity 는 미등록 Id 에 대해 idempotent)
+		if (IsPaperCharacterTag(SV.Character.Get()))
+		{
+			Renderer->UnregisterEntity(Id);
+			continue;
+		}
+
 		Renderer->SetCharacter(Id, SV.Character.Get());
 	}
 
@@ -179,6 +203,9 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 	{
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
 		const FHktSpriteView& SV = *It;
+
+		// Paper2D 경로 엔터티는 본 호스트가 처리하지 않는다 — Fragment/Renderer 작업 모두 생략.
+		if (IsPaperCharacterTag(SV.Character.Get())) continue;
 
 		const FHktTransformView* TV = State.GetTransform(Id);
 		if (!TV) continue;
