@@ -2,6 +2,7 @@
 
 #include "HktSpriteCrowdHost.h"
 #include "HktSpriteAnimProcessor.h"
+#include "HktSpriteCoreTags.h"
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteFrameResolver.h"
 #include "HktSpriteCoreLog.h"
@@ -23,6 +24,16 @@ TAutoConsoleVariable<float> CVarHktSpriteFacingMinSpeed(
 	TEXT("AHktSpriteCrowdHost / AHktSpritePaperActor 클라이언트 facing 산출의 ")
 	TEXT("최소 XY 속도(cm/s). 이 미만이면 LastMoveDirXY 갱신 생략(sticky)."),
 	ECVF_Default);
+
+namespace
+{
+	// CharacterTag 가 본 호스트의 클레임(`Entity.Character.Crowd.*`) 에 속하는지 판정.
+	// 각 sprite 호스트(Paper / Crowd / Niagara) 는 자기 클레임 태그 prefix 만 처리한다.
+	FORCEINLINE bool IsCrowdCharacterTag(const FGameplayTag& CharacterTag)
+	{
+		return CharacterTag.MatchesTag(HktSpriteCoreTags::Entity_Character_Crowd);
+	}
+}
 
 AHktSpriteCrowdHost::AHktSpriteCrowdHost()
 {
@@ -139,6 +150,10 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		const FHktSpriteView* SV = State.GetSprite(Id);
 		if (!SV) continue;
 
+		// 본 호스트는 `Entity.Character.Crowd.*` 만 처리 — 그 외 sprite 엔터티는 다른 호스트
+		// (Paper/Niagara) 가 담당. 클레임 미일치 시 dispatch 단계에서 일찍 거른다.
+		if (!IsCrowdCharacterTag(SV->Character.Get())) continue;
+
 		Renderer->RegisterEntity(Id);
 
 		// 캐릭터 1개 = UHktSpriteCharacterTemplate 1개. SpawnEntity의 ClassTag(=EntitySpawnTag)를
@@ -163,6 +178,15 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
 		const FHktSpriteView& SV = *It;
 		if (!SV.Character.IsDirty(Frame)) continue;
+
+		// 클레임 미일치(Paper / Niagara / 그 외) 로 전환된 경우 — 기존 등록 정리 후 skip.
+		// (UnregisterEntity 는 미등록 Id 에 대해 idempotent)
+		if (!IsCrowdCharacterTag(SV.Character.Get()))
+		{
+			Renderer->UnregisterEntity(Id);
+			continue;
+		}
+
 		Renderer->SetCharacter(Id, SV.Character.Get());
 	}
 
@@ -179,6 +203,9 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 	{
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
 		const FHktSpriteView& SV = *It;
+
+		// 본 호스트 클레임 외 엔터티는 Fragment / Renderer 작업 모두 생략.
+		if (!IsCrowdCharacterTag(SV.Character.Get())) continue;
 
 		const FHktTransformView* TV = State.GetTransform(Id);
 		if (!TV) continue;
