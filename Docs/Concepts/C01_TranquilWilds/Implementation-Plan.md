@@ -212,7 +212,7 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 
 ## 7. 진행 상태
 
-- [ ] **PR-1** — 태그 + HktRule echo 라우터
+- [x] **PR-1** — 태그 + HktRule echo 라우터
 - [ ] **PR-2** — Region 인프라 (RegionId / FindOrCreate / RegionAddScalar)
 - [ ] **PR-3** — Indexed opcode (LoadStoreIndexed / SaveStoreIndexed) + RegionMapRead/Write
 - [ ] **PR-4** — Birch spawner story 본문 + 데모 시나리오 테스트
