@@ -9,6 +9,7 @@
 #include "Terrain/HktFixed32.h"
 #include "Terrain/HktTerrainDataSource.h"
 #include "VM/HktVMProgram.h"
+#include "Misc/AutomationTest.h"
 
 namespace HktOpcodeTests
 {
@@ -245,3 +246,93 @@ FHktTestReport RunSpawnerTests()
 }
 
 } // namespace HktOpcodeTests
+
+// ============================================================================
+// UE Automation Framework wrappers
+//
+// 본 파일의 테스트들은 기본적으로 custom harness (`HktAutomationTestsRunner`)
+// 로 등록되어 콘솔 명령 `hkt.automation.opcodes` 로 실행된다. 그러나 그것만으로는
+// UE Editor 의 Session Frontend → Automation 패널에 노출되지 않는다.
+//
+// 아래 IMPLEMENT_SIMPLE_AUTOMATION_TEST 래퍼들이 동일 테스트를 표준 UE Automation
+// 프레임워크에도 등록하여 패널 / `Automation RunTests` 콘솔 / CI 헤드리스 러너 등
+// 표준 경로 모두에서 접근 가능하게 한다. 본체 로직은 위 namespace 함수가 단일 출처.
+// ============================================================================
+
+#if WITH_AUTOMATION_TESTS
+
+namespace
+{
+	bool ReportTestResultToAutomation(FAutomationTestBase& Test, const FHktTestResult& Result)
+	{
+		if (!Result.bPassed)
+		{
+			Test.AddError(Result.Message.IsEmpty()
+				? FString::Printf(TEXT("%s: failed"), *Result.TestName)
+				: FString::Printf(TEXT("%s: %s"), *Result.TestName, *Result.Message));
+		}
+		return Result.bPassed;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FHktSpawnerFromViewFieldMappingAutomationTest,
+	"HktCore.Opcode.Spawner.SpawnerFromView.FieldMapping",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktSpawnerFromViewFieldMappingAutomationTest::RunTest(const FString& /*Parameters*/)
+{
+	return ReportTestResultToAutomation(*this, HktOpcodeTests::Test_SpawnerFromView_FieldMapping());
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FHktSpawnerFromViewInvalidTagAutomationTest,
+	"HktCore.Opcode.Spawner.SpawnerFromView.InvalidTagSkipped",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktSpawnerFromViewInvalidTagAutomationTest::RunTest(const FString& /*Parameters*/)
+{
+	return ReportTestResultToAutomation(*this, HktOpcodeTests::Test_SpawnerFromView_InvalidTagSkipped());
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FHktSpawnEntityAtPositionAppliedAutomationTest,
+	"HktCore.Opcode.Spawner.SpawnEntityAt.PositionApplied",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktSpawnEntityAtPositionAppliedAutomationTest::RunTest(const FString& /*Parameters*/)
+{
+	return ReportTestResultToAutomation(*this, HktOpcodeTests::Test_SpawnEntityAt_PositionApplied());
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FHktSpawnEntityAroundLineAutomationTest,
+	"HktCore.Opcode.Spawner.SpawnEntityAround.Line",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktSpawnEntityAroundLineAutomationTest::RunTest(const FString& /*Parameters*/)
+{
+	return ReportTestResultToAutomation(*this, HktOpcodeTests::Test_SpawnEntityAround_Line_SpawnsN());
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FHktSpawnEntityAroundCircleAutomationTest,
+	"HktCore.Opcode.Spawner.SpawnEntityAround.Circle",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktSpawnEntityAroundCircleAutomationTest::RunTest(const FString& /*Parameters*/)
+{
+	return ReportTestResultToAutomation(*this, HktOpcodeTests::Test_SpawnEntityAround_Circle_SpawnsN());
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FHktSpawnEntityAroundRandomSeededAutomationTest,
+	"HktCore.Opcode.Spawner.SpawnEntityAround.RandomSeeded",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FHktSpawnEntityAroundRandomSeededAutomationTest::RunTest(const FString& /*Parameters*/)
+{
+	return ReportTestResultToAutomation(*this, HktOpcodeTests::Test_SpawnEntityAround_RandomSeeded_SpawnsN());
+}
+
+#endif // WITH_AUTOMATION_TESTS
