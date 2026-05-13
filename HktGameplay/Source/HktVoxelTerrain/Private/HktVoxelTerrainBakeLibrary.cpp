@@ -89,14 +89,14 @@ namespace
 			const uint8 BottomSlice = AssignSlice(BottomTex, BottomNorm);
 
 			FHktBakedTileMapping Mapping;
-			Mapping.TypeID = Style.TypeID;
+			Mapping.TypeID = static_cast<int32>(Style.GetTypeID());
 			Mapping.TopSlice = TopSlice;
 			Mapping.SideSlice = SideSlice;
 			Mapping.BottomSlice = BottomSlice;
 			OutPlan.TileMappings.Add(Mapping);
 
 			FHktBakedMaterialEntry Entry;
-			Entry.TypeID = Style.TypeID;
+			Entry.TypeID = static_cast<int32>(Style.GetTypeID());
 			Entry.Roughness = Style.Roughness;
 			Entry.Metallic = Style.Metallic;
 			Entry.Specular = Style.Specular;
