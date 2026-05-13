@@ -27,12 +27,11 @@ TAutoConsoleVariable<float> CVarHktSpriteFacingMinSpeed(
 
 namespace
 {
-	// CharacterTag 가 Paper2D 경로(`Entity.Character.Paper.*`) 인지 판정.
-	// HISM 크라우드 렌더러는 이 태그 하위 엔터티를 다루지 않는다 — AHktSpritePaperActor
-	// 가 별도 액터로 처리하므로 dispatch 단계에서 일찍 거른다.
-	FORCEINLINE bool IsPaperCharacterTag(const FGameplayTag& CharacterTag)
+	// CharacterTag 가 본 호스트의 클레임(`Entity.Character.Crowd.*`) 에 속하는지 판정.
+	// 각 sprite 호스트(Paper / Crowd / Niagara) 는 자기 클레임 태그 prefix 만 처리한다.
+	FORCEINLINE bool IsCrowdCharacterTag(const FGameplayTag& CharacterTag)
 	{
-		return CharacterTag.MatchesTag(HktSpriteCoreTags::Entity_Character_Paper);
+		return CharacterTag.MatchesTag(HktSpriteCoreTags::Entity_Character_Crowd);
 	}
 }
 
@@ -151,8 +150,9 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		const FHktSpriteView* SV = State.GetSprite(Id);
 		if (!SV) continue;
 
-		// Paper2D 경로 엔터티는 AHktSpritePaperActor 가 처리 — 본 호스트는 건너뛴다.
-		if (IsPaperCharacterTag(SV->Character.Get())) continue;
+		// 본 호스트는 `Entity.Character.Crowd.*` 만 처리 — 그 외 sprite 엔터티는 다른 호스트
+		// (Paper/Niagara) 가 담당. 클레임 미일치 시 dispatch 단계에서 일찍 거른다.
+		if (!IsCrowdCharacterTag(SV->Character.Get())) continue;
 
 		Renderer->RegisterEntity(Id);
 
@@ -179,9 +179,9 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 		const FHktSpriteView& SV = *It;
 		if (!SV.Character.IsDirty(Frame)) continue;
 
-		// Paper2D 경로로 전환된 경우 — 기존에 등록되어 있다면 정리.
+		// 클레임 미일치(Paper / Niagara / 그 외) 로 전환된 경우 — 기존 등록 정리 후 skip.
 		// (UnregisterEntity 는 미등록 Id 에 대해 idempotent)
-		if (IsPaperCharacterTag(SV.Character.Get()))
+		if (!IsCrowdCharacterTag(SV.Character.Get()))
 		{
 			Renderer->UnregisterEntity(Id);
 			continue;
@@ -204,8 +204,8 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
 		const FHktSpriteView& SV = *It;
 
-		// Paper2D 경로 엔터티는 본 호스트가 처리하지 않는다 — Fragment/Renderer 작업 모두 생략.
-		if (IsPaperCharacterTag(SV.Character.Get())) continue;
+		// 본 호스트 클레임 외 엔터티는 Fragment / Renderer 작업 모두 생략.
+		if (!IsCrowdCharacterTag(SV.Character.Get())) continue;
 
 		const FHktTransformView* TV = State.GetTransform(Id);
 		if (!TV) continue;
