@@ -25,7 +25,7 @@
 [Step 4] Region 영속 상태 — 03 이 도입한 region 카운터의 store/read 시스템
             └─ 04-region-state.md
 [Step 5] 상호작용 — 플레이어 행위가 어느 Event 를 발화하는가
-            └─ (TBD) 05-interactions.md
+            └─ 05-interactions.md
 [Step 6] Story 본문 — 03 의 11 spawner 를 schema 2 JSON 으로 (1 PR 1 spawner)
             └─ (TBD) 07-story-bodies/
 ```
@@ -70,9 +70,10 @@
 - [x] `02-natural-growth.md` — 자연 성장 컨텐츠 설계 skeleton
 - [x] `03-natural-spawners.md` — 11 spawner Story 의 분포·dispatch·영속 hook 상세 spec
 - [x] `04-region-state.md` — 03 의 region 카운터를 SoA virtual entity 로 모델링하는 ADR
+- [x] `05-interactions.md` — 플레이어 행위 → `Event.Natural.*` 매핑 + 판정 책임 분리
 
 ## 5. 후속 (TBD)
 
-- `05-interactions.md` — 플레이어 행위 → `Event.Natural.*` 매핑.
-- `07-story-bodies/` — 03 의 11 spawner 를 schema 2 JSON 으로 작성 (04 의 RegionWrite helper 사용).
+- `06-tools.md` — `Entity.Tool.*` 정의 (05 §3 의 *도구 요구* 컬럼이 입력).
+- `07-story-bodies/` — 03 의 11 spawner 를 schema 2 JSON 으로 작성 (04 의 RegionWrite helper + 05 의 Event.Natural.* 수신).
 - 위 G1~G6 가드레일을 위반하는 설계가 발견되면 본 README §2 를 인용해 차단.
