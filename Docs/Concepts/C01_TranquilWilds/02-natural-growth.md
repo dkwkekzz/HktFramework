@@ -157,6 +157,7 @@
 
 ## 8. 다음 PR 후보
 
-- `03-interactions.md` — 플레이어 행위(베기/태우기/낚시/투척) 가 위 그래프의 어느 노드를 깨우는가.
-- `04-story-seeds.md` — 위 그래프 잎 노드 중 1~2개를 schema 2 JSON 으로 실제 작성.
-- `05-story-dispatch.md` — Tremor → Quake 임계치 함수 / region 카운터 정의.
+- [x] `03-natural-spawners.md` — 본 그래프의 노드별 상세 spec (분포·dispatch·영속 hook).
+- `04-region-state.md` — 03 이 도입한 region 카운터의 store/read 시스템.
+- `05-interactions.md` — 플레이어 행위(베기/태우기/낚시/투척) 가 어느 `Event.Natural.*` 를 발화하는가.
+- `07-story-bodies/` — 잎 노드를 schema 2 JSON 으로 실제 작성 (1 PR 1 spawner).
