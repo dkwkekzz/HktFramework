@@ -143,14 +143,14 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 
 ### 5.1 산출물
 
-| # | 변경 | 위치 |
-|---|---|---|
-| **A. EHktArchetype 확장** | `RegionLineage` / `RegionVariant` / `RegionOreSpecies` 3 종 추가 (시즌 0). `RegionPeak` / `RegionFeature` 는 S07/S08 진입 시 별도 PR. | `HktCore/Public/HktCoreArchetype.h` |
-| **B. PropertyId 추가** | Cold tier ~13 슬롯: `LineageRegion` *(혹은 RegionIdKey 재사용)* / `LineageKey` / `LineageFelledCount` / `LineagePromotedCount` / `LineageElderPosX/Y/Z`, `VariantKey` / `VariantPotency` / `VariantFirstFoundFrame`, `OreKey` / `OreDepletedCount` | `HktCore/Public/HktCoreProperties.h` |
-| **C. WorldState SoA lookup** | `FHktEntityId FHktWorldState::FindOrCreateRegionRecord(uint32 RegionId, EHktArchetype RecordType, uint32 KeyHash)` — PR-2 의 `FindOrCreateRegionEntity` 와 동일 *SoA 선형 스캔* 패턴 (`Archetype` + `RegionIdKey` + `RecordKey` + `Entity.RegionRecord` 태그 4-조건 매치). 보조 hash 인덱스 도입 *금지* (VM 메모리 모델 가드). | `HktCore/Public/HktWorldState.h` + `.cpp` |
-| **D. VM Host fn 등록** | `FHktVMWorldStateProxy` 에 `FindOrCreateRegionRecord` 호스트 호출 노출 + lazy row 생성 시 dirty 추적 (SpawnedEntities / PropertyDeltas / TagDeltas 자동 push). | `HktCore/Private/VM/HktVMWorldStateProxy.h/.cpp` |
-| **E. Builder helper** | `RegionMapRead(Dst, RegionEntity, RecordType, KeyVar, PropId)` / `RegionMapWrite(RegionEntity, RecordType, KeyVar, PropId, ValueVar)`. 기존 `LoadStoreEntity` / `SaveStoreEntity` opcode emit 시퀀스 (신규 opcode 0). PR-2 의 `RegionAddScalar` 패턴 연장. | `HktCore/Public/HktStoryBuilder.h` + `.cpp` |
-| **F. 자동화 테스트** | `HktOpcodeTests_RegionMap.cpp` (신규) — 6 테스트: ① RegionMapWrite create → row + KeyHash 일치 ② Write 후 Read cache hit ③ multi-key (42 / 137) 격리 ④ cross-region (regionA.42 vs regionB.42) 격리 ⑤ UndoDiff 후 row 회수 + 재실행 결정론 ⑥ read-before-create lazy create + default 0. | `HktAutomationTests/Private/Tests/HktOpcodeTests_RegionMap.cpp` |
+| # | 변경 | 위치 | 구현 |
+|---|---|---|---|
+| **A. RegionRecord 태그** | `Entity.RegionRecord` (parent) + `.Lineage` / `.Variant` / `.OreSpecies` (leaf) 4 종. EHktArchetype 확장 *안 함* — PR-2 의 Region 패턴(태그-only 식별) 그대로 따른다. record 는 trait composition 이 필요 없는 pure 데이터 row 이므로 archetype enum 으로 끌어올릴 동기 없음. | `HktCore/Public/HktCoreDefs.h` + `.cpp` | ✅ |
+| **B. PropertyId 추가** | Cold tier 10 슬롯: `RecordKey` (32bit 공용 키, Lineage/Variant/Ore 모두 재사용) + `LineageFelledCount` / `LineagePromotedCount` / `LineageElderPosX/Y/Z` + `VariantPotency` / `VariantFirstFoundFrame` + `OreDepletedCount` / `OreCurrentSpeciesId`. `RegionIdKey` 는 PR-2 의 것 재사용. | `HktCore/Public/HktCoreProperties.h` | ✅ |
+| **C. WorldState SoA lookup** | `FHktEntityId FHktWorldState::FindOrCreateRegionRecord(uint32 RegionId, const FGameplayTag& RecordTag, uint32 KeyHash)` — PR-2 의 `FindOrCreateRegionEntity` 와 동일 *SoA 선형 스캔* 패턴, 4-조건 매치 (`RecordTag` + `RegionIdKey` + `RecordKey` + parent tag). 보조 hash 인덱스 도입 *금지* (VM 메모리 모델 가드). | `HktCore/Public/HktWorldState.h` + `.cpp` | ✅ |
+| **D. 신규 opcode + VM Host fn** | `EOpCode::RegionMapFindOrCreate(W,R,R)` — host-call 카테고리 (FindByOwner/SpawnEntity 와 동일). interpreter 가 RegionEntity vreg 에서 RegionIdKey 를 읽어 `FindOrCreateRegionRecord` 호출, 결과 EntityId 를 Dst vreg 에 적재. VM Proxy 의 `AllocateEntity` / `AddTag` / `SetProperty` 가 이미 dirty 추적 — 별도 hook 불필요. Precondition evaluator 의 skip-list 에 추가 (record 생성은 부작용). Validator 가 entity-reg flow 추적. | `HktCore/Public/HktStoryTypes.h`, `HktCore/Private/VM/HktVMInterpreter.{h,cpp}`, `HktVMInterpreterActions.cpp`, `HktStoryValidator.cpp` | ✅ |
+| **E. Builder helper** | `RegionMapFindOrCreate(RegionEntity, RecordTag, KeyVar)` → 새 record vreg 반환. `RegionMapRead(Dst, RegionEntity, RecordTag, KeyVar, PropId)` 와 `RegionMapWrite(RegionEntity, RecordTag, KeyVar, PropId, ValueVar)` 는 FindOrCreate + 기존 `LoadStoreEntity` / `SaveStoreEntity` 시퀀스 emit. PR-2 의 `RegionAddScalar` 패턴 연장. | `HktCore/Public/HktStoryBuilder.h` + `.cpp` | ✅ |
+| **F. 자동화 테스트** | `HktOpcodeTests_RegionMap.cpp` (신규) — 6 테스트: ① Creation (row + 태그 + RegionIdKey + RecordKey) ② CacheHit (같은 키 재호출) ③ MultiKey (같은 region 의 42/137 격리) ④ CrossRegion (regionA.42 vs regionB.42 격리) ⑤ RegionMapWrite VM 실행 (Builder emit 시퀀스 → record 컬럼 갱신) ⑥ RegionMapRead lazy create (read-before-create → 자동 생성 + default 0). Runner 등록. | `HktAutomationTests/Private/Tests/HktOpcodeTests_RegionMap.cpp` + `HktAutomationTestsRunner.cpp` | ✅ |
 
 ### 5.2 핵심 결정 (이미 합의)
 
@@ -172,9 +172,16 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 
 - 빌드 success.
 - `HktOpcodeTests_RegionMap.cpp` 6 테스트 통과 (§5.1-F).
-- `EHktArchetype` 3 종 추가, `HKT_DEFINE_PROPERTY` 13 슬롯 등록 충돌 0 (기존 namespace 와 비교 검증).
+- 신규 태그 4 종 / `HKT_DEFINE_PROPERTY` 10 슬롯 등록 충돌 0 (기존 namespace 와 비교 검증).
 - PR 본문이 04 ADR §3-D1/D4/D6 + 본 §5.2 의 VM 메모리 모델 가드를 인용.
 - 04 §1 가드레일 표의 *VM 메모리 모델* 행이 본 PR 의 커밋 메시지 / PR description 에 명시.
+
+### 5.5 구현 결과 (커밋 `4980977`)
+
+- 변경 15 files / +623 lines.
+- 위 §5.1 의 A~F 모두 ✅.
+- §5.4 의 빌드 verify 는 sandbox 에 Unreal Editor binary 가 없어 **agent 측에서 실행 못함** — `HktGameplayDeveloper/Tools/run_automation_tests.py` 로 로컬/CI 환경에서 검증 필요. 코드 일관성은 PR-2 패턴을 면밀히 참조.
+- 후속 PR (PR-5+ Oak) 에서 본 helper 가 첫 실사용처가 된다.
 
 ---
 
@@ -236,7 +243,7 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 
 - [x] **PR-1** — 태그 + HktRule echo 라우터
 - [x] **PR-2** — Region 인프라 (RegionId / FindOrCreate / RegionAddScalar)
-- [ ] **PR-3** — Region record entity (Lineage/Variant/OreSpecies) + `FindOrCreateRegionRecord` (SoA 선형 스캔) + `RegionMapRead`/`RegionMapWrite` Builder helper. *신규 opcode 0, hash 자료구조 0.*
+- [x] **PR-3** — Region record entity (Lineage/Variant/OreSpecies) + `FindOrCreateRegionRecord` (SoA 선형 스캔) + `RegionMapFindOrCreate` host-call opcode + `RegionMapRead`/`RegionMapWrite` Builder helper. *property 어드레싱 모드 신규 0, hash 자료구조 0.*
 - [ ] **PR-4** — Birch spawner story 본문 + 데모 시나리오 테스트
 - [ ] **PR-5+** — 03 의 나머지 spawner
 
