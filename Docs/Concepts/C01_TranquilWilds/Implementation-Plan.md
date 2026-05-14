@@ -29,6 +29,8 @@
 
 ```
 PR-1 (M3-lite)  태그 카탈로그 + HktRule echo 라우터          [의존: 없음]
+                ※ 라우터 부분은 PR-4 검토 중 ADR-R1 (§3.7) 로 폐기.
+                  Event.Natural.* 태그 카탈로그는 유지.
 PR-2 (M1)       Region 인프라 (RegionId + PropertyId + RegionAddScalar)
                                                               [의존: 없음, PR-1 병행 가능]
 PR-3 (M2)       Region record entity (Lineage/Variant/OreSpecies)
@@ -103,6 +105,36 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 ### 3.6 그 다음 (PR-2 예고)
 
 - Region 인프라 (PropertyId 그룹 A + `HktRegionId.h` + `FindOrCreateRegionEntity` + `RegionAddScalar` Builder helper). 너의 라우터를 *사용* 하지는 않음 — 병행 가능.
+
+### 3.7 ADR-R1 — `HktNaturalActionRouter` 폐기 (2026-05-14)
+
+> **결정**: PR-4 검토 중 발견. PR-1 의 `Action.Natural.* → Event.Natural.*` echo 라우터 + `Action.Natural.*` 태그 카탈로그 8 종 + `HktNaturalRouterTests.cpp` + `FHktDefaultServerRule::OnReceived_RuntimeEvent` 의 wire-up 분기를 **모두 제거**. 클라이언트는 `Event.Natural.*` 를 직접 발사하며 검증은 VM precondition + 결정론 모델이 단독 담당한다.
+
+#### 폐기 사유
+
+| # | 사유 |
+|---|---|
+| **R1** | 라우터는 사실상 lookup-rename 함수 — EventTag 만 바꾸고 8 개 필드를 그대로 복사. 어떤 검증도 추가하지 않음. |
+| **R2** | "권위 경계" 가설은 잘못된 인식. 본 프레임워크의 server-authoritative (절대원칙 3) 는 **VM 결정론** + **각 story 의 precondition** 으로 보장된다. 클라가 EventTag 를 변조해도 (a) precondition 이 실패하면 dispatch 거부 (b) 통과해도 VM 결과가 다른 클라/서버와 결정론 불일치 → GGPO/desync 로 검출. 라우터 변환은 이 chain 의 어디에도 기여하지 않음. |
+| **R3** | "Action vs Event" namespace 분리의 기능적 가치 없음. 로깅 가독성 외에는 의미 없음. 그조차 `HKT_EVENT_LOG` 의 source 채널 (Client/Server) 로 구분 가능. |
+| **R4** | 향후 확장점 명목 (스로틀링, N:1 매핑, 안티치트) 도 모두 실제로는 다른 계층 (RPC throttling, story precondition, 결정론 검증) 의 책임. 라우터 단계에서 의미를 가질 수 없음. |
+
+#### 제거 산출물
+
+- `HktGameplay/Source/HktRule/Public/HktNaturalActionRouter.h`
+- `HktGameplay/Source/HktRule/Private/HktNaturalActionRouter.cpp`
+- `HktGameplayDeveloper/.../Tests/HktNaturalRouterTests.cpp`
+- `HktNaturalActionTags` namespace (8 종 `Action.Natural.*` 태그)
+- `FHktDefaultServerRule::OnReceived_RuntimeEvent` 의 라우터 호출 분기
+
+#### 유지
+
+- `HktNaturalEventTags` namespace (13 종 `Event.Natural.*`) — 클라가 직접 발사할 시뮬 이벤트 카탈로그.
+- 05-interactions.md / 06-tools.md 의 *게임 디자인* 기술 — "플레이어 행위" 라는 표현은 디자인 의도 기술로 보존하되, 구현은 `Event.Natural.*` 직접 발사로 단순화.
+
+#### 클라이언트 측 책임
+
+플레이어가 도끼로 Birch 우클릭 → 클라이언트가 직접 `FHktEvent { EventTag = Event.Natural.TreeFelled, Source = player, Target = tree, Location = tree.pos }` 를 ServerRPC 로 송신. 서버는 ownership 검증 + EventId 시퀀스 부여 후 그대로 `PendingGroupIntents` 큐에 enqueue. 거리/도구 검증은 `Birch_FelledListener.json` 의 step 들이 담당.
 
 ---
 
@@ -241,11 +273,11 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 
 ## 7. 진행 상태
 
-- [x] **PR-1** — 태그 + HktRule echo 라우터
+- [x] **PR-1** — 태그 카탈로그 (Event.Natural.* 13종 + Entity.Tool.* 5종 + Material.* 6종). *라우터 부분 (Action.Natural.* 8종 + HktNaturalActionRouter + 테스트) 는 §3.7 ADR-R1 로 폐기.*
 - [x] **PR-2** — Region 인프라 (RegionId / FindOrCreate / RegionAddScalar)
 - [x] **PR-3** — Region record entity (Lineage/Variant/OreSpecies) + `FindOrCreateRegionRecord` (SoA 선형 스캔) + `RegionMapFindOrCreate` host-call opcode + `RegionMapRead`/`RegionMapWrite` Builder helper. *property 어드레싱 모드 신규 0, hash 자료구조 0.*
-- [ ] **PR-4** — Birch spawner story 본문 + 데모 시나리오 테스트
-- [ ] **PR-5+** — 03 의 나머지 spawner
+- [x] **PR-4** — Birch JSON spawner 3종 (`Content/Stories/Natural/Birch/`) + `.spec.json` 사이드카 (HktStorySpec 자동화). 신규 태그 5종(`Entity.Natural.{Birch,Branch,BirchSapling}` · `Event.Region.SaplingSeed` · `Story.Flow.Spawner.Natural.Birch`). **§3.7 ADR-R1 결정**: 검토 중 라우터 가치 부재 확인 — 라우터/`Action.Natural.*` 태그/wire-up 모두 제거. 클라이언트가 `Event.Natural.*` 직접 발사 모델로 단순화. **범위 노트**: §6.1 시나리오의 `RegionAddScalar`/`RegionMapWrite` 는 JSON op 노출이 PR-2/PR-3 산출에 없으므로 *글로벌 cap*(기존 JSON op `CountByTag` 활용) 으로 대체 — region-scoped cap 은 PR-5+ 에서 교체. **남은 갭**: (1) 클라이언트가 `Event.Natural.TreeFelled` 를 발사하는 입력/UI 경로 (HktUI/HktPresentation 측 책임), (2) BakedAsset 의 `FHktTerrainSpawnerSpec` 에 Birch spawner entry — 둘 다 PR-4 의 컨텐츠 범위 밖.
+- [ ] **PR-5+** — 03 의 나머지 spawner + region helper JSON op 노출 (PR-4 의 글로벌 cap → region-scoped cap 교체 포함)
 
 ---
 

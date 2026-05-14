@@ -74,7 +74,9 @@ void FHktDefaultServerRule::OnReceived_RuntimeEvent(
 	// EventTag 유효성 검증
 	if (!InEvent.EventTag.IsValid()) return;
 
-	// FHktEvent 생성 — 클라이언트가 보낸 이벤트를 서버 시퀀스로 재발행
+	// FHktEvent 생성 — 클라이언트가 보낸 이벤트를 서버 시퀀스로 재발행.
+	// 클라이언트는 `Event.Natural.*` (또는 다른 시뮬 이벤트) 를 직접 발사하며,
+	// 검증은 VM precondition + 결정론 모델이 담당한다 (Plan §3 ADR-R1 참조).
 	FHktEvent Event = InEvent;
 	Event.EventId = ++ServerEventSequence;
 	Event.PlayerUid = PlayerUid;
