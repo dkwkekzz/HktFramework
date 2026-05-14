@@ -30,6 +30,7 @@ public:
     virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) override;
     virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) override;
     virtual void OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation) override;
+    virtual void EnqueueDebugSpawner(const FGameplayTag& InStoryTag, const FVector& InLocation, int32 InParam2 = 0, int32 InParam3 = 0) override;
     virtual FHktEventGameModeTickResult OnEvent_GameModeTick(float InDeltaTime) override;
 
 private:
@@ -65,6 +66,17 @@ private:
 		FVector Location = FVector::ZeroVector;
 	};
 	TOptional<FPendingWorldInit> PendingWorldInit;
+
+	// 디버그 spawner 큐 — `hkt.spawn.natural` 콘솔 커맨드가 enqueue, 다음 OnEvent_GameModeTick 가 소비.
+	// PendingWorldInit 와 분리된 이유: 복수 호출 지원 + 테스트 중 반복 발화.
+	struct FPendingDebugSpawner
+	{
+		FGameplayTag StoryTag;
+		FVector      Location = FVector::ZeroVector;
+		int32        Param2   = 0;
+		int32        Param3   = 0;
+	};
+	TArray<FPendingDebugSpawner> PendingDebugSpawners;
 
 	// RestoreToSlot/Discard — TakeFromBag 후 엔티티 생성이 필요한 큐
 	struct FPendingBagEntitySpawn
