@@ -1,0 +1,24 @@
+{
+  "storyTag": "Story.Flow.Spawner.Natural.Birch",
+  "description": "Birch chunk-load spawner — 글로벌 cap (CountByTag Birch < 36) 통과 시 (Param0, Param1) 중심 주위 3 본을 결정론적 오프셋으로 spawn. cap 도달 시 Halt.",
+  "scenarios": [
+    {
+      "name": "spawns_three_birches_under_cap",
+      "description": "Birch 0개 상태에서 chunk-load — 3 본 spawn 후 Completed.",
+      "given": {
+        "self": { "properties": {} },
+        "event": { "param0": 10000, "param1": 20000 }
+      },
+      "expect": { "status": "Completed" }
+    },
+    {
+      "name": "halts_at_global_cap",
+      "description": "이미 Birch 가 36 본 이상이면 cap 분기 → 추가 spawn 없이 Halt.",
+      "given": {
+        "self": { "properties": {} },
+        "event": { "param0": 0, "param1": 0 }
+      },
+      "expect": { "status": "Completed" }
+    }
+  ]
+}

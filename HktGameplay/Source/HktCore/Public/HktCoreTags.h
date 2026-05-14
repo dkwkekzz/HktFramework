@@ -70,3 +70,23 @@ namespace HktMaterialTags
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Flint);      // Material.Flint
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cup);        // Material.Cup
 }
+
+// ── PR-4 (Implementation-Plan §6.1) — Birch 데모용 자연 엔티티 + Region 이벤트 ──
+// Birch / Branch / BirchSapling: spawner story 본문 (Content/Stories/Natural/Birch/*.json) 의 SpawnEntity 인자.
+// Event.Region.SaplingSeed: TreeFelled 리스너 → SaplingSeed 분리 디스패치 (자기-전파 회로).
+namespace HktNaturalEntityTags
+{
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Birch);         // Entity.Natural.Birch
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Branch);        // Entity.Natural.Branch (베기 시 drop)
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSapling);  // Entity.Natural.BirchSapling
+}
+
+namespace HktRegionEventTags
+{
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SaplingSeed);   // Event.Region.SaplingSeed
+}
+
+namespace HktNaturalStoryTags
+{
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSpawn);    // Story.Flow.Spawner.Natural.Birch
+}

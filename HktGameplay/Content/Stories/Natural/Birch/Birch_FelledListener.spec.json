@@ -1,0 +1,66 @@
+{
+  "storyTag": "Event.Natural.TreeFelled",
+  "description": "TreeFelled 리스너 — Target 이 Birch + 거리 ≤ 500 + Self 가 Axe 소유 통과 시 Target 파괴 + Branch 3 본 spawn + Event.Region.SaplingSeed 디스패치.",
+  "scenarios": [
+    {
+      "name": "non_birch_target_short_circuits",
+      "description": "Target 에 Entity.Natural.Birch 태그가 없으면 즉시 done 분기 → 부수효과 0.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "position": [100, 0, 0] },
+        "event":  { "targetPosX": 100, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": []
+      }
+    },
+    {
+      "name": "out_of_range_short_circuits",
+      "description": "Self ↔ Target 거리 > 500 이면 도구 검증 전에 done.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "position": [1000, 0, 0], "tags": ["Entity.Natural.Birch"] },
+        "event":  { "targetPosX": 1000, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": []
+      }
+    },
+    {
+      "name": "no_axe_short_circuits",
+      "description": "도구 0개 — 검증 실패로 done. Target 보존.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "position": [200, 0, 0], "tags": ["Entity.Natural.Birch"] },
+        "event":  { "targetPosX": 200, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": []
+      }
+    },
+    {
+      "name": "valid_fell_dispatches_sapling_seed",
+      "description": "Birch + 거리 OK + 도구 OK → SaplingSeed 디스패치 (1건, Location 보존).",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "position": [200, 0, 0], "tags": ["Entity.Natural.Birch"] },
+        "entities": [
+          {
+            "tags": ["Entity.Tool.Axe"],
+            "properties": { "OwnerEntity": {"ref":"self"} }
+          }
+        ],
+        "event": { "targetPosX": 200, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Event.Region.SaplingSeed" }
+        ]
+      }
+    }
+  ]
+}

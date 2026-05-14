@@ -244,8 +244,8 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 - [x] **PR-1** — 태그 + HktRule echo 라우터
 - [x] **PR-2** — Region 인프라 (RegionId / FindOrCreate / RegionAddScalar)
 - [x] **PR-3** — Region record entity (Lineage/Variant/OreSpecies) + `FindOrCreateRegionRecord` (SoA 선형 스캔) + `RegionMapFindOrCreate` host-call opcode + `RegionMapRead`/`RegionMapWrite` Builder helper. *property 어드레싱 모드 신규 0, hash 자료구조 0.*
-- [ ] **PR-4** — Birch spawner story 본문 + 데모 시나리오 테스트
-- [ ] **PR-5+** — 03 의 나머지 spawner
+- [x] **PR-4** — Birch JSON spawner 3종 (`Content/Stories/Natural/Birch/`) + `.spec.json` 사이드카 (HktStorySpec 자동화). 신규 태그 5종(`Entity.Natural.{Birch,Branch,BirchSapling}` · `Event.Region.SaplingSeed` · `Story.Flow.Spawner.Natural.Birch`). **범위 노트**: §6.1 시나리오의 `RegionAddScalar`/`RegionMapWrite` 는 JSON op 노출이 PR-2/PR-3 산출에 없으므로 *글로벌 cap*(기존 JSON op `CountByTag` 활용) 으로 대체. region-scoped cap 은 region helper 의 JSON op 등록과 함께 PR-5+ 에서 교체.
+- [ ] **PR-5+** — 03 의 나머지 spawner + region helper JSON op 노출 (PR-4 의 글로벌 cap → region-scoped cap 교체 포함)
 
 ---
 

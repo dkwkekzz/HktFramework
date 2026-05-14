@@ -1,0 +1,26 @@
+{
+  "schema": 2,
+  "storyTag": "Event.Region.SaplingSeed",
+  "tags": {
+    "Birch":   "Entity.Natural.Birch",
+    "Sapling": "Entity.Natural.BirchSapling"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Birch] SaplingSeed listener — spawn 1 sapling at EventLocation (no cap)" },
+
+    { "op": "CountByTag", "dst": {"var":"birchCount"}, "tag": "Birch" },
+    { "op": "IfGeConst", "src": {"var":"birchCount"}, "value": 36 },
+      { "op": "Log", "message": "[Birch] global cap reached — sapling skipped" },
+      { "op": "Halt" },
+    { "op": "EndIf" },
+
+    { "op": "LoadStore", "dst": {"block":"seedPos","index":0}, "property": "TargetPosX" },
+    { "op": "LoadStore", "dst": {"block":"seedPos","index":1}, "property": "TargetPosY" },
+    { "op": "LoadStore", "dst": {"block":"seedPos","index":2}, "property": "TargetPosZ" },
+
+    { "op": "SpawnEntity", "classTag": "Entity.Natural.BirchSapling", "out": "sapling" },
+    { "op": "SetPosition", "entity": {"var":"sapling"}, "pos": {"block":"seedPos"} },
+
+    { "op": "Halt" }
+  ]
+}

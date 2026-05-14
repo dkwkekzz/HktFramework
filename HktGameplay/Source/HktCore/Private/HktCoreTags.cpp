@@ -49,3 +49,20 @@ namespace HktMaterialTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Flint,     "Material.Flint",     "Flint material (used with Tinder for spark).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cup,       "Material.Cup",       "Cup material (Container subset for Drink).");
 }
+
+namespace HktNaturalEntityTags
+{
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Birch,        "Entity.Natural.Birch",        "Birch tree — Implementation-Plan §6.1 demo. Spawned by chunk-load spawner; felled by Action.Natural.Fell.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Branch,       "Entity.Natural.Branch",       "Branch — TreeFelled 시 drop 되는 재료 엔티티.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSapling, "Entity.Natural.BirchSapling", "BirchSapling — SaplingSeed 시드로 spawn 되는 묘목.");
+}
+
+namespace HktRegionEventTags
+{
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SaplingSeed, "Event.Region.SaplingSeed", "TreeFelled 리스너가 자기-전파로 디스패치하는 묘목 시드 이벤트.");
+}
+
+namespace HktNaturalStoryTags
+{
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");
+}
