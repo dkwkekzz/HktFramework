@@ -1,0 +1,15 @@
+{
+  "storyTag": "Event.Region.OakSaplingSeed",
+  "description": "Event.Region.OakSaplingSeed 리스너 — TargetPos(현재 event location) 에 OakSapling 1 본 spawn 후 Param2(LineageId) 를 sapling 의 RecordKey 에 적재.",
+  "scenarios": [
+    {
+      "name": "spawns_oak_sapling_with_lineage",
+      "description": "OakSaplingSeed 수신 → OakSapling 1 본 spawn 후 RecordKey=4242 적재 후 Completed.",
+      "given": {
+        "self":  { "position": [0, 0, 0] },
+        "event": { "targetPosX": 500, "targetPosY": 500, "targetPosZ": 0, "param2": 4242 }
+      },
+      "expect": { "status": "Completed" }
+    }
+  ]
+}

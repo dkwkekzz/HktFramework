@@ -1,0 +1,22 @@
+{
+  "schema": 2,
+  "storyTag": "Event.Region.OakSaplingSeed",
+  "tags": {
+    "Oak":        "Entity.Natural.Oak",
+    "OakSapling": "Entity.Natural.OakSapling"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Oak] OakSaplingSeed — spawn 1 OakSapling, carry LineageId (Param2) → RecordKey" },
+
+    { "op": "LoadStore", "dst": {"block":"seedPos","index":0}, "property": "TargetPosX" },
+    { "op": "LoadStore", "dst": {"block":"seedPos","index":1}, "property": "TargetPosY" },
+    { "op": "LoadStore", "dst": {"block":"seedPos","index":2}, "property": "TargetPosZ" },
+    { "op": "LoadStore", "dst": {"var":"lineageId"}, "property": "Param2" },
+
+    { "op": "SpawnEntity", "classTag": "OakSapling", "out": "sapling" },
+    { "op": "SetPosition", "entity": {"var":"sapling"}, "pos": {"block":"seedPos"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"sapling"}, "property": "RecordKey", "src": {"var":"lineageId"} },
+
+    { "op": "Halt" }
+  ]
+}

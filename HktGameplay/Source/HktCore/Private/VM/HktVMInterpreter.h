@@ -156,6 +156,16 @@ private:
      */
     void Op_RegionMapFindOrCreate(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex RegionEntity, RegisterIndex KeyReg, int32 TagIndex);
 
+    /**
+     * 위치(cm) → chunk 좌표 → RegionId → RegionEntity 해소 (PR-5).
+     * spawner story 가 Param0/Param1 의 spawn 좌표로 region-scoped 카운터/record 에 진입하는 용도.
+     * VoxelSizeCm 과 ChunkSize 는 TerrainState 에서 조회 — 결정론 보장 (Q16.16 + 정수 floor-div).
+     * @param Dst       RegionEntity 의 vreg (entity 값)
+     * @param PosXReg   X 좌표 (cm) vreg
+     * @param PosYReg   Y 좌표 (cm) vreg
+     */
+    void Op_FindOrCreateRegionEntityAt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosXReg, RegisterIndex PosYReg);
+
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
 
