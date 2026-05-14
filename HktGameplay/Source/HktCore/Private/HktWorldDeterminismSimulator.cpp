@@ -30,7 +30,6 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     VMProcessSystem.LogSource = LogSource;
     GravitySystem.LogSource = LogSource;
     MovementSystem.LogSource = LogSource;
-    MovementSystemV2.LogSource = LogSource;
     PhysicsSystem.LogSource = LogSource;
     VMCleanupSystem.LogSource = LogSource;
 
@@ -138,18 +137,10 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
     GravitySystem.Process(WorldState, VMProxy);
 
-    if (HktUseMovementV2())
-    {
-        // ActiveMoverSlots 의 invariant 는 mark/prune 양쪽에서 swap-pop 으로 유지된다.
-        // 별도 compaction 단계는 불필요.
-        MovementSystemV2.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
-                                 FramePreMovePositions);
-    }
-    else
-    {
-        MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
-                               FramePreMovePositions);
-    }
+    // ActiveMoverSlots 의 invariant 는 mark/prune 양쪽에서 swap-pop 으로 유지된다.
+    // 별도 compaction 단계는 불필요.
+    MovementSystem.Process(WorldState, VMProxy, GeneratedMoveEndEvents,
+                           FramePreMovePositions);
     for (const FHktPendingEvent& ME : GeneratedMoveEndEvents)
     {
         HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Movement, EHktLogLevel::Verbose, LogSource,
@@ -328,7 +319,7 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
         WorldState.ImportEntityState(ES);
     }
     // 외부 import 는 VMProxy 를 거치지 않으므로 active-mover 추적 hook 이 발동되지 않는다.
-    // 새로 할당된 슬롯을 보수적으로 mark — MovementSystemV2 가 idle 이면 즉시 prune 한다.
+    // 새로 할당된 슬롯을 보수적으로 mark — MovementSystem 이 idle 이면 즉시 prune 한다.
     for (int32 S = SlotCountBeforeImport; S < WorldState.SlotToEntity.Num(); ++S)
     {
         if (WorldState.SlotToEntity[S] != InvalidEntityId)
@@ -515,7 +506,7 @@ void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InSt
     // 이를 통해 WaitingEvent 중이던 VM 이 Late-Join 클라에서도 올바르게 재개된다.
     RehydrateVMPool();
 
-    // V2 의 active-mover 인덱스는 VMProxy 에 비결정적으로 누적된 캐시. 롤백/복원 시
+    // MovementSystem 의 active-mover 인덱스는 VMProxy 에 누적된 캐시. 롤백/복원 시
     // WorldState 와의 일관성을 잃을 수 있으므로 전체 재구성.
     VMProxy.RebuildActiveMovers(WorldState);
 }

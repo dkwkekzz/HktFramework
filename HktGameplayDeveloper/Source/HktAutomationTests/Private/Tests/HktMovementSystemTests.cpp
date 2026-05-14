@@ -8,33 +8,35 @@
 #include "HktStoryBuilder.h"
 #include "VM/HktVMWorldStateProxy.h"
 #include "VM/HktVMProgram.h"
-#include "HAL/IConsoleManager.h"
 #include "Misc/AutomationTest.h"
 
 // ============================================================================
-// MovementSystem V1↔V2 검증 테스트
+// MovementSystem 단독 검증 테스트
 //
-// V2 (active-mover 슬롯만 순회) 가 V1 (전체 순회) 과 동일한 결과를 내는지,
-// 그리고 ActiveMoverSlots invariant (mask=1 ⇔ list 에 정확히 1회) 가 모든
-// prune/mark 경로에서 깨지지 않는지 검증한다.
+// V1↔V2 매칭 검증은 마이그레이션 완료로 제거되었다. 본 파일은 단일화된
+// MovementSystem 이 다음 동작을 정확히 수행하는지 자체 검증한다:
+//   - 도착 / 오버슈트 스냅 + MoveEnd emit
+//   - RotYaw 갱신, MaxSpeed 상한
+//   - 비활성 슬롯 PreMovePositions prefill (Physics 불변식)
+//   - ActiveMoverSlots/Mask invariant (mark·prune 양쪽 swap-pop)
+//   - VM 경로(MoveToward) 가 active mover 마크
+//   - 시뮬레이터 풀 파이프라인을 통한 도착 sanity
 // ============================================================================
 
 namespace HktMovementSystemTests
 {
 
 // ============================================================================
-// 테스트 fixture 상수 — magic number 제거
-// (production 동작에 영향 X, 본 파일 안에서 의미 부여만)
+// 테스트 fixture 상수
 // ============================================================================
 
 namespace TestConst
 {
-    /** 적분 결정론 검증을 위한 충분히 긴 시뮬레이션 길이. */
-    constexpr int32 ParityTicksLong = 30;
-    constexpr int32 ParityTicksMid  = 20;
+    /** 적분이 끝날 때까지 충분히 긴 도달 시뮬레이션 길이 (틱). */
+    constexpr int32 MaxArrivalTicks = 60;
 
     /** Mover 기본 파라미터 — 운동 파이프라인이 trivially 0/1 로 자명해지지 않을
-     *  "보통의" 값. 정확한 수치는 V1↔V2 비교에서 무관. */
+     *  "보통의" 값. */
     constexpr int32 DefaultForce    = 10000;
     constexpr int32 DefaultMass     = 100;
     constexpr int32 DefaultMaxSpeed = 600;
@@ -95,78 +97,8 @@ static FHktEntityId CreateIdle(FHktAutomationTestHarness& H, int32 PX, int32 PY,
     return H.CreateEntityWithProperties(Props);
 }
 
-/** V1↔V2 비교 대상 프로퍼티 셋. 위치/속도/이동 상태만 비교 (Movement 직접 출력값). */
-static const uint16 ComparedProperties[] = {
-    PropertyId::PosX, PropertyId::PosY, PropertyId::PosZ,
-    PropertyId::VelX, PropertyId::VelY, PropertyId::VelZ,
-    PropertyId::IsMoving, PropertyId::RotYaw,
-};
-
-/** 두 WorldState 의 엔티티 프로퍼티가 모두 일치하는지 검증. */
-static bool CompareWorldStates(
-    const FHktWorldState& A,
-    const FHktWorldState& B,
-    FString& OutMismatch)
-{
-    if (A.SlotToEntity.Num() != B.SlotToEntity.Num())
-    {
-        OutMismatch = FString::Printf(TEXT("SlotToEntity.Num mismatch: A=%d B=%d"),
-            A.SlotToEntity.Num(), B.SlotToEntity.Num());
-        return false;
-    }
-
-    for (int32 Slot = 0; Slot < A.SlotToEntity.Num(); ++Slot)
-    {
-        const FHktEntityId IdA = A.SlotToEntity[Slot];
-        const FHktEntityId IdB = B.SlotToEntity[Slot];
-        if (IdA != IdB)
-        {
-            OutMismatch = FString::Printf(TEXT("Slot %d entity mismatch: A=%d B=%d"),
-                Slot, IdA, IdB);
-            return false;
-        }
-        if (IdA == InvalidEntityId) continue;
-
-        for (uint16 PropId : ComparedProperties)
-        {
-            const int32 VA = A.Get(Slot, PropId);
-            const int32 VB = B.Get(Slot, PropId);
-            if (VA != VB)
-            {
-                const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
-                OutMismatch = FString::Printf(
-                    TEXT("Slot %d (Id %d) prop %s(%d) mismatch: V1=%d V2=%d"),
-                    Slot, IdA, PropName ? PropName : TEXT("?"), PropId, VA, VB);
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-/** Movement 시스템 직접 호출 — Pre/MoveEnd 버퍼는 호출 사이트가 소유. */
-static void RunMovementV1(
-    FHktAutomationTestHarness& H,
-    TArray<FIntVector>& OutPre,
-    TArray<FHktPendingEvent>& OutMoveEnd)
-{
-    FHktMovementSystem Sys;
-    Sys.LogSource = EHktLogSource::Server;
-    Sys.Process(H.GetWorldState(), H.GetVMProxy(), OutMoveEnd, OutPre);
-}
-
-static void RunMovementV2(
-    FHktAutomationTestHarness& H,
-    TArray<FIntVector>& OutPre,
-    TArray<FHktPendingEvent>& OutMoveEnd)
-{
-    FHktMovementSystemV2 Sys;
-    Sys.LogSource = EHktLogSource::Server;
-    Sys.Process(H.GetWorldState(), H.GetVMProxy(), OutMoveEnd, OutPre);
-}
-
-/** V2 에 운동 슬롯을 등록해 두는 헬퍼 — 실제 게임에선 SetPropertyDirty hook 이 처리하지만,
- *  하니스는 WorldState.SetProperty 로 초기 세팅을 하므로 mark 가 누락된다. */
+/** 하니스가 직접 SetProperty 로 초기화한 슬롯은 ActiveMoverMark 가 누락되므로
+ *  테스트 시작 시 명시적으로 등록한다 (실제 게임에선 SetPropertyDirty hook 이 처리). */
 static void MarkAllAsActive(FHktAutomationTestHarness& H)
 {
     const FHktWorldState& WS = H.GetWorldState();
@@ -177,198 +109,231 @@ static void MarkAllAsActive(FHktAutomationTestHarness& H)
     }
 }
 
+/** Movement 시스템 단발 호출 — Pre/MoveEnd 버퍼는 호출 사이트가 소유. */
+static void RunMovement(
+    FHktAutomationTestHarness& H,
+    TArray<FIntVector>& OutPre,
+    TArray<FHktPendingEvent>& OutMoveEnd)
+{
+    FHktMovementSystem Sys;
+    Sys.LogSource = EHktLogSource::Server;
+    Sys.Process(H.GetWorldState(), H.GetVMProxy(), OutMoveEnd, OutPre);
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
 
-/** T1: 단일 이동 엔티티에 대해 V1/V2 가 N 틱 동안 동일 결과를 낸다. */
-static FHktTestResult Test_Parity_SingleMover()
-{
-    FHktAutomationTestHarness HA, HB;
-    HA.Setup(); HB.Setup();
-
-    CreateMover(HA, /*Pos*/0, 0, 0, /*Tgt*/TestConst::FarTargetCm, 0, 0);
-    CreateMover(HB, 0, 0, 0, TestConst::FarTargetCm, 0, 0);
-
-    MarkAllAsActive(HA);
-    MarkAllAsActive(HB);
-
-    TArray<FIntVector> PreA, PreB;
-    TArray<FHktPendingEvent> EvA, EvB;
-
-    for (int32 T = 0; T < TestConst::ParityTicksLong; ++T)
-    {
-        RunMovementV1(HA, PreA, EvA);
-        RunMovementV2(HB, PreB, EvB);
-
-        FString Mismatch;
-        if (!CompareWorldStates(HA.GetWorldState(), HB.GetWorldState(), Mismatch))
-        {
-            HA.Teardown(); HB.Teardown();
-            return FHktTestResult::Fail(TEXT("Parity_SingleMover"),
-                FString::Printf(TEXT("Tick %d: %s"), T, *Mismatch));
-        }
-        if (EvA.Num() != EvB.Num())
-        {
-            HA.Teardown(); HB.Teardown();
-            return FHktTestResult::Fail(TEXT("Parity_SingleMover"),
-                FString::Printf(TEXT("Tick %d: MoveEnd event count mismatch V1=%d V2=%d"),
-                    T, EvA.Num(), EvB.Num()));
-        }
-    }
-
-    HA.Teardown(); HB.Teardown();
-    return FHktTestResult::Pass(TEXT("Parity_SingleMover"));
-}
-
-/** T2: 혼합(이동/정지) 다수 엔티티에 대해 V1/V2 동일 결과. PreMovePositions 도 일치. */
-static FHktTestResult Test_Parity_MixedMoversAndIdles()
-{
-    // 좌표는 V1/V2 비교 자체엔 무관 — 양 시스템이 동일 입력만 받으면 된다.
-    // 임의 산포된 fixture (mover 2 + idle 3) 로 다양한 슬롯/거리 케이스 cover.
-    struct FFixture { int32 PX, PY, PZ, TX, TY, TZ; bool bMoving; };
-    constexpr FFixture Fixtures[] = {
-        {     0,    0, 0,   500,  500, 0, true  },  // mover (대각선)
-        {  -200,  100, 0,   200,  100, 0, true  },  // mover (수평)
-        {  1000, 1000, 0,     0,    0, 0, false },  // idle (target 의미 없음)
-        {  -500,    0, 50,    0,    0, 0, false },  // idle (z!=0)
-        {     0, -300, 0,     0,    0, 0, false },  // idle
-    };
-
-    FHktAutomationTestHarness HA, HB;
-    HA.Setup(); HB.Setup();
-    for (const FFixture& F : Fixtures)
-    {
-        if (F.bMoving)
-        {
-            CreateMover(HA, F.PX, F.PY, F.PZ, F.TX, F.TY, F.TZ);
-            CreateMover(HB, F.PX, F.PY, F.PZ, F.TX, F.TY, F.TZ);
-        }
-        else
-        {
-            CreateIdle(HA, F.PX, F.PY, F.PZ);
-            CreateIdle(HB, F.PX, F.PY, F.PZ);
-        }
-    }
-
-    MarkAllAsActive(HA);
-    MarkAllAsActive(HB);
-
-    TArray<FIntVector> PreA, PreB;
-    TArray<FHktPendingEvent> EvA, EvB;
-
-    for (int32 T = 0; T < TestConst::ParityTicksMid; ++T)
-    {
-        RunMovementV1(HA, PreA, EvA);
-        RunMovementV2(HB, PreB, EvB);
-
-        // PreMovePositions: V1 은 모든 슬롯, V2 도 모든 슬롯(prefill) 채운다 — 동일.
-        if (PreA.Num() != PreB.Num())
-        {
-            HA.Teardown(); HB.Teardown();
-            return FHktTestResult::Fail(TEXT("Parity_MixedMoversAndIdles"),
-                FString::Printf(TEXT("Tick %d: PreMove array size mismatch V1=%d V2=%d"),
-                    T, PreA.Num(), PreB.Num()));
-        }
-        for (int32 Slot = 0; Slot < PreA.Num(); ++Slot)
-        {
-            if (HA.GetWorldState().SlotToEntity[Slot] == InvalidEntityId) continue;
-            if (PreA[Slot] != PreB[Slot])
-            {
-                HA.Teardown(); HB.Teardown();
-                return FHktTestResult::Fail(TEXT("Parity_MixedMoversAndIdles"),
-                    FString::Printf(TEXT("Tick %d Slot %d PreMove mismatch V1=(%d,%d,%d) V2=(%d,%d,%d)"),
-                        T, Slot, PreA[Slot].X, PreA[Slot].Y, PreA[Slot].Z,
-                        PreB[Slot].X, PreB[Slot].Y, PreB[Slot].Z));
-            }
-        }
-
-        FString Mismatch;
-        if (!CompareWorldStates(HA.GetWorldState(), HB.GetWorldState(), Mismatch))
-        {
-            HA.Teardown(); HB.Teardown();
-            return FHktTestResult::Fail(TEXT("Parity_MixedMoversAndIdles"),
-                FString::Printf(TEXT("Tick %d: %s"), T, *Mismatch));
-        }
-    }
-
-    HA.Teardown(); HB.Teardown();
-    return FHktTestResult::Pass(TEXT("Parity_MixedMoversAndIdles"));
-}
-
-/** T3: 도착 시 V1/V2 모두 동일한 MoveEnd 이벤트를 emit. */
-static FHktTestResult Test_Parity_ArrivalEvent()
-{
-    FHktAutomationTestHarness HA, HB;
-    HA.Setup(); HB.Setup();
-
-    // 도착 임계(`FHktMovementSystem::ArrivalThresholdSq`) 안쪽에서 시작 — 첫 틱에 도착.
-    // TestConst::ArrivalInsideOffset 가 static_assert 로 임계 안쪽임을 보장.
-    const int32 Off = TestConst::ArrivalInsideOffset;
-    CreateMover(HA, 0, 0, 0, Off, Off, 0);
-    CreateMover(HB, 0, 0, 0, Off, Off, 0);
-
-    MarkAllAsActive(HA);
-    MarkAllAsActive(HB);
-
-    TArray<FIntVector> PreA, PreB;
-    TArray<FHktPendingEvent> EvA, EvB;
-
-    RunMovementV1(HA, PreA, EvA);
-    RunMovementV2(HB, PreB, EvB);
-
-    if (EvA.Num() != 1 || EvB.Num() != 1)
-    {
-        HA.Teardown(); HB.Teardown();
-        return FHktTestResult::Fail(TEXT("Parity_ArrivalEvent"),
-            FString::Printf(TEXT("Expected exactly 1 MoveEnd per system. V1=%d V2=%d"),
-                EvA.Num(), EvB.Num()));
-    }
-    if (EvA[0].Type != EWaitEventType::MoveEnd || EvB[0].Type != EWaitEventType::MoveEnd)
-    {
-        HA.Teardown(); HB.Teardown();
-        return FHktTestResult::Fail(TEXT("Parity_ArrivalEvent"),
-            TEXT("Event type should be MoveEnd"));
-    }
-    if (EvA[0].WatchedEntity != EvB[0].WatchedEntity)
-    {
-        HA.Teardown(); HB.Teardown();
-        return FHktTestResult::Fail(TEXT("Parity_ArrivalEvent"),
-            FString::Printf(TEXT("WatchedEntity mismatch V1=%d V2=%d"),
-                EvA[0].WatchedEntity, EvB[0].WatchedEntity));
-    }
-
-    FString Mismatch;
-    if (!CompareWorldStates(HA.GetWorldState(), HB.GetWorldState(), Mismatch))
-    {
-        HA.Teardown(); HB.Teardown();
-        return FHktTestResult::Fail(TEXT("Parity_ArrivalEvent"), Mismatch);
-    }
-
-    HA.Teardown(); HB.Teardown();
-    return FHktTestResult::Pass(TEXT("Parity_ArrivalEvent"));
-}
-
-/** T4: idle 슬롯은 V2 한 번 방문 후 ActiveMoverSlots 에서 제거된다. */
-static FHktTestResult Test_V2_PrunesIdleSlot()
+/** T1: 도착 임계 안쪽에서 시작 — 첫 틱에 타겟 스냅, MoveEnd 1회 emit. */
+static FHktTestResult Test_ArrivalSnapsToTarget()
 {
     FHktAutomationTestHarness H;
     H.Setup();
 
-    const FHktEntityId Id = CreateIdle(H, /*Pos*/0, 0, 0);  // 위치는 prune 동작과 무관.
+    // TestConst::ArrivalInsideOffset 가 static_assert 로 임계 안쪽임을 보장.
+    const int32 Off = TestConst::ArrivalInsideOffset;
+    const FHktEntityId Id = CreateMover(H, 0, 0, 0, Off, Off, 0);
+    MarkAllAsActive(H);
+
+    TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
+    RunMovement(H, Pre, Ev);
+
+    const int32 EvCount = Ev.Num();
+    const int32 IsMoving = H.GetProperty(Id, PropertyId::IsMoving);
+    const int32 PosX = H.GetProperty(Id, PropertyId::PosX);
+    const int32 PosY = H.GetProperty(Id, PropertyId::PosY);
+    const int32 VelX = H.GetProperty(Id, PropertyId::VelX);
+    const int32 VelY = H.GetProperty(Id, PropertyId::VelY);
+    const FHktEntityId Watched = (EvCount == 1) ? Ev[0].WatchedEntity : InvalidEntityId;
+    const EWaitEventType EvType = (EvCount == 1) ? Ev[0].Type : EWaitEventType::None;
+    H.Teardown();
+
+    if (EvCount != 1)
+        return FHktTestResult::Fail(TEXT("ArrivalSnapsToTarget"),
+            FString::Printf(TEXT("MoveEnd 1회 기대, 실제 %d"), EvCount));
+    if (EvType != EWaitEventType::MoveEnd)
+        return FHktTestResult::Fail(TEXT("ArrivalSnapsToTarget"),
+            TEXT("이벤트 타입이 MoveEnd 가 아님"));
+    if (Watched != Id)
+        return FHktTestResult::Fail(TEXT("ArrivalSnapsToTarget"),
+            FString::Printf(TEXT("WatchedEntity %d 기대, 실제 %d"), Id, Watched));
+    if (IsMoving != 0)
+        return FHktTestResult::Fail(TEXT("ArrivalSnapsToTarget"),
+            FString::Printf(TEXT("도착 후 IsMoving 0 기대, 실제 %d"), IsMoving));
+    if (PosX != Off || PosY != Off)
+        return FHktTestResult::Fail(TEXT("ArrivalSnapsToTarget"),
+            FString::Printf(TEXT("타겟 스냅 (%d,%d) 기대, 실제 (%d,%d)"), Off, Off, PosX, PosY));
+    if (VelX != 0 || VelY != 0)
+        return FHktTestResult::Fail(TEXT("ArrivalSnapsToTarget"),
+            FString::Printf(TEXT("도착 후 수평 속도 0 기대, 실제 (%d,%d)"), VelX, VelY));
+
+    return FHktTestResult::Pass(TEXT("ArrivalSnapsToTarget"));
+}
+
+/** T2: 충분히 긴 직선 이동 — N 틱 내 도착, IsMoving=0, 정확히 1회 MoveEnd. */
+static FHktTestResult Test_LinearMotionReachesTarget()
+{
+    FHktAutomationTestHarness H;
+    H.Setup();
+
+    const int32 TX = TestConst::FarTargetCm;
+    const FHktEntityId Id = CreateMover(H, 0, 0, 0, TX, 0, 0);
+    MarkAllAsActive(H);
+
+    int32 MoveEndCount = 0;
+    bool bArrived = false;
+    int32 ArrivedTick = -1;
+
+    for (int32 T = 0; T < TestConst::MaxArrivalTicks; ++T)
+    {
+        TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
+        RunMovement(H, Pre, Ev);
+        MoveEndCount += Ev.Num();
+
+        if (H.GetProperty(Id, PropertyId::IsMoving) == 0)
+        {
+            bArrived = true;
+            ArrivedTick = T;
+            break;
+        }
+    }
+
+    const int32 PosX = H.GetProperty(Id, PropertyId::PosX);
+    H.Teardown();
+
+    if (!bArrived)
+        return FHktTestResult::Fail(TEXT("LinearMotionReachesTarget"),
+            FString::Printf(TEXT("%d 틱 내 도착 실패 (현재 X=%d, 타겟 X=%d)"),
+                TestConst::MaxArrivalTicks, PosX, TX));
+    if (MoveEndCount != 1)
+        return FHktTestResult::Fail(TEXT("LinearMotionReachesTarget"),
+            FString::Printf(TEXT("MoveEnd 정확히 1회 기대, 실제 %d (도착 틱=%d)"),
+                MoveEndCount, ArrivedTick));
+    // 도착 후엔 타겟에 정확히 스냅되어 있어야 한다 (스냅 코드가 정수 반올림 후 SetPosition).
+    if (PosX != TX)
+        return FHktTestResult::Fail(TEXT("LinearMotionReachesTarget"),
+            FString::Printf(TEXT("도착 후 PosX=%d 기대, 실제 %d"), TX, PosX));
+
+    return FHktTestResult::Pass(TEXT("LinearMotionReachesTarget"));
+}
+
+/** T3: RotYaw 가 타겟 방향으로 갱신된다. */
+static FHktTestResult Test_RotYawUpdatedTowardTarget()
+{
+    FHktAutomationTestHarness H;
+    H.Setup();
+
+    // +X 방향 — atan2(0, +) = 0°
+    const FHktEntityId IdX = CreateMover(H, 0, 0, 0, TestConst::FarTargetCm, 0, 0);
+    // +Y 방향 — atan2(+, 0) = 90°
+    const FHktEntityId IdY = CreateMover(H, 0, 0, 0, 0, TestConst::FarTargetCm, 0);
+    MarkAllAsActive(H);
+
+    TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
+    RunMovement(H, Pre, Ev);
+
+    const int32 YawX = H.GetProperty(IdX, PropertyId::RotYaw);
+    const int32 YawY = H.GetProperty(IdY, PropertyId::RotYaw);
+    H.Teardown();
+
+    if (YawX != 0)
+        return FHktTestResult::Fail(TEXT("RotYawUpdatedTowardTarget"),
+            FString::Printf(TEXT("+X 방향 RotYaw=0 기대, 실제 %d"), YawX));
+    if (YawY != 90)
+        return FHktTestResult::Fail(TEXT("RotYawUpdatedTowardTarget"),
+            FString::Printf(TEXT("+Y 방향 RotYaw=90 기대, 실제 %d"), YawY));
+
+    return FHktTestResult::Pass(TEXT("RotYawUpdatedTowardTarget"));
+}
+
+/** T4: 수평 속도(`sqrt(VelX² + VelY²)`)가 MaxSpeed 를 초과하지 않는다. */
+static FHktTestResult Test_VelocityRespectsMaxSpeed()
+{
+    FHktAutomationTestHarness H;
+    H.Setup();
+
+    const int32 MaxSpd = TestConst::DefaultMaxSpeed;
+    const FHktEntityId Id = CreateMover(H, 0, 0, 0, TestConst::FarTargetCm, 0, 0,
+        TestConst::DefaultForce, MaxSpd);
+    MarkAllAsActive(H);
+
+    bool bExceeded = false;
+    int32 ExceededTick = -1;
+    int32 PeakHSpeedSq = 0;
+
+    // 적분이 충분히 가속한 뒤에도 상한이 지켜지는지 확인.
+    for (int32 T = 0; T < TestConst::MaxArrivalTicks; ++T)
+    {
+        TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
+        RunMovement(H, Pre, Ev);
+
+        const int32 VX = H.GetProperty(Id, PropertyId::VelX);
+        const int32 VY = H.GetProperty(Id, PropertyId::VelY);
+        const int32 HSq = VX * VX + VY * VY;
+        if (HSq > PeakHSpeedSq) PeakHSpeedSq = HSq;
+
+        // 정수 반올림으로 1cm/s 정도 오버는 허용 (스냅 직전 마지막 틱에서 발생 가능).
+        const int32 Tolerance = (MaxSpd + 1) * (MaxSpd + 1);
+        if (HSq > Tolerance)
+        {
+            bExceeded = true;
+            ExceededTick = T;
+            break;
+        }
+
+        if (H.GetProperty(Id, PropertyId::IsMoving) == 0) break;
+    }
+
+    H.Teardown();
+
+    if (bExceeded)
+        return FHktTestResult::Fail(TEXT("VelocityRespectsMaxSpeed"),
+            FString::Printf(TEXT("Tick %d: HSpeed²=%d > MaxSpeed²(+1)=%d"),
+                ExceededTick, PeakHSpeedSq, (MaxSpd + 1) * (MaxSpd + 1)));
+
+    return FHktTestResult::Pass(TEXT("VelocityRespectsMaxSpeed"));
+}
+
+/** T5: 빈 월드 — no-op, 이벤트 없음, ActiveMoverSlots 변동 없음. */
+static FHktTestResult Test_EmptyWorld()
+{
+    FHktAutomationTestHarness H;
+    H.Setup();
+
+    TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
+    RunMovement(H, Pre, Ev);
+
+    const int32 Active = H.GetVMProxy().ActiveMoverSlots.Num();
+    const int32 EvCount = Ev.Num();
+    H.Teardown();
+
+    if (Active != 0 || EvCount != 0)
+        return FHktTestResult::Fail(TEXT("EmptyWorld"),
+            FString::Printf(TEXT("빈 월드: active=%d events=%d 기대 0/0"), Active, EvCount));
+
+    return FHktTestResult::Pass(TEXT("EmptyWorld"));
+}
+
+/** T6: idle 슬롯은 한 번 방문 후 ActiveMoverSlots 에서 prune. */
+static FHktTestResult Test_PrunesIdleSlot()
+{
+    FHktAutomationTestHarness H;
+    H.Setup();
+
+    const FHktEntityId Id = CreateIdle(H, 0, 0, 0);
     const int32 Slot = H.GetWorldState().GetSlot(Id);
     H.GetVMProxy().MarkActiveMover(Slot);
 
     if (H.GetVMProxy().ActiveMoverSlots.Num() != 1)
     {
         H.Teardown();
-        return FHktTestResult::Fail(TEXT("V2_PrunesIdleSlot"),
-            FString::Printf(TEXT("Setup: expected 1 active slot, got %d"),
+        return FHktTestResult::Fail(TEXT("PrunesIdleSlot"),
+            FString::Printf(TEXT("Setup: active 1 기대, 실제 %d"),
                 H.GetVMProxy().ActiveMoverSlots.Num()));
     }
 
     TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
-    RunMovementV2(H, Pre, Ev);
+    RunMovement(H, Pre, Ev);
 
     const int32 PostCount = H.GetVMProxy().ActiveMoverSlots.Num();
     const uint8 PostMask = H.GetVMProxy().ActiveMoverMask.IsValidIndex(Slot)
@@ -376,17 +341,17 @@ static FHktTestResult Test_V2_PrunesIdleSlot()
     H.Teardown();
 
     if (PostCount != 0)
-        return FHktTestResult::Fail(TEXT("V2_PrunesIdleSlot"),
-            FString::Printf(TEXT("After V2: expected 0 active slots, got %d"), PostCount));
+        return FHktTestResult::Fail(TEXT("PrunesIdleSlot"),
+            FString::Printf(TEXT("Process 후 active 0 기대, 실제 %d"), PostCount));
     if (PostMask != 0)
-        return FHktTestResult::Fail(TEXT("V2_PrunesIdleSlot"),
-            FString::Printf(TEXT("After V2: mask should be 0, got %u"), PostMask));
+        return FHktTestResult::Fail(TEXT("PrunesIdleSlot"),
+            FString::Printf(TEXT("Process 후 mask=0 기대, 실제 %u"), PostMask));
 
-    return FHktTestResult::Pass(TEXT("V2_PrunesIdleSlot"));
+    return FHktTestResult::Pass(TEXT("PrunesIdleSlot"));
 }
 
-/** T5: 이동 중 엔티티는 V2 후에도 active 로 남아 있다. */
-static FHktTestResult Test_V2_KeepsMovingSlotActive()
+/** T7: 이동 중 엔티티는 Process 후에도 active 로 남는다. */
+static FHktTestResult Test_KeepsMovingSlotActive()
 {
     FHktAutomationTestHarness H;
     H.Setup();
@@ -396,25 +361,24 @@ static FHktTestResult Test_V2_KeepsMovingSlotActive()
     H.GetVMProxy().MarkActiveMover(Slot);
 
     TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
-    RunMovementV2(H, Pre, Ev);
+    RunMovement(H, Pre, Ev);
 
     const int32 PostCount = H.GetVMProxy().ActiveMoverSlots.Num();
     const uint8 PostMask = H.GetVMProxy().ActiveMoverMask[Slot];
     H.Teardown();
 
     if (PostCount != 1)
-        return FHktTestResult::Fail(TEXT("V2_KeepsMovingSlotActive"),
-            FString::Printf(TEXT("Expected 1 active slot, got %d"), PostCount));
+        return FHktTestResult::Fail(TEXT("KeepsMovingSlotActive"),
+            FString::Printf(TEXT("active 1 기대, 실제 %d"), PostCount));
     if (PostMask != 1)
-        return FHktTestResult::Fail(TEXT("V2_KeepsMovingSlotActive"),
-            FString::Printf(TEXT("Expected mask=1, got %u"), PostMask));
+        return FHktTestResult::Fail(TEXT("KeepsMovingSlotActive"),
+            FString::Printf(TEXT("mask=1 기대, 실제 %u"), PostMask));
 
-    return FHktTestResult::Pass(TEXT("V2_KeepsMovingSlotActive"));
+    return FHktTestResult::Pass(TEXT("KeepsMovingSlotActive"));
 }
 
-/** T6: V2 가 idle 슬롯을 prune 한 직후 같은 슬롯에 mark 가 다시 들어와도 list 에
- *      중복으로 쌓이지 않는다 (invariant 검증 — 이전 결함의 회귀 방지). */
-static FHktTestResult Test_V2_NoDuplicateAfterPruneRemark()
+/** T8: prune 직후 같은 슬롯에 mark 가 다시 들어와도 list 중복 없음. */
+static FHktTestResult Test_NoDuplicateAfterPruneRemark()
 {
     FHktAutomationTestHarness H;
     H.Setup();
@@ -423,19 +387,17 @@ static FHktTestResult Test_V2_NoDuplicateAfterPruneRemark()
     const int32 Slot = H.GetWorldState().GetSlot(Id);
     H.GetVMProxy().MarkActiveMover(Slot);
 
-    // V2 가 idle 판정 → swap-pop. list 비고 mask=0.
     TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
-    RunMovementV2(H, Pre, Ev);
+    RunMovement(H, Pre, Ev);
 
     if (H.GetVMProxy().ActiveMoverSlots.Num() != 0)
     {
         H.Teardown();
-        return FHktTestResult::Fail(TEXT("V2_NoDuplicateAfterPruneRemark"),
-            TEXT("Step1: idle 슬롯이 prune 되지 않았다"));
+        return FHktTestResult::Fail(TEXT("NoDuplicateAfterPruneRemark"),
+            TEXT("Step1: idle prune 실패"));
     }
 
-    // SetPropertyDirty hook 으로 재-mark 발생 시뮬레이션 (Physics 의 IsGrounded write 등).
-    // 임의의 nonzero — 값 자체는 hook 동작과 무관 (Vel{XYZ} 는 모두 hook 대상).
+    // 임의 nonzero — 값 자체는 hook 동작과 무관 (Vel{XYZ} 가 hook 대상).
     constexpr int32 NonzeroVelZ = -100;
     H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropertyId::VelZ, NonzeroVelZ);
 
@@ -444,30 +406,29 @@ static FHktTestResult Test_V2_NoDuplicateAfterPruneRemark()
     H.Teardown();
 
     if (AfterRemark != 1)
-        return FHktTestResult::Fail(TEXT("V2_NoDuplicateAfterPruneRemark"),
-            FString::Printf(TEXT("Re-mark 후 list 크기 1 기대, 실제 %d (중복 회귀)"), AfterRemark));
+        return FHktTestResult::Fail(TEXT("NoDuplicateAfterPruneRemark"),
+            FString::Printf(TEXT("Re-mark 후 list 1 기대, 실제 %d (중복 회귀)"), AfterRemark));
     if (AfterMask != 1)
-        return FHktTestResult::Fail(TEXT("V2_NoDuplicateAfterPruneRemark"),
+        return FHktTestResult::Fail(TEXT("NoDuplicateAfterPruneRemark"),
             FString::Printf(TEXT("Re-mark 후 mask=1 기대, 실제 %u"), AfterMask));
 
-    return FHktTestResult::Pass(TEXT("V2_NoDuplicateAfterPruneRemark"));
+    return FHktTestResult::Pass(TEXT("NoDuplicateAfterPruneRemark"));
 }
 
-/** T7: 같은 슬롯에 운동 프로퍼티를 여러 번 써도 list 가 1회만 Add 된다 (mask 가드). */
-static FHktTestResult Test_V2_NoDuplicateOnMultipleMarks()
+/** T9: 같은 슬롯에 운동 prop 을 여러 번 써도 list 1회만 Add. */
+static FHktTestResult Test_NoDuplicateOnMultipleMarks()
 {
     FHktAutomationTestHarness H;
     H.Setup();
 
     const FHktEntityId Id = CreateIdle(H, 0, 0, 0);
 
-    // `MoveToward` 가 emit 하는 5 개 prop write 를 모사 (MoveTarget*+MoveForce+IsMoving).
-    // 그중 MoveTarget* 는 hook 대상 아님 — MoveForce/IsMoving/Vel{XY} 만 mark 트리거.
-    // 어느 쪽이든 mask 가드로 list 에는 1 회만 Add 되어야 한다.
     auto Write = [&](uint16 PropId, int32 Value)
     {
         H.GetVMProxy().SetPropertyDirty(H.GetWorldState(), Id, PropId, Value);
     };
+    // MoveTarget* 는 hook 대상 아님 — MoveForce/IsMoving/Vel{XY} 만 mark 트리거.
+    // mask 가드로 list 에는 1 회만 Add.
     Write(PropertyId::MoveTargetX, TestConst::FarTargetCm);
     Write(PropertyId::MoveTargetY, 0);
     Write(PropertyId::MoveTargetZ, 0);
@@ -480,19 +441,18 @@ static FHktTestResult Test_V2_NoDuplicateOnMultipleMarks()
     H.Teardown();
 
     if (Count != 1)
-        return FHktTestResult::Fail(TEXT("V2_NoDuplicateOnMultipleMarks"),
-            FString::Printf(TEXT("ActiveMoverSlots 크기 1 기대, 실제 %d"), Count));
+        return FHktTestResult::Fail(TEXT("NoDuplicateOnMultipleMarks"),
+            FString::Printf(TEXT("ActiveMoverSlots 1 기대, 실제 %d"), Count));
 
-    return FHktTestResult::Pass(TEXT("V2_NoDuplicateOnMultipleMarks"));
+    return FHktTestResult::Pass(TEXT("NoDuplicateOnMultipleMarks"));
 }
 
-/** T8: PreMovePositions 가 모든 유효 슬롯에 대해 현재 Pos 로 채워진다 (Physics 전제). */
-static FHktTestResult Test_V2_PreMovePositionsFilled()
+/** T10: 모든 유효 슬롯의 PreMovePositions 가 현재 Pos 로 채워진다 (Physics 전제). */
+static FHktTestResult Test_PreMovePositionsFilledForAllSlots()
 {
     FHktAutomationTestHarness H;
     H.Setup();
 
-    // 임의 위치 — 본 테스트의 검증 대상은 "Pre[Slot] == Pos" 동일성이지 좌표 값 자체가 아님.
     const FIntVector MovingStart(100, 200, 50);
     const FIntVector IdleStart(300, 400, 25);
 
@@ -504,7 +464,7 @@ static FHktTestResult Test_V2_PreMovePositionsFilled()
     MarkAllAsActive(H);
 
     TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
-    RunMovementV2(H, Pre, Ev);
+    RunMovement(H, Pre, Ev);
 
     const int32 SlotMoving = H.GetWorldState().GetSlot(Moving);
     const int32 SlotIdle = H.GetWorldState().GetSlot(Idle);
@@ -514,47 +474,27 @@ static FHktTestResult Test_V2_PreMovePositionsFilled()
     {
         const FIntVector Got = Pre.IsValidIndex(SlotIdle) ? Pre[SlotIdle] : FIntVector::ZeroValue;
         H.Teardown();
-        return FHktTestResult::Fail(TEXT("V2_PreMovePositionsFilled"),
+        return FHktTestResult::Fail(TEXT("PreMovePositionsFilledForAllSlots"),
             FString::Printf(TEXT("Idle slot %d PreMove (%d,%d,%d) 기대, 실제 (%d,%d,%d)"),
                 SlotIdle, IdleStart.X, IdleStart.Y, IdleStart.Z, Got.X, Got.Y, Got.Z));
     }
 
-    // Moving 슬롯: 적분 전 위치(=처음 입력 Pos)가 저장돼야 한다.
+    // Moving 슬롯: 적분 전 위치(=처음 입력 Pos).
     if (!Pre.IsValidIndex(SlotMoving) || Pre[SlotMoving] != MovingStart)
     {
         const FIntVector Got = Pre.IsValidIndex(SlotMoving) ? Pre[SlotMoving] : FIntVector::ZeroValue;
         H.Teardown();
-        return FHktTestResult::Fail(TEXT("V2_PreMovePositionsFilled"),
+        return FHktTestResult::Fail(TEXT("PreMovePositionsFilledForAllSlots"),
             FString::Printf(TEXT("Moving slot %d PreMove (%d,%d,%d) 기대, 실제 (%d,%d,%d)"),
                 SlotMoving, MovingStart.X, MovingStart.Y, MovingStart.Z, Got.X, Got.Y, Got.Z));
     }
 
     H.Teardown();
-    return FHktTestResult::Pass(TEXT("V2_PreMovePositionsFilled"));
+    return FHktTestResult::Pass(TEXT("PreMovePositionsFilledForAllSlots"));
 }
 
-/** T9: 엔티티 없는 빈 월드에서 V2 가 안전하게 no-op 된다. */
-static FHktTestResult Test_V2_EmptyWorld()
-{
-    FHktAutomationTestHarness H;
-    H.Setup();
-
-    TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
-    RunMovementV2(H, Pre, Ev);
-
-    const int32 Active = H.GetVMProxy().ActiveMoverSlots.Num();
-    const int32 EvCount = Ev.Num();
-    H.Teardown();
-
-    if (Active != 0 || EvCount != 0)
-        return FHktTestResult::Fail(TEXT("V2_EmptyWorld"),
-            FString::Printf(TEXT("빈 월드: active=%d events=%d 기대 0/0"), Active, EvCount));
-
-    return FHktTestResult::Pass(TEXT("V2_EmptyWorld"));
-}
-
-/** T10: SlotToEntity 가 InvalidEntityId 인 슬롯(엔티티 제거 후)을 만나면 V2 가 list 에서 정리. */
-static FHktTestResult Test_V2_StaleSlotCleanup()
+/** T11: 엔티티 제거 후 stale 슬롯이 ActiveMoverSlots/Mask 에서 정리된다. */
+static FHktTestResult Test_StaleSlotCleanup()
 {
     FHktAutomationTestHarness H;
     H.Setup();
@@ -563,12 +503,10 @@ static FHktTestResult Test_V2_StaleSlotCleanup()
     const int32 Slot = H.GetWorldState().GetSlot(Id);
     H.GetVMProxy().MarkActiveMover(Slot);
 
-    // 엔티티 제거 — 슬롯은 Free 풀로 가지만 ActiveMoverMask/Slots 는 직접 갱신되지 않음.
     H.GetWorldState().RemoveEntity(Id);
 
-    // V2 는 stale-Entity 분기에서 mask=0 + RemoveAtSwap 수행해야 한다.
     TArray<FIntVector> Pre; TArray<FHktPendingEvent> Ev;
-    RunMovementV2(H, Pre, Ev);
+    RunMovement(H, Pre, Ev);
 
     const int32 PostCount = H.GetVMProxy().ActiveMoverSlots.Num();
     const uint8 PostMask = H.GetVMProxy().ActiveMoverMask.IsValidIndex(Slot)
@@ -576,25 +514,24 @@ static FHktTestResult Test_V2_StaleSlotCleanup()
     H.Teardown();
 
     if (PostCount != 0)
-        return FHktTestResult::Fail(TEXT("V2_StaleSlotCleanup"),
-            FString::Printf(TEXT("stale slot 정리 후 list 0 기대, 실제 %d"), PostCount));
+        return FHktTestResult::Fail(TEXT("StaleSlotCleanup"),
+            FString::Printf(TEXT("stale 정리 후 list 0 기대, 실제 %d"), PostCount));
     if (PostMask != 0)
-        return FHktTestResult::Fail(TEXT("V2_StaleSlotCleanup"),
-            FString::Printf(TEXT("stale slot 정리 후 mask=0 기대, 실제 %u"), PostMask));
+        return FHktTestResult::Fail(TEXT("StaleSlotCleanup"),
+            FString::Printf(TEXT("stale 정리 후 mask=0 기대, 실제 %u"), PostMask));
 
-    return FHktTestResult::Pass(TEXT("V2_StaleSlotCleanup"));
+    return FHktTestResult::Pass(TEXT("StaleSlotCleanup"));
 }
 
-/** T11: RebuildActiveMovers 가 WorldState 의 실제 운동 상태를 정확히 재구성. */
-static FHktTestResult Test_V2_RebuildActiveMovers()
+/** T12: RebuildActiveMovers — Mover/Falling 은 active, Idle 은 inactive, bogus 슬롯은 drop. */
+static FHktTestResult Test_RebuildActiveMovers()
 {
     FHktAutomationTestHarness H;
     H.Setup();
 
     const FHktEntityId Mover = CreateMover(H, 0, 0, 0, TestConst::FarTargetCm, 0, 0);
 
-    // "낙하 중" — IsGrounded=0 + VelZ!=0 인 엔티티. Rebuild 가 이 조건을 active 로 인식해야 함.
-    constexpr int32 SampleFallingVelZ = -50;  // 임의의 음수 — 값 자체는 무의미.
+    constexpr int32 SampleFallingVelZ = -50;
     TMap<uint16, int32> FallingProps;
     FallingProps.Add(PropertyId::IsGrounded, 0);
     FallingProps.Add(PropertyId::VelZ, SampleFallingVelZ);
@@ -602,8 +539,7 @@ static FHktTestResult Test_V2_RebuildActiveMovers()
 
     const FHktEntityId IdleE = CreateIdle(H, 0, 0, 0);
 
-    // 일단 list 를 의도적으로 더럽힌 뒤 Rebuild — 깨끗하게 재구성되는지 본다.
-    // out-of-entity 슬롯은 Rebuild 가 stale 로 drop 해야 한다.
+    // 일단 list 를 의도적으로 더럽힌 뒤 Rebuild — out-of-entity 슬롯은 drop 되어야 한다.
     H.GetVMProxy().MarkActiveMover(TestConst::BogusSlotIndex);
 
     H.GetVMProxy().RebuildActiveMovers(H.GetWorldState());
@@ -621,45 +557,24 @@ static FHktTestResult Test_V2_RebuildActiveMovers()
     H.Teardown();
 
     if (!bMoverActive)
-        return FHktTestResult::Fail(TEXT("V2_RebuildActiveMovers"),
+        return FHktTestResult::Fail(TEXT("RebuildActiveMovers"),
             TEXT("IsMoving=1 엔티티가 rebuild 후 inactive"));
     if (!bFallingActive)
-        return FHktTestResult::Fail(TEXT("V2_RebuildActiveMovers"),
+        return FHktTestResult::Fail(TEXT("RebuildActiveMovers"),
             TEXT("IsGrounded=0 + VelZ!=0 엔티티가 rebuild 후 inactive"));
     if (bIdleActive)
-        return FHktTestResult::Fail(TEXT("V2_RebuildActiveMovers"),
+        return FHktTestResult::Fail(TEXT("RebuildActiveMovers"),
             TEXT("Idle 엔티티가 rebuild 후 active 로 잘못 표시"));
 
-    return FHktTestResult::Pass(TEXT("V2_RebuildActiveMovers"));
+    return FHktTestResult::Pass(TEXT("RebuildActiveMovers"));
 }
 
 // ============================================================================
-// 통합 테스트 — 시뮬레이터/VM 파이프라인 결합 검증
+// 통합 테스트 — 시뮬레이터/VM 파이프라인 결합
 // ============================================================================
 
 namespace
 {
-    /** `hkt.Move.UseV2` CVar 를 스코프 단위로 토글하고 자동 복원. */
-    struct FUseV2Scope
-    {
-        IConsoleVariable* CVar = nullptr;
-        int32 Saved = 0;
-
-        FUseV2Scope(int32 NewValue)
-        {
-            CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("hkt.Move.UseV2"));
-            if (CVar)
-            {
-                Saved = CVar->GetInt();
-                CVar->Set(*FString::FromInt(NewValue));
-            }
-        }
-        ~FUseV2Scope()
-        {
-            if (CVar) CVar->Set(*FString::FromInt(Saved));
-        }
-    };
-
     /** Mover 엔티티의 초기 상태를 FHktEntityState 로 채워 반환. */
     FHktEntityState MakeMoverEntityState(
         int32 PX, int32 PY, int32 PZ,
@@ -684,80 +599,63 @@ namespace
     }
 }
 
-/** T12 (Integration): 시뮬레이터 직접 인스턴스화 → V1/V2 동일 시나리오에서 최종 WorldState 일치.
+/** T13 (Integration): 시뮬레이터 풀 파이프라인을 통한 도착 검증.
  *
- *  유닛 테스트는 V2.Process 만 격리해 호출했다. 본 테스트는 `CreateDeterminismSimulator`
- *  가 만든 풀 파이프라인 (Arrange → VMBuild → VMProcess → Gravity → Movement → Physics →
- *  Cleanup) 을 V1/V2 두 모드로 각각 N 프레임 돌린 뒤 비교해 다음 결합점을 cover 한다:
- *    - ProcessBatch 의 `HktUseMovementV2()` CVar 분기
+ *  유닛 테스트는 MovementSystem.Process 만 격리해 호출했다. 본 테스트는
+ *  `CreateDeterminismSimulator` 가 만든 풀 파이프라인 (Arrange → VMBuild →
+ *  VMProcess → Gravity → Movement → Physics → Cleanup) 을 N 프레임 돌려
  *    - AdvanceFrame 의 NewEntityStates import-mark 루프
  *    - Gravity → Movement → Physics 간 mark 전파 정합성
+ *    - 도착 후 IsMoving=0 까지 가는 풀 사이클
+ *  을 cover 한다.
  */
-static FHktTestResult Test_Integration_SimulatorParity_V1V2()
+static FHktTestResult Test_Integration_SimulatorReachesTarget()
 {
     constexpr int32 NumFrames = 80;
 
-    // CVar 가 존재해야 토글이 의미 있다. 없으면 V1↔V1 비교가 되어 false-pass — 명시 실패.
-    IConsoleVariable* UseV2CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("hkt.Move.UseV2"));
-    if (!UseV2CVar)
+    TUniquePtr<IHktDeterminismSimulator> Sim = CreateDeterminismSimulator(EHktLogSource::Server);
+
+    // Frame 1: spawn 이동 엔티티.
+    FHktSimulationEvent Spawn;
+    Spawn.FrameNumber = 1;
+    Spawn.NewEntityStates.Add(MakeMoverEntityState(
+        /*Pos*/0, 0, 0,
+        /*Tgt*/TestConst::FarTargetCm, 0, 0,
+        TestConst::DefaultForce, TestConst::DefaultMass, TestConst::DefaultMaxSpeed));
+    Sim->AdvanceFrame(Spawn);
+
+    // 후속 프레임은 입력 없이 진행 — Movement 적분만 발생.
+    for (int32 F = 2; F <= NumFrames; ++F)
     {
-        return FHktTestResult::Fail(TEXT("Integration_SimulatorParity_V1V2"),
-            TEXT("`hkt.Move.UseV2` CVar 미등록 — HktCore 가 로드되지 않았거나 V2 가 제거됨"));
+        FHktSimulationEvent Empty;
+        Empty.FrameNumber = F;
+        Sim->AdvanceFrame(Empty);
     }
 
-    auto Run = [](int32 UseV2Value)
-    {
-        FUseV2Scope CVarScope(UseV2Value);
+    const FHktWorldState& WS = Sim->GetWorldState();
+    if (WS.GetEntityCount() != 1)
+        return FHktTestResult::Fail(TEXT("Integration_SimulatorReachesTarget"),
+            FString::Printf(TEXT("EntityCount 1 기대, 실제 %d"), WS.GetEntityCount()));
+    if (!WS.IsValidEntity(/*Id=*/0))
+        return FHktTestResult::Fail(TEXT("Integration_SimulatorReachesTarget"),
+            TEXT("EntityId=0 이 유효하지 않음"));
 
-        TUniquePtr<IHktDeterminismSimulator> Sim = CreateDeterminismSimulator(EHktLogSource::Server);
+    const int32 IsMoving = WS.GetProperty(0, PropertyId::IsMoving);
+    if (IsMoving != 0)
+        return FHktTestResult::Fail(TEXT("Integration_SimulatorReachesTarget"),
+            FString::Printf(TEXT("%d 프레임 후 IsMoving=0 기대, 실제 %d (도착 실패)"),
+                NumFrames, IsMoving));
 
-        // Frame 1: spawn 이동 엔티티.
-        FHktSimulationEvent Spawn;
-        Spawn.FrameNumber = 1;
-        Spawn.NewEntityStates.Add(MakeMoverEntityState(
-            /*Pos*/0, 0, 0,
-            /*Tgt*/TestConst::FarTargetCm, 0, 0,
-            TestConst::DefaultForce, TestConst::DefaultMass, TestConst::DefaultMaxSpeed));
-        Sim->AdvanceFrame(Spawn);
+    // 도착 sanity — 타겟 X 근처(±몇 cm)로 와 있어야 한다.
+    const int32 PosX = WS.GetProperty(0, PropertyId::PosX);
+    if (FMath::Abs(PosX - TestConst::FarTargetCm) > 4)
+        return FHktTestResult::Fail(TEXT("Integration_SimulatorReachesTarget"),
+            FString::Printf(TEXT("PosX %d (~%d 기대)"), PosX, TestConst::FarTargetCm));
 
-        // 후속 프레임은 입력 없이 진행 — Movement 적분만 발생.
-        for (int32 F = 2; F <= NumFrames; ++F)
-        {
-            FHktSimulationEvent Empty;
-            Empty.FrameNumber = F;
-            Sim->AdvanceFrame(Empty);
-        }
-        return Sim;
-    };
-
-    TUniquePtr<IHktDeterminismSimulator> SimV1 = Run(0);
-    TUniquePtr<IHktDeterminismSimulator> SimV2 = Run(1);
-
-    // 최종 WorldState 의 운동 상태 일치 확인.
-    FString Mismatch;
-    if (!CompareWorldStates(SimV1->GetWorldState(), SimV2->GetWorldState(), Mismatch))
-    {
-        return FHktTestResult::Fail(TEXT("Integration_SimulatorParity_V1V2"), Mismatch);
-    }
-
-    // Sanity: 두 시뮬레이터 모두 실제로 도착했는가 (테스트 자체의 유효성 보증 — V1 reference 검증).
-    auto IsArrived = [](const IHktDeterminismSimulator* Sim) -> bool
-    {
-        const FHktWorldState& WS = Sim->GetWorldState();
-        if (WS.GetEntityCount() != 1) return false;
-        return WS.IsValidEntity(/*Id=*/0)
-            && WS.GetProperty(0, PropertyId::IsMoving) == 0;
-    };
-    if (!IsArrived(SimV1.Get()) || !IsArrived(SimV2.Get()))
-    {
-        return FHktTestResult::Fail(TEXT("Integration_SimulatorParity_V1V2"),
-            TEXT("도착 sanity 실패 — NumFrames 가 부족하거나 시뮬레이터 파이프라인 결함"));
-    }
-
-    return FHktTestResult::Pass(TEXT("Integration_SimulatorParity_V1V2"));
+    return FHktTestResult::Pass(TEXT("Integration_SimulatorReachesTarget"));
 }
 
-/** T13 (VM-driven mark): Story 바이트코드 → VMContext.WriteEntity → SetPropertyDirty hook
+/** T14 (VM-driven mark): Story 바이트코드 → VMContext.WriteEntity → SetPropertyDirty hook
  *  경로가 실제로 슬롯을 active mover 로 마크하는지 검증.
  *
  *  유닛 테스트는 `VMProxy.SetPropertyDirty` 를 직접 호출해 hook 동작만 cover 했다.
@@ -778,11 +676,8 @@ static FHktTestResult Test_VMDriven_MarksActiveMoverViaMoveToward()
             TEXT("초기 상태에서 ActiveMoverSlots 비어있어야 함"));
     }
 
-    // MoveToward 는 내부적으로 다음 5 회 prop write 를 emit (HktStoryBuilder.cpp):
-    //   SaveStoreEntity MoveTargetX/Y/Z + SaveConstEntity MoveForce + SaveConstEntity IsMoving
-    // 그중 MoveForce / IsMoving 는 SetPropertyDirty hook 의 대상 — 해당 슬롯이 마크돼야 한다.
     const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(
-        FName(TEXT("Test.Movement.V2.VMDriven")), /*ErrorIfNotFound=*/false);
+        FName(TEXT("Test.Movement.VMDriven")), /*ErrorIfNotFound=*/false);
 
     auto Program = FHktStoryBuilder::Create(Tag)
         .LoadConst(Reg::R5, TestConst::FarTargetCm)  // TargetX
@@ -809,7 +704,6 @@ static FHktTestResult Test_VMDriven_MarksActiveMoverViaMoveToward()
         ? H.GetVMProxy().ActiveMoverMask[SlotOfE] : 0;
     H.Teardown();
 
-    // Sanity: Story 자체가 정상 실행됐는가.
     if (IsMoving != 1)
         return FHktTestResult::Fail(TEXT("VMDriven_MarksActiveMoverViaMoveToward"),
             FString::Printf(TEXT("IsMoving=1 기대, 실제 %d (Story 실행 자체 실패)"), IsMoving));
@@ -817,11 +711,9 @@ static FHktTestResult Test_VMDriven_MarksActiveMoverViaMoveToward()
         return FHktTestResult::Fail(TEXT("VMDriven_MarksActiveMoverViaMoveToward"),
             FString::Printf(TEXT("MoveForce %d 기대, 실제 %d"),
                 TestConst::DefaultForce, MoveForce));
-
-    // 핵심 검증: VM 경로를 통해서도 active mover 가 마크됐는가.
     if (ActiveCount != 1)
         return FHktTestResult::Fail(TEXT("VMDriven_MarksActiveMoverViaMoveToward"),
-            FString::Printf(TEXT("ActiveMoverSlots 크기 1 기대, 실제 %d (VM→hook 경로 단절 의심)"),
+            FString::Printf(TEXT("ActiveMoverSlots 1 기대, 실제 %d (VM→hook 경로 단절 의심)"),
                 ActiveCount));
     if (MaskOfE != 1)
         return FHktTestResult::Fail(TEXT("VMDriven_MarksActiveMoverViaMoveToward"),
@@ -837,18 +729,19 @@ static FHktTestResult Test_VMDriven_MarksActiveMoverViaMoveToward()
 FHktTestReport RunAllMovementSystemTests()
 {
     FHktTestReport Report;
-    Report.Add(Test_Parity_SingleMover());
-    Report.Add(Test_Parity_MixedMoversAndIdles());
-    Report.Add(Test_Parity_ArrivalEvent());
-    Report.Add(Test_V2_PrunesIdleSlot());
-    Report.Add(Test_V2_KeepsMovingSlotActive());
-    Report.Add(Test_V2_NoDuplicateAfterPruneRemark());
-    Report.Add(Test_V2_NoDuplicateOnMultipleMarks());
-    Report.Add(Test_V2_PreMovePositionsFilled());
-    Report.Add(Test_V2_EmptyWorld());
-    Report.Add(Test_V2_StaleSlotCleanup());
-    Report.Add(Test_V2_RebuildActiveMovers());
-    Report.Add(Test_Integration_SimulatorParity_V1V2());
+    Report.Add(Test_ArrivalSnapsToTarget());
+    Report.Add(Test_LinearMotionReachesTarget());
+    Report.Add(Test_RotYawUpdatedTowardTarget());
+    Report.Add(Test_VelocityRespectsMaxSpeed());
+    Report.Add(Test_EmptyWorld());
+    Report.Add(Test_PrunesIdleSlot());
+    Report.Add(Test_KeepsMovingSlotActive());
+    Report.Add(Test_NoDuplicateAfterPruneRemark());
+    Report.Add(Test_NoDuplicateOnMultipleMarks());
+    Report.Add(Test_PreMovePositionsFilledForAllSlots());
+    Report.Add(Test_StaleSlotCleanup());
+    Report.Add(Test_RebuildActiveMovers());
+    Report.Add(Test_Integration_SimulatorReachesTarget());
     Report.Add(Test_VMDriven_MarksActiveMoverViaMoveToward());
     return Report;
 }
@@ -856,7 +749,7 @@ FHktTestReport RunAllMovementSystemTests()
 } // namespace HktMovementSystemTests
 
 // ============================================================================
-// UE Automation Test 노출 — Session Frontend "Hkt.Movement.V2.*" 트리에 표시
+// UE Automation Test 노출 — Session Frontend "HktCore.Movement.*" 트리에 표시
 // ============================================================================
 
 #if WITH_AUTOMATION_TESTS
@@ -883,32 +776,34 @@ namespace
         return ReportToAutomation(*this, HktMovementSystemTests::TestFunc()); \
     }
 
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_Parity_SingleMoverTest,
-    "HktCore.Movement.V2.Parity.SingleMover", Test_Parity_SingleMover)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_Parity_MixedTest,
-    "HktCore.Movement.V2.Parity.MixedMoversAndIdles", Test_Parity_MixedMoversAndIdles)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_Parity_ArrivalEventTest,
-    "HktCore.Movement.V2.Parity.ArrivalEvent", Test_Parity_ArrivalEvent)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_PrunesIdleSlotTest,
-    "HktCore.Movement.V2.Invariant.PrunesIdleSlot", Test_V2_PrunesIdleSlot)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_KeepsMovingSlotActiveTest,
-    "HktCore.Movement.V2.Invariant.KeepsMovingSlotActive", Test_V2_KeepsMovingSlotActive)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_NoDuplicateAfterPruneRemarkTest,
-    "HktCore.Movement.V2.Invariant.NoDuplicateAfterPruneRemark", Test_V2_NoDuplicateAfterPruneRemark)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_NoDuplicateOnMultipleMarksTest,
-    "HktCore.Movement.V2.Invariant.NoDuplicateOnMultipleMarks", Test_V2_NoDuplicateOnMultipleMarks)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_PreMovePositionsFilledTest,
-    "HktCore.Movement.V2.Invariant.PreMovePositionsFilled", Test_V2_PreMovePositionsFilled)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_EmptyWorldTest,
-    "HktCore.Movement.V2.Invariant.EmptyWorld", Test_V2_EmptyWorld)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_StaleSlotCleanupTest,
-    "HktCore.Movement.V2.Invariant.StaleSlotCleanup", Test_V2_StaleSlotCleanup)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_RebuildActiveMoversTest,
-    "HktCore.Movement.V2.Invariant.RebuildActiveMovers", Test_V2_RebuildActiveMovers)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_Integration_SimulatorParityTest,
-    "HktCore.Movement.V2.Integration.SimulatorParity", Test_Integration_SimulatorParity_V1V2)
-HKT_DEFINE_MOVEMENT_TEST(FHktMovementV2_Integration_VMDrivenMarkTest,
-    "HktCore.Movement.V2.Integration.VMDrivenMark", Test_VMDriven_MarksActiveMoverViaMoveToward)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_ArrivalSnapsToTargetTest,
+    "HktCore.Movement.Arrival.SnapsToTarget", Test_ArrivalSnapsToTarget)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_LinearMotionReachesTargetTest,
+    "HktCore.Movement.Motion.LinearReachesTarget", Test_LinearMotionReachesTarget)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_RotYawUpdatedTowardTargetTest,
+    "HktCore.Movement.Motion.RotYawUpdatedTowardTarget", Test_RotYawUpdatedTowardTarget)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_VelocityRespectsMaxSpeedTest,
+    "HktCore.Movement.Motion.VelocityRespectsMaxSpeed", Test_VelocityRespectsMaxSpeed)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_EmptyWorldTest,
+    "HktCore.Movement.Invariant.EmptyWorld", Test_EmptyWorld)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_PrunesIdleSlotTest,
+    "HktCore.Movement.Invariant.PrunesIdleSlot", Test_PrunesIdleSlot)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_KeepsMovingSlotActiveTest,
+    "HktCore.Movement.Invariant.KeepsMovingSlotActive", Test_KeepsMovingSlotActive)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_NoDuplicateAfterPruneRemarkTest,
+    "HktCore.Movement.Invariant.NoDuplicateAfterPruneRemark", Test_NoDuplicateAfterPruneRemark)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_NoDuplicateOnMultipleMarksTest,
+    "HktCore.Movement.Invariant.NoDuplicateOnMultipleMarks", Test_NoDuplicateOnMultipleMarks)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_PreMovePositionsFilledTest,
+    "HktCore.Movement.Invariant.PreMovePositionsFilled", Test_PreMovePositionsFilledForAllSlots)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_StaleSlotCleanupTest,
+    "HktCore.Movement.Invariant.StaleSlotCleanup", Test_StaleSlotCleanup)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_RebuildActiveMoversTest,
+    "HktCore.Movement.Invariant.RebuildActiveMovers", Test_RebuildActiveMovers)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_Integration_SimulatorReachesTargetTest,
+    "HktCore.Movement.Integration.SimulatorReachesTarget", Test_Integration_SimulatorReachesTarget)
+HKT_DEFINE_MOVEMENT_TEST(FHktMovement_Integration_VMDrivenMarkTest,
+    "HktCore.Movement.Integration.VMDrivenMark", Test_VMDriven_MarksActiveMoverViaMoveToward)
 
 #undef HKT_DEFINE_MOVEMENT_TEST
 

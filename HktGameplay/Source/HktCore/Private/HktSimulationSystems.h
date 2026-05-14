@@ -16,9 +16,6 @@ class FHktVMRuntimePool;
 struct FHktVMWorldStateProxy;
 struct FHktTerrainState;
 
-/** `hkt.Move.UseV2` CVar 조회 — 1 이면 V2(active-mover 기반) 경로 사용. */
-bool HktUseMovementV2();
-
 /** Private: Physics 이벤트 (시스템 내부용) */
 struct FHktPhysicsEvent
 {
@@ -124,11 +121,13 @@ struct HKTCORE_API FHktGravitySystem
     );
 };
 
-/** 3.5 Movement System: 순수 운동학 적분 (지형 질의 없음)
+/** 3.5 Movement System: 순수 운동학 적분 (active-mover 추적 기반)
  *
  * 책임:
  *   - 힘/질량/속도 적분으로 기대 위치 계산
- *   - idle 엔티티 skip 최적화
+ *   - VMProxy.ActiveMoverSlots 만 순회 (운동 관련 프로퍼티가 한 번이라도 쓰인 슬롯)
+ *   - 비활성 슬롯은 PreMovePositions[Slot] = 현재 Pos 로 prefill (Physics 불변식)
+ *   - 완전 정지(idle) 슬롯은 처리 후 ActiveMoverMask/Slots 에서 즉시 prune
  *   - MoveEnd 이벤트 emit, RotYaw 갱신
  *
  * 책임 아님 (PhysicsSystem 이관):
@@ -138,6 +137,9 @@ struct HKTCORE_API FHktGravitySystem
  *
  * 고정 프레임 시뮬레이션. DeltaSeconds 입력은 받지 않는다 — 결정론.
  * 모든 시간 종속 적분은 hkt.Sim.FramesPerSecond CVar (HktSimulationTick.h) 로부터 파생된다.
+ *
+ * Invariant: `VMProxy.ActiveMoverMask[Slot]==1` ⇔ Slot ∈ ActiveMoverSlots (정확히 1회).
+ * mark/prune 양쪽에서 swap-pop 으로 유지된다.
  */
 struct HKTCORE_API FHktMovementSystem
 {
@@ -156,29 +158,6 @@ struct HKTCORE_API FHktMovementSystem
         FHktVMWorldStateProxy& VMProxy,
         TArray<FHktPendingEvent>& OutMoveEndEvents,
         TArray<FIntVector>& OutPreMovePositions  // Slot 인덱스로 접근 — Physics 가 revert/슬라이드에 사용
-    );
-};
-
-/** 3.5b Movement System V2 (실험적):
- *
- * V1 과 동일한 운동학을 수행하되, `WorldState.ForEachEntity` 가 아닌
- * `VMProxy.ActiveMoverSlots` (운동 관련 프로퍼티가 한 번이라도 쓰인 슬롯) 만 순회.
- * 정지된 대규모 엔티티 집단의 매 틱 비용을 제거하는 것이 목적.
- *
- * 비활성 슬롯은 PreMovePositions[Slot] = 현재 Pos 로 채워둔다 — PhysicsSystem 의
- * Velocity = ExpectedPos - PreMovePos 불변식을 유지하기 위함.
- *
- * `hkt.Move.UseV2` CVar 가 1 이면 V1 대신 호출된다.
- */
-struct HKTCORE_API FHktMovementSystemV2
-{
-    EHktLogSource LogSource = EHktLogSource::Server;
-
-    void Process(
-        FHktWorldState& WorldState,
-        FHktVMWorldStateProxy& VMProxy,
-        TArray<FHktPendingEvent>& OutMoveEndEvents,
-        TArray<FIntVector>& OutPreMovePositions
     );
 };
 
