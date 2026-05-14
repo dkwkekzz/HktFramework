@@ -23,6 +23,7 @@ public class HktInsights : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
+            "DesktopPlatform"
         });
     }
 }
