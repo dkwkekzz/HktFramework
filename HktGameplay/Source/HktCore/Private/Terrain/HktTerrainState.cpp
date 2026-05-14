@@ -283,7 +283,10 @@ void FHktTerrainState::RebuildHeightmapColumn(int32 WorldVoxelX, int32 WorldVoxe
 	// 위에서 아래로 탐색
 	const int32 TopZ = (MaxChunkZ + 1) * ChunkSize - 1;
 	const int32 BottomZ = MinChunkZ * ChunkSize;
-	int32 SurfaceZ = BottomZ;
+	// 0 = cache-miss 센티넬 (GetSurfaceHeightAt / PhysicsSystem 의 `SurfaceVZ > 0` 가드와 합의된 규약).
+	// solid 미발견 시 BottomZ 를 캐싱하면 컬럼이 부분 로드된 상태(예: 위쪽 air 청크만 들어옴)에서
+	// "팬텀 표면" 이 되어 PIE 첫 플레이에 캐릭터가 떠 있게 된다. 호출자가 scan-up 폴백을 타도록 0 으로 남긴다.
+	int32 SurfaceZ = 0;
 
 	for (int32 Z = TopZ; Z >= BottomZ; --Z)
 	{
@@ -340,7 +343,9 @@ void FHktTerrainState::RebuildHeightmapForChunk(const FIntVector& ChunkCoord)
 		{
 			const int32 WX = WorldBaseX + LX;
 			const int32 WY = WorldBaseY + LY;
-			int32 SurfaceZ = BottomZ;
+			// 0 = cache-miss 센티넬. solid 미발견 시 BottomZ 를 캐싱하면 컬럼이 부분 로드된 상태에서
+			// 팬텀 표면이 되어 PIE 첫 플레이에 캐릭터가 떠 있게 된다 (RebuildHeightmapColumn 동일 규약).
+			int32 SurfaceZ = 0;
 
 			for (int32 Z = TopZ; Z >= BottomZ; --Z)
 			{
