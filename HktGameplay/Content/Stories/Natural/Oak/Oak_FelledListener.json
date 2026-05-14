@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "storyTag": "Event.Natural.TreeFelled",
+  "storyTag": "Event.Natural.OakFelled",
   "tags": {
     "Oak":            "Entity.Natural.Oak",
     "Branch":         "Entity.Natural.Branch",

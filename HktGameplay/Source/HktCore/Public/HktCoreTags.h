@@ -34,6 +34,13 @@ namespace HktNaturalEventTags
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TrailEndpointReached);  // Event.Natural.TrailEndpointReached
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(PeakReached);           // Event.Natural.PeakReached
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GrainObserved);         // Event.Natural.GrainObserved
+
+    // ── PR-5 — 트리별 분기 이벤트 (FHktVMProgramRegistry 가 tag→program 1:1 매핑이므로
+    //    Birch / Oak 리스너가 동일 storyTag(Event.Natural.TreeFelled) 로 동시 등록할 수 없음.
+    //    클라이언트(또는 향후 추가될 라우터 story) 가 target 의 종 태그에 따라
+    //    트리별 이벤트를 직접 발사한다. PR-6+ 에서 multi-handler 레지스트리 또는 router
+    //    story 도입 시 통합 가능). ──
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakFelled);             // Event.Natural.OakFelled
 }
 
 namespace HktToolTags

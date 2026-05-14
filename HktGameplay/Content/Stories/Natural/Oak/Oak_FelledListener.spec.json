@@ -1,6 +1,6 @@
 {
-  "storyTag": "Event.Natural.TreeFelled",
-  "description": "Oak TreeFelled 리스너 — Target 이 Oak + 거리 ≤ 500 + Axe 소유 통과 시 Target 파괴 + Branch 3 본 drop + 가계 LineageFelledCount +1 + RegionOakCount -1 + Param2 에 LineageId 채워 Event.Region.OakSaplingSeed 디스패치. (Birch 리스너와 storyTag 가 같지만 HasTag(Oak) gate 로 분리)",
+  "storyTag": "Event.Natural.OakFelled",
+  "description": "Oak OakFelled 리스너 — Target 이 Oak + 거리 ≤ 500 + Axe 소유 통과 시 Target 파괴 + Branch 3 본 drop + 가계 LineageFelledCount +1 + RegionOakCount -1 + Param2 에 LineageId 채워 Event.Region.OakSaplingSeed 디스패치. FHktVMProgramRegistry 가 tag→program 1:1 매핑이라 Birch 의 TreeFelled 와 충돌하지 않도록 트리별 이벤트로 분리 (PR-6+ router/multi-handler 도입 시 통합 가능).",
   "scenarios": [
     {
       "name": "non_oak_target_short_circuits",
