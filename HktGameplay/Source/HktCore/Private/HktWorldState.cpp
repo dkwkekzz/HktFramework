@@ -179,37 +179,30 @@ void FHktWorldState::RemoveEntity(FHktEntityId Id)
     if (!IsValidEntity(Id)) return;
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("RemoveEntity Id=%d"), Id), Id);
-
-    // Region 캐시 정합성 — 제거되는 region row 가 있으면 인덱스에서도 제거.
-    // (대부분의 entity 는 region 이 아니므로 분기 비용은 미미하다.)
-    if (TagContainers.IsValidIndex(EntitySlots[Id]) &&
-        TagContainers[EntitySlots[Id]].HasTag(HktArchetypeTags::Entity_Region))
-    {
-        for (auto It = RegionEntityMap.CreateIterator(); It; ++It)
-        {
-            if (It.Value() == Id) { It.RemoveCurrent(); break; }
-        }
-    }
-
     FreeSlot(EntitySlots[Id]);
     EntitySlots[Id] = -1;
 }
 
 FHktEntityId FHktWorldState::FindOrCreateRegionEntity(uint32 RegionId)
 {
-    if (const FHktEntityId* Cached = RegionEntityMap.Find(RegionId))
+    // SoA 선형 스캔 — Entity.Region 태그 + RegionIdKey 컬럼 매칭.
+    // 별도 store / TMap 0 (절대 원칙 5).
+    const int32 Key = static_cast<int32>(RegionId);
+    const int32 SlotCount = SlotToEntity.Num();
+    for (int32 Slot = 0; Slot < SlotCount; ++Slot)
     {
-        if (IsValidEntity(*Cached))
+        const FHktEntityId ExistingId = SlotToEntity[Slot];
+        if (ExistingId == InvalidEntityId) continue;
+        if (!TagContainers[Slot].HasTag(HktArchetypeTags::Entity_Region)) continue;
+        if (Get(Slot, PropertyId::RegionIdKey) == Key)
         {
-            return *Cached;
+            return ExistingId;
         }
-        // stale 캐시 (entity 가 제거됨) — 제거 후 fall-through 로 재생성.
-        RegionEntityMap.Remove(RegionId);
     }
 
     const FHktEntityId NewId = AllocateEntity();
     AddTag(NewId, HktArchetypeTags::Entity_Region);
-    RegionEntityMap.Add(RegionId, NewId);
+    SetProperty(NewId, PropertyId::RegionIdKey, Key);
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("FindOrCreateRegionEntity RegionId=0x%08X EntityId=%d"), RegionId, NewId), NewId);
@@ -361,7 +354,6 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
     TagContainers = Other.TagContainers;
     EntityArchetypes = Other.EntityArchetypes;
     OwnerUids = Other.OwnerUids;
-    RegionEntityMap = Other.RegionEntityMap;
 
 #if ENABLE_HKT_INSIGHTS
     EntityDebugInfos = Other.EntityDebugInfos;
@@ -491,33 +483,6 @@ bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bO
     }
 
     Ar << ActiveVMSnapshots;
-
-    // PR-2 — Region 인덱스. 04 §6-2 의 영속 정책상 save asset 에는 저장 안 하지만,
-    // GGPO 롤백/네트워크 직렬화는 단일 프레임 상태이므로 인덱스를 함께 보내는 편이 단순/안전.
-    if (Ar.IsLoading())
-    {
-        RegionEntityMap.Reset();
-    }
-    int32 RegionMapCount = RegionEntityMap.Num();
-    Ar << RegionMapCount;
-    if (Ar.IsSaving())
-    {
-        for (auto& Pair : RegionEntityMap)
-        {
-            uint32 K = Pair.Key;
-            FHktEntityId V = Pair.Value;
-            Ar << K << V;
-        }
-    }
-    else
-    {
-        for (int32 i = 0; i < RegionMapCount; ++i)
-        {
-            uint32 K = 0; FHktEntityId V = InvalidEntityId;
-            Ar << K << V;
-            RegionEntityMap.Add(K, V);
-        }
-    }
     return true;
 }
 

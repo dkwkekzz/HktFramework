@@ -210,6 +210,7 @@ namespace HktProperty
     // FHktWorldState::FindOrCreateRegionEntity 가 lazy-create 한다.
     // 자주 갱신되지 않으므로 Cold tier — Hot stride 부담 없음.
 
+    HKT_DEFINE_PROPERTY(RegionIdKey,               Cold) // RegionId (packed macro-tile). FindOrCreateRegionEntity 의 lookup 키 — 별도 store 0, 순수 SoA.
     HKT_DEFINE_PROPERTY(RegionFireCounter,         Cold) // 발화 누적
     HKT_DEFINE_PROPERTY(RegionHarvestedClusters,   Cold) // 베리/허브 cluster 수확 누적
     HKT_DEFINE_PROPERTY(RegionDeadTrees,           Cold) // 고사목 누적
