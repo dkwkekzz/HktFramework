@@ -292,6 +292,8 @@ void FHktVMBuildSystem::Process(
         if (!Handle.IsValid())
         {
             HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, LogSource, TEXT("VM Build: Pool exhausted"));
+            HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Discarded, LogSource,
+                static_cast<int64>(CurrentFrame), TEXT("PoolExhausted"));
             continue;
         }
 
@@ -378,19 +380,9 @@ void FHktVMProcessSystem::Process(
     ScratchEvents.Reset();
     Swap(ScratchEvents, PendingExternalEvents);
 
-#if ENABLE_HKT_INSIGHTS
-    // 진입 직후 — 이번 틱에 처리될 PendingEvent 의 Created 시점을 일괄 기록.
-    // (실제 생성은 Movement/Physics 단계지만 기록 시점은 ProcessSystem 진입이 다양한
-    //  출처를 한곳에서 묶어 추적하기 좋다.)
-    if (FHktVMEventRecorder::Get().IsActive())
-    {
-        for (const FHktPendingEvent& P : ScratchEvents)
-        {
-            HKT_VM_EVENT_RECORD_PENDING(P, EHktVMEventPhase::Created, LogSource, -1,
-                TEXT("VMProcess.Enqueued"));
-        }
-    }
-#endif
+    // 진입 시 ScratchEvents 의 Created 일괄 기록은 의도적으로 하지 않는다.
+    // 모든 PendingEvent 는 출처(Movement.MoveEnd / Physics.Grounded / Physics.Collision)
+    // 단계에서 이미 RECORD_PENDING(Created) 가 한 번 찍혔으므로 여기서 또 찍으면 중복.
 
     Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
     {
