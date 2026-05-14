@@ -74,8 +74,8 @@ void FHktVMWorldStateProxy::SetPropertyDirty(FHktWorldState& WS, FHktEntityId En
         TouchAnimStartTickBySlot(WS, Slot);
     }
 
-    // MovementSystemV2 추적: 운동 관련 프로퍼티 쓰기는 슬롯을 active mover 로 표시.
-    // 쓰인 값이 0(정지)이라도 일단 mark — V2 가 처리 후 idle 이면 prune.
+    // MovementSystem 추적: 운동 관련 프로퍼티 쓰기는 슬롯을 active mover 로 표시.
+    // 쓰인 값이 0(정지)이라도 일단 mark — MovementSystem 이 처리 후 idle 이면 prune.
     if (PropId == PropertyId::IsMoving ||
         PropId == PropertyId::MoveForce ||
         PropId == PropertyId::VelX ||

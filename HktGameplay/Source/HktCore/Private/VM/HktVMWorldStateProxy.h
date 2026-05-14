@@ -37,7 +37,7 @@ struct HKTCORE_API FHktVMWorldStateProxy
     TArray<int32>  OwnerDirtySlots;
     TArray<uint8>  OwnerDirtyMask;
 
-    // --- Active Mover Tracking (MovementSystem V2 최적화용) ---
+    // --- Active Mover Tracking (MovementSystem 최적화용) ---
     //
     // 매 틱 모든 엔티티를 순회하지 않고, 이동 가능성이 있는 엔티티(슬롯)만
     // 추적해 두기 위한 sparse 인덱스. SetPropertyDirty 가 운동 관련 프로퍼티
@@ -49,8 +49,8 @@ struct HKTCORE_API FHktVMWorldStateProxy
     //   2) Mask 를 1 로 올릴 때는 항상 list 에 Add — 가드는 "이전 값이 0" 인 경우만.
     //
     // 결정론: 단일 쓰기 경로(SetPropertyDirty)를 통해 갱신되므로 동일 입력 →
-    // 동일 결과가 보장된다. V1(MovementSystem) 경로에서는 사용되지 않으며,
-    // V2 경로에서만 소비된다.
+    // 동일 결과가 보장된다. MovementSystem.Process 가 매 틱 ActiveMoverSlots 을
+    // 순회·정리한다.
     TArray<uint8> ActiveMoverMask;
     TArray<int32> ActiveMoverSlots;
 
