@@ -155,7 +155,7 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 ### 5.2 핵심 결정 (이미 합의)
 
 - **VM 메모리 모델 가드** — 시뮬 상태는 SoA 연속 컬럼만. TMap / TArray<TArray> / 포인터 그래프 일체 금지. lookup 은 SoA 선형 스캔.
-- **신규 opcode 0** — 04 §1-3 정책 그대로. record entity 가 일반 entity 와 동일 SoA 거주 → 기존 `LoadStoreEntity` / `SaveStoreEntity` 가 그대로 작동.
+- **신규 opcode 1 (host-call 카테고리)** — `RegionMapFindOrCreate(Dst=RecordEntity, Src1=RegionEntity, Src2=KeyVar, Imm12=RecordTag NetIndex)`. record key 가 *런타임 vreg* 값이므로 dispatch-time 사전 해소 불가 → VM 측 host-call 이 필요하다. `FindByOwner` / `SpawnEntity` / `CountByTag` 와 동일 카테고리. **신규 property 어드레싱 모드 0** (04 §1-3 의 본래 의도) — `LoadStoreEntity` / `SaveStoreEntity` 그대로 사용해 record 컬럼에 접근.
 - **키 폭 제약 없음** — `KeyHash` 는 32bit 자유 hash. modulo 슬롯 매핑 없음 → 충돌 0.
 - **선형 스캔 성능** — 시즌 0 의 RegionRecord row 총합 추정 < 활성 region 16 × 25 ≈ 400. spawner story 진입 시 1 회 호출 (cold path). 04 §11 트리거 (수천 row) 발화 시 별도 ADR 로 가속 자료구조 검토 — 단 VM 메모리 모델 위반 없는 형태 (SoA 정렬 컬럼 + 이진탐색 등).
 - **EntityType 범위 D3** — 시즌 0 demo 우선순위 (Birch → Oak → BerryBush → Mushroom) 를 따라 `RegionLineage` / `RegionVariant` / `RegionOreSpecies` 3 종만. `RegionPeak` (S08 명명권) / `RegionFeature` (S06/S07/S10) 는 해당 spawner 진입 PR 에서 추가.
@@ -163,7 +163,7 @@ PR-4+ (07)      spawner story 본문 (1 PR 1 spawner)           [의존: PR-1 + 
 ### 5.3 안티 패턴 (절대 금지)
 
 - ❌ 보조 hash 인덱스 (`TMap<(RegionId<<32)|Key, EntityRow>` 등) — VM 메모리 모델 위반.
-- ❌ `LoadStoreIndexed` / `SaveStoreIndexed` 류 opcode 부활 — 04 §1-3 / §3-D1 위반.
+- ❌ *property 어드레싱* opcode (`LoadStoreIndexed` / `SaveStoreIndexed` 류) 부활 — 04 §1-3 / §3-D1 위반. host-call 카테고리의 `RegionMapFindOrCreate` 1 개는 허용 (record entity 자체를 해소만 함, property 어드레싱은 기존 그대로).
 - ❌ `BasePropId + 16` 슬롯 reserved 블록 — column-slot 모델 부활 금지. record 컬럼은 *record entity 의 일반 PropertyId* 로 정의.
 - ❌ `KeyHash % N` modulo 슬롯 매핑 — 충돌 위험.
 - ❌ region record 의 별도 store / 별도 SoA — 절대 원칙 5 위반.
@@ -268,7 +268,7 @@ PR-4  (dep: PR-1+2)    Birch 트리 1 종 데모 (3 story file + 시나리오 �
 PR-5+ (dep: PR-4)      Oak / BerryBush / Pine / ... 각 1 PR
 
 판정 모델: 최소 — HktRule echo, 모든 판정은 VM bytecode 내부
-opcode 신규: 0 (record entity 가 일반 entity 와 동일 SoA — 기존 LoadStoreEntity/SaveStoreEntity 그대로)
+opcode 신규: 1 host-call (RegionMapFindOrCreate) — property 어드레싱은 기존 LoadStoreEntity/SaveStoreEntity 그대로
             + (선택) CheckFacing — Frontal arc 검사 필요 시
 helper 신규: RegionAddScalar (PR-2) / RegionMapRead / RegionMapWrite (PR-3, 기존 opcode wrapper)
 메모리 모델: 시뮬 상태 = SoA 연속 컬럼만. TMap/hash 자료구조 시뮬 진실로 두지 않음.

@@ -43,6 +43,14 @@ namespace HktArchetypeTags
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Item);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Debris);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Region);  // PR-2 — region 가상 엔티티
+
+	// --- Region Record (PR-3, 04 §3-D4) ---
+	// region 안의 *키별 record* — Lineage/Variant/OreSpecies 의 데이터 row.
+	// `FHktWorldState::FindOrCreateRegionRecord` 가 (RegionIdKey + RecordKey + 태그) 4-조건 SoA 스캔으로 lazy-create.
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord);             // parent
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_Lineage);     // Oak 가계 등 (LineageId)
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_Variant);     // Mushroom 변종 등 (VariantId)
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_OreSpecies);  // Ore 광종 (OreSpeciesId)
 }
 
 namespace HktStance

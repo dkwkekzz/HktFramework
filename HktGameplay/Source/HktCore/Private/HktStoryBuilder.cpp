@@ -1589,6 +1589,31 @@ FHktStoryBuilder& FHktStoryBuilder::AddImm(FHktVar Dst, FHktVar Src, int32 Imm)
     return *this;
 }
 
+// ---- Region (PR-3, 04 §3-D4/D6) ----
+FHktVar FHktStoryBuilder::RegionMapFindOrCreate(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar)
+{
+    // emit: RegionMapFindOrCreate(Dst, RegionEntity, KeyVar, Imm12=RecordTag NetIndex).
+    // record 생성은 인터프리터 측에서 FindOrCreateRegionRecord 가 SoA 4-조건 매치로 처리.
+    FHktVar Out = NewVar(TEXT("RegionRecord"));
+    const uint16 TagImm = static_cast<uint16>(TagToInt(RecordTag) & 0xFFF);
+    EmitV(EOpCode::RegionMapFindOrCreate, Out, RegionEntity, KeyVar, TagImm);
+    return Out;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::RegionMapRead(FHktVar Dst, FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId)
+{
+    FHktVar Record = RegionMapFindOrCreate(RegionEntity, RecordTag, KeyVar);
+    LoadStoreEntity(Dst, Record, PropId);
+    return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::RegionMapWrite(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId, FHktVar ValueVar)
+{
+    FHktVar Record = RegionMapFindOrCreate(RegionEntity, RecordTag, KeyVar);
+    SaveStoreEntity(Record, PropId, ValueVar);
+    return *this;
+}
+
 // ---- Region (PR-2) ----
 FHktStoryBuilder& FHktStoryBuilder::RegionAddScalar(FHktVar RegionEntity, uint16 PropId, int32 Delta)
 {

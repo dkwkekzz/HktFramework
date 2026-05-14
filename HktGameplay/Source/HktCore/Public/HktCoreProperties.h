@@ -222,6 +222,30 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(RegionOakCount,            Cold) // Oak 현존 cap (PR-5+ 예약)
     HKT_DEFINE_PROPERTY(RegionPineCount,           Cold) // Pine 현존 cap (PR-7+ 예약)
 
+    // ===== Region-Record (PR-3, Cold tier — 04 §3-D4 Group B) =====
+    //
+    // region 안의 *키별 record entity* 가 보관하는 컬럼들. record 1개 = SoA row 1개.
+    // 모든 record 는 `Entity.RegionRecord.*` 태그 + `RegionIdKey` (소속 region) + `RecordKey` (record 키)
+    // 3-컬럼을 기본으로 갖고, record 유형별 추가 컬럼을 덧붙인다.
+    // lookup 은 `FHktWorldState::FindOrCreateRegionRecord` 가 SoA 선형 스캔으로 처리 (TMap 0).
+
+    HKT_DEFINE_PROPERTY(RecordKey,                 Cold) // 32bit 자유 key — LineageId / VariantId / OreSpeciesId 공용. modulo 슬롯 매핑 0.
+
+    // Lineage (Oak/Birch 가계 등) — Entity.RegionRecord.Lineage
+    HKT_DEFINE_PROPERTY(LineageFelledCount,        Cold) // 이 가계에서 베인 그루 수 누적
+    HKT_DEFINE_PROPERTY(LineagePromotedCount,      Cold) // 이 가계에서 후계자 promotion 발화 누적
+    HKT_DEFINE_PROPERTY(LineageElderPosX,          Cold) // Elder 좌표 — 다음 자식 spawn 의 anchor (cm 단위)
+    HKT_DEFINE_PROPERTY(LineageElderPosY,          Cold)
+    HKT_DEFINE_PROPERTY(LineageElderPosZ,          Cold)
+
+    // Variant (Mushroom/Herb 변종 등) — Entity.RegionRecord.Variant
+    HKT_DEFINE_PROPERTY(VariantPotency,            Cold) // 변종의 효능 강도
+    HKT_DEFINE_PROPERTY(VariantFirstFoundFrame,    Cold) // 처음 식별된 시뮬레이션 프레임 (0=미식별)
+
+    // Ore (광종 depletion) — Entity.RegionRecord.OreSpecies
+    HKT_DEFINE_PROPERTY(OreDepletedCount,          Cold) // 이 광종의 누적 채광량 (임계 시 광종 전이)
+    HKT_DEFINE_PROPERTY(OreCurrentSpeciesId,       Cold) // 현재 region 에서 등장 중인 광종 (전이 후 변경)
+
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계
     // ================================================================
