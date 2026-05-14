@@ -6,7 +6,6 @@
 #include "HktCoreArchetype.h"
 #include "HktBagTypes.h"
 #include "HktStoryEventParams.h"
-#include "HktNaturalActionRouter.h"
 #include "HktRuleLog.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
@@ -75,25 +74,12 @@ void FHktDefaultServerRule::OnReceived_RuntimeEvent(
 	// EventTag 유효성 검증
 	if (!InEvent.EventTag.IsValid()) return;
 
-	// FHktEvent 생성 — 클라이언트가 보낸 이벤트를 서버 시퀀스로 재발행
+	// FHktEvent 생성 — 클라이언트가 보낸 이벤트를 서버 시퀀스로 재발행.
+	// 클라이언트는 `Event.Natural.*` (또는 다른 시뮬 이벤트) 를 직접 발사하며,
+	// 검증은 VM precondition + 결정론 모델이 담당한다 (Plan §3 ADR-R1 참조).
 	FHktEvent Event = InEvent;
 	Event.EventId = ++ServerEventSequence;
 	Event.PlayerUid = PlayerUid;
-
-	// PR-1/PR-4 wire-up — Action.Natural.* 인텐트는 라우터를 통과시켜
-	// Event.Natural.* 로 변환한 뒤 동일 큐에 enqueue. 판정/거리 검사는 VM 단계에서.
-	if (HktNaturalActionRouter::IsKnownAction(Event.EventTag))
-	{
-		FHktEvent Routed;
-		HktNaturalActionRouter::RouteAction(Routed, Event);
-		if (Routed.EventTag.IsValid())
-		{
-			Event = Routed;
-			Event.EventId = ++ServerEventSequence;
-			Event.PlayerUid = PlayerUid;
-		}
-	}
-
 	PendingGroupIntents[GroupIndex].Add(Event);
 }
 
