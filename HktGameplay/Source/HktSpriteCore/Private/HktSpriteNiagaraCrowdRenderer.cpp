@@ -5,6 +5,8 @@
 #include "HktAssetSubsystem.h"
 #include "HktCoreEventLog.h"
 #include "HktSpriteCharacterTemplate.h"
+#include "HktHISMSpriteVisualAsset.h"
+#include "HktHISMSpriteAnimationDataAsset.h"
 #include "HktSpriteCoreLog.h"
 #include "HktSpriteFrameResolver.h"
 
@@ -315,6 +317,40 @@ void UHktSpriteNiagaraCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 		Self->PendingTemplateLoads.Remove(Tag);
 
 		UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
+		if (!Template)
+		{
+			// 신규 분리 자산 호환 — HktSpriteCrowdRenderer.cpp 의 SynthesizeTemplateFromVisual
+			// 와 동일 어댑터 로직. 본 파일에서만 사용하므로 inline.
+			if (UHktHISMSpriteVisualAsset* Visual = Cast<UHktHISMSpriteVisualAsset>(Loaded))
+			{
+				UHktSpriteCharacterTemplate* Synth = NewObject<UHktSpriteCharacterTemplate>(
+					Self, NAME_None, RF_Transient);
+				Synth->Atlas         = Visual->Atlas;
+				Synth->AtlasCellSize = Visual->AtlasCellSize;
+				Synth->PixelToWorld  = Visual->PixelToWorld;
+				if (Visual->AnimationAsset)
+				{
+					Synth->Animations    = Visual->AnimationAsset->Animations;
+					Synth->DefaultAnimTag = Visual->AnimationAsset->DefaultAnimTag;
+				}
+				else
+				{
+					FHktSpriteAnimation StaticAnim;
+					StaticAnim.Atlas              = Visual->Atlas;
+					StaticAnim.AtlasCellSize      = Visual->AtlasCellSize;
+					StaticAnim.NumDirections      = 1;
+					StaticAnim.FramesPerDirection = 1;
+					StaticAnim.bLooping           = false;
+					StaticAnim.PivotOffset        = FVector2f(
+						Visual->AtlasCellSize.X * 0.5f, Visual->AtlasCellSize.Y);
+					const FGameplayTag StaticTag = FGameplayTag::RequestGameplayTag(
+						FName("Anim.Static.Default"), /*ErrorIfNotFound*/ false);
+					Synth->DefaultAnimTag = StaticTag;
+					Synth->Animations.Add(StaticTag, StaticAnim);
+				}
+				Template = Synth;
+			}
+		}
 		if (!Template)
 		{
 			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,

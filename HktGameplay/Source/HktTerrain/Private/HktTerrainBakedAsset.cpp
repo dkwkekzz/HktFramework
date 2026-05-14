@@ -175,3 +175,17 @@ void UHktTerrainBakedAsset::GetSpawnersForChunk(const FIntVector& Coord,
 		}
 	}
 }
+
+bool UHktTerrainBakedAsset::TryGetSurfaceContext(const FIntVector& Coord,
+                                                int32& OutBiomeId, int32& OutSurfaceVoxelZ, uint32& OutSlotHash) const
+{
+	const FHktTerrainBakedChunk* Chunk = FindChunk(Coord);
+	if (!Chunk || !Chunk->bIsSurfaceChunk)
+	{
+		return false;
+	}
+	OutBiomeId       = static_cast<int32>(Chunk->BiomeId);
+	OutSurfaceVoxelZ = Chunk->SurfaceVoxelZ;
+	OutSlotHash      = Chunk->SlotHash;
+	return true;
+}

@@ -202,6 +202,12 @@ struct HKTTERRAIN_API FHktTerrainSpawnerSpec
  *
  * `FHktTerrainVoxel`(4바이트) × 32768 = 128KB raw 가 oodle 압축되어 CompressedData 에 저장된다.
  * 디컴프레스 후 UncompressedSize 와 비교하여 무결성 검증.
+ *
+ * v3 (TerrainSpawner.design.md §4-a 런타임 정책 패스):
+ *   - 본 청크가 표면 (top-most non-air voxel 보유) 인 경우 BiomeId / SurfaceVoxelZ /
+ *     SlotHash 를 캡처한다. sim 의 `TryGetChunkContext` 가 본 필드를 읽어 placement
+ *     정책 Story 에 전달.
+ *   - 비표면 청크는 bIsSurfaceChunk=false 로 두고 나머지 필드 무의미.
  */
 USTRUCT()
 struct HKTTERRAIN_API FHktTerrainBakedChunk
@@ -218,6 +224,24 @@ struct HKTTERRAIN_API FHktTerrainBakedChunk
 	/** 압축 전 바이트 수 — 디컴프레스 시 검증 / 호출자 버퍼 할당에 사용. */
 	UPROPERTY()
 	int32 UncompressedSize = 0;
+
+	// ─── v3 surface metadata (placement 정책 진입 인자) ───
+
+	/** 본 청크가 표면 (지상 ↔ 지하 경계) 을 포함하면 true. ChunkLoaded 이벤트 발화 게이트. */
+	UPROPERTY()
+	bool bIsSurfaceChunk = false;
+
+	/** 표면 칼럼의 biome (레거시: 200+EHktBiomeType, 고급: EHktAdvBiome). */
+	UPROPERTY()
+	uint8 BiomeId = 0;
+
+	/** 표면 voxel Z (월드 voxel 좌표). bIsSurfaceChunk=false 시 무의미. */
+	UPROPERTY()
+	int32 SurfaceVoxelZ = 0;
+
+	/** hash(ChunkCoord) — placement 정책의 결정론 RNG seed / lineageId 시드. */
+	UPROPERTY()
+	uint32 SlotHash = 0;
 };
 
 /**
@@ -240,8 +264,10 @@ public:
 	 *
 	 *  - v1: 청크 복셀 + GeneratorConfig.
 	 *  - v2: Spawners[] 추가 — Story 인스턴스 메타 (TerrainSpawner.design.md §3-b).
+	 *  - v3: 청크별 surface 메타 (BiomeId/SurfaceVoxelZ/SlotHash/bIsSurfaceChunk) — 런타임
+	 *        placement 정책 패스 입력 (TerrainSpawner.design.md §4-a 갱신).
 	 */
-	static constexpr int32 CurrentBakeVersion = 2;
+	static constexpr int32 CurrentBakeVersion = 3;
 
 	/** 베이크 시 캡처된 생성기 설정. 폴백 호출 시 동일 설정 재사용 → 결정론 유지. */
 	UPROPERTY(EditAnywhere, Category = "Bake")
@@ -293,6 +319,13 @@ public:
 	 */
 	void GetSpawnersForChunk(const FIntVector& Coord,
 	                         TArray<const FHktTerrainSpawnerSpec*>& OutSpawners) const;
+
+	/**
+	 * 표면 청크 메타 조회 (v3+). 청크가 베이크 자산에 없거나 비표면이면 false.
+	 * 성공 시 OutBiomeId / OutSurfaceVoxelZ / OutSlotHash 채워진다.
+	 */
+	bool TryGetSurfaceContext(const FIntVector& Coord,
+	                          int32& OutBiomeId, int32& OutSurfaceVoxelZ, uint32& OutSlotHash) const;
 
 private:
 	/** 좌표 → Chunks 배열 인덱스 (메모리 매핑). 비직렬화. */

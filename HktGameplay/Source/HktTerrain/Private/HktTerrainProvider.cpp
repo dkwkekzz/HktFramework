@@ -100,3 +100,33 @@ void FHktTerrainProvider::GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 Chu
 		OutSpawners.Add(View);
 	}
 }
+
+bool FHktTerrainProvider::TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+                                             FHktTerrainChunkContext& OutCtx) const
+{
+	UHktTerrainSubsystem* Sub = Subsystem.Get();
+	if (!Sub)
+	{
+		return false;
+	}
+	const UHktTerrainBakedAsset* Asset = Sub->GetBakedAsset();
+	if (!Asset)
+	{
+		// BakedAsset 미로드 — placement 정책 발화 불가. INFO 로그는 GetChunkSpawners 와 공유.
+		return false;
+	}
+
+	int32 BiomeId = 0;
+	int32 SurfaceVoxelZ = 0;
+	uint32 SlotHash = 0;
+	const FIntVector Coord(ChunkX, ChunkY, ChunkZ);
+	if (!Asset->TryGetSurfaceContext(Coord, BiomeId, SurfaceVoxelZ, SlotHash))
+	{
+		return false;  // 비표면 / 미베이크 청크
+	}
+	OutCtx.BiomeId          = BiomeId;
+	OutCtx.SurfaceVoxelZ    = SurfaceVoxelZ;
+	OutCtx.SlotHash         = SlotHash;
+	OutCtx.bIsSurfaceChunk  = true;
+	return true;
+}

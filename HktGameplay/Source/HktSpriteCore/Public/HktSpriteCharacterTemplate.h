@@ -11,15 +11,22 @@
 class UTexture2D;
 
 // ============================================================================
-// UHktSpriteCharacterTemplate — 한 캐릭터의 모든 애니메이션 + 아틀라스
+// UHktSpriteCharacterTemplate — [DEPRECATED] HISM/Niagara 경로의 구(舊)
+// Visual+Animation 통합 자산.
 //
-// 각 캐릭터는 유일한 애니메이션 세트를 가진다. 파츠(Body/Head/Weapon…)로 나눠
-// 공유하던 기존 구조는 공유가 성립하지 않아 오버헤드만 컸다. 이 템플릿은
-// "캐릭터당 하나의 TagDataAsset"이며, HktAsset 태그 파이프라인을 통해
-// `IdentifierTag`(CharacterTag)로 비동기 로드된다.
+// ⚠ DEPRECATED: 신규 작업은 Visual 과 Animation 을 분리한 다음 자산을 사용:
+//    - `UHktHISMSpriteVisualAsset`             (Visual 진입 — Atlas/PixelToWorld + 옵션 Animation)
+//    - `UHktHISMSpriteAnimationDataAsset`      (동적 애니메이션 — Animations TMap)
 //
-// Animations 맵: AnimTag → FHktSpriteAnimation (그리드 + 프레임 리스트).
-// Renderer는 매 프레임 FindAnimationOrFallback(AnimTag) 로 애니를 해석.
+//    정적 객체(나무·바위 등) 는 Visual 자산만 두고 AnimationAsset 슬롯을 비워둔다.
+//
+//    본 클래스는 기존 직렬화 자산 호환을 위해 그대로 유지되며 Crowd/Niagara
+//    Renderer 는 본 자산도 계속 소비한다. UCLASS `Deprecated` 플래그는 자산
+//    호환을 깨므로 사용하지 않는다.
+//
+// 기존 동작:
+//   각 캐릭터당 하나의 TagDataAsset. `IdentifierTag`(CharacterTag)로 비동기 로드.
+//   Animations 맵: AnimTag → FHktSpriteAnimation (그리드 + 프레임 리스트).
 // ============================================================================
 
 UCLASS(BlueprintType)

@@ -2,6 +2,8 @@
 
 #include "HktSpriteCrowdRenderer.h"
 #include "HktSpriteCharacterTemplate.h"
+#include "HktHISMSpriteVisualAsset.h"
+#include "HktHISMSpriteAnimationDataAsset.h"
 #include "HktSpriteFrameResolver.h"
 #include "HktSpriteBillboardMaterial.h"
 #include "HktSpriteCoreLog.h"
@@ -351,12 +353,64 @@ void UHktSpriteCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 	});
 }
 
+// 신규 UHktHISMSpriteVisualAsset (+ 옵션 AnimationAsset) → 런타임 어댑터
+// (transient UHktSpriteCharacterTemplate) 로 합성. 기존 Renderer 코드 경로를
+// 한 줄도 바꾸지 않고 신규 자산을 소비할 수 있게 하는 가장 작은 통합 지점.
+//
+// 정적(AnimationAsset null) 경로는 NumDirections=1/FramesPerDirection=1 의 단일
+// anim 항목을 생성해 `FindAnimationOrFallback` 의 폴백 그대로 사용 가능하게 한다.
+static UHktSpriteCharacterTemplate* SynthesizeTemplateFromVisual(
+	UObject* Outer, const UHktHISMSpriteVisualAsset* Visual)
+{
+	if (!Visual) return nullptr;
+
+	UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
+		Outer ? Outer : GetTransientPackage(), NAME_None, RF_Transient);
+	Tmpl->Atlas         = Visual->Atlas;
+	Tmpl->AtlasCellSize = Visual->AtlasCellSize;
+	Tmpl->PixelToWorld  = Visual->PixelToWorld;
+
+	if (Visual->AnimationAsset)
+	{
+		// 동적 경로 — Animation 자산의 맵을 그대로 복사.
+		Tmpl->Animations    = Visual->AnimationAsset->Animations;
+		Tmpl->DefaultAnimTag = Visual->AnimationAsset->DefaultAnimTag;
+	}
+	else
+	{
+		// 정적 경로 — 단일 셀 / 단일 방향 / 비루프 anim 항목 1개.
+		FHktSpriteAnimation StaticAnim;
+		StaticAnim.Atlas               = Visual->Atlas;
+		StaticAnim.AtlasCellSize       = Visual->AtlasCellSize;
+		StaticAnim.NumDirections       = 1;
+		StaticAnim.FramesPerDirection  = 1;
+		StaticAnim.bLooping            = false;
+		StaticAnim.PivotOffset         = FVector2f(
+			Visual->AtlasCellSize.X * 0.5f, Visual->AtlasCellSize.Y);
+		const FGameplayTag StaticTag = FGameplayTag::RequestGameplayTag(
+			FName("Anim.Static.Default"), /*ErrorIfNotFound*/ false);
+		Tmpl->DefaultAnimTag = StaticTag;
+		// FindAnimationOrFallback 의 "맵 첫 원소" 폴백을 위해 어떤 키든 1개는 항상 삽입.
+		Tmpl->Animations.Add(StaticTag, StaticAnim);
+	}
+	return Tmpl;
+}
+
 void UHktSpriteCrowdRenderer::OnTemplateLoaded(FGameplayTag Tag, UHktTagDataAsset* Loaded)
 {
 	FTemplateReady* Ready = TemplateReadiness.Find(Tag);
 	if (!Ready) return;
 
 	UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
+	if (!Template)
+	{
+		// 신규 분리 자산 — Visual 자산을 어댑터로 합성.
+		if (UHktHISMSpriteVisualAsset* Visual = Cast<UHktHISMSpriteVisualAsset>(Loaded))
+		{
+			Template = SynthesizeTemplateFromVisual(this, Visual);
+		}
+	}
+
 	if (!Template)
 	{
 		Ready->Stage = ETemplateReadyStage::Failed;

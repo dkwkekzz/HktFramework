@@ -43,6 +43,8 @@ public:
 	virtual const FHktTerrainGeneratorConfig& GetConfig() const override { return Config; }
 	virtual void GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
 	                              TArray<FHktTerrainSpawnerView>& OutSpawners) const override;
+	virtual bool TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	                                FHktTerrainChunkContext& OutCtx) const override;
 	// -------------------------------------------------------------------------
 
 	/** Subsystem 이 살아있는지 확인. nullptr 시 시뮬레이션은 폴백 경로(빈 청크)로 동작. */

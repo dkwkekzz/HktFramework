@@ -32,8 +32,11 @@ namespace HktMovementSystemTests
 
 namespace TestConst
 {
-    /** 적분이 끝날 때까지 충분히 긴 도달 시뮬레이션 길이 (틱). */
-    constexpr int32 MaxArrivalTicks = 60;
+    /** 적분이 끝날 때까지 충분히 긴 도달 시뮬레이션 길이 (틱).
+     *  hkt.Sim.FramesPerSecond=30Hz 기본 + Force=10000/Mass=100/AccelMultiplier=7 →
+     *  MaxSpeed=600 cm/s 까지 가속하는 데 ~26틱, 1000cm 도달 + 슬로잉 라디우스 감속까지
+     *  ~70~80틱. 통합 테스트(T13) 의 80 프레임과 정합. 여유 포함. */
+    constexpr int32 MaxArrivalTicks = 100;
 
     /** Mover 기본 파라미터 — 운동 파이프라인이 trivially 0/1 로 자명해지지 않을
      *  "보통의" 값. */

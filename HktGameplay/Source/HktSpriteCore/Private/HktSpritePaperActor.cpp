@@ -3,6 +3,7 @@
 #include "HktSpritePaperActor.h"
 
 #include "HktPaperActorVisualDataAsset.h"
+#include "HktPaperAnimationDataAsset.h"
 #include "HktPaperCharacterTemplate.h"
 #include "HktPaperUnlitMaterial.h"
 #include "HktSpriteCoreLog.h"
@@ -21,6 +22,7 @@
 #include "Math/RotationMatrix.h"
 #include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"
+#include "PaperSprite.h"
 
 // Facing 산출 시 LastMoveDirXY 갱신 최소 속도(cm/s). 임계 미만은 sticky.
 // CrowdHost 와 동일 의미 — 같은 CVar 를 공용한다.
@@ -103,22 +105,61 @@ void AHktSpritePaperActor::OnVisualAssetLoaded(UHktTagDataAsset* InAsset)
 			CachedEntityId, *GetNameSafe(InAsset));
 		return;
 	}
-	Template = PaperVisual->Animation;
-	if (!Template)
+
+	// 우선순위: 신규 AnimationAsset ≻ deprecated Animation ≻ StaticSprite.
+	Animation       = PaperVisual->AnimationAsset;
+	LegacyTemplate  = PaperVisual->Animation;
+	StaticSprite    = PaperVisual->StaticSprite.LoadSynchronous();
+	bStaticSpriteApplied = false;
+
+	if (!Animation && !LegacyTemplate && !StaticSprite)
 	{
 		UE_LOG(LogHktSpriteCore, Warning,
-			TEXT("AHktSpritePaperActor[%d]: Visual->Animation 비어 있음 (%s)"),
+			TEXT("AHktSpritePaperActor[%d]: Visual 의 AnimationAsset/Animation/StaticSprite 가 모두 비어 있음 (%s)"),
 			CachedEntityId, *GetNameSafe(InAsset));
 	}
 
 	// 본 경로 머티리얼은 엔진 Paper2D 디폴트(`/Paper2D/MaskedUnlitSpriteMaterial`) 고정.
-	// PaperSprite 자산엔 머티리얼을 박지 않으므로(빌더 정책) 여기서 컴포넌트에 명시 적용.
 	if (FlipbookComp)
 	{
 		if (UMaterialInterface* DefaultMat = HktPaperUnlitMaterial::GetDefault())
 		{
 			FlipbookComp->SetMaterial(0, DefaultMat);
 		}
+	}
+}
+
+// 내부 헬퍼 — Animation / LegacyTemplate 중 set 된 쪽에서 메타 + Flipbook 룩업.
+// 정적 경로(둘 다 null) 에서는 호출되지 않는다.
+namespace
+{
+	const FHktPaperAnimMeta* ResolveMeta(UHktPaperAnimationDataAsset* Anim,
+		UHktPaperCharacterTemplate* Legacy, const FGameplayTag& InTag, FGameplayTag& OutTag)
+	{
+		if (Anim)   return Anim->FindAnimationOrFallback(InTag, &OutTag);
+		if (Legacy) return Legacy->FindAnimationOrFallback(InTag, &OutTag);
+		return nullptr;
+	}
+	UPaperFlipbook* ResolveFlipbook(UHktPaperAnimationDataAsset* Anim,
+		UHktPaperCharacterTemplate* Legacy, const FHktPaperAnimDirKey& Key)
+	{
+		if (Anim)
+		{
+			if (const TObjectPtr<UPaperFlipbook>* Found = Anim->Flipbooks.Find(Key))
+				return Found->Get();
+		}
+		if (Legacy)
+		{
+			if (const TObjectPtr<UPaperFlipbook>* Found = Legacy->Flipbooks.Find(Key))
+				return Found->Get();
+		}
+		return nullptr;
+	}
+	int32 ResolveFlipbookCount(UHktPaperAnimationDataAsset* Anim, UHktPaperCharacterTemplate* Legacy)
+	{
+		if (Anim)   return Anim->Flipbooks.Num();
+		if (Legacy) return Legacy->Flipbooks.Num();
+		return 0;
 	}
 }
 
@@ -312,9 +353,40 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 		SetActorLocation(InterpLocation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
 
-	if (!Template || !FlipbookComp) return;
+	if (!FlipbookComp) return;
 
-	// --- 서버 권위 sprite state (F-2): ApplySprite 가 캐시. 첫 sync 전이면 대기. ---
+	// --- 정적 경로 (Animation/LegacyTemplate 모두 null, StaticSprite 만 있음) ---
+	// 단일 UPaperSprite 를 일회성 바인딩 후 매 프레임 빌보드 회전만 갱신.
+	if (!Animation && !LegacyTemplate)
+	{
+		if (StaticSprite && !bStaticSpriteApplied)
+		{
+			// FlipbookComponent 는 Sprite 직접 바인딩이 불가하므로, 단일-프레임 Flipbook 으로 감싸 사용.
+			// 비용 — 액터당 1회 호출이라 무시. PaperSpriteComponent 로 바꾸려면 컴포넌트 교체가 필요해
+			// 본 단계에서는 기존 FlipbookComp 재사용.
+			UPaperFlipbook* Wrap = NewObject<UPaperFlipbook>(this);
+			if (Wrap)
+			{
+				FPaperFlipbookKeyFrame KF;
+				KF.Sprite = StaticSprite;
+				KF.FrameRun = 1;
+				{
+					FScopedFlipbookMutator Mutator(Wrap);
+					Mutator.KeyFrames.Add(KF);
+					Mutator.FramesPerSecond = 1.f;
+				}
+				FlipbookComp->SetFlipbook(Wrap);
+				FlipbookComp->SetLooping(false);
+				FlipbookComp->SetPlaybackPosition(0.f, false);
+				FlipbookComp->Stop();
+				bStaticSpriteApplied = true;
+			}
+		}
+		return;
+	}
+
+	// --- 동적 경로 ---
+	// 서버 권위 sprite state (F-2): ApplySprite 가 캐시. 첫 sync 전이면 대기.
 	if (!bHasSpriteState)
 	{
 		return;
@@ -329,12 +401,12 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	float PlayRate = 1.f;
 	HktSpriteAnimProcessor::ResolveRenderOutputs(AnimFragment, AnimTag, PlayRate, bLoggedResolveRenderOutputsFailure);
 
-	// Template 에서 anim meta 폴백 해석 (없으면 DefaultAnimTag → 첫 원소).
+	// Animation/LegacyTemplate 에서 meta 폴백 해석 (없으면 DefaultAnimTag → 첫 원소).
 	FGameplayTag ResolvedTag;
-	const FHktPaperAnimMeta* Meta = Template->FindAnimationOrFallback(AnimTag, &ResolvedTag);
+	const FHktPaperAnimMeta* Meta = ResolveMeta(Animation, LegacyTemplate, AnimTag, ResolvedTag);
 	if (!Meta)
 	{
-		// 캐릭터 데이터 비어 있음 — 스킵.
+		// 애니메이션 데이터 비어 있음 — 스킵.
 		return;
 	}
 
@@ -359,8 +431,8 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	// 항상 0 이라 같은 dir 키만 룩업되는 등의 원인이 즉시 보인다.
 	{
 		const FHktPaperAnimDirKey Key{ ResolvedTag, KeyDir };
-		const TObjectPtr<UPaperFlipbook>* Found = Template->Flipbooks.Find(Key);
-		const bool bHasFB = Found && Found->Get() != nullptr;
+		UPaperFlipbook* FoundFB = ResolveFlipbook(Animation, LegacyTemplate, Key);
+		const bool bHasFB = FoundFB != nullptr;
 		const bool bChanged = !bLastDiagSnapshotValid
 			|| LastDiagAnimTag != ResolvedTag
 			|| LastDiagKeyDir != KeyDir
@@ -381,7 +453,7 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 					Meta->NumDirections, Meta->bMirrorWestFromEast ? 1 : 0, bFlipX ? 1 : 0,
 					*ResolvedTag.ToString(), KeyDir,
 					bHasFB ? TEXT("OK") : TEXT("MISSING"),
-					Template->Flipbooks.Num()),
+					ResolveFlipbookCount(Animation, LegacyTemplate)),
 				CachedEntityId);
 		}
 	}
@@ -412,8 +484,7 @@ void AHktSpritePaperActor::RebindFlipbookIfNeeded(
 	if (!bSameKey)
 	{
 		const FHktPaperAnimDirKey Key{ AnimTag, KeyDir };
-		const TObjectPtr<UPaperFlipbook>* Found = Template->Flipbooks.Find(Key);
-		UPaperFlipbook* FB = Found ? Found->Get() : nullptr;
+		UPaperFlipbook* FB = ResolveFlipbook(Animation, LegacyTemplate, Key);
 		if (!FB)
 		{
 			UE_LOG(LogHktSpriteCore, Verbose,

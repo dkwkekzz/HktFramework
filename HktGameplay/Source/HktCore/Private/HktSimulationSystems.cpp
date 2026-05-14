@@ -13,6 +13,7 @@
 #include "Terrain/HktTerrainState.h"
 #include "Terrain/HktTerrainDataSource.h"
 #include "HktStoryEventParams.h"
+#include "HktCoreTags.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
@@ -641,7 +642,8 @@ void FHktTerrainSystem::Process(
             TerrainState.LoadChunk(Coord, Source);
             ++LoadedThisFrame;
 
-            // 청크의 spawner 메타 enumerate — Source 가 미지원이면 no-op (default impl)
+            // 청크의 spawner 메타 enumerate — Source 가 미지원이면 no-op (default impl).
+            // 명시 배치 spawner (보스/랜드마크/HktMapSpawnerAdapter) 가 본 경로로 발화.
             ScratchSpawnerViews.Reset();
             Source.GetChunkSpawners(Coord.X, Coord.Y, Coord.Z, ScratchSpawnerViews);
             int32 EmittedFromThisChunk = 0;
@@ -657,10 +659,37 @@ void FHktTerrainSystem::Process(
                 ++EmittedFromThisChunk;
             }
 
+            // 표면 청크 ChunkLoaded 이벤트 — placement 정책 Story 가 listen.
+            // (TerrainSpawner.design.md §4-a 런타임 정책 패스, 명시 배치 spawner 와 공존)
+            FHktTerrainChunkContext Ctx;
+            if (Source.TryGetChunkContext(Coord.X, Coord.Y, Coord.Z, Ctx) && Ctx.bIsSurfaceChunk
+                && HktTerrainEventTags::ChunkLoaded.GetTag().IsValid())
+            {
+                const int32 VoxelSizeCmInt = FMath::Max(1, FMath::RoundToInt(VS));
+                constexpr int32 ChunkSizeI = FHktTerrainState::ChunkSize;
+                const int64 CenterVoxelX = static_cast<int64>(Coord.X) * ChunkSizeI + ChunkSizeI / 2;
+                const int64 CenterVoxelY = static_cast<int64>(Coord.Y) * ChunkSizeI + ChunkSizeI / 2;
+                const int32 CenterCmX = static_cast<int32>(CenterVoxelX * VoxelSizeCmInt);
+                const int32 CenterCmY = static_cast<int32>(CenterVoxelY * VoxelSizeCmInt);
+                const int32 SurfaceCmZ = static_cast<int32>(
+                    (static_cast<int64>(Ctx.SurfaceVoxelZ) + 1) * VoxelSizeCmInt);
+                const int32 SlotHash31 = static_cast<int32>(Ctx.SlotHash & 0x7FFFFFFFu);
+                EmittedSpawnerEvents.Add(HktEventBuilder::ChunkLoaded(
+                    HktTerrainEventTags::ChunkLoaded,
+                    CenterCmX, CenterCmY,
+                    Ctx.BiomeId, SlotHash31,
+                    SurfaceCmZ));
+                ++EmittedFromThisChunk;
+
+                UE_LOG(LogHktCore, Verbose,
+                    TEXT("[TerrainSystem] Chunk(%d,%d,%d) surface — emitted ChunkLoaded (biome=%d hash31=0x%08x)"),
+                    Coord.X, Coord.Y, Coord.Z, Ctx.BiomeId, SlotHash31);
+            }
+
             if (EmittedFromThisChunk > 0)
             {
                 UE_LOG(LogHktCore, Verbose,
-                    TEXT("[TerrainSystem] Chunk(%d,%d,%d) loaded — emitted %d spawner event(s)"),
+                    TEXT("[TerrainSystem] Chunk(%d,%d,%d) loaded — emitted %d event(s) total"),
                     Coord.X, Coord.Y, Coord.Z, EmittedFromThisChunk);
             }
         }

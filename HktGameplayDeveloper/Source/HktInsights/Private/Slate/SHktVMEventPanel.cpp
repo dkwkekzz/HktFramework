@@ -514,9 +514,9 @@ bool SHktVMEventPanel::PassesFilter(const FHktVMEventRecord& Rec) const
     // 텍스트 필터
     if (!FilterText.IsEmpty())
     {
-        const FString Tag = Rec.EventTag.IsValid() ? Rec.EventTag.ToString() : FString();
+        const FString EventTagStr = Rec.EventTag.IsValid() ? Rec.EventTag.ToString() : FString();
         const FString Payload = FormatPayload(Rec);
-        if (!Tag.Contains(FilterText) && !Rec.Note.Contains(FilterText) && !Payload.Contains(FilterText))
+        if (!EventTagStr.Contains(FilterText) && !Rec.Note.Contains(FilterText) && !Payload.Contains(FilterText))
         {
             return false;
         }

@@ -3,6 +3,7 @@
 #include "HktTerrainBakeLibrary.h"
 #include "HktTerrainBakedAsset.h"
 #include "HktTerrainGenerator.h"
+#include "HktTerrainBiome.h"
 #include "HktTerrainLog.h"
 #include "Terrain/HktTerrainVoxel.h"
 #include "Misc/Compression.h"
@@ -84,6 +85,12 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	int32 SkippedEmpty = 0;
 	int64 TotalCompressed = 0;
 
+	// Coord → Asset->Chunks 인덱스 (표면 메타 후처리에서 mutable 접근 위해 빌드).
+	// Asset->CoordToIndex 는 private — 본 빌드 시점엔 별도 로컬 맵을 운영하고,
+	// 끝에서 Asset->RebuildIndex() 가 동일 데이터를 재생성한다.
+	TMap<FIntVector, int32> LocalCoordToIndex;
+	LocalCoordToIndex.Reserve(TotalChunks);
+
 	for (int32 CZ = ChunkMin.Z; CZ <= ChunkMax.Z; ++CZ)
 	for (int32 CY = ChunkMin.Y; CY <= ChunkMax.Y; ++CY)
 	for (int32 CX = ChunkMin.X; CX <= ChunkMax.X; ++CX)
@@ -129,9 +136,75 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 		Chunk.CompressedData.SetNum(CompressedSize, EAllowShrinking::No);
 		TotalCompressed += CompressedSize;
 
-		Asset->Chunks.Add(MoveTemp(Chunk));
+		const int32 NewIndex = Asset->Chunks.Add(MoveTemp(Chunk));
+		LocalCoordToIndex.Add(FIntVector(CX, CY, CZ), NewIndex);
 		++BakedCount;
 	}
+
+	// ────────────────────────────────────────────────────────────────────────
+	// 표면 메타데이터 캡처 (TerrainSpawner.design.md §4-a 런타임 정책 패스)
+	//
+	// 청크 중심 column 1점 샘플로 (BiomeId, SurfaceVoxelZ) 결정 → 표면을 포함하는
+	// 청크에 메타 부착. cpp 하드코딩 biome→Story 매핑은 폐기 — placement 정책 Story
+	// (Content/Stories/Natural/Placement_*.json) 가 런타임 이벤트로 결정.
+	//
+	// `Spawners[]` 는 본 패스에서 비워 둔다 (공존 정책):
+	//   - 명시 배치 (보스/랜드마크) 는 HktMapSpawnerAdapter / 수동 Detail 패널 입력
+	//   - biome 기반 자연 배치는 ChunkLoaded 이벤트 + placement 정책 Story 가 담당
+	// ────────────────────────────────────────────────────────────────────────
+	int32 SurfaceMetaTagged   = 0;
+	int32 SurfaceMetaSkipped  = 0;  // surfaceCZ 영역 밖 / 청크가 비어 저장 안 됨
+	{
+		auto FloorDivI = [](int32 A, int32 B) -> int32
+		{
+			return (A >= 0) ? (A / B) : -(((-A) + B - 1) / B);
+		};
+
+		for (int32 CY = ChunkMin.Y; CY <= ChunkMax.Y; ++CY)
+		for (int32 CX = ChunkMin.X; CX <= ChunkMax.X; ++CX)
+		{
+			const int32 SampleVoxelX = CX * FHktTerrainGeneratorConfig::ChunkSize
+			                          + FHktTerrainGeneratorConfig::ChunkSize / 2;
+			const int32 SampleVoxelY = CY * FHktTerrainGeneratorConfig::ChunkSize
+			                          + FHktTerrainGeneratorConfig::ChunkSize / 2;
+
+			FHktTerrainPreviewRegion Preview;
+			Generator.SamplePreviewRegion(SampleVoxelX, SampleVoxelY, 1, 1, Preview);
+			if (Preview.Samples.Num() != 1)
+			{
+				++SurfaceMetaSkipped;
+				continue;
+			}
+			const FHktTerrainPreviewSample& S = Preview.Samples[0];
+
+			const int32 SurfaceVoxelZ = S.SurfaceHeightVoxels;
+			const int32 SurfaceCZ     = FloorDivI(SurfaceVoxelZ, FHktTerrainGeneratorConfig::ChunkSize);
+			if (SurfaceCZ < ChunkMin.Z || SurfaceCZ > ChunkMax.Z)
+			{
+				++SurfaceMetaSkipped;
+				continue;
+			}
+
+			const FIntVector SurfaceCoord(CX, CY, SurfaceCZ);
+			const int32* IdxPtr = LocalCoordToIndex.Find(SurfaceCoord);
+			if (!IdxPtr || !Asset->Chunks.IsValidIndex(*IdxPtr))
+			{
+				// 표면 청크가 all-air 로 skip 된 케이스 — 정상적으로는 거의 없음 (표면 = 솔리드)
+				++SurfaceMetaSkipped;
+				continue;
+			}
+
+			FHktTerrainBakedChunk& Chunk = Asset->Chunks[*IdxPtr];
+			Chunk.bIsSurfaceChunk = true;
+			Chunk.BiomeId         = S.BiomeId;
+			Chunk.SurfaceVoxelZ   = SurfaceVoxelZ;
+			Chunk.SlotHash        = HashCombine(GetTypeHash(SurfaceCoord), GetTypeHash(0));
+			++SurfaceMetaTagged;
+		}
+	}
+
+	// Spawners[] 는 본 베이크 패스에서 채우지 않는다 — 명시 배치만 받음.
+	// 비워두면 자산 새로 만들 때 빈 배열 그대로 직렬화 (의도된 빈 슬롯).
 
 	Asset->RebuildIndex();
 	Asset->MarkPackageDirty();
@@ -153,11 +226,12 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	FAssetRegistryModule::AssetCreated(Asset);
 
 	UE_LOG(LogHktTerrain, Log,
-		TEXT("BakeRegion '%s' 완료 — Baked=%d SkippedEmpty=%d Total=%d CompressedBytes=%lld AvgRatio=%.2f%%"),
+		TEXT("BakeRegion '%s' 완료 — Baked=%d SkippedEmpty=%d Total=%d CompressedBytes=%lld AvgRatio=%.2f%% SurfaceMeta=%d(skipped=%d)"),
 		*SavePath, BakedCount, SkippedEmpty, TotalChunks, TotalCompressed,
 		BakedCount > 0
 			? 100.0 * TotalCompressed / (static_cast<int64>(BakedCount) * RawBytes)
-			: 0.0);
+			: 0.0,
+		SurfaceMetaTagged, SurfaceMetaSkipped);
 
 	return Asset;
 #endif

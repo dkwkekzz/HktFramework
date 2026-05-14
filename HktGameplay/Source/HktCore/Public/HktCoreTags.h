@@ -92,3 +92,13 @@ namespace HktNaturalStoryTags
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSpawn);    // Story.Flow.Spawner.Natural.Birch
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSpawn);      // Story.Flow.Spawner.Natural.Oak
 }
+
+// ── Terrain placement (TerrainSpawner.design.md §4-a 갱신, 2026-05-15) ──
+// Event.Terrain.ChunkLoaded: 새 청크 로드 시 sim 이 발화. placement 정책 Story
+// (Content/Stories/Natural/Placement_*.json) 가 본 태그를 storyTag 로 listen 하여
+// biome/surface 컨텍스트 기반으로 spawner Story (BirchSpawn, OakSpawn 등) 를
+// DispatchEvent 한다. cpp 하드코딩 매핑 대안 — LLM/디자이너가 정책을 JSON 으로 자유 작성.
+namespace HktTerrainEventTags
+{
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ChunkLoaded);   // Event.Terrain.ChunkLoaded
+}

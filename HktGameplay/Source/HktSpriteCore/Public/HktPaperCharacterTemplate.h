@@ -10,18 +10,17 @@
 class UPaperFlipbook;
 
 // ============================================================================
-// UHktPaperCharacterTemplate — Paper2D 경로 전용 캐릭터 데이터.
+// UHktPaperCharacterTemplate — [DEPRECATED] Paper2D 경로의 구(舊) 캐릭터 데이터.
 //
-// HISM/Niagara 경로의 `UHktSpriteCharacterTemplate` 와는 별개. 본 템플릿은
-// (AnimTag, DirIdx) → UPaperFlipbook 룩업 테이블을 들고 있으며, 런타임 액터
-// (`AHktSpritePaperActor`, PR-2) 가 매 프레임 `Flipbooks.Find({...})` 한다.
+// ⚠ DEPRECATED: 신규 `UHktPaperAnimationDataAsset` 으로 대체. 명칭이 캐릭터
+//    의미를 강제해 정적 객체(나무·바위 등)에 어울리지 않는다. 신규 자산 작성
+//    시에는 Visual(`UHktPaperActorVisualDataAsset`) + Animation
+//    (`UHktPaperAnimationDataAsset`) + Static Sprite 의 3-슬롯 구조를 사용한다.
+//    기존 자산과 그 직렬화 데이터는 그대로 유지되며 본 클래스/구조체는
+//    호환을 위해 보존된다.
 //
-// 비동기 로드 진입점은 `UHktPaperActorVisualDataAsset::IdentifierTag`(예:
-// `PaperSprite.Character.Knight`) — 이 비주얼 자산이 본 템플릿을 하드 참조로
-// 끌어오므로 `UHktAssetSubsystem::LoadAssetAsync(VisualTag)` 한 번에 모든
-// Flipbook/Sprite/Atlas 가 함께 로드된다.
-//
-// 미러 dir(W/SW/NW) 은 키를 만들지 않는다 — 액터가 X-스케일로 처리.
+// FHktPaperAnimDirKey / FHktPaperAnimMeta 는 신규 `UHktPaperAnimationDataAsset`
+// 에서도 재사용한다 — 별도 deprecation 없이 본 헤더에 그대로 둔다.
 // ============================================================================
 
 USTRUCT(BlueprintType)
@@ -73,6 +72,10 @@ struct HKTSPRITECORE_API FHktPaperAnimMeta
 	FLinearColor Tint = FLinearColor::White;
 };
 
+// 신규 자산 작성 시에는 UHktPaperAnimationDataAsset 을 사용한다. 본 클래스는
+// 기존 직렬화 자산 호환을 위해 그대로 유지된다 (deprecation marker 없음 — UHT
+// 의 `Deprecated` UCLASS 플래그는 `UDEPRECATED_` 클래스 rename 을 요구해 자산
+// 호환을 깨므로 사용하지 않는다).
 UCLASS(BlueprintType)
 class HKTSPRITECORE_API UHktPaperCharacterTemplate : public UDataAsset
 {

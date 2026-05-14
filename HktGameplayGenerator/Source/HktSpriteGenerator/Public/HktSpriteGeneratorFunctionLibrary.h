@@ -375,6 +375,45 @@ public:
 	 *
 	 * 반환: McpBuildSpriteCharacter와 동일 JSON.
 	 */
+	/**
+	 * 정적 객체 (나무·바위 등) 1장 빌드 — PNG 1장 → `UHktHISMSpriteVisualAsset` 1개.
+	 *
+	 * 동작:
+	 *   1) PNG → UTexture2D 임포트 (`T_HISMSpriteStatic_{SafeTag}`).
+	 *   2) `UHktHISMSpriteVisualAsset` 생성/갱신:
+	 *      - `IdentifierTag = VisualTag`
+	 *      - `Atlas = 임포트된 텍스처`
+	 *      - `AtlasCellSize = (이미지 W, 이미지 H)`
+	 *      - `PixelToWorld = 인자값`
+	 *      - `AnimationAsset = null` (정적 단일 quad)
+	 *
+	 * 등록 컨벤션:  `Sprite.Prop.{Cat}.{Name}` (예: `Sprite.Prop.Tree.Oak`)
+	 *
+	 * @param VisualTagStr     IdentifierTag 로 등록할 GameplayTag 문자열.
+	 * @param SourceImagePath  PNG 절대/프로젝트 상대 경로.
+	 * @param PixelToWorld     1 픽셀당 월드 cm.
+	 * @param OutputDir        비우면 `/Game/Generated/Sprites/Static/{SafeTag}`.
+	 *
+	 * 반환: {"success":bool, "visualPath":..., "texturePath":..., "textureWidth":..., "textureHeight":..., "error":...}
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorBuildHISMStaticVisual(
+		const FString& VisualTagStr,
+		const FString& SourceImagePath,
+		float PixelToWorld         = 2.0f,
+		const FString& OutputDir   = TEXT(""));
+
+	/**
+	 * 폴더 일괄 빌드 — `SourceFolder` 의 `*.png` 마다 1개의 `UHktHISMSpriteVisualAsset` 생성.
+	 *  - VisualTag = `{BaseVisualTagStr}.{PngStem}`.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
+	static FString EditorBuildHISMStaticFolder(
+		const FString& BaseVisualTagStr,
+		const FString& SourceFolder,
+		float PixelToWorld         = 2.0f,
+		const FString& OutputDir   = TEXT(""));
+
 	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator|Editor")
 	static FString EditorBuildSpriteCharacterFromVideo(
 		const FString& CharacterTag,

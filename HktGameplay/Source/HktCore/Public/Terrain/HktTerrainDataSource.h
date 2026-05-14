@@ -52,6 +52,23 @@ struct HKTCORE_API FHktTerrainSpawnerView
 	int32 BiomeId = 0;
 };
 
+/**
+ * FHktTerrainChunkContext — 청크 표면 메타데이터 (placement 정책 입력).
+ *
+ * `BakedAsset` 에서 캡처된 surface biome / surface voxel Z / SlotHash 를 sim 으로
+ * 전달하는 plain POD. 표면을 포함하지 않는 청크 (지하·천공) 은 `bIsSurfaceChunk=false`.
+ *
+ * `FHktTerrainSystem::Process` 가 신규 surface 청크 로드 시 본 컨텍스트를 읽어
+ * `HktEventBuilder::ChunkLoaded(...)` 로 변환 — placement 정책 Story 의 진입 인자.
+ */
+struct HKTCORE_API FHktTerrainChunkContext
+{
+	int32 BiomeId         = 0;
+	int32 SurfaceVoxelZ   = 0;
+	uint32 SlotHash       = 0;
+	bool bIsSurfaceChunk  = false;
+};
+
 class HKTCORE_API IHktTerrainDataSource
 {
 public:
@@ -74,6 +91,20 @@ public:
 	                              TArray<FHktTerrainSpawnerView>& OutSpawners) const
 	{
 		// no-op — 기본은 spawner 없음
+	}
+
+	/**
+	 * 청크 표면 컨텍스트 조회 — placement 정책 패스 (TerrainSpawner.design.md §4-a) 입력.
+	 *
+	 * @return  표면 청크 메타가 있으면 true + OutCtx 채움. 비표면/미베이크/Generator
+	 *          폴백 등은 false → sim 이 `ChunkLoaded` 이벤트 발화 skip.
+	 *
+	 * 기본 구현은 false — placement 미지원 데이터 소스도 컴파일 안전.
+	 */
+	virtual bool TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	                                FHktTerrainChunkContext& OutCtx) const
+	{
+		return false;
 	}
 };
 

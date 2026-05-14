@@ -61,3 +61,9 @@ namespace HktNaturalStoryTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak chunk-load spawner story. Param2=LineageId, Param3=ChildCount.");
 }
+
+namespace HktTerrainEventTags
+{
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(ChunkLoaded, "Event.Terrain.ChunkLoaded",
+        "Surface 청크 신규 로드 시 sim 이 발화. Placement 정책 Story 가 listen 하여 biome/surface 컨텍스트 기반 spawn 결정.");
+}

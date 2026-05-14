@@ -2,6 +2,8 @@
 
 #include "HktSpriteGeneratorFunctionLibrary.h"
 #include "HktSpriteCharacterTemplate.h"
+#include "HktHISMSpriteVisualAsset.h"
+#include "HktHISMSpriteAnimationDataAsset.h"
 #include "HktSpriteGeneratorSettings.h"
 #include "HktSpriteTypes.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -2082,4 +2084,184 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildTerrainAtlasFromBundle(
 		{ TEXT("frameSize"),      FString::FromInt(FrameSize) },
 		{ TEXT("missing"),        MissingJson },
 	});
+}
+
+// ============================================================================
+// EditorBuildHISMStaticVisual — 정적 객체 1장 (UHktHISMSpriteVisualAsset)
+// ============================================================================
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildHISMStaticVisual(
+	const FString& VisualTagStr,
+	const FString& SourceImagePath,
+	float PixelToWorld,
+	const FString& OutputDir)
+{
+	using namespace HktSpriteGen;
+
+	if (VisualTagStr.IsEmpty())     return MakeSpriteError(TEXT("VisualTagStr 필수"));
+	if (SourceImagePath.IsEmpty())  return MakeSpriteError(TEXT("SourceImagePath 필수"));
+
+	FString PngPath = SourceImagePath;
+	if (FPaths::IsRelative(PngPath))
+	{
+		PngPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), PngPath);
+	}
+	if (!FPaths::FileExists(PngPath))
+	{
+		return MakeSpriteError(FString::Printf(TEXT("PNG 파일 없음: %s"), *PngPath));
+	}
+
+	const FGameplayTag VisualTag = EnsureTag(VisualTagStr);
+	if (!VisualTag.IsValid())
+	{
+		return MakeSpriteError(FString::Printf(TEXT("VisualTag(%s) 등록 실패"), *VisualTagStr));
+	}
+
+	const FString SafeTag = SanitizeForAssetName(VisualTagStr);
+	const FString OutDir  = !OutputDir.IsEmpty()
+		? OutputDir
+		: (TEXT("/Game/Generated/Sprites/Static/") + SafeTag);
+
+	// 1) PNG → UTexture2D
+	const FString TextureAssetName = FString::Printf(TEXT("T_HISMSpriteStatic_%s"), *SafeTag);
+	const FString TexturePackage   = OutDir / TextureAssetName;
+	UTexture2D* Tex = ImportAtlasTexture(PngPath, TexturePackage, TextureAssetName);
+	if (!Tex)
+	{
+		return MakeSpriteError(FString::Printf(TEXT("ImportAtlasTexture 실패: %s"), *PngPath));
+	}
+	const int32 TexW = Tex->GetSizeX();
+	const int32 TexH = Tex->GetSizeY();
+
+	// 2) UHktHISMSpriteVisualAsset upsert
+	const FString VisualAssetName = FString::Printf(TEXT("DA_HISMSpriteVisual_%s"), *SafeTag);
+	const FString VisualPackage   = OutDir / VisualAssetName;
+	const FString VisualObjectPath = VisualPackage + TEXT(".") + VisualAssetName;
+
+	UHktHISMSpriteVisualAsset* Visual = LoadObject<UHktHISMSpriteVisualAsset>(nullptr, *VisualObjectPath);
+	if (!Visual)
+	{
+		UPackage* Pkg = CreatePackage(*VisualPackage);
+		if (!Pkg) return MakeSpriteError(TEXT("Visual 패키지 생성 실패"));
+		Pkg->FullyLoad();
+		Visual = NewObject<UHktHISMSpriteVisualAsset>(
+			Pkg, FName(*VisualAssetName), RF_Public | RF_Standalone);
+	}
+
+	Visual->IdentifierTag  = VisualTag;
+	Visual->Atlas          = Tex;
+	Visual->AtlasCellSize  = FVector2f(static_cast<float>(TexW), static_cast<float>(TexH));
+	Visual->PixelToWorld   = PixelToWorld;
+	Visual->AnimationAsset = nullptr;  // 정적 경로
+
+	// 저장
+	UPackage* VisualPkg = Visual->GetPackage();
+	if (VisualPkg)
+	{
+		VisualPkg->MarkPackageDirty();
+		FAssetRegistryModule::AssetCreated(Visual);
+		const FString PkgFile = FPackageName::LongPackageNameToFilename(
+			VisualPkg->GetName(), FPackageName::GetAssetPackageExtension());
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+		SaveArgs.SaveFlags     = SAVE_NoError;
+		SaveArgs.Error         = GLog;
+		UPackage::SavePackage(VisualPkg, Visual, *PkgFile, SaveArgs);
+	}
+
+	return MakeResult(true, {
+		{ TEXT("visualTag"),       VisualTagStr },
+		{ TEXT("sourceImagePath"), PngPath },
+		{ TEXT("texturePath"),     TexturePackage },
+		{ TEXT("visualPath"),      VisualPackage },
+		{ TEXT("pixelToWorld"),    FString::SanitizeFloat(PixelToWorld) },
+		{ TEXT("textureWidth"),    FString::FromInt(TexW) },
+		{ TEXT("textureHeight"),   FString::FromInt(TexH) },
+	});
+}
+
+// ============================================================================
+// EditorBuildHISMStaticFolder — 폴더 일괄
+// ============================================================================
+
+FString UHktSpriteGeneratorFunctionLibrary::EditorBuildHISMStaticFolder(
+	const FString& BaseVisualTagStr,
+	const FString& SourceFolder,
+	float PixelToWorld,
+	const FString& OutputDir)
+{
+	using namespace HktSpriteGen;
+
+	if (BaseVisualTagStr.IsEmpty()) return MakeSpriteError(TEXT("BaseVisualTagStr 필수"));
+	if (SourceFolder.IsEmpty())     return MakeSpriteError(TEXT("SourceFolder 필수"));
+
+	FString FolderAbs = SourceFolder;
+	if (FPaths::IsRelative(FolderAbs))
+	{
+		FolderAbs = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), FolderAbs);
+	}
+	if (!FPaths::DirectoryExists(FolderAbs))
+	{
+		return MakeSpriteError(FString::Printf(TEXT("폴더 없음: %s"), *FolderAbs));
+	}
+
+	TArray<FString> PngFiles;
+	IFileManager::Get().FindFiles(PngFiles, *(FolderAbs / TEXT("*.png")), /*Files*/true, /*Dirs*/false);
+	if (PngFiles.IsEmpty())
+	{
+		return MakeSpriteError(FString::Printf(TEXT("폴더에 PNG 가 없음: %s"), *FolderAbs));
+	}
+
+	// 결과 누적. 개별 호출 결과 JSON 을 부분 파싱하는 대신 카운트만 트래킹.
+	int32 OkCount = 0;
+	FString FirstError;
+	TArray<FString> EntryPaths;
+	for (const FString& PngName : PngFiles)
+	{
+		const FString Stem        = FPaths::GetBaseFilename(PngName);
+		const FString FullPath    = FolderAbs / PngName;
+		const FString VisualTagStr = FString::Printf(TEXT("%s.%s"), *BaseVisualTagStr, *Stem);
+
+		const FString Single = EditorBuildHISMStaticVisual(VisualTagStr, FullPath, PixelToWorld, OutputDir);
+
+		TSharedPtr<FJsonObject> Obj;
+		const TSharedRef<TJsonReader<>> R = TJsonReaderFactory<>::Create(Single);
+		if (FJsonSerializer::Deserialize(R, Obj) && Obj.IsValid())
+		{
+			bool bOk = false;
+			Obj->TryGetBoolField(TEXT("success"), bOk);
+			if (bOk)
+			{
+				++OkCount;
+				FString VP;
+				if (Obj->TryGetStringField(TEXT("visualPath"), VP)) EntryPaths.Add(VP);
+			}
+			else if (FirstError.IsEmpty())
+			{
+				Obj->TryGetStringField(TEXT("error"), FirstError);
+			}
+		}
+	}
+
+	FString EntriesJson;
+	{
+		const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&EntriesJson);
+		W->WriteArrayStart();
+		for (const FString& P : EntryPaths) W->WriteValue(P);
+		W->WriteArrayEnd();
+		W->Close();
+	}
+
+	TMap<FString, FString> Fields = {
+		{ TEXT("baseVisualTag"), BaseVisualTagStr },
+		{ TEXT("sourceFolder"),  FolderAbs },
+		{ TEXT("totalCount"),    FString::FromInt(PngFiles.Num()) },
+		{ TEXT("okCount"),       FString::FromInt(OkCount) },
+		{ TEXT("entries"),       EntriesJson },
+	};
+	if (OkCount == 0 && !FirstError.IsEmpty())
+	{
+		Fields.Add(TEXT("error"), FirstError);
+	}
+	return MakeResult(OkCount > 0, Fields);
 }

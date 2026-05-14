@@ -398,10 +398,15 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		FHktEvent DbgEvent = HktEventBuilder::Spawner(
 			Dbg.StoryTag,
 			static_cast<int32>(Dbg.Location.X),
-			static_cast<int32>(Dbg.Location.Y));
+			static_cast<int32>(Dbg.Location.Y),
+			static_cast<int32>(Dbg.Location.Z));
 		DbgEvent.Location = Dbg.Location;
 		DbgEvent.Param2   = Dbg.Param2;
-		DbgEvent.Param3   = Dbg.Param3;
+		// Param3 = Z (cm) 가 기본. 호출자가 명시적으로 Param3 를 채웠으면 그것을 우선.
+		if (Dbg.Param3 != 0)
+		{
+			DbgEvent.Param3 = Dbg.Param3;
+		}
 		DbgEvent.EventId  = ++ServerEventSequence;
 		PendingGroupIntents[TargetGroup].Add(DbgEvent);
 		UE_LOG(LogHktRule, Log,

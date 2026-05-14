@@ -8,7 +8,7 @@ void FHktAutomationTestHarness::Setup()
 {
 	WorldState.Initialize();
 	VMProxy.Initialize(WorldState);
-	Interpreter.Initialize(&WorldState, &VMProxy);
+	Interpreter.Initialize(&WorldState, &VMProxy, &TerrainState, &PendingVoxelDeltas);
 
 	Runtime = FHktVMRuntime();
 	Context.Reset();
