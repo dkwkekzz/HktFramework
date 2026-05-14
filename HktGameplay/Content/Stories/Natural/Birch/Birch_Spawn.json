@@ -8,8 +8,8 @@
     { "op": "Log", "message": "[Birch] chunk-load spawner — emit 3 birches around (Param0, Param1)" },
 
     { "op": "CountByTag", "dst": {"var":"birchCount"}, "tag": "Birch" },
-    { "op": "IfGeConst", "src": {"var":"birchCount"}, "value": 36 },
-      { "op": "Log", "message": "[Birch] global cap reached (36) — skip" },
+    { "op": "IfGeConst", "src": {"var":"birchCount"}, "value": 12 },
+      { "op": "Log", "message": "[Birch] global cap reached (12) — skip" },
       { "op": "Halt" },
     { "op": "EndIf" },
 

@@ -9,8 +9,8 @@
     { "op": "Log", "message": "[Birch] SaplingSeed listener — spawn 1 sapling at EventLocation (no cap)" },
 
     { "op": "CountByTag", "dst": {"var":"birchCount"}, "tag": "Birch" },
-    { "op": "IfGeConst", "src": {"var":"birchCount"}, "value": 36 },
-      { "op": "Log", "message": "[Birch] global cap reached — sapling skipped" },
+    { "op": "IfGeConst", "src": {"var":"birchCount"}, "value": 12 },
+      { "op": "Log", "message": "[Birch] global cap reached (12) — sapling skipped" },
       { "op": "Halt" },
     { "op": "EndIf" },
 
