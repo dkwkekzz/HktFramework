@@ -42,6 +42,7 @@ namespace HktArchetypeTags
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Projectile);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Item);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Debris);
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Region);  // PR-2 — region 가상 엔티티
 }
 
 namespace HktStance

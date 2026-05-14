@@ -1589,6 +1589,27 @@ FHktStoryBuilder& FHktStoryBuilder::AddImm(FHktVar Dst, FHktVar Src, int32 Imm)
     return *this;
 }
 
+// ---- Region (PR-2) ----
+FHktStoryBuilder& FHktStoryBuilder::RegionAddScalar(FHktVar RegionEntity, uint16 PropId, int32 Delta)
+{
+    // AddImm 즉시값 범위 = signed 12-bit ([-2048, 2047]).
+    // 범위 안이면 LoadStoreEntity + AddImm + SaveStoreEntity 의 3-op 패턴, 밖이면 LoadConst+Add 로 폴백.
+    FHktVar Scratch = NewVar(TEXT("RegionScalar"));
+    LoadStoreEntity(Scratch, RegionEntity, PropId);
+    if (Delta >= -2048 && Delta <= 2047)
+    {
+        AddImm(Scratch, Scratch, Delta);
+    }
+    else
+    {
+        FHktVar DeltaVar = NewVar(TEXT("RegionScalarDelta"));
+        LoadConst(DeltaVar, Delta);
+        Add(Scratch, Scratch, DeltaVar);
+    }
+    SaveStoreEntity(RegionEntity, PropId, Scratch);
+    return *this;
+}
+
 // ---- 비교 ----
 FHktStoryBuilder& FHktStoryBuilder::CmpEq(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpEq, D, A, B, 0); return *this; }
 FHktStoryBuilder& FHktStoryBuilder::CmpNe(FHktVar D, FHktVar A, FHktVar B) { EmitV(EOpCode::CmpNe, D, A, B, 0); return *this; }

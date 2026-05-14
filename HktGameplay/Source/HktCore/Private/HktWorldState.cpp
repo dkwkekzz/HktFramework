@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktWorldState.h"
+#include "HktCoreDefs.h"
 #include "HktCoreProperties.h"
 #include "HktSimulationLimits.h"
 #include "HktCoreLog.h"
@@ -180,6 +181,32 @@ void FHktWorldState::RemoveEntity(FHktEntityId Id)
         FString::Printf(TEXT("RemoveEntity Id=%d"), Id), Id);
     FreeSlot(EntitySlots[Id]);
     EntitySlots[Id] = -1;
+}
+
+FHktEntityId FHktWorldState::FindOrCreateRegionEntity(uint32 RegionId)
+{
+    // SoA 선형 스캔 — Entity.Region 태그 + RegionIdKey 컬럼 매칭.
+    // 별도 store / TMap 0 (절대 원칙 5).
+    const int32 Key = static_cast<int32>(RegionId);
+    const int32 SlotCount = SlotToEntity.Num();
+    for (int32 Slot = 0; Slot < SlotCount; ++Slot)
+    {
+        const FHktEntityId ExistingId = SlotToEntity[Slot];
+        if (ExistingId == InvalidEntityId) continue;
+        if (!TagContainers[Slot].HasTag(HktArchetypeTags::Entity_Region)) continue;
+        if (Get(Slot, PropertyId::RegionIdKey) == Key)
+        {
+            return ExistingId;
+        }
+    }
+
+    const FHktEntityId NewId = AllocateEntity();
+    AddTag(NewId, HktArchetypeTags::Entity_Region);
+    SetProperty(NewId, PropertyId::RegionIdKey, Key);
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("FindOrCreateRegionEntity RegionId=0x%08X EntityId=%d"), RegionId, NewId), NewId);
+    return NewId;
 }
 
 int32 FHktWorldState::GetEntityCount() const

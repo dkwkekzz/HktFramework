@@ -93,6 +93,17 @@ struct HKTCORE_API FHktWorldState
     FHktEntityId AllocateEntity();
     void RemoveEntity(FHktEntityId Id);
 
+    // --- Region (PR-2) ---
+    /**
+     * RegionId 의 Entity.Region row 를 반환한다. 없으면 AllocateEntity + AddTag(Entity.Region) +
+     * SetProperty(RegionIdKey, RegionId) 로 lazy-create.
+     *
+     * 04 §3-D1 의 핵심 결정: region 도 일반 SoA entity 로 산다 (별도 store 0).
+     * lookup 도 SoA 만으로 — Entity.Region 태그 보유 entity 의 RegionIdKey 컬럼을 선형 스캔한다.
+     * (시즌 0 의 macro-tile 수 가정상 cache-friendly 선형 스캔이 외부 hash 보다 유리. 한계는 04 §11.)
+     */
+    FHktEntityId FindOrCreateRegionEntity(uint32 RegionId);
+
     FORCEINLINE bool IsValidEntity(FHktEntityId Id) const
     {
         return Id >= 0 && Id < EntitySlots.Num() && EntitySlots[Id] >= 0;

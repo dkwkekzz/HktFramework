@@ -203,6 +203,25 @@ namespace HktProperty
     // 주: Facing 은 클라 viewmodel 산출(LastMoveDirXY + 카메라 yaw) — VM 권위 프로퍼티 아님.
     HKT_DEFINE_PROPERTY(AnimStartTick,        Cold) // AnimState 전환 시점 (VM frame)
 
+    // ===== Region-Scalar 카운터 (PR-2, Cold tier) =====
+    //
+    // Docs/Concepts/C01_TranquilWilds/04-region-state.md §3-D3 그룹 A 의 시즌 0 카운터.
+    // RegionEntity (Entity.Region 태그 보유) 1 row 가 카운터를 보관하며,
+    // FHktWorldState::FindOrCreateRegionEntity 가 lazy-create 한다.
+    // 자주 갱신되지 않으므로 Cold tier — Hot stride 부담 없음.
+
+    HKT_DEFINE_PROPERTY(RegionIdKey,               Cold) // RegionId (packed macro-tile). FindOrCreateRegionEntity 의 lookup 키 — 별도 store 0, 순수 SoA.
+    HKT_DEFINE_PROPERTY(RegionFireCounter,         Cold) // 발화 누적
+    HKT_DEFINE_PROPERTY(RegionHarvestedClusters,   Cold) // 베리/허브 cluster 수확 누적
+    HKT_DEFINE_PROPERTY(RegionDeadTrees,           Cold) // 고사목 누적
+    HKT_DEFINE_PROPERTY(RegionSuccessionPatches,   Cold) // 천이 패치 누적
+    HKT_DEFINE_PROPERTY(RegionSeenTheGrain,        Cold) // 풀-결 관측 누적
+    HKT_DEFINE_PROPERTY(RegionFelledElders,        Cold) // Elder 베기 누적 (집계용 scalar — lineage 별 상세는 PR-3 의 group B 가 담당)
+    HKT_DEFINE_PROPERTY(RegionCrossingPoints,      Cold) // 발견된 ford crossing 수 (group C 상세는 PR-3+)
+    HKT_DEFINE_PROPERTY(RegionBirchCount,          Cold) // Birch 현존 cap (Implementation-Plan §6.1 데모 시나리오)
+    HKT_DEFINE_PROPERTY(RegionOakCount,            Cold) // Oak 현존 cap (PR-5+ 예약)
+    HKT_DEFINE_PROPERTY(RegionPineCount,           Cold) // Pine 현존 cap (PR-7+ 예약)
+
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계
     // ================================================================

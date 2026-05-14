@@ -435,6 +435,15 @@ public:
     FHktStoryBuilder& DispatchEventTo(const FGameplayTag& EventTag, FHktVar TargetEntity);
     FHktStoryBuilder& DispatchEventFrom(const FGameplayTag& EventTag, FHktVar SourceEntity);
 
+    // ---- Region (PR-2) ----
+    /**
+     * Region scalar 카운터에 Delta 를 누적한다.
+     *   emit: LoadStoreEntity + AddImm(또는 LoadConst+Add) + SaveStoreEntity (신규 opcode 0).
+     * Docs/Concepts/C01_TranquilWilds/04-region-state.md §3-D6 의 group A 헬퍼.
+     * RegionEntity 는 spawner story 진입 시 FindOrCreateRegionEntity 로 얻은 row.
+     */
+    FHktStoryBuilder& RegionAddScalar(FHktVar RegionEntity, uint16 PropId, int32 Delta);
+
     // ---- Terrain ----
     FHktStoryBuilder& GetTerrainHeight(FHktVar Dst, FHktVar VoxelX, FHktVar VoxelY);
     FHktStoryBuilder& GetVoxelType(FHktVar Dst, FHktVarBlock PosXY, FHktVar ZVar);
