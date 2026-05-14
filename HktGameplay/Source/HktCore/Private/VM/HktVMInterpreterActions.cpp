@@ -940,6 +940,50 @@ void FHktVMInterpreter::Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex
 }
 
 // ============================================================================
+// Region (PR-3, 04 §3-D4)
+// ============================================================================
+
+void FHktVMInterpreter::Op_RegionMapFindOrCreate(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex RegionEntity, RegisterIndex KeyReg, int32 TagIndex)
+{
+    if (!WorldState)
+    {
+        Runtime.SetRegEntity(Dst, InvalidEntityId);
+        return;
+    }
+
+    const FGameplayTag RecordTag = ResolveTag(TagIndex);
+    if (!RecordTag.IsValid())
+    {
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, LogSource,
+            FString::Printf(TEXT("Op_RegionMapFindOrCreate: invalid TagIndex %d"), TagIndex));
+        Runtime.SetRegEntity(Dst, InvalidEntityId);
+        return;
+    }
+
+    const FHktEntityId RegionId = Runtime.GetRegEntity(RegionEntity);
+    if (!WorldState->IsValidEntity(RegionId))
+    {
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, LogSource,
+            FString::Printf(TEXT("Op_RegionMapFindOrCreate: invalid RegionEntity %d"), RegionId));
+        Runtime.SetRegEntity(Dst, InvalidEntityId);
+        return;
+    }
+
+    // RegionEntity 의 RegionIdKey 컬럼에서 region 식별자를 읽는다 — 04 §3-D6 의 Builder 패턴.
+    const int32 RegionIdRaw = WorldState->GetProperty(RegionId, PropertyId::RegionIdKey);
+    const uint32 RegionIdValue = static_cast<uint32>(RegionIdRaw);
+    const uint32 KeyHash = static_cast<uint32>(Runtime.GetReg(KeyReg));
+
+    const FHktEntityId RecordEntity = WorldState->FindOrCreateRegionRecord(RegionIdValue, RecordTag, KeyHash);
+    Runtime.SetRegEntity(Dst, RecordEntity);
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_RegionMapFindOrCreate Region=%d Tag=%s Key=0x%08X → Record=%d"),
+            RegionId, *RecordTag.ToString(), KeyHash, RecordEntity),
+        RecordEntity);
+}
+
+// ============================================================================
 // Utility
 // ============================================================================
 

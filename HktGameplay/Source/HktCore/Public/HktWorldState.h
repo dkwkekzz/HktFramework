@@ -104,6 +104,28 @@ struct HKTCORE_API FHktWorldState
      */
     FHktEntityId FindOrCreateRegionEntity(uint32 RegionId);
 
+    /**
+     * Region 안의 *키별 record* row 를 반환한다. 없으면 lazy create.
+     *
+     * 04 §3-D4 (entity-per-record 모델). 한 region 안에 가계 / 변종 / 광종 같은
+     * *런타임 키* 별 누적 데이터가 필요할 때 사용. record 1개 = SoA row 1개.
+     *
+     * Lookup 은 SoA 4-조건 선형 스캔:
+     *   - TagContainers[Slot].HasTag(RecordTag)
+     *   - Get(Slot, RegionIdKey) == RegionId
+     *   - Get(Slot, RecordKey)   == KeyHash
+     *
+     * 생성 시 부여:
+     *   - AddTag(RecordTag) + AddTag(Entity.RegionRecord) (부모)
+     *   - SetProperty(RegionIdKey, RegionId)
+     *   - SetProperty(RecordKey, KeyHash)
+     *
+     * @param RegionId   소속 region (PR-2 의 macro-tile 해시).
+     * @param RecordTag  record 유형 — Entity.RegionRecord.{Lineage|Variant|OreSpecies} 중 하나.
+     * @param KeyHash    record 키 — 32bit 자유 hash (LineageId / VariantId / OreSpeciesId 등). modulo 매핑 0.
+     */
+    FHktEntityId FindOrCreateRegionRecord(uint32 RegionId, const FGameplayTag& RecordTag, uint32 KeyHash);
+
     FORCEINLINE bool IsValidEntity(FHktEntityId Id) const
     {
         return Id >= 0 && Id < EntitySlots.Num() && EntitySlots[Id] >= 0;

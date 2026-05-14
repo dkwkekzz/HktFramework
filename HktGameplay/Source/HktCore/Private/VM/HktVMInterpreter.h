@@ -146,6 +146,16 @@ private:
     void Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
     void Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);
 
+    // ===== Region (PR-3, 04 §3-D4) =====
+    /**
+     * Region 안의 *키별 record entity* 를 SoA 선형 스캔으로 해소 (없으면 lazy create).
+     * 결과 EntityId 를 Dst vreg 에 entity 값으로 적재한다.
+     * @param RegionEntity  소속 region (PR-2 의 FindOrCreateRegionEntity 결과) vreg
+     * @param KeyReg        record key (LineageId/VariantId/OreSpeciesId 등) vreg
+     * @param TagIndex      record tag 의 NetIndex (Entity.RegionRecord.{Lineage|Variant|OreSpecies})
+     */
+    void Op_RegionMapFindOrCreate(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex RegionEntity, RegisterIndex KeyReg, int32 TagIndex);
+
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);
 

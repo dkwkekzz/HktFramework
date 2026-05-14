@@ -307,6 +307,8 @@ struct FHktRegReserve
     X(SetVoxel,              _, R, R) \
     X(IsTerrainSolid,        W, R, R) \
     X(InteractTerrain,       _, R, _) \
+    /* Region (PR-3, 04 §3-D4) — 키별 record entity 해소 (1 host-call opcode). LoadStoreEntity/SaveStoreEntity 는 기존 그대로. */ \
+    X(RegionMapFindOrCreate, W, R, R) \
     /* Utility */           \
     X(Log,              _, _, _)
 

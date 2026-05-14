@@ -209,6 +209,41 @@ FHktEntityId FHktWorldState::FindOrCreateRegionEntity(uint32 RegionId)
     return NewId;
 }
 
+FHktEntityId FHktWorldState::FindOrCreateRegionRecord(uint32 RegionId, const FGameplayTag& RecordTag, uint32 KeyHash)
+{
+    // 04 §3-D4 SoA 4-조건 선형 스캔.
+    // (RecordTag) AND (RegionIdKey == RegionId) AND (RecordKey == KeyHash).
+    // 보조 hash 인덱스 0 — VM 메모리 모델 가드 (04 §1).
+    if (!RecordTag.IsValid())
+    {
+        return InvalidEntityId;
+    }
+
+    const int32 RegionKey = static_cast<int32>(RegionId);
+    const int32 Key = static_cast<int32>(KeyHash);
+    const int32 SlotCount = SlotToEntity.Num();
+    for (int32 Slot = 0; Slot < SlotCount; ++Slot)
+    {
+        const FHktEntityId ExistingId = SlotToEntity[Slot];
+        if (ExistingId == InvalidEntityId) continue;
+        if (!TagContainers[Slot].HasTag(RecordTag)) continue;
+        if (Get(Slot, PropertyId::RegionIdKey) != RegionKey) continue;
+        if (Get(Slot, PropertyId::RecordKey)   != Key)       continue;
+        return ExistingId;
+    }
+
+    const FHktEntityId NewId = AllocateEntity();
+    AddTag(NewId, HktArchetypeTags::Entity_RegionRecord);  // parent
+    AddTag(NewId, RecordTag);                              // leaf
+    SetProperty(NewId, PropertyId::RegionIdKey, RegionKey);
+    SetProperty(NewId, PropertyId::RecordKey,   Key);
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("FindOrCreateRegionRecord RegionId=0x%08X Tag=%s Key=0x%08X EntityId=%d"),
+            RegionId, *RecordTag.ToString(), KeyHash, NewId), NewId);
+    return NewId;
+}
+
 int32 FHktWorldState::GetEntityCount() const
 {
     return ActiveCount;

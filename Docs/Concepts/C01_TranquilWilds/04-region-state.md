@@ -30,6 +30,7 @@
 | **루트 절대 원칙 3** | 서버 권위, 클라는 `FHktWorldView` 읽기 전용 | 모든 카운터 갱신은 서버 VM 결과. 클라는 view-projection 만. |
 | **루트 절대 원칙 4** | VM 은 WorldState 직접 쓰기 금지 | 모든 쓰기는 `FHktVMWorldStateProxy::SetPropertyDirty` 경유. |
 | **루트 절대 원칙 6** | 컬럼 포인터 호이스팅 | RegionId → row 매핑은 dispatch *진입 1 회* 만 해석. 루프 안 `GetProperty` 금지. |
+| **VM 메모리 모델** | 시뮬레이션 상태는 SoA 연속 컬럼만 — 해시·간접·산발 자료구조(TMap 등)는 시뮬레이션 진실의 일부가 될 수 없다 | 모든 region lookup 은 *SoA 선형 스캔* (`RegionIdKey` + `RecordKey` + `Archetype` 컬럼 매치). 보조 hash 인덱스 일체 도입 안 함. |
 | **TerrainSpawner.design.md §1 D1~D7** | Reg 네임스페이스 / RegisterIndex / Schema 1 / cpp 스니펫 신설 금지 | 본 ADR 은 *데이터 모델* 만 추가. 읽기/쓰기는 `FHktVar` + 기존 opcode (`LoadStore`) 조합. |
 | **TerrainSpawner.design.md §1-3** | 신규 opcode 기본 금지 | **opcode 추가 0**. region state 는 *별도 EntityType* 으로 표현 → 기존 `LoadStore` 가 그대로 동작. |
 | **README §2 G1~G6** | spawner = `FHktTerrainSpawnerSpec` / Param0~3 / schema 2 / 서버 권위 | Region state 는 spawner spec 의 *결과물* 일 뿐, 진입 메커니즘을 추가하지 않는다. |
@@ -109,29 +110,33 @@ namespace HktProperty
 }
 ```
 
-- `EHktEntityType::Region` 추가. 한 region 당 EntityId 1 개. EntityId 는 *처음 touch 되는 순간* lazy create. (Region 이 한 번도 카운터를 안 건드리면 row 도 없음 — sparse 유지.)
-- *index: `TMap<uint32 RegionId, uint16 EntityRowIndex>`* — system-level 1 개. dispatch 진입에서 1 회 lookup 후 vreg 에 인라인.
+- `Entity.Region` 태그 부여. 한 region 당 EntityId 1 개. EntityId 는 *처음 touch 되는 순간* lazy create. (Region 이 한 번도 카운터를 안 건드리면 row 도 없음 — sparse 유지.) EHktArchetype 확장은 *하지 않는다* — region/record 는 trait composition 이 필요 없는 pure 데이터 row, tag-only 식별이 더 자연스럽다.
+- **Lookup 은 SoA 선형 스캔** — `FHktWorldState::FindOrCreateRegionEntity(RegionId)` 가 `Entity.Region` 태그 + `RegionIdKey` 컬럼을 직접 스캔해 매치. 보조 hash 인덱스 도입 안 함 (VM 메모리 모델 가드 §1). dispatch 진입에서 1 회 호출 후 vreg 에 EntityId 호이스팅.
 
-### D4 — Group B (Map): EntityType=`RegionLineage` 등, 1 record = 1 entity.
+### D4 — Group B (Map): RecordTag=`Entity.RegionRecord.{Lineage|Variant|OreSpecies}`, 1 record = 1 entity.
 
-| 카운터 | EntityType | 핵심 PropertyId |
-|---|---|---|
-| `Region.Lineages[LineageId]` | `RegionLineage` | `LineageRegion` (소속 RegionId), `LineageId` (key), `LineageElderPosX/Y/Z`, `LineageFelledCount`, `LineagePromotedCount` |
-| `Region.FelledElders[LineageId]` | (재사용) `RegionLineage` 의 `LineageFelledCount` | — |
-| `Region.VariantCatalog[VariantId]` | `RegionVariant` | `VariantRegion`, `VariantId`, `VariantPotency`, `VariantFirstFoundFrame`, `VariantNamedTagId` |
-| `Region.NamedPeaks[id]` | `RegionPeak` | `PeakRegion`, `PeakId`, `PeakPosX/Y/Z`, `PeakNameTagId`, `PeakNamedFrame` |
-| `Region.OreDepleted[OreId]` | `RegionOreSpecies` | `OreRegion`, `OreSpeciesId`, `OreDepletedCount`, `OreCurrentSpeciesId` |
+PR-3 구현은 *EHktArchetype 확장 없이* tag-only 식별 — `Entity.RegionRecord` (parent) + leaf tag 1 종으로 record 유형 구분. `RegionIdKey` (소속 region) + `RecordKey` (32bit 키) 2 컬럼은 모든 record 가 공유, 유형별 추가 컬럼만 별도.
 
-키 lookup 은 *system-level 보조 인덱스* — `TMap<uint64, uint16>` 1 개 / EntityType:
+| 카운터 | RecordTag | 핵심 PropertyId | 시즌 0 |
+|---|---|---|---|
+| `Region.Lineages[LineageId]` | `Entity.RegionRecord.Lineage` | `RegionIdKey` (공용), `RecordKey` (공용), `LineageElderPosX/Y/Z`, `LineageFelledCount`, `LineagePromotedCount` | ✅ PR-3 |
+| `Region.FelledElders[LineageId]` | (재사용) `Entity.RegionRecord.Lineage` 의 `LineageFelledCount` | — | ✅ PR-3 |
+| `Region.VariantCatalog[VariantId]` | `Entity.RegionRecord.Variant` | `RegionIdKey`, `RecordKey`, `VariantPotency`, `VariantFirstFoundFrame` | ✅ PR-3 |
+| `Region.NamedPeaks[id]` | (예약) `Entity.RegionRecord.Peak` | (예약) `PeakPosX/Y/Z`, `PeakNameTagId`, `PeakNamedFrame` | ⏳ S08 |
+| `Region.OreDepleted[OreId]` | `Entity.RegionRecord.OreSpecies` | `RegionIdKey`, `RecordKey`, `OreDepletedCount`, `OreCurrentSpeciesId` | ✅ PR-3 |
 
-```cpp
-// 키 = (RegionId << 32) | KeyHash
-TMap<uint64, uint16 /*EntityRowIndex*/> LineageIndex;
-TMap<uint64, uint16> VariantIndex;
-// ... per EntityType
+키 lookup 은 **SoA 선형 스캔** — `FHktWorldState::FindOrCreateRegionRecord(RegionId, RecordType, KeyHash)` 가 다음 4 조건을 동시 만족하는 row 를 SoA 에서 직접 찾는다:
+
+```
+조건: Archetype == RecordType
+   AND RegionIdKey == RegionId
+   AND RecordKey   == KeyHash
+   AND Tag         contains Entity.RegionRecord
 ```
 
-> **§4-a 의 캐시미스 우려 재발 방지**: spawner 마다 TMap 을 잡지 않는다. *EntityType 당 1 개 system-level TMap*. dispatch 진입에서 1 회 lookup 으로 vreg 에 row index 를 잡고 이후는 SoA 컬럼 포인터 호이스팅(절대 원칙 6).
+없으면 `AllocateEntity` 로 lazy create. 보조 hash 자료구조 일체 도입 안 함 (VM 메모리 모델 가드 §1). dispatch 진입에서 1 회 호출 후 vreg 에 EntityId 호이스팅, 이후는 SoA 컬럼 포인터 호이스팅(절대 원칙 6).
+
+> **성능 가정**: 시즌 0 의 RegionRecord row 총합은 활성 region 당 ~25, 16 active region × 25 ≈ 400 row. spawner story 진입 시 1 회 스캔 → cold path. §11 의 트리거 조건 발화 시점에 별도 ADR 로 hash 도입 재검토.
 
 ### D5 — Group C (Set): EntityType=`RegionFeature` 1 종 + `FeatureKind` 컬럼.
 
@@ -153,7 +158,7 @@ Set 의 3 종 (CrossingPoint / HardenedTrail / KnownSpring) 은 *컬럼 형상�
 ### D6 — 쓰기는 *RegionWrite Builder Helper* 1 종으로만.
 
 ```cpp
-// HktCore/Public/HktStoryBuilder.h  (확장 — 신규 opcode 0)
+// HktCore/Public/HktStoryBuilder.h  (확장 — host-call opcode 1, property 어드레싱 모드 신규 0)
 class FHktStoryBuilder
 {
 public:
@@ -174,8 +179,8 @@ public:
 };
 ```
 
-- 이 helper 들은 **빌더 레벨 매크로 expansion**. emit 되는 opcode 는 모두 기존 (`LoadStore`, `Add`, `CreateEntity` 등). §1-3 정책 준수.
-- `EntityTypeId` 는 `EHktEntityType::RegionLineage` 등의 uint16 — Builder 의 컴파일 타임 enum.
+- 이 helper 들은 **빌더 레벨 매크로 expansion**. PR-3 의 `RegionMapRead`/`Write` 는 신규 host-call opcode `RegionMapFindOrCreate` 1 개 + 기존 `LoadStoreEntity`/`SaveStoreEntity` 시퀀스. property 어드레싱 모드 신규 0 — §1-3 정책의 본래 의도 (indexed addressing 금지) 그대로 준수.
+- `RecordTag` 는 `FGameplayTag` (`Entity.RegionRecord.{Lineage|Variant|OreSpecies}`) — Builder 시그니처에 직접 전달, NetIndex 로 인코딩되어 opcode Imm12 슬롯 (12-bit) 에 적재.
 - `RegionIdVar` 는 spawner story 진입 시 `SpawnerParams::SpawnerRegion` (Param2 상위 비트 또는 별도 별칭) 으로 받는다 (§5).
 
 ### D7 — `SpawnerParams::SpawnerRegion` 컨벤션 추가.
@@ -202,7 +207,7 @@ namespace SpawnerParams
 |---|---|---|
 | **T1** | RegionId 계산 | `HktRegionId::FromChunkCoord` 는 순수 정수 연산. 모든 클라/서버 동일 결과. `TileSize` 는 결정론 상수. |
 | **T2** | Scalar 카운터 갱신 | `Add` opcode + `SetPropertyDirty` 경로. GGPO 롤백 시 dirty queue 가 함께 복원. |
-| **T3** | Map record create | 보조 인덱스 TMap 변경도 결정론 시뮬레이션의 일부. 롤백 시 `WorldState::Restore` 가 인덱스도 재구축 (entity row 가 사라지면 인덱스에서도 제거). |
+| **T3** | Map record create | SoA row 신설 → `Diff.SpawnedEntities` 자동 push. `RegionIdKey`/`RecordKey` set → `Diff.PropertyDeltas` 자동 push. 롤백 시 `UndoDiff` 가 `RemoveEntity` 로 row 회수 — *별도 인덱스 보정 0* (보조 인덱스 자체가 없음). |
 | **T4** | Set append idempotent | 동일 (RegionId, Kind, KeyHash) 가 이미 있으면 row 재생성 X. — 이벤트 중복 발화 시에도 region state 동일. |
 | **T5** | 클라/서버 체크섬 | RegionEntity 류는 일반 entity 와 동일 SoA 컬럼이므로 기존 체크섬 함수에 자동 포함. |
 | **T6** | 순서 의존 | 같은 dispatch tick 내 여러 spawner 가 같은 카운터를 건드리면 *spawner index 오름차순* 으로 직렬 적용 (PendingGroupIntents 큐의 enumeration 순서가 결정론적). |
@@ -225,13 +230,13 @@ namespace SpawnerParams
    LoadStore(MyRegion, SpawnerParams::SpawnerRegion)     // vreg ← Param2
    ↓
    B.RegionAddScalar(MyRegion, PropertyId::RegionFireCounter, DeltaVar)
-      ├─ 보조 인덱스 lookup (TMap<RegionId, EntityRow>)
-      │  └─ 없으면: CreateEntity(EHktEntityType::Region) + index.Add()
+      ├─ FindOrCreateRegionEntity(RegionId) — SoA 선형 스캔 (Entity.Region + RegionIdKey)
+      │  └─ 없으면: AllocateEntity + AddTag(Entity.Region) + SetProperty(RegionIdKey)
       └─ 기존 컬럼 포인터 호이스팅 → SetPropertyDirty(EntityRow, RegionFireCounter, NewValue)
 
 [Replication]
    WorldState SoA → FHktWorldView projection (기존 경로)
-      └─ 클라가 RegionEntity / RegionLineage / ... 컬럼을 fan-in
+      └─ 클라가 Entity.Region / Entity.RegionRecord.* 의 컬럼을 fan-in
           (Presentation 의 region UI 가 read)
 ```
 
@@ -242,12 +247,12 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 ## 6. 영속화 (Save / Load)
 
 ### 6-1. 무엇이 save 대상인가
-- **save**: RegionEntity / RegionLineage / RegionVariant / RegionPeak / RegionOreSpecies / RegionFeature 의 **전체 row**.
+- **save**: `Entity.Region` (RegionEntity) + `Entity.RegionRecord.{Lineage|Variant|OreSpecies}` (시즌 0) + 향후 `.Peak` / `.Feature` 가 부여된 모든 SoA row.
 - **save 안 함**: 일반 entity (Unit/Projectile/...) 의 *시뮬 영속* 처리 정책은 별도 (TerrainSpawner.design.md §10 O1).
 
 ### 6-2. 저장소
 - save-game asset 의 별도 섹션 `RegionStateBlob`. **SoA 컬럼 단위로 직렬화** (entity row 별 직렬화가 아님 — 캐시 친화).
-- 보조 인덱스 (TMap) 는 **저장 안 함**. load 후 `WorldState::RebuildRegionIndices` 가 SoA 를 1 회 스캔해 재구축.
+- 보조 인덱스 없음 — SoA 가 유일한 진실의 원천이므로 별도 재구축 단계도 불필요. load 직후 `FindOrCreateRegionEntity` / `FindOrCreateRegionRecord` 가 그대로 동작.
 
 ### 6-3. 마이그레이션
 - `RegionStateBlobVersion` 1 부터 시작. 컬럼 추가는 *뒤에 append* 만 허용 (기존 row 의 미지정 컬럼은 0 으로 기본값).
@@ -261,7 +266,7 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 ## 7. 복제 (Replication / WorldView)
 
 - RegionEntity 류는 일반 entity 와 동일하게 `FHktWorldView` 에 projection.
-- **relevancy 규칙**: 클라가 진입한 region 의 RegionEntity 만 (+ 그 region 에 속한 RegionLineage/Variant/Peak/...) view 에 포함. 이웃 region 은 (시각화 hint 가 필요한 경우만) lite projection.
+- **relevancy 규칙**: 클라가 진입한 region 의 `Entity.Region` row 만 (+ 그 region 에 소속된 `Entity.RegionRecord.*` row) view 에 포함. 이웃 region 은 (시각화 hint 가 필요한 경우만) lite projection.
 - `FHktWorldView::GetRegion(RegionId)` 보조 헬퍼 — UI/Presentation 이 자주 쓰는 패턴 단축.
 
 > 클라가 region 카운터를 직접 *판정* 하지 않는다 (절대 원칙 3). 임계치 dispatch 는 서버에서만.
@@ -271,15 +276,18 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 ## 8. 영향 파일 (Phase 1 — 추정)
 
 ### HktCore
-| 파일 | 변경 |
-|---|---|
-| `HktCore/Public/HktRegionId.h`+cpp | 신규 — RegionId 계산 |
-| `HktCore/Public/HktCoreProperties.h` | Group A 5 종 + Group B/C 의 record 컬럼 (~15 슬롯) 추가 |
-| `HktCore/Public/HktEntityType.h` *(가정 — 없으면 entity-type enum 위치)* | `Region` / `RegionLineage` / `RegionVariant` / `RegionPeak` / `RegionOreSpecies` / `RegionFeature` 추가 |
-| `HktCore/Public/HktWorldState.h`+cpp | 보조 인덱스 (TMap × EntityType) + `RebuildRegionIndices` |
-| `HktCore/Public/HktStoryBuilder.h`+cpp | `RegionAddScalar` / `RegionMapRead` / `RegionMapWrite` / `RegionFeatureAdd` |
-| `HktCore/Public/HktStoryEventParams.h` | `SpawnerParams::SpawnerRegion` 별칭 |
-| `HktCore/Private/VM/HktVMWorldStateProxy.cpp` | 보조 인덱스 변경의 dirty 추적 hook |
+| 파일 | 변경 | 상태 |
+|---|---|---|
+| `HktCore/Public/Terrain/HktRegionId.h`+cpp | 신규 — RegionId 계산 | ✅ PR-2 |
+| `HktCore/Public/HktCoreProperties.h` | Group A 11 종 (PR-2) + Group B 10 종 (PR-3: `RecordKey` 공용 + Lineage 5 + Variant 2 + Ore 2). Group C (Feature) 는 시즌 0 비범위. | ✅ PR-2/3 |
+| `HktCore/Public/HktCoreDefs.h`+cpp | `Entity.Region` (PR-2) + `Entity.RegionRecord` parent + `.Lineage` / `.Variant` / `.OreSpecies` (PR-3). EHktArchetype 확장 *안 함* — record 는 trait composition 불필요한 pure 데이터 row, tag-only 식별이 PR-2 패턴과 일관. `RegionPeak` / `RegionFeature` 는 S07/S08 진입 시 추가. | ✅ PR-2/3 |
+| `HktCore/Public/HktWorldState.h`+cpp | `FindOrCreateRegionEntity(RegionId)` (PR-2) + `FindOrCreateRegionRecord(RegionId, FGameplayTag, KeyHash)` (PR-3) — 동일 SoA 선형 스캔 패턴 | ✅ PR-2/3 |
+| `HktCore/Public/HktStoryBuilder.h`+cpp | `RegionAddScalar` (PR-2) + `RegionMapFindOrCreate` / `RegionMapRead` / `RegionMapWrite` (PR-3). `RegionFeatureAdd` 는 시즌 0 비범위. | ✅ PR-2/3 |
+| `HktCore/Public/HktStoryEventParams.h` | `SpawnerParams::SpawnerRegion` 별칭 | (PR-4 dispatch 단계에서 필요해질 때 추가) |
+| `HktCore/Public/HktStoryTypes.h` | EOpCode 신규: `RegionMapFindOrCreate(W,R,R)` host-call. (PR-3) | ✅ PR-3 |
+| `HktCore/Private/VM/HktVMInterpreter.{h,cpp}`+`Actions.cpp` | `Op_RegionMapFindOrCreate` dispatch + 구현 + Precondition skip. (PR-3) | ✅ PR-3 |
+| `HktCore/Private/HktStoryValidator.cpp` | Entity-reg flow 추적 (Dst=writer, Src1=reader). (PR-3) | ✅ PR-3 |
+| `HktCore/Private/VM/HktVMWorldStateProxy.cpp` | 별도 host fn 노출 *불필요* — interpreter 가 직접 `WorldState::FindOrCreateRegionRecord` 호출. lazy create 의 `AllocateEntity` / `AddTag` / `SetProperty` 가 기존 dirty 추적 경로 그대로 사용. | ✅ PR-3 (수정 없음) |
 
 ### HktRule
 | 파일 | 변경 |
@@ -295,14 +303,14 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 
 ## 9. 마이그레이션 / 단계
 
-| 단계 | 작업 | 호환 |
-|---|---|---|
-| **M0** | 본 ADR 승인 | — |
-| **M1** | `HktRegionId.h` + `EHktEntityType::Region*` enum 추가. PropertyId Group A 5 종 등록. WorldState row 0 개 (lazy create). | 기존 시뮬 무영향. |
-| **M2** | Group B EntityType 5 종 + 보조 인덱스 + Builder helper. 단위 테스트: lookup / create / dirty / 롤백. | 기존 story 무영향. |
-| **M3** | Group C `RegionFeature` + Builder. save/load 의 read-only 파트. | save asset 버전 +1. |
-| **M4** | 03 의 11 spawner 중 region 카운터 의존 5 종 (S01 / S02 / S03 / S05 / S07) 의 JSON 본문에서 helper 사용 — 07 시리즈 첫 PR. | 07-story-bodies 의존성 해소. |
-| **M5** | save flush 정책 + region offload (Phase 1 마무리). | save asset 버전 고정. |
+| 단계 | 작업 | 호환 | 상태 |
+|---|---|---|---|
+| **M0** | 본 ADR 승인 | — | ✅ |
+| **M1** | `HktRegionId.h` + `Entity.Region` 태그 + PropertyId Group A 11 종 등록. WorldState `FindOrCreateRegionEntity` (lazy create). EHktArchetype 확장 *없이* tag-only 식별로 채택. | 기존 시뮬 무영향. | ✅ PR-2 (`16bed00`, `ca511be`) |
+| **M2** | Group B 의 RegionRecord 3 종 (Lineage / Variant / OreSpecies) + `FindOrCreateRegionRecord` SoA 스캔 + `RegionMapFindOrCreate` host-call opcode + Builder helper 3 종. 자동화 테스트 6 개 (create / cache hit / multi-key / cross-region / VM write / lazy create). | 기존 story 무영향. | ✅ PR-3 (`4980977`) |
+| **M3** | Group C `RegionFeature` (S06/S07/S10) + `RegionPeak` (S08 명명권) — 해당 spawner 진입 PR 에서 점진 추가. | save asset 버전 +1. | ⏳ 대기 (S06/S07/S08) |
+| **M4** | 03 의 11 spawner 중 region 카운터 의존 종의 JSON 본문에서 helper 사용 — 07 시리즈 PR 군. PR-4 Birch (scalar만) → PR-5 Oak (Lineage map 첫 실사용) → PR-6 BerryBush (Variant) → PR-8 Ore. | 07-story-bodies 의존성 해소. | ⏳ 다음 (PR-4 Birch) |
+| **M5** | save flush 정책 + region offload (Phase 1 마무리). | save asset 버전 고정. | ⏳ Phase 1 후반 |
 
 ---
 
@@ -313,7 +321,7 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 | **R1** | TileSize 결정값 (4 / 8 / 16) | 풀숲 region 의 *체감 단위* 가 어느 정도인지 03 의 dispatch 그래프와 매칭해서 결정 | High — M1 전 |
 | **R2** | `LineageId` 의 비트 폭 (현재 16 bit 가정) | sparse 가정 하 16 bit 충돌 확률 — region 당 ~1k Elder 까지 안전 | Mid — M2 |
 | **R3** | 명명권(`NamedPeaks`) 의 tag id 가 GameplayTag NetIndex 인가 별도 사전인가 | NetIndex 는 *세션 단위 안정* 이므로 영속에 부적합 → 별도 region-local 사전 | Mid — M3 |
-| **R4** | 보조 인덱스 TMap 의 직렬화 — 진짜 *재구축* 이 더 싼가? | 13 카운터 × N region 가정 시 row 총합 < 수만 — 재구축 cheap. 저장 안 함이 맞음. | Resolved: 재구축 |
+| **R4** | 보조 hash 인덱스 도입 여부 | VM 메모리 모델 가드 §1 — 시뮬레이션 상태는 SoA 만. hash 일체 도입 안 함. SoA 선형 스캔으로 충분 (시즌 0 row 총합 추정 < 수백). | Resolved: 도입 안 함 |
 | **R5** | RegionEntity 류의 relevancy — 인접 region 까지 view 에 포함? | (a) 진입한 region 만 / (b) 인접 1-ring lite / (c) 항상 전체 region 메타 | Mid — 시즌 0 은 (a) |
 | **R6** | save flush 시점 | 종료 / 주기 / region offload | Low — M5 |
 | **R7** | 카운터 *감소* 정책 (남획 → 자연 복원) | 03 S03 의 `ClusterCount` 감소 패턴이 1 차 예 — 다른 카운터에도 일반화? | Mid — 시즌 0 후 |
@@ -323,7 +331,7 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 ## 11. 무엇이 본 ADR 의 트리거가 되어 재검토 되어야 하는가
 
 - region 카운터의 형태가 group A/B/C 의 어느 것도 아닌 경우 (예: time-series log)
-- 한 region 의 RegionEntity 류 row 합계가 수천을 넘어 인덱스 TMap 의 cache miss 가 핫스팟이 되는 경우 → 컬럼 기반 hash table (open addressing) 로 전환 검토
+- 한 region 의 RegionEntity 류 row 합계가 수천을 넘어 `FindOrCreateRegionRecord` 의 SoA 선형 스캔이 프로파일러 hot-path 로 잡히는 경우 → *VM 메모리 모델을 깨지 않는* 가속 자료구조 (예: SoA 안의 정렬 컬럼 + 이진탐색, 또는 청크 단위 row 클러스터링) 별도 ADR 로 검토
 - save asset 의 region blob 이 메모리 한도를 초과하는 경우 → region-by-region lazy load 로 전환
 
 위 조건이 *실제로 측정* 될 때 별도 ADR 로 갱신. 본 시점에는 채택 결정 유지.
@@ -335,7 +343,7 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 ```
 Region 영속 상태
   ├─ 어디에?   FHktWorldState 안 (Virtual Entity 6 종)
-  ├─ 어떻게?   기존 LoadStore opcode + Builder helper (신규 opcode 0)
+  ├─ 어떻게?   기존 LoadStoreEntity/SaveStoreEntity opcode + Builder helper. host-call opcode 1 신규 (RegionMapFindOrCreate, PR-3) — property 어드레싱 모드 신규 0.
   ├─ 키:        RegionId = macro-tile 좌표 해시 (TileSize 결정론 상수)
   ├─ 결정론:   SoA 컬럼 + SetPropertyDirty → GGPO 자동
   ├─ 영속:     RegionStateBlob (컬럼 단위 직렬화), 인덱스는 load 후 재구축

@@ -444,6 +444,30 @@ public:
      */
     FHktStoryBuilder& RegionAddScalar(FHktVar RegionEntity, uint16 PropId, int32 Delta);
 
+    /**
+     * Region 안의 *키별 record entity* 를 해소해 vreg 로 반환한다 (없으면 lazy create).
+     * 04 §3-D4 entity-per-record 모델.
+     *   emit: RegionMapFindOrCreate(Dst, RegionEntity, KeyVar, Imm12=RecordTag NetIndex).
+     *
+     * @param RegionEntity  소속 region (FindOrCreateRegionEntity 결과) vreg
+     * @param RecordTag     record 유형 — Entity.RegionRecord.{Lineage|Variant|OreSpecies}
+     * @param KeyVar        record 키 (LineageId/VariantId/OreSpeciesId 등 32bit) vreg
+     * @return 해소된 record entity 의 vreg
+     */
+    FHktVar RegionMapFindOrCreate(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar);
+
+    /**
+     * Region map record 의 한 컬럼을 읽는다.
+     *   emit: RegionMapFindOrCreate + LoadStoreEntity (신규 opcode 0, 기존 opcode 재사용).
+     */
+    FHktStoryBuilder& RegionMapRead(FHktVar Dst, FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId);
+
+    /**
+     * Region map record 의 한 컬럼을 쓴다 (없으면 record lazy create 후 write).
+     *   emit: RegionMapFindOrCreate + SaveStoreEntity.
+     */
+    FHktStoryBuilder& RegionMapWrite(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId, FHktVar ValueVar);
+
     // ---- Terrain ----
     FHktStoryBuilder& GetTerrainHeight(FHktVar Dst, FHktVar VoxelX, FHktVar VoxelY);
     FHktStoryBuilder& GetVoxelType(FHktVar Dst, FHktVarBlock PosXY, FHktVar ZVar);

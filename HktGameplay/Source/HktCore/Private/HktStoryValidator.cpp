@@ -160,6 +160,13 @@ bool FHktStoryValidator::ValidateEntityFlow()
 			CheckEntityReg(PC, Op, Inst.Dst);
 			break;
 
+		// --- Region (PR-3, 04 §3-D4) ---
+		//   Dst = record entity (writer), Src1 = region entity (reader), Src2 = key (int reader).
+		case EOpCode::RegionMapFindOrCreate:
+			CheckEntityReg(PC, Op, Inst.Src1);
+			EntityRegs |= (1 << Inst.Dst);
+			break;
+
 		default:
 			break;
 		}
