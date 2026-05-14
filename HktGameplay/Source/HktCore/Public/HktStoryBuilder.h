@@ -468,6 +468,17 @@ public:
      */
     FHktStoryBuilder& RegionMapWrite(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId, FHktVar ValueVar);
 
+    /**
+     * 위치(cm) → RegionEntity 해소 (PR-5).
+     *   emit: FindOrCreateRegionEntityAt(Dst, PosX, PosY) — 1 host-call opcode.
+     * spawner story 가 Param0/Param1 의 spawn 좌표로 region-scoped helper 진입점을 얻는다.
+     * 결정론: VoxelSizeCm/ChunkSize 는 TerrainState 에서 조회되며 정수 floor-div 만 사용.
+     * @param PosXVar  위치 X (cm) vreg
+     * @param PosYVar  위치 Y (cm) vreg
+     * @return 해소된 RegionEntity 의 vreg
+     */
+    FHktVar FindOrCreateRegionAt(FHktVar PosXVar, FHktVar PosYVar);
+
     // ---- Terrain ----
     FHktStoryBuilder& GetTerrainHeight(FHktVar Dst, FHktVar VoxelX, FHktVar VoxelY);
     FHktStoryBuilder& GetVoxelType(FHktVar Dst, FHktVarBlock PosXY, FHktVar ZVar);

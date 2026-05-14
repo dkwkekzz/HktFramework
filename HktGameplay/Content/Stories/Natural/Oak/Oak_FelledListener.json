@@ -1,0 +1,63 @@
+{
+  "schema": 2,
+  "storyTag": "Event.Natural.TreeFelled",
+  "tags": {
+    "Oak":            "Entity.Natural.Oak",
+    "Branch":         "Entity.Natural.Branch",
+    "Axe":            "Entity.Tool.Axe",
+    "Lineage":        "Entity.RegionRecord.Lineage",
+    "OakSaplingSeed": "Event.Region.OakSaplingSeed"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Oak] TreeFelled listener — Oak gate, drop branches, lineage++, dispatch OakSaplingSeed" },
+
+    { "op": "HasTag", "dst": {"var":"isOak"}, "entity": "Target", "tag": "Oak" },
+    { "op": "JumpIfNot", "cond": {"var":"isOak"}, "label": "done" },
+
+    { "op": "GetDistance",  "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
+    { "op": "CmpLeConst",   "dst": {"var":"inRange"}, "src": {"var":"dist"}, "value": 500 },
+    { "op": "JumpIfNot",    "cond": {"var":"inRange"}, "label": "done" },
+
+    { "op": "FindByOwner",  "owner": "Self", "tag": "Axe" },
+    { "op": "CmpGtConst",   "dst": {"var":"hasAxe"}, "src": "Count", "value": 0 },
+    { "op": "JumpIfNot",    "cond": {"var":"hasAxe"}, "label": "done" },
+
+    { "op": "LoadStore", "dst": {"block":"fallenPos","index":0}, "property": "TargetPosX" },
+    { "op": "LoadStore", "dst": {"block":"fallenPos","index":1}, "property": "TargetPosY" },
+    { "op": "LoadStore", "dst": {"block":"fallenPos","index":2}, "property": "TargetPosZ" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"lineageId"}, "entity": "Target", "property": "RecordKey" },
+
+    { "op": "DestroyEntity", "entity": "Target" },
+
+    { "op": "SpawnEntity", "classTag": "Branch", "out": "br1" },
+    { "op": "SetPosition", "entity": {"var":"br1"}, "pos": {"block":"fallenPos"} },
+    { "op": "SpawnEntity", "classTag": "Branch", "out": "br2" },
+    { "op": "SetPosition", "entity": {"var":"br2"}, "pos": {"block":"fallenPos"} },
+    { "op": "SpawnEntity", "classTag": "Branch", "out": "br3" },
+    { "op": "SetPosition", "entity": {"var":"br3"}, "pos": {"block":"fallenPos"} },
+
+    { "op": "FindOrCreateRegionAt",
+      "posX": {"block":"fallenPos","index":0},
+      "posY": {"block":"fallenPos","index":1},
+      "out": "regionEntity" },
+
+    { "op": "RegionMapRead", "dst": {"var":"felledCount"},
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "Lineage",
+      "key": {"var":"lineageId"}, "property": "LineageFelledCount" },
+    { "op": "AddImm", "dst": {"var":"felledCount"}, "src": {"var":"felledCount"}, "imm": 1 },
+    { "op": "RegionMapWrite",
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "Lineage",
+      "key": {"var":"lineageId"}, "property": "LineageFelledCount", "value": {"var":"felledCount"} },
+
+    { "op": "RegionAddScalar",
+      "regionEntity": {"var":"regionEntity"}, "property": "RegionOakCount", "delta": -1 },
+
+    { "op": "SaveStore", "property": "Param2", "src": {"var":"lineageId"} },
+    { "op": "Log", "message": "[Oak] dispatch OakSaplingSeed (Param2=LineageId)" },
+    { "op": "DispatchEvent", "eventTag": "OakSaplingSeed" },
+
+    { "op": "Label", "name": "done" },
+    { "op": "Halt" }
+  ]
+}

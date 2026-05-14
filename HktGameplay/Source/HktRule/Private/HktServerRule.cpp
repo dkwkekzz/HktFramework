@@ -251,6 +251,20 @@ void FHktDefaultServerRule::OnEvent_GameModeInitWorld(const FGameplayTag& InStor
 	PendingWorldInit.Emplace(FPendingWorldInit{ InStoryTag, InLocation });
 }
 
+void FHktDefaultServerRule::EnqueueDebugSpawner(const FGameplayTag& InStoryTag, const FVector& InLocation, int32 InParam2, int32 InParam3)
+{
+	if (!InStoryTag.IsValid())
+	{
+		UE_LOG(LogHktRule, Warning,
+			TEXT("[ServerRule] EnqueueDebugSpawner: invalid StoryTag — 큐잉 거부."));
+		return;
+	}
+	UE_LOG(LogHktRule, Log,
+		TEXT("[ServerRule] EnqueueDebugSpawner: story=%s loc=(%.0f,%.0f,%.0f) p2=%d p3=%d"),
+		*InStoryTag.ToString(), InLocation.X, InLocation.Y, InLocation.Z, InParam2, InParam3);
+	PendingDebugSpawners.Add(FPendingDebugSpawner{ InStoryTag, InLocation, InParam2, InParam3 });
+}
+
 // ============================================================================
 // 틱 (item 1, 2, 3, 4, 5, 6, 8, 9)
 // ============================================================================
@@ -364,6 +378,37 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			PendingWorldInit.Reset();
 		}
 	}
+
+	// 디버그 spawner 큐 소비 — `hkt.spawn.natural` 콘솔 커맨드로 enqueue 된 것들.
+	// PendingWorldInit 와 같은 enqueue 패턴이지만 *복수 호출* 지원 (반복 검증용).
+	for (const FPendingDebugSpawner& Dbg : PendingDebugSpawners)
+	{
+		int32 TargetGroup = Graph.CalculateRelevancyGroupIndex(Dbg.Location);
+		if (!PendingGroupIntents.IsValidIndex(TargetGroup))
+		{
+			TargetGroup = 0;
+		}
+		if (!PendingGroupIntents.IsValidIndex(TargetGroup))
+		{
+			UE_LOG(LogHktRule, Warning,
+				TEXT("[ServerRule] PendingDebugSpawner: NumGroups=%d — %s 큐잉 실패 (월드 미준비)."),
+				PendingGroupIntents.Num(), *Dbg.StoryTag.ToString());
+			continue;
+		}
+		FHktEvent DbgEvent = HktEventBuilder::Spawner(
+			Dbg.StoryTag,
+			static_cast<int32>(Dbg.Location.X),
+			static_cast<int32>(Dbg.Location.Y));
+		DbgEvent.Location = Dbg.Location;
+		DbgEvent.Param2   = Dbg.Param2;
+		DbgEvent.Param3   = Dbg.Param3;
+		DbgEvent.EventId  = ++ServerEventSequence;
+		PendingGroupIntents[TargetGroup].Add(DbgEvent);
+		UE_LOG(LogHktRule, Log,
+			TEXT("[ServerRule] PendingDebugSpawner dispatched: tag=%s group=%d eventId=%d p2=%d p3=%d"),
+			*Dbg.StoryTag.ToString(), TargetGroup, DbgEvent.EventId, Dbg.Param2, Dbg.Param3);
+	}
+	PendingDebugSpawners.Reset();
 
 	// --- ProcessSimulationAndPayloads ---
 

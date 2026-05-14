@@ -44,14 +44,19 @@ namespace HktNaturalEntityTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Birch,        "Entity.Natural.Birch",        "Birch tree — Implementation-Plan §6.1 demo. Spawned by chunk-load spawner; client emits Event.Natural.TreeFelled to fell.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Branch,       "Entity.Natural.Branch",       "Branch — TreeFelled 시 drop 되는 재료 엔티티.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSapling, "Entity.Natural.BirchSapling", "BirchSapling — SaplingSeed 시드로 spawn 되는 묘목.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Oak,          "Entity.Natural.Oak",          "Oak tree — Implementation-Plan §6.2 / S02 lineage demo. Grove 중심 + 자식 N 본 배치.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakElder,     "Entity.Natural.OakElder",     "Oak Elder — grove 중심 노목 (lineage 의 anchor). 베이면 LineageFelledCount +1.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSapling,   "Entity.Natural.OakSapling",   "OakSapling — OakSaplingSeed 시드로 spawn. 향후 Elder 로 promotion 후보.");
 }
 
 namespace HktRegionEventTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SaplingSeed, "Event.Region.SaplingSeed", "TreeFelled 리스너가 자기-전파로 디스패치하는 묘목 시드 이벤트.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SaplingSeed,    "Event.Region.SaplingSeed",    "Birch TreeFelled 리스너가 자기-전파로 디스패치하는 묘목 시드 이벤트.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSaplingSeed, "Event.Region.OakSaplingSeed", "Oak TreeFelled 리스너가 디스패치하는 Oak 묘목 시드 이벤트 (Param2=LineageId 보존).");
 }
 
 namespace HktNaturalStoryTags
 {
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak chunk-load spawner story. Param2=LineageId, Param3=ChildCount.");
 }

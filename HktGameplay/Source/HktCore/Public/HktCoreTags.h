@@ -65,14 +65,23 @@ namespace HktNaturalEntityTags
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Birch);         // Entity.Natural.Birch
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Branch);        // Entity.Natural.Branch (베기 시 drop)
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSapling);  // Entity.Natural.BirchSapling
+
+    // ── PR-5 (Implementation-Plan §6.2 / 03-natural-spawners S02) — Oak 가계 spawner ──
+    // Oak / OakElder / OakSapling: Oak grove (Elder 1 + ChildCount 자식) lineage 데모.
+    // Elder 는 일반 Oak 의 attribute 변형(태그 부착) — 후계 promotion 시 일반 Oak → Elder 전이.
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Oak);           // Entity.Natural.Oak
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakElder);      // Entity.Natural.OakElder (grove 중심 노목 마커)
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSapling);    // Entity.Natural.OakSapling
 }
 
 namespace HktRegionEventTags
 {
-    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SaplingSeed);   // Event.Region.SaplingSeed
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SaplingSeed);       // Event.Region.SaplingSeed (Birch)
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSaplingSeed);    // Event.Region.OakSaplingSeed (Oak — lineage 키 보존)
 }
 
 namespace HktNaturalStoryTags
 {
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSpawn);    // Story.Flow.Spawner.Natural.Birch
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSpawn);      // Story.Flow.Spawner.Natural.Oak
 }

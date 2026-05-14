@@ -1,0 +1,74 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Flow.Spawner.Natural.Oak",
+  "tags": {
+    "Oak":      "Entity.Natural.Oak",
+    "OakElder": "Entity.Natural.OakElder",
+    "Lineage":  "Entity.RegionRecord.Lineage"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Oak] grove spawner — Elder + 3 children, lineage=Param2" },
+
+    { "op": "LoadStore", "dst": {"var":"baseX"},      "property": "Param0" },
+    { "op": "LoadStore", "dst": {"var":"baseY"},      "property": "Param1" },
+    { "op": "LoadStore", "dst": {"var":"lineageId"},  "property": "Param2" },
+    { "op": "LoadConst", "dst": {"var":"zero"},       "value": 0 },
+
+    { "op": "FindOrCreateRegionAt", "posX": {"var":"baseX"}, "posY": {"var":"baseY"}, "out": "regionEntity" },
+
+    { "op": "RegionMapRead", "dst": {"var":"felledCount"},
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "Lineage",
+      "key": {"var":"lineageId"}, "property": "LineageFelledCount" },
+    { "op": "IfGeConst", "src": {"var":"felledCount"}, "value": 3 },
+      { "op": "Log", "message": "[Oak] lineage exhausted (felled >= 3) — skip" },
+      { "op": "Halt" },
+    { "op": "EndIf" },
+
+    { "op": "RegionMapWrite",
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "Lineage",
+      "key": {"var":"lineageId"}, "property": "LineageElderPosX", "value": {"var":"baseX"} },
+    { "op": "RegionMapWrite",
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "Lineage",
+      "key": {"var":"lineageId"}, "property": "LineageElderPosY", "value": {"var":"baseY"} },
+
+    { "op": "RegionAddScalar",
+      "regionEntity": {"var":"regionEntity"}, "property": "RegionOakCount", "delta": 1 },
+
+    { "op": "SpawnEntity", "classTag": "Oak", "out": "elder" },
+    { "op": "AddTag", "entity": {"var":"elder"}, "tag": "OakElder" },
+    { "op": "Move", "dst": {"block":"pos0","index":0}, "src": {"var":"baseX"} },
+    { "op": "Move", "dst": {"block":"pos0","index":1}, "src": {"var":"baseY"} },
+    { "op": "Move", "dst": {"block":"pos0","index":2}, "src": {"var":"zero"} },
+    { "op": "SetPosition", "entity": {"var":"elder"}, "pos": {"block":"pos0"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"elder"}, "property": "RecordKey", "src": {"var":"lineageId"} },
+
+    { "op": "LoadConst", "dst": {"var":"o1x"}, "value": 1500 },
+    { "op": "LoadConst", "dst": {"var":"o1y"}, "value": 0 },
+    { "op": "SpawnEntity", "classTag": "Oak", "out": "c1" },
+    { "op": "Add",  "dst": {"block":"pos1","index":0}, "src1": {"var":"baseX"}, "src2": {"var":"o1x"} },
+    { "op": "Add",  "dst": {"block":"pos1","index":1}, "src1": {"var":"baseY"}, "src2": {"var":"o1y"} },
+    { "op": "Move", "dst": {"block":"pos1","index":2}, "src": {"var":"zero"} },
+    { "op": "SetPosition", "entity": {"var":"c1"}, "pos": {"block":"pos1"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"c1"}, "property": "RecordKey", "src": {"var":"lineageId"} },
+
+    { "op": "LoadConst", "dst": {"var":"o2x"}, "value": -750 },
+    { "op": "LoadConst", "dst": {"var":"o2y"}, "value": 1299 },
+    { "op": "SpawnEntity", "classTag": "Oak", "out": "c2" },
+    { "op": "Add",  "dst": {"block":"pos2","index":0}, "src1": {"var":"baseX"}, "src2": {"var":"o2x"} },
+    { "op": "Add",  "dst": {"block":"pos2","index":1}, "src1": {"var":"baseY"}, "src2": {"var":"o2y"} },
+    { "op": "Move", "dst": {"block":"pos2","index":2}, "src": {"var":"zero"} },
+    { "op": "SetPosition", "entity": {"var":"c2"}, "pos": {"block":"pos2"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"c2"}, "property": "RecordKey", "src": {"var":"lineageId"} },
+
+    { "op": "LoadConst", "dst": {"var":"o3x"}, "value": -750 },
+    { "op": "LoadConst", "dst": {"var":"o3y"}, "value": -1299 },
+    { "op": "SpawnEntity", "classTag": "Oak", "out": "c3" },
+    { "op": "Add",  "dst": {"block":"pos3","index":0}, "src1": {"var":"baseX"}, "src2": {"var":"o3x"} },
+    { "op": "Add",  "dst": {"block":"pos3","index":1}, "src1": {"var":"baseY"}, "src2": {"var":"o3y"} },
+    { "op": "Move", "dst": {"block":"pos3","index":2}, "src": {"var":"zero"} },
+    { "op": "SetPosition", "entity": {"var":"c3"}, "pos": {"block":"pos3"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"c3"}, "property": "RecordKey", "src": {"var":"lineageId"} },
+
+    { "op": "Halt" }
+  ]
+}

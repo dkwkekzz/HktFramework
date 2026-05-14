@@ -1614,6 +1614,14 @@ FHktStoryBuilder& FHktStoryBuilder::RegionMapWrite(FHktVar RegionEntity, const F
     return *this;
 }
 
+// ---- Region (PR-5) — 위치(cm) → RegionEntity ----
+FHktVar FHktStoryBuilder::FindOrCreateRegionAt(FHktVar PosXVar, FHktVar PosYVar)
+{
+    FHktVar Out = NewVar(TEXT("RegionEntity"));
+    EmitV(EOpCode::FindOrCreateRegionEntityAt, Out, PosXVar, PosYVar, 0);
+    return Out;
+}
+
 // ---- Region (PR-2) ----
 FHktStoryBuilder& FHktStoryBuilder::RegionAddScalar(FHktVar RegionEntity, uint16 PropId, int32 Delta)
 {

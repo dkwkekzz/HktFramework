@@ -167,6 +167,12 @@ bool FHktStoryValidator::ValidateEntityFlow()
 			EntityRegs |= (1 << Inst.Dst);
 			break;
 
+		// --- Region (PR-5) ---
+		//   Dst = region entity (writer), Src1/Src2 = PosX/Y (int reader). 위치 입력은 entity flow 추적에서 제외.
+		case EOpCode::FindOrCreateRegionEntityAt:
+			EntityRegs |= (1 << Inst.Dst);
+			break;
+
 		default:
 			break;
 		}

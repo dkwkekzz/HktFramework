@@ -314,6 +314,19 @@ public:
 	/** 월드 최초 생성 Story 트리거 — InitGame에서 호출, 첫 Tick에 이벤트 발동 */
 	virtual void OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation) {}
 
+	/**
+	 * 디버그 전용 — spawner story 를 임의 위치에 즉시 큐잉 (다음 tick 발동).
+	 * 콘솔 커맨드 `hkt.spawn.natural` 진입점. 프로덕션 자산 영향 0 — 기본 구현 no-op.
+	 * Implementation-Plan §7 PR-5+ : terrain-bake 자동 추출 (Phase 3) 가 완성되기 전까지의
+	 * 임시 검증 경로. WorldInit 처럼 큐잉되지만 *복수* 호출 지원.
+	 *
+	 * @param InStoryTag  Story.Flow.Spawner.Natural.* (예: Oak / Birch)
+	 * @param InLocation  spawner anchor (cm) — Param0/1 + Event.Location 으로 흘러간다
+	 * @param InParam2    archetype 별 의미 (예: Oak 의 LineageId)
+	 * @param InParam3    archetype 별 의미 (예: ChildCount)
+	 */
+	virtual void EnqueueDebugSpawner(const FGameplayTag& InStoryTag, const FVector& InLocation, int32 InParam2 = 0, int32 InParam3 = 0) {}
+
 	/** 틱 — 내부 캐싱된 컨텍스트 사용, 결과 구조체 반환 (item 1, 2, 6) */
 	virtual FHktEventGameModeTickResult OnEvent_GameModeTick(float InDeltaTime) { return {}; }
 };

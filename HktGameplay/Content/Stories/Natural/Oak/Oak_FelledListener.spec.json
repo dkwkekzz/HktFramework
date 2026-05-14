@@ -1,0 +1,61 @@
+{
+  "storyTag": "Event.Natural.TreeFelled",
+  "description": "Oak TreeFelled 리스너 — Target 이 Oak + 거리 ≤ 500 + Axe 소유 통과 시 Target 파괴 + Branch 3 본 drop + 가계 LineageFelledCount +1 + RegionOakCount -1 + Param2 에 LineageId 채워 Event.Region.OakSaplingSeed 디스패치. (Birch 리스너와 storyTag 가 같지만 HasTag(Oak) gate 로 분리)",
+  "scenarios": [
+    {
+      "name": "non_oak_target_short_circuits",
+      "description": "Target 이 Oak 가 아니면 즉시 done. 부수효과 0.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "position": [100, 0, 0] },
+        "event":  { "targetPosX": 100, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": { "status": "Completed", "dispatched": [] }
+    },
+    {
+      "name": "out_of_range_short_circuits",
+      "description": "Self ↔ Target 거리 > 500 → done.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "position": [1000, 0, 0], "tags": ["Entity.Natural.Oak"] },
+        "event":  { "targetPosX": 1000, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": { "status": "Completed", "dispatched": [] }
+    },
+    {
+      "name": "no_axe_short_circuits",
+      "description": "Axe 미소유 → done. Target 보존.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "position": [200, 0, 0], "tags": ["Entity.Natural.Oak"] },
+        "event":  { "targetPosX": 200, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": { "status": "Completed", "dispatched": [] }
+    },
+    {
+      "name": "valid_fell_dispatches_oak_sapling_seed",
+      "description": "Oak + 거리 OK + Axe OK → OakSaplingSeed 1건 디스패치, Param2 에 Target 의 RecordKey(=LineageId) 적재.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": {
+          "position": [200, 0, 0],
+          "tags": ["Entity.Natural.Oak"],
+          "properties": { "RecordKey": 4242 }
+        },
+        "entities": [
+          {
+            "tags": ["Entity.Tool.Axe"],
+            "properties": { "OwnerEntity": {"ref":"self"} }
+          }
+        ],
+        "event": { "targetPosX": 200, "targetPosY": 0, "targetPosZ": 0 }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Event.Region.OakSaplingSeed", "param2": 4242 }
+        ]
+      }
+    }
+  ]
+}

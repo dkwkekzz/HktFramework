@@ -11,6 +11,7 @@
 #include "HktCoreEventLog.h"
 #include "Terrain/HktTerrainState.h"
 #include "Terrain/HktTerrainVoxelDef.h"
+#include "Terrain/HktRegionId.h"
 #include "HktSimulationSystems.h"
 
 // ============================================================================
@@ -981,6 +982,34 @@ void FHktVMInterpreter::Op_RegionMapFindOrCreate(FHktVMRuntime& Runtime, Registe
         FString::Printf(TEXT("Op_RegionMapFindOrCreate Region=%d Tag=%s Key=0x%08X → Record=%d"),
             RegionId, *RecordTag.ToString(), KeyHash, RecordEntity),
         RecordEntity);
+}
+
+void FHktVMInterpreter::Op_FindOrCreateRegionEntityAt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosXReg, RegisterIndex PosYReg)
+{
+    if (!WorldState || !TerrainState)
+    {
+        Runtime.SetRegEntity(Dst, InvalidEntityId);
+        return;
+    }
+
+    const int32 PosXCm = Runtime.GetReg(PosXReg);
+    const int32 PosYCm = Runtime.GetReg(PosYReg);
+
+    // VoxelSizeCm 은 float (기본 15.0). 결정론을 위해 정수 floor-div 만 사용.
+    const int32 VoxelSizeI   = FMath::Max(1, static_cast<int32>(TerrainState->VoxelSizeCm));
+    const int32 ChunkExtentCm = VoxelSizeI * FHktTerrainState::ChunkSize;
+
+    const int32 ChunkX = FHktTerrainState::FloorDiv(PosXCm, ChunkExtentCm);
+    const int32 ChunkY = FHktTerrainState::FloorDiv(PosYCm, ChunkExtentCm);
+
+    const uint32 RegionId = HktRegionId::FromChunkCoord(ChunkX, ChunkY);
+    const FHktEntityId Entity = WorldState->FindOrCreateRegionEntity(RegionId);
+    Runtime.SetRegEntity(Dst, Entity);
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_FindOrCreateRegionEntityAt Pos=(%d,%d)cm Chunk=(%d,%d) RegionId=0x%08X → Entity=%d"),
+            PosXCm, PosYCm, ChunkX, ChunkY, RegionId, Entity),
+        Entity);
 }
 
 // ============================================================================
