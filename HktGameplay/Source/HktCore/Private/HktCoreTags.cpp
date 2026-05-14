@@ -18,6 +18,7 @@ namespace HktNaturalEventTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(TrailEndpointReached, "Event.Natural.TrailEndpointReached", "Animal trail endpoint reached (autonomous — fired by positional system).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(PeakReached,          "Event.Natural.PeakReached",          "Peak summit reached (autonomous — fired by positional system).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(GrainObserved,        "Event.Natural.GrainObserved",        "Wind-grain pattern observed at grass endpoint (autonomous — side effect of harvest/herb events).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakFelled,            "Event.Natural.OakFelled",            "PR-5 — Oak-specific felling event. 클라이언트는 target.HasTag(Oak) 시 본 태그를 직접 발사. Registry 가 tag→program 1:1 이므로 트리별 분리. PR-6+ router/multi-handler 도입 시 통합 가능.");
 }
 
 namespace HktToolTags
