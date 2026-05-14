@@ -599,6 +599,37 @@ void AHktIngamePlayerController::RequestItemDrop(FHktEntityId ItemEntity)
         FString::Printf(TEXT("RequestItemDrop Item=%d"), ItemEntity), SubjectEntity);
 }
 
+void AHktIngamePlayerController::RequestActionEvent(FGameplayTag ActionTag)
+{
+    if (!ActionTag.IsValid()) return;
+
+    // Subject 는 IntentBuilder 의 현재 선택, 없으면 DefaultSubject 로 fallback
+    FHktEntityId SubjectEntity = InvalidEntityId;
+    FHktEntityId TargetEntity = InvalidEntityId;
+    if (CachedIntentBuilder)
+    {
+        SubjectEntity = CachedIntentBuilder->GetSubjectEntityId();
+        TargetEntity  = CachedIntentBuilder->GetTargetEntityId();
+    }
+    if (SubjectEntity == InvalidEntityId)
+    {
+        SubjectEntity = DefaultSubjectEntityId;
+    }
+    if (SubjectEntity == InvalidEntityId) return;
+
+    FHktEvent Event;
+    Event.EventTag = ActionTag;
+    Event.SourceEntity = SubjectEntity;
+    Event.TargetEntity = TargetEntity;
+    Event.PlayerUid = GetPlayerUid();
+    Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+    IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
+
+    HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+        FString::Printf(TEXT("RequestActionEvent Submit %s"), *Event.ToString()),
+        Event.SourceEntity, Event.EventTag);
+}
+
 void AHktIngamePlayerController::ResolveDefaultSubject()
 {
     if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;

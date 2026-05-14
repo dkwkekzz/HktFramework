@@ -77,6 +77,12 @@ public:
 	/** 아이템 드롭 요청 (바닥에 놓기). */
 	virtual void RequestItemDrop(FHktEntityId ItemEntity) {}
 
+	/**
+	 * 임의의 ActionTag(EventTag) 로 RuntimeEvent 전송 요청 (임시 디버그 UI 용).
+	 * Subject 는 현재 선택된 엔티티, Target 은 현재 타겟(있으면) 으로 설정한다.
+	 */
+	virtual void RequestActionEvent(FGameplayTag ActionTag) {}
+
 	/** 장비 슬롯 → 가방으로 보관 요청. */
 	virtual void RequestBagStore(int32 EquipIndex) {}
 

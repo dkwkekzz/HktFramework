@@ -54,6 +54,9 @@ public:
     /** 아이템 드롭 (바닥에 놓기) — RuntimeEvent로 전송 */
     virtual void RequestItemDrop(FHktEntityId ItemEntity) override;
 
+    /** 임의 ActionTag 로 RuntimeEvent 전송 (임시 디버그 UI 용) */
+    virtual void RequestActionEvent(FGameplayTag ActionTag) override;
+
     // === 가방 상호작용 (UI/입력에서 호출) ===
 
     /** EquipSlot → Bag (장비 슬롯에서 가방으로 보관) */

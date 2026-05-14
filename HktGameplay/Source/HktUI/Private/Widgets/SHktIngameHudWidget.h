@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -46,6 +47,8 @@ private:
 	FReply OnInventoryClicked();
 	FReply OnEquipmentClicked();
 	FReply OnSkillsClicked();
+	FReply OnSendActionClicked();
+	void SubmitActionFromInput();
 	void TogglePanel(int32 PanelIndex);
 
 	/** 슬롯 바인딩 변경 시 스킬 패널 갱신 */
@@ -70,6 +73,8 @@ private:
 	TArray<FHktSystemMessageEntry> ActiveSystemMessages;
 	FDelegateHandle SystemMessageHandle;
 	TWeakObjectPtr<UWorld> CachedWorld;
+
+	TSharedPtr<SEditableTextBox> ActionTagInputBox;
 
 	TSharedPtr<SBorder> InventoryPanel;
 	TSharedPtr<SBorder> EquipmentPanel;
@@ -348,6 +353,37 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 						.HAlign(HAlign_Center).VAlign(VAlign_Center)
 						.OnClicked(this, &SHktIngameHudWidget::OnSkillsClicked)
 						[ SNew(STextBlock).Text(FText::FromString(TEXT("Skills"))) ]
+					]
+				]
+
+				// --- 임시 ActionTag 디버그 입력: TextBox + Send ---
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(12.f, 4.f, 4.f, 4.f)
+				[
+					SNew(SBox).WidthOverride(220.f).HeightOverride(32.f)
+					[
+						SAssignNew(ActionTagInputBox, SEditableTextBox)
+						.HintText(FText::FromString(TEXT("ActionTag (e.g. Story.Event.Action.Foo)")))
+						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type CommitType)
+						{
+							if (CommitType == ETextCommit::OnEnter)
+							{
+								SubmitActionFromInput();
+							}
+						})
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.f)
+				[
+					SNew(SBox).WidthOverride(80.f).HeightOverride(32.f)
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Center).VAlign(VAlign_Center)
+						.OnClicked(this, &SHktIngameHudWidget::OnSendActionClicked)
+						[ SNew(STextBlock).Text(FText::FromString(TEXT("Send"))) ]
 					]
 				]
 			]
@@ -902,6 +938,34 @@ inline FReply SHktIngameHudWidget::OnSkillsClicked()
 		RefreshSkillsPanel();
 	}
 	return FReply::Handled();
+}
+
+inline FReply SHktIngameHudWidget::OnSendActionClicked()
+{
+	SubmitActionFromInput();
+	return FReply::Handled();
+}
+
+inline void SHktIngameHudWidget::SubmitActionFromInput()
+{
+	if (!ActionTagInputBox.IsValid()) return;
+
+	const FString TagStr = ActionTagInputBox->GetText().ToString().TrimStartAndEnd();
+	if (TagStr.IsEmpty()) return;
+
+	FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(FName(*TagStr), false);
+	if (!ActionTag.IsValid())
+	{
+		AddSystemMessage(FString::Printf(TEXT("Invalid ActionTag: %s"), *TagStr));
+		return;
+	}
+
+	APlayerController* PC = CachedPC.Get();
+	if (!PC) return;
+	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
+	if (!Interaction) return;
+
+	Interaction->RequestActionEvent(ActionTag);
 }
 
 // ============================================================================
