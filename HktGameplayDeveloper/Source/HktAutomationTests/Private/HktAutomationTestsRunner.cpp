@@ -126,7 +126,7 @@ namespace HktAutomationTestsRunner
 
 	void RunMovementSystemTests()
 	{
-		UE_LOG(LogHktAutomationTests, Log, TEXT("[HktAutomationTests] Running MovementSystem V1↔V2 tests..."));
+		UE_LOG(LogHktAutomationTests, Log, TEXT("[HktAutomationTests] Running MovementSystem tests..."));
 
 		FHktTestReport Report = HktMovementSystemTests::RunAllMovementSystemTests();
 

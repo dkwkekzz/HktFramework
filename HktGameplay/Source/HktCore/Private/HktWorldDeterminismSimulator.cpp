@@ -506,7 +506,7 @@ void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InSt
     // 이를 통해 WaitingEvent 중이던 VM 이 Late-Join 클라에서도 올바르게 재개된다.
     RehydrateVMPool();
 
-    // V2 의 active-mover 인덱스는 VMProxy 에 비결정적으로 누적된 캐시. 롤백/복원 시
+    // MovementSystem 의 active-mover 인덱스는 VMProxy 에 누적된 캐시. 롤백/복원 시
     // WorldState 와의 일관성을 잃을 수 있으므로 전체 재구성.
     VMProxy.RebuildActiveMovers(WorldState);
 }

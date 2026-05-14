@@ -83,7 +83,7 @@ void FHktAutomationTestsModule::StartupModule()
 
 	ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("hkt.automation.movement"),
-		TEXT("Run MovementSystem V1↔V2 parity & invariant tests"),
+		TEXT("Run MovementSystem 자체 검증 (도착/오버슈트/ActiveMover invariant/통합)"),
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			HktAutomationTestsRunner::RunMovementSystemTests();
