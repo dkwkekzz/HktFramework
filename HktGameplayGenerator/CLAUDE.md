@@ -93,6 +93,8 @@ hkt_mcp/
 | `HktItemGenerator` | Editor | 아이템 Mesh + 아이콘 생성 |
 | `HktTextureGenerator` | Editor | `FHktTextureIntent` → SD WebUI 텍스처 |
 | `HktSpriteGenerator` | Editor / PostEngineInit | 스프라이트 어셋 자동 생성 (HktSpriteCore와 페어) |
+| `HktPaper2DGenerator` | Editor / PostEngineInit | Paper2D (UPaperSprite/UPaperFlipbook) 어셋 빌더 — HktSpriteGenerator 워크스페이스를 입력으로 사용 |
+| `HktWorkspaceGenerator` | Editor / PostEngineInit | **I-0008** — `{Saved}/Workspace/{Cat}/{Tag}` 트리 스캔 → GameplayTag 자동 등록 → 카테고리별 빌더(현재 Paper2D) 디스패치 |
 
 ### Generator Handler 패턴
 
@@ -131,3 +133,16 @@ Generator가 에셋 생성 시 경로 결정. 런타임 로딩에는 사용하�
 ## HktMap
 
 JSON 기반 맵 정의 (UMap 아님). 런타임 동적 로드/언로드 가능. Landscape, Region, Spawner, Story 참조, Props로 구성. 파일 위치: `.hkt_maps/`
+
+## Workspace (I-0008)
+
+`{ProjectSaved}/Workspace/{Paper2D|HISM}/{Tag}/...` 트리에 재료(atlas/frame seq/video/static PNG)를 떨어뜨리기만 하면 `HktWorkspaceGenerator`가 자동으로 GameplayTag 등록 + Paper2D 빌더 디스패치까지 수행한다. 자세한 컨벤션과 진입점은 `.claude/skills/workspace-build/SKILL.md` 와 `HktWorkspaceGenerator/Public/HktWorkspaceTypes.h` 헤더 주석 참조.
+
+진입점:
+- 콘솔: `HktWorkspace.Scan`, `HktWorkspace.BuildAll`, `HktWorkspace.BuildTag`, `HktWorkspace.Panel`
+- MCP 도구: `list_workspace_tags`, `workspace_scan_and_build_all`, `workspace_build_tag`
+- Skill: `/workspace-build`
+- Slate 패널: Window > Developer Tools > HKT Workspace
+- Settings: Project Settings > HktGameplay > HktWorkspace
+
+빌드 폴더당 `.workspace.meta.json` manifest 가 입력 해시 + 산출 자산 경로를 보존 — 변경 없으면 재빌드 skip.

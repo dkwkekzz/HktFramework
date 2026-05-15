@@ -61,6 +61,11 @@
 			"LoadingPhase": "PostEngineInit"
 		},
 		{
+			"Name": "HktWorkspaceGenerator",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		},
+		{
 			"Name": "HktMcpBridge",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

@@ -22,7 +22,7 @@ from mcp.types import Tool, TextContent, Resource, Prompt
 # Import tool modules
 from .tools import asset_tools, level_tools, query_tools, runtime_tools
 from .tools import vfx_tools, story_tools, texture_tools, anim_tools, mesh_tools, item_tools
-from .tools import step_tools, map_tools, python_tools, sprite_tools
+from .tools import step_tools, map_tools, python_tools, sprite_tools, workspace_tools
 from .bridge import editor_bridge, runtime_bridge
 from .bridge.monolith_client import MonolithClient
 
@@ -827,6 +827,58 @@ def _get_hkt_tools() -> list[Tool]:
                     "output_dir": {"type": "string", "description": "UE content dir (default /Game/Generated/PaperSprites/{Char})"},
                 },
                 "required": ["character_tag", "anim_tag"],
+            },
+        ),
+    ])
+
+    # ==================== Workspace Tools (I-0008) ====================
+    tools.extend([
+        Tool(
+            name="list_workspace_tags",
+            description=(
+                "I-0008 워크스페이스 스캔 — {Saved}/Workspace/{Paper2D|HISM}/{Tag}/... 트리를 "
+                "훑어 발견된 Tag 폴더와 그 입력 형식(Atlas / FrameSequence / Video / StaticVisual) "
+                "을 반환. manifest(`.workspace.meta.json`) 기준으로 stale/fresh 도 표시. 빌드는 "
+                "수행하지 않는다."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "workspace_root": {"type": "string", "description": "Workspace 루트 (비우면 설정 기본값)"},
+                },
+            },
+        ),
+        Tool(
+            name="workspace_scan_and_build_all",
+            description=(
+                "I-0008 워크스페이스 일괄 빌드 — 발견된 모든 Paper2D Tag 폴더에 대해 입력 형식별로 "
+                "Atlas/FrameSequence/Video → atlas PNG 정규화 → BuildPaperCharacter 호출. "
+                "GameplayTag 가 등록되어 있지 않으면 Config/Tags/HktWorkspaceTags.ini 에 자동 등록. "
+                "manifest 가 입력 해시와 일치하면 skip(force=true 면 강제 재빌드)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "workspace_root": {"type": "string", "description": "Workspace 루트 (비우면 설정 기본값)"},
+                    "force": {"type": "boolean", "description": "manifest 무시하고 강제 재빌드 (default false)"},
+                },
+            },
+        ),
+        Tool(
+            name="workspace_build_tag",
+            description=(
+                "I-0008 단일 Tag 폴더 빌드 — 특정 Tag 폴더에만 적용. category: 'Paper2D' 또는 'HISM' "
+                "(HISM 은 1차 범위 외 — 미구현 응답)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "description": "'Paper2D' 또는 'HISM'"},
+                    "tag_folder_name": {"type": "string", "description": "워크스페이스 상의 Tag 폴더명 (예: 'Paper2D.Entity.Character.Mage')"},
+                    "force": {"type": "boolean", "description": "manifest 무시하고 강제 재빌드 (default false)"},
+                    "workspace_root": {"type": "string", "description": "Workspace 루트 (비우면 설정 기본값)"},
+                },
+                "required": ["category", "tag_folder_name"],
             },
         ),
     ])
@@ -1835,6 +1887,27 @@ async def dispatch_tool(name: str, arguments: dict[str, Any]) -> Any:
             mirror_west_from_east=bool(arguments.get("mirror_west_from_east", True)),
             visual_identifier_tag=arguments.get("visual_identifier_tag", ""),
             output_dir=arguments.get("output_dir", ""),
+        )
+
+    # Workspace Tools (I-0008)
+    elif name == "list_workspace_tags":
+        return await workspace_tools.list_workspace_tags(
+            bridge,
+            workspace_root=arguments.get("workspace_root", ""),
+        )
+    elif name == "workspace_scan_and_build_all":
+        return await workspace_tools.workspace_scan_and_build_all(
+            bridge,
+            workspace_root=arguments.get("workspace_root", ""),
+            force=bool(arguments.get("force", False)),
+        )
+    elif name == "workspace_build_tag":
+        return await workspace_tools.workspace_build_tag(
+            bridge,
+            category=arguments["category"],
+            tag_folder_name=arguments["tag_folder_name"],
+            force=bool(arguments.get("force", False)),
+            workspace_root=arguments.get("workspace_root", ""),
         )
 
     # Animation Generator Tools
