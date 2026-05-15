@@ -2,6 +2,7 @@
 
 #include "Settings/HktRuntimeGlobalSetting.h"
 #include "HktTerrainGenerator.h"
+#include "HktRuntimeLog.h"
 
 UHktRuntimeGlobalSetting::UHktRuntimeGlobalSetting()
 {
@@ -55,8 +56,18 @@ FVector UHktRuntimeGlobalSetting::ComputeDefaultSpawnLocation() const
 	// 복셀 → cm 변환 (복셀 중심 = voxel * VoxelSize + Half)
 	const double VS = static_cast<double>(VoxelSizeCm);
 	const double Half = VS * 0.5;
-	return FVector(
+	const FVector Result(
 		DefaultSpawnVoxelXY.X * VS + Half,
 		DefaultSpawnVoxelXY.Y * VS + Half,
 		(SurfaceZ.ToDouble() + 1.0) * VS + Half);  // +1: 표면 위 1복셀
+
+	// [FloatRepro] 캐릭터 떠다님 race 추적 로그 — Z 가 어느 시점/어느 config 로 계산됐는지 가시화.
+	// 본 메서드는 UHktTerrainSubsystem 을 거치지 않고 ProjectSettings 로 직접 폴백 Generator
+	// 인스턴스화 → BakedAsset 의 GeneratorConfig 와 다르면 표면 Z 도 달라진다.
+	UE_LOG(LogHktRuntime, Log,
+		TEXT("[FloatRepro] ComputeDefaultSpawnLocation: VoxelXY=(%.1f, %.1f) → SurfaceZ=%.3f voxels → World=(%.1f, %.1f, %.1f) cm | VS=%.1f Seed=%d Epoch=%d"),
+		DefaultSpawnVoxelXY.X, DefaultSpawnVoxelXY.Y, SurfaceZ.ToDouble(),
+		Result.X, Result.Y, Result.Z, VS, Config.Seed, Config.Epoch);
+
+	return Result;
 }

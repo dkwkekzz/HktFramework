@@ -68,12 +68,15 @@ void AHktVoxelTerrainActor::BeginPlay()
 	{
 		if (!BakedAsset.IsNull())
 		{
+			UE_LOG(LogHktVoxelTerrain, Log,
+				TEXT("[FloatRepro] VoxelTerrainActor.BeginPlay: LoadBakedAsset 호출 (SoftRef='%s')"),
+				*BakedAsset.ToString());
 			Sub->LoadBakedAsset(BakedAsset);
 		}
 		else
 		{
 			UE_LOG(LogHktVoxelTerrain, Log,
-				TEXT("[TerrainActor] BakedAsset 미지정 — 전체 영역에서 런타임 폴백 Generator 경로 사용."));
+				TEXT("[FloatRepro] VoxelTerrainActor.BeginPlay: BakedAsset 미지정 — 폴백 Generator 경로 (대기 없음)"));
 		}
 	}
 	else

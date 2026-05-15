@@ -222,10 +222,18 @@ void FHktDefaultServerRule::OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer)
 	const FGameplayTag SpawnStoryTag = InPlayer.GetSpawnStoryTag();
 	TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(&InPlayer);
 
-	CachedDB->LoadPlayerRecordAsync(PlayerUid, SpawnStoryTag, [this, WeakPlayer](const FHktPlayerRecord& Record)
+	const int64 FrameAtPostLogin = CachedFrame ? CachedFrame->GetFrameNumber() : -1;
+	UE_LOG(LogHktRule, Log,
+		TEXT("[FloatRepro] ServerRule.OnEvent_GameModePostLogin: uid=%lld frame=%lld bTerrainReady=%d"),
+		PlayerUid, FrameAtPostLogin, bTerrainReady ? 1 : 0);
+
+	CachedDB->LoadPlayerRecordAsync(PlayerUid, SpawnStoryTag, [this, WeakPlayer, PlayerUid](const FHktPlayerRecord& Record)
 	{
 		if (Record.IsValid())
 		{
+			UE_LOG(LogHktRule, Log,
+				TEXT("[FloatRepro] ServerRule: PendingLoginResults.Enqueue uid=%lld LastPos.Z=%.1f bTerrainReady=%d"),
+				PlayerUid, Record.LastPosition.Z, bTerrainReady ? 1 : 0);
 			PendingLoginResults.Enqueue({ WeakPlayer, Record });
 		}
 	});
@@ -241,8 +249,10 @@ void FHktDefaultServerRule::OnEvent_TerrainReady()
 {
 	if (bTerrainReady) return;
 	bTerrainReady = true;
+	const int64 FrameAtReady = CachedFrame ? CachedFrame->GetFrameNumber() : -1;
 	UE_LOG(LogHktRule, Log,
-		TEXT("[ServerRule] OnEvent_TerrainReady — 캐릭터/월드 스토리 게이트 해제."));
+		TEXT("[FloatRepro] ServerRule.OnEvent_TerrainReady: frame=%lld — 캐릭터/월드 스토리 게이트 해제, 다음 Tick 에 PendingLoginResults 처리."),
+		FrameAtReady);
 }
 
 void FHktDefaultServerRule::OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation)
@@ -350,13 +360,21 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record.LastPosition);
 			FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
 			GroupEventSend.Entered.Add(NewPlayer);
+
+			UE_LOG(LogHktRule, Log,
+				TEXT("[FloatRepro] ServerRule: LOGIN DISPATCH frame=%lld uid=%lld groupIdx=%d LastPos=(%.1f, %.1f, %.1f)"),
+				CurrentFrameNumber, NewPlayer->GetPlayerUid(), GroupIdx,
+				LoginResult.Record.LastPosition.X,
+				LoginResult.Record.LastPosition.Y,
+				LoginResult.Record.LastPosition.Z);
 		}
 	}
 	else if (!bLoggedTerrainNotReady && !PendingLoginResults.IsEmpty())
 	{
 		UE_LOG(LogHktRule, Log,
-			TEXT("[ServerRule] 지형 로딩 대기 중 — PendingLoginResults 처리 보류. "
-				 "OnEvent_TerrainReady 수신 후 재개합니다."));
+			TEXT("[FloatRepro] ServerRule: 지형 로딩 대기 중 — PendingLoginResults 처리 보류 (frame=%lld). "
+				 "OnEvent_TerrainReady 수신 후 재개합니다."),
+			CurrentFrameNumber);
 		bLoggedTerrainNotReady = true;
 	}
 

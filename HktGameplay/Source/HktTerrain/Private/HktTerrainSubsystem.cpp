@@ -149,14 +149,14 @@ void UHktTerrainSubsystem::LoadBakedAsset(
 			if (Loaded)
 			{
 				UE_LOG(LogHktTerrain, Log,
-					TEXT("LoadBakedAsset: '%s' 로드 완료 — ChunkCount=%d Region=[%s, %s] (%.3f ms)"),
+					TEXT("[FloatRepro] LoadBakedAsset 비동기 완료: '%s' ChunkCount=%d Region=[%s, %s] (%.3f ms) → OnEffectiveConfigChanged 발화"),
 					*GetNameSafe(Loaded), Loaded->Chunks.Num(),
 					*Loaded->RegionMin.ToString(), *Loaded->RegionMax.ToString(), ElapsedMs);
 			}
 			else
 			{
 				UE_LOG(LogHktTerrain, Warning,
-					TEXT("LoadBakedAsset: 비동기 로드 실패 — 폴백 경로만 동작합니다. (%.3f ms)"), ElapsedMs);
+					TEXT("[FloatRepro] LoadBakedAsset 비동기 실패: 폴백 경로 사용. (%.3f ms)"), ElapsedMs);
 			}
 
 			Self->OnEffectiveConfigChanged.Broadcast(Self->GetEffectiveConfig());

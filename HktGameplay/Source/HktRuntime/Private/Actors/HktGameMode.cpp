@@ -169,8 +169,9 @@ void AHktGameMode::RebindTerrainProvider()
         });
 
     UE_LOG(LogHktRuntime, Log,
-        TEXT("[GameMode] Terrain Provider 재바인딩 — VoxelSizeCm=%.1f ChunkSize=%d"),
-        EffectiveCfg.VoxelSizeCm, FHktTerrainGeneratorConfig::ChunkSize);
+        TEXT("[FloatRepro] GameMode.RebindTerrainProvider: 시뮬레이터에 Provider 주입 — VoxelSizeCm=%.1f ChunkSize=%d Seed=%d Epoch=%d"),
+        EffectiveCfg.VoxelSizeCm, FHktTerrainGeneratorConfig::ChunkSize,
+        EffectiveCfg.Seed, EffectiveCfg.Epoch);
 }
 
 void AHktGameMode::Tick(float DeltaSeconds)
@@ -211,8 +212,9 @@ void AHktGameMode::NotifyTerrainReadyIfPossible()
 
     bTerrainReadyNotified = true;
     UE_LOG(LogHktRuntime, Log,
-        TEXT("[GameMode] Terrain ready 통지 — ServerRule 게이트 해제 (BakedAsset=%s)."),
-        (Sub && Sub->GetBakedAsset()) ? *GetNameSafe(Sub->GetBakedAsset()) : TEXT("none"));
+        TEXT("[FloatRepro] GameMode.NotifyTerrainReadyIfPossible: ServerRule 게이트 해제 (BakedAsset=%s SubPending=%d)"),
+        (Sub && Sub->GetBakedAsset()) ? *GetNameSafe(Sub->GetBakedAsset()) : TEXT("none"),
+        Sub ? (Sub->IsBakedAssetPending() ? 1 : 0) : -1);
     CachedServerRule->OnEvent_TerrainReady();
 }
 
