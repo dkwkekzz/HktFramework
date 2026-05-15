@@ -22,6 +22,13 @@ static TAutoConsoleVariable<int32> CVarShowCollisionLabels(
 	TEXT("Show EntityId/parameters above collision capsule. 0=off, 1=on"),
 	ECVF_Default);
 
+// 모든 엔티티 origin 에 R=CollisionRadius sphere (XY footprint). ShowCollision 과 독립.
+static TAutoConsoleVariable<int32> CVarShowEntityPos(
+	TEXT("hkt.Debug.ShowEntityPos"),
+	0,
+	TEXT("Draw sphere at every entity's position with radius = CollisionRadius. 0=off, 1=on"),
+	ECVF_Default);
+
 static FColor GetCollisionLayerColor(int32 Layer)
 {
 	if (Layer & EHktCollisionLayer::Character)  return FColor(77, 153, 255);
@@ -41,10 +48,18 @@ FHktCollisionDebugProcessor::FHktCollisionDebugProcessor(ULocalPlayer* InLP)
 void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowCollision.GetValueOnGameThread();
-	if (Mode <= 0) return;
+	const int32 PosMode = CVarShowEntityPos.GetValueOnGameThread();
+	if (Mode <= 0 && PosMode <= 0) return;
 
 	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
+
+	if (PosMode > 0)
+	{
+		DrawEntityPositions(World, State);
+	}
+
+	if (Mode <= 0) return;
 
 	DrawCollisionCapsules(World, State);
 
@@ -56,6 +71,30 @@ void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 	if (Mode >= 3)
 	{
 		DrawVoxelCells(World, State);
+	}
+}
+
+// --------------------------------------------------------------------------- 모든 Transform 보유 엔티티의 위치 sphere
+
+void FHktCollisionDebugProcessor::DrawEntityPositions(UWorld* World, const FHktPresentationState& State)
+{
+	// Physics 뷰 보유 엔티티만 — Radius = CollisionRadius (entity property 1:1).
+	// 색상: Physics layer 가 있으면 layer 색, 없으면 회색 (Layer 0 — 분류 안 됨).
+	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const FHktPhysicsView& Phys = *It;
+		const float Radius = Phys.CollisionRadius.Get();
+		if (Radius <= 0.f) continue;
+
+		const FHktTransformView* Tfm = State.GetTransform(Id);
+		if (!Tfm) continue;
+
+		const int32 Layer = Phys.CollisionLayer.Get();
+		const FColor Color = (Layer != 0) ? GetCollisionLayerColor(Layer) : FColor(200, 200, 200);
+
+		DrawDebugSphere(World, Tfm->Location.Get(), Radius, 16,
+			Color, /*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/1.0f);
 	}
 }
 
@@ -77,6 +116,8 @@ void FHktCollisionDebugProcessor::DrawCollisionCapsules(UWorld* World, const FHk
 		if (!Tfm) continue;
 
 		const float Radius = Phys.CollisionRadius.Get();
+		if (Radius <= 0.f) continue;
+		// HalfHeight < Radius 면 시뮬레이션이 R 로 클램프 (HktSimulationSystems.cpp:1048).
 		const float HalfHeight = FMath::Max(Phys.CollisionHalfHeight.Get(), Radius);
 		const FColor Color = GetCollisionLayerColor(Layer);
 

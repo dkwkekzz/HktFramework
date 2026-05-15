@@ -84,9 +84,12 @@ void AHktUnitActor::ApplyTransform(const FHktTransformView& V)
 
 void AHktUnitActor::ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce)
 {
-	// HktCore PosZ = 캡슐 바닥(발), UE5 CapsuleComponent 원점 = 캡슐 중심
+	// HktCore PosZ = 캡슐 바닥(발), UE5 CapsuleComponent 원점 = 캡슐 중심.
+	// ViewModel 은 Property 1:1 (floor 없음) — actor 측에서 자체 fallback 필요.
+	// Property 가 0 이면 SetCapsuleSize 호출 자체를 스킵해 생성자에서 설정한 기본값(50/90) 유지.
 	if (!bForce && !V.CollisionRadius.IsDirty(Frame) && !V.CollisionHalfHeight.IsDirty(Frame)) return;
 	const float Radius = V.CollisionRadius.Get();
+	if (Radius <= 0.f) return;
 	const float HalfHeight = FMath::Max(V.CollisionHalfHeight.Get(), Radius);
 	if (CapsuleComponent)
 	{

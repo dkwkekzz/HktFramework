@@ -739,29 +739,45 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 	UWorld* World = LP ? LP->GetWorld() : nullptr;
 	if (!World) return;
 
-	// Subject — 녹색 캡슐 (entity 위치 기준 + 위로 +50)
+	// Sphere(위치 footprint) + Capsule(크기) 를 엔티티 속성 그대로 반영해 그린다.
+	// - Sphere: 엔티티 origin(PosX/Y/Z) 에 R=CollisionRadius — XY 충돌 footprint.
+	// - Capsule: Physics 뷰 1:1. center = Z + HalfHeight (origin = 발끝).
+	//   HalfHeight < Radius 면 시뮬레이션이 R 로 클램프 (HktSimulationSystems.cpp:1048)
+	//   하므로 동일 규약으로 시각화.
+	// Physics 뷰 부재 또는 R<=0 이면 둘 다 생략 — 충돌 속성 없는 엔티티는 표현할 게 없다.
+	auto DrawEntityMarkers = [&](FHktEntityId Id, const FColor& Color)
+	{
+		const FHktTransformView* T = State.GetTransform(Id);
+		if (!T) return;
+		const FHktPhysicsView* Phys = State.GetPhysics(Id);
+		if (!Phys) return;
+		const float Radius = Phys->CollisionRadius.Get();
+		if (Radius <= 0.f) return;
+
+		const FVector Pos = T->Location.Get();
+
+		// 1) 위치 sphere — origin 에 CollisionRadius (XY footprint).
+		DrawDebugSphere(World, Pos, Radius, 16,
+			Color, /*bPersistent*/false, /*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/1.5f);
+
+		// 2) 크기 capsule — 전체 충돌 볼륨.
+		const float HalfHeight = FMath::Max(Phys->CollisionHalfHeight.Get(), Radius);
+		const FVector CapsuleCenter(Pos.X, Pos.Y, Pos.Z + HalfHeight);
+		DrawDebugCapsule(World, CapsuleCenter, HalfHeight, Radius,
+			FQuat::Identity, Color, /*bPersistent*/false,
+			/*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/2.f);
+	};
+
+	// Subject — 녹색
 	if (IsRealEntityId(CurrentSubjectEntityId))
 	{
-		const FHktTransformView* T = State.GetTransform(CurrentSubjectEntityId);
-		if (T)
-		{
-			const FVector Pos = T->Location.Get();
-			DrawDebugCapsule(World, Pos + FVector(0, 0, 50.f), 60.f, 30.f,
-				FQuat::Identity, FColor::Green, /*bPersistent*/false,
-				/*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/2.f);
-		}
+		DrawEntityMarkers(CurrentSubjectEntityId, FColor::Green);
 	}
 
-	// Target — Entity(real) 는 구, Voxel(sentinel) 은 AABB 박스, Invalid 은 그리지 않음.
+	// Target — Entity(real) 는 빨간 sphere+capsule, Voxel(sentinel) 은 AABB 박스, Invalid 은 그리지 않음.
 	if (IsRealEntityId(CurrentTargetEntityId))
 	{
-		const FHktTransformView* T = State.GetTransform(CurrentTargetEntityId);
-		if (T)
-		{
-			const FVector Pos = T->Location.Get();
-			DrawDebugSphere(World, Pos + FVector(0, 0, 50.f), 40.f, 16,
-				FColor::Red, false, -1.f, 0, 2.f);
-		}
+		DrawEntityMarkers(CurrentTargetEntityId, FColor::Red);
 	}
 	else if (CurrentTargetEntityId == VoxelTargetEntityId && BoundInteraction)
 	{
