@@ -665,6 +665,49 @@ void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex
         Event.SourceEntity);
 }
 
+void FHktVMInterpreter::Op_DispatchEventByReg(FHktVMRuntime& Runtime, RegisterIndex TagNetIndexReg)
+{
+    const int32 TagNetIndex = Runtime.GetReg(TagNetIndexReg);
+    if (TagNetIndex <= 0)
+    {
+        // 0 (또는 음수) 은 "default-action 미설정" 의미 — 조용히 skip.
+        return;
+    }
+
+    FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
+    FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TagName);
+    if (!EventTag.IsValid())
+    {
+        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, LogSource,
+            FString::Printf(TEXT("Op_DispatchEventByReg: invalid NetIndex %d"), TagNetIndex));
+        return;
+    }
+
+    FHktEvent Event;
+    Event.EventTag = EventTag;
+    Event.SourceEntity = Runtime.Context ? Runtime.Context->SourceEntity : InvalidEntityId;
+    Event.TargetEntity = Runtime.Context ? Runtime.Context->TargetEntity : InvalidEntityId;
+    Event.PlayerUid = Runtime.PlayerUid;
+    if (Runtime.Context)
+    {
+        Event.Location = FVector(
+            static_cast<float>(Runtime.Context->EventTargetPosX),
+            static_cast<float>(Runtime.Context->EventTargetPosY),
+            static_cast<float>(Runtime.Context->EventTargetPosZ));
+        Event.Param0 = Runtime.Context->EventParam0;
+        Event.Param1 = Runtime.Context->EventParam1;
+        Event.Param2 = Runtime.Context->EventParam2;
+        Event.Param3 = Runtime.Context->EventParam3;
+    }
+
+    Runtime.PendingDispatchedEvents.Add(Event);
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_DispatchEventByReg: %s Src=%d Tgt=%d"),
+            *EventTag.ToString(), Event.SourceEntity, Event.TargetEntity),
+        Event.SourceEntity);
+}
+
 void FHktVMInterpreter::Op_DispatchEventFrom(FHktVMRuntime& Runtime, RegisterIndex SourceReg, int32 TagNetIndex)
 {
     FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));

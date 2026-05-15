@@ -123,6 +123,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::DispatchEvent: Op_DispatchEvent(Runtime, Inst.GetSignedImm20()); break;
     case EOpCode::DispatchEventTo: Op_DispatchEventTo(Runtime, Inst.Dst, Inst.GetSignedImm20()); break;
     case EOpCode::DispatchEventFrom: Op_DispatchEventFrom(Runtime, Inst.Dst, Inst.GetSignedImm20()); break;
+    case EOpCode::DispatchEventByReg: Op_DispatchEventByReg(Runtime, Inst.Src1); break;
     // Movement
     case EOpCode::SetForwardTarget: Op_SetForwardTarget(Runtime, Inst.Src1); break;
     // Terrain
@@ -472,6 +473,7 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::DispatchEvent:
         case EOpCode::DispatchEventTo:
         case EOpCode::DispatchEventFrom:
+        case EOpCode::DispatchEventByReg:
         case EOpCode::LookAt:
         case EOpCode::SetForwardTarget:
         case EOpCode::RegionMapFindOrCreate:  // PR-3 — record 생성은 부작용, precondition 에서는 skip

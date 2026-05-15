@@ -301,6 +301,8 @@ public:
     FHktStoryBuilder& SaveStoreEntity(FHktVar Entity, uint16 PropertyId, FHktVar Src);
     // 주의: SaveConst(uint16, int32) 는 레지스터 인자가 없으므로 신·구 API 공통.
     FHktStoryBuilder& SaveConstEntity(FHktVar Entity, uint16 PropertyId, int32 Value);
+    /** GameplayTag 를 NetIndex 로 변환해 entity 의 property 에 저장 (SaveConstEntity 의 tag 변형). */
+    FHktStoryBuilder& SaveTagEntity(FHktVar Entity, uint16 PropertyId, const FGameplayTag& Tag);
     FHktStoryBuilder& Move(FHktVar Dst, FHktVar Src);
 
     // ---- 산술 ----
@@ -434,6 +436,8 @@ public:
     // ---- Event Dispatch ----
     FHktStoryBuilder& DispatchEventTo(const FGameplayTag& EventTag, FHktVar TargetEntity);
     FHktStoryBuilder& DispatchEventFrom(const FGameplayTag& EventTag, FHktVar SourceEntity);
+    /** EventTag NetIndex 가 들어있는 vreg 로부터 동적 디스패치 (entity-self-declares-action). */
+    FHktStoryBuilder& DispatchEventByReg(FHktVar TagNetIndexVar);
 
     // ---- Region (PR-2) ----
     /**
@@ -880,6 +884,8 @@ public:
     FHktStoryBuilder& DispatchEventTo(const FGameplayTag& EventTag, RegisterIndex TargetEntity);
     /** DispatchEvent 변형 — SourceEntity를 지정 레지스터의 엔티티로 오버라이드 (디스패치된 Story의 Self가 됨) */
     FHktStoryBuilder& DispatchEventFrom(const FGameplayTag& EventTag, RegisterIndex SourceEntity);
+    /** DispatchEvent 변형 — EventTag NetIndex 를 지정 레지스터에서 읽어 동적 디스패치 */
+    FHktStoryBuilder& DispatchEventByReg(RegisterIndex TagNetIndexReg);
 
     // ========== Terrain ==========
 

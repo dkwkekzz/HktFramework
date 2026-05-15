@@ -298,6 +298,9 @@ struct FHktRegReserve
     X(DispatchEvent,    _, _, _) \
     X(DispatchEventTo,  _, R, _) \
     X(DispatchEventFrom, _, R, _) \
+    /* EventTag NetIndex 를 레지스터에서 읽어 동적 디스패치 — entity-self-declares-action 모델.       \
+       Src1 = NetIndex 보유 vreg (3-operand 인코딩, Imm20 미사용). */                                  \
+    X(DispatchEventByReg, _, R, _) \
     /* Movement */          \
     X(SetForwardTarget, _, R, _) \
     /* Terrain */           \

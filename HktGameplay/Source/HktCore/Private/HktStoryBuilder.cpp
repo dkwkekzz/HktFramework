@@ -1237,6 +1237,12 @@ FHktStoryBuilder& FHktStoryBuilder::DispatchEventFrom(const FGameplayTag& EventT
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::DispatchEventByReg(RegisterIndex TagNetIndexReg)
+{
+    Emit(FInstruction::Make(EOpCode::DispatchEventByReg, 0, TagNetIndexReg, 0, 0));
+    return *this;
+}
+
 // ============================================================================
 // Terrain
 // ============================================================================
@@ -1570,6 +1576,11 @@ FHktStoryBuilder& FHktStoryBuilder::SaveConstEntity(FHktVar Entity, uint16 Prope
     LoadConst(Tmp, Value);
     SaveStoreEntity(Entity, PropertyId, Tmp);
     return *this;
+}
+
+FHktStoryBuilder& FHktStoryBuilder::SaveTagEntity(FHktVar Entity, uint16 PropertyId, const FGameplayTag& Tag)
+{
+    return SaveConstEntity(Entity, PropertyId, TagToInt(Tag));
 }
 
 FHktStoryBuilder& FHktStoryBuilder::Move(FHktVar Dst, FHktVar Src)
@@ -2038,6 +2049,11 @@ FHktStoryBuilder& FHktStoryBuilder::DispatchEventFrom(const FGameplayTag& EventT
 {
     int32 TagIdx = TagToInt(EventTag);
     EmitV_Imm20(EOpCode::DispatchEventFrom, SourceEntity, TagIdx);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::DispatchEventByReg(FHktVar TagNetIndexVar)
+{
+    EmitV(EOpCode::DispatchEventByReg, VNone(), TagNetIndexVar, VNone(), 0);
     return *this;
 }
 
