@@ -22,17 +22,11 @@ static TAutoConsoleVariable<int32> CVarShowCollisionLabels(
 	TEXT("Show EntityId/parameters above collision capsule. 0=off, 1=on"),
 	ECVF_Default);
 
-// 모든 Transform 보유 엔티티의 위치에 sphere 마커. ShowCollision 과 독립 토글.
+// 모든 엔티티 origin 에 R=CollisionRadius sphere (XY footprint). ShowCollision 과 독립.
 static TAutoConsoleVariable<int32> CVarShowEntityPos(
 	TEXT("hkt.Debug.ShowEntityPos"),
 	0,
-	TEXT("Draw small sphere at every entity's actual position (1:1 with PosX/Y/Z). 0=off, 1=on"),
-	ECVF_Default);
-
-static TAutoConsoleVariable<float> CVarEntityPosSphereRadius(
-	TEXT("hkt.Debug.EntityPosSphereRadius"),
-	8.0f,
-	TEXT("Radius (cm) of the position sphere drawn per entity by hkt.Debug.ShowEntityPos."),
+	TEXT("Draw sphere at every entity's position with radius = CollisionRadius. 0=off, 1=on"),
 	ECVF_Default);
 
 static FColor GetCollisionLayerColor(int32 Layer)
@@ -84,24 +78,22 @@ void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 
 void FHktCollisionDebugProcessor::DrawEntityPositions(UWorld* World, const FHktPresentationState& State)
 {
-	const float SphereR = FMath::Max(CVarEntityPosSphereRadius.GetValueOnGameThread(), 1.f);
-
-	// Transform 뷰 보유 엔티티 전체 — Physics 유무 무관. 위치는 항상 의미 있음.
-	// 색상: Physics layer 가 있으면 layer 색, 없으면 회색 (분류 불가 엔티티).
-	for (auto It = State.Transforms.CreateConstIterator(); It; ++It)
+	// Physics 뷰 보유 엔티티만 — Radius = CollisionRadius (entity property 1:1).
+	// 색상: Physics layer 가 있으면 layer 색, 없으면 회색 (Layer 0 — 분류 안 됨).
+	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
 	{
 		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const FHktTransformView& Tfm = *It;
-		const FVector Pos = Tfm.Location.Get();
+		const FHktPhysicsView& Phys = *It;
+		const float Radius = Phys.CollisionRadius.Get();
+		if (Radius <= 0.f) continue;
 
-		FColor Color(200, 200, 200);
-		if (const FHktPhysicsView* Phys = State.GetPhysics(Id))
-		{
-			const int32 Layer = Phys->CollisionLayer.Get();
-			if (Layer != 0) Color = GetCollisionLayerColor(Layer);
-		}
+		const FHktTransformView* Tfm = State.GetTransform(Id);
+		if (!Tfm) continue;
 
-		DrawDebugSphere(World, Pos, SphereR, 8,
+		const int32 Layer = Phys.CollisionLayer.Get();
+		const FColor Color = (Layer != 0) ? GetCollisionLayerColor(Layer) : FColor(200, 200, 200);
+
+		DrawDebugSphere(World, Tfm->Location.Get(), Radius, 16,
 			Color, /*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/1.0f);
 	}
 }

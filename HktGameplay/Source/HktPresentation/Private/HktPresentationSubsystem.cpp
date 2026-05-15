@@ -33,13 +33,6 @@ static TAutoConsoleVariable<int32> CVarSelectionDebugDraw(
 	TEXT("Draw Subject/Target/Voxel selection markers via DrawDebug (0=off, 1=on)."),
 	ECVF_Default);
 
-// 위치 시각화용 sphere 반경 (실제 엔티티 origin 에 그리는 작은 마커)
-static TAutoConsoleVariable<float> CVarSelectionPositionSphereRadius(
-	TEXT("hkt.selection.debug.posSphereRadius"),
-	8.0f,
-	TEXT("Radius (cm) of the small sphere drawn at the entity's actual position."),
-	ECVF_Default);
-
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
@@ -746,30 +739,28 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 	UWorld* World = LP ? LP->GetWorld() : nullptr;
 	if (!World) return;
 
-	const float PosSphereRadius = FMath::Max(CVarSelectionPositionSphereRadius.GetValueOnGameThread(), 1.f);
-
-	// Sphere(위치) + Capsule(크기) 를 엔티티 속성 그대로 반영해 그린다.
-	// - Sphere: Transform.Location 에 작은 마커(절대 위치) → 엔티티 origin 확인용.
-	// - Capsule: Physics 뷰의 CollisionRadius / CollisionHalfHeight 1:1.
-	//   엔티티 위치는 capsule 바닥(발끝) 기준이므로 center 는 Z + HalfHeight.
+	// Sphere(위치 footprint) + Capsule(크기) 를 엔티티 속성 그대로 반영해 그린다.
+	// - Sphere: 엔티티 origin(PosX/Y/Z) 에 R=CollisionRadius — XY 충돌 footprint.
+	// - Capsule: Physics 뷰 1:1. center = Z + HalfHeight (origin = 발끝).
 	//   HalfHeight < Radius 면 시뮬레이션이 R 로 클램프 (HktSimulationSystems.cpp:1048)
-	//   하므로 동일 규약으로 시각화. Physics 뷰 부재 또는 R<=0 이면 capsule 생략.
+	//   하므로 동일 규약으로 시각화.
+	// Physics 뷰 부재 또는 R<=0 이면 둘 다 생략 — 충돌 속성 없는 엔티티는 표현할 게 없다.
 	auto DrawEntityMarkers = [&](FHktEntityId Id, const FColor& Color)
 	{
 		const FHktTransformView* T = State.GetTransform(Id);
 		if (!T) return;
-
-		const FVector Pos = T->Location.Get();
-
-		// 1) 위치 sphere — 실제 엔티티 origin 그대로 (offset 없음).
-		DrawDebugSphere(World, Pos, PosSphereRadius, 12,
-			Color, /*bPersistent*/false, /*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/1.5f);
-
-		// 2) 크기 capsule — Physics 뷰의 실제 값 1:1.
 		const FHktPhysicsView* Phys = State.GetPhysics(Id);
 		if (!Phys) return;
 		const float Radius = Phys->CollisionRadius.Get();
 		if (Radius <= 0.f) return;
+
+		const FVector Pos = T->Location.Get();
+
+		// 1) 위치 sphere — origin 에 CollisionRadius (XY footprint).
+		DrawDebugSphere(World, Pos, Radius, 16,
+			Color, /*bPersistent*/false, /*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/1.5f);
+
+		// 2) 크기 capsule — 전체 충돌 볼륨.
 		const float HalfHeight = FMath::Max(Phys->CollisionHalfHeight.Get(), Radius);
 		const FVector CapsuleCenter(Pos.X, Pos.Y, Pos.Z + HalfHeight);
 		DrawDebugCapsule(World, CapsuleCenter, HalfHeight, Radius,
