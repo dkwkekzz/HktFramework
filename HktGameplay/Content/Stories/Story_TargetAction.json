@@ -41,7 +41,7 @@
     { "op": "Label", "name": "check_npc" },
     { "op": "LoadStoreEntity", "dst": {"var":"isNpc"}, "entity": "Target", "property": "IsNPC" },
     { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"isNpc"}, "value": 0 },
-    { "op": "JumpIfNot", "cond": "Flag", "label": "dispatch_move" },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "check_natural" },
 
     { "op": "SnippetLoadItemFromSlot", "dst": {"var":"item"}, "failLabel": "use_self_range" },
     { "op": "LoadEntityProperty", "dst": {"var":"range"}, "entity": {"var":"item"}, "property": "AttackRange" },
@@ -78,6 +78,15 @@
     { "op": "DispatchEvent", "eventTag": "StoryUseSkill" },
 
     { "op": "Label", "name": "npc_done" },
+    { "op": "Halt" },
+
+    { "comment": "── 자연 entity (Birch/Oak/...) 우클릭 — entity 가 자기 DefaultActionEventTag 를 노출 ──" },
+    { "op": "Label", "name": "check_natural" },
+    { "op": "LoadStoreEntity", "dst": {"var":"defTag"}, "entity": "Target", "property": "DefaultActionEventTag" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"defTag"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "dispatch_move" },
+    { "op": "Log", "message": "TargetAction: 자연 entity → DefaultActionEventTag 디스패치" },
+    { "op": "DispatchEventByReg", "src": {"var":"defTag"} },
     { "op": "Halt" },
 
     { "op": "Label", "name": "check_voxel" },
