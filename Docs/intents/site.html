@@ -291,11 +291,23 @@
   .btn-add-child:hover { background:var(--panel); }
   #auth-indicator { font-size:11px; color:var(--muted); flex:0 0 auto; }
   #auth-indicator.ok { color:var(--active); }
-  /* --- Pending(예약) 표시 --- */
-  .card.pending-create, .card.pending-update { background:rgba(252,211,77,0.10); }
-  .card.pending-create.tip, .card.pending-update.tip { background:rgba(252,211,77,0.20); }
-  .card.pending-delete { background:rgba(239,68,68,0.10); }
-  .card.pending-delete.tip { background:rgba(239,68,68,0.18); }
+  /* --- Pending(예약) 표시 — 다크 배경에서도 한눈에 보이도록 좌측 보더 + 강한 배경 --- */
+  .card.pending-create, .card.pending-update {
+    background:rgba(252,211,77,0.10);
+    box-shadow: inset 4px 0 0 var(--proposed);
+  }
+  .card.pending-create.tip, .card.pending-update.tip {
+    background:rgba(252,211,77,0.22);
+    box-shadow: inset 4px 0 0 var(--proposed), -10px 0 24px -8px rgba(0,0,0,0.5);
+  }
+  .card.pending-delete {
+    background:rgba(239,68,68,0.10);
+    box-shadow: inset 4px 0 0 #f87171;
+  }
+  .card.pending-delete.tip {
+    background:rgba(239,68,68,0.22);
+    box-shadow: inset 4px 0 0 #f87171, -10px 0 24px -8px rgba(0,0,0,0.5);
+  }
   .pending-chip { display:inline-block; background:var(--proposed); color:#422006; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600; margin-left:4px; }
   .pending-chip.delete { background:#f87171; color:#450a0a; }
   ul.list li.pending-create, ul.list li.pending-update { background:rgba(252,211,77,0.12); }
@@ -528,6 +540,10 @@
   let pendingChanges = [];
   let editTarget = null;
   let stackIds = [];
+  // 데이터 변경 버전 — applyView 에서 증가시켜 renderStack 의 prefix-preserve
+  // 최적화를 무효화하고 현재 화면의 카드를 강제 재렌더링한다. 순수 네비게이션은
+  // 버전을 건드리지 않으므로 기존 카드/스크롤 위치가 보존된다.
+  let viewVersion = 0;
 
   // 외부 스코프(Edit IIFE 와 디버깅) 와의 호환성 — 기존 site.html 의 노출 면 유지.
   window.DATA = DATA;
@@ -919,15 +935,20 @@
 
   function renderStack() {
     // 스택의 prefix 가 그대로면 기존 카드들을 유지 — 스크롤 위치 보존, 깜빡임 제거.
+    // 단, viewVersion 이 바뀌었으면(편집/링크/언링크/새로고침 등) 데이터가 갱신되었으므로
+    // dataset.id 가 같아도 강제 재렌더링하여 자식·부모 목록 등이 즉시 반영되도록 한다.
+    const v = String(viewVersion);
     let i = 0;
     while (i < stackEl.children.length
            && i < stackIds.length
-           && stackEl.children[i].dataset.id === stackIds[i]) {
+           && stackEl.children[i].dataset.id === stackIds[i]
+           && stackEl.children[i].dataset.v === v) {
       i++;
     }
     while (stackEl.children.length > i) stackEl.lastElementChild.remove();
     for (let j = i; j < stackIds.length; j++) {
       const card = renderCard(stackIds[j], j);
+      card.dataset.v = v;
       stackEl.appendChild(card);
       attachCardHandlers(card);
     }
@@ -1710,6 +1731,7 @@
 
   /** baseIntents 위에 pendingChanges 를 머지하여 DATA.intents 를 갱신한다. */
   function applyView() {
+    viewVersion++;
     const map = new Map();
     for (const it of baseIntents) map.set(it.id, { ...it });
     for (const ch of pendingChanges) {
