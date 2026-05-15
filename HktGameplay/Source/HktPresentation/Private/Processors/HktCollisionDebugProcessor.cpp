@@ -22,6 +22,19 @@ static TAutoConsoleVariable<int32> CVarShowCollisionLabels(
 	TEXT("Show EntityId/parameters above collision capsule. 0=off, 1=on"),
 	ECVF_Default);
 
+// 모든 Transform 보유 엔티티의 위치에 sphere 마커. ShowCollision 과 독립 토글.
+static TAutoConsoleVariable<int32> CVarShowEntityPos(
+	TEXT("hkt.Debug.ShowEntityPos"),
+	0,
+	TEXT("Draw small sphere at every entity's actual position (1:1 with PosX/Y/Z). 0=off, 1=on"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarEntityPosSphereRadius(
+	TEXT("hkt.Debug.EntityPosSphereRadius"),
+	8.0f,
+	TEXT("Radius (cm) of the position sphere drawn per entity by hkt.Debug.ShowEntityPos."),
+	ECVF_Default);
+
 static FColor GetCollisionLayerColor(int32 Layer)
 {
 	if (Layer & EHktCollisionLayer::Character)  return FColor(77, 153, 255);
@@ -41,10 +54,18 @@ FHktCollisionDebugProcessor::FHktCollisionDebugProcessor(ULocalPlayer* InLP)
 void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowCollision.GetValueOnGameThread();
-	if (Mode <= 0) return;
+	const int32 PosMode = CVarShowEntityPos.GetValueOnGameThread();
+	if (Mode <= 0 && PosMode <= 0) return;
 
 	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
+
+	if (PosMode > 0)
+	{
+		DrawEntityPositions(World, State);
+	}
+
+	if (Mode <= 0) return;
 
 	DrawCollisionCapsules(World, State);
 
@@ -56,6 +77,32 @@ void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 	if (Mode >= 3)
 	{
 		DrawVoxelCells(World, State);
+	}
+}
+
+// --------------------------------------------------------------------------- 모든 Transform 보유 엔티티의 위치 sphere
+
+void FHktCollisionDebugProcessor::DrawEntityPositions(UWorld* World, const FHktPresentationState& State)
+{
+	const float SphereR = FMath::Max(CVarEntityPosSphereRadius.GetValueOnGameThread(), 1.f);
+
+	// Transform 뷰 보유 엔티티 전체 — Physics 유무 무관. 위치는 항상 의미 있음.
+	// 색상: Physics layer 가 있으면 layer 색, 없으면 회색 (분류 불가 엔티티).
+	for (auto It = State.Transforms.CreateConstIterator(); It; ++It)
+	{
+		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+		const FHktTransformView& Tfm = *It;
+		const FVector Pos = Tfm.Location.Get();
+
+		FColor Color(200, 200, 200);
+		if (const FHktPhysicsView* Phys = State.GetPhysics(Id))
+		{
+			const int32 Layer = Phys->CollisionLayer.Get();
+			if (Layer != 0) Color = GetCollisionLayerColor(Layer);
+		}
+
+		DrawDebugSphere(World, Pos, SphereR, 8,
+			Color, /*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/1.0f);
 	}
 }
 
@@ -77,6 +124,8 @@ void FHktCollisionDebugProcessor::DrawCollisionCapsules(UWorld* World, const FHk
 		if (!Tfm) continue;
 
 		const float Radius = Phys.CollisionRadius.Get();
+		if (Radius <= 0.f) continue;
+		// HalfHeight < Radius 면 시뮬레이션이 R 로 클램프 (HktSimulationSystems.cpp:1048).
 		const float HalfHeight = FMath::Max(Phys.CollisionHalfHeight.Get(), Radius);
 		const FColor Color = GetCollisionLayerColor(Layer);
 

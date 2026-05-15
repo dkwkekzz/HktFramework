@@ -40,19 +40,6 @@ static TAutoConsoleVariable<float> CVarSelectionPositionSphereRadius(
 	TEXT("Radius (cm) of the small sphere drawn at the entity's actual position."),
 	ECVF_Default);
 
-// Physics 뷰 부재 시 capsule 의 폴백 크기. 0 이하면 capsule 자체를 생략.
-static TAutoConsoleVariable<float> CVarSelectionFallbackCapsuleRadius(
-	TEXT("hkt.selection.debug.fallbackCapsuleRadius"),
-	0.0f,
-	TEXT("Capsule radius (cm) used when entity has no Physics view. 0=skip capsule."),
-	ECVF_Default);
-
-static TAutoConsoleVariable<float> CVarSelectionFallbackCapsuleHalfHeight(
-	TEXT("hkt.selection.debug.fallbackCapsuleHalfHeight"),
-	0.0f,
-	TEXT("Capsule half-height (cm) used when entity has no Physics view. 0=skip capsule."),
-	ECVF_Default);
-
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
@@ -760,14 +747,13 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 	if (!World) return;
 
 	const float PosSphereRadius = FMath::Max(CVarSelectionPositionSphereRadius.GetValueOnGameThread(), 1.f);
-	const float FallbackR = CVarSelectionFallbackCapsuleRadius.GetValueOnGameThread();
-	const float FallbackHH = CVarSelectionFallbackCapsuleHalfHeight.GetValueOnGameThread();
 
 	// Sphere(위치) + Capsule(크기) 를 엔티티 속성 그대로 반영해 그린다.
 	// - Sphere: Transform.Location 에 작은 마커(절대 위치) → 엔티티 origin 확인용.
-	// - Capsule: Physics 뷰의 CollisionRadius / CollisionHalfHeight 사용.
+	// - Capsule: Physics 뷰의 CollisionRadius / CollisionHalfHeight 1:1.
 	//   엔티티 위치는 capsule 바닥(발끝) 기준이므로 center 는 Z + HalfHeight.
-	//   Physics 뷰가 없으면 fallback CVar 가 0 이상일 때만 그린다.
+	//   HalfHeight < Radius 면 시뮬레이션이 R 로 클램프 (HktSimulationSystems.cpp:1048)
+	//   하므로 동일 규약으로 시각화. Physics 뷰 부재 또는 R<=0 이면 capsule 생략.
 	auto DrawEntityMarkers = [&](FHktEntityId Id, const FColor& Color)
 	{
 		const FHktTransformView* T = State.GetTransform(Id);
@@ -779,24 +765,16 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 		DrawDebugSphere(World, Pos, PosSphereRadius, 12,
 			Color, /*bPersistent*/false, /*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/1.5f);
 
-		// 2) 크기 capsule — Physics 뷰의 실제 값 사용.
+		// 2) 크기 capsule — Physics 뷰의 실제 값 1:1.
 		const FHktPhysicsView* Phys = State.GetPhysics(Id);
-		float Radius = FallbackR;
-		float HalfHeight = FallbackHH;
-		if (Phys)
-		{
-			Radius = Phys->CollisionRadius.Get();
-			HalfHeight = Phys->CollisionHalfHeight.Get();
-			// HalfHeight 가 Radius 보다 작으면 캡슐이 구로 degenerate — Radius 로 클램프.
-			HalfHeight = FMath::Max(HalfHeight, Radius);
-		}
-		if (Radius > 0.f && HalfHeight > 0.f)
-		{
-			const FVector CapsuleCenter(Pos.X, Pos.Y, Pos.Z + HalfHeight);
-			DrawDebugCapsule(World, CapsuleCenter, HalfHeight, Radius,
-				FQuat::Identity, Color, /*bPersistent*/false,
-				/*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/2.f);
-		}
+		if (!Phys) return;
+		const float Radius = Phys->CollisionRadius.Get();
+		if (Radius <= 0.f) return;
+		const float HalfHeight = FMath::Max(Phys->CollisionHalfHeight.Get(), Radius);
+		const FVector CapsuleCenter(Pos.X, Pos.Y, Pos.Z + HalfHeight);
+		DrawDebugCapsule(World, CapsuleCenter, HalfHeight, Radius,
+			FQuat::Identity, Color, /*bPersistent*/false,
+			/*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/2.f);
 	};
 
 	// Subject — 녹색
