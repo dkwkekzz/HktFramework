@@ -10,22 +10,7 @@
 
 namespace
 {
-	const TCHAR* const kDirNames[8] = {
-		TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"),
-		TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW")
-	};
-
-	bool IsDirectionName(const FString& Name)
-	{
-		for (int32 i = 0; i < 8; ++i)
-		{
-			if (Name.Equals(kDirNames[i], ESearchCase::IgnoreCase))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+	using HktWorkspaceConventions::IsDirectionName;
 
 	bool IsImageExt(const FString& Ext)
 	{

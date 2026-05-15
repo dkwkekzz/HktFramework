@@ -49,10 +49,7 @@ namespace
 		O->SetBoolField  (TEXT("upToDate"),  bUpToDate);
 		O->SetStringField(TEXT("inputsHash"), InputsHash);
 
-		const TCHAR* ModeStr = TEXT("Unknown");
-		if (E.Mode == EHktWorkspaceTagMode::Character)    ModeStr = TEXT("Character");
-		if (E.Mode == EHktWorkspaceTagMode::StaticVisual) ModeStr = TEXT("StaticVisual");
-		O->SetStringField(TEXT("mode"), ModeStr);
+		O->SetStringField(TEXT("mode"), HktWorkspaceConventions::TagModeToString(E.Mode));
 
 		if (E.Mode == EHktWorkspaceTagMode::StaticVisual)
 		{
@@ -65,15 +62,7 @@ namespace
 			TSharedPtr<FJsonObject> AO = MakeShared<FJsonObject>();
 			AO->SetStringField(TEXT("name"),    A.Name);
 			AO->SetStringField(TEXT("animTag"), A.AnimTag);
-			const TCHAR* Src = TEXT("none");
-			switch (A.Source)
-			{
-				case EHktWorkspaceAnimSource::Atlas:         Src = TEXT("atlas"); break;
-				case EHktWorkspaceAnimSource::FrameSequence: Src = TEXT("frame_sequence"); break;
-				case EHktWorkspaceAnimSource::Video:         Src = TEXT("video"); break;
-				default: break;
-			}
-			AO->SetStringField(TEXT("source"), Src);
+			AO->SetStringField(TEXT("source"),  HktWorkspaceConventions::AnimSourceToString(A.Source));
 
 			TArray<TSharedPtr<FJsonValue>> Dirs;
 			for (const FString& D : A.Directions) Dirs.Add(MakeShared<FJsonValueString>(D));
@@ -95,20 +84,92 @@ namespace
 	FHktPaperBuildResult DispatchBuild(const FHktWorkspaceTagEntry& Entry)
 	{
 		const UHktWorkspaceSettings* Settings = GetDefault<UHktWorkspaceSettings>();
-		const float PixelToWorld    = Settings ? Settings->Paper2DDefaultPixelToWorld    : 2.0f;
-		const float FrameDurationMs = Settings ? Settings->Paper2DDefaultFrameDurationMs : 100.f;
-		const bool  bLooping        = Settings ? Settings->bPaper2DDefaultLooping        : true;
-		const bool  bMirror         = Settings ? Settings->bPaper2DDefaultMirrorWestFromEast : true;
+		const float PixelToWorld = Settings ? Settings->Paper2DDefaultPixelToWorld : 2.0f;
 
 		if (Entry.Category == EHktWorkspaceCategory::Paper2D)
 		{
-			return HktPaperWorkspaceBuilder::BuildEntry(Entry, PixelToWorld, FrameDurationMs, bLooping, bMirror);
+			return HktPaperWorkspaceBuilder::BuildEntry(Entry, PixelToWorld);
 		}
 
 		FHktPaperBuildResult R;
 		R.Error = FString::Printf(TEXT("카테고리 '%s' 빌더 미구현 (1차 범위 외)"),
 			*FHktWorkspaceScanner::CategoryToString(Entry.Category));
 		return R;
+	}
+
+	/**
+	 * 한 entry 빌드: 사전 검사 → fresh 면 skip → 빌드 → manifest 갱신.
+	 * 결과 JSON 객체는 상위가 집계하기 좋게 tag/folderName/category 필드를 포함.
+	 * 반환 카운터: bWasOk (실제 빌드 성공) / bWasSkipped (skip 한 케이스).
+	 */
+	struct FBuildOutcome
+	{
+		TSharedRef<FJsonObject> Json = MakeShared<FJsonObject>();
+		bool bWasOk      = false;
+		bool bWasSkipped = false;
+	};
+
+	FBuildOutcome BuildOneEntry(const FHktWorkspaceTagEntry& E, bool bForce)
+	{
+		FBuildOutcome Out;
+		Out.Json->SetStringField(TEXT("tag"),        E.TagString);
+		Out.Json->SetStringField(TEXT("folderName"), E.FolderName);
+		Out.Json->SetStringField(TEXT("category"),   FHktWorkspaceScanner::CategoryToString(E.Category));
+
+		// 1차 범위: Paper2D 만 빌드. HISM 등 다른 카테고리는 skip 마킹.
+		if (E.Category != EHktWorkspaceCategory::Paper2D)
+		{
+			Out.Json->SetBoolField(TEXT("success"), false);
+			Out.Json->SetBoolField(TEXT("skipped"), true);
+			Out.Json->SetStringField(TEXT("reason"), TEXT("1차 범위 외 카테고리 — HISM 등은 후속 PR"));
+			Out.bWasSkipped = true;
+			return Out;
+		}
+
+		if (E.Mode == EHktWorkspaceTagMode::Unknown)
+		{
+			Out.Json->SetBoolField(TEXT("success"), false);
+			Out.Json->SetStringField(TEXT("reason"), TEXT("Mode 식별 실패 — 폴더 내용 확인"));
+			return Out;
+		}
+
+		const FString CurrentHash = FHktWorkspaceManifest::ComputeInputsHash(E);
+		const bool bUpToDate = !bForce && IsManifestUpToDate(E, CurrentHash);
+		Out.Json->SetStringField(TEXT("inputsHash"), CurrentHash);
+
+		if (bUpToDate)
+		{
+			Out.Json->SetBoolField(TEXT("success"), true);
+			Out.Json->SetBoolField(TEXT("skipped"), true);
+			Out.Json->SetStringField(TEXT("reason"), TEXT("manifest up-to-date"));
+			Out.bWasSkipped = true;
+			return Out;
+		}
+
+		const FHktPaperBuildResult Build = DispatchBuild(E);
+		Out.Json->SetBoolField(TEXT("success"), Build.bSuccess);
+		if (!Build.bSuccess)
+		{
+			Out.Json->SetStringField(TEXT("error"), Build.Error);
+			return Out;
+		}
+
+		FHktWorkspaceManifestData Manifest = FHktWorkspaceManifest::MakeDraft(E);
+		Manifest.InputsHash    = CurrentHash;
+		Manifest.LastBuiltAtIso = FDateTime::UtcNow().ToIso8601();
+		Manifest.Outputs       = Build.OutputAssetPaths;
+		FHktWorkspaceManifest::Save(E.FolderPath, Manifest);
+
+		TArray<TSharedPtr<FJsonValue>> OutPaths;
+		for (const FString& P : Build.OutputAssetPaths) OutPaths.Add(MakeShared<FJsonValueString>(P));
+		Out.Json->SetArrayField(TEXT("outputs"), OutPaths);
+
+		TArray<TSharedPtr<FJsonValue>> NoteArr;
+		for (const FString& N : Build.Notes) NoteArr.Add(MakeShared<FJsonValueString>(N));
+		Out.Json->SetArrayField(TEXT("notes"), NoteArr);
+
+		Out.bWasOk = true;
+		return Out;
 	}
 }
 
@@ -155,71 +216,10 @@ FString UHktWorkspaceFunctionLibrary::ScanAndBuildAll(const FString& WorkspaceRo
 
 	for (const FHktWorkspaceTagEntry& E : Entries)
 	{
-		TSharedPtr<FJsonObject> R = MakeShared<FJsonObject>();
-		R->SetStringField(TEXT("tag"),       E.TagString);
-		R->SetStringField(TEXT("folderName"), E.FolderName);
-		R->SetStringField(TEXT("category"),   FHktWorkspaceScanner::CategoryToString(E.Category));
-
-		// 1차 범위: Paper2D 만 빌드. HISM 등 다른 카테고리는 skip 마킹.
-		if (E.Category != EHktWorkspaceCategory::Paper2D)
-		{
-			R->SetBoolField(TEXT("success"), false);
-			R->SetBoolField(TEXT("skipped"), true);
-			R->SetStringField(TEXT("reason"), TEXT("1차 범위 외 카테고리 — HISM 등은 후속 PR"));
-			++SkipCount;
-			Results.Add(MakeShared<FJsonValueObject>(R));
-			continue;
-		}
-
-		if (E.Mode == EHktWorkspaceTagMode::Unknown)
-		{
-			R->SetBoolField(TEXT("success"), false);
-			R->SetStringField(TEXT("reason"), TEXT("Mode 식별 실패 — 폴더 내용 확인"));
-			Results.Add(MakeShared<FJsonValueObject>(R));
-			continue;
-		}
-
-		const FString CurrentHash = FHktWorkspaceManifest::ComputeInputsHash(E);
-		const bool bUpToDate = !bForce && IsManifestUpToDate(E, CurrentHash);
-
-		if (bUpToDate)
-		{
-			R->SetBoolField(TEXT("success"), true);
-			R->SetBoolField(TEXT("skipped"), true);
-			R->SetStringField(TEXT("reason"), TEXT("manifest up-to-date"));
-			R->SetStringField(TEXT("inputsHash"), CurrentHash);
-			++SkipCount;
-			Results.Add(MakeShared<FJsonValueObject>(R));
-			continue;
-		}
-
-		const FHktPaperBuildResult Build = DispatchBuild(E);
-		R->SetBoolField(TEXT("success"), Build.bSuccess);
-		if (!Build.bSuccess)
-		{
-			R->SetStringField(TEXT("error"), Build.Error);
-			Results.Add(MakeShared<FJsonValueObject>(R));
-			continue;
-		}
-
-		// 산출 자산 + manifest 갱신.
-		FHktWorkspaceManifestData Manifest = FHktWorkspaceManifest::MakeDraft(E);
-		Manifest.InputsHash    = CurrentHash;
-		Manifest.LastBuiltAtIso = FDateTime::UtcNow().ToIso8601();
-		Manifest.Outputs       = Build.OutputAssetPaths;
-		FHktWorkspaceManifest::Save(E.FolderPath, Manifest);
-
-		TArray<TSharedPtr<FJsonValue>> Outs;
-		for (const FString& P : Build.OutputAssetPaths) Outs.Add(MakeShared<FJsonValueString>(P));
-		R->SetArrayField(TEXT("outputs"), Outs);
-		R->SetStringField(TEXT("inputsHash"), CurrentHash);
-
-		TArray<TSharedPtr<FJsonValue>> NoteArr;
-		for (const FString& N : Build.Notes) NoteArr.Add(MakeShared<FJsonValueString>(N));
-		R->SetArrayField(TEXT("notes"), NoteArr);
-
-		++OkCount;
-		Results.Add(MakeShared<FJsonValueObject>(R));
+		FBuildOutcome Out = BuildOneEntry(E, bForce);
+		if (Out.bWasOk)      ++OkCount;
+		if (Out.bWasSkipped) ++SkipCount;
+		Results.Add(MakeShared<FJsonValueObject>(Out.Json));
 	}
 
 	TSharedPtr<FJsonObject> RootObj = MakeShared<FJsonObject>();
@@ -272,43 +272,6 @@ FString UHktWorkspaceFunctionLibrary::BuildTag(
 		return MakeErrorJson(TEXT("Tag 폴더 입력 형식 미인식"));
 	}
 
-	const FString CurrentHash = FHktWorkspaceManifest::ComputeInputsHash(Entry);
-	const bool bUpToDate = !bForce && IsManifestUpToDate(Entry, CurrentHash);
-
-	TSharedPtr<FJsonObject> RootObj = MakeShared<FJsonObject>();
-	RootObj->SetStringField(TEXT("tag"),       Entry.TagString);
-	RootObj->SetStringField(TEXT("folderName"), Entry.FolderName);
-	RootObj->SetStringField(TEXT("category"),   FHktWorkspaceScanner::CategoryToString(Cat));
-	RootObj->SetStringField(TEXT("inputsHash"), CurrentHash);
-
-	if (bUpToDate)
-	{
-		RootObj->SetBoolField(TEXT("success"), true);
-		RootObj->SetBoolField(TEXT("skipped"), true);
-		RootObj->SetStringField(TEXT("reason"), TEXT("manifest up-to-date"));
-		return SerializeJson(RootObj);
-	}
-
-	const FHktPaperBuildResult Build = DispatchBuild(Entry);
-	RootObj->SetBoolField(TEXT("success"), Build.bSuccess);
-	if (!Build.bSuccess)
-	{
-		RootObj->SetStringField(TEXT("error"), Build.Error);
-		return SerializeJson(RootObj);
-	}
-
-	FHktWorkspaceManifestData Manifest = FHktWorkspaceManifest::MakeDraft(Entry);
-	Manifest.InputsHash    = CurrentHash;
-	Manifest.LastBuiltAtIso = FDateTime::UtcNow().ToIso8601();
-	Manifest.Outputs       = Build.OutputAssetPaths;
-	FHktWorkspaceManifest::Save(Entry.FolderPath, Manifest);
-
-	TArray<TSharedPtr<FJsonValue>> Outs;
-	for (const FString& P : Build.OutputAssetPaths) Outs.Add(MakeShared<FJsonValueString>(P));
-	RootObj->SetArrayField(TEXT("outputs"), Outs);
-
-	TArray<TSharedPtr<FJsonValue>> NoteArr;
-	for (const FString& N : Build.Notes) NoteArr.Add(MakeShared<FJsonValueString>(N));
-	RootObj->SetArrayField(TEXT("notes"), NoteArr);
-	return SerializeJson(RootObj);
+	FBuildOutcome Out = BuildOneEntry(Entry, bForce);
+	return SerializeJson(Out.Json);
 }

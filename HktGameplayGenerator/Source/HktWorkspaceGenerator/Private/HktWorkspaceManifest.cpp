@@ -16,29 +16,25 @@
 
 namespace
 {
-	FString SourceTypeToStr(EHktWorkspaceAnimSource S)
+	void HashString(FSHA1& Sha, const FString& Str)
 	{
-		switch (S)
-		{
-			case EHktWorkspaceAnimSource::Atlas:         return TEXT("atlas");
-			case EHktWorkspaceAnimSource::FrameSequence: return TEXT("frame_sequence");
-			case EHktWorkspaceAnimSource::Video:         return TEXT("video");
-			default:                                      return TEXT("none");
-		}
+		// UpdateWithString 의 byte 길이 의미가 플랫폼별 모호 — Update 로 명시.
+		Sha.Update(reinterpret_cast<const uint8*>(*Str), Str.Len() * sizeof(TCHAR));
+	}
+
+	void HashFileMeta(FSHA1& Sha, const FString& Path, const FFileStatData& Stat)
+	{
+		HashString(Sha, Path);
+		if (!Stat.bIsValid) return;
+		const int64 Size  = Stat.FileSize;
+		const int64 Ticks = Stat.ModificationTime.GetTicks();
+		Sha.Update(reinterpret_cast<const uint8*>(&Size),  sizeof(int64));
+		Sha.Update(reinterpret_cast<const uint8*>(&Ticks), sizeof(int64));
 	}
 
 	void HashFile(FSHA1& Sha, const FString& Path)
 	{
-		const FFileStatData Stat = IFileManager::Get().GetStatData(*Path);
-		Sha.UpdateWithString(*Path, Path.Len());
-		if (Stat.bIsValid)
-		{
-			const int64 Size = Stat.FileSize;
-			Sha.Update(reinterpret_cast<const uint8*>(&Size), sizeof(int64));
-			const FDateTime Mtime = Stat.ModificationTime;
-			const int64 Ticks = Mtime.GetTicks();
-			Sha.Update(reinterpret_cast<const uint8*>(&Ticks), sizeof(int64));
-		}
+		HashFileMeta(Sha, Path, IFileManager::Get().GetStatData(*Path));
 	}
 
 	void HashFolderRecursive(FSHA1& Sha, const FString& Dir)
@@ -61,7 +57,7 @@ FString FHktWorkspaceManifest::GetManifestPath(const FString& TagFolderPath)
 FString FHktWorkspaceManifest::ComputeInputsHash(const FHktWorkspaceTagEntry& Entry)
 {
 	FSHA1 Sha;
-	Sha.UpdateWithString(*Entry.TagString, Entry.TagString.Len());
+	HashString(Sha, Entry.TagString);
 
 	if (Entry.Mode == EHktWorkspaceTagMode::StaticVisual)
 	{
@@ -71,24 +67,16 @@ FString FHktWorkspaceManifest::ComputeInputsHash(const FHktWorkspaceTagEntry& En
 	{
 		for (const FHktWorkspaceAnimInput& A : Entry.Anims)
 		{
-			Sha.UpdateWithString(*A.Name, A.Name.Len());
-			const FString SrcStr = SourceTypeToStr(A.Source);
-			Sha.UpdateWithString(*SrcStr, SrcStr.Len());
+			HashString(Sha, A.Name);
+			HashString(Sha, FString(HktWorkspaceConventions::AnimSourceToString(A.Source)));
+
+			// FrameSequence: SourcePaths 는 디렉터리 — 곧장 recurse (디렉터리는 stat 결과 의미 없음).
+			// Atlas/Video: SourcePaths 는 파일 — HashFile 한 번이면 stat 1회로 충분.
+			const bool bDirectorySource = (A.Source == EHktWorkspaceAnimSource::FrameSequence);
 			for (const FString& P : A.SourcePaths)
 			{
-				const FFileStatData Stat = IFileManager::Get().GetStatData(*P);
-				if (Stat.bIsValid && !Stat.bIsDirectory)
-				{
-					HashFile(Sha, P);
-				}
-				else if (Stat.bIsValid && Stat.bIsDirectory)
-				{
-					HashFolderRecursive(Sha, P);
-				}
-				else
-				{
-					HashFile(Sha, P); // 경로 자체는 해시.
-				}
+				if (bDirectorySource) HashFolderRecursive(Sha, P);
+				else                  HashFile(Sha, P);
 			}
 		}
 	}
@@ -111,7 +99,7 @@ FHktWorkspaceManifestData FHktWorkspaceManifest::MakeDraft(const FHktWorkspaceTa
 	{
 		FHktWorkspaceManifestData::FAnimEntry AE;
 		AE.Name       = A.Name;
-		AE.Source     = SourceTypeToStr(A.Source);
+		AE.Source     = FString(HktWorkspaceConventions::AnimSourceToString(A.Source));
 		AE.Directions = A.Directions;
 		D.Anims.Add(MoveTemp(AE));
 	}

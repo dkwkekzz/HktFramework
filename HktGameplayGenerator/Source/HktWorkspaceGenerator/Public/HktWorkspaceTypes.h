@@ -127,3 +127,57 @@ struct FHktWorkspaceTagEntry
 	UPROPERTY()
 	bool bTagPreRegistered = false;
 };
+
+// ============================================================================
+// 컨벤션 헬퍼 — 본 모듈 + Paper2D / SpriteGenerator 가 모두 동일 규약을 공유.
+// 8 방향 + enum→string 매핑 한 곳에 모음.
+// ============================================================================
+namespace HktWorkspaceConventions
+{
+	constexpr int32 NumDirections = 8;
+
+	inline const TCHAR* const* GetDirectionNames()
+	{
+		static const TCHAR* const Names[NumDirections] = {
+			TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"),
+			TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW")
+		};
+		return Names;
+	}
+
+	inline const TCHAR* GetDirectionName(int32 DirIdx)
+	{
+		return GetDirectionNames()[FMath::Clamp(DirIdx, 0, NumDirections - 1)];
+	}
+
+	inline bool IsDirectionName(const FString& Name)
+	{
+		const TCHAR* const* Names = GetDirectionNames();
+		for (int32 i = 0; i < NumDirections; ++i)
+		{
+			if (Name.Equals(Names[i], ESearchCase::IgnoreCase)) return true;
+		}
+		return false;
+	}
+
+	inline const TCHAR* AnimSourceToString(EHktWorkspaceAnimSource S)
+	{
+		switch (S)
+		{
+			case EHktWorkspaceAnimSource::Atlas:         return TEXT("atlas");
+			case EHktWorkspaceAnimSource::FrameSequence: return TEXT("frame_sequence");
+			case EHktWorkspaceAnimSource::Video:         return TEXT("video");
+			default:                                      return TEXT("none");
+		}
+	}
+
+	inline const TCHAR* TagModeToString(EHktWorkspaceTagMode M)
+	{
+		switch (M)
+		{
+			case EHktWorkspaceTagMode::Character:    return TEXT("Character");
+			case EHktWorkspaceTagMode::StaticVisual: return TEXT("StaticVisual");
+			default:                                  return TEXT("Unknown");
+		}
+	}
+}

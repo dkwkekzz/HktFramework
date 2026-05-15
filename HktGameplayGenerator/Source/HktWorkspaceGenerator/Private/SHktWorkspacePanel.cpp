@@ -21,18 +21,6 @@
 
 #define LOCTEXT_NAMESPACE "HktWorkspacePanel"
 
-namespace
-{
-	FText ModeText(EHktWorkspaceTagMode M)
-	{
-		switch (M)
-		{
-			case EHktWorkspaceTagMode::Character:    return LOCTEXT("ModeCharacter", "Character");
-			case EHktWorkspaceTagMode::StaticVisual: return LOCTEXT("ModeStatic",    "StaticVisual");
-			default:                                  return LOCTEXT("ModeUnknown",   "Unknown");
-		}
-	}
-}
 
 void SHktWorkspacePanel::Construct(const FArguments& InArgs)
 {
@@ -158,7 +146,7 @@ TSharedRef<ITableRow> SHktWorkspacePanel::GenerateRowWidget(
 	TSharedPtr<FRow> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	const FString CategoryStr = FHktWorkspaceScanner::CategoryToString(Item->Entry.Category);
-	const FText   Mode        = ModeText(Item->Entry.Mode);
+	const FText   Mode        = FText::FromString(HktWorkspaceConventions::TagModeToString(Item->Entry.Mode));
 	const FText   StatusTxt   = Item->bUpToDate
 		? LOCTEXT("Fresh", "fresh")
 		: LOCTEXT("Stale", "stale");

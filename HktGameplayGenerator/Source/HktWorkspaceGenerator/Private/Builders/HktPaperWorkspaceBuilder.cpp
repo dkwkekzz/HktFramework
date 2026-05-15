@@ -83,13 +83,21 @@ namespace
 			case EHktWorkspaceAnimSource::Atlas:
 			{
 				// 1:1 복사 — 사용자 파일을 legacy 경로의 atlas_{Dir}.png 로 옮김.
+				// mtime + size 동일하면 디스크 IO 절약을 위해 skip.
 				for (int32 i = 0; i < Anim.SourcePaths.Num(); ++i)
 				{
 					const FString& Src = Anim.SourcePaths[i];
 					const FString& Dir = Anim.Directions[i];
 					const FString Dest = AnimDir / FString::Printf(TEXT("atlas_%s.png"), *Dir);
 
-					if (IFileManager::Get().Copy(*Dest, *Src, /*bReplace*/true) != COPY_OK)
+					IFileManager& FM = IFileManager::Get();
+					const FFileStatData SrcStat  = FM.GetStatData(*Src);
+					const FFileStatData DestStat = FM.GetStatData(*Dest);
+					const bool bIdentical = SrcStat.bIsValid && DestStat.bIsValid
+						&& SrcStat.FileSize == DestStat.FileSize
+						&& SrcStat.ModificationTime == DestStat.ModificationTime;
+
+					if (!bIdentical && FM.Copy(*Dest, *Src, /*bReplace*/true) != COPY_OK)
 					{
 						OutError = FString::Printf(TEXT("atlas 복사 실패: %s → %s"), *Src, *Dest);
 						return false;
@@ -150,13 +158,10 @@ namespace
 				}
 
 				// 산출 atlas 파일 경로 추가 (8 방향 가정).
-				for (int32 d = 0; d < 8; ++d)
+				for (int32 d = 0; d < HktWorkspaceConventions::NumDirections; ++d)
 				{
-					static const TCHAR* const Dirs[8] = {
-						TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"),
-						TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW")
-					};
-					const FString AtlasPath = AnimDir / FString::Printf(TEXT("atlas_%s.png"), Dirs[d]);
+					const FString AtlasPath = AnimDir / FString::Printf(
+						TEXT("atlas_%s.png"), HktWorkspaceConventions::GetDirectionName(d));
 					if (FPaths::FileExists(AtlasPath))
 					{
 						OutAtlasPaths.Add(AtlasPath);
@@ -176,10 +181,7 @@ namespace HktPaperWorkspaceBuilder
 {
 	FHktPaperBuildResult BuildEntry(
 		const FHktWorkspaceTagEntry& Entry,
-		float PixelToWorld,
-		float FrameDurationMs,
-		bool  bLooping,
-		bool  bMirrorWestFromEast)
+		float PixelToWorld)
 	{
 		FHktPaperBuildResult Result;
 

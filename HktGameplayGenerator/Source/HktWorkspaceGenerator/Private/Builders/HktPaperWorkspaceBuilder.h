@@ -34,11 +34,11 @@ namespace HktPaperWorkspaceBuilder
 	 * Tag entry 를 통째로 빌드. Character/StaticVisual 두 모드 모두 처리.
 	 *  - StaticVisual: BuildPaperStaticVisual 1회.
 	 *  - Character   : 모든 anim 을 legacy workspace 로 정규화 후 BuildPaperCharacter 호출.
+	 *
+	 * frameDuration / looping / mirror 는 워크스페이스 폴더의 `character_meta.json`
+	 * 사이드카에서 읽어 BuildPaperCharacter 가 적용한다.
 	 */
 	FHktPaperBuildResult BuildEntry(
 		const FHktWorkspaceTagEntry& Entry,
-		float PixelToWorld,
-		float FrameDurationMs,
-		bool  bLooping,
-		bool  bMirrorWestFromEast);
+		float PixelToWorld);
 }
