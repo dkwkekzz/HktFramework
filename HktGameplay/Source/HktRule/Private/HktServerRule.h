@@ -30,6 +30,7 @@ public:
     virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) override;
     virtual void OnEvent_GameModeLogout(const IHktWorldPlayer& InPlayer) override;
     virtual void OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation) override;
+    virtual void OnEvent_TerrainReady() override;
     virtual void EnqueueDebugSpawner(const FGameplayTag& InStoryTag, const FVector& InLocation, int32 InParam2 = 0, int32 InParam3 = 0) override;
     virtual FHktEventGameModeTickResult OnEvent_GameModeTick(float InDeltaTime) override;
 
@@ -53,6 +54,20 @@ private:
 
 	/** PendingWorldInit 의 NumGroups==0 경고 1회 게이트 — ServerRule 인스턴스 수명 동안 유지 (PIE 재시작 시 reset) */
 	bool bLoggedPendingWorldInitZeroGroup = false;
+
+	/**
+	 * 지형 로딩이 끝나고 HktCore Provider 재바인딩까지 완료되었는지.
+	 * GameMode 가 `OnEvent_TerrainReady` 로 1회 true 로 세팅한다. PIE 재시작 시 ServerRule
+	 * 인스턴스가 재생성되며 자동 리셋.
+	 *
+	 * 본 플래그가 false 인 동안 OnEvent_GameModeTick 은 PendingLoginResults 및
+	 * PendingWorldInit 처리를 보류한다 — 캐릭터 Story 가 지형 미반영 상태에서 SetPosition
+	 * 하여 표면과 어긋나는 race 차단.
+	 */
+	bool bTerrainReady = false;
+
+	/** bTerrainReady 대기 로그를 1회만 출력. */
+	bool bLoggedTerrainNotReady = false;
 
 	// [LEGACY · Phase 4 호환] 월드 최초 생성 Story (InitGame에서 등록, 첫 Tick에 소비).
 	//

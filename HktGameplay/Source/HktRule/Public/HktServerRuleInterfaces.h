@@ -315,6 +315,20 @@ public:
 	virtual void OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation) {}
 
 	/**
+	 * 지형이 시뮬레이션(HktCore)에 최종 반영되었음을 알리는 신호.
+	 *
+	 * 호출자(GameMode)가 다음 두 경로 중 하나로 1회 호출한다:
+	 *   1. `UHktTerrainSubsystem::OnEffectiveConfigChanged` 가 BakedAsset 비동기 로드 완료로 발화
+	 *      → `RebindTerrainProvider` 가 새 Provider 를 시뮬레이터에 주입한 직후.
+	 *   2. 첫 Tick 시점에 `IsBakedAssetPending()==false` 인 경우(베이크 자산 미지정).
+	 *
+	 * 본 신호 수신 전까지 룰은 캐릭터 스폰/월드 부트스트랩 Story 처리를 보류해야 한다 —
+	 * 그렇지 않으면 폴백 Generator 의 stale 결과로 캐릭터가 생성되어 첫 PIE 진입 시
+	 * 지형과 캐릭터 Z 가 어긋난다("떠다님" 증상).
+	 */
+	virtual void OnEvent_TerrainReady() {}
+
+	/**
 	 * 디버그 전용 — spawner story 를 임의 위치에 즉시 큐잉 (다음 tick 발동).
 	 * 콘솔 커맨드 `hkt.spawn.natural` 진입점. 프로덕션 자산 영향 0 — 기본 구현 no-op.
 	 * Implementation-Plan §7 PR-5+ : terrain-bake 자동 추출 (Phase 3) 가 완성되기 전까지의

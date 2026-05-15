@@ -86,6 +86,9 @@ void AHktGameMode::InitGame(const FString& MapName, const FString& Options, FStr
                 [this](const FHktTerrainGeneratorConfig& /*NewConfig*/)
                 {
                     RebindTerrainProvider();
+                    // BakedAsset 비동기 로드 완료 후 Provider 가 재바인딩된 직후 — 이 시점부터
+                    // HktCore 가 최종 지형을 인식하므로 캐릭터 스폰 게이트를 해제할 수 있다.
+                    NotifyTerrainReadyIfPossible();
                 });
         }
 
@@ -166,8 +169,9 @@ void AHktGameMode::RebindTerrainProvider()
         });
 
     UE_LOG(LogHktRuntime, Log,
-        TEXT("[GameMode] Terrain Provider 재바인딩 — VoxelSizeCm=%.1f ChunkSize=%d"),
-        EffectiveCfg.VoxelSizeCm, FHktTerrainGeneratorConfig::ChunkSize);
+        TEXT("[FloatRepro] GameMode.RebindTerrainProvider: 시뮬레이터에 Provider 주입 — VoxelSizeCm=%.1f ChunkSize=%d Seed=%d Epoch=%d"),
+        EffectiveCfg.VoxelSizeCm, FHktTerrainGeneratorConfig::ChunkSize,
+        EffectiveCfg.Seed, EffectiveCfg.Epoch);
 }
 
 void AHktGameMode::Tick(float DeltaSeconds)
@@ -179,6 +183,11 @@ void AHktGameMode::Tick(float DeltaSeconds)
         return;
     }
 
+    // Tick 진입 시점에는 World::BeginPlay 가 끝나 VoxelTerrainActor 등 지형 액터의
+    // BeginPlay 도 호출 완료된 상태 — IsBakedAssetPending()==false 라면 베이크 자산이
+    // 없거나 동기 완료된 케이스. 어느 쪽이든 Provider 가 확정 상태이므로 게이트 해제.
+    NotifyTerrainReadyIfPossible();
+
     // 고정 간격 시뮬레이션 — hkt.Sim.FramesPerSecond CVar 단일 출처
     const float FixedDeltaTime = HktGetSimFixedDeltaSeconds();
     FrameAccumulator += DeltaSeconds;
@@ -187,6 +196,26 @@ void AHktGameMode::Tick(float DeltaSeconds)
         FrameAccumulator -= FixedDeltaTime;
         SimulationTick();
     }
+}
+
+void AHktGameMode::NotifyTerrainReadyIfPossible()
+{
+    if (bTerrainReadyNotified) { return; }
+    if (!CachedServerRule)     { return; }
+
+    UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this);
+    if (Sub && Sub->IsBakedAssetPending())
+    {
+        // 비동기 로드 진행 중 — 콜백에서 다시 시도된다.
+        return;
+    }
+
+    bTerrainReadyNotified = true;
+    UE_LOG(LogHktRuntime, Log,
+        TEXT("[FloatRepro] GameMode.NotifyTerrainReadyIfPossible: ServerRule 게이트 해제 (BakedAsset=%s SubPending=%d)"),
+        (Sub && Sub->GetBakedAsset()) ? *GetNameSafe(Sub->GetBakedAsset()) : TEXT("none"),
+        Sub ? (Sub->IsBakedAssetPending() ? 1 : 0) : -1);
+    CachedServerRule->OnEvent_TerrainReady();
 }
 
 void AHktGameMode::SimulationTick()

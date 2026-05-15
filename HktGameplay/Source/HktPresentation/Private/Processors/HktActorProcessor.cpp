@@ -366,6 +366,13 @@ void FHktActorProcessor::SpawnActorFromResolvedAsset(FHktEntityId EntityId, cons
 		HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("SpawnActor Tag=%s Location=(%.1f, %.1f, %.1f)"),
 			*VisualTag.ToString(), SpawnedActor->GetActorLocation().X, SpawnedActor->GetActorLocation().Y, SpawnedActor->GetActorLocation().Z), EntityId);
 
+		UE_LOG(LogHktPresentation, Log,
+			TEXT("[FloatRepro] ActorProcessor.SpawnActor: entity=%d tag=%s Location=(%.1f, %.1f, %.1f)"),
+			EntityId, *VisualTag.ToString(),
+			SpawnedActor->GetActorLocation().X,
+			SpawnedActor->GetActorLocation().Y,
+			SpawnedActor->GetActorLocation().Z);
+
 		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(SpawnedActor))
 		{
 			P->SetEntityId(EntityId);

@@ -222,10 +222,18 @@ void FHktDefaultServerRule::OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer)
 	const FGameplayTag SpawnStoryTag = InPlayer.GetSpawnStoryTag();
 	TWeakInterfacePtr<IHktWorldPlayer> WeakPlayer(&InPlayer);
 
-	CachedDB->LoadPlayerRecordAsync(PlayerUid, SpawnStoryTag, [this, WeakPlayer](const FHktPlayerRecord& Record)
+	const int64 FrameAtPostLogin = CachedFrame ? CachedFrame->GetFrameNumber() : -1;
+	UE_LOG(LogHktRule, Log,
+		TEXT("[FloatRepro] ServerRule.OnEvent_GameModePostLogin: uid=%lld frame=%lld bTerrainReady=%d"),
+		PlayerUid, FrameAtPostLogin, bTerrainReady ? 1 : 0);
+
+	CachedDB->LoadPlayerRecordAsync(PlayerUid, SpawnStoryTag, [this, WeakPlayer, PlayerUid](const FHktPlayerRecord& Record)
 	{
 		if (Record.IsValid())
 		{
+			UE_LOG(LogHktRule, Log,
+				TEXT("[FloatRepro] ServerRule: PendingLoginResults.Enqueue uid=%lld LastPos.Z=%.1f bTerrainReady=%d"),
+				PlayerUid, Record.LastPosition.Z, bTerrainReady ? 1 : 0);
 			PendingLoginResults.Enqueue({ WeakPlayer, Record });
 		}
 	});
@@ -235,6 +243,16 @@ void FHktDefaultServerRule::OnEvent_GameModeLogout(const IHktWorldPlayer& InPlay
 {
 	// 로그아웃 UID를 큐잉 — ProcessPendingConnections에서 ExitWorldPlayer 포함하여 처리 (item 9)
 	PendingLogoutRequests.Enqueue(InPlayer.GetPlayerUid());
+}
+
+void FHktDefaultServerRule::OnEvent_TerrainReady()
+{
+	if (bTerrainReady) return;
+	bTerrainReady = true;
+	const int64 FrameAtReady = CachedFrame ? CachedFrame->GetFrameNumber() : -1;
+	UE_LOG(LogHktRule, Log,
+		TEXT("[FloatRepro] ServerRule.OnEvent_TerrainReady: frame=%lld — 캐릭터/월드 스토리 게이트 해제, 다음 Tick 에 PendingLoginResults 처리."),
+		FrameAtReady);
 }
 
 void FHktDefaultServerRule::OnEvent_GameModeInitWorld(const FGameplayTag& InStoryTag, const FVector& InLocation)
@@ -320,27 +338,51 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 	}
 
 	// 로그인 처리 — Graph 등록은 EndFrame에서 처리 (item 5)
-	FPendingLoginResult LoginResult;
-	while (PendingLoginResults.Dequeue(LoginResult))
+	//
+	// 지형이 HktCore 에 반영되기 전까지 보류 — 캐릭터 Story 는 지형 표면 Z 와 어긋난
+	// 위치에 SetPosition 하면 첫 PIE 진입에서 "떠다님" 증상을 만든다(Plan §race fix).
+	// PendingLoginResults 큐는 그대로 유지되며 다음 틱에서 재평가된다.
+	if (bTerrainReady)
 	{
-		IHktWorldPlayer* NewPlayer = LoginResult.WeakPlayer.Get();
-		if (!NewPlayer) continue;
-
-		// DB에서 로드한 가방 데이터 복원 + 클라이언트 FullSync
-		if (LoginResult.Record.BagItems.Num() > 0)
+		FPendingLoginResult LoginResult;
+		while (PendingLoginResults.Dequeue(LoginResult))
 		{
-			NewPlayer->RestoreBagFromRecord(LoginResult.Record.BagItems);
-			NewPlayer->SendBagFullSync();
-		}
+			IHktWorldPlayer* NewPlayer = LoginResult.WeakPlayer.Get();
+			if (!NewPlayer) continue;
 
-		const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record.LastPosition);
-		FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
-		GroupEventSend.Entered.Add(NewPlayer);
+			// DB에서 로드한 가방 데이터 복원 + 클라이언트 FullSync
+			if (LoginResult.Record.BagItems.Num() > 0)
+			{
+				NewPlayer->RestoreBagFromRecord(LoginResult.Record.BagItems);
+				NewPlayer->SendBagFullSync();
+			}
+
+			const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record.LastPosition);
+			FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];
+			GroupEventSend.Entered.Add(NewPlayer);
+
+			UE_LOG(LogHktRule, Log,
+				TEXT("[FloatRepro] ServerRule: LOGIN DISPATCH frame=%lld uid=%lld groupIdx=%d LastPos=(%.1f, %.1f, %.1f)"),
+				CurrentFrameNumber, NewPlayer->GetPlayerUid(), GroupIdx,
+				LoginResult.Record.LastPosition.X,
+				LoginResult.Record.LastPosition.Y,
+				LoginResult.Record.LastPosition.Z);
+		}
+	}
+	else if (!bLoggedTerrainNotReady && !PendingLoginResults.IsEmpty())
+	{
+		UE_LOG(LogHktRule, Log,
+			TEXT("[FloatRepro] ServerRule: 지형 로딩 대기 중 — PendingLoginResults 처리 보류 (frame=%lld). "
+				 "OnEvent_TerrainReady 수신 후 재개합니다."),
+			CurrentFrameNumber);
+		bLoggedTerrainNotReady = true;
 	}
 
 	// --- World Init Story (GameMode에서 지정한 1회성 Story) ---
 	// 지정된 위치의 그룹(또는 그룹이 없으면 0번)에 이벤트를 주입한다.
-	if (PendingWorldInit.IsSet())
+	// 지형 미반영 상태에서는 보류 — Spawner Story 가 지형 의존 시 fallback Generator 결과로
+	// 잘못된 셀이 채워지는 race 방지. 큐는 유지되어 다음 틱에서 재평가.
+	if (PendingWorldInit.IsSet() && bTerrainReady)
 	{
 		if (NumGroups <= 0)
 		{

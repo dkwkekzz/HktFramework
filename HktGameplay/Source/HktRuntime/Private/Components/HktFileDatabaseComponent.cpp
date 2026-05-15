@@ -109,8 +109,15 @@ void UHktFileDatabaseComponent::SaveToSlot(int64 PlayerUid, const FHktPlayerReco
 
 void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const FGameplayTag& InSpawnStoryTag, TFunction<void(const FHktPlayerRecord&)> InCallback)
 {
+	UE_LOG(LogHktRuntime, Log,
+		TEXT("[FloatRepro] FileDB.LoadPlayerRecordAsync: uid=%lld spawnTag=%s"),
+		InPlayerUid, *InSpawnStoryTag.ToString());
+
 	if (FHktPlayerRecord* Cached = CachedRecords.Find(InPlayerUid))
 	{
+		UE_LOG(LogHktRuntime, Log,
+			TEXT("[FloatRepro] FileDB: cached record HIT — LastPos=(%.1f, %.1f, %.1f)"),
+			Cached->LastPosition.X, Cached->LastPosition.Y, Cached->LastPosition.Z);
 		InCallback(*Cached);
 		return;
 	}
@@ -126,6 +133,11 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const F
 		{
 			FHktPlayerRecord& Record = Loaded.GetValue();
 			Record.PlayerUid = InPlayerUid;
+
+			UE_LOG(LogHktRuntime, Log,
+				TEXT("[FloatRepro] FileDB: SaveGame LOADED uid=%lld LastPos=(%.1f, %.1f, %.1f) Entities=%d"),
+				InPlayerUid, Record.LastPosition.X, Record.LastPosition.Y, Record.LastPosition.Z,
+				Record.EntityStates.Num());
 
 			// 기존 레코드에 월드 진입 이벤트가 없으면 추가 (재진입 시)
 			bool bHasInWorldEvent = false;
@@ -160,7 +172,9 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const F
 			NewRecord.CreatedTime = FDateTime::UtcNow();
 			NewRecord.LastLoginTime = NewRecord.CreatedTime;
 
-			// 초기 월드 진입 이벤트 추가
+			// 초기 월드 진입 이벤트 추가 — Location 은 ProjectSettings 의 폴백 Generator 결과.
+			// [FloatRepro] 본 호출 시점이 BakedAsset 비동기 로드 *전* 이면 Z 가 fallback 값이며,
+			// 이후 BakedAsset 가 다른 표면 Z 를 갖는 경우 캐릭터가 떠다니는 원인이 된다.
 			FHktEvent EnterWorldEvent;
 			EnterWorldEvent.EventTag = EnterTag;
 			EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
@@ -168,6 +182,11 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const F
 			EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation();
 			EnterWorldEvent.PlayerUid = InPlayerUid;
 			NewRecord.ActiveEvents.Add(EnterWorldEvent);
+
+			UE_LOG(LogHktRuntime, Log,
+				TEXT("[FloatRepro] FileDB: NEW record uid=%lld → EnterWorld.Location=(%.1f, %.1f, %.1f) tag=%s"),
+				InPlayerUid, EnterWorldEvent.Location.X, EnterWorldEvent.Location.Y, EnterWorldEvent.Location.Z,
+				*EnterTag.ToString());
 
 			InCallback(NewRecord);
 		}

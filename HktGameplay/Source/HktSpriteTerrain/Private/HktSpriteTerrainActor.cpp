@@ -156,7 +156,15 @@ void AHktSpriteTerrainActor::BeginPlay()
 	{
 		if (!BakedAsset.IsNull())
 		{
+			UE_LOG(LogHktSpriteTerrain, Log,
+				TEXT("[FloatRepro] SpriteTerrainActor.BeginPlay: LoadBakedAsset 호출 (SoftRef='%s')"),
+				*BakedAsset.ToString());
 			Sub->LoadBakedAsset(BakedAsset);
+		}
+		else
+		{
+			UE_LOG(LogHktSpriteTerrain, Log,
+				TEXT("[FloatRepro] SpriteTerrainActor.BeginPlay: BakedAsset 미지정"));
 		}
 	}
 	else
