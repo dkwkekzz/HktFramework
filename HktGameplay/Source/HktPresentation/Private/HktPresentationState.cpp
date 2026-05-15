@@ -94,16 +94,18 @@ namespace
 			};
 
 			// --- Physics ---
+			// Property 값을 그대로 반영 (floor 없음). 가시 capsule 이 필요한 actor 측에서
+			// 각자 fallback 처리 (HktUnitActor::ApplyPhysics 등) — ViewModel 은 권위값 1:1.
 			T[PropertyId::CollisionRadius] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
 				if (!S.Physics.IsValidIndex(Id)) return false;
-				S.Physics[Id].CollisionRadius.Set(FMath::Max(static_cast<float>(V), 50.f), F);
+				S.Physics[Id].CollisionRadius.Set(static_cast<float>(V), F);
 				return true;
 			};
 			T[PropertyId::CollisionHalfHeight] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
 			{
 				if (!S.Physics.IsValidIndex(Id)) return false;
-				S.Physics[Id].CollisionHalfHeight.Set(FMath::Max(static_cast<float>(V), 30.f), F);
+				S.Physics[Id].CollisionHalfHeight.Set(static_cast<float>(V), F);
 				return true;
 			};
 			T[PropertyId::CollisionLayer] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
@@ -475,8 +477,9 @@ void FHktPresentationState::InitTransformFromWS(const FHktWorldState& WS, FHktEn
 
 void FHktPresentationState::InitPhysicsFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktPhysicsView& V, int64 F)
 {
-	V.CollisionRadius.Set(FMath::Max(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionRadius)), 50.f), F);
-	V.CollisionHalfHeight.Set(FMath::Max(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionHalfHeight)), 30.f), F);
+	// ViewModel = Property 1:1 (floor 없음). dispatcher 와 동일 규약.
+	V.CollisionRadius.Set(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionRadius)), F);
+	V.CollisionHalfHeight.Set(static_cast<float>(WS.GetProperty(Id, PropertyId::CollisionHalfHeight)), F);
 	V.CollisionLayer.Set(WS.GetProperty(Id, PropertyId::CollisionLayer), F);
 }
 
