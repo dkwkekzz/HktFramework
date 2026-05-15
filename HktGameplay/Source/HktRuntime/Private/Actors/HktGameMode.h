@@ -93,4 +93,18 @@ private:
 
     /** Subsystem 델리게이트 핸들 — EndPlay 에서 안전 해제. */
     FDelegateHandle TerrainConfigChangedHandle;
+
+    /**
+     * ServerRule 에 OnEvent_TerrainReady 를 1회만 통지하기 위한 게이트.
+     *
+     * 호출 경로:
+     *   1. UHktTerrainSubsystem::OnEffectiveConfigChanged 콜백 (BakedAsset 비동기 로드 완료).
+     *   2. 첫 Tick 시점 — VoxelTerrainActor::BeginPlay 가 이미 LoadBakedAsset 을 호출했을
+     *      터이므로, 이 시점에 IsBakedAssetPending()==false 라면 베이크 자산이 없거나
+     *      이미 완료된 상태. 둘 다 ready 로 간주.
+     */
+    bool bTerrainReadyNotified = false;
+
+    /** OnEvent_TerrainReady 게이트 — 첫 Tick fallback + OnEffectiveConfigChanged 콜백 양 경로에서 호출. */
+    void NotifyTerrainReadyIfPossible();
 };
