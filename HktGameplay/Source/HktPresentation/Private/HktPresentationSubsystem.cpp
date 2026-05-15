@@ -33,6 +33,26 @@ static TAutoConsoleVariable<int32> CVarSelectionDebugDraw(
 	TEXT("Draw Subject/Target/Voxel selection markers via DrawDebug (0=off, 1=on)."),
 	ECVF_Default);
 
+// 위치 시각화용 sphere 반경 (실제 엔티티 origin 에 그리는 작은 마커)
+static TAutoConsoleVariable<float> CVarSelectionPositionSphereRadius(
+	TEXT("hkt.selection.debug.posSphereRadius"),
+	8.0f,
+	TEXT("Radius (cm) of the small sphere drawn at the entity's actual position."),
+	ECVF_Default);
+
+// Physics 뷰 부재 시 capsule 의 폴백 크기. 0 이하면 capsule 자체를 생략.
+static TAutoConsoleVariable<float> CVarSelectionFallbackCapsuleRadius(
+	TEXT("hkt.selection.debug.fallbackCapsuleRadius"),
+	0.0f,
+	TEXT("Capsule radius (cm) used when entity has no Physics view. 0=skip capsule."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarSelectionFallbackCapsuleHalfHeight(
+	TEXT("hkt.selection.debug.fallbackCapsuleHalfHeight"),
+	0.0f,
+	TEXT("Capsule half-height (cm) used when entity has no Physics view. 0=skip capsule."),
+	ECVF_Default);
+
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
@@ -739,29 +759,56 @@ void UHktPresentationSubsystem::DrawSelectionDebug() const
 	UWorld* World = LP ? LP->GetWorld() : nullptr;
 	if (!World) return;
 
-	// Subject — 녹색 캡슐 (entity 위치 기준 + 위로 +50)
-	if (IsRealEntityId(CurrentSubjectEntityId))
+	const float PosSphereRadius = FMath::Max(CVarSelectionPositionSphereRadius.GetValueOnGameThread(), 1.f);
+	const float FallbackR = CVarSelectionFallbackCapsuleRadius.GetValueOnGameThread();
+	const float FallbackHH = CVarSelectionFallbackCapsuleHalfHeight.GetValueOnGameThread();
+
+	// Sphere(위치) + Capsule(크기) 를 엔티티 속성 그대로 반영해 그린다.
+	// - Sphere: Transform.Location 에 작은 마커(절대 위치) → 엔티티 origin 확인용.
+	// - Capsule: Physics 뷰의 CollisionRadius / CollisionHalfHeight 사용.
+	//   엔티티 위치는 capsule 바닥(발끝) 기준이므로 center 는 Z + HalfHeight.
+	//   Physics 뷰가 없으면 fallback CVar 가 0 이상일 때만 그린다.
+	auto DrawEntityMarkers = [&](FHktEntityId Id, const FColor& Color)
 	{
-		const FHktTransformView* T = State.GetTransform(CurrentSubjectEntityId);
-		if (T)
+		const FHktTransformView* T = State.GetTransform(Id);
+		if (!T) return;
+
+		const FVector Pos = T->Location.Get();
+
+		// 1) 위치 sphere — 실제 엔티티 origin 그대로 (offset 없음).
+		DrawDebugSphere(World, Pos, PosSphereRadius, 12,
+			Color, /*bPersistent*/false, /*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/1.5f);
+
+		// 2) 크기 capsule — Physics 뷰의 실제 값 사용.
+		const FHktPhysicsView* Phys = State.GetPhysics(Id);
+		float Radius = FallbackR;
+		float HalfHeight = FallbackHH;
+		if (Phys)
 		{
-			const FVector Pos = T->Location.Get();
-			DrawDebugCapsule(World, Pos + FVector(0, 0, 50.f), 60.f, 30.f,
-				FQuat::Identity, FColor::Green, /*bPersistent*/false,
+			Radius = Phys->CollisionRadius.Get();
+			HalfHeight = Phys->CollisionHalfHeight.Get();
+			// HalfHeight 가 Radius 보다 작으면 캡슐이 구로 degenerate — Radius 로 클램프.
+			HalfHeight = FMath::Max(HalfHeight, Radius);
+		}
+		if (Radius > 0.f && HalfHeight > 0.f)
+		{
+			const FVector CapsuleCenter(Pos.X, Pos.Y, Pos.Z + HalfHeight);
+			DrawDebugCapsule(World, CapsuleCenter, HalfHeight, Radius,
+				FQuat::Identity, Color, /*bPersistent*/false,
 				/*LifeTime*/-1.f, /*DepthPriority*/0, /*Thickness*/2.f);
 		}
+	};
+
+	// Subject — 녹색
+	if (IsRealEntityId(CurrentSubjectEntityId))
+	{
+		DrawEntityMarkers(CurrentSubjectEntityId, FColor::Green);
 	}
 
-	// Target — Entity(real) 는 구, Voxel(sentinel) 은 AABB 박스, Invalid 은 그리지 않음.
+	// Target — Entity(real) 는 빨간 sphere+capsule, Voxel(sentinel) 은 AABB 박스, Invalid 은 그리지 않음.
 	if (IsRealEntityId(CurrentTargetEntityId))
 	{
-		const FHktTransformView* T = State.GetTransform(CurrentTargetEntityId);
-		if (T)
-		{
-			const FVector Pos = T->Location.Get();
-			DrawDebugSphere(World, Pos + FVector(0, 0, 50.f), 40.f, 16,
-				FColor::Red, false, -1.f, 0, 2.f);
-		}
+		DrawEntityMarkers(CurrentTargetEntityId, FColor::Red);
 	}
 	else if (CurrentTargetEntityId == VoxelTargetEntityId && BoundInteraction)
 	{
