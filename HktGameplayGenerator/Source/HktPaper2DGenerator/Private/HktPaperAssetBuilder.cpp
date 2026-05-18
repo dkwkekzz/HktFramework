@@ -4,8 +4,7 @@
 #include "HktPaperUnlitMaterial.h"
 #include "HktPaper2DGeneratorLog.h"
 
-#include "HktPaperCharacterTemplate.h"   // FHktPaperAnimDirKey / FHktPaperAnimMeta 재사용
-#include "HktPaperAnimationDataAsset.h"
+#include "HktPaperAnimationDataAsset.h"   // FHktPaperAnimDirKey / FHktPaperAnimMeta / UHktPaperAnimationDataAsset
 #include "HktPaperActorVisualDataAsset.h"
 #include "HktSpritePaperActor.h"
 
@@ -461,7 +460,6 @@ namespace HktPaperAssetBuilder
 		// (UHktActorVisualDataAsset 도 같은 필드를 EditDefaultsOnly 로 노출.)
 		Visual->IdentifierTag  = IdentifierTag;
 		Visual->AnimationAsset = Animation;
-		Visual->Animation      = nullptr;  // deprecated 슬롯은 명시 클리어 — 신규 빌드는 AnimationAsset 만 채움.
 		Visual->ActorClass     = AHktSpritePaperActor::StaticClass();
 
 		return Visual;

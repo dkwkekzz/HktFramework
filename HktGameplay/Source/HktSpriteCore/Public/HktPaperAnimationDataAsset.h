@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "HktPaperCharacterTemplate.h"  // FHktPaperAnimDirKey / FHktPaperAnimMeta 재사용
 #include "HktPaperAnimationDataAsset.generated.h"
 
 class UPaperFlipbook;
@@ -13,12 +12,11 @@ class UPaperFlipbook;
 // ============================================================================
 // UHktPaperAnimationDataAsset — Paper2D 경로의 *애니메이션 전용* 데이터 자산.
 //
-// 기존 `UHktPaperCharacterTemplate` 의 깨끗한 재명명. "Character" 라는 명칭이
-// 캐릭터 전용 의미를 강제하던 문제를 해소하고, Visual(=`UHktPaperActorVisualDataAsset`)
-// 과 Animation 을 명확히 분리한다. 정적 객체(나무·바위 등)는 Visual 자산에 단일
-// `UPaperSprite` 만 두고 본 Animation 자산은 비워둔다.
+// Visual(=`UHktPaperActorVisualDataAsset`) 과 Animation 을 명확히 분리한다.
+// 정적 객체(나무·바위 등)는 Visual 자산에 단일 `UPaperSprite` 만 두고 본
+// Animation 자산은 비워둔다.
 //
-// 구조 / 의미는 기존 Template 과 동일:
+// 구조:
 //   - (AnimTag, DirIdx) → UPaperFlipbook 룩업 테이블 (`Flipbooks`)
 //   - AnimTag → 메타(`FHktPaperAnimMeta`) (`Animations`)
 //   - 미러 dir(W/SW/NW) 은 키 미생성 — 액터가 X-스케일 -1 로 미러.
@@ -27,6 +25,55 @@ class UPaperFlipbook;
 // Visual 자산이 `AnimationAsset` 슬롯으로 하드 참조하므로 같은 비동기 배치에
 // 함께 끌려온다.
 // ============================================================================
+
+USTRUCT(BlueprintType)
+struct HKTSPRITECORE_API FHktPaperAnimDirKey
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HKT|PaperSprite")
+	FGameplayTag AnimTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HKT|PaperSprite")
+	uint8 DirIdx = 0;
+
+	bool operator==(const FHktPaperAnimDirKey& Other) const
+	{
+		return AnimTag == Other.AnimTag && DirIdx == Other.DirIdx;
+	}
+};
+
+FORCEINLINE uint32 GetTypeHash(const FHktPaperAnimDirKey& Key)
+{
+	return HashCombine(GetTypeHash(Key.AnimTag), GetTypeHash(Key.DirIdx));
+}
+
+USTRUCT(BlueprintType)
+struct HKTSPRITECORE_API FHktPaperAnimMeta
+{
+	GENERATED_BODY()
+
+	/** 1 / 5 / 8 — 기존 양자화 규약 (HktSpriteFrameResolver 와 동일). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HKT|PaperSprite")
+	int32 NumDirections = 8;
+
+	/** 한 프레임 지속(ms). Flipbook FramesPerSecond = 1000 / FrameDurationMs. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HKT|PaperSprite", meta = (ClampMin = "1.0"))
+	float FrameDurationMs = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HKT|PaperSprite")
+	bool bLooping = true;
+
+	/** W/SW/NW 방향이 키를 안 들고 있을 때 액터가 X-스케일로 미러할지 여부. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HKT|PaperSprite")
+	bool bMirrorWestFromEast = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HKT|PaperSprite")
+	FVector2f Scale = FVector2f(1.f, 1.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "HKT|PaperSprite")
+	FLinearColor Tint = FLinearColor::White;
+};
 
 UCLASS(BlueprintType)
 class HKTSPRITECORE_API UHktPaperAnimationDataAsset : public UDataAsset

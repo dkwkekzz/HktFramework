@@ -154,9 +154,8 @@ namespace
 		Visual->ActorClass     = AHktSpritePaperActor::StaticClass();
 		Visual->StaticSprite   = Sprite;
 		Visual->PixelToWorld   = PixelToWorld;
-		// AnimationAsset / Animation 은 의도적으로 비움 — 정적 경로.
+		// AnimationAsset 은 의도적으로 비움 — 정적 경로.
 		Visual->AnimationAsset = nullptr;
-		Visual->Animation      = nullptr;
 
 		HktPaperAssetBuilder::SaveDataAsset(Visual);
 		return Visual;
