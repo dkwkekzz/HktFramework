@@ -1,6 +1,6 @@
 {
   "storyTag": "Story.Event.Attack.Basic",
-  "description": "BasicAttack: ForEachInRadius(Self,200) 안의 Hittable 엔티티에 ApplyDamage. WaitAnimEnd 는 Timer wait 으로 하니스가 자동 진행.",
+  "description": "BasicAttack (I-0012) — Target 이 유효 Hittable 이면 그 entity 에만 단일-타겟 데미지·이펙트 (우클릭 대상 보장). 무효(-1) 또는 비-Hittable 이면 Self 반경 200 의 모든 Hittable 에 AoE 폴백. WaitAnimEnd 는 Timer wait 으로 하니스가 자동 진행.",
   "scenarios": [
     {
       "name": "damage_hittable_target_in_radius",

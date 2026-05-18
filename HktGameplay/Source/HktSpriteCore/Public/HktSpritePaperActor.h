@@ -6,12 +6,14 @@
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
 #include "HktCoreDefs.h"
+#include "HktSelectable.h"
 #include "HktSpriteAnimProcessor.h"
 #include "HktSpriteTypes.h"
 #include "Actors/IHktPresentableActor.h"
 #include "HktSpritePaperActor.generated.h"
 
 class USceneComponent;
+class UBoxComponent;
 class UPaperFlipbookComponent;
 class UPaperFlipbook;
 class UPaperSprite;
@@ -51,7 +53,7 @@ struct FHktSpriteView;
  *  8. RootScene yaw = CameraYaw (빌보드)
  */
 UCLASS(Blueprintable)
-class HKTSPRITECORE_API AHktSpritePaperActor : public AActor, public IHktPresentableActor
+class HKTSPRITECORE_API AHktSpritePaperActor : public AActor, public IHktPresentableActor, public IHktSelectable
 {
 	GENERATED_BODY()
 
@@ -70,12 +72,24 @@ public:
 	virtual void ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce) override;
 	virtual void ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce) override;
 
+	// === IHktSelectable ===
+	// Paper2D sprite 평면 자체는 collision 이 없으므로(FlipbookComp NoCollision) HitBox 박스에
+	// Visibility trace 만 잡아 우클릭/마우스오버 픽을 가능하게 한다. CachedEntityId 가 SetEntityId
+	// 이전이면 InvalidEntityId → IsSelectable=false 로 폴백.
+	virtual FHktEntityId GetEntityId() const override { return CachedEntityId; }
+	virtual bool IsSelectable() const override { return CachedEntityId != InvalidEntityId; }
+
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|PaperSprite")
 	TObjectPtr<USceneComponent> RootScene;
 
 	UPROPERTY(VisibleAnywhere, Category = "HKT|PaperSprite")
 	TObjectPtr<UPaperFlipbookComponent> FlipbookComp;
+
+	// Click pick 전용 collision box. FlipbookComp 가 NoCollision 이라 Visibility trace 가
+	// sprite 평면을 통과하므로, 별도 박스로 sprite 영역을 덮어 IHktSelectable 픽이 가능하게 한다.
+	UPROPERTY(VisibleAnywhere, Category = "HKT|PaperSprite")
+	TObjectPtr<UBoxComponent> HitBox;
 
 private:
 	/** 카메라 위치/회전 조회 (PlayerCameraManager). 미초기화 시 bValid=false. */
@@ -159,4 +173,10 @@ private:
 	bool         bLastDiagFlipX = false;
 	bool         bLastDiagHadFlipbook = false;
 	bool         bLastDiagSnapshotValid = false;
+
+	// FlipbookComp 의 component-local bounds 를 한 번 캡처하여 HitBox 크기/위치를 맞춘다.
+	// Sprite/Flipbook 가 바운드된 직후 한 번만 호출되며, 이후 billboard 회전은 HitBox 가
+	// FlipbookComp 의 자식이라 자동 따라간다.
+	void TryResizeHitBoxFromFlipbookBounds();
+	bool bHitBoxSized = false;
 };

@@ -2,7 +2,7 @@
   "schema": 2,
   "storyTag": "Story.Event.Attack.Basic",
   "tags": {
-    "AnimAttack": "Anim.Montage.Attack",
+    "AnimAttack": "Anim.Action.Strike",
     "AnimHitReaction": "Anim.Montage.HitReaction",
     "StateDead": "State.Dead",
     "VfxHitSpark": "VFX.Niagara.HitSpark",
@@ -28,11 +28,30 @@
 
     { "op": "LookAt",   "entity": "Self",   "target": "Target" },
     { "op": "PlaySound", "tag": "SndSwing" },
-    { "op": "PlayAnim", "entity": "Self",   "tag": "AnimAttack" },
+    { "comment": "── Anim.Action.* 는 transient namespace. non-looping flipbook 종료 시 PaperActor 가 layer 자동 만료 → Locomotion 폴백 복귀. ──" },
+    { "op": "PlayAnim", "entity": "Self", "tag": "AnimAttack" },
     { "op": "ReadProperty", "dst": {"var":"atk"}, "property": "AttackPower" },
 
-    { "op": "InteractTerrain", "center": "Self", "radius": 200 },
+    { "comment": "── 단일-타겟 우선 분기: Target 이 유효(-1 아님) 하고 Hittable 이면 해당 entity 에만 데미지·이펙트. ──" },
+    { "comment": "    원래 우클릭으로 지정된 대상이 항상 맞도록 보장. 무효 시 기존 AoE 폴백.       ──" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": "Target", "value": -1 },
+    { "op": "JumpIf", "cond": "Flag", "label": "aoe_fallback" },
 
+    { "op": "CheckTrait", "dst": {"var":"isHittable"}, "entity": "Target", "trait": "Hittable" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"isHittable"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "aoe_fallback" },
+
+    { "comment": "── 단일-타겟 경로: 지정된 entity 에만 데미지. 지형 파괴 금지(나무 등 Hittable 주변 Grass/Dirt 까지 휩쓸려 구덩이 발생). ──" },
+    { "op": "ApplyDamage", "target": "Target", "amount": {"var":"atk"} },
+    { "op": "PlayVFXAtEntity", "entity": "Target", "tag": "VfxHitSpark" },
+    { "op": "PlayAnim",   "entity": "Target", "tag": "AnimHitReaction" },
+    { "op": "IfPropertyLe", "entity": "Target", "property": "Health", "value": 0 },
+      { "op": "AddTag", "entity": "Target", "tag": "StateDead" },
+    { "op": "EndIf" },
+    { "op": "Jump", "label": "after_hit" },
+
+    { "comment": "── AoE 폴백: Target 미지정·비-Hittable 시. Self 반경 200 의 모든 Hittable 에 데미지. 복셀 파괴 없음. ──" },
+    { "op": "Label", "name": "aoe_fallback" },
     { "op": "ForEachInRadius", "center": "Self", "radius": 200 },
       { "op": "IfNe", "a": "Iter", "b": "Self" },
         { "op": "IfHasTrait", "entity": "Iter", "trait": "Hittable" },
@@ -47,6 +66,7 @@
       { "op": "EndIf" },
     { "op": "EndForEach" },
 
+    { "op": "Label", "name": "after_hit" },
     { "op": "WaitAnimEnd", "entity": "Self" },
     { "op": "Log", "message": "BasicAttack: 완료" },
     { "op": "Halt" }

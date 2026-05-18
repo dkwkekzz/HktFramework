@@ -13,6 +13,7 @@
 #include "GameplayTagsManager.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -158,6 +159,149 @@ int32 UHktStoryEditorLibrary::RegenerateStoryTagsAndReload()
 		FString::Printf(TEXT("Story tags regenerated: +%d / total %d"), NewlyAdded, Tags.Num()));
 
 	return NewlyAdded;
+}
+
+namespace
+{
+	// 대상 경로(파일 또는 디렉토리) → *.json 파일 목록. Path가 비어있으면 StoryDirectories 전체.
+	// .spec.json 사이드카는 검증 대상에서 제외 (FHktStoryJsonLoader 와 동일 규칙).
+	void ResolveJsonTargets(const FString& Path, TArray<FString>& OutFiles)
+	{
+		auto IsSpecSidecar = [](const FString& File)
+		{
+			return File.EndsWith(TEXT(".spec.json"), ESearchCase::IgnoreCase);
+		};
+
+		if (Path.IsEmpty())
+		{
+			const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+			if (!Settings) return;
+			for (const FDirectoryPath& Dir : Settings->StoryDirectories)
+			{
+				if (Dir.Path.IsEmpty()) continue;
+				TArray<FString> Found;
+				IFileManager::Get().FindFilesRecursive(Found, *Dir.Path, TEXT("*.json"), true, false);
+				for (const FString& F : Found)
+				{
+					if (!IsSpecSidecar(F)) OutFiles.Add(F);
+				}
+			}
+			return;
+		}
+
+		const FString Abs = FPaths::ConvertRelativePathToFull(Path);
+		if (IFileManager::Get().DirectoryExists(*Abs))
+		{
+			TArray<FString> Found;
+			IFileManager::Get().FindFilesRecursive(Found, *Abs, TEXT("*.json"), true, false);
+			for (const FString& F : Found)
+			{
+				if (!IsSpecSidecar(F)) OutFiles.Add(F);
+			}
+		}
+		else if (IFileManager::Get().FileExists(*Abs))
+		{
+			if (!IsSpecSidecar(Abs)) OutFiles.Add(Abs);
+		}
+	}
+
+	// 단일 파일 검증. ParseAndBuild 의 FHktStoryParseResult 를 사용.
+	// dry-run 으로 태그 등록 부작용 없음. true=에러 없음.
+	bool ValidateOneFile(const FString& FilePath, int32& OutErrors, int32& OutWarnings)
+	{
+		FString JsonStr;
+		if (!FFileHelper::LoadFileToString(JsonStr, *FilePath))
+		{
+			UE_LOG(LogHktStoryEditor, Error, TEXT("[validate] Failed to read: %s"), *FilePath);
+			++OutErrors;
+			return false;
+		}
+
+		auto DryResolver = [](const FString& TagStr) -> FGameplayTag
+		{
+			return FGameplayTag::RequestGameplayTag(FName(*TagStr), /*ErrorIfNotFound=*/false);
+		};
+		const FHktStoryParseResult Result = FHktStoryJsonParser::Get().ParseAndBuild(JsonStr, DryResolver);
+
+		for (const FString& Err : Result.Errors)
+		{
+			UE_LOG(LogHktStoryEditor, Error, TEXT("[validate] %s: %s"), *FilePath, *Err);
+		}
+		for (const FString& Warn : Result.Warnings)
+		{
+			UE_LOG(LogHktStoryEditor, Warning, TEXT("[validate] %s: %s"), *FilePath, *Warn);
+		}
+		OutErrors += Result.Errors.Num();
+		OutWarnings += Result.Warnings.Num();
+		return Result.Errors.Num() == 0;
+	}
+
+	// 콘솔 커맨드 본체. Usage:
+	//   hkt.Story.RegisterAndReload [Path] [-novalidate] [-notags] [-noreload]
+	void HandleRegisterAndReloadCmd(const TArray<FString>& Args)
+	{
+		bool bValidate = true, bTags = true, bReload = true;
+		FString Path;
+		for (const FString& A : Args)
+		{
+			if (A.Equals(TEXT("-novalidate"), ESearchCase::IgnoreCase))      bValidate = false;
+			else if (A.Equals(TEXT("-notags"), ESearchCase::IgnoreCase))     bTags = false;
+			else if (A.Equals(TEXT("-noreload"), ESearchCase::IgnoreCase))   bReload = false;
+			else if (!A.StartsWith(TEXT("-")) && Path.IsEmpty())             Path = A;
+			else UE_LOG(LogHktStoryEditor, Warning, TEXT("Unknown arg: %s"), *A);
+		}
+
+		// 1) Validate
+		if (bValidate)
+		{
+			TArray<FString> Files;
+			ResolveJsonTargets(Path, Files);
+			if (Files.Num() == 0)
+			{
+				UE_LOG(LogHktStoryEditor, Warning, TEXT("[validate] No .json found for path: '%s'"), *Path);
+			}
+			int32 Errors = 0, Warnings = 0, FilesWithErr = 0;
+			for (const FString& F : Files)
+			{
+				if (!ValidateOneFile(F, Errors, Warnings)) ++FilesWithErr;
+			}
+			UE_LOG(LogHktStoryEditor, Log,
+				TEXT("[validate] files=%d, errors=%d, warnings=%d, failed-files=%d"),
+				Files.Num(), Errors, Warnings, FilesWithErr);
+
+			if (FilesWithErr > 0)
+			{
+				UE_LOG(LogHktStoryEditor, Error,
+					TEXT("[validate] aborted — fix errors above or pass -novalidate to skip"));
+				return;
+			}
+		}
+
+		// 2) Tag regen (+ reload, since 기존 함수가 묶어 처리)
+		if (bTags)
+		{
+			const int32 Added = UHktStoryEditorLibrary::RegenerateStoryTagsAndReload();
+			UE_LOG(LogHktStoryEditor, Log, TEXT("[tags] newly-added=%d (reload included)"), Added);
+		}
+		// 3) Reload only — 태그 단계를 끄고도 재로드만 원하는 경우
+		else if (bReload)
+		{
+			FHktStoryModule::ReloadAllStories();
+			UE_LOG(LogHktStoryEditor, Log, TEXT("[reload] Story registry reloaded"));
+		}
+	}
+
+	static FAutoConsoleCommand GRegisterAndReloadCmd(
+		TEXT("hkt.Story.RegisterAndReload"),
+		TEXT("Validate Story JSON, register GameplayTags to ini, and reload Story registry.\n"
+			 "Usage: hkt.Story.RegisterAndReload [Path] [-novalidate] [-notags] [-noreload]\n"
+			 "  Path        Optional .json file or directory (validation scope).\n"
+			 "              Tag regen always scans configured StoryDirectories.\n"
+			 "  -novalidate Skip JSON validation\n"
+			 "  -notags     Skip GameplayTag ini regeneration (and bundled reload)\n"
+			 "  -noreload   With -notags: skip standalone reload. Without -notags: ignored\n"
+			 "              (tag regen always reloads)."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&HandleRegisterAndReloadCmd));
 }
 
 #endif // WITH_EDITOR

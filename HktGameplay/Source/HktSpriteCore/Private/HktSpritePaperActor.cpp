@@ -13,6 +13,7 @@
 #include "HktPresentationSubsystem.h"
 
 #include "Camera/PlayerCameraManager.h"
+#include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -68,6 +69,19 @@ AHktSpritePaperActor::AHktSpritePaperActor()
 	FlipbookComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	// Paper2D PaperSprite 의 기본 평면 normal 은 로컬 -Y. 카메라를 정면으로 향하게 하려면
 	// 액터 Yaw = CameraYaw - 90° (Tick 의 빌보드 회전 적용 위치 참조).
+
+	// HitBox — click pick 전용. FlipbookComp 의 자식으로 두어 빌보드 회전을 자동 따라간다.
+	// 기본 extent 는 캐릭터·중형 prop 에 무난한 폴백 — TryResizeHitBoxFromFlipbookBounds 가
+	// sprite 의 실제 component-local bound 로 한 번 갱신한다.
+	HitBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HitBox"));
+	HitBox->SetupAttachment(FlipbookComp);
+	HitBox->SetBoxExtent(FVector(64.f, 1.f, 64.f), /*bUpdateOverlaps=*/false);
+	HitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	HitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	HitBox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	HitBox->SetGenerateOverlapEvents(false);
+	HitBox->SetCanEverAffectNavigation(false);
+	HitBox->bHiddenInGame = true;
 }
 
 // ----------------------------------------------------------------------------
@@ -296,6 +310,14 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 
 	LocalNowSec += static_cast<double>(DeltaTime);
 
+	// Flipbook/Sprite 가 한 번이라도 set 된 뒤 HitBox 크기를 sprite 실제 바운드로 한 번만 갱신.
+	// PaperFlipbookComponent::Bounds 는 component world bound 라 component-local 을 얻으려면
+	// CalcBounds(Identity) 필요.
+	if (!bHitBoxSized && FlipbookComp && FlipbookComp->IsRegistered() && FlipbookComp->GetFlipbook())
+	{
+		TryResizeHitBoxFromFlipbookBounds();
+	}
+
 	// --- 위치 보간 + 빌보드 (PR-5: yaw dirty check) ---
 	// 위치는 매 프레임 보간/적용. 회전은 yaw 변화량이 임계값 이상일 때만 적용 —
 	// CVar `hkt.PaperSprite.YawDirtyDeg` 로 임계값 조정.
@@ -426,6 +448,67 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 		AnimStartLocalSec = LocalNowSec;
 	}
 
+	// --- Anim.Action.* (transient) layer 자동 만료 ---
+	// PlayAnim 일회성 트리거는 ApplyAnimTag 로 layer 를 켜지만 끄는 메커니즘이 없어
+	// ResolveRenderOutputs step 4("기타 임의 Anim.* layer")가 영원히 Action layer 를 picks
+	// → step 5(Locomotion 합성)이 도달 못함. 클라 측 AnimLayerTags 만 정리 (서버 EntityTags 미변경).
+	//
+	// **Anim.Action.* 는 by-design transient namespace** — bLooping 자산 설정과 무관하게
+	// 자기 flipbook 의 1회 재생 시간이 경과하면 만료한다. (looping 이 의도된 anim 은 다른
+	// namespace 사용 — Anim.FullBody.Locomotion.* 등.)
+	//
+	// 만료 조건 (layer 의 *자기* entry 기준, fallback 무관):
+	//   (a) DataAsset 에 미등록 → 즉시 만료 (렌더 불가능 layer 가 Locomotion 차단 중)
+	//   (b) flipbook 의 totalDur 만큼 wall-clock 경과 → 만료
+	{
+		TArray<FGameplayTag, TInlineAllocator<4>> ToRemove;
+		int32 ActionLayerCount = 0;
+		for (const TPair<FGameplayTag, FGameplayTag>& Pair : AnimFragment.AnimLayerTags)
+		{
+			if (!Pair.Key.ToString().StartsWith(TEXT("Anim.Action."))) continue;
+			++ActionLayerCount;
+			if (!Pair.Value.IsValid()) { ToRemove.Add(Pair.Value); continue; }
+
+			// Anim.Action.* 는 일반적으로 단일방향(NumDirections=1) — KeyDir=0 시도 후 실패 시 만료.
+			const FHktPaperAnimDirKey Key0{ Pair.Value, 0 };
+			UPaperFlipbook* LayerFB = ResolveFlipbook(Animation, LegacyTemplate, Key0);
+			if (!LayerFB) { ToRemove.Add(Pair.Value); continue; }
+
+			const float LayerDur = LayerFB->GetTotalDuration();
+			const double RawElapsed = LocalNowSec - AnimStartLocalSec;
+			if (LayerDur > 0.f && RawElapsed >= static_cast<double>(LayerDur))
+			{
+				ToRemove.Add(Pair.Value);
+			}
+		}
+
+		// 디버그 — 만료 후보 entity 의 layer 상태 변화를 추적 (회귀 검증용).
+		if (ActionLayerCount > 0 && ToRemove.Num() == 0)
+		{
+			static thread_local int32 sPendingDebugTick = 0;
+			if (++sPendingDebugTick % 30 == 0)
+			{
+				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+					FString::Printf(TEXT("Sprite|PaperActor: AnimLayer Anim.Action.* still active count=%d elapsed=%.2fs"),
+						ActionLayerCount, LocalNowSec - AnimStartLocalSec),
+					CachedEntityId);
+			}
+		}
+
+		for (const FGameplayTag& ExpireTag : ToRemove)
+		{
+			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|PaperActor: AnimLayer auto-expire %s"), *ExpireTag.ToString()),
+				CachedEntityId);
+			HktSpriteAnimProcessor::RemoveAnimTag(AnimFragment, ExpireTag);
+			if (CurrentAnimTag == ExpireTag)
+			{
+				CurrentAnimTag = FGameplayTag();
+				CurrentKeyDir = 0xFF;
+			}
+		}
+	}
+
 	// --- 진단 로그: (ClientFacing → StoredFacing/KeyDir → Flipbook) 매칭 결과 ---
 	// (ResolvedTag, KeyDir, bFlipX) 또는 Flipbook 존재 여부가 직전과 달라질 때만 emit.
 	// "ClientFacing 은 바뀌는데 그림이 안 바뀌면" Flipbook 미존재 / NumDirections=1 로 KeyDir 가
@@ -470,6 +553,34 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	const double ElapsedSec = (LocalNowSec - AnimStartLocalSec) * static_cast<double>(SafeRate);
 	const double ScaledSec = ElapsedSec * static_cast<double>(CurrentMetaTimeScale);
 	FlipbookComp->SetPlaybackPosition(static_cast<float>(FMath::Max(ScaledSec, 0.0)), /*bFireEvents=*/false);
+
+}
+
+// ----------------------------------------------------------------------------
+// HitBox 사이징 — sprite 실제 바운드로 click pick 영역 보정
+// ----------------------------------------------------------------------------
+
+void AHktSpritePaperActor::TryResizeHitBoxFromFlipbookBounds()
+{
+	if (!HitBox || !FlipbookComp) return;
+
+	// Component-local 바운드 계산. PaperFlipbookComponent::CalcBounds 는 현재 sprite 의
+	// XZ 평면 사각형을 반환 (Y 두께 ≈ 0). Trace 가 평면을 통과하지 않도록 Y 방향 최소 두께를 부여.
+	const FBoxSphereBounds Local = FlipbookComp->CalcBounds(FTransform::Identity);
+	const FVector& Ext = Local.BoxExtent;
+
+	// sprite 가 등록 직후 첫 프레임에 0-extent 인 경우가 있음 — 그때는 폴백 유지하고 다음 tick 재시도.
+	if (Ext.X <= KINDA_SMALL_NUMBER || Ext.Z <= KINDA_SMALL_NUMBER) return;
+
+	constexpr float MinThickness = 8.f; // Y 두께 폴백 (cm) — trace 안정성 확보
+	const FVector SafeExtent(
+		FMath::Max(Ext.X, 16.f),
+		FMath::Max(Ext.Y, MinThickness),
+		FMath::Max(Ext.Z, 16.f));
+
+	HitBox->SetRelativeLocation(Local.Origin);
+	HitBox->SetBoxExtent(SafeExtent, /*bUpdateOverlaps=*/false);
+	bHitBoxSized = true;
 }
 
 // ----------------------------------------------------------------------------
