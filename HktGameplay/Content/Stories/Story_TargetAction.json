@@ -13,6 +13,10 @@
     { "op": "CmpEqConst", "dst": "Flag", "src": "Target", "value": -1 },
     { "op": "JumpIf", "cond": "Flag", "label": "dispatch_move" },
 
+    { "comment": "── Self == Target 차단: 자기 자신 클릭은 무반응 (자기 공격/Pickup 방지) ──" },
+    { "op": "CmpEq", "dst": "Flag", "src1": "Self", "src2": "Target" },
+    { "op": "JumpIf", "cond": "Flag", "label": "self_target_noop" },
+
     { "op": "LoadStoreEntity", "dst": {"var":"itemId"}, "entity": "Target", "property": "ItemId" },
     { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"itemId"}, "value": 0 },
     { "op": "JumpIfNot", "cond": "Flag", "label": "check_hittable" },
@@ -85,6 +89,10 @@
     { "op": "Label", "name": "dispatch_move" },
     { "op": "Log", "message": "TargetAction: 이동" },
     { "op": "DispatchEvent", "eventTag": "StoryMoveLocation" },
+    { "op": "Halt" },
+
+    { "op": "Label", "name": "self_target_noop" },
+    { "op": "Log", "message": "TargetAction: Self == Target — 자기 자신 클릭 무시" },
     { "op": "Halt" }
   ]
 }
