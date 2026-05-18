@@ -306,19 +306,18 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	const float CameraYaw     = CamView.Rotation.Yaw;
 
 	// --- 빌보드 타깃 회전 산출 ---
-	// PaperSprite 로컬 평면 normal 은 -Y. 카메라를 정면으로 향하려면 액터의 +Y 축이
-	// (Actor → Camera) 의 반대 방향(=즉 -Y 가 카메라를 가리킴)이 되도록 회전.
-	// MakeFromYZ(YAxis, ZHint): Y 를 우선 정렬하고 Z 는 ZHint 의 직교 성분으로 보정 →
-	// sprite 가 가능한 한 직립을 유지하면서 pitch 만 카메라 쪽으로 기울어짐.
+	// PaperSprite 로컬 평면 normal 은 -Y. 카메라 평면과 평행하게 두려면 액터의 -Y 가
+	// CameraForward 와 일치(=즉 +Y 가 카메라 backward)하면 된다.
+	// 카메라 forward 는 모든 엔티티에 공통이므로 카메라가 평행 이동해도 회전이 변하지
+	// 않는다 — "엔티티→카메라" 광선 기반(시차) 정렬이 만들던 Y축 흔들림 제거.
 	FRotator TargetRot;
 	const bool bViewAligned = CVarHktPaperSpriteViewAlignedBillboard.GetValueOnGameThread() != 0;
 	if (bViewAligned && CamView.bValid)
 	{
-		const FVector ToCam = CamView.Location - InterpLocation;
-		if (!ToCam.IsNearlyZero())
+		const FVector CamForward = CamView.Rotation.Vector();
+		if (!CamForward.IsNearlyZero())
 		{
-			const FVector ToCamN = ToCam.GetSafeNormal();
-			TargetRot = FRotationMatrix::MakeFromYZ(-ToCamN, FVector::UpVector).Rotator();
+			TargetRot = FRotationMatrix::MakeFromYZ(-CamForward, FVector::UpVector).Rotator();
 		}
 		else
 		{
