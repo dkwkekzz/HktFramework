@@ -23,6 +23,9 @@ namespace HktStoryTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Birch_Lifecycle,           "Story.Flow.Natural.Birch.Lifecycle", "Birch tree lifecycle — State.Dead 구독 → Branch drop / SaplingSeed / DestroyEntity.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Oak_Lifecycle,             "Story.Flow.Natural.Oak.Lifecycle",   "Oak tree lifecycle — State.Dead 구독 → Branch drop / LineageFelledCount++ / OakSaplingSeed / DestroyEntity.");
 
+	// --- Target Action (I-0012) — JSON 단일 출처 진입점 ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Target_Action,             "Story.Event.Target.Action", "우클릭 단일 진입점 — Hittable / Item / Move 분기. JSON: Story_TargetAction.json.");
+
 	// --- Anim ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro state tag.");
 

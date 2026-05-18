@@ -38,6 +38,12 @@ namespace HktStoryTags
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Birch_Lifecycle);          // Story.Flow.Natural.Birch.Lifecycle
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Oak_Lifecycle);            // Story.Flow.Natural.Oak.Lifecycle
 
+	// --- Target Action (I-0012) ---
+	// 우클릭 단일 진입점. JSON: Content/Stories/Story_TargetAction.json.
+	// HktStory 모듈 내 등록을 보장하여 JSON 로더가 태그 lookup 에 성공하도록 한다
+	// (HktRule 의 UE_DEFINE_GAMEPLAY_TAG_STATIC 은 모듈 로드 순서상 JSON 로더보다 늦을 수 있음).
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Target_Action);            // Story.Event.Target.Action
+
 	// --- Anim ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Anim_FullBody_Action_Spawn); // Anim.FullBody.Action.Spawn
 
