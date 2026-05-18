@@ -1,0 +1,47 @@
+{
+  "storyTag": "Story.Event.Target.Action",
+  "description": "TargetAction (I-0012) — 우클릭 단일 진입점. Target invalid → Move, Item → 접근 후 Pickup, Hittable(NPC/자연 entity) → 접근 + 쿨다운 후 UseSkill, 그 외 → Move.",
+  "scenarios": [
+    {
+      "name": "invalid_target_dispatches_move",
+      "description": "Target = -1 → dispatch_move.",
+      "given": {
+        "self":   { "position": [0, 0, 0] }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Story.Event.Move.ToLocation", "source": "self" }
+        ]
+      }
+    },
+    {
+      "name": "ground_item_in_range_dispatches_pickup",
+      "description": "ItemId>0 + ItemState=0 + 거리<=300 → ItemPickup.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "properties": { "ItemId": 100, "ItemState": 0 }, "position": [200, 0, 0] }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Story.Event.Item.Pickup", "source": "self", "target": "target" }
+        ]
+      }
+    },
+    {
+      "name": "non_item_non_hittable_dispatches_move",
+      "description": "Item 도 Hittable 도 아니면 dispatch_move.",
+      "given": {
+        "self":   { "position": [0, 0, 0] },
+        "target": { "properties": { "ItemId": 0 }, "position": [100, 0, 0] }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Story.Event.Move.ToLocation", "source": "self", "target": "target" }
+        ]
+      }
+    }
+  ]
+}

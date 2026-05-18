@@ -248,7 +248,7 @@ void InitializeHktArchetypes()
             HktProperty::DebrisOriginZ,
         });
 
-    // Natural: Birch/Oak 등 자연 entity. 우클릭 → TargetDefault 가 Hittable 검사 후 BasicAttack 디스패치 →
+    // Natural: Birch/Oak 등 자연 entity. 우클릭 → Story_TargetAction.json 이 Hittable 검사 후 BasicAttack 디스패치 →
     // 누적 데미지로 Health 0 → State.Dead 태그 → TreeLifecycle 이 branch drop + SaplingSeed 디스패치 + DestroyEntity.
     R.Register(EHktArchetype::Natural, TEXT("Natural"),
         HktArchetypeTags::Entity_Natural,

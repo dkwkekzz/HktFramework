@@ -6,8 +6,8 @@
 #include "HktStoryBuilder.h"
 #include "HktStoryEventParams.h"
 
-// 기본 액션 태그 (슬롯 미선택 시 타겟 유형에 따라 TargetDefault Story가 분기)
-UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Default, "Story.Event.Target.Default");
+// 기본 액션 태그 (슬롯 미선택 시 타겟 유형에 따라 Story_TargetAction JSON 이 분기 — I-0012)
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Action, "Story.Event.Target.Action");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Jump, "Story.Event.Move.Jump");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Forward, "Story.Event.Move.Forward");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Stop, "Story.Event.Move.Stop");
@@ -143,14 +143,14 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 	}
 	else
 	{
-		// SlotAction 없음 → 기본 액션 (타겟 유형 기반)
-		// PC가 지정한 TargetDefault Story Tag가 있으면 우선 사용, 없으면 기본값
-		FGameplayTag TargetDefaultTag = CachedWorldPlayer ? CachedWorldPlayer->GetTargetDefaultStoryTag() : FGameplayTag();
-		if (!TargetDefaultTag.IsValid())
+		// SlotAction 없음 → 기본 액션 (타겟 유형 기반) — Story.Event.Target.Action (Story_TargetAction.json)
+		// PC가 지정한 태그가 있으면 우선 사용, 없으면 기본값.
+		FGameplayTag TargetActionTag = CachedWorldPlayer ? CachedWorldPlayer->GetTargetDefaultStoryTag() : FGameplayTag();
+		if (!TargetActionTag.IsValid())
 		{
-			TargetDefaultTag = Tag_Event_Target_Default;
+			TargetActionTag = Tag_Event_Target_Action;
 		}
-		Event = HktEventBuilder::TargetDefault(TargetDefaultTag, SubjectEntity, EventTargetEntity, TargetLocation);
+		Event = HktEventBuilder::TargetDefault(TargetActionTag, SubjectEntity, EventTargetEntity, TargetLocation);
 	}
 
 	// ValidateStory 사전조건 검증

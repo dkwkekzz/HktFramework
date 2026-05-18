@@ -58,7 +58,7 @@ namespace HktMaterialTags
 }
 
 // ── 자연 엔티티 + Region 이벤트 ──
-// Birch/Oak 우클릭 → Story.Event.Target.Default → BasicAttack 누적 → State.Dead → TreeLifecycle.
+// Birch/Oak 우클릭 → Story.Event.Target.Action (Story_TargetAction.json) → BasicAttack 누적 → State.Dead → TreeLifecycle.
 // TreeLifecycle 가 Branch drop + SaplingSeed 디스패치 + DestroyEntity.
 namespace HktNaturalEntityTags
 {

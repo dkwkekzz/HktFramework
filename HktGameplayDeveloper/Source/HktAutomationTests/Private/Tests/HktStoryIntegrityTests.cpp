@@ -86,7 +86,7 @@ static FHktTestReport RunRegisteredStoryValidation()
 		TEXT("Story.Flow.Character.Spawn"),
 		TEXT("Story.Event.Move.ToLocation"),
 		TEXT("Story.Flow.Player.InWorld"),
-		TEXT("Story.Event.Target.Default"),
+		TEXT("Story.Event.Target.Action"),
 	};
 
 	for (const TCHAR* TagName : KnownStoryTags)
