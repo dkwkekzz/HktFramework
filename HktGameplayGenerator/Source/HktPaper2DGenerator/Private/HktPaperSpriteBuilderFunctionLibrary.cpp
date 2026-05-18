@@ -2,14 +2,16 @@
 
 #include "HktPaperSpriteBuilderFunctionLibrary.h"
 #include "HktPaperAssetBuilder.h"
-#include "HktPaperWorkspaceScanner.h"
 #include "HktPaper2DGeneratorLog.h"
 
-#include "HktPaperCharacterTemplate.h"
 #include "HktPaperActorVisualDataAsset.h"
 #include "HktSpritePaperActor.h"
 
 #include "GameplayTagsManager.h"
+#if WITH_EDITOR
+#include "GameplayTagsEditorModule.h"
+#include "Modules/ModuleManager.h"
+#endif
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
@@ -27,7 +29,6 @@
 
 namespace
 {
-	static const FString kDefaultOutputRoot       = TEXT("/Game/Generated/PaperSprites");
 	static const FString kDefaultStaticOutputRoot = TEXT("/Game/Generated/PaperSprites/Static");
 
 	FString MakeErrorJson(const FString& Error)
@@ -41,222 +42,40 @@ namespace
 		return Out;
 	}
 
-	FString ResolveOutputDir(const FString& InOutputDir, const FString& SafeChar)
-	{
-		if (!InOutputDir.IsEmpty())
-		{
-			return InOutputDir;
-		}
-		return kDefaultOutputRoot / SafeChar;
-	}
-
-	FString ResolveVisualIdentifierTag(const FString& InTag, const FString& CharacterTagStr)
-	{
-		if (!InTag.IsEmpty())
-		{
-			return InTag;
-		}
-		// 기본 컨벤션: 기존 HISM/Niagara 의 Sprite.Character.{X} 와 충돌 없이 PaperSprite.Character.{X}.
-		FString Suffix = CharacterTagStr;
-		// "Sprite.Character.Knight" 같이 들어오면 마지막 토큰만 추출.
-		FString LastToken;
-		if (Suffix.Split(TEXT("."), nullptr, &LastToken, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
-		{
-			Suffix = LastToken;
-		}
-		return FString::Printf(TEXT("PaperSprite.Character.%s"), *Suffix);
-	}
-
-	/** 안 등록된 GameplayTag 를 Native 등록 (BuildPaperCharacter 가 처음 마주칠 때 자동). */
+	/**
+	 * 안 등록된 GameplayTag 를 즉시 사용 가능하게 보장.
+	 * AddNativeGameplayTag 는 bDoneAddingNativeTags=true 후 호출 시 ensure 트립이라 사용 불가.
+	 * UGameplayTagsManager::AddNewGameplayTagToINI (editor 전용 공식 API) 가
+	 * settings 갱신 + ini 저장 + EditorRefreshGameplayTagTree 까지 한번에 수행.
+	 */
 	FGameplayTag EnsureTag(const FString& TagStr)
 	{
 		if (TagStr.IsEmpty()) return FGameplayTag();
-		FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagStr), /*ErrorIfNotFound*/false);
+
+		UGameplayTagsManager& TagsMgr = UGameplayTagsManager::Get();
+		FGameplayTag Tag = TagsMgr.RequestGameplayTag(FName(*TagStr), /*ErrorIfNotFound*/false);
 		if (Tag.IsValid())
 		{
 			return Tag;
 		}
-		UGameplayTagsManager& TagsMgr = UGameplayTagsManager::Get();
-		TagsMgr.AddNativeGameplayTag(FName(*TagStr));
-		return FGameplayTag::RequestGameplayTag(FName(*TagStr), /*ErrorIfNotFound*/false);
-	}
-}
 
-// ============================================================================
-// BuildPaperSpriteAnim
-// ============================================================================
-FString UHktPaperSpriteBuilderFunctionLibrary::BuildPaperSpriteAnim(
-	const FString& CharacterTagStr,
-	const FString& AnimTagStr,
-	int32 CellWidth,
-	int32 CellHeight,
-	float PixelToWorld,
-	float FrameDurationMs,
-	bool  bLooping,
-	bool  bMirrorWestFromEast,
-	const FString& VisualIdentifierTagStr,
-	const FString& OutputDir)
-{
-	if (CharacterTagStr.IsEmpty()) return MakeErrorJson(TEXT("CharacterTagStr 필수"));
-	if (AnimTagStr.IsEmpty())      return MakeErrorJson(TEXT("AnimTagStr 필수"));
-
-	const FString SafeChar  = HktPaperAssetBuilder::SanitizeForAssetName(CharacterTagStr);
-	const FString OutDir    = ResolveOutputDir(OutputDir, SafeChar);
-
-	// PR-5: 캐릭터별 사이드카는 BuildPaperCharacter 가 로드해 인자로 명시 전달한다.
-	// 단일 anim 호출(BuildPaperSpriteAnim)은 호출자의 인자가 항상 우선 — 사이드카
-	// 자동 적용은 의도와 어긋난다(에디터 패널에서 anim 별 미세 튜닝 케이스).
-
-	// 태그 등록 보장.
-	EnsureTag(AnimTagStr);
-	const FString VisualIdent = ResolveVisualIdentifierTag(VisualIdentifierTagStr, CharacterTagStr);
-	const FGameplayTag VisualIdentTag = EnsureTag(VisualIdent);
-
-	HktPaperAssetBuilder::FBuildAnimResult Anim = HktPaperAssetBuilder::BuildAnim(
-		CharacterTagStr, AnimTagStr, OutDir,
-		PixelToWorld, FrameDurationMs, bLooping, bMirrorWestFromEast,
-		CellWidth, CellHeight);
-
-	if (!Anim.bSuccess)
-	{
-		return MakeErrorJson(Anim.Error.IsEmpty()
-			? TEXT("BuildAnim 실패 (원인 미상)") : Anim.Error);
-	}
-
-	// Template / Visual 자산 경로.
-	const FString TemplateName = FString::Printf(TEXT("DA_PaperCharacter_%s"), *SafeChar);
-	const FString VisualName   = FString::Printf(TEXT("DA_PaperVisual_%s"),   *SafeChar);
-	const FString TemplatePath = OutDir / TemplateName;
-	const FString VisualPath   = OutDir / VisualName;
-
-	// Visual upsert (Template 은 BuildAnim 안에서 이미 갱신·저장됨).
-	UHktPaperCharacterTemplate* Template = LoadObject<UHktPaperCharacterTemplate>(
-		nullptr, *(TemplatePath + TEXT(".") + TemplateName));
-	UHktPaperActorVisualDataAsset* Visual = HktPaperAssetBuilder::LoadOrCreateVisual(
-		OutDir, SafeChar, VisualIdentTag, Template);
-	if (Visual)
-	{
-		HktPaperAssetBuilder::SaveDataAsset(Visual);
-	}
-
-	// 결과 JSON.
-	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
-	Root->SetBoolField(TEXT("success"), true);
-	Root->SetStringField(TEXT("characterTag"), CharacterTagStr);
-	Root->SetStringField(TEXT("animTag"),      AnimTagStr);
-	Root->SetStringField(TEXT("visualIdentifierTag"), VisualIdent);
-	Root->SetStringField(TEXT("characterDataAssetPath"), TemplatePath);
-	Root->SetStringField(TEXT("visualDataAssetPath"),    VisualPath);
-	Root->SetNumberField(TEXT("numDirections"), Anim.NumDirections);
-	Root->SetNumberField(TEXT("framesPerDir"),  Anim.FramesPerDir);
-
-	TArray<TSharedPtr<FJsonValue>> Atlases;
-	for (const FString& A : Anim.AtlasAssetPaths) Atlases.Add(MakeShared<FJsonValueString>(A));
-	Root->SetArrayField(TEXT("atlases"), Atlases);
-
-	TArray<TSharedPtr<FJsonValue>> Flipbooks;
-	for (const FString& F : Anim.FlipbookAssetPaths) Flipbooks.Add(MakeShared<FJsonValueString>(F));
-	Root->SetArrayField(TEXT("flipbooks"), Flipbooks);
-
-	FString Out;
-	const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Out);
-	FJsonSerializer::Serialize(Root.ToSharedRef(), W);
-	return Out;
-}
-
-// ============================================================================
-// BuildPaperCharacter
-// ============================================================================
-FString UHktPaperSpriteBuilderFunctionLibrary::BuildPaperCharacter(
-	const FString& CharacterTagStr,
-	const FString& VisualIdentifierTagStr,
-	float PixelToWorld,
-	const FString& OutputDir)
-{
-	if (CharacterTagStr.IsEmpty()) return MakeErrorJson(TEXT("CharacterTagStr 필수"));
-
-	const FString SafeChar = HktPaperAssetBuilder::SanitizeForAssetName(CharacterTagStr);
-	const FString OutDir   = ResolveOutputDir(OutputDir, SafeChar);
-
-	TArray<FString> AnimSafeNames;
-	if (!HktPaperWorkspace::DiscoverAnimNames(CharacterTagStr, AnimSafeNames) || AnimSafeNames.IsEmpty())
-	{
-		return MakeErrorJson(FString::Printf(
-			TEXT("Workspace 에 anim 폴더가 없음 (char=%s)"), *CharacterTagStr));
-	}
-
-	// PR-5: 캐릭터별 사이드카(`paper_character_meta.json`) 로드 — 발견되면 anim 별
-	// 빌드 시 인자로 명시 전달해 캐릭터별 override 로 동작.
-	HktPaperWorkspace::FCharacterMeta CharMeta;
-	const bool bHasCharMeta = HktPaperWorkspace::LoadCharacterMeta(CharacterTagStr, CharMeta);
-	const float ResolvedPixelToWorld    = (bHasCharMeta && CharMeta.bHasPixelToWorld)
-		? CharMeta.PixelToWorld : PixelToWorld;
-	const float ResolvedFrameDurationMs = (bHasCharMeta && CharMeta.bHasFrameDurationMs)
-		? CharMeta.FrameDurationMs : 100.f;
-	const bool  ResolvedLooping         = (bHasCharMeta && CharMeta.bHasLooping)
-		? CharMeta.bLooping : true;
-	const bool  ResolvedMirrorWFE       = (bHasCharMeta && CharMeta.bHasMirrorWestFromEast)
-		? CharMeta.bMirrorWestFromEast : true;
-
-	// 디스커버된 SafeAnim 들은 SanitizeForAssetName 결과로, 원본 anim 태그 문자열을 복원하기 어렵다.
-	// HktSpriteGenerator 컨벤션은 "Anim.FullBody.Locomotion.Idle" → "Anim_FullBody_Locomotion_Locomotion_Idle"
-	// 식의 무손실 1:1 매핑이 아니다 — 워크스페이스 자체가 SafeName 기준으로 정착돼 있다.
-	// 따라서 BuildPaperCharacter 는 "SafeAnim 자체를 anim 식별자로 사용"하는 보수적 전략을 쓴다:
-	// SafeAnim 안의 '_' 를 '.' 로 복원해 추정 — 호출자가 Tag 등록을 미리 해뒀을 것을 기대.
-	TArray<TSharedPtr<FJsonValue>> AnimResults;
-	int32 OkCount = 0;
-	for (const FString& SafeAnim : AnimSafeNames)
-	{
-		// '_' → '.' 복원 추정. (이 휴리스틱이 깨지면 호출자가 BuildPaperSpriteAnim 을 anim 별로
-		// 직접 호출해 정확한 tag 를 명시한다.)
-		FString GuessTag = SafeAnim.Replace(TEXT("_"), TEXT("."));
-
-		const FString Single = BuildPaperSpriteAnim(
-			CharacterTagStr, GuessTag,
-			/*CellWidth*/ 0, /*CellHeight*/ 0,
-			ResolvedPixelToWorld, ResolvedFrameDurationMs,
-			ResolvedLooping, ResolvedMirrorWFE,
-			VisualIdentifierTagStr, OutDir);
-
-		TSharedPtr<FJsonObject> Obj;
-		const TSharedRef<TJsonReader<>> R = TJsonReaderFactory<>::Create(Single);
-		if (FJsonSerializer::Deserialize(R, Obj) && Obj.IsValid())
+#if WITH_EDITOR
+		if (IGameplayTagsEditorModule::IsAvailable())
 		{
-			AnimResults.Add(MakeShared<FJsonValueObject>(Obj));
-			bool bOk = false;
-			if (Obj->TryGetBoolField(TEXT("success"), bOk) && bOk)
-			{
-				++OkCount;
-			}
+			IGameplayTagsEditorModule::Get().AddNewGameplayTagToINI(
+				TagStr,
+				TEXT("PaperSprite auto-registered"),
+				FName(TEXT("HktWorkspaceTags.ini")));
 		}
+#endif
+		Tag = TagsMgr.RequestGameplayTag(FName(*TagStr), /*ErrorIfNotFound*/false);
+		if (!Tag.IsValid())
+		{
+			UE_LOG(LogHktPaper2DGenerator, Warning,
+				TEXT("[PaperSprite] GameplayTag 등록 실패(tree 반영 안됨): %s"), *TagStr);
+		}
+		return Tag;
 	}
-
-	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
-	Root->SetBoolField(TEXT("success"), OkCount > 0);
-	Root->SetStringField(TEXT("characterTag"), CharacterTagStr);
-	Root->SetStringField(TEXT("outputDir"), OutDir);
-	Root->SetNumberField(TEXT("animCount"), AnimResults.Num());
-	Root->SetNumberField(TEXT("okCount"), OkCount);
-	Root->SetArrayField(TEXT("anims"), AnimResults);
-	Root->SetBoolField(TEXT("characterMetaLoaded"), bHasCharMeta);
-	if (bHasCharMeta)
-	{
-		TSharedPtr<FJsonObject> Meta = MakeShared<FJsonObject>();
-		Meta->SetNumberField(TEXT("pixelToWorld"),    ResolvedPixelToWorld);
-		Meta->SetNumberField(TEXT("frameDurationMs"), ResolvedFrameDurationMs);
-		Meta->SetBoolField  (TEXT("looping"),         ResolvedLooping);
-		Meta->SetBoolField  (TEXT("mirrorWestFromEast"), ResolvedMirrorWFE);
-		Root->SetObjectField(TEXT("characterMeta"), Meta);
-	}
-	if (OkCount == 0)
-	{
-		Root->SetStringField(TEXT("error"), TEXT("모든 anim 빌드 실패"));
-	}
-
-	FString Out;
-	const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Out);
-	FJsonSerializer::Serialize(Root.ToSharedRef(), W);
-	return Out;
 }
 
 // ============================================================================

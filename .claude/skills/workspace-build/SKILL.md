@@ -14,24 +14,54 @@ I-0008 의도를 따라 — 사용자가 워크스페이스에 재료를 떨어�
 - `$1` — workspace_root (선택, 비우면 `{Saved}/Workspace/`)
 - `$2` — force (선택, "true" 면 manifest 무시 강제 재빌드)
 
-## 워크스페이스 컨벤션
+## 워크스페이스 컨벤션 (2026-05 개정)
+
+핵심 규칙:
+- **Tag 폴더 직속 서브폴더가 하나라도 있으면 = Character 모드**, 각 서브폴더가 하나의 anim. 폴더명이 그대로 AnimTag.
+- **Tag 폴더 직속 이미지만 있고 서브폴더 0 → StaticVisual 모드** (단일 PNG 사용).
+- 더 이상 `Animations/` 래퍼를 강제하지 않음 (구버전 트리 호환은 유지).
 
 ```
 {Root}/
   Paper2D/
-    Paper2D.Entity.Character.Mage/         ← 폴더명 = GameplayTag (점 또는 _ 표기 혼용 허용)
-      Animations/
-        Idle/
-          atlas_S.png                       ← Source=Atlas (Paper2D 빌더에 직접 전달)
-          atlas_N.png
-        Walk/
-          N/ frame_001.png ...              ← Source=FrameSequence (방향별 시퀀스)
-          S/ frame_001.png ...
-        Cast.mp4                            ← Source=Video (단일 영상 → ffmpeg 추출)
-    Paper2D.Prop.Tree.Oak/
-      tree.png                              ← Mode=StaticVisual (단일 PNG → 정적 visual)
-  HISM/                                     (1차 범위 외 — 미구현)
+    Entity_Character_Mage/                 ← 폴더명 = GameplayTag (점 또는 _ 혼용 허용)
+      Anim_FullBody_Locomotion_Idle/       ← (a) 방향별 Atlas
+        atlas_S.png  atlas_N.png  ...
+      Anim_FullBody_Locomotion_Walk/       ← (b) 방향별 FrameSequence
+        N/ frame_001.png ...
+        S/ frame_001.png ...
+      Anim_Action_Strike/                  ← (c) 단일방향 frame sequence
+        frame_001.png  frame_002.png ...     →  1-row strip atlas 로 자동 패킹
+                                              (가로 칸 = 프레임 수)
+      Anim_Action_Cast/
+        Cast.mp4                             ← (d) Video — ffmpeg 8방향 추출
+      anim_meta.json                        (선택 — columns/rows override)
+      entity_meta.json                      (선택 — frameDurationMs/pixelToWorld override; 모든 entity 공용)
+    Entity_Natural_Oak/
+      oak.png                               ← StaticVisual (서브폴더 0 + 이미지 1장)
+  HISM/                                     (Paper2D 와 동일 컨벤션)
+    Sprite_Character_Knight/
+      Idle/  Walk/  Attack/                  ← Character — BuildSpriteAnim bridge
+    Sprite_Prop_Tree_Oak/
+      oak.png                                ← StaticVisual — EditorBuildHISMStaticVisual
 ```
+
+### AnimName → AnimTag 매핑
+
+- 폴더명에 `_` 또는 `.` 가 있으면 → 그대로 점 표기로 변환
+  - `Anim_FullBody_Locomotion_Idle` → `Anim.FullBody.Locomotion.Idle`
+  - `Anim_Action_Strike` → `Anim.Action.Strike`
+- 단순 단어 → sprite_tools.py 호환 자동 매핑
+  - `Idle`/`Walk`/`Run`/`Fall` → `Anim.FullBody.Locomotion.X`
+  - 그 외 → `Anim.FullBody.X`
+
+### 단일 atlas 입력의 grid 가 모호한 경우
+
+단일 PNG 한 장만 anim 폴더에 있는데 그것이 이미 패킹된 시트(예: 8 컬럼)인지, 단일 프레임인지 빌더가 결정할 수 없으면:
+1. `anim_meta.json` 에 `{"columns": N, "rows": M, "frameCount": K}` 를 적어두거나
+2. 사용자에게 `가로 칸 수(columns)` 를 직접 묻고 진행
+
+frame_*.png 시퀀스 입력은 항상 1-row strip 으로 묶이므로(가로 칸 수 = 프레임 수) 별도 입력 불필요.
 
 ## 실행 절차
 

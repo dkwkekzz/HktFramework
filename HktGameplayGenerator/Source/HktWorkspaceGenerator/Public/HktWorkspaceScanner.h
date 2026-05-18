@@ -20,6 +20,12 @@ public:
 	/** Paper2D 카테고리만 스캔. */
 	static bool ScanPaper2D(const FString& Paper2DRoot, TArray<FHktWorkspaceTagEntry>& OutEntries);
 
+	/** 임의 카테고리 루트 스캔 (Paper2D/HISM 공통 디렉터리 컨벤션). */
+	static bool ScanCategoryRoot(
+		EHktWorkspaceCategory Category,
+		const FString& CategoryRoot,
+		TArray<FHktWorkspaceTagEntry>& OutEntries);
+
 	/** 한 Tag 폴더의 입력 형식 식별. 결과 entry 의 Mode/Anims/StaticImagePath 채움. */
 	static bool InspectTagFolder(
 		EHktWorkspaceCategory Category,

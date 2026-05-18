@@ -9,17 +9,15 @@
 // ============================================================================
 // UHktPaperSpriteBuilderFunctionLibrary
 //
-// 기존 `HktSpriteGenerator` 의 워크스페이스(`{Saved}/SpriteGenerator/...`)를
-// 입력으로 받아 UE 표준 `Paper2D` 자산(UPaperSprite / UPaperFlipbook) 과
-// 본 경로 전용 `UHktPaperCharacterTemplate` / `UHktPaperActorVisualDataAsset`
-// 을 생성·갱신한다.
+// 정적 비주얼(StaticVisual) 전용 UFUNCTION 진입점. 캐릭터/anim 빌드는
+// HktPaperAssetBuilder::BuildAnim 으로 일원화되었으므로 여기서는 더 이상
+// UFUNCTION 으로 노출하지 않는다 — 호출자는 워크스페이스 빌더(HktWorkspaceGenerator)
+// 가 단일 진입점.
 //
-// 출력 루트 (기본): /Game/Generated/PaperSprites/{SafeChar}
-//   ├─ T_PaperAtlas_{SafeChar}_{SafeAnim}_{Dir}   (UTexture2D)
-//   ├─ PS_{SafeChar}_{SafeAnim}_{Dir}_{Frame}     (UPaperSprite)
-//   ├─ PFB_{SafeChar}_{SafeAnim}_{Dir}            (UPaperFlipbook)
-//   ├─ DA_PaperCharacter_{SafeChar}               (UHktPaperCharacterTemplate)
-//   └─ DA_PaperVisual_{SafeChar}                  (UHktPaperActorVisualDataAsset)
+// StaticVisual 출력 루트 (기본): /Game/Generated/PaperSprites/Static/{SafeTag}
+//   ├─ T_PaperStatic_{SafeTag}    (UTexture2D)
+//   ├─ PS_PaperStatic_{SafeTag}   (UPaperSprite, 전체 텍스처)
+//   └─ DA_PaperVisual_{SafeTag}   (UHktPaperActorVisualDataAsset, StaticSprite 슬롯)
 // ============================================================================
 UCLASS()
 class HKTPAPER2DGENERATOR_API UHktPaperSpriteBuilderFunctionLibrary : public UBlueprintFunctionLibrary
@@ -27,37 +25,6 @@ class HKTPAPER2DGENERATOR_API UHktPaperSpriteBuilderFunctionLibrary : public UBl
 	GENERATED_BODY()
 
 public:
-	/**
-	 * (Char, Anim) 단위 빌드 — Workspace 의 atlas_{Dir}.png 들을 임포트해
-	 * Sprite/Flipbook 생성 후 DA_PaperCharacter_{Char} 에 upsert. DA_PaperVisual_{Char}
-	 * 도 동시에 upsert.
-	 *
-	 * 반환: JSON 문자열 (success/error/atlases/flipbooks/numDirections/framesPerDir/...)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "HKT|PaperSpriteBuilder")
-	static FString BuildPaperSpriteAnim(
-		const FString& CharacterTagStr,
-		const FString& AnimTagStr,
-		int32 CellWidth            = 0,
-		int32 CellHeight           = 0,
-		float PixelToWorld         = 2.0f,
-		float FrameDurationMs      = 100.f,
-		bool  bLooping             = true,
-		bool  bMirrorWestFromEast  = true,
-		const FString& VisualIdentifierTagStr = TEXT(""),
-		const FString& OutputDir   = TEXT(""));
-
-	/**
-	 * 캐릭터 워크스페이스 안의 모든 anim 디렉터리를 자동 발견해 일괄 빌드.
-	 *  - VisualIdentifierTagStr 비우면 "PaperSprite.Character.{Char}" 자동 사용.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "HKT|PaperSpriteBuilder")
-	static FString BuildPaperCharacter(
-		const FString& CharacterTagStr,
-		const FString& VisualIdentifierTagStr = TEXT(""),
-		float PixelToWorld           = 2.0f,
-		const FString& OutputDir     = TEXT(""));
-
 	/**
 	 * 정적 객체(나무·바위·아이콘 등) 1장 빌드 — PNG 1개 → UPaperSprite 1개 →
 	 * `UHktPaperActorVisualDataAsset.StaticSprite` 슬롯에 wiring.

@@ -161,6 +161,8 @@ FHktStoryCompileResult FHktStoryJsonCompiler::Validate(const FString& JsonStr)
 			FString Op;
 			if (!(*StepObj)->TryGetStringField(TEXT("op"), Op))
 			{
+				FString CommentDummy;
+				if ((*StepObj)->TryGetStringField(TEXT("comment"), CommentDummy)) continue;
 				Result.Errors.Add(FString::Printf(TEXT("%s %d: missing 'op' field"), SectionName, i));
 				continue;
 			}

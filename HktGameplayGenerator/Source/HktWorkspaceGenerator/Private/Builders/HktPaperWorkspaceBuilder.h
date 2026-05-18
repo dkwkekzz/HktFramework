@@ -8,13 +8,14 @@
 // ============================================================================
 // HktPaperWorkspaceBuilder
 //
-// 1) Tag entry 의 입력 anim 들을 legacy `{Saved}/SpriteGenerator/{SafeChar}/{SafeAnim}`
-//    워크스페이스로 normalize (Atlas/FrameSequence/Video 모두 atlas_{Dir}.png 까지 만들어 둠).
-// 2) UHktPaperSpriteBuilderFunctionLibrary::BuildPaperCharacter 또는
-//    BuildPaperStaticVisual 을 호출해 실제 자산 생성.
+// 1) Tag entry 의 입력 anim 들을 워크스페이스 폴더에서 직접 atlas 입력으로 normalize.
+//    (FrameSequence 는 워크스페이스 안 `.cache/` 폴더에 패킹된 atlas PNG 를 둔다.)
+// 2) HktPaperAssetBuilder::BuildAnim 을 직접 호출해 Texture/Sprite/Flipbook/Animation 자산 생성.
+// 3) StaticVisual 모드는 UHktPaperSpriteBuilderFunctionLibrary::BuildPaperStaticVisual 호출.
 //
-// 카테고리 빌더 인터페이스 IHkt... 패턴은 따로 두지 않음 — 1차 범위가 Paper2D 단일이고
-// HISM 은 미구현(인터페이스 폭만 잡아둠). 추후 추가 시 공통 부모 추출 검토.
+// 카테고리 빌더 인터페이스 IHkt... 패턴은 따로 두지 않음 — Paper2D / HISM 두 빌더가
+// 동일 시그니처(`BuildEntry(Entry, PixelToWorld) → FHktPaperBuildResult`) 로 구성된다.
+// 디스패치는 HktWorkspaceFunctionLibrary::DispatchBuild 가 카테고리 enum 으로 분기.
 // ============================================================================
 struct FHktPaperBuildResult
 {
@@ -33,10 +34,10 @@ namespace HktPaperWorkspaceBuilder
 	/**
 	 * Tag entry 를 통째로 빌드. Character/StaticVisual 두 모드 모두 처리.
 	 *  - StaticVisual: BuildPaperStaticVisual 1회.
-	 *  - Character   : 모든 anim 을 legacy workspace 로 정규화 후 BuildPaperCharacter 호출.
+	 *  - Character   : anim 별로 워크스페이스 입력 → FAnimAtlasInput 정규화 후 BuildAnim 직접 호출.
 	 *
-	 * frameDuration / looping / mirror 는 워크스페이스 폴더의 `character_meta.json`
-	 * 사이드카에서 읽어 BuildPaperCharacter 가 적용한다.
+	 * frameDuration / looping / mirror 는 워크스페이스 폴더의 `entity_meta.json`
+	 * 사이드카에서 읽어 BuildAnim 인자로 적용된다.
 	 */
 	FHktPaperBuildResult BuildEntry(
 		const FHktWorkspaceTagEntry& Entry,

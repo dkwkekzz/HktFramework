@@ -206,9 +206,25 @@ FReply SHktSpriteBuilderPanel::OnBuildAllClicked()
 			continue;
 		}
 
+		// 새 시그니처: 컨벤션 경로의 atlas_{Dir}.png 들을 스캔해 AtlasInputs 로 전달.
+		TArray<FHktSpriteAnimAtlasInput> AtlasInputs;
+		for (int32 DirIdx = 0; DirIdx < 8; ++DirIdx)
+		{
+			const FString Png = UHktSpriteGeneratorFunctionLibrary::GetConventionDirectionalAtlasPng(
+									CharacterTagStr, AnimTagStr, DirIdx);
+			if (FPaths::FileExists(Png))
+			{
+				FHktSpriteAnimAtlasInput In;
+				In.DirIdx  = DirIdx;
+				In.PngPath = Png;
+				AtlasInputs.Add(In);
+			}
+		}
+
 		const FString OneResult = UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 			CharacterTagStr,
 			AnimTagStr,
+			AtlasInputs,
 			FMath::Max(0, E.CellWidth),
 			FMath::Max(0, E.CellHeight),
 			P2W);

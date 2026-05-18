@@ -8,9 +8,8 @@ public class HktPaper2DGenerator : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		// Paper2D 경로 데이터 빌더 — 기존 HktSpriteGenerator(HISM/Niagara) 와 평행 운영.
-		// HktSpriteGenerator 는 public static 컨벤션 헬퍼만 호출해 워크스페이스 위치를 얻는다 —
-		// 헤더/cpp/패널/MCP 함수에 한 글자도 손대지 않는다.
+		// Paper2D 경로 데이터 빌더 — 워크스페이스(`{Saved}/Workspace/Paper2D/{Tag}`) 가
+		// 진실의 단일 출처. legacy SpriteGenerator 컨벤션·패널·MCP 진입점은 제거됐다.
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -37,16 +36,13 @@ public class HktPaper2DGenerator : ModuleRules
 				"RenderCore",
 				"RHI",
 				"Paper2DEditor",   // FSpriteAssetInitParameters / FScopedFlipbookMutator
-				// 입력 헬퍼 — public static convention helper 호출 전용 (UHktSpriteGeneratorFunctionLibrary).
-				"HktSpriteGenerator",
-				// SHktPaperSpriteBuilderPanel — 기존 SHktSpriteBuilderPanel 미러 패널 (PR-4).
-				"Slate",
-				"SlateCore",
-				"InputCore",
-				"PropertyEditor",
-				"WorkspaceMenuStructure",
-				"ToolMenus",
 			}
 		);
+
+		// editor-only: 동적 GameplayTag 등록 — IGameplayTagsEditorModule::AddNewGameplayTagToINI
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.Add("GameplayTagsEditor");
+		}
 	}
 }

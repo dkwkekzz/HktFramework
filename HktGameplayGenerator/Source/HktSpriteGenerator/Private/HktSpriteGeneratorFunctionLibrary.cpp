@@ -1637,14 +1637,24 @@ namespace HktSpriteGen
 FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	const FString& CharacterTagStr,
 	const FString& AnimTagStr,
-	int32 CellWidth,
-	int32 CellHeight,
-	float PixelToWorld)
+	const TArray<FHktSpriteAnimAtlasInput>& AtlasInputs,
+	int32 CellWidthOverride,
+	int32 CellHeightOverride,
+	float PixelToWorld,
+	float FrameDurationMsOverride,
+	int32 LoopingOverride,
+	int32 MirrorWestFromEastOverride)
 {
 	using namespace HktSpriteGen;
 
 	if (CharacterTagStr.IsEmpty()) return MakeSpriteError(TEXT("CharacterTagStr 필수"));
 	if (AnimTagStr.IsEmpty())      return MakeSpriteError(TEXT("AnimTagStr 필수"));
+	if (AtlasInputs.Num() == 0)
+	{
+		return MakeSpriteError(FString::Printf(
+			TEXT("AtlasInputs 비어있음 (char=%s, anim=%s) — 호출자(워크스페이스 빌더)가 atlas 입력을 채워야 합니다"),
+			*CharacterTagStr, *AnimTagStr));
+	}
 
 	const bool         bLoop    = InferLooping(AnimTagStr);
 	const FGameplayTag AnimTag  = EnsureTag(AnimTagStr);
@@ -1654,46 +1664,21 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	const FString TemplateName     = FString::Printf(TEXT("DA_SpriteCharacter_%s"), *SafeCharTag);
 	const FString TemplatePackage  = FString::Printf(TEXT("%s/%s"), *kDefaultOutputDir, *TemplateName);
 
-	// Stage 2 가 남긴 atlas_meta.json 사이드카 — 셀 크기/프레임 수 폴백.
-	const FString MetaPath = ConventionBundleDir(CharacterTagStr, AnimTagStr) / TEXT("atlas_meta.json");
-	TMap<int32, TPair<int32,int32>> MetaCellByDir;
-	TMap<int32, int32>              MetaFramesByDir;
-	if (FPaths::FileExists(MetaPath))
-	{
-		FString MetaJson;
-		if (FFileHelper::LoadFileToString(MetaJson, *MetaPath))
-		{
-			TSharedPtr<FJsonObject> MetaObj;
-			TSharedRef<TJsonReader<>> R = TJsonReaderFactory<>::Create(MetaJson);
-			if (FJsonSerializer::Deserialize(R, MetaObj) && MetaObj.IsValid())
-			{
-				const TArray<TSharedPtr<FJsonValue>>* Dirs = nullptr;
-				if (MetaObj->TryGetArrayField(TEXT("directions"), Dirs))
-				{
-					for (const TSharedPtr<FJsonValue>& V : *Dirs)
-					{
-						const TSharedPtr<FJsonObject>& O = V->AsObject();
-						if (!O.IsValid()) continue;
-						const FString DirName = O->GetStringField(TEXT("dir"));
-						int32 d = -1;
-						for (int32 i = 0; i < 8; ++i) if (DirName == kDirNamesNS[i]) { d = i; break; }
-						if (d < 0) continue;
-						const int32 CW = O->GetIntegerField(TEXT("cellW"));
-						const int32 CH = O->GetIntegerField(TEXT("cellH"));
-						const int32 FC = O->GetIntegerField(TEXT("frameCount"));
-						MetaCellByDir.Add(d, TPair<int32,int32>(CW, CH));
-						MetaFramesByDir.Add(d, FC);
-					}
-				}
-			}
-		}
-	}
-
 	struct FSlotEntry { int32 DirIdx; UTexture2D* Tex; int32 CellW; int32 CellH; int32 FrameCount; };
 	TArray<FSlotEntry> Slots;
 
-	for (int32 d = 0; d < 8; ++d)
+	for (const FHktSpriteAnimAtlasInput& In : AtlasInputs)
 	{
+		const int32 d = FMath::Clamp(In.DirIdx, 0, 7);
+		if (In.PngPath.IsEmpty() || !FPaths::FileExists(In.PngPath))
+		{
+			UE_LOG(LogHktSpriteGenerator, Warning,
+				TEXT("BuildSpriteAnim: 입력 PNG 없음 — Dir=%s, Path=%s"),
+				kDirNamesNS[d], *In.PngPath);
+			continue;
+		}
+
+		// Texture 자산 경로/이름은 안정적인 char/anim/dir 기반 컨벤션을 그대로 사용 — 산출물 식별 일관.
 		const FString AssetName = ConventionDirAtlasAssetName(CharacterTagStr, AnimTagStr, d);
 		const FString PkgPath   = ConventionDirAtlasPackagePath(CharacterTagStr, AnimTagStr, d, kDefaultOutputDir);
 		const FString ObjPath   = FString::Printf(TEXT("%s.%s"), *PkgPath, *AssetName);
@@ -1701,13 +1686,10 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 		UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *ObjPath);
 		if (!Tex)
 		{
-			// Workspace 의 atlas_{Dir}.png 를 즉석 임포트 (Stage 2 산출).
-			const FString PngPath = ConventionDirAtlasPng(CharacterTagStr, AnimTagStr, d);
-			if (!FPaths::FileExists(PngPath)) continue;
-			Tex = ImportAtlasTexture(PngPath, PkgPath, AssetName);
+			Tex = ImportAtlasTexture(In.PngPath, PkgPath, AssetName);
 			if (!Tex)
 			{
-				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("DirectionalAtlas: PNG 임포트 실패 (%s)"), *PngPath);
+				UE_LOG(LogHktSpriteGenerator, Warning, TEXT("BuildSpriteAnim: PNG 임포트 실패 (%s)"), *In.PngPath);
 				continue;
 			}
 		}
@@ -1715,22 +1697,13 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 		const int32 AtlasW = Tex->GetSizeX();
 		const int32 AtlasH = Tex->GetSizeY();
 
-		// 셀 크기 우선순위: 사용자 입력 > meta sidecar > atlas 종횡비 폴백.
-		int32 UseW = CellWidth;
-		int32 UseH = CellHeight;
-		if (UseW <= 0 || UseH <= 0)
-		{
-			if (const TPair<int32,int32>* M = MetaCellByDir.Find(d))
-			{
-				if (UseW <= 0) UseW = M->Key;
-				if (UseH <= 0) UseH = M->Value;
-			}
-		}
+		// 셀 크기 우선순위: anim 단위 override > 입력 사이드카 값 > atlas 종횡비 폴백.
+		int32 UseW = (CellWidthOverride  > 0) ? CellWidthOverride  : In.CellW;
+		int32 UseH = (CellHeightOverride > 0) ? CellHeightOverride : In.CellH;
 		if (UseH <= 0) UseH = AtlasH;
 		if (UseW <= 0)
 		{
-			int32 Frames = 0;
-			if (const int32* MF = MetaFramesByDir.Find(d)) Frames = *MF;
+			int32 Frames = In.FrameCount;
 			if (Frames <= 0 && AtlasH > 0) Frames = FMath::Max(1, AtlasW / AtlasH);
 			UseW = (Frames > 0) ? FMath::Max(1, AtlasW / Frames) : AtlasW;
 		}
@@ -1752,7 +1725,7 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	if (Slots.IsEmpty())
 	{
 		return MakeSpriteError(FString::Printf(
-			TEXT("DirectionalAtlas: Workspace 에 atlas_{Dir}.png 가 없음 (char=%s, anim=%s) — Stage 2 (Atlas Pack) 먼저 실행"),
+			TEXT("BuildSpriteAnim: 임포트된 슬롯이 없습니다 (char=%s, anim=%s)"),
 			*CharacterTagStr, *AnimTagStr));
 	}
 
@@ -1815,13 +1788,14 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	Anim.NumDirections       = NumDirLocal;
 	Anim.FramesPerDirection  = FPDLocal;
 	Anim.PivotOffset         = FVector2f(SlotCellW * 0.5f, static_cast<float>(SlotCellH));
-	Anim.FrameDurationMs     = 100.f;
-	Anim.bLooping            = bLoop;
+	// 호출자(워크스페이스 빌더) override 가 있으면 우선, 없으면 디폴트/추론.
+	Anim.FrameDurationMs = (FrameDurationMsOverride > 0.f) ? FrameDurationMsOverride : 100.f;
+	Anim.bLooping        = (LoopingOverride >= 0) ? (LoopingOverride != 0) : bLoop;
 	// 5방향: 항상 W/SW/NW를 동측에서 미러.
 	// 2방향: W 슬롯이 없을 때만 미러 (있으면 좌향 전용 아트 사용).
-	Anim.bMirrorWestFromEast =
-		(NumDirLocal == 5) ||
-		(NumDirLocal == 2 && !bHasW);
+	Anim.bMirrorWestFromEast = (MirrorWestFromEastOverride >= 0)
+		? (MirrorWestFromEastOverride != 0)
+		: ((NumDirLocal == 5) || (NumDirLocal == 2 && !bHasW));
 
 	auto FindSlot = [&Slots](int32 DirIdx) -> const FSlotEntry*
 	{

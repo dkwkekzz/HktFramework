@@ -28,10 +28,6 @@ logger = logging.getLogger("hkt_mcp.tools.sprite")
 
 OBJECT_PATH = "/Script/HktSpriteGenerator.Default__HktSpriteGeneratorFunctionLibrary"
 
-# Paper2D 빌더(`UHktPaperSpriteBuilderFunctionLibrary`) CDO — `BuildPaperCharacter` /
-# `BuildPaperSpriteAnim` 모두 UFUNCTION(BlueprintCallable) 라 Remote Control 로 직접 호출 가능.
-PAPER_OBJECT_PATH = "/Script/HktPaper2DGenerator.Default__HktPaperSpriteBuilderFunctionLibrary"
-
 # 8방향 고정 순서 — FHktSpriteAnimation의 direction 인덱스와 일치해야 함.
 DIRECTIONS: List[str] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 DIRECTION_SET = set(DIRECTIONS)
@@ -395,91 +391,3 @@ async def build_sprite_character(
     }, indent=2)
 
 
-# ============================================================================
-# Paper2D Sprite Builder — PR-4
-# ============================================================================
-async def build_paper_sprite_character(
-    bridge: EditorBridge,
-    character_tag: str,
-    visual_identifier_tag: str = "",
-    pixel_to_world: float = 2.0,
-    output_dir: str = "",
-) -> str:
-    """
-    Paper2D 경로 캐릭터 빌더 — `UHktPaperSpriteBuilderFunctionLibrary::BuildPaperCharacter` 호출.
-
-    Workspace ({Saved}/SpriteGenerator/{SafeChar}) 의 모든 anim 폴더(atlas_{Dir}.png 보유)를
-    자동 발견해 UTexture2D / UPaperSprite / UPaperFlipbook / DA_PaperCharacter / DA_PaperVisual
-    을 일괄 빌드한다. 입력 atlas PNG 는 기존 `HktSpriteGenerator` 워크스페이스 산출물을 그대로
-    재사용 — 별도 패킹 단계 불필요.
-
-    Args:
-      character_tag:         빌드 대상 캐릭터 태그 (예: "Sprite.Character.Knight").
-      visual_identifier_tag: VisualTag (없으면 "PaperSprite.Character.{Char}" 자동).
-                             서버 SpawnEntity 의 VisualTag 와 일치해야 액터가 스폰된다.
-      pixel_to_world:        cm/px (기본 2.0).
-      output_dir:            UE 콘텐츠 디렉터리 (없으면 "/Game/Generated/PaperSprites/{Char}").
-    """
-    if not character_tag:
-        return json.dumps({"success": False, "error": "character_tag required"})
-
-    data = await bridge.call_method(
-        "BuildPaperCharacter",
-        object_path=PAPER_OBJECT_PATH,
-        CharacterTagStr=character_tag,
-        VisualIdentifierTagStr=visual_identifier_tag,
-        PixelToWorld=float(pixel_to_world),
-        OutputDir=output_dir,
-    )
-    if data is None:
-        return json.dumps({
-            "success": False,
-            "error": "UE5 BuildPaperCharacter 호출 실패 (Remote Control 응답 없음 또는 에러)",
-        })
-    return json.dumps({"success": True, "data": data}, indent=2)
-
-
-async def build_paper_sprite_anim(
-    bridge: EditorBridge,
-    character_tag: str,
-    anim_tag: str,
-    cell_width: int = 0,
-    cell_height: int = 0,
-    pixel_to_world: float = 2.0,
-    frame_duration_ms: float = 100.0,
-    looping: bool = True,
-    mirror_west_from_east: bool = True,
-    visual_identifier_tag: str = "",
-    output_dir: str = "",
-) -> str:
-    """
-    Paper2D 경로 단일 애니메이션 빌더 — `UHktPaperSpriteBuilderFunctionLibrary::BuildPaperSpriteAnim` 호출.
-
-    같은 캐릭터에 대해 anim 별로 셀 크기/타이밍/looping 을 다르게 지정하고 싶을 때 사용. 일괄
-    빌드는 `build_paper_sprite_character` 가 더 편하다.
-    """
-    if not character_tag:
-        return json.dumps({"success": False, "error": "character_tag required"})
-    if not anim_tag:
-        return json.dumps({"success": False, "error": "anim_tag required"})
-
-    data = await bridge.call_method(
-        "BuildPaperSpriteAnim",
-        object_path=PAPER_OBJECT_PATH,
-        CharacterTagStr=character_tag,
-        AnimTagStr=anim_tag,
-        CellWidth=int(cell_width),
-        CellHeight=int(cell_height),
-        PixelToWorld=float(pixel_to_world),
-        FrameDurationMs=float(frame_duration_ms),
-        bLooping=bool(looping),
-        bMirrorWestFromEast=bool(mirror_west_from_east),
-        VisualIdentifierTagStr=visual_identifier_tag,
-        OutputDir=output_dir,
-    )
-    if data is None:
-        return json.dumps({
-            "success": False,
-            "error": "UE5 BuildPaperSpriteAnim 호출 실패 (Remote Control 응답 없음 또는 에러)",
-        })
-    return json.dumps({"success": True, "data": data}, indent=2)

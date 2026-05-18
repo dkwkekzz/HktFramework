@@ -59,6 +59,17 @@ FString FHktWorkspaceManifest::ComputeInputsHash(const FHktWorkspaceTagEntry& En
 	FSHA1 Sha;
 	HashString(Sha, Entry.TagString);
 
+	// entity_meta.json — Tag 폴더 직속. frameDurationMs/pixelToWorld/looping/mirror 등
+	// 빌드 인자에 직접 영향. 사이드카만 수정해도 재빌드 되도록 항상 해시.
+	if (!Entry.FolderPath.IsEmpty())
+	{
+		const FString EntityMeta = Entry.FolderPath / TEXT("entity_meta.json");
+		if (FPaths::FileExists(EntityMeta))
+		{
+			HashFile(Sha, EntityMeta);
+		}
+	}
+
 	if (Entry.Mode == EHktWorkspaceTagMode::StaticVisual)
 	{
 		HashFile(Sha, Entry.StaticImagePath);
@@ -77,6 +88,18 @@ FString FHktWorkspaceManifest::ComputeInputsHash(const FHktWorkspaceTagEntry& En
 			{
 				if (bDirectorySource) HashFolderRecursive(Sha, P);
 				else                  HashFile(Sha, P);
+			}
+
+			// anim 폴더의 `anim_meta.json` — source 타입과 무관하게 항상 hash.
+			// FrameSequence 의 경우 SourcePaths(디렉터리) 들의 부모 폴더에 위치하므로
+			// folder recurse 만으로는 잡히지 않는다.
+			if (!A.FolderPath.IsEmpty())
+			{
+				const FString AnimMeta = A.FolderPath / TEXT("anim_meta.json");
+				if (FPaths::FileExists(AnimMeta))
+				{
+					HashFile(Sha, AnimMeta);
+				}
 			}
 		}
 	}

@@ -35,9 +35,10 @@ public:
 
 	/**
 	 * 단일 Tag 폴더 빌드. Category 는 "Paper2D" / "HISM" 중 하나.
-	 *  - Paper2D Character (Animations/ 존재) → BuildPaperCharacter
-	 *  - Paper2D StaticVisual (단일 PNG)      → BuildPaperStaticVisual
-	 *  - HISM ...                              → 미구현 (인터페이스만)
+	 *  - Paper2D Character     → HktPaperAssetBuilder::BuildAnim 직접 호출
+	 *  - Paper2D StaticVisual  → BuildPaperStaticVisual
+	 *  - HISM Character        → BuildSpriteAnim (legacy SpriteGenerator 워크스페이스로 bridging)
+	 *  - HISM StaticVisual     → EditorBuildHISMStaticVisual
 	 */
 	UFUNCTION(BlueprintCallable, Category = "HKT|Workspace")
 	static FString BuildTag(

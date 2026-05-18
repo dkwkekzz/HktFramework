@@ -9,6 +9,22 @@
 class UTexture2D;
 
 // ============================================================================
+// FHktSpriteAnimAtlasInput
+//
+// 한 dir 의 atlas 입력 — 워크스페이스 빌더가 채워서 BuildSpriteAnim 에 전달.
+// 더 이상 디스크 컨벤션을 BuildSpriteAnim 안에서 탐색하지 않는다 — 워크스페이스가
+// 진실 소스. Paper2D 의 FAnimAtlasInput 와 동일 패턴.
+// ============================================================================
+struct FHktSpriteAnimAtlasInput
+{
+	int32 DirIdx     = 0;   // 0..7 (HktWorkspaceConventions 와 일치: N=0, NE=1, …, NW=7)
+	FString PngPath;        // atlas PNG 절대 경로
+	int32 CellW      = 0;   // 0 = unknown (BuildSpriteAnim 이 종횡비 폴백)
+	int32 CellH      = 0;
+	int32 FrameCount = 0;   // 0 = unknown (BuildSpriteAnim 이 폴백 추론)
+};
+
+// ============================================================================
 // EHktSpriteSourceType — BuildSpriteAnim 재료 타입
 // ============================================================================
 
@@ -101,16 +117,26 @@ public:
 	 *        "characterTag":…, "numDirections":…, "framesPerDir":…, "error":…}
 	 */
 	/**
-	 * Stage 3 — Workspace ({Saved}/SpriteGenerator/{SafeChar}) 의 컨벤션 경로에서
-	 * 방향별 atlas PNG 를 자동 발견·임포트하여 DataAsset 에 누적. CellWidth/Height 는 anim별 입력.
+	 * Stage 3 — 호출자(워크스페이스 빌더)가 직접 수집한 방향별 atlas PNG 입력 배열을
+	 * 그대로 임포트해 UHktSpriteCharacterTemplate 에 누적. 디스크 컨벤션 탐색·사이드카
+	 * 로드는 더 이상 수행하지 않는다 — 워크스페이스가 진실 소스.
+	 *
+	 * UFUNCTION 이 비-USTRUCT 컨테이너를 노출 못 하므로 일반 static 으로 둔다 — Blueprint
+	 * 노출이 필요하지 않은 워크스페이스 내부 진입점.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "HKT|SpriteGenerator")
 	static FString BuildSpriteAnim(
 		const FString& CharacterTagStr,
 		const FString& AnimTagStr,
-		int32 CellWidth      = 0,
-		int32 CellHeight     = 0,
-		float PixelToWorld   = 2.0f);
+		const TArray<FHktSpriteAnimAtlasInput>& AtlasInputs,
+		int32 CellWidthOverride  = 0,
+		int32 CellHeightOverride = 0,
+		float PixelToWorld       = 2.0f,
+		/** ≤0 → 디폴트(100ms) 유지. */
+		float FrameDurationMsOverride       = 0.f,
+		/** -1 → InferLooping(AnimTag) 추론, 0/1 → 명시값. */
+		int32 LoopingOverride               = -1,
+		/** -1 → NumDir/W슬롯 기반 자동, 0/1 → 명시값. */
+		int32 MirrorWestFromEastOverride    = -1);
 
 	// ========================================================================
 	// 저수준 API — MCP Python 및 직접 호출용 (기존 인터페이스 유지)

@@ -71,12 +71,24 @@ FString FHktWorkspaceScanner::NormalizeTagFromFolderName(const FString& FolderNa
 
 FString FHktWorkspaceScanner::AnimNameToAnimTag(const FString& AnimName)
 {
-	// sprite_tools.py 의 _action_name_to_anim_tag 와 동일 규약.
+	// 규약:
+	//  - 폴더명이 이미 점/언더스코어 표기로 계층을 표현하면 그대로 점 표기로 변환
+	//    (예: "Anim_FullBody_Locomotion_Idle" → "Anim.FullBody.Locomotion.Idle",
+	//         "Anim_Action_Strike"            → "Anim.Action.Strike")
+	//  - 단순 단어이면 sprite_tools.py 의 _action_name_to_anim_tag 호환 매핑 적용
+	//    (Idle/Walk/Run/Fall → Anim.FullBody.Locomotion.X, 그 외 → Anim.FullBody.X)
+	const bool bHasHierarchy =
+		AnimName.Contains(TEXT(".")) || AnimName.Contains(TEXT("_"));
+
+	if (bHasHierarchy)
+	{
+		return NormalizeTagFromFolderName(AnimName);
+	}
+
 	const FString Lower = AnimName.ToLower();
 	const bool bLocomotion = (Lower == TEXT("idle") || Lower == TEXT("walk")
 		|| Lower == TEXT("run") || Lower == TEXT("fall"));
 
-	// Capitalize 첫 글자.
 	FString Cap = Lower;
 	if (!Cap.IsEmpty())
 	{
@@ -104,25 +116,41 @@ bool FHktWorkspaceScanner::InspectTagFolder(
 		return false;
 	}
 
-	const FString AnimsDir = TagFolderPath / TEXT("Animations");
-	const bool bHasAnimsDir = IFileManager::Get().DirectoryExists(*AnimsDir);
+	// 새 규칙 (2026-05):
+	//   - Tag 폴더 직속 서브폴더 ≥ 1  →  Character (각 서브폴더 = anim, 폴더명 → AnimTag)
+	//   - Tag 폴더 직속 서브폴더 0  + 직속 이미지 ≥ 1  →  StaticVisual
+	//   - `Animations/` 래퍼는 더 이상 강제하지 않음. 이전 트리(`Animations/Idle/...`) 도
+	//     상위에 `Animations` 라는 단일 서브폴더가 보이고, 그 내부가 anim 폴더로 잡혀
+	//     동작이 깨질 수 있어 명시적으로 호환 분기를 둠.
 
-	if (bHasAnimsDir)
+	TArray<FString> RootSubdirs;
+	ListSubdirs(TagFolderPath, RootSubdirs);
+	RootSubdirs.Sort();
+
+	// `.` 으로 시작하는 폴더는 빌더 캐시/메타 (`.cache/` 등) — 스캐너 제외.
+	RootSubdirs.RemoveAll([](const FString& S) { return S.StartsWith(TEXT(".")); });
+
+	// 호환 분기: 직속 서브폴더가 정확히 "Animations" 하나뿐이면 그 안을 anim 컨테이너로 취급.
+	FString AnimContainer = TagFolderPath;
+	if (RootSubdirs.Num() == 1 && RootSubdirs[0].Equals(TEXT("Animations"), ESearchCase::IgnoreCase))
+	{
+		AnimContainer = TagFolderPath / RootSubdirs[0];
+		ListSubdirs(AnimContainer, RootSubdirs);
+		RootSubdirs.Sort();
+	}
+
+	if (RootSubdirs.Num() > 0)
 	{
 		InOutEntry.Mode = EHktWorkspaceTagMode::Character;
 
-		// Animations/ 하위 자식 디렉터리 = anim 후보.
-		TArray<FString> AnimSubdirs;
-		ListSubdirs(AnimsDir, AnimSubdirs);
-		AnimSubdirs.Sort();
-
-		for (const FString& AnimName : AnimSubdirs)
+		for (const FString& AnimName : RootSubdirs)
 		{
-			const FString AnimPath = AnimsDir / AnimName;
+			const FString AnimPath = AnimContainer / AnimName;
 
-			// 1) Direction 서브폴더(N/NE/...) 가 있으면 FrameSequence.
 			TArray<FString> Subdirs;
 			ListSubdirs(AnimPath, Subdirs);
+
+			// 1) Direction 서브폴더(N/NE/...) 가 있으면 방향별 FrameSequence.
 			TArray<FString> DirSubdirs;
 			for (const FString& S : Subdirs)
 			{
@@ -132,13 +160,34 @@ bool FHktWorkspaceScanner::InspectTagFolder(
 				}
 			}
 
-			// 2) atlas_{Dir}.{png|...} 파일이 있으면 Atlas.
+			// 2) atlas_{Dir}.{png|...} 파일이 있으면 방향별 Atlas.
 			TArray<FString> AtlasFiles;
 			ListFiles(AnimPath, TEXT("atlas_*.*"), AtlasFiles);
 
+			// 3) 그 외 이미지 = 단일방향 프레임 시퀀스 후보.
+			TArray<FString> AllImages;
+			ListFiles(AnimPath, TEXT("*.*"), AllImages);
+			TArray<FString> FrameFiles;
+			for (const FString& F : AllImages)
+			{
+				if (!IsImageExt(FPaths::GetExtension(F))) continue;
+				if (F.StartsWith(TEXT("atlas_"), ESearchCase::IgnoreCase)) continue;
+				if (F.StartsWith(TEXT("."))) continue; // 숨김/메타 파일 제외
+				FrameFiles.Add(F);
+			}
+			FrameFiles.Sort();
+
+			// 4) anim 폴더 직속 영상.
+			TArray<FString> VideoFiles;
+			for (const FString& F : AllImages)
+			{
+				if (IsVideoExt(FPaths::GetExtension(F))) VideoFiles.Add(F);
+			}
+
 			FHktWorkspaceAnimInput AnimInput;
-			AnimInput.Name    = AnimName;
-			AnimInput.AnimTag = AnimNameToAnimTag(AnimName);
+			AnimInput.Name       = AnimName;
+			AnimInput.AnimTag    = AnimNameToAnimTag(AnimName);
+			AnimInput.FolderPath = AnimPath;
 
 			if (AtlasFiles.Num() > 0)
 			{
@@ -172,37 +221,51 @@ bool FHktWorkspaceScanner::InspectTagFolder(
 					AnimInput.SourcePaths.Add(AnimPath / DirToken);
 				}
 			}
+			else if (VideoFiles.Num() > 0)
+			{
+				// anim 폴더 안의 .mp4 → Video (8방향 추출).
+				AnimInput.Source = EHktWorkspaceAnimSource::Video;
+				AnimInput.SourcePaths.Add(AnimPath / VideoFiles[0]);
+			}
+			else if (FrameFiles.Num() > 0)
+			{
+				// 단일방향 frame sequence — anim 폴더 자체를 1-row strip atlas 로 묶음.
+				// 가로 칸 수 = 프레임 수 (자동 결정). 명시적 grid 가 필요한 경우
+				// anim_meta.json 에 columns 를 적어두면 빌더가 우선 적용.
+				AnimInput.Source = EHktWorkspaceAnimSource::FrameSequence;
+				AnimInput.Directions.Add(TEXT("S"));
+				AnimInput.SourcePaths.Add(AnimPath);
+			}
 			else
 			{
-				// 폴더가 아예 비어 있거나 알 수 없는 형식 — 스킵.
 				UE_LOG(LogHktWorkspace, Warning,
-					TEXT("[Scanner] anim 폴더 형식 미인식: %s"), *AnimPath);
+					TEXT("[Scanner] anim 폴더 형식 미인식(빈/이미지 없음): %s"), *AnimPath);
 				continue;
 			}
 
 			InOutEntry.Anims.Add(MoveTemp(AnimInput));
 		}
 
-		// Animations/ 직속 파일이 영상이면 Video 소스로 anim 1개 추가.
-		TArray<FString> VideoFiles;
-		ListFiles(AnimsDir, TEXT("*.*"), VideoFiles);
-		for (const FString& File : VideoFiles)
+		// AnimContainer 직속 영상은 별도 anim 한 개로 추가 (legacy `Animations/Cast.mp4` 호환).
+		TArray<FString> ContainerVideos;
+		ListFiles(AnimContainer, TEXT("*.*"), ContainerVideos);
+		for (const FString& File : ContainerVideos)
 		{
-			const FString Ext = FPaths::GetExtension(File);
-			if (!IsVideoExt(Ext)) continue;
+			if (!IsVideoExt(FPaths::GetExtension(File))) continue;
 
 			FHktWorkspaceAnimInput AnimInput;
-			AnimInput.Name    = FPaths::GetBaseFilename(File);
-			AnimInput.AnimTag = AnimNameToAnimTag(AnimInput.Name);
-			AnimInput.Source  = EHktWorkspaceAnimSource::Video;
-			AnimInput.SourcePaths.Add(AnimsDir / File);
+			AnimInput.Name       = FPaths::GetBaseFilename(File);
+			AnimInput.AnimTag    = AnimNameToAnimTag(AnimInput.Name);
+			AnimInput.Source     = EHktWorkspaceAnimSource::Video;
+			AnimInput.FolderPath = AnimContainer;
+			AnimInput.SourcePaths.Add(AnimContainer / File);
 			InOutEntry.Anims.Add(MoveTemp(AnimInput));
 		}
 
 		return InOutEntry.Anims.Num() > 0;
 	}
 
-	// Animations/ 가 없으면 StaticVisual 후보 — 직속 PNG 1장.
+	// 서브폴더 0 → StaticVisual 후보 — 직속 이미지 1장.
 	TArray<FString> RootFiles;
 	ListFiles(TagFolderPath, TEXT("*.*"), RootFiles);
 	TArray<FString> ImageFiles;
@@ -210,7 +273,6 @@ bool FHktWorkspaceScanner::InspectTagFolder(
 	{
 		if (IsImageExt(FPaths::GetExtension(F)))
 		{
-			// manifest 파일/메타 제외.
 			if (F.StartsWith(TEXT(".workspace.meta"))) continue;
 			ImageFiles.Add(F);
 		}
@@ -219,7 +281,7 @@ bool FHktWorkspaceScanner::InspectTagFolder(
 	if (ImageFiles.Num() == 0)
 	{
 		UE_LOG(LogHktWorkspace, Warning,
-			TEXT("[Scanner] Tag 폴더 비어있음(이미지/Animations 모두 없음): %s"), *TagFolderPath);
+			TEXT("[Scanner] Tag 폴더 비어있음(이미지/서브폴더 모두 없음): %s"), *TagFolderPath);
 		return false;
 	}
 
@@ -235,37 +297,45 @@ bool FHktWorkspaceScanner::InspectTagFolder(
 
 bool FHktWorkspaceScanner::ScanPaper2D(const FString& Paper2DRoot, TArray<FHktWorkspaceTagEntry>& OutEntries)
 {
-	if (!IFileManager::Get().DirectoryExists(*Paper2DRoot))
+	return ScanCategoryRoot(EHktWorkspaceCategory::Paper2D, Paper2DRoot, OutEntries);
+}
+
+bool FHktWorkspaceScanner::ScanCategoryRoot(
+	EHktWorkspaceCategory Category,
+	const FString& CategoryRoot,
+	TArray<FHktWorkspaceTagEntry>& OutEntries)
+{
+	if (!IFileManager::Get().DirectoryExists(*CategoryRoot))
 	{
 		return false;
 	}
 
 	TArray<FString> TagSubdirs;
-	ListSubdirs(Paper2DRoot, TagSubdirs);
+	ListSubdirs(CategoryRoot, TagSubdirs);
 	TagSubdirs.Sort();
 
 	UGameplayTagsManager& TagsMgr = UGameplayTagsManager::Get();
 
+	const int32 BeforeNum = OutEntries.Num();
 	for (const FString& FolderName : TagSubdirs)
 	{
 		FHktWorkspaceTagEntry Entry;
-		Entry.Category   = EHktWorkspaceCategory::Paper2D;
+		Entry.Category   = Category;
 		Entry.FolderName = FolderName;
 		Entry.TagString  = NormalizeTagFromFolderName(FolderName);
-		Entry.FolderPath = Paper2DRoot / FolderName;
+		Entry.FolderPath = CategoryRoot / FolderName;
 
 		const FGameplayTag Existing = TagsMgr.RequestGameplayTag(FName(*Entry.TagString), /*ErrorIfNotFound*/false);
 		Entry.bTagPreRegistered = Existing.IsValid();
 
 		if (!InspectTagFolder(Entry.Category, Entry.FolderPath, Entry))
 		{
-			// 빈/형식 미인식 폴더는 스킵 (warning 은 InspectTagFolder 에서 이미 출력).
 			continue;
 		}
 
 		OutEntries.Add(MoveTemp(Entry));
 	}
-	return OutEntries.Num() > 0;
+	return OutEntries.Num() > BeforeNum;
 }
 
 bool FHktWorkspaceScanner::ScanAll(const FString& WorkspaceRoot, TArray<FHktWorkspaceTagEntry>& OutEntries)
@@ -290,24 +360,12 @@ bool FHktWorkspaceScanner::ScanAll(const FString& WorkspaceRoot, TArray<FHktWork
 		}
 	}
 
-	// HISM — 1차에서는 미구현, 스캔만 (Mode/Anims 채우지 않음).
+	// HISM — Paper2D 와 동일 디렉터리 컨벤션. InspectTagFolder 로 Mode/Anims 채움.
 	{
 		const FString Sub = Root / TEXT("HISM");
 		if (IFileManager::Get().DirectoryExists(*Sub))
 		{
-			TArray<FString> TagSubdirs;
-			ListSubdirs(Sub, TagSubdirs);
-			for (const FString& FolderName : TagSubdirs)
-			{
-				FHktWorkspaceTagEntry Entry;
-				Entry.Category   = EHktWorkspaceCategory::HISM;
-				Entry.FolderName = FolderName;
-				Entry.TagString  = NormalizeTagFromFolderName(FolderName);
-				Entry.FolderPath = Sub / FolderName;
-				Entry.Mode       = EHktWorkspaceTagMode::Unknown; // not yet implemented
-				OutEntries.Add(MoveTemp(Entry));
-				bAny = true;
-			}
+			bAny |= ScanCategoryRoot(EHktWorkspaceCategory::HISM, Sub, OutEntries);
 		}
 	}
 

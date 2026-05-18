@@ -118,6 +118,12 @@ private:
 	uint8        CurrentKeyDir = 0xFF;
 	bool         bCurrentFlipX = false;
 
+	/** Rebind 시 캐시 — DataAsset Meta.FrameDurationMs 와 바운드된 UPaperFlipbook 의
+	 *  intrinsic FramesPerSecond 의 비율. SetPlaybackPosition(seconds) 가 내부적으로
+	 *  flipbook 의 FPS 로 초→프레임 변환을 하므로, Meta 를 권위로 만들려면 이 비율을
+	 *  ElapsedSec 에 곱해서 보정해야 한다. (Meta.FrameDurationMs ≤ 0 또는 fb FPS 0 이면 1.0) */
+	float CurrentMetaTimeScale = 1.f;
+
 	/** F-2: ApplySprite 가 매 sync 마다 캐시 — Tick 은 이 값으로 flipbook resolve.
 	 *  Facing 은 서버 권위가 아닌 클라이언트 viewmodel(AnimFragment.LastMoveDirXY) 로 산출. */
 	bool   bHasSpriteState = false;

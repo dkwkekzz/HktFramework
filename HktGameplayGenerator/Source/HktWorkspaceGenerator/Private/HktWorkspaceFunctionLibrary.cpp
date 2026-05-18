@@ -7,6 +7,7 @@
 #include "HktWorkspaceManifest.h"
 #include "HktWorkspaceSettings.h"
 #include "Builders/HktPaperWorkspaceBuilder.h"
+#include "Builders/HktHISMWorkspaceBuilder.h"
 
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
@@ -90,9 +91,13 @@ namespace
 		{
 			return HktPaperWorkspaceBuilder::BuildEntry(Entry, PixelToWorld);
 		}
+		if (Entry.Category == EHktWorkspaceCategory::HISM)
+		{
+			return HktHISMWorkspaceBuilder::BuildEntry(Entry, PixelToWorld);
+		}
 
 		FHktPaperBuildResult R;
-		R.Error = FString::Printf(TEXT("카테고리 '%s' 빌더 미구현 (1차 범위 외)"),
+		R.Error = FString::Printf(TEXT("카테고리 '%s' 빌더 미구현"),
 			*FHktWorkspaceScanner::CategoryToString(Entry.Category));
 		return R;
 	}
@@ -116,12 +121,12 @@ namespace
 		Out.Json->SetStringField(TEXT("folderName"), E.FolderName);
 		Out.Json->SetStringField(TEXT("category"),   FHktWorkspaceScanner::CategoryToString(E.Category));
 
-		// 1차 범위: Paper2D 만 빌드. HISM 등 다른 카테고리는 skip 마킹.
-		if (E.Category != EHktWorkspaceCategory::Paper2D)
+		if (E.Category != EHktWorkspaceCategory::Paper2D
+		 && E.Category != EHktWorkspaceCategory::HISM)
 		{
 			Out.Json->SetBoolField(TEXT("success"), false);
 			Out.Json->SetBoolField(TEXT("skipped"), true);
-			Out.Json->SetStringField(TEXT("reason"), TEXT("1차 범위 외 카테고리 — HISM 등은 후속 PR"));
+			Out.Json->SetStringField(TEXT("reason"), TEXT("미지원 카테고리"));
 			Out.bWasSkipped = true;
 			return Out;
 		}
@@ -243,7 +248,7 @@ FString UHktWorkspaceFunctionLibrary::BuildTag(
 	{
 		return MakeErrorJson(FString::Printf(TEXT("알 수 없는 카테고리: %s"), *Category));
 	}
-	if (Cat != EHktWorkspaceCategory::Paper2D)
+	if (Cat != EHktWorkspaceCategory::Paper2D && Cat != EHktWorkspaceCategory::HISM)
 	{
 		return MakeErrorJson(FString::Printf(TEXT("카테고리 '%s' 빌더 미구현"), *Category));
 	}

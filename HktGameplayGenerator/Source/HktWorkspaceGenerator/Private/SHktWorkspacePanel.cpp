@@ -80,7 +80,7 @@ void SHktWorkspacePanel::Construct(const FArguments& InArgs)
 					+ SHeaderRow::Column("Mode").DefaultLabel(LOCTEXT("Mode", "Mode")).FillWidth(0.10f)
 					+ SHeaderRow::Column("Anims").DefaultLabel(LOCTEXT("Anims", "#Anims")).FillWidth(0.06f)
 					+ SHeaderRow::Column("Status").DefaultLabel(LOCTEXT("Status", "Status")).FillWidth(0.12f)
-					+ SHeaderRow::Column("Action").DefaultLabel(LOCTEXT("Action", "Action")).FillWidth(0.16f)
+					+ SHeaderRow::Column("Action").DefaultLabel(LOCTEXT("Action", "Action")).FillWidth(0.20f)
 					+ SHeaderRow::Column("Path").DefaultLabel(LOCTEXT("Path", "Folder")).FillWidth(0.12f)
 				)
 			]
@@ -154,21 +154,43 @@ TSharedRef<ITableRow> SHktWorkspacePanel::GenerateRowWidget(
 	const FString FolderRel = FPaths::GetCleanFilename(Item->Entry.FolderPath);
 	const int32 AnimCount   = Item->Entry.Anims.Num();
 
-	TSharedRef<SWidget> ActionCell = SNew(SButton)
-		.Text(LOCTEXT("Build", "Build"))
-		.IsEnabled(Item->Entry.Category == EHktWorkspaceCategory::Paper2D
-			&& Item->Entry.Mode != EHktWorkspaceTagMode::Unknown)
-		.OnClicked_Lambda([this, Item]() -> FReply
+	const bool bRowEnabled = Item->Entry.Category == EHktWorkspaceCategory::Paper2D
+		&& Item->Entry.Mode != EHktWorkspaceTagMode::Unknown;
+
+	auto MakeBuildLambda = [this, Item](bool bForce)
+	{
+		return [this, Item, bForce]() -> FReply
 		{
 			const FString CategoryStr = FHktWorkspaceScanner::CategoryToString(Item->Entry.Category);
-			AppendLog(FString::Printf(TEXT("[Build] %s/%s …"), *CategoryStr, *Item->Entry.FolderName));
+			AppendLog(FString::Printf(TEXT("[Build%s] %s/%s …"),
+				bForce ? TEXT("Force") : TEXT(""),
+				*CategoryStr, *Item->Entry.FolderName));
 
 			const FString Json = UHktWorkspaceFunctionLibrary::BuildTag(
-				CategoryStr, Item->Entry.FolderName, /*bForce*/false, /*WorkspaceRoot*/FString());
+				CategoryStr, Item->Entry.FolderName, bForce, /*WorkspaceRoot*/FString());
 			AppendLog(Json);
 			RefreshScan();
 			return FReply::Handled();
-		});
+		};
+	};
+
+	TSharedRef<SWidget> ActionCell = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 4, 0)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Build", "Build"))
+			.ToolTipText(LOCTEXT("BuildTT", "변경(inputsHash 변동) 시에만 재빌드"))
+			.IsEnabled(bRowEnabled)
+			.OnClicked_Lambda(MakeBuildLambda(/*bForce*/false))
+		]
+		+ SHorizontalBox::Slot().AutoWidth()
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Force", "Force"))
+			.ToolTipText(LOCTEXT("ForceTT", "inputsHash 무시하고 강제 재빌드 — 사이드카(entity_meta.json 등) 만 수정한 경우 사용"))
+			.IsEnabled(bRowEnabled)
+			.OnClicked_Lambda(MakeBuildLambda(/*bForce*/true))
+		];
 
 	return SNew(STableRow<TSharedPtr<FRow>>, OwnerTable)
 		[

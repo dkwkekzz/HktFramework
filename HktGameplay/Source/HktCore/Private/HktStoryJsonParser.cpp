@@ -492,6 +492,9 @@ FHktStoryParseResult FHktStoryJsonParser::ParseAndBuild(
 		FString OpName;
 		if (!(*StepObj)->TryGetStringField(TEXT("op"), OpName))
 		{
+			// 인라인 주석 항목 ({"comment": "..."}) 은 silent skip — 가독성 위한 정식 패턴
+			FString CommentDummy;
+			if ((*StepObj)->TryGetStringField(TEXT("comment"), CommentDummy)) continue;
 			Result.Errors.Add(FString::Printf(TEXT("Step %d: missing 'op' field"), i));
 			continue;
 		}
@@ -582,6 +585,8 @@ bool FHktStoryJsonParser::ParsePreconditions(
 		FString OpName;
 		if (!(*StepObj)->TryGetStringField(TEXT("op"), OpName))
 		{
+			FString CommentDummy;
+			if ((*StepObj)->TryGetStringField(TEXT("comment"), CommentDummy)) continue;
 			Result.Errors.Add(FString::Printf(TEXT("Precondition %d: missing 'op' field"), i));
 			continue;
 		}

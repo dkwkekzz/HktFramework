@@ -33,7 +33,7 @@ public:
 		meta=(DisplayName="Auto Register Missing Tags To Ini"))
 	bool bAutoRegisterMissingTagsToIni = true;
 
-	/** Paper2D 기본 PixelToWorld (1 px → world cm). character_meta.json 이 우선. */
+	/** Paper2D 기본 PixelToWorld (1 px → world cm). entity_meta.json 이 우선. */
 	UPROPERTY(config, EditAnywhere, Category="Defaults|Paper2D",
 		meta=(DisplayName="Paper2D Default Pixel To World"))
 	float Paper2DDefaultPixelToWorld = 2.0f;

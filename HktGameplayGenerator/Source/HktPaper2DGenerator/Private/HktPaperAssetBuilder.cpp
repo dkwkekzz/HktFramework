@@ -2,13 +2,12 @@
 
 #include "HktPaperAssetBuilder.h"
 #include "HktPaperUnlitMaterial.h"
-#include "HktPaperWorkspaceScanner.h"
 #include "HktPaper2DGeneratorLog.h"
 
-#include "HktPaperCharacterTemplate.h"
+#include "HktPaperCharacterTemplate.h"   // FHktPaperAnimDirKey / FHktPaperAnimMeta 재사용
+#include "HktPaperAnimationDataAsset.h"
 #include "HktPaperActorVisualDataAsset.h"
 #include "HktSpritePaperActor.h"
-#include "HktSpriteGeneratorFunctionLibrary.h"
 
 #include "PaperSprite.h"
 #include "PaperFlipbook.h"
@@ -27,6 +26,8 @@
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectGlobals.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "UObject/MetaData.h"
+#include "Misc/SecureHash.h"
 
 // ----------------------------------------------------------------------------
 // 콘솔 변수 — Sprite 임베드 (PR-5)
@@ -59,6 +60,19 @@ static TAutoConsoleVariable<int32> CVarHktPaperEmbedSprites(
 
 namespace HktPaperAssetBuilder
 {
+	// ----------------------------------------------------------------------------
+	// 8 방향 이름 — 워크스페이스 컨벤션과 일치 (HktWorkspaceConventions::GetDirectionName).
+	// 본 모듈은 HktWorkspaceGenerator 헤더에 의존하지 않도록 로컬 사본을 둔다.
+	// ----------------------------------------------------------------------------
+	static const TCHAR* GetDirectionName(int32 DirIdx)
+	{
+		static const TCHAR* const Names[8] = {
+			TEXT("N"), TEXT("NE"), TEXT("E"), TEXT("SE"),
+			TEXT("S"), TEXT("SW"), TEXT("W"), TEXT("NW")
+		};
+		return Names[FMath::Clamp(DirIdx, 0, 7)];
+	}
+
 	// ----------------------------------------------------------------------------
 	// 헬퍼
 	// ----------------------------------------------------------------------------
@@ -107,8 +121,18 @@ namespace HktPaperAssetBuilder
 	}
 
 	// ----------------------------------------------------------------------------
-	// PNG → UTexture2D 임포트
+	// PNG → UTexture2D 임포트 (소스 해시 비교 → 미변경 시 재임포트 스킵)
 	// ----------------------------------------------------------------------------
+	//
+	// 텍스처 자산 패키지에 소스 PNG 의 SHA1 을 메타데이터로 저장한다 (`HktSourceHash`).
+	// 동일 PNG 로 재빌드 시 해시가 일치하면 `FactoryCreateBinary` 자체를 호출하지 않아
+	// 1) "Overwrite assets?" 다이얼로그 회피, 2) 임포트/컴파일 비용 0, 3) Content Browser
+	// thumbnail 캐시 무효화 0.
+	//
+	// 해시는 PNG 바이트 그대로(메타 변경 없이) 계산 — 픽셀 데이터가 정확히 같으면 재임포트
+	// 불필요. 픽셀 아트 워크플로우 특성상 정확 일치 케이스가 절대 다수.
+	static const FName kSourceHashMetaKey(TEXT("HktSourceHash"));
+
 	UTexture2D* ImportAtlasTexture(const FString& PngPath, const FString& PackagePath, const FString& AssetName)
 	{
 		if (!FPaths::FileExists(PngPath))
@@ -126,6 +150,27 @@ namespace HktPaperAssetBuilder
 			return nullptr;
 		}
 
+		// 소스 해시 — PNG 바이트 SHA1.
+		const FString SourceHash = FSHA1::HashBuffer(Bytes.GetData(), Bytes.Num()).ToString();
+
+		// 기존 자산이 있고 해시가 일치하면 재임포트 스킵.
+		const FString ObjectPath = PackagePath + TEXT(".") + AssetName;
+		if (UTexture2D* Existing = LoadObject<UTexture2D>(nullptr, *ObjectPath))
+		{
+			if (UPackage* ExistingPkg = Existing->GetPackage())
+			{
+				FMetaData& MetaData = ExistingPkg->GetMetaData();
+				const FString PrevHash = MetaData.GetValue(Existing, kSourceHashMetaKey);
+				if (!PrevHash.IsEmpty() && PrevHash == SourceHash)
+				{
+					UE_LOG(LogHktPaper2DGenerator, Verbose,
+						TEXT("[ImportAtlasTexture] 소스 미변경 — 재임포트 스킵: %s (hash=%s)"),
+						*PackagePath, *SourceHash);
+					return Existing;
+				}
+			}
+		}
+
 		UPackage* Pkg = CreatePackage(*PackagePath);
 		if (!Pkg) return nullptr;
 		Pkg->FullyLoad();
@@ -134,6 +179,10 @@ namespace HktPaperAssetBuilder
 		Factory->AddToRoot();
 		Factory->NoAlpha       = false;
 		Factory->bUseHashAsGuid = true;
+		// 자동화 임포트 — "기존 자산 덮어쓰시겠습니까?" 모달 다이얼로그 억제.
+		// 빌더는 항상 in-place 갱신이 의도이며, 사용자 확인이 필요한 상황이 아니다.
+		// (소스 미변경 케이스는 위쪽 해시 비교로 이미 스킵됨.)
+		Factory->SuppressImportOverwriteDialog();
 
 		const uint8* BufBegin = Bytes.GetData();
 		const uint8* BufEnd   = BufBegin + Bytes.Num();
@@ -160,6 +209,12 @@ namespace HktPaperAssetBuilder
 		Tex->LODGroup            = TEXTUREGROUP_Pixels2D;
 		Tex->SRGB                = true;
 		Tex->UpdateResource();
+
+		// 다음 빌드의 스킵 비교용 — 소스 PNG 의 SHA1 을 메타데이터에 저장.
+		{
+			FMetaData& MetaData = Pkg->GetMetaData();
+			MetaData.SetValue(Tex, kSourceHashMetaKey, *SourceHash);
+		}
 
 		FAssetRegistryModule::AssetCreated(Tex);
 		Pkg->MarkPackageDirty();
@@ -358,16 +413,16 @@ namespace HktPaperAssetBuilder
 	// ----------------------------------------------------------------------------
 	// Template / Visual upsert
 	// ----------------------------------------------------------------------------
-	UHktPaperCharacterTemplate* LoadOrCreateTemplate(
+	UHktPaperAnimationDataAsset* LoadOrCreateAnimation(
 		const FString& OutputPackageDir,
 		const FString& SafeCharName,
 		float PixelToWorld)
 	{
-		const FString AssetName    = FString::Printf(TEXT("DA_PaperCharacter_%s"), *SafeCharName);
+		const FString AssetName    = FString::Printf(TEXT("DA_PaperAnimation_%s"), *SafeCharName);
 		const FString PackagePath  = OutputPackageDir / AssetName;
 		const FString ObjectPath   = PackagePath + TEXT(".") + AssetName;
 
-		if (UHktPaperCharacterTemplate* Existing = LoadObject<UHktPaperCharacterTemplate>(nullptr, *ObjectPath))
+		if (UHktPaperAnimationDataAsset* Existing = LoadObject<UHktPaperAnimationDataAsset>(nullptr, *ObjectPath))
 		{
 			Existing->PixelToWorld = PixelToWorld;
 			return Existing;
@@ -376,17 +431,17 @@ namespace HktPaperAssetBuilder
 		UPackage* Pkg = CreatePackage(*PackagePath);
 		if (!Pkg) return nullptr;
 		Pkg->FullyLoad();
-		UHktPaperCharacterTemplate* Template = NewObject<UHktPaperCharacterTemplate>(
+		UHktPaperAnimationDataAsset* Anim = NewObject<UHktPaperAnimationDataAsset>(
 			Pkg, FName(*AssetName), RF_Public | RF_Standalone);
-		Template->PixelToWorld = PixelToWorld;
-		return Template;
+		Anim->PixelToWorld = PixelToWorld;
+		return Anim;
 	}
 
 	UHktPaperActorVisualDataAsset* LoadOrCreateVisual(
 		const FString& OutputPackageDir,
 		const FString& SafeCharName,
 		const FGameplayTag& IdentifierTag,
-		UHktPaperCharacterTemplate* Template)
+		UHktPaperAnimationDataAsset* Animation)
 	{
 		const FString AssetName    = FString::Printf(TEXT("DA_PaperVisual_%s"), *SafeCharName);
 		const FString PackagePath  = OutputPackageDir / AssetName;
@@ -404,20 +459,22 @@ namespace HktPaperAssetBuilder
 
 		// IdentifierTag 는 부모 UHktTagDataAsset 의 protected/public field — 직접 set.
 		// (UHktActorVisualDataAsset 도 같은 필드를 EditDefaultsOnly 로 노출.)
-		Visual->IdentifierTag = IdentifierTag;
-		Visual->Animation     = Template;
-		Visual->ActorClass    = AHktSpritePaperActor::StaticClass();
+		Visual->IdentifierTag  = IdentifierTag;
+		Visual->AnimationAsset = Animation;
+		Visual->Animation      = nullptr;  // deprecated 슬롯은 명시 클리어 — 신규 빌드는 AnimationAsset 만 채움.
+		Visual->ActorClass     = AHktSpritePaperActor::StaticClass();
 
 		return Visual;
 	}
 
 	// ----------------------------------------------------------------------------
-	// (Char, Anim) 빌드 — Workspace 의 atlas_{Dir}.png 를 모두 읽어 처리
+	// (Char, Anim) 빌드 — 호출자가 전달한 AtlasInputs(Dir / PNG / cell / frame)로 처리
 	// ----------------------------------------------------------------------------
 	FBuildAnimResult BuildAnim(
 		const FString& CharacterTagStr,
 		const FString& AnimTagStr,
 		const FString& OutputPackageDir,
+		const TArray<FAnimAtlasInput>& AtlasInputs,
 		float PixelToWorld,
 		float FrameDurationMs,
 		bool bLooping,
@@ -436,19 +493,7 @@ namespace HktPaperAssetBuilder
 		const FString SafeChar = SanitizeForAssetName(CharacterTagStr);
 		const FString SafeAnim = SanitizeForAssetName(AnimTagStr);
 
-		// Stage 2 가 남긴 atlas_meta.json — 셀 크기/프레임 수 폴백.
-		const FString AnimDir = UHktSpriteGeneratorFunctionLibrary::GetConventionBundleDir(
-			CharacterTagStr, AnimTagStr);
-		const FString MetaPath = AnimDir / TEXT("atlas_meta.json");
-		TArray<HktPaperWorkspace::FDirMeta> MetaDirs;
-		HktPaperWorkspace::LoadAtlasMeta(MetaPath, MetaDirs);
-		TMap<int32, HktPaperWorkspace::FDirMeta> MetaByDir;
-		for (const HktPaperWorkspace::FDirMeta& M : MetaDirs)
-		{
-			MetaByDir.Add(M.DirIdx, M);
-		}
-
-		// 워크스페이스 dir 발견 + Flipbook 빌드.
+		// 호출자가 워크스페이스에서 직접 수집한 atlas 입력들로 빌드.
 		struct FDirBuilt
 		{
 			int32 DirIdx;
@@ -457,18 +502,20 @@ namespace HktPaperAssetBuilder
 		};
 		TArray<FDirBuilt> Built;
 
-		for (int32 d = 0; d < 8; ++d)
+		for (const FAnimAtlasInput& In : AtlasInputs)
 		{
-			const FString PngPath = UHktSpriteGeneratorFunctionLibrary::GetConventionDirectionalAtlasPng(
-				CharacterTagStr, AnimTagStr, d);
-			if (!FPaths::FileExists(PngPath))
+			const int32 d = FMath::Clamp(In.DirIdx, 0, 7);
+
+			if (!FPaths::FileExists(In.PngPath))
 			{
+				UE_LOG(LogHktPaper2DGenerator, Warning,
+					TEXT("[BuildAnim] AtlasInput PNG 없음 dir=%s path=%s"),
+					GetDirectionName(d), *In.PngPath);
 				continue;
 			}
 
 			// 미러 dir(SW=5, NW=7) 은 빌드 스킵 — 액터가 X-스케일로 처리.
-			// W(=6) 는 2방향(좌/우) 모드에서 좌향 전용 아트로 쓰일 수 있으므로
-			// 디스크에 atlas_W.png 가 있으면 빌드 (Built 단계에서 양자화로 NumDir=2 결정).
+			// W(=6) 는 2방향 모드에서 좌향 전용 아트로 쓰일 수 있으므로 입력에 있으면 빌드.
 			const bool bIsMirrored = bMirrorWestFromEast && (d == 5 || d == 7);
 			if (bIsMirrored)
 			{
@@ -477,71 +524,58 @@ namespace HktPaperAssetBuilder
 
 			// 텍스처 임포트.
 			const FString TexAssetName = FString::Printf(TEXT("T_PaperAtlas_%s_%s_%s"),
-				*SafeChar, *SafeAnim, HktPaperWorkspace::GetDirectionName(d));
+				*SafeChar, *SafeAnim, GetDirectionName(d));
 			const FString TexPackagePath = OutputPackageDir / TexAssetName;
-			UTexture2D* AtlasTex = ImportAtlasTexture(PngPath, TexPackagePath, TexAssetName);
+			UTexture2D* AtlasTex = ImportAtlasTexture(In.PngPath, TexPackagePath, TexAssetName);
 			if (!AtlasTex)
 			{
 				continue;
 			}
 			Result.AtlasAssetPaths.Add(TexPackagePath);
 
-			// 셀 크기 우선순위 (PR-5 정리): atlas_meta.json > 인자 override > 종횡비 폴백.
-			// meta 가 우선인 이유 — generator(Stage 2) 가 셀 크기를 atlas pack 시 결정·기록하므로
-			// 인자보다 권위 있다. 인자는 meta 가 없을 때만 의미.
-			const HktPaperWorkspace::FDirMeta* DirMeta = MetaByDir.Find(d);
-			int32 UseW = 0;
-			int32 UseH = 0;
-			if (DirMeta)
-			{
-				UseW = DirMeta->CellW;
-				UseH = DirMeta->CellH;
-			}
+			// 셀 크기 우선순위: AtlasInput(워크스페이스 사이드카) > 인자 override > 종횡비 폴백.
+			int32 UseW = In.CellW;
+			int32 UseH = In.CellH;
 			if (UseW <= 0) UseW = CellWidthOverride;
 			if (UseH <= 0) UseH = CellHeightOverride;
 
 			const int32 AtlasW = AtlasTex->GetSizeX();
 			const int32 AtlasH = AtlasTex->GetSizeY();
-			if (UseH <= 0) UseH = AtlasH;
-			if (UseW <= 0)
-			{
-				int32 Frames = DirMeta ? DirMeta->FrameCount : 0;
-				if (Frames <= 0 && AtlasH > 0) Frames = FMath::Max(1, AtlasW / AtlasH);
-				UseW = (Frames > 0) ? FMath::Max(1, AtlasW / Frames) : AtlasW;
-			}
+			// 사이드카(anim_meta.json) 가 없거나 cellW/cellH 가 0 인 경우, atlas 종횡비로 셀 크기를
+			// 무리하게 추정하지 않는다. 추정이 빗나가면 sprite 1개짜리 flipbook 이 묵묵히 만들어져
+			// "재생 안 됨" 으로 늦게 발견됨. 명확히 빌드 실패시켜 즉시 사이드카 작성 유도.
 			if (UseW <= 0 || UseH <= 0)
 			{
-				UE_LOG(LogHktPaper2DGenerator, Warning,
-					TEXT("[BuildAnim] Dir=%s 셀 크기 추론 실패 (Atlas=%dx%d)"),
-					HktPaperWorkspace::GetDirectionName(d), AtlasW, AtlasH);
+				const FString Msg = FString::Printf(
+					TEXT("Dir=%s 셀 크기 미정 (Atlas=%dx%d). anim_meta.json 에 cellW/cellH 명시 필요"),
+					GetDirectionName(d), AtlasW, AtlasH);
+				UE_LOG(LogHktPaper2DGenerator, Warning, TEXT("[BuildAnim] %s"), *Msg);
+				if (Result.Error.IsEmpty()) Result.Error = Msg;
 				continue;
 			}
-			// 셀 정수 분할 검증 — atlas 가 cell 의 정수배가 아니면 끝쪽 잘림 경고.
 			if (AtlasW % UseW != 0)
 			{
 				UE_LOG(LogHktPaper2DGenerator, Warning,
 					TEXT("[BuildAnim] Dir=%s AtlasW(%d) %% CellW(%d) != 0 — 마지막 cell 잘림"),
-					HktPaperWorkspace::GetDirectionName(d), AtlasW, UseW);
+					GetDirectionName(d), AtlasW, UseW);
 			}
 			if (AtlasH % UseH != 0)
 			{
 				UE_LOG(LogHktPaper2DGenerator, Warning,
 					TEXT("[BuildAnim] Dir=%s AtlasH(%d) %% CellH(%d) != 0 — 마지막 row 잘림"),
-					HktPaperWorkspace::GetDirectionName(d), AtlasH, UseH);
+					GetDirectionName(d), AtlasH, UseH);
 			}
 
-			// 프레임 수: 가로·세로 모두 반영. atlas_meta.json 의 frameCount 가 있으면
-			// 그것을 권위로 (마지막 row 가 부분 채움인 경우 정확). 없으면 Cols × Rows.
 			const int32 Cols = FMath::Max(1, AtlasW / UseW);
 			const int32 Rows = FMath::Max(1, AtlasH / UseH);
 			const int32 GridCount  = Cols * Rows;
-			const int32 MetaFrames = (DirMeta && DirMeta->FrameCount > 0) ? DirMeta->FrameCount : 0;
-			const int32 FrameCount = (MetaFrames > 0)
-				? FMath::Clamp(MetaFrames, 1, GridCount)
+			const int32 InFrames   = (In.FrameCount > 0) ? In.FrameCount : 0;
+			const int32 FrameCount = (InFrames > 0)
+				? FMath::Clamp(InFrames, 1, GridCount)
 				: GridCount;
 
 			const FString FlipbookBase = FString::Printf(TEXT("%s_%s_%s"),
-				*SafeChar, *SafeAnim, HktPaperWorkspace::GetDirectionName(d));
+				*SafeChar, *SafeAnim, GetDirectionName(d));
 			UPaperFlipbook* Flipbook = BuildDirFlipbook(
 				AtlasTex, OutputPackageDir, FlipbookBase,
 				UseW, UseH, Cols, FrameCount, PixelToWorld, FrameDurationMs);
@@ -566,7 +600,7 @@ namespace HktPaperAssetBuilder
 		if (Built.IsEmpty())
 		{
 			Result.Error = FString::Printf(
-				TEXT("Workspace 에 atlas_{Dir}.png 가 없음 (char=%s, anim=%s) — Stage 2 (Atlas Pack) 먼저 실행"),
+				TEXT("AtlasInputs 비어있음/모두 무효 (char=%s, anim=%s)"),
 				*CharacterTagStr, *AnimTagStr);
 			return Result;
 		}
@@ -619,11 +653,11 @@ namespace HktPaperAssetBuilder
 			}
 		};
 
-		// Template / Visual upsert.
-		UHktPaperCharacterTemplate* Template = LoadOrCreateTemplate(OutputPackageDir, SafeChar, PixelToWorld);
+		// Animation / Visual upsert.
+		UHktPaperAnimationDataAsset* Template = LoadOrCreateAnimation(OutputPackageDir, SafeChar, PixelToWorld);
 		if (!Template)
 		{
-			Result.Error = TEXT("Template 자산 생성 실패");
+			Result.Error = TEXT("Animation 자산 생성 실패");
 			return Result;
 		}
 
@@ -660,7 +694,7 @@ namespace HktPaperAssetBuilder
 			UE_LOG(LogHktPaper2DGenerator, Log,
 				TEXT("[BuildAnim] Flipbooks.Add anim=%s, Slot=%u (source=%s), FB=%s, frames=%d"),
 				*Result.AnimTag.ToString(), Key.DirIdx,
-				HktPaperWorkspace::GetDirectionName(B.DirIdx),
+				GetDirectionName(B.DirIdx),
 				*GetNameSafe(B.Flipbook), B.FrameCount);
 		}
 
@@ -678,7 +712,7 @@ namespace HktPaperAssetBuilder
 			FString DirList;
 			for (uint8 D : DirsForThisAnim)
 			{
-				DirList += FString::Printf(TEXT("%u(%s) "), D, HktPaperWorkspace::GetDirectionName(D));
+				DirList += FString::Printf(TEXT("%u(%s) "), D, GetDirectionName(D));
 			}
 			UE_LOG(LogHktPaper2DGenerator, Log,
 				TEXT("[BuildAnim] Template Flipbooks summary anim=%s NumDir=%d bMirror=%d → keys=[%s] (Built=%d)"),

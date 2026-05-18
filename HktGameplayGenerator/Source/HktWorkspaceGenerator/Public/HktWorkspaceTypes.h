@@ -8,23 +8,33 @@
 // ============================================================================
 // I-0008 — 2D 어셋 자동 제작 Workspace
 //
-// 디렉터리 컨벤션:
+// 디렉터리 컨벤션 (2026-05 개정):
 //   {Root}/
 //     Paper2D/
 //       {Paper2D.X.Y.Z}/                   ← 폴더명 = GameplayTag (점 또는 _ 표기 혼용)
-//         Animations/                      ← (optional) 캐릭터 모드
-//           Idle/                          ← anim 이름 → AnimTag 해석
-//             atlas_S.png                   ← Source=Atlas (이미 패킹된 PNG)
-//             atlas_N.png
-//             atlas_meta.json               (선택)
-//           Walk/
-//             N/ frame_001.png ...          ← Source=FrameSequence (방향별 시퀀스)
-//             S/ frame_001.png ...
-//           Cast.mp4                        ← Source=Video (단일 영상)
-//         tree.png                          ← Source=StaticImage (정적 1장)
-//         character_meta.json               (선택)
+//         {AnimName}/                      ← Tag 폴더 직속 서브폴더 1개라도 있으면 Character 모드
+//           atlas_S.png  atlas_N.png  ...   ← (a) 방향별 Atlas (이미 패킹된 PNG)
+//           N/ frame_001.png ...            ← (b) 방향별 FrameSequence
+//           S/ frame_001.png ...
+//           frame_001.png  frame_002.png    ← (c) 단일방향 FrameSequence — 빌더가 1-row strip atlas 로 묶음
+//           Cast.mp4                        ← (d) 영상 — ffmpeg 으로 8방향 추출
+//           anim_meta.json                  (선택 — columns/rows override)
+//         tree.png                          ← StaticVisual — 직속 이미지 1장 + 서브폴더 0
+//         entity_meta.json                  (선택 — 모든 entity 공용 사이드카)
 //         .workspace.meta.json              (산출 — manifest)
-//     HISM/                                 ← 카테고리 확장 슬롯 (1차에서는 인터페이스만)
+//
+//   AnimName → AnimTag 매핑:
+//     - 폴더명에 `_` 또는 `.` 가 있으면 그대로 점 표기로 변환
+//       ("Anim_Action_Strike" → "Anim.Action.Strike")
+//     - 단순 단어이면 sprite_tools.py 호환 매핑 적용
+//       (Idle/Walk/Run/Fall → Anim.FullBody.Locomotion.X, 그 외 → Anim.FullBody.X)
+//
+//   호환 분기:
+//     - Tag 폴더 직속이 정확히 `Animations/` 폴더 하나뿐인 구버전 트리도 그대로 인식.
+//
+//     HISM/                                 ← Paper2D 와 동일 디렉터리 컨벤션.
+//                                              빌드 산출: UHktSpriteCharacterTemplate (Character)
+//                                                       / UHktHISMSpriteVisualAsset (StaticVisual)
 //
 // ============================================================================
 
@@ -89,6 +99,11 @@ struct FHktWorkspaceAnimInput
 	 */
 	UPROPERTY()
 	TArray<FString> SourcePaths;
+
+	/** 워크스페이스 내 anim 폴더 절대 경로 — 사이드카(`anim_meta.json`) 위치.
+	 *  SourcePaths 로부터 역산 시 source 타입별 분기가 필요해 스캐너에서 명시 채움. */
+	UPROPERTY()
+	FString FolderPath;
 };
 
 /** 한 Tag 폴더 = 1 산출물. */

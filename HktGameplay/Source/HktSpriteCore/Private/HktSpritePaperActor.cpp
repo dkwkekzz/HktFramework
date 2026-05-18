@@ -463,9 +463,13 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	RebindFlipbookIfNeeded(ResolvedTag, KeyDir, bFlipX, *Meta);
 
 	// --- 재생 위치 진행 ---
+	// Meta.FrameDurationMs 를 권위로 — RebindFlipbookIfNeeded 에서 캐시한
+	// CurrentMetaTimeScale (= MetaFps / FbIntrinsicFps) 를 ElapsedSec 에 곱해
+	// flipbook intrinsic FPS 와 무관하게 DataAsset 값으로 재생 속도를 결정한다.
 	const float SafeRate = PlayRate > 0.f ? PlayRate : 1.f;
 	const double ElapsedSec = (LocalNowSec - AnimStartLocalSec) * static_cast<double>(SafeRate);
-	FlipbookComp->SetPlaybackPosition(static_cast<float>(FMath::Max(ElapsedSec, 0.0)), /*bFireEvents=*/false);
+	const double ScaledSec = ElapsedSec * static_cast<double>(CurrentMetaTimeScale);
+	FlipbookComp->SetPlaybackPosition(static_cast<float>(FMath::Max(ScaledSec, 0.0)), /*bFireEvents=*/false);
 }
 
 // ----------------------------------------------------------------------------
@@ -496,6 +500,13 @@ void AHktSpritePaperActor::RebindFlipbookIfNeeded(
 		FlipbookComp->SetFlipbook(FB);
 		FlipbookComp->SetLooping(Meta.bLooping);
 		FlipbookComp->SetSpriteColor(Meta.Tint);
+
+		// DataAsset 의 FrameDurationMs 를 권위로 — 바운드된 flipbook 의 intrinsic FPS 와
+		// 차이가 있으면 SetPlaybackPosition 입력에 곱할 스케일을 캐시.
+		const float FbFps    = FB ? FB->GetFramesPerSecond() : 0.f;
+		const float MetaFps  = (Meta.FrameDurationMs > 0.f) ? (1000.f / Meta.FrameDurationMs) : 0.f;
+		CurrentMetaTimeScale = (FbFps > 0.f && MetaFps > 0.f) ? (MetaFps / FbFps) : 1.f;
+
 		CurrentAnimTag = AnimTag;
 		CurrentKeyDir  = KeyDir;
 	}

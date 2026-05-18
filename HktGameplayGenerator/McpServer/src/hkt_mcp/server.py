@@ -780,55 +780,6 @@ def _get_hkt_tools() -> list[Tool]:
                 "required": ["character_tag"],
             },
         ),
-        Tool(
-            name="build_paper_sprite_character",
-            description=(
-                "Paper2D mirror of build_sprite_character — calls "
-                "UHktPaperSpriteBuilderFunctionLibrary::BuildPaperCharacter. Reuses the existing "
-                "{Saved}/SpriteGenerator/{SafeChar} workspace produced by HktSpriteGenerator: "
-                "auto-discovers anim folders, imports atlas_{Dir}.png as UTexture2D, builds "
-                "UPaperSprite (per cell) + UPaperFlipbook (per dir), and upserts "
-                "DA_PaperCharacter_{Char} + DA_PaperVisual_{Char} (UHktActorVisualDataAsset). "
-                "Server SpawnEntity with VisualTag = visual_identifier_tag will spawn the "
-                "Paper2D AHktSpritePaperActor at runtime. No extra packing — all input atlases "
-                "are already on disk from the original sprite workspace."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "character_tag": {"type": "string", "description": "Workspace character tag (e.g. 'Sprite.Character.Knight') — same as build_sprite_character"},
-                    "visual_identifier_tag": {"type": "string", "description": "Server SpawnEntity VisualTag (default 'PaperSprite.Character.{Char}')"},
-                    "pixel_to_world": {"type": "number", "description": "1 px → world cm (default 2.0)"},
-                    "output_dir": {"type": "string", "description": "UE content dir (default /Game/Generated/PaperSprites/{Char})"},
-                },
-                "required": ["character_tag"],
-            },
-        ),
-        Tool(
-            name="build_paper_sprite_anim",
-            description=(
-                "Single-anim Paper2D builder — calls "
-                "UHktPaperSpriteBuilderFunctionLibrary::BuildPaperSpriteAnim. Use when "
-                "per-anim cell size / frame duration / looping needs to differ. For batch "
-                "convention-based builds prefer build_paper_sprite_character."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "character_tag": {"type": "string", "description": "Workspace character tag"},
-                    "anim_tag": {"type": "string", "description": "Animation tag (e.g. 'Anim.FullBody.Locomotion.Idle')"},
-                    "cell_width":  {"type": "integer", "description": "Cell width px. 0 = auto (atlas_meta.json or aspect ratio)"},
-                    "cell_height": {"type": "integer", "description": "Cell height px. 0 = auto"},
-                    "pixel_to_world": {"type": "number", "description": "1 px → world cm (default 2.0)"},
-                    "frame_duration_ms": {"type": "number", "description": "Per-frame duration (ms), default 100"},
-                    "looping": {"type": "boolean", "description": "Loop flag for the spawned UPaperFlipbookComponent (not stored on the asset)"},
-                    "mirror_west_from_east": {"type": "boolean", "description": "Fold W/SW/NW from E/SE/NE via X-scale (default true)"},
-                    "visual_identifier_tag": {"type": "string", "description": "Server VisualTag (default 'PaperSprite.Character.{Char}')"},
-                    "output_dir": {"type": "string", "description": "UE content dir (default /Game/Generated/PaperSprites/{Char})"},
-                },
-                "required": ["character_tag", "anim_tag"],
-            },
-        ),
     ])
 
     # ==================== Workspace Tools (I-0008) ====================
@@ -852,7 +803,7 @@ def _get_hkt_tools() -> list[Tool]:
             name="workspace_scan_and_build_all",
             description=(
                 "I-0008 워크스페이스 일괄 빌드 — 발견된 모든 Paper2D Tag 폴더에 대해 입력 형식별로 "
-                "Atlas/FrameSequence/Video → atlas PNG 정규화 → BuildPaperCharacter 호출. "
+                "Atlas/FrameSequence → atlas PNG 정규화 → HktPaperAssetBuilder::BuildAnim 직접 호출. "
                 "GameplayTag 가 등록되어 있지 않으면 Config/Tags/HktWorkspaceTags.ini 에 자동 등록. "
                 "manifest 가 입력 해시와 일치하면 skip(force=true 면 강제 재빌드)."
             ),
@@ -1866,29 +1817,6 @@ async def dispatch_tool(name: str, arguments: dict[str, Any]) -> Any:
             mirror_west_from_east=bool(arguments.get("mirror_west_from_east", True)),
             project_saved_dir=arguments.get("project_saved_dir", ""),
         )
-    elif name == "build_paper_sprite_character":
-        return await sprite_tools.build_paper_sprite_character(
-            bridge,
-            character_tag=arguments["character_tag"],
-            visual_identifier_tag=arguments.get("visual_identifier_tag", ""),
-            pixel_to_world=float(arguments.get("pixel_to_world", 2.0)),
-            output_dir=arguments.get("output_dir", ""),
-        )
-    elif name == "build_paper_sprite_anim":
-        return await sprite_tools.build_paper_sprite_anim(
-            bridge,
-            character_tag=arguments["character_tag"],
-            anim_tag=arguments["anim_tag"],
-            cell_width=int(arguments.get("cell_width", 0)),
-            cell_height=int(arguments.get("cell_height", 0)),
-            pixel_to_world=float(arguments.get("pixel_to_world", 2.0)),
-            frame_duration_ms=float(arguments.get("frame_duration_ms", 100.0)),
-            looping=bool(arguments.get("looping", True)),
-            mirror_west_from_east=bool(arguments.get("mirror_west_from_east", True)),
-            visual_identifier_tag=arguments.get("visual_identifier_tag", ""),
-            output_dir=arguments.get("output_dir", ""),
-        )
-
     # Workspace Tools (I-0008)
     elif name == "list_workspace_tags":
         return await workspace_tools.list_workspace_tags(
