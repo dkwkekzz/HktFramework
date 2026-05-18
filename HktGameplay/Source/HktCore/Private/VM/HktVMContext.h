@@ -49,6 +49,17 @@ struct FHktVMContext
 
     FORCEINLINE void Write(uint16 PropId, int32 Value)
     {
+        // 이벤트 파라미터는 로컬 저장소에도 미러링 — Read 가 로컬을 우선 참조하므로,
+        // SaveStore Param2 → DispatchEvent 같이 동일 Story 안에서 쓰고 디스패치하는 패턴이
+        // Read/Write 비대칭으로 깨지지 않도록 한다. (I-0012 TreeLifecycle 등)
+        if      (PropId == PropertyId::TargetPosX) EventTargetPosX = Value;
+        else if (PropId == PropertyId::TargetPosY) EventTargetPosY = Value;
+        else if (PropId == PropertyId::TargetPosZ) EventTargetPosZ = Value;
+        else if (PropId == PropertyId::Param0)     EventParam0 = Value;
+        else if (PropId == PropertyId::Param1)     EventParam1 = Value;
+        else if (PropId == PropertyId::Param2)     EventParam2 = Value;
+        else if (PropId == PropertyId::Param3)     EventParam3 = Value;
+
         if (VMProxy && WorldState)
             VMProxy->SetPropertyDirty(*WorldState, SourceEntity, PropId, Value);
     }

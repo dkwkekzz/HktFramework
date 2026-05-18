@@ -19,6 +19,10 @@ namespace HktStoryTags
 	// --- Debris Flow ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Debris_Lifecycle,          "Story.Flow.Debris.Lifecycle", "Terrain debris lifecycle (death/despawn).");
 
+	// --- Natural (Tree) Lifecycle (I-0012) ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Birch_Lifecycle,           "Story.Flow.Natural.Birch.Lifecycle", "Birch tree lifecycle — State.Dead 구독 → Branch drop / SaplingSeed / DestroyEntity.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Oak_Lifecycle,             "Story.Flow.Natural.Oak.Lifecycle",   "Oak tree lifecycle — State.Dead 구독 → Branch drop / LineageFelledCount++ / OakSaplingSeed / DestroyEntity.");
+
 	// --- Anim ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Anim_FullBody_Action_Spawn, "Anim.FullBody.Action.Spawn", "Spawn intro state tag.");
 

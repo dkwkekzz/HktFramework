@@ -32,6 +32,12 @@ namespace HktStoryTags
 	// --- Debris Flow ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Debris_Lifecycle);         // Story.Flow.Debris.Lifecycle
 
+	// --- Natural (Tree) Flow (I-0012) ---
+	// 자연 entity 가 spawn 시 자기 Self 로 dispatch 받는 lifecycle story — State.Dead 를 폴링하여
+	// 사망 시 Branch drop / SaplingSeed 디스패치 / DestroyEntity. JSON: Natural/Birch/Birch_Lifecycle.json 등.
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Birch_Lifecycle);          // Story.Flow.Natural.Birch.Lifecycle
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Oak_Lifecycle);            // Story.Flow.Natural.Oak.Lifecycle
+
 	// --- Anim ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Anim_FullBody_Action_Spawn); // Anim.FullBody.Action.Spawn
 

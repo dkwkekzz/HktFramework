@@ -1560,13 +1560,11 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
         B.DispatchEvent(A.GetTag(TEXT("eventTag")));
     });
     RegisterCommandV2(TEXT("DispatchEventByReg"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-        // EventTag NetIndex 가 들어있는 vreg 를 읽어 동적 디스패치. entity-self-declares-action
-        // 모델 — Story_TargetAction 이 Target 의 DefaultActionEventTag 를 읽어 호출한다.
+        // EventTag NetIndex 가 들어있는 vreg 를 읽어 동적 디스패치.
         B.DispatchEventByReg(A.GetVar(B, TEXT("src")));
     });
     RegisterCommandV2(TEXT("SaveTagEntity"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
         // 빌드 시 GameplayTag 를 NetIndex(int) 로 해소하고, entity 의 property 에 SaveConst 한다.
-        // 자연 entity spawn 시 DefaultActionEventTag 적재용 (Birch_Spawn/Oak_Spawn 등).
         B.SaveTagEntity(A.GetVar(B, TEXT("entity")), A.GetPropertyId(TEXT("property")), A.GetTag(TEXT("tag")));
     });
     RegisterCommandV2(TEXT("WaitSeconds"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {

@@ -1,0 +1,33 @@
+{
+  "storyTag": "Story.Flow.Natural.Birch.Lifecycle",
+  "description": "Birch Lifecycle (I-0012) — Self=Birch entity 가 매 초 State.Dead 를 검사. 사망 감지 시 Branch 3 본 drop + Event.Region.SaplingSeed 디스패치 + DestroyEntity.",
+  "scenarios": [
+    {
+      "name": "alive_birch_waits_for_death",
+      "description": "Self 에 State.Dead 태그가 없으면 1초 WaitSeconds 후 check 라벨로 다시 점프. 단발 실행에서는 WaitSeconds 에서 멈춰 Running.",
+      "given": {
+        "self": { "position": [0, 0, 0] }
+      },
+      "expect": {
+        "status": "Running",
+        "dispatched": []
+      }
+    },
+    {
+      "name": "dead_birch_dispatches_sapling_seed",
+      "description": "Self 에 State.Dead 태그가 부여돼 있으면 die 분기 → Branch 3 spawn + SaplingSeed 1건 디스패치 + DestroyEntity.",
+      "given": {
+        "self": {
+          "position": [200, 300, 0],
+          "tags": ["State.Dead"]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Event.Region.SaplingSeed", "source": "self" }
+        ]
+      }
+    }
+  ]
+}

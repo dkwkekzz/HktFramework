@@ -1,34 +1,26 @@
 {
   "schema": 2,
-  "storyTag": "Event.Natural.OakFelled",
+  "storyTag": "Story.Flow.Natural.Oak.Lifecycle",
   "tags": {
-    "Oak":            "Entity.Natural.Oak",
     "Branch":         "Entity.Natural.Branch",
-    "Axe":            "Entity.Tool.Axe",
     "Lineage":        "Entity.RegionRecord.Lineage",
-    "OakSaplingSeed": "Event.Region.OakSaplingSeed"
+    "OakSaplingSeed": "Event.Region.OakSaplingSeed",
+    "StateDead":      "State.Dead"
   },
   "steps": [
-    { "op": "Log", "message": "[Oak] TreeFelled listener — Oak gate, drop branches, lineage++, dispatch OakSaplingSeed" },
+    { "op": "Log", "message": "[Oak] Lifecycle 시작 — Self=Oak entity, State.Dead 구독" },
 
-    { "op": "HasTag", "dst": {"var":"isOak"}, "entity": "Target", "tag": "Oak" },
-    { "op": "JumpIfNot", "cond": {"var":"isOak"}, "label": "done" },
+    { "op": "Label", "name": "check" },
+    { "op": "HasTag", "dst": {"var":"isDead"}, "entity": "Self", "tag": "StateDead" },
+    { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "die" },
+    { "op": "WaitSeconds", "seconds": 1.0 },
+    { "op": "Jump", "label": "check" },
 
-    { "op": "GetDistance",  "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
-    { "op": "CmpLeConst",   "dst": {"var":"inRange"}, "src": {"var":"dist"}, "value": 500 },
-    { "op": "JumpIfNot",    "cond": {"var":"inRange"}, "label": "done" },
+    { "op": "Label", "name": "die" },
+    { "op": "Log", "message": "[Oak] 사망 감지 — Branch 3 본 drop + lineage++ + OakSaplingSeed 디스패치" },
 
-    { "op": "FindByOwner",  "owner": "Self", "tag": "Axe" },
-    { "op": "CmpGtConst",   "dst": {"var":"hasAxe"}, "src": "Count", "value": 0 },
-    { "op": "JumpIfNot",    "cond": {"var":"hasAxe"}, "label": "done" },
-
-    { "op": "LoadStore", "dst": {"block":"fallenPos","index":0}, "property": "TargetPosX" },
-    { "op": "LoadStore", "dst": {"block":"fallenPos","index":1}, "property": "TargetPosY" },
-    { "op": "LoadStore", "dst": {"block":"fallenPos","index":2}, "property": "TargetPosZ" },
-
-    { "op": "LoadStoreEntity", "dst": {"var":"lineageId"}, "entity": "Target", "property": "RecordKey" },
-
-    { "op": "DestroyEntity", "entity": "Target" },
+    { "op": "GetPosition", "out": "fallenPos", "entity": "Self" },
+    { "op": "LoadStoreEntity", "dst": {"var":"lineageId"}, "entity": "Self", "property": "RecordKey" },
 
     { "op": "SpawnEntity", "classTag": "Branch", "out": "br1" },
     { "op": "SetPosition", "entity": {"var":"br1"}, "pos": {"block":"fallenPos"} },
@@ -53,11 +45,13 @@
     { "op": "RegionAddScalar",
       "regionEntity": {"var":"regionEntity"}, "property": "RegionOakCount", "delta": -1 },
 
+    { "op": "SaveStore", "property": "TargetPosX", "src": {"block":"fallenPos","index":0} },
+    { "op": "SaveStore", "property": "TargetPosY", "src": {"block":"fallenPos","index":1} },
+    { "op": "SaveStore", "property": "TargetPosZ", "src": {"block":"fallenPos","index":2} },
     { "op": "SaveStore", "property": "Param2", "src": {"var":"lineageId"} },
-    { "op": "Log", "message": "[Oak] dispatch OakSaplingSeed (Param2=LineageId)" },
     { "op": "DispatchEvent", "eventTag": "OakSaplingSeed" },
 
-    { "op": "Label", "name": "done" },
+    { "op": "DestroyEntity", "entity": "Self" },
     { "op": "Halt" }
   ]
 }

@@ -2,13 +2,13 @@
   "schema": 2,
   "storyTag": "Story.Flow.Spawner.Natural.Oak",
   "tags": {
-    "Oak":       "Entity.Natural.Oak",
-    "OakElder":  "Entity.Natural.OakElder",
-    "Lineage":   "Entity.RegionRecord.Lineage",
-    "OakFelled": "Event.Natural.OakFelled"
+    "Oak":          "Entity.Natural.Oak",
+    "OakElder":     "Entity.Natural.OakElder",
+    "Lineage":      "Entity.RegionRecord.Lineage",
+    "OakLifecycle": "Story.Flow.Natural.Oak.Lifecycle"
   },
   "steps": [
-    { "op": "Log", "message": "[Oak] grove spawner — Elder + 3 children, lineage=Param2" },
+    { "op": "Log", "message": "[Oak] grove spawner — Elder + 3 children, lineage=Param2 + Lifecycle dispatch" },
 
     { "op": "LoadStore", "dst": {"var":"baseX"},      "property": "Param0" },
     { "op": "LoadStore", "dst": {"var":"baseY"},      "property": "Param1" },
@@ -42,7 +42,9 @@
     { "op": "Move", "dst": {"block":"pos0","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"elder"}, "pos": {"block":"pos0"} },
     { "op": "SaveStoreEntity", "entity": {"var":"elder"}, "property": "RecordKey", "src": {"var":"lineageId"} },
-    { "op": "SaveTagEntity", "entity": {"var":"elder"}, "property": "DefaultActionEventTag", "tag": "OakFelled" },
+    { "op": "SaveConstEntity", "entity": {"var":"elder"}, "property": "MaxHealth", "value": 60 },
+    { "op": "SaveConstEntity", "entity": {"var":"elder"}, "property": "Health",    "value": 60 },
+    { "op": "DispatchEventFrom", "eventTag": "OakLifecycle", "source": {"var":"elder"} },
 
     { "op": "LoadConst", "dst": {"var":"o1x"}, "value": 1500 },
     { "op": "LoadConst", "dst": {"var":"o1y"}, "value": 0 },
@@ -52,7 +54,9 @@
     { "op": "Move", "dst": {"block":"pos1","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"c1"}, "pos": {"block":"pos1"} },
     { "op": "SaveStoreEntity", "entity": {"var":"c1"}, "property": "RecordKey", "src": {"var":"lineageId"} },
-    { "op": "SaveTagEntity", "entity": {"var":"c1"}, "property": "DefaultActionEventTag", "tag": "OakFelled" },
+    { "op": "SaveConstEntity", "entity": {"var":"c1"}, "property": "MaxHealth", "value": 40 },
+    { "op": "SaveConstEntity", "entity": {"var":"c1"}, "property": "Health",    "value": 40 },
+    { "op": "DispatchEventFrom", "eventTag": "OakLifecycle", "source": {"var":"c1"} },
 
     { "op": "LoadConst", "dst": {"var":"o2x"}, "value": -750 },
     { "op": "LoadConst", "dst": {"var":"o2y"}, "value": 1299 },
@@ -62,7 +66,9 @@
     { "op": "Move", "dst": {"block":"pos2","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"c2"}, "pos": {"block":"pos2"} },
     { "op": "SaveStoreEntity", "entity": {"var":"c2"}, "property": "RecordKey", "src": {"var":"lineageId"} },
-    { "op": "SaveTagEntity", "entity": {"var":"c2"}, "property": "DefaultActionEventTag", "tag": "OakFelled" },
+    { "op": "SaveConstEntity", "entity": {"var":"c2"}, "property": "MaxHealth", "value": 40 },
+    { "op": "SaveConstEntity", "entity": {"var":"c2"}, "property": "Health",    "value": 40 },
+    { "op": "DispatchEventFrom", "eventTag": "OakLifecycle", "source": {"var":"c2"} },
 
     { "op": "LoadConst", "dst": {"var":"o3x"}, "value": -750 },
     { "op": "LoadConst", "dst": {"var":"o3y"}, "value": -1299 },
@@ -72,7 +78,9 @@
     { "op": "Move", "dst": {"block":"pos3","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"c3"}, "pos": {"block":"pos3"} },
     { "op": "SaveStoreEntity", "entity": {"var":"c3"}, "property": "RecordKey", "src": {"var":"lineageId"} },
-    { "op": "SaveTagEntity", "entity": {"var":"c3"}, "property": "DefaultActionEventTag", "tag": "OakFelled" },
+    { "op": "SaveConstEntity", "entity": {"var":"c3"}, "property": "MaxHealth", "value": 40 },
+    { "op": "SaveConstEntity", "entity": {"var":"c3"}, "property": "Health",    "value": 40 },
+    { "op": "DispatchEventFrom", "eventTag": "OakLifecycle", "source": {"var":"c3"} },
 
     { "op": "Halt" }
   ]

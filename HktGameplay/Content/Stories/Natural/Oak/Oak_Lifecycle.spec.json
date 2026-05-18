@@ -1,0 +1,34 @@
+{
+  "storyTag": "Story.Flow.Natural.Oak.Lifecycle",
+  "description": "Oak Lifecycle (I-0012) — Self=Oak entity 가 매 초 State.Dead 를 검사. 사망 감지 시 Branch 3 drop + LineageFelledCount +1 + RegionOakCount -1 + Param2=LineageId 로 Event.Region.OakSaplingSeed 디스패치 + DestroyEntity.",
+  "scenarios": [
+    {
+      "name": "alive_oak_waits_for_death",
+      "description": "Self 에 State.Dead 태그가 없으면 WaitSeconds 분기 → Running.",
+      "given": {
+        "self": { "position": [0, 0, 0], "properties": { "RecordKey": 4242 } }
+      },
+      "expect": {
+        "status": "Running",
+        "dispatched": []
+      }
+    },
+    {
+      "name": "dead_oak_dispatches_sapling_seed_with_lineage",
+      "description": "Self 에 State.Dead 부여 + RecordKey=4242 → die 분기 → OakSaplingSeed 1건 디스패치, Param2=4242.",
+      "given": {
+        "self": {
+          "position": [200, 0, 0],
+          "tags": ["State.Dead"],
+          "properties": { "RecordKey": 4242 }
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Event.Region.OakSaplingSeed", "param2": 4242, "source": "self" }
+        ]
+      }
+    }
+  ]
+}

@@ -42,6 +42,7 @@ namespace HktArchetypeTags
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Projectile);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Item);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Debris);
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Natural); // 자연 entity 부모 태그 — Birch/Oak/... 이 매치 (Hittable + Spatial)
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Region);  // PR-2 — region 가상 엔티티
 
 	// --- Region Record (PR-3, 04 §3-D4) ---

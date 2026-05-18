@@ -5,6 +5,7 @@
 #include "HktWorldState.h"
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
+#include "HktCoreArchetype.h"
 #include "HktStoryRegistry.h"
 #include "NativeGameplayTags.h"
 #include "Snippets/HktSnippetItem.h"
@@ -30,13 +31,17 @@ namespace HktStoryTargetDefault
 
 	/**
 	 * ================================================================
-	 * Target Default Dispatcher
+	 * Target Default Dispatcher (I-0012)
 	 *
 	 * 자연어로 읽으면:
 	 * "타겟이 유효한 엔티티면 속성을 확인한다.
-	 *  바닥 아이템이면 Pickup을 디스패치한다.
-	 *  NPC면 사거리 검증 후 접근하고, 쿨타임을 확인한 뒤 UseSkill을 디스패치한다.
+	 *  바닥 아이템이면 접근 후 Pickup 을 디스패치한다.
+	 *  Hittable 트레이트(Health 보유 — NPC/자연 entity 등)면 사거리 검증 후 접근하고,
+	 *  쿨타임을 확인한 뒤 UseSkill 을 디스패치한다.
 	 *  그 외에는 이동을 디스패치한다."
+	 *
+	 * 의도(I-0012): 우클릭은 단일 진입점. precondition 만족 시 action 디스패치,
+	 * 아니면 위치로 이동. 나무 베기도 NPC 와 동일한 BasicAttack 파이프라인.
 	 * ================================================================
 	 */
 	HKT_REGISTER_STORY_BODY()
@@ -90,12 +95,12 @@ namespace HktStoryTargetDefault
 			.Halt()
 
 		.Label(TEXT("check_npc"))
-			// IsNPC > 0 확인
-			.LoadStoreEntity(r0, Target, PropertyId::IsNPC)
+			// Hittable 트레이트 (Health 보유) — NPC / 자연 entity 공통 진입
+			.CheckTrait(r0, Target, HktTrait::Hittable)
 			.CmpGtConst(Flag, r0, 0)
 			.JumpIfNot(Flag, TEXT("dispatch_move"));
 
-			// === NPC: 거리 검증 + 접근 + 쿨타임 ===
+			// === Hittable 타겟: 거리 검증 + 접근 + 쿨타임 ===
 
 			// 장착 아이템의 AttackRange 로드 시도 (Param1 = 슬롯 인덱스, 기본 0)
 			HktSnippetItem::LoadItemFromSlot(B, r4, UseSelfRangeLabel);
