@@ -119,6 +119,17 @@ struct HKTTERRAIN_API FHktTerrainBakedConfig
 	UPROPERTY(EditAnywhere, Category = "Streaming")
 	int32 SimMaxChunkLoadsPerFrame = 4;
 
+	// ─── Placement Story 결합 (I-0014) ───
+
+	/**
+	 * 본 baked 자산의 청크가 로드될 때 sim 이 emit 할 storyTag.
+	 * 컨벤션: `Story.Placement.<WorldId>` (예: `Story.Placement.TranquilWilds`).
+	 * 빈 태그면 폴백 `Event.Terrain.ChunkLoaded` 사용 — 기존 동작 보존.
+	 * 클라 시뮬레이터는 emit 하지 않는다 (서버 권위 게이트, FHktTerrainSystem::Process 가드).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Placement", meta = (Categories = "Story.Placement"))
+	FGameplayTag PlacementStoryTag;
+
 	/** USTRUCT → 순수 C++ Config 변환 (런타임 생성기 인자) */
 	FHktTerrainGeneratorConfig ToConfig() const;
 
@@ -266,8 +277,10 @@ public:
 	 *  - v2: Spawners[] 추가 — Story 인스턴스 메타 (TerrainSpawner.design.md §3-b).
 	 *  - v3: 청크별 surface 메타 (BiomeId/SurfaceVoxelZ/SlotHash/bIsSurfaceChunk) — 런타임
 	 *        placement 정책 패스 입력 (TerrainSpawner.design.md §4-a 갱신).
+	 *  - v4: `FHktTerrainBakedConfig::PlacementStoryTag` — World 별 Placement Story 분기 (I-0014).
+	 *        v3 자산 로드 시 빈 태그 → 폴백 `Event.Terrain.ChunkLoaded` 사용 (기존 동작 호환).
 	 */
-	static constexpr int32 CurrentBakeVersion = 3;
+	static constexpr int32 CurrentBakeVersion = 4;
 
 	/** 베이크 시 캡처된 생성기 설정. 폴백 호출 시 동일 설정 재사용 → 결정론 유지. */
 	UPROPERTY(EditAnywhere, Category = "Bake")

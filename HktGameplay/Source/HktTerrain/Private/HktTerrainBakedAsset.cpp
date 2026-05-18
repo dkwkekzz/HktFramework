@@ -41,6 +41,7 @@ FHktTerrainGeneratorConfig FHktTerrainBakedConfig::ToConfig() const
 	Out.SimLoadRadiusZ             = SimLoadRadiusZ;
 	Out.SimMaxChunksLoaded         = SimMaxChunksLoaded;
 	Out.SimMaxChunkLoadsPerFrame   = SimMaxChunkLoadsPerFrame;
+	Out.PlacementStoryTag          = PlacementStoryTag;
 	return Out;
 }
 
@@ -72,6 +73,7 @@ void FHktTerrainBakedConfig::FromConfig(const FHktTerrainGeneratorConfig& InConf
 	SimLoadRadiusZ                = InConfig.SimLoadRadiusZ;
 	SimMaxChunksLoaded            = InConfig.SimMaxChunksLoaded;
 	SimMaxChunkLoadsPerFrame      = InConfig.SimMaxChunkLoadsPerFrame;
+	PlacementStoryTag             = InConfig.PlacementStoryTag;
 }
 
 // ============================================================================

@@ -67,6 +67,15 @@ struct HKTCORE_API FHktTerrainChunkContext
 	int32 SurfaceVoxelZ   = 0;
 	uint32 SlotHash       = 0;
 	bool bIsSurfaceChunk  = false;
+
+	/**
+	 * Placement Story 의 storyTag (I-0014).
+	 *
+	 * 데이터 소스가 baked asset 의 `PlacementStoryTag` 를 그대로 전달한다.
+	 * 빈 태그면 sim 이 폴백으로 `HktTerrainEventTags::ChunkLoaded` 를 사용 — v3 자산 호환.
+	 * 본 태그를 storyTag 로 declare 한 Placement JSON 이 listen 한다.
+	 */
+	FGameplayTag DispatchTag;
 };
 
 class HKTCORE_API IHktTerrainDataSource

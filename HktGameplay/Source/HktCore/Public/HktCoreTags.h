@@ -85,12 +85,17 @@ namespace HktNaturalStoryTags
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSpawn);      // Story.Flow.Spawner.Natural.Oak
 }
 
-// ── Terrain placement (TerrainSpawner.design.md §4-a 갱신, 2026-05-15) ──
-// Event.Terrain.ChunkLoaded: 새 청크 로드 시 sim 이 발화. placement 정책 Story
-// (Content/Stories/Natural/Placement_*.json) 가 본 태그를 storyTag 로 listen 하여
-// biome/surface 컨텍스트 기반으로 spawner Story (BirchSpawn, OakSpawn 등) 를
-// DispatchEvent 한다. cpp 하드코딩 매핑 대안 — LLM/디자이너가 정책을 JSON 으로 자유 작성.
+// ── Terrain placement (TerrainSpawner.design.md §4-a 갱신, 2026-05-15 / I-0014 2026-05-18) ──
+// I-0014: World 별 Placement Story 분기 컨벤션 — `Story.Placement.<WorldId>`.
+//   - Baked asset 의 `FHktTerrainBakedConfig::PlacementStoryTag` 에 World 별 태그를 지정.
+//   - `FHktTerrainSystem::Process` 가 청크 로드 시 본 태그로 ChunkLoaded 이벤트 emit.
+//   - 동명 storyTag 의 Placement_*.json (예: `Story.Placement.TranquilWilds`) 이 listen.
+//
+// 폴백: PlacementStoryTag 가 빈 태그(=v3 자산) 면 아래 `Event.Terrain.ChunkLoaded` 사용 — 기존 동작 보존.
+//
+// 서버 권위 게이트: emit 은 서버 시뮬레이터에서만 수행. 클라 ProxySimulator 는
+// `FHktTerrainSystem::bIsAuthoritative = false` 로 emit skip — 미드조인 시 중복 spawn 방지.
 namespace HktTerrainEventTags
 {
-    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ChunkLoaded);   // Event.Terrain.ChunkLoaded
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ChunkLoaded);   // Event.Terrain.ChunkLoaded (v3 자산 폴백)
 }

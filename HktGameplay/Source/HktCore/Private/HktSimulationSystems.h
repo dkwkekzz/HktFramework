@@ -74,6 +74,17 @@ struct HKTCORE_API FHktVMProcessSystem
  */
 struct HKTCORE_API FHktTerrainSystem
 {
+    /**
+     * 서버 권위 시뮬레이터인지 (I-0014).
+     *
+     * Placement Story 는 서버 권위 시뮬레이션 1회만 실행되어야 한다 — 클라는 결과(spawned entity)
+     * 를 WorldView 로 받는다. 클라가 미드조인 시 본 게이트가 ChunkLoaded / Spawner 이벤트의
+     * 재발화를 차단하여 중복 spawn / 결정론 충돌을 막는다.
+     *
+     * 청크 LoadChunk 자체는 voxel 데이터 캐싱 목적이라 양쪽 모두 수행 — 본 플래그는 이벤트
+     * emission 만 게이팅한다. 시뮬레이터 생성 시 LogSource 기반으로 1회 세팅.
+     */
+    bool bIsAuthoritative = true;
 
     TSet<FIntVector> RequiredChunks;  // 프레임 내 재사용 (할당 회피)
     FIntVector LastPivotChunk = FIntVector(MAX_int32);  // 이전 프레임의 피벗 청크 (변경 감지)
