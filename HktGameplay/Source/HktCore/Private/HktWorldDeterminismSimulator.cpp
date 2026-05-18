@@ -33,6 +33,10 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     PhysicsSystem.LogSource = LogSource;
     VMCleanupSystem.LogSource = LogSource;
 
+    // I-0014: 서버 권위 시뮬레이터만 Placement / Spawner 이벤트를 emit.
+    // 클라 ProxySimulator 는 미드조인 시 placement 재발화를 막아야 한다 (중복 spawn 방지).
+    TerrainSystem.bIsAuthoritative = (InLogSource == EHktLogSource::Server);
+
     ActiveVMs.Reserve(HktLimits::MaxVMs);
     CompletedVMs.Reserve(HktLimits::MaxVMs);
     GeneratedPhysicsEvents.Reserve(HktLimits::MaxPhysicsEvents);

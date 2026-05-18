@@ -128,5 +128,7 @@ bool FHktTerrainProvider::TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 C
 	OutCtx.SurfaceVoxelZ    = SurfaceVoxelZ;
 	OutCtx.SlotHash         = SlotHash;
 	OutCtx.bIsSurfaceChunk  = true;
+	// I-0014: baked 자산의 PlacementStoryTag 를 그대로 전달. 빈 태그면 sim 이 폴백 처리.
+	OutCtx.DispatchTag      = Asset->GeneratorConfig.PlacementStoryTag;
 	return true;
 }

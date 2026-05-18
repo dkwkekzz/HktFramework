@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "storyTag": "Event.Terrain.ChunkLoaded",
+  "storyTag": "Story.Placement.TranquilWilds",
   "tags": {
     "OakSpawn":   "Story.Flow.Spawner.Natural.Oak",
     "BirchSpawn": "Story.Flow.Spawner.Natural.Birch"
