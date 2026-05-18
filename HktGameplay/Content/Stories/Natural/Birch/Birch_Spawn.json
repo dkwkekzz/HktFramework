@@ -2,18 +2,17 @@
   "schema": 2,
   "storyTag": "Story.Flow.Spawner.Natural.Birch",
   "tags": {
-    "Birch":      "Entity.Natural.Birch",
-    "TreeFelled": "Event.Natural.TreeFelled"
+    "Birch":        "Entity.Natural.Birch",
+    "BirchLifecycle": "Story.Flow.Natural.Birch.Lifecycle"
   },
   "steps": [
-    { "op": "Log", "message": "[Birch] chunk-load spawner — emit 3 birches around (Param0, Param1, Param3=Z)" },
+    { "op": "Log", "message": "[Birch] chunk-load spawner — emit 3 birches around (Param0, Param1, Param3=Z) + Lifecycle dispatch" },
 
     { "op": "CountByTag", "dst": {"var":"birchCount"}, "tag": "Birch" },
     { "op": "IfGeConst", "src": {"var":"birchCount"}, "value": 12 },
       { "op": "Log", "message": "[Birch] global cap reached (12) — skip" },
       { "op": "Halt" },
     { "op": "EndIf" },
-
 
     { "op": "LoadStore", "dst": {"var":"baseX"}, "property": "Param0" },
     { "op": "LoadStore", "dst": {"var":"baseY"}, "property": "Param1" },
@@ -26,7 +25,9 @@
     { "op": "Add", "dst": {"block":"pos1","index":1}, "src1": {"var":"baseY"}, "src2": {"var":"oy1"} },
     { "op": "Move", "dst": {"block":"pos1","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"b1"}, "pos": {"block":"pos1"} },
-    { "op": "SaveTagEntity", "entity": {"var":"b1"}, "property": "DefaultActionEventTag", "tag": "TreeFelled" },
+    { "op": "SaveConstEntity", "entity": {"var":"b1"}, "property": "MaxHealth", "value": 30 },
+    { "op": "SaveConstEntity", "entity": {"var":"b1"}, "property": "Health",    "value": 30 },
+    { "op": "DispatchEventFrom", "eventTag": "BirchLifecycle", "source": {"var":"b1"} },
 
     { "op": "LoadConst", "dst": {"var":"ox2"}, "value": -100 },
     { "op": "LoadConst", "dst": {"var":"oy2"}, "value": 173 },
@@ -35,7 +36,9 @@
     { "op": "Add", "dst": {"block":"pos2","index":1}, "src1": {"var":"baseY"}, "src2": {"var":"oy2"} },
     { "op": "Move", "dst": {"block":"pos2","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"b2"}, "pos": {"block":"pos2"} },
-    { "op": "SaveTagEntity", "entity": {"var":"b2"}, "property": "DefaultActionEventTag", "tag": "TreeFelled" },
+    { "op": "SaveConstEntity", "entity": {"var":"b2"}, "property": "MaxHealth", "value": 30 },
+    { "op": "SaveConstEntity", "entity": {"var":"b2"}, "property": "Health",    "value": 30 },
+    { "op": "DispatchEventFrom", "eventTag": "BirchLifecycle", "source": {"var":"b2"} },
 
     { "op": "LoadConst", "dst": {"var":"ox3"}, "value": -100 },
     { "op": "LoadConst", "dst": {"var":"oy3"}, "value": -173 },
@@ -44,7 +47,9 @@
     { "op": "Add", "dst": {"block":"pos3","index":1}, "src1": {"var":"baseY"}, "src2": {"var":"oy3"} },
     { "op": "Move", "dst": {"block":"pos3","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"b3"}, "pos": {"block":"pos3"} },
-    { "op": "SaveTagEntity", "entity": {"var":"b3"}, "property": "DefaultActionEventTag", "tag": "TreeFelled" },
+    { "op": "SaveConstEntity", "entity": {"var":"b3"}, "property": "MaxHealth", "value": 30 },
+    { "op": "SaveConstEntity", "entity": {"var":"b3"}, "property": "Health",    "value": 30 },
+    { "op": "DispatchEventFrom", "eventTag": "BirchLifecycle", "source": {"var":"b3"} },
 
     { "op": "Halt" }
   ]

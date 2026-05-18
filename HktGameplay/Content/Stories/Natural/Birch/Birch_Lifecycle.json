@@ -1,0 +1,39 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Flow.Natural.Birch.Lifecycle",
+  "tags": {
+    "Branch":      "Entity.Natural.Branch",
+    "Birch":       "Entity.Natural.Birch",
+    "SaplingSeed": "Event.Region.SaplingSeed",
+    "StateDead":   "State.Dead"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Birch] Lifecycle 시작 — Self=Birch entity, State.Dead 구독" },
+
+    { "op": "Label", "name": "check" },
+    { "op": "HasTag", "dst": {"var":"isDead"}, "entity": "Self", "tag": "StateDead" },
+    { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "die" },
+    { "op": "WaitSeconds", "seconds": 1.0 },
+    { "op": "Jump", "label": "check" },
+
+    { "op": "Label", "name": "die" },
+    { "op": "Log", "message": "[Birch] 사망 감지 — Branch 3 본 drop + SaplingSeed 디스패치 + 자기 파괴" },
+
+    { "op": "GetPosition", "out": "fallenPos", "entity": "Self" },
+
+    { "op": "SpawnEntity", "classTag": "Branch", "out": "br1" },
+    { "op": "SetPosition", "entity": {"var":"br1"}, "pos": {"block":"fallenPos"} },
+    { "op": "SpawnEntity", "classTag": "Branch", "out": "br2" },
+    { "op": "SetPosition", "entity": {"var":"br2"}, "pos": {"block":"fallenPos"} },
+    { "op": "SpawnEntity", "classTag": "Branch", "out": "br3" },
+    { "op": "SetPosition", "entity": {"var":"br3"}, "pos": {"block":"fallenPos"} },
+
+    { "op": "SaveStore", "property": "TargetPosX", "src": {"block":"fallenPos","index":0} },
+    { "op": "SaveStore", "property": "TargetPosY", "src": {"block":"fallenPos","index":1} },
+    { "op": "SaveStore", "property": "TargetPosZ", "src": {"block":"fallenPos","index":2} },
+    { "op": "DispatchEvent", "eventTag": "SaplingSeed" },
+
+    { "op": "DestroyEntity", "entity": "Self" },
+    { "op": "Halt" }
+  ]
+}

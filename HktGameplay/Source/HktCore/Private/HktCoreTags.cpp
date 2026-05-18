@@ -4,8 +4,7 @@
 
 namespace HktNaturalEventTags
 {
-    // 클라이언트가 직접 발사하는 시뮬 이벤트. 검증은 VM precondition + 결정론 모델 (Plan §3 ADR-R1).
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(TreeFelled,           "Event.Natural.TreeFelled",           "Tree-felling event (client-emitted; VM precondition validates).");
+    // 시뮬 이벤트 (나무 베기는 별도 이벤트 0 — BasicAttack 누적 → State.Dead → TreeLifecycle).
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BerryHarvested,       "Event.Natural.BerryHarvested",       "Berry cluster harvested (client-emitted; VM precondition validates).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(HerbCollected,        "Event.Natural.HerbCollected",        "Herb consumed by player (autonomous variant of Harvest — spawner story dispatches by target).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(AquaticPlucked,       "Event.Natural.AquaticPlucked",       "Reed / waterlily plucked (client-emitted; VM precondition validates).");
@@ -18,7 +17,6 @@ namespace HktNaturalEventTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(TrailEndpointReached, "Event.Natural.TrailEndpointReached", "Animal trail endpoint reached (autonomous — fired by positional system).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(PeakReached,          "Event.Natural.PeakReached",          "Peak summit reached (autonomous — fired by positional system).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(GrainObserved,        "Event.Natural.GrainObserved",        "Wind-grain pattern observed at grass endpoint (autonomous — side effect of harvest/herb events).");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakFelled,            "Event.Natural.OakFelled",            "PR-5 — Oak-specific felling event. 클라이언트는 target.HasTag(Oak) 시 본 태그를 직접 발사. Registry 가 tag→program 1:1 이므로 트리별 분리. PR-6+ router/multi-handler 도입 시 통합 가능.");
 }
 
 namespace HktToolTags
@@ -42,8 +40,8 @@ namespace HktMaterialTags
 
 namespace HktNaturalEntityTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Birch,        "Entity.Natural.Birch",        "Birch tree — Implementation-Plan §6.1 demo. Spawned by chunk-load spawner; client emits Event.Natural.TreeFelled to fell.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Branch,       "Entity.Natural.Branch",       "Branch — TreeFelled 시 drop 되는 재료 엔티티.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Birch,        "Entity.Natural.Birch",        "Birch tree — Natural archetype (Hittable). 우클릭 → BasicAttack 누적 → State.Dead → TreeLifecycle.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Branch,       "Entity.Natural.Branch",       "Branch — TreeLifecycle 가 사망 시 drop 하는 재료 엔티티.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSapling, "Entity.Natural.BirchSapling", "BirchSapling — SaplingSeed 시드로 spawn 되는 묘목.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Oak,          "Entity.Natural.Oak",          "Oak tree — Implementation-Plan §6.2 / S02 lineage demo. Grove 중심 + 자식 N 본 배치.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakElder,     "Entity.Natural.OakElder",     "Oak Elder — grove 중심 노목 (lineage 의 anchor). 베이면 LineageFelledCount +1.");
@@ -52,8 +50,8 @@ namespace HktNaturalEntityTags
 
 namespace HktRegionEventTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SaplingSeed,    "Event.Region.SaplingSeed",    "Birch TreeFelled 리스너가 자기-전파로 디스패치하는 묘목 시드 이벤트.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSaplingSeed, "Event.Region.OakSaplingSeed", "Oak TreeFelled 리스너가 디스패치하는 Oak 묘목 시드 이벤트 (Param2=LineageId 보존).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SaplingSeed,    "Event.Region.SaplingSeed",    "Birch TreeLifecycle 가 사망 시 디스패치하는 묘목 시드 이벤트.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSaplingSeed, "Event.Region.OakSaplingSeed", "Oak TreeLifecycle 가 사망 시 디스패치하는 Oak 묘목 시드 이벤트 (Param2=LineageId 보존).");
 }
 
 namespace HktNaturalStoryTags

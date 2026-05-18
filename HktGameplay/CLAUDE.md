@@ -38,7 +38,7 @@ HktGameplay (Runtime)
 
 - **엔티티 타입**: `HktType` 네임스페이스 — Unit, Projectile, Equipment, Building.
 - **GameplayTag**: 이벤트(`FHktEvent::EventTag`), UI 위젯(`Widget.LoginHud`), 에셋 해석에 사용.
-- **신규 Story 코드**: `FHktVar` API 사용 (구 `RegisterIndex` 는 PR-3 에서 JSON schema 2 로 마이그레이션 예정).
+- **신규 Story 는 JSON 으로 작성** (`HktGameplay/Content/Stories/**.json`, schema 2). C++ Fluent API (`HktStoryBuilder`) 는 JSON 파서·스니펫의 정의 진실원으로만 유지되며, 신규 Story 정의에 사용하지 않는다. 동일 storyTag 의 JSON 이 있으면 그것이 단일 출처.
 
 ## Debug Event Log
 

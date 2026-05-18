@@ -164,11 +164,6 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(IsNPC,           Cold)   // 48
     HKT_DEFINE_PROPERTY(SpawnFlowTag,    Cold)   // 49
 
-    // 엔티티가 자기 default-action 이벤트 태그를 노출 — 우클릭 시 Story_TargetAction 이
-    // 이 값(GameplayTag NetIndex)을 읽어 DispatchEventByReg 로 동적 디스패치한다.
-    // 자연 entity (Birch/Oak/...) 가 spawn 시 SaveTagEntity 로 적재.
-    HKT_DEFINE_PROPERTY(DefaultActionEventTag, Cold)
-
     // 아이템 스킬
     HKT_DEFINE_PROPERTY(ItemSkillTag,    Cold)   // 50
     HKT_DEFINE_PROPERTY(SkillCPCost,     Cold)   // 51

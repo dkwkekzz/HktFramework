@@ -97,7 +97,7 @@ public:
     /** 플레이어 생성 시 서버가 발동할 Story Tag (예: Story.State.Player.InWorld) */
     FGameplayTag GetPlayerSpawnStoryTag() const { return PlayerSpawnStoryTag; }
 
-    /** 슬롯 미선택 상태에서 우클릭 시 서버로 보낼 기본 Story Tag (예: Story.Event.Target.Default) */
+    /** 슬롯 미선택 상태에서 우클릭 시 서버로 보낼 기본 Story Tag (예: Story.Event.Target.Action) */
     FGameplayTag GetTargetDefaultStoryTag() const { return TargetDefaultStoryTag; }
 
 protected:
@@ -151,7 +151,7 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hkt|Story", meta = (Categories = "Story"))
     FGameplayTag PlayerSpawnStoryTag;
 
-    /** 우클릭(타겟 선택) 시 슬롯 미선택이면 이 Story Tag로 Rule이 이벤트를 빌드한다. 미설정 시 Story.Event.Target.Default로 fallback. */
+    /** 우클릭(타겟 선택) 시 슬롯 미선택이면 이 Story Tag로 Rule이 이벤트를 빌드한다. 미설정 시 Story.Event.Target.Action 으로 fallback. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hkt|Story", meta = (Categories = "Story"))
     FGameplayTag TargetDefaultStoryTag;
 

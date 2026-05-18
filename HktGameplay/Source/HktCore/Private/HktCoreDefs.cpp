@@ -11,6 +11,7 @@ namespace HktArchetypeTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Projectile, "Entity.Projectile", "Projectile entity.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Item, "Entity.Item", "Item entity parent tag.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Debris, "Entity.Debris", "Terrain debris entity.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Natural, "Entity.Natural", "자연 entity 부모 태그 — 자식: Birch/Oak/... ClassTag 매칭으로 Natural archetype 자동 할당. Hittable + Spatial 보유 → BasicAttack 으로 베기 가능.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Region, "Entity.Region", "Virtual region entity — region 카운터 (PR-2) 의 SoA row 보유.");
 
     // --- Region Record (PR-3, 04 §3-D4) ---
