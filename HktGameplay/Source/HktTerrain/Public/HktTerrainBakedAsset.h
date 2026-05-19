@@ -122,13 +122,36 @@ struct HKTTERRAIN_API FHktTerrainBakedConfig
 	// ─── Placement Story 결합 (I-0014) ───
 
 	/**
-	 * 본 baked 자산의 청크가 로드될 때 sim 이 emit 할 storyTag.
-	 * 컨벤션: `Story.Placement.<WorldId>` (예: `Story.Placement.TranquilWilds`).
-	 * 빈 태그면 폴백 `Event.Terrain.ChunkLoaded` 사용 — 기존 동작 보존.
-	 * 클라 시뮬레이터는 emit 하지 않는다 (서버 권위 게이트, FHktTerrainSystem::Process 가드).
+	 * @deprecated I-0014 Phase B 부터 사용 안 함. voxel attribution 모델로 전환되어
+	 *             chunk-level Placement Story 분기가 제거되었다 — `VoxelTypeSpawnTemplate`
+	 *             로 voxel type 별 template 을 직접 지정한다. v5 자산에서 본 필드는
+	 *             직렬화 호환을 위해 잔류하지만 런타임에서 읽지 않는다.
+	 *             다음 BakeVersion 증분 시 제거 예정.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Placement", meta = (Categories = "Story.Placement"))
+	UPROPERTY(EditAnywhere, Category = "Placement", meta = (Categories = "Story.Placement", DeprecatedProperty, DeprecationMessage = "Use VoxelTypeSpawnTemplate (I-0014 Phase B)"))
 	FGameplayTag PlacementStoryTag;
+
+	// ─── Voxel Spawn Template 매핑 (I-0014 Phase B) ───
+
+	/**
+	 * Voxel Type → Spawn Template Story 매핑.
+	 *
+	 * 디자이너가 "이 voxel type 위 (top-most non-air voxel) 에는 이 template story 가
+	 * 발화한다" 를 단일 표로 선언. `BakeRegion` 이 매 surface chunk 의 32×32 column 을
+	 * 순회하면서 top-most non-air voxel 의 TypeID 를 본 표로 조회 → 매칭되는 voxel 에
+	 * attribution (`FHktTerrainBakedChunk::SpawnTemplateAttribution`) 자동 부여 +
+	 * `UHktTerrainBakedAsset::SpawnTemplateCatalog` 빌드.
+	 *
+	 *   - 키: `FHktTerrainVoxel::TypeID` (예: 1=Grass, 12=GrassFlower, 6=Snow ...).
+	 *         (UPROPERTY TMap 키는 int32 — uint16 미지원, BakeRegion 에서 캐스트.)
+	 *   - 값: 발화할 template story tag (예: `Story.Flow.Spawner.Natural.Oak`).
+	 *
+	 * 빈 매핑이면 BakeRegion 이 attribution 을 0 으로 산출 → 런타임 spawn 없음.
+	 * Sparse 정책 (density / N 개당 1 개 등) 은 template story 본문이 SlotHash31
+	 * 결정론 시드로 자체 처리 (I-0017).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Placement", meta = (Categories = "Story.Flow.Spawner"))
+	TMap<int32, FGameplayTag> VoxelTypeSpawnTemplate;
 
 	/** USTRUCT → 순수 C++ Config 변환 (런타임 생성기 인자) */
 	FHktTerrainGeneratorConfig ToConfig() const;

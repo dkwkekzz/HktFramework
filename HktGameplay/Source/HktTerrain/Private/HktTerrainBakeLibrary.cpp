@@ -206,6 +206,96 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	// Spawners[] 는 본 베이크 패스에서 채우지 않는다 — 명시 배치만 받음.
 	// 비워두면 자산 새로 만들 때 빈 배열 그대로 직렬화 (의도된 빈 슬롯).
 
+	// ────────────────────────────────────────────────────────────────────────
+	// Voxel Spawn Template 자동 산출 (I-0014 Phase B)
+	//
+	// `BakedConfig.VoxelTypeSpawnTemplate` (디자이너 정의) 를 보고:
+	//   1. 등장하는 unique StoryTag 별로 templateId 부여 → `SpawnTemplateCatalog`
+	//   2. 매 surface chunk 의 32×32 column 을 순회, top-most non-air voxel 의 TypeID 가
+	//      매핑되어 있으면 attribution 기록 (sparse, top voxel per column).
+	//
+	// 매핑이 비어 있으면 attribution 0 — 런타임 spawn 없음. 디자이너 책임.
+	// Phase A 의 chunk-level ChunkLoaded 호환 어댑터는 본 PR 에서 함께 제거됨.
+	// ────────────────────────────────────────────────────────────────────────
+	int32 AttributionsWritten = 0;
+	int32 SurfaceChunksProcessed = 0;
+	{
+		// 1. StoryTag → templateId 부여 (templateId 0 은 미할당으로 예약)
+		TMap<FGameplayTag, uint16> TagToTemplateId;
+		uint16 NextTemplateId = 1;
+		for (const TPair<int32, FGameplayTag>& Pair : BakedConfig.VoxelTypeSpawnTemplate)
+		{
+			const FGameplayTag& Tag = Pair.Value;
+			if (!Tag.IsValid()) continue;
+			if (TagToTemplateId.Contains(Tag)) continue;
+			if (NextTemplateId == 0)  // wraparound (>65535 unique tags) — 비현실적이나 방어
+			{
+				UE_LOG(LogHktTerrain, Warning,
+					TEXT("BakeRegion: VoxelTypeSpawnTemplate unique tag 가 uint16 한도(65535)를 초과 — 일부 무시"));
+				break;
+			}
+			TagToTemplateId.Add(Tag, NextTemplateId);
+			Asset->SpawnTemplateCatalog.Add(NextTemplateId, Tag);
+			++NextTemplateId;
+		}
+
+		// 2. VoxelTypeID → templateId 룩업 (chunk 순회용 hot map)
+		TMap<uint16, uint16> VoxelTypeToTemplateId;
+		VoxelTypeToTemplateId.Reserve(BakedConfig.VoxelTypeSpawnTemplate.Num());
+		for (const TPair<int32, FGameplayTag>& Pair : BakedConfig.VoxelTypeSpawnTemplate)
+		{
+			if (!Pair.Value.IsValid()) continue;
+			const uint16* TidPtr = TagToTemplateId.Find(Pair.Value);
+			if (!TidPtr) continue;
+			const int32 TypeKey = Pair.Key;
+			if (TypeKey <= 0 || TypeKey > MAX_uint16)
+			{
+				UE_LOG(LogHktTerrain, Warning,
+					TEXT("BakeRegion: VoxelTypeSpawnTemplate 키 %d 가 uint16 범위 밖 (0=air, ≤65535) — 무시"),
+					TypeKey);
+				continue;
+			}
+			VoxelTypeToTemplateId.Add(static_cast<uint16>(TypeKey), *TidPtr);
+		}
+
+		// 3. surface chunk 순회 → 32×32 column top-most non-air voxel scan
+		if (VoxelTypeToTemplateId.Num() > 0)
+		{
+			constexpr int32 CS = FHktTerrainGeneratorConfig::ChunkSize;
+			for (FHktTerrainBakedChunk& Chunk : Asset->Chunks)
+			{
+				if (!Chunk.bIsSurfaceChunk) continue;
+				++SurfaceChunksProcessed;
+
+				// surface chunk 의 voxel 데이터 재산출 (생성기 결정론적이므로 동일 결과).
+				FMemory::Memzero(RawVoxels.GetData(), RawBytes);
+				Generator.GenerateChunk(Chunk.Coord.X, Chunk.Coord.Y, Chunk.Coord.Z, RawVoxels.GetData());
+
+				for (int32 LocalY = 0; LocalY < CS; ++LocalY)
+				for (int32 LocalX = 0; LocalX < CS; ++LocalX)
+				{
+					// Z=31 → 0 스캔, 최초 non-air voxel = 본 청크 column 의 surface 후보
+					for (int32 LocalZ = CS - 1; LocalZ >= 0; --LocalZ)
+					{
+						const int32 Idx = LocalX + LocalY * CS + LocalZ * CS * CS;
+						const uint16 TypeID = RawVoxels[Idx].TypeID;
+						if (TypeID == 0) continue;
+
+						const uint16* TemplateIdPtr = VoxelTypeToTemplateId.Find(TypeID);
+						if (TemplateIdPtr)
+						{
+							const uint16 Packed =
+								FHktTerrainBakedChunk::PackLocalCoord(LocalX, LocalY, LocalZ);
+							Chunk.SpawnTemplateAttribution.Add(Packed, *TemplateIdPtr);
+							++AttributionsWritten;
+						}
+						break;  // top-most non-air 만 검사 (column 1점)
+					}
+				}
+			}
+		}
+	}
+
 	Asset->RebuildIndex();
 	Asset->MarkPackageDirty();
 
@@ -226,12 +316,13 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	FAssetRegistryModule::AssetCreated(Asset);
 
 	UE_LOG(LogHktTerrain, Log,
-		TEXT("BakeRegion '%s' 완료 — Baked=%d SkippedEmpty=%d Total=%d CompressedBytes=%lld AvgRatio=%.2f%% SurfaceMeta=%d(skipped=%d)"),
+		TEXT("BakeRegion '%s' 완료 — Baked=%d SkippedEmpty=%d Total=%d CompressedBytes=%lld AvgRatio=%.2f%% SurfaceMeta=%d(skipped=%d) Attribution=%d(chunks=%d, catalog=%d)"),
 		*SavePath, BakedCount, SkippedEmpty, TotalChunks, TotalCompressed,
 		BakedCount > 0
 			? 100.0 * TotalCompressed / (static_cast<int64>(BakedCount) * RawBytes)
 			: 0.0,
-		SurfaceMetaTagged, SurfaceMetaSkipped);
+		SurfaceMetaTagged, SurfaceMetaSkipped,
+		AttributionsWritten, SurfaceChunksProcessed, Asset->SpawnTemplateCatalog.Num());
 
 	return Asset;
 #endif
