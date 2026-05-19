@@ -56,8 +56,9 @@ namespace HktRegionEventTags
 
 namespace HktNaturalStoryTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn,        "Story.Flow.Spawner.Natural.Birch",        "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,          "Story.Flow.Spawner.Natural.Oak",          "Oak chunk-load spawner story. Param2=LineageId, Param3=ChildCount.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(MaterialNodeSpawn, "Story.Flow.Spawner.Natural.MaterialNode", "I-0014 검증용 최소 spawner. voxel 한 점 → Entity.Item.Wood 1개 drop. VoxelTypeSpawnTemplate 기본 매핑이 가리킴.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak chunk-load spawner story. Param2=LineageId, Param3=ChildCount.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(TreeSpawn,  "Story.Flow.Spawner.Natural.Tree",  "I-0014 검증용 — voxel 한 점에 Oak 1본 spawn 후 Oak_Lifecycle dispatch. CountByTag<20 cap.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SlimeSpawn, "Story.Flow.Spawner.Natural.Slime", "I-0014 검증용 — voxel 한 점에 Slime NPC 1마리 spawn 후 NPC.Lifecycle dispatch. CountByTag<10 cap.");
 }
 

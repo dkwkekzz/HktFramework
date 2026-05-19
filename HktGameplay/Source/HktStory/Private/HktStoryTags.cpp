@@ -8,6 +8,7 @@ namespace HktStoryTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_Character_Player,      "Entity.Character.Player",  "Player character entity.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Goblin,            "Entity.NPC.Goblin",        "Goblin NPC entity.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Skeleton,          "Entity.NPC.Skeleton",      "Skeleton NPC entity.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_NPC_Slime,             "Entity.NPC.Slime",         "Slime NPC entity — I-0014 voxel attribution 검증용. NPC.Lifecycle 공유.");
 
 	// --- Entity Attr ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_NPC_Hostile,              "Entity.Attr.NPC.Hostile",   "Hostile NPC tag.");

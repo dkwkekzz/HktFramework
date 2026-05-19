@@ -1,0 +1,45 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Flow.Spawner.Natural.Slime",
+  "tags": {
+    "NpcSlime":      "Entity.NPC.Slime",
+    "EntityNPC":     "Entity.NPC",
+    "NpcHostile":    "Entity.Attr.NPC.Hostile",
+    "StanceUnarmed": "Entity.Stance.Unarmed",
+    "NpcLifecycle":  "Story.Flow.NPC.Lifecycle"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Slime] voxel attribution — Slime NPC 1마리 spawn + NpcLifecycle dispatch" },
+
+    { "op": "CountByTag", "dst": {"var":"slimeCount"}, "tag": "NpcSlime" },
+    { "op": "IfGeConst", "src": {"var":"slimeCount"}, "value": 10 },
+      { "op": "Log", "message": "[Slime] global cap (>=10 Slime) — skip" },
+      { "op": "Halt" },
+    { "op": "EndIf" },
+
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":0}, "property": "Param0" },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":1}, "property": "Param1" },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":2}, "property": "Param3" },
+
+    { "op": "SpawnEntity", "classTag": "NpcSlime", "out": "slime" },
+
+    { "op": "AddTag", "entity": {"var":"slime"}, "tag": "EntityNPC" },
+    { "op": "AddTag", "entity": {"var":"slime"}, "tag": "NpcSlime" },
+    { "op": "AddTag", "entity": {"var":"slime"}, "tag": "NpcHostile" },
+
+    { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "IsNPC",       "value": 1 },
+    { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "Health",      "value": 30 },
+    { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "MaxHealth",   "value": 30 },
+    { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "AttackPower", "value": 8 },
+    { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "Defense",     "value": 1 },
+    { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "Team",        "value": 0 },
+    { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "MaxSpeed",    "value": 60 },
+
+    { "op": "SetStance",   "entity": {"var":"slime"}, "stanceTag": "StanceUnarmed" },
+    { "op": "SetPosition", "entity": {"var":"slime"}, "pos": {"block":"spawnPos"} },
+
+    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": {"var":"slime"} },
+
+    { "op": "Halt" }
+  ]
+}

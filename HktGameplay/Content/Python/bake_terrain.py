@@ -83,7 +83,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--height-max-z", type=int, default=3,
                    help="월드 최대 Z 청크. 기본 3")
     p.add_argument("--no-spawn-templates", action="store_true",
-                   help="VoxelTypeSpawnTemplate 기본 매핑 (재료 spawn 테스트용) 적용 안 함")
+                   help="VoxelTypeSpawnTemplate 기본 매핑 (Tree/Slime spawn 테스트용) 적용 안 함")
     return p.parse_args(argv)
 
 
@@ -108,20 +108,31 @@ def default_spawn_template_mapping() -> dict[int, str]:
     발화한다". BakeRegion 이 매 surface chunk 의 32×32 column 을 순회하며 본 표로
     attribution 을 자동 채운다. 런타임은 SpawnTemplateCatalog 를 read-only 로 해석.
 
-    여기서는 I-0014 통합 동작 검증을 위해 *소수의 voxel type* 만 매핑한다 — 디폴트로
-    전 영역에 재료가 폭발하면 곤란하므로, 표면 분포가 *상대적으로 희소한* Snow/Gravel/
-    Sand/Clay 에 대해서만 MaterialNode 를 wiring. Grass/Dirt 같은 흔한 surface 는
-    의도적으로 비워둔다 (필요 시 designer 가 추가).
+    "재료" = spawn 주체 entity (나무 / NPC). 본 매핑은 I-0014 인게임 검증용으로
+    다음 두 spawner story 를 적절한 voxel type 에 wiring:
 
-    참고:
-      - MaterialNode_Spawn.json (Story.Flow.Spawner.Natural.MaterialNode) — Wood 1개 drop
-      - BirchSpawn / OakSpawn 는 Region 메모리 + lineage 필요 — 단순 검증용 매핑 부적합
+      - Tree_Spawn.json  (Story.Flow.Spawner.Natural.Tree)
+          Oak 1본 spawn → Oak_Lifecycle (State.Dead → Branch drop / OakSaplingSeed)
+          글로벌 cap: CountByTag Oak < 20
+      - Slime_Spawn.json (Story.Flow.Spawner.Natural.Slime)
+          Entity.NPC.Slime 1마리 spawn → NPC.Lifecycle (State.Dead → 랜덤 아이템 drop / DestroyEntity)
+          글로벌 cap: CountByTag Slime < 10
+
+    바이옴 매칭 (HktTerrainBiome.cpp MaterialRules):
+      - Snow(6)   = Tundra 표면 → Tree (frost pine 메타포)
+      - Gravel(8) = Mountain 표면 → Tree (산악림)
+      - Clay(9)   = Swamp 표면 → Slime (늪 슬라임)
+      - Sand(4)   = Desert 표면 → Slime (사막 슬라임)
+
+    Grass(1)/Dirt(2) 같은 흔한 surface 는 의도적으로 비워둔다 — voxel attribution 이
+    전 영역을 채워 spawn cap 즉시 도달 / cap 도달 후 모든 잔여 fire 가 no-op 되면
+    검증 메시지 가독성이 떨어진다. 디자이너는 필요 시 추가.
     """
     return {
-        VOXEL_TYPE_SAND:   "Story.Flow.Spawner.Natural.MaterialNode",
-        VOXEL_TYPE_SNOW:   "Story.Flow.Spawner.Natural.MaterialNode",
-        VOXEL_TYPE_GRAVEL: "Story.Flow.Spawner.Natural.MaterialNode",
-        VOXEL_TYPE_CLAY:   "Story.Flow.Spawner.Natural.MaterialNode",
+        VOXEL_TYPE_SNOW:   "Story.Flow.Spawner.Natural.Tree",
+        VOXEL_TYPE_GRAVEL: "Story.Flow.Spawner.Natural.Tree",
+        VOXEL_TYPE_CLAY:   "Story.Flow.Spawner.Natural.Slime",
+        VOXEL_TYPE_SAND:   "Story.Flow.Spawner.Natural.Slime",
     }
 
 
