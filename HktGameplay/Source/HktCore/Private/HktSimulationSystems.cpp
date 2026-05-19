@@ -666,7 +666,7 @@ void FHktTerrainSystem::Process(
                 }
 
                 // I-0014 Phase B — voxel 평가 패스 (per-voxel template 활성화, read-only).
-                // BakeRegion 이 `VoxelTypeSpawnTemplate` 매핑으로 산출한 baked attribution 을
+                // BakeRegion 이 `VoxelSpawnRules` weighted-pick 으로 산출한 baked attribution 을
                 // 그대로 읽어 voxel 한 점마다 *참조 template StoryTag* 를 EventTag 로 dispatch.
                 //
                 // Phase A 의 chunk-level ChunkLoaded 호환 어댑터는 본 PR 에서 제거 — voxel

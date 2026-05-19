@@ -15,7 +15,8 @@ I-0014 voxel spawn attribution 으로 생성된 entity 가 **베이크 시점의
 │   UHktTerrainBakeLibrary::BakeRegion                                  │
 │   ├ FHktTerrainGenerator::GenerateChunk × N → Oodle 압축              │
 │   ├ surface column scan: top-most non-air voxel.TypeID 추출           │
-│   └ VoxelTypeSpawnTemplate 매핑 → SpawnTemplateAttribution            │
+│   └ VoxelSpawnRules 후보 + 좌표 시드 weighted-pick                    │
+│       → SpawnTemplateAttribution (skip 슬롯 = 미부여)                 │
 │       + SpawnTemplateCatalog (templateId → StoryTag)                  │
 │   → /Game/Terrain/Baked/RegionDefault.uasset                          │
 └──────────────────────────────┬───────────────────────────────────────┘
@@ -103,7 +104,7 @@ I-0014 voxel spawn attribution 으로 생성된 entity 가 **베이크 시점의
 |---|---|---|
 | 영역 순회 + 청크 생성 | `HktTerrain/Private/HktTerrainBakeLibrary.cpp:69-142` | `FHktTerrainGenerator::GenerateChunk` 호출 → 32³ voxel raw → Oodle 압축 |
 | Surface 마킹 | `HktTerrainBakeLibrary.cpp:145-194` | top-most non-air voxel 존재 시 `bIsSurfaceChunk=true` (attribution 게이트) |
-| Attribution 산출 | `HktTerrainBakeLibrary.cpp:200-287` | `VoxelTypeSpawnTemplate` (디자이너 매핑) 로 surface column scan → `SpawnTemplateAttribution[PackLocalCoord]=templateId` + `SpawnTemplateCatalog[templateId]=StoryTag` |
+| Attribution 산출 | `HktTerrainBakeLibrary.cpp:200-355` | `VoxelSpawnRules` (디자이너 후보 + weight) → voxel type 별 cumulative-weight bucket → 매 top voxel 마다 `ComputeVoxelSlotHash31(worldX,Y,Z) % totalWeight` 로 결정론적 픽 → `SpawnTemplateAttribution[PackLocalCoord]=templateId` + `SpawnTemplateCatalog[templateId]=StoryTag`. skip 슬롯 (invalid StoryTag) 선정 시 미부여 |
 | I-0015 정적 검증 | `HktTerrainBakeLibrary.cpp:290-324` | orphan catalog templateId (미참조) 검출 → WARN |
 
 **산출물**: `UHktTerrainBakedAsset.uasset` — `Chunks[]` (압축 voxel + attribution 슬롯) + `SpawnTemplateCatalog` + `GeneratorConfig` (폴백 재생성용).

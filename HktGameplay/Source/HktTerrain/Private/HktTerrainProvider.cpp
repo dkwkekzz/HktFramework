@@ -120,7 +120,7 @@ void FHktTerrainProvider::GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, i
 	const TMap<int32, int32>* AttrMap = Asset->FindVoxelAttribution(Coord);
 	if (!AttrMap)
 	{
-		return;  // 슬롯 비어 있음 — 디자이너가 VoxelTypeSpawnTemplate 미정의
+		return;  // 슬롯 비어 있음 — 디자이너가 VoxelSpawnRules 미정의 또는 모든 픽이 skip
 	}
 
 	constexpr int32 ChunkSize = FHktTerrainGeneratorConfig::ChunkSize;

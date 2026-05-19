@@ -83,7 +83,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--height-max-z", type=int, default=3,
                    help="월드 최대 Z 청크. 기본 3")
     p.add_argument("--no-spawn-templates", action="store_true",
-                   help="VoxelTypeSpawnTemplate 기본 매핑 (Tree/Slime spawn 테스트용) 적용 안 함")
+                   help="VoxelSpawnRules 기본 매핑 (Tree/Slime 다양성 weighted-pick) 적용 안 함")
     return p.parse_args(argv)
 
 
@@ -101,56 +101,67 @@ VOXEL_TYPE_GRAVEL  = 8
 VOXEL_TYPE_CLAY    = 9
 
 
-def default_spawn_template_mapping() -> dict[int, str]:
-    """BakeRegion 의 VoxelTypeSpawnTemplate 기본 매핑.
+# 후보 1개 = (StoryTag 이름 or None=skip 슬롯, weight).
+SpawnCandidate = tuple[str | None, int]
 
-    디자이너 의도: "이 voxel type 위 (top-most non-air voxel) 에는 이 template story 가
-    발화한다". BakeRegion 이 매 surface chunk 의 32×32 column 을 순회하며 본 표로
-    attribution 을 자동 채운다. 런타임은 SpawnTemplateCatalog 를 read-only 로 해석.
 
-    "재료" = spawn 주체 entity (나무 / NPC). 본 매핑은 I-0014 인게임 검증용으로
-    다음 두 spawner story 를 적절한 voxel type 에 wiring:
+def default_voxel_spawn_rules() -> dict[int, list[SpawnCandidate]]:
+    """BakeRegion 의 VoxelSpawnRules 기본 매핑 (v6 — 다양성 확장).
 
-      - Tree_Spawn.json  (Story.Flow.Spawner.Natural.Tree)
-          Oak 1본 spawn → Oak_Lifecycle (State.Dead → Branch drop / OakSaplingSeed)
-          글로벌 cap: CountByTag Oak < 20
-      - Slime_Spawn.json (Story.Flow.Spawner.Natural.Slime)
-          Entity.NPC.Slime 1마리 spawn → NPC.Lifecycle (State.Dead → 랜덤 아이템 drop / DestroyEntity)
-          글로벌 cap: CountByTag Slime < 10
+    디자이너 의도: "이 voxel type 위 (top-most non-air voxel) 에는 *다음 후보 중
+    하나가* 결정론적으로 발화한다". BakeRegion 이 매 surface column 의 top voxel
+    좌표 (`ComputeVoxelSlotHash31`) 로 weighted-pick 을 수행 — 동일 voxel 재방문
+    시 동일 결과 (I-0017). 런타임은 결과를 read-only 로 dispatch.
 
-    바이옴 매칭 (HktTerrainBiome.cpp MaterialRules):
-      - Snow(6)   = Tundra 표면 → Tree (frost pine 메타포)
-      - Gravel(8) = Mountain 표면 → Tree (산악림)
-      - Clay(9)   = Swamp 표면 → Slime (늪 슬라임)
-      - Sand(4)   = Desert 표면 → Slime (사막 슬라임)
+    "재료" = spawn 주체 entity (나무 / NPC). 본 매핑은 I-0014 인게임 검증 + 다양성
+    검증용. 후보 1개당 (storyTag, weight) — storyTag=None 은 *skip 슬롯* (해당
+    weight 만큼 아무것도 spawn 안 함).
+
+    매핑된 voxel type (HktTerrainBiome.cpp MaterialRules):
+      - Snow(6)   = Tundra 표면 → Tree 40% / Slime 10% / skip 50%
+      - Gravel(8) = Mountain 표면 → Tree 50% / skip 50%  (희소한 산악림)
+      - Clay(9)   = Swamp 표면 → Slime 50% / Tree 10% / skip 40%
+      - Sand(4)   = Desert 표면 → Slime 30% / skip 70%   (사막 = 희소)
 
     Grass(1)/Dirt(2) 같은 흔한 surface 는 의도적으로 비워둔다 — voxel attribution 이
-    전 영역을 채워 spawn cap 즉시 도달 / cap 도달 후 모든 잔여 fire 가 no-op 되면
-    검증 메시지 가독성이 떨어진다. 디자이너는 필요 시 추가.
+    전 영역을 채워 spawn cap 즉시 도달 시 검증 메시지 가독성 저하. 디자이너는
+    필요 시 추가.
     """
+    TREE  = "Story.Flow.Spawner.Natural.Tree"
+    SLIME = "Story.Flow.Spawner.Natural.Slime"
     return {
-        VOXEL_TYPE_SNOW:   "Story.Flow.Spawner.Natural.Tree",
-        VOXEL_TYPE_GRAVEL: "Story.Flow.Spawner.Natural.Tree",
-        VOXEL_TYPE_CLAY:   "Story.Flow.Spawner.Natural.Slime",
-        VOXEL_TYPE_SAND:   "Story.Flow.Spawner.Natural.Slime",
+        VOXEL_TYPE_SNOW:   [(TREE, 40),  (SLIME, 10), (None, 50)],
+        VOXEL_TYPE_GRAVEL: [(TREE, 50),                (None, 50)],
+        VOXEL_TYPE_CLAY:   [(SLIME, 50), (TREE, 10),  (None, 40)],
+        VOXEL_TYPE_SAND:   [(SLIME, 30),               (None, 70)],
     }
 
 
-def apply_spawn_template_mapping(cfg: "unreal.HktTerrainBakedConfig",
-                                 mapping: dict[int, str]) -> int:
-    """`cfg.voxel_type_spawn_template` 을 채운다. 적용된 항목 수 반환.
+def apply_voxel_spawn_rules(cfg: "unreal.HktTerrainBakedConfig",
+                            rules_by_type: dict[int, list[SpawnCandidate]]) -> int:
+    """`cfg.voxel_spawn_rules` 를 채운다. 추가된 rule 수 반환.
 
-    UE5 Python 바인딩에서 TMap<int32, FGameplayTag> 는 dict 형태로 직렬화되며,
-    GameplayTag 는 `unreal.GameplayTag(name)` 으로 구성. 비어 있는 매핑이면
-    BakeRegion 이 attribution 을 0 으로 산출 → 런타임 spawn 없음 (Phase B 디폴트).
+    UE5 Python 바인딩에서 USTRUCT TArray<FHktVoxelSpawnRule> 는 list 형태로
+    직렬화. 각 rule 은 `unreal.HktVoxelSpawnRule()` 인스턴스로 voxel_type_id /
+    story_tag / weight 를 세팅 (UE5 reflection 은 snake_case 필드명).
+
+    skip 슬롯 (storyTag=None) 은 invalid GameplayTag (`unreal.GameplayTag()`)
+    로 표현 — BakeRegion 이 해당 픽 결과 시 attribution 미부여 (skip 처리).
     """
-    if not mapping:
+    if not rules_by_type:
         return 0
-    table = {}
-    for voxel_type_id, tag_name in mapping.items():
-        table[int(voxel_type_id)] = unreal.GameplayTag(tag_name)
-    cfg.voxel_type_spawn_template = table
-    return len(table)
+    flat: list = []
+    for voxel_type_id, candidates in rules_by_type.items():
+        for tag_name, weight in candidates:
+            if weight <= 0:
+                continue
+            rule = unreal.HktVoxelSpawnRule()
+            rule.voxel_type_id = int(voxel_type_id)
+            rule.story_tag = unreal.GameplayTag(tag_name) if tag_name else unreal.GameplayTag()
+            rule.weight = int(weight)
+            flat.append(rule)
+    cfg.voxel_spawn_rules = flat
+    return len(flat)
 
 
 # ---------------------------------------------------------------------------
@@ -210,12 +221,12 @@ def build_config(args: argparse.Namespace) -> unreal.HktTerrainBakedConfig:
     cfg.sim_max_chunks_loaded        = 256
     cfg.sim_max_chunk_loads_per_frame = 4
 
-    # ─── Voxel Spawn Template (I-0014 Phase B) ───
-    # `--no-spawn-templates` 미지정 시 기본 매핑 적용 → BakeRegion 이 surface column
-    # scan 으로 attribution 자동 산출. 런타임은 SpawnTemplateCatalog read-only.
+    # ─── Voxel Spawn Rules (I-0014 v6 — 다양성 확장) ───
+    # `--no-spawn-templates` 미지정 시 기본 후보 목록 적용 → BakeRegion 이 surface
+    # column 좌표 시드로 weighted-pick → attribution 자동 산출. 런타임 read-only.
     if not args.no_spawn_templates:
-        applied = apply_spawn_template_mapping(cfg, default_spawn_template_mapping())
-        unreal.log(f"[bake_terrain] VoxelTypeSpawnTemplate 기본 매핑 {applied} 항목 적용")
+        applied = apply_voxel_spawn_rules(cfg, default_voxel_spawn_rules())
+        unreal.log(f"[bake_terrain] VoxelSpawnRules {applied} 항목 적용")
 
     return cfg
 

@@ -10,6 +10,40 @@
 #include "HktTerrainBakedAsset.generated.h"
 
 /**
+ * FHktVoxelSpawnRule — 단일 voxel type 의 후보 spawner 1개.
+ *
+ * `FHktTerrainBakedConfig::VoxelSpawnRules` 가 본 구조체의 flat array 로 보유.
+ * BakeRegion 이 voxel type 별로 그룹핑하여 weighted-pick 룩업 테이블을 빌드한다.
+ *
+ *   - `VoxelTypeID == 0` 또는 `Weight <= 0` 인 엔트리는 무시.
+ *   - `StoryTag` 가 invalid (`None`) 이면 "skip 슬롯" — 해당 weight 만큼 *아무것도
+ *     spawn 하지 않을* 확률을 표현. attribution 미부여 → catalog 미등록.
+ *
+ * 결정론: BakeRegion 의 weighted-pick 은 voxel 좌표 한 곳 (`ComputeVoxelSlotHash31`)
+ * 에서만 시드를 끌어 동일 voxel 재방문 시 동일 결과 (I-0017).
+ */
+USTRUCT(BlueprintType)
+struct HKTTERRAIN_API FHktVoxelSpawnRule
+{
+	GENERATED_BODY()
+
+	/** 대상 voxel TypeID (예: 1=Grass / 4=Sand / 6=Snow). 0 = 무시. */
+	UPROPERTY(EditAnywhere, Category = "Placement")
+	int32 VoxelTypeID = 0;
+
+	/**
+	 * 발화할 spawner story tag (예: `Story.Flow.Spawner.Natural.Tree`).
+	 * `None` (invalid) 이면 skip 슬롯 — weight 만큼 *spawn 없음* 확률을 차지.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Placement", meta = (Categories = "Story.Flow.Spawner"))
+	FGameplayTag StoryTag;
+
+	/** 결정론적 weighted-pick 가중치. 0 = 항목 무시. */
+	UPROPERTY(EditAnywhere, Category = "Placement", meta = (ClampMin = "0"))
+	int32 Weight = 1;
+};
+
+/**
  * FHktTerrainBakedConfig — UPROPERTY 호환 베이크 설정 미러.
  *
  * `FHktTerrainGeneratorConfig`(HktCore 잔류, plain C++ POD)는 USTRUCT 가 아니므로
@@ -119,27 +153,36 @@ struct HKTTERRAIN_API FHktTerrainBakedConfig
 	UPROPERTY(EditAnywhere, Category = "Streaming")
 	int32 SimMaxChunkLoadsPerFrame = 4;
 
-	// ─── Voxel Spawn Template 매핑 (I-0014 Phase B) ───
+	// ─── Voxel Spawn Template 매핑 (I-0014 Phase B + 다양성 확장 v6) ───
 
 	/**
-	 * Voxel Type → Spawn Template Story 매핑.
+	 * Voxel Type 별 Spawn 후보 목록 — *동일 voxel type 에서도 다양한 entity 가 출현*.
 	 *
-	 * 디자이너가 "이 voxel type 위 (top-most non-air voxel) 에는 이 template story 가
-	 * 발화한다" 를 단일 표로 선언. `BakeRegion` 이 매 surface chunk 의 32×32 column 을
-	 * 순회하면서 top-most non-air voxel 의 TypeID 를 본 표로 조회 → 매칭되는 voxel 에
-	 * attribution (`FHktTerrainBakedChunk::SpawnTemplateAttribution`) 자동 부여 +
-	 * `UHktTerrainBakedAsset::SpawnTemplateCatalog` 빌드.
+	 * 디자이너가 voxel type 별로 *복수* 의 후보 spawner story 를 weight 와 함께 선언.
+	 * BakeRegion 이 매 surface column top voxel 마다 voxel 좌표 시드
+	 * (`ComputeVoxelSlotHash31`) 로 결정론적 weighted-pick 을 수행하여 attribution 1점
+	 * 을 결정. 런타임은 그 결과를 read-only 로 dispatch.
 	 *
-	 *   - 키: `FHktTerrainVoxel::TypeID` (예: 1=Grass, 12=GrassFlower, 6=Snow ...).
-	 *         (UPROPERTY TMap 키는 int32 — uint16 미지원, BakeRegion 에서 캐스트.)
-	 *   - 값: 발화할 template story tag (예: `Story.Flow.Spawner.Natural.Oak`).
+	 * 엔트리 의미:
+	 *   - `VoxelTypeID` : 후보 적용 대상 voxel TypeID (1=Grass / 4=Sand / 6=Snow ...).
+	 *   - `StoryTag`    : 발화할 spawner story tag. invalid (`None`) → "skip 슬롯" —
+	 *                     해당 weight 만큼 *아무것도 spawn 하지 않을* 확률을 표현.
+	 *   - `Weight`      : 결정론적 weighted-pick 가중치 (>=0, 0 이면 항목 무시).
 	 *
-	 * 빈 매핑이면 BakeRegion 이 attribution 을 0 으로 산출 → 런타임 spawn 없음.
-	 * Sparse 정책 (density / N 개당 1 개 등) 은 template story 본문이 SlotHash31
-	 * 결정론 시드로 자체 처리 (I-0017).
+	 * 예 — Grass 표면에 60% Oak / 20% Slime / 20% 빈 슬롯:
+	 *   { TypeID=1, Tag=Story.Flow.Spawner.Natural.Tree,  Weight=60 }
+	 *   { TypeID=1, Tag=Story.Flow.Spawner.Natural.Slime, Weight=20 }
+	 *   { TypeID=1, Tag=None,                              Weight=20 }
+	 *
+	 * 시드 정책 (I-0017): pick = `ComputeVoxelSlotHash31(worldX, worldY, worldZ) %
+	 *                     totalWeight`. voxel 좌표 한 곳에서만 파생 → 동일 voxel 재방문
+	 *                     시 동일 출현. SlotHash31 은 런타임 dispatch 의 Param2 와도
+	 *                     동일 함수 (HktEventBuilder::ComputeVoxelSlotHash31) 를 사용.
+	 *
+	 * 빈 배열이면 BakeRegion 이 attribution 을 0 으로 산출 → 런타임 spawn 없음.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Placement", meta = (Categories = "Story.Flow.Spawner"))
-	TMap<int32, FGameplayTag> VoxelTypeSpawnTemplate;
+	TArray<FHktVoxelSpawnRule> VoxelSpawnRules;
 
 	/** USTRUCT → 순수 C++ Config 변환 (런타임 생성기 인자) */
 	FHktTerrainGeneratorConfig ToConfig() const;
@@ -311,8 +354,12 @@ public:
 	 *        Bake 시점에 `VoxelTypeSpawnTemplate` 매핑으로 attribution 자동 산출, 런타임 read-only.
 	 *        v3/v4 의 surface 메타 (BiomeId / SurfaceVoxelZ / SlotHash) 및 PlacementStoryTag 는
 	 *        본 버전에서 일괄 제거 — v4 이하 자산은 재베이크 필요.
+	 *  - v6: `VoxelTypeSpawnTemplate` (TMap<int32, FGameplayTag>) 폐기 → `VoxelSpawnRules`
+	 *        (TArray<FHktVoxelSpawnRule>) 로 교체. 동일 voxel type 에 *복수* 후보 + weight
+	 *        를 허용 — BakeRegion 이 voxel 좌표 시드 (`ComputeVoxelSlotHash31`) 로 결정론적
+	 *        weighted-pick 수행, attribution 1점 결정. v5 이하 자산은 재베이크 필요.
 	 */
-	static constexpr int32 CurrentBakeVersion = 5;
+	static constexpr int32 CurrentBakeVersion = 6;
 
 	/** 베이크 시 캡처된 생성기 설정. 폴백 호출 시 동일 설정 재사용 → 결정론 유지. */
 	UPROPERTY(EditAnywhere, Category = "Bake")

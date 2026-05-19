@@ -6,6 +6,7 @@
 #include "HktTerrainBiome.h"
 #include "HktTerrainLog.h"
 #include "Terrain/HktTerrainVoxel.h"
+#include "HktStoryEventParams.h"  // ComputeVoxelSlotHash31 — bake/runtime 시드 단일 출처
 #include "Misc/Compression.h"
 
 #if WITH_EDITOR
@@ -197,59 +198,89 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	// 비워두면 자산 새로 만들 때 빈 배열 그대로 직렬화 (의도된 빈 슬롯).
 
 	// ────────────────────────────────────────────────────────────────────────
-	// Voxel Spawn Template 자동 산출 (I-0014 Phase B)
+	// Voxel Spawn Template 자동 산출 (I-0014 Phase B + 다양성 확장 v6)
 	//
-	// `BakedConfig.VoxelTypeSpawnTemplate` (디자이너 정의) 를 보고:
-	//   1. 등장하는 unique StoryTag 별로 templateId 부여 → `SpawnTemplateCatalog`
-	//   2. 매 surface chunk 의 32×32 column 을 순회, top-most non-air voxel 의 TypeID 가
-	//      매핑되어 있으면 attribution 기록 (sparse, top voxel per column).
+	// `BakedConfig.VoxelSpawnRules` (TArray<FHktVoxelSpawnRule>) 를 보고:
+	//   1. voxel type 별로 후보 rule 들을 그룹핑 → weighted-pick 룩업 테이블.
+	//   2. 각 unique StoryTag 에 templateId 부여 → `SpawnTemplateCatalog`.
+	//   3. 매 surface chunk 의 32×32 column 의 top-most non-air voxel 좌표 기준으로
+	//      `ComputeVoxelSlotHash31(worldX, worldY, worldZ) % totalWeight` 결정론적
+	//      weighted-pick 수행 → 선정된 후보의 StoryTag 가 invalid 면 skip, 아니면
+	//      attribution 기록.
 	//
-	// 매핑이 비어 있으면 attribution 0 — 런타임 spawn 없음. 디자이너 책임.
-	// Phase A 의 chunk-level ChunkLoaded 호환 어댑터는 본 PR 에서 함께 제거됨.
+	// Rules 가 비어 있으면 attribution 0 — 런타임 spawn 없음. 디자이너 책임.
 	// ────────────────────────────────────────────────────────────────────────
 	int32 AttributionsWritten = 0;
 	int32 SurfaceChunksProcessed = 0;
+	int32 SkipPicks = 0;       // skip 슬롯 (invalid StoryTag) 가 선정된 횟수
+	int32 OrphanRules = 0;     // VoxelTypeID/Weight 가 비정상이라 폐기된 rule 수
 	{
-		// 1. StoryTag → templateId 부여 (templateId 0 은 미할당으로 예약)
+		// 룩업 엔트리 — flat-array 그룹핑 산출물.
+		// 각 voxel type 의 cumulative weights + templateId (invalid → 0=skip) 시퀀스.
+		struct FRuleEntry
+		{
+			int32 TemplateId = 0;     // 0 = skip 슬롯 (StoryTag invalid)
+			int32 CumWeight  = 0;     // prefix-sum (>=1)
+		};
+		struct FRuleBucket
+		{
+			TArray<FRuleEntry> Entries;
+			int32 TotalWeight = 0;
+		};
+
+		// 1. StoryTag → templateId 부여 (templateId 0 은 skip 슬롯 예약)
 		TMap<FGameplayTag, int32> TagToTemplateId;
 		int32 NextTemplateId = 1;
-		for (const TPair<int32, FGameplayTag>& Pair : BakedConfig.VoxelTypeSpawnTemplate)
-		{
-			const FGameplayTag& Tag = Pair.Value;
-			if (!Tag.IsValid()) continue;
-			if (TagToTemplateId.Contains(Tag)) continue;
-			if (NextTemplateId > MAX_uint16)  // 의미상 0..65535 범위 — 비현실적이나 방어
-			{
-				UE_LOG(LogHktTerrain, Warning,
-					TEXT("BakeRegion: VoxelTypeSpawnTemplate unique tag 가 한도(65535)를 초과 — 일부 무시"));
-				break;
-			}
-			TagToTemplateId.Add(Tag, NextTemplateId);
-			Asset->SpawnTemplateCatalog.Add(NextTemplateId, Tag);
-			++NextTemplateId;
-		}
 
-		// 2. VoxelTypeID → templateId 룩업 (chunk 순회용 hot map)
-		TMap<uint16, int32> VoxelTypeToTemplateId;
-		VoxelTypeToTemplateId.Reserve(BakedConfig.VoxelTypeSpawnTemplate.Num());
-		for (const TPair<int32, FGameplayTag>& Pair : BakedConfig.VoxelTypeSpawnTemplate)
+		// 2. VoxelTypeID 별 bucket 빌드
+		TMap<uint16, FRuleBucket> Buckets;
+
+		for (const FHktVoxelSpawnRule& Rule : BakedConfig.VoxelSpawnRules)
 		{
-			if (!Pair.Value.IsValid()) continue;
-			const int32* TidPtr = TagToTemplateId.Find(Pair.Value);
-			if (!TidPtr) continue;
-			const int32 TypeKey = Pair.Key;
-			if (TypeKey <= 0 || TypeKey > MAX_uint16)
+			if (Rule.Weight <= 0)
 			{
-				UE_LOG(LogHktTerrain, Warning,
-					TEXT("BakeRegion: VoxelTypeSpawnTemplate 키 %d 가 voxel TypeID 범위 밖 (0=air, ≤65535) — 무시"),
-					TypeKey);
+				++OrphanRules;
 				continue;
 			}
-			VoxelTypeToTemplateId.Add(static_cast<uint16>(TypeKey), *TidPtr);
+			if (Rule.VoxelTypeID <= 0 || Rule.VoxelTypeID > MAX_uint16)
+			{
+				UE_LOG(LogHktTerrain, Warning,
+					TEXT("BakeRegion: VoxelSpawnRules 의 VoxelTypeID=%d 가 범위 밖 (0=air, ≤65535) — 무시"),
+					Rule.VoxelTypeID);
+				++OrphanRules;
+				continue;
+			}
+
+			int32 TemplateId = 0;  // invalid StoryTag → 0 (skip)
+			if (Rule.StoryTag.IsValid())
+			{
+				int32* Existing = TagToTemplateId.Find(Rule.StoryTag);
+				if (Existing)
+				{
+					TemplateId = *Existing;
+				}
+				else if (NextTemplateId > MAX_uint16)
+				{
+					UE_LOG(LogHktTerrain, Warning,
+						TEXT("BakeRegion: VoxelSpawnRules unique tag 가 한도(65535) 초과 — 일부 무시"));
+					++OrphanRules;
+					continue;
+				}
+				else
+				{
+					TemplateId = NextTemplateId++;
+					TagToTemplateId.Add(Rule.StoryTag, TemplateId);
+					Asset->SpawnTemplateCatalog.Add(TemplateId, Rule.StoryTag);
+				}
+			}
+
+			FRuleBucket& Bucket = Buckets.FindOrAdd(static_cast<uint16>(Rule.VoxelTypeID));
+			Bucket.TotalWeight += Rule.Weight;
+			Bucket.Entries.Add({ TemplateId, Bucket.TotalWeight });
 		}
 
-		// 3. surface chunk 순회 → 32×32 column top-most non-air voxel scan
-		if (VoxelTypeToTemplateId.Num() > 0)
+		// 3. surface chunk 순회 → 32×32 column top-most non-air voxel → weighted pick
+		if (Buckets.Num() > 0)
 		{
 			constexpr int32 CS = FHktTerrainGeneratorConfig::ChunkSize;
 			for (FHktTerrainBakedChunk& Chunk : Asset->Chunks)
@@ -271,19 +302,52 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 						const uint16 TypeID = RawVoxels[Idx].TypeID;
 						if (TypeID == 0) continue;
 
-						const int32* TemplateIdPtr = VoxelTypeToTemplateId.Find(TypeID);
-						if (TemplateIdPtr)
+						const FRuleBucket* Bucket = Buckets.Find(TypeID);
+						if (Bucket && Bucket->TotalWeight > 0)
 						{
-							const int32 Packed =
-								FHktTerrainBakedChunk::PackLocalCoord(LocalX, LocalY, LocalZ);
-							Chunk.SpawnTemplateAttribution.Add(Packed, *TemplateIdPtr);
-							++AttributionsWritten;
+							// 결정론 시드: voxel 좌표 한 곳 (I-0017). 런타임 dispatch 의
+							// Param2 SlotHash31 과 동일 함수 — 베이크/런타임 일관성.
+							const int32 WorldX = Chunk.Coord.X * CS + LocalX;
+							const int32 WorldY = Chunk.Coord.Y * CS + LocalY;
+							const int32 WorldZ = Chunk.Coord.Z * CS + LocalZ;
+							const uint32 Seed  =
+								HktEventBuilder::ComputeVoxelSlotHash31(WorldX, WorldY, WorldZ);
+							const int32 Roll   =
+								static_cast<int32>(Seed % static_cast<uint32>(Bucket->TotalWeight));
+
+							int32 PickedTemplateId = 0;  // 0 = skip
+							for (const FRuleEntry& E : Bucket->Entries)
+							{
+								if (Roll < E.CumWeight)
+								{
+									PickedTemplateId = E.TemplateId;
+									break;
+								}
+							}
+
+							if (PickedTemplateId > 0)
+							{
+								const int32 Packed =
+									FHktTerrainBakedChunk::PackLocalCoord(LocalX, LocalY, LocalZ);
+								Chunk.SpawnTemplateAttribution.Add(Packed, PickedTemplateId);
+								++AttributionsWritten;
+							}
+							else
+							{
+								++SkipPicks;  // skip 슬롯 선정 — attribution 미부여
+							}
 						}
 						break;  // top-most non-air 만 검사 (column 1점)
 					}
 				}
 			}
 		}
+
+		UE_LOG(LogHktTerrain, Log,
+			TEXT("BakeRegion: VoxelSpawnRules 처리 — Rules=%d (orphan=%d), Buckets=%d, "
+			     "SurfaceChunks=%d, AttributionsWritten=%d, SkipPicks=%d"),
+			BakedConfig.VoxelSpawnRules.Num(), OrphanRules, Buckets.Num(),
+			SurfaceChunksProcessed, AttributionsWritten, SkipPicks);
 	}
 
 	// ────────────────────────────────────────────────────────────────────────
