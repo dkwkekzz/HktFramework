@@ -117,7 +117,7 @@ void FHktTerrainProvider::GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, i
 	}
 
 	const FIntVector Coord(ChunkX, ChunkY, ChunkZ);
-	const TMap<uint16, uint16>* AttrMap = Asset->FindVoxelAttribution(Coord);
+	const TMap<int32, int32>* AttrMap = Asset->FindVoxelAttribution(Coord);
 	if (!AttrMap)
 	{
 		return;  // 슬롯 비어 있음 — 디자이너가 VoxelTypeSpawnTemplate 미정의
@@ -126,21 +126,21 @@ void FHktTerrainProvider::GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, i
 	constexpr int32 ChunkSize = FHktTerrainGeneratorConfig::ChunkSize;
 	OutEntries.Reserve(OutEntries.Num() + AttrMap->Num());
 
-	for (const TPair<uint16, uint16>& Pair : *AttrMap)
+	for (const TPair<int32, int32>& Pair : *AttrMap)
 	{
-		const uint16 PackedLocal = Pair.Key;
-		const uint16 TemplateId  = Pair.Value;
+		const int32 PackedLocal = Pair.Key;
+		const int32 TemplateId  = Pair.Value;
 
 		const FGameplayTag* StoryTag = Asset->SpawnTemplateCatalog.Find(TemplateId);
 		if (!StoryTag || !StoryTag->IsValid())
 		{
-			// 카탈로그 미정의 id — Phase A 는 silent skip + 인스턴스당 1회 WARN.
-			// I-0015 위임 시 빌드 시점 정적 검증으로 차단된다.
+			// 카탈로그 미정의 id — 인스턴스당 1회 WARN. I-0015 정적 검증 (BakeRegion 후처리)
+			// 이 동일 케이스를 디자이너에게 빌드 시점에 가시화.
 			++UnknownTemplateIdCount;
 			if (!bLoggedUnknownTemplateOnce)
 			{
 				UE_LOG(LogHktTerrain, Warning,
-					TEXT("[TerrainProvider] Voxel attribution chunk(%d,%d,%d) templateId=%u 카탈로그 미정의 — skip. (인스턴스 첫 발생만 출력)"),
+					TEXT("[TerrainProvider] Voxel attribution chunk(%d,%d,%d) templateId=%d 카탈로그 미정의 — skip. (인스턴스 첫 발생만 출력)"),
 					ChunkX, ChunkY, ChunkZ, TemplateId);
 				bLoggedUnknownTemplateOnce = true;
 			}

@@ -211,17 +211,17 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	int32 SurfaceChunksProcessed = 0;
 	{
 		// 1. StoryTag → templateId 부여 (templateId 0 은 미할당으로 예약)
-		TMap<FGameplayTag, uint16> TagToTemplateId;
-		uint16 NextTemplateId = 1;
+		TMap<FGameplayTag, int32> TagToTemplateId;
+		int32 NextTemplateId = 1;
 		for (const TPair<int32, FGameplayTag>& Pair : BakedConfig.VoxelTypeSpawnTemplate)
 		{
 			const FGameplayTag& Tag = Pair.Value;
 			if (!Tag.IsValid()) continue;
 			if (TagToTemplateId.Contains(Tag)) continue;
-			if (NextTemplateId == 0)  // wraparound (>65535 unique tags) — 비현실적이나 방어
+			if (NextTemplateId > MAX_uint16)  // 의미상 0..65535 범위 — 비현실적이나 방어
 			{
 				UE_LOG(LogHktTerrain, Warning,
-					TEXT("BakeRegion: VoxelTypeSpawnTemplate unique tag 가 uint16 한도(65535)를 초과 — 일부 무시"));
+					TEXT("BakeRegion: VoxelTypeSpawnTemplate unique tag 가 한도(65535)를 초과 — 일부 무시"));
 				break;
 			}
 			TagToTemplateId.Add(Tag, NextTemplateId);
@@ -230,18 +230,18 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 		}
 
 		// 2. VoxelTypeID → templateId 룩업 (chunk 순회용 hot map)
-		TMap<uint16, uint16> VoxelTypeToTemplateId;
+		TMap<uint16, int32> VoxelTypeToTemplateId;
 		VoxelTypeToTemplateId.Reserve(BakedConfig.VoxelTypeSpawnTemplate.Num());
 		for (const TPair<int32, FGameplayTag>& Pair : BakedConfig.VoxelTypeSpawnTemplate)
 		{
 			if (!Pair.Value.IsValid()) continue;
-			const uint16* TidPtr = TagToTemplateId.Find(Pair.Value);
+			const int32* TidPtr = TagToTemplateId.Find(Pair.Value);
 			if (!TidPtr) continue;
 			const int32 TypeKey = Pair.Key;
 			if (TypeKey <= 0 || TypeKey > MAX_uint16)
 			{
 				UE_LOG(LogHktTerrain, Warning,
-					TEXT("BakeRegion: VoxelTypeSpawnTemplate 키 %d 가 uint16 범위 밖 (0=air, ≤65535) — 무시"),
+					TEXT("BakeRegion: VoxelTypeSpawnTemplate 키 %d 가 voxel TypeID 범위 밖 (0=air, ≤65535) — 무시"),
 					TypeKey);
 				continue;
 			}
@@ -271,10 +271,10 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 						const uint16 TypeID = RawVoxels[Idx].TypeID;
 						if (TypeID == 0) continue;
 
-						const uint16* TemplateIdPtr = VoxelTypeToTemplateId.Find(TypeID);
+						const int32* TemplateIdPtr = VoxelTypeToTemplateId.Find(TypeID);
 						if (TemplateIdPtr)
 						{
-							const uint16 Packed =
+							const int32 Packed =
 								FHktTerrainBakedChunk::PackLocalCoord(LocalX, LocalY, LocalZ);
 							Chunk.SpawnTemplateAttribution.Add(Packed, *TemplateIdPtr);
 							++AttributionsWritten;
@@ -294,23 +294,23 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	// WARN — 큰 region 의 첫 베이크에서는 매핑이 의도적으로 over-spec 일 수 있어 강제 차단 X.
 	// ────────────────────────────────────────────────────────────────────────
 	{
-		TSet<uint16> ReferencedTemplateIds;
+		TSet<int32> ReferencedTemplateIds;
 		for (const FHktTerrainBakedChunk& Chunk : Asset->Chunks)
 		{
-			for (const TPair<uint16, uint16>& Pair : Chunk.SpawnTemplateAttribution)
+			for (const TPair<int32, int32>& Pair : Chunk.SpawnTemplateAttribution)
 			{
 				ReferencedTemplateIds.Add(Pair.Value);
 			}
 		}
 
 		int32 OrphanCatalogEntries = 0;
-		for (const TPair<uint16, FGameplayTag>& Pair : Asset->SpawnTemplateCatalog)
+		for (const TPair<int32, FGameplayTag>& Pair : Asset->SpawnTemplateCatalog)
 		{
 			if (!ReferencedTemplateIds.Contains(Pair.Key))
 			{
 				++OrphanCatalogEntries;
 				UE_LOG(LogHktTerrain, Warning,
-					TEXT("BakeRegion: catalog templateId=%u (tag='%s') 가 어떤 voxel 도 참조하지 않음 — 매핑 voxel type 이 region 에 부재하거나 매핑 오타 의심"),
+					TEXT("BakeRegion: catalog templateId=%d (tag='%s') 가 어떤 voxel 도 참조하지 않음 — 매핑 voxel type 이 region 에 부재하거나 매핑 오타 의심"),
 					Pair.Key, *Pair.Value.ToString());
 			}
 		}

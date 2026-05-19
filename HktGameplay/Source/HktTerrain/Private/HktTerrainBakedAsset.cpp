@@ -176,7 +176,7 @@ void UHktTerrainBakedAsset::GetSpawnersForChunk(const FIntVector& Coord,
 	}
 }
 
-const TMap<uint16, uint16>* UHktTerrainBakedAsset::FindVoxelAttribution(const FIntVector& Coord) const
+const TMap<int32, int32>* UHktTerrainBakedAsset::FindVoxelAttribution(const FIntVector& Coord) const
 {
 	const FHktTerrainBakedChunk* Chunk = FindChunk(Coord);
 	if (!Chunk || Chunk->SpawnTemplateAttribution.Num() == 0)

@@ -231,6 +231,7 @@ struct HKTTERRAIN_API FHktTerrainSpawnerSpec
  *   - `SpawnTemplateAttribution` 가 *surface voxel 한 점* 단위로 template id 참조를 보유. 키는
  *     5+5+5 bit 로 패킹된 local coord (0..31 per axis) — `PackLocalCoord` 헬퍼 사용. 값은
  *     `UHktTerrainBakedAsset::SpawnTemplateCatalog` 의 templateId.
+ *     키/값 모두 int32 (UPROPERTY TMap 의 reflection 호환 — uint16 미지원).
  *   - 자연 발생 (대다수) 이 본 슬롯으로 단일화. 명시 배치 (보스/랜드마크) 는 별도 `Spawners[]` 유지.
  */
 USTRUCT()
@@ -256,27 +257,31 @@ struct HKTTERRAIN_API FHktTerrainBakedChunk
 	// ─── v5 voxel attribution (I-0014) ───
 
 	/**
-	 * Sparse per-voxel template attribution. Key = `PackLocalCoord(x,y,z)` (5+5+5 bit),
-	 * Value = `UHktTerrainBakedAsset::SpawnTemplateCatalog` 의 templateId.
-	 * 비어 있으면 sim 이 chunk-level ChunkLoaded fallback 으로 동작 (v3/v4 호환).
+	 * Sparse per-voxel template attribution. Key = `PackLocalCoord(x,y,z)` (5+5+5 bit, ≤32767),
+	 * Value = `UHktTerrainBakedAsset::SpawnTemplateCatalog` 의 templateId (>=1).
+	 * 비어 있으면 본 청크에 자연 발생 attribution 없음 — sim 은 spawn skip.
+	 *
+	 * 키/값 모두 int32 인 이유: UPROPERTY TMap reflection 은 unsigned 정수 중 uint8 만
+	 * 표준 지원하므로 호환성 위해 int32 사용. 값 범위는 둘 다 0..65535 내에서 사용.
 	 */
 	UPROPERTY()
-	TMap<uint16, uint16> SpawnTemplateAttribution;
+	TMap<int32, int32> SpawnTemplateAttribution;
 
-	/** local voxel coord (0..31 per axis) → 5+5+5 bit packed uint16. */
-	static constexpr uint16 PackLocalCoord(int32 LocalX, int32 LocalY, int32 LocalZ)
+	/** local voxel coord (0..31 per axis) → 5+5+5 bit packed int32 (양수 보장). */
+	static constexpr int32 PackLocalCoord(int32 LocalX, int32 LocalY, int32 LocalZ)
 	{
-		return static_cast<uint16>(
+		return static_cast<int32>(
 			(static_cast<uint32>(LocalX) & 0x1Fu) |
 			((static_cast<uint32>(LocalY) & 0x1Fu) << 5) |
 			((static_cast<uint32>(LocalZ) & 0x1Fu) << 10));
 	}
 
-	static constexpr void UnpackLocalCoord(uint16 Packed, int32& OutX, int32& OutY, int32& OutZ)
+	static constexpr void UnpackLocalCoord(int32 Packed, int32& OutX, int32& OutY, int32& OutZ)
 	{
-		OutX = static_cast<int32>(Packed & 0x1Fu);
-		OutY = static_cast<int32>((Packed >> 5) & 0x1Fu);
-		OutZ = static_cast<int32>((Packed >> 10) & 0x1Fu);
+		const uint32 P = static_cast<uint32>(Packed);
+		OutX = static_cast<int32>(P & 0x1Fu);
+		OutY = static_cast<int32>((P >> 5) & 0x1Fu);
+		OutZ = static_cast<int32>((P >> 10) & 0x1Fu);
 	}
 };
 
@@ -335,19 +340,19 @@ public:
 	TArray<FHktTerrainSpawnerSpec> Spawners;
 
 	/**
-	 * Spawn template 카탈로그 (v5, I-0014 Phase A).
+	 * Spawn template 카탈로그 (v5, I-0014).
 	 *
-	 * `FHktTerrainBakedChunk::SpawnTemplateAttribution` 의 uint16 templateId 를 실제
-	 * Story tag (예: `Story.Flow.Spawner.Natural.Oak`) 로 풀어내는 단방향 맵.
+	 * `FHktTerrainBakedChunk::SpawnTemplateAttribution` 의 templateId 를 실제 Story tag
+	 * (예: `Story.Flow.Spawner.Natural.Oak`) 로 풀어내는 단방향 맵. 키는 int32
+	 * (UPROPERTY TMap reflection 호환), 의미는 1..65535 의 templateId.
 	 *
-	 * World 별로 *닫혀 있어야* (I-0015 적용) 미참조 voxel / 죽은 id 가 빌드·로드 시점에
-	 * 검출 가능. Phase A 에서는 검증 없이 단순 lookup — 미정의 id 는 런타임 silent skip
-	 * 후 카운터로 집계 (FHktTerrainSystem::Process).
+	 * World 별로 *닫혀 있어야* (I-0015 적용) 미참조 voxel / 죽은 id 가 빌드 시점에 검출
+	 * 가능. BakeRegion 후처리에서 orphan catalog 엔트리 WARN.
 	 *
-	 * 비어 있으면 자연 발생 attribution 미사용 → chunk-level ChunkLoaded fallback.
+	 * 비어 있으면 자연 발생 attribution 미사용 → 런타임 spawn 없음.
 	 */
 	UPROPERTY()
-	TMap<uint16, FGameplayTag> SpawnTemplateCatalog;
+	TMap<int32, FGameplayTag> SpawnTemplateCatalog;
 
 	// UObject ----------------------------------------------------------------
 	virtual void PostLoad() override;
@@ -384,7 +389,7 @@ public:
 	 * 본 메서드의 반환 형식이 TMap 참조인 이유: HktTerrain 내부 (Provider) 만 호출하므로
 	 * 외부 누설 없음. HktCore 측 `FHktVoxelAttributionView` 변환은 Provider 가 담당.
 	 */
-	const TMap<uint16, uint16>* FindVoxelAttribution(const FIntVector& Coord) const;
+	const TMap<int32, int32>* FindVoxelAttribution(const FIntVector& Coord) const;
 
 private:
 	/** 좌표 → Chunks 배열 인덱스 (메모리 매핑). 비직렬화. */
