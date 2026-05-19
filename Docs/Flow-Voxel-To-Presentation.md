@@ -4,6 +4,7 @@ I-0014 voxel spawn attribution 으로 생성된 entity 가 **베이크 시점의
 
 관련 문서:
 - [Design-I0014-Implementation.md](Design-I0014-Implementation.md) — 의도/구현 매트릭스
+- [Howto-VoxelSpawnRules.md](Howto-VoxelSpawnRules.md) — §1 베이크 단계 매트릭스 설정·튜닝·디버깅
 - [Flow-DataAsset-Presentation-Pipeline.md](Flow-DataAsset-Presentation-Pipeline.md) — Tag → DataAsset → Actor 시각화 (본 문서 §7 의 상세)
 - [../HktGameplay/Source/HktTerrain/CLAUDE.md](../HktGameplay/Source/HktTerrain/CLAUDE.md) — 지형 데이터 단일 출처 규약
 

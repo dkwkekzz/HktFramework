@@ -4,6 +4,8 @@
 
 관련 모듈 디자인: [HktGameplay/Source/HktTerrain/TerrainSpawner.design.md](../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md)
 
+**사용법 (디자이너용)**: [Howto-VoxelSpawnRules.md](Howto-VoxelSpawnRules.md) — VoxelSpawnRules 설정·튜닝·디버깅 절차.
+
 ## 핵심 흐름
 
 본 의도가 고정한 모델 — *spawn 주체 = voxel · 정책 = template · 연결 = voxel attribution* — 으로 흐름을 표기한다.
