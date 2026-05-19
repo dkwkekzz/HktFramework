@@ -241,6 +241,14 @@ namespace HktEventBuilder
 	 * voxel 한 점에 template 을 활성화하고 싶을 때 직접 호출. attribution 슬롯은
 	 * 갱신하지 않으며, event 한 발만 emit — read-only attribution 모델 유지.
 	 *
+	 * **트리거 caller 가 결과 event 를 dispatch 시키는 표준 경로**:
+	 *   - C++ 외부 시스템 (encounter / cinematic / world quest 등):
+	 *       `FHktSimulationEvent::NewEvents.Add(HktEventBuilder::VoxelTemplateActivatedAt(...));`
+	 *     → `FHktWorldDeterminismSimulator::ProcessBatch` 가 자연 발생 (`EmittedSpawnerEvents`) 와
+	 *       함께 VMBuildSystem 에 흘려보냄.
+	 *   - VM 내부 (Quest story bytecode): `DispatchEvent(templateTag)` 후 caller 가 Param0/1/2/3
+	 *     을 voxel 좌표로 세팅. (전용 opcode 필요 시 별도 PR.)
+	 *
 	 * Param 매핑은 `VoxelTemplateParams::` 참조.
 	 *
 	 * @param TemplateStoryTag  발화할 terrain story template tag (예: `Story.Flow.Spawner.Natural.Oak`).

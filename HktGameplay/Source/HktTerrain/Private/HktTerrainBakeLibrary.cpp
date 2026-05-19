@@ -286,6 +286,43 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 		}
 	}
 
+	// ────────────────────────────────────────────────────────────────────────
+	// I-0015 정적 검증 — bake 시점에 catalog ↔ attribution 결합 무결성 체크.
+	//
+	// 죽은 catalog id (어떤 chunk attribution 도 참조하지 않는 templateId) 를 검출하여
+	// 디자이너의 매핑 오타 / 실제 voxel type 부재를 빌드 시점에 가시화. 검증 실패가 아닌
+	// WARN — 큰 region 의 첫 베이크에서는 매핑이 의도적으로 over-spec 일 수 있어 강제 차단 X.
+	// ────────────────────────────────────────────────────────────────────────
+	{
+		TSet<uint16> ReferencedTemplateIds;
+		for (const FHktTerrainBakedChunk& Chunk : Asset->Chunks)
+		{
+			for (const TPair<uint16, uint16>& Pair : Chunk.SpawnTemplateAttribution)
+			{
+				ReferencedTemplateIds.Add(Pair.Value);
+			}
+		}
+
+		int32 OrphanCatalogEntries = 0;
+		for (const TPair<uint16, FGameplayTag>& Pair : Asset->SpawnTemplateCatalog)
+		{
+			if (!ReferencedTemplateIds.Contains(Pair.Key))
+			{
+				++OrphanCatalogEntries;
+				UE_LOG(LogHktTerrain, Warning,
+					TEXT("BakeRegion: catalog templateId=%u (tag='%s') 가 어떤 voxel 도 참조하지 않음 — 매핑 voxel type 이 region 에 부재하거나 매핑 오타 의심"),
+					Pair.Key, *Pair.Value.ToString());
+			}
+		}
+
+		if (OrphanCatalogEntries > 0)
+		{
+			UE_LOG(LogHktTerrain, Warning,
+				TEXT("BakeRegion: 미참조 catalog 엔트리 %d 개 (I-0015 정적 검증)"),
+				OrphanCatalogEntries);
+		}
+	}
+
 	Asset->RebuildIndex();
 	Asset->MarkPackageDirty();
 
