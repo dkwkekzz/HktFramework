@@ -21,6 +21,7 @@ namespace HktStoryTags
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Character_Player);      // Entity.Character.Player
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Goblin);            // Entity.NPC.Goblin
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Skeleton);          // Entity.NPC.Skeleton
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_NPC_Slime);             // Entity.NPC.Slime (I-0014 검증용)
 
 	// --- Entity Attr ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_NPC_Hostile);              // Entity.Attr.NPC.Hostile
