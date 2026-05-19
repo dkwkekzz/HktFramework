@@ -15,6 +15,7 @@ namespace HktGameplayTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody, "Anim.FullBody", "Full body animation layer root (locomotion, idle, death).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage, "Anim.Montage", "Montage animation layer root.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody, "Anim.UpperBody", "Upper body animation layer root (attack, cast override).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Action, "Anim.Action", "Transient one-shot action layer root (strike, cast, etc). Non-looping flipbook expires auto on end.");
 
     // --- Locomotion Fallback Tags ---
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Locomotion_Idle, "Anim.FullBody.Locomotion.Idle", "Idle locomotion (bIsMoving=false, grounded).");

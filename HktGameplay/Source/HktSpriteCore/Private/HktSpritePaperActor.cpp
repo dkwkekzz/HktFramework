@@ -5,6 +5,7 @@
 #include "HktPaperActorVisualDataAsset.h"
 #include "HktPaperAnimationDataAsset.h"
 #include "HktPaperUnlitMaterial.h"
+#include "HktRuntimeTags.h"
 #include "HktSpriteCoreLog.h"
 #include "HktSpriteTypes.h"
 #include "HktCoreEventLog.h"
@@ -69,12 +70,17 @@ AHktSpritePaperActor::AHktSpritePaperActor()
 	// Paper2D PaperSprite 의 기본 평면 normal 은 로컬 -Y. 카메라를 정면으로 향하게 하려면
 	// 액터 Yaw = CameraYaw - 90° (Tick 의 빌보드 회전 적용 위치 참조).
 
-	// HitBox — click pick 전용. FlipbookComp 의 자식으로 두어 빌보드 회전을 자동 따라간다.
-	// 기본 extent 는 캐릭터·중형 prop 에 무난한 폴백 — TryResizeHitBoxFromFlipbookBounds 가
-	// sprite 의 실제 component-local bound 로 한 번 갱신한다.
+	// HitBox — click pick 전용. RootScene 에 부착 + absolute rotation 으로 billboard 회전(특히 pitch)
+	// 영향을 차단한다. 크기는 VM property 가 권위 — ApplyPhysics 에서 CollisionRadius/HalfHeight 로
+	// 갱신. 생성자 기본값은 HktUnitActor 의 캡슐 폴백(50/90) 과 동일.
+	// HktCore 의 entity 위치는 *발* 기준 (RenderLocation = foot). ActorLocation 도 foot 이므로
+	// HitBox 가 sprite 의 발~머리를 덮으려면 박스 중심을 +HalfHeight 만큼 위로 올려야 한다.
+	// (안 그러면 박스 절반이 지면 아래로 깔리고 머리 클릭이 빠진다 — nameplate 만 잡히는 원인.)
 	HitBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HitBox"));
-	HitBox->SetupAttachment(FlipbookComp);
-	HitBox->SetBoxExtent(FVector(64.f, 1.f, 64.f), /*bUpdateOverlaps=*/false);
+	HitBox->SetupAttachment(RootScene);
+	HitBox->SetUsingAbsoluteRotation(true);
+	HitBox->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
+	HitBox->SetBoxExtent(FVector(50.f, 50.f, 90.f), /*bUpdateOverlaps=*/false);
 	HitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	HitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	HitBox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -170,6 +176,23 @@ namespace
 // ----------------------------------------------------------------------------
 // Apply* — SOA 뷰 → AnimFragment / 위치 캐시
 // ----------------------------------------------------------------------------
+
+void AHktSpritePaperActor::ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce)
+{
+	// HktUnitActor::ApplyPhysics 와 동일한 패턴 — VM property 1:1 반영.
+	// Property 가 0 이면 갱신 자체를 스킵해 생성자 기본값(50/50/90, 중심 Z=90) 유지.
+	// 박스 중심을 +HalfHeight 만큼 위로 올려 바닥이 entity foot (ActorLocation.Z) 에 닿게 한다 —
+	// HktCore 의 entity 위치가 발 기준이므로 그렇지 않으면 sprite 머리 부분이 트레이스를 빠져나간다.
+	if (!bForce && !V.CollisionRadius.IsDirty(Frame) && !V.CollisionHalfHeight.IsDirty(Frame)) return;
+	const float Radius = V.CollisionRadius.Get();
+	if (Radius <= 0.f) return;
+	const float HalfHeight = FMath::Max(V.CollisionHalfHeight.Get(), Radius);
+	if (HitBox)
+	{
+		HitBox->SetRelativeLocation(FVector(0.f, 0.f, HalfHeight));
+		HitBox->SetBoxExtent(FVector(Radius, Radius, HalfHeight), /*bUpdateOverlaps=*/false);
+	}
+}
 
 void AHktSpritePaperActor::ApplyTransform(const FHktTransformView& V)
 {
@@ -300,14 +323,6 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 
 	LocalNowSec += static_cast<double>(DeltaTime);
 
-	// Flipbook/Sprite 가 한 번이라도 set 된 뒤 HitBox 크기를 sprite 실제 바운드로 한 번만 갱신.
-	// PaperFlipbookComponent::Bounds 는 component world bound 라 component-local 을 얻으려면
-	// CalcBounds(Identity) 필요.
-	if (!bHitBoxSized && FlipbookComp && FlipbookComp->IsRegistered() && FlipbookComp->GetFlipbook())
-	{
-		TryResizeHitBoxFromFlipbookBounds();
-	}
-
 	// --- 위치 보간 + 빌보드 (PR-5: yaw dirty check) ---
 	// 위치는 매 프레임 보간/적용. 회전은 yaw 변화량이 임계값 이상일 때만 적용 —
 	// CVar `hkt.PaperSprite.YawDirtyDeg` 로 임계값 조정.
@@ -431,21 +446,31 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 		InFacing, Meta->NumDirections, Meta->bMirrorWestFromEast, bFlipX, LastFacingRight != 0);
 	const uint8 KeyDir = static_cast<uint8>(StoredFacing);
 
-	// --- 서버 권위 AnimStartTick 변화 감지 → 로컬 시각 캡처 ---
-	if (LastAuthoritativeAnimStartTick != AuthStartTick)
+	// --- AnimStartLocalSec 리셋 트리거 ---
+	// (a) 서버 권위 AuthStartTick 이 바뀌었을 때.
+	// (b) ResolvedTag 가 직전 Tick 과 다를 때 — 새 애니메이션은 항상 0초부터.
+	//     서버측 Op_PlayAnim dedup (동일 태그 해시 시 TouchAnimStartTickBySlot 스킵) 으로
+	//     AuthStartTick 이 안 올라가도 클라가 자력으로 anchor 갱신.
+	const bool bAuthTickChanged = (LastAuthoritativeAnimStartTick != AuthStartTick);
+	const bool bResolvedTagChanged = (ResolvedTag != LastResolvedTag);
+	if (bAuthTickChanged || bResolvedTagChanged)
 	{
 		LastAuthoritativeAnimStartTick = AuthStartTick;
+		LastResolvedTag = ResolvedTag;
 		AnimStartLocalSec = LocalNowSec;
 	}
 
 	// --- Anim.Action.* (transient) layer 자동 만료 ---
 	// PlayAnim 일회성 트리거는 ApplyAnimTag 로 layer 를 켜지만 끄는 메커니즘이 없어
-	// ResolveRenderOutputs step 4("기타 임의 Anim.* layer")가 영원히 Action layer 를 picks
-	// → step 5(Locomotion 합성)이 도달 못함. 클라 측 AnimLayerTags 만 정리 (서버 EntityTags 미변경).
+	// ResolveRenderOutputs 가 영원히 Action layer 를 픽 → Locomotion 합성이 도달 못함.
+	// 클라 측 AnimLayerTags 만 정리 (서버 EntityTags 미변경).
 	//
 	// **Anim.Action.* 는 by-design transient namespace** — bLooping 자산 설정과 무관하게
-	// 자기 flipbook 의 1회 재생 시간이 경과하면 만료한다. (looping 이 의도된 anim 은 다른
-	// namespace 사용 — Anim.FullBody.Locomotion.* 등.)
+	// 자기 flipbook 의 1회 재생 시간이 경과하면 만료한다.
+	//
+	// 만료 시각 기준: per-layer apply 시각 (ActionLayerApplyLocalSec 맵). entity 전체 anchor
+	// 인 AnimStartLocalSec 은 서버 AuthStartTick 의 dedup (Op_PlayAnim 동일 태그 해시 시
+	// TouchAnimStartTickBySlot 스킵) 때문에 stale 가능 → per-layer 추적이 정답.
 	//
 	// 만료 조건 (layer 의 *자기* entry 기준, fallback 무관):
 	//   (a) DataAsset 에 미등록 → 즉시 만료 (렌더 불가능 layer 가 Locomotion 차단 중)
@@ -455,7 +480,10 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 		int32 ActionLayerCount = 0;
 		for (const TPair<FGameplayTag, FGameplayTag>& Pair : AnimFragment.AnimLayerTags)
 		{
-			if (!Pair.Key.ToString().StartsWith(TEXT("Anim.Action."))) continue;
+			// Layer key 는 ExtractLayerParent 결과 (예: "Anim.Action.Strike" → "Anim.Action").
+			// MatchesTag 는 자기 자신과 자손 모두 매칭하므로 Anim.Action 본인 + 미래 하위 분류
+			// (예: Anim.Action.Special) 까지 동일하게 transient 로 취급된다.
+			if (!Pair.Key.MatchesTag(HktGameplayTags::Anim_Action)) continue;
 			++ActionLayerCount;
 			if (!Pair.Value.IsValid()) { ToRemove.Add(Pair.Value); continue; }
 
@@ -464,6 +492,10 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 			UPaperFlipbook* LayerFB = ResolveFlipbook(Animation, Key0);
 			if (!LayerFB) { ToRemove.Add(Pair.Value); continue; }
 
+			// AnimStartLocalSec 은 ResolvedTag 가 이 action 으로 바뀐 Tick 에 리셋됨 →
+			// 이 layer 의 실제 재생 시작 시각과 일치. 단, 이 layer 가 우선순위에서 밀려
+			// 한 번도 ResolvedTag 가 된 적 없으면 AnimStartLocalSec 은 다른 anim 의 anchor →
+			// 이 경우 만료가 빨리 일어날 수 있으나 어차피 렌더되지 않은 layer 라 무해.
 			const float LayerDur = LayerFB->GetTotalDuration();
 			const double RawElapsed = LocalNowSec - AnimStartLocalSec;
 			if (LayerDur > 0.f && RawElapsed >= static_cast<double>(LayerDur))
@@ -479,8 +511,8 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 			if (++sPendingDebugTick % 30 == 0)
 			{
 				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-					FString::Printf(TEXT("Sprite|PaperActor: AnimLayer Anim.Action.* still active count=%d elapsed=%.2fs"),
-						ActionLayerCount, LocalNowSec - AnimStartLocalSec),
+					FString::Printf(TEXT("Sprite|PaperActor: AnimLayer Anim.Action.* still active count=%d"),
+						ActionLayerCount),
 					CachedEntityId);
 			}
 		}
@@ -539,38 +571,12 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	// Meta.FrameDurationMs 를 권위로 — RebindFlipbookIfNeeded 에서 캐시한
 	// CurrentMetaTimeScale (= MetaFps / FbIntrinsicFps) 를 ElapsedSec 에 곱해
 	// flipbook intrinsic FPS 와 무관하게 DataAsset 값으로 재생 속도를 결정한다.
+	// AnimStartLocalSec 은 ResolvedTag 가 바뀐 Tick 에서 리셋되므로 항상 0 부터 재생.
 	const float SafeRate = PlayRate > 0.f ? PlayRate : 1.f;
 	const double ElapsedSec = (LocalNowSec - AnimStartLocalSec) * static_cast<double>(SafeRate);
 	const double ScaledSec = ElapsedSec * static_cast<double>(CurrentMetaTimeScale);
 	FlipbookComp->SetPlaybackPosition(static_cast<float>(FMath::Max(ScaledSec, 0.0)), /*bFireEvents=*/false);
 
-}
-
-// ----------------------------------------------------------------------------
-// HitBox 사이징 — sprite 실제 바운드로 click pick 영역 보정
-// ----------------------------------------------------------------------------
-
-void AHktSpritePaperActor::TryResizeHitBoxFromFlipbookBounds()
-{
-	if (!HitBox || !FlipbookComp) return;
-
-	// Component-local 바운드 계산. PaperFlipbookComponent::CalcBounds 는 현재 sprite 의
-	// XZ 평면 사각형을 반환 (Y 두께 ≈ 0). Trace 가 평면을 통과하지 않도록 Y 방향 최소 두께를 부여.
-	const FBoxSphereBounds Local = FlipbookComp->CalcBounds(FTransform::Identity);
-	const FVector& Ext = Local.BoxExtent;
-
-	// sprite 가 등록 직후 첫 프레임에 0-extent 인 경우가 있음 — 그때는 폴백 유지하고 다음 tick 재시도.
-	if (Ext.X <= KINDA_SMALL_NUMBER || Ext.Z <= KINDA_SMALL_NUMBER) return;
-
-	constexpr float MinThickness = 8.f; // Y 두께 폴백 (cm) — trace 안정성 확보
-	const FVector SafeExtent(
-		FMath::Max(Ext.X, 16.f),
-		FMath::Max(Ext.Y, MinThickness),
-		FMath::Max(Ext.Z, 16.f));
-
-	HitBox->SetRelativeLocation(Local.Origin);
-	HitBox->SetBoxExtent(SafeExtent, /*bUpdateOverlaps=*/false);
-	bHitBoxSized = true;
 }
 
 // ----------------------------------------------------------------------------
@@ -601,6 +607,12 @@ void AHktSpritePaperActor::RebindFlipbookIfNeeded(
 		FlipbookComp->SetFlipbook(FB);
 		FlipbookComp->SetLooping(Meta.bLooping);
 		FlipbookComp->SetSpriteColor(Meta.Tint);
+		// non-looping flipbook 이 끝에 도달하면 UPaperFlipbookComponent 내부 TickFlipbook 이
+		// bPlaying=false 로 자동 전환 → SetFlipbook 은 bPlaying 을 복구하지 않으므로 새 flipbook
+		// 바운드 후 명시적으로 Play() 호출. 이후 Tick 의 SetPlaybackPosition 가 매 프레임
+		// 권위 위치로 덮어쓰므로 내부 advance 와 충돌하지 않는다 (Actor::Tick 이 component
+		// tick 이후 실행). IsPlaying() == true 를 외부에서 게이트로 쓰는 경로도 정상화.
+		FlipbookComp->Play();
 
 		// DataAsset 의 FrameDurationMs 를 권위로 — 바운드된 flipbook 의 intrinsic FPS 와
 		// 차이가 있으면 SetPlaybackPosition 입력에 곱할 스케일을 캐시.

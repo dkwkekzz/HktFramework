@@ -20,6 +20,7 @@ class UPaperSprite;
 class UHktPaperAnimationDataAsset;       // 동적 애니메이션 자산
 class UHktTagDataAsset;
 struct FHktSpriteView;
+struct FHktPhysicsView;
 
 /**
  * AHktSpritePaperActor — Paper2D 경로의 엔터티당 1액터.
@@ -66,6 +67,7 @@ public:
 	virtual FVector GetFocusWorldLocation() const override;
 	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
 	virtual void ApplyTransform(const FHktTransformView& V) override;
+	virtual void ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce) override;
 	virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;
 	virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;
 	virtual void ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce) override;
@@ -86,7 +88,11 @@ protected:
 	TObjectPtr<UPaperFlipbookComponent> FlipbookComp;
 
 	// Click pick 전용 collision box. FlipbookComp 가 NoCollision 이라 Visibility trace 가
-	// sprite 평면을 통과하므로, 별도 박스로 sprite 영역을 덮어 IHktSelectable 픽이 가능하게 한다.
+	// sprite 평면을 통과하므로, 별도 박스로 엔티티 충돌 영역을 덮어 IHktSelectable 픽이 가능하게 한다.
+	// 크기는 VM property (CollisionRadius/CollisionHalfHeight) → ApplyPhysics 가 갱신 — sprite
+	// 의 visual bound 를 따라가지 않는다 (sprite 크기와 실제 엔티티 충돌 반경이 일치하지 않기 때문).
+	// RootScene 에 부착하고 absolute rotation 으로 두어 billboard pitch 회전이 box 를 기울이지
+	// 않게 한다 (yaw 는 XY 가 대칭이라 영향 없음).
 	UPROPERTY(VisibleAnywhere, Category = "HKT|PaperSprite")
 	TObjectPtr<UBoxComponent> HitBox;
 
@@ -155,6 +161,9 @@ private:
 	/** 태그 해석 실패 dedup (HktSpriteCrowdHost 와 동일 패턴). */
 	bool bLoggedResolveRenderOutputsFailure = false;
 
+	/** 직전 Tick 의 ResolvedTag — 바뀌면 AnimStartLocalSec 리셋 트리거. */
+	FGameplayTag LastResolvedTag;
+
 	/** WriteFacingToViewModel 에서 결정된 facing 캐시 — Tick 은 이 값을 그대로 소비.
 	 *  카메라 yaw 변경만으로는 갱신되지 않음(설계 선택 — 이동 dirty 또는 anim tag dirty 시점에만 산출). */
 	EHktSpriteFacing LastClientFacing = EHktSpriteFacing::S;
@@ -169,9 +178,4 @@ private:
 	bool         bLastDiagHadFlipbook = false;
 	bool         bLastDiagSnapshotValid = false;
 
-	// FlipbookComp 의 component-local bounds 를 한 번 캡처하여 HitBox 크기/위치를 맞춘다.
-	// Sprite/Flipbook 가 바운드된 직후 한 번만 호출되며, 이후 billboard 회전은 HitBox 가
-	// FlipbookComp 의 자식이라 자동 따라간다.
-	void TryResizeHitBoxFromFlipbookBounds();
-	bool bHitBoxSized = false;
 };

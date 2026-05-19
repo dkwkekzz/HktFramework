@@ -210,10 +210,15 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 	float LocoPlayRate = 1.f;
 	bool  bFromLocomotion = false;
 
-	// 1~3. 우선순위: Montage > UpperBody > FullBody
+	// 1~4. 우선순위: Montage > UpperBody > Action > FullBody
+	// Anim.Action 은 transient one-shot (Strike/Cast 등). Locomotion(FullBody) 보다 위에 두어
+	// strike 트리거 직후 다음 SyncFromTagContainer 가 Anim.FullBody.Locomotion.* 를 채워도
+	// 액션이 자기 flipbook 종료 시까지 우선 재생되도록 한다. 종료는 PaperActor 의 auto-expire
+	// (Anim.Action 매칭 + RawElapsed >= LayerDur) 가 layer 자체를 제거.
 	static const FGameplayTag kPriorityLayers[] = {
 		HktGameplayTags::Anim_Montage,
 		HktGameplayTags::Anim_UpperBody,
+		HktGameplayTags::Anim_Action,
 		HktGameplayTags::Anim_FullBody,
 	};
 
@@ -229,7 +234,7 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 		}
 	}
 
-	// 4. 기타 임의 Anim.* 레이어 (위 3개가 아니지만 존재하는 경우)
+	// 5. 기타 임의 Anim.* 레이어 (위 4개가 아니지만 존재하는 경우)
 	if (!ResolvedTag.IsValid())
 	{
 		for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
@@ -242,7 +247,7 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 		}
 	}
 
-	// 5. Locomotion 폴백 (Movement Property → Anim.FullBody.Locomotion.* 합성)
+	// 6. Locomotion 폴백 (Movement Property → Anim.FullBody.Locomotion.* 합성)
 	if (!ResolvedTag.IsValid())
 	{
 		ResolvedTag = ResolveLocomotionTag(Fragment, LocoPlayRate);

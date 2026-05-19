@@ -4,6 +4,7 @@
 
 #include "HktCoreEvents.h"
 #include "HktCoreProperties.h"
+#include "Math/IntVector.h"
 #include "Terrain/HktFixed32.h"
 #include "Terrain/HktTerrainDataSource.h"
 
@@ -227,7 +228,7 @@ namespace HktEventBuilder
 	 */
 	inline uint32 ComputeVoxelSlotHash31(int32 VoxelWorldX, int32 VoxelWorldY, int32 VoxelWorldZ)
 	{
-		const uint32 H = ::GetTypeHash(FIntVector(VoxelWorldX, VoxelWorldY, VoxelWorldZ));
+		const uint32 H = GetTypeHash(FIntVector(VoxelWorldX, VoxelWorldY, VoxelWorldZ));
 		return H & 0x7FFFFFFFu;
 	}
 
