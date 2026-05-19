@@ -11,6 +11,7 @@
 #if ENABLE_HKT_INSIGHTS
 #include "Processors/HktCollisionDebugProcessor.h"
 #include "Processors/HktTerrainDebugProcessor.h"
+#include "Processors/HktHitboxDebugProcessor.h"
 #endif
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
@@ -70,6 +71,9 @@ void UHktPresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	TerrainDebugProcessor = MakeShared<FHktTerrainDebugProcessor>(GetLocalPlayer());
 	Processors.Add(TerrainDebugProcessor.Get());
+
+	HitboxDebugProcessor = MakeShared<FHktHitboxDebugProcessor>(GetLocalPlayer());
+	Processors.Add(HitboxDebugProcessor.Get());
 #endif
 }
 
@@ -84,6 +88,7 @@ void UHktPresentationSubsystem::Deinitialize()
 	Processors.Empty();
 
 #if ENABLE_HKT_INSIGHTS
+	HitboxDebugProcessor.Reset();
 	TerrainDebugProcessor.Reset();
 	CollisionDebugProcessor.Reset();
 #endif
