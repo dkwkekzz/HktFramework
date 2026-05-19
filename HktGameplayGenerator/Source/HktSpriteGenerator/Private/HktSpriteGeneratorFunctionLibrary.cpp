@@ -1,7 +1,6 @@
 ﻿// Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteGeneratorFunctionLibrary.h"
-#include "HktSpriteCharacterTemplate.h"
 #include "HktHISMSpriteVisualAsset.h"
 #include "HktHISMSpriteAnimationDataAsset.h"
 #include "HktSpriteGeneratorSettings.h"
@@ -234,9 +233,11 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpriteCharacter(const FStrin
 	// --- 에셋 경로 계산 ---
 	const FString SafeTag        = SanitizeForAssetName(TagStr);
 	const FString AtlasName      = FString::Printf(TEXT("T_SpriteAtlas_%s"), *SafeTag);
-	const FString TemplateName   = FString::Printf(TEXT("DA_SpriteCharacter_%s"), *SafeTag);
+	const FString VisualName     = FString::Printf(TEXT("DA_HISMSpriteVisual_%s"), *SafeTag);
+	const FString AnimName       = FString::Printf(TEXT("DA_HISMSpriteAnim_%s"), *SafeTag);
 	const FString AtlasPackage   = FString::Printf(TEXT("%s/%s"), *OutputDir, *AtlasName);
-	const FString TemplatePackage= FString::Printf(TEXT("%s/%s"), *OutputDir, *TemplateName);
+	const FString VisualPackage  = FString::Printf(TEXT("%s/%s"), *OutputDir, *VisualName);
+	const FString AnimPackage    = FString::Printf(TEXT("%s/%s"), *OutputDir, *AnimName);
 
 	// --- 1. Atlas 텍스처 임포트 ---
 	UTexture2D* AtlasTex = ImportAtlasTexture(AtlasPng, AtlasPackage, AtlasName);
@@ -245,24 +246,24 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpriteCharacter(const FStrin
 		return MakeSpriteError(TEXT("Atlas 텍스처 임포트 실패"));
 	}
 
-	// --- 2. DataAsset 패키지/오브젝트 생성 ---
-	UPackage* TmplPkg = CreatePackage(*TemplatePackage);
-	if (!TmplPkg) return MakeSpriteError(TEXT("DataAsset 패키지 생성 실패"));
-	TmplPkg->FullyLoad();
+	// --- 2. Animation 자산 생성 (Animations 가 있을 때만) ---
+	UHktHISMSpriteAnimationDataAsset* AnimAsset = nullptr;
+	UPackage* AnimPkg = nullptr;
 
-	UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
-		TmplPkg, FName(*TemplateName), RF_Public | RF_Standalone);
-	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpriteCharacterTemplate 생성 실패"));
-
-	Tmpl->IdentifierTag = EnsureTag(TagStr);
-	Tmpl->Atlas         = AtlasTex;
-	Tmpl->AtlasCellSize = FVector2f(static_cast<float>(CellW), static_cast<float>(CellH));
-	Tmpl->PixelToWorld  = static_cast<float>(PixelToWorld);
-
-	// --- 3. Animations 파싱 ---
 	const TArray<TSharedPtr<FJsonValue>>* Animations = nullptr;
-	if (Root->TryGetArrayField(TEXT("animations"), Animations) && Animations)
+	const bool bHasAnimations = Root->TryGetArrayField(TEXT("animations"), Animations)
+		&& Animations && Animations->Num() > 0;
+
+	if (bHasAnimations)
 	{
+		AnimPkg = CreatePackage(*AnimPackage);
+		if (!AnimPkg) return MakeSpriteError(TEXT("Animation 패키지 생성 실패"));
+		AnimPkg->FullyLoad();
+
+		AnimAsset = NewObject<UHktHISMSpriteAnimationDataAsset>(
+			AnimPkg, FName(*AnimName), RF_Public | RF_Standalone);
+		if (!AnimAsset) return MakeSpriteError(TEXT("UHktHISMSpriteAnimationDataAsset 생성 실패"));
+
 		for (const TSharedPtr<FJsonValue>& V : *Animations)
 		{
 			const TSharedPtr<FJsonObject> A = V->AsObject();
@@ -316,55 +317,79 @@ FString UHktSpriteGeneratorFunctionLibrary::McpBuildSpriteCharacter(const FStrin
 				for (const auto& F : *PerFrame) Anim.PerFrameDurationMs.Add(static_cast<float>(F->AsNumber()));
 			}
 
-			// Per-frame 배열은 더 이상 저장하지 않는다 — 그리드 규약(AtlasIndex=frameIdx,
-			// AtlasSlotIdx=dirIdx)으로 합성. startAtlasIndex JSON 필드는 무시.
-
-			Tmpl->Animations.Add(AnimTag, MoveTemp(Anim));
+			AnimAsset->Animations.Add(AnimTag, MoveTemp(Anim));
 		}
-	}
 
-	// --- DefaultAnimTag 설정 ---
-	//   명시 필드 우선, 없으면 Anim.FullBody.Locomotion.Idle, 그것도 없으면 첫 번째 키.
-	FString DefaultTagStr;
-	if (Root->TryGetStringField(TEXT("defaultAnimTag"), DefaultTagStr) && !DefaultTagStr.IsEmpty())
-	{
-		Tmpl->DefaultAnimTag = EnsureTag(DefaultTagStr);
-	}
-	else
-	{
-		const FGameplayTag IdleTag = EnsureTag(TEXT("Anim.FullBody.Locomotion.Idle"));
-		if (Tmpl->Animations.Contains(IdleTag))
+		// --- DefaultAnimTag 설정 ---
+		FString DefaultTagStr;
+		if (Root->TryGetStringField(TEXT("defaultAnimTag"), DefaultTagStr) && !DefaultTagStr.IsEmpty())
 		{
-			Tmpl->DefaultAnimTag = IdleTag;
+			AnimAsset->DefaultAnimTag = EnsureTag(DefaultTagStr);
 		}
-		else if (Tmpl->Animations.Num() > 0)
+		else
 		{
-			for (const auto& Pair : Tmpl->Animations)
+			const FGameplayTag IdleTag = EnsureTag(TEXT("Anim.FullBody.Locomotion.Idle"));
+			if (AnimAsset->Animations.Contains(IdleTag))
 			{
-				Tmpl->DefaultAnimTag = Pair.Key;
-				break;
+				AnimAsset->DefaultAnimTag = IdleTag;
+			}
+			else if (AnimAsset->Animations.Num() > 0)
+			{
+				for (const auto& Pair : AnimAsset->Animations)
+				{
+					AnimAsset->DefaultAnimTag = Pair.Key;
+					break;
+				}
 			}
 		}
+
+		// Animation 패키지 저장.
+		AnimAsset->MarkPackageDirty();
+		const FString AnimFile = FPackageName::LongPackageNameToFilename(AnimPackage, FPackageName::GetAssetPackageExtension());
+		FSavePackageArgs AnimSaveArgs;
+		AnimSaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+		if (!UPackage::SavePackage(AnimPkg, AnimAsset, *AnimFile, AnimSaveArgs))
+		{
+			return MakeSpriteError(TEXT("Animation 패키지 저장 실패"));
+		}
+		FAssetRegistryModule::AssetCreated(AnimAsset);
 	}
 
-	// --- 4. 패키지 저장 ---
-	Tmpl->MarkPackageDirty();
-	const FString TmplFile = FPackageName::LongPackageNameToFilename(TemplatePackage, FPackageName::GetAssetPackageExtension());
-	FSavePackageArgs SaveArgs;
-	SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
-	if (!UPackage::SavePackage(TmplPkg, Tmpl, *TmplFile, SaveArgs))
+	// --- 3. Visual 자산 생성 ---
+	UPackage* VisualPkg = CreatePackage(*VisualPackage);
+	if (!VisualPkg) return MakeSpriteError(TEXT("Visual 패키지 생성 실패"));
+	VisualPkg->FullyLoad();
+
+	UHktHISMSpriteVisualAsset* Visual = NewObject<UHktHISMSpriteVisualAsset>(
+		VisualPkg, FName(*VisualName), RF_Public | RF_Standalone);
+	if (!Visual) return MakeSpriteError(TEXT("UHktHISMSpriteVisualAsset 생성 실패"));
+
+	Visual->IdentifierTag  = EnsureTag(TagStr);
+	Visual->Atlas          = AtlasTex;
+	Visual->AtlasCellSize  = FVector2f(static_cast<float>(CellW), static_cast<float>(CellH));
+	Visual->PixelToWorld   = static_cast<float>(PixelToWorld);
+	Visual->AnimationAsset = AnimAsset;
+
+	// Visual 패키지 저장.
+	Visual->MarkPackageDirty();
+	const FString VisualFile = FPackageName::LongPackageNameToFilename(VisualPackage, FPackageName::GetAssetPackageExtension());
+	FSavePackageArgs VisualSaveArgs;
+	VisualSaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+	if (!UPackage::SavePackage(VisualPkg, Visual, *VisualFile, VisualSaveArgs))
 	{
-		return MakeSpriteError(TEXT("DataAsset 패키지 저장 실패"));
+		return MakeSpriteError(TEXT("Visual 패키지 저장 실패"));
 	}
-	FAssetRegistryModule::AssetCreated(Tmpl);
+	FAssetRegistryModule::AssetCreated(Visual);
 
-	UE_LOG(LogHktSpriteGenerator, Log, TEXT("SpriteCharacter 빌드 완료: Tag=%s Atlas=%s Template=%s Anims=%d"),
-		*TagStr, *AtlasPackage, *TemplatePackage, Tmpl->Animations.Num());
+	const int32 NumAnims = AnimAsset ? AnimAsset->Animations.Num() : 0;
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("HISMSprite 빌드 완료: Tag=%s Atlas=%s Visual=%s Anims=%d"),
+		*TagStr, *AtlasPackage, *VisualPackage, NumAnims);
 
 	return MakeResult(true, {
 		{ TEXT("tag"),            TagStr },
 		{ TEXT("atlasAssetPath"), FString::Printf(TEXT("%s.%s"), *AtlasPackage,    *AtlasName)    },
-		{ TEXT("dataAssetPath"),  FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName) },
+		{ TEXT("dataAssetPath"),  FString::Printf(TEXT("%s.%s"), *VisualPackage,   *VisualName)   },
+		{ TEXT("animAssetPath"),  AnimAsset ? FString::Printf(TEXT("%s.%s"), *AnimPackage, *AnimName) : FString() },
 	});
 }
 
@@ -1501,26 +1526,24 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromAtlas(
 	else if (Rows >= 5) NumDir = 5;
 	else if (Rows >= 1) NumDir = 1;
 
-	const FString SafeTag        = SanitizeForAssetName(CharacterTag);
-	const FString TemplateName   = FString::Printf(TEXT("DA_SpriteCharacter_%s"), *SafeTag);
-	const FString TemplatePackage= FString::Printf(TEXT("%s/%s"), *OutputDir, *TemplateName);
-
-	UPackage* TmplPkg = CreatePackage(*TemplatePackage);
-	if (!TmplPkg) return MakeSpriteError(TEXT("DataAsset 패키지 생성 실패"));
-	TmplPkg->FullyLoad();
-
-	UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
-		TmplPkg, FName(*TemplateName), RF_Public | RF_Standalone);
-	if (!Tmpl) return MakeSpriteError(TEXT("UHktSpriteCharacterTemplate 생성 실패"));
-
-	Tmpl->IdentifierTag = EnsureTag(CharacterTag);
-	Tmpl->Atlas         = Atlas;
-	Tmpl->AtlasCellSize = FVector2f(static_cast<float>(FrameWidth), static_cast<float>(FrameHeight));
-	Tmpl->PixelToWorld  = PixelToWorld;
+	const FString SafeTag       = SanitizeForAssetName(CharacterTag);
+	const FString VisualName    = FString::Printf(TEXT("DA_HISMSpriteVisual_%s"), *SafeTag);
+	const FString AnimName      = FString::Printf(TEXT("DA_HISMSpriteAnim_%s"), *SafeTag);
+	const FString VisualPackage = FString::Printf(TEXT("%s/%s"), *OutputDir, *VisualName);
+	const FString AnimPackage   = FString::Printf(TEXT("%s/%s"), *OutputDir, *AnimName);
 
 	const FString ResolvedAnimTag = AnimTagStr.IsEmpty()
 		? TEXT("Anim.FullBody.Locomotion.Idle")
 		: AnimTagStr;
+
+	// --- 1. Animation 자산 ---
+	UPackage* AnimPkg = CreatePackage(*AnimPackage);
+	if (!AnimPkg) return MakeSpriteError(TEXT("Animation 패키지 생성 실패"));
+	AnimPkg->FullyLoad();
+
+	UHktHISMSpriteAnimationDataAsset* AnimAsset = NewObject<UHktHISMSpriteAnimationDataAsset>(
+		AnimPkg, FName(*AnimName), RF_Public | RF_Standalone);
+	if (!AnimAsset) return MakeSpriteError(TEXT("UHktHISMSpriteAnimationDataAsset 생성 실패"));
 
 	FHktSpriteAnimation Anim;
 	Anim.NumDirections       = NumDir;
@@ -1530,28 +1553,52 @@ FString UHktSpriteGeneratorFunctionLibrary::EditorBuildSpriteCharacterFromAtlas(
 	Anim.bLooping            = bLooping;
 	Anim.bMirrorWestFromEast = bMirrorWestFromEast;
 
-	// 프레임은 그리드 규약(AtlasIndex=frameIdx)으로 합성 — 별도 배열 없음.
-
 	const FGameplayTag AnimTag = EnsureTag(ResolvedAnimTag);
-	Tmpl->Animations.Add(AnimTag, MoveTemp(Anim));
-	Tmpl->DefaultAnimTag = AnimTag;
+	AnimAsset->Animations.Add(AnimTag, MoveTemp(Anim));
+	AnimAsset->DefaultAnimTag = AnimTag;
 
-	Tmpl->MarkPackageDirty();
-	const FString TmplFile = FPackageName::LongPackageNameToFilename(TemplatePackage, FPackageName::GetAssetPackageExtension());
-	FSavePackageArgs SaveArgs;
-	SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
-	if (!UPackage::SavePackage(TmplPkg, Tmpl, *TmplFile, SaveArgs))
+	AnimAsset->MarkPackageDirty();
+	const FString AnimFile = FPackageName::LongPackageNameToFilename(AnimPackage, FPackageName::GetAssetPackageExtension());
+	FSavePackageArgs AnimSaveArgs;
+	AnimSaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+	if (!UPackage::SavePackage(AnimPkg, AnimAsset, *AnimFile, AnimSaveArgs))
 	{
-		return MakeSpriteError(TEXT("DataAsset 패키지 저장 실패"));
+		return MakeSpriteError(TEXT("Animation 패키지 저장 실패"));
 	}
-	FAssetRegistryModule::AssetCreated(Tmpl);
+	FAssetRegistryModule::AssetCreated(AnimAsset);
 
-	UE_LOG(LogHktSpriteGenerator, Log, TEXT("AtlasGrid CharacterTemplate: Tag=%s Atlas=%dx%d Cell=%dx%d Cols=%d Rows=%d → NumDir=%d AnimTag=%s"),
+	// --- 2. Visual 자산 ---
+	UPackage* VisualPkg = CreatePackage(*VisualPackage);
+	if (!VisualPkg) return MakeSpriteError(TEXT("Visual 패키지 생성 실패"));
+	VisualPkg->FullyLoad();
+
+	UHktHISMSpriteVisualAsset* Visual = NewObject<UHktHISMSpriteVisualAsset>(
+		VisualPkg, FName(*VisualName), RF_Public | RF_Standalone);
+	if (!Visual) return MakeSpriteError(TEXT("UHktHISMSpriteVisualAsset 생성 실패"));
+
+	Visual->IdentifierTag  = EnsureTag(CharacterTag);
+	Visual->Atlas          = Atlas;
+	Visual->AtlasCellSize  = FVector2f(static_cast<float>(FrameWidth), static_cast<float>(FrameHeight));
+	Visual->PixelToWorld   = PixelToWorld;
+	Visual->AnimationAsset = AnimAsset;
+
+	Visual->MarkPackageDirty();
+	const FString VisualFile = FPackageName::LongPackageNameToFilename(VisualPackage, FPackageName::GetAssetPackageExtension());
+	FSavePackageArgs VisualSaveArgs;
+	VisualSaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+	if (!UPackage::SavePackage(VisualPkg, Visual, *VisualFile, VisualSaveArgs))
+	{
+		return MakeSpriteError(TEXT("Visual 패키지 저장 실패"));
+	}
+	FAssetRegistryModule::AssetCreated(Visual);
+
+	UE_LOG(LogHktSpriteGenerator, Log, TEXT("AtlasGrid HISMSprite: Tag=%s Atlas=%dx%d Cell=%dx%d Cols=%d Rows=%d → NumDir=%d AnimTag=%s"),
 		*CharacterTag, AtlasW, AtlasH, FrameWidth, FrameHeight, Cols, Rows, NumDir, *AnimTag.ToString());
 
 	return MakeResult(true, {
 		{ TEXT("tag"),           CharacterTag },
-		{ TEXT("dataAssetPath"), FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName) },
+		{ TEXT("dataAssetPath"), FString::Printf(TEXT("%s.%s"), *VisualPackage, *VisualName) },
+		{ TEXT("animAssetPath"), FString::Printf(TEXT("%s.%s"), *AnimPackage,   *AnimName)   },
 		{ TEXT("atlasCols"),     FString::FromInt(Cols) },
 		{ TEXT("atlasRows"),     FString::FromInt(Rows) },
 		{ TEXT("numDirections"), FString::FromInt(NumDir) },
@@ -1581,54 +1628,81 @@ namespace HktSpriteGen
 		return true;
 	}
 
-	/** 기존 UHktSpriteCharacterTemplate 로드 또는 새로 생성. */
-	static UHktSpriteCharacterTemplate* UpsertTemplate(
-		const FString& TemplatePackage, const FString& TemplateName,
-		const FString& CharTagStr, UPackage*& OutPkg)
+	/** 기존 UHktHISMSpriteAnimationDataAsset 로드 또는 새로 생성. */
+	static UHktHISMSpriteAnimationDataAsset* UpsertAnimation(
+		const FString& AnimPackage, const FString& AnimName, UPackage*& OutPkg)
 	{
-		OutPkg = FindPackage(nullptr, *TemplatePackage);
+		OutPkg = FindPackage(nullptr, *AnimPackage);
 		if (OutPkg)
 		{
-			UHktSpriteCharacterTemplate* Existing = Cast<UHktSpriteCharacterTemplate>(
-				StaticFindObject(UHktSpriteCharacterTemplate::StaticClass(), OutPkg, *TemplateName));
+			UHktHISMSpriteAnimationDataAsset* Existing = Cast<UHktHISMSpriteAnimationDataAsset>(
+				StaticFindObject(UHktHISMSpriteAnimationDataAsset::StaticClass(), OutPkg, *AnimName));
 			if (Existing) return Existing;
 		}
 
-		const FString AssetObjPath = FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName);
-		if (UHktSpriteCharacterTemplate* Loaded = LoadObject<UHktSpriteCharacterTemplate>(nullptr, *AssetObjPath))
+		const FString AssetObjPath = FString::Printf(TEXT("%s.%s"), *AnimPackage, *AnimName);
+		if (UHktHISMSpriteAnimationDataAsset* Loaded = LoadObject<UHktHISMSpriteAnimationDataAsset>(nullptr, *AssetObjPath))
 		{
 			OutPkg = Loaded->GetPackage();
 			return Loaded;
 		}
 
-		OutPkg = CreatePackage(*TemplatePackage);
+		OutPkg = CreatePackage(*AnimPackage);
 		if (!OutPkg) return nullptr;
 		OutPkg->FullyLoad();
 
-		UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
-			OutPkg, FName(*TemplateName), RF_Public | RF_Standalone);
-		if (Tmpl)
+		return NewObject<UHktHISMSpriteAnimationDataAsset>(
+			OutPkg, FName(*AnimName), RF_Public | RF_Standalone);
+	}
+
+	/** 기존 UHktHISMSpriteVisualAsset 로드 또는 새로 생성. */
+	static UHktHISMSpriteVisualAsset* UpsertVisual(
+		const FString& VisualPackage, const FString& VisualName,
+		const FString& CharTagStr, UPackage*& OutPkg)
+	{
+		OutPkg = FindPackage(nullptr, *VisualPackage);
+		if (OutPkg)
 		{
-			Tmpl->IdentifierTag = EnsureTag(CharTagStr);
+			UHktHISMSpriteVisualAsset* Existing = Cast<UHktHISMSpriteVisualAsset>(
+				StaticFindObject(UHktHISMSpriteVisualAsset::StaticClass(), OutPkg, *VisualName));
+			if (Existing) return Existing;
 		}
-		return Tmpl;
+
+		const FString AssetObjPath = FString::Printf(TEXT("%s.%s"), *VisualPackage, *VisualName);
+		if (UHktHISMSpriteVisualAsset* Loaded = LoadObject<UHktHISMSpriteVisualAsset>(nullptr, *AssetObjPath))
+		{
+			OutPkg = Loaded->GetPackage();
+			return Loaded;
+		}
+
+		OutPkg = CreatePackage(*VisualPackage);
+		if (!OutPkg) return nullptr;
+		OutPkg->FullyLoad();
+
+		UHktHISMSpriteVisualAsset* Visual = NewObject<UHktHISMSpriteVisualAsset>(
+			OutPkg, FName(*VisualName), RF_Public | RF_Standalone);
+		if (Visual)
+		{
+			Visual->IdentifierTag = EnsureTag(CharTagStr);
+		}
+		return Visual;
 	}
 
 	/** DataAsset 저장 + AssetRegistry 등록. */
-	static bool SaveTemplate(UHktSpriteCharacterTemplate* Tmpl, UPackage* Pkg,
-	                         const FString& TemplatePackage, FString& OutError)
+	static bool SaveAsset(UObject* Asset, UPackage* Pkg,
+	                      const FString& PackagePath, FString& OutError)
 	{
-		Tmpl->MarkPackageDirty();
-		const FString TmplFile = FPackageName::LongPackageNameToFilename(
-			TemplatePackage, FPackageName::GetAssetPackageExtension());
+		Asset->MarkPackageDirty();
+		const FString File = FPackageName::LongPackageNameToFilename(
+			PackagePath, FPackageName::GetAssetPackageExtension());
 		FSavePackageArgs SaveArgs;
 		SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
-		if (!UPackage::SavePackage(Pkg, Tmpl, *TmplFile, SaveArgs))
+		if (!UPackage::SavePackage(Pkg, Asset, *File, SaveArgs))
 		{
 			OutError = TEXT("DataAsset 패키지 저장 실패");
 			return false;
 		}
-		FAssetRegistryModule::AssetCreated(Tmpl);
+		FAssetRegistryModule::AssetCreated(Asset);
 		return true;
 	}
 
@@ -1660,9 +1734,11 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	const FGameplayTag AnimTag  = EnsureTag(AnimTagStr);
 	const FGameplayTag CharTag  = EnsureTag(CharacterTagStr);
 
-	const FString SafeCharTag      = SanitizeForAssetName(CharacterTagStr);
-	const FString TemplateName     = FString::Printf(TEXT("DA_SpriteCharacter_%s"), *SafeCharTag);
-	const FString TemplatePackage  = FString::Printf(TEXT("%s/%s"), *kDefaultOutputDir, *TemplateName);
+	const FString SafeCharTag     = SanitizeForAssetName(CharacterTagStr);
+	const FString VisualName      = FString::Printf(TEXT("DA_HISMSpriteVisual_%s"), *SafeCharTag);
+	const FString AnimName        = FString::Printf(TEXT("DA_HISMSpriteAnim_%s"),   *SafeCharTag);
+	const FString VisualPackage   = FString::Printf(TEXT("%s/%s"), *kDefaultOutputDir, *VisualName);
+	const FString AnimPackage     = FString::Printf(TEXT("%s/%s"), *kDefaultOutputDir, *AnimName);
 
 	struct FSlotEntry { int32 DirIdx; UTexture2D* Tex; int32 CellW; int32 CellH; int32 FrameCount; };
 	TArray<FSlotEntry> Slots;
@@ -1776,11 +1852,10 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 		}
 	}
 
-	UPackage* Pkg = nullptr;
-	UHktSpriteCharacterTemplate* Tmpl = UpsertTemplate(TemplatePackage, TemplateName, CharacterTagStr, Pkg);
-	if (!Tmpl || !Pkg) return MakeSpriteError(TEXT("DataAsset 생성/로드 실패"));
-	if (!Tmpl->IdentifierTag.IsValid()) Tmpl->IdentifierTag = CharTag;
-	if (Tmpl->PixelToWorld <= 0.f)      Tmpl->PixelToWorld  = PixelToWorld;
+	// --- Animation 자산 upsert (anim 누적) ---
+	UPackage* AnimPkg = nullptr;
+	UHktHISMSpriteAnimationDataAsset* AnimAsset = UpsertAnimation(AnimPackage, AnimName, AnimPkg);
+	if (!AnimAsset || !AnimPkg) return MakeSpriteError(TEXT("Animation DataAsset 생성/로드 실패"));
 
 	FHktSpriteAnimation Anim;
 	Anim.Atlas               = nullptr;
@@ -1832,11 +1907,24 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 
 	// 프레임은 그리드 규약(AtlasIndex=frameIdx, AtlasSlotIdx=dirIdx)으로 합성 — 별도 배열 없음.
 
-	Tmpl->Animations.Add(AnimTag, MoveTemp(Anim));
-	if (!Tmpl->DefaultAnimTag.IsValid()) Tmpl->DefaultAnimTag = AnimTag;
+	AnimAsset->Animations.Add(AnimTag, MoveTemp(Anim));
+	if (!AnimAsset->DefaultAnimTag.IsValid()) AnimAsset->DefaultAnimTag = AnimTag;
 
 	FString SaveErr;
-	if (!SaveTemplate(Tmpl, Pkg, TemplatePackage, SaveErr))
+	if (!SaveAsset(AnimAsset, AnimPkg, AnimPackage, SaveErr))
+	{
+		return MakeSpriteError(SaveErr);
+	}
+
+	// --- Visual 자산 upsert (AnimationAsset 슬롯 바인딩) ---
+	UPackage* VisualPkg = nullptr;
+	UHktHISMSpriteVisualAsset* Visual = UpsertVisual(VisualPackage, VisualName, CharacterTagStr, VisualPkg);
+	if (!Visual || !VisualPkg) return MakeSpriteError(TEXT("Visual DataAsset 생성/로드 실패"));
+	if (!Visual->IdentifierTag.IsValid()) Visual->IdentifierTag = CharTag;
+	if (Visual->PixelToWorld <= 0.f)      Visual->PixelToWorld  = PixelToWorld;
+	Visual->AnimationAsset = AnimAsset;
+
+	if (!SaveAsset(Visual, VisualPkg, VisualPackage, SaveErr))
 	{
 		return MakeSpriteError(SaveErr);
 	}
@@ -1846,7 +1934,8 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 		*CharacterTagStr, *AnimTagStr, Slots.Num(), NumDirLocal, FPDLocal, SlotCellW, SlotCellH);
 
 	return MakeResult(true, {
-		{ TEXT("dataAssetPath"),  FString::Printf(TEXT("%s.%s"), *TemplatePackage, *TemplateName) },
+		{ TEXT("dataAssetPath"),  FString::Printf(TEXT("%s.%s"), *VisualPackage, *VisualName) },
+		{ TEXT("animAssetPath"),  FString::Printf(TEXT("%s.%s"), *AnimPackage,   *AnimName)   },
 		{ TEXT("characterTag"),   CharacterTagStr },
 		{ TEXT("animTag"),        AnimTagStr },
 		{ TEXT("numSlots"),       FString::FromInt(Slots.Num()) },

@@ -33,8 +33,8 @@
 //     - Tag 폴더 직속이 정확히 `Animations/` 폴더 하나뿐인 구버전 트리도 그대로 인식.
 //
 //     HISM/                                 ← Paper2D 와 동일 디렉터리 컨벤션.
-//                                              빌드 산출: UHktSpriteCharacterTemplate (Character)
-//                                                       / UHktHISMSpriteVisualAsset (StaticVisual)
+//                                              빌드 산출: UHktHISMSpriteVisualAsset (Character/StaticVisual)
+//                                                       + UHktHISMSpriteAnimationDataAsset (Character anim)
 //
 // ============================================================================
 

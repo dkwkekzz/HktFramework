@@ -4,7 +4,6 @@
 
 #include "HktAssetSubsystem.h"
 #include "HktCoreEventLog.h"
-#include "HktSpriteCharacterTemplate.h"
 #include "HktHISMSpriteVisualAsset.h"
 #include "HktHISMSpriteAnimationDataAsset.h"
 #include "HktSpriteCoreLog.h"
@@ -133,7 +132,7 @@ void UHktSpriteNiagaraCrowdRenderer::SetCharacter(FHktEntityId Id, FGameplayTag 
 			*OldTag.ToString(), *CharacterTag.ToString()),
 		Id);
 
-	if (CharacterTag.IsValid() && !TemplateCache.Contains(CharacterTag))
+	if (CharacterTag.IsValid() && !VisualCache.Contains(CharacterTag))
 	{
 		RequestTemplateLoad(CharacterTag);
 	}
@@ -294,7 +293,7 @@ void UHktSpriteNiagaraCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 {
 	if (!Tag.IsValid()) return;
 	if (PendingTemplateLoads.Contains(Tag)) return;
-	if (TemplateCache.Contains(Tag)) return;
+	if (VisualCache.Contains(Tag)) return;
 
 	UWorld* World = GetWorld();
 	UHktAssetSubsystem* AssetSub = World ? UHktAssetSubsystem::Get(World) : nullptr;
@@ -316,50 +315,46 @@ void UHktSpriteNiagaraCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 
 		Self->PendingTemplateLoads.Remove(Tag);
 
-		UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
-		if (!Template)
-		{
-			// 신규 분리 자산 호환 — HktSpriteCrowdRenderer.cpp 의 SynthesizeTemplateFromVisual
-			// 와 동일 어댑터 로직. 본 파일에서만 사용하므로 inline.
-			if (UHktHISMSpriteVisualAsset* Visual = Cast<UHktHISMSpriteVisualAsset>(Loaded))
-			{
-				UHktSpriteCharacterTemplate* Synth = NewObject<UHktSpriteCharacterTemplate>(
-					Self, NAME_None, RF_Transient);
-				Synth->Atlas         = Visual->Atlas;
-				Synth->AtlasCellSize = Visual->AtlasCellSize;
-				Synth->PixelToWorld  = Visual->PixelToWorld;
-				if (Visual->AnimationAsset)
-				{
-					Synth->Animations    = Visual->AnimationAsset->Animations;
-					Synth->DefaultAnimTag = Visual->AnimationAsset->DefaultAnimTag;
-				}
-				else
-				{
-					FHktSpriteAnimation StaticAnim;
-					StaticAnim.Atlas              = Visual->Atlas;
-					StaticAnim.AtlasCellSize      = Visual->AtlasCellSize;
-					StaticAnim.NumDirections      = 1;
-					StaticAnim.FramesPerDirection = 1;
-					StaticAnim.bLooping           = false;
-					StaticAnim.PivotOffset        = FVector2f(
-						Visual->AtlasCellSize.X * 0.5f, Visual->AtlasCellSize.Y);
-					const FGameplayTag StaticTag = FGameplayTag::RequestGameplayTag(
-						FName("Anim.Static.Default"), /*ErrorIfNotFound*/ false);
-					Synth->DefaultAnimTag = StaticTag;
-					Synth->Animations.Add(StaticTag, StaticAnim);
-				}
-				Template = Synth;
-			}
-		}
-		if (!Template)
+		UHktHISMSpriteVisualAsset* Visual = Cast<UHktHISMSpriteVisualAsset>(Loaded);
+		if (!Visual)
 		{
 			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|NiagaraCrowd: CharacterTemplate 로드 실패/타입 불일치 (tag=%s)"),
+				FString::Printf(TEXT("Sprite|NiagaraCrowd: Visual 로드 실패/타입 불일치 (tag=%s)"),
 					*Tag.ToString()));
 			return;
 		}
-		Self->TemplateCache.Add(Tag, Template);
+		Self->VisualCache.Add(Tag, Visual);
+
+		// 정적 Visual 은 합성 anim 1개를 캐시 — 매 프레임 룩업에서 동적과 동일한 경로 사용.
+		if (Visual->IsStatic())
+		{
+			FHktSpriteAnimation StaticAnim;
+			StaticAnim.Atlas              = Visual->Atlas;
+			StaticAnim.AtlasCellSize      = Visual->AtlasCellSize;
+			StaticAnim.NumDirections      = 1;
+			StaticAnim.FramesPerDirection = 1;
+			StaticAnim.bLooping           = false;
+			StaticAnim.PivotOffset        = FVector2f(
+				Visual->AtlasCellSize.X * 0.5f, Visual->AtlasCellSize.Y);
+			Self->StaticAnimCache.Add(Tag, StaticAnim);
+		}
 	});
+}
+
+const FHktSpriteAnimation* UHktSpriteNiagaraCrowdRenderer::ResolveAnimation(
+	FGameplayTag CharacterTag, const FGameplayTag& AnimTag) const
+{
+	if (const FHktSpriteAnimation* Static = StaticAnimCache.Find(CharacterTag))
+	{
+		return Static;
+	}
+	const TObjectPtr<UHktHISMSpriteVisualAsset>* Found = VisualCache.Find(CharacterTag);
+	const UHktHISMSpriteVisualAsset* Visual = Found ? Found->Get() : nullptr;
+	if (Visual && Visual->AnimationAsset)
+	{
+		return Visual->AnimationAsset->FindAnimationOrFallback(AnimTag);
+	}
+	return nullptr;
 }
 
 // ============================================================================
@@ -381,9 +376,9 @@ void UHktSpriteNiagaraCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpr
 		return;
 	}
 
-	TObjectPtr<UHktSpriteCharacterTemplate>* Found = TemplateCache.Find(State->CharacterTag);
-	UHktSpriteCharacterTemplate* Template = Found ? Found->Get() : nullptr;
-	if (!Template)
+	TObjectPtr<UHktHISMSpriteVisualAsset>* Found = VisualCache.Find(State->CharacterTag);
+	UHktHISMSpriteVisualAsset* Visual = Found ? Found->Get() : nullptr;
+	if (!Visual)
 	{
 		if (State->LastUpdateStatus != EHktSpriteUpdateStatus::TemplateMissing)
 		{
@@ -392,14 +387,14 @@ void UHktSpriteNiagaraCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpr
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
 				bPending ? EHktLogLevel::Verbose : EHktLogLevel::Warning,
 				EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|NiagaraCrowd: Template 미준비 (tag=%s, pending=%d)"),
+				FString::Printf(TEXT("Sprite|NiagaraCrowd: Visual 미준비 (tag=%s, pending=%d)"),
 					*State->CharacterTag.ToString(), bPending ? 1 : 0),
 				Id);
 		}
 		return;
 	}
 
-	ApplyEntityParticleData(Id, Update, Template, *State);
+	ApplyEntityParticleData(Id, Update, Visual, *State);
 }
 
 // ============================================================================
@@ -408,11 +403,11 @@ void UHktSpriteNiagaraCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpr
 // ============================================================================
 
 void UHktSpriteNiagaraCrowdRenderer::ApplyEntityParticleData(FHktEntityId Id,
-	const FHktSpriteEntityUpdate& Update, UHktSpriteCharacterTemplate* Template, FEntityState& State)
+	const FHktSpriteEntityUpdate& Update, const UHktHISMSpriteVisualAsset* Visual, FEntityState& State)
 {
-	if (!Template) return;
+	if (!Visual) return;
 
-	const FHktSpriteAnimation* Animation = Template->FindAnimationOrFallback(Update.AnimTag);
+	const FHktSpriteAnimation* Animation = ResolveAnimation(State.CharacterTag, Update.AnimTag);
 	if (!Animation)
 	{
 		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::AnimationNull)
@@ -457,8 +452,8 @@ void UHktSpriteNiagaraCrowdRenderer::ApplyEntityParticleData(FHktEntityId Id,
 	TSoftObjectPtr<UTexture2D> AtlasRef;
 	FVector2f CellSize = FVector2f::ZeroVector;
 	Animation->ResolveAtlasForDirection(DirIdx, AtlasRef, CellSize);
-	if (AtlasRef.IsNull()) AtlasRef = Template->Atlas;
-	if (CellSize.X <= 0.f || CellSize.Y <= 0.f) CellSize = Template->AtlasCellSize;
+	if (AtlasRef.IsNull()) AtlasRef = Visual->Atlas;
+	if (CellSize.X <= 0.f || CellSize.Y <= 0.f) CellSize = Visual->AtlasCellSize;
 
 	if (AtlasRef.IsNull())
 	{
@@ -501,7 +496,7 @@ void UHktSpriteNiagaraCrowdRenderer::ApplyEntityParticleData(FHktEntityId Id,
 	}
 
 	const FVector2f Scale = Animation->Scale;
-	const float PxToWorld = Template->PixelToWorld * GlobalWorldScale;
+	const float PxToWorld = Visual->PixelToWorld * GlobalWorldScale;
 	if (Scale.X <= 0.f || Scale.Y <= 0.f || PxToWorld <= 0.f)
 	{
 		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::ZeroQuadSize)

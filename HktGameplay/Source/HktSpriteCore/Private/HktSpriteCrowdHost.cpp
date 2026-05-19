@@ -156,8 +156,8 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 
 		Renderer->RegisterEntity(Id);
 
-		// 캐릭터 1개 = UHktSpriteCharacterTemplate 1개. SpawnEntity의 ClassTag(=EntitySpawnTag)를
-		// 그대로 Template Tag로 사용한다 (Template 내부에서 향후 파츠 분기는 가능).
+		// 캐릭터 1개 = UHktHISMSpriteVisualAsset 1개. SpawnEntity의 ClassTag(=EntitySpawnTag)를
+		// 그대로 Visual Tag 로 사용한다 (Visual 내부의 AnimationAsset 으로 anim 분기).
 		Renderer->SetCharacter(Id, SV->Character.Get());
 
 		// 초기 상태에서 Anim Tag Container를 한 번 동기화

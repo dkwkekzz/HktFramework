@@ -71,7 +71,7 @@ enum class EHktSpriteSourceType : uint8
  *   BuildSpriteAnim(CharacterTag, AnimTag, CellW, CellH, PixelToWorld)
  *
  * Workspace ({Saved}/SpriteGenerator/{SafeChar}) 의 컨벤션 경로에서 atlas_{Dir}.png 를
- * 자동 발견·임포트해 DA_SpriteCharacter_{Char} 에 누적. 나머지는 자동 추론:
+ * 자동 발견·임포트해 DA_HISMSpriteVisual_{Char} + DA_HISMSpriteAnim_{Char} 쌍에 누적. 나머지는 자동 추론:
  *   - NumDirections    → 발견된 슬롯 수로 1/5/8 양자화
  *   - FramesPerDir     → 아틀라스 너비 / CellW
  *   - PivotOffset      → 셀 중앙·하단 (CellW/2, CellH)
@@ -95,7 +95,7 @@ public:
 	// ========================================================================
 
 	/**
-	 * CharacterTag + AnimTag + 재료(동영상|Atlas|TextureBundle) → UHktSpriteCharacterTemplate 빌드/갱신.
+	 * CharacterTag + AnimTag + 재료(동영상|Atlas|TextureBundle) → UHktHISMSpriteVisualAsset + UHktHISMSpriteAnimationDataAsset 빌드/갱신.
 	 *
 	 * 하나의 캐릭터(=CharacterTag)에 여러 애니메이션을 반복 호출로 누적한다.
 	 *   - 같은 CharacterTag의 DataAsset이 이미 있으면 Animations 맵에 해당 AnimTag만 추가/교체
@@ -118,7 +118,7 @@ public:
 	 */
 	/**
 	 * Stage 3 — 호출자(워크스페이스 빌더)가 직접 수집한 방향별 atlas PNG 입력 배열을
-	 * 그대로 임포트해 UHktSpriteCharacterTemplate 에 누적. 디스크 컨벤션 탐색·사이드카
+	 * 그대로 임포트해 UHktHISMSpriteAnimationDataAsset 에 누적 + UHktHISMSpriteVisualAsset 의 AnimationAsset 슬롯에 바인딩. 디스크 컨벤션 탐색·사이드카
 	 * 로드는 더 이상 수행하지 않는다 — 워크스페이스가 진실 소스.
 	 *
 	 * UFUNCTION 이 비-USTRUCT 컨테이너를 노출 못 하므로 일반 static 으로 둔다 — Blueprint
@@ -143,7 +143,7 @@ public:
 	// ========================================================================
 
 	/**
-	 * Atlas PNG + 메타데이터로 UHktSpriteCharacterTemplate DataAsset 빌드.
+	 * Atlas PNG + 메타데이터로 UHktHISMSpriteVisualAsset + UHktHISMSpriteAnimationDataAsset DataAsset 쌍 빌드.
 	 *
 	 * JsonSpec 스키마:
 	 * {

@@ -337,7 +337,7 @@ void FHktActorProcessor::SpawnActorFromResolvedAsset(FHktEntityId EntityId, cons
 		}
 		else if (UHktActorVisualDataAsset* VisualAsset = Cast<UHktActorVisualDataAsset>(LoadedAsset))
 		{
-			// Actor 기반 비주얼 에셋만 여기서 스폰. SpriteCharacterTemplate 등 다른 타입은
+			// Actor 기반 비주얼 에셋만 여기서 스폰. HISMSpriteVisualAsset 등 다른 타입은
 			// 별도 Processor(AHktSpriteCrowdHost 등)가 처리하므로 이 경로에서 무시.
 			if (!VisualAsset->ActorClass)
 			{

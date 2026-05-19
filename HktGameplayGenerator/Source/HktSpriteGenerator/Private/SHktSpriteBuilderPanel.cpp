@@ -99,7 +99,7 @@ void SHktSpriteBuilderPanel::Construct(const FArguments& InArgs)
 				SNew(STextBlock)
 				.Text(LOCTEXT("Hint",
 					"Workspace ({Saved}/SpriteGenerator/{Char}) 의 anim 폴더들을 자동 발견해 atlas PNG 를 즉석 임포트 후 "
-					"DA_SpriteCharacter_{Char} 에 누적합니다. Animations 가 비어있으면 모든 anim 자동, "
+					"DA_HISMSpriteVisual_{Char} + DA_HISMSpriteAnim_{Char} 에 누적합니다. Animations 가 비어있으면 모든 anim 자동, "
 					"채워두면 그 항목들의 셀 크기로 빌드 (CellWidth/Height=0 → meta.json/aspect 자동 추론)."))
 				.AutoWrapText(true)
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())

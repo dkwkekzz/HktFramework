@@ -15,7 +15,7 @@ class UInstancedStaticMeshComponent;
 class UStaticMesh;
 class UMaterialInterface;
 class UTexture2D;
-class UHktSpriteCharacterTemplate;
+class UHktHISMSpriteVisualAsset;
 class UHktTagDataAsset;
 
 /**
@@ -137,7 +137,14 @@ private:
 	TMap<FSoftObjectPath, UInstancedStaticMeshComponent*> AtlasHISMs;
 
 	UPROPERTY(Transient)
-	TMap<FGameplayTag, TObjectPtr<UHktSpriteCharacterTemplate>> TemplateCache;
+	TMap<FGameplayTag, TObjectPtr<UHktHISMSpriteVisualAsset>> VisualCache;
+
+	/**
+	 * 정적 Visual(`AnimationAsset == nullptr`) 의 합성 anim 1회 캐시. 매 프레임 룩업에서
+	 * 동적 경로와 동일한 `FHktSpriteAnimation*` 인터페이스를 제공한다. 동적 Visual 은
+	 * 본 맵에 등록되지 않으며 `Visual->AnimationAsset->Animations` 를 직접 사용.
+	 */
+	TMap<FGameplayTag, FHktSpriteAnimation> StaticAnimCache;
 
 	TMap<FHktEntityId, FEntityState> Entities;
 
@@ -175,9 +182,15 @@ private:
 	void OnAtlasesLoaded(FGameplayTag Tag);
 	/** UpdateEntity 진입 시 호출. true 반환 = Ready 단계, 그릴 수 있음. */
 	bool AdvanceTemplateReadiness(FGameplayTag Tag);
-	static void CollectAtlasPaths(const UHktSpriteCharacterTemplate* T, TArray<FSoftObjectPath>& OutPaths);
+	void CollectAtlasPaths(FGameplayTag CharacterTag, TArray<FSoftObjectPath>& OutPaths) const;
 	static bool AreAllAtlasesRHIReady(const TArray<FSoftObjectPath>& Paths);
 	void PrecreateHISMs(const TArray<FSoftObjectPath>& Paths);
+
+	/**
+	 * Visual + AnimTag → FHktSpriteAnimation* 해석. 정적 Visual 은 `StaticAnimCache`
+	 * 의 합성 anim 을, 동적 Visual 은 `AnimationAsset->FindAnimationOrFallback` 결과를 반환.
+	 */
+	const FHktSpriteAnimation* ResolveAnimation(FGameplayTag CharacterTag, const FGameplayTag& AnimTag) const;
 
 	UInstancedStaticMeshComponent* GetOrCreateHISM(const FSoftObjectPath& AtlasPath, UTexture2D* AtlasTex);
 
@@ -185,12 +198,12 @@ private:
 	void RemoveInstanceAndRemap(const FSoftObjectPath& AtlasPath, int32 InstanceIndex);
 
 	/**
-	 * 방향 단위 atlas/셀크기 해석 — Animation.AtlasSlots(분할) 또는 단일 Anim.Atlas/Template.Atlas 폴백.
+	 * 방향 단위 atlas/셀크기 해석 — Animation.AtlasSlots(분할) 또는 단일 Anim.Atlas/Visual.Atlas 폴백.
 	 * 반환 텍스처는 LoadSynchronous 결과. 실패 시 nullptr.
 	 */
 	static UTexture2D* ResolveAtlas(const FHktSpriteAnimation& Anim, int32 DirIdx,
-		UHktSpriteCharacterTemplate* Template, FSoftObjectPath& OutPath, FVector2f& OutCellSize);
+		const UHktHISMSpriteVisualAsset* Visual, FSoftObjectPath& OutPath, FVector2f& OutCellSize);
 
 	void ApplyEntityInstanceTransform(FHktEntityId Id, const FHktSpriteEntityUpdate& Update,
-		UHktSpriteCharacterTemplate* Template, FEntityState& State);
+		const UHktHISMSpriteVisualAsset* Visual, FEntityState& State);
 };

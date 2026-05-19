@@ -93,7 +93,7 @@ MCP 도구 `list_workspace_tags` 호출:
 ### 3. 빌드 결과 보고
 
 각 `results[]` 항목별로:
-- `success: true` + `outputs[]`: UE 컨텐츠 경로 (DA_PaperVisual_*, DA_PaperCharacter_*, T_PaperAtlas_*, PFB_*)
+- `success: true` + `outputs[]`: UE 컨텐츠 경로 (DA_PaperVisual_*, DA_PaperAnimation_*, T_PaperAtlas_*, PFB_*)
 - `skipped: true`: manifest fresh — 건너뜀
 - `success: false` + `error`: 빌드 실패 — 원인 보고
 
@@ -104,7 +104,7 @@ MCP 도구 `list_workspace_tags` 호출:
 ## 빌드 후 산출물 (Paper2D)
 
 - `/Game/Generated/PaperSprites/{SafeTag}/DA_PaperVisual_{SafeTag}` — `UHktPaperActorVisualDataAsset` (런타임 SpawnEntity 진입점)
-- `/Game/Generated/PaperSprites/{SafeTag}/DA_PaperCharacter_{SafeTag}` — `UHktPaperCharacterTemplate`
+- `/Game/Generated/PaperSprites/{SafeTag}/DA_PaperAnimation_{SafeTag}` — `UHktPaperAnimationDataAsset`
 - `/Game/Generated/PaperSprites/{SafeTag}/PFB_*` — 방향별 `UPaperFlipbook`
 - `/Game/Generated/PaperSprites/{SafeTag}/T_PaperAtlas_*` — `UTexture2D` (atlas)
 

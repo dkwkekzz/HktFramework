@@ -19,7 +19,7 @@ public class HktPaper2DGenerator : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"GameplayTags",
-				"HktSpriteCore",   // UHktPaperCharacterTemplate / UHktPaperActorVisualDataAsset / HktPaperUnlitMaterial
+				"HktSpriteCore",   // UHktPaperAnimationDataAsset / UHktPaperActorVisualDataAsset / HktPaperUnlitMaterial
 				"HktAsset",        // UHktTagDataAsset
 				"HktPresentation", // UHktActorVisualDataAsset
 				"Paper2D",         // UPaperSprite / UPaperFlipbook

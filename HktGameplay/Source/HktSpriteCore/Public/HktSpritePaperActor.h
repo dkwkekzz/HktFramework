@@ -17,8 +17,7 @@ class UBoxComponent;
 class UPaperFlipbookComponent;
 class UPaperFlipbook;
 class UPaperSprite;
-class UHktPaperCharacterTemplate;        // [DEPRECATED] 호환 폴백
-class UHktPaperAnimationDataAsset;       // 신규 동적 애니메이션 자산
+class UHktPaperAnimationDataAsset;       // 동적 애니메이션 자산
 class UHktTagDataAsset;
 struct FHktSpriteView;
 
@@ -107,17 +106,13 @@ private:
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
 	/**
-	 * 동적 애니메이션 자산(신규 권장). 비어 있으면 LegacyTemplate / StaticSprite 폴백.
-	 * 셋 중 하나라도 채워져 있으면 OnVisualAssetLoaded 가 적절히 캐싱한다.
+	 * 동적 애니메이션 자산. 비어 있으면 StaticSprite 폴백.
+	 * 둘 중 하나라도 채워져 있으면 OnVisualAssetLoaded 가 적절히 캐싱한다.
 	 */
 	UPROPERTY(Transient)
 	TObjectPtr<UHktPaperAnimationDataAsset> Animation;
 
-	/** [DEPRECATED] 구(舊) UHktPaperCharacterTemplate 자산 호환 폴백. */
-	UPROPERTY(Transient)
-	TObjectPtr<UHktPaperCharacterTemplate> LegacyTemplate;
-
-	/** 정적 객체(나무·바위 등)용 단일 스프라이트. Animation/LegacyTemplate 둘 다 null 일 때만 사용. */
+	/** 정적 객체(나무·바위 등)용 단일 스프라이트. Animation 이 null 일 때만 사용. */
 	UPROPERTY(Transient)
 	TObjectPtr<UPaperSprite> StaticSprite;
 
