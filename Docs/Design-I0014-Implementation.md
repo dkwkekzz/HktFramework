@@ -57,6 +57,63 @@
 
 `AHktGameMode::InitGame` 의 `WorldInitStoryTag` 1회 발동 경로 (`FHktDefaultServerRule::PendingWorldInit`) 는 본 시스템과 공존한다. 설계상 (TerrainSpawner.design.md §7) Phase 3 (BakeRegion 의 WorldInitLocation 자동 spawner slot 화) 완료 시 제거 예정이나 현재는 부트스트랩 호환성을 위해 보존.
 
+## Setup 진단 — "아무것도 생성 안 됨" 체크리스트
+
+[I-0014 의 동작 전제 6개 게이트](intents/I-0014.md#동작-전제-디자이너-책임) 가 충족됐는지 *기계적으로* 확인하는 절차. 위에서 아래로 순서대로 점검.
+
+### 1. Baked Asset 이 로드되었는가
+
+- 확인: `AHktGameMode` 또는 World Settings 에서 `UHktTerrainSubsystem::LoadBakedAsset(SoftRef)` 호출 위치
+- 로그 검색: `[FloatRepro] LoadBakedAsset 비동기 완료`
+- 콘솔: `hkt.Debug.BakedAsset` 또는 Insights `Terrain.Subsystem`
+- **실패 증상**: `[TerrainProvider] GetChunkSpawners: BakedAsset 미로드` 로그. 청크 컨텍스트 자체가 없어 이벤트 emit 차단.
+
+### 2. Baked Asset 이 v4 이고 PlacementStoryTag 가 채워져 있는가
+
+- 확인: 에디터에서 `.uasset` 열기 → `GeneratorConfig` → `PlacementStoryTag` 필드
+- 버전 확인: `CurrentBakeVersion == 4` (`HktTerrainBakedAsset.h:283`)
+- v3 자산이면 재베이크 (`UHktTerrainBakeLibrary::BakeRegion`)
+- **실패 증상**: 빈 태그 → `DispatchTag.IsValid() == false` → 폴백 `Event.Terrain.ChunkLoaded` 발화 (World 별 placement 미발화)
+
+### 3. JSON storyTag 가 PlacementStoryTag 와 문자 일치하는가
+
+- 확인: `Placement_<WorldId>.json` 의 `"storyTag": "Story.Placement.<WorldId>"` ↔ Baked asset 의 `PlacementStoryTag` 필드값
+- **대소문자 구분, 공백·점 위치까지 정확히**
+- **실패 증상**: 이벤트는 emit 되나 dispatch 매칭이 안 됨. 로그에 spawner 발화 메시지 부재.
+
+### 4. StoryDirectories 가 ProjectSettings 에 지정되었는가
+
+- 확인: `Project Settings → Game → Hkt Gameplay Settings → Story Directories`
+- JSON 위치 (예: `/Game/HktGameplay/Content/Stories`) 등록 필요. 재귀 스캔.
+- **실패 증상**: `FHktStoryJsonLoader::LoadAllFromContentDirectory` 가 파일을 못 찾음. "Loaded JSON story:" 로그 부재.
+
+### 5. GameplayTag 가 등록되어 있는가
+
+- 확인: 콘솔 `ShowGameplayTagManager` 또는 `Config/Tags/DefaultGameplayTags.ini` 에서 `Story.Placement.` 검색
+- 미등록 시: 에디터에서 `UHktStoryEditorLibrary::RegenerateStoryTagsAndReload()` 호출 → `Config/Tags/HktStoryTags.ini` 자동 생성
+- **실패 증상**: `Unknown GameplayTag 'Story.Placement.<WorldId>' — run UHktStoryEditorLibrary::RegenerateStoryTagsAndReload...` 경고 (`HktStoryJsonLoader.cpp:24-29`). Tag 가 invalid 라 매칭 실패.
+
+### 6. 서버 권위 + 표면 청크 조건
+
+- 확인: NetMode 가 Standalone / ListenServer / DedicatedServer 중 하나 (`EHktLogSource::Server`)
+- 클라이언트 단독 PIE 는 `bIsAuthoritative=false` 로 emit 차단 (`HktWorldDeterminismSimulator.cpp`)
+- `bIsSurfaceChunk == true` 인 청크만 발화 (`HktSimulationSystems.cpp:650-701`)
+- **실패 증상**: ChunkLoaded emit 메시지 자체가 로그에 없음.
+
+### 빠른 진단 순서
+
+| 증상 | 가장 가능성 높은 게이트 |
+|---|---|
+| 로그에 ChunkLoaded emit 자체가 없음 | 1 (BakedAsset) 또는 6 (NetMode/표면) |
+| `Unknown GameplayTag` 경고 | 5 (태그 등록) |
+| `Loaded JSON story:` 로그 부재 | 4 (StoryDirectories) |
+| emit 은 되는데 spawner 안 발화 | 2 (PlacementStoryTag 빈 태그) 또는 3 (문자 불일치) |
+| 로그에 `Event.Terrain.ChunkLoaded` 가 보이지만 placement 안 됨 | 2 (PlacementStoryTag 빈 태그 → 폴백) |
+
+### 자동화 제안
+
+콘솔 명령 `hkt.Placement.Diagnose` 를 추가해 6개 게이트를 한 번에 검사·리포트하는 것이 [I-0015 (결합 무결성)](intents/I-0015.md) 의 placement 영역 구현으로 자연스럽다.
+
 ## 점검 완료 메모
 
 - **Region 메모리 미드조인 동기화** (2026-05-18) — Region 데이터는 별도 자료구조가 아닌 `Entity.Region` / `Entity.RegionRecord.*` 태그의 일반 SOA entity 로 저장(`HktWorldState.h:53-56`, `HktWorldState.cpp:186-245`)되어 `FHktWorldState::NetSerialize`(`HktWorldState.cpp:402-522`) 가 자동 포함. 미드조인은 `Client_ReceiveInitialState`(`HktGameMode.cpp:288-296`) → `RestoreWorldState`(`HktWorldDeterminismSimulator.cpp:503-516`) 경로로 전체 복원. 별도 작업 불필요.
