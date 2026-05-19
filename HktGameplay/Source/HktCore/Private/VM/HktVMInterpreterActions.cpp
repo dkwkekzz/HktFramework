@@ -9,6 +9,7 @@
 #include "GameplayTagsManager.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
+#include "HktHitboxDebugTracer.h"
 #include "Terrain/HktTerrainState.h"
 #include "Terrain/HktTerrainVoxelDef.h"
 #include "Terrain/HktRegionId.h"
@@ -236,6 +237,21 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
         HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
             FString::Printf(TEXT("FindInRadius Center=%d Radius=%d Mask=0x%X Found=%d"),
                 Center, RadiusCm, FilterMask, Runtime.SpatialQuery.Entities.Num()));
+
+#if ENABLE_HKT_INSIGHTS
+        if (FHktHitboxDebugTracer::Get().IsEnabled())
+        {
+            FHktHitboxTrace Trace;
+            Trace.SimFrame = WorldState->FrameNumber;
+            Trace.Source = Center;
+            Trace.Center = FIntVector(CX, CY, CZ);
+            Trace.RadiusCm = RadiusCm;
+            Trace.HitCount = Runtime.SpatialQuery.Entities.Num();
+            Trace.FilterMask = FilterMask;
+            Trace.StoryTag = Runtime.Program ? Runtime.Program->Tag.GetTagName() : FName();
+            FHktHitboxDebugTracer::Get().Push(Trace);
+        }
+#endif
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());
@@ -279,6 +295,21 @@ void FHktVMInterpreter::Op_FindInRadiusEx(FHktVMRuntime& Runtime, RegisterIndex 
         HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
             FString::Printf(TEXT("FindInRadiusEx Center=%d Radius=%d Mask=0x%X Found=%d"),
                 Center, RadiusCm, FilterMask, Runtime.SpatialQuery.Entities.Num()));
+
+#if ENABLE_HKT_INSIGHTS
+        if (FHktHitboxDebugTracer::Get().IsEnabled())
+        {
+            FHktHitboxTrace Trace;
+            Trace.SimFrame = WorldState->FrameNumber;
+            Trace.Source = Center;
+            Trace.Center = FIntVector(CX, CY, CZ);
+            Trace.RadiusCm = RadiusCm;
+            Trace.HitCount = Runtime.SpatialQuery.Entities.Num();
+            Trace.FilterMask = FilterMask;
+            Trace.StoryTag = Runtime.Program ? Runtime.Program->Tag.GetTagName() : FName();
+            FHktHitboxDebugTracer::Get().Push(Trace);
+        }
+#endif
     }
 
     Runtime.SetReg(Reg::Count, Runtime.SpatialQuery.Entities.Num());

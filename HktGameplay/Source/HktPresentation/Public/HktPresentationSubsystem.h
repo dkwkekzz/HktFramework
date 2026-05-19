@@ -17,6 +17,7 @@ class FHktVFXProcessor;
 #if ENABLE_HKT_INSIGHTS
 class FHktCollisionDebugProcessor;
 class FHktTerrainDebugProcessor;
+class FHktHitboxDebugProcessor;
 #endif
 struct FHktRuntimeEvent;
 struct FHktVFXIntent;
@@ -107,6 +108,7 @@ private:
 #if ENABLE_HKT_INSIGHTS
 	TSharedPtr<FHktCollisionDebugProcessor> CollisionDebugProcessor;
 	TSharedPtr<FHktTerrainDebugProcessor> TerrainDebugProcessor;
+	TSharedPtr<FHktHitboxDebugProcessor> HitboxDebugProcessor;
 #endif
 
 	IHktPlayerInteractionInterface* BoundInteraction = nullptr;
