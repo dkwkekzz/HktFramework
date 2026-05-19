@@ -6,6 +6,8 @@
 
 ## 핵심 흐름
 
+[I-0022](intents/I-0022.md) 에서 *spawn 주체 = voxel · 정책 = template · 연결 = voxel attribution* 로 모델이 고정됐다. 핵심 흐름도 그 모델로 표기한다.
+
 ```
 [청크 로드]                                   (FHktTerrainSystem::Process)
    │
@@ -13,17 +15,23 @@
    │     Param2 = BiomeId, Param3 = SlotHash31
    ▼
 [Placement Story]                             (Content/Stories/Natural/Placement_*.json)
-   │  biome 분기 → spawner-story dispatch
+   │  biome × World 정책 분기
+   │  → voxel 단위로 SpawnTemplateId attribution 부여
    ▼
-[Spawner Story]                               (Content/Stories/Natural/<Entity>/<Entity>_Spawn.json)
+[Voxel Attribution]                           (baked chunk per-voxel SpawnTemplateId)
+   │  voxel 평가 시점 (스트림인 / 청크 활성화)
+   │  → 참조 template 활성화
+   ▼
+[Terrain Story Template]                      (Content/Stories/Natural/<Entity>/<Entity>_Spawn.json — voxel 이 참조하는 소수 라이브러리)
    │  Region 메모리 조회/갱신
+   │  voxel 시드 (좌표·SlotHash31·lineage) → 결정론적 다양성
    │  SpawnEntity opcode + 위치/속성 부여
    │  Lifecycle Story dispatch (DispatchEventFrom)
    ▼
 [Entity Lifecycle]                            (I-0010, I-0011 연속)
 ```
 
-코드 모델의 "Spawner" 는 별도 객체가 아니라 **spawner-story (자연 발생 정책을 담은 bytecode)** 의 추상 표현이다. 명시 배치/보스용 `FHktTerrainSpawnerSpec` 은 baked asset 의 정적 데이터로 존재하나 자연 발생 자동 채움에는 사용되지 않는다.
+코드 모델의 "Spawner" 는 별도 객체가 아니라 **voxel 의 한 속성** 이다. 정책 자체는 *spawner-story (자연 발생 정책을 담은 bytecode)* 가 담당하지만, voxel 의 attribution 으로 연결되어야 본 의도의 모델에 들어온다. 명시 배치/보스용 `FHktTerrainSpawnerSpec` 은 baked asset 의 정적 데이터로 존재하나 자연 발생 자동 채움에는 사용되지 않으며, 향후 voxel attribution 으로 일원화될 후보다.
 
 ## 구현 완료
 
@@ -47,11 +55,15 @@
 
 | 갭 | 의도 표현 | 현 구현 |
 |---|---|---|
-| **"Spawner 배치"** 모델 | Placement → Spawner 배치 → Entity 생성 (2단계) | 실제: Placement → spawner-story dispatch → `SpawnEntity` opcode (1단계). 별도 "Spawner" 중간 객체 없음. `FHktTerrainSpawnerSpec` 은 보스/명시 배치 전용. |
-| **자연 발생 baked 자동 채움** | spawner spec 이 BakeRegion 결과로 자동 채워짐 (Phase 3 설계) | 미구현 — `BakeRegion` 의 spawner slot 자동 추출 단계 부재. `Placement_*.json` 의 biome 분기 + spawner-story 가 동적으로 결정. |
-| **결정론 RNG seed 활용** | SlotHash31 → 동일 청크 재로드 시 동일 출현 | `Param3 = SlotHash31` 까지 emit 완료. story-local PRNG 수단은 [I-0017 (결정론 안의 다양성)](intents/I-0017.md) 의 적용 영역에 위임. |
-| **Placement 결합의 정적 검증** | 매핑 미스가 빌드/로드 시점에 차단 | 런타임 silent skip. 의도는 [I-0015 (콘텐츠와 시스템 결합의 무결성)](intents/I-0015.md) 의 placement 적용 영역. |
-| **Placement 콘텐츠 자동 산출** | feature_design → Placement JSON 자동 생성 | Generator 파이프라인에 placement 단계 부재. 의도는 [I-0007 (콘텐츠 자동화)](intents/I-0007.md) 자체. |
+| **"Spawner 배치"** 모델 | I-0022: voxel 이 spawn 주체. Placement → voxel attribution → template 활성화 (3단계, 단 attribution 은 데이터). | 실제: Placement → spawner-story dispatch → `SpawnEntity` opcode (1단계). 청크 단위 dispatch 만 존재. voxel attribution 층이 없어 *어느 voxel 이* spawn 주체였는지 디버그·재실행 시점에 추적 불가. |
+| **Placement Story 패턴 마이그레이션** ([I-0022](intents/I-0022.md)) | placement 는 voxel 에 attribution 을 *기록* 만 한다 — 즉시 실행 금지. 출력 형식이 "어느 voxel 이 어떤 template 을 가질 것인가" 의 데이터로 좁혀진다. | `Placement_TranquilWilds.json` 은 `DispatchEvent(OakSpawn)` 으로 *즉시 발사*. attribution 부여용 opcode (`SetVoxelTemplate(voxelCoord, templateId)` 류) 및 대상 voxel 집합 표현이 부재 — Placement Story 의 출력 형식 자체를 갈아엎어야 한다. |
+| **Voxel attribution 필드** ([I-0022](intents/I-0022.md)) | baked chunk 가 per-voxel `SpawnTemplateId` 를 보유 | 미구현 — `FHktTerrainBakedChunk` 는 BiomeId / SurfaceVoxelZ / SlotHash 까지만. voxel-level template 참조 슬롯 부재. |
+| **Voxel 평가 → template 활성화 경로** ([I-0022](intents/I-0022.md)) | 청크 스트림인 / 활성화 시점에 voxel 들이 자신의 template 을 활성화 | 미구현 — 현재는 `Event.Terrain.ChunkLoaded` 1회 emit 후 Placement Story 가 *청크 단위로* 모두 처리. voxel 단위 평가 fan-out 없음. |
+| **Template 라이브러리 명시화** ([I-0022](intents/I-0022.md)) | "이 World 의 spawn template 집합" 이 baked / catalog 형태로 닫혀 있음 | 부분 — `FHktVMProgramRegistry` 의 1태그 1프로그램 dispatch 가 사실상 template 역할이나, voxel attribution 으로 연결되지 않아 *어떤 template 이 어디서 쓰이는지* 의 정적 매핑이 부재. |
+| **자연 발생 baked 자동 채움** | voxel attribution 이 BakeRegion 결과로 자동 채워짐 (Phase 3 설계) | 미구현 — `BakeRegion` 단계에서 voxel 별 template id 산출 부재. `Placement_*.json` 의 biome 분기 + spawner-story 가 동적으로 결정. |
+| **결정론 RNG seed 활용** | voxel 시드 (좌표·SlotHash31·lineage) → 동일 voxel 재방문 시 동일 출현 | `Param3 = SlotHash31` 까지 emit 완료. story-local PRNG 수단은 [I-0017 (결정론 안의 다양성)](intents/I-0017.md) 의 적용 영역에 위임. voxel 단위로의 축소는 attribution 도입 이후 가능. |
+| **Placement 결합의 정적 검증** | 매핑 미스 / 죽은 template id 가 빌드·로드 시점에 차단 | 런타임 silent skip. 의도는 [I-0015 (콘텐츠와 시스템 결합의 무결성)](intents/I-0015.md) 의 placement 적용 영역. voxel attribution 도입 시 *미참조 voxel / 죽은 template id* 두 갈래로 검증 항목이 확장된다. |
+| **Placement 콘텐츠 자동 산출** | feature_design → Placement JSON / template 라이브러리 / voxel attribution 자동 생성 | Generator 파이프라인에 placement 단계 부재. 의도는 [I-0007 (콘텐츠 자동화)](intents/I-0007.md) 자체. |
 
 ## "PendingWorldInit" 레거시
 
