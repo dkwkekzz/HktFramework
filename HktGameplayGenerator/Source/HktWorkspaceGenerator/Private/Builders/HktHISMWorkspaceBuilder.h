@@ -16,7 +16,7 @@
 //   - Character    : 각 anim 의 방향별 atlas PNG 를 legacy SpriteGenerator 워크스페이스
 //                    경로(`{Saved}/SpriteGenerator/{SafeChar}/{SafeAnim}/atlas_{Dir}.png`) 로
 //                    bridging 한 뒤 `UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim` 호출.
-//                    → `UHktSpriteCharacterTemplate` (Crowd/Niagara 가 그대로 소비) 생성.
+//                    → `UHktHISMSpriteVisualAsset` + `UHktHISMSpriteAnimationDataAsset` 생성.
 //   - StaticVisual : `EditorBuildHISMStaticVisual` 호출 → `UHktHISMSpriteVisualAsset`.
 //
 // 결과 컨테이너는 Paper 빌더와 동일한 FHktPaperBuildResult 재사용 — 호출자(Dispatcher)

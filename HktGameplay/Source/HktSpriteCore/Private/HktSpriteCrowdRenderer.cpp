@@ -1,7 +1,6 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktSpriteCrowdRenderer.h"
-#include "HktSpriteCharacterTemplate.h"
 #include "HktHISMSpriteVisualAsset.h"
 #include "HktHISMSpriteAnimationDataAsset.h"
 #include "HktSpriteFrameResolver.h"
@@ -155,11 +154,11 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 		return;
 	}
 
-	TObjectPtr<UHktSpriteCharacterTemplate>* Found = TemplateCache.Find(State->CharacterTag);
-	UHktSpriteCharacterTemplate* Template = Found ? Found->Get() : nullptr;
-	if (!Template)
+	TObjectPtr<UHktHISMSpriteVisualAsset>* Found = VisualCache.Find(State->CharacterTag);
+	UHktHISMSpriteVisualAsset* Visual = Found ? Found->Get() : nullptr;
+	if (!Visual)
 	{
-		// 템플릿 아직 로딩 중 — 전이 시 1회만 경고. Readiness 가 LoadingTemplate 에 있으면
+		// Visual 아직 로딩 중 — 전이 시 1회만 경고. Readiness 가 LoadingTemplate 에 있으면
 		// 정상 in-flight, 그 외(맵에 없음 / Failed)면 비정상.
 		if (State->LastUpdateStatus != EHktSpriteUpdateStatus::TemplateMissing)
 		{
@@ -169,7 +168,7 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation,
 				bPending ? EHktLogLevel::Verbose : EHktLogLevel::Warning,
 				EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: UpdateEntity — Template 미준비 (tag=%s, pending=%d)"),
+				FString::Printf(TEXT("Sprite|CrowdRenderer: UpdateEntity — Visual 미준비 (tag=%s, pending=%d)"),
 					*State->CharacterTag.ToString(), bPending ? 1 : 0),
 				Id);
 		}
@@ -193,7 +192,7 @@ void UHktSpriteCrowdRenderer::UpdateEntity(FHktEntityId Id, const FHktSpriteEnti
 		return;
 	}
 
-	ApplyEntityInstanceTransform(Id, Update, Template, *State);
+	ApplyEntityInstanceTransform(Id, Update, Visual, *State);
 }
 
 void UHktSpriteCrowdRenderer::ClearAll()
@@ -203,7 +202,7 @@ void UHktSpriteCrowdRenderer::ClearAll()
 	{
 		if (H) H->ClearInstances();
 	}
-	// TemplateReadiness / TemplateCache / HISM 자체는 보존 — 다음 사이클에 readiness 재진입 비용을 회피.
+	// TemplateReadiness / VisualCache / HISM 자체는 보존 — 다음 사이클에 readiness 재진입 비용을 회피.
 }
 
 // ============================================================================
@@ -211,7 +210,7 @@ void UHktSpriteCrowdRenderer::ClearAll()
 // ============================================================================
 
 UTexture2D* UHktSpriteCrowdRenderer::ResolveAtlas(const FHktSpriteAnimation& Anim,
-	int32 DirIdx, UHktSpriteCharacterTemplate* Template,
+	int32 DirIdx, const UHktHISMSpriteVisualAsset* Visual,
 	FSoftObjectPath& OutPath, FVector2f& OutCellSize)
 {
 	// 방향 → (Animation slot 또는 단일 Anim.Atlas) 1차 해석.
@@ -219,9 +218,9 @@ UTexture2D* UHktSpriteCrowdRenderer::ResolveAtlas(const FHktSpriteAnimation& Ani
 	FVector2f CellSize = FVector2f::ZeroVector;
 	Anim.ResolveAtlasForDirection(DirIdx, Ref, CellSize);
 
-	// Template 폴백 (Animation 단계에서 비어있을 때만).
-	if (Ref.IsNull()) Ref = Template->Atlas;
-	if (CellSize.X <= 0.f || CellSize.Y <= 0.f) CellSize = Template->AtlasCellSize;
+	// Visual 폴백 (Animation 단계에서 비어있을 때만).
+	if (Ref.IsNull()) Ref = Visual->Atlas;
+	if (CellSize.X <= 0.f || CellSize.Y <= 0.f) CellSize = Visual->AtlasCellSize;
 
 	if (Ref.IsNull()) return nullptr;
 
@@ -353,47 +352,20 @@ void UHktSpriteCrowdRenderer::RequestTemplateLoad(FGameplayTag Tag)
 	});
 }
 
-// 신규 UHktHISMSpriteVisualAsset (+ 옵션 AnimationAsset) → 런타임 어댑터
-// (transient UHktSpriteCharacterTemplate) 로 합성. 기존 Renderer 코드 경로를
-// 한 줄도 바꾸지 않고 신규 자산을 소비할 수 있게 하는 가장 작은 통합 지점.
-//
-// 정적(AnimationAsset null) 경로는 NumDirections=1/FramesPerDirection=1 의 단일
-// anim 항목을 생성해 `FindAnimationOrFallback` 의 폴백 그대로 사용 가능하게 한다.
-static UHktSpriteCharacterTemplate* SynthesizeTemplateFromVisual(
-	UObject* Outer, const UHktHISMSpriteVisualAsset* Visual)
+// 정적 Visual(`AnimationAsset == nullptr`) 의 합성 anim 1개를 빌드.
+// 동적 경로(AnimationAsset 보유) 는 Visual->AnimationAsset->Animations 를 직접 사용.
+static FHktSpriteAnimation BuildStaticAnim(const UHktHISMSpriteVisualAsset* Visual)
 {
-	if (!Visual) return nullptr;
-
-	UHktSpriteCharacterTemplate* Tmpl = NewObject<UHktSpriteCharacterTemplate>(
-		Outer ? Outer : GetTransientPackage(), NAME_None, RF_Transient);
-	Tmpl->Atlas         = Visual->Atlas;
-	Tmpl->AtlasCellSize = Visual->AtlasCellSize;
-	Tmpl->PixelToWorld  = Visual->PixelToWorld;
-
-	if (Visual->AnimationAsset)
-	{
-		// 동적 경로 — Animation 자산의 맵을 그대로 복사.
-		Tmpl->Animations    = Visual->AnimationAsset->Animations;
-		Tmpl->DefaultAnimTag = Visual->AnimationAsset->DefaultAnimTag;
-	}
-	else
-	{
-		// 정적 경로 — 단일 셀 / 단일 방향 / 비루프 anim 항목 1개.
-		FHktSpriteAnimation StaticAnim;
-		StaticAnim.Atlas               = Visual->Atlas;
-		StaticAnim.AtlasCellSize       = Visual->AtlasCellSize;
-		StaticAnim.NumDirections       = 1;
-		StaticAnim.FramesPerDirection  = 1;
-		StaticAnim.bLooping            = false;
-		StaticAnim.PivotOffset         = FVector2f(
-			Visual->AtlasCellSize.X * 0.5f, Visual->AtlasCellSize.Y);
-		const FGameplayTag StaticTag = FGameplayTag::RequestGameplayTag(
-			FName("Anim.Static.Default"), /*ErrorIfNotFound*/ false);
-		Tmpl->DefaultAnimTag = StaticTag;
-		// FindAnimationOrFallback 의 "맵 첫 원소" 폴백을 위해 어떤 키든 1개는 항상 삽입.
-		Tmpl->Animations.Add(StaticTag, StaticAnim);
-	}
-	return Tmpl;
+	FHktSpriteAnimation StaticAnim;
+	if (!Visual) return StaticAnim;
+	StaticAnim.Atlas               = Visual->Atlas;
+	StaticAnim.AtlasCellSize       = Visual->AtlasCellSize;
+	StaticAnim.NumDirections       = 1;
+	StaticAnim.FramesPerDirection  = 1;
+	StaticAnim.bLooping            = false;
+	StaticAnim.PivotOffset         = FVector2f(
+		Visual->AtlasCellSize.X * 0.5f, Visual->AtlasCellSize.Y);
+	return StaticAnim;
 }
 
 void UHktSpriteCrowdRenderer::OnTemplateLoaded(FGameplayTag Tag, UHktTagDataAsset* Loaded)
@@ -401,28 +373,25 @@ void UHktSpriteCrowdRenderer::OnTemplateLoaded(FGameplayTag Tag, UHktTagDataAsse
 	FTemplateReady* Ready = TemplateReadiness.Find(Tag);
 	if (!Ready) return;
 
-	UHktSpriteCharacterTemplate* Template = Cast<UHktSpriteCharacterTemplate>(Loaded);
-	if (!Template)
-	{
-		// 신규 분리 자산 — Visual 자산을 어댑터로 합성.
-		if (UHktHISMSpriteVisualAsset* Visual = Cast<UHktHISMSpriteVisualAsset>(Loaded))
-		{
-			Template = SynthesizeTemplateFromVisual(this, Visual);
-		}
-	}
-
-	if (!Template)
+	UHktHISMSpriteVisualAsset* Visual = Cast<UHktHISMSpriteVisualAsset>(Loaded);
+	if (!Visual)
 	{
 		Ready->Stage = ETemplateReadyStage::Failed;
-		UE_LOG(LogHktSpriteCore, Warning, TEXT("CharacterTemplate 로드 실패 또는 타입 불일치 tag=%s"), *Tag.ToString());
+		UE_LOG(LogHktSpriteCore, Warning, TEXT("HISMSpriteVisualAsset 로드 실패 또는 타입 불일치 tag=%s"), *Tag.ToString());
 		HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Error, EHktLogSource::Client,
-			FString::Printf(TEXT("Sprite|CrowdRenderer: CharacterTemplate 로드 실패/타입 불일치 (tag=%s, loaded=%s)"),
+			FString::Printf(TEXT("Sprite|CrowdRenderer: Visual 로드 실패/타입 불일치 (tag=%s, loaded=%s)"),
 				*Tag.ToString(), Loaded ? *Loaded->GetName() : TEXT("null")));
 		return;
 	}
-	TemplateCache.Add(Tag, Template);
+	VisualCache.Add(Tag, Visual);
 
-	CollectAtlasPaths(Template, Ready->AtlasPaths);
+	// 정적 Visual 은 합성 anim 1개를 캐시 — 매 프레임 룩업에서 동적과 동일한 경로 사용.
+	if (Visual->IsStatic())
+	{
+		StaticAnimCache.Add(Tag, BuildStaticAnim(Visual));
+	}
+
+	CollectAtlasPaths(Tag, Ready->AtlasPaths);
 	if (Ready->AtlasPaths.Num() == 0)
 	{
 		// Atlas 가 하나도 등록되지 않은 템플릿 — 그릴 게 없으니 Ready 로. 실제 첫 ApplyEntityInstanceTransform
@@ -462,10 +431,12 @@ void UHktSpriteCrowdRenderer::OnAtlasesLoaded(FGameplayTag Tag)
 			Ready->AtlasPaths.Num(), *Tag.ToString()));
 }
 
-void UHktSpriteCrowdRenderer::CollectAtlasPaths(const UHktSpriteCharacterTemplate* T, TArray<FSoftObjectPath>& OutPaths)
+void UHktSpriteCrowdRenderer::CollectAtlasPaths(FGameplayTag CharacterTag, TArray<FSoftObjectPath>& OutPaths) const
 {
 	OutPaths.Reset();
-	if (!T) return;
+	const TObjectPtr<UHktHISMSpriteVisualAsset>* Found = VisualCache.Find(CharacterTag);
+	const UHktHISMSpriteVisualAsset* Visual = Found ? Found->Get() : nullptr;
+	if (!Visual) return;
 
 	TSet<FSoftObjectPath> Unique;
 	auto Add = [&Unique](const TSoftObjectPtr<UTexture2D>& Ref)
@@ -475,18 +446,37 @@ void UHktSpriteCrowdRenderer::CollectAtlasPaths(const UHktSpriteCharacterTemplat
 		if (P.IsValid()) Unique.Add(P);
 	};
 
-	Add(T->Atlas); // 캐릭터 폴백 atlas
-	for (const TPair<FGameplayTag, FHktSpriteAnimation>& AnimPair : T->Animations)
+	Add(Visual->Atlas); // Visual 폴백 atlas
+	if (Visual->AnimationAsset)
 	{
-		const FHktSpriteAnimation& Anim = AnimPair.Value;
-		Add(Anim.Atlas);
-		for (const FHktSpriteAtlasSlot& Slot : Anim.AtlasSlots)
+		for (const TPair<FGameplayTag, FHktSpriteAnimation>& AnimPair : Visual->AnimationAsset->Animations)
 		{
-			Add(Slot.Atlas);
+			const FHktSpriteAnimation& Anim = AnimPair.Value;
+			Add(Anim.Atlas);
+			for (const FHktSpriteAtlasSlot& Slot : Anim.AtlasSlots)
+			{
+				Add(Slot.Atlas);
+			}
 		}
 	}
 
 	OutPaths = Unique.Array();
+}
+
+const FHktSpriteAnimation* UHktSpriteCrowdRenderer::ResolveAnimation(
+	FGameplayTag CharacterTag, const FGameplayTag& AnimTag) const
+{
+	if (const FHktSpriteAnimation* Static = StaticAnimCache.Find(CharacterTag))
+	{
+		return Static;
+	}
+	const TObjectPtr<UHktHISMSpriteVisualAsset>* Found = VisualCache.Find(CharacterTag);
+	const UHktHISMSpriteVisualAsset* Visual = Found ? Found->Get() : nullptr;
+	if (Visual && Visual->AnimationAsset)
+	{
+		return Visual->AnimationAsset->FindAnimationOrFallback(AnimTag);
+	}
+	return nullptr;
 }
 
 bool UHktSpriteCrowdRenderer::AreAllAtlasesRHIReady(const TArray<FSoftObjectPath>& Paths)
@@ -555,18 +545,18 @@ bool UHktSpriteCrowdRenderer::AdvanceTemplateReadiness(FGameplayTag Tag)
 // ============================================================================
 
 void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
-	const FHktSpriteEntityUpdate& Update, UHktSpriteCharacterTemplate* Template, FEntityState& State)
+	const FHktSpriteEntityUpdate& Update, const UHktHISMSpriteVisualAsset* Visual, FEntityState& State)
 {
-	if (!Template) return;
+	if (!Visual) return;
 
-	const FHktSpriteAnimation* Animation = Template->FindAnimationOrFallback(Update.AnimTag);
+	const FHktSpriteAnimation* Animation = ResolveAnimation(State.CharacterTag, Update.AnimTag);
 	if (!Animation)
 	{
 		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::AnimationNull)
 		{
 			State.LastUpdateStatus = EHktSpriteUpdateStatus::AnimationNull;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: Animation 못 찾음 — CharacterTemplate(%s)에 AnimTag(%s) 미등록 (fallback 실패)"),
+				FString::Printf(TEXT("Sprite|CrowdRenderer: Animation 못 찾음 — Visual(%s)에 AnimTag(%s) 미등록 (fallback 실패)"),
 					*State.CharacterTag.ToString(), *Update.AnimTag.ToString()),
 				Id, Update.AnimTag);
 		}
@@ -633,14 +623,14 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 	// --- 2. 아틀라스 해석 (dirIdx == AtlasSlotIdx 규약) ---
 	FSoftObjectPath AtlasPath;
 	FVector2f CellSize = FVector2f::ZeroVector;
-	UTexture2D* AtlasTex = ResolveAtlas(*Animation, DirIdx, Template, AtlasPath, CellSize);
+	UTexture2D* AtlasTex = ResolveAtlas(*Animation, DirIdx, Visual, AtlasPath, CellSize);
 	if (!AtlasTex)
 	{
 		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::AtlasNull)
 		{
 			State.LastUpdateStatus = EHktSpriteUpdateStatus::AtlasNull;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas 텍스처 로드 실패 (char=%s, anim=%s, dir=%d) — Animation/Template Atlas 모두 비어있거나 LoadSynchronous 실패"),
+				FString::Printf(TEXT("Sprite|CrowdRenderer: Atlas 텍스처 로드 실패 (char=%s, anim=%s, dir=%d) — Animation/Visual Atlas 모두 비어있거나 LoadSynchronous 실패"),
 					*State.CharacterTag.ToString(), *Update.AnimTag.ToString(), DirIdx),
 				Id, Update.AnimTag);
 		}
@@ -661,7 +651,7 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 
 	// --- 쿼드 크기 0 가드 ---
 	// Animation.Scale은 UPROPERTY 디폴트(1,1). JSON/Generator가 0으로 주입하지 않는 한 통과.
-	const float PxToWorld = Template->PixelToWorld * GlobalWorldScale;
+	const float PxToWorld = Visual->PixelToWorld * GlobalWorldScale;
 	if (Animation->Scale.X <= 0.f || Animation->Scale.Y <= 0.f || PxToWorld <= 0.f)
 	{
 		if (State.LastUpdateStatus != EHktSpriteUpdateStatus::ZeroQuadSize)
@@ -669,7 +659,7 @@ void UHktSpriteCrowdRenderer::ApplyEntityInstanceTransform(FHktEntityId Id,
 			State.LastUpdateStatus = EHktSpriteUpdateStatus::ZeroQuadSize;
 			HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Warning, EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|CrowdRenderer: 쿼드 크기 0 — Anim.Scale=(%.3f, %.3f), PxToWorld=%.3f (PixelToWorld=%.3f, GlobalScale=%.3f), Cell=(%.1f, %.1f) [char=%s, anim=%s, dir=%d, frame=%d]"),
-					Animation->Scale.X, Animation->Scale.Y, PxToWorld, Template->PixelToWorld, GlobalWorldScale,
+					Animation->Scale.X, Animation->Scale.Y, PxToWorld, Visual->PixelToWorld, GlobalWorldScale,
 					CellSize.X, CellSize.Y,
 					*State.CharacterTag.ToString(), *Update.AnimTag.ToString(), DirIdx, Res.FrameIndex),
 				Id, Update.AnimTag);

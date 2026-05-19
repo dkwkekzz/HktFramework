@@ -13,8 +13,7 @@ class UHktHISMSpriteAnimationDataAsset;
 // ============================================================================
 // UHktHISMSpriteVisualAsset — HISM/Niagara 경로의 Visual 진입 자산.
 //
-// 구 `UHktSpriteCharacterTemplate` 가 Visual+Animation 을 한 자산에 담던 구조를
-// 정리한 신규 진입점. `UHktAssetSubsystem::LoadAssetAsync(VisualTag)` 의 타깃이며
+// `UHktAssetSubsystem::LoadAssetAsync(VisualTag)` 의 타깃이며
 // 다음 데이터를 직접 보유한다:
 //
 //   - Atlas / AtlasCellSize / PixelToWorld  (정적 객체 또는 동적 폴백)

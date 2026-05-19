@@ -18,7 +18,7 @@ class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UStaticMesh;
 class UTexture2D;
-class UHktSpriteCharacterTemplate;
+class UHktHISMSpriteVisualAsset;
 
 /**
  * UHktSpriteNiagaraCrowdRenderer — Niagara Mesh Renderer 기반 크라우드 렌더러.
@@ -103,7 +103,13 @@ private:
 	};
 
 	UPROPERTY(Transient)
-	TMap<FGameplayTag, TObjectPtr<UHktSpriteCharacterTemplate>> TemplateCache;
+	TMap<FGameplayTag, TObjectPtr<UHktHISMSpriteVisualAsset>> VisualCache;
+
+	/**
+	 * 정적 Visual(`AnimationAsset == nullptr`) 의 합성 anim 1회 캐시.
+	 * 동적 Visual 은 `Visual->AnimationAsset->Animations` 를 직접 사용.
+	 */
+	TMap<FGameplayTag, FHktSpriteAnimation> StaticAnimCache;
 
 	TMap<FSoftObjectPath, FAtlasContext> Atlases;
 	TMap<FHktEntityId, FEntityState> Entities;
@@ -117,9 +123,12 @@ private:
 	/** swap-and-pop 제거 + 마지막 인스턴스의 ParticleIndex remap. */
 	void RemoveParticleAndRemap(const FSoftObjectPath& AtlasPath, int32 ParticleIndex);
 
+	/** Visual + AnimTag → FHktSpriteAnimation* 해석 (정적은 합성 anim, 동적은 AnimationAsset 위임). */
+	const FHktSpriteAnimation* ResolveAnimation(FGameplayTag CharacterTag, const FGameplayTag& AnimTag) const;
+
 	/** Frame 해석 + 검증 + 풀 슬롯 갱신/마이그레이션. */
 	void ApplyEntityParticleData(FHktEntityId Id, const FHktSpriteEntityUpdate& Update,
-		UHktSpriteCharacterTemplate* Template, FEntityState& State);
+		const UHktHISMSpriteVisualAsset* Visual, FEntityState& State);
 
 	/** 모든 dirty atlas의 NDI Array를 NiagaraComponent에 푸시. */
 	void PushDirtyArraysToNiagara();

@@ -13,10 +13,9 @@ class UTexture2D;
 // ============================================================================
 // UHktHISMSpriteAnimationDataAsset — HISM/Niagara 경로의 *애니메이션 전용* 자산.
 //
-// 구 `UHktSpriteCharacterTemplate` 의 Animation 부분만 분리한 깨끗한 재명명.
-// "Character" 라는 명칭이 정적 객체(나무·바위 등)와 어울리지 않던 문제를 해소.
-// Visual 자산(`UHktHISMSpriteVisualAsset`) 이 본 자산을 `AnimationAsset` 슬롯
-// 으로 하드 참조한다.
+// Visual 자산(`UHktHISMSpriteVisualAsset`) 과 Animation 을 분리한 자산. "Character"
+// 의미가 정적 객체(나무·바위 등) 와 어울리지 않던 문제 해소. Visual 이 본 자산을
+// `AnimationAsset` 슬롯으로 하드 참조한다.
 //
 // 본 자산은 `UHktTagDataAsset` 을 상속하지 않으며 `UHktAssetSubsystem` 의
 // IdentifierTag 로 직접 로드되지 않는다 — Visual 자산을 통해 끌려온다.

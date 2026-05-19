@@ -232,7 +232,7 @@ struct FHktTerrainDebrisView
 
 /**
  * FHktSpriteView — 2D 스프라이트 캐릭터의 Character + Facing + AnimStartTick.
- * 캐릭터 1개당 UHktSpriteCharacterTemplate 1개를 매핑한다 (Template 내부에서 파츠/애니 분기).
+ * 캐릭터 1개당 UHktHISMSpriteVisualAsset 1개를 매핑한다 (Visual 의 AnimationAsset 으로 anim 분기).
  * 프레임 결정은 Processor(Sync 시점)에서 Animation/Transform/CurrentTick과 결합하여 수행.
  */
 struct FHktSpriteView
