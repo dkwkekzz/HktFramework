@@ -6,7 +6,7 @@
 
 ## 핵심 흐름
 
-NPC 출현은 두 경로가 **공존** 한다. 두 경로는 같은 NPC 정의 (classTag · lifecycle story) 를 공유하되, 다른 정책 축에서 트리거된다.
+NPC 출현은 두 경로가 **공존** 한다. 두 경로는 같은 NPC 정의 (classTag · lifecycle story) 를 공유하되, 다른 정책 축에서 트리거된다. [I-0020](intents/I-0020.md) 에 따라 두 경로의 *합류 지점* 은 voxel attribution 이다 — voxel 이 spawn 주체이므로, 어느 입구로 들어오든 결국 "이 voxel 의 template 을 활성화한다" 로 환원된다.
 
 ```
 [자연 발생 경로]                              [트리거 기반 발생 경로]
@@ -16,10 +16,14 @@ NPC 출현은 두 경로가 **공존** 한다. 두 경로는 같은 NPC 정의 (
    │                                              │     ⇐ Quest / Cinematic / Encounter
    ▼                                              ▼
 [NPC_Placement_<World>.json]                  [NPC_Trigger_<Context>.json]
-   │  biome × 진척도 분기                          │  context 분기
-   │  → DispatchEvent(NpcGoblin_Spawn …)          │  → DispatchEvent(NpcGoblin_Spawn …)
+   │  biome × 진척도 분기                          │  context 분기 → 대상 voxel 선정
+   │  → voxel 에 SpawnTemplateId 부여              │  → 대상 voxel 의 SpawnTemplateId 갱신
    ▼                                              ▼
-                  [NpcGoblin_Spawn.json]   (공유 spawner-story)
+                  [Voxel Attribution] (voxel.SpawnTemplateId = NpcGoblin)
+                       │  voxel 평가 시점에 활성화
+                       ▼
+                  [NpcGoblin_Spawn.json]   (terrain story template — voxel 이 참조)
+                       │  voxel 시드 (좌표·SlotHash31·lineage·contextId)
                        │  Region 메모리 (NPC density / faction 누적)
                        │  관계 축 결정 (Hostile / Neutral / Friendly)
                        │  SpawnEntity + 위치/속성
@@ -29,7 +33,7 @@ NPC 출현은 두 경로가 **공존** 한다. 두 경로는 같은 NPC 정의 (
                        (I-0010 / I-0011 위임)
 ```
 
-**핵심 단언**: 자연 발생용 `Placement_<World>` 와 트리거용 `NPC_Trigger_<Context>` 는 *입구* 만 다르고, 출구는 동일한 `<Npc>_Spawn` spawner-story 로 합류한다. 합류 지점에서 정책 축 (density / faction / encounter design) 을 일괄 적용한다.
+**핵심 단언**: 자연 발생용 `Placement_<World>` 와 트리거용 `NPC_Trigger_<Context>` 는 *입구* 만 다르고, voxel attribution 으로 합류한다. 두 입구의 차이는 "어느 voxel 의 template id 를 무엇으로 정하는가" 뿐이며, 활성화 이후 정책 축 (density / faction / encounter design) 은 template 1곳에서 일괄 적용된다.
 
 ## 구현 완료
 
@@ -46,9 +50,9 @@ NPC 출현은 두 경로가 **공존** 한다. 두 경로는 같은 NPC 정의 (
 
 | 갭 | 의도 표현 | 현 구현 |
 |---|---|---|
-| **NPC Placement story 부재** | biome × 진척도 × 관계 축으로 NPC 종을 분기해 출현 | `Placement_TranquilWilds.json` 은 Oak/Birch 분기까지만. NPC 분기 없음. |
-| **NPC Spawn story 부재** | `<Npc>_Spawn.json` 패턴이 Oak/Birch 와 같은 형태로 존재해야 spawner-story dispatch 가 가능 | `Story_NPCLifecycle.json` 만 존재. spawner 측 entry 없음. |
-| **트리거 기반 발생 채널** | `Event.NPC.Spawn.Requested` (혹은 동등 채널) 로 Quest / Cinematic / Encounter 가 NPC 출현을 요청 | 미정의. `HktStoryEventParams.h` 에 채널 없음. 자연 발생과 합류할 spawner-story entry 도 부재 (위 항과 묶임). |
+| **NPC Placement story 부재** | biome × 진척도 × 관계 축으로 voxel 에 NPC `SpawnTemplateId` 를 부여 | `Placement_TranquilWilds.json` 은 Oak/Birch 분기까지만, 그리고 voxel attribution 이 아닌 청크 단위 dispatch. NPC 분기 / voxel 단위 모두 부재. |
+| **NPC Spawn template 부재** | `<Npc>_Spawn.json` 이 voxel 이 참조하는 terrain story template 라이브러리의 한 항목으로 등록 | `Story_NPCLifecycle.json` 만 존재. template 측 entry 및 라이브러리 등록 부재. |
+| **트리거 기반 발생 채널** | `Event.NPC.Spawn.Requested` (혹은 동등 채널) 로 Quest / Cinematic / Encounter 가 대상 voxel 의 `SpawnTemplateId` 를 갱신·활성화 | 미정의. `HktStoryEventParams.h` 에 채널 없음. voxel attribution 갱신 opcode 도 부재 ([I-0020](intents/I-0020.md) 인프라 의존). |
 | **RegionRecord NPC 필드** | NPC 밀도 / faction / 최근 조우 시각 등을 누적 추적 | `Entity.RegionRecord.Lineage / Variant / OreSpecies` 만 존재 (`HktCoreDefs.h:51-54`). NPC 축 부재. |
 | **관계 축 (Faction / Reputation / Relation)** | 우호 / 적대 / 중립이 결정론적으로 산출되어 spawner-story 가 참조 | 시스템 부재. `Tag_NPC_Hostile` flat tag 만 존재. faction/reputation 누적 없음. |
 | **서사 트리거 (Quest / Progress)** | 진척도 차이가 NPC 출현 분기로 *증폭* ([I-0017](intents/I-0017.md) 의 적용 영역) | 시스템 부재. |
@@ -70,5 +74,5 @@ NPC 출현은 두 경로가 **공존** 한다. 두 경로는 같은 NPC 정의 (
 
 ## 점검 메모
 
-- **공유 출구 합류의 결정론** — 두 입구 (자연 / 트리거) 가 같은 `<Npc>_Spawn.json` 으로 합류할 때, 동일 입력 → 동일 출현이 깨지지 않도록 spawner-story 가 `SlotHash31` 또는 `contextId` 중 *어떤 한 시드만* 사용해야 한다. 두 시드를 혼합하면 [I-0017](intents/I-0017.md) 의 재현성이 무너진다.
-- **classTag 일관성** — `SpawnEntity` 의 `classTag` 는 NPC / Item / 자연물 공통이므로, NPC 전용 분기를 별도 opcode 로 만들지 않는다. 정책 차이는 *story 분기* 로 흡수.
+- **합류 지점의 결정론** — 두 입구 (자연 / 트리거) 가 voxel attribution 으로 합류한 뒤 template 이 활성화될 때, 시드는 *voxel 좌표* 를 기준 축으로 삼는다 ([I-0020](intents/I-0020.md) + [I-0017](intents/I-0017.md)). 자연 발생의 `SlotHash31`, 트리거의 `contextId` 는 모두 *voxel 시드의 보조 입력* 으로 흡수되어야 하며, 두 보조 입력을 혼합하지 않는다 — 한 voxel 의 활성화에는 한 입구만 결정 인자로 사용한다 (마지막 attribution 갱신이 우선).
+- **classTag 일관성** — `SpawnEntity` 의 `classTag` 는 NPC / Item / 자연물 공통이므로, NPC 전용 분기를 별도 opcode 로 만들지 않는다. 정책 차이는 *template 분기* 로 흡수.
