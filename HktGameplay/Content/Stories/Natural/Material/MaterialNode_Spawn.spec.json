@@ -1,0 +1,15 @@
+{
+  "storyTag": "Story.Flow.Spawner.Natural.MaterialNode",
+  "description": "I-0014 voxel attribution 동작 검증용 최소 spawner. 자연 발생/트리거 양쪽 입구가 통과하는 단일 빌더 (`HktEventBuilder::VoxelTemplateActivatedAt`) 가 채운 Param0=cmX / Param1=cmY / Param3=cmZ 를 읽어 voxel 중심에 Entity.Item.Wood (ItemId=101) 한 점을 drop. ItemState=0(Ground), EquipIndex=-1. 캡/lineage/region 메모리 미사용 — 베이크 자동 채움 → 런타임 spawn 경로의 가장 단순한 검증.",
+  "scenarios": [
+    {
+      "name": "spawns_one_wood_at_voxel_center",
+      "description": "Param0/1/3 좌표 (cm) 입력 → Entity.Item.Wood 1개 spawn 후 Completed. Lifecycle/region 변경 없음.",
+      "given": {
+        "self":  { "properties": {} },
+        "event": { "param0": 15000, "param1": 20000, "param2": 12345, "param3": 4500 }
+      },
+      "expect": { "status": "Completed" }
+    }
+  ]
+}

@@ -82,7 +82,64 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="월드 최소 Z 청크. 기본 0")
     p.add_argument("--height-max-z", type=int, default=3,
                    help="월드 최대 Z 청크. 기본 3")
+    p.add_argument("--no-spawn-templates", action="store_true",
+                   help="VoxelTypeSpawnTemplate 기본 매핑 (재료 spawn 테스트용) 적용 안 함")
     return p.parse_args(argv)
+
+
+# ---------------------------------------------------------------------------
+# Voxel Spawn Template 기본 매핑 (I-0014 Phase B 동작 검증용)
+# ---------------------------------------------------------------------------
+
+# Voxel TypeID 상수 (HktTerrainBiome.cpp 와 동기화 — 변경 시 양쪽 모두 갱신).
+VOXEL_TYPE_GRASS   = 1
+VOXEL_TYPE_DIRT    = 2
+VOXEL_TYPE_STONE   = 3
+VOXEL_TYPE_SAND    = 4
+VOXEL_TYPE_SNOW    = 6
+VOXEL_TYPE_GRAVEL  = 8
+VOXEL_TYPE_CLAY    = 9
+
+
+def default_spawn_template_mapping() -> dict[int, str]:
+    """BakeRegion 의 VoxelTypeSpawnTemplate 기본 매핑.
+
+    디자이너 의도: "이 voxel type 위 (top-most non-air voxel) 에는 이 template story 가
+    발화한다". BakeRegion 이 매 surface chunk 의 32×32 column 을 순회하며 본 표로
+    attribution 을 자동 채운다. 런타임은 SpawnTemplateCatalog 를 read-only 로 해석.
+
+    여기서는 I-0014 통합 동작 검증을 위해 *소수의 voxel type* 만 매핑한다 — 디폴트로
+    전 영역에 재료가 폭발하면 곤란하므로, 표면 분포가 *상대적으로 희소한* Snow/Gravel/
+    Sand/Clay 에 대해서만 MaterialNode 를 wiring. Grass/Dirt 같은 흔한 surface 는
+    의도적으로 비워둔다 (필요 시 designer 가 추가).
+
+    참고:
+      - MaterialNode_Spawn.json (Story.Flow.Spawner.Natural.MaterialNode) — Wood 1개 drop
+      - BirchSpawn / OakSpawn 는 Region 메모리 + lineage 필요 — 단순 검증용 매핑 부적합
+    """
+    return {
+        VOXEL_TYPE_SAND:   "Story.Flow.Spawner.Natural.MaterialNode",
+        VOXEL_TYPE_SNOW:   "Story.Flow.Spawner.Natural.MaterialNode",
+        VOXEL_TYPE_GRAVEL: "Story.Flow.Spawner.Natural.MaterialNode",
+        VOXEL_TYPE_CLAY:   "Story.Flow.Spawner.Natural.MaterialNode",
+    }
+
+
+def apply_spawn_template_mapping(cfg: "unreal.HktTerrainBakedConfig",
+                                 mapping: dict[int, str]) -> int:
+    """`cfg.voxel_type_spawn_template` 을 채운다. 적용된 항목 수 반환.
+
+    UE5 Python 바인딩에서 TMap<int32, FGameplayTag> 는 dict 형태로 직렬화되며,
+    GameplayTag 는 `unreal.GameplayTag(name)` 으로 구성. 비어 있는 매핑이면
+    BakeRegion 이 attribution 을 0 으로 산출 → 런타임 spawn 없음 (Phase B 디폴트).
+    """
+    if not mapping:
+        return 0
+    table = {}
+    for voxel_type_id, tag_name in mapping.items():
+        table[int(voxel_type_id)] = unreal.GameplayTag(tag_name)
+    cfg.voxel_type_spawn_template = table
+    return len(table)
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +198,13 @@ def build_config(args: argparse.Namespace) -> unreal.HktTerrainBakedConfig:
     cfg.sim_load_radius_z            = 1
     cfg.sim_max_chunks_loaded        = 256
     cfg.sim_max_chunk_loads_per_frame = 4
+
+    # ─── Voxel Spawn Template (I-0014 Phase B) ───
+    # `--no-spawn-templates` 미지정 시 기본 매핑 적용 → BakeRegion 이 surface column
+    # scan 으로 attribution 자동 산출. 런타임은 SpawnTemplateCatalog read-only.
+    if not args.no_spawn_templates:
+        applied = apply_spawn_template_mapping(cfg, default_spawn_template_mapping())
+        unreal.log(f"[bake_terrain] VoxelTypeSpawnTemplate 기본 매핑 {applied} 항목 적용")
 
     return cfg
 
