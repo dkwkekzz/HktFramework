@@ -58,8 +58,18 @@ namespace SpawnerParams
 // Voxel Template Activation (I-0014 — voxel spawn 능력 인프라)
 // ============================================================================
 //
-// `FHktTerrainSystem::Process` 가 청크 로드 시 baked attribution 슬롯 (`SpawnTemplateAttribution`)
-// 을 enumerate → voxel 한 점마다 *참조 template 의 StoryTag* 를 EventTag 로 dispatch.
+// 두 입구가 voxel 한 점에서 합류한다:
+//   1. **자연 발생** — `FHktTerrainSystem::Process` 가 청크 로드 시 baked attribution 슬롯
+//      (`SpawnTemplateAttribution`) 을 enumerate → voxel 한 점마다 *참조 template 의
+//      StoryTag* 를 EventTag 로 dispatch.
+//   2. **트리거** (Phase C — Quest / Cinematic / Encounter 등) — caller 가 임의 voxel
+//      좌표에 대해 `HktEventBuilder::VoxelTemplateActivatedAt(...)` 로 동일 형식 event
+//      를 직접 생성 → 동일 dispatch 경로 통과. attribution 슬롯 자체는 건드리지 않음
+//      (read-only 모델 유지).
+//
+// 두 경로 모두 단일 빌더 (`VoxelTemplateActivatedAt`) 를 통과하므로 Param 슬롯 의미
+// 와 SlotHash31 결정론 시드 (I-0017) 가 *형식적으로* 일치 — 호환성은 빌더 구현이 보장.
+//
 // SpawnerParams::* 와 슬롯 의미가 동일하다 — terrain story template (Oak_Spawn 등) 이
 // 동일 컨벤션으로 좌표/시드를 읽는다.
 //
@@ -67,8 +77,6 @@ namespace SpawnerParams
 //   - Param1: voxel 월드 Y (cm 정수)
 //   - Param2: SlotHash31 — voxel 좌표 한 곳에서 파생된 결정론 시드 (I-0017)
 //   - Param3: voxel 월드 Z (cm 정수)
-//
-// 보조 입력 BiomeId 는 story 가 필요 시 별도 LoadStore 로 청크 컨텍스트에서 흡수.
 namespace VoxelTemplateParams
 {
 	inline const uint16 VoxelCmX     = PropertyId::Param0;
@@ -211,32 +219,67 @@ namespace HktEventBuilder
 	}
 
 	/**
-	 * Voxel template activation 이벤트 (I-0014 — voxel spawn 능력).
+	 * Voxel 좌표 → SlotHash31 결정론 시드 (I-0017 — 시드 = voxel 좌표 한 곳).
 	 *
-	 * 청크 로드 시 baked attribution 한 점마다 발화. EventTag 가 *템플릿 자체의 StoryTag*
-	 * (예: `Story.Flow.Spawner.Natural.Oak`) — VMBuildSystem 이 직접 program 조회.
-	 *
-	 * Param 매핑은 `VoxelTemplateParams::` 참조 (SpawnerParams 와 동일 슬롯 의미).
-	 *
-	 * @param View   Provider 가 카탈로그 해석을 마친 voxel attribution view.
-	 * @param VoxelSizeCm   생성기 Config 의 VoxelSizeCm (FloorToInt 변환에 사용).
+	 * 자연 발생 (`FHktTerrainProvider::GetChunkVoxelAttribution`) 과 트리거 경로
+	 * (`VoxelTemplateActivatedAt`) 모두 본 함수를 통과해 동일 시드를 산출 — 두 입구가
+	 * voxel 한 점에서 합류해도 결정론이 유지된다.
 	 */
-	inline FHktEvent VoxelTemplateActivated(const FHktVoxelAttributionView& View, float VoxelSizeCm)
+	inline uint32 ComputeVoxelSlotHash31(int32 VoxelWorldX, int32 VoxelWorldY, int32 VoxelWorldZ)
+	{
+		const uint32 H = ::GetTypeHash(FIntVector(VoxelWorldX, VoxelWorldY, VoxelWorldZ));
+		return H & 0x7FFFFFFFu;
+	}
+
+	/**
+	 * Voxel template activation 이벤트 — 좌표 직접 입력 (I-0014 Phase C 트리거 채널).
+	 *
+	 * 자연 발생/트리거 양쪽 모두의 단일 빌더. EventTag 가 *템플릿 자체의 StoryTag* —
+	 * VMBuildSystem 이 직접 program 조회.
+	 *
+	 * 트리거 caller (Quest opcode · GameMode 트리거 · Encounter 시스템 등) 가 임의
+	 * voxel 한 점에 template 을 활성화하고 싶을 때 직접 호출. attribution 슬롯은
+	 * 갱신하지 않으며, event 한 발만 emit — read-only attribution 모델 유지.
+	 *
+	 * Param 매핑은 `VoxelTemplateParams::` 참조.
+	 *
+	 * @param TemplateStoryTag  발화할 terrain story template tag (예: `Story.Flow.Spawner.Natural.Oak`).
+	 * @param VoxelWorldX/Y/Z   대상 voxel 의 월드 voxel 좌표 (정수).
+	 * @param VoxelSizeCm       생성기 Config 의 VoxelSizeCm (cm 변환에 사용).
+	 */
+	inline FHktEvent VoxelTemplateActivatedAt(
+		const FGameplayTag& TemplateStoryTag,
+		int32 VoxelWorldX, int32 VoxelWorldY, int32 VoxelWorldZ,
+		float VoxelSizeCm)
 	{
 		// voxel 중심 cm — `FHktTerrainSystem::VoxelToCm` 과 동일 공식.
 		const float Half = VoxelSizeCm * 0.5f;
-		const int32 CmX = FMath::RoundToInt(View.VoxelWorldX * VoxelSizeCm + Half);
-		const int32 CmY = FMath::RoundToInt(View.VoxelWorldY * VoxelSizeCm + Half);
-		const int32 CmZ = FMath::RoundToInt(View.VoxelWorldZ * VoxelSizeCm + Half);
+		const int32 CmX = FMath::RoundToInt(VoxelWorldX * VoxelSizeCm + Half);
+		const int32 CmY = FMath::RoundToInt(VoxelWorldY * VoxelSizeCm + Half);
+		const int32 CmZ = FMath::RoundToInt(VoxelWorldZ * VoxelSizeCm + Half);
+		const uint32 SlotHash31 = ComputeVoxelSlotHash31(VoxelWorldX, VoxelWorldY, VoxelWorldZ);
 
 		FHktEvent E;
-		E.EventTag = View.StoryTag;
+		E.EventTag = TemplateStoryTag;
 		E.Param0   = CmX;
 		E.Param1   = CmY;
-		E.Param2   = static_cast<int32>(View.SlotHash31);
+		E.Param2   = static_cast<int32>(SlotHash31);
 		E.Param3   = CmZ;
 		E.Location = FVector(static_cast<double>(CmX), static_cast<double>(CmY), static_cast<double>(CmZ));
 		return E;
+	}
+
+	/**
+	 * Voxel template activation 이벤트 — 자연 발생 view 어댑터.
+	 *
+	 * `FHktTerrainSystem::Process` 가 청크 로드 시 baked attribution 한 점마다 호출.
+	 * 내부적으로 `VoxelTemplateActivatedAt` 에 위임 — 트리거 경로와 *동일 빌더* 통과를
+	 * 코드 형식상 보장 (I-0014 Phase C 검증).
+	 */
+	inline FHktEvent VoxelTemplateActivated(const FHktVoxelAttributionView& View, float VoxelSizeCm)
+	{
+		return VoxelTemplateActivatedAt(View.StoryTag,
+			View.VoxelWorldX, View.VoxelWorldY, View.VoxelWorldZ, VoxelSizeCm);
 	}
 
 	/** 방향 이동 이벤트 (ShoulderView WASD) — Location = 목표 위치 */

@@ -4,6 +4,7 @@
 #include "HktTerrainBakedAsset.h"
 #include "HktTerrainSubsystem.h"
 #include "HktTerrainLog.h"
+#include "HktStoryEventParams.h"  // HktEventBuilder::ComputeVoxelSlotHash31 — 시드 단일 출처
 #include "Terrain/HktTerrainVoxel.h"
 
 namespace
@@ -155,9 +156,10 @@ void FHktTerrainProvider::GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, i
 		View.VoxelWorldZ = ChunkZ * ChunkSize + LocalZ;
 		View.StoryTag    = *StoryTag;
 
-		// 시드 = voxel 좌표 한 곳 (I-0017). 보조 입력은 흡수만, 혼합 금지.
-		uint32 H = ::GetTypeHash(FIntVector(View.VoxelWorldX, View.VoxelWorldY, View.VoxelWorldZ));
-		View.SlotHash31 = H & 0x7FFFFFFFu;
+		// 시드 = voxel 좌표 한 곳 (I-0017). 트리거 경로 (VoxelTemplateActivatedAt) 와
+		// 동일 함수를 통과 — 자연 발생/트리거 두 입구의 결정론 시드가 형식적으로 일치.
+		View.SlotHash31 = HktEventBuilder::ComputeVoxelSlotHash31(
+			View.VoxelWorldX, View.VoxelWorldY, View.VoxelWorldZ);
 
 		OutEntries.Add(View);
 	}
