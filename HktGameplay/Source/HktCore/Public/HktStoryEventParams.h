@@ -55,28 +55,7 @@ namespace SpawnerParams
 }
 
 // ============================================================================
-// Event.Terrain.ChunkLoaded (TerrainSpawner.design.md §4-a 런타임 정책 패스)
-// ============================================================================
-//
-// Placement 정책 Story 는 청크 신규 로드 시 본 이벤트를 listen 하여 spawn 결정.
-//   - Param0: 청크 중심 X (cm 정수) — 결정론 위치
-//   - Param1: 청크 중심 Y (cm 정수)
-//   - Param2: BiomeId — 레거시 EHktBiomeType (0..5) 또는 고급 EHktAdvBiome (0..10+)
-//   - Param3: SlotHash 의 31bit — RNG seed / lineageId / variant 등 결정론 분기 입력
-//   - Location: 청크 중심 (cm) FVector — 청크 사전 로드 트리거에 sim 이 활용
-//
-// 정책 Story 가 DispatchEvent(spawnerStoryTag, Param0/1 pos, Param2/3 archetype) 으로
-// 실제 spawner story 를 발화시키는 방식. cpp 하드코딩 매핑 대안.
-namespace ChunkLoadedParams
-{
-	inline const uint16 ChunkCenterX = PropertyId::Param0;
-	inline const uint16 ChunkCenterY = PropertyId::Param1;
-	inline const uint16 BiomeId      = PropertyId::Param2;
-	inline const uint16 SlotHash31   = PropertyId::Param3;
-}
-
-// ============================================================================
-// Voxel Template Activation (I-0014 Phase A — voxel spawn 능력 인프라)
+// Voxel Template Activation (I-0014 — voxel spawn 능력 인프라)
 // ============================================================================
 //
 // `FHktTerrainSystem::Process` 가 청크 로드 시 baked attribution 슬롯 (`SpawnTemplateAttribution`)
@@ -232,41 +211,7 @@ namespace HktEventBuilder
 	}
 
 	/**
-	 * Event.Terrain.ChunkLoaded 빌더 (TerrainSpawner.design.md §4-a 런타임 정책 패스).
-	 *
-	 * 새 청크 로드 시 sim 이 발화 → placement 정책 Story 가 본 이벤트를 listen.
-	 * Param 매핑은 `ChunkLoadedParams::` 참조.
-	 *
-	 * @param EventTag      `HktTerrainEventTags::ChunkLoaded`
-	 * @param ChunkCenterCmX  청크 중심 X (cm 정수)
-	 * @param ChunkCenterCmY  청크 중심 Y (cm 정수)
-	 * @param BiomeIdValue   레거시 EHktBiomeType / 고급 EHktAdvBiome
-	 * @param SlotHash31     hash(ChunkCoord) 의 31bit — 결정론 RNG seed
-	 * @param SurfaceCmZ     표면 cm Z — Location.Z 에 세팅 (청크 사전 로드용)
-	 */
-	inline FHktEvent ChunkLoaded(
-		const FGameplayTag& EventTag,
-		int32 ChunkCenterCmX,
-		int32 ChunkCenterCmY,
-		int32 BiomeIdValue,
-		int32 SlotHash31,
-		int32 SurfaceCmZ)
-	{
-		FHktEvent E;
-		E.EventTag = EventTag;
-		E.Param0   = ChunkCenterCmX;
-		E.Param1   = ChunkCenterCmY;
-		E.Param2   = BiomeIdValue;
-		E.Param3   = SlotHash31;
-		E.Location = FVector(
-			static_cast<double>(ChunkCenterCmX),
-			static_cast<double>(ChunkCenterCmY),
-			static_cast<double>(SurfaceCmZ));
-		return E;
-	}
-
-	/**
-	 * Voxel template activation 이벤트 (I-0014 Phase A — voxel spawn 능력).
+	 * Voxel template activation 이벤트 (I-0014 — voxel spawn 능력).
 	 *
 	 * 청크 로드 시 baked attribution 한 점마다 발화. EventTag 가 *템플릿 자체의 StoryTag*
 	 * (예: `Story.Flow.Spawner.Natural.Oak`) — VMBuildSystem 이 직접 program 조회.

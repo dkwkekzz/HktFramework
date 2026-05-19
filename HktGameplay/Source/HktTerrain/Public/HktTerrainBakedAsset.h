@@ -119,18 +119,6 @@ struct HKTTERRAIN_API FHktTerrainBakedConfig
 	UPROPERTY(EditAnywhere, Category = "Streaming")
 	int32 SimMaxChunkLoadsPerFrame = 4;
 
-	// ─── Placement Story 결합 (I-0014) ───
-
-	/**
-	 * @deprecated I-0014 Phase B 부터 사용 안 함. voxel attribution 모델로 전환되어
-	 *             chunk-level Placement Story 분기가 제거되었다 — `VoxelTypeSpawnTemplate`
-	 *             로 voxel type 별 template 을 직접 지정한다. v5 자산에서 본 필드는
-	 *             직렬화 호환을 위해 잔류하지만 런타임에서 읽지 않는다.
-	 *             다음 BakeVersion 증분 시 제거 예정.
-	 */
-	UPROPERTY(EditAnywhere, Category = "Placement", meta = (Categories = "Story.Placement", DeprecatedProperty, DeprecationMessage = "Use VoxelTypeSpawnTemplate (I-0014 Phase B)"))
-	FGameplayTag PlacementStoryTag;
-
 	// ─── Voxel Spawn Template 매핑 (I-0014 Phase B) ───
 
 	/**
@@ -237,19 +225,13 @@ struct HKTTERRAIN_API FHktTerrainSpawnerSpec
  * `FHktTerrainVoxel`(4바이트) × 32768 = 128KB raw 가 oodle 압축되어 CompressedData 에 저장된다.
  * 디컴프레스 후 UncompressedSize 와 비교하여 무결성 검증.
  *
- * v3 (TerrainSpawner.design.md §4-a 런타임 정책 패스):
- *   - 본 청크가 표면 (top-most non-air voxel 보유) 인 경우 BiomeId / SurfaceVoxelZ /
- *     SlotHash 를 캡처한다. sim 의 `TryGetChunkContext` 가 본 필드를 읽어 placement
- *     정책 Story 에 전달.
- *   - 비표면 청크는 bIsSurfaceChunk=false 로 두고 나머지 필드 무의미.
- *
- * v5 (I-0014 Phase A — voxel spawn attribution 인프라):
- *   - `SpawnTemplateAttribution` 가 *surface voxel 한 점* 단위로 template id 참조를 보유한다.
- *     키는 5+5+5 bit 로 패킹된 local coord (0..31 per axis) — `PackLocalCoord` 헬퍼 사용.
- *     값은 `UHktTerrainBakedAsset::SpawnTemplateCatalog` 의 templateId.
+ * v5 (I-0014 — voxel spawn attribution):
+ *   - 본 청크가 표면 (top-most non-air voxel 보유) 이면 `bIsSurfaceChunk=true`. BakeRegion 의
+ *     attribution 산출 패스가 본 플래그로 게이트.
+ *   - `SpawnTemplateAttribution` 가 *surface voxel 한 점* 단위로 template id 참조를 보유. 키는
+ *     5+5+5 bit 로 패킹된 local coord (0..31 per axis) — `PackLocalCoord` 헬퍼 사용. 값은
+ *     `UHktTerrainBakedAsset::SpawnTemplateCatalog` 의 templateId.
  *   - 자연 발생 (대다수) 이 본 슬롯으로 단일화. 명시 배치 (보스/랜드마크) 는 별도 `Spawners[]` 유지.
- *   - Phase A 에서는 *데이터 슬롯만* 도입. 자동 채움 (BakeRegion 자동 산출) 은 Phase B 위임.
- *     비어 있을 경우 sim 은 v3/v4 fallback (chunk-level ChunkLoaded emit) 으로 동작.
  */
 USTRUCT()
 struct HKTTERRAIN_API FHktTerrainBakedChunk
@@ -267,25 +249,11 @@ struct HKTTERRAIN_API FHktTerrainBakedChunk
 	UPROPERTY()
 	int32 UncompressedSize = 0;
 
-	// ─── v3 surface metadata (placement 정책 진입 인자) ───
-
-	/** 본 청크가 표면 (지상 ↔ 지하 경계) 을 포함하면 true. ChunkLoaded 이벤트 발화 게이트. */
+	/** 본 청크가 표면 (지상 ↔ 지하 경계) 을 포함하면 true. attribution 산출 게이트. */
 	UPROPERTY()
 	bool bIsSurfaceChunk = false;
 
-	/** 표면 칼럼의 biome (레거시: 200+EHktBiomeType, 고급: EHktAdvBiome). */
-	UPROPERTY()
-	uint8 BiomeId = 0;
-
-	/** 표면 voxel Z (월드 voxel 좌표). bIsSurfaceChunk=false 시 무의미. */
-	UPROPERTY()
-	int32 SurfaceVoxelZ = 0;
-
-	/** hash(ChunkCoord) — placement 정책의 결정론 RNG seed / lineageId 시드. */
-	UPROPERTY()
-	uint32 SlotHash = 0;
-
-	// ─── v5 voxel attribution (I-0014 Phase A) ───
+	// ─── v5 voxel attribution (I-0014) ───
 
 	/**
 	 * Sparse per-voxel template attribution. Key = `PackLocalCoord(x,y,z)` (5+5+5 bit),
@@ -332,14 +300,12 @@ public:
 	 *
 	 *  - v1: 청크 복셀 + GeneratorConfig.
 	 *  - v2: Spawners[] 추가 — Story 인스턴스 메타 (TerrainSpawner.design.md §3-b).
-	 *  - v3: 청크별 surface 메타 (BiomeId/SurfaceVoxelZ/SlotHash/bIsSurfaceChunk) — 런타임
-	 *        placement 정책 패스 입력 (TerrainSpawner.design.md §4-a 갱신).
-	 *  - v4: `FHktTerrainBakedConfig::PlacementStoryTag` — World 별 Placement Story 분기 (I-0014).
-	 *        v3 자산 로드 시 빈 태그 → 폴백 `Event.Terrain.ChunkLoaded` 사용 (기존 동작 호환).
-	 *  - v5: per-voxel `SpawnTemplateAttribution` 슬롯 + World 별 `SpawnTemplateCatalog`
-	 *        (I-0014 Phase A — voxel spawn attribution 인프라). 슬롯이 비어 있는 v4 자산은
-	 *        그대로 로드되어 chunk-level ChunkLoaded fallback 으로 동작 — 데이터 마이그레이션
-	 *        없음. Phase B 부터 placement story 가 attribution 을 부여한다.
+	 *  - v3: 청크별 surface 메타 — 런타임 placement 정책 패스 입력 (제거됨).
+	 *  - v4: `PlacementStoryTag` — World 별 Placement Story 분기 (제거됨).
+	 *  - v5: per-voxel `SpawnTemplateAttribution` 슬롯 + World 별 `SpawnTemplateCatalog` (I-0014).
+	 *        Bake 시점에 `VoxelTypeSpawnTemplate` 매핑으로 attribution 자동 산출, 런타임 read-only.
+	 *        v3/v4 의 surface 메타 (BiomeId / SurfaceVoxelZ / SlotHash) 및 PlacementStoryTag 는
+	 *        본 버전에서 일괄 제거 — v4 이하 자산은 재베이크 필요.
 	 */
 	static constexpr int32 CurrentBakeVersion = 5;
 
@@ -408,13 +374,6 @@ public:
 	 */
 	void GetSpawnersForChunk(const FIntVector& Coord,
 	                         TArray<const FHktTerrainSpawnerSpec*>& OutSpawners) const;
-
-	/**
-	 * 표면 청크 메타 조회 (v3+). 청크가 베이크 자산에 없거나 비표면이면 false.
-	 * 성공 시 OutBiomeId / OutSurfaceVoxelZ / OutSlotHash 채워진다.
-	 */
-	bool TryGetSurfaceContext(const FIntVector& Coord,
-	                          int32& OutBiomeId, int32& OutSurfaceVoxelZ, uint32& OutSlotHash) const;
 
 	/**
 	 * 청크의 voxel attribution 슬롯 (v5). 슬롯이 비어 있거나 청크 미존재 시 false.

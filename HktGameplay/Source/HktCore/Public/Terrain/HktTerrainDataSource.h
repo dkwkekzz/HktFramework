@@ -53,7 +53,7 @@ struct HKTCORE_API FHktTerrainSpawnerView
 };
 
 /**
- * FHktVoxelAttributionView — HktCore 측 POD 뷰 (I-0014 Phase A).
+ * FHktVoxelAttributionView — HktCore 측 POD 뷰 (I-0014).
  *
  * voxel attribution 한 점 — "voxel A 가 templateId X 를 참조한다" 라는 사실의 결정 산출물.
  * Provider 가 baked chunk 의 `SpawnTemplateAttribution` 엔트리를 카탈로그로 해석한 결과.
@@ -71,35 +71,6 @@ struct HKTCORE_API FHktVoxelAttributionView
 	FGameplayTag StoryTag;
 
 	uint32 SlotHash31 = 0;
-
-	/** 보조 입력 — 청크 biome (혼합 금지, story 가 분기에 사용 가능). */
-	int32 BiomeId = 0;
-};
-
-/**
- * FHktTerrainChunkContext — 청크 표면 메타데이터 (placement 정책 입력).
- *
- * `BakedAsset` 에서 캡처된 surface biome / surface voxel Z / SlotHash 를 sim 으로
- * 전달하는 plain POD. 표면을 포함하지 않는 청크 (지하·천공) 은 `bIsSurfaceChunk=false`.
- *
- * `FHktTerrainSystem::Process` 가 신규 surface 청크 로드 시 본 컨텍스트를 읽어
- * `HktEventBuilder::ChunkLoaded(...)` 로 변환 — placement 정책 Story 의 진입 인자.
- */
-struct HKTCORE_API FHktTerrainChunkContext
-{
-	int32 BiomeId         = 0;
-	int32 SurfaceVoxelZ   = 0;
-	uint32 SlotHash       = 0;
-	bool bIsSurfaceChunk  = false;
-
-	/**
-	 * Placement Story 의 storyTag (I-0014).
-	 *
-	 * 데이터 소스가 baked asset 의 `PlacementStoryTag` 를 그대로 전달한다.
-	 * 빈 태그면 sim 이 폴백으로 `HktTerrainEventTags::ChunkLoaded` 를 사용 — v3 자산 호환.
-	 * 본 태그를 storyTag 로 declare 한 Placement JSON 이 listen 한다.
-	 */
-	FGameplayTag DispatchTag;
 };
 
 class HKTCORE_API IHktTerrainDataSource
@@ -127,21 +98,7 @@ public:
 	}
 
 	/**
-	 * 청크 표면 컨텍스트 조회 — placement 정책 패스 (TerrainSpawner.design.md §4-a) 입력.
-	 *
-	 * @return  표면 청크 메타가 있으면 true + OutCtx 채움. 비표면/미베이크/Generator
-	 *          폴백 등은 false → sim 이 `ChunkLoaded` 이벤트 발화 skip.
-	 *
-	 * 기본 구현은 false — placement 미지원 데이터 소스도 컴파일 안전.
-	 */
-	virtual bool TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
-	                                FHktTerrainChunkContext& OutCtx) const
-	{
-		return false;
-	}
-
-	/**
-	 * 청크의 voxel attribution 엔트리 조회 (I-0014 Phase A — voxel spawn 능력).
+	 * 청크의 voxel attribution 엔트리 조회 (I-0014 — voxel spawn 능력).
 	 *
 	 * baked chunk 의 sparse `SpawnTemplateAttribution` 를 carrier asset 의 catalog 로
 	 * 해석해 `FHktVoxelAttributionView` 시퀀스로 평탄화. 호출자(`FHktTerrainSystem::Process`)

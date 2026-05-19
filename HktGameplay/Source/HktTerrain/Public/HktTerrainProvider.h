@@ -43,8 +43,6 @@ public:
 	virtual const FHktTerrainGeneratorConfig& GetConfig() const override { return Config; }
 	virtual void GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
 	                              TArray<FHktTerrainSpawnerView>& OutSpawners) const override;
-	virtual bool TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
-	                                FHktTerrainChunkContext& OutCtx) const override;
 	virtual void GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
 	                                      TArray<FHktVoxelAttributionView>& OutEntries) const override;
 	// -------------------------------------------------------------------------

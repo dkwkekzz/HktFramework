@@ -142,18 +142,13 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	}
 
 	// ────────────────────────────────────────────────────────────────────────
-	// 표면 메타데이터 캡처 (TerrainSpawner.design.md §4-a 런타임 정책 패스)
+	// 표면 청크 식별 (I-0014 attribution 산출 게이트)
 	//
-	// 청크 중심 column 1점 샘플로 (BiomeId, SurfaceVoxelZ) 결정 → 표면을 포함하는
-	// 청크에 메타 부착. cpp 하드코딩 biome→Story 매핑은 폐기 — placement 정책 Story
-	// (Content/Stories/Natural/Placement_*.json) 가 런타임 이벤트로 결정.
-	//
-	// `Spawners[]` 는 본 패스에서 비워 둔다 (공존 정책):
-	//   - 명시 배치 (보스/랜드마크) 는 HktMapSpawnerAdapter / 수동 Detail 패널 입력
-	//   - biome 기반 자연 배치는 ChunkLoaded 이벤트 + placement 정책 Story 가 담당
+	// 청크 중심 column 1점 샘플로 surface Z 를 결정 → 표면을 포함하는 청크에
+	// `bIsSurfaceChunk=true`. 후속 voxel attribution 산출 패스가 본 플래그로 게이트.
 	// ────────────────────────────────────────────────────────────────────────
 	int32 SurfaceMetaTagged   = 0;
-	int32 SurfaceMetaSkipped  = 0;  // surfaceCZ 영역 밖 / 청크가 비어 저장 안 됨
+	int32 SurfaceMetaSkipped  = 0;
 	{
 		auto FloorDivI = [](int32 A, int32 B) -> int32
 		{
@@ -177,8 +172,8 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 			}
 			const FHktTerrainPreviewSample& S = Preview.Samples[0];
 
-			const int32 SurfaceVoxelZ = S.SurfaceHeightVoxels;
-			const int32 SurfaceCZ     = FloorDivI(SurfaceVoxelZ, FHktTerrainGeneratorConfig::ChunkSize);
+			const int32 SurfaceCZ = FloorDivI(S.SurfaceHeightVoxels,
+			                                  FHktTerrainGeneratorConfig::ChunkSize);
 			if (SurfaceCZ < ChunkMin.Z || SurfaceCZ > ChunkMax.Z)
 			{
 				++SurfaceMetaSkipped;
@@ -189,16 +184,11 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 			const int32* IdxPtr = LocalCoordToIndex.Find(SurfaceCoord);
 			if (!IdxPtr || !Asset->Chunks.IsValidIndex(*IdxPtr))
 			{
-				// 표면 청크가 all-air 로 skip 된 케이스 — 정상적으로는 거의 없음 (표면 = 솔리드)
 				++SurfaceMetaSkipped;
 				continue;
 			}
 
-			FHktTerrainBakedChunk& Chunk = Asset->Chunks[*IdxPtr];
-			Chunk.bIsSurfaceChunk = true;
-			Chunk.BiomeId         = S.BiomeId;
-			Chunk.SurfaceVoxelZ   = SurfaceVoxelZ;
-			Chunk.SlotHash        = HashCombine(GetTypeHash(SurfaceCoord), GetTypeHash(0));
+			Asset->Chunks[*IdxPtr].bIsSurfaceChunk = true;
 			++SurfaceMetaTagged;
 		}
 	}
