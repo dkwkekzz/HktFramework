@@ -56,6 +56,7 @@
 | 갭 | 의도 표현 | 현 구현 |
 |---|---|---|
 | **"Spawner 배치"** 모델 | I-0020: voxel 이 spawn 주체. Placement → voxel attribution → template 활성화 (3단계, 단 attribution 은 데이터). | 실제: Placement → spawner-story dispatch → `SpawnEntity` opcode (1단계). 청크 단위 dispatch 만 존재. voxel attribution 층이 없어 *어느 voxel 이* spawn 주체였는지 디버그·재실행 시점에 추적 불가. |
+| **Placement Story 패턴 마이그레이션** ([I-0020](intents/I-0020.md)) | placement 는 voxel 에 attribution 을 *기록* 만 한다 — 즉시 실행 금지. 출력 형식이 "어느 voxel 이 어떤 template 을 가질 것인가" 의 데이터로 좁혀진다. | `Placement_TranquilWilds.json` 은 `DispatchEvent(OakSpawn)` 으로 *즉시 발사*. attribution 부여용 opcode (`SetVoxelTemplate(voxelCoord, templateId)` 류) 및 대상 voxel 집합 표현이 부재 — Placement Story 의 출력 형식 자체를 갈아엎어야 한다. |
 | **Voxel attribution 필드** ([I-0020](intents/I-0020.md)) | baked chunk 가 per-voxel `SpawnTemplateId` 를 보유 | 미구현 — `FHktTerrainBakedChunk` 는 BiomeId / SurfaceVoxelZ / SlotHash 까지만. voxel-level template 참조 슬롯 부재. |
 | **Voxel 평가 → template 활성화 경로** ([I-0020](intents/I-0020.md)) | 청크 스트림인 / 활성화 시점에 voxel 들이 자신의 template 을 활성화 | 미구현 — 현재는 `Event.Terrain.ChunkLoaded` 1회 emit 후 Placement Story 가 *청크 단위로* 모두 처리. voxel 단위 평가 fan-out 없음. |
 | **Template 라이브러리 명시화** ([I-0020](intents/I-0020.md)) | "이 World 의 spawn template 집합" 이 baked / catalog 형태로 닫혀 있음 | 부분 — `FHktVMProgramRegistry` 의 1태그 1프로그램 dispatch 가 사실상 template 역할이나, voxel attribution 으로 연결되지 않아 *어떤 template 이 어디서 쓰이는지* 의 정적 매핑이 부재. |
