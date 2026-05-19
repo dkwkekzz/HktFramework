@@ -76,6 +76,29 @@ namespace ChunkLoadedParams
 }
 
 // ============================================================================
+// Voxel Template Activation (I-0014 Phase A — voxel spawn 능력 인프라)
+// ============================================================================
+//
+// `FHktTerrainSystem::Process` 가 청크 로드 시 baked attribution 슬롯 (`SpawnTemplateAttribution`)
+// 을 enumerate → voxel 한 점마다 *참조 template 의 StoryTag* 를 EventTag 로 dispatch.
+// SpawnerParams::* 와 슬롯 의미가 동일하다 — terrain story template (Oak_Spawn 등) 이
+// 동일 컨벤션으로 좌표/시드를 읽는다.
+//
+//   - Param0: voxel 월드 X (cm 정수) — VoxelWorld * VoxelSizeCm + half
+//   - Param1: voxel 월드 Y (cm 정수)
+//   - Param2: SlotHash31 — voxel 좌표 한 곳에서 파생된 결정론 시드 (I-0017)
+//   - Param3: voxel 월드 Z (cm 정수)
+//
+// 보조 입력 BiomeId 는 story 가 필요 시 별도 LoadStore 로 청크 컨텍스트에서 흡수.
+namespace VoxelTemplateParams
+{
+	inline const uint16 VoxelCmX     = PropertyId::Param0;
+	inline const uint16 VoxelCmY     = PropertyId::Param1;
+	inline const uint16 SlotHash31   = PropertyId::Param2;
+	inline const uint16 VoxelCmZ     = PropertyId::Param3;
+}
+
+// ============================================================================
 // Story.Event.Item.Activate
 // ============================================================================
 namespace ItemActivateParams
@@ -239,6 +262,35 @@ namespace HktEventBuilder
 			static_cast<double>(ChunkCenterCmX),
 			static_cast<double>(ChunkCenterCmY),
 			static_cast<double>(SurfaceCmZ));
+		return E;
+	}
+
+	/**
+	 * Voxel template activation 이벤트 (I-0014 Phase A — voxel spawn 능력).
+	 *
+	 * 청크 로드 시 baked attribution 한 점마다 발화. EventTag 가 *템플릿 자체의 StoryTag*
+	 * (예: `Story.Flow.Spawner.Natural.Oak`) — VMBuildSystem 이 직접 program 조회.
+	 *
+	 * Param 매핑은 `VoxelTemplateParams::` 참조 (SpawnerParams 와 동일 슬롯 의미).
+	 *
+	 * @param View   Provider 가 카탈로그 해석을 마친 voxel attribution view.
+	 * @param VoxelSizeCm   생성기 Config 의 VoxelSizeCm (FloorToInt 변환에 사용).
+	 */
+	inline FHktEvent VoxelTemplateActivated(const FHktVoxelAttributionView& View, float VoxelSizeCm)
+	{
+		// voxel 중심 cm — `FHktTerrainSystem::VoxelToCm` 과 동일 공식.
+		const float Half = VoxelSizeCm * 0.5f;
+		const int32 CmX = FMath::RoundToInt(View.VoxelWorldX * VoxelSizeCm + Half);
+		const int32 CmY = FMath::RoundToInt(View.VoxelWorldY * VoxelSizeCm + Half);
+		const int32 CmZ = FMath::RoundToInt(View.VoxelWorldZ * VoxelSizeCm + Half);
+
+		FHktEvent E;
+		E.EventTag = View.StoryTag;
+		E.Param0   = CmX;
+		E.Param1   = CmY;
+		E.Param2   = static_cast<int32>(View.SlotHash31);
+		E.Param3   = CmZ;
+		E.Location = FVector(static_cast<double>(CmX), static_cast<double>(CmY), static_cast<double>(CmZ));
 		return E;
 	}
 

@@ -101,6 +101,71 @@ void FHktTerrainProvider::GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 Chu
 	}
 }
 
+void FHktTerrainProvider::GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+                                                   TArray<FHktVoxelAttributionView>& OutEntries) const
+{
+	UHktTerrainSubsystem* Sub = Subsystem.Get();
+	if (!Sub)
+	{
+		return;
+	}
+	const UHktTerrainBakedAsset* Asset = Sub->GetBakedAsset();
+	if (!Asset)
+	{
+		return;  // INFO 로그는 GetChunkSpawners 와 공유
+	}
+
+	const FIntVector Coord(ChunkX, ChunkY, ChunkZ);
+	const TMap<uint16, uint16>* AttrMap = Asset->FindVoxelAttribution(Coord);
+	if (!AttrMap)
+	{
+		return;  // 슬롯 비어 있음 — sim 이 chunk-level ChunkLoaded fallback 으로 처리
+	}
+
+	constexpr int32 ChunkSize = FHktTerrainGeneratorConfig::ChunkSize;
+	OutEntries.Reserve(OutEntries.Num() + AttrMap->Num());
+
+	for (const TPair<uint16, uint16>& Pair : *AttrMap)
+	{
+		const uint16 PackedLocal = Pair.Key;
+		const uint16 TemplateId  = Pair.Value;
+
+		const FGameplayTag* StoryTag = Asset->SpawnTemplateCatalog.Find(TemplateId);
+		if (!StoryTag || !StoryTag->IsValid())
+		{
+			// 카탈로그 미정의 id — Phase A 는 silent skip + 인스턴스당 1회 WARN.
+			// I-0015 위임 시 빌드 시점 정적 검증으로 차단된다.
+			++UnknownTemplateIdCount;
+			if (!bLoggedUnknownTemplateOnce)
+			{
+				UE_LOG(LogHktTerrain, Warning,
+					TEXT("[TerrainProvider] Voxel attribution chunk(%d,%d,%d) templateId=%u 카탈로그 미정의 — skip. (인스턴스 첫 발생만 출력)"),
+					ChunkX, ChunkY, ChunkZ, TemplateId);
+				bLoggedUnknownTemplateOnce = true;
+			}
+			continue;
+		}
+
+		int32 LocalX = 0, LocalY = 0, LocalZ = 0;
+		FHktTerrainBakedChunk::UnpackLocalCoord(PackedLocal, LocalX, LocalY, LocalZ);
+
+		FHktVoxelAttributionView View;
+		View.VoxelWorldX = ChunkX * ChunkSize + LocalX;
+		View.VoxelWorldY = ChunkY * ChunkSize + LocalY;
+		View.VoxelWorldZ = ChunkZ * ChunkSize + LocalZ;
+		View.StoryTag    = *StoryTag;
+
+		// 시드 = voxel 좌표 한 곳 (I-0017). chunk SlotHash / biome 은 보조 입력으로만 흡수.
+		uint32 H = ::GetTypeHash(FIntVector(View.VoxelWorldX, View.VoxelWorldY, View.VoxelWorldZ));
+		View.SlotHash31 = H & 0x7FFFFFFFu;
+
+		const FHktTerrainBakedChunk* Chunk = Asset->FindChunk(Coord);
+		View.BiomeId = Chunk ? static_cast<int32>(Chunk->BiomeId) : 0;
+
+		OutEntries.Add(View);
+	}
+}
+
 bool FHktTerrainProvider::TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
                                              FHktTerrainChunkContext& OutCtx) const
 {

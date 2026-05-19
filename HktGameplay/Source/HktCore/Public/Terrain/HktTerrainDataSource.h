@@ -53,6 +53,30 @@ struct HKTCORE_API FHktTerrainSpawnerView
 };
 
 /**
+ * FHktVoxelAttributionView — HktCore 측 POD 뷰 (I-0014 Phase A).
+ *
+ * voxel attribution 한 점 — "voxel A 가 templateId X 를 참조한다" 라는 사실의 결정 산출물.
+ * Provider 가 baked chunk 의 `SpawnTemplateAttribution` 엔트리를 카탈로그로 해석한 결과.
+ *
+ *   - 좌표는 *월드 voxel 좌표* (정수). Cm 변환은 sim 측 `FHktTerrainSystem` 에서 수행.
+ *   - `StoryTag` 는 카탈로그 lookup 결과 — 미정의 templateId 는 view 자체가 만들어지지 않음.
+ *   - `SlotHash31` 는 voxel 좌표 한 곳에서 파생된 결정론 시드 (I-0017). 보조 입력은 흡수만.
+ */
+struct HKTCORE_API FHktVoxelAttributionView
+{
+	int32 VoxelWorldX = 0;
+	int32 VoxelWorldY = 0;
+	int32 VoxelWorldZ = 0;
+
+	FGameplayTag StoryTag;
+
+	uint32 SlotHash31 = 0;
+
+	/** 보조 입력 — 청크 biome (혼합 금지, story 가 분기에 사용 가능). */
+	int32 BiomeId = 0;
+};
+
+/**
  * FHktTerrainChunkContext — 청크 표면 메타데이터 (placement 정책 입력).
  *
  * `BakedAsset` 에서 캡처된 surface biome / surface voxel Z / SlotHash 를 sim 으로
@@ -114,6 +138,24 @@ public:
 	                                FHktTerrainChunkContext& OutCtx) const
 	{
 		return false;
+	}
+
+	/**
+	 * 청크의 voxel attribution 엔트리 조회 (I-0014 Phase A — voxel spawn 능력).
+	 *
+	 * baked chunk 의 sparse `SpawnTemplateAttribution` 를 carrier asset 의 catalog 로
+	 * 해석해 `FHktVoxelAttributionView` 시퀀스로 평탄화. 호출자(`FHktTerrainSystem::Process`)
+	 * 가 각 view 를 *voxel 한 점에서의 template 활성화 이벤트* 로 변환한다.
+	 *
+	 * 비어 있거나(자연 발생 attribution 미부여) 미지원 데이터 소스면 OutEntries 그대로.
+	 * 호출자는 비어 있을 경우 v3/v4 fallback (chunk-level ChunkLoaded) 으로 처리.
+	 *
+	 * 기본 구현은 no-op — Phase A 데이터를 가지지 않는 데이터 소스도 안전.
+	 */
+	virtual void GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+	                                      TArray<FHktVoxelAttributionView>& OutEntries) const
+	{
+		// no-op — attribution 데이터 없음 (Generator 폴백 / v4 이하 자산)
 	}
 };
 

@@ -191,3 +191,13 @@ bool UHktTerrainBakedAsset::TryGetSurfaceContext(const FIntVector& Coord,
 	OutSlotHash      = Chunk->SlotHash;
 	return true;
 }
+
+const TMap<uint16, uint16>* UHktTerrainBakedAsset::FindVoxelAttribution(const FIntVector& Coord) const
+{
+	const FHktTerrainBakedChunk* Chunk = FindChunk(Coord);
+	if (!Chunk || Chunk->SpawnTemplateAttribution.Num() == 0)
+	{
+		return nullptr;
+	}
+	return &Chunk->SpawnTemplateAttribution;
+}

@@ -219,6 +219,14 @@ struct HKTTERRAIN_API FHktTerrainSpawnerSpec
  *     SlotHash 를 캡처한다. sim 의 `TryGetChunkContext` 가 본 필드를 읽어 placement
  *     정책 Story 에 전달.
  *   - 비표면 청크는 bIsSurfaceChunk=false 로 두고 나머지 필드 무의미.
+ *
+ * v5 (I-0014 Phase A — voxel spawn attribution 인프라):
+ *   - `SpawnTemplateAttribution` 가 *surface voxel 한 점* 단위로 template id 참조를 보유한다.
+ *     키는 5+5+5 bit 로 패킹된 local coord (0..31 per axis) — `PackLocalCoord` 헬퍼 사용.
+ *     값은 `UHktTerrainBakedAsset::SpawnTemplateCatalog` 의 templateId.
+ *   - 자연 발생 (대다수) 이 본 슬롯으로 단일화. 명시 배치 (보스/랜드마크) 는 별도 `Spawners[]` 유지.
+ *   - Phase A 에서는 *데이터 슬롯만* 도입. 자동 채움 (BakeRegion 자동 산출) 은 Phase B 위임.
+ *     비어 있을 경우 sim 은 v3/v4 fallback (chunk-level ChunkLoaded emit) 으로 동작.
  */
 USTRUCT()
 struct HKTTERRAIN_API FHktTerrainBakedChunk
@@ -253,6 +261,32 @@ struct HKTTERRAIN_API FHktTerrainBakedChunk
 	/** hash(ChunkCoord) — placement 정책의 결정론 RNG seed / lineageId 시드. */
 	UPROPERTY()
 	uint32 SlotHash = 0;
+
+	// ─── v5 voxel attribution (I-0014 Phase A) ───
+
+	/**
+	 * Sparse per-voxel template attribution. Key = `PackLocalCoord(x,y,z)` (5+5+5 bit),
+	 * Value = `UHktTerrainBakedAsset::SpawnTemplateCatalog` 의 templateId.
+	 * 비어 있으면 sim 이 chunk-level ChunkLoaded fallback 으로 동작 (v3/v4 호환).
+	 */
+	UPROPERTY()
+	TMap<uint16, uint16> SpawnTemplateAttribution;
+
+	/** local voxel coord (0..31 per axis) → 5+5+5 bit packed uint16. */
+	static constexpr uint16 PackLocalCoord(int32 LocalX, int32 LocalY, int32 LocalZ)
+	{
+		return static_cast<uint16>(
+			(static_cast<uint32>(LocalX) & 0x1Fu) |
+			((static_cast<uint32>(LocalY) & 0x1Fu) << 5) |
+			((static_cast<uint32>(LocalZ) & 0x1Fu) << 10));
+	}
+
+	static constexpr void UnpackLocalCoord(uint16 Packed, int32& OutX, int32& OutY, int32& OutZ)
+	{
+		OutX = static_cast<int32>(Packed & 0x1Fu);
+		OutY = static_cast<int32>((Packed >> 5) & 0x1Fu);
+		OutZ = static_cast<int32>((Packed >> 10) & 0x1Fu);
+	}
 };
 
 /**
@@ -279,8 +313,12 @@ public:
 	 *        placement 정책 패스 입력 (TerrainSpawner.design.md §4-a 갱신).
 	 *  - v4: `FHktTerrainBakedConfig::PlacementStoryTag` — World 별 Placement Story 분기 (I-0014).
 	 *        v3 자산 로드 시 빈 태그 → 폴백 `Event.Terrain.ChunkLoaded` 사용 (기존 동작 호환).
+	 *  - v5: per-voxel `SpawnTemplateAttribution` 슬롯 + World 별 `SpawnTemplateCatalog`
+	 *        (I-0014 Phase A — voxel spawn attribution 인프라). 슬롯이 비어 있는 v4 자산은
+	 *        그대로 로드되어 chunk-level ChunkLoaded fallback 으로 동작 — 데이터 마이그레이션
+	 *        없음. Phase B 부터 placement story 가 attribution 을 부여한다.
 	 */
-	static constexpr int32 CurrentBakeVersion = 4;
+	static constexpr int32 CurrentBakeVersion = 5;
 
 	/** 베이크 시 캡처된 생성기 설정. 폴백 호출 시 동일 설정 재사용 → 결정론 유지. */
 	UPROPERTY(EditAnywhere, Category = "Bake")
@@ -306,6 +344,21 @@ public:
 	 */
 	UPROPERTY()
 	TArray<FHktTerrainSpawnerSpec> Spawners;
+
+	/**
+	 * Spawn template 카탈로그 (v5, I-0014 Phase A).
+	 *
+	 * `FHktTerrainBakedChunk::SpawnTemplateAttribution` 의 uint16 templateId 를 실제
+	 * Story tag (예: `Story.Flow.Spawner.Natural.Oak`) 로 풀어내는 단방향 맵.
+	 *
+	 * World 별로 *닫혀 있어야* (I-0015 적용) 미참조 voxel / 죽은 id 가 빌드·로드 시점에
+	 * 검출 가능. Phase A 에서는 검증 없이 단순 lookup — 미정의 id 는 런타임 silent skip
+	 * 후 카운터로 집계 (FHktTerrainSystem::Process).
+	 *
+	 * 비어 있으면 자연 발생 attribution 미사용 → chunk-level ChunkLoaded fallback.
+	 */
+	UPROPERTY()
+	TMap<uint16, FGameplayTag> SpawnTemplateCatalog;
 
 	// UObject ----------------------------------------------------------------
 	virtual void PostLoad() override;
@@ -339,6 +392,17 @@ public:
 	 */
 	bool TryGetSurfaceContext(const FIntVector& Coord,
 	                          int32& OutBiomeId, int32& OutSurfaceVoxelZ, uint32& OutSlotHash) const;
+
+	/**
+	 * 청크의 voxel attribution 슬롯 (v5). 슬롯이 비어 있거나 청크 미존재 시 false.
+	 *
+	 * 성공 시 `OutAttribution` 은 청크의 `SpawnTemplateAttribution` 참조를 반환 — 호출자는
+	 * `PackLocalCoord` / `UnpackLocalCoord` 로 키/값을 해석. 카탈로그 lookup 은 별도.
+	 *
+	 * 본 메서드의 반환 형식이 TMap 참조인 이유: HktTerrain 내부 (Provider) 만 호출하므로
+	 * 외부 누설 없음. HktCore 측 `FHktVoxelAttributionView` 변환은 Provider 가 담당.
+	 */
+	const TMap<uint16, uint16>* FindVoxelAttribution(const FIntVector& Coord) const;
 
 private:
 	/** 좌표 → Chunks 배열 인덱스 (메모리 매핑). 비직렬화. */

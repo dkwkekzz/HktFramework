@@ -101,6 +101,9 @@ struct HKTCORE_API FHktTerrainSystem
     /** Process() 내부 scratch — 청크당 spawner 뷰 누적 버퍼 (할당 회피) */
     TArray<FHktTerrainSpawnerView> ScratchSpawnerViews;
 
+    /** Process() 내부 scratch — 청크당 voxel attribution 뷰 (I-0014 Phase A, 할당 회피) */
+    TArray<FHktVoxelAttributionView> ScratchVoxelAttributions;
+
     void Process(
         const FHktWorldState& WorldState,
         FHktTerrainState& TerrainState,
