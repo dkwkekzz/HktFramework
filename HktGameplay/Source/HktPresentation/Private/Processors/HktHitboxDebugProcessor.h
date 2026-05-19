@@ -12,9 +12,11 @@ class ULocalPlayer;
 /**
  * Hitbox 디버그 렌더러 — Intent: I-0020 (Docs/intents/I-0020.md).
  *
- * Server VM 의 Op_FindInRadius/Ex 가 ring buffer 에 적재한 판정 자취를
- * 클라 화면에 그대로 표시. 클라는 어떤 판정도 추측하지 않고 서버 사실만
- * 표시 (I-0019 의 서버 권위 보증).
+ * VM Op_FindInRadius/Ex 가 ring buffer 에 적재한 *실제 판정 자취* 를
+ * DrawDebugSphere 로 그대로 표시. 시각화 출처는 VM op 의 출력이며,
+ * VM 밖에서 공격자 위치·무기 반경으로 합성한 heuristic sphere 가 아니다
+ * (I-0019 — 단일 판정 출처). 서버·클라 어느 측 VM 의 trace 든 결정론
+ * 보증으로 같은 그림.
  *
  * 콘솔 명령:
  *   hkt.Debug.ShowHitbox     0 = 끄기 (VM 측 push 도 즉시 중단 → zero-cost)
@@ -32,8 +34,11 @@ class ULocalPlayer;
  *   빈 스윙, 빨간 sphere 인데도 피해 미적용이면 판정 이후의 SetProperty /
  *   EmitEvent 가 원인.
  *
- * 본 시각화의 단일 출처는 서버 VM 이 실제로 수행한 판정이다. 빌드 가드
- * ENABLE_HKT_INSIGHTS 로 Shipping 에서는 코드 자체 제거.
+ * 범위:
+ *   Tracer 는 프로세스 로컬 싱글톤. PIE / Listen Server 에선 같은 프로세스의
+ *   서버·클라 양쪽 VM trace 가 함께 push 된다 (결정론으로 결과는 일치).
+ *   Dedicated 분리 환경에선 각 프로세스가 자기 VM trace 만 그린다.
+ *   빌드 가드 ENABLE_HKT_INSIGHTS 로 Shipping 에서는 코드 자체 제거.
  */
 class FHktHitboxDebugProcessor : public IHktPresentationProcessor
 {
