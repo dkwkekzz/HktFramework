@@ -76,8 +76,11 @@
 | Region 상태 메모리 (`FindOrCreateRegionAt`, `RegionMapRead/Write`, `RegionAddScalar`) — 누적·소진 정책 | HktCore VM opcode 군 |
 | `SpawnerParams::` 별칭 컨벤션 + `HktEventBuilder::SpawnerFromView` | `HktCore/Public/HktStoryEventParams.h` |
 | HktMapGenerator 어댑터 (`HktMapSpawnerAdapter::MapSpawnerToTerrainSpec`) — 레거시 마이그레이션 경로 | Phase 5 M5 부분 |
-| **World 별 Placement 분리** — `Story.Placement.<WorldId>` 컨벤션 + baked asset `PlacementStoryTag` 필드 + 권위 시뮬레이터만 emit. BakeVersion v3→v4 | `HktTerrainBakedAsset.h` (v4) · `HktTerrainGeneratorConfig.h` · `HktTerrainDataSource.h:FHktTerrainChunkContext::DispatchTag` · `HktSimulationSystems.cpp` (DispatchTag 폴백 + `bIsAuthoritative` 게이트) · `Placement_TranquilWilds.json` |
 | NPC GameplayTag 체계 (`Entity.NPC.Goblin/Skeleton/Zombie`) + `Story_NPCLifecycle.json` (사망 → 드롭 → 제거) | `HktStory/Public/HktStoryTags.h:22-23` · `Story_NPCLifecycle.json` |
+| **I-0014 Voxel spawn attribution 완성** — Bake 시점에 `FHktTerrainBakedConfig::VoxelTypeSpawnTemplate` (TMap<int32 VoxelTypeID, FGameplayTag>) 매핑으로 attribution 자동 산출, 런타임 read-only. baked chunk `SpawnTemplateAttribution` (TMap<uint16 packedLocalCoord, uint16 templateId>) + baked asset `SpawnTemplateCatalog` (TMap<uint16, FGameplayTag>). `IHktTerrainDataSource::GetChunkVoxelAttribution` + `FHktVoxelAttributionView` POD. `FHktTerrainSystem::Process` 가 voxel 한 점마다 *template StoryTag* 를 EventTag 로 직접 dispatch (SlotHash31 = voxel 좌표 해시). BakeVersion v4→v5. **레거시 일괄 제거** — chunk-level Placement Story 분기 (PlacementStoryTag / FHktTerrainChunkContext / TryGetChunkContext / TryGetSurfaceContext / HktTerrainEventTags::ChunkLoaded / HktEventBuilder::ChunkLoaded / ChunkLoadedParams / surface meta BiomeId·SurfaceVoxelZ·SlotHash 필드 / Placement_TranquilWilds.json) 모두 삭제. | `HktTerrainBakedAsset.h/.cpp` (v5 + `VoxelTypeSpawnTemplate`) · `HktTerrainBakeLibrary.cpp` (column scan + catalog/attribution 산출) · `HktTerrainDataSource.h` (`FHktVoxelAttributionView`, `GetChunkVoxelAttribution`) · `HktTerrainProvider.h/.cpp` (카탈로그 해석) · `HktStoryEventParams.h` (`VoxelTemplateParams::`, `HktEventBuilder::VoxelTemplateActivated`) · `HktSimulationSystems.h/.cpp` (voxel 평가 패스) |
+| **I-0014 Phase C — 트리거 채널 단일 진입점** — `HktEventBuilder::VoxelTemplateActivatedAt(StoryTag, VoxelWorld{X,Y,Z}, VoxelSizeCm)` 단일 빌더 + `HktEventBuilder::ComputeVoxelSlotHash31(X,Y,Z)` 시드 단일 출처. 자연 발생/트리거 두 입구가 동일 빌더 통과로 voxel 한 점에서 합류 — attribution 슬롯은 건드리지 않는 read-only 모델 유지. Provider 의 SlotHash31 산출도 동일 함수로 통합. | `HktStoryEventParams.h` (`VoxelTemplateActivatedAt`, `ComputeVoxelSlotHash31`) · `HktTerrainProvider.cpp` (시드 함수 위임) |
+| **I-0014 동작 검증 자동화 테스트** — 두 입구가 동일 voxel 좌표 입력에 대해 형식적으로 동일한 `FHktEvent` 를 산출함을 검증. SlotHash31 결정성·31bit 범위·인접 voxel 분기 + Param 슬롯 매핑 (VoxelTemplateParams::) 준수도 함께 검증. 5개 테스트 추가, RunOpcodeTests 에 등록. | `HktAutomationTests/Private/Tests/HktI0014VoxelAttributionTests.cpp` · `HktAutomationTestsRunner.cpp` |
+| **I-0015 1차 정적 검증** — BakeRegion 후처리에서 catalog ↔ attribution 결합 무결성 체크. 어떤 voxel 도 참조하지 않는 catalog templateId (디자이너 매핑 오타 / region 에 부재한 voxel type) 를 WARN 으로 가시화. | `HktTerrainBakeLibrary.cpp` (orphan catalog detection) |
 
 ## 부분 / 의도-구현 격차
 
@@ -85,23 +88,23 @@ Phase A → B → C 순서로 의존. 한 줄 라벨은 구현 순서 참조용.
 
 | 갭 | 의도 표현 | 현 구현 | 단계 |
 |---|---|---|---|
-| **Voxel attribution 슬롯** | baked chunk 가 per-surface-voxel `SpawnTemplateId` 를 보유 (sparse) | 미구현 — `FHktTerrainBakedChunk` 는 BiomeId / SurfaceVoxelZ / SlotHash 까지만. voxel-level template 참조 슬롯 부재. | **A** (기반) |
-| **Template 라이브러리 명시화** | "이 World 의 spawn template 집합" 이 catalog 로 닫혀 있음 | 부분 — `FHktVMProgramRegistry` 의 1태그 1프로그램 dispatch 가 사실상 template 역할이나, voxel attribution 으로 연결되지 않아 *어떤 template 이 어디서 쓰이는지* 의 정적 매핑이 부재. | **A** |
-| **Voxel 평가 → template 활성화 경로** | 청크 스트림인 시점에 attribution 보유 voxel 들을 fan-out 해 template 활성화. 시드 = voxel 좌표. | 미구현 — 현재는 `Event.Terrain.ChunkLoaded` 1회 emit 후 Placement Story 가 *청크 단위로* 모두 처리. voxel 단위 평가 fan-out 없음. | **A** |
-| **Placement Story 패턴 마이그레이션** | placement 는 voxel 에 attribution 을 *기록* 만 한다 — 즉시 실행 금지. | `Placement_TranquilWilds.json` 은 `DispatchEvent(OakSpawn)` 으로 *즉시 발사*. attribution 부여용 opcode (`SetVoxelTemplate`) 및 대상 voxel 집합 표현 부재 — 출력 형식 자체를 갈아엎어야 한다. | **B** |
-| **자연 발생 baked 자동 채움** | voxel attribution 이 BakeRegion 결과로 자동 채워짐 | 미구현 — `BakeRegion` 단계에서 voxel 별 template id 산출 부재. 우선은 Placement Story 가 런타임에 attribution 부여, 베이크 자동화는 후속. | **B** (선택) |
-| **트리거 경로 (런타임 attribution 덮어쓰기)** | Quest / Cinematic / Encounter 가 대상 voxel 의 `SpawnTemplateId` 를 갱신 → 다음 평가에서 활성화 | 미정의. `HktStoryEventParams.h` 에 채널 없음. 런타임 attribution 변경 opcode 부재. | **C** |
-| **Placement 결합의 정적 검증** | 매핑 미스 / 죽은 template id / 미참조 voxel 이 빌드·로드 시점에 차단 | 런타임 silent skip. 의도는 [I-0015](intents/I-0015.md) 의 placement 적용 영역. voxel attribution 도입 시 두 갈래로 검증 항목 확장. | E (위임) |
-| **결정론 RNG seed (voxel 좌표 일원화)** | 동일 voxel 재방문 → 동일 출현 | `Param3 = SlotHash31` 까지 emit 완료. story-local PRNG 수단은 [I-0017](intents/I-0017.md) 적용 영역. voxel 좌표 단위 축소는 attribution 도입 이후 가능. | E (위임) |
+| ~~**Voxel attribution 슬롯**~~ | baked chunk 가 per-surface-voxel `SpawnTemplateId` 를 보유 (sparse) | **완료 (Phase A)** — `FHktTerrainBakedChunk::SpawnTemplateAttribution` (TMap<uint16, uint16>) + `PackLocalCoord` 5+5+5 비트 패킹. v5. | ✅ |
+| ~~**Template 라이브러리 명시화**~~ | "이 World 의 spawn template 집합" 이 catalog 로 닫혀 있음 | **완료 (Phase A)** — `UHktTerrainBakedAsset::SpawnTemplateCatalog` (TMap<uint16, FGameplayTag>). Provider 가 해석 단계에서 lookup. I-0015 정적 검증은 E 위임. | ✅ |
+| ~~**Voxel 평가 → template 활성화 경로**~~ | 청크 스트림인 시점에 attribution 보유 voxel 들을 fan-out 해 template 활성화. 시드 = voxel 좌표. | **완료 (Phase A)** — `IHktTerrainDataSource::GetChunkVoxelAttribution` + `FHktTerrainSystem::Process` 의 voxel 평가 패스. attribution 비어 있지 않으면 voxel 한 점마다 template StoryTag 를 EventTag 로 직접 dispatch. SlotHash31 은 voxel 좌표 단위 해시 (I-0017 사전 적용). | ✅ |
+| ~~**Placement Story 패턴 마이그레이션**~~ | placement 는 voxel 에 attribution 을 *기록* 만 한다 — 즉시 실행 금지. | **완료** — placement story 자체를 폐지하고 모든 잔존 코드 일괄 제거. BakeRegion 의 voxel type → template 매핑이 attribution 을 *bake 시점* 에 산출, 런타임은 읽기 전용. `SetVoxelTemplate` opcode 미도입 (트리거 경로용으로 Phase C 에서 도입 가능). | ✅ |
+| ~~**자연 발생 baked 자동 채움**~~ | voxel attribution 이 BakeRegion 결과로 자동 채워짐 | **완료 (Phase B)** — `BakeRegion` 의 surface column scan + `VoxelTypeSpawnTemplate` 디자이너 매핑으로 자동 산출. | ✅ |
+| ~~**트리거 경로**~~ | Quest / Cinematic / Encounter 가 voxel 한 점에 template 을 활성화 | **완료 (Phase C — 변형)** — read-only attribution 모델을 유지하며 attribution 슬롯을 *건드리지 않는* 방향으로 정의. 트리거 caller 가 `HktEventBuilder::VoxelTemplateActivatedAt(StoryTag, VoxelX, VoxelY, VoxelZ, VoxelSizeCm)` 를 직접 호출 → 자연 발생과 *동일 빌더* 통과로 두 입구가 voxel 한 점에서 합류. SlotHash31 계산은 `ComputeVoxelSlotHash31` 단일 출처. 실제 Quest opcode / GameMode 트리거 caller wiring 은 별도 PR. | ✅ |
+| ~~**Placement 결합의 정적 검증 (1차)**~~ | 매핑 미스 / 죽은 template id / 미참조 voxel 이 빌드·로드 시점에 차단 | **완료 (BakeRegion 후처리)** — 미참조 catalog 엔트리 검출 → WARN 으로 디자이너에게 매핑 오타/over-spec 가시화. I-0015 본격 정적 검증 (HKT_INSIGHTS Build / cooker hook) 은 의도 본문 참조. | ✅ (부분) |
+| ~~**결정론 RNG seed (voxel 좌표 일원화)**~~ | 동일 voxel 재방문 → 동일 출현 | **완료 (Phase C)** — `HktEventBuilder::ComputeVoxelSlotHash31(X,Y,Z)` 단일 출처. 자연 발생/트리거 두 입구 모두 본 함수를 통과 — automation test (`Test_VoxelTemplate_TriggerMatchesNaturalSeed`) 로 결정성·일치성 검증. | ✅ |
 | **Placement 콘텐츠 자동 산출** | feature_design → Placement JSON / template 라이브러리 / voxel attribution 자동 생성 | Generator 파이프라인에 placement 단계 부재. 의도는 [I-0007](intents/I-0007.md) 자체. | E (위임) |
 
 ## 구현 단계 (요약)
 
 A → B → C 의 의존 사슬. 각 묶음이 PR 1개.
 
-- **A. Voxel attribution 인프라** — per-surface-voxel `SpawnTemplateId` 슬롯 + template catalog + voxel 평가 패스. BakeVersion v4→v5. 기존 Oak/Birch 동작은 어댑터로 호환 유지.
-- **B. Placement Story 마이그레이션** — `SetVoxelTemplate` opcode 도입, `Placement_TranquilWilds.json` 신 형식 재작성, Oak/Birch 가 attribution 부여로. 호환 어댑터 제거.
-- **C. 트리거 채널** — 런타임 attribution 덮어쓰기 + `Event.NPC.Spawn.Requested` 등 트리거 채널 정의. 두 입구가 voxel 한 점에서 합류함을 검증.
+- ~~**A. Voxel attribution 인프라**~~ — per-surface-voxel `SpawnTemplateId` 슬롯 + template catalog + voxel 평가 패스. BakeVersion v4→v5. **✅ 완료**
+- ~~**B. Placement Story 마이그레이션**~~ — 디자이너 의도 ("voxel type 별로 BakeAsset 에 물려놓고 런타임은 읽기만") 를 채택하여 **bake-시점 자동 채움** 으로 일원화. `VoxelTypeSpawnTemplate` 매핑 + `BakeRegion` surface column scan. 호환 어댑터·placement story·surface meta 필드·`PlacementStoryTag`·`HktTerrainEventTags::ChunkLoaded`·`FHktTerrainChunkContext`·`Placement_TranquilWilds.json` 등 폐기된 모든 잔존 코드/데이터를 일괄 제거. **✅ 완료**
+- ~~**C. 트리거 채널**~~ — *변형 완료*: read-only attribution 모델에 맞추어 *런타임 덮어쓰기 없이* 트리거 경로 정의. `HktEventBuilder::VoxelTemplateActivatedAt` 단일 진입점 + `ComputeVoxelSlotHash31` 시드 단일 출처 — 자연 발생/트리거 두 입구가 동일 빌더 통과로 voxel 한 점에서 합류. Quest opcode / GameMode 트리거 caller wiring 은 별도 PR. **✅ 완료**
 - **E. 일반 의도 위임** — [I-0015](intents/I-0015.md) 정적 검증 · [I-0017](intents/I-0017.md) voxel 좌표 시드 · [I-0007](intents/I-0007.md) 자동 산출 파이프라인.
 
 ## "PendingWorldInit" 레거시

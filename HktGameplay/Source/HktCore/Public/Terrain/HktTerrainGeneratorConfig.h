@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
 #include "Terrain/HktFixed32.h"
 
 /**
@@ -74,12 +73,4 @@ struct HKTCORE_API FHktTerrainGeneratorConfig
 
 	// 청크 크기 (HktVoxelCore와 동일)
 	static constexpr int32 ChunkSize = 32;
-
-	// ─── Placement Story 결합 (I-0014) ───
-	// 본 지형(=baked asset) 의 청크가 로드될 때 sim 이 emit 할 storyTag.
-	// 컨벤션: `Story.Placement.<WorldId>` (예: `Story.Placement.TranquilWilds`).
-	// 빈 태그(기본값) 일 경우 sim 은 폴백으로 `HktTerrainEventTags::ChunkLoaded` 를 사용 — 기존 동작 보존.
-	// 클라 시뮬레이터는 본 태그를 emit 하지 않는다 (서버 권위 게이트). 클라는 WorldView replicate 로
-	// placement 결과(엔티티) 만 수신.
-	FGameplayTag PlacementStoryTag;
 };

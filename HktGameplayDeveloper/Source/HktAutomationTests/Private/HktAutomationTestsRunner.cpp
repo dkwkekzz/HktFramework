@@ -18,6 +18,7 @@ namespace HktOpcodeTests
 	FHktTestReport RunSpawnerTests();
 	FHktTestReport RunRegionTests();
 	FHktTestReport RunRegionMapTests();
+	FHktTestReport RunI0014VoxelAttributionTests();
 }
 
 namespace HktStoryIntegrityTests
@@ -88,6 +89,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktOpcodeTests::RunSpawnerTests());
 		Report.Append(HktOpcodeTests::RunRegionTests());
 		Report.Append(HktOpcodeTests::RunRegionMapTests());
+		Report.Append(HktOpcodeTests::RunI0014VoxelAttributionTests());
 
 		LastReport = Report;
 		PrintReport(Report);
@@ -148,6 +150,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktOpcodeTests::RunSpawnerTests());
 		Report.Append(HktOpcodeTests::RunRegionTests());
 		Report.Append(HktOpcodeTests::RunRegionMapTests());
+		Report.Append(HktOpcodeTests::RunI0014VoxelAttributionTests());
 		Report.Append(HktStoryIntegrityTests::RunAllIntegrityTests());
 		Report.Append(HktStoryScenarioTests::RunAllScenarioTests());
 		Report.Append(HktStoryJsonParserTests::RunAllJsonParserTests());

@@ -665,39 +665,32 @@ void FHktTerrainSystem::Process(
                     ++EmittedFromThisChunk;
                 }
 
-                // 표면 청크 ChunkLoaded 이벤트 — placement 정책 Story 가 listen.
-                // (TerrainSpawner.design.md §4-a 런타임 정책 패스, 명시 배치 spawner 와 공존)
-                FHktTerrainChunkContext Ctx;
-                if (Source.TryGetChunkContext(Coord.X, Coord.Y, Coord.Z, Ctx) && Ctx.bIsSurfaceChunk)
+                // I-0014 Phase B — voxel 평가 패스 (per-voxel template 활성화, read-only).
+                // BakeRegion 이 `VoxelTypeSpawnTemplate` 매핑으로 산출한 baked attribution 을
+                // 그대로 읽어 voxel 한 점마다 *참조 template StoryTag* 를 EventTag 로 dispatch.
+                //
+                // Phase A 의 chunk-level ChunkLoaded 호환 어댑터는 본 PR 에서 제거 — voxel
+                // attribution 이 단일 진입점. 매핑 미정의 / 빈 카탈로그 자산은 spawn 없음.
+                ScratchVoxelAttributions.Reset();
+                Source.GetChunkVoxelAttribution(Coord.X, Coord.Y, Coord.Z, ScratchVoxelAttributions);
+
+                for (const FHktVoxelAttributionView& AView : ScratchVoxelAttributions)
                 {
-                    // I-0014: baked 자산의 PlacementStoryTag(`Story.Placement.<WorldId>`) 우선,
-                    // 빈 태그면 v3 자산 호환을 위해 글로벌 폴백 `Event.Terrain.ChunkLoaded` 사용.
-                    const FGameplayTag DispatchTag = Ctx.DispatchTag.IsValid()
-                        ? Ctx.DispatchTag
-                        : HktTerrainEventTags::ChunkLoaded.GetTag();
-
-                    if (DispatchTag.IsValid())
+                    if (!AView.StoryTag.IsValid())
                     {
-                        const int32 VoxelSizeCmInt = FMath::Max(1, FMath::RoundToInt(VS));
-                        constexpr int32 ChunkSizeI = FHktTerrainState::ChunkSize;
-                        const int64 CenterVoxelX = static_cast<int64>(Coord.X) * ChunkSizeI + ChunkSizeI / 2;
-                        const int64 CenterVoxelY = static_cast<int64>(Coord.Y) * ChunkSizeI + ChunkSizeI / 2;
-                        const int32 CenterCmX = static_cast<int32>(CenterVoxelX * VoxelSizeCmInt);
-                        const int32 CenterCmY = static_cast<int32>(CenterVoxelY * VoxelSizeCmInt);
-                        const int32 SurfaceCmZ = static_cast<int32>(
-                            (static_cast<int64>(Ctx.SurfaceVoxelZ) + 1) * VoxelSizeCmInt);
-                        const int32 SlotHash31 = static_cast<int32>(Ctx.SlotHash & 0x7FFFFFFFu);
-                        EmittedSpawnerEvents.Add(HktEventBuilder::ChunkLoaded(
-                            DispatchTag,
-                            CenterCmX, CenterCmY,
-                            Ctx.BiomeId, SlotHash31,
-                            SurfaceCmZ));
-                        ++EmittedFromThisChunk;
-
-                        UE_LOG(LogHktCore, Verbose,
-                            TEXT("[TerrainSystem] Chunk(%d,%d,%d) surface — emitted '%s' (biome=%d hash31=0x%08x)"),
-                            Coord.X, Coord.Y, Coord.Z, *DispatchTag.ToString(), Ctx.BiomeId, SlotHash31);
+                        // Provider 가 카탈로그 미정의 시 view 자체를 만들지 않으므로 본 분기는 드물지만 방어.
+                        ++SkippedInvalidSpawnerTags;
+                        continue;
                     }
+                    EmittedSpawnerEvents.Add(HktEventBuilder::VoxelTemplateActivated(AView, VS));
+                    ++EmittedFromThisChunk;
+                }
+
+                if (ScratchVoxelAttributions.Num() > 0)
+                {
+                    UE_LOG(LogHktCore, Verbose,
+                        TEXT("[TerrainSystem] Chunk(%d,%d,%d) voxel attribution — emitted %d template(s)"),
+                        Coord.X, Coord.Y, Coord.Z, ScratchVoxelAttributions.Num());
                 }
             }
 

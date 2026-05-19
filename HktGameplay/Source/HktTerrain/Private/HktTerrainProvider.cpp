@@ -4,6 +4,7 @@
 #include "HktTerrainBakedAsset.h"
 #include "HktTerrainSubsystem.h"
 #include "HktTerrainLog.h"
+#include "HktStoryEventParams.h"  // HktEventBuilder::ComputeVoxelSlotHash31 — 시드 단일 출처
 #include "Terrain/HktTerrainVoxel.h"
 
 namespace
@@ -101,34 +102,65 @@ void FHktTerrainProvider::GetChunkSpawners(int32 ChunkX, int32 ChunkY, int32 Chu
 	}
 }
 
-bool FHktTerrainProvider::TryGetChunkContext(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
-                                             FHktTerrainChunkContext& OutCtx) const
+void FHktTerrainProvider::GetChunkVoxelAttribution(int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+                                                   TArray<FHktVoxelAttributionView>& OutEntries) const
 {
 	UHktTerrainSubsystem* Sub = Subsystem.Get();
 	if (!Sub)
 	{
-		return false;
+		return;
 	}
 	const UHktTerrainBakedAsset* Asset = Sub->GetBakedAsset();
 	if (!Asset)
 	{
-		// BakedAsset 미로드 — placement 정책 발화 불가. INFO 로그는 GetChunkSpawners 와 공유.
-		return false;
+		return;  // INFO 로그는 GetChunkSpawners 와 공유
 	}
 
-	int32 BiomeId = 0;
-	int32 SurfaceVoxelZ = 0;
-	uint32 SlotHash = 0;
 	const FIntVector Coord(ChunkX, ChunkY, ChunkZ);
-	if (!Asset->TryGetSurfaceContext(Coord, BiomeId, SurfaceVoxelZ, SlotHash))
+	const TMap<int32, int32>* AttrMap = Asset->FindVoxelAttribution(Coord);
+	if (!AttrMap)
 	{
-		return false;  // 비표면 / 미베이크 청크
+		return;  // 슬롯 비어 있음 — 디자이너가 VoxelTypeSpawnTemplate 미정의
 	}
-	OutCtx.BiomeId          = BiomeId;
-	OutCtx.SurfaceVoxelZ    = SurfaceVoxelZ;
-	OutCtx.SlotHash         = SlotHash;
-	OutCtx.bIsSurfaceChunk  = true;
-	// I-0014: baked 자산의 PlacementStoryTag 를 그대로 전달. 빈 태그면 sim 이 폴백 처리.
-	OutCtx.DispatchTag      = Asset->GeneratorConfig.PlacementStoryTag;
-	return true;
+
+	constexpr int32 ChunkSize = FHktTerrainGeneratorConfig::ChunkSize;
+	OutEntries.Reserve(OutEntries.Num() + AttrMap->Num());
+
+	for (const TPair<int32, int32>& Pair : *AttrMap)
+	{
+		const int32 PackedLocal = Pair.Key;
+		const int32 TemplateId  = Pair.Value;
+
+		const FGameplayTag* StoryTag = Asset->SpawnTemplateCatalog.Find(TemplateId);
+		if (!StoryTag || !StoryTag->IsValid())
+		{
+			// 카탈로그 미정의 id — 인스턴스당 1회 WARN. I-0015 정적 검증 (BakeRegion 후처리)
+			// 이 동일 케이스를 디자이너에게 빌드 시점에 가시화.
+			++UnknownTemplateIdCount;
+			if (!bLoggedUnknownTemplateOnce)
+			{
+				UE_LOG(LogHktTerrain, Warning,
+					TEXT("[TerrainProvider] Voxel attribution chunk(%d,%d,%d) templateId=%d 카탈로그 미정의 — skip. (인스턴스 첫 발생만 출력)"),
+					ChunkX, ChunkY, ChunkZ, TemplateId);
+				bLoggedUnknownTemplateOnce = true;
+			}
+			continue;
+		}
+
+		int32 LocalX = 0, LocalY = 0, LocalZ = 0;
+		FHktTerrainBakedChunk::UnpackLocalCoord(PackedLocal, LocalX, LocalY, LocalZ);
+
+		FHktVoxelAttributionView View;
+		View.VoxelWorldX = ChunkX * ChunkSize + LocalX;
+		View.VoxelWorldY = ChunkY * ChunkSize + LocalY;
+		View.VoxelWorldZ = ChunkZ * ChunkSize + LocalZ;
+		View.StoryTag    = *StoryTag;
+
+		// 시드 = voxel 좌표 한 곳 (I-0017). 트리거 경로 (VoxelTemplateActivatedAt) 와
+		// 동일 함수를 통과 — 자연 발생/트리거 두 입구의 결정론 시드가 형식적으로 일치.
+		View.SlotHash31 = HktEventBuilder::ComputeVoxelSlotHash31(
+			View.VoxelWorldX, View.VoxelWorldY, View.VoxelWorldZ);
+
+		OutEntries.Add(View);
+	}
 }

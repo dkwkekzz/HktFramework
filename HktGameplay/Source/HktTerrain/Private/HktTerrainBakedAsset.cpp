@@ -41,7 +41,6 @@ FHktTerrainGeneratorConfig FHktTerrainBakedConfig::ToConfig() const
 	Out.SimLoadRadiusZ             = SimLoadRadiusZ;
 	Out.SimMaxChunksLoaded         = SimMaxChunksLoaded;
 	Out.SimMaxChunkLoadsPerFrame   = SimMaxChunkLoadsPerFrame;
-	Out.PlacementStoryTag          = PlacementStoryTag;
 	return Out;
 }
 
@@ -73,7 +72,6 @@ void FHktTerrainBakedConfig::FromConfig(const FHktTerrainGeneratorConfig& InConf
 	SimLoadRadiusZ                = InConfig.SimLoadRadiusZ;
 	SimMaxChunksLoaded            = InConfig.SimMaxChunksLoaded;
 	SimMaxChunkLoadsPerFrame      = InConfig.SimMaxChunkLoadsPerFrame;
-	PlacementStoryTag             = InConfig.PlacementStoryTag;
 }
 
 // ============================================================================
@@ -178,16 +176,12 @@ void UHktTerrainBakedAsset::GetSpawnersForChunk(const FIntVector& Coord,
 	}
 }
 
-bool UHktTerrainBakedAsset::TryGetSurfaceContext(const FIntVector& Coord,
-                                                int32& OutBiomeId, int32& OutSurfaceVoxelZ, uint32& OutSlotHash) const
+const TMap<int32, int32>* UHktTerrainBakedAsset::FindVoxelAttribution(const FIntVector& Coord) const
 {
 	const FHktTerrainBakedChunk* Chunk = FindChunk(Coord);
-	if (!Chunk || !Chunk->bIsSurfaceChunk)
+	if (!Chunk || Chunk->SpawnTemplateAttribution.Num() == 0)
 	{
-		return false;
+		return nullptr;
 	}
-	OutBiomeId       = static_cast<int32>(Chunk->BiomeId);
-	OutSurfaceVoxelZ = Chunk->SurfaceVoxelZ;
-	OutSlotHash      = Chunk->SlotHash;
-	return true;
+	return &Chunk->SpawnTemplateAttribution;
 }
