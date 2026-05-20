@@ -13,6 +13,7 @@ namespace HktGameplayTags
     // --- Animation Layer Parent Tags ---
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim, "Anim", "Animation root tag.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody, "Anim.FullBody", "Full body animation layer root (locomotion, idle, death).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_FullBody_Locomotion, "Anim.FullBody.Locomotion", "Locomotion sub-layer (Idle/Walk/Run/Fall). HktSpriteAnimProcessor 의 phase-shared group key — 그룹 멤버 전환 시 발 위상 보존.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Montage, "Anim.Montage", "Montage animation layer root.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_UpperBody, "Anim.UpperBody", "Upper body animation layer root (attack, cast override).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Anim_Action, "Anim.Action", "Transient one-shot action layer root (strike, cast, etc). Non-looping flipbook expires auto on end.");

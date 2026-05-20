@@ -1,9 +1,18 @@
 # R&D: 2D Skeletal Animation System (HktSpriteCore)
 
+> **⚠️ Abandoned plan (2026-05-20 기준).** 본 문서가 기획한 *파츠 조합 스켈레탈* 모델
+> (`FHktSpriteLoadout` / `FHktSpritePartTemplate` / `FHktSpriteAction` + Body·Head·Weapon·
+> Shield·Headgear anchor 계층) 은 채택되지 않았다. 실제 구현은 *단일 flipbook* (Paper2D
+> `AHktSpritePaperActor`) 또는 *단일 quad* (HISM `AHktSpriteCrowdHost` / Niagara
+> `UHktSpriteNiagaraCrowdRenderer`) 의 더 단순한 모델로 정착했다. 현재 데이터 모델은
+> `FHktSpriteAnimation` + `FHktSpriteAtlasSlot` (방향별 atlas + frame index). 본 문서는
+> 역사적 참고용으로만 남기고, 현행 흐름은
+> [Flow-Sprite-Anim-Processing.md](Flow-Sprite-Anim-Processing.md) 를 본다.
+
 > **목표:** 라그나로크 온라인 정통 방식의 `.spr`/`.act` 스프라이트 애니메이션 시스템을 UE5 + AI 파이프라인 위에 재구축한다.
 > **범위:** 플레이어/적 캐릭터 본체.
 > **렌더링 컨텍스트:** 복셀 3D 지형 + 2D 빌보드 스프라이트 캐릭터.
-> **최종 수정:** 2026-04-21
+> **최종 수정:** 2026-04-21 (이후 abandoned)
 
 ---
 

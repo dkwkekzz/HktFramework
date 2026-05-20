@@ -63,8 +63,11 @@
 │       - Fragment.LocalNowSec += DeltaSec                                       │
 │       - ResolveRenderOutputs → AnimTag/PlayRate (Montage > UpperBody          │
 │                                  > Action > FullBody > Locomotion 폴백)       │
-│       - sticky: LastAuthAnimStartTick / LastResolvedTag 변화 시               │
-│                  Fragment.AnimStartLocalSec = LocalNowSec                     │
+│       - 태그별 anchor: K = GetAnchorKey(tag) (그룹 prefix 또는 태그 자체)        │
+│                  TagStartLocalSec[K] = LocalNowSec on K's first entry         │
+│                  AnimStartLocalSec = TagStartLocalSec[GetAnchorKey(ResolvedTag)]│
+│                  Cleanup 시 phase-shared group key 는 보존                     │
+│                  AuthAnimStartTick / bExplicitTriggerThisFrame → 강제 리셋    │
 │       - LastMoveDirXY + CameraYaw → Facing/bFacingRight 매 호출 재산출         │
 │       - VM 채움                                                                │
 │                                                                                │
@@ -88,10 +91,10 @@
             ┌────────┴────────┬─────────────────────────┐
             ▼                 ▼                         ▼
 ┌─────────────────┐ ┌────────────────────┐ ┌──────────────────────────┐
-│ PaperActor      │ │ CrowdHost          │ │ NiagaraCrowd (CVar gated)│
-│  - Flipbook bind│ │  → CrowdRenderer   │ │  → NDI Array push        │
-│  - SetPlayback  │ │     ResolveAtlas + │ │     (Position/Color/UV/  │
-│     Position    │ │     CPD 16 slots   │ │      DynParam)           │
+│ PaperActor      │ │ CrowdHost          │ │ NiagaraCrowd (dormant)   │
+│  - Flipbook bind│ │  → CrowdRenderer   │ │  호스트 미구현 — 향후    │
+│  - SetPlayback  │ │     ResolveAtlas + │ │  추가 시 CrowdHost 와    │
+│     Position    │ │     CPD 16 slots   │ │  동일 dispatch 패턴      │
 └─────────────────┘ └────────────────────┘ └──────────────────────────┘
 ```
 
@@ -115,9 +118,10 @@ UObject 가 아닌 POD struct. 표현 수단마다 자체 `TMap<FHktEntityId, FH
 | 움직임 | `LastMoveDirXY` (`FVector2D`) | sticky XY 속도. 임계 이상으로 이동 시에만 갱신 → 정지 후에도 마지막 방향 유지 |
 | 전투 | `AttackPlayRate` / `CPRatio` | `FHktCombatView` 의 `MotionPlayRate ‖ AttackSpeed` 에서 파생 |
 | sticky | `LocalNowSec` (`double`) | 로컬 실시간 클럭 (`TickViewModel` 가 매 호출 누적) |
-| sticky | `AnimStartLocalSec` (`double`) | 현재 ResolvedTag 의 재생 시작 시각 |
-| sticky | `LastAuthAnimStartTick` (`int32`) | 서버 권위 `FHktSpriteView::AnimStartTick` 의 최근 관측치. 변화 시 anchor reset |
-| sticky | `LastResolvedTag` | 직전 `ResolveRenderOutputs` 결과. 변화 시 anchor reset |
+| sticky | `AnimStartLocalSec` (`double`) | 현재 ResolvedTag 의 재생 시작 시각 (= `TagStartLocalSec[GetAnchorKey(ResolvedTag)]`) |
+| sticky | `TagStartLocalSec` (`TMap<FGameplayTag, double>`) | **anchor key 별** 시작 시각. Key 는 `GetAnchorKey(AnimTag)` — phase-shared group 에 속하면 그룹 prefix, 아니면 태그 자체. Action / Montage 동시 활성 시 각자 자체 anchor 유지 + Locomotion 그룹은 Walk↔Run 전환 / Action interrupt 후 복귀에도 phase 보존 |
+| sticky | `LastAuthAnimStartTick` (`int32`) | 서버 권위 `FHktSpriteView::AnimStartTick` 의 최근 관측치. 변화 시 ResolvedTag 의 anchor 강제 리셋 |
+| transient | `bExplicitTriggerThisFrame` (`bool`) | `PendingAnimTriggers` 가 이 프레임에 소비되었는가. 동일 태그 재트리거(콤보) 시 dedup 우회용 — TickViewModel 소비 후 false |
 | sticky | `LastClientFacing` (`EHktSpriteFacing`) | 마지막 산출 facing (8방향) |
 | sticky | `bLastFacingRight` | 화면-공간 우향 sticky (NumDirections≤2 mirror 결정) |
 
@@ -154,9 +158,9 @@ struct FHktSpriteAnimViewModel {
 1. `FHktMovementView` 의 `bIsMoving / bIsJumping / Velocity` — `IsDirty(Frame)` 인 필드만 Fragment 에 반영.
 2. `Velocity.IsDirty(Frame)` 이고 `‖VelXY‖ ≥ MinFacingSpeed` 면 `LastMoveDirXY = VelXY`, **`bFacingSourceDirty = true`**.
 3. `FHktCombatView` — `MotionPlayRate > 0 ? .../100 : AttackSpeed/100` 로 `AttackPlayRate` 산출. `CPRatio` 도 흡수.
-4. `FHktAnimationView` — `TagsDirtyFrame == Frame` 면 `SyncFromTagContainer`. `PendingAnimTriggers.Num() > 0` 이면 각 태그 `ApplyAnimTag` 후 Reset, **`bFacingSourceDirty = true`**.
+4. `FHktAnimationView` — `TagsDirtyFrame == Frame` 면 `SyncFromTagContainer`. `PendingAnimTriggers.Num() > 0` 이면 각 태그 `ApplyAnimTag` 후 Reset, **`Fragment.bExplicitTriggerThisFrame = true`**. (anim trigger 는 facing 입력과 무관하므로 `bFacingSourceDirty` 는 켜지 않는다 — 동일 태그 재트리거 anchor 리셋은 `bExplicitTriggerThisFrame` 로 TickViewModel 가 처리.)
 
-**반환**: `bFacingSourceDirty` — 호출자가 `FHktSpriteView::Facing` 에 `MutableSV->Facing.Set(...)` 할지 게이트로 사용. (카메라 yaw 변화만으로는 false → ViewModel 미갱신, 렌더러는 VM.Facing 으로 즉시 반영.)
+**반환**: `bFacingSourceDirty` — 호출자가 `FHktSpriteView::Facing` 에 `MutableSV->Facing.Set(...)` 할지 게이트로 사용. *facing 소스(`LastMoveDirXY`) 변화* 에서만 true. (카메라 yaw 변화만으로는 false → ViewModel 미갱신, 렌더러는 VM.Facing 으로 즉시 반영.)
 
 > **Idempotent**: 같은 Frame 으로 두 번 호출해도 `IsDirty(Frame)` 이 true 인 필드를 같은 값으로 재기록할 뿐 부작용 없음. `OnCameraViewChanged` 가 같은 프레임에서 `Tick` + 별도 호출되더라도 안전.
 
@@ -175,13 +179,32 @@ struct FHktSpriteAnimViewModel {
    4. `Anim.FullBody.*`
    5. 그 외 임의 `Anim.*` layer
    6. **Locomotion 폴백**: `bIsFalling > bIsMoving(Run/Walk) > Idle` 로 `Anim.FullBody.Locomotion.*` 합성. Walk↔Run 임계는 CVar `hkt.Sprite.Loco.RunSpeedThreshold` (기본 300 cm/s).
-3. **AnimStart sticky 갱신**: `Fragment.LastAuthAnimStartTick != AuthAnimStartTick` 이거나 `AnimTag != Fragment.LastResolvedTag` 면:
+3. **태그별 anchor 갱신 (`TagStartLocalSec`)** — anchor key 는 `GetAnchorKey(AnimTag)` 경유. *phase-shared group table* (`GetPhaseSharedGroups()`) 에 매칭되면 그룹 prefix, 아니면 태그 자체:
    ```
-   Fragment.LastAuthAnimStartTick = AuthAnimStartTick
-   Fragment.LastResolvedTag       = AnimTag
-   Fragment.AnimStartLocalSec     = Fragment.LocalNowSec     // anchor reset
+   ResolvedKey = GetAnchorKey(AnimTag)
+
+   // (a) AnimLayerTags 의 활성 태그들 — 해당 anchor key 가 맵에 없으면 LocalNowSec 등록.
+   // (b) ResolvedKey 가 맵에 없으면 등록 (Locomotion 합성 태그 / 첫 활성 케이스).
+   // (c) Cleanup — phase-shared group 키는 *보존* (그룹 멤버가 Action/Montage 에 잠시
+   //     가렸다 사라져도 그룹 anchor 가 살아남아야). 그 외 키는 ResolvedKey 와 다르고
+   //     AnimLayerTags 값들의 anchor key 에도 없으면 제거.
+   // (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame 일 때
+   //     TagStartLocalSec[ResolvedKey] = LocalNowSec   // 강제 리셋
+   //
+   // Fragment.AnimStartLocalSec = TagStartLocalSec[ResolvedKey]   // VM emit 값
    ```
-   서버측 `Op_PlayAnim` dedup (동일 태그 해시 시 `TouchAnimStartTickBySlot` 스킵) 로 `AuthAnimStartTick` 이 안 올라가는 경우에도 ResolvedTag 변화로 자력 anchor 갱신 — idle ↔ run 이 항상 0초부터 재생.
+
+   **Phase-shared group table** — 같은 그룹의 태그들이 anchor 를 공유한다. `HktSpriteAnimProcessor.cpp` 의 `GetPhaseSharedGroups()` 가 `TArray<FGameplayTag>` 로 그룹 prefix 들을 보관:
+
+   | 현재 그룹 | prefix | 효과 |
+   |---|---|---|
+   | Locomotion | `Anim.FullBody.Locomotion` | Idle ↔ Walk ↔ Run ↔ Fall 전환 시 anchor 공유 → 발 위상 보존. 또한 Action/Montage 가 끼어들었다 사라져도 그룹 entry 가 cleanup 에서 보존되어 복귀 시 phase 끊김 없음 |
+
+   신규 그룹 추가는 본 함수 lambda 에 prefix tag 만 append — cleanup / lookup 분기 수정 불필요 (`GetAnchorKey` / `IsPhaseSharedGroupKey` 가 테이블 lookup 으로 자동 인식).
+
+   **동일 태그 재트리거**: 서버 `Op_PlayAnim` dedup 으로 `AuthAnimStartTick` 이 안 올라가도 `bExplicitTriggerThisFrame` (AbsorbViews 가 `PendingAnimTriggers` 소비 시 set) 로 `ResolvedKey` anchor 강제 리셋 → 콤보·연타가 0초부터.
+
+   **Action layer 의 자체 anchor**: Action 은 그룹 비대상이라 anchor key = 태그 자체. Montage/UpperBody 와 동시 활성이어도 자체 시작 시각 유지 → Montage 종료 후 Action 이 *남은 잔여 시간만큼만* 재생되고 정상 만료.
 4. **Facing 산출**: `Fragment.LastMoveDirXY.IsNearlyZero()` 가 아니면:
    - `DirYawDeg = atan2(Dir.Y, Dir.X) * RAD2DEG`
    - `Fragment.LastClientFacing = HktFacingFromYaw(DirYawDeg, CameraYawDeg)`
@@ -199,7 +222,7 @@ struct FHktSpriteAnimViewModel {
 
 **처리**:
 1. `Fragment.AnimLayerTags` 중 layer key 가 `Anim.Action.*` 매칭하는 항목 순회.
-2. 각 layer 의 anim tag 에 대해 `QueryDurationSec(tag)` 호출 — 자산 미존재/0 반환 시 즉시 만료(`RemoveAnimTag`). 양수면 `(LocalNowSec - Fragment.AnimStartLocalSec) >= duration` 일 때 만료.
+2. 각 layer 의 anim tag 에 대해 `QueryDurationSec(tag)` 호출 — 자산 미존재/0 반환 시 즉시 만료(`RemoveAnimTag`). 양수면 `(LocalNowSec - Fragment.TagStartLocalSec[GetAnchorKey(tag)]) >= duration` 일 때 만료. **이 layer 자체의 시작 시각** 으로 elapsed 산출 — top-priority layer (Montage/UpperBody) 와 동시 활성이어도 Action 의 자체 anchor 는 유지된다. (Action 은 현재 phase-shared group 비대상이라 `GetAnchorKey(tag) == tag`. 향후 그룹화될 가능성에 대비해 indirection 유지.)
 
 **왜 callback 인가**: anim duration 의 데이터 소스가 렌더러 별로 다름.
 - Paper2D: `UHktPaperAnimationDataAsset::Flipbooks[{tag, dir=0}]->GetTotalDuration()`
@@ -270,7 +293,7 @@ Renderer->UpdateEntity(Id, Update);
 
 ### 4.3 `UHktSpriteNiagaraCrowdRenderer`
 
-현재 dormant (CVar `hkt.Sprite.Renderer == 1` 시 활성). 활성화되면 CrowdHost 와 동일 패턴으로 호스트가 dispatch.
+현재 dormant — *호스트 미구현*. 향후 활성화 시 CrowdHost 와 동일 패턴으로 호스트가 dispatch 예정. CVar `hkt.Sprite.Renderer` (HISM ↔ Niagara 토글) 는 설계 문서에 명시되어 있으나 *아직 등록되지 않음* — Niagara 호스트가 추가되는 PR 에서 함께 도입 예정.
 
 ---
 
@@ -325,20 +348,24 @@ PaperActor::Tick 이 그 캐시 + 자기 Fragment 로 VM 을 산출 — 1 프레
 
 ---
 
-## 6. Anim layer 우선순위 의미
+## 6. Anim layer 우선순위 + Anchor 정책
 
 `ResolveRenderOutputs` 우선순위는 `UHktAnimInstance` 와 동일:
 
-| 순위 | Layer | 용도 | 만료 방식 |
-|---|---|---|---|
-| 1 | `Anim.Montage.*` | 원샷 액션 (공격 발동 등) | 클라/서버 명시적 `RemoveAnimTag` |
-| 2 | `Anim.UpperBody.*` | 상체 오버라이드 (공격/캐스트 지속) | 서버 `AddTag/RemoveTag` |
-| 3 | `Anim.Action.*` | transient one-shot (Strike/Cast 등) | **`ExpireActionLayers` 자동 만료** |
-| 4 | `Anim.FullBody.*` | 기본 상태 (Locomotion/Idle/Death) | 서버 `AddTag/RemoveTag` |
-| 5 | 그 외 `Anim.*` | (custom layer) | 서버 |
-| 폴백 | (없음) | Movement → `Anim.FullBody.Locomotion.{Idle,Walk,Run,Fall}` 합성 | — |
+| 순위 | Layer | 용도 | 만료 방식 | Anchor key (`GetAnchorKey`) |
+|---|---|---|---|---|
+| 1 | `Anim.Montage.*` | 원샷 액션 (공격 발동 등) | 클라/서버 명시적 `RemoveAnimTag` | 태그 자체 (그룹 비대상) |
+| 2 | `Anim.UpperBody.*` | 상체 오버라이드 (공격/캐스트 지속) | 서버 `AddTag/RemoveTag` | 태그 자체 |
+| 3 | `Anim.Action.*` | transient one-shot (Strike/Cast 등) | **`ExpireActionLayers` 자동 만료** | 태그 자체 |
+| 4 | `Anim.FullBody.*` (Locomotion 외) | Death 등 기본 상태 | 서버 `AddTag/RemoveTag` | 태그 자체 |
+| 5 | 그 외 `Anim.*` | (custom layer) | 서버 | 태그 자체 |
+| 폴백 | (Locomotion) | Movement → `Anim.FullBody.Locomotion.{Idle,Walk,Run,Fall}` 합성 | — | **`Anim.FullBody.Locomotion` (그룹 prefix)** — Idle/Walk/Run/Fall 끼리 anchor 공유 → 발 위상 보존 |
 
 `Anim.Action.*` 만 자동 만료 — 다른 layer 는 서버 권위 태그 변경으로만 종료.
+
+Locomotion 그룹은 cleanup 단계에서 entry 가 보존되어, Action/Montage 가 끼어들었다 사라져도 그룹 anchor 가 살아남는다 → 복귀 시 phase 끊김 없음. 다른 layer 의 태그는 ResolvedTag 와 다르고 활성 layer 가 아니면 cleanup 에서 제거.
+
+> **Anchor key 규약**: 표의 "태그 자체" 는 *현재 그룹 테이블 (`Anim.FullBody.Locomotion` 1개) 기준*. 서버가 명시적으로 Locomotion 자손 태그 (`Anim.FullBody.Locomotion.Walk` 등) 를 `Anim.FullBody` layer 로 add 하면 그 태그도 `GetAnchorKey` 가 그룹 prefix 를 반환하여 폴백 합성과 anchor 를 공유한다. 그룹 추가 시 본 표 갱신 필요.
 
 ---
 
@@ -392,3 +419,4 @@ PaperActor::Tick 이 그 캐시 + 자기 Fragment 로 VM 을 산출 — 1 프레
 | `HktSpriteCore/Public/HktSpriteCrowdRenderer.h/.cpp` | HISM 렌더러 (`ResolveVisualAsset` 콜백용 노출) |
 | `HktSpriteCore/Public/HktSpriteFrameResolver.h` | `HktFacingFromYaw` / `HktResolveSpriteFrame` 순수 함수 |
 | `HktPresentation/Public/HktPresentationState.h` | `FHktSpriteView` / `FHktMovementView` / `FHktCombatView` / `FHktAnimationView` |
+| `HktRuntime/Public/HktRuntimeTags.h` | `Anim.*` layer parent + Locomotion 폴백 태그 declare. phase-shared group key 인 `Anim.FullBody.Locomotion` 포함 |

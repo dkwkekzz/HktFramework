@@ -65,14 +65,41 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 	/** 로컬 실시간 클럭(초). TickViewModel 이 매 호출마다 DeltaSec 누적. */
 	double LocalNowSec = 0.0;
 
-	/** 가장 최근 anim 전환(서버 AuthAnimStartTick 변화 또는 ResolvedTag 변화)의 LocalNowSec. */
+	/**
+	 * 현재 ResolvedTag 의 anchor key 의 재생 시작 LocalNowSec — VM 으로 emit.
+	 * = TagStartLocalSec[GetAnchorKey(ResolvedTag)] (TickViewModel 가 매 호출 갱신).
+	 */
 	double AnimStartLocalSec = 0.0;
 
-	/** 마지막으로 관측한 서버 권위 AnimStartTick. 변하면 AnimStartLocalSec 리셋 트리거. */
+	/**
+	 * Anchor key 별 재생 시작 시각 (LocalNowSec). Key 는 *태그 자체* 가 아니라
+	 * cpp 의 `GetAnchorKey(AnimTag)` 결과:
+	 *   - Phase-shared group prefix 와 매칭되면 → 그룹 prefix (그룹 멤버끼리 anchor 공유)
+	 *   - 그 외 → 태그 자체
+	 *
+	 * 효과:
+	 *   - Action layer 가 Montage/UpperBody 와 동시 활성이어도 자체 시작 시각 유지
+	 *     → 만료 시점이 top-priority anchor 변동에 영향받지 않음.
+	 *   - Locomotion 그룹 (`Anim.FullBody.Locomotion`) 안에서 Idle ↔ Walk ↔ Run ↔ Fall 전환 시
+	 *     anchor 공유 → 발 위상 보존.
+	 *   - 그룹 entry 는 cleanup 에서 보존 (cpp 의 `IsPhaseSharedGroupKey` 체크) →
+	 *     Action/Montage 가 끼어들었다 사라져도 그룹 anchor 가 살아남아 복귀 시 phase 끊김 없음.
+	 *
+	 * 그 외 키 (개별 태그) 는 활성도 ResolvedKey 도 아니면 cleanup 에서 제거.
+	 *
+	 * 신규 phase-shared group 추가: cpp 의 `GetPhaseSharedGroups()` lambda 에 prefix tag append.
+	 */
+	TMap<FGameplayTag, double> TagStartLocalSec;
+
+	/** 마지막으로 관측한 서버 권위 AnimStartTick. 변하면 현 ResolvedTag 의 anchor 강제 리셋. */
 	int32 LastAuthAnimStartTick = MIN_int32;
 
-	/** 직전 Tick 의 ResolvedTag — 바뀌면 AnimStartLocalSec 리셋 트리거. */
-	FGameplayTag LastResolvedTag;
+	/**
+	 * 이번 프레임에 PendingAnimTriggers 가 소비되었는가. TickViewModel 가 anchor 강제 리셋
+	 * 후 false 로 되돌린다. 동일 태그 재트리거 (콤보 공격 등) 가 서버 dedup 으로
+	 * AuthAnimStartTick 을 건드리지 않아도 클라가 자력으로 0초부터 재생하도록 보장.
+	 */
+	bool bExplicitTriggerThisFrame = false;
 
 	/** Sticky facing. TickViewModel 이 매 호출마다 sticky LastMoveDirXY + 현재 CameraYaw 로
 	 *  재산출 (카메라 yaw 회전 시 화면-공간 dir 도 따라가야 하므로). LastMoveDirXY 가
@@ -179,8 +206,11 @@ namespace HktSpriteAnimProcessor
 	 * @param EntityId            엔터티.
 	 * @param Frame               현재 PresentationState frame (dirty check 기준).
 	 * @param MinFacingSpeed      Facing 갱신 최소 XY 속도(cm/s). 이 미만이면 LastMoveDirXY sticky.
-	 * @return                    true = facing 소스(LastMoveDirXY 또는 anim tag) 가 dirty —
-	 *                            호출자가 Facing 산출 / SpriteView.Facing 기록을 트리거할 시점.
+	 * @return                    true = facing 소스(LastMoveDirXY) 가 dirty — 호출자가
+	 *                            SpriteView.Facing 으로 write-back 할 시점. anim trigger 는
+	 *                            facing 입력과 무관하므로 facing dirty 를 켜지 않는다. 동일
+	 *                            태그 재트리거의 anchor 리셋은 bExplicitTriggerThisFrame 으로
+	 *                            별도 전달.
 	 */
 	HKTSPRITECORE_API bool AbsorbViews(FHktSpriteAnimFragment& Fragment,
 		FHktPresentationState& State, FHktEntityId EntityId, int64 Frame,
@@ -190,8 +220,10 @@ namespace HktSpriteAnimProcessor
 	 * Per-frame 처리 — AuthAnimStartTick 변화 추적 + ResolveRenderOutputs + Facing 산출 → VM 출력.
 	 *
 	 *   1) Fragment.LocalNowSec += DeltaSec
-	 *   2) Fragment.LastAuthAnimStartTick 변화 또는 직전 ResolvedTag 변화 시 AnimStartLocalSec 리셋
-	 *   3) ResolveRenderOutputs(Fragment) → AnimTag / PlayRate
+	 *   2) ResolveRenderOutputs(Fragment) → AnimTag / PlayRate
+	 *   3) TagStartLocalSec 갱신 — 새 태그 등록 / 사라진 태그 정리 / AuthAnimStartTick 변화 또는
+	 *      bExplicitTriggerThisFrame 시 ResolvedTag 의 anchor 강제 리셋. AnimStartLocalSec
+	 *      = TagStartLocalSec[ResolvedTag].
 	 *   4) sticky LastMoveDirXY + 현재 CameraYawDeg 로 Facing/FacingRight 매 호출 재산출.
 	 *      (LastMoveDirXY 가 ZeroVector 이면 직전 LastClientFacing 유지 — 한 번도 움직이지 않은
 	 *       엔터티는 EHktSpriteFacing::S 기본값.)

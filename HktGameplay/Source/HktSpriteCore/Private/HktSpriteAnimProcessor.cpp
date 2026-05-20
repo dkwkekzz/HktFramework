@@ -57,6 +57,59 @@ namespace
 		return Tag.MatchesTag(HktGameplayTags::Anim_Montage)
 			|| Tag.MatchesTag(HktGameplayTags::Anim_UpperBody);
 	}
+
+	// ========================================================================
+	// Phase-shared group table
+	//
+	// 같은 그룹에 속하는 anim 태그들은 anchor (재생 시작 시각) 를 공유한다.
+	// TagStartLocalSec 등록 시 key 가 *태그 자체* 가 아닌 *그룹 prefix* 로 들어가므로:
+	//   - 그룹 내 태그 전환 (Idle ↔ Walk ↔ Run) 시 anchor 유지 → 발 위상 보존.
+	//   - 그룹 entry 는 cleanup 에서도 보존되어, Action/Montage 가 그룹 멤버를 잠시
+	//     가렸다 사라져도 그룹 anchor 가 살아남는다 → 복귀 시 phase 가 끊기지 않음.
+	//
+	// 신규 그룹 추가: 본 lambda 에 prefix tag 만 append. cleanup/lookup 분기 수정 불필요
+	// — GetAnchorKey / IsPhaseSharedGroupKey 가 테이블 lookup 으로 자동 인식.
+	const TArray<FGameplayTag>& GetPhaseSharedGroups()
+	{
+		// Lazy init — GameplayTag 등록이 완료된 후 첫 호출 시 build.
+		static const TArray<FGameplayTag> Groups = []
+		{
+			TArray<FGameplayTag> Out;
+			Out.Add(HktGameplayTags::Anim_FullBody_Locomotion); // Idle/Walk/Run/Fall — 발 위상 보존
+			// 신규 그룹 추가 예시:
+			// Out.Add(HktGameplayTags::Anim_UpperBody_Idle);   // 만약 상체 idle/breath 가 phase-shared 라면
+			return Out;
+		}();
+		return Groups;
+	}
+
+	/**
+	 * AnimTag → anchor key. 어떤 phase-shared group prefix 와 MatchesTag 면 *그룹 prefix
+	 * 자체* 를 반환 (그룹 멤버끼리 anchor 공유), 아니면 태그 자체 반환.
+	 *
+	 * TagStartLocalSec 의 모든 키 lookup 은 본 함수를 경유한다.
+	 */
+	FGameplayTag GetAnchorKey(const FGameplayTag& AnimTag)
+	{
+		for (const FGameplayTag& Group : GetPhaseSharedGroups())
+		{
+			if (AnimTag.MatchesTag(Group))
+			{
+				return Group;
+			}
+		}
+		return AnimTag;
+	}
+
+	/** Key 가 phase-shared group prefix 자체인가. Cleanup 에서 그룹 entry 를 보존하는 판정용. */
+	bool IsPhaseSharedGroupKey(const FGameplayTag& Key)
+	{
+		for (const FGameplayTag& Group : GetPhaseSharedGroups())
+		{
+			if (Key == Group) return true;
+		}
+		return false;
+	}
 } // namespace
 
 // ============================================================================
@@ -360,7 +413,9 @@ bool AbsorbViews(FHktSpriteAnimFragment& Fragment,
 				ApplyAnimTag(Fragment, AnimTag);
 			}
 			AV->PendingAnimTriggers.Reset();
-			bFacingSourceDirty = true;
+			// (Low) anim trigger 는 facing 입력에 영향 없으므로 bFacingSourceDirty 를 건드리지 않는다.
+			// (A) 동일 태그 재트리거 시 anchor 강제 리셋용 — TickViewModel 가 소비.
+			Fragment.bExplicitTriggerThisFrame = true;
 		}
 	}
 
@@ -380,21 +435,71 @@ void TickViewModel(FHktSpriteAnimFragment& Fragment,
 	float PlayRate = 1.f;
 	ResolveRenderOutputs(Fragment, AnimTag, PlayRate, InOutLoggedResolveFailure);
 
-	// 3) AnimStartLocalSec sticky.
-	//   (a) 서버 권위 AuthAnimStartTick 이 바뀌었을 때.
-	//   (b) ResolvedTag 가 직전 호출과 다를 때 — 새 애니메이션은 항상 0초부터.
-	//       서버측 Op_PlayAnim dedup (동일 태그 해시 시 TouchAnimStartTickBySlot 스킵) 으로
-	//       AuthAnimStartTick 이 안 올라가도 클라가 자력으로 anchor 갱신.
-	const bool bAuthTickChanged = (Fragment.LastAuthAnimStartTick != AuthAnimStartTick);
-	const bool bResolvedTagChanged = (AnimTag != Fragment.LastResolvedTag);
-	if (bAuthTickChanged || bResolvedTagChanged)
+	// 3) 태그별 anchor 갱신 (TagStartLocalSec). Key 는 GetAnchorKey() 경유 — phase-shared
+	//    group 에 속하면 그룹 prefix, 아니면 태그 자체.
+	//   (a) AnimLayerTags 의 활성 태그들 — 해당 anchor key 가 맵에 없으면 LocalNowSec 등록.
+	//   (b) ResolvedTag 의 anchor key 도 동일하게 (Locomotion 합성 태그는 AnimLayerTags 에
+	//       없으므로 본 분기로 등록).
+	//   (c) 정리 — Cleanup 단계. 단 phase-shared group 키는 보존 (그룹 멤버가 Action/Montage 에
+	//       잠시 가려졌다 복귀할 때 phase 가 살아있어야).
+	//   (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame → ResolvedTag 의 anchor key
+	//       강제 리셋. 그룹 키여도 명시적 재시작/재트리거 시에는 0초부터.
+	const FGameplayTag ResolvedKey = GetAnchorKey(AnimTag);
+
+	for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
 	{
-		Fragment.LastAuthAnimStartTick = AuthAnimStartTick;
-		Fragment.LastResolvedTag = AnimTag;
-		Fragment.AnimStartLocalSec = Fragment.LocalNowSec;
+		if (!Pair.Value.IsValid()) continue;
+		const FGameplayTag K = GetAnchorKey(Pair.Value);
+		if (!Fragment.TagStartLocalSec.Contains(K))
+		{
+			Fragment.TagStartLocalSec.Add(K, Fragment.LocalNowSec);
+		}
+	}
+	if (AnimTag.IsValid() && !Fragment.TagStartLocalSec.Contains(ResolvedKey))
+	{
+		Fragment.TagStartLocalSec.Add(ResolvedKey, Fragment.LocalNowSec);
+	}
+	// Cleanup — 그룹 키 보존, 그 외에는 ResolvedKey 또는 AnimLayerTags 값들의 anchor key 외 제거.
+	for (auto It = Fragment.TagStartLocalSec.CreateIterator(); It; ++It)
+	{
+		if (IsPhaseSharedGroupKey(It.Key())) continue; // 그룹 entry 는 entity 일생 동안 보존
+
+		bool bKeep = (It.Key() == ResolvedKey);
+		if (!bKeep)
+		{
+			for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
+			{
+				if (Pair.Value.IsValid() && GetAnchorKey(Pair.Value) == It.Key())
+				{
+					bKeep = true;
+					break;
+				}
+			}
+		}
+		if (!bKeep) It.RemoveCurrent();
 	}
 
-	// 4) Facing 산출 — sticky LastMoveDirXY + 현재 CameraYaw 로 매 호출 재계산.
+	const bool bAuthTickChanged = (Fragment.LastAuthAnimStartTick != AuthAnimStartTick);
+	if (bAuthTickChanged || Fragment.bExplicitTriggerThisFrame)
+	{
+		Fragment.LastAuthAnimStartTick = AuthAnimStartTick;
+		if (AnimTag.IsValid())
+		{
+			Fragment.TagStartLocalSec.FindOrAdd(ResolvedKey) = Fragment.LocalNowSec;
+		}
+		Fragment.bExplicitTriggerThisFrame = false;
+	}
+
+	// 4) AnimStartLocalSec = ResolvedKey 의 anchor (VM 으로 emit).
+	if (AnimTag.IsValid())
+	{
+		if (const double* P = Fragment.TagStartLocalSec.Find(ResolvedKey))
+		{
+			Fragment.AnimStartLocalSec = *P;
+		}
+	}
+
+	// 5) Facing 산출 — sticky LastMoveDirXY + 현재 CameraYaw 로 매 호출 재계산.
 	//   카메라가 캐릭터 주위를 돌면 화면-공간 dir 이 즉시 따라간다. LastMoveDirXY 가
 	//   ZeroVector 면 직전 LastClientFacing 유지(아직 한 번도 움직이지 않은 엔터티는 S).
 	if (!Fragment.LastMoveDirXY.IsNearlyZero())
@@ -413,7 +518,7 @@ void TickViewModel(FHktSpriteAnimFragment& Fragment,
 		}
 	}
 
-	// 5) VM 채움.
+	// 6) VM 채움.
 	OutVM.bValid             = true;
 	OutVM.AnimTag            = AnimTag;
 	OutVM.PlayRate           = PlayRate;
@@ -442,11 +547,16 @@ void ExpireActionLayers(FHktSpriteAnimFragment& Fragment,
 		const float LayerDur = QueryDurationSec(Pair.Value);
 		if (LayerDur <= 0.f) { ToRemove.Add(Pair.Value); continue; }
 
-		// AnimStartLocalSec 은 ResolvedTag 가 이 action 으로 바뀐 시점에 리셋됨 → 이 layer 의
-		// 실제 재생 시작 시각과 일치. 단, 이 layer 가 우선순위에서 밀려 한 번도 ResolvedTag 가
-		// 된 적 없으면 AnimStartLocalSec 은 다른 anim 의 anchor → 이 경우 만료가 빨리 일어날 수
-		// 있으나 어차피 렌더되지 않은 layer 라 무해.
-		const double RawElapsed = LocalNowSec - Fragment.AnimStartLocalSec;
+		// (B) 패치: 이 layer 의 자체 시작 시각으로 elapsed 산출 — top-priority layer 의 anchor 와
+		// 분리. Montage/UpperBody 와 동시 활성이어서 한 번도 ResolvedTag 가 된 적 없는 Action
+		// layer 도 자신의 등록 시점부터 elapsed 가 정확히 누적된다. 만약 누락되어 있으면
+		// (이론상 도달 불가) 즉시 만료 시켜 무한 잔존 방지.
+		// Anchor key 는 phase-shared group 일 경우 그룹 prefix — Action 은 그룹 비대상이라
+		// 통상 태그 자체이지만, 향후 그룹화될 가능성에 대비해 GetAnchorKey 경유.
+		const FGameplayTag LayerKey = GetAnchorKey(Pair.Value);
+		const double* LayerStartPtr = Fragment.TagStartLocalSec.Find(LayerKey);
+		if (!LayerStartPtr) { ToRemove.Add(Pair.Value); continue; }
+		const double RawElapsed = LocalNowSec - *LayerStartPtr;
 		if (RawElapsed >= static_cast<double>(LayerDur))
 		{
 			ToRemove.Add(Pair.Value);
