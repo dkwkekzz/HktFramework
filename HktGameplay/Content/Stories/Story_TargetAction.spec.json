@@ -1,46 +1,68 @@
 {
   "storyTag": "Story.Event.Target.Action",
-  "description": "TargetAction (I-0012) — 우클릭 단일 진입점. Target invalid → Move, Item → 접근 후 Pickup, Hittable(NPC/자연 entity) → 접근 + 쿨다운 후 UseSkill, 그 외 → Move.",
+  "description": "TargetAction (I-0016) — 우클릭을 Self 의 ActionIntent* 프로퍼티에 기록만 한다. 실제 이동/공격은 Lifecycle Brain 이 수행. Item 분기 제거 (TODO).",
   "scenarios": [
     {
-      "name": "invalid_target_dispatches_move",
-      "description": "Target = -1 → dispatch_move.",
+      "name": "invalid_target_writes_move_intent",
+      "description": "Target = -1 → ActionIntentType=1 (Move) + 좌표 기록.",
       "given": {
-        "self":   { "position": [0, 0, 0] }
+        "self":   { "position": [0, 0, 0] },
+        "event":  { "targetPosX": 500, "targetPosY": 100, "targetPosZ": 0 }
       },
       "expect": {
         "status": "Completed",
-        "dispatched": [
-          { "eventTag": "Story.Event.Move.ToLocation", "source": "self" }
-        ]
+        "self": {
+          "properties": {
+            "ActionIntentType":   1,
+            "ActionIntentTarget": 0,
+            "ActionIntentX":      500,
+            "ActionIntentY":      100,
+            "ActionIntentZ":      0
+          }
+        }
       }
     },
     {
-      "name": "ground_item_in_range_dispatches_pickup",
-      "description": "ItemId>0 + ItemState=0 + 거리<=300 → ItemPickup.",
+      "name": "hittable_target_writes_attack_intent",
+      "description": "Hittable 대상 → ActionIntentType=2 (Attack) + Target 보존.",
       "given": {
-        "self":   { "position": [0, 0, 0] },
-        "target": { "properties": { "ItemId": 100, "ItemState": 0 }, "position": [200, 0, 0] }
+        "self":   {
+          "archetype": "Character",
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "NPC",
+          "properties": { "Health": 100, "MaxHealth": 100 },
+          "position": [500, 0, 0]
+        }
       },
       "expect": {
         "status": "Completed",
-        "dispatched": [
-          { "eventTag": "Story.Event.Item.Pickup", "source": "self", "target": "target" }
-        ]
+        "self": {
+          "properties": {
+            "ActionIntentType":   2,
+            "ActionIntentTarget": {"ref":"target"}
+          }
+        }
       }
     },
     {
-      "name": "non_item_non_hittable_dispatches_move",
-      "description": "Item 도 Hittable 도 아니면 dispatch_move.",
+      "name": "non_hittable_target_writes_move_intent",
+      "description": "Hittable 아닌 대상 (Projectile 등) → Move 인텐트로 폴백.",
       "given": {
-        "self":   { "position": [0, 0, 0] },
-        "target": { "properties": { "ItemId": 0 }, "position": [100, 0, 0] }
+        "self":   { "archetype": "Character", "position": [0, 0, 0] },
+        "target": { "archetype": "Projectile", "position": [100, 0, 0] },
+        "event":  { "targetPosX": 100, "targetPosY": 0, "targetPosZ": 0 }
       },
       "expect": {
         "status": "Completed",
-        "dispatched": [
-          { "eventTag": "Story.Event.Move.ToLocation", "source": "self", "target": "target" }
-        ]
+        "self": {
+          "properties": {
+            "ActionIntentType":   1,
+            "ActionIntentTarget": 0,
+            "ActionIntentX":      100
+          }
+        }
       }
     }
   ]

@@ -246,6 +246,26 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(OreDepletedCount,          Cold) // 이 광종의 누적 채광량 (임계 시 광종 전이)
     HKT_DEFINE_PROPERTY(OreCurrentSpeciesId,       Cold) // 현재 region 에서 등장 중인 광종 (전이 후 변경)
 
+    // ===== Action Intent (I-0016 — 상호작용: User Action State 기반의 Brain System) =====
+    //
+    // 캐릭터(Player/NPC) 의 *의도* 를 영속 상태로 보관한다. 클릭/AI 가 의도를 *세팅* 하고
+    // Lifecycle Story 의 매-프레임 Brain 루프가 거리·쿨다운에 따라 이동/공격을 *결정* 한다.
+    //
+    // IntentType 의미:
+    //   0 = 없음 (idle)
+    //   1 = Move    — ActionIntentX/Y/Z 위치로 이동
+    //   2 = Attack  — ActionIntentTarget 엔티티에 사거리 도달 + 쿨다운 시 UseSkill
+    //
+    // 종료 조건은 Brain 이 자체 클리어 (대상 사망 / 위치 도달).
+    // 새 의도 도착 시 SaveStoreEntity 로 단순 덮어쓰기 — 별도 cancel 없음.
+
+    HKT_DEFINE_PROPERTY(ActionIntentType,          Cold) // 0=none / 1=Move / 2=Attack
+    HKT_DEFINE_PROPERTY(ActionIntentTarget,        Cold) // Attack 의 대상 EntityId
+    HKT_DEFINE_PROPERTY(ActionIntentX,             Cold) // Move 의 목표 X (cm)
+    HKT_DEFINE_PROPERTY(ActionIntentY,             Cold) // Move 의 목표 Y (cm)
+    HKT_DEFINE_PROPERTY(ActionIntentZ,             Cold) // Move 의 목표 Z (cm)
+    HKT_DEFINE_PROPERTY(ActionIntentSlot,          Cold) // Attack 시 스킬 슬롯 (0=기본/innate fallback)
+
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계
     // ================================================================

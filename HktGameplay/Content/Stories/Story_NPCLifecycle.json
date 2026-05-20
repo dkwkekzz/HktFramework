@@ -3,16 +3,78 @@
   "storyTag": "Story.Flow.NPC.Lifecycle",
   "cancelOnDuplicate": false,
   "tags": {
-    "StateDead": "State.Dead",
-    "AnimDeath": "Anim.FullBody.Action.Death"
+    "StateDead":   "State.Dead",
+    "AnimDeath":   "Anim.FullBody.Action.Death",
+    "UseSkillTag": "Story.Event.Combat.UseSkill"
   },
   "steps": [
-    { "op": "Label", "name": "check" },
+    { "comment": "── I-0016: NPC Lifecycle = Brain 루프 + 죽음 처리. 매 프레임 ActionIntent 를 해석해 이동/공격을 결정한다. ──" },
+
+    { "op": "Label", "name": "loop" },
+    { "op": "Yield", "frames": 1 },
+
+    { "comment": "── 죽음 감지 ──" },
     { "op": "HasTag", "dst": {"var":"isDead"}, "entity": "Self", "tag": "State.Dead" },
     { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "die" },
-    { "op": "WaitSeconds", "seconds": 1.0 },
-    { "op": "Jump", "label": "check" },
 
+    { "comment": "── 인텐트 분기 ──" },
+    { "op": "LoadStoreEntity", "dst": {"var":"intentType"}, "entity": "Self", "property": "ActionIntentType" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"intentType"}, "value": 2 },
+    { "op": "JumpIf", "cond": "Flag", "label": "do_attack" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"intentType"}, "value": 1 },
+    { "op": "JumpIf", "cond": "Flag", "label": "do_move" },
+    { "op": "Jump", "label": "loop" },
+
+    { "comment": "── Attack 분기: target 유효성/Health → 사거리 → 쿨다운 → 디스패치 ──" },
+    { "op": "Label", "name": "do_attack" },
+    { "op": "LoadStoreEntity", "dst": {"var":"intentTarget"}, "entity": "Self", "property": "ActionIntentTarget" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"intentTarget"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "clear_intent" },
+
+    { "op": "Move", "dst": "Target", "src": {"var":"intentTarget"} },
+    { "op": "LoadStoreEntity", "dst": {"var":"hp"}, "entity": "Target", "property": "Health" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"hp"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "clear_intent" },
+
+    { "op": "GetDistance", "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
+    { "op": "LoadConst", "dst": {"var":"range"}, "value": 200 },
+    { "op": "CmpLe", "dst": "Flag", "src1": {"var":"dist"}, "src2": {"var":"range"} },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "chase_target" },
+
+    { "op": "StopMovement", "entity": "Self" },
+    { "op": "GetWorldTime", "dst": {"var":"now"} },
+    { "op": "ReadProperty", "dst": {"var":"nextFrame"}, "property": "NextActionFrame" },
+    { "op": "CmpLt", "dst": "Flag", "src1": {"var":"now"}, "src2": {"var":"nextFrame"} },
+    { "op": "JumpIf", "cond": "Flag", "label": "loop" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"slot"}, "entity": "Self", "property": "ActionIntentSlot" },
+    { "op": "Log", "message": "Brain(NPC): Attack 발사 → UseSkill" },
+    { "op": "DispatchEventTo", "eventTag": "UseSkillTag", "target": "Target" },
+    { "op": "Jump", "label": "loop" },
+
+    { "op": "Label", "name": "chase_target" },
+    { "op": "GetPosition", "out": "chasePos", "entity": "Target" },
+    { "op": "MoveToward", "entity": "Self", "targetPos": {"block":"chasePos"}, "force": 150 },
+    { "op": "Jump", "label": "loop" },
+
+    { "comment": "── Move 분기: ActionIntentX/Y/Z 로 이동. 도착(IsMoving == 0) 시 intent 클리어 ──" },
+    { "op": "Label", "name": "do_move" },
+    { "op": "LoadStoreEntity", "dst": {"block":"movePos","index":0}, "entity": "Self", "property": "ActionIntentX" },
+    { "op": "LoadStoreEntity", "dst": {"block":"movePos","index":1}, "entity": "Self", "property": "ActionIntentY" },
+    { "op": "LoadStoreEntity", "dst": {"block":"movePos","index":2}, "entity": "Self", "property": "ActionIntentZ" },
+    { "op": "MoveToward", "entity": "Self", "targetPos": {"block":"movePos"}, "force": 150 },
+    { "op": "ReadProperty", "dst": {"var":"isMoving"}, "property": "IsMoving" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"isMoving"}, "value": 0 },
+    { "op": "JumpIf", "cond": "Flag", "label": "clear_intent" },
+    { "op": "Jump", "label": "loop" },
+
+    { "op": "Label", "name": "clear_intent" },
+    { "op": "StopMovement", "entity": "Self" },
+    { "op": "SaveConstEntity", "entity": "Self", "property": "ActionIntentType", "value": 0 },
+    { "op": "SaveConstEntity", "entity": "Self", "property": "ActionIntentTarget", "value": 0 },
+    { "op": "Jump", "label": "loop" },
+
+    { "comment": "── 죽음 처리: 랜덤 loot drop + 사망 애니 + 파괴 ──" },
     { "op": "Label", "name": "die" },
     { "op": "Log", "message": "NPC died -- random loot drop" },
 

@@ -1,10 +1,10 @@
 {
   "storyTag": "Story.Flow.NPC.Lifecycle",
-  "description": "NPCLifecycle: State.Dead 태그 감시 루프 → 죽으면 RandomInt 로 4 종 드롭 중 하나 SpawnEntity → 사망 애니 태그 → WaitSeconds 3.0 → DestroyEntity Self → Halt.",
+  "description": "NPCLifecycle (I-0016): 매-프레임 Brain 루프 (ActionIntent 해석 → 이동/공격) + 죽음 처리 (랜덤 loot drop + DestroyEntity). State.Dead 가 붙으면 die 분기 진입.",
   "scenarios": [
     {
       "name": "death_path_random_drop_then_destroy",
-      "description": "초기에 State.Dead 가 붙은 NPC → 즉시 die 분기 진입. RandomInt 결과는 비결정적이라 어느 드롭 분기가 실행되든 status=Completed 만 검증. WaitSeconds 3.0 은 하니스 Timer 가 자동 진행.",
+      "description": "초기에 State.Dead 가 붙은 NPC → 첫 Yield 다음 die 분기 진입. RandomInt 결과는 비결정적이라 status=Completed 만 검증. WaitSeconds 3.0 은 하니스 Timer 가 자동 진행.",
       "given": {
         "self": {
           "properties": { "Health": 0, "MaxHealth": 100 },
