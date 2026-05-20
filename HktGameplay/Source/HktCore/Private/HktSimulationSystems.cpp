@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "HktCoreEventLog.h"
 #include "HktVMEventRecorder.h"
+#include "HktCollisionDebugTracer.h"
 
 // ============================================================================
 // 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
@@ -1222,6 +1223,22 @@ void FHktPhysicsSystem::Process(
                     PhysEvt.EntityB = B.Id;
                     PhysEvt.ContactPoint = PosA;
                     OutPhysicsEvents.Add(PhysEvt);
+
+#if ENABLE_HKT_INSIGHTS
+                    if (FHktCollisionDebugTracer::Get().IsEnabled())
+                    {
+                        FHktCollisionPair Pair;
+                        Pair.SimFrame = static_cast<uint64>(WorldState.FrameNumber);
+                        Pair.EntityA = A.Id;
+                        Pair.EntityB = B.Id;
+                        Pair.PosA = PosA;
+                        Pair.PosB = PosB;
+                        Pair.ContactPoint = PosA;
+                        Pair.LayerA = A.Layer;
+                        Pair.LayerB = B.Layer;
+                        FHktCollisionDebugTracer::Get().Push(Pair);
+                    }
+#endif
                     continue;
                 }
 
@@ -1238,11 +1255,28 @@ void FHktPhysicsSystem::Process(
                     Reactions[*IdxB] += PushB;
 
                 // 충돌 이벤트 — 접촉점 = 최근접점 중간
+                const FVector ContactMid = (ClosestA + ClosestB) * 0.5f;
                 FHktPhysicsEvent PhysEvt;
                 PhysEvt.EntityA = A.Id;
                 PhysEvt.EntityB = B.Id;
-                PhysEvt.ContactPoint = (ClosestA + ClosestB) * 0.5f;
+                PhysEvt.ContactPoint = ContactMid;
                 OutPhysicsEvents.Add(PhysEvt);
+
+#if ENABLE_HKT_INSIGHTS
+                if (FHktCollisionDebugTracer::Get().IsEnabled())
+                {
+                    FHktCollisionPair Pair;
+                    Pair.SimFrame = static_cast<uint64>(WorldState.FrameNumber);
+                    Pair.EntityA = A.Id;
+                    Pair.EntityB = B.Id;
+                    Pair.PosA = PosA;
+                    Pair.PosB = PosB;
+                    Pair.ContactPoint = ContactMid;
+                    Pair.LayerA = A.Layer;
+                    Pair.LayerB = B.Layer;
+                    FHktCollisionDebugTracer::Get().Push(Pair);
+                }
+#endif
 
                 if (DebugEntityId >= 0 &&
                     (A.Id == static_cast<FHktEntityId>(DebugEntityId) ||

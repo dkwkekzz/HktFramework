@@ -8,6 +8,7 @@
 #include "Engine/LocalPlayer.h"
 #include "DrawDebugHelpers.h"
 #include "HktCollisionLayers.h"
+#include "HktCollisionDebugTracer.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 static TAutoConsoleVariable<int32> CVarShowCollision(
@@ -27,6 +28,19 @@ static TAutoConsoleVariable<int32> CVarShowEntityPos(
 	TEXT("hkt.Debug.ShowEntityPos"),
 	0,
 	TEXT("Draw sphere at every entity's position with radius = CollisionRadius. 0=off, 1=on"),
+	ECVF_Default);
+
+// FHktPhysicsSystem narrow-phase 가 검출한 엔티티-엔티티 충돌 페어 시각화. ShowCollision 과 독립.
+static TAutoConsoleVariable<int32> CVarShowCollisionPairs(
+	TEXT("hkt.Debug.ShowCollisionPairs"),
+	0,
+	TEXT("Draw lines + contact points for FHktPhysicsSystem-detected collision pairs. 0=off, 1=on"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarCollisionPairLifetime(
+	TEXT("hkt.Debug.CollisionPairLifetime"),
+	15,
+	TEXT("Collision pair line fade-out duration in sim frames (30Hz → 15 = 0.5s)"),
 	ECVF_Default);
 
 static FColor GetCollisionLayerColor(int32 Layer)
@@ -49,7 +63,12 @@ void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 {
 	const int32 Mode = CVarShowCollision.GetValueOnGameThread();
 	const int32 PosMode = CVarShowEntityPos.GetValueOnGameThread();
-	if (Mode <= 0 && PosMode <= 0) return;
+	const int32 PairsMode = CVarShowCollisionPairs.GetValueOnGameThread();
+
+	// CVar 가 꺼지면 시뮬레이션 측 push 도 중단 — bEnabled 게이트로 zero-cost.
+	FHktCollisionDebugTracer::Get().SetEnabled(PairsMode > 0);
+
+	if (Mode <= 0 && PosMode <= 0 && PairsMode <= 0) return;
 
 	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
@@ -57,6 +76,11 @@ void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 	if (PosMode > 0)
 	{
 		DrawEntityPositions(World, State);
+	}
+
+	if (PairsMode > 0)
+	{
+		DrawCollisionPairs(World, State);
 	}
 
 	if (Mode <= 0) return;
@@ -215,8 +239,44 @@ void FHktCollisionDebugProcessor::DrawVoxelCells(UWorld* World, const FHktPresen
 	}
 }
 
+// --------------------------------------------------------------------------- FHktPhysicsSystem narrow-phase 검출 페어
+
+void FHktCollisionDebugProcessor::DrawCollisionPairs(UWorld* World, const FHktPresentationState& State)
+{
+	const int32 LifetimeFrames = FMath::Max(1, CVarCollisionPairLifetime.GetValueOnGameThread());
+	const uint64 CurrentFrame = static_cast<uint64>(State.GetCurrentFrame());
+
+	TArray<FHktCollisionPair> Pairs;
+	FHktCollisionDebugTracer::Get().Snapshot(CurrentFrame, LifetimeFrames, Pairs);
+
+	for (const FHktCollisionPair& P : Pairs)
+	{
+		const uint64 Age = (CurrentFrame > P.SimFrame) ? (CurrentFrame - P.SimFrame) : 0;
+		const float AgeRatio = FMath::Clamp(static_cast<float>(Age) / static_cast<float>(LifetimeFrames), 0.f, 1.f);
+		const uint8 Alpha = static_cast<uint8>(FMath::Lerp(255.f, 32.f, AgeRatio));
+
+		// 페어 라인: 양 엔티티 색상의 중간 (Layer 색 평균)
+		const FColor ColorA = GetCollisionLayerColor(static_cast<int32>(P.LayerA));
+		const FColor ColorB = GetCollisionLayerColor(static_cast<int32>(P.LayerB));
+		const FColor LineColor(
+			static_cast<uint8>((ColorA.R + ColorB.R) / 2),
+			static_cast<uint8>((ColorA.G + ColorB.G) / 2),
+			static_cast<uint8>((ColorA.B + ColorB.B) / 2),
+			Alpha);
+
+		DrawDebugLine(World, P.PosA, P.PosB, LineColor,
+			/*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/2.0f);
+
+		// ContactPoint — 빨강(명중) + alpha 페이드
+		const FColor ContactColor(255, 60, 60, Alpha);
+		DrawDebugPoint(World, P.ContactPoint, /*Size*/12.f, ContactColor,
+			/*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World);
+	}
+}
+
 void FHktCollisionDebugProcessor::Teardown()
 {
+	FHktCollisionDebugTracer::Get().SetEnabled(false);
 	LocalPlayer = nullptr;
 }
 
