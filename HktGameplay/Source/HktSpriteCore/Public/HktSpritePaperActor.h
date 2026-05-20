@@ -13,7 +13,7 @@
 #include "HktSpritePaperActor.generated.h"
 
 class USceneComponent;
-class UBoxComponent;
+class UCapsuleComponent;
 class UPaperFlipbookComponent;
 class UPaperFlipbook;
 class UPaperSprite;
@@ -87,14 +87,16 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "HKT|PaperSprite")
 	TObjectPtr<UPaperFlipbookComponent> FlipbookComp;
 
-	// Click pick 전용 collision box. FlipbookComp 가 NoCollision 이라 Visibility trace 가
-	// sprite 평면을 통과하므로, 별도 박스로 엔티티 충돌 영역을 덮어 IHktSelectable 픽이 가능하게 한다.
+	// Click pick 전용 capsule. FlipbookComp 가 NoCollision 이라 Visibility trace 가
+	// sprite 평면을 통과하므로, 별도 캡슐로 엔티티 충돌 영역을 덮어 IHktSelectable 픽이 가능하게 한다.
 	// 크기는 VM property (CollisionRadius/CollisionHalfHeight) → ApplyPhysics 가 갱신 — sprite
 	// 의 visual bound 를 따라가지 않는다 (sprite 크기와 실제 엔티티 충돌 반경이 일치하지 않기 때문).
-	// RootScene 에 부착하고 absolute rotation 으로 두어 billboard pitch 회전이 box 를 기울이지
-	// 않게 한다 (yaw 는 XY 가 대칭이라 영향 없음).
+	// HktCore narrow-phase 가 캡슐-캡슐로 충돌을 푸는 만큼 픽업 형태도 캡슐로 통일해 어긋남을 제거한다.
+	// RootScene 에 부착하고 absolute rotation 으로 두어 billboard pitch 회전이 캡슐을 기울이지
+	// 않게 한다 (yaw 는 XY 대칭이라 영향 없음). 캡슐 origin = 중심이므로 RelLoc.Z = HalfHeight 로
+	// 두면 캡슐 발이 ActorLocation (= entity foot) 에 정확히 닿는다.
 	UPROPERTY(VisibleAnywhere, Category = "HKT|PaperSprite")
-	TObjectPtr<UBoxComponent> HitBox;
+	TObjectPtr<UCapsuleComponent> HitCapsule;
 
 private:
 	/** 카메라 위치/회전 조회 (PlayerCameraManager). 미초기화 시 bValid=false. */
