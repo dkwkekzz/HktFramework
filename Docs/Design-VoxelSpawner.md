@@ -70,6 +70,78 @@ BakeRegion: VoxelSpawnRules 처리 — Rules=12 (orphan=0), Buckets=4,
 SurfaceChunks=25, AttributionsWritten=487, SkipPicks=623
 ```
 
+## 밀도 제어 — "모든 voxel 에 spawner 가 붙지 않는다"
+
+청크 1개 = 32768 voxel 이지만 실제 spawner 가 붙는 voxel 은 한 자릿수~수십 개. 4 단계 필터로 sparse 가 보장된다.
+
+### 1. Surface column top voxel 만 후보 (구조적 제약)
+
+`HktTerrainBakeLibrary.cpp::BakeRegion` 이 청크의 32×32 column 마다 *top-most non-air voxel 1점만* 검사:
+
+```cpp
+for (LocalY = 0..31)
+for (LocalX = 0..31)
+    for (LocalZ = 31 down to 0)
+        if (RawVoxels[Idx].TypeID != 0) {
+            // 본 column 의 surface voxel — pick 시도 후 break
+            break;
+        }
+```
+
+청크당 후보 voxel = **최대 1024개** (32×32). 지하 voxel, column 표면 아래 voxel 은 처음부터 배제.
+
+### 2. Rule 미정의 voxel type → 자동 스킵
+
+```cpp
+const FRuleBucket* Bucket = Buckets.Find(TypeID);
+if (Bucket && Bucket->TotalWeight > 0) { ... }
+// 매핑 없는 voxel type 은 attribution 미부여
+```
+
+흔한 표면 (Grass/Dirt, 전체의 ~60%) 을 `VoxelSpawnRules` 에서 *의도적으로 비워두면* 해당 voxel 들은 자동으로 spawner 없음. 현 default 매핑은 희소 voxel (Snow/Gravel/Clay/Sand) 만 등록.
+
+### 3. skip 슬롯 (`StoryTag=None`) — 확률적 비우기
+
+같은 voxel type 안에서도 weight 비율로 비울 수 있다:
+
+```python
+unreal.HktTerrainType.SAND: [(SLIME, 30), (None, 70)],
+# 30% Slime, 70% 빈 voxel
+```
+
+bake 시:
+
+```cpp
+if (PickedTemplateId > 0) {
+    Chunk.SpawnTemplateAttribution.Add(Packed, PickedTemplateId);
+} else {
+    ++SkipPicks;  // skip 슬롯 선정 — attribution 미부여
+}
+```
+
+skip 슬롯은 catalog 미등록 → 메모리/네트워크 부담 0.
+
+### 4. Spawner Story 의 글로벌 cap (런타임 안전망)
+
+`Tree_Spawn.json`, `Slime_Spawn.json` 본문에 `CountByTag < N` 가드가 있어 attribution 다수 발화 시에도 spawn 폭주 차단.
+
+### 실측 밀도
+
+현 default 매핑 + 5×5×3 청크 영역 베이크 로그:
+
+```
+BakeRegion: VoxelSpawnRules 처리 — Rules=12 (orphan=0), Buckets=4,
+SurfaceChunks=25, AttributionsWritten=487, SkipPicks=623
+```
+
+→ 25 청크에 attribution 487 개 = **청크당 평균 ~19 spawner** (32768 voxel 중 0.06%).
+→ `SkipPicks=623` = 후보 voxel 의 약 56% 가 skip 슬롯으로 비워짐.
+
+### 디자이너 체크리스트
+
+- 새 voxel type 에 rule 을 추가할 때는 반드시 `(None, weight)` skip 슬롯을 함께 두어 spawn 비율을 명시 — 100% spawn 은 의도된 경우에만.
+- `AttributionsWritten` 이 청크당 100+ 면 매핑 재검토 — Story 의 `CountByTag` cap 즉시 도달로 디버그 가독성 저하.
+
 ## Runtime 흐름
 
 `HktSimulationSystems.cpp::FHktTerrainSystem::Process` (서버 권위):
