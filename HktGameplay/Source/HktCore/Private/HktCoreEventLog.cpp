@@ -22,8 +22,9 @@ namespace HktLogTags
 	UE_DEFINE_GAMEPLAY_TAG(Runtime_Server,  "HktLog.Runtime.Server");
 	UE_DEFINE_GAMEPLAY_TAG(Runtime_Client,  "HktLog.Runtime.Client");
 	UE_DEFINE_GAMEPLAY_TAG(Runtime_Intent,  "HktLog.Runtime.Intent");
-	UE_DEFINE_GAMEPLAY_TAG(Presentation,    "HktLog.Presentation");
-	UE_DEFINE_GAMEPLAY_TAG(Asset,           "HktLog.Asset");
+	UE_DEFINE_GAMEPLAY_TAG(Presentation,           "HktLog.Presentation");
+	UE_DEFINE_GAMEPLAY_TAG(Presentation_Transform, "HktLog.Presentation.Transform");
+	UE_DEFINE_GAMEPLAY_TAG(Asset,                  "HktLog.Asset");
 	UE_DEFINE_GAMEPLAY_TAG(Rule,            "HktLog.Rule");
 	UE_DEFINE_GAMEPLAY_TAG(Story,           "HktLog.Story");
 	UE_DEFINE_GAMEPLAY_TAG(UI,              "HktLog.UI");
