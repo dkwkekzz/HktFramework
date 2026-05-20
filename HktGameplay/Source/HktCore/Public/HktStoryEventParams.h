@@ -33,20 +33,6 @@ namespace UseSkillParams
 }
 
 // ============================================================================
-// Story.Event.Target.Action — I-0016 (상호작용: 사용자 액션)
-// ============================================================================
-//
-// 지속성은 액션이 아니라 사용자 인텐트의 축이다 (I-0016). 우클릭 인텐트에
-// "이어서 수행" 플래그를 함께 실어 보내고, Story_TargetAction 의 Hittable
-// 분기가 이 플래그를 보며 단발 / 지속 분기한다. 종료는 새 인텐트의
-// cancelOnDuplicate 가 자동 처리.
-namespace TargetActionParams
-{
-	/** Param3: 0 = 단발(one-shot), 1 = 지속(persistent) */
-	inline const uint16 Persistent = PropertyId::Param3;
-}
-
-// ============================================================================
 // NPC Spawner (Wave, GoblinCamp, TreeDrop, Terrain-bake Spawner 등)
 // ============================================================================
 //
@@ -145,20 +131,18 @@ namespace VoxelBreakParams
 // ============================================================================
 namespace HktEventBuilder
 {
-	/** TargetDefault 이벤트 (슬롯 미선택 시) — bPersistent 는 I-0016 (상호작용: 사용자 액션) 의 지속 인텐트 축. */
+	/** TargetDefault 이벤트 (슬롯 미선택 시) */
 	inline FHktEvent TargetDefault(
 		const FGameplayTag& EventTag,
 		FHktEntityId SourceEntity,
 		FHktEntityId TargetEntity,
-		FVector Location,
-		bool bPersistent = false)
+		FVector Location)
 	{
 		FHktEvent E;
 		E.EventTag     = EventTag;
 		E.SourceEntity = SourceEntity;
 		E.TargetEntity = TargetEntity;
 		E.Location     = Location;
-		E.Param3       = bPersistent ? 1 : 0;
 		return E;
 	}
 
