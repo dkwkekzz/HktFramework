@@ -103,6 +103,17 @@ public:
 	virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) = 0;
 	virtual const FHktWorldState& GetWorldState() const = 0;
 	virtual FHktPlayerState ExportPlayerState(int64 OwnerHash) const = 0;
+
+	/**
+	 * 직전 AdvanceFrame 에서 TerrainSystem 이 emit 한 spawner / voxel-attribution event 사본 (I-0027).
+	 * 서버 rule 이 GroupBatch.NewEvents 에 putback 해 client 에 deterministic 동기화하는 용도.
+	 * 미구현 wrapper 는 빈 배열을 반환 — 안전한 기본 동작.
+	 */
+	virtual const TArray<FHktEvent>& GetEmittedSpawnerEvents() const
+	{
+		static const TArray<FHktEvent> Empty;
+		return Empty;
+	}
 };
 
 //=============================================================================

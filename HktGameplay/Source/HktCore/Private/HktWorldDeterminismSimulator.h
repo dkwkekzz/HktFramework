@@ -35,6 +35,7 @@ public:
     virtual void UndoDiff(const FHktSimulationDiff& Diff) override;
     virtual void SetTerrainConfig(const FHktTerrainGeneratorConfig& Config) override;
     virtual void SetTerrainSource(TUniquePtr<IHktTerrainDataSource> InSource) override;
+    virtual const TArray<FHktEvent>& GetEmittedSpawnerEvents() const override { return CapturedSpawnerEvents; }
 
 private:
     void ProcessBatch(const FHktSimulationEvent& Event);
@@ -78,4 +79,9 @@ private:
     FHktTerrainState TerrainState;
     TUniquePtr<IHktTerrainDataSource> TerrainSource;
     TArray<FHktVoxelDelta> PendingVoxelDeltas;
+
+    // 직전 AdvanceFrame 에서 TerrainSystem 이 emit 한 spawner/voxel-attribution event 사본.
+    // ProcessBatch 가 TerrainSystem.EmittedSpawnerEvents 를 MoveTemp 로 소비하기 직전에
+    // 본 배열에 복사 → 호출자 (서버 rule) 가 batch 에 putback 해 client 동기화에 사용.
+    TArray<FHktEvent> CapturedSpawnerEvents;
 };

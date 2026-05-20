@@ -260,6 +260,77 @@ for each FHktVoxelAttributionView:       for each FHktTerrainSpawnerView:
 
 런타임은 attribution / Spawners[] 슬롯을 *읽기 전용* 으로만 사용한다. 변경 경로는 *재베이크* 뿐.
 
+### 스폰 활성 영역 — 플레이어 근접 게이팅
+
+`FHktTerrainSystem::Process` 가 모든 엔티티 위치 기준으로 청크 로드 반경을 펼치면, 자연 spawn 된 birch / NPC 자체가 새 앵커가 되어 spawner 발화 cascade 가 외곽으로 propagate 된다 (플레이어에서 멀어진 곳에 entity 클러스터링). 이를 막기 위해 **spawner attribution emission 은 플레이어 소유 엔티티 근처 청크에만 한정**한다 — 청크 로드 자체(중력/충돌용 voxel 캐싱)는 모든 엔티티 기준 유지.
+
+```
+ForEachEntity:
+  EntityChunks       ← 모든 엔티티 청크 (terrain 로딩 입력)
+  PlayerAnchorChunks ← OwnerUid != 0 (플레이어 캐릭터) 만 별도 수집
+
+PlayerSpawnerChunks = PlayerAnchorChunks + SimLoadRadius 확장
+
+청크 로드 루프:
+  if (bIsAuthoritative && PlayerSpawnerChunks.Contains(Coord)):
+      GetChunkVoxelAttribution / GetChunkSpawners → EmittedSpawnerEvents
+  else:
+      LoadChunk 만 (voxel 캐싱) — spawner dispatch 스킵
+```
+
+식별 기준 — `WorldState.GetOwnerUid(Id) != 0`: `Op_SpawnEntity` 가 `Runtime.PlayerUid != 0` 일 때만 `SetOwnerUid` 호출 → 자연 spawn entity (voxel attribution 으로 dispatch 된 Birch_Spawn 의 산출물) 는 `OwnerUid=0`. 따라서 자연 spawn 이 자기 자신을 앵커로 또 다른 spawner 를 발화시키는 cascade 가 끊긴다. 플레이어 미접속 시 `PlayerAnchorChunks` 가 비어 발화 0.
+
+### 청크 로드 순서 — Player 거리 우선
+
+`RequiredChunks` 는 `TSet<FIntVector>` 라 해시 순서로 순회된다. `SimMaxChunkLoadsPerFrame=4` 예산이 *임의 위치* 청크에 소비되어, Story 의 글로벌 cap (예: `Birch_Spawn` cap=12 = 4 events × 3 birches) 이 player 거리와 무관한 청크에 먼저 소진되는 문제가 있다 (VoxelSize=100 기준 25 청크 중 4 청크가 우연히 -2 청크에 픽되면 birch 가 90 m 떨어진 곳에 클러스터링).
+
+해결: 매 프레임 `RequiredChunks` 를 평탄화한 `SortedLoadOrder` 배열을 **player anchor 까지 최단 chebyshev 거리** 오름차순으로 정렬해 순회한다. 동률은 좌표 lexicographic — 결정론 유지 (TSet 해시 순서 누설 방지). LoadRadius 가 박스 모양이라 chebyshev metric 이 자연스럽다.
+
+```cpp
+// 매 프레임
+SortedLoadOrder.Reset();
+SortedLoadOrder.Append(RequiredChunks);
+SortedLoadOrder.Sort(byMinChebyshevDistanceToPlayerAnchor);  // tie-break: lex(x,y,z)
+
+for (Coord : SortedLoadOrder)            // ← TSet 대신 sorted 배열
+    if (!IsLoaded(Coord)) LoadChunk + spawner emission (게이트 통과 시)
+```
+
+결과: 예산이 player 가까운 청크부터 소비 → Story cap 도 player 근처에서 먼저 소진 → entity 가 player 근처에 우선 분포.
+
+### 서버 → 클라이언트 동기화 — `EmittedSpawnerEvents` putback
+
+서버 권위 시뮬레이터 (`bIsAuthoritative=true`) 만 voxel attribution event 를 emit 하고, 클라 ProxySimulator (`bIsAuthoritative=false`) 는 자체 emit 을 차단해 mid-join 재발화를 막는다. 이 비대칭은 그대로 유지하되, **서버가 emit 한 event 를 batch 에 putback** 하여 client 가 같은 event 를 받아 deterministic 하게 동일 Story 를 재실행하도록 한다.
+
+이전 흐름의 누수: `TerrainSystem.EmittedSpawnerEvents` 는 `ProcessBatch` 내부에서 `MergedEvents` 로 `MoveTemp` 되어 소진 → `GroupBatch.NewEvents` 에 putback 되지 않음 → client 가 받는 batch 에 attribution event 없음 → server-only entity, client 는 actor 미생성.
+
+```
+[Server tick — HktDefaultServerRule::OnEvent_GameModeTick]
+  GroupBatch.NewEvents = [PlayerInput, DebugSpawner, ...]
+  Simulator.AdvanceFrame(GroupBatch):
+      TerrainSystem.Process → EmittedSpawnerEvents = [attribution × N]
+      CapturedSpawnerEvents = EmittedSpawnerEvents (복사 보존)  ← putback 대상
+      VMBuildSystem.Process(NewEvents + MoveTemp(EmittedSpawnerEvents))  → server entity 생성
+  GroupBatch.NewEvents.Append(Simulator.GetEmittedSpawnerEvents())  ← putback
+  Client_ReceiveFrameBatch(GroupBatch)
+
+[Client tick — ProxySimulator]
+  Simulator.AdvanceFrame(GroupBatch):
+      TerrainSystem.Process → bIsAuthoritative=false → emit 안 함 (mid-join 재발화 차단)
+      VMBuildSystem.Process(Event.NewEvents) ← server 가 putback 한 attribution event 포함
+      → 동일 Story 실행 → client 에도 entity 생성
+  Diff.SpawnedEntities → WorldView → HktPresentation → Actor ✅
+```
+
+**Late-join 안전성** (각 케이스):
+
+| 케이스 | 메커니즘 |
+|---|---|
+| Late-join 전 server 가 이미 spawn 한 entity | `RestoreState` 의 WorldState snapshot 으로 전달. 서버는 해당 chunk 가 `LoadedChunks` 에 있어 재emit 안 함 |
+| Late-join 후 server 가 새 chunk 로드 → emit | Putback 으로 batch 에 실려 client 에 전송 → deterministic 동기 |
+| Late-join 후 client proxy 가 chunk 로드 (서버는 이미 로드) | client `bIsAuthoritative=false` 가 차단 → 중복 spawn 없음 |
+| 만약의 중복 event | Story 의 `CountByTag` cap 이 결정론적 safety net (server/client 동일 state → 동일 분기) |
+
 ### Spawner Story 가 컨텍스트 읽는 방식
 
 `SpawnerParams::` / `VoxelTemplateParams::` 별칭은 두 입구에서 동일한 슬롯 의미를 갖는다 — Story 본문은 어느 경로로 들어왔는지 구분할 필요 없음.
@@ -425,7 +496,9 @@ py bake_terrain.py --min=-1,-1,0 --max=1,1,2
 | Voxel Type Enum | `HktTerrain/Public/HktTerrainVoxelTypes.h` (`EHktTerrainType`) |
 | Bake 산출 | `HktTerrain/Private/HktTerrainBakeLibrary.cpp::BakeRegion` (rule → bucket → weighted-pick) |
 | Provider 어댑터 | `HktTerrain/Private/HktTerrainProvider.cpp` (`GetChunkVoxelAttribution`, `GetChunkSpawners`) |
-| 런타임 dispatch | `HktCore/Private/HktSimulationSystems.cpp::FHktTerrainSystem::Process` |
+| 런타임 dispatch | `HktCore/Private/HktSimulationSystems.cpp::FHktTerrainSystem::Process` (player 게이팅 / 거리 정렬 / `EmittedSpawnerEvents`) |
+| Server emit putback | `HktRule/Private/HktServerRule.cpp::OnEvent_GameModeTick` (`GroupBatch.NewEvents.Append(Simulator.GetEmittedSpawnerEvents())`) |
+| Simulator 게터 | `HktCore/Public/HktCoreSimulator.h::IHktDeterminismSimulator::GetEmittedSpawnerEvents` · `HktRule/Public/HktServerRuleInterfaces.h::IHktAuthoritySimulator::GetEmittedSpawnerEvents` (wrapper forwarding: `HktGrid/SingleRelevancyComponent.h`) |
 | Event Param 컨벤션 | `HktCore/Public/HktStoryEventParams.h` (`SpawnerParams::`, `VoxelTemplateParams::`, `HktEventBuilder::SpawnerFromView` / `VoxelTemplateActivated[At]`, `ComputeVoxelSlotHash31`) |
 | Python 디자이너 입력 | `HktGameplay/Content/Python/bake_terrain.py` (`default_voxel_spawn_rules`, `apply_voxel_spawn_rules`) |
 | Story 콘텐츠 | `HktGameplay/Content/Stories/Natural/Tree_Spawn.json`, `Slime/Slime_Spawn.json` |

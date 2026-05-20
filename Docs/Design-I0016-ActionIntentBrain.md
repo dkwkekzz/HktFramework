@@ -83,7 +83,7 @@ NPC AI 가 ActionIntent 를 *세팅하는 채널* 은 아직 없음 — 현재 N
 | 2 | dist > 200 | `MoveToward(Target)` | Type 유지 (다음 사이클에 재평가) |
 | 2 | dist <= 200, cooldown 진행중 (now < NextActionFrame) | StopMovement, yield | Type 유지 |
 | 2 | dist <= 200, cooldown OK | `DispatchEventTo(UseSkill, Target)` | Type 유지 (다음 사이클에 또 공격) |
-| 1 (Move) | `(ix-px)² + (iy-py)² <= 40000` (200² cm²) | StopMovement, intent 클리어 | Type=0 |
+| 1 (Move) | `(ix-px)² + (iy-py)² <= 16` (4² cm², MovementSystem 의 `ArrivalThresholdSq` 와 동일) | StopMovement, intent 클리어 | Type=0 |
 | 1 | 미도달 | `MoveToward(ActionIntentX/Y/Z)` | Type 유지 |
 
 **사거리 200 은 상수**. 추후 무기/스킬별 AttackRange 프로퍼티로 분기 — *TODO.*
@@ -106,14 +106,19 @@ Physics 순서), Brain 이 매 프레임 `MoveToward` 를 호출하면 MovementS
 도착 시 세팅한 `IsMoving=0` 을 *다음 프레임 시작 시 Brain 이 다시 1 로 덮어쓴다*.
 결과적으로 Brain 이 `ReadProperty IsMoving` 으로는 영영 0 을 못 본다.
 
-따라서 도착 판정은 *제곱 2D 거리* (`(ix-px)² + (iy-py)² <= 40000`) 로 한다. Z 차이는
-무시 (지형 적분 후 약간의 수직 오차는 도착으로 간주). 거리 제곱이 i32 overflow
-하지 않는 범위 (각 축 ±46340 cm = ±463 m 이내) 에서 안전.
+따라서 도착 판정은 *제곱 2D 거리* (`(ix-px)² + (iy-py)² <= 16`) 로 한다. 임계 16 은
+MovementSystem 의 `ArrivalThresholdSq` (`HktSimulationSystems.h`) 와 동일 — Brain 이
+MovementSystem 보다 *덜* 관대한 임계를 쓰면 안 되고, 더 관대하면 (이전 40000) Brain 이
+MovementSystem 의 overshoot-snap 보다 먼저 인텐트를 클리어해 *목표 직전에서 정지* 하는
+버그가 발생한다. MovementSystem 이 `MoveStep >= HDist` 일 때 타겟에 정확히 SetPosition
+해주므로, Brain 은 한 사이클 뒤에 d²≈0 으로 안전하게 클리어한다. Z 차이는 무시 (지형
+적분 후 약간의 수직 오차는 도착으로 간주). 거리 제곱이 i32 overflow 하지 않는 범위 (각 축
+±46340 cm = ±463 m 이내) 에서 안전.
 
 ## 자동 종료 조건
 
 - **대상 사망** — Brain 의 Attack 분기에서 `Target.Health <= 0` 검사 → 자체 클리어
-- **위치 도달** — Brain 의 Move 분기에서 `IsMoving == 0` 검사 → 자체 클리어
+- **위치 도달** — Brain 의 Move 분기에서 squared 2D 거리 ≤ 16 검사 → 자체 클리어
 - **새 클릭** — TargetAction 이 동일 프로퍼티를 덮어쓰기 → Brain 다음 사이클에서 새 인텐트 따라감
 - **캐릭터 사망** — Brain 의 die 라벨로 진입 → loot drop (NPC) 또는 사망 애니 (Player) 후 종료
 

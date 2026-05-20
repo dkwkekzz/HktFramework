@@ -527,6 +527,17 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 		IHktAuthoritySimulator& Simulator = Group.GetSimulator();
 		Simulator.AdvanceFrame(GroupBatch);
 
+		// I-0027: server 가 이번 프레임에 emit 한 spawner / voxel-attribution event 들을
+		// batch 의 NewEvents 에 putback → Client_ReceiveFrameBatch 에 그대로 실린다.
+		// 클라 proxy 는 `bIsAuthoritative=false` 라 자체 emit 안 함 — batch 의 event 만
+		// 받아서 deterministic 하게 동일 Birch_Spawn 등을 재실행. server/client 동기.
+		// 결과적으로 voxel attribution 으로 spawn 된 entity 가 client 에도 생성되어 actor 표시.
+		const TArray<FHktEvent>& Emitted = Simulator.GetEmittedSpawnerEvents();
+		if (Emitted.Num() > 0)
+		{
+			GroupBatch.NewEvents.Append(Emitted);
+		}
+
 		GroupEventSend.Existing = &Group.GetCachedWorldPlayers();
 		GroupEventSend.NewState = &Simulator.GetWorldState();
 

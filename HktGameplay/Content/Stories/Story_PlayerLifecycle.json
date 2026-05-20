@@ -54,7 +54,7 @@
     { "op": "MoveToward", "entity": "Self", "targetPos": {"block":"chasePos"}, "force": 150 },
     { "op": "Jump", "label": "loop" },
 
-    { "comment": "── Move: ActionIntentX/Y/Z 로 이동. 도착 판정은 squared 2D 거리 vs 임계² (200² = 40000). MoveToward 가 매 호출마다 IsMoving=1 을 다시 쓰므로 IsMoving 으로는 도착 감지 불가 (Movement 가 매 프레임 덮어쓰여짐). ──" },
+    { "comment": "── Move: ActionIntentX/Y/Z 로 이동. 도착 판정은 squared 2D 거리 vs 임계² (4² = 16, MovementSystem 의 ArrivalThresholdSq 와 동일). MoveToward 가 매 호출마다 IsMoving=1 을 다시 쓰므로 IsMoving 으로는 도착 감지 불가 (Movement 가 매 프레임 덮어쓰여짐). 임계가 작아도 MovementSystem 의 overshoot-snap 이 마지막 프레임에 정확한 타겟 좌표로 SetPosition 해주므로 다음 사이클에 d²=0 으로 클리어된다. ──" },
     { "op": "Label", "name": "do_move" },
     { "op": "LoadStoreEntity", "dst": {"var":"ix"}, "entity": "Self", "property": "ActionIntentX" },
     { "op": "LoadStoreEntity", "dst": {"var":"iy"}, "entity": "Self", "property": "ActionIntentY" },
@@ -65,7 +65,7 @@
     { "op": "Mul", "dst": {"var":"dx2"}, "src1": {"var":"dx"}, "src2": {"var":"dx"} },
     { "op": "Mul", "dst": {"var":"dy2"}, "src1": {"var":"dy"}, "src2": {"var":"dy"} },
     { "op": "Add", "dst": {"var":"d2"}, "src1": {"var":"dx2"}, "src2": {"var":"dy2"} },
-    { "op": "CmpLeConst", "dst": "Flag", "src": {"var":"d2"}, "value": 40000 },
+    { "op": "CmpLeConst", "dst": "Flag", "src": {"var":"d2"}, "value": 16 },
     { "op": "JumpIf", "cond": "Flag", "label": "clear_intent" },
 
     { "op": "LoadStoreEntity", "dst": {"block":"movePos","index":0}, "entity": "Self", "property": "ActionIntentX" },

@@ -100,7 +100,7 @@
     },
     {
       "name": "move_intent_far_moves_toward",
-      "description": "ActionIntentType=1 + ActionIntentX/Y/Z 가 현 위치에서 200cm 초과 → MoveToward(ix,iy,iz) (chase 가 아니라 좌표 직접). MoveTarget* 가 ActionIntent* 좌표로 세팅.",
+      "description": "ActionIntentType=1 + ActionIntentX/Y/Z 가 현 위치에서 임계 초과 → MoveToward(ix,iy,iz) (chase 가 아니라 좌표 직접). MoveTarget* 가 ActionIntent* 좌표로 세팅.",
       "given": {
         "self": {
           "archetype": "NPC",
@@ -130,14 +130,14 @@
     },
     {
       "name": "move_intent_arrived_clears_intent",
-      "description": "ActionIntentType=1 인데 squared 2D 거리 ≤ 40000 → 도착 분기 → StopMovement + ActionIntentType=0 + ActionIntentTarget=0.",
+      "description": "ActionIntentType=1 인데 squared 2D 거리 ≤ 16 (MovementSystem 의 ArrivalThresholdSq 와 동일) → 도착 분기 → StopMovement + ActionIntentType=0 + ActionIntentTarget=0.",
       "given": {
         "self": {
           "archetype": "NPC",
           "properties": {
             "Health": 100, "MaxHealth": 100,
             "ActionIntentType": 1,
-            "ActionIntentX": 100, "ActionIntentY": 100, "ActionIntentZ": 0,
+            "ActionIntentX": 2, "ActionIntentY": 2, "ActionIntentZ": 0,
             "IsMoving": 1
           },
           "position": [0, 0, 0]

@@ -87,6 +87,13 @@ struct HKTCORE_API FHktTerrainSystem
     bool bIsAuthoritative = true;
 
     TSet<FIntVector> RequiredChunks;  // 프레임 내 재사용 (할당 회피)
+    /**
+     * 프레임당 청크 로드 순서 — 플레이어 앵커 청크와의 최단 chebyshev 거리 오름차순.
+     * `RequiredChunks` 와 동일한 원소 집합이지만, 순회 순서가 거리 정렬되어
+     * `SimMaxChunkLoadsPerFrame` 예산이 플레이어 *가까운* 청크부터 소비된다.
+     * 결과: spawner cap 이 차도 birch 등이 player 근처에 우선 모임 (I-0027).
+     */
+    TArray<FIntVector> SortedLoadOrder;
     FIntVector LastPivotChunk = FIntVector(MAX_int32);  // 이전 프레임의 피벗 청크 (변경 감지)
 
     /**

@@ -78,8 +78,15 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
     // VMBuildSystem 입력: 외부 NewEvents + 본 프레임에 chunk-load 로 dispatch 된 spawner 이벤트.
     // EventId 는 SlotHash 기반 결정론 값을 부여 (Insights 만 사용; VM 동작 영향 없음).
+    //
+    // I-0027: server 권위 시뮬레이터에서 emit 된 event 사본을 CapturedSpawnerEvents 에 보관.
+    // 호출자 (서버 rule) 가 AdvanceFrame 직후 GetEmittedSpawnerEvents() 로 가져가 batch.NewEvents
+    // 에 putback → client 도 동일 event 받아 deterministic 하게 Birch_Spawn 등을 재실행한다.
+    // 본 캡처는 매 ProcessBatch 진입 시 reset 되어 누적되지 않음.
+    CapturedSpawnerEvents.Reset();
     if (TerrainSource && TerrainSystem.EmittedSpawnerEvents.Num() > 0)
     {
+        CapturedSpawnerEvents = TerrainSystem.EmittedSpawnerEvents;  // 복사 — 아래 MoveTemp 직전에 보존
         TArray<FHktEvent> MergedEvents;
         MergedEvents.Reserve(Event.NewEvents.Num() + TerrainSystem.EmittedSpawnerEvents.Num());
         MergedEvents.Append(Event.NewEvents);

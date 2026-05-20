@@ -577,12 +577,24 @@ void FHktTerrainSystem::Process(
     // 1. 엔티티를 청크 단위로 중복 제거하여 수집
     //    같은 청크에 있는 엔티티 N개가 동일한 75개 항목을 중복 삽입하지 않도록,
     //    엔티티의 청크 좌표를 먼저 TSet에 모은 뒤 한 번만 반경 확장한다.
+    //
+    //    PlayerAnchorChunks 는 spawner attribution 발화 활성화에만 사용 (아래 §2 참조) —
+    //    "플레이어 주변이 아니면 spawner 를 발화하지 않는다" 정책 (I-0027). 자연 spawn 된
+    //    birch / NPC 가 cascade 로 spawner 를 재발화해 플레이어에서 멀어지는 현상 차단.
+    //    플레이어 식별: OwnerUid != 0 (Op_SpawnEntity 에서 Runtime.PlayerUid 가 있을 때만
+    //    OwnerUid 세팅 — 자연 spawn 엔티티는 0). 청크 로드 자체는 모든 엔티티 기준 유지.
     TSet<FIntVector> EntityChunks;
+    TSet<FIntVector> PlayerAnchorChunks;
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
         const FIntVector Pos = WorldState.GetPosition(Id);
         const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z, VS);
-        EntityChunks.Add(FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z));
+        const FIntVector ChunkCoord = FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
+        EntityChunks.Add(ChunkCoord);
+        if (WorldState.GetOwnerUid(Id) != 0)
+        {
+            PlayerAnchorChunks.Add(ChunkCoord);
+        }
     });
 
     // 1b. 이번 프레임 이벤트의 Location도 사전 로드 대상에 포함
@@ -622,13 +634,79 @@ void FHktTerrainSystem::Process(
         }
     }
 
+    // 1c. PlayerSpawnerChunks — 플레이어 앵커 청크의 LoadRadius 확장본.
+    //     아래 §2 에서 spawner attribution 발화 게이트로 사용. RequiredChunks 와는 별개
+    //     (RequiredChunks 는 모든 엔티티 기준이라 비-플레이어 엔티티 위치의 청크도 포함).
+    //     PlayerAnchorChunks 가 비어 있으면 (서버 부팅 직후 플레이어 미접속 등) 모든
+    //     spawner 발화가 자동으로 비활성 — 누구도 관찰하지 못하는 spawn 을 차단.
+    TSet<FIntVector> PlayerSpawnerChunks;
+    for (const FIntVector& ChunkCoord : PlayerAnchorChunks)
+    {
+        for (int32 DX = -LoadRadiusXY; DX <= LoadRadiusXY; ++DX)
+        {
+            for (int32 DY = -LoadRadiusXY; DY <= LoadRadiusXY; ++DY)
+            {
+                for (int32 DZ = -LoadRadiusZ; DZ <= LoadRadiusZ; ++DZ)
+                {
+                    const int32 CZ = ChunkCoord.Z + DZ;
+                    if (CZ < HeightMinZ || CZ > HeightMaxZ)
+                        continue;
+                    PlayerSpawnerChunks.Add(FIntVector(ChunkCoord.X + DX, ChunkCoord.Y + DY, CZ));
+                }
+            }
+        }
+    }
+
+    // 1d. 거리 정렬 — RequiredChunks 의 순회 순서를 플레이어 앵커 청크까지의 최단
+    //     chebyshev 거리 오름차순으로 고정. `TSet<FIntVector>` 의 해시 순서는 좌표와
+    //     무관하므로 `SimMaxChunkLoadsPerFrame` 예산이 *임의 위치* 청크에 소비될 수
+    //     있다 (I-0027 — 25 청크 중 4 청크가 해시 순으로 픽되면 cap 이 player 에서
+    //     먼 청크에 소진되어 birch 등이 90 m 떨어진 곳에 모이는 버그).
+    //     SortedLoadOrder 가 *가까운 청크* 우선 → cap 도 가까운 곳부터 소진.
+    //
+    //     PlayerAnchorChunks 가 비어 있는 경우 (서버 부팅 직후) 는 정렬 의미 없음 —
+    //     아래 §2 의 spawner 게이트가 어차피 모든 청크의 발화를 차단하므로 순서 무관.
+    SortedLoadOrder.Reset();
+    SortedLoadOrder.Reserve(RequiredChunks.Num());
+    for (const FIntVector& C : RequiredChunks)
+    {
+        SortedLoadOrder.Add(C);
+    }
+    if (PlayerAnchorChunks.Num() > 0)
+    {
+        // Chebyshev 거리 = max(|dx|, |dy|, |dz|). LoadRadius 가 박스 모양이라 동일 metric 사용.
+        auto MinChebyshevToPlayer = [&PlayerAnchorChunks](const FIntVector& C) -> int32
+        {
+            int32 Best = MAX_int32;
+            for (const FIntVector& P : PlayerAnchorChunks)
+            {
+                const int32 D = FMath::Max3(
+                    FMath::Abs(C.X - P.X),
+                    FMath::Abs(C.Y - P.Y),
+                    FMath::Abs(C.Z - P.Z));
+                if (D < Best) Best = D;
+            }
+            return Best;
+        };
+        SortedLoadOrder.Sort([&MinChebyshevToPlayer](const FIntVector& A, const FIntVector& B)
+        {
+            const int32 DA = MinChebyshevToPlayer(A);
+            const int32 DB = MinChebyshevToPlayer(B);
+            if (DA != DB) return DA < DB;
+            // 동률은 좌표 lexicographic 으로 — 결정론적 tie-break (TSet 해시 순서 누설 방지)
+            if (A.X != B.X) return A.X < B.X;
+            if (A.Y != B.Y) return A.Y < B.Y;
+            return A.Z < B.Z;
+        });
+    }
+
     // 2. 필요한 청크 로드 (프레임당 예산 제한으로 스파이크 방지)
     //    + 새로 로드된 청크의 spawner 메타 → 이번 프레임 dispatch 이벤트로 변환
     //    (Docs/Design-VoxelSpawner.md §7 Runtime Execution)
     EmittedSpawnerEvents.Reset();
     int32 LoadedThisFrame = 0;
     int32 SkippedInvalidSpawnerTags = 0;
-    for (const FIntVector& Coord : RequiredChunks)
+    for (const FIntVector& Coord : SortedLoadOrder)
     {
         if (!TerrainState.IsChunkLoaded(Coord))
         {
@@ -647,8 +725,13 @@ void FHktTerrainSystem::Process(
             // 클라(ProxySimulator) 가 미드조인 후 청크를 처음 로드해도 재발화 차단 —
             // 서버가 옛날에 만든 entity 는 WorldView replicate 로 이미 수신됨.
             // 청크 LoadChunk(위) 자체는 voxel 캐싱 목적이라 양쪽 모두 수행.
+            //
+            // I-0027: spawner attribution 발화는 PlayerSpawnerChunks (플레이어 앵커 청크의
+            // LoadRadius 확장) 에 한정. 비-플레이어 엔티티 위치의 청크가 로드되더라도
+            // spawner dispatch 는 스킵 — 자연 spawn 엔티티의 cascade 로 spawner 가 외곽으로
+            // 퍼져 나가는 현상 차단. 플레이어 미접속 시 발화 0.
             int32 EmittedFromThisChunk = 0;
-            if (bIsAuthoritative)
+            if (bIsAuthoritative && PlayerSpawnerChunks.Contains(Coord))
             {
                 // 청크의 spawner 메타 enumerate — Source 가 미지원이면 no-op (default impl).
                 // 명시 배치 spawner (보스/랜드마크/HktMapSpawnerAdapter) 가 본 경로로 발화.

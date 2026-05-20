@@ -18,6 +18,7 @@ public:
     virtual void AdvanceFrame(const FHktSimulationEvent& InEvent) override { Simulator->AdvanceFrame(InEvent); }
     virtual const FHktWorldState& GetWorldState() const override { return Simulator->GetWorldState(); }
     virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const override { return Simulator->ExportPlayerState(OwnerUid); }
+    virtual const TArray<FHktEvent>& GetEmittedSpawnerEvents() const override { return Simulator->GetEmittedSpawnerEvents(); }
 
     // IHktRelevancyGroup
     virtual const TArray<int64>& GetPlayerUids() const override { return PlayerUids; }

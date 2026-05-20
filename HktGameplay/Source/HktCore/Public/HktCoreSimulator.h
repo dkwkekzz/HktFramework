@@ -39,6 +39,19 @@ public:
     virtual FHktPlayerState ExportPlayerState(int64 OwnerUid) const = 0;
     virtual void RestoreWorldState(const FHktWorldState& InState) = 0;
 
+    /**
+     * 직전 `AdvanceFrame` 에서 TerrainSystem 이 emit 한 spawner / voxel-attribution event 목록.
+     *
+     * 서버 권위 시뮬레이터에서만 비어있지 않다 (클라 proxy 는 `bIsAuthoritative=false` 라
+     * 항상 빈 배열). 서버 `OnEvent_GameModeTick` 이 `Simulator.AdvanceFrame()` 직후
+     * 본 메서드를 호출하여 결과를 `GroupBatch.NewEvents` 에 putback → client 가 동일
+     * event 를 받아 deterministic 하게 `Birch_Spawn` 등을 재실행 → server/client 동기화
+     * (I-0027).
+     *
+     * 본 list 는 다음 `AdvanceFrame` 호출 시 reset 된다 — 호출자가 즉시 소비해야 함.
+     */
+    virtual const TArray<FHktEvent>& GetEmittedSpawnerEvents() const = 0;
+
     /** Diff 역적용 — 프레임 변경 되돌리기 (클라이언트 예측 롤백용) */
     virtual void UndoDiff(const FHktSimulationDiff& Diff) = 0;
 
