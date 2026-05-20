@@ -451,6 +451,19 @@
     display: flex; align-items: center; gap: 4px;
     margin-bottom: 4px; flex-wrap: wrap;
   }
+  .graph-card .gc-toggle {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 3px;
+    padding: 0 4px; font-size: 10px; line-height: 1.4;
+    cursor: pointer; font: inherit; font-size: 10px;
+    min-width: 18px; text-align: center;
+  }
+  .graph-card .gc-toggle:hover { background: var(--panel2); color: var(--text); }
+  .graph-card.collapsed { border-style: dashed; }
+  .graph-card .gc-hidden-count {
+    display: inline-block; font-size: 10px; padding: 0 5px;
+    border-radius: 8px; background: var(--line); color: var(--muted);
+  }
   .graph-card .gc-id {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     color: var(--accent); font-size: 11px; font-weight: 600;
@@ -1117,6 +1130,7 @@
   const tabGraphBtn = document.getElementById('tab-graph');
   let activeView = 'stack';
   let graphZoom = 1;
+  const graphCollapsed = new Set();
   const GRAPH_CARD_W = 220;
   const GRAPH_CARD_H = 92;
   const GRAPH_GAP_X  = 80;
@@ -1125,11 +1139,48 @@
 
   function computeGraphLayout() {
     // _pending === 'delete' 도 표시(취소 가능하도록) — 시각적으로만 죽은 상태로.
-    const items = DATA.intents.slice();
+    const allItems = DATA.intents.slice();
     const byId = Object.create(null);
-    for (const it of items) byId[it.id] = it;
+    for (const it of allItems) byId[it.id] = it;
 
-    // 깊이 계산: parents 가 없으면 0, 있으면 max(parent depth)+1.
+    // 가시성 BFS: 루트(부모 없음)에서 출발, 접힌(collapsed) 노드의 자식은 전파하지 않는다.
+    // 다른 비-접힘 경로로 도달 가능한 후손은 그대로 노출 — DAG semantics.
+    const visible = new Set();
+    const queue = [];
+    for (const it of allItems) {
+      const realParents = (it.parents || []).filter(p => byId[p]);
+      if (!realParents.length) { visible.add(it.id); queue.push(it.id); }
+    }
+    while (queue.length) {
+      const curId = queue.shift();
+      if (graphCollapsed.has(curId)) continue; // 접힘 — 후손 전파 차단
+      const cur = byId[curId]; if (!cur) continue;
+      for (const cid of (cur.children || [])) {
+        if (!byId[cid] || visible.has(cid)) continue;
+        visible.add(cid); queue.push(cid);
+      }
+    }
+    const items = allItems.filter(it => visible.has(it.id));
+
+    // 접힌 노드별 숨겨진 후손 수 — 카드 배지에 표시.
+    const hiddenCount = Object.create(null);
+    for (const cid of graphCollapsed) {
+      if (!byId[cid] || !visible.has(cid)) continue;
+      const seen = new Set();
+      const stack = [cid];
+      while (stack.length) {
+        const top = stack.pop();
+        for (const ch of (byId[top]?.children || [])) {
+          if (!byId[ch] || seen.has(ch)) continue;
+          seen.add(ch); stack.push(ch);
+        }
+      }
+      let n = 0;
+      for (const id of seen) if (!visible.has(id)) n++;
+      if (n > 0) hiddenCount[cid] = n;
+    }
+
+    // 깊이 계산: 보이는 + 접히지 않은 부모만 고려 (접힌 부모를 통해선 본 노드가 자식이라 표시될 수 없으므로 컬럼 산정에서 제외).
     // 순환은 데이터 검증 단계에서 차단되지만, 안전을 위해 visiting 가드 사용.
     const depth = Object.create(null);
     function depthOf(id, visiting) {
@@ -1137,7 +1188,7 @@
       if (visiting.has(id)) return 0;
       const it = byId[id];
       if (!it) return 0;
-      const parents = (it.parents || []).filter(p => byId[p]);
+      const parents = (it.parents || []).filter(p => byId[p] && visible.has(p) && !graphCollapsed.has(p));
       if (!parents.length) { depth[id] = 0; return 0; }
       visiting.add(id);
       let d = 0;
@@ -1206,13 +1257,13 @@
     const maxDepth = depths.length ? depths[depths.length - 1] : 0;
     const width  = GRAPH_PAD * 2 + (maxDepth + 1) * GRAPH_CARD_W + maxDepth * GRAPH_GAP_X;
     const height = GRAPH_PAD * 2 + (maxRow + 1) * GRAPH_CARD_H + maxRow * GRAPH_GAP_Y;
-    return { positions, width, height, items };
+    return { positions, width, height, items, hiddenCount };
   }
 
   function renderGraph() {
     if (graphViewEl.hidden) return;
     const layout = computeGraphLayout();
-    const { positions, width, height, items } = layout;
+    const { positions, width, height, items, hiddenCount } = layout;
 
     if (!items.length) {
       graphCardsEl.innerHTML = '';
@@ -1263,12 +1314,17 @@
     // 카드 렌더링 — 기존 카드를 재사용하지 않고 매번 재생성(간결).
     graphCardsEl.innerHTML = '';
     const frag = document.createDocumentFragment();
+    const allById = Object.create(null);
+    for (const it of DATA.intents) allById[it.id] = it;
     for (const it of items) {
       const pos = positions[it.id]; if (!pos) continue;
       const card = document.createElement('div');
       const cls = ['graph-card'];
       if (inStack(it.id)) cls.push(isTip(it.id) ? 'tip' : 'in-stack');
       if (it._pending) cls.push('pending-' + it._pending);
+      const isCollapsed = graphCollapsed.has(it.id);
+      const hasChildren = (it.children || []).some(cid => !!allById[cid]);
+      if (isCollapsed) cls.push('collapsed');
       card.className = cls.join(' ');
       card.style.left = pos.x + 'px';
       card.style.top  = pos.y + 'px';
@@ -1281,14 +1337,31 @@
            ? `<span class="pending-chip delete">삭제</span>`
            : `<span class="pending-chip">${it._pending === 'create' ? '추가' : '수정'}</span>`)
         : '';
+      const toggleBtn = hasChildren
+        ? `<button class="gc-toggle" type="button" data-toggle="${escape(it.id)}" title="${isCollapsed ? '펼치기' : '접기'}">${isCollapsed ? '▶' : '▼'}</button>`
+        : '';
+      const hiddenChip = (isCollapsed && hiddenCount[it.id])
+        ? `<span class="gc-hidden-count" title="숨겨진 후손">+${hiddenCount[it.id]}</span>`
+        : '';
       card.innerHTML =
           `<div class="gc-head">`
+        + `${toggleBtn}`
         + `<span class="gc-id">${escape(it.id)}</span>`
         + `<span class="gc-status ${escape(it.status)}">${escape(it.status)}</span>`
-        + `${pillHtml(it)}${pendingChip}`
+        + `${pillHtml(it)}${pendingChip}${hiddenChip}`
         + `</div>`
         + `<div class="gc-title">${escape(it.title)}</div>`;
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        // 토글 버튼 클릭은 카드 진입과 분리.
+        const t = e.target;
+        if (t instanceof HTMLElement && t.dataset.toggle) {
+          e.stopPropagation();
+          const id = t.dataset.toggle;
+          if (graphCollapsed.has(id)) graphCollapsed.delete(id);
+          else graphCollapsed.add(id);
+          renderGraph();
+          return;
+        }
         // 카드 선택 → 리스트 탭으로 전환 후 해당 의도로 진입.
         switchView('stack');
         setRoot(it.id);
