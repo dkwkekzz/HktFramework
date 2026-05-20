@@ -1,0 +1,34 @@
+{
+  "storyTag": "Story.Flow.Player.Lifecycle",
+  "description": "PlayerLifecycle (I-0016): 매-프레임 Brain 루프. ActionIntent 를 해석해 이동/공격을 결정. State.Dead 가 붙으면 die 분기 진입 (Player 는 destroy 안 함).",
+  "scenarios": [
+    {
+      "name": "dead_player_halts_with_death_anim",
+      "description": "초기에 State.Dead 가 붙은 Player → 첫 Yield 후 die 분기 → 사망 애니 태그 부착 후 Halt.",
+      "given": {
+        "self": {
+          "properties": { "Health": 0, "MaxHealth": 100 },
+          "tags": ["State.Dead"],
+          "position": [0, 0, 0]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": { "tags": ["Anim.FullBody.Action.Death"] }
+      }
+    },
+    {
+      "name": "idle_player_keeps_looping",
+      "description": "ActionIntentType=0 (idle) + Health>0 → brain 은 매 프레임 yield 하며 영구 루프. 하니스 maxFrames 도달 시 status=Waiting.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": { "Health": 100, "MaxHealth": 100, "ActionIntentType": 0 },
+          "position": [0, 0, 0]
+        }
+      },
+      "maxFrames": 5,
+      "expect": { "status": "Waiting" }
+    }
+  ]
+}

@@ -30,6 +30,10 @@ namespace HktStoryTags
 	// --- NPC Flow ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_NPC_Lifecycle);            // Story.Flow.NPC.Lifecycle
 
+	// --- Player Flow (I-0016) ---
+	// Player 캐릭터의 매-프레임 Brain 루프 + 죽음 처리. JSON: Story_PlayerLifecycle.json.
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Player_Lifecycle);          // Story.Flow.Player.Lifecycle
+
 	// --- Debris Flow ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Debris_Lifecycle);         // Story.Flow.Debris.Lifecycle
 
