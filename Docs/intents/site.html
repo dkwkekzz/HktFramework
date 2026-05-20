@@ -173,6 +173,23 @@
   .card.tip .card-body pre { background: var(--bg); }
   .card-body ul.linked { padding-left: 18px; margin: 6px 0; }
   .card-body ul.linked li { margin-bottom: 4px; line-height: 1.4; }
+  /* 구현 섹션: 외부(GitHub) 링크는 강조하여 클릭 가능함을 명확히 한다. */
+  .card-body ul.linked.impl { padding-left: 18px; }
+  .card-body ul.linked.impl li { margin-bottom: 6px; }
+  .card-body ul.linked.impl a,
+  .card-body p.impl-p a {
+    color: var(--accent); text-decoration: none; border-bottom: 1px dashed transparent;
+  }
+  .card-body ul.linked.impl a:hover,
+  .card-body p.impl-p a:hover {
+    border-bottom-color: var(--accent);
+  }
+  /* 외부 GitHub 링크임을 시각적으로 표시 — ↗ 아이콘 */
+  .card-body ul.linked.impl a[target="_blank"]::after,
+  .card-body p.impl-p a[target="_blank"]::after {
+    content: ' ↗'; font-size: 10px; color: var(--muted); margin-left: 1px;
+  }
+  .card-body p.impl-p { margin: 6px 0; line-height: 1.5; color: var(--muted); }
   .card-body code {
     background: var(--panel); padding: 1px 5px; border-radius: 3px;
     font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -959,6 +976,135 @@
     return html;
   }
 
+  // ── 구현 섹션 렌더링 ────────────────────────────────────────────────────────
+  // `## 구현` 블록의 markdown bullet/inline-link 를 HTML 로 변환하고,
+  // 상대 경로 링크는 GitHub URL 로 재작성한다 (target=_blank). 코드 모듈은 tree, 파일은 blob.
+  // 외부(http/https) 링크는 그대로 보존한다.
+  const GITHUB_REPO = (document.querySelector('meta[name="github-repo"]') || {}).content || '';
+  // 본 SPA 는 intent 의 .md 파일 위치 (Docs/intents/) 를 기준으로 상대 경로를 해석한다.
+  // 코드/디자인 문서 링크는 `main` 브랜치를 가리킨다 — `intents/draft` 는 의도 변경만 담는 임시 브랜치.
+  const GITHUB_SRC_BRANCH = 'main';
+  const INTENT_DIR_PARTS = ['Docs', 'intents'];
+
+  function resolveRepoUrl(href) {
+    if (!href) return null;
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(href) || href.startsWith('mailto:')) return href;
+    if (href.startsWith('#')) return null;
+    if (!GITHUB_REPO) return null;
+    // fragment / query 분리
+    let hash = '', query = '';
+    const hashIdx = href.indexOf('#');
+    if (hashIdx !== -1) { hash = href.slice(hashIdx); href = href.slice(0, hashIdx); }
+    const qIdx = href.indexOf('?');
+    if (qIdx !== -1) { query = href.slice(qIdx); href = href.slice(0, qIdx); }
+    // 경로 해석 — `..` 는 한 단계 상승, `.` 와 빈 세그먼트는 무시
+    const parts = INTENT_DIR_PARTS.slice();
+    const startsAbs = href.startsWith('/');
+    if (startsAbs) { parts.length = 0; href = href.replace(/^\/+/, ''); }
+    for (const seg of href.split('/')) {
+      if (seg === '..') { if (parts.length) parts.pop(); }
+      else if (seg === '.' || seg === '') continue;
+      else {
+        // 이미 percent-encoded 인 입력(`%20` 등) 을 다시 encodeURIComponent 하면 `%2520` 으로
+        // 이중 인코딩되므로, 먼저 안전하게 decode 한 뒤 push 한다 — 마지막 단계에서 일괄 재인코딩.
+        let decoded;
+        try { decoded = decodeURIComponent(seg); } catch { decoded = seg; }
+        parts.push(decoded);
+      }
+    }
+    if (!parts.length) return null;
+    const last = parts[parts.length - 1];
+    // 파일 확장자 유무로 blob/tree 판별 (디렉토리는 tree)
+    const view = /\.[A-Za-z0-9]+$/.test(last) ? 'blob' : 'tree';
+    const encoded = parts.map(p => encodeURIComponent(p)).join('/');
+    return `https://github.com/${GITHUB_REPO}/${view}/${GITHUB_SRC_BRANCH}/${encoded}${query}${hash}`;
+  }
+
+  function renderInlineMd(text) {
+    // 지원 — `code`, [label](href), **bold**, *em*. 단순 left-to-right 스캐너.
+    let out = '';
+    let i = 0;
+    while (i < text.length) {
+      const ch = text[i];
+      if (ch === '[') {
+        const close = text.indexOf('](', i + 1);
+        if (close !== -1) {
+          const paren = text.indexOf(')', close + 2);
+          if (paren !== -1) {
+            const label = text.slice(i + 1, close);
+            const href = text.slice(close + 2, paren).trim();
+            const url = resolveRepoUrl(href);
+            if (url) {
+              out += `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${renderInlineMd(label)}</a>`;
+            } else {
+              out += renderInlineMd(label);
+            }
+            i = paren + 1;
+            continue;
+          }
+        }
+      }
+      if (ch === '`') {
+        const close = text.indexOf('`', i + 1);
+        if (close !== -1) {
+          out += `<code>${escape(text.slice(i + 1, close))}</code>`;
+          i = close + 1;
+          continue;
+        }
+      }
+      if (ch === '*' && text[i + 1] === '*') {
+        const close = text.indexOf('**', i + 2);
+        if (close !== -1) {
+          out += `<strong>${renderInlineMd(text.slice(i + 2, close))}</strong>`;
+          i = close + 2;
+          continue;
+        }
+      }
+      if (ch === '*') {
+        const close = text.indexOf('*', i + 1);
+        if (close !== -1 && close > i + 1) {
+          out += `<em>${renderInlineMd(text.slice(i + 1, close))}</em>`;
+          i = close + 1;
+          continue;
+        }
+      }
+      out += escape(ch);
+      i++;
+    }
+    return out;
+  }
+
+  function renderImplementationSection(implText) {
+    const trimmed = (implText || '').trim();
+    if (!trimmed) {
+      return `<h2><span><span class="arrow">📦</span>구현</span><span class="count">0</span></h2>`
+           + `<div class="none">(연결된 구현 없음)</div>`;
+    }
+    const lines = trimmed.split('\n');
+    let html = '';
+    let inList = false;
+    let bulletCount = 0;
+    for (const raw of lines) {
+      const line = raw.replace(/\s+$/, '');
+      if (!line.trim()) {
+        if (inList) { html += '</ul>'; inList = false; }
+        continue;
+      }
+      const bm = line.match(/^[\s]*[-*]\s+(.*)$/);
+      if (bm) {
+        if (!inList) { html += '<ul class="linked impl">'; inList = true; }
+        html += `<li>${renderInlineMd(bm[1])}</li>`;
+        bulletCount++;
+      } else {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += `<p class="impl-p">${renderInlineMd(line.trim())}</p>`;
+      }
+    }
+    if (inList) html += '</ul>';
+    return `<h2><span><span class="arrow">📦</span>구현</span>`
+         + `<span class="count">${bulletCount}</span></h2>` + html;
+  }
+
   function renderCard(id, idx) {
     const card = document.createElement('article');
     card.className = 'card';
@@ -1006,8 +1152,9 @@
           <span class="copied" hidden>복사됨</span>
         </div>
         <h2><span><span class="arrow">📝</span>Intent</span><span class="count"></span></h2>
-        <pre>${escape(it.intent || '(미작성)')}</pre>
-        <h2><span><span class="arrow">🎯</span>Linked Goals</span>`
+        <pre>${escape(it.intent || '(미작성)')}</pre>`
+        + renderImplementationSection(it.implementation)
+        + `<h2><span><span class="arrow">🎯</span>Linked Goals</span>`
         + `<span class="count">${(it.goals || []).length}</span></h2>`
         + `<ul class="linked">${goalsHtml}</ul>`
         + renderRelationSection('↑', 'parents', it.parents || [], idx, 0,

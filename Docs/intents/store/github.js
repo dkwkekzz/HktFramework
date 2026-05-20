@@ -134,15 +134,20 @@ function _parseMd(text) {
     i++;
   }
 
-  // ## Intent 섹션 추출 — JS regex 는 \Z 미지원이라 수동으로 자른다.
-  let intentText = '';
-  const headerRe = /^##\s+Intent\s*$/m;
-  const headerMatch = body.match(headerRe);
-  if (headerMatch) {
-    const after = body.slice(headerMatch.index + headerMatch[0].length);
+  // 본문 섹션 추출 — `## <헤더>` 다음부터 다음 `## ` 또는 끝까지. JS regex 는 \Z 미지원이라 수동 절단.
+  function extractSection(headerPattern) {
+    const re = new RegExp(`^##\\s+${headerPattern}\\s*$`, 'm');
+    const m = body.match(re);
+    if (!m) return '';
+    const after = body.slice(m.index + m[0].length);
     const next = after.search(/^##\s+/m);
-    intentText = (next === -1 ? after : after.slice(0, next)).trim();
+    return (next === -1 ? after : after.slice(0, next)).trim();
   }
+
+  const intentText = extractSection('Intent');
+  // `## 구현` (정식 섹션) — leaf intent 의 실제 모듈/문서 링크가 여기 들어간다.
+  // `## 구현 요약` 같은 narrative 변형은 현재 한 곳(I-0016) 에서만 쓰이며 본문 텍스트로만 가치가 있어 round-trip 대상에서 제외.
+  const implementationText = extractSection('구현');
 
   return {
     id: fm['id'] || '',
@@ -155,6 +160,7 @@ function _parseMd(text) {
     tags: Array.isArray(fm['tags']) ? fm['tags'] : [],
     goals: Array.isArray(fm['goals']) ? fm['goals'] : [],
     intent: intentText,
+    implementation: implementationText,
   };
 }
 
@@ -193,7 +199,9 @@ function _serializeIntent(intent) {
   lines.push('---');
   const fm = lines.join('\n');
 
-  const body = `\n## Intent\n\n${intent.intent || ''}`;
+  let body = `\n## Intent\n\n${intent.intent || ''}`;
+  const impl = (intent.implementation || '').trim();
+  if (impl) body += `\n\n## 구현\n\n${impl}`;
   return fm + '\n' + body + '\n';
 }
 
