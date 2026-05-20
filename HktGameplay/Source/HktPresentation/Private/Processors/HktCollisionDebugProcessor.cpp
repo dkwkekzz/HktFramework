@@ -6,9 +6,13 @@
 
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
+#include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "HktCollisionLayers.h"
 #include "HktCollisionDebugTracer.h"
+#include "HktSelectable.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 static TAutoConsoleVariable<int32> CVarShowCollision(
@@ -43,6 +47,14 @@ static TAutoConsoleVariable<int32> CVarCollisionPairLifetime(
 	TEXT("Collision pair line fade-out duration in sim frames (30Hz → 15 = 0.5s)"),
 	ECVF_Default);
 
+// IHktSelectable 액터의 실제 픽업 볼륨 시각화. ECC_Visibility blocking PrimitiveComponent 만 대상.
+// sim capsule (hkt.Debug.ShowCollision 으로 녹색) 과 overlay 해서 비교 가능.
+static TAutoConsoleVariable<int32> CVarShowSelectableHitbox(
+	TEXT("hkt.Debug.ShowSelectableHitbox"),
+	0,
+	TEXT("Draw actor-side pickup volume for every IHktSelectable. 0=off, 1=orange overlay"),
+	ECVF_Default);
+
 static FColor GetCollisionLayerColor(int32 Layer)
 {
 	if (Layer & EHktCollisionLayer::Character)  return FColor(77, 153, 255);
@@ -64,11 +76,12 @@ void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 	const int32 Mode = CVarShowCollision.GetValueOnGameThread();
 	const int32 PosMode = CVarShowEntityPos.GetValueOnGameThread();
 	const int32 PairsMode = CVarShowCollisionPairs.GetValueOnGameThread();
+	const int32 HitboxMode = CVarShowSelectableHitbox.GetValueOnGameThread();
 
 	// CVar 가 꺼지면 시뮬레이션 측 push 도 중단 — bEnabled 게이트로 zero-cost.
 	FHktCollisionDebugTracer::Get().SetEnabled(PairsMode > 0);
 
-	if (Mode <= 0 && PosMode <= 0 && PairsMode <= 0) return;
+	if (Mode <= 0 && PosMode <= 0 && PairsMode <= 0 && HitboxMode <= 0) return;
 
 	UWorld* World = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
 	if (!World) return;
@@ -81,6 +94,11 @@ void FHktCollisionDebugProcessor::Sync(FHktPresentationState& State)
 	if (PairsMode > 0)
 	{
 		DrawCollisionPairs(World, State);
+	}
+
+	if (HitboxMode > 0)
+	{
+		DrawSelectableHitboxes(World, State);
 	}
 
 	if (Mode <= 0) return;
@@ -271,6 +289,53 @@ void FHktCollisionDebugProcessor::DrawCollisionPairs(UWorld* World, const FHktPr
 		const FColor ContactColor(255, 60, 60, Alpha);
 		DrawDebugPoint(World, P.ContactPoint, /*Size*/12.f, ContactColor,
 			/*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World);
+	}
+}
+
+// --------------------------------------------------------------------------- IHktSelectable 액터의 실제 픽업 볼륨
+
+void FHktCollisionDebugProcessor::DrawSelectableHitboxes(UWorld* World, const FHktPresentationState& State)
+{
+	// sim capsule (녹색·`hkt.Debug.ShowCollision`) 과 비교용 — 액터 쪽에서 실제로
+	// PlayerController::GetHitResultUnderCursor(ECC_Visibility) 가 잡는 PrimitiveComponent 의
+	// 볼륨을 그대로 그려, 픽업 영역과 sim 충돌 영역의 어긋남을 즉시 눈에 보이게 한다.
+	const FColor BoxColor(255, 150, 30);     // 주황
+	const FColor CapsuleColor(255, 200, 60); // 옅은 주황
+
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!Actor || !Actor->Implements<UHktSelectable>()) continue;
+
+		const IHktSelectable* Sel = Cast<IHktSelectable>(Actor);
+		if (!Sel) continue;
+
+		TInlineComponentArray<UPrimitiveComponent*> Prims(Actor);
+		for (UPrimitiveComponent* Prim : Prims)
+		{
+			if (!Prim || !Prim->IsRegistered()) continue;
+			if (Prim->GetCollisionEnabled() == ECollisionEnabled::NoCollision) continue;
+			if (Prim->GetCollisionResponseToChannel(ECC_Visibility) != ECR_Block) continue;
+
+			if (UCapsuleComponent* Cap = Cast<UCapsuleComponent>(Prim))
+			{
+				DrawDebugCapsule(
+					World,
+					Cap->GetComponentLocation(),
+					Cap->GetScaledCapsuleHalfHeight(),
+					Cap->GetScaledCapsuleRadius(),
+					Cap->GetComponentQuat(),
+					CapsuleColor,
+					/*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/1.5f);
+			}
+			else
+			{
+				// 일반 PrimitiveComponent (StaticMesh / Voxel chunk / Box 등) — 바운딩으로 그린다.
+				const FBoxSphereBounds B = Prim->Bounds;
+				DrawDebugBox(World, B.Origin, B.BoxExtent, FQuat::Identity,
+					BoxColor, /*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/1.0f);
+			}
+		}
 	}
 }
 

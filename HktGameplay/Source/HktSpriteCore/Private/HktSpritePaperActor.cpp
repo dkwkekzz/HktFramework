@@ -13,7 +13,7 @@
 #include "HktPresentationSubsystem.h"
 
 #include "Camera/PlayerCameraManager.h"
-#include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -70,23 +70,23 @@ AHktSpritePaperActor::AHktSpritePaperActor()
 	// Paper2D PaperSprite 의 기본 평면 normal 은 로컬 -Y. 카메라를 정면으로 향하게 하려면
 	// 액터 Yaw = CameraYaw - 90° (Tick 의 빌보드 회전 적용 위치 참조).
 
-	// HitBox — click pick 전용. RootScene 에 부착 + absolute rotation 으로 billboard 회전(특히 pitch)
-	// 영향을 차단한다. 크기는 VM property 가 권위 — ApplyPhysics 에서 CollisionRadius/HalfHeight 로
-	// 갱신. 생성자 기본값은 HktUnitActor 의 캡슐 폴백(50/90) 과 동일.
-	// HktCore 의 entity 위치는 *발* 기준 (RenderLocation = foot). ActorLocation 도 foot 이므로
-	// HitBox 가 sprite 의 발~머리를 덮으려면 박스 중심을 +HalfHeight 만큼 위로 올려야 한다.
-	// (안 그러면 박스 절반이 지면 아래로 깔리고 머리 클릭이 빠진다 — nameplate 만 잡히는 원인.)
-	HitBox = CreateDefaultSubobject<UBoxComponent>(TEXT("HitBox"));
-	HitBox->SetupAttachment(RootScene);
-	HitBox->SetUsingAbsoluteRotation(true);
-	HitBox->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
-	HitBox->SetBoxExtent(FVector(50.f, 50.f, 90.f), /*bUpdateOverlaps=*/false);
-	HitBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	HitBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-	HitBox->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	HitBox->SetGenerateOverlapEvents(false);
-	HitBox->SetCanEverAffectNavigation(false);
-	HitBox->bHiddenInGame = true;
+	// HitCapsule — click pick 전용. RootScene 에 부착 + absolute rotation 으로 billboard 회전(특히
+	// pitch) 영향을 차단한다. 크기는 VM property 가 권위 — ApplyPhysics 에서 CollisionRadius/
+	// CollisionHalfHeight 를 그대로 SetCapsuleSize. 생성자 기본값은 HktUnitActor 의 캡슐 폴백
+	// (R=50, HH=90) 과 동일.
+	// HktCore 의 entity 위치는 *발* 기준 (RenderLocation = foot). UCapsuleComponent origin = 캡슐
+	// 중심이므로 RelLoc.Z = HalfHeight 로 두면 캡슐 발이 ActorLocation 에 정확히 닿는다.
+	HitCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("HitCapsule"));
+	HitCapsule->SetupAttachment(RootScene);
+	HitCapsule->SetUsingAbsoluteRotation(true);
+	HitCapsule->SetRelativeLocation(FVector(0.f, 0.f, 90.f));
+	HitCapsule->InitCapsuleSize(50.f, 90.f);
+	HitCapsule->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	HitCapsule->SetCollisionResponseToAllChannels(ECR_Ignore);
+	HitCapsule->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	HitCapsule->SetGenerateOverlapEvents(false);
+	HitCapsule->SetCanEverAffectNavigation(false);
+	HitCapsule->bHiddenInGame = true;
 }
 
 // ----------------------------------------------------------------------------
@@ -180,17 +180,17 @@ namespace
 void AHktSpritePaperActor::ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce)
 {
 	// HktUnitActor::ApplyPhysics 와 동일한 패턴 — VM property 1:1 반영.
-	// Property 가 0 이면 갱신 자체를 스킵해 생성자 기본값(50/50/90, 중심 Z=90) 유지.
-	// 박스 중심을 +HalfHeight 만큼 위로 올려 바닥이 entity foot (ActorLocation.Z) 에 닿게 한다 —
-	// HktCore 의 entity 위치가 발 기준이므로 그렇지 않으면 sprite 머리 부분이 트레이스를 빠져나간다.
+	// Property 가 0 이면 갱신 자체를 스킵해 생성자 기본값(R=50/HH=90, 중심 Z=90) 유지.
+	// 캡슐 중심을 +HalfHeight 만큼 위로 올려 캡슐 발이 entity foot (ActorLocation.Z) 에 닿게 한다 —
+	// HktCore narrow-phase 캡슐과 동일 좌표계로 정렬되어야 픽업과 시뮬레이션 충돌이 일치한다.
 	if (!bForce && !V.CollisionRadius.IsDirty(Frame) && !V.CollisionHalfHeight.IsDirty(Frame)) return;
 	const float Radius = V.CollisionRadius.Get();
 	if (Radius <= 0.f) return;
 	const float HalfHeight = FMath::Max(V.CollisionHalfHeight.Get(), Radius);
-	if (HitBox)
+	if (HitCapsule)
 	{
-		HitBox->SetRelativeLocation(FVector(0.f, 0.f, HalfHeight));
-		HitBox->SetBoxExtent(FVector(Radius, Radius, HalfHeight), /*bUpdateOverlaps=*/false);
+		HitCapsule->SetRelativeLocation(FVector(0.f, 0.f, HalfHeight));
+		HitCapsule->SetCapsuleSize(Radius, HalfHeight, /*bUpdateOverlaps=*/false);
 	}
 }
 

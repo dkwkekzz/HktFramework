@@ -20,6 +20,7 @@ class ULocalPlayer;
  *   hkt.Debug.EntityPosSphereRadius sphere 반경 (cm)
  *   hkt.Debug.ShowCollisionPairs    0=끄기, 1=FHktPhysicsSystem 검출 충돌 페어 라인 + ContactPoint
  *   hkt.Debug.CollisionPairLifetime fade-out 지속 sim frame 수 (default 15)
+ *   hkt.Debug.ShowSelectableHitbox  0=끄기, 1=IHktSelectable 액터의 실제 픽업 볼륨 overlay (주황)
  */
 class FHktCollisionDebugProcessor : public IHktPresentationProcessor
 {
@@ -36,6 +37,7 @@ private:
 	void DrawDetectionRange(UWorld* World, const FHktPresentationState& State);
 	void DrawVoxelCells(UWorld* World, const FHktPresentationState& State);
 	void DrawCollisionPairs(UWorld* World, const FHktPresentationState& State);
+	void DrawSelectableHitboxes(UWorld* World, const FHktPresentationState& State);
 
 	TWeakObjectPtr<ULocalPlayer> LocalPlayer;
 };
