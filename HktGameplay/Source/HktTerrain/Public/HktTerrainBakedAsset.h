@@ -10,12 +10,62 @@
 #include "HktTerrainBakedAsset.generated.h"
 
 /**
+ * EHktTerrainVoxelType — Voxel TypeID 의 디자이너용 UENUM 표현.
+ *
+ * `HktTerrainType` / `HktAdvTerrainType` 네임스페이스(런타임 uint16 상수) 와 동일 정수값을
+ * 갖는 reflection-friendly 미러. Editor 의 spawn rule 편집 UI 에서 정수 ID 대신 의미 있는
+ * 이름으로 노출하기 위한 용도. 신규 타입 추가 시 namespace / EHktTerrainType (HktVoxelTerrain)
+ * / 본 enum 세 곳을 모두 동기화한다.
+ */
+UENUM(BlueprintType)
+enum class EHktTerrainVoxelType : uint8
+{
+	Air            = 0  UMETA(DisplayName = "Air (Empty)"),
+	Grass          = 1  UMETA(DisplayName = "Grass"),
+	Dirt           = 2  UMETA(DisplayName = "Dirt"),
+	Stone          = 3  UMETA(DisplayName = "Stone"),
+	Sand           = 4  UMETA(DisplayName = "Sand"),
+	Water          = 5  UMETA(DisplayName = "Water (Translucent)"),
+	Snow           = 6  UMETA(DisplayName = "Snow"),
+	Ice            = 7  UMETA(DisplayName = "Ice (Translucent)"),
+	Gravel         = 8  UMETA(DisplayName = "Gravel"),
+	Clay           = 9  UMETA(DisplayName = "Clay"),
+	Bedrock        = 10 UMETA(DisplayName = "Bedrock"),
+	Glass          = 11 UMETA(DisplayName = "Glass (Translucent)"),
+
+	GrassFlower    = 12 UMETA(DisplayName = "Grass - Flower"),
+	StoneMossy     = 13 UMETA(DisplayName = "Stone - Mossy"),
+	CrystalGrass   = 14 UMETA(DisplayName = "Crystal Grass"),
+	GrassEthereal  = 15 UMETA(DisplayName = "Grass - Ethereal"),
+	MossGlow       = 16 UMETA(DisplayName = "Moss - Glow (Emissive)"),
+	SoilDark       = 17 UMETA(DisplayName = "Soil - Dark"),
+	SandBleached   = 18 UMETA(DisplayName = "Sand - Bleached"),
+	StoneFractured = 19 UMETA(DisplayName = "Stone - Fractured"),
+
+	BoneFragment   = 20 UMETA(DisplayName = "Bone Fragment"),
+	CrystalShard   = 21 UMETA(DisplayName = "Crystal Shard (Emissive)"),
+	Wood           = 22 UMETA(DisplayName = "Wood"),
+	Leaves         = 23 UMETA(DisplayName = "Leaves"),
+	LeavesSnow     = 24 UMETA(DisplayName = "Leaves - Snow"),
+	Cactus         = 25 UMETA(DisplayName = "Cactus"),
+	Mushroom       = 26 UMETA(DisplayName = "Mushroom"),
+	MushroomGlow   = 27 UMETA(DisplayName = "Mushroom - Glow (Emissive)"),
+
+	OreCoal        = 28 UMETA(DisplayName = "Ore - Coal"),
+	OreIron        = 29 UMETA(DisplayName = "Ore - Iron"),
+	OreGold        = 30 UMETA(DisplayName = "Ore - Gold"),
+	OreCrystal     = 31 UMETA(DisplayName = "Ore - Crystal (Emissive)"),
+	OreVoidstone   = 32 UMETA(DisplayName = "Ore - Voidstone (Emissive)"),
+};
+
+/**
  * FHktVoxelSpawnRule — 단일 voxel type 의 후보 spawner 1개.
  *
  * `FHktTerrainBakedConfig::VoxelSpawnRules` 가 본 구조체의 flat array 로 보유.
  * BakeRegion 이 voxel type 별로 그룹핑하여 weighted-pick 룩업 테이블을 빌드한다.
+ * 동일 `VoxelType` 키에 *복수* 엔트리 등록 허용 — 그것이 다양성의 본질.
  *
- *   - `VoxelTypeID == 0` 또는 `Weight <= 0` 인 엔트리는 무시.
+ *   - `VoxelType == Air` 또는 `Weight <= 0` 인 엔트리는 무시.
  *   - `StoryTag` 가 invalid (`None`) 이면 "skip 슬롯" — 해당 weight 만큼 *아무것도
  *     spawn 하지 않을* 확률을 표현. attribution 미부여 → catalog 미등록.
  *
@@ -27,9 +77,9 @@ struct HKTTERRAIN_API FHktVoxelSpawnRule
 {
 	GENERATED_BODY()
 
-	/** 대상 voxel TypeID (예: 1=Grass / 4=Sand / 6=Snow). 0 = 무시. */
+	/** 대상 voxel 타입. Air = 무시. 동일 타입을 가진 여러 엔트리를 등록할 수 있다. */
 	UPROPERTY(EditAnywhere, Category = "Placement")
-	int32 VoxelTypeID = 0;
+	EHktTerrainVoxelType VoxelType = EHktTerrainVoxelType::Air;
 
 	/**
 	 * 발화할 spawner story tag (예: `Story.Flow.Spawner.Natural.Tree`).
@@ -164,15 +214,16 @@ struct HKTTERRAIN_API FHktTerrainBakedConfig
 	 * 을 결정. 런타임은 그 결과를 read-only 로 dispatch.
 	 *
 	 * 엔트리 의미:
-	 *   - `VoxelTypeID` : 후보 적용 대상 voxel TypeID (1=Grass / 4=Sand / 6=Snow ...).
+	 *   - `VoxelType`   : 후보 적용 대상 voxel 타입 (EHktTerrainVoxelType — Grass / Sand / Snow ...).
+	 *                     동일 타입에 *복수* 엔트리 등록 허용 — 그것이 다양성의 본질.
 	 *   - `StoryTag`    : 발화할 spawner story tag. invalid (`None`) → "skip 슬롯" —
 	 *                     해당 weight 만큼 *아무것도 spawn 하지 않을* 확률을 표현.
 	 *   - `Weight`      : 결정론적 weighted-pick 가중치 (>=0, 0 이면 항목 무시).
 	 *
 	 * 예 — Grass 표면에 60% Oak / 20% Slime / 20% 빈 슬롯:
-	 *   { TypeID=1, Tag=Story.Flow.Spawner.Natural.Tree,  Weight=60 }
-	 *   { TypeID=1, Tag=Story.Flow.Spawner.Natural.Slime, Weight=20 }
-	 *   { TypeID=1, Tag=None,                              Weight=20 }
+	 *   { VoxelType=Grass, Tag=Story.Flow.Spawner.Natural.Tree,  Weight=60 }
+	 *   { VoxelType=Grass, Tag=Story.Flow.Spawner.Natural.Slime, Weight=20 }
+	 *   { VoxelType=Grass, Tag=None,                              Weight=20 }
 	 *
 	 * 시드 정책 (I-0017): pick = `ComputeVoxelSlotHash31(worldX, worldY, worldZ) %
 	 *                     totalWeight`. voxel 좌표 한 곳에서만 파생 → 동일 voxel 재방문
@@ -358,8 +409,11 @@ public:
 	 *        (TArray<FHktVoxelSpawnRule>) 로 교체. 동일 voxel type 에 *복수* 후보 + weight
 	 *        를 허용 — BakeRegion 이 voxel 좌표 시드 (`ComputeVoxelSlotHash31`) 로 결정론적
 	 *        weighted-pick 수행, attribution 1점 결정. v5 이하 자산은 재베이크 필요.
+	 *  - v7: `FHktVoxelSpawnRule::VoxelTypeID` (int32) → `VoxelType` (EHktTerrainVoxelType
+	 *        UENUM) 으로 교체. 디자이너가 정수 ID 대신 의미 있는 enum 이름으로 편집.
+	 *        직렬화 호환성 없음 — v6 이하 자산은 재베이크 필요.
 	 */
-	static constexpr int32 CurrentBakeVersion = 6;
+	static constexpr int32 CurrentBakeVersion = 7;
 
 	/** 베이크 시 캡처된 생성기 설정. 폴백 호출 시 동일 설정 재사용 → 결정론 유지. */
 	UPROPERTY(EditAnywhere, Category = "Bake")
