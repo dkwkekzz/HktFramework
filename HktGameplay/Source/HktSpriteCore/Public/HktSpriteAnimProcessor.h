@@ -65,20 +65,29 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 	/** 로컬 실시간 클럭(초). TickViewModel 이 매 호출마다 DeltaSec 누적. */
 	double LocalNowSec = 0.0;
 
-	/** 현재 ResolvedTag 의 재생 시작 LocalNowSec — VM 으로 emit. = TagStartLocalSec[ResolvedTag]. */
+	/**
+	 * 현재 ResolvedTag 의 anchor key 의 재생 시작 LocalNowSec — VM 으로 emit.
+	 * = TagStartLocalSec[GetAnchorKey(ResolvedTag)] (TickViewModel 가 매 호출 갱신).
+	 */
 	double AnimStartLocalSec = 0.0;
 
 	/**
-	 * 태그별 시작 시각 (LocalNowSec). 각 Anim.* 태그가 활성화된 시점의 클럭값.
+	 * Anchor key 별 재생 시작 시각 (LocalNowSec). Key 는 *태그 자체* 가 아니라
+	 * cpp 의 `GetAnchorKey(AnimTag)` 결과:
+	 *   - Phase-shared group prefix 와 매칭되면 → 그룹 prefix (그룹 멤버끼리 anchor 공유)
+	 *   - 그 외 → 태그 자체
 	 *
-	 * 키 = 실제 AnimTag (예 `Anim.Action.Strike`, `Anim.FullBody.Locomotion.Run`). 값 = 그
-	 * 태그가 활성화된 LocalNowSec. ExpireActionLayers 는 이 맵을 lookup 해 layer 별 정확한
-	 * elapsed 를 계산한다 (이전 단일 AnimStartLocalSec 공유로 인한 anchor 충돌 해소 — Action
-	 * 과 Montage/UpperBody 가 동시 활성일 때 Action 의 anchor 가 top-priority layer 에 의해
-	 * 덮어쓰여 만료가 잘못된 시점에 일어나던 문제).
+	 * 효과:
+	 *   - Action layer 가 Montage/UpperBody 와 동시 활성이어도 자체 시작 시각 유지
+	 *     → 만료 시점이 top-priority anchor 변동에 영향받지 않음.
+	 *   - Locomotion 그룹 (`Anim.FullBody.Locomotion`) 안에서 Idle ↔ Walk ↔ Run ↔ Fall 전환 시
+	 *     anchor 공유 → 발 위상 보존.
+	 *   - 그룹 entry 는 cleanup 에서 보존 (cpp 의 `IsPhaseSharedGroupKey` 체크) →
+	 *     Action/Montage 가 끼어들었다 사라져도 그룹 anchor 가 살아남아 복귀 시 phase 끊김 없음.
 	 *
-	 * Locomotion 합성 태그도 동일하게 등록된다 (Idle/Walk/Run/Fall 전환마다 새 anchor).
-	 * AnimLayerTags 에서 사라지면서 ResolvedTag 도 아니게 되면 자동 정리.
+	 * 그 외 키 (개별 태그) 는 활성도 ResolvedKey 도 아니면 cleanup 에서 제거.
+	 *
+	 * 신규 phase-shared group 추가: cpp 의 `GetPhaseSharedGroups()` lambda 에 prefix tag append.
 	 */
 	TMap<FGameplayTag, double> TagStartLocalSec;
 
