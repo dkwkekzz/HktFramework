@@ -116,8 +116,8 @@ UObject 가 아닌 POD struct. 표현 수단마다 자체 `TMap<FHktEntityId, FH
 | 움직임 | `LastMoveDirXY` (`FVector2D`) | sticky XY 속도. 임계 이상으로 이동 시에만 갱신 → 정지 후에도 마지막 방향 유지 |
 | 전투 | `AttackPlayRate` / `CPRatio` | `FHktCombatView` 의 `MotionPlayRate ‖ AttackSpeed` 에서 파생 |
 | sticky | `LocalNowSec` (`double`) | 로컬 실시간 클럭 (`TickViewModel` 가 매 호출 누적) |
-| sticky | `AnimStartLocalSec` (`double`) | 현재 ResolvedTag 의 재생 시작 시각 (= `TagStartLocalSec[ResolvedTag]`) |
-| sticky | `TagStartLocalSec` (`TMap<FGameplayTag, double>`) | **태그별** 시작 시각. 각 활성 layer 의 자체 anchor — Action layer 가 Montage/UpperBody 와 동시 활성일 때도 정확한 elapsed 산출 |
+| sticky | `AnimStartLocalSec` (`double`) | 현재 ResolvedTag 의 재생 시작 시각 (= `TagStartLocalSec[GetAnchorKey(ResolvedTag)]`) |
+| sticky | `TagStartLocalSec` (`TMap<FGameplayTag, double>`) | **anchor key 별** 시작 시각. Key 는 `GetAnchorKey(AnimTag)` — phase-shared group 에 속하면 그룹 prefix, 아니면 태그 자체. Action / Montage 동시 활성 시 각자 자체 anchor 유지 + Locomotion 그룹은 Walk↔Run 전환 / Action interrupt 후 복귀에도 phase 보존 |
 | sticky | `LastAuthAnimStartTick` (`int32`) | 서버 권위 `FHktSpriteView::AnimStartTick` 의 최근 관측치. 변화 시 ResolvedTag 의 anchor 강제 리셋 |
 | transient | `bExplicitTriggerThisFrame` (`bool`) | `PendingAnimTriggers` 가 이 프레임에 소비되었는가. 동일 태그 재트리거(콤보) 시 dedup 우회용 — TickViewModel 소비 후 false |
 | sticky | `LastClientFacing` (`EHktSpriteFacing`) | 마지막 산출 facing (8방향) |
@@ -177,19 +177,32 @@ struct FHktSpriteAnimViewModel {
    4. `Anim.FullBody.*`
    5. 그 외 임의 `Anim.*` layer
    6. **Locomotion 폴백**: `bIsFalling > bIsMoving(Run/Walk) > Idle` 로 `Anim.FullBody.Locomotion.*` 합성. Walk↔Run 임계는 CVar `hkt.Sprite.Loco.RunSpeedThreshold` (기본 300 cm/s).
-3. **태그별 anchor 갱신 (`TagStartLocalSec`)** — 단일 anchor 대신 **태그별 시작 시각 맵** 을 유지:
+3. **태그별 anchor 갱신 (`TagStartLocalSec`)** — anchor key 는 `GetAnchorKey(AnimTag)` 경유. *phase-shared group table* (`GetPhaseSharedGroups()`) 에 매칭되면 그룹 prefix, 아니면 태그 자체:
    ```
-   // (a) AnimLayerTags 의 각 활성 태그가 맵에 없으면 LocalNowSec 으로 등록 (새 태그 진입).
-   // (b) ResolvedTag 가 Locomotion 합성(AnimLayerTags 에 미등록)이면 동일하게 등록.
-   // (c) 더 이상 활성도 아니고 ResolvedTag 도 아닌 태그는 맵에서 제거.
-   // (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame 일 때
-   //     TagStartLocalSec[ResolvedTag] = LocalNowSec  // 강제 리셋
-   //
-   // Fragment.AnimStartLocalSec = TagStartLocalSec[ResolvedTag]   // VM emit 값
-   ```
-   서버측 `Op_PlayAnim` dedup (동일 태그 해시 시 `TouchAnimStartTickBySlot` 스킵) 로 `AuthAnimStartTick` 이 안 올라가는 경우에도 `bExplicitTriggerThisFrame` (AbsorbViews 가 `PendingAnimTriggers` 소비 시 set) 로 anchor 강제 리셋 → 콤보·연타가 항상 0초부터 재생. Walk↔Run 등 *서로 다른* 합성 태그 전환은 새 태그가 맵에 등록되며 자동으로 0초부터.
+   ResolvedKey = GetAnchorKey(AnimTag)
 
-   **이전 단일 `AnimStartLocalSec` 대비 이점**: Action layer 가 Montage/UpperBody 와 동시 활성일 때, top-priority 가 위에서 덮어쓰며 anchor 가 변하더라도 Action 의 자체 시작 시각이 유지된다 → Montage 종료 후 Action 이 *남은 잔여 시간만큼만* 재생되고 정상 만료.
+   // (a) AnimLayerTags 의 활성 태그들 — 해당 anchor key 가 맵에 없으면 LocalNowSec 등록.
+   // (b) ResolvedKey 가 맵에 없으면 등록 (Locomotion 합성 태그 / 첫 활성 케이스).
+   // (c) Cleanup — phase-shared group 키는 *보존* (그룹 멤버가 Action/Montage 에 잠시
+   //     가렸다 사라져도 그룹 anchor 가 살아남아야). 그 외 키는 ResolvedKey 와 다르고
+   //     AnimLayerTags 값들의 anchor key 에도 없으면 제거.
+   // (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame 일 때
+   //     TagStartLocalSec[ResolvedKey] = LocalNowSec   // 강제 리셋
+   //
+   // Fragment.AnimStartLocalSec = TagStartLocalSec[ResolvedKey]   // VM emit 값
+   ```
+
+   **Phase-shared group table** — 같은 그룹의 태그들이 anchor 를 공유한다. `HktSpriteAnimProcessor.cpp` 의 `GetPhaseSharedGroups()` 가 `TArray<FGameplayTag>` 로 그룹 prefix 들을 보관:
+
+   | 현재 그룹 | prefix | 효과 |
+   |---|---|---|
+   | Locomotion | `Anim.FullBody.Locomotion` | Idle ↔ Walk ↔ Run ↔ Fall 전환 시 anchor 공유 → 발 위상 보존. 또한 Action/Montage 가 끼어들었다 사라져도 그룹 entry 가 cleanup 에서 보존되어 복귀 시 phase 끊김 없음 |
+
+   신규 그룹 추가는 본 함수 lambda 에 prefix tag 만 append — cleanup / lookup 분기 수정 불필요 (`GetAnchorKey` / `IsPhaseSharedGroupKey` 가 테이블 lookup 으로 자동 인식).
+
+   **동일 태그 재트리거**: 서버 `Op_PlayAnim` dedup 으로 `AuthAnimStartTick` 이 안 올라가도 `bExplicitTriggerThisFrame` (AbsorbViews 가 `PendingAnimTriggers` 소비 시 set) 로 `ResolvedKey` anchor 강제 리셋 → 콤보·연타가 0초부터.
+
+   **Action layer 의 자체 anchor**: Action 은 그룹 비대상이라 anchor key = 태그 자체. Montage/UpperBody 와 동시 활성이어도 자체 시작 시각 유지 → Montage 종료 후 Action 이 *남은 잔여 시간만큼만* 재생되고 정상 만료.
 4. **Facing 산출**: `Fragment.LastMoveDirXY.IsNearlyZero()` 가 아니면:
    - `DirYawDeg = atan2(Dir.Y, Dir.X) * RAD2DEG`
    - `Fragment.LastClientFacing = HktFacingFromYaw(DirYawDeg, CameraYawDeg)`

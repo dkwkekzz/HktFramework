@@ -57,6 +57,59 @@ namespace
 		return Tag.MatchesTag(HktGameplayTags::Anim_Montage)
 			|| Tag.MatchesTag(HktGameplayTags::Anim_UpperBody);
 	}
+
+	// ========================================================================
+	// Phase-shared group table
+	//
+	// 같은 그룹에 속하는 anim 태그들은 anchor (재생 시작 시각) 를 공유한다.
+	// TagStartLocalSec 등록 시 key 가 *태그 자체* 가 아닌 *그룹 prefix* 로 들어가므로:
+	//   - 그룹 내 태그 전환 (Idle ↔ Walk ↔ Run) 시 anchor 유지 → 발 위상 보존.
+	//   - 그룹 entry 는 cleanup 에서도 보존되어, Action/Montage 가 그룹 멤버를 잠시
+	//     가렸다 사라져도 그룹 anchor 가 살아남는다 → 복귀 시 phase 가 끊기지 않음.
+	//
+	// 신규 그룹 추가: 본 lambda 에 prefix tag 만 append. cleanup/lookup 분기 수정 불필요
+	// — GetAnchorKey / IsPhaseSharedGroupKey 가 테이블 lookup 으로 자동 인식.
+	const TArray<FGameplayTag>& GetPhaseSharedGroups()
+	{
+		// Lazy init — GameplayTag 등록이 완료된 후 첫 호출 시 build.
+		static const TArray<FGameplayTag> Groups = []
+		{
+			TArray<FGameplayTag> Out;
+			Out.Add(HktGameplayTags::Anim_FullBody_Locomotion); // Idle/Walk/Run/Fall — 발 위상 보존
+			// 신규 그룹 추가 예시:
+			// Out.Add(HktGameplayTags::Anim_UpperBody_Idle);   // 만약 상체 idle/breath 가 phase-shared 라면
+			return Out;
+		}();
+		return Groups;
+	}
+
+	/**
+	 * AnimTag → anchor key. 어떤 phase-shared group prefix 와 MatchesTag 면 *그룹 prefix
+	 * 자체* 를 반환 (그룹 멤버끼리 anchor 공유), 아니면 태그 자체 반환.
+	 *
+	 * TagStartLocalSec 의 모든 키 lookup 은 본 함수를 경유한다.
+	 */
+	FGameplayTag GetAnchorKey(const FGameplayTag& AnimTag)
+	{
+		for (const FGameplayTag& Group : GetPhaseSharedGroups())
+		{
+			if (AnimTag.MatchesTag(Group))
+			{
+				return Group;
+			}
+		}
+		return AnimTag;
+	}
+
+	/** Key 가 phase-shared group prefix 자체인가. Cleanup 에서 그룹 entry 를 보존하는 판정용. */
+	bool IsPhaseSharedGroupKey(const FGameplayTag& Key)
+	{
+		for (const FGameplayTag& Group : GetPhaseSharedGroups())
+		{
+			if (Key == Group) return true;
+		}
+		return false;
+	}
 } // namespace
 
 // ============================================================================
@@ -382,33 +435,45 @@ void TickViewModel(FHktSpriteAnimFragment& Fragment,
 	float PlayRate = 1.f;
 	ResolveRenderOutputs(Fragment, AnimTag, PlayRate, InOutLoggedResolveFailure);
 
-	// 3) 태그별 anchor 갱신 (TagStartLocalSec).
-	//   (a) AnimLayerTags 의 모든 활성 태그를 순회 — 새 태그면 anchor 등록.
-	//   (b) ResolvedTag 가 합성(Locomotion)이라 AnimLayerTags 에 없으면 별도 등록.
-	//   (c) 더 이상 활성이 아니고 ResolvedTag 도 아닌 태그는 제거.
-	//   (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame 일 때 ResolvedTag 의 anchor 강제 리셋
-	//       — 동일 태그 재트리거(콤보) / 서버 권위 재시작 모두 0초부터 재생.
+	// 3) 태그별 anchor 갱신 (TagStartLocalSec). Key 는 GetAnchorKey() 경유 — phase-shared
+	//    group 에 속하면 그룹 prefix, 아니면 태그 자체.
+	//   (a) AnimLayerTags 의 활성 태그들 — 해당 anchor key 가 맵에 없으면 LocalNowSec 등록.
+	//   (b) ResolvedTag 의 anchor key 도 동일하게 (Locomotion 합성 태그는 AnimLayerTags 에
+	//       없으므로 본 분기로 등록).
+	//   (c) 정리 — Cleanup 단계. 단 phase-shared group 키는 보존 (그룹 멤버가 Action/Montage 에
+	//       잠시 가려졌다 복귀할 때 phase 가 살아있어야).
+	//   (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame → ResolvedTag 의 anchor key
+	//       강제 리셋. 그룹 키여도 명시적 재시작/재트리거 시에는 0초부터.
+	const FGameplayTag ResolvedKey = GetAnchorKey(AnimTag);
+
 	for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
 	{
-		if (Pair.Value.IsValid() && !Fragment.TagStartLocalSec.Contains(Pair.Value))
+		if (!Pair.Value.IsValid()) continue;
+		const FGameplayTag K = GetAnchorKey(Pair.Value);
+		if (!Fragment.TagStartLocalSec.Contains(K))
 		{
-			Fragment.TagStartLocalSec.Add(Pair.Value, Fragment.LocalNowSec);
+			Fragment.TagStartLocalSec.Add(K, Fragment.LocalNowSec);
 		}
 	}
-	if (AnimTag.IsValid() && !Fragment.TagStartLocalSec.Contains(AnimTag))
+	if (AnimTag.IsValid() && !Fragment.TagStartLocalSec.Contains(ResolvedKey))
 	{
-		// Locomotion 합성 태그 (AnimLayerTags 에 미등록).
-		Fragment.TagStartLocalSec.Add(AnimTag, Fragment.LocalNowSec);
+		Fragment.TagStartLocalSec.Add(ResolvedKey, Fragment.LocalNowSec);
 	}
-	// 정리 — AnimLayerTags 값 set + ResolvedTag 외 키 제거.
+	// Cleanup — 그룹 키 보존, 그 외에는 ResolvedKey 또는 AnimLayerTags 값들의 anchor key 외 제거.
 	for (auto It = Fragment.TagStartLocalSec.CreateIterator(); It; ++It)
 	{
-		bool bKeep = (It.Key() == AnimTag);
+		if (IsPhaseSharedGroupKey(It.Key())) continue; // 그룹 entry 는 entity 일생 동안 보존
+
+		bool bKeep = (It.Key() == ResolvedKey);
 		if (!bKeep)
 		{
 			for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
 			{
-				if (Pair.Value == It.Key()) { bKeep = true; break; }
+				if (Pair.Value.IsValid() && GetAnchorKey(Pair.Value) == It.Key())
+				{
+					bKeep = true;
+					break;
+				}
 			}
 		}
 		if (!bKeep) It.RemoveCurrent();
@@ -420,15 +485,15 @@ void TickViewModel(FHktSpriteAnimFragment& Fragment,
 		Fragment.LastAuthAnimStartTick = AuthAnimStartTick;
 		if (AnimTag.IsValid())
 		{
-			Fragment.TagStartLocalSec.FindOrAdd(AnimTag) = Fragment.LocalNowSec;
+			Fragment.TagStartLocalSec.FindOrAdd(ResolvedKey) = Fragment.LocalNowSec;
 		}
 		Fragment.bExplicitTriggerThisFrame = false;
 	}
 
-	// 4) AnimStartLocalSec = ResolvedTag 의 anchor (VM 으로 emit).
+	// 4) AnimStartLocalSec = ResolvedKey 의 anchor (VM 으로 emit).
 	if (AnimTag.IsValid())
 	{
-		if (const double* P = Fragment.TagStartLocalSec.Find(AnimTag))
+		if (const double* P = Fragment.TagStartLocalSec.Find(ResolvedKey))
 		{
 			Fragment.AnimStartLocalSec = *P;
 		}
@@ -486,7 +551,10 @@ void ExpireActionLayers(FHktSpriteAnimFragment& Fragment,
 		// 분리. Montage/UpperBody 와 동시 활성이어서 한 번도 ResolvedTag 가 된 적 없는 Action
 		// layer 도 자신의 등록 시점부터 elapsed 가 정확히 누적된다. 만약 누락되어 있으면
 		// (이론상 도달 불가) 즉시 만료 시켜 무한 잔존 방지.
-		const double* LayerStartPtr = Fragment.TagStartLocalSec.Find(Pair.Value);
+		// Anchor key 는 phase-shared group 일 경우 그룹 prefix — Action 은 그룹 비대상이라
+		// 통상 태그 자체이지만, 향후 그룹화될 가능성에 대비해 GetAnchorKey 경유.
+		const FGameplayTag LayerKey = GetAnchorKey(Pair.Value);
+		const double* LayerStartPtr = Fragment.TagStartLocalSec.Find(LayerKey);
 		if (!LayerStartPtr) { ToRemove.Add(Pair.Value); continue; }
 		const double RawElapsed = LocalNowSec - *LayerStartPtr;
 		if (RawElapsed >= static_cast<double>(LayerDur))
