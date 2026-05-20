@@ -83,10 +83,32 @@ NPC AI 가 ActionIntent 를 *세팅하는 채널* 은 아직 없음 — 현재 N
 | 2 | dist > 200 | `MoveToward(Target)` | Type 유지 (다음 사이클에 재평가) |
 | 2 | dist <= 200, cooldown 진행중 (now < NextActionFrame) | StopMovement, yield | Type 유지 |
 | 2 | dist <= 200, cooldown OK | `DispatchEventTo(UseSkill, Target)` | Type 유지 (다음 사이클에 또 공격) |
-| 1 (Move) | 위치 도달 (`IsMoving==0`) | StopMovement, intent 클리어 | Type=0 |
+| 1 (Move) | `(ix-px)² + (iy-py)² <= 40000` (200² cm²) | StopMovement, intent 클리어 | Type=0 |
 | 1 | 미도달 | `MoveToward(ActionIntentX/Y/Z)` | Type 유지 |
 
 **사거리 200 은 상수**. 추후 무기/스킬별 AttackRange 프로퍼티로 분기 — *TODO.*
+
+### Move 도착 판정에 IsMoving 을 쓰지 않는 이유
+
+`MoveToward` op 는 `HktStoryBuilder.cpp:854-861` 에서 다음을 emit 한다:
+
+```cpp
+SaveStoreEntity(Entity, MoveTargetX, ...);
+SaveStoreEntity(Entity, MoveTargetY, ...);
+SaveStoreEntity(Entity, MoveTargetZ, ...);
+SaveConstEntity(Entity, MoveForce, Force);
+SaveConstEntity(Entity, IsMoving, 1);   // ← 호출 시점에 즉시 1 로 덮어쓰기
+```
+
+VM 은 시뮬레이션 틱 안에서 MovementSystem 보다 *먼저* 실행되므로
+(`HktWorldDeterminismSimulator::ProcessBatch` 의 VM 루프 → Gravity → Movement →
+Physics 순서), Brain 이 매 프레임 `MoveToward` 를 호출하면 MovementSystem 이
+도착 시 세팅한 `IsMoving=0` 을 *다음 프레임 시작 시 Brain 이 다시 1 로 덮어쓴다*.
+결과적으로 Brain 이 `ReadProperty IsMoving` 으로는 영영 0 을 못 본다.
+
+따라서 도착 판정은 *제곱 2D 거리* (`(ix-px)² + (iy-py)² <= 40000`) 로 한다. Z 차이는
+무시 (지형 적분 후 약간의 수직 오차는 도착으로 간주). 거리 제곱이 i32 overflow
+하지 않는 범위 (각 축 ±46340 cm = ±463 m 이내) 에서 안전.
 
 ## 자동 종료 조건
 
@@ -110,6 +132,7 @@ Brain 은 `DispatchEventTo(UseSkill, Target)` 로 매 사이클 새 UseSkill VM 
 - **무기별 AttackRange** — 사거리 상수 200 을 슬롯 아이템의 AttackRange 프로퍼티로 일반화.
 - **단발 인텐트 토글** — 수정키 / 별도 입력으로 Attack 인텐트를 1회로 강제 (Brain 이 디스패치 후 자체 클리어).
 - **Brain VM 의 수명 단일성** — `cancelOnDuplicate: false` 라 같은 Self 에 Lifecycle 이 두 번 디스패치되면 brain 이 둘 생긴다. 현재는 spawn 경로가 1회뿐이라 문제 없음 — respawn / 재초기화 도입 시 가드 필요.
+- **Target 슬롯 재활용 검증** — Brain 의 Attack 분기는 `Target.Health <= 0` 으로 무효를 잡지만, 엔티티 destroy 후 슬롯이 다른 entity 로 재활용된 경우엔 새 entity 의 Health 를 읽어 phantom chase 발생 가능. 현재 destroy 가 즉시 일어나지 않고 cooldown 사이 사라지는 경로가 드물어 실문제 미발견. 명시적 검증 op 추가 후보.
 
 ## 관련 파일
 
