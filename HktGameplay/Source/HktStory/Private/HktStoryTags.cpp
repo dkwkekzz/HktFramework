@@ -15,7 +15,10 @@ namespace HktStoryTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_Item_Material,            "Entity.Attr.Item.Material", "Material item category.");
 
 	// --- NPC Flow ---
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle,             "Story.Flow.NPC.Lifecycle",   "NPC lifecycle management (death/despawn).");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_NPC_Lifecycle,             "Story.Flow.NPC.Lifecycle",   "NPC lifecycle: 매-프레임 Brain 루프 + 죽음 처리 (I-0016).");
+
+	// --- Player Flow (I-0016) ---
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Player_Lifecycle,          "Story.Flow.Player.Lifecycle", "Player lifecycle: 매-프레임 Brain 루프 + 죽음 처리. PlayerInit 끝에서 dispatch.");
 
 	// --- Debris Flow ---
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Debris_Lifecycle,          "Story.Flow.Debris.Lifecycle", "Terrain debris lifecycle (death/despawn).");
