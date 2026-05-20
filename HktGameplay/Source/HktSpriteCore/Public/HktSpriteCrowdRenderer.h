@@ -118,6 +118,10 @@ public:
 	void UpdateEntity(FHktEntityId Id, const FHktSpriteEntityUpdate& Update);
 	void ClearAll();
 
+	/** CharacterTag 의 Visual 자산 조회. 로드 완료 전이면 nullptr.
+	 *  CrowdHost 의 Anim.Action 만료 콜백이 anim duration 을 산출하기 위해 사용. */
+	const UHktHISMSpriteVisualAsset* ResolveVisualAsset(FGameplayTag CharacterTag) const;
+
 private:
 	/** 엔터티 1명의 렌더 상태 — 현재 속한 아틀라스 HISM + 인스턴스 인덱스. */
 	struct FEntityState

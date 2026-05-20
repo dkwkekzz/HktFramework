@@ -174,7 +174,7 @@ namespace
 }
 
 // ----------------------------------------------------------------------------
-// Apply* — SOA 뷰 → AnimFragment / 위치 캐시
+// Apply* — 권위 입력 캐시만. Anim 의사결정은 Tick 에서 HktSpriteAnimProcessor 로 일원화.
 // ----------------------------------------------------------------------------
 
 void AHktSpritePaperActor::ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce)
@@ -208,104 +208,11 @@ void AHktSpritePaperActor::ApplyTransform(const FHktTransformView& V)
 	}
 }
 
-void AHktSpritePaperActor::ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce)
-{
-	if (bForce || V.bIsMoving.IsDirty(Frame))   AnimFragment.bIsMoving  = V.bIsMoving.Get();
-	if (bForce || V.bIsJumping.IsDirty(Frame))  AnimFragment.bIsFalling = V.bIsJumping.Get();
-	if (bForce || V.Velocity.IsDirty(Frame))
-	{
-		const FVector Vel = V.Velocity.Get();
-		const FVector2D VelXY(Vel.X, Vel.Y);
-		AnimFragment.MoveSpeed    = VelXY.Size();
-		AnimFragment.FallingSpeed = Vel.Z;
-
-		// Sticky: 임계 이상으로 움직였을 때만 facing 입력 갱신.
-		const float MinSpeed = CVarHktSpriteFacingMinSpeed.GetValueOnGameThread();
-		if (AnimFragment.MoveSpeed >= MinSpeed)
-		{
-			AnimFragment.LastMoveDirXY = VelXY;
-			// 소스 변경 시점에만 ViewModel 에 facing 기록.
-			WriteFacingToViewModel();
-		}
-	}
-}
-
-void AHktSpritePaperActor::ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce)
-{
-	if (bForce || V.MotionPlayRate.IsDirty(Frame) || V.AttackSpeed.IsDirty(Frame))
-	{
-		const int32 RawRate = V.MotionPlayRate.Get();
-		float SpeedScale = (RawRate > 0)
-			? static_cast<float>(RawRate) / 100.0f
-			: static_cast<float>(V.AttackSpeed.Get()) / 100.0f;
-		if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
-		AnimFragment.AttackPlayRate = SpeedScale;
-	}
-	if (bForce || V.CPRatio.IsDirty(Frame))
-	{
-		AnimFragment.CPRatio = V.CPRatio.Get();
-	}
-}
-
-void AHktSpritePaperActor::ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce)
-{
-	if (bForce || V.TagsDirtyFrame == Frame)
-	{
-		HktSpriteAnimProcessor::SyncFromTagContainer(AnimFragment, V.Tags);
-	}
-	if (V.PendingAnimTriggers.Num() > 0)
-	{
-		for (const FGameplayTag& AnimTag : V.PendingAnimTriggers)
-		{
-			HktSpriteAnimProcessor::ApplyAnimTag(AnimFragment, AnimTag);
-		}
-		V.PendingAnimTriggers.Reset();
-		// anim tag 직접 전달 시 facing 스냅샷 갱신.
-		WriteFacingToViewModel();
-	}
-}
-
-void AHktSpritePaperActor::WriteFacingToViewModel()
-{
-	UWorld* W = GetWorld();
-	if (!W) return;
-	UHktPresentationSubsystem* PS = UHktPresentationSubsystem::Get(W->GetFirstPlayerController());
-	if (!PS) return;
-
-	// --- facing 산출은 모두 여기서 결정 (Tick 은 캐시 소비만) ---
-	// 8방향 Facing: LastMoveDirXY + 현재 카메라 yaw.
-	const FCameraView CamView = QueryCameraView();
-	if (!AnimFragment.LastMoveDirXY.IsNearlyZero())
-	{
-		const float DirYawDeg = FMath::RadiansToDegrees(
-			FMath::Atan2(AnimFragment.LastMoveDirXY.Y, AnimFragment.LastMoveDirXY.X));
-		LastClientFacing = HktFacingFromYaw(DirYawDeg, CamView.Rotation.Yaw);
-	}
-
-	// 좌우 sticky: Iso 카메라(yaw=45 고정) 기준 화면 우측 = world (Y - X) > 0.
-	// LastMoveDirXY 만으로 판단 — 8방향 Facing 의 N/S/NE/SE 양자화 손실을 우회.
-	if (!AnimFragment.LastMoveDirXY.IsNearlyZero())
-	{
-		const float ScreenX = AnimFragment.LastMoveDirXY.Y - AnimFragment.LastMoveDirXY.X;
-		if (FMath::Abs(ScreenX) > KINDA_SMALL_NUMBER)
-		{
-			LastFacingRight = (ScreenX > 0.f) ? 1 : 0;
-		}
-	}
-
-	FHktPresentationState& PState = PS->GetMutableState();
-	if (FHktSpriteView* MutableSV = PState.GetMutableSprite(CachedEntityId))
-	{
-		MutableSV->Facing.Set(static_cast<uint8>(LastClientFacing), PState.GetCurrentFrame());
-		MutableSV->FacingRight.Set(LastFacingRight, PState.GetCurrentFrame());
-	}
-}
-
 void AHktSpritePaperActor::ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce)
 {
 	// F-2: ActorProcessor 의 sprite 패스가 권위 입력을 직접 푸시.
-	// 캐시해 두고 Tick 에서 resolve — 동일 프레임 중복 호출 비용 0.
-	// Facing 은 서버 권위가 아닌 클라 viewmodel 산출(ApplyMovement 의 LastMoveDirXY 사용).
+	// 캐시해 두고 Tick 에서 TickViewModel(AuthAnimStartTick=...) 입력으로 사용.
+	// Facing 은 서버 권위가 아닌 클라 viewmodel 산출(AnimFragment.LastMoveDirXY 사용).
 	if (bForce || V.AnimStartTick.IsDirty(Frame))
 	{
 		ServerAuthoritativeAnimStartTick = V.AnimStartTick.Get();
@@ -314,14 +221,12 @@ void AHktSpritePaperActor::ApplySprite(const FHktSpriteView& V, int64 Frame, boo
 }
 
 // ----------------------------------------------------------------------------
-// Tick — 위치 보간 + Flipbook resolve + 빌보드
+// Tick — 위치 보간 + 빌보드 + VM 산출 → Flipbook 적용
 // ----------------------------------------------------------------------------
 
 void AHktSpritePaperActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	LocalNowSec += static_cast<double>(DeltaTime);
 
 	// --- 위치 보간 + 빌보드 (PR-5: yaw dirty check) ---
 	// 위치는 매 프레임 보간/적용. 회전은 yaw 변화량이 임계값 이상일 때만 적용 —
@@ -419,19 +324,55 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	{
 		return;
 	}
-	const int32 AuthStartTick = ServerAuthoritativeAnimStartTick;
 
-	// --- Facing 캐시 소비 (산출은 WriteFacingToViewModel 단일 소스) ---
-	const uint8 RawFacing = static_cast<uint8>(LastClientFacing);
+	// --- WorldView → Fragment 흡수 + Anim.Action 만료 + VM 산출 (HktSpriteAnimProcessor 단일 출처) ---
+	UWorld* W = GetWorld();
+	UHktPresentationSubsystem* PS = W ? UHktPresentationSubsystem::Get(W->GetFirstPlayerController()) : nullptr;
+	if (!PS) return;
+	FHktPresentationState& PState = PS->GetMutableState();
+	const int64 Frame = PState.GetCurrentFrame();
+	const float MinFacingSpeed = CVarHktSpriteFacingMinSpeed.GetValueOnGameThread();
 
-	// --- AnimTag / PlayRate 결정 ---
-	FGameplayTag AnimTag;
-	float PlayRate = 1.f;
-	HktSpriteAnimProcessor::ResolveRenderOutputs(AnimFragment, AnimTag, PlayRate, bLoggedResolveRenderOutputsFailure);
+	// 1) Movement/Combat/Animation 뷰 → Fragment.
+	const bool bFacingSourceDirty = HktSpriteAnimProcessor::AbsorbViews(
+		AnimFragment, PState, CachedEntityId, Frame, MinFacingSpeed);
+
+	// 2) Per-frame VM 산출 — LocalNowSec advance + ResolveRenderOutputs + Facing.
+	FHktSpriteAnimViewModel VM;
+	HktSpriteAnimProcessor::TickViewModel(AnimFragment,
+		ServerAuthoritativeAnimStartTick,
+		static_cast<double>(DeltaTime),
+		CameraYaw,
+		VM, bLoggedResolveRenderOutputsFailure);
+
+	// 3) Anim.Action.* 자동 만료 (resolve 이후) — Flipbook 의 GetTotalDuration 으로 layer 길이 질의.
+	//    이번 프레임의 ResolveRenderOutputs 가 action layer 를 픽한 뒤에 만료 — 다음 프레임의
+	//    resolver 가 Locomotion 으로 폴백하도록 한다 (원본 PaperActor 동작 보존).
+	UHktPaperAnimationDataAsset* AnimAsset = Animation;
+	HktSpriteAnimProcessor::ExpireActionLayers(AnimFragment, AnimFragment.LocalNowSec,
+		[AnimAsset](const FGameplayTag& LayerAnimTag) -> float
+		{
+			// Anim.Action.* 는 일반적으로 단일방향(NumDirections=1) — KeyDir=0 시도.
+			const FHktPaperAnimDirKey Key0{ LayerAnimTag, 0 };
+			UPaperFlipbook* LayerFB = ResolveFlipbook(AnimAsset, Key0);
+			return LayerFB ? LayerFB->GetTotalDuration() : 0.f;
+		});
+
+	// 4) facing 소스 dirty 시 SpriteView 에 기록 (HUD/UI 진단용).
+	if (bFacingSourceDirty)
+	{
+		if (FHktSpriteView* MutableSV = PState.GetMutableSprite(CachedEntityId))
+		{
+			MutableSV->Facing.Set(static_cast<uint8>(VM.Facing), Frame);
+			MutableSV->FacingRight.Set(VM.bFacingRight ? 1 : 0, Frame);
+		}
+	}
+
+	// --- VM 소비: Flipbook 바인드 + 재생 위치 적용 ---
 
 	// Animation 에서 meta 폴백 해석 (없으면 DefaultAnimTag → 첫 원소).
 	FGameplayTag ResolvedTag;
-	const FHktPaperAnimMeta* Meta = ResolveMeta(Animation, AnimTag, ResolvedTag);
+	const FHktPaperAnimMeta* Meta = ResolveMeta(Animation, VM.AnimTag, ResolvedTag);
 	if (!Meta)
 	{
 		// 애니메이션 데이터 비어 있음 — 스킵.
@@ -441,100 +382,12 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	// --- Facing → 저장 dir + 미러 ---
 	// 2슬롯 경로는 ResolveStoredFacing 내부가 bFacingRight 로 직접 결정 (8방향 양자화 우회).
 	bool bFlipX = false;
-	const EHktSpriteFacing InFacing = static_cast<EHktSpriteFacing>(RawFacing & 0x07);
 	const EHktSpriteFacing StoredFacing = FHktSpriteAnimation::ResolveStoredFacing(
-		InFacing, Meta->NumDirections, Meta->bMirrorWestFromEast, bFlipX, LastFacingRight != 0);
+		VM.Facing, Meta->NumDirections, Meta->bMirrorWestFromEast, bFlipX, VM.bFacingRight);
 	const uint8 KeyDir = static_cast<uint8>(StoredFacing);
-
-	// --- AnimStartLocalSec 리셋 트리거 ---
-	// (a) 서버 권위 AuthStartTick 이 바뀌었을 때.
-	// (b) ResolvedTag 가 직전 Tick 과 다를 때 — 새 애니메이션은 항상 0초부터.
-	//     서버측 Op_PlayAnim dedup (동일 태그 해시 시 TouchAnimStartTickBySlot 스킵) 으로
-	//     AuthStartTick 이 안 올라가도 클라가 자력으로 anchor 갱신.
-	const bool bAuthTickChanged = (LastAuthoritativeAnimStartTick != AuthStartTick);
-	const bool bResolvedTagChanged = (ResolvedTag != LastResolvedTag);
-	if (bAuthTickChanged || bResolvedTagChanged)
-	{
-		LastAuthoritativeAnimStartTick = AuthStartTick;
-		LastResolvedTag = ResolvedTag;
-		AnimStartLocalSec = LocalNowSec;
-	}
-
-	// --- Anim.Action.* (transient) layer 자동 만료 ---
-	// PlayAnim 일회성 트리거는 ApplyAnimTag 로 layer 를 켜지만 끄는 메커니즘이 없어
-	// ResolveRenderOutputs 가 영원히 Action layer 를 픽 → Locomotion 합성이 도달 못함.
-	// 클라 측 AnimLayerTags 만 정리 (서버 EntityTags 미변경).
-	//
-	// **Anim.Action.* 는 by-design transient namespace** — bLooping 자산 설정과 무관하게
-	// 자기 flipbook 의 1회 재생 시간이 경과하면 만료한다.
-	//
-	// 만료 시각 기준: per-layer apply 시각 (ActionLayerApplyLocalSec 맵). entity 전체 anchor
-	// 인 AnimStartLocalSec 은 서버 AuthStartTick 의 dedup (Op_PlayAnim 동일 태그 해시 시
-	// TouchAnimStartTickBySlot 스킵) 때문에 stale 가능 → per-layer 추적이 정답.
-	//
-	// 만료 조건 (layer 의 *자기* entry 기준, fallback 무관):
-	//   (a) DataAsset 에 미등록 → 즉시 만료 (렌더 불가능 layer 가 Locomotion 차단 중)
-	//   (b) flipbook 의 totalDur 만큼 wall-clock 경과 → 만료
-	{
-		TArray<FGameplayTag, TInlineAllocator<4>> ToRemove;
-		int32 ActionLayerCount = 0;
-		for (const TPair<FGameplayTag, FGameplayTag>& Pair : AnimFragment.AnimLayerTags)
-		{
-			// Layer key 는 ExtractLayerParent 결과 (예: "Anim.Action.Strike" → "Anim.Action").
-			// MatchesTag 는 자기 자신과 자손 모두 매칭하므로 Anim.Action 본인 + 미래 하위 분류
-			// (예: Anim.Action.Special) 까지 동일하게 transient 로 취급된다.
-			if (!Pair.Key.MatchesTag(HktGameplayTags::Anim_Action)) continue;
-			++ActionLayerCount;
-			if (!Pair.Value.IsValid()) { ToRemove.Add(Pair.Value); continue; }
-
-			// Anim.Action.* 는 일반적으로 단일방향(NumDirections=1) — KeyDir=0 시도 후 실패 시 만료.
-			const FHktPaperAnimDirKey Key0{ Pair.Value, 0 };
-			UPaperFlipbook* LayerFB = ResolveFlipbook(Animation, Key0);
-			if (!LayerFB) { ToRemove.Add(Pair.Value); continue; }
-
-			// AnimStartLocalSec 은 ResolvedTag 가 이 action 으로 바뀐 Tick 에 리셋됨 →
-			// 이 layer 의 실제 재생 시작 시각과 일치. 단, 이 layer 가 우선순위에서 밀려
-			// 한 번도 ResolvedTag 가 된 적 없으면 AnimStartLocalSec 은 다른 anim 의 anchor →
-			// 이 경우 만료가 빨리 일어날 수 있으나 어차피 렌더되지 않은 layer 라 무해.
-			const float LayerDur = LayerFB->GetTotalDuration();
-			const double RawElapsed = LocalNowSec - AnimStartLocalSec;
-			if (LayerDur > 0.f && RawElapsed >= static_cast<double>(LayerDur))
-			{
-				ToRemove.Add(Pair.Value);
-			}
-		}
-
-		// 디버그 — 만료 후보 entity 의 layer 상태 변화를 추적 (회귀 검증용).
-		if (ActionLayerCount > 0 && ToRemove.Num() == 0)
-		{
-			static thread_local int32 sPendingDebugTick = 0;
-			if (++sPendingDebugTick % 30 == 0)
-			{
-				HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
-					FString::Printf(TEXT("Sprite|PaperActor: AnimLayer Anim.Action.* still active count=%d"),
-						ActionLayerCount),
-					CachedEntityId);
-			}
-		}
-
-		for (const FGameplayTag& ExpireTag : ToRemove)
-		{
-			HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
-				FString::Printf(TEXT("Sprite|PaperActor: AnimLayer auto-expire %s"), *ExpireTag.ToString()),
-				CachedEntityId);
-			HktSpriteAnimProcessor::RemoveAnimTag(AnimFragment, ExpireTag);
-			if (CurrentAnimTag == ExpireTag)
-			{
-				CurrentAnimTag = FGameplayTag();
-				CurrentKeyDir = 0xFF;
-			}
-		}
-	}
 
 	// --- 진단 로그: (ClientFacing → StoredFacing/KeyDir → Flipbook) 매칭 결과 ---
 	// (ResolvedTag, KeyDir, bFlipX) 또는 Flipbook 존재 여부가 직전과 달라질 때만 emit.
-	// "ClientFacing 은 바뀌는데 그림이 안 바뀌면" Flipbook 미존재 / NumDirections=1 로 KeyDir 가
-	// 항상 0 이라 같은 dir 키만 룩업되는 등의 원인이 즉시 보인다.
 	{
 		const FHktPaperAnimDirKey Key{ ResolvedTag, KeyDir };
 		UPaperFlipbook* FoundFB = ResolveFlipbook(Animation, Key);
@@ -555,7 +408,7 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 				bHasFB ? EHktLogLevel::Info : EHktLogLevel::Warning,
 				EHktLogSource::Client,
 				FString::Printf(TEXT("Sprite|PaperActor: AnimResolve InFacing=%d → StoredFacing=%d (NumDir=%d, bMirror=%d, flipX=%d), AnimTag=%s, KeyDir=%u, FB=%s, Flipbooks.Num=%d"),
-					static_cast<int32>(InFacing), static_cast<int32>(StoredFacing),
+					static_cast<int32>(VM.Facing), static_cast<int32>(StoredFacing),
 					Meta->NumDirections, Meta->bMirrorWestFromEast ? 1 : 0, bFlipX ? 1 : 0,
 					*ResolvedTag.ToString(), KeyDir,
 					bHasFB ? TEXT("OK") : TEXT("MISSING"),
@@ -571,12 +424,11 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 	// Meta.FrameDurationMs 를 권위로 — RebindFlipbookIfNeeded 에서 캐시한
 	// CurrentMetaTimeScale (= MetaFps / FbIntrinsicFps) 를 ElapsedSec 에 곱해
 	// flipbook intrinsic FPS 와 무관하게 DataAsset 값으로 재생 속도를 결정한다.
-	// AnimStartLocalSec 은 ResolvedTag 가 바뀐 Tick 에서 리셋되므로 항상 0 부터 재생.
-	const float SafeRate = PlayRate > 0.f ? PlayRate : 1.f;
-	const double ElapsedSec = (LocalNowSec - AnimStartLocalSec) * static_cast<double>(SafeRate);
+	// AnimStartLocalSec 은 ResolvedTag 가 바뀐 시점에 리셋되므로 항상 0 부터 재생.
+	const float SafeRate = VM.PlayRate > 0.f ? VM.PlayRate : 1.f;
+	const double ElapsedSec = (VM.LocalNowSec - VM.AnimStartLocalSec) * static_cast<double>(SafeRate);
 	const double ScaledSec = ElapsedSec * static_cast<double>(CurrentMetaTimeScale);
 	FlipbookComp->SetPlaybackPosition(static_cast<float>(FMath::Max(ScaledSec, 0.0)), /*bFireEvents=*/false);
-
 }
 
 // ----------------------------------------------------------------------------

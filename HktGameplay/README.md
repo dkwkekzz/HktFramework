@@ -111,6 +111,7 @@ HktPresentation 의존 없음 (인터페이스/델리게이트만 사용).
 ## HktSpriteCore / HktSpriteTerrain
 
 - **HktSpriteCore** — 스프라이트 기반 렌더링 코어. 스프라이트 어셋 자동화는 `HktGameplayGenerator/HktSpriteGenerator` 참조.
+  - **Anim 처리 단일 출처**: WorldView → `HktSpriteAnimProcessor` → `FHktSpriteAnimViewModel` → Renderer set. PaperActor / HISM Crowd / Niagara Crowd 모두 동일 VM 소비. 흐름: [../Docs/Flow-Sprite-Anim-Processing.md](../Docs/Flow-Sprite-Anim-Processing.md).
 - **HktSpriteTerrain** — Subsystem 경유 청크 데이터에서 top-surface 셀을 추출해 HISM 으로 렌더. 자세한 흐름: [Source/HktSpriteTerrain/CLAUDE.md](Source/HktSpriteTerrain/CLAUDE.md).
 
 ## HktLandscapeTerrain

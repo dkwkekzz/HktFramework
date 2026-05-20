@@ -2,8 +2,10 @@
 
 #include "HktSpriteAnimProcessor.h"
 #include "HktSpriteCoreLog.h"
+#include "HktSpriteFrameResolver.h"
 #include "HktRuntimeTags.h"
 #include "HktCoreEventLog.h"
+#include "HktPresentationState.h"
 #include "HAL/IConsoleManager.h"
 
 // ============================================================================
@@ -213,8 +215,8 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 	// 1~4. 우선순위: Montage > UpperBody > Action > FullBody
 	// Anim.Action 은 transient one-shot (Strike/Cast 등). Locomotion(FullBody) 보다 위에 두어
 	// strike 트리거 직후 다음 SyncFromTagContainer 가 Anim.FullBody.Locomotion.* 를 채워도
-	// 액션이 자기 flipbook 종료 시까지 우선 재생되도록 한다. 종료는 PaperActor 의 auto-expire
-	// (Anim.Action 매칭 + RawElapsed >= LayerDur) 가 layer 자체를 제거.
+	// 액션이 자기 flipbook 종료 시까지 우선 재생되도록 한다. 종료는 ExpireActionLayers 가
+	// layer 자체를 제거.
 	static const FGameplayTag kPriorityLayers[] = {
 		HktGameplayTags::Anim_Montage,
 		HktGameplayTags::Anim_UpperBody,
@@ -258,9 +260,6 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 	{
 		// 정상 경로에서는 도달 불가 — Locomotion 폴백이 항상 Idle/Walk/Run/Fall을 반환한다.
 		// 도달했다면 HktGameplayTags::Anim_FullBody_Locomotion_* 가 미등록 상태.
-		// 이 함수는 모든 sprite 엔티티에 대해 매 프레임 호출되므로 무가드 emit은
-		// N×30Hz 스팸이 된다. dedup 플래그는 호출자가 소유 — 호스트 수명에 묶여
-		// PIE 재시작/멀티 호스트에서 자동 리셋된다.
 		if (!InOutLoggedFailure)
 		{
 			InOutLoggedFailure = true;
@@ -287,10 +286,6 @@ void ResolveRenderOutputs(const FHktSpriteAnimFragment& Fragment,
 	{
 		OutPlayRate = 1.0f;
 	}
-
-	// AnimStartTick은 CrowdHost가 SV.AnimStartTick(서버 권위값)으로 직접 설정.
-	// 서버 VM이 Op_PlayAnim / AddTag(Anim.*) / IsMoving·IsGrounded 변경 시마다
-	// PropertyId::AnimStartTick 을 갱신하므로 클라 측 추론 불필요.
 }
 
 FGameplayTag GetAnimLayerTag(const FHktSpriteAnimFragment& Fragment, const FGameplayTag& LayerTag)
@@ -300,6 +295,183 @@ FGameplayTag GetAnimLayerTag(const FHktSpriteAnimFragment& Fragment, const FGame
 		return *Found;
 	}
 	return FGameplayTag();
+}
+
+// ============================================================================
+// 상위 API — Sprite 표현 수단들의 단일 진입점
+// ============================================================================
+
+bool AbsorbViews(FHktSpriteAnimFragment& Fragment,
+	FHktPresentationState& State, FHktEntityId EntityId, int64 Frame,
+	float MinFacingSpeed)
+{
+	bool bFacingSourceDirty = false;
+
+	// --- Movement 흡수 ---
+	if (const FHktMovementView* MV = State.GetMovement(EntityId))
+	{
+		if (MV->bIsMoving.IsDirty(Frame))  Fragment.bIsMoving  = MV->bIsMoving.Get();
+		if (MV->bIsJumping.IsDirty(Frame)) Fragment.bIsFalling = MV->bIsJumping.Get();
+		if (MV->Velocity.IsDirty(Frame))
+		{
+			const FVector Vel = MV->Velocity.Get();
+			const FVector2D VelXY(Vel.X, Vel.Y);
+			Fragment.MoveSpeed    = VelXY.Size();
+			Fragment.FallingSpeed = Vel.Z;
+
+			// Sticky: 임계 이상으로 움직였을 때만 facing 입력 갱신.
+			if (Fragment.MoveSpeed >= MinFacingSpeed)
+			{
+				Fragment.LastMoveDirXY = VelXY;
+				bFacingSourceDirty = true;
+			}
+		}
+	}
+
+	// --- Combat 흡수 ---
+	if (const FHktCombatView* CV = State.GetCombat(EntityId))
+	{
+		if (CV->MotionPlayRate.IsDirty(Frame) || CV->AttackSpeed.IsDirty(Frame))
+		{
+			const int32 RawRate = CV->MotionPlayRate.Get();
+			float SpeedScale = (RawRate > 0)
+				? static_cast<float>(RawRate) / 100.0f
+				: static_cast<float>(CV->AttackSpeed.Get()) / 100.0f;
+			if (SpeedScale <= 0.0f) SpeedScale = 1.0f;
+			Fragment.AttackPlayRate = SpeedScale;
+		}
+		if (CV->CPRatio.IsDirty(Frame))
+		{
+			Fragment.CPRatio = CV->CPRatio.Get();
+		}
+	}
+
+	// --- Animation 흡수 (PendingAnimTriggers 소비 위해 Mutable). ---
+	if (FHktAnimationView* AV = State.GetMutableAnimation(EntityId))
+	{
+		if (AV->TagsDirtyFrame == Frame)
+		{
+			SyncFromTagContainer(Fragment, AV->Tags);
+		}
+		if (AV->PendingAnimTriggers.Num() > 0)
+		{
+			for (const FGameplayTag& AnimTag : AV->PendingAnimTriggers)
+			{
+				ApplyAnimTag(Fragment, AnimTag);
+			}
+			AV->PendingAnimTriggers.Reset();
+			bFacingSourceDirty = true;
+		}
+	}
+
+	return bFacingSourceDirty;
+}
+
+void TickViewModel(FHktSpriteAnimFragment& Fragment,
+	int32 AuthAnimStartTick, double DeltaSec, float CameraYawDeg,
+	FHktSpriteAnimViewModel& OutVM,
+	bool& InOutLoggedResolveFailure)
+{
+	// 1) 로컬 클럭 누적.
+	Fragment.LocalNowSec += DeltaSec;
+
+	// 2) AnimTag / PlayRate 결정.
+	FGameplayTag AnimTag;
+	float PlayRate = 1.f;
+	ResolveRenderOutputs(Fragment, AnimTag, PlayRate, InOutLoggedResolveFailure);
+
+	// 3) AnimStartLocalSec sticky.
+	//   (a) 서버 권위 AuthAnimStartTick 이 바뀌었을 때.
+	//   (b) ResolvedTag 가 직전 호출과 다를 때 — 새 애니메이션은 항상 0초부터.
+	//       서버측 Op_PlayAnim dedup (동일 태그 해시 시 TouchAnimStartTickBySlot 스킵) 으로
+	//       AuthAnimStartTick 이 안 올라가도 클라가 자력으로 anchor 갱신.
+	const bool bAuthTickChanged = (Fragment.LastAuthAnimStartTick != AuthAnimStartTick);
+	const bool bResolvedTagChanged = (AnimTag != Fragment.LastResolvedTag);
+	if (bAuthTickChanged || bResolvedTagChanged)
+	{
+		Fragment.LastAuthAnimStartTick = AuthAnimStartTick;
+		Fragment.LastResolvedTag = AnimTag;
+		Fragment.AnimStartLocalSec = Fragment.LocalNowSec;
+	}
+
+	// 4) Facing 산출 — sticky LastMoveDirXY + 현재 CameraYaw 로 매 호출 재계산.
+	//   카메라가 캐릭터 주위를 돌면 화면-공간 dir 이 즉시 따라간다. LastMoveDirXY 가
+	//   ZeroVector 면 직전 LastClientFacing 유지(아직 한 번도 움직이지 않은 엔터티는 S).
+	if (!Fragment.LastMoveDirXY.IsNearlyZero())
+	{
+		const float DirYawDeg = FMath::RadiansToDegrees(
+			FMath::Atan2(Fragment.LastMoveDirXY.Y, Fragment.LastMoveDirXY.X));
+		Fragment.LastClientFacing = HktFacingFromYaw(DirYawDeg, CameraYawDeg);
+
+		// 좌우 sticky: 화면 우측 = world (Y - X) > 0 (Iso 카메라 yaw=45 기준).
+		// LastMoveDirXY 만으로 판단 — 8방향 Facing 의 N/S/NE/SE 양자화 손실을 우회.
+		// 카메라 yaw 와 무관하게 world-frame 부호로 결정 → 캐릭터가 움직이지 않으면 sticky.
+		const float ScreenX = Fragment.LastMoveDirXY.Y - Fragment.LastMoveDirXY.X;
+		if (FMath::Abs(ScreenX) > KINDA_SMALL_NUMBER)
+		{
+			Fragment.bLastFacingRight = (ScreenX > 0.f);
+		}
+	}
+
+	// 5) VM 채움.
+	OutVM.bValid             = true;
+	OutVM.AnimTag            = AnimTag;
+	OutVM.PlayRate           = PlayRate;
+	OutVM.Facing             = Fragment.LastClientFacing;
+	OutVM.bFacingRight       = Fragment.bLastFacingRight;
+	OutVM.LocalNowSec        = Fragment.LocalNowSec;
+	OutVM.AnimStartLocalSec  = Fragment.AnimStartLocalSec;
+}
+
+void ExpireActionLayers(FHktSpriteAnimFragment& Fragment,
+	double LocalNowSec,
+	TFunctionRef<float(const FGameplayTag& /*AnimTag*/)> QueryDurationSec)
+{
+	TArray<FGameplayTag, TInlineAllocator<4>> ToRemove;
+	int32 ActionLayerCount = 0;
+	for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
+	{
+		// Layer key 는 ExtractLayerParent 결과 (예: "Anim.Action.Strike" → "Anim.Action").
+		// MatchesTag 는 자기 자신과 자손 모두 매칭하므로 Anim.Action 본인 + 미래 하위 분류
+		// (예: Anim.Action.Special) 까지 동일하게 transient 로 취급된다.
+		if (!Pair.Key.MatchesTag(HktGameplayTags::Anim_Action)) continue;
+		++ActionLayerCount;
+		if (!Pair.Value.IsValid()) { ToRemove.Add(Pair.Value); continue; }
+
+		// 자기 자신 duration 질의. <= 0 → 해당 anim 렌더 불가능 (자산 미등록) → 즉시 만료.
+		const float LayerDur = QueryDurationSec(Pair.Value);
+		if (LayerDur <= 0.f) { ToRemove.Add(Pair.Value); continue; }
+
+		// AnimStartLocalSec 은 ResolvedTag 가 이 action 으로 바뀐 시점에 리셋됨 → 이 layer 의
+		// 실제 재생 시작 시각과 일치. 단, 이 layer 가 우선순위에서 밀려 한 번도 ResolvedTag 가
+		// 된 적 없으면 AnimStartLocalSec 은 다른 anim 의 anchor → 이 경우 만료가 빨리 일어날 수
+		// 있으나 어차피 렌더되지 않은 layer 라 무해.
+		const double RawElapsed = LocalNowSec - Fragment.AnimStartLocalSec;
+		if (RawElapsed >= static_cast<double>(LayerDur))
+		{
+			ToRemove.Add(Pair.Value);
+		}
+	}
+
+	// 디버그 — 만료 후보 entity 의 layer 상태 변화를 추적 (회귀 검증용, 주기적 emit).
+	if (ActionLayerCount > 0 && ToRemove.Num() == 0)
+	{
+		static thread_local int32 sPendingDebugTick = 0;
+		if (++sPendingDebugTick % 30 == 0)
+		{
+			HKT_EVENT_LOG(HktLogTags::Presentation, EHktLogLevel::Verbose, EHktLogSource::Client,
+				FString::Printf(TEXT("Sprite|AnimProcessor: AnimLayer Anim.Action.* still active count=%d"),
+					ActionLayerCount));
+		}
+	}
+
+	for (const FGameplayTag& ExpireTag : ToRemove)
+	{
+		HKT_EVENT_LOG_TAG(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+			FString::Printf(TEXT("Sprite|AnimProcessor: AnimLayer auto-expire %s"), *ExpireTag.ToString()),
+			InvalidEntityId, ExpireTag);
+		RemoveAnimTag(Fragment, ExpireTag);
+	}
 }
 
 } // namespace HktSpriteAnimProcessor

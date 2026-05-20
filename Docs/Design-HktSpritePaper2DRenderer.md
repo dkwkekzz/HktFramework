@@ -283,6 +283,13 @@ TwoSided / `bUsedWithSprite` + `ParticleColor × Texture`) 과 정확히 일치�
 
 ## 7. 런타임 액터 — `AHktSpritePaperActor`
 
+> **Anim 의사결정 단일 출처**: `Apply*` 별로 `FHktSpriteAnimFragment` 에 흡수하던
+> 기존 흐름은 [Flow-Sprite-Anim-Processing.md](Flow-Sprite-Anim-Processing.md) 의 단일
+> 출처 `HktSpriteAnimProcessor` API (`AbsorbViews / TickViewModel / ExpireActionLayers`)
+> 로 통합되었다. 본 액터는 `ApplyTransform / ApplyPhysics / ApplySprite` 의 캐시 +
+> `Tick` 에서 ViewModel 소비(Flipbook bind + SetPlaybackPosition) 만 담당한다.
+> 아래 코드/흐름은 *최신* 구조이다.
+
 ```cpp
 UCLASS(Blueprintable)
 class HKTSPRITECORE_API AHktSpritePaperActor : public AActor, public IHktPresentableActor
@@ -293,62 +300,82 @@ public:
 
     virtual void Tick(float DeltaTime) override;
 
-    // IHktPresentableActor
+    // IHktPresentableActor — *anim 결정 입력은 받지 않음*. Movement/Combat/Animation
+    // 뷰는 Tick 의 HktSpriteAnimProcessor::AbsorbViews 가 직접 PresentationState 에서
+    // 흡수한다. 액터는 권위 캐시 + 자산 적용만.
     virtual void SetEntityId(FHktEntityId Id) override { CachedEntityId = Id; }
-    virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;     // VisualAsset → Template 캐싱
-    virtual void ApplyTransform(const FHktTransformView& V) override;          // 위치 보간 + 빌보드 회전
-    virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;
-    virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;
-    virtual void ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce) override;
+    virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
+    virtual void ApplyTransform(const FHktTransformView& V) override;          // RenderLocation 캐시
+    virtual void ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce) override;     // HitBox
+    virtual void ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce) override;       // 권위 AnimStartTick 캐시
 
 protected:
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent>          RootScene;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPaperFlipbookComponent>  FlipbookComp;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UBoxComponent>            HitBox;
 
 private:
     FHktEntityId CachedEntityId = InvalidEntityId;
 
     UPROPERTY(Transient)
-    TObjectPtr<UHktPaperCharacterTemplate> Template;
+    TObjectPtr<UHktPaperAnimationDataAsset> Animation;     // AnimTag → Flipbook 룩업
 
-    /** AnimFragment — `HktSpriteAnimProcessor` 의 입력 POD. AHktSpriteCrowdHost 와 동일 구조이지만
-     *  여기서는 액터 인스턴스가 직접 보유 (호스트 없음). */
+    /** AnimFragment — `HktSpriteAnimProcessor` 의 입력 + sticky 상태 POD. LocalNowSec /
+     *  AnimStartLocalSec / LastAuthAnimStartTick / LastClientFacing 등을 모두 포함한다. */
     FHktSpriteAnimFragment AnimFragment;
 
-    /** 마지막으로 적용한 (AnimTag, DirIdx) — 동일하면 SetFlipbook 스킵. */
+    /** 마지막 적용 (AnimTag, KeyDir, bFlipX) — SetFlipbook 스킵 게이트. */
     FGameplayTag CurrentAnimTag;
-    uint8        CurrentDirIdx = 0xFF;
-    bool         bMirrored = false;
+    uint8        CurrentKeyDir = 0xFF;
+    bool         bCurrentFlipX = false;
 
-    /** 서버 권위 AnimStartTick 변경 감지 → 로컬 시각 캡처. */
-    int32  LastAuthoritativeAnimStartTick = MIN_int32;
-    double AnimStartLocalSec = 0.0;
+    /** ApplySprite 가 매 sync 마다 캐시 — Tick 의 TickViewModel 입력. */
+    bool   bHasSpriteState = false;
+    int32  ServerAuthoritativeAnimStartTick = 0;
 
-    void RebindFlipbook();
-    void ApplyBillboardYaw();   // 카메라 yaw 따라 RootScene 회전
+    void RebindFlipbookIfNeeded(const FGameplayTag& AnimTag, uint8 KeyDir, bool bFlipX,
+        const FHktPaperAnimMeta& Meta);
 };
 ```
 
 ### Apply 흐름 (한 프레임)
 
-`FHktActorProcessor` 는 SOA 뷰 단위로 액터에 dispatch한다. 각 Apply* 가 받는 정보:
+`FHktActorProcessor` 는 SOA 뷰 단위로 액터에 dispatch한다. 본 액터가 override 하는 Apply* 는:
 
 ```
-ApplyTransform(V)   : RenderLocation (매 프레임)
-ApplyAnimation(V)   : Tags(GameplayTagContainer), PendingAnimTriggers, TagsDirtyFrame
-ApplyMovement(V)    : bIsMoving / bIsJumping / Velocity
-ApplyCombat(V)      : MotionPlayRate / AttackSpeed / CPRatio
+ApplyTransform(V)   : RenderLocation 캐시 (Tick 에서 보간)
+ApplyPhysics(V)     : CollisionRadius/HalfHeight → HitBox 크기/오프셋
+ApplySprite(V)      : V.AnimStartTick → ServerAuthoritativeAnimStartTick 캐시
+                      (Tick 의 TickViewModel(AuthAnimStartTick=...) 입력)
 ```
 
-액터는 이를 `FHktSpriteAnimFragment` 로 흡수(기존 `HktSpriteAnimProcessor::SyncFromTagContainer / ApplyAnimTag` 그대로 재사용)한 뒤, `Tick(DeltaTime)` 에서:
+Movement/Combat/Animation 뷰는 액터의 Apply* 가 흡수하지 않는다 — `Tick` 안에서
+`HktSpriteAnimProcessor::AbsorbViews` 가 `UHktPresentationSubsystem::GetMutableState()`
+에서 직접 읽어 Fragment 로 흡수한다.
 
-1. `HktSpriteAnimProcessor::ResolveRenderOutputs(AnimFragment, OutAnimTag, OutPlayRate)` — 최종 anim/playrate 결정.
-2. `HktResolveSpriteFrame(...)` — `(StoredFacing=DirIdx, FrameIdx, bFlipX)` 결정. Facing / AnimStartTick 은 `IHktPresentableActor::ApplySprite` 가 매 sync 마다 푸시(F-2). 액터는 `bHasSpriteState / ServerFacing / ServerAuthoritativeAnimStartTick` 로 캐시.
-3. `KeyDir = bFlipX ? 미러원본Dir(W↦E, SW↦SE, NW↦NE) : DirIdx`, `bMirrored = bFlipX && bMirrorWestFromEast`.
-4. `(AnimTag, KeyDir)` 가 변경되면 `Template->Flipbooks[{AnimTag, KeyDir}]` 룩업 → `FlipbookComp->SetFlipbook(FB)`, `SetLooping(meta.bLooping)`, `SetSpriteColor(meta.Tint)`.
-5. `ElapsedSec = (NowLocalSec - AnimStartLocalSec) * PlayRate`. `FlipbookComp->SetPlaybackPosition(ElapsedSec, /*bFireEvents=*/false)`.
-6. `bMirrored` 이면 컴포넌트 `RelativeScale3D.X = -1`, 아니면 +1.
-7. `RootScene->SetWorldRotation(FRotator(0, CameraYawDeg, 0))` — Y-billboard 와 동등한 효과. CameraYaw 입수 방법은 §8.
+`Tick(DeltaTime)` 의 순서:
+
+1. **위치 보간** (`InterpLocation = VInterpTo(CachedRenderLocation, ...)`) + 빌보드 회전 적용
+   (CVar `hkt.PaperSprite.YawDirtyDeg` dirty check).
+2. `HktSpriteAnimProcessor::AbsorbViews(AnimFragment, State, Id, Frame, MinFacingSpeed)`
+   — Movement/Combat/Animation 뷰 → Fragment.
+3. `HktSpriteAnimProcessor::TickViewModel(AnimFragment, ServerAuthoritativeAnimStartTick,
+   DeltaTime, CameraYaw, OutVM, dedup)` — VM 산출 (`AnimTag / PlayRate / Facing /
+   bFacingRight / LocalNowSec / AnimStartLocalSec`).
+4. `HktSpriteAnimProcessor::ExpireActionLayers(AnimFragment, LocalNowSec, [Anim](tag){
+   return Anim->Flipbooks[{tag,0}]->GetTotalDuration(); })` — `Anim.Action.*` layer
+   자동 만료 (이번 프레임 resolve 이후, 다음 프레임 Locomotion 폴백).
+5. `bFacingSourceDirty` (AbsorbViews 반환) 면 `SpriteView.Facing/FacingRight` 에 VM 값 기록.
+6. `Animation->FindAnimationOrFallback(VM.AnimTag)` → `FHktPaperAnimMeta*`.
+7. `FHktSpriteAnimation::ResolveStoredFacing(VM.Facing, Meta->NumDirections,
+   Meta->bMirrorWestFromEast, OutFlipX, VM.bFacingRight)` → `(KeyDir, bFlipX)`.
+8. `(AnimTag, KeyDir, bFlipX)` 변경 시 `Flipbooks[{AnimTag, KeyDir}]` 룩업 →
+   `FlipbookComp->SetFlipbook(FB)`, `SetLooping(Meta->bLooping)`, `SetSpriteColor(Meta->Tint)`,
+   `RelativeScale3D.X = bFlipX ? -|x| : +|x|`.
+9. `ElapsedSec = (VM.LocalNowSec - VM.AnimStartLocalSec) * VM.PlayRate * CurrentMetaTimeScale`
+   → `FlipbookComp->SetPlaybackPosition(ElapsedSec, /*bFireEvents=*/false)`.
+
+자세한 단계 의미·sticky 규칙·확장은 [Flow-Sprite-Anim-Processing.md](Flow-Sprite-Anim-Processing.md) §3.
 
 ### 빌보드 회전 입수 (`AHktSpriteCrowdHost::SetCameraYaw` 와 등가)
 
