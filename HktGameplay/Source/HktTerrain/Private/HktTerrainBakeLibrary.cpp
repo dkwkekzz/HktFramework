@@ -242,7 +242,7 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 				++OrphanRules;
 				continue;
 			}
-			if (Rule.VoxelType == EHktTerrainVoxelType::Air)
+			if (Rule.VoxelType == EHktTerrainType::Air)
 			{
 				UE_LOG(LogHktTerrain, Warning,
 					TEXT("BakeRegion: VoxelSpawnRules 엔트리의 VoxelType 이 Air — 무시"));
