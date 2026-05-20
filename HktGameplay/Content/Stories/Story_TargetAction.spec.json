@@ -1,6 +1,6 @@
 {
   "storyTag": "Story.Event.Target.Action",
-  "description": "TargetAction (I-0012) — 우클릭 단일 진입점. Target invalid → Move, Item → 접근 후 Pickup, Hittable(NPC/자연 entity) → 접근 + 쿨다운 후 UseSkill, 그 외 → Move.",
+  "description": "TargetAction (I-0012, I-0016) — 우클릭 단일 진입점. Target invalid → Move, Item → 접근 후 Pickup, Hittable(NPC/자연 entity) → 접근 + 쿨다운 후 UseSkill. Param3=1 (지속 인텐트) 면 대상이 살아 있는 한 UseSkill 디스패치를 반복.",
   "scenarios": [
     {
       "name": "invalid_target_dispatches_move",
@@ -40,6 +40,51 @@
         "status": "Completed",
         "dispatched": [
           { "eventTag": "Story.Event.Move.ToLocation", "source": "self", "target": "target" }
+        ]
+      }
+    },
+    {
+      "name": "hittable_in_range_nonpersistent_single_dispatch",
+      "description": "Hittable + 사거리 내 + 쿨다운 OK + Param3=0(단발) → UseSkill 1회 디스패치 후 Halt.",
+      "given": {
+        "self":   {
+          "archetype": "Character",
+          "properties": { "AttackRange": 200, "NextActionFrame": 0 },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "NPC",
+          "properties": { "Health": 100, "MaxHealth": 100, "ItemId": 0 },
+          "position": [100, 0, 0]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Story.Event.Combat.UseSkill", "source": "self", "target": "target" }
+        ]
+      }
+    },
+    {
+      "name": "hittable_persistent_halts_when_target_dead",
+      "description": "Param3=1(지속) + 첫 디스패치 직후 Health=0 시뮬 → persist_wait_cd 1프레임 yield 후 Health <=0 감지 → done.",
+      "given": {
+        "self":   {
+          "archetype": "Character",
+          "properties": { "AttackRange": 200, "NextActionFrame": 0 },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "NPC",
+          "properties": { "Health": 0, "MaxHealth": 100, "ItemId": 0 },
+          "position": [100, 0, 0]
+        },
+        "event": { "param3": 1 }
+      },
+      "expect": {
+        "status": "Completed",
+        "dispatched": [
+          { "eventTag": "Story.Event.Combat.UseSkill", "source": "self", "target": "target" }
         ]
       }
     }

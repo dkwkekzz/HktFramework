@@ -1,6 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktClientRule.h"
+#include "HktCoreArchetype.h"
 #include "HktCoreProperties.h"
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"
@@ -150,7 +151,24 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		{
 			TargetActionTag = Tag_Event_Target_Action;
 		}
-		Event = HktEventBuilder::TargetDefault(TargetActionTag, SubjectEntity, EventTargetEntity, TargetLocation);
+
+		// I-0016 — Hittable 실엔티티가 지정된 경우 기본 인텐트는 "지속". Item/이동 분기로
+		// 흘러갈 입력은 Story_TargetAction 측에서 Param3 를 무시하므로 영향 없음.
+		bool bPersistent = false;
+		if (IsRealEntityId(EventTargetEntity) && CachedSimulator && CachedSimulator->IsInitialized())
+		{
+			const FHktWorldState& WS = CachedSimulator->GetWorldState();
+			if (WS.IsValidEntity(EventTargetEntity))
+			{
+				// Hittable trait 보유 + 아이템이 아닐 때만 지속 인텐트 (Item 픽업은 단발)
+				const bool bIsItem = WS.GetProperty(EventTargetEntity, PropertyId::ItemId) > 0;
+				if (!bIsItem)
+				{
+					bPersistent = WS.HasTrait(EventTargetEntity, HktTrait::Hittable);
+				}
+			}
+		}
+		Event = HktEventBuilder::TargetDefault(TargetActionTag, SubjectEntity, EventTargetEntity, TargetLocation, bPersistent);
 	}
 
 	// ValidateStory 사전조건 검증

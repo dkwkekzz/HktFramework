@@ -83,6 +83,27 @@
     { "op": "Log", "message": "TargetAction: Hittable → UseSkill" },
     { "op": "DispatchEvent", "eventTag": "StoryUseSkill" },
 
+    { "comment": "── I-0016: Param3==1 (지속 인텐트) 면 쿨다운 대기 후 다음 사이클로 루프. 0 이면 단발 종료. ──" },
+    { "op": "ReadProperty", "dst": {"var":"persistent"}, "property": "Param3" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"persistent"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "done" },
+
+    { "comment": "── 쿨다운(NextActionFrame) 경과까지 매 프레임 대기 — BasicAttack/UseSkill 이 디스패치 사이클에서 NextActionFrame 을 갱신 ──" },
+    { "op": "Label", "name": "persist_wait_cd" },
+    { "op": "Yield", "frames": 1 },
+    { "op": "GetWorldTime", "dst": {"var":"now"} },
+    { "op": "ReadProperty", "dst": {"var":"nextFrame"}, "property": "NextActionFrame" },
+    { "op": "CmpLt", "dst": "Flag", "src1": {"var":"now"}, "src2": {"var":"nextFrame"} },
+    { "op": "JumpIf", "cond": "Flag", "label": "persist_wait_cd" },
+
+    { "comment": "── 대상 사망 시 루프 종료 (Health <= 0) ──" },
+    { "op": "LoadStoreEntity", "dst": {"var":"hp"}, "entity": "Target", "property": "Health" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"hp"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "done" },
+
+    { "comment": "── 사거리 재검증 후 다음 공격 — chase_loop 가 사거리 이탈을 자동 처리 ──" },
+    { "op": "Jump", "label": "range_ok" },
+
     { "op": "Label", "name": "done" },
     { "op": "Halt" },
 
