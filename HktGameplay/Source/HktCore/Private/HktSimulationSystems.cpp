@@ -624,7 +624,7 @@ void FHktTerrainSystem::Process(
 
     // 2. 필요한 청크 로드 (프레임당 예산 제한으로 스파이크 방지)
     //    + 새로 로드된 청크의 spawner 메타 → 이번 프레임 dispatch 이벤트로 변환
-    //    (TerrainSpawner.design.md §7 Runtime Execution)
+    //    (Docs/Design-VoxelSpawner.md §7 Runtime Execution)
     EmittedSpawnerEvents.Reset();
     int32 LoadedThisFrame = 0;
     int32 SkippedInvalidSpawnerTags = 0;

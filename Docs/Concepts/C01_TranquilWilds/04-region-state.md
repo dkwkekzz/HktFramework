@@ -2,7 +2,7 @@
 
 > **목적**: [`03-natural-spawners.md`](./03-natural-spawners.md) §5 에서 *이름만 합의* 된 13 개 region 카운터의 **저장 모델 · 읽기/쓰기 API · 결정론 · 영속화 · 복제** 를 결정한다. 본 문서가 통과하면 07 의 schema 2 JSON 본문이 region state 를 안전하게 참조할 수 있다.
 > **상태**: ADR (Phase 0). 구현 착수 전, 데이터 모델 단일 출처.
-> **상위**: [`README.md`](./README.md) · **선행**: [`03-natural-spawners.md`](./03-natural-spawners.md) · [`../../../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md`](../../../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md)
+> **상위**: [`README.md`](./README.md) · **선행**: [`03-natural-spawners.md`](./03-natural-spawners.md) · [`../../Design-VoxelSpawner.md`](../../Design-VoxelSpawner.md)
 > **기록일**: 2026-05-13
 
 ---
@@ -31,8 +31,8 @@
 | **루트 절대 원칙 4** | VM 은 WorldState 직접 쓰기 금지 | 모든 쓰기는 `FHktVMWorldStateProxy::SetPropertyDirty` 경유. |
 | **루트 절대 원칙 6** | 컬럼 포인터 호이스팅 | RegionId → row 매핑은 dispatch *진입 1 회* 만 해석. 루프 안 `GetProperty` 금지. |
 | **VM 메모리 모델** | 시뮬레이션 상태는 SoA 연속 컬럼만 — 해시·간접·산발 자료구조(TMap 등)는 시뮬레이션 진실의 일부가 될 수 없다 | 모든 region lookup 은 *SoA 선형 스캔* (`RegionIdKey` + `RecordKey` + `Archetype` 컬럼 매치). 보조 hash 인덱스 일체 도입 안 함. |
-| **TerrainSpawner.design.md §1 D1~D7** | Reg 네임스페이스 / RegisterIndex / Schema 1 / cpp 스니펫 신설 금지 | 본 ADR 은 *데이터 모델* 만 추가. 읽기/쓰기는 `FHktVar` + 기존 opcode (`LoadStore`) 조합. |
-| **TerrainSpawner.design.md §1-3** | 신규 opcode 기본 금지 | **opcode 추가 0**. region state 는 *별도 EntityType* 으로 표현 → 기존 `LoadStore` 가 그대로 동작. |
+| **Design-VoxelSpawner.md 부록 A D1~D7** | Reg 네임스페이스 / RegisterIndex / Schema 1 / cpp 스니펫 신설 금지 | 본 ADR 은 *데이터 모델* 만 추가. 읽기/쓰기는 `FHktVar` + 기존 opcode (`LoadStore`) 조합. |
+| **Design-VoxelSpawner.md 부록 A 신규 OpCode 정책** | 신규 opcode 기본 금지 | **opcode 추가 0**. region state 는 *별도 EntityType* 으로 표현 → 기존 `LoadStore` 가 그대로 동작. |
 | **README §2 G1~G6** | spawner = `FHktTerrainSpawnerSpec` / Param0~3 / schema 2 / 서버 권위 | Region state 는 spawner spec 의 *결과물* 일 뿐, 진입 메커니즘을 추가하지 않는다. |
 
 > **재확인**: 03 §6 의 "region 카운터 read/write 는 opcode 가 아닌 *시스템* 추가" 결정을 본 ADR 이 이행한다.
@@ -196,8 +196,8 @@ namespace SpawnerParams
 }
 ```
 
-- Param2 의 *기존 의미* (e.g. `SpawnerSlot0`) 와 충돌하는 spawner 는 Param3 로 밀거나, 두 의미가 region 도출용 sub-field 로 공존 (e.g. 상위 16 bit = RegionId, 하위 16 bit = SlotHash low). 03 §3 의 각 spawner spec 에서 *spawner 본문이 자체적으로 의미 부여* (TerrainSpawner.design.md §4-d).
-- archetype 강제 분류 부활 아님 — §5 ADR (디자인 문서) 준수: 별칭 1 줄.
+- Param2 의 *기존 의미* (e.g. `SpawnerSlot0`) 와 충돌하는 spawner 는 Param3 로 밀거나, 두 의미가 region 도출용 sub-field 로 공존 (e.g. 상위 16 bit = RegionId, 하위 16 bit = SlotHash low). 03 §3 의 각 spawner spec 에서 *spawner 본문이 자체적으로 의미 부여* (Design-VoxelSpawner.md §Schema 2 본문 컨벤션).
+- archetype 강제 분류 부활 아님 — Design-VoxelSpawner.md 부록 B ADR 준수: 별칭 1 줄.
 
 ---
 
@@ -220,7 +220,7 @@ namespace SpawnerParams
 [Server 청크 로드]
    FHktTerrainSystem::Process
       └─▶ GetChunkSpawners → FHktEvent (HktEventBuilder::SpawnerFromView)
-              ├─ Location, Param0~1 (anchor) — TerrainSpawner.design.md §4-a
+              ├─ Location, Param0~1 (anchor) — Design-VoxelSpawner.md §Runtime 진입 메커니즘
               └─ Param2/3 — spawner 본문 의미 자유
                   └─ ServerRule 이 dispatch 직전에 RegionId 를 1 회 해석:
                      RegionId = HktRegionId::FromChunkCoord(ChunkCoord)
@@ -240,7 +240,7 @@ namespace SpawnerParams
           (Presentation 의 region UI 가 read)
 ```
 
-VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §4-a 와 동일 단일 경로.
+VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — Design-VoxelSpawner.md §Runtime 진입 메커니즘 과 동일 단일 경로.
 
 ---
 
@@ -248,7 +248,7 @@ VM 측 변경 0, 새 진입 API 0, 새 prefill 0 — TerrainSpawner.design.md §
 
 ### 6-1. 무엇이 save 대상인가
 - **save**: `Entity.Region` (RegionEntity) + `Entity.RegionRecord.{Lineage|Variant|OreSpecies}` (시즌 0) + 향후 `.Peak` / `.Feature` 가 부여된 모든 SoA row.
-- **save 안 함**: 일반 entity (Unit/Projectile/...) 의 *시뮬 영속* 처리 정책은 별도 (TerrainSpawner.design.md §10 O1).
+- **save 안 함**: 일반 entity (Unit/Projectile/...) 의 *시뮬 영속* 처리 정책은 별도 (Design-VoxelSpawner.md §청크 언로드 정책 (미결)).
 
 ### 6-2. 저장소
 - save-game asset 의 별도 섹션 `RegionStateBlob`. **SoA 컬럼 단위로 직렬화** (entity row 별 직렬화가 아님 — 캐시 친화).

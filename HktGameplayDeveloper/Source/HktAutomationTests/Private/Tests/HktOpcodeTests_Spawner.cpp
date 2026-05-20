@@ -15,7 +15,7 @@ namespace HktOpcodeTests
 {
 
 // ============================================================================
-// Spawner Builder 헬퍼 검증 (TerrainSpawner.design.md §4-b)
+// Spawner Builder 헬퍼 검증 (Docs/Design-VoxelSpawner.md §4-b)
 //
 // SpawnEntityAt / SpawnEntityAround 가 기존 opcode (SpawnEntity + SetPosition +
 // RandomInt + Add) 조합으로 expansion 되는지 런타임 실행으로 검증한다.
@@ -172,7 +172,7 @@ static FHktTestResult Test_SpawnEntityAround_RandomSeeded_SpawnsN()
 }
 
 // ============================================================================
-// SpawnerFromView 헬퍼 검증 (TerrainSpawner.design.md §7)
+// SpawnerFromView 헬퍼 검증 (Docs/Design-VoxelSpawner.md §7)
 //
 // chunk-load dispatch 시 `FHktTerrainSpawnerView` 를 `FHktEvent` 로 변환할 때
 // 필드 매핑이 설계대로인지 확인. Harness 불필요 — 순수 함수.

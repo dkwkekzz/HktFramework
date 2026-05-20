@@ -3,8 +3,7 @@
 I-0014 voxel spawn attribution 으로 생성된 entity 가 **베이크 시점의 voxel** 부터 **클라이언트의 Presentation viewmodel** 까지 도달하는 end-to-end 경로를 정리한다. 단일 spawn (예: Tree_Spawn 의 Oak 1본) 의 lifecycle 을 따라간다.
 
 관련 문서:
-- [Design-I0014-Implementation.md](Design-I0014-Implementation.md) — 의도/구현 매트릭스
-- [Howto-VoxelSpawnRules.md](Howto-VoxelSpawnRules.md) — §1 베이크 단계 매트릭스 설정·튜닝·디버깅
+- [Design-VoxelSpawner.md](Design-VoxelSpawner.md) — voxel spawn 속성 데이터 모델·bake·런타임·콘텐츠 워크플로우 (단일 진실원)
 - [Flow-DataAsset-Presentation-Pipeline.md](Flow-DataAsset-Presentation-Pipeline.md) — Tag → DataAsset → Actor 시각화 (본 문서 §7 의 상세)
 - [../HktGameplay/Source/HktTerrain/CLAUDE.md](../HktGameplay/Source/HktTerrain/CLAUDE.md) — 지형 데이터 단일 출처 규약
 

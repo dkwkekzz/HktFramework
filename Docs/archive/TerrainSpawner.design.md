@@ -1,7 +1,11 @@
-# Terrain Spawner 통합 설계도
+# [ARCHIVED] Terrain Spawner 통합 설계도 (설계 이력 보관)
 
-> **상태**: 설계 단계. 구현 착수 전. 본 문서는 의사결정의 단일 출처.
-> **브랜치**: `claude/terrain-spawner-planning-R2Jp3`
+> **현 단일 진실원**: [`../Design-VoxelSpawner.md`](../Design-VoxelSpawner.md).
+>
+> 본 문서의 유효한 결정 (§1 V2 가드레일 / §3 데이터 모델 / §4 Story API / §5 Archetype ADR / §7 런타임 실행) 은 모두 신 단일 진실원으로 흡수됨. 본 보관본은 §6 (Generator 파이프라인 초기 설계), §8 (M0~M7 마이그레이션), §10 (오픈 이슈), §11 (변경 이력) 등 *완료/폐기된 단계* 의 audit 용.
+>
+> **상태**: Phase 1~4 구현 완료. Phase 5 마이그레이션 부분 완료 (M5 일부 / M6 deprecation 마킹).
+>
 > **관련 모듈**: `HktTerrain`(주체) · `HktCore/HktStory`(행동) · `HktMapGenerator`(어댑터·마이그레이션 대상)
 
 ---

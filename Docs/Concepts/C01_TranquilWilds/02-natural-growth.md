@@ -25,7 +25,7 @@
 
 - **G1 / G3** — 성장도 spawner spec 의 `GrowthStoryTag` (Story V2 JSON) 로만 표현. 신규 opcode 도입 금지가 기본.
 - **G5** — 성장 판정은 서버 시뮬레이션. 클라는 `FHktWorldView` 차이만 본다.
-- **VM 제약** — 청크 단위 dispatch (TerrainSpawner.design.md §7) 만 사용. tick 단위 polling 은 매 frame 부담이라 최후 수단.
+- **VM 제약** — 청크 단위 dispatch (Design-VoxelSpawner.md §Runtime 흐름) 만 사용. tick 단위 polling 은 매 frame 부담이라 최후 수단.
 
 ---
 
@@ -95,7 +95,7 @@
        └─ SpawnEntity(Mushroom) at NearbyShadeCell
 ```
 
-`dispatch` 는 별도 opcode 가 아니라 *spawner story 내부에서 `FHktEvent::Spawner` 를 큐에 다시 넣는 패턴*. (TerrainSpawner.design.md §4-a 의 `PendingGroupIntents` 재사용).
+`dispatch` 는 별도 opcode 가 아니라 *spawner story 내부에서 `FHktEvent::Spawner` 를 큐에 다시 넣는 패턴*. (Design-VoxelSpawner.md §Runtime 진입 메커니즘 의 `PendingGroupIntents` 재사용).
 
 ### 4-3. Quake — region 영속 변형
 

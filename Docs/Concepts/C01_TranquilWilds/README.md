@@ -1,7 +1,7 @@
 # C01 — TranquilWilds (강과 산이 있는 풀숲)
 
 > **상태**: Skeletal. 구체적 Story 작성 전. 본 폴더는 컨셉 → 자연 → 상호작용 → Story 디스패치 순으로 채워나간다.
-> **상위 설계**: [`HktGameplay/Source/HktTerrain/TerrainSpawner.design.md`](../../../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md)
+> **상위 설계**: [`Docs/Design-VoxelSpawner.md`](../../Design-VoxelSpawner.md)
 > **선행 자료(참고)**: [`Docs/Concept01_TranquilWilds/`](../../Concept01_TranquilWilds/) — 동일 주제의 이전 시리즈. 본 폴더는 *Terrain Spawner V2 + Story dispatch* 컴플라이언스로 재시작한 skeletal 라인.
 > **시작**: 2026-05-13
 
@@ -40,10 +40,10 @@
 
 | # | 항목 | 근거 |
 |---|---|---|
-| **G1** | 모든 spawner 는 `FHktTerrainSpawnerSpec` (Story V2) 로만 직렬화. `EHktSpawnRule` 부활 금지. | TerrainSpawner.design.md §3 |
+| **G1** | 모든 spawner 는 `FHktTerrainSpawnerSpec` (Story V2) 로만 직렬화. `EHktSpawnRule` 부활 금지. | Design-VoxelSpawner.md §데이터 모델 |
 | **G2** | 모든 entity 진입은 `FGameplayTag` (`Entity.Natural.*`) 기반. cpp 하드코딩 enum 금지. | 루트 CLAUDE.md "GameplayTag" 규약 |
-| **G3** | Story 본문은 schema 2 JSON 만. cpp 스니펫 신규 작성 금지. | TerrainSpawner.design.md §1-1 D4 |
-| **G4** | spawner 컨텍스트는 `FHktEvent::Param0~3` 만 사용. 별도 EntryArgs 메커니즘 도입 금지. | TerrainSpawner.design.md §4-a |
+| **G3** | Story 본문은 schema 2 JSON 만. cpp 스니펫 신규 작성 금지. | Design-VoxelSpawner.md 부록 A D4 |
+| **G4** | spawner 컨텍스트는 `FHktEvent::Param0~3` 만 사용. 별도 EntryArgs 메커니즘 도입 금지. | Design-VoxelSpawner.md §Runtime 진입 메커니즘 |
 | **G5** | 자연 entity 의 "성장/소멸" 도 결정론 시뮬레이션 결과. 클라이언트 측 자체 판정 금지 (절대 원칙 3). | 루트 CLAUDE.md "Absolute Principles" |
 | **G6** | 바이옴 파라미터로 추출 가능해야 한다. 풀숲 전용 하드코딩은 L6(시드 인과) 한정. | Concept01 시리즈 §1 결정 계승 |
 
