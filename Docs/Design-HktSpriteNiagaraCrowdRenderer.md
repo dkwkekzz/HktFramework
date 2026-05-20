@@ -2,6 +2,11 @@
 
 기존 `UHktSpriteCrowdRenderer`(HISM)는 그대로 두고, Niagara Mesh Renderer 기반의 신규 크라우드 렌더러를 같은 진입 API로 병행 운용하기 위한 설계 문서.
 
+> **Anim 의사결정 단일 출처**: 본 렌더러도 `AHktSpriteCrowdHost` 와 동일하게
+> [Flow-Sprite-Anim-Processing.md](Flow-Sprite-Anim-Processing.md) 의 `HktSpriteAnimProcessor`
+> 산출물 (`FHktSpriteAnimViewModel`) 을 *그대로* 소비한다. 렌더러는 anim 결정 로직을
+> 가지지 않고, `FHktSpriteEntityUpdate` 로 변환된 VM 값을 NDI Array 에 push 하는 것만 담당.
+
 ## 배경 — 왜 새 렌더러가 필요한가
 
 현 HISM 기반 경로의 잔존 이슈:
