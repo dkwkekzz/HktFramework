@@ -14,8 +14,8 @@
 | **P2** | 분포는 **결정론적 노이즈 + 비대칭** 만 쓴다. 균일 random 금지 | 균일 분포는 "왜 여기에" 의 미지를 죽임 — 풀이 결을 갖고, 강이 굽이를 갖는 식으로 *읽을 수 있는 패턴* 을 만든다 |
 | **P3** | 모든 spawner 는 **하나 이상의 region 영속 카운터**를 건드린다 | 무한 성장 가치를 위한 누적 — 청크 단위 휘발 X |
 | **P4** | dispatch 가지는 **조건부**. 항상 발화하는 dispatch 는 그냥 같은 story 본문에 넣는다 | 조건부 dispatch 만이 인과 그래프를 만든다 |
-| **P5** | 신규 opcode 0 (G3) — 분포·조건 계산은 `RandomInt` / `Add` / `Mul` / `Cmp` 등 기존 60+ opcode 조합 | TerrainSpawner.design.md §1-3 |
-| **P6** | Param0/1 은 항상 anchor 위치 (cm 정수). Param2/3 만 spawner 별 의미 자유 | TerrainSpawner.design.md §3-a / `SpawnerParams::` 컨벤션 |
+| **P5** | 신규 opcode 0 (G3) — 분포·조건 계산은 `RandomInt` / `Add` / `Mul` / `Cmp` 등 기존 60+ opcode 조합 | Design-VoxelSpawner.md 부록 A 신규 OpCode 정책 |
+| **P6** | Param0/1 은 항상 anchor 위치 (cm 정수). Param2/3 만 spawner 별 의미 자유 | Design-VoxelSpawner.md §데이터 모델 - 명시 배치 / `SpawnerParams::` 컨벤션 |
 
 ---
 

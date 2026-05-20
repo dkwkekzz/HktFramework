@@ -91,7 +91,7 @@ struct HKTCORE_API FHktTerrainSystem
 
     /**
      * 이번 Process() 호출에서 새로 로드된 청크들의 spawner 메타로부터 생성된
-     * dispatch 이벤트 (TerrainSpawner.design.md §7). 호출자 (Simulator.ProcessBatch)
+     * dispatch 이벤트 (Docs/Design-VoxelSpawner.md §7). 호출자 (Simulator.ProcessBatch)
      * 가 `Event.NewEvents` 와 합쳐 VMBuildSystem 입력으로 흘려보낸다.
      *
      * 매 Process() 진입 시 Reset — 프레임 내 누적 없음.

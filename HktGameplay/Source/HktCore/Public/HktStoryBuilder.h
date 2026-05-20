@@ -43,7 +43,7 @@ class FHktStoryBuilder;
  *  - Line:          Center 에서 일정 간격 직선 배치.
  *  - RandomSeeded:  SlotHash + RandomInt 결정론적 jitter 로 분산 배치.
  *
- * 본 enum 은 *Builder 매개변수* — 신규 opcode 가 아니다 (TerrainSpawner.design.md §1-3, §4-b).
+ * 본 enum 은 *Builder 매개변수* — 신규 opcode 가 아니다 (Docs/Design-VoxelSpawner.md §1-3, §4-b).
  * Builder 가 기존 opcode (SpawnEntity, SetPosition, RandomInt, Add 등) 를 조합해 emit 한다.
  */
 enum class EHktSpawnPattern : uint8
@@ -276,7 +276,7 @@ public:
     // 진입 컨텍스트(위치/SlotHash/archetype params)를 인라인 정수 + FVector 로 표현하므로,
     // Story 코드는 `LoadStore(PropertyId::Param0..3)` / 좌표 자동 매핑으로 그대로 읽는다.
     //
-    // TerrainSpawner.design.md §4-a 갱신: 별도 prefill 메커니즘/EntryArgs 구조체 폐기.
+    // Docs/Design-VoxelSpawner.md §4-a 갱신: 별도 prefill 메커니즘/EntryArgs 구조체 폐기.
     // `SpawnerParams::` 네임스페이스(HktStoryEventParams.h) 에서 Param0~3 의 의미 별칭만
     // 정의해 archetype 별 계약을 형식화한다.
 
@@ -339,7 +339,7 @@ public:
     /**
      * 지정 위치에 단일 엔티티 spawn.
      *  - 내부적으로 `SpawnEntity(ClassTag)` + `SetPosition(Spawned, Position)` 을 emit.
-     *  - 신규 opcode 추가 없음 (TerrainSpawner.design.md §1-3, §4-b).
+     *  - 신규 opcode 추가 없음 (Docs/Design-VoxelSpawner.md §1-3, §4-b).
      * @return spawned entity 의 vreg 핸들.
      */
     FHktVar SpawnEntityAt(const FGameplayTag& EntityTag, FHktVarBlock Position);

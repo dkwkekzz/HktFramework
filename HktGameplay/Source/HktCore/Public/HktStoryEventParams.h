@@ -36,7 +36,7 @@ namespace UseSkillParams
 // NPC Spawner (Wave, GoblinCamp, TreeDrop, Terrain-bake Spawner 등)
 // ============================================================================
 //
-// Terrain Spawner 통합 (TerrainSpawner.design.md §3-a, §4-a) — `FHktTerrainSpawnerSpec`
+// Terrain Spawner 통합 (Docs/Design-VoxelSpawner.md §3-a, §4-a) — `FHktTerrainSpawnerSpec`
 // 의 4-슬롯 평탄화 정수가 `FHktEvent::Param0~3` 으로 1:1 매핑된다. archetype 별 정확한
 // 의미는 spawner story 본문이 자체 정의 — 본 별칭은 공통 컨벤션 헤더 (강제 분류 아님).
 //
@@ -190,7 +190,7 @@ namespace HktEventBuilder
 	}
 
 	/**
-	 * Terrain spawner view 로 NPC 스포너 이벤트 생성 (TerrainSpawner.design.md §7).
+	 * Terrain spawner view 로 NPC 스포너 이벤트 생성 (Docs/Design-VoxelSpawner.md §7).
 	 *
 	 * `FHktTerrainSpawnerView::PosXRaw/PosYRaw/PosZRaw` (Q16.16 cm) → 정수 cm 변환 후
 	 *   - `Event.Param0/1` = cm 정수 (SpawnerParams::SpawnPosX/Y 컨벤션)

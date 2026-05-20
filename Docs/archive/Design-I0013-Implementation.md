@@ -6,7 +6,7 @@
 
 > **이력 메모**: 본 문서는 옛 의도 구조의 `I-0014 (Voxel spawn 능력)` 로 작성·운영되어 왔다. 의도 구조 재정의 후 같은 *왜* 가 `I-0013 (성장을 위한 재료)` 로 이관됨에 따라 ID 만 갱신.
 
-관련 모듈 디자인 (보관본): [HktGameplay/Source/HktTerrain/TerrainSpawner.design.md](../../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md)
+관련 모듈 디자인 (보관본): [TerrainSpawner.design.md](TerrainSpawner.design.md)
 
 ## 핵심 흐름
 

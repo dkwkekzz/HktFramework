@@ -350,7 +350,7 @@ public:
 	 * 베이크 자산 포맷 버전. 호환되지 않는 변경 시 +1 후 자산 재베이크 강제.
 	 *
 	 *  - v1: 청크 복셀 + GeneratorConfig.
-	 *  - v2: Spawners[] 추가 — Story 인스턴스 메타 (TerrainSpawner.design.md §3-b).
+	 *  - v2: Spawners[] 추가 — Story 인스턴스 메타 (Docs/Design-VoxelSpawner.md §명시 배치).
 	 *  - v3: 청크별 surface 메타 — 런타임 placement 정책 패스 입력 (제거됨).
 	 *  - v4: `PlacementStoryTag` — World 별 Placement Story 분기 (제거됨).
 	 *  - v5: per-voxel `SpawnTemplateAttribution` 슬롯 + World 별 `SpawnTemplateCatalog` (I-0014).

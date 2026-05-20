@@ -68,7 +68,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     EntityArrangeSystem.Process(WorldState, Event.RemovedOwnerIds);
 
     // Terrain: 엔티티 위치 + 이벤트 Location 기반 청크 로드/언로드
-    // + Terrain Spawner 통합 (TerrainSpawner.design.md §7): 새로 로드된 청크의
+    // + Terrain Spawner 통합 (Docs/Design-VoxelSpawner.md §7): 새로 로드된 청크의
     //   spawner 메타가 `TerrainSystem.EmittedSpawnerEvents` 로 흘러나온다.
     if (TerrainSource)
     {

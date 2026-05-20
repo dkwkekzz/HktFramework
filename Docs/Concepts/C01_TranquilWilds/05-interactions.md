@@ -26,11 +26,11 @@
 
 | # | 항목 | 근거 |
 |---|---|---|
-| **I1** | 이벤트는 모두 `FHktEvent` **단일 진입 경로** + `PendingGroupIntents` 큐. 별도 RPC / Delegate / 콜백 도입 금지. | TerrainSpawner.design.md §4-a |
+| **I1** | 이벤트는 모두 `FHktEvent` **단일 진입 경로** + `PendingGroupIntents` 큐. 별도 RPC / Delegate / 콜백 도입 금지. | Design-VoxelSpawner.md §Runtime 진입 메커니즘 |
 | **I2** | 모든 행위 판정은 **서버 권위**. 클라는 인텐트(`FHktIntent` 또는 입력 메시지)만 보내고, 서버 룰이 *통과 여부 + 발화* 를 결정한다. | 절대 원칙 3 / G5 |
 | **I3** | 판정은 **결정론**. 거리/각도/임계치는 `FHktFixed32` 또는 정수. 균일 random 0. | G3 / G5 |
-| **I4** | `Event.Natural.*` 의 `Param0~3` 의미는 **수신 spawner story 본문** 이 `LoadStore(PropertyId::Param0..3)` 로 자체 정의한다 — 본 문서는 *컨벤션* 만 표기. | G4 / TerrainSpawner.design.md §4-d |
-| **I5** | 동일 행위가 *복수* 이벤트를 발화하는 경우, 같은 dispatch tick 의 동일 `PendingGroupIntents` 큐 슬롯에 enqueue 되며 enumeration 순서는 결정론적. | TerrainSpawner.design.md §4-a / 04-region-state §4 T6 |
+| **I4** | `Event.Natural.*` 의 `Param0~3` 의미는 **수신 spawner story 본문** 이 `LoadStore(PropertyId::Param0..3)` 로 자체 정의한다 — 본 문서는 *컨벤션* 만 표기. | G4 / Design-VoxelSpawner.md §Schema 2 본문 컨벤션 |
+| **I5** | 동일 행위가 *복수* 이벤트를 발화하는 경우, 같은 dispatch tick 의 동일 `PendingGroupIntents` 큐 슬롯에 enqueue 되며 enumeration 순서는 결정론적. | Design-VoxelSpawner.md §Runtime 진입 메커니즘 / 04-region-state §4 T6 |
 | **I6** | 행위가 region counter 를 갱신하면 04 ADR §3 의 *RegionWrite helper* 경로로만 — 서버 VM 본문이 갱신, 별도 store 0. | [`04-region-state.md`](./04-region-state.md) §1 / §3 D1 |
 
 ---
@@ -194,7 +194,7 @@ Observe grain     ─────────────▶ GrainObserved      
 | **In6** | "Climb / Throw" 가 시즌 0 에는 이벤트 발화 없음 — 컨텐츠 누락? | 의도적 — 컨텐츠 누적 후 추가 | Resolved: 시즌 0 비범위 |
 | **In7** | 행위 *실패* (도구 미보유 / 거리 부족 등) 시 클라 hint 가 필요한가 | (a) silent / (b) `Event.Natural.<Verb>Denied` lite event — Presentation 만 | Mid — 시즌 0 은 (a) |
 | **In8** | 동일 tick 에 2 명 이상의 플레이어가 같은 entity 에 행위 (Fell 동시 입력) | 결정론 enumeration 순서로 직렬화 — 첫 번째 통과 후 나머지는 entity stale 판정 | Resolved: 04 §4 T6 (PendingGroupIntents enumeration 순서) |
-| **In9** | 통과 후 이벤트 발화 → spawner 본문 실행이 *같은 tick* 인가 *다음 tick* 인가 | 같은 tick 의 dispatch loop (TerrainSpawner.design.md §7) — 본 PR 무결. | Resolved |
+| **In9** | 통과 후 이벤트 발화 → spawner 본문 실행이 *같은 tick* 인가 *다음 tick* 인가 | 같은 tick 의 dispatch loop (Design-VoxelSpawner.md §Runtime 흐름) — 본 PR 무결. | Resolved |
 | **In10** | Region 카운터를 *읽는* 행위 판정 (예: Ignite 시 `Region.FireSusceptible` 확인) 의 성능 | 04 §3-D6 의 RegionMapRead helper 1 회 lookup — 캐시미스 1 회 | Resolved: 04 ADR 보장 |
 
 ---
@@ -207,7 +207,7 @@ Observe grain     ─────────────▶ GrainObserved      
 | `Event.Natural.<Verbed>` | 서버 판정 통과 시 발화 (수신 spawner 가 dispatch) | `Event.Natural.TreeFelled` |
 | `Event.Region.<Noun>` | spawner story 내부에서 region counter 임계 도달 시 발화. 플레이어가 직접 트리거하지 않음. | `Event.Region.VariantCataloged` |
 
-> §5 ADR (TerrainSpawner.design.md) 의 archetype 분류 부활 우려는 본 컨벤션에도 적용 — Verb 분류는 *입력 라벨* 일 뿐 spawner archetype 강제 아님.
+> 부록 B ADR (Design-VoxelSpawner.md) 의 archetype 분류 부활 우려는 본 컨벤션에도 적용 — Verb 분류는 *입력 라벨* 일 뿐 spawner archetype 강제 아님.
 
 ---
 

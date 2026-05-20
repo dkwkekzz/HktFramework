@@ -131,7 +131,7 @@ struct HKTMAPGENERATOR_API FHktMapLandscape
 
 // ── Spawner ────────────────────────────────────────────────────────
 //
-// [DEPRECATED · Phase 5 M6 — TerrainSpawner.design.md §8]
+// [DEPRECATED · Phase 5 M6 — archive/TerrainSpawner.design.md §8]
 //   `EHktSpawnRule` / `FHktMapSpawner` / `AHktSpawnerActor` 는 정적 enum 기반 spawner.
 //   신규 단일 출처는 `FHktTerrainSpawnerSpec` (HktTerrain) + Spawner Story (HktCore).
 //   본 타입들은 1 릴리즈 컴파일 경고 단계를 거쳐 다음 메이저(M7)에서 제거된다.

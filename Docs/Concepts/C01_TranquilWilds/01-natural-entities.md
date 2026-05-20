@@ -30,7 +30,7 @@
 | 산봉 / 절벽 | Mountain · Geology | — |
 | 지하 / 동굴 입구 | Geology(CaveMouth) | — |
 
-> Biome 경계 (풀숲↔산) 는 두 분포의 가중 평균. `FHktTerrainSpawnerSpec::BiomeId` 가 베이크 시 자동 부여 (TerrainSpawner.design.md §6-d).
+> Biome 경계 (풀숲↔산) 는 두 분포의 가중 평균. `FHktTerrainSpawnerSpec::BiomeId` 가 베이크 시 자동 부여 (Design-VoxelSpawner.md §Generator 파이프라인).
 
 ---
 
@@ -107,9 +107,9 @@ Param0..3 의미     : (per-entity 결정 — SpawnerParams:: 별칭으로 표�
 
 ## 4. 결정론 / 베이크 메모
 
-- 위치는 청크 베이크 시점에 `SlotHash = hash(ChunkCoord, SlotIndex)` 로 고정. 재로드 시 동일 출현 (TerrainSpawner.design.md §7-b).
-- `Density` 는 청크 단위 quota 로 환산 — 슬롯 추출 단계(§6-d) 에서 노이즈 + biome 가중치로 정수 카운트화.
-- `BiomeMask` 는 베이크 시 청크 실제 biome 과 교집합 검증 (§6-e).
+- 위치는 청크 베이크 시점에 `SlotHash = hash(ChunkCoord, SlotIndex)` 로 고정. 재로드 시 동일 출현 (Design-VoxelSpawner.md §Runtime 결정론).
+- `Density` 는 청크 단위 quota 로 환산 — 슬롯 추출 단계 (Design-VoxelSpawner.md §Generator 파이프라인) 에서 노이즈 + biome 가중치로 정수 카운트화.
+- `BiomeMask` 는 베이크 시 청크 실제 biome 과 교집합 검증 (Design-VoxelSpawner.md §Generator 파이프라인 검증 단계).
 
 ---
 

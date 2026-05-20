@@ -389,7 +389,7 @@ void UHktMapStreamingSubsystem::SpawnRegionContent(const FHktMapRegion& Region)
 		AHktSpawnerActor* Spawner = World->SpawnActor<AHktSpawnerActor>();
 		if (Spawner)
 		{
-			// [LEGACY · Phase 5 M6 — TerrainSpawner.design.md §8] 마이그레이션 윈도 동안
+			// [LEGACY · Phase 5 M6 — archive/TerrainSpawner.design.md §8] 마이그레이션 윈도 동안
 			// 기존 HktMap JSON 의 spawner 들은 본 actor 경로로 유지. M7 에서 제거.
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Spawner->InitFromSpawnerData(SpawnerData);

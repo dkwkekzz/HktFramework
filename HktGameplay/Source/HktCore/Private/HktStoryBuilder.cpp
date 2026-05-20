@@ -2124,7 +2124,7 @@ FHktStoryBuilder& FHktStoryBuilder::WaitGrounded(FHktVar Entity)
 }
 
 // ============================================================================
-// SpawnEntityAt / SpawnEntityAround (TerrainSpawner.design.md §4-b)
+// SpawnEntityAt / SpawnEntityAround (Docs/Design-VoxelSpawner.md §4-b)
 //
 // 신규 opcode 추가 없이 기존 opcode 조합으로 expansion.
 // SpawnEntity → SetPosition → (반복 시) Add 로 오프셋 적용.

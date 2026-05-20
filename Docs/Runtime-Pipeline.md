@@ -2,7 +2,7 @@
 
 > **상태**: 본 문서는 검증된 코드 기반 트레이스. 추측 없이 file:line 인용.
 > **범위**: 컨셉 텍스트 입력에서 시뮬레이션 틱이 스토리를 실행하기까지의 전체 경로.
-> **참조**: [HktGameplay/Source/HktTerrain/TerrainSpawner.design.md](../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md), [HktGameplay/CLAUDE.md](../HktGameplay/CLAUDE.md).
+> **참조**: [Design-VoxelSpawner.md](Design-VoxelSpawner.md), [HktGameplay/CLAUDE.md](../HktGameplay/CLAUDE.md).
 
 ---
 
