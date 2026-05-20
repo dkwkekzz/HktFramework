@@ -1,13 +1,13 @@
 ---
 name: workspace-build
-description: I-0008 — {Saved}/Workspace 트리에 놓인 2D 어셋 재료(atlas / frame sequence / video / static PNG)를 GameplayTag 단위로 자동 분류·등록하고 Paper2D DataAsset 까지 빌드하는 스텝.
+description: I-0015 — {Saved}/Workspace 의 2D 어셋 재료를 GameplayTag 로 자동 분류·등록하고 Paper2D DataAsset 까지 빌드한다.
 allowed-tools: Bash, Read, Write, Grep, Glob
 argument-hint: [workspace_root] [force]
 ---
 
 # workspace_build 스텝 실행
 
-I-0008 의도를 따라 — 사용자가 워크스페이스에 재료를 떨어뜨리기만 하면, 자동으로 GameplayTag 를 등록하고 적절한 빌더를 호출해 인게임 DataAsset 까지 만든다.
+[I-0015 (콘텐츠 자동화 및 에셋 파이프라인)](../../../Docs/intents/I-0015.md) 의도를 따라 — 사용자가 워크스페이스에 재료를 떨어뜨리기만 하면, 자동으로 GameplayTag 를 등록하고 적절한 빌더를 호출해 인게임 DataAsset 까지 만든다.
 
 ## 인자
 
