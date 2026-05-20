@@ -307,10 +307,15 @@ void FHktCollisionDebugProcessor::DrawSelectableHitboxes(UWorld* World, const FH
 		AActor* Actor = *It;
 		if (!Actor || !Actor->Implements<UHktSelectable>()) continue;
 
+		// Implements<> 통과 시 Cast 는 보장됨 — EntityId 는 라벨용.
 		const IHktSelectable* Sel = Cast<IHktSelectable>(Actor);
-		if (!Sel) continue;
+		const FHktEntityId EntityId = Sel ? Sel->GetEntityId() : InvalidEntityId;
 
 		TInlineComponentArray<UPrimitiveComponent*> Prims(Actor);
+		FVector LabelAnchor = Actor->GetActorLocation();
+		float LabelTopZ = LabelAnchor.Z;
+		bool bDrewAny = false;
+
 		for (UPrimitiveComponent* Prim : Prims)
 		{
 			if (!Prim || !Prim->IsRegistered()) continue;
@@ -319,14 +324,12 @@ void FHktCollisionDebugProcessor::DrawSelectableHitboxes(UWorld* World, const FH
 
 			if (UCapsuleComponent* Cap = Cast<UCapsuleComponent>(Prim))
 			{
-				DrawDebugCapsule(
-					World,
-					Cap->GetComponentLocation(),
-					Cap->GetScaledCapsuleHalfHeight(),
-					Cap->GetScaledCapsuleRadius(),
-					Cap->GetComponentQuat(),
-					CapsuleColor,
+				const FVector Center = Cap->GetComponentLocation();
+				const float HH = Cap->GetScaledCapsuleHalfHeight();
+				DrawDebugCapsule(World, Center, HH, Cap->GetScaledCapsuleRadius(),
+					Cap->GetComponentQuat(), CapsuleColor,
 					/*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/1.5f);
+				LabelTopZ = FMath::Max(LabelTopZ, Center.Z + HH);
 			}
 			else
 			{
@@ -334,7 +337,17 @@ void FHktCollisionDebugProcessor::DrawSelectableHitboxes(UWorld* World, const FH
 				const FBoxSphereBounds B = Prim->Bounds;
 				DrawDebugBox(World, B.Origin, B.BoxExtent, FQuat::Identity,
 					BoxColor, /*bPersistent*/false, /*LifeTime*/-1.f, SDPG_World, /*Thickness*/1.0f);
+				LabelTopZ = FMath::Max(LabelTopZ, B.Origin.Z + B.BoxExtent.Z);
 			}
+			bDrewAny = true;
+		}
+
+		if (bDrewAny && EntityId != InvalidEntityId)
+		{
+			const FString Label = FString::Printf(TEXT("Sel E:%d"), EntityId);
+			DrawDebugString(World,
+				FVector(LabelAnchor.X, LabelAnchor.Y, LabelTopZ + 12.f),
+				Label, nullptr, BoxColor, -1.f, false, 1.0f);
 		}
 	}
 }

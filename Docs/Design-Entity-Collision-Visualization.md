@@ -1,6 +1,6 @@
 # Design — Entity Collision · Selection Visualization
 
-> 본 문서는 [I-0033](intents/I-0033.md) — *월드 내 엔티티 충돌·선택의 시뮬레이션 일치* 의 구현 정리.
+> 본 문서는 [I-0033](intents/I-0033.md) — *엔티티 충돌·선택의 시뮬레이션 일치* 의 구현 정리.
 
 ## 동기
 
@@ -82,5 +82,5 @@
 ## 참고
 
 - [I-0033](intents/I-0033.md) — 본 의도
-- [I-0011](intents/I-0011.md) — 상위 의도 (모험을 위한 월드)
+- [I-0014](intents/I-0014.md) — 상위 의도 (모험과 성장을 위한 상호작용)
 - [Design-Terrain-Entity-Collision.md](Design-Terrain-Entity-Collision.md) — 지형-엔티티 충돌 (sim Phase 2)
