@@ -31,7 +31,7 @@ struct FHktVoxelDef
  * HktTerrainVoxelDef — TypeID별 FHktVoxelDef 조회
  *
  * 새 타입 추가 시 GetDef() 테이블만 수정.
- * HktTerrainType 상수 (HktVoxelTerrainTypes.h):
+ * EHktTerrainType 값 (HktTerrain/Public/HktTerrainVoxelTypes.h):
  *   Air=0, Grass=1, Dirt=2, Stone=3, Sand=4, Water=5,
  *   Snow=6, Ice=7, Gravel=8, Clay=9, Bedrock=10, Glass=11
  *

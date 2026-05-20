@@ -379,7 +379,7 @@ public:
 	 *
 	 * 호환성:
 	 *   - Material(M_HktSpriteTerrain)이 SubImageIndex로 샘플링하므로 SubUV는 (1/33, 1).
-	 *   - HktVoxelTerrainTypes.h::HktTerrainType과 인덱스 순서가 일치해야 함 — 타입 추가 시
+	 *   - HktTerrain/Public/HktTerrainVoxelTypes.h::EHktTerrainType 과 인덱스 순서가 일치해야 함 — 타입 추가 시
 	 *     본 함수의 cpp 내 kTerrainTypeNames 배열도 동기화할 것.
 	 *
 	 * @param InputDir            이미지 폴더 절대 경로 (예: D:\Bundles\Terrain\Iso)

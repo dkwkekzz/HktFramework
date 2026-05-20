@@ -32,7 +32,7 @@ struct FHktVoxelSelection
 	/** 클릭된 면의 법선 — 시각 표시 방향 / 인접 voxel 계산용 */
 	FVector HitNormal = FVector::ZeroVector;
 
-	/** 블록 TypeID (HktTerrainType 참조) */
+	/** 블록 TypeID (EHktTerrainType 참조) */
 	uint16 TypeID = 0;
 
 	/** 한 voxel 의 월드 크기 (UE 유닛). 시각 표시 박스 크기 계산용. 0 이면 미설정. */

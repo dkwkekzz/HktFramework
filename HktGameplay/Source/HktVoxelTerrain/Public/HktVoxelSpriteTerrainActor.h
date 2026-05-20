@@ -24,7 +24,7 @@ struct FHktVoxelSurfaceCell
 {
 	FIntVector ChunkCoord = FIntVector::ZeroValue; // 셀이 속한 청크 좌표 (InstanceMap key)
 	FVector WorldPos = FVector::ZeroVector;        // 셀 중심 월드 좌표 (UU)
-	uint16  TypeID = 0;                            // HktTerrainType — Atlas 프레임 인덱스
+	uint16  TypeID = 0;                            // EHktTerrainType — Atlas 프레임 인덱스
 	uint8   PaletteIndex = 0;                      // 0~7 — PaletteLUT V축
 	uint8   Flags = 0;                             // FHktVoxel::FLAG_* (TRANSLUCENT 등)
 };
@@ -85,7 +85,7 @@ struct FHktVoxelSurfaceCell
  *
  * [아틀라스 레이아웃]
  *   - 크기       : 모바일 기준 프레임당 128×128 px → 아틀라스 4224×128 (1D strip)
- *   - Frame 순서 : HktTerrainType 열거값 순서와 동일 (Air=0은 빈 프레임)
+ *   - Frame 순서 : EHktTerrainType 열거값 순서와 동일 (Air=0은 빈 프레임)
  *                   AtlasIdx = TypeID 직접 매핑
  *   - 포맷       : BC7 / ASTC 6×6 (모바일) — 알파 채널로 투명 배경 보존
  *   - sRGB       : ON (diffuse)
@@ -95,7 +95,7 @@ struct FHktVoxelSurfaceCell
  *   개별 프레임에 팔레트를 굽지 않는다 — 머티리얼에서 런타임 스왑:
  *     1) 베이스 프레임은 grayscale + mask 레이어로 저장
  *     2) PaletteLUT (Texture2D 8×N)에서 (Atlas.R, PaletteIndex/7)로 샘플
- *     3) HktTerrainPalette 바이옴별 변주는 LUT row로 처리
+ *     3) 팔레트 row (HktSpriteCore UHktVoxelPalette) 바이옴별 변주는 LUT row로 처리
  *   기존 UHktVoxelPalette(HktSpriteCore) 관행과 동일.
  * ============================================================================
  */
