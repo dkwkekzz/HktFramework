@@ -213,7 +213,7 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 	int32 AttributionsWritten = 0;
 	int32 SurfaceChunksProcessed = 0;
 	int32 SkipPicks = 0;       // skip 슬롯 (invalid StoryTag) 가 선정된 횟수
-	int32 OrphanRules = 0;     // VoxelTypeID/Weight 가 비정상이라 폐기된 rule 수
+	int32 OrphanRules = 0;     // VoxelType=Air / Weight 비정상이라 폐기된 rule 수
 	{
 		// 룩업 엔트리 — flat-array 그룹핑 산출물.
 		// 각 voxel type 의 cumulative weights + templateId (invalid → 0=skip) 시퀀스.
@@ -232,7 +232,7 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 		TMap<FGameplayTag, int32> TagToTemplateId;
 		int32 NextTemplateId = 1;
 
-		// 2. VoxelTypeID 별 bucket 빌드
+		// 2. VoxelType 별 bucket 빌드
 		TMap<uint16, FRuleBucket> Buckets;
 
 		for (const FHktVoxelSpawnRule& Rule : BakedConfig.VoxelSpawnRules)
@@ -242,11 +242,10 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 				++OrphanRules;
 				continue;
 			}
-			if (Rule.VoxelTypeID <= 0 || Rule.VoxelTypeID > MAX_uint16)
+			if (Rule.VoxelType == EHktTerrainType::Air)
 			{
 				UE_LOG(LogHktTerrain, Warning,
-					TEXT("BakeRegion: VoxelSpawnRules 의 VoxelTypeID=%d 가 범위 밖 (0=air, ≤65535) — 무시"),
-					Rule.VoxelTypeID);
+					TEXT("BakeRegion: VoxelSpawnRules 엔트리의 VoxelType 이 Air — 무시"));
 				++OrphanRules;
 				continue;
 			}
@@ -274,7 +273,7 @@ UHktTerrainBakedAsset* UHktTerrainBakeLibrary::BakeRegion(
 				}
 			}
 
-			FRuleBucket& Bucket = Buckets.FindOrAdd(static_cast<uint16>(Rule.VoxelTypeID));
+			FRuleBucket& Bucket = Buckets.FindOrAdd(static_cast<uint16>(Rule.VoxelType));
 			Bucket.TotalWeight += Rule.Weight;
 			Bucket.Entries.Add({ TemplateId, Bucket.TotalWeight });
 		}

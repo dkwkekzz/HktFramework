@@ -213,7 +213,7 @@ void UHktVoxelTileAtlas::CreateDebugLUT()
 {
 	EnsureMappingInitialized();
 
-	// HktTerrainType 매핑 — Top/Side/Bottom 슬라이스
+	// EHktTerrainType 매핑 — Top/Side/Bottom 슬라이스
 	// Air(0) = 255 (unmapped)
 	// Grass(1): Top=0(잔디), Side=1(흙+잔디), Bottom=2(흙)
 	// Dirt(2): Top=2, Side=2, Bottom=2

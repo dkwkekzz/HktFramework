@@ -1954,7 +1954,7 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 namespace HktSpriteGen
 {
 	/**
-	 * HktVoxelTerrainTypes.h::HktTerrainType 의 인덱스 순서와 동기화.
+	 * HktTerrain/Public/HktTerrainVoxelTypes.h::EHktTerrainType 의 인덱스 순서와 동기화.
 	 * 타입을 추가하면 양쪽 모두 갱신해야 한다 (cross-plugin 의존을 피하기 위한 의도적 복제).
 	 */
 	static const TCHAR* const kTerrainTypeNames[] = {

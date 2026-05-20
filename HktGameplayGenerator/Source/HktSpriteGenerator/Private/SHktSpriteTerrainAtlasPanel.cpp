@@ -54,7 +54,7 @@ void SHktSpriteTerrainAtlasPanel::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(LOCTEXT("Hint",
 						"33-frame 1D 가로 strip 테레인 아틀라스(T_HktSpriteTerrainAtlas) 빌드. "
-						"파일명 stem 이 HktTerrainType 의 이름과 일치해야 함 (예: Grass.png → idx 1, OreVoidstone.png → idx 32). "
+						"파일명 stem 이 EHktTerrainType 의 이름과 일치해야 함 (예: Grass.png → idx 1, OreVoidstone.png → idx 32). "
 						"누락 프레임과 Air(idx 0)는 투명 처리. SubUV 는 (1/33, 1)."))
 					.AutoWrapText(true)
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
