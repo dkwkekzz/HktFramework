@@ -360,7 +360,9 @@ bool AbsorbViews(FHktSpriteAnimFragment& Fragment,
 				ApplyAnimTag(Fragment, AnimTag);
 			}
 			AV->PendingAnimTriggers.Reset();
-			bFacingSourceDirty = true;
+			// (Low) anim trigger 는 facing 입력에 영향 없으므로 bFacingSourceDirty 를 건드리지 않는다.
+			// (A) 동일 태그 재트리거 시 anchor 강제 리셋용 — TickViewModel 가 소비.
+			Fragment.bExplicitTriggerThisFrame = true;
 		}
 	}
 
@@ -380,21 +382,59 @@ void TickViewModel(FHktSpriteAnimFragment& Fragment,
 	float PlayRate = 1.f;
 	ResolveRenderOutputs(Fragment, AnimTag, PlayRate, InOutLoggedResolveFailure);
 
-	// 3) AnimStartLocalSec sticky.
-	//   (a) 서버 권위 AuthAnimStartTick 이 바뀌었을 때.
-	//   (b) ResolvedTag 가 직전 호출과 다를 때 — 새 애니메이션은 항상 0초부터.
-	//       서버측 Op_PlayAnim dedup (동일 태그 해시 시 TouchAnimStartTickBySlot 스킵) 으로
-	//       AuthAnimStartTick 이 안 올라가도 클라가 자력으로 anchor 갱신.
-	const bool bAuthTickChanged = (Fragment.LastAuthAnimStartTick != AuthAnimStartTick);
-	const bool bResolvedTagChanged = (AnimTag != Fragment.LastResolvedTag);
-	if (bAuthTickChanged || bResolvedTagChanged)
+	// 3) 태그별 anchor 갱신 (TagStartLocalSec).
+	//   (a) AnimLayerTags 의 모든 활성 태그를 순회 — 새 태그면 anchor 등록.
+	//   (b) ResolvedTag 가 합성(Locomotion)이라 AnimLayerTags 에 없으면 별도 등록.
+	//   (c) 더 이상 활성이 아니고 ResolvedTag 도 아닌 태그는 제거.
+	//   (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame 일 때 ResolvedTag 의 anchor 강제 리셋
+	//       — 동일 태그 재트리거(콤보) / 서버 권위 재시작 모두 0초부터 재생.
+	for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
 	{
-		Fragment.LastAuthAnimStartTick = AuthAnimStartTick;
-		Fragment.LastResolvedTag = AnimTag;
-		Fragment.AnimStartLocalSec = Fragment.LocalNowSec;
+		if (Pair.Value.IsValid() && !Fragment.TagStartLocalSec.Contains(Pair.Value))
+		{
+			Fragment.TagStartLocalSec.Add(Pair.Value, Fragment.LocalNowSec);
+		}
+	}
+	if (AnimTag.IsValid() && !Fragment.TagStartLocalSec.Contains(AnimTag))
+	{
+		// Locomotion 합성 태그 (AnimLayerTags 에 미등록).
+		Fragment.TagStartLocalSec.Add(AnimTag, Fragment.LocalNowSec);
+	}
+	// 정리 — AnimLayerTags 값 set + ResolvedTag 외 키 제거.
+	for (auto It = Fragment.TagStartLocalSec.CreateIterator(); It; ++It)
+	{
+		bool bKeep = (It.Key() == AnimTag);
+		if (!bKeep)
+		{
+			for (const TPair<FGameplayTag, FGameplayTag>& Pair : Fragment.AnimLayerTags)
+			{
+				if (Pair.Value == It.Key()) { bKeep = true; break; }
+			}
+		}
+		if (!bKeep) It.RemoveCurrent();
 	}
 
-	// 4) Facing 산출 — sticky LastMoveDirXY + 현재 CameraYaw 로 매 호출 재계산.
+	const bool bAuthTickChanged = (Fragment.LastAuthAnimStartTick != AuthAnimStartTick);
+	if (bAuthTickChanged || Fragment.bExplicitTriggerThisFrame)
+	{
+		Fragment.LastAuthAnimStartTick = AuthAnimStartTick;
+		if (AnimTag.IsValid())
+		{
+			Fragment.TagStartLocalSec.FindOrAdd(AnimTag) = Fragment.LocalNowSec;
+		}
+		Fragment.bExplicitTriggerThisFrame = false;
+	}
+
+	// 4) AnimStartLocalSec = ResolvedTag 의 anchor (VM 으로 emit).
+	if (AnimTag.IsValid())
+	{
+		if (const double* P = Fragment.TagStartLocalSec.Find(AnimTag))
+		{
+			Fragment.AnimStartLocalSec = *P;
+		}
+	}
+
+	// 5) Facing 산출 — sticky LastMoveDirXY + 현재 CameraYaw 로 매 호출 재계산.
 	//   카메라가 캐릭터 주위를 돌면 화면-공간 dir 이 즉시 따라간다. LastMoveDirXY 가
 	//   ZeroVector 면 직전 LastClientFacing 유지(아직 한 번도 움직이지 않은 엔터티는 S).
 	if (!Fragment.LastMoveDirXY.IsNearlyZero())
@@ -413,7 +453,7 @@ void TickViewModel(FHktSpriteAnimFragment& Fragment,
 		}
 	}
 
-	// 5) VM 채움.
+	// 6) VM 채움.
 	OutVM.bValid             = true;
 	OutVM.AnimTag            = AnimTag;
 	OutVM.PlayRate           = PlayRate;
@@ -442,11 +482,13 @@ void ExpireActionLayers(FHktSpriteAnimFragment& Fragment,
 		const float LayerDur = QueryDurationSec(Pair.Value);
 		if (LayerDur <= 0.f) { ToRemove.Add(Pair.Value); continue; }
 
-		// AnimStartLocalSec 은 ResolvedTag 가 이 action 으로 바뀐 시점에 리셋됨 → 이 layer 의
-		// 실제 재생 시작 시각과 일치. 단, 이 layer 가 우선순위에서 밀려 한 번도 ResolvedTag 가
-		// 된 적 없으면 AnimStartLocalSec 은 다른 anim 의 anchor → 이 경우 만료가 빨리 일어날 수
-		// 있으나 어차피 렌더되지 않은 layer 라 무해.
-		const double RawElapsed = LocalNowSec - Fragment.AnimStartLocalSec;
+		// (B) 패치: 이 layer 의 자체 시작 시각으로 elapsed 산출 — top-priority layer 의 anchor 와
+		// 분리. Montage/UpperBody 와 동시 활성이어서 한 번도 ResolvedTag 가 된 적 없는 Action
+		// layer 도 자신의 등록 시점부터 elapsed 가 정확히 누적된다. 만약 누락되어 있으면
+		// (이론상 도달 불가) 즉시 만료 시켜 무한 잔존 방지.
+		const double* LayerStartPtr = Fragment.TagStartLocalSec.Find(Pair.Value);
+		if (!LayerStartPtr) { ToRemove.Add(Pair.Value); continue; }
+		const double RawElapsed = LocalNowSec - *LayerStartPtr;
 		if (RawElapsed >= static_cast<double>(LayerDur))
 		{
 			ToRemove.Add(Pair.Value);

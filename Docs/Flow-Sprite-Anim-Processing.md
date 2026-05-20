@@ -63,8 +63,9 @@
 │       - Fragment.LocalNowSec += DeltaSec                                       │
 │       - ResolveRenderOutputs → AnimTag/PlayRate (Montage > UpperBody          │
 │                                  > Action > FullBody > Locomotion 폴백)       │
-│       - sticky: LastAuthAnimStartTick / LastResolvedTag 변화 시               │
-│                  Fragment.AnimStartLocalSec = LocalNowSec                     │
+│       - 태그별 anchor: TagStartLocalSec[tag] = LocalNowSec on layer entry     │
+│                  AnimStartLocalSec = TagStartLocalSec[ResolvedTag]            │
+│                  AuthAnimStartTick / bExplicitTriggerThisFrame → 강제 리셋    │
 │       - LastMoveDirXY + CameraYaw → Facing/bFacingRight 매 호출 재산출         │
 │       - VM 채움                                                                │
 │                                                                                │
@@ -115,9 +116,10 @@ UObject 가 아닌 POD struct. 표현 수단마다 자체 `TMap<FHktEntityId, FH
 | 움직임 | `LastMoveDirXY` (`FVector2D`) | sticky XY 속도. 임계 이상으로 이동 시에만 갱신 → 정지 후에도 마지막 방향 유지 |
 | 전투 | `AttackPlayRate` / `CPRatio` | `FHktCombatView` 의 `MotionPlayRate ‖ AttackSpeed` 에서 파생 |
 | sticky | `LocalNowSec` (`double`) | 로컬 실시간 클럭 (`TickViewModel` 가 매 호출 누적) |
-| sticky | `AnimStartLocalSec` (`double`) | 현재 ResolvedTag 의 재생 시작 시각 |
-| sticky | `LastAuthAnimStartTick` (`int32`) | 서버 권위 `FHktSpriteView::AnimStartTick` 의 최근 관측치. 변화 시 anchor reset |
-| sticky | `LastResolvedTag` | 직전 `ResolveRenderOutputs` 결과. 변화 시 anchor reset |
+| sticky | `AnimStartLocalSec` (`double`) | 현재 ResolvedTag 의 재생 시작 시각 (= `TagStartLocalSec[ResolvedTag]`) |
+| sticky | `TagStartLocalSec` (`TMap<FGameplayTag, double>`) | **태그별** 시작 시각. 각 활성 layer 의 자체 anchor — Action layer 가 Montage/UpperBody 와 동시 활성일 때도 정확한 elapsed 산출 |
+| sticky | `LastAuthAnimStartTick` (`int32`) | 서버 권위 `FHktSpriteView::AnimStartTick` 의 최근 관측치. 변화 시 ResolvedTag 의 anchor 강제 리셋 |
+| transient | `bExplicitTriggerThisFrame` (`bool`) | `PendingAnimTriggers` 가 이 프레임에 소비되었는가. 동일 태그 재트리거(콤보) 시 dedup 우회용 — TickViewModel 소비 후 false |
 | sticky | `LastClientFacing` (`EHktSpriteFacing`) | 마지막 산출 facing (8방향) |
 | sticky | `bLastFacingRight` | 화면-공간 우향 sticky (NumDirections≤2 mirror 결정) |
 
@@ -154,9 +156,9 @@ struct FHktSpriteAnimViewModel {
 1. `FHktMovementView` 의 `bIsMoving / bIsJumping / Velocity` — `IsDirty(Frame)` 인 필드만 Fragment 에 반영.
 2. `Velocity.IsDirty(Frame)` 이고 `‖VelXY‖ ≥ MinFacingSpeed` 면 `LastMoveDirXY = VelXY`, **`bFacingSourceDirty = true`**.
 3. `FHktCombatView` — `MotionPlayRate > 0 ? .../100 : AttackSpeed/100` 로 `AttackPlayRate` 산출. `CPRatio` 도 흡수.
-4. `FHktAnimationView` — `TagsDirtyFrame == Frame` 면 `SyncFromTagContainer`. `PendingAnimTriggers.Num() > 0` 이면 각 태그 `ApplyAnimTag` 후 Reset, **`bFacingSourceDirty = true`**.
+4. `FHktAnimationView` — `TagsDirtyFrame == Frame` 면 `SyncFromTagContainer`. `PendingAnimTriggers.Num() > 0` 이면 각 태그 `ApplyAnimTag` 후 Reset, **`Fragment.bExplicitTriggerThisFrame = true`**. (anim trigger 는 facing 입력과 무관하므로 `bFacingSourceDirty` 는 켜지 않는다 — 동일 태그 재트리거 anchor 리셋은 `bExplicitTriggerThisFrame` 로 TickViewModel 가 처리.)
 
-**반환**: `bFacingSourceDirty` — 호출자가 `FHktSpriteView::Facing` 에 `MutableSV->Facing.Set(...)` 할지 게이트로 사용. (카메라 yaw 변화만으로는 false → ViewModel 미갱신, 렌더러는 VM.Facing 으로 즉시 반영.)
+**반환**: `bFacingSourceDirty` — 호출자가 `FHktSpriteView::Facing` 에 `MutableSV->Facing.Set(...)` 할지 게이트로 사용. *facing 소스(`LastMoveDirXY`) 변화* 에서만 true. (카메라 yaw 변화만으로는 false → ViewModel 미갱신, 렌더러는 VM.Facing 으로 즉시 반영.)
 
 > **Idempotent**: 같은 Frame 으로 두 번 호출해도 `IsDirty(Frame)` 이 true 인 필드를 같은 값으로 재기록할 뿐 부작용 없음. `OnCameraViewChanged` 가 같은 프레임에서 `Tick` + 별도 호출되더라도 안전.
 
@@ -175,13 +177,19 @@ struct FHktSpriteAnimViewModel {
    4. `Anim.FullBody.*`
    5. 그 외 임의 `Anim.*` layer
    6. **Locomotion 폴백**: `bIsFalling > bIsMoving(Run/Walk) > Idle` 로 `Anim.FullBody.Locomotion.*` 합성. Walk↔Run 임계는 CVar `hkt.Sprite.Loco.RunSpeedThreshold` (기본 300 cm/s).
-3. **AnimStart sticky 갱신**: `Fragment.LastAuthAnimStartTick != AuthAnimStartTick` 이거나 `AnimTag != Fragment.LastResolvedTag` 면:
+3. **태그별 anchor 갱신 (`TagStartLocalSec`)** — 단일 anchor 대신 **태그별 시작 시각 맵** 을 유지:
    ```
-   Fragment.LastAuthAnimStartTick = AuthAnimStartTick
-   Fragment.LastResolvedTag       = AnimTag
-   Fragment.AnimStartLocalSec     = Fragment.LocalNowSec     // anchor reset
+   // (a) AnimLayerTags 의 각 활성 태그가 맵에 없으면 LocalNowSec 으로 등록 (새 태그 진입).
+   // (b) ResolvedTag 가 Locomotion 합성(AnimLayerTags 에 미등록)이면 동일하게 등록.
+   // (c) 더 이상 활성도 아니고 ResolvedTag 도 아닌 태그는 맵에서 제거.
+   // (d) AuthAnimStartTick 변화 또는 bExplicitTriggerThisFrame 일 때
+   //     TagStartLocalSec[ResolvedTag] = LocalNowSec  // 강제 리셋
+   //
+   // Fragment.AnimStartLocalSec = TagStartLocalSec[ResolvedTag]   // VM emit 값
    ```
-   서버측 `Op_PlayAnim` dedup (동일 태그 해시 시 `TouchAnimStartTickBySlot` 스킵) 로 `AuthAnimStartTick` 이 안 올라가는 경우에도 ResolvedTag 변화로 자력 anchor 갱신 — idle ↔ run 이 항상 0초부터 재생.
+   서버측 `Op_PlayAnim` dedup (동일 태그 해시 시 `TouchAnimStartTickBySlot` 스킵) 로 `AuthAnimStartTick` 이 안 올라가는 경우에도 `bExplicitTriggerThisFrame` (AbsorbViews 가 `PendingAnimTriggers` 소비 시 set) 로 anchor 강제 리셋 → 콤보·연타가 항상 0초부터 재생. Walk↔Run 등 *서로 다른* 합성 태그 전환은 새 태그가 맵에 등록되며 자동으로 0초부터.
+
+   **이전 단일 `AnimStartLocalSec` 대비 이점**: Action layer 가 Montage/UpperBody 와 동시 활성일 때, top-priority 가 위에서 덮어쓰며 anchor 가 변하더라도 Action 의 자체 시작 시각이 유지된다 → Montage 종료 후 Action 이 *남은 잔여 시간만큼만* 재생되고 정상 만료.
 4. **Facing 산출**: `Fragment.LastMoveDirXY.IsNearlyZero()` 가 아니면:
    - `DirYawDeg = atan2(Dir.Y, Dir.X) * RAD2DEG`
    - `Fragment.LastClientFacing = HktFacingFromYaw(DirYawDeg, CameraYawDeg)`
@@ -199,7 +207,7 @@ struct FHktSpriteAnimViewModel {
 
 **처리**:
 1. `Fragment.AnimLayerTags` 중 layer key 가 `Anim.Action.*` 매칭하는 항목 순회.
-2. 각 layer 의 anim tag 에 대해 `QueryDurationSec(tag)` 호출 — 자산 미존재/0 반환 시 즉시 만료(`RemoveAnimTag`). 양수면 `(LocalNowSec - Fragment.AnimStartLocalSec) >= duration` 일 때 만료.
+2. 각 layer 의 anim tag 에 대해 `QueryDurationSec(tag)` 호출 — 자산 미존재/0 반환 시 즉시 만료(`RemoveAnimTag`). 양수면 `(LocalNowSec - Fragment.TagStartLocalSec[tag]) >= duration` 일 때 만료. **이 layer 자체의 시작 시각** 으로 elapsed 산출 — top-priority layer (Montage/UpperBody) 와 동시 활성이어도 Action 의 자체 anchor 는 유지된다.
 
 **왜 callback 인가**: anim duration 의 데이터 소스가 렌더러 별로 다름.
 - Paper2D: `UHktPaperAnimationDataAsset::Flipbooks[{tag, dir=0}]->GetTotalDuration()`
