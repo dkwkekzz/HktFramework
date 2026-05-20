@@ -74,7 +74,9 @@ struct HKTSPRITECORE_API FHktSpriteAnimFragment
 	/** 직전 Tick 의 ResolvedTag — 바뀌면 AnimStartLocalSec 리셋 트리거. */
 	FGameplayTag LastResolvedTag;
 
-	/** Sticky facing. AbsorbViews 에서 LastMoveDirXY 가 임계 이상으로 dirty 인 시점에만 갱신. */
+	/** Sticky facing. TickViewModel 이 매 호출마다 sticky LastMoveDirXY + 현재 CameraYaw 로
+	 *  재산출 (카메라 yaw 회전 시 화면-공간 dir 도 따라가야 하므로). LastMoveDirXY 가
+	 *  ZeroVector 면 직전 값 유지(아직 한 번도 움직이지 않은 엔터티는 EHktSpriteFacing::S). */
 	EHktSpriteFacing LastClientFacing = EHktSpriteFacing::S;
 	bool             bLastFacingRight = true;
 };

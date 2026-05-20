@@ -1,24 +1,24 @@
 # Sprite Animation Processing — WorldView → ViewModel → Renderer
 
-서버 권위 `WorldView` 가 클라이언트의 sprite 렌더(Paper2D 액터 / HISM 크라우드 / Niagara 크라우드) 에 도달하기까지의 단일 처리 경로. 모든 2D sprite 표현 수단은 동일한 `HktSpriteAnimProcessor` 산출물(`FHktSpriteAnimViewModel`) 만 소비하며, 자체 의사결정 로직을 갖지 않는다.
+서버 권위 `WorldView` 가 클라이언트의 sprite 렌더 (현재 활성: Paper2D 액터 / HISM 크라우드) 에 도달하기까지의 단일 처리 경로. Niagara 크라우드는 dispatcher 호스트 미구현 dormant 상태 — 활성화될 때 동일한 VM 소비 패턴이 적용되도록 설계되었다. 모든 2D sprite 표현 수단은 동일한 `HktSpriteAnimProcessor` 산출물 (`FHktSpriteAnimViewModel`) 만 소비하며, 자체 의사결정 로직을 갖지 않는 것이 본 문서의 *불변* 조건이다.
 
 관련 문서:
 - [Flow-DataAsset-Presentation-Pipeline.md](Flow-DataAsset-Presentation-Pipeline.md) — Tag → DataAsset → Renderer 비동기 로딩 (anim *데이터* 의 소스)
-- [Design-HktSpritePaper2DRenderer.md](Design-HktSpritePaper2DRenderer.md) — Paper2D 단일-액터 경로 (소비자 #1)
-- [Design-HktSpriteNiagaraCrowdRenderer.md](Design-HktSpriteNiagaraCrowdRenderer.md) — Niagara 크라우드 (소비자 #2)
+- [Design-HktSpritePaper2DRenderer.md](Design-HktSpritePaper2DRenderer.md) — Paper2D 단일-액터 경로 (현재 활성)
+- [Design-HktSpriteNiagaraCrowdRenderer.md](Design-HktSpriteNiagaraCrowdRenderer.md) — Niagara 크라우드 (dormant)
 - [SpritePipeline-3Stage.md](SpritePipeline-3Stage.md) — 어셋 생성 파이프라인
 
 ---
 
 ## 0. 동기 — 왜 단일 출처가 필요한가
 
-2D 캐릭터를 표현할 수 있는 수단이 셋 있다:
+2D 캐릭터를 표현할 수 있는 수단:
 
-| 수단 | 구현 | 용도 |
-|---|---|---|
-| `AHktSpritePaperActor` | UE Paper2D `UPaperFlipbookComponent` | 엔터티당 1액터. 인스턴싱 불가한 환경 / 클릭 가능 캐릭터 |
-| `UHktSpriteCrowdRenderer` (호스트 `AHktSpriteCrowdHost`) | HISM 단일-쿼드 + CPD 16슬롯 | atlas 당 1 HISM. 대규모 크라우드 (수백~수천) |
-| `UHktSpriteNiagaraCrowdRenderer` | Niagara Mesh Renderer + NDI Array | HISM 대체 후보 (CVar `hkt.Sprite.Renderer` 토글) |
+| 수단 | 구현 | 상태 | 용도 |
+|---|---|---|---|
+| `AHktSpritePaperActor` | UE Paper2D `UPaperFlipbookComponent` | **활성** | 엔터티당 1액터. 인스턴싱 불가한 환경 / 클릭 가능 캐릭터 |
+| `UHktSpriteCrowdRenderer` (호스트 `AHktSpriteCrowdHost`) | HISM 단일-쿼드 + CPD 16슬롯 | **활성** | atlas 당 1 HISM. 대규모 크라우드 (수백~수천) |
+| `UHktSpriteNiagaraCrowdRenderer` | Niagara Mesh Renderer + NDI Array | **dormant** | HISM 대체 후보. 현재 dispatcher 호스트 미구현 — 활성화 시 CrowdHost 와 동일한 VM 소비 패턴으로 호스트 추가 예정 |
 
 리팩터 이전엔 세 수단이 *각자* anim 의사결정(Movement/Combat/Animation 뷰 흡수, AnimTag 해석, Facing 산출, `Anim.Action.*` 자동 만료) 을 들고 있었다. 결과적으로:
 - 코드 중복 — `if (V.bIsMoving.IsDirty(Frame))` 같은 같은 블록이 PaperActor / CrowdHost 양쪽에 동일하게 존재.
@@ -125,7 +125,7 @@ UObject 가 아닌 POD struct. 표현 수단마다 자체 `TMap<FHktEntityId, FH
 
 ```cpp
 struct FHktSpriteAnimViewModel {
-    bool             bValid;                  // Processor 가 한 번이라도 채웠는가
+    bool             bValid;                  // Processor 가 한 번이라도 채웠는가 (현재 dead — 향후 가드용)
     FGameplayTag     AnimTag;                 // FindAnimationOrFallback 룩업 키
     float            PlayRate;                // Combat → AttackPlayRate, etc.
     EHktSpriteFacing Facing;                  // 8방향 (renderer 가 dirIdx 로 변환)
@@ -135,7 +135,10 @@ struct FHktSpriteAnimViewModel {
 };
 ```
 
-**Renderer 는 위 7개 필드 외 anim 결정 입력을 가지지 않는다.** 추가 의사결정 필요 시 Processor 에 추가하고 VM 에 노출하는 형태로만 확장한다.
+**Renderer 는 위 필드 외 anim 결정 입력을 가지지 않는다.** 추가 의사결정 필요 시 Processor
+에 추가하고 VM 에 노출하는 형태로만 확장한다. (`bValid` 는 현재 renderer 가 검사하지 않으며
+향후 dispatch 안전 가드용 — Paper/Crowd 는 `bHasSpriteState` / `IsCrowdCharacterTag` 등 별도
+게이트로 첫 sync 전 렌더를 막는다.)
 
 ---
 
@@ -273,33 +276,52 @@ Renderer->UpdateEntity(Id, Update);
 
 ## 5. 시퀀스 — 한 프레임의 호출 순서
 
-```
-[PresentationSubsystem::OnTick]
-   ProcessDiff(WorldView)            // FHktPresentationState 갱신
-       ├ Movement/Combat/Animation/Sprite views (dirty flag set on Frame)
-       └ SpawnedThisFrame / RemovedThisFrame
-   ↓
-   SyncProcessors()                  // 등록된 Processor.Sync() 호출
-       ├ FHktActorProcessor::Sync       // PaperActor 의 ApplyTransform/Physics/Sprite 호출
-       └ AHktSpriteCrowdHost::Sync      // Spawned 처리, CrowdRenderer.RegisterEntity/SetCharacter
-   ↓
-   Tick(Processors)
-       ├ FHktActorProcessor::Tick    (no-op for sprite)
-       └ AHktSpriteCrowdHost::Tick(State, DeltaTime)
-              ↓ UpdateEntitiesPerFrame
-                 for each Crowd sprite entity:
-                    AbsorbViews → TickViewModel → ExpireActionLayers
-                    Renderer->UpdateEntity(VM 기반 update)
+`UHktPresentationSubsystem` 에는 두 개의 진입점이 있다 — 네트워크 ViewModel 도착 시
+호출되는 `OnWorldViewUpdated` 와, UE 의 `OnTickDispatch` 가 매 프레임 호출하는 `OnTick`.
+두 흐름이 어떻게 짜여 들어가는지:
 
-[Actor Tick frame phase (UE 표준 Tick group)]
-   for each AHktSpritePaperActor:
-      Tick(DeltaTime)
-         ├ 위치 보간 + 빌보드
-         ├ AbsorbViews → TickViewModel → ExpireActionLayers
-         └ Flipbook bind + SetPlaybackPosition
+```
+(a) WorldView 도착 (서버 batch, 비주기적)
+    UHktPresentationSubsystem::OnWorldViewUpdated
+      └ ProcessDiff(WorldView)
+           ├ FHktPresentationState 갱신
+           │    Movement/Combat/Animation/Sprite views (dirty flag = Frame)
+           │    SpawnedThisFrame / RemovedThisFrame
+           └ bStateDirty = true                    // 다음 OnTick 의 Sync 트리거
+
+(b) UWorld Tick (매 프레임, OnTickDispatch)
+    UHktPresentationSubsystem::OnTick(DeltaSeconds)
+      ├ Phase 1: 모든 Processor::Tick(State, DeltaSeconds)
+      │     ├ FHktActorProcessor::Tick           (no-op for sprite)
+      │     └ AHktSpriteCrowdHost::Tick
+      │          └ UpdateEntitiesPerFrame
+      │                for each Crowd sprite entity:
+      │                   AbsorbViews → TickViewModel → ExpireActionLayers
+      │                   Renderer->UpdateEntity(VM 기반 update)
+      └ Phase 2: Sync
+            if (bStateDirty || Tick 이 State 를 변경) → SyncProcessors() 전체 호출
+            else                                      → NeedsTick 인 Processor 만 Sync
+               ├ FHktActorProcessor::Sync   (PaperActor 의 ApplyTransform/Physics/Sprite 호출)
+               └ AHktSpriteCrowdHost::Sync  (Spawned 처리, RegisterEntity/SetCharacter)
+
+(c) Actor Tick group (TG_PrePhysics, OnTickDispatch 이후)
+    for each AHktSpritePaperActor:
+       Tick(DeltaTime)
+          ├ 위치 보간 + 빌보드
+          ├ AbsorbViews → TickViewModel → ExpireActionLayers
+          └ Flipbook bind + SetPlaybackPosition
 ```
 
-**ActorProcessor 와 PaperActor::Tick 의 순서**: ActorProcessor 는 `ApplySprite` 로 `ServerAuthoritativeAnimStartTick` 만 캐시. PaperActor::Tick 은 그 캐시와 자기 Fragment 로 VM 산출 — 두 단계가 다른 프레임 phase 에 있어도 캐시 read 만 발생하므로 1 프레임 lag 없음.
+**ActorProcessor::Sync 와 PaperActor::Tick 의 순서**: `OnTickDispatch` (b 단계) 는
+TG_PrePhysics 이전 phase 에서 발생하므로 ActorProcessor::Sync 가 항상 PaperActor::Tick
+보다 먼저 실행된다. `ApplySprite` 가 `ServerAuthoritativeAnimStartTick` 을 캐시한 뒤,
+PaperActor::Tick 이 그 캐시 + 자기 Fragment 로 VM 을 산출 — 1 프레임 lag 없음.
+
+**카메라 변경 (`OnCameraViewChanged`)**: 위 (a)~(c) 와 별개로 카메라 폰의 yaw 가 바뀔 때
+`UHktPresentationSubsystem::NotifyCameraViewChanged` → `NeedsCameraSync` Processor 들의
+`OnCameraViewChanged(State)` 가 호출된다. CrowdHost 는 이를 받아 `UpdateEntitiesPerFrame`
+을 재호출 (단 `PendingDeltaSec = 0` 으로, LocalNowSec 이중 가속 방지). PaperActor 는
+자기 Tick 마다 카메라 yaw 를 직접 읽으므로 별도 콜백 처리 없음.
 
 ---
 
