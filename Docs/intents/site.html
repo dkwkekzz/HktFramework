@@ -1225,12 +1225,16 @@
     graphEmptyEl.hidden = true;
 
     // 줌은 #graph-inner 에 transform 적용 — SVG 와 카드가 함께 확대.
+    // transform 은 레이아웃 박스를 바꾸지 않으므로, 부모 스크롤 영역이 시각적
+    // 크기와 일치하도록 margin 으로 보정한다 (zoom>1 이면 양수, <1 이면 음수).
     graphInnerEl.style.width  = width  + 'px';
     graphInnerEl.style.height = height + 'px';
     graphInnerEl.style.transformOrigin = '0 0';
     graphInnerEl.style.transform = `scale(${graphZoom})`;
-    // 외곽 컨테이너에 패딩을 주어 스크롤 영역 확장.
-    graphViewEl.style.paddingBottom = (height * graphZoom + 40) + 'px';
+    const extraW = width  * (graphZoom - 1);
+    const extraH = height * (graphZoom - 1);
+    graphInnerEl.style.marginRight  = extraW + 'px';
+    graphInnerEl.style.marginBottom = extraH + 'px';
 
     // SVG 엣지 렌더링 — 부모 우측 → 자식 좌측 (베지어).
     graphSvgEl.setAttribute('width', String(width));
