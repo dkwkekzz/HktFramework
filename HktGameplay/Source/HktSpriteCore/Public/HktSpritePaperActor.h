@@ -33,24 +33,25 @@ struct FHktPhysicsView;
  *  - Root: USceneComponent (빌보드 회전 적용 위치)
  *  - Child: UPaperFlipbookComponent (Sprite 재생, Tint, X-스케일 미러)
  *
- * Apply 흐름:
+ * Apply 흐름 (단일 출처 — HktSpriteAnimProcessor):
  *  - ApplyTransform     : RenderLocation 캐시 (Tick 에서 보간)
- *  - ApplyAnimation     : Tag 컨테이너 → AnimFragment (HktSpriteAnimProcessor 위임)
- *  - ApplyMovement      : bIsMoving / bIsFalling / Velocity → AnimFragment
- *  - ApplyCombat        : MotionPlayRate / AttackSpeed / CPRatio → AnimFragment
- *  - ApplySprite        : Facing / AnimStartTick 권위 입력 캐시 (F-2 정식 경로)
+ *  - ApplyPhysics       : CollisionRadius/HalfHeight → HitBox
+ *  - ApplySprite        : 권위 AnimStartTick 캐시 (Tick 에서 VM 산출 입력)
  *  - OnVisualAssetLoaded: UHktPaperActorVisualDataAsset → Template 캐싱
  *
+ *  Anim 의사결정(Movement/Combat/Animation 뷰 흡수 + AnimTag 해석 + Facing 산출 +
+ *  Anim.Action 만료)은 모두 HktSpriteAnimProcessor 의 namespace 함수가 담당. Apply*
+ *  메서드는 자체 anim 결정 로직을 들고 있지 않다 — 액터는 *set* 만 처리.
+ *
  * Tick 에서 매 프레임:
- *  1. 위치 보간 (RenderLocation → InterpLocation)
- *  2. ResolveRenderOutputs(AnimFragment) → (AnimTag, PlayRate)
- *  3. F-2: ApplySprite 가 매 sync 마다 ServerFacing / ServerAnimStartTick 캐시
- *  4. ResolveStoredFacing → KeyDir + bFlipX (W/SW/NW 미러)
- *  5. (AnimTag, KeyDir) 변경 시 Template->Flipbooks[{...}] → SetFlipbook
- *  6. ElapsedSec = (NowLocalSec - AnimStartLocalSec) * PlayRate
- *     SetPlaybackPosition / 마지막 권위 AnimStartTick 변화 감지
- *  7. RelativeScale3D.X = bFlipX ? -1 : +1
- *  8. RootScene yaw = CameraYaw (빌보드)
+ *  1. 위치 보간 (RenderLocation → InterpLocation) + 빌보드
+ *  2. AbsorbViews(현 PresentationState 뷰 → Fragment)
+ *  3. ExpireActionLayers(Flipbook duration 콜백)
+ *  4. TickViewModel(Fragment, AuthAnimStartTick, DeltaSec, CameraYaw) → VM
+ *  5. (facing 소스 dirty 시) SpriteView.Facing 기록
+ *  6. VM.AnimTag → Animation->FindAnimationOrFallback → ResolveStoredFacing → Flipbook 바인드
+ *  7. SetPlaybackPosition((VM.LocalNowSec - VM.AnimStartLocalSec) * PlayRate)
+ *  8. RelativeScale3D.X = bFlipX ? -1 : +1
  */
 UCLASS(Blueprintable)
 class HKTSPRITECORE_API AHktSpritePaperActor : public AActor, public IHktPresentableActor, public IHktSelectable
@@ -63,14 +64,13 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	// === IHktPresentableActor ===
+	// Anim 의사결정(Movement/Combat/Animation 흡수)은 Tick 의 AbsorbViews 에서 일괄 처리.
+	// 액터의 Apply* 는 권위 입력 캐시(ApplySprite) + 시각 자산 적용(ApplyPhysics/ApplyTransform) 만 담당.
 	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
 	virtual FVector GetFocusWorldLocation() const override;
 	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
 	virtual void ApplyTransform(const FHktTransformView& V) override;
 	virtual void ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce) override;
-	virtual void ApplyAnimation(FHktAnimationView& V, int64 Frame, bool bForce) override;
-	virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;
-	virtual void ApplyCombat(const FHktCombatView& V, int64 Frame, bool bForce) override;
 	virtual void ApplySprite(const FHktSpriteView& V, int64 Frame, bool bForce) override;
 
 	// === IHktSelectable ===
@@ -105,10 +105,6 @@ private:
 	void RebindFlipbookIfNeeded(const FGameplayTag& AnimTag, uint8 KeyDir, bool bFlipX,
 		const struct FHktPaperAnimMeta& Meta);
 
-	/** 클라 산출 Facing 을 ViewModel(FHktSpriteView) 에 기록. 소스(LastMoveDirXY) 또는
-	 *  anim tag 가 dirty 인 시점에만 호출 — 카메라 yaw 회전만으로는 호출하지 않는다. */
-	void WriteFacingToViewModel();
-
 	FHktEntityId CachedEntityId = InvalidEntityId;
 
 	/**
@@ -125,7 +121,7 @@ private:
 	/** 정적 경로에서 한 번만 SetSprite 하기 위한 가드. */
 	bool bStaticSpriteApplied = false;
 
-	/** AnimFragment — HktSpriteAnimProcessor 의 입력 POD. 호스트가 없으므로 액터가 직접 보유. */
+	/** AnimFragment — HktSpriteAnimProcessor 의 입력 + sticky 상태 POD. 호스트가 없으므로 액터가 직접 보유. */
 	FHktSpriteAnimFragment AnimFragment;
 
 	/** 마지막으로 적용한 (AnimTag, DirIdx, bFlipX) — 동일하면 SetFlipbook 스킵. */
@@ -139,15 +135,9 @@ private:
 	 *  ElapsedSec 에 곱해서 보정해야 한다. (Meta.FrameDurationMs ≤ 0 또는 fb FPS 0 이면 1.0) */
 	float CurrentMetaTimeScale = 1.f;
 
-	/** F-2: ApplySprite 가 매 sync 마다 캐시 — Tick 은 이 값으로 flipbook resolve.
-	 *  Facing 은 서버 권위가 아닌 클라이언트 viewmodel(AnimFragment.LastMoveDirXY) 로 산출. */
+	/** F-2: ApplySprite 가 매 sync 마다 캐시 — Tick 은 이 값을 AuthAnimStartTick 입력으로 사용. */
 	bool   bHasSpriteState = false;
 	int32  ServerAuthoritativeAnimStartTick = 0;
-
-	/** 서버 권위 AnimStartTick 변경 감지 → 로컬 시각 캡처. */
-	int32  LastAuthoritativeAnimStartTick = MIN_int32;
-	double AnimStartLocalSec = 0.0;
-	double LocalNowSec = 0.0;
 
 	/** 위치 보간 (HktUnitActor 패턴과 동일). */
 	FVector CachedRenderLocation = FVector::ZeroVector;
@@ -161,15 +151,6 @@ private:
 	/** 태그 해석 실패 dedup (HktSpriteCrowdHost 와 동일 패턴). */
 	bool bLoggedResolveRenderOutputsFailure = false;
 
-	/** 직전 Tick 의 ResolvedTag — 바뀌면 AnimStartLocalSec 리셋 트리거. */
-	FGameplayTag LastResolvedTag;
-
-	/** WriteFacingToViewModel 에서 결정된 facing 캐시 — Tick 은 이 값을 그대로 소비.
-	 *  카메라 yaw 변경만으로는 갱신되지 않음(설계 선택 — 이동 dirty 또는 anim tag dirty 시점에만 산출). */
-	EHktSpriteFacing LastClientFacing = EHktSpriteFacing::S;
-	/** 화면-공간 좌우 sticky (1=우향, 0=좌향). LastMoveDirXY 부호로만 갱신. */
-	uint8 LastFacingRight = 1;
-
 	/** Animation 해석(StoredFacing/Flipbook 매칭) 진단 dedup. 마지막으로 emit 한 (AnimTag,KeyDir,bFlipX) 와
 	 *  Flipbook 존재 여부를 기억해 전이 시점에만 로그를 남긴다. */
 	FGameplayTag LastDiagAnimTag;
@@ -177,5 +158,4 @@ private:
 	bool         bLastDiagFlipX = false;
 	bool         bLastDiagHadFlipbook = false;
 	bool         bLastDiagSnapshotValid = false;
-
 };

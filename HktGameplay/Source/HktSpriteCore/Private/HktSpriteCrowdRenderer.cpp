@@ -463,6 +463,12 @@ void UHktSpriteCrowdRenderer::CollectAtlasPaths(FGameplayTag CharacterTag, TArra
 	OutPaths = Unique.Array();
 }
 
+const UHktHISMSpriteVisualAsset* UHktSpriteCrowdRenderer::ResolveVisualAsset(FGameplayTag CharacterTag) const
+{
+	const TObjectPtr<UHktHISMSpriteVisualAsset>* Found = VisualCache.Find(CharacterTag);
+	return Found ? Found->Get() : nullptr;
+}
+
 const FHktSpriteAnimation* UHktSpriteCrowdRenderer::ResolveAnimation(
 	FGameplayTag CharacterTag, const FGameplayTag& AnimTag) const
 {
