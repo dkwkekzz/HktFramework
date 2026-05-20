@@ -1,12 +1,12 @@
-# I-0013 성장을 위한 재료 — Voxel spawn 능력 구현 상태
+# [ARCHIVED] I-0013 성장을 위한 재료 — Voxel spawn 능력 구현 상태
 
-[I-0013 의도 문서](intents/I-0013.md) 의 구현 진척·격차·임시 결정·레거시 처리 메모를 분리해 보관한다. 의도(왜) 문서가 일감 추적기로 비대해지는 것을 막기 위한 디자인 문서다.
+> **현 단일 진실원**: [Design-VoxelSpawner.md](../Design-VoxelSpawner.md). 본 문서는 Phase A→B→C 마이그레이션 이력 / I-0014→I-0013 의도 재정의 과정 / 폐기된 결정 (placement story, archetype ADR) 의 audit 보관본.
 
-> **이력 메모**: 본 문서는 옛 의도 구조의 `I-0014 (Voxel spawn 능력)` 로 작성·운영되어 왔다. 의도 구조 재정의 후 같은 *왜* 가 `I-0013 (성장을 위한 재료)` 로 이관됨에 따라 ID 만 갱신한다. 본문 내 `I-0013` 단서 / Phase 표기는 모두 *옛 I-0014 산출물* 과 1:1 대응.
+[I-0013 의도 문서](../intents/I-0013.md) 의 구현 진척·격차·임시 결정·레거시 처리 메모. Phase A~C 모두 완료된 시점의 스냅샷.
 
-관련 모듈 디자인: [HktGameplay/Source/HktTerrain/TerrainSpawner.design.md](../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md)
+> **이력 메모**: 본 문서는 옛 의도 구조의 `I-0014 (Voxel spawn 능력)` 로 작성·운영되어 왔다. 의도 구조 재정의 후 같은 *왜* 가 `I-0013 (성장을 위한 재료)` 로 이관됨에 따라 ID 만 갱신.
 
-**사용법 (디자이너용)**: [Howto-VoxelSpawnRules.md](Howto-VoxelSpawnRules.md) — VoxelSpawnRules 설정·튜닝·디버깅 절차.
+관련 모듈 디자인 (보관본): [HktGameplay/Source/HktTerrain/TerrainSpawner.design.md](../../HktGameplay/Source/HktTerrain/TerrainSpawner.design.md)
 
 ## 핵심 흐름
 

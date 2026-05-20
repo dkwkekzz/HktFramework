@@ -1,10 +1,8 @@
-# VoxelSpawnRules 사용법
+# [ARCHIVED] VoxelSpawnRules 사용법 (v6 시점)
+
+> **현 단일 진실원**: [Design-VoxelSpawner.md](../Design-VoxelSpawner.md). 본 문서는 v6 (`VoxelTypeID: int32` 키) 시점 디자이너 How-to 의 보관본. 현 v7 은 `EHktTerrainType` UENUM 키로 교체됨.
 
 I-0014 v6 의 voxel 기반 entity spawn 매트릭스 설정·튜닝·디버깅 절차. 같은 voxel type 위에서도 다양한 entity 가 결정론적으로 출현하도록 베이크 시점에 weighted-pick 을 수행한다.
-
-관련 문서:
-- [Design-I0014-Implementation.md](Design-I0014-Implementation.md) — 의도/구현 매트릭스
-- [Flow-Voxel-To-Presentation.md](Flow-Voxel-To-Presentation.md) — voxel→entity→viewmodel end-to-end
 
 ## 한 줄 요약
 
