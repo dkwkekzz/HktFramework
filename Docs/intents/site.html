@@ -395,6 +395,111 @@
   }
   /* `dialog label > input` 룰이 .multi-sel-filter 까지 잡아 너비/패딩이 깨지므로 reset. */
   dialog .multi-sel-filter { margin:0; }
+
+  /* --- View tabs (리스트/그래프 전환) --- */
+  #view-tabs {
+    flex: 0 0 auto; display: flex; gap: 2px;
+    padding: 4px 10px 0; background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  #view-tabs button {
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    border-bottom: 0; padding: 6px 14px;
+    border-radius: 4px 4px 0 0; cursor: pointer; font: inherit; font-size: 13px;
+    margin-bottom: -1px;
+  }
+  #view-tabs button:hover { color: var(--text); }
+  #view-tabs button.active {
+    background: var(--panel); color: var(--text);
+    border-color: var(--accent); border-bottom-color: var(--panel);
+  }
+
+  /* hidden 속성이 명시적 display 보다 약하므로 강제로 숨김 */
+  #stack[hidden], #graph-view[hidden] { display: none !important; }
+
+  /* --- Graph view (카드형 DAG) --- */
+  #graph-view {
+    flex: 1 1 auto; min-height: 0;
+    position: relative; overflow: auto;
+    background: var(--bg);
+  }
+  #graph-inner { position: relative; }
+  #graph-svg {
+    position: absolute; top: 0; left: 0;
+    pointer-events: none; overflow: visible;
+  }
+  #graph-cards { position: relative; width: 100%; height: 100%; }
+  .graph-card {
+    position: absolute;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 10px;
+    cursor: pointer; box-sizing: border-box;
+    transition: border-color .12s, transform .12s, box-shadow .12s;
+    overflow: hidden;
+  }
+  .graph-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    transform: translateY(-1px); z-index: 5;
+  }
+  .graph-card.in-stack { border-color: var(--accent); }
+  .graph-card.tip {
+    border-color: var(--active);
+    box-shadow: 0 0 0 2px var(--active);
+  }
+  .graph-card .gc-head {
+    display: flex; align-items: center; gap: 4px;
+    margin-bottom: 4px; flex-wrap: wrap;
+  }
+  .graph-card .gc-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--accent); font-size: 11px; font-weight: 600;
+  }
+  .graph-card .gc-status {
+    display: inline-block; font-size: 10px; padding: 0 5px;
+    border-radius: 8px; background: var(--line);
+  }
+  .graph-card .gc-status.active { background: var(--active); color: #052e16; }
+  .graph-card .gc-status.proposed { background: var(--proposed); color: #422006; }
+  .graph-card .gc-status.realized { background: var(--realized); color: #082f49; }
+  .graph-card .gc-status.abandoned { background: var(--abandoned); color: #f9fafb; }
+  .graph-card .gc-title {
+    font-size: 12px; line-height: 1.35; color: var(--text);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-word;
+  }
+  .graph-card.pending-create, .graph-card.pending-update {
+    background: rgba(252,211,77,0.10);
+    box-shadow: inset 3px 0 0 var(--proposed);
+  }
+  .graph-card.pending-delete {
+    background: rgba(239,68,68,0.10);
+    box-shadow: inset 3px 0 0 #f87171;
+    text-decoration: line-through; opacity: 0.7;
+  }
+  #graph-empty {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--muted); font-style: italic;
+  }
+  #graph-zoom {
+    position: sticky; top: 8px; left: 8px;
+    display: inline-flex; gap: 4px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px;
+    z-index: 10; margin: 8px;
+  }
+  #graph-zoom button {
+    background: transparent; color: var(--text); border: 0;
+    padding: 3px 8px; cursor: pointer; font: inherit; font-size: 12px;
+    border-radius: 3px; min-width: 28px;
+  }
+  #graph-zoom button:hover { background: var(--panel2); }
+  #graph-zoom .zoom-label { padding: 3px 6px; color: var(--muted); font-size: 11px; }
+  @media (max-width: 800px) {
+    #view-tabs button { padding: 6px 10px; font-size: 12px; }
+    .graph-card { font-size: 11px; }
+  }
 </style>
 <script type="application/json" id="validation-rules">{
   "version": "1",
@@ -446,7 +551,24 @@
     </div>
     <div class="drawer-body"><ul id="list" class="list"></ul></div>
   </aside>
+  <nav id="view-tabs" aria-label="뷰 전환">
+    <button id="tab-stack" class="active" type="button">📋 리스트</button>
+    <button id="tab-graph" type="button">🕸 그래프</button>
+  </nav>
   <main id="stack" aria-live="polite"></main>
+  <section id="graph-view" hidden aria-label="카드형 그래프 뷰">
+    <div id="graph-zoom">
+      <button id="gz-out" title="축소">−</button>
+      <span class="zoom-label" id="gz-label">100%</span>
+      <button id="gz-in" title="확대">＋</button>
+      <button id="gz-reset" title="리셋">⟳</button>
+    </div>
+    <div id="graph-inner">
+      <svg id="graph-svg"></svg>
+      <div id="graph-cards"></div>
+    </div>
+    <div id="graph-empty" hidden>표시할 Intent 가 없습니다</div>
+  </section>
   <div id="toast-wrap"></div>
   <dialog id="token-modal">
     <h3>GitHub 연결 설정</h3>
@@ -959,6 +1081,8 @@
     refreshMarkers();
     btnBack.disabled = stackIds.length <= 1;
     requestAnimationFrame(scrollToTip);
+    // 그래프 뷰도 동일 데이터 — 활성 시 동기화.
+    if (activeView === 'graph') renderGraph();
   }
 
   function refreshMarkers() {
@@ -980,6 +1104,231 @@
       last.scrollIntoView({ behavior: 'smooth', inline: 'end', block: 'nearest' });
     }
   }
+
+  // ── 카드형 그래프 뷰 ─────────────────────────────────────────────────────────
+  // 의도를 제목만 카드로 표시하고 부모→자식 관계를 SVG 라인으로 연결한다.
+  // 클릭 시 리스트 뷰로 전환하면서 해당 의도를 스택의 루트로 설정 — 상세 편집 가능.
+  const graphViewEl = document.getElementById('graph-view');
+  const graphInnerEl = document.getElementById('graph-inner');
+  const graphSvgEl  = document.getElementById('graph-svg');
+  const graphCardsEl= document.getElementById('graph-cards');
+  const graphEmptyEl= document.getElementById('graph-empty');
+  const tabStackBtn = document.getElementById('tab-stack');
+  const tabGraphBtn = document.getElementById('tab-graph');
+  let activeView = 'stack';
+  let graphZoom = 1;
+  const GRAPH_CARD_W = 220;
+  const GRAPH_CARD_H = 92;
+  const GRAPH_GAP_X  = 80;
+  const GRAPH_GAP_Y  = 18;
+  const GRAPH_PAD    = 24;
+
+  function computeGraphLayout() {
+    // _pending === 'delete' 도 표시(취소 가능하도록) — 시각적으로만 죽은 상태로.
+    const items = DATA.intents.slice();
+    const byId = Object.create(null);
+    for (const it of items) byId[it.id] = it;
+
+    // 깊이 계산: parents 가 없으면 0, 있으면 max(parent depth)+1.
+    // 순환은 데이터 검증 단계에서 차단되지만, 안전을 위해 visiting 가드 사용.
+    const depth = Object.create(null);
+    function depthOf(id, visiting) {
+      if (depth[id] != null) return depth[id];
+      if (visiting.has(id)) return 0;
+      const it = byId[id];
+      if (!it) return 0;
+      const parents = (it.parents || []).filter(p => byId[p]);
+      if (!parents.length) { depth[id] = 0; return 0; }
+      visiting.add(id);
+      let d = 0;
+      for (const p of parents) d = Math.max(d, depthOf(p, visiting) + 1);
+      visiting.delete(id);
+      depth[id] = d; return d;
+    }
+    for (const it of items) depthOf(it.id, new Set());
+
+    // 깊이 컬럼 그룹.
+    const cols = new Map();
+    for (const it of items) {
+      const d = depth[it.id] || 0;
+      if (!cols.has(d)) cols.set(d, []);
+      cols.get(d).push(it);
+    }
+    const depths = [...cols.keys()].sort((a, b) => a - b);
+
+    // 초기 순서: id 사전순.
+    for (const d of depths) cols.get(d).sort((a, b) => a.id.localeCompare(b.id));
+
+    // 컬럼 내 순서 결정: 부모 평균 row 로 정렬(barycenter) — 교차선 감소.
+    // 두 번 반복하여 안정화.
+    const rowOf = Object.create(null);
+    function refreshRows() {
+      for (const d of depths) {
+        cols.get(d).forEach((it, i) => { rowOf[it.id] = i; });
+      }
+    }
+    refreshRows();
+    for (let pass = 0; pass < 3; pass++) {
+      for (const d of depths) {
+        if (d === 0) continue;
+        const arr = cols.get(d);
+        const score = new Map();
+        for (const it of arr) {
+          const ps = (it.parents || []).filter(p => byId[p] && depth[p] === d - 1);
+          if (!ps.length) { score.set(it.id, rowOf[it.id] != null ? rowOf[it.id] : 0); continue; }
+          let sum = 0;
+          for (const p of ps) sum += (rowOf[p] != null ? rowOf[p] : 0);
+          score.set(it.id, sum / ps.length);
+        }
+        arr.sort((a, b) => {
+          const sa = score.get(a.id), sb = score.get(b.id);
+          if (sa !== sb) return sa - sb;
+          return a.id.localeCompare(b.id);
+        });
+        refreshRows();
+      }
+    }
+
+    // 좌표 부여.
+    const positions = Object.create(null);
+    let maxRow = 0;
+    for (const d of depths) {
+      const arr = cols.get(d);
+      arr.forEach((it, i) => {
+        positions[it.id] = {
+          x: GRAPH_PAD + d * (GRAPH_CARD_W + GRAPH_GAP_X),
+          y: GRAPH_PAD + i * (GRAPH_CARD_H + GRAPH_GAP_Y),
+          w: GRAPH_CARD_W, h: GRAPH_CARD_H,
+        };
+        if (i > maxRow) maxRow = i;
+      });
+    }
+    const maxDepth = depths.length ? depths[depths.length - 1] : 0;
+    const width  = GRAPH_PAD * 2 + (maxDepth + 1) * GRAPH_CARD_W + maxDepth * GRAPH_GAP_X;
+    const height = GRAPH_PAD * 2 + (maxRow + 1) * GRAPH_CARD_H + maxRow * GRAPH_GAP_Y;
+    return { positions, width, height, items };
+  }
+
+  function renderGraph() {
+    if (graphViewEl.hidden) return;
+    const layout = computeGraphLayout();
+    const { positions, width, height, items } = layout;
+
+    if (!items.length) {
+      graphCardsEl.innerHTML = '';
+      graphSvgEl.innerHTML = '';
+      graphEmptyEl.hidden = false;
+      graphInnerEl.style.width = '100%';
+      graphInnerEl.style.height = '100%';
+      return;
+    }
+    graphEmptyEl.hidden = true;
+
+    // 줌은 #graph-inner 에 transform 적용 — SVG 와 카드가 함께 확대.
+    graphInnerEl.style.width  = width  + 'px';
+    graphInnerEl.style.height = height + 'px';
+    graphInnerEl.style.transformOrigin = '0 0';
+    graphInnerEl.style.transform = `scale(${graphZoom})`;
+    // 외곽 컨테이너에 패딩을 주어 스크롤 영역 확장.
+    graphViewEl.style.paddingBottom = (height * graphZoom + 40) + 'px';
+
+    // SVG 엣지 렌더링 — 부모 우측 → 자식 좌측 (베지어).
+    graphSvgEl.setAttribute('width', String(width));
+    graphSvgEl.setAttribute('height', String(height));
+    let svg = `<defs>`
+      + `<marker id="gv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">`
+      + `<path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>`
+      + `</marker>`
+      + `</defs>`;
+    for (const it of items) {
+      if (it._pending === 'delete') continue;
+      const a = positions[it.id]; if (!a) continue;
+      for (const cid of (it.children || [])) {
+        const b = positions[cid]; if (!b) continue;
+        const x1 = a.x + a.w;
+        const y1 = a.y + a.h / 2;
+        const x2 = b.x;
+        const y2 = b.y + b.h / 2;
+        const mx = (x1 + x2) / 2;
+        svg += `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"`
+            + ` stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#gv-arrow)"/>`;
+      }
+    }
+    graphSvgEl.innerHTML = svg;
+
+    // 카드 렌더링 — 기존 카드를 재사용하지 않고 매번 재생성(간결).
+    graphCardsEl.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const it of items) {
+      const pos = positions[it.id]; if (!pos) continue;
+      const card = document.createElement('div');
+      const cls = ['graph-card'];
+      if (inStack(it.id)) cls.push(isTip(it.id) ? 'tip' : 'in-stack');
+      if (it._pending) cls.push('pending-' + it._pending);
+      card.className = cls.join(' ');
+      card.style.left = pos.x + 'px';
+      card.style.top  = pos.y + 'px';
+      card.style.width  = pos.w + 'px';
+      card.style.height = pos.h + 'px';
+      card.dataset.id = it.id;
+      card.title = it.title;
+      const pendingChip = it._pending
+        ? (it._pending === 'delete'
+           ? `<span class="pending-chip delete">삭제</span>`
+           : `<span class="pending-chip">${it._pending === 'create' ? '추가' : '수정'}</span>`)
+        : '';
+      card.innerHTML =
+          `<div class="gc-head">`
+        + `<span class="gc-id">${escape(it.id)}</span>`
+        + `<span class="gc-status ${escape(it.status)}">${escape(it.status)}</span>`
+        + `${pillHtml(it)}${pendingChip}`
+        + `</div>`
+        + `<div class="gc-title">${escape(it.title)}</div>`;
+      card.addEventListener('click', () => {
+        // 카드 선택 → 리스트 탭으로 전환 후 해당 의도로 진입.
+        switchView('stack');
+        setRoot(it.id);
+      });
+      frag.appendChild(card);
+    }
+    graphCardsEl.appendChild(frag);
+  }
+
+  function switchView(name) {
+    if (name === activeView) return;
+    activeView = name;
+    tabStackBtn.classList.toggle('active', name === 'stack');
+    tabGraphBtn.classList.toggle('active', name === 'graph');
+    stackEl.hidden = (name !== 'stack');
+    graphViewEl.hidden = (name !== 'graph');
+    if (name === 'graph') {
+      renderGraph();
+      // 현재 tip 카드로 스크롤.
+      requestAnimationFrame(() => {
+        const tipId = stackIds[stackIds.length - 1];
+        if (!tipId) return;
+        const el = graphCardsEl.querySelector(`.graph-card[data-id="${CSS.escape(tipId)}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      });
+    } else {
+      // 리스트 뷰로 돌아왔을 때 스택 정렬 복구.
+      requestAnimationFrame(scrollToTip);
+    }
+  }
+
+  tabStackBtn.addEventListener('click', () => switchView('stack'));
+  tabGraphBtn.addEventListener('click', () => switchView('graph'));
+
+  // 줌 컨트롤.
+  const gzLabel = document.getElementById('gz-label');
+  function setZoom(z) {
+    graphZoom = Math.max(0.4, Math.min(2.0, z));
+    gzLabel.textContent = Math.round(graphZoom * 100) + '%';
+    renderGraph();
+  }
+  document.getElementById('gz-in').addEventListener('click', () => setZoom(graphZoom + 0.1));
+  document.getElementById('gz-out').addEventListener('click', () => setZoom(graphZoom - 0.1));
+  document.getElementById('gz-reset').addEventListener('click', () => setZoom(1));
 
   // ── 네비게이션 ──────────────────────────────────────────────────────────────
   function syncHistory(replace) {
