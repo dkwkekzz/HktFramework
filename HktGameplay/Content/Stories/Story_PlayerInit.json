@@ -10,6 +10,7 @@
     "StanceUnarmed": "Entity.Stance.Unarmed",
     "StanceSword1H": "Entity.Stance.Sword1H",
     "UseSkillTag": "Story.Event.Combat.UseSkill",
+    "PlayerLifecycle": "Story.Flow.Player.Lifecycle",
     "VfxSpawnEffect": "VFX.Niagara.SpawnEffect",
     "SndSpawn": "Sound.Spawn"
   },
@@ -214,7 +215,13 @@
     },
     {
       "op": "Log",
-      "message": "PlayerInit: 준비 완료"
+      "message": "PlayerInit: 준비 완료 — Lifecycle (Brain) 디스패치"
+    },
+    {
+      "comment": "── I-0016: 캐릭터 생성 직후 PlayerLifecycle 발사 — Brain 이 ActionIntent 를 매 프레임 해석 ──",
+      "op": "DispatchEventFrom",
+      "eventTag": "PlayerLifecycle",
+      "source": "Self"
     },
     {
       "op": "Halt"
