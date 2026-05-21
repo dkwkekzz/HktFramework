@@ -110,6 +110,15 @@ FVector AHktSpritePaperActor::GetFocusWorldLocation() const
 	return Loc;
 }
 
+FVector AHktSpritePaperActor::GetHudAnchorWorldLocation() const
+{
+	// RootScene 이 루트 — ActorLocation = 엔티티 발(=캡슐 바닥).
+	// HitCapsule 은 RelLoc.Z = HalfHeight (중심), 따라서 캡슐 상단 = 발 + 2*HalfHeight.
+	const FVector Loc = GetActorLocation();
+	const float HalfHeight = HitCapsule ? HitCapsule->GetScaledCapsuleHalfHeight() : 90.f;
+	return Loc + FVector(0.f, 0.f, 2.f * HalfHeight);
+}
+
 // ----------------------------------------------------------------------------
 // 자산 바인딩
 // ----------------------------------------------------------------------------

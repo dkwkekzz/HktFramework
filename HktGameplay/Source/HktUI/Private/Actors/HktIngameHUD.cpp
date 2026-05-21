@@ -189,31 +189,24 @@ void AHktIngameHUD::CreateEntityElement(FHktEntityId EntityId, const FHktPresent
 		Strategy = NewObject<UHktWorldViewAnchorStrategy>(this);
 	}
 
-	const float EffectiveHeadClearance = (CachedEntityHudAsset && CachedEntityHudAsset->HeadClearance > 0.f)
-		? CachedEntityHudAsset->HeadClearance
-		: EntityHudHeadClearance;
-	Strategy->SetTargetEntity(EntityId, EffectiveHeadClearance);
+	Strategy->SetTargetEntity(EntityId);
+
+	const FVector EffectiveWorldOffset = CachedEntityHudAsset
+		? CachedEntityHudAsset->WorldOffset
+		: EntityHudWorldOffset;
+	Strategy->SetWorldOffset(EffectiveWorldOffset);
 
 	if (CachedEntityHudAsset)
 	{
 		Strategy->SetScreenOffset(CachedEntityHudAsset->ScreenOffset);
 	}
 
-	const FHktTransformView* Tfm = State.GetTransform(EntityId);
-	const FHktPhysicsView*   Phys = State.GetPhysics(EntityId);
-	if (Tfm)
+	if (State.GetTransform(EntityId))
 	{
-		FVector WorldPos = Tfm->RenderLocation.Get();
-		if (CachedPresentationSubsystem)
-		{
-			const FVector ActorLoc = CachedPresentationSubsystem->GetEntityActorLocation(EntityId);
-			if (!ActorLoc.IsZero())
-			{
-				WorldPos = ActorLoc;
-			}
-		}
-		const float HalfHeight = Phys ? Phys->CollisionHalfHeight.Get() : 90.f;
-		Strategy->SetWorldPosition(WorldPos, HalfHeight);
+		const FVector AnchorLoc = CachedPresentationSubsystem
+			? CachedPresentationSubsystem->GetEntityHudAnchorLocation(EntityId)
+			: FVector::ZeroVector;
+		Strategy->SetAnchorWorldLocation(AnchorLoc);
 	}
 
 	Element->InitializeElement(View, Strategy);
@@ -250,19 +243,12 @@ void AHktIngameHUD::UpdateEntityPositions(const FHktPresentationState& State)
 		UHktWorldViewAnchorStrategy* Strategy = Cast<UHktWorldViewAnchorStrategy>(Element->AnchorStrategy);
 		if (!Strategy) continue;
 
-		FVector WorldPos = Tfm->RenderLocation.Get();
-		if (CachedPresentationSubsystem)
-		{
-			const FVector ActorLoc = CachedPresentationSubsystem->GetEntityActorLocation(EntityId);
-			if (!ActorLoc.IsZero())
-			{
-				WorldPos = ActorLoc;
-			}
-		}
-
-		const FHktPhysicsView* Phys = State.GetPhysics(EntityId);
-		const float HalfHeight = Phys ? Phys->CollisionHalfHeight.Get() : 90.f;
-		Strategy->SetWorldPosition(WorldPos, HalfHeight);
+		// 액터가 IHktPresentableActor::GetHudAnchorWorldLocation 으로 자신의 캡슐 머리 위치를 보고.
+		// HktUnitActor: ActorLocation + HalfHeight. HktSpritePaperActor: ActorLocation + 2*HalfHeight.
+		const FVector AnchorLoc = CachedPresentationSubsystem
+			? CachedPresentationSubsystem->GetEntityHudAnchorLocation(EntityId)
+			: FVector::ZeroVector;
+		Strategy->SetAnchorWorldLocation(AnchorLoc);
 	}
 }
 

@@ -47,6 +47,20 @@ public:
 		return Self ? Self->GetActorLocation() : FVector::ZeroVector;
 	}
 
+	/**
+	 * EntityHud 등 머리 위에 떠야 하는 월드 UI 의 앵커 위치 (= 캡슐 상단/머리).
+	 * 액터 타입별로 ActorLocation 과 캡슐 좌표 컨벤션이 달라 각자 보정한다.
+	 *  - HktUnitActor: 캡슐 루트, ActorLocation = 캡슐 중심 → +HalfHeight
+	 *  - HktSpritePaperActor: RootScene 루트, ActorLocation = 발 → +2*HalfHeight
+	 *  - 기본값: ActorLocation (보정 불가 시 폴백)
+	 * UI 측에서 여기에 DataAsset 의 WorldOffset 을 더해 최종 HUD 앵커를 산출한다.
+	 */
+	virtual FVector GetHudAnchorWorldLocation() const
+	{
+		const AActor* Self = Cast<const AActor>(_getUObject());
+		return Self ? Self->GetActorLocation() : FVector::ZeroVector;
+	}
+
 	/** 매 프레임 호출 (Transform 뷰가 있는 모든 엔터티) */
 	virtual void ApplyTransform(const FHktTransformView& V) {}
 

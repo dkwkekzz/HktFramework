@@ -14,11 +14,11 @@ static TAutoConsoleVariable<int32> CVarShowEntityHud(
 	TEXT("EntityHud 앵커 시각화. 0=끄기, 1=앵커+캡슐 중심"),
 	ECVF_Default);
 
-FVector UHktWorldViewAnchorStrategy::GetHeadWorldLocation() const
+FVector UHktWorldViewAnchorStrategy::GetHudWorldLocation() const
 {
-	// RenderLocation은 이미 지면 트레이스 + 캡슐 오프셋이 적용된 최종 렌더 위치 (캡슐 중심).
-	// 캡슐 상단(머리) = RenderLocation + CapsuleHalfHeight, 거기에 약간의 여백(HeadClearance)을 추가.
-	return CachedRenderLocation + FVector(0.f, 0.f, CapsuleHalfHeight + HeadClearance);
+	// 앵커(IHktPresentableActor::GetHudAnchorWorldLocation 결과 = 캡슐 머리)에
+	// DataAsset 으로 설정한 WorldOffset 을 더해 최종 HUD 월드 위치 산출.
+	return CachedAnchorWorldLocation + WorldOffset;
 }
 
 bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldContext, FVector2D& OutScreenPos)
@@ -28,7 +28,7 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 		return false;
 	}
 
-	const FVector WorldLocation = GetHeadWorldLocation();
+	const FVector WorldLocation = GetHudWorldLocation();
 
 	// WorldContext에서 World → PlayerController 획득
 	UWorld* World = nullptr;
@@ -52,10 +52,10 @@ bool UHktWorldViewAnchorStrategy::CalculateScreenPosition(const UObject* WorldCo
 	{
 		// 머리 위 앵커 포인트 (HUD가 투영되는 위치) — 노란색
 		DrawDebugSphere(World, WorldLocation, 8.f, 8, FColor::Yellow, false, -1.f, SDPG_World, 1.5f);
-		// 캡슐 중심 (RenderLocation) — 시안색
-		DrawDebugSphere(World, CachedRenderLocation, 6.f, 8, FColor::Cyan, false, -1.f, SDPG_World, 1.0f);
-		// 캡슐 중심 → 앵커까지 연결선
-		DrawDebugLine(World, CachedRenderLocation, WorldLocation, FColor::Yellow, false, -1.f, SDPG_World, 0.8f);
+		// 캡슐 머리 앵커 (액터가 보고한 위치) — 시안색
+		DrawDebugSphere(World, CachedAnchorWorldLocation, 6.f, 8, FColor::Cyan, false, -1.f, SDPG_World, 1.0f);
+		// 앵커 → 최종 HUD 위치 연결선
+		DrawDebugLine(World, CachedAnchorWorldLocation, WorldLocation, FColor::Yellow, false, -1.f, SDPG_World, 0.8f);
 	}
 #endif
 

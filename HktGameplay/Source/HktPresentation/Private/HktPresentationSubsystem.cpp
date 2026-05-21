@@ -650,6 +650,22 @@ FVector UHktPresentationSubsystem::GetEntityFocusLocation(FHktEntityId Id) const
 	return GetEntityLocation(Id);
 }
 
+FVector UHktPresentationSubsystem::GetEntityHudAnchorLocation(FHktEntityId Id) const
+{
+	if (ActorProcessor)
+	{
+		if (AActor* Actor = ActorProcessor->GetActor(Id))
+		{
+			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(Actor))
+			{
+				return P->GetHudAnchorWorldLocation();
+			}
+			return Actor->GetActorLocation();
+		}
+	}
+	return GetEntityLocation(Id);
+}
+
 void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationProcessor* InProcessor)
 {
 	if (!InProcessor || Processors.Contains(InProcessor)) return;

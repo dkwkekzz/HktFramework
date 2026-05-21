@@ -21,9 +21,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI")
 	TSubclassOf<UHktUIAnchorStrategy> DefaultAnchorStrategyClass;
 
-	/** 머리 위 여백 (CapsuleHalfHeight 위에 추가). 0이면 IngameHUD 기본값 사용. */
+	/**
+	 * 캡슐 머리(앵커) 기준 월드 오프셋 (cm). Z 가 머리 위 여백, X/Y 로 좌/우/전/후 미세 조정 가능.
+	 * 액터가 IHktPresentableActor::GetHudAnchorWorldLocation() 으로 보고한 캡슐 상단 위치에 더해진다.
+	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Offset")
-	float HeadClearance = 0.f;
+	FVector WorldOffset = FVector(0.f, 0.f, 20.f);
 
 	/** 스크린 공간 오프셋 (투영+DPI보정 후 적용, Slate 좌표 단위). 위치 미세 조정용. */
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI|Offset")
