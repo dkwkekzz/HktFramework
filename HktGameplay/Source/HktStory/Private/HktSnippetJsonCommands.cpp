@@ -3,6 +3,9 @@
 #include "HktSnippetJsonCommands.h"
 #include "HktStoryJsonParser.h"
 #include "HktStoryBuilder.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "HktCoreProperties.h"
 #include "Snippets/HktSnippetItem.h"
 #include "Snippets/HktSnippetCombat.h"
 #include "Snippets/HktSnippetNPC.h"
@@ -118,6 +121,94 @@ namespace
 			HktSnippetItem::FHktGroundItemTemplate Tmpl;
 			Tmpl.ItemId = A.GetIntOpt(TEXT("itemId"), 0);
 			HktSnippetItem::SpawnGroundItemAtPos(B, A.GetTag(TEXT("classTag")), Tmpl, A.GetVarBlock(B, TEXT("pos"), 3));
+		});
+		// I-0035: 가중치 random loot drop — lifecycle 의 사망 분기에서 한 줄로 호출.
+		// 인라인된 4-way drop 분기들을 entry 배열 한 곳으로 모으는 목적.
+		Parser.RegisterCommandV2(TEXT("SnippetRandomLootDrop"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+			FHktVar PosSource = A.GetVar(B, TEXT("posSource"));
+
+			TArray<HktSnippetItem::FHktLootEntry> Entries;
+			const TArray<TSharedPtr<FJsonValue>>* EntriesArr = nullptr;
+			if (A.Step.IsValid() && A.Step->TryGetArrayField(TEXT("entries"), EntriesArr) && EntriesArr)
+			{
+				Entries.Reserve(EntriesArr->Num());
+				for (const TSharedPtr<FJsonValue>& Val : *EntriesArr)
+				{
+					const TSharedPtr<FJsonObject>* EntryObjPtr = nullptr;
+					if (!Val.IsValid() || !Val->TryGetObject(EntryObjPtr) || !EntryObjPtr)
+					{
+						continue;
+					}
+					const TSharedPtr<FJsonObject>& Obj = *EntryObjPtr;
+
+					HktSnippetItem::FHktLootEntry E;
+
+					FString ClassTagStr;
+					if (Obj->TryGetStringField(TEXT("classTag"), ClassTagStr) && A.ResolveTagFunc)
+					{
+						E.ClassTag = A.ResolveTagFunc(ClassTagStr);
+					}
+					int32 WeightTmp = 1;
+					if (Obj->TryGetNumberField(TEXT("weight"), WeightTmp))
+					{
+						E.Weight = WeightTmp;
+					}
+					int32 ItemIdTmp = 0;
+					if (Obj->TryGetNumberField(TEXT("itemId"), ItemIdTmp))
+					{
+						E.ItemId = ItemIdTmp;
+					}
+
+					// props: { "PropertyName": const_int, ... }
+					const TSharedPtr<FJsonObject>* PropsObjPtr = nullptr;
+					if (Obj->TryGetObjectField(TEXT("props"), PropsObjPtr) && PropsObjPtr)
+					{
+						for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : (*PropsObjPtr)->Values)
+						{
+							const uint16 Pid = FHktStoryJsonParser::ParsePropertyId(Pair.Key);
+							if (Pid == 0xFFFF || !Pair.Value.IsValid())
+							{
+								continue;
+							}
+							double NumVal = 0.0;
+							if (Pair.Value->TryGetNumber(NumVal))
+							{
+								E.Properties.Add(Pid, static_cast<int32>(NumVal));
+							}
+						}
+					}
+
+					FString SkillTagStr;
+					if (Obj->TryGetStringField(TEXT("skillTag"), SkillTagStr) && !SkillTagStr.IsEmpty() && A.ResolveTagFunc)
+					{
+						E.SkillTag = A.ResolveTagFunc(SkillTagStr);
+					}
+
+					FString StanceStr;
+					if (Obj->TryGetStringField(TEXT("stance"), StanceStr) && !StanceStr.IsEmpty() && A.ResolveTagFunc)
+					{
+						E.StanceTag = A.ResolveTagFunc(StanceStr);
+					}
+
+					const TArray<TSharedPtr<FJsonValue>>* TagsArrPtr = nullptr;
+					if (Obj->TryGetArrayField(TEXT("tags"), TagsArrPtr) && TagsArrPtr && A.ResolveTagFunc)
+					{
+						E.AttrTags.Reserve(TagsArrPtr->Num());
+						for (const TSharedPtr<FJsonValue>& TV : *TagsArrPtr)
+						{
+							FString TagStr;
+							if (TV.IsValid() && TV->TryGetString(TagStr) && !TagStr.IsEmpty())
+							{
+								E.AttrTags.Add(A.ResolveTagFunc(TagStr));
+							}
+						}
+					}
+
+					Entries.Add(MoveTemp(E));
+				}
+			}
+
+			HktSnippetItem::RandomLootDrop(B, Entries, PosSource);
 		});
 	}
 

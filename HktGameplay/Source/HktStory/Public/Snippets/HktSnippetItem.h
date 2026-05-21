@@ -140,6 +140,48 @@ namespace HktSnippetItem
 	};
 
 	/**
+	 * 가중치 기반 random loot drop 의 단일 후보.
+	 *
+	 * `ClassTag` 는 필수 — `SpawnEntity` 의 classTag 로 사용된다.
+	 * `Weight` 는 모든 entry 의 합산값을 modulus 로 `RandomInt` 한 결과의 누적 분기에 사용.
+	 *   0 이하면 1 로 보정되어 모든 entry 가 최소 한 번은 뽑힐 가능성을 가진다.
+	 * `Properties` 는 spawned entity 에 SaveConstEntity 로 일괄 적용할 정수 속성 셋
+	 *   (예: AttackPower, SkillCPCost, RecoveryFrame, SkillTargetRequired).
+	 * `SkillTag` / `StanceTag` 는 비어 있지 않으면 각각 SetItemSkillTag / SetStance 로 적용.
+	 * `AttrTags` 는 순서대로 AddTag 호출 — 무기 분류·스킬 attr 태그 등.
+	 */
+	struct FHktLootEntry
+	{
+		FGameplayTag ClassTag;
+		int32 Weight = 1;
+		int32 ItemId = 0;
+		TMap<uint16, int32> Properties;
+		FGameplayTag SkillTag;
+		FGameplayTag StanceTag;
+		TArray<FGameplayTag> AttrTags;
+	};
+
+	/**
+	 * 가중치 random loot drop — lifecycle 의 사망 분기에서 한 줄로 호출.
+	 *
+	 * 내부 emit 시퀀스:
+	 *   LoadConst(modulus = Σ weights) → RandomInt(roll, modulus)
+	 *   → 누적 임계에 대한 CmpLt + JumpIf 사슬 → 각 entry 의 drop 블록
+	 *   → drop 블록: SpawnEntity + ItemState=0 / ItemId / EquipIndex=-1 + CopyPosition
+	 *      + 옵션 Properties / SkillTag / StanceTag / AttrTags 적용
+	 *   → 마지막 entry 외에는 done 라벨로 Jump (블록 간 fallthrough 방지)
+	 *
+	 * Entries 가 비어 있으면 no-op. 단일 entry 면 random 분기 없이 직접 drop.
+	 *
+	 * @param PosSourceEntity  ground 위치를 복사할 entity (보통 Self).
+	 *                         lifecycle 의 사망 분기에서 호출하면 시체 위치에 drop 된다.
+	 */
+	HKTSTORY_API FHktStoryBuilder& RandomLootDrop(
+		FHktStoryBuilder& B,
+		const TArray<FHktLootEntry>& Entries,
+		FHktVar PosSourceEntity);
+
+	/**
 	 * 아이템을 월드(Ground 상태)에 생성.
 	 * SpawnEntity + ItemState=Ground + ItemId + EquipIndex=-1 + 위치 설정.
 	 * Spawned 레지스터에 새 아이템 엔티티가 저장된다.
