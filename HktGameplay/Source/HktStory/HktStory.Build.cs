@@ -33,6 +33,7 @@ public class HktStory : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Json"
 			}
 		);
 
