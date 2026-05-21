@@ -245,6 +245,7 @@ inline const TCHAR* GetHktPendingTypeName(uint8 PendingType)
     case 2: return TEXT("Collision");
     case 3: return TEXT("MoveEnd");
     case 4: return TEXT("Grounded");
+    case 5: return TEXT("TagAdded");
     default: return TEXT("?");
     }
 }

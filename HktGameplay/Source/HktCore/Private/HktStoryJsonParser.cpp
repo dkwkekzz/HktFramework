@@ -1233,6 +1233,9 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
     RegisterCommandV2(TEXT("WaitMoveEnd"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
         B.WaitMoveEnd(A.GetVar(B, TEXT("entity")));
     });
+    RegisterCommandV2(TEXT("WaitTag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        B.WaitTag(A.GetVar(B, TEXT("entity")), A.GetTag(TEXT("tag")));
+    });
     RegisterCommandV2(TEXT("WaitGrounded"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
         B.WaitGrounded(A.GetVar(B, TEXT("entity")));
     });

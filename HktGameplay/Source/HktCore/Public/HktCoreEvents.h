@@ -121,6 +121,7 @@ struct HKTCORE_API FHktVMSnapshot
     uint8 WaitType = 0;
     FHktEntityId WaitWatchedEntity = InvalidEntityId;
     int32 WaitRemainingFrames = 0;
+    FGameplayTag WaitWatchedTag;  // EWaitEventType::TagAdded 전용 — Op_WaitTag 가 세팅
     int64 PlayerUid = 0;
     int32 CreationFrame = 0;
     FHktEntityId SourceEntity = InvalidEntityId;
@@ -140,6 +141,7 @@ struct HKTCORE_API FHktVMSnapshot
         Ar << S.PC;
         for (int32 i = 0; i < MaxRegisters; ++i) Ar << S.Registers[i];
         Ar << S.Status << S.WaitFrames << S.WaitType << S.WaitWatchedEntity << S.WaitRemainingFrames;
+        Ar << S.WaitWatchedTag;
         Ar << S.PlayerUid << S.CreationFrame;
         Ar << S.SourceEntity << S.TargetEntity;
         Ar << S.EventParam0 << S.EventParam1 << S.EventParam2 << S.EventParam3;

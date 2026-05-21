@@ -7,6 +7,7 @@
 #include "HktVMContext.h"
 #include "HktCoreEvents.h"
 #include "HktSimulationLimits.h"
+#include "GameplayTagContainer.h"
 
 // Forward declarations
 struct FHktVMProgram;
@@ -52,12 +53,15 @@ struct FEventWaitState
     EWaitEventType Type = EWaitEventType::None;
     FHktEntityId WatchedEntity = InvalidEntityId;
     int32 RemainingFrames = 0;  // Timer용 — hkt.Sim.FramesPerSecond 단위 정수 프레임
+    // TagAdded 전용: 감시 태그. WorldState 의 WatchedEntity 가 본 태그를 보유하면 wake.
+    FGameplayTag WatchedTag;
 
     void Reset()
     {
         Type = EWaitEventType::None;
         WatchedEntity = InvalidEntityId;
         RemainingFrames = 0;
+        WatchedTag = FGameplayTag();
     }
 };
 
@@ -186,8 +190,14 @@ public:
     int32 CountByStatus(EVMStatus Status) const;
     void Reset();
 
+    /** 현재 풀에 할당된 슬롯 총수 (grow 에 따라 가변). */
+    int32 GetCapacity() const { return Statuses.Num(); }
+    /** 사용 중인 슬롯 수 = 할당된 슬롯 - 빈 슬롯. */
+    int32 GetUsage() const { return Statuses.Num() - FreeSlots.Num(); }
+
 private:
-    static constexpr int32 MaxVMs = 256;
+    /** 슬롯 1개를 SOA 전체에 push. 성공 시 새 인덱스, 실패(상한 초과) 시 INDEX_NONE. */
+    int32 GrowOneSlot();
 
     TArray<EVMStatus> Statuses;
     TArray<int32> PCs;

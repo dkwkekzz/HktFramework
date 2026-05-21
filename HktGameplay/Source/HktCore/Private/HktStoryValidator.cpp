@@ -150,6 +150,7 @@ bool FHktStoryValidator::ValidateEntityFlow()
 		case EOpCode::FindByOwner:
 		case EOpCode::WaitMoveEnd:
 		case EOpCode::WaitAnimEnd:
+		case EOpCode::WaitTag:
 		case EOpCode::SetForwardTarget:
 			CheckEntityReg(PC, Op, Inst.Src1);
 			break;

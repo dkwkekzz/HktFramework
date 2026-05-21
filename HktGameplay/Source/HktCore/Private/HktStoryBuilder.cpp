@@ -594,6 +594,13 @@ FHktStoryBuilder& FHktStoryBuilder::WaitMoveEnd(RegisterIndex Entity)
     return *this;
 }
 
+FHktStoryBuilder& FHktStoryBuilder::WaitTag(RegisterIndex WatchEntity, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    Emit(FInstruction::Make(EOpCode::WaitTag, 0, WatchEntity, 0, TagIdx & 0xFFF));
+    return *this;
+}
+
 FHktStoryBuilder& FHktStoryBuilder::WaitGrounded(RegisterIndex Entity)
 {
     Emit(FInstruction::Make(EOpCode::WaitGrounded, 0, Entity, 0, 0));
@@ -2120,6 +2127,12 @@ FHktStoryBuilder& FHktStoryBuilder::WaitMoveEnd(FHktVar Entity)
 FHktStoryBuilder& FHktStoryBuilder::WaitGrounded(FHktVar Entity)
 {
     EmitV(EOpCode::WaitGrounded, VNone(), Entity, VNone(), 0);
+    return *this;
+}
+FHktStoryBuilder& FHktStoryBuilder::WaitTag(FHktVar Entity, const FGameplayTag& Tag)
+{
+    int32 TagIdx = TagToInt(Tag);
+    EmitV(EOpCode::WaitTag, VNone(), Entity, VNone(), static_cast<uint16>(TagIdx & 0xFFF));
     return *this;
 }
 

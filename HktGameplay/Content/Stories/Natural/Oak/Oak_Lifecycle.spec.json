@@ -1,15 +1,15 @@
 {
   "storyTag": "Story.Flow.Natural.Oak.Lifecycle",
-  "description": "Oak Lifecycle (I-0012) — Self=Oak entity 가 매 초 State.Dead 를 검사. 사망 감지 시 Branch 3 drop + LineageFelledCount +1 + RegionOakCount -1 + Param2=LineageId 로 Event.Region.OakSaplingSeed 디스패치 + DestroyEntity.",
+  "description": "Oak Lifecycle — Self=Oak entity 는 WaitTag(State.Dead) 로 슬롯 점유 ~0. 사망 감지 시 Branch 3 drop + LineageFelledCount +1 + RegionOakCount -1 + Param2=LineageId 로 Event.Region.OakSaplingSeed 디스패치 + DestroyEntity.",
   "scenarios": [
     {
       "name": "alive_oak_waits_for_death",
-      "description": "Self 에 State.Dead 태그가 없으면 WaitSeconds 분기 → Running.",
+      "description": "Self 에 State.Dead 태그가 없으면 WaitTag yield → WaitingEvent 상태.",
       "given": {
         "self": { "position": [0, 0, 0], "properties": { "RecordKey": 4242 } }
       },
       "expect": {
-        "status": "Running",
+        "status": "Waiting",
         "dispatched": []
       }
     },
