@@ -18,6 +18,10 @@ struct HKTCORE_API FHktVMWorldStateProxy
     TArray<FHktVFXEvent> PendingVFXEvents;
     TArray<FHktAnimEvent> PendingAnimEvents;
 
+    // Op_DestroyEntity 로 VM 내부에서 제거된 엔티티의 PreFrame 스냅샷.
+    // AdvanceFrame 이 Diff.RemovedEntities 에 머지하여 클라(Presentation/HUD)까지 전파.
+    TArray<FHktEntityState> PendingDestroys;
+
     TArray<uint64> DirtyMask;
     TArray<int32>  DirtySlots;
     TArray<uint8>  TagsDirtyMask;

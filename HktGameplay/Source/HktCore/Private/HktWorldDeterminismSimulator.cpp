@@ -356,6 +356,12 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     Diff.PrevNextEntityId = PrevNext;
     Diff.RemovedEntities = MoveTemp(PreRemoveStates);
 
+    // VM(Op_DestroyEntity) 경로에서 발생한 제거를 owner 기반 제거와 동일 채널로 통합.
+    if (VMProxy.PendingDestroys.Num() > 0)
+    {
+        Diff.RemovedEntities.Append(MoveTemp(VMProxy.PendingDestroys));
+    }
+
     for (FHktEntityId Id = PrevNext; Id < WorldState.NextEntityId; ++Id)
         if (WorldState.IsValidEntity(Id))
             Diff.SpawnedEntities.Add(WorldState.ExtractEntityState(Id));
