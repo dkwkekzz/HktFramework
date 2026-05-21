@@ -46,9 +46,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI")
 	FGameplayTag EntityWidgetTag;
 
-	/** 엔티티 HUD 머리 위 여백 (CapsuleHalfHeight 위에 추가) */
+	/**
+	 * DataAsset 미제공 시 폴백 — 캡슐 머리 기준 월드 오프셋 (cm).
+	 * Z 가 머리 위 여백. EntityHud DataAsset 이 자체 WorldOffset 을 정의하면 그 값이 우선.
+	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Hkt|UI")
-	float EntityHudHeadClearance = 20.f;
+	FVector EntityHudWorldOffset = FVector(0.f, 0.f, 20.f);
 
 private:
 	void SyncEntityElements(const FHktPresentationState& State);

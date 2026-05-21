@@ -31,6 +31,14 @@ AHktUnitActor::AHktUnitActor()
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
+FVector AHktUnitActor::GetHudAnchorWorldLocation() const
+{
+	// CapsuleComponent 가 루트 — ActorLocation = 캡슐 중심. 캡슐 상단 = +HalfHeight.
+	const FVector Loc = GetActorLocation();
+	const float HalfHeight = CapsuleComponent ? CapsuleComponent->GetScaledCapsuleHalfHeight() : 90.f;
+	return Loc + FVector(0.f, 0.f, HalfHeight);
+}
+
 UHktAnimInstance* AHktUnitActor::GetAnimInstance()
 {
 	if (!CachedAnimInstance.IsValid() && MeshComponent)

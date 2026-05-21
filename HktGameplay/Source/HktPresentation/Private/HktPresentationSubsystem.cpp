@@ -655,6 +655,29 @@ FVector UHktPresentationSubsystem::GetEntityFocusLocation(FHktEntityId Id) const
 	return GetEntityLocation(Id);
 }
 
+FVector UHktPresentationSubsystem::GetEntityHudAnchorLocation(FHktEntityId Id) const
+{
+	// 1) 액터 기반 경로 (HktUnitActor, HktSpritePaperActor 등): 액터가 자기 좌표 컨벤션에 맞춰 보고.
+	if (ActorProcessor)
+	{
+		if (AActor* Actor = ActorProcessor->GetActor(Id))
+		{
+			if (IHktPresentableActor* P = Cast<IHktPresentableActor>(Actor))
+			{
+				return P->GetHudAnchorWorldLocation();
+			}
+			return Actor->GetActorLocation();
+		}
+	}
+
+	// 2) 인스턴스 기반 경로 (HISM CrowdRenderer / Niagara CrowdRenderer): 액터 없음.
+	//    HktCore 의 entity 좌표는 발(=Location) 기준. 캡슐 상단 = foot + 2*HalfHeight.
+	const FVector Foot = GetEntityLocation(Id);
+	const FHktPhysicsView* Phys = State.GetPhysics(Id);
+	const float HalfHeight = Phys ? Phys->CollisionHalfHeight.Get() : 90.f;
+	return Foot + FVector(0.f, 0.f, 2.f * HalfHeight);
+}
+
 void UHktPresentationSubsystem::RegisterRenderer(IHktPresentationProcessor* InProcessor)
 {
 	if (!InProcessor || Processors.Contains(InProcessor)) return;

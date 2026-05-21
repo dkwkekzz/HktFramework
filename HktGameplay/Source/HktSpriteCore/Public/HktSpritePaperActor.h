@@ -68,6 +68,7 @@ public:
 	// 액터의 Apply* 는 권위 입력 캐시(ApplySprite) + 시각 자산 적용(ApplyPhysics/ApplyTransform) 만 담당.
 	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
 	virtual FVector GetFocusWorldLocation() const override;
+	virtual FVector GetHudAnchorWorldLocation() const override;
 	virtual void OnVisualAssetLoaded(UHktTagDataAsset* InAsset) override;
 	virtual void ApplyTransform(const FHktTransformView& V) override;
 	virtual void ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce) override;

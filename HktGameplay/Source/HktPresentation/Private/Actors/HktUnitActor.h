@@ -32,6 +32,7 @@ public:
 
 	// IHktPresentableActor
 	virtual void SetEntityId(FHktEntityId InEntityId) override { CachedEntityId = InEntityId; }
+	virtual FVector GetHudAnchorWorldLocation() const override;
 	virtual void ApplyTransform(const FHktTransformView& V) override;
 	virtual void ApplyPhysics(const FHktPhysicsView& V, int64 Frame, bool bForce) override;
 	virtual void ApplyMovement(const FHktMovementView& V, int64 Frame, bool bForce) override;

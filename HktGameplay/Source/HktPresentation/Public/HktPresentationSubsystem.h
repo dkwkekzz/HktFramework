@@ -54,6 +54,10 @@ public:
 	 *  아니면 GetEntityActorLocation 폴백. */
 	FVector GetEntityFocusLocation(FHktEntityId Id) const;
 
+	/** 월드 UI(EntityHud 등) 가 머리 위에 떠야 할 앵커 위치 (= 캡슐 상단).
+	 *  Actor 가 IHktPresentableActor 면 GetHudAnchorWorldLocation 위임, 아니면 ActorLocation 폴백. */
+	FVector GetEntityHudAnchorLocation(FHktEntityId Id) const;
+
 	/** 현재 Subject 엔티티 ID (디버그 프로세서에서 사용) */
 	FHktEntityId GetSubjectEntityId() const { return CurrentSubjectEntityId; }
 
