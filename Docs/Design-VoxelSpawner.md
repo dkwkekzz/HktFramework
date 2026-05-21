@@ -242,8 +242,9 @@ for each FHktVoxelAttributionView:       for each FHktTerrainSpawnerView:
   HktEventBuilder::                        HktEventBuilder::
      VoxelTemplateActivated(view, VS)        SpawnerFromView(view)
         EventTag = view.StoryTag                EventTag = view.StoryTag
-        Param0/1/3 = voxel cm X/Y/Z             Param0/1 = PosRaw → cm
-        Param2 = SlotHash31                     Param2/3 = view.Param2/3
+        Param0/1 = column 중심 cm X/Y           Param0/1 = PosRaw → cm
+        Param3   = SOLID 표면 상단면 cm Z       Param2/3 = view.Param2/3
+        Param2   = SlotHash31
    │                                          │
    └──────────────┬───────────────────────────┘
                   ▼
@@ -345,6 +346,8 @@ Schema 2 JSON 본문:
 ```
 
 `slotHash` 를 `RandomInt` 시드로 사용하면 voxel 좌표 단위 다양성을 Story 내부에서 더 분기시킬 수 있다 (단, 시드는 *흡수* 만 — 외부 입력과 *혼합* 금지).
+
+**좌표 컨벤션**: `Param0/Param1` 은 *voxel column 중심* cm, `Param3` 은 *SOLID 표면 상단면* cm. attribution 이 저장하는 voxel 은 표면의 SOLID 블록 (top-most non-air) 이므로, entity origin 이 그 블록의 상단면에 놓여야 자연스럽게 floor 에 선다. Story 본문은 Param3 를 그대로 `SetPosition` 에 전달 — 추가 보정 불필요. (`HktEventBuilder::VoxelTemplateActivatedAt` 단일 진입점에서 보장.)
 
 ### 트리거 경로 (Quest / Cinematic / Encounter)
 
