@@ -582,11 +582,11 @@
     <div class="drawer-body"><ul id="list" class="list"></ul></div>
   </aside>
   <nav id="view-tabs" aria-label="뷰 전환">
-    <button id="tab-stack" class="active" type="button">📋 리스트</button>
-    <button id="tab-graph" type="button">🕸 그래프</button>
+    <button id="tab-graph" class="active" type="button">🕸 그래프</button>
+    <button id="tab-stack" type="button">📋 리스트</button>
   </nav>
-  <main id="stack" aria-live="polite"></main>
-  <section id="graph-view" hidden aria-label="카드형 그래프 뷰">
+  <main id="stack" aria-live="polite" hidden></main>
+  <section id="graph-view" aria-label="카드형 그래프 뷰">
     <div id="graph-zoom">
       <button id="gz-out" title="축소">−</button>
       <span class="zoom-label" id="gz-label">100%</span>
@@ -1275,9 +1275,24 @@
   const graphEmptyEl= document.getElementById('graph-empty');
   const tabStackBtn = document.getElementById('tab-stack');
   const tabGraphBtn = document.getElementById('tab-graph');
-  let activeView = 'stack';
+  let activeView = 'graph';
   let graphZoom = 1;
-  const graphCollapsed = new Set();
+  // 카드 펼침 상태를 localStorage 에 보존(기본값=접힘). graphExpanded 에 ID 가 있으면 펼친 상태.
+  //   "접힘 set" 이 아닌 "펼침 set" 으로 모델링 → 미지의(새로 추가된) Intent 가 자동으로 접힘 처리됨.
+  const GRAPH_EXPANDED_KEY = 'hkt.intent.graph.expanded';
+  function loadGraphExpanded() {
+    try {
+      const raw = localStorage.getItem(GRAPH_EXPANDED_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch { return new Set(); }
+  }
+  function saveGraphExpanded() {
+    try { localStorage.setItem(GRAPH_EXPANDED_KEY, JSON.stringify([...graphExpanded])); }
+    catch {}
+  }
+  const graphExpanded = loadGraphExpanded();
+  function isGraphCollapsed(id) { return !graphExpanded.has(id); }
   const GRAPH_CARD_W = 220;
   const GRAPH_CARD_H = 92;
   const GRAPH_GAP_X  = 80;
@@ -1300,19 +1315,31 @@
     }
     while (queue.length) {
       const curId = queue.shift();
-      if (graphCollapsed.has(curId)) continue; // 접힘 — 후손 전파 차단
+      if (isGraphCollapsed(curId)) continue; // 접힘 — 후손 전파 차단
       const cur = byId[curId]; if (!cur) continue;
       for (const cid of (cur.children || [])) {
         if (!byId[cid] || visible.has(cid)) continue;
         visible.add(cid); queue.push(cid);
       }
     }
+
+    // 선택 경로(stackIds) 와 그 조상은 접힘 여부와 무관하게 강제 노출 —
+    // 선택된 카드와 부모 계층의 outline 이 그래프 뷰에서 항상 보이도록 보장한다.
+    for (const sid of stackIds) {
+      if (!byId[sid]) continue;
+      visible.add(sid);
+      for (const aid of ancestorsOf(sid)) {
+        if (byId[aid]) visible.add(aid);
+      }
+    }
+
     const items = allItems.filter(it => visible.has(it.id));
 
     // 접힌 노드별 숨겨진 후손 수 — 카드 배지에 표시.
     const hiddenCount = Object.create(null);
-    for (const cid of graphCollapsed) {
-      if (!byId[cid] || !visible.has(cid)) continue;
+    for (const it of items) {
+      if (!isGraphCollapsed(it.id)) continue;
+      const cid = it.id;
       const seen = new Set();
       const stack = [cid];
       while (stack.length) {
@@ -1327,7 +1354,8 @@
       if (n > 0) hiddenCount[cid] = n;
     }
 
-    // 깊이 계산: 보이는 + 접히지 않은 부모만 고려 (접힌 부모를 통해선 본 노드가 자식이라 표시될 수 없으므로 컬럼 산정에서 제외).
+    // 깊이 계산: 보이는 부모를 모두 사용. 접힘 부모도 강제 노출된 자식(선택 경로) 의
+    // 깊이/엣지 산정에 포함되어야 하므로 접힘 필터를 적용하지 않는다.
     // 순환은 데이터 검증 단계에서 차단되지만, 안전을 위해 visiting 가드 사용.
     const depth = Object.create(null);
     function depthOf(id, visiting) {
@@ -1335,7 +1363,7 @@
       if (visiting.has(id)) return 0;
       const it = byId[id];
       if (!it) return 0;
-      const parents = (it.parents || []).filter(p => byId[p] && visible.has(p) && !graphCollapsed.has(p));
+      const parents = (it.parents || []).filter(p => byId[p] && visible.has(p));
       if (!parents.length) { depth[id] = 0; return 0; }
       visiting.add(id);
       let d = 0;
@@ -1469,7 +1497,7 @@
       const cls = ['graph-card'];
       if (inStack(it.id)) cls.push(isTip(it.id) ? 'tip' : 'in-stack');
       if (it._pending) cls.push('pending-' + it._pending);
-      const isCollapsed = graphCollapsed.has(it.id);
+      const isCollapsed = isGraphCollapsed(it.id);
       const hasChildren = (it.children || []).some(cid => !!allById[cid]);
       if (isCollapsed) cls.push('collapsed');
       card.className = cls.join(' ');
@@ -1504,14 +1532,15 @@
         if (t instanceof HTMLElement && t.dataset.toggle) {
           e.stopPropagation();
           const id = t.dataset.toggle;
-          if (graphCollapsed.has(id)) graphCollapsed.delete(id);
-          else graphCollapsed.add(id);
+          if (graphExpanded.has(id)) graphExpanded.delete(id);
+          else graphExpanded.add(id);
+          saveGraphExpanded();
           renderGraph();
           return;
         }
-        // 카드 선택 → 리스트 탭으로 전환 후 해당 의도로 진입.
+        // 카드 선택 → 리스트 탭으로 전환 후 해당 의도와 그 부모 계층을 스택에 푸시.
         switchView('stack');
-        setRoot(it.id);
+        setRootChain(it.id);
       });
       frag.appendChild(card);
     }
@@ -1605,6 +1634,35 @@
   function setRoot(id) {
     if (!intentsById[id]) return;
     stackIds = [id];
+    syncHistory(false);
+    renderBreadcrumb();
+    renderListSelection();
+    renderStack();
+  }
+
+  // DAG 에서 단일 경로 선택 — 부모가 여러 개면 id 사전순으로 첫 번째를 따라 루트까지 거슬러 올라간다.
+  // 그래프에서 카드를 선택했을 때 리스트 스택을 [root, …, parent, id] 로 채우기 위해 사용.
+  function buildAncestorChain(id) {
+    const chain = [id];
+    const seen = new Set([id]);
+    let cur = id;
+    while (true) {
+      const it = intentsById[cur];
+      if (!it) break;
+      const parents = (it.parents || [])
+        .filter(p => intentsById[p] && !seen.has(p))
+        .sort();
+      if (!parents.length) break;
+      cur = parents[0];
+      seen.add(cur);
+      chain.unshift(cur);
+    }
+    return chain;
+  }
+
+  function setRootChain(id) {
+    if (!intentsById[id]) return;
+    stackIds = buildAncestorChain(id);
     syncHistory(false);
     renderBreadcrumb();
     renderListSelection();
