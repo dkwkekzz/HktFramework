@@ -6,6 +6,7 @@
     { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"state"}, "value": 0 },
     { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
 
+    { "comment": "거리 임계 300 = HktLimits::DefaultPickupRangeCm (HktCoreDefs.h). 클라 자동 픽업 스캔 반경과 동일." },
     { "op": "GetDistance", "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
     { "op": "CmpLeConst", "dst": "Flag", "src": {"var":"dist"}, "value": 300 },
     { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
@@ -47,6 +48,7 @@
   "steps": [
     { "op": "SnippetValidateItemState", "entity": "Target", "expectedState": 0, "failLabel": "fail" },
 
+    { "comment": "거리 재검증 — 300 은 HktLimits::DefaultPickupRangeCm." },
     { "op": "GetDistance", "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
     { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"dist"}, "value": 300 },
     { "op": "JumpIf", "cond": "Flag", "label": "fail" },

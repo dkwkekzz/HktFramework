@@ -2,7 +2,7 @@
 
 [I-0016 의도 문서](intents/I-0016.md) 의 *왜* 에 대응하는 *어떻게* 를 기술한다. 본 문서는 구현된 데이터/플로우/계약을 한 곳에 모아 디버깅·확장 시 참조용이다.
 
-> 본 문서는 *상태(ActionIntent) + Lifecycle (실행)* 만 다룬다. ActionIntent 를 *누가* 세팅하는가 (Player 입력 / NPC AI Brain) 의 일반화는 [I-0035](intents/I-0035.md) / [Design-I0035-BrainLifecycleLink.md](Design-I0035-BrainLifecycleLink.md) 참조.
+> 본 문서는 *상태(ActionIntent) + Lifecycle (실행)* 만 다룬다. ActionIntent 를 *누가* 세팅하는가 (Player 입력 / NPC AI Brain) 의 일반화는 [I-0036](intents/I-0036.md) / [Design-I0036-BrainLifecycleLink.md](Design-I0036-BrainLifecycleLink.md) 참조.
 
 ## 핵심 모델
 
@@ -49,7 +49,7 @@
 
 원자성: Lifecycle 은 매 프레임 `LoadStoreEntity` 로 한 번에 읽고 분기한다. 동일 프레임 안에 Writer 가 새 값을 써도 다음 yield 사이클에서 자동 반영 — 별도 동기화 메커니즘 없음.
 
-> "Writer" 라는 추상 — 현재 본 의도에서는 Player 의 우클릭 (Story_TargetAction) 1 종뿐. NPC AI 채널 등 일반화는 I-0035 가 다룬다.
+> "Writer" 라는 추상 — 현재 본 의도에서는 Player 의 우클릭 (Story_TargetAction) 1 종뿐. NPC AI 채널 등 일반화는 I-0036 가 다룬다.
 
 ## 입구 — `Story_TargetAction.json`
 
@@ -76,7 +76,7 @@ Lifecycle 본문은 NPC 와 동일. 차이는 죽음 처리뿐:
 
 기존 `WaitSeconds 1.0` 폴링 루프를 `Yield 1` Lifecycle 루프로 리팩토. 죽음 분기의 랜덤 loot drop + DestroyEntity 처리는 그대로 유지.
 
-NPC 자체로는 ActionIntent 를 *세팅하는 채널이 없다* — 본 의도 범위 내에서 NPC 의 IntentType 은 항상 0 (idle). NPC AI 가 ActionIntent 를 쓰는 채널은 [I-0035](intents/I-0035.md) 가 도입.
+NPC 자체로는 ActionIntent 를 *세팅하는 채널이 없다* — 본 의도 범위 내에서 NPC 의 IntentType 은 항상 0 (idle). NPC AI 가 ActionIntent 를 쓰는 채널은 [I-0036](intents/I-0036.md) 가 도입.
 
 ### Lifecycle 의 실행 매트릭스
 
@@ -137,7 +137,7 @@ Lifecycle 은 `DispatchEventTo(UseSkill, Target)` 로 매 사이클 새 UseSkill
 ## 격차 / TODO
 
 - **Pickup 재정립** — TargetAction 의 Item 분기 제거됨. 새 입구 (intent type 3 = Pickup?) 또는 별도 입력 채널로 부활 필요.
-- **NPC AI 의 Intent 세팅 채널** — 현재 NPC 는 idle 만 가능. → [I-0035](intents/I-0035.md) 가 Brain 추상으로 해결.
+- **NPC AI 의 Intent 세팅 채널** — 현재 NPC 는 idle 만 가능. → [I-0036](intents/I-0036.md) 가 Brain 추상으로 해결.
 - **무기별 AttackRange** — 사거리 상수 200 을 슬롯 아이템의 AttackRange 프로퍼티로 일반화.
 - **단발 인텐트 토글** — 수정키 / 별도 입력으로 Attack 인텐트를 1회로 강제 (Lifecycle 이 디스패치 후 자체 클리어).
 - **Lifecycle VM 의 수명 단일성** — `cancelOnDuplicate: false` 라 같은 Self 에 Lifecycle 이 두 번 디스패치되면 인스턴스 둘 생긴다. 현재는 spawn 경로가 1회뿐이라 문제 없음 — respawn / 재초기화 도입 시 가드 필요.

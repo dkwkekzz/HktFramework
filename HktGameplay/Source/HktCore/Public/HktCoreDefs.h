@@ -30,6 +30,23 @@ constexpr FHktEntityId VoxelTargetEntityId = -2;
 constexpr bool IsRealEntityId(FHktEntityId Id) { return Id >= 0; }
 
 // ============================================================================
+// Public Limits — 서버 시뮬레이션 ↔ 클라이언트 사이에 *동일해야* 하는 상수들.
+//   서버 권위 (Story 의 precondition) 와 클라이언트 인지 (자동 픽업 등) 가
+//   같은 값을 봐야 *눈에 보이는 범위* 와 *판정 범위* 가 어긋나지 않는다.
+// HktCore/Private/HktSimulationLimits.h 는 sim 내부 한계 (풀 크기 / 백프레셔) 전용.
+// ============================================================================
+
+namespace HktLimits
+{
+	/**
+	 * 자동 픽업 인지 반경 (cm). 서버 Story_ItemPickup 의 거리 precondition 과
+	 * 클라이언트 AHktIngamePlayerController::TickAutoPickup 의 스캔 반경이 같은
+	 * 값을 본다. 변경 시 두 곳을 한 번에 업데이트.
+	 */
+	constexpr int32 DefaultPickupRangeCm = 300;
+}
+
+// ============================================================================
 // Stance (무기별 동작 모드) — FGameplayTag 기반
 // ============================================================================
 

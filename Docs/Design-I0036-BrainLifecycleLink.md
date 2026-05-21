@@ -1,6 +1,6 @@
-# I-0035 Brain System 과 Lifecycle 의 연결 — 구현
+# I-0036 Brain System 과 Lifecycle 의 연결 — 구현
 
-[I-0035 의도 문서](intents/I-0035.md) 의 *왜* 에 대응하는 *어떻게*. [I-0016](intents/I-0016.md) 의 ActionIntent + Lifecycle 위에 *Writer* 추상을 얹어 Player ↔ NPC AI 가 동일 채널을 공유하게 한다.
+[I-0036 의도 문서](intents/I-0036.md) 의 *왜* 에 대응하는 *어떻게*. [I-0016](intents/I-0016.md) 의 ActionIntent + Lifecycle 위에 *Writer* 추상을 얹어 Player ↔ NPC AI 가 동일 채널을 공유하게 한다.
 
 ## 분리의 의도
 
