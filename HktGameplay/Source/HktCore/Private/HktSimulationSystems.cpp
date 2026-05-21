@@ -279,6 +279,21 @@ void FHktVMBuildSystem::Process(
             }
         }
 
+        // 백프레셔 — 풀 사용량이 SoftCap 이상이면 spawner 류 이벤트는 즉시 drop.
+        // 풀이 차오르기 시작할 때 *덜 중요한 spawner 부터* 미리 거절해 핵심 게임플레이
+        // 이벤트(전투/인터랙션/Brain)가 hard cap 직전 마지막 슬롯까지 보호되게 한다.
+        // 매칭은 Story.Flow.Spawner.* 전체 (자연/NPC/Item 등 모든 spawner 카테고리).
+        if (Pool.GetUsage() >= HktLimits::SpawnerBackpressureSoftCap
+            && Event.EventTag.MatchesTag(HktSpawnerTags::Root))
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+                FString::Printf(TEXT("VM Build: backpressure drop (usage=%d/%d) tag=%s"),
+                    Pool.GetUsage(), Pool.GetCapacity(), *Event.EventTag.ToString()));
+            HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Discarded, LogSource,
+                static_cast<int64>(CurrentFrame), TEXT("PoolPressureDrop"));
+            continue;
+        }
+
         FHktVMHandle Handle = Pool.Allocate();
         if (!Handle.IsValid())
         {

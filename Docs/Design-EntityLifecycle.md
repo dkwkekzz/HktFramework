@@ -106,7 +106,53 @@ if (Tags.HasTag(Runtime.EventWait.WatchedTag))  // 계층 매칭 (HasTag = Match
 
 ---
 
-## 5. 직렬화 영향
+## 5. Spawner 백프레셔 — 풀 포화 직전의 우선순위
+
+### 5.1 무차별 drop 의 문제
+
+백프레셔가 없으면 hard cap (1024) 도달 시 도착 순서대로 무차별 drop. 시나리오:
+
+| 상황 | 결과 |
+|---|---|
+| 청크 5 개 동시 로드 → spawner 200 개 큐잉 → 직후 플레이어 공격 도착 | 플레이어 공격이 drop. 클릭해도 *아무 일도 일어나지 않음* |
+| NPC Brain 100 개 점유 상태 + spawner / 전투 섞여 도착 | 도착 순서대로 drop. 결정론적이지만 예측 불가 |
+
+게다가 손실은 `Warning` 로그 한 줄 외엔 어디서 무엇이 잘렸는지 추적이 어렵다.
+
+### 5.2 백프레셔 분기
+
+```cpp
+// FHktVMBuildSystem::Process 진입부
+if (Pool.GetUsage() >= HktLimits::SpawnerBackpressureSoftCap     // 풀 사용량 ≥ 768
+    && Event.EventTag.MatchesTag(HktSpawnerTags::Root))          // Story.Flow.Spawner.* 류
+{
+    HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Discarded,
+        LogSource, CurrentFrame, TEXT("PoolPressureDrop"));
+    continue;  // drop
+}
+```
+
+= "풀이 차오르기 시작하면 *덜 중요한 spawner 부터 미리 거절*. 핵심 게임플레이 이벤트는 hard cap 직전 마지막 슬롯까지 보호".
+
+### 5.3 매칭 범위
+
+`HktSpawnerTags::Root` = `Story.Flow.Spawner`. `MatchesTag` 계층 매칭이므로 자식 전체 포함:
+
+- `Story.Flow.Spawner.Natural.Birch`
+- `Story.Flow.Spawner.Natural.Oak`
+- `Story.Flow.Spawner.Natural.Tree`
+- `Story.Flow.Spawner.Natural.Slime`
+- (향후) `Story.Flow.Spawner.NPC.*`, `Story.Flow.Spawner.Item.*` 등 — 같은 root 아래 두면 자동 포함
+
+### 5.4 임계와 그 결정론성
+
+`SpawnerBackpressureSoftCap = MaxVMPoolCapacity × 3/4 = 768` — hard cap 까지 1024 − 768 = 256 슬롯(¼) 을 핵심 이벤트 여유로 확보.
+
+drop 자체가 결정론 입력의 일부(`FHktSimulationEvent.NewEvents` 의 어느 항목을 build 가 받아주는가). 서버·클라이언트 양쪽이 동일한 `Pool.GetUsage()` 값을 갖는 한 동일하게 drop — 결정론 보존. 미드조인 복원(`RehydrateVMPool`) 도 `ActiveVMSnapshots` 로 풀 상태를 그대로 재현하므로 분기 위험 없음.
+
+---
+
+## 6. 직렬화 영향
 
 `FHktVMSnapshot` 에 `FGameplayTag WaitWatchedTag` 추가:
 
@@ -119,7 +165,7 @@ Ar << S.WaitWatchedTag;  // NEW
 
 ---
 
-## 6. Lifecycle Story 작성 가이드
+## 7. Lifecycle Story 작성 가이드
 
 ### 6.1 잠자는 lifecycle — `WaitTag` 한 줄
 
@@ -148,15 +194,16 @@ NPC / Player Lifecycle 처럼 *매 프레임 의사결정* 이 본업이면 `Yie
 
 ---
 
-## 7. 변경된 파일 (참고)
+## 8. 변경된 파일 (참고)
 
 | 파일 | 변경 |
 |---|---|
-| `HktCore/Private/HktSimulationLimits.h` | `MaxVMs` 단일 상수 → `InitialVMPoolCapacity` / `MaxVMPoolCapacity` |
+| `HktCore/Private/HktSimulationLimits.h` | `MaxVMs` 단일 상수 → `InitialVMPoolCapacity` / `MaxVMPoolCapacity` / `SpawnerBackpressureSoftCap` |
 | `HktCore/Private/VM/HktVMRuntime.h/.cpp` | 정적 SetNum → 동적 grow + `GetCapacity` / `GetUsage` |
+| `HktCore/Public/HktCoreTags.h/.cpp` | `HktSpawnerTags::Root` (`Story.Flow.Spawner`) — 백프레셔 매칭 root |
 | `HktCore/Private/VM/HktVMTypes.h` | `EWaitEventType::TagAdded` |
 | `HktCore/Private/VM/HktVMInterpreter.h/.cpp` | `Op_WaitTag` + precondition skip |
-| `HktCore/Private/HktSimulationSystems.cpp` | `VMProcessSystem` 의 TagAdded polling |
+| `HktCore/Private/HktSimulationSystems.cpp` | `VMProcessSystem` 의 TagAdded polling + `VMBuildSystem` 의 spawner 백프레셔 |
 | `HktCore/Public/HktCoreEvents.h` | `FHktVMSnapshot::WaitWatchedTag` + 직렬화 |
 | `HktCore/Public/HktStoryTypes.h` | OpCode list `WaitTag` |
 | `HktCore/Private/HktStoryBuilder.cpp` / `HktCore/Public/HktStoryBuilder.h` | `WaitTag` 빌더 (RegisterIndex / FHktVar) |

@@ -79,6 +79,15 @@ namespace HktRegionEventTags
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSaplingSeed);    // Event.Region.OakSaplingSeed (Oak — lineage 키 보존)
 }
 
+// ── Spawner story 의 공통 root. ──
+// VMBuildSystem 백프레셔(`HktLimits::SpawnerBackpressureSoftCap`) 가 본 root 로
+// `MatchesTag` 계층 매칭하여 자연/NPC/Item 등 모든 spawner 류를 한 번에 포괄.
+// 새 spawner 카테고리는 Story.Flow.Spawner.<X>.* 아래로 두면 자동 적용.
+namespace HktSpawnerTags
+{
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Root);              // Story.Flow.Spawner
+}
+
 namespace HktNaturalStoryTags
 {
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSpawn);        // Story.Flow.Spawner.Natural.Birch

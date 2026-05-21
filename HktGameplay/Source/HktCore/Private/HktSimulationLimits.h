@@ -18,6 +18,10 @@ namespace HktLimits
     // 이므로 16M 까지 가능하나 직렬화 안전성·메모리 페널티를 고려해 보수적으로 1024.
     constexpr int32 InitialVMPoolCapacity = 64;
     constexpr int32 MaxVMPoolCapacity     = 1024;
+    // Spawner 백프레셔 임계 — 풀 사용량이 이 값 이상이면 Story.Flow.Spawner.* 류
+    // 이벤트는 즉시 drop. 핵심 게임플레이(전투/인터랙션/Brain) 가 마지막 슬롯까지
+    // 보호되도록 spawner 만 미리 거절. 결정론 입력(drop 자체) 이므로 헤더 상수로 고정.
+    constexpr int32 SpawnerBackpressureSoftCap = MaxVMPoolCapacity * 3 / 4;
 
     constexpr int32 MaxActiveEvents = 512;
     constexpr int32 MaxPendingEvents = 1024;
