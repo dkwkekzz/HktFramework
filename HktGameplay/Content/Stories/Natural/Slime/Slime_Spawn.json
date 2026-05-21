@@ -2,16 +2,16 @@
   "schema": 2,
   "storyTag": "Story.Flow.Spawner.Natural.Slime",
   "tags": {
-    "NpcSlime":         "Entity.NPC.Slime",
-    "EntityNPC":        "Entity.NPC",
-    "NpcHostile":       "Entity.Attr.NPC.Hostile",
-    "StanceUnarmed":    "Entity.Stance.Unarmed",
-    "NpcLifecycle":     "Story.Flow.NPC.Lifecycle",
-    "SlimeRegionWatch": "Story.Flow.Natural.Slime.RegionCleanup",
-    "VoxelSlot":        "Entity.RegionRecord.VoxelSlot"
+    "NpcSlime":      "Entity.NPC.Slime",
+    "EntityNPC":     "Entity.NPC",
+    "NpcHostile":    "Entity.Attr.NPC.Hostile",
+    "StanceUnarmed": "Entity.Stance.Unarmed",
+    "NpcLifecycle":  "Story.Flow.NPC.Lifecycle",
+    "VoxelSlot":     "Entity.RegionRecord.VoxelSlot",
+    "StateDead":     "State.Dead"
   },
   "steps": [
-    { "op": "Log", "message": "[Slime] voxel attribution — voxel-slot dedupe + cooldown 후 1마리 spawn" },
+    { "op": "Log", "message": "[Slime] spawner-as-loop 시작 — 한 voxel-slot 의 영구 sentinel" },
 
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":0}, "property": "Param0" },
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":1}, "property": "Param1" },
@@ -22,11 +22,13 @@
     { "op": "Move", "dst": {"var":"posY"}, "src": {"block":"spawnPos","index":1} },
     { "op": "FindOrCreateRegionAt", "posX": {"var":"posX"}, "posY": {"var":"posY"}, "out": "regionEntity" },
 
+    { "op": "Label", "name": "top" },
+
     { "op": "RegionMapRead", "dst": {"var":"alive"},
       "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
       "key": {"var":"slotKey"}, "property": "SlotAliveFlag" },
     { "op": "IfGeConst", "src": {"var":"alive"}, "value": 1 },
-      { "op": "Log", "message": "[Slime] slot 점유 중 — skip" },
+      { "op": "Log", "message": "[Slime] slot 점유 중 (다른 instance 가 spawn) — Halt 로 양보" },
       { "op": "Halt" },
     { "op": "EndIf" },
 
@@ -37,8 +39,8 @@
       { "op": "GetWorldTime", "dst": {"var":"now"} },
       { "op": "Sub", "dst": {"var":"elapsed"}, "src1": {"var":"now"}, "src2": {"var":"lastDie"} },
       { "op": "IfLtConst", "src": {"var":"elapsed"}, "value": 900 },
-        { "op": "Log", "message": "[Slime] 사망 후 쿨다운 중 (900 frame=30sec @ 30Hz) — skip" },
-        { "op": "Halt" },
+        { "op": "Log", "message": "[Slime] cooldown 진행 중 — WaitSeconds 30.0 후 respawn" },
+        { "op": "WaitSeconds", "seconds": 30.0 },
       { "op": "EndIf" },
     { "op": "EndIf" },
 
@@ -65,9 +67,24 @@
       "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
       "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"one"} },
 
-    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle",     "source": {"var":"slime"} },
-    { "op": "DispatchEventFrom", "eventTag": "SlimeRegionWatch", "source": {"var":"slime"} },
+    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": {"var":"slime"} },
 
-    { "op": "Halt" }
+    { "op": "Label", "name": "check" },
+    { "op": "HasTag", "dst": {"var":"isDead"}, "entity": {"var":"slime"}, "tag": "StateDead" },
+    { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "die" },
+    { "op": "Yield", "frames": 1 },
+    { "op": "Jump", "label": "check" },
+
+    { "op": "Label", "name": "die" },
+    { "op": "Log", "message": "[Slime] 사망 감지 — slot release 후 top 으로 jump (cooldown wait + respawn)" },
+    { "op": "GetWorldTime", "dst": {"var":"dieTime"} },
+    { "op": "LoadConst", "dst": {"var":"zero"}, "value": 0 },
+    { "op": "RegionMapWrite",
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"zero"} },
+    { "op": "RegionMapWrite",
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame", "value": {"var":"dieTime"} },
+    { "op": "Jump", "label": "top" }
   ]
 }

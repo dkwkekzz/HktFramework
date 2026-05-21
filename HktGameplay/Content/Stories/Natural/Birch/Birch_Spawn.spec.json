@@ -1,15 +1,15 @@
 {
   "storyTag": "Story.Flow.Spawner.Natural.Birch",
-  "description": "Birch voxel-attribution spawner — voxel-slot 단위 dedupe + 사망 후 쿨다운 (2700 frame ≈ 90 sec @ 30Hz). Param2=SlotHash31 을 RecordKey 로 사용해 Entity.RegionRecord.VoxelSlot 의 SlotAliveFlag / SlotLastDieFrame 을 검사한다. slot 점유 중이면 Halt, 쿨다운 중이면 Halt, 통과 시 Birch 1본 spawn + RecordKey=slotKey + SlotAliveFlag=1 기록 + BirchLifecycle dispatch.",
+  "description": "Birch spawner-as-loop — 한 voxel-slot 의 영구 sentinel. Param2=SlotHash31 로 Entity.RegionRecord.VoxelSlot record 를 lookup. (1) alive 가드: SlotAliveFlag>=1 이면 Halt(다른 instance 양보), (2) cooldown 가드: elapsed<2700f 면 WaitSeconds(90) 후 respawn, (3) Spawn + SlotAliveFlag=1 기록 + BirchLifecycle dispatch, (4) Yield 1 frame 폴링으로 birch.State.Dead 대기, (5) die 감지 시 SlotAliveFlag=0 + SlotLastDieFrame=now 기록 후 Jump top — 같은 instance 가 cooldown wait + respawn 사이클을 무한 반복. player 청크 reload 와 무관하게 시간 기반 재spawn 보장.",
   "scenarios": [
     {
-      "name": "spawns_on_empty_slot",
-      "description": "RegionMap 에 해당 slotKey 의 record 가 없는 상태 → FindOrCreateRegionRecord 가 lazy-create 하므로 alive=0, lastDie=0 → 두 가드 통과 → Birch 1본 spawn 후 Completed.",
+      "name": "spawns_on_empty_slot_and_polls",
+      "description": "RegionMap 에 record 없음 → alive=0, lastDie=0 → 두 가드 통과 → Birch 1본 spawn + BirchLifecycle dispatch → check loop (Yield 1 frame 폴링) 에 진입 → Running.",
       "given": {
         "self": { "properties": {} },
         "event": { "param0": 10000, "param1": 20000, "param2": 12345, "param3": 0 }
       },
-      "expect": { "status": "Completed" }
+      "expect": { "status": "Running" }
     }
   ]
 }
