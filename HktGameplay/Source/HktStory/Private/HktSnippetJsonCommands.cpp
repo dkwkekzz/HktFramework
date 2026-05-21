@@ -23,6 +23,85 @@
 
 namespace
 {
+	// I-0035 SnippetRandomLootDrop: JSON entry 객체 하나를 FHktLootEntry 로 파싱.
+	// 필수: classTag. weight 누락/≤0 은 1 로 보정 — 모든 entry 가 최소 1 의 기회.
+	// 옵션: itemId / props (PropertyName → int) / skillTag / stance / tags (string[]).
+	// 반환 false 면 entry 가 사용 불가 (객체 형식 위반).
+	bool ParseLootEntry(
+		const TSharedPtr<FJsonValue>& Val,
+		const FHktStoryCmdArgs& A,
+		HktSnippetItem::FHktLootEntry& Out)
+	{
+		const TSharedPtr<FJsonObject>* EntryObjPtr = nullptr;
+		if (!Val.IsValid() || !Val->TryGetObject(EntryObjPtr) || !EntryObjPtr)
+		{
+			return false;
+		}
+		const TSharedPtr<FJsonObject>& Obj = *EntryObjPtr;
+		if (!A.ResolveTagFunc)
+		{
+			return false;
+		}
+
+		FString ClassTagStr;
+		if (!Obj->TryGetStringField(TEXT("classTag"), ClassTagStr) || ClassTagStr.IsEmpty())
+		{
+			return false;
+		}
+		Out.ClassTag = A.ResolveTagFunc(ClassTagStr);
+
+		int32 WeightTmp = 1;
+		Obj->TryGetNumberField(TEXT("weight"), WeightTmp);
+		Out.Weight = FMath::Max(1, WeightTmp);
+
+		int32 ItemIdTmp = 0;
+		Obj->TryGetNumberField(TEXT("itemId"), ItemIdTmp);
+		Out.ItemId = ItemIdTmp;
+
+		const TSharedPtr<FJsonObject>* PropsObjPtr = nullptr;
+		if (Obj->TryGetObjectField(TEXT("props"), PropsObjPtr) && PropsObjPtr)
+		{
+			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : (*PropsObjPtr)->Values)
+			{
+				const uint16 Pid = FHktStoryJsonParser::ParsePropertyId(Pair.Key);
+				if (Pid == 0xFFFF || !Pair.Value.IsValid()) continue;
+				double NumVal = 0.0;
+				if (Pair.Value->TryGetNumber(NumVal))
+				{
+					Out.Properties.Add(Pid, static_cast<int32>(NumVal));
+				}
+			}
+		}
+
+		FString SkillTagStr;
+		if (Obj->TryGetStringField(TEXT("skillTag"), SkillTagStr) && !SkillTagStr.IsEmpty())
+		{
+			Out.SkillTag = A.ResolveTagFunc(SkillTagStr);
+		}
+
+		FString StanceStr;
+		if (Obj->TryGetStringField(TEXT("stance"), StanceStr) && !StanceStr.IsEmpty())
+		{
+			Out.StanceTag = A.ResolveTagFunc(StanceStr);
+		}
+
+		const TArray<TSharedPtr<FJsonValue>>* TagsArrPtr = nullptr;
+		if (Obj->TryGetArrayField(TEXT("tags"), TagsArrPtr) && TagsArrPtr)
+		{
+			Out.AttrTags.Reserve(TagsArrPtr->Num());
+			for (const TSharedPtr<FJsonValue>& TV : *TagsArrPtr)
+			{
+				FString TagStr;
+				if (TV.IsValid() && TV->TryGetString(TagStr) && !TagStr.IsEmpty())
+				{
+					Out.AttrTags.Add(A.ResolveTagFunc(TagStr));
+				}
+			}
+		}
+
+		return true;
+	}
+
 	// V1 (schema 1) Item 핸들러 등록 — RegisterIndex 기반 기존 경로 유지.
 	void RegisterItemV1(FHktStoryJsonParser& Parser)
 	{
@@ -123,7 +202,7 @@ namespace
 			HktSnippetItem::SpawnGroundItemAtPos(B, A.GetTag(TEXT("classTag")), Tmpl, A.GetVarBlock(B, TEXT("pos"), 3));
 		});
 		// I-0035: 가중치 random loot drop — lifecycle 의 사망 분기에서 한 줄로 호출.
-		// 인라인된 4-way drop 분기들을 entry 배열 한 곳으로 모으는 목적.
+		// 인라인된 N-way drop 분기들을 entry 배열 한 곳으로 모으는 목적.
 		Parser.RegisterCommandV2(TEXT("SnippetRandomLootDrop"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 			FHktVar PosSource = A.GetVar(B, TEXT("posSource"));
 
@@ -134,77 +213,11 @@ namespace
 				Entries.Reserve(EntriesArr->Num());
 				for (const TSharedPtr<FJsonValue>& Val : *EntriesArr)
 				{
-					const TSharedPtr<FJsonObject>* EntryObjPtr = nullptr;
-					if (!Val.IsValid() || !Val->TryGetObject(EntryObjPtr) || !EntryObjPtr)
-					{
-						continue;
-					}
-					const TSharedPtr<FJsonObject>& Obj = *EntryObjPtr;
-
 					HktSnippetItem::FHktLootEntry E;
-
-					FString ClassTagStr;
-					if (Obj->TryGetStringField(TEXT("classTag"), ClassTagStr) && A.ResolveTagFunc)
+					if (ParseLootEntry(Val, A, E))
 					{
-						E.ClassTag = A.ResolveTagFunc(ClassTagStr);
+						Entries.Add(MoveTemp(E));
 					}
-					int32 WeightTmp = 1;
-					if (Obj->TryGetNumberField(TEXT("weight"), WeightTmp))
-					{
-						E.Weight = WeightTmp;
-					}
-					int32 ItemIdTmp = 0;
-					if (Obj->TryGetNumberField(TEXT("itemId"), ItemIdTmp))
-					{
-						E.ItemId = ItemIdTmp;
-					}
-
-					// props: { "PropertyName": const_int, ... }
-					const TSharedPtr<FJsonObject>* PropsObjPtr = nullptr;
-					if (Obj->TryGetObjectField(TEXT("props"), PropsObjPtr) && PropsObjPtr)
-					{
-						for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : (*PropsObjPtr)->Values)
-						{
-							const uint16 Pid = FHktStoryJsonParser::ParsePropertyId(Pair.Key);
-							if (Pid == 0xFFFF || !Pair.Value.IsValid())
-							{
-								continue;
-							}
-							double NumVal = 0.0;
-							if (Pair.Value->TryGetNumber(NumVal))
-							{
-								E.Properties.Add(Pid, static_cast<int32>(NumVal));
-							}
-						}
-					}
-
-					FString SkillTagStr;
-					if (Obj->TryGetStringField(TEXT("skillTag"), SkillTagStr) && !SkillTagStr.IsEmpty() && A.ResolveTagFunc)
-					{
-						E.SkillTag = A.ResolveTagFunc(SkillTagStr);
-					}
-
-					FString StanceStr;
-					if (Obj->TryGetStringField(TEXT("stance"), StanceStr) && !StanceStr.IsEmpty() && A.ResolveTagFunc)
-					{
-						E.StanceTag = A.ResolveTagFunc(StanceStr);
-					}
-
-					const TArray<TSharedPtr<FJsonValue>>* TagsArrPtr = nullptr;
-					if (Obj->TryGetArrayField(TEXT("tags"), TagsArrPtr) && TagsArrPtr && A.ResolveTagFunc)
-					{
-						E.AttrTags.Reserve(TagsArrPtr->Num());
-						for (const TSharedPtr<FJsonValue>& TV : *TagsArrPtr)
-						{
-							FString TagStr;
-							if (TV.IsValid() && TV->TryGetString(TagStr) && !TagStr.IsEmpty())
-							{
-								E.AttrTags.Add(A.ResolveTagFunc(TagStr));
-							}
-						}
-					}
-
-					Entries.Add(MoveTemp(E));
 				}
 			}
 

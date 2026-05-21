@@ -467,20 +467,33 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
 	return B;
 }
 
+FHktVar HktSnippetItem::SpawnGroundItem(
+	FHktStoryBuilder& B,
+	const FGameplayTag& ItemClassTag,
+	const FHktGroundItemTemplate& Template,
+	FHktVar PosSourceEntity)
+{
+	B.Log(TEXT("[Snippet] SpawnGroundItem (Var)"));
+	FHktVar Spawned = B.SpawnEntityVar(ItemClassTag);
+	B.SaveConstEntity(Spawned, PropertyId::ItemState, 0);             // Ground
+	B.SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId);
+	B.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1);
+	B.CopyPosition(Spawned, PosSourceEntity);
+	return Spawned;
+}
+
 namespace
 {
-	// 단일 entry 의 drop 시퀀스를 emit — Spawn + Ground 속성 + 위치 + 옵션 속성/태그.
-	// RandomLootDrop 의 inner 분기에서 공유하기 위해 분리.
+	// 단일 loot entry 의 drop 시퀀스 — base spawn 은 SpawnGroundItem 에 위임하고,
+	// 옵션 장식(속성/스킬/스탠스/태그) 만 본 함수가 담당.
 	void EmitLootSpawnBlock(
 		FHktStoryBuilder& B,
 		const HktSnippetItem::FHktLootEntry& E,
 		FHktVar PosSourceEntity)
 	{
-		FHktVar Spawned = B.SpawnEntityVar(E.ClassTag);
-		B.SaveConstEntity(Spawned, PropertyId::ItemState, 0);             // Ground
-		B.SaveConstEntity(Spawned, PropertyId::ItemId, E.ItemId);
-		B.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1);
-		B.CopyPosition(Spawned, PosSourceEntity);
+		HktSnippetItem::FHktGroundItemTemplate Tmpl;
+		Tmpl.ItemId = E.ItemId;
+		FHktVar Spawned = HktSnippetItem::SpawnGroundItem(B, E.ClassTag, Tmpl, PosSourceEntity);
 
 		for (const TPair<uint16, int32>& Prop : E.Properties)
 		{
@@ -525,11 +538,11 @@ FHktStoryBuilder& HktSnippetItem::RandomLootDrop(
 		return B;
 	}
 
-	// 가중치 합산 (Weight ≤ 0 은 1 로 보정 — 모든 entry 가 최소 1 의 기회)
+	// 가중치 합산 — Weight 는 호출자(또는 파서) 가 ≥ 1 을 보장.
 	int32 TotalWeight = 0;
 	for (const FHktLootEntry& E : Entries)
 	{
-		TotalWeight += FMath::Max(1, E.Weight);
+		TotalWeight += E.Weight;
 	}
 
 	// 라벨 할당 — drop_i + done
@@ -554,7 +567,7 @@ FHktStoryBuilder& HktSnippetItem::RandomLootDrop(
 	int32 Cumulative = 0;
 	for (int32 i = 0; i + 1 < Entries.Num(); ++i)
 	{
-		Cumulative += FMath::Max(1, Entries[i].Weight);
+		Cumulative += Entries[i].Weight;
 		B.LoadConst(Threshold, Cumulative);
 		B.CmpLt(Flag, Roll, Threshold);
 		B.JumpIf(Flag, DropLabels[i]);

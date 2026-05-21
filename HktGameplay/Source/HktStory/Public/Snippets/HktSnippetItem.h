@@ -242,6 +242,17 @@ namespace HktSnippetItem
 		const FHktGroundItemTemplate& Template,
 		FHktVarBlock PosBlock);
 
+	/**
+	 * FHktVar 형: ground 아이템을 PosSourceEntity 의 위치로 spawn 하고 spawned 핸들을 반환.
+	 * SpawnEntity + ItemState=0 / ItemId / EquipIndex=-1 + CopyPosition 한 시퀀스.
+	 * RandomLootDrop 등 spawned 결과를 이어서 장식하는 호출자가 사용.
+	 */
+	HKTSTORY_API FHktVar SpawnGroundItem(
+		FHktStoryBuilder& B,
+		const FGameplayTag& ItemClassTag,
+		const FHktGroundItemTemplate& Template,
+		FHktVar PosSourceEntity);
+
 	// ---- 슬롯 디스패치 / 검증 (FHktVar) ----
 
 	HKTSTORY_API FHktStoryBuilder& LoadItemFromSlot(

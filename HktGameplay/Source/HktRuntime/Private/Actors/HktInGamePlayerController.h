@@ -202,29 +202,29 @@ private:
 
     // === Auto-Pickup (I-0035 P5) ===
     /**
-     * 매 틱 호출 — Subject 주변 ground 아이템을 스캔하여 자동 픽업 시도.
-     * 서버 precondition (Story_ItemPickup) 이 권위 판정, 클라는 *의도 제출* 만.
+     * Subject 주변 ground 아이템을 스캔하여 자동 픽업 시도.
+     * AutoPickupScanIntervalSeconds 간격으로만 실제 스캔 — PC.Tick 마다 호출되지만
+     * 매 프레임 O(N) 을 피한다. 권위 판정(Story_ItemPickup precondition) 은 서버.
      */
     void TickAutoPickup();
 
     /** Subject → Item 픽업 이벤트(Story.Event.Item.Pickup) 를 서버로 전송. */
     void RequestItemPickup(FHktEntityId ItemEntity);
 
-    /**
-     * 자동 픽업 인식 반경 (cm). 서버 precondition 의 거리 임계와 일치해야 한다 —
-     * Story_ItemPickup.json 의 GetDistance ≤ 300 검증과 동일.
-     * 클라가 더 넓게 잡으면 서버가 거절하여 spam 만 늘고, 더 좁게 잡으면 사용자가
-     * "닿았는데 안 주워지는" UX 를 겪는다.
-     */
-    static constexpr int32 AutoPickupRangeCm = 300;
-
-    /** 같은 item 에 대한 재시도 쿨다운 (초). 서버 거절(가방 만석 등) 후 즉시 spam 방지. */
+    /** 같은 item 재시도 쿨다운 (초). 서버 거절(가방 만석 등) 후 즉시 spam 방지. */
     static constexpr float AutoPickupRetrySeconds = 1.0f;
 
-    /** item entity id → 마지막 시도 시각 (초). 무효/Ground 아님이면 sweep 에서 제거. */
+    /** 스캔 간격 (초). 10 Hz — 인지 반경 300cm 대비 인간 보행속도면 latency 무감. */
+    static constexpr float AutoPickupScanIntervalSeconds = 0.1f;
+
+    /** AttemptedAt 맵이 이 값을 넘어서면 다음 스캔에서 stale 엔트리 청소. */
+    static constexpr int32 AutoPickupAttemptedSweepThreshold = 64;
+
+    /** item entity id → 마지막 시도 시각 (초). 다음 스캔 때 cooldown / IsValidEntity 로 청소. */
     TMap<FHktEntityId, double> AutoPickupAttemptedAt;
-    /** 시도 맵 청소 타이머. 5초마다 1회 — 사라진 entity 누적 방지. */
-    double LastAutoPickupSweepTime = 0.0;
+
+    /** 마지막 스캔 시각 — AutoPickupScanIntervalSeconds 간격 throttle. */
+    double LastAutoPickupScanTime = 0.0;
 
     /** 방향 이동 입력 이벤트 전송 + 쓰로틀 */
     void SubmitMoveEvent(const FVector& Direction);

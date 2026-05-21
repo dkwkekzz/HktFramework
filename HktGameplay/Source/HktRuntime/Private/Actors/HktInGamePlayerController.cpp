@@ -690,20 +690,25 @@ void AHktIngamePlayerController::TickAutoPickup()
     if (DefaultSubjectEntityId == InvalidEntityId) return;
     if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
 
+    const double Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+    if (Now - LastAutoPickupScanTime < AutoPickupScanIntervalSeconds) return;
+    LastAutoPickupScanTime = Now;
+
     const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
     if (!WS.IsValidEntity(DefaultSubjectEntityId)) return;
 
     const int32 SubjectX = WS.GetProperty(DefaultSubjectEntityId, PropertyId::PosX);
     const int32 SubjectY = WS.GetProperty(DefaultSubjectEntityId, PropertyId::PosY);
 
-    const double Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
-    const int64 RangeSq = static_cast<int64>(AutoPickupRangeCm) * static_cast<int64>(AutoPickupRangeCm);
+    constexpr int64 RangeSq =
+        static_cast<int64>(HktLimits::DefaultPickupRangeCm) *
+        static_cast<int64>(HktLimits::DefaultPickupRangeCm);
 
     WS.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
         if (Id == DefaultSubjectEntityId) return;
         if (WS.GetArchetype(Id) != EHktArchetype::Item) return;
-        if (WS.GetProperty(Id, PropertyId::ItemState) != 0) return;        // Ground 가 아니면 skip
+        if (WS.GetProperty(Id, PropertyId::ItemState) != 0) return;
 
         // 2D 거리 제곱 비교 — sqrt 회피, 정수 연산
         const int32 ItemX = WS.GetProperty(Id, PropertyId::PosX);
@@ -712,7 +717,6 @@ void AHktIngamePlayerController::TickAutoPickup()
         const int64 DY = static_cast<int64>(ItemY) - static_cast<int64>(SubjectY);
         if (DX * DX + DY * DY > RangeSq) return;
 
-        // 재시도 쿨다운
         if (const double* LastAttempt = AutoPickupAttemptedAt.Find(Id))
         {
             if (Now - *LastAttempt < AutoPickupRetrySeconds) return;
@@ -722,12 +726,12 @@ void AHktIngamePlayerController::TickAutoPickup()
         RequestItemPickup(Id);
     });
 
-    // 시도 맵 청소 (5초마다) — 사라진 entity 누적 방지
-    if (Now - LastAutoPickupSweepTime > 5.0)
+    // 맵이 임계 초과로 부풀면 cooldown 지난 stale entry 청소 — 사라진 entity 누적 방지.
+    if (AutoPickupAttemptedAt.Num() > AutoPickupAttemptedSweepThreshold)
     {
-        LastAutoPickupSweepTime = Now;
         for (auto It = AutoPickupAttemptedAt.CreateIterator(); It; ++It)
         {
+            if (Now - It.Value() < AutoPickupRetrySeconds) continue;
             const FHktEntityId Id = It.Key();
             if (!WS.IsValidEntity(Id) || WS.GetProperty(Id, PropertyId::ItemState) != 0)
             {
