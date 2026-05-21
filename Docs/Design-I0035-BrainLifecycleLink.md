@@ -104,6 +104,7 @@ Lifecycle 과 Brain 이 *각각 1 인스턴스씩* 영속 실행. 둘 다 같은
 ## 격차 / TODO
 
 - **Slime Brain 확장** — 비-피격 상황 patrol / 시야 스캔
+- **스킬 분기의 데미지 채널 미커버** — 현재 `LastAttacker` 기록은 `Story_CombatUseSkill` 의 *기본 melee* 분기 (line ~69) 와 `Story_BasicAttack` (단일 + AoE) 에만 들어가 있다. `Story_CombatUseSkill` 의 line 84 / 92 / … `DispatchEvent` 로 분기되는 스킬 본문 (`Story.Event.Skill.Fireball` / `…Heal` / `…Lightning` / `…Buff`) 은 PR 범위 밖이라 *마법으로 슬라임을 때리면 Brain 이 반응 안 함*. 각 스킬 Story 의 `ApplyDamage` 직전에 동일하게 `SaveStoreEntity Target LastAttacker = Self` 한 줄 추가 필요 (별건 PR).
 - **다른 NPC 종족 Brain** — Goblin / Skeleton 등
 - **Brain on/off 토글** — 같은 NPC 를 Player 가 직접 조작 (Brain 비활성화). 빙의·관전 모드 후보.
 - **LastAttacker 슬롯 재활용 검증** — 공격자 destroy 후 슬롯 재발급으로 phantom 가능. Design-I0016 의 Target 슬롯 위험과 동일 메커니즘.
