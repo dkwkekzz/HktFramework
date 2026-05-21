@@ -81,7 +81,6 @@ namespace HktRegionEventTags
 
 namespace HktNaturalStoryTags
 {
-    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SpawnerNaturalRoot); // Story.Flow.Spawner.Natural — 백프레셔 매칭용 root
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSpawn);        // Story.Flow.Spawner.Natural.Birch
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSpawn);          // Story.Flow.Spawner.Natural.Oak
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TreeSpawn);         // Story.Flow.Spawner.Natural.Tree   (I-0014 검증용 단일 Oak)

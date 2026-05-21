@@ -56,7 +56,6 @@ namespace HktRegionEventTags
 
 namespace HktNaturalStoryTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SpawnerNaturalRoot, "Story.Flow.Spawner.Natural", "자연 spawner 류 root — 풀 포화 시 백프레셔(VMBuildSystem) 가 본 태그로 매칭해 drop.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak chunk-load spawner story. Param2=LineageId, Param3=ChildCount.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(TreeSpawn,  "Story.Flow.Spawner.Natural.Tree",  "I-0014 검증용 — voxel 한 점에 Oak 1본 spawn 후 Oak_Lifecycle dispatch. CountByTag<20 cap.");

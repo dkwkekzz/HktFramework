@@ -279,20 +279,6 @@ void FHktVMBuildSystem::Process(
             }
         }
 
-        // 백프레셔 — 풀 사용량이 SoftCap 이상이면 자연 spawner 류 이벤트는 drop.
-        // 핵심 게임플레이 이벤트(전투/상호작용)는 grow 로 hard cap 까지 흡수하되, 청크 로드마다 폭주하는
-        // spawner 류만 미리 차단해 lifecycle VM 등 장기 실행 VM 의 슬롯을 보호한다.
-        if (Pool.GetUsage() >= HktLimits::SpawnerBackpressureSoftCap
-            && Event.EventTag.MatchesTag(HktNaturalStoryTags::SpawnerNaturalRoot))
-        {
-            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
-                FString::Printf(TEXT("VM Build: backpressure drop (usage=%d/%d) tag=%s"),
-                    Pool.GetUsage(), Pool.GetCapacity(), *Event.EventTag.ToString()));
-            HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Discarded, LogSource,
-                static_cast<int64>(CurrentFrame), TEXT("PoolPressureDrop"));
-            continue;
-        }
-
         FHktVMHandle Handle = Pool.Allocate();
         if (!Handle.IsValid())
         {
