@@ -130,6 +130,13 @@ void FHktVMInterpreter::Op_DestroyEntity(FHktVMRuntime& Runtime, RegisterIndex E
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_DestroyEntity Id=%d"), E), E);
 
+    // RemoveEntity 직전에 상태를 캡처해 VMProxy 에 적재 — AdvanceFrame 이 Diff.RemovedEntities 에 머지.
+    // 이 경로가 없으면 클라 PresentationState 가 제거 신호를 받지 못해 HUD 가 남는다.
+    if (WorldState && WorldState->IsValidEntity(E) && VMProxy)
+    {
+        VMProxy->PendingDestroys.Add(WorldState->ExtractEntityState(E));
+    }
+
     WorldState->RemoveEntity(E);
 }
 
