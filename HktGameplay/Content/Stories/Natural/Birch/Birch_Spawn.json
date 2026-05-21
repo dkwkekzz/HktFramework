@@ -8,12 +8,6 @@
   "steps": [
     { "op": "Log", "message": "[Birch] voxel attribution — Birch 1본 spawn + BirchLifecycle dispatch" },
 
-    { "op": "CountByTag", "dst": {"var":"birchCount"}, "tag": "Birch" },
-    { "op": "IfGeConst", "src": {"var":"birchCount"}, "value": 12 },
-      { "op": "Log", "message": "[Birch] global cap (>=12 Birch) — skip" },
-      { "op": "Halt" },
-    { "op": "EndIf" },
-
     { "op": "LoadStore", "dst": {"var":"posX"}, "property": "Param0" },
     { "op": "LoadStore", "dst": {"var":"posY"}, "property": "Param1" },
     { "op": "LoadStore", "dst": {"var":"posZ"}, "property": "Param3" },

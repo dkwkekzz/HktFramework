@@ -8,12 +8,6 @@
   "steps": [
     { "op": "Log", "message": "[Tree] voxel attribution — Oak 1본 spawn + Oak_Lifecycle dispatch" },
 
-    { "op": "CountByTag", "dst": {"var":"oakCount"}, "tag": "Oak" },
-    { "op": "IfGeConst", "src": {"var":"oakCount"}, "value": 20 },
-      { "op": "Log", "message": "[Tree] global cap (>=20 Oak) — skip" },
-      { "op": "Halt" },
-    { "op": "EndIf" },
-
     { "op": "LoadStore", "dst": {"var":"posX"},      "property": "Param0" },
     { "op": "LoadStore", "dst": {"var":"posY"},      "property": "Param1" },
     { "op": "LoadStore", "dst": {"var":"lineageId"}, "property": "Param2" },

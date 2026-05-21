@@ -11,12 +11,6 @@
   "steps": [
     { "op": "Log", "message": "[Slime] voxel attribution — Slime NPC 1마리 spawn + NpcLifecycle dispatch" },
 
-    { "op": "CountByTag", "dst": {"var":"slimeCount"}, "tag": "NpcSlime" },
-    { "op": "IfGeConst", "src": {"var":"slimeCount"}, "value": 10 },
-      { "op": "Log", "message": "[Slime] global cap (>=10 Slime) — skip" },
-      { "op": "Halt" },
-    { "op": "EndIf" },
-
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":0}, "property": "Param0" },
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":1}, "property": "Param1" },
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":2}, "property": "Param3" },

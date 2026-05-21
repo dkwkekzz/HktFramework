@@ -200,9 +200,15 @@ if (PickedTemplateId > 0) {
 
 skip 슬롯은 catalog 미등록 → 메모리/네트워크 부담 0.
 
-### 4. Spawner Story 의 글로벌 cap (런타임 안전망)
+### 4. ~~Spawner Story 의 글로벌 cap~~ — 폐기 (2026-05-21)
 
-`Tree_Spawn.json`, `Slime_Spawn.json` 본문에 `CountByTag < N` 가드가 있어 attribution 다수 발화 시에도 spawn 폭주 차단.
+이전엔 `Tree_Spawn.json` / `Birch_Spawn.json` / `Slime_Spawn.json` 본문에 `CountByTag < N` 가드 (`IfGeConst` + `Halt`) 가 있었다. PR-4 단계에서 region-scoped cap 의 JSON op 노출이 없어 글로벌 cap 으로 임시 대체한 안전망. 폐기 사유:
+
+- step 1~3 (surface column + rule 매핑 + skip 슬롯) 이 *베이크 시점에* 이미 밀도를 결정 — 런타임 추가 게이트는 이중 제어.
+- player-anchor chunk gating (`FHktTerrainSystem::Process`) 이 dispatch 자체를 player 근처로 한정 — attribution 폭주가 dispatch 폭주로 이어지지 않음.
+- 글로벌 cap 은 "voxel type 에 spawner 설치 → 매칭 voxel 마다 발화" 본래 의미와 충돌. cap 도달 후 player 가 새 지역으로 이동해도 spawn 0 — 의도 위반.
+
+밀도 조정은 `bake_terrain.py::default_voxel_spawn_rules` 의 weight / skip 슬롯 비율로만 한다.
 
 ### 실측 밀도
 
