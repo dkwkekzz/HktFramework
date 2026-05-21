@@ -1,0 +1,29 @@
+{
+  "storyTag": "Story.Flow.Natural.Slime.RegionCleanup",
+  "description": "Slime 사망 watchdog story — Slime_Spawn 이 NpcLifecycle 과 함께 dispatch. Self=Slime entity 가 매 프레임 State.Dead 를 폴링하다 감지되면 Self.RecordKey 와 fallenPos 의 region 를 lookup 해 Entity.RegionRecord.VoxelSlot 의 SlotAliveFlag=0, SlotLastDieFrame=GetWorldTime() 으로 갱신 후 Halt. NpcLifecycle 의 3 초 사망 애니/DestroyEntity 와 병렬로 돌며 slot release 만 담당.",
+  "scenarios": [
+    {
+      "name": "alive_slime_keeps_polling",
+      "description": "Self 에 State.Dead 가 없으면 매 프레임 Yield 후 check 라벨 점프 → 단발 실행에선 Running.",
+      "given": {
+        "self": { "position": [0, 0, 0] }
+      },
+      "expect": {
+        "status": "Running"
+      }
+    },
+    {
+      "name": "dead_slime_releases_slot",
+      "description": "Self.State.Dead 가 켜져 있으면 die 분기 → RegionMap 의 VoxelSlot record 에 alive=0, lastDie=now 기록 후 Completed.",
+      "given": {
+        "self": {
+          "position": [500, 700, 0],
+          "tags": ["State.Dead"]
+        }
+      },
+      "expect": {
+        "status": "Completed"
+      }
+    }
+  ]
+}

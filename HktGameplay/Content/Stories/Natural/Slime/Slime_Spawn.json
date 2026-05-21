@@ -2,18 +2,45 @@
   "schema": 2,
   "storyTag": "Story.Flow.Spawner.Natural.Slime",
   "tags": {
-    "NpcSlime":      "Entity.NPC.Slime",
-    "EntityNPC":     "Entity.NPC",
-    "NpcHostile":    "Entity.Attr.NPC.Hostile",
-    "StanceUnarmed": "Entity.Stance.Unarmed",
-    "NpcLifecycle":  "Story.Flow.NPC.Lifecycle"
+    "NpcSlime":         "Entity.NPC.Slime",
+    "EntityNPC":        "Entity.NPC",
+    "NpcHostile":       "Entity.Attr.NPC.Hostile",
+    "StanceUnarmed":    "Entity.Stance.Unarmed",
+    "NpcLifecycle":     "Story.Flow.NPC.Lifecycle",
+    "SlimeRegionWatch": "Story.Flow.Natural.Slime.RegionCleanup",
+    "VoxelSlot":        "Entity.RegionRecord.VoxelSlot"
   },
   "steps": [
-    { "op": "Log", "message": "[Slime] voxel attribution — Slime NPC 1마리 spawn + NpcLifecycle dispatch" },
+    { "op": "Log", "message": "[Slime] voxel attribution — voxel-slot dedupe + cooldown 후 1마리 spawn" },
 
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":0}, "property": "Param0" },
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":1}, "property": "Param1" },
+    { "op": "LoadStore", "dst": {"var":"slotKey"},              "property": "Param2" },
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":2}, "property": "Param3" },
+
+    { "op": "Move", "dst": {"var":"posX"}, "src": {"block":"spawnPos","index":0} },
+    { "op": "Move", "dst": {"var":"posY"}, "src": {"block":"spawnPos","index":1} },
+    { "op": "FindOrCreateRegionAt", "posX": {"var":"posX"}, "posY": {"var":"posY"}, "out": "regionEntity" },
+
+    { "op": "RegionMapRead", "dst": {"var":"alive"},
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotAliveFlag" },
+    { "op": "IfGeConst", "src": {"var":"alive"}, "value": 1 },
+      { "op": "Log", "message": "[Slime] slot 점유 중 — skip" },
+      { "op": "Halt" },
+    { "op": "EndIf" },
+
+    { "op": "RegionMapRead", "dst": {"var":"lastDie"},
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame" },
+    { "op": "IfGeConst", "src": {"var":"lastDie"}, "value": 1 },
+      { "op": "GetWorldTime", "dst": {"var":"now"} },
+      { "op": "Sub", "dst": {"var":"elapsed"}, "src1": {"var":"now"}, "src2": {"var":"lastDie"} },
+      { "op": "IfLtConst", "src": {"var":"elapsed"}, "value": 900 },
+        { "op": "Log", "message": "[Slime] 사망 후 쿨다운 중 (900 frame=30sec @ 30Hz) — skip" },
+        { "op": "Halt" },
+      { "op": "EndIf" },
+    { "op": "EndIf" },
 
     { "op": "SpawnEntity", "classTag": "NpcSlime", "out": "slime" },
 
@@ -21,6 +48,7 @@
     { "op": "AddTag", "entity": {"var":"slime"}, "tag": "NpcSlime" },
     { "op": "AddTag", "entity": {"var":"slime"}, "tag": "NpcHostile" },
 
+    { "op": "SaveStoreEntity", "entity": {"var":"slime"}, "property": "RecordKey",   "src":   {"var":"slotKey"} },
     { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "IsNPC",       "value": 1 },
     { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "Health",      "value": 30 },
     { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "MaxHealth",   "value": 30 },
@@ -32,7 +60,13 @@
     { "op": "SetStance",   "entity": {"var":"slime"}, "stanceTag": "StanceUnarmed" },
     { "op": "SetPosition", "entity": {"var":"slime"}, "pos": {"block":"spawnPos"} },
 
-    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": {"var":"slime"} },
+    { "op": "LoadConst", "dst": {"var":"one"}, "value": 1 },
+    { "op": "RegionMapWrite",
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"one"} },
+
+    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle",     "source": {"var":"slime"} },
+    { "op": "DispatchEventFrom", "eventTag": "SlimeRegionWatch", "source": {"var":"slime"} },
 
     { "op": "Halt" }
   ]

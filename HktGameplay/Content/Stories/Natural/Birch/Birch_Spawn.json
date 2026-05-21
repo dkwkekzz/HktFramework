@@ -3,14 +3,38 @@
   "storyTag": "Story.Flow.Spawner.Natural.Birch",
   "tags": {
     "Birch":          "Entity.Natural.Birch",
-    "BirchLifecycle": "Story.Flow.Natural.Birch.Lifecycle"
+    "BirchLifecycle": "Story.Flow.Natural.Birch.Lifecycle",
+    "VoxelSlot":      "Entity.RegionRecord.VoxelSlot"
   },
   "steps": [
-    { "op": "Log", "message": "[Birch] voxel attribution — Birch 1본 spawn + BirchLifecycle dispatch" },
+    { "op": "Log", "message": "[Birch] voxel attribution — voxel-slot dedupe + cooldown 후 1본 spawn" },
 
-    { "op": "LoadStore", "dst": {"var":"posX"}, "property": "Param0" },
-    { "op": "LoadStore", "dst": {"var":"posY"}, "property": "Param1" },
-    { "op": "LoadStore", "dst": {"var":"posZ"}, "property": "Param3" },
+    { "op": "LoadStore", "dst": {"var":"posX"},    "property": "Param0" },
+    { "op": "LoadStore", "dst": {"var":"posY"},    "property": "Param1" },
+    { "op": "LoadStore", "dst": {"var":"slotKey"}, "property": "Param2" },
+    { "op": "LoadStore", "dst": {"var":"posZ"},    "property": "Param3" },
+
+    { "op": "FindOrCreateRegionAt", "posX": {"var":"posX"}, "posY": {"var":"posY"}, "out": "regionEntity" },
+
+    { "op": "RegionMapRead", "dst": {"var":"alive"},
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotAliveFlag" },
+    { "op": "IfGeConst", "src": {"var":"alive"}, "value": 1 },
+      { "op": "Log", "message": "[Birch] slot 점유 중 — skip" },
+      { "op": "Halt" },
+    { "op": "EndIf" },
+
+    { "op": "RegionMapRead", "dst": {"var":"lastDie"},
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame" },
+    { "op": "IfGeConst", "src": {"var":"lastDie"}, "value": 1 },
+      { "op": "GetWorldTime", "dst": {"var":"now"} },
+      { "op": "Sub", "dst": {"var":"elapsed"}, "src1": {"var":"now"}, "src2": {"var":"lastDie"} },
+      { "op": "IfLtConst", "src": {"var":"elapsed"}, "value": 2700 },
+        { "op": "Log", "message": "[Birch] 사망 후 쿨다운 중 (2700 frame=90sec @ 30Hz) — skip" },
+        { "op": "Halt" },
+      { "op": "EndIf" },
+    { "op": "EndIf" },
 
     { "op": "SpawnEntity", "classTag": "Birch", "out": "birch" },
 
@@ -19,8 +43,14 @@
     { "op": "Move", "dst": {"block":"pos","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"birch"}, "pos": {"block":"pos"} },
 
+    { "op": "SaveStoreEntity", "entity": {"var":"birch"}, "property": "RecordKey", "src": {"var":"slotKey"} },
     { "op": "SaveConstEntity", "entity": {"var":"birch"}, "property": "MaxHealth", "value": 30 },
     { "op": "SaveConstEntity", "entity": {"var":"birch"}, "property": "Health",    "value": 30 },
+
+    { "op": "LoadConst", "dst": {"var":"one"}, "value": 1 },
+    { "op": "RegionMapWrite",
+      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
+      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"one"} },
 
     { "op": "DispatchEventFrom", "eventTag": "BirchLifecycle", "source": {"var":"birch"} },
 

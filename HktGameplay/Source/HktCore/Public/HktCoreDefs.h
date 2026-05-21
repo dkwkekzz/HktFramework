@@ -52,6 +52,7 @@ namespace HktArchetypeTags
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_Lineage);     // Oak 가계 등 (LineageId)
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_Variant);     // Mushroom 변종 등 (VariantId)
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_OreSpecies);  // Ore 광종 (OreSpeciesId)
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_VoxelSlot);   // Voxel-slot dedupe (RecordKey = SlotHash31)
 }
 
 namespace HktStance
