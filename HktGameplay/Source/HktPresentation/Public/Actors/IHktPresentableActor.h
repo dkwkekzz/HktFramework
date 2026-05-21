@@ -53,6 +53,11 @@ public:
 	 *  - HktUnitActor: 캡슐 루트, ActorLocation = 캡슐 중심 → +HalfHeight
 	 *  - HktSpritePaperActor: RootScene 루트, ActorLocation = 발 → +2*HalfHeight
 	 *  - 기본값: ActorLocation (보정 불가 시 폴백)
+	 *
+	 * 액터 없는 인스턴스 경로(HISM/Niagara CrowdRenderer)는
+	 * UHktPresentationSubsystem::GetEntityHudAnchorLocation 가 PhysicsView 의
+	 * CollisionHalfHeight 로 직접 산출한다 — 본 인터페이스는 호출되지 않는다.
+	 *
 	 * UI 측에서 여기에 DataAsset 의 WorldOffset 을 더해 최종 HUD 앵커를 산출한다.
 	 */
 	virtual FVector GetHudAnchorWorldLocation() const
