@@ -48,6 +48,9 @@ enum class EWaitEventType : uint8
     Collision,
     MoveEnd,
     Grounded,       // 착지 대기 (점프 후 IsGrounded 전환)
+    TagAdded,       // 특정 엔티티에 지정 태그가 부여될 때까지 대기 (Op_WaitTag).
+                    // ScratchEvents 큐를 거치지 않고 VMProcessSystem 이 매 프레임
+                    // WorldState 의 태그 컨테이너를 polling 하여 wake.
 };
 
 /**

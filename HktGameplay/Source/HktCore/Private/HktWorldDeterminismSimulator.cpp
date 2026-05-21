@@ -37,8 +37,8 @@ FHktWorldDeterminismSimulator::FHktWorldDeterminismSimulator(EHktLogSource InLog
     // 클라 ProxySimulator 는 미드조인 시 placement 재발화를 막아야 한다 (중복 spawn 방지).
     TerrainSystem.bIsAuthoritative = (InLogSource == EHktLogSource::Server);
 
-    ActiveVMs.Reserve(HktLimits::MaxVMs);
-    CompletedVMs.Reserve(HktLimits::MaxVMs);
+    ActiveVMs.Reserve(HktLimits::MaxVMPoolCapacity);
+    CompletedVMs.Reserve(HktLimits::MaxVMPoolCapacity);
     GeneratedPhysicsEvents.Reserve(HktLimits::MaxPhysicsEvents);
     PendingExternalEvents.Reserve(HktLimits::MaxPendingEvents);
     GeneratedMoveEndEvents.Reserve(HktLimits::MaxPendingEvents);
@@ -236,6 +236,7 @@ void FHktWorldDeterminismSimulator::CaptureVMSnapshots()
         Snap.WaitType = static_cast<uint8>(Runtime->EventWait.Type);
         Snap.WaitWatchedEntity = Runtime->EventWait.WatchedEntity;
         Snap.WaitRemainingFrames = Runtime->EventWait.RemainingFrames;
+        Snap.WaitWatchedTag = Runtime->EventWait.WatchedTag;
         Snap.PlayerUid = Runtime->PlayerUid;
         Snap.CreationFrame = Runtime->CreationFrame;
 
@@ -311,6 +312,7 @@ void FHktWorldDeterminismSimulator::RehydrateVMPool()
         Runtime->EventWait.Type = static_cast<EWaitEventType>(Snap.WaitType);
         Runtime->EventWait.WatchedEntity = Snap.WaitWatchedEntity;
         Runtime->EventWait.RemainingFrames = Snap.WaitRemainingFrames;
+        Runtime->EventWait.WatchedTag = Snap.WaitWatchedTag;
         Runtime->PendingDispatchedEvents = Snap.PendingDispatchedEvents;
         Runtime->SpatialQuery.Reset();
 

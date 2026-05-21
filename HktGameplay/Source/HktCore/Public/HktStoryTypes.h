@@ -240,6 +240,9 @@ struct FHktRegReserve
     X(WaitMoveEnd,      _, R, _) \
     X(WaitAnimEnd,      _, R, _) \
     X(WaitGrounded,     _, R, _) \
+    /* WaitTag: Src1 = 감시 엔티티 vreg, Imm12 = TagIndex. WatchedEntity 의 태그 컨테이너에 \
+       지정 태그(MatchesTag 계층 매칭)가 부여될 때까지 yield. 폴링 패턴 lifecycle 의 슬롯 점유 제거용. */ \
+    X(WaitTag,          _, R, _) \
     /* Data Operations */   \
     X(LoadConst,        W, _, _) \
     X(LoadConstHigh,    W, _, _) \

@@ -65,6 +65,7 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::WaitMoveEnd: return Op_WaitMoveEnd(Runtime, Inst.Src1);
     case EOpCode::WaitGrounded: return Op_WaitGrounded(Runtime, Inst.Src1);
     case EOpCode::WaitAnimEnd: return Op_WaitAnimEnd(Runtime, Inst.Src1);
+    case EOpCode::WaitTag: return Op_WaitTag(Runtime, Inst.Src1, Inst.Imm12);
     // Data Operations
     case EOpCode::LoadConst: Op_LoadConst(Runtime, Inst._Dst, Inst.GetSignedImm20()); break;
     case EOpCode::LoadConstHigh: Op_LoadConstHigh(Runtime, Inst.Dst, Inst.Imm12); break;
@@ -214,6 +215,19 @@ EVMStatus FHktVMInterpreter::Op_WaitGrounded(FHktVMRuntime& Runtime, RegisterInd
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("Op_WaitGrounded WatchEntity=%d"), Runtime.EventWait.WatchedEntity),
         Runtime.EventWait.WatchedEntity);
+    return EVMStatus::WaitingEvent;
+}
+
+EVMStatus FHktVMInterpreter::Op_WaitTag(FHktVMRuntime& Runtime, RegisterIndex WatchEntity, int32 TagIndex)
+{
+    Runtime.EventWait.Type = EWaitEventType::TagAdded;
+    Runtime.EventWait.WatchedEntity = Runtime.GetRegEntity(WatchEntity);
+    Runtime.EventWait.WatchedTag = ResolveTag(TagIndex);
+    HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
+        FString::Printf(TEXT("Op_WaitTag WatchEntity=%d Tag=%s"),
+            Runtime.EventWait.WatchedEntity,
+            *Runtime.EventWait.WatchedTag.ToString()),
+        Runtime.EventWait.WatchedEntity, Runtime.EventWait.WatchedTag);
     return EVMStatus::WaitingEvent;
 }
 
@@ -485,6 +499,7 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::WaitMoveEnd:
         case EOpCode::WaitGrounded:
         case EOpCode::WaitAnimEnd:
+        case EOpCode::WaitTag:
             continue;  // skip
         default:
             break;

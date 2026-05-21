@@ -116,6 +116,7 @@ static const TCHAR* WaitEventTypeToString(EWaitEventType Type)
     case EWaitEventType::Collision: return TEXT("Collision");
     case EWaitEventType::MoveEnd:   return TEXT("MoveEnd");
     case EWaitEventType::Grounded:  return TEXT("Grounded");
+    case EWaitEventType::TagAdded:  return TEXT("TagAdded");
     default:                        return TEXT("None");
     }
 }
@@ -278,10 +279,26 @@ void FHktVMBuildSystem::Process(
             }
         }
 
+        // 백프레셔 — 풀 사용량이 SoftCap 이상이면 spawner 류 이벤트는 즉시 drop.
+        // 풀이 차오르기 시작할 때 *덜 중요한 spawner 부터* 미리 거절해 핵심 게임플레이
+        // 이벤트(전투/인터랙션/Brain)가 hard cap 직전 마지막 슬롯까지 보호되게 한다.
+        if (Pool.GetUsage() >= HktLimits::SpawnerBackpressureSoftCap
+            && Event.EventTag.MatchesTag(HktSpawnerTags::Root))
+        {
+            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+                FString::Printf(TEXT("VM Build: backpressure drop (usage=%d/%d) tag=%s"),
+                    Pool.GetUsage(), Pool.GetCapacity(), *Event.EventTag.ToString()));
+            HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Discarded, LogSource,
+                static_cast<int64>(CurrentFrame), TEXT("PoolPressureDrop"));
+            continue;
+        }
+
         FHktVMHandle Handle = Pool.Allocate();
         if (!Handle.IsValid())
         {
-            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, LogSource, TEXT("VM Build: Pool exhausted"));
+            HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Warning, LogSource,
+                FString::Printf(TEXT("VM Build: Pool exhausted (usage=%d/%d)"),
+                    Pool.GetUsage(), Pool.GetCapacity()));
             HKT_VM_EVENT_RECORD_EVENT(Event, EHktVMEventPhase::Discarded, LogSource,
                 static_cast<int64>(CurrentFrame), TEXT("PoolExhausted"));
             continue;
@@ -374,6 +391,8 @@ void FHktVMProcessSystem::Process(
     // 모든 PendingEvent 는 출처(Movement.MoveEnd / Physics.Grounded / Physics.Collision)
     // 단계에서 이미 RECORD_PENDING(Created) 가 한 번 찍혔으므로 여기서 또 찍으면 중복.
 
+    // TagAdded 는 WorldState 의 태그 컨테이너를 매 프레임 polling 하여 wake —
+    // 다른 Wait 타입(Collision/MoveEnd/Grounded)과 달리 ScratchEvents 큐를 거치지 않는다.
     Pool.ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
     {
         if (Runtime.Status == EVMStatus::WaitingEvent)
@@ -385,6 +404,35 @@ void FHktVMProcessSystem::Process(
                 {
                     Runtime.EventWait.Reset();
                     Runtime.Status = EVMStatus::Ready;
+                }
+            }
+            else if (Runtime.EventWait.Type == EWaitEventType::TagAdded)
+            {
+                // 매 프레임 polling — WatchedEntity 가 WatchedTag(또는 자식 태그)를 보유하면 wake.
+                // MatchesTag 는 계층 매칭 (cleanup 의 RemoveTag 와 동일 정책).
+                if (Runtime.Context && Runtime.Context->WorldState
+                    && Runtime.EventWait.WatchedTag.IsValid()
+                    && Runtime.Context->WorldState->IsValidEntity(Runtime.EventWait.WatchedEntity))
+                {
+                    const FHktWorldState& WS = *Runtime.Context->WorldState;
+                    const int32 Slot = WS.GetSlot(Runtime.EventWait.WatchedEntity);
+                    const FGameplayTagContainer& Tags = WS.GetTagsBySlot(Slot);
+                    if (Tags.HasTag(Runtime.EventWait.WatchedTag))
+                    {
+                        HKT_EVENT_LOG_TAG(HktLogTags::Core_VM, EHktLogLevel::Verbose, LogSource,
+                            FString::Printf(TEXT("WaitTag wake: Watched=%d Tag=%s"),
+                                Runtime.EventWait.WatchedEntity,
+                                *Runtime.EventWait.WatchedTag.ToString()),
+                            Runtime.EventWait.WatchedEntity, Runtime.EventWait.WatchedTag);
+                        Runtime.EventWait.Reset();
+                        Runtime.Status = EVMStatus::Ready;
+                    }
+                }
+                else
+                {
+                    // WatchedEntity 가 사라졌으면 영원히 wake 불가 — VM 종료.
+                    Runtime.EventWait.Reset();
+                    Runtime.Status = EVMStatus::Failed;
                 }
             }
             else

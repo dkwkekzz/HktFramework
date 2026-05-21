@@ -10,11 +10,7 @@
   "steps": [
     { "op": "Log", "message": "[Oak] Lifecycle 시작 — Self=Oak entity, State.Dead 구독" },
 
-    { "op": "Label", "name": "check" },
-    { "op": "HasTag", "dst": {"var":"isDead"}, "entity": "Self", "tag": "StateDead" },
-    { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "die" },
-    { "op": "WaitSeconds", "seconds": 1.0 },
-    { "op": "Jump", "label": "check" },
+    { "op": "WaitTag", "entity": "Self", "tag": "StateDead" },
 
     { "op": "Label", "name": "die" },
     { "op": "Log", "message": "[Oak] 사망 감지 — Branch 3 본 drop + lineage++ + OakSaplingSeed 디스패치" },

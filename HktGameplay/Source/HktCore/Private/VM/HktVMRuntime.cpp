@@ -27,25 +27,54 @@ FString FHktVMRuntime::GetDebugString() const
 
 FHktVMRuntimePool::FHktVMRuntimePool()
 {
-    Statuses.SetNumZeroed(MaxVMs);
-    PCs.SetNumZeroed(MaxVMs);
-    WaitFrameArr.SetNumZeroed(MaxVMs);
-    Generations.SetNumZeroed(MaxVMs);
-    Runtimes.SetNum(MaxVMs);
-    Contexts.SetNum(MaxVMs);
+    const int32 InitialCap = HktLimits::InitialVMPoolCapacity;
+    Statuses.SetNumZeroed(InitialCap);
+    PCs.SetNumZeroed(InitialCap);
+    WaitFrameArr.SetNumZeroed(InitialCap);
+    Generations.SetNumZeroed(InitialCap);
+    Runtimes.SetNum(InitialCap);
+    Contexts.SetNum(InitialCap);
 
-    FreeSlots.Reserve(MaxVMs);
-    for (int32 i = MaxVMs - 1; i >= 0; --i)
+    // grow 시 reallocation 빈도를 줄이기 위해 hard cap 까지 사전 예약.
+    Statuses.Reserve(HktLimits::MaxVMPoolCapacity);
+    PCs.Reserve(HktLimits::MaxVMPoolCapacity);
+    WaitFrameArr.Reserve(HktLimits::MaxVMPoolCapacity);
+    Generations.Reserve(HktLimits::MaxVMPoolCapacity);
+    Runtimes.Reserve(HktLimits::MaxVMPoolCapacity);
+    Contexts.Reserve(HktLimits::MaxVMPoolCapacity);
+    FreeSlots.Reserve(HktLimits::MaxVMPoolCapacity);
+
+    for (int32 i = InitialCap - 1; i >= 0; --i)
     {
         FreeSlots.Add(i);
         Statuses[i] = EVMStatus::Completed;
     }
 }
 
+int32 FHktVMRuntimePool::GrowOneSlot()
+{
+    const int32 NewIndex = Statuses.Num();
+    if (NewIndex >= HktLimits::MaxVMPoolCapacity)
+        return INDEX_NONE;
+
+    Statuses.Add(EVMStatus::Completed);
+    PCs.Add(0);
+    WaitFrameArr.Add(0);
+    Generations.Add(0);
+    Runtimes.AddDefaulted();
+    Contexts.AddDefaulted();
+    return NewIndex;
+}
+
 FHktVMHandle FHktVMRuntimePool::Allocate()
 {
     if (FreeSlots.Num() == 0)
-        return FHktVMHandle::Invalid();
+    {
+        const int32 NewIndex = GrowOneSlot();
+        if (NewIndex == INDEX_NONE)
+            return FHktVMHandle::Invalid();
+        FreeSlots.Add(static_cast<uint32>(NewIndex));
+    }
 
     uint32 Index = FreeSlots.Pop();
 
@@ -113,7 +142,7 @@ const FHktVMContext* FHktVMRuntimePool::GetContext(FHktVMHandle Handle) const
 
 bool FHktVMRuntimePool::IsValid(FHktVMHandle Handle) const
 {
-    if (!Handle.IsValid() || Handle.Index >= static_cast<uint32>(MaxVMs))
+    if (!Handle.IsValid() || Handle.Index >= static_cast<uint32>(Statuses.Num()))
         return false;
     return Generations[Handle.Index] == Handle.Generation;
 }
@@ -132,7 +161,8 @@ int32 FHktVMRuntimePool::CountByStatus(EVMStatus Status) const
 void FHktVMRuntimePool::Reset()
 {
     FreeSlots.Reset();
-    for (int32 i = MaxVMs - 1; i >= 0; --i)
+    const int32 Cap = Statuses.Num();
+    for (int32 i = Cap - 1; i >= 0; --i)
     {
         FreeSlots.Add(i);
         Statuses[i] = EVMStatus::Completed;

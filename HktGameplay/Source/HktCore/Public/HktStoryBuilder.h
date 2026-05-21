@@ -505,6 +505,7 @@ public:
     FHktStoryBuilder& WaitAnimEnd(FHktVar Entity);
     FHktStoryBuilder& WaitMoveEnd(FHktVar Entity);
     FHktStoryBuilder& WaitGrounded(FHktVar Entity);
+    FHktStoryBuilder& WaitTag(FHktVar Entity, const FGameplayTag& Tag);
 
     // ========================================================================
     // 구 RegisterIndex API (deprecated — 시그니처/구현 보존)
@@ -597,6 +598,9 @@ public:
 
     /** 착지 대기: 점프 후 엔티티가 지면에 착지할 때까지 대기 */
     FHktStoryBuilder& WaitGrounded(RegisterIndex Entity = Reg::Self);
+
+    /** 태그 부여 대기: WatchEntity 에 Tag(또는 자식 태그) 가 부여될 때까지 yield. */
+    FHktStoryBuilder& WaitTag(RegisterIndex WatchEntity, const FGameplayTag& Tag);
 
     // ========== Structured Control Flow ==========
 

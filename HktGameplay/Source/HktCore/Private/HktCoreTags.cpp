@@ -54,6 +54,11 @@ namespace HktRegionEventTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSaplingSeed, "Event.Region.OakSaplingSeed", "Oak TreeLifecycle 가 사망 시 디스패치하는 Oak 묘목 시드 이벤트 (Param2=LineageId 보존).");
 }
 
+namespace HktSpawnerTags
+{
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Root, "Story.Flow.Spawner", "모든 spawner story 의 공통 root. VMBuildSystem 백프레셔가 본 root 로 계층 매칭하여 풀 포화 시 spawner 류를 우선 drop.");
+}
+
 namespace HktNaturalStoryTags
 {
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");

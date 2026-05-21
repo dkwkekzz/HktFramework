@@ -66,6 +66,7 @@ private:
     EVMStatus Op_WaitMoveEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
     EVMStatus Op_WaitGrounded(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
     EVMStatus Op_WaitAnimEnd(FHktVMRuntime& Runtime, RegisterIndex WatchEntity);
+    EVMStatus Op_WaitTag(FHktVMRuntime& Runtime, RegisterIndex WatchEntity, int32 TagIndex);
 
     // ===== Data Operations =====
     void Op_LoadConst(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 Value);

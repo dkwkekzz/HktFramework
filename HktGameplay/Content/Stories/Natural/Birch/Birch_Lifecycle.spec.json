@@ -1,15 +1,15 @@
 {
   "storyTag": "Story.Flow.Natural.Birch.Lifecycle",
-  "description": "Birch Lifecycle (I-0012) — Self=Birch entity 가 매 초 State.Dead 를 검사. 사망 감지 시 Branch 3 본 drop + Event.Region.SaplingSeed 디스패치 + DestroyEntity.",
+  "description": "Birch Lifecycle — Self=Birch entity 는 WaitTag(State.Dead) 로 잠들어 슬롯 점유 ~0 (polling 무). 사망 감지 시 Branch 3 본 drop + Event.Region.SaplingSeed 디스패치 + DestroyEntity.",
   "scenarios": [
     {
       "name": "alive_birch_waits_for_death",
-      "description": "Self 에 State.Dead 태그가 없으면 1초 WaitSeconds 후 check 라벨로 다시 점프. 단발 실행에서는 WaitSeconds 에서 멈춰 Running.",
+      "description": "Self 에 State.Dead 태그가 없으면 WaitTag yield → WaitingEvent 상태(VM 슬롯은 유지하되 매 프레임 polling 비용 0).",
       "given": {
         "self": { "position": [0, 0, 0] }
       },
       "expect": {
-        "status": "Running",
+        "status": "Waiting",
         "dispatched": []
       }
     },
