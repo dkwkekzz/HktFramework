@@ -4,6 +4,7 @@ namespace HktGameplayTags
 {
     // --- Story IDs used by Runtime ---
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Event_Item_Drop, "Story.Event.Item.Drop", "Item drop intent event.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_Event_Item_Pickup, "Story.Event.Item.Pickup", "Item pickup intent event.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Story_PlayerInWorld, "Story.State.Player.InWorld", "Player in world state flow.");
 
     // --- Database Defaults ---

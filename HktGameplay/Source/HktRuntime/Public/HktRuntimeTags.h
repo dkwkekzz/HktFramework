@@ -7,6 +7,7 @@ namespace HktGameplayTags
 {
     // --- Story IDs used by Runtime ---
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Item_Drop);
+    HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Event_Item_Pickup);
     HKTRUNTIME_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_PlayerInWorld);
 
     // --- Database Defaults ---

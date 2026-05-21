@@ -200,6 +200,32 @@ private:
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();
 
+    // === Auto-Pickup (I-0035 P5) ===
+    /**
+     * 매 틱 호출 — Subject 주변 ground 아이템을 스캔하여 자동 픽업 시도.
+     * 서버 precondition (Story_ItemPickup) 이 권위 판정, 클라는 *의도 제출* 만.
+     */
+    void TickAutoPickup();
+
+    /** Subject → Item 픽업 이벤트(Story.Event.Item.Pickup) 를 서버로 전송. */
+    void RequestItemPickup(FHktEntityId ItemEntity);
+
+    /**
+     * 자동 픽업 인식 반경 (cm). 서버 precondition 의 거리 임계와 일치해야 한다 —
+     * Story_ItemPickup.json 의 GetDistance ≤ 300 검증과 동일.
+     * 클라가 더 넓게 잡으면 서버가 거절하여 spam 만 늘고, 더 좁게 잡으면 사용자가
+     * "닿았는데 안 주워지는" UX 를 겪는다.
+     */
+    static constexpr int32 AutoPickupRangeCm = 300;
+
+    /** 같은 item 에 대한 재시도 쿨다운 (초). 서버 거절(가방 만석 등) 후 즉시 spam 방지. */
+    static constexpr float AutoPickupRetrySeconds = 1.0f;
+
+    /** item entity id → 마지막 시도 시각 (초). 무효/Ground 아님이면 sweep 에서 제거. */
+    TMap<FHktEntityId, double> AutoPickupAttemptedAt;
+    /** 시도 맵 청소 타이머. 5초마다 1회 — 사라진 entity 누적 방지. */
+    double LastAutoPickupSweepTime = 0.0;
+
     /** 방향 이동 입력 이벤트 전송 + 쓰로틀 */
     void SubmitMoveEvent(const FVector& Direction);
 
