@@ -139,7 +139,8 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
                         HktLogTags::Core_Story, HktLogTags::Core_Movement,
                         HktLogTags::Core_Physics, HktLogTags::Runtime_Server,
                         HktLogTags::Runtime_Client, HktLogTags::Runtime_Intent,
-                        HktLogTags::Presentation, HktLogTags::Asset,
+                        HktLogTags::Presentation, HktLogTags::Presentation_Transform,
+                        HktLogTags::Asset,
                         HktLogTags::Rule, HktLogTags::Story,
                         HktLogTags::UI, HktLogTags::VFX,
                     };
@@ -519,6 +520,7 @@ void SHktGameplayLogPanel::Construct(const FArguments& InArgs)
             HktLogTags::Runtime_Client,
             HktLogTags::Runtime_Intent,
             HktLogTags::Presentation,
+            HktLogTags::Presentation_Transform,
             HktLogTags::Asset,
             HktLogTags::Rule,
             HktLogTags::Story,

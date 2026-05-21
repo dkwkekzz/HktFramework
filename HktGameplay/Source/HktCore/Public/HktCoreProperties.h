@@ -299,6 +299,17 @@ namespace HktProperty
             return *Found;
         return nullptr;
     }
+
+    /**
+     * Transform 계열 프로퍼티(위치/회전/속도) 여부.
+     * 매 프레임 갱신되어 로그 노이즈가 큰 컬럼을 별도 카테고리로 분리할 때 사용.
+     */
+    inline bool IsTransformProperty(uint16 PropId)
+    {
+        return PropId == PosX || PropId == PosY || PropId == PosZ
+            || PropId == RotYaw
+            || PropId == VelX || PropId == VelY || PropId == VelZ;
+    }
 }
 
 // 하위 호환 — 기존 PropertyId::PosX 문법 유지
