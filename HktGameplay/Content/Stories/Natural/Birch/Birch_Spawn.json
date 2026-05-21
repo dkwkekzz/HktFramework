@@ -2,9 +2,10 @@
   "schema": 2,
   "storyTag": "Story.Flow.Spawner.Natural.Birch",
   "tags": {
-    "Birch":          "Entity.Natural.Birch",
-    "BirchLifecycle": "Story.Flow.Natural.Birch.Lifecycle",
-    "VoxelSlot":      "Entity.RegionRecord.VoxelSlot"
+    "Birch":             "Entity.Natural.Birch",
+    "BirchLifecycle":    "Story.Flow.Natural.Birch.Lifecycle",
+    "BirchRegionWatch":  "Story.Flow.Natural.Birch.RegionCleanup",
+    "VoxelSlot":         "Entity.RegionRecord.VoxelSlot"
   },
   "steps": [
     { "op": "Log", "message": "[Birch] voxel attribution — voxel-slot dedupe + cooldown 후 1본 spawn" },
@@ -52,7 +53,8 @@
       "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
       "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"one"} },
 
-    { "op": "DispatchEventFrom", "eventTag": "BirchLifecycle", "source": {"var":"birch"} },
+    { "op": "DispatchEventFrom", "eventTag": "BirchLifecycle",    "source": {"var":"birch"} },
+    { "op": "DispatchEventFrom", "eventTag": "BirchRegionWatch", "source": {"var":"birch"} },
 
     { "op": "Halt" }
   ]

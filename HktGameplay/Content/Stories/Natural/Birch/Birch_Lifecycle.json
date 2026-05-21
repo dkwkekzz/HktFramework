@@ -4,12 +4,11 @@
   "tags": {
     "Branch":      "Entity.Natural.Branch",
     "Birch":       "Entity.Natural.Birch",
-    "VoxelSlot":   "Entity.RegionRecord.VoxelSlot",
     "SaplingSeed": "Event.Region.SaplingSeed",
     "StateDead":   "State.Dead"
   },
   "steps": [
-    { "op": "Log", "message": "[Birch] Lifecycle 시작 — Self=Birch entity, State.Dead 구독" },
+    { "op": "Log", "message": "[Birch] Lifecycle 시작 — Self=Birch entity, State.Dead 구독 (slot release 는 Birch_RegionCleanup 가 별도 담당)" },
 
     { "op": "Label", "name": "check" },
     { "op": "HasTag", "dst": {"var":"isDead"}, "entity": "Self", "tag": "StateDead" },
@@ -18,23 +17,9 @@
     { "op": "Jump", "label": "check" },
 
     { "op": "Label", "name": "die" },
-    { "op": "Log", "message": "[Birch] 사망 감지 — VoxelSlot 해제 + Branch 3 본 drop + SaplingSeed 디스패치 + 자기 파괴" },
+    { "op": "Log", "message": "[Birch] 사망 감지 — Branch 3 본 drop + SaplingSeed 디스패치 + 자기 파괴" },
 
     { "op": "GetPosition", "out": "fallenPos", "entity": "Self" },
-
-    { "op": "FindOrCreateRegionAt",
-      "posX": {"block":"fallenPos","index":0},
-      "posY": {"block":"fallenPos","index":1},
-      "out": "regionEntity" },
-    { "op": "LoadStoreEntity", "dst": {"var":"slotKey"}, "entity": "Self", "property": "RecordKey" },
-    { "op": "GetWorldTime", "dst": {"var":"now"} },
-    { "op": "LoadConst", "dst": {"var":"zero"}, "value": 0 },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"zero"} },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame", "value": {"var":"now"} },
 
     { "op": "SpawnEntity", "classTag": "Branch", "out": "br1" },
     { "op": "SetPosition", "entity": {"var":"br1"}, "pos": {"block":"fallenPos"} },

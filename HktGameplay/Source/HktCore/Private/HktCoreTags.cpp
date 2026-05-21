@@ -56,9 +56,8 @@ namespace HktRegionEventTags
 
 namespace HktNaturalStoryTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch chunk-load spawner story. TerrainSpawnerView.StoryTag 매칭.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak chunk-load spawner story. Param2=LineageId, Param3=ChildCount.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(TreeSpawn,  "Story.Flow.Spawner.Natural.Tree",  "I-0014 검증용 — voxel 한 점에 Oak 1본 spawn 후 Oak_Lifecycle dispatch. CountByTag<20 cap.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SlimeSpawn, "Story.Flow.Spawner.Natural.Slime", "I-0014 검증용 — voxel 한 점에 Slime NPC 1마리 spawn 후 NPC.Lifecycle dispatch. CountByTag<10 cap.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch voxel-attribution spawner — voxel-slot dedupe + 사망 후 쿨다운 (RegionRecord.VoxelSlot).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak grove spawner — Elder + 3 child, lineage record. Voxel-slot dedupe 미적용 (후속 PR).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SlimeSpawn, "Story.Flow.Spawner.Natural.Slime", "Slime voxel-attribution spawner — voxel-slot dedupe + 사망 후 쿨다운 (RegionRecord.VoxelSlot).");
 }
 
