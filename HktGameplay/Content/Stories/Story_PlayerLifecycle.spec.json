@@ -1,6 +1,6 @@
 {
   "storyTag": "Story.Flow.Player.Lifecycle",
-  "description": "PlayerLifecycle (I-0016): 매-프레임 Brain 루프. ActionIntent 를 해석해 이동/공격을 결정. State.Dead 가 붙으면 die 분기 진입 (Player 는 destroy 안 함). 시나리오들은 TargetAction 이 ActionIntent* 를 기록한 직후 상태를 given 으로 재현해 Brain 의 한 사이클 결과(StopMovement/MoveToward/DispatchEventTo/clear)를 검증한다 — 이로써 TargetAction → ActionIntent → Brain 전 구간이 spec 사이로 연결된다.",
+  "description": "PlayerLifecycle (I-0016): 매-프레임 Lifecycle 루프. ActionIntent 를 해석해 이동/공격을 결정. State.Dead 가 붙으면 die 분기 진입 (Player 는 destroy 안 함). 시나리오들은 TargetAction 이 ActionIntent* 를 기록한 직후 상태를 given 으로 재현해 Lifecycle 의 한 사이클 결과(StopMovement/MoveToward/DispatchEventTo/clear)를 검증한다 — 이로써 TargetAction → ActionIntent → Lifecycle 전 구간이 spec 사이로 연결된다.",
   "scenarios": [
     {
       "name": "dead_player_halts_with_death_anim",
@@ -32,7 +32,7 @@
     },
     {
       "name": "attack_intent_in_range_dispatches_useskill",
-      "description": "ActionIntentType=2(Attack) + Target Hittable + dist≤200 + NextActionFrame=0(쿨다운 OK) → StopMovement + DispatchEventTo(UseSkill, Target). Brain 은 디스패치 후 Jump loop → 다음 Yield 로 진입. maxFrames=2 (Yield 1 회 + body 1 회) 로 1 회 디스패치만 발생.",
+      "description": "ActionIntentType=2(Attack) + Target Hittable + dist≤200 + NextActionFrame=0(쿨다운 OK) → StopMovement + DispatchEventTo(UseSkill, Target). Lifecycle 은 디스패치 후 Jump loop → 다음 Yield 로 진입. maxFrames=2 (Yield 1 회 + body 1 회) 로 1 회 디스패치만 발생.",
       "given": {
         "self": {
           "archetype": "Character",
@@ -106,7 +106,7 @@
     },
     {
       "name": "attack_intent_target_dead_clears_intent",
-      "description": "ActionIntentType=2 인 상태에서 Target.Health<=0 → Brain 이 clear_intent 분기 → StopMovement + ActionIntentType=0 + ActionIntentTarget=0 (자동 종료 조건).",
+      "description": "ActionIntentType=2 인 상태에서 Target.Health<=0 → Lifecycle 이 clear_intent 분기 → StopMovement + ActionIntentType=0 + ActionIntentTarget=0 (자동 종료 조건).",
       "given": {
         "self": {
           "archetype": "Character",

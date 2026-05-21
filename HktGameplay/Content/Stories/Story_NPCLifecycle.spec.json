@@ -1,6 +1,6 @@
 {
   "storyTag": "Story.Flow.NPC.Lifecycle",
-  "description": "NPCLifecycle (I-0016): 매-프레임 Brain 루프 (ActionIntent 해석 → 이동/공격) + 죽음 처리 (랜덤 loot drop + DestroyEntity). Brain 본문은 PlayerLifecycle 와 동일 — 차이는 die 분기뿐. 시나리오는 TargetAction 이 ActionIntent* 를 기록한 직후 상태를 given 으로 재현해 한 사이클 결과를 검증한다.",
+  "description": "NPCLifecycle (I-0016): 매-프레임 ActionIntent 실행 + 죽음 처리 (랜덤 loot drop + DestroyEntity). 본문은 PlayerLifecycle 와 동일 — 차이는 die 분기뿐. Intent 결정 책임은 Brain Story (예: Slime_Brain) 가 별도로 진다. 시나리오는 Brain 이 ActionIntent* 를 기록한 직후 상태를 given 으로 재현해 Lifecycle 의 한 사이클 결과를 검증한다.",
   "scenarios": [
     {
       "name": "death_path_random_drop_then_destroy",
@@ -16,7 +16,7 @@
     },
     {
       "name": "idle_npc_keeps_looping",
-      "description": "ActionIntentType=0 (idle) + Health>0 → brain 은 매 프레임 yield 하며 영구 루프 (현 NPC AI 가 ActionIntent 를 세팅하는 채널이 없어 영원히 idle — I-0016 TODO).",
+      "description": "ActionIntentType=0 (idle) + Health>0 → Lifecycle 은 매 프레임 yield 하며 영구 루프. Brain (예: Slime_Brain) 이 ActionIntent 를 세팅해야 비로소 행동 분기 진입.",
       "given": {
         "self": {
           "archetype": "NPC",
@@ -29,7 +29,7 @@
     },
     {
       "name": "attack_intent_in_range_dispatches_useskill",
-      "description": "NPC 에 외부에서 ActionIntentType=2 + Target 을 주입(미래 NPC AI 채널 가정) → dist≤200, 쿨다운 OK → DispatchEventTo(UseSkill, Target). Brain 본문은 Player 와 동일.",
+      "description": "Brain 이 ActionIntentType=2 + Target 을 기록한 상태 → Lifecycle 이 dist≤200, 쿨다운 OK 판단 → DispatchEventTo(UseSkill, Target). Lifecycle 본문은 Player 와 동일.",
       "given": {
         "self": {
           "archetype": "NPC",

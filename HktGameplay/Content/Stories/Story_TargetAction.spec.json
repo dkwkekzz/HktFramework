@@ -1,6 +1,6 @@
 {
   "storyTag": "Story.Event.Target.Action",
-  "description": "TargetAction (I-0016) — 우클릭을 Self 의 ActionIntent* 프로퍼티에 기록만 한다. 실제 이동/공격은 Lifecycle Brain 이 수행. Item 분기 제거 (TODO). 시나리오는 4 개 분기 (Target=-1 Move / Hittable Attack / Hittable + Slot / Non-Hittable Move) 와 ActionIntent* 6 프로퍼티(Type/Target/X/Y/Z/Slot) 의 정확 일치를 모두 검증한다. Self==Target noop 분기는 spec 러너 한계로 미검증 (Self/Target 이 별개 엔티티로 할당).",
+  "description": "TargetAction (I-0016) — Player Brain 입구 (PlayerController → 이 Story). 우클릭을 Self 의 ActionIntent* 프로퍼티에 기록만 한다. 실제 이동/공격은 Lifecycle 이 수행. Item 분기 제거 (TODO). 시나리오는 4 개 분기 (Target=-1 Move / Hittable Attack / Hittable + Slot / Non-Hittable Move) 와 ActionIntent* 6 프로퍼티(Type/Target/X/Y/Z/Slot) 의 정확 일치를 모두 검증한다. Self==Target noop 분기는 spec 러너 한계로 미검증 (Self/Target 이 별개 엔티티로 할당).",
   "scenarios": [
     {
       "name": "invalid_target_writes_move_intent",
@@ -25,7 +25,7 @@
     },
     {
       "name": "hittable_target_writes_attack_intent",
-      "description": "Hittable 대상 + slot=0 (기본) → ActionIntentType=2 (Attack) + Target 보존 + 위치 보관 (brain 이 chase 시 활용). 6 프로퍼티 모두 검증.",
+      "description": "Hittable 대상 + slot=0 (기본) → ActionIntentType=2 (Attack) + Target 보존 + 위치 보관 (Lifecycle 이 chase 시 활용). 6 프로퍼티 모두 검증.",
       "given": {
         "self":   {
           "archetype": "Character",
@@ -54,7 +54,7 @@
     },
     {
       "name": "hittable_target_with_slot_passes_slot_through",
-      "description": "Hittable 대상 + event.param1 (= slot) = 3 → ActionIntentSlot=3 으로 전달. Brain 이 slot 별 스킬을 라우팅할 때 사용.",
+      "description": "Hittable 대상 + event.param1 (= slot) = 3 → ActionIntentSlot=3 으로 전달. Lifecycle 이 slot 별 스킬을 라우팅할 때 사용.",
       "given": {
         "self":   {
           "archetype": "Character",

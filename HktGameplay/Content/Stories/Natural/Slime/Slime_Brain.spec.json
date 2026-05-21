@@ -1,0 +1,99 @@
+{
+  "storyTag": "Story.Flow.Brain.Slime",
+  "description": "Slime NPC AI Brain (I-0016 역할 분리: Brain = Intent 결정). (1) State.Dead → Halt, (2) LastAttacker==0 → 6 frame yield 후 loop, (3) LastAttacker>0 + attacker.Health>0 → ActionIntent=Attack(attacker, slot=0) 세팅 후 LastAttacker=0 소비, (4) 죽은 공격자는 LastAttacker 만 0 으로 소비하고 ActionIntent 미세팅. 실제 사거리/쿨다운/UseSkill 디스패치는 Lifecycle 의 일.",
+  "scenarios": [
+    {
+      "name": "idle_when_no_attacker",
+      "description": "LastAttacker = 0 → Yield 6 무한 반복 → maxFrames 도달 → Waiting. ActionIntent 변화 없음.",
+      "given": {
+        "self": {
+          "archetype": "NPC",
+          "properties": { "LastAttacker": 0, "Health": 30, "MaxHealth": 30, "ActionIntentType": 0 },
+          "position": [0, 0, 0]
+        }
+      },
+      "maxFrames": 12,
+      "expect": {
+        "status": "Waiting",
+        "self": { "properties": { "ActionIntentType": 0, "ActionIntentTarget": 0, "LastAttacker": 0 } }
+      }
+    },
+    {
+      "name": "sets_attack_intent_on_damage",
+      "description": "LastAttacker=target.id 이고 target.Health=100 → 첫 사이클에서 ActionIntentType=2 + ActionIntentTarget=target + ActionIntentSlot=0 세팅 + LastAttacker=0 소비. Yield 6 으로 무한 루프이므로 status=Waiting.",
+      "given": {
+        "self": {
+          "archetype": "NPC",
+          "properties": {
+            "LastAttacker": {"ref": "target"},
+            "Health": 30, "MaxHealth": 30,
+            "ActionIntentType": 0
+          },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "Character",
+          "properties": { "Health": 100, "MaxHealth": 100 },
+          "position": [500, 0, 0]
+        }
+      },
+      "maxFrames": 12,
+      "expect": {
+        "status": "Waiting",
+        "self": {
+          "properties": {
+            "ActionIntentType": 2,
+            "ActionIntentTarget": {"ref": "target"},
+            "ActionIntentSlot": 0,
+            "LastAttacker": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "dead_attacker_only_consumed",
+      "description": "LastAttacker=target.id 이지만 target.Health=0 → ActionIntent 세팅 없이 LastAttacker 만 0 으로 소비.",
+      "given": {
+        "self": {
+          "archetype": "NPC",
+          "properties": {
+            "LastAttacker": {"ref": "target"},
+            "Health": 30, "MaxHealth": 30,
+            "ActionIntentType": 0
+          },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "Character",
+          "properties": { "Health": 0, "MaxHealth": 100 },
+          "position": [500, 0, 0]
+        }
+      },
+      "maxFrames": 12,
+      "expect": {
+        "status": "Waiting",
+        "self": {
+          "properties": {
+            "ActionIntentType": 0,
+            "ActionIntentTarget": 0,
+            "LastAttacker": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "halt_on_self_death",
+      "description": "Self 가 State.Dead 보유 → 첫 Yield 후 die 분기 → Halt → status=Completed.",
+      "given": {
+        "self": {
+          "archetype": "NPC",
+          "properties": { "Health": 0, "MaxHealth": 30 },
+          "tags": ["State.Dead"],
+          "position": [0, 0, 0]
+        }
+      },
+      "maxFrames": 12,
+      "expect": { "status": "Completed" }
+    }
+  ]
+}

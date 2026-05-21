@@ -250,17 +250,21 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(SlotAliveFlag,             Cold) // 0=비어 있음 / 1=해당 voxel slot 에 entity 생존 중
     HKT_DEFINE_PROPERTY(SlotLastDieFrame,          Cold) // 마지막 사망 frame index (GetWorldTime 결과 — 0=한 번도 죽지 않음)
 
-    // ===== Action Intent (I-0016 — 상호작용: User Action State 기반의 Brain System) =====
+    // ===== Action Intent (I-0016 — Action State 기반 Lifecycle System) =====
     //
-    // 캐릭터(Player/NPC) 의 *의도* 를 영속 상태로 보관한다. 클릭/AI 가 의도를 *세팅* 하고
-    // Lifecycle Story 의 매-프레임 Brain 루프가 거리·쿨다운에 따라 이동/공격을 *결정* 한다.
+    // 캐릭터(Player/NPC) 의 *의도* 를 영속 상태로 보관한다. 어떤 Writer 가 의도를 *세팅*
+    // 하고, Lifecycle Story (Story_PlayerLifecycle / Story_NPCLifecycle) 가 매 프레임
+    // ActionIntent 를 읽어 사거리·쿨다운에 따라 이동/공격을 *실행* 한다.
+    //
+    // Writer 추상 (I-0036 Brain System) — Player 입력(Story_TargetAction) / NPC AI Brain
+    // (예: Story_SlimeBrain) 이 동일 채널을 공유한다. Lifecycle 은 누가 썼는지 모른다.
     //
     // IntentType 의미:
     //   0 = 없음 (idle)
     //   1 = Move    — ActionIntentX/Y/Z 위치로 이동
     //   2 = Attack  — ActionIntentTarget 엔티티에 사거리 도달 + 쿨다운 시 UseSkill
     //
-    // 종료 조건은 Brain 이 자체 클리어 (대상 사망 / 위치 도달).
+    // 종료 조건은 Lifecycle 이 자체 클리어 (대상 사망 / 위치 도달).
     // 새 의도 도착 시 SaveStoreEntity 로 단순 덮어쓰기 — 별도 cancel 없음.
 
     HKT_DEFINE_PROPERTY(ActionIntentType,          Cold) // 0=none / 1=Move / 2=Attack
@@ -269,6 +273,11 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(ActionIntentY,             Cold) // Move 의 목표 Y (cm)
     HKT_DEFINE_PROPERTY(ActionIntentZ,             Cold) // Move 의 목표 Z (cm)
     HKT_DEFINE_PROPERTY(ActionIntentSlot,          Cold) // Attack 시 스킬 슬롯 (0=기본/innate fallback)
+
+    // I-0036 Brain 채널 — 데미지를 가한 마지막 공격자 EntityId. 공격 Story 가 ApplyDamage
+    // 직전에 피해자(target) 에게 쓴다 (Self = 공격자). Brain 은 이를 폴링해 ActionIntent 를
+    // 세팅하고 소비(0 으로 리셋)한다. 0 = 공격받지 않음 / 소비됨.
+    HKT_DEFINE_PROPERTY(LastAttacker,              Cold)
 
     // ================================================================
     // 메타데이터 질의 — Registry에서 자동 집계

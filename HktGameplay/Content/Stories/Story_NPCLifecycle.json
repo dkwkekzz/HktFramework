@@ -8,7 +8,7 @@
     "UseSkillTag": "Story.Event.Combat.UseSkill"
   },
   "steps": [
-    { "comment": "── I-0016: NPC Lifecycle = Brain 루프 + 죽음 처리. 매 프레임 ActionIntent 를 해석해 이동/공격을 결정한다. ──" },
+    { "comment": "── I-0016: NPC Lifecycle = ActionIntent *실행* + 외부 이벤트(죽음) 라우팅. 매 프레임 ActionIntent 를 읽어 사거리/쿨다운에 따라 이동/공격을 실행한다. Intent 를 *결정* 하는 책임은 Brain Story (예: Story.Flow.Brain.Slime) 가 별도로 진다. ──" },
 
     { "op": "Label", "name": "loop" },
     { "op": "Yield", "frames": 1 },
@@ -48,7 +48,7 @@
     { "op": "JumpIf", "cond": "Flag", "label": "loop" },
 
     { "op": "LoadStoreEntity", "dst": {"var":"slot"}, "entity": "Self", "property": "ActionIntentSlot" },
-    { "op": "Log", "message": "Brain(NPC): Attack 발사 → UseSkill" },
+    { "op": "Log", "message": "Lifecycle(NPC): Attack 인텐트 실행 → UseSkill" },
     { "op": "DispatchEventTo", "eventTag": "UseSkillTag", "target": "Target" },
     { "op": "Jump", "label": "loop" },
 
@@ -57,7 +57,7 @@
     { "op": "MoveToward", "entity": "Self", "targetPos": {"block":"chasePos"}, "force": 150 },
     { "op": "Jump", "label": "loop" },
 
-    { "comment": "── Move: ActionIntentX/Y/Z 로 이동. 도착 판정은 squared 2D 거리 vs 임계² (4² = 16, MovementSystem 의 ArrivalThresholdSq 와 동일). MoveToward 가 매 호출마다 IsMoving=1 을 재기록하므로 IsMoving 으로는 도착 감지 불가. 임계가 작아도 MovementSystem 의 overshoot-snap 이 마지막 프레임에 타겟에 정확히 SetPosition 해주므로 다음 사이클에 d²=0 으로 클리어. ──" },
+    { "comment": "── Move 실행: ActionIntentX/Y/Z 로 이동. 도착 판정은 squared 2D 거리 vs 임계² (4² = 16, MovementSystem 의 ArrivalThresholdSq 와 동일). MoveToward 가 매 호출마다 IsMoving=1 을 재기록하므로 IsMoving 으로는 도착 감지 불가. 임계가 작아도 MovementSystem 의 overshoot-snap 이 마지막 프레임에 타겟에 정확히 SetPosition 해주므로 다음 사이클에 d²=0 으로 클리어. ──" },
     { "op": "Label", "name": "do_move" },
     { "op": "LoadStoreEntity", "dst": {"var":"ix"}, "entity": "Self", "property": "ActionIntentX" },
     { "op": "LoadStoreEntity", "dst": {"var":"iy"}, "entity": "Self", "property": "ActionIntentY" },
