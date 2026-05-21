@@ -13,6 +13,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Styling/CoreStyle.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "HktCoreProperties.h"
@@ -20,6 +21,7 @@
 #include "HktBagTypes.h"
 #include "HktClientRuleInterfaces.h"
 #include "HktVoxelSelection.h"
+#include "GameplayTagContainer.h"
 #include "GameplayTagsManager.h"
 
 class APlayerController;
@@ -51,6 +53,10 @@ private:
 	void SubmitActionFromInput();
 	void TogglePanel(int32 PanelIndex);
 
+	/** "Story.Event.Action" 하위 태그를 수집하여 콤보 박스 옵션을 갱신 */
+	void RefreshAvailableActionTags();
+	static FString GetActionTagShortName(const FGameplayTag& Tag);
+
 	/** 슬롯 바인딩 변경 시 스킬 패널 갱신 */
 	void RefreshSkillsPanel();
 	void RefreshInventoryPanel();
@@ -74,7 +80,10 @@ private:
 	FDelegateHandle SystemMessageHandle;
 	TWeakObjectPtr<UWorld> CachedWorld;
 
-	TSharedPtr<SEditableTextBox> ActionTagInputBox;
+	TSharedPtr<SComboBox<TSharedPtr<FGameplayTag>>> ActionTagComboBox;
+	TArray<TSharedPtr<FGameplayTag>> AvailableActionTags;
+	TSharedPtr<FGameplayTag> SelectedActionTag;
+	TSharedPtr<STextBlock> ActionTagComboLabel;
 
 	TSharedPtr<SBorder> InventoryPanel;
 	TSharedPtr<SBorder> EquipmentPanel;
@@ -356,22 +365,43 @@ inline void SHktIngameHudWidget::Construct(const FArguments& InArgs)
 					]
 				]
 
-				// --- 임시 ActionTag 디버그 입력: TextBox + Send ---
+				// --- ActionTag 콤보 박스 (Story.Event.Action 하위 태그) + Send ---
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(12.f, 4.f, 4.f, 4.f)
 				[
 					SNew(SBox).WidthOverride(220.f).HeightOverride(32.f)
 					[
-						SAssignNew(ActionTagInputBox, SEditableTextBox)
-						.HintText(FText::FromString(TEXT("ActionTag (e.g. Story.Event.Action.Foo)")))
-						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type CommitType)
+						SAssignNew(ActionTagComboBox, SComboBox<TSharedPtr<FGameplayTag>>)
+						.OptionsSource(&AvailableActionTags)
+						.OnComboBoxOpening_Lambda([this]()
 						{
-							if (CommitType == ETextCommit::OnEnter)
+							RefreshAvailableActionTags();
+							if (ActionTagComboBox.IsValid())
 							{
-								SubmitActionFromInput();
+								ActionTagComboBox->RefreshOptions();
 							}
 						})
+						.OnGenerateWidget_Lambda([](TSharedPtr<FGameplayTag> Item) -> TSharedRef<SWidget>
+						{
+							const FString Label = Item.IsValid() ? GetActionTagShortName(*Item) : FString(TEXT("<None>"));
+							return SNew(STextBlock).Text(FText::FromString(Label));
+						})
+						.OnSelectionChanged_Lambda([this](TSharedPtr<FGameplayTag> NewItem, ESelectInfo::Type)
+						{
+							SelectedActionTag = NewItem;
+							if (ActionTagComboLabel.IsValid())
+							{
+								const FString Label = (NewItem.IsValid() && NewItem->IsValid())
+									? GetActionTagShortName(*NewItem)
+									: FString(TEXT("Select ActionTag"));
+								ActionTagComboLabel->SetText(FText::FromString(Label));
+							}
+						})
+						[
+							SAssignNew(ActionTagComboLabel, STextBlock)
+							.Text(FText::FromString(TEXT("Select ActionTag")))
+						]
 					]
 				]
 				+ SHorizontalBox::Slot()
@@ -948,15 +978,9 @@ inline FReply SHktIngameHudWidget::OnSendActionClicked()
 
 inline void SHktIngameHudWidget::SubmitActionFromInput()
 {
-	if (!ActionTagInputBox.IsValid()) return;
-
-	const FString TagStr = ActionTagInputBox->GetText().ToString().TrimStartAndEnd();
-	if (TagStr.IsEmpty()) return;
-
-	FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(FName(*TagStr), false);
-	if (!ActionTag.IsValid())
+	if (!SelectedActionTag.IsValid() || !SelectedActionTag->IsValid())
 	{
-		AddSystemMessage(FString::Printf(TEXT("Invalid ActionTag: %s"), *TagStr));
+		AddSystemMessage(TEXT("No ActionTag selected"));
 		return;
 	}
 
@@ -965,7 +989,54 @@ inline void SHktIngameHudWidget::SubmitActionFromInput()
 	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
 	if (!Interaction) return;
 
-	Interaction->RequestActionEvent(ActionTag);
+	Interaction->RequestActionEvent(*SelectedActionTag);
+}
+
+inline FString SHktIngameHudWidget::GetActionTagShortName(const FGameplayTag& Tag)
+{
+	FString Name = Tag.ToString();
+	int32 DotIdx;
+	if (Name.FindLastChar(TEXT('.'), DotIdx))
+	{
+		return Name.Mid(DotIdx + 1);
+	}
+	return Name;
+}
+
+inline void SHktIngameHudWidget::RefreshAvailableActionTags()
+{
+	AvailableActionTags.Reset();
+
+	const FGameplayTag ActionRoot = FGameplayTag::RequestGameplayTag(
+		FName(TEXT("Story.Event.Action")), false);
+	if (!ActionRoot.IsValid())
+	{
+		return;
+	}
+
+	// 직속 자식뿐 아니라 모든 하위(손자 포함) 액션 태그를 수집한다.
+	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+	FGameplayTagContainer AllTags;
+	Manager.RequestAllGameplayTags(AllTags, /*OnlyIncludeDictionaryTags=*/false);
+
+	TArray<FGameplayTag> Sorted;
+	for (const FGameplayTag& Tag : AllTags)
+	{
+		if (Tag != ActionRoot && Tag.MatchesTag(ActionRoot))
+		{
+			Sorted.Add(Tag);
+		}
+	}
+	Sorted.Sort([](const FGameplayTag& A, const FGameplayTag& B)
+	{
+		return A.ToString() < B.ToString();
+	});
+
+	AvailableActionTags.Reserve(Sorted.Num());
+	for (const FGameplayTag& Tag : Sorted)
+	{
+		AvailableActionTags.Add(MakeShared<FGameplayTag>(Tag));
+	}
 }
 
 // ============================================================================
