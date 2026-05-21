@@ -258,6 +258,13 @@ namespace
 				S.Combat[Id].MotionPlayRate.Set(V, F);
 				return true;
 			};
+			// ActionIntentTarget — 서버 Brain 이 세팅한 공격 대상 EntityId. Sprite facing 보정에 사용.
+			T[PropertyId::ActionIntentTarget] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
+			{
+				if (!S.Combat.IsValidIndex(Id)) return false;
+				S.Combat[Id].TargetEntityId.Set(V, F);
+				return true;
+			};
 
 			// --- Ownership ---
 			T[PropertyId::Team] = [](FHktPresentationState& S, FHktEntityId Id, int32 V, int64 F) -> bool
@@ -524,6 +531,7 @@ void FHktPresentationState::InitCombatFromWS(const FHktWorldState& WS, FHktEntit
 	V.AttackSpeed.Set(WS.GetProperty(Id, PropertyId::AttackSpeed), F);
 	const int32 MprVal = WS.GetProperty(Id, PropertyId::MotionPlayRate);
 	V.MotionPlayRate.Set(MprVal > 0 ? MprVal : WS.GetProperty(Id, PropertyId::AttackSpeed), F);
+	V.TargetEntityId.Set(WS.GetProperty(Id, PropertyId::ActionIntentTarget), F);
 }
 
 void FHktPresentationState::InitOwnershipFromWS(const FHktWorldState& WS, FHktEntityId Id, FHktOwnershipView& V, int64 F)

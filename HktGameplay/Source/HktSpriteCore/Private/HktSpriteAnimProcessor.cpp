@@ -419,6 +419,43 @@ bool AbsorbViews(FHktSpriteAnimFragment& Fragment,
 		}
 	}
 
+	// --- 표적 방향 Facing 보정 ---
+	// 공격 anim layer 활성 시 LastMoveDirXY 를 (Self → Target) 방향으로 덮어쓴다. 이동 정지 후에도
+	// 표적을 바라보게 하기 위함 — 이동 sticky 만 사용하면 "사거리 도달 후 정지 → 공격" 시점에
+	// 직전 이동 방향이 표적과 무관할 때 backshot 가 발생하기 때문 (예: 옆걸음 회피 후 공격,
+	// 첫 명령부터 사거리 내 공격, 사거리 내 표적 교체). Combat anim 이 활성인 동안만 적용하므로
+	// idle/이동 중에는 이동 방향 facing 이 그대로 유지된다.
+	const bool bAttackAnimActive =
+		Fragment.AnimLayerTags.Contains(HktGameplayTags::Anim_Montage)
+		|| Fragment.AnimLayerTags.Contains(HktGameplayTags::Anim_UpperBody)
+		|| Fragment.AnimLayerTags.Contains(HktGameplayTags::Anim_Action);
+	if (bAttackAnimActive)
+	{
+		if (const FHktCombatView* CV = State.GetCombat(EntityId))
+		{
+			const int32 TargetId = CV->TargetEntityId.Get();
+			// TargetId == 0 은 서버의 "no target" sentinel (Story_TargetAction.json 의 default).
+			// 자기 자신 / voxel target / invalid 도 제외.
+			if (TargetId > 0 && TargetId != EntityId && State.IsValid(TargetId))
+			{
+				const FHktTransformView* SelfTV = State.GetTransform(EntityId);
+				const FHktTransformView* TgtTV  = State.GetTransform(TargetId);
+				if (SelfTV && TgtTV)
+				{
+					const FVector SelfLoc = SelfTV->RenderLocation.Get();
+					const FVector TgtLoc  = TgtTV->RenderLocation.Get();
+					const FVector2D DirXY(TgtLoc.X - SelfLoc.X, TgtLoc.Y - SelfLoc.Y);
+					// 너무 가까우면(같은 셀) 방향 산출 불가 — sticky 유지.
+					if (DirXY.SizeSquared() > 1.f)
+					{
+						Fragment.LastMoveDirXY = DirXY;
+						bFacingSourceDirty = true;
+					}
+				}
+			}
+		}
+	}
+
 	return bFacingSourceDirty;
 }
 

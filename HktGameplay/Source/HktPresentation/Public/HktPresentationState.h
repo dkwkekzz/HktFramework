@@ -131,11 +131,16 @@ struct FHktCombatView
 	THktVisualField<int32> AttackSpeed;
 	THktVisualField<int32> MotionPlayRate;
 
+	// PropertyId::ActionIntentTarget 미러. 공격 의도의 대상 EntityId — 클라이언트가 공격 애니메이션
+	// 재생 시 표적을 바라보도록 facing 을 보정할 때 사용. InvalidEntityId 면 표적 없음(이동/idle).
+	// 값 자체는 표적 사망/Brain 종료 시점에 0 으로 재설정되므로 영구 sticky 아님.
+	THktVisualField<int32> TargetEntityId;
+
 	FORCEINLINE bool AnyDirty(int64 F) const
 	{
 		return AttackPower.IsDirty(F) || Defense.IsDirty(F) || CP.IsDirty(F)
 			|| MaxCP.IsDirty(F) || CPRatio.IsDirty(F) || AttackSpeed.IsDirty(F)
-			|| MotionPlayRate.IsDirty(F);
+			|| MotionPlayRate.IsDirty(F) || TargetEntityId.IsDirty(F);
 	}
 };
 
