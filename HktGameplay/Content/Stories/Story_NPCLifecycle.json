@@ -83,93 +83,67 @@
     { "op": "SaveConstEntity", "entity": "Self", "property": "ActionIntentTarget", "value": 0 },
     { "op": "Jump", "label": "loop" },
 
-    { "comment": "── 죽음 처리: 랜덤 loot drop + 사망 애니 + 파괴 ──" },
+    { "comment": "── 죽음 처리: 랜덤 loot drop + 사망 애니 + 파괴. drop 은 SnippetRandomLootDrop 한 줄로 위임 (I-0035). ──" },
     { "op": "Label", "name": "die" },
     { "op": "Log", "message": "NPC died -- random loot drop" },
 
-    { "op": "LoadConst", "dst": {"var":"modulus"}, "value": 4 },
-    { "op": "RandomInt", "dst": {"var":"rand"}, "modulus": {"var":"modulus"} },
+    { "op": "SnippetRandomLootDrop", "posSource": {"self": true}, "entries": [
+      {
+        "classTag": "Entity.Item.AncientStaff",
+        "weight": 1,
+        "itemId": 200,
+        "props": {
+          "AttackPower": 8,
+          "SkillCPCost": 50,
+          "RecoveryFrame": 90,
+          "SkillTargetRequired": 1
+        },
+        "skillTag": "UseSkillTag",
+        "stance": "Entity.Stance.Spear",
+        "tags": ["Entity.Attr.Item.AncientStaff", "Entity.Attr.Skill.Fireball"]
+      },
+      {
+        "classTag": "Entity.Item.Bandage",
+        "weight": 1,
+        "itemId": 202,
+        "props": {
+          "AttackPower": 0,
+          "SkillCPCost": 40,
+          "RecoveryFrame": 120,
+          "SkillTargetRequired": 0
+        },
+        "skillTag": "UseSkillTag",
+        "tags": ["Entity.Attr.Item.Bandage", "Entity.Attr.Skill.Heal"]
+      },
+      {
+        "classTag": "Entity.Item.ThunderHammer",
+        "weight": 1,
+        "itemId": 203,
+        "props": {
+          "AttackPower": 12,
+          "SkillCPCost": 60,
+          "RecoveryFrame": 100,
+          "SkillTargetRequired": 1
+        },
+        "skillTag": "UseSkillTag",
+        "stance": "Entity.Stance.Sword1H",
+        "tags": ["Entity.Attr.Item.ThunderHammer", "Entity.Attr.Skill.Lightning"]
+      },
+      {
+        "classTag": "Entity.Item.WingsOfFreedom",
+        "weight": 1,
+        "itemId": 204,
+        "props": {
+          "AttackPower": 0,
+          "SkillCPCost": 30,
+          "RecoveryFrame": 150,
+          "SkillTargetRequired": 0
+        },
+        "skillTag": "UseSkillTag",
+        "tags": ["Entity.Attr.Item.WingsOfFreedom", "Entity.Attr.Skill.Buff"]
+      }
+    ]},
 
-    { "op": "IfEqConst", "src": {"var":"rand"}, "value": 0 },
-      { "op": "Jump", "label": "drop_staff" },
-    { "op": "EndIf" },
-
-    { "op": "IfEqConst", "src": {"var":"rand"}, "value": 1 },
-      { "op": "Jump", "label": "drop_bandage" },
-    { "op": "EndIf" },
-
-    { "op": "IfEqConst", "src": {"var":"rand"}, "value": 2 },
-      { "op": "Jump", "label": "drop_hammer" },
-    { "op": "EndIf" },
-
-    { "op": "Jump", "label": "drop_wings" },
-
-    { "op": "Label", "name": "drop_staff" },
-    { "op": "Log", "message": "[Snippet] SpawnGroundItem" },
-    { "op": "SpawnEntity", "classTag": "Entity.Item.AncientStaff" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemState", "value": 0 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemId", "value": 200 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "EquipIndex", "value": -1 },
-    { "op": "CopyPosition", "dst": "Spawned", "src": "Self" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 8 },
-    { "op": "SetItemSkillTag", "entity": "Spawned", "skillTag": "Story.Event.Combat.UseSkill" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillCPCost", "value": 50 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "RecoveryFrame", "value": 90 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillTargetRequired", "value": 1 },
-    { "op": "SetStance", "entity": "Spawned", "stanceTag": "Entity.Stance.Spear" },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Item.AncientStaff" },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Skill.Fireball" },
-    { "op": "Jump", "label": "after_drop" },
-
-    { "op": "Label", "name": "drop_bandage" },
-    { "op": "Log", "message": "[Snippet] SpawnGroundItem" },
-    { "op": "SpawnEntity", "classTag": "Entity.Item.Bandage" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemState", "value": 0 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemId", "value": 202 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "EquipIndex", "value": -1 },
-    { "op": "CopyPosition", "dst": "Spawned", "src": "Self" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 0 },
-    { "op": "SetItemSkillTag", "entity": "Spawned", "skillTag": "Story.Event.Combat.UseSkill" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillCPCost", "value": 40 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "RecoveryFrame", "value": 120 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillTargetRequired", "value": 0 },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Item.Bandage" },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Skill.Heal" },
-    { "op": "Jump", "label": "after_drop" },
-
-    { "op": "Label", "name": "drop_hammer" },
-    { "op": "Log", "message": "[Snippet] SpawnGroundItem" },
-    { "op": "SpawnEntity", "classTag": "Entity.Item.ThunderHammer" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemState", "value": 0 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemId", "value": 203 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "EquipIndex", "value": -1 },
-    { "op": "CopyPosition", "dst": "Spawned", "src": "Self" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 12 },
-    { "op": "SetItemSkillTag", "entity": "Spawned", "skillTag": "Story.Event.Combat.UseSkill" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillCPCost", "value": 60 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "RecoveryFrame", "value": 100 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillTargetRequired", "value": 1 },
-    { "op": "SetStance", "entity": "Spawned", "stanceTag": "Entity.Stance.Sword1H" },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Item.ThunderHammer" },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Skill.Lightning" },
-    { "op": "Jump", "label": "after_drop" },
-
-    { "op": "Label", "name": "drop_wings" },
-    { "op": "Log", "message": "[Snippet] SpawnGroundItem" },
-    { "op": "SpawnEntity", "classTag": "Entity.Item.WingsOfFreedom" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemState", "value": 0 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "ItemId", "value": 204 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "EquipIndex", "value": -1 },
-    { "op": "CopyPosition", "dst": "Spawned", "src": "Self" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "AttackPower", "value": 0 },
-    { "op": "SetItemSkillTag", "entity": "Spawned", "skillTag": "Story.Event.Combat.UseSkill" },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillCPCost", "value": 30 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "RecoveryFrame", "value": 150 },
-    { "op": "SaveConstEntity", "entity": "Spawned", "property": "SkillTargetRequired", "value": 0 },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Item.WingsOfFreedom" },
-    { "op": "AddTag", "entity": "Spawned", "tag": "Entity.Attr.Skill.Buff" },
-
-    { "op": "Label", "name": "after_drop" },
     { "op": "AddTag", "entity": "Self", "tag": "Anim.FullBody.Action.Death" },
     { "op": "WaitSeconds", "seconds": 3.0 },
     { "op": "DestroyEntity", "entity": "Self" },

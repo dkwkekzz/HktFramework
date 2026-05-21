@@ -467,6 +467,128 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
 	return B;
 }
 
+FHktVar HktSnippetItem::SpawnGroundItem(
+	FHktStoryBuilder& B,
+	const FGameplayTag& ItemClassTag,
+	const FHktGroundItemTemplate& Template,
+	FHktVar PosSourceEntity)
+{
+	B.Log(TEXT("[Snippet] SpawnGroundItem (Var)"));
+	FHktVar Spawned = B.SpawnEntityVar(ItemClassTag);
+	B.SaveConstEntity(Spawned, PropertyId::ItemState, 0);             // Ground
+	B.SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId);
+	B.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1);
+	B.CopyPosition(Spawned, PosSourceEntity);
+	return Spawned;
+}
+
+namespace
+{
+	// 단일 loot entry 의 drop 시퀀스 — base spawn 은 SpawnGroundItem 에 위임하고,
+	// 옵션 장식(속성/스킬/스탠스/태그) 만 본 함수가 담당.
+	void EmitLootSpawnBlock(
+		FHktStoryBuilder& B,
+		const HktSnippetItem::FHktLootEntry& E,
+		FHktVar PosSourceEntity)
+	{
+		HktSnippetItem::FHktGroundItemTemplate Tmpl;
+		Tmpl.ItemId = E.ItemId;
+		FHktVar Spawned = HktSnippetItem::SpawnGroundItem(B, E.ClassTag, Tmpl, PosSourceEntity);
+
+		for (const TPair<uint16, int32>& Prop : E.Properties)
+		{
+			B.SaveConstEntity(Spawned, Prop.Key, Prop.Value);
+		}
+		if (E.SkillTag.IsValid())
+		{
+			B.SetItemSkillTag(Spawned, E.SkillTag);
+		}
+		if (E.StanceTag.IsValid())
+		{
+			B.SetStance(Spawned, E.StanceTag);
+		}
+		for (const FGameplayTag& AttrTag : E.AttrTags)
+		{
+			if (AttrTag.IsValid())
+			{
+				B.AddTag(Spawned, AttrTag);
+			}
+		}
+	}
+}
+
+FHktStoryBuilder& HktSnippetItem::RandomLootDrop(
+	FHktStoryBuilder& B,
+	const TArray<FHktLootEntry>& Entries,
+	FHktVar PosSourceEntity)
+{
+	if (Entries.Num() == 0)
+	{
+		// 호출자 손에 들어가지 않도록 명시 — 빈 테이블은 lifecycle 의 정의 오류
+		B.Log(TEXT("[Snippet] RandomLootDrop: 빈 entry — no-op"));
+		return B;
+	}
+
+	B.Log(TEXT("[Snippet] RandomLootDrop"));
+
+	// 단일 entry: random 분기 없이 직접 drop
+	if (Entries.Num() == 1)
+	{
+		EmitLootSpawnBlock(B, Entries[0], PosSourceEntity);
+		return B;
+	}
+
+	// 가중치 합산 — Weight 는 호출자(또는 파서) 가 ≥ 1 을 보장.
+	int32 TotalWeight = 0;
+	for (const FHktLootEntry& E : Entries)
+	{
+		TotalWeight += E.Weight;
+	}
+
+	// 라벨 할당 — drop_i + done
+	const int32 DoneLabel = B.AllocLabel();
+	TArray<int32> DropLabels;
+	DropLabels.SetNum(Entries.Num());
+	for (int32 i = 0; i < Entries.Num(); ++i)
+	{
+		DropLabels[i] = B.AllocLabel();
+	}
+
+	// 가중치 random 선택
+	FHktVar Modulus = B.NewVar(TEXT("Loot.Modulus"));
+	FHktVar Roll = B.NewVar(TEXT("Loot.Roll"));
+	FHktVar Threshold = B.NewVar(TEXT("Loot.Threshold"));
+	FHktVar Flag = B.FlagVar();
+
+	B.LoadConst(Modulus, TotalWeight);
+	B.RandomInt(Roll, Modulus);
+
+	// 누적 임계 분기 — 마지막 entry 는 fallback (모든 분기 fail 시)
+	int32 Cumulative = 0;
+	for (int32 i = 0; i + 1 < Entries.Num(); ++i)
+	{
+		Cumulative += Entries[i].Weight;
+		B.LoadConst(Threshold, Cumulative);
+		B.CmpLt(Flag, Roll, Threshold);
+		B.JumpIf(Flag, DropLabels[i]);
+	}
+	B.Jump(DropLabels.Last());
+
+	// 각 entry 의 drop 블록 — 마지막 외에는 done 으로 점프
+	for (int32 i = 0; i < Entries.Num(); ++i)
+	{
+		B.Label(DropLabels[i]);
+		EmitLootSpawnBlock(B, Entries[i], PosSourceEntity);
+		if (i + 1 < Entries.Num())
+		{
+			B.Jump(DoneLabel);
+		}
+	}
+
+	B.Label(DoneLabel);
+	return B;
+}
+
 
 // ============================================================================
 // 슬롯 디스패치 / 검증 — FHktVar 오버로드 (PR-2 보완)

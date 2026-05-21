@@ -200,6 +200,32 @@ private:
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();
 
+    // === Auto-Pickup (I-0035 P5) ===
+    /**
+     * Subject 주변 ground 아이템을 스캔하여 자동 픽업 시도.
+     * AutoPickupScanIntervalSeconds 간격으로만 실제 스캔 — PC.Tick 마다 호출되지만
+     * 매 프레임 O(N) 을 피한다. 권위 판정(Story_ItemPickup precondition) 은 서버.
+     */
+    void TickAutoPickup();
+
+    /** Subject → Item 픽업 이벤트(Story.Event.Item.Pickup) 를 서버로 전송. */
+    void RequestItemPickup(FHktEntityId ItemEntity);
+
+    /** 같은 item 재시도 쿨다운 (초). 서버 거절(가방 만석 등) 후 즉시 spam 방지. */
+    static constexpr float AutoPickupRetrySeconds = 1.0f;
+
+    /** 스캔 간격 (초). 10 Hz — 인지 반경 300cm 대비 인간 보행속도면 latency 무감. */
+    static constexpr float AutoPickupScanIntervalSeconds = 0.1f;
+
+    /** AttemptedAt 맵이 이 값을 넘어서면 다음 스캔에서 stale 엔트리 청소. */
+    static constexpr int32 AutoPickupAttemptedSweepThreshold = 64;
+
+    /** item entity id → 마지막 시도 시각 (초). 다음 스캔 때 cooldown / IsValidEntity 로 청소. */
+    TMap<FHktEntityId, double> AutoPickupAttemptedAt;
+
+    /** 마지막 스캔 시각 — AutoPickupScanIntervalSeconds 간격 throttle. */
+    double LastAutoPickupScanTime = 0.0;
+
     /** 방향 이동 입력 이벤트 전송 + 쓰로틀 */
     void SubmitMoveEvent(const FVector& Direction);
 

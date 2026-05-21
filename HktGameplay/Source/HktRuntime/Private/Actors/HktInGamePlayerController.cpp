@@ -19,6 +19,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "GameplayTagsManager.h"
+#include "HAL/IConsoleManager.h"
 #include "HktRuntimeTags.h"
 
 AHktIngamePlayerController::AHktIngamePlayerController()
@@ -514,6 +515,9 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
         SyncSlotBindingsFromWorldState(View);
     }
 
+    // 자동 픽업 — Subject 주변 ground 아이템 스캔 (I-0035 P5)
+    TickAutoPickup();
+
 #if ENABLE_HKT_INSIGHTS
     // 클라이언트 런타임 상태 수집
     {
@@ -654,6 +658,104 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
         SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
         HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client, FString::Printf(TEXT("ResolveDefaultSubject: DefaultSubjectEntityId=%d PlayerUid=%lld"), DefaultSubjectEntityId, PlayerUid));
     }
+}
+
+// ============================================================================
+// Auto-Pickup (I-0035 P5)
+//
+// 매 프레임 Subject 주변의 ground 아이템(ItemState==0, archetype==Item)을
+// 인식 반경 안에서 스캔하고, 발견 즉시 Story.Event.Item.Pickup 이벤트를 서버로
+// 전송한다. 권위 판정(거리·상태·빈 슬롯)은 서버 Story_ItemPickup precondition
+// 이 수행 — 클라는 *의도 제출* 만 책임지며, 거절은 silent.
+//
+// spam 방지: 동일 item 에 대해 AutoPickupRetrySeconds(1.0s) 쿨다운. 서버가
+// 거절(가방 만석 등)한 경우 사용자가 빠지지 않고 그 자리에 머물러도 매 틱
+// 재전송되지 않는다. 아이템이 사라지거나 ItemState 가 바뀌면 sweep 에서 제거.
+// ============================================================================
+
+namespace
+{
+    static int32 GAutoPickupEnabled = 1;
+    static FAutoConsoleVariableRef CVarAutoPickupEnabled(
+        TEXT("hkt.Client.AutoPickup"),
+        GAutoPickupEnabled,
+        TEXT("0 = disable client-side auto-pickup proximity scan, 1 = enable (default)."),
+        ECVF_Default);
+}
+
+void AHktIngamePlayerController::TickAutoPickup()
+{
+    if (GAutoPickupEnabled == 0) return;
+    if (!IsLocalController()) return;
+    if (DefaultSubjectEntityId == InvalidEntityId) return;
+    if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
+
+    const double Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+    if (Now - LastAutoPickupScanTime < AutoPickupScanIntervalSeconds) return;
+    LastAutoPickupScanTime = Now;
+
+    const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
+    if (!WS.IsValidEntity(DefaultSubjectEntityId)) return;
+
+    const int32 SubjectX = WS.GetProperty(DefaultSubjectEntityId, PropertyId::PosX);
+    const int32 SubjectY = WS.GetProperty(DefaultSubjectEntityId, PropertyId::PosY);
+
+    constexpr int64 RangeSq =
+        static_cast<int64>(HktLimits::DefaultPickupRangeCm) *
+        static_cast<int64>(HktLimits::DefaultPickupRangeCm);
+
+    WS.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
+    {
+        if (Id == DefaultSubjectEntityId) return;
+        if (WS.GetArchetype(Id) != EHktArchetype::Item) return;
+        if (WS.GetProperty(Id, PropertyId::ItemState) != 0) return;
+
+        // 2D 거리 제곱 비교 — sqrt 회피, 정수 연산
+        const int32 ItemX = WS.GetProperty(Id, PropertyId::PosX);
+        const int32 ItemY = WS.GetProperty(Id, PropertyId::PosY);
+        const int64 DX = static_cast<int64>(ItemX) - static_cast<int64>(SubjectX);
+        const int64 DY = static_cast<int64>(ItemY) - static_cast<int64>(SubjectY);
+        if (DX * DX + DY * DY > RangeSq) return;
+
+        if (const double* LastAttempt = AutoPickupAttemptedAt.Find(Id))
+        {
+            if (Now - *LastAttempt < AutoPickupRetrySeconds) return;
+        }
+
+        AutoPickupAttemptedAt.Add(Id, Now);
+        RequestItemPickup(Id);
+    });
+
+    // 맵이 임계 초과로 부풀면 cooldown 지난 stale entry 청소 — 사라진 entity 누적 방지.
+    if (AutoPickupAttemptedAt.Num() > AutoPickupAttemptedSweepThreshold)
+    {
+        for (auto It = AutoPickupAttemptedAt.CreateIterator(); It; ++It)
+        {
+            if (Now - It.Value() < AutoPickupRetrySeconds) continue;
+            const FHktEntityId Id = It.Key();
+            if (!WS.IsValidEntity(Id) || WS.GetProperty(Id, PropertyId::ItemState) != 0)
+            {
+                It.RemoveCurrent();
+            }
+        }
+    }
+}
+
+void AHktIngamePlayerController::RequestItemPickup(FHktEntityId ItemEntity)
+{
+    if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
+    if (!HktGameplayTags::Story_Event_Item_Pickup.IsValid()) return;
+
+    FHktEvent Event;
+    Event.EventTag = HktGameplayTags::Story_Event_Item_Pickup;
+    Event.SourceEntity = DefaultSubjectEntityId;
+    Event.TargetEntity = ItemEntity;
+    Event.PlayerUid = GetPlayerUid();
+    Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+        FString::Printf(TEXT("AutoPickup Item=%d (Subject=%d)"), ItemEntity, DefaultSubjectEntityId),
+        DefaultSubjectEntityId);
 }
 
 // EquipSlot PropertyId는 HktTrait::GetEquipSlotPropertyIds()에서 가져옴
