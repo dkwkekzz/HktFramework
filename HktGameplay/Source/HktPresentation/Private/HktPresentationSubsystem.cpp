@@ -260,8 +260,8 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 	// 실제 적용 실패(엔터티 미존재/뷰 미할당/PropId 미등록/디스패처 부재)는
 	// FHktPresentationState::ApplyDelta 내부에서 Warning "DROP PropertyDelta..." 로 출력.
 	// 동일 (Entity, Reason, PropId) 조합은 1회만 로그됨 (틱당 중복 차단).
-	// Pos/Rot/Vel 등 매 프레임 갱신되는 Transform 계열은 HktLog.Presentation.Transform 으로 분리하여
-	// 로그 패널에서 독립 토글/필터 가능 (계층 매칭상 상위 HktLog.Presentation 도 영향 받음).
+	// Pos/Rot/Vel 등 매 프레임 갱신되는 Transform 계열은 HktLog.Presentation.Transform 으로 분리.
+	// 로그 패널은 HasTagExact() 필터라 Presentation 과 독립 토글되며, 색상은 MatchesTag() 계층 매칭으로 Presentation 색을 상속.
 	View.ForEachDelta([this, &View](FHktEntityId Id, uint16 PropId, int32 NewValue, int32 OldValue)
 	{
 		const TCHAR* PropName = HktProperty::GetPropertyName(PropId);
