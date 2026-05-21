@@ -3,7 +3,7 @@
   "storyTag": "Story.Event.Target.Action",
   "cancelOnDuplicate": true,
   "steps": [
-    { "comment": "── I-0016: 우클릭을 ActionIntent 프로퍼티에 기록만 한다. 거리/쿨다운/실행은 Lifecycle Story 의 Brain 루프 책임. Item 분기는 제거 (TODO — Pickup 재정립). ──" },
+    { "comment": "── I-0016: 우클릭은 Player 의 Brain 채널이다 (PlayerController → 이 Story). 결정만 (Hittable/Move) 하고 ActionIntent 프로퍼티에 기록 후 Halt. 거리/쿨다운/실행은 Lifecycle Story 의 책임. Item 분기는 제거 (TODO — Pickup 재정립). ──" },
     { "op": "Log", "message": "TargetAction: 진입 — Self=주체, Target=대상" },
 
     { "comment": "── Self == Target 차단: 자기 자신 클릭은 무반응 ──" },

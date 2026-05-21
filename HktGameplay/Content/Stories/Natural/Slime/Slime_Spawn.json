@@ -7,6 +7,7 @@
     "NpcHostile":    "Entity.Attr.NPC.Hostile",
     "StanceUnarmed": "Entity.Stance.Unarmed",
     "NpcLifecycle":  "Story.Flow.NPC.Lifecycle",
+    "SlimeBrain":    "Story.Flow.Brain.Slime",
     "VoxelSlot":     "Entity.RegionRecord.VoxelSlot",
     "StateDead":     "State.Dead"
   },
@@ -68,6 +69,7 @@
       "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"one"} },
 
     { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": {"var":"slime"} },
+    { "op": "DispatchEventFrom", "eventTag": "SlimeBrain",   "source": {"var":"slime"} },
 
     { "op": "Label", "name": "check" },
     { "op": "HasTag", "dst": {"var":"isDead"}, "entity": {"var":"slime"}, "tag": "StateDead" },

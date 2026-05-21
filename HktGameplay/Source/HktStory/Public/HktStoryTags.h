@@ -28,11 +28,19 @@ namespace HktStoryTags
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_Item_Material);            // Entity.Attr.Item.Material
 
 	// --- NPC Flow ---
+	// Intent 와 외부 이벤트(사망 등) 에 어떻게 반응할지 *라우팅* 만 한다. Intent 를 *결정* 하는
+	// 책임은 Brain Story 가 별도로 진다 (I-0016 의 역할 분리).
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_NPC_Lifecycle);            // Story.Flow.NPC.Lifecycle
 
 	// --- Player Flow (I-0016) ---
-	// Player 캐릭터의 매-프레임 Brain 루프 + 죽음 처리. JSON: Story_PlayerLifecycle.json.
+	// Player 의 Lifecycle — Intent 실행 + 죽음 처리. Player 의 Brain 은 별도 Story 가 아니라
+	// PlayerController 의 입력 → Story_TargetAction 채널이다 (인간이 곧 Brain).
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Player_Lifecycle);          // Story.Flow.Player.Lifecycle
+
+	// --- Brain Flow (I-0016) ---
+	// NPC AI Brain — 상황을 읽고 ActionIntent 를 *결정* 하는 채널. 캐릭터별 Brain 이 spawn 시
+	// DispatchEventFrom 으로 Self 에 발사된다. Lifecycle 과 짝을 이뤄 동작.
+	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Brain_Slime);              // Story.Flow.Brain.Slime
 
 	// --- Debris Flow ---
 	HKTSTORY_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Story_Debris_Lifecycle);         // Story.Flow.Debris.Lifecycle

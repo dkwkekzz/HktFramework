@@ -66,6 +66,7 @@
     { "op": "ReadProperty", "dst": {"var":"atk"}, "property": "AttackPower" },
     { "op": "LoadConst", "dst": {"var":"two"}, "value": 2 },
     { "op": "Mul", "dst": {"var":"atk"}, "src1": {"var":"atk"}, "src2": {"var":"two"} },
+    { "op": "SaveStoreEntity", "entity": "Target", "property": "LastAttacker", "src": "Self" },
     { "op": "ApplyDamage", "target": "Target", "amount": {"var":"atk"} },
     { "op": "PlayVFXAttached", "entity": "Target", "tag": "VfxSkillHit" },
     { "op": "PlaySound", "tag": "SndSkillHit" },

@@ -8,7 +8,7 @@
     "UseSkillTag": "Story.Event.Combat.UseSkill"
   },
   "steps": [
-    { "comment": "── I-0016: Player Lifecycle = Brain 루프 + 단순 죽음 처리. NPC 와 동일한 brain 본문을 공유하되 loot drop 은 없다. Story_PlayerInit 끝에서 DispatchEventFrom 으로 발사된다. ──" },
+    { "comment": "── I-0016: Player Lifecycle = ActionIntent *실행* + 단순 죽음 처리. NPC Lifecycle 과 동일한 본문 (사거리/쿨다운/Move/UseSkill) 을 공유하되 loot drop 이 없다. Player 의 Brain 은 별도 Story 가 아니라 PlayerController 입력 → Story_TargetAction 채널 (= 인간이 곧 Brain). PlayerInit 끝에서 DispatchEventFrom 으로 발사. ──" },
 
     { "op": "Label", "name": "loop" },
     { "op": "Yield", "frames": 1 },
@@ -45,7 +45,7 @@
     { "op": "CmpLt", "dst": "Flag", "src1": {"var":"now"}, "src2": {"var":"nextFrame"} },
     { "op": "JumpIf", "cond": "Flag", "label": "loop" },
 
-    { "op": "Log", "message": "Brain(Player): Attack 발사 → UseSkill" },
+    { "op": "Log", "message": "Lifecycle(Player): Attack 인텐트 실행 → UseSkill" },
     { "op": "DispatchEventTo", "eventTag": "UseSkillTag", "target": "Target" },
     { "op": "Jump", "label": "loop" },
 
@@ -54,7 +54,7 @@
     { "op": "MoveToward", "entity": "Self", "targetPos": {"block":"chasePos"}, "force": 150 },
     { "op": "Jump", "label": "loop" },
 
-    { "comment": "── Move: ActionIntentX/Y/Z 로 이동. 도착 판정은 squared 2D 거리 vs 임계² (4² = 16, MovementSystem 의 ArrivalThresholdSq 와 동일). MoveToward 가 매 호출마다 IsMoving=1 을 다시 쓰므로 IsMoving 으로는 도착 감지 불가 (Movement 가 매 프레임 덮어쓰여짐). 임계가 작아도 MovementSystem 의 overshoot-snap 이 마지막 프레임에 정확한 타겟 좌표로 SetPosition 해주므로 다음 사이클에 d²=0 으로 클리어된다. ──" },
+    { "comment": "── Move 실행: ActionIntentX/Y/Z 로 이동. 도착 판정은 squared 2D 거리 vs 임계² (4² = 16, MovementSystem 의 ArrivalThresholdSq 와 동일). MoveToward 가 매 호출마다 IsMoving=1 을 다시 쓰므로 IsMoving 으로는 도착 감지 불가 (Movement 가 매 프레임 덮어쓰여짐). 임계가 작아도 MovementSystem 의 overshoot-snap 이 마지막 프레임에 정확한 타겟 좌표로 SetPosition 해주므로 다음 사이클에 d²=0 으로 클리어된다. ──" },
     { "op": "Label", "name": "do_move" },
     { "op": "LoadStoreEntity", "dst": {"var":"ix"}, "entity": "Self", "property": "ActionIntentX" },
     { "op": "LoadStoreEntity", "dst": {"var":"iy"}, "entity": "Self", "property": "ActionIntentY" },

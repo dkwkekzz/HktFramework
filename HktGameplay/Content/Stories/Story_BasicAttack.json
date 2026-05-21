@@ -42,6 +42,7 @@
     { "op": "JumpIfNot", "cond": "Flag", "label": "aoe_fallback" },
 
     { "comment": "── 단일-타겟 경로: 지정된 entity 에만 데미지. 지형 파괴 금지(나무 등 Hittable 주변 Grass/Dirt 까지 휩쓸려 구덩이 발생). ──" },
+    { "op": "SaveStoreEntity", "entity": "Target", "property": "LastAttacker", "src": "Self" },
     { "op": "ApplyDamage", "target": "Target", "amount": {"var":"atk"} },
     { "op": "PlayVFXAtEntity", "entity": "Target", "tag": "VfxHitSpark" },
     { "op": "PlayAnim",   "entity": "Target", "tag": "AnimHitReaction" },
@@ -56,6 +57,7 @@
       { "op": "IfNe", "a": "Iter", "b": "Self" },
         { "op": "IfHasTrait", "entity": "Iter", "trait": "Hittable" },
           { "op": "Move",       "dst": "Target", "src": "Iter" },
+          { "op": "SaveStoreEntity", "entity": "Target", "property": "LastAttacker", "src": "Self" },
           { "op": "ApplyDamage", "target": "Target", "amount": {"var":"atk"} },
           { "op": "PlayVFXAtEntity", "entity": "Target", "tag": "VfxHitSpark" },
           { "op": "PlayAnim",   "entity": "Target", "tag": "AnimHitReaction" },

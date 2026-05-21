@@ -1,0 +1,45 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Flow.Brain.Slime",
+  "cancelOnDuplicate": false,
+  "tags": {
+    "StateDead": "State.Dead"
+  },
+  "steps": [
+    { "comment": "── I-0016: Slime Brain — NPC AI 의 첫 구현. 역할은 *Intent 결정* 만. ActionIntent 실행(추적/공격)은 Story_NPCLifecycle 이 담당. ──" },
+    { "comment": "── 채널: 공격 Story 가 ApplyDamage 직전에 피해자에게 LastAttacker = Self 를 기록 → Brain 이 폴링 → ActionIntent 세팅 후 LastAttacker 를 0 으로 소비. ──" },
+    { "comment": "── 정책: 가장 최근에 때린 적을 Target. 이미 추적 중이라도 새 공격자가 들어오면 타겟 갱신 (squashed by latest hit). Target Health<=0 시 Lifecycle 이 ActionIntent 를 자체 클리어. ──" },
+
+    { "op": "Label", "name": "loop" },
+    { "op": "Yield", "frames": 6 },
+
+    { "op": "HasTag", "dst": {"var":"isDead"}, "entity": "Self", "tag": "StateDead" },
+    { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "halt" },
+
+    { "comment": "── LastAttacker 폴링. 0 이면 자극 없음 → loop. ──" },
+    { "op": "LoadStoreEntity", "dst": {"var":"attacker"}, "entity": "Self", "property": "LastAttacker" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"attacker"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "loop" },
+
+    { "comment": "── 공격자 유효성: Health>0 인 경우만 추적 대상으로 채택. ──" },
+    { "op": "Move", "dst": "Target", "src": {"var":"attacker"} },
+    { "op": "LoadStoreEntity", "dst": {"var":"hp"}, "entity": "Target", "property": "Health" },
+    { "op": "CmpGtConst", "dst": "Flag", "src": {"var":"hp"}, "value": 0 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "consume_attacker" },
+
+    { "comment": "── ActionIntent = Attack(attacker). Lifecycle 이 사거리/쿨다운을 거쳐 UseSkill 디스패치. ──" },
+    { "op": "Log", "message": "[SlimeBrain] LastAttacker 감지 → ActionIntent=Attack" },
+    { "op": "SaveStoreEntity", "entity": "Self", "property": "ActionIntentTarget", "src": {"var":"attacker"} },
+    { "op": "SaveConstEntity", "entity": "Self", "property": "ActionIntentSlot", "value": 0 },
+    { "op": "SaveConstEntity", "entity": "Self", "property": "ActionIntentType", "value": 2 },
+
+    { "op": "Label", "name": "consume_attacker" },
+    { "comment": "── 소비: 같은 공격자에 의해 반복 트리거되지 않도록 0 으로 리셋. 다음 피격 시 또 세팅된다. ──" },
+    { "op": "SaveConstEntity", "entity": "Self", "property": "LastAttacker", "value": 0 },
+    { "op": "Jump", "label": "loop" },
+
+    { "op": "Label", "name": "halt" },
+    { "op": "Log", "message": "[SlimeBrain] Self 사망 — Brain 종료" },
+    { "op": "Halt" }
+  ]
+}
