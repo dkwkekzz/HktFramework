@@ -74,10 +74,14 @@ namespace SpawnerParams
 // SpawnerParams::* 와 슬롯 의미가 동일하다 — terrain story template (Oak_Spawn 등) 이
 // 동일 컨벤션으로 좌표/시드를 읽는다.
 //
-//   - Param0: voxel 월드 X (cm 정수) — VoxelWorld * VoxelSizeCm + half
-//   - Param1: voxel 월드 Y (cm 정수)
+//   - Param0: voxel 월드 X (cm 정수) — `(VoxelWorldX + 0.5) * VoxelSizeCm` (column 중심)
+//   - Param1: voxel 월드 Y (cm 정수) — `(VoxelWorldY + 0.5) * VoxelSizeCm` (column 중심)
 //   - Param2: SlotHash31 — voxel 좌표 한 곳에서 파생된 결정론 시드 (I-0017)
-//   - Param3: voxel 월드 Z (cm 정수)
+//   - Param3: voxel 월드 Z (cm 정수) — `(VoxelWorldZ + 1) * VoxelSizeCm` (SOLID 표면 상단면).
+//             attribution 은 *표면 SOLID 블록* 의 좌표 (bake 의 top-most non-air voxel) 이므로,
+//             entity 가 그 위에 서야 자연스럽다 → Z 만 중심이 아닌 상단면을 사용.
+//             트리거 caller 가 임의 voxel 좌표를 넘기는 경우에도 "이 voxel 위에 활성화"
+//             semantic 으로 통일 — XY 는 중심 / Z 는 상단면.
 namespace VoxelTemplateParams
 {
 	inline const uint16 VoxelCmX     = PropertyId::Param0;
@@ -261,11 +265,16 @@ namespace HktEventBuilder
 		int32 VoxelWorldX, int32 VoxelWorldY, int32 VoxelWorldZ,
 		float VoxelSizeCm)
 	{
-		// voxel 중심 cm — `FHktTerrainSystem::VoxelToCm` 과 동일 공식.
+		// XY 는 voxel column 중심, Z 는 SOLID 표면 voxel 의 상단면 (entity 가 서는 floor).
+		// bake (`HktTerrainBakeLibrary::BakeRegion`) 가 top-most non-air voxel = SOLID 표면
+		// 블록의 좌표를 attribution 에 저장하므로, 중심 Z 공식은 entity 를 반-voxel 깊이로
+		// 파묻게 된다 (예: VoxelSizeCm=100 → 50cm 매몰). 상단면 Z 로 entity origin 을 floor
+		// 표면에 맞춘다. `FHktTerrainSystem::VoxelToCm` (거리 측정용 중심 좌표) 와 의도적으로
+		// 분리된 공식 — 본 빌더는 *스폰 위치* 전용.
 		const float Half = VoxelSizeCm * 0.5f;
 		const int32 CmX = FMath::RoundToInt(VoxelWorldX * VoxelSizeCm + Half);
 		const int32 CmY = FMath::RoundToInt(VoxelWorldY * VoxelSizeCm + Half);
-		const int32 CmZ = FMath::RoundToInt(VoxelWorldZ * VoxelSizeCm + Half);
+		const int32 CmZ = FMath::RoundToInt((VoxelWorldZ + 1) * VoxelSizeCm);
 		const uint32 SlotHash31 = ComputeVoxelSlotHash31(VoxelWorldX, VoxelWorldY, VoxelWorldZ);
 
 		FHktEvent E;

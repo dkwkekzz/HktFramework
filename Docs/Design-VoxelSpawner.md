@@ -200,9 +200,15 @@ if (PickedTemplateId > 0) {
 
 skip 슬롯은 catalog 미등록 → 메모리/네트워크 부담 0.
 
-### 4. Spawner Story 의 글로벌 cap (런타임 안전망)
+### 4. ~~Spawner Story 의 글로벌 cap~~ — 폐기 (2026-05-21)
 
-`Tree_Spawn.json`, `Slime_Spawn.json` 본문에 `CountByTag < N` 가드가 있어 attribution 다수 발화 시에도 spawn 폭주 차단.
+이전엔 `Tree_Spawn.json` / `Birch_Spawn.json` / `Slime_Spawn.json` 본문에 `CountByTag < N` 가드 (`IfGeConst` + `Halt`) 가 있었다. PR-4 단계에서 region-scoped cap 의 JSON op 노출이 없어 글로벌 cap 으로 임시 대체한 안전망. 폐기 사유:
+
+- step 1~3 (surface column + rule 매핑 + skip 슬롯) 이 *베이크 시점에* 이미 밀도를 결정 — 런타임 추가 게이트는 이중 제어.
+- player-anchor chunk gating (`FHktTerrainSystem::Process`) 이 dispatch 자체를 player 근처로 한정 — attribution 폭주가 dispatch 폭주로 이어지지 않음.
+- 글로벌 cap 은 "voxel type 에 spawner 설치 → 매칭 voxel 마다 발화" 본래 의미와 충돌. cap 도달 후 player 가 새 지역으로 이동해도 spawn 0 — 의도 위반.
+
+밀도 조정은 `bake_terrain.py::default_voxel_spawn_rules` 의 weight / skip 슬롯 비율로만 한다.
 
 ### 실측 밀도
 
@@ -242,8 +248,9 @@ for each FHktVoxelAttributionView:       for each FHktTerrainSpawnerView:
   HktEventBuilder::                        HktEventBuilder::
      VoxelTemplateActivated(view, VS)        SpawnerFromView(view)
         EventTag = view.StoryTag                EventTag = view.StoryTag
-        Param0/1/3 = voxel cm X/Y/Z             Param0/1 = PosRaw → cm
-        Param2 = SlotHash31                     Param2/3 = view.Param2/3
+        Param0/1 = column 중심 cm X/Y           Param0/1 = PosRaw → cm
+        Param3   = SOLID 표면 상단면 cm Z       Param2/3 = view.Param2/3
+        Param2   = SlotHash31
    │                                          │
    └──────────────┬───────────────────────────┘
                   ▼
@@ -346,6 +353,8 @@ Schema 2 JSON 본문:
 
 `slotHash` 를 `RandomInt` 시드로 사용하면 voxel 좌표 단위 다양성을 Story 내부에서 더 분기시킬 수 있다 (단, 시드는 *흡수* 만 — 외부 입력과 *혼합* 금지).
 
+**좌표 컨벤션**: `Param0/Param1` 은 *voxel column 중심* cm, `Param3` 은 *SOLID 표면 상단면* cm. attribution 이 저장하는 voxel 은 표면의 SOLID 블록 (top-most non-air) 이므로, entity origin 이 그 블록의 상단면에 놓여야 자연스럽게 floor 에 선다. Story 본문은 Param3 를 그대로 `SetPosition` 에 전달 — 추가 보정 불필요. (`HktEventBuilder::VoxelTemplateActivatedAt` 단일 진입점에서 보장.)
+
 ### 트리거 경로 (Quest / Cinematic / Encounter)
 
 attribution 슬롯을 *건드리지 않는다*. caller 가 직접 `HktEventBuilder::VoxelTemplateActivatedAt(StoryTag, X, Y, Z, VoxelSizeCm)` 로 동일 형식 event 를 생성 → 동일 dispatch 경로 통과. SlotHash31 계산도 동일 함수 → 자연 발생/트리거가 voxel 한 점에서 합류한다.
@@ -362,8 +371,8 @@ attribution 슬롯을 *건드리지 않는다*. caller 가 직접 `HktEventBuild
 
 ### 신규 Spawner Story 추가
 
-1. **Story JSON 작성** — `HktGameplay/Content/Stories/Natural/<Name>/<Name>_Spawn.json` (schema 2). 패턴 참조: `Tree_Spawn.json`, `Slime/Slime_Spawn.json`.
-2. **GameplayTag 선언** — `HktCore/Public/HktCoreTags.h` 의 `HktNaturalStoryTags` 에 `UE_DECLARE_GAMEPLAY_TAG_EXTERN` + cpp 에 `UE_DEFINE_GAMEPLAY_TAG_COMMENT` (TreeSpawn / SlimeSpawn 패턴 그대로). JSON 만 추가했고 네이티브 태그 변경 없으면 PIE 진입 시 자동 등록.
+1. **Story JSON 작성** — `HktGameplay/Content/Stories/Natural/<Name>/<Name>_Spawn.json` (schema 2). 패턴 참조: `Birch/Birch_Spawn.json` (voxel-slot dedupe + cooldown prelude 권장), `Slime/Slime_Spawn.json`.
+2. **GameplayTag 선언** — `HktCore/Public/HktCoreTags.h` 의 `HktNaturalStoryTags` 에 `UE_DECLARE_GAMEPLAY_TAG_EXTERN` + cpp 에 `UE_DEFINE_GAMEPLAY_TAG_COMMENT` (BirchSpawn / SlimeSpawn 패턴 그대로). JSON 만 추가했고 네이티브 태그 변경 없으면 PIE 진입 시 자동 등록.
 3. **Rule 후보 추가** — `bake_terrain.py` 의 `default_voxel_spawn_rules()` dict 에 weight 와 함께 등록.
 4. **재베이크** — `py bake_terrain.py`.
 
@@ -373,14 +382,15 @@ attribution 슬롯을 *건드리지 않는다*. caller 가 직접 `HktEventBuild
 
 ```python
 def default_voxel_spawn_rules() -> dict[unreal.HktTerrainType, list[SpawnCandidate]]:
-    TREE  = "Story.Flow.Spawner.Natural.Tree"
+    OAK   = "Story.Flow.Spawner.Natural.Oak"
+    BIRCH = "Story.Flow.Spawner.Natural.Birch"
     SLIME = "Story.Flow.Spawner.Natural.Slime"
     return {
         # VoxelType : [(StoryTag or None=skip, weight), ...]
-        unreal.HktTerrainType.SNOW:   [(TREE, 40), (SLIME, 10), (None, 50)],
-        unreal.HktTerrainType.GRAVEL: [(TREE, 50),              (None, 50)],
-        unreal.HktTerrainType.CLAY:   [(SLIME, 50), (TREE, 10), (None, 40)],
-        unreal.HktTerrainType.SAND:   [(SLIME, 30),             (None, 70)],
+        unreal.HktTerrainType.SNOW:   [(BIRCH, 40), (SLIME, 10), (None, 50)],
+        unreal.HktTerrainType.GRAVEL: [(OAK,   50),              (None, 50)],
+        unreal.HktTerrainType.CLAY:   [(SLIME, 50), (BIRCH, 10), (None, 40)],
+        unreal.HktTerrainType.SAND:   [(SLIME, 30),              (None, 70)],
     }
 ```
 
@@ -501,7 +511,7 @@ py bake_terrain.py --min=-1,-1,0 --max=1,1,2
 | Simulator 게터 | `HktCore/Public/HktCoreSimulator.h::IHktDeterminismSimulator::GetEmittedSpawnerEvents` · `HktRule/Public/HktServerRuleInterfaces.h::IHktAuthoritySimulator::GetEmittedSpawnerEvents` (wrapper forwarding: `HktGrid/SingleRelevancyComponent.h`) |
 | Event Param 컨벤션 | `HktCore/Public/HktStoryEventParams.h` (`SpawnerParams::`, `VoxelTemplateParams::`, `HktEventBuilder::SpawnerFromView` / `VoxelTemplateActivated[At]`, `ComputeVoxelSlotHash31`) |
 | Python 디자이너 입력 | `HktGameplay/Content/Python/bake_terrain.py` (`default_voxel_spawn_rules`, `apply_voxel_spawn_rules`) |
-| Story 콘텐츠 | `HktGameplay/Content/Stories/Natural/Tree_Spawn.json`, `Slime/Slime_Spawn.json` |
+| Story 콘텐츠 | `HktGameplay/Content/Stories/Natural/Birch/Birch_Spawn.json` (slot dedupe 패턴 표준), `Slime/Slime_Spawn.json`, `Oak/Oak_Spawn.json` (grove 패턴, dedupe 후속 PR) |
 | 명시 배치 어댑터 (레거시 마이그레이션) | `HktMapGenerator/Private/HktMapSpawnerAdapter.cpp` (`MapSpawnerToTerrainSpec`) |
 | 자동화 테스트 | `HktGameplayDeveloper/Source/HktAutomationTests/Private/Tests/HktI0014VoxelAttributionTests.cpp` |
 

@@ -8,7 +8,7 @@
     "StateDead":   "State.Dead"
   },
   "steps": [
-    { "op": "Log", "message": "[Birch] Lifecycle 시작 — Self=Birch entity, State.Dead 구독" },
+    { "op": "Log", "message": "[Birch] Lifecycle 시작 — Self=Birch entity, State.Dead 구독 (slot release 는 Birch_RegionCleanup 가 별도 담당)" },
 
     { "op": "WaitTag", "entity": "Self", "tag": "StateDead" },
 

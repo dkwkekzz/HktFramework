@@ -92,6 +92,5 @@ namespace HktNaturalStoryTags
 {
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BirchSpawn);        // Story.Flow.Spawner.Natural.Birch
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSpawn);          // Story.Flow.Spawner.Natural.Oak
-    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TreeSpawn);         // Story.Flow.Spawner.Natural.Tree   (I-0014 검증용 단일 Oak)
-    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SlimeSpawn);        // Story.Flow.Spawner.Natural.Slime  (I-0014 검증용 단일 Slime NPC)
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SlimeSpawn);        // Story.Flow.Spawner.Natural.Slime
 }

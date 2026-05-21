@@ -246,6 +246,10 @@ namespace HktProperty
     HKT_DEFINE_PROPERTY(OreDepletedCount,          Cold) // 이 광종의 누적 채광량 (임계 시 광종 전이)
     HKT_DEFINE_PROPERTY(OreCurrentSpeciesId,       Cold) // 현재 region 에서 등장 중인 광종 (전이 후 변경)
 
+    // VoxelSlot — Entity.RegionRecord.VoxelSlot (spawner dedupe + cooldown, RecordKey=SlotHash31)
+    HKT_DEFINE_PROPERTY(SlotAliveFlag,             Cold) // 0=비어 있음 / 1=해당 voxel slot 에 entity 생존 중
+    HKT_DEFINE_PROPERTY(SlotLastDieFrame,          Cold) // 마지막 사망 frame index (GetWorldTime 결과 — 0=한 번도 죽지 않음)
+
     // ===== Action Intent (I-0016 — 상호작용: User Action State 기반의 Brain System) =====
     //
     // 캐릭터(Player/NPC) 의 *의도* 를 영속 상태로 보관한다. 클릭/AI 가 의도를 *세팅* 하고

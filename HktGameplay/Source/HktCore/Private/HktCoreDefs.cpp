@@ -19,6 +19,7 @@ namespace HktArchetypeTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_RegionRecord_Lineage,    "Entity.RegionRecord.Lineage",    "Oak/Birch 가계 record — LineageId 별 누적 (felled / promoted / Elder pos).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_RegionRecord_Variant,    "Entity.RegionRecord.Variant",    "Mushroom/Herb 등의 변종 record — VariantId 별 (potency, first found frame).");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_RegionRecord_OreSpecies, "Entity.RegionRecord.OreSpecies", "Ore 광종 record — OreSpeciesId 별 depletion / 현재 종.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(Entity_RegionRecord_VoxelSlot,  "Entity.RegionRecord.VoxelSlot",  "Voxel-slot 단위 spawner dedupe record — RecordKey = SlotHash31 (Param2). 한 voxel 위치당 alive 여부 + 마지막 사망 frame 을 기록.");
 }
 
 namespace HktStance

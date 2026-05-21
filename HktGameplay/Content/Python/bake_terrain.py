@@ -107,21 +107,26 @@ def default_voxel_spawn_rules() -> "dict[unreal.HktTerrainType, list[SpawnCandid
     만큼 아무것도 spawn 안 함).
 
     매핑 (HktTerrainBiome.cpp MaterialRules 와 동기):
-      - Snow   = Tundra 표면 → Tree 40% / Slime 10% / skip 50%
-      - Gravel = Mountain 표면 → Tree 50% / skip 50%  (희소한 산악림)
-      - Clay   = Swamp 표면 → Slime 50% / Tree 10% / skip 40%
+      - Snow   = Tundra 표면 → Oak 40% / Slime 10% / skip 50%
+      - Gravel = Mountain 표면 → Oak 50% / skip 50%  (희소한 산악림)
+      - Clay   = Swamp 표면 → Slime 50% / Oak 10% / skip 40%
       - Sand   = Desert 표면 → Slime 30% / skip 70%   (사막 = 희소)
 
     Grass/Dirt 같은 흔한 surface 는 의도적으로 비워둔다 — voxel attribution 이
     전 영역을 채워 spawn cap 즉시 도달 시 검증 메시지 가독성 저하. 디자이너는
     필요 시 추가.
+
+    주의: Oak_Spawn 은 grove 패턴 (1 Elder + 3 child) 이며 voxel-slot dedupe
+    미적용 상태 — 청크 reload 시 같은 lineageId 위치에 grove 4본이 중복 spawn
+    되는 위험이 남아 있다. 후속 PR 에서 Birch/Slime 과 동일 prelude 적용 예정.
     """
-    TREE  = "Story.Flow.Spawner.Natural.Tree"
+    OAK   = "Story.Flow.Spawner.Natural.Oak"
+    BIRCH = "Story.Flow.Spawner.Natural.Birch"
     SLIME = "Story.Flow.Spawner.Natural.Slime"
     return {
-        unreal.HktTerrainType.SNOW:   [(TREE, 40),  (SLIME, 10), (None, 50)],
-        unreal.HktTerrainType.GRAVEL: [(TREE, 50),               (None, 50)],
-        unreal.HktTerrainType.CLAY:   [(SLIME, 50), (TREE, 10),  (None, 40)],
+        unreal.HktTerrainType.SNOW:   [(BIRCH, 40), (SLIME, 10), (None, 50)],
+        unreal.HktTerrainType.GRAVEL: [(OAK, 50),                (None, 50)],
+        unreal.HktTerrainType.CLAY:   [(SLIME, 50), (BIRCH, 10), (None, 40)],
         unreal.HktTerrainType.SAND:   [(SLIME, 30),              (None, 70)],
     }
 

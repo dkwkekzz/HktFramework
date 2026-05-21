@@ -92,10 +92,12 @@ static FHktTestResult Test_VoxelTemplate_ParamSlotMapping()
 		TemplateTag, VoxelX, VoxelY, VoxelZ, TestVoxelSizeCm);
 
 	// VoxelTemplateParams::VoxelCmX = Param0, VoxelCmY = Param1, SlotHash31 = Param2, VoxelCmZ = Param3
+	// XY 는 column 중심, Z 는 SOLID 표면 상단면 (bake attribution 의 top-most non-air voxel
+	// 좌표 위에 entity 가 서도록) — HktStoryEventParams.h `VoxelTemplateActivatedAt` 참조.
 	const float Half = TestVoxelSizeCm * 0.5f;
 	const int32 ExpectedCmX = FMath::RoundToInt(VoxelX * TestVoxelSizeCm + Half);
 	const int32 ExpectedCmY = FMath::RoundToInt(VoxelY * TestVoxelSizeCm + Half);
-	const int32 ExpectedCmZ = FMath::RoundToInt(VoxelZ * TestVoxelSizeCm + Half);
+	const int32 ExpectedCmZ = FMath::RoundToInt((VoxelZ + 1) * TestVoxelSizeCm);
 	const int32 ExpectedHash31 = static_cast<int32>(
 		HktEventBuilder::ComputeVoxelSlotHash31(VoxelX, VoxelY, VoxelZ));
 
