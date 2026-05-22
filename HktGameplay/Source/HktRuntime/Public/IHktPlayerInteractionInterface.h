@@ -71,7 +71,12 @@ public:
 	/** 아이템 장착/해제로 액션 슬롯 바인딩이 변경될 때 브로드캐스트. */
 	virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() { static FOnHktSlotBindingChanged Dummy; return Dummy; }
 
-	/** 가방 상태 변경 시 브로드캐스트 (S2C RPC 수신 후). */
+	// ---- I-0041 Player Inventory API ----
+	// 아래 "Bag" 명칭의 API 들은 Player Inventory (계정 단위 보관 공간) 를 가리킨다.
+	// I-0040 의 Entity Bag (활성 슬롯) 과 혼동 금지. 실제 rename (RequestInventoryStore 등)
+	// 은 별도 PR. 참고: Docs/intents/I-0041.md
+
+	/** Player Inventory 변경 시 브로드캐스트 (S2C RPC 수신 후). (= OnInventoryChanged) */
 	virtual FOnHktBagChanged& OnBagChanged() { static FOnHktBagChanged Dummy; return Dummy; }
 
 	/** 아이템 드롭 요청 (바닥에 놓기). */
@@ -83,16 +88,17 @@ public:
 	 */
 	virtual void RequestActionEvent(FGameplayTag ActionTag) {}
 
-	/** 장비 슬롯 → 가방으로 보관 요청. */
+	/** Entity 활성 슬롯 → Player Inventory 로 보관 요청. (= RequestInventoryStore) */
 	virtual void RequestBagStore(int32 EquipIndex) {}
 
-	/** 가방 → 장비 슬롯으로 장착 요청. */
+	/** Player Inventory → Entity 활성 슬롯으로 장착 요청. (= RequestInventoryRestore)
+	 *  BagSlot 은 Inventory 슬롯 인덱스, EquipIndex 는 Entity 활성 슬롯 인덱스. */
 	virtual void RequestBagRestore(int32 BagSlot, int32 EquipIndex) {}
 
-	/** 가방 → 바닥으로 버리기 요청. */
+	/** Player Inventory → 바닥(Ground) 으로 버리기 요청. (= RequestInventoryDiscard) */
 	virtual void RequestBagDiscard(int32 BagSlot) {}
 
-	/** 클라이언트 로컬 가방 상태 조회. 미지원 시 nullptr 반환. */
+	/** 클라이언트 로컬 Player Inventory 상태 조회. 미지원 시 nullptr 반환. (= GetInventoryState) */
 	virtual const FHktBagState* GetBagState() const { return nullptr; }
 
 	/** 이 플레이어의 고유 UID. 소유권 검증 등에 사용. 미지원 시 0 반환. */

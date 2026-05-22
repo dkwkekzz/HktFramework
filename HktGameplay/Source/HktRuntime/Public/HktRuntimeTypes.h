@@ -264,7 +264,8 @@ struct TStructOpsTypeTraits<FHktRuntimeDiff> : public TStructOpsTypeTraitsBase2<
 // FHktRuntimeMoveRequest — 제거됨: Server_ReceiveRuntimeEvent로 통합
 
 //=============================================================================
-// FHktRuntimeBagRequest — 가방 요청 네트워크 래퍼
+// FHktRuntimeBagRequest  (= FHktRuntimeInventoryRequest)
+//   — Player Inventory 요청 네트워크 래퍼 (C2S). I-0041 참조.
 //=============================================================================
 USTRUCT()
 struct HKTRUNTIME_API FHktRuntimeBagRequest
@@ -293,7 +294,8 @@ struct TStructOpsTypeTraits<FHktRuntimeBagRequest> : public TStructOpsTypeTraits
 };
 
 //=============================================================================
-// FHktRuntimeBagUpdate — 가방 변경 알림 네트워크 래퍼 (S2C)
+// FHktRuntimeBagUpdate  (= FHktRuntimeInventoryUpdate)
+//   — Player Inventory 변경 알림 네트워크 래퍼 (S2C). I-0041 참조.
 //=============================================================================
 USTRUCT()
 struct HKTRUNTIME_API FHktRuntimeBagUpdate

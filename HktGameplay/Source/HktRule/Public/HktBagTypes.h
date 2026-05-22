@@ -6,15 +6,20 @@
 #include "GameplayTagContainer.h"
 
 // ============================================================================
-// FHktBagItem — 가방 내 아이템 스냅샷 (엔티티가 아닌 경량 데이터)
+// FHktBagItem  (= Player Inventory Item) — Inventory 내 아이템 스냅샷 (엔티티가 아닌 경량 데이터)
 //
-// Entity의 프로퍼티를 스냅샷하여 보관. Bag ↔ Entity 전환 시 사용.
-// Bag은 VM 시뮬레이션과 무관한 플레이어 레벨 개념이므로 HktRule에 위치.
+// I-0041 (Docs/intents/I-0041.md): 본 "Bag" 은 Entity 의 활성 슬롯이 아니라
+// *Player Inventory* (계정 단위 보관 공간) 이다. I-0040 의 Entity Bag (활성 슬롯) 과
+// 혼동 금지. 실제 rename (UHktBagComponent→UHktPlayerInventoryComponent,
+// FHktBagItem→FHktInventoryItem 등) 은 별도 PR.
+//
+// Entity 의 프로퍼티를 스냅샷하여 보관. Player Inventory ↔ Entity 활성 슬롯 전환 시 사용.
+// VM 시뮬레이션과 무관한 플레이어 (계정) 레벨 개념이므로 HktRule 에 위치.
 // ============================================================================
 
 struct HKTRULE_API FHktBagItem
 {
-	int32 BagSlot = -1;                // 가방 내 슬롯 위치
+	int32 BagSlot = -1;                // Inventory 내 슬롯 위치 (= InventorySlot)
 	int32 ItemId = 0;                  // 아이템 템플릿 ID
 	int32 AttackPower = 0;
 	int32 Defense = 0;
@@ -57,7 +62,8 @@ struct TStructOpsTypeTraits<FHktBagItem> : public TStructOpsTypeTraitsBase2<FHkt
 };
 
 // ============================================================================
-// FHktBagState — 플레이어 가방 전체 상태
+// FHktBagState  (= Player Inventory State) — 플레이어 Inventory 전체 상태
+// I-0041 참조. 별도 PR 에서 FHktInventoryState 로 rename 예정.
 // ============================================================================
 
 struct HKTRULE_API FHktBagState
@@ -145,7 +151,8 @@ struct TStructOpsTypeTraits<FHktBagState> : public TStructOpsTypeTraitsBase2<FHk
 };
 
 // ============================================================================
-// EHktBagOp / FHktBagDelta — 가방 변경 알림 (S2C)
+// EHktBagOp / FHktBagDelta  (= Player Inventory Delta) — Inventory 변경 알림 (S2C)
+// I-0041 참조. 별도 PR 에서 EHktInventoryOp / FHktInventoryDelta 로 rename 예정.
 // ============================================================================
 
 enum class EHktBagOp : uint8
