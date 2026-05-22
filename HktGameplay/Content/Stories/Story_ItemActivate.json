@@ -36,7 +36,7 @@
     { "op": "CmpNe", "dst": "Flag", "src1": {"var":"iterIdx"}, "src2": {"var":"equipIdx"} },
     { "op": "JumpIf", "cond": "Flag", "label": "evict_loop" },
 
-    { "op": "SnippetDeactivateToBag", "item": "Iter", "character": "Self" },
+    { "op": "SnippetDeactivateToInventory", "item": "Iter", "character": "Self" },
     { "op": "Log", "message": "ItemActivate: 기존 EquipIndex 충돌 아이템 비활성화" },
     { "op": "Jump", "label": "evict_loop" },
 

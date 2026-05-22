@@ -364,9 +364,9 @@ void FHktDefaultClientRule::OnReceived_FrameBatch(const FHktSimulationEvent& InB
 	CachedSimulator->EnqueueServerBatch(InBatch);
 }
 
-void FHktDefaultClientRule::OnReceived_BagUpdate(const FHktBagDelta& InDelta)
+void FHktDefaultClientRule::OnReceived_InventoryUpdate(const FHktInventoryDelta& InDelta)
 {
-	// BagComponent가 Client_ReceiveBagUpdate에서 직접 LocalBagState를 업데이트하고
+	// PlayerInventoryComponent가 Client_ReceiveInventoryUpdate에서 직접 LocalInventoryState를 업데이트하고
 	// 델리게이트를 브로드캐스트하므로, ClientRule에서는 추가 처리 불필요.
 	// 향후 UI 시스템이 복잡해지면 여기서 추가 로직 가능.
 }

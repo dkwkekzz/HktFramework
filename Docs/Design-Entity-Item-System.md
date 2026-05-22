@@ -240,7 +240,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 | **자연 스폰** | Map Event | `Story.Flow.Spawner.Item.TreeDrop` | SpawnEntity→Ground → 플레이어가 Pickup |
 | **초기 지급** | Map Event | `Story.State.Player.InWorld` | Story 내부에서 직접 SpawnEntity→InBag |
 
-**Grant는 Event가 아니다.** Grant(아이템 생성+InBag 주입)는 다양한 Event의 Story 내부에서 수행되는 공통 패턴이다. VM에 서브루틴 호출이 없으므로, Grant 로직(용량검증+SpawnEntity+속성설정)은 각 Story에 인라인으로 포함된다. 가방 슬롯 관리는 Player의 BagComponent가 담당한다.
+**Grant는 Event가 아니다.** Grant(아이템 생성+InBag 주입)는 다양한 Event의 Story 내부에서 수행되는 공통 패턴이다. VM에 서브루틴 호출이 없으므로, Grant 로직(용량검증+SpawnEntity+속성설정)은 각 Story에 인라인으로 포함된다. 가방 슬롯 관리는 Player 의 PlayerInventoryComponent가 담당한다.
 
 **Pickup과 Grant의 차이:**
 - Pickup: 이미 존재하는 Ground 아이템(Target)의 소유권을 가져온다. 거리 검증 필요. 그 자체가 Event.
@@ -260,14 +260,14 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
         → Server_ReceiveItemRequest()  → OnReceived_ItemRequest()
                                            Action=Pickup → Story.Event.Item.Pickup
 
-[가방 위젯에서 아이템 선택 — 장착]
-  RequestBagRestore(BagSlot, EquipIndex)
-    → Server_ReceiveBagRequest()       → OnReceived_BagRequest()
+[Inventory 위젯에서 아이템 선택 — 장착]
+  RequestInventoryRestore(InventorySlot, EquipIndex)
+    → Server_ReceiveInventoryRequest()       → OnReceived_InventoryRequest()
                                            Action=RestoreToSlot → 엔티티 생성 + Story.Event.Item.Activate
 
-[장비 위젯에서 아이템 선택 — 가방으로 보관]
-  RequestBagStore(EquipIndex)
-    → Server_ReceiveBagRequest()       → OnReceived_BagRequest()
+[장비 위젯에서 아이템 선택 — Inventory 로 보관]
+  RequestInventoryStore(EquipIndex)
+    → Server_ReceiveInventoryRequest()       → OnReceived_InventoryRequest()
                                            Action=StoreFromSlot → 스냅샷 + Story.Event.Item.Deactivate
 
 [드롭 요청]
@@ -295,7 +295,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 ### 4.1 아이템 상태 머신
 
 아이템은 획득 시 즉시 Active 상태가 되어 스킬을 사용할 수 있다.
-별도의 활성화 단계는 없으며, 가방(Bag)으로의 보관/복원으로 관리한다.
+별도의 활성화 단계는 없으며, Inventory 로의 보관/복원으로 관리한다.
 
 ```
                     ┌──────────┐
@@ -318,8 +318,8 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
     * Pickup 시 빈 EquipIndex(0~8)이 없으면 픽업 실패
     * Drop은 Active 상태에서 Ground로 복귀 가능
     * Drop 시: EquipSlot[N] 클리어, OwnerEntity=0, EquipIndex=-1, 위치=소유자위치
-    * Bag은 엔티티가 아닌 경량 스냅샷(FHktBagItem)으로 보관
-    * Activate/Deactivate Story는 Bag 연동 전용 (내부 사용)
+    * Inventory 는 엔티티가 아닌 경량 스냅샷(FHktInventoryItem)으로 보관
+    * Activate/Deactivate Story는 Inventory 연동 전용 (내부 사용)
 ```
 
 ### 4.2 슬롯 구조
@@ -449,8 +449,8 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
    - ItemState: 0(Ground) → 2(Active)
    - 아이템의 Stance Property를 읽어 캐릭터 Stance 자동 변경
    - 캐릭터 무기 소켓에 해당 아이템 Mesh 부착 (Gap 5 ✅)
-7. 장비 위젯에서 아이템 클릭 → 가방으로 보관 (RequestBagStore → Server_ReceiveBagRequest)
-8. 가방 위젯에서 아이템 클릭 → 다시 장착 (RequestBagRestore → Server_ReceiveBagRequest)
+7. 장비 위젯에서 아이템 클릭 → Inventory 로 보관 (RequestInventoryStore → Server_ReceiveInventoryRequest)
+8. Inventory 위젯에서 아이템 클릭 → 다시 장착 (RequestInventoryRestore → Server_ReceiveInventoryRequest)
 ```
 
 ### 7.2 미구현 항목 (프로토타입용)
@@ -459,9 +459,9 @@ Activate Story에서 아이템의 Stance를 읽어 캐릭터의 Stance를 자동
 |------|------|------|
 | WoodSpear 맵 스폰 Story | 미구현 | PrototypeMap 로드 시 고정 위치에 WoodSpear 1개 스폰하는 Map Event |
 | Pickup 클릭 | ✅ 구현 완료 | OnTargetAction에서 Ground 아이템(ItemState==0) 감지 → RequestItemPickup → Server_ReceiveItemRequest. 즉시 Active 상태 |
-| Bag Store/Restore | ✅ 구현 완료 | `RequestBagStore`/`RequestBagRestore` → `Server_ReceiveBagRequest` RPC → `OnReceived_BagRequest` |
+| Inventory Store/Restore | ✅ 구현 완료 | `RequestInventoryStore`/`RequestInventoryRestore` → `Server_ReceiveInventoryRequest` RPC → `OnReceived_InventoryRequest` |
 | 무기 메쉬 소켓 부착 | ✅ 구현 완료 | `UHktItemVisualDataAsset.AttachSocketName`으로 소켓 지정, `FHktActorRenderer`에서 OwnerEntity/EquipIndex 변경 감지 → 자동 부착/분리 |
-| Inventory/Equipment 위젯 | ✅ 구현 완료 | 장비 패널: `RequestBagStore` 호출, 가방 패널: `RequestBagRestore` 호출 |
+| Inventory/Equipment 위젯 | ✅ 구현 완료 | 장비 패널: `RequestInventoryStore` 호출, Inventory 패널: `RequestInventoryRestore` 호출 |
 
 ---
 

@@ -22,5 +22,5 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityCreated, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktEntityDestroyed, FHktEntityId);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktWorldViewUpdated, const FHktWorldView&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktSlotBindingChanged, int32 /*SlotIndex*/);
-// FOnHktBagChanged (= FOnHktInventoryChanged) — Player Inventory 변경 알림. I-0041 참조.
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktBagChanged, const struct FHktBagDelta&);
+// Player Inventory 변경 알림 (I-0041).
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHktInventoryChanged, const struct FHktInventoryDelta&);

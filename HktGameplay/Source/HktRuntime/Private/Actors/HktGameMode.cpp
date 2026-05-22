@@ -392,7 +392,7 @@ void AHktGameMode::PushRuntimeEvent(int64 PlayerUid, const FHktEvent& Event)
     Rule->OnReceived_RuntimeEvent(Event, *WorldPlayer);
 }
 
-void AHktGameMode::PushBagRequest(int64 PlayerUid, const FHktBagRequest& Request)
+void AHktGameMode::PushInventoryRequest(int64 PlayerUid, const FHktInventoryRequest& Request)
 {
     IHktServerRule* Rule = GetServerRule();
     if (!Rule) return;
@@ -404,8 +404,8 @@ void AHktGameMode::PushBagRequest(int64 PlayerUid, const FHktBagRequest& Request
     if (!WorldPlayer) return;
 
     HKT_EVENT_LOG(HktLogTags::Runtime_Server, EHktLogLevel::Info, EHktLogSource::Server,
-        FString::Printf(TEXT("PushBagRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()));
-    Rule->OnReceived_BagRequest(Request, *WorldPlayer);
+        FString::Printf(TEXT("PushInventoryRequest PlayerUid=%lld %s"), PlayerUid, *Request.ToString()));
+    Rule->OnReceived_InventoryRequest(Request, *WorldPlayer);
 }
 
 IHktServerRule* AHktGameMode::GetServerRule() const

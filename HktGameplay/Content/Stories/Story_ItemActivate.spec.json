@@ -3,8 +3,8 @@
   "description": "ItemActivate 본문: ValidateItemState(1) + ValidateOwnership + 동일 EquipIndex 충돌 아이템 evict + ActivateInSlot. spec runner 가 precondition 미실행 → main body 의 두 SnippetValidate 가 가드 역할. 활성화 슬롯 인덱스는 이벤트 페이로드 Param0 로 전달 (HktEventBuilder::ItemActivate 참조).",
   "scenarios": [
     {
-      "name": "activate_item_from_bag_into_empty_slot",
-      "description": "Self 의 가방 아이템(InBag) 을 슬롯 2 에 활성화. event.param0=2 가 활성화 슬롯 인덱스. 같은 슬롯 충돌 아이템 없음 → evict_loop 무발화 → ActivateInSlot 으로 ItemState 1→2 + EquipIndex=2. ApplyItemStats 가 AttackPower/Defense 합산. Equippable=1 이라 Stance 도 캐릭터에 복사.",
+      "name": "activate_item_from_inventory_into_empty_slot",
+      "description": "Self 의 Inventory 아이템(InBag=ItemState 1) 을 슬롯 2 에 활성화. event.param0=2 가 활성화 슬롯 인덱스. 같은 슬롯 충돌 아이템 없음 → evict_loop 무발화 → ActivateInSlot 으로 ItemState 1→2 + EquipIndex=2. ApplyItemStats 가 AttackPower/Defense 합산. Equippable=1 이라 Stance 도 캐릭터에 복사.",
       "given": {
         "self": {
           "archetype": "Character",

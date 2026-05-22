@@ -39,7 +39,7 @@ public:
     void PushRuntimeEvent(int64 PlayerUid, const FHktEvent& Event);
 
     /** 가방 요청을 Rule에 전달 (PlayerController에서 호출) */
-    void PushBagRequest(int64 PlayerUid, const FHktBagRequest& Request);
+    void PushInventoryRequest(int64 PlayerUid, const FHktInventoryRequest& Request);
 
     /** 월드 최초 생성 시 1회 발동할 Story Tag (예: 초기 스포너/월드 플로우) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hkt|Story", meta = (Categories = "Story"))

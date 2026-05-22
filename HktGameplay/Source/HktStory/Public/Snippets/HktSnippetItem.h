@@ -119,7 +119,7 @@ namespace HktSnippetItem
 	 * ItemState = InBag, EquipIndex = -1, 스탯 차감.
 	 * Note: ClearEquipSlot은 호출 전에 별도로 수행해야 한다.
 	 */
-	HKTSTORY_API FHktStoryBuilder& DeactivateToBag(
+	HKTSTORY_API FHktStoryBuilder& DeactivateToInventory(
 		FHktStoryBuilder& B,
 		RegisterIndex ItemEntity,
 		RegisterIndex CharEntity);
@@ -291,7 +291,7 @@ namespace HktSnippetItem
 		FHktVar SlotIndex,
 		FHktVar CharEntity);
 
-	HKTSTORY_API FHktStoryBuilder& DeactivateToBag(
+	HKTSTORY_API FHktStoryBuilder& DeactivateToInventory(
 		FHktStoryBuilder& B,
 		FHktVar ItemEntity,
 		FHktVar CharEntity);

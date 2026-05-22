@@ -28,7 +28,7 @@ public:
 	virtual void OnUserEvent_MoveStopAction() override;
 	virtual void OnReceived_InitialState(const FHktWorldState& InState, int32 InGroupIndex) override;
 	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) override;
-	virtual void OnReceived_BagUpdate(const FHktBagDelta& InDelta) override;
+	virtual void OnReceived_InventoryUpdate(const FHktInventoryDelta& InDelta) override;
 
 private:
 	// 바인딩된 컨텍스트

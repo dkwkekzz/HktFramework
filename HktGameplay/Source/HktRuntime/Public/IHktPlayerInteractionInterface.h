@@ -9,7 +9,7 @@
 #include "HktWorldState.h"
 #include "HktRuntimeTypes.h"
 #include "HktRuntimeDelegates.h"
-#include "HktBagTypes.h"
+#include "HktInventoryTypes.h"
 #include "HktVoxelSelection.h"
 #include "IHktPlayerInteractionInterface.generated.h"
 
@@ -82,12 +82,12 @@ public:
 	virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() { static FOnHktSlotBindingChanged Dummy; return Dummy; }
 
 	// ---- I-0041 Player Inventory API ----
-	// 아래 "Bag" 명칭의 API 들은 Player Inventory (계정 단위 보관 공간) 를 가리킨다.
-	// I-0040 의 Entity Bag (활성 슬롯) 과 혼동 금지. 실제 rename (RequestInventoryStore 등)
-	// 은 별도 PR. 참고: Docs/intents/I-0041.md
+	// 계정 단위 보관 공간 (Player Inventory) 의 변경 알림 / 요청 API.
+	// I-0040 의 Entity Bag (활성 슬롯) 과 혼동 금지 — Entity 활성 슬롯은 EquipIndex 체계.
+	// 참고: Docs/intents/I-0041.md
 
-	/** Player Inventory 변경 시 브로드캐스트 (S2C RPC 수신 후). (= OnInventoryChanged) */
-	virtual FOnHktBagChanged& OnBagChanged() { static FOnHktBagChanged Dummy; return Dummy; }
+	/** Player Inventory 변경 시 브로드캐스트 (S2C RPC 수신 후). */
+	virtual FOnHktInventoryChanged& OnInventoryChanged() { static FOnHktInventoryChanged Dummy; return Dummy; }
 
 	/** 아이템 드롭 요청 (바닥에 놓기). */
 	virtual void RequestItemDrop(FHktEntityId ItemEntity) {}
@@ -98,18 +98,18 @@ public:
 	 */
 	virtual void RequestActionEvent(FGameplayTag ActionTag) {}
 
-	/** Entity 활성 슬롯 → Player Inventory 로 보관 요청. (= RequestInventoryStore) */
-	virtual void RequestBagStore(int32 EquipIndex) {}
+	/** Entity 활성 슬롯 → Player Inventory 로 보관 요청. */
+	virtual void RequestInventoryStore(int32 EquipIndex) {}
 
-	/** Player Inventory → Entity 활성 슬롯으로 장착 요청. (= RequestInventoryRestore)
-	 *  BagSlot 은 Inventory 슬롯 인덱스, EquipIndex 는 Entity 활성 슬롯 인덱스. */
-	virtual void RequestBagRestore(int32 BagSlot, int32 EquipIndex) {}
+	/** Player Inventory → Entity 활성 슬롯으로 장착 요청.
+	 *  InventorySlot 은 Inventory 슬롯 인덱스, EquipIndex 는 Entity 활성 슬롯 인덱스. */
+	virtual void RequestInventoryRestore(int32 InventorySlot, int32 EquipIndex) {}
 
-	/** Player Inventory → 바닥(Ground) 으로 버리기 요청. (= RequestInventoryDiscard) */
-	virtual void RequestBagDiscard(int32 BagSlot) {}
+	/** Player Inventory → 바닥(Ground) 으로 버리기 요청. */
+	virtual void RequestInventoryDiscard(int32 InventorySlot) {}
 
-	/** 클라이언트 로컬 Player Inventory 상태 조회. 미지원 시 nullptr 반환. (= GetInventoryState) */
-	virtual const FHktBagState* GetBagState() const { return nullptr; }
+	/** 클라이언트 로컬 Player Inventory 상태 조회. 미지원 시 nullptr 반환. */
+	virtual const FHktInventoryState* GetInventoryState() const { return nullptr; }
 
 	/** 이 플레이어의 고유 UID. 소유권 검증 등에 사용. 미지원 시 0 반환. */
 	virtual int64 GetPlayerUid() const { return 0; }

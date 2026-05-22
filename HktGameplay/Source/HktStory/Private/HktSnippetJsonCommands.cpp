@@ -142,8 +142,8 @@ namespace
 		Parser.RegisterCommand(TEXT("SnippetActivateInSlot"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 			HktSnippetItem::ActivateInSlot(B, A.GetReg(TEXT("item")), A.GetReg(TEXT("slotIndex")), A.GetReg(TEXT("character")));
 		});
-		Parser.RegisterCommand(TEXT("SnippetDeactivateToBag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-			HktSnippetItem::DeactivateToBag(B, A.GetReg(TEXT("item")), A.GetReg(TEXT("character")));
+		Parser.RegisterCommand(TEXT("SnippetDeactivateToInventory"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+			HktSnippetItem::DeactivateToInventory(B, A.GetReg(TEXT("item")), A.GetReg(TEXT("character")));
 		});
 		Parser.RegisterCommand(TEXT("SnippetDropToGround"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 			HktSnippetItem::DropToGround(B, A.GetReg(TEXT("item")), A.GetReg(TEXT("posSource")));
@@ -190,8 +190,8 @@ namespace
 		Parser.RegisterCommandV2(TEXT("SnippetActivateInSlot"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 			HktSnippetItem::ActivateInSlot(B, A.GetVar(B, TEXT("item")), A.GetVar(B, TEXT("slotIndex")), A.GetVar(B, TEXT("character")));
 		});
-		Parser.RegisterCommandV2(TEXT("SnippetDeactivateToBag"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-			HktSnippetItem::DeactivateToBag(B, A.GetVar(B, TEXT("item")), A.GetVar(B, TEXT("character")));
+		Parser.RegisterCommandV2(TEXT("SnippetDeactivateToInventory"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+			HktSnippetItem::DeactivateToInventory(B, A.GetVar(B, TEXT("item")), A.GetVar(B, TEXT("character")));
 		});
 		Parser.RegisterCommandV2(TEXT("SnippetDropToGround"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
 			HktSnippetItem::DropToGround(B, A.GetVar(B, TEXT("item")), A.GetVar(B, TEXT("posSource")));

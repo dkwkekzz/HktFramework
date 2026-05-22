@@ -85,7 +85,7 @@ namespace HktStoryItemActivate
 			;
 
 		// 충돌 발견 — 기존 아이템을 InBag으로 전환 + 스탯 차감
-		HktSnippetItem::DeactivateToBag(B, Iter, Self);
+		HktSnippetItem::DeactivateToInventory(B, Iter, Self);
 
 		B	.Log(TEXT("Evicted existing item from EquipIndex"))
 			.Jump(TEXT("evict_loop"))                                       // 계속 순회 (비정상 중복 대비)

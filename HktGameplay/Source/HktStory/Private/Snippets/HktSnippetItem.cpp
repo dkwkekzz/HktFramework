@@ -290,13 +290,13 @@ FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
 	return B;
 }
 
-FHktStoryBuilder& HktSnippetItem::DeactivateToBag(
+FHktStoryBuilder& HktSnippetItem::DeactivateToInventory(
 	FHktStoryBuilder& B,
 	RegisterIndex ItemEntity,
 	RegisterIndex CharEntity)
 {
 	// InBag 상태로 전환 + EquipIndex 해제
-	B.Log(TEXT("[Snippet] DeactivateToBag"))
+	B.Log(TEXT("[Snippet] DeactivateToInventory"))
 	 .SaveConstEntity(ItemEntity, PropertyId::ItemState, 1)              // InBag
 	 .SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);           // 액션 해제
 
@@ -786,12 +786,12 @@ FHktStoryBuilder& HktSnippetItem::ActivateInSlot(
 	return B;
 }
 
-FHktStoryBuilder& HktSnippetItem::DeactivateToBag(
+FHktStoryBuilder& HktSnippetItem::DeactivateToInventory(
 	FHktStoryBuilder& B,
 	FHktVar ItemEntity,
 	FHktVar CharEntity)
 {
-	B.Log(TEXT("[Snippet] DeactivateToBag (Var)"));
+	B.Log(TEXT("[Snippet] DeactivateToInventory (Var)"));
 	B.SaveConstEntity(ItemEntity, PropertyId::ItemState, 1);              // InBag
 	B.SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);
 	HktSnippetItem::RemoveItemStats(B, ItemEntity, CharEntity);

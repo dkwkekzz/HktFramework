@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "HktServerRuleInterfaces.h"
-#include "HktBagTypes.h"
+#include "HktInventoryTypes.h"
 
 struct FHktPlayerRecord;
 
@@ -24,7 +24,7 @@ public:
     virtual void OnReceived_Authentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal, TFunction<void(bool bSuccess, const FString& Token)> InResultCallback) override;
     virtual void OnReceived_Deauthentication(IHktAuthenticator& Authenticator, const IHktPrincipal& InPrincipal) override {}
     virtual void OnReceived_RuntimeEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer) override;
-    virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) override;
+    virtual void OnReceived_InventoryRequest(const FHktInventoryRequest& InRequest, IHktWorldPlayer& InPlayer) override;
 
     // 액터 이벤트 (item 1)
     virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) override;
@@ -93,18 +93,18 @@ private:
 	};
 	TArray<FPendingDebugSpawner> PendingDebugSpawners;
 
-	// RestoreToSlot/Discard — TakeFromBag 후 엔티티 생성이 필요한 큐
-	struct FPendingBagEntitySpawn
+	// RestoreToSlot/Discard — TakeFromInventory 후 엔티티 생성이 필요한 큐
+	struct FPendingInventoryEntitySpawn
 	{
-		FHktBagItem Item;
+		FHktInventoryItem Item;
 		int64 PlayerUid = 0;
 		int32 GroupIndex = INDEX_NONE;
 		FHktEntityId CharacterEntity = InvalidEntityId;
 		int32 EquipIndex = -1;       // RestoreToSlot: 대상 슬롯, Discard: -1
 		bool bDiscard = false;       // true면 Ground 엔티티 생성
 	};
-	TArray<FPendingBagEntitySpawn> PendingBagEntitySpawns;
+	TArray<FPendingInventoryEntitySpawn> PendingInventoryEntitySpawns;
 
-	// Bag RestoreToSlot/Discard: 그룹별 엔티티 생성 큐 (틱 내에서 소비)
+	// Inventory RestoreToSlot/Discard: 그룹별 엔티티 생성 큐 (틱 내에서 소비)
 	TArray<TArray<FHktEntityState>> PendingGroupEntityStates;
 };

@@ -8,7 +8,7 @@
 #include "HktGameMode.h"
 #include "HktRuntimeConverter.h"
 #include "HktRuntimeTypes.h"
-#include "Components/HktBagComponent.h"
+#include "Components/HktPlayerInventoryComponent.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreEventLog.h"
 #include "HktStoryBuilder.h"
@@ -106,9 +106,9 @@ void AHktIngamePlayerController::BeginPlay()
             CachedWorldPlayer = WorldPlayer;
         }
 
-        if (UHktBagComponent* BagComp = Cast<UHktBagComponent>(Comp))
+        if (UHktPlayerInventoryComponent* InventoryComp = Cast<UHktPlayerInventoryComponent>(Comp))
         {
-            CachedBagComponent = BagComp;
+            CachedInventoryComponent = InventoryComp;
         }
     }
 
@@ -149,7 +149,7 @@ void AHktIngamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReaso
     CachedProxySimulator   = nullptr;
     CachedCommandContainer = nullptr;
     CachedWorldPlayer      = nullptr;
-    CachedBagComponent     = nullptr;
+    CachedInventoryComponent     = nullptr;
 
     Super::EndPlay(EndPlayReason);
 }
@@ -865,15 +865,15 @@ void AHktIngamePlayerController::SyncSlotBindingsFromWorldState(const FHktWorldV
 }
 
 // ============================================================================
-// C2S Bag RPC
+// C2S Inventory RPC
 // ============================================================================
 
-bool AHktIngamePlayerController::Server_ReceiveBagRequest_Validate(const FHktRuntimeBagRequest& Request)
+bool AHktIngamePlayerController::Server_ReceiveInventoryRequest_Validate(const FHktRuntimeInventoryRequest& Request)
 {
     return Request.Value.SourceEntity != InvalidEntityId;
 }
 
-void AHktIngamePlayerController::Server_ReceiveBagRequest_Implementation(const FHktRuntimeBagRequest& Request)
+void AHktIngamePlayerController::Server_ReceiveInventoryRequest_Implementation(const FHktRuntimeInventoryRequest& Request)
 {
 #if ENABLE_HKT_INSIGHTS
     InsightSentIntentCount++;
@@ -881,7 +881,7 @@ void AHktIngamePlayerController::Server_ReceiveBagRequest_Implementation(const F
 
     if (AHktGameMode* GM = GetWorld()->GetAuthGameMode<AHktGameMode>())
     {
-        GM->PushBagRequest(GetPlayerUid(), Request.Value);
+        GM->PushInventoryRequest(GetPlayerUid(), Request.Value);
     }
 }
 
@@ -889,61 +889,61 @@ void AHktIngamePlayerController::Server_ReceiveBagRequest_Implementation(const F
 // 가방 요청 API (UI에서 호출)
 // ============================================================================
 
-void AHktIngamePlayerController::RequestBagStore(int32 EquipIndex)
+void AHktIngamePlayerController::RequestInventoryStore(int32 EquipIndex)
 {
     if (DefaultSubjectEntityId == InvalidEntityId) return;
 
-    FHktBagRequest Req;
-    Req.Action = EHktBagAction::StoreFromSlot;
+    FHktInventoryRequest Req;
+    Req.Action = EHktInventoryAction::StoreFromSlot;
     Req.SourceEntity = DefaultSubjectEntityId;
     Req.EquipIndex = EquipIndex;
-    Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
+    Server_ReceiveInventoryRequest(FHktRuntimeInventoryRequest(Req));
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
-        FString::Printf(TEXT("RequestBagStore EquipIndex=%d"), EquipIndex), DefaultSubjectEntityId);
+        FString::Printf(TEXT("RequestInventoryStore EquipIndex=%d"), EquipIndex), DefaultSubjectEntityId);
 }
 
-void AHktIngamePlayerController::RequestBagRestore(int32 BagSlot, int32 EquipIndex)
+void AHktIngamePlayerController::RequestInventoryRestore(int32 InventorySlot, int32 EquipIndex)
 {
     if (DefaultSubjectEntityId == InvalidEntityId) return;
 
-    FHktBagRequest Req;
-    Req.Action = EHktBagAction::RestoreToSlot;
+    FHktInventoryRequest Req;
+    Req.Action = EHktInventoryAction::RestoreToSlot;
     Req.SourceEntity = DefaultSubjectEntityId;
-    Req.BagSlot = BagSlot;
+    Req.InventorySlot = InventorySlot;
     Req.EquipIndex = EquipIndex;
-    Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
+    Server_ReceiveInventoryRequest(FHktRuntimeInventoryRequest(Req));
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
-        FString::Printf(TEXT("RequestBagRestore BagSlot=%d EquipIndex=%d"), BagSlot, EquipIndex), DefaultSubjectEntityId);
+        FString::Printf(TEXT("RequestInventoryRestore InventorySlot=%d EquipIndex=%d"), InventorySlot, EquipIndex), DefaultSubjectEntityId);
 }
 
-void AHktIngamePlayerController::RequestBagDiscard(int32 BagSlot)
+void AHktIngamePlayerController::RequestInventoryDiscard(int32 InventorySlot)
 {
     if (DefaultSubjectEntityId == InvalidEntityId) return;
 
-    FHktBagRequest Req;
-    Req.Action = EHktBagAction::Discard;
+    FHktInventoryRequest Req;
+    Req.Action = EHktInventoryAction::Discard;
     Req.SourceEntity = DefaultSubjectEntityId;
-    Req.BagSlot = BagSlot;
-    Server_ReceiveBagRequest(FHktRuntimeBagRequest(Req));
+    Req.InventorySlot = InventorySlot;
+    Server_ReceiveInventoryRequest(FHktRuntimeInventoryRequest(Req));
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
-        FString::Printf(TEXT("RequestBagDiscard BagSlot=%d"), BagSlot), DefaultSubjectEntityId);
+        FString::Printf(TEXT("RequestInventoryDiscard InventorySlot=%d"), InventorySlot), DefaultSubjectEntityId);
 }
 
-const FHktBagState* AHktIngamePlayerController::GetBagState() const
+const FHktInventoryState* AHktIngamePlayerController::GetInventoryState() const
 {
-    return CachedBagComponent ? &CachedBagComponent->GetLocalBagState() : nullptr;
+    return CachedInventoryComponent ? &CachedInventoryComponent->GetLocalInventoryState() : nullptr;
 }
 
-FOnHktBagChanged& AHktIngamePlayerController::OnBagChanged()
+FOnHktInventoryChanged& AHktIngamePlayerController::OnInventoryChanged()
 {
-    if (CachedBagComponent)
+    if (CachedInventoryComponent)
     {
-        return CachedBagComponent->OnBagChanged();
+        return CachedInventoryComponent->OnInventoryChanged();
     }
-    static FOnHktBagChanged Dummy;
+    static FOnHktInventoryChanged Dummy;
     return Dummy;
 }
 

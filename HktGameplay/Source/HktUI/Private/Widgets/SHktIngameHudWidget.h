@@ -18,7 +18,7 @@
 #include "IHktPlayerInteractionInterface.h"
 #include "HktCoreProperties.h"
 #include "HktCoreArchetype.h"
-#include "HktBagTypes.h"
+#include "HktInventoryTypes.h"
 #include "HktClientRuleInterfaces.h"
 #include "HktVoxelSelection.h"
 #include "GameplayTagContainer.h"
@@ -103,7 +103,7 @@ private:
 	TWeakObjectPtr<APlayerController> CachedPC;
 	FHktEntityId CachedSubjectEntityId = InvalidEntityId;
 	FDelegateHandle SlotBindingHandle;
-	FDelegateHandle BagChangedHandle;
+	FDelegateHandle InventoryChangedHandle;
 	FDelegateHandle SubjectChangedHandle;
 	FDelegateHandle TargetChangedHandle;
 	FDelegateHandle CommandChangedHandle;
@@ -453,7 +453,7 @@ inline void SHktIngameHudWidget::SetOwningPlayerController(APlayerController* In
 				RefreshSkillsPanel();
 			});
 
-			BagChangedHandle = Interaction->OnBagChanged().AddLambda([this](const FHktBagDelta& /*Delta*/)
+			InventoryChangedHandle = Interaction->OnInventoryChanged().AddLambda([this](const FHktInventoryDelta& /*Delta*/)
 			{
 				RefreshInventoryPanel();
 			});
@@ -604,7 +604,7 @@ inline FString SHktIngameHudWidget::GetEntityDisplayName(const FHktWorldState* W
 // EquipSlot PropertyId는 HktTrait::GetEquipSlotPropertyIds()에서 가져옴
 
 // ============================================================================
-// Inventory 패널 (가방에 보관된 아이템 — BagComponent)
+// Inventory 패널 (Player Inventory 에 보관된 아이템 — PlayerInventoryComponent)
 // ============================================================================
 inline void SHktIngameHudWidget::RefreshInventoryPanel()
 {
@@ -617,15 +617,15 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 	IHktPlayerInteractionInterface* Interaction = Cast<IHktPlayerInteractionInterface>(PC);
 	if (!Interaction) return;
 
-	// 가방 상태 조회
-	const FHktBagState* BagState = Interaction->GetBagState();
-	if (!BagState || BagState->Items.Num() == 0)
+	// Inventory 상태 조회
+	const FHktInventoryState* InventoryState = Interaction->GetInventoryState();
+	if (!InventoryState || InventoryState->Items.Num() == 0)
 	{
 		InventoryListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 4.f)
 		[
 			SNew(STextBlock)
-			.Text(FText::FromString(TEXT("Bag is empty")))
+			.Text(FText::FromString(TEXT("Inventory is empty")))
 			.ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
 		];
 		return;
@@ -656,12 +656,12 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 	};
 
 	// 가방 아이템을 슬롯 순으로 정렬하여 표시
-	TArray<FHktBagItem> SortedItems = BagState->Items;
-	SortedItems.Sort([](const FHktBagItem& A, const FHktBagItem& B) { return A.BagSlot < B.BagSlot; });
+	TArray<FHktInventoryItem> SortedItems = InventoryState->Items;
+	SortedItems.Sort([](const FHktInventoryItem& A, const FHktInventoryItem& B) { return A.InventorySlot < B.InventorySlot; });
 
-	for (const FHktBagItem& Item : SortedItems)
+	for (const FHktInventoryItem& Item : SortedItems)
 	{
-		const int32 BagSlot = Item.BagSlot;
+		const int32 InventorySlot = Item.InventorySlot;
 		const int32 NextSlot = FindNextFreeSlot();
 
 		// ItemId로 표시 이름 생성
@@ -682,13 +682,13 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 		[
 			SNew(SButton)
 			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-			.OnClicked_Lambda([this, BagSlot, NextSlot]() -> FReply
+			.OnClicked_Lambda([this, InventorySlot, NextSlot]() -> FReply
 			{
 				if (APlayerController* PC = CachedPC.Get())
 				{
 					if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
 					{
-						I->RequestBagRestore(BagSlot, NextSlot);
+						I->RequestInventoryRestore(InventorySlot, NextSlot);
 					}
 				}
 				return FReply::Handled();
@@ -700,7 +700,7 @@ inline void SHktIngameHudWidget::RefreshInventoryPanel()
 					SNew(SBox).WidthOverride(30.f)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), BagSlot)))
+						.Text(FText::FromString(FString::Printf(TEXT("[%d]"), InventorySlot)))
 						.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
 					]
 				]
@@ -785,14 +785,14 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 			[
 				SNew(SButton)
 				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-				.ToolTipText(FText::FromString(TEXT("클릭: Inventory 로 이동 (Active → InBag)")))
+				.ToolTipText(FText::FromString(TEXT("클릭: Inventory 로 이동 (Active → Inventory)")))
 				.OnClicked_Lambda([this, ItemEquipIndex]() -> FReply
 				{
 					if (APlayerController* PC = CachedPC.Get())
 					{
 						if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
 						{
-							I->RequestBagStore(ItemEquipIndex);
+							I->RequestInventoryStore(ItemEquipIndex);
 						}
 					}
 					return FReply::Handled();
