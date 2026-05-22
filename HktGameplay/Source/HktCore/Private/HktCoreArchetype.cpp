@@ -209,6 +209,7 @@ void InitializeHktArchetypes()
          HktTrait::Animated, HktTrait::Ownable, HktTrait::EventParam},
         {
             HktProperty::IsNPC, HktProperty::SpawnFlowTag,
+            HktProperty::SpawnerSlotKey, // 출신 spawner 식별 키 — Slime 등 spawner-출신 NPC 가 보관.
         });
 
     R.Register(EHktArchetype::Item, TEXT("Item"),
@@ -254,6 +255,6 @@ void InitializeHktArchetypes()
         HktArchetypeTags::Entity_Natural,
         {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Hittable, HktTrait::Ownable, HktTrait::EventParam},
         {
-            HktProperty::RecordKey, // Oak lineage 등 region record 키 보존
+            HktProperty::SpawnerSlotKey, // 출신 spawner 식별 키 — Oak/Birch/Slime 등 spawner-출신 entity 가 보관.
         });
 }

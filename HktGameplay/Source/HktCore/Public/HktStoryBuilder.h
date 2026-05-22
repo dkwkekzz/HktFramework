@@ -439,49 +439,15 @@ public:
     /** EventTag NetIndex 가 들어있는 vreg 로부터 동적 디스패치 (entity-self-declares-action). */
     FHktStoryBuilder& DispatchEventByReg(FHktVar TagNetIndexVar);
 
-    // ---- Region (PR-2) ----
+    // ---- Spawner ----
     /**
-     * Region scalar 카운터에 Delta 를 누적한다.
-     *   emit: LoadStoreEntity + AddImm(또는 LoadConst+Add) + SaveStoreEntity (신규 opcode 0).
-     * Docs/Concepts/C01_TranquilWilds/04-region-state.md §3-D6 의 group A 헬퍼.
-     * RegionEntity 는 spawner story 진입 시 FindOrCreateRegionEntity 로 얻은 row.
+     * voxel-slot key → Entity.Spawner row 해소 (없으면 lazy create).
+     *   emit: SpawnerFindOrCreate(Dst, SlotKeyVar) — 1 host-call opcode.
+     * 누적 카운터 read/write 는 반환 vreg 에 LoadStoreEntity/SaveStoreEntity 로 처리.
+     * @param SlotKeyVar  voxel-slot key (Event.Param2 의 SlotHash31 등) vreg
+     * @return 해소된 spawner entity 의 vreg
      */
-    FHktStoryBuilder& RegionAddScalar(FHktVar RegionEntity, uint16 PropId, int32 Delta);
-
-    /**
-     * Region 안의 *키별 record entity* 를 해소해 vreg 로 반환한다 (없으면 lazy create).
-     * 04 §3-D4 entity-per-record 모델.
-     *   emit: RegionMapFindOrCreate(Dst, RegionEntity, KeyVar, Imm12=RecordTag NetIndex).
-     *
-     * @param RegionEntity  소속 region (FindOrCreateRegionEntity 결과) vreg
-     * @param RecordTag     record 유형 — Entity.RegionRecord.{Lineage|Variant|OreSpecies}
-     * @param KeyVar        record 키 (LineageId/VariantId/OreSpeciesId 등 32bit) vreg
-     * @return 해소된 record entity 의 vreg
-     */
-    FHktVar RegionMapFindOrCreate(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar);
-
-    /**
-     * Region map record 의 한 컬럼을 읽는다.
-     *   emit: RegionMapFindOrCreate + LoadStoreEntity (신규 opcode 0, 기존 opcode 재사용).
-     */
-    FHktStoryBuilder& RegionMapRead(FHktVar Dst, FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId);
-
-    /**
-     * Region map record 의 한 컬럼을 쓴다 (없으면 record lazy create 후 write).
-     *   emit: RegionMapFindOrCreate + SaveStoreEntity.
-     */
-    FHktStoryBuilder& RegionMapWrite(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId, FHktVar ValueVar);
-
-    /**
-     * 위치(cm) → RegionEntity 해소 (PR-5).
-     *   emit: FindOrCreateRegionEntityAt(Dst, PosX, PosY) — 1 host-call opcode.
-     * spawner story 가 Param0/Param1 의 spawn 좌표로 region-scoped helper 진입점을 얻는다.
-     * 결정론: VoxelSizeCm/ChunkSize 는 TerrainState 에서 조회되며 정수 floor-div 만 사용.
-     * @param PosXVar  위치 X (cm) vreg
-     * @param PosYVar  위치 Y (cm) vreg
-     * @return 해소된 RegionEntity 의 vreg
-     */
-    FHktVar FindOrCreateRegionAt(FHktVar PosXVar, FHktVar PosYVar);
+    FHktVar SpawnerFindOrCreate(FHktVar SlotKeyVar);
 
     // ---- Terrain ----
     FHktStoryBuilder& GetTerrainHeight(FHktVar Dst, FHktVar VoxelX, FHktVar VoxelY);

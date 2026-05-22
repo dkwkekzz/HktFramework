@@ -60,16 +60,12 @@ namespace HktArchetypeTags
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Item);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Debris);
 	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Natural); // 자연 entity 부모 태그 — Birch/Oak/... 이 매치 (Hittable + Spatial)
-	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Region);  // PR-2 — region 가상 엔티티
 
-	// --- Region Record (PR-3, 04 §3-D4) ---
-	// region 안의 *키별 record* — Lineage/Variant/OreSpecies 의 데이터 row.
-	// `FHktWorldState::FindOrCreateRegionRecord` 가 (RegionIdKey + RecordKey + 태그) 4-조건 SoA 스캔으로 lazy-create.
-	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord);             // parent
-	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_Lineage);     // Oak 가계 등 (LineageId)
-	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_Variant);     // Mushroom 변종 등 (VariantId)
-	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_OreSpecies);  // Ore 광종 (OreSpeciesId)
-	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_RegionRecord_VoxelSlot);   // Voxel-slot dedupe (RecordKey = SlotHash31)
+	// --- Spawner ---
+	// voxel-attribution 의 slot-key 단위로 lazy create 되는 entity.
+	// 청크 unload 후에도 살아남아 SpawnerAliveFlag / SpawnerDeathCount / SpawnerLastDeathFrame 누적을 보존.
+	// `FHktWorldState::FindOrCreateSpawner` 가 (Entity.Spawner 태그 + SpawnerSlotKey) 매칭 SoA 선형 스캔으로 해소.
+	HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Entity_Spawner);
 }
 
 namespace HktStance

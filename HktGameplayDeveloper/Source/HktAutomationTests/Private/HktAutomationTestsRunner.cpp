@@ -16,8 +16,7 @@ namespace HktOpcodeTests
 	FHktTestReport RunEntityTests();
 	FHktTestReport RunCompositeTests();
 	FHktTestReport RunSpawnerTests();
-	FHktTestReport RunRegionTests();
-	FHktTestReport RunRegionMapTests();
+	FHktTestReport RunSpawnerEntityTests();
 	FHktTestReport RunI0014VoxelAttributionTests();
 }
 
@@ -87,8 +86,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktOpcodeTests::RunEntityTests());
 		Report.Append(HktOpcodeTests::RunCompositeTests());
 		Report.Append(HktOpcodeTests::RunSpawnerTests());
-		Report.Append(HktOpcodeTests::RunRegionTests());
-		Report.Append(HktOpcodeTests::RunRegionMapTests());
+		Report.Append(HktOpcodeTests::RunSpawnerEntityTests());
 		Report.Append(HktOpcodeTests::RunI0014VoxelAttributionTests());
 
 		LastReport = Report;
@@ -148,8 +146,7 @@ namespace HktAutomationTestsRunner
 		Report.Append(HktOpcodeTests::RunEntityTests());
 		Report.Append(HktOpcodeTests::RunCompositeTests());
 		Report.Append(HktOpcodeTests::RunSpawnerTests());
-		Report.Append(HktOpcodeTests::RunRegionTests());
-		Report.Append(HktOpcodeTests::RunRegionMapTests());
+		Report.Append(HktOpcodeTests::RunSpawnerEntityTests());
 		Report.Append(HktOpcodeTests::RunI0014VoxelAttributionTests());
 		Report.Append(HktStoryIntegrityTests::RunAllIntegrityTests());
 		Report.Append(HktStoryScenarioTests::RunAllScenarioTests());

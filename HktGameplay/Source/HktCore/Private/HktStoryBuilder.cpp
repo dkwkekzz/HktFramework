@@ -1607,58 +1607,12 @@ FHktStoryBuilder& FHktStoryBuilder::AddImm(FHktVar Dst, FHktVar Src, int32 Imm)
     return *this;
 }
 
-// ---- Region (PR-3, 04 §3-D4/D6) ----
-FHktVar FHktStoryBuilder::RegionMapFindOrCreate(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar)
+// ---- Spawner ----
+FHktVar FHktStoryBuilder::SpawnerFindOrCreate(FHktVar SlotKeyVar)
 {
-    // emit: RegionMapFindOrCreate(Dst, RegionEntity, KeyVar, Imm12=RecordTag NetIndex).
-    // record 생성은 인터프리터 측에서 FindOrCreateRegionRecord 가 SoA 4-조건 매치로 처리.
-    FHktVar Out = NewVar(TEXT("RegionRecord"));
-    const uint16 TagImm = static_cast<uint16>(TagToInt(RecordTag) & 0xFFF);
-    EmitV(EOpCode::RegionMapFindOrCreate, Out, RegionEntity, KeyVar, TagImm);
+    FHktVar Out = NewVar(TEXT("SpawnerEntity"));
+    EmitV(EOpCode::SpawnerFindOrCreate, Out, SlotKeyVar, VNone(), 0);
     return Out;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::RegionMapRead(FHktVar Dst, FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId)
-{
-    FHktVar Record = RegionMapFindOrCreate(RegionEntity, RecordTag, KeyVar);
-    LoadStoreEntity(Dst, Record, PropId);
-    return *this;
-}
-
-FHktStoryBuilder& FHktStoryBuilder::RegionMapWrite(FHktVar RegionEntity, const FGameplayTag& RecordTag, FHktVar KeyVar, uint16 PropId, FHktVar ValueVar)
-{
-    FHktVar Record = RegionMapFindOrCreate(RegionEntity, RecordTag, KeyVar);
-    SaveStoreEntity(Record, PropId, ValueVar);
-    return *this;
-}
-
-// ---- Region (PR-5) — 위치(cm) → RegionEntity ----
-FHktVar FHktStoryBuilder::FindOrCreateRegionAt(FHktVar PosXVar, FHktVar PosYVar)
-{
-    FHktVar Out = NewVar(TEXT("RegionEntity"));
-    EmitV(EOpCode::FindOrCreateRegionEntityAt, Out, PosXVar, PosYVar, 0);
-    return Out;
-}
-
-// ---- Region (PR-2) ----
-FHktStoryBuilder& FHktStoryBuilder::RegionAddScalar(FHktVar RegionEntity, uint16 PropId, int32 Delta)
-{
-    // AddImm 즉시값 범위 = signed 12-bit ([-2048, 2047]).
-    // 범위 안이면 LoadStoreEntity + AddImm + SaveStoreEntity 의 3-op 패턴, 밖이면 LoadConst+Add 로 폴백.
-    FHktVar Scratch = NewVar(TEXT("RegionScalar"));
-    LoadStoreEntity(Scratch, RegionEntity, PropId);
-    if (Delta >= -2048 && Delta <= 2047)
-    {
-        AddImm(Scratch, Scratch, Delta);
-    }
-    else
-    {
-        FHktVar DeltaVar = NewVar(TEXT("RegionScalarDelta"));
-        LoadConst(DeltaVar, Delta);
-        Add(Scratch, Scratch, DeltaVar);
-    }
-    SaveStoreEntity(RegionEntity, PropId, Scratch);
-    return *this;
 }
 
 // ---- 비교 ----

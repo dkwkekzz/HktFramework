@@ -200,7 +200,7 @@ namespace HktEventBuilder
 	 *   - `Event.Param0/1` = cm 정수 (SpawnerParams::SpawnPosX/Y 컨벤션)
 	 *   - `Event.Param3` = Z cm 정수 (SpawnerParams::SpawnPosZ — Natural 계열 자연 spawner 공용)
 	 *   - `Event.Location` = FVector cm (시뮬레이션 시스템이 청크 사전 로드에 사용)
-	 *   - `Event.Param2` = view 의 archetype 별 슬롯 (예: Oak LineageId)
+	 *   - `Event.Param2` = view 의 archetype 별 슬롯 (= 모든 spawner 종에서 SpawnerSlotKey 로 사용)
 	 *   - `Event.EventTag` = view.StoryTag (FHktDefaultServerRule 의 RuntimeEvent dispatch
 	 *     경로와 동일 — VMBuildSystem 이 StoryTag 로 Program 조회)
 	 *

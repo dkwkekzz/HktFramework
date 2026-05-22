@@ -134,10 +134,8 @@ EVMStatus FHktVMInterpreter::ExecuteInstruction(FHktVMRuntime& Runtime, const FI
     case EOpCode::SetVoxel: Op_SetVoxel(Runtime, Inst.Src1, Inst.Src2); break;
     case EOpCode::IsTerrainSolid: Op_IsTerrainSolid(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
     case EOpCode::InteractTerrain: Op_InteractTerrain(Runtime, Inst.Src1, Inst.Imm12); break;
-    // Region (PR-3)
-    case EOpCode::RegionMapFindOrCreate: Op_RegionMapFindOrCreate(Runtime, Inst.Dst, Inst.Src1, Inst.Src2, Inst.Imm12); break;
-    // Region (PR-5) — 위치(cm) → RegionEntity 해소
-    case EOpCode::FindOrCreateRegionEntityAt: Op_FindOrCreateRegionEntityAt(Runtime, Inst.Dst, Inst.Src1, Inst.Src2); break;
+    // Spawner — voxel-slot key → Entity.Spawner row 해소
+    case EOpCode::SpawnerFindOrCreate: Op_SpawnerFindOrCreate(Runtime, Inst.Dst, Inst.Src1); break;
     // Utility
     case EOpCode::Log: Op_Log(Runtime, Inst.GetSignedImm20()); break;
     default: return EVMStatus::Failed;
@@ -490,8 +488,7 @@ bool FHktVMInterpreter::ExecutePrecondition(
         case EOpCode::DispatchEventByReg:
         case EOpCode::LookAt:
         case EOpCode::SetForwardTarget:
-        case EOpCode::RegionMapFindOrCreate:  // PR-3 — record 생성은 부작용, precondition 에서는 skip
-        case EOpCode::FindOrCreateRegionEntityAt:  // PR-5 — region entity lazy create 부작용, precondition 에서는 skip
+        case EOpCode::SpawnerFindOrCreate:  // spawner lazy create 부작용, precondition 에서는 skip
             continue;  // skip
         case EOpCode::Yield:
         case EOpCode::YieldSeconds:

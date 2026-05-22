@@ -1,4 +1,10 @@
-# C01-04 — Region 영속 상태 시스템 (ADR)
+# C01-04 — Region 영속 상태 시스템 (ADR, **SUPERSEDED**)
+
+> **⚠ SUPERSEDED**: 본 ADR 의 Region/RegionRecord 엔티티 모델은 voxel-attribution 기반
+> **Spawner Entity** (`Entity.Spawner` + `SpawnerSlotKey/AliveFlag/DeathCount/LastDeathFrame`)
+> 로 대체되었다. 누적 카운터는 spawner-scoped 로 흡수되었고, region-level cross-spawner
+> aggregate (예: `RegionOakCount`) 는 실제 게이트 사용 요구가 등장할 때 재설계 예정.
+> 코드/Story 에 잔존 흔적은 없음 — 본 문서는 historical reference 용으로 archive.
 
 > **목적**: [`03-natural-spawners.md`](./03-natural-spawners.md) §5 에서 *이름만 합의* 된 13 개 region 카운터의 **저장 모델 · 읽기/쓰기 API · 결정론 · 영속화 · 복제** 를 결정한다. 본 문서가 통과하면 07 의 schema 2 JSON 본문이 region state 를 안전하게 참조할 수 있다.
 > **상태**: ADR (Phase 0). 구현 착수 전, 데이터 모델 단일 출처.

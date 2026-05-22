@@ -1,12 +1,12 @@
 {
   "storyTag": "Story.Flow.Natural.Oak.Lifecycle",
-  "description": "Oak Lifecycle — Self=Oak entity 는 WaitTag(State.Dead) 로 슬롯 점유 ~0. 사망 감지 시 Branch 3 drop + LineageFelledCount +1 + RegionOakCount -1 + Param2=LineageId 로 Event.Region.OakSaplingSeed 디스패치 + DestroyEntity.",
+  "description": "Oak Lifecycle — Self=Oak entity 는 WaitTag(State.Dead) 로 슬롯 점유 ~0. 사망 감지 시 Branch 3 drop + 출신 Spawner.SpawnerDeathCount +1 + Param2=SpawnerSlotKey 로 Event.Natural.OakSaplingSeed 디스패치 + DestroyEntity.",
   "scenarios": [
     {
       "name": "alive_oak_waits_for_death",
       "description": "Self 에 State.Dead 태그가 없으면 WaitTag yield → WaitingEvent 상태.",
       "given": {
-        "self": { "position": [0, 0, 0], "properties": { "RecordKey": 4242 } }
+        "self": { "position": [0, 0, 0], "properties": { "SpawnerSlotKey": 4242 } }
       },
       "expect": {
         "status": "Waiting",
@@ -14,19 +14,19 @@
       }
     },
     {
-      "name": "dead_oak_dispatches_sapling_seed_with_lineage",
-      "description": "Self 에 State.Dead 부여 + RecordKey=4242 → die 분기 → OakSaplingSeed 1건 디스패치, Param2=4242.",
+      "name": "dead_oak_dispatches_sapling_seed_with_slot_key",
+      "description": "Self 에 State.Dead 부여 + SpawnerSlotKey=4242 → die 분기 → OakSaplingSeed 1건 디스패치, Param2=4242.",
       "given": {
         "self": {
           "position": [200, 0, 0],
           "tags": ["State.Dead"],
-          "properties": { "RecordKey": 4242 }
+          "properties": { "SpawnerSlotKey": 4242 }
         }
       },
       "expect": {
         "status": "Completed",
         "dispatched": [
-          { "eventTag": "Event.Region.OakSaplingSeed", "param2": 4242, "source": "self" }
+          { "eventTag": "Event.Natural.OakSaplingSeed", "param2": 4242, "source": "self" }
         ]
       }
     }

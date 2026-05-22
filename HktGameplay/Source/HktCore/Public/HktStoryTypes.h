@@ -313,10 +313,8 @@ struct FHktRegReserve
     X(SetVoxel,              _, R, R) \
     X(IsTerrainSolid,        W, R, R) \
     X(InteractTerrain,       _, R, _) \
-    /* Region (PR-3, 04 §3-D4) — 키별 record entity 해소 (1 host-call opcode). LoadStoreEntity/SaveStoreEntity 는 기존 그대로. */ \
-    X(RegionMapFindOrCreate, W, R, R) \
-    /* Region (PR-5) — 위치(cm) → chunk → RegionId → RegionEntity 해소 (host-call). spawner story 가 region-scoped 카운터/record 를 쓰기 위한 진입점. */ \
-    X(FindOrCreateRegionEntityAt, W, R, R) \
+    /* Spawner — voxel-slot key (Src1=int reader) → Entity.Spawner row 해소 (host-call). 누적 카운터 read/write 는 LoadStoreEntity/SaveStoreEntity 로. */ \
+    X(SpawnerFindOrCreate,   W, R, _) \
     /* Utility */           \
     X(Log,              _, _, _)
 

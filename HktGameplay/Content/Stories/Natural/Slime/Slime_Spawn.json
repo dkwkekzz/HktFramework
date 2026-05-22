@@ -8,7 +8,6 @@
     "StanceUnarmed": "Entity.Stance.Unarmed",
     "NpcLifecycle":  "Story.Flow.NPC.Lifecycle",
     "SlimeBrain":    "Story.Flow.Brain.Slime",
-    "VoxelSlot":     "Entity.RegionRecord.VoxelSlot",
     "StateDead":     "State.Dead"
   },
   "steps": [
@@ -19,23 +18,17 @@
     { "op": "LoadStore", "dst": {"var":"slotKey"},              "property": "Param2" },
     { "op": "LoadStore", "dst": {"block":"spawnPos","index":2}, "property": "Param3" },
 
-    { "op": "Move", "dst": {"var":"posX"}, "src": {"block":"spawnPos","index":0} },
-    { "op": "Move", "dst": {"var":"posY"}, "src": {"block":"spawnPos","index":1} },
-    { "op": "FindOrCreateRegionAt", "posX": {"var":"posX"}, "posY": {"var":"posY"}, "out": "regionEntity" },
+    { "op": "SpawnerFindOrCreate", "slotKey": {"var":"slotKey"}, "out": "spawnerEntity" },
 
     { "op": "Label", "name": "top" },
 
-    { "op": "RegionMapRead", "dst": {"var":"alive"},
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotAliveFlag" },
+    { "op": "LoadStoreEntity", "dst": {"var":"alive"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag" },
     { "op": "IfGeConst", "src": {"var":"alive"}, "value": 1 },
       { "op": "Log", "message": "[Slime] slot 점유 중 (다른 instance 가 spawn) — Halt 로 양보" },
       { "op": "Halt" },
     { "op": "EndIf" },
 
-    { "op": "RegionMapRead", "dst": {"var":"lastDie"},
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame" },
+    { "op": "LoadStoreEntity", "dst": {"var":"lastDie"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame" },
     { "op": "IfGeConst", "src": {"var":"lastDie"}, "value": 1 },
       { "op": "GetWorldTime", "dst": {"var":"now"} },
       { "op": "Sub", "dst": {"var":"elapsed"}, "src1": {"var":"now"}, "src2": {"var":"lastDie"} },
@@ -51,7 +44,7 @@
     { "op": "AddTag", "entity": {"var":"slime"}, "tag": "NpcSlime" },
     { "op": "AddTag", "entity": {"var":"slime"}, "tag": "NpcHostile" },
 
-    { "op": "SaveStoreEntity", "entity": {"var":"slime"}, "property": "RecordKey",   "src":   {"var":"slotKey"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"slime"}, "property": "SpawnerSlotKey", "src":   {"var":"slotKey"} },
     { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "IsNPC",       "value": 1 },
     { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "Health",      "value": 30 },
     { "op": "SaveConstEntity", "entity": {"var":"slime"}, "property": "MaxHealth",   "value": 30 },
@@ -64,9 +57,7 @@
     { "op": "SetPosition", "entity": {"var":"slime"}, "pos": {"block":"spawnPos"} },
 
     { "op": "LoadConst", "dst": {"var":"one"}, "value": 1 },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"one"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag", "src": {"var":"one"} },
 
     { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": {"var":"slime"} },
     { "op": "DispatchEventFrom", "eventTag": "SlimeBrain",   "source": {"var":"slime"} },
@@ -81,12 +72,11 @@
     { "op": "Log", "message": "[Slime] 사망 감지 — slot release 후 top 으로 jump (cooldown wait + respawn)" },
     { "op": "GetWorldTime", "dst": {"var":"dieTime"} },
     { "op": "LoadConst", "dst": {"var":"zero"}, "value": 0 },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"zero"} },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame", "value": {"var":"dieTime"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag",      "src": {"var":"zero"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame", "src": {"var":"dieTime"} },
+    { "op": "LoadStoreEntity", "dst": {"var":"deathCount"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount" },
+    { "op": "AddImm", "dst": {"var":"deathCount"}, "src": {"var":"deathCount"}, "imm": 1 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount", "src": {"var":"deathCount"} },
     { "op": "Jump", "label": "top" }
   ]
 }

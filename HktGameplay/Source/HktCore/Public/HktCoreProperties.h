@@ -203,52 +203,16 @@ namespace HktProperty
     // 주: Facing 은 클라 viewmodel 산출(LastMoveDirXY + 카메라 yaw) — VM 권위 프로퍼티 아님.
     HKT_DEFINE_PROPERTY(AnimStartTick,        Cold) // AnimState 전환 시점 (VM frame)
 
-    // ===== Region-Scalar 카운터 (PR-2, Cold tier) =====
+    // ===== Spawner — voxel-attribution slot 단위 lifecycle 컬럼 (Cold tier) =====
     //
-    // Docs/Concepts/C01_TranquilWilds/04-region-state.md §3-D3 그룹 A 의 시즌 0 카운터.
-    // RegionEntity (Entity.Region 태그 보유) 1 row 가 카운터를 보관하며,
-    // FHktWorldState::FindOrCreateRegionEntity 가 lazy-create 한다.
-    // 자주 갱신되지 않으므로 Cold tier — Hot stride 부담 없음.
+    // SpawnerSlotKey 가 lookup 키. spawner entity 자신이 보관하면 그 row 의 id 가 곧 spawner,
+    // 일반 entity 가 보관하면 출신 spawner 식별자 (Oak 자식이 가계 spawner 가리키는 식).
+    // 같은 PropertyId 를 두 의미로 재사용 — entity 위치별 의미 분기는 호출자 책임.
 
-    HKT_DEFINE_PROPERTY(RegionIdKey,               Cold) // RegionId (packed macro-tile). FindOrCreateRegionEntity 의 lookup 키 — 별도 store 0, 순수 SoA.
-    HKT_DEFINE_PROPERTY(RegionFireCounter,         Cold) // 발화 누적
-    HKT_DEFINE_PROPERTY(RegionHarvestedClusters,   Cold) // 베리/허브 cluster 수확 누적
-    HKT_DEFINE_PROPERTY(RegionDeadTrees,           Cold) // 고사목 누적
-    HKT_DEFINE_PROPERTY(RegionSuccessionPatches,   Cold) // 천이 패치 누적
-    HKT_DEFINE_PROPERTY(RegionSeenTheGrain,        Cold) // 풀-결 관측 누적
-    HKT_DEFINE_PROPERTY(RegionFelledElders,        Cold) // Elder 베기 누적 (집계용 scalar — lineage 별 상세는 PR-3 의 group B 가 담당)
-    HKT_DEFINE_PROPERTY(RegionCrossingPoints,      Cold) // 발견된 ford crossing 수 (group C 상세는 PR-3+)
-    HKT_DEFINE_PROPERTY(RegionBirchCount,          Cold) // Birch 현존 cap (Implementation-Plan §6.1 데모 시나리오)
-    HKT_DEFINE_PROPERTY(RegionOakCount,            Cold) // Oak 현존 cap (PR-5+ 예약)
-    HKT_DEFINE_PROPERTY(RegionPineCount,           Cold) // Pine 현존 cap (PR-7+ 예약)
-
-    // ===== Region-Record (PR-3, Cold tier — 04 §3-D4 Group B) =====
-    //
-    // region 안의 *키별 record entity* 가 보관하는 컬럼들. record 1개 = SoA row 1개.
-    // 모든 record 는 `Entity.RegionRecord.*` 태그 + `RegionIdKey` (소속 region) + `RecordKey` (record 키)
-    // 3-컬럼을 기본으로 갖고, record 유형별 추가 컬럼을 덧붙인다.
-    // lookup 은 `FHktWorldState::FindOrCreateRegionRecord` 가 SoA 선형 스캔으로 처리 (TMap 0).
-
-    HKT_DEFINE_PROPERTY(RecordKey,                 Cold) // 32bit 자유 key — LineageId / VariantId / OreSpeciesId 공용. modulo 슬롯 매핑 0.
-
-    // Lineage (Oak/Birch 가계 등) — Entity.RegionRecord.Lineage
-    HKT_DEFINE_PROPERTY(LineageFelledCount,        Cold) // 이 가계에서 베인 그루 수 누적
-    HKT_DEFINE_PROPERTY(LineagePromotedCount,      Cold) // 이 가계에서 후계자 promotion 발화 누적
-    HKT_DEFINE_PROPERTY(LineageElderPosX,          Cold) // Elder 좌표 — 다음 자식 spawn 의 anchor (cm 단위)
-    HKT_DEFINE_PROPERTY(LineageElderPosY,          Cold)
-    HKT_DEFINE_PROPERTY(LineageElderPosZ,          Cold)
-
-    // Variant (Mushroom/Herb 변종 등) — Entity.RegionRecord.Variant
-    HKT_DEFINE_PROPERTY(VariantPotency,            Cold) // 변종의 효능 강도
-    HKT_DEFINE_PROPERTY(VariantFirstFoundFrame,    Cold) // 처음 식별된 시뮬레이션 프레임 (0=미식별)
-
-    // Ore (광종 depletion) — Entity.RegionRecord.OreSpecies
-    HKT_DEFINE_PROPERTY(OreDepletedCount,          Cold) // 이 광종의 누적 채광량 (임계 시 광종 전이)
-    HKT_DEFINE_PROPERTY(OreCurrentSpeciesId,       Cold) // 현재 region 에서 등장 중인 광종 (전이 후 변경)
-
-    // VoxelSlot — Entity.RegionRecord.VoxelSlot (spawner dedupe + cooldown, RecordKey=SlotHash31)
-    HKT_DEFINE_PROPERTY(SlotAliveFlag,             Cold) // 0=비어 있음 / 1=해당 voxel slot 에 entity 생존 중
-    HKT_DEFINE_PROPERTY(SlotLastDieFrame,          Cold) // 마지막 사망 frame index (GetWorldTime 결과 — 0=한 번도 죽지 않음)
+    HKT_DEFINE_PROPERTY(SpawnerSlotKey,            Cold) // voxel-slot key (Param2 의 SlotHash31). FindOrCreateSpawner 의 lookup 키 겸 spawned entity 의 출신 식별자.
+    HKT_DEFINE_PROPERTY(SpawnerAliveFlag,          Cold) // 0=instance 없음 / 1=spawn 된 instance 가 살아있음
+    HKT_DEFINE_PROPERTY(SpawnerDeathCount,         Cold) // 이 spawner 가 spawn 한 instance 의 누적 사망 수
+    HKT_DEFINE_PROPERTY(SpawnerLastDeathFrame,     Cold) // 마지막 사망 frame index (GetWorldTime 결과 — 0=한 번도 죽지 않음)
 
     // ===== Action Intent (I-0016 — Action State 기반 Lifecycle System) =====
     //

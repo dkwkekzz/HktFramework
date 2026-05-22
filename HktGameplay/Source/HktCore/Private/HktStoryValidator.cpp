@@ -161,16 +161,9 @@ bool FHktStoryValidator::ValidateEntityFlow()
 			CheckEntityReg(PC, Op, Inst.Dst);
 			break;
 
-		// --- Region (PR-3, 04 §3-D4) ---
-		//   Dst = record entity (writer), Src1 = region entity (reader), Src2 = key (int reader).
-		case EOpCode::RegionMapFindOrCreate:
-			CheckEntityReg(PC, Op, Inst.Src1);
-			EntityRegs |= (1 << Inst.Dst);
-			break;
-
-		// --- Region (PR-5) ---
-		//   Dst = region entity (writer), Src1/Src2 = PosX/Y (int reader). 위치 입력은 entity flow 추적에서 제외.
-		case EOpCode::FindOrCreateRegionEntityAt:
+		// --- Spawner ---
+		//   Dst = spawner entity (writer), Src1 = slot key (int reader). 키는 entity flow 추적에서 제외.
+		case EOpCode::SpawnerFindOrCreate:
 			EntityRegs |= (1 << Inst.Dst);
 			break;
 

@@ -118,9 +118,8 @@ private:
 	FHktVMInterpreter Interpreter;
 	FHktVMRuntime Runtime;
 	FHktVMContext Context;
-	// Region helper op (FindOrCreateRegionEntityAt) 가 nullptr 가드를 통과해 chunk
-	// 좌표 계산을 수행할 수 있도록 빈 TerrainState 를 들고 있다 — VoxelSizeCm 기본값(15)으로
-	// 결정론 계산이 성립.
+	// Terrain-읽기 op (GetTerrainHeight / GetVoxelType 등) 가 nullptr 가드를 통과하도록
+	// 빈 TerrainState 를 들고 있다 — VoxelSizeCm 기본값(15)으로 결정론 계산이 성립.
 	FHktTerrainState TerrainState;
 	TArray<FHktVoxelDelta> PendingVoxelDeltas;
 };

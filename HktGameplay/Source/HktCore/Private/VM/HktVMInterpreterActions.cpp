@@ -12,7 +12,6 @@
 #include "HktHitboxDebugTracer.h"
 #include "Terrain/HktTerrainState.h"
 #include "Terrain/HktTerrainVoxelDef.h"
-#include "Terrain/HktRegionId.h"
 #include "HktSimulationSystems.h"
 
 // ============================================================================
@@ -1022,10 +1021,10 @@ void FHktVMInterpreter::Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex
 }
 
 // ============================================================================
-// Region (PR-3, 04 §3-D4)
+// Spawner
 // ============================================================================
 
-void FHktVMInterpreter::Op_RegionMapFindOrCreate(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex RegionEntity, RegisterIndex KeyReg, int32 TagIndex)
+void FHktVMInterpreter::Op_SpawnerFindOrCreate(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex SlotKeyReg)
 {
     if (!WorldState)
     {
@@ -1033,63 +1032,12 @@ void FHktVMInterpreter::Op_RegionMapFindOrCreate(FHktVMRuntime& Runtime, Registe
         return;
     }
 
-    const FGameplayTag RecordTag = ResolveTag(TagIndex);
-    if (!RecordTag.IsValid())
-    {
-        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, LogSource,
-            FString::Printf(TEXT("Op_RegionMapFindOrCreate: invalid TagIndex %d"), TagIndex));
-        Runtime.SetRegEntity(Dst, InvalidEntityId);
-        return;
-    }
-
-    const FHktEntityId RegionId = Runtime.GetRegEntity(RegionEntity);
-    if (!WorldState->IsValidEntity(RegionId))
-    {
-        HKT_EVENT_LOG(HktLogTags::Core_VM, EHktLogLevel::Error, LogSource,
-            FString::Printf(TEXT("Op_RegionMapFindOrCreate: invalid RegionEntity %d"), RegionId));
-        Runtime.SetRegEntity(Dst, InvalidEntityId);
-        return;
-    }
-
-    // RegionEntity 의 RegionIdKey 컬럼에서 region 식별자를 읽는다 — 04 §3-D6 의 Builder 패턴.
-    const int32 RegionIdRaw = WorldState->GetProperty(RegionId, PropertyId::RegionIdKey);
-    const uint32 RegionIdValue = static_cast<uint32>(RegionIdRaw);
-    const uint32 KeyHash = static_cast<uint32>(Runtime.GetReg(KeyReg));
-
-    const FHktEntityId RecordEntity = WorldState->FindOrCreateRegionRecord(RegionIdValue, RecordTag, KeyHash);
-    Runtime.SetRegEntity(Dst, RecordEntity);
-
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_RegionMapFindOrCreate Region=%d Tag=%s Key=0x%08X → Record=%d"),
-            RegionId, *RecordTag.ToString(), KeyHash, RecordEntity),
-        RecordEntity);
-}
-
-void FHktVMInterpreter::Op_FindOrCreateRegionEntityAt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosXReg, RegisterIndex PosYReg)
-{
-    if (!WorldState || !TerrainState)
-    {
-        Runtime.SetRegEntity(Dst, InvalidEntityId);
-        return;
-    }
-
-    const int32 PosXCm = Runtime.GetReg(PosXReg);
-    const int32 PosYCm = Runtime.GetReg(PosYReg);
-
-    // VoxelSizeCm 은 float (기본 15.0). 결정론을 위해 정수 floor-div 만 사용.
-    const int32 VoxelSizeI   = FMath::Max(1, static_cast<int32>(TerrainState->VoxelSizeCm));
-    const int32 ChunkExtentCm = VoxelSizeI * FHktTerrainState::ChunkSize;
-
-    const int32 ChunkX = FHktTerrainState::FloorDiv(PosXCm, ChunkExtentCm);
-    const int32 ChunkY = FHktTerrainState::FloorDiv(PosYCm, ChunkExtentCm);
-
-    const uint32 RegionId = HktRegionId::FromChunkCoord(ChunkX, ChunkY);
-    const FHktEntityId Entity = WorldState->FindOrCreateRegionEntity(RegionId);
+    const uint32 SlotKey = static_cast<uint32>(Runtime.GetReg(SlotKeyReg));
+    const FHktEntityId Entity = WorldState->FindOrCreateSpawner(SlotKey);
     Runtime.SetRegEntity(Dst, Entity);
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_VM, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("Op_FindOrCreateRegionEntityAt Pos=(%d,%d)cm Chunk=(%d,%d) RegionId=0x%08X → Entity=%d"),
-            PosXCm, PosYCm, ChunkX, ChunkY, RegionId, Entity),
+        FString::Printf(TEXT("Op_SpawnerFindOrCreate SlotKey=0x%08X → Entity=%d"), SlotKey, Entity),
         Entity);
 }
 
