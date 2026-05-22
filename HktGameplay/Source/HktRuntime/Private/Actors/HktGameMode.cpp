@@ -2,6 +2,7 @@
 
 #include "HktGameMode.h"
 #include "HktRuntimeLog.h"
+#include "HktRuntimeStats.h"
 #include "HktIngamePlayerController.h"
 #include "HktPlayerState.h"
 #include "HktServerRuleInterfaces.h"
@@ -16,6 +17,10 @@
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 DEFINE_LOG_CATEGORY(LogHktRuntime);
+
+DECLARE_CYCLE_STAT(TEXT("GameMode.Tick"),           STAT_HktRuntime_GameModeTick,    STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("GameMode.SimulationTick"), STAT_HktRuntime_SimulationTick,  STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("GameMode.ReplicateBatch"), STAT_HktRuntime_ReplicateBatch,  STATGROUP_HktRuntime);
 
 AHktGameMode::AHktGameMode()
 {
@@ -176,6 +181,8 @@ void AHktGameMode::RebindTerrainProvider()
 
 void AHktGameMode::Tick(float DeltaSeconds)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_GameModeTick);
+
     Super::Tick(DeltaSeconds);
 
     if (!CachedFrameManager || !CachedFrameManager->IsInitialized())
@@ -220,6 +227,8 @@ void AHktGameMode::NotifyTerrainReadyIfPossible()
 
 void AHktGameMode::SimulationTick()
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_SimulationTick);
+
 #if ENABLE_HKT_INSIGHTS
     double TickStart = FPlatformTime::Seconds();
 #endif
@@ -237,6 +246,8 @@ void AHktGameMode::SimulationTick()
     {
         GroupHeartbeatAccumulators.Init(0.0f, TickResult.EventSends.Num());
     }
+
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_ReplicateBatch);
 
     for (int32 GroupIndex = 0; GroupIndex < TickResult.EventSends.Num(); ++GroupIndex)
     {

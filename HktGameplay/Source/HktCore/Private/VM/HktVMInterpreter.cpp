@@ -8,7 +8,10 @@
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
 #include "HktCoreProperties.h"
+#include "HktCoreStats.h"
 #include "HktSimulationTick.h"
+
+DECLARE_CYCLE_STAT(TEXT("VMInterpreter.Execute"), STAT_HktCore_VMInterpreter, STATGROUP_HktCore);
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
                                    FHktTerrainState* InTerrainState, TArray<FHktVoxelDelta>* InPendingVoxelDeltas)
@@ -21,6 +24,8 @@ void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStat
 
 EVMStatus FHktVMInterpreter::Execute(FHktVMRuntime& Runtime)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_VMInterpreter);
+
     if (!Runtime.Program || !Runtime.Program->IsValid())
         return EVMStatus::Failed;
 

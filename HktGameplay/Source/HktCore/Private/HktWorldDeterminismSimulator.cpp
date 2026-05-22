@@ -2,12 +2,22 @@
 
 #include "HktWorldDeterminismSimulator.h"
 #include "HktCoreLog.h"
+#include "HktCoreStats.h"
 #include "VM/HktVMRuntime.h"
 #include "VM/HktVMInterpreter.h"
 #include "VM/HktVMContext.h"
 #include "VM/HktVMProgram.h"
 #include "HktCoreProperties.h"
 #include "HktSimulationLimits.h"
+
+DECLARE_CYCLE_STAT(TEXT("AdvanceFrame"), STAT_HktCore_AdvanceFrame, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("ProcessBatch"), STAT_HktCore_ProcessBatch, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("ProcessBatch.DispatchLoop"), STAT_HktCore_DispatchLoop, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("AdvanceFrame.GenerateDiff"), STAT_HktCore_GenerateDiff, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("CaptureVMSnapshots"), STAT_HktCore_CaptureVMSnapshots, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("RehydrateVMPool"), STAT_HktCore_RehydrateVMPool, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("UndoDiff"), STAT_HktCore_UndoDiff, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("InsightsPublish"), STAT_HktCore_InsightsPublish, STATGROUP_HktCore);
 
 #if ENABLE_HKT_INSIGHTS
 #include "HktCoreDataCollector.h"
@@ -61,6 +71,8 @@ FHktWorldDeterminismSimulator::~FHktWorldDeterminismSimulator() = default;
 
 void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Event)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_ProcessBatch);
+
     WorldState.FrameNumber = Event.FrameNumber;
     WorldState.RandomSeed = Event.RandomSeed;
     VMProxy.ResetDirtyIndices(WorldState);
@@ -101,38 +113,41 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
     }
 
     // VM 실행 + DispatchEvent 수집 루프 (최대 4회 반복으로 무한 루프 방지)
-    static constexpr int32 MaxDispatchRounds = 4;
-    for (int32 Round = 0; Round < MaxDispatchRounds; ++Round)
     {
-        VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool, PendingExternalEvents);
+        SCOPE_CYCLE_COUNTER(STAT_HktCore_DispatchLoop);
+        static constexpr int32 MaxDispatchRounds = 4;
+        for (int32 Round = 0; Round < MaxDispatchRounds; ++Round)
+        {
+            VMProcessSystem.Process(ActiveVMs, CompletedVMs, *VMPool, PendingExternalEvents);
 
-        // 모든 VM에서 PendingDispatchedEvents를 수집
-        DispatchedEvents.Reset();
-        VMPool->ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
-        {
-            if (Runtime.PendingDispatchedEvents.Num() > 0)
+            // 모든 VM에서 PendingDispatchedEvents를 수집
+            DispatchedEvents.Reset();
+            VMPool->ForEachActive([&](FHktVMHandle Handle, FHktVMRuntime& Runtime)
             {
-                DispatchedEvents.Append(Runtime.PendingDispatchedEvents);
-                Runtime.PendingDispatchedEvents.Reset();
-            }
-        });
-        // 완료된 VM에서도 수집
-        for (FHktVMHandle Handle : CompletedVMs)
-        {
-            FHktVMRuntime* Runtime = VMPool->Get(Handle);
-            if (Runtime && Runtime->PendingDispatchedEvents.Num() > 0)
+                if (Runtime.PendingDispatchedEvents.Num() > 0)
+                {
+                    DispatchedEvents.Append(Runtime.PendingDispatchedEvents);
+                    Runtime.PendingDispatchedEvents.Reset();
+                }
+            });
+            // 완료된 VM에서도 수집
+            for (FHktVMHandle Handle : CompletedVMs)
             {
-                DispatchedEvents.Append(Runtime->PendingDispatchedEvents);
-                Runtime->PendingDispatchedEvents.Reset();
+                FHktVMRuntime* Runtime = VMPool->Get(Handle);
+                if (Runtime && Runtime->PendingDispatchedEvents.Num() > 0)
+                {
+                    DispatchedEvents.Append(Runtime->PendingDispatchedEvents);
+                    Runtime->PendingDispatchedEvents.Reset();
+                }
             }
+
+            if (DispatchedEvents.Num() == 0)
+                break;
+
+            // 디스패치된 이벤트를 새로운 VM으로 빌드
+            VMBuildSystem.Process(DispatchedEvents, static_cast<int32>(Event.FrameNumber),
+                                  *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
         }
-
-        if (DispatchedEvents.Num() == 0)
-            break;
-
-        // 디스패치된 이벤트를 새로운 VM으로 빌드
-        VMBuildSystem.Process(DispatchedEvents, static_cast<int32>(Event.FrameNumber),
-                              *VMPool, ActiveVMs, WorldState, VMProxy, SourceName);
     }
 
     // Gravity → Movement → Physics 순서: 중력이 VelZ 를 세팅, Movement 는 순수 적분,
@@ -218,6 +233,7 @@ void FHktWorldDeterminismSimulator::ProcessBatch(const FHktSimulationEvent& Even
 
 void FHktWorldDeterminismSimulator::CaptureVMSnapshots()
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_CaptureVMSnapshots);
     WorldState.ActiveVMSnapshots.Reset();
     for (FHktVMHandle Handle : ActiveVMs)
     {
@@ -259,6 +275,7 @@ void FHktWorldDeterminismSimulator::CaptureVMSnapshots()
 
 void FHktWorldDeterminismSimulator::RehydrateVMPool()
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_RehydrateVMPool);
     VMPool->Reset();
     ActiveVMs.Reset();
     CompletedVMs.Reset();
@@ -326,6 +343,8 @@ void FHktWorldDeterminismSimulator::RehydrateVMPool()
 
 FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulationEvent& InEvent)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_AdvanceFrame);
+
     const int32 SlotCountBeforeImport = WorldState.SlotToEntity.Num();
     for (const FHktEntityState& ES : InEvent.NewEntityStates)
     {
@@ -357,6 +376,8 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     Diff.FrameNumber = InEvent.FrameNumber;
     Diff.PrevNextEntityId = PrevNext;
     Diff.RemovedEntities = MoveTemp(PreRemoveStates);
+
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_GenerateDiff);
 
     // VM(Op_DestroyEntity) 경로에서 발생한 제거를 owner 기반 제거와 동일 채널로 통합.
     if (VMProxy.PendingDestroys.Num() > 0)
@@ -412,6 +433,8 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
 #if ENABLE_HKT_INSIGHTS
     if (!SourceName.IsEmpty())
     {
+        SCOPE_CYCLE_COUNTER(STAT_HktCore_InsightsPublish);
+
         // 카테고리: "WorldState.{SourceName}" (예: "WorldState.Server", "WorldState.Client")
         const FString WsCat = FString::Printf(TEXT("WorldState.%s"), *SourceName);
         HKT_INSIGHT_CLEAR_CATEGORY(WsCat);
@@ -532,6 +555,7 @@ void FHktWorldDeterminismSimulator::RestoreWorldState(const FHktWorldState& InSt
 
 void FHktWorldDeterminismSimulator::UndoDiff(const FHktSimulationDiff& Diff)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_UndoDiff);
     WorldState.UndoDiff(Diff);
 
     // 롤백 후 active-mover 인덱스 재구성 — UndoDiff 는 VMProxy 를 거치지 않고

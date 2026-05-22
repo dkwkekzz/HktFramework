@@ -2,6 +2,7 @@
 
 #include "HktVFXProcessor.h"
 #include "HktPresentationLog.h"
+#include "HktPresentationStats.h"
 #include "HktCoreEventLog.h"
 #include "HktVFXAssetBank.h"
 #include "HktVFXIntent.h"
@@ -13,6 +14,8 @@
 #include "NiagaraComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+
+DECLARE_CYCLE_STAT(TEXT("VFXProcessor.Sync"), STAT_HktPres_VFXSync, STATGROUP_HktPresentation);
 
 FHktVFXProcessor::FHktVFXProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -288,6 +291,8 @@ void FHktVFXProcessor::DetachVFXFromEntity(FGameplayTag VFXTag, FHktEntityId Ent
 
 void FHktVFXProcessor::Sync(FHktPresentationState& State)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_VFXSync);
+
 	// Pending 큐 소비
 	for (const FHktPendingVFXEvent& Evt : State.PendingVFXEvents)
 	{

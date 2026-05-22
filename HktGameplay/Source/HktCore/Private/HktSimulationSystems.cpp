@@ -2,6 +2,7 @@
 
 #include "HktSimulationSystems.h"
 #include "HktCoreLog.h"
+#include "HktCoreStats.h"
 #include "HktCoreProperties.h"
 #include "HktCollisionLayers.h"
 #include "HktSimulationLimits.h"
@@ -19,6 +20,18 @@
 #include "HktCoreEventLog.h"
 #include "HktVMEventRecorder.h"
 #include "HktCollisionDebugTracer.h"
+
+// ============================================================================
+// Stats — `stat HktCore` 로 시스템별 비용 측정. 엔티티 수 증가에 따른 병목 식별용.
+// ============================================================================
+DECLARE_CYCLE_STAT(TEXT("EntityArrange"),  STAT_HktCore_EntityArrange,  STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("VMBuild"),        STAT_HktCore_VMBuild,        STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("VMProcess"),      STAT_HktCore_VMProcess,      STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("Terrain"),        STAT_HktCore_Terrain,        STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("Gravity"),        STAT_HktCore_Gravity,        STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("Movement"),       STAT_HktCore_Movement,       STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("Physics"),        STAT_HktCore_Physics,        STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("VMCleanup"),      STAT_HktCore_VMCleanup,      STATGROUP_HktCore);
 
 // ============================================================================
 // 콘솔 변수 (CVar) - 런타임 이동 조작감 튜닝용
@@ -210,6 +223,8 @@ void FHktEntityArrangeSystem::Process(FHktWorldState& WorldState, const TArray<i
     if (RemovedOwnerIds.Num() == 0)
         return;
 
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_EntityArrange);
+
     ScratchRemoveList.Reset();
 
     for (int64 RemovedId : RemovedOwnerIds)
@@ -240,6 +255,8 @@ void FHktVMBuildSystem::Process(
     FHktVMWorldStateProxy& VMProxy,
     const FString& InsightsSource)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_VMBuild);
+
     for (const FHktEvent& Event : Events)
     {
         // 이벤트가 VMBuildSystem 에 진입하는 시점 — Created. WorldState.FrameNumber 는
@@ -384,6 +401,8 @@ void FHktVMProcessSystem::Process(
     FHktVMRuntimePool& Pool,
     TArray<FHktPendingEvent>& PendingExternalEvents)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_VMProcess);
+
     ScratchEvents.Reset();
     Swap(ScratchEvents, PendingExternalEvents);
 
@@ -610,6 +629,8 @@ void FHktTerrainSystem::Process(
     const IHktTerrainDataSource& Source,
     const TArray<FHktEvent>* PendingEvents)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_Terrain);
+
     RequiredChunks.Reset();
 
     // 단일 출처: Source의 Config에서 모든 스트리밍 파라미터 획득
@@ -892,6 +913,8 @@ void FHktGravitySystem::Process(
     FHktWorldState& WorldState,
     FHktVMWorldStateProxy& VMProxy)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_Gravity);
+
     // CVar 단위는 cm/s² (튜닝 직관성). 고정 시뮬레이션 틱(hkt.Sim.FramesPerSecond)당 변화량으로 환산.
     const float Gravity = CVarJumpGravity.GetValueOnAnyThread();
     const float MaxFall = CVarJumpMaxFallSpeed.GetValueOnAnyThread();
@@ -946,6 +969,8 @@ void FHktMovementSystem::Process(
     TArray<FHktPendingEvent>& OutMoveEndEvents,
     TArray<FIntVector>& OutPreMovePositions)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_Movement);
+
     OutMoveEndEvents.Reset();
     // PreMovePositions 는 slot 인덱스로 접근한다. 슬롯이 빈 자리는 사용되지 않으므로 uninitialized 로 둔다.
     OutPreMovePositions.SetNumUninitialized(WorldState.SlotToEntity.Num());
@@ -1161,6 +1186,8 @@ void FHktPhysicsSystem::Process(
     const TArray<FIntVector>& PreMovePositions,
     const FHktTerrainState* TerrainState)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_Physics);
+
     OutPhysicsEvents.Reset();
     OutGroundedEvents.Reset();
 
@@ -1646,6 +1673,8 @@ void FHktPhysicsSystem::Process(
 
 void FHktVMCleanupSystem::Process(TArray<FHktVMHandle>& CompletedVMs, FHktVMRuntimePool& Pool, FHktWorldState& WorldState, FHktVMWorldStateProxy& VMProxy)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_VMCleanup);
+
     for (FHktVMHandle Handle : CompletedVMs)
     {
         FHktVMRuntime* Runtime = Pool.Get(Handle);

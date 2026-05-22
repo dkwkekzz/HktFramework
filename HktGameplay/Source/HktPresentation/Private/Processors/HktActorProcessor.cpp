@@ -2,6 +2,7 @@
 
 #include "HktActorProcessor.h"
 #include "HktPresentationLog.h"
+#include "HktPresentationStats.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
 #include "DataAssets/HktItemVisualDataAsset.h"
@@ -10,6 +11,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "HktCoreEventLog.h"
+
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.Tick"),         STAT_HktPres_ActorTick,         STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.Sync"),         STAT_HktPres_ActorSync,         STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.SyncViews"),    STAT_HktPres_ActorSyncViews,    STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.ApplyTransform"), STAT_HktPres_ActorApplyTransform, STATGROUP_HktPresentation);
 
 FHktActorProcessor::FHktActorProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -27,6 +33,8 @@ IHktPresentableActor* FHktActorProcessor::FindActorInterface(FHktEntityId Id) co
 
 void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorTick);
+
 	ULocalPlayer* LP = LocalPlayer.Get();
 	if (!LP) return;
 	UWorld* World = LP->GetWorld();
@@ -94,6 +102,8 @@ void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
 
 void FHktActorProcessor::Sync(FHktPresentationState& State)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorSync);
+
 	const int64 Frame = State.GetCurrentFrame();
 
 	// --- 1. 삭제: RemovedThisFrame 처리 ---
@@ -144,6 +154,7 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 	};
 
 	// --- 4. SOA 뷰별 독립 순회 패스 ---
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorSyncViews);
 
 	// Physics 패스 — 더티 or Force인 엔터티만 Actor로 전달
 	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
@@ -281,6 +292,7 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 	}
 
 	// --- 6. 매 프레임 Transform 적용 + 카메라 거리 컬링 (모든 Actor) ---
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorApplyTransform);
 	for (auto& [Id, WeakActor] : ActorMap)
 	{
 		AActor* A = WeakActor.Get();
