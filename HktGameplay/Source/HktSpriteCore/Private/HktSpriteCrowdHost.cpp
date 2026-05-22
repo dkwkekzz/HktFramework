@@ -112,6 +112,7 @@ void AHktSpriteCrowdHost::Teardown()
 		Renderer->ClearAll();
 	}
 	AnimFragments.Empty();
+	CulledEntities.Empty();
 	PendingDeltaSec = 0.f;
 }
 
@@ -141,6 +142,7 @@ void AHktSpriteCrowdHost::Sync(FHktPresentationState& State)
 	{
 		Renderer->UnregisterEntity(Id);
 		AnimFragments.Remove(Id);
+		CulledEntities.Remove(Id);
 	}
 
 	// --- 2. Spawned: FHktSpriteView가 할당된 엔터티만 처리 ---
@@ -232,6 +234,26 @@ void AHktSpriteCrowdHost::UpdateEntitiesPerFrame(FHktPresentationState& State)
 
 		const FHktTransformView* TV = State.GetTransform(Id);
 		if (!TV) continue;
+
+		// 카메라 거리 컬링 — 반경 밖이면 Renderer 에서 unregister 하고 이번 프레임 dispatch 생략.
+		// 반경 안으로 복귀 시 RegisterEntity + SetCharacter 로 재등록. 컬링 비활성 (Radius<=0) 이면
+		// IsEntityWithinRenderCull 가 항상 true 반환 → 분기 무효화.
+		const bool bWithinCull = State.IsEntityWithinRenderCull(Id);
+		if (!bWithinCull)
+		{
+			if (!CulledEntities.Contains(Id))
+			{
+				Renderer->UnregisterEntity(Id);
+				CulledEntities.Add(Id);
+			}
+			continue;
+		}
+		if (CulledEntities.Contains(Id))
+		{
+			Renderer->RegisterEntity(Id);
+			Renderer->SetCharacter(Id, SV.Character.Get());
+			CulledEntities.Remove(Id);
+		}
 
 		FHktSpriteAnimFragment& Frag = GetOrCreateAnimFragment(Id);
 

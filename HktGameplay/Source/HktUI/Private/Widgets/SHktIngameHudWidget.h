@@ -1020,11 +1020,11 @@ inline void SHktIngameHudWidget::RefreshAvailableActionTags()
 	Manager.RequestAllGameplayTags(AllTags, /*OnlyIncludeDictionaryTags=*/false);
 
 	TArray<FGameplayTag> Sorted;
-	for (const FGameplayTag& Tag : AllTags)
+	for (const FGameplayTag& LoopTag : AllTags)
 	{
-		if (Tag != ActionRoot && Tag.MatchesTag(ActionRoot))
+		if (LoopTag != ActionRoot && LoopTag.MatchesTag(ActionRoot))
 		{
-			Sorted.Add(Tag);
+			Sorted.Add(LoopTag);
 		}
 	}
 	Sorted.Sort([](const FGameplayTag& A, const FGameplayTag& B)
@@ -1033,9 +1033,9 @@ inline void SHktIngameHudWidget::RefreshAvailableActionTags()
 	});
 
 	AvailableActionTags.Reserve(Sorted.Num());
-	for (const FGameplayTag& Tag : Sorted)
+	for (const FGameplayTag& LoopTag : Sorted)
 	{
-		AvailableActionTags.Add(MakeShared<FGameplayTag>(Tag));
+		AvailableActionTags.Add(MakeShared<FGameplayTag>(LoopTag));
 	}
 }
 

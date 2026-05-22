@@ -21,6 +21,7 @@
 #include "HktRuntimeTags.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Engine/LocalPlayer.h"
 #include "DrawDebugHelpers.h"
 #include "HAL/IConsoleManager.h"
@@ -32,6 +33,15 @@ static TAutoConsoleVariable<int32> CVarSelectionDebugDraw(
 	TEXT("hkt.selection.debug.draw"),
 	1,
 	TEXT("Draw Subject/Target/Voxel selection markers via DrawDebug (0=off, 1=on)."),
+	ECVF_Default);
+
+// hkt.Presentation.RenderCullRadius — 클라 렌더 한정 카메라 거리 컬링 반경 (cm).
+// 0 또는 음수면 비활성. 시뮬은 영향받지 않음 (서버 권위 유지) — 엔터티는 그대로 존재하되
+// 반경 밖이면 ActorProcessor / SpriteCrowdHost 가 hide / unregister 처리.
+static TAutoConsoleVariable<float> CVarRenderCullRadius(
+	TEXT("hkt.Presentation.RenderCullRadius"),
+	3000.f,
+	TEXT("Client-side render cull radius around camera in centimeters. <=0 disables culling."),
 	ECVF_Default);
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
@@ -339,6 +349,26 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 {
 	if (!bInitialSyncDone) return;
+
+	// 카메라 거리 컬링 입력 캐싱 — Processor Tick/Sync 가 State.IsEntityWithinRenderCull 로 게이트.
+	{
+		const float CullRadius = CVarRenderCullRadius.GetValueOnGameThread();
+		State.CullRadiusSqCm = (CullRadius > 0.f) ? (CullRadius * CullRadius) : 0.f;
+		State.CameraLocation = FVector::ZeroVector;
+		if (State.CullRadiusSqCm > 0.f)
+		{
+			if (ULocalPlayer* LP = GetLocalPlayer())
+			{
+				if (APlayerController* PC = LP->GetPlayerController(LP->GetWorld()))
+				{
+					if (PC->PlayerCameraManager)
+					{
+						State.CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
+					}
+				}
+			}
+		}
+	}
 
 	// Phase 1: Processor Tick — 비동기 작업 진행 (에셋 로드 등), State 변경 가능
 	const int32 DirtyCountBefore = State.DirtyThisFrame.Num();

@@ -84,6 +84,13 @@ private:
 	TMap<FHktEntityId, FHktSpriteAnimFragment> AnimFragments;
 
 	/**
+	 * 카메라 거리 컬링으로 Renderer 에서 unregister 된 엔터티 집합. 본 set 의 멤버는
+	 * `Renderer->Entities` 에 부재 — UpdateEntitiesPerFrame 가 반경 안으로 복귀 시 재등록.
+	 * RemovedThisFrame / Teardown 에서 정리.
+	 */
+	TSet<FHktEntityId> CulledEntities;
+
+	/**
 	 * HktSpriteAnimProcessor::ResolveRenderOutputs 태그 해석 실패 dedup.
 	 * 호스트 인스턴스 수명에 묶여 PIE 재시작 / 멀티 호스트에서 자동 리셋된다.
 	 */

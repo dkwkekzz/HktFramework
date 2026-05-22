@@ -294,6 +294,28 @@ struct HKTPRESENTATION_API FHktPresentationState
 
 	int64 CurrentFrame = 0;
 
+	// ─── 카메라 거리 컬링 (클라 렌더 한정) ───
+	//
+	// `UHktPresentationSubsystem::OnTick` 이 SyncProcessors 직전에 매 프레임 갱신.
+	// 각 Processor (ActorProcessor / SpriteCrowdHost) 는 `IsEntityWithinRenderCull(Id)`
+	// 로 게이트하여 반경 밖 엔터티의 비주얼만 숨긴다 — 시뮬은 그대로 진행 (서버 권위 유지).
+	// CullRadiusSqCm <= 0 이면 컬링 비활성화 (모두 표시).
+	FVector CameraLocation = FVector::ZeroVector;
+	float   CullRadiusSqCm = 0.f;
+
+	/**
+	 * 엔터티가 카메라 컬링 반경 안에 있는지. CullRadiusSqCm<=0 (비활성) 또는 Transform 미할당이면
+	 * true (그린다). 좌표 출처: RenderLocation (있으면) → Location 폴백.
+	 */
+	FORCEINLINE bool IsEntityWithinRenderCull(FHktEntityId Id) const
+	{
+		if (CullRadiusSqCm <= 0.f) return true;
+		const FHktTransformView* T = GetTransform(Id);
+		if (!T) return true;
+		const FVector P = T->RenderLocation.Get().IsZero() ? T->Location.Get() : T->RenderLocation.Get();
+		return FVector::DistSquared(P, CameraLocation) <= CullRadiusSqCm;
+	}
+
 	TArray<FHktEntityId> SpawnedThisFrame;
 	TArray<FHktEntityId> RemovedThisFrame;
 	TArray<FHktEntityId> DirtyThisFrame;

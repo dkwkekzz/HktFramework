@@ -280,13 +280,24 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 		PendingInitialForward.Remove(Id);
 	}
 
-	// --- 6. 매 프레임 Transform 적용 (모든 Actor) ---
+	// --- 6. 매 프레임 Transform 적용 + 카메라 거리 컬링 (모든 Actor) ---
 	for (auto& [Id, WeakActor] : ActorMap)
 	{
-		if (!WeakActor.IsValid()) continue;
+		AActor* A = WeakActor.Get();
+		if (!A) continue;
+
+		// 카메라 거리 컬링 — 반경 밖 Actor 는 hidden 처리. 시뮬은 그대로 진행됨.
+		// CullRadiusSqCm<=0 면 IsEntityWithinRenderCull 가 true 반환 → 컬링 비활성과 동일.
+		const bool bWithin = State.IsEntityWithinRenderCull(Id);
+		if (A->IsHidden() == bWithin)
+		{
+			A->SetActorHiddenInGame(!bWithin);
+		}
+		if (!bWithin) continue;  // 숨겨진 Actor 는 Transform 적용도 생략 (cost 절약).
+
 		const FHktTransformView* T = State.GetTransform(Id);
 		if (!T) continue;
-		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(WeakActor.Get()))
+		if (IHktPresentableActor* P = Cast<IHktPresentableActor>(A))
 			P->ApplyTransform(*T);
 	}
 }

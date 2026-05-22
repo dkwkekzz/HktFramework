@@ -154,7 +154,8 @@ TSharedRef<ITableRow> SHktWorkspacePanel::GenerateRowWidget(
 	const FString FolderRel = FPaths::GetCleanFilename(Item->Entry.FolderPath);
 	const int32 AnimCount   = Item->Entry.Anims.Num();
 
-	const bool bRowEnabled = Item->Entry.Category == EHktWorkspaceCategory::Paper2D
+	const bool bRowEnabled = (Item->Entry.Category == EHktWorkspaceCategory::Paper2D
+			|| Item->Entry.Category == EHktWorkspaceCategory::HISM)
 		&& Item->Entry.Mode != EHktWorkspaceTagMode::Unknown;
 
 	auto MakeBuildLambda = [this, Item](bool bForce)

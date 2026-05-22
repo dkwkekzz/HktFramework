@@ -744,7 +744,7 @@ void AHktIngamePlayerController::TickAutoPickup()
 void AHktIngamePlayerController::RequestItemPickup(FHktEntityId ItemEntity)
 {
     if (DefaultSubjectEntityId == InvalidEntityId || ItemEntity == InvalidEntityId) return;
-    if (!HktGameplayTags::Story_Event_Item_Pickup.IsValid()) return;
+    if (!HktGameplayTags::Story_Event_Item_Pickup.GetTag().IsValid()) return;
 
     FHktEvent Event;
     Event.EventTag = HktGameplayTags::Story_Event_Item_Pickup;

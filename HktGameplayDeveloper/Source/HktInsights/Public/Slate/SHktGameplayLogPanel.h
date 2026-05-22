@@ -23,10 +23,13 @@ struct FCategoryTreeNode
     /** 자식 노드 */
     TArray<TSharedPtr<FCategoryTreeNode>> Children;
 
-    /** 이 노드 이하의 모든 리프 태그를 수집 */
+    /** 이 노드 이하의 모든 태그를 수집 (자기 자신 포함). 부모 태그(예: Presentation)와
+     *  자식 태그(예: Presentation.Transform)가 동시에 등록되는 경우, 부모 노드도 자체 Tag 를
+     *  보유하므로 단순 leaf 검사로는 부모 태그가 누락된다. 자식 토글이 부모 토글과 동일하게
+     *  작동하는 것을 방지하기 위해 self-tag 도 항상 포함시킨다. */
     void GatherLeafTags(TArray<FGameplayTag>& OutTags) const
     {
-        if (Children.Num() == 0 && Tag.IsValid())
+        if (Tag.IsValid())
         {
             OutTags.Add(Tag);
         }
