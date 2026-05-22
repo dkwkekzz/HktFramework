@@ -1737,8 +1737,11 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 	const FString SafeCharTag     = SanitizeForAssetName(CharacterTagStr);
 	const FString VisualName      = FString::Printf(TEXT("DA_HISMSpriteVisual_%s"), *SafeCharTag);
 	const FString AnimName        = FString::Printf(TEXT("DA_HISMSpriteAnim_%s"),   *SafeCharTag);
-	const FString VisualPackage   = FString::Printf(TEXT("%s/%s"), *kDefaultOutputDir, *VisualName);
-	const FString AnimPackage     = FString::Printf(TEXT("%s/%s"), *kDefaultOutputDir, *AnimName);
+	// 산출물은 캐릭터 태그명을 폴더로 격리 — Static/Paper2D 빌더와 동일 컨벤션.
+	// 여러 캐릭터 빌드 시 콘텐츠 브라우저가 평면적으로 뒤섞이는 것을 막는다.
+	const FString CharOutputDir   = kDefaultOutputDir / SafeCharTag;
+	const FString VisualPackage   = CharOutputDir / VisualName;
+	const FString AnimPackage     = CharOutputDir / AnimName;
 
 	struct FSlotEntry { int32 DirIdx; UTexture2D* Tex; int32 CellW; int32 CellH; int32 FrameCount; };
 	TArray<FSlotEntry> Slots;
@@ -1756,7 +1759,7 @@ FString UHktSpriteGeneratorFunctionLibrary::BuildSpriteAnim(
 
 		// Texture 자산 경로/이름은 안정적인 char/anim/dir 기반 컨벤션을 그대로 사용 — 산출물 식별 일관.
 		const FString AssetName = ConventionDirAtlasAssetName(CharacterTagStr, AnimTagStr, d);
-		const FString PkgPath   = ConventionDirAtlasPackagePath(CharacterTagStr, AnimTagStr, d, kDefaultOutputDir);
+		const FString PkgPath   = ConventionDirAtlasPackagePath(CharacterTagStr, AnimTagStr, d, CharOutputDir);
 		const FString ObjPath   = FString::Printf(TEXT("%s.%s"), *PkgPath, *AssetName);
 
 		UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *ObjPath);
