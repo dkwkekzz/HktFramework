@@ -295,7 +295,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
 ### 4.1 아이템 상태 머신
 
 아이템은 획득 시 즉시 Active 상태가 되어 스킬을 사용할 수 있다.
-별도의 활성화 단계는 없으며, Inventory으로의 보관/복원으로 관리한다.
+별도의 활성화 단계는 없으며, Inventory 로의 보관/복원으로 관리한다.
 
 ```
                     ┌──────────┐
@@ -318,7 +318,7 @@ Phase 4: 시뮬레이터 실행 및 월드 존재
     * Pickup 시 빈 EquipIndex(0~8)이 없으면 픽업 실패
     * Drop은 Active 상태에서 Ground로 복귀 가능
     * Drop 시: EquipSlot[N] 클리어, OwnerEntity=0, EquipIndex=-1, 위치=소유자위치
-    * Bag은 엔티티가 아닌 경량 스냅샷(FHktInventoryItem)으로 보관
+    * Inventory 는 엔티티가 아닌 경량 스냅샷(FHktInventoryItem)으로 보관
     * Activate/Deactivate Story는 Inventory 연동 전용 (내부 사용)
 ```
 
