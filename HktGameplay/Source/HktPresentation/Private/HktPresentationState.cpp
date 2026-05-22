@@ -419,10 +419,11 @@ FLinearColor FHktPresentationState::GetTeamColor(int32 TeamIndex)
 
 void FHktPresentationState::AllocateViewsForEntity(FHktEntityId Id, EHktRenderCategory Category, const FGameplayTagContainer& Tags)
 {
-	// [DIAG-PlayerInitV2] schema 2 회귀 진단 — id=0 + anim tag 패턴 추적용. 안정화 후 제거.
-	UE_LOG(LogHktPresentation, Warning,
-		TEXT("[DIAG] AllocateViewsForEntity Id=%d Category=%d Tags=[%s]"),
-		static_cast<int32>(Id), static_cast<int32>(Category), *Tags.ToStringSimple());
+	// [DIAG-PlayerInitV2] schema 2 회귀 진단 — id=0 + anim tag 패턴 추적용. HktEventLog Info 로만 남김.
+	HKT_EVENT_LOG_ENTITY(HktLogTags::Presentation, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("AllocateViewsForEntity Category=%d Tags=[%s]"),
+			static_cast<int32>(Category), *Tags.ToStringSimple()),
+		Id);
 
 	const int32 Index = static_cast<int32>(Id);
 
