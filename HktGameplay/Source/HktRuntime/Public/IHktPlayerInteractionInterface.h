@@ -45,6 +45,16 @@ public:
 	virtual FOnHktSubjectChanged& OnSubjectChanged() = 0;
 
 	/**
+	 * I-0041 다중 Entity 채널 — 한 Player 가 여러 Entity (메인 + 동행 NPC + 창고 등)
+	 * 를 소유할 때 어느 Entity 를 Subject 로 볼지 선택. 소유권 (OwnerUid) 검증 후
+	 * IntentBuilder 갱신 + OnSubjectChanged 브로드캐스트. 미소유 Entity 는 거절.
+	 *
+	 * Inventory 패널은 Entity 와 무관 (계정 단위) 하므로 영향 없음 — Equipment 패널만
+	 * 새 Subject 의 활성 슬롯으로 갱신된다.
+	 */
+	virtual void RequestSetSubject(FHktEntityId InEntity) {}
+
+	/**
 	 * 대상(Target) 변경 시 브로드캐스트.
 	 *  - 일반 entity : 정상 EntityId(>=0)
 	 *  - Voxel       : VoxelTargetEntityId — GetCurrentVoxelTarget() 으로 상세 조회

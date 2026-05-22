@@ -634,6 +634,44 @@ void AHktIngamePlayerController::RequestActionEvent(FGameplayTag ActionTag)
         Event.SourceEntity, Event.EventTag);
 }
 
+void AHktIngamePlayerController::RequestSetSubject(FHktEntityId InEntity)
+{
+    // I-0041 다중 Entity 채널 — 소유권 검증 후 Subject 전환.
+    if (!CachedIntentBuilder) return;
+    if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
+
+    const FHktWorldState& WS = CachedProxySimulator->GetWorldState();
+
+    // InvalidEntityId → DefaultSubject 로 복원 (UI 가 "선택 해제" 의미로 호출 가능).
+    if (InEntity == InvalidEntityId)
+    {
+        if (DefaultSubjectEntityId == InvalidEntityId) return;
+        CachedIntentBuilder->SetSubject(DefaultSubjectEntityId);
+        SubjectChangedDelegate.Broadcast(DefaultSubjectEntityId);
+        return;
+    }
+
+    if (!WS.IsValidEntity(InEntity)) return;
+
+    const int64 MyUid = GetPlayerUid();
+    if (MyUid == 0) return;
+
+    const int64 EntityOwner = WS.GetOwnerUid(InEntity);
+    if (EntityOwner != MyUid)
+    {
+        HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Client, EHktLogLevel::Warning, EHktLogSource::Client,
+            FString::Printf(TEXT("RequestSetSubject rejected — entity %d owner=%lld != my %lld"),
+                InEntity, EntityOwner, MyUid),
+            InEntity);
+        return;
+    }
+
+    CachedIntentBuilder->SetSubject(InEntity);
+    SubjectChangedDelegate.Broadcast(InEntity);
+    HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
+        FString::Printf(TEXT("RequestSetSubject Subject=%d"), InEntity), InEntity);
+}
+
 void AHktIngamePlayerController::ResolveDefaultSubject()
 {
     if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
