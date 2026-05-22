@@ -58,6 +58,21 @@ struct HKTCORE_API FHktTerrainState
 	 */
 	TMap<FIntVector, TArray<int32>> HeightmapCache;
 
+	/**
+	 * Spawner attribution 이 이미 emit 된 청크 좌표 (I-0027).
+	 *
+	 * spawner emission 은 "청크가 *PlayerSpawnerChunks 에 처음 들어옴*" 시점에 일어나야 하나,
+	 * 청크 로드 자체는 비-플레이어 엔티티(자연 spawn 된 NPC 등)도 트리거할 수 있다 — 그래서
+	 * "최초 로드" 게이트만 쓰면 NPC 가 미리 깔아둔 청크로 플레이어가 들어왔을 때 spawner 가
+	 * 영영 발화하지 않는다. 본 set 으로 "emit 했는지" 를 청크 lifecycle 과 독립적으로 추적한다.
+	 *
+	 * - 청크가 unload 되면 본 set 에서도 제거 → 재로드 시 재발화 가능 (`SlotHash` 결정론으로
+	 *   동일 결과). Story 의 `CountByTag` cap 이 중복 spawn 의 최종 안전망.
+	 * - `CopyFrom` 대상 (롤백 일관성). `SerializeModifications` 미포함 — `LoadedChunks` 와
+	 *   동일하게 시드 + emit gate 재생 가능.
+	 */
+	TSet<FIntVector> SpawnerEmittedChunks;
+
 	// ============================================================================
 	// 청크 생명주기
 	// ============================================================================

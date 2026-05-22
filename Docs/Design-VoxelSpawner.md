@@ -278,12 +278,19 @@ ForEachEntity:
 
 PlayerSpawnerChunks = PlayerAnchorChunks + SimLoadRadius 확장
 
-청크 로드 루프:
-  if (bIsAuthoritative && PlayerSpawnerChunks.Contains(Coord)):
+§A 청크 로드 루프 (모든 엔티티 기준 — voxel 캐싱):
+  if (!IsChunkLoaded(Coord)) LoadChunk(Coord)
+
+§B Spawner emit 루프 (서버 권위, §A 와 분리):
+  for Coord in SortedLoadOrder:
+      if Coord not in PlayerSpawnerChunks: continue   # cascade 차단
+      if not IsChunkLoaded(Coord):          continue   # 다음 프레임 재평가
+      if Coord in SpawnerEmittedChunks:     continue   # 중복 발화 차단
       GetChunkVoxelAttribution / GetChunkSpawners → EmittedSpawnerEvents
-  else:
-      LoadChunk 만 (voxel 캐싱) — spawner dispatch 스킵
+      SpawnerEmittedChunks.Add(Coord)
 ```
+
+> **§A / §B 분리의 의의**: 이전 구현은 emit 을 *"청크가 처음 로드될 때 + 그 청크가 PlayerSpawnerChunks 일 때"* 한 분기에 묶었다. 그러면 비-플레이어 엔티티(자연 spawn 된 NPC) 의 LoadRadius 가 미리 깔아둔 청크에 플레이어가 진입했을 때 `IsChunkLoaded == true` 라 emit 자체가 스킵 — 플레이어가 멀리 움직여도 어디서도 spawn 되지 않는 버그가 발생했다. `FHktTerrainState::SpawnerEmittedChunks` set (`CopyFrom`/`UnloadChunk` 와 동기) 이 "emit 했는지" 를 청크 lifecycle 과 독립적으로 추적한다. 청크 unload 시 set 에서도 제거 → 재로드 시 재발화 가능 (`SlotHash` 결정론으로 동일 결과, Story `CountByTag` cap 이 최종 안전망).
 
 식별 기준 — `WorldState.GetOwnerUid(Id) != 0`: `Op_SpawnEntity` 가 `Runtime.PlayerUid != 0` 일 때만 `SetOwnerUid` 호출 → 자연 spawn entity (voxel attribution 으로 dispatch 된 Birch_Spawn 의 산출물) 는 `OwnerUid=0`. 따라서 자연 spawn 이 자기 자신을 앵커로 또 다른 spawner 를 발화시키는 cascade 가 끊긴다. 플레이어 미접속 시 `PlayerAnchorChunks` 가 비어 발화 0.
 

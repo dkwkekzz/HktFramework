@@ -79,6 +79,8 @@ void FHktTerrainState::UnloadChunk(const FIntVector& Coord)
 {
 	LoadedChunks.Remove(Coord);
 	// Modifications는 유지 — 다시 로드할 때 적용
+	// SpawnerEmittedChunks 는 제거 — 재로드 시 PlayerSpawnerChunks 진입 첫 프레임에 재발화 가능.
+	SpawnerEmittedChunks.Remove(Coord);
 
 	// 이 청크 XY에 다른 Z 레벨 청크가 남아 있으면 하이트맵 재계산,
 	// 없으면 하이트맵 항목 제거
@@ -245,6 +247,7 @@ void FHktTerrainState::CopyFrom(const FHktTerrainState& Other)
 	LoadedChunks = Other.LoadedChunks;
 	Modifications = Other.Modifications;
 	HeightmapCache = Other.HeightmapCache;
+	SpawnerEmittedChunks = Other.SpawnerEmittedChunks;
 }
 
 // ============================================================================
