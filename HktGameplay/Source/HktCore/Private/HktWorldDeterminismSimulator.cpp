@@ -377,58 +377,60 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     Diff.PrevNextEntityId = PrevNext;
     Diff.RemovedEntities = MoveTemp(PreRemoveStates);
 
-    SCOPE_CYCLE_COUNTER(STAT_HktCore_GenerateDiff);
-
-    // VM(Op_DestroyEntity) 경로에서 발생한 제거를 owner 기반 제거와 동일 채널로 통합.
-    if (VMProxy.PendingDestroys.Num() > 0)
     {
-        Diff.RemovedEntities.Append(MoveTemp(VMProxy.PendingDestroys));
-    }
+        SCOPE_CYCLE_COUNTER(STAT_HktCore_GenerateDiff);
 
-    for (FHktEntityId Id = PrevNext; Id < WorldState.NextEntityId; ++Id)
-        if (WorldState.IsValidEntity(Id))
-            Diff.SpawnedEntities.Add(WorldState.ExtractEntityState(Id));
-
-    VMProxy.ForEachDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
-    {
-        if (Id >= PrevNext) return;
-        uint64 M = Mask;
-        while (M)
+        // VM(Op_DestroyEntity) 경로에서 발생한 제거를 owner 기반 제거와 동일 채널로 통합.
+        if (VMProxy.PendingDestroys.Num() > 0)
         {
-            uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
-            int32 NewVal = WorldState.Get(Slot, PropId);
-            int32 OldVal = VMProxy.GetPreFrameValue(Slot, PropId);
-            // SetDirty는 값 변경 여부와 무관하게 쓰기 시 dirty 비트를 세팅하므로,
-            // 실제 값이 변하지 않은 항목은 델타에서 제외한다 (불필요한 네트워크/로그 노이즈 방지).
-            if (NewVal != OldVal)
-            {
-                Diff.PropertyDeltas.Add({ Id, PropId, NewVal, OldVal });
-            }
-            M &= M - 1;
+            Diff.RemovedEntities.Append(MoveTemp(VMProxy.PendingDestroys));
         }
-    });
-    VMProxy.ForEachTagDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot)
-    {
-        if (Id >= PrevNext) return;
-        FHktTagDelta Delta;
-        Delta.EntityId = Id;
-        Delta.Tags = WorldState.GetTagsBySlot(Slot);
-        Delta.OldTags = VMProxy.GetPreFrameTags(Slot);
-        Diff.TagDeltas.Add(MoveTemp(Delta));
-    });
-    VMProxy.ForEachOwnerDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot)
-    {
-        if (Id >= PrevNext) return;
-        FHktOwnerDelta Delta;
-        Delta.EntityId = Id;
-        Delta.NewOwnerUid = WorldState.OwnerUids[Slot];
-        Delta.OldOwnerUid = VMProxy.GetPreFrameOwnerUid(Slot);
-        Diff.OwnerDeltas.Add(Delta);
-    });
 
-    Diff.VFXEvents = MoveTemp(VMProxy.PendingVFXEvents);
-    Diff.AnimEvents = MoveTemp(VMProxy.PendingAnimEvents);
-    Diff.VoxelDeltas = MoveTemp(PendingVoxelDeltas);
+        for (FHktEntityId Id = PrevNext; Id < WorldState.NextEntityId; ++Id)
+            if (WorldState.IsValidEntity(Id))
+                Diff.SpawnedEntities.Add(WorldState.ExtractEntityState(Id));
+
+        VMProxy.ForEachDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
+        {
+            if (Id >= PrevNext) return;
+            uint64 M = Mask;
+            while (M)
+            {
+                uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
+                int32 NewVal = WorldState.Get(Slot, PropId);
+                int32 OldVal = VMProxy.GetPreFrameValue(Slot, PropId);
+                // SetDirty는 값 변경 여부와 무관하게 쓰기 시 dirty 비트를 세팅하므로,
+                // 실제 값이 변하지 않은 항목은 델타에서 제외한다 (불필요한 네트워크/로그 노이즈 방지).
+                if (NewVal != OldVal)
+                {
+                    Diff.PropertyDeltas.Add({ Id, PropId, NewVal, OldVal });
+                }
+                M &= M - 1;
+            }
+        });
+        VMProxy.ForEachTagDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot)
+        {
+            if (Id >= PrevNext) return;
+            FHktTagDelta Delta;
+            Delta.EntityId = Id;
+            Delta.Tags = WorldState.GetTagsBySlot(Slot);
+            Delta.OldTags = VMProxy.GetPreFrameTags(Slot);
+            Diff.TagDeltas.Add(MoveTemp(Delta));
+        });
+        VMProxy.ForEachOwnerDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot)
+        {
+            if (Id >= PrevNext) return;
+            FHktOwnerDelta Delta;
+            Delta.EntityId = Id;
+            Delta.NewOwnerUid = WorldState.OwnerUids[Slot];
+            Delta.OldOwnerUid = VMProxy.GetPreFrameOwnerUid(Slot);
+            Diff.OwnerDeltas.Add(Delta);
+        });
+
+        Diff.VFXEvents = MoveTemp(VMProxy.PendingVFXEvents);
+        Diff.AnimEvents = MoveTemp(VMProxy.PendingAnimEvents);
+        Diff.VoxelDeltas = MoveTemp(PendingVoxelDeltas);
+    }
 
 #if ENABLE_HKT_INSIGHTS
     if (!SourceName.IsEmpty())
