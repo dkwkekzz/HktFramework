@@ -1,23 +1,110 @@
 {
   "storyTag": "Story.Event.Item.Drop",
-  "description": "Drop fail path: Target.OwnerEntity 미설정 (0) → SnippetValidateOwnership 실패 → Fail. spec 의 given 은 entity id 동적 참조를 지원하지 않아 happy-path 검증 어려움 — 본 시나리오는 ownership guard 가 실제 동작함을 검증.",
+  "description": "Drop 본문: SnippetValidateOwnership + (Active 인 경우) SnippetClearEquipSlot + SnippetRemoveItemStats + SnippetDropToGround. I-0040 Entity Bag: 활성 슬롯에서 빠진 아이템이 Self 영향을 차감하고 Ground 로 떨어진다.",
   "scenarios": [
     {
-      "name": "fail_when_target_not_owned_by_self",
+      "name": "drops_active_item_to_ground",
+      "description": "Self 의 EquipSlot0 에 활성화된 Target(Active, OwnerEntity=Self) 을 Drop. ItemState 2→0, EquipIndex=-1, OwnerEntity=0, Self.EquipSlot0=0, Self.AttackPower 차감, Self 의 위치로 Target.PosX/Y/Z 복사.",
       "given": {
         "self": {
+          "archetype": "Character",
+          "properties": {
+            "AttackPower": 15,
+            "Defense": 8,
+            "EquipSlot0": {"ref": "target"}
+          },
+          "position": [1000, 2000, 50]
+        },
+        "target": {
+          "archetype": "Item",
+          "properties": {
+            "ItemState": 2,
+            "OwnerEntity": {"ref": "self"},
+            "EquipIndex": 0,
+            "AttackPower": 5,
+            "Defense": 3,
+            "Equippable": 0
+          }
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "target": {
+          "properties": {
+            "ItemState": 0,
+            "EquipIndex": -1,
+            "OwnerEntity": 0,
+            "PosX": 1000,
+            "PosY": 2000,
+            "PosZ": 50
+          }
+        },
+        "self": {
+          "properties": {
+            "AttackPower": 10,
+            "Defense": 5,
+            "EquipSlot0": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "drops_inbag_item_skips_stat_remove",
+      "description": "Target.ItemState=1 (InBag) → drop_exec 분기로 직행 (ClearEquipSlot/RemoveStats 스킵). 단순 Ground 화 — Self 의 EquipSlot/Stat 은 변하지 않음.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": { "AttackPower": 10, "Defense": 5 },
+          "position": [500, 500, 0]
+        },
+        "target": {
+          "archetype": "Item",
+          "properties": {
+            "ItemState": 1,
+            "OwnerEntity": {"ref": "self"},
+            "EquipIndex": -1,
+            "AttackPower": 5,
+            "Defense": 3
+          }
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "target": {
+          "properties": {
+            "ItemState": 0,
+            "EquipIndex": -1,
+            "OwnerEntity": 0,
+            "PosX": 500,
+            "PosY": 500,
+            "PosZ": 0
+          }
+        },
+        "self": {
+          "properties": {
+            "AttackPower": 10,
+            "Defense": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "fail_when_target_not_owned_by_self",
+      "description": "Target.OwnerEntity 가 Self 가 아닌 다른 엔티티 → SnippetValidateOwnership 실패 → Fail. (literal 0 사용 금지 — 첫 할당 entity id=0 이라 Self 와 충돌)",
+      "given": {
+        "self": {
+          "archetype": "Character",
           "properties": { "AttackPower": 10 }
         },
         "target": {
+          "archetype": "Item",
           "properties": { "ItemState": 2, "OwnerEntity": {"ref": "entities[0]"}, "AttackPower": 5 }
         },
         "entities": [
-          { "properties": { "AttackPower": 1 } }
+          { "archetype": "Character", "properties": { "AttackPower": 1 } }
         ]
       },
-      "expect": {
-        "status": "Failed"
-      }
+      "expect": { "status": "Failed" }
     }
   ]
 }

@@ -4,15 +4,27 @@
   "scenarios": [
     {
       "name": "death_path_random_drop_then_destroy",
-      "description": "초기에 State.Dead 가 붙은 NPC → 첫 Yield 다음 die 분기 진입. RandomInt 결과는 비결정적이라 status=Completed 만 검증. WaitSeconds 3.0 은 하니스 Timer 가 자동 진행.",
+      "description": "초기에 State.Dead 가 붙은 NPC → 첫 Yield 다음 die 분기 진입. SnippetRandomLootDrop 이 4개 entry 중 1개를 spawn (Reg::Spawned 에 보관). 어떤 entry 가 선택되든 Ground 아이템 invariant 는 동일: ItemState=0 + EquipIndex=-1 + 위치는 Self 위치 복사. WaitSeconds 3.0 은 하니스 Timer 가 자동 진행 후 DestroyEntity → Completed.",
       "given": {
         "self": {
           "properties": { "Health": 0, "MaxHealth": 100 },
           "tags": ["State.Dead"],
-          "position": [0, 0, 0]
+          "position": [1234, 5678, 90]
         }
       },
-      "expect": { "status": "Completed" }
+      "expect": {
+        "status": "Completed",
+        "spawned": {
+          "properties": {
+            "ItemState": 0,
+            "EquipIndex": -1,
+            "OwnerEntity": 0,
+            "PosX": 1234,
+            "PosY": 5678,
+            "PosZ": 90
+          }
+        }
+      }
     },
     {
       "name": "idle_npc_keeps_looping",

@@ -1,10 +1,10 @@
 {
   "storyTag": "Story.Event.Item.Pickup",
-  "description": "Pickup 본문: 거리 ≤ 300cm + EquipSlot0 비어있음 → SnippetAssignOwnership + SnippetActivateInSlot. spec runner 가 precondition 미실행 → main body 만 검증.",
+  "description": "Pickup 본문: 거리 ≤ 300cm + SnippetFindEmptyEquipSlot(EquipSlot0..8 순차 스캔) + SnippetAssignOwnership + SnippetActivateInSlot. spec runner 가 precondition 미실행 → main body 만 검증. I-0040 Entity Bag: '자동 빈 슬롯 할당' 이 Bag 의 핵심 진입 동작.",
   "scenarios": [
     {
       "name": "ground_item_within_range_picked_up",
-      "description": "Target=Ground 아이템, 거리 100cm. 본문이 OwnerEntity=Self 로 할당하고 EquipSlot0 에 활성화. ItemState 0→2, OwnerEntity = self.id.",
+      "description": "Target=Ground 아이템, 거리 100cm. 본문이 OwnerEntity=Self 로 할당하고 첫 빈 슬롯 EquipSlot0 에 활성화. ItemState 0→2, EquipIndex=0, Self.EquipSlot0=target, AttackPower 합산.",
       "given": {
         "self": {
           "archetype": "Character",
@@ -22,15 +22,83 @@
         "target": {
           "properties": {
             "ItemState": 2,
+            "EquipIndex": 0,
             "OwnerEntity": {"ref": "self"}
           }
         },
         "self": {
           "properties": {
-            "AttackPower": 5
+            "AttackPower": 5,
+            "EquipSlot0": {"ref": "target"}
           }
         }
       }
+    },
+    {
+      "name": "auto_assigns_to_first_empty_slot_when_slot0_occupied",
+      "description": "I-0040 핵심: EquipSlot0 이 이미 점유된 상태에서 새 아이템을 Pickup → SnippetFindEmptyEquipSlot 이 슬롯 1 을 찾아내 거기에 활성화. Target.EquipIndex=1, Self.EquipSlot1=target. EquipSlot0 은 손대지 않음.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": { "AttackPower": 0, "Defense": 0, "EquipSlot0": {"ref": "entities[0]"} },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "Item",
+          "properties": { "ItemState": 0, "AttackPower": 7, "Equippable": 0, "ItemId": 101 },
+          "position": [50, 0, 0]
+        },
+        "entities": [
+          { "archetype": "Item", "properties": { "ItemState": 2, "EquipIndex": 0, "ItemId": 99 } }
+        ]
+      },
+      "expect": {
+        "status": "Completed",
+        "target": {
+          "properties": {
+            "ItemState": 2,
+            "EquipIndex": 1,
+            "OwnerEntity": {"ref": "self"}
+          }
+        },
+        "self": {
+          "properties": {
+            "AttackPower": 7,
+            "EquipSlot0": {"ref": "entities[0]"},
+            "EquipSlot1": {"ref": "target"}
+          }
+        }
+      }
+    },
+    {
+      "name": "fail_when_all_equip_slots_full",
+      "description": "EquipSlot0~8 모두 점유 → SnippetFindEmptyEquipSlot 이 모든 분기 실패 후 fail label 점프 → Fail. Bag 용량 가드 동작 검증.",
+      "given": {
+        "self": {
+          "archetype": "Character",
+          "properties": {
+            "EquipSlot0": {"ref": "entities[0]"},
+            "EquipSlot1": {"ref": "entities[0]"},
+            "EquipSlot2": {"ref": "entities[0]"},
+            "EquipSlot3": {"ref": "entities[0]"},
+            "EquipSlot4": {"ref": "entities[0]"},
+            "EquipSlot5": {"ref": "entities[0]"},
+            "EquipSlot6": {"ref": "entities[0]"},
+            "EquipSlot7": {"ref": "entities[0]"},
+            "EquipSlot8": {"ref": "entities[0]"}
+          },
+          "position": [0, 0, 0]
+        },
+        "target": {
+          "archetype": "Item",
+          "properties": { "ItemState": 0, "ItemId": 102 },
+          "position": [50, 0, 0]
+        },
+        "entities": [
+          { "archetype": "Item", "properties": { "ItemState": 2 } }
+        ]
+      },
+      "expect": { "status": "Failed" }
     },
     {
       "name": "fail_when_target_out_of_range",
@@ -46,9 +114,7 @@
           "position": [500, 0, 0]
         }
       },
-      "expect": {
-        "status": "Failed"
-      }
+      "expect": { "status": "Failed" }
     }
   ]
 }
