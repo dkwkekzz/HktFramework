@@ -753,9 +753,24 @@ void FHktTerrainSystem::Process(
         });
     }
 
+    // 1e. SortedSpawnerEmitOrder — emit 루프 전용 부분 배열.
+    //     SortedLoadOrder 를 한 번 훑어 PlayerSpawnerChunks 멤버만 추출 → 이미 chebyshev 정렬됨.
+    //     Emit 루프가 |SortedLoadOrder| (~수백) 가 아닌 |PlayerSpawnerChunks| (~수십) 만 순회.
+    SortedSpawnerEmitOrder.Reset();
+    if (bIsAuthoritative && PlayerSpawnerChunks.Num() > 0)
+    {
+        SortedSpawnerEmitOrder.Reserve(PlayerSpawnerChunks.Num());
+        for (const FIntVector& C : SortedLoadOrder)
+        {
+            if (PlayerSpawnerChunks.Contains(C))
+            {
+                SortedSpawnerEmitOrder.Add(C);
+            }
+        }
+    }
+
     // 2. 필요한 청크 로드 (프레임당 예산 제한으로 스파이크 방지)
-    //    + 새로 로드된 청크의 spawner 메타 → 이번 프레임 dispatch 이벤트로 변환
-    //    (Docs/Design-VoxelSpawner.md §7 Runtime Execution)
+    //    Spawner emit 은 본 루프와 분리 — 아래 §2b 참조.
     EmittedSpawnerEvents.Reset();
     int32 LoadedThisFrame = 0;
     int32 SkippedInvalidSpawnerTags = 0;
@@ -773,70 +788,71 @@ void FHktTerrainSystem::Process(
             }
             TerrainState.LoadChunk(Coord, Source);
             ++LoadedThisFrame;
+        }
+    }
 
-            // I-0014: Placement / Spawner 이벤트는 서버 권위 시뮬레이터에서만 emit.
-            // 클라(ProxySimulator) 가 미드조인 후 청크를 처음 로드해도 재발화 차단 —
-            // 서버가 옛날에 만든 entity 는 WorldView replicate 로 이미 수신됨.
-            // 청크 LoadChunk(위) 자체는 voxel 캐싱 목적이라 양쪽 모두 수행.
-            //
-            // I-0027: spawner attribution 발화는 PlayerSpawnerChunks (플레이어 앵커 청크의
-            // LoadRadius 확장) 에 한정. 비-플레이어 엔티티 위치의 청크가 로드되더라도
-            // spawner dispatch 는 스킵 — 자연 spawn 엔티티의 cascade 로 spawner 가 외곽으로
-            // 퍼져 나가는 현상 차단. 플레이어 미접속 시 발화 0.
-            int32 EmittedFromThisChunk = 0;
-            if (bIsAuthoritative && PlayerSpawnerChunks.Contains(Coord))
+    // 2b. Spawner emit — *청크 로드 시점이 아니라* "PlayerSpawnerChunks 에 처음 들어옴" 시점에 fire.
+    //
+    //     이전에는 emit 이 `if (!IsChunkLoaded)` 분기 *안* 에 묶여 있어, 비-플레이어 엔티티
+    //     (자연 spawn 된 NPC) 의 LoadRadius 가 미리 깔아둔 청크에 플레이어가 진입했을 때
+    //     `IsChunkLoaded == true` 라 emit 자체가 스킵되는 버그 → 플레이어가 멀리 움직여도
+    //     "어디서도 새로 spawn 되지 않는" 증상. PlayerSpawnerChunks 멤버십과
+    //     SpawnerEmittedChunks 의 차분으로 분리한다.
+    //
+    //     I-0014: Spawner emit 은 서버 권위 시뮬레이터에서만. 클라(ProxySimulator) 는
+    //     서버가 putback 한 event 를 batch 로 받아 동일 Story 를 재실행 (재발화 X).
+    //     I-0027: PlayerSpawnerChunks 외 청크는 dispatch 스킵 — 자연 spawn cascade 차단.
+    //
+    //     `SortedSpawnerEmitOrder` 는 PlayerSpawnerChunks 를 chebyshev 정렬 순서로 평탄화한 부분
+    //     배열 (위 §1e). `bIsAuthoritative == false` 거나 anchor 가 없으면 비어 있어 자연 no-op.
+    for (const FIntVector& Coord : SortedSpawnerEmitOrder)
+    {
+        if (!TerrainState.IsChunkLoaded(Coord))
+        {
+            continue;  // 이번 프레임 예산에 못 실린 청크 — 로드되는 프레임에 다시 평가.
+        }
+        if (TerrainState.SpawnerEmittedChunks.Contains(Coord))
+        {
+            continue;  // 이미 emit 됨 — 중복 발화 차단.
+        }
+
+        int32 EmittedFromThisChunk = 0;
+
+        // 명시 배치 — 보스/랜드마크/HktMapSpawnerAdapter.
+        ScratchSpawnerViews.Reset();
+        Source.GetChunkSpawners(Coord.X, Coord.Y, Coord.Z, ScratchSpawnerViews);
+        for (const FHktTerrainSpawnerView& SView : ScratchSpawnerViews)
+        {
+            if (!SView.StoryTag.IsValid())
             {
-                // 청크의 spawner 메타 enumerate — Source 가 미지원이면 no-op (default impl).
-                // 명시 배치 spawner (보스/랜드마크/HktMapSpawnerAdapter) 가 본 경로로 발화.
-                ScratchSpawnerViews.Reset();
-                Source.GetChunkSpawners(Coord.X, Coord.Y, Coord.Z, ScratchSpawnerViews);
-                for (const FHktTerrainSpawnerView& SView : ScratchSpawnerViews)
-                {
-                    if (!SView.StoryTag.IsValid())
-                    {
-                        // bake 검증 단계에서 거르도록 의도된 케이스 — 그러나 silent 하면 디버그가 어려움.
-                        ++SkippedInvalidSpawnerTags;
-                        continue;
-                    }
-                    EmittedSpawnerEvents.Add(HktEventBuilder::SpawnerFromView(SView));
-                    ++EmittedFromThisChunk;
-                }
-
-                // I-0014 Phase B — voxel 평가 패스 (per-voxel template 활성화, read-only).
-                // BakeRegion 이 `VoxelSpawnRules` weighted-pick 으로 산출한 baked attribution 을
-                // 그대로 읽어 voxel 한 점마다 *참조 template StoryTag* 를 EventTag 로 dispatch.
-                //
-                // Phase A 의 chunk-level ChunkLoaded 호환 어댑터는 본 PR 에서 제거 — voxel
-                // attribution 이 단일 진입점. 매핑 미정의 / 빈 카탈로그 자산은 spawn 없음.
-                ScratchVoxelAttributions.Reset();
-                Source.GetChunkVoxelAttribution(Coord.X, Coord.Y, Coord.Z, ScratchVoxelAttributions);
-
-                for (const FHktVoxelAttributionView& AView : ScratchVoxelAttributions)
-                {
-                    if (!AView.StoryTag.IsValid())
-                    {
-                        // Provider 가 카탈로그 미정의 시 view 자체를 만들지 않으므로 본 분기는 드물지만 방어.
-                        ++SkippedInvalidSpawnerTags;
-                        continue;
-                    }
-                    EmittedSpawnerEvents.Add(HktEventBuilder::VoxelTemplateActivated(AView, VS));
-                    ++EmittedFromThisChunk;
-                }
-
-                if (ScratchVoxelAttributions.Num() > 0)
-                {
-                    UE_LOG(LogHktCore, Verbose,
-                        TEXT("[TerrainSystem] Chunk(%d,%d,%d) voxel attribution — emitted %d template(s)"),
-                        Coord.X, Coord.Y, Coord.Z, ScratchVoxelAttributions.Num());
-                }
+                ++SkippedInvalidSpawnerTags;
+                continue;
             }
+            EmittedSpawnerEvents.Add(HktEventBuilder::SpawnerFromView(SView));
+            ++EmittedFromThisChunk;
+        }
 
-            if (EmittedFromThisChunk > 0)
+        // 자연 발생 — BakeRegion 의 voxel attribution (VoxelSpawnRules weighted-pick).
+        ScratchVoxelAttributions.Reset();
+        Source.GetChunkVoxelAttribution(Coord.X, Coord.Y, Coord.Z, ScratchVoxelAttributions);
+        for (const FHktVoxelAttributionView& AView : ScratchVoxelAttributions)
+        {
+            if (!AView.StoryTag.IsValid())
             {
-                UE_LOG(LogHktCore, Verbose,
-                    TEXT("[TerrainSystem] Chunk(%d,%d,%d) loaded — emitted %d event(s) total"),
-                    Coord.X, Coord.Y, Coord.Z, EmittedFromThisChunk);
+                ++SkippedInvalidSpawnerTags;
+                continue;
             }
+            EmittedSpawnerEvents.Add(HktEventBuilder::VoxelTemplateActivated(AView, VS));
+            ++EmittedFromThisChunk;
+        }
+
+        TerrainState.SpawnerEmittedChunks.Add(Coord);
+
+        if (EmittedFromThisChunk > 0)
+        {
+            UE_LOG(LogHktCore, Verbose,
+                TEXT("[TerrainSystem] Chunk(%d,%d,%d) entered player spawn range — emitted %d event(s)"),
+                Coord.X, Coord.Y, Coord.Z, EmittedFromThisChunk);
         }
     }
 
