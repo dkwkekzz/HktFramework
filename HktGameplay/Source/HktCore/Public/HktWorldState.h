@@ -104,6 +104,22 @@ struct HKTCORE_API FHktWorldState
      */
     FHktEntityId FindOrCreateSpawner(uint32 SlotKey);
 
+    /**
+     * 시뮬레이션 (gravity / movement / physics / terrain preload / replication) 대상이 되는
+     * 일반 entity 인지. Entity.Spawner 같은 *virtual* row (위치·콜리전·이동이 의미 없는 누적
+     * 카운터 보관용 entity) 는 false 를 반환하여 모든 simulation 시스템에서 skip 시킨다.
+     *
+     * 이 가드가 없으면 spawner 의 IsGrounded=0 / PosZ=0 디폴트값이 GravitySystem 의
+     * VelZ-- 적분에 끌려들어가 매 프레임 PosZ 가 떨어지고, 그 변화가 PropertyDelta
+     * replication 노이즈 (지속 RECV 로그) 와 TerrainSystem 의 무의미한 chunk preload 를 유발한다.
+     */
+    FORCEINLINE bool IsSimulatedEntity(FHktEntityId Entity) const
+    {
+        if (!IsValidEntity(Entity)) return false;
+        const int32 Slot = EntitySlots[Entity];
+        return !TagContainers[Slot].HasTag(HktArchetypeTags::Entity_Spawner);
+    }
+
     FORCEINLINE bool IsValidEntity(FHktEntityId Id) const
     {
         return Id >= 0 && Id < EntitySlots.Num() && EntitySlots[Id] >= 0;

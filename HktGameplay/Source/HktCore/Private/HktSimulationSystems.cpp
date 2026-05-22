@@ -635,6 +635,11 @@ void FHktTerrainSystem::Process(
     TSet<FIntVector> PlayerAnchorChunks;
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
+        // Virtual entity (Spawner 등) 는 위치가 없음 — Pos=(0,0,0) 디폴트로 chunk(0,0,0)
+        // 가 매 프레임 preload 대상이 되는 노이즈 차단.
+        if (!WorldState.IsSimulatedEntity(Id))
+            return;
+
         const FIntVector Pos = WorldState.GetPosition(Id);
         const FIntVector VoxelPos = CmToVoxel(Pos.X, Pos.Y, Pos.Z, VS);
         const FIntVector ChunkCoord = FHktTerrainState::WorldToChunk(VoxelPos.X, VoxelPos.Y, VoxelPos.Z);
@@ -879,6 +884,11 @@ void FHktGravitySystem::Process(
 
     WorldState.ForEachEntity([&](FHktEntityId Id, int32 /*Slot*/)
     {
+        // Virtual entity (Entity.Spawner 등) 는 위치/이동이 의미 없음 — gravity 적용 시
+        // PosZ 가 무한 하락하고 매 프레임 PropertyDelta replication 노이즈 발생.
+        if (!WorldState.IsSimulatedEntity(Id))
+            return;
+
         // 접지 엔티티는 중력 비활성 — Physics 가 VelZ=0 을 보장함
         if (WorldState.GetProperty(Id, PropertyId::IsGrounded) != 0)
             return;
