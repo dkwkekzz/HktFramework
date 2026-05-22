@@ -9,6 +9,7 @@
 #include "HktRuleLog.h"
 #include "GameplayTagsManager.h"
 #include "NativeGameplayTags.h"
+#include "HAL/IConsoleManager.h"
 
 namespace
 {
@@ -16,6 +17,16 @@ namespace
 	{
 		return static_cast<int32>(A * 2654435761) ^ B;
 	}
+
+	// I-0041: Player Inventory 용량 정책 — 계정-단위 보관 공간 슬롯 수.
+	// Entity Bag(=활성 슬롯, I-0040) 의 BagCapacity 와는 별개. 결정론 영향 없음
+	// (시뮬레이션 상수 아님 — 단순 보관 한도).
+	static int32 GPlayerInventoryCapacity = 20;
+	static FAutoConsoleVariableRef CVarPlayerInventoryCapacity(
+		TEXT("hkt.Player.InventoryCapacity"),
+		GPlayerInventoryCapacity,
+		TEXT("Player Inventory(=계정 보관 공간) 슬롯 수. 로그인 시점에 적용. 기본 20."),
+		ECVF_Default);
 }
 
 FHktDefaultServerRule::FHktDefaultServerRule()
@@ -350,12 +361,12 @@ FHktEventGameModeTickResult FHktDefaultServerRule::OnEvent_GameModeTick(float In
 			IHktWorldPlayer* NewPlayer = LoginResult.WeakPlayer.Get();
 			if (!NewPlayer) continue;
 
-			// DB에서 로드한 가방 데이터 복원 + 클라이언트 FullSync
-			if (LoginResult.Record.BagItems.Num() > 0)
-			{
-				NewPlayer->RestoreBagFromRecord(LoginResult.Record.BagItems);
-				NewPlayer->SendBagFullSync();
-			}
+			// DB에서 로드한 Inventory(=Player Inventory, I-0041) 복원 + 클라이언트 FullSync.
+			// 신규 플레이어(BagItems 비어있음) 도 CVar 기반 Capacity 전파를 위해
+			// 항상 호출한다 — Capacity 가 20 외의 값이면 클라 LocalBagState 와
+			// 어긋나기 때문. 비용은 로그인당 1 RPC.
+			NewPlayer->RestoreBagFromRecord(LoginResult.Record.BagItems, GPlayerInventoryCapacity);
+			NewPlayer->SendBagFullSync();
 
 			const int32 GroupIdx  = Graph.CalculateRelevancyGroupIndex(LoginResult.Record.LastPosition);
 			FGroupEventSend& GroupEventSend = Result.EventSends[GroupIdx];

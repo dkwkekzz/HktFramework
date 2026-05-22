@@ -3,6 +3,7 @@
 #include "HktFileDatabaseComponent.h"
 #include "HktRuntimeLog.h"
 #include "HktCoreEventLog.h"
+#include "HktBagTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
 #include "HktRuntimeTags.h"
@@ -16,8 +17,19 @@ void UHktPlayerSaveGame::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
+	// FHktPlayerRecord 의 UPROPERTY 필드 (PlayerUid, LastLoginTime, CreatedTime,
+	// LastPosition) 는 Super 가 처리. 비-UPROPERTY 컬렉션은 명시적 직렬화 필요.
+
+	// I-0041: Player Inventory 영속화 — BagItems 는 friend operator<< 보유.
+	// 빈 배열도 정상 직렬화되므로 신규 플레이어 케이스 안전.
+	Ar << PlayerRecord.BagItems;
+
+	// TODO(I-0011/I-0034): ActiveEvents·EntityStates 직렬화 활성화.
+	// ActiveEvents 는 FHktEvent operator<< 보유로 즉시 활성화 가능하나,
+	// EntityStates(FHktEntityState) 는 현재 NetSerialize 만 있어 디스크용
+	// operator<< 추가 후 활성화 — 본 PR 범위 외(I-0041).
 	//Ar << PlayerRecord.ActiveEvents;
-	//Ar << PlayerRecord.EntityStates; 
+	//Ar << PlayerRecord.EntityStates;
 }
 
 UHktFileDatabaseComponent::UHktFileDatabaseComponent()

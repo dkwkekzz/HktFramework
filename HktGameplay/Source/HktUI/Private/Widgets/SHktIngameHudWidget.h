@@ -775,45 +775,76 @@ inline void SHktIngameHudWidget::RefreshEquipmentPanel()
 	{
 		FString SlotLabel = FString::Printf(TEXT("Slot %d%s"), Item.EquipIndex, Item.bEquippable ? TEXT(" [E]") : TEXT(""));
 		const int32 ItemEquipIndex = Item.EquipIndex;
+		const FHktEntityId ItemEntityId = Item.EntityId;
 
 		EquipmentListBox->AddSlot()
 		.AutoHeight().Padding(0.f, 2.f)
 		[
-			SNew(SButton)
-			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-			.OnClicked_Lambda([this, ItemEquipIndex]() -> FReply
-			{
-				if (APlayerController* PC = CachedPC.Get())
-				{
-					if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
-					{
-						I->RequestBagStore(ItemEquipIndex);
-					}
-				}
-				return FReply::Handled();
-			})
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().FillWidth(1.f)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+				SNew(SButton)
+				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+				.ToolTipText(FText::FromString(TEXT("클릭: Inventory 로 이동 (Active → InBag)")))
+				.OnClicked_Lambda([this, ItemEquipIndex]() -> FReply
+				{
+					if (APlayerController* PC = CachedPC.Get())
+					{
+						if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
+						{
+							I->RequestBagStore(ItemEquipIndex);
+						}
+					}
+					return FReply::Handled();
+				})
 				[
-					SNew(SBox).WidthOverride(80.f)
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+					[
+						SNew(SBox).WidthOverride(80.f)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString(SlotLabel))
+							.ColorAndOpacity(Item.bEquippable ? FLinearColor(0.3f, 1.f, 0.5f) : FLinearColor(0.5f, 0.8f, 1.f))
+						]
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.f)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(SlotLabel))
-						.ColorAndOpacity(Item.bEquippable ? FLinearColor(0.3f, 1.f, 0.5f) : FLinearColor(0.5f, 0.8f, 1.f))
+						.Text(FText::FromString(Item.Name))
+						.ColorAndOpacity(FLinearColor::White)
+					]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
+						.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
 					]
 				]
-				+ SHorizontalBox::Slot().FillWidth(1.f)
+			]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(6.f, 0.f, 0.f, 0.f).VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+				.ToolTipText(FText::FromString(TEXT("바닥에 떨어뜨리기 (Active → Ground)")))
+				.OnClicked_Lambda([this, ItemEntityId]() -> FReply
+				{
+					if (APlayerController* PC = CachedPC.Get())
+					{
+						if (IHktPlayerInteractionInterface* I = Cast<IHktPlayerInteractionInterface>(PC))
+						{
+							I->RequestItemDrop(ItemEntityId);
+						}
+					}
+					return FReply::Handled();
+				})
 				[
-					SNew(STextBlock)
-					.Text(FText::FromString(Item.Name))
-					.ColorAndOpacity(FLinearColor::White)
-				]
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(Item.AttackPower > 0 ? FString::Printf(TEXT("ATK %d"), Item.AttackPower) : TEXT("")))
-					.ColorAndOpacity(FLinearColor(1.f, 0.6f, 0.3f))
+					SNew(SBox).Padding(6.f, 2.f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("Drop")))
+						.ColorAndOpacity(FLinearColor(1.f, 0.4f, 0.4f))
+					]
 				]
 			]
 		];

@@ -12,15 +12,23 @@
 #include "HktBagComponent.generated.h"
 
 /**
- * UHktBagComponent — 플레이어 가방 관리 컴포넌트
+ * UHktBagComponent  (= UHktPlayerInventoryComponent) — Player Inventory 관리 컴포넌트
  *
- * PlayerController에 부착. 서버에서 가방 상태를 관리하고,
- * Client RPC로 소유자 클라이언트에게만 가방 변경을 전달한다.
+ * I-0041 (Docs/intents/I-0041.md): 본 컴포넌트는 *Player Inventory*
+ * (계정 단위 보관 공간) 이다. I-0040 의 Entity Bag (활성 슬롯) 과 혼동 금지 —
+ * 둘은 같은 한 아이템이 어디에 있느냐의 두 끝을 나눠 가진다.
+ * 실제 클래스/타입 rename 은 별도 PR.
+ *
+ * PlayerController 에 부착 (계정 단위). 서버에서 Inventory 상태를 관리하고,
+ * Client RPC 로 소유자 클라이언트에게만 Inventory 변경을 전달한다.
  *
  * 아키텍처:
- *   - 서버: ServerBagState에 아이템 저장/제거, Client_ReceiveBagUpdate RPC 전송
- *   - 클라: LocalBagState 캐시, FOnHktBagChanged 델리게이트 브로드캐스트
- *   - Entity ↔ Bag 전환은 ServerRule이 이 컴포넌트의 서버 API를 호출하여 수행
+ *   - 서버: ServerBagState (=ServerInventoryState) 에 아이템 저장/제거,
+ *           Client_ReceiveBagUpdate RPC 전송
+ *   - 클라: LocalBagState  (=LocalInventoryState)  캐시,
+ *           FOnHktBagChanged 델리게이트 브로드캐스트
+ *   - Entity 활성 슬롯 ↔ Inventory 전환은 ServerRule 이 이 컴포넌트의
+ *     서버 API 를 호출하여 수행 (Story_ItemActivate / Story_ItemDeactivate)
  */
 UCLASS(ClassGroup=(HktRuntime), meta=(BlueprintSpawnableComponent))
 class HKTRUNTIME_API UHktBagComponent : public UActorComponent
