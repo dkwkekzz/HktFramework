@@ -43,7 +43,7 @@ struct HKTRULE_API FHktPlayerRecord
 	TArray<FHktEvent> ActiveEvents;
 	TArray<FHktEntityState> EntityStates;
 
-	/** Player Inventory 아이템 (DB 저장/복원). I-0041 참조 — 별도 PR 에서 InventoryItems 로 rename 예정. */
+	/** Player Inventory 아이템 (DB 저장/복원, I-0041). */
 	TArray<FHktInventoryItem> InventoryItems;
 
 	FHktPlayerRecord()

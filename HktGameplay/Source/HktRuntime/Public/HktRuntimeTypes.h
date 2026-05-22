@@ -264,8 +264,7 @@ struct TStructOpsTypeTraits<FHktRuntimeDiff> : public TStructOpsTypeTraitsBase2<
 // FHktRuntimeMoveRequest — 제거됨: Server_ReceiveRuntimeEvent로 통합
 
 //=============================================================================
-// FHktRuntimeInventoryRequest  (= FHktRuntimeInventoryRequest)
-//   — Player Inventory 요청 네트워크 래퍼 (C2S). I-0041 참조.
+// FHktRuntimeInventoryRequest — Player Inventory 요청 네트워크 래퍼 (C2S, I-0041).
 //=============================================================================
 USTRUCT()
 struct HKTRUNTIME_API FHktRuntimeInventoryRequest
@@ -294,8 +293,7 @@ struct TStructOpsTypeTraits<FHktRuntimeInventoryRequest> : public TStructOpsType
 };
 
 //=============================================================================
-// FHktRuntimeInventoryUpdate  (= FHktRuntimeInventoryUpdate)
-//   — Player Inventory 변경 알림 네트워크 래퍼 (S2C). I-0041 참조.
+// FHktRuntimeInventoryUpdate — Player Inventory 변경 알림 네트워크 래퍼 (S2C, I-0041).
 //=============================================================================
 USTRUCT()
 struct HKTRUNTIME_API FHktRuntimeInventoryUpdate
