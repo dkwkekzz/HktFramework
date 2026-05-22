@@ -753,6 +753,22 @@ void FHktTerrainSystem::Process(
         });
     }
 
+    // 1e. SortedSpawnerEmitOrder — emit 루프 전용 부분 배열.
+    //     SortedLoadOrder 를 한 번 훑어 PlayerSpawnerChunks 멤버만 추출 → 이미 chebyshev 정렬됨.
+    //     Emit 루프가 |SortedLoadOrder| (~수백) 가 아닌 |PlayerSpawnerChunks| (~수십) 만 순회.
+    SortedSpawnerEmitOrder.Reset();
+    if (bIsAuthoritative && PlayerSpawnerChunks.Num() > 0)
+    {
+        SortedSpawnerEmitOrder.Reserve(PlayerSpawnerChunks.Num());
+        for (const FIntVector& C : SortedLoadOrder)
+        {
+            if (PlayerSpawnerChunks.Contains(C))
+            {
+                SortedSpawnerEmitOrder.Add(C);
+            }
+        }
+    }
+
     // 2. 필요한 청크 로드 (프레임당 예산 제한으로 스파이크 방지)
     //    Spawner emit 은 본 루프와 분리 — 아래 §2b 참조.
     EmittedSpawnerEvents.Reset();
@@ -779,70 +795,64 @@ void FHktTerrainSystem::Process(
     //
     //     이전에는 emit 이 `if (!IsChunkLoaded)` 분기 *안* 에 묶여 있어, 비-플레이어 엔티티
     //     (자연 spawn 된 NPC) 의 LoadRadius 가 미리 깔아둔 청크에 플레이어가 진입했을 때
-    //     `IsChunkLoaded == true` 라 emit 자체가 스킵되는 버그가 있었다 → 플레이어가 멀리
-    //     움직여도 "어디서도 새로 spawn 되지 않는" 증상. PlayerSpawnerChunks 멤버십과
+    //     `IsChunkLoaded == true` 라 emit 자체가 스킵되는 버그 → 플레이어가 멀리 움직여도
+    //     "어디서도 새로 spawn 되지 않는" 증상. PlayerSpawnerChunks 멤버십과
     //     SpawnerEmittedChunks 의 차분으로 분리한다.
     //
     //     I-0014: Spawner emit 은 서버 권위 시뮬레이터에서만. 클라(ProxySimulator) 는
     //     서버가 putback 한 event 를 batch 로 받아 동일 Story 를 재실행 (재발화 X).
     //     I-0027: PlayerSpawnerChunks 외 청크는 dispatch 스킵 — 자연 spawn cascade 차단.
-    if (bIsAuthoritative)
+    //
+    //     `SortedSpawnerEmitOrder` 는 PlayerSpawnerChunks 를 chebyshev 정렬 순서로 평탄화한 부분
+    //     배열 (위 §1e). `bIsAuthoritative == false` 거나 anchor 가 없으면 비어 있어 자연 no-op.
+    for (const FIntVector& Coord : SortedSpawnerEmitOrder)
     {
-        // SortedLoadOrder 위에서 순회 — chebyshev 정렬 순서 = 결정론적 이벤트 발화 순서.
-        // PlayerSpawnerChunks ⊆ RequiredChunks (= SortedLoadOrder 의 contents) 이므로 누락 없음.
-        for (const FIntVector& Coord : SortedLoadOrder)
+        if (!TerrainState.IsChunkLoaded(Coord))
         {
-            if (!PlayerSpawnerChunks.Contains(Coord))
-            {
-                continue;  // 플레이어 범위 밖 — cascade 차단.
-            }
-            if (!TerrainState.IsChunkLoaded(Coord))
-            {
-                continue;  // 이번 프레임 예산에 못 실린 청크 — 로드되는 프레임에 다시 평가.
-            }
-            if (TerrainState.SpawnerEmittedChunks.Contains(Coord))
-            {
-                continue;  // 이미 emit 됨 — 중복 발화 차단.
-            }
+            continue;  // 이번 프레임 예산에 못 실린 청크 — 로드되는 프레임에 다시 평가.
+        }
+        if (TerrainState.SpawnerEmittedChunks.Contains(Coord))
+        {
+            continue;  // 이미 emit 됨 — 중복 발화 차단.
+        }
 
-            int32 EmittedFromThisChunk = 0;
+        int32 EmittedFromThisChunk = 0;
 
-            // 명시 배치 — 보스/랜드마크/HktMapSpawnerAdapter.
-            ScratchSpawnerViews.Reset();
-            Source.GetChunkSpawners(Coord.X, Coord.Y, Coord.Z, ScratchSpawnerViews);
-            for (const FHktTerrainSpawnerView& SView : ScratchSpawnerViews)
+        // 명시 배치 — 보스/랜드마크/HktMapSpawnerAdapter.
+        ScratchSpawnerViews.Reset();
+        Source.GetChunkSpawners(Coord.X, Coord.Y, Coord.Z, ScratchSpawnerViews);
+        for (const FHktTerrainSpawnerView& SView : ScratchSpawnerViews)
+        {
+            if (!SView.StoryTag.IsValid())
             {
-                if (!SView.StoryTag.IsValid())
-                {
-                    ++SkippedInvalidSpawnerTags;
-                    continue;
-                }
-                EmittedSpawnerEvents.Add(HktEventBuilder::SpawnerFromView(SView));
-                ++EmittedFromThisChunk;
+                ++SkippedInvalidSpawnerTags;
+                continue;
             }
+            EmittedSpawnerEvents.Add(HktEventBuilder::SpawnerFromView(SView));
+            ++EmittedFromThisChunk;
+        }
 
-            // 자연 발생 — BakeRegion 의 voxel attribution (VoxelSpawnRules weighted-pick).
-            ScratchVoxelAttributions.Reset();
-            Source.GetChunkVoxelAttribution(Coord.X, Coord.Y, Coord.Z, ScratchVoxelAttributions);
-            for (const FHktVoxelAttributionView& AView : ScratchVoxelAttributions)
+        // 자연 발생 — BakeRegion 의 voxel attribution (VoxelSpawnRules weighted-pick).
+        ScratchVoxelAttributions.Reset();
+        Source.GetChunkVoxelAttribution(Coord.X, Coord.Y, Coord.Z, ScratchVoxelAttributions);
+        for (const FHktVoxelAttributionView& AView : ScratchVoxelAttributions)
+        {
+            if (!AView.StoryTag.IsValid())
             {
-                if (!AView.StoryTag.IsValid())
-                {
-                    ++SkippedInvalidSpawnerTags;
-                    continue;
-                }
-                EmittedSpawnerEvents.Add(HktEventBuilder::VoxelTemplateActivated(AView, VS));
-                ++EmittedFromThisChunk;
+                ++SkippedInvalidSpawnerTags;
+                continue;
             }
+            EmittedSpawnerEvents.Add(HktEventBuilder::VoxelTemplateActivated(AView, VS));
+            ++EmittedFromThisChunk;
+        }
 
-            TerrainState.SpawnerEmittedChunks.Add(Coord);
+        TerrainState.SpawnerEmittedChunks.Add(Coord);
 
-            if (EmittedFromThisChunk > 0)
-            {
-                UE_LOG(LogHktCore, Verbose,
-                    TEXT("[TerrainSystem] Chunk(%d,%d,%d) entered player spawn range — emitted %d event(s)"),
-                    Coord.X, Coord.Y, Coord.Z, EmittedFromThisChunk);
-            }
+        if (EmittedFromThisChunk > 0)
+        {
+            UE_LOG(LogHktCore, Verbose,
+                TEXT("[TerrainSystem] Chunk(%d,%d,%d) entered player spawn range — emitted %d event(s)"),
+                Coord.X, Coord.Y, Coord.Z, EmittedFromThisChunk);
         }
     }
 

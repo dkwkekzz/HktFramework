@@ -94,6 +94,14 @@ struct HKTCORE_API FHktTerrainSystem
      * 결과: spawner cap 이 차도 birch 등이 player 근처에 우선 모임 (I-0027).
      */
     TArray<FIntVector> SortedLoadOrder;
+    /**
+     * 프레임당 spawner emit 후보 — `PlayerSpawnerChunks` (플레이어 앵커 LoadRadius 확장) 를
+     * `SortedLoadOrder` 와 동일한 chebyshev 정렬 순서로 평탄화한 배열 (I-0027).
+     *
+     * Emit 루프는 본 배열만 순회 — `SortedLoadOrder` 전체 (비-플레이어 entity 포함) 가 아닌
+     * 플레이어 근처 청크 (~25개) 만 평가하면 충분. set membership lookup 비용 절약.
+     */
+    TArray<FIntVector> SortedSpawnerEmitOrder;
     FIntVector LastPivotChunk = FIntVector(MAX_int32);  // 이전 프레임의 피벗 청크 (변경 감지)
 
     /**
