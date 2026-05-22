@@ -180,6 +180,21 @@ namespace
 		if (Anim) return Anim->Flipbooks.Num();
 		return 0;
 	}
+
+	// 자산 pivot 과 무관하게 sprite 의 바닥이 ActorLocation(=발) 에 닿게 하는 보정값(cm).
+	// UPaperSprite::GetRenderBounds 는 sprite-local 공간 bounds 를 돌려준다 — Paper2D 의
+	// sprite 평면은 로컬 XZ, 수직축은 Z 라 Min.Z 가 sprite 바닥의 로컬 좌표가 된다.
+	//   - bottom-center pivot 자산: Min.Z = 0   → 보정 0
+	//   - center pivot 자산:        Min.Z = -H/2 → +H/2 만큼 위로 올려야 바닥 = 발
+	// HISM 경로의 CPD-기반 (CellH - Pivot.Y) 오프셋과 동일 의미 — Paper2D 경로에서는
+	// FlipbookComp 의 RelativeLocation.Z 로 흡수해 자산-pivot 비종속 렌더를 만든다.
+	float ComputeFootAnchorOffsetZ(const UPaperSprite* Sprite)
+	{
+		if (!Sprite) return 0.f;
+		const FBoxSphereBounds B = Sprite->GetRenderBounds();
+		const float BottomLocalZ = B.Origin.Z - B.BoxExtent.Z;
+		return -BottomLocalZ;
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -321,6 +336,13 @@ void AHktSpritePaperActor::Tick(float DeltaTime)
 				FlipbookComp->SetLooping(false);
 				FlipbookComp->SetPlaybackPosition(0.f, false);
 				FlipbookComp->Stop();
+
+				// 발 앵커 보정 — UPaperSprite pivot 이 bottom-center 가 아닐 때(예: 외부 임포트로
+				// center pivot 으로 baked 된 경우) sprite 절반이 ActorLocation(=발) 아래로 매몰되는
+				// 증상(예: Paper2D Birch 나무) 차단. HISM 경로의 CPD offset 과 동일 의미를
+				// FlipbookComp.RelativeLocation 으로 흡수해 자산 pivot 과 무관하게 동작.
+				FlipbookComp->SetRelativeLocation(
+					FVector(0.f, 0.f, ComputeFootAnchorOffsetZ(StaticSprite)));
 				bStaticSpriteApplied = true;
 			}
 		}
@@ -474,6 +496,13 @@ void AHktSpritePaperActor::RebindFlipbookIfNeeded(
 		// 권위 위치로 덮어쓰므로 내부 advance 와 충돌하지 않는다 (Actor::Tick 이 component
 		// tick 이후 실행). IsPlaying() == true 를 외부에서 게이트로 쓰는 경로도 정상화.
 		FlipbookComp->Play();
+
+		// 발 앵커 보정 — 정적 경로와 동일. 동일 anim 안의 모든 프레임은 BuildDirFlipbook 컨벤션
+		// 상 같은 cell-pivot 을 공유하므로 키프레임 0 의 sprite 만 조회해도 충분.
+		const UPaperSprite* AnchorSprite =
+			(FB && FB->GetNumKeyFrames() > 0) ? FB->GetKeyFrameChecked(0).Sprite : nullptr;
+		FlipbookComp->SetRelativeLocation(
+			FVector(0.f, 0.f, ComputeFootAnchorOffsetZ(AnchorSprite)));
 
 		// DataAsset 의 FrameDurationMs 를 권위로 — 바운드된 flipbook 의 intrinsic FPS 와
 		// 차이가 있으면 SetPlaybackPosition 입력에 곱할 스케일을 캐시.
