@@ -8,7 +8,7 @@
 #include "HktCoreEvents.h"
 #include "HktCoreSimulator.h"
 #include "HktWorldState.h"
-#include "HktBagTypes.h"
+#include "HktInventoryTypes.h"
 #include "Containers/ArrayView.h"
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
@@ -44,7 +44,7 @@ struct HKTRULE_API FHktPlayerRecord
 	TArray<FHktEntityState> EntityStates;
 
 	/** Player Inventory 아이템 (DB 저장/복원). I-0041 참조 — 별도 PR 에서 InventoryItems 로 rename 예정. */
-	TArray<FHktBagItem> BagItems;
+	TArray<FHktInventoryItem> InventoryItems;
 
 	FHktPlayerRecord()
 	{
@@ -79,13 +79,13 @@ public:
 	/** 기본 타겟 액션(우클릭 슬롯 미선택) Story Tag. 빈 Tag면 호출자가 기본값을 사용한다. */
 	virtual FGameplayTag GetTargetDefaultStoryTag() const { return FGameplayTag(); }
 
-	// === Bag ===
-	virtual const FHktBagState& GetBagState() const { static FHktBagState Empty; return Empty; }
-	virtual bool StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot) { return false; }
-	virtual bool TakeFromBag(int32 BagSlot, FHktBagItem& OutItem) { return false; }
-	virtual void RestoreBagFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity = 20) {}
-	virtual TArray<FHktBagItem> ExportBagForRecord() const { return {}; }
-	virtual void SendBagFullSync() {}
+	// === Inventory (Player Inventory, I-0041) ===
+	virtual const FHktInventoryState& GetInventoryState() const { static FHktInventoryState Empty; return Empty; }
+	virtual bool StoreToInventory(const FHktInventoryItem& InItem, int32& OutInventorySlot) { return false; }
+	virtual bool TakeFromInventory(int32 InventorySlot, FHktInventoryItem& OutItem) { return false; }
+	virtual void RestoreInventoryFromRecord(const TArray<FHktInventoryItem>& InInventoryItems, int32 InCapacity = 20) {}
+	virtual TArray<FHktInventoryItem> ExportInventoryForRecord() const { return {}; }
+	virtual void SendInventoryFullSync() {}
 };
 
 // ============================================================================
@@ -194,7 +194,7 @@ public:
 	 *                       빈 Tag면 구현체의 기본값(Story.State.Player.InWorld)을 사용한다.
 	 */
 	virtual void LoadPlayerRecordAsync(int64 InPlayerUid, const FGameplayTag& InSpawnStoryTag, TFunction<void(const FHktPlayerRecord&)> InCallback) = 0;
-	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems = {}) = 0;
+	virtual void SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktInventoryItem>&& InInventoryItems = {}) = 0;
 	virtual const FHktPlayerRecord* GetCachedPlayerRecord(int64 InPlayerUid) const = 0;
 };
 
@@ -259,38 +259,38 @@ struct FHktEventGameModeTickResult
 // FHktMoveRequest — 제거됨: FHktRuntimeEvent로 통합
 
 // ============================================================================
-// EHktBagAction — 가방 요청 액션 타입
+// EHktInventoryAction — Inventory 요청 액션 타입
 // ============================================================================
 
-enum class EHktBagAction : uint8
+enum class EHktInventoryAction : uint8
 {
-	StoreFromSlot = 0,    // EquipSlot → Bag (공개 엔티티를 가방으로)
-	RestoreToSlot = 1,    // Bag → EquipSlot (가방에서 공개 엔티티로)
-	Discard       = 2,    // Bag → Ground (가방에서 바닥으로)
+	StoreFromSlot = 0,    // EquipSlot → Inventory (공개 엔티티를 Inventory 로)
+	RestoreToSlot = 1,    // Inventory → EquipSlot (Inventory 에서 공개 엔티티로)
+	Discard       = 2,    // Inventory → Ground (Inventory 에서 바닥으로)
 };
 
 // ============================================================================
-// FHktBagRequest — 가방 상호작용 요청 (C2S)
+// FHktInventoryRequest — Inventory 상호작용 요청 (C2S)
 // ============================================================================
 
-struct HKTRULE_API FHktBagRequest
+struct HKTRULE_API FHktInventoryRequest
 {
-	EHktBagAction Action = EHktBagAction::StoreFromSlot;
+	EHktInventoryAction Action = EHktInventoryAction::StoreFromSlot;
 	FHktEntityId SourceEntity = InvalidEntityId;   // 캐릭터
-	int32 BagSlot = -1;                            // 가방 슬롯 (RestoreToSlot/Discard)
+	int32 InventorySlot = -1;                      // Inventory 슬롯 (RestoreToSlot/Discard)
 	int32 EquipIndex = -1;                         // EquipSlot 인덱스 (StoreFromSlot: 출발, RestoreToSlot: 도착)
 
 	FString ToString() const
 	{
-		return FString::Printf(TEXT("Action=%d Src=%d BagSlot=%d EquipIndex=%d"),
-			static_cast<uint8>(Action), SourceEntity, BagSlot, EquipIndex);
+		return FString::Printf(TEXT("Action=%d Src=%d InventorySlot=%d EquipIndex=%d"),
+			static_cast<uint8>(Action), SourceEntity, InventorySlot, EquipIndex);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FHktBagRequest& R)
+	friend FArchive& operator<<(FArchive& Ar, FHktInventoryRequest& R)
 	{
 		uint8 ActionByte = static_cast<uint8>(R.Action);
-		Ar << ActionByte << R.SourceEntity << R.BagSlot << R.EquipIndex;
-		if (Ar.IsLoading()) R.Action = static_cast<EHktBagAction>(ActionByte);
+		Ar << ActionByte << R.SourceEntity << R.InventorySlot << R.EquipIndex;
+		if (Ar.IsLoading()) R.Action = static_cast<EHktInventoryAction>(ActionByte);
 		return Ar;
 	}
 };
@@ -315,8 +315,8 @@ public:
 	/** 통합 런타임 이벤트 수신 — 클라이언트가 EventTag를 포함하여 전송 (아이템 Pickup/Drop 포함) */
 	virtual void OnReceived_RuntimeEvent(const FHktEvent& InEvent, const IHktWorldPlayer& InPlayer) {}
 
-	/** 가방 요청 수신 — 서버가 Bag ↔ Entity 전환 처리 (Bag 상태 변경이 필요하므로 non-const) */
-	virtual void OnReceived_BagRequest(const FHktBagRequest& InRequest, IHktWorldPlayer& InPlayer) {}
+	/** Inventory 요청 수신 — 서버가 Inventory ↔ Entity 전환 처리 (Inventory 상태 변경이 필요하므로 non-const) */
+	virtual void OnReceived_InventoryRequest(const FHktInventoryRequest& InRequest, IHktWorldPlayer& InPlayer) {}
 
 	/** 액터 이벤트 — 내부 캐싱된 DB 사용 (item 1, 2) */
 	virtual void OnEvent_GameModePostLogin(IHktWorldPlayer& InPlayer) {}

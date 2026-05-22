@@ -19,7 +19,7 @@
 class UInputMappingContext;
 class UInputAction;
 class IHktClientRule;
-class UHktBagComponent;
+class UHktPlayerInventoryComponent;
 struct FHktWorldView;
 
 UCLASS()
@@ -47,9 +47,9 @@ public:
     UFUNCTION(Server, Reliable, WithValidation)
     void Server_ReceiveRuntimeEvent(const FHktRuntimeEvent& Event);
 
-    // === C2S Bag RPC ===
+    // === C2S Inventory RPC ===
     UFUNCTION(Server, Reliable, WithValidation)
-    void Server_ReceiveBagRequest(const FHktRuntimeBagRequest& Request);
+    void Server_ReceiveInventoryRequest(const FHktRuntimeInventoryRequest& Request);
 
     /** 아이템 드롭 (바닥에 놓기) — RuntimeEvent로 전송 */
     virtual void RequestItemDrop(FHktEntityId ItemEntity) override;
@@ -57,22 +57,22 @@ public:
     /** 임의 ActionTag 로 RuntimeEvent 전송 (임시 디버그 UI 용) */
     virtual void RequestActionEvent(FGameplayTag ActionTag) override;
 
-    // === 가방 상호작용 (UI/입력에서 호출) ===
+    // === Inventory 상호작용 (UI/입력에서 호출) ===
 
-    /** EquipSlot → Bag (장비 슬롯에서 가방으로 보관) */
-    virtual void RequestBagStore(int32 EquipIndex) override;
+    /** EquipSlot → Inventory (장비 슬롯에서 Inventory 로 보관) */
+    virtual void RequestInventoryStore(int32 EquipIndex) override;
 
-    /** Bag → EquipSlot (가방에서 장비 슬롯으로 장착) */
-    virtual void RequestBagRestore(int32 BagSlot, int32 EquipIndex) override;
+    /** Inventory → EquipSlot (Inventory 에서 장비 슬롯으로 장착) */
+    virtual void RequestInventoryRestore(int32 InventorySlot, int32 EquipIndex) override;
 
-    /** Bag → Ground (가방에서 바닥으로 버리기) */
-    virtual void RequestBagDiscard(int32 BagSlot) override;
+    /** Inventory → Ground (Inventory 에서 바닥으로 버리기) */
+    virtual void RequestInventoryDiscard(int32 InventorySlot) override;
 
-    /** 클라이언트 로컬 가방 상태 조회 */
-    virtual const FHktBagState* GetBagState() const override;
+    /** 클라이언트 로컬 Inventory 상태 조회 */
+    virtual const FHktInventoryState* GetInventoryState() const override;
 
-    /** 가방 컴포넌트 접근 */
-    UHktBagComponent* GetBagComponent() const { return CachedBagComponent; }
+    /** Inventory 컴포넌트 접근 */
+    UHktPlayerInventoryComponent* GetInventoryComponent() const { return CachedInventoryComponent; }
 
     // === 델리게이트 ===
     virtual FOnHktTargetChanged& OnTargetChanged() override { return TargetChangedDelegate; }
@@ -88,7 +88,7 @@ public:
     virtual void RequestSetSubject(FHktEntityId InEntity) override;
     virtual FOnHktIntentSubmitted& OnIntentSubmitted() override { return IntentSubmittedDelegate; }
     virtual FOnHktSlotBindingChanged& OnSlotBindingChanged() override { return SlotBindingChangedDelegate; }
-    virtual FOnHktBagChanged& OnBagChanged() override;
+    virtual FOnHktInventoryChanged& OnInventoryChanged() override;
 
     // === Player UID ===
     virtual int64 GetPlayerUid() const override;
@@ -181,7 +181,7 @@ private:
     IHktClientRule* CachedClientRule = nullptr;
 
     /** 가방 컴포넌트 캐시 */
-    UHktBagComponent* CachedBagComponent = nullptr;
+    UHktPlayerInventoryComponent* CachedInventoryComponent = nullptr;
 
     /** 캐싱된 인터페이스 포인터들 */
     IHktIntentBuilder* CachedIntentBuilder = nullptr;

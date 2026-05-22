@@ -247,7 +247,7 @@ V2 (schema 2) 컬럼이 비어있으면 v1 핸들러로 폴백한다 (인자 형
 | `SnippetValidateOwnership` | `entity`, `failLabel: string` |
 | `SnippetValidateItemState` | `entity`, `expectedState: int`, `failLabel: string` |
 | `SnippetActivateInSlot` | `item`, `slotIndex`, `character` |
-| `SnippetDeactivateToBag` | `item`, `character` |
+| `SnippetDeactivateToInventory` | `item`, `character` |
 | `SnippetDropToGround` | `item`, `posSource` |
 | `SnippetSpawnGroundItemAtPos` (V2 전용) | `classTag: string`, `itemId: int`(opt 0), `pos: {"block":"name"}` |
 

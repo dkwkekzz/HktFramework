@@ -23,7 +23,7 @@
 
     { "op": "LoadEntityProperty", "dst": {"var":"equipIdx"}, "entity": "Target", "property": "EquipIndex" },
     { "op": "SnippetClearEquipSlot", "slotIndex": {"var":"equipIdx"} },
-    { "op": "SnippetDeactivateToBag", "item": "Target", "character": "Self" },
+    { "op": "SnippetDeactivateToInventory", "item": "Target", "character": "Self" },
 
     { "op": "FindByOwner", "owner": "Self", "tag": "EntityItem" },
     { "op": "LoadConst", "dst": {"var":"hasActive"}, "value": 0 },

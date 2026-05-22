@@ -1,10 +1,10 @@
 {
   "storyTag": "Story.Event.Item.Deactivate",
-  "description": "ItemDeactivate 본문: ValidateItemState(2) + ValidateOwnership + ClearEquipSlot + DeactivateToBag + 다른 활성 아이템 탐색하여 Stance 복원/Unarmed. spec runner 가 precondition 미실행 → main body 의 두 SnippetValidate 가 가드.",
+  "description": "ItemDeactivate 본문: ValidateItemState(2) + ValidateOwnership + ClearEquipSlot + DeactivateToInventory + 다른 활성 아이템 탐색하여 Stance 복원/Unarmed. spec runner 가 precondition 미실행 → main body 의 두 SnippetValidate 가 가드.",
   "scenarios": [
     {
       "name": "deactivate_only_active_item_clears_slot_and_stats",
-      "description": "Self 의 EquipSlot0 에 활성화된 단일 아이템(Target) 을 비활성화. ClearEquipSlot 으로 Self.EquipSlot0=0, DeactivateToBag 으로 Target.ItemState 2→1 + EquipIndex=-1, RemoveItemStats 가 AttackPower/Defense 차감. check_loop 는 Target 자기 자신만 발견 후 skip → check_done → 다른 활성 아이템 없음 → SetStance Unarmed (Stance 값 변화는 validate 안 함, 태그 to int 결정 외부).",
+      "description": "Self 의 EquipSlot0 에 활성화된 단일 아이템(Target) 을 비활성화. ClearEquipSlot 으로 Self.EquipSlot0=0, DeactivateToInventory 으로 Target.ItemState 2→1 + EquipIndex=-1, RemoveItemStats 가 AttackPower/Defense 차감. check_loop 는 Target 자기 자신만 발견 후 skip → check_done → 다른 활성 아이템 없음 → SetStance Unarmed (Stance 값 변화는 validate 안 함, 태그 to int 결정 외부).",
       "given": {
         "self": {
           "archetype": "Character",

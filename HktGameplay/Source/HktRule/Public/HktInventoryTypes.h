@@ -6,20 +6,19 @@
 #include "GameplayTagContainer.h"
 
 // ============================================================================
-// FHktBagItem  (= Player Inventory Item) — Inventory 내 아이템 스냅샷 (엔티티가 아닌 경량 데이터)
+// FHktInventoryItem — Player Inventory 내 아이템 스냅샷 (엔티티가 아닌 경량 데이터)
 //
-// I-0041 (Docs/intents/I-0041.md): 본 "Bag" 은 Entity 의 활성 슬롯이 아니라
-// *Player Inventory* (계정 단위 보관 공간) 이다. I-0040 의 Entity Bag (활성 슬롯) 과
-// 혼동 금지. 실제 rename (UHktBagComponent→UHktPlayerInventoryComponent,
-// FHktBagItem→FHktInventoryItem 등) 은 별도 PR.
+// I-0041 (Docs/intents/I-0041.md): *Player Inventory* (계정 단위 보관 공간).
+// I-0040 의 Entity Bag (활성 슬롯) 과 혼동 금지 — Entity 활성 슬롯은
+// `EquipIndex` 등 별도 프로퍼티 체계로 관리된다.
 //
 // Entity 의 프로퍼티를 스냅샷하여 보관. Player Inventory ↔ Entity 활성 슬롯 전환 시 사용.
 // VM 시뮬레이션과 무관한 플레이어 (계정) 레벨 개념이므로 HktRule 에 위치.
 // ============================================================================
 
-struct HKTRULE_API FHktBagItem
+struct HKTRULE_API FHktInventoryItem
 {
-	int32 BagSlot = -1;                // Inventory 내 슬롯 위치 (= InventorySlot)
+	int32 InventorySlot = -1;                // Inventory 내 슬롯 위치
 	int32 ItemId = 0;                  // 아이템 템플릿 ID
 	int32 AttackPower = 0;
 	int32 Defense = 0;
@@ -35,13 +34,13 @@ struct HKTRULE_API FHktBagItem
 
 	FString ToString() const
 	{
-		return FString::Printf(TEXT("BagSlot=%d ItemId=%d Atk=%d Def=%d"),
-			BagSlot, ItemId, AttackPower, Defense);
+		return FString::Printf(TEXT("InventorySlot=%d ItemId=%d Atk=%d Def=%d"),
+			InventorySlot, ItemId, AttackPower, Defense);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FHktBagItem& I)
+	friend FArchive& operator<<(FArchive& Ar, FHktInventoryItem& I)
 	{
-		Ar << I.BagSlot << I.ItemId << I.AttackPower << I.Defense << I.Stance;
+		Ar << I.InventorySlot << I.ItemId << I.AttackPower << I.Defense << I.Stance;
 		Ar << I.ItemSkillTag << I.SkillCPCost << I.SkillTargetRequired;
 		Ar << I.RecoveryFrame << I.Equippable << I.EntitySpawnTag;
 		return Ar;
@@ -56,19 +55,18 @@ struct HKTRULE_API FHktBagItem
 };
 
 template<>
-struct TStructOpsTypeTraits<FHktBagItem> : public TStructOpsTypeTraitsBase2<FHktBagItem>
+struct TStructOpsTypeTraits<FHktInventoryItem> : public TStructOpsTypeTraitsBase2<FHktInventoryItem>
 {
 	enum { WithNetSerializer = true };
 };
 
 // ============================================================================
-// FHktBagState  (= Player Inventory State) — 플레이어 Inventory 전체 상태
-// I-0041 참조. 별도 PR 에서 FHktInventoryState 로 rename 예정.
+// FHktInventoryState — 플레이어 Inventory 전체 상태 (I-0041).
 // ============================================================================
 
-struct HKTRULE_API FHktBagState
+struct HKTRULE_API FHktInventoryState
 {
-	TArray<FHktBagItem> Items;
+	TArray<FHktInventoryItem> Items;
 	int32 Capacity = 20;
 
 	/** 빈 슬롯 탐색. 없으면 -1 반환. */
@@ -76,11 +74,11 @@ struct HKTRULE_API FHktBagState
 	{
 		TArray<bool> Occupied;
 		Occupied.SetNumZeroed(Capacity);
-		for (const FHktBagItem& Item : Items)
+		for (const FHktInventoryItem& Item : Items)
 		{
-			if (Item.BagSlot >= 0 && Item.BagSlot < Capacity)
+			if (Item.InventorySlot >= 0 && Item.InventorySlot < Capacity)
 			{
-				Occupied[Item.BagSlot] = true;
+				Occupied[Item.InventorySlot] = true;
 			}
 		}
 		for (int32 i = 0; i < Capacity; ++i)
@@ -91,23 +89,23 @@ struct HKTRULE_API FHktBagState
 	}
 
 	/** 아이템 추가. 성공시 true. */
-	bool AddItem(FHktBagItem InItem)
+	bool AddItem(FHktInventoryItem InItem)
 	{
-		if (InItem.BagSlot < 0)
+		if (InItem.InventorySlot < 0)
 		{
-			InItem.BagSlot = FindEmptySlot();
+			InItem.InventorySlot = FindEmptySlot();
 		}
-		if (InItem.BagSlot < 0 || InItem.BagSlot >= Capacity) return false;
+		if (InItem.InventorySlot < 0 || InItem.InventorySlot >= Capacity) return false;
 		Items.Add(MoveTemp(InItem));
 		return true;
 	}
 
-	/** BagSlot으로 아이템 제거. 제거된 아이템을 OutItem에 반환. */
-	bool RemoveBySlot(int32 BagSlot, FHktBagItem& OutItem)
+	/** InventorySlot으로 아이템 제거. 제거된 아이템을 OutItem에 반환. */
+	bool RemoveBySlot(int32 InventorySlot, FHktInventoryItem& OutItem)
 	{
 		for (int32 i = 0; i < Items.Num(); ++i)
 		{
-			if (Items[i].BagSlot == BagSlot)
+			if (Items[i].InventorySlot == InventorySlot)
 			{
 				OutItem = Items[i];
 				Items.RemoveAt(i);
@@ -117,12 +115,12 @@ struct HKTRULE_API FHktBagState
 		return false;
 	}
 
-	/** BagSlot으로 아이템 조회. 없으면 nullptr. */
-	const FHktBagItem* GetItem(int32 BagSlot) const
+	/** InventorySlot으로 아이템 조회. 없으면 nullptr. */
+	const FHktInventoryItem* GetItem(int32 InventorySlot) const
 	{
-		for (const FHktBagItem& Item : Items)
+		for (const FHktInventoryItem& Item : Items)
 		{
-			if (Item.BagSlot == BagSlot) return &Item;
+			if (Item.InventorySlot == InventorySlot) return &Item;
 		}
 		return nullptr;
 	}
@@ -130,7 +128,7 @@ struct HKTRULE_API FHktBagState
 	bool IsFull() const { return Items.Num() >= Capacity; }
 	int32 GetItemCount() const { return Items.Num(); }
 
-	friend FArchive& operator<<(FArchive& Ar, FHktBagState& S)
+	friend FArchive& operator<<(FArchive& Ar, FHktInventoryState& S)
 	{
 		Ar << S.Items << S.Capacity;
 		return Ar;
@@ -145,36 +143,35 @@ struct HKTRULE_API FHktBagState
 };
 
 template<>
-struct TStructOpsTypeTraits<FHktBagState> : public TStructOpsTypeTraitsBase2<FHktBagState>
+struct TStructOpsTypeTraits<FHktInventoryState> : public TStructOpsTypeTraitsBase2<FHktInventoryState>
 {
 	enum { WithNetSerializer = true };
 };
 
 // ============================================================================
-// EHktBagOp / FHktBagDelta  (= Player Inventory Delta) — Inventory 변경 알림 (S2C)
-// I-0041 참조. 별도 PR 에서 EHktInventoryOp / FHktInventoryDelta 로 rename 예정.
+// EHktInventoryOp / FHktInventoryDelta — Inventory 변경 알림 (S2C, I-0041).
 // ============================================================================
 
-enum class EHktBagOp : uint8
+enum class EHktInventoryOp : uint8
 {
-	Added    = 0,    // 아이템이 가방에 추가됨
-	Removed  = 1,    // 아이템이 가방에서 제거됨
-	FullSync = 2,    // 전체 가방 상태 동기화 (로그인/그룹 이동)
+	Added    = 0,    // 아이템이 Inventory 에 추가됨
+	Removed  = 1,    // 아이템이 Inventory 에서 제거됨
+	FullSync = 2,    // 전체 Inventory 상태 동기화 (로그인/그룹 이동)
 };
 
-struct HKTRULE_API FHktBagDelta
+struct HKTRULE_API FHktInventoryDelta
 {
-	EHktBagOp Op = EHktBagOp::Added;
-	FHktBagItem Item;                  // Added/Removed 대상
-	FHktBagState FullState;            // FullSync 시 전체 상태
+	EHktInventoryOp Op = EHktInventoryOp::Added;
+	FHktInventoryItem Item;                  // Added/Removed 대상
+	FHktInventoryState FullState;            // FullSync 시 전체 상태
 
-	friend FArchive& operator<<(FArchive& Ar, FHktBagDelta& D)
+	friend FArchive& operator<<(FArchive& Ar, FHktInventoryDelta& D)
 	{
 		uint8 OpByte = static_cast<uint8>(D.Op);
 		Ar << OpByte;
-		if (Ar.IsLoading()) D.Op = static_cast<EHktBagOp>(OpByte);
+		if (Ar.IsLoading()) D.Op = static_cast<EHktInventoryOp>(OpByte);
 
-		if (D.Op == EHktBagOp::FullSync)
+		if (D.Op == EHktInventoryOp::FullSync)
 		{
 			Ar << D.FullState;
 		}
@@ -189,9 +186,9 @@ struct HKTRULE_API FHktBagDelta
 	{
 		uint8 OpByte = static_cast<uint8>(Op);
 		Ar << OpByte;
-		if (Ar.IsLoading()) Op = static_cast<EHktBagOp>(OpByte);
+		if (Ar.IsLoading()) Op = static_cast<EHktInventoryOp>(OpByte);
 
-		if (Op == EHktBagOp::FullSync)
+		if (Op == EHktInventoryOp::FullSync)
 		{
 			return FullState.NetSerialize(Ar, Map, bOutSuccess);
 		}
@@ -203,7 +200,7 @@ struct HKTRULE_API FHktBagDelta
 };
 
 template<>
-struct TStructOpsTypeTraits<FHktBagDelta> : public TStructOpsTypeTraitsBase2<FHktBagDelta>
+struct TStructOpsTypeTraits<FHktInventoryDelta> : public TStructOpsTypeTraitsBase2<FHktInventoryDelta>
 {
 	enum { WithNetSerializer = true };
 };

@@ -100,7 +100,7 @@ snippet 은 "ground 아이템 1 개를 위치 P 에 생성" 의 단위. 어떤 *
 | `SpawnGroundItemAtPos(ItemTag, Template, PosBlock)` | Self 없는 Flow Story 용 — 위치는 레지스터 블록 |
 | `DropToGround(ExistingItem, PosSource)` | 이미 존재하는 (장착 중인) 아이템을 ground 로 전이 |
 | `AssignOwnership(Item, NewOwner)` / `ReleaseOwnership(Item)` | OwnerEntity + OwnerUid 동시 갱신 |
-| `ActivateInSlot(Item, SlotIndex, Char)` / `DeactivateToBag(Item, Char)` | 슬롯 등록 + 스탯 적용/차감 |
+| `ActivateInSlot(Item, SlotIndex, Char)` / `DeactivateToInventory(Item, Char)` | 슬롯 등록 + 스탯 적용/차감 |
 
 본 의도가 손대는 것은 **drop 측 snippet 호출 통일**. pickup 측 snippet 은 이미 `Story_ItemPickup.json` 안에서 일관 사용 중이다.
 

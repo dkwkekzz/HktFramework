@@ -3,7 +3,7 @@
 #include "HktFileDatabaseComponent.h"
 #include "HktRuntimeLog.h"
 #include "HktCoreEventLog.h"
-#include "HktBagTypes.h"
+#include "HktInventoryTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
 #include "HktRuntimeTags.h"
@@ -20,9 +20,9 @@ void UHktPlayerSaveGame::Serialize(FArchive& Ar)
 	// FHktPlayerRecord 의 UPROPERTY 필드 (PlayerUid, LastLoginTime, CreatedTime,
 	// LastPosition) 는 Super 가 처리. 비-UPROPERTY 컬렉션은 명시적 직렬화 필요.
 
-	// I-0041: Player Inventory 영속화 — BagItems 는 friend operator<< 보유.
+	// I-0041: Player Inventory 영속화 — InventoryItems 는 friend operator<< 보유.
 	// 빈 배열도 정상 직렬화되므로 신규 플레이어 케이스 안전.
-	Ar << PlayerRecord.BagItems;
+	Ar << PlayerRecord.InventoryItems;
 
 	// TODO(I-0011/I-0034): ActiveEvents·EntityStates 직렬화 활성화.
 	// ActiveEvents 는 FHktEvent operator<< 보유로 즉시 활성화 가능하나,
@@ -205,7 +205,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const F
 	});
 }
 
-void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktBagItem>&& InBagItems)
+void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPlayerState&& InState, TArray<FHktInventoryItem>&& InInventoryItems)
 {
 	// 기존 레코드 로드 또는 새로 생성
 	FHktPlayerRecord* ExistingRecord = CachedRecords.Find(InPlayerUid);
@@ -215,7 +215,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 		// 기존 레코드 업데이트
 		ExistingRecord->ActiveEvents = MoveTemp(InState.ActiveEvents);
 		ExistingRecord->EntityStates = MoveTemp(InState.OwnedEntities);
-		ExistingRecord->BagItems = MoveTemp(InBagItems);
+		ExistingRecord->InventoryItems = MoveTemp(InInventoryItems);
 		// LastLoginTime, CreatedTime, LastPosition은 유지
 
 		SaveToSlot(InPlayerUid, *ExistingRecord, [InPlayerUid](bool bSuccess)
@@ -229,7 +229,7 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 	else
 	{
 		// 캐시에 없으면 파일에서 로드 시도
-		LoadFromSlot(InPlayerUid, [this, InPlayerUid, State = MoveTemp(InState), BagItems = MoveTemp(InBagItems)](TOptional<FHktPlayerRecord> Loaded) mutable
+		LoadFromSlot(InPlayerUid, [this, InPlayerUid, State = MoveTemp(InState), InventoryItems = MoveTemp(InInventoryItems)](TOptional<FHktPlayerRecord> Loaded) mutable
 		{
 			FHktPlayerRecord& RecordToSave = CachedRecords.Add(InPlayerUid);
 
@@ -248,10 +248,10 @@ void UHktFileDatabaseComponent::SavePlayerRecordAsync(int64 InPlayerUid, FHktPla
 				RecordToSave.LastPosition = FVector::ZeroVector;
 			}
 
-			// ActiveEvents, EntityStates, BagItems 이동
+			// ActiveEvents, EntityStates, InventoryItems 이동
 			RecordToSave.ActiveEvents = MoveTemp(State.ActiveEvents);
 			RecordToSave.EntityStates = MoveTemp(State.OwnedEntities);
-			RecordToSave.BagItems = MoveTemp(BagItems);
+			RecordToSave.InventoryItems = MoveTemp(InventoryItems);
 
 			// 파일에 저장
 			SaveToSlot(InPlayerUid, CachedRecords[InPlayerUid], [InPlayerUid](bool bSuccess)

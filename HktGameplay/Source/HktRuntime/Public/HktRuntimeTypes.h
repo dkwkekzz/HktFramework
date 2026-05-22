@@ -7,7 +7,7 @@
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
-#include "HktBagTypes.h"
+#include "HktInventoryTypes.h"
 #include "HktServerRuleInterfaces.h"
 #include "HktRuntimeTypes.generated.h"
 
@@ -264,21 +264,21 @@ struct TStructOpsTypeTraits<FHktRuntimeDiff> : public TStructOpsTypeTraitsBase2<
 // FHktRuntimeMoveRequest — 제거됨: Server_ReceiveRuntimeEvent로 통합
 
 //=============================================================================
-// FHktRuntimeBagRequest  (= FHktRuntimeInventoryRequest)
+// FHktRuntimeInventoryRequest  (= FHktRuntimeInventoryRequest)
 //   — Player Inventory 요청 네트워크 래퍼 (C2S). I-0041 참조.
 //=============================================================================
 USTRUCT()
-struct HKTRUNTIME_API FHktRuntimeBagRequest
+struct HKTRUNTIME_API FHktRuntimeInventoryRequest
 {
 	GENERATED_BODY()
 
-	FHktBagRequest Value;
+	FHktInventoryRequest Value;
 
-	FHktRuntimeBagRequest() = default;
-	explicit FHktRuntimeBagRequest(const FHktBagRequest& In) : Value(In) {}
+	FHktRuntimeInventoryRequest() = default;
+	explicit FHktRuntimeInventoryRequest(const FHktInventoryRequest& In) : Value(In) {}
 
-	FORCEINLINE operator FHktBagRequest&() { return Value; }
-	FORCEINLINE operator const FHktBagRequest&() const { return Value; }
+	FORCEINLINE operator FHktInventoryRequest&() { return Value; }
+	FORCEINLINE operator const FHktInventoryRequest&() const { return Value; }
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
@@ -288,28 +288,28 @@ struct HKTRUNTIME_API FHktRuntimeBagRequest
 };
 
 template<>
-struct TStructOpsTypeTraits<FHktRuntimeBagRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeBagRequest>
+struct TStructOpsTypeTraits<FHktRuntimeInventoryRequest> : public TStructOpsTypeTraitsBase2<FHktRuntimeInventoryRequest>
 {
 	enum { WithNetSerializer = true };
 };
 
 //=============================================================================
-// FHktRuntimeBagUpdate  (= FHktRuntimeInventoryUpdate)
+// FHktRuntimeInventoryUpdate  (= FHktRuntimeInventoryUpdate)
 //   — Player Inventory 변경 알림 네트워크 래퍼 (S2C). I-0041 참조.
 //=============================================================================
 USTRUCT()
-struct HKTRUNTIME_API FHktRuntimeBagUpdate
+struct HKTRUNTIME_API FHktRuntimeInventoryUpdate
 {
 	GENERATED_BODY()
 
-	FHktBagDelta Value;
+	FHktInventoryDelta Value;
 
-	FHktRuntimeBagUpdate() = default;
-	explicit FHktRuntimeBagUpdate(const FHktBagDelta& In) : Value(In) {}
-	explicit FHktRuntimeBagUpdate(FHktBagDelta&& In) : Value(MoveTemp(In)) {}
+	FHktRuntimeInventoryUpdate() = default;
+	explicit FHktRuntimeInventoryUpdate(const FHktInventoryDelta& In) : Value(In) {}
+	explicit FHktRuntimeInventoryUpdate(FHktInventoryDelta&& In) : Value(MoveTemp(In)) {}
 
-	FORCEINLINE operator FHktBagDelta&() { return Value; }
-	FORCEINLINE operator const FHktBagDelta&() const { return Value; }
+	FORCEINLINE operator FHktInventoryDelta&() { return Value; }
+	FORCEINLINE operator const FHktInventoryDelta&() const { return Value; }
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
@@ -318,7 +318,7 @@ struct HKTRUNTIME_API FHktRuntimeBagUpdate
 };
 
 template<>
-struct TStructOpsTypeTraits<FHktRuntimeBagUpdate> : public TStructOpsTypeTraitsBase2<FHktRuntimeBagUpdate>
+struct TStructOpsTypeTraits<FHktRuntimeInventoryUpdate> : public TStructOpsTypeTraitsBase2<FHktRuntimeInventoryUpdate>
 {
 	enum { WithNetSerializer = true };
 };

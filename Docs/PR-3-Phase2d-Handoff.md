@@ -265,7 +265,7 @@ precondition JSON 인프라는 Phase 2 이전부터 존재:
 | `Story_CombatUseSkill.json` | `WorldTime < NextActionFrame(Self)` → fail. 본문: `SnippetCooldownCheck` + `WriteConst NextActionFrame 0x7FFFFFFF` 잠금 + 5 dispatch 분기(Fireball/Heal/Lightning/Buff + innate BasicAttack) + 인라인 일괄 데미지(AttackPower×2). |
 | `Story_ItemDrop.json` | `OwnerEntity(Target) == Self`. 본문: ValidateOwnership + Active 였으면 ClearEquipSlot + RemoveItemStats + DropToGround. |
 | `Story_ItemActivate.json` | `ItemState(Target)==1 && OwnerEntity(Target)==Self`. 본문: 동일 EquipIndex 충돌 아이템 evict 후 ActivateInSlot. |
-| `Story_ItemDeactivate.json` | `ItemState(Target)==2 && OwnerEntity(Target)==Self`. 본문: ClearEquipSlot + DeactivateToBag + 다른 활성 아이템 탐색하여 Stance 복원/Unarmed. |
+| `Story_ItemDeactivate.json` | `ItemState(Target)==2 && OwnerEntity(Target)==Self`. 본문: ClearEquipSlot + DeactivateToInventory + 다른 활성 아이템 탐색하여 Stance 복원/Unarmed. |
 | `Story_ItemPickup.json` | `ItemState(Target)==0 && Distance≤300 && EquipSlot0..8 중 0 존재`. 본문: ValidateItemState + 거리 재검증 + FindEmptyEquipSlot + AssignOwnership + ActivateInSlot. |
 | `Story_ItemTrade.json` | `Param0/Param1` 동적 entity, 양측 OwnerEntity / ItemState!=2. 본문: 동일 검증 후 OwnerEntity swap + ClearOwnerUid. |
 

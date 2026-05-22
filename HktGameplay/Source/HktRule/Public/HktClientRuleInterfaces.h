@@ -8,7 +8,7 @@
 #include "HktCoreDefs.h"
 #include "HktCoreEvents.h"
 #include "HktWorldState.h"
-#include "HktBagTypes.h"
+#include "HktInventoryTypes.h"
 #include "HktVoxelSelection.h"
 #include "HktClientRuleInterfaces.generated.h"
 
@@ -175,7 +175,7 @@ public:
 	virtual void OnReceived_FrameBatch(const FHktSimulationEvent& InBatch) {}
 
 	/** 가방 변경 수신 (소유자 전용) */
-	virtual void OnReceived_BagUpdate(const FHktBagDelta& InDelta) {}
+	virtual void OnReceived_InventoryUpdate(const FHktInventoryDelta& InDelta) {}
 };
 
 // ============================================================================

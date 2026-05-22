@@ -1,7 +1,7 @@
 // Copyright Hkt Studios, Inc. All Rights Reserved.
 
 #include "HktWorldPlayerComponent.h"
-#include "HktBagComponent.h"
+#include "HktPlayerInventoryComponent.h"
 #include "Actors/HktInGamePlayerController.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -84,70 +84,70 @@ FGameplayTag UHktWorldPlayerComponent::GetTargetDefaultStoryTag() const
 }
 
 // ============================================================================
-// Bag — 형제 BagComponent에 위임
+// Inventory — 형제 PlayerInventoryComponent 에 위임
 // ============================================================================
 
-UHktBagComponent* UHktWorldPlayerComponent::GetBagComponent() const
+UHktPlayerInventoryComponent* UHktWorldPlayerComponent::GetInventoryComponent() const
 {
-    if (!CachedBagComponent.IsValid())
+    if (!CachedInventoryComponent.IsValid())
     {
         if (AActor* Owner = GetOwner())
         {
-            CachedBagComponent = Owner->FindComponentByClass<UHktBagComponent>();
+            CachedInventoryComponent = Owner->FindComponentByClass<UHktPlayerInventoryComponent>();
         }
     }
-    return CachedBagComponent.Get();
+    return CachedInventoryComponent.Get();
 }
 
-const FHktBagState& UHktWorldPlayerComponent::GetBagState() const
+const FHktInventoryState& UHktWorldPlayerComponent::GetInventoryState() const
 {
-    if (UHktBagComponent* Bag = GetBagComponent())
+    if (UHktPlayerInventoryComponent* Inventory = GetInventoryComponent())
     {
-        return Bag->GetServerBagState();
+        return Inventory->GetServerInventoryState();
     }
-    static FHktBagState Empty;
+    static FHktInventoryState Empty;
     return Empty;
 }
 
-bool UHktWorldPlayerComponent::StoreToBag(const FHktBagItem& InItem, int32& OutBagSlot)
+bool UHktWorldPlayerComponent::StoreToInventory(const FHktInventoryItem& InItem, int32& OutInventorySlot)
 {
-    if (UHktBagComponent* Bag = GetBagComponent())
+    if (UHktPlayerInventoryComponent* Inventory = GetInventoryComponent())
     {
-        return Bag->Server_StoreBagItem(InItem, OutBagSlot);
+        return Inventory->Server_StoreInventoryItem(InItem, OutInventorySlot);
     }
     return false;
 }
 
-bool UHktWorldPlayerComponent::TakeFromBag(int32 BagSlot, FHktBagItem& OutItem)
+bool UHktWorldPlayerComponent::TakeFromInventory(int32 InventorySlot, FHktInventoryItem& OutItem)
 {
-    if (UHktBagComponent* Bag = GetBagComponent())
+    if (UHktPlayerInventoryComponent* Inventory = GetInventoryComponent())
     {
-        return Bag->Server_RestoreFromBag(BagSlot, OutItem);
+        return Inventory->Server_RestoreFromInventory(InventorySlot, OutItem);
     }
     return false;
 }
 
-void UHktWorldPlayerComponent::RestoreBagFromRecord(const TArray<FHktBagItem>& InBagItems, int32 InCapacity)
+void UHktWorldPlayerComponent::RestoreInventoryFromRecord(const TArray<FHktInventoryItem>& InInventoryItems, int32 InCapacity)
 {
-    if (UHktBagComponent* Bag = GetBagComponent())
+    if (UHktPlayerInventoryComponent* Inventory = GetInventoryComponent())
     {
-        Bag->Server_RestoreFromRecord(InBagItems, InCapacity);
+        Inventory->Server_RestoreFromRecord(InInventoryItems, InCapacity);
     }
 }
 
-TArray<FHktBagItem> UHktWorldPlayerComponent::ExportBagForRecord() const
+TArray<FHktInventoryItem> UHktWorldPlayerComponent::ExportInventoryForRecord() const
 {
-    if (UHktBagComponent* Bag = GetBagComponent())
+    if (UHktPlayerInventoryComponent* Inventory = GetInventoryComponent())
     {
-        return Bag->Server_ExportForRecord();
+        return Inventory->Server_ExportForRecord();
     }
     return {};
 }
 
-void UHktWorldPlayerComponent::SendBagFullSync()
+void UHktWorldPlayerComponent::SendInventoryFullSync()
 {
-    if (UHktBagComponent* Bag = GetBagComponent())
+    if (UHktPlayerInventoryComponent* Inventory = GetInventoryComponent())
     {
-        Bag->Server_SendFullSync();
+        Inventory->Server_SendFullSync();
     }
 }
