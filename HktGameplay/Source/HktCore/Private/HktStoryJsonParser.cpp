@@ -1580,51 +1580,16 @@ void FHktStoryJsonParser::InitializeCoreCommandsV2()
         B.WaitSeconds(A.GetFloatOpt(TEXT("seconds"), 1.0f));
     });
 
-    // ---- Region helpers (PR-5) ----
-    // Implementation-Plan §7 PR-5+ — 03 spawner story 가 region-scoped 카운터/record 에 진입하기
-    // 위한 V2 op 노출. opcode 신설은 1 종 (FindOrCreateRegionEntityAt) — 나머지 4 종은 기존
-    // Builder helper 의 emit 시퀀스를 그대로 호출한다 (PR-3 의 RegionMapFindOrCreate + 기존
-    // LoadStoreEntity / SaveStoreEntity 재사용).
-    RegisterCommandV2(TEXT("FindOrCreateRegionAt"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-        FHktVar Out = B.FindOrCreateRegionAt(A.GetVar(B, TEXT("posX")), A.GetVar(B, TEXT("posY")));
+    // ---- Spawner helper ----
+    // voxel-slot key → Entity.Spawner row 해소 (1 host-call opcode). 누적 카운터 read/write 는
+    // 반환 vreg 에 LoadStoreEntity / SaveStoreEntity 로 처리 — 별도 helper 없음.
+    RegisterCommandV2(TEXT("SpawnerFindOrCreate"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
+        FHktVar Out = B.SpawnerFindOrCreate(A.GetVar(B, TEXT("slotKey")));
         FString OutName;
         if (A.Step->TryGetStringField(TEXT("out"), OutName))
         {
             B.Move(B.ResolveOrCreateNamedVar(OutName), Out);
         }
-    });
-    RegisterCommandV2(TEXT("RegionAddScalar"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-        B.RegionAddScalar(
-            A.GetVar(B, TEXT("regionEntity")),
-            A.GetPropertyId(TEXT("property")),
-            A.GetInt(TEXT("delta")));
-    });
-    RegisterCommandV2(TEXT("RegionMapFindOrCreate"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-        FHktVar Out = B.RegionMapFindOrCreate(
-            A.GetVar(B, TEXT("regionEntity")),
-            A.GetTag(TEXT("recordTag")),
-            A.GetVar(B, TEXT("key")));
-        FString OutName;
-        if (A.Step->TryGetStringField(TEXT("out"), OutName))
-        {
-            B.Move(B.ResolveOrCreateNamedVar(OutName), Out);
-        }
-    });
-    RegisterCommandV2(TEXT("RegionMapRead"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-        B.RegionMapRead(
-            A.GetVar(B, TEXT("dst")),
-            A.GetVar(B, TEXT("regionEntity")),
-            A.GetTag(TEXT("recordTag")),
-            A.GetVar(B, TEXT("key")),
-            A.GetPropertyId(TEXT("property")));
-    });
-    RegisterCommandV2(TEXT("RegionMapWrite"), [](FHktStoryBuilder& B, const FHktStoryCmdArgs& A) {
-        B.RegionMapWrite(
-            A.GetVar(B, TEXT("regionEntity")),
-            A.GetTag(TEXT("recordTag")),
-            A.GetVar(B, TEXT("key")),
-            A.GetPropertyId(TEXT("property")),
-            A.GetVar(B, TEXT("value")));
     });
 }
 

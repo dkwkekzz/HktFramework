@@ -1,6 +1,6 @@
 {
   "storyTag": "Story.Flow.Natural.Birch.Lifecycle",
-  "description": "Birch Lifecycle — Self=Birch entity 는 WaitTag(State.Dead) 로 잠들어 슬롯 점유 ~0 (polling 무). 사망 감지 시 Branch 3 본 drop + Event.Region.SaplingSeed 디스패치 + DestroyEntity.",
+  "description": "Birch Lifecycle — Self=Birch entity 는 WaitTag(State.Dead) 로 잠들어 슬롯 점유 ~0 (polling 무). 사망 감지 시 Branch 3 본 drop + Event.Natural.SaplingSeed 디스패치 + DestroyEntity.",
   "scenarios": [
     {
       "name": "alive_birch_waits_for_death",
@@ -25,7 +25,7 @@
       "expect": {
         "status": "Completed",
         "dispatched": [
-          { "eventTag": "Event.Region.SaplingSeed", "source": "self" }
+          { "eventTag": "Event.Natural.SaplingSeed", "source": "self" }
         ]
       }
     }

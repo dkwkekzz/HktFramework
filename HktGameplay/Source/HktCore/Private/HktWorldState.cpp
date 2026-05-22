@@ -183,64 +183,29 @@ void FHktWorldState::RemoveEntity(FHktEntityId Id)
     EntitySlots[Id] = -1;
 }
 
-FHktEntityId FHktWorldState::FindOrCreateRegionEntity(uint32 RegionId)
+FHktEntityId FHktWorldState::FindOrCreateSpawner(uint32 SlotKey)
 {
-    // SoA 선형 스캔 — Entity.Region 태그 + RegionIdKey 컬럼 매칭.
+    // SoA 선형 스캔 — Entity.Spawner 태그 + SpawnerSlotKey 컬럼 매칭.
     // 별도 store / TMap 0 (절대 원칙 5).
-    const int32 Key = static_cast<int32>(RegionId);
+    const int32 Key = static_cast<int32>(SlotKey);
     const int32 SlotCount = SlotToEntity.Num();
     for (int32 Slot = 0; Slot < SlotCount; ++Slot)
     {
         const FHktEntityId ExistingId = SlotToEntity[Slot];
         if (ExistingId == InvalidEntityId) continue;
-        if (!TagContainers[Slot].HasTag(HktArchetypeTags::Entity_Region)) continue;
-        if (Get(Slot, PropertyId::RegionIdKey) == Key)
+        if (!TagContainers[Slot].HasTag(HktArchetypeTags::Entity_Spawner)) continue;
+        if (Get(Slot, PropertyId::SpawnerSlotKey) == Key)
         {
             return ExistingId;
         }
     }
 
     const FHktEntityId NewId = AllocateEntity();
-    AddTag(NewId, HktArchetypeTags::Entity_Region);
-    SetProperty(NewId, PropertyId::RegionIdKey, Key);
+    AddTag(NewId, HktArchetypeTags::Entity_Spawner);
+    SetProperty(NewId, PropertyId::SpawnerSlotKey, Key);
 
     HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("FindOrCreateRegionEntity RegionId=0x%08X EntityId=%d"), RegionId, NewId), NewId);
-    return NewId;
-}
-
-FHktEntityId FHktWorldState::FindOrCreateRegionRecord(uint32 RegionId, const FGameplayTag& RecordTag, uint32 KeyHash)
-{
-    // 04 §3-D4 SoA 4-조건 선형 스캔.
-    // (RecordTag) AND (RegionIdKey == RegionId) AND (RecordKey == KeyHash).
-    // 보조 hash 인덱스 0 — VM 메모리 모델 가드 (04 §1).
-    if (!RecordTag.IsValid())
-    {
-        return InvalidEntityId;
-    }
-
-    const int32 RegionKey = static_cast<int32>(RegionId);
-    const int32 Key = static_cast<int32>(KeyHash);
-    const int32 SlotCount = SlotToEntity.Num();
-    for (int32 Slot = 0; Slot < SlotCount; ++Slot)
-    {
-        const FHktEntityId ExistingId = SlotToEntity[Slot];
-        if (ExistingId == InvalidEntityId) continue;
-        if (!TagContainers[Slot].HasTag(RecordTag)) continue;
-        if (Get(Slot, PropertyId::RegionIdKey) != RegionKey) continue;
-        if (Get(Slot, PropertyId::RecordKey)   != Key)       continue;
-        return ExistingId;
-    }
-
-    const FHktEntityId NewId = AllocateEntity();
-    AddTag(NewId, HktArchetypeTags::Entity_RegionRecord);  // parent
-    AddTag(NewId, RecordTag);                              // leaf
-    SetProperty(NewId, PropertyId::RegionIdKey, RegionKey);
-    SetProperty(NewId, PropertyId::RecordKey,   Key);
-
-    HKT_EVENT_LOG_ENTITY(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
-        FString::Printf(TEXT("FindOrCreateRegionRecord RegionId=0x%08X Tag=%s Key=0x%08X EntityId=%d"),
-            RegionId, *RecordTag.ToString(), KeyHash, NewId), NewId);
+        FString::Printf(TEXT("FindOrCreateSpawner SlotKey=0x%08X EntityId=%d"), SlotKey, NewId), NewId);
     return NewId;
 }
 

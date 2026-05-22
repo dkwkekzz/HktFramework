@@ -1,10 +1,10 @@
 {
   "storyTag": "Story.Flow.Spawner.Natural.Oak",
-  "description": "Oak grove chunk-load spawner — Param0/1 anchor + Param2 LineageId. RegionMapRead(LineageFelledCount) >= 3 이면 가계 소진으로 Halt. 통과 시 Elder 1 + 자식 3 (원형 배치 1500cm) spawn, 각 엔티티의 RecordKey 에 LineageId 적재, Lineage 레코드의 LineageElderPosX/Y 갱신, RegionOakCount +1.",
+  "description": "Oak grove chunk-load spawner — Param0/1 anchor + Param2 SpawnerSlotKey. SpawnerFindOrCreate → SpawnerDeathCount >= 3 이면 spawner 소진으로 Halt. 통과 시 Elder 1 + 자식 3 (원형 배치 1500cm) spawn, 각 엔티티의 SpawnerSlotKey 에 동일 slot key 적재.",
   "scenarios": [
     {
       "name": "spawns_elder_and_three_children_under_cap",
-      "description": "가계 0회 felled (lazy 0) → cap 분기 skip → Elder + 3 자식 + lineage 레코드 작성 후 Completed.",
+      "description": "DeathCount 0 (lazy 0) → cap 분기 skip → Elder + 3 자식 spawn 후 Completed.",
       "given": {
         "self":  { "properties": {} },
         "event": { "param0": 50000, "param1": 80000, "param2": 4242 }
@@ -12,17 +12,16 @@
       "expect": { "status": "Completed" }
     },
     {
-      "name": "halts_when_lineage_exhausted",
-      "description": "given.entities 에 동일 RegionIdKey + Entity.RegionRecord.Lineage + RecordKey=4242 + LineageFelledCount=3 인 record entity 가 있음 → RegionMapRead 가 3 반환 → IfGeConst(>=3) true → Halt.",
+      "name": "halts_when_spawner_exhausted",
+      "description": "given.entities 에 동일 SpawnerSlotKey=4242 + SpawnerDeathCount=3 인 spawner entity 가 있음 → DeathCount 3 → IfGeConst(>=3) true → Halt.",
       "given": {
         "self":  { "properties": {} },
         "entities": [
           {
-            "tags": ["Entity.RegionRecord", "Entity.RegionRecord.Lineage"],
+            "tags": ["Entity.Spawner"],
             "properties": {
-              "RegionIdKey":         "auto",
-              "RecordKey":           4242,
-              "LineageFelledCount":  3
+              "SpawnerSlotKey":     4242,
+              "SpawnerDeathCount":  3
             }
           }
         ],

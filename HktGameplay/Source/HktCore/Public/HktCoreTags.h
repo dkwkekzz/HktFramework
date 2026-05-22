@@ -73,10 +73,10 @@ namespace HktNaturalEntityTags
     HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSapling);    // Entity.Natural.OakSapling
 }
 
-namespace HktRegionEventTags
+namespace HktSaplingSeedEventTags
 {
-    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SaplingSeed);       // Event.Region.SaplingSeed (Birch)
-    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSaplingSeed);    // Event.Region.OakSaplingSeed (Oak — lineage 키 보존)
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SaplingSeed);       // Event.Natural.SaplingSeed (Birch)
+    HKTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(OakSaplingSeed);    // Event.Natural.OakSaplingSeed (Oak — slot key 보존)
 }
 
 // ── Spawner story 의 공통 root. ──

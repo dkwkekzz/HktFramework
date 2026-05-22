@@ -148,25 +148,14 @@ private:
     void Op_IsTerrainSolid(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosBase, RegisterIndex ZReg);
     void Op_InteractTerrain(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm);
 
-    // ===== Region (PR-3, 04 §3-D4) =====
+    // ===== Spawner =====
     /**
-     * Region 안의 *키별 record entity* 를 SoA 선형 스캔으로 해소 (없으면 lazy create).
+     * voxel-slot key → Entity.Spawner row 해소 (없으면 lazy create).
      * 결과 EntityId 를 Dst vreg 에 entity 값으로 적재한다.
-     * @param RegionEntity  소속 region (PR-2 의 FindOrCreateRegionEntity 결과) vreg
-     * @param KeyReg        record key (LineageId/VariantId/OreSpeciesId 등) vreg
-     * @param TagIndex      record tag 의 NetIndex (Entity.RegionRecord.{Lineage|Variant|OreSpecies})
+     * @param Dst       spawner entity 의 vreg (entity 값)
+     * @param SlotKeyReg   voxel-slot key (SlotHash31, 통상 Event.Param2 그대로) vreg
      */
-    void Op_RegionMapFindOrCreate(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex RegionEntity, RegisterIndex KeyReg, int32 TagIndex);
-
-    /**
-     * 위치(cm) → chunk 좌표 → RegionId → RegionEntity 해소 (PR-5).
-     * spawner story 가 Param0/Param1 의 spawn 좌표로 region-scoped 카운터/record 에 진입하는 용도.
-     * VoxelSizeCm 과 ChunkSize 는 TerrainState 에서 조회 — 결정론 보장 (Q16.16 + 정수 floor-div).
-     * @param Dst       RegionEntity 의 vreg (entity 값)
-     * @param PosXReg   X 좌표 (cm) vreg
-     * @param PosYReg   Y 좌표 (cm) vreg
-     */
-    void Op_FindOrCreateRegionEntityAt(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex PosXReg, RegisterIndex PosYReg);
+    void Op_SpawnerFindOrCreate(FHktVMRuntime& Runtime, RegisterIndex Dst, RegisterIndex SlotKeyReg);
 
     // ===== Utility =====
     void Op_Log(FHktVMRuntime& Runtime, int32 StringIndex);

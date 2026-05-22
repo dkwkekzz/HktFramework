@@ -4,7 +4,6 @@
   "tags": {
     "Birch":          "Entity.Natural.Birch",
     "BirchLifecycle": "Story.Flow.Natural.Birch.Lifecycle",
-    "VoxelSlot":      "Entity.RegionRecord.VoxelSlot",
     "StateDead":      "State.Dead"
   },
   "steps": [
@@ -15,21 +14,17 @@
     { "op": "LoadStore", "dst": {"var":"slotKey"}, "property": "Param2" },
     { "op": "LoadStore", "dst": {"var":"posZ"},    "property": "Param3" },
 
-    { "op": "FindOrCreateRegionAt", "posX": {"var":"posX"}, "posY": {"var":"posY"}, "out": "regionEntity" },
+    { "op": "SpawnerFindOrCreate", "slotKey": {"var":"slotKey"}, "out": "spawnerEntity" },
 
     { "op": "Label", "name": "top" },
 
-    { "op": "RegionMapRead", "dst": {"var":"alive"},
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotAliveFlag" },
+    { "op": "LoadStoreEntity", "dst": {"var":"alive"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag" },
     { "op": "IfGeConst", "src": {"var":"alive"}, "value": 1 },
       { "op": "Log", "message": "[Birch] slot 점유 중 (다른 instance 가 spawn) — Halt 로 양보" },
       { "op": "Halt" },
     { "op": "EndIf" },
 
-    { "op": "RegionMapRead", "dst": {"var":"lastDie"},
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame" },
+    { "op": "LoadStoreEntity", "dst": {"var":"lastDie"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame" },
     { "op": "IfGeConst", "src": {"var":"lastDie"}, "value": 1 },
       { "op": "GetWorldTime", "dst": {"var":"now"} },
       { "op": "Sub", "dst": {"var":"elapsed"}, "src1": {"var":"now"}, "src2": {"var":"lastDie"} },
@@ -46,14 +41,12 @@
     { "op": "Move", "dst": {"block":"pos","index":2}, "src": {"var":"posZ"} },
     { "op": "SetPosition", "entity": {"var":"birch"}, "pos": {"block":"pos"} },
 
-    { "op": "SaveStoreEntity", "entity": {"var":"birch"}, "property": "RecordKey", "src": {"var":"slotKey"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"birch"}, "property": "SpawnerSlotKey", "src": {"var":"slotKey"} },
     { "op": "SaveConstEntity", "entity": {"var":"birch"}, "property": "MaxHealth", "value": 30 },
     { "op": "SaveConstEntity", "entity": {"var":"birch"}, "property": "Health",    "value": 30 },
 
     { "op": "LoadConst", "dst": {"var":"one"}, "value": 1 },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"one"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag", "src": {"var":"one"} },
 
     { "op": "DispatchEventFrom", "eventTag": "BirchLifecycle", "source": {"var":"birch"} },
 
@@ -67,12 +60,11 @@
     { "op": "Log", "message": "[Birch] 사망 감지 — slot release 후 top 으로 jump (cooldown wait + respawn)" },
     { "op": "GetWorldTime", "dst": {"var":"dieTime"} },
     { "op": "LoadConst", "dst": {"var":"zero"}, "value": 0 },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotAliveFlag", "value": {"var":"zero"} },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "VoxelSlot",
-      "key": {"var":"slotKey"}, "property": "SlotLastDieFrame", "value": {"var":"dieTime"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag",      "src": {"var":"zero"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame", "src": {"var":"dieTime"} },
+    { "op": "LoadStoreEntity", "dst": {"var":"deathCount"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount" },
+    { "op": "AddImm", "dst": {"var":"deathCount"}, "src": {"var":"deathCount"}, "imm": 1 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount", "src": {"var":"deathCount"} },
     { "op": "Jump", "label": "top" }
   ]
 }

@@ -44,14 +44,14 @@ namespace HktNaturalEntityTags
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Branch,       "Entity.Natural.Branch",       "Branch — TreeLifecycle 가 사망 시 drop 하는 재료 엔티티.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSapling, "Entity.Natural.BirchSapling", "BirchSapling — SaplingSeed 시드로 spawn 되는 묘목.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(Oak,          "Entity.Natural.Oak",          "Oak tree — Implementation-Plan §6.2 / S02 lineage demo. Grove 중심 + 자식 N 본 배치.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakElder,     "Entity.Natural.OakElder",     "Oak Elder — grove 중심 노목 (lineage 의 anchor). 베이면 LineageFelledCount +1.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakElder,     "Entity.Natural.OakElder",     "Oak Elder — grove 중심 노목. 베이면 출신 spawner 의 SpawnerDeathCount +1.");
     UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSapling,   "Entity.Natural.OakSapling",   "OakSapling — OakSaplingSeed 시드로 spawn. 향후 Elder 로 promotion 후보.");
 }
 
-namespace HktRegionEventTags
+namespace HktSaplingSeedEventTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SaplingSeed,    "Event.Region.SaplingSeed",    "Birch TreeLifecycle 가 사망 시 디스패치하는 묘목 시드 이벤트.");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSaplingSeed, "Event.Region.OakSaplingSeed", "Oak TreeLifecycle 가 사망 시 디스패치하는 Oak 묘목 시드 이벤트 (Param2=LineageId 보존).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SaplingSeed,    "Event.Natural.SaplingSeed",    "Birch Lifecycle 가 사망 시 디스패치하는 묘목 시드 이벤트.");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSaplingSeed, "Event.Natural.OakSaplingSeed", "Oak Lifecycle 가 사망 시 디스패치하는 Oak 묘목 시드 이벤트 (Param2=SpawnerSlotKey 보존).");
 }
 
 namespace HktSpawnerTags
@@ -61,8 +61,8 @@ namespace HktSpawnerTags
 
 namespace HktNaturalStoryTags
 {
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch voxel-attribution spawner — voxel-slot dedupe + 사망 후 쿨다운 (RegionRecord.VoxelSlot).");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak grove spawner — Elder + 3 child, lineage record. Voxel-slot dedupe 미적용 (후속 PR).");
-    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SlimeSpawn, "Story.Flow.Spawner.Natural.Slime", "Slime voxel-attribution spawner — voxel-slot dedupe + 사망 후 쿨다운 (RegionRecord.VoxelSlot).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(BirchSpawn, "Story.Flow.Spawner.Natural.Birch", "Birch voxel-attribution spawner — voxel-slot dedupe + 사망 후 쿨다운 (Entity.Spawner).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(OakSpawn,   "Story.Flow.Spawner.Natural.Oak",   "Oak grove spawner — Elder + 3 child, spawner DeathCount 누적. Voxel-slot dedupe 미적용 (후속 PR).");
+    UE_DEFINE_GAMEPLAY_TAG_COMMENT(SlimeSpawn, "Story.Flow.Spawner.Natural.Slime", "Slime voxel-attribution spawner — voxel-slot dedupe + 사망 후 쿨다운 (Entity.Spawner).");
 }
 

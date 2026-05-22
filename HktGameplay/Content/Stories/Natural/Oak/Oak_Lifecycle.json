@@ -3,8 +3,7 @@
   "storyTag": "Story.Flow.Natural.Oak.Lifecycle",
   "tags": {
     "Branch":         "Entity.Natural.Branch",
-    "Lineage":        "Entity.RegionRecord.Lineage",
-    "OakSaplingSeed": "Event.Region.OakSaplingSeed",
+    "OakSaplingSeed": "Event.Natural.OakSaplingSeed",
     "StateDead":      "State.Dead"
   },
   "steps": [
@@ -13,10 +12,10 @@
     { "op": "WaitTag", "entity": "Self", "tag": "StateDead" },
 
     { "op": "Label", "name": "die" },
-    { "op": "Log", "message": "[Oak] 사망 감지 — Branch 3 본 drop + lineage++ + OakSaplingSeed 디스패치" },
+    { "op": "Log", "message": "[Oak] 사망 감지 — Branch 3 본 drop + SpawnerDeathCount++ + OakSaplingSeed 디스패치" },
 
     { "op": "GetPosition", "out": "fallenPos", "entity": "Self" },
-    { "op": "LoadStoreEntity", "dst": {"var":"lineageId"}, "entity": "Self", "property": "RecordKey" },
+    { "op": "LoadStoreEntity", "dst": {"var":"slotKey"}, "entity": "Self", "property": "SpawnerSlotKey" },
 
     { "op": "SpawnEntity", "classTag": "Branch", "out": "br1" },
     { "op": "SetPosition", "entity": {"var":"br1"}, "pos": {"block":"fallenPos"} },
@@ -25,26 +24,19 @@
     { "op": "SpawnEntity", "classTag": "Branch", "out": "br3" },
     { "op": "SetPosition", "entity": {"var":"br3"}, "pos": {"block":"fallenPos"} },
 
-    { "op": "FindOrCreateRegionAt",
-      "posX": {"block":"fallenPos","index":0},
-      "posY": {"block":"fallenPos","index":1},
-      "out": "regionEntity" },
+    { "op": "SpawnerFindOrCreate", "slotKey": {"var":"slotKey"}, "out": "spawnerEntity" },
 
-    { "op": "RegionMapRead", "dst": {"var":"felledCount"},
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "Lineage",
-      "key": {"var":"lineageId"}, "property": "LineageFelledCount" },
-    { "op": "AddImm", "dst": {"var":"felledCount"}, "src": {"var":"felledCount"}, "imm": 1 },
-    { "op": "RegionMapWrite",
-      "regionEntity": {"var":"regionEntity"}, "recordTag": "Lineage",
-      "key": {"var":"lineageId"}, "property": "LineageFelledCount", "value": {"var":"felledCount"} },
+    { "op": "LoadStoreEntity", "dst": {"var":"deathCount"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount" },
+    { "op": "AddImm", "dst": {"var":"deathCount"}, "src": {"var":"deathCount"}, "imm": 1 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount", "src": {"var":"deathCount"} },
 
-    { "op": "RegionAddScalar",
-      "regionEntity": {"var":"regionEntity"}, "property": "RegionOakCount", "delta": -1 },
+    { "op": "GetWorldTime", "dst": {"var":"now"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame", "src": {"var":"now"} },
 
     { "op": "SaveStore", "property": "TargetPosX", "src": {"block":"fallenPos","index":0} },
     { "op": "SaveStore", "property": "TargetPosY", "src": {"block":"fallenPos","index":1} },
     { "op": "SaveStore", "property": "TargetPosZ", "src": {"block":"fallenPos","index":2} },
-    { "op": "SaveStore", "property": "Param2", "src": {"var":"lineageId"} },
+    { "op": "SaveStore", "property": "Param2", "src": {"var":"slotKey"} },
     { "op": "DispatchEvent", "eventTag": "OakSaplingSeed" },
 
     { "op": "DestroyEntity", "entity": "Self" },

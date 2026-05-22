@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "storyTag": "Event.Region.SaplingSeed",
+  "storyTag": "Event.Natural.SaplingSeed",
   "tags": {
     "Birch":   "Entity.Natural.Birch",
     "Sapling": "Entity.Natural.BirchSapling"

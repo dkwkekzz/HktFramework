@@ -4,7 +4,7 @@
   "tags": {
     "Branch":      "Entity.Natural.Branch",
     "Birch":       "Entity.Natural.Birch",
-    "SaplingSeed": "Event.Region.SaplingSeed",
+    "SaplingSeed": "Event.Natural.SaplingSeed",
     "StateDead":   "State.Dead"
   },
   "steps": [

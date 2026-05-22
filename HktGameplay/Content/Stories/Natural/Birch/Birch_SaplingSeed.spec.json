@@ -1,6 +1,6 @@
 {
-  "storyTag": "Event.Region.SaplingSeed",
-  "description": "Event.Region.SaplingSeed 리스너 — Birch 총수가 cap 미만이면 EventLocation 에 묘목 1 본 spawn, cap 도달 시 Halt.",
+  "storyTag": "Event.Natural.SaplingSeed",
+  "description": "Event.Natural.SaplingSeed 리스너 — Birch 총수가 cap 미만이면 EventLocation 에 묘목 1 본 spawn, cap 도달 시 Halt.",
   "scenarios": [
     {
       "name": "spawns_sapling_under_cap",
