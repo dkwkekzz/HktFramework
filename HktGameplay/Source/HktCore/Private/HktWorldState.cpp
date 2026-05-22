@@ -6,6 +6,11 @@
 #include "HktSimulationLimits.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
+#include "HktCoreStats.h"
+
+DECLARE_CYCLE_STAT(TEXT("WorldState.CopyFrom"),     STAT_HktCore_WorldStateCopy,     STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("WorldState.NetSerialize"), STAT_HktCore_WorldStateNetSer,   STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("WorldState.UndoDiff"),     STAT_HktCore_WorldStateUndoDiff, STATGROUP_HktCore);
 
 // ============================================================================
 // Cold (Warm + Overflow) Access Helpers
@@ -306,6 +311,8 @@ void FHktWorldState::ImportEntityStateWithId(const FHktEntityState& InState)
 
 void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_WorldStateUndoDiff);
+
     HKT_EVENT_LOG(HktLogTags::Core_Entity, EHktLogLevel::Info, LogSource,
         FString::Printf(TEXT("UndoDiff Frame=%lld Spawned=%d Removed=%d Props=%d"),
             Diff.FrameNumber, Diff.SpawnedEntities.Num(), Diff.RemovedEntities.Num(), Diff.PropertyDeltas.Num()));
@@ -339,6 +346,8 @@ void FHktWorldState::UndoDiff(const FHktSimulationDiff& Diff)
 
 void FHktWorldState::CopyFrom(const FHktWorldState& Other)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_WorldStateCopy);
+
     FrameNumber = Other.FrameNumber;
     RandomSeed = Other.RandomSeed;
     NextEntityId = Other.NextEntityId;
@@ -366,6 +375,8 @@ void FHktWorldState::CopyFrom(const FHktWorldState& Other)
 
 bool FHktWorldState::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_WorldStateNetSer);
+
     Ar << FrameNumber << RandomSeed << NextEntityId;
 
     if (Ar.IsSaving())

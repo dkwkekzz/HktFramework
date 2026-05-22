@@ -3,6 +3,7 @@
 #include "HktIngamePlayerController.h"
 #include "HktCoreArchetype.h"
 #include "HktRuntimeLog.h"
+#include "HktRuntimeStats.h"
 #include "HktPlayerState.h"
 #include "HktClientRuleInterfaces.h"
 #include "HktGameMode.h"
@@ -21,6 +22,11 @@
 #include "GameplayTagsManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HktRuntimeTags.h"
+
+DECLARE_CYCLE_STAT(TEXT("PlayerController.Tick"),               STAT_HktRuntime_PlayerControllerTick, STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("PlayerController.BroadcastWorldView"), STAT_HktRuntime_BroadcastWorldView,   STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("PlayerController.ReceiveFrameBatch"),  STAT_HktRuntime_ReceiveFrameBatch,    STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("PlayerController.AutoPickup"),         STAT_HktRuntime_AutoPickup,           STATGROUP_HktRuntime);
 
 AHktIngamePlayerController::AHktIngamePlayerController()
 {
@@ -434,6 +440,8 @@ void AHktIngamePlayerController::Client_ReceiveInitialState_Implementation(const
 
 void AHktIngamePlayerController::Client_ReceiveFrameBatch_Implementation(const FHktRuntimeBatch& Batch)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_ReceiveFrameBatch);
+
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
 
@@ -465,6 +473,8 @@ void AHktIngamePlayerController::Client_ReceiveHeartbeat_Implementation(int64 Se
 
 void AHktIngamePlayerController::Tick(float DeltaSeconds)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_PlayerControllerTick);
+
     Super::Tick(DeltaSeconds);
 
     if (!CachedProxySimulator || !CachedProxySimulator->IsInitialized()) return;
@@ -498,6 +508,8 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
     FHktSimulationDiff Diff;
     if (CachedProxySimulator->ConsumePendingDiff(Diff))
     {
+        SCOPE_CYCLE_COUNTER(STAT_HktRuntime_BroadcastWorldView);
+
         FHktWorldView View;
         View.WorldState = &CachedProxySimulator->GetWorldState();
         View.FrameNumber = Diff.FrameNumber;
@@ -516,7 +528,10 @@ void AHktIngamePlayerController::Tick(float DeltaSeconds)
     }
 
     // 자동 픽업 — Subject 주변 ground 아이템 스캔 (I-0035 P5)
-    TickAutoPickup();
+    {
+        SCOPE_CYCLE_COUNTER(STAT_HktRuntime_AutoPickup);
+        TickAutoPickup();
+    }
 
 #if ENABLE_HKT_INSIGHTS
     // 클라이언트 런타임 상태 수집

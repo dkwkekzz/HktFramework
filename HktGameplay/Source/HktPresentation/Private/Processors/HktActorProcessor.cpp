@@ -2,6 +2,7 @@
 
 #include "HktActorProcessor.h"
 #include "HktPresentationLog.h"
+#include "HktPresentationStats.h"
 #include "HktAssetSubsystem.h"
 #include "DataAssets/HktActorVisualDataAsset.h"
 #include "DataAssets/HktItemVisualDataAsset.h"
@@ -10,6 +11,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "HktCoreEventLog.h"
+
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.Tick"),         STAT_HktPres_ActorTick,         STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.Sync"),         STAT_HktPres_ActorSync,         STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.SyncViews"),    STAT_HktPres_ActorSyncViews,    STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("ActorProcessor.ApplyTransform"), STAT_HktPres_ActorApplyTransform, STATGROUP_HktPresentation);
 
 FHktActorProcessor::FHktActorProcessor(ULocalPlayer* InLP)
 	: LocalPlayer(InLP)
@@ -27,6 +33,8 @@ IHktPresentableActor* FHktActorProcessor::FindActorInterface(FHktEntityId Id) co
 
 void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorTick);
+
 	ULocalPlayer* LP = LocalPlayer.Get();
 	if (!LP) return;
 	UWorld* World = LP->GetWorld();
@@ -94,6 +102,8 @@ void FHktActorProcessor::Tick(FHktPresentationState& State, float DeltaTime)
 
 void FHktActorProcessor::Sync(FHktPresentationState& State)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorSync);
+
 	const int64 Frame = State.GetCurrentFrame();
 
 	// --- 1. 삭제: RemovedThisFrame 처리 ---
@@ -143,117 +153,121 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 		return ForceEntities.Contains(Id);
 	};
 
+	auto GetActorFn = [this](FHktEntityId OwnerEntityId) -> AActor* { return GetActor(OwnerEntityId); };
+
 	// --- 4. SOA 뷰별 독립 순회 패스 ---
-
-	// Physics 패스 — 더티 or Force인 엔터티만 Actor로 전달
-	for (auto It = State.Physics.CreateConstIterator(); It; ++It)
 	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyPhysics(*It, Frame, bForce);
-	}
+		SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorSyncViews);
 
-	// Movement 패스
-	for (auto It = State.Movement.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyMovement(*It, Frame, bForce);
-	}
+		// Physics 패스 — 더티 or Force인 엔터티만 Actor로 전달
+		for (auto It = State.Physics.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyPhysics(*It, Frame, bForce);
+		}
 
-	// Vitals 패스
-	for (auto It = State.Vitals.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyVitals(*It, Frame, bForce);
-	}
+		// Movement 패스
+		for (auto It = State.Movement.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyMovement(*It, Frame, bForce);
+		}
 
-	// Combat 패스
-	for (auto It = State.Combat.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyCombat(*It, Frame, bForce);
-	}
+		// Vitals 패스
+		for (auto It = State.Vitals.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyVitals(*It, Frame, bForce);
+		}
 
-	// Ownership 패스
-	for (auto It = State.Ownership.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyOwnership(*It, Frame, bForce);
-	}
+		// Combat 패스
+		for (auto It = State.Combat.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyCombat(*It, Frame, bForce);
+		}
 
-	// Animation 패스 — mutable (PendingAnimTriggers 소비)
-	for (auto It = State.Animation.CreateIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyAnimation(*It, Frame, bForce);
-	}
+		// Ownership 패스
+		for (auto It = State.Ownership.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyOwnership(*It, Frame, bForce);
+		}
 
-	// Visualization 패스
-	for (auto It = State.Visualization.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyVisualization(*It, Frame, bForce);
-	}
+		// Animation 패스 — mutable (PendingAnimTriggers 소비)
+		for (auto It = State.Animation.CreateIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyAnimation(*It, Frame, bForce);
+		}
 
-	// Item 패스 — OwnerEntity 룩업 콜백
-	auto GetActorFn = [this](FHktEntityId OwnerId) -> AActor* { return GetActor(OwnerId); };
-	for (auto It = State.Items.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyItem(*It, Frame, bForce, GetActorFn);
-	}
+		// Visualization 패스
+		for (auto It = State.Visualization.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyVisualization(*It, Frame, bForce);
+		}
 
-	// VoxelSkin 패스
-	for (auto It = State.VoxelSkins.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyVoxelSkin(*It, Frame, bForce);
-	}
+		// Item 패스 — OwnerEntity 룩업 콜백
+		for (auto It = State.Items.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyItem(*It, Frame, bForce, GetActorFn);
+		}
 
-	// Sprite 패스 — Paper2D 액터 등 sprite 캐릭터 전용 권위 상태(Facing/AnimStartTick).
-	for (auto It = State.Sprites.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplySprite(*It, Frame, bForce);
-	}
+		// VoxelSkin 패스
+		for (auto It = State.VoxelSkins.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyVoxelSkin(*It, Frame, bForce);
+		}
 
-	// TerrainDebris 패스
-	for (auto It = State.TerrainDebris.CreateConstIterator(); It; ++It)
-	{
-		const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
-		const bool bForce = IsForced(Id);
-		if (!bForce && !It->AnyDirty(Frame)) continue;
-		if (IHktPresentableActor* P = FindActorInterface(Id))
-			P->ApplyTerrainDebris(*It, Frame, bForce);
+		// Sprite 패스 — Paper2D 액터 등 sprite 캐릭터 전용 권위 상태(Facing/AnimStartTick).
+		for (auto It = State.Sprites.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplySprite(*It, Frame, bForce);
+		}
+
+		// TerrainDebris 패스
+		for (auto It = State.TerrainDebris.CreateConstIterator(); It; ++It)
+		{
+			const FHktEntityId Id = static_cast<FHktEntityId>(It.GetIndex());
+			const bool bForce = IsForced(Id);
+			if (!bForce && !It->AnyDirty(Frame)) continue;
+			if (IHktPresentableActor* P = FindActorInterface(Id))
+				P->ApplyTerrainDebris(*It, Frame, bForce);
+		}
 	}
 
 	// --- 5. 새 Owner 스폰 시: 기존 아이템 부착 재시도 ---
@@ -281,6 +295,7 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 	}
 
 	// --- 6. 매 프레임 Transform 적용 + 카메라 거리 컬링 (모든 Actor) ---
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorApplyTransform);
 	for (auto& [Id, WeakActor] : ActorMap)
 	{
 		AActor* A = WeakActor.Get();

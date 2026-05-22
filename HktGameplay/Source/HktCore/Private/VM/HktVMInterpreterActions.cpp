@@ -9,10 +9,18 @@
 #include "GameplayTagsManager.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
+#include "HktCoreStats.h"
 #include "HktHitboxDebugTracer.h"
 #include "Terrain/HktTerrainState.h"
 #include "Terrain/HktTerrainVoxelDef.h"
 #include "HktSimulationSystems.h"
+
+// O(N) 엔티티 스캔이 들어있는 VM 오피코드만 측정 — 엔티티 수 증가에 비례 비용.
+DECLARE_CYCLE_STAT(TEXT("VM.Op_FindInRadius"), STAT_HktCore_OpFindInRadius, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("VM.Op_CountByTag"),   STAT_HktCore_OpCountByTag,   STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("VM.Op_FindByOwner"),  STAT_HktCore_OpFindByOwner,  STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("VM.Op_DispatchEvent"), STAT_HktCore_OpDispatchEvent, STATGROUP_HktCore);
+DECLARE_CYCLE_STAT(TEXT("VM.Op_SpawnEntity"),  STAT_HktCore_OpSpawnEntity,  STATGROUP_HktCore);
 
 // ============================================================================
 // Helper
@@ -38,6 +46,7 @@ FGameplayTag FHktVMInterpreter::ResolveTag(int32 TagIndex)
 
 void FHktVMInterpreter::Op_SpawnEntity(FHktVMRuntime& Runtime, int32 TagIndex)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpSpawnEntity);
     if (WorldState)
     {
         FHktEntityId NewEntity = WorldState->AllocateEntity();
@@ -205,6 +214,7 @@ void FHktVMInterpreter::Op_LookAt(FHktVMRuntime& Runtime, RegisterIndex Entity, 
 
 void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, int32 RadiusCm)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpFindInRadius);
     Runtime.SpatialQuery.Reset();
 
     if (WorldState && Runtime.Context)
@@ -265,6 +275,8 @@ void FHktVMInterpreter::Op_FindInRadius(FHktVMRuntime& Runtime, RegisterIndex Ce
 
 void FHktVMInterpreter::Op_FindInRadiusEx(FHktVMRuntime& Runtime, RegisterIndex CenterEntity, RegisterIndex FilterMaskReg, RegisterIndex RadiusReg)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpFindInRadius);
+
     Runtime.SpatialQuery.Reset();
 
     if (WorldState && Runtime.Context)
@@ -499,6 +511,7 @@ void FHktVMInterpreter::Op_CheckTrait(FHktVMRuntime& Runtime, RegisterIndex Dst,
 
 void FHktVMInterpreter::Op_CountByTag(FHktVMRuntime& Runtime, RegisterIndex Dst, int32 TagIndex)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpCountByTag);
     int32 Count = 0;
     if (WorldState)
     {
@@ -585,6 +598,7 @@ void FHktVMInterpreter::Op_CountByOwner(FHktVMRuntime& Runtime, RegisterIndex Ds
 
 void FHktVMInterpreter::Op_FindByOwner(FHktVMRuntime& Runtime, RegisterIndex OwnerEntity, int32 TagIndex)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpFindByOwner);
     Runtime.SpatialQuery.Reset();
 
     if (WorldState)
@@ -634,6 +648,8 @@ void FHktVMInterpreter::Op_ClearOwnerUid(FHktVMRuntime& Runtime, RegisterIndex E
 
 void FHktVMInterpreter::Op_DispatchEvent(FHktVMRuntime& Runtime, int32 TagNetIndex)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpDispatchEvent);
+
     FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
     FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TagName);
     if (!EventTag.IsValid())
@@ -669,6 +685,8 @@ void FHktVMInterpreter::Op_DispatchEvent(FHktVMRuntime& Runtime, int32 TagNetInd
 
 void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex TargetReg, int32 TagNetIndex)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpDispatchEvent);
+
     FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
     FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TagName);
     if (!EventTag.IsValid())
@@ -704,6 +722,8 @@ void FHktVMInterpreter::Op_DispatchEventTo(FHktVMRuntime& Runtime, RegisterIndex
 
 void FHktVMInterpreter::Op_DispatchEventByReg(FHktVMRuntime& Runtime, RegisterIndex TagNetIndexReg)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpDispatchEvent);
+
     const int32 TagNetIndex = Runtime.GetReg(TagNetIndexReg);
     if (TagNetIndex <= 0)
     {
@@ -747,6 +767,8 @@ void FHktVMInterpreter::Op_DispatchEventByReg(FHktVMRuntime& Runtime, RegisterIn
 
 void FHktVMInterpreter::Op_DispatchEventFrom(FHktVMRuntime& Runtime, RegisterIndex SourceReg, int32 TagNetIndex)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktCore_OpDispatchEvent);
+
     FName TagName = UGameplayTagsManager::Get().GetTagNameFromNetIndex(static_cast<FGameplayTagNetIndex>(TagNetIndex));
     FGameplayTag EventTag = FGameplayTag::RequestGameplayTag(TagName);
     if (!EventTag.IsValid())

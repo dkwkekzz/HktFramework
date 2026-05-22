@@ -1,5 +1,6 @@
 #include "HktProxySimulatorComponent.h"
 #include "HktRuntimeLog.h"
+#include "HktRuntimeStats.h"
 #include "HktCoreEventLog.h"
 #include "HktRuntimeCommon.h"
 #include "HktCoreDataCollector.h"
@@ -7,6 +8,11 @@
 #include "HktTerrainSubsystem.h"
 #include "HktTerrainProvider.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
+
+DECLARE_CYCLE_STAT(TEXT("ProxySimulator.Tick"),              STAT_HktRuntime_ProxyTick,           STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("ProxySimulator.AdvanceLocalFrame"), STAT_HktRuntime_ProxyAdvanceLocal,   STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("ProxySimulator.ProcessServerBatches"), STAT_HktRuntime_ProxyServerBatches, STATGROUP_HktRuntime);
+DECLARE_CYCLE_STAT(TEXT("ProxySimulator.RestoreState"),      STAT_HktRuntime_ProxyRestoreState,   STATGROUP_HktRuntime);
 
 UHktProxySimulatorComponent::UHktProxySimulatorComponent()
 {
@@ -59,6 +65,8 @@ void UHktProxySimulatorComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 
 void UHktProxySimulatorComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_ProxyTick);
+
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
     if (!bInitialized) return;
@@ -128,6 +136,8 @@ void UHktProxySimulatorComponent::AccumulateDiff(FHktSimulationDiff& InDiff)
 
 void UHktProxySimulatorComponent::AdvanceLocalFrame(float /*DeltaSeconds*/)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_ProxyAdvanceLocal);
+
     LocalFrame++;
 
     FHktSimulationEvent LocalBatch = BuildLocalBatch(LocalFrame);
@@ -191,6 +201,8 @@ bool UHktProxySimulatorComponent::ConsumePendingDiff(FHktSimulationDiff& OutDiff
 
 void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_ProxyServerBatches);
+
     HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Info, EHktLogSource::Client,
         FString::Printf(TEXT("ProcessServerBatches: %d batches, rollback %d diffs"),
             PendingServerBatches.Num(), DiffHistory.Num()));
@@ -248,6 +260,8 @@ void UHktProxySimulatorComponent::ProcessPendingServerBatches()
 
 void UHktProxySimulatorComponent::RestoreState(const FHktWorldState& InState, int32 InGroupIndex)
 {
+    SCOPE_CYCLE_COUNTER(STAT_HktRuntime_ProxyRestoreState);
+
     if (!Simulator)
     {
         HKT_EVENT_LOG(HktLogTags::Runtime_Client, EHktLogLevel::Error, EHktLogSource::Client,

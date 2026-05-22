@@ -15,6 +15,7 @@
 #endif
 #include "NativeGameplayTags.h"
 #include "HktPresentationLog.h"
+#include "HktPresentationStats.h"
 #include "HktCoreEventLog.h"
 #include "HktCoreDataCollector.h"
 #include "HktCoreProperties.h"
@@ -57,6 +58,14 @@ UHktPresentationSubsystem* UHktPresentationSubsystem::Get(APlayerController* PC)
 	}
 	return nullptr;
 }
+
+DECLARE_CYCLE_STAT(TEXT("PresentationSubsystem.OnWorldViewUpdated"), STAT_HktPres_OnWorldViewUpdated, STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("PresentationSubsystem.ProcessInitialSync"), STAT_HktPres_ProcessInitialSync, STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("PresentationSubsystem.ProcessDiff"),        STAT_HktPres_ProcessDiff,        STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("PresentationSubsystem.OnTick"),             STAT_HktPres_OnTick,             STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("PresentationSubsystem.ProcessorsTick"),     STAT_HktPres_ProcessorsTick,     STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("PresentationSubsystem.SyncProcessors"),     STAT_HktPres_SyncProcessors,     STATGROUP_HktPresentation);
+DECLARE_CYCLE_STAT(TEXT("PresentationSubsystem.PublishInsights"),    STAT_HktPres_PublishInsights,    STATGROUP_HktPresentation);
 
 bool UHktPresentationSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -196,6 +205,8 @@ void UHktPresentationSubsystem::UnbindInteraction()
 
 void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_OnWorldViewUpdated);
+
 	if (!View.WorldState) return;
 
 	if (View.bIsInitialSync || !bInitialSyncDone)
@@ -216,6 +227,8 @@ void UHktPresentationSubsystem::OnWorldViewUpdated(const FHktWorldView& View)
 
 void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ProcessInitialSync);
+
 	State.Clear();
 	State.BeginFrame(View.FrameNumber);
 
@@ -235,6 +248,8 @@ void UHktPresentationSubsystem::ProcessInitialSync(const FHktWorldView& View)
 
 void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_ProcessDiff);
+
 	State.BeginFrame(View.FrameNumber);
 
 	// --- Remove: State 갱신 (Actor 파괴는 Processor::Sync에서 처리) ---
@@ -348,6 +363,8 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 
 void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_OnTick);
+
 	if (!bInitialSyncDone) return;
 
 	// 카메라 거리 컬링 입력 캐싱 — Processor Tick/Sync 가 State.IsEntityWithinRenderCull 로 게이트.
@@ -372,9 +389,12 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 
 	// Phase 1: Processor Tick — 비동기 작업 진행 (에셋 로드 등), State 변경 가능
 	const int32 DirtyCountBefore = State.DirtyThisFrame.Num();
-	for (IHktPresentationProcessor* P : Processors)
 	{
-		if (P) P->Tick(State, DeltaSeconds);
+		SCOPE_CYCLE_COUNTER(STAT_HktPres_ProcessorsTick);
+		for (IHktPresentationProcessor* P : Processors)
+		{
+			if (P) P->Tick(State, DeltaSeconds);
+		}
 	}
 	const bool bTickModifiedState = (State.DirtyThisFrame.Num() > DirtyCountBefore);
 
@@ -454,6 +474,8 @@ namespace HktPresentationInsights
 
 void UHktPresentationSubsystem::PublishStateToCollector()
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_PublishInsights);
+
 	using namespace HktPresentationInsights;
 
 	// SourceName: NetMode 기반 — WorldState 와 동일한 명명 규칙 ("Server"/"Client"/"Standalone")
@@ -643,6 +665,8 @@ void UHktPresentationSubsystem::NotifyCameraViewChanged()
 
 void UHktPresentationSubsystem::SyncProcessors()
 {
+	SCOPE_CYCLE_COUNTER(STAT_HktPres_SyncProcessors);
+
 	for (IHktPresentationProcessor* P : Processors)
 	{
 		if (P) P->Sync(State);
