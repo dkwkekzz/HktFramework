@@ -728,11 +728,13 @@ void AHktIngamePlayerController::ResolveDefaultSubject()
 
 namespace
 {
-    static int32 GAutoPickupEnabled = 1;
+    // 수동 픽업이 기본 — 사용자가 ground 아이템을 클릭(OnTargetAction)해야 픽업 시도.
+    // 자동 proximity 픽업은 CVar 로 옵트인.
+    static int32 GAutoPickupEnabled = 0;
     static FAutoConsoleVariableRef CVarAutoPickupEnabled(
         TEXT("hkt.Client.AutoPickup"),
         GAutoPickupEnabled,
-        TEXT("0 = disable client-side auto-pickup proximity scan, 1 = enable (default)."),
+        TEXT("0 = manual click pickup only (default), 1 = enable proximity auto-pickup."),
         ECVF_Default);
 }
 

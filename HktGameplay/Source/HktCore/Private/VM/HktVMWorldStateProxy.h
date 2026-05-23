@@ -22,7 +22,12 @@ struct HKTCORE_API FHktVMWorldStateProxy
     // AdvanceFrame 이 Diff.RemovedEntities 에 머지하여 클라(Presentation/HUD)까지 전파.
     TArray<FHktEntityState> PendingDestroys;
 
+    // 슬롯당 N 워드(uint64) 의 비트마스크. PropId 64 이상도 추적 가능하도록 다중 워드 사용.
+    // Stride = DirtyWordsPerSlot = ceil(HktProperty::MaxCount() / 64). Initialize 에서 확정.
+    // 인덱싱: DirtyMask[Slot * DirtyWordsPerSlot + (PropId >> 6)] bit (PropId & 63).
     TArray<uint64> DirtyMask;
+    int32          DirtyWordsPerSlot = 1;
+    TArray<uint8>  DirtySlotPresent;  // Slot 이 DirtySlots 에 들어있는지 표식 (multi-word 대응)
     TArray<int32>  DirtySlots;
     TArray<uint8>  TagsDirtyMask;
     TArray<int32>  TagsDirtySlots;
@@ -82,13 +87,23 @@ struct HKTCORE_API FHktVMWorldStateProxy
     FORCEINLINE void SetDirty(FHktWorldState& WS, int32 Slot, uint16 PropId, int32 V)
     {
         WS.Set(Slot, PropId, V);
-        if (Slot >= DirtyMask.Num())
+        const int32 NeededWords = (Slot + 1) * DirtyWordsPerSlot;
+        if (NeededWords > DirtyMask.Num())
         {
-            DirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
-            TagsDirtyMask.SetNum(Slot + 1, EAllowShrinking::No);
+            DirtyMask.SetNumZeroed(NeededWords, EAllowShrinking::No);
         }
-        if (DirtyMask[Slot] == 0) DirtySlots.Add(Slot);
-        DirtyMask[Slot] |= (1ULL << PropId);
+        if (Slot >= DirtySlotPresent.Num())
+        {
+            DirtySlotPresent.SetNumZeroed(Slot + 1, EAllowShrinking::No);
+        }
+        const int32 Word = PropId >> 6;
+        const int32 Bit  = PropId & 63;
+        DirtyMask[Slot * DirtyWordsPerSlot + Word] |= (1ULL << Bit);
+        if (!DirtySlotPresent[Slot])
+        {
+            DirtySlotPresent[Slot] = 1;
+            DirtySlots.Add(Slot);
+        }
     }
 
     void SetPropertyDirty(FHktWorldState& WS, FHktEntityId Entity, uint16 PropId, int32 Value);
@@ -194,14 +209,20 @@ struct HKTCORE_API FHktVMWorldStateProxy
     }
 
     // --- Dirty Iteration ---
+    // 콜백 시그니처: (FHktEntityId Id, int32 Slot, TArrayView<const uint64> MaskWords).
+    // MaskWords.Num() == DirtyWordsPerSlot. PropId = WordIdx*64 + BitIdx.
     template<typename F>
     void ForEachDirtyEntity(const FHktWorldState& WS, F&& Cb) const
     {
+        const int32 Stride = DirtyWordsPerSlot;
         for (int32 S : DirtySlots)
         {
             if (!WS.SlotToEntity.IsValidIndex(S)) continue;
             FHktEntityId Id = WS.SlotToEntity[S];
-            if (Id != InvalidEntityId) Cb(Id, S, DirtyMask[S]);
+            if (Id == InvalidEntityId) continue;
+            const int32 Base = S * Stride;
+            if (Base + Stride > DirtyMask.Num()) continue;
+            Cb(Id, S, TArrayView<const uint64>(&DirtyMask[Base], Stride));
         }
     }
 

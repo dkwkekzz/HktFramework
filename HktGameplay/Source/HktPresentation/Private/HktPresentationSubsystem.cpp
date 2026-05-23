@@ -324,16 +324,24 @@ void UHktPresentationSubsystem::ProcessDiff(const FHktWorldView& View)
 		FGameplayTagContainer CurrentVFX = Tags.Filter(VFXFilter);
 		FGameplayTagContainer OldVFX = OldTags.Filter(VFXFilter);
 
+		// EntityPos 는 신규 VFX attach 시에만 필요. 같은 프레임에 Removed 된 엔티티의
+		// TagDelta 가 함께 도착할 수 있어 (예: Birch_Lifecycle 의 StateDead+DestroyEntity)
+		// View.WorldState 에서 이미 슬롯이 해제된 상태일 수 있다 — IsValidEntity 가드 필수.
 		FVector EntityPos = FVector::ZeroVector;
-		if (View.WorldState)
+		bool bEntityPosResolved = false;
+		auto ResolveEntityPos = [&]() -> bool
 		{
+			if (bEntityPosResolved) return true;
+			if (!View.WorldState || !View.WorldState->IsValidEntity(Id)) return false;
 			FIntVector IntPos = View.WorldState->GetPosition(Id);
 			EntityPos = FVector(IntPos.X, IntPos.Y, IntPos.Z);
-		}
+			bEntityPosResolved = true;
+			return true;
+		};
 
 		for (const FGameplayTag& Tag : CurrentVFX)
 		{
-			if (!OldVFX.HasTag(Tag))
+			if (!OldVFX.HasTag(Tag) && ResolveEntityPos())
 				State.PendingVFXAttachments.Add({ Tag, Id, EntityPos });
 		}
 		for (const FGameplayTag& Tag : OldVFX)
@@ -474,6 +482,14 @@ namespace HktPresentationInsights
 
 void UHktPresentationSubsystem::PublishStateToCollector()
 {
+#if ENABLE_HKT_INSIGHTS
+	// hkt.Insights.Enabled 0 → 엔티티 루프/문자열 조립 전체 우회 (프로파일링용)
+	if (!FHktCoreDataCollector::IsGloballyEnabled())
+	{
+		return;
+	}
+#endif
+
 	SCOPE_CYCLE_COUNTER(STAT_HktPres_PublishInsights);
 
 	using namespace HktPresentationInsights;

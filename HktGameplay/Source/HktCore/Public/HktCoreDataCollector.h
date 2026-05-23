@@ -16,18 +16,24 @@
 /**
  * HKT_INSIGHT_COLLECT - 인사이트 데이터 주입 매크로
  *
+ * 런타임 게이트: CVar `hkt.Insights.Enabled` (기본 1).
+ * 프로파일링 중 비용을 죽이고 싶으면 콘솔에서 `hkt.Insights.Enabled 0` 입력.
+ * 게이트 OFF 시 락 진입/문자열 SetValue 모두 우회되어 매크로 자체가 거의 무비용.
+ * 단, 매크로 호출 전 Printf 등으로 Value 문자열을 미리 만든 호출자는 비용이 남음 →
+ * 무거운 publish 블록은 호출자에서 `FHktCoreDataCollector::IsGloballyEnabled()` 로 조기 종료할 것.
+ *
  * @param Category  카테고리 문자열 (예: "VM", "WorldState", "Runtime.Server")
  * @param Key       키 문자열 (행 식별자)
  * @param Value     값 FString
  */
 #define HKT_INSIGHT_COLLECT(Category, Key, Value) \
-	FHktCoreDataCollector::Get().SetValue(Category, Key, Value)
+	do { if (FHktCoreDataCollector::IsGloballyEnabled()) { FHktCoreDataCollector::Get().SetValue(Category, Key, Value); } } while(0)
 
 /**
  * HKT_INSIGHT_CLEAR_CATEGORY - 카테고리 전체 데이터 초기화
  */
 #define HKT_INSIGHT_CLEAR_CATEGORY(Category) \
-	FHktCoreDataCollector::Get().ClearCategory(Category)
+	do { if (FHktCoreDataCollector::IsGloballyEnabled()) { FHktCoreDataCollector::Get().ClearCategory(Category); } } while(0)
 
 #else
 
@@ -70,6 +76,14 @@ public:
 
 	/** 변경 감지용 버전 카운터 (변경 시 증가) */
 	uint32 GetVersion() const { return Version; }
+
+	/**
+	 * 글로벌 수집 게이트.
+	 * CVar `hkt.Insights.Enabled` 와 바인딩되어 런타임에 토글 가능 (기본 ON).
+	 * 프로파일링 중 비용을 죽이고 싶을 때 OFF 로 두면 매크로 및 호출자 조기종료가 작동.
+	 * inline 가벼운 함수 — 핫패스에서 호출 OK.
+	 */
+	static bool IsGloballyEnabled();
 
 	/**
 	 * On-demand 수집 플래그.

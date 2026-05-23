@@ -390,22 +390,28 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
             if (WorldState.IsValidEntity(Id))
                 Diff.SpawnedEntities.Add(WorldState.ExtractEntityState(Id));
 
-        VMProxy.ForEachDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot, uint64 Mask)
+        VMProxy.ForEachDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot, TArrayView<const uint64> MaskWords)
         {
             if (Id >= PrevNext) return;
-            uint64 M = Mask;
-            while (M)
+            // 슬롯당 N 워드(uint64) 의 dirty 비트맵을 순회. PropId = WordIdx*64 + BitIdx.
+            // SetDirty는 값 변경 여부와 무관하게 쓰기 시 dirty 비트를 세팅하므로,
+            // 실제 값이 변하지 않은 항목은 델타에서 제외한다 (불필요한 네트워크/로그 노이즈 방지).
+            for (int32 W = 0; W < MaskWords.Num(); ++W)
             {
-                uint16 PropId = static_cast<uint16>(FMath::CountTrailingZeros64(M));
-                int32 NewVal = WorldState.Get(Slot, PropId);
-                int32 OldVal = VMProxy.GetPreFrameValue(Slot, PropId);
-                // SetDirty는 값 변경 여부와 무관하게 쓰기 시 dirty 비트를 세팅하므로,
-                // 실제 값이 변하지 않은 항목은 델타에서 제외한다 (불필요한 네트워크/로그 노이즈 방지).
-                if (NewVal != OldVal)
+                uint64 M = MaskWords[W];
+                const uint16 BitBase = static_cast<uint16>(W * 64);
+                while (M)
                 {
-                    Diff.PropertyDeltas.Add({ Id, PropId, NewVal, OldVal });
+                    const uint16 Bit = static_cast<uint16>(FMath::CountTrailingZeros64(M));
+                    const uint16 PropId = BitBase + Bit;
+                    const int32 NewVal = WorldState.Get(Slot, PropId);
+                    const int32 OldVal = VMProxy.GetPreFrameValue(Slot, PropId);
+                    if (NewVal != OldVal)
+                    {
+                        Diff.PropertyDeltas.Add({ Id, PropId, NewVal, OldVal });
+                    }
+                    M &= M - 1;
                 }
-                M &= M - 1;
             }
         });
         VMProxy.ForEachTagDirtyEntity(WorldState, [&](FHktEntityId Id, int32 Slot)
@@ -433,7 +439,8 @@ FHktSimulationDiff FHktWorldDeterminismSimulator::AdvanceFrame(const FHktSimulat
     }
 
 #if ENABLE_HKT_INSIGHTS
-    if (!SourceName.IsEmpty())
+    // hkt.Insights.Enabled 0 → 엔티티 루프/문자열 조립 전체 우회 (프로파일링용)
+    if (!SourceName.IsEmpty() && FHktCoreDataCollector::IsGloballyEnabled())
     {
         SCOPE_CYCLE_COUNTER(STAT_HktCore_InsightsPublish);
 

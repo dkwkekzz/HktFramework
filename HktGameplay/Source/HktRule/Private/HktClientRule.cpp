@@ -11,6 +11,9 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Action, "Story.Event.Target.Actio
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Jump, "Story.Event.Move.Jump");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Forward, "Story.Event.Move.Forward");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Stop, "Story.Event.Move.Stop");
+// 우클릭으로 ground 아이템(ItemState==0)을 직접 클릭했을 때 디스패치하는 픽업 인텐트.
+// Story_TargetAction 에서 Item 분기가 제거(I-0016)되어, 수동 픽업 경로 복원을 위해 ClientRule 이 직접 라우팅.
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Item_Pickup, "Story.Event.Item.Pickup");
 
 FHktDefaultClientRule::FHktDefaultClientRule()
 {
@@ -140,6 +143,14 @@ void FHktDefaultClientRule::OnUserEvent_TargetInputAction()
 		// SlotAction 선택됨 → 해당 슬롯의 EventTag로 UseSkill 이벤트 생성
 		FGameplayTag EventTag = CachedContainer->GetEventTagAtSlot(PendingSlot);
 		Event = HktEventBuilder::UseSkillFromSlot(EventTag, SubjectEntity, EventTargetEntity, TargetLocation, PendingSlot);
+	}
+	else if (IsRealEntityId(TargetEntity)
+		&& CachedSimulator && CachedSimulator->IsInitialized()
+		&& CachedSimulator->GetWorldState().GetArchetype(TargetEntity) == EHktArchetype::Item
+		&& CachedSimulator->GetWorldState().GetProperty(TargetEntity, PropertyId::ItemState) == 0)
+	{
+		// Ground 아이템 직접 클릭 → Pickup 인텐트로 라우팅 (Story_TargetAction 의 Item 분기 부재 보강).
+		Event = HktEventBuilder::TargetDefault(Tag_Event_Item_Pickup, SubjectEntity, EventTargetEntity, TargetLocation);
 	}
 	else
 	{

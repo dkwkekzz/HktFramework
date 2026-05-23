@@ -37,13 +37,16 @@ struct FHktVMContext
         else if (PropId == PropertyId::Param1)     return EventParam1;
         else if (PropId == PropertyId::Param2)     return EventParam2;
         else if (PropId == PropertyId::Param3)     return EventParam3;
-        if (!WorldState) return 0;
+        // VM 진입점은 Story(신뢰할 수 없는 입력) 표면. yield/dispatch 사이 entity 가
+        // 제거되어 stale ID 가 들어올 수 있으므로 silent 0 반환 — WorldState 의 ensure 를
+        // 우회하지 않고 사전 차단. 시스템 코드는 GetProperty 의 ensure 가 그대로 보호.
+        if (!WorldState || !WorldState->IsValidEntity(SourceEntity)) return 0;
         return WorldState->GetProperty(SourceEntity, PropId);
     }
 
     FORCEINLINE int32 ReadEntity(FHktEntityId Entity, uint16 PropId) const
     {
-        if (!WorldState) return 0;
+        if (!WorldState || !WorldState->IsValidEntity(Entity)) return 0;
         return WorldState->GetProperty(Entity, PropId);
     }
 
@@ -60,13 +63,13 @@ struct FHktVMContext
         else if (PropId == PropertyId::Param2)     EventParam2 = Value;
         else if (PropId == PropertyId::Param3)     EventParam3 = Value;
 
-        if (VMProxy && WorldState)
+        if (VMProxy && WorldState && WorldState->IsValidEntity(SourceEntity))
             VMProxy->SetPropertyDirty(*WorldState, SourceEntity, PropId, Value);
     }
 
     FORCEINLINE void WriteEntity(FHktEntityId Entity, uint16 PropId, int32 Value)
     {
-        if (VMProxy && WorldState)
+        if (VMProxy && WorldState && WorldState->IsValidEntity(Entity))
             VMProxy->SetPropertyDirty(*WorldState, Entity, PropId, Value);
     }
 

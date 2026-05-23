@@ -3,7 +3,7 @@
   "storyTag": "Story.State.Player.Init",
   "cancelOnDuplicate": false,
   "tags": {
-    "EntityPlayer": "Entity.Character.Hikito.Beginner",
+    "EntityPlayer": "Entity.Character.Player",
     "EntityItem": "Entity.Item",
     "EntityWoodenSword": "Entity.Item.WoodenSword",
     "TagWeaponSword": "Entity.Attr.Weapon.Sword",

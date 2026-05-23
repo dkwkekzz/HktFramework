@@ -8,6 +8,7 @@
 
 class UStaticMesh;
 class UTexture2D;
+class UMaterialInterface;
 
 /**
  * 아이템 시각화용 TagDataAsset.
@@ -31,6 +32,10 @@ public:
 	/** UI 아이콘 텍스처 (인벤토리, 장비 패널용) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
 	TObjectPtr<UTexture2D> Icon;
+
+	/** Mesh/DroppedMesh 의 모든 머티리얼 슬롯에 덮어쓸 머티리얼 (nullptr 이면 메시 기본 머티리얼 사용) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")
+	TObjectPtr<UMaterialInterface> OverrideMaterial;
 
 	/** 캐릭터 SkeletalMesh에서 부착할 소켓 이름 (예: weapon_r, shield_l) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HKT|Item")

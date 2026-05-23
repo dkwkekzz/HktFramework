@@ -8,6 +8,8 @@
 #include "Actors/IHktPresentableActor.h"
 #include "HktItemActor.generated.h"
 
+class UMaterialInterface;
+
 /**
  * 범용 아이템 Actor.
  * 모든 아이템 타입이 이 단일 C++ 클래스를 공유합니다.
@@ -26,7 +28,7 @@ class AHktItemActor : public AActor, public IHktSelectable, public IHktPresentab
 public:
 	AHktItemActor();
 
-	void SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName);
+	void SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, UMaterialInterface* InOverrideMaterial, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName);
 
 	FName GetAttachSocketName() const { return AttachSocketName; }
 

@@ -6,6 +6,8 @@
 #include "HktCoreEventLog.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Materials/MaterialInterface.h"
+#include "Engine/StaticMesh.h"
 
 AHktItemActor::AHktItemActor()
 {
@@ -22,13 +24,25 @@ AHktItemActor::AHktItemActor()
 	MeshComponent->SetVisibility(false);
 }
 
-void AHktItemActor::SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
+void AHktItemActor::SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, UMaterialInterface* InOverrideMaterial, FVector Scale, FRotator AttachRotOffset, FName InAttachSocketName)
 {
+	auto ApplyOverrideMaterial = [InOverrideMaterial](UStaticMeshComponent* Comp)
+	{
+		if (!Comp || !InOverrideMaterial) return;
+		UStaticMesh* SM = Comp->GetStaticMesh();
+		const int32 NumSlots = SM ? SM->GetStaticMaterials().Num() : Comp->GetNumMaterials();
+		for (int32 i = 0; i < NumSlots; ++i)
+		{
+			Comp->SetMaterial(i, InOverrideMaterial);
+		}
+	};
+
 	if (MeshComponent && InMesh)
 	{
 		MeshComponent->SetStaticMesh(InMesh);
 		MeshComponent->SetRelativeScale3D(Scale);
 		MeshComponent->SetRelativeRotation(AttachRotOffset);
+		ApplyOverrideMaterial(MeshComponent);
 	}
 
 	if (DroppedMeshComponent)
@@ -37,6 +51,8 @@ void AHktItemActor::SetupMesh(UStaticMesh* InMesh, UStaticMesh* InDroppedMesh, F
 		if (DropMesh)
 		{
 			DroppedMeshComponent->SetStaticMesh(DropMesh);
+			DroppedMeshComponent->SetRelativeScale3D(Scale);
+			ApplyOverrideMaterial(DroppedMeshComponent);
 		}
 	}
 

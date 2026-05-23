@@ -137,6 +137,10 @@ static const TCHAR* WaitEventTypeToString(EWaitEventType Type)
 static void CollectVMDetailInsights(FHktVMRuntimePool& Pool, const FString& SourceName)
 {
     // Source별로 분리된 카테고리 사용 (Standalone에서 Server/Client 충돌 방지)
+    if (!FHktCoreDataCollector::IsGloballyEnabled())
+    {
+        return;
+    }
     const FString VMDetailCat = FString::Printf(TEXT("VMDetail.%s"), *SourceName);
     if (!FHktCoreDataCollector::Get().IsCollectionEnabled(VMDetailCat))
     {
@@ -1493,6 +1497,12 @@ void FHktPhysicsSystem::Process(
         bool bTerrainSnapped = false;
         bool bGroundBelow = false;
 
+        // ApplyJump 직후 같은 틱에 spawn 된 엔티티는 ActiveMover 미등록으로 Movement 가
+        // VelZ 를 적분하지 못한 채 본 루프에 도달한다. 이때 발 voxel 바로 위에 머물러 있어
+        // terrain snap 이 즉시 ground 로 판단 → IsGrounded=1 복귀 → 다음 틱부터 Gravity 우회
+        // → 호 궤도가 그려지지 않는 회귀. VelZ>0(상승 중) 이면 ground 판정/스냅을 보류.
+        const bool bRisingThisFrame = WorldState.GetProperty(ED.Id, PropertyId::VelZ) > 0;
+
         // 바닥 계산: 발 복셀 → solid면 위로 탈출, air면 아래로 지면 탐색
         if (TerrainState)
         {
@@ -1518,7 +1528,8 @@ void FHktPhysicsSystem::Process(
                     FinalPos.Z = static_cast<float>(ScanVZ) * VS;
                 }
                 bTerrainSnapped = true;
-                bGroundBelow = true;
+                // 매몰 해소는 했지만 상승 중이면 grounded 판정 보류 — Jump 호 궤도 유지.
+                bGroundBelow = !bRisingThisFrame;
             }
             else
             {
@@ -1541,7 +1552,7 @@ void FHktPhysicsSystem::Process(
                             ED.Id, FootVZ, ScanVZ, GroundZ, Gap, VS);
                     }
 
-                    if (Gap <= VS)
+                    if (Gap <= VS && !bRisingThisFrame)
                     {
                         // 1복셀 이내 — 바닥에 스냅
                         FinalPos.Z = GroundZ;
@@ -1550,7 +1561,7 @@ void FHktPhysicsSystem::Process(
                     }
                     else
                     {
-                        // 먼 거리 — 낙하 중 (중력이 내려줄 것)
+                        // 먼 거리 또는 상승 중 — Gravity/Movement 가 다음 틱에 적분
                         bGroundBelow = false;
                     }
                 }

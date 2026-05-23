@@ -6,6 +6,11 @@
     { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"state"}, "value": 0 },
     { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
 
+    { "comment": "드랍 호 연출 중에는 픽업 차단 — IsGrounded=1 (terrain snap 안착 후) 만 허용." },
+    { "op": "LoadStoreEntity", "dst": {"var":"grounded"}, "entity": "Target", "property": "IsGrounded" },
+    { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"grounded"}, "value": 1 },
+    { "op": "JumpIfNot", "cond": "Flag", "label": "fail" },
+
     { "comment": "거리 임계 300 = HktLimits::DefaultPickupRangeCm (HktCoreDefs.h). 클라 자동 픽업 스캔 반경과 동일." },
     { "op": "GetDistance", "dst": {"var":"dist"}, "entity1": "Self", "entity2": "Target" },
     { "op": "CmpLeConst", "dst": "Flag", "src": {"var":"dist"}, "value": 300 },

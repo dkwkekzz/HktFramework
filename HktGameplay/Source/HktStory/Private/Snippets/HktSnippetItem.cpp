@@ -324,6 +324,10 @@ FHktStoryBuilder& HktSnippetItem::DropToGround(
 	// 위치 설정
 	B.CopyPosition(ItemEntity, PositionSourceEntity);
 
+	// 호 연출 — IsGrounded=0 + VelZ=200. Gravity 가 호를 그리고 terrain snap 이 안착(IsGrounded=1 복귀).
+	// 비행 중에는 IsGrounded==1 게이트가 픽업을 차단 (Story_ItemPickup precondition).
+	B.ApplyJump(ItemEntity, 200);
+
 	return B;
 }
 
@@ -343,6 +347,9 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItem(
 
 	B.CopyPosition(Reg::Spawned, PosSourceEntity);
 
+	// 호 연출 — IsGrounded=0 + VelZ=200 → Gravity 호 → terrain snap 안착.
+	B.ApplyJump(Reg::Spawned, 200);
+
 	return B;
 }
 
@@ -361,6 +368,7 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
 	 .SaveConstEntity(Reg::Spawned, PropertyId::EquipIndex, -1);              // 미등록
 
 	B.SetPosition(Reg::Spawned, PosBase);
+	B.ApplyJump(Reg::Spawned, 200);
 
 	return B;
 }
@@ -449,6 +457,7 @@ FHktStoryBuilder& HktSnippetItem::DropToGround(
 	B.SaveConstEntity(ItemEntity, PropertyId::EquipIndex, -1);
 	HktSnippetItem::ReleaseOwnership(B, ItemEntity);
 	B.CopyPosition(ItemEntity, PositionSourceEntity);
+	B.ApplyJump(ItemEntity, 200);
 	return B;
 }
 
@@ -464,6 +473,7 @@ FHktStoryBuilder& HktSnippetItem::SpawnGroundItemAtPos(
 	B.SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId);
 	B.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1);
 	B.SetPosition(Spawned, PosBlock);
+	B.ApplyJump(Spawned, 200);
 	return B;
 }
 
@@ -479,6 +489,7 @@ FHktVar HktSnippetItem::SpawnGroundItem(
 	B.SaveConstEntity(Spawned, PropertyId::ItemId, Template.ItemId);
 	B.SaveConstEntity(Spawned, PropertyId::EquipIndex, -1);
 	B.CopyPosition(Spawned, PosSourceEntity);
+	B.ApplyJump(Spawned, 200);
 	return Spawned;
 }
 

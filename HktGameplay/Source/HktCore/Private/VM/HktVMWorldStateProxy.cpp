@@ -10,7 +10,11 @@
 void FHktVMWorldStateProxy::Initialize(const FHktWorldState& WS)
 {
     constexpr int32 Reserve = 2176;
-    DirtyMask.Reserve(Reserve);
+    // 등록된 모든 PropId 가 비트로 매핑되도록 슬롯 stride 산출.
+    // 정적 초기화 시점에 모든 HKT_DEFINE_PROPERTY 가 등록 완료된 상태로 호출된다.
+    DirtyWordsPerSlot = FMath::Max(1, (static_cast<int32>(HktProperty::MaxCount()) + 63) / 64);
+    DirtyMask.Reserve(Reserve * DirtyWordsPerSlot);
+    DirtySlotPresent.Reserve(Reserve);
     DirtySlots.Reserve(256);
     TagsDirtyMask.Reserve(Reserve);
     TagsDirtySlots.Reserve(256);
@@ -27,8 +31,17 @@ void FHktVMWorldStateProxy::Initialize(const FHktWorldState& WS)
 
 void FHktVMWorldStateProxy::ResetDirtyIndices(const FHktWorldState& WS)
 {
+    const int32 Stride = DirtyWordsPerSlot;
     for (int32 S : DirtySlots)
-        if (S < DirtyMask.Num()) DirtyMask[S] = 0;
+    {
+        const int32 Base = S * Stride;
+        for (int32 W = 0; W < Stride; ++W)
+        {
+            const int32 Idx = Base + W;
+            if (Idx < DirtyMask.Num()) DirtyMask[Idx] = 0;
+        }
+        if (S < DirtySlotPresent.Num()) DirtySlotPresent[S] = 0;
+    }
     for (int32 S : TagsDirtySlots)
         if (S < TagsDirtyMask.Num()) TagsDirtyMask[S] = 0;
     for (int32 S : OwnerDirtySlots)

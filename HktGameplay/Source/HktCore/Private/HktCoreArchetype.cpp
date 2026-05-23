@@ -212,9 +212,11 @@ void InitializeHktArchetypes()
             HktProperty::SpawnerSlotKey, // 출신 spawner 식별 키 — Slime 등 spawner-출신 NPC 가 보관.
         });
 
+    // Movable: 드랍·픽업 호 연출을 결정론적 시뮬 물리(ApplyJump + MoveToward + Gravity)로 처리.
+    // VelX/Y/Z, MoveTarget*, IsMoving, MoveForce, MaxSpeed 칼럼이 부여된다.
     R.Register(EHktArchetype::Item, TEXT("Item"),
         HktArchetypeTags::Entity_Item,
-        {HktTrait::Spatial, HktTrait::Collidable, HktTrait::Ownable, HktTrait::EventParam},
+        {HktTrait::Spatial, HktTrait::Movable, HktTrait::Collidable, HktTrait::Ownable, HktTrait::EventParam},
         {
             HktProperty::ItemState, HktProperty::ItemId, HktProperty::EquipIndex,
             HktProperty::Equippable,
