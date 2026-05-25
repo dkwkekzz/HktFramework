@@ -183,17 +183,15 @@ void AHktIngamePlayerController::SetupInputComponent()
     if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Started, this, &AHktIngamePlayerController::OnTargetAction);
     if (ZoomAction)    EnhancedInput->BindAction(ZoomAction,    ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
     if (JumpAction)    EnhancedInput->BindAction(JumpAction,    ETriggerEvent::Started, this, &AHktIngamePlayerController::OnJumpAction);
+    if (DodgeAction)   EnhancedInput->BindAction(DodgeAction,   ETriggerEvent::Started, this, &AHktIngamePlayerController::OnDodgeAction);
 
     for (int32 i = 0; i < SlotInputActions.Num(); ++i)
     {
         if (SlotInputActions[i]) EnhancedInput->BindAction(SlotInputActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
 
-    if (MoveAction)
-    {
-        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnMoveAction);
-        EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &AHktIngamePlayerController::OnMoveActionCompleted);
-    }
+    // I-0046 러너: 자유 조향(WASD MoveForward) 제거 — 전진은 Lifecycle do_run 의 자동 질주가, 좌우는 DodgeAction 회피가 대체한다.
+    // (OnMoveAction/OnMoveActionCompleted/SubmitMoveEvent + Story_MoveForward/Stop 의 완전 제거는 후속 정리.)
 }
 
 // ============================================================================
@@ -340,6 +338,30 @@ void AHktIngamePlayerController::OnJumpAction(const FInputActionValue& Value)
 
         HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
             FString::Printf(TEXT("OnJumpAction Submit %s"), *Event.ToString()),
+            Event.SourceEntity, Event.EventTag);
+    }
+}
+
+void AHktIngamePlayerController::OnDodgeAction(const FInputActionValue& Value)
+{
+    const float Dir = Value.Get<float>();
+    if (FMath::IsNearlyZero(Dir)) return;
+
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule) return;
+
+    Rule->OnUserEvent_DodgeInputAction(Dir);
+
+    // Rule이 빌드한 회피 이벤트가 있으면 즉시 전송 (OnJumpAction 과 동일 패턴)
+    if (CachedIntentBuilder && CachedIntentBuilder->HasPendingRuntimeEvent())
+    {
+        FHktEvent Event = CachedIntentBuilder->ConsumePendingRuntimeEvent();
+        Event.PlayerUid = GetPlayerUid();
+        Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+        IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
+
+        HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+            FString::Printf(TEXT("OnDodgeAction Submit %s"), *Event.ToString()),
             Event.SourceEntity, Event.EventTag);
     }
 }

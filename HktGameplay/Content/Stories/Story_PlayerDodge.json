@@ -1,0 +1,26 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Event.Player.Dodge",
+  "cancelOnDuplicate": true,
+  "tags": {
+    "AnimDodge": "Anim.FullBody.Action.Dodge"
+  },
+  "steps": [
+    { "comment": "── I-0046 러너 좌우 회피. 클라(HktClientRule::OnUserEvent_DodgeInputAction)가 Subject 의 RotYaw 우측 법선 × 거리 × 방향(±) 으로 계산한 *측면 델타* 를 Event.Location(=TargetPos*) 로 전달한다. 여기선 현재 위치에 더해 즉시 측면 오프셋(SetPosition) — RotYaw/MoveTarget 불변이라 몸의 평행 이동이며, Lifecycle 의 자동 전진(do_run) 은 그대로 유지된다. 결정론: 델타가 복제된 이벤트 페이로드에 실리므로 서버 재시뮬/롤백에서 동일 (MoveForward 와 동일 패턴). 스무딩(수 프레임 슬라이드)은 후속 폴리시. ──" },
+    { "op": "Log", "message": "Dodge: 측면 회피 진입" },
+
+    { "op": "LoadStore", "dst": {"var":"ldx"}, "property": "TargetPosX" },
+    { "op": "LoadStore", "dst": {"var":"ldy"}, "property": "TargetPosY" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"px"}, "entity": "Self", "property": "PosX" },
+    { "op": "LoadStoreEntity", "dst": {"var":"py"}, "entity": "Self", "property": "PosY" },
+
+    { "op": "Add", "dst": {"block":"dodgePos","index":0}, "src1": {"var":"px"}, "src2": {"var":"ldx"} },
+    { "op": "Add", "dst": {"block":"dodgePos","index":1}, "src1": {"var":"py"}, "src2": {"var":"ldy"} },
+    { "op": "LoadStoreEntity", "dst": {"block":"dodgePos","index":2}, "entity": "Self", "property": "PosZ" },
+
+    { "op": "SetPosition", "entity": "Self", "pos": {"block":"dodgePos"} },
+    { "op": "PlayAnim", "entity": "Self", "tag": "AnimDodge" },
+    { "op": "Halt" }
+  ]
+}

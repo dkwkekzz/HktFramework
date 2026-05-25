@@ -164,6 +164,9 @@ public:
 	virtual void OnUserEvent_ZoomInputAction(float InDelta) {}
 	virtual void OnUserEvent_JumpInputAction() {}
 
+	/** 러너 좌우 회피 (I-0046) — InDir: -1=좌 / +1=우 (Subject RotYaw 기준 측면). */
+	virtual void OnUserEvent_DodgeInputAction(float InDir) {}
+
 	/** ShoulderView 방향 이동 — Direction은 카메라 기준 월드 방향 (정규화) */
 	virtual void OnUserEvent_MoveInputAction(const FVector& InDirection) {}
 
