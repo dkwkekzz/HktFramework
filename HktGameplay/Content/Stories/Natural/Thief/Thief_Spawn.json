@@ -1,0 +1,81 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Flow.Spawner.Natural.Thief",
+  "description": "좀도둑 spawner-as-loop — Slime_Spawn 과 동일한 single-slot sentinel 패턴. 한 voxel-slot 당 도둑 1마리를 유지하고, 죽으면 cooldown 후 respawn. 새 NPC 종을 추가할 때 이 파일을 복제하고 classTag/stats/Brain 만 교체하면 된다 (확장 지점).",
+  "tags": {
+    "NpcThief":     "Entity.NPC.Thief",
+    "EntityNPC":    "Entity.NPC",
+    "StanceUnarmed":"Entity.Stance.Unarmed",
+    "NpcLifecycle": "Story.Flow.NPC.Lifecycle",
+    "ThiefBrain":   "Story.Flow.Brain.Thief",
+    "StateDead":    "State.Dead"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Thief] spawner-as-loop 시작 — 한 voxel-slot 의 영구 sentinel" },
+
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":0}, "property": "Param0" },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":1}, "property": "Param1" },
+    { "op": "LoadStore", "dst": {"var":"slotKey"},              "property": "Param2" },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":2}, "property": "Param3" },
+
+    { "op": "SpawnerFindOrCreate", "slotKey": {"var":"slotKey"}, "out": "spawnerEntity" },
+
+    { "op": "Label", "name": "top" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"alive"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag" },
+    { "op": "IfGeConst", "src": {"var":"alive"}, "value": 1 },
+      { "op": "Log", "message": "[Thief] slot 점유 중 — Halt 로 양보" },
+      { "op": "Halt" },
+    { "op": "EndIf" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"lastDie"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame" },
+    { "op": "IfGeConst", "src": {"var":"lastDie"}, "value": 1 },
+      { "op": "GetWorldTime", "dst": {"var":"now"} },
+      { "op": "Sub", "dst": {"var":"elapsed"}, "src1": {"var":"now"}, "src2": {"var":"lastDie"} },
+      { "op": "IfLtConst", "src": {"var":"elapsed"}, "value": 900 },
+        { "op": "Log", "message": "[Thief] cooldown 진행 중 — WaitSeconds 30.0 후 respawn" },
+        { "op": "WaitSeconds", "seconds": 30.0 },
+      { "op": "EndIf" },
+    { "op": "EndIf" },
+
+    { "op": "SpawnEntity", "classTag": "NpcThief", "out": "thief" },
+
+    { "op": "AddTag", "entity": {"var":"thief"}, "tag": "EntityNPC" },
+    { "op": "AddTag", "entity": {"var":"thief"}, "tag": "NpcThief" },
+
+    { "op": "SaveStoreEntity", "entity": {"var":"thief"}, "property": "SpawnerSlotKey", "src":   {"var":"slotKey"} },
+    { "op": "SaveConstEntity", "entity": {"var":"thief"}, "property": "IsNPC",       "value": 1 },
+    { "op": "SaveConstEntity", "entity": {"var":"thief"}, "property": "Health",      "value": 30 },
+    { "op": "SaveConstEntity", "entity": {"var":"thief"}, "property": "MaxHealth",   "value": 30 },
+    { "op": "SaveConstEntity", "entity": {"var":"thief"}, "property": "AttackPower", "value": 4 },
+    { "op": "SaveConstEntity", "entity": {"var":"thief"}, "property": "Defense",     "value": 0 },
+    { "op": "SaveConstEntity", "entity": {"var":"thief"}, "property": "Team",        "value": 0 },
+    { "op": "SaveConstEntity", "entity": {"var":"thief"}, "property": "MaxSpeed",    "value": 120 },
+
+    { "op": "SetStance",   "entity": {"var":"thief"}, "stanceTag": "StanceUnarmed" },
+    { "op": "SetPosition", "entity": {"var":"thief"}, "pos": {"block":"spawnPos"} },
+
+    { "op": "LoadConst", "dst": {"var":"one"}, "value": 1 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag", "src": {"var":"one"} },
+
+    { "op": "DispatchEventFrom", "eventTag": "NpcLifecycle", "source": {"var":"thief"} },
+    { "op": "DispatchEventFrom", "eventTag": "ThiefBrain",   "source": {"var":"thief"} },
+
+    { "op": "Label", "name": "check" },
+    { "op": "HasTag", "dst": {"var":"isDead"}, "entity": {"var":"thief"}, "tag": "StateDead" },
+    { "op": "JumpIf", "cond": {"var":"isDead"}, "label": "die" },
+    { "op": "Yield", "frames": 1 },
+    { "op": "Jump", "label": "check" },
+
+    { "op": "Label", "name": "die" },
+    { "op": "Log", "message": "[Thief] 사망 감지 — slot release 후 top 으로 jump (cooldown wait + respawn)" },
+    { "op": "GetWorldTime", "dst": {"var":"dieTime"} },
+    { "op": "LoadConst", "dst": {"var":"zero"}, "value": 0 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag",      "src": {"var":"zero"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame", "src": {"var":"dieTime"} },
+    { "op": "LoadStoreEntity", "dst": {"var":"deathCount"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount" },
+    { "op": "AddImm", "dst": {"var":"deathCount"}, "src": {"var":"deathCount"}, "imm": 1 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount", "src": {"var":"deathCount"} },
+    { "op": "Jump", "label": "top" }
+  ]
+}

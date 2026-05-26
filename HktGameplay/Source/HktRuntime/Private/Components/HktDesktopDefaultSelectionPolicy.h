@@ -45,6 +45,16 @@ public:
     virtual FHktEntityId GetLastResolvedTargetEntityId() const override { return LastResolvedTargetEntityId; }
 
 private:
+    /**
+     * 선택 기준 화면 좌표를 반환.
+     *  - 커서 표시 모드: 마우스 커서 위치.
+     *  - 커서 숨김 모드(ShoulderView 마우스룩): 클릭할 커서가 없으므로 뷰포트 중앙(조준점 레티클 위치).
+     */
+    bool GetSelectionScreenPosition(FVector2D& OutScreenPos) const;
+
+    /** GetSelectionScreenPosition 좌표에서 월드로 deproject 한 레이(원점/방향). */
+    bool GetSelectionWorldRay(FVector& OutOrigin, FVector& OutDir) const;
+
     bool GetHitUnderCursor(FHitResult& OutHit) const;
     bool GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const;
     bool GetEntityFromEntityHud(FHktEntityId& OutEntityId) const;

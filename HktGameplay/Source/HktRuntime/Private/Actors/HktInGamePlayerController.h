@@ -93,6 +93,9 @@ public:
     // === Player UID ===
     virtual int64 GetPlayerUid() const override;
 
+    /** 우클릭 클릭-이동/공격 활성화 토글 (ShoulderView 카메라가 회전 전용으로 쓸 때 false). */
+    virtual void SetTargetActionEnabled(bool bEnabled) override { bTargetActionEnabled = bEnabled; }
+
     // === Story Tags (에디터에서 지정) ===
 
     /** 플레이어 생성 시 서버가 발동할 Story Tag (예: Story.State.Player.InWorld) */
@@ -204,6 +207,9 @@ private:
     /** OwnedPlayerUid가 일치하는 첫 번째 엔티티 — 기본 Subject */
     FHktEntityId DefaultSubjectEntityId = InvalidEntityId;
     bool bIsInitialSync = false;
+
+    /** 우클릭 클릭-이동/공격 활성화 (SetTargetActionEnabled 로 토글). 기본 ON. */
+    bool bTargetActionEnabled = true;
 
     /** WorldState에서 나의 엔티티를 찾아 DefaultSubjectEntityId로 설정 */
     void ResolveDefaultSubject();

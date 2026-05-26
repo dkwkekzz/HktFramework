@@ -8,7 +8,16 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
+#include "CollisionQueryParams.h"
 #include "Misc/ScopeExit.h"
+
+namespace
+{
+    // 화면 중앙 트레이스 시 deproject 레이를 따라 진행할 거리(cm).
+    // 엔진 GetHitResultUnderCursor 의 HitResultTraceDistance(기본 1km) 보다 여유 있게 잡아
+    // 방대한 지형([I-0045]) 에서 먼 표면도 적중하도록 한다.
+    constexpr double SelectionTraceDistance = 1000000.0; // 10km
+}
 
 UHktDesktopDefaultSelectionPolicy::UHktDesktopDefaultSelectionPolicy()
 {
@@ -62,9 +71,8 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
     // 복셀 지형 히트 시 DDA 레이캐스트로 voxel 정보 추출 — voxel 도 EntityId 로 추상화.
     if (IHktHitRefinementProvider* Refiner = Cast<IHktHitRefinementProvider>(Hit.GetActor()))
     {
-        APlayerController* PC = Cast<APlayerController>(GetOwner());
         FVector WorldOrigin, WorldDir;
-        if (PC && PC->DeprojectMousePositionToWorld(WorldOrigin, WorldDir))
+        if (GetSelectionWorldRay(WorldOrigin, WorldDir))
         {
             FHktVoxelSelection VoxelHit;
             if (Refiner->TryGetVoxelHit(WorldOrigin, WorldDir, VoxelHit))
@@ -118,15 +126,60 @@ void UHktDesktopDefaultSelectionPolicy::ResolveTarget(FHktEntityId& OutEntity, F
 // 내부 헬퍼
 // ============================================================================
 
+bool UHktDesktopDefaultSelectionPolicy::GetSelectionScreenPosition(FVector2D& OutScreenPos) const
+{
+    APlayerController* Controller = Cast<APlayerController>(GetOwner());
+    if (!Controller) return false;
+
+    // 커서가 숨겨진 모드(ShoulderView 마우스룩)에서는 클릭에 쓸 커서 좌표가 없으므로
+    // 화면 중앙(조준점 레티클 위치)을 선택 기준점으로 사용한다.
+    if (!Controller->bShowMouseCursor)
+    {
+        int32 ViewportX = 0, ViewportY = 0;
+        Controller->GetViewportSize(ViewportX, ViewportY);
+        if (ViewportX <= 0 || ViewportY <= 0) return false;
+        OutScreenPos = FVector2D(ViewportX * 0.5f, ViewportY * 0.5f);
+        return true;
+    }
+
+    float MouseX = 0.f, MouseY = 0.f;
+    if (!Controller->GetMousePosition(MouseX, MouseY)) return false;
+    OutScreenPos = FVector2D(MouseX, MouseY);
+    return true;
+}
+
+bool UHktDesktopDefaultSelectionPolicy::GetSelectionWorldRay(FVector& OutOrigin, FVector& OutDir) const
+{
+    APlayerController* Controller = Cast<APlayerController>(GetOwner());
+    if (!Controller) return false;
+
+    FVector2D ScreenPos;
+    if (!GetSelectionScreenPosition(ScreenPos)) return false;
+
+    return Controller->DeprojectScreenPositionToWorld(ScreenPos.X, ScreenPos.Y, OutOrigin, OutDir);
+}
+
 bool UHktDesktopDefaultSelectionPolicy::GetHitUnderCursor(FHitResult& OutHit) const
 {
     APlayerController* Controller = Cast<APlayerController>(GetOwner());
-    if (!Controller)
+    if (!Controller) return false;
+
+    // 커서 표시 모드: 엔진 헬퍼 그대로 사용 — 기존 RTS 커서 선택 경로를 보존.
+    if (Controller->bShowMouseCursor)
     {
-        return false;
+        return Controller->GetHitResultUnderCursor(ECC_Visibility, false, OutHit);
     }
 
-    return Controller->GetHitResultUnderCursor(ECC_Visibility, false, OutHit);
+    // 커서 숨김(ShoulderView 마우스룩): 클릭할 커서가 없으므로 화면 중앙에서 deproject + 트레이스.
+    UWorld* World = Controller->GetWorld();
+    if (!World) return false;
+
+    FVector WorldOrigin, WorldDir;
+    if (!GetSelectionWorldRay(WorldOrigin, WorldDir)) return false;
+
+    const FVector TraceEnd = WorldOrigin + WorldDir * SelectionTraceDistance;
+    FCollisionQueryParams Params(FName(TEXT("HktSelectionTrace")), /*bTraceComplex*/ false);
+    return World->LineTraceSingleByChannel(OutHit, WorldOrigin, TraceEnd, ECC_Visibility, Params);
 }
 
 bool UHktDesktopDefaultSelectionPolicy::GetSelectableEntityUnderCursor(FHktEntityId& OutEntityId) const
@@ -175,8 +228,9 @@ bool UHktDesktopDefaultSelectionPolicy::GetEntityFromEntityHud(FHktEntityId& Out
     IHktEntityHudHitTestProvider* Provider = Cast<IHktEntityHudHitTestProvider>(HUD);
     if (!Provider) return false;
 
-    float MouseX, MouseY;
-    if (!Controller->GetMousePosition(MouseX, MouseY)) return false;
+    // 커서 위치(표시 모드) 또는 화면 중앙(숄더뷰 마우스룩) 좌표로 2D HUD 히트 테스트.
+    FVector2D ScreenPos;
+    if (!GetSelectionScreenPosition(ScreenPos)) return false;
 
-    return Provider->GetEntityUnderScreenPosition(FVector2D(MouseX, MouseY), OutEntityId);
+    return Provider->GetEntityUnderScreenPosition(ScreenPos, OutEntityId);
 }

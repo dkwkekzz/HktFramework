@@ -113,7 +113,13 @@ void AHktUnitActor::ApplyMovement(const FHktMovementView& V, int64 Frame, bool b
 	if (bForce || V.bIsMoving.IsDirty(Frame))
 		HktAnim->bIsMoving = V.bIsMoving.Get();
 
-	if (bForce || V.bIsJumping.IsDirty(Frame))
+	// bIsFalling(공중 여부)은 AnimBP 의 Locomotion→Jump/Fall 전환을 매 프레임 평가하는 입력이다.
+	// bIsJumping 은 IsGrounded 가 *바뀌는* 프레임(이착륙)에만 dirty 가 되는 sparse 신호라,
+	// 매 프레임 갱신되는 FallingSpeed(VelZ)와 평가 시점이 어긋나면 To Falling→Jump
+	// (bIsFalling && FallingSpeed>0) 가 동시 성립하지 못해 점프 모션이 누락된다 (달리는 중
+	// velocity 가 매 프레임 변동하므로 특히 드러남). Velocity dirty 와 OR 로 묶어 최신 접지
+	// 상태를 항상 FallingSpeed 와 동기화한다. bIsJumping.Get() 은 래치값이라 잦은 복사도 안전.
+	if (bForce || V.bIsJumping.IsDirty(Frame) || V.Velocity.IsDirty(Frame))
 		HktAnim->bIsFalling = V.bIsJumping.Get();
 
 	if (bForce || V.Velocity.IsDirty(Frame))

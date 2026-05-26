@@ -364,7 +364,11 @@ bool AbsorbViews(FHktSpriteAnimFragment& Fragment,
 	if (const FHktMovementView* MV = State.GetMovement(EntityId))
 	{
 		if (MV->bIsMoving.IsDirty(Frame))  Fragment.bIsMoving  = MV->bIsMoving.Get();
-		if (MV->bIsJumping.IsDirty(Frame)) Fragment.bIsFalling = MV->bIsJumping.Get();
+		// bIsFalling 은 sparse 한 bIsJumping(IsGrounded 변경 시에만 dirty)뿐 아니라 velocity
+		// dirty 에도 갱신 — 매 프레임 갱신되는 FallingSpeed 와 평가 시점을 맞춰 달리는 중
+		// Locomotion 폴백의 Fall 분기/전환이 누락되지 않게 한다. Get() 은 래치값이라 안전.
+		if (MV->bIsJumping.IsDirty(Frame) || MV->Velocity.IsDirty(Frame))
+			Fragment.bIsFalling = MV->bIsJumping.Get();
 		if (MV->Velocity.IsDirty(Frame))
 		{
 			const FVector Vel = MV->Velocity.Get();

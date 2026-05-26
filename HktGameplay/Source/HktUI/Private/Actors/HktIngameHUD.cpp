@@ -15,6 +15,28 @@
 #include "HktPresentationSubsystem.h"
 #include "IHktPlayerInteractionInterface.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/Canvas.h"
+
+namespace
+{
+	static TAutoConsoleVariable<bool> CVarShoulderReticle(
+		TEXT("hkt.UI.ShoulderReticle"),
+		true,
+		TEXT("ShoulderView(커서 숨김) 에서 화면 중앙 조준점 레티클 표시 여부"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<float> CVarShoulderReticleSize(
+		TEXT("hkt.UI.ShoulderReticleSize"),
+		10.0f,
+		TEXT("조준점 십자선 한 팔의 길이(px)"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<float> CVarShoulderReticleGap(
+		TEXT("hkt.UI.ShoulderReticleGap"),
+		4.0f,
+		TEXT("조준점 중앙 빈 공간(px) — 십자선 안쪽 간격"),
+		ECVF_Default);
+}
 
 void AHktIngameHUD::BeginPlay()
 {
@@ -67,6 +89,38 @@ void AHktIngameHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	bInitialSyncDone = false;
 
 	Super::EndPlay(EndPlayReason);
+}
+
+// --- 캔버스 즉시 모드 드로우 ---
+
+void AHktIngameHUD::DrawHUD()
+{
+	Super::DrawHUD();
+	DrawShoulderReticle();
+}
+
+void AHktIngameHUD::DrawShoulderReticle()
+{
+	if (!CVarShoulderReticle.GetValueOnGameThread()) return;
+	if (!Canvas) return;
+
+	// 커서가 보이는 모드(RTS 등)에서는 마우스 커서로 선택하므로 레티클이 불필요.
+	// 커서 숨김 = ShoulderView 마우스룩 → 선택 기준점인 화면 중앙을 조준점으로 표시.
+	const APlayerController* PC = GetOwningPlayerController();
+	if (!PC || PC->bShowMouseCursor) return;
+
+	const float CX = Canvas->ClipX * 0.5f;
+	const float CY = Canvas->ClipY * 0.5f;
+	const float Arm = FMath::Max(1.0f, CVarShoulderReticleSize.GetValueOnGameThread());
+	const float Gap = FMath::Max(0.0f, CVarShoulderReticleGap.GetValueOnGameThread());
+	const FLinearColor Color = FLinearColor::White;
+	const float Thickness = 2.0f;
+
+	// 십자(+) — 중앙 Gap 을 비워 4개의 짧은 선분으로 그린다.
+	DrawLine(CX - Gap - Arm, CY, CX - Gap, CY, Color, Thickness); // 좌
+	DrawLine(CX + Gap, CY, CX + Gap + Arm, CY, Color, Thickness); // 우
+	DrawLine(CX, CY - Gap - Arm, CX, CY - Gap, Color, Thickness); // 상
+	DrawLine(CX, CY + Gap, CX, CY + Gap + Arm, Color, Thickness); // 하
 }
 
 // --- IHktPresentationProcessor ---

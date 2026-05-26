@@ -113,4 +113,11 @@ public:
 
 	/** 이 플레이어의 고유 UID. 소유권 검증 등에 사용. 미지원 시 0 반환. */
 	virtual int64 GetPlayerUid() const { return 0; }
+
+	/**
+	 * 우클릭(OnTargetAction) 클릭-이동/공격 인텐트 활성화 토글.
+	 * ShoulderView 처럼 우클릭을 카메라 회전 전용으로 쓰는 카메라 모드가 false 로 끈다 (I-0045).
+	 * 끄면 우클릭 한 번에 캐릭터가 클릭 지점으로 끝없이 이동하는 문제를 막는다. 미지원 PC 는 무시.
+	 */
+	virtual void SetTargetActionEnabled(bool bEnabled) {}
 };

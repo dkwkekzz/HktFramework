@@ -44,6 +44,33 @@ def fx(value: float) -> int:
     return int(round(value * 65536.0))
 
 
+def _resolve_tag(name: "str | None"):
+    """문자열 → unreal.GameplayTag.
+
+    UE5.6/5.7 에서 FGameplayTag 는 meta=(HasNativeMake=MakeLiteralGameplayTag(FGameplayTag))
+    이라 `unreal.GameplayTag("문자열")` 로 만들 수 없다 — 엔진에 문자열→태그
+    BlueprintCallable 함수가 없다 (RequestGameplayTag 는 native static, Python 미노출).
+    또한 TagName(FName) 은 VisibleAnywhere+SaveGame 이라 read-only → set_editor_property
+    로 세팅 불가, GameplayTag 인스턴스에는 is_valid() 도 노출되지 않는다.
+    유효한 Python 경로는 struct ImportText — `gt.import_text("Story.Flow...")` 가
+    TagName 을 채운다. 유효성은 UGameplayTagLibrary.is_gameplay_tag_valid 로 확인.
+    이렇게 만든 태그는 GameplayTagsManager 에 '등록'되진 않지만, 런타임에 동일 이름의
+    storyTag Story 가 로드되며 같은 이름 태그가 등록되므로 dispatch 는 정상 동작한다.
+    """
+    if not name:
+        return unreal.GameplayTag()
+    gt = unreal.GameplayTag()
+    try:
+        # import_text 는 in-place 로 TagName 을 채운다 ('(TagName="X")' 또는 'X' 모두 허용).
+        gt.import_text(name)
+    except Exception as e:
+        unreal.log_warning(f"[bake_terrain] StoryTag '{name}' import_text 실패: {e}")
+        return unreal.GameplayTag()
+    if not unreal.GameplayTagLibrary.is_gameplay_tag_valid(gt):
+        unreal.log_warning(f"[bake_terrain] StoryTag '{name}' invalid — 베이크에서 skip 됨")
+    return gt
+
+
 # ---------------------------------------------------------------------------
 # 인자 파싱
 # ---------------------------------------------------------------------------
@@ -110,7 +137,7 @@ def default_voxel_spawn_rules() -> "dict[unreal.HktTerrainType, list[SpawnCandid
       - Snow   = Tundra 표면 → Oak 40% / Slime 10% / skip 50%
       - Gravel = Mountain 표면 → Oak 50% / skip 50%  (희소한 산악림)
       - Clay   = Swamp 표면 → Slime 50% / Oak 10% / skip 40%
-      - Sand   = Desert 표면 → Slime 30% / skip 70%   (사막 = 희소)
+      - Sand   = Desert 표면 → Gold 30% / Thief 8% / Slime 6% / skip 56% (좀도둑 생태계)
 
     Grass/Dirt 같은 흔한 surface 는 의도적으로 비워둔다 — voxel attribution 이
     전 영역을 채워 spawn cap 즉시 도달 시 검증 메시지 가독성 저하. 디자이너는
@@ -123,11 +150,16 @@ def default_voxel_spawn_rules() -> "dict[unreal.HktTerrainType, list[SpawnCandid
     OAK   = "Story.Flow.Spawner.Natural.Oak"
     BIRCH = "Story.Flow.Spawner.Natural.Birch"
     SLIME = "Story.Flow.Spawner.Natural.Slime"
+    THIEF = "Story.Flow.Spawner.Natural.Thief"   # 좀도둑 — 금괴를 훔쳐먹고 추격당하면 도망
+    GOLD  = "Story.Flow.Spawner.Natural.Gold"    # 금괴 — 좀도둑의 먹이. 도둑맞으면 cooldown 후 respawn
     return {
         unreal.HktTerrainType.SNOW:   [(BIRCH, 40), (SLIME, 10), (None, 50)],
         unreal.HktTerrainType.GRAVEL: [(OAK, 50),                (None, 50)],
         unreal.HktTerrainType.CLAY:   [(SLIME, 50), (BIRCH, 10), (None, 40)],
-        unreal.HktTerrainType.SAND:   [(SLIME, 30),              (None, 70)],
+        # 사막(Sand) = 좀도둑 생태계. 금괴가 흩어져 있고(GOLD), 그것을 훔쳐먹는
+        # 좀도둑(THIEF)이 배회하며, 가끔 슬라임(SLIME)도 섞인다. 좀도둑은 슬라임을
+        # 포함한 '살아있는 비-도둑 누구나' 를 추격자로 보고 미친듯이 도망간다.
+        unreal.HktTerrainType.SAND:   [(GOLD, 30), (THIEF, 8), (SLIME, 6), (None, 56)],
     }
 
 
@@ -149,12 +181,13 @@ def apply_voxel_spawn_rules(cfg: "unreal.HktTerrainBakedConfig",
         for tag_name, weight in candidates:
             if weight <= 0:
                 continue
+            # FHktVoxelSpawnRule 필드도 EditAnywhere 전용 → set_editor_property 사용.
             rule = unreal.HktVoxelSpawnRule()
-            rule.voxel_type = voxel_type
-            rule.story_tag = unreal.GameplayTag(tag_name) if tag_name else unreal.GameplayTag()
-            rule.weight = int(weight)
+            rule.set_editor_property("VoxelType", voxel_type)
+            rule.set_editor_property("StoryTag", _resolve_tag(tag_name))
+            rule.set_editor_property("Weight", int(weight))
             flat.append(rule)
-    cfg.voxel_spawn_rules = flat
+    cfg.set_editor_property("VoxelSpawnRules", flat)
     return len(flat)
 
 
@@ -171,49 +204,53 @@ def build_config(args: argparse.Namespace) -> unreal.HktTerrainBakedConfig:
     """
     cfg = unreal.HktTerrainBakedConfig()
 
-    # ─── 시드 / 모드 ───
-    # UE5 Python 바인딩은 C++ bool UPROPERTY 의 'b' 접두사를 제거한다.
-    # 예: bAdvancedTerrain → advanced_terrain
-    cfg.seed = args.seed
-    cfg.epoch = args.epoch
-    cfg.advanced_terrain = bool(args.advanced)
-    cfg.adv_enable_subsurface_ore = not args.no_ore
-    cfg.adv_enable_surface_scatter = not args.no_scatter
+    # FHktTerrainBakedConfig 의 UPROPERTY 들은 EditAnywhere 전용(BlueprintReadWrite 없음)
+    # 이라 UE5 Python 이 snake_case 어트리뷰트(cfg.seed = ...)를 생성하지 않는다.
+    # 반드시 set_editor_property(C++ PascalCase 이름) 으로 세팅해야 한다.
+    def S(name: str, value) -> None:
+        cfg.set_editor_property(name, value)
+
+    # ─── 시드 / 모드 ─── (bool 은 'b' 접두사 포함한 C++ 내부 이름)
+    S("Seed", int(args.seed))
+    S("Epoch", int(args.epoch))
+    S("bAdvancedTerrain", bool(args.advanced))
+    S("bAdvEnableSubsurfaceOre", not args.no_ore)
+    S("bAdvEnableSurfaceScatter", not args.no_scatter)
 
     # ─── 지형 형태 (FBM) ───
-    cfg.height_scale_raw   = fx(64.0)
-    cfg.height_offset_raw  = fx(32.0)
-    cfg.terrain_freq_raw   = fx(0.008)
-    cfg.terrain_octaves    = 6
-    cfg.lacunarity_raw     = fx(2.0)
-    cfg.persistence_raw    = fx(0.5)
+    S("HeightScaleRaw",  fx(64.0))
+    S("HeightOffsetRaw", fx(32.0))
+    S("TerrainFreqRaw",  fx(0.008))
+    S("TerrainOctaves",  6)
+    S("LacunarityRaw",   fx(2.0))
+    S("PersistenceRaw",  fx(0.5))
 
     # ─── 산악 ───
-    cfg.mountain_freq_raw  = fx(0.004)
-    cfg.mountain_blend_raw = fx(0.4)
+    S("MountainFreqRaw",  fx(0.004))
+    S("MountainBlendRaw", fx(0.4))
 
     # ─── 수면 ───
-    cfg.water_level_raw    = fx(30.0)
+    S("WaterLevelRaw", fx(30.0))
 
     # ─── 동굴 ───
-    cfg.enable_caves       = not args.no_caves
-    cfg.cave_freq_raw      = fx(0.03)
-    cfg.cave_threshold_raw = fx(0.6)
+    S("bEnableCaves",     not args.no_caves)
+    S("CaveFreqRaw",      fx(0.03))
+    S("CaveThresholdRaw", fx(0.6))
 
     # ─── 바이옴 ───
-    cfg.biome_noise_scale_raw      = fx(0.002)
-    cfg.mountain_biome_threshold_raw = fx(80.0)
+    S("BiomeNoiseScaleRaw",        fx(0.002))
+    S("MountainBiomeThresholdRaw", fx(80.0))
 
     # ─── 월드 단위 ───
-    cfg.voxel_size_cm = float(args.voxel_cm)
-    cfg.height_min_z  = int(args.height_min_z)
-    cfg.height_max_z  = int(args.height_max_z)
+    S("VoxelSizeCm", float(args.voxel_cm))
+    S("HeightMinZ",  int(args.height_min_z))
+    S("HeightMaxZ",  int(args.height_max_z))
 
     # ─── 시뮬 스트리밍 (베이크 산출물에 함께 캡처) ───
-    cfg.sim_load_radius_xy           = 2
-    cfg.sim_load_radius_z            = 1
-    cfg.sim_max_chunks_loaded        = 256
-    cfg.sim_max_chunk_loads_per_frame = 4
+    S("SimLoadRadiusXY",          2)
+    S("SimLoadRadiusZ",           1)
+    S("SimMaxChunksLoaded",       256)
+    S("SimMaxChunkLoadsPerFrame", 4)
 
     # ─── Voxel Spawn Rules (I-0027 / I-0013) ───
     # `--no-spawn-templates` 미지정 시 기본 후보 목록 적용 → BakeRegion 이 surface
@@ -258,8 +295,8 @@ def main(argv: list[str]) -> int:
 
     unreal.log(
         f"[bake_terrain] 시작 — Min={chunk_min} Max={chunk_max} "
-        f"Total={total} 청크 Seed={cfg.seed} "
-        f"Advanced={cfg.advanced_terrain} Save='{args.save_path}'")
+        f"Total={total} 청크 Seed={cfg.get_editor_property('Seed')} "
+        f"Advanced={cfg.get_editor_property('bAdvancedTerrain')} Save='{args.save_path}'")
 
     t0 = time.perf_counter()
     asset = unreal.HktTerrainBakeLibrary.bake_region(

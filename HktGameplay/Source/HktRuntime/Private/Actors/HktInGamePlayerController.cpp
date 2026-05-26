@@ -205,8 +205,9 @@ void AHktIngamePlayerController::SetupInputComponent()
 
 void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 {
-    // 커서가 숨겨진 모드(ShoulderView 등)에서는 클릭-기반 RTS 선택을 비활성화
-    if (!bShowMouseCursor) return;
+    // 커서가 숨겨진 모드(ShoulderView)에서도 선택은 허용한다 — SelectionPolicy 가
+    // 커서 대신 화면 중앙(조준점 레티클)에서 트레이스하므로 마우스룩과 충돌하지 않는다.
+    // (위험한 것은 우클릭 끝없는 이동(OnTargetAction)이지 좌클릭 선택이 아니다 — I-0045)
 
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;
@@ -230,9 +231,10 @@ void AHktIngamePlayerController::OnSubjectAction(const FInputActionValue& Value)
 
 void AHktIngamePlayerController::OnTargetAction(const FInputActionValue& Value)
 {
-    // 커서가 숨겨진 모드(ShoulderView 등)에서는 RTS 우클릭 이동/공격 인텐트를 발사하지 않는다
-    // — 그렇지 않으면 ShoulderView에서 우클릭 한 번에 캐릭터가 클릭 지점으로 끝없이 이동함
-    if (!bShowMouseCursor) return;
+    // ShoulderView 처럼 우클릭을 카메라 회전 전용으로 쓰는 모드에서는 클릭-이동/공격을 발사하지 않는다
+    // — 그렇지 않으면 우클릭 한 번에 캐릭터가 클릭 지점으로 끝없이 이동함 (I-0045).
+    // 커서 표시 여부와 무관한 명시적 플래그로 게이트 (카메라 모드가 SetTargetActionEnabled 로 토글).
+    if (!bTargetActionEnabled) return;
 
     IHktClientRule* Rule = GetClientRule();
     if (!Rule) return;

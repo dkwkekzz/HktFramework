@@ -28,6 +28,9 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** 캔버스 즉시 모드 드로우 — 커서 숨김(ShoulderView 마우스룩) 시 화면 중앙 조준점 레티클 표시. */
+	virtual void DrawHUD() override;
+
 	// --- IHktPresentationProcessor ---
 	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
@@ -54,6 +57,9 @@ protected:
 	FVector EntityHudWorldOffset = FVector(0.f, 0.f, 20.f);
 
 private:
+	/** 화면 중앙 십자형 조준점 레티클을 캔버스에 그린다. */
+	void DrawShoulderReticle();
+
 	void SyncEntityElements(const FHktPresentationState& State);
 	void CreateEntityElement(FHktEntityId EntityId, const FHktPresentationState& State);
 	void UpdateEntityPositions(const FHktPresentationState& State);

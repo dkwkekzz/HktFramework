@@ -1,0 +1,21 @@
+{
+  "storyTag": "Story.Flow.Brain.Thief",
+  "description": "좀도둑 Brain 검증. 무한 loop Brain 이라 대부분 분기는 Yielded(=Ready) 로 끝나 status 단언이 불가하므로, 결정론적으로 Halt 에 도달하는 사망-종료 경로만 자동 검증한다. 도둑질/도망/굶주림 행동 검증은 PIE 에서 관찰한다 (README 참조).",
+  "scenarios": [
+    {
+      "name": "dead_self_halts",
+      "description": "Self 가 이미 State.Dead → 첫 loop 의 HasTag 가 halt 로 분기 → Log → Halt → Completed. Brain 의 사망-종료 경로(자원 정리 위임) 보장.",
+      "given": {
+        "self": {
+          "archetype": "NPC",
+          "properties": { "Health": 0, "MaxHealth": 30 },
+          "tags": ["State.Dead"]
+        }
+      },
+      "expect": {
+        "status": "Completed",
+        "self": { "tags": ["State.Dead"] }
+      }
+    }
+  ]
+}

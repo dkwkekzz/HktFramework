@@ -1,0 +1,69 @@
+{
+  "schema": 2,
+  "storyTag": "Story.Flow.Spawner.Natural.Gold",
+  "description": "금괴(gold pile) spawner-as-loop — Slime_Spawn 과 동일한 single-slot sentinel 패턴. 한 voxel-slot 당 금괴 1개(Entity.Natural.Gold)를 유지한다. 좀도둑이 도둑질하면(AddTag State.Dead) 스포너가 이를 폴링해 DestroyEntity + 짧은 cooldown 후 respawn. Brain/Lifecycle 은 디스패치하지 않는다 — 금괴는 정적 자원. CollisionLayer 는 0(미설정) 으로 두어 도둑의 FindInRadius 마스크 필터에 항상 잡히게 한다.",
+  "tags": {
+    "GoldEntity": "Entity.Natural.Gold",
+    "GoldAttr":   "Entity.Attr.Gold",
+    "StateDead":  "State.Dead"
+  },
+  "steps": [
+    { "op": "Log", "message": "[Gold] spawner-as-loop 시작 — 한 voxel-slot 의 영구 sentinel" },
+
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":0}, "property": "Param0" },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":1}, "property": "Param1" },
+    { "op": "LoadStore", "dst": {"var":"slotKey"},              "property": "Param2" },
+    { "op": "LoadStore", "dst": {"block":"spawnPos","index":2}, "property": "Param3" },
+
+    { "op": "SpawnerFindOrCreate", "slotKey": {"var":"slotKey"}, "out": "spawnerEntity" },
+
+    { "op": "Label", "name": "top" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"alive"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag" },
+    { "op": "IfGeConst", "src": {"var":"alive"}, "value": 1 },
+      { "op": "Log", "message": "[Gold] slot 점유 중 — Halt 로 양보" },
+      { "op": "Halt" },
+    { "op": "EndIf" },
+
+    { "op": "LoadStoreEntity", "dst": {"var":"lastDie"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame" },
+    { "op": "IfGeConst", "src": {"var":"lastDie"}, "value": 1 },
+      { "op": "GetWorldTime", "dst": {"var":"now"} },
+      { "op": "Sub", "dst": {"var":"elapsed"}, "src1": {"var":"now"}, "src2": {"var":"lastDie"} },
+      { "op": "IfLtConst", "src": {"var":"elapsed"}, "value": 150 },
+        { "op": "Log", "message": "[Gold] cooldown 진행 중 — WaitSeconds 5.0 후 respawn" },
+        { "op": "WaitSeconds", "seconds": 5.0 },
+      { "op": "EndIf" },
+    { "op": "EndIf" },
+
+    { "op": "SpawnEntity", "classTag": "GoldEntity", "out": "gold" },
+
+    { "op": "AddTag", "entity": {"var":"gold"}, "tag": "GoldAttr" },
+
+    { "op": "SaveStoreEntity", "entity": {"var":"gold"}, "property": "SpawnerSlotKey", "src":   {"var":"slotKey"} },
+    { "op": "SaveConstEntity", "entity": {"var":"gold"}, "property": "Health",    "value": 1 },
+    { "op": "SaveConstEntity", "entity": {"var":"gold"}, "property": "MaxHealth", "value": 1 },
+
+    { "op": "SetPosition", "entity": {"var":"gold"}, "pos": {"block":"spawnPos"} },
+
+    { "op": "LoadConst", "dst": {"var":"one"}, "value": 1 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag", "src": {"var":"one"} },
+
+    { "op": "Label", "name": "check" },
+    { "op": "HasTag", "dst": {"var":"isEaten"}, "entity": {"var":"gold"}, "tag": "StateDead" },
+    { "op": "JumpIf", "cond": {"var":"isEaten"}, "label": "eaten" },
+    { "op": "Yield", "frames": 2 },
+    { "op": "Jump", "label": "check" },
+
+    { "op": "Label", "name": "eaten" },
+    { "op": "Log", "message": "[Gold] 도둑맞음 — DestroyEntity 후 top 으로 jump (cooldown + respawn)" },
+    { "op": "DestroyEntity", "entity": {"var":"gold"} },
+    { "op": "GetWorldTime", "dst": {"var":"dieTime"} },
+    { "op": "LoadConst", "dst": {"var":"zero"}, "value": 0 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerAliveFlag",      "src": {"var":"zero"} },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerLastDeathFrame", "src": {"var":"dieTime"} },
+    { "op": "LoadStoreEntity", "dst": {"var":"stealCount"}, "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount" },
+    { "op": "AddImm", "dst": {"var":"stealCount"}, "src": {"var":"stealCount"}, "imm": 1 },
+    { "op": "SaveStoreEntity", "entity": {"var":"spawnerEntity"}, "property": "SpawnerDeathCount", "src": {"var":"stealCount"} },
+    { "op": "Jump", "label": "top" }
+  ]
+}
