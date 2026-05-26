@@ -114,6 +114,9 @@ protected:
     void OnZoom(const FInputActionValue& Value);
     void OnJumpAction(const FInputActionValue& Value);
 
+    /** 러너 좌우 회피 (I-0046) — Axis1D, -1=좌 / +1=우 */
+    void OnDodgeAction(const FInputActionValue& Value);
+
     /** ShoulderView 방향 이동 (WASD/방향키) — Triggered */
     void OnMoveAction(const FInputActionValue& Value);
 
@@ -138,6 +141,10 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TObjectPtr<UInputAction> JumpAction;
+
+    /** 러너 좌우 회피 (I-0046). Axis1D 권장 (A=-1 / D=+1). BP/IMC 에서 키 매핑 지정. */
+    UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
+    TObjectPtr<UInputAction> DodgeAction;
 
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TArray<TObjectPtr<UInputAction>> SlotInputActions;

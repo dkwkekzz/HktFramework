@@ -18,8 +18,8 @@
       }
     },
     {
-      "name": "idle_player_keeps_looping",
-      "description": "ActionIntentType=0 (idle) + Health>0 → brain 은 매 프레임 yield 하며 영구 루프. 하니스 maxFrames 도달 시 status=Waiting.",
+      "name": "idle_falls_back_to_auto_run",
+      "description": "I-0046 러너: ActionIntentType=0 (idle) + Health>0 → do_run 폴백. MoveForward 가 RotYaw(0=+X) 전방 1km 로 MoveTarget 세팅 + IsMoving=1 + MoveForce=150. 매 프레임 재투사되며 영구 질주 (Halt 없음 → status=Waiting).",
       "given": {
         "self": {
           "archetype": "Character",
@@ -28,7 +28,17 @@
         }
       },
       "maxFrames": 5,
-      "expect": { "status": "Waiting" }
+      "expect": {
+        "status": "Waiting",
+        "self": {
+          "properties": {
+            "IsMoving": 1,
+            "MoveForce": 150,
+            "MoveTargetX": 100000,
+            "MoveTargetY": 0
+          }
+        }
+      }
     },
     {
       "name": "attack_intent_in_range_dispatches_useskill",

@@ -11,6 +11,8 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Target_Action, "Story.Event.Target.Actio
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Jump, "Story.Event.Move.Jump");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Forward, "Story.Event.Move.Forward");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Move_Stop, "Story.Event.Move.Stop");
+// I-0046 러너 좌우 회피 — Story_PlayerDodge.json.
+UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Player_Dodge, "Story.Event.Player.Dodge");
 // 우클릭으로 ground 아이템(ItemState==0)을 직접 클릭했을 때 디스패치하는 픽업 인텐트.
 // Story_TargetAction 에서 Item 분기가 제거(I-0016)되어, 수동 픽업 경로 복원을 위해 ClientRule 이 직접 라우팅.
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_Event_Item_Pickup, "Story.Event.Item.Pickup");
@@ -268,6 +270,57 @@ void FHktDefaultClientRule::OnUserEvent_JumpInputAction()
 
 	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
 		FString::Printf(TEXT("JumpAction %s"), *Event.ToString()),
+		SubjectEntity, Event.EventTag);
+}
+
+void FHktDefaultClientRule::OnUserEvent_DodgeInputAction(float InDir)
+{
+	if (!CachedBuilder || !CachedSimulator || !CachedSimulator->IsInitialized())
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("DodgeAction ignored: context not bound"));
+		return;
+	}
+
+	FHktEntityId SubjectEntity = CachedBuilder->GetSubjectEntityId();
+	if (SubjectEntity == InvalidEntityId)
+	{
+		HKT_EVENT_LOG(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			TEXT("DodgeAction ignored: no Subject selected"));
+		return;
+	}
+
+	if (!IsOwnedByMe(SubjectEntity))
+	{
+		HKT_EVENT_LOG_ENTITY(HktLogTags::Runtime_Intent, EHktLogLevel::Warning, EHktLogSource::Client,
+			FString::Printf(TEXT("DodgeAction ignored: Subject %d is not owned by this player"), SubjectEntity),
+			SubjectEntity);
+		return;
+	}
+
+	if (FMath::IsNearlyZero(InDir))
+	{
+		return;
+	}
+	const float Dir = InDir > 0.0f ? 1.0f : -1.0f;
+
+	// Subject 의 진행 전방(RotYaw) 우측 법선으로 측면 델타 계산.
+	// MovementSystem yaw 규약: forward = (cos, sin) (Atan2(DY,DX)). 우측 법선 = (sin, -cos).
+	// 측면 오프셋만 부여하고 RotYaw 는 건드리지 않으므로, 회피는 몸의 평행 이동이며 전진은 유지된다.
+	const FHktWorldState& WS = CachedSimulator->GetWorldState();
+	const float YawDeg = static_cast<float>(WS.GetProperty(SubjectEntity, PropertyId::RotYaw));
+	const float YawRad = FMath::DegreesToRadians(YawDeg);
+	const FVector RightNormal(FMath::Sin(YawRad), -FMath::Cos(YawRad), 0.0f);
+
+	// 짧은 회피 측면 오프셋(cm). 결정론: 델타가 복제된 이벤트 페이로드로 서버에 전달되어 재시뮬/롤백 동일.
+	static constexpr float DodgeLateralDistance = 200.0f;
+	const FVector LateralDelta = RightNormal * (DodgeLateralDistance * Dir);
+
+	FHktEvent Event = HktEventBuilder::Dodge(Tag_Event_Player_Dodge, SubjectEntity, LateralDelta);
+	CachedBuilder->SetPendingRuntimeEvent(Event);
+
+	HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+		FString::Printf(TEXT("DodgeAction Dir=%.0f %s"), Dir, *Event.ToString()),
 		SubjectEntity, Event.EventTag);
 }
 

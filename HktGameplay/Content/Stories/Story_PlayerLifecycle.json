@@ -21,6 +21,11 @@
     { "op": "JumpIf", "cond": "Flag", "label": "do_attack" },
     { "op": "CmpEqConst", "dst": "Flag", "src": {"var":"intentType"}, "value": 1 },
     { "op": "JumpIf", "cond": "Flag", "label": "do_move" },
+    { "op": "Jump", "label": "do_run" },
+
+    { "comment": "── I-0046 러너: 인텐트가 없으면(idle) 자동 전진이 기본 상태다. MoveForward 는 RotYaw 전방 1km 로 MoveTarget 을 세팅(IsMoving=1) — 매 프레임 재투사되어 영구 질주. RotYaw 는 전방을 향하므로 불변. 클릭-투-무브를 걷어낸 러너에서 Move/Attack 인텐트가 클리어되면 항상 이 분기로 폴백한다 (사망 시에만 die 로 이탈). 방향(카메라 Yaw→RotYaw) 결합은 후속 작업. ──" },
+    { "op": "Label", "name": "do_run" },
+    { "op": "MoveForward", "entity": "Self", "force": 150 },
     { "op": "Jump", "label": "loop" },
 
     { "comment": "── Attack ──" },

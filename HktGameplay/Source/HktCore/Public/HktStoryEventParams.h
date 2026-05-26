@@ -324,6 +324,23 @@ namespace HktEventBuilder
 		return E;
 	}
 
+	/**
+	 * 러너 좌우 회피 이벤트 (I-0046) — Location = *측면 오프셋 델타*(월드, cm).
+	 * 클라가 Subject 의 RotYaw 우측 법선 × 거리 × 방향(±) 으로 계산해 전달한다.
+	 * Story_PlayerDodge 가 현재 위치에 더해 SetPosition 으로 즉시 측면 이동(RotYaw 불변).
+	 */
+	inline FHktEvent Dodge(
+		const FGameplayTag& EventTag,
+		FHktEntityId SourceEntity,
+		FVector LateralDelta)
+	{
+		FHktEvent E;
+		E.EventTag     = EventTag;
+		E.SourceEntity = SourceEntity;
+		E.Location     = LateralDelta;
+		return E;
+	}
+
 	/** 아이템 활성화 이벤트 — Param0 = 슬롯, Param1 = 엔티티 인덱스 */
 	inline FHktEvent ItemActivate(
 		const FGameplayTag& EventTag,

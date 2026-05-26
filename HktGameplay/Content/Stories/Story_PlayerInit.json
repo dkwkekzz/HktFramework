@@ -98,6 +98,13 @@
       "value": 100
     },
     {
+      "comment": "── I-0046 러너: 자동 전진(질주) 최고 속도. MovementSystem 이 MoveForce 로 이 값까지 가속한다 (cm/s). ──",
+      "op": "SaveConstEntity",
+      "entity": "Self",
+      "property": "MaxSpeed",
+      "value": 600
+    },
+    {
       "op": "SaveConstEntity",
       "entity": "Self",
       "property": "NextActionFrame",

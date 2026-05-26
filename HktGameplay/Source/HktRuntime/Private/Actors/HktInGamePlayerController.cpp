@@ -183,12 +183,15 @@ void AHktIngamePlayerController::SetupInputComponent()
     if (TargetAction)  EnhancedInput->BindAction(TargetAction,  ETriggerEvent::Started, this, &AHktIngamePlayerController::OnTargetAction);
     if (ZoomAction)    EnhancedInput->BindAction(ZoomAction,    ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnZoom);
     if (JumpAction)    EnhancedInput->BindAction(JumpAction,    ETriggerEvent::Started, this, &AHktIngamePlayerController::OnJumpAction);
+    if (DodgeAction)   EnhancedInput->BindAction(DodgeAction,   ETriggerEvent::Started, this, &AHktIngamePlayerController::OnDodgeAction);
 
     for (int32 i = 0; i < SlotInputActions.Num(); ++i)
     {
         if (SlotInputActions[i]) EnhancedInput->BindAction(SlotInputActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
 
+    // I-0046: 입력 스킴 선택(러너=Dodge / 자유=WASD)은 InputMappingContext 에셋에서 결정한다.
+    //  컨트롤러는 각 InputAction 을 핸들러에 바인딩만 하고 모드 분기는 두지 않는다.
     if (MoveAction)
     {
         EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnMoveAction);
@@ -340,6 +343,30 @@ void AHktIngamePlayerController::OnJumpAction(const FInputActionValue& Value)
 
         HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
             FString::Printf(TEXT("OnJumpAction Submit %s"), *Event.ToString()),
+            Event.SourceEntity, Event.EventTag);
+    }
+}
+
+void AHktIngamePlayerController::OnDodgeAction(const FInputActionValue& Value)
+{
+    const float Dir = Value.Get<float>();
+    if (FMath::IsNearlyZero(Dir)) return;
+
+    IHktClientRule* Rule = GetClientRule();
+    if (!Rule) return;
+
+    Rule->OnUserEvent_DodgeInputAction(Dir);
+
+    // Rule이 빌드한 회피 이벤트가 있으면 즉시 전송 (OnJumpAction 과 동일 패턴)
+    if (CachedIntentBuilder && CachedIntentBuilder->HasPendingRuntimeEvent())
+    {
+        FHktEvent Event = CachedIntentBuilder->ConsumePendingRuntimeEvent();
+        Event.PlayerUid = GetPlayerUid();
+        Server_ReceiveRuntimeEvent(FHktRuntimeEvent(Event));
+        IntentSubmittedDelegate.Broadcast(FHktRuntimeEvent(Event));
+
+        HKT_EVENT_LOG_TAG(HktLogTags::Runtime_Intent, EHktLogLevel::Info, EHktLogSource::Client,
+            FString::Printf(TEXT("OnDodgeAction Submit %s"), *Event.ToString()),
             Event.SourceEntity, Event.EventTag);
     }
 }
