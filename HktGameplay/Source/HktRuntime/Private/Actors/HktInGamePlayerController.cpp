@@ -190,9 +190,8 @@ void AHktIngamePlayerController::SetupInputComponent()
         if (SlotInputActions[i]) EnhancedInput->BindAction(SlotInputActions[i], ETriggerEvent::Started, this, &AHktIngamePlayerController::OnSlotAction, i);
     }
 
-    // I-0046: MoveAction(WASD 자유 이동) 바인딩은 유지하되, 활성 여부는 bRunnerControlMode 로 컨트롤러에서 선택한다.
-    //  - 러너 모드(true): 자동 전진(Lifecycle do_run) + 회피(Dodge). OnMoveAction 무시.
-    //  - 자유 모드(false): WASD MoveForward 이동. OnDodgeAction 무시.
+    // I-0046: 입력 스킴 선택(러너=Dodge / 자유=WASD)은 InputMappingContext 에셋에서 결정한다.
+    //  컨트롤러는 각 InputAction 을 핸들러에 바인딩만 하고 모드 분기는 두지 않는다.
     if (MoveAction)
     {
         EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AHktIngamePlayerController::OnMoveAction);
@@ -350,9 +349,6 @@ void AHktIngamePlayerController::OnJumpAction(const FInputActionValue& Value)
 
 void AHktIngamePlayerController::OnDodgeAction(const FInputActionValue& Value)
 {
-    // 회피는 러너 모드에서만. 자유 이동 모드에서는 A/D 가 MoveAction 으로 쓰인다.
-    if (!bRunnerControlMode) return;
-
     const float Dir = Value.Get<float>();
     if (FMath::IsNearlyZero(Dir)) return;
 
@@ -377,9 +373,6 @@ void AHktIngamePlayerController::OnDodgeAction(const FInputActionValue& Value)
 
 void AHktIngamePlayerController::OnMoveAction(const FInputActionValue& Value)
 {
-    // 러너 모드에서는 자유 이동 비활성 — 전진은 Lifecycle do_run 의 자동 질주가 담당.
-    if (bRunnerControlMode) return;
-
     if (Value.GetValueType() != EInputActionValueType::Axis2D) return;
 
     const FVector2D Input = Value.Get<FVector2D>();
@@ -407,9 +400,6 @@ void AHktIngamePlayerController::OnMoveAction(const FInputActionValue& Value)
 
 void AHktIngamePlayerController::OnMoveActionCompleted(const FInputActionValue& Value)
 {
-    // 러너 모드에서는 자유 이동을 보내지 않으므로 정지도 불필요.
-    if (bRunnerControlMode) return;
-
     // 항상 Stop 이벤트를 시도한다 — bIsDirectionalMoving 가드를 두면
     // IMC 교체/포커스 손실로 Triggered가 누락된 경우 정지가 안 나가서 캐릭터가 계속 전진함
     bIsDirectionalMoving = false;

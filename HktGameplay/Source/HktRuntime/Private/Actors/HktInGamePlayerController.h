@@ -153,16 +153,6 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Hkt|Input")
     TObjectPtr<UInputAction> MoveAction;
 
-    /**
-     * I-0046 러너 컨트롤 모드 선택. 컨트롤러(BP/런타임)에서 전환.
-     *  - true  = 자동 전진(Lifecycle do_run) + 회피(Dodge). WASD 자유 이동 비활성.
-     *  - false = WASD 자유 이동(MoveForward). 회피 비활성.
-     * 주: 자유 모드(false)는 서버 Lifecycle 의 do_run 자동 전진과 충돌하므로,
-     *     완전한 자유 이동에는 Lifecycle auto-run 비활성화(후속 작업)가 함께 필요하다.
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hkt|Input")
-    bool bRunnerControlMode = true;
-
     // === Story Tags ===
 
     /** 플레이어 생성 시 서버가 발동할 Story Tag. 미설정 시 Story.State.Player.InWorld로 fallback. */
