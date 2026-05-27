@@ -191,7 +191,7 @@ void UHktFileDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, const F
 			EnterWorldEvent.EventTag = EnterTag;
 			EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid);
 			EnterWorldEvent.TargetEntity = InvalidEntityId;
-			EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation();
+			EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation(GetWorld());
 			EnterWorldEvent.PlayerUid = InPlayerUid;
 			NewRecord.ActiveEvents.Add(EnterWorldEvent);
 

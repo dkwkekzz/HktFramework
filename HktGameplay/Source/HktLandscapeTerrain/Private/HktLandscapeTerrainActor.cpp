@@ -137,6 +137,23 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	HeightMinZ = EffectiveCfg.HeightMinZ;
 	HeightMaxZ = EffectiveCfg.HeightMaxZ;
 
+	// 4b. Landscape 스케일을 effective VoxelSize 에 강제 정렬 — voxel/HktCore 정렬 불변식(invariant).
+	//     하이트맵은 '정점 1개 = 월드 복셀 1개' 로 샘플링되므로(SamplePreview 가 복셀 단위로 스텝),
+	//     1 quad 의 월드 폭(LandscapeScale.XY)도 반드시 VoxelSize 여야 voxel/HktCore 좌표계
+	//     (world cm = voxel * VoxelSize)와 정확히 겹친다. XY 가 VoxelSize 와 다르면
+	//     (예: 액터 기본 100 vs baked 25) 원점에서 멀어질수록 수평으로 어긋나 지형이 HktCore 지면
+	//     위로 떠 보인다. Z 도 동일 스케일로 두어 큐브형 복셀 종횡비를 보존하고 voxel 지형과 1:1 일치시킨다.
+	//     (높이 인코딩 자체는 Z 스케일에 불변이지만, XY 와 맞춰야 외형이 일치한다.)
+	if (!FMath::IsNearlyEqual(LandscapeScale.X, static_cast<double>(VoxelSize)) ||
+	    !FMath::IsNearlyEqual(LandscapeScale.Y, static_cast<double>(VoxelSize)) ||
+	    !FMath::IsNearlyEqual(LandscapeScale.Z, static_cast<double>(VoxelSize)))
+	{
+		UE_LOG(LogHktLandscapeTerrain, Warning,
+			TEXT("[%s] LandscapeScale(%s) 가 effective VoxelSize=%.1f 와 불일치 — voxel/HktCore 정렬을 위해 (%.1f,%.1f,%.1f) 로 강제합니다."),
+			*GetName(), *LandscapeScale.ToString(), VoxelSize, VoxelSize, VoxelSize, VoxelSize);
+		LandscapeScale = FVector(VoxelSize, VoxelSize, VoxelSize);
+	}
+
 	// 5. 그리드 파라미터 검증 / 클램프
 	ValidateGridParameters();
 
@@ -228,6 +245,16 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 				? FName(*FString::Printf(TEXT("Biome_%u"), BiomeLayerMapping[Idx].BiomeId))
 				: BiomeLayerMapping[Idx].DebugName;
 			Info.LayerInfo = BiomeLayerMapping[Idx].LayerInfo;
+			// LandscapeLayerBlend 머티리얼은 ULandscapeLayerInfoObject::LayerName 으로 웨이트맵을
+			// 바인딩한다(엔진 LandscapeEdit.cpp::Import — FWeightmapLayerAllocationInfo 가 LayerInfo
+			// 만 참조하며, FLandscapeImportLayerInfo::LayerName 은 바인딩에 쓰이지 않는다).
+			// 따라서 매핑 DebugName 과 LayerInfo 의 LayerName 을 일치시켜야 페인트 레이어가
+			// 머티리얼 레이어에 연결된다. (LayerName 은 에디터에서 read-only 라 스크립트로 못 박으므로
+			// 여기서 강제 동기화한다.)
+			if (Info.LayerInfo && Info.LayerInfo->GetLayerName() != Info.LayerName)
+			{
+				Info.LayerInfo->SetLayerName(Info.LayerName, /*bInModify=*/false);
+			}
 			Info.LayerData = MoveTemp(WeightByLayer[Idx]);
 			ImportLayers.Add(MoveTemp(Info));
 		}
@@ -252,11 +279,18 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	}
 
 	// 9. Import 호출 — HktMapStreamingSubsystem 과 동일한 런타임 패턴
+	//    주의: 두 GUID 개념이 다르다.
+	//      - InGuid (첫 파라미터): Landscape 액터 자체의 GUID. check(InGuid.IsValid()) 때문에
+	//        반드시 유효(non-zero)해야 한다 → FGuid::NewGuid().
+	//      - 데이터 맵의 키: 에디트 레이어 GUID. Final/베이스 레이어는 엔진이 LandscapeEdit.cpp 에서
+	//        FindChecked(FGuid()) 로 빈 기본 GUID 를 조회한다. 무작위 GUID 로 키잉하면 FindChecked
+	//        가 키를 못 찾아 크래시한다. 따라서 맵 키는 반드시 빈 FGuid().
 	LandscapeGuid = FGuid::NewGuid();
+	const FGuid BaseLayerGuid = FGuid();   // 빈 GUID — Final/베이스 레이어
 	TMap<FGuid, TArray<uint16>> HeightDataPerLayer;
 	TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayer;
-	HeightDataPerLayer.Add(LandscapeGuid, MoveTemp(HeightData));
-	MaterialLayerDataPerLayer.Add(LandscapeGuid, MoveTemp(ImportLayers));
+	HeightDataPerLayer.Add(BaseLayerGuid, MoveTemp(HeightData));
+	MaterialLayerDataPerLayer.Add(BaseLayerGuid, MoveTemp(ImportLayers));
 
 	// UE5.7 Import 시그니처: (Guid, MinX, MinY, MaxX, MaxY, NumSubsections, SubsectionSizeQuads, ...)
 	// MaxX/MaxY = HeightmapVerts - 1 (버텍스 인덱스 기반), InImportLayers는 빈 뷰 전달.

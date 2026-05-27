@@ -43,7 +43,7 @@ void UHktTransientDatabaseComponent::LoadPlayerRecordAsync(int64 InPlayerUid, co
     EnterWorldEvent.EventTag = EnterTag;
     EnterWorldEvent.SourceEntity = static_cast<FHktEntityId>(InPlayerUid); // 임시, 플로우에서 실제 엔티티 생성
     EnterWorldEvent.TargetEntity = InvalidEntityId;
-    EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation();
+    EnterWorldEvent.Location = GetDefault<UHktRuntimeGlobalSetting>()->ComputeDefaultSpawnLocation(GetWorld());
     EnterWorldEvent.PlayerUid = InPlayerUid;
     NewRecord.ActiveEvents.Add(EnterWorldEvent);
 

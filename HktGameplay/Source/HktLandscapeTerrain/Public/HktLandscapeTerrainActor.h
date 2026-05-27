@@ -66,9 +66,12 @@ public:
 	FIntPoint LandscapeOriginWorldVoxels = FIntPoint(0, 0);
 
 	/**
-	 * Landscape 액터의 스케일. cm per landscape unit.
-	 * XY를 VoxelSizeCm 과 일치시키면 1 landscape quad = 1 voxel 로 XY 정렬된다.
-	 * 기본 100 은 UE 표준 1m/quad.
+	 * Landscape 액터의 스케일 (cm per landscape unit).
+	 *
+	 * 주의: InitializeLandscape 에서 effective VoxelSize 로 강제 정렬된다 (XY=Z=VoxelSize).
+	 * 하이트맵이 '정점 1개 = 월드 복셀 1개' 로 샘플링되므로 1 quad 의 월드 폭이 VoxelSize 와
+	 * 달라지면 voxel/HktCore 좌표계와 어긋나 지형이 떠 보이기 때문이다. 따라서 이 값은
+	 * 사실상 런타임 미러이며, 여기에 수동으로 넣은 값은 생성 시 VoxelSize 로 덮어쓰여진다.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|World")
 	FVector LandscapeScale = FVector(100.0, 100.0, 100.0);
