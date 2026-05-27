@@ -304,6 +304,11 @@ struct HKTPRESENTATION_API FHktPresentationState
 	FVector CameraLocation = FVector::ZeroVector;
 	float   CullRadiusSqCm = 0.f;
 
+	// 반경 이탈 후 Actor 파괴까지의 유예 시간(초). 경계에서 진동하는 대상의 파괴/재스폰
+	// 깜빡임을 막는다 — 연속으로 이 시간만큼 반경 밖에 머문 Actor 만 파괴, 그 안에 재진입하면
+	// 타이머가 취소되어 살아남는다. 유예 중에도 정상 렌더링(숨김 없음). <=0 이면 즉시 파괴.
+	float   CullDespawnLingerSeconds = 0.f;
+
 	/**
 	 * 엔터티가 카메라 컬링 반경 안에 있는지. CullRadiusSqCm<=0 (비활성) 또는 Transform 미할당이면
 	 * true (그린다). 좌표 출처: RenderLocation (있으면) → Location 폴백.

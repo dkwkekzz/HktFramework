@@ -46,6 +46,15 @@ static TAutoConsoleVariable<float> CVarRenderCullRadius(
 	TEXT("Client-side render cull radius around camera in centimeters. <=0 disables culling."),
 	ECVF_Default);
 
+// hkt.Presentation.RenderCullLingerSeconds — 반경 이탈 후 Actor 파괴까지 유예 시간(초).
+// 경계에서 진동하는 Actor 의 파괴/재스폰 깜빡임 방지. 연속으로 이 시간만큼 반경 밖에 머문
+// Actor 만 파괴된다. <=0 이면 즉시 파괴 (유예 비활성).
+static TAutoConsoleVariable<float> CVarRenderCullLingerSeconds(
+	TEXT("hkt.Presentation.RenderCullLingerSeconds"),
+	1.0f,
+	TEXT("Grace period in seconds before destroying an Actor that left the cull radius. Prevents boundary flicker. <=0 destroys immediately."),
+	ECVF_Default);
+
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionSubject, "VFX.Niagara.SelectionSubject");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_SelectionTarget, "VFX.Niagara.SelectionTarget");
@@ -380,6 +389,7 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	{
 		const float CullRadius = CVarRenderCullRadius.GetValueOnGameThread();
 		State.CullRadiusSqCm = (CullRadius > 0.f) ? (CullRadius * CullRadius) : 0.f;
+		State.CullDespawnLingerSeconds = CVarRenderCullLingerSeconds.GetValueOnGameThread();
 		State.CameraLocation = FVector::ZeroVector;
 		if (State.CullRadiusSqCm > 0.f)
 		{

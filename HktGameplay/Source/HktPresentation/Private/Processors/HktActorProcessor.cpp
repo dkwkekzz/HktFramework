@@ -112,6 +112,7 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 		PendingLoads.Remove(Id);
 		PendingInitialForward.Remove(Id);
 		DeferredSpawns.Remove(Id);
+		DespawnLingerStart.Remove(Id);
 		if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
 		{
 			if (AActor* A = P->Get())
@@ -330,12 +331,19 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 
 	// --- 6. 매 프레임 Transform 적용 + 카메라 거리 컬링 (모든 Actor) ---
 	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorApplyTransform);
+
+	// 파괴 유예 타이머 기준 시각. World 부재 시 0 → 유예 무효(즉시 파괴)와 동일하게 동작.
+	UWorld* TimeWorld = LocalPlayer.IsValid() ? LocalPlayer->GetWorld() : nullptr;
+	const double Now = TimeWorld ? TimeWorld->GetTimeSeconds() : 0.0;
+	const double LingerSeconds = static_cast<double>(State.CullDespawnLingerSeconds);
+
 	for (auto It = ActorMap.CreateIterator(); It; ++It)
 	{
 		const FHktEntityId Id = It->Key;
 		AActor* A = It->Value.Get();
 		if (!A)
 		{
+			DespawnLingerStart.Remove(Id);
 			It.RemoveCurrent();
 			continue;
 		}
@@ -345,12 +353,39 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 		// CullRadiusSqCm<=0 면 IsEntityWithinRenderCull 가 true 반환 → 컬링 비활성과 동일.
 		if (!State.IsEntityWithinRenderCull(Id))
 		{
+			// 파괴 유예 — 연속으로 LingerSeconds 만큼 반경 밖에 머문 경우에만 파괴.
+			// 그 전에 재진입하면 아래 else 에서 타이머가 제거되어 살아남는다 → 경계 깜빡임 방지.
+			// 유예 중에도 숨기지 않고 Transform 을 계속 적용해 시각적 끊김이 없도록 한다.
+			if (LingerSeconds > 0.0)
+			{
+				const double* OutsideSince = DespawnLingerStart.Find(Id);
+				if (!OutsideSince)
+				{
+					DespawnLingerStart.Add(Id, Now);
+				}
+				else if (Now - *OutsideSince < LingerSeconds)
+				{
+					// 아직 유예 중 — 계속 렌더링하며 파괴 보류.
+					const FHktTransformView* T = State.GetTransform(Id);
+					if (T)
+					{
+						if (IHktPresentableActor* P = Cast<IHktPresentableActor>(A))
+							P->ApplyTransform(*T);
+					}
+					continue;
+				}
+			}
+
 			A->Destroy();
 			PendingInitialForward.Remove(Id);
+			DespawnLingerStart.Remove(Id);
 			DeferredSpawns.Add(Id); // 반경 재진입 시 재스폰
 			It.RemoveCurrent();
 			continue;
 		}
+
+		// 반경 안 — 진행 중이던 파괴 유예 타이머 취소.
+		DespawnLingerStart.Remove(Id);
 
 		const FHktTransformView* T = State.GetTransform(Id);
 		if (!T) continue;
@@ -461,6 +496,7 @@ void FHktActorProcessor::Teardown()
 	PendingLoads.Empty();
 	PendingInitialForward.Empty();
 	DeferredSpawns.Empty();
+	DespawnLingerStart.Empty();
 }
 
 AActor* FHktActorProcessor::GetActor(FHktEntityId Id) const

@@ -56,6 +56,13 @@ private:
 	 */
 	TSet<FHktEntityId> DeferredSpawns;
 
+	/**
+	 * 반경을 벗어난 Actor 의 이탈 시작 시각(World TimeSeconds). 파괴 유예 타이머.
+	 * 연속으로 State.CullDespawnLingerSeconds 만큼 반경 밖에 머물면 파괴, 그 전에 재진입하면
+	 * 항목이 제거되어 살아남는다 → 경계 진동 시 깜빡임 방지. 유예 중에도 정상 렌더링.
+	 */
+	TMap<FHktEntityId, double> DespawnLingerStart;
+
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
 	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);
 };
