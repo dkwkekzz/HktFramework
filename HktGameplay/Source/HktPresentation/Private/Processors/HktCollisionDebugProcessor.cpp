@@ -13,7 +13,7 @@
 #include "HktCollisionLayers.h"
 #include "HktCollisionDebugTracer.h"
 #include "HktSelectable.h"
-#include "Settings/HktRuntimeGlobalSetting.h"
+#include "HktTerrainSubsystem.h"
 
 static TAutoConsoleVariable<int32> CVarShowCollision(
 	TEXT("hkt.Debug.ShowCollision"),
@@ -209,8 +209,8 @@ void FHktCollisionDebugProcessor::DrawDetectionRange(UWorld* World, const FHktPr
 
 void FHktCollisionDebugProcessor::DrawVoxelCells(UWorld* World, const FHktPresentationState& State)
 {
-	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
-	const float VS = Settings ? Settings->VoxelSizeCm : 15.0f;
+	// 디버그 셀 그리드도 baked 단일 출처(Subsystem effective config)를 따라야 물리/렌더와 겹친다.
+	const float VS = UHktTerrainSubsystem::GetEffectiveVoxelSizeCm(World, 15.0f);
 	if (VS <= 0.0f) return;
 
 	for (auto It = State.Physics.CreateConstIterator(); It; ++It)

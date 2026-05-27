@@ -36,8 +36,9 @@ struct FHktVoxel
 struct HKTVOXELCORE_API FHktVoxelChunk
 {
 	static constexpr int32   SIZE       = 32;
-	// VOXEL_SIZE는 폴백 기본값 전용 — 실제 런타임 크기는 UHktRuntimeGlobalSetting::VoxelSizeCm이
-	// 단일 출처이며 FHktTerrainGeneratorConfig → FHktTerrainState / AHktVoxelTerrainActor 경로로 전파된다.
+	// VOXEL_SIZE는 폴백 기본값 전용 — 실제 런타임 크기는 baked asset 이 단일 출처이며
+	// UHktTerrainSubsystem::GetEffectiveConfig().VoxelSizeCm (baked 우선, 부재 시 주입 폴백)
+	// 으로 노출된다. 소비처는 UHktTerrainSubsystem::GetEffectiveVoxelSizeCm() 를 경유할 것.
 	static constexpr float   VOXEL_SIZE = 15.0f;   // fallback default (UU)
 
 	FHktVoxel Data[SIZE][SIZE][SIZE];  // ~128KB

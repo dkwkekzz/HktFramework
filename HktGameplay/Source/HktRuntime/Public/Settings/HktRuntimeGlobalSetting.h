@@ -41,11 +41,20 @@ public:
 	TArray<FDirectoryPath> StoryDirectories;
 
 	// === 지형 생성 ===
+	//
+	// IMPORTANT — terrain 값은 ini 비영속(Transient), baked asset 이 런타임 단일 출처.
+	//   아래 Terrain* 프로퍼티는 전부 Transient 라 .ini 에 저장/영속되지 않으며 세션마다
+	//   컴파일 기본값으로 리셋된다. 런타임 지형 스케일/형태의 단일 출처는 베이크된
+	//   `UHktTerrainBakedAsset->GeneratorConfig` 이고, 소비처는 반드시
+	//   `UHktTerrainSubsystem::GetEffectiveConfig()` (baked 우선, 부재 시 주입된 폴백) 를
+	//   경유해야 한다. 본 설정값의 역할은 (a) 베이크 시점의 시드, (b) Subsystem 부재/미베이크
+	//   환경에서의 폴백뿐이며, GameMode/Provider 가 `SetFallbackConfig` 로 주입한다.
+	//   렌더/유닛/디버그 스케일이 본 값을 직접 읽으면 baked 와 갈라진다(캐릭터 떠다님 등).
 
 	/**
 	 * 복셀 1개의 월드 크기 (cm = UE 유닛).
-	 * HktCore 시뮬레이션 / HktVoxelCore 렌더링 / 디버그 렌더러 전체가 이 값을 단일 출처로 사용.
-	 * 변경 시 런타임 리로드 필요.
+	 * 베이크 시점 시드 + 폴백 전용 — 런타임 단일 출처는 baked asset 이다
+	 * (`UHktTerrainSubsystem::GetEffectiveConfig().VoxelSizeCm`). 직접 참조 금지.
 	 */
 	UPROPERTY(EditAnywhere, Transient, Category = "Terrain", meta = (ClampMin = 1.0, ClampMax = 500.0, DisplayName = "Voxel Size (cm)"))
 	float VoxelSizeCm = 15.0f;

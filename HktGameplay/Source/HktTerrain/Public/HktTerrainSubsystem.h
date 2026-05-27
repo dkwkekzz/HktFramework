@@ -129,6 +129,16 @@ public:
 	FHktTerrainGeneratorConfig GetEffectiveConfig() const;
 
 	/**
+	 * Effective VoxelSize(cm) 단일 출처 접근자 — 렌더/유닛/디버그 스케일 일원화용.
+	 *
+	 * baked asset 의 GeneratorConfig 가 런타임 진실원이다. 글로벌 설정
+	 * (`UHktRuntimeGlobalSetting::VoxelSizeCm`) 을 직접 읽으면 baked 와 갈라져
+	 * (캐릭터 떠다님 / 충돌 셀 어긋남) 발생하므로, 모든 소비처는 본 함수를 경유한다.
+	 * Subsystem 부재(테스트/스탠드얼론) 시에만 FallbackCm 사용 (기본 = 컴파일 기본값 15cm).
+	 */
+	static float GetEffectiveVoxelSizeCm(const UObject* WorldContext, float FallbackCm = 15.0f);
+
+	/**
 	 * BakedAsset 부재 시 사용할 fallback Config 주입 (예: ProjectSettings 기반).
 	 *
 	 * HktTerrain 모듈은 HktRuntime 의존이 없으므로 `UHktRuntimeGlobalSetting` 을 직접

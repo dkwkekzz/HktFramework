@@ -205,6 +205,15 @@ FHktTerrainGeneratorConfig UHktTerrainSubsystem::GetEffectiveConfig() const
 	return FHktTerrainGeneratorConfig{};
 }
 
+float UHktTerrainSubsystem::GetEffectiveVoxelSizeCm(const UObject* WorldContext, float FallbackCm)
+{
+	if (const UHktTerrainSubsystem* Sub = Get(WorldContext))
+	{
+		return Sub->GetEffectiveConfig().VoxelSizeCm;
+	}
+	return FallbackCm;
+}
+
 void UHktTerrainSubsystem::SetFallbackConfig(const FHktTerrainGeneratorConfig& InConfig)
 {
 	const bool bAlreadySet = bInjectedFallbackConfigSet;

@@ -47,31 +47,45 @@ void AHktVoxelTerrainActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 단일 출처: UHktRuntimeGlobalSetting에서 지형 설정을 모두 읽는다
-	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
-	const FHktTerrainGeneratorConfig GenConfig = Settings->ToTerrainConfig();
-	VoxelSize  = GenConfig.VoxelSizeCm;
-	HeightMinZ = GenConfig.HeightMinZ;
-	HeightMaxZ = GenConfig.HeightMaxZ;
+	// 지형 스케일/형태의 런타임 단일 출처는 baked asset(Subsystem effective config)이다.
+	// 글로벌 설정은 Subsystem 부재(테스트/스탠드얼론) 시 폴백으로만 읽는다 — baked 와 갈라지지 않게.
+	UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this);
+	const FHktTerrainGeneratorConfig GenConfig = Sub
+		? Sub->GetEffectiveConfig()
+		: GetDefault<UHktRuntimeGlobalSetting>()->ToTerrainConfig();
 
 	// 테레인 전용 파이프라인 생성
 	TerrainCache = MakeUnique<FHktVoxelRenderCache>();
 	TerrainMeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(TerrainCache.Get());
 	TerrainMeshScheduler->SetMaxMeshPerFrame(MaxMeshPerFrame);
-	TerrainMeshScheduler->SetVoxelSize(VoxelSize);
 	TerrainMeshScheduler->SetDoubleSided(false);  // terrain은 단면 렌더링 — 삼각형 수 절반
 
+	// VoxelSize / Height 범위를 effective config 로 적용 (scheduler 생성 후 — SetVoxelSize 포함).
+	ApplyTerrainConfigScale(GenConfig);
+
 	// 청크 데이터는 UHktTerrainSubsystem 이 단일 출처. Actor 는 직접 Generator 를 보유하지 않는다.
-	// BakedAsset 이 지정되어 있으면 비동기 로드 — 완료 시 Subsystem 의
-	// OnEffectiveConfigChanged 가 발화되어 GameMode 가 Provider 를 재바인딩한다.
-	if (UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(this))
+	if (Sub)
 	{
 		if (!BakedAsset.IsNull())
 		{
 			UE_LOG(LogHktVoxelTerrain, Log,
 				TEXT("[FloatRepro] VoxelTerrainActor.BeginPlay: LoadBakedAsset 호출 (SoftRef='%s')"),
 				*BakedAsset.ToString());
-			Sub->LoadBakedAsset(BakedAsset);
+
+			// 스트리밍은 IsBakedAssetPending 동안 보류된다. 따라서 첫 청크가 메싱되기 전,
+			// 베이크 로드 완료 콜백에서 effective config(이제 baked)로 렌더 스케일을 재동기화해
+			// BeginPlay 시점의 폴백 스케일과 baked 가 갈라지는 것을 막는다.
+			TWeakObjectPtr<AHktVoxelTerrainActor> WeakThis(this);
+			Sub->LoadBakedAsset(BakedAsset,
+				[WeakThis](UHktTerrainBakedAsset* /*Loaded*/)
+				{
+					AHktVoxelTerrainActor* Self = WeakThis.Get();
+					if (!Self) return;
+					if (UHktTerrainSubsystem* S = UHktTerrainSubsystem::Get(Self))
+					{
+						Self->ApplyTerrainConfigScale(S->GetEffectiveConfig());
+					}
+				});
 		}
 		else
 		{
@@ -155,6 +169,17 @@ void AHktVoxelTerrainActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Loader.Reset();
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void AHktVoxelTerrainActor::ApplyTerrainConfigScale(const FHktTerrainGeneratorConfig& Cfg)
+{
+	VoxelSize  = Cfg.VoxelSizeCm;
+	HeightMinZ = Cfg.HeightMinZ;
+	HeightMaxZ = Cfg.HeightMaxZ;
+	if (TerrainMeshScheduler)
+	{
+		TerrainMeshScheduler->SetVoxelSize(VoxelSize);
+	}
 }
 
 void AHktVoxelTerrainActor::Tick(float DeltaTime)
