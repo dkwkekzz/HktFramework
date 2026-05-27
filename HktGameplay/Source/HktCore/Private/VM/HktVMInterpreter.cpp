@@ -4,6 +4,7 @@
 #include "HktVMProgram.h"
 #include "HktVMContext.h"
 #include "HktVMWorldStateProxy.h"
+#include "VM/HktVMExecTrace.h"
 #include "HktCoreEvents.h"
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
@@ -12,6 +13,67 @@
 #include "HktSimulationTick.h"
 
 DECLARE_CYCLE_STAT(TEXT("VMInterpreter.Execute"), STAT_HktCore_VMInterpreter, STATGROUP_HktCore);
+
+// ============================================================================
+// VM 실행 추적 구현 — ensure 실패 시 WorldState 가 현재 Story/opcode/레지스터를
+// 메시지에 첨부할 수 있도록 한다. DO_ENSURE 빌드에서만 컴파일된다.
+// ============================================================================
+
+#if DO_ENSURE
+namespace HktVMExecTrace
+{
+    // 단일 스레드 결정론 시뮬레이션이지만 서버/클라가 별도 스레드일 수 있어 thread_local.
+    static thread_local const FScope* GTop = nullptr;
+
+    FScope::FScope(const FHktVMRuntime& InRuntime)
+        : Runtime(&InRuntime), Prev(GTop)
+    {
+        GTop = this;
+    }
+
+    FScope::~FScope()
+    {
+        GTop = Prev;
+    }
+
+    FString DescribeCurrent()
+    {
+        const FScope* S = GTop;
+        if (!S || !S->Runtime)
+            return TEXT("VM=<실행 외부 — Story/opcode 컨텍스트 없음>");
+
+        const FHktVMRuntime& RT = *S->Runtime;
+        // 디스패치가 PC 를 선증가하므로(Code[PC]; PC++; Execute) 현재 명령은 PC-1.
+        // 엔티티 ensure 를 유발하는 opcode 는 PC 를 변경하지 않아 이 재구성이 정확하다.
+        const int32 InstIdx = RT.PC - 1;
+
+        const TCHAR* OpName = TEXT("?");
+        int32 Line = -1, Dst = -1, Src1 = -1, Src2 = -1, Imm12 = -1;
+        if (RT.Program && RT.Program->Code.IsValidIndex(InstIdx))
+        {
+            const FInstruction& I = RT.Program->Code[InstIdx];
+            OpName = GetOpCodeName(I.GetOpCode());
+            Dst = static_cast<int32>(I.Dst);
+            Src1 = static_cast<int32>(I.Src1);
+            Src2 = static_cast<int32>(I.Src2);
+            Imm12 = static_cast<int32>(I.Imm12);
+            if (RT.Program->LineNumbers.IsValidIndex(InstIdx))
+                Line = RT.Program->LineNumbers[InstIdx];
+        }
+
+        return FString::Printf(
+            TEXT("VM[Story=%s OpCode=%s PC=%d SrcLine=%d | Self=%d Target=%d Spawned=%d Hit=%d Iter=%d ")
+            TEXT("| Dst=R%d Src1=R%d Src2=R%d Imm12=%d PlayerUid=%lld]"),
+            RT.Program ? *RT.Program->Tag.ToString() : TEXT("?"),
+            OpName, InstIdx, Line,
+            RT.Registers[Reg::Self], RT.Registers[Reg::Target], RT.Registers[Reg::Spawned],
+            RT.Registers[Reg::Hit], RT.Registers[Reg::Iter],
+            Dst, Src1, Src2, Imm12,
+            static_cast<long long>(RT.PlayerUid));
+    }
+}
+#endif // DO_ENSURE
+
 
 void FHktVMInterpreter::Initialize(FHktWorldState* InWorldState, FHktVMWorldStateProxy* InVMProxy,
                                    FHktTerrainState* InTerrainState, TArray<FHktVoxelDelta>* InPendingVoxelDeltas)
@@ -31,6 +93,9 @@ EVMStatus FHktVMInterpreter::Execute(FHktVMRuntime& Runtime)
 
     if (Runtime.Status == EVMStatus::WaitingEvent)
         return EVMStatus::WaitingEvent;
+
+    // ensure 실패 시 현재 Story/opcode 를 메시지에 첨부하기 위한 진단 스코프.
+    HKT_VM_TRACE_SCOPE(Runtime);
 
     const FHktVMProgram& Program = *Runtime.Program;
     int32 InstructionCount = 0;
@@ -449,6 +514,9 @@ bool FHktVMInterpreter::ExecutePrecondition(
     // Interpreter (WorldState 읽기 전용 — VMProxy=nullptr)
     FHktVMInterpreter Interpreter;
     Interpreter.Initialize(const_cast<FHktWorldState*>(&WorldState), nullptr);
+
+    // precondition 실행도 동일하게 추적 (중첩 시 링크드 스택으로 보존).
+    HKT_VM_TRACE_SCOPE(TempRuntime);
 
     // 실행 (최대 1000 instructions)
     constexpr int32 MaxPreconditionInstructions = 1000;

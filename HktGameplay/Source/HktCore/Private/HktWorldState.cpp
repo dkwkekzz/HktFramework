@@ -7,6 +7,7 @@
 #include "HktCoreLog.h"
 #include "HktCoreEventLog.h"
 #include "HktCoreStats.h"
+#include "VM/HktVMExecTrace.h"
 
 DECLARE_CYCLE_STAT(TEXT("WorldState.CopyFrom"),     STAT_HktCore_WorldStateCopy,     STATGROUP_HktCore);
 DECLARE_CYCLE_STAT(TEXT("WorldState.NetSerialize"), STAT_HktCore_WorldStateNetSer,   STATGROUP_HktCore);
@@ -37,9 +38,10 @@ FString FHktWorldState::DescribeInvalidEntity(FHktEntityId Id) const
         Reason = TEXT("이미 제거된 엔티티(slot 해제)");
     }
     return FString::Printf(
-        TEXT("Id=%d 사유=%s Slot=%d EntitySlots.Num=%d Frame=%lld Source=%s"),
+        TEXT("Id=%d 사유=%s Slot=%d EntitySlots.Num=%d Frame=%lld Source=%s | %s"),
         Id, Reason, Slot, EntitySlots.Num(),
-        static_cast<long long>(FrameNumber), GetLogSourceName(LogSource));
+        static_cast<long long>(FrameNumber), GetLogSourceName(LogSource),
+        *HktVMExecTrace::DescribeCurrent());
 }
 
 // ============================================================================
