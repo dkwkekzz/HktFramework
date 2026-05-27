@@ -298,22 +298,52 @@ struct HKTPRESENTATION_API FHktPresentationState
 	//
 	// `UHktPresentationSubsystem::OnTick` 이 SyncProcessors 직전에 매 프레임 갱신.
 	// 각 Processor (ActorProcessor / SpriteCrowdHost) 는 `IsEntityWithinRenderCull(Id)`
-	// 로 게이트하여 반경 밖 엔터티의 비주얼만 숨긴다 — 시뮬은 그대로 진행 (서버 권위 유지).
+	// 로 게이트한다 — ActorProcessor 는 반경 밖 Actor 를 파괴/미생성(재진입 시 재스폰),
+	// SpriteCrowdHost 는 unregister. 시뮬은 그대로 진행 (서버 권위 유지).
 	// CullRadiusSqCm <= 0 이면 컬링 비활성화 (모두 표시).
-	FVector CameraLocation = FVector::ZeroVector;
+	//
+	// CullCenter: 반경의 중심. 카메라가 따라가는 View Target(보통 조종 폰)의 위치를 사용한다 —
+	// 카메라 물리 위치(숄더/탑다운에서 캐릭터 뒤·위로 치우침)가 아니라 플레이어 캐릭터 주변에
+	// 대칭 버블을 형성하기 위함. View Target 부재 시 카메라 위치로 폴백.
+	FVector CullCenter = FVector::ZeroVector;
 	float   CullRadiusSqCm = 0.f;
 
+	// 반경 이탈 후 Actor 파괴까지의 유예 시간(초). 경계에서 진동하는 대상의 파괴/재스폰
+	// 깜빡임을 막는다 — 연속으로 이 시간만큼 반경 밖에 머문 Actor 만 파괴, 그 안에 재진입하면
+	// 타이머가 취소되어 살아남는다. 유예 중에도 정상 렌더링(숨김 없음). <=0 이면 즉시 파괴.
+	float   CullDespawnLingerSeconds = 0.f;
+
 	/**
-	 * 엔터티가 카메라 컬링 반경 안에 있는지. CullRadiusSqCm<=0 (비활성) 또는 Transform 미할당이면
-	 * true (그린다). 좌표 출처: RenderLocation (있으면) → Location 폴백.
+	 * 엔터티가 컬링 반경(CullCenter 중심) 안에 있는지. CullRadiusSqCm<=0 (비활성) 또는
+	 * Transform 미할당이면 true (그린다). 좌표 출처: RenderLocation (있으면) → Location 폴백.
+	 *
+	 * 부착(장착) 아이템은 자신의 SOA Location 이 소유자를 따라 갱신되지 않아 stale 하므로,
+	 * 소유자의 위치로 컬링한다 → 아이템 액터가 소유자와 항상 함께 스폰/파괴되어 생명주기가
+	 * 일치한다. (소유자만 파괴되고 아이템이 남아 소켓 부착이 끊긴 채 고아가 되는 문제 방지.)
 	 */
 	FORCEINLINE bool IsEntityWithinRenderCull(FHktEntityId Id) const
 	{
 		if (CullRadiusSqCm <= 0.f) return true;
-		const FHktTransformView* T = GetTransform(Id);
+		const FHktTransformView* T = GetTransform(ResolveCullAnchorEntity(Id));
 		if (!T) return true;
 		const FVector P = T->RenderLocation.Get().IsZero() ? T->Location.Get() : T->RenderLocation.Get();
-		return FVector::DistSquared(P, CameraLocation) <= CullRadiusSqCm;
+		return FVector::DistSquared(P, CullCenter) <= CullRadiusSqCm;
+	}
+
+	/**
+	 * 컬링 위치 판정에 사용할 앵커 엔터티. 부착 아이템이면 소유자 엔터티를, 그 외에는 자기 자신을
+	 * 반환한다. 소유자 Transform 이 없으면(소유자 제거 등) 자기 자신으로 폴백.
+	 */
+	FORCEINLINE FHktEntityId ResolveCullAnchorEntity(FHktEntityId Id) const
+	{
+		const FHktItemView* Item = GetItem(Id);
+		if (Item && Item->IsAttached())
+		{
+			const FHktEntityId OwnerId = static_cast<FHktEntityId>(Item->OwnerEntity.Get());
+			if (OwnerId != InvalidEntityId && GetTransform(OwnerId))
+				return OwnerId;
+		}
+		return Id;
 	}
 
 	TArray<FHktEntityId> SpawnedThisFrame;

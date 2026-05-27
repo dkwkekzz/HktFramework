@@ -22,7 +22,8 @@ public:
 	virtual void Tick(FHktPresentationState& State, float DeltaTime) override;
 	virtual void Sync(FHktPresentationState& State) override;
 	virtual void Teardown() override;
-	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty() || !PendingLoads.IsEmpty() || !PendingInitialForward.IsEmpty(); }
+	// DeferredSpawns 가 비어있지 않으면 — 카메라 이동만으로도 반경 재진입 스폰을 평가해야 하므로 — 매 프레임 Sync 필요.
+	virtual bool NeedsTick() const override { return !ActorMap.IsEmpty() || !PendingLoads.IsEmpty() || !PendingInitialForward.IsEmpty() || !DeferredSpawns.IsEmpty(); }
 
 	AActor* GetActor(FHktEntityId Id) const;
 
@@ -46,6 +47,21 @@ private:
 
 	/** 스폰 콜백 완료 후 최초 Apply* (bForce=true) 대기 */
 	TSet<FHktEntityId> PendingInitialForward;
+
+	/**
+	 * 카메라 컬링 반경 밖이라 Actor 스폰을 보류한 엔터티.
+	 * 에셋은 해석되었으나(ResolvedAssetPath 유효) 반경 밖이라 SpawnActor 를 생략한 항목,
+	 * 또는 반경 이탈로 Actor 를 파괴한 항목이 적재된다. 매 Sync 마다 반경 재진입을 평가하여
+	 * 진입 시 스폰한다. 엔터티 상태(SOA)는 서버 권위로 계속 유지되며 여기엔 영향 없음.
+	 */
+	TSet<FHktEntityId> DeferredSpawns;
+
+	/**
+	 * 반경을 벗어난 Actor 의 이탈 시작 시각(World TimeSeconds). 파괴 유예 타이머.
+	 * 연속으로 State.CullDespawnLingerSeconds 만큼 반경 밖에 머물면 파괴, 그 전에 재진입하면
+	 * 항목이 제거되어 살아남는다 → 경계 진동 시 깜빡임 방지. 유예 중에도 정상 렌더링.
+	 */
+	TMap<FHktEntityId, double> DespawnLingerStart;
 
 	/** 비동기 콜백에서 this 유효성 확인용 (Teardown 시 리셋) */
 	TSharedPtr<bool> AliveGuard = MakeShared<bool>(true);

@@ -37,12 +37,22 @@ static TAutoConsoleVariable<int32> CVarSelectionDebugDraw(
 	ECVF_Default);
 
 // hkt.Presentation.RenderCullRadius — 클라 렌더 한정 카메라 거리 컬링 반경 (cm).
-// 0 또는 음수면 비활성. 시뮬은 영향받지 않음 (서버 권위 유지) — 엔터티는 그대로 존재하되
-// 반경 밖이면 ActorProcessor / SpriteCrowdHost 가 hide / unregister 처리.
+// 0 또는 음수면 비활성. 시뮬은 영향받지 않음 (서버 권위 유지) — 엔터티 상태는 그대로 존재하되
+// 반경 밖이면 ActorProcessor 는 Actor 를 파괴/미생성(반경 재진입 시 재스폰),
+// SpriteCrowdHost 는 unregister 처리.
 static TAutoConsoleVariable<float> CVarRenderCullRadius(
 	TEXT("hkt.Presentation.RenderCullRadius"),
 	3000.f,
 	TEXT("Client-side render cull radius around camera in centimeters. <=0 disables culling."),
+	ECVF_Default);
+
+// hkt.Presentation.RenderCullLingerSeconds — 반경 이탈 후 Actor 파괴까지 유예 시간(초).
+// 경계에서 진동하는 Actor 의 파괴/재스폰 깜빡임 방지. 연속으로 이 시간만큼 반경 밖에 머문
+// Actor 만 파괴된다. <=0 이면 즉시 파괴 (유예 비활성).
+static TAutoConsoleVariable<float> CVarRenderCullLingerSeconds(
+	TEXT("hkt.Presentation.RenderCullLingerSeconds"),
+	1.0f,
+	TEXT("Grace period in seconds before destroying an Actor that left the cull radius. Prevents boundary flicker. <=0 destroys immediately."),
 	ECVF_Default);
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(Tag_VFX_MoveIndicator, "VFX.Niagara.MoveIndicator");
@@ -379,7 +389,8 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 	{
 		const float CullRadius = CVarRenderCullRadius.GetValueOnGameThread();
 		State.CullRadiusSqCm = (CullRadius > 0.f) ? (CullRadius * CullRadius) : 0.f;
-		State.CameraLocation = FVector::ZeroVector;
+		State.CullDespawnLingerSeconds = CVarRenderCullLingerSeconds.GetValueOnGameThread();
+		State.CullCenter = FVector::ZeroVector;
 		if (State.CullRadiusSqCm > 0.f)
 		{
 			if (ULocalPlayer* LP = GetLocalPlayer())
@@ -388,7 +399,17 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 				{
 					if (PC->PlayerCameraManager)
 					{
-						State.CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
+						// 중심점 = 카메라가 따라가는 View Target(보통 조종 폰)의 위치.
+						// 카메라 물리 위치는 숄더/탑다운에서 캐릭터 뒤·위로 치우쳐 전방을
+						// 일찍 컬링하므로, View Target 기준으로 캐릭터 주변 대칭 버블을 만든다.
+						if (AActor* ViewTarget = PC->PlayerCameraManager->GetViewTarget())
+						{
+							State.CullCenter = ViewTarget->GetActorLocation();
+						}
+						else
+						{
+							State.CullCenter = PC->PlayerCameraManager->GetCameraLocation();
+						}
 					}
 				}
 			}
