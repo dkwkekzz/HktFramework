@@ -152,13 +152,23 @@ struct HKTCORE_API FHktWorldState
     // --- Property Access (EntityId 기반) ---
     FORCEINLINE int32 GetProperty(FHktEntityId Entity, uint16 PropId) const
     {
-        if (!ensure(IsValidEntity(Entity))) return 0;
+        if (!ensureMsgf(IsValidEntity(Entity),
+                TEXT("FHktWorldState::GetProperty — 무효 엔티티 읽기: {%s} Prop=%s(%u)"),
+                *DescribeInvalidEntity(Entity),
+                HktProperty::GetPropertyName(PropId) ? HktProperty::GetPropertyName(PropId) : TEXT("?"),
+                PropId))
+            return 0;
         return Get(EntitySlots[Entity], PropId);
     }
 
     FORCEINLINE void SetProperty(FHktEntityId Entity, uint16 PropId, int32 Value)
     {
-        if (!ensure(IsValidEntity(Entity))) return;
+        if (!ensureMsgf(IsValidEntity(Entity),
+                TEXT("FHktWorldState::SetProperty — 무효 엔티티 쓰기: {%s} Prop=%s(%u) Value=%d"),
+                *DescribeInvalidEntity(Entity),
+                HktProperty::GetPropertyName(PropId) ? HktProperty::GetPropertyName(PropId) : TEXT("?"),
+                PropId, Value))
+            return;
         Set(EntitySlots[Entity], PropId, Value);
     }
 
@@ -180,7 +190,10 @@ struct HKTCORE_API FHktWorldState
 
     FORCEINLINE void SetArchetype(FHktEntityId Entity, EHktArchetype Arch)
     {
-        if (!ensure(IsValidEntity(Entity))) return;
+        if (!ensureMsgf(IsValidEntity(Entity),
+                TEXT("FHktWorldState::SetArchetype — 무효 엔티티: {%s} Arch=%d"),
+                *DescribeInvalidEntity(Entity), static_cast<int32>(Arch)))
+            return;
         EntityArchetypes[EntitySlots[Entity]] = Arch;
     }
 
@@ -195,13 +208,19 @@ struct HKTCORE_API FHktWorldState
     // --- Owner Access ---
     FORCEINLINE int64 GetOwnerUid(FHktEntityId Entity) const
     {
-        if (!ensure(IsValidEntity(Entity))) return 0;
+        if (!ensureMsgf(IsValidEntity(Entity),
+                TEXT("FHktWorldState::GetOwnerUid — 무효 엔티티: {%s}"),
+                *DescribeInvalidEntity(Entity)))
+            return 0;
         return OwnerUids[EntitySlots[Entity]];
     }
 
     FORCEINLINE void SetOwnerUid(FHktEntityId Entity, int64 Uid)
     {
-        if (!ensure(IsValidEntity(Entity))) return;
+        if (!ensureMsgf(IsValidEntity(Entity),
+                TEXT("FHktWorldState::SetOwnerUid — 무효 엔티티: {%s} Uid=%lld"),
+                *DescribeInvalidEntity(Entity), static_cast<long long>(Uid)))
+            return;
         OwnerUids[EntitySlots[Entity]] = Uid;
     }
 
@@ -267,6 +286,9 @@ private:
     int32 AllocateSlot(FHktEntityId EntityId);
     void FreeSlot(int32 Slot);
     void ClearSlotWarm(int32 Slot);
+
+    // 무효 엔티티 ensureMsgf 실패 시 "왜" 를 설명하는 진단 문자열 (실패 경로 전용).
+    FString DescribeInvalidEntity(FHktEntityId Id) const;
 
     // Cold (Warm+Overflow) 접근 헬퍼
     int32 GetCold(int32 Slot, uint16 PropId) const;

@@ -13,6 +13,36 @@ DECLARE_CYCLE_STAT(TEXT("WorldState.NetSerialize"), STAT_HktCore_WorldStateNetSe
 DECLARE_CYCLE_STAT(TEXT("WorldState.UndoDiff"),     STAT_HktCore_WorldStateUndoDiff, STATGROUP_HktCore);
 
 // ============================================================================
+// 무효 엔티티 진단 — Get/SetProperty 등의 ensureMsgf 실패 경로에서만 호출.
+// ensureMsgf 인자는 단언 실패 시에만 평가되므로 FString 빌드 비용은 핫패스에 없다.
+// ============================================================================
+
+FString FHktWorldState::DescribeInvalidEntity(FHktEntityId Id) const
+{
+    const TCHAR* Reason;
+    int32 Slot = INDEX_NONE;
+    if (Id < 0)
+    {
+        // InvalidEntityId(-1) / VoxelTargetEntityId(-2) / 미초기화 레지스터 값 등.
+        Reason = TEXT("음수 Id(미설정 레지스터 또는 sentinel)");
+    }
+    else if (Id >= EntitySlots.Num())
+    {
+        Reason = TEXT("범위 초과(Id>=EntitySlots.Num)");
+    }
+    else
+    {
+        // 슬롯 해제됨 — yield/dispatch 사이에 DestroyEntity 로 제거된 stale ID 가 흔한 원인.
+        Slot = EntitySlots[Id];
+        Reason = TEXT("이미 제거된 엔티티(slot 해제)");
+    }
+    return FString::Printf(
+        TEXT("Id=%d 사유=%s Slot=%d EntitySlots.Num=%d Frame=%lld Source=%s"),
+        Id, Reason, Slot, EntitySlots.Num(),
+        static_cast<long long>(FrameNumber), GetLogSourceName(LogSource));
+}
+
+// ============================================================================
 // Cold (Warm + Overflow) Access Helpers
 // ============================================================================
 
