@@ -301,7 +301,11 @@ struct HKTPRESENTATION_API FHktPresentationState
 	// 로 게이트한다 — ActorProcessor 는 반경 밖 Actor 를 파괴/미생성(재진입 시 재스폰),
 	// SpriteCrowdHost 는 unregister. 시뮬은 그대로 진행 (서버 권위 유지).
 	// CullRadiusSqCm <= 0 이면 컬링 비활성화 (모두 표시).
-	FVector CameraLocation = FVector::ZeroVector;
+	//
+	// CullCenter: 반경의 중심. 카메라가 따라가는 View Target(보통 조종 폰)의 위치를 사용한다 —
+	// 카메라 물리 위치(숄더/탑다운에서 캐릭터 뒤·위로 치우침)가 아니라 플레이어 캐릭터 주변에
+	// 대칭 버블을 형성하기 위함. View Target 부재 시 카메라 위치로 폴백.
+	FVector CullCenter = FVector::ZeroVector;
 	float   CullRadiusSqCm = 0.f;
 
 	// 반경 이탈 후 Actor 파괴까지의 유예 시간(초). 경계에서 진동하는 대상의 파괴/재스폰
@@ -310,8 +314,8 @@ struct HKTPRESENTATION_API FHktPresentationState
 	float   CullDespawnLingerSeconds = 0.f;
 
 	/**
-	 * 엔터티가 카메라 컬링 반경 안에 있는지. CullRadiusSqCm<=0 (비활성) 또는 Transform 미할당이면
-	 * true (그린다). 좌표 출처: RenderLocation (있으면) → Location 폴백.
+	 * 엔터티가 컬링 반경(CullCenter 중심) 안에 있는지. CullRadiusSqCm<=0 (비활성) 또는
+	 * Transform 미할당이면 true (그린다). 좌표 출처: RenderLocation (있으면) → Location 폴백.
 	 */
 	FORCEINLINE bool IsEntityWithinRenderCull(FHktEntityId Id) const
 	{
@@ -319,7 +323,7 @@ struct HKTPRESENTATION_API FHktPresentationState
 		const FHktTransformView* T = GetTransform(Id);
 		if (!T) return true;
 		const FVector P = T->RenderLocation.Get().IsZero() ? T->Location.Get() : T->RenderLocation.Get();
-		return FVector::DistSquared(P, CameraLocation) <= CullRadiusSqCm;
+		return FVector::DistSquared(P, CullCenter) <= CullRadiusSqCm;
 	}
 
 	TArray<FHktEntityId> SpawnedThisFrame;

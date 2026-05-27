@@ -390,7 +390,7 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 		const float CullRadius = CVarRenderCullRadius.GetValueOnGameThread();
 		State.CullRadiusSqCm = (CullRadius > 0.f) ? (CullRadius * CullRadius) : 0.f;
 		State.CullDespawnLingerSeconds = CVarRenderCullLingerSeconds.GetValueOnGameThread();
-		State.CameraLocation = FVector::ZeroVector;
+		State.CullCenter = FVector::ZeroVector;
 		if (State.CullRadiusSqCm > 0.f)
 		{
 			if (ULocalPlayer* LP = GetLocalPlayer())
@@ -399,7 +399,17 @@ void UHktPresentationSubsystem::OnTick(float DeltaSeconds)
 				{
 					if (PC->PlayerCameraManager)
 					{
-						State.CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
+						// 중심점 = 카메라가 따라가는 View Target(보통 조종 폰)의 위치.
+						// 카메라 물리 위치는 숄더/탑다운에서 캐릭터 뒤·위로 치우쳐 전방을
+						// 일찍 컬링하므로, View Target 기준으로 캐릭터 주변 대칭 버블을 만든다.
+						if (AActor* ViewTarget = PC->PlayerCameraManager->GetViewTarget())
+						{
+							State.CullCenter = ViewTarget->GetActorLocation();
+						}
+						else
+						{
+							State.CullCenter = PC->PlayerCameraManager->GetCameraLocation();
+						}
 					}
 				}
 			}
