@@ -316,14 +316,34 @@ struct HKTPRESENTATION_API FHktPresentationState
 	/**
 	 * 엔터티가 컬링 반경(CullCenter 중심) 안에 있는지. CullRadiusSqCm<=0 (비활성) 또는
 	 * Transform 미할당이면 true (그린다). 좌표 출처: RenderLocation (있으면) → Location 폴백.
+	 *
+	 * 부착(장착) 아이템은 자신의 SOA Location 이 소유자를 따라 갱신되지 않아 stale 하므로,
+	 * 소유자의 위치로 컬링한다 → 아이템 액터가 소유자와 항상 함께 스폰/파괴되어 생명주기가
+	 * 일치한다. (소유자만 파괴되고 아이템이 남아 소켓 부착이 끊긴 채 고아가 되는 문제 방지.)
 	 */
 	FORCEINLINE bool IsEntityWithinRenderCull(FHktEntityId Id) const
 	{
 		if (CullRadiusSqCm <= 0.f) return true;
-		const FHktTransformView* T = GetTransform(Id);
+		const FHktTransformView* T = GetTransform(ResolveCullAnchorEntity(Id));
 		if (!T) return true;
 		const FVector P = T->RenderLocation.Get().IsZero() ? T->Location.Get() : T->RenderLocation.Get();
 		return FVector::DistSquared(P, CullCenter) <= CullRadiusSqCm;
+	}
+
+	/**
+	 * 컬링 위치 판정에 사용할 앵커 엔터티. 부착 아이템이면 소유자 엔터티를, 그 외에는 자기 자신을
+	 * 반환한다. 소유자 Transform 이 없으면(소유자 제거 등) 자기 자신으로 폴백.
+	 */
+	FORCEINLINE FHktEntityId ResolveCullAnchorEntity(FHktEntityId Id) const
+	{
+		const FHktItemView* Item = GetItem(Id);
+		if (Item && Item->IsAttached())
+		{
+			const FHktEntityId OwnerId = static_cast<FHktEntityId>(Item->OwnerEntity.Get());
+			if (OwnerId != InvalidEntityId && GetTransform(OwnerId))
+				return OwnerId;
+		}
+		return Id;
 	}
 
 	TArray<FHktEntityId> SpawnedThisFrame;
