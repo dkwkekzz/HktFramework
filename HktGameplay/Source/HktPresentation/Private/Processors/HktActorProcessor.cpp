@@ -111,6 +111,7 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 	{
 		PendingLoads.Remove(Id);
 		PendingInitialForward.Remove(Id);
+		DeferredSpawns.Remove(Id);
 		if (TWeakObjectPtr<AActor>* P = ActorMap.Find(Id))
 		{
 			if (AActor* A = P->Get())
@@ -120,6 +121,8 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 	}
 
 	// --- 2. 스폰: ResolvedAssetPath가 설정된 엔티티 ---
+	//     카메라 컬링 반경 밖이면 SpawnActor 자체를 생략하고 DeferredSpawns 에 보류한다.
+	//     (반경 밖 Actor 를 만들어두고 숨기는 대신, 아예 생성하지 않음 → 반경 재진입 시 스폰.)
 	auto TrySpawn = [this, &State](FHktEntityId Id)
 	{
 		const FHktEntityMeta* M = State.GetMeta(Id);
@@ -127,6 +130,12 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 		if (ActorMap.Contains(Id)) return;
 		const FHktVisualizationView* V = State.GetVisualization(Id);
 		if (!V || V->ResolvedAssetPath.Get().IsNull()) return;
+		if (!State.IsEntityWithinRenderCull(Id))
+		{
+			DeferredSpawns.Add(Id);
+			return;
+		}
+		DeferredSpawns.Remove(Id);
 		SpawnActorFromResolvedAsset(Id, State);
 	};
 
@@ -137,6 +146,31 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 	{
 		if (!ActorMap.Contains(Id))
 			TrySpawn(Id);
+	}
+
+	// 보류 엔터티 재평가 — 정지한 엔터티는 더티가 아니므로 위 루프에 잡히지 않는다.
+	// 카메라 이동으로 반경에 재진입한 항목을 매 프레임 여기서 스폰한다.
+	for (auto It = DeferredSpawns.CreateIterator(); It; ++It)
+	{
+		const FHktEntityId Id = *It;
+		const FHktEntityMeta* M = State.GetMeta(Id);
+		if (!M || !M->IsAlive() || M->RenderCategory != EHktRenderCategory::Actor)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		if (ActorMap.Contains(Id))
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		if (!State.IsEntityWithinRenderCull(Id))
+			continue; // 아직 반경 밖 — 보류 유지
+		const FHktVisualizationView* V = State.GetVisualization(Id);
+		if (!V || V->ResolvedAssetPath.Get().IsNull())
+			continue;
+		It.RemoveCurrent();
+		SpawnActorFromResolvedAsset(Id, State);
 	}
 
 	// --- 3. Actor가 방금 스폰된 엔터티 목록 (bForce=true 강제 적용) ---
@@ -296,19 +330,27 @@ void FHktActorProcessor::Sync(FHktPresentationState& State)
 
 	// --- 6. 매 프레임 Transform 적용 + 카메라 거리 컬링 (모든 Actor) ---
 	SCOPE_CYCLE_COUNTER(STAT_HktPres_ActorApplyTransform);
-	for (auto& [Id, WeakActor] : ActorMap)
+	for (auto It = ActorMap.CreateIterator(); It; ++It)
 	{
-		AActor* A = WeakActor.Get();
-		if (!A) continue;
-
-		// 카메라 거리 컬링 — 반경 밖 Actor 는 hidden 처리. 시뮬은 그대로 진행됨.
-		// CullRadiusSqCm<=0 면 IsEntityWithinRenderCull 가 true 반환 → 컬링 비활성과 동일.
-		const bool bWithin = State.IsEntityWithinRenderCull(Id);
-		if (A->IsHidden() == bWithin)
+		const FHktEntityId Id = It->Key;
+		AActor* A = It->Value.Get();
+		if (!A)
 		{
-			A->SetActorHiddenInGame(!bWithin);
+			It.RemoveCurrent();
+			continue;
 		}
-		if (!bWithin) continue;  // 숨겨진 Actor 는 Transform 적용도 생략 (cost 절약).
+
+		// 카메라 거리 컬링 — 반경 밖 Actor 는 파괴하고 DeferredSpawns 에 재적재한다.
+		// (숨기는 대신 제거 → 메모리/틱/콜리전 비용 제거. 시뮬은 서버 권위로 그대로 진행됨.)
+		// CullRadiusSqCm<=0 면 IsEntityWithinRenderCull 가 true 반환 → 컬링 비활성과 동일.
+		if (!State.IsEntityWithinRenderCull(Id))
+		{
+			A->Destroy();
+			PendingInitialForward.Remove(Id);
+			DeferredSpawns.Add(Id); // 반경 재진입 시 재스폰
+			It.RemoveCurrent();
+			continue;
+		}
 
 		const FHktTransformView* T = State.GetTransform(Id);
 		if (!T) continue;
@@ -418,6 +460,7 @@ void FHktActorProcessor::Teardown()
 	ActorMap.Empty();
 	PendingLoads.Empty();
 	PendingInitialForward.Empty();
+	DeferredSpawns.Empty();
 }
 
 AActor* FHktActorProcessor::GetActor(FHktEntityId Id) const

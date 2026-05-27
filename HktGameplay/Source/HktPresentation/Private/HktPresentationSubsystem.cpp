@@ -37,8 +37,9 @@ static TAutoConsoleVariable<int32> CVarSelectionDebugDraw(
 	ECVF_Default);
 
 // hkt.Presentation.RenderCullRadius — 클라 렌더 한정 카메라 거리 컬링 반경 (cm).
-// 0 또는 음수면 비활성. 시뮬은 영향받지 않음 (서버 권위 유지) — 엔터티는 그대로 존재하되
-// 반경 밖이면 ActorProcessor / SpriteCrowdHost 가 hide / unregister 처리.
+// 0 또는 음수면 비활성. 시뮬은 영향받지 않음 (서버 권위 유지) — 엔터티 상태는 그대로 존재하되
+// 반경 밖이면 ActorProcessor 는 Actor 를 파괴/미생성(반경 재진입 시 재스폰),
+// SpriteCrowdHost 는 unregister 처리.
 static TAutoConsoleVariable<float> CVarRenderCullRadius(
 	TEXT("hkt.Presentation.RenderCullRadius"),
 	3000.f,

@@ -298,7 +298,8 @@ struct HKTPRESENTATION_API FHktPresentationState
 	//
 	// `UHktPresentationSubsystem::OnTick` 이 SyncProcessors 직전에 매 프레임 갱신.
 	// 각 Processor (ActorProcessor / SpriteCrowdHost) 는 `IsEntityWithinRenderCull(Id)`
-	// 로 게이트하여 반경 밖 엔터티의 비주얼만 숨긴다 — 시뮬은 그대로 진행 (서버 권위 유지).
+	// 로 게이트한다 — ActorProcessor 는 반경 밖 Actor 를 파괴/미생성(재진입 시 재스폰),
+	// SpriteCrowdHost 는 unregister. 시뮬은 그대로 진행 (서버 권위 유지).
 	// CullRadiusSqCm <= 0 이면 컬링 비활성화 (모두 표시).
 	FVector CameraLocation = FVector::ZeroVector;
 	float   CullRadiusSqCm = 0.f;
