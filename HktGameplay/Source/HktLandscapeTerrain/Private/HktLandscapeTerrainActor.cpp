@@ -11,6 +11,7 @@
 
 #include "HktTerrainGenerator.h"        // FHktTerrainPreviewRegion 정의
 #include "HktTerrainSubsystem.h"
+#include "HktTerrainStagedBaker.h"
 #include "Settings/HktRuntimeGlobalSetting.h"
 
 AHktLandscapeTerrainActor::AHktLandscapeTerrainActor()
@@ -101,43 +102,49 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 		return;
 	}
 
-	// 1. UHktTerrainSubsystem 단일 출처 — Voxel/Sprite Actor 와 동일 경로.
-	//    Subsystem 부재 시 (ShouldCreateSubsystem 가 false 인 비-게임 World) 폴백 없이 종료.
-	UHktTerrainSubsystem* Sub = UHktTerrainSubsystem::Get(World);
-	if (!Sub)
+	// 1. effective VoxelSize 결정 + (레거시) Subsystem 단일 출처 준비.
+	//    스테이지드 베이커(저작 경로, I-0049)는 voxel bottom-up Subsystem 없이도 동작한다 —
+	//    VoxelSize 만 좌표 정렬용으로 정적 접근자(Subsystem 부재 시 인자 폴백)로 조회한다.
+	UHktTerrainSubsystem* Sub = nullptr;
+	if (bUseStagedBaker)
 	{
-		UE_LOG(LogHktLandscapeTerrain, Warning,
-			TEXT("[%s] UHktTerrainSubsystem 부재 — Landscape 생성을 건너뜁니다 (World 타입 확인)."), *GetName());
-		return;
+		VoxelSize = UHktTerrainSubsystem::GetEffectiveVoxelSizeCm(World, VoxelSize);
+	}
+	else
+	{
+		// 1a. UHktTerrainSubsystem 단일 출처 — Voxel/Sprite Actor 와 동일 경로.
+		//     Subsystem 부재 시 (ShouldCreateSubsystem 가 false 인 비-게임 World) 폴백 없이 종료.
+		Sub = UHktTerrainSubsystem::Get(World);
+		if (!Sub)
+		{
+			UE_LOG(LogHktLandscapeTerrain, Warning,
+				TEXT("[%s] UHktTerrainSubsystem 부재 — Landscape 생성을 건너뜁니다 (World 타입 확인)."), *GetName());
+			return;
+		}
+
+		// 1b. UHktRuntimeGlobalSetting 기반 fallback Config 주입 (idempotent).
+		const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+		if (!Settings)
+		{
+			UE_LOG(LogHktLandscapeTerrain, Error, TEXT("[%s] UHktRuntimeGlobalSetting CDO 접근 실패"), *GetName());
+			return;
+		}
+		Sub->SetFallbackConfig(Settings->ToTerrainConfig());
+
+		// 1c. BakedAsset 동기 로드 — GetEffectiveConfig() 가 베이크 시점과 동일 Config 를 반환하도록.
+		if (!BakedAsset.IsNull())
+		{
+			Sub->LoadBakedAssetSync(BakedAsset);
+		}
+
+		// 1d. Effective Config 조회 — VoxelSize/Min/Max 미러 동기화 (BakedAsset 우선, 부재 시 fallback).
+		const FHktTerrainGeneratorConfig EffectiveCfg = Sub->GetEffectiveConfig();
+		VoxelSize  = EffectiveCfg.VoxelSizeCm;
+		HeightMinZ = EffectiveCfg.HeightMinZ;
+		HeightMaxZ = EffectiveCfg.HeightMaxZ;
 	}
 
-	// 2. UHktRuntimeGlobalSetting 기반 fallback Config 주입 (idempotent).
-	//    - PIE/Game: GameMode::InitGame 에서 먼저 주입했어도 SetFallbackConfig 는 동일값이면 no-op.
-	//    - Editor (RegenerateLandscape): GameMode 가 없으므로 본 호출이 effective Config 를 채운다.
-	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
-	if (!Settings)
-	{
-		UE_LOG(LogHktLandscapeTerrain, Error, TEXT("[%s] UHktRuntimeGlobalSetting CDO 접근 실패"), *GetName());
-		return;
-	}
-	Sub->SetFallbackConfig(Settings->ToTerrainConfig());
-
-	// 3. BakedAsset 이 지정되어 있다면 동기 로드 — InitializeLandscape 는 BeginPlay 1회 호출이고
-	//    바로 아래 GetEffectiveConfig() 가 BakedAsset->GeneratorConfig 를 반환해야 SamplePreview
-	//    가 베이크 시점과 동일한 Config 로 하이트맵을 산출한다. 비동기로 두면 첫 PIE 에서
-	//    InjectedFallbackConfig 로 랜드스케이프가 생성되어 베이크 결과와 외형이 어긋난다.
-	if (!BakedAsset.IsNull())
-	{
-		Sub->LoadBakedAssetSync(BakedAsset);
-	}
-
-	// 4. Effective Config 조회 — VoxelSize/Min/Max 미러 동기화 (BakedAsset 우선, 부재 시 fallback).
-	const FHktTerrainGeneratorConfig EffectiveCfg = Sub->GetEffectiveConfig();
-	VoxelSize  = EffectiveCfg.VoxelSizeCm;
-	HeightMinZ = EffectiveCfg.HeightMinZ;
-	HeightMaxZ = EffectiveCfg.HeightMaxZ;
-
-	// 4b. Landscape 스케일을 effective VoxelSize 에 강제 정렬 — voxel/HktCore 정렬 불변식(invariant).
+	// 2. Landscape 스케일을 effective VoxelSize 에 강제 정렬 — voxel/HktCore 정렬 불변식(invariant).
 	//     하이트맵은 '정점 1개 = 월드 복셀 1개' 로 샘플링되므로(SamplePreview 가 복셀 단위로 스텝),
 	//     1 quad 의 월드 폭(LandscapeScale.XY)도 반드시 VoxelSize 여야 voxel/HktCore 좌표계
 	//     (world cm = voxel * VoxelSize)와 정확히 겹친다. XY 가 VoxelSize 와 다르면
@@ -163,22 +170,56 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 	HeightmapVertsY = ComponentCountY * QuadsPerComponent + 1;
 	const int32 NumSamples = HeightmapVertsX * HeightmapVertsY;
 
-	// 7. 2D 하이트 + 바이옴 샘플링 — Subsystem 경유 (Effective Config 기반 결정론적 결과).
-	//    Subsystem 내부에서 EnsureFallbackGenerator() 가 baked/fallback Config 우선순위를 적용한다.
+	// 7. Region.Samples 산출 — 스테이지드 베이커(저작, heightfield-canonical) 또는
+	//    SamplePreview(voxel bottom-up 투영). 어느 쪽이든 이후 인코딩/레이어/Import 경로는 공유.
 	FHktTerrainPreviewRegion Region;
-	Sub->SamplePreview(
-		LandscapeOriginWorldVoxels.X,
-		LandscapeOriginWorldVoxels.Y,
-		HeightmapVertsX,
-		HeightmapVertsY,
-		Region);
-
-	if (Region.Samples.Num() != NumSamples)
+	if (bUseStagedBaker)
 	{
-		UE_LOG(LogHktLandscapeTerrain, Error,
-			TEXT("[%s] SamplePreview 결과 크기 불일치: 기대 %d, 실제 %d"),
-			*GetName(), NumSamples, Region.Samples.Num());
-		return;
+		const FHktTerrainStagedBaker Baker(Theme);
+		FHktTerrainBakeField Field;
+		Baker.BakeRegion(
+			LandscapeOriginWorldVoxels.X, LandscapeOriginWorldVoxels.Y,
+			HeightmapVertsX, HeightmapVertsY, Field);
+
+		if (Field.Elevation.Num() != NumSamples)
+		{
+			UE_LOG(LogHktLandscapeTerrain, Error,
+				TEXT("[%s] StagedBaker 결과 크기 불일치: 기대 %d, 실제 %d"),
+				*GetName(), NumSamples, Field.Elevation.Num());
+			return;
+		}
+
+		// 정규화 고도 [0,1] → 표면 복셀 높이 [Base, Base+Relief]. 바이옴은 그대로 전달
+		// (기존 uint16 인코딩 / Paint Layer 가중치 경로를 그대로 재사용).
+		Region.MinWorldX = LandscapeOriginWorldVoxels.X;
+		Region.MinWorldY = LandscapeOriginWorldVoxels.Y;
+		Region.Width  = HeightmapVertsX;
+		Region.Height = HeightmapVertsY;
+		Region.Samples.SetNum(NumSamples);
+		for (int32 i = 0; i < NumSamples; ++i)
+		{
+			Region.Samples[i].SurfaceHeightVoxels =
+				StagedBaseVoxels + FMath::RoundToInt(Field.Elevation[i] * static_cast<float>(StagedReliefVoxels));
+			Region.Samples[i].BiomeId = Field.BiomeId[i];
+		}
+	}
+	else
+	{
+		// Subsystem 경유 — EnsureFallbackGenerator() 가 baked/fallback Config 우선순위를 적용한다.
+		Sub->SamplePreview(
+			LandscapeOriginWorldVoxels.X,
+			LandscapeOriginWorldVoxels.Y,
+			HeightmapVertsX,
+			HeightmapVertsY,
+			Region);
+
+		if (Region.Samples.Num() != NumSamples)
+		{
+			UE_LOG(LogHktLandscapeTerrain, Error,
+				TEXT("[%s] SamplePreview 결과 크기 불일치: 기대 %d, 실제 %d"),
+				*GetName(), NumSamples, Region.Samples.Num());
+			return;
+		}
 	}
 
 	// 6. SurfaceHeightVoxels → uint16 하이트맵 변환
@@ -308,12 +349,13 @@ void AHktLandscapeTerrainActor::InitializeLandscape()
 
 	if (bLogGenerationStats)
 	{
+		const TCHAR* Source = bUseStagedBaker
+			? TEXT("StagedBaker")
+			: ((Sub && Sub->GetBakedAsset()) ? TEXT("Subsystem(BakedConfig)") : TEXT("Subsystem(Fallback)"));
 		UE_LOG(LogHktLandscapeTerrain, Log,
-			TEXT("[%s] Landscape 생성 완료: Verts=%dx%d Components=%dx%d QuadsPerSection=%d Layers=%d Advanced=%s Source=%s"),
+			TEXT("[%s] Landscape 생성 완료: Verts=%dx%d Components=%dx%d QuadsPerSection=%d Layers=%d Source=%s"),
 			*GetName(), HeightmapVertsX, HeightmapVertsY,
 			ComponentCountX, ComponentCountY, QuadsPerSection,
-			LayerCount,
-			EffectiveCfg.bAdvancedTerrain ? TEXT("true") : TEXT("false"),
-			Sub->GetBakedAsset() ? TEXT("Subsystem(BakedConfig)") : TEXT("Subsystem(Fallback)"));
+			LayerCount, Source);
 	}
 }

@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "HktBiomeLandscapeLayer.h"
 #include "HktTerrainBakedAsset.h"
+#include "HktTerrainStagedBaker.h"
 #include "HktLandscapeTerrainActor.generated.h"
 
 class ALandscape;
@@ -97,6 +98,28 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|Bake")
 	TSoftObjectPtr<UHktTerrainBakedAsset> BakedAsset;
+
+	// === 스테이지드 베이커 (I-0049, 시각 그럴듯함 첫 컷) ===
+
+	/**
+	 * true 면 SamplePreview(voxel bottom-up) 대신 FHktTerrainStagedBaker 로
+	 * climate→skeleton→base→erosion→biome 파이프라인을 돌려 하이트맵/바이옴을 산출한다.
+	 * RegenerateLandscape 로 에디터에서 즉시 확인 가능. (저작 경로 — 결정론 무관, D1)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|StagedBaker")
+	bool bUseStagedBaker = false;
+
+	/** Stage 0 테마 스펙 — 위도/강수/대륙성/산맥/침식 노브. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|StagedBaker", meta = (EditCondition = "bUseStagedBaker"))
+	FHktTerrainThemeSpec Theme;
+
+	/** elev01==0 (해저 최저) 에 대응하는 표면 복셀 높이. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|StagedBaker", meta = (EditCondition = "bUseStagedBaker", ClampMin = "0"))
+	int32 StagedBaseVoxels = 16;
+
+	/** elev01 [0,1] 을 펼칠 수직 복셀 폭. 클수록 기복이 과장된다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HktLandscape|StagedBaker", meta = (EditCondition = "bUseStagedBaker", ClampMin = "1"))
+	int32 StagedReliefVoxels = 160;
 
 	// === 런타임 미러 (UHktRuntimeGlobalSetting 에서 초기화) ===
 
