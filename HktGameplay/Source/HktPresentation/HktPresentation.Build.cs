@@ -46,7 +46,6 @@ public class HktPresentation : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"DeveloperSettings"
 			}
 		);
 		

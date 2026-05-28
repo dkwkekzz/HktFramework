@@ -17,6 +17,7 @@ class UHktVoxelChunkComponent;
 class UHktVoxelTileAtlas;
 class UHktVoxelMaterialLUT;
 class UHktVoxelTerrainStyleSet;
+struct FHktTerrainGeneratorConfig;
 
 /**
  * AHktVoxelTerrainActor
@@ -117,8 +118,8 @@ public:
 
 	/**
 	 * 테레인 높이 범위 — Z축 청크 좌표 [MinZ, MaxZ].
-	 * BeginPlay에서 UHktRuntimeGlobalSetting에서 읽어 초기화된다 (시뮬레이션과 공유).
-	 * 직접 편집 불가 — 전역 설정이 단일 출처.
+	 * BeginPlay + 베이크 로드 완료 시 effective config 에서 읽어 초기화된다 (시뮬레이션과 공유).
+	 * 직접 편집 불가 — baked asset 이 런타임 단일 출처.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HktTerrain|Streaming", Transient)
 	int32 HeightMinZ = 0;
@@ -194,8 +195,8 @@ public:
 
 	/**
 	 * 복셀 1개의 월드 크기 (UE 유닛).
-	 * BeginPlay에서 UHktRuntimeGlobalSetting::VoxelSizeCm에서 읽어 초기화된다.
-	 * 직접 편집 불가 — 전역 설정이 단일 출처.
+	 * BeginPlay + 베이크 로드 완료 시 `UHktTerrainSubsystem::GetEffectiveConfig()` (baked 우선)
+	 * 에서 읽어 (재)초기화된다. 직접 편집 불가 — baked asset 이 런타임 단일 출처.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HktTerrain|Rendering", Transient)
 	float VoxelSize = 15.0f;
@@ -286,6 +287,12 @@ private:
 
 	/** UPROPERTY 변경이 즉시 반영되도록 매 Tick 로더에 Config 주입 */
 	void SyncLoaderParams();
+
+	/**
+	 * 지형 스케일(VoxelSize / Height 범위)을 effective config 로 (재)적용.
+	 * BeginPlay 와 베이크 로드 완료 콜백에서 호출 — baked 와 렌더 스케일이 갈라지지 않게 한다.
+	 */
+	void ApplyTerrainConfigScale(const FHktTerrainGeneratorConfig& Cfg);
 
 	/** 컴포넌트 풀 관리 */
 	UHktVoxelChunkComponent* AcquireComponent();
