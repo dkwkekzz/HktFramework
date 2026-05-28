@@ -1,7 +1,8 @@
 # 테마 기반 cell×step 절차적 지형 베이크 파이프라인
 
 > 의도: [I-0049](intents/I-0049.md) (부모 [I-0025](intents/I-0025.md) → [I-0011](intents/I-0011.md))
-> 상태: 설계 (구현 대기)
+> 상태: 설계 + Stage 1~5 첫 컷 구현 (Landmark/Scatter/Evaluator·cell 타일링·파일 영속화 후속)
+> 사용법: [Guide-Terrain-Staged-Baker.md](Guide-Terrain-Staged-Baker.md)
 > 최종 수정: 2026-05-27
 
 하나의 *주제* 를 입력하면 세계를 **cell** 격자로 나누고, **step 별 패스** 로 각 cell 의
