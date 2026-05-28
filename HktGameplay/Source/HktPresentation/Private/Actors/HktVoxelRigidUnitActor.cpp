@@ -7,7 +7,7 @@
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
-#include "HktTerrainSubsystem.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 #include "Components/SkeletalMeshComponent.h"
 
 void AHktVoxelRigidUnitActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -94,8 +94,9 @@ void AHktVoxelRigidUnitActor::InitializeBoneChunks(const TArray<FHktVoxelBoneGro
 		MeshScheduler->SetMaxMeshPerFrame(4);
 	}
 
-	// 단일 출처: baked asset(Subsystem effective config). 글로벌 설정 직접 참조 금지.
-	const float VoxelSize = UHktTerrainSubsystem::GetEffectiveVoxelSizeCm(this, FHktVoxelChunk::VOXEL_SIZE);
+	// 단일 출처: UHktRuntimeGlobalSetting::VoxelSizeCm
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	const float VoxelSize = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
 
 	int32 BoneIndex = 0;
 	for (const FHktVoxelBoneGroup& BoneGroup : BoneGroups)

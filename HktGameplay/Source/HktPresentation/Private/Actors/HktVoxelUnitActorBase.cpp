@@ -10,7 +10,7 @@
 #include "Data/HktVoxelRenderCache.h"
 #include "Data/HktVoxelTypes.h"
 #include "Meshing/HktVoxelMeshScheduler.h"
-#include "HktTerrainSubsystem.h"
+#include "Settings/HktRuntimeGlobalSetting.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayTagContainer.h"
 
@@ -44,8 +44,8 @@ void AHktVoxelUnitActorBase::BeginPlay()
 
 	EntityRenderCache = MakeShared<FHktVoxelRenderCache>();
 
-	// 유닛 렌더 스케일도 지형과 동일한 baked 단일 출처를 따른다 — 글로벌 설정 직접 참조 금지.
-	const float VoxelSizeCm = UHktTerrainSubsystem::GetEffectiveVoxelSizeCm(this, FHktVoxelChunk::VOXEL_SIZE);
+	const UHktRuntimeGlobalSetting* Settings = GetDefault<UHktRuntimeGlobalSetting>();
+	const float VoxelSizeCm = Settings ? Settings->VoxelSizeCm : FHktVoxelChunk::VOXEL_SIZE;
 
 	MeshScheduler = MakeUnique<FHktVoxelMeshScheduler>(EntityRenderCache.Get());
 	MeshScheduler->SetMaxMeshPerFrame(1);
