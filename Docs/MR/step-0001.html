@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>step-0001 · 무엇을 만들려는가</title>
+<style>
+  :root{
+    --ink:#1d1d1b; --sub:#6b6b66; --line:#e4e4df; --line2:#cfcfc8;
+    --bg:#fbfbf9; --card:#ffffff; --accent:#1d1d1b;
+    --E:#d9534f; --rho:#3a8f4f; --T:#3b6fb0; --A:#8b5cb8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:880px;margin:0 auto;padding:48px 24px 80px}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:-.01em}
+  .tag{color:var(--sub);font-size:14px;margin-bottom:28px}
+  blockquote{margin:0 0 22px;padding:14px 18px;background:#fff;border-left:3px solid var(--ink);
+    border-radius:0 8px 8px 0;font-size:15px}
+  blockquote b{font-weight:700}
+  .stance{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 34px}
+  .stance div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px;font-size:14px}
+  .stance b{display:block;margin-bottom:3px}
+  h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);
+    margin:46px 0 16px;font-weight:700}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--sub);
+    border:1px dashed var(--line2);border-radius:10px;padding:10px 14px;margin-bottom:26px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+  .el{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin-bottom:18px;display:grid;grid-template-columns:330px 1fr;gap:22px;align-items:start}
+  .el .viz{position:sticky;top:16px}
+  .el svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .el .analogy{font-size:13px;color:var(--sub);margin-top:8px;text-align:center}
+  .el .analogy b{color:var(--ink)}
+  .hd{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .num{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:13px;
+    font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .name{font-size:19px;font-weight:700}
+  .en{color:var(--sub);font-size:13px;font-weight:400}
+  .badge{font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:20px;margin-left:auto;flex:0 0 auto}
+  .gen{background:var(--ink);color:#fff}
+  .res{background:#fff;color:var(--ink);border:1px solid var(--ink)}
+  .hd{justify-content:flex-start}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 14px}
+  .two .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .two .box h3{margin:0 0 8px;font-size:13px}
+  .two .box .pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:6px}
+  .two .box ul{margin:0;padding-left:0;list-style:none;font-size:13.5px}
+  .two .box li{padding:3px 0}
+  .phys h3{font-size:13.5px;margin:14px 0 4px}
+  .phys p{margin:0;font-size:14px}
+  .phys .lead{font-style:italic;background:#f5f5f1;border-radius:8px;padding:10px 14px;margin-top:14px;font-size:14px}
+  @media(max-width:680px){.two{grid-template-columns:1fr}}
+  .q{font-size:12px;font-weight:700;color:var(--sub);margin:12px 0 2px;letter-spacing:.02em}
+  .body p{margin:2px 0 0;font-size:14.5px}
+  details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+  summary{cursor:pointer;font-size:13px;color:var(--sub);font-weight:600;list-style:none}
+  summary::before{content:"▶ ";font-size:10px}
+  details[open] summary::before{content:"▼ "}
+  pre{background:#1d1d1b;color:#e8e8e3;border-radius:9px;padding:13px 15px;overflow:auto;
+    font-size:12px;line-height:1.55;margin:10px 0 0;
+    font-family:"SF Mono",Menlo,Consolas,monospace}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f5f5f1;font-weight:700}
+  code{background:#eee;border-radius:4px;padding:1px 5px;font-size:12.5px;
+    font-family:"SF Mono",Menlo,Consolas,monospace}
+  .flow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+    font-size:14.5px;margin-bottom:14px}
+  .flow b{font-weight:700}
+  .crit{counter-reset:c;list-style:none;padding:0;margin:0}
+  .crit li{position:relative;padding:8px 0 8px 34px;border-bottom:1px solid var(--line);font-size:14px}
+  .crit li:last-child{border-bottom:none}
+  .crit li::before{counter-increment:c;content:counter(c);position:absolute;left:0;top:8px;
+    width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;
+    font-weight:700;display:flex;align-items:center;justify-content:center}
+  @media(max-width:680px){.el{grid-template-columns:1fr}.stance{grid-template-columns:1fr}.el .viz{position:static}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>step-0001 · 무엇을 만들려는가</h1>
+  <div class="tag">field + 법칙 + 에너지 흐름을 설계하면 — 물질·생명·사회가 그 위에서 <i>떠오른다</i>.</div>
+
+  <blockquote>세계는 <b>만드는</b> 게 아니라 <b>떠오르게</b> 한다. entity를 설계하지 말고, 칸·숫자·규칙·기울기를 깔면 나머지는 저절로 나온다.</blockquote>
+
+  <div class="stance">
+    <div><b>인간을 모방하지 않는다</b>정해진 시나리오·스크립트 대신, 원리·법칙을 깔고 세계가 스스로 전개되게 한다.</div>
+    <div><b>entity를 설계하지 않는다</b>생명·날씨·생태계를 직접 만들지 않고, 그것들이 떠오를 토대만 설계한다.</div>
+  </div>
+
+  <h2>세계를 이루는 6요소 — 한눈에</h2>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--E)"></i>E 에너지(연료)</span>
+    <span><i class="sw" style="background:var(--rho)"></i>ρ 밀도(물질)</span>
+    <span><i class="sw" style="background:var(--T)"></i>T 열(식은 찌꺼기)</span>
+    <span><i class="sw" style="background:var(--A)"></i>A 끌림(당기는 힘)</span>
+  </div>
+
+  <div class="flow" style="margin-bottom:18px">
+    <b>6개는 동등하지 않다 — 4 생성자 + 2 결과.</b> 앞의 4개는 빼면 세계가 무너지는 최소 생성자이고, 뒤의 2개는 그 4개에서 <i>저절로 따라 나오는</i> 결과다(만드는 게 아니라 검출·관찰하는 대상). 더 많은 다양성이 필요하면 새 요소가 아니라 <b>양·법칙 안에</b> 필드·규칙을 더한다. 그래서 적지도 많지도 않은 6개.
+  </div>
+  <div class="two">
+    <div class="box"><h3><span class="pill gen" style="background:#1d1d1b;color:#fff">생성자 4</span>빼면 무너짐</h3>
+      <ul>
+        <li><b>장</b> — 값이 사는 공간 (어디)</li>
+        <li><b>양</b> — 칸에 담긴 숫자 (무엇)</li>
+        <li><b>법칙</b> — 숫자를 바꾸는 규칙 (어떻게)</li>
+        <li><b>에너지 흐름</b> — 평형(죽음)을 막는 엔진 (왜 굴러가나)</li>
+      </ul></div>
+    <div class="box"><h3><span class="pill res" style="border:1px solid #1d1d1b">결과 2</span>저절로 나옴</h3>
+      <ul>
+        <li><b>항상성</b> — 떠오른 자기유지 패턴 = 생명</li>
+        <li><b>재귀</b> — 같은 4개가 한 층 위에도 통함</li>
+      </ul></div>
+  </div>
+
+  <!-- 1 -->
+  <section class="el">
+    <div class="viz"><svg id="s1" viewBox="0 0 300 175"></svg>
+      <div class="analogy"><b>모눈종이 / 픽셀 화면.</b> "점"이란 곧 한 칸.</div></div>
+    <div class="body">
+      <div class="hd"><span class="num">1</span><span class="name">장 <span class="en">Field</span></span><span class="badge gen">생성자</span></div>
+      <div class="q">무엇인가</div><p>값을 담는 공간 그 자체. 격자의 각 칸이 그릇이고, 모든 것은 이 위의 패턴일 뿐 별도 객체가 아니다.</p>
+      <div class="q">왜 존재하는가</div><p>"entity를 안 만든다"가 여기서 강제된다. 설계할 수 있는 건 장과 규칙뿐 — 개별 존재는 원천적으로 설계 대상에서 빠진다.</p>
+      <div class="q">어떻게 작동/상호작용</div><p>양을 담고, 법칙에 "이웃"의 정의를 주며, 재귀에서 한 겹 위 세계로 다시 등장한다.</p>
+      <details><summary>프로토타입 구조</summary>
+        <p style="font-size:13.5px;margin-top:8px"><code>N×N</code> 격자, 필드별 <code>Float32Array</code>(SoA), 4-이웃, 경계 <code>wrap</code>/<code>clamp</code> 토글. 장 자체는 tick 동안 불변 — 바뀌는 건 양뿐.</p>
+        <pre>const N = 64;
+const field = {
+  N, E:new Float32Array(N*N), T:new Float32Array(N*N),
+  rho:new Float32Array(N*N), A:new Float32Array(N*N),
+  idx:(x,y)=>y*N+x,
+  neighbors:(x,y)=>[[(x+1)%N,y],[(x-1+N)%N,y],[x,(y+1)%N],[x,(y-1+N)%N]],
+};</pre></details>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="el">
+    <div class="viz"><svg id="s2" viewBox="0 0 300 175"></svg>
+      <div class="analogy"><b>칸마다 꽂힌 4개의 계기판.</b> 칸의 색 = 숫자들의 합성.</div></div>
+    <div class="body">
+      <div class="hd"><span class="num">2</span><span class="name">양 <span class="en">Quantity</span></span><span class="badge gen">생성자</span></div>
+      <div class="q">무엇인가</div><p>각 점에 저장되는 상태 숫자. 에너지 <code>E</code>, 열 <code>T</code>, 밀도 <code>ρ</code>, 끌림 <code>A</code> 4종으로 시작.</p>
+      <div class="q">왜 존재하는가</div><p>세계의 다양성은 entity 종류 수가 아니라 <b>양의 분포</b>에서 나온다. 같은 4숫자라도 분포가 다르면 사막·숲·도시가 된다. 인간적 속성(체력·분노) 대신 물리적 원초 양에서 출발.</p>
+      <div class="q">어떻게 작동/상호작용</div><p>장 위에 살고, 법칙의 입력이자 출력이며, 보존되며 서로 변환된다(E가 일하면 T로). 조합이 "의미"가 된다 — 높은 ρ+낮은 T=단단한 지형.</p>
+      <details><summary>프로토타입 구조</summary>
+        <p style="font-size:13.5px;margin-top:8px">더블 버퍼(<code>cur</code>→<code>next</code>), 0~1 정규화. 렌더: R←E, G←ρ, B←T. 보존 검사로 <code>ΣE+ΣT</code> 매 tick 로깅.</p>
+        <pre>function cellColor(c,i){ return [c.E[i]*255, c.rho[i]*255, c.T[i]*255]; }</pre></details>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="el">
+    <div class="viz"><svg id="s3" viewBox="0 0 300 175"></svg>
+      <div class="analogy"><b>잉크가 물에 퍼지듯, 커피가 식듯.</b> 이웃만 보고 갱신.</div></div>
+    <div class="body">
+      <div class="hd"><span class="num">3</span><span class="name">법칙 <span class="en">Law</span></span><span class="badge gen">생성자</span></div>
+      <div class="q">무엇인가</div><p>양을 시간에 따라 바꾸는 국소 연산자 = 세계의 동사. 명사(entity)를 만들지 않고 변화의 방식만 정한다. 불가침 성질: <b>국소성</b> + <b>보존·소산(열역학)</b>.</p>
+      <div class="q">왜 존재하는가</div><p>"인간 모방 안 함"의 실현 수단. 소수의 보편 법칙일수록, 한 영역에서 익힌 직관이 다른 영역에 그대로 전이된다(불 다루기 = 혁명 일으키기).</p>
+      <div class="q">어떻게 작동/상호작용</div><p>4법칙을 매 tick 적용 — 확산(펼침)·응집(모음)·소산(식음)·임계(불연속 사건=도파민). 확산과 응집의 긴장을 에너지 흐름이 살아 있게 유지한다.</p>
+      <details><summary>프로토타입 구조</summary>
+        <p style="font-size:13.5px;margin-top:8px">각 법칙 = 순수 함수 + 토글. 파라미터 <code>α,g,δ,θ</code> 슬라이더로 "구조가 떠오르는 조합" 탐색.</p>
+        <pre>function dissipate(E,T,delta){            // E가 일하며 T로 (보존)
+  for(let i=0;i<E.length;i++){ const d=delta*E[i]; E[i]-=d; T[i]+=d; }
+}
+function threshold(E,T,rho,thE){          // 임계 → 발화 이벤트
+  for(let i=0;i<E.length;i++) if(E[i]>thE){ T[i]+=E[i]*.5; E[i]*=.3; rho[i]*=.8; }
+}</pre></details>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="el">
+    <div class="viz"><svg id="s4" viewBox="0 0 300 175"></svg>
+      <div class="analogy"><b>방 한쪽 히터, 반대쪽 열린 창문.</b> 기울기 = 세계의 엔진.</div></div>
+    <div class="body">
+      <div class="hd"><span class="num">4</span><span class="name">에너지 흐름 <span class="en">Gradient</span></span><span class="badge gen">생성자</span></div>
+      <div class="q">무엇인가</div><p>E를 주입하는 source와 빼가는 sink, 그 사이의 공간적 기울기. 세계를 평형(=죽음)에서 떼어놓는다.</p>
+      <div class="q">왜 존재하는가</div><p>세계가 스스로 굴러가게 하는 <b>유일한 원동력</b>. 기울기가 있으면 그것을 해소하는 구조(소산 구조)가 저절로 생긴다. 콘텐츠 없이 끝없는 사건 — 보상과 대가가 같은 법칙에서 나온다.</p>
+      <div class="q">어떻게 작동/상호작용</div><p>양 <code>E</code>로 구현. 확산이 지우려는 기울기를 source가 다시 만들어 법칙을 살아 있게 한다. 플레이어 행위 = source/sink를 옮기고 만드는 것(불 지피기, 댐 쌓기).</p>
+      <details><summary>프로토타입 구조 · 핵심 실험</summary>
+        <p style="font-size:13.5px;margin-top:8px">클릭으로 source(+)/sink(−) 배치, <code>∇E</code> 흐름 화살표. source 강도를 0→max로 올리며 <b>"생명의 창"</b>을 찾는다 — 0이면 죽음, 적당하면 구조 출현, 과하면 폭주.</p></details>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="el">
+    <div class="viz"><svg id="s5" viewBox="0 0 300 175"></svg>
+      <div class="analogy"><b>촛불, 강물 속 소용돌이.</b> 흐름이 통과해도 모양은 유지.</div></div>
+    <div class="body">
+      <div class="hd"><span class="num">5</span><span class="name">경계·항상성 <span class="en">Agent</span></span><span class="badge res">결과</span></div>
+      <div class="q">무엇인가</div><p>법칙+흐름이 만든 자기유지 패턴. 경계를 갖고 흩어지지 않으려 끊임없이 기울기를 처리한다. 이게 곧 "생명" — 우리가 만든 게 아니라 떠오른 끌개(attractor).</p>
+      <div class="q">왜 존재하는가</div><p>"entity를 안 만든다"의 결정적 증거. 욕구도 공짜로 따라온다 — E가 떨어지면 흩어지므로 본질적으로 E를 향해 움직이고 경쟁한다(배고픔·번식·회피가 emergent).</p>
+      <div class="q">어떻게 작동/상호작용</div><p>기울기의 자식(source 끊기면 죽음). 특별한 규칙 없이 <b>같은 4법칙</b>이 패턴 위에서 돌 뿐 → 직관 전이가 유지된다. 둘이 만나면 경쟁(포식·공생).</p>
+      <details><summary>프로토타입 구조 — 검출이 핵심</summary>
+        <p style="font-size:13.5px;margin-top:8px">만들지 않으므로 <b>찾아내는</b> 코드가 필요: ρ 임계 이상 셀을 연결요소로 묶고(flood fill), ID로 시간 추적해 수명·안정성·대사(E 순유입)를 만족하면 "살아있는 agent"로 승격.</p>
+        <pre>function detectAgents(field, thRho){      // 연결요소 = 후보 구조
+  const {N,rho,idx,neighbors}=field, seen=new Uint8Array(N*N), out=[];
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=idx(x,y); if(seen[i]||rho[i]<thRho) continue;
+    const cells=[],st=[[x,y]]; seen[i]=1;
+    while(st.length){ const [cx,cy]=st.pop(); cells.push(idx(cx,cy));
+      for(const [nx,ny] of neighbors(cx,cy)){ const ni=idx(nx,ny);
+        if(!seen[ni]&&rho[ni]>=thRho){ seen[ni]=1; st.push([nx,ny]); } } }
+    out.push({cells, mass:cells.reduce((s,c)=>s+rho[c],0)});
+  } return out;                            // 이후 ID 매칭 → 항상성 판정
+}</pre></details>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="el">
+    <div class="viz"><svg id="s6" viewBox="0 0 300 175"></svg>
+      <div class="analogy"><b>지도 줌아웃.</b> 덩어리를 다시 점으로 보면 같은 그림.</div></div>
+    <div class="body">
+      <div class="hd"><span class="num">6</span><span class="name">재귀 <span class="en">Recursion</span></span><span class="badge res">결과</span></div>
+      <div class="q">무엇인가</div><p>1~5 구조 전체가 한 단계 위에서 그대로 반복. agent들을 점으로 보면 새 장이 생기고 같은 법칙으로 무리·사회·문명이 떠오른다.</p>
+      <div class="q">왜 존재하는가</div><p>"불 다루기 = 혁명 일으키기"를 성립시키는 유일한 메커니즘 — 두 스케일이 같은 법칙으로 돌기 때문. 새 콘텐츠 없이 새 층이 열려 세계가 사실상 무한해진다.</p>
+      <div class="q">어떻게 작동/상호작용</div><p>agent의 mass→상위 ρ, intake→상위 E. 같은 법칙 재적용으로 무리·전파·쇠퇴·혁명이 나온다. 위아래가 양방향으로 결합(사회 붕괴 ↔ 구성원 환경 급변).</p>
+      <details><summary>프로토타입 구조</summary>
+        <p style="font-size:13.5px;margin-top:8px">2층까지만 검증. 법칙 함수가 "이웃을 가진 점들의 집합"에 동작하게 추상화하면 미시·거시가 <b>문자 그대로 같은 함수</b>를 쓴다.</p>
+        <pre>function step(points, neighborsOf, p){
+  diffuse(points,neighborsOf,p.alpha); attract(points,neighborsOf,p.g);
+  dissipate(points,p.delta);           threshold(points,p.theta);
+}
+// 미시: points=격자셀, neighborsOf=4-이웃
+// 거시: points=agent들, neighborsOf=반경 내 agent  ← 같은 step() = 원 안의 원</pre></details>
+    </div>
+  </section>
+
+  <h2>어떻게 결합하여 세계를 이루는가</h2>
+  <div class="flow">
+    <b>장</b>이 <b>양</b>을 담고 → <b>법칙</b>이 양을 국소적으로 바꾸는데 → <b>에너지 흐름</b>이 평형을 막아서 → 법칙이 양을 구조로 조직하고(= 떠오른 <b>항상성</b>, 곧 욕구) → 같은 규칙이 군집에도 적용되어(<b>재귀</b>) 사회·문명으로 자라난다.
+  </div>
+
+  <h2>통합 프로토타입 — tick 루프</h2>
+  <p style="font-size:14.5px;margin-top:0">6요소를 한 HTML+JS 화면에서 검증한다. 법칙 적용 순서는 결과를 바꾸므로 고정하고, 각 단계는 토글 가능.</p>
+  <table>
+    <tr><th>순서</th><th>단계</th><th>요소</th></tr>
+    <tr><td>1</td><td>source 주입 / sink 배출</td><td>에너지 흐름</td></tr>
+    <tr><td>2</td><td>확산 (T, E 약하게)</td><td>법칙</td></tr>
+    <tr><td>3</td><td>응집 (ρ ← A)</td><td>법칙</td></tr>
+    <tr><td>4</td><td>소산 (E→T→sink)</td><td>법칙</td></tr>
+    <tr><td>5</td><td>임계 (발화·응결·탄생)</td><td>법칙</td></tr>
+    <tr><td>6</td><td>버퍼 교체</td><td>양</td></tr>
+    <tr><td>7</td><td>agent 검출 + 시간추적</td><td>항상성</td></tr>
+    <tr><td>8</td><td>(옵션) 승급 → 거시 step</td><td>재귀</td></tr>
+    <tr><td>9</td><td>렌더 + 지표 갱신</td><td>—</td></tr>
+  </table>
+
+  <h2>1차 검증 기준</h2>
+  <ol class="crit">
+    <li><b>보존</b> — source/sink 유입출을 빼면 <code>ΣE+ΣT</code> 변화 ≈ 0.</li>
+    <li><b>생명의 창</b> — source 강도 중간 구간에서만 안정 agent 수 &gt; 0.</li>
+    <li><b>비정지성</b> — 그 구간에서 구조가 생멸을 반복하며 화면이 멈추지 않음.</li>
+    <li><b>재귀(2층)</b> — 거시에서도 agent 무리가 자기유지하고, 미시 source 차단이 거시 붕괴로 전파됨.</li>
+  </ol>
+
+  <h2>현실 물리와의 관계</h2>
+  <div class="flow phys">
+    <h3>진짜 맞닿는 부분</h3>
+    <p>확산 = 열방정식 <code>∂u/∂t = α∇²u</code>. 보존·소산 = 열역학 1·2법칙. 특히 <b>에너지 흐름 → 생명</b>은 비평형 열역학의 소산 구조(Prigogine) — 베나르 대류·태풍·생명이 모두 "기울기를 먹고 모양을 유지하는" 같은 부류다. 가장 깊고 정확한 연결.</p>
+    <h3>은유 수준</h3>
+    <p>응집은 만류인력의 캐리커처(뉴턴 법칙 그대로는 아님). 임계/상전이는 실제 현상이지만 "양자역학"이라는 이름은 비유.</p>
+    <h3>일부러 다르게 한 부분</h3>
+    <p>모든 스케일에 같은 법칙(재귀)은 현실 물리엔 일반적으로 없다(양자·고전·상대론 영역이 다름). 이는 "불 다루기 = 혁명 일으키기"의 직관 전이를 위한 <b>의도된 선택</b>. AI 함수화도 물리가 아니라 구현 트릭.</p>
+    <p class="lead">현실 물리를 복제하는 게 아니라, 사람들이 이미 가진 물리 직관이 그대로 통하도록 빌려 쓴 양식화된 게임 물리.</p>
+  </div>
+
+  <details style="margin-top:24px">
+    <summary>부록 · AI 함수화 (요소가 아닌 구현 트릭)</summary>
+    <p style="font-size:13.5px;margin-top:8px">거시 사회의 반응처럼 비싼 발생 계산을 매 tick 돌리는 대신, "상태 → 결과"를 한 번 시뮬레이션/추론해 캐싱하고 런타임에선 순수 함수처럼 조회한다. <code>f(state)=cache.get(quantize(state)) ?? simulate(state)</code>. 결정적이고 점진적으로 채워져 플레이할수록 빨라진다. 프로토타입 단계에선 적용하지 않고, 성능 병목이 생기는 step에서 도입한다. (양자화가 너무 거칠면 직관 전이가 깨지므로 해상도는 "구별돼야 할 현상이 구별되는 한도"에서 정한다.)</p>
+  </details>
+
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+const C={E:"#d9534f",rho:"#3a8f4f",T:"#3b6fb0",A:"#8b5cb8"};
+const LINE="#dcdcd6", INK="#1d1d1b", SUB="#7a7a74";
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function add(p,t,a,txt){const e=el(t,a);if(txt!=null)e.textContent=txt;p.appendChild(e);return e;}
+function grid(svg,c,r,cs,ox,oy,fill){
+  for(let y=0;y<r;y++)for(let x=0;x<c;x++)
+    add(svg,"rect",{x:ox+x*cs,y:oy+y*cs,width:cs,height:cs,fill:(fill?fill(x,y):"none"),stroke:LINE,"stroke-width":1});
+}
+function arrow(svg,id,color){const d=add(svg,"defs",{});
+  const m=add(d,"marker",{id,markerWidth:7,markerHeight:7,refX:5,refY:3,orient:"auto"});
+  add(m,"path",{d:"M0,0 L6,3 L0,6 Z",fill:color});}
+
+function field(id){const s=document.getElementById(id);const cs=22,ox=24,oy=16;
+  grid(s,9,6,cs,ox,oy);
+  add(s,"rect",{x:ox+3*cs,y:oy+2*cs,width:cs,height:cs,fill:"#d9534f22",stroke:C.E,"stroke-width":2.5});
+  arrow(s,id+"a",INK);
+  add(s,"line",{x1:ox+3*cs+11,y1:163,x2:ox+3*cs+11,y2:oy+3*cs+3,stroke:INK,"stroke-width":1.5,"marker-end":`url(#${id}a)`});
+  add(s,"text",{x:ox+3*cs+18,y:166,"font-size":12,fill:INK,"font-weight":700},"점 = 한 칸");
+}
+function quantity(id){const s=document.getElementById(id);
+  grid(s,4,4,16,16,46);
+  add(s,"line",{x1:84,y1:78,x2:120,y2:78,stroke:SUB,"stroke-width":1.5,"stroke-dasharray":"3 3"});
+  const bx=130,by=26,bw=148,bh=122;
+  add(s,"rect",{x:bx,y:by,width:bw,height:bh,rx:8,fill:"none",stroke:INK,"stroke-width":2});
+  [["E",C.E,.8],["ρ",C.rho,.55],["T",C.T,.3],["A",C.A,.65]].forEach((k,i)=>{
+    const w=26,gap=8,x=bx+16+i*(w+gap),base=by+bh-20,mh=80;
+    add(s,"rect",{x,y:base-mh,width:w,height:mh,fill:"#00000008"});
+    add(s,"rect",{x,y:base-mh*k[2],width:w,height:mh*k[2],fill:k[1]});
+    add(s,"text",{x:x+w/2,y:base+13,"font-size":12,fill:INK,"text-anchor":"middle","font-weight":700},k[0]);
+  });
+}
+function law(id){const s=document.getElementById(id);const cs=36,ox=96,oy=24;
+  grid(s,3,3,cs,ox,oy);
+  add(s,"rect",{x:ox+cs,y:oy+cs,width:cs,height:cs,fill:"#3a8f4f22",stroke:C.rho,"stroke-width":2.5});
+  arrow(s,id+"a",SUB);
+  const cx=ox+cs+cs/2,cy=oy+cs+cs/2;
+  [[cx,oy+cs/2,cx,oy+cs-4],[cx,oy+2*cs+cs/2,cx,oy+2*cs+4],[ox+cs/2,cy,ox+cs-4,cy],[ox+2*cs+cs/2,cy,ox+2*cs+4,cy]]
+    .forEach(p=>add(s,"line",{x1:p[0],y1:p[1],x2:p[2],y2:p[3],stroke:SUB,"stroke-width":1.6,"marker-end":`url(#${id}a)`}));
+  add(s,"text",{x:cx,y:cy+4,"font-size":12,fill:C.rho,"text-anchor":"middle","font-weight":700},"나");
+  add(s,"text",{x:150,y:166,"font-size":12,fill:SUB,"text-anchor":"middle"},"이웃 → 나 (국소 갱신)");
+}
+function gradient(id){const s=document.getElementById(id);const c=9,r=6,cs=22,ox=24,oy=14;
+  const lp=(a,b,t)=>Math.round(a+(b-a)*t);
+  grid(s,c,r,cs,ox,oy,(x,y)=>{const t=x/(c-1)*.6+y/(r-1)*.4;
+    return `rgb(${lp(217,59,t)},${lp(83,111,t)},${lp(79,176,t)})`;});
+  add(s,"text",{x:ox+5,y:oy-1,"font-size":14},"☀");
+  add(s,"text",{x:ox+2,y:oy+r*cs+14,"font-size":11,fill:C.E},"source");
+  add(s,"text",{x:ox+c*cs-22,y:oy+r*cs+14,"font-size":11,fill:C.T},"❄ sink");
+  arrow(s,id+"a","#fff");
+  add(s,"line",{x1:ox+cs,y1:oy+cs,x2:ox+(c-1.5)*cs,y2:oy+(r-1)*cs,stroke:"#fff","stroke-width":2.4,"marker-end":`url(#${id}a)`,opacity:.9});
+}
+function agent(id){const s=document.getElementById(id);grid(s,9,6,22,24,14);
+  arrow(s,id+"a",SUB);
+  [44,86,128].forEach(y=>add(s,"line",{x1:14,y1:y,x2:286,y2:y,stroke:SUB,"stroke-width":1.2,"stroke-dasharray":"4 5","marker-end":`url(#${id}a)`,opacity:.45}));
+  add(s,"path",{d:"M150,42 C186,44 198,72 190,94 C202,114 170,136 144,128 C114,134 106,106 116,88 C102,66 126,42 150,42 Z",fill:"#3a8f4f33",stroke:C.rho,"stroke-width":2.5});
+  add(s,"text",{x:150,y:92,"font-size":11.5,fill:C.rho,"text-anchor":"middle","font-weight":700},"모양 유지");
+}
+function recursion(id){const s=document.getElementById(id);
+  [[42,56],[74,92],[48,114],[88,58]].forEach(b=>add(s,"circle",{cx:b[0],cy:b[1],r:13,fill:"#3a8f4f33",stroke:C.rho,"stroke-width":2}));
+  add(s,"text",{x:62,y:154,"font-size":11,fill:SUB,"text-anchor":"middle"},"떠오른 덩어리들");
+  arrow(s,id+"a",INK);
+  add(s,"line",{x1:114,y1:88,x2:154,y2:88,stroke:INK,"stroke-width":1.6,"marker-end":`url(#${id}a)`});
+  add(s,"text",{x:134,y:77,"font-size":11,fill:SUB,"text-anchor":"middle"},"줌아웃");
+  add(s,"path",{d:"M212,52 C257,50 282,80 272,106 C278,132 234,142 210,132 C180,134 174,100 186,80 C182,60 198,52 212,52 Z",fill:"#8b5cb822",stroke:C.A,"stroke-width":2.5});
+  [[214,74],[242,68],[260,92],[246,114],[216,110],[230,92]].forEach(d=>add(s,"circle",{cx:d[0],cy:d[1],r:4.5,fill:C.rho}));
+  add(s,"text",{x:230,y:158,"font-size":11,fill:SUB,"text-anchor":"middle"},"점=덩어리 → 더 큰 덩어리");
+}
+field("s1");quantity("s2");law("s3");gradient("s4");agent("s5");recursion("s6");
+</script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Criticality Lab — 통합 시뮬레이션 검증</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap');
+  :root{
+    --bg:#0a0a0f; --panel:#13131c; --line:#262635; --ink:#e8e8f0; --dim:#8a8aa0;
+    --pot:#ff5436;   /* 잠재=연료/불 */
+    --aff:#ffb340;   /* 친화 */
+    --ord:#2dd4a7;   /* 질서=숲 */
+    --ash:#3a3a48;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',sans-serif;
+    padding:24px;line-height:1.5;
+    background-image:radial-gradient(circle at 15% 10%,rgba(255,84,54,.06),transparent 40%),
+      radial-gradient(circle at 85% 90%,rgba(45,212,167,.05),transparent 45%);}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:1.7rem;font-weight:800;letter-spacing:-.02em;margin-bottom:2px}
+  h1 .acc{color:var(--pot)}
+  .sub{color:var(--dim);font-size:.92rem;margin-bottom:20px;max-width:760px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .panel h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);
+    font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .panel h2 .dot{width:7px;height:7px;border-radius:50%;background:var(--pot)}
+  canvas{width:100%;display:block;border-radius:8px;background:#000;image-rendering:pixelated}
+  .verdict{font-family:'Space Mono',monospace;font-weight:700;font-size:1.05rem;
+    margin-top:14px;padding:10px 14px;border-radius:8px;text-align:center;transition:.3s}
+  .v-frozen{background:rgba(80,140,255,.12);color:#7fb0ff;border:1px solid rgba(80,140,255,.3)}
+  .v-play{background:rgba(45,212,167,.12);color:var(--ord);border:1px solid rgba(45,212,167,.35)}
+  .v-melt{background:rgba(255,84,54,.14);color:var(--pot);border:1px solid rgba(255,84,54,.4)}
+  .controls{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px;margin-bottom:18px}
+  .ctl{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+  .ctl:last-child{margin-bottom:0}
+  .ctl label{font-family:'Space Mono',monospace;font-size:.82rem;width:170px;flex-shrink:0}
+  .ctl label b{color:var(--aff)}
+  .ctl input[type=range]{flex:1;accent-color:var(--pot);height:4px}
+  .ctl .val{font-family:'Space Mono',monospace;font-size:.85rem;color:var(--ink);
+    width:78px;text-align:right}
+  .btns{display:flex;gap:10px;margin-top:6px}
+  button{font-family:'Space Mono',monospace;font-weight:700;font-size:.82rem;
+    background:#1d1d2a;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--pot);color:var(--pot)}
+  button.primary{background:var(--pot);color:#000;border-color:var(--pot)}
+  button.primary:hover{filter:brightness(1.1);color:#000}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:.8rem;color:var(--dim)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+  .stats{font-family:'Space Mono',monospace;font-size:.82rem;color:var(--dim);
+    margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .stats b{color:var(--ink)}
+  .note{font-size:.82rem;color:var(--dim);margin-top:14px;padding-top:14px;
+    border-top:1px solid var(--line)}
+  .note b{color:var(--ord)}
+  .axis-key{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px;font-size:.82rem}
+  .axis-key div{padding:6px 12px;border-radius:8px;border:1px solid var(--line)}
+  .axis-key .k{font-family:'Space Mono',monospace;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Criticality <span class="acc">Lab</span></h1>
+  <p class="sub">3 field(P·A·O) + 3 law로 굴러가는 물질 레이어를 <b>눈</b>과 <b>숫자</b>로 동시에 검증한다.
+    왼쪽은 실시간 거동, 오른쪽은 화재 크기 분포. 슬라이더로 임계점을 넘나들며 상전이를 직접 본다.</p>
+
+  <div class="axis-key">
+    <div><span class="k" style="color:var(--pot)">P 잠재</span> = 연료(나무). 점화되면 불이 됨</div>
+    <div><span class="k" style="color:var(--aff)">A 친화</span> = 자연발화 확률(불씨)</div>
+    <div><span class="k" style="color:var(--ord)">O 질서</span> = 숲의 회복(나무 성장률)</div>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <label>P 성장 <b>growth</b></label>
+      <input type="range" id="grow" min="0.005" max="0.08" step="0.005" value="0.025">
+      <span class="val" id="growV">0.025</span>
+    </div>
+    <div class="ctl">
+      <label>A 발화 <b>spark</b></label>
+      <input type="range" id="spark" min="0" max="0.005" step="0.0001" value="0.0006">
+      <span class="val" id="sparkV">0.0006</span>
+    </div>
+    <div class="btns">
+      <button class="primary" id="play">⏸ 일시정지</button>
+      <button id="reset">↻ 리셋</button>
+      <button id="preset-frozen">❄ 얼어죽음</button>
+      <button id="preset-play">✦ 재밌음</button>
+      <button id="preset-melt">🔥 타죽음</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2><span class="dot"></span> 눈으로 검증 — 실시간 거동</h2>
+      <canvas id="world" width="160" height="160"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--ord)"></i>나무 (P 잠재)</span>
+        <span><i class="sw" style="background:var(--pot)"></i>불 (점화)</span>
+        <span><i class="sw" style="background:var(--ash)"></i>빈땅 (소진)</span>
+      </div>
+      <div class="stats">
+        <div>나무 밀도: <b id="density">—</b></div>
+        <div>현재 연소: <b id="burning">—</b></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="dot"></span> 숫자로 검증 — 화재 크기 분포</h2>
+      <canvas id="chart" width="320" height="160"></canvas>
+      <div class="stats">
+        <div>측정 화재: <b id="nfires">0</b>건</div>
+        <div>log-log 기울기: <b id="slope">—</b></div>
+      </div>
+      <div id="verdict" class="verdict v-play">초기화 중…</div>
+    </div>
+  </div>
+
+  <p class="note">
+    <b>판정 기준:</b> 분포가 log–log에서 <b>직선(거듭제곱)</b>이면 self-organized criticality — "작은 불 많고 가끔 초대형" = 끝없이 다양하면서 학습 가능한 재미.
+    한쪽 끝에 뭉치면 실패다: 전부 1칸이면 <b style="color:#7fb0ff">FROZEN</b>(다 얼어죽음), 전부 대형이면 <b style="color:var(--pot)">MELTED</b>(다 타죽음).
+    이게 "재밌다"의 객관적 정의이자, ASCII 스냅샷으로는 절대 못 잡는 검증이다.
+  </p>
+</div>
+
+<script>
+const W=160,H=160;
+const wc=document.getElementById('world'),wx=wc.getContext('2d');
+const cc=document.getElementById('chart'),cx=cc.getContext('2d');
+const img=wx.createImageData(W,H);
+
+// 0=빈땅, 1=나무(P), 2=불
+let grid=new Uint8Array(W*H);
+let playing=true, params={grow:0.025, spark:0.0006};
+let fireSizes=[];           // 측정된 화재 크기들
+const MAXSIZE=W*H;
+
+const COL={0:[58,58,72],1:[45,212,167],2:[255,84,54]};
+
+function reset(){
+  grid=new Uint8Array(W*H);
+  // 초기에 약간의 나무 뿌리기
+  for(let i=0;i<grid.length;i++) if(Math.random()<0.3) grid[i]=1;
+  fireSizes=[];
+}
+
+function step(){
+  const ng=new Uint8Array(W*H);
+  let burning=0, trees=0;
+  // 새로 시작된 불씨를 추적해 화재 크기를 측정(flood fill)
+  const newSparks=[];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=y*W+x, s=grid[i];
+    if(s===2){ ng[i]=0; }                       // 불→빈땅 (연료 소진=보존)
+    else if(s===1){
+      trees++;
+      // 촉매: 4이웃에 불이 있으면 점화
+      let neigh=false;
+      if(x>0&&grid[i-1]===2)neigh=true;
+      if(x<W-1&&grid[i+1]===2)neigh=true;
+      if(y>0&&grid[i-W]===2)neigh=true;
+      if(y<H-1&&grid[i+W]===2)neigh=true;
+      if(neigh){ ng[i]=2; }
+      else if(Math.random()<params.spark){ ng[i]=2; newSparks.push(i); }  // 임계: 자연발화
+      else ng[i]=1;
+    } else {
+      // 잠재 재생: 빈땅에서 나무가 자람
+      ng[i]= Math.random()<params.grow ? 1 : 0;
+    }
+    if(ng[i]===2) burning++;
+  }
+  // 새 불씨 각각의 잠재적 화재 크기 = 연결된 나무 덩어리 크기 (현재 grid 기준)
+  for(const i of newSparks){
+    const size=clusterSize(i);
+    fireSizes.push(size);
+    if(fireSizes.length>4000) fireSizes.shift();
+  }
+  grid=ng;
+  return {burning,trees};
+}
+
+// 점화된 칸이 속한 "연결된 나무 덩어리" 크기 = 그 불이 결국 태울 면적
+function clusterSize(start){
+  const seen=new Uint8Array(W*H);
+  const stack=[start]; let n=0;
+  seen[start]=1;
+  while(stack.length){
+    const i=stack.pop(); n++;
+    const x=i%W,y=(i/W)|0;
+    const nb=[];
+    if(x>0)nb.push(i-1); if(x<W-1)nb.push(i+1);
+    if(y>0)nb.push(i-W); if(y<H-1)nb.push(i+W);
+    for(const j of nb){
+      if(!seen[j] && (grid[j]===1||grid[j]===2)){ seen[j]=1; stack.push(j); }
+    }
+  }
+  return n;
+}
+
+function draw(){
+  for(let i=0;i<grid.length;i++){
+    const c=COL[grid[i]], p=i*4;
+    img.data[p]=c[0];img.data[p+1]=c[1];img.data[p+2]=c[2];img.data[p+3]=255;
+  }
+  wx.putImageData(img,0,0);
+}
+
+// 화재 크기 분포를 log2 bin으로 그리고 power-law 기울기 추정
+function drawChart(){
+  cx.clearRect(0,0,320,160);
+  const bins=new Array(15).fill(0);
+  for(const s of fireSizes){ if(s>0) bins[Math.min(14,Math.floor(Math.log2(s)))]++; }
+  const maxB=Math.max(1,...bins);
+  const bw=320/15;
+  // 막대
+  for(let k=0;k<15;k++){
+    const h=bins[k]/maxB*130;
+    const grad=cx.createLinearGradient(0,160-h,0,160);
+    grad.addColorStop(0,'#ff5436'); grad.addColorStop(1,'#ffb340');
+    cx.fillStyle=bins[k]?grad:'#1d1d2a';
+    cx.fillRect(k*bw+2,160-h-12,bw-4,h);
+  }
+  // power-law 기준선 (이상적 직선): log(count) ~ -slope*log(size)
+  cx.strokeStyle='rgba(45,212,167,.5)';cx.lineWidth=1.5;cx.setLineDash([4,3]);
+  cx.beginPath();
+  let first=true;
+  for(let k=0;k<15;k++){
+    if(bins[k]>0){
+      const x=k*bw+bw/2, y=160-12-(Math.log2(bins[k]+1)/Math.log2(maxB+1))*130;
+      if(first){cx.moveTo(x,y);first=false;}else cx.lineTo(x,y);
+    }
+  }
+  cx.stroke();cx.setLineDash([]);
+  // x축 라벨
+  cx.fillStyle='#8a8aa0';cx.font='9px Space Mono';
+  cx.fillText('1',2,158);cx.fillText('작은불',2,150);
+  cx.fillText('큰불→',270,158);
+
+  // 기울기 추정 (선형회귀 on log-log)
+  const xs=[],ys=[];
+  for(let k=0;k<15;k++) if(bins[k]>2){ xs.push(k); ys.push(Math.log(bins[k])); }
+  let slope=NaN;
+  if(xs.length>=3){
+    const n=xs.length,sx=xs.reduce((a,b)=>a+b),sy=ys.reduce((a,b)=>a+b);
+    const sxx=xs.reduce((a,b)=>a+b*b,0),sxy=xs.reduce((a,b,i)=>a+b*ys[i],0);
+    slope=(n*sxy-sx*sy)/(n*sxx-sx*sx);
+  }
+  return {slope, nbins:xs.length, bins};
+}
+
+function judge(slope,nbins,burning,trees){
+  const v=document.getElementById('verdict');
+  // FROZEN: 불이 거의 안 남 / MELTED: 상시 대형 화재로 나무 밀도 붕괴
+  const density=trees/(W*H);
+  if(fireSizes.length<8 || (burning<3 && density>0.55)){
+    v.className='verdict v-frozen'; v.textContent='❄ FROZEN — 다 얼어죽음 (불이 안 번짐)'; return;
+  }
+  if(density<0.12 && burning>W*H*0.04){
+    v.className='verdict v-melt'; v.textContent='🔥 MELTED — 다 타죽음 (통제불능)'; return;
+  }
+  // power-law: 기울기가 완만한 양수(대략 0.3~2.5)이고 여러 bin에 퍼짐
+  if(!isNaN(slope) && nbins>=4 && slope>0.1 && slope<3){
+    v.className='verdict v-play';
+    v.textContent='✦ PLAYABLE — power-law! (작은불 多 + 가끔 대형)'; return;
+  }
+  v.className='verdict v-play'; v.textContent='✦ 측정 중… 분포 누적 필요';
+}
+
+let frame=0;
+function loop(){
+  if(playing){
+    let st;
+    for(let s=0;s<2;s++) st=step();   // 틱 가속
+    draw();
+    if(frame++%6===0){
+      const {slope,nbins}=drawChart();
+      document.getElementById('density').textContent=(st.trees/(W*H)*100).toFixed(0)+'%';
+      document.getElementById('burning').textContent=st.burning;
+      document.getElementById('nfires').textContent=fireSizes.length;
+      document.getElementById('slope').textContent=isNaN(slope)?'—':('-'+slope.toFixed(2));
+      judge(slope,nbins,st.burning,st.trees);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+// 컨트롤
+const growEl=document.getElementById('grow'),sparkEl=document.getElementById('spark');
+growEl.oninput=()=>{params.grow=+growEl.value;document.getElementById('growV').textContent=(+growEl.value).toFixed(3);};
+sparkEl.oninput=()=>{params.spark=+sparkEl.value;document.getElementById('sparkV').textContent=(+sparkEl.value).toFixed(4);};
+document.getElementById('play').onclick=e=>{playing=!playing;e.target.textContent=playing?'⏸ 일시정지':'▶ 재생';};
+document.getElementById('reset').onclick=()=>{reset();fireSizes=[];};
+function setP(g,s){params.grow=g;params.spark=s;growEl.value=g;sparkEl.value=s;
+  document.getElementById('growV').textContent=g.toFixed(3);
+  document.getElementById('sparkV').textContent=s.toFixed(4);reset();}
+document.getElementById('preset-frozen').onclick=()=>setP(0.005,0.0001);
+document.getElementById('preset-play').onclick=()=>setP(0.025,0.0006);
+document.getElementById('preset-melt').onclick=()=>setP(0.08,0.004);
+
+reset();loop();
+</script>
+</body>
+</html>

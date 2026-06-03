@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer Coupling Lab — 형태가 곱해진다</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap');
+  :root{
+    --bg:#08090d; --panel:#11131b; --line:#23262f; --ink:#eef0f5; --dim:#828aa0;
+    --rock:#5a6478; --water:#3b82f6; --life:#22c79a; --fire:#ff5436; --ash:#1a1c24;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',sans-serif;
+    padding:24px;line-height:1.55;
+    background-image:radial-gradient(circle at 12% 8%,rgba(59,130,246,.06),transparent 42%),
+      radial-gradient(circle at 88% 92%,rgba(255,84,54,.05),transparent 46%);}
+  .wrap{max-width:1240px;margin:0 auto}
+  h1{font-size:1.75rem;font-weight:800;letter-spacing:-.02em}
+  h1 .a{color:var(--life)} h1 .b{color:var(--fire)}
+  .sub{color:var(--dim);font-size:.93rem;margin:4px 0 22px;max-width:820px}
+  .chain{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;
+    font-family:'Space Mono',monospace;font-size:.82rem}
+  .chain .node{padding:7px 13px;border-radius:8px;border:1px solid var(--line);background:var(--panel)}
+  .chain .node b{font-weight:700}
+  .chain .arr{color:var(--dim)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .panel h2{font-size:.74rem;text-transform:uppercase;letter-spacing:.13em;color:var(--dim);
+    font-weight:700;margin-bottom:6px}
+  .panel .lead{font-size:.84rem;color:var(--dim);margin-bottom:12px;min-height:34px}
+  .panel .lead b{color:var(--ink)}
+  canvas{width:100%;display:block;border-radius:8px;background:#000;image-rendering:pixelated;
+    aspect-ratio:1}
+  .controls{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px;margin-bottom:18px;display:flex;gap:26px;flex-wrap:wrap;align-items:center}
+  .ctl{display:flex;align-items:center;gap:12px}
+  .ctl label{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--dim)}
+  .ctl label b{color:var(--life)}
+  .ctl input[type=range]{width:130px;accent-color:var(--fire);height:4px}
+  .ctl .val{font-family:'Space Mono',monospace;font-size:.8rem;width:42px}
+  button{font-family:'Space Mono',monospace;font-weight:700;font-size:.84rem;
+    background:var(--fire);color:#000;border:none;border-radius:8px;padding:11px 22px;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  button.ghost{background:#1c1e28;color:var(--ink);border:1px solid var(--line)}
+  button.ghost:hover{border-color:var(--fire);color:var(--fire);filter:none}
+  .proof{margin-top:18px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:18px}
+  .proof h2{font-size:.74rem;text-transform:uppercase;letter-spacing:.13em;color:var(--dim);
+    font-weight:700;margin-bottom:12px}
+  .bars{display:flex;flex-direction:column;gap:10px}
+  .bar-row{display:flex;align-items:center;gap:12px;font-family:'Space Mono',monospace;font-size:.82rem}
+  .bar-row .lbl{width:230px;color:var(--dim)}
+  .bar-row .track{flex:1;height:22px;background:var(--ash);border-radius:5px;overflow:hidden;position:relative}
+  .bar-row .fill{height:100%;border-radius:5px;transition:width .5s}
+  .bar-row .num{width:60px;text-align:right;font-weight:700}
+  .verdict{margin-top:14px;font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;
+    padding:11px 15px;border-radius:8px;text-align:center;
+    background:rgba(34,199,154,.12);color:var(--life);border:1px solid rgba(34,199,154,.3)}
+  .note{font-size:.83rem;color:var(--dim);margin-top:16px;line-height:1.6}
+  .note b{color:var(--life)} .note .f{color:var(--fire)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Layer Coupling <span class="a">Lab</span></h1>
+  <p class="sub">한 레이어의 <b>질서</b>가 다음 레이어의 <b>잠재</b>가 되면, 형태는 더해지는 게 아니라
+    <span style="color:var(--fire)">곱해진다</span>. 지형이 숲의 자리를 정하고, 숲이 불의 자리를 정한다 —
+    아무것도 "여기"라고 지정하지 않았는데 강을 따라 세계가 짜인다.</p>
+
+  <div class="chain">
+    <span class="node" style="border-color:var(--water)"><b style="color:var(--water)">L1 지형</b> 질서=강줄기</span>
+    <span class="arr">─ 강이 비옥도가 됨 →</span>
+    <span class="node" style="border-color:var(--life)"><b style="color:var(--life)">L2 생명</b> 질서=숲밀도</span>
+    <span class="arr">─ 숲이 연료가 됨 →</span>
+    <span class="node" style="border-color:var(--fire)"><b style="color:var(--fire)">L3 불</b> 잠재=가연성</span>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <label>숲 희소도 <b>(낮을수록 강가에만)</b></label>
+      <input type="range" id="sparse" min="0.04" max="0.14" step="0.005" value="0.075">
+      <span class="val" id="sparseV">0.075</span>
+    </div>
+    <div class="ctl">
+      <label>점화 임계 <b>(불이 번지는 최소 숲밀도)</b></label>
+      <input type="range" id="thresh" min="0.30" max="0.70" step="0.02" value="0.45">
+      <span class="val" id="threshV">0.45</span>
+    </div>
+    <button id="regen">↻ 새 세계 생성</button>
+    <button class="ghost" id="ignite">🔥 번개 10회</button>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2 style="color:var(--water)">L1 — 지형</h2>
+      <p class="lead">빗방울이 낮은 곳으로 흐르며 강을 판다. 누가 강 위치를 정하지 않았다 —
+        <b>"물은 아래로"</b> 규칙만.</p>
+      <canvas id="cv1"></canvas>
+    </div>
+    <div class="panel">
+      <h2 style="color:var(--life)">L2 — 생명</h2>
+      <p class="lead">숲은 강 근처(비옥도 높은 곳)에서만 자라고 이웃으로 번진다.
+        <b>강의 질서가 숲의 잠재</b>가 됐다.</p>
+      <canvas id="cv2"></canvas>
+    </div>
+    <div class="panel">
+      <h2 style="color:var(--fire)">L3 — 불</h2>
+      <p class="lead">번개는 아무 데나 떨어지지만, 불은 <b>숲이 짙은 곳에서만</b> 크게 번진다.
+        강줄기 모양으로 탄 자국이 남는다.</p>
+      <canvas id="cv3"></canvas>
+    </div>
+  </div>
+
+  <div class="proof">
+    <h2>곱셈의 증거 — 불은 강을 "기억"한다</h2>
+    <div class="bars">
+      <div class="bar-row">
+        <span class="lbl">불난 곳의 강 근접도</span>
+        <span class="track"><span class="fill" id="barFire" style="background:var(--fire);width:0"></span></span>
+        <span class="num" id="numFire">—</span>
+      </div>
+      <div class="bar-row">
+        <span class="lbl">맵 전체 평균 강 근접도</span>
+        <span class="track"><span class="fill" id="barAll" style="background:var(--rock);width:0"></span></span>
+        <span class="num" id="numAll">—</span>
+      </div>
+    </div>
+    <div class="verdict" id="verdict">세계를 생성하세요</div>
+  </div>
+
+  <p class="note">
+    <b>핵심:</b> L3의 불 자국이 L1의 강줄기를 닮았다. 불 레이어 코드 어디에도 강이 없는데도.
+    지형→생명→불로 <b>질서가 잠재로 흘러내리며</b> 형태가 전파됐기 때문이다.
+    이게 <span class="f">"법칙은 적고 고정, 상태공간은 거대"</span>의 실물 — 세 규칙을 곱했더니
+    우리가 그리지 않은 풍경이 나온다. 숲 희소도를 낮추면 강가에만 숲이 몰려 곱셈 효과(위 막대 차이)가 커진다.
+  </p>
+</div>
+
+<script>
+const N=96;                                    // 격자 크기
+const cv=[1,2,3].map(i=>document.getElementById('cv'+i));
+const cx=cv.map(c=>{c.width=N;c.height=N;return c.getContext('2d');});
+let river,forest,burned,heightMap;
+let P={sparse:0.075, thresh:0.45};
+let seed=12345;
+function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+
+function wrap(v){ return (v%N+N)%N; }
+
+function genTerrain(){
+  // 높이장 → 스무딩 → 빗방울 침식
+  let h=Array.from({length:N*N},()=>rnd());
+  for(let it=0;it<10;it++){
+    const nh=new Float32Array(N*N);
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+      let t=0;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++) t+=h[wrap(y+dy)*N+wrap(x+dx)];
+      nh[y*N+x]=t/9;
+    }
+    h=nh;
+  }
+  heightMap=h;
+  const water=new Float32Array(N*N);
+  for(let d=0;d<5000;d++){
+    let y=(rnd()*N)|0, x=(rnd()*N)|0;
+    for(let s=0;s<60;s++){
+      water[y*N+x]+=1;
+      let ly=y,lx=x,lv=h[y*N+x];
+      const nb=[[-1,0],[1,0],[0,-1],[0,1]];
+      for(const [dy,dx] of nb){ const ny=wrap(y+dy),nx=wrap(x+dx); if(h[ny*N+nx]<lv){lv=h[ny*N+nx];ly=ny;lx=nx;} }
+      if(ly===y&&lx===x) break;
+      y=ly;x=lx;
+    }
+  }
+  let mx=0; for(const w of water) if(w>mx)mx=w;
+  river=new Float32Array(N*N);
+  for(let i=0;i<N*N;i++) river[i]=Math.min(1,water[i]/(mx*0.12));
+}
+
+function genLife(){
+  // 비옥도 = 강 근접 + 저지대. 숲은 비옥한 곳에서 자라고 번식.
+  const fert=new Float32Array(N*N);
+  for(let i=0;i<N*N;i++) fert[i]=river[i]*0.85 + (1-heightMap[i])*0.15;
+  forest=new Float32Array(N*N);
+  for(let it=0;it<70;it++){
+    const nf=new Float32Array(N*N);
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+      const i=y*N+x;
+      let spread=0;
+      spread+=forest[wrap(y-1)*N+x]+forest[wrap(y+1)*N+x]+forest[y*N+wrap(x-1)]+forest[y*N+wrap(x+1)];
+      // P.sparse 가 낮으면 비옥한 곳에서만 자람 → 강가에만 숲
+      const grow = fert[i]*P.sparse + spread*0.035*fert[i];
+      nf[i]=Math.max(0,Math.min(1, forest[i]+grow - forest[i]*0.03 - (1-fert[i])*0.02));
+    }
+    forest=nf;
+  }
+}
+
+function runFire(strikes){
+  burned=burned||new Float32Array(N*N);
+  for(let s=0;s<strikes;s++){
+    const sy=(rnd()*N)|0, sx=(rnd()*N)|0, si=sy*N+sx;
+    if(forest[si]<P.thresh) continue;            // 숲 없으면 점화 실패
+    const fuel=Float32Array.from(forest);
+    let fire=[si]; fuel[si]=0;
+    while(fire.length){
+      const next=[];
+      for(const i of fire){
+        burned[i]=Math.min(1,burned[i]+0.5);
+        const y=(i/N)|0,x=i%N;
+        for(const [dy,dx] of [[-1,0],[1,0],[0,-1],[0,1]]){
+          const j=wrap(y+dy)*N+wrap(x+dx);
+          if(fuel[j]>P.thresh && rnd()<fuel[j]){ next.push(j); fuel[j]=0; }
+        }
+      }
+      fire=next;
+    }
+  }
+}
+
+// 렌더링
+function draw(){
+  // L1 지형
+  const img1=cx[0].createImageData(N,N);
+  for(let i=0;i<N*N;i++){
+    const r=river[i], rock=0.25+heightMap[i]*0.4;
+    let cr,cg,cb;
+    if(r>0.15){ cr=40;cg=90+r*60;cb=180+r*60; }                 // 물=파랑
+    else { cr=70*rock+30;cg=78*rock+34;cb=92*rock+40; }         // 바위
+    const p=i*4; img1.data[p]=cr;img1.data[p+1]=cg;img1.data[p+2]=cb;img1.data[p+3]=255;
+  }
+  cx[0].putImageData(img1,0,0);
+  // L2 생명 (지형 위에 숲 오버레이)
+  const img2=cx[1].createImageData(N,N);
+  for(let i=0;i<N*N;i++){
+    const f=forest[i], r=river[i];
+    let cr=22,cg=24,cb=32;
+    if(r>0.15){ cr=30;cg=60;cb=120; }
+    if(f>0.1){ cr=20+f*10; cg=80+f*140; cb=70+f*40; }            // 숲=초록
+    const p=i*4; img2.data[p]=cr;img2.data[p+1]=cg;img2.data[p+2]=cb;img2.data[p+3]=255;
+  }
+  cx[1].putImageData(img2,0,0);
+  // L3 불 (탄 자국)
+  const img3=cx[2].createImageData(N,N);
+  for(let i=0;i<N*N;i++){
+    const b=burned?burned[i]:0, f=forest[i], r=river[i];
+    let cr=16,cg=18,cb=24;
+    if(r>0.15){ cr=24;cg=44;cb=86; }
+    if(f>0.1){ cr=20;cg=50+f*50;cb=45; }
+    if(b>0.05){ cr=120+b*135; cg=40+b*30; cb=30; }               // 탄 자국=빨강
+    const p=i*4; img3.data[p]=cr;img3.data[p+1]=cg;img3.data[p+2]=cb;img3.data[p+3]=255;
+  }
+  cx[2].putImageData(img3,0,0);
+}
+
+function updateProof(){
+  if(!burned) return;
+  let bSum=0,bN=0,allSum=0;
+  for(let i=0;i<N*N;i++){ allSum+=river[i]; if(burned[i]>0.05){ bSum+=river[i]; bN++; } }
+  const allAvg=allSum/(N*N);
+  const bAvg=bN? bSum/bN : 0;
+  document.getElementById('numFire').textContent=bAvg.toFixed(3);
+  document.getElementById('numAll').textContent=allAvg.toFixed(3);
+  document.getElementById('barFire').style.width=Math.min(100,bAvg*100/0.5*1)+'%';
+  document.getElementById('barAll').style.width=Math.min(100,allAvg*100/0.5*1)+'%';
+  const ratio= allAvg>0? bAvg/allAvg : 0;
+  const v=document.getElementById('verdict');
+  if(bN<20){ v.textContent='🔥 번개를 더 쳐서 표본을 모으세요'; }
+  else if(ratio>1.25){ v.textContent=`✦ 곱셈 확인 — 불은 강 근처에서 ${ratio.toFixed(1)}배 더 탄다`; }
+  else { v.textContent=`측정됨 (${ratio.toFixed(1)}배) — 숲 희소도를 낮추면 곱셈이 뚜렷해진다`; }
+}
+
+function regen(){
+  seed=(Math.random()*1e9)|0;
+  burned=new Float32Array(N*N);
+  genTerrain(); genLife();
+  draw(); updateProof();
+  document.getElementById('verdict').textContent='🔥 "번개 10회"를 눌러 불을 지펴보세요';
+}
+
+document.getElementById('sparse').oninput=e=>{P.sparse=+e.target.value;document.getElementById('sparseV').textContent=(+e.target.value).toFixed(3);genLife();burned=new Float32Array(N*N);draw();updateProof();};
+document.getElementById('thresh').oninput=e=>{P.thresh=+e.target.value;document.getElementById('threshV').textContent=(+e.target.value).toFixed(2);};
+document.getElementById('regen').onclick=regen;
+document.getElementById('ignite').onclick=()=>{runFire(10);draw();updateProof();};
+
+regen();
+</script>
+</body>
+</html>

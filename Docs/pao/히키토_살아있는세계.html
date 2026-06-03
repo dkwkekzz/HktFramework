@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>히키토 — 살아있는 세계</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap');
+  :root{
+    --bg:#08090d; --panel:#11131b; --line:#23262f; --ink:#eef0f5; --dim:#828aa0;
+    --water:#3b82f6; --life:#22c79a; --fire:#ff5436; --rock:#5a6478;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',sans-serif;
+    padding:20px;line-height:1.5;
+    background-image:radial-gradient(circle at 12% 6%,rgba(34,199,154,.06),transparent 42%),
+      radial-gradient(circle at 90% 94%,rgba(255,84,54,.05),transparent 46%);}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
+  h1 .a{color:var(--life)} h1 .b{color:var(--fire)} h1 .c{color:var(--water)}
+  .sub{color:var(--dim);font-size:.9rem;margin:4px 0 16px;max-width:860px}
+  .stage{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+  @media(max-width:860px){.stage{grid-template-columns:1fr}}
+  .canvas-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+  canvas{width:100%;display:block;border-radius:8px;background:#000;image-rendering:pixelated;
+    aspect-ratio:1;cursor:crosshair}
+  .tools{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .tool{font-family:'Space Mono',monospace;font-weight:700;font-size:.82rem;
+    background:#1a1d27;color:var(--ink);border:1px solid var(--line);border-radius:9px;
+    padding:9px 13px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:.12s}
+  .tool:hover{border-color:var(--dim)}
+  .tool.on{background:#222633;box-shadow:inset 0 0 0 1px currentColor}
+  .tool.rain.on{color:var(--water)} .tool.bolt.on{color:var(--fire)}
+  .tool.uplift.on{color:#c0a36b} .tool.seed.on{color:var(--life)}
+  .side{display:flex;flex-direction:column;gap:14px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .box h2{font-size:.7rem;text-transform:uppercase;letter-spacing:.13em;color:var(--dim);
+    font-weight:700;margin-bottom:10px}
+  .meter{margin-bottom:9px}
+  .meter .lab{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;
+    font-size:.78rem;color:var(--dim);margin-bottom:3px}
+  .meter .lab b{color:var(--ink)}
+  .track{height:8px;background:#0c0e14;border-radius:5px;overflow:hidden}
+  .fill{height:100%;border-radius:5px;transition:width .15s}
+  .verdict{font-family:'Space Mono',monospace;font-size:.84rem;font-weight:700;
+    padding:9px 11px;border-radius:8px;text-align:center;margin-top:4px;border:1px solid}
+  .verdict.wait{color:var(--dim);border-color:var(--line);background:#0c0e14}
+  .verdict.frozen{color:var(--water);border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.1)}
+  .verdict.playable{color:var(--life);border-color:rgba(34,199,154,.35);background:rgba(34,199,154,.1)}
+  .verdict.melted{color:var(--fire);border-color:rgba(255,84,54,.35);background:rgba(255,84,54,.1)}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:38px;margin-top:9px}
+  .spark i{flex:1;background:var(--fire);border-radius:1px;min-height:1px;opacity:.85}
+  .ctl{margin-bottom:11px}
+  .ctl label{font-family:'Space Mono',monospace;font-size:.74rem;color:var(--dim);
+    display:flex;justify-content:space-between;margin-bottom:4px}
+  .ctl label b{color:var(--ink)}
+  input[type=range]{width:100%;accent-color:var(--life);height:4px}
+  .row{display:flex;gap:8px;margin-top:4px}
+  .btn{flex:1;font-family:'Space Mono',monospace;font-weight:700;font-size:.8rem;
+    background:#1a1d27;color:var(--ink);border:1px solid var(--line);border-radius:9px;
+    padding:9px;cursor:pointer}
+  .btn:hover{border-color:var(--dim)}
+  .btn.go{background:var(--life);color:#04130d;border:none}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-family:'Space Mono',monospace;
+    font-size:.72rem;color:var(--dim)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .note{font-size:.8rem;color:var(--dim);margin-top:14px;line-height:1.6}
+  .note b{color:var(--life)} .note .f{color:var(--fire)} .note .w{color:var(--water)}
+  .hint{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--dim);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>히키토 — <span class="c">지형</span>이 <span class="a">생명</span>을, 생명이 <span class="b">불</span>을 낳는 세계</h1>
+  <p class="sub">아무것도 "여기 강", "여기 숲"이라 지정하지 않았다. 칸마다 숫자 몇 개와 공유 법칙 4개
+    (촉매·임계·보존·되먹임)뿐. <b>질서가 잠재로 흘러내리며</b> — 강의 질서가 숲의 잠재가 되고, 숲의 질서가
+    불의 잠재가 되며 — 세계가 스스로 굴러간다. 당신은 비·번개·융기로 <b>개입</b>한다.</p>
+
+  <div class="stage">
+    <div class="canvas-card">
+      <div class="tools">
+        <button class="tool rain on" data-tool="rain">☔ 비 <span style="color:var(--dim)">(드래그)</span></button>
+        <button class="tool bolt" data-tool="bolt">⚡ 번개 <span style="color:var(--dim)">(클릭)</span></button>
+        <button class="tool uplift" data-tool="uplift">⛰️ 융기 <span style="color:var(--dim)">(드래그)</span></button>
+        <button class="tool seed" data-tool="seed">🌱 씨앗 <span style="color:var(--dim)">(드래그)</span></button>
+      </div>
+      <canvas id="cv"></canvas>
+      <div class="legend">
+        <span><i style="background:#2f5d4a"></i>바위/고도</span>
+        <span><i style="background:var(--water)"></i>강·물</span>
+        <span><i style="background:var(--life)"></i>숲(질서)</span>
+        <span><i style="background:var(--fire)"></i>불</span>
+        <span><i style="background:#3a2a22"></i>잿더미→비옥</span>
+      </div>
+      <div class="hint" id="hint">☔ 비를 드래그해 숲을 키우고 → ⚡ 번개로 불을 질러보세요. 비를 많이 줄수록 숲이 이어져 불이 더 크게 번집니다(임계).</div>
+    </div>
+
+    <div class="side">
+      <div class="box">
+        <h2>세계 상태</h2>
+        <div class="meter"><div class="lab"><span>숲 (생명의 질서)</span><b id="vegV">0%</b></div>
+          <div class="track"><div class="fill" id="vegBar" style="background:var(--life);width:0"></div></div></div>
+        <div class="meter"><div class="lab"><span>불 (활성 연소)</span><b id="fireV">0%</b></div>
+          <div class="track"><div class="fill" id="fireBar" style="background:var(--fire);width:0"></div></div></div>
+        <div class="meter"><div class="lab"><span>수분 (날씨)</span><b id="moistV">0%</b></div>
+          <div class="track"><div class="fill" id="moistBar" style="background:var(--water);width:0"></div></div></div>
+      </div>
+
+      <div class="box">
+        <h2>임계성 — 번개 캐스케이드</h2>
+        <div class="verdict wait" id="verdict">번개를 쳐서 표본을 모으세요</div>
+        <div class="spark" id="spark"></div>
+        <div class="lab" style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:.72rem;color:var(--dim);margin-top:6px">
+          <span>마지막 캐스케이드</span><b id="lastCas" style="color:var(--fire)">—</b></div>
+      </div>
+
+      <div class="box">
+        <h2>법칙 손잡이</h2>
+        <div class="ctl"><label>점화 임계 <b id="igV">0.45</b></label>
+          <input type="range" id="ig" min="0.15" max="1.0" step="0.01" value="0.45"></div>
+        <div class="ctl"><label>전파(촉매) <b id="spV">0.55</b></label>
+          <input type="range" id="sp" min="0.2" max="1.0" step="0.01" value="0.55"></div>
+        <div class="ctl"><label>재생(되먹임) <b id="grV">0.06</b></label>
+          <input type="range" id="gr" min="0.01" max="0.15" step="0.005" value="0.06"></div>
+        <div class="row">
+          <button class="btn" id="pause">⏸ 일시정지</button>
+          <button class="btn go" id="reset">↻ 새 세계</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">
+    <b>같은 직관이 전이된다:</b> 불을 다루며 배운 <span class="f">임계·캐스케이드</span> 감각은
+    그대로 혁명·전염·시장붕괴에 통한다. 여기서 그 감각을 손으로 익힌다 — <span class="w">비</span>(잠재 충전)로
+    숲을 이어 붙이면 불씨 하나가 판 전체를 연쇄로 태우고(<span class="f">캐스케이드</span>), 탄 자리는 잿더미가
+    되어 다음 숲을 더 비옥하게 키운다(<b>끝없음의 루프</b>). 강가에만 숲이 몰리게 비를 아끼면 불은 형태를
+    유지한 채 번지고(임계), 온 세상을 적시면 통제불능 전소(MELTED)로 넘어간다.
+  </p>
+</div>
+
+<script>
+// ===== 수치 코어 (node로 검증된 로직) =====================================
+const N = 160;
+let W, paused = false, tool = "rain";
+const P = { ignite:0.45, grow:0.06, spread:0.55, burn:0.06, evap:0.012,
+            ashFert:0.5, vegMin:0.18 };
+
+function makeWorld(){
+  const n=N*N;
+  const W={N,n,
+    H:new Float32Array(n), flow:new Float32Array(n), fert:new Float32Array(n),
+    moist:new Float32Array(n), veg:new Float32Array(n), fire:new Float32Array(n),
+    heat:new Float32Array(n), ash:new Float32Array(n), rainBuf:new Float32Array(n),
+    seed:(Math.random()*1e9)|0, cascades:[]};
+  W.rnd=()=>{W.seed=(W.seed*1103515245+12345)&0x7fffffff;return W.seed/0x7fffffff;};
+  return W;
+}
+const wrap=(v)=> v<0?0:(v>=N?N-1:v);
+
+function genTerrain(W){
+  const H=W.H; let out=new Float32Array(W.n), amp=1, total=0;
+  for(let oct=0;oct<6;oct++){                       // 쌍선형 value-noise 프랙탈
+    const cells=1<<(oct+1), w=cells+1, lat=new Float32Array(w*w);
+    for(let i=0;i<lat.length;i++) lat[i]=W.rnd();
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+      const fxp=x/N*cells, fyp=y/N*cells, x0=Math.floor(fxp), y0=Math.floor(fyp);
+      const tx=fxp-x0, ty=fyp-y0;
+      const c00=lat[y0*w+x0], c10=lat[y0*w+x0+1], c01=lat[(y0+1)*w+x0], c11=lat[(y0+1)*w+x0+1];
+      out[y*N+x]+=amp*(c00*(1-tx)*(1-ty)+c10*tx*(1-ty)+c01*(1-tx)*ty+c11*tx*ty);
+    }
+    total+=amp; amp*=0.5;
+  }
+  let mn=Infinity,mx=-Infinity;
+  for(let i=0;i<W.n;i++){out[i]/=total; if(out[i]<mn)mn=out[i]; if(out[i]>mx)mx=out[i];}
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    let v=(out[y*N+x]-mn)/(mx-mn+1e-9);
+    const ring=Math.min(x,y,N-1-x,N-1-y);
+    v-=Math.max(0,(8-ring)/8)*0.45;                 // 가장자리 낮춰 물 출구
+    H[y*N+x]=Math.max(0,v);
+  }
+  computeTerrain(W);
+  for(let i=0;i<W.n;i++) W.veg[i]= W.fert[i]>0.5? 0.25*W.rnd():0;
+}
+
+function computeTerrain(W){
+  const H=W.H, flow=W.flow; flow.fill(0);
+  const drops=Math.floor(W.n*0.22);
+  for(let d=0;d<drops;d++){
+    let x=(W.rnd()*N)|0,y=(W.rnd()*N)|0;
+    for(let s=0;s<50;s++){
+      flow[y*N+x]+=1;
+      let lv=H[y*N+x],ly=y,lx=x;
+      if(y>0&&H[(y-1)*N+x]<lv){lv=H[(y-1)*N+x];ly=y-1;lx=x;}
+      if(y<N-1&&H[(y+1)*N+x]<lv){lv=H[(y+1)*N+x];ly=y+1;lx=x;}
+      if(x>0&&H[y*N+x-1]<lv){lv=H[y*N+x-1];ly=y;lx=x-1;}
+      if(x<N-1&&H[y*N+x+1]<lv){lv=H[y*N+x+1];ly=y;lx=x+1;}
+      if(ly===y&&lx===x)break; y=ly;x=lx;
+    }
+  }
+  let mx=0; for(let i=0;i<W.n;i++) if(flow[i]>mx)mx=flow[i];
+  let hmn=Infinity,hmx=-Infinity;
+  for(let i=0;i<W.n;i++){if(H[i]<hmn)hmn=H[i];if(H[i]>hmx)hmx=H[i];}
+  for(let i=0;i<W.n;i++){
+    const f=Math.min(1,flow[i]/(mx*0.09+1e-9)); flow[i]=f;
+    const low=1-(H[i]-hmn)/(hmx-hmn+1e-9);
+    W.fert[i]=Math.min(1, f*0.95 + low*low*0.08);   // 강(질서)에 강하게 집중 → 강가에만 숲
+  }
+}
+
+function step(W){
+  const moist=W.moist, veg=W.veg, fire=W.fire, heat=W.heat,
+        ash=W.ash, fert=W.fert, flow=W.flow, rainBuf=W.rainBuf, n=W.n;
+  // 1) 날씨
+  const nm=new Float32Array(n);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=y*N+x; let t=moist[i]*4,c=4;
+    if(y>0){t+=moist[i-N];c++;} if(y<N-1){t+=moist[i+N];c++;}
+    if(x>0){t+=moist[i-1];c++;} if(x<N-1){t+=moist[i+1];c++;}
+    let m=t/c+rainBuf[i];
+    if(flow[i]>0.5) m=Math.max(m,0.7);
+    nm[i]=Math.max(0,Math.min(1.5,m*(1-P.evap))); rainBuf[i]=0;
+  }
+  W.moist=moist; W.moist.set(nm);
+  // 2) 생명
+  const nv=new Float32Array(n);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=y*N+x;
+    if(fire[i]>0){nv[i]=veg[i];continue;}
+    let sp=0,cc=0;
+    if(y>0){sp+=veg[i-N];cc++;} if(y<N-1){sp+=veg[i+N];cc++;}
+    if(x>0){sp+=veg[i-1];cc++;} if(x<N-1){sp+=veg[i+1];cc++;}
+    sp=cc?sp/cc:0;
+    const grow=fert[i]*Math.min(1,W.moist[i])*P.grow + sp*0.05*fert[i];
+    const decay=veg[i]*(0.004+Math.max(0,0.2-W.moist[i])*0.04);
+    let vv=veg[i]+grow-decay+ash[i]*0.01;
+    const cap=Math.min(1,fert[i]*1.25);            // 숲 밀도 상한 = 비옥도 → 강가에만 짙은 숲
+    nv[i]=vv<0?0:(vv>cap?cap:vv);
+  }
+  veg.set(nv);
+  // 3) 불
+  const nh=new Float32Array(n);
+  for(let i=0;i<n;i++) nh[i]=heat[i]*0.55;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=y*N+x;
+    if(fire[i]>0){
+      const give=P.spread*veg[i];
+      if(y>0)nh[i-N]+=give; if(y<N-1)nh[i+N]+=give;
+      if(x>0)nh[i-1]+=give; if(x<N-1)nh[i+1]+=give;
+      veg[i]-=P.burn;
+      if(veg[i]<=0.04){veg[i]=0;fire[i]=0;ash[i]=Math.min(1,ash[i]+0.6);}
+    }
+  }
+  heat.set(nh);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=y*N+x;
+    if(fire[i]===0&&veg[i]>P.vegMin){
+      const aff=0.4+(1-Math.min(1,W.moist[i]))*0.9;
+      if(heat[i]*aff>P.ignite) fire[i]=1;
+    }
+  }
+  // 4) 되먹임
+  for(let i=0;i<n;i++){
+    if(ash[i]>0){
+      fert[i]=Math.min(1,fert[i]+ash[i]*P.ashFert*0.02);
+      ash[i]*=0.985; if(ash[i]<0.01)ash[i]=0;
+    }
+  }
+}
+
+function rainAt(W,cx,cy,r,amt){
+  for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++){
+    if(x*x+y*y>r*r)continue;
+    const px=cx+x,py=cy+y; if(px<0||px>=N||py<0||py>=N)continue;
+    W.rainBuf[py*N+px]+=amt;
+  }
+}
+function seedAt(W,cx,cy,r){
+  for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++){
+    if(x*x+y*y>r*r)continue;
+    const px=cx+x,py=cy+y; if(px<0||px>=N||py<0||py>=N)continue;
+    const i=py*N+px; if(W.fire[i]===0) W.veg[i]=Math.min(1,W.veg[i]+0.5);
+  }
+}
+function raiseAt(W,cx,cy,r,amt){
+  for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++){
+    const d=Math.sqrt(x*x+y*y); if(d>r)continue;
+    const px=cx+x,py=cy+y; if(px<0||px>=N||py<0||py>=N)continue;
+    W.H[py*N+px]=Math.min(1.4,W.H[py*N+px]+amt*(1-d/r));
+  }
+}
+function lightning(W,cx,cy){
+  const i0=cy*N+cx;
+  W.heat[i0]+=3;
+  if(cy>0)W.heat[i0-N]+=1.5; if(cy<N-1)W.heat[i0+N]+=1.5;
+  if(cx>0)W.heat[i0-1]+=1.5; if(cx<N-1)W.heat[i0+1]+=1.5;
+  if(W.veg[i0]<=P.vegMin){flashCascade(0);return;}
+  const seen=new Uint8Array(W.n), st=[i0]; let size=0; seen[i0]=1;
+  while(st.length){
+    const i=st.pop(); size++;
+    const x=i%N,y=(i/N)|0;
+    const nb=[]; if(y>0)nb.push(i-N); if(y<N-1)nb.push(i+N);
+    if(x>0)nb.push(i-1); if(x<N-1)nb.push(i+1);
+    for(const j of nb) if(!seen[j]&&W.veg[j]>P.vegMin&&W.fire[j]===0){seen[j]=1;st.push(j);}
+  }
+  W.cascades.push(size); if(W.cascades.length>120)W.cascades.shift();
+  flashCascade(size);
+}
+
+// ===== 렌더 ================================================================
+const cv=document.getElementById('cv'); cv.width=N; cv.height=N;
+const cx=cv.getContext('2d');
+const img=cx.createImageData(N,N);
+
+function render(){
+  const d=img.data, H=W.H, flow=W.flow, veg=W.veg, fire=W.fire, ash=W.ash, mo=W.moist, heat=W.heat;
+  let hmn=Infinity,hmx=-Infinity;
+  for(let i=0;i<W.n;i++){if(H[i]<hmn)hmn=H[i];if(H[i]>hmx)hmx=H[i];}
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=y*N+x;
+    const hn=(H[i]-hmn)/(hmx-hmn+1e-9);
+    // 음영기복: 경사로 입체감 (북서 광원)
+    const xr=x<N-1?H[i+1]:H[i], xl=x>0?H[i-1]:H[i];
+    const yd=y<N-1?H[i+N]:H[i], yu=y>0?H[i-N]:H[i];
+    const gx=(xr-xl)*0.5, gy=(yd-yu)*0.5;
+    const shade=Math.max(0.15,Math.min(1.2,0.5+(gx*2.2+gy*1.4)));
+    const sh=(0.4+hn*0.55)*shade;
+    let r=46*sh+16, g=60*sh+20, b=52*sh+22;
+    if(mo[i]>0.3){ const m=Math.min(1,(mo[i]-0.3)*0.6); r*=(1-0.12*m); b=b*(1-0.04*m)+16*m; }
+    if(flow[i]>0.4){ const f=Math.min(1,(flow[i]-0.4)*1.7); r=r*(1-f)+34*f; g=g*(1-f)+92*f; b=b*(1-f)+205*f; }
+    if(ash[i]>0.08){ const a=Math.min(1,ash[i]); r=r*(1-a)+60*a; g=g*(1-a)+44*a; b=b*(1-a)+34*a; }
+    if(veg[i]>0.12){ const v=(veg[i]-0.12)/0.88; r=r*(1-v)+(22+8*v); g=g*(1-v)+(78+150*v); b=b*(1-v)+(58+28*v); }
+    if(fire[i]>0){ r=255; g=120+Math.random()*80; b=40; }
+    else if(heat[i]>0.3){ const hh=Math.min(1,(heat[i]-0.3)*0.6); r=r*(1-hh)+255*hh; g=g*(1-hh)+90*hh; b=b*(1-hh)+30*hh; }
+    const p=i*4; d[p]=r; d[p+1]=g; d[p+2]=b; d[p+3]=255;
+  }
+  cx.putImageData(img,0,0);
+}
+
+// ===== UI ==================================================================
+function setBar(id,val,pct){ document.getElementById(id+'V').textContent=val;
+  document.getElementById(id+'Bar').style.width=Math.max(0,Math.min(100,pct))+'%'; }
+function updateMeters(){
+  let veg=0,fire=0,moist=0;
+  for(let i=0;i<W.n;i++){veg+=W.veg[i]; if(W.fire[i]>0)fire++; moist+=W.moist[i];}
+  setBar('veg',(100*veg/W.n).toFixed(0)+'%',100*veg/W.n*1.6);
+  setBar('fire',(100*fire/W.n).toFixed(1)+'%',100*fire/W.n*3);
+  setBar('moist',(100*moist/W.n/1.5).toFixed(0)+'%',100*moist/W.n/1.5);
+  // verdict
+  const c=W.cascades, el=document.getElementById('verdict');
+  if(c.length<4){ el.className='verdict wait'; el.textContent='번개를 쳐서 표본을 모으세요'; }
+  else{
+    let s=0; for(const v of c)s+=v; const frac=(s/c.length)/W.n;
+    if(frac<0.004){el.className='verdict frozen';el.textContent='FROZEN — 불씨가 못 번진다';}
+    else if(frac>0.18){el.className='verdict melted';el.textContent='MELTED — 통제불능 전소';}
+    else{el.className='verdict playable';el.textContent='PLAYABLE — 번지되 형태 유지(임계)';}
+  }
+  // sparkline
+  const sp=document.getElementById('spark');
+  const last=c.slice(-26); let mx=1; for(const v of last)if(v>mx)mx=v;
+  sp.innerHTML=last.map(v=>`<i style="height:${Math.max(2,100*Math.sqrt(v/mx))}%"></i>`).join('');
+}
+let lastCasTimer=0;
+function flashCascade(size){
+  document.getElementById('lastCas').textContent=size>0? size.toLocaleString()+' 칸':'불씨 꺼짐';
+}
+
+// 루프
+let acc=0;
+function frame(){
+  if(!paused){ step(W); render(); updateMeters(); }
+  requestAnimationFrame(frame);
+}
+
+// 입력
+let drawing=false;
+function cellFromEvent(e){
+  const r=cv.getBoundingClientRect();
+  const t=e.touches?e.touches[0]:e;
+  const x=Math.floor((t.clientX-r.left)/r.width*N);
+  const y=Math.floor((t.clientY-r.top)/r.height*N);
+  return [Math.max(0,Math.min(N-1,x)),Math.max(0,Math.min(N-1,y))];
+}
+function apply(e){
+  const [x,y]=cellFromEvent(e);
+  if(tool==='rain') rainAt(W,x,y,14,0.14);
+  else if(tool==='seed') seedAt(W,x,y,6);
+  else if(tool==='uplift'){ raiseAt(W,x,y,12,0.05); W._dirty=true; }
+  else if(tool==='bolt') lightning(W,x,y);
+}
+cv.addEventListener('pointerdown',e=>{drawing=true;apply(e);});
+cv.addEventListener('pointermove',e=>{if(drawing&&tool!=='bolt')apply(e);});
+window.addEventListener('pointerup',()=>{ if(drawing&&W._dirty){computeTerrain(W);W._dirty=false;} drawing=false; });
+
+document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tool').forEach(t=>t.classList.remove('on'));
+  b.classList.add('on'); tool=b.dataset.tool;
+  const hints={rain:'☔ 비를 드래그해 강가에 숲을 키우세요. 많이 줄수록 숲이 이어져 불이 크게 번집니다.',
+    bolt:'⚡ 숲을 클릭해 불을 지르세요. 캐스케이드 크기가 오른쪽 임계성 미터에 기록됩니다.',
+    uplift:'⛰️ 드래그로 산을 융기시키면 물길(강)이 다시 계산되어 숲 분포가 바뀝니다.',
+    seed:'🌱 드래그로 숲을 직접 심으세요. 비옥하지 않은 곳에 심으면 곧 시듭니다.'};
+  document.getElementById('hint').textContent=hints[tool];
+}));
+function bind(id,key,fmt){ const el=document.getElementById(id);
+  el.addEventListener('input',()=>{ P[key]=parseFloat(el.value);
+    document.getElementById(id+'V').textContent=fmt?fmt(P[key]):P[key]; }); }
+bind('ig','ignite',v=>v.toFixed(2)); bind('sp','spread',v=>v.toFixed(2)); bind('gr','grow',v=>v.toFixed(3));
+document.getElementById('pause').addEventListener('click',e=>{paused=!paused;e.target.textContent=paused?'▶ 재생':'⏸ 일시정지';});
+document.getElementById('reset').addEventListener('click',init);
+
+function init(){ W=makeWorld(); genTerrain(W); render(); updateMeters(); }
+init(); frame();
+</script>
+</body>
+</html>

@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>step-0004 · 다양성의 조건과 사회의 손길</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#283040; --txt:#c9d1d9;
+    --dim:#8b949e; --acc:#58a6ff; --warn:#f0883e; --ok:#3fb950; --bad:#f85149; --soc:#39d2c0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
+  header{padding:14px 18px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:16px;font-weight:600}
+  header p{margin:4px 0 0;color:var(--dim);font-size:12px}
+  .wrap{display:flex;gap:16px;padding:16px;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+  .card h2{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--acc);letter-spacing:.03em;text-transform:uppercase}
+  .card h2.soc{color:var(--soc)}
+  canvas{display:block;image-rendering:pixelated;border-radius:4px;background:#000}
+  #world{width:480px;height:480px;cursor:crosshair}
+  #macroView{width:192px;height:192px}
+  .legend{display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+  .legend b{font-weight:600}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{width:74px;color:var(--dim);font-size:11px}
+  .row input[type=range]{flex:1;accent-color:var(--acc)}
+  .row .val{width:48px;text-align:right;color:var(--txt);font-size:11px}
+  button{background:#21262d;color:var(--txt);border:1px solid var(--line);border-radius:6px;
+    padding:6px 11px;font:inherit;font-size:12px;cursor:pointer}
+  button:hover{border-color:var(--acc)}
+  button.on{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
+  button.tool.on{background:var(--ok);border-color:var(--ok);color:#0d1117}
+  button.tool.sink.on{background:var(--bad);border-color:var(--bad)}
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap}
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .toggles button{font-size:11px;padding:5px 6px}
+  table.metrics{width:100%;border-collapse:collapse;font-size:12px}
+  table.metrics td{padding:3px 4px;border-bottom:1px solid var(--line)}
+  table.metrics td:first-child{color:var(--dim)}
+  table.metrics td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  .pass{color:var(--ok)} .fail{color:var(--bad)} .wait{color:var(--warn)}
+  .hint{color:var(--dim);font-size:11px;margin-top:6px}
+  .verdict{font-size:12px;padding:8px;border-radius:6px;margin-top:8px;border:1px solid var(--line)}
+  #sweepCanvas{width:300px;height:190px;background:#0a0d12;border-radius:4px}
+  .small{font-size:11px;color:var(--dim)}
+  a{color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <h1>step-0004 · 다양성의 조건과 사회의 손길 <span class="small">— 자원이 나뉘면 군락이 나뉘고, 사회가 구성원을 붙든다</span></h1>
+  <p>검증 질문: <b>작은 군락 여럿이 각자 돌아다니는 세계의 조건은 무엇인가(① 답: 분산되고 변화하는 자원)? wBack을 켜면 사회가 구성원을 끌어모으는가(② 답: 모으고 안정시키나, 재앙은 못 내려보낸다)?</b></p>
+</header>
+
+<div class="wrap">
+  <!-- 좌: 세계 -->
+  <div class="col">
+    <div class="card">
+      <h2>미시 세계 (64×64)</h2>
+      <canvas id="world" width="480" height="480"></canvas>
+      <div class="legend">
+        <span><b style="color:#ff5a5a">R</b> E 에너지</span>
+        <span><b style="color:#5aff5a">G</b> ρ 밀도</span>
+        <span><b style="color:#5a8cff">B</b> T 열</span>
+        <span><b style="color:#ffd24a">◯</b> 생명(1층)</span>
+        <span><b style="color:#39d2c0">◻</b> 사회(2층)</span>
+        <span><b style="color:#ddd">┈</b> 이동 궤적</span>
+      </div>
+      <div class="hint" id="placeHint">도구 = <b>source(+)</b> · 클릭/드래그로 에너지 주입원을 놓습니다. 이 step의 실험은 오른쪽 시나리오 버튼이 자동 재연합니다.</div>
+      <div class="btnrow" style="margin-top:8px">
+        <button id="gradBtn">∇E 화살표</button>
+        <button id="trailBtn" class="on">궤적</button>
+        <button id="macroBtn" class="on">2층 오버레이</button>
+        <button id="wrapBtn" class="on">경계: wrap</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="soc">거시 세계 (16×16) — 같은 법칙, 한 층 위</h2>
+      <canvas id="macroView" width="192" height="192"></canvas>
+      <div class="hint">w↓(하향결합)을 올리면 사회의 끌림(A₂)이 미시로 내려가 구성원을 사회 중심으로 모읍니다. 응집도는 오른쪽 계기판에.</div>
+      <div class="btnrow" style="margin-top:8px">
+        <button id="flareBtn">☀ 재앙 실험: 승급 소득 ×10 (200 tick)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 중: 조작 -->
+  <div class="col">
+    <div class="card">
+      <h2>실행</h2>
+      <div class="btnrow">
+        <button id="playBtn" class="on">⏸ 일시정지</button>
+        <button id="stepBtn">▶ 1 tick</button>
+        <button id="resetBtn">↺ 리셋</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label>속도</label>
+        <input id="speed" type="range" min="1" max="20" value="4">
+        <span class="val" id="speedV">4×</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>실험 시나리오 (step-0004)</h2>
+      <div class="btnrow">
+        <button id="scnBasic">기본</button>
+        <button id="scnArchi">① 군도 (다양성)</button>
+        <button id="scnWalk4">① 이주 → 분열</button>
+        <button id="scnSplit">① 자원 분기 → 세포 분열</button>
+        <button id="scnBack">② 무리 짓기 (wBack)</button>
+        <button id="scnSoc">③ 두 사회 (차단)</button>
+      </div>
+      <div class="hint" id="scnHint">군도: source 4개+wE=1 → 군락이 정확히 4개 서고 절대 합쳐지지 않습니다(다양성=자원의 수). 목동·경쟁 시나리오는 step-0003.html에 있습니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>도구 (클릭 배치)</h2>
+      <div class="btnrow">
+        <button id="toolSrc" class="tool on">source +</button>
+        <button id="toolSnk" class="tool sink">sink −</button>
+        <button id="clearFx">필드 비우기</button>
+      </div>
+      <div class="row"><label>배치 강도</label><input id="fxRate" type="range" min="0" max="100" value="40"><span class="val" id="fxRateV">0.040</span></div>
+      <div class="row"><label>반경</label><input id="fxRad" type="range" min="1" max="8" value="3"><span class="val" id="fxRadV">3</span></div>
+    </div>
+
+    <div class="card">
+      <h2>법칙 파라미터</h2>
+      <div class="row"><label><b style="color:var(--warn)">wE 행동</b></label><input id="pWE" type="range" min="0" max="400" value="0"><span class="val" id="pWEV">0.00</span></div>
+      <div class="row"><label><b style="color:var(--soc)">w↓ 하향결합</b></label><input id="pWB" type="range" min="0" max="100" value="0"><span class="val" id="pWBV">0.00</span></div>
+      <div class="row"><label>α 확산E</label><input id="pAlphaE" type="range" min="0" max="100" value="25"><span class="val" id="pAlphaEV">0.25</span></div>
+      <div class="row"><label>g 응집</label><input id="pG" type="range" min="0" max="400" value="200"><span class="val" id="pGV">2.00</span></div>
+      <div class="row"><label>δ 소산</label><input id="pDelta" type="range" min="0" max="40" value="8"><span class="val" id="pDeltaV">0.008</span></div>
+      <div class="row"><label>θ 발화</label><input id="pThE" type="range" min="30" max="100" value="75"><span class="val" id="pThEV">0.75</span></div>
+      <div class="row"><label>kT 열교반</label><input id="pKT" type="range" min="0" max="200" value="50"><span class="val" id="pKTV">5.0</span></div>
+      <h2 style="margin-top:10px">법칙 토글</h2>
+      <div class="toggles">
+        <button data-tg="source" class="on">[04] source/sink</button>
+        <button data-tg="diffuse" class="on">[03] 확산</button>
+        <button data-tg="attract" class="on">[03] 응집</button>
+        <button data-tg="dissipate" class="on">[03] 소산</button>
+        <button data-tg="threshold" class="on">[03] 임계</button>
+        <button data-tg="detect" class="on">[05] 검출</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 우: 계기판 -->
+  <div class="col">
+    <div class="card">
+      <h2>검증 계기판 — 1층 (미시)</h2>
+      <table class="metrics">
+        <tr><td>tick</td><td id="mTick">0</td></tr>
+        <tr><td>보존 잔차 |resid|</td><td id="mResid">0</td></tr>
+        <tr><td>살아있는 agent</td><td id="mLiving">0</td></tr>
+        <tr><td>평균 수명</td><td id="mAge">0</td></tr>
+        <tr><td>평균 이동속도 (셀/tick)</td><td id="mSpeed">0</td></tr>
+        <tr><td>발화 / tick</td><td id="mBurst">0</td></tr>
+        <tr><td>누적 탄생 / 사망</td><td id="mBD">0 / 0</td></tr>
+        <tr><td>경합사망 (경쟁의 흔적)</td><td id="mContested">0</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h2 class="soc">검증 계기판 — 2층 (거시)</h2>
+      <table class="metrics">
+        <tr><td>살아있는 사회</td><td id="m2Living">0</td></tr>
+        <tr><td>사회 탄생 / 사망</td><td id="m2BD">0 / 0</td></tr>
+        <tr><td>승급 소득 ΣE₂ /tick</td><td id="m2Inj">0</td></tr>
+        <tr><td>거시 보존 잔차</td><td id="m2Resid">0</td></tr>
+        <tr><td>거시 발화 (재앙의 원형)</td><td id="m2Burst">0</td></tr>
+        <tr><td>★ 응집도 (구성원→사회, 셀)</td><td id="m2Coh">—</td></tr>
+      </table>
+      <div class="verdict" id="verdict">관찰 중…</div>
+    </div>
+
+    <div class="card">
+      <h2>실시간 그래프 <span class="small">(파랑=미시 living · 청록=거시 living · 주황=발화)</span></h2>
+      <canvas id="graphCanvas" width="300" height="120" style="width:300px;height:120px;background:#0a0d12;border-radius:4px"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>생명의 창 스윕 <span class="small">(미시＋거시 동시)</span></h2>
+      <canvas id="sweepCanvas" width="300" height="190"></canvas>
+      <div class="btnrow" style="margin-top:8px">
+        <button id="sweepBtn">스윕 실행 (≈5초)</button>
+      </div>
+      <div class="small" id="sweepLabel">초록=미시 living, 청록=거시 living. 두 층 모두 가운데만 솟으면 창이 한 층 위에서 재현된 것.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== sim-core (step-0004 인라인 — step-0004/sim-core.js와 동일. step-0003에서 변경 0) ===== */
+(function (global) {
+  'use strict';
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const DEFAULT_PARAMS = {
+    alphaT: 0.5,     // T 확산율
+    alphaE: 0.25,    // E 확산율
+    alphaRho: 0.02,  // rho 기본 확산 = 구조를 흩으려는 엔트로피
+    kT: 5,           // 열 교반: T가 높을수록 rho가 빨리 흩어진다 (녹는다)
+    g: 2.0,          // 응집 강도
+    cost: 0.06,      // 응집 대사 비용 (옮긴 질량당 E 소모 → T)
+    kA: 0.4,         // A가 (rho + wE·E)를 추종하는 속도 (응집 되먹임)
+    alphaA: 0.3,     // A 평활화 = 끌림의 사거리
+    wE: 0.0,         // 끌림의 E 추종 가중치. 0 = step-0002와 동일
+    rhoMax: 0.9,     // 배제 압력
+    delta: 0.008,    // 소산율 (E → T)
+    radT: 0.02,      // T 복사 = 전역 sink
+    thE: 0.75,       // 발화 임계
+    burstToT: 0.6,   // 발화 방출분 중 T 비율
+    thRho: 0.30,     // agent 검출 밀도 임계
+    lifeAge: 60,     // 항상성 판정: 최소 수명 (tick)
+    metabEps: 1e-5,  // 항상성 판정: 최소 대사율
+    srcRate: 0.05,
+    snkRate: 0.10,
+    contestR: 10,    // 경합사망 판정 반경
+  };
+
+  function createSim(N, opts) {
+    opts = opts || {};
+    const M = N * N;
+    const z = () => new Float32Array(M);
+    const sim = {
+      N, M,
+      wrap: opts.wrap !== false,
+      E: z(), T: z(), rho: z(), A: z(),
+      Abias: null,            // 상위 층이 내려보내는 끌림 편향 (양방향 결합용, 기본 없음)
+      dq: z(), dq2: z(),
+      diss: z(),
+      sources: [], sinks: [],
+      params: Object.assign({}, DEFAULT_PARAMS, opts.params || {}),
+      toggles: { source: true, diffuse: true, attract: true, dissipate: true, threshold: true, detect: true },
+      tick: 0,
+      injectedTick: 0, removedTick: 0,
+      injected: 0, removed: 0,
+      rho0: 0,
+      agents: [], nextId: 1,
+      deaths: [],
+      births: 0, deathsTotal: 0, contested: 0,
+      external: null,         // tick 시작 직후 호출되는 외부 주입 훅 (2층 승급이 사용)
+      stats: null,
+      rng: mulberry32(opts.seed == null ? 42 : opts.seed),
+    };
+    if (opts.emptyInit) {
+      sim.rho0 = 0;           // 2층용: 무에서 시작 (양은 승급으로만 들어온다)
+    } else {
+      for (let i = 0; i < M; i++) {
+        sim.rho[i] = 0.10 + 0.15 * sim.rng();
+        sim.A[i] = sim.rho[i];
+      }
+      sim.rho0 = sum(sim.rho);
+    }
+    return sim;
+  }
+
+  function sum(a) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; }
+
+  function cellsInRadius(sim, cx, cy, r) {
+    const out = [], N = sim.N;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      let x = cx + dx, y = cy + dy;
+      if (sim.wrap) { x = (x + N) % N; y = (y + N) % N; }
+      else if (x < 0 || x >= N || y < 0 || y >= N) continue;
+      out.push(y * N + x);
+    }
+    return out;
+  }
+
+  /* ---------- [04] source / sink ---------- */
+  function applySources(sim) {
+    for (const s of sim.sources) {
+      for (const i of s.cells) {
+        sim.E[i] += s.rate;
+        sim.injectedTick += s.rate;
+      }
+    }
+  }
+  function applySinks(sim) {
+    for (const s of sim.sinks) {
+      for (const i of s.cells) {
+        const rE = sim.E[i] * s.rate, rT = sim.T[i] * s.rate;
+        sim.E[i] -= rE; sim.T[i] -= rT;
+        sim.removedTick += rE + rT;
+      }
+    }
+  }
+
+  /* ---------- [03-1] 확산 (플럭스 형태 = 보존) ---------- */
+  function diffuse(sim, q, alpha) {
+    const { N, dq } = sim; dq.fill(0);
+    const k = alpha * 0.25;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      if (x + 1 < N || sim.wrap) {
+        const j = y * N + ((x + 1) % N);
+        const f = k * (q[j] - q[i]); dq[i] += f; dq[j] -= f;
+      }
+      if (y + 1 < N || sim.wrap) {
+        const j = ((y + 1) % N) * N + x;
+        const f = k * (q[j] - q[i]); dq[i] += f; dq[j] -= f;
+      }
+    }
+    for (let i = 0; i < sim.M; i++) q[i] += dq[i];
+  }
+
+  /* ---------- [03-1b] 열 교반 ---------- */
+  function diffuseRhoMelt(sim) {
+    const { N, rho, T, dq } = sim; dq.fill(0);
+    const a = sim.params.alphaRho, kT = sim.params.kT;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      for (let d = 0; d < 2; d++) {
+        let j;
+        if (d === 0) { if (x + 1 >= N && !sim.wrap) continue; j = y * N + ((x + 1) % N); }
+        else { if (y + 1 >= N && !sim.wrap) continue; j = ((y + 1) % N) * N + x; }
+        let k = 0.25 * a * (1 + kT * 0.5 * (T[i] + T[j]));
+        if (k > 0.24) k = 0.24;
+        const f = k * (rho[j] - rho[i]); dq[i] += f; dq[j] -= f;
+      }
+    }
+    for (let i = 0; i < sim.M; i++) rho[i] += dq[i];
+  }
+
+  /* ---------- [03-2] 응집 (E를 태워야 모인다 = 대사) ---------- */
+  function attract(sim) {
+    const { N, rho, A, E, T, dq, diss } = sim;
+    const g = sim.params.g, cost = sim.params.cost;
+    dq.fill(0);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      for (let d = 0; d < 2; d++) {
+        let j;
+        if (d === 0) { if (x + 1 >= N && !sim.wrap) continue; j = y * N + ((x + 1) % N); }
+        else { if (y + 1 >= N && !sim.wrap) continue; j = ((y + 1) % N) * N + x; }
+        const dA = A[j] - A[i];
+        if (dA === 0) continue;
+        const from = dA > 0 ? i : j, to = dA > 0 ? j : i;
+        const eff = E[from] / (E[from] + 0.15);
+        const press = Math.max(0, 1 - rho[to] / sim.params.rhoMax);
+        let move = g * Math.abs(dA) * rho[from] * eff * press * 0.25;
+        const avail = rho[from] + dq[from];
+        if (move > avail * 0.5) move = avail * 0.5;
+        let c = cost * move;
+        if (c > E[from]) { const sc = E[from] / c; move *= sc; c = E[from]; }
+        if (move <= 0) continue;
+        dq[from] -= move; dq[to] += move;
+        E[from] -= c; T[from] += c; diss[from] += c;
+      }
+    }
+    for (let i = 0; i < sim.M; i++) rho[i] += dq[i];
+    // 응집 되먹임: A ← rho + wE·E (+ Abias). wE=0, Abias=null이면 step-0002와 동일.
+    const kA = sim.params.kA, wE = sim.params.wE, B = sim.Abias;
+    if (wE === 0 && !B) {
+      for (let i = 0; i < sim.M; i++) A[i] += kA * (rho[i] - A[i]);
+    } else {
+      for (let i = 0; i < sim.M; i++) {
+        const target = rho[i] + wE * E[i] + (B ? B[i] : 0);
+        A[i] += kA * (target - A[i]);
+      }
+    }
+    diffuse(sim, A, sim.params.alphaA);
+    diffuse(sim, A, sim.params.alphaA);
+  }
+
+  /* ---------- [03-3] 소산·보존 + 복사 ---------- */
+  function dissipate(sim) {
+    const { E, T, diss } = sim;
+    const delta = sim.params.delta, radT = sim.params.radT;
+    for (let i = 0; i < sim.M; i++) {
+      const d = delta * E[i];
+      E[i] -= d; T[i] += d; diss[i] += d;
+      const r = radT * T[i];
+      T[i] -= r; sim.removedTick += r;
+    }
+  }
+
+  /* ---------- [03-4] 임계: 발화 ---------- */
+  function threshold(sim) {
+    const { N, E, T, rho } = sim;
+    const thE = sim.params.thE, toT = sim.params.burstToT;
+    const burst = [];
+    for (let i = 0; i < sim.M; i++) if (E[i] > thE) burst.push(i);
+    for (const i of burst) {
+      const released = E[i] * 0.7;
+      E[i] *= 0.3;
+      const x = i % N, y = (i / N) | 0;
+      const ns = [];
+      const push = (nx, ny) => {
+        if (sim.wrap) ns.push(((ny + N) % N) * N + ((nx + N) % N));
+        else if (nx >= 0 && nx < N && ny >= 0 && ny < N) ns.push(ny * N + nx);
+      };
+      push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
+      T[i] += released * toT;
+      const spread = released * (1 - toT) / Math.max(1, ns.length);
+      for (const n of ns) E[n] += spread;
+      const scatter = rho[i] * 0.30 / Math.max(1, ns.length);
+      for (const n of ns) { rho[n] += scatter; }
+      rho[i] *= 0.70;
+    }
+    return burst.length;
+  }
+
+  /* ---------- [05] agent 검출 + 시간 추적 → 항상성 + 행동 측정 ---------- */
+  function wrapDist(sim, ax, ay, bx, by) {
+    const N = sim.N;
+    let dx = Math.abs(ax - bx), dy = Math.abs(ay - by);
+    if (sim.wrap) { dx = Math.min(dx, N - dx); dy = Math.min(dy, N - dy); }
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function detectAgents(sim) {
+    const { N, rho } = sim, thRho = sim.params.thRho;
+    const seen = new Uint8Array(sim.M);
+    const found = [];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      if (seen[i] || rho[i] < thRho) continue;
+      const cells = [], stack = [i]; seen[i] = 1;
+      while (stack.length) {
+        const c = stack.pop(); cells.push(c);
+        const cx = c % N, cy = (c / N) | 0;
+        const cand = [];
+        if (cx + 1 < N || sim.wrap) cand.push(cy * N + ((cx + 1) % N));
+        if (cx - 1 >= 0 || sim.wrap) cand.push(cy * N + ((cx - 1 + N) % N));
+        if (cy + 1 < N || sim.wrap) cand.push(((cy + 1) % N) * N + cx);
+        if (cy - 1 >= 0 || sim.wrap) cand.push(((cy - 1 + N) % N) * N + cx);
+        for (const n of cand) if (!seen[n] && rho[n] >= thRho) { seen[n] = 1; stack.push(n); }
+      }
+      if (cells.length < 3) continue;
+      let mass = 0, mx = 0, my = 0, metab = 0;
+      for (const c of cells) {
+        mass += rho[c]; metab += sim.diss[c];
+        mx += (c % N) * rho[c]; my += ((c / N) | 0) * rho[c];
+      }
+      found.push({ cells, mass, cx: mx / mass, cy: my / mass, metab });
+    }
+    const prev = sim.agents, used = new Uint8Array(found.length);
+    const next = [];
+    for (const p of prev) {
+      let best = -1, bestD = 6 * 6;
+      for (let k = 0; k < found.length; k++) {
+        if (used[k]) continue;
+        let dx = Math.abs(found[k].cx - p.cx), dy = Math.abs(found[k].cy - p.cy);
+        if (sim.wrap) { dx = Math.min(dx, N - dx); dy = Math.min(dy, N - dy); }
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD) { bestD = d2; best = k; }
+      }
+      if (best >= 0) {
+        used[best] = 1;
+        const f = found[best];
+        const ema = p.massEMA * 0.98 + f.mass * 0.02;
+        const v = wrapDist(sim, f.cx, f.cy, p.cx, p.cy);
+        next.push({
+          id: p.id, cells: f.cells, mass: f.mass, cx: f.cx, cy: f.cy,
+          metab: f.metab, age: p.age + 1, massEMA: ema,
+          speed: v,
+          speedEMA: p.speedEMA * 0.95 + v * 0.05,
+          dist: p.dist + v,
+          trail: p.trail,
+        });
+      } else {
+        sim.deaths.push({ tick: sim.tick, age: p.age });
+        if (sim.deaths.length > 200) sim.deaths.shift();
+        sim.deathsTotal++;
+        for (const q of prev) {
+          if (q.id !== p.id && q.alive && wrapDist(sim, q.cx, q.cy, p.cx, p.cy) <= sim.params.contestR) {
+            sim.contested++; break;
+          }
+        }
+      }
+    }
+    for (let k = 0; k < found.length; k++) if (!used[k]) {
+      const f = found[k];
+      next.push({
+        id: sim.nextId++, cells: f.cells, mass: f.mass, cx: f.cx, cy: f.cy,
+        metab: f.metab, age: 0, massEMA: f.mass,
+        speed: 0, speedEMA: 0, dist: 0, trail: [],
+      });
+      sim.births++;
+    }
+    sim.agents = next;
+    const P = sim.params;
+    for (const a of sim.agents) {
+      a.alive = a.age >= P.lifeAge &&
+        Math.abs(a.mass - a.massEMA) < 0.5 * a.massEMA &&
+        a.metab > P.metabEps;
+      if (a.alive && (sim.tick & 3) === 0) {
+        a.trail.push(a.cx, a.cy);
+        if (a.trail.length > 128) a.trail.splice(0, 2);
+      }
+    }
+  }
+
+  /* ---------- tick 루프 ([07] 고정 순서) — 미시·거시가 같은 함수를 쓴다 ---------- */
+  function step(sim) {
+    const tg = sim.toggles;
+    const prevTotal = sum(sim.E) + sum(sim.T);
+    sim.injectedTick = 0; sim.removedTick = 0;
+    sim.diss.fill(0);
+
+    if (sim.external) sim.external(sim);
+    if (tg.source) { applySources(sim); applySinks(sim); }
+    if (tg.diffuse) {
+      diffuse(sim, sim.T, sim.params.alphaT);
+      diffuse(sim, sim.E, sim.params.alphaE);
+      diffuseRhoMelt(sim);
+    }
+    if (tg.attract) attract(sim);
+    if (tg.dissipate) dissipate(sim);
+    const bursts = tg.threshold ? threshold(sim) : 0;
+    sim.tick++;
+    if (tg.detect) detectAgents(sim);
+
+    const totalE = sum(sim.E), totalT = sum(sim.T);
+    const resid = (totalE + totalT) - (prevTotal + sim.injectedTick - sim.removedTick);
+    const living = sim.agents.filter(a => a.alive);
+    sim.injected += sim.injectedTick; sim.removed += sim.removedTick;
+    sim.stats = {
+      tick: sim.tick, totalE, totalT,
+      totalRho: sum(sim.rho), rhoDrift: sum(sim.rho) - sim.rho0,
+      resid, bursts,
+      agentCount: sim.agents.length,
+      livingCount: living.length,
+      meanAge: living.length ? living.reduce((s, a) => s + a.age, 0) / living.length : 0,
+      meanMetab: living.length ? living.reduce((s, a) => s + a.metab, 0) / living.length : 0,
+      meanSpeed: living.length ? living.reduce((s, a) => s + a.speedEMA, 0) / living.length : 0,
+      dissRate: sum(sim.diss),
+      recentDeaths: sim.deaths.length,
+      births: sim.births, deathsTotal: sim.deathsTotal, contested: sim.contested,
+    };
+    return sim.stats;
+  }
+
+  function addSource(sim, x, y, r, rate) {
+    sim.sources.push({ x, y, r, rate, cells: cellsInRadius(sim, x, y, r) });
+  }
+  function addSink(sim, x, y, r, rate) {
+    sim.sinks.push({ x, y, r, rate, cells: cellsInRadius(sim, x, y, r) });
+  }
+
+  function defaultScenario(sim, srcRate) {
+    sim.sources.length = 0; sim.sinks.length = 0;
+    const N = sim.N;
+    addSource(sim, (N * 0.25) | 0, (N * 0.25) | 0, 3, srcRate != null ? srcRate : sim.params.srcRate);
+    addSink(sim, (N * 0.75) | 0, (N * 0.75) | 0, 4, sim.params.snkRate);
+  }
+
+  /* ---------- [06] 재귀 2층 — 승급 + 동일 step() 재호출 ---------- */
+  const MACRO_DEFAULTS = {
+    N2: 16,
+    every: 4,
+    kPromote: 0.10,
+    cE: 3.0,
+    scaleM: 0.25,
+    wBack: 0.0,
+    params: {
+      wE: 0.5,
+      thRho: 0.20, lifeAge: 30, alphaRho: 0.03, kT: 3,
+      g: 2.0, cost: 0.05, delta: 0.01, radT: 0.03, thE: 0.9,
+    },
+  };
+
+  function createMacro(micro, opts) {
+    opts = Object.assign({}, MACRO_DEFAULTS, opts || {});
+    const mparams = Object.assign({}, MACRO_DEFAULTS.params, (opts || {}).params || {});
+    const macro = createSim(opts.N2, { seed: 7, emptyInit: true, params: mparams, wrap: micro.wrap });
+    macro.isMacro = true;
+    const f = opts.N2 / micro.N;
+    const Mf = new Float32Array(macro.M);
+    macro.external = function (m) {
+      Mf.fill(0);
+      let injE = 0;
+      for (const a of micro.agents) {
+        if (!a.alive) continue;
+        const cx = Math.min(opts.N2 - 1, (a.cx * f) | 0);
+        const cy = Math.min(opts.N2 - 1, (a.cy * f) | 0);
+        const i = cy * opts.N2 + cx;
+        Mf[i] += a.mass * opts.scaleM;
+        const e = a.metab * opts.cE;
+        m.E[i] += e; injE += e;
+      }
+      for (let i = 0; i < m.M; i++) m.rho[i] += opts.kPromote * (Mf[i] - m.rho[i]);
+      m.injectedTick += injE;
+    };
+    macro.couple = opts;
+    return macro;
+  }
+
+  /* 거시 A₂를 미시 Abias로 내려보내기 (양방향 결합, wBack>0일 때) */
+  function coupleDown(micro, macro, wBack) {
+    if (!wBack) { micro.Abias = null; return; }
+    if (!micro.Abias) micro.Abias = new Float32Array(micro.M);
+    const N = micro.N, N2 = macro.N, f = N2 / N, B = micro.Abias;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i2 = Math.min(N2 - 1, (y * f) | 0) * N2 + Math.min(N2 - 1, (x * f) | 0);
+      B[y * N + x] = wBack * macro.A[i2];
+    }
+  }
+
+  function stepCoupled(micro, macro) {
+    const s = step(micro);
+    if (macro && micro.tick % macro.couple.every === 0) {
+      step(macro);
+      coupleDown(micro, macro, macro.couple.wBack);
+    }
+    return s;
+  }
+
+  /* "생명의 창" 스윕 (미시 단독 또는 미시+거시) */
+  function sweepWindow(N, rates, ticks, seed, paramsOverride, withMacro) {
+    const out = [];
+    for (const r of rates) {
+      const sim = createSim(N, { seed: seed == null ? 42 : seed, params: paramsOverride });
+      const macro = withMacro ? createMacro(sim, withMacro === true ? null : withMacro) : null;
+      defaultScenario(sim, r);
+      let livingSum = 0, burstSum = 0, n = 0;
+      let macroLivingSum = 0, macroN = 0;
+      let speedSum = 0;
+      const tail = Math.floor(ticks * 2 / 3);
+      for (let t = 0; t < ticks; t++) {
+        const s = stepCoupled(sim, macro);
+        if (t >= tail) {
+          livingSum += s.livingCount; burstSum += s.bursts; speedSum += s.meanSpeed; n++;
+          if (macro && macro.stats) { macroLivingSum += macro.stats.livingCount; macroN++; }
+        }
+      }
+      out.push({
+        rate: r,
+        living: livingSum / n,
+        bursts: burstSum / n,
+        meanSpeed: speedSum / n,
+        deaths: sim.deathsTotal, births: sim.births, contested: sim.contested,
+        macroLiving: macroN ? macroLivingSum / macroN : 0,
+        maxResid: Math.abs(sim.stats.resid),
+        macroResid: macro && macro.stats ? Math.abs(macro.stats.resid) : 0,
+      });
+    }
+    return out;
+  }
+
+  const SimCore = {
+    createSim, step, stepCoupled, createMacro, coupleDown,
+    addSource, addSink, defaultScenario, sweepWindow, sum,
+    DEFAULT_PARAMS, MACRO_DEFAULTS,
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = SimCore;
+  else global.SimCore = SimCore;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+
+/* ===== UI 컨트롤러 (step-0004) ===== */
+(function(){
+  const N = 64;
+  let sim = null, macro = null;
+  let scenario = null;   // 진행 중인 자동 시나리오
+
+  const HIST = 300;
+  const hLiving = new Array(HIST).fill(0), hBurst = new Array(HIST).fill(0), hMacro = new Array(HIST).fill(0);
+  let hp = 0;
+
+  let playing = true, speed = 4, tool = 'src';
+  let fxRate = 0.04, fxRad = 3, showGrad = false, showTrail = true, showMacro = true;
+  let wBack = 0;
+  let flareUntil = -1, cE0 = null;   // ② 재앙 실험 상태
+
+  function newWorld(seed, params){
+    const tg = sim ? Object.assign({}, sim.toggles) : null;
+    const wrapPrev = sim ? sim.wrap : true;
+    sim = SimCore.createSim(N, {seed, params, wrap: wrapPrev});
+    if(tg) sim.toggles = tg;
+    macro = SimCore.createMacro(sim);
+    macro.couple.wBack = wBack;
+    flareUntil = -1; cE0 = null;
+    hLiving.fill(0); hBurst.fill(0); hMacro.fill(0);
+  }
+
+  const world = document.getElementById('world');
+  const wctx = world.getContext('2d');
+  const SCALE = world.width / N;
+  const off = document.createElement('canvas'); off.width=N; off.height=N;
+  const octx = off.getContext('2d');
+  const img = octx.createImageData(N, N);
+
+  const mview = document.getElementById('macroView');
+  const mctx = mview.getContext('2d');
+  const moff = document.createElement('canvas');
+  let mimg = null;
+
+  newWorld(42, {wE: 0});
+  SimCore.defaultScenario(sim, 0.04);
+
+  /* ---- 렌더: 미시 ---- */
+  function render(){
+    const d = img.data;
+    for(let i=0;i<sim.M;i++){
+      const e = Math.min(1, sim.E[i]), r = Math.min(1, sim.rho[i]), t = Math.min(1, sim.T[i]);
+      d[i*4]   = (e*255)|0;
+      d[i*4+1] = (r*255)|0;
+      d[i*4+2] = (t*255)|0;
+      d[i*4+3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    wctx.imageSmoothingEnabled = false;
+    wctx.clearRect(0,0,world.width,world.height);
+    wctx.drawImage(off, 0, 0, world.width, world.height);
+
+    if(showGrad){
+      wctx.strokeStyle='rgba(255,255,255,0.5)'; wctx.lineWidth=1;
+      const stepc=4;
+      for(let y=2;y<N;y+=stepc) for(let x=2;x<N;x+=stepc){
+        const xp=sim.E[y*N+((x+1)%N)], xm=sim.E[y*N+((x-1+N)%N)];
+        const yp=sim.E[((y+1)%N)*N+x], ym=sim.E[((y-1+N)%N)*N+x];
+        let gx=(xp-xm)*0.5, gy=(yp-ym)*0.5;
+        const m=Math.hypot(gx,gy); if(m<5e-4) continue;
+        gx/=m; gy/=m;
+        const L=Math.min(2.0, 0.5+m*60)*SCALE*0.45;
+        const cx=(x+0.5)*SCALE, cy=(y+0.5)*SCALE;
+        const tx=cx-gx*L, ty=cy-gy*L;
+        wctx.beginPath();
+        wctx.moveTo(cx,cy); wctx.lineTo(tx,ty);
+        wctx.lineTo(tx+(gx*0.35-gy*0.25)*L, ty+(gy*0.35+gx*0.25)*L);
+        wctx.moveTo(tx,ty);
+        wctx.lineTo(tx+(gx*0.35+gy*0.25)*L, ty+(gy*0.35-gx*0.25)*L);
+        wctx.stroke();
+      }
+    }
+
+    if(showTrail){
+      wctx.strokeStyle='rgba(255,255,255,0.35)'; wctx.lineWidth=1;
+      for(const a of sim.agents){
+        if(!a.alive || a.trail.length<4) continue;
+        wctx.beginPath();
+        let px=null, py=null;
+        for(let k=0;k<a.trail.length;k+=2){
+          const x=(a.trail[k]+0.5)*SCALE, y=(a.trail[k+1]+0.5)*SCALE;
+          if(px!==null && (Math.abs(x-px)>world.width/2 || Math.abs(y-py)>world.height/2)) wctx.moveTo(x,y);
+          else if(px===null) wctx.moveTo(x,y);
+          else wctx.lineTo(x,y);
+          px=x; py=y;
+        }
+        wctx.stroke();
+      }
+    }
+
+    for(const a of sim.agents){
+      if(!a.alive) continue;
+      wctx.strokeStyle = 'rgba(255,210,74,0.9)';
+      wctx.lineWidth = 1.5;
+      wctx.beginPath();
+      const rr = Math.max(1.2, Math.sqrt(a.cells.length/Math.PI)+0.8)*SCALE;
+      wctx.arc((a.cx+0.5)*SCALE, (a.cy+0.5)*SCALE, rr, 0, 7);
+      wctx.stroke();
+    }
+
+    if(showMacro && macro){
+      const F = N / macro.N;
+      for(const a of macro.agents){
+        if(!a.alive) continue;
+        wctx.strokeStyle = 'rgba(57,210,192,0.85)';
+        wctx.lineWidth = 2;
+        const rr = Math.max(1, Math.sqrt(a.cells.length/Math.PI)+0.6)*F*SCALE;
+        const cx=(a.cx+0.5)*F*SCALE, cy=(a.cy+0.5)*F*SCALE;
+        wctx.strokeRect(cx-rr, cy-rr, rr*2, rr*2);
+      }
+    }
+
+    const cross=(x,y,plus,color)=>{
+      const cx=(x+0.5)*SCALE, cy=(y+0.5)*SCALE, L=5;
+      wctx.strokeStyle=color; wctx.lineWidth=2;
+      wctx.beginPath();
+      wctx.moveTo(cx-L,cy); wctx.lineTo(cx+L,cy);
+      if(plus){ wctx.moveTo(cx,cy-L); wctx.lineTo(cx,cy+L); }
+      wctx.stroke();
+    };
+    for(const s of sim.sources) cross(s.x,s.y,true,'rgba(235,235,235,0.95)');
+    for(const s of sim.sinks)   cross(s.x,s.y,false,'rgba(150,150,150,0.95)');
+  }
+
+  /* ---- 렌더: 거시 미니 뷰 ---- */
+  function renderMacro(){
+    if(!macro) return;
+    const n = macro.N;
+    if(!mimg){ moff.width=n; moff.height=n; mimg = moff.getContext('2d').createImageData(n,n); }
+    const d = mimg.data;
+    for(let i=0;i<macro.M;i++){
+      d[i*4]   = (Math.min(1, macro.E[i])*255)|0;
+      d[i*4+1] = (Math.min(1, macro.rho[i])*255)|0;
+      d[i*4+2] = (Math.min(1, macro.T[i])*255)|0;
+      d[i*4+3] = 255;
+    }
+    moff.getContext('2d').putImageData(mimg,0,0);
+    mctx.imageSmoothingEnabled=false;
+    mctx.clearRect(0,0,mview.width,mview.height);
+    mctx.drawImage(moff,0,0,mview.width,mview.height);
+    const S2 = mview.width/n;
+    for(const a of macro.agents){
+      if(!a.alive) continue;
+      mctx.strokeStyle='rgba(57,210,192,0.95)'; mctx.lineWidth=1.5;
+      const rr=Math.max(1, Math.sqrt(a.cells.length/Math.PI)+0.6)*S2;
+      mctx.strokeRect((a.cx+0.5)*S2-rr,(a.cy+0.5)*S2-rr,rr*2,rr*2);
+    }
+  }
+
+  /* ---- ② 응집도: 살아있는 구성원 → 가장 가까운 사회 중심 평균 거리 ---- */
+  function cohesionNow(){
+    if(!macro) return null;
+    const soc = macro.agents.filter(a=>a.alive);
+    const liv = sim.agents.filter(a=>a.alive);
+    if(!soc.length || !liv.length) return null;
+    const g = sim.N / macro.N;
+    let s = 0;
+    const wd=(ax,ay,bx,by)=>{
+      let dx=Math.abs(ax-bx), dy=Math.abs(ay-by);
+      if(sim.wrap){ dx=Math.min(dx,N-dx); dy=Math.min(dy,N-dy); }
+      return Math.sqrt(dx*dx+dy*dy);
+    };
+    for(const a of liv){
+      let best=1e9;
+      for(const m of soc){ const d=wd(a.cx,a.cy,(m.cx+0.5)*g,(m.cy+0.5)*g); if(d<best)best=d; }
+      s+=best;
+    }
+    return s/liv.length;
+  }
+
+  /* ---- 지표 ---- */
+  function updateMetrics(s){
+    const $=id=>document.getElementById(id);
+    $('mTick').textContent = s.tick;
+    const resEl = $('mResid');
+    resEl.textContent = Math.abs(s.resid).toExponential(1);
+    resEl.className = Math.abs(s.resid) < 1e-3 ? 'pass' : 'fail';
+    $('mLiving').textContent = s.livingCount;
+    $('mAge').textContent = s.meanAge.toFixed(0);
+    $('mSpeed').textContent = s.meanSpeed.toFixed(4);
+    $('mBurst').textContent = s.bursts;
+    $('mBD').textContent = s.births + ' / ' + s.deathsTotal;
+    $('mContested').textContent = s.contested;
+
+    if(macro && macro.stats){
+      const m = macro.stats;
+      $('m2Living').textContent = m.livingCount;
+      $('m2BD').textContent = macro.births + ' / ' + macro.deathsTotal;
+      $('m2Inj').textContent = macro.injectedTick.toExponential(1);
+      const r2 = $('m2Resid');
+      r2.textContent = Math.abs(m.resid).toExponential(1);
+      r2.className = Math.abs(m.resid) < 1e-3 ? 'pass' : 'fail';
+      $('m2Burst').textContent = m.bursts + (flareUntil>=0?' ☀':'');
+      const c = cohesionNow();
+      $('m2Coh').textContent = c==null ? '—' : c.toFixed(2);
+    }
+
+    hLiving[hp] = s.livingCount; hBurst[hp] = s.bursts;
+    hMacro[hp] = macro && macro.stats ? macro.stats.livingCount : 0;
+    hp = (hp+1)%HIST;
+
+    const v = $('verdict');
+    const hasGrad = sim.sources.length>0 || sim.sinks.length>0;
+    const m2 = macro && macro.stats ? macro.stats.livingCount : 0;
+    if(!hasGrad && s.livingCount===0){ v.innerHTML='<span class="wait">기울기 없음 — source를 찍으면 세계가 깨어납니다.</span>'; v.style.borderColor='var(--warn)'; }
+    else if(m2>0 && wBack>0){ v.innerHTML='<span class="pass">✓ 사회 '+m2+'개가 w↓='+wBack.toFixed(2)+'로 구성원을 붙들고 있습니다 — 응집도가 줄어드는 것을 보세요 (최적 ≈0.2).</span>'; v.style.borderColor='var(--soc)'; }
+    else if(m2>0){ v.innerHTML='<span class="pass">✓ 1층 생명 '+s.livingCount+' · 2층 사회 '+m2+' — 같은 법칙이 두 층에서 돌고 있습니다.</span>'; v.style.borderColor='var(--soc)'; }
+    else if(s.livingCount>0){ v.innerHTML='<span class="pass">✓ 1층 생명 '+s.livingCount+'개. 사회는 아직 (생명이 오래 유지되면 2층이 깨어납니다).</span>'; v.style.borderColor='var(--ok)'; }
+    else { v.innerHTML='<span class="wait">기울기는 있으나 아직 안정 구조 없음.</span>'; v.style.borderColor='var(--line)'; }
+  }
+
+  /* ---- 그래프 ---- */
+  const gctx = document.getElementById('graphCanvas').getContext('2d');
+  function drawGraph(){
+    const W=300,H=120; gctx.clearRect(0,0,W,H);
+    let maxL=1,maxB=1,maxM=1;
+    for(let i=0;i<HIST;i++){ if(hLiving[i]>maxL)maxL=hLiving[i]; if(hBurst[i]>maxB)maxB=hBurst[i]; if(hMacro[i]>maxM)maxM=hMacro[i]; }
+    gctx.strokeStyle='#1f2733'; gctx.lineWidth=1;
+    for(let g=0;g<=4;g++){ const y=H*g/4; gctx.beginPath();gctx.moveTo(0,y);gctx.lineTo(W,y);gctx.stroke(); }
+    const line=(arr,max,color)=>{
+      gctx.strokeStyle=color; gctx.lineWidth=1.5; gctx.beginPath();
+      for(let i=0;i<HIST;i++){
+        const idx=(hp+i)%HIST, x=W*i/(HIST-1), y=H-(arr[idx]/max)*(H-4)-2;
+        i?gctx.lineTo(x,y):gctx.moveTo(x,y);
+      }
+      gctx.stroke();
+    };
+    line(hBurst,maxB,'rgba(240,136,62,0.7)');
+    line(hMacro,maxM,'rgba(57,210,192,0.95)');
+    line(hLiving,maxL,'rgba(88,166,255,0.95)');
+    gctx.fillStyle='#8b949e'; gctx.font='10px monospace';
+    gctx.fillText('미시 max '+maxL+' · 거시 max '+maxM+' · 발화 max '+maxB, 6, 12);
+  }
+
+  /* ---- 시나리오 상태 기계 (step-0004.md 1·2절의 실험을 그대로 재연, 시드 42) ---- */
+  const $ = id=>document.getElementById(id);
+  function setSpeed(v){ speed=v; $('speed').value=v; $('speedV').textContent=v+'×'; }
+  function setWE(v){ sim.params.wE=v; $('pWE').value=Math.round(v*100); $('pWEV').textContent=v.toFixed(2); }
+  function setWB(v){ wBack=v; macro.couple.wBack=v; $('pWB').value=Math.round(v*100); $('pWBV').textContent=v.toFixed(2); }
+  function archi(){
+    for(const [x,y] of [[16,16],[48,16],[16,48],[48,48]]) SimCore.addSource(sim,x,y,3,0.04);
+    SimCore.addSink(sim,32,32,4,0.10);
+  }
+
+  function startScenario(type){
+    const p = Object.assign({}, sim.params);
+    newWorld(42, p);
+    setWB(0);
+    setSpeed(12);
+    scenario = {type, phase:'settle'};
+    if(type==='basic'){
+      SimCore.defaultScenario(sim, fxRate);
+      scenario.msg='기본: source(좌상) 주변에 군락이 서고 노란 원(생명)이 켜집니다 — step-0002/0003의 표준 배치. 단일 source에서는 wE를 아무리 조여도 군락이 1개로 정리됩니다(독점은 자원 위상의 정리, step-0004 1절).';
+    } else if(type==='archi'){
+      setWE(1);
+      archi();
+      scenario.msg='① 군도: source 4개 + wE=1. 군락이 정확히 4개 서고 3000 tick이 지나도 절대 합쳐지지 않습니다 — 다양성의 단위는 자원(niche)입니다. 아래 거시 캔버스에 사회(청록)도 켜집니다. 여기서 w↓ 슬라이더를 올리면 ② 무리 짓기로 이어집니다.';
+    } else if(type==='walk4'){
+      setWE(1);
+      archi();
+      scenario.until = 2000; scenario.walked = 0;
+    } else if(type==='split'){
+      setWE(1);
+      SimCore.addSource(sim,32,32,3,0.04); SimCore.addSink(sim,8,8,4,0.10);
+      scenario.until = 1500; scenario.off = 0;
+    } else if(type==='back'){
+      setWE(0.5);
+      archi();
+      scenario.until = 2500;
+    } else if(type==='soc'){
+      setWE(0.5);
+      SimCore.addSource(sim,16,32,3,0.04); SimCore.addSource(sim,48,32,3,0.04); SimCore.addSink(sim,32,8,4,0.10);
+      scenario.until = 2500;
+    }
+  }
+
+  function scenarioTick(){
+    if(!scenario) return;
+    if(scenario.type==='walk4'){
+      if(scenario.phase==='settle'){
+        if(sim.tick>=scenario.until) scenario.phase='walk';
+      } else if(scenario.phase==='walk'){
+        if(sim.tick%80===0 && scenario.walked<16){
+          scenario.walked++;
+          sim.sources.length=0;
+          for(const [x,y] of [[16,16],[48,16],[16,48],[48,48]]) SimCore.addSource(sim,(x+scenario.walked)%N,y,3,0.04);
+          if(scenario.walked>=16) scenario.phase='done';
+        }
+      }
+    } else if(scenario.type==='split'){
+      if(scenario.phase==='settle'){
+        if(sim.tick>=scenario.until) scenario.phase='walk';
+      } else if(scenario.phase==='walk'){
+        if(sim.tick%80===0 && scenario.off<12){
+          scenario.off++;
+          sim.sources.length=0;
+          SimCore.addSource(sim,32+scenario.off,32,3,0.02);
+          SimCore.addSource(sim,32-scenario.off,32,3,0.02);
+          if(scenario.off>=12) scenario.phase='done';
+        }
+      }
+    } else if(scenario.type==='back'){
+      if(scenario.phase==='settle' && sim.tick>=scenario.until){
+        setWB(0.2);
+        scenario.phase='after';
+      }
+    } else if(scenario.type==='soc'){
+      if(scenario.phase==='settle' && sim.tick>=scenario.until){
+        sim.sources.length=0;
+        SimCore.addSource(sim,48,32,3,0.04);   // ★ 좌측 차단, 우측만 남김
+        scenario.phase='cut';
+      }
+    }
+  }
+
+  function scenarioStatus(){
+    if(!scenario) return;
+    const el=$('scnHint'), t=sim.tick;
+    if(scenario.msg){ el.textContent=scenario.msg; return; }
+    if(scenario.type==='walk4'){
+      if(scenario.phase==='settle')
+        el.textContent=`이주 1/3 — 군도에 군락 4개가 큽니다 (${t}/${scenario.until} tick)…`;
+      else if(scenario.phase==='walk')
+        el.textContent=`이주 2/3 — source 4개가 함께 동쪽으로 걷습니다 (${scenario.walked}/16셀). 군락이 동쪽으로 늘어나다 **둘로 갈라지는** 순간을 보세요: 전위부가 새 개체로 떨어져 나가 source를 따라가고, 본체는 제자리에 남습니다.`;
+      else
+        el.textContent='이주 3/3 — 완료. living이 4→8로 늘었습니다(분열). 남은 본체(서쪽 노란 원)는 질량을 잃으며 서서히 굶어 죽고, 딸 군락이 자랍니다 — 세대 교체. 작은 군락은 통째로 이주(step-0003 목동), 큰 군락은 분열합니다.';
+    } else if(scenario.type==='split'){
+      if(scenario.phase==='settle')
+        el.textContent=`분열 1/3 — 중앙 source에 군락 하나가 큽니다 (${t}/${scenario.until} tick)…`;
+      else if(scenario.phase==='walk')
+        el.textContent=`분열 2/3 — source가 둘(0.02+0.02, 총량 보존)로 갈라져 동·서로 걷습니다 (${scenario.off}/12셀). 군락이 아령처럼 늘어나다 둘로 끊어지는 것을 보세요.`;
+      else
+        el.textContent='분열 3/3 — 완료. 군락 하나가 둘로 갈라져 각자 자기 source 곁에 붙었습니다(최종 거리 ~1.3셀, 전 시드 동일) — 세포 분열의 원형이 자원 분기 하나에서 떠올랐습니다.';
+    } else if(scenario.type==='back'){
+      if(scenario.phase==='settle')
+        el.textContent=`무리 짓기 1/2 — 군도+wE=0.5로 사회가 자리 잡습니다 (${t}/${scenario.until} tick)… 계기판의 응집도(구성원→사회 거리)를 봐 두세요 (~2셀).`;
+      else
+        el.textContent='무리 짓기 2/2 — w↓=0.2 켜짐! 응집도가 ~2셀 → ~0.4셀로 줄어듭니다(사회가 구성원을 끌어모음). 부수 효과: 생멸 회전도 ~25% 감소 — 사회가 구성원을 안정시킵니다. w↓를 1.0까지 올리면 도리어 느슨해집니다(거시 블록 경계의 왜곡).';
+    } else if(scenario.type==='soc'){
+      if(scenario.phase==='settle')
+        el.textContent=`두 사회 1/2 — source 둘(32셀 거리)에 군락이 서고 거시 사회 2개가 켜집니다 (${t}/${scenario.until} tick)… 좌·우 노란 원과 아래 거시 캔버스의 청록 사회 2개를 봐 두세요.`;
+      else
+        el.textContent='두 사회 2/2 — 좌측 source 차단! 좌측 사회가 시들어 사라지지만(사회 2→1) 우측은 미동도 없습니다 — 흡수도, 이주도, 경합사망도 0. 32셀 거리의 두 사회는 자원·장을 공유하지 않아 서로의 운명에 무관합니다(3절). 인과를 잇는 채널이 step-0005의 과제입니다.';
+    }
+  }
+
+  /* ---- 루프 ---- */
+  function frame(){
+    if(playing){
+      for(let k=0;k<speed;k++){
+        scenarioTick();
+        SimCore.stepCoupled(sim, macro);
+        if(flareUntil>=0 && sim.tick>=flareUntil){ macro.couple.cE = cE0; flareUntil = -1; }
+      }
+    }
+    const st = sim.stats || {tick:0,totalE:0,totalT:0,resid:0,bursts:0,livingCount:0,meanAge:0,meanMetab:0,meanSpeed:0,births:0,deathsTotal:0,contested:0};
+    render(); renderMacro(); updateMetrics(st); drawGraph(); scenarioStatus();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- 입력 ---- */
+  function placeAt(ev){
+    const rect = world.getBoundingClientRect();
+    const x = Math.floor((ev.clientX-rect.left)/rect.width*N);
+    const y = Math.floor((ev.clientY-rect.top)/rect.height*N);
+    if(x<0||x>=N||y<0||y>=N) return;
+    if(tool==='src') SimCore.addSource(sim,x,y,fxRad,fxRate);
+    else SimCore.addSink(sim,x,y,fxRad, Math.max(0.02,fxRate*2));
+  }
+  let dragging=false;
+  world.addEventListener('mousedown',e=>{dragging=true;placeAt(e);});
+  world.addEventListener('mousemove',e=>{if(dragging)placeAt(e);});
+  window.addEventListener('mouseup',()=>dragging=false);
+
+  /* ---- 컨트롤 ---- */
+  $('playBtn').onclick = function(){ playing=!playing; this.textContent = playing?'⏸ 일시정지':'▶ 재생'; this.classList.toggle('on',playing); };
+  $('stepBtn').onclick = ()=>{ SimCore.stepCoupled(sim, macro); };
+  $('resetBtn').onclick = ()=>{
+    const p=Object.assign({},sim.params);
+    const src=sim.sources.map(s=>({...s})),snk=sim.sinks.map(s=>({...s}));
+    scenario=null;
+    newWorld((Math.random()*1e9)|0, p);
+    sim.sources=src; sim.sinks=snk;
+    $('scnHint').textContent='리셋: 같은 배치, 새 시드.';
+  };
+  $('speed').oninput = function(){ speed=+this.value; $('speedV').textContent=speed+'×'; };
+
+  /* 시나리오 버튼 */
+  $('scnBasic').onclick = ()=>startScenario('basic');
+  $('scnArchi').onclick = ()=>startScenario('archi');
+  $('scnWalk4').onclick = ()=>startScenario('walk4');
+  $('scnSplit').onclick = ()=>startScenario('split');
+  $('scnBack').onclick  = ()=>startScenario('back');
+  $('scnSoc').onclick   = ()=>startScenario('soc');
+
+  /* ② 재앙 실험: 승급 소득 플레어 */
+  $('flareBtn').onclick = ()=>{
+    if(!macro) return;
+    if(cE0===null) cE0 = macro.couple.cE;
+    macro.couple.cE = cE0*10;
+    flareUntil = sim.tick + 200;
+    $('scnHint').textContent='② 재앙 실험 — 승급 소득 ×10 (200 tick). 거시 발화(계기판 ☀)가 치솟지만 미시 사망은 늘지 않습니다. w↓를 1.0으로 올려도 마찬가지 — A(끌림) 채널은 방향만 전달할 뿐 에너지를 빼앗지 못하므로, 재앙의 전파에는 하향 에너지 채널이 필요합니다 (step-0004 2절, 다음 step 과제).';
+  };
+
+  $('clearFx').onclick = ()=>{ scenario=null; sim.sources.length=0; sim.sinks.length=0;
+    $('scnHint').textContent='필드 비우기: 모든 source/sink 제거. 미시가 굶어 무너지고, 시차를 두고 거시 사회도 따라 무너집니다(상향 결합, step-0003).'; };
+
+  $('toolSrc').onclick = ()=>{ tool='src'; $('toolSrc').classList.add('on'); $('toolSnk').classList.remove('on'); $('placeHint').innerHTML='도구 = <b>source(+)</b> · 클릭/드래그로 에너지 주입원을 놓습니다.'; };
+  $('toolSnk').onclick = ()=>{ tool='snk'; $('toolSnk').classList.add('on'); $('toolSrc').classList.remove('on'); $('placeHint').innerHTML='도구 = <b>sink(−)</b> · 클릭/드래그로 에너지 배출구를 놓습니다.'; };
+  $('fxRate').oninput = function(){ fxRate=+this.value/1000; $('fxRateV').textContent=fxRate.toFixed(3); };
+  $('fxRad').oninput  = function(){ fxRad=+this.value; $('fxRadV').textContent=fxRad; };
+  $('gradBtn').onclick = function(){ showGrad=!showGrad; this.classList.toggle('on',showGrad); };
+  $('trailBtn').onclick = function(){ showTrail=!showTrail; this.classList.toggle('on',showTrail); };
+  $('macroBtn').onclick = function(){ showMacro=!showMacro; this.classList.toggle('on',showMacro); };
+  $('wrapBtn').onclick = function(){ sim.wrap=!sim.wrap; macro.wrap=sim.wrap; this.textContent='경계: '+(sim.wrap?'wrap':'clamp'); this.classList.toggle('on',sim.wrap); };
+
+  const bindP = (id, key, scale, fmt)=>{ $(id).oninput=function(){ const v=+this.value*scale; sim.params[key]=v; $(id+'V').textContent=fmt(v); }; };
+  bindP('pWE','wE',0.01,v=>v.toFixed(2));
+  bindP('pAlphaE','alphaE',0.01,v=>v.toFixed(2));
+  bindP('pG','g',0.01,v=>v.toFixed(2));
+  bindP('pDelta','delta',0.001,v=>v.toFixed(3));
+  bindP('pThE','thE',0.01,v=>v.toFixed(2));
+  bindP('pKT','kT',0.1,v=>v.toFixed(1));
+  $('pWB').oninput = function(){ wBack=+this.value/100; macro.couple.wBack=wBack; $('pWBV').textContent=wBack.toFixed(2); };
+
+  document.querySelectorAll('[data-tg]').forEach(btn=>{
+    btn.onclick=()=>{ const k=btn.dataset.tg; sim.toggles[k]=!sim.toggles[k]; btn.classList.toggle('on',sim.toggles[k]); };
+  });
+
+  /* ---- 생명의 창 스윕 (미시+거시) ---- */
+  const sctx = $('sweepCanvas').getContext('2d');
+  $('sweepBtn').onclick = ()=>{
+    $('sweepBtn').textContent='실행 중…'; $('sweepBtn').disabled=true;
+    setTimeout(()=>{
+      const rates=[0,0.005,0.01,0.02,0.04,0.07,0.12,0.2,0.35,0.6];
+      const res = SimCore.sweepWindow(N, rates, 1500, 42, sim.params, true);
+      drawSweep(res);
+      $('sweepBtn').textContent='스윕 실행 (≈5초)'; $('sweepBtn').disabled=false;
+    }, 30);
+  };
+  function drawSweep(res){
+    const W=300,H=190,pad=26; sctx.clearRect(0,0,W,H);
+    let mx=1, mx2=0.01;
+    for(const r of res){ if(r.living>mx)mx=r.living; if(r.macroLiving>mx2)mx2=r.macroLiving; }
+    sctx.strokeStyle='#1f2733';
+    for(let g=0;g<=4;g++){ const y=pad+(H-pad-14)*g/4; sctx.beginPath();sctx.moveTo(pad,y);sctx.lineTo(W-6,y);sctx.stroke(); }
+    const bw=(W-pad-6)/res.length;
+    res.forEach((r,i)=>{
+      const x=pad+i*bw;
+      const h=(r.living/mx)*(H-pad-14);
+      sctx.fillStyle= r.living>0.5? 'rgba(63,185,80,0.85)':'rgba(80,90,110,0.5)';
+      sctx.fillRect(x+1, H-14-h, bw/2-2, h);
+      const h2=(r.macroLiving/mx2)*(H-pad-14);
+      sctx.fillStyle= r.macroLiving>0.2? 'rgba(57,210,192,0.9)':'rgba(60,75,80,0.5)';
+      sctx.fillRect(x+bw/2, H-14-h2, bw/2-2, h2);
+      sctx.fillStyle='#8b949e'; sctx.font='8px monospace';
+      sctx.save(); sctx.translate(x+bw/2, H-4); sctx.fillText(r.rate, -7,0); sctx.restore();
+    });
+    sctx.fillStyle='#c9d1d9'; sctx.font='10px monospace';
+    sctx.fillText('초록=미시 · 청록=거시', pad, 12);
+    sctx.fillText('source 강도 →', W-92, 12);
+    const aliveU = res.filter(r=>r.living>0.5).length, aliveM = res.filter(r=>r.macroLiving>0.2).length;
+    const ends0 = res[0].living<0.5 && res[res.length-1].living<0.5;
+    $('sweepLabel').textContent = (ends0 && aliveU>0 ? '✓ 미시 창 확인. ' : '미시 창 불명확(wE>0이면 오른쪽 끝이 닫히지 않는 게 정상 — 행동이 폭주 구간 생존을 가능케 함). ')
+      + (aliveM>0 ? '✓ 거시에도 생명 구간 존재 — 창이 한 층 위에서 재현됨.' : '거시 생명 없음 (tick 수가 짧거나 창 밖일 수 있음).');
+  }
+
+  frame();
+})();
+</script>
+</body>
+</html>

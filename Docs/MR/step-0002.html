@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>step-0002 · 떠오름 시뮬레이터</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#283040; --txt:#c9d1d9;
+    --dim:#8b949e; --acc:#58a6ff; --warn:#f0883e; --ok:#3fb950; --bad:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
+  header{padding:14px 18px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:16px;font-weight:600}
+  header p{margin:4px 0 0;color:var(--dim);font-size:12px}
+  .wrap{display:flex;gap:16px;padding:16px;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+  .card h2{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--acc);letter-spacing:.03em;text-transform:uppercase}
+  canvas{display:block;image-rendering:pixelated;border-radius:4px;background:#000}
+  #world{width:480px;height:480px;cursor:crosshair}
+  .legend{display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+  .legend b{font-weight:600}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{width:74px;color:var(--dim);font-size:11px}
+  .row input[type=range]{flex:1;accent-color:var(--acc)}
+  .row .val{width:48px;text-align:right;color:var(--txt);font-size:11px}
+  button{background:#21262d;color:var(--txt);border:1px solid var(--line);border-radius:6px;
+    padding:6px 11px;font:inherit;font-size:12px;cursor:pointer}
+  button:hover{border-color:var(--acc)}
+  button.on{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
+  button.tool.on{background:var(--ok);border-color:var(--ok);color:#0d1117}
+  button.tool.sink.on{background:var(--bad);border-color:var(--bad)}
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap}
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .toggles button{font-size:11px;padding:5px 6px}
+  table.metrics{width:100%;border-collapse:collapse;font-size:12px}
+  table.metrics td{padding:3px 4px;border-bottom:1px solid var(--line)}
+  table.metrics td:first-child{color:var(--dim)}
+  table.metrics td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  .pass{color:var(--ok)} .fail{color:var(--bad)} .wait{color:var(--warn)}
+  .hint{color:var(--dim);font-size:11px;margin-top:6px}
+  .verdict{font-size:12px;padding:8px;border-radius:6px;margin-top:8px;border:1px solid var(--line)}
+  #sweepCanvas{width:300px;height:170px;background:#0a0d12;border-radius:4px}
+  #histCanvas{width:300px;height:90px;background:#0a0d12;border-radius:4px}
+  .small{font-size:11px;color:var(--dim)}
+  a{color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <h1>step-0002 · 떠오름 시뮬레이터 <span class="small">— 6요소 통합 프로토타입</span></h1>
+  <p>1차 검증 질문: <b>entity를 만들지 않았는데 자기유지 구조(생명)가 "생명의 창"에서 떠오르는가?</b> · 클릭으로 source/sink를 찍어 기울기를 직접 만들어 보세요.</p>
+</header>
+
+<div class="wrap">
+  <!-- 좌: 세계 -->
+  <div class="col">
+    <div class="card">
+      <h2>세계 (64×64)</h2>
+      <canvas id="world" width="480" height="480"></canvas>
+      <div class="legend">
+        <span><b style="color:#ff5a5a">R</b> E 에너지</span>
+        <span><b style="color:#5aff5a">G</b> ρ 밀도(물질)</span>
+        <span><b style="color:#5a8cff">B</b> T 열</span>
+        <span><b style="color:#ffd24a">◯</b> 살아있는 agent</span>
+        <span><b style="color:#888">+</b> source</span>
+        <span><b style="color:#888">−</b> sink</span>
+      </div>
+      <div class="hint" id="placeHint">도구 = <b>source(+)</b> · 클릭한 자리에 에너지가 솟는 샘이 생깁니다. 샘(+)과 배출구(−)가 만드는 에너지 불균형(기울기)이 세계를 움직이는 동력입니다.</div>
+      <div class="btnrow" style="margin-top:8px">
+        <button id="gradBtn">∇E 화살표</button>
+        <button id="wrapBtn" class="on">경계: wrap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 중: 조작 -->
+  <div class="col">
+    <div class="card">
+      <h2>실행</h2>
+      <div class="btnrow">
+        <button id="playBtn" class="on">⏸ 일시정지</button>
+        <button id="stepBtn">▶ 1 tick</button>
+        <button id="resetBtn">↺ 리셋</button>
+        <button id="scenarioBtn">⤢ 기본 시나리오</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label>속도</label>
+        <input id="speed" type="range" min="1" max="20" value="4">
+        <span class="val" id="speedV">4×</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>도구 (클릭 배치)</h2>
+      <div class="btnrow">
+        <button id="toolSrc" class="tool on">source +</button>
+        <button id="toolSnk" class="tool sink">sink −</button>
+        <button id="clearFx">필드 비우기</button>
+      </div>
+      <div class="row"><label>배치 강도</label><input id="fxRate" type="range" min="0" max="100" value="50"><span class="val" id="fxRateV">0.050</span></div>
+      <div class="row"><label>반경</label><input id="fxRad" type="range" min="1" max="8" value="3"><span class="val" id="fxRadV">3</span></div>
+    </div>
+
+    <div class="card">
+      <h2>법칙 파라미터 (생명의 창 탐색)</h2>
+      <div class="row"><label>α 확산E</label><input id="pAlphaE" type="range" min="0" max="100" value="25"><span class="val" id="pAlphaEV">0.25</span></div>
+      <div class="row"><label>g 응집</label><input id="pG" type="range" min="0" max="400" value="200"><span class="val" id="pGV">2.00</span></div>
+      <div class="row"><label>δ 소산</label><input id="pDelta" type="range" min="0" max="40" value="8"><span class="val" id="pDeltaV">0.008</span></div>
+      <div class="row"><label>θ 발화</label><input id="pThE" type="range" min="30" max="100" value="75"><span class="val" id="pThEV">0.75</span></div>
+      <div class="row"><label>kT 열교반</label><input id="pKT" type="range" min="0" max="200" value="50"><span class="val" id="pKTV">5.0</span></div>
+      <h2 style="margin-top:10px">법칙 토글</h2>
+      <div class="toggles">
+        <button data-tg="source" class="on">[04] source/sink</button>
+        <button data-tg="diffuse" class="on">[03] 확산</button>
+        <button data-tg="attract" class="on">[03] 응집</button>
+        <button data-tg="dissipate" class="on">[03] 소산</button>
+        <button data-tg="threshold" class="on">[03] 임계</button>
+        <button data-tg="detect" class="on">[05] 검출</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 우: 계기판 -->
+  <div class="col">
+    <div class="card">
+      <h2>검증 계기판</h2>
+      <table class="metrics">
+        <tr><td>tick</td><td id="mTick">0</td></tr>
+        <tr><td>ΣE + ΣT</td><td id="mTotal">0</td></tr>
+        <tr><td>보존 잔차 |resid|</td><td id="mResid">0</td></tr>
+        <tr><td>발화 / tick</td><td id="mBurst">0</td></tr>
+        <tr><td>살아있는 agent</td><td id="mLiving">0</td></tr>
+        <tr><td>평균 수명</td><td id="mAge">0</td></tr>
+        <tr><td>평균 대사율</td><td id="mMetab">0</td></tr>
+        <tr><td>총 소산률 /tick</td><td id="mDiss">0</td></tr>
+        <tr><td>누적 탄생 / 사망</td><td id="mBD">0 / 0</td></tr>
+      </table>
+      <div class="verdict" id="verdict">관찰 중…</div>
+    </div>
+
+    <div class="card">
+      <h2>실시간 그래프 <span class="small">(파랑=살아있는 agent · 주황=발화)</span></h2>
+      <canvas id="graphCanvas" width="300" height="120" style="width:300px;height:120px;background:#0a0d12;border-radius:4px"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>ρ 분포 (구조성)</h2>
+      <canvas id="histCanvas" width="300" height="90"></canvas>
+      <div class="small" id="histLabel">왼쪽=빈 공간, 오른쪽=단단한 물질</div>
+    </div>
+
+    <div class="card">
+      <h2>생명의 창 스윕 <span class="small">(현재 파라미터로)</span></h2>
+      <canvas id="sweepCanvas" width="300" height="170"></canvas>
+      <div class="btnrow" style="margin-top:8px">
+        <button id="sweepBtn">스윕 실행 (≈3초)</button>
+      </div>
+      <div class="small" id="sweepLabel">source 강도 0→max에서 중간 구간에만 생명이 존재하면 "창"이 있는 것.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== sim-core (step-0001 설계 구현, 인라인) ===== */
+/* ============================================================
+ * step-0002 sim-core : 6요소 통합 시뮬레이션 코어 (브라우저/Node 겸용)
+ * step-0001 문서의 설계를 그대로 구현:
+ *  [01] N×N 격자, SoA Float32Array, 4-이웃, wrap/clamp
+ *  [02] 양 E,T,rho,A (0~1 정규화 기준)
+ *  [03] 법칙 4종: 확산/응집/소산·보존/임계 — 전부 플럭스(교환) 형태 = 수치적 보존
+ *  [04] source/sink + 복사(radiation) = 기울기 엔진
+ *  [05] agent 검출(flood fill) + 시간 추적 → 항상성 판정
+ * ============================================================ */
+(function (global) {
+  'use strict';
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const DEFAULT_PARAMS = {
+    alphaT: 0.5,     // T 확산율
+    alphaE: 0.25,    // E 확산율
+    alphaRho: 0.02,  // rho 기본 확산 = 구조를 흩으려는 엔트로피
+    kT: 5,           // 열 교반: T가 높을수록 rho가 빨리 흩어진다 (녹는다)
+    g: 2.0,          // 응집 강도
+    cost: 0.06,      // 응집 대사 비용 (옮긴 질량당 E 소모 → T)
+    kA: 0.4,         // A가 rho를 추종하는 속도 (응집 되먹임)
+    alphaA: 0.3,     // A 평활화 = 끌림의 사거리. 0이면 점 붕괴(체커보드 불안정)
+    rhoMax: 0.9,     // 배제 압력: rho가 이 값에 가까울수록 더 못 들어옴 (점 붕괴 방지)
+    delta: 0.008,    // 소산율 (E → T)
+    radT: 0.02,      // T 복사 = 전역 sink (우주로 식음)
+    thE: 0.75,       // 발화 임계
+    burstToT: 0.6,   // 발화 방출분 중 T로 가는 비율 (나머지는 이웃 E로 전파)
+    thRho: 0.30,     // agent 검출 밀도 임계
+    lifeAge: 60,     // 항상성 판정: 최소 수명 (tick)
+    metabEps: 1e-5,  // 항상성 판정: 최소 대사율
+    srcRate: 0.05,   // 기본 source 강도
+    snkRate: 0.10,   // 기본 sink 강도
+  };
+
+  function createSim(N, opts) {
+    opts = opts || {};
+    const M = N * N;
+    const z = () => new Float32Array(M);
+    const sim = {
+      N, M,
+      wrap: opts.wrap !== false,
+      E: z(), T: z(), rho: z(), A: z(),
+      dq: z(), dq2: z(),      // 플럭스 누적 작업 버퍼 (동기적 갱신 보장)
+      diss: z(),              // 이번 tick 셀별 E→T 전환량 (대사 측정용)
+      sources: [], sinks: [],
+      params: Object.assign({}, DEFAULT_PARAMS, opts.params || {}),
+      toggles: { source: true, diffuse: true, attract: true, dissipate: true, threshold: true, detect: true },
+      tick: 0,
+      injectedTick: 0, removedTick: 0,   // 이번 tick 장부
+      injected: 0, removed: 0,           // 누적 장부
+      rho0: 0,
+      agents: [], nextId: 1,
+      deaths: [],            // 최근 사망 기록 {tick, age}
+      stats: null,
+      rng: mulberry32(opts.seed == null ? 42 : opts.seed),
+    };
+    // [02] 초기화: rho/A 약한 난수, E/T는 0 — "무에서 구조가 떠오르는가"
+    for (let i = 0; i < M; i++) {
+      sim.rho[i] = 0.10 + 0.15 * sim.rng();
+      sim.A[i] = sim.rho[i];
+    }
+    sim.rho0 = sum(sim.rho);
+    return sim;
+  }
+
+  function sum(a) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; }
+
+  function cellsInRadius(sim, cx, cy, r) {
+    const out = [], N = sim.N;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      let x = cx + dx, y = cy + dy;
+      if (sim.wrap) { x = (x + N) % N; y = (y + N) % N; }
+      else if (x < 0 || x >= N || y < 0 || y >= N) continue;
+      out.push(y * N + x);
+    }
+    return out;
+  }
+
+  /* ---------- [04] source / sink ---------- */
+  function applySources(sim) {
+    for (const s of sim.sources) {
+      for (const i of s.cells) {
+        sim.E[i] += s.rate;           // 무제한 주입 — 과잉은 임계 발화로 터진다
+        sim.injectedTick += s.rate;
+      }
+    }
+  }
+  function applySinks(sim) {
+    for (const s of sim.sinks) {
+      for (const i of s.cells) {
+        const rE = sim.E[i] * s.rate, rT = sim.T[i] * s.rate;
+        sim.E[i] -= rE; sim.T[i] -= rT;
+        sim.removedTick += rE + rT;
+      }
+    }
+  }
+
+  /* ---------- [03-1] 확산 (플럭스 형태 = 보존) ---------- */
+  function diffuse(sim, q, alpha) {
+    const { N, dq } = sim; dq.fill(0);
+    const k = alpha * 0.25;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      // 오른쪽 이웃
+      if (x + 1 < N || sim.wrap) {
+        const j = y * N + ((x + 1) % N);
+        const f = k * (q[j] - q[i]); dq[i] += f; dq[j] -= f;
+      }
+      // 아래 이웃
+      if (y + 1 < N || sim.wrap) {
+        const j = ((y + 1) % N) * N + x;
+        const f = k * (q[j] - q[i]); dq[i] += f; dq[j] -= f;
+      }
+    }
+    for (let i = 0; i < sim.M; i++) q[i] += dq[i];
+  }
+
+  /* ---------- [03-1b] 열 교반: T가 높은 곳일수록 rho가 빨리 흩어진다 ----------
+   * 같은 플럭스 형태(보존). 변동 계수 = alphaRho*(1 + kT*T_edge). */
+  function diffuseRhoMelt(sim) {
+    const { N, rho, T, dq } = sim; dq.fill(0);
+    const a = sim.params.alphaRho, kT = sim.params.kT;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      for (let d = 0; d < 2; d++) {
+        let j;
+        if (d === 0) { if (x + 1 >= N && !sim.wrap) continue; j = y * N + ((x + 1) % N); }
+        else { if (y + 1 >= N && !sim.wrap) continue; j = ((y + 1) % N) * N + x; }
+        let k = 0.25 * a * (1 + kT * 0.5 * (T[i] + T[j]));
+        if (k > 0.24) k = 0.24;                       // 수치 안정 상한
+        const f = k * (rho[j] - rho[i]); dq[i] += f; dq[j] -= f;
+      }
+    }
+    for (let i = 0; i < sim.M; i++) rho[i] += dq[i];
+  }
+
+  /* ---------- [03-2] 응집 (E를 태워야 모인다 = 대사) ----------
+   * rho가 A 높은 쪽으로 흐른다. 단, 옮기려면 donor의 E가 필요하고
+   * 그 비용은 T로 전환된다(보존). E가 없으면 응집 불가 → 구조는 굶으면 흩어진다. */
+  function attract(sim) {
+    const { N, rho, A, E, T, dq, diss } = sim;
+    const g = sim.params.g, cost = sim.params.cost;
+    dq.fill(0);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      for (let d = 0; d < 2; d++) {
+        let j;
+        if (d === 0) { if (x + 1 >= N && !sim.wrap) continue; j = y * N + ((x + 1) % N); }
+        else { if (y + 1 >= N && !sim.wrap) continue; j = ((y + 1) % N) * N + x; }
+        const dA = A[j] - A[i];
+        if (dA === 0) continue;
+        const from = dA > 0 ? i : j, to = dA > 0 ? j : i;
+        const eff = E[from] / (E[from] + 0.15);          // 대사 게이트: E 없으면 못 움직임
+        const press = Math.max(0, 1 - rho[to] / sim.params.rhoMax); // 배제 압력
+        let move = g * Math.abs(dA) * rho[from] * eff * press * 0.25;
+        const avail = rho[from] + dq[from];
+        if (move > avail * 0.5) move = avail * 0.5;       // 한 tick 과도 이동 방지
+        let c = cost * move;                              // 대사 비용
+        if (c > E[from]) { const sc = E[from] / c; move *= sc; c = E[from]; }
+        if (move <= 0) continue;
+        dq[from] -= move; dq[to] += move;
+        E[from] -= c; T[from] += c; diss[from] += c;      // E→T (보존)
+      }
+    }
+    for (let i = 0; i < sim.M; i++) rho[i] += dq[i];
+    // 응집 되먹임: A는 rho를 추종 → 덩어리가 더 끌어당김
+    const kA = sim.params.kA;
+    for (let i = 0; i < sim.M; i++) A[i] += kA * (rho[i] - A[i]);
+    // 끌림의 사거리: A를 평활화 → 한 점이 아니라 '덩어리'가 끌어당긴다
+    // (이게 없으면 셀 단위 점 붕괴 = 체커보드 불안정이 생긴다)
+    diffuse(sim, A, sim.params.alphaA);
+    diffuse(sim, A, sim.params.alphaA);
+  }
+
+  /* ---------- [03-3] 소산·보존 + 복사 ---------- */
+  function dissipate(sim) {
+    const { E, T, diss } = sim;
+    const delta = sim.params.delta, radT = sim.params.radT;
+    for (let i = 0; i < sim.M; i++) {
+      const d = delta * E[i];
+      E[i] -= d; T[i] += d; diss[i] += d;   // E→T
+      const r = radT * T[i];                // T 복사 = 전역 sink
+      T[i] -= r; sim.removedTick += r;
+    }
+  }
+
+  /* ---------- [03-4] 임계: 발화 ----------
+   * E가 임계를 넘으면 불연속 사건: E의 70%가 방출되어
+   * 일부는 T로(소산), 일부는 이웃 E로(연쇄 전파). rho 일부가 이웃으로 흩어짐(보존). */
+  function threshold(sim) {
+    const { N, E, T, rho } = sim;
+    const thE = sim.params.thE, toT = sim.params.burstToT;
+    const burst = [];
+    for (let i = 0; i < sim.M; i++) if (E[i] > thE) burst.push(i);
+    for (const i of burst) {
+      const released = E[i] * 0.7;
+      E[i] *= 0.3;
+      const x = i % N, y = (i / N) | 0;
+      const ns = [];
+      const push = (nx, ny) => {
+        if (sim.wrap) ns.push(((ny + N) % N) * N + ((nx + N) % N));
+        else if (nx >= 0 && nx < N && ny >= 0 && ny < N) ns.push(ny * N + nx);
+      };
+      push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
+      T[i] += released * toT;
+      const spread = released * (1 - toT) / Math.max(1, ns.length);
+      for (const n of ns) E[n] += spread;
+      const scatter = rho[i] * 0.30 / Math.max(1, ns.length); // 구조 파괴
+      for (const n of ns) { rho[n] += scatter; }
+      rho[i] *= 0.70;
+    }
+    return burst.length;
+  }
+
+  /* ---------- [05] agent 검출 + 시간 추적 → 항상성 ---------- */
+  function detectAgents(sim) {
+    const { N, rho } = sim, thRho = sim.params.thRho;
+    const seen = new Uint8Array(sim.M);
+    const found = [];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      if (seen[i] || rho[i] < thRho) continue;
+      const cells = [], stack = [i]; seen[i] = 1;
+      while (stack.length) {
+        const c = stack.pop(); cells.push(c);
+        const cx = c % N, cy = (c / N) | 0;
+        const cand = [];
+        if (cx + 1 < N || sim.wrap) cand.push(cy * N + ((cx + 1) % N));
+        if (cx - 1 >= 0 || sim.wrap) cand.push(cy * N + ((cx - 1 + N) % N));
+        if (cy + 1 < N || sim.wrap) cand.push(((cy + 1) % N) * N + cx);
+        if (cy - 1 >= 0 || sim.wrap) cand.push(((cy - 1 + N) % N) * N + cx);
+        for (const n of cand) if (!seen[n] && rho[n] >= thRho) { seen[n] = 1; stack.push(n); }
+      }
+      if (cells.length < 3) continue; // 노이즈 컷
+      let mass = 0, mx = 0, my = 0, metab = 0;
+      for (const c of cells) {
+        mass += rho[c]; metab += sim.diss[c];
+        mx += (c % N) * rho[c]; my += ((c / N) | 0) * rho[c];
+      }
+      found.push({ cells, mass, cx: mx / mass, cy: my / mass, metab });
+    }
+    // 시간 추적: 직전 agent와 centroid 최근접 매칭
+    const prev = sim.agents, used = new Uint8Array(found.length);
+    const next = [];
+    for (const p of prev) {
+      let best = -1, bestD = 6 * 6; // 매칭 반경 6셀
+      for (let k = 0; k < found.length; k++) {
+        if (used[k]) continue;
+        let dx = Math.abs(found[k].cx - p.cx), dy = Math.abs(found[k].cy - p.cy);
+        if (sim.wrap) { dx = Math.min(dx, N - dx); dy = Math.min(dy, N - dy); }
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD) { bestD = d2; best = k; }
+      }
+      if (best >= 0) {
+        used[best] = 1;
+        const f = found[best];
+        const ema = p.massEMA * 0.98 + f.mass * 0.02;
+        next.push({
+          id: p.id, cells: f.cells, mass: f.mass, cx: f.cx, cy: f.cy,
+          metab: f.metab, age: p.age + 1, massEMA: ema,
+        });
+      } else {
+        sim.deaths.push({ tick: sim.tick, age: p.age }); // 소멸 = 생멸 기록
+        if (sim.deaths.length > 200) sim.deaths.shift();
+      }
+    }
+    for (let k = 0; k < found.length; k++) if (!used[k]) {
+      const f = found[k];
+      next.push({ id: sim.nextId++, cells: f.cells, mass: f.mass, cx: f.cx, cy: f.cy, metab: f.metab, age: 0, massEMA: f.mass });
+    }
+    sim.agents = next;
+    // 항상성 판정: 수명 + 질량 안정 + 대사 > 0
+    const P = sim.params;
+    for (const a of sim.agents) {
+      a.alive = a.age >= P.lifeAge &&
+        Math.abs(a.mass - a.massEMA) < 0.5 * a.massEMA &&
+        a.metab > P.metabEps;
+    }
+  }
+
+  /* ---------- tick 루프 ([07] 고정 순서) ---------- */
+  function step(sim) {
+    const tg = sim.toggles;
+    const prevTotal = sum(sim.E) + sum(sim.T);
+    sim.injectedTick = 0; sim.removedTick = 0;
+    sim.diss.fill(0);
+
+    if (tg.source) { applySources(sim); applySinks(sim); }      // 1. [04]
+    if (tg.diffuse) {                                           // 2. [03] 확산
+      diffuse(sim, sim.T, sim.params.alphaT);
+      diffuse(sim, sim.E, sim.params.alphaE);
+      diffuseRhoMelt(sim);                                      //    엔트로피+열 교반: 구조를 흩는다
+    }
+    if (tg.attract) attract(sim);                               // 3. [03] 응집(대사)
+    if (tg.dissipate) dissipate(sim);                           // 4. [03] 소산+복사
+    const bursts = tg.threshold ? threshold(sim) : 0;           // 5. [03] 임계
+    sim.tick++;
+    if (tg.detect) detectAgents(sim);                           // 7. [05] 검출·추적
+
+    // 9. 지표
+    const totalE = sum(sim.E), totalT = sum(sim.T);
+    const resid = (totalE + totalT) - (prevTotal + sim.injectedTick - sim.removedTick);
+    const living = sim.agents.filter(a => a.alive);
+    sim.injected += sim.injectedTick; sim.removed += sim.removedTick;
+    sim.stats = {
+      tick: sim.tick, totalE, totalT,
+      totalRho: sum(sim.rho), rhoDrift: sum(sim.rho) - sim.rho0,
+      resid, bursts,
+      agentCount: sim.agents.length,
+      livingCount: living.length,
+      meanAge: living.length ? living.reduce((s, a) => s + a.age, 0) / living.length : 0,
+      meanMetab: living.length ? living.reduce((s, a) => s + a.metab, 0) / living.length : 0,
+      dissRate: sum(sim.diss),
+      recentDeaths: sim.deaths.length,
+    };
+    return sim.stats;
+  }
+
+  function addSource(sim, x, y, r, rate) {
+    sim.sources.push({ x, y, r, rate, cells: cellsInRadius(sim, x, y, r) });
+  }
+  function addSink(sim, x, y, r, rate) {
+    sim.sinks.push({ x, y, r, rate, cells: cellsInRadius(sim, x, y, r) });
+  }
+
+  /* 기본 시나리오: 대각선 기울기 (한쪽 source, 반대쪽 sink) */
+  function defaultScenario(sim, srcRate) {
+    sim.sources.length = 0; sim.sinks.length = 0;
+    const N = sim.N;
+    addSource(sim, (N * 0.25) | 0, (N * 0.25) | 0, 3, srcRate != null ? srcRate : sim.params.srcRate);
+    addSink(sim, (N * 0.75) | 0, (N * 0.75) | 0, 4, sim.params.snkRate);
+  }
+
+  /* "생명의 창" 스윕: source 강도별로 새 시뮬을 돌려 살아있는 agent 수 측정 */
+  function sweepWindow(N, rates, ticks, seed, paramsOverride) {
+    const out = [];
+    for (const r of rates) {
+      const sim = createSim(N, { seed: seed == null ? 42 : seed, params: paramsOverride });
+      defaultScenario(sim, r);
+      let livingSum = 0, deathSum = 0, n = 0, burstSum = 0;
+      const tail = Math.floor(ticks * 2 / 3);
+      let prevDeaths = 0;
+      for (let t = 0; t < ticks; t++) {
+        const s = step(sim);
+        if (t >= tail) {
+          livingSum += s.livingCount; burstSum += s.bursts; n++;
+          deathSum += sim.deaths.length - prevDeaths > 0 ? sim.deaths.length - prevDeaths : 0;
+        }
+        prevDeaths = sim.deaths.length;
+      }
+      out.push({
+        rate: r,
+        living: livingSum / n,
+        bursts: burstSum / n,
+        deaths: deathSum,
+        maxResid: Math.abs(sim.stats.resid),
+      });
+    }
+    return out;
+  }
+
+  const SimCore = { createSim, step, addSource, addSink, defaultScenario, sweepWindow, sum, DEFAULT_PARAMS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = SimCore;
+  else global.SimCore = SimCore;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+
+/* ===== UI 컨트롤러 ===== */
+(function(){
+  const N = 64;
+  let sim = SimCore.createSim(N, {seed:42});
+  SimCore.defaultScenario(sim, 0.05);
+
+  let births = 0, deathsTotal = 0, prevNextId = 1, prevDeaths = 0;
+  // 그래프 히스토리
+  const HIST = 300;
+  const hLiving = new Array(HIST).fill(0), hBurst = new Array(HIST).fill(0);
+  let hp = 0;
+
+  const world = document.getElementById('world');
+  const wctx = world.getContext('2d');
+  const SCALE = world.width / N;
+  const off = document.createElement('canvas'); off.width=N; off.height=N;
+  const octx = off.getContext('2d');
+  const img = octx.createImageData(N, N);
+
+  let playing = true, speed = 4, tool = 'src';
+  let fxRate = 0.05, fxRad = 3, showGrad = false;
+
+  /* ---- 렌더 ---- */
+  function render(){
+    // 필드: 오프스크린 N×N에 픽셀로 그린 뒤 메인 캔버스로 확대
+    const d = img.data;
+    for(let i=0;i<sim.M;i++){
+      const e = Math.min(1, sim.E[i]), r = Math.min(1, sim.rho[i]), t = Math.min(1, sim.T[i]);
+      d[i*4]   = (e*255)|0;
+      d[i*4+1] = (r*255)|0;
+      d[i*4+2] = (t*255)|0;
+      d[i*4+3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    wctx.imageSmoothingEnabled = false;
+    wctx.clearRect(0,0,world.width,world.height);
+    wctx.drawImage(off, 0, 0, world.width, world.height);
+
+    // ∇E 흐름 화살표 (E가 흐르는 방향 = -∇E)
+    if(showGrad){
+      wctx.strokeStyle='rgba(255,255,255,0.5)'; wctx.lineWidth=1;
+      const stepc=4;
+      for(let y=2;y<N;y+=stepc) for(let x=2;x<N;x+=stepc){
+        const xp=sim.E[y*N+((x+1)%N)], xm=sim.E[y*N+((x-1+N)%N)];
+        const yp=sim.E[((y+1)%N)*N+x], ym=sim.E[((y-1+N)%N)*N+x];
+        let gx=(xp-xm)*0.5, gy=(yp-ym)*0.5;
+        const m=Math.hypot(gx,gy); if(m<5e-4) continue;
+        gx/=m; gy/=m;
+        const L=Math.min(2.0, 0.5+m*60)*SCALE*0.45;
+        const cx=(x+0.5)*SCALE, cy=(y+0.5)*SCALE;
+        const tx=cx-gx*L, ty=cy-gy*L;   // 높은 곳 → 낮은 곳
+        wctx.beginPath();
+        wctx.moveTo(cx,cy); wctx.lineTo(tx,ty);
+        wctx.lineTo(tx+(gx*0.35-gy*0.25)*L, ty+(gy*0.35+gx*0.25)*L);
+        wctx.moveTo(tx,ty);
+        wctx.lineTo(tx+(gx*0.35+gy*0.25)*L, ty+(gy*0.35-gx*0.25)*L);
+        wctx.stroke();
+      }
+    }
+
+    // 살아있는 agent 경계 오버레이
+    for(const a of sim.agents){
+      if(!a.alive) continue;
+      wctx.strokeStyle = 'rgba(255,210,74,0.9)';
+      wctx.lineWidth = 1.5;
+      wctx.beginPath();
+      const rr = Math.max(1.2, Math.sqrt(a.cells.length/Math.PI)+0.8)*SCALE;
+      wctx.arc((a.cx+0.5)*SCALE, (a.cy+0.5)*SCALE, rr, 0, 7);
+      wctx.stroke();
+    }
+
+    // source/sink 마커
+    const cross=(x,y,plus,color)=>{
+      const cx=(x+0.5)*SCALE, cy=(y+0.5)*SCALE, L=5;
+      wctx.strokeStyle=color; wctx.lineWidth=2;
+      wctx.beginPath();
+      wctx.moveTo(cx-L,cy); wctx.lineTo(cx+L,cy);
+      if(plus){ wctx.moveTo(cx,cy-L); wctx.lineTo(cx,cy+L); }
+      wctx.stroke();
+    };
+    for(const s of sim.sources) cross(s.x,s.y,true,'rgba(235,235,235,0.95)');
+    for(const s of sim.sinks)   cross(s.x,s.y,false,'rgba(150,150,150,0.95)');
+  }
+
+  /* ---- 지표 갱신 ---- */
+  function updateMetrics(s){
+    births += sim.nextId - prevNextId; prevNextId = sim.nextId;
+    deathsTotal += Math.max(0, sim.deaths.length - prevDeaths); prevDeaths = sim.deaths.length;
+
+    document.getElementById('mTick').textContent = s.tick;
+    document.getElementById('mTotal').textContent = (s.totalE+s.totalT).toFixed(1);
+    const resEl = document.getElementById('mResid');
+    resEl.textContent = Math.abs(s.resid).toExponential(1);
+    resEl.className = Math.abs(s.resid) < 1e-3 ? 'pass' : 'fail';
+    document.getElementById('mBurst').textContent = s.bursts;
+    document.getElementById('mLiving').textContent = s.livingCount;
+    document.getElementById('mAge').textContent = s.meanAge.toFixed(0);
+    document.getElementById('mMetab').textContent = s.meanMetab.toExponential(1);
+    document.getElementById('mDiss').textContent = (s.dissRate||0).toFixed(3);
+    document.getElementById('mBD').textContent = births + ' / ' + deathsTotal;
+
+    // 히스토리
+    hLiving[hp] = s.livingCount; hBurst[hp] = s.bursts; hp = (hp+1)%HIST;
+
+    // 판정
+    const v = document.getElementById('verdict');
+    const hasGrad = sim.sources.length>0 || sim.sinks.length>0;
+    if(!hasGrad){ v.innerHTML='<span class="wait">기울기 없음 — source를 찍으면 세계가 깨어납니다.</span>'; v.style.borderColor='var(--warn)'; }
+    else if(s.livingCount>0){ v.innerHTML='<span class="pass">✓ 자기유지 구조 '+s.livingCount+'개 떠오름 — 우리가 만들지 않았습니다.</span>'; v.style.borderColor='var(--ok)'; }
+    else { v.innerHTML='<span class="wait">기울기는 있으나 아직 안정 구조 없음 (죽음/폭주 구간일 수 있음).</span>'; v.style.borderColor='var(--line)'; }
+  }
+
+  /* ---- 그래프 ---- */
+  const gctx = document.getElementById('graphCanvas').getContext('2d');
+  function drawGraph(){
+    const W=300,H=120; gctx.clearRect(0,0,W,H);
+    let maxL=1,maxB=1;
+    for(let i=0;i<HIST;i++){ if(hLiving[i]>maxL)maxL=hLiving[i]; if(hBurst[i]>maxB)maxB=hBurst[i]; }
+    gctx.strokeStyle='#1f2733'; gctx.lineWidth=1;
+    for(let g=0;g<=4;g++){ const y=H*g/4; gctx.beginPath();gctx.moveTo(0,y);gctx.lineTo(W,y);gctx.stroke(); }
+    const line=(arr,max,color)=>{
+      gctx.strokeStyle=color; gctx.lineWidth=1.5; gctx.beginPath();
+      for(let i=0;i<HIST;i++){
+        const idx=(hp+i)%HIST, x=W*i/(HIST-1), y=H-(arr[idx]/max)*(H-4)-2;
+        i?gctx.lineTo(x,y):gctx.moveTo(x,y);
+      }
+      gctx.stroke();
+    };
+    line(hBurst,maxB,'rgba(240,136,62,0.8)');
+    line(hLiving,maxL,'rgba(88,166,255,0.95)');
+    gctx.fillStyle='#8b949e'; gctx.font='10px monospace';
+    gctx.fillText('living max '+maxL+'  ·  burst max '+maxB, 6, 12);
+  }
+
+  /* ---- ρ 히스토그램 ---- */
+  const hctx = document.getElementById('histCanvas').getContext('2d');
+  function drawHist(){
+    const W=300,H=90; hctx.clearRect(0,0,W,H);
+    const bins=new Array(20).fill(0);
+    for(let i=0;i<sim.M;i++){ let b=(Math.min(0.999,sim.rho[i])*20)|0; if(b<0)b=0; bins[b]++; }
+    let mx=1; for(const b of bins) if(b>mx)mx=b;
+    const bw=W/bins.length;
+    for(let i=0;i<bins.length;i++){
+      const h=Math.log(1+bins[i])/Math.log(1+mx)*(H-2);
+      const frac=i/bins.length;
+      hctx.fillStyle=`rgb(${(40+frac*40)|0},${(80+frac*150)|0},${(60+frac*40)|0})`;
+      hctx.fillRect(i*bw, H-h, bw-1, h);
+    }
+    // thRho 표시선
+    const xT = (sim.params.thRho)*W;
+    hctx.strokeStyle='rgba(255,210,74,0.7)'; hctx.beginPath(); hctx.moveTo(xT,0);hctx.lineTo(xT,H);hctx.stroke();
+  }
+
+  /* ---- 루프 ---- */
+  function frame(){
+    if(playing){ for(let k=0;k<speed;k++) var s = SimCore.step(sim); }
+    const st = sim.stats || {tick:0,totalE:0,totalT:0,resid:0,bursts:0,livingCount:0,meanAge:0,meanMetab:0};
+    render(); updateMetrics(st); drawGraph(); drawHist();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- 입력: 캔버스 클릭 → source/sink ---- */
+  function placeAt(ev){
+    const rect = world.getBoundingClientRect();
+    const x = Math.floor((ev.clientX-rect.left)/rect.width*N);
+    const y = Math.floor((ev.clientY-rect.top)/rect.height*N);
+    if(x<0||x>=N||y<0||y>=N) return;
+    if(tool==='src') SimCore.addSource(sim,x,y,fxRad,fxRate);
+    else SimCore.addSink(sim,x,y,fxRad, Math.max(0.02,fxRate*2));
+  }
+  let dragging=false;
+  world.addEventListener('mousedown',e=>{dragging=true;placeAt(e);});
+  world.addEventListener('mousemove',e=>{if(dragging)placeAt(e);});
+  window.addEventListener('mouseup',()=>dragging=false);
+
+  /* ---- 컨트롤 바인딩 ---- */
+  const $ = id=>document.getElementById(id);
+  $('playBtn').onclick = function(){ playing=!playing; this.textContent = playing?'⏸ 일시정지':'▶ 재생'; this.classList.toggle('on',playing); };
+  $('stepBtn').onclick = ()=>{ SimCore.step(sim); };
+  $('resetBtn').onclick = ()=>{ const p=Object.assign({},sim.params); const src=sim.sources.map(s=>({...s})),snk=sim.sinks.map(s=>({...s}));
+    sim = SimCore.createSim(N,{seed:(Math.random()*1e9)|0, params:p}); sim.sources=src; sim.sinks=snk;
+    births=0;deathsTotal=0;prevNextId=1;prevDeaths=0; hLiving.fill(0);hBurst.fill(0); };
+  $('scenarioBtn').onclick = ()=>{ SimCore.defaultScenario(sim, fxRate); };
+  $('clearFx').onclick = ()=>{ sim.sources.length=0; sim.sinks.length=0; };
+  $('speed').oninput = function(){ speed=+this.value; $('speedV').textContent=speed+'×'; };
+
+  $('toolSrc').onclick = ()=>{ tool='src'; $('toolSrc').classList.add('on'); $('toolSnk').classList.remove('on'); $('placeHint').innerHTML='도구 = <b>source(+)</b> · 클릭/드래그로 에너지 주입원을 놓습니다.'; };
+  $('toolSnk').onclick = ()=>{ tool='snk'; $('toolSnk').classList.add('on'); $('toolSrc').classList.remove('on'); $('placeHint').innerHTML='도구 = <b>sink(−)</b> · 클릭/드래그로 에너지 배출구를 놓습니다.'; };
+  $('fxRate').oninput = function(){ fxRate=+this.value/1000; $('fxRateV').textContent=fxRate.toFixed(3); };
+  $('fxRad').oninput  = function(){ fxRad=+this.value; $('fxRadV').textContent=fxRad; };
+  $('gradBtn').onclick = function(){ showGrad=!showGrad; this.classList.toggle('on',showGrad); };
+  $('wrapBtn').onclick = function(){ sim.wrap=!sim.wrap; this.textContent='경계: '+(sim.wrap?'wrap':'clamp'); this.classList.toggle('on',sim.wrap); };
+
+  // 파라미터 슬라이더
+  const bindP = (id, key, scale, fmt)=>{ $(id).oninput=function(){ const v=+this.value*scale; sim.params[key]=v; $(id+'V').textContent=fmt(v); }; };
+  bindP('pAlphaE','alphaE',0.01,v=>v.toFixed(2));
+  bindP('pG','g',0.01,v=>v.toFixed(2));
+  bindP('pDelta','delta',0.001,v=>v.toFixed(3));
+  bindP('pThE','thE',0.01,v=>v.toFixed(2));
+  bindP('pKT','kT',0.1,v=>v.toFixed(1));
+
+  // 법칙 토글
+  document.querySelectorAll('[data-tg]').forEach(btn=>{
+    btn.onclick=()=>{ const k=btn.dataset.tg; sim.toggles[k]=!sim.toggles[k]; btn.classList.toggle('on',sim.toggles[k]); };
+  });
+
+  /* ---- 생명의 창 스윕 ---- */
+  const sctx = $('sweepCanvas').getContext('2d');
+  $('sweepBtn').onclick = ()=>{
+    $('sweepBtn').textContent='실행 중…'; $('sweepBtn').disabled=true;
+    setTimeout(()=>{
+      const rates=[0,0.005,0.01,0.02,0.04,0.07,0.12,0.2,0.35,0.6];
+      const res = SimCore.sweepWindow(N, rates, 1200, 42, sim.params);
+      drawSweep(res);
+      $('sweepBtn').textContent='스윕 실행 (≈3초)'; $('sweepBtn').disabled=false;
+    }, 30);
+  };
+  function drawSweep(res){
+    const W=300,H=170,pad=26; sctx.clearRect(0,0,W,H);
+    let mx=1; for(const r of res) if(r.living>mx)mx=r.living;
+    sctx.strokeStyle='#1f2733';
+    for(let g=0;g<=4;g++){ const y=pad+(H-pad-14)*g/4; sctx.beginPath();sctx.moveTo(pad,y);sctx.lineTo(W-6,y);sctx.stroke(); }
+    // 막대
+    const bw=(W-pad-6)/res.length;
+    res.forEach((r,i)=>{
+      const x=pad+i*bw, h=(r.living/mx)*(H-pad-14);
+      const alive=r.living>0.5;
+      sctx.fillStyle= alive? 'rgba(63,185,80,0.85)':'rgba(80,90,110,0.5)';
+      sctx.fillRect(x+1, H-14-h, bw-2, h);
+      sctx.fillStyle='#8b949e'; sctx.font='8px monospace';
+      sctx.save(); sctx.translate(x+bw/2, H-4); sctx.fillText(r.rate, -7,0); sctx.restore();
+    });
+    sctx.fillStyle='#c9d1d9'; sctx.font='10px monospace';
+    sctx.fillText('살아있는 agent 수', pad, 12);
+    sctx.fillText('source 강도 →', W-92, 12);
+    // 창 진단
+    const firstAlive = res.findIndex(r=>r.living>0.5);
+    const lastAlive = res.length-1-[...res].reverse().findIndex(r=>r.living>0.5);
+    const zeroEnds = res[0].living<0.5;
+    let msg;
+    if(firstAlive>=0 && zeroEnds && firstAlive>0) msg='✓ 창 발견: source '+res[firstAlive].rate+'~'+res[lastAlive].rate+' 구간에서만 생명. 양끝(죽음/폭주)은 0.';
+    else if(firstAlive>=0) msg='부분 확인: 생명 구간 존재. 양끝 0 여부 확인 필요.';
+    else msg='이 파라미터에선 창 없음 — g↑ 또는 δ↓ 시도.';
+    $('sweepLabel').textContent = msg;
+  }
+
+  frame();
+})();
+</script>
+</body>
+</html>
