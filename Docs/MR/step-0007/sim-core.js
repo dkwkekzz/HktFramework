@@ -283,7 +283,7 @@
       lightTot += light; defectTot += defect;
       const x = i % N, y = (i / N) | 0;
       // 분배 셀 — 회귀 보장: ejR=0 이면 step-0006 의 4-이웃 push 순서 그대로
-      let nsE, nsR;
+      let nsR, nsE;
       if (ejR <= 0) {
         const ns = [];
         const push = (nx, ny) => {
