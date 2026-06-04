@@ -35,6 +35,7 @@
   button.on{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
   button.tool.on{background:var(--ok);border-color:var(--ok);color:#0d1117}
   button.tool.sink.on{background:var(--bad);border-color:var(--bad)}
+  button.tool.seed.on{background:#ffe16e;border-color:#ffe16e;color:#0d1117}
   .btnrow{display:flex;gap:6px;flex-wrap:wrap}
   .toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .toggles button{font-size:11px;padding:5px 6px}
@@ -122,12 +123,14 @@
     <div class="card">
       <h2>도구 (클릭 배치)</h2>
       <div class="btnrow">
-        <button id="toolSrc" class="tool on">source +</button>
+        <button id="toolSrc" class="tool on">source + (E)</button>
+        <button id="toolSeed" class="tool seed">씨앗 ρ +</button>
         <button id="toolSnk" class="tool sink">sink −</button>
         <button id="clearFx">필드 비우기</button>
       </div>
       <div class="row"><label>배치 강도</label><input id="fxRate" type="range" min="0" max="100" value="40"><span class="val" id="fxRateV">0.040</span></div>
       <div class="row"><label>반경</label><input id="fxRad" type="range" min="1" max="8" value="3"><span class="val" id="fxRadV">3</span></div>
+      <div class="hint" style="margin-top:4px">★ <b style="color:#ffe16e">씨앗 ρ</b> = 별의 요람(물질 펌프). 사슬에선 이걸 놓아야 그 자리에 rho 가 쌓여 별이 켜집니다. <b>source +</b>(E만)는 빛만 줄 뿐 별을 못 씨앗합니다(step-0006 호환).</div>
     </div>
 
     <div class="card">
@@ -1306,7 +1309,8 @@
     const x = Math.floor((ev.clientX-rect.left)/rect.width*N);
     const y = Math.floor((ev.clientY-rect.top)/rect.height*N);
     if(x<0||x>=N||y<0||y>=N) return;
-    if(tool==='src') SimCore.addSource(sim,x,y,fxRad,fxRate);
+    if(tool==='src') SimCore.addSource(sim,x,y,fxRad,fxRate);              // E 만 (step-0006 호환)
+    else if(tool==='seed') SimCore.addSource(sim,x,y,fxRad,0,fxRate);       // ★ rho 만 = 별의 요람(씨앗)
     else SimCore.addSink(sim,x,y,fxRad, Math.max(0.02,fxRate*2));
   }
   let dragging=false;
@@ -1352,8 +1356,16 @@
   $('clearFx').onclick = ()=>{ scenario=null; sim.sources.length=0; sim.sinks.length=0;
     $('scnHint').textContent='필드 비우기: 모든 source/sink 제거. 미시가 굶어 무너지고, 시차를 두고 거시 사회도 따라 무너집니다(상향 결합, step-0003).'; };
 
-  $('toolSrc').onclick = ()=>{ tool='src'; $('toolSrc').classList.add('on'); $('toolSnk').classList.remove('on'); $('placeHint').innerHTML='도구 = <b>source(+)</b> · 클릭/드래그로 에너지 주입원을 놓습니다.'; };
-  $('toolSnk').onclick = ()=>{ tool='snk'; $('toolSnk').classList.add('on'); $('toolSrc').classList.remove('on'); $('placeHint').innerHTML='도구 = <b>sink(−)</b> · 클릭/드래그로 에너지 배출구를 놓습니다.'; };
+  function setTool(t, hint){
+    tool=t;
+    $('toolSrc').classList.toggle('on', t==='src');
+    $('toolSeed').classList.toggle('on', t==='seed');
+    $('toolSnk').classList.toggle('on', t==='snk');
+    $('placeHint').innerHTML=hint;
+  }
+  $('toolSrc').onclick  = ()=>setTool('src',  '도구 = <b>source(+ E)</b> · 클릭/드래그로 에너지(빛) 주입원을 놓습니다. <b style="color:#ffe16e">별을 켜려면 씨앗 ρ 가 필요</b>합니다.');
+  $('toolSeed').onclick = ()=>setTool('seed', '도구 = <b style="color:#ffe16e">씨앗 ρ(+ 물질)</b> · 클릭/드래그로 별의 요람(rho 펌프)을 놓습니다 — 그 자리에 물질이 쌓여 별이 켜지고 사슬이 시작됩니다.');
+  $('toolSnk').onclick  = ()=>setTool('snk',  '도구 = <b>sink(−)</b> · 클릭/드래그로 에너지 배출구를 놓습니다.');
   $('fxRate').oninput = function(){ fxRate=+this.value/1000; $('fxRateV').textContent=fxRate.toFixed(3); };
   $('fxRad').oninput  = function(){ fxRad=+this.value; $('fxRadV').textContent=fxRad; };
   $('gradBtn').onclick = function(){ showGrad=!showGrad; this.classList.toggle('on',showGrad); };
