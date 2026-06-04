@@ -262,11 +262,11 @@
    * thIgn=Infinity 면 즉시 return → step-0005 와 비트 동일. */
   function ignite(sim) {
     const P = sim.params, thIgn = P.thIgn;
+    sim.lastIgnite.length = 0;                                  // 매 tick 초기화 (off→on 토글 시 유령 별 방지)
     if (!(thIgn < Infinity)) return;                           // 점화 off — 비트 동일 보장
     const { N, M, rho, E, T } = sim;
     const burnFrac = P.burnFrac, massToE = P.massToE, ejectFrac = P.ejectFrac;
     const heat = P.igniteHeat, spread = P.igniteSpread;
-    sim.lastIgnite.length = 0;
     let lightTot = 0, defectTot = 0;
     const stars = [];
     for (let i = 0; i < M; i++) if (rho[i] > thIgn) stars.push(i);
