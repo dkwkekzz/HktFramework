@@ -1030,11 +1030,19 @@
     SimCore.addSink(sim,32,32,4,0.10);
   }
 
+  const SCN_BTNS = {basic:'scnBasic', archi:'scnArchi', back:'scnBack', soc:'scnSoc', stars:'scnStars', disaster:'scnDisaster', war2:'scnWar'};
+  function setActiveScn(type){
+    for(const k in SCN_BTNS){ const el=$(SCN_BTNS[k]); if(el) el.classList.toggle('on', k===type); }
+  }
   function startScenario(type){
     const p = Object.assign({}, sim.params);
     newWorld(42, p);
+    // 별 파라미터는 시나리오 간 누수 방지를 위해 기본값으로 리셋한다
+    sim.params.burnFrac=0.5; sim.params.massToE=4.0; sim.params.ejectFrac=0.8;
+    sim.params.igniteHeat=0.1; sim.params.igniteSpread=0.5;
     setWB(0); setWD(0); setThIgn(101);   // 점화 기본 끔 — ⭐ 별 시나리오만 켠다
     setSpeed(12);
+    setActiveScn(type);
     scenario = {type, phase:'settle'};
     if(type==='disaster'){
       setWE(0.5);
@@ -1049,10 +1057,20 @@
       SimCore.addSource(sim,16,32,3,0.04); SimCore.addSource(sim,48,32,3,0.04); SimCore.addSink(sim,32,8,4,0.10);
       scenario.until = 2500;
     } else if(type==='stars'){
-      setWE(0.5);
-      setThIgn(45);                          // ★ 점화 임계 0.45 = "무한한 세계"의 창
-      SimCore.defaultScenario(sim, 0.04);
-      scenario.msg='⭐ 별 — 사회가 source에 자라다 밀도가 점화 임계를 넘으면 별이 터져(밝은 점) 그 사회를 태우고, 흩은 물질이 다시 모여 사회가 재생하길 끝없이 반복합니다. 상수 source는 정착 후 얼어붙지만(★ 슬라이더를 끔=∞으로) 점화는 세계를 영원히 사건이 끊이지 않게 둡니다 — 점화의 유무가 살아있는 세계의 유무.';
+      // 별이 사회 *안*에서 자기를 태우는 게 아니라, 사회 *옆*에서 빛을 흘려 사회를 끌어당기게 한다.
+      // 공간 분리(rho 펌프 ≠ 사회 자리) + 연소형 별(burnFrac 작게) + 강한 E 추종(wE↑).
+      setWE(2.0);                                  // 끌림이 E 를 따라간다 — 사회가 별빛 쪽으로 기운다
+      sim.params.burnFrac=0.08;                    // 폭발이 아니라 연소 — 별이 수십 tick 빛난다
+      sim.params.ejectFrac=0.25;                   // 물질은 덜 토하고 빛을 많이 낸다
+      sim.params.massToE=5.0;                      // 빛 이득 ↑ — 사회까지 닿게
+      sim.params.igniteSpread=0.8;                 // 빛의 80%를 이웃으로 뿜는다 (별 바깥으로)
+      setThIgn(40);                                // 점화 임계 0.40
+      // 별의 요람: rho 만 펌프 (E 0). 사회 바깥, 좌측.
+      SimCore.addSource(sim, 24, 32, 2, 0, 0.05);
+      // 사회의 자리: 별 옆 10 셀 거리(E 확산 특성길이 ≈ 5.6 셀의 2배). 약한 E (초기 부트스트랩만 — 본 영양은 별빛).
+      SimCore.addSource(sim, 34, 32, 4, 0.020);
+      SimCore.addSink(sim, 32, 8, 4, 0.10);
+      scenario.msg='⭐ 별이 생명을 키운다 — 좌측 *별의 요람*(24,32 rho 펌프)에 물질이 쌓여 별이 켜지면 빛(E)이 동쪽으로 흐릅니다. 우측 사회(34,32, 거리 10셀)는 별빛을 향해 *기울어* 자랍니다(wE=2.0: 끌림이 E 를 따라간다). burnFrac=0.08 라 별은 폭발이 아니라 *연소*하여 수십 tick 빛납니다 — 폭발이 아닌 별, 끊임없이 흐르는 빛, 그 빛을 먹고 자라는 사회. 사회가 별빛으로 너무 커지면 그 자신도 점화해 별의 자리가 옮겨갑니다.';
     } else if(type==='basic'){
       SimCore.defaultScenario(sim, fxRate);
       scenario.msg='기본: source(좌상) 주변에 군락이 서고 노란 원(생명)이 켜집니다 — step-0002/0003의 표준 배치. 단일 source에서는 wE를 아무리 조여도 군락이 1개로 정리됩니다(독점은 자원 위상의 정리, step-0004 1절).';
