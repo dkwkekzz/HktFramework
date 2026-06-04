@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>step-0005 · 하향 에너지 채널: 재앙은 기둥으로 내린다</title>
+<title>step-0006 · 내생적 발산: 별 — source는 타오르다 죽는다</title>
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --line:#283040; --txt:#c9d1d9;
@@ -52,8 +52,8 @@
 </head>
 <body>
 <header>
-  <h1>step-0005 · 하향 에너지 채널 <span class="small">— 거시 발화가 그 아래 사회를 태운다, 그러나 옆으로는 번지지 않는다</span></h1>
-  <p>검증 질문: <b>거시 발화를 사건으로 만들고(thE₂), 그 발화가 채널(w↓E)을 타고 내려와 미시 사회를 태우는가(② 재앙 전파 ✓)? 한 사회의 발화가 이웃 사회에 닿는가(③ 사회 간 — ✗, 재앙은 수직 기둥이다)?</b></p>
+  <h1>step-0006 · 내생적 발산: 별 <span class="small">— source는 타오르다 죽는다, 그래서 세계가 멈추지 않는다</span></h1>
+  <p>검증 질문: <b>물질이 쌓여 스스로 점화하고(★ 별), 그 발산이 사회를 무너뜨렸다 재생시키는가(② freeze 해소 ✓)? 상수 source가 정착하면 얼어붙는 세계를, 점화가 영원히 사건이 끊이지 않게 두는가(③ 무한 — 동역학 ✓, 물질은 열역학적 소모)?</b> ★ 점화 슬라이더를 끔(∞)으로 올리면 step-0005처럼 세계가 얼어붙습니다.</p>
 </header>
 
 <div class="wrap">
@@ -107,7 +107,8 @@
     <div class="card">
       <h2>실험 시나리오 (step-0005)</h2>
       <div class="btnrow">
-        <button id="scnDisaster" class="on">☄ 재앙 전파 (②)</button>
+        <button id="scnStars" class="on">⭐ 별: 무한한 세계</button>
+        <button id="scnDisaster">☄ 재앙 전파 (②)</button>
         <button id="scnWar">두 사회 재앙 (③)</button>
         <button id="scnArchi">① 군도</button>
         <button id="scnBack">② 무리 짓기</button>
@@ -137,6 +138,7 @@
       <div class="row"><label>g 응집</label><input id="pG" type="range" min="0" max="400" value="200"><span class="val" id="pGV">2.00</span></div>
       <div class="row"><label>δ 소산</label><input id="pDelta" type="range" min="0" max="40" value="8"><span class="val" id="pDeltaV">0.008</span></div>
       <div class="row"><label>θ 발화</label><input id="pThE" type="range" min="30" max="100" value="75"><span class="val" id="pThEV">0.75</span></div>
+      <div class="row"><label><b style="color:#ffe16e">★ 점화(별)</b></label><input id="pThIgn" type="range" min="35" max="101" value="101"><span class="val" id="pThIgnV">끔</span></div>
       <div class="row"><label>kT 열교반</label><input id="pKT" type="range" min="0" max="200" value="50"><span class="val" id="pKTV">5.0</span></div>
       <h2 style="margin-top:10px">법칙 토글</h2>
       <div class="toggles">
@@ -161,6 +163,7 @@
         <tr><td>평균 수명</td><td id="mAge">0</td></tr>
         <tr><td>평균 이동속도 (셀/tick)</td><td id="mSpeed">0</td></tr>
         <tr><td>발화 / tick</td><td id="mBurst">0</td></tr>
+        <tr><td>★ 점화(별) / tick</td><td id="mStars">0</td></tr>
         <tr><td>누적 탄생 / 사망</td><td id="mBD">0 / 0</td></tr>
         <tr><td>경합사망 (경쟁의 흔적)</td><td id="mContested">0</td></tr>
       </table>
@@ -823,6 +826,16 @@
     wctx.clearRect(0,0,world.width,world.height);
     wctx.drawImage(off, 0, 0, world.width, world.height);
 
+    // ★ step-0006: 점화(별) — 이번 tick 점화한 셀을 밝게 빛나는 점으로
+    if(sim.lastIgnite && sim.lastIgnite.length){
+      for(const b of sim.lastIgnite){
+        const x=((b.i%N)+0.5)*SCALE, y=(((b.i/N)|0)+0.5)*SCALE;
+        const rad=Math.max(2,SCALE*1.6), g=wctx.createRadialGradient(x,y,0,x,y,rad);
+        g.addColorStop(0,'rgba(255,255,235,0.95)'); g.addColorStop(0.4,'rgba(255,225,120,0.7)'); g.addColorStop(1,'rgba(255,180,40,0)');
+        wctx.fillStyle=g; wctx.beginPath(); wctx.arc(x,y,rad,0,7); wctx.fill();
+      }
+    }
+
     if(showGrad){
       wctx.strokeStyle='rgba(255,255,255,0.5)'; wctx.lineWidth=1;
       const stepc=4;
@@ -952,6 +965,7 @@
     $('mAge').textContent = s.meanAge.toFixed(0);
     $('mSpeed').textContent = s.meanSpeed.toFixed(4);
     $('mBurst').textContent = s.bursts;
+    $('mStars').textContent = s.stars || 0;
     $('mBD').textContent = s.births + ' / ' + s.deathsTotal;
     $('mContested').textContent = s.contested;
 
@@ -1019,7 +1033,7 @@
   function startScenario(type){
     const p = Object.assign({}, sim.params);
     newWorld(42, p);
-    setWB(0); setWD(0);
+    setWB(0); setWD(0); setThIgn(101);   // 점화 기본 끔 — ⭐ 별 시나리오만 켠다
     setSpeed(12);
     scenario = {type, phase:'settle'};
     if(type==='disaster'){
@@ -1034,6 +1048,11 @@
       setWD(25);
       SimCore.addSource(sim,16,32,3,0.04); SimCore.addSource(sim,48,32,3,0.04); SimCore.addSink(sim,32,8,4,0.10);
       scenario.until = 2500;
+    } else if(type==='stars'){
+      setWE(0.5);
+      setThIgn(45);                          // ★ 점화 임계 0.45 = "무한한 세계"의 창
+      SimCore.defaultScenario(sim, 0.04);
+      scenario.msg='⭐ 별 — 사회가 source에 자라다 밀도가 점화 임계를 넘으면 별이 터져(밝은 점) 그 사회를 태우고, 흩은 물질이 다시 모여 사회가 재생하길 끝없이 반복합니다. 상수 source는 정착 후 얼어붙지만(★ 슬라이더를 끔=∞으로) 점화는 세계를 영원히 사건이 끊이지 않게 둡니다 — 점화의 유무가 살아있는 세계의 유무.';
     } else if(type==='basic'){
       SimCore.defaultScenario(sim, fxRate);
       scenario.msg='기본: source(좌상) 주변에 군락이 서고 노란 원(생명)이 켜집니다 — step-0002/0003의 표준 배치. 단일 source에서는 wE를 아무리 조여도 군락이 1개로 정리됩니다(독점은 자원 위상의 정리, step-0004 1절).';
@@ -1203,6 +1222,7 @@
   $('scnArchi').onclick = ()=>startScenario('archi');
   $('scnBack').onclick  = ()=>startScenario('back');
   $('scnSoc').onclick   = ()=>startScenario('soc');
+  $('scnStars').onclick    = ()=>startScenario('stars');
   $('scnDisaster').onclick = ()=>startScenario('disaster');
   $('scnWar').onclick      = ()=>startScenario('war2');
 
@@ -1237,6 +1257,9 @@
   bindP('pDelta','delta',0.001,v=>v.toFixed(3));
   bindP('pThE','thE',0.01,v=>v.toFixed(2));
   bindP('pKT','kT',0.1,v=>v.toFixed(1));
+  // ★ step-0006: 점화 임계. 101 = 끔(∞, step-0005 freeze), 35~100 = thIgn 0.35~1.0 (0.45 부근이 "무한한 세계")
+  function setThIgn(raw){ const off = raw>=101; sim.params.thIgn = off?Infinity:raw/100; $('pThIgn').value=raw; $('pThIgnV').textContent = off?'끔':(raw/100).toFixed(2); }
+  $('pThIgn').oninput = function(){ setThIgn(+this.value); };
   $('pWB').oninput = function(){ wBack=+this.value/100; macro.couple.wBack=wBack; $('pWBV').textContent=wBack.toFixed(2); };
   $('pWD').oninput = function(){ wDown=+this.value; macro.couple.wDown=wDown; $('pWDV').textContent=wDown.toFixed(0); };
 
@@ -1282,6 +1305,7 @@
       + (aliveM>0 ? '✓ 거시에도 생명 구간 존재 — 창이 한 층 위에서 재현됨.' : '거시 생명 없음 (tick 수가 짧거나 창 밖일 수 있음).');
   }
 
+  startScenario('stars');   // 페이지 열면 바로 "무한한 세계"(점화)를 보여준다
   frame();
 })();
 </script>
