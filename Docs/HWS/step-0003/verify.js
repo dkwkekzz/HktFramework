@@ -1,11 +1,12 @@
 /* HWS step-0003 헤드리스 검증
- * 사용: node verify.js <reg|conserve|det|consume|homeo|starve|all> [seed]
+ * 사용: node verify.js <reg|conserve|det|consume|homeo|starve|graze|all> [seed]
  *  - reg      : 회귀 0 — 생명 off(에이전트 0) step-0003 == step-0002 비트 단위 동일 (구동 on/off)
  *  - conserve : V1 보존 — 생명 on 에서도 닫힌 장부(+M+metabolized) 잔차 < 1e-6 (long run)
  *  - det      : V2 결정론 — 생명 on, 같은 시드 2회 실행 비트 단위 동일(E+에이전트)
  *  - consume  : ① 생명이 고임을 소비하는가 — 에이전트 자리의 자원이 대조군 대비 고갈되는가
  *  - homeo    : ② 항상성 — 구동이 살아 자원이 재생되는 한 생명이 지속하는가(생물량 정상상태)
  *  - starve   : ③ 자원이 마르면 죽는가 — 구동을 끄면 생명이 굶어 죽는가
+ *  - graze    : §6.5 — 구동(sustained) 자원 위 정지 생명은 kL 을 키워도 과방목 공멸이 *없다*
  *  - all      : 전 모드 + 요약
  * 응집 시나리오 상수: kA=0.45, aggMc=1.1, aggW=0.7 (step-0002 그대로).
  * 생명 시나리오 상수: kL=0.05, mMaint=0.03, mDeath=0.05, mSeed=0.5, lifeR=1 (step-0003.md §2).
@@ -125,6 +126,27 @@ function starve(seed) {
     pass: aliveBefore && sim.agents.length === 0 && led.residual < 1e-6 };
 }
 
+/* ── graze: §6.5 — 구동(sustained) 자원 위 정지 생명은 kL 을 키워도 공멸하지 않는다 ──
+ * 강고임(구동으로 계속 채워짐)에 에이전트 → kL 을 낮음/높음으로 스윕.
+ * 둘 다 생존(과방목 붕괴 없음)하고, 큰 kL 일수록 생물량↑·자리 E↓(더 깊이 깎음)이면 통과.
+ * (붕괴는 자원이 *유한*할 때만 — 그건 starve 가 본다.) */
+function graze(seed) {
+  function run1(kl) {
+    var g = core.createSim(seed, scn({ kL: kl })); core.run(g, FORM);
+    var p = core.detectPools(g, POOL)[0];
+    if (!p) return null;
+    core.spawnAgent(g, p.x, p.y); core.run(g, 8000);
+    return { alive: g.agents.length, m: g.agents.length ? g.agents[0].m : 0,
+      localE: core.localE(g, p.x, p.y, 3), residual: core.ledger(g).residual };
+  }
+  var lo = run1(0.05), hi = run1(0.80);
+  if (!lo || !hi) return { seed: seed, pass: false };
+  return { seed: seed, mLo: lo.m, mHi: hi.m, eLo: lo.localE, eHi: hi.localE,
+    aliveLo: lo.alive, aliveHi: hi.alive, residual: Math.max(lo.residual, hi.residual),
+    /* 과방목 공멸 없음 = 둘 다 생존 + 큰 kL 이 생물량↑·자리E↓ */
+    pass: lo.alive === 1 && hi.alive === 1 && hi.m > lo.m && hi.localE < lo.localE && Math.max(lo.residual, hi.residual) < 1e-6 };
+}
+
 function fmt(x) {
   if (typeof x !== 'number') return String(x);
   if (x !== 0 && (Math.abs(x) < 1e-3 || Math.abs(x) >= 1e6)) return x.toExponential(3);
@@ -159,6 +181,10 @@ function runMode(mode, seeds) {
     var rv = seeds.map(starve); table(rv, ['seed', 'aliveBefore', 'deaths', 'survivors', 'residual', 'pass']);
     console.log('구동 off → 자원 고갈 → 전 에이전트 사망(survivors=0), 장부 닫힘(분해 E 환원)');
     return rv.every(function (r) { return r.pass; });
+  } else if (mode === 'graze') {
+    var rg = seeds.map(graze); table(rg, ['seed', 'mLo', 'mHi', 'eLo', 'eHi', 'aliveLo', 'aliveHi', 'pass']);
+    console.log('kL 0.05→0.80: 구동 자원 위 정지 생명은 *공멸 없음*(둘 다 생존) — 생물량↑(mLo→mHi)·자리E↓(eLo→eHi). 붕괴는 유한 자원(starve)에서만.');
+    return rg.every(function (r) { return r.pass; });
   } else { console.error('unknown mode: ' + mode); process.exit(2); }
 }
 
@@ -166,7 +192,7 @@ var mode = process.argv[2] || 'all';
 var seedArg = process.argv[3] ? [parseInt(process.argv[3], 10)] : SEEDS;
 var ok;
 if (mode === 'all') {
-  ok = ['reg', 'conserve', 'det', 'consume', 'homeo', 'starve'].every(function (m) {
+  ok = ['reg', 'conserve', 'det', 'consume', 'homeo', 'starve', 'graze'].every(function (m) {
     console.log('== ' + m + ' =='); var r = runMode(m, seedArg); console.log(''); return r;
   });
 } else { ok = runMode(mode, seedArg); }
