@@ -1,0 +1,21 @@
+/* HWS 공통 UI 스타일 — step-0001~0006 의 인라인 <style> 와 동일(diff 0).
+ * 모든 step 셸 HTML 이 이 한 파일을 참조한다. step 별로 복제하지 않는다. */
+body { font-family: 'Segoe UI', sans-serif; background: #14161a; color: #d8dde4; margin: 0; padding: 16px; }
+h1 { font-size: 16px; margin: 0 0 4px; }
+.sub { color: #8a93a0; font-size: 12px; margin-bottom: 12px; }
+.row { display: flex; gap: 16px; align-items: flex-start; }
+canvas { image-rendering: pixelated; border: 1px solid #2a2f37; background: #000; cursor: crosshair; }
+.panel { min-width: 320px; font-size: 13px; }
+.panel div { margin-bottom: 6px; }
+button { background: #2a313c; color: #d8dde4; border: 1px solid #3a4250; padding: 4px 12px; cursor: pointer; border-radius: 3px; }
+button:hover { background: #38414f; }
+select, input[type=number] { background: #1d2127; color: #d8dde4; border: 1px solid #3a4250; padding: 3px 6px; border-radius: 3px; }
+input[type=range] { vertical-align: middle; width: 110px; }
+table { border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+td { padding: 2px 10px 2px 0; }
+td.k { color: #8a93a0; }
+td.v { font-family: Consolas, monospace; }
+.pass { color: #6fce8a; } .fail { color: #e07070; }
+.legend { font-size: 11px; color: #8a93a0; margin-top: 8px; line-height: 1.6; }
+.src { color: #6fce8a; } .snk { color: #e07070; } .pool { color: #57d6e0; } .life { color: #f0d060; }
+.ctl { font-size: 12px; }
