@@ -38,7 +38,7 @@
     </div>
     <div class="ctl">
       시드 <select id="selSeed"><option>42</option><option>7</option><option>1234</option><option>99</option><option>2026</option></select>
-      속도 <select id="selSpeed"><option value="1">1</option><option value="2">2</option><option value="10" selected>10</option><option value="50">50</option><option value="200">200</option></select> tick/frame
+      속도 <select id="selSpeed"><option value="0.1">0.1</option><option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1">1</option><option value="2">2</option><option value="5">5</option><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select> tick/frame
       <label><input type="checkbox" id="chkDrive" checked> 구동</label>
       <label title="드러난 흐름을 보이게 — 화면 밝기를 현재 최대 E 에 맞춰 정규화"><input type="checkbox" id="chkAuto" checked> 자동 명암</label>
     </div>
@@ -80,6 +80,7 @@
     </table>
     <div class="legend">
       <span class="src">●</span> source(16,16,r3) &nbsp; <span class="snk">●</span> sink(48,48,r4) &nbsp; <span class="pool">○</span> 고임 &nbsp; <span class="life">●</span> 생명(크기 ∝ 생물량)<br>
+      <b>폭발이 빠르다 — 속도를 낮춰라</b>: 번식은 ~33 tick 만에 정점을 친다(연구용 timescale). 씨앗 놓기 직전 <b>속도를 0.1~1</b> 로 낮추면(슬로모) 폭발→정착 곡선이 프레임별로 보이고, <b>+1 tick</b> 으로 한 칸씩 볼 수도 있다. 형성·정착 같은 지루한 구간은 속도를 올려 빨리 감는다.<br>
       <b>주화성(①)</b>: 씨앗을 고임 *비탈*(밝은 곳에서 떨어진 자리)에 놓고 재생하라 — 노란 점이 더 밝은 쪽으로 *기어 올라간다*. 이동 끄면(아래) 제자리에 머문다.<br>
       <b>흐름·생존(②③)</b>: 개체군이 source 에 정착하면 <b>"source 옮기기"</b> 를 누른다 — 옛 자리가 마르고 새 자리에 자원이 찬다. <b>이동 on</b> 이면 개체군이 *우르르 따라 흐른다*(살아남는다). <b>이동 끄면</b> 옛 자리에 *갇혀* 굶어 죽는다(정지 한계).<br>
       <b>회귀(④)</b>: <b>이동 끄기</b>면 step-0004(정지·분열 확산)와 비트 동일 — 이동만 사라진다.<br>
@@ -546,6 +547,7 @@
 
   var sim = null, playing = false, msg = '', msgUntil = 0;
   var popHist = [], lastSampledTick = -1;   // 개체수 시간 그래프(스파크라인)용 — 코어 무관
+  var tickAcc = 0;                          // 분수 tick 누적기 — 속도 <1(슬로모)을 프레임 스킵으로
 
   function $(id) { return document.getElementById(id); }
   function currentSeed() { return parseInt($('selSeed').value, 10); }
@@ -562,7 +564,7 @@
       move: $('chkMove').checked,
       moveThresh: parseFloat($('rngMT').value)
     });
-    popHist = []; lastSampledTick = -1;
+    popHist = []; lastSampledTick = -1; tickAcc = 0;
     draw();
   }
 
@@ -667,7 +669,11 @@
 
   function frame() {
     if (!playing) return;
-    var n = parseInt($('selSpeed').value, 10);
+    /* 분수 속도 지원 — 속도<1 이면 여러 프레임마다 1 tick(슬로모로 폭발 관찰), >=1 이면 매 프레임 여러 tick.
+     * 누적기로 어떤 분수 속도든 평균 tick/frame 을 정확히 맞춘다. */
+    var spd = parseFloat($('selSpeed').value);
+    tickAcc += spd;
+    var n = Math.floor(tickAcc); tickAcc -= n;
     for (var i = 0; i < n; i++) core.step(sim);
     draw();
     requestAnimationFrame(frame);
@@ -676,7 +682,7 @@
   $('btnPlay').addEventListener('click', function () {
     playing = !playing;
     this.textContent = playing ? '⏸ 정지' : '▶ 재생';
-    if (playing) requestAnimationFrame(frame);
+    if (playing) { tickAcc = 0; requestAnimationFrame(frame); }
   });
   $('btnStep').addEventListener('click', function () { core.step(sim); draw(); });
   $('btnReset').addEventListener('click', reset);
