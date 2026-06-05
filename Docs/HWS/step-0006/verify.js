@@ -8,7 +8,7 @@
  *               죽고(고임 위는 산다), baseCost=0 이면 같은 마른 곳에서도 산다(문턱 없음). 자원이 생사를 공간적으로 가른다.
  *  - seek     : ② 떠나야 산다(정적 세계) — 비탈에 놓인 생명이 이동 on 이면 봉우리로 올라가 *살고*,
  *               이동 off 면 그 자리에서 *굶어 죽는다*. source 를 옮기지 않아도(정적) 압력이 생긴다(이동+문턱 결합).
- *  - confine  : ③ 공간 국한 — baseCost on 개체군은 자원 두꺼운 곳에만 산다(생존자 평균 흡수 >= baseCost),
+ *  - confine  : ③ 공간 국한 — baseCost on 개체군은 자원 두꺼운 곳에만 산다(생존자 *모두* 흡수 >= baseCost, 최소까지),
  *               개체수가 줄고(잉여 아사) 세계가 덜 strip 된다(sumE ↑ vs baseCost=0). 단 *얼어붙음*은 미해소(§ 한계).
  *  - all      : 전 모드 + 요약
  * 응집 시나리오 상수: kA=0.45, aggMc=1.1, aggW=0.7 (step-0002 그대로).
@@ -42,17 +42,19 @@ function spawnStrongest(C, sim, k) {
   return n;
 }
 
-/* 에이전트별 흡수량(got) = 입 disc 의 E 합 × kL. 공간 국한 측정용(생존자는 got >= baseCost). */
-function meanGot(C, sim) {
+/* 에이전트별 흡수량(got) = 입 disc 의 E 합 × kL. 공간 국한 측정용.
+ * 평균뿐 아니라 *최소*도 반환한다 — "생존자 *모두* 가 흡수 >= baseCost 인 진짜 고임에 있다"는
+ * ③ 주장을 충실히 검증하려면(평균은 문턱 근처 개체를 가린다) 최소가 baseCost 이상이어야 한다. */
+function gotStats(C, sim) {
   var ag = sim.agents, kL = sim.p.kL, E = sim.E;
-  if (!ag.length) return 0;
-  var s = 0;
+  if (!ag.length) return { mean: 0, min: 0 };
+  var s = 0, mn = Infinity;
   for (var k = 0; k < ag.length; k++) {
     var cells = ag[k].cells, g = 0;
     for (var c = 0; c < cells.length; c++) g += E[cells[c]] * kL;
-    s += g;
+    s += g; if (g < mn) mn = g;
   }
-  return s / ag.length;
+  return { mean: s / ag.length, min: mn };
 }
 
 /* ── reg: 회귀 0 — baseCost=0 면 step-0005 와 비트 단위 동일 ──
@@ -148,13 +150,15 @@ function confine(seed) {
   function grow(bc) {
     var s = core.createSim(seed, scn({ baseCost: bc })); core.run(s, FORM);
     spawnStrongest(core, s, 1); core.run(s, 8000);
-    return { pop: s.agents.length, sumE: core.measure(s).sumE, mg: meanGot(core, s) };
+    var gs = gotStats(core, s);
+    return { pop: s.agents.length, sumE: core.measure(s).sumE, mg: gs.mean, mgMin: gs.min };
   }
   var on = grow(BASE), off = grow(0);
   return { seed: seed, popOn: on.pop, popOff: off.pop, sumEOn: on.sumE, sumEOff: off.sumE,
-    mgOn: on.mg, baseCost: BASE,
-    /* 생존자 전부 got>=baseCost(진짜 고임) + 개체수↓ + 세계 덜 strip(sumE↑) = 공간 국한 */
-    pass: on.pop > 0 && on.mg >= BASE && on.pop < off.pop && on.sumE > off.sumE * 2 };
+    mgOn: on.mg, mgMinOn: on.mgMin, baseCost: BASE,
+    /* 생존자 *모두* got>=baseCost(최소까지 — 진짜 고임) + 개체수↓ + 세계 덜 strip(sumE↑) = 공간 국한.
+     * 최소를 보는 이유: 평균은 문턱 근처 개체를 가린다 — "전부 진짜 고임에 있다"를 충실히 검증. */
+    pass: on.pop > 0 && on.mgMin >= BASE && on.pop < off.pop && on.sumE > off.sumE * 2 };
 }
 
 function fmt(x) {
@@ -188,10 +192,10 @@ function runMode(mode, seeds) {
     console.log('avg dOn=' + avg(rk, 'dOn').toFixed(1) + ' (이동 on 봉우리로 올라가 생존, 이동 off 그 자리 아사 — 정적 세계의 "떠나야 산다")');
     return rk.every(function (r) { return r.pass; });
   } else if (mode === 'confine') {
-    var rf = seeds.map(confine); table(rf, ['seed', 'popOn', 'popOff', 'sumEOn', 'sumEOff', 'mgOn', 'baseCost', 'pass']);
+    var rf = seeds.map(confine); table(rf, ['seed', 'popOn', 'popOff', 'sumEOn', 'sumEOff', 'mgOn', 'mgMinOn', 'baseCost', 'pass']);
     console.log('avg popOn=' + avg(rf, 'popOn').toFixed(0) + ' vs popOff=' + avg(rf, 'popOff').toFixed(0) +
       ' · avg sumEOn=' + avg(rf, 'sumEOn').toFixed(0) + ' vs sumEOff=' + avg(rf, 'sumEOff').toFixed(0) +
-      ' (생존자 평균 흡수>=baseCost 인 고임에만 국한, 세계 덜 strip)');
+      ' · min got=' + avg(rf, 'mgMinOn').toFixed(3) + ' (생존자 *모두* 흡수>=baseCost 인 고임에만 국한, 세계 덜 strip)');
     return rf.every(function (r) { return r.pass; });
   } else { console.error('unknown mode: ' + mode); process.exit(2); }
 }
