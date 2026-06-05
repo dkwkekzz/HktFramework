@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>step-0010 · 재귀: 두 사슬 위의 메타-사슬 — 미시 사슬이 거시의 source 가 되고, 기질(φ)이 층을 타고 오른다</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#283040; --txt:#c9d1d9;
+    --dim:#8b949e; --acc:#58a6ff; --warn:#f0883e; --ok:#3fb950; --bad:#f85149; --soc:#39d2c0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
+  header{padding:14px 18px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:16px;font-weight:600}
+  header p{margin:4px 0 0;color:var(--dim);font-size:12px}
+  .wrap{display:flex;gap:16px;padding:16px;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+  .card h2{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--acc);letter-spacing:.03em;text-transform:uppercase}
+  .card h2.soc{color:var(--soc)}
+  canvas{display:block;image-rendering:pixelated;border-radius:4px;background:#000}
+  #scene{width:560px;height:520px;background:#070a0f}
+  #microView,#macroView{width:150px;height:150px}
+  .legend{display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+  .legend b{font-weight:600}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{width:96px;color:var(--dim);font-size:11px}
+  .row input[type=range]{flex:1;accent-color:var(--acc)}
+  .row .val{width:52px;text-align:right;color:var(--txt);font-size:11px}
+  button{background:#21262d;color:var(--txt);border:1px solid var(--line);border-radius:6px;
+    padding:6px 11px;font:inherit;font-size:12px;cursor:pointer}
+  button:hover{border-color:var(--acc)}
+  button.on{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
+  button.heat.on{background:#ff7b72;border-color:#ff7b72;color:#0d1117}
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap}
+  table.metrics{width:100%;border-collapse:collapse;font-size:12px}
+  table.metrics td{padding:3px 4px;border-bottom:1px solid var(--line)}
+  table.metrics td:first-child{color:var(--dim)}
+  table.metrics td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  .pass{color:var(--ok)} .fail{color:var(--bad)} .wait{color:var(--warn)}
+  .hint{color:var(--dim);font-size:11px;margin-top:6px}
+  .verdict{font-size:12px;padding:8px;border-radius:6px;margin-top:8px;border:1px solid var(--line)}
+  .small{font-size:11px;color:var(--dim)}
+  a{color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <h1>step-0010 · 재귀: 두 사슬 위의 메타-사슬 <span class="small">— 미시 사슬이 거시의 source 가 되어 거시 사슬이 한 층 위에서 굴러간다. 그리고 기질(φ)이 층을 타고 오른다.</span></h1>
+  <p>본 검증 질문: <b>① 미시 사슬 하나가 거시 층에도 *사슬*을 만드는가(거시별/t&gt;0, 위치 std&gt;0)? ② 미시의 기질 φ 가 승급을 타고 거시 별로 올라가는가(미시별 φ≈0.93 → <b style="color:#ffaf5a">거시별 φ≈0.80</b>)? ③ 그 기질이 거시 사슬의 *종류*(빛/열)를 가르는가(미시 φ=1 + 거시 heatB=0.5 → 거시 발산 E −12%)?</b> ★ 핵심 노브 = <b style="color:#ff7b72">미시 사회의 기질(빛/열)</b> 과 <b style="color:#ff7b72">거시 heatB</b>. 결합은 <b>createSim 으로 만든 또 하나의 장</b> — 거시 점화는 미시와 *같은* ignite().</p>
+</header>
+
+<div class="wrap">
+  <!-- 좌: 2.5D 두 층 장면 -->
+  <div class="col">
+    <div class="card">
+      <h2>2.5D 두 층 — 아래 미시(64×64) · 위 거시(32×32)</h2>
+      <canvas id="scene" width="560" height="520"></canvas>
+      <div class="legend">
+        <span><b style="color:#ffd24a">●</b> 미시 별(점화)</span>
+        <span><b style="color:#ffaf5a">●</b> 거시 별(메타-사슬)</span>
+        <span><b style="color:#ff7b72">주황</b> 기질 φ(열)</span>
+        <span><b style="color:#39d2c0">│</b> 승급 기둥(미시 agent → 거시 셀)</span>
+        <span><b style="color:#fff">◯</b> 거시 활성 영역 무게중심(+궤적)</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>위에서 본 두 층 (정합 확인)</h2>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div><div class="small">미시 64×64</div><canvas id="microView" width="128" height="128"></canvas></div>
+        <div><div class="small">거시 32×32 (메타-사슬)</div><canvas id="macroView" width="128" height="128"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 중: 제어 -->
+  <div class="col">
+    <div class="card">
+      <h2>★ 핵심 노브 — 미시 사회의 기질</h2>
+      <div class="btnrow">
+        <button id="socLight" class="on">미시 = 빛 사회 (φ=0)</button>
+        <button id="socHeat" class="heat">미시 = 열 사회 (φ=1)</button>
+      </div>
+      <div class="hint" id="socHint">미시 source 의 물질 성분 φ. φ=1 이면 미시 별이 열별이 되고, 그 기질이 승급을 타고 거시 별로 올라간다. 거시 heatB 가 0.05 보다 클 때만 거시에서 *운명*으로 나타난다.</div>
+      <div class="row"><label><b style="color:#ff7b72">거시 heatB</b></label><input id="pHeatB" type="range" min="5" max="80" step="5" value="50"><span class="val" id="pHeatBV">0.50</span></div>
+      <div class="hint">거시 igniteHeatB — 거시 별(φ&gt;0)이 발산을 열로 돌리는 비율. 매 tick 라이브 반영. φ=0(빛 사회)이면 이 값과 무관(계수는 φ 경유로만).</div>
+    </div>
+    <div class="card">
+      <h2>시점 · 재생</h2>
+      <div class="btnrow">
+        <button id="playBtn" class="on">⏸ 일시정지</button>
+        <button id="stepBtn">▶ 1 tick</button>
+        <button id="resetBtn">↺ 리셋</button>
+        <button id="pillarBtn" class="on">승급 기둥</button>
+        <button id="glowBtn" class="on">활성 영역(잔상·궤적)</button>
+      </div>
+      <div class="hint">점화는 추적되는 *물체*가 아니라 매 tick 임계를 넘은 셀들의 *집합*이다(한 tick ~7셀, 흩뿌려짐). "활성 영역(잔상)"을 켜면 최근 점화가 누적·감쇠하며 **이동하는 활성 영역**(흰 고리=거시 무게중심, 꼬리=궤적)이 보인다 — 깜빡이는 개별 점이 아니라 *영역이 천천히 배회*하는 것이 진짜 동역학이다.</div>
+      <div class="row"><label>속도</label><input id="speed" type="range" min="1" max="12" value="2"><span class="val" id="speedV">2×</span></div>
+      <div class="row"><label>층 높이</label><input id="elev" type="range" min="60" max="240" value="150"><span class="val" id="elevV">150</span></div>
+      <div class="row"><label>회전</label><input id="rot" type="range" min="0" max="3" value="0"><span class="val" id="rotV">0°</span></div>
+    </div>
+    <div class="card">
+      <h2 class="soc">측정 — 메타-사슬</h2>
+      <table class="metrics">
+        <tr><td>tick</td><td id="mTick">0</td></tr>
+        <tr><td>미시 별 / tick</td><td id="mUStars">0</td></tr>
+        <tr><td>미시 별 φ (기질)</td><td id="mUPhi">—</td></tr>
+        <tr><td>미시 living</td><td id="mULiv">0</td></tr>
+        <tr><td>★ 거시 별 / tick (메타-사슬)</td><td id="mMStars">0</td></tr>
+        <tr><td>★ 거시 별 φ (올라온 기질)</td><td id="mMPhi">—</td></tr>
+        <tr><td>거시 별 위치 std (누적 퍼짐, ≠이동)</td><td id="mMStd">0</td></tr>
+        <tr><td>거시 발산 E 합 (빛↔열)</td><td id="mME">0</td></tr>
+        <tr><td>거시 living</td><td id="mMLiv">0</td></tr>
+        <tr><td>미시 / 거시 보존 잔차</td><td id="mResid">—</td></tr>
+        <tr><td>층간 트레이서 max(ρB−ρ)</td><td id="mOver">0</td></tr>
+      </table>
+      <div class="verdict" id="verdict">관찰 중…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+ * step-0010 sim-core : 재귀 — 미시 사슬이 거시의 source 가 되어 *거시 사슬*이 한 층 위에서 굴러간다.
+ *   그리고 step-0009 의 성분 φ 가 승급(promotion)을 타고 거시로 올라가는가 — *사회의 기질*.
+ * step-0009 가 답한 것: 별의 종류(성분 φ)는 물질이 운반하고, 내용이 충돌의 결과를 가른다.
+ * step-0010 의 질문: 미시 사슬이 거시 셀의 source 가 되면 거시 층에도 사슬이 도는가? 그리고 미시의
+ *   기질(φ)이 층을 타고 올라가 거시 사슬의 *종류*(빛/열)를, 즉 거시의 운명을 가르는가?
+ * 확장 (CLAUDE.md 규약 — 새 법칙 0. 거시는 특별한 코드가 아니라 createSim 으로 만든 또 하나의 장이다):
+ *   1) 거시 점화 — 새 코드가 아니다. 미시와 *같은* ignite() 가 거시 params(thIgn·ejectRadius·igniteHeat)
+ *      만으로 거시 사슬을 만든다. 승급(mass→ρ₂, metab→E₂)이 거시의 *source* 노릇을 하면 거시도 점화·방출·
+ *      재응결 = 사슬이 한 층 위에서 굴러간다. step-0006 §5.1 "빛=물질 소모"가 재귀로 풀리는 자리.
+ *   2) 성분 승급 (promoteComp) — 미시 agent 의 φ(질량가중)가 승급에 *비례 동승*한다: 거시 rhoB 목표 MfB[i]
+ *      += φ(a)·mass·scaleM. step-0009 의 "비례 동승 트레이서" 패턴을 *층간 채널*에 재사용. φ≤1 이라
+ *      MfB≤Mf → 거시 rhoB≤rho 불변 보존. 거시 ignite 가 그 φ 로 열비를 보간 → 미시 기질이 거시 운명을 가른다.
+ * 회귀: promoteComp=false(기본)면 거시 승급에 rhoB 연산 0 → step-0009 결합과 비트 동일 (verify reg/regc).
+ *   또한 promoteComp=true 여도 거시 igniteHeatB=null 이면 거시 동역학 불변 — 층간 트레이서도 순수 측정 (reg0).
+ * ============================================================ */
+(function (global) {
+  'use strict';
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const DEFAULT_PARAMS = {
+    alphaT: 0.5,     // T 확산율
+    alphaE: 0.25,    // E 확산율
+    alphaRho: 0.02,  // rho 기본 확산 = 구조를 흩으려는 엔트로피
+    kT: 5,           // 열 교반: T가 높을수록 rho가 빨리 흩어진다 (녹는다)
+    g: 2.0,          // 응집 강도
+    cost: 0.06,      // 응집 대사 비용 (옮긴 질량당 E 소모 → T)
+    kA: 0.4,         // A가 (rho + wE·E)를 추종하는 속도 (응집 되먹임)
+    alphaA: 0.3,     // A 평활화 = 끌림의 사거리
+    wE: 0.0,         // 끌림의 E 추종 가중치. 0 = step-0002와 동일
+    rhoMax: 0.9,     // 배제 압력
+    delta: 0.008,    // 소산율 (E → T)
+    radT: 0.02,      // T 복사 = 전역 sink
+    thE: 0.75,       // 발화 임계
+    burstToT: 0.6,   // 발화 방출분 중 T 비율
+    thRho: 0.30,     // agent 검출 밀도 임계
+    lifeAge: 60,     // 항상성 판정: 최소 수명 (tick)
+    metabEps: 1e-5,  // 항상성 판정: 최소 대사율
+    srcRate: 0.05,
+    snkRate: 0.10,
+    contestR: 10,    // 경합사망 판정 반경
+    // ---- step-0006: 점화(별). thIgn=Infinity 면 점화 off → step-0005 와 비트 동일 ----
+    thIgn: Infinity, // 점화 임계: rho 가 이 값을 넘으면 점화(별의 탄생). 기본 ∞ = 점화 안 함
+    burnFrac: 0.5,   // 점화 시 그 셀 rho 중 태우는(연소에 들어가는) 비율
+    massToE: 4.0,    // 태운 물질 → 발산 에너지 이득 계수 (물질=저장된 에너지, E=mc² 역할)
+    ejectFrac: 0.8,  // 태운 물질 중 이웃으로 *방출*되는 비율 (별의 물질 방출 → 재활용). 나머지(1-ejectFrac)가 에너지가 된 질량결손
+    igniteHeat: 0.1, // 발산 에너지 중 열(T)로 가는 비율 (나머지는 빛=E)
+    igniteSpread: 0.5, // 발산 빛(E) 중 4-이웃으로 퍼지는 비율 (나머지는 점화 셀에)
+    // ---- step-0007: 분배 반경 (사슬을 공간적으로 굴리기 위한 *계수 확장*) ----
+    ejectRadius: 0,    // 0 = step-0006 4-이웃 (회귀). r>0 일 때 ejected rho 를 r 셀 디스크에 분배 → 별이 옮겨다님
+    igniteRadius: 0,   // 0 = ejectRadius 와 동일 분배 셀. r>0 일 때 빛(E)을 따로 r 셀 디스크에 분배
+    // ---- step-0009: 발산의 내용 분화 (igniteHeat 계수의 성분 일반화) ----
+    igniteHeatB: null, // B형(φ=1) 물질 별의 열 비율. null = igniteHeat 와 동일(분화 off — comp on 이어도 동역학 불변)
+  };
+
+  function createSim(N, opts) {
+    opts = opts || {};
+    const M = N * N;
+    const z = () => new Float32Array(M);
+    const sim = {
+      N, M,
+      wrap: opts.wrap !== false,
+      E: z(), T: z(), rho: z(), A: z(),
+      Abias: null,            // 상위 층이 내려보내는 끌림 편향 (wBack)
+      dq: z(), dq2: z(),
+      diss: z(),
+      sources: [], sinks: [],
+      params: Object.assign({}, DEFAULT_PARAMS, opts.params || {}),
+      toggles: { source: true, diffuse: true, attract: true, dissipate: true, threshold: true, detect: true },
+      tick: 0,
+      injectedTick: 0, removedTick: 0,
+      injected: 0, removed: 0,
+      rho0: 0,
+      agents: [], nextId: 1,
+      deaths: [],
+      births: 0, deathsTotal: 0, contested: 0,
+      external: null,         // tick 시작 직후 호출되는 외부 주입 훅 (승급·하향에너지가 사용)
+      lastBurst: [],          // ★ step-0005: 이번 tick 발화한 셀 [{i, released}] — 하향 에너지 채널이 읽는다 (순수 측정)
+      pendingDownT: null,     // ★ step-0005: 상위 발화가 예약한 미시 T 주입 버퍼 (다음 step에서 external 이 비운다)
+      lastIgnite: [],         // ★ step-0006: 이번 tick 점화(별)한 셀 [{i, light, phi}] — 시각화·측정용 (순수 측정)
+      burnedTick: 0, burnedTotal: 0, // ★ step-0006: 점화로 에너지가 된 질량(rho→E 결손). 물질 보존 회계용
+      rhoB: null, dqB: null,  // ★ step-0009: B형 물질 질량(성분 트레이서) + 작업 버퍼. null = 분화 off (비트 동일)
+      stats: null,
+      rng: mulberry32(opts.seed == null ? 42 : opts.seed),
+    };
+    if (opts.emptyInit) {
+      sim.rho0 = 0;
+    } else {
+      for (let i = 0; i < M; i++) {
+        sim.rho[i] = 0.10 + 0.15 * sim.rng();
+        sim.A[i] = sim.rho[i];
+      }
+      sim.rho0 = sum(sim.rho);
+    }
+    return sim;
+  }
+
+  function sum(a) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; }
+
+  /* ★ step-0009: 성분 트레이서 활성화. 초기 물질은 전부 A형(rhoB=0) — 성분은 source 가 주입한다. */
+  function enableComp(sim) {
+    if (!sim.rhoB) { sim.rhoB = new Float32Array(sim.M); sim.dqB = new Float32Array(sim.M); }
+    return sim;
+  }
+
+  function cellsInRadius(sim, cx, cy, r) {
+    const out = [], N = sim.N;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      let x = cx + dx, y = cy + dy;
+      if (sim.wrap) { x = (x + N) % N; y = (y + N) % N; }
+      else if (x < 0 || x >= N || y < 0 || y >= N) continue;
+      out.push(y * N + x);
+    }
+    return out;
+  }
+
+  /* ---------- [04] source / sink ---------- */
+  function applySources(sim) {
+    for (const s of sim.sources) {
+      for (const i of s.cells) {
+        sim.E[i] += s.rate;
+        sim.injectedTick += s.rate;
+        // ★ step-0006: 물질 공급(별의 요람 = 신선한 수소). 점화의 질량결손을 보충해 무한 세계의 정상상태를 만든다.
+        // rhoRate 기본 0 → 기존 시나리오 비트 동일. rho 는 E+T 장부와 별개 양(rho0/rhoDrift 로 추적).
+        if (s.rhoRate) {
+          sim.rho[i] += s.rhoRate;
+          // ★ step-0009: source 의 성분(phi) — B형 물질을 함께 주입. 별의 종류는 그 요람의 물질이 정한다.
+          if (sim.rhoB && s.phi) sim.rhoB[i] += s.rhoRate * s.phi;
+        }
+      }
+    }
+  }
+  function applySinks(sim) {
+    for (const s of sim.sinks) {
+      for (const i of s.cells) {
+        const rE = sim.E[i] * s.rate, rT = sim.T[i] * s.rate;
+        sim.E[i] -= rE; sim.T[i] -= rT;
+        sim.removedTick += rE + rT;
+      }
+    }
+  }
+
+  /* ---------- [03-1] 확산 (플럭스 형태 = 보존) ---------- */
+  function diffuse(sim, q, alpha) {
+    const { N, dq } = sim; dq.fill(0);
+    const k = alpha * 0.25;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      if (x + 1 < N || sim.wrap) {
+        const j = y * N + ((x + 1) % N);
+        const f = k * (q[j] - q[i]); dq[i] += f; dq[j] -= f;
+      }
+      if (y + 1 < N || sim.wrap) {
+        const j = ((y + 1) % N) * N + x;
+        const f = k * (q[j] - q[i]); dq[i] += f; dq[j] -= f;
+      }
+    }
+    for (let i = 0; i < sim.M; i++) q[i] += dq[i];
+  }
+
+  /* ---------- [03-1b] 열 교반 ----------
+   * ★ step-0009: rhoB(성분)는 rho 플럭스에 *비례 동승* — 풍상(donor) 셀의 성분비 φ 만큼 같이 흐른다.
+   *   rho 가 흐르지 않으면 성분도 흐르지 않는다 (물질에 실린 형질). rhoB=null 이면 추가 연산 0. */
+  function diffuseRhoMelt(sim) {
+    const { N, rho, T, dq, rhoB, dqB } = sim; dq.fill(0);
+    if (rhoB) dqB.fill(0);
+    const a = sim.params.alphaRho, kT = sim.params.kT;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      for (let d = 0; d < 2; d++) {
+        let j;
+        if (d === 0) { if (x + 1 >= N && !sim.wrap) continue; j = y * N + ((x + 1) % N); }
+        else { if (y + 1 >= N && !sim.wrap) continue; j = ((y + 1) % N) * N + x; }
+        let k = 0.25 * a * (1 + kT * 0.5 * (T[i] + T[j]));
+        if (k > 0.24) k = 0.24;
+        const f = k * (rho[j] - rho[i]); dq[i] += f; dq[j] -= f;
+        if (rhoB && f !== 0) {
+          const don = f > 0 ? j : i;                     // 풍상(주는 쪽) 셀
+          const fr = rho[don] > 0 ? Math.min(1, rhoB[don] / rho[don]) : 0;
+          const fB = f * fr; dqB[i] += fB; dqB[j] -= fB;
+        }
+      }
+    }
+    for (let i = 0; i < sim.M; i++) rho[i] += dq[i];
+    if (rhoB) for (let i = 0; i < sim.M; i++) rhoB[i] += dqB[i];
+  }
+
+  /* ---------- [03-2] 응집 (E를 태워야 모인다 = 대사) ---------- */
+  function attract(sim) {
+    const { N, rho, A, E, T, dq, diss, rhoB, dqB } = sim;
+    const g = sim.params.g, cost = sim.params.cost;
+    dq.fill(0);
+    if (rhoB) dqB.fill(0);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      for (let d = 0; d < 2; d++) {
+        let j;
+        if (d === 0) { if (x + 1 >= N && !sim.wrap) continue; j = y * N + ((x + 1) % N); }
+        else { if (y + 1 >= N && !sim.wrap) continue; j = ((y + 1) % N) * N + x; }
+        const dA = A[j] - A[i];
+        if (dA === 0) continue;
+        const from = dA > 0 ? i : j, to = dA > 0 ? j : i;
+        const eff = E[from] / (E[from] + 0.15);
+        const press = Math.max(0, 1 - rho[to] / sim.params.rhoMax);
+        let move = g * Math.abs(dA) * rho[from] * eff * press * 0.25;
+        const avail = rho[from] + dq[from];
+        if (move > avail * 0.5) move = avail * 0.5;
+        let c = cost * move;
+        if (c > E[from]) { const sc = E[from] / c; move *= sc; c = E[from]; }
+        if (move <= 0) continue;
+        dq[from] -= move; dq[to] += move;
+        // ★ step-0009: 응집으로 옮는 물질에 성분이 비례 동승 (from 셀의 성분비만큼)
+        if (rhoB) {
+          const fr = rho[from] > 0 ? Math.min(1, rhoB[from] / rho[from]) : 0;
+          const mB = move * fr; dqB[from] -= mB; dqB[to] += mB;
+        }
+        E[from] -= c; T[from] += c; diss[from] += c;
+      }
+    }
+    for (let i = 0; i < sim.M; i++) rho[i] += dq[i];
+    if (rhoB) for (let i = 0; i < sim.M; i++) rhoB[i] += dqB[i];
+    const kA = sim.params.kA, wE = sim.params.wE, B = sim.Abias;
+    if (wE === 0 && !B) {
+      for (let i = 0; i < sim.M; i++) A[i] += kA * (rho[i] - A[i]);
+    } else {
+      for (let i = 0; i < sim.M; i++) {
+        const target = rho[i] + wE * E[i] + (B ? B[i] : 0);
+        A[i] += kA * (target - A[i]);
+      }
+    }
+    diffuse(sim, A, sim.params.alphaA);
+    diffuse(sim, A, sim.params.alphaA);
+  }
+
+  /* ---------- [03-3] 소산·보존 + 복사 ---------- */
+  function dissipate(sim) {
+    const { E, T, diss } = sim;
+    const delta = sim.params.delta, radT = sim.params.radT;
+    for (let i = 0; i < sim.M; i++) {
+      const d = delta * E[i];
+      E[i] -= d; T[i] += d; diss[i] += d;
+      const r = radT * T[i];
+      T[i] -= r; sim.removedTick += r;
+    }
+  }
+
+  /* ---------- [03-4] 임계: 발화 ----------
+   * step-0005: 발화한 셀과 방출 에너지를 sim.lastBurst 에 기록한다 (순수 측정 — 동역학 불변).
+   * 미시에서는 읽는 곳이 없어 무해하고, 거시에서는 하향 에너지 채널이 이걸 읽어 미시로 열을 내린다. */
+  function threshold(sim) {
+    const { N, E, T, rho, rhoB } = sim;
+    const thE = sim.params.thE, toT = sim.params.burstToT;
+    sim.lastBurst.length = 0;                                  // ★ 매 tick 초기화
+    const burst = [];
+    for (let i = 0; i < sim.M; i++) if (E[i] > thE) burst.push(i);
+    for (const i of burst) {
+      const released = E[i] * 0.7;
+      sim.lastBurst.push({ i, released });                     // ★ 발화 셀 + 방출분 기록
+      E[i] *= 0.3;
+      const x = i % N, y = (i / N) | 0;
+      const ns = [];
+      const push = (nx, ny) => {
+        if (sim.wrap) ns.push(((ny + N) % N) * N + ((nx + N) % N));
+        else if (nx >= 0 && nx < N && ny >= 0 && ny < N) ns.push(ny * N + nx);
+      };
+      push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
+      T[i] += released * toT;
+      const spread = released * (1 - toT) / Math.max(1, ns.length);
+      for (const n of ns) E[n] += spread;
+      const scatter = rho[i] * 0.30 / Math.max(1, ns.length);
+      for (const n of ns) { rho[n] += scatter; }
+      rho[i] *= 0.70;
+      // ★ step-0009: 발화로 흩어지는 물질에도 성분이 비례 동승
+      if (rhoB) {
+        const sB = rhoB[i] * 0.30 / Math.max(1, ns.length);
+        for (const n of ns) rhoB[n] += sB;
+        rhoB[i] *= 0.70;
+      }
+    }
+    return burst.length;
+  }
+
+  /* ---------- [03-5] 점화: rho 과잉 → 에너지 발산 (별의 탄생) ----------
+   * threshold(E 과잉 → 폭발, 물질을 흩음)의 거울. 물질이 점화 임계 thIgn 을 넘으면:
+   *   1) 그 셀 rho 의 burnFrac 을 "태운다"(연소 덩어리 burned = rho·burnFrac, rho 에서 뺀다).
+   *   2) burned 중 (1-ejectFrac) 이 에너지로 변환(질량결손) → light = burned·(1-ejectFrac)·massToE 를 발산.
+   *      light 은 igniteHeat 만큼 열(T)로, 나머지는 빛(E)으로, igniteSpread 만큼 *분배 셀*에 퍼진다.
+   *   3) burned 중 ejectFrac 은 물질로 *분배 셀*에 방출 → 빛 닿는 곳에서 다시 모여 새 별이 된다.
+   * 보존: (E+T) 증가분 = light = injectedTick 에 기록(미시 장부 닫힘). 물질은 rho 안에서 닫히되,
+   *       에너지가 된 질량결손(burned·(1-ejectFrac))은 burnedTick 으로 회계(rho 의 의도된 단방향 손실).
+   * thIgn=Infinity 면 즉시 return → step-0005 와 비트 동일.
+   * step-0007: 분배 셀이 *반경 노브*로 확장 — ejectRadius=0 (기본) 일 때 4-이웃 폴백 → step-0006 비트 동일.
+   * ★ step-0009: 발산의 *내용*이 물질의 성분으로 갈라진다. 그 셀의 φ = rhoB/rho 가 열비를 보간:
+   *   heatEff = igniteHeat·(1-φ) + igniteHeatB·φ. φ=0 = 빛별(기존), φ=1 = 열별.
+   *   발산 총량(light)·E+T 장부는 불변 — 분화는 T↔E *분배*만 바꾼다. 방출 물질에 성분이 동승하므로
+   *   별의 종류가 ejecta 를 따라 다음 별로 유전된다. igniteHeatB=null(기본)이면 heatEff=igniteHeat → 동역학 불변. */
+  function ignite(sim) {
+    const P = sim.params, thIgn = P.thIgn;
+    sim.lastIgnite.length = 0;                                  // 매 tick 초기화 (off→on 토글 시 유령 별 방지)
+    if (!(thIgn < Infinity)) return;                           // 점화 off — 비트 동일 보장
+    const { N, M, rho, E, T, rhoB } = sim;
+    const burnFrac = P.burnFrac, massToE = P.massToE, ejectFrac = P.ejectFrac;
+    const heat = P.igniteHeat, spread = P.igniteSpread;
+    const heatB = P.igniteHeatB == null ? heat : P.igniteHeatB; // ★ step-0009: B형 열비 (null = 분화 off)
+    const ejR = P.ejectRadius | 0, lgR = (P.igniteRadius | 0) || ejR;
+    let lightTot = 0, defectTot = 0;
+    const stars = [];
+    for (let i = 0; i < M; i++) if (rho[i] > thIgn) stars.push(i);
+    for (const i of stars) {
+      // ★ step-0009: 이 별의 성분 — 태우기 전의 성분비 (태움·방출이 비례라 전후 동일)
+      const phi = rhoB && rho[i] > 0 ? Math.min(1, rhoB[i] / rho[i]) : 0;
+      const heatEff = heat + (heatB - heat) * phi;
+      const burned = rho[i] * burnFrac;
+      rho[i] -= burned;
+      const defect = burned * (1 - ejectFrac);                 // 에너지가 되는 질량
+      const ejected = burned - defect;                          // 분배 셀에 방출되는 물질
+      const light = defect * massToE;                           // 발산 에너지 (이득 massToE)
+      lightTot += light; defectTot += defect;
+      let ejectedB = 0;
+      if (rhoB) {
+        const burnedB = rhoB[i] * burnFrac;                     // 성분도 같은 비율로 타고
+        rhoB[i] -= burnedB;
+        ejectedB = burnedB * ejectFrac;                         // 같은 비율로 방출된다 (유전)
+      }
+      const x = i % N, y = (i / N) | 0;
+      // 분배 셀 — 회귀 보장: ejR=0 이면 step-0006 의 4-이웃 push 순서 그대로
+      let nsR, nsE;
+      if (ejR <= 0) {
+        const ns = [];
+        const push = (nx, ny) => {
+          if (sim.wrap) ns.push(((ny + N) % N) * N + ((nx + N) % N));
+          else if (nx >= 0 && nx < N && ny >= 0 && ny < N) ns.push(ny * N + nx);
+        };
+        push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
+        nsR = ns; nsE = ns;
+      } else {
+        nsR = cellsInRadius(sim, x, y, ejR).filter(c => c !== i);
+        nsE = (lgR === ejR) ? nsR : cellsInRadius(sim, x, y, lgR).filter(c => c !== i);
+      }
+      const nnR = Math.max(1, nsR.length), nnE = Math.max(1, nsE.length);
+      // 물질 방출 (별의 물질 방출 → 새 별의 씨앗) — 성분 동승
+      for (const n of nsR) rho[n] += ejected / nnR;
+      if (rhoB && ejectedB) for (const n of nsR) rhoB[n] += ejectedB / nnR;
+      // 에너지 발산: 열(T) + 빛(E, 국소+분배 셀) — ★ step-0009: 열비가 성분으로 보간된다
+      const toHeat = light * heatEff, toLight = light - toHeat;
+      T[i] += toHeat;
+      E[i] += toLight * (1 - spread);
+      for (const n of nsE) E[n] += toLight * spread / nnE;
+      sim.lastIgnite.push({ i, light, phi });
+    }
+    if (lightTot) sim.injectedTick += lightTot;                // 미시 E 장부: 별빛은 발산(주입)
+    if (defectTot) sim.burnedTick += defectTot;                // 물질 회계: 에너지가 된 질량결손
+  }
+
+  /* ---------- [05] agent 검출 + 시간 추적 → 항상성 + 행동 측정 ---------- */
+  function wrapDist(sim, ax, ay, bx, by) {
+    const N = sim.N;
+    let dx = Math.abs(ax - bx), dy = Math.abs(ay - by);
+    if (sim.wrap) { dx = Math.min(dx, N - dx); dy = Math.min(dy, N - dy); }
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function detectAgents(sim) {
+    const { N, rho } = sim, thRho = sim.params.thRho;
+    const seen = new Uint8Array(sim.M);
+    const found = [];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x;
+      if (seen[i] || rho[i] < thRho) continue;
+      const cells = [], stack = [i]; seen[i] = 1;
+      while (stack.length) {
+        const c = stack.pop(); cells.push(c);
+        const cx = c % N, cy = (c / N) | 0;
+        const cand = [];
+        if (cx + 1 < N || sim.wrap) cand.push(cy * N + ((cx + 1) % N));
+        if (cx - 1 >= 0 || sim.wrap) cand.push(cy * N + ((cx - 1 + N) % N));
+        if (cy + 1 < N || sim.wrap) cand.push(((cy + 1) % N) * N + cx);
+        if (cy - 1 >= 0 || sim.wrap) cand.push(((cy - 1 + N) % N) * N + cx);
+        for (const n of cand) if (!seen[n] && rho[n] >= thRho) { seen[n] = 1; stack.push(n); }
+      }
+      if (cells.length < 3) continue;
+      let mass = 0, mx = 0, my = 0, metab = 0;
+      for (const c of cells) {
+        mass += rho[c]; metab += sim.diss[c];
+        mx += (c % N) * rho[c]; my += ((c / N) | 0) * rho[c];
+      }
+      found.push({ cells, mass, cx: mx / mass, cy: my / mass, metab });
+    }
+    const prev = sim.agents, used = new Uint8Array(found.length);
+    const next = [];
+    for (const p of prev) {
+      let best = -1, bestD = 6 * 6;
+      for (let k = 0; k < found.length; k++) {
+        if (used[k]) continue;
+        let dx = Math.abs(found[k].cx - p.cx), dy = Math.abs(found[k].cy - p.cy);
+        if (sim.wrap) { dx = Math.min(dx, N - dx); dy = Math.min(dy, N - dy); }
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD) { bestD = d2; best = k; }
+      }
+      if (best >= 0) {
+        used[best] = 1;
+        const f = found[best];
+        const ema = p.massEMA * 0.98 + f.mass * 0.02;
+        const v = wrapDist(sim, f.cx, f.cy, p.cx, p.cy);
+        next.push({
+          id: p.id, cells: f.cells, mass: f.mass, cx: f.cx, cy: f.cy,
+          metab: f.metab, age: p.age + 1, massEMA: ema,
+          speed: v,
+          speedEMA: p.speedEMA * 0.95 + v * 0.05,
+          dist: p.dist + v,
+          trail: p.trail,
+        });
+      } else {
+        sim.deaths.push({ tick: sim.tick, age: p.age });
+        if (sim.deaths.length > 200) sim.deaths.shift();
+        sim.deathsTotal++;
+        for (const q of prev) {
+          if (q.id !== p.id && q.alive && wrapDist(sim, q.cx, q.cy, p.cx, p.cy) <= sim.params.contestR) {
+            sim.contested++; break;
+          }
+        }
+      }
+    }
+    for (let k = 0; k < found.length; k++) if (!used[k]) {
+      const f = found[k];
+      next.push({
+        id: sim.nextId++, cells: f.cells, mass: f.mass, cx: f.cx, cy: f.cy,
+        metab: f.metab, age: 0, massEMA: f.mass,
+        speed: 0, speedEMA: 0, dist: 0, trail: [],
+      });
+      sim.births++;
+    }
+    sim.agents = next;
+    const P = sim.params;
+    for (const a of sim.agents) {
+      a.alive = a.age >= P.lifeAge &&
+        Math.abs(a.mass - a.massEMA) < 0.5 * a.massEMA &&
+        a.metab > P.metabEps;
+      if (a.alive && (sim.tick & 3) === 0) {
+        a.trail.push(a.cx, a.cy);
+        if (a.trail.length > 128) a.trail.splice(0, 2);
+      }
+    }
+  }
+
+  /* ★ step-0009: agent 의 성분 φ (질량 가중) — 순수 측정 헬퍼. comp off 면 0. */
+  function agentPhi(sim, a) {
+    if (!sim.rhoB) return 0;
+    let m = 0, b = 0;
+    for (const c of a.cells) { m += sim.rho[c]; b += sim.rhoB[c]; }
+    return m > 0 ? Math.min(1, b / m) : 0;
+  }
+
+  /* ---------- tick 루프 ([07] 고정 순서) — 미시·거시가 같은 함수를 쓴다 ---------- */
+  function step(sim) {
+    const tg = sim.toggles;
+    const prevTotal = sum(sim.E) + sum(sim.T);
+    sim.injectedTick = 0; sim.removedTick = 0; sim.burnedTick = 0;
+    sim.diss.fill(0);
+
+    if (sim.external) sim.external(sim);                        // 0. 외부 주입(승급·하향에너지) — 장부 기록 책임은 훅에 있음
+    if (tg.source) { applySources(sim); applySinks(sim); }      // 1. [04]
+    if (tg.diffuse) {                                           // 2. [03] 확산
+      diffuse(sim, sim.T, sim.params.alphaT);
+      diffuse(sim, sim.E, sim.params.alphaE);
+      diffuseRhoMelt(sim);
+    }
+    if (tg.attract) attract(sim);                               // 3. [03] 응집(대사)
+    if (tg.dissipate) dissipate(sim);                           // 4. [03] 소산+복사
+    const bursts = tg.threshold ? threshold(sim) : 0;           // 5. [03] 임계(E 과잉 → 발화)
+    ignite(sim);                                                // 6. [03-5] 점화(rho 과잉 → 발산=별). thIgn=∞ 면 즉시 return = 비트 동일
+    sim.tick++;
+    if (tg.detect) detectAgents(sim);                           // 7. [05] 검출·추적
+
+    const totalE = sum(sim.E), totalT = sum(sim.T);
+    const resid = (totalE + totalT) - (prevTotal + sim.injectedTick - sim.removedTick);
+    const living = sim.agents.filter(a => a.alive);
+    sim.injected += sim.injectedTick; sim.removed += sim.removedTick;
+    sim.burnedTotal += sim.burnedTick;
+    sim.stats = {
+      tick: sim.tick, totalE, totalT,
+      totalRho: sum(sim.rho), rhoDrift: sum(sim.rho) - sim.rho0,
+      resid, bursts, stars: sim.lastIgnite.length, burnedTick: sim.burnedTick,
+      // ★ step-0009: 별 성분 평균 (이번 tick 점화한 별들의 φ 평균; comp off 면 0) — 순수 측정
+      starPhi: sim.lastIgnite.length ? sim.lastIgnite.reduce((s, b) => s + b.phi, 0) / sim.lastIgnite.length : 0,
+      totalRhoB: sim.rhoB ? sum(sim.rhoB) : 0,
+      agentCount: sim.agents.length,
+      livingCount: living.length,
+      meanAge: living.length ? living.reduce((s, a) => s + a.age, 0) / living.length : 0,
+      meanMetab: living.length ? living.reduce((s, a) => s + a.metab, 0) / living.length : 0,
+      meanSpeed: living.length ? living.reduce((s, a) => s + a.speedEMA, 0) / living.length : 0,
+      dissRate: sum(sim.diss),
+      recentDeaths: sim.deaths.length,
+      births: sim.births, deathsTotal: sim.deathsTotal, contested: sim.contested,
+    };
+    return sim.stats;
+  }
+
+  function addSource(sim, x, y, r, rate, rhoRate, phi) {
+    sim.sources.push({ x, y, r, rate, rhoRate: rhoRate || 0, phi: phi || 0, cells: cellsInRadius(sim, x, y, r) });
+  }
+  function addSink(sim, x, y, r, rate) {
+    sim.sinks.push({ x, y, r, rate, cells: cellsInRadius(sim, x, y, r) });
+  }
+
+  function defaultScenario(sim, srcRate) {
+    sim.sources.length = 0; sim.sinks.length = 0;
+    const N = sim.N;
+    addSource(sim, (N * 0.25) | 0, (N * 0.25) | 0, 3, srcRate != null ? srcRate : sim.params.srcRate);
+    addSink(sim, (N * 0.75) | 0, (N * 0.75) | 0, 4, sim.params.snkRate);
+  }
+
+  /* ★ step-0008: 사슬 시나리오 헬퍼 (순수 시나리오 — tick 루프 불변, 회귀 0).
+   * 사슬의 연료(E+rho)는 step-0007 chain 기본값(E=0.030, rho=0.020, r2)을 쓴다.
+   * 좌표는 step-0004 ③ 의 두-사회 표준(좌 16,32 · 우 48,32 · sink 32,8)과 통일.
+   * ★ step-0009: opts.phi(단일) / opts.phiL·phiR(두 사슬) 로 source 의 물질 성분을 지정 —
+   *   지정 시 enableComp 로 트레이서가 켜진다 (B형 열비는 params.igniteHeatB 가 정한다). */
+  function singleChainScenario(sim, opts) {
+    opts = opts || {};
+    sim.sources.length = 0; sim.sinks.length = 0;
+    if (opts.phi) enableComp(sim);
+    const sx = opts.x != null ? opts.x : 16, sy = opts.y != null ? opts.y : 32;
+    addSource(sim, sx, sy, opts.r || 2, opts.E != null ? opts.E : 0.030, opts.rho != null ? opts.rho : 0.020, opts.phi || 0);
+    addSink(sim, opts.snkX != null ? opts.snkX : 32, opts.snkY != null ? opts.snkY : 8, 4, 0.10);
+  }
+  function twoChainScenario(sim, opts) {
+    opts = opts || {};
+    sim.sources.length = 0; sim.sinks.length = 0;
+    if (opts.phiL || opts.phiR) enableComp(sim);
+    const cx = opts.cx != null ? opts.cx : 32, sy = opts.y != null ? opts.y : 32;
+    const dist = opts.dist != null ? opts.dist : 32;
+    const lx = cx - (dist >> 1), rx = cx + (dist >> 1);
+    const E = opts.E != null ? opts.E : 0.030, rho = opts.rho != null ? opts.rho : 0.020, r = opts.r || 2;
+    addSource(sim, lx, sy, r, E, rho, opts.phiL || 0);
+    addSource(sim, rx, sy, r, E, rho, opts.phiR || 0);
+    addSink(sim, opts.snkX != null ? opts.snkX : 32, opts.snkY != null ? opts.snkY : 8, 4, 0.10);
+    return { cx, lx, rx, dist };
+  }
+
+  /* ============================================================
+   * [06] 재귀 2층 — 승급(promotion) + 동일 step() 재호출 + ★하향 에너지 채널
+   * ============================================================ */
+  const MACRO_DEFAULTS = {
+    N2: 16,           // 상위 격자 크기
+    every: 4,         // 미시 몇 tick마다 거시 1 tick
+    kPromote: 0.10,   // mass→ρ₂ 완화 주입 속도
+    cE: 3.0,          // metab→E₂ 변환 계수 (대사 소득)
+    scaleM: 0.25,     // mass→ρ₂ 스케일
+    wBack: 0.0,       // 거시 A₂ → 미시 Abias (조향 하향 결합)
+    wDown: 0.0,       // ★ step-0005: 거시 발화 방출분 → 미시 T 주입 강도 (에너지 하향 결합). 0 = step-0004와 동일
+    promoteComp: false, // ★ step-0010: 미시 agent 의 성분 φ 를 거시 rhoB 로 승급 (사회의 기질). false = step-0009 결합과 비트 동일
+    params: {
+      wE: 0.5,
+      thRho: 0.20, lifeAge: 30, alphaRho: 0.03, kT: 3,
+      g: 2.0, cost: 0.05, delta: 0.01, radT: 0.03, thE: 0.9,
+      // thE=0.9 는 step-0004 기본값(회귀 보존). "발화=사건화"를 위한 thE₂ 상향은 실험에서 override.
+    },
+  };
+
+  function createMacro(micro, opts) {
+    opts = Object.assign({}, MACRO_DEFAULTS, opts || {});
+    const mparams = Object.assign({}, MACRO_DEFAULTS.params, (opts || {}).params || {});
+    const macro = createSim(opts.N2, { seed: 7, emptyInit: true, params: mparams, wrap: micro.wrap });
+    macro.isMacro = true;
+    const f = opts.N2 / micro.N;
+    const Mf = new Float32Array(macro.M);   // 승급 작업 버퍼 (mass → ρ₂ 목표)
+    // ★ step-0010: 성분 승급 — 미시 φ 를 거시 rhoB 목표로 올린다. promoteComp=false 면 버퍼 0 (비트 동일).
+    const MfB = opts.promoteComp ? new Float32Array(macro.M) : null;
+    if (opts.promoteComp) enableComp(macro);
+    macro.external = function (m) {
+      Mf.fill(0); if (MfB) MfB.fill(0);
+      let injE = 0;
+      for (const a of micro.agents) {
+        if (!a.alive) continue;
+        const cx = Math.min(opts.N2 - 1, (a.cx * f) | 0);
+        const cy = Math.min(opts.N2 - 1, (a.cy * f) | 0);
+        const i = cy * opts.N2 + cx;
+        Mf[i] += a.mass * opts.scaleM;          // mass → ρ₂ 목표 분포
+        if (MfB) MfB[i] += agentPhi(micro, a) * a.mass * opts.scaleM; // ★ φ 동승 = 기질 승급 (φ≤1 → MfB≤Mf)
+        const e = a.metab * opts.cE;            // metab → E₂ 소득
+        m.E[i] += e; injE += e;
+      }
+      for (let i = 0; i < m.M; i++) m.rho[i] += opts.kPromote * (Mf[i] - m.rho[i]);
+      // ★ rhoB 도 같은 완화율로 승급 — 같은 kPromote·MfB≤Mf 라 거시 rhoB≤rho 불변 보존 (verify cons)
+      if (MfB) for (let i = 0; i < m.M; i++) m.rhoB[i] += opts.kPromote * (MfB[i] - m.rhoB[i]);
+      m.injectedTick += injE;                   // 거시 장부: 승급 소득은 거시의 주입
+    };
+    macro.couple = opts;
+
+    // ★ 하향 에너지 채널: 미시에 T 주입 버퍼 + drain 훅을 단다 (wDown 과 무관하게 설치 — 실험에서 라이브 토글 가능).
+    // 미시 external = 예약된 하향 T 를 미시 step 시작에 주입하고 미시 장부(injectedTick)에 기록 → 미시 장부 닫힘.
+    micro.pendingDownT = new Float32Array(micro.M);
+    micro.external = function (m) {
+      const p = m.pendingDownT;
+      let inj = 0;
+      for (let i = 0; i < m.M; i++) if (p[i] !== 0) { m.T[i] += p[i]; inj += p[i]; p[i] = 0; }
+      if (inj) m.injectedTick += inj;           // 미시 장부: 하향 에너지는 미시의 주입 (승급의 대칭)
+    };
+    return macro;
+  }
+
+  /* 거시 A₂를 미시 Abias로 내려보내기 (조향 하향 결합, wBack>0일 때) */
+  function coupleDown(micro, macro, wBack) {
+    if (!wBack) { micro.Abias = null; return; }
+    if (!micro.Abias) micro.Abias = new Float32Array(micro.M);
+    const N = micro.N, N2 = macro.N, f = N2 / N, B = micro.Abias;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i2 = Math.min(N2 - 1, (y * f) | 0) * N2 + Math.min(N2 - 1, (x * f) | 0);
+      B[y * N + x] = wBack * macro.A[i2];
+    }
+  }
+
+  /* ★ 거시 발화 → 미시 T 주입 예약 (에너지 하향 결합, wDown>0일 때) ----------
+   * 거시 셀 i 가 방출분 released 로 발화하면, 그 셀이 덮는 미시 f×f 블록에 wDown·released 만큼의
+   * 열을 고르게 예약한다. 실제 주입·장부 기록은 다음 미시 step 의 micro.external 이 한다.
+   * T 는 [03-1b] 열 교반으로 rho 를 녹이고 [03-3] 복사로 빠져나간다 = 일시적 "열파" = 재앙. */
+  function coupleDownEnergy(micro, macro, wDown) {
+    if (!wDown || !macro.lastBurst.length) return;
+    const N = micro.N, N2 = macro.N, f = (N / N2) | 0;   // f = 미시 한 변당 미시 셀 수 (64/16 = 4)
+    const cells = f * f;
+    const p = micro.pendingDownT;
+    for (const b of macro.lastBurst) {
+      const mx = b.i % N2, my = (b.i / N2) | 0;
+      const per = wDown * b.released / cells;
+      const ox = mx * f, oy = my * f;
+      for (let dy = 0; dy < f; dy++) for (let dx = 0; dx < f; dx++) {
+        p[(oy + dy) * N + (ox + dx)] += per;
+      }
+    }
+  }
+
+  /* 미시+거시를 함께 굴리는 헬퍼: 미시 step 후 every마다 거시 step + 양방향 결합 */
+  function stepCoupled(micro, macro) {
+    const s = step(micro);
+    if (macro && micro.tick % macro.couple.every === 0) {
+      step(macro);
+      coupleDown(micro, macro, macro.couple.wBack);
+      coupleDownEnergy(micro, macro, macro.couple.wDown);   // ★ 거시 발화 → 미시 T 예약
+    }
+    return s;
+  }
+
+  /* "생명의 창" 스윕 (미시 단독 또는 미시+거시) */
+  function sweepWindow(N, rates, ticks, seed, paramsOverride, withMacro) {
+    const out = [];
+    for (const r of rates) {
+      const sim = createSim(N, { seed: seed == null ? 42 : seed, params: paramsOverride });
+      const macro = withMacro ? createMacro(sim, withMacro === true ? null : withMacro) : null;
+      defaultScenario(sim, r);
+      let livingSum = 0, burstSum = 0, n = 0;
+      let macroLivingSum = 0, macroN = 0;
+      let speedSum = 0;
+      const tail = Math.floor(ticks * 2 / 3);
+      for (let t = 0; t < ticks; t++) {
+        const s = stepCoupled(sim, macro);
+        if (t >= tail) {
+          livingSum += s.livingCount; burstSum += s.bursts; speedSum += s.meanSpeed; n++;
+          if (macro && macro.stats) { macroLivingSum += macro.stats.livingCount; macroN++; }
+        }
+      }
+      out.push({
+        rate: r,
+        living: livingSum / n,
+        bursts: burstSum / n,
+        meanSpeed: speedSum / n,
+        deaths: sim.deathsTotal, births: sim.births, contested: sim.contested,
+        macroLiving: macroN ? macroLivingSum / macroN : 0,
+        maxResid: Math.abs(sim.stats.resid),
+        macroResid: macro && macro.stats ? Math.abs(macro.stats.resid) : 0,
+      });
+    }
+    return out;
+  }
+
+  const SimCore = {
+    createSim, step, stepCoupled, createMacro, coupleDown, coupleDownEnergy, ignite, enableComp, agentPhi,
+    addSource, addSink, defaultScenario, singleChainScenario, twoChainScenario, sweepWindow, sum,
+    DEFAULT_PARAMS, MACRO_DEFAULTS,
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = SimCore;
+  else global.SimCore = SimCore;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ============================================================
+ * step-0010 페이지 로직 — 메타-사슬 시나리오 + 2.5D 등축투영(의존성 0) 두 층 렌더.
+ * 코어는 위 인라인 SimCore(= step-0010/sim-core.js 와 동일). 거시는 createSim 으로 만든 또 하나의 장.
+ * ============================================================ */
+'use strict';
+const N = 64, N2 = 32, F = N / N2;
+// 사슬 연료·노브 = step-0007 / 메타-사슬 결합 = verify.js META 와 동일
+const CHAIN = { wE:1.0, thIgn:0.40, burnFrac:0.6, ejectFrac:0.85, massToE:5.0, igniteSpread:0.92, igniteHeat:0.05, igniteRadius:0, ejectRadius:6 };
+const META = { every:2, kPromote:0.5, scaleM:2.0, cE:3.0, macroEjR:3, thIgn2:0.20 };
+
+let microPhi = 0;          // 미시 사회의 기질 (0=빛, 1=열)
+let macroHeatB = 0.50;     // 거시 igniteHeatB (라이브)
+let running = false, speed = 2, showPillars = true, showGlow = true, elev = 150, rot = 0;
+let sim, macro;
+let starHist = [];         // 거시 별 위치 이력 (std 측정)
+let roll = { uStars:[], uPhi:[], mStars:[], mPhi:[] };
+// ★ 점화 잔상(활성 영역) — 점화는 사건 집합이라 매 tick 깜빡인다. 누적·감쇠로 *이동하는 영역*을 보이게.
+let densU = null, densM = null, trailM = [];
+
+function rollPush(arr, v, cap){ arr.push(v); if (arr.length > (cap||120)) arr.shift(); }
+function rollAvg(arr){ return arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0; }
+
+function build(){
+  sim = SimCore.createSim(N, { seed: 42, params: Object.assign({}, CHAIN) });
+  SimCore.singleChainScenario(sim, { phi: 1 });     // phi=1 → enableComp (트레이서 켬; 빛 사회는 source.phi=0 로 중립)
+  sim.sources.forEach(s => { s.phi = microPhi; });
+  macro = SimCore.createMacro(sim, {
+    N2, every: META.every, kPromote: META.kPromote, scaleM: META.scaleM, cE: META.cE, promoteComp: true,
+    params: Object.assign({}, CHAIN, { thIgn: META.thIgn2, ejectRadius: META.macroEjR, igniteHeatB: macroHeatB }),
+  });
+  starHist = []; roll = { uStars:[], uPhi:[], mStars:[], mPhi:[] };
+  densU = new Float32Array(N*N); densM = new Float32Array(N2*N2); trailM = [];
+}
+
+function tickN(){
+  for (let k = 0; k < speed; k++){
+    SimCore.stepCoupled(sim, macro);
+    rollPush(roll.uStars, sim.lastIgnite.length, 120);
+    let up=0,un=0; for (const b of sim.lastIgnite){ up+=b.phi; un++; }
+    if (un) rollPush(roll.uPhi, up/un, 120);
+    // 미시 점화 잔상: 매 tick 감쇠 + 누적 → 활성 영역
+    for (let i=0;i<densU.length;i++) densU[i] *= 0.90;
+    for (const b of sim.lastIgnite) densU[b.i] += 1;
+    if (sim.tick % META.every === 0 && macro.stats){
+      rollPush(roll.mStars, macro.lastIgnite.length, 120);
+      let mp=0,mn=0,cx=0,cy=0; for (const b of macro.lastIgnite){ mp+=b.phi; mn++;
+        cx += b.i % N2; cy += (b.i / N2) | 0;
+        starHist.push(b.i % N2, (b.i / N2) | 0); }
+      if (mn) rollPush(roll.mPhi, mp/mn, 120);
+      while (starHist.length > 800) starHist.splice(0, 2);
+      // 거시 점화 잔상 + 활성 영역 무게중심 궤적 (이게 *진짜로 이동하는 것*)
+      for (let i=0;i<densM.length;i++) densM[i] *= 0.85;
+      for (const b of macro.lastIgnite) densM[b.i] += 1;
+      if (mn){ trailM.push([cx/mn, cy/mn]); if (trailM.length > 80) trailM.shift(); }
+    }
+  }
+}
+
+/* ---------- 색 매핑 ---------- */
+function paint(off, sm, peak){
+  const W = sm.N, img = off.ctx.getImageData(0,0,W,W), d = img.data;
+  for (let i = 0; i < sm.M; i++){
+    const rho = sm.rho[i], E = sm.E[i], T = sm.T[i];
+    const phi = sm.rhoB && rho > 0 ? Math.min(1, sm.rhoB[i]/rho) : 0;
+    const s = Math.min(1, rho / peak);
+    let r = 26 + 200*Math.min(1, E*1.6) + 120*s + 70*phi*s;
+    let g = 22 + 150*Math.min(1, E*1.3) + 105*s*(1 - 0.55*phi) - 24*phi*s;
+    let b = 24 + 205*Math.min(1, T*1.3) + 45*s*(1 - phi);
+    const o = i*4;
+    d[o]   = r<0?0:r>255?255:r;
+    d[o+1] = g<0?0:g>255?255:g;
+    d[o+2] = b<0?0:b>255?255:b;
+    d[o+3] = 255;
+  }
+  off.ctx.putImageData(img, 0, 0);
+}
+
+/* ---------- 2.5D 등축투영 ---------- */
+const scene = document.getElementById('scene'), sctx = scene.getContext('2d');
+const offMicro = mkOff(N), offMacro = mkOff(N2);
+const microView = document.getElementById('microView'), mvctx = microView.getContext('2d');
+const macroView = document.getElementById('macroView'), Mvctx = macroView.getContext('2d');
+function mkOff(w){ const c = document.createElement('canvas'); c.width=c.height=w; return { canvas:c, ctx:c.getContext('2d') }; }
+
+const plA = 3.4, plB = 1.8;
+function basis(){
+  return [
+    { ux:plA, uy:plB, vx:-plA, vy:plB },
+    { ux:-plA, uy:plB, vx:-plA, vy:-plB },
+    { ux:-plA, uy:-plB, vx:plA, vy:-plB },
+    { ux:plA, uy:-plB, vx:plA, vy:plB },
+  ][rot];
+}
+let ORX = 0, ORY = 0;
+function fit(bs){
+  // 8 corner bbox (두 평면), 화면 중앙 정렬
+  let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+  for (const [u,v,e] of [[0,0,0],[N,0,0],[0,N,0],[N,N,0],[0,0,elev],[N,0,elev],[0,N,elev],[N,N,elev]]){
+    const x = u*bs.ux + v*bs.vx, y = u*bs.uy + v*bs.vy - e;
+    if (x<minX)minX=x; if (x>maxX)maxX=x; if (y<minY)minY=y; if (y>maxY)maxY=y;
+  }
+  ORX = (scene.width - (minX+maxX))/2;
+  ORY = (scene.height - (minY+maxY))/2;
+}
+function P(u,v,e,bs){ return { x: ORX + u*bs.ux + v*bs.vx, y: ORY + u*bs.uy + v*bs.vy - e }; }
+
+// 점화 잔상(활성 영역) — 누적·감쇠한 밀도를 가산 합성으로 흐릿하게 그린다 → 이동하는 영역이 보임
+function drawGlow(dens, gridN, e, bs, color, scale){
+  let mx = 0; for (let i=0;i<dens.length;i++) if (dens[i] > mx) mx = dens[i];
+  if (mx <= 0) return;
+  for (let i=0;i<dens.length;i++){ const v = dens[i]; if (v < 0.12*mx) continue;
+    const p = P((i%gridN)*scale, ((i/gridN)|0)*scale, e, bs);
+    sctx.globalAlpha = Math.min(0.55, v/mx*0.55);
+    sctx.fillStyle = color;
+    sctx.beginPath(); sctx.arc(p.x, p.y, 3.2, 0, 7); sctx.fill();
+  }
+  sctx.globalAlpha = 1;
+}
+
+function drawQuad(bs, e, col){
+  const c = [P(0,0,e,bs),P(N,0,e,bs),P(N,N,e,bs),P(0,N,e,bs)];
+  sctx.beginPath(); sctx.moveTo(c[0].x,c[0].y);
+  for (let k=1;k<4;k++) sctx.lineTo(c[k].x,c[k].y);
+  sctx.closePath(); sctx.strokeStyle=col; sctx.lineWidth=1; sctx.stroke();
+  return c;
+}
+
+function render(){
+  paint(offMicro, sim, 0.6);
+  paint(offMacro, macro, 2.2);
+  sctx.setTransform(1,0,0,1,0,0);
+  sctx.clearRect(0,0,scene.width,scene.height);
+  const bs = basis(); fit(bs);
+
+  // 미시 평면 (아래)
+  sctx.imageSmoothingEnabled = false;
+  sctx.globalAlpha = 1;
+  sctx.setTransform(bs.ux, bs.uy, bs.vx, bs.vy, ORX, ORY);
+  sctx.drawImage(offMicro.canvas, 0, 0, N, N);
+  // 거시 평면 (위, 살짝 투명)
+  sctx.globalAlpha = 0.9;
+  sctx.setTransform(bs.ux, bs.uy, bs.vx, bs.vy, ORX, ORY - elev);
+  sctx.drawImage(offMacro.canvas, 0, 0, N, N);
+  sctx.setTransform(1,0,0,1,0,0); sctx.globalAlpha = 1;
+
+  // 평면 테두리 + 수직 기둥(층간 프레임)
+  const cb = drawQuad(bs, 0, 'rgba(120,140,170,.35)');
+  const ct = drawQuad(bs, elev, 'rgba(120,140,170,.5)');
+  sctx.strokeStyle = 'rgba(120,140,170,.25)'; sctx.lineWidth=1;
+  for (let k=0;k<4;k++){ sctx.beginPath(); sctx.moveTo(cb[k].x,cb[k].y); sctx.lineTo(ct[k].x,ct[k].y); sctx.stroke(); }
+
+  // 승급 기둥 — 미시 living agent → 거시 셀
+  if (showPillars){
+    for (const a of sim.agents){ if (!a.alive) continue;
+      const lo = P(a.cx, a.cy, 0, bs), hi = P(a.cx, a.cy, elev, bs);
+      sctx.strokeStyle = 'rgba(57,210,192,.45)'; sctx.lineWidth=1;
+      sctx.beginPath(); sctx.moveTo(lo.x,lo.y); sctx.lineTo(hi.x,hi.y); sctx.stroke();
+      sctx.fillStyle = '#39d2c0'; sctx.beginPath(); sctx.arc(lo.x,lo.y,2,0,7); sctx.fill();
+    }
+  }
+  // 활성 영역 잔상 (점화 밀도) — 가산 합성, 점 뒤에 깔린다
+  if (showGlow){
+    sctx.globalCompositeOperation = 'lighter';
+    drawGlow(densU, N, 0, bs, '#ffcf6e', 1);
+    drawGlow(densM, N2, elev, bs, '#ff9a4d', F);
+    sctx.globalCompositeOperation = 'source-over';
+  }
+  // 미시 별 (점화)
+  for (const b of sim.lastIgnite){
+    const u=b.i%N, v=(b.i/N)|0, p=P(u,v,0,bs);
+    sctx.fillStyle = b.phi>0.5 ? '#ff8a6e' : '#ffe16e';
+    sctx.beginPath(); sctx.arc(p.x,p.y,2.4,0,7); sctx.fill();
+  }
+  // 거시 별 (메타-사슬) — 더 큰 점, 광배
+  for (const b of macro.lastIgnite){
+    const u=(b.i%N2)*F, v=((b.i/N2)|0)*F, p=P(u,v,elev,bs);
+    const col = b.phi>0.5 ? '#ff7b72' : '#ffaf5a';
+    sctx.fillStyle = col;
+    sctx.shadowColor = col; sctx.shadowBlur = 10;
+    sctx.beginPath(); sctx.arc(p.x,p.y,4,0,7); sctx.fill();
+    sctx.shadowBlur = 0;
+  }
+  // 거시 활성 영역 무게중심 + 궤적 — *진짜로 이동하는 것*. 흰 고리 = 현재 중심, 꼬리 = 최근 경로.
+  if (showGlow && trailM.length > 1){
+    sctx.strokeStyle = 'rgba(255,210,120,.55)'; sctx.lineWidth = 2; sctx.beginPath();
+    for (let i=0;i<trailM.length;i++){ const p = P(trailM[i][0]*F, trailM[i][1]*F, elev, bs);
+      if (i===0) sctx.moveTo(p.x,p.y); else sctx.lineTo(p.x,p.y); }
+    sctx.stroke();
+    const last = trailM[trailM.length-1], p = P(last[0]*F, last[1]*F, elev, bs);
+    sctx.strokeStyle = '#fff'; sctx.lineWidth = 2;
+    sctx.beginPath(); sctx.arc(p.x, p.y, 6, 0, 7); sctx.stroke();
+  }
+
+  // 위에서 본 인셋
+  mvctx.imageSmoothingEnabled=false; mvctx.clearRect(0,0,128,128);
+  mvctx.drawImage(offMicro.canvas,0,0,128,128);
+  Mvctx.imageSmoothingEnabled=false; Mvctx.clearRect(0,0,128,128);
+  Mvctx.drawImage(offMacro.canvas,0,0,128,128);
+  for (const b of macro.lastIgnite){ const x=(b.i%N2)/N2*128, y=((b.i/N2)|0)/N2*128;
+    Mvctx.fillStyle = b.phi>0.5?'#ff7b72':'#ffaf5a'; Mvctx.beginPath(); Mvctx.arc(x,y,2.5,0,7); Mvctx.fill(); }
+}
+
+/* ---------- 게이지 ---------- */
+function macroStarStd(){
+  const n = starHist.length/2; if (n < 2) return 0;
+  let mx=0,my=0; for (let i=0;i<starHist.length;i+=2){ mx+=starHist[i]; my+=starHist[i+1]; }
+  mx/=n; my/=n; let s=0;
+  for (let i=0;i<starHist.length;i+=2){ s += (starHist[i]-mx)**2 + (starHist[i+1]-my)**2; }
+  return Math.sqrt(s/n);
+}
+function maxOver(){
+  if (!macro.rhoB) return 0; let m=0;
+  for (let i=0;i<macro.M;i++){ const o = macro.rhoB[i]-macro.rho[i]; if (o>m) m=o; }
+  return m;
+}
+const $ = id => document.getElementById(id);
+function gauges(){
+  const us = sim.stats || {}, ms = macro.stats || {};
+  $('mTick').textContent = sim.tick;
+  $('mUStars').textContent = rollAvg(roll.uStars).toFixed(2);
+  $('mUPhi').textContent = microPhi ? rollAvg(roll.uPhi).toFixed(3) : '0.000 (빛)';
+  $('mULiv').textContent = us.livingCount||0;
+  const mStars = rollAvg(roll.mStars), mPhi = rollAvg(roll.mPhi), std = macroStarStd();
+  $('mMStars').textContent = mStars.toFixed(2);
+  $('mMPhi').textContent = microPhi ? mPhi.toFixed(3) : '0.000 (빛)';
+  $('mMStd').textContent = std.toFixed(2);
+  $('mME').textContent = (ms.totalE||0).toFixed(1);
+  $('mMLiv').textContent = ms.livingCount||0;
+  $('mResid').innerHTML = `<span class="${Math.abs(us.resid||0)<1e-4?'pass':'fail'}">${(us.resid||0).toExponential(1)}</span> / <span class="${Math.abs(ms.resid||0)<1e-4?'pass':'fail'}">${(ms.resid||0).toExponential(1)}</span>`;
+  const ov = maxOver();
+  $('mOver').innerHTML = `<span class="${ov<=1e-5?'pass':'fail'}">${ov.toExponential(1)}</span>`;
+  // 평결
+  let v;
+  if (!microPhi){
+    v = `<b>빛 사회</b> — 미시 별이 빛별(φ=0)이라 승급한 거시 별도 φ=0. 거시 heatB(${macroHeatB.toFixed(2)})는 무관: 계수는 φ 경유로만 작동한다. 거시 별/t=${mStars.toFixed(1)}, 위치 std=${std.toFixed(1)} — <b>거시 사슬이 굴러간다</b>.`;
+  } else if (macroHeatB <= 0.06){
+    v = `<b style="color:#ffaf5a">열 사회지만 거시 heatB≈0.05</b> — 기질 φ는 거시 별로 올라오나(거시 φ=${mPhi.toFixed(2)}) heatEff=igniteHeat 라 빛 사회와 동역학 동일. 슬라이더를 올려 *운명*을 깨우세요.`;
+  } else {
+    v = `<b style="color:#ff7b72">열 사회</b> — 미시 기질 φ≈${rollAvg(roll.uPhi).toFixed(2)} 가 승급을 타고 <b>거시 별 φ=${mPhi.toFixed(2)}</b> 로 올라왔다. 거시 heatB=${macroHeatB.toFixed(2)} 가 그 φ 로 발산을 열로 돌려 거시 E=${(ms.totalE||0).toFixed(0)} (빛 사회 대비 하락). <b>기질이 층을 타고 올라가 거시 사슬의 종류를 가른다.</b>`;
+  }
+  $('verdict').innerHTML = v;
+}
+
+/* ---------- 루프 ---------- */
+function frame(){ if (running) tickN(); render(); gauges(); requestAnimationFrame(frame); }
+
+/* ---------- 컨트롤 ---------- */
+function setSoc(p){
+  microPhi = p;
+  $('socLight').classList.toggle('on', p===0);
+  $('socHeat').classList.toggle('on', p===1);
+  sim.sources.forEach(s => { s.phi = microPhi; });   // 라이브: source 성분만 바꾼다 (재시작 불필요)
+  starHist=[]; roll={uStars:[],uPhi:[],mStars:[],mPhi:[]};  // 측정창 초기화
+}
+$('socLight').onclick = ()=> setSoc(0);
+$('socHeat').onclick  = ()=> setSoc(1);
+$('pHeatB').oninput = e => { macroHeatB = +e.target.value/100; $('pHeatBV').textContent = macroHeatB.toFixed(2);
+  macro.params.igniteHeatB = macroHeatB; };   // 라이브: 매 ignite() 에서 읽힘
+$('playBtn').onclick = e => { running=!running; e.target.textContent = running?'⏸ 일시정지':'▶ 재생'; e.target.classList.toggle('on', running); };
+$('stepBtn').onclick = ()=> { tickN(); render(); gauges(); };
+$('resetBtn').onclick = ()=> { build(); render(); gauges(); };
+$('pillarBtn').onclick = e => { showPillars=!showPillars; e.target.classList.toggle('on', showPillars); };
+$('glowBtn').onclick = e => { showGlow=!showGlow; e.target.classList.toggle('on', showGlow); };
+$('speed').oninput = e => { speed=+e.target.value; $('speedV').textContent = speed+'×'; };
+$('elev').oninput = e => { elev=+e.target.value; $('elevV').textContent = elev; };
+$('rot').oninput = e => { rot=+e.target.value; $('rotV').textContent = (rot*90)+'°'; };
+
+build();
+running = true; $('playBtn').textContent='⏸ 일시정지';
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
