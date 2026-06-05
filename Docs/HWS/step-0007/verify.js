@@ -137,12 +137,14 @@ function churn(seed) {
   var cont = trial({ srcJump: 1, srcPeriod: 20 });
   return { seed: seed,
     onB: on.births, onD: on.deaths, onPop: on.minPop,
-    offB: off.births, offD: off.deaths,
-    contB: cont.births, contD: cont.deaths,
-    /* G2 해소: on 은 출생>0 AND 사망>0(동결 안 됨) · off·cont 는 둘 다 0(동결) · on 개체 생존 */
+    offB: off.births, offD: off.deaths, offPop: off.minPop,
+    contB: cont.births, contD: cont.deaths, contPop: cont.minPop,
+    /* G2 해소: on 은 출생>0 AND 사망>0(동결 안 됨) · off·cont 는 둘 다 0(동결) · 셋 다 개체 생존.
+     * off·cont 의 개체 생존을 *함께* 단언해야 그 0/0 이 "멸종"이 아니라 "살아있는 동결"임이 증명된다
+     * (멸종해도 출생=사망=0 이 되므로 — 갈릴레이 동결 주장이 우연히 멸종으로 통과하지 않게 한다). */
     pass: on.births > 0 && on.deaths > 0 && on.minPop > 0 &&
-          off.births === 0 && off.deaths === 0 &&
-          cont.births === 0 && cont.deaths === 0 };
+          off.births === 0 && off.deaths === 0 && off.minPop > 0 &&
+          cont.births === 0 && cont.deaths === 0 && cont.minPop > 0 };
 }
 
 /* ── chase: ② 따라가야 산다 — 떠도는 source 를 이동 on 은 추적해 살고, 이동 off 는 뒤처져 멸종 ── */
@@ -187,9 +189,9 @@ function runMode(mode, seeds) {
     console.log('avg track=' + avg(rt, 'avgTrack').toFixed(2) + ' (source 가 ' + rt[0].srcTravel + '칸 옮겨다니는 동안 무게중심이 곁을 유계 추적, 개체 생존 — ③ 추적)');
     return rt.every(function (r) { return r.pass; });
   } else if (mode === 'churn') {
-    var rh = seeds.map(churn); table(rh, ['seed', 'onB', 'onD', 'onPop', 'offB', 'offD', 'contB', 'contD', 'pass']);
+    var rh = seeds.map(churn); table(rh, ['seed', 'onB', 'onD', 'onPop', 'offB', 'offD', 'offPop', 'contB', 'contD', 'contPop', 'pass']);
     console.log('정착 후 4000tick: on(srcJump=6) 출생=' + avg(rh, 'onB').toFixed(0) + '·사망=' + avg(rh, 'onD').toFixed(0) +
-      ' (churn 지속) vs off(=step-0006)·cont(≈연속표류) 모두 0 (갈릴레이 동결) — G2 해소, 이산 재배치라야 churn');
+      ' (churn 지속) vs off(=step-0006)·cont(≈연속표류) 모두 0 (살아있는 동결 — offPop·contPop>0) — G2 해소, 이산 재배치라야 churn');
     return rh.every(function (r) { return r.pass; });
   } else if (mode === 'chase') {
     var rs = seeds.map(chase); table(rs, ['seed', 'aliveOn', 'trackOn', 'aliveOff', 'pass']);
