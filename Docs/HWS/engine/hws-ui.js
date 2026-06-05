@@ -117,7 +117,6 @@
     ctrls['__seed'] = { el: selSeed }; ctrls['__speed'] = { el: selSpeed };
 
     /* ── 패널 선언 컨트롤 ── */
-    eachItem(panel, function (it) { /* pre-register ids referenced by gates exist after build; build below */ });
     var rows = panel.controls || [];
     for (var ri = 0; ri < rows.length; ri++) {
       var rowDiv = doc.createElement('div'); rowDiv.className = 'ctl';
