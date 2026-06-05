@@ -40,12 +40,19 @@
 
 # 작은 실행 단위 — step 작성법
 
-step마다 다음 4종 산출물을 만든다.
+step마다 다음 산출물을 만든다.
 
 - `step-NNNN.md` — 문서. 도입부에 "6요소 지도" 표, 가설·검증 결과·다음 예고를 담는다.
-- `step-NNNN.html` — 단일 파일 시연(더블클릭 실행).
-- `step-NNNN/sim-core.js` — 브라우저/Node 겸용 코어.
+- `step-NNNN/sim-core.js` — 브라우저/Node 겸용 코어. **이 step 이 더한 시뮬 로직은 여기에만 산다.**
 - `step-NNNN/verify.js` — 헤드리스 검증. 회귀(`reg`)·보존·결정론을 수치로 출력.
+- `step-NNNN/panel.js` — 선언적 패널(이 step 의 노브·통계·버튼). 직전 step panel.js 를 복사해 새 노브 행만 더한다.
+- `step-NNNN.html` — **셸**(~12줄). 공통 CSS/엔진 + 위 코어·패널을 로드. 더블클릭 실행.
+
+> **공통 UI 엔진(step-0007~)**: UI(~230줄)·인라인 코어(~460줄) 복제를 끝낸다. 공통 CSS·엔진은
+> `engine/hws-ui.css` · `engine/hws-ui.js` 한 곳에만 있고 step 마다 복제하지 않는다. 매 step 은
+> sim-core.js(새 시뮬) + verify.js + 작은 panel.js 만 쓴다 — 엔진은 건드리지 않는다.
+> 패널 스펙·셸 HTML 형식은 [engine/PANEL.md](engine/PANEL.md). 닫힌 step-0001~0006 은 당시의
+> 자기완결 단일 HTML 형태를 *그대로 보존*한다(아카이브 재현성 — 닫은 step 불변 규칙).
 
 검증의 4기둥(매 step 통과해야 닫을 수 있다):
 
