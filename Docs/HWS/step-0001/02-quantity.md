@@ -5,14 +5,14 @@
 ## 정의
 
 - **E**: 각 셀에 저장되는 스칼라 흐름량 (Float64). 세계 안의 모든 가치는 결국 E 의 패턴이다.
-- **장부 T**: 세계 밖과의 거래 기록 3종 — `injected`(주입), `dissipated`(소산), `sunk`(배출).
+- **장부 T**: 세계 밖과의 거래 기록 3종 — `injected`(주입), `evaporated`(증발), `sunk`(배출).
 
 ## 닫힌 장부 (이 프로젝트의 회계 원칙)
 
 E 는 세계 안에서 보존된다. 세계 밖과의 출입은 반드시 장부에 기록되어, 언제나 다음 항등식이 성립해야 한다:
 
 ```
-sumE(t) + dissipated + sunk − injected = sumE(0)
+sumE(t) + evaporated + sunk − injected = sumE(0)
 ```
 
 상대 잔차 = |위반량| / max(1, E₀ + injected). 허용 기준: 미시 ~1e-6.

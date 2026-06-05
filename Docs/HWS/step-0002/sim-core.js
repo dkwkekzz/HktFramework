@@ -1,5 +1,5 @@
 /* HWS step-0002 sim-core — 비선형 1개(응집)로 고임이 떠오르는 세계
- * step-0001(확산·소산·구동) 을 잇는다. 더해진 것은 단 하나:
+ * step-0001(확산·증발·구동) 을 잇는다. 더해진 것은 단 하나:
  *   응집(aggregation) — 확산 계수의 농도 의존 확장. E 가 *농도 창* 안에서만
  *   이웃의 더 높은 쪽으로 거꾸로 흐른다(uphill). 창 밖(너무 낮음/너무 높음)에선 0.
  *   → 선형 확산이 모든 응축을 깎던 step-0001 의 부정적 결과(고임 없음)를 깬다.
@@ -25,7 +25,7 @@
   var DEFAULTS = {
     W: 64, H: 64,          // 터: 격자 크기 (wrap)
     kD: 0.20,              // 확산 계수 (4이웃, 안정 조건 kD <= 0.25)
-    kT: 0.001,             // 소산율 — 매 tick E 의 kT 비율이 장부 T 로
+    kEvap: 0.001,             // 증발률 — 매 tick E 의 kEvap 비율이 장부 T 로
     initE: 1.0,            // 초기 평균 E
     noise: 0.5,            // 초기 노이즈 진폭 (시드로 결정)
     source: { x: 16, y: 16, r: 3, rate: 0.05 },  // 셀당/tick당 주입량
@@ -67,7 +67,7 @@
       srcCells: discCells(p.W, p.H, p.source.x, p.source.y, p.source.r),
       sinkCells: discCells(p.W, p.H, p.sink.x, p.sink.y, p.sink.r),
       E0: E0,                                  // 초기 총량 (장부의 기준점)
-      injected: 0, dissipated: 0, sunk: 0      // 닫힌 장부 T
+      injected: 0, evaporated: 0, sunk: 0      // 닫힌 장부 T
     };
   }
 
@@ -79,7 +79,7 @@
     return t < 1 ? 1 - t : 0;
   }
 
-  /* 법칙 적용 순서 고정: ① 확산(+응집) → ② 소산 → ③ 주입(source) → ④ 배출(sink)
+  /* 법칙 적용 순서 고정: ① 확산(+응집) → ② 증발 → ③ 주입(source) → ④ 배출(sink)
    * — 순서가 결과를 바꾸므로 이후 step 에서도 이 순서를 유지한다.
    * 응집은 ① 안에서 확산 플럭스에 더해지는 농도 의존 보정이다(새 법칙이 아님). */
   function step(sim) {
@@ -112,10 +112,10 @@
       }
     }
     sim.E = B; sim.buf = E; E = sim.E;
-    /* ② 소산 — E 의 kT 비율이 장부(dissipated)로 이동. 보존: E 감소량 = 장부 증가량 */
-    var kT = p.kT, dis = 0;
-    for (i = 0; i < W * H; i++) { d = E[i] * kT; E[i] -= d; dis += d; }
-    sim.dissipated += dis;
+    /* ② 증발 — E 의 kEvap 비율이 장부(evaporated)로 이동. 보존: E 감소량 = 장부 증가량 */
+    var kEvap = p.kEvap, evap = 0;
+    for (i = 0; i < W * H; i++) { d = E[i] * kEvap; E[i] -= d; evap += d; }
+    sim.evaporated += evap;
     /* ③④ 구동 — source 주입(장부 injected 기록), sink 배출(장부 sunk 기록) */
     if (p.drive) {
       var sc = sim.srcCells, rate = p.source.rate;
@@ -130,12 +130,12 @@
 
   function run(sim, ticks) { for (var t = 0; t < ticks; t++) step(sim); return sim; }
 
-  /* 닫힌 장부 검사: sumE + dissipated + sunk - injected = E0
+  /* 닫힌 장부 검사: sumE + evaporated + sunk - injected = E0
    * 상대 잔차 = |위반량| / max(1, E0 + injected) */
   function ledger(sim) {
     var sumE = 0, E = sim.E;
     for (var i = 0; i < E.length; i++) sumE += E[i];
-    var lhs = sumE + sim.dissipated + sim.sunk - sim.injected;
+    var lhs = sumE + sim.evaporated + sim.sunk - sim.injected;
     var scale = Math.max(1, sim.E0 + sim.injected);
     return { sumE: sumE, residual: Math.abs(lhs - sim.E0) / scale };
   }
@@ -207,7 +207,7 @@
     for (var i = 0; i < dv.byteLength; i++) {
       h = (h ^ dv.getUint8(i)) >>> 0; h = Math.imul(h, 0x01000193) >>> 0;
     }
-    var meta = new Float64Array([sim.injected, sim.dissipated, sim.sunk, sim.tick]);
+    var meta = new Float64Array([sim.injected, sim.evaporated, sim.sunk, sim.tick]);
     var mv = new DataView(meta.buffer);
     for (i = 0; i < mv.byteLength; i++) {
       h = (h ^ mv.getUint8(i)) >>> 0; h = Math.imul(h, 0x01000193) >>> 0;
