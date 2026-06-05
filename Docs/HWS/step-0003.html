@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>HWS step-0003 — 자원을 먹는 생명이 스스로를 유지한다</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #14161a; color: #d8dde4; margin: 0; padding: 16px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: #8a93a0; font-size: 12px; margin-bottom: 12px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; }
+  canvas { image-rendering: pixelated; border: 1px solid #2a2f37; background: #000; cursor: crosshair; }
+  .panel { min-width: 320px; font-size: 13px; }
+  .panel div { margin-bottom: 6px; }
+  button { background: #2a313c; color: #d8dde4; border: 1px solid #3a4250; padding: 4px 12px; cursor: pointer; border-radius: 3px; }
+  button:hover { background: #38414f; }
+  select, input[type=number] { background: #1d2127; color: #d8dde4; border: 1px solid #3a4250; padding: 3px 6px; border-radius: 3px; }
+  input[type=range] { vertical-align: middle; width: 120px; }
+  table { border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  td { padding: 2px 10px 2px 0; }
+  td.k { color: #8a93a0; }
+  td.v { font-family: Consolas, monospace; }
+  .pass { color: #6fce8a; } .fail { color: #e07070; }
+  .legend { font-size: 11px; color: #8a93a0; margin-top: 8px; line-height: 1.6; }
+  .src { color: #6fce8a; } .snk { color: #e07070; } .pool { color: #57d6e0; } .life { color: #f0d060; }
+  .ctl { font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>HWS step-0003 — 자원을 먹는 <span class="life">생명</span>이 스스로를 유지한다</h1>
+<div class="sub">step-0002(확산·증발·구동·응집) + <b>생명</b> 한 요소: 자원(고임)의 E 를 흡수해 *유지 비용*을 내며 존속하는 국소 패턴. 구동이 자원을 재생하는 한 <span class="life">●</span>생명이 지속하고(항상성), 자원이 마르면 굶어 죽는다 · 수치 검증 <code>node step-0003/verify.js all</code></div>
+<div class="row">
+  <canvas id="cv" width="512" height="512"></canvas>
+  <div class="panel">
+    <div>
+      <button id="btnPlay">▶ 재생</button>
+      <button id="btnStep">+1 tick</button>
+      <button id="btnReset">리셋</button>
+    </div>
+    <div class="ctl">
+      시드 <select id="selSeed"><option>42</option><option>7</option><option>1234</option><option>99</option><option>2026</option></select>
+      속도 <select id="selSpeed"><option value="1">1</option><option value="10" selected>10</option><option value="50">50</option><option value="200">200</option></select> tick/frame
+      <label><input type="checkbox" id="chkDrive" checked> 구동</label>
+    </div>
+    <div class="ctl">
+      <label><input type="checkbox" id="chkAgg" checked> 응집(고임)</label>
+      kA <input type="range" id="rngKA" min="0" max="0.6" step="0.01" value="0.45"><span id="vKA">0.45</span>
+    </div>
+    <div class="ctl">
+      <label><input type="checkbox" id="chkLife" checked> 생명</label>
+      흡수 kL <input type="range" id="rngKL" min="0.01" max="0.2" step="0.005" value="0.05"><span id="vKL">0.05</span>
+      유지 mMaint <input type="range" id="rngMM" min="0.005" max="0.1" step="0.005" value="0.03"><span id="vMM">0.03</span>
+    </div>
+    <div class="ctl">
+      클릭 동작 <select id="selClick"><option value="life">생명 놓기</option><option value="harvest">수확</option></select>
+      <button id="btnSeedLife">강한 고임에 생명 ×3</button>
+      <button id="btnKill">전멸</button>
+    </div>
+    <table>
+      <tr><td class="k">tick</td><td class="v" id="tTick">0</td></tr>
+      <tr><td class="k">sumE</td><td class="v" id="tSumE">-</td></tr>
+      <tr><td class="k">maxE / minE</td><td class="v" id="tRange">-</td></tr>
+      <tr><td class="k"><span class="pool">고임 수</span> (source 밖 봉우리)</td><td class="v" id="tPools">-</td></tr>
+      <tr><td class="k"><span class="life">생명</span> 수 / 총 생물량 M</td><td class="v" id="tLife">-</td></tr>
+      <tr><td class="k">누적 사망 / 대사 소산</td><td class="v" id="tDeath">-</td></tr>
+      <tr><td class="k">장부 잔차</td><td class="v" id="tRes">-</td></tr>
+      <tr><td class="k">injected / evap / sunk / metab</td><td class="v" id="tLed">-</td></tr>
+    </table>
+    <div class="legend">
+      <span class="src">●</span> source(16,16,r3) &nbsp; <span class="snk">●</span> sink(48,48,r4) &nbsp; <span class="pool">○</span> 고임 &nbsp; <span class="life">●</span> 생명(크기 ∝ 생물량)<br>
+      <b>생명</b>은 자원이 있는 곳에서만 태어난다 — 출생 비용을 터(E)에서 끌어온다. 자원 없는 곳에 놓으면 곧 굶어 죽는다.<br>
+      <b>구동 끄기</b>: 자원 재생이 끊겨 생명이 차츰 굶어 <span class="life">죽는다</span>(③). 다시 켜면 살아남은 생명이 회복한다.<br>
+      <b>항상성</b>: 구동이 살아 있으면 생명이 고임을 먹어 정상상태 생물량으로 *지속*한다(②). 고임은 생명에게 *먹혀* 작아진다(①).<br>
+      잔차는 닫힌 장부 sumE+M+증발+배출+대사−주입=E₀ 의 상대 위반량 (&lt;1e-6 이면 <span class="pass">PASS</span>). 생명의 흡수·유지·사망이 모두 장부에 기록된다.
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 인라인 코어 — step-0003/sim-core.js 와 동일해야 한다 (수정 시 양쪽 반영) ===== */
+/* HWS step-0003 sim-core — 자원을 먹는 패턴(생명)이 스스로를 유지하는 세계
+ * step-0002(확산·증발·구동·응집) 을 잇는다. 더해진 것은 단 하나: 생명(Life).
+ *   생명 = 자원(고임)의 E 를 흡수해 *유지 비용*(대사)을 내며 존속하는 국소 패턴.
+ *   - 흡수(absorb): 입(반경 lifeR 원판)의 E 의 kL 비율을 끌어와 생물량 m 으로.   E → m
+ *   - 유지(maintain): 매 tick 생물량의 mMaint 비율을 대사로 소비(소산).            m → metabolized
+ *   - 사망(death): m 이 mDeath 미만으로 떨어지면 죽고 남은 m 을 터(E)로 되돌림.    m → E
+ *   생물량의 정상상태 m* ≈ (kL·Σ입E)/mMaint — 자원이 많을수록 크고, 마르면 0(=죽음).
+ * 회귀: 에이전트가 없으면(sim.agents 비어 있음) 생명 블록을 통째로 건너뜀
+ *       → step-0002 식·순서와 비트 단위 동일.
+ * 닫힌 장부: sumE + M(=Σm) + evaporated + sunk + metabolized - injected = E0.
+ *   흡수(E↓ m↑)·유지(m↓ metabolized↑)·사망(m↓ E↑) 셋 다 한 변에서 다른 변으로의 이동.
+ * 브라우저/Node 겸용. step-0003.html 의 인라인 코어는 이 파일과 동일해야 한다.
+ */
+(function (global) {
+  'use strict';
+
+  /* ── 결정론적 PRNG (mulberry32) — 초기 노이즈에만 사용 ── */
+  function mulberry32(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), a | 1);
+      t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ── 표준 시나리오 파라미터 (step 간 수치 비교를 위해 고정) ── */
+  var DEFAULTS = {
+    W: 64, H: 64,          // 터: 격자 크기 (wrap)
+    kD: 0.20,              // 확산 계수 (4이웃, 안정 조건 kD <= 0.25)
+    kEvap: 0.001,          // 증발률 — 매 tick E 의 kEvap 비율이 장부 T 로
+    initE: 1.0,            // 초기 평균 E
+    noise: 0.5,            // 초기 노이즈 진폭 (시드로 결정)
+    source: { x: 16, y: 16, r: 3, rate: 0.05 },  // 셀당/tick당 주입량
+    sink:   { x: 48, y: 48, r: 4, rate: 0.10 },  // 셀 E 의 비율 제거
+    drive: true,           // 구동 on/off — off 면 source·sink 둘 다 정지
+    /* ── step-0002: 응집(농도 창 안의 uphill 흐름) ── */
+    kA: 0,                 // 응집 강도. 기본 0 = off = step-0001 과 비트 동일
+    aggMc: 1.1,            // 농도 창 중심
+    aggW: 0.7,             // 농도 창 반폭 (|m-mc|>=w 면 응집 0)
+    /* ── step-0003 신규: 생명(자원을 먹는 자기유지 패턴) ── */
+    life: true,            // 생명 법칙 on/off. 단, 에이전트가 없으면 어차피 no-op(회귀)
+    kL: 0.05,              // 흡수율 — 매 tick 입(disc)의 E 의 이 비율을 생물량으로
+    mMaint: 0.03,          // 유지율 — 매 tick 생물량의 이 비율을 대사로 소산
+    mDeath: 0.05,          // 사망 임계 — m 이 이 값 미만이면 사망
+    mSeed: 0.50,           // 스폰 시 초기 생물량
+    lifeR: 1               // 입 반경(흡수 원판). 1 = 자신+4이웃(von Neumann 근사 disc)
+  };
+
+  /* 반경 r 원판에 포함되는 셀 인덱스 목록 (wrap) */
+  function discCells(W, H, cx, cy, r) {
+    var cells = [];
+    for (var dy = -r; dy <= r; dy++) {
+      for (var dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy <= r * r) {
+          var x = (cx + dx + W) % W, y = (cy + dy + H) % H;
+          cells.push(y * W + x);
+        }
+      }
+    }
+    return cells;
+  }
+
+  function createSim(seed, params) {
+    var p = Object.assign({}, DEFAULTS, params || {});
+    p.source = Object.assign({}, DEFAULTS.source, (params && params.source) || {});
+    p.sink = Object.assign({}, DEFAULTS.sink, (params && params.sink) || {});
+    var rng = mulberry32(seed);
+    var N = p.W * p.H;
+    var E = new Float64Array(N);
+    for (var i = 0; i < N; i++) E[i] = p.initE + p.noise * (rng() - 0.5);
+    var E0 = 0;
+    for (i = 0; i < N; i++) E0 += E[i];
+    return {
+      p: p, seed: seed, tick: 0,
+      E: E, buf: new Float64Array(N),
+      srcCells: discCells(p.W, p.H, p.source.x, p.source.y, p.source.r),
+      sinkCells: discCells(p.W, p.H, p.sink.x, p.sink.y, p.sink.r),
+      E0: E0,                                  // 초기 총량 (장부의 기준점)
+      injected: 0, evaporated: 0, sunk: 0,     // 닫힌 장부 T (step-0002 그대로)
+      /* ── step-0003: 생명 ── */
+      agents: [],          // 살아있는 에이전트 목록 (비면 생명 법칙 no-op = 회귀)
+      metabolized: 0,      // 대사로 소산된 총량 (장부의 새 항)
+      deaths: 0            // 누적 사망 수 (통계용 — 장부와 무관)
+    };
+  }
+
+  /* 농도 창 커널 — 포물선 bump. m=mc 에서 1, |m-mc|>=w 에서 0 (compact support). */
+  function aggKernel(m, mc, w) {
+    var t = (m - mc) / w;
+    t = t * t;
+    return t < 1 ? 1 - t : 0;
+  }
+
+  /* 생명 스폰 — (x,y)에 에이전트를 놓는다. 초기 생물량은 *터에서 끌어온다*:
+   * 중심 셀의 E 에서 m0(기본 mSeed)만큼 떼어 생물량으로 — 닫힌 장부(E↓ m↑) 유지.
+   * 자원이 부족하면 있는 만큼만 떼어 가므로(음수 E 없음), 자원 없는 곳에선 곧 굶어 죽는다
+   * (= 생명은 자원이 있는 곳에서만 태어날 수 있다). 입 셀(disc lifeR)을 미리 계산해 둔다. */
+  function spawnAgent(sim, x, y, m0) {
+    var p = sim.p;
+    var cx = ((x % p.W) + p.W) % p.W, cy = ((y % p.H) + p.H) % p.H;
+    var center = cy * p.W + cx;
+    var want = m0 != null ? m0 : p.mSeed;
+    var seedM = sim.E[center] < want ? sim.E[center] : want;  // 가용 E 한도 내에서
+    sim.E[center] -= seedM;                                   // E → m (출생 비용)
+    var a = {
+      x: cx, y: cy, m: seedM,
+      cells: discCells(p.W, p.H, cx, cy, p.lifeR),
+      center: center, bornTick: sim.tick
+    };
+    sim.agents.push(a);
+    return a;
+  }
+
+  /* 법칙 적용 순서 고정: ① 확산(+응집) → ② 증발 → ③ 주입 → ④ 배출 → ⑤ 생명
+   * — 순서가 결과를 바꾸므로 이후 step 에서도 이 순서를 유지한다.
+   * 생명(⑤)은 매 tick 갓 구동된 터에서 자원을 먹는다. */
+  function step(sim) {
+    var p = sim.p, W = p.W, H = p.H, E = sim.E, B = sim.buf, kD = p.kD;
+    var kA = p.kA, mc = p.aggMc, w = p.aggW;
+    var x, y, i, d;
+    /* ① 확산(+응집) — 4이웃, wrap. 총량 보존 (step-0002 식 그대로) */
+    for (y = 0; y < H; y++) {
+      var yN = ((y - 1 + H) % H) * W, yS = ((y + 1) % H) * W, yC = y * W;
+      for (x = 0; x < W; x++) {
+        var xW = (x - 1 + W) % W, xE = (x + 1) % W;
+        i = yC + x;
+        var eN = E[yN + x], eS = E[yS + x], eWc = E[yC + xW], eEc = E[yC + xE], ei = E[i];
+        B[i] = ei + kD * (eN + eS + eWc + eEc - 4 * ei);
+        if (kA !== 0) {
+          B[i] += kA * (
+            aggKernel(ei < eN ? ei : eN, mc, w) * (ei - eN) +
+            aggKernel(ei < eS ? ei : eS, mc, w) * (ei - eS) +
+            aggKernel(ei < eWc ? ei : eWc, mc, w) * (ei - eWc) +
+            aggKernel(ei < eEc ? ei : eEc, mc, w) * (ei - eEc)
+          );
+        }
+      }
+    }
+    sim.E = B; sim.buf = E; E = sim.E;
+    /* ② 증발 */
+    var kEvap = p.kEvap, evap = 0;
+    for (i = 0; i < W * H; i++) { d = E[i] * kEvap; E[i] -= d; evap += d; }
+    sim.evaporated += evap;
+    /* ③④ 구동 */
+    if (p.drive) {
+      var sc = sim.srcCells, rate = p.source.rate;
+      for (i = 0; i < sc.length; i++) E[sc[i]] += rate;
+      sim.injected += rate * sc.length;
+      var kc = sim.sinkCells, srate = p.sink.rate, snk = 0;
+      for (i = 0; i < kc.length; i++) { d = E[kc[i]] * srate; E[kc[i]] -= d; snk += d; }
+      sim.sunk += snk;
+    }
+    /* ⑤ 생명 — 에이전트가 없으면 통째로 건너뜀(회귀 0). 흡수·유지·사망 모두 닫힌 장부.
+     * 각 에이전트: (a) 입의 E 를 kL 비율 흡수 → m  (b) m 의 mMaint 비율 대사 소산
+     *             (c) m < mDeath 면 사망 — 남은 m 을 중심 셀의 E 로 되돌림. */
+    if (p.life && sim.agents.length) {
+      var ag = sim.agents, kL = p.kL, mMaint = p.mMaint, mDeath = p.mDeath;
+      var survivors = [];
+      for (var k = 0; k < ag.length; k++) {
+        var a = ag[k], cells = a.cells;
+        /* (a) 흡수: E → m (각 셀의 kL 비율 — kL<1 이므로 E>=0 유지) */
+        var got = 0;
+        for (var c = 0; c < cells.length; c++) {
+          var idx = cells[c], take = E[idx] * kL;
+          E[idx] -= take; got += take;
+        }
+        a.m += got;
+        /* (b) 유지: m → metabolized (생물량 비례 소산 → 정상상태 고정점) */
+        var cost = a.m * mMaint;
+        a.m -= cost; sim.metabolized += cost;
+        /* (c) 사망: 남은 m → E (분해), 에이전트 제거 */
+        if (a.m < mDeath) {
+          E[a.center] += a.m; a.m = 0;
+          a.deathTick = sim.tick; sim.deaths++;
+        } else {
+          survivors.push(a);
+        }
+      }
+      sim.agents = survivors;
+    }
+    sim.tick++;
+  }
+
+  function run(sim, ticks) { for (var t = 0; t < ticks; t++) step(sim); return sim; }
+
+  /* 총 생물량 M = Σ 에이전트.m (장부 항. 드리프트 없이 직접 합산) */
+  function totalBiomass(sim) {
+    var M = 0, ag = sim.agents;
+    for (var k = 0; k < ag.length; k++) M += ag[k].m;
+    return M;
+  }
+
+  /* 닫힌 장부 검사: sumE + M + evaporated + sunk + metabolized - injected = E0
+   * 상대 잔차 = |위반량| / max(1, E0 + injected). 생명 off 면 M=metabolized=0 → step-0002 식. */
+  function ledger(sim) {
+    var sumE = 0, E = sim.E;
+    for (var i = 0; i < E.length; i++) sumE += E[i];
+    var M = totalBiomass(sim);
+    var lhs = sumE + M + sim.evaporated + sim.sunk + sim.metabolized - sim.injected;
+    var scale = Math.max(1, sim.E0 + sim.injected);
+    return { sumE: sumE, biomass: M, residual: Math.abs(lhs - sim.E0) / scale };
+  }
+
+  /* 측정: 총량·평균·공간 분산·최대 */
+  function measure(sim) {
+    var E = sim.E, N = E.length, sum = 0, i;
+    for (i = 0; i < N; i++) sum += E[i];
+    var mean = sum / N, v = 0, mx = -Infinity;
+    for (i = 0; i < N; i++) {
+      var dd = E[i] - mean; v += dd * dd;
+      if (E[i] > mx) mx = E[i];
+    }
+    return { sumE: sum, mean: mean, varE: v / N, maxE: mx };
+  }
+
+  /* 고임(자원의 원형) 검출 — step-0002 와 동일. source 아닌 곳의 지속 봉우리. */
+  function detectPools(sim, opt) {
+    opt = opt || {};
+    var minE = opt.minE != null ? opt.minE : 1.5;
+    var prom = opt.prom != null ? opt.prom : 0.3;
+    var excl = opt.excl != null ? opt.excl : sim.p.source.r + 4;
+    var p = sim.p, W = p.W, H = p.H, E = sim.E;
+    var sx = p.source.x, sy = p.source.y;
+    var out = [];
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var i = y * W + x, ei = E[i];
+        if (ei < minE) continue;
+        var dxs = Math.min((x - sx + W) % W, (sx - x + W) % W);
+        var dys = Math.min((y - sy + H) % H, (sy - y + H) % H);
+        if (dxs * dxs + dys * dys <= excl * excl) continue;
+        var isMax = true, ring = 0, cnt = 0;
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            var nx = (x + dx + W) % W, ny = (y + dy + H) % H, en = E[ny * W + nx];
+            if (en > ei) isMax = false;
+            ring += en; cnt++;
+          }
+        }
+        if (!isMax) continue;
+        var pr = ei - ring / cnt;
+        if (pr < prom) continue;
+        out.push({ x: x, y: y, e: ei, prom: pr });
+      }
+    }
+    out.sort(function (a, b) { return b.e - a.e; });
+    return out;
+  }
+
+  /* 수확 — step-0002 와 동일. 반경 r 원판의 E 를 제거하고 장부(sunk)에 기록. */
+  function harvest(sim, cx, cy, r) {
+    var cells = discCells(sim.p.W, sim.p.H, cx, cy, r), E = sim.E, removed = 0;
+    for (var k = 0; k < cells.length; k++) { removed += E[cells[k]]; E[cells[k]] = 0; }
+    sim.sunk += removed;
+    return removed;
+  }
+
+  /* 국소 E 합 — (cx,cy) 중심 반경 r 원판의 E 총합. 자원 고갈/회복 측정용. */
+  function localE(sim, cx, cy, r) {
+    var cells = discCells(sim.p.W, sim.p.H, cx, cy, r), E = sim.E, s = 0;
+    for (var k = 0; k < cells.length; k++) s += E[cells[k]];
+    return s;
+  }
+
+  /* 상태 해시 (FNV-1a 32bit) — 결정론(비트 동일) 검사용.
+   * E 비트열 + 기본 장부 + 생명(metabolized, 각 에이전트 x,y,m). */
+  function hashState(sim) {
+    var h = 0x811c9dc5 >>> 0;
+    function feed(buf) {
+      var dv = new DataView(buf);
+      for (var j = 0; j < dv.byteLength; j++) {
+        h = (h ^ dv.getUint8(j)) >>> 0; h = Math.imul(h, 0x01000193) >>> 0;
+      }
+    }
+    feed(sim.E.buffer);
+    feed(new Float64Array([sim.injected, sim.evaporated, sim.sunk, sim.metabolized, sim.tick]).buffer);
+    var ag = sim.agents;
+    feed(new Float64Array([ag.length]).buffer);
+    for (var k = 0; k < ag.length; k++) feed(new Float64Array([ag[k].x, ag[k].y, ag[k].m]).buffer);
+    return ('00000000' + h.toString(16)).slice(-8);
+  }
+
+  /* 기본 장부만 해시 — 회귀 검사(step-0002 와 비트 동일)용. */
+  function hashBase(sim) {
+    var h = 0x811c9dc5 >>> 0;
+    var dv = new DataView(sim.E.buffer);
+    for (var i = 0; i < dv.byteLength; i++) {
+      h = (h ^ dv.getUint8(i)) >>> 0; h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    var meta = new Float64Array([sim.injected, sim.evaporated, sim.sunk, sim.tick]);
+    var mv = new DataView(meta.buffer);
+    for (i = 0; i < mv.byteLength; i++) {
+      h = (h ^ mv.getUint8(i)) >>> 0; h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return ('00000000' + h.toString(16)).slice(-8);
+  }
+
+  var api = {
+    DEFAULTS: DEFAULTS, mulberry32: mulberry32, createSim: createSim,
+    aggKernel: aggKernel, spawnAgent: spawnAgent, step: step, run: run,
+    totalBiomass: totalBiomass, ledger: ledger, measure: measure,
+    detectPools: detectPools, harvest: harvest, localE: localE,
+    hashState: hashState, hashBase: hashBase
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else global.HWS3 = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+/* ===== 인라인 코어 끝 ===== */
+
+/* ===== UI ===== */
+(function () {
+  'use strict';
+  var core = window.HWS3;
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var W = core.DEFAULTS.W, H = core.DEFAULTS.H, SCALE = cv.width / W;
+  var img = ctx.createImageData(W, H);
+  var off = document.createElement('canvas'); off.width = W; off.height = H;
+  var octx = off.getContext('2d');
+
+  var sim = null, playing = false, msg = '', msgUntil = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function currentSeed() { return parseInt($('selSeed').value, 10); }
+  function currentKA() { return $('chkAgg').checked ? parseFloat($('rngKA').value) : 0; }
+
+  function reset() {
+    sim = core.createSim(currentSeed(), {
+      drive: $('chkDrive').checked,
+      kA: currentKA(),
+      life: $('chkLife').checked,
+      kL: parseFloat($('rngKL').value),
+      mMaint: parseFloat($('rngMM').value)
+    });
+    draw();
+  }
+
+  /* 열지도: 로그 스케일 (E 가 0~수까지 퍼지므로) */
+  function colorOf(e) {
+    var t = Math.log(1 + Math.max(0, e)) / Math.log(1 + 8); // E=8 에서 포화
+    if (t > 1) t = 1;
+    var r, g, b;
+    if (t < 0.5) { var u = t * 2; r = 10 + 30 * u; g = 15 + 90 * u; b = 40 + 160 * u; }
+    else { var v = (t - 0.5) * 2; r = 40 + 215 * v; g = 105 + 120 * v; b = 200 - 60 * v; }
+    return [r | 0, g | 0, b | 0];
+  }
+
+  function draw() {
+    var E = sim.E, d = img.data;
+    for (var i = 0; i < E.length; i++) {
+      var c = colorOf(E[i]);
+      d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, cv.width, cv.height);
+    /* source/sink 마커 */
+    ctx.strokeStyle = '#6fce8a'; ctx.lineWidth = 1.5; ctx.beginPath();
+    ctx.arc((sim.p.source.x + 0.5) * SCALE, (sim.p.source.y + 0.5) * SCALE, sim.p.source.r * SCALE, 0, 6.2832); ctx.stroke();
+    ctx.strokeStyle = '#e07070'; ctx.beginPath();
+    ctx.arc((sim.p.sink.x + 0.5) * SCALE, (sim.p.sink.y + 0.5) * SCALE, sim.p.sink.r * SCALE, 0, 6.2832); ctx.stroke();
+    /* 고임 오버레이 */
+    var pools = core.detectPools(sim, { minE: 1.5, prom: 0.3 });
+    ctx.strokeStyle = '#57d6e0'; ctx.lineWidth = 1.5;
+    for (var k = 0; k < pools.length; k++) {
+      ctx.beginPath();
+      ctx.arc((pools[k].x + 0.5) * SCALE, (pools[k].y + 0.5) * SCALE, 7, 0, 6.2832); ctx.stroke();
+    }
+    /* 생명 오버레이 — 채운 노란 원, 반지름 ∝ √생물량 */
+    var ag = sim.agents;
+    ctx.fillStyle = '#f0d060'; ctx.strokeStyle = '#5a4a10'; ctx.lineWidth = 1;
+    for (var a = 0; a < ag.length; a++) {
+      var rr = 3 + 2.2 * Math.sqrt(Math.max(0, ag[a].m));
+      if (rr > 14) rr = 14;
+      ctx.beginPath();
+      ctx.arc((ag[a].x + 0.5) * SCALE, (ag[a].y + 0.5) * SCALE, rr, 0, 6.2832);
+      ctx.fill(); ctx.stroke();
+    }
+    /* 메시지 피드백 */
+    if (msg && performance.now() < msgUntil) {
+      ctx.fillStyle = '#f0d060'; ctx.font = '14px Segoe UI';
+      ctx.fillText(msg, 8, 20);
+    }
+    /* 패널 */
+    var m = core.measure(sim), led = core.ledger(sim);
+    var mn = Infinity; for (var j = 0; j < E.length; j++) if (E[j] < mn) mn = E[j];
+    $('tTick').textContent = sim.tick;
+    $('tSumE').textContent = m.sumE.toFixed(2);
+    $('tRange').textContent = m.maxE.toFixed(3) + ' / ' + mn.toFixed(3);
+    $('tPools').textContent = pools.length;
+    $('tLife').textContent = ag.length + ' / ' + led.biomass.toFixed(2);
+    $('tDeath').textContent = sim.deaths + ' / ' + sim.metabolized.toFixed(1);
+    var resEl = $('tRes');
+    resEl.textContent = led.residual.toExponential(3) + (led.residual < 1e-6 ? ' PASS' : ' FAIL');
+    resEl.className = 'v ' + (led.residual < 1e-6 ? 'pass' : 'fail');
+    $('tLed').textContent =
+      sim.injected.toFixed(1) + ' / ' + sim.evaporated.toFixed(1) + ' / ' + sim.sunk.toFixed(1) + ' / ' + sim.metabolized.toFixed(1);
+  }
+
+  function frame() {
+    if (!playing) return;
+    var n = parseInt($('selSpeed').value, 10);
+    for (var i = 0; i < n; i++) core.step(sim);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  $('btnPlay').addEventListener('click', function () {
+    playing = !playing;
+    this.textContent = playing ? '⏸ 정지' : '▶ 재생';
+    if (playing) requestAnimationFrame(frame);
+  });
+  $('btnStep').addEventListener('click', function () { core.step(sim); draw(); });
+  $('btnReset').addEventListener('click', reset);
+  $('selSeed').addEventListener('change', reset);
+  /* 라이브 노브 — 리셋 없이 sim.p 에 반영 */
+  $('chkDrive').addEventListener('change', function () { sim.p.drive = this.checked; });
+  $('chkAgg').addEventListener('change', function () { sim.p.kA = currentKA(); draw(); });
+  $('chkLife').addEventListener('change', function () { sim.p.life = this.checked; });
+  $('rngKA').addEventListener('input', function () { $('vKA').textContent = parseFloat(this.value).toFixed(2); sim.p.kA = currentKA(); });
+  $('rngKL').addEventListener('input', function () { $('vKL').textContent = parseFloat(this.value).toFixed(3); sim.p.kL = parseFloat(this.value); });
+  $('rngMM').addEventListener('input', function () { $('vMM').textContent = parseFloat(this.value).toFixed(3); sim.p.mMaint = parseFloat(this.value); });
+
+  $('btnSeedLife').addEventListener('click', function () {
+    var pools = core.detectPools(sim, { minE: 1.5, prom: 0.3 });
+    var n = Math.min(3, pools.length);
+    for (var i = 0; i < n; i++) core.spawnAgent(sim, pools[i].x, pools[i].y);
+    msg = n ? ('강한 고임 ' + n + '곳에 생명 출생 (출생 비용 터에서 차감)') : '놓을 고임이 없다 — 먼저 고임을 키우세요';
+    msgUntil = performance.now() + 2500;
+    draw();
+  });
+  $('btnKill').addEventListener('click', function () {
+    /* 전멸 — 남은 생물량을 모두 중심 셀의 E 로 되돌리고(분해) 사망 처리: 장부 유지 */
+    var ag = sim.agents;
+    for (var i = 0; i < ag.length; i++) { sim.E[ag[i].center] += ag[i].m; sim.deaths++; }
+    sim.agents = [];
+    msg = '전멸 — 생물량을 터로 분해(장부 유지)';
+    msgUntil = performance.now() + 2500;
+    draw();
+  });
+
+  /* 캔버스 클릭 = 생명 놓기 또는 수확 (선택) */
+  cv.addEventListener('click', function (ev) {
+    var rect = cv.getBoundingClientRect();
+    var cx = Math.floor((ev.clientX - rect.left) / SCALE);
+    var cy = Math.floor((ev.clientY - rect.top) / SCALE);
+    if ($('selClick').value === 'life') {
+      var a = core.spawnAgent(sim, cx, cy);
+      msg = '생명 출생 (' + cx + ',' + cy + ') 생물량 ' + a.m.toFixed(2) + (a.m < sim.p.mDeath ? ' — 자원 부족, 곧 굶어 죽는다' : '');
+    } else {
+      var removed = core.harvest(sim, cx, cy, 3);
+      msg = '수확 (' + cx + ',' + cy + ') −' + removed.toFixed(1) + ' E → 장부 sunk';
+    }
+    msgUntil = performance.now() + 2500;
+    draw();
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>
