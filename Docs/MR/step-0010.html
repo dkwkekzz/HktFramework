@@ -63,6 +63,7 @@
         <span><b style="color:#ffaf5a">●</b> 거시 별(메타-사슬)</span>
         <span><b style="color:#ff7b72">주황</b> 기질 φ(열)</span>
         <span><b style="color:#39d2c0">│</b> 승급 기둥(미시 agent → 거시 셀)</span>
+        <span><b style="color:#fff">◯</b> 거시 활성 영역 무게중심(+궤적)</span>
       </div>
     </div>
     <div class="card">
@@ -93,8 +94,10 @@
         <button id="stepBtn">▶ 1 tick</button>
         <button id="resetBtn">↺ 리셋</button>
         <button id="pillarBtn" class="on">승급 기둥</button>
+        <button id="glowBtn" class="on">활성 영역(잔상·궤적)</button>
       </div>
-      <div class="row"><label>속도</label><input id="speed" type="range" min="1" max="12" value="3"><span class="val" id="speedV">3×</span></div>
+      <div class="hint">점화는 추적되는 *물체*가 아니라 매 tick 임계를 넘은 셀들의 *집합*이다(한 tick ~7셀, 흩뿌려짐). "활성 영역(잔상)"을 켜면 최근 점화가 누적·감쇠하며 **이동하는 활성 영역**(흰 고리=거시 무게중심, 꼬리=궤적)이 보인다 — 깜빡이는 개별 점이 아니라 *영역이 천천히 배회*하는 것이 진짜 동역학이다.</div>
+      <div class="row"><label>속도</label><input id="speed" type="range" min="1" max="12" value="2"><span class="val" id="speedV">2×</span></div>
       <div class="row"><label>층 높이</label><input id="elev" type="range" min="60" max="240" value="150"><span class="val" id="elevV">150</span></div>
       <div class="row"><label>회전</label><input id="rot" type="range" min="0" max="3" value="0"><span class="val" id="rotV">0°</span></div>
     </div>
@@ -107,7 +110,7 @@
         <tr><td>미시 living</td><td id="mULiv">0</td></tr>
         <tr><td>★ 거시 별 / tick (메타-사슬)</td><td id="mMStars">0</td></tr>
         <tr><td>★ 거시 별 φ (올라온 기질)</td><td id="mMPhi">—</td></tr>
-        <tr><td>★ 거시 별 위치 std (굴러가는가)</td><td id="mMStd">0</td></tr>
+        <tr><td>거시 별 위치 std (누적 퍼짐, ≠이동)</td><td id="mMStd">0</td></tr>
         <tr><td>거시 발산 E 합 (빛↔열)</td><td id="mME">0</td></tr>
         <tr><td>거시 living</td><td id="mMLiv">0</td></tr>
         <tr><td>미시 / 거시 보존 잔차</td><td id="mResid">—</td></tr>
@@ -826,10 +829,12 @@ const META = { every:2, kPromote:0.5, scaleM:2.0, cE:3.0, macroEjR:3, thIgn2:0.2
 
 let microPhi = 0;          // 미시 사회의 기질 (0=빛, 1=열)
 let macroHeatB = 0.50;     // 거시 igniteHeatB (라이브)
-let running = false, speed = 3, showPillars = true, elev = 150, rot = 0;
+let running = false, speed = 2, showPillars = true, showGlow = true, elev = 150, rot = 0;
 let sim, macro;
 let starHist = [];         // 거시 별 위치 이력 (std 측정)
 let roll = { uStars:[], uPhi:[], mStars:[], mPhi:[] };
+// ★ 점화 잔상(활성 영역) — 점화는 사건 집합이라 매 tick 깜빡인다. 누적·감쇠로 *이동하는 영역*을 보이게.
+let densU = null, densM = null, trailM = [];
 
 function rollPush(arr, v, cap){ arr.push(v); if (arr.length > (cap||120)) arr.shift(); }
 function rollAvg(arr){ return arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0; }
@@ -843,6 +848,7 @@ function build(){
     params: Object.assign({}, CHAIN, { thIgn: META.thIgn2, ejectRadius: META.macroEjR, igniteHeatB: macroHeatB }),
   });
   starHist = []; roll = { uStars:[], uPhi:[], mStars:[], mPhi:[] };
+  densU = new Float32Array(N*N); densM = new Float32Array(N2*N2); trailM = [];
 }
 
 function tickN(){
@@ -851,12 +857,20 @@ function tickN(){
     rollPush(roll.uStars, sim.lastIgnite.length, 120);
     let up=0,un=0; for (const b of sim.lastIgnite){ up+=b.phi; un++; }
     if (un) rollPush(roll.uPhi, up/un, 120);
+    // 미시 점화 잔상: 매 tick 감쇠 + 누적 → 활성 영역
+    for (let i=0;i<densU.length;i++) densU[i] *= 0.90;
+    for (const b of sim.lastIgnite) densU[b.i] += 1;
     if (sim.tick % META.every === 0 && macro.stats){
       rollPush(roll.mStars, macro.lastIgnite.length, 120);
-      let mp=0,mn=0; for (const b of macro.lastIgnite){ mp+=b.phi; mn++;
+      let mp=0,mn=0,cx=0,cy=0; for (const b of macro.lastIgnite){ mp+=b.phi; mn++;
+        cx += b.i % N2; cy += (b.i / N2) | 0;
         starHist.push(b.i % N2, (b.i / N2) | 0); }
       if (mn) rollPush(roll.mPhi, mp/mn, 120);
       while (starHist.length > 800) starHist.splice(0, 2);
+      // 거시 점화 잔상 + 활성 영역 무게중심 궤적 (이게 *진짜로 이동하는 것*)
+      for (let i=0;i<densM.length;i++) densM[i] *= 0.85;
+      for (const b of macro.lastIgnite) densM[b.i] += 1;
+      if (mn){ trailM.push([cx/mn, cy/mn]); if (trailM.length > 80) trailM.shift(); }
     }
   }
 }
@@ -909,6 +923,19 @@ function fit(bs){
 }
 function P(u,v,e,bs){ return { x: ORX + u*bs.ux + v*bs.vx, y: ORY + u*bs.uy + v*bs.vy - e }; }
 
+// 점화 잔상(활성 영역) — 누적·감쇠한 밀도를 가산 합성으로 흐릿하게 그린다 → 이동하는 영역이 보임
+function drawGlow(dens, gridN, e, bs, color, scale){
+  let mx = 0; for (let i=0;i<dens.length;i++) if (dens[i] > mx) mx = dens[i];
+  if (mx <= 0) return;
+  for (let i=0;i<dens.length;i++){ const v = dens[i]; if (v < 0.12*mx) continue;
+    const p = P((i%gridN)*scale, ((i/gridN)|0)*scale, e, bs);
+    sctx.globalAlpha = Math.min(0.55, v/mx*0.55);
+    sctx.fillStyle = color;
+    sctx.beginPath(); sctx.arc(p.x, p.y, 3.2, 0, 7); sctx.fill();
+  }
+  sctx.globalAlpha = 1;
+}
+
 function drawQuad(bs, e, col){
   const c = [P(0,0,e,bs),P(N,0,e,bs),P(N,N,e,bs),P(0,N,e,bs)];
   sctx.beginPath(); sctx.moveTo(c[0].x,c[0].y);
@@ -950,6 +977,13 @@ function render(){
       sctx.fillStyle = '#39d2c0'; sctx.beginPath(); sctx.arc(lo.x,lo.y,2,0,7); sctx.fill();
     }
   }
+  // 활성 영역 잔상 (점화 밀도) — 가산 합성, 점 뒤에 깔린다
+  if (showGlow){
+    sctx.globalCompositeOperation = 'lighter';
+    drawGlow(densU, N, 0, bs, '#ffcf6e', 1);
+    drawGlow(densM, N2, elev, bs, '#ff9a4d', F);
+    sctx.globalCompositeOperation = 'source-over';
+  }
   // 미시 별 (점화)
   for (const b of sim.lastIgnite){
     const u=b.i%N, v=(b.i/N)|0, p=P(u,v,0,bs);
@@ -964,6 +998,16 @@ function render(){
     sctx.shadowColor = col; sctx.shadowBlur = 10;
     sctx.beginPath(); sctx.arc(p.x,p.y,4,0,7); sctx.fill();
     sctx.shadowBlur = 0;
+  }
+  // 거시 활성 영역 무게중심 + 궤적 — *진짜로 이동하는 것*. 흰 고리 = 현재 중심, 꼬리 = 최근 경로.
+  if (showGlow && trailM.length > 1){
+    sctx.strokeStyle = 'rgba(255,210,120,.55)'; sctx.lineWidth = 2; sctx.beginPath();
+    for (let i=0;i<trailM.length;i++){ const p = P(trailM[i][0]*F, trailM[i][1]*F, elev, bs);
+      if (i===0) sctx.moveTo(p.x,p.y); else sctx.lineTo(p.x,p.y); }
+    sctx.stroke();
+    const last = trailM[trailM.length-1], p = P(last[0]*F, last[1]*F, elev, bs);
+    sctx.strokeStyle = '#fff'; sctx.lineWidth = 2;
+    sctx.beginPath(); sctx.arc(p.x, p.y, 6, 0, 7); sctx.stroke();
   }
 
   // 위에서 본 인셋
@@ -1035,6 +1079,7 @@ $('playBtn').onclick = e => { running=!running; e.target.textContent = running?'
 $('stepBtn').onclick = ()=> { tickN(); render(); gauges(); };
 $('resetBtn').onclick = ()=> { build(); render(); gauges(); };
 $('pillarBtn').onclick = e => { showPillars=!showPillars; e.target.classList.toggle('on', showPillars); };
+$('glowBtn').onclick = e => { showGlow=!showGlow; e.target.classList.toggle('on', showGlow); };
 $('speed').oninput = e => { speed=+e.target.value; $('speedV').textContent = speed+'×'; };
 $('elev').oninput = e => { elev=+e.target.value; $('elevV').textContent = elev; };
 $('rot').oninput = e => { rot=+e.target.value; $('rotV').textContent = (rot*90)+'°'; };

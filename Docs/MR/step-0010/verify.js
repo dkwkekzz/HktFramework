@@ -13,6 +13,8 @@
  *                               종류(빛/열)를 가르는가. 계수는 오직 φ 경유로만 작동하는가.
  *    dual  <seed> [heatB]     — 두 미시 사슬(좌 16,32 + 우 48,32) → 한 거시 사슬. 빛+빛/빛+열/열+열 의
  *                               거시별 φ — 미시에서 안 섞이던 두 기질이 거시에서 혼혈로 융합하는가?
+ *    roll  <seed>             — "굴러간다"의 정밀 검증: 점화는 *사건 집합*이다. 한 tick 점화 셀 수·tick내
+ *                               퍼짐·무게중심 이동이 무작위 셔플 대조군보다 작은가(=코히어런트 이동)?
  *    cons  <seed>             — 보존: 두 층 E+T 잔차 + 거시 rhoB ≤ rho (층간 트레이서 건전성).
  * 시드 [42, 7, 1234, 99, 2026]. 사슬 연료·노브 = step-0007 (E=0.030, rho=0.020, ejR=6, thIgn=0.40).
  * 메타-사슬 결합 노브(META) = N2=32, every=2, kPromote=0.5, scaleM=2.0, cE=3.0, 거시 ejR=3, thIgn₂=0.20.
@@ -224,6 +226,60 @@ function expDual(seed, heatB) {
   console.log('  (빛+열 의 거시별 φ 가 중간값이면 — 미시에서 안 섞이던 두 기질이 거시에서 혼혈로 융합)');
 }
 
+/* ---------- roll: "굴러간다"의 정밀 검증 — 점화는 *사건 집합* 이다 ----------
+ * 점화는 추적되는 객체가 아니라 매 tick rho>thIgn 인 셀들의 집합이다. "별이 움직인다"가
+ * (가) 코히어런트한 활성 영역의 이동인지 (나) 무작위로 흩뿌려지는 팝콘인지 가른다:
+ *   ① 한 점화 tick 의 셀 수(한 점이 아님) + tick내 셀들의 퍼짐(흩어짐 정도).
+ *   ② 연속 점화 무게중심의 tick-간 변위 vs *무작위 셔플* 변위. 연속 ≪ 무작위면 시간 상관 = 코히어런트 이동.
+ *   ③ 활성 무게중심이 격자에서 배회하는 범위(이동 폭). */
+function rollAnalyze(seed, ticks) {
+  const sim = C.createSim(64, { seed, params: Object.assign({ ejectRadius: 6 }, CHAIN_PARAMS) });
+  C.singleChainScenario(sim, { phi: 1 });
+  const macro = C.createMacro(sim, macroOpts({ promoteComp: true }));
+  ticks = ticks || 3000;
+  const tail = Math.floor(ticks * 0.6);
+  const out = {};
+  for (const layer of ['micro', 'macro']) out[layer] = { gridN: layer === 'micro' ? 64 : 32, cnt: 0, cntN: 0, spread: 0, spreadN: 0, cents: [] };
+  for (let t = 1; t <= ticks; t++) {
+    C.stepCoupled(sim, macro);
+    if (t < tail) continue;
+    const layers = [['micro', sim.lastIgnite, 64]];
+    if (sim.tick % META.every === 0 && macro.stats) layers.push(['macro', macro.lastIgnite, 32]);
+    for (const [name, ev, gN] of layers) {
+      const o = out[name]; o.cnt += ev.length; o.cntN++;
+      if (!ev.length) continue;
+      const pts = ev.map(b => [b.i % gN, (b.i / gN) | 0]);
+      let cx = 0, cy = 0, maxd = 0;
+      for (const p of pts) { cx += p[0]; cy += p[1]; }
+      cx /= pts.length; cy /= pts.length;
+      for (let a = 0; a < pts.length; a++) for (let b = a + 1; b < pts.length; b++) {
+        const d = Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1]); if (d > maxd) maxd = d;
+      }
+      o.spread += maxd; o.spreadN++; o.cents.push([cx, cy]);
+    }
+  }
+  for (const name of ['micro', 'macro']) {
+    const o = out[name], cents = o.cents;
+    let disp = 0; for (let i = 1; i < cents.length; i++) disp += Math.hypot(cents[i][0] - cents[i - 1][0], cents[i][1] - cents[i - 1][1]);
+    o.disp = disp / (cents.length - 1);
+    const idx = cents.map((_, i) => i); let rng = 98765; const rnd = () => { rng = (rng * 1103515245 + 12345) & 0x7fffffff; return rng / 0x7fffffff; };
+    for (let i = idx.length - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; const tmp = idx[i]; idx[i] = idx[j]; idx[j] = tmp; }
+    let dispR = 0; for (let i = 1; i < idx.length; i++) dispR += Math.hypot(cents[idx[i]][0] - cents[idx[i - 1]][0], cents[idx[i]][1] - cents[idx[i - 1]][1]);
+    o.dispR = dispR / (idx.length - 1);
+    const xs = cents.map(c => c[0]), ys = cents.map(c => c[1]);
+    o.rangeX = Math.max(...xs) - Math.min(...xs); o.rangeY = Math.max(...ys) - Math.min(...ys);
+  }
+  return out;
+}
+function expRoll(seed) {
+  const r = rollAnalyze(seed, 3000);
+  console.log(`seed=${seed} 점화는 *사건 집합* 이다 — "굴러간다"의 정밀 검증:`);
+  for (const name of ['micro', 'macro']) {
+    const o = r[name];
+    console.log(`  [${name === 'micro' ? '미시(64)' : '거시(32)'}] 점화/tick=${f(o.cnt / o.cntN, 2)} (한 점 아님)  tick내 퍼짐=${f(o.spread / o.spreadN, 2)}셀  무게중심 연속변위=${f(o.disp, 2)} vs 무작위셔플=${f(o.dispR, 2)} (연속≪무작위=코히어런트)  배회범위=${f(o.rangeX, 1)}×${f(o.rangeY, 1)}`);
+  }
+}
+
 /* ---------- cons: 두 층 보존 + 층간 트레이서 건전성 ---------- */
 function expCons(seed) {
   const sim = C.createSim(64, { seed, params: Object.assign({ ejectRadius: 6 }, CHAIN_PARAMS) });
@@ -242,7 +298,7 @@ function expCons(seed) {
   console.log(`  층간 트레이서 건전성: max(거시 rhoB - 거시 rho)=${maxOver.toExponential(2)} (φ≤1 위반량 — 0 또는 부동소수점 잡음)`);
 }
 
-const MODES = { reg: expReg, regc: expRegc, regm: expRegm, reg0: expReg0, recur: expRecur, fate: expFate, dual: expDual, cons: expCons };
+const MODES = { reg: expReg, regc: expRegc, regm: expRegm, reg0: expReg0, recur: expRecur, fate: expFate, dual: expDual, roll: expRoll, cons: expCons };
 const [, , m, ...args] = process.argv;
 if (MODES[m]) MODES[m](+args[0], ...args.slice(1));
-else console.log('usage: node verify.js <reg|regc|regm|reg0|recur|fate|cons> <seed> [args]');
+else console.log('usage: node verify.js <reg|regc|regm|reg0|recur|fate|dual|roll|cons> <seed> [args]');
