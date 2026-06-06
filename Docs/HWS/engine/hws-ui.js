@@ -88,6 +88,7 @@
     var img = ctx.createImageData(W, H);
     var off = doc.createElement('canvas'); off.width = W; off.height = H;
     var octx = off.getContext('2d');
+    var satSmooth = 8;                                     // 자동 명암 포화점 EMA 상태(화면 떨림 평활, draw 간 유지)
 
     /* 컨트롤 레지스트리: id → {el, item} */
     var ctrls = {};
@@ -187,13 +188,17 @@
 
     function draw() {
       var E = sim.E, d = img.data;
-      /* 자동 명암: 'auto' 컨트롤이 있고 켜져 있으면 현재 최대 E 에 포화점을 맞춘다(바닥 1.0). */
-      var sat = 8;
+      /* 자동 명암: 'auto' 컨트롤이 있고 켜져 있으면 현재 최대 E 에 포화점을 맞춘다(바닥 1.0).
+       * 목표값을 EMA 로 평활 — 강한 흐름 구배(기복 step-0009)에서 maxE 가 tick 간 출렁이면 화면 전체 밝기가
+       * 떨린다. 평활로 체감 떨림을 죽인다(시뮬 불변 — 색 정규화 상수일 뿐, 추세는 따라간다). */
       var autoOn = ctrls['auto'] ? val('auto') : false;
+      var satTarget = 8;
       if (autoOn) {
         var mx = 0; for (var q = 0; q < E.length; q++) if (E[q] > mx) mx = E[q];
-        sat = mx > 1.0 ? mx : 1.0;
+        satTarget = mx > 1.0 ? mx : 1.0;
       }
+      satSmooth = satSmooth > 0 ? satSmooth + 0.06 * (satTarget - satSmooth) : satTarget;
+      var sat = satSmooth;
       for (var i = 0; i < E.length; i++) {
         var c = colorOf(E[i], sat);
         d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = 255;

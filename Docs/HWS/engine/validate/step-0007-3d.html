@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>HWS step-0007 (3D 재현)</title>
+<!-- 3D 엔진 검증 셸: 닫힌 step-0007 코어·패널(불변)을 hws-3d.js 로 3D 조작·관찰한다.
+     통계표 수치가 step-0007.html(2D)과 동일해야 한다 — 3D 는 프레젠테이션 전용. 더블클릭 실행. -->
+<link rel="stylesheet" href="../hws-ui.css">
+</head>
+<body>
+<script src="../../step-0007/sim-core.js"></script>
+<script src="../hws-ui.js"></script>
+<script src="../hws-3d.js"></script>
+<script src="../../step-0007/panel.js"></script>
+<script>HWS3D.bind(HWS.mount(window.HWS7, HWS3D.attach(window.HWS_PANEL_0007)));</script>
+</body>
+</html>

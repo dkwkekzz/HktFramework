@@ -83,5 +83,20 @@ for (var s2 = 0; s2 < SEEDS.length; s2++) {
   ok('seed ' + SEEDS[s2] + ' 잔차 ' + led.residual.toExponential(2), led.residual < 1e-6);
 }
 
+console.log('\n⑤ 3D attach — 패널 장식이 createSim 파라미터 매핑을 바꾸지 않는다 (hws-3d.js)');
+/* 3D 레이어가 시뮬에 영향을 줄 수 있는 유일한 경로도 createSim 파라미터다. attach 는 view 전용
+ * 체크(view3d, param 없음)와 drawHook 체이닝만 더하므로 defaultParams 가 비트 동일해야 한다. */
+(function () {
+  var hws3d = require(path.join(__dirname, '..', 'hws-3d.js'));
+  var rows0 = panel.controls.length;
+  var p3 = hws3d.attach(panel);
+  ok('defaultParams(attach(panel)) == defaultParams(panel)',
+     eqObj(engine.defaultParams(p3), got), JSON.stringify(engine.defaultParams(p3)));
+  ok('원본 패널 불변 + view3d 행 1개 추가',
+     panel.controls.length === rows0 && p3.controls.length === rows0 + 1,
+     rows0 + ' → ' + p3.controls.length);
+  ok('drawHook 체이닝 장착', typeof p3.drawHook === 'function');
+})();
+
 console.log('\n' + (fails === 0 ? '✅ 엔진 검증 통과 — 공통 엔진이 step-0006 을 동일 시뮬로 재현' : '❌ ' + fails + ' 건 실패'));
 process.exit(fails === 0 ? 0 : 1);
