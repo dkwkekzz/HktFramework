@@ -1,0 +1,11 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<title>HWS step-0010 — 탐사(run-and-tumble)</title>
+<!-- 셸 HTML(3D 표준): 공통 CSS + (새 시뮬)step-0010 코어 + 공통 엔진 + 3D 레이어 + 선언적 패널. 더블클릭 실행. -->
+<link rel="stylesheet" href="engine/hws-ui.css">
+</head><body>
+<script src="step-0010/sim-core.js"></script>   <!-- 새 시뮬 로직(탐사). window.HWS10 -->
+<script src="engine/hws-ui.js"></script>          <!-- 공통 엔진. window.HWS -->
+<script src="engine/hws-3d.js"></script>          <!-- 3D 레이어. window.HWS3D -->
+<script src="step-0010/panel.js"></script>        <!-- 이 step 의 노브·통계. window.HWS_PANEL_0010 -->
+<script>HWS3D.bind(HWS.mount(window.HWS10, HWS3D.attach(window.HWS_PANEL_0010)));</script>
+</body></html>
