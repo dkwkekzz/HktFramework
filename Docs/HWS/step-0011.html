@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<title>HWS step-0011 — 구동 내생화(별)</title>
+<!-- 셸 HTML(3D 표준, law-pipeline): 공통 CSS + 공통 sim(커널·법칙·조립) + 공통 엔진 + 3D + 패널. 더블클릭 실행. -->
+<link rel="stylesheet" href="engine/hws-ui.css">
+</head><body>
+<script src="engine/hws-kernel.js"></script>     <!-- 동결 원시형. window.HWS_KERNEL -->
+<script src="engine/hws-laws.js"></script>       <!-- 진화하는 법칙 파이프라인(ignite 포함). window.HWS_LAWS -->
+<script src="engine/hws-sim.js"></script>        <!-- 조립 코어. window.HWS_SIM -->
+<script src="engine/hws-ui.js"></script>         <!-- 공통 UI 엔진. window.HWS -->
+<script src="engine/hws-3d.js"></script>         <!-- 3D 레이어. window.HWS3D -->
+<script src="step-0011/panel.js"></script>       <!-- 이 step 의 노브·통계. window.HWS_PANEL_0011 -->
+<script>HWS3D.bind(HWS.mount(window.HWS_SIM, HWS3D.attach(window.HWS_PANEL_0011)));</script>
+</body></html>

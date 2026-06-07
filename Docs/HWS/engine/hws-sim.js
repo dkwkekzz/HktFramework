@@ -1,0 +1,80 @@
+/* HWS 공통 시뮬 — 커널(동결 헬퍼) + 법칙(진화하는 항)을 묶어 step 들이 쓰는 단일 코어 객체를 만든다.
+ *
+ * step() = LAW_ORDER 배열을 고정 순서로 순회 + tick++. 한 덩어리 step() 복사·수정의 끝 —
+ *   "①~⑧ 순서 불변"은 hws-laws.js 의 LAW_ORDER 단일 출처가 보장한다. sim.laws 로 per-sim 오버라이드 가능
+ *   (새 step 이 법칙을 *삽입/추가*할 때 자기 순서 배열을 줄 수 있다 — 확장점). 기본은 L.LAW_ORDER.
+ *
+ * 이 코어가 노출하는 메서드 표면은 step-0010/sim-core.js 와 동일하다 — engine/hws-ui.js 의 mount(core,…)·
+ *   각 step 의 panel.js·verify.js 가 그대로 갈아끼워진다. createSim/step/run 만 여기, 나머지는 커널 재노출.
+ *
+ * 브라우저(셸 로드 순서): hws-kernel.js → hws-laws.js → hws-sim.js → hws-ui.js → (3d) → panel.js.
+ *   window.HWS_SIM 가 코어. / Node: var core = require('engine/hws-sim.js').
+ */
+(function (global) {
+  'use strict';
+  var isNode = (typeof module !== 'undefined' && module.exports);
+  var K = isNode ? require('./hws-kernel.js') : global.HWS_KERNEL;
+  var L = isNode ? require('./hws-laws.js') : global.HWS_LAWS;
+
+  function createSim(seed, params) {
+    var p = Object.assign({}, L.DEFAULTS, params || {});
+    p.source = Object.assign({}, L.DEFAULTS.source, (params && params.source) || {});
+    p.sink = Object.assign({}, L.DEFAULTS.sink, (params && params.sink) || {});
+    var rng = K.mulberry32(seed);
+    var N = p.W * p.H;
+    var E = new Float64Array(N);
+    for (var i = 0; i < N; i++) E[i] = p.initE + p.noise * (rng() - 0.5);
+    var E0 = 0;
+    for (i = 0; i < N; i++) E0 += E[i];
+    return {
+      p: p, seed: seed, tick: 0,
+      E: E, buf: new Float64Array(N),
+      R: new Float64Array(N),                  // 저장체(굳은 흐름량). 초기 0 → kCryst=0 이면 영원히 0(회귀)
+      hPot: new Float64Array(N),               // 흐름 퍼텐셜 h=E+kRelief·R 작업 버퍼(상태 아님)
+      fLim: new Float64Array(N),               // donor 유출 제한 f 작업 버퍼(상태 아님)
+      srcCells: K.discCells(p.W, p.H, p.source.x, p.source.y, p.source.r),
+      sinkCells: K.discCells(p.W, p.H, p.sink.x, p.sink.y, p.sink.r),
+      srcBase: { x: p.source.x, y: p.source.y },
+      srcBaseTick: 0,
+      E0: E0,                                  // 초기 총량 (장부의 기준점)
+      injected: 0, evaporated: 0, sunk: 0,     // 닫힌 장부 T
+      agents: [],          // 살아있는 에이전트 목록
+      metabolized: 0,      // 대사로 소산된 총량
+      deaths: 0,           // 누적 사망 수 (통계용)
+      divOffsets: K.discOffsets(p.divR),
+      occSet: new Set(),
+      births: 0,           // 누적 분열(출생) 수 (통계용)
+      moveOffsets: K.discOffsets(p.moveR),
+      moves: 0,            // 누적 이동(run, 주화성) 수 (통계용)
+      tumbles: 0,          // 누적 탐사(tumble) 수 (통계용 — 위치 변경이라 장부 무관)
+      tumbleBuf: [],       // tumble 빈 이웃 [idx,x,y…] 재사용 버퍼(상태 아님 — 매 호출 비움)
+      crystallized: 0, weathered: 0,  // 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
+      stars: [],           // step-0011: 살아있는 별 목록 {x,y,center,fuel}. 초기 0 → kIgnite=0 이면 영원히 0(회귀)
+      burned: 0, starBirths: 0, starDeaths: 0,  // step-0011: 누적 연소량·점화·소진 수(통계용 — F 가 순잔액)
+      laws: L.LAW_ORDER    // 이 sim 에 적용할 법칙 순서(확장점). 기본 = 표준 LAW_ORDER.
+    };
+  }
+
+  /* 법칙 적용 — sim.laws 를 고정 순서로 순회 + tick++. (해시 상태에 laws 는 안 들어감 → 회귀 무관.) */
+  function step(sim) {
+    var laws = sim.laws || L.LAW_ORDER;
+    for (var i = 0; i < laws.length; i++) laws[i](sim);
+    sim.tick++;
+  }
+
+  function run(sim, ticks) { for (var t = 0; t < ticks; t++) step(sim); return sim; }
+
+  /* step-0010/sim-core.js 와 동일한 메서드 표면 — 엔진·패널·verify 가 그대로 쓴다. */
+  var core = {
+    DEFAULTS: L.DEFAULTS, laws: L,
+    mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, createSim: createSim,
+    aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, step: step, run: run,
+    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore,
+    detectPools: K.detectPools, harvest: K.harvest, paintStore: K.paintStore, paintE: K.paintE, localE: K.localE, localStore: K.localStore,
+    torusDist: K.torusDist, centroid: K.centroid, spread: K.spread, trackDist: K.trackDist, discCells: K.discCells,
+    setSource: K.setSource, setSink: K.setSink,
+    hashState: K.hashState
+  };
+  if (isNode) module.exports = core;
+  else global.HWS_SIM = core;
+})(typeof window !== 'undefined' ? window : globalThis);
