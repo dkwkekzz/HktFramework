@@ -160,6 +160,7 @@
       moveOffsets: discOffsets(p.moveR),
       moves: 0,            // 누적 이동(run, 주화성) 수 (통계용)
       tumbles: 0,          // step-0010: 누적 탐사(tumble) 수 (통계용 — 위치 변경이라 장부 무관)
+      tumbleBuf: [],       // step-0010: tumble 빈 이웃 [idx,x,y…] 재사용 버퍼(상태 아님 — 매 호출 비움)
       crystallized: 0, weathered: 0  // step-0008: 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
     };
   }
@@ -341,31 +342,21 @@
             intake *= kL;
             var hcost = mv.m * mMaint + baseCost;
             if (intake < hcost) {                       // 굶주림 — net 손실 중
-              var e0 = -1, e1 = -1, e2 = -1, e3 = -1, nE = 0;   // 빈 이웃 인덱스(최대 4)
-              var ex0 = 0, ey0 = 0, ex1 = 0, ey1 = 0, ex2 = 0, ey2 = 0, ex3 = 0, ey3 = 0;
+              var empties = sim.tumbleBuf; empties.length = 0;   // 빈 이웃 [idx,x,y] (재사용 버퍼)
               for (var to = 0; to < moveOff.length; to++) {
                 var tnx = (mvx + moveOff[to][0] + W) % W, tny = (mvy + moveOff[to][1] + H) % H;
                 var tnidx = tny * W + tnx;
-                if (mocc.has(tnidx)) continue;
-                if (nE === 0) { e0 = tnidx; ex0 = tnx; ey0 = tny; }
-                else if (nE === 1) { e1 = tnidx; ex1 = tnx; ey1 = tny; }
-                else if (nE === 2) { e2 = tnidx; ex2 = tnx; ey2 = tny; }
-                else { e3 = tnidx; ex3 = tnx; ey3 = tny; }
-                nE++;
+                if (!mocc.has(tnidx)) empties.push(tnidx, tnx, tny);
               }
+              var nE = empties.length / 3;
               if (nE > 0) {
                 var hsh = tumbleHash(mvx, mvy, tTick, tSeed);
                 if ((hsh >>> 16) * (1 / 65536) < pTum) {       // 발화(rate) — 고비트
-                  var pick = (hsh & 0xffff) % nE;              // 방향 — 저비트(균등)
-                  var tIdx, tX, tY;
-                  if (pick === 0) { tIdx = e0; tX = ex0; tY = ey0; }
-                  else if (pick === 1) { tIdx = e1; tX = ex1; tY = ey1; }
-                  else if (pick === 2) { tIdx = e2; tX = ex2; tY = ey2; }
-                  else { tIdx = e3; tX = ex3; tY = ey3; }
+                  var pick = ((hsh & 0xffff) % nE) * 3;        // 방향 — 저비트(균등)
                   mocc.delete(mv.center);
-                  mv.x = tX; mv.y = tY; mv.center = tIdx;
-                  mv.cells = discCells(W, H, tX, tY, p.lifeR);
-                  mocc.add(tIdx);
+                  mv.x = empties[pick + 1]; mv.y = empties[pick + 2]; mv.center = empties[pick];
+                  mv.cells = discCells(W, H, mv.x, mv.y, p.lifeR);
+                  mocc.add(empties[pick]);
                   sim.tumbles++;
                 }
               }
