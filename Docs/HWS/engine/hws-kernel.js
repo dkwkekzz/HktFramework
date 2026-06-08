@@ -303,7 +303,12 @@
     var st = sim.stars;
     if (st && st.length) {
       feed(new Float64Array([st.length]).buffer);
-      for (var j2 = 0; j2 < st.length; j2++) feed(new Float64Array([st[j2].x, st[j2].y, st[j2].fuel]).buffer);
+      for (var j2 = 0; j2 < st.length; j2++) {
+        feed(new Float64Array([st[j2].x, st[j2].y, st[j2].fuel]).buffer);
+        /* 연소 FSM state(step-0013) — *가법*: state 가 있을 때만 먹인다(FSM off 면 undefined → skip → 골든 endo@ 불변).
+         * 이산 라벨이 결정론·재현에 들어간다(상태 라벨이 해시에). */
+        if (st[j2].state !== undefined) feed(new Float64Array([st[j2].state]).buffer);
+      }
     }
     return ('00000000' + h.toString(16)).slice(-8);
   }

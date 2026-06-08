@@ -9,25 +9,23 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0012](step-0012.md) — 생명에 **밀도 의존 자기제한**(crowding: 국소 밀도가 carrying capacity 를 만든다). 각 생명이 crowdR disc 안 이웃 수에 비례한 대사세를 내 붐비면 솎인다(로지스틱 음성 피드백). **law-pipeline 의 둘째 step**(`engine/hws-laws.js` 에 `crowd` 법칙 1개 + 노브 2개 + `LAW_ORDER` 한 자리).
-- **한 줄 상태**: 자기제한=생명의 *국소 대사 항*(소산 경계, m→metabolized). **끝없는 churn 완성(G2/G3 동역학적 종결)**: step-0011(kCrowd=0)은 ~12700 tick 공멸하나, 자기제한이 개체군을 **carrying capacity ~73** 에 묶어 지평선(40k verify; 단일 시드 184k 추적) *공멸 없이* 생존·후반 출생/사망 **1491/1489(≈균형)**·별 10 유지·maxR>ignThresh 정상상태. 동결도 공멸도 아닌 **임계 자기조직**. 회귀 0(kCrowd=0=step-0011 비트 동일, golden `endo@` 가법 잠금)·잔차 8.37e-13·결정론 유지. **핵심 발견**: carrying capacity 는 개체수가 아니라 *공간 분포*의 문제 — crowdR 을 채식지 척도(=starR 3)로 잡아야 지속(R=2 는 국소 솎임이라 채식지를 덮어 공멸 지연뿐).
-- **다음**: step-0013 (§2).
+- **닫힌 step**: [step-0013](step-0013.md) — 별의 연소를 **이산 FSM**(living→burning→ash)으로. 별의 alive→dead proto-FSM 가운데 *burning 을 끼워* 3-상태 FSM 완성: living(kindling 저활성·정지) →[핫코어 ≥ burnOn]→ burning(전율·서행) →[연료 소진 또는 핫코어 < burnOff]→ ash(주입 0·불응기·제거). **law-pipeline 의 셋째 step**(`engine/hws-laws.js` 에 `combust` 법칙 1개 + 노브 4개 + ignite ash 분기 + `LAW_ORDER` 한 자리).
+- **한 줄 상태**: **SPINE 결정3(이산 비가역 문턱) 별에서 완성** — 전이가 *문턱에서 딱 뒤집히고*(연속 변조 아님) 비가역(back=0). 결정2↔3 정합 수치 통과: **(a)분기 부재** labelViol=0(라벨==활성도 배수 인덱스, 별도 type 분기 없음) · **(b)활성도 환원** 측정 throughput 비 living/burning=0.550=livingFrac · **(c)히스테리시스** 폭 burnOn−burnOff=0.20>0·anti-chatter·3상태(LBA) 도달. 회귀 0(kFSM=0=step-0012 비트 동일, golden `cwd@` 가법 잠금)·잔차 4.48e-13·결정론(상태 라벨 가법 해시) 유지. **동역학 보존**: 이산 FSM 더해도 step-0012 끝없는 churn 유지(40k 전 시드 생존·후반 출생/사망 1355/1360). **핵심 발견**: 불은 연료가 다해야 꺼진다 — 조기 핫코어 quench(burnOff)는 소수(ash 99% 연료·1% 핫코어), 빠른 점화 snap + 느린 연료 소진의 timescale 분리가 이산성을 만든다(FitzHugh–Nagumo). 문턱이 두 층으로 갈림(siting R핵 ≠ flashover E잔열).
+- **다음**: step-0014 (§2).
 
 ---
 
-## 2. NEXT — step-0013 가설
+## 2. NEXT — step-0014 가설
 
-**별(또는 생명)의 상전이를 연속 노브에서 *진짜 이산 FSM*(living→burning→ash)로 만들면, 척추 결정3(이산 비가역 문턱)이 완성된다 — 활성도 연속축 위의 *질적 경계*가 authored type 분기 없이 상태 라벨로 환원된다.**
+**남은 척추 미완은 *결정1·2 의 계량* — 저장/소산을 보존율로만 갈랐지 *매 tick throughput(dE/dt)* 으로 분류를 창발시키는 단계가 미완이다. 각 개체(셀·R·생명)의 활성도(flux)를 직접 측정해, authored 분기 없이 "이건 저장체·이건 소산"을 *읽어내는* 계량을 더하면 결정1(척추 변수=flux)·결정2(분류는 측정으로 창발)가 닫힌다.**
 
-step-0012가 동역학의 세 실패(동결·공멸·임계)를 닫아 **끝없는 churn 을 완성**했다(G2/G3 동역학적 종결). 이제 남은 큰 축은 *존재론* 쪽 — 척추 결정3(이산 비가역 문턱)이 아직 *연속 노브*다(kCryst·kIgnite·kCrowd 모두 graded). step-0013은 별(또는 생명)의 상전이를 living→burning→ash 처럼 문턱에서 *딱 뒤집히는* FSM 으로 만들어, 활성도 축(연속)과 FSM 상태(이산)가 공존하는 SPINE 결정3의 완전판을 겨눈다.
+step-0013 이 *존재론* 축의 최우선 격차(이산 비가역 문턱, 결정3)를 *별*에서 닫았다. 남은 큰 축은 결정1·2 의 계량(활성도 throughput 미측정)과 표현 분열(연속 패턴 E·R 과 에이전트 m 이 다른 자료형)이다. step-0014 후보 두 갈래: **(a) 활성도 계량** — 매 tick 각 셀/개체의 throughput(통과 flux)을 재 저장(낮은 flux+높은 저장)↔소산(높은 flux)을 *측정으로* 분류(authored enum 금지, 결정2). **(b) 결정3 전개** — 생명(living/dormant)·결정(solid/melt)의 FSM 화로 이산 문턱을 전 개체로(0013 은 별만). (a)가 더 근본적 미완(결정1·2)이라 우선 후보.
 
-**검증할 것**: ① **이산 전이**(상태가 문턱에서 딱 바뀜, 연속 변조 아님) ② **회귀 0**(FSM 노브=0 또는 연속 모드면 step-0012 비트 동일 — law-pipeline 골든 해시) ③ 닫힌 장부·결정론(상태 라벨이 해시에) ④ 척추: FSM 상태가 *메커니즘-결합 라벨*이고 활성도는 그 위 연속 측정(authored type 분기 아님).
+**검증할 것**: ① 가설 수치(분류가 측정으로 창발 — authored 분기 없이 flux 로 저장/소산이 갈림) ② **회귀 0**(새 노브=0 → step-0013 비트 동일, golden 가법 잠금) ③ 닫힌 장부·결정론 ④ 척추 체크 4항(특히 결정1·2: 척추 변수=flux·분류는 측정).
 
-**🔑 결정2↔결정3 정합 조건(FSM 설계 가드레일 — 어기면 재설계)**: FSM 은 흥분성 매질/이완 진동(연소·뉴런 발화·1차 상전이)으로 물리적 근거가 있고 SPINE 결정3 이 직접 명명한 형태다. 단 결정2("분류는 enum 아닌 *측정으로 창발*")와 충돌 않으려면 셋을 지킨다 — (a) **라벨이지 타입 아님**: 상태별로 *완전히 다른 코드 경로*를 분기(`if type=='burning'`)하면 단일 척추 위반. 허용은 "내 칸 필드값+로컬 상태>문턱이면 *켜지는 국소 법칙이 바뀐다*"뿐(결정4 국소 반응법칙). (b) **활성도로 환원 가능**: burning/ash 판정은 *그 칸의 throughput(dE/dt)·E·R* 만으로 읽혀야 한다 — 라벨은 편의지 진실의 출처가 아니다. (c) **이산성은 timescale 분리에서 창발**: 점화는 빠르게 snap·소진은 느리게(히스테리시스 — 점화 문턱≠소진 문턱이라 안 떨리고 비가역). 자유롭게 떠다니는 태그면 안 된다. ⇒ `verify` 가 *(a)분기 부재·(b)활성도로 상태 재구성 일치·(c)히스테리시스 폭>0* 을 수치로 통과해야 닫는다. (cf. 이미 별 alive→dead 는 proto-FSM·결정화 E↔R 은 가역 graded — 0013 은 중간 burning 을 끼우고 문턱을 딱 뒤집히게.)
+**병행 백로그(블로킹 아님)**: ⬜ 생명/결정 FSM(결정3 전개 — 0013 별만 닫음) · ⬜ 밀도 의존 *흡수/번식* 변조(다른 로지스틱) · ⬜ 더 빈번한 핫코어 quench(생명 grazing 이 별을 끄는 동역학 — 0013 burnOff 거의 비-load-bearing) · ⬜ 방향성 드리프트 추적 · ⬜ 저장체가 촉매(R 위 baseCost↓) · ⬜ 등방성 stencil · ⬜ 종간 경쟁.
 
-**병행 백로그(블로킹 아님)**: ⬜ 밀도 의존 *흡수/번식* 변조(다른 로지스틱) · ⬜ 방향성 드리프트 추적(효율·안정대 확대 — 0012 에서 지속에 *불필요*로 강등) · ⬜ 저장체가 촉매(R 위에서 baseCost↓) · ⬜ 등방성 stencil · ⬜ 종간 경쟁.
-
-**빌드 인프라 — law-pipeline(0011~)**: 한 step = `engine/hws-laws.js` 에 **법칙 1개 + 노브 1~2개 + `LAW_ORDER` 한 자리**(노브=0 → early-return = 회귀 0) + `step-NNNN/`(verify.js + 작은 panel.js + ~13줄 셸 HTML). 공통 sim 은 `engine/hws-kernel.js`(동결 헬퍼) · `hws-laws.js`(법칙) · `hws-sim.js`(조립), 공통 UI 는 `hws-ui.css`·`hws-ui.js`·`hws-3d.js` 한 곳. 셸: `HWS3D.bind(HWS.mount(window.HWS_SIM, HWS3D.attach(panel)))`. **회귀 앵커=동결 해시**: `node engine/validate/verify-sim-engine.js`(law-pipeline≡step-0010 비트 동일 + `golden-sim.json`: `std@`=별 없는 0010 등가, `endo@`=별+생명 0011 내생 스택). 출발 템플릿 `step-0012/{panel.js,verify.js}`. 장부/해시 확장은 *미존재 시 no-op* 가법만(golden 새 키 자동 기록, 기존 키는 비교). 스펙 [engine/PANEL.md](engine/PANEL.md) · [engine/DESIGN-3D.md](engine/DESIGN-3D.md). (0001~0010 복사 코어는 동결 — 닫은 step 불변.)
+**빌드 인프라 — law-pipeline(0011~)**: 한 step = `engine/hws-laws.js` 에 **법칙 1개 + 노브 + `LAW_ORDER` 한 자리**(노브=0 → early-return = 회귀 0) + `step-NNNN/`(verify.js + 작은 panel.js + ~13줄 셸 HTML). 공통 sim 은 `engine/hws-kernel.js`(동결 헬퍼) · `hws-laws.js`(법칙) · `hws-sim.js`(조립), 공통 UI 는 `hws-ui.css`·`hws-ui.js`·`hws-3d.js` 한 곳. 셸: `HWS3D.bind(HWS.mount(window.HWS_SIM, HWS3D.attach(panel)))`. **회귀 앵커=동결 해시**: `node engine/validate/verify-sim-engine.js`(law-pipeline≡step-0010 비트 동일 + `golden-sim.json`: `std@`=별 없는 0010 등가, `endo@`=별+생명 0011 내생 스택, `cwd@`=별+생명+자기제한 0012 스택). 출발 템플릿 `step-0013/{panel.js,verify.js}`. 장부/해시 확장은 *미존재 시 no-op* 가법만(golden 새 키 자동 기록, 기존 키는 비교; 상태 라벨 해시도 `state!==undefined` 일 때만 먹임). 스펙 [engine/PANEL.md](engine/PANEL.md) · [engine/DESIGN-3D.md](engine/DESIGN-3D.md). (0001~0010 복사 코어는 동결 — 닫은 step 불변.)
 
 ---
 
@@ -41,9 +39,10 @@ step-0012가 동역학의 세 실패(동결·공멸·임계)를 닫아 **끝없�
 | ✅ | **별이 외부 주입** | step-0011 해소 — 구동 내생화(별: R 누적 핵에서 점화하는 내생 주입원, 연료 소진까지 서행). 외부 source 없이 별이 세계를 먹인다(누적 주입 ~207k). 영구 전역 봉우리 소멸 → 측정 창 churn 634배·무게중심 떠돎 20배(G2/G3 *방향* 해소). |
 | ✅ | **음성 피드백 부재 → 과증식-공멸** | step-0012 해소 — 밀도 의존 자기제한(crowd: 국소 밀도 비례 대사세 → 솎임 → carrying capacity ~73). step-0011 의 공멸(~12700 tick)이 사라지고 지평선까지 생존. 핵심: crowdR 을 *채식지 척도*(=starR 3)로 — R=2 는 국소 솎임이라 채식지를 덮어 공멸 지연뿐(carrying capacity = 개체수 아닌 *공간 분포* 문제). |
 | ✅ | **생명 churn — 끝없는 churn (G2/G3)** | step-0012 해소 — 자기제한이 과증식을 묶어 *임계 자기조직*에 듦(공멸 없음·후반 출생/사망 1491/1489 ≈균형·별 10 유지·maxR>ignThresh, 단일 시드 184k 정상상태). 동결(0010·너무 적음)→공멸(0011·너무 많음)→임계(0012·그 사이) 세 위치가 *구동 구조×조절*에서 닫힘. |
-| 🔴 | **이산 비가역 문턱 [결정3] (최우선)** | step-0008 부분 — 결정화 문턱으로 질적 경계 첫 도입. 단 *연속(graded)+준-가역*. 별 점화/소진·생명 자기제한 모두 아직 연속 노브 — 딱 뒤집히는 living→burning→ash FSM(메커니즘-결합 라벨)이 SPINE 결정3 완전판 → **step-0013**. |
-| ⬜ | **방향성 드리프트 추적** | step-0012 에서 *불필요*로 강등 — 자기제한만으로 끝없는 churn 이 닫혔다(무작위 탐사로도 지속). 시간 감지형 run-and-tumble 은 *효율*(좌초↓·안정대 확대)을 줄 수 있으나 지속에 필수 아님 → 백로그. |
-| ⬜ | **활성도(throughput) 미측정 [결정1·2]** | 저장/소산을 보존율로는 갈랐으나 *매 tick throughput* 으로 분류를 창발시키는 계량 미완. authored 분기 없이 측정으로 읽는 단계 후속. |
+| ✅ | **이산 비가역 문턱 [결정3]** | step-0013 해소(별에서) — 별 연소를 이산 FSM(living→burning→ash)으로. 문턱에서 딱 뒤집힘(연속 변조 아님)·비가역(back=0). 결정2↔3 정합 수치: labelViol=0(분기 부재)·throughput 비=livingFrac(활성도 환원)·히스테리시스 폭 0.20(anti-chatter). 회귀 0(kFSM=0=step-0012, golden cwd@)·잔차 4.48e-13. **단 별만** — 생명/결정 FSM 은 백로그(결정3 전개). |
+| 🔴 | **활성도(throughput) 미측정 [결정1·2] (최우선)** | 저장/소산을 *보존율*로는 갈랐으나 *매 tick throughput(통과 flux)* 으로 분류를 창발시키는 계량 미완 — authored 분기 없이 측정으로 "저장체/소산"을 읽는 단계(결정1 척추 변수=flux·결정2 분류는 측정). 0013 이 결정3 을 닫아 이제 존재론 최우선 → **step-0014 후보 (a)**. |
+| ⬜ | **결정3 전개 — 생명/결정 FSM** | step-0013 은 *별*만 이산 FSM. 생명(living/dormant)·결정(solid/melt)은 아직 연속/가역 — 결정3 을 전 개체로 확장하는 후속(step-0014 후보 b). |
+| ⬜ | **방향성 드리프트 추적** | step-0012 에서 *불필요*로 강등 — 자기제한만으로 끝없는 churn 이 닫혔다. 시간 감지형 run-and-tumble 은 *효율*(좌초↓)을 줄 수 있으나 지속에 필수 아님 → 백로그. |
 | ⬜ | **표현 분열** | 연속 패턴(E·고임·R)과 에이전트(생명 m)가 서로 다른 자료형 — 같은 원시형 통일 미완. |
 
 **게임화 cross-cutting(step 진행과 별개로 누적, 상세 step 문서):**
@@ -72,7 +71,11 @@ step-0012가 동역학의 세 실패(동결·공멸·임계)를 닫아 **끝없�
 - **carrying capacity 는 개체수가 아니라 *공간 분포*의 문제(step-0012)** — 자기제한을 *국소*(crowdR<채식지)로 주면 개체수는 줄어도 살아남은 생명이 채식지를 덮어 *공멸 지연뿐*. *채식지 척도*(crowdR=starR)로 흩뜨려야 채식지에 E 가 남아 결정화→연료(R) 재충전→지속. "몇 마리"가 아니라 "어떤 척도로 흩어졌나"가 지속을 가른다.
 - **절제가 풍요보다 오래 산다(step-0012)** — 생명에 추가 *비용*(혼잡세)을 물려 더 죽게 만든 것이 개체군을 *영원히 살게* 했다. 솎이지 않은 풍요(0011)는 공멸, 솎인 절제(0012)는 지속. 끝없는 churn 의 maxR 은 *총 R 불변*이 아니라 *점화 가능 peak 의 정상상태*(흩어진 R 배경은 풍화돼도 활성 채식지가 peak 재충전).
 - **별 연료 = 외부 질량(주입 경계)** — 별의 에너지는 닫힌 장부 밖(제 질량), 태워 E로 주입하면 `injected`로 추적(외부 source와 같은 경계). 내생화는 에너지 *원천*이 아니라 *언제·어디서*(R 누적)를 세계 상태로 결정하는 것. R은 별의 점화 신호(siting)지 소비 대상이 아니다.
-- **law-pipeline 표준(0011~)** — 새 step = `engine/hws-laws.js` 법칙 1개 + 노브 + `LAW_ORDER` 한 자리(노브=0 → early-return = 회귀 0). 회귀 앵커 = 동결 *해시*(`verify-sim-engine.js` + `golden-sim.json`), 동결 파일 아님. 장부/해시 확장은 미존재 시 no-op 가법만. (0001~0010 복사 코어 동결.)
+- **law-pipeline 표준(0011~)** — 새 step = `engine/hws-laws.js` 법칙 1개 + 노브 + `LAW_ORDER` 한 자리(노브=0 → early-return = 회귀 0). 회귀 앵커 = 동결 *해시*(`verify-sim-engine.js` + `golden-sim.json`: std@/endo@/cwd@), 동결 파일 아님. 장부/해시 확장은 미존재 시 no-op 가법만(상태 라벨도 `state!==undefined` 일 때만 해시에 먹임 → FSM off 면 과거 해시 불변). (0001~0010 복사 코어 동결.)
+- **이산 FSM = 라벨이지 타입(step-0013, SPINE 결정3)** — 상태(living/burning/ash)는 *활성도 배수의 함수*지 자유 태그가 아니다(labelViol=0: 라벨==배수 인덱스). 켜지는 국소 법칙은 *스칼라 배수 + 게이트*뿐, 별도 에너지 경로 분기 금지(결정2 정합 a). burning/ash 는 *측정 throughput(dE/dt)* 으로 환원(b). 이산성은 *문턱·timescale 분리*에서 창발 — 점화 빠른 snap·소진 느린 연료, 두 문턱 벌려(burnOn>burnOff, 폭>0) anti-chatter(c). 새 FSM 을 더할 땐 verify 가 (a)(b)(c) 를 수치로 통과해야 닫는다.
+- **불은 연료가 다해야 꺼진다(step-0013)** — 스스로 선택된 burning 별은 전율 주입으로 제 핫코어를 달궈 조기 quench(burnOff) 문턱 밑으로 잘 안 떨어진다(ash 99% 연료 소진·1% 핫코어). FitzHugh–Nagumo: 빠른 변수(점화)는 snap, *느린 변수(연료)가 사이클을 끈다*. burnOff 는 히스테리시스 폭(anti-chatter)엔 필수지만 소진 경로론 미미.
+- **별 문턱이 두 층(step-0013)** — *siting*(R 누적 핵에서 별이 *선다*, ignThresh — R 공간)과 *flashover*(선 별이 *전율 연소로 뒤집힌다*, burnOn — E 잔열)는 다른 문턱. 활성도 축 위 "존재"와 "활성"이 갈린다. living(kindling)은 siting 됐으나 flashover 전 — 정지해 핫코어를 쌓아야 도달(떠돌면 흩어져 못 참).
+- **존재론↔동역학 독립(step-0013)** — 이산 FSM(존재론 조각)을 더해도 step-0012 의 끝없는 churn(동역학)이 보존된다(40k 전 시드 생존·후반 출생≈사망). 두 축은 직교 — 존재론 조각이 동역학을 깨지 않음을 확인.
 - **무작위 ≠ 비결정론**: 탐사 방향은 시드 의사난수(`tumbleHash(x,y,tick,seed)`, `Math.random` 금지) — "무작위"는 *구배와 무상관(탈상관)*일 뿐 생성은 결정론(step-0010).
 - **생명은 형성기(FORM) 강고임에서 굳은 저장체를 씨앗으로 bootstrap** — 생명이 깨어나면 자유 E를 소비해 저장체가 새로 안 굳음(step-0008).
 - **비가역 ≠ 비보존**: 상전이(E→R)해도 닫힌 장부는 그대로 닫힘 — "되돌릴 수 없음"은 상태의 성질이지 에너지의 성질이 아님(step-0008).
@@ -87,7 +90,7 @@ step-0012가 동역학의 세 실패(동결·공멸·임계)를 닫아 **끝없�
 | 1 | 터 (Ground) | 생성자 | ✅ 0001 |
 | 2 | 흐름량 (Quantity) | 생성자 | ✅ 0001 + **상(phase) R** 0008 — 흐르는 E + 굳은 R(저장체), 장부에 R 항 |
 | 3 | 법칙 (Law) | 생성자 | ✅ 0001 +응집(0002) +결정화·풍화(0008) +**기복**(0009, h=E+kRelief·R 내리막 upwind) |
-| 4 | 구동 (Drive) | 생성자 | ✅ 0001 +떠돎(0007)+**내생화**(0011, 별=R 누적 핵 점화하는 내생 주입원·서행·소진. 외부 고정 source → 떠도는 필멸 봉우리). 0011 공멸은 **0012 자기제한이 닫음**(별 10 영속 유지) |
+| 4 | 구동 (Drive) | 생성자 | ✅ 0001 +떠돎(0007)+내생화(0011, 별=R 누적 핵 점화 내생 주입원·서행·소진)+**이산 FSM**(0013, 별 living→burning→ash 문턱 딱 뒤집힘·비가역. SPINE 결정3 별에서 완성). 0011 공멸은 0012 자기제한이 닫음 |
 | 5 | 자원 (Resource) | 결과 | ✅ 0002 →소비자(0003)·개체군 배분(0004)·생사 문턱(0006)·떠도는 고임(0007)·평형 저장체(0008)·무대(0009)·**별의 연료=점화 신호**(0011, R 누적 핵이 별을 빚는다. 0012: 활성 채식지가 점화 peak 재충전) |
 | 6 | 생명 (Life) | 결과 | ✅ 0003 +번식(0004)+이동(0005)+기초대사비(0006)+추적 churn(0007)+탐사(0010)+떠도는 별 추적(0011)+**밀도 의존 자기제한**(0012, 국소 밀도→carrying capacity ~73. 과증식-공멸을 묶어 *끝없는 churn* 완성) |
 
@@ -118,3 +121,4 @@ step-0012가 동역학의 세 실패(동결·공멸·임계)를 닫아 **끝없�
 | [0010](step-0010.md) | 탐사(run-and-tumble) 1항 | **통과** — escape: 트랩 갇힌 생명 해자 건너 생존(거리 4.7) vs greedy 사멸(전 시드)·**국소 최대 함정 해소**. 회귀 maxDiff=0·잔차 2.51e-13·해시 일치. **정직(G2)**: 정적 source 끝없는 churn 미완(개체군이 전역 끌개 수렴, 후반 출생 on 1.0/off 3.8) → 구동 내생화 |
 | [0011](step-0011.md) | 구동 내생화(별) 1항 *(law-pipeline 첫 step)* | **통과** — 동결 해소: 측정 창 churn 외부 9→내생 5708(634배)·무게중심 떠돎 0.24→4.80(전역 봉우리 소멸). 회귀 maxDiff=0(kIgnite=0=step-0010)·잔차 1.09e-12·해시 일치. **정직(G2)**: 끝없는 churn 미완 — 음성 피드백 부재로 과증식-공멸(붕괴 ~12700 tick 전 시드) → 자기제한/방향성 추적(0012) |
 | [0012](step-0012.md) | 밀도 의존 자기제한(crowd) 1항 | **통과 — 끝없는 churn 완성**: 자기제한이 과증식-공멸(0011)을 막고 carrying capacity ~73 에 묶어 *임계 자기조직*(공멸 없음·후반 출생/사망 1491/1489 ≈균형·별 10 유지·maxR>ignThresh, 단일 시드 184k 정상상태). 회귀 maxDiff=0(kCrowd=0=step-0011, golden `endo@` 가법 잠금)·잔차 8.37e-13·해시 일치. **발견**: carrying capacity = 개체수 아닌 *공간 분포*(crowdR=채식지 척도 필수). G2/G3 동역학적 종결 |
+| [0013](step-0013.md) | 별 연소 이산 FSM(combust) 1항 | **통과 — SPINE 결정3 별에서 완성**: 별 living→burning→ash 가 문턱에서 딱 뒤집히고 비가역(back=0). 결정2↔3 정합 수치: (a)분기 부재 labelViol=0·(b)활성도 환원 throughput 비=livingFrac 0.55·(c)히스테리시스 폭 0.20·3상태(LBA) 도달. 회귀 maxDiff=0(kFSM=0=step-0012, golden `cwd@` 가법 잠금)·잔차 4.48e-13·결정론(상태 라벨 가법 해시) 일치. 동역학 보존(40k 전 시드 생존·후반 출생/사망 1355/1360). **발견**: 불은 연료가 다해야 꺼진다(소진 99% 연료·1% 핫코어, FN 빠른점화-느린소진)·문턱 두 층(siting≠flashover) |
