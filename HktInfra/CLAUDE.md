@@ -58,11 +58,13 @@ HktGameplay 는 이미 토대를 준다 — **서버 권위**, **HktCore(순수 
 step마다 다음 산출물을 만든다.
 
 - `step-NNNN.md` — 문서. 도입부에 "6요소 지도" 표, 가설·검증 결과·다음 예고를 담는다.
-- `step-NNNN/net-core.js` — 브라우저/Node 겸용 프로토타입 코어. **이 step 이 더한 인프라 로직은 여기에만 산다.** 서버 박스들(로그인·게이트웨이·존·서비스… — 인프로세스 액터 + 메시지 큐) + 전송 모델(지연·손실·순서) + 이번 step 의 계약.
+- `step-NNNN/net-core.js` — 브라우저/Node 겸용 프로토타입 코어. **이 step 이 더한 인프라 로직은 여기에만 산다.** 서버 박스들(로그인·게이트웨이·존·서비스… — 인프로세스 액터 + 메시지 큐) + 전송 모델(지연·손실·순서) + 이번 step 의 계약. **dual-mode 노출 필수**(아래) — Node `require` 와 브라우저 `<script>` 전역 둘 다.
 - `step-NNNN/verify.js` — 헤드리스 검증. 회귀(`reg`)·결정론 전파·권위보존·수렴(desync)을 수치로 출력.
-- (선택) `step-NNNN/panel.js` + `step-NNNN.html` — 시각 관찰 셸(토폴로지·대역폭·desync 타임라인). 관찰이 통찰을 주는 step 에서만.
+- (선택, 권장) `step-NNNN/panel.js` + `step-NNNN.html` — **시각 관찰 셸**(토폴로지·대역폭·desync 타임라인). `engine/panel-kit.js`(공통 키트) 위에 *이 step 의 관찰 화면만* 올린다 — net-core 가 engine/Net 을 잇는 것과 같은 패턴. 관찰이 통찰을 주는 step 에서.
 
-> **공통 하니스 엔진**: 결정론 VM 커널 · 전송 모델 · 참여자 스케줄러는 복제하지 않는다. HWS 가 step-0007 에서 `engine/` 으로 공통화했듯, 초기 몇 step 뒤 `engine/` 한 곳으로 모은다(중복 방지). 매 step 은 그 위에 net-core.js(새 프로토콜) + verify.js 만 더한다.
+> **시각 관찰 셸 규약 (step-0004 수립)**: ⒜ **데이터 층은 환경 무관** — panel.js 의 `compute()`(파라미터→시계열)는 DOM 을 안 만지고, 브라우저 캔버스와 `node panel.js`(ANSI ASCII)가 *같은 함수*를 쓴다(UE-free 불변을 관찰 도구까지: 관찰 데이터도 헤드리스 재현). ⒝ **빌드/서버 0** — `step-NNNN.html` 을 브라우저로 *그냥 열면* 된다(`<script>` 로 engine→net-core→panel-kit→panel 순 로드, 번들러·fetch 없음). ⒞ **dual-mode 모듈** — `engine/index.js`·`step-NNNN/net-core.js` 끝에 `if (module) module.exports=…; if (globalThis) globalThis.HktX=…` 둘 다. 이 패턴을 깨면 reg 0 으로 즉시 잡힌다(래퍼만 바뀌므로 동작 불변).
+
+> **공통 하니스 엔진 (`engine/` — step-0004 추출 완료)**: 결정론 VM 커널·시드 PRNG·FNV·전송 모델 `Net`·엣지/코디 스텁·동결 `ISimCore`·관찰 키트(`panel-kit.js`)는 복제하지 않는다 — `engine/` 한 곳에 산다. 매 step 은 그 위에 `net-core.js`(새 프로토콜) + `verify.js` + (선택) `panel.js` 만 더한다.
 
 검증의 4기둥(매 step 통과해야 닫을 수 있다):
 
