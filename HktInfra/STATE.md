@@ -70,6 +70,8 @@ step-0001~0002 는 *무손실·즉시* 행복 전송 위에서만 섰다(0001 §
 - **수치 = verify 출력**: 모든 문서 수치는 시드 [42, 7, 1234, 99, 2026] 평균으로 재현.
 - **HktGameplay 원칙 상속**: HktCore 순수성(UObject 0) · 서버 권위(클라 읽기전용) · ISP 3-Layer · `SetPropertyDirty` 경유. 인프라는 *확장*하되 *깨지 않는다*.
 - **한 step = 한 조각**: 더 떠올라도 다음으로 전가. 새 코어는 직전 코어를 잇고 박스/계약 하나만 더한다.
+- **도구 = tick 판정 + 원격-검증** ([TOOLS.md](TOOLS.md)): tick 동기는 C++(HktCore), 그 외는 원격에서 빌드·헤드리스 검증되는 도구(Go·Node·컨테이너). 시뮬만 무거운 빌드로 격리(HktCore "UObject 0" 순수성 = 얇은 헤드리스 호스트로 CI 빌드 가능 = 빌드 자산).
+- **데이터 3분할** ([TOOLS.md](TOOLS.md) §3): ① 월드 영속 = intent 로그(event sourcing) + 스냅샷 ② 트랜잭션 진실 원천(가방·계정) = PostgreSQL→분산 SQL ③ Redis = 휘발/캐시(진실 원천 아님). 월드 상태를 DB 행으로 저장하지 않는다.
 
 ---
 
@@ -89,6 +91,7 @@ step-0001~0002 는 *무손실·즉시* 행복 전송 위에서만 섰다(0001 §
 ## 6. 빠른 참조
 
 - 네트워크 인프라 큰 그림·계층 책임·씨앗 매핑·척추 체크 4항: [SPINE.md](SPINE.md)
+- **도구·기술 스택(각 박스를 무엇으로 짓는가)·데이터 3분할·교차 관심사**: [TOOLS.md](TOOLS.md)
 - 시뮬 도메인(무엇을 네트워킹하는가): [../HktGameplay/CLAUDE.md](../HktGameplay/CLAUDE.md)
 - **의외의 발견 / 정직한 한계 전문**: 각 `step-NNNN.md` (STATE는 중복 보관하지 않음 — 위 §3·§4가 현재 load-bearing 요약).
 
