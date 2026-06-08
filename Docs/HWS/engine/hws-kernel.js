@@ -310,6 +310,9 @@
     var ag = sim.agents;
     feed(new Float64Array([ag.length]).buffer);
     for (var k = 0; k < ag.length; k++) feed(new Float64Array([ag[k].x, ag[k].y, ag[k].m]).buffer);
+    /* 생명 유전형 a.g(step-0016) — *가법*: 생명 유전이 활성(lifeGeneInit)일 때만 먹인다(kInherit=0 이면 false → skip → 과거 골든 전부 불변).
+     * 이산 유전 정보(생명 태그)가 결정론·재현에 들어간다(같은 시드 2회 a.g 도 비트 동일). 위 x,y,m 뒤에 *태그*만 더한다. */
+    if (sim.lifeGeneInit) for (var kg = 0; kg < ag.length; kg++) feed(new Float64Array([ag[kg].g || 0]).buffer);
     /* 별(step-0011) — *가법*: 별이 있을 때만 먹인다. 별 없는 과거 시나리오(0001~0010)는 이 분기 skip →
      * 해시 비트 동일(골든 불변, verify-sim-engine 으로 증명). 별 위치·연료로 결정론·재현 보장. */
     var st = sim.stars;

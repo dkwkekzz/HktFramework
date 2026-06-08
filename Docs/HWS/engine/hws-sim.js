@@ -59,6 +59,8 @@
       Gbuf: new Uint8Array(N),     // step-0015: 복제 tick-시작 주형 스냅샷(작업 버퍼 — 상태 아님, 매 tick 재계산)
       geneInit: false,             // step-0015: 복제 활성 여부 — 해시 가법 가드(false 면 G 해시 skip → 과거 골든 불변)
       geneReps: 0, geneMut: 0,     // step-0015: 누적 복제·변이 수(통계용 — 장부 무관)
+      lifeGeneInit: false,         // step-0016: 생명 유전 활성 여부 — 해시 가법 가드(false 면 agent.g 해시 skip → 과거 골든 불변)
+      inheritMut: 0,               // step-0016: 누적 생명 유전 변이 수(통계용 — 장부 무관). inheritOcc(상속 매개 Map)는 법칙이 지연 생성.
       laws: L.LAW_ORDER    // 이 sim 에 적용할 법칙 순서(확장점). 기본 = 표준 LAW_ORDER.
     };
   }
