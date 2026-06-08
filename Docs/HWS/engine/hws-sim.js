@@ -55,6 +55,10 @@
       Eprev: new Float64Array(N),  // step-0014: 직전 tick 끝 E 스냅샷(dE/dt 측정 기준). kFlux=0 이면 미사용(회귀)
       fluxInit: false,             // step-0014: 활성도 첫 기준선 설정 여부 — 해시 가법 가드(false 면 A 해시 skip)
       fluxSum: 0, fluxPeak: 0,     // step-0014: 세계 활성도 총량·최고(통계용 — 매 tick 재계산, 상태 아님)
+      G: new Uint8Array(N),        // step-0015: 유전형 태그(genotype) — R 의 *속성*(이산 정보). 0 = 무유전. kTemplate=0 이면 영원히 0(회귀)
+      Gbuf: new Uint8Array(N),     // step-0015: 복제 tick-시작 주형 스냅샷(작업 버퍼 — 상태 아님, 매 tick 재계산)
+      geneInit: false,             // step-0015: 복제 활성 여부 — 해시 가법 가드(false 면 G 해시 skip → 과거 골든 불변)
+      geneReps: 0, geneMut: 0,     // step-0015: 누적 복제·변이 수(통계용 — 장부 무관)
       laws: L.LAW_ORDER    // 이 sim 에 적용할 법칙 순서(확장점). 기본 = 표준 LAW_ORDER.
     };
   }
@@ -72,7 +76,7 @@
   var core = {
     DEFAULTS: L.DEFAULTS, laws: L,
     mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, createSim: createSim,
-    aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, step: step, run: run,
+    aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, spawnGene: K.spawnGene, step: step, run: run,
     totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore,
     detectPools: K.detectPools, harvest: K.harvest, paintStore: K.paintStore, paintE: K.paintE, localE: K.localE, localStore: K.localStore,
     torusDist: K.torusDist, centroid: K.centroid, spread: K.spread, trackDist: K.trackDist, discCells: K.discCells,

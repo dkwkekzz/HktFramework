@@ -103,6 +103,18 @@
     return st;
   }
 
+  /* 유전 씨앗(step-0015 bootstrap) — (cx,cy) 반경 r 원판에 R 을 amount 씩 굳히고 유전형 태그 tag 를 박는다.
+   * 최초 복제자(genotype)를 세계에 심는 setup 연산 — 외부에서 들여온 질량이라 E0 를 함께 올려 장부를 보정한다
+   * (paintStore 와 같은 정신). geneInit 을 켜 해시가 G 를 먹게 한다(결정론·재현에 유전형 포함). 이후 ⑤d replicate
+   * 이 이 주형에서 자기복제한다(E→R 쌍 거래 + 태그 복사). tag 는 1..geneTypes(다양성은 *속성*에 — 단일 척추). */
+  function spawnGene(sim, cx, cy, r, tag, amount) {
+    var cells = discCells(sim.p.W, sim.p.H, cx, cy, r), R = sim.R, G = sim.G, added = 0;
+    var am = amount != null ? amount : 1.0, tg = tag != null ? tag : 1;
+    for (var k = 0; k < cells.length; k++) { R[cells[k]] += am; G[cells[k]] = tg; added += am; }
+    sim.E0 += added; sim.geneInit = true;
+    return added;
+  }
+
   /* 총 생물량 M = Σ 에이전트.m */
   function totalBiomass(sim) {
     var M = 0, ag = sim.agents;
@@ -313,6 +325,9 @@
     /* 활성도 필드 A(step-0014) — *가법*: 계량이 활성(fluxInit)일 때만 먹인다(kFlux=0 이면 false → skip → 과거 골든 전부 불변).
      * 활성도(측정값)가 결정론·재현에 들어간다(같은 시드 2회 A 도 비트 동일). A 는 읽기 전용 계기지만 결정론 검증엔 포함. */
     if (sim.fluxInit) feed(sim.A.buffer);
+    /* 유전형 필드 G(step-0015) — *가법*: 복제가 활성(geneInit)일 때만 먹인다(kTemplate=0·미파종이면 false → skip → 과거 골든 전부 불변).
+     * 이산 유전 정보(태그)가 결정론·재현에 들어간다(같은 시드 2회 G 도 비트 동일). R 은 이미 위에서 먹였으므로 G 는 *태그*만 더한다. */
+    if (sim.geneInit) feed(sim.G.buffer);
     return ('00000000' + h.toString(16)).slice(-8);
   }
 
@@ -330,7 +345,7 @@
 
   var api = {
     mulberry32: mulberry32, tumbleHash: tumbleHash,
-    discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar,
+    discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
     measure: measure, measureStore: measureStore,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
