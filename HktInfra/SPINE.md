@@ -72,7 +72,7 @@
 | 이벤트 버스 | `FHktEvent`(EventTag) + `HktSimulationEventBuilderComponent` · `HktTagNetworkComponent` |
 | 데이터 계층 | `HktFileDatabaseComponent` · `HktTransientDatabaseComponent` · `HktFilePersistentFrameComponent` |
 
-> `IHktServerRule` 의 컨텍스트 바인딩(Frame·Graph·DB·Builder)이 곧 **분리의 이음새(seam)** — 인프로세스 구현을 원격 서비스 스텁으로 갈아끼우는 지점이다.
+> `IHktServerRule` 의 컨텍스트 바인딩(Frame·Graph·DB·Builder)이 곧 **분리의 이음새(seam)** — 인프로세스 구현을 원격 서비스 스텁으로 갈아끼우는 지점이다. 이 seam 은 **동결된 Sim 인터페이스**로 정식화한다 — 오늘은 더미 서버(헤드리스)가 그 뒤에 서서 전체 인프라를 원격 E2E 로 세우고, C++(HktCore) 정교화는 인터페이스 무변경의 *최후 교체*다 ([TOOLS.md](TOOLS.md) §4).
 
 ---
 
