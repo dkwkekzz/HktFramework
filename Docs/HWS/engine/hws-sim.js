@@ -49,6 +49,7 @@
       tumbles: 0,          // 누적 탐사(tumble) 수 (통계용 — 위치 변경이라 장부 무관)
       tumbleBuf: [],       // tumble 빈 이웃 [idx,x,y…] 재사용 버퍼(상태 아님 — 매 호출 비움)
       adheres: 0,          // step-0017: 누적 차등 응집 이동 수 (통계용 — 위치 변경이라 장부 무관). adhereOcc(점유→태그)는 법칙이 지연 생성.
+      coupled: 0,          // step-0018: 누적 막 공유 flux 량 (통계용 — kin 쌍 E 균등화는 쌍 거래라 장부 무관). coupleOcc(점유→태그)는 법칙이 지연 생성.
       crystallized: 0, weathered: 0,  // 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
       stars: [],           // step-0011: 살아있는 별 목록 {x,y,center,fuel}. 초기 0 → kIgnite=0 이면 영원히 0(회귀)
       burned: 0, starBirths: 0, starDeaths: 0,  // step-0011: 누적 연소량·점화·소진 수(통계용 — F 가 순잔액)
@@ -80,7 +81,7 @@
     DEFAULTS: L.DEFAULTS, laws: L,
     mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, createSim: createSim,
     aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, spawnGene: K.spawnGene, step: step, run: run,
-    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms,
+    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane,
     detectPools: K.detectPools, harvest: K.harvest, paintStore: K.paintStore, paintE: K.paintE, localE: K.localE, localStore: K.localStore,
     torusDist: K.torusDist, centroid: K.centroid, spread: K.spread, trackDist: K.trackDist, discCells: K.discCells,
     setSource: K.setSource, setSink: K.setSink,

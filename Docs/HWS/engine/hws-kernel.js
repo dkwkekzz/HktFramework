@@ -210,6 +210,42 @@
     };
   }
 
+  /* 막/flux 결합 측정 — step-0018. couple(⑥c)이 빚은 *막*(경계 단차)·*내부 E 공유*를 author 아닌 *측정*으로 읽는다.
+   * 액적이 측정 윤곽(0017)에서 *물리적 flux 결합 도메인*으로 올랐는지 본다. 위치(center)·태그(g)·필드 E 만 *읽고* 동역학에
+   *   되먹이지 않는다(둘째 척추 아님 — 측정 읽기전용). couple 법칙 자체는 전역 성분을 안 쓰지만, *측정*은 도메인 통계를 읽어도 된다.
+   * 반환:
+   *   interior — 같은 kin 4-인접 쌍(우/하)의 평균 |ΔE|(액적 *내부* — E 공유로 ↓; 막이 셀 거래의 결합 도메인이면 내부가 균질).
+   *   boundary — kin 셀 vs 빈칸/타-태그 4-인접의 평균 |ΔE|(액적 *경계* = 막 단차 — 내부 plateau 와 외부의 대비).
+   *   index    — boundary/interior(>1 → 막 창발: 내부 균질·경계 단차. =1 ≈ 공유 없음[kMembrane=0]·구조 없음). 형태 측정(4기둥 ④).
+   *   intraVar — kin 점유 셀 E 의 전역 분산(보조 — 공유로 균질화하면 ↓). */
+  function measureMembrane(sim) {
+    var ag = sim.agents, E = sim.E, W = sim.p.W, H = sim.p.H, N = W * H, k;
+    var tag = sim._memTag; if (!tag || tag.length !== N) tag = sim._memTag = new Int16Array(N);
+    tag.fill(0);
+    var sumE = 0, cnt = 0;
+    for (k = 0; k < ag.length; k++) { var g = ag[k].g | 0; if (g > 0) { tag[ag[k].center] = g; sumE += E[ag[k].center]; cnt++; } }
+    var inSum = 0, inN = 0, bSum = 0, bN = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var c = a.center, x = a.x, y = a.y;
+      var rc = c - x + (x + 1) % W, dc = ((y + 1) % H) * W + x;                        // 우·하 (interior 쌍 중복 방지)
+      var lc = c - x + (x - 1 + W) % W, uc = ((y - 1 + H) % H) * W + x;                // 좌·상 (boundary 만)
+      var dr = E[c] - E[rc]; if (dr < 0) dr = -dr;
+      var dd = E[c] - E[dc]; if (dd < 0) dd = -dd;
+      var dl = E[c] - E[lc]; if (dl < 0) dl = -dl;
+      var du = E[c] - E[uc]; if (du < 0) du = -du;
+      if (tag[rc] === t) { inSum += dr; inN++; } else { bSum += dr; bN++; }            // 우 — kin=interior, 그 외=막 경계
+      if (tag[dc] === t) { inSum += dd; inN++; } else { bSum += dd; bN++; }            // 하
+      if (tag[lc] !== t) { bSum += dl; bN++; }                                         // 좌 — kin 이면 우에서 이미 셈(중복), 비kin 만 경계로
+      if (tag[uc] !== t) { bSum += du; bN++; }                                         // 상 — 하에서 이미 셈(중복), 비kin 만 경계로
+    }
+    var mean = cnt ? sumE / cnt : 0, v = 0;
+    for (k = 0; k < ag.length; k++) { if ((ag[k].g | 0) > 0) { var dv = E[ag[k].center] - mean; v += dv * dv; } }
+    var interior = inN ? inSum / inN : 0, boundary = bN ? bSum / bN : 0;
+    return { interior: interior, boundary: boundary, index: interior > 1e-9 ? boundary / interior : 0,
+      intraVar: cnt ? v / cnt : 0, intraPairs: inN, bndPairs: bN };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -386,7 +422,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

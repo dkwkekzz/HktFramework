@@ -228,10 +228,10 @@
     }
     var ag = sim.agents || [], agN = 0;
     if (S.ov.life && ag.length) {
-      var need = ag.length * 3;
-      if (!R.agArr || R.agArr.length < need) R.agArr = new Float32Array(Math.max(192, need * 2));
+      var need = ag.length * 4;                            // (x, y, m, g) — g=생명 유전형 a.g(step-0016~, 0=무유전)
+      if (!R.agArr || R.agArr.length < need) R.agArr = new Float32Array(Math.max(256, need * 2));
       for (var k = 0; k < ag.length; k++) {
-        R.agArr[k * 3] = ag[k].x; R.agArr[k * 3 + 1] = ag[k].y; R.agArr[k * 3 + 2] = ag[k].m;
+        R.agArr[k * 4] = ag[k].x; R.agArr[k * 4 + 1] = ag[k].y; R.agArr[k * 4 + 2] = ag[k].m; R.agArr[k * 4 + 3] = ag[k].g || 0;
       }
       gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
       gl.bufferData(gl.ARRAY_BUFFER, R.agArr.subarray(0, need), gl.DYNAMIC_DRAW);
@@ -678,15 +678,26 @@
     '#version 300 es',
     'precision highp float;',
     'layout(location=0) in vec3 aAgent;',                   // (x, y, m)
+    'layout(location=1) in float aGene;',                   // 생명 유전형 a.g(step-0016~) — 0=무유전. 2D drawHook 의 점 색과 일관.
     'uniform sampler2D uE;',
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uPx;',
     'uniform ivec2 uDim;',
+    'out vec3 vCol;',                                       // 유전형 클론 색 → FS 로 전달(geneCol 팔레트, 2D GENE_COL 일관)
+    'vec3 geneColP(float tag){',
+    '  int g=int(tag+0.5);',
+    '  if (g==1) return vec3(0.910,0.376,0.376);',          // tag1 빨강(저적합)
+    '  if (g==2) return vec3(0.471,0.784,0.376);',          // tag2 초록
+    '  if (g==3) return vec3(0.376,0.659,0.910);',          // tag3 파랑
+    '  if (g>=4) return vec3(0.784,0.439,0.878);',          // tag4 보라(고적합)
+    '  return vec3(0.96,0.84,0.40);',                       // 0 = 무유전 → 기존 호박색(과거 step 불변)
+    '}',
     'void main(){',
     '  vec2 t=texelFetch(uE, ivec2(int(aAgent.x),int(aAgent.y)), 0).rg;',
     '  float h=min(uHS*log(1.0+max(t.r+t.g,0.0))/log(1.0+uSat), uHS*2.2);',
     '  vec4 cp=uMVP*vec4(aAgent.x, h+0.55, aAgent.y, 1.0);',
     '  gl_Position=cp;',
+    '  vCol=geneColP(aGene);',                              // 유전형으로 점 색 분기(개체 클론 색)
     '  float wr=min(0.35+0.55*sqrt(max(aAgent.z,0.0)), 1.8);',  // 반경 ∝ √m (2D 와 동일 규칙)
     '  gl_PointSize=clamp(2.0*wr*uPx/max(cp.w,0.001), 2.0, 56.0);',
     '}'].join('\n');
@@ -694,12 +705,13 @@
   var FS_POINT = [
     '#version 300 es',
     'precision highp float;',
+    'in vec3 vCol;',                                        // 유전형 클론 색(VS 에서)
     'out vec4 o;',
     'void main(){',
     '  vec2 d=gl_PointCoord-0.5; float r2=dot(d,d);',
     '  if (r2>0.25) discard;',
     '  float a=exp(-r2*16.0);',                             // 중심 핵 + 글로우 (가산 블렌딩 전제)
-    '  o=vec4(vec3(0.96,0.84,0.40)*a, a);',
+    '  o=vec4(vCol*a, a);',                                 // 유전형 색 발광(무유전은 호박색 — 불변)
     '}'].join('\n');
 
   var VS_LINE = [
@@ -743,7 +755,9 @@
     gl.bindVertexArray(R.vaoP);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
     gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);   // (x,y,m) stride 16 — 생명 유전형 g 가 4번째 float
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);  // a.g(유전형 태그) — geneColP 로 점 색 분기
     gl.bindVertexArray(R.vaoL);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
     gl.enableVertexAttribArray(0);

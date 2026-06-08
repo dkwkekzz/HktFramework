@@ -138,7 +138,13 @@
                          //   author(`Organism{cells}`)가 아니라 그 *4-인접 kin 연결 성분*(flux 결합 도메인)으로 *측정*해 읽는다(척추 체크 2).
                          //   위치만 바꿈 — 장부 거래 0(move/tumble 과 같은 경계). 유전이 개체보다 먼저: a.g 가 정의돼야 kin 이 정의돼 묶인다.
     adhesionLambda: 1.0, // 이종 반발 가중 — 응집 점수 = (kin 접촉) − adhesionLambda·(비kin 접촉). 클수록 이종 분리가 날카롭다(표면장력↑).
-    adhesionGain: 0.5    // 이동 문턱 — 후보 칸 점수가 머무름보다 이만큼 *엄격히* 커야 옮긴다(jitter 방지·안정 액적). 점수가 정수라 0.5 = "≥1 개선".
+    adhesionGain: 0.5,   // 이동 문턱 — 후보 칸 점수가 머무름보다 이만큼 *엄격히* 커야 옮긴다(jitter 방지·안정 액적). 점수가 정수라 0.5 = "≥1 개선".
+    /* ── step-0018: 막/flux 결합 도메인(couple — 개체='계'를 측정 윤곽에서 *물리적 도메인*으로, SPINE 주요 전이 사다리 "다세포=flux 결합 도메인") ── */
+    kMembrane: 0         // 막 결합 마스터. 0 = off = step-0017 과 비트 동일(회귀, E 불변 → org@ 해시 무관). >0 이면 막/flux 결합 on:
+                         //   같은 유전형(kin=같은 a.g)으로 4-인접한 생명끼리 *필드 E 를 국소 공유·재분배*한다(쌍 거래 — 보존). 액적 내부가 균질해지고
+                         //   (공유 larder) 경계엔 단차(막)가 *창발*한다("막은 액적의 표면으로" — author 안 함). 0017 의 측정 윤곽 액적을 *flux 결합
+                         //   도메인*(내부 E 공유)으로 올린다(정직한 한계 #2 해소). 위치 아닌 *E 재분배*(adhere 와 다름)이되 쌍 거래라 장부 보존.
+                         //   국소(4-인접 kin 쌍만, 전역 연결성분 안 씀 → 측정 읽기전용 보존)·강도 0~1(=0 무공유, =1 완전 균등화). (a) 개체↔대사 결합의 디딤돌.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -530,6 +536,39 @@
     sim.adheres += moved;                                                              // 누적 응집 이동(통계 — 위치 변경이라 장부 무관)
   }
 
+  /* ⑥c 막/flux 결합 도메인(couple, step-0018) — kMembrane=0 이면 통째로 건너뜀(회귀 0, E 불변 → org@ 비트 동일·새 해시 항 0).
+   * SPINE 주요 전이 사다리 "다세포(개체)=flux 결합 도메인" + STATE 형태 사다리 R1: step-0017 의 액적은 `measureOrganisms` 가
+   *   그은 *측정 윤곽*일 뿐이었다(정직한 한계 #2 — 내부 E 공유·공통 경계 없음). 이 법칙은 그 액적을 *물리적 flux 결합 도메인*으로 올린다:
+   *   같은 유전형(kin=같은 a.g)으로 4-인접한 생명끼리 *제 칸의 필드 E 를 국소 공유·재분배*한다 → 액적 내부 E 가 균질해지고(공유 larder),
+   *   주변과의 경계엔 단차(막)가 *창발*한다. "막"·"표면장력"을 코드에 박지 않는다 — kin E 공유라는 국소 법칙만 깔면 막은 액적의 *표면*으로
+   *   창발(개체 먼저·막 뒤, 0017 설계결정 4의 연장). 무유전(a.g=0)은 kin 정체성이 없어 공유 안 함("유전이 개체보다 먼저").
+   * 메커니즘(국소·E 재분배·쌍 거래 보존): 각 4-인접 kin 쌍(같은 태그·인접 center)의 E 차이를 kMembrane 비율만큼 균등화한다 —
+   *   d = (E[c]−E[nb])·kMembrane·0.5 를 c→nb 로 옮긴다(나간 만큼 들어옴 → sumE 불변, 거래 0). 우/하 변만 훑어 쌍을 한 번씩만(중복 0).
+   *   adhere(위치만)와 달리 *실제 E 재분배*지만(0015·0016 처럼 실변환), 쌍 거래라 닫힌 장부·임계 자기조직 보존(잔차 불변).
+   * 척추: 새 *필드* 없음(같은 E 를 공유 — 막은 창발·kin 은 a.g 속성, 단일 척추) · authored 개체 분기 없음(couple 은 *국소 쌍* 법칙 —
+   *   전역 `measureOrganisms` 를 동역학에 안 씀 → "측정은 읽기전용" 정전 사실 보존; kin 인접 게이트는 adhere/inherit 와 같은 속성 게이트) ·
+   *   국소 문턱(제 4-인접 kin 쌍만, 전역 조율자 0) · 닫힌 장부(쌍별 E 균등화 = 거래 0, move/adhere 와 같은 경계).
+   * ⑥c: ⑥a adhere(kin 정렬) 뒤·⑥b crowd 앞 — 정렬로 묶인 액적 위에서 kin 끼리 E 를 모으고, 다음 ⑦생명이 그 공유된 자리에서 흡수한다.
+   *   순차(occ 제자리·scan=agent 배열 순서)라 같은 패스에서 먼저 옮긴 E 를 뒤가 본다(Gauss-Seidel, 결정론 — Math.random 금지). */
+  function couple(sim) {
+    var p = sim.p; if (p.kMembrane === 0) return;
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, E = sim.E, W = p.W, H = p.H, N = W * H, k = p.kMembrane * 0.5;
+    var occ = sim.coupleOcc; if (!occ || occ.length !== N) occ = sim.coupleOcc = new Int16Array(N);
+    occ.fill(0);                                                                       // 0 = 무점유/무유전(kin 정체성 없음 → 공유 제외)
+    for (var i = 0; i < ag.length; i++) { var g = ag[i].g | 0; if (g > 0) occ[ag[i].center] = g; }
+    var shared = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var c = a.center, x = a.x, y = a.y;
+      var rc = c - x + (x + 1) % W;                                                    // 우(+x) 이웃 center
+      var dc = ((y + 1) % H) * W + x;                                                  // 하(+y) 이웃 center (우/하만 — 쌍 중복 방지)
+      if (occ[rc] === t) { var d1 = (E[c] - E[rc]) * k; E[c] -= d1; E[rc] += d1; shared += d1 < 0 ? -d1 : d1; }
+      if (occ[dc] === t) { var d2 = (E[c] - E[dc]) * k; E[c] -= d2; E[dc] += d2; shared += d2 < 0 ? -d2 : d2; }
+    }
+    sim.coupled += shared;                                                             // 누적 공유 flux(통계 — 쌍 거래라 장부 무관)
+  }
+
   /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
    * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
    * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
@@ -707,13 +746,14 @@
    * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
    * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
+   * ⑥c 막 결합(couple)은 ⑥a adhere 뒤·⑥b crowd 앞 — 정렬로 묶인 액적 위에서 kin 끼리 E 를 공유하고(막 창발), crowd·생명이 그 공유된 자리에서 잰다·흡수한다.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, crowd, metabolize, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, metabolize, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, adhere: adhere, crowd: crowd, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
