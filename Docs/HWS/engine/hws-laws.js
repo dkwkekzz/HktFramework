@@ -109,8 +109,19 @@
                          //   활성도 필드 A 로 적분(EMA)한다. A 는 *연속 활성도 축*(결정2) — 저장체(R 잠김·E 불변 → 낮은 A)와
                          //   소산(별 연소·E 격변 → 높은 A)이 *측정*으로 그 축의 두 극단에 갈린다(authored enum 없이 분류 창발).
                          //   A 는 *읽기 전용 계기*다 — E/R/agent 동역학에 되먹이지 않는다(단일 척추: A 는 측정이지 둘째 구동 필드 아님).
-    aFlux: 0.1           // 활성도 EMA 평활 계수(0~1) — A ← (1−aFlux)·A + aFlux·|dE/dt|. 작을수록 길게 기억(시간 평균),
+    aFlux: 0.1,          // 활성도 EMA 평활 계수(0~1) — A ← (1−aFlux)·A + aFlux·|dE/dt|. 작을수록 길게 기억(시간 평균),
                          //   클수록 순간 throughput 에 민감. 결정론 무관(시드 의사난수 아님)·장부 무관(A 는 에너지 아닌 *속도*).
+    /* ── step-0015: R-주형 자기복제(heredity — 유전의 씨앗, SPINE §다섯째 축) ── */
+    kTemplate: 0,        // 복제 마스터. 0 = off = step-0014 와 비트 동일(회귀, G·복제 미작동 → 해시 가법 skip). >0 이면
+                         //   R-주형 자기복제 on: 자기복제하는 R-배치(genotype)가 제 사본의 결정화를 *촉매*한다(저장의 씨앗 끝).
+                         //   복제 = E→R 쌍 거래(닫힌 장부, ⑤결정화와 같은 경계) + 유전형 태그 G 복사. 복제오류=변이·기질경쟁=선택.
+    geneRate: 0.5,       // 복제 1회당 이웃 칸에 침착하는 E→R 양(태그를 함께 복사). 대상 이웃은 E ≥ geneRate 여야 한다(기질 문턱=선택).
+    geneThresh: 0.3,     // 주형 문턱 — R[i] ≥ 이 값 & G[i]≠0 인 칸이 복제 주형(국소 판정). 자식도 침착으로 이 문턱을 넘어 다음 세대 주형.
+    geneMu: 0.01,        // 복제오류율(변이) — 자식 태그가 이 확률로 이웃 태그(±1, wrap)로 바뀐다(시드 의사난수, Math.random 금지).
+    geneTypes: 4,        // 유전형 태그 종류 수(1..geneTypes). 다양성은 *병렬 필드 아닌 속성*(태그 G)에 싣는다 — 단일 척추.
+    geneFit0: 0.5,       // 유전형→표현형(복제 propensity) 맵 절편: fit(tag) = geneFit0 + geneFitStep·(tag−1), [0,1] clamp.
+    geneFitStep: 0.15,   // 표현형 기울기 — 높은 태그가 더 빨리 복제(propensity↑) → 선택이 평균 적합도를 올린다(=0 이면 중립=드리프트만).
+    geneClear: 0.05      // 유전 소거 문턱 — R[i] < 이 값이면 G[i]=0(풍화로 기질이 사라지면 유전 정보도 소멸 — 정보는 저장 극단에만).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -236,6 +247,55 @@
       }
     }
     sim.crystallized += cry; sim.weathered += wth;
+  }
+
+  /* ⑤d 복제(R-주형 자기복제, step-0015) — kTemplate=0 이면 통째로 건너뜀(회귀 0, G·복제 불변 → 해시 가법 skip).
+   * SPINE §다섯째 축(유전): 저장(R)의 *씨앗 끝* — 자기복제하는 R-배치(genotype)가 제 사본의 결정화를 *촉매*한다.
+   *   복제 = E→R 쌍 거래(닫힌 장부, ⑤결정화와 같은 경계) + 유전형 태그 G 복사. 복제오류(geneMu)=변이, 기질(E) 경쟁=선택
+   *   → 다윈 동역학이 substrate 위에서 돈다(genotype = 복제된 R-패턴; 다양성은 *병렬 필드 아닌 속성*=태그 G 에 — 단일 척추).
+   *   유전은 *이산* 정보다(연속 필드는 번져 정보를 못 지킨다 — Schrödinger "비주기 결정") — G 는 Uint8 이산 태그, R 은 담체.
+   * 표현형: fit(tag) = geneFit0 + geneFitStep·(tag−1) = 복제 propensity(0~1). 높은 태그가 빨리 복제 → 선택이 평균 적합도를
+   *   올린다(geneFitStep=0 이면 중립=드리프트). genotype→phenotype 맵은 authored type 분기가 아니다 — E 동역학은 태그로
+   *   안 갈리고(필드는 여전히 E), 복제 *속도*만 태그의 함수다. 활성도(E flux)는 여전히 측정으로 환원(척추 체크 2).
+   * 국소(척추 체크 3): 주형은 제 4이웃(von Neumann)만 본다(전역 조율자 0). tick 시작 스냅샷(Gbuf)에서 주형을 읽어
+   *   같은 tick scan-order 연쇄 폭주를 막는다 — 한 tick = 한 세대. 빈 칸(G==0) 경쟁은 scan 먼저 온 주형이 차지(국소 자원경쟁).
+   * 순환(척추 체크 4): 풍화(⑤ kWeather)가 R 을 깎아 R < geneClear 면 G=0(기질이 사라지면 유전 정보도 소멸 — 정보는 저장
+   *   극단에만; 소산 극단 불꽃은 흐름이 패턴을 지운다). 빠른 복제(개체 척도) + 느린 풍화(세계 척도) = 유전 정보의 순환.
+   * 장부: 복제는 E→R 쌍 거래뿐(G 태그는 거래 0 — 정보지 에너지 아님). sumE+M+R+… 식 불변(잔차 동일). */
+  var GENE_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // 복제 이웃(4-근방) — scan 순서 고정(결정론·먼저 온 주형이 빈칸 차지)
+  function replicate(sim) {
+    var p = sim.p; if (p.kTemplate === 0) return;   // off: replicate no-op. geneInit 은 *건드리지 않는다* — A(읽기전용 측정·재베이스라인 필요)와 달리 G 는 *지속 상태*다:
+                                                    //   spawnGene 으로 심은 G 가 있으면(geneInit=true) kTemplate 을 꺼도 그 유전형이 해시에 남아야 한다(faithful fingerprint, sticky).
+                                                    //   kTemplate=0·미파종이면 geneInit 기본 false 유지 → G skip(과거 골든 std@/endo@/cwd@/fsm@/flux@ 불변).
+    sim.geneInit = true;
+    var E = sim.E, R = sim.R, G = sim.G, Gb = sim.Gbuf, W = p.W, H = p.H, N = W * H;
+    var rate = p.geneRate, gThr = p.geneThresh, mu = p.geneMu, nG = p.geneTypes;
+    var f0 = p.geneFit0, fStep = p.geneFitStep, gClr = p.geneClear, seed = sim.seed, tick = sim.tick;
+    var reps = 0, muts = 0, i;
+    /* 0. 유전 소거(풍화로 기질 사라진 칸의 태그 제거) + tick 시작 주형 스냅샷(Gb) — 같은 tick 연쇄 폭주 방지(한 tick=한 세대). */
+    for (i = 0; i < N; i++) { if (G[i] !== 0 && R[i] < gClr) G[i] = 0; Gb[i] = G[i]; }
+    /* 1. 복제 — 각 주형(Gb≠0 & R≥gThr)이 4이웃 빈칸(G==0, 기질 E≥rate)에 propensity=fit 로 침착·태그 복사(±변이). */
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        i = y * W + x;
+        var g = Gb[i]; if (g === 0 || R[i] < gThr) continue;
+        var fit = f0 + fStep * (g - 1); if (fit > 1) fit = 1; else if (fit < 0) fit = 0;
+        for (var d = 0; d < 4; d++) {
+          var nx = (x + GENE_VN[d][0] + W) % W, ny = (y + GENE_VN[d][1] + H) % H, j = ny * W + nx;
+          if (G[j] !== 0) continue;            // 이미 태그(live) — 먼저 온 주형이 차지(국소 자원경쟁, scan 순서)
+          if (E[j] < rate) continue;           // 기질 부족 — 복제할 E 가 없다(자원 문턱 → 경쟁=선택)
+          var h = K.tumbleHash(nx, ny, tick, seed);
+          if ((h >>> 16) * (1 / 65536) >= fit) continue;   // 발화 propensity = 적합도(표현형) — 고비트
+          E[j] -= rate; R[j] += rate;          // E→R 쌍 거래(닫힌 장부 — 결정화와 같은 경계)
+          var tag = g, mb = h & 0xffff;
+          if (mb * (1 / 65536) < mu) {         // 복제오류 = 변이(시드 의사난수) — ±1 이웃 태그로(wrap)
+            tag = ((g - 1 + ((mb & 1) ? 1 : nG - 1)) % nG) + 1; muts++;
+          }
+          G[j] = tag; reps++;
+        }
+      }
+    }
+    sim.geneReps += reps; sim.geneMut += muts;   // 누적 복제·변이(통계 — 장부 무관)
   }
 
   /* ⑤b 점화·연소·소진(step-0011) — 구동 내생화. kIgnite=0 이면 통째로 건너뜀(회귀 0, stars 불변).
@@ -523,12 +583,13 @@
    * ⑤b 점화(ignite)는 ⑤결정화 뒤·⑥이동 앞 — 갓 굳은 R 을 읽어 점화하고, 별이 만든 봉우리를 생명이 같은 tick 에 쫓는다.
    * ⑤c 연소(combust)는 ⑤b ignite 앞 — 이번 tick 주입 전에 별 상태를 정해(이전 tick 잔열 기준) burnMul 을 ignite 가 읽는다.
    * ⑥b 혼잡(crowd)은 ⑥이동 뒤·⑦생명 앞 — 이동으로 정해진 자리의 국소 밀도로 혼잡세를 매기고, 죽음은 ⑦이 처리한다.
+   * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, combust, ignite, move, crowd, metabolize, reproduce, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, crowd, metabolize, reproduce, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
-    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize,
+    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
     combust: combust, ignite: ignite, move: move, crowd: crowd, metabolize: metabolize, reproduce: reproduce, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

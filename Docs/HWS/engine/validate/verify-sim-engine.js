@@ -36,6 +36,8 @@ var POOL = { minE: 1.5, prom: 0.3 };
 var STAR = { kIgnite: 1, starRate: 0.06, starFuel0: 500, ignThresh: 1.5, starCap: 10, starGap: 6, starR: 3, starDriftPeriod: 20 };
 var CROWD = { kCrowd: 0.20, crowdR: 3 };   // 자기제한(step-0012) — golden 의 cwd@ 키가 별+생명+혼잡 스택을 동결 잠근다(step-0013~ 회귀 앵커).
 var FSM = { kFSM: 1, livingFrac: 0.55, burnOn: 0.6, burnOff: 0.4 };  // 연소 FSM(step-0013) — golden 의 fsm@ 키가 별+생명+혼잡+FSM 스택을 동결 잠근다(step-0014~ 회귀 앵커).
+var FLUX = { kFlux: 1, aFlux: 0.1 };  // 활성도 계량(step-0014) — golden 의 flux@ 키가 별+생명+혼잡+FSM+계량 스택을 동결 잠근다(step-0015~ 회귀 앵커).
+var GENE = { kTemplate: 1, geneRate: 0.5, geneThresh: 0.3, geneMu: 0.01, geneTypes: 4, geneFit0: 0.5, geneFitStep: 0.15, geneClear: 0.05 };  // R-주형 복제(step-0015) — golden 의 gene@ 키가 + 복제 스택을 동결 잠근다(step-0016~ 회귀 앵커).
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H;
 
 function scn(extra) {
@@ -49,6 +51,12 @@ function endoScn(extra) {
 function crowdScn(extra) { return Object.assign({}, endoScn(), CROWD, extra || {}); }
 /* 연소 FSM 켠 내생 시나리오(step-0013 스택, flux off) — step-0014/verify.js scn({kFlux:0}) 과 동일 상수. */
 function fsmScn(extra) { return Object.assign({}, crowdScn(), FSM, extra || {}); }
+/* 활성도 계량 켠 내생 시나리오(step-0014 스택, 복제 off) — step-0015/verify.js scn({kTemplate:0}) 과 동일 상수. */
+function fluxScn(extra) { return Object.assign({}, fsmScn(), FLUX, extra || {}); }
+/* R-주형 복제 켠 내생 시나리오(step-0015 스택) — step-0015/verify.js scn() 과 동일 상수. */
+function geneScn(extra) { return Object.assign({}, fluxScn(), GENE, extra || {}); }
+/* gene@ 결정 절차의 고정 유전 씨앗 — 두 유전형(저적합 tag1 · 고적합 tag4)을 대칭으로 심는다(결정론). */
+function seedGenes(C, sim) { C.spawnGene(sim, 20, 20, 2, 1, 1.0); C.spawnGene(sim, 44, 44, 2, 4, 1.0); }
 function spawnStrongest(C, sim, k) {
   var pools = C.detectPools(sim, POOL);
   var n = Math.min(k || 1, pools.length);
@@ -125,7 +133,9 @@ function runEq() {
  *   std@  — step-0010 등가 스택(외부 source, 별 없음). 0011 까지의 회귀 사슬을 잠근다.
  *   endo@ — step-0011 내생 구동(별+생명, 외부 source off). 0012 의 회귀 앵커(kCrowd=0 이면 이 해시 불변).
  *   cwd@  — step-0012 자기제한 스택(별+생명+혼잡, FSM off). 0013 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
- *   fsm@  — step-0013 연소 FSM 스택(별+생명+혼잡+FSM, flux off). 0014~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   fsm@  — step-0013 연소 FSM 스택(별+생명+혼잡+FSM, flux off). 0014 의 회귀 앵커.
+ *   flux@ — step-0014 활성도 계량 스택(+계량, 복제 off). 0015 의 회귀 앵커: 새 노브 kTemplate=0 이면 이 해시 불변.
+ *   gene@ — step-0015 R-주형 복제 스택(+복제+유전 씨앗). 0016~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -145,6 +155,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // fsm@ — 별 6 + 생명 5 + 자기제한 + 연소 FSM(step-0013 스택, flux off). step-0014 회귀 앵커.
     var a = ENG.createSim(seed, fsmScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); ENG.run(a, 3000);
     cur['fsm@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // flux@ — fsm@ + 활성도 계량(step-0014 스택, 복제 off). step-0015 회귀 앵커.
+    var a = ENG.createSim(seed, fluxScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); ENG.run(a, 3000);
+    cur['flux@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // gene@ — flux@ + R-주형 복제 + 유전 씨앗(step-0015 스택). step-0016 회귀 앵커.
+    var a = ENG.createSim(seed, geneScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
+    cur['gene@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
