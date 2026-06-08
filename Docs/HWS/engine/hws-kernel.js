@@ -174,6 +174,42 @@
     return { total: sum, maxR: mx, cells: cells };
   }
 
+  /* 개체(다세포='계') 측정 — step-0017. 차등 응집(adhere)이 빚은 *표면장력 액적*을 author 아닌 *측정*으로 읽는다(척추 체크 2).
+   * 개체 = *4-인접* + *같은 유전형(kin=같은 a.g)* 생명의 연결 성분(= flux 결합 도메인: 붙어 사는 kin 생명 무리). 무유전(g=0)은 kin
+   *   정체성이 없어 개체로 안 묶는다("유전이 개체보다 먼저") — 태그 생명만 성분으로 센다. 위치(center)·태그(g)만 읽는 순수 측정
+   *   (E/R/agent 동역학에 되먹임 0 — 둘째 척추 아님). 반환: 태그 생명 수·개체(성분) 수·평균/최대 개체 크기·단세포 비율·kin 접촉 비율.
+   *   kinFrac = (같은 태그 4-인접 쌍) / (점유–점유 4-인접 쌍) — 1 에 가까울수록 sorting 완성(이종 경계 최소화=표면장력). */
+  function measureOrganisms(sim) {
+    var ag = sim.agents, W = sim.p.W, H = sim.p.H, N = W * H;
+    var cellTag = sim._orgTag; if (!cellTag || cellTag.length !== N) cellTag = sim._orgTag = new Int16Array(N);
+    cellTag.fill(0);                                                 // 0 = 빈칸 또는 무유전(개체 셈에서 동등 취급)
+    var tagged = 0, k;
+    for (k = 0; k < ag.length; k++) { var g = ag[k].g | 0; if (g > 0) { cellTag[ag[k].center] = g; tagged++; } }
+    /* 연결 성분(4-인접 + 같은 태그) — union-find. 동시에 kin 접촉 비율(인접 쌍 셈, 우/하 변만 세 중복 회피). */
+    var parent = sim._orgUF; if (!parent || parent.length !== N) parent = sim._orgUF = new Int32Array(N);
+    function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    for (k = 0; k < ag.length; k++) { var c = ag[k].center; if (cellTag[c] > 0) parent[c] = c; }
+    var samePairs = 0, allPairs = 0;
+    for (k = 0; k < ag.length; k++) {
+      var ci = ag[k].center; if (cellTag[ci] === 0) continue;
+      var x = ci % W, y = (ci - x) / W, t = cellTag[ci];
+      var rx = ci - x + (x + 1) % W, dy = ((y + 1) % H) * W + x;     // 우(+x)·하(+y) 이웃만(쌍 중복 방지)
+      var tr = cellTag[rx]; if (tr > 0) { allPairs++; if (tr === t) { samePairs++; parent[find(ci)] = find(rx); } }
+      var td = cellTag[dy]; if (td > 0) { allPairs++; if (td === t) { samePairs++; parent[find(ci)] = find(dy); } }
+    }
+    var sizes = {}, nOrg = 0, maxSize = 0, singles = 0;
+    for (k = 0; k < ag.length; k++) {
+      var cc = ag[k].center; if (cellTag[cc] === 0) continue;
+      var root = find(cc), s = (sizes[root] = (sizes[root] || 0) + 1);
+      if (s > maxSize) maxSize = s;
+    }
+    for (var r in sizes) { nOrg++; if (sizes[r] === 1) singles++; }
+    return {
+      tagged: tagged, nOrg: nOrg, meanSize: nOrg ? tagged / nOrg : 0, maxSize: maxSize,
+      singleFrac: nOrg ? singles / nOrg : 0, kinFrac: allPairs ? samePairs / allPairs : 0
+    };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -350,7 +386,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

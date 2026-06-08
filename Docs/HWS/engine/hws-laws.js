@@ -129,8 +129,16 @@
                          //   차등 대사세(m→metabolized 쌍 거래) → 고적합이 *생명 개체군에서* 선택. genotype 을 소산 엔진(대사)에 묶어
                          //   생명을 활성도 *가운데* 세운다(주요 전이 사다리 다음 칸). 적합도 맵·태그 종류는 step-0015 와 공유(genotype 개념 통일).
     inheritMu: 0.01,     // 생명 상속 복제오류율(변이) — 자식 태그가 이 확률로 ±1 이웃 태그로(시드 의사난수, Math.random 금지). geneMu 와 별개 노브.
-    inheritCost: 0.02    // 표현형→대사 결합 강도 — 차등 대사세 = inheritCost·(1−fit(태그))·m. fit 낮을수록 더 내 솎임(선택). 0 = 중립(유전형 무비용).
+    inheritCost: 0.02,   // 표현형→대사 결합 강도 — 차등 대사세 = inheritCost·(1−fit(태그))·m. fit 낮을수록 더 내 솎임(선택). 0 = 중립(유전형 무비용).
                          //   전체 스택 기본은 *약하게*(0.02) — 임계 자기조직(끝없는 churn) 보존(0.05 는 한계 개체군을 공멸로 민다). 통제 아레나는 0.25 로 격리 측정.
+    /* ── step-0017: 차등 응집(adhere — 개체='계'를 표면장력 액적으로 *측정*, SPINE §다섯째 축 다음 칸 "유전→개체") ── */
+    kAdhesion: 0,        // 응집 마스터. 0 = off = step-0016 과 비트 동일(회귀, 위치 불변 → 해시 무관). >0 이면 차등 응집 on:
+                         //   같은 유전형(kin=같은 a.g) 생명끼리 끌리고 다른 태그(타)는 밀어내 — cell sorting → 같은 태그 블롭(표면장력
+                         //   액적)이 경계를 최소화하며 창발한다(Steinberg 차등접착 가설 = Schelling 분리, 격자판). 개체(다세포='계')는
+                         //   author(`Organism{cells}`)가 아니라 그 *4-인접 kin 연결 성분*(flux 결합 도메인)으로 *측정*해 읽는다(척추 체크 2).
+                         //   위치만 바꿈 — 장부 거래 0(move/tumble 과 같은 경계). 유전이 개체보다 먼저: a.g 가 정의돼야 kin 이 정의돼 묶인다.
+    adhesionLambda: 1.0, // 이종 반발 가중 — 응집 점수 = (kin 접촉) − adhesionLambda·(비kin 접촉). 클수록 이종 분리가 날카롭다(표면장력↑).
+    adhesionGain: 0.5    // 이동 문턱 — 후보 칸 점수가 머무름보다 이만큼 *엄격히* 커야 옮긴다(jitter 방지·안정 액적). 점수가 정수라 0.5 = "≥1 개선".
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -470,6 +478,58 @@
     }
   }
 
+  /* ⑥a 차등 응집(adhere, step-0017) — kAdhesion=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변 → 해시 무관).
+   * SPINE §다섯째 축 다음 칸 + STATE (a): 개체(다세포='계')를 *만들지(author)* 않는다 — 차등 응집(kin↑/타↓, Steinberg
+   *   차등접착 가설)이 빚은 *표면장력 액적* = flux 결합 도메인으로 *측정*해 읽는다(척추 체크 2 — 활성도 환원). 같은 유전형
+   *   (kin=같은 a.g) 생명끼리 모이고 다른 태그는 밀어내, cell sorting → 같은 태그 블롭(액적)이 kin/타 경계를 최소화(표면장력)
+   *   하며 창발한다. "유전이 개체보다 먼저"(SPINE) — a.g 가 정의돼야(step-0016) kin 이 정의돼 다세포가 묶인다.
+   * 메커니즘(국소·위치만 — Schelling 분리 동역학): 각 생명이 빈 4이웃 후보(+머무름) 중 *응집 점수*가 최대인 칸으로 옮긴다.
+   *   점수(후보 칸의 8이웃 점유를 셈) = (같은 태그 이웃 수 kin) − adhesionLambda·(다른 태그 이웃 수 타). kin 많은 자리로
+   *   끌리고 타 자리를 피한다 — 강접착 세포가 안으로 모여 표면장력 액적(DAH). 머무름보다 adhesionGain 이상 *엄격히* 나아야
+   *   옮김(jitter 방지). 위치만 바꿈 — 장부 거래 0(move/tumble 과 같은 경계, 잔차 불변). 무유전(a.g=0)은 kin 이 없어 안 묶임.
+   * 척추: 새 *필드* 없음(kin 판정은 생명 속성 a.g — 단일 척추) · authored 분기 없음(개체를 안 만든다, 위치 바이어스만) ·
+   *   국소 문턱(제 4이웃·후보 8이웃만, 전역 조율자 0) · 닫힌 장부(거래 0 — 위치만, move 와 동일).
+   * ⑥a: ⑥move(주화성) 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 정렬된 자리의 밀도를 잰다.
+   *   occ(점유→태그)는 *순차 그리디*로 제자리 갱신(move/crowd 와 같은 정신) — 같은 scan 안에서 먼저 옮긴 생명을 뒤가 본다(결정론). */
+  var ADHERE_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];                                   // 이동 후보(4-근방) — scan 순서 고정(결정론)
+  var ADHERE_NB8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];  // 접촉 셈(8-근방, Moore)
+  function adhScore(occ, x, y, myTag, W, H, lam, selfCenter) {                          // 응집 점수 = kin − lam·타 (후보 칸 8이웃 점유 셈, 자기 칸 제외)
+    var kin = 0, non = 0;
+    for (var d = 0; d < 8; d++) {
+      var nx = (x + ADHERE_NB8[d][0] + W) % W, ny = (y + ADHERE_NB8[d][1] + H) % H, idx = ny * W + nx;
+      if (idx === selfCenter) continue;                                                // 옮겨갈 생명의 *떠날* 자리는 세지 않는다
+      var t = occ[idx]; if (t <= 0) continue;                                          // -1 빈칸·0 무유전 → 접촉 아님(kin 정체성 없음)
+      if (t === myTag) kin++; else non++;
+    }
+    return kin - lam * non;
+  }
+  function adhere(sim) {
+    var p = sim.p; if (p.kAdhesion === 0) return;
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, W = p.W, H = p.H, N = W * H, lam = p.adhesionLambda, gain = p.adhesionGain;
+    var occ = sim.adhereOcc; if (!occ || occ.length !== N) occ = sim.adhereOcc = new Int16Array(N);
+    occ.fill(-1);                                                                      // -1 = 빈칸. 점유 칸엔 태그(0=무유전, >0=유전형)
+    for (var i = 0; i < ag.length; i++) occ[ag[i].center] = ag[i].g | 0;
+    var moved = 0;
+    for (var k = 0; k < ag.length; k++) {
+      var a = ag[k], myTag = a.g | 0, ax = a.x, ay = a.y, ac = a.center;
+      var best = adhScore(occ, ax, ay, myTag, W, H, lam, ac) + gain;                   // 머무름 기준 + 문턱(엄격한 개선만 옮김)
+      var bIdx = -1, bX = 0, bY = 0;
+      for (var d = 0; d < 4; d++) {
+        var nx = (ax + ADHERE_VN[d][0] + W) % W, ny = (ay + ADHERE_VN[d][1] + H) % H, nidx = ny * W + nx;
+        if (occ[nidx] !== -1) continue;                                               // 빈칸만(점유 칸엔 못 들어간다)
+        var sc = adhScore(occ, nx, ny, myTag, W, H, lam, ac);
+        if (sc > best) { best = sc; bIdx = nidx; bX = nx; bY = ny; }
+      }
+      if (bIdx >= 0) {                                                                 // kin 접촉이 늘어나는 빈칸으로 — 위치만(장부 거래 0)
+        occ[ac] = -1; occ[bIdx] = myTag;
+        a.x = bX; a.y = bY; a.center = bIdx; a.cells = K.discCells(W, H, bX, bY, p.lifeR);
+        moved++;
+      }
+    }
+    sim.adheres += moved;                                                              // 누적 응집 이동(통계 — 위치 변경이라 장부 무관)
+  }
+
   /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
    * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
    * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
@@ -646,13 +706,14 @@
    * ⑥b 혼잡(crowd)은 ⑥이동 뒤·⑦생명 앞 — 이동으로 정해진 자리의 국소 밀도로 혼잡세를 매기고, 죽음은 ⑦이 처리한다.
    * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
    * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
+   * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, crowd, metabolize, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, crowd, metabolize, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, crowd: crowd, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, move: move, adhere: adhere, crowd: crowd, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
