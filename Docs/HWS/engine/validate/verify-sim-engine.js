@@ -38,6 +38,7 @@ var CROWD = { kCrowd: 0.20, crowdR: 3 };   // 자기제한(step-0012) — golden
 var FSM = { kFSM: 1, livingFrac: 0.55, burnOn: 0.6, burnOff: 0.4 };  // 연소 FSM(step-0013) — golden 의 fsm@ 키가 별+생명+혼잡+FSM 스택을 동결 잠근다(step-0014~ 회귀 앵커).
 var FLUX = { kFlux: 1, aFlux: 0.1 };  // 활성도 계량(step-0014) — golden 의 flux@ 키가 별+생명+혼잡+FSM+계량 스택을 동결 잠근다(step-0015~ 회귀 앵커).
 var GENE = { kTemplate: 1, geneRate: 0.5, geneThresh: 0.3, geneMu: 0.01, geneTypes: 4, geneFit0: 0.5, geneFitStep: 0.15, geneClear: 0.05 };  // R-주형 복제(step-0015) — golden 의 gene@ 키가 + 복제 스택을 동결 잠근다(step-0016~ 회귀 앵커).
+var INHERIT = { kInherit: 1, inheritMu: 0.01, inheritCost: 0.02 };  // 생명 유전(step-0016) — golden 의 life@ 키가 + 생명 유전 스택을 동결 잠근다(step-0017~ 회귀 앵커).
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H;
 
 function scn(extra) {
@@ -55,6 +56,8 @@ function fsmScn(extra) { return Object.assign({}, crowdScn(), FSM, extra || {});
 function fluxScn(extra) { return Object.assign({}, fsmScn(), FLUX, extra || {}); }
 /* R-주형 복제 켠 내생 시나리오(step-0015 스택) — step-0015/verify.js scn() 과 동일 상수. */
 function geneScn(extra) { return Object.assign({}, fluxScn(), GENE, extra || {}); }
+/* 생명 유전 켠 내생 시나리오(step-0016 스택) — step-0016/verify.js scn() 과 동일 상수. */
+function lifeScn(extra) { return Object.assign({}, geneScn(), INHERIT, extra || {}); }
 /* gene@ 결정 절차의 고정 유전 씨앗 — 두 유전형(저적합 tag1 · 고적합 tag4)을 대칭으로 심는다(결정론). */
 function seedGenes(C, sim) { C.spawnGene(sim, 20, 20, 2, 1, 1.0); C.spawnGene(sim, 44, 44, 2, 4, 1.0); }
 function spawnStrongest(C, sim, k) {
@@ -135,7 +138,8 @@ function runEq() {
  *   cwd@  — step-0012 자기제한 스택(별+생명+혼잡, FSM off). 0013 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   fsm@  — step-0013 연소 FSM 스택(별+생명+혼잡+FSM, flux off). 0014 의 회귀 앵커.
  *   flux@ — step-0014 활성도 계량 스택(+계량, 복제 off). 0015 의 회귀 앵커: 새 노브 kTemplate=0 이면 이 해시 불변.
- *   gene@ — step-0015 R-주형 복제 스택(+복제+유전 씨앗). 0016~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   gene@ — step-0015 R-주형 복제 스택(+복제+유전 씨앗). 0016~ 의 회귀 앵커: 새 노브 kInherit=0 이면 이 해시 불변.
+ *   life@ — step-0016 생명 유전 스택(+생명 유전+유전 씨앗). 0017~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -163,6 +167,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // gene@ — flux@ + R-주형 복제 + 유전 씨앗(step-0015 스택). step-0016 회귀 앵커.
     var a = ENG.createSim(seed, geneScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
     cur['gene@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // life@ — gene@ + 생명 유전(생명이 R-genotype 에서 부트스트랩·상속·표현형세, step-0016 스택). step-0017 회귀 앵커.
+    var a = ENG.createSim(seed, lifeScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
+    cur['life@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
