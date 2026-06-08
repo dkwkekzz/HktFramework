@@ -158,11 +158,12 @@
   function render() {
     var gl = S.gl, sim = S.sim, p = sim.p, W = p.W, H = p.H;
     ensureGrid(W, H);
-    /* ── 동기화층: E(+R 있으면) → RG32F 텍스처 (W·H×2 float — 매 프레임 갱신해도 무시할 비용) ── */
-    var E = sim.E, Rf = sim.R || null, e32 = R.e32, mx = 0, mxR = 0;
+    /* ── 동기화층: E(+R 있으면, +G 유전형 있으면) → RGBA32F 텍스처 (W·H×4 float — 매 프레임 갱신해도 무시할 비용) ──
+     * r=E, g=R(저장체), b=G(유전형 태그, step-0015~. 없으면 0 → 무유전=호박색). a=예약(0). */
+    var E = sim.E, Rf = sim.R || null, Gf = sim.G || null, e32 = R.e32, mx = 0, mxR = 0;
     for (var i = 0; i < E.length; i++) {
       var v = E[i];
-      e32[i * 2] = v; e32[i * 2 + 1] = Rf ? Rf[i] : 0;
+      e32[i * 4] = v; e32[i * 4 + 1] = Rf ? Rf[i] : 0; e32[i * 4 + 2] = Gf ? Gf[i] : 0; e32[i * 4 + 3] = 0;
       if (v > mx) mx = v;                                   // 자동 명암 포화점은 2D 와 동일하게 E 기준
       if (Rf && Rf[i] > mxR) mxR = Rf[i];                   // 저장체 색 포화점은 R 분포에 적응(step 마다 농축도 다름)
     }
@@ -176,7 +177,7 @@
      * 얇게 펴진 R~3)이든 강한 퇴적이 항상 또렷. R 없는 step(0007)은 mxR=0 → satR floor 로 무영향(g=0). */
     R.satR = mxR > 1.5 ? mxR : 1.5;
     gl.bindTexture(gl.TEXTURE_2D, R.tex);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RG, gl.FLOAT, e32);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.FLOAT, e32);
     /* 틱 단위 캐시 — 개체수 히스토리·고임 (엔진 2D 와 같은 주기) */
     if (sim.tick !== S.lastTick) {
       S.lastTick = sim.tick;
@@ -491,9 +492,9 @@
 
   /* ════════ GL 백엔드 (WebGPU 경첩 — 이 아래만 교체하면 API 를 갈아탈 수 있다) ════════ */
 
-  /* 필드 텍스처는 RG32F — r=E(흐르는 흐름량), g=R(굳은 저장체, step-0008~. 없으면 0).
-   * 높이 = hOf(E+R): 퇴적이 지형을 *키운다*(VISION-UE "pool 지속성→반영구 지형" 행의 구현).
-   * 색 = E 열지도 램프를 저장체 호박색으로 블렌드. 블렌드 포화점 uSatR 은 *이 세계의 maxR* 에 적응한다 —
+  /* 필드 텍스처는 RGBA32F — r=E(흐르는 흐름량), g=R(굳은 저장체, step-0008~. 없으면 0), b=G(유전형 태그, step-0015~. 없으면 0).
+   * 높이 = hOf(E+R): 퇴적이 지형을 *키운다*(VISION-UE "pool 지속성→반영구 지형" 행의 구현). 태그(b)는 높이 무관(색만).
+   * 색 = E 열지도 램프를 저장체 색으로 블렌드 — 저장체 색은 유전형 태그면 클론 색(storeCol), 0 이면 호박색(무유전). 블렌드 포화점 uSatR 은 *이 세계의 maxR* 에 적응한다 —
    *   step-0008(농축 R~5)이든 step-0009(기복으로 얇게 펴진 R~3)이든 강한 퇴적이 항상 또렷(고정 /20 은
    *   얇은 퇴적을 거의 못 보였음 — 사용자 피드백 반영). R 없는 step 은 g=0 이라 무영향. */
   var VS_TERRAIN = [
@@ -516,11 +517,19 @@
     '  if (t<0.5){ float u=t*2.0; return vec3(10.0+30.0*u,15.0+90.0*u,40.0+160.0*u)/255.0; }',
     '  float v=(t-0.5)*2.0; return vec3(40.0+215.0*v,105.0+120.0*v,200.0-60.0*v)/255.0;',
     '}',
+    'vec3 storeCol(float tag){',                            // 저장체 색 — 유전형 태그면 클론 색(2D GENE_COL 일관), 0 이면 호박색(무유전)
+    '  int g=int(tag+0.5);',
+    '  if (g==1) return vec3(0.910,0.376,0.376);',          // tag1(저적합) 빨강
+    '  if (g==2) return vec3(0.471,0.784,0.376);',          // tag2 초록
+    '  if (g==3) return vec3(0.376,0.659,0.910);',          // tag3 파랑
+    '  if (g>=4) return vec3(0.784,0.439,0.878);',          // tag4(고적합) 보라
+    '  return vec3(0.784,0.608,0.416);',                    // 0 = 무유전 호박색(G 없는 step 은 늘 이 경로 → 과거 렌더 불변)
+    '}',
     'void main(){',
     '  int x=int(aCell.x), y=int(aCell.y);',
-    '  vec2 t0=texelFetch(uE, ivec2(x,y), 0).rg;',
+    '  vec3 t0=texelFetch(uE, ivec2(x,y), 0).rgb;',         // r=E, g=R, b=유전형 태그
     '  vNormal=normalize(vec3(hOf(mAt(x-1,y))-hOf(mAt(x+1,y)), 2.0, hOf(mAt(x,y-1))-hOf(mAt(x,y+1))));',
-    '  vColor=mix(ramp(t0.r), vec3(0.784,0.608,0.416), min(t0.g/uSatR, 0.85));',
+    '  vColor=mix(ramp(t0.r), storeCol(t0.b), min(t0.g/uSatR, 0.85));',
     '  gl_Position=uMVP*vec4(aCell.x, hOf(t0.r+t0.g), aCell.y, 1.0);',
     '}'].join('\n');
 
@@ -640,8 +649,8 @@
     gl.bindVertexArray(null);
     R.nIdx = idx.length;
     gl.bindTexture(gl.TEXTURE_2D, R.tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, W, H, 0, gl.RG, gl.FLOAT, null);
-    R.e32 = new Float32Array(W * H * 2);                    // 인터리브 [E,R] — R 없는 step 은 g=0
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, W, H, 0, gl.RGBA, gl.FLOAT, null);
+    R.e32 = new Float32Array(W * H * 4);                    // 인터리브 [E,R,G,0] — R 없는 step 은 g=0·G 없는 step 은 b=0
     S.cam.cx = (W - 1) / 2; S.cam.cz = (H - 1) / 2;         // 카메라 타깃 = 세계 중심
   }
 
