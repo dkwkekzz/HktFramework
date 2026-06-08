@@ -594,6 +594,8 @@
       if (!a.g) {                                  // 유전형 없음 — 상속(갓 태어난 자식) 또는 부트스트랩(기질에서 획득)
         var got = 0;
         if (a.bornTick === tick) {                 // 갓 태어남 → 인접 부모(occ)에서 상속(자식은 늘 부모의 4이웃)
+          /* 가드: divR=1 가정 — reproduce 의 자식 배치(divOffsets=discOffsets(divR))가 divR=1 일 때 정확히 이 4-VN(GENE_VN)과 일치한다.
+           * divR>1 로 튜닝하면 자식이 대각/거리-2 칸에 태어나 이 스캔 밖이 되어 상속이 조용히 끊긴다(a.g=0 부트스트랩) — divR=1 로 고정. */
           for (var d = 0; d < 4; d++) {
             var nx = (a.x + GENE_VN[d][0] + W) % W, ny = (a.y + GENE_VN[d][1] + H) % H, pg = occ.get(ny * W + nx);
             if (pg) { got = pg; break; }
