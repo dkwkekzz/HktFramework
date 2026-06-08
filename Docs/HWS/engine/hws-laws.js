@@ -264,7 +264,9 @@
    * 장부: 복제는 E→R 쌍 거래뿐(G 태그는 거래 0 — 정보지 에너지 아님). sumE+M+R+… 식 불변(잔차 동일). */
   var GENE_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // 복제 이웃(4-근방) — scan 순서 고정(결정론·먼저 온 주형이 빈칸 차지)
   function replicate(sim) {
-    var p = sim.p; if (p.kTemplate === 0) { sim.geneInit = false; return; }   // off: geneInit 리셋 → 해시 G 가법 skip(과거 골든 불변)
+    var p = sim.p; if (p.kTemplate === 0) return;   // off: replicate no-op. geneInit 은 *건드리지 않는다* — A(읽기전용 측정·재베이스라인 필요)와 달리 G 는 *지속 상태*다:
+                                                    //   spawnGene 으로 심은 G 가 있으면(geneInit=true) kTemplate 을 꺼도 그 유전형이 해시에 남아야 한다(faithful fingerprint, sticky).
+                                                    //   kTemplate=0·미파종이면 geneInit 기본 false 유지 → G skip(과거 골든 std@/endo@/cwd@/fsm@/flux@ 불변).
     sim.geneInit = true;
     var E = sim.E, R = sim.R, G = sim.G, Gb = sim.Gbuf, W = p.W, H = p.H, N = W * H;
     var rate = p.geneRate, gThr = p.geneThresh, mu = p.geneMu, nG = p.geneTypes;
