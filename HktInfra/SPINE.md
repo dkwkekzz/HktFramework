@@ -62,6 +62,8 @@
 
 현 HktGameplay 한 프로세스 안의 컴포넌트가 각 박스의 *씨앗*이다. step 에서 검증하며 이 표를 갱신한다(추정 포함).
 
+> **씨앗 = 개념적 조상(설계 참조)일 뿐, 의존이 아니다.** 더미 서버는 이 UE 컴포넌트(`UActorComponent` 등)를 임포트·실행하지 않고 그 *알고리즘·계약만* 헤드리스(Node)로 재구현한다. 그래서 UE 는 **더미·원격 검증 단계에 0** 이고 — UE 는 *제거*가 아니라 *연기*된다 — **최후 C++ HktCore 교체**(UObject 0 → 헤드리스 빌드, [TOOLS.md](TOOLS.md) §4)와 풀-UE 클라 통합에서만 복귀한다. 표의 컴포넌트 이름은 "오늘 이 개념이 어디 사는가"의 포인터지 더미가 끌어다 쓰는 코드가 아니다.
+
 | 미래 박스 | 오늘의 씨앗 (HktGameplay) |
 |---|---|
 | 로그인/인증 서버 | `HktLoginComponent` · `HktLoginPlayerController` |
@@ -72,7 +74,7 @@
 | 이벤트 버스 | `FHktEvent`(EventTag) + `HktSimulationEventBuilderComponent` · `HktTagNetworkComponent` |
 | 데이터 계층 | `HktFileDatabaseComponent` · `HktTransientDatabaseComponent` · `HktFilePersistentFrameComponent` |
 
-> `IHktServerRule` 의 컨텍스트 바인딩(Frame·Graph·DB·Builder)이 곧 **분리의 이음새(seam)** — 인프로세스 구현을 원격 서비스 스텁으로 갈아끼우는 지점이다.
+> `IHktServerRule` 의 컨텍스트 바인딩(Frame·Graph·DB·Builder)이 곧 **분리의 이음새(seam)** — 인프로세스 구현을 원격 서비스 스텁으로 갈아끼우는 지점이다. 이 seam 은 **동결된 Sim 인터페이스**로 정식화한다 — 오늘은 더미 서버(헤드리스)가 그 뒤에 서서 전체 인프라를 원격 E2E 로 세우고, C++(HktCore) 정교화는 인터페이스 무변경의 *최후 교체*다 ([TOOLS.md](TOOLS.md) §4).
 
 ---
 
