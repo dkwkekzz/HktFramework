@@ -4,32 +4,32 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>HktInfra step-0005 — 클라 예측 뷰 + 사후 조정 (GGPO 일반화)</title>
+<title>HktInfra step-0005 — 멀티 클라 + AOI 이벤트 브로드캐스트 (더미 서버)</title>
 <style>
   :root { color-scheme: dark; }
   body { background: #1e1e2e; color: #cdd6f4; font: 14px ui-monospace, "SF Mono", Menlo, monospace; margin: 0; padding: 22px 26px; }
   h1 { font-size: 17px; margin: 0 0 4px; }
-  .sub { color: #9399b2; font-size: 12px; margin-bottom: 18px; max-width: 980px; line-height: 1.5; }
+  .sub { color: #9399b2; font-size: 12px; margin-bottom: 18px; max-width: 760px; line-height: 1.5; }
   .ctrls { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; padding: 12px 14px; background: #181825; border-radius: 8px; }
   .ctl { display: flex; align-items: center; gap: 7px; font-size: 12px; }
   .ctl .lbl { color: #bac2de; min-width: max-content; }
   .ctl .val { color: #f9e2af; min-width: 26px; text-align: right; }
   input[type=range] { width: 116px; accent-color: #89b4fa; }
-  canvas.tl { display: block; background: #181825; border-radius: 8px; padding: 6px; margin-bottom: 14px; max-width: 100%; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 22px; margin-bottom: 12px; }
+  canvas.grid { display: block; background: #181825; border-radius: 8px; padding: 6px; margin-bottom: 14px; image-rendering: pixelated; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 22px; margin-bottom: 12px; max-width: 760px; }
   .stat { display: flex; justify-content: space-between; border-bottom: 1px solid #313244; padding: 3px 0; }
   .stat .k { color: #9399b2; }
   .stat .v { color: #cdd6f4; } .stat .v.good { color: #a6e3a1; } .stat .v.bad { color: #f38ba8; }
-  .note { color: #9399b2; font-size: 12px; max-width: 980px; line-height: 1.5; }
+  .note { color: #9399b2; font-size: 12px; max-width: 760px; line-height: 1.5; }
   a { color: #89b4fa; }
 </style>
 </head>
 <body>
-  <h1>step-0005 — 클라 예측 뷰 + 사후 조정: <b>같은 결정론 코어의 클라 거울</b></h1>
+  <h1>step-0005 — 멀티 클라 + AOI 이벤트 브로드캐스트: <b>더미 서버는 위치 갱신 + 주변 브로드캐스트가 전부</b></h1>
   <div class="sub">
-    뷰 경로(존→클라)에 지연을 더하면, <b>예측</b>은 공유 결정론 코어로 현재 권위 상태를 로컬 재현해 <b>뷰 RTT 를 은닉</b>(응답성)하고 —
-    <b>확정 레이어</b>는 권위 뷰가 도착할 때마다 비트 일치를 검증하며 <b>desync 0 에 수렴</b>(사후 조정). 초록=일치, 빨강=갈림, 회색=미검증.
-    화면 모델(<b>predictDelay</b>)을 INPUT_DELAY 아래로 낮추면 eager(러버밴딩)로 셋째 줄이 빨강이 되지만 — <b>첫 줄(확정)은 모델과 무관히 항상 초록</b>(안전망).
+    존은 *시뮬레이션하지 않는다* — 엔터티 위치 맵만 들고, 이동 이벤트가 오면 갱신하고
+    <b>AOI 반경(파란 사각) 안의 주변 클라에게만</b> 간단한 엔터티 정보 {id, x, y} 를 브로드캐스트한다(시각화용).
+    초록=그 클라에게 브로드캐스트되는 엔터티, 회색=AOI 밖(안 보냄). 반경을 키우면 절감↓, R≥grid 면 전체 브로드캐스트.
     상세: <a href="step-0005.md">step-0005.md</a>.
   </div>
   <div id="app"></div>
