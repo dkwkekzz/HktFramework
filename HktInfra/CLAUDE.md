@@ -44,6 +44,7 @@ HktGameplay 는 이미 토대를 준다 — **서버 권위**, **HktCore(순수 
 - **결정론 전파**: 같은 intent 로그를 먹은 모든 참여자(서버·클라·리전)는 같은 월드 해시로 수렴해야 한다 — `Math.random` 금지, 시드 의사난수만. (이것이 netcode 의 토대 — [SPINE.md](SPINE.md) §5 ②)
 - **권위 보존**: 모든 엔티티는 매 tick *정확히 한* 권위 소유자를 가진다 — 공백(무권위)도 중복(이중쓰기)도 없다. 권위 이동은 release+acquire **쌍 거래**(닫힌 장부의 netcode 판). ([SPINE.md](SPINE.md) §5 ③)
 - **수렴(desync 0)**: 뷰가 겹치는 두 참여자는 겹친 영역에서 (조정 후) 일치해야 한다. 클라 예측 뷰는 권위 재현으로 desync 0 에 수렴한다.
+- **UE-free 검증(게임 시뮬 포함, 협상 불가)**: 게임 시뮬레이션을 포함한 *모든* 서버 동작 검증은 Unreal Engine 없이 헤드리스로 가능해야 한다. 더미 단계는 Node 라 자명히 충족 — C++ 승격 시에도 시뮬 *검증 경로*는 UE 모듈에 링크하지 않는다. **주의: 'UObject 0' 으로는 부족** — 현 `HktCore` 는 `Core`·`CoreUObject`·`GameplayTags`·`Json` 에 의존하므로, UE-모듈-free 코어 분리 또는 얇은 헤드리스 shim 이 선결이다. "UE 없이 빌드·검증되는가"가 시뮬 도구 선택의 통과 조건 ([TOOLS.md](TOOLS.md) §1·§4).
 - **HktGameplay 원칙 상속(위반 금지)**: ① HktCore 순수성(UObject 0, 순수 결정론 VM) ② 서버 권위(클라는 읽기전용 `FHktWorldView` 만) ③ ISP 3-Layer(Intent→Sim→Presentation 역방향 의존 금지) ④ VM 직접쓰기 금지(`SetPropertyDirty` 경유). 인프라는 이 원칙들을 *확장*하되 *깨지 않는다*.
 - **척추 준수 ([SPINE.md](SPINE.md))**: 새 기능은 큰 그림 6계층의 박스/계약을 채우는 것이어야 한다. 새 step 은 **척추 체크 4항**(① 신성한 tick ② 결정론 코어 ③ 권위 단일 소유 ④ 은닉·단일 연결)을 가설 4기둥과 함께 통과시킨다. 하나라도 어기면 척추에서 벗어난 것 — 재설계한다.
 - 설계하지 않았는데 떠오른 결과는 "의외의 발견"으로, 실패는 원인 규명과 함께 "정직한 한계"로 *그 step 문서(`step-NNNN.md`)에* 기록한다. STATE.md 는 이를 중복 누적하지 않는다.
