@@ -117,7 +117,7 @@ step-0016 이 유전↔생명 결합(다섯째 축 둘째 칸)을 닫았다. ste
 ## 6. 빠른 참조
 
 - 척추 체크 4항·존재론: [SPINE.md](SPINE.md) · **입문서(SPINE 쉬운 풀이 — 별·둑·봉우리·보존): [PRIMER.md](PRIMER.md)**
-- 비전·게임 종착점: [VISION-UE.md](VISION-UE.md)
+- 비전·게임 종착점: [VISION-UE.md](VISION-UE.md)(무엇을·필드→현상 사전) · **해석 레이어 [INTERPRET-UE.md](INTERPRET-UE.md)(어떻게 — 추상량→세계 원형 번역, 셰이더 렌즈)**
 - 엔진(공통 UI/3D)·패널 스펙: [engine/PANEL.md](engine/PANEL.md) · [engine/DESIGN-3D.md](engine/DESIGN-3D.md)
 - **의외의 발견 / 정직한 한계 전문**: 각 `step-NNNN.md`의 §발견·§한계 (STATE는 중복 보관하지 않음 — 위 §3·§4가 현재 load-bearing 요약).
 
