@@ -51,6 +51,10 @@
       crystallized: 0, weathered: 0,  // 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
       stars: [],           // step-0011: 살아있는 별 목록 {x,y,center,fuel}. 초기 0 → kIgnite=0 이면 영원히 0(회귀)
       burned: 0, starBirths: 0, starDeaths: 0,  // step-0011: 누적 연소량·점화·소진 수(통계용 — F 가 순잔액)
+      A: new Float64Array(N),      // step-0014: 활성도 필드(통과 throughput EMA). 초기 0 → kFlux=0 이면 영원히 0(회귀)
+      Eprev: new Float64Array(N),  // step-0014: 직전 tick 끝 E 스냅샷(dE/dt 측정 기준). kFlux=0 이면 미사용(회귀)
+      fluxInit: false,             // step-0014: 활성도 첫 기준선 설정 여부 — 해시 가법 가드(false 면 A 해시 skip)
+      fluxSum: 0, fluxPeak: 0,     // step-0014: 세계 활성도 총량·최고(통계용 — 매 tick 재계산, 상태 아님)
       laws: L.LAW_ORDER    // 이 sim 에 적용할 법칙 순서(확장점). 기본 = 표준 LAW_ORDER.
     };
   }
