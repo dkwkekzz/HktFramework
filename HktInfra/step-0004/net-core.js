@@ -26,11 +26,15 @@
 // 회귀 0(불변): transport=null + INPUT_DELAY=1 → applyTick = at+1 = 0003 의 자연 도착 tick →
 //             스케줄 경로가 0003 과 비트 동일. naive 경로도 transport=null 이면 0003 과 동일.
 'use strict';
+// engine 로드 — Node 면 require, 브라우저면 먼저 로드된 전역(HktEngine).
+const __engine = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('../engine/index.js')
+  : globalThis.HktEngine;
 const {
   Net, LoginServer, SessionRegistry,
   DummySimCore, ArraySimCore, SIM_FACTORIES, DEFAULT_MAKE_SIM,
   SIM_CONTRACT_VERSION, CONCRETE_SIM_NAMES, mulberry32, fnv1a,
-} = require('../engine/index.js');
+} = __engine;
 
 // ── [엣지] 게이트웨이 — 클라의 유일한 게임 연결점. 내부 토폴로지 은닉(0002 그대로) + 월드 입력 도장 ──
 // step-0004 변경 한 곳: 존(들)로 포워딩하는 월드 입력(enter/intent/leave)에 at=net.tick 도장을 찍는다.
@@ -308,11 +312,12 @@ const PUBLIC_ADDRS = ['login', 'gateway'];
 // (Net/Login/Registry 는 engine 에 산다 — 거기서도 구체 시뮬 참조 0건이어야 하므로 함께 스캔.)
 const INFRA_CLASSES = { Net, LoginServer, SessionRegistry, Gateway, ZoneHost, Client, Intruder };
 
-if (typeof module !== 'undefined') {
-  module.exports = {
-    mulberry32, fnv1a, Net, LoginServer, SessionRegistry, Gateway,
-    DummySimCore, ArraySimCore, ZoneHost, Client, Intruder,
-    SIM_FACTORIES, DEFAULT_MAKE_SIM, SIM_CONTRACT_VERSION,
-    INFRA_CLASSES, CONCRETE_SIM_NAMES, run, PUBLIC_ADDRS,
-  };
-}
+// ── 모듈 노출 (dual-mode: Node require + 브라우저 <script> 전역) ───────────
+const __hktNet = {
+  mulberry32, fnv1a, Net, LoginServer, SessionRegistry, Gateway,
+  DummySimCore, ArraySimCore, ZoneHost, Client, Intruder,
+  SIM_FACTORIES, DEFAULT_MAKE_SIM, SIM_CONTRACT_VERSION,
+  INFRA_CLASSES, CONCRETE_SIM_NAMES, run, PUBLIC_ADDRS,
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = __hktNet;  // Node
+if (typeof globalThis !== 'undefined') globalThis.HktNet = __hktNet;             // 브라우저: window.HktNet

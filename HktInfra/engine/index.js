@@ -284,8 +284,12 @@ const SIM_FACTORIES = {
 const DEFAULT_MAKE_SIM = SIM_FACTORIES.dummy;
 const CONCRETE_SIM_NAMES = ['DummySimCore', 'ArraySimCore'];
 
-module.exports = {
+// ── 모듈 노출 (dual-mode: Node require + 브라우저 <script> 전역) ───────────
+// 헤드리스 검증(Node)과 시각 관찰 셸(브라우저)이 *같은 코어*를 쓴다 — UE-free 불변을 관찰 도구까지 확장.
+const __hktEngine = {
   mulberry32, fnv1a, Net, LoginServer, SessionRegistry,
   DummySimCore, ArraySimCore, SIM_FACTORIES, DEFAULT_MAKE_SIM,
   SIM_CONTRACT_VERSION, CONCRETE_SIM_NAMES,
 };
+if (typeof module !== 'undefined' && module.exports) module.exports = __hktEngine;  // Node: require('../engine')
+if (typeof globalThis !== 'undefined') globalThis.HktEngine = __hktEngine;          // 브라우저: <script> 후 window.HktEngine
