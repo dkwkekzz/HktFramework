@@ -506,7 +506,7 @@
    *   장부 무관(A 는 에너지 아닌 *속도* — 거래 0, 잔차 불변). LAW_ORDER *맨 끝* — 이번 tick 모든 법칙 적용 후 net dE/dt 측정.
    * Eprev = 직전 tick 끝(=이번 tick 시작) E. 첫 활성 tick 은 기준선만 잡고 측정 skip(|E−0| 스파이크 회피). */
   function flux(sim) {
-    var p = sim.p; if (p.kFlux === 0) return;
+    var p = sim.p; if (p.kFlux === 0) { sim.fluxInit = false; return; }   // off: fluxInit 리셋 → 해시 A 가법 skip(토글-off 도 step-0013 동일)·재활성 시 기준선 재설정(스파이크 회피)
     var E = sim.E, A = sim.A, Ep = sim.Eprev, N = p.W * p.H, a = p.aFlux, j;
     if (!sim.fluxInit) { for (j = 0; j < N; j++) Ep[j] = E[j]; sim.fluxInit = true; return; }
     var b = 1 - a, sumA = 0, peakA = 0;
