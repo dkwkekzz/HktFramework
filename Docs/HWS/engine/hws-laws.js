@@ -121,7 +121,16 @@
     geneTypes: 4,        // 유전형 태그 종류 수(1..geneTypes). 다양성은 *병렬 필드 아닌 속성*(태그 G)에 싣는다 — 단일 척추.
     geneFit0: 0.5,       // 유전형→표현형(복제 propensity) 맵 절편: fit(tag) = geneFit0 + geneFitStep·(tag−1), [0,1] clamp.
     geneFitStep: 0.15,   // 표현형 기울기 — 높은 태그가 더 빨리 복제(propensity↑) → 선택이 평균 적합도를 올린다(=0 이면 중립=드리프트만).
-    geneClear: 0.05      // 유전 소거 문턱 — R[i] < 이 값이면 G[i]=0(풍화로 기질이 사라지면 유전 정보도 소멸 — 정보는 저장 극단에만).
+    geneClear: 0.05,     // 유전 소거 문턱 — R[i] < 이 값이면 G[i]=0(풍화로 기질이 사라지면 유전 정보도 소멸 — 정보는 저장 극단에만).
+    /* ── step-0016: 생명 유전(genotype↔대사 결합 — 유전을 R 위에서 *생명*으로, "단단한" 자기복제, SPINE §다섯째 축) ── */
+    kInherit: 0,         // 생명 유전 마스터. 0 = off = step-0015 와 비트 동일(회귀, a.g 미작동 → lifeGeneInit false → 해시 가법 skip). >0 이면
+                         //   생명에 *유전형 a.g* 를 부여한다: (1)부트스트랩 — 제가 선 R-genotype(G[center])을 읽어 제 유전형으로(생명↔광물 결합,
+                         //   Cairns-Smith) · (2)상속 — 분열 자식이 인접 부모의 태그를 물려받음(±변이) · (3)표현형→대사 — fit(태그)이 낮으면
+                         //   차등 대사세(m→metabolized 쌍 거래) → 고적합이 *생명 개체군에서* 선택. genotype 을 소산 엔진(대사)에 묶어
+                         //   생명을 활성도 *가운데* 세운다(주요 전이 사다리 다음 칸). 적합도 맵·태그 종류는 step-0015 와 공유(genotype 개념 통일).
+    inheritMu: 0.01,     // 생명 상속 복제오류율(변이) — 자식 태그가 이 확률로 ±1 이웃 태그로(시드 의사난수, Math.random 금지). geneMu 와 별개 노브.
+    inheritCost: 0.02    // 표현형→대사 결합 강도 — 차등 대사세 = inheritCost·(1−fit(태그))·m. fit 낮을수록 더 내 솎임(선택). 0 = 중립(유전형 무비용).
+                         //   전체 스택 기본은 *약하게*(0.02) — 임계 자기조직(끝없는 churn) 보존(0.05 는 한계 개체군을 공멸로 민다). 통제 아레나는 0.25 로 격리 측정.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -554,6 +563,58 @@
     }
   }
 
+  /* ⑧b 생명 유전(inherit, step-0016) — kInherit=0 이면 통째로 건너뜀(회귀 0, a.g 불변 → lifeGeneInit false → 해시 가법 skip).
+   * SPINE §다섯째 축 "유전↔생명 결합": step-0015 가 유전을 R(저장 극단)에 깔았다("유전이 개체보다 먼저"). 이 법칙은 그 genotype 을
+   *   *생명의 대사 엔진(m)에 단단히 묶는다* — 생명 = 자기복제 광물(genotype)을 소산 엔진(대사)에 묶어 활성도 *가운데* 선 것(SPINE 결정2;
+   *   주요 전이 사다리 복제분자→…→개체 의 다음 칸). 별의 *느슨한* 혈통(metallicity)과 달리 생명은 *단단한* 자기복제 — 유무가 아니라 결합의 단단함.
+   * 세 결합(모두 국소 — 전역 조율자 0):
+   *   (1) 부트스트랩(획득) — 유전형 없는 생명이 제가 선 칸의 R-genotype(G[center])을 *읽어* 제 유전형으로 삼는다(생명은 광물 유전자에서
+   *       부트스트랩, Cairns-Smith). step-0015 의 *이산* 태그를 그대로 읽는다 — 새 유전 시스템이 아니라 같은 genotype 의 *담체 이동*(R→생명).
+   *   (2) 상속 — 분열 자식(bornTick==tick)이 *인접 부모*(occ, 자식은 늘 부모의 4이웃에 태어난다)의 태그를 물려받는다(±변이=복제오류).
+   *       reproduce(⑧, 동결)를 안 건드린다 — 자식을 점유로 찾아 inherit 가 태그를 박는다(stigmergic, 부모 위치가 매개).
+   *   (3) 표현형→대사 — fit(태그)=geneFit0+geneFitStep·(태그−1) 가 낮으면 차등 대사세(inheritCost·(1−fit)·m, m→metabolized 쌍 거래,
+   *       crowd 와 같은 소산 경계). 고적합이 덜 내 *생명 개체군에서* 선택된다(R 위 선택을 넘어 *생명 자신*이 적응 — meanFit 상승).
+   * 척추: 새 *필드* 없음(a.g 는 생명 *속성* — 다양성은 병렬 필드 아닌 속성, 단일 척추) · authored 분기 없음(대사 *세율*만 태그의 함수,
+   *   E 동역학·활성도는 태그로 안 갈림 — 활성도 환원) · 국소 문턱(부트스트랩=내 칸 G, 상속=인접 부모, 표현형=내 m) · 닫힌 장부(표현형세=쌍 거래).
+   * ⑧b: ⑧reproduce 뒤(자식이 있어야 상속) · ⑨flux 앞(flux 가 net dE/dt 잰다 — inherit 는 m 만 바꿔 E 불변, 순서 무관하나 측정 앞이 옳다). */
+  function inherit(sim) {
+    var p = sim.p; if (p.kInherit === 0) { sim.lifeGeneInit = false; return; }   // off: a.g 미작동·해시 skip(과거 골든 불변). geneInit 처럼 sticky 아님 — a.g 는 에이전트가 휘발(사망 시 사라짐)이라 매 tick 게이트로 충분.
+    if (!p.life || !sim.agents.length) { sim.lifeGeneInit = true; return; }      // 켜졌으면 lifeGeneInit on(씨앗 a.g 가 해시에 들도록) — 개체 없어도 유지.
+    sim.lifeGeneInit = true;
+    var ag = sim.agents, G = sim.G, W = p.W, H = p.H, tick = sim.tick, seed = sim.seed;
+    var nG = p.geneTypes, mu = p.inheritMu, f0 = p.geneFit0, fStep = p.geneFitStep, cost = p.inheritCost;
+    /* occ: *이미 유전형을 가진* 생명의 점유 칸 → 태그(자식이 인접 부모를 찾는 매개). reproduce 는 자식을 배열 끝에 append 하고
+     * 태그를 안 박으므로(동결), inherit 시작 시점에 a.g 가 박힌 개체 = 부모(이전 tick 산 것 + 갓 심은 씨앗). 자식(a.g 미설정)은 제외.
+     * bornTick 으로 거르지 않는다 — 씨앗을 tick T 에 심고 같은 tick 에 번식하면 bornTick==tick 이라 부모가 빠지는 함정을 피한다. */
+    var occ = sim.inheritOcc; if (!occ) occ = sim.inheritOcc = new Map(); else occ.clear();
+    for (var k = 0; k < ag.length; k++) { var a0 = ag[k]; if (a0.g) occ.set(a0.center, a0.g); }
+    var muts = 0;
+    for (var k2 = 0; k2 < ag.length; k2++) {
+      var a = ag[k2];
+      if (!a.g) {                                  // 유전형 없음 — 상속(갓 태어난 자식) 또는 부트스트랩(기질에서 획득)
+        var got = 0;
+        if (a.bornTick === tick) {                 // 갓 태어남 → 인접 부모(occ)에서 상속(자식은 늘 부모의 4이웃)
+          for (var d = 0; d < 4; d++) {
+            var nx = (a.x + GENE_VN[d][0] + W) % W, ny = (a.y + GENE_VN[d][1] + H) % H, pg = occ.get(ny * W + nx);
+            if (pg) { got = pg; break; }
+          }
+          if (got) {                               // 복제오류 = 변이(시드 의사난수, 저비트)
+            var hh = K.tumbleHash(a.x, a.y, tick, seed);
+            if ((hh & 0xffff) * (1 / 65536) < mu) { got = ((got - 1 + ((hh & 1) ? 1 : nG - 1)) % nG) + 1; muts++; }
+          }
+        }
+        if (!got) got = G[a.center];               // 부트스트랩 — 제가 선 R-genotype 을 읽어 제 유전형으로(생명↔광물 결합). 무유전 기질이면 0(다음 tick 재시도).
+        a.g = got || 0;
+      }
+      if (a.g) {                                   // 표현형 → 대사: 저적합일수록 차등 대사세(선택). 닫힌 장부(crowd 와 같은 소산 경계).
+        var fit = f0 + fStep * (a.g - 1); if (fit > 1) fit = 1; else if (fit < 0) fit = 0;
+        var tax = cost * (1 - fit) * a.m; if (tax > a.m) tax = a.m;
+        a.m -= tax; sim.metabolized += tax;
+      }
+    }
+    sim.inheritMut += muts;                        // 누적 생명 변이(통계 — 장부 무관)
+  }
+
   /* ⑨ 활성도 계량(flux, step-0014) — kFlux=0 이면 통째로 건너뜀(회귀 0, A·Eprev·fluxInit 불변 → 해시 가법 skip).
    * SPINE 결정1(척추 변수 = flux): 척추 변수 E 의 *통과 throughput*(net dE/dt — 단위 tick 당 그 칸에서 처리되는 에너지량,
    *   차이슨 energy rate density 의 게임화)을 매 tick 측정해 활성도 필드 A 로 EMA 적분한다. 재고(E)와 흐름(A=dE/dt)을
@@ -584,13 +645,14 @@
    * ⑤c 연소(combust)는 ⑤b ignite 앞 — 이번 tick 주입 전에 별 상태를 정해(이전 tick 잔열 기준) burnMul 을 ignite 가 읽는다.
    * ⑥b 혼잡(crowd)은 ⑥이동 뒤·⑦생명 앞 — 이동으로 정해진 자리의 국소 밀도로 혼잡세를 매기고, 죽음은 ⑦이 처리한다.
    * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
+   * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, crowd, metabolize, reproduce, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, crowd, metabolize, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, crowd: crowd, metabolize: metabolize, reproduce: reproduce, flux: flux
+    combust: combust, ignite: ignite, move: move, crowd: crowd, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
