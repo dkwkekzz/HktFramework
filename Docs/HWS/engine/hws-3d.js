@@ -114,10 +114,24 @@
 
   /* ════════ DOM 구성 ════════ */
 
+  /* 레이아웃 override — hws-ui.css 의 `.row{display:flex}`(캔버스|패널 가로 배치)를 *세로 적층*으로 바꿔
+   * 입력 UI(.panel)를 시각화 화면 *아래*로 내린다. 특히 2분할(1280px) 캔버스가 패널을 오른쪽으로 밀어내는
+   * 문제를 푼다. hws-ui.css 는 불변(D5)이라 파일을 고치지 않고 3D 레이어가 스타일 1줄을 주입한다(프레젠테이션 전용).
+   * 멱등: id 로 중복 주입 방지. */
+  function injectLayoutCSS() {
+    var doc = global.document;
+    if (!doc || byId('hws3d-css')) return;
+    var st = doc.createElement('style');
+    st.id = 'hws3d-css';
+    st.textContent = '.row{flex-direction:column;}';
+    (doc.head || doc.body || doc.documentElement).appendChild(st);
+  }
+
   function initDom() {
     var doc = global.document;
     var cv = byId('cv');
     if (!doc || !cv || !cv.parentNode) { S.failed = true; return; }
+    injectLayoutCSS();                                      // 입력 UI(.panel)를 시각화 아래로 — .row 세로 적층
     var wrap = doc.createElement('div');
     wrap.style.position = 'relative';
     var glcv = doc.createElement('canvas');
