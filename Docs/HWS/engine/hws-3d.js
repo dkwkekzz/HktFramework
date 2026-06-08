@@ -63,7 +63,9 @@
     var p = Object.assign({}, panel);
     p.controls = (panel.controls || []).concat([{ items: [
       { kind: 'check', id: 'view3d', label: '3D 뷰', def: true, view: true,
-        title: 'WebGL2 3D 뷰 ↔ 2D 캔버스 전환. 프레젠테이션 전용 — 시뮬·검증에 영향 없음.' }
+        title: 'WebGL2 3D 뷰 ↔ 2D 캔버스 전환. 프레젠테이션 전용 — 시뮬·검증에 영향 없음.' },
+      { kind: 'check', id: 'worldview', label: '세계 해석(2분할)', def: true, view: true,
+        title: '오른쪽에 세계 해석 뷰를 나란히 — 활성도 A 를 분류 다이얼로 E/R/G 를 물·돌·나무(유전)·빛으로 번역(셰이더 렌즈). 왼쪽=에너지 변위(원본). 설계: INTERPRET-UE.md. 프레젠테이션 전용.' }
     ]}]);
     var origHook = panel.drawHook;
     p.drawHook = function (ctx, info) { sync(info); if (origHook) origHook(ctx, info); };
@@ -136,6 +138,7 @@
   }
 
   function isView3d() { var el = byId('view3d'); return el ? !!el.checked : true; }
+  function isWorld() { var el = byId('worldview'); return el ? !!el.checked : true; }   // 2분할 세계 해석 뷰 on/off
 
   function applyVisibility() {
     if (!S.dom) return;
@@ -158,14 +161,17 @@
   function render() {
     var gl = S.gl, sim = S.sim, p = sim.p, W = p.W, H = p.H;
     ensureGrid(W, H);
-    /* ── 동기화층: E(+R 있으면, +G 유전형 있으면) → RGBA32F 텍스처 (W·H×4 float — 매 프레임 갱신해도 무시할 비용) ──
-     * r=E, g=R(저장체), b=G(유전형 태그, step-0015~. 없으면 0 → 무유전=호박색). a=예약(0). */
-    var E = sim.E, Rf = sim.R || null, Gf = sim.G || null, e32 = R.e32, mx = 0, mxR = 0;
+    /* ── 동기화층: E,R,G,A → RGBA32F 텍스처 (W·H×4 float — 매 프레임 갱신해도 무시할 비용) ──
+     * r=E(흐름량), g=R(저장체), b=G(유전형 태그, step-0015~. 없으면 0 → 무유전), a=A(활성도 throughput, step-0014~. 없으면 0).
+     * a 채널은 세계 해석 뷰의 분류 다이얼(빛/생명력) — 에너지 변위 뷰는 a 를 안 읽으므로 과거 렌더 불변. */
+    var E = sim.E, Rf = sim.R || null, Gf = sim.G || null, Af = sim.A || null;
+    var e32 = R.e32, mx = 0, mxR = 0, mxA = 0;
     for (var i = 0; i < E.length; i++) {
       var v = E[i];
-      e32[i * 4] = v; e32[i * 4 + 1] = Rf ? Rf[i] : 0; e32[i * 4 + 2] = Gf ? Gf[i] : 0; e32[i * 4 + 3] = 0;
+      e32[i * 4] = v; e32[i * 4 + 1] = Rf ? Rf[i] : 0; e32[i * 4 + 2] = Gf ? Gf[i] : 0; e32[i * 4 + 3] = Af ? Af[i] : 0;
       if (v > mx) mx = v;                                   // 자동 명암 포화점은 2D 와 동일하게 E 기준
       if (Rf && Rf[i] > mxR) mxR = Rf[i];                   // 저장체 색 포화점은 R 분포에 적응(step 마다 농축도 다름)
+      if (Af && Af[i] > mxA) mxA = Af[i];                   // 활성도 발광 포화점은 A 분포에 적응(소산만 높은 끝 — A_burn/A_store≈26)
     }
     var autoEl = byId('auto');                              // 2D 와 같은 '자동 명암' 노브 공유
     /* 포화점을 목표값으로 지수 평활(EMA) — 강한 흐름 구배(기복 step-0009)에서 maxE 가 tick 간 출렁이면
@@ -176,6 +182,9 @@
     /* 저장체 호박색 포화점 — 이 세계의 maxR 기준 정규화. step-0008(농축 R~5)이든 step-0009(기복으로
      * 얇게 펴진 R~3)이든 강한 퇴적이 항상 또렷. R 없는 step(0007)은 mxR=0 → satR floor 로 무영향(g=0). */
     R.satR = mxR > 1.5 ? mxR : 1.5;
+    /* 활성도 발광 포화점 — 이 세계의 maxA 에 적응(평활). A 없는/꺼진(kFlux=0) step 은 mxA≈0 → floor 로 무발광. */
+    var satTargetA = mxA > 1e-6 ? mxA : 1e-6;
+    R.satA = R.satA > 0 ? R.satA + 0.06 * (satTargetA - R.satA) : satTargetA;
     gl.bindTexture(gl.TEXTURE_2D, R.tex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.FLOAT, e32);
     /* 틱 단위 캐시 — 개체수 히스토리·고임 (엔진 2D 와 같은 주기) */
@@ -188,62 +197,87 @@
       S.pools = S.core.detectPools(sim, (S.panel && S.panel.poolOpts) || { minE: 1.5, prom: 0.3 });
       S.poolTick = sim.tick;
     }
-    /* ── 카메라 ── */
+    /* ── 분할 레이아웃: 세계 해석 뷰가 켜지면 캔버스를 2:1 로 넓혀 두 정사각 뷰포트 ── */
+    var split = isWorld();
+    ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
-    var Pm = mPersp(cam.fov, glcv.width / glcv.height, 0.5, 800);
+    var Pm = mPersp(cam.fov, 1, 0.5, 800);                  // 뷰포트는 늘 정사각 → aspect=1 (분할 무관)
     var Vm = mLookAt(camEye(), [cam.cx + cam.tx, 0, cam.cz + cam.tz], [0, 1, 0]);
     var MVP = mMul(Pm, Vm);
     gl.viewport(0, 0, glcv.width, glcv.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    /* ── ① 지형(하이트필드) — VS 가 E 텍스처에서 높이·법선·색을 끌어낸다 ── */
-    gl.useProgram(R.progT);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, R.tex);
-    gl.uniform1i(R.uT.uE, 0);
-    gl.uniformMatrix4fv(R.uT.uMVP, false, MVP);
-    gl.uniform1f(R.uT.uSat, R.sat); gl.uniform1f(R.uT.uHS, HS);
-    gl.uniform1f(R.uT.uSatR, R.satR);
-    gl.uniform2i(R.uT.uDim, W, H);
-    gl.uniform3f(R.uT.uLight, 0.421, 0.781, 0.461);
-    gl.depthMask(true); gl.disable(gl.BLEND);
-    gl.bindVertexArray(R.vaoT);
-    gl.drawElements(gl.TRIANGLES, R.nIdx, gl.UNSIGNED_SHORT, 0);
-    /* ── ② 오버레이 라인(링·빔·경계·호버) — CPU 가 표면 높이에 얹어 만든다 ── */
+    /* 오버레이 라인·생명 점 버퍼는 두 뷰포트가 공유 — 한 번만 만들어 올린다(좌·우에서 같은 마커) */
     var ln = buildLines(sim);
     if (ln.length) {
-      gl.useProgram(R.progL);
-      gl.uniformMatrix4fv(R.uL.uMVP, false, MVP);
-      gl.bindVertexArray(R.vaoL);
       gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ln), gl.DYNAMIC_DRAW);
-      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.depthMask(false);
-      gl.drawArrays(gl.LINES, 0, ln.length / 6);
     }
-    /* ── ③ 생명(발광 점) — 가산 블렌딩, 크기 ∝ √m (2D 와 동일 규칙) ── */
-    var ag = sim.agents || [];
+    var ag = sim.agents || [], agN = 0;
     if (S.ov.life && ag.length) {
       var need = ag.length * 3;
       if (!R.agArr || R.agArr.length < need) R.agArr = new Float32Array(Math.max(192, need * 2));
       for (var k = 0; k < ag.length; k++) {
         R.agArr[k * 3] = ag[k].x; R.agArr[k * 3 + 1] = ag[k].y; R.agArr[k * 3 + 2] = ag[k].m;
       }
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
+      gl.bufferData(gl.ARRAY_BUFFER, R.agArr.subarray(0, need), gl.DYNAMIC_DRAW);
+      agN = ag.length;
+    }
+    /* ── 패스: 왼쪽 = 에너지 변위(원본 렌즈), (분할 시) 오른쪽 = 세계 해석(활성도 분류 렌즈) ── */
+    drawView(0, false, MVP, ln.length, agN, glcv, Pm);
+    if (split) drawView(CV_SIZE, true, MVP, ln.length, agN, glcv, Pm);
+    drawHud(sim, split);
+  }
+
+  /* 한 뷰포트에 지형(prog 선택)+오버레이 라인+생명 점을 그린다. 버퍼·텍스처는 호출 전 업로드됨.
+   * world=false → 에너지 변위 셰이더(progT, 원본), true → 세계 해석 셰이더(progW, 활성도 분류). */
+  function drawView(vx, world, MVP, lnCount, agN, glcv, Pm) {
+    var gl = S.gl;
+    gl.viewport(vx, 0, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(좌·우 충돌 없음)
+    /* ① 지형(하이트필드) */
+    var prog = world ? R.progW : R.progT, u = world ? R.uW : R.uT;
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.tex);
+    gl.uniform1i(u.uE, 0);
+    gl.uniformMatrix4fv(u.uMVP, false, MVP);
+    gl.uniform1f(u.uSat, R.sat); gl.uniform1f(u.uHS, HS); gl.uniform1f(u.uSatR, R.satR);
+    if (world) gl.uniform1f(u.uSatA, R.satA);
+    gl.uniform2i(u.uDim, R.W, R.H);
+    gl.uniform3f(u.uLight, 0.421, 0.781, 0.461);
+    gl.depthMask(true); gl.disable(gl.BLEND);
+    gl.bindVertexArray(R.vaoT);
+    gl.drawElements(gl.TRIANGLES, R.nIdx, gl.UNSIGNED_SHORT, 0);
+    /* ② 오버레이 라인(링·빔·경계·호버) */
+    if (lnCount) {
+      gl.useProgram(R.progL);
+      gl.uniformMatrix4fv(R.uL.uMVP, false, MVP);
+      gl.bindVertexArray(R.vaoL);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      gl.drawArrays(gl.LINES, 0, lnCount / 6);
+    }
+    /* ③ 생명(발광 점) — 가산 블렌딩, 크기 ∝ √m (2D 와 동일 규칙) */
+    if (agN) {
       gl.useProgram(R.progP);
       gl.uniform1i(R.uP.uE, 0);
       gl.uniformMatrix4fv(R.uP.uMVP, false, MVP);
       gl.uniform1f(R.uP.uSat, R.sat); gl.uniform1f(R.uP.uHS, HS);
-      gl.uniform2i(R.uP.uDim, W, H);
-      gl.uniform1f(R.uP.uPx, Pm[5] * glcv.height / 2);     // 세계 길이 → 픽셀 환산 계수
+      gl.uniform2i(R.uP.uDim, R.W, R.H);
+      gl.uniform1f(R.uP.uPx, Pm[5] * glcv.height / 2);      // 세계 길이 → 픽셀 환산 계수(뷰포트 높이=캔버스 높이)
       gl.bindVertexArray(R.vaoP);
-      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
-      gl.bufferData(gl.ARRAY_BUFFER, R.agArr.subarray(0, need), gl.DYNAMIC_DRAW);
-      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);   // 가산 — 발광체
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
       gl.depthMask(false);
-      gl.drawArrays(gl.POINTS, 0, ag.length);
+      gl.drawArrays(gl.POINTS, 0, agN);
     }
     gl.depthMask(true); gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
-    drawHud(sim);
+  }
+
+  /* 분할 토글에 맞춰 캔버스·HUD 크기 조정 — on 이면 2:1(두 정사각 뷰포트), off 면 정사각 1개 */
+  function ensureCanvasSize(split) {
+    var want = split ? CV_SIZE * 2 : CV_SIZE, glcv = S.dom.glcv, hud = S.dom.hud;
+    if (glcv.width !== want) { glcv.width = want; hud.width = want; }
+    if (glcv.height !== CV_SIZE) { glcv.height = CV_SIZE; hud.height = CV_SIZE; }
   }
 
   /* ── 오버레이 라인 빌더 — 표면 위 링·빔·경계·호버. [x,y,z,r,g,b]×2 per line ── */
@@ -323,9 +357,10 @@
 
   /* ════════ HUD (투명 2D 캔버스) — 스파크라인·호버 툴팁·토스트·조작 힌트 ════════ */
 
-  function drawHud(sim) {
+  function drawHud(sim, split) {
     var ctx = S.dom.hctx, wdt = S.dom.hud.width, hgt = S.dom.hud.height;
     ctx.clearRect(0, 0, wdt, hgt);
+    ctx.textAlign = 'left';
     var ph = S.popHist;
     if (S.ov.sparkline && ph.length > 1) {                  // 엔진 2D 스파크라인 이식
       var gw = 170, gh = 52, gx = wdt - gw - 10, gy = 10;
@@ -360,8 +395,33 @@
     ctx.fillStyle = '#5a6270'; ctx.font = '10px Segoe UI';
     if (ctx.measureText) {
       var hint = '드래그 회전 · 휠 줌 · Shift/우드래그 팬 · 클릭 = 클릭 동작';
-      ctx.fillText(hint, wdt - ctx.measureText(hint).width - 8, hgt - 8);
+      ctx.fillText(hint, (split ? CV_SIZE : wdt) - ctx.measureText(hint).width - 8, hgt - 8);
     }
+    /* ── 뷰포트 제목 라벨 (분할 시 좌=에너지 변위 · 우=세계 해석) ── */
+    ctx.textAlign = 'center'; ctx.font = 'bold 13px Segoe UI';
+    vlabel(ctx, CV_SIZE / 2, '에너지 변위', '#9fb0c0');
+    if (split) {
+      vlabel(ctx, CV_SIZE + CV_SIZE / 2, '세계 해석', '#e6c860');
+      /* 세계 해석 범례 — 활성도 분류 다이얼이 무엇을 무엇으로 번역하는지 (INTERPRET-UE §2) */
+      ctx.textAlign = 'left'; ctx.font = '11px Consolas';
+      var leg = [['#1a5a86', '물 · 지형 (E 깊이)'], ['#52473f', '돌 · 암반 (R, 무유전)'],
+                 ['#c89a6a', '나무 · 결정 (R + 유전 G)'], ['#ffb04d', '빛 · 생명 (활성도 A)']];
+      var lx = CV_SIZE + 10, ly = 34, lh = 16;
+      for (var li = 0; li < leg.length; li++) {
+        var yy = ly + li * lh;
+        ctx.fillStyle = 'rgba(15,17,21,0.55)'; ctx.fillRect(lx, yy, 168, lh - 2);
+        ctx.fillStyle = leg[li][0]; ctx.fillRect(lx + 3, yy + 3, 10, 10);
+        ctx.fillStyle = '#cdd5de'; ctx.fillText(leg[li][1], lx + 19, yy + 11);
+      }
+    }
+    ctx.textAlign = 'left';                                 // 다음 프레임 sparkline/hover 가 left 기준이도록 복원
+  }
+
+  /* 뷰포트 상단 가운데 제목 — 반투명 배경 + 색 텍스트 */
+  function vlabel(ctx, cx, txt, col) {
+    var w = ctx.measureText(txt).width;
+    ctx.fillStyle = 'rgba(15,17,21,0.62)'; ctx.fillRect(cx - w / 2 - 7, 6, w + 14, 21);
+    ctx.fillStyle = col; ctx.fillText(txt, cx, 21);
   }
 
   /* ════════ 입력 — 궤도 카메라 + 레이캐스트 클릭/호버 ════════ */
@@ -421,7 +481,11 @@
     var glcv = S.dom.glcv, r = glcv.getBoundingClientRect();
     var mx = ev.clientX - r.left, my = ev.clientY - r.top;
     if (mx < 0 || my < 0 || mx >= r.width || my >= r.height) return null;
-    return pick(mx / r.width * 2 - 1, 1 - my / r.height * 2);
+    /* 분할 시 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 픽킹 식 동일 */
+    var split = isWorld();
+    var halfCss = split ? r.width / 2 : r.width;            // CSS 폭 기준 한 뷰포트 폭
+    var localX = (split && mx >= halfCss) ? mx - halfCss : mx;
+    return pick(localX / halfCss * 2 - 1, 1 - my / r.height * 2);
   }
 
   /* 픽킹 — 카메라 기저로 레이 생성 후 하이트필드 레이마칭(이분 정밀화). 셰이더와 같은 높이식 사용. */
@@ -433,7 +497,7 @@
     var rt = norm3(cross3(fw, [0, 1, 0]));
     var up = cross3(rt, fw);
     var tf = Math.tan(cam.fov / 2);
-    var aspect = S.dom.glcv.width / S.dom.glcv.height;
+    var aspect = 1;                                         // 뷰포트는 늘 정사각(CV_SIZE²) — 분할이어도 1 (render 의 MVP 와 일치)
     var dir = norm3([
       fw[0] + rt[0] * px * tf * aspect + up[0] * py * tf,
       fw[1] + rt[1] * px * tf * aspect + up[1] * py * tf,
@@ -542,6 +606,60 @@
     'void main(){ float d=max(dot(normalize(vNormal),uLight),0.0); o=vec4(vColor*(0.42+0.62*d),1.0); }'
   ].join('\n');
 
+  /* ── 세계 해석 셰이더 (INTERPRET-UE) — 같은 텍스처(E,R,G,A)를 *활성도 분류 다이얼*로 다르게 읽는다.
+   * 높이는 에너지 변위와 동일(h=E+R) — 같은 지형 위에 "무엇으로 읽히는가"만 바꾼다. 색 규약:
+   *   · 물·지형  = E 깊이(파랑)            · 돌·암반 = R 우세 + 무유전(회갈색)
+   *   · 나무·결정 = R 우세 + 유전 태그 G(클론 색)  · 빛·생명 = 활성도 A(소산 극단)만 발광 가산(조명 무관)
+   * A 없는/꺼진 step 은 a=0 → 발광 0 → 물/돌/나무만(우아한 강등). */
+  var VS_WORLD = [
+    '#version 300 es',
+    'precision highp float;',
+    'layout(location=0) in vec2 aCell;',
+    'uniform sampler2D uE;',
+    'uniform mat4 uMVP;',
+    'uniform float uSat, uHS, uSatR, uSatA;',
+    'uniform ivec2 uDim;',
+    'out vec3 vBase; out vec3 vNormal; out float vAct;',
+    'float mAt(int x, int y){',
+    '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
+    '  vec2 t=texelFetch(uE, ivec2(x,y), 0).rg; return t.r+t.g;',
+    '}',
+    'float hOf(float e){ return min(uHS*log(1.0+max(e,0.0))/log(1.0+uSat), uHS*2.2); }',
+    'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 팔레트(2D GENE_COL 일관)
+    '  int g=int(tag+0.5);',
+    '  if (g==1) return vec3(0.910,0.376,0.376);',
+    '  if (g==2) return vec3(0.471,0.784,0.376);',
+    '  if (g==3) return vec3(0.376,0.659,0.910);',
+    '  if (g>=4) return vec3(0.784,0.439,0.878);',
+    '  return vec3(0.784,0.608,0.416);',                    // 0 = 무유전(여기선 도달 안 함 — 돌 경로가 가져감)
+    '}',
+    'void main(){',
+    '  int x=int(aCell.x), y=int(aCell.y);',
+    '  vec4 t=texelFetch(uE, ivec2(x,y), 0);',              // r=E, g=R, b=G태그, a=A활성도
+    '  float E=t.r, Rr=t.g, tag=t.b, A=t.a;',
+    '  float depth=clamp(log(1.0+max(E,0.0))/log(1.0+uSat),0.0,1.0);',
+    '  vec3 water=mix(vec3(0.04,0.07,0.13), vec3(0.10,0.40,0.55), depth);', // 물·지형(E 깊이)
+    '  vec3 store=(tag>0.5)? geneCol(tag) : vec3(0.322,0.278,0.247);',      // 유전=나무/결정, 무유전=돌
+    '  float rf=clamp(Rr/uSatR, 0.0, 1.0);',
+    '  vBase=mix(water, store, rf*0.92);',
+    '  vNormal=normalize(vec3(hOf(mAt(x-1,y))-hOf(mAt(x+1,y)), 2.0, hOf(mAt(x,y-1))-hOf(mAt(x,y+1))));',
+    '  vAct=smoothstep(0.16, 1.0, clamp(A/uSatA, 0.0, 1.0));', // 활성도 발광량(소산 극단만 큼)
+    '  gl_Position=uMVP*vec4(aCell.x, hOf(E+Rr), aCell.y, 1.0);',
+    '}'].join('\n');
+
+  var FS_WORLD = [
+    '#version 300 es',
+    'precision highp float;',
+    'in vec3 vBase; in vec3 vNormal; in float vAct;',
+    'uniform vec3 uLight;',
+    'out vec4 o;',
+    'void main(){',
+    '  float d=max(dot(normalize(vNormal),uLight),0.0);',
+    '  vec3 lit=vBase*(0.30+0.70*d);',
+    '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vAct);', // 뜨거울수록 흰빛
+    '  o=vec4(lit + fire*vAct*1.5, 1.0);',                  // 빛·생명 = 활성도 발광 가산(조명 무관)
+    '}'].join('\n');
+
   var VS_POINT = [
     '#version 300 es',
     'precision highp float;',
@@ -592,9 +710,11 @@
     var gl = S.gl;
     R = {};
     R.progT = mkProg(gl, VS_TERRAIN, FS_TERRAIN);
+    R.progW = mkProg(gl, VS_WORLD, FS_WORLD);               // 세계 해석 렌즈(INTERPRET-UE)
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
+    R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx']);
     R.uL = locs(gl, R.progL, ['uMVP']);
     R.tex = gl.createTexture();
@@ -619,7 +739,7 @@
     gl.bindVertexArray(null);
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.043, 0.051, 0.064, 1);
-    R.W = 0; R.H = 0; R.sat = 8; R.satR = 1.5;
+    R.W = 0; R.H = 0; R.sat = 8; R.satR = 1.5; R.satA = 1e-6;
   }
 
   /* 격자 크기에 맞춘 정적 버퍼 — 정점=셀 중심(W·H개), 인덱스=쿼드 2삼각형. 크기가 바뀌면 재생성
