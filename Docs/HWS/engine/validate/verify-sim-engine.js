@@ -35,6 +35,7 @@ var POOL = { minE: 1.5, prom: 0.3 };
 /* 별(step-0011) — 내생 구동 시나리오. golden 의 endo@ 키가 별+생명 스택을 동결 잠근다(step-0012~ 회귀 앵커). */
 var STAR = { kIgnite: 1, starRate: 0.06, starFuel0: 500, ignThresh: 1.5, starCap: 10, starGap: 6, starR: 3, starDriftPeriod: 20 };
 var CROWD = { kCrowd: 0.20, crowdR: 3 };   // 자기제한(step-0012) — golden 의 cwd@ 키가 별+생명+혼잡 스택을 동결 잠근다(step-0013~ 회귀 앵커).
+var FSM = { kFSM: 1, livingFrac: 0.55, burnOn: 0.6, burnOff: 0.4 };  // 연소 FSM(step-0013) — golden 의 fsm@ 키가 별+생명+혼잡+FSM 스택을 동결 잠근다(step-0014~ 회귀 앵커).
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H;
 
 function scn(extra) {
@@ -46,6 +47,8 @@ function endoScn(extra) {
 }
 /* 자기제한 켠 내생 시나리오(step-0012 스택, FSM off) — step-0013/verify.js scn({kFSM:0}) 과 동일 상수. */
 function crowdScn(extra) { return Object.assign({}, endoScn(), CROWD, extra || {}); }
+/* 연소 FSM 켠 내생 시나리오(step-0013 스택, flux off) — step-0014/verify.js scn({kFlux:0}) 과 동일 상수. */
+function fsmScn(extra) { return Object.assign({}, crowdScn(), FSM, extra || {}); }
 function spawnStrongest(C, sim, k) {
   var pools = C.detectPools(sim, POOL);
   var n = Math.min(k || 1, pools.length);
@@ -121,7 +124,8 @@ function runEq() {
 /* golden: 표준 시나리오 상태 해시를 golden-sim.json 과 대조. 동결 해시 = 아카이브 재현 잠금.
  *   std@  — step-0010 등가 스택(외부 source, 별 없음). 0011 까지의 회귀 사슬을 잠근다.
  *   endo@ — step-0011 내생 구동(별+생명, 외부 source off). 0012 의 회귀 앵커(kCrowd=0 이면 이 해시 불변).
- *   cwd@  — step-0012 자기제한 스택(별+생명+혼잡, FSM off). 0013~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   cwd@  — step-0012 자기제한 스택(별+생명+혼잡, FSM off). 0013 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   fsm@  — step-0013 연소 FSM 스택(별+생명+혼잡+FSM, flux off). 0014~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -137,6 +141,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // cwd@ — 별 6 + 생명 5 + 자기제한(step-0012 스택, FSM off). step-0013 회귀 앵커.
     var a = ENG.createSim(seed, crowdScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); ENG.run(a, 3000);
     cur['cwd@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // fsm@ — 별 6 + 생명 5 + 자기제한 + 연소 FSM(step-0013 스택, flux off). step-0014 회귀 앵커.
+    var a = ENG.createSim(seed, fsmScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); ENG.run(a, 3000);
+    cur['fsm@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

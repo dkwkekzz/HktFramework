@@ -99,10 +99,18 @@
                          //   burning 은 배수 1(전율) + 서행(채식지 떠돎). ash 는 0(주입 멎음). 정지 kindling 이라 핫코어가
                          //   흩어지지 않고 burnOn 까지 차오른다(flashpoint 도달).
     burnOn: 0.6,         // living→burning 점화 문턱(히스테리시스 *상*, 빠른 변수). 핫코어(disc 평균 E)가 이 값 *이상*이면 SNAP 연소.
-    burnOff: 0.4         // burning→ash 조기 quench 문턱(히스테리시스 *하* < 상). 핫코어가 이 값 *미만*으로 식으면 SNAP 재.
+    burnOff: 0.4,        // burning→ash 조기 quench 문턱(히스테리시스 *하* < 상). 핫코어가 이 값 *미만*으로 식으면 SNAP 재.
                          //   소진은 보통 *느린 변수*(연료 고갈, ignite)가 끌지만, 이 하문턱은 *심하게 잠식된* 별을 조기에 끈다.
                          //   상≠하(폭 = burnOn−burnOff > 0)라 그 사이 밴드에선 latch(안 떨리고 비가역) — 이산성이 *문턱 분리·
                          //   timescale 분리*(빠른 점화 snap · 느린 소진)에서 창발한다(흥분성 매질/이완 진동, FitzHugh–Nagumo).
+    /* ── step-0014: 활성도 계량(flux — 척추 변수 E 의 통과 throughput 측정, SPINE 결정1·2) ── */
+    kFlux: 0,            // 활성도 계량 마스터. 0 = off = step-0013 과 비트 동일(회귀, A·Eprev 불변 → 해시 가법 skip).
+                         //   1 이면 매 tick 각 셀의 *통과 flux*(net dE/dt = 척추 변수 E 가 그 칸에서 처리되는 속도, 결정1)를 재서
+                         //   활성도 필드 A 로 적분(EMA)한다. A 는 *연속 활성도 축*(결정2) — 저장체(R 잠김·E 불변 → 낮은 A)와
+                         //   소산(별 연소·E 격변 → 높은 A)이 *측정*으로 그 축의 두 극단에 갈린다(authored enum 없이 분류 창발).
+                         //   A 는 *읽기 전용 계기*다 — E/R/agent 동역학에 되먹이지 않는다(단일 척추: A 는 측정이지 둘째 구동 필드 아님).
+    aFlux: 0.1           // 활성도 EMA 평활 계수(0~1) — A ← (1−aFlux)·A + aFlux·|dE/dt|. 작을수록 길게 기억(시간 평균),
+                         //   클수록 순간 throughput 에 민감. 결정론 무관(시드 의사난수 아님)·장부 무관(A 는 에너지 아닌 *속도*).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -486,16 +494,42 @@
     }
   }
 
+  /* ⑨ 활성도 계량(flux, step-0014) — kFlux=0 이면 통째로 건너뜀(회귀 0, A·Eprev·fluxInit 불변 → 해시 가법 skip).
+   * SPINE 결정1(척추 변수 = flux): 척추 변수 E 의 *통과 throughput*(net dE/dt — 단위 tick 당 그 칸에서 처리되는 에너지량,
+   *   차이슨 energy rate density 의 게임화)을 매 tick 측정해 활성도 필드 A 로 EMA 적분한다. 재고(E)와 흐름(A=dE/dt)을
+   *   분리해 *읽어낸다* — A 가 곧 활성도 연속축(SPINE 결정2 "이분 enum 아닌 연속축의 두 극단").
+   * SPINE 결정2(분류는 측정으로 창발): A 위에서 저장체(R 잠김·흐름 끊김 → A≈0, "존재")와 소산(별 연소·흐름 격렬 → A 높음,
+   *   "흐름 있어야 존재")이 *측정으로* 갈린다 — 코드에 종류(enum)를 안 박는다. 같은 stored E 라도 흐름이 지나면 소산, 끊기면
+   *   저장체(활성도가 정체성을 가른다, 이름이 아니라). flux 는 그 측정을 명시적 필드로 만든다.
+   * 척추: 새 *구동* 필드 없음(A 는 *읽기 전용 계기* — E/R/agent 에 되먹이지 않아 단일 척추 유지) · authored type 분기 없음
+   *   (A 는 E 만으로 계산, R/별 라벨 안 읽음 — 분류는 verify 가 A 를 *읽어* 창발 확인) · 국소(셀별 dE/dt, 전역 조율자 0) ·
+   *   장부 무관(A 는 에너지 아닌 *속도* — 거래 0, 잔차 불변). LAW_ORDER *맨 끝* — 이번 tick 모든 법칙 적용 후 net dE/dt 측정.
+   * Eprev = 직전 tick 끝(=이번 tick 시작) E. 첫 활성 tick 은 기준선만 잡고 측정 skip(|E−0| 스파이크 회피). */
+  function flux(sim) {
+    var p = sim.p; if (p.kFlux === 0) return;
+    var E = sim.E, A = sim.A, Ep = sim.Eprev, N = p.W * p.H, a = p.aFlux, j;
+    if (!sim.fluxInit) { for (j = 0; j < N; j++) Ep[j] = E[j]; sim.fluxInit = true; return; }
+    var b = 1 - a, sumA = 0, peakA = 0;
+    for (var i = 0; i < N; i++) {
+      var thru = E[i] - Ep[i]; if (thru < 0) thru = -thru;   // |dE/dt| — 이 칸을 통과한 net flux(throughput)
+      var ai = b * A[i] + a * thru;                          // EMA 적분 → 활성도(연속축 위 한 점)
+      A[i] = ai; Ep[i] = E[i];                               // Ep 갱신: 다음 tick 의 시작 기준
+      sumA += ai; if (ai > peakA) peakA = ai;
+    }
+    sim.fluxSum = sumA; sim.fluxPeak = peakA;                // 통계(상태 아님 재계산값 — 세계 활성도 총량/최고)
+  }
+
   /* 순서 단일 출처(척추 결정: 순서 불변). step() 은 이 배열을 그대로 순회한다.
    * ⑤b 점화(ignite)는 ⑤결정화 뒤·⑥이동 앞 — 갓 굳은 R 을 읽어 점화하고, 별이 만든 봉우리를 생명이 같은 tick 에 쫓는다.
    * ⑤c 연소(combust)는 ⑤b ignite 앞 — 이번 tick 주입 전에 별 상태를 정해(이전 tick 잔열 기준) burnMul 을 ignite 가 읽는다.
-   * ⑥b 혼잡(crowd)은 ⑥이동 뒤·⑦생명 앞 — 이동으로 정해진 자리의 국소 밀도로 혼잡세를 매기고, 죽음은 ⑦이 처리한다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, combust, ignite, move, crowd, metabolize, reproduce];
+   * ⑥b 혼잡(crowd)은 ⑥이동 뒤·⑦생명 앞 — 이동으로 정해진 자리의 국소 밀도로 혼잡세를 매기고, 죽음은 ⑦이 처리한다.
+   * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, combust, ignite, move, crowd, metabolize, reproduce, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize,
-    combust: combust, ignite: ignite, move: move, crowd: crowd, metabolize: metabolize, reproduce: reproduce
+    combust: combust, ignite: ignite, move: move, crowd: crowd, metabolize: metabolize, reproduce: reproduce, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;

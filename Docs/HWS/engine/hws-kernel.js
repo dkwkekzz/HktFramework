@@ -310,6 +310,9 @@
         if (st[j2].state !== undefined) feed(new Float64Array([st[j2].state]).buffer);
       }
     }
+    /* 활성도 필드 A(step-0014) — *가법*: 계량이 활성(fluxInit)일 때만 먹인다(kFlux=0 이면 false → skip → 과거 골든 전부 불변).
+     * 활성도(측정값)가 결정론·재현에 들어간다(같은 시드 2회 A 도 비트 동일). A 는 읽기 전용 계기지만 결정론 검증엔 포함. */
+    if (sim.fluxInit) feed(sim.A.buffer);
     return ('00000000' + h.toString(16)).slice(-8);
   }
 
