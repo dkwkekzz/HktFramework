@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- HktInfra step-0007 — 시각 관찰 셸. 빌드/서버 불필요 — 이 파일을 브라우저로 그냥 열면 됩니다.
+     로드 순서: engine(전역 HktEngine) → net-core(HktNet) → panel-kit(HktPanelKit) → panel(렌더). -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>HktInfra step-0007 — 증분 AOI (관심영역 구독)</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background: #1e1e2e; color: #cdd6f4; font: 14px ui-monospace, "SF Mono", Menlo, monospace; margin: 0; padding: 22px 26px; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  .sub { color: #9399b2; font-size: 12px; margin-bottom: 18px; max-width: 780px; line-height: 1.5; }
+  .ctrls { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; padding: 12px 14px; background: #181825; border-radius: 8px; }
+  .ctl { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .ctl .lbl { color: #bac2de; min-width: max-content; }
+  .ctl .val { color: #f9e2af; min-width: 26px; text-align: right; }
+  input[type=range] { width: 116px; accent-color: #89b4fa; }
+  canvas.grid { display: block; background: #181825; border-radius: 8px; padding: 6px; margin-bottom: 14px; image-rendering: pixelated; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 22px; margin-bottom: 12px; max-width: 780px; }
+  .stat { display: flex; justify-content: space-between; border-bottom: 1px solid #313244; padding: 3px 0; }
+  .stat .k { color: #9399b2; }
+  .stat .v { color: #cdd6f4; } .stat .v.good { color: #a6e3a1; } .stat .v.bad { color: #f38ba8; }
+  .note { color: #9399b2; font-size: 12px; max-width: 780px; line-height: 1.5; }
+  a { color: #89b4fa; }
+</style>
+</head>
+<body>
+  <h1>step-0007 — 증분 AOI: <b>전체 스냅샷 대신 enter/exit/update 증분만 보낸다</b></h1>
+  <div class="sub">
+    0006 의 분할 존·경계 핸드오프·경계 띠 ghost 위에서 — 존이 매 tick 각 클라에게 *반경 안 엔터티 전부*를 보내던 것을,
+    직전 가시 집합 대비 <b>새로 들어온 것(enter)·나간 것(exit)·움직인 것(update)</b> 만 보내는 <b>증분</b>으로 바꾼다.
+    클라는 증분을 누적 적용해 가시 집합을 재구성한다 — <b>증분 ≡ 전체 스냅샷</b>(매 tick 전 클라 일치). 아래 막대 = tick 별 증분 레코드:
+    이동 중엔 솟고 <b>정지하면 0</b> 으로 떨어진다(대역폭이 밀도가 아니라 *변화량*에 비례). 세션이 존을 넘으면(핸드오프)
+    새 존이 <b>reset</b>(키프레임)으로 재동기. 클라는 증분·존·핸드오프를 <b>모른다</b>. 상세: <a href="step-0007.md">step-0007.md</a>.
+  </div>
+  <div id="app"></div>
+
+  <script src="engine/index.js"></script>
+  <script src="step-0007/net-core.js"></script>
+  <script src="engine/panel-kit.js"></script>
+  <script src="step-0007/panel.js"></script>
+</body>
+</html>
