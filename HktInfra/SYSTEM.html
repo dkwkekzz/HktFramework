@@ -5,7 +5,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>HktInfra SYSTEM — 현재 작동 시스템 전체도 (step-0007 기준)</title>
+<title>HktInfra SYSTEM — 현재 작동 시스템 전체도 (step-0008 기준)</title>
 <style>
   :root { color-scheme: dark; }
   body { background: #1e1e2e; color: #cdd6f4; font: 14px ui-monospace, "SF Mono", Menlo, monospace; margin: 0; padding: 22px 26px 60px; }
@@ -37,7 +37,7 @@
 <div class="wrap">
   <h1>HktInfra — 현재 <b style="color:#a6e3a1">작동하는</b> 시스템 전체도</h1>
   <div class="sub">
-    <b>기준: step-0007</b> (증분 AOI — 전체 스냅샷 → enter/exit/update). 목표 토폴로지(어디로 가는가)는 <a href="SPINE.md">SPINE.md</a>,
+    <b>기준: step-0008</b> (전송 열화 아래 핸드오프 + 반응적 복원 — ack/재전송·seq/NAK/keyframe). 목표 토폴로지(어디로 가는가)는 <a href="SPINE.md">SPINE.md</a>,
     현재 위치·다음 가설(SSOT)은 <a href="STATE.md">STATE.md</a>, 방법론은 <a href="CLAUDE.md">CLAUDE.md</a>.
     이 문서는 STATE 의 <b>시각 요약</b>일 뿐 — 권위는 STATE.md.
   </div>
@@ -98,14 +98,16 @@
   <!-- zones -->
   <text class="lyr" x="8" y="420" transform="rotate(-90 8 420)">월드</text>
   <rect rx="9" class="box ok" x="110" y="372" width="220" height="94"/>
-  <text class="t" x="220" y="400">zone1   x[0, 8)</text>
-  <text class="s" x="220" y="420">위치 맵 + 증분 AOI</text>
-  <text class="s" x="220" y="436">권위 소유 · 시뮬 없음</text>
+  <text class="t" x="220" y="398">zone1   x[0, 8)</text>
+  <text class="s" x="220" y="416">위치 맵 + 증분 AOI + 손실 복원</text>
+  <text class="s" x="220" y="431">권위-of-record · seq/keyframe</text>
+  <text class="s" x="220" y="446">권위 소유 · 시뮬 없음</text>
 
   <rect rx="9" class="box ok" x="430" y="372" width="220" height="94"/>
-  <text class="t" x="540" y="400">zone2   x[8, 16)</text>
-  <text class="s" x="540" y="420">위치 맵 + 증분 AOI</text>
-  <text class="s" x="540" y="436">권위 소유 · 시뮬 없음</text>
+  <text class="t" x="540" y="398">zone2   x[8, 16)</text>
+  <text class="s" x="540" y="416">위치 맵 + 증분 AOI + 손실 복원</text>
+  <text class="s" x="540" y="431">권위-of-record · seq/keyframe</text>
+  <text class="s" x="540" y="446">권위 소유 · 시뮬 없음</text>
 
   <!-- absent layers -->
   <text class="lbl" x="380" y="503" text-anchor="middle">─────────  아직 없음 (비어 있는 박스)  ─────────</text>
@@ -151,20 +153,20 @@
 
   <!-- zone1 <-> zone2 : handoff / ghost -->
   <line class="ln2" x1="330" y1="419" x2="430" y2="419"/>
-  <text class="lbl" x="380" y="412" text-anchor="middle">handoff (권위 토큰)</text>
+  <text class="lbl" x="380" y="412" text-anchor="middle">handoff (권위 토큰 · ack/재전송)</text>
   <text class="lbl" x="380" y="455" text-anchor="middle">· ghost (경계 구독) ·</text>
 </svg>
-<p class="arrowkey">↑ 존↔존(handoff·ghost)은 지금 <b style="color:#9399b2">직접 주소 메시지</b>다 — 이벤트 버스는 아직 없다. 멀티존 시나리오의 전송은 행복 경로(지연·손실 끔).</p>
+<p class="arrowkey">↑ 존↔존(handoff·ghost)은 지금 <b style="color:#9399b2">직접 주소 메시지</b>다 — 이벤트 버스는 아직 없다. 핸드오프 토큰·증분 델타에 <b style="color:#a6e3a1">전송 손실을 입혀도</b> 반응적 복원(ack/재전송 · seq/NAK/keyframe)으로 권위 공백 0·desync 0 수렴(step-0008).</p>
 
 <h2>2. 서버별 — 무엇을 / 어디까지 도나 (정직한 상태)</h2>
 <table>
   <tr><th>액터</th><th>계층</th><th>무엇을 하나</th><th>어디까지</th></tr>
   <tr><td class="s">login</td><td>엣지</td><td>계정 검증 → 티켓 발급</td><td class="stub">🟡 스텁이지만 동작 — 계정집합 체크 + 해시 티켓. 대기열·만료 없음</td></tr>
   <tr><td class="s">registry</td><td>코디</td><td>티켓 검증 → 세션ID·아바타 발급, "누가 어디에" SSOT</td><td class="stub">🟡 스텁이지만 동작 — 티켓 1회용·세션 발급. 그 이상 프레즌스 없음</td></tr>
-  <tr><td class="s">gateway</td><td>엣지</td><td>클라 단일 연결·은닉, move/leave 라우팅, view 중계</td><td class="ok">✅ 작동 — 멀티 클라·은닉·전 존 브로드캐스트(라우팅 테이블 0)</td></tr>
-  <tr><td class="s">zone1·zone2</td><td>월드</td><td>위치 맵 + 증분 AOI(enter/exit/update) + 분할 + 권위 핸드오프 + 경계 ghost</td><td class="ok">✅ 작동(라우터로서) — <b class="stub">단 시뮬 없음</b>(HktCore VM 자리 비움)</td></tr>
-  <tr><td class="s">client</td><td>—</td><td>auth→connect→move→view 수명주기</td><td class="ok">✅ 작동</td></tr>
-  <tr><td class="s">Net (전송)</td><td>버스</td><td>지연·손실·재정렬 전송 모델 (step-0004)</td><td class="stub">🟡 모델은 있으나 멀티존 시나리오는 꺼두고 돌림(행복경로)</td></tr>
+  <tr><td class="s">gateway</td><td>엣지</td><td>클라 단일 연결·은닉, move/leave/resync(NAK) 라우팅, view 중계</td><td class="ok">✅ 작동 — 멀티 클라·은닉·전 존 브로드캐스트(라우팅 테이블 0)</td></tr>
+  <tr><td class="s">zone1·zone2</td><td>월드</td><td>위치 맵 + 증분 AOI + 분할 + 권위 핸드오프(ack/재전송) + 경계 ghost + 손실 복원(seq/NAK/keyframe)</td><td class="ok">✅ 작동(라우터로서) — <b class="stub">단 시뮬 없음</b>(HktCore VM 자리 비움)</td></tr>
+  <tr><td class="s">client</td><td>—</td><td>auth→connect→move→view 수명주기 + seq 손실 감지→resync(NAK)</td><td class="ok">✅ 작동</td></tr>
+  <tr><td class="s">Net (전송)</td><td>버스</td><td>지연·손실·재정렬 전송 모델 (step-0004) + 핸드오프·델타 라우트 확장 (step-0008)</td><td class="stub">🟡 모델 작동 — 핸드오프·증분 라우트에 손실 입힘(routeFilter), 반응적 복원으로 견딤</td></tr>
   <tr><td class="s">가방·채팅·길드…</td><td>서비스</td><td>아이템 원장·채널 팬아웃 등</td><td class="none">⬜ 없음</td></tr>
   <tr><td class="s">이벤트 버스</td><td>버스</td><td>서버간 pub/sub</td><td class="none">⬜ 없음 (존↔존은 지금 직접 주소 메시지)</td></tr>
   <tr><td class="s">오케스트레이터</td><td>코디</td><td>존 배치·부하분산·인스턴스 spawn</td><td class="none">⬜ 없음 (존 배정 고정)</td></tr>
@@ -178,21 +180,21 @@
   <li><code>registry → gateway {validate_ok, sessionId, avatar}</code> → gateway 가 클라↔세션 바인딩</li>
   <li><code>gateway → zone1 {enter}</code> (엔트리 존이 시드 PRNG 로 시작 위치 부여) + <code>gateway → client {connect_ok}</code></li>
   <li>매 tick: <code>client → gateway {move}</code> → <code>gateway → zone1·zone2 {move}</code> (둘 다 보내고 <b>소유 존만 적용</b>)</li>
-  <li>존 tick: ① 위치 갱신 ② 경계 넘었으면 <b>핸드오프</b>(존↔존 토큰 이주) ③ 경계 ghost 발행 ④ <code>zone → gateway {view_delta}</code> (직전 가시 대비 <b>enter/exit/update 증분</b>만 · 정지 시 무발신 · 세션 이주 시 reset)</li>
-  <li><code>gateway → client {view}</code> → 클라가 <code>seen</code> 갱신(화면). <b>클라는 존이 둘인 것·자기 아바타가 이주한 것을 모른다.</b></li>
+  <li>존 tick: ① 위치 갱신 ② 경계 넘었으면 <b>핸드오프</b>(존↔존 토큰 이주 — <b>ack 까지 outbox 보유·재전송</b>, 토큰 유실에도 권위 공백 0) ③ 경계 ghost 발행 ④ <code>zone → gateway {view_delta, seq}</code> (<b>enter/exit/update 증분</b> + 단조 seq · 정지 시 무발신 · 이주/NAK/heartbeat 시 reset)</li>
+  <li><code>gateway → client {view_delta, seq}</code> → 클라가 <code>seen</code> 갱신. <b>seq 점프</b>면 델타 유실 감지 → <code>client → gateway {resync}</code>(NAK) → 존이 <b>keyframe</b> 재동기 → desync 0. <b>클라는 존이 둘인 것·이주·복원의 내부를 모른다.</b></li>
 </ol>
 
 <h2>4. 목표(6계층) 대비 지금 위치</h2>
 <table>
   <tr><th>계층</th><th>목표 (SPINE)</th><th>지금</th></tr>
   <tr><td class="s">1 엣지</td><td>로그인 · 게이트웨이</td><td class="stub">🟡 스텁 동작 (대기열·만료·재접속 ✗)</td></tr>
-  <tr><td class="s">2 월드</td><td>존·인스턴스 (분할·AOI·핸드오프·시뮬)</td><td class="ok">🟡 <b>분할·증분 AOI·핸드오프 ✅ / 시뮬은 C++로 연기</b> ← 지금 작업 중심</td></tr>
+  <tr><td class="s">2 월드</td><td>존·인스턴스 (분할·AOI·핸드오프·시뮬)</td><td class="ok">🟡 <b>분할·증분 AOI·핸드오프·손실 복원 ✅ / 시뮬은 C++로 연기</b> ← 지금 작업 중심</td></tr>
   <tr><td class="s">3 서비스</td><td>가방·채팅·길드·거래소·우편·랭킹</td><td class="none">⬜ 없음</td></tr>
-  <tr><td class="s">4 버스</td><td>이벤트 버스 (pub/sub)</td><td class="stub">🟡 전송모델만 / pub/sub 없음</td></tr>
+  <tr><td class="s">4 버스</td><td>이벤트 버스 (pub/sub)</td><td class="stub">🟡 전송모델(핸드오프·델타 라우트까지) / pub/sub 없음</td></tr>
   <tr><td class="s">5 코디</td><td>세션/프레즌스 · 오케스트레이터</td><td class="stub">🟡 세션 발급만 / 배치·분산 없음</td></tr>
   <tr><td class="s">6 데이터</td><td>캐시 · DB · write-behind</td><td class="none">⬜ 없음</td></tr>
 </table>
-<p class="sub" style="margin-top:10px"><b>한 문장 요약.</b> 지금까지 <b>엣지(접속) → 월드(존)</b> 의 기본 골격과 월드 존의 핵심 동작(결정론 복제·증분 AOI·분할·핸드오프)을 헤드리스로 세웠고, <b>서비스·버스·데이터·시뮬</b>은 아직 비어 있는 박스다.</p>
+<p class="sub" style="margin-top:10px"><b>한 문장 요약.</b> 지금까지 <b>엣지(접속) → 월드(존)</b> 의 기본 골격과 월드 존의 핵심 동작(결정론 복제·증분 AOI·분할·핸드오프·전송 손실 복원)을 헤드리스로 세웠고, <b>서비스·버스(pub/sub)·데이터·시뮬</b>은 아직 비어 있는 박스다.</p>
 
 <div class="note">
   <b>갱신 규칙.</b> 이 문서는 <a href="STATE.md">STATE.md</a> 의 <b>파생 시각 요약</b>이다 — "어디까지 왔나"의 권위는 STATE.md(중복 SSOT 금지).

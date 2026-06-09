@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- HktInfra step-0008 — 시각 관찰 셸. 빌드/서버 불필요 — 이 파일을 브라우저로 그냥 열면 됩니다.
+     로드 순서: engine(전역 HktEngine) → net-core(HktNet) → panel-kit(HktPanelKit) → panel(렌더). -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>HktInfra step-0008 — 전송 열화 아래 핸드오프 + 반응적 복원</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background: #1e1e2e; color: #cdd6f4; font: 14px ui-monospace, "SF Mono", Menlo, monospace; margin: 0; padding: 22px 26px; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  .sub { color: #9399b2; font-size: 12px; margin-bottom: 18px; max-width: 800px; line-height: 1.5; }
+  .ctrls { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; padding: 12px 14px; background: #181825; border-radius: 8px; }
+  .ctl { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .ctl .lbl { color: #bac2de; min-width: max-content; }
+  .ctl .val { color: #f9e2af; min-width: 26px; text-align: right; }
+  input[type=range] { width: 116px; accent-color: #89b4fa; }
+  canvas.grid { display: block; background: #181825; border-radius: 8px; padding: 6px; margin-bottom: 14px; image-rendering: pixelated; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 22px; margin-bottom: 12px; max-width: 800px; }
+  .stat { display: flex; justify-content: space-between; border-bottom: 1px solid #313244; padding: 3px 0; }
+  .stat .k { color: #9399b2; }
+  .stat .v { color: #cdd6f4; } .stat .v.good { color: #a6e3a1; } .stat .v.bad { color: #f38ba8; }
+  .note { color: #9399b2; font-size: 12px; max-width: 800px; line-height: 1.5; }
+  a { color: #89b4fa; }
+</style>
+</head>
+<body>
+  <h1>step-0008 — 전송 열화 아래 핸드오프 + <b>반응적 복원</b></h1>
+  <div class="sub">
+    0006 핸드오프·0007 증분은 모두 *행복 경로*에서만 검증됐다 — 손실에 취약하다. 이 step 은 0004 의 전송 모델(손실)을
+    <b>핸드오프 토큰·증분 델타</b> 라우트에 입히고, 그 위에 <b>반응적 복원</b>을 더한다: 핸드오프는 <b>ack + 재전송</b>(권위-of-record
+    outbox — 토큰 유실에도 권위 공백 0), 증분은 <b>seq + NAK + keyframe</b> 재동기(+heartbeat 로 꼬리 유실 상한). 아래 두 타임라인에서
+    <b style="color:#f38ba8">복원 OFF(빨강)</b>는 권위 공백·desync 가 *남고*, <b style="color:#a6e3a1">복원 ON(초록)</b>은 *0 으로 수렴*한다.
+    클라는 <b>{resync}</b> 만 보낼 뿐 내부를 모른다(은닉). 상세: <a href="step-0008.md">step-0008.md</a>.
+  </div>
+  <div id="app"></div>
+
+  <script src="engine/index.js"></script>
+  <script src="step-0008/net-core.js"></script>
+  <script src="engine/panel-kit.js"></script>
+  <script src="step-0008/panel.js"></script>
+</body>
+</html>
