@@ -43,6 +43,7 @@ var ADH = { kAdhesion: 1, adhesionLambda: 1.0, adhesionGain: 0.5 };  // 차등 �
 var MEM = { kMembrane: 0.5 };  // 막/flux 결합(step-0018) — golden 의 mem@ 키가 + 막 결합 스택을 동결 잠근다(step-0019~ 회귀 앵커).
 var SHARE = { kShare: 0.5, coopFit0: 1.0, coopFitStep: 0.0 };  // 생물량 공유(step-0019, 균일 협동) — golden 의 share@ 키가 + 생물량 공유 스택을 동결 잠근다(step-0020~ 회귀 앵커).
 var PUBLIC = { kPublic: 0.3, pubSynergy: 2.0 };  // 공공재 협동(step-0020, 균일 협동) — golden 의 pub@ 키가 + 공공재 스택을 동결 잠근다(step-0021~ 회귀 앵커).
+var DIFF = { kDiff: 0.3 };  // 세포 분화(step-0021) — golden 의 diff@ 키가 + 분화 스택을 동결 잠근다(step-0022~ 회귀 앵커).
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H;
 
 function scn(extra) {
@@ -70,6 +71,8 @@ function memScn(extra) { return Object.assign({}, orgScn(), MEM, extra || {}); }
 function shareScn(extra) { return Object.assign({}, memScn(), SHARE, extra || {}); }
 /* 공공재 협동 켠 내생 시나리오(step-0020 스택) — step-0020/verify.js scn() 과 동일 상수. */
 function pubScn(extra) { return Object.assign({}, shareScn(), PUBLIC, extra || {}); }
+/* 세포 분화 켠 내생 시나리오(step-0021 스택) — step-0021/verify.js scn() 과 동일 상수. */
+function diffScn(extra) { return Object.assign({}, pubScn(), DIFF, extra || {}); }
 /* gene@ 결정 절차의 고정 유전 씨앗 — 두 유전형(저적합 tag1 · 고적합 tag4)을 대칭으로 심는다(결정론). */
 function seedGenes(C, sim) { C.spawnGene(sim, 20, 20, 2, 1, 1.0); C.spawnGene(sim, 44, 44, 2, 4, 1.0); }
 function spawnStrongest(C, sim, k) {
@@ -156,6 +159,7 @@ function runEq() {
  *   mem@  — step-0018 막/flux 결합 스택(+kin E 공유, kMembrane on). 0019~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   share@ — step-0019 생물량 공유 스택(+kin m 표적 구조, kShare on). 0020~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   pub@  — step-0020 공공재 협동 스택(+kin E→m 시너지, kPublic on). 0021~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   diff@ — step-0021 세포 분화 스택(+위치 기반 soma→kin m 흐름, kDiff on). 0022~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -203,6 +207,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // pub@ — share@ + 공공재 협동(kin 끼리 E→m 시너지, step-0020 스택). step-0021 회귀 앵커.
     var a = ENG.createSim(seed, pubScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
     cur['pub@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // diff@ — pub@ + 세포 분화(갇힌 내부 soma → kin germ m 흐름, step-0021 스택). step-0022 회귀 앵커.
+    var a = ENG.createSim(seed, diffScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
+    cur['diff@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

@@ -162,8 +162,16 @@
                          //   share 처럼 보존)에 더해 그 (pubSynergy−1)배를 *필드 E 에서 채집*해(공공재가 환경 자원을 푼다 — 분비 효소/협동 채식, E→m) 받는다.
                          //   한 기부가 여럿을 살리므로(syn>1) *집단* 적합도 b=syn·c≫c → 협동이 강하게 침투(공공재 게임). *kin 이 뭉칠수록*(positive assortment) kin 이웃이
                          //   많아 시너지가 커진다 — 기부가 kin-지향(태그 인식)이라 흩어져도 해롭진 않으나 침투가 무뎌짐(혈연도가 침투 *세기*를 가름). 장부: 기부 m→m·시너지 E→m(둘 다 보존).
-    pubSynergy: 2.0      // 시너지 배수 b/c (>1 이라야 양의 합). 한 협동자의 기부 c 가 b=syn·c 의 이득을 *집단*에 — 대칭 kin 클러스터서 1인당 순이득 (syn−1)·c>0(공공재).
+    pubSynergy: 2.0,     // 시너지 배수 b/c (>1 이라야 양의 합). 한 협동자의 기부 c 가 b=syn·c 의 이득을 *집단*에 — 대칭 kin 클러스터서 1인당 순이득 (syn−1)·c>0(공공재).
                          //   =1 이면 보존적(share 류 — 침투 없음), >1 이면 강한 침투. 전체 스택 기본 2.0. 통제 아레나서 협동(공공재)이 *지속*을 넘어 침투하는지 잰다.
+    /* ── step-0021: 세포 분화(differentiate — 같은 genotype 이 *위치*에 따라 다른 phenotype: 갇힌 내부=soma(체세포·provision)·표면=germ(생식). 진짜 분업, SPINE 주요 전이 사다리 "사회 → 분화된 다세포") ── */
+    kDiff: 0             // 분화 마스터. 0 = off = step-0020 과 비트 동일(회귀, m 불변 → pub@ 해시 무관). >0 이면 세포 분화 on:
+                         //   0019 risk-pooling·0020 공공재는 모든 협동자가 *같은* 역할(공동 채집)이었다 — 진짜 분업이 아니었다. differentiate 는 *같은 genotype 이 위치에 따라
+                         //   다른 phenotype* 을 갖게 한다: 각 생명이 제 4-근방 점유를 *위치 정보*로 읽어 — 4-근방이 모두 찬 *갇힌 내부* 세포(빈칸 0 = 번식 불가)는 soma(체세포),
+                         //   빈칸 있는 *표면* 세포는 germ(생식 가능). soma 는 번식 못 하므로 제 잉여(m−dangerLine, 굶주리면 보류 — 자기 보호)의 kDiff 를 제 4-근방 kin 에게
+                         //   *기부*(m→m 쌍 거래 — 보존)해 germ 의 번식을 떠받친다. 한 클론 안에서 표면=번식하는 몸·내부=먹여 주는 몸으로 *역할이 갈린다*(positional information → 분업).
+                         //   분업 이득: kDiff=0 이면 갇힌 내부 세포의 m 은 격리(번식 못 해 쌓이기만) — kDiff>0 이면 그 m 이 표면 germ 으로 흘러 *번식으로 전환*(개체군 성장↑).
+                         //   장부: 기부 m→m 쌍 거래(나간 만큼 들어옴 → sumM 불변, share/pubgood 의 m-경계). 0~1(잉여의 기부 비율). 전체 스택 기본 0.3.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -692,6 +700,45 @@
     sim.pubgood += produced;                                                            // 누적 공공재 이득(통계 — 기부는 m→m·시너지는 E→m, 둘 다 보존)
   }
 
+  /* ⑥f 세포 분화(differentiate, step-0021) — kDiff=0 이면 통째로 건너뜀(회귀 0, m 불변 → pub@ 비트 동일·새 해시 항 0).
+   * SPINE 주요 전이 사다리 "사회 → 분화된 다세포" + STATE 🔴 최우선: 0019 risk-pooling·0020 공공재는 모든 협동자가 *같은* 역할(굶주린 kin 떠받침·공동 채집)이었다 —
+   *   *진짜 분업*(division of labor)이 아니었다(0020 정직한 한계 #4). 분업은 *같은 genotype 이 위치에 따라 다른 phenotype* 을 갖는 것 = 세포 분화. 이 법칙이 그것을 더한다:
+   *   각 생명은 제 4-근방 *점유 상태*(빈칸 수)를 *위치 정보*로 읽는다 — 4-근방이 모두 찬 *갇힌 내부* 세포(빈칸 0)는 번식할 자리가 없다(⑧reproduce 는 빈 이웃에만 자식을 둔다) →
+   *   그 세포는 *soma*(체세포)로 분화해 제 잉여(m−dangerLine)의 kDiff 를 제 4-근방 kin 에게 *기부*해 번식을 떠받친다. 빈칸 있는 *표면* 세포는 *germ*(생식)으로 제 m 을 지켜 번식한다.
+   *   → 한 클론(같은 a.g) 안에서 *표면=번식하는 몸·내부=먹여 주는 몸*으로 역할이 갈린다(positional information → 분업; Volvox 의 체세포/생식세포의 격자 아날로그 — 단 격자 기하상 번식은 표면에서).
+   * 왜 분화인가(0020 과의 차이): 0020 공공재는 *유전형*(coop 태그)이 역할을 정했다 — 모든 협동자가 같은 일. 여기선 *위치*가 정한다 — 같은 genotype 의 두 표현형(soma/germ). genotype↔phenotype 이
+   *   더는 1:1 이 아니다(phenotype = f(genotype, 위치)) — 다세포성의 핵심(분화). 분업 이득: kDiff=0 이면 갇힌 내부 세포의 m 은 *격리*(번식 못 해 쌓이기만 — 사장된 생물량) → kDiff>0 이면
+   *   그 잉여가 표면 germ 으로 흘러 *번식으로 전환* → 같은 자원에서 더 많은 자손(개체군 성장). "번식 못 하는 자리의 자원을 번식하는 자리로" — 진정한 노동 분업.
+   * 척추: 새 *필드* 없음(역할은 a.g·위치의 *측정* — soma/germ 을 author(`Soma{}`)하지 않는다, 단일 척추) · authored 분기 없음(기부 *세율*만 위치(빈칸 수)의 함수, E 동역학·활성도는 역할로 안 갈림 —
+   *   번식/사망은 여전히 m 문턱; 활성도 환원) · 국소 문턱(제 4-근방 점유·kin·제 m 만, 전역 조율자 0) · 닫힌 장부(기부 m→m 쌍 거래 = 나간 만큼 들어옴, share/pubgood 의 m-경계 — 보존).
+   * ⑥f: ⑥e pubgood 뒤·⑦생명 앞 — 공공재 채집(양의 합) *위에* 위치 기반 m 흐름(내부 soma→kin)을 얹어, ⑦사망·⑧번식 전에 germ 의 m 을 키운다(분업 번식 가속).
+   *   순차(occ 제자리·scan=agent 배열 순서)라 같은 패스서 먼저 옮긴 m 을 뒤가 본다(Gauss-Seidel, 결정론 — Math.random 금지). 점유는 법칙 내 불변(m 만 이동)이라 위치 판정은 패스 무관히 결정적. */
+  function differentiate(sim) {
+    var p = sim.p; if (p.kDiff === 0) return;
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, W = p.W, H = p.H, N = W * H, k = p.kDiff, danger = p.mDeath * SHARE_BAND;
+    var occ = sim.diffOcc; if (!occ || occ.length !== N) occ = sim.diffOcc = new Int32Array(N);
+    occ.fill(0);                                                                        // 0 = 빈칸. 점유 칸엔 (agent index + 1) — *모든* 생명(빈칸 판정용, 무유전 포함)
+    for (var i = 0; i < ag.length; i++) occ[ag[i].center] = i + 1;
+    var kin = sim.diffKin || (sim.diffKin = [0, 0, 0, 0]);                              // 4-근방 kin 인덱스 재사용 버퍼(상태 아님)
+    var moved = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var x = a.x, y = a.y, occN = 0, nKin = 0;
+      for (var d = 0; d < 4; d++) {                                                     // 위치 정보 — 4-근방 점유 수(빈칸 수 = 4−occN)와 그중 kin 수집
+        var oi = occ[((y + GENE_VN[d][1] + H) % H) * W + (x + GENE_VN[d][0] + W) % W];
+        if (oi > 0) { occN++; if ((ag[oi - 1].g | 0) === t) kin[nKin++] = oi - 1; }
+      }
+      if (occN < 4) continue;                                                           // 표면(germ) — 빈칸 있어 번식 가능 → 제 m 지킴(생식 역할). 분화는 *갇힌 내부*만 soma 로.
+      if (nKin === 0) continue;                                                          // 갇혔으나 줄 kin 없음(이종에 포위) → 기부 안 함
+      var surplus = a.m - danger; if (surplus <= 0) continue;                            // 굶주리면 보류(자기 보호) — soma 도 제 생존선은 지킨다
+      var give = k * surplus, per = give / nKin;                                         // soma(내부): 번식 못 하므로 제 잉여를 kin 에게 provision(체세포 역할 — m→m 쌍 거래)
+      a.m -= give;
+      for (var n = 0; n < nKin; n++) { ag[kin[n]].m += per; moved += per; }              // germ 등 4-근방 kin 에게 — 표면으로 흘러 번식으로 전환(분업 이득)
+    }
+    sim.differentiated += moved;                                                         // 누적 분화 provision 량(통계 — m→m 쌍 거래라 장부 무관)
+  }
+
   /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
    * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
    * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
@@ -872,13 +919,14 @@
    * ⑥c 막 결합(couple)은 ⑥a adhere 뒤·⑥b crowd 앞 — 정렬로 묶인 액적 위에서 kin 끼리 E 를 공유하고(막 창발), crowd·생명이 그 공유된 자리에서 잰다·흡수한다.
    * ⑥d 생물량 공유(share)는 ⑥b crowd 뒤·⑦생명 앞 — crowd 가 매긴 대사세 뒤의 m 을 kin 끼리 균등화해, 굶주린 kin 을 ⑦의 사망 판정 전에 떠받친다(개체 단위 생존).
    * ⑥e 공공재 협동(pubgood)은 ⑥d share 뒤·⑦생명 앞 — 떠받침(보존) 위에 공공재(양의 합 시너지) 이득을 얹어, ⑦의 사망/흡수 전에 kin 의 m 을 키운다(번식 가속·강한 침투).
+   * ⑥f 세포 분화(differentiate)는 ⑥e pubgood 뒤·⑦생명 앞 — 공공재 채집 위에 *위치 기반* m 흐름(갇힌 내부 soma → kin germ)을 얹어, ⑦사망·⑧번식 전에 germ 의 m 을 키운다(분업 번식 가속).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, pubgood, metabolize, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, pubgood, differentiate, metabolize, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
