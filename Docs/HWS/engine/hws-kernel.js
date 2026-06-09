@@ -307,6 +307,32 @@
       surfaceSomaFrac: surfN ? somaSurf / surfN : 0, committed: committed, weismann: somaMax < mDiv };
   }
 
+  /* 정착 생활사 측정 — step-0023. anchor(⑥0)가 빚은 *고착*(sessile)과 그 귀결(큰 안정 조직·갇힌 내부)을 author 아닌 *측정*으로 읽는다.
+   * 위치(center)·태그(g)·m·a.sessile 만 *읽고* 동역학에 되먹이지 않는다(측정 읽기전용). a.sessile 은 anchor 가 매 tick 재계산한 게이트 — 측정 시점의 스냅샷을 읽는다. 반환:
+   *   sessile/sessileFrac — 고착한 유전형 생명 수 / (유전형 생명 대비) 비율. >0 이면 정착이 도는 증거.
+   *   interior/interiorFrac — *갇힌 내부*(같은 태그 4-근방 점유 ≥3, 번식 자리 거의 없음 = 분화/격리의 대상) 세포 수 / 비율. 정착이 confluent 조직을 키우면 ↑(0021·0022 가 발현할 토대).
+   *   sessileM — 고착 생명 평균 m(잘 먹은 코어인지). */
+  function measureAnchor(sim) {
+    var ag = sim.agents, W = sim.p.W, H = sim.p.H, N = W * H;
+    var occ = sim._ancMeas; if (!occ || occ.length !== N) occ = sim._ancMeas = new Int32Array(N);
+    occ.fill(0);
+    for (var i = 0; i < ag.length; i++) occ[ag[i].center] = i + 1;                       // *모든* 생명(갇힘 판정용)
+    var tagged = 0, sessileN = 0, sessileM = 0, interiorN = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      tagged++;
+      if (a.sessile) { sessileN++; sessileM += a.m; }
+      var x = a.x, y = a.y, nKin = 0;                                                     // 같은 태그(kin) 4-근방 점유 수 — ≥3 이면 갇힌 내부(분화/격리 대상)
+      if (occ[a.center - x + (x + 1) % W] > 0 && (ag[occ[a.center - x + (x + 1) % W] - 1].g | 0) === t) nKin++;
+      if (occ[a.center - x + (x - 1 + W) % W] > 0 && (ag[occ[a.center - x + (x - 1 + W) % W] - 1].g | 0) === t) nKin++;
+      if (occ[((y + 1) % H) * W + x] > 0 && (ag[occ[((y + 1) % H) * W + x] - 1].g | 0) === t) nKin++;
+      if (occ[((y - 1 + H) % H) * W + x] > 0 && (ag[occ[((y - 1 + H) % H) * W + x] - 1].g | 0) === t) nKin++;
+      if (nKin >= 3) interiorN++;
+    }
+    return { tagged: tagged, sessile: sessileN, sessileFrac: tagged ? sessileN / tagged : 0,
+      sessileM: sessileN ? sessileM / sessileN : 0, interior: interiorN, interiorFrac: tagged ? interiorN / tagged : 0 };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -486,7 +512,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

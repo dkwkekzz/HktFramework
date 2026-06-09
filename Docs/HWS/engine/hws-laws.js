@@ -173,7 +173,7 @@
                          //   분업 이득: kDiff=0 이면 갇힌 내부 세포의 m 은 격리(번식 못 해 쌓이기만) — kDiff>0 이면 그 m 이 표면 germ 으로 흘러 *번식으로 전환*(개체군 성장↑).
                          //   장부: 기부 m→m 쌍 거래(나간 만큼 들어옴 → sumM 불변, share/pubgood 의 m-경계). 0~1(잉여의 기부 비율). 전체 스택 기본 0.3.
     /* ── step-0022: 생식세포 계통 격리(germline — 분열 자식 일부를 *불가역* germ/soma 로 일찍 떼어 두는 Weismann 장벽. 위치 무관 *상속* 분화, SPINE 주요 전이 사다리 "분화된 다세포") ── */
-    kGermline: 0         // 생식세포 계통 마스터 = soma 계통 할당 비율. 0 = off = step-0021 과 비트 동일(회귀, a.soma 미작동 → germInit false → diff@ 해시 무관). >0 이면 germline 격리 on:
+    kGermline: 0,        // 생식세포 계통 마스터 = soma 계통 할당 비율. 0 = off = step-0021 과 비트 동일(회귀, a.soma 미작동 → germInit false → diff@ 해시 무관). >0 이면 germline 격리 on:
                          //   step-0021 differentiate 는 *위치 기반 동적* 분화였다 — 세포가 옮기면 역할(soma/germ)이 바뀌고 매 tick 재판정(commitment 없음). 진짜 다세포 분화는 *유전적 계통 격리*다:
                          //   분열 자식 일부를 *불가역* germ(평생 생식만)/soma(평생 체세포)로 일찍 떼어 둔다(Weismann 장벽 — germ plasm 의 조기 격리). 이 법칙이 그 *상속되는 불가역 fate* 를 더한다:
                          //   (1) 계통 commitment(불가역) — 유전형 있는 미커밋 생명이 *한 번* fate 를 받는다(위치 무관, 시드 의사난수 < kGermline 면 soma, 아니면 germ). 한 번 정해지면 *영원히* 안 바뀐다
@@ -182,6 +182,16 @@
                          //       → 번식이 *생식세포 계통(germ) 전용*이 된다(reproduce 동결 — author 분기 없이 *창발적*으로 격리: soma 가 m 을 못 쌓아 ⑧reproduce 가 자연히 skip). soma 의 유전자는 *제가 떠받친 germline 을 통해서만* 전파(Weismann).
                          //   0021 분화(위치)와의 차이: 0021 은 phenotype=f(genotype, *위치*) 라 가역·동적. germline 은 phenotype=f(genotype, *계통*) 라 *불가역·상속*(genotype↔phenotype 에 *유전되는* 다세포 층). kGermline 은 soma 할당 비율(0~1).
                          //   척추: 새 *필드* 없음(fate 는 생명 *속성* a.soma — 단일 척추) · authored 분기 없음(번식 격리는 *창발*[soma 가 m 을 export 해 임계 미달], reproduce 에 type 분기 안 박음 — 활성도 환원) · 국소 문턱(제 4-근방 germ kin·제 m 만, 전역 조율자 0) · 닫힌 장부(export m→m 쌍 거래 — 보존; fate 는 비가역 *상태*지 에너지 아님 — 비가역≠비보존).
+    /* ── step-0023: 정착 생활사(sessile anchoring — 잘 먹은 kin-포위 생명이 *정지·고착*해 큰 안정 조직을 빚는다. 분화/격리가 전체 스택서 발현, SPINE 주요 전이 사다리 "분화된 다세포"의 전제) ── */
+    kAnchor: 0,            // 정착 마스터. 0 = off = step-0022 와 비트 동일(회귀, a.sessile 미작동 → move/adhere 의 정착 게이트가 영영 안 켜짐 → germ@ 해시 무관). >0(=1) 이면 정착 on:
+                           //   0017~0022 는 분화/격리가 *조밀 confluent 조직의 자식*(전체 스택 희소·이동성이라 거의 안 켜짐 — 0021 한계 #3·0022 한계 #3, 0017 이래 반복 블로커)임을 거듭 확인했다. 큰 안정 조직이 서려면 생명이 *떠돌기를 멈춰야* 한다:
+                           //   먹이(별 봉우리)를 쫓아 흩어지는 주화성·탐사·응집이 nascent 클러스터를 끊임없이 해체하기 때문. 이 법칙이 그 *정착*을 더한다 — 각 생명이 제 국소 상태(제 m·4-근방 kin 수)를 읽어
+                           //   *잘 먹고*(m ≥ anchorM) *kin 에 둘러싸이면*(같은 태그 4-근방 ≥ anchorKin) 이 tick *고착*(a.sessile=1)해 ⑥move(주화성·탐사)·⑥a adhere(재정렬)를 *건너뛴다*(제자리 유지). 굶거나 kin 이 흩어지면 풀린다(가역 게이트, 매 tick 재판정 — 굶주린 정착체는 풀려 탐사로 탈출, 자기 보호).
+                           //   → 잘 먹은 kin 코어가 떠돌지 않고 자리를 지키면 이웃 kin 도 그 둘레에 쌓여 *confluent 조직*이 자란다 → 갇힌 내부 세포가 늘어 0021 분화·0022 계통 격리가 *전체 스택서* 발현(분화/격리는 조밀함의 자식 — 그 조밀함을 정착이 만든다).
+                           //   척추: 새 *필드* 없음(정착은 생명 *속성* a.sessile — 단일 척추) · authored 분기 없음(정착은 *연속 활성도 축의 국소 문턱 게이트* — 잘 먹고 포위된 생명이 운동을 멈추는 것일 뿐, 별도 개체 종류를 안 만든다; tumble 의 굶주림 게이트·FSM living/burning 게이트와 같은 정신, 활성도 환원) ·
+                           //   국소 문턱(제 m·4-근방 kin 만, 전역 조율자 0) · 닫힌 장부(정착은 *위치만* — 운동을 건너뛸 뿐 거래 0, move/adhere 와 같은 경계; a.sessile 은 매 tick 재계산되는 *게이트*지 상속 상태 아님 — 해시 가법 불필요).
+    anchorM: 0.6,          // 정착 생물량 문턱 — m 이 이 값 이상이라야 고착(잘 먹은 생명만 정착한다; 굶주리면 풀려 먹이를 찾아 떠난다). mSeed(0.5)보다 위·mDiv(1.2)보다 아래(번식 전 안정 코어).
+    anchorKin: 2           // 정착 kin 문턱 — 같은 태그 4-근방 생명이 이 수 이상이라야 고착(외톨이는 정착 안 함 — 조직의 일부일 때만 자리를 지킨다). 2 = 4-근방의 절반 이상이 kin(조직 내부·경계).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -460,8 +470,43 @@
     }
   }
 
+  /* ⑥0 정착 생활사(anchor, step-0023) — kAnchor=0 이면 통째로 건너뜀(회귀 0, a.sessile 미작동 → move/adhere 게이트 영영 off → germ@ 비트 동일·해시 가법 없음).
+   * SPINE 주요 전이 사다리 "분화된 다세포"의 *전제* + STATE 🔴 최우선(0017 이래 반복 블로커): 0017~0022 는 분화(0021)·계통 격리(0022)가 *조밀 confluent 조직의 자식*임을 거듭 확인했다 —
+   *   전체 스택은 희소·이동성이라(별 봉우리를 쫓는 주화성·탐사·응집이 nascent 클러스터를 끊임없이 해체) 갇힌 내부 세포가 드물어 분화/격리가 거의 안 켜진다. 큰 안정 조직이 서려면 생명이 *떠돌기를 멈춰야* 한다.
+   * 이 법칙은 그 *정착*(sessile anchoring)을 더한다: 각 생명이 제 국소 상태(제 m·4-근방 kin 수)를 *위치 정보처럼* 읽어 — *잘 먹고*(m ≥ anchorM) *kin 에 둘러싸이면*(같은 태그 4-근방 ≥ anchorKin) 이 tick *고착*(a.sessile=1)한다.
+   *   고착한 생명은 ⑥move(주화성 run·탐사 tumble)·⑥a adhere(재정렬)를 *건너뛴다*(제자리 유지) — 잘 먹은 kin 코어가 떠돌지 않고 자리를 지키면 이웃 kin 도 둘레에 쌓여 confluent 조직이 자란다.
+   *   가역 게이트(매 tick 재판정): 굶거나(m<anchorM) kin 이 흩어지면(4-근방 kin<anchorKin) a.sessile=0 으로 풀려 다시 움직인다 — 굶주린 정착체는 탐사로 탈출(자기 보호 → 정착이 공멸을 부르지 않음, churn 보존).
+   * 척추: 새 *필드* 없음(정착은 생명 속성 a.sessile — 단일 척추) · authored 분기 없음(정착은 *연속 활성도 축의 국소 문턱 게이트* — 잘 먹고 포위된 생명이 운동을 멈춤일 뿐, 별도 개체 종류 안 만듦; tumble 굶주림 게이트·FSM living/burning 게이트와 같은 정신 — 활성도 환원) ·
+   *   국소 문턱(제 m·4-근방 kin 만, 전역 조율자 0) · 닫힌 장부(정착은 *위치만* — 운동 skip 일 뿐 거래 0, move/adhere 와 같은 경계). a.sessile 은 매 tick 재계산 게이트(상속 상태 아님 — 위치·m 이 이미 해시에 들어 결정적, 가법 해시 불필요).
+   * ⑥0: ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(이번 tick 시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(이번 tick 동안 일관). */
+  function anchor(sim) {
+    var p = sim.p; if (p.kAnchor === 0) return;   // off: a.sessile 미설정 → undefined → move/adhere 의 `if(sessile)continue` 가 영영 안 켜짐(비트 동일)
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, W = p.W, H = p.H, N = W * H, mThr = p.anchorM, kThr = p.anchorKin;
+    var occ = sim.anchorOcc; if (!occ || occ.length !== N) occ = sim.anchorOcc = new Int32Array(N);
+    occ.fill(0);                                                                       // 0 = 빈칸. 점유 칸엔 (agent index + 1) — kin 판정용(*모든* 생명, 무유전 포함은 kin 아님)
+    for (var i = 0; i < ag.length; i++) occ[ag[i].center] = i + 1;
+    var nFixed = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0;
+      var fixed = 0;
+      if (t > 0 && a.m >= mThr) {                                                      // 잘 먹은 유전형 생명만 정착 후보(무유전·굶주림은 떠돌이 유지)
+        var x = a.x, y = a.y, nKin = 0;
+        for (var d = 0; d < 4; d++) {                                                  // 4-근방 kin 수(같은 태그 점유 생명) — 위치 정보(조직의 일부인가)
+          var oi = occ[((y + GENE_VN[d][1] + H) % H) * W + (x + GENE_VN[d][0] + W) % W];
+          if (oi > 0 && (ag[oi - 1].g | 0) === t) nKin++;
+        }
+        if (nKin >= kThr) fixed = 1;                                                   // 잘 먹고 kin 포위 → 고착(이 tick move·adhere skip)
+      }
+      a.sessile = fixed;
+      if (fixed) nFixed++;
+    }
+    sim.sessileCount = nFixed;                                                         // 정착 생명 수 스냅샷(통계 — 위치만 게이트, 장부 무관)
+  }
+
   /* ⑥ 이동 — run(주화성, 구배 따라 한 칸, step-0005) + tumble(step-0010, 갇히면 의사난수 한 칸).
-   * 생명 off / 에이전트 0 / move off 면 통째로 건너뜀(회귀). pTumble=0 이면 tumble 분기 skip(=step-0009). */
+   * 생명 off / 에이전트 0 / move off 면 통째로 건너뜀(회귀). pTumble=0 이면 tumble 분기 skip(=step-0009).
+   * step-0023: 정착(a.sessile=1)한 생명은 운동을 건너뛴다(제자리 유지 — 큰 안정 조직). a.sessile 미설정(kAnchor=0)이면 falsy → 건너뜀 0(회귀). */
   function move(sim) {
     var p = sim.p;
     if (!p.life || !sim.agents.length || !p.move) return;
@@ -473,6 +518,7 @@
     for (var ms = 0; ms < ag.length; ms++) mocc.add(ag[ms].center);
     for (var mk = 0; mk < ag.length; mk++) {
       var mv = ag[mk];
+      if (mv.sessile) continue;                  // step-0023: 정착(고착)한 생명은 주화성·탐사를 건너뜀(제자리 — kAnchor=0 이면 undefined=falsy → 회귀 0). 점유는 유지(mocc 에 남아 이웃을 막음).
       var floor = E[mv.center] + moveThresh;
       var mvx = mv.x, mvy = mv.y, bIdx = -1, bEv = floor, bX = 0, bY = 0;
       for (var mo = 0; mo < moveOff.length; mo++) {
@@ -556,6 +602,7 @@
     var moved = 0;
     for (var k = 0; k < ag.length; k++) {
       var a = ag[k], myTag = a.g | 0, ax = a.x, ay = a.y, ac = a.center;
+      if (a.sessile) continue;                                                         // step-0023: 정착한 생명은 재정렬도 건너뜀(제자리 — kAnchor=0 이면 undefined=falsy → 회귀 0). occ 점유는 유지.
       var best = adhScore(occ, ax, ay, myTag, W, H, lam, ac) + gain;                   // 머무름 기준 + 문턱(엄격한 개선만 옮김)
       var bIdx = -1, bX = 0, bY = 0;
       for (var d = 0; d < 4; d++) {
@@ -980,13 +1027,14 @@
    * ⑥e 공공재 협동(pubgood)은 ⑥d share 뒤·⑦생명 앞 — 떠받침(보존) 위에 공공재(양의 합 시너지) 이득을 얹어, ⑦의 사망/흡수 전에 kin 의 m 을 키운다(번식 가속·강한 침투).
    * ⑥f 세포 분화(differentiate)는 ⑥e pubgood 뒤·⑦생명 앞 — 공공재 채집 위에 *위치 기반* m 흐름(갇힌 내부 soma → kin germ)을 얹어, ⑦사망·⑧번식 전에 germ 의 m 을 키운다(분업 번식 가속).
    * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
+   * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, anchor, move, adhere, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
