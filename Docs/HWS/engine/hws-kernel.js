@@ -333,6 +333,62 @@
       sessileM: sessileN ? sessileM / sessileN : 0, interior: interiorN, interiorFrac: tagged ? interiorN / tagged : 0 };
   }
 
+  /* 곡률 표면장력 측정 — step-0024. tension(⑥a2)이 *E-막에* 얹은 Young-Laplace 곡률 구배를 author 아닌 *측정*으로 읽는다(형태 사다리 R2 — 형태는 바닥 E 필드에 산다).
+   * 같은 태그 4-근방 수 n4(coordination = 이산 곡률: 0 볼록 경계 … 4 속)별로 그 칸 점유 생명의 E 를 모아, 표면장력의 서명을 잰다. 위치·태그·E 만 *읽고* 동역학에 되먹이지 않는다(측정 읽기전용). 반환:
+   *   convexE / interiorE — *볼록 경계*(n4 ≤ 1, 튀어나온 곡률 큰 자리)·*오목/속*(n4 ≥ 3) 점유 칸의 평균 E. coreRatio = interiorE / convexE.
+   *     Young-Laplace: 표면장력은 볼록 경계의 E 를 속으로 밀어 *속이 더 뜨겁고 볼록 경계가 식는다* → coreRatio > 1(tension on). couple 만(균등화) 이면 coordination 무관 ≈ 균일 → coreRatio ≈ 1. 형태 측정(4기둥 ④ — E-돔이 둥글어졌나).
+   *   coreCirc — *고-E 핵*(도메인 평균 E 의 1.1배 이상인 점유 칸)의 4-연결 원형도(16A/P²). 표면장력이 E 를 둥근 돔으로 모으면, 셀 footprint 가 울퉁불퉁해도 *고-E 형태*는 둥글다(→1, 렌즈가 그리는 형태). footCirc — 전체 footprint 원형도(비교 기준).
+   *   nOrg/meanSize — 개체 수·평균 크기(union-find, measureOrganisms 와 같은 셈 — 보조). */
+  function measureRoundness(sim) {
+    var ag = sim.agents, E = sim.E, W = sim.p.W, H = sim.p.H, N = W * H, k;
+    var tag = sim._rndTag; if (!tag || tag.length !== N) tag = sim._rndTag = new Int16Array(N);
+    tag.fill(0);                                                                       // 0 = 빈칸/무유전
+    for (k = 0; k < ag.length; k++) { var g = ag[k].g | 0; if (g > 0) tag[ag[k].center] = g; }
+    /* union-find(4-인접 같은 태그) + footprint 둘레 + coordination(n4)별 E 통계 + 도메인 평균 E(고-E 핵 문턱). */
+    var parent = sim._rndUF; if (!parent || parent.length !== N) parent = sim._rndUF = new Int32Array(N);
+    function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    for (k = 0; k < ag.length; k++) { var c0 = ag[k].center; if (tag[c0] > 0) parent[c0] = c0; }
+    var perimOf = {}, totEdge = 0, sumDomE = 0, nDom = 0;
+    var cxE = 0, cxN = 0, inE = 0, inN = 0;                                            // 볼록(n4≤1)·오목속(n4≥3) E 누적
+    for (k = 0; k < ag.length; k++) {
+      var ci = ag[k].center; if (tag[ci] === 0) continue;
+      var x = ci % W, y = (ci - x) / W, t = tag[ci];
+      var rx = ci - x + (x + 1) % W, lx = ci - x + (x - 1 + W) % W;
+      var dy2 = ((y + 1) % H) * W + x, uy = ((y - 1 + H) % H) * W + x;
+      var per = 0, n4 = 0;
+      if (tag[rx] === t) { parent[find(ci)] = find(rx); n4++; } else per++;
+      if (tag[lx] === t) { parent[find(ci)] = find(lx); n4++; } else per++;
+      if (tag[dy2] === t) { parent[find(ci)] = find(dy2); n4++; } else per++;
+      if (tag[uy] === t) { parent[find(ci)] = find(uy); n4++; } else per++;
+      perimOf[ci] = per; totEdge += per;
+      var ev = E[ci]; sumDomE += ev; nDom++;
+      if (n4 <= 2) { cxE += ev; cxN++; } else { inE += ev; inN++; }                   // 볼록/경계(n4≤2: 모서리·튀어나온 자리) vs 오목/속(n4≥3)
+    }
+    var meanDomE = nDom ? sumDomE / nDom : 0, coreThr = meanDomE * 1.1;
+    /* 개체별 넓이·둘레(footprint) + 고-E 핵 넓이·둘레(coreCirc). */
+    var area = {}, perim = {}, coreA = {}, coreP = {};
+    for (k = 0; k < ag.length; k++) {
+      var cc = ag[k].center; if (tag[cc] === 0) continue;
+      var root = find(cc), tt = tag[cc], xx = cc % W, yy = (cc - xx) / W;
+      area[root] = (area[root] || 0) + 1; perim[root] = (perim[root] || 0) + perimOf[cc];
+      if (E[cc] >= coreThr) {                                                          // 고-E 핵 — 4-이웃 중 (같은 태그 & 고-E) 가 아니면 핵 둘레
+        coreA[root] = (coreA[root] || 0) + 1;
+        var cp = 0, nb = [cc - xx + (xx + 1) % W, cc - xx + (xx - 1 + W) % W, ((yy + 1) % H) * W + xx, ((yy - 1 + H) % H) * W + xx];
+        for (var d = 0; d < 4; d++) { var j = nb[d]; if (!(tag[j] === tt && E[j] >= coreThr)) cp++; }
+        coreP[root] = (coreP[root] || 0) + cp;
+      }
+    }
+    var nOrg = 0, tagged = 0, sumWC = 0, sumA = 0, sumWCore = 0, sumACore = 0;
+    for (var r in area) {
+      nOrg++; var A = area[r], P = perim[r] || 1, circ = 16 * A / (P * P); if (circ > 1) circ = 1;
+      tagged += A; sumWC += A * circ; sumA += A;
+      var Ac = coreA[r] || 0; if (Ac > 0) { var Pc = coreP[r] || 1, cc2 = 16 * Ac / (Pc * Pc); if (cc2 > 1) cc2 = 1; sumWCore += Ac * cc2; sumACore += Ac; }
+    }
+    return { nOrg: nOrg, tagged: tagged, meanSize: nOrg ? tagged / nOrg : 0,
+      footCirc: sumA ? sumWC / sumA : 0, coreCirc: sumACore ? sumWCore / sumACore : 0, totEdge: totEdge,
+      convexE: cxN ? cxE / cxN : 0, interiorE: inN ? inE / inN : 0, coreRatio: (cxN && inN && cxE > 1e-9) ? (inE / inN) / (cxE / cxN) : 0 };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -512,7 +568,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

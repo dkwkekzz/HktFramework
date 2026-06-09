@@ -191,7 +191,13 @@
                            //   척추: 새 *필드* 없음(정착은 생명 *속성* a.sessile — 단일 척추) · authored 분기 없음(정착은 *연속 활성도 축의 국소 문턱 게이트* — 잘 먹고 포위된 생명이 운동을 멈추는 것일 뿐, 별도 개체 종류를 안 만든다; tumble 의 굶주림 게이트·FSM living/burning 게이트와 같은 정신, 활성도 환원) ·
                            //   국소 문턱(제 m·4-근방 kin 만, 전역 조율자 0) · 닫힌 장부(정착은 *위치만* — 운동을 건너뛸 뿐 거래 0, move/adhere 와 같은 경계; a.sessile 은 매 tick 재계산되는 *게이트*지 상속 상태 아님 — 해시 가법 불필요).
     anchorM: 0.6,          // 정착 생물량 문턱 — m 이 이 값 이상이라야 고착(잘 먹은 생명만 정착한다; 굶주리면 풀려 먹이를 찾아 떠난다). mSeed(0.5)보다 위·mDiv(1.2)보다 아래(번식 전 안정 코어).
-    anchorKin: 2           // 정착 kin 문턱 — 같은 태그 4-근방 생명이 이 수 이상이라야 고착(외톨이는 정착 안 함 — 조직의 일부일 때만 자리를 지킨다). 2 = 4-근방의 절반 이상이 kin(조직 내부·경계).
+    anchorKin: 2,          // 정착 kin 문턱 — 같은 태그 4-근방 생명이 이 수 이상이라야 고착(외톨이는 정착 안 함 — 조직의 일부일 때만 자리를 지킨다). 2 = 4-근방의 절반 이상이 kin(조직 내부·경계).
+    /* ── step-0024: 곡률 기반 표면장력(tension — 막을 경계 곡률로 편향 → 액적의 E-형태가 둥글어진다. 형태 사다리 R2, INTERPRET §5) ── */
+    kTension: 0,           // 표면장력 마스터. 0 = off = step-0023 과 비트 동일(회귀, tension 통째 skip·E 불변 → anchor@ 해시 무관). >0(=1) 이면 곡률 표면장력 on:
+                           //   *position*(응집 adhere, step-0017 Steinberg DAH)은 이미 그 자체로 표면장력을 내 cell sorting 액적을 *둥글린다*(차등접착=표면장력) — 그래서 *위치* 곡률은 adhere 와 redundant(보존적 단일-셀 이동은 에너지 장벽을 못 넘어 떨어진 액적도 못 합친다). 진짜 R2 의 자리는 *형태가 실리는 바닥 필드 E*(R1[0018] couple 이 막을 *E 하이트필드*에 새겼다 — INTERPRET §5 "형태는 flux 의 하류")다.
+                           //   이 법칙은 그 *E-막에 Young-Laplace 표면장력*을 더한다(막을 곡률로 편향): 액적의 E-경계가 곡률을 가지면 압력차 ΔP=γκ 로 E 가 *볼록(튀어나온 곡률 큰) 경계에서 오목/속으로* 흐른다 → 액적의 *E-형태*(같은 렌즈가 코드 0 으로 그리는 높이)가 둥근 돔으로 모이고 톱니 경계의 E 가 펴진다(둥글어짐). couple(R1)이 kin 끼리 E 를 *균등화*(막)했다면, tension(R2)은 그 위에 *곡률 구배*(속이 더 뜨겁게)를 얹는다 — E 가 4-근방 같은 태그 수 n4(coordination = 이산 곡률 대용: 낮으면 볼록 경계·높으면 오목/속)가 *높은* kin 이웃으로 흐른다.
+                           //   척추: 새 *필드* 없음(E 하나에 곡률 구배를 실음 — 형태/막을 author 안 함, 단일 척추) · authored 분기 없음(E flux 만 coordination 의 함수 — 개체 종류 안 만듦, couple 의 kin 게이트와 같은 정신, 활성도 환원) · 국소 문턱(제 4-근방 kin 쌍·그 coordination 만 — 전역 조율자 0) · 닫힌 장부(E 쌍 거래 — 나간 만큼 들어옴, couple 과 같은 경계, 보존).
+    tensionGamma: 0.10     // 표면장력 계수 γ — 각 kin 4-쌍에서 E flux = γ·(n4[높은 쪽]−n4[낮은 쪽])·E[낮은 쪽] 를 *볼록(낮은 coordination)→오목(높은 coordination)*으로 옮긴다(나간 만큼 들어옴 — 보존). 0~약: 막의 곡률 구배 세기. couple 의 균등화 위에 얹혀 E-돔을 둥글린다.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -620,6 +626,49 @@
     sim.adheres += moved;                                                              // 누적 응집 이동(통계 — 위치 변경이라 장부 무관)
   }
 
+  /* ⑥a2 곡률 기반 표면장력(tension, step-0024) — kTension=0 이면 통째로 건너뜀(회귀 0, E 불변 → anchor@ 비트 동일·새 해시 항 0).
+   * 형태 사다리 R2(INTERPRET §5) + SPINE 형태발생(상분리/표면장력): R1(step-0017 adhere + step-0018 couple)이 개체를 *표면장력 액적*으로 빚어 막을 *바닥 E 하이트필드*에 새겼다.
+   *   그런데 *position* 곡률(셀을 옮겨 둥글리기)은 adhere(Steinberg DAH = 차등접착이 곧 표면장력)와 redundant 다 — adhere 가 이미 cell sorting 액적을 둥글리고, 보존적 단일-셀 이동은 떨어진 액적 사이 에너지 장벽도 못 넘는다(정직한 발견, step 문서 §발견). R2 의 진짜 자리는 *형태가 실리는 바닥 필드 E*(INTERPRET §5 "형태는 flux 의 하류 — 렌더러 아닌 시뮬이 빚는다").
+   * 이 법칙은 그 *E-막에 Young-Laplace 표면장력*을 더한다(막을 경계 곡률로 편향): couple(R1)이 kin 끼리 E 를 *균등화*해 평탄한 막을 만들었다면, tension(R2)은 그 위에 *곡률 구배*를 얹는다 — 액적 E-경계의 압력차(ΔP=γκ)로 E 가 *볼록 경계(coordination 낮음)에서 오목/속(coordination 높음)으로* 흐른다.
+   *   coordination = 4-근방 같은 태그 수 n4(이산 곡률 대용: 0 고립·1 돌기·2 곧은 변·3 오목·4 속). 각 kin 4-쌍에서 flux = γ·(Δn4)·E[볼록쪽] 를 볼록→오목으로 옮기면(나간 만큼 들어옴 — 보존) 액적의 *E-형태*가 둥근 돔으로 모이고(속이 더 뜨겁고 볼록 톱니의 E 가 식어 펴짐) → 같은 해석 렌즈가 그 둥근 형태를 코드 0 으로 그린다(R1 의 "형태가 필드에 실린다"의 R2 연장: 이제 그 형태가 *둥글다*).
+   * 척추: 새 *필드* 없음(E 하나에 곡률 구배 — 형태/막 author 안 함, 단일 척추) · authored 분기 없음(E flux 만 coordination 의 함수, 개체 종류 안 만듦 — couple 의 kin 게이트와 같은 정신, 활성도 환원) ·
+   *   국소 문턱(제 4-근방 kin 쌍·그 coordination 만 — 전역 연결성분 안 씀, 전역 조율자 0) · 닫힌 장부(E 쌍 거래 — 나간 만큼 들어옴, couple 과 같은 경계, 보존).
+   * ⑥a2: ⑥a adhere 뒤·⑥c couple 앞 — adhere 가 액적을 정렬한 뒤 곡률 표면장력이 E-막에 압력 구배를 얹고, couple 이 그 위에서 균등화한다(둘이 같은 패스서 균등화↔곡률 평형 — couple 평탄화 vs tension 돔, 안정 막 형태).
+   *   순차(occ·scan=agent 배열 순서)라 같은 패스서 먼저 옮긴 E 를 뒤가 본다(Gauss-Seidel, 결정론 — Math.random 금지). n4 는 위치(occ)만의 함수라 패스 무관히 결정적(E 만 흐른다). */
+  function tensionN4(occ, x, y, t, W, H) {                                             // (x,y) 4-근방(von Neumann) 같은 태그 t 수 — coordination(이산 곡률 대용: 낮으면 볼록 경계·높으면 오목/속).
+    var kin = 0;
+    for (var d = 0; d < 4; d++) {
+      if (occ[((y + ADHERE_VN[d][1] + H) % H) * W + (x + ADHERE_VN[d][0] + W) % W] === t) kin++;
+    }
+    return kin;
+  }
+  function tension(sim) {
+    var p = sim.p; if (p.kTension === 0) return;
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, E = sim.E, W = p.W, H = p.H, N = W * H, g = p.tensionGamma;
+    var occ = sim.tensionOcc; if (!occ || occ.length !== N) occ = sim.tensionOcc = new Int16Array(N);
+    occ.fill(0);                                                                       // 0 = 빈칸/무유전(kin 정체성 없음 → 표면장력 제외)
+    for (var i = 0; i < ag.length; i++) { var gi = ag[i].g | 0; if (gi > 0) occ[ag[i].center] = gi; }
+    var nco = sim.tensionN4; if (!nco || nco.length !== N) nco = sim.tensionN4 = new Int8Array(N);
+    for (i = 0; i < ag.length; i++) { var ai = ag[i]; if ((ai.g | 0) > 0) nco[ai.center] = tensionN4(occ, ai.x, ai.y, ai.g | 0, W, H); }   // 셀별 coordination(곡률) — 위치만의 함수
+    var flux = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var c = a.center, x = a.x, y = a.y, dc = nco[c];
+      var rc = c - x + (x + 1) % W;                                                    // 우(+x) 이웃 center
+      var dnc = ((y + 1) % H) * W + x;                                                 // 하(+y) 이웃 center (우/하만 — 쌍 중복 방지)
+      if (occ[rc] === t) {                                                             // kin 4-쌍 — E 를 볼록(낮은 n4)에서 오목(높은 n4)으로(Young-Laplace 압력)
+        var dd = nco[rc] - dc;                                                         // coordination 차 = 곡률 차
+        if (dd !== 0) { var lo1 = dd > 0 ? c : rc, hi1 = dd > 0 ? rc : c, d1 = g * (dd > 0 ? dd : -dd) * E[lo1]; if (d1 > E[lo1]) d1 = E[lo1]; E[lo1] -= d1; E[hi1] += d1; flux += d1; }
+      }
+      if (occ[dnc] === t) {
+        var de = nco[dnc] - dc;
+        if (de !== 0) { var lo2 = de > 0 ? c : dnc, hi2 = de > 0 ? dnc : c, d2 = g * (de > 0 ? de : -de) * E[lo2]; if (d2 > E[lo2]) d2 = E[lo2]; E[lo2] -= d2; E[hi2] += d2; flux += d2; }
+      }
+    }
+    sim.tensionFlux += flux;                                                           // 누적 곡률 E flux(통계 — E 쌍 거래라 장부 무관)
+  }
+
   /* ⑥c 막/flux 결합 도메인(couple, step-0018) — kMembrane=0 이면 통째로 건너뜀(회귀 0, E 불변 → org@ 비트 동일·새 해시 항 0).
    * SPINE 주요 전이 사다리 "다세포(개체)=flux 결합 도메인" + STATE 형태 사다리 R1: step-0017 의 액적은 `measureOrganisms` 가
    *   그은 *측정 윤곽*일 뿐이었다(정직한 한계 #2 — 내부 E 공유·공통 경계 없음). 이 법칙은 그 액적을 *물리적 flux 결합 도메인*으로 올린다:
@@ -1022,6 +1071,7 @@
    * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
    * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
+   * ⑥a2 곡률 표면장력(tension)은 ⑥a adhere 뒤·⑥c couple 앞 — adhere 의 거친 정렬 위에 *곡률 다듬기*(볼록 돌기→오목 만)를 얹어 액적을 둥글리고 합치고(원형도↑·조직 수↓), couple 이 그 둥근 액적 위에서 E 를 공유한다(막은 둥근 경계에 실린다).
    * ⑥c 막 결합(couple)은 ⑥a adhere 뒤·⑥b crowd 앞 — 정렬로 묶인 액적 위에서 kin 끼리 E 를 공유하고(막 창발), crowd·생명이 그 공유된 자리에서 잰다·흡수한다.
    * ⑥d 생물량 공유(share)는 ⑥b crowd 뒤·⑦생명 앞 — crowd 가 매긴 대사세 뒤의 m 을 kin 끼리 균등화해, 굶주린 kin 을 ⑦의 사망 판정 전에 떠받친다(개체 단위 생존).
    * ⑥e 공공재 협동(pubgood)은 ⑥d share 뒤·⑦생명 앞 — 떠받침(보존) 위에 공공재(양의 합 시너지) 이득을 얹어, ⑦의 사망/흡수 전에 kin 의 m 을 키운다(번식 가속·강한 침투).
@@ -1029,12 +1079,12 @@
    * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, anchor, move, adhere, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
