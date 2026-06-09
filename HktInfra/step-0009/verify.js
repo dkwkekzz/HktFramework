@@ -132,9 +132,12 @@ function replica(seeds) {
 }
 
 // ── failover: 권위 존 사망 — OFF(failover 없음)=영구 소실 vs ON=추종자 승격(bounded gap→회복·전 생존·상태 보존) ──
+//  대조는 *구조적·시드-robust*(0008 §8-7 교훈): ON 불변(소실 0·회복·이중쓰기 0·복제 0·승격 1)은 전 시드 무결,
+//  OFF 는 *승격 장치 부재*(promotions 0)로 구조 대조 + OFF 영구 소실은 *사망 시점 소유가 있을 때만* 게이트(vacuous 보고).
 function failover(seeds) {
   console.log(`== failover: 권위 존(zone1) 사망 주입(tick ${DEATH}) — OFF=영구 소실 vs ON=추종자 승격(bounded gap→소유자=1·전 생존·상태 보존) ==`);
   console.log('seed   | OFF 소실(영구) | ON 소실 | ON 최대gap | ON gap창(tick) | ON 최종gap | ON 이중쓰기 | 복제충실도 | 승격 | 판정');
+  let suiteLoss = 0;   // 사망 시점 zone1 소유가 0 인 시드는 OFF vacuous(잃을 게 없음) → 스위트 단위로 소실 발생 확인.
   for (const seed of seeds) {
     const off = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, failover: false, deathTick: DEATH });
     const on = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, failover: true, deathTick: DEATH, leaseTimeout: LEASE });
@@ -142,19 +145,24 @@ function failover(seeds) {
     const vOn = authViolations(on);
     const lostOff = lostFinal(off), lostOn = lostFinal(on);
     const divMax = preDeathReplicaMax(on);
+    const owned = maxGap;   // 사망 시점 zone1 소유 = ON 의 최대 공백(승격 전 무권위 엔터티 수). 0 이면 failover 할 게 없음(vacuous).
+    suiteLoss += lostOff;
     const ok =
-      // ON 불변: 전 엔터티 생존·최종 소유자=1 회복·이중쓰기 0·상태 보존(사망 전 복제 0)·정확히 1회 승격
+      // ON 불변(시드 무관 항상 성립): 전 생존·최종 소유자=1 회복·이중쓰기 0·상태 보존(사망 전 복제 0)·정확히 1회 승격
       check(lostOn === 0, `seed ${seed}: ON 엔터티 소실 ${lostOn}(승격 후 생존 위반)`) &&
       check(finalGap === 0, `seed ${seed}: ON 최종 공백 ${finalGap}(소유자=1 미회복)`) &&
       check(vOn.doubleWrite === 0, `seed ${seed}: ON 이중쓰기 ${vOn.doubleWrite}(펜싱 위반)`) &&
       check(divMax === 0, `seed ${seed}: ON 사망 전 복제 충실도 ${divMax}(상태 보존 토대 깨짐)`) &&
       check(on.totals.promotions === 1, `seed ${seed}: ON 승격 ${on.totals.promotions}회(정확히 1 이어야)`) &&
-      // bounded gap: 사망~승격 감지 창은 불가피하나 유한해야(leaseTimeout+승격 지연 ~ 5 tick 이내)
-      check(maxGap > 0 && gapWindow <= LEASE + 3, `seed ${seed}: ON gap 창 ${gapWindow}(bounded 위반)`) &&
-      // 대조: OFF 는 복원 장치가 없어 사망 존 엔터티 영구 소실(자가치유 불가)
-      check(lostOff > 0, `seed ${seed}: OFF 소실 0(사망 대조 실패 — zone1 이 사망 시점에 소유 0?)`);
-    console.log(`${pad(seed, 6)} | ${pad(lostOff, 14)} | ${pad(lostOn, 7)} | ${pad(maxGap, 10)} | ${pad(gapWindow, 14)} | ${pad(finalGap, 10)} | ${pad(vOn.doubleWrite, 11)} | ${pad(divMax, 10)} | ${pad(on.totals.promotions, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+      // 구조적 대조(시드 무관): OFF 는 승격 장치가 없다 — 수렴이 *failover* 덕임을 증명(전송 우연 아님)
+      check(off.totals.promotions === 0 && off.followers.length === 0, `seed ${seed}: OFF 가 승격 장치를 가짐(대조 오염)`) &&
+      // 유실 의존(게이트): 사망 시점 소유가 있으면 ON 은 bounded gap(승격)·OFF 는 그만큼 영구 소실(자가치유 불가)
+      check(owned === 0 || (gapWindow > 0 && gapWindow <= LEASE + 3), `seed ${seed}: ON gap 창 ${gapWindow}(bounded 위반)`) &&
+      check(owned === 0 || lostOff === owned, `seed ${seed}: OFF 영구 소실 ${lostOff} != 사망 시점 소유 ${owned}(대조 실패)`);
+    const tag = owned === 0 ? 'OK(vacuous)' : (ok ? 'OK' : 'FAIL');
+    console.log(`${pad(seed, 6)} | ${pad(lostOff, 14)} | ${pad(lostOn, 7)} | ${pad(maxGap, 10)} | ${pad(gapWindow, 14)} | ${pad(finalGap, 10)} | ${pad(vOn.doubleWrite, 11)} | ${pad(divMax, 10)} | ${pad(on.totals.promotions, 4)} | ${tag}`);
   }
+  check(suiteLoss > 0, `스위트 전체 OFF 소실 0(테스트 무의미 — 사망 tick·시드 점검)`);
 }
 
 // ── viewrec: 승격 후 클라 뷰 복원 — 강제 keyframe 으로 살아있는 권위 트루스에 재수렴 ──
