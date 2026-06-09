@@ -65,7 +65,7 @@
       { kind: 'check', id: 'view3d', label: '3D 뷰', def: true, view: true,
         title: 'WebGL2 3D 뷰 ↔ 2D 캔버스 전환. 프레젠테이션 전용 — 시뮬·검증에 영향 없음.' },
       { kind: 'check', id: 'worldview', label: '세계 해석(2분할)', def: true, view: true,
-        title: '오른쪽에 세계 해석 뷰를 나란히 — 높이=*물질*(R 고체+저활성 E 액체)·빛=*에너지*(고활성 E·A). 활성도 A 를 물질/에너지 다이얼로 써 두 뷰가 높이부터 갈린다. 왼쪽=에너지 변위(h=E+R, 원본). 설계: INTERPRET-UE.md §5b. 프레젠테이션 전용.' }
+        title: '오른쪽에 세계 해석 뷰를 나란히 — 높이=*물질*(R 고체+저활성 E 액체)·빛=*에너지*(고활성 E·A, 안 솟고 발광). 차이는 흐르는 에너지 제거 + 색·재질·빛(상/조성/밀도/광택). 렌더러는 형태를 author 안 함(분포 재성형 0). 왼쪽=에너지 변위(h=E+R). 설계: INTERPRET-UE.md §5b. 프레젠테이션 전용.' }
     ]}]);
     var origHook = panel.drawHook;
     p.drawHook = function (ctx, info) { sync(info); if (origHook) origHook(ctx, info); };
@@ -418,7 +418,7 @@
       vlabel(ctx, CV_SIZE + CV_SIZE / 2, '세계 해석 (물질)', '#e6c860');
       /* 세계 해석 범례 — 높이=물질(R 고체+저활성 E 액체)·빛=에너지(고활성 E·A) 분해 (INTERPRET-UE §5b) */
       ctx.textAlign = 'left'; ctx.font = '11px Consolas';
-      var leg = [['#1a5a86', '물 · 액체 (저활성 E → 평평)'], ['#52473f', '돌 · 암반 (R 고체 → 솟음)'],
+      var leg = [['#1a5a86', '물 · 액체 (저활성 E · 투과)'], ['#52473f', '돌 · 암반 (R 고체 · 무광)'],
                  ['#c89a6a', '나무 · 결정 (R + 유전 G)'], ['#ffb04d', '빛 · 에너지 (고활성 A → 높이 0)']];
       var lx = CV_SIZE + 10, ly = 34, lh = 16;
       for (var li = 0; li < leg.length; li++) {
@@ -621,14 +621,13 @@
   ].join('\n');
 
   /* ── 세계 해석 셰이더 (INTERPRET-UE §5b — 물질 표현) — 같은 텍스처(E,R,G,A)를 *물질/에너지*로 갈라 읽는다.
-   * 핵심: 에너지 변위 뷰와 *완전히 다른 실루엣*을 만든다 — 같은 양을 다른 *함수*로 읽어 두 뷰가 갈린다.
-   *   현실 원리: 에너지=장=형태없음→빛 · 물질=응축상=부피→높이. 셋은 *서로 다른 렌더 함수*로 갈린다:
-   *   · 고체 R    → 지형이 *솟는다* hBed=hOf(R) (험준·무광·불투명, 에너지뷰의 E 언덕과 다른 R 만의 기복)
-   *   · 액체 저활성E → *평평한 물* (안 솟음! film=kFilm·(1-e^-E) 포화 → 깊이 무관 수평; 깊이는 *색*으로, 광택 표면)
-   *   · 에너지 고활성E·A → *빛* (높이 0, 발광 — "뜨거운 가스는 산이 안 되고 빛난다")
-   * 에너지 변위 뷰는 h=E+R(E 가 곧 언덕) — 여기선 그 E 고임이 *평평한 물*이 되어 실루엣이 완전히 갈린다.
-   * 물질 다속성, 속성마다 *다른 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝).
-   * A 없는/꺼진 step → 모든 E 가 평평한 물(초기: 응축 안 된 에너지 세계 — 물바다; R 누적 시 고체 지형이 *솟아오른다*). */
+   * 척추 정합(SPINE 척추 체크 2·INTERPRET §4): 렌더러는 *형태(실루엣)를 author 하지 않는다* — R·E *분포*는 시뮬이 정한다.
+   *   렌더러에 허용된 차이는 둘뿐: ① *어느 양이 높이가 되는가*(물질=R+저활성E, 흐르는 에너지는 빼서 빛으로 — §4 "정직한 읽기")
+   *   ② *색·재질·빛*(상·조성·밀도·광택·발광 — §3). 높이로 분포를 *재성형*(예: 물 평탄화)하면 §4 가 금지한 형태 author 다.
+   * 그래서 높이 = hOf(R + 저활성E) — 에너지뷰(h=E+R)와 *흐르는 에너지(고활성 E·A)만큼* 갈린다(별 연소·확산 전선이 솟지 않고 빛난다).
+   *   고인 물(저활성 E)은 *물질*이라 분포 그대로 높이에 실린다(평탄화 안 함) — 차이는 *재질*(파랑·투과·광택)로 읽는다.
+   * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
+   * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
     '#version 300 es',
     'precision highp float;',
@@ -638,12 +637,10 @@
     'uniform float uSat, uHS, uSatR, uSatA;',
     'uniform ivec2 uDim;',
     'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet;',
-    'const float kFilm = 0.55;',                            // 액체 표면 막의 *최대* 높이 — 깊이와 무관히 수평(물은 안 솟는다, 깊이는 색으로)
     'float hOf(float e){ return min(uHS*log(1.0+max(e,0.0))/log(1.0+uSat), uHS*2.2); }',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율(소산 극단만 큼)
-    'float matH(vec4 t){',                                  // 물질 높이 = 고체 지형(R 솟음) + 평평한 물 막. 흐르는 에너지(고활성 E)는 0
-    '  float lq=t.r*(1.0-actFrac(t.a));',                   // 저활성 E = 액체
-    '  return hOf(t.g) + kFilm*(1.0-exp(-lq*0.9));',        // hOf(R) 험준 + 포화 물막(평평)
+    'float matH(vec4 t){',                                  // 물질 높이 = hOf(R 고체 + 저활성 E 액체). 흐르는 에너지(고활성 E)만 뺌 — 분포는 안 건드림(형태 author 0)
+    '  return hOf(t.g + t.r*(1.0-actFrac(t.a)));',
     '}',
     'float hAtXY(int x, int y){',                           // 이웃 물질 높이(법선용) — 토러스 wrap
     '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
@@ -663,8 +660,8 @@
     '  float E=t.r, Rr=t.g, tag=t.b;',
     '  float af=actFrac(t.a);',                             // 흐르는 에너지 비율
     '  float liquidE=E*(1.0-af);',                          // 저활성 E = 액체 물질(고인 물)
-    '  float flowE=E*af;',                                  // 고활성 E = 흐르는 에너지(빛 — 높이 0)
-    /* 상(phase) 3분기(lerp 0) — 속성마다 다른 함수: 고체(R 솟음·무광) / 액체(평평·광택) / 공허(없음·암흑) */
+    '  float flowE=E*af;',                                  // 고활성 E = 흐르는 에너지(빛 — 높이서 뺌)
+    /* 상(phase) 3분기(lerp 0) — *색·재질* 읽기(높이 아님, 형태 author 0): 고체(무광) / 액체(투과·광택) / 공허(암흑) */
     '  bool isSolid = Rr > 0.08 && Rr >= liquidE;',         // 고체 우세 = 바위/나무
     '  bool isLiquid = !isSolid && liquidE > 0.03;',        // 액체 = 고인 물
     '  float dens=clamp(Rr/uSatR, 0.0, 1.0);',              // 밀도(R) → 밝기·불투명(고체 전용 함수)
@@ -673,13 +670,13 @@
     '  vec3 water=mix(vec3(0.22,0.52,0.60), vec3(0.02,0.09,0.20), depth);',  // 액체: 얕으면 청록·깊으면 짙은 남(깊이=색)
     '  vec3 base; float wet;',
     '  if (isSolid){ base = store*(0.50+0.50*dens); wet=0.0; }',             // 고체 — 밀도로 견고/불투명
-    '  else if (isLiquid){ base = water; wet=1.0; }',                        // 액체 — 광택 표면(FS 에서 반짝)
+    '  else if (isLiquid){ base = water; wet=1.0; }',                        // 액체 — 광택·투과 재질(FS 에서 반짝)
     '  else { base = vec3(0.018,0.022,0.035); wet=0.0; }',                   // 공허/기체 — 거의 암흑(빈 공간)
     '  vBase=base; vWet=wet;',
-    '  vNormal=normalize(vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1)));', // 법선=물질 기복(물은 평평→매끈)
+    '  vNormal=normalize(vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1)));', // 법선=물질 기복(분포 그대로)
     '  vHot=af;',                                           // 색온도(흰빛 정도 — 활성 클수록 흼)
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 세기 = 에너지(흐르는 E·A) — 높이서 뺀 만큼 빛으로
-    '  gl_Position=uMVP*vec4(aCell.x, matH(t), aCell.y, 1.0);', // 높이 = 물질만(고체 솟음+평평한 물, 흐르는 에너지 0)
+    '  gl_Position=uMVP*vec4(aCell.x, matH(t), aCell.y, 1.0);', // 높이 = 물질(R+저활성E), 흐르는 에너지만 빠짐 — 분포 재성형 0
     '}'].join('\n');
 
   var FS_WORLD = [
@@ -692,7 +689,7 @@
     '  vec3 N=normalize(vNormal);',
     '  float d=max(dot(N,uLight),0.0);',
     '  vec3 lit=vBase*(0.30+0.70*d);',                      // 물질 = 조명 받는 표면(높이·법선·색)
-    '  float spec=vWet*pow(d, 28.0)*0.8;',                  // 액체 전용 — 광택 하이라이트(물은 반짝, 고체는 무광)
+    '  float spec=vWet*pow(d, 28.0)*0.8;',                  // 액체 전용 — 광택 하이라이트(물은 반짝·투과 느낌, 고체는 무광)
     '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 뜨거울수록 흰빛
     '  o=vec4(lit + vec3(spec) + fire*vGlow*1.6, 1.0);',    // 물질 표면 + 물 광택 + 에너지 발광(조명 무관)
     '}'].join('\n');
