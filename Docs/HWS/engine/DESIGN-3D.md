@@ -1,7 +1,7 @@
 # DESIGN-3D — HWS 3D 프레젠테이션 레이어 설계
 
 > step-0008 이후의 step 작업을 **3D로 조작·관찰**하기 위한 설계 문서.
-> 기존 2D 엔진([hws-ui.js](hws-ui.js)·[PANEL.md](PANEL.md))은 **불변**. 시각 철학은 [../VISION-UE.md](../VISION-UE.md)의
+> 기존 2D 엔진([hws-ui.js](hws-ui.js)·[PANEL.md](PANEL.md))은 **불변**. 시각 철학은 [../VISION.md](../VISION.md)의
 > "필드→현상 사전"을 따른다 — 브라우저 3D 는 그 사전의 1차 구현이자 UE 시각화의 프로토타입이다.
 
 ---
@@ -64,7 +64,7 @@ engine/
 | 2D 오버레이 | 3D 등가물 |
 |---|---|
 | 열지도 | 하이트필드: 높이 = log(1+E) 스케일(자동 명암 노브 공유), 색 = 기존 `colorOf` 램프 재사용(2D 와 색 일관) |
-| 저장체 R 사각(step-0008 drawHook) | E+R 합산 높이의 호박색 암석 융기 — `sim.R` 이 있으면 자동(RG32F 텍스처 g 채널). 퇴적이 지형을 키운다(VISION-UE "반영구 지형" 행) |
+| 저장체 R 사각(step-0008 drawHook) | E+R 합산 높이의 호박색 암석 융기 — `sim.R` 이 있으면 자동(RG32F 텍스처 g 채널). 퇴적이 지형을 키운다(VISION "반영구 지형" 행) |
 | source/sink 원 | emissive 기둥/링 · 어두운 함몰 마커 (떠도는 자원의 이동이 입체로 읽힘) |
 | 고임 ○ | 봉우리 하이라이트 링 |
 | 생명 ● | 표면 위 발광 인스턴스 점(크기 ∝ √m — 2D 와 동일 규칙) |
@@ -104,7 +104,7 @@ engine/
 | **3D-0: 엔진** | `hws-3d.js`(하이트필드+에이전트+오버레이+카메라+레이캐스트 조작+HUD+토글) · `validate/step-0007-3d.html` · PANEL.md 3D 절 · verify-engine 검사 추가 | step-0007 이 3D 에서 조작·관찰 전부 가능, 2D 토글 시 기존과 동일, verify-engine 통과 |
 | **3D-1: step-0008 적용** | step-0008 셸 1줄 + bind 1줄 | step-0008 4기둥과 독립(3D 는 검증 비대상임이 곧 검증) |
 | **3D-2: voxel 확장** | 이후 step 의 sim-core 한 조각(W×H×D, D=1 회귀 0) + 백엔드 볼륨 렌더 | 그 step 의 4기둥 + 척추 체크 4항 |
-| **세계 해석 2분할** ✅ | `hws-3d.js` 에 `progW`(활성도 분류 셰이더) + 2분할 뷰포트 + '세계 해석(2분할)' 토글(view 전용). 좌=에너지 변위(원본)/우=세계(물·돌·나무[유전]·빛). A 를 텍스처 alpha 로 실음. 설계 [../INTERPRET-UE.md](../INTERPRET-UE.md) | 전 3D 셸(0009~)에서 자동 표시·토글, verify-engine/smoke 통과(셸 수정 0) |
-| 백로그 | ∇E 파생 바람(흐름 입자, VISION-UE (A)안) · 3×3 토러스 타일 · pools 결정화 연출 · FSM 상태 채널(이산 재질) | step 진행에 맞춰 사전의 행을 하나씩 |
+| **세계 해석 2분할** ✅ | `hws-3d.js` 에 `progW`(활성도 분류 셰이더) + 2분할 뷰포트 + '세계 해석(2분할)' 토글(view 전용). 좌=에너지 변위(원본)/우=세계(물·돌·나무[유전]·빛). A 를 텍스처 alpha 로 실음. 설계 [../INTERPRET.md](../INTERPRET.md) | 전 3D 셸(0009~)에서 자동 표시·토글, verify-engine/smoke 통과(셸 수정 0) |
+| 백로그 | ∇E 파생 바람(흐름 입자, VISION (A)안) · 3×3 토러스 타일 · pools 결정화 연출 · FSM 상태 채널(이산 재질) | step 진행에 맞춰 사전의 행을 하나씩 |
 
-문서 갱신(3D-0 닫을 때): PANEL.md(3D 셸/attach·bind 스펙) · STATE.md "빌드 인프라" 한 줄 · VISION-UE.md(브라우저 3D = UE 전 단계 명기, 사전에 브라우저 구현 상태 열 추가).
+문서 갱신(3D-0 닫을 때): PANEL.md(3D 셸/attach·bind 스펙) · STATE.md "빌드 인프라" 한 줄 · VISION.md(브라우저 3D = UE 전 단계 명기, 사전에 브라우저 구현 상태 열 추가).

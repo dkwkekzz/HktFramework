@@ -1,6 +1,6 @@
-/* step-0018 패널 — 막/flux 결합 도메인(couple: 개체='계'를 측정 윤곽에서 *물리적 flux 결합 도메인*으로, SPINE 주요 전이 사다리 "다세포=flux 결합 도메인").
- * step-0017 패널을 잇되 새 노브 행 1개(막 결합 kMembrane)를 더했다. 시뮬 로직은 engine/hws-laws.js 의 couple 법칙(LAW_ORDER ⑥c, adhere 뒤·crowd 앞).
- * 표준 시나리오: step-0017 그대로(별·자기제한·연소 FSM·계량·복제·생명 유전·차등 응집) + 막/flux 결합 on(kMembrane 0.5). 브라우저: window.HWS_PANEL_0018 */
+/* step-0019 패널 — 개체↔대사 차등 결합(share: kin 생물량 m 공유 → 개체 단위 생존 → kin selection 선택압, SPINE §다섯째 축 "개체를 중립에서 적응으로").
+ * step-0018 패널을 잇되 새 노브 행 1개(생물량 공유 kShare)를 더했다. 시뮬 로직은 engine/hws-laws.js 의 share 법칙(LAW_ORDER ⑥d, crowd 뒤·생명 앞).
+ * 표준 시나리오: step-0018 그대로(별·자기제한·연소 FSM·계량·복제·생명 유전·차등 응집·막 결합) + 생물량 공유 on(kShare 0.5, 균일 협동). 브라우저: window.HWS_PANEL_0019 */
 (function (global) {
   'use strict';
   function stateCounts(sim) { var c = [0, 0, 0], st = sim.stars || []; for (var i = 0; i < st.length; i++) { var s = st[i].state; c[s === undefined ? 1 : s]++; } return c; }
@@ -20,8 +20,8 @@
 
   var panel = {
     coreGlobal: 'HWS_SIM',
-    title: 'HWS step-0018 — <span style="color:#57e0c8">막</span>: flux 결합 도메인(couple)',
-    subtitle: 'step-0017 의 액적은 측정 윤곽(kin 연결 성분)일 뿐이었다 — 내부 E 공유·공통 경계(막)가 없었다. 이 step 은 그 액적을 <b>물리적 flux 결합 도메인</b>으로 올린다: 같은 유전형(kin)으로 4-인접한 생명끼리 <b>필드 E 를 국소 공유·재분배</b>한다(쌍 거래 — 보존) → 액적 내부 E 가 균질해지고(공유 larder), 경계엔 단차(<b>막</b>)가 <b>창발</b>한다("막은 액적의 표면으로" — author 안 함). <b>형태는 flux 의 하류</b>(INTERPRET §5) — 시뮬이 형태를 빚으면 같은 렌즈가 코드 0 으로 그린다. 응집(위치)과 달리 <b>실제 E 재분배</b>지만 쌍 거래라 장부 보존. <code>node step-0018/verify.js</code> 로 회귀·장부·결정론·membrane·sustain 검증.',
+    title: 'HWS step-0019 — <span style="color:#e0c060">공유</span>: 개체↔대사 차등 결합(share)',
+    subtitle: 'step-0018 의 막(couple)은 <b>필드 E</b> 를 kin 끼리 *균일하게* 공유해 개체에 <b>개체군 이득</b>(공유 larder → carrying capacity↑·개체 커짐)을 줬으나 — 모두 똑같이 공유(분업 없음)라 <b>선택압은 0</b>이었다(개체군 이득 ≠ 개체군 선택). 이 step 은 그 larder 를 <b>차등</b>으로 만든다: kin 끼리 공유하는 것을 *E* 가 아니라 <b>생물량 m</b>(사망/번식을 직접 가르는 양)으로, 강도를 <b>유전형의 함수</b>(coop)로. 협동 유전형은 사망 직전 kin 을 제 잉여로 떠받쳐(표적 구조) 차등 생존 → <b>kin selection 선택압</b>. <i>단 kin 이 뭉쳐야</i> 작동(Hamilton rb&gt;c). 개체성을 <b>중립에서 적응으로</b>. <code>node step-0019/verify.js</code> 로 회귀·장부·결정론·kin·sustain 검증.',
     overlays: { sourceSink: false, pools: true, life: true, centroid: true, sparkline: true },
     poolOpts: { minE: 1.5, prom: 0.3 },
 
@@ -29,6 +29,10 @@
       { items: [
         { kind: 'check', id: 'drive', label: '외부 source', param: 'drive', def: false, title: '고정 외부 source(step-0007). 기본 off — 별이 내생 구동.' },
         { kind: 'check', id: 'auto', label: '자동 명암', def: true, view: true, title: '화면 밝기를 현재 최대 E 에 맞춰 정규화' }
+      ]},
+      { items: [
+        { kind: 'check', id: 'sharec', label: '생물량 공유(개체↔대사)', def: true, gateFor: 'kShare', title: '같은 유전형(kin) 4-인접 생명끼리 *생물량 m* 을 공유 — 협동 유전형이 사망 직전 kin 을 제 잉여로 떠받친다(표적 구조 → 개체 단위 생존). 0 = step-0018(공유는 E 만, m 선택압 없음).' },
+        { kind: 'slider', id: 'kShare', label: 'kShare', param: 'kShare', min: 0, max: 1, step: 0.05, def: 0.5, fixed: 2, gateBy: 'sharec', gateOff: 0, title: 'kin m 구조 강도(0~1). 협동자가 굶주린 kin 을 떠받쳐 차등 생존(kin selection). 전체 스택은 균일 협동(coopFit0=1).' }
       ]},
       { items: [
         { kind: 'check', id: 'couplec', label: '막/flux 결합(개체↔도메인)', def: true, gateFor: 'kMembrane', title: '같은 유전형(kin) 4-인접 생명끼리 필드 E 를 공유·재분배 → 액적 내부 균질·경계 단차(막) 창발. 0 = step-0017(측정 윤곽일 뿐 — 막 없음).' },
@@ -167,14 +171,14 @@
       { label: '생명 유전형 (점유 / 변이)', get: function (c) { var s = c.sim, gs = lifeGeneStat(s); return gs.total + ' / ' + (s.inheritMut || 0); } },
       { label: '별 <span style="color:#ff9a3c">living</span>/<span style="color:#fff7d2">burning</span>/<span style="color:#aab">ash</span>', get: function (c) { var k = stateCounts(c.sim); return k[0] + ' / ' + k[1] + ' / ' + k[2]; } },
       { label: '<span class="pool">고임</span> / <span class="life">개체수</span> / M', get: function (c) { return c.pools.length + ' / ' + c.sim.agents.length + ' / ' + c.led.biomass.toFixed(2); } },
-      { label: '누적 출생 / 사망 / 공유flux', get: function (c) { return c.sim.births + ' / ' + c.sim.deaths + ' / ' + (c.sim.coupled || 0).toFixed(0); } },
+      { label: '누적 출생 / 사망 / E공유 / <span style="color:#e0c060">m공유</span>', get: function (c) { return c.sim.births + ' / ' + c.sim.deaths + ' / ' + (c.sim.coupled || 0).toFixed(0) + ' / ' + (c.sim.shared || 0).toFixed(0); } },
       { label: '장부 잔차', get: function (c) { var r = c.led.residual; return { text: r.toExponential(3) + (r < 1e-6 ? ' PASS' : ' FAIL'), cls: r < 1e-6 ? 'pass' : 'fail' }; } }
     ],
 
     legend:
       '<span style="color:#e86060">●</span>tag1(저적합) <span style="color:#78c860">●</span>tag2 <span style="color:#60a8e8">●</span>tag3 <span style="color:#c870e0">●</span>tag4(고적합) — 유전 생명, 같은 색 선으로 이으면 <b>한 개체</b>(flux 결합 도메인) &nbsp; <span style="color:#c89b6a">■</span>R &nbsp; <span style="color:#57e0c8">■</span>활성도 A &nbsp; <span style="color:#fff7d2">★</span>별<br>' +
-      '<b>막/flux 결합</b>: "혼합 군집" 을 놓으면 같은 색끼리 액적(개체)으로 갈리고(차등 응집), 그 액적 *안에서* kin 끼리 <b>E 를 공유</b>한다 → 액적 내부 E 가 균질해지고 경계엔 <b>막</b>(단차)이 창발한다. 우측 "막 지수(경계/내부 ΔE)" 가 1→3+ 로 오르면 막이 생긴 것. "kMembrane" 을 올리면 막이 또렷해진다. <code>verify membrane</code>: 막 지수 2→3.5.<br>' +
-      '<b>형태는 flux 의 하류</b>(INTERPRET §5): 막은 렌더러가 그린 게 아니라 *시뮬*이 빚은 형태다 — 같은 해석 렌즈가 바닥 E 하이트필드의 도메인+막을 코드 0 으로 받아 그린다. "막/flux 결합" 체크를 끄면 step-0017(측정 윤곽일 뿐 — 막 없음)으로. 공유는 *실제 E 재분배*지만 쌍 거래라 churn 을 안 깬다(<code>verify sustain</code>). 잔차 &lt;1e-6 이면 <span class="pass">PASS</span>.',
+      '<b>생물량 공유(개체↔대사)</b>: step-0018 막은 *필드 E* 를 kin 끼리 공유해 개체군 *이득*만 줬다(선택압 0). 이 step 은 *생물량 m* 을 <b>차등</b>(유전형의 함수 coop)으로 공유 — 협동 유전형이 사망 직전 kin 을 제 잉여로 떠받쳐(표적 구조) <b>차등 생존</b> → <b>kin selection 선택압</b>. 우측 "m공유" 가 누적량. "kShare" 를 올리면 굶주린 kin 이 더 떠받쳐진다.<br>' +
+      '<b>Hamilton (rb&gt;c)</b>: 협동은 *kin 이 뭉쳐야*(높은 혈연도) 작동한다 — <code>verify kin</code>: 뭉치면 협동 *지속*(Δ+0.02)·흩어지면 *사라짐*(Δ−0.26, 낭비된 이타). 혈연도가 협동의 운명을 가른다(개체를 <b>중립에서 적응으로</b>). 공유는 *실제 m 재분배*지만 쌍 거래(나간 만큼 들어옴)라 churn 을 안 깬다(<code>verify sustain</code>·잔차 &lt;1e-6 <span class="pass">PASS</span>). "생물량 공유" 체크를 끄면 step-0018(공유는 E 만)로.',
 
     actions: {
       seedSortMix: function (api) {
@@ -205,5 +209,5 @@
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = panel;
-  else global.HWS_PANEL_0018 = panel;
+  else global.HWS_PANEL_0019 = panel;
 })(typeof window !== 'undefined' ? window : globalThis);
