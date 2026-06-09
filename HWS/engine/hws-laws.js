@@ -197,7 +197,14 @@
                            //   *position*(응집 adhere, step-0017 Steinberg DAH)은 이미 그 자체로 표면장력을 내 cell sorting 액적을 *둥글린다*(차등접착=표면장력) — 그래서 *위치* 곡률은 adhere 와 redundant(보존적 단일-셀 이동은 에너지 장벽을 못 넘어 떨어진 액적도 못 합친다). 진짜 R2 의 자리는 *형태가 실리는 바닥 필드 E*(R1[0018] couple 이 막을 *E 하이트필드*에 새겼다 — INTERPRET §5 "형태는 flux 의 하류")다.
                            //   이 법칙은 그 *E-막에 Young-Laplace 표면장력*을 더한다(막을 곡률로 편향): 액적의 E-경계가 곡률을 가지면 압력차 ΔP=γκ 로 E 가 *볼록(튀어나온 곡률 큰) 경계에서 오목/속으로* 흐른다 → 액적의 *E-형태*(같은 렌즈가 코드 0 으로 그리는 높이)가 둥근 돔으로 모이고 톱니 경계의 E 가 펴진다(둥글어짐). couple(R1)이 kin 끼리 E 를 *균등화*(막)했다면, tension(R2)은 그 위에 *곡률 구배*(속이 더 뜨겁게)를 얹는다 — E 가 4-근방 같은 태그 수 n4(coordination = 이산 곡률 대용: 낮으면 볼록 경계·높으면 오목/속)가 *높은* kin 이웃으로 흐른다.
                            //   척추: 새 *필드* 없음(E 하나에 곡률 구배를 실음 — 형태/막을 author 안 함, 단일 척추) · authored 분기 없음(E flux 만 coordination 의 함수 — 개체 종류 안 만듦, couple 의 kin 게이트와 같은 정신, 활성도 환원) · 국소 문턱(제 4-근방 kin 쌍·그 coordination 만 — 전역 조율자 0) · 닫힌 장부(E 쌍 거래 — 나간 만큼 들어옴, couple 과 같은 경계, 보존).
-    tensionGamma: 0.10     // 표면장력 계수 γ — 각 kin 4-쌍에서 E flux = γ·(n4[높은 쪽]−n4[낮은 쪽])·E[낮은 쪽] 를 *볼록(낮은 coordination)→오목(높은 coordination)*으로 옮긴다(나간 만큼 들어옴 — 보존). 0~약: 막의 곡률 구배 세기. couple 의 균등화 위에 얹혀 E-돔을 둥글린다.
+    tensionGamma: 0.10,    // 표면장력 계수 γ — 각 kin 4-쌍에서 E flux = γ·(n4[높은 쪽]−n4[낮은 쪽])·E[낮은 쪽] 를 *볼록(낮은 coordination)→오목(높은 coordination)*으로 옮긴다(나간 만큼 들어옴 — 보존). 0~약: 막의 곡률 구배 세기. couple 의 균등화 위에 얹혀 E-돔을 둥글린다.
+    /* ── step-0025: 방향성 결정화(anisotropy — genotype 이 결정 성장 *방향*을 정해 등방 blob 대신 가지·결정축. 형태 사다리 R3, *R 하이트필드*에 형태) ── */
+    kAniso: 0,             // 방향성 결정화 마스터. 0 = off = step-0024 와 비트 동일(회귀, R·E·G 불변 → curv@/tcurv@ 해시 무관). >0(=1)이면 on: R1(couple)·R2(tension)은 형태를 *E 필드*에 실었으나 둘 다 *등방*(평탄 막·둥근 돔)이었다.
+                           //   R3 는 형태를 *R 하이트필드*(물질 — 세계 해석 뷰의 높이=물질, INTERPRET §5b)에 빚되 *방향성*을 준다: genotype 이 결정 성장 *방향*을 국소 편향해 등방 blob 대신 *가지·결정축*(이방성 결정)을 키운다.
+                           //   유전형 G(이산 태그)가 *결정축*을 정한다 — 같은 genotype 의 결정이 같은 축으로 자란다(눈송이 대칭·광물 격자 대칭의 게임화: 결정 대칭이 유전형에 실린다). 복제(⑤d, 등방 4-방향)와 달리 태그의 *선호 축* 두 이웃에만 E→R 침착·태그 복사 → 축 위로만 자라 needle/가지.
+                           //   INTERPRET §5 형태발생("주형 성장 = 유전형이 *어디에 굳힐지* 지시"; 0015 는 복제 *속도*만 — 공간 배치 미지시였다)를 잇는다. R 속성(G)에 실어 단일 척추.
+    anisoRate: 0.3,        // 방향성 침착량 — 선호 축 빈 이웃 칸당/tick E→R(결정화·복제와 같은 경계). 대상 이웃은 E ≥ anisoRate 여야 한다(기질 문턱=자기제한; E 부족이면 멈춤). 침착받은 이웃도 이만큼 R 을 얻어 다음 세대 결정 핵(축 연장).
+    anisoThresh: 0.2       // 주형 문턱 — R[i] ≥ 이 값 & G[i]≠0 인 칸이 결정 핵(국소 판정·결정화의 crystThresh 정신). anisoRate(0.3) ≥ 이 값이라 침착받은 빈칸이 곧 다음 핵이 된다(needle 연장).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -372,6 +379,40 @@
       }
     }
     sim.geneReps += reps; sim.geneMut += muts;   // 누적 복제·변이(통계 — 장부 무관)
+  }
+
+  /* ⑤e 방향성 결정화(anisotropy, step-0025) — kAniso=0 이면 통째로 건너뜀(회귀 0, R·E·G 불변 → curv@/tcurv@ 비트 동일·새 해시 항 0).
+   * 형태 사다리 R3(INTERPRET §5) + SPINE 형태발생("주형 성장 = 유전형이 *어디에 굳힐지* 지시 → 누적 성장"): R1(couple, E-막)·R2(tension, E 곡률)이 형태를 *E 필드*에 실었으나 둘 다 *등방*(평탄 막·둥근 돔)이었다.
+   *   R3 는 형태를 *R 하이트필드*(물질 — 세계 해석 뷰의 높이=물질·빛=에너지, INTERPRET §5b)에 빚되 *방향성*을 준다: genotype 이 결정 성장 *방향*을 국소 편향해 등방 blob 대신 *가지·결정축*(이방성 결정)을 키운다.
+   *   유전형 G(이산 태그)가 *결정축*을 정한다 — 같은 genotype 의 결정이 같은 축을 따라 자란다(눈송이·광물 결정의 격자 대칭 아날로그: 결정 대칭이 유전형에 실린다). 0015 복제는 *속도*만 태그의 함수였다(공간 배치 미지시) — R3 는 *방향*을 태그의 함수로(공간 배치 지시).
+   * 메커니즘(국소·E→R 쌍 거래 보존, 방향 편향): tick 시작 G 스냅샷(anisoSnap)에서 결정 핵(G≠0 & R≥anisoThresh)을 읽어(한 tick=한 세대, 같은 tick 연쇄 폭주 방지 — replicate 의 Gbuf 와 같은 정신) —
+   *   제 *선호 축*(ANISO_AXIS[(tag−1)%2]: 가로/세로) 두 *빈* 이웃 칸 j(G[j]==0·E[j]≥anisoRate)에만 anisoRate 만큼 E→R 침착(결정화/복제와 같은 경계)·태그 복사. 축 밖은 안 자라 *이방성* 성장(needle 연장). 이미 태그인 칸·다른 태그는 안 건드림(결정 경계 — 복제가 G[j]≠0 skip 과 같은 경계).
+   *   복제(⑤d)는 4-방향 등방 침착이라 *blob*, anisotropy 는 *축*만이라 *needle/가지*. 침착받은 빈칸은 R=anisoRate≥anisoThresh 라 다음 tick 핵이 되어 축을 연장한다. E 부족(기근)이면 멈춤(자원 문턱=자기제한). 위치 무작위 없음(축은 태그의 결정 함수 — Math.random 금지).
+   * 척추: 새 *필드* 없음(축은 R 의 속성 G=태그의 함수 — 형태/결정을 author 안 함, 단일 척추) · authored 분기 없음(E→R 침착 *방향*만 태그의 함수, 개체 종류 안 만듦 — replicate 의 fit=태그 함수와 같은 정신, 활성도 환원) ·
+   *   국소 문턱(제 선호 축 두 이웃·그 E/G 만 — 전역 조율자 0) · 닫힌 장부(E→R 쌍 거래 — 결정화/복제와 같은 경계, 보존; 태그 복사는 거래 0 — 정보지 에너지 아님). G 는 spawnGene/replicate 가 이미 geneInit 을 켰을 때만 비어있지 않으므로(무유전이면 핵 0 → no-op) 새 해시 가드 불필요.
+   * ⑤e: ⑤d replicate(등방 복제) 뒤·⑤c combust 앞 — 등방 복제가 깐 R-genotype 위에 *방향성 결정화*를 얹어 축으로 키운다(같은 ⑤ 저장 형성 군집, R 형태 = 물질 하이트필드). */
+  var ANISO_AXIS = [[[1, 0], [-1, 0]], [[0, 1], [0, -1]]];   // 축0=가로(x)·축1=세로(y). 태그→축 = (tag−1)%2 (같은 genotype 같은 결정축 — 결정 대칭이 유전형에)
+  function anisotropy(sim) {
+    var p = sim.p; if (p.kAniso === 0) return;
+    var E = sim.E, R = sim.R, G = sim.G, W = p.W, H = p.H, N = W * H;
+    var rate = p.anisoRate, thr = p.anisoThresh;
+    var snap = sim.anisoSnap; if (!snap || snap.length !== N) snap = sim.anisoSnap = new Uint8Array(N);
+    for (var i0 = 0; i0 < N; i0++) snap[i0] = G[i0];          // tick 시작 주형 스냅샷(한 tick=한 세대 — 같은 tick 연쇄 폭주 방지)
+    var grown = 0;
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var i = y * W + x, t = snap[i];
+        if (t === 0 || R[i] < thr) continue;                 // 결정 핵: 유전형 R(G≠0 & R≥문턱)만 자란다
+        var ax = ANISO_AXIS[(t - 1) % 2];                    // 태그가 선호 축을 정한다(가로/세로) — 결정 대칭
+        for (var d = 0; d < 2; d++) {
+          var nx = (x + ax[d][0] + W) % W, ny = (y + ax[d][1] + H) % H, j = ny * W + nx;
+          if (G[j] !== 0) continue;                          // 이미 결정(태그)·다른 결정 — 빈 축 칸으로만 연장(복제와 같은 경계)
+          if (E[j] < rate) continue;                         // 기질 부족 — 자랄 E 가 없다(자원 문턱=자기제한)
+          E[j] -= rate; R[j] += rate; G[j] = t; grown++;     // E→R 쌍 거래(결정화 경계) + 태그 복사(축 연장)
+        }
+      }
+    }
+    sim.anisoGrown += grown;                                 // 누적 방향성 결정 성장 수(통계 — E→R 쌍 거래·태그 복사라 장부 무관)
   }
 
   /* ⑤b 점화·연소·소진(step-0011) — 구동 내생화. kIgnite=0 이면 통째로 건너뜀(회귀 0, stars 불변).
@@ -1069,6 +1110,7 @@
    * ⑤c 연소(combust)는 ⑤b ignite 앞 — 이번 tick 주입 전에 별 상태를 정해(이전 tick 잔열 기준) burnMul 을 ignite 가 읽는다.
    * ⑥b 혼잡(crowd)은 ⑥이동 뒤·⑦생명 앞 — 이동으로 정해진 자리의 국소 밀도로 혼잡세를 매기고, 죽음은 ⑦이 처리한다.
    * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
+   * ⑤e 방향성 결정화(anisotropy)는 ⑤d replicate 뒤·⑤c combust 앞 — 등방 복제가 깐 R-genotype 위에 *방향성*(태그의 선호 축으로만 E→R 침착·태그 복사)을 얹어 등방 blob 대신 가지·결정축을 키운다(R 하이트필드 형태, 형태 사다리 R3).
    * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
    * ⑥a2 곡률 표면장력(tension)은 ⑥a adhere 뒤·⑥c couple 앞 — adhere 의 거친 정렬 위에 *곡률 다듬기*(볼록 돌기→오목 만)를 얹어 액적을 둥글리고 합치고(원형도↑·조직 수↓), couple 이 그 둥근 액적 위에서 E 를 공유한다(막은 둥근 경계에 실린다).
@@ -1079,11 +1121,11 @@
    * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
-    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
+    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy,
     combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
