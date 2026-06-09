@@ -46,6 +46,7 @@ var PUBLIC = { kPublic: 0.3, pubSynergy: 2.0 };  // 공공재 협동(step-0020, 
 var DIFF = { kDiff: 0.3 };  // 세포 분화(step-0021) — golden 의 diff@ 키가 + 분화 스택을 동결 잠근다(step-0022~ 회귀 앵커).
 var GERM = { kGermline: 0.3 };  // 생식세포 계통 격리(step-0022) — golden 의 germ@ 키가 + 계통 스택을 동결 잠근다(step-0023~ 회귀 앵커).
 var ANCHOR = { kAnchor: 1, anchorM: 0.6, anchorKin: 2 };  // 정착 생활사(step-0023) — golden 의 anchor@ 키가 + 정착 스택을 동결 잠근다(step-0024~ 회귀 앵커).
+var TENSION = { kTension: 1, tensionGamma: 0.10 };  // 곡률 기반 표면장력(step-0024) — golden 의 curv@ 키가 + 표면장력 스택을 동결 잠근다(step-0025~ 회귀 앵커).
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H;
 
 function scn(extra) {
@@ -79,6 +80,8 @@ function diffScn(extra) { return Object.assign({}, pubScn(), DIFF, extra || {});
 function germScn(extra) { return Object.assign({}, diffScn(), GERM, extra || {}); }
 /* 정착 생활사 켠 내생 시나리오(step-0023 스택) — step-0023/verify.js scn() 과 동일 상수. */
 function ancScn(extra) { return Object.assign({}, germScn(), ANCHOR, extra || {}); }
+/* 곡률 표면장력 켠 내생 시나리오(step-0024 스택) — step-0024/verify.js scn() 과 동일 상수. */
+function curvScn(extra) { return Object.assign({}, ancScn(), TENSION, extra || {}); }
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -120,6 +123,26 @@ function ancTissueScn(extra) {
     kAnchor: 1, anchorM: 0.55, anchorKin: 2
   }, extra || {});
 }
+/* 곡률 표면장력 rounding 아레나(step-0024 tension *실활성*) — step-0024/verify.js arena() 와 동일 상수.
+ * 준균일 고-E 장에 단일 클론(tag1) 조밀 조직 + adhere·couple(R1 막) on → tension 이 *E-막*에 Young-Laplace 곡률 구배를 얹어 고-E 핵을 둥근 돔으로 모은다(coreRatio>1·coreCirc↑).
+ * curv@(전체 스택, 희소라 표면장력 거의 안 켜짐 — 직교성 동결)와 달리 이 tcurv@ 는 곡률 코드 경로(E 볼록→오목 flux)를 *실제로* 도는 상태를 동결한다(드리프트 가드). */
+function curvTissueScn(extra) {
+  return Object.assign({}, {
+    initE: 2.0, noise: 0.2, drive: true,
+    source: { x: 32, y: 32, r: 44, rate: 0.02 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0.2, kEvap: 0, kA: 0, baseCost: 0,
+    kL: 0.05, mMaint: 0.005, mDeath: 0.01, mSeed: 0.6, lifeR: 1,
+    repro: false, mDiv: 999, divR: 1, popCap: 4096,
+    move: false, moveR: 1, moveThresh: 0.02, pTumble: 0,
+    kCrowd: 0, crowdR: 3,
+    kCryst: 0, kWeather: 0, kRelief: 0, kIgnite: 0, kFSM: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0,
+    kAdhesion: 1, adhesionLambda: 1.0, adhesionGain: 0.5,
+    kMembrane: 0.5,
+    kTension: 1, tensionGamma: 0.10
+  }, extra || {});
+}
+function seedBlob(C, sim, tag) { for (var y = 24; y < 40; y++) for (var x = 24; x < 40; x++) { var a = C.spawnAgent(sim, x, y); a.g = tag; } }
 function seedTissue(C, sim) { for (var y = 26; y < 38; y++) for (var x = 26; x < 38; x++) { var a = C.spawnAgent(sim, x, y); a.g = 1; } }
 /* 흩어진 단일 클론 씨앗(step-0023 settling 아레나) — 정착이 흩어진 씨앗을 confluent 조직으로 모은다(정착 off 면 흩어진 채). */
 function seedScatter(C, sim) { for (var y = 18; y < 46; y += 3) for (var x = 18; x < 46; x += 3) { var a = C.spawnAgent(sim, x, y); a.g = 1; } }
@@ -215,6 +238,8 @@ function runEq() {
  *   tgerm@ — step-0022 조밀 클론 조직(sequester *실활성* — soma 계통이 germ kin 에게 m 전량 export). germ@ 가 격리 본문을 거의 미커버라 이 키가 계통 코드 경로를 동결한다(드리프트 가드).
  *   anchor@ — step-0023 정착 생활사 스택(전체 스택, 희소라 정착 거의 안 켜짐 — 직교성 동결). step-0024~ 의 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   tanc@ — step-0023 정착 settling 아레나(anchor *실활성* — 흩어진 씨앗이 고착해 confluent 조직). anchor@ 가 정착 본문을 거의 미커버라 이 키가 정착 코드 경로를 동결한다(드리프트 가드).
+ *   curv@ — step-0024 곡률 표면장력 스택(전체 스택, 희소라 표면장력 거의 안 켜짐 — 직교성 동결). step-0025~ 의 회귀 앵커: 새 노브 kTension=0 이면 이 해시 불변.
+ *   tcurv@ — step-0024 곡률 rounding 아레나(tension *실활성* — 볼록 돌기→오목 만 재배치로 둥글림·합침). curv@ 가 곡률 본문을 거의 미커버라 이 키가 곡률 코드 경로를 동결한다(드리프트 가드).
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -286,6 +311,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // tanc@ — 정착 settling 아레나(anchor *실활성*: 흩어진 씨앗이 고착해 confluent 조직). anchor@ 의 미커버를 보완해 정착 코드 경로를 동결. step-0024 회귀 앵커.
     var a = ENG.createSim(seed, ancTissueScn()); seedScatter(ENG, a); ENG.run(a, 800);
     cur['tanc@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // curv@ — anchor@ + 곡률 표면장력(전체 스택, 희소라 표면장력 거의 안 켜짐 — 직교성 동결). step-0025 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, curvScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
+    cur['curv@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // tcurv@ — 곡률 rounding 아레나(tension *실활성*: E-막에 Young-Laplace 곡률 구배 → 고-E 돔). curv@ 의 미커버를 보완해 곡률 코드 경로를 동결. step-0025 회귀 앵커.
+    var a = ENG.createSim(seed, curvTissueScn()); seedBlob(ENG, a, 1); ENG.run(a, 800);
+    cur['tcurv@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
