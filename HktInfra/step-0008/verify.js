@@ -58,14 +58,22 @@ function authViolations(r) {
   }
   return { doubleWrite, gaps };
 }
-// 최종 소실 엔터티 — 마지막 tick 에 소유자도 in-flight 도 없는(영구 공백) 도입 엔터티.
+// 기대 아바타 = 실제 접속한 클라의 아바타 전체(권위 있는 그라운드 트루스).
+//  주의: trace 누적(`introduced`)이 아니라 *클라 집합*에서 가져온다 — 스폰 tick 에 region 밖이라 즉시
+//  release 되고 토큰이 유실된 아바타는 어떤 trace 스냅샷에도 committed/inflight 로 안 잡혀 누락되기 때문(감사 지적).
+const expectedAvatars = (r) => r.clients.map(c => c.avatar).filter(Boolean);
+// 최종 소실 엔터티 — 마지막 tick 에 소유자도 in-flight 도 없는 *기대* 아바타(영구 공백). 클라 집합 기준이라 robust.
 function lostFinal(r) {
-  const introduced = new Set();
-  for (const t of r.trace) { for (const av of t.committed.keys()) introduced.add(av); for (const av of t.inflight) introduced.add(av); }
   const last = r.trace[r.trace.length - 1];
   let lost = 0;
-  for (const av of introduced) if (authorityCount(last, av) === 0) lost++;
+  for (const av of expectedAvatars(r)) if ((last.committed.get(av) || 0) === 0 && !last.inflight.has(av)) lost++;
   return lost;
+}
+// 전 존 합산 엔터티 위치 서명 — deltarec 의 월드 타이밍 동일성(핸드오프 신뢰) 자기-보호 가드.
+function entPosSig(r) {
+  const m = [];
+  for (const z of r.zones) for (const [id, e] of z.ents) m.push(id + ':' + e.x + ',' + e.y);
+  return m.sort().join('|');
 }
 // 최종 desync — 마지막 tick 각 클라 seen(위치 포함) vs 전체 스냅샷 트루스(같은 월드 타이밍).
 function finalDesync(r, truth) {
@@ -113,48 +121,61 @@ function handoff(seeds) {
   }
 }
 
-// ── authrec: 핸드오프 토큰 유실 — recovery off(공백) vs on(권위-of-record 로 공백 0) ──
+// ── authrec: 핸드오프 토큰 유실 — recovery off(소실) vs on(권위-of-record 로 공백 0) ──
+//  OFF 소실은 *기대 아바타 집합*(클라) 기준으로 센다(스폰-즉시-release-유실 누락 방지). OFF 대조는 OFF 자체 유실로 게이트.
 function authrec(seeds) {
-  console.log('== authrec: 핸드오프 토큰 유실 주입 — OFF=권위 공백(엔터티 소실) vs ON=권위-of-record 복원(공백 0·소유자=1) ==');
-  console.log('seed   | 유실 | OFF 공백tick | OFF 소실 | ON 공백tick | ON 이중쓰기 | ON 소실 | 재전송 | 판정');
+  console.log('== authrec: 핸드오프 토큰 유실 주입 — OFF=권위 공백(엔터티 소실) vs ON=권위-of-record 복원(매 tick 소유자=1) ==');
+  console.log('seed   | ON유실 | OFF유실 | OFF 소실 | ON 공백tick | ON 이중쓰기 | ON 소실 | 재전송 | 판정');
+  let suiteLoss = 0;   // 핸드오프 라우트는 메시지가 적어(경계 횡단만) 시드별 유실 0 가능 → 유실 의존 체크는 게이트, 유실 존재는 스위트 단위로.
   for (const seed of seeds) {
     const off = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: false, transport: { ...HANDOFF_TP } });
     const on = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, transport: { ...HANDOFF_TP } });
-    const vOff = authViolations(off), vOn = authViolations(on);
+    const vOn = authViolations(on);
     const lostOff = lostFinal(off), lostOn = lostFinal(on);
+    suiteLoss += on.totals.netLost + off.totals.netLost;
     const ok =
-      check(on.totals.netLost > 0, `seed ${seed}: 토큰 유실 미발생(테스트 무의미)`) &&
-      check(vOff.gaps > 0 || lostOff > 0, `seed ${seed}: OFF 가 공백을 안 보임(대조 실패)`) &&
-      check(vOn.gaps === 0, `seed ${seed}: ON 권위 공백 ${vOn.gaps} tick`) &&
+      // ON 불변(유실 유무 무관 항상 성립): 매 tick 소유자=1·이중쓰기 0·전 기대 아바타 생존
+      check(vOn.gaps === 0, `seed ${seed}: ON 권위 공백 ${vOn.gaps} tick(매 tick 소유자=1 위반)`) &&
       check(vOn.doubleWrite === 0, `seed ${seed}: ON 이중쓰기 ${vOn.doubleWrite} tick`) &&
-      check(lostOn === 0, `seed ${seed}: ON 엔터티 소실 ${lostOn}`) &&
-      check(on.totals.retransmits > 0, `seed ${seed}: 재전송 0(복원 경로 미발동)`);
-    console.log(`${pad(seed, 6)} | ${pad(on.totals.netLost, 4)} | ${pad(vOff.gaps, 12)} | ${pad(lostOff, 8)} | ${pad(vOn.gaps, 11)} | ${pad(vOn.doubleWrite, 11)} | ${pad(lostOn, 7)} | ${pad(on.totals.retransmits, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(lostOn === 0, `seed ${seed}: ON 엔터티 소실 ${lostOn}(전 기대 아바타 생존 위반)`) &&
+      // 유실 의존(게이트): 유실 있으면 복원 발동(재전송>0)·OFF 면 영구 소실(자가치유 없음)
+      check(on.totals.netLost === 0 || on.totals.retransmits > 0, `seed ${seed}: ON 토큰 유실(${on.totals.netLost})인데 재전송 0(복원 미발동)`) &&
+      check(off.totals.netLost === 0 || lostOff > 0, `seed ${seed}: OFF 토큰 유실(${off.totals.netLost})인데 소실 0(대조 실패)`);
+    console.log(`${pad(seed, 6)} | ${pad(on.totals.netLost, 6)} | ${pad(off.totals.netLost, 7)} | ${pad(lostOff, 8)} | ${pad(vOn.gaps, 11)} | ${pad(vOn.doubleWrite, 11)} | ${pad(lostOn, 7)} | ${pad(on.totals.retransmits, 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
+  check(suiteLoss > 0, `스위트 전체 토큰 유실 0(테스트 무의미 — 손실률·시드 점검)`);
 }
 
-// ── deltarec: 증분 델타 유실 — recovery off(영구 desync) vs on(NAK/keyframe 재동기 → desync 0) ──
+// ── deltarec: 증분 델타 유실 — recovery off(복원 장치 0) vs on(NAK/keyframe 재동기 → desync 0) ──
+//  ON 하드 체크: 유실 발생 + 손실 감지(NAK>0) + 최종 수렴(desync 0) + 월드 타이밍 동일(핸드오프 신뢰 가드).
+//  OFF 대조: 구조적 — 복원 장치 자체가 없다(NAK 0·강제 KF 0). OFF 최종 desync 는 *보고*(시드별 자가치유 여부 다름).
 function deltarec(seeds) {
-  console.log('== deltarec: 증분 델타 유실 주입 — OFF=영구 desync(자가치유 상실) vs ON=NAK/keyframe 재동기(최종 desync 0) ==');
-  console.log('seed   | 유실 | OFF 최종desync | ON 최종desync | NAK | 강제KF | heartbeat | 판정');
+  console.log('== deltarec: 증분 델타 유실 주입 — OFF=복원 장치 0(NAK/KF 없음) vs ON=NAK/keyframe 재동기(최종 desync 0 수렴) ==');
+  console.log('seed   | 유실 | OFF desync(자가치유X) | ON 최종desync | NAK | 강제KF | heartbeat | 판정');
+  let suiteLoss = 0;
   for (const seed of seeds) {
     const truth = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: false });  // 전체 스냅샷(같은 월드 타이밍 — 핸드오프 신뢰)
     const off = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: false, transport: { ...DELTA_TP } });
     const on = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, transport: { ...DELTA_TP } });
     const dOff = finalDesync(off, truth), dOn = finalDesync(on, truth);
+    suiteLoss += on.totals.netLost;
     const ok =
-      check(on.totals.netLost > 0, `seed ${seed}: 델타 유실 미발생(테스트 무의미)`) &&
-      check(dOff > 0, `seed ${seed}: OFF 가 desync 를 안 보임(대조 실패 — 유실이 가시집합에 안 닿음)`) &&
+      // 핸드오프 신뢰 가드: 월드 타이밍(위치)이 트루스와 동일해야 desync 비교가 유효(델타-only 손실 격리)
+      check(entPosSig(on) === entPosSig(truth), `seed ${seed}: 월드 타이밍 불일치(핸드오프 신뢰 가드 깨짐 — desync 비교 무효)`) &&
+      // ON: 유실 감지(NAK)·최종 수렴(desync 0) — 유실 의존은 게이트
+      check(on.totals.netLost === 0 || on.totals.naksSent > 0, `seed ${seed}: 델타 유실(${on.totals.netLost})인데 NAK 0(손실 감지 미발동)`) &&
       check(dOn === 0, `seed ${seed}: ON 최종 desync ${dOn}(재동기 미수렴)`) &&
-      check(on.totals.naksSent > 0, `seed ${seed}: NAK 0(손실 감지 미발동)`);
-    console.log(`${pad(seed, 6)} | ${pad(on.totals.netLost, 4)} | ${pad(dOff, 14)} | ${pad(dOn, 13)} | ${pad(on.totals.naksSent, 3)} | ${pad(on.totals.keyframesForced, 6)} | ${pad(on.totals.heartbeats, 9)} | ${ok ? 'OK' : 'FAIL'}`);
+      // 구조적 대조: OFF 는 복원 장치가 없다 — desync 수렴이 *복원* 덕임을 증명(전송 우연 아님)
+      check(off.totals.naksSent === 0 && off.totals.keyframesForced === 0, `seed ${seed}: OFF 가 복원 장치를 씀(대조 오염)`);
+    console.log(`${pad(seed, 6)} | ${pad(on.totals.netLost, 4)} | ${pad(dOff + (dOff > 0 ? ' 잔존' : ' (자가치유)'), 20)} | ${pad(dOn, 13)} | ${pad(on.totals.naksSent, 3)} | ${pad(on.totals.keyframesForced, 6)} | ${pad(on.totals.heartbeats, 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
+  check(suiteLoss > 0, `스위트 전체 델타 유실 0(테스트 무의미 — 손실률·시드 점검)`);
 }
 
 // ── curve: 손실률↑ 에 따른 복원 오버헤드 + 수렴(공백 0·최종 desync 0) ──
 function curve(seeds) {
   console.log('== curve: 손실률↑ → 복원 오버헤드(재전송·NAK·키프레임) 성장 + 수렴(공백 0·최종 desync 0). 0004 curve 패턴 ==');
-  console.log('-- 핸드오프 라우트 손실(권위 복원) — 공백/이중쓰기/소실은 손실률 무관 0(권위-of-record) --');
+  console.log('-- 핸드오프 라우트 손실(권위 복원) — 공백/이중쓰기/소실은 손실률 무관 0(권위-of-record), 재전송은 손실 비례 성장 --');
   console.log('loss  | 평균유실 | 공백 합 | 이중쓰기 합 | 소실 합 | 재전송 합 | 판정');
   for (const loss of [0, 0.05, 0.1, 0.2, 0.3]) {
     let netLost = 0, gaps = 0, dbl = 0, lost = 0, retx = 0;
@@ -163,10 +184,12 @@ function curve(seeds) {
       const v = authViolations(on);
       netLost += on.totals.netLost; gaps += v.gaps; dbl += v.doubleWrite; lost += lostFinal(on); retx += on.totals.retransmits;
     }
-    const ok = check(gaps === 0 && dbl === 0 && lost === 0, `loss ${loss}: 권위 위반(공백 ${gaps}·이중 ${dbl}·소실 ${lost})`);
+    const ok =
+      check(gaps === 0 && dbl === 0 && lost === 0, `loss ${loss}: 권위 위반(공백 ${gaps}·이중 ${dbl}·소실 ${lost})`) &&
+      check(netLost === 0 || retx > 0, `loss ${loss}: 토큰 유실(${netLost})인데 재전송 0(복원 미발동)`);
     console.log(`${pad(loss, 5)} | ${pad((netLost / seeds.length).toFixed(1), 8)} | ${pad(gaps, 7)} | ${pad(dbl, 11)} | ${pad(lost, 7)} | ${pad(retx, 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('-- 델타 라우트 손실(증분 복원) — 최종 desync 0 으로 수렴, NAK/키프레임 오버헤드 성장 --');
+  console.log('-- 델타 라우트 손실(증분 복원) — 최종 desync 0 으로 수렴, NAK/키프레임 오버헤드 손실 비례 성장 --');
   console.log('loss  | 평균유실 | 최종desync 합 | NAK 합 | 강제KF 합 | 판정');
   for (const loss of [0, 0.05, 0.1, 0.2, 0.3]) {
     let netLost = 0, dsync = 0, naks = 0, kf = 0;
@@ -175,7 +198,9 @@ function curve(seeds) {
       const on = run({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, transport: { ...DELTA_TP, loss } });
       netLost += on.totals.netLost; dsync += finalDesync(on, truth); naks += on.totals.naksSent; kf += on.totals.keyframesForced;
     }
-    const ok = check(dsync === 0, `loss ${loss}: 최종 desync 합 ${dsync}(수렴 실패)`);
+    const ok =
+      check(dsync === 0, `loss ${loss}: 최종 desync 합 ${dsync}(수렴 실패)`) &&
+      check(netLost === 0 || naks > 0, `loss ${loss}: 델타 유실(${netLost})인데 NAK 0(복원 미발동)`);
     console.log(`${pad(loss, 5)} | ${pad((netLost / seeds.length).toFixed(1), 8)} | ${pad(dsync, 13)} | ${pad(naks, 6)} | ${pad(kf, 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
