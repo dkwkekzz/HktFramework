@@ -43,7 +43,7 @@
   </div>
   <div class="sub" style="margin-top:10px">
     <b>큰 그림 두 문장.</b> ① "서버"들은 아직 별도 프로세스가 아니라 <b>Node 한 프로세스 안의 객체(액터)</b>이고, 서로 <b>메시지 큐(<code style="background:#313244;padding:1px 5px;border-radius:4px">engine/Net</code>)</b>로만 통신한다 — 지금은 <b>프로토콜·토폴로지·계약</b>을 헤드리스로 먼저 증명하는 단계(진짜 프로세스/원격/C++ 분리는 나중).
-    ② "월드 존"은 아직 <b>시뮬레이션을 하지 않는다</b> — <b>위치 맵 + 라우터</b>일 뿐이고, 결정론 시뮬(HktCore VM)은 최후에 C++로 교체할 자리로 비워뒀다.
+    ② "월드 존"은 아직 <b>시뮬레이션을 하지 않는다</b> — <b>위치 맵 + 라우터</b>일 뿐이고, 결정론 시뮬(C++ 시뮬 코어)은 최후에 교체할 자리로 비워뒀다.
   </div>
 </div>
 
@@ -164,7 +164,7 @@
   <tr><td class="s">login</td><td>엣지</td><td>계정 검증 → 티켓 발급</td><td class="stub">🟡 스텁이지만 동작 — 계정집합 체크 + 해시 티켓. 대기열·만료 없음</td></tr>
   <tr><td class="s">registry</td><td>코디</td><td>티켓 검증 → 세션ID·아바타 발급, "누가 어디에" SSOT</td><td class="stub">🟡 스텁이지만 동작 — 티켓 1회용·세션 발급. 그 이상 프레즌스 없음</td></tr>
   <tr><td class="s">gateway</td><td>엣지</td><td>클라 단일 연결·은닉, move/leave/resync(NAK) 라우팅, view 중계</td><td class="ok">✅ 작동 — 멀티 클라·은닉·전 존 브로드캐스트(라우팅 테이블 0)</td></tr>
-  <tr><td class="s">zone1·zone2</td><td>월드</td><td>위치 맵 + 증분 AOI + 분할 + 권위 핸드오프(ack/재전송) + 경계 ghost + 손실 복원(seq/NAK/keyframe)</td><td class="ok">✅ 작동(라우터로서) — <b class="stub">단 시뮬 없음</b>(HktCore VM 자리 비움)</td></tr>
+  <tr><td class="s">zone1·zone2</td><td>월드</td><td>위치 맵 + 증분 AOI + 분할 + 권위 핸드오프(ack/재전송) + 경계 ghost + 손실 복원(seq/NAK/keyframe)</td><td class="ok">✅ 작동(라우터로서) — <b class="stub">단 시뮬 없음</b>(C++ 시뮬 코어 자리 비움)</td></tr>
   <tr><td class="s">client</td><td>—</td><td>auth→connect→move→view 수명주기 + seq 손실 감지→resync(NAK)</td><td class="ok">✅ 작동</td></tr>
   <tr><td class="s">Net (전송)</td><td>버스</td><td>지연·손실·재정렬 전송 모델 (step-0004) + 핸드오프·델타 라우트 확장 (step-0008)</td><td class="stub">🟡 모델 작동 — 핸드오프·증분 라우트에 손실 입힘(routeFilter), 반응적 복원으로 견딤</td></tr>
   <tr><td class="s">가방·채팅·길드…</td><td>서비스</td><td>아이템 원장·채널 팬아웃 등</td><td class="none">⬜ 없음</td></tr>
