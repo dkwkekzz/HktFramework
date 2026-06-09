@@ -461,6 +461,23 @@ draw(0);
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  live — 진짜 라이브 모니터링 서버 (live.js 에 위임). report=녹화 재생, live=실시간.
+// ════════════════════════════════════════════════════════════════════════
+function cmdLive(portArg) {
+  const steps = listSteps();
+  if (!steps.length) { console.error('step 없음'); return 2; }
+  const cur = steps[steps.length - 1];
+  warnStateDrift(cur.num);
+  const NET = require(path.join(cur.dir, 'net-core.js'));
+  if (typeof NET.buildTopology !== 'function' || typeof NET.makeActor !== 'function' || typeof NET.Net !== 'function') {
+    console.error(`${cur.name}/net-core.js 가 buildTopology/makeActor/Net 를 노출하지 않습니다(라이브 비대상).`); return 2;
+  }
+  const port = portArg ? parseInt(portArg, 10) : (process.env.PORT ? parseInt(process.env.PORT, 10) : 8080);
+  require('./live.js').serve(NET, { port, step: cur.name });
+  return null; // 서버는 계속 떠 있음 — process.exit 하지 않음
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  main
 // ════════════════════════════════════════════════════════════════════════
 async function main() {
@@ -470,8 +487,10 @@ async function main() {
   if (!cmd) code = cmdDefault();
   else if (cmd === 'spine') code = cmdSpine();
   else if (cmd === 'report') code = await cmdReport(argv[1]);
+  else if (cmd === 'live') code = cmdLive(argv[1]);
   else if (/^\d+$/.test(cmd)) code = cmdStep(parseInt(cmd, 10), argv[1]);
-  else { console.error(`사용: node run.js [spine | report [scenario.json] | <NNNN> [mode]]`); code = 2; }
+  else { console.error(`사용: node run.js [spine | report [scenario.json] | live [port] | <NNNN> [mode]]`); code = 2; }
+  if (code === null) return; // live: 서버 상주
   process.exit(code);
 }
 main();
