@@ -53,6 +53,8 @@
       shared: 0,           // step-0019: 누적 생물량(m) 공유량 (통계용 — kin 쌍 m 균등화는 쌍 거래라 장부 무관). shareOcc(center→agent index)는 법칙이 지연 생성.
       pubgood: 0,          // step-0020: 누적 공공재 이득량 (통계용 — 비용 c=m→metabolized·이득 b=E→m, 둘 다 보존 경계라 장부 무관). pubOcc(center→agent index)는 법칙이 지연 생성.
       differentiated: 0,   // step-0021: 누적 분화 provision 량 (통계용 — 갇힌 내부 soma 가 kin 에게 m→m 쌍 거래로 기부, 보존 경계라 장부 무관). diffOcc(center→agent index)는 법칙이 지연 생성.
+      germProvisioned: 0,  // step-0022: 누적 생식세포 계통 격리 provision 량 (통계용 — soma 계통이 germ kin 에게 m→m 쌍 거래로 export, 보존 경계라 장부 무관). germOcc(center→agent index)는 법칙이 지연 생성.
+      germInit: false,     // step-0022: 계통 격리 활성 여부 — 해시 가법 가드(false 면 a.soma 해시 skip → 과거 골든 불변)
       crystallized: 0, weathered: 0,  // 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
       stars: [],           // step-0011: 살아있는 별 목록 {x,y,center,fuel}. 초기 0 → kIgnite=0 이면 영원히 0(회귀)
       burned: 0, starBirths: 0, starDeaths: 0,  // step-0011: 누적 연소량·점화·소진 수(통계용 — F 가 순잔액)
@@ -84,7 +86,7 @@
     DEFAULTS: L.DEFAULTS, laws: L,
     mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, createSim: createSim,
     aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, spawnGene: K.spawnGene, step: step, run: run,
-    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane, measureDifferentiation: K.measureDifferentiation,
+    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane, measureDifferentiation: K.measureDifferentiation, measureGermline: K.measureGermline,
     detectPools: K.detectPools, harvest: K.harvest, paintStore: K.paintStore, paintE: K.paintE, localE: K.localE, localStore: K.localStore,
     torusDist: K.torusDist, centroid: K.centroid, spread: K.spread, trackDist: K.trackDist, discCells: K.discCells,
     setSource: K.setSource, setSink: K.setSink,
