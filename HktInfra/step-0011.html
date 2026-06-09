@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- HktInfra step-0011 — 시각 관찰 셸. 빌드/서버 불필요 — 이 파일을 브라우저로 그냥 열면 됩니다.
+     로드 순서: engine(전역 HktEngine) → net-core(HktNet) → panel-kit(HktPanelKit) → panel(렌더).
+     주의: 브라우저는 인프로세스 run() 만 그린다(net 소켓·child_process 미로드). 실 소켓 멀티프로세스는 node verify.js 로 검증. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>HktInfra step-0011 — 실 네트워크 소켓 전송 현실화</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background: #1e1e2e; color: #cdd6f4; font: 14px ui-monospace, "SF Mono", Menlo, monospace; margin: 0; padding: 22px 26px; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  .sub { color: #9399b2; font-size: 12px; margin-bottom: 18px; max-width: 820px; line-height: 1.5; }
+  .ctrls { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; padding: 12px 14px; background: #181825; border-radius: 8px; }
+  .ctl { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .ctl .lbl { color: #bac2de; min-width: max-content; }
+  .ctl .val { color: #f9e2af; min-width: 26px; text-align: right; }
+  input[type=range] { width: 116px; accent-color: #a6e3a1; }
+  canvas.grid { display: block; background: #181825; border-radius: 8px; padding: 6px; margin-bottom: 14px; image-rendering: pixelated; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 22px; margin-bottom: 12px; max-width: 820px; }
+  .stat { display: flex; justify-content: space-between; border-bottom: 1px solid #313244; padding: 3px 0; }
+  .stat .k { color: #9399b2; }
+  .stat .v { color: #cdd6f4; } .stat .v.good { color: #a6e3a1; } .stat .v.bad { color: #f38ba8; }
+  .note { color: #9399b2; font-size: 12px; max-width: 820px; line-height: 1.5; }
+  a { color: #89b4fa; }
+</style>
+</head>
+<body>
+  <h1>step-0011 — <b>실 네트워크 소켓 전송 현실화</b>: IPC 파이프 → 실 TCP 소켓</h1>
+  <div class="sub">
+    0010 은 전 서버를 *별 OS 프로세스*로 나누고 broker↔host 를 child_process IPC 파이프로 통신시켰다 — 그러나 전송은 아직
+    *로컬 IPC 파이프*였다. 이 step 은 그 <b>와이어</b>를 <b style="color:#a6e3a1">실 TCP 소켓</b>(net.connect, 127.0.0.1)으로 갈아끼운다.
+    TCP 는 바이트 스트림이라 메시지 경계가 없으므로 <b>길이-프리픽스 프레이밍</b>으로 경계를 재조립한다(IPC 가 숨겼던 실 네트워크의 현실).
+    lockstep 배리어·액터·broker substrate 는 무변경 — 와이어만 갈렸다. 그래서 TCP 소켓 위 실행이 인프로세스와
+    <b style="color:#a6e3a1">비트 동일</b>(실 전송 동치)이다. 아래 그림은 각 박스=프로세스, 선=프로세스 경계를 넘는 소켓 프레임(굵기=메시지 수) —
+    <b style="color:#f38ba8">✝</b>사망 존·<b style="color:#fab387">▲</b>승격 추종자. 검증은 <code>node verify.js</code> 한 줄(원격에서 전 프로세스 기동·소켓 연결→ALL OK). 상세: <a href="step-0011.md">step-0011.md</a>.
+  </div>
+  <div id="app"></div>
+
+  <script src="engine/index.js"></script>
+  <script src="step-0011/net-core.js"></script>
+  <script src="engine/panel-kit.js"></script>
+  <script src="step-0011/panel.js"></script>
+</body>
+</html>
