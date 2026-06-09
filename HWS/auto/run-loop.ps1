@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   HWS 자율 step 루프 (A안 — 헤드리스).
   매 반복 = 완전히 새 claude -p 세션이 STATE.md 의 다음 step 한 조각을 진행 →
@@ -65,11 +65,12 @@ $dirty = git -C $RepoRoot status --porcelain
 if ($dirty) { Die "워킹트리에 미커밋 변경이 있음. 먼저 정리/커밋 후 실행하라.`n$dirty" }
 
 function Get-NextStepId {
-  $max = 0
-  Get-ChildItem -Path $HwsDir -Filter 'step-0*.md' -File | ForEach-Object {
-    if ($_.BaseName -match '^step-(\d{4})$') { $n = [int]$Matches[1]; if ($n -gt $max) { $max = $n } }
+  $nums = Get-ChildItem -Path $HwsDir -Filter 'step-*.md' -File | ForEach-Object {
+    if ($_.BaseName -match '^step-(\d{4})$') { [int]$Matches[1] }
   }
-  if ($max -eq 0) { Die "step-NNNN.md 를 찾지 못함" }
+  if (-not $nums) { Die "step-NNNN.md 를 찾지 못함 ($HwsDir)" }
+  # [int] 캐스팅 필수 — Measure-Object.Maximum 이 double 을 반환하면 {0:D4} 가 깨진다
+  $max = [int](($nums | Measure-Object -Maximum).Maximum)
   'step-{0:D4}' -f ($max + 1)
 }
 
@@ -92,7 +93,7 @@ for ($i = 1; $i -le $MaxIterations; $i++) {
   git -C $RepoRoot checkout -b $branch;  if ($LASTEXITCODE -ne 0) { Die "브랜치 생성 실패" }
 
   # 3) fresh claude 세션 (cwd = HWS)
-  $prompt = Get-Content -Raw -Path $PromptFile
+  $prompt = Get-Content -Raw -Encoding UTF8 -Path $PromptFile   # PS5.1 기본 인코딩(ANSI)로 읽으면 한글 깨짐
   $permArgs = if ($SkipPermissions) { @('--dangerously-skip-permissions') }
               else { @('--permission-mode','acceptEdits') }
   Log "claude 세션 시작 ($stepId)…"
@@ -141,3 +142,4 @@ for ($i = 1; $i -le $MaxIterations; $i++) {
 }
 
 Log "루프 종료 (요청한 $MaxIterations 회 처리)."
+
