@@ -153,8 +153,17 @@
                          //   협동 도메인이 *단위로* 생존(개체 단위 사멸 완화) → 협동 유전형이 번진다. *단 kin 이 뭉쳐야*(adhere=높은 혈연도) 작동(Hamilton rb>c).
                          //   장부: m 쌍 거래(나간 만큼 들어옴 → sumM 불변, couple 의 m-아날로그)·국소(4-인접 kin 쌍만)·강도 0~1.
     coopFit0: 1.0,       // 협동 표현형 절편 — coop(태그) = clamp(coopFit0 + coopFitStep·(태그−1), 0, 1) = 공유 propensity(0~1). 기본 1.0·step 0 = *균일 협동*
-    coopFitStep: 0.0     //   (모든 kin 이 완전 공유 — 전체 스택 risk-pooling, 0018 E-공유의 m-연장). 통제 아레나는 coopFit0=0·step=1 로 협동자(coop 1)vs배신자(coop 0)
+    coopFitStep: 0.0,    //   (모든 kin 이 완전 공유 — 전체 스택 risk-pooling, 0018 E-공유의 m-연장). 통제 아레나는 coopFit0=0·step=1 로 협동자(coop 1)vs배신자(coop 0)
                          //   를 격리해 *선택압*(협동의 차등 번식)을 잰다. 협동을 *복제 적합도와 분리*(fit 맵과 별 노브)해야 kin selection 을 confound 없이 본다.
+    /* ── step-0020: 공공재 협동(pubgood — 한 기부가 *여럿*을 살리는 양의 합 협동(시너지 b≫c) → 협동이 *지속*을 넘어 *강하게 침투*, SPINE §다섯째 축 "사회 칸") ── */
+    kPublic: 0,          // 공공재 마스터. 0 = off = step-0019 과 비트 동일(회귀, m·E 불변 → share@ 해시 무관). >0 이면 공공재 협동 on:
+                         //   step-0019 share 는 kin 끼리 *m 을 쌍 거래*(보존적 재분배 — b≈c)라 협동이 *지속*만 했다(강한 침투 아님). pubgood 은 *양의 합*이다:
+                         //   협동자가 제 잉여(m−dangerLine)의 kPublic·coop 를 *기부* c 로 4-인접 kin *여럿*에게 나눠 주되 *시너지로 증폭* — 각 kin 은 기부 m 분(m→m,
+                         //   share 처럼 보존)에 더해 그 (pubSynergy−1)배를 *필드 E 에서 채집*해(공공재가 환경 자원을 푼다 — 분비 효소/협동 채식, E→m) 받는다.
+                         //   한 기부가 여럿을 살리므로(syn>1) *집단* 적합도 b=syn·c≫c → 협동이 강하게 침투(공공재 게임). *kin 이 뭉칠수록*(positive assortment) kin 이웃이
+                         //   많아 시너지가 커진다 — 기부가 kin-지향(태그 인식)이라 흩어져도 해롭진 않으나 침투가 무뎌짐(혈연도가 침투 *세기*를 가름). 장부: 기부 m→m·시너지 E→m(둘 다 보존).
+    pubSynergy: 2.0      // 시너지 배수 b/c (>1 이라야 양의 합). 한 협동자의 기부 c 가 b=syn·c 의 이득을 *집단*에 — 대칭 kin 클러스터서 1인당 순이득 (syn−1)·c>0(공공재).
+                         //   =1 이면 보존적(share 류 — 침투 없음), >1 이면 강한 침투. 전체 스택 기본 2.0. 통제 아레나서 협동(공공재)이 *지속*을 넘어 침투하는지 잰다.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -631,6 +640,58 @@
     return d;
   }
 
+  /* ⑥e 공공재 협동(pubgood, step-0020) — kPublic=0 이면 통째로 건너뜀(회귀 0, m·E 불변 → share@ 비트 동일·새 해시 항 0).
+   * SPINE §다섯째 축 "사회 칸" + STATE 🔴 최우선: step-0019 share 는 kin 끼리 m 을 *쌍 거래*(보존적 재분배)로 떠받쳤다 — 균등화 아닌 표적 구조라
+   *   b>c 가 되긴 했으나 *보존적*(b≈c+ε)이라 협동이 *지속*만 했지(배신과 공존) 강하게 *침투*(치환)하진 못했다(0019 정직한 한계 #1). 강한 침투는
+   *   *양의 합*(시너지 b≫c)을 요구한다 — 한 기부가 *여럿*을 살리는 공공재. 이 법칙은 그 공공재를 더한다:
+   *   협동자(coop>0)가 제 *잉여*(m−dangerLine, 굶주리면 생산 안 함 — 자기 보호)의 kPublic·coop 만큼을 *공공재 기부* c 로 떼어, 제 4-인접 kin *여럿*에게
+   *   나눠 준다 — 단 *시너지로 증폭*된다: 각 kin 은 ①기부 m 분(c/nKin, m→m 전달 — share 처럼 보존) + ②*시너지 증폭분*((syn−1)·그 m 분)을 받는데, ②는
+   *   *필드 E 에서 끌어온다*(공공재가 환경 자원을 푼다 — 세포외 소화효소·협동 채식의 게임화, E→m). 한 기부 c 가 집단에 b=syn·c(>c)로 — 대칭 kin 클러스터선
+   *   기부 m 분이 이웃에서 되돌아오고(손익 0) 거기에 시너지 E-이득이 얹혀 1인당 순이득 (syn−1)·c>0 → 협동자 클러스터가 환경 E 를 *더 빨리 채집*해 더 빨리
+   *   번식 → 협동이 *강하게 침투*(공공재 게임). 배신자(coop=0)는 기부도·이득도 0(무임승차).
+   * 왜 *kin 이 뭉쳐야*(positive assortment) 강하게 침투하나: 기부가 *이웃 kin*(같은 태그)에게만 가므로(자기 아님 — 진짜 이타·greenbeard 인식) 뭉칠수록 kin 이웃이
+   *   많아 시너지 이득이 커진다(rb≫c). *단* 기부가 kin-지향(태그 인식)이라 흩어져도 *해롭진 않다*(0019 표적 구조와 달리 — 인식이 공간 assortment 를 일부 대신).
+   *   즉 혈연도는 침투의 *세기*를 가른다(뭉치면 강한 침투·흩어지면 ~중립) — "kin 구조가 강한 침투보다 먼저"(0019 의 연장, 단 이번엔 흩어짐이 중립이지 음 아님).
+   * 시너지는 *질량 창조가 아니다* — 이득 b 의 증폭분은 *필드 E*(별·source 가 닫힌 장부로 채운 자원)에서 끌어온 것(공공재가 잠긴 자원을 *푼다*). E 부족(기근)이면 capped(보존).
+   * 척추: 새 *필드* 없음(coop 은 a.g 표현형·기부는 m→m·시너지는 기존 E→m — 단일 척추) · authored 분기 없음(기부 *세율*만 coop 의 함수, E 동역학은 태그로 안 갈림) ·
+   *   국소 문턱(제 4-인접 kin·제 m·이웃 칸 E 만, 전역 조율자 0) · 닫힌 장부(기부 m→m·시너지 E→m, 둘 다 보존 경계 — 비가역 채집이되 보존, 질량 창조 0).
+   * ⑥e: ⑥d share(표적 구조) 뒤·⑦생명(흡수·사망) 앞 — 떠받침(보존) *위에* 공공재(양의 합) 이득을 얹어 ⑦의 사망/흡수 전에 kin 의 m 을 키운다(번식 가속).
+   *   순차(occ 제자리·scan=agent 배열 순서)라 같은 패스서 먼저 생산한 이득을 뒤가 본다(Gauss-Seidel, 결정론 — Math.random 금지). */
+  function pubgood(sim) {
+    var p = sim.p; if (p.kPublic === 0) return;
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, E = sim.E, W = p.W, H = p.H, N = W * H, k = p.kPublic, syn = p.pubSynergy;
+    var f0 = p.coopFit0, fStep = p.coopFitStep, danger = p.mDeath * SHARE_BAND;
+    var occ = sim.pubOcc; if (!occ || occ.length !== N) occ = sim.pubOcc = new Int32Array(N);
+    occ.fill(0);                                                                        // 0 = 무점유. 점유 칸엔 (agent index + 1)
+    for (var i = 0; i < ag.length; i++) { if ((ag[i].g | 0) > 0) occ[ag[i].center] = i + 1; }
+    var kin = sim.pubKin || (sim.pubKin = [0, 0, 0, 0]);                                // 4-근방 kin 인덱스 재사용 버퍼(상태 아님)
+    var produced = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var coop = f0 + fStep * (t - 1); if (coop > 1) coop = 1; else if (coop < 0) coop = 0;
+      if (coop <= 0) continue;                                                          // 배신 유전형 — 공공재 생산 안 함(무임승차)
+      var surplus = a.m - danger; if (surplus <= 0) continue;                           // 잉여 없음 — 굶주리며 이타 강요 안 함(자기 보호)
+      var x = a.x, y = a.y, nKin = 0;
+      for (var d = 0; d < 4; d++) {                                                     // 4-근방 kin 이웃 수집(같은 태그 점유 생명) — 이득을 *여럿*에게
+        var nx = (x + GENE_VN[d][0] + W) % W, ny = (y + GENE_VN[d][1] + H) % H, oi = occ[ny * W + nx];
+        if (oi > 0 && (ag[oi - 1].g | 0) === t) kin[nKin++] = oi - 1;
+      }
+      if (nKin === 0) continue;                                                         // 받을 kin 없음(흩어진 협동) → 생산 안 함(낭비 회피)
+      var invest = k * coop * surplus;                                                  // 기부 c — 제 잉여에서 떼어 공공재로(이웃에게, 자기 아님 → 진짜 이타)
+      a.m -= invest;
+      var perM = invest / nKin;                                                         // 각 kin 에게 가는 *m 기부분*(share 처럼 m→m — 클러스터선 되돌아옴, 안 새면 손익 0)
+      var perBonus = perM * (syn - 1);                                                  // *시너지 증폭분* — 필드 E 에서 채집(공공재가 환경 자원을 푼다 — 한 기부가 b=syn·c 로 커진다)
+      for (var n = 0; n < nKin; n++) {
+        var b = ag[kin[n]];
+        b.m += perM; produced += perM;                                                  // 기부 m(m→m 전달 — 보존)
+        var take = E[b.center]; if (take > perBonus) take = perBonus;                   // 시너지는 *필드 E* 에서(자원을 푼다) — E 부족(기근)이면 capped(보존)
+        if (take > 0) { E[b.center] -= take; b.m += take; produced += take; }           // 시너지 E→m(흡수와 같은 경계, 닫힌 장부)
+      }
+    }
+    sim.pubgood += produced;                                                            // 누적 공공재 이득(통계 — 기부는 m→m·시너지는 E→m, 둘 다 보존)
+  }
+
   /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
    * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
    * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
@@ -810,13 +871,14 @@
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
    * ⑥c 막 결합(couple)은 ⑥a adhere 뒤·⑥b crowd 앞 — 정렬로 묶인 액적 위에서 kin 끼리 E 를 공유하고(막 창발), crowd·생명이 그 공유된 자리에서 잰다·흡수한다.
    * ⑥d 생물량 공유(share)는 ⑥b crowd 뒤·⑦생명 앞 — crowd 가 매긴 대사세 뒤의 m 을 kin 끼리 균등화해, 굶주린 kin 을 ⑦의 사망 판정 전에 떠받친다(개체 단위 생존).
+   * ⑥e 공공재 협동(pubgood)은 ⑥d share 뒤·⑦생명 앞 — 떠받침(보존) 위에 공공재(양의 합 시너지) 이득을 얹어, ⑦의 사망/흡수 전에 kin 의 m 을 키운다(번식 가속·강한 침투).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, metabolize, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, pubgood, metabolize, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
