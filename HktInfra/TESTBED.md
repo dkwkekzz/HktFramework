@@ -1,161 +1,130 @@
-# TESTBED — 단일 라이브 테스트 환경 설계
+# TESTBED — 단일 라이브 모니터·검증 환경 설계
 
-> step 마다 손수 만들던 `step-NNNN.html`(시각 관찰 셸, 0004~0010 7개)을 폐기하고,
-> **현재 상태 하나만 원격에서 한 줄로 돌리는 살아있는 테스트 환경**으로 대체하는 설계.
+> step 마다 손수 만들던 `step-NNNN.html`(시각 관찰 셸, 0004~0010 7개)**과** 손으로 그린 `SYSTEM.html`(정적 전체도)을
+> **한 개의 라이브 모니터**로 합친다. 현재 만들어진 서버 인스턴스를 *실제로 띄워* 시각적으로 관찰·제어하고,
+> 서버 간 통신·각 동작이 제대로 되는지 라이브로 확인한다. 검증 권위는 여전히 headless `verify.js`.
 > 방법론·규칙은 [CLAUDE.md](CLAUDE.md) · 현재 위치(SSOT)는 [STATE.md](STATE.md) · 큰 그림은 [SPINE.md](SPINE.md).
 >
-> **이 문서의 위상**: 설계 결정 문서(거의 불변 참조). 실제 러너·뷰는 본 설계 채택 후 별 step/작업으로 구현한다.
+> **이 문서의 위상**: 설계 결정 문서(거의 불변 참조). 실제 러너·모니터는 본 설계 채택 후 별 작업으로 구현한다.
 
 ---
 
-## 1. 문제 — 왜 step-NNNN.html 이 안 돕는가
+## 1. 문제 — 그림이 둘로 갈라져 있고, 둘 다 손작업이며, 실제 작동과 괴리된다
 
-현재 산출물 규약(CLAUDE.md §step 작성법)은 step 마다 `engine/panel-kit.js` 위에 `step-NNNN/panel.js` + `step-NNNN.html` 을 *손수* 올리게 한다. 결과:
+- `step-NNNN.html`(0004~0010, 7장) — step 별 관찰 셸. **인프로세스 `run()` 만 그린다**(실 멀티프로세스가 아니라 단일 프로세스 시늉). 검증(4기둥)은 안 하고, 어느 step 인지 알아야 열 수 있으며, step 마다 손으로 만든다.
+- `SYSTEM.html` — 손으로 그린 *정적* SVG 전체도(토폴로지·서버 상태색·6계층표). **실제 도는 인스턴스가 아니라 사람이 그린 그림** — step 마다 손으로 색을 고친다. 진짜 작동과 어긋날 수 있다(그림은 거짓말할 수 있다).
+- 진짜 검증 권위는 흩어진 `step-NNNN/verify.js`(`node verify.js all`). "현재 상태 한 줄 검증·관찰"의 단일 진입점이 없다.
 
-- **검증을 안 한다** — html 은 인프로세스 `run()` 만 *그린다*. verify 4기둥(회귀·결정론·권위·가설)은 안 돈다. 그림일 뿐 증명이 아니다.
-- **7개가 흩어진다** — 0004~0010 까지 7장. "지금 어디까지 도는가"를 보려면 *어느 step 인지 먼저 알고* 그 html 을 열어야 한다.
-- **검증 권위가 분산** — 진짜 증명은 `step-NNNN/verify.js` 에 산다(`node verify.js all` → ALL OK). 그러나 step 마다 다른 디렉토리. "현재 상태 한 줄 검증"의 단일 진입점이 없다.
-- **step 마다 손작업 2건** — `step-NNNN.html` 작성 + `SYSTEM.html` 손갱신. html 은 회귀로도 안 잡히는(브라우저 전용) 사각지대.
-
-요컨대 **관찰 셸(html)은 정성적 그림인데 검증 가치는 verify 의 정량 수치에 있다.** 그림을 step 마다 손으로 7장 만드는 비용이 통찰을 못 따라간다.
+결과: **정적 그림 8장(7+1)을 손으로 그리는데, 정작 "실 인스턴스가 서로 통신하며 제대로 도는가"를 라이브로 보여주지 못한다.**
 
 ---
 
-## 2. 핵심 판단 — CI 는 필요 없다
+## 2. 원하는 모습 — 하나의 라이브 모니터
 
-`verify.js` 는 *이미* headless 이고 *이미* 이 원격 환경에서 `node` 한 줄로 돈다(제1 운영 제약 = "원격에서 한 줄로 빌드·검증" 은 **이미 충족**). GitHub Actions 가 더하는 건 *push 자동 게이팅* 한 가지뿐인데:
+현재 만들어진 서버 인스턴스를 **실제로 생성**하고, 그것을 **monitor 형태로 시각 관찰·제어**하며, **서버 간 통신·각 동작이 제대로 되는지 라이브로** 확인한다. 그러면 그 화면은 *작동하는 시스템 전체도*일 수밖에 없다 — **그러므로 `SYSTEM.html` 은 별도로 둘 이유가 없다(흡수·폐기).** step-NNNN.html 도 마찬가지(라이브가 인프로세스 정지 그림을 대체).
 
-- step 은 어차피 **닫을 때 verify 를 통과시켜야** 닫힌다(CLAUDE.md §step 루프 4·검증 4기둥). 통과 못 하면 step 을 못 닫는다 — 게이트는 *절차에 이미 내장*.
-- 에이전트 주도 단일 작업자 흐름에서 CI 는 같은 게이트를 한 번 더 거는 *중복 의식*. 러너·yml·러너 환경 관리 비용만 는다.
+> 즉 단일 뷰 하나가 **세 역할을 합친다**: ① step 별 관찰 셸(step-NNNN.html) ② 전체 구조도(SYSTEM.html) ③ 실 인스턴스 라이브 모니터·제어(신규).
 
-**결론: CI(Actions)는 본 설계에 넣지 않는다.** (원하면 후일 `node HktInfra/run.js` 한 줄을 호출하는 workflow 로 사소하게 붙일 수 있다 — 핵심이 아니므로 보류.)
-
-진짜 빠진 것은 CI 가 아니라 다음 셋이고, 이것이 설계 대상이다:
-
-| # | 빠진 것 | 채우는 산출물 |
-|---|---|---|
-| ① | 흩어진 verify 의 **단일 진입점** | `HktInfra/run.js` (§4) |
-| ② | 현재 상태의 **단일 뷰** | 텍스트 대시보드(본체) + 선택적 생성 html 1장 (§5) |
-| ③ | step 갱신의 **자동화**(손 html 제거) | 현재 step 자동 탐지 + 루프 절차 변경 (§4·§7) |
+핵심 가르기(불변): **검증(pass/fail)은 headless `verify.js` 가 권위**, **모니터는 같은 net-core 를 띄워 그것을 *눈으로* 보고 *손으로* 흔드는 층**이다. 둘은 *같은 코어*를 공유하므로 "보는 것 = 검증되는 것"(괴리 0).
 
 ---
 
-## 3. 설계 원칙 (정합 불변)
+## 3. 핵심 판단 두 가지
 
-본 설계는 기존 불변을 *하나도 깨지 않는다* — 셸 작성 방식만 바꾼다.
+### 3-1. CI(GitHub Actions)는 필요 없다
 
-- **frozen step dir 불변** — `step-NNNN/` 는 동결 스냅샷(anti-DRY, 복사 전진). 러너는 step dir 을 **읽기/실행만** 한다(수정 0). 회귀 0·동결 단위 보존.
-- **SSOT = STATE.md** — "현재 어디까지" 의 권위는 여전히 STATE.md. 러너는 현재 step 을 *파생 탐지*할 뿐(아래 §4) 권위를 새로 만들지 않는다.
-- **수치 = verify 출력** — 대시보드는 verify 의 *출력을 집계*할 뿐 자체 수치를 만들지 않는다. 새 진실 원천을 만들지 않는다(중복 SSOT 금지).
-- **headless·원격 제1** — 본체 뷰는 텍스트(콘솔). 브라우저·서버·빌드 0 으로 이 환경에서 한 줄로 돈다.
-- **dual-mode 무관** — `run.js` 는 Node 전용 *오케스트레이터*(브라우저 로드 대상 아님). engine/net-core 의 dual-mode 규약과 충돌하지 않는다.
+`verify.js` 는 이미 headless·이 원격 환경에서 `node` 한 줄로 돈다(제1 운영 제약 충족). step 은 어차피 닫을 때 verify 를 통과시켜야 닫힌다(루프 §4) — 게이트가 절차에 내장. Actions 는 같은 게이트를 한 번 더 거는 중복 의식이라 넣지 않는다. (후일 `node HktInfra/run.js` 한 줄 workflow 로 사소하게 붙일 수 있음 — 핵심 아님.)
+
+### 3-2. 모니터는 "그냥 여는 html" 이 아니라 served 백엔드다 — 그리고 그래도 괜찮다
+
+"인스턴스를 *생성*하고 *제어*하며 서버 간 IPC 통신을 라이브로 본다"는 건 **정적 html 로 물리적으로 불가능**하다. 실 멀티프로세스(`runMulti` = child_process)는 Node 만 띄울 수 있고(브라우저는 인프로세스 시늉만 — 기존 step-NNNN.html 의 한계), 제어 명령을 받아 프로세스를 흔들려면 **백엔드가 클러스터를 소유**해야 한다. 그래서 모니터는 **Node 백엔드 + 브라우저 얇은 클라(WS)** 형태의 *served 앱*이다.
+
+이는 기존 "시각 관찰 셸 규약 ⒝(빌드/서버 0, html 그냥 열기)"를 *의도적으로* 넘어선다. **불변은 깨지 않는다**:
+
+- **headless·원격 검증 불변** = *검증*에 관한 규약. 검증은 여전히 `verify.js`(headless, 이 환경에서 한 줄). 모니터는 *관찰/제어* 층이지 pass/fail 권위가 아니다.
+- 모니터 백엔드도 이 원격 환경(Node 컨테이너)에서 돈다 — 로컬 UE/GUI 의존 0. 원격 제1 제약 유지.
+- 모니터와 verify 는 **같은 net-core 인스턴스**를 쓴다(아래 §5-4) — 둘째 구현을 만들지 않으므로 "보는 것 ≠ 검증되는 것" 괴리가 없다.
+- 데이터 층 환경 무관(규약 ⒜)은 보존: 모니터가 그리는 상태·메시지는 전부 net-core 에서 나오며 headless 재현 가능.
 
 ---
 
-## 4. 산출물 ① — `HktInfra/run.js` (단일 진입점 러너)
+## 4. 산출물 ① — `HktInfra/run.js` (단일 진입점)
 
-흩어진 `step-NNNN/verify.js` 앞에 서는 얇은 오케스트레이터. **살아있다 = 손수정 없이 step 마다 자동으로 최신을 가리킨다.**
+흩어진 `step-NNNN/verify.js` 와 모니터 앞에 서는 얇은 오케스트레이터. **살아있다 = 손수정 없이 step 마다 자동으로 최신을 가리킨다.**
 
 ### 현재 step 자동 탐지
 
-`step-*/` 디렉토리 중 **최대 번호**를 현재로 본다(파일시스템 사실 — 결정적, STATE 파싱보다 견고). 닫힌 step 만 디렉토리가 존재하므로 STATE.md §1 NOW 와 어긋날 일이 없다(둘이 어긋나면 STATE 가 권위 — 그 땐 경고 출력). 
+`step-*/` 디렉토리 중 **최대 번호**를 현재로 본다(파일시스템 사실 — 결정적). 닫힌 step 만 디렉토리가 존재하므로 STATE.md §1 NOW 와 어긋날 일이 없다(어긋나면 STATE 가 권위 — 경고 출력).
 
 ### 모드
 
-| 명령 | 동작 |
-|---|---|
-| `node run.js` (기본) | 현재 step 의 `verify.js all` 을 자식 프로세스로 실행. stdout 중계 + 종료코드 전파. **"현재 상태 한 줄 검증"의 정답.** |
-| `node run.js spine` | **회귀 척추**: step-0002..NNNN 각자 `verify.js reg` 를 순차 실행(+0001 `det`). 전 사슬이 비트 동일인지 한 줄 요약. *신규 가치 — 전 시리즈 무결성을 한 번에.* (기존엔 각 step 의 reg 가 직전 step 만 본다.) |
-| `node run.js <NNNN> [mode]` | 특정 step·모드 지정 실행(디버깅·과거 재현). |
-| `node run.js html` | 현재 상태 대시보드 html 1장 생성(§5-B). *선택 모드.* |
+| 명령 | 동작 | 성격 |
+|---|---|---|
+| `node run.js` (기본) | 현재 step `verify.js all` 실행·집계·종료코드 전파 | headless 검증(권위) |
+| `node run.js spine` | step-0002..NNNN 각자 `verify.js reg`(+0001 `det`) 순차 — 전 사슬 비트동일 한 줄 요약 | headless 회귀(신규 가치) |
+| `node run.js <NNNN> [mode]` | 특정 step·모드 지정 실행(디버깅) | headless |
+| **`node run.js monitor [port]`** | **현재 step 토폴로지의 실 인스턴스를 띄우고 라이브 모니터·제어 UI 를 serve** (§5) | 시각 관찰·제어 |
 
-### 출력 — 단일 대시보드(콘솔)
+`monitor` 외 모드는 §3-1 대로 headless 게이트. `monitor` 만 백엔드를 띄운다.
 
-기본 모드 끝에 현재 step 의 **4기둥 + 척추5 PASS/FAIL 표**와 핵심 수치를 한 화면으로 집계한다. verify 의 `결과: ALL OK / FAIL` 를 파싱해 종합. "지금 통과하는가"가 한 화면에서 끝난다.
+---
 
-### 의사 코드(스켈레톤)
+## 5. 산출물 ② — 라이브 모니터 (`step-NNNN.html` + `SYSTEM.html` 통합 대체)
 
-```js
-// HktInfra/run.js — 단일 라이브 테스트 진입점 (Node 전용 오케스트레이터)
-'use strict';
-const { execFileSync } = require('child_process');
-const fs = require('fs'), path = require('path');
+`node run.js monitor` → 백엔드가 **현재 step 의 net-core 토폴로지로 실 인스턴스를 생성**하고, 브라우저 UI 에 라이브로 스트림한다.
 
-const ROOT = __dirname;
-function steps() {                       // step-NNNN 디렉토리 오름차순
-  return fs.readdirSync(ROOT)
-    .filter(d => /^step-\d{4}$/.test(d) && fs.existsSync(path.join(ROOT, d, 'verify.js')))
-    .sort();
-}
-function current() { const s = steps(); return s[s.length - 1]; }   // 최대 번호 = 현재
+### 5-1. 무엇을 띄우나 — 현재 만들어진 서버 인스턴스 (자동)
 
-function runVerify(step, mode) {         // 자식 프로세스로 verify 실행, {ok, out}
-  try {
-    const out = execFileSync('node', [path.join(step, 'verify.js'), mode],
-                             { cwd: ROOT, encoding: 'utf8' });
-    return { ok: /결과: ALL OK/.test(out), out };
-  } catch (e) {                          // verify 가 exit 1 → 실패
-    return { ok: false, out: (e.stdout || '') + (e.stderr || '') };
-  }
-}
+현재 step 의 `net-core.js` 가 만드는 토폴로지를 그대로 인스턴스화한다(step-0010 기준: login · gateway · registry · zone1/2 · 추종자 zone1f/2f · orchestrator · broker, 각 child_process). **무엇이 떠 있는가는 step 마다 자동으로 바뀐다** — 모니터가 토폴로지를 하드코딩하지 않고 net-core 에서 읽는다. 기본은 `runMulti`(실 멀티프로세스), 옵션으로 인프로세스 `run`(가벼운 디버깅).
 
-const mode = process.argv[2] || 'now';
-if (mode === 'spine') {                  // 전 시리즈 회귀 사슬
-  let allOk = true;
-  for (const s of steps()) {
-    const m = s === 'step-0001' ? 'det' : 'reg';
-    const { ok } = runVerify(s, m);
-    allOk = allOk && ok;
-    console.log(`${s}  ${m.padEnd(4)}  ${ok ? 'OK' : 'FAIL'}`);
-  }
-  console.log(allOk ? '\n척추 회귀: ALL OK' : '\n척추 회귀: FAIL');
-  process.exit(allOk ? 0 : 1);
-} else if (mode === 'html') {
-  require('./testbed-gen.js').generate(current());   // §5-B (선택)
-} else if (/^\d{4}$/.test(mode)) {
-  const { out, ok } = runVerify('step-' + mode, process.argv[3] || 'all');
-  process.stdout.write(out); process.exit(ok ? 0 : 1);
-} else {                                 // 기본 = 현재 상태 전체 검증
-  const cur = current();
-  const { out, ok } = runVerify(cur, 'all');
-  process.stdout.write(out);
-  console.log(`\n[testbed] 현재 step = ${cur} · 판정 ${ok ? 'ALL OK' : 'FAIL'}`);
-  process.exit(ok ? 0 : 1);
-}
+### 5-2. 무엇을 보나 — 라이브 전체도 (SYSTEM.html 흡수)
+
+SYSTEM.html 이 *손으로* 그리던 것을 *실 상태에서 자동으로* 그린다:
+
+- **토폴로지** — 박스 = 실 인스턴스, 선 = 실제 오간 메시지(굵기 = 메시지 수). 정적 SVG → 라이브 그래프.
+- **서버별 상태색** — 작동/스텁/사망/승격을 *진짜 런타임 상태*로 색칠(그림이 아니라 사실). 죽은 존 ✝·승격 추종자 ▲ 가 라이브로 뜬다.
+- **6계층 위치 + 진행** — STATE §5 의 계층표를 현재 인스턴스에 매핑해 표시.
+- **동작 검증 시각화** — 통신·각 동작이 "제대로 되는가"를 라이브로: per-tick 메시지 흐름, 권위 소유자=1(공백·중복 경보), desync(겹친 뷰 일치), AOI 가시 집합, 핸드오프/failover 이벤트 타임라인. 즉 verify 4기둥이 *수치*로 증명하는 것을 모니터가 *움직임*으로 보여준다(같은 net-core).
+
+### 5-3. 무엇을 제어하나
+
+기존 net-core 의 파라미터·intent·이벤트 seam 에 그대로 매핑(새 제어 표면 최소):
+
+- **tick 구동** — play / pause / step(1 tick) / 속도. broker lockstep 을 UI 에서 한 박자씩.
+- **인스턴스 흔들기** — 존 kill(`deathTick` 의 수동판) → failover 가 실제로 도는지 눈으로. (후일 진짜 `child.kill()`.)
+- **부하·intent 주입** — 클라 이동/입장/퇴장 intent 를 손으로 주입해 AOI·핸드오프 관찰.
+- **전송 노브** — `transport`(지연·손실·재정렬·redundancy)를 슬라이더로 → 열화 아래 복원·권위 보존 라이브 관찰.
+
+### 5-4. 아키텍처 — 같은 net-core, 얇은 클라
+
+```
+브라우저(얇은 클라)  ──WS── │  Node 백엔드 (run.js monitor)
+  · 토폴로지/상태/흐름 렌더    │    · 현재 step net-core 소유(run / runMulti = 실 인스턴스)
+  · 제어 명령 전송            │    · broker tick 구동·이벤트 tap → WS push
+  · (재사용) panel.js compute │    · 제어 명령 → net-core 파라미터/intent/이벤트 seam
 ```
 
-> 50줄 내외의 얇은 래퍼다. 로직은 전부 기존 verify 에 산다 — run.js 는 *모으기만* 한다(중복 SSOT 0).
+- 백엔드는 **verify 가 쓰는 바로 그 net-core** 를 require 한다(둘째 구현 0 → 보는 것 = 검증되는 것).
+- 브라우저는 상태를 *받아 그리기*만(렌더는 기존 `engine/panel-kit.js` + `step-NNNN/panel.js` 의 `compute()` 재사용 — 데이터 층 환경 무관 규약 ⒜ 보존).
+- net-core 무수정이 원칙. 모니터가 필요로 하는 *관찰 탭*(메시지 로그·상태 스냅샷)은 net-core 가 이미 노출(`net.log`·`zones`·`clients`·`totals`)하므로 백엔드가 읽기만 한다.
+
+### 5-5. 결정론 보존 — 관찰 세션 = 재현 가능한 시나리오
+
+손으로 흔든 제어(kill·intent·노브 변경)는 **타임스탬프된 명령 시나리오로 기록**된다. 이 시나리오는 ⒜ 시드와 함께 *재생*되고 ⒝ 그대로 `verify` 에 투입돼 headless 재현된다. 즉 모니터에서 "어? 이 상황 이상한데" 를 발견하면 → 시나리오를 export → verify 회귀 케이스로 굳힌다. 인터랙티브 관찰과 결정론 검증이 한 고리로 닫힌다(`Math.random` 0 유지 — 명령도 로그의 일부).
 
 ---
 
-## 5. 산출물 ② — 단일 뷰
+## 6. `SYSTEM.html` · `step-NNNN.html` 폐기 — 역할 이전
 
-### A. 텍스트 대시보드 (본체 — 권장 기본)
-
-`node run.js` / `node run.js spine` 콘솔 출력이 단일 뷰의 본체다. "수치=verify·헤드리스" 문화에 가장 정합하고 브라우저·서버 0. **현재 상태를 보는 정답 경로**이며 step 마다 손작업이 *사라진다*(자동 탐지).
-
-### B. 생성형 html 1장 (선택 — 관찰이 통찰 주는 step 에서만)
-
-panel(토폴로지·대역폭·desync 타임라인) 관찰이 필요할 때, **`step-NNNN.html` 7장 대신 generic 1장**으로:
-
-- `node run.js html` 이 verify 출력을 파싱해 `HktInfra/testbed.html` 한 장을 **생성**(손수 작성 아님 → step 마다 자동 갱신).
-- 이 1장은 현재 step 의 net-core/panel 을 `<script src="step-NNNN/...">` 로 *동적 로드*(현재 step 번호만 주입). 7개 → 1개. 기존 dual-mode·"html 그냥 열기" 규약을 그대로 탄다(`<script>` 만, 번들러·fetch 0).
-- panel.js(관찰 데이터 `compute()`) 자체는 dual-mode·헤드리스 ASCII(`node step-NNNN/panel.js`)로 가치가 있으니 **유지**. 폐기 대상은 *셸(html)을 step 마다 손으로 만드는 것* 뿐.
-
-> 기본은 A. B 는 *관찰이 통찰을 주는 step* 에서만 켠다. **공통 원칙: 손수 7장은 끝.**
-
----
-
-## 6. `step-NNNN.html` 폐기 + `SYSTEM.html` 과의 역할 구분
-
-두 html 은 역할이 다르다 — 하나만 폐기한다.
-
-| 파일 | 역할 | 본 설계 후 |
+| 파일 | 기존 역할 | 본 설계 후 |
 |---|---|---|
-| `step-NNNN.html` (0004~0010) | step 별 관찰 셸(인프로세스 run 그림) | **폐기** — 더 안 만든다. 기존 7장은 그 step 의 동결 기록으로 남기되 갱신 대상 아님. 관찰은 §5-B generic 1장 또는 `node panel.js` 로. |
-| `SYSTEM.html` | 현재 *작동 시스템 전체도*(SVG 토폴로지 + 서버 상태색 + 6계층표) = STATE 의 *정성적 시각 렌더* | **유지** — testbed 가 대체하지 않는다. SYSTEM 은 "무엇이 도는가(구조)", testbed 는 "지금 통과하는가(수치)". 직교. |
+| `step-NNNN.html` (0004~0010) | step 별 관찰 셸(인프로세스 정지 그림) | **폐기** — 라이브 모니터가 대체. 기존 7장은 그 step 의 동결 기록으로 잔존(더 안 만듦). |
+| `SYSTEM.html` | 손으로 그린 정적 전체도(토폴로지·상태색·6계층) | **폐기(흡수)** — 모니터 §5-2 가 *실 상태에서 자동으로* 같은 그림을 라이브로 그린다. |
+| (신규) 라이브 모니터 | — | step-NNNN.html + SYSTEM.html + 실 인스턴스 제어를 합친 단일 뷰 |
 
-즉 testbed(정량·자동)는 step-NNNN.html(관찰 셸)을 대체하고, SYSTEM.html(정성·구조)은 그대로 둔다.
+> "그림이 거짓말할 수 있다" 문제 해소: SYSTEM 은 손으로 그려 실제와 어긋날 수 있었지만, 모니터는 *실 인스턴스의 런타임 상태*를 그리므로 항상 사실이다.
+>
+> **무실행 글랜스 보존(선택)**: 실행 없이 구조를 한눈에 보고 싶을 때를 위해, 모니터가 `node run.js monitor --snapshot` 으로 *현재 라이브 상태를 정적 html 1장으로 export* 할 수 있다(SYSTEM.html 의 편의를 손갱신 없이 자동 생성으로 대체). 커밋 여부는 선택.
 
 ---
 
@@ -163,33 +132,36 @@ panel(토폴로지·대역폭·desync 타임라인) 관찰이 필요할 때, **`
 
 | 단계 | 기존 | 변경 후 |
 |---|---|---|
-| 검증(§4) | `cd step-NNNN && node verify.js all` | `node HktInfra/run.js` (현재 자동) + `node HktInfra/run.js spine` (전 사슬 회귀). 둘 다 ALL OK 라야 닫는다. |
-| 갱신(§5) | STATE.md + **SYSTEM.html 손갱신** + (선택) **step-NNNN.html 손작성** | STATE.md + SYSTEM.html 손갱신은 유지. **step-NNNN.html 손작성 제거.** 관찰 필요 시 `node run.js html`(generic 1장 자동 생성). |
-| 산출물 규약(작성법) | `step-NNNN/panel.js` + `step-NNNN.html` (선택, 권장) | `step-NNNN/panel.js` 는 유지(헤드리스 ASCII 가치). **`step-NNNN.html` 항목 삭제** — generic testbed 1장이 대신한다. |
+| 검증(§4) | `cd step-NNNN && node verify.js all` | `node HktInfra/run.js` + `node HktInfra/run.js spine` 둘 다 ALL OK 라야 닫는다. |
+| 갱신(§5) | STATE.md + **SYSTEM.html 손갱신** + (선택) **step-NNNN.html 손작성** | STATE.md 갱신만 손작업. **SYSTEM.html 손갱신 제거**(모니터가 라이브 렌더)·**step-NNNN.html 손작성 제거**. |
+| 산출물 규약(작성법) | `panel.js` + `step-NNNN.html`(선택, 권장) | `panel.js` 는 유지(헤드리스 ASCII + 모니터 렌더 재사용). **`step-NNNN.html` 항목 삭제.** |
+| 관찰(필요 시) | step 별 html 열기 | `node run.js monitor` 한 줄 — 현재 step 실 인스턴스 라이브 |
 
-채택 시 CLAUDE.md 의 해당 절(시각 관찰 셸 규약 ⒝·step 루프 5·작성법 산출물 목록)을 위 표대로 고친다.
+채택 시 CLAUDE.md 해당 절(시각 관찰 셸 규약 ⒝·step 루프 5·작성법 산출물 목록·작업 구조 3축 표의 SYSTEM.html 행)을 위 표대로 고친다.
 
 ---
 
 ## 8. 불변 정합 체크
 
-- **회귀 0** — run.js 는 step dir 을 *실행만*. 기존 reg 가 그대로 비트동일을 증명. ✅
-- **frozen 동결** — step dir 수정 0(읽기·spawn 뿐). 복사 전진·동결 단위 보존. ✅
-- **SSOT** — 현재 step 은 파일시스템에서 *파생 탐지*, 권위는 STATE.md. 새 진실 원천 0. ✅
-- **수치=verify** — 대시보드는 verify 출력 *집계*. 자체 수치 0. ✅
-- **headless·원격 제1** — 본체 뷰 텍스트, `node` 한 줄. 브라우저·서버·빌드 0. ✅
-- **dual-mode·HTML 그냥 열기** — run.js 는 Node 전용 래퍼(규약 무관). 선택 html 은 `<script>` 동적 로드로 규약 유지. ✅
+- **headless·원격 검증(협상 불가)** — *검증*은 여전히 `verify.js`(headless, 이 환경 한 줄). 모니터는 관찰/제어 층(권위 아님). 모니터 백엔드도 이 원격 컨테이너 Node. ✅
+- **보는 것 = 검증되는 것** — 모니터와 verify 가 *같은 net-core* 사용. 둘째 구현 0(괴리 0). ✅
+- **회귀 0 / frozen 동결** — run.js·모니터는 step dir 을 *읽기/실행만*. 동결 단위·복사 전진 보존. ✅
+- **SSOT** — 현재 step 은 파일시스템 파생 탐지, 권위는 STATE.md. 새 진실 원천 0. ✅
+- **수치 = verify 출력** — 모니터의 모든 수치·상태는 net-core/verify 에서 나옴. 자체 진실 0. ✅
+- **결정론 / Math.random 0** — 제어 명령도 시드·로그의 일부로 기록·재생(§5-5). ✅
+- **데이터 층 환경 무관(규약 ⒜)** — 렌더는 panel `compute()` 재사용, 데이터는 net-core. ✅
+- **(의도적 예외) 시각 관찰 셸 규약 ⒝(빌드/서버 0)** — 모니터는 served 백엔드로 *대체*(실 인스턴스 제어가 정적 html 로 불가). §3-2 에서 정당화·불변 보존 명시. ⚠→ 규약 갱신 대상.
 
 ---
 
 ## 9. 점진 적용 순서 (구현 시)
 
-1. `HktInfra/run.js` 추가(§4 스켈레톤) — `node run.js` / `spine` 두 모드만 먼저. 기존 verify·step dir 무수정.
-2. `node run.js spine` 으로 전 시리즈 회귀 사슬 1회 통과 확인(기준선 확보).
-3. CLAUDE.md §step 루프·작성법을 §7 표대로 갱신(검증 명령 = run.js, step-NNNN.html 항목 제거).
-4. (선택) `run.js html` + `testbed.html` generic 1장 — *관찰이 통찰 주는 step* 에서만.
-5. 기존 `step-0004~0010.html` 7장은 동결 기록으로 잔존(삭제 불필요 — 더 안 만들 뿐).
+1. **`HktInfra/run.js`** — `node run.js`(현재 검증) + `spine`(회귀 사슬) 두 모드 먼저. 기존 verify·step dir 무수정. → "현재 상태 한 줄 검증" 즉시 성립.
+2. `node run.js spine` 으로 전 시리즈 회귀 사슬 1회 통과(기준선 확보).
+3. **모니터 백엔드** — `run.js monitor`: 현재 step net-core 를 require → `run`/`runMulti` 실 인스턴스 + WS 로 상태/메시지 push(읽기 전용 라이브 뷰 먼저, 제어는 다음).
+4. **모니터 UI** — 라이브 토폴로지·상태색·메시지 흐름·동작 검증 시각화(SYSTEM.html 흡수). panel-kit/panel `compute()` 재사용.
+5. **제어 표면** — tick play/step·존 kill·intent 주입·transport 노브 + §5-5 시나리오 기록/재생/verify 투입.
+6. CLAUDE.md 절차·규약 갱신(§7). `SYSTEM.html`·`step-0004~0010.html` 은 동결 기록으로 잔존(더 안 만듦), `--snapshot` 이 무실행 글랜스 대체.
 
-> 1~3 만으로 "현재 상태 하나를 원격에서 한 줄로, step 마다 자동 갱신" 이 성립한다. 4 는 관찰 보강(선택).
+> 1~2 만으로 headless 단일 검증이 선다. 3~4 가 "실 인스턴스 라이브 모니터(= SYSTEM 흡수)", 5 가 "제어·재현 고리". 사용자가 원한 *생성·관찰·제어·동작 확인* 은 3~5 에서 완성된다.
 </content>
-</invoke>
