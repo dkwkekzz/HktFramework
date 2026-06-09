@@ -5,8 +5,8 @@
  *  - reg     : 회귀 0 — kShare=0 이면 step-0018 과 비트 동일(share 통째 skip·m 불변). share 스택 해시를 golden mem@ 와 대조.
  *  - conserve: 보존 — 생물량 공유(kin m 균등화)가 도는 내내 닫힌 장부 잔차 < 1e-6. 공유는 쌍 거래(나간 만큼 들어옴 → sumM 불변).
  *  - det     : 결정론 — kShare on 같은 시드 2회 비트 동일(공유는 m 재분배 — m 이 해시에. 순차 Gauss-Seidel 라 결정론).
- *  - kin     : 가설 — kin selection 선택압. 협동자(coop=1)·배신자(coop=0) 혼합 경쟁. *kin 이 뭉치면*(adhere=높은 혈연도) 협동자가
- *              굶주린 kin 을 떠받쳐 차등 생존 → 협동 유전형 *번진다*(coopFrac↑). *흩어지면*(혈연도↓) 우위 사라짐(Hamilton rb>c).
+ *  - kin     : 가설 — kin selection 선택압(2×2 요인설계 혈연도×협동). 협동자(coop=1)·배신자(coop=0) 혼합 경쟁(boom-bust). 두 기준선(협동off,
+ *              뭉침/흩어짐)이 중립이고, 협동의 효과가 *뭉칠 때만* 살아남는다(흩어지면 낭비된 이타로 해롭다) — 상호작용=kin selection(Hamilton rb>c).
  *  - sustain : 생물량 공유(실제 m 재분배)가 step-0018 의 끝없는 churn 을 *깨지 않는가*(공멸 없이 지평선 생존·후반 출생≈사망>0).
  *  - all     : 전 모드 + 요약
  *
@@ -115,20 +115,25 @@ function det(seed) {
   return { seed: seed, hashA: ENG.hashState(a), hashB: ENG.hashState(b), pass: bit && ENG.hashState(a) === ENG.hashState(b) };
 }
 
-/* ── kin: 가설 — kin selection 선택압(Hamilton's rule). 협동자(coop=1)·배신자(coop=0) 혼합 경쟁, boom-bust 순환. ──
- *  세 조건(같은 시드·아레나, 협동/혈연도만 변경):
- *   base : kShare=0(협동 off) — tag1/tag2 *중립*이어야(협동 외 차이 0 → Δ≈0). 태그 자체 artifact 가 없음을 증명(clean).
- *   hiR  : kShare>0 + adhere on(kin 뭉침=높은 혈연도 r) — 협동자가 kin 클러스터 안에서 기근의 사망을 막아 *지속*(Δ≈0 이상).
- *   loR  : kShare>0 + adhere off(흩어짐=낮은 혈연도) — 협동자가 고립돼 *낭비된 이타*(떠받쳐도 함께 죽음) → 협동 *사라짐*(Δ≪0).
- *  → 협동의 운명이 *혈연도에 의존*(hiR≫loR)하는 것이 kin selection 의 서명(rb>c: r 이 협동을 가른다). 협동은 *복제 적합도와 분리*
- *  (geneFitStep=0·inheritCost=0)라 우위는 *오직* kin 공유에서 — confound 없는 kin selection. base 가 중립이라 효과는 *협동에서*. */
+/* ── kin: 가설 — kin selection 선택압(Hamilton's rule). *2×2 요인설계*: 혈연도(뭉침/흩어짐) × 협동(off/on). ──
+ *  네 조건(같은 시드·아레나, 협동·혈연도만 변경) — boom-bust 순환서 협동자(coop=1) 비율 변화 Δ:
+ *   뭉침·협동off (clustNo) : 기준선 — tag1/tag2 *중립*이어야(협동 외 차이 0). 태그 artifact 0.
+ *   뭉침·협동on  (clustCo) : 협동자가 kin 클러스터서 기근 사망을 막아 *지속*.
+ *   흩어짐·협동off(scatNo) : 기준선 — *흩어짐 자체*는 tag2 를 불리하게 안 함(중립). 흩어짐 artifact 0.
+ *   흩어짐·협동on (scatCo) : 협동자가 고립돼 *낭비된 이타*(떠받쳐도 함께 죽음) → 협동 *사라짐*.
+ *  *협동의 효과* = (협동on − 협동off) 를 혈연도별로 잰다: effClust=clustCo−clustNo, effScat=scatCo−scatNo.
+ *  *상호작용* inter = effClust − effScat = "혈연도가 협동을 favor 한 폭" = kin selection 의 정량(rb>c: r 이 협동을 가른다).
+ *  두 기준선(clustNo·scatNo)이 중립이라 효과는 *오직 협동에서*(흩어짐 자체 아님). 협동은 *복제 적합도와 분리*(geneFitStep=0·inheritCost=0)라 confound 0. */
 function kinTest(seed) {
-  var base = bbCompete(seed, { kShare: 0, kAdhesion: 1 });    // 협동 off → 중립 기준선
-  var hiR = bbCompete(seed, { kShare: 0.6, kAdhesion: 1 });   // 협동 on·혈연도↑(뭉침)
-  var loR = bbCompete(seed, { kShare: 0.6, kAdhesion: 0 });   // 협동 on·혈연도↓(흩어짐)
-  var gap = hiR.d - loR.d;                                    // 혈연도가 협동 운명을 올린 폭(kin selection)
-  var pass = Math.abs(base.d) < 0.10 && gap > 0.10 && hiR.d > loR.d + 0.05 && hiR.d > -0.05;
-  return { seed: seed, baseD: base.d, hiD: hiR.d, loD: loR.d, gap: gap, popHi: hiR.pop, popLo: loR.pop, pass: pass };
+  var clustNo = bbCompete(seed, { kShare: 0, kAdhesion: 1 });    // 뭉침·협동 off (기준선)
+  var clustCo = bbCompete(seed, { kShare: 0.6, kAdhesion: 1 });  // 뭉침·협동 on
+  var scatNo = bbCompete(seed, { kShare: 0, kAdhesion: 0 });     // 흩어짐·협동 off (기준선)
+  var scatCo = bbCompete(seed, { kShare: 0.6, kAdhesion: 0 });   // 흩어짐·협동 on
+  var effClust = clustCo.d - clustNo.d, effScat = scatCo.d - scatNo.d, inter = effClust - effScat;
+  var pass = Math.abs(clustNo.d) < 0.10 && Math.abs(scatNo.d) < 0.10   // 두 기준선 중립(태그·흩어짐 artifact 0)
+    && effScat < -0.05                                                  // 협동이 흩어지면 *해롭다*(낭비된 이타)
+    && inter > 0.10;                                                    // 혈연도가 협동을 favor (kin selection)
+  return { seed: seed, clustNo: clustNo.d, clustCo: clustCo.d, scatNo: scatNo.d, scatCo: scatCo.d, effClust: effClust, effScat: effScat, inter: inter, pass: pass };
 }
 
 /* ── sustain: 생물량 공유(실제 m 재분배)가 끝없는 churn 을 유지(공멸 없이 35k 생존·후반 출생≈사망>0). ── */
@@ -163,10 +168,11 @@ function runMode(mode, seeds) {
     console.log('결정론: 같은 시드 2회 비트 동일(생물량 공유는 순차 Gauss-Seidel — m 재분배가 해시에. Math.random 금지).');
     return rd.every(function (r) { return r.pass; });
   } else if (mode === 'kin') {
-    var rk = seeds.map(kinTest); table(rk, ['seed', 'baseD', 'hiD', 'loD', 'gap', 'popHi', 'popLo', 'pass']);
-    console.log('kin selection(Hamilton): 협동 off 중립 ΔbaseD=' + (avg(rk, 'baseD') >= 0 ? '+' : '') + avg(rk, 'baseD').toFixed(3) + '(태그 artifact 0) | 협동 on — 혈연도↑(뭉침) Δ=' +
-      (avg(rk, 'hiD') >= 0 ? '+' : '') + avg(rk, 'hiD').toFixed(3) + '(협동 *지속*)·혈연도↓(흩어짐) Δ=' + avg(rk, 'loD').toFixed(3) + '(협동 *사라짐* — 낭비된 이타). 혈연도 효과(gap) ' +
-      avg(rk, 'gap').toFixed(3) + ' = kin selection 서명(rb>c). 협동≠복제적합도(격리)·base 중립 → 효과는 *오직* kin 공유.');
+    var rk = seeds.map(kinTest); table(rk, ['seed', 'clustNo', 'clustCo', 'scatNo', 'scatCo', 'effClust', 'effScat', 'inter', 'pass']);
+    console.log('kin selection(Hamilton, 2×2 요인설계 혈연도×협동): 기준선 중립 — 뭉침·협동off ' + (avg(rk, 'clustNo') >= 0 ? '+' : '') + avg(rk, 'clustNo').toFixed(3) +
+      ' / 흩어짐·협동off ' + (avg(rk, 'scatNo') >= 0 ? '+' : '') + avg(rk, 'scatNo').toFixed(3) + ' (태그·흩어짐 artifact 0). 협동의 효과 — 뭉침 ' +
+      (avg(rk, 'effClust') >= 0 ? '+' : '') + avg(rk, 'effClust').toFixed(3) + '(지속)·흩어짐 ' + avg(rk, 'effScat').toFixed(3) + '(낭비된 이타로 해롭다). ' +
+      '상호작용(혈연도가 협동을 favor 한 폭) ' + avg(rk, 'inter').toFixed(3) + ' = kin selection 정량(rb>c). 협동≠복제적합도(격리)·기준선 중립 → 효과는 *오직* 협동에서.');
     return rk.every(function (r) { return r.pass; });
   } else if (mode === 'sustain') {
     var st = sustainTest(); table(st.rows, ['seed', 'finPop', 'finStars', 'lateBirths', 'lateDeaths', 'nOrg', 'maxOrg', 'shared', 'collapse']);
