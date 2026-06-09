@@ -246,6 +246,33 @@
       intraVar: cnt ? v / cnt : 0, intraPairs: inN, bndPairs: bN };
   }
 
+  /* 세포 분화 측정 — step-0021. differentiate(⑥f)가 빚은 *위치 의존 phenotype*(soma/germ 분업)을 author 아닌 *측정*으로 읽는다.
+   * 역할은 위치(4-근방 점유)의 함수다 — *갇힌 내부* 세포(빈칸 0 = 번식 불가)는 soma(체세포·provision), 빈칸 있는 *표면* 세포는 germ(생식).
+   * 위치(center)·태그(g)·m 만 *읽고* 동역학에 되먹이지 않는다(둘째 척추 아님 — 측정 읽기전용). 반환:
+   *   soma/germ — 각 역할 세포 수(같은 genotype 인데 위치로 갈린 두 phenotype). somaFrac = soma/(soma+germ).
+   *   somaM/germM — 각 역할 평균 m. roleGap = germM − somaM(분화 시 germ 이 fed → 양수: 표면이 번식 자원을 받음. 분업의 4기둥 ④ 측정).
+   * 격자 기하상 번식은 표면에서 일어나므로(내부는 자리 없음) germ=표면이다 — Volvox(생식 내부)와 방향이 뒤집힌 점은 step 문서 §발견에 기록. */
+  function measureDifferentiation(sim) {
+    var ag = sim.agents, W = sim.p.W, H = sim.p.H, N = W * H;
+    var occ = sim._diffMeas; if (!occ || occ.length !== N) occ = sim._diffMeas = new Int32Array(N);
+    occ.fill(0);
+    for (var i = 0; i < ag.length; i++) occ[ag[i].center] = i + 1;                     // *모든* 생명(빈칸 판정용)
+    var somaN = 0, germN = 0, somaM = 0, germM = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var x = a.x, y = a.y, c = a.center;
+      var occN = 0;                                                                     // 4-근방 점유 수 — 4면 갇힘(번식 불가=soma), <4면 표면(germ)
+      if (occ[c - x + (x + 1) % W] > 0) occN++;                                         // 우
+      if (occ[c - x + (x - 1 + W) % W] > 0) occN++;                                     // 좌
+      if (occ[((y + 1) % H) * W + x] > 0) occN++;                                       // 하
+      if (occ[((y - 1 + H) % H) * W + x] > 0) occN++;                                   // 상
+      if (occN >= 4) { somaN++; somaM += a.m; } else { germN++; germM += a.m; }
+    }
+    var sMean = somaN ? somaM / somaN : 0, gMean = germN ? germM / germN : 0;
+    return { soma: somaN, germ: germN, somaM: sMean, germM: gMean,
+      somaFrac: (somaN + germN) ? somaN / (somaN + germN) : 0, roleGap: gMean - sMean };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -422,7 +449,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,
