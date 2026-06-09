@@ -56,7 +56,7 @@ if (-not (Get-Command claude -ErrorAction SilentlyContinue)) { Die "claude CLI �
 if (-not (Get-Command node   -ErrorAction SilentlyContinue)) { Die "node 가 PATH 에 없음" }
 if (-not $NoMerge) {
   if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Die "gh CLI 가 PATH 에 없음 (-NoMerge 면 불필요)" }
-  gh auth status *> $null
+  gh auth status | Out-Null   # stdout 만 버림(stderr 리다이렉트 금지 — 5.1 에서 NativeCommandError 유발)
   if ($LASTEXITCODE -ne 0) { Die "gh 미인증. 먼저 'gh auth login' 실행" }
 }
 
@@ -87,8 +87,8 @@ for ($i = 1; $i -le $MaxIterations; $i++) {
   $stepId = Get-NextStepId
   $branch = "hws/$stepId"
   Log "다음 step = $stepId / 브랜치 = $branch"
-  git -C $RepoRoot rev-parse --verify $branch *> $null
-  if ($LASTEXITCODE -eq 0) { Die "브랜치 $branch 가 이미 존재. 정리 후 재실행." }
+  $branchExists = git -C $RepoRoot branch --list $branch   # 없으면 빈 출력·stderr 없음(rev-parse 와 달리 안전)
+  if ($branchExists) { Die "브랜치 $branch 가 이미 존재. 정리 후 재실행." }
   git -C $RepoRoot checkout -b $branch;  if ($LASTEXITCODE -ne 0) { Die "브랜치 생성 실패" }
 
   # 3) fresh claude 세션 (cwd = HWS)
