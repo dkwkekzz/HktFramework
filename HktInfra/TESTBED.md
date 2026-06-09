@@ -136,13 +136,16 @@ report.html 은 *사람*용 창이지만, 같은 trace(JSON)에 대해 에이전
 
 ## 6. `SYSTEM.html` · `step-NNNN.html` 폐기 — 역할 이전
 
+**기존 html 8장(step-0004~0010.html 7장 + SYSTEM.html)은 전부 삭제했다**(git 이력엔 남음). 동결 기록으로도 남기지 않는다 — 레코더가 같은 것을 *실 녹화에서 더 정확히* 재생하므로 손그림을 보존할 이유가 없다.
+
 | 파일 | 기존 역할 | 본 설계 후 |
 |---|---|---|
-| `step-NNNN.html` (0004~0010) | step 별 관찰 셸(인프로세스 정지 그림) | **폐기** — 레코더가 대체. 기존 7장은 동결 기록으로 잔존(더 안 만듦). |
-| `SYSTEM.html` | 손으로 그린 정적 전체도 | **폐기(흡수)** — 레코더 §5-2 가 *실 녹화에서 자동으로* 같은 그림을 그린다(손갱신 0). |
-| (신규) `report.html` | — | step-NNNN.html + SYSTEM.html 을 합친 자기완결 시각화 1장 |
+| `step-NNNN.html` (0004~0010) | step 별 관찰 셸(인프로세스 정지 그림) | **삭제** — 레코더가 대체. 더 안 만든다. |
+| `SYSTEM.html` | 손으로 그린 정적 전체도 | **삭제(흡수)** — 레코더 §5-2 가 *실 녹화에서 자동으로* 같은 그림을 그린다(손갱신 0). |
+| (신규) `report.html` | — | step-NNNN.html + SYSTEM.html 을 합친 자기완결 시각화 1장(`run.js report` 생성, gitignore 권장) |
 
 > "그림이 거짓말할 수 있다" 해소: SYSTEM 은 손그림이라 실제와 어긋날 수 있었지만, 레코더는 *실 실행의 trace* 라 항상 사실이다.
+> 닫힌 step `.md` 가 자기 html 을 링크하던 줄은 죽은 링크가 되지만, 닫은 step 문서는 불변이라 손대지 않는다(역사 기록).
 
 ---
 
@@ -179,7 +182,7 @@ report.html 은 *사람*용 창이지만, 같은 trace(JSON)에 대해 에이전
 3. **레코더 코어** — `run.js report`: 현재 step net-core 를 require → `runMulti` 녹화(trace 수집) → JSON 임베드 html 생성. *읽기 전용 타임라인 뷰 먼저*.
 4. **레코더 UI** — 스크럽 가능한 토폴로지·상태색·메시지 흐름·동작 검증 패널(SYSTEM.html 흡수). panel-kit/panel `compute()` 재사용.
 5. **시나리오 제어** — `scenario.json`(시드+타임드 kill/inject/노브) → 재녹화 + 그대로 verify 투입(§5-3).
-6. CLAUDE.md 절차·규약 갱신(§7). `SYSTEM.html`·`step-0004~0010.html` 은 동결 기록으로 잔존(더 안 만듦).
+6. CLAUDE.md 절차·규약 갱신(§7) — *완료*(기존 html 8장 삭제 + step 마다 html 금지·testbed 집중 명시). `report.html` 은 생성물이라 gitignore.
 
 > 1~2 = 에이전트 자율 headless 검증(이미 토대 존재, §3-2 실증). 3~4 = 사람용 시각화(SYSTEM 흡수). 5 = 제어·재현 고리. 라이브 WS 는 보류 카드.
 </content>
