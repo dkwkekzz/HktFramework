@@ -60,3 +60,6 @@ working_changes.txt
 # HktAutomationTests local config (engine/project paths are per-developer)
 HktGameplayDeveloper/Tools/.hkt-test.env
 
+
+# HktInfra testbed — 생성물(run.js report 가 만드는 자기완결 시각화, 커밋하지 않음)
+HktInfra/report.html
