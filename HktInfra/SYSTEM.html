@@ -5,7 +5,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>HktInfra SYSTEM — 현재 작동 시스템 전체도 (step-0009 기준)</title>
+<title>HktInfra SYSTEM — 현재 작동 시스템 전체도 (step-0010 기준)</title>
 <style>
   :root { color-scheme: dark; }
   body { background: #1e1e2e; color: #cdd6f4; font: 14px ui-monospace, "SF Mono", Menlo, monospace; margin: 0; padding: 22px 26px 60px; }
@@ -37,12 +37,12 @@
 <div class="wrap">
   <h1>HktInfra — 현재 <b style="color:#a6e3a1">작동하는</b> 시스템 전체도</h1>
   <div class="sub">
-    <b>기준: step-0009</b> (추종자 승격 failover — shadow 복제·orch lease 감지·승격=강제 keyframe). 목표 토폴로지(어디로 가는가)는 <a href="SPINE.md">SPINE.md</a>,
+    <b>기준: step-0010</b> (프로세스 경계 현실화 — 인메모리 큐 → 실 프로세스/IPC·broker lockstep 배리어·E2E 비트 동일). 목표 토폴로지(어디로 가는가)는 <a href="SPINE.md">SPINE.md</a>,
     현재 위치·다음 가설(SSOT)은 <a href="STATE.md">STATE.md</a>, 방법론은 <a href="CLAUDE.md">CLAUDE.md</a>.
     이 문서는 STATE 의 <b>시각 요약</b>일 뿐 — 권위는 STATE.md.
   </div>
   <div class="sub" style="margin-top:10px">
-    <b>큰 그림 두 문장.</b> ① "서버"들은 아직 별도 프로세스가 아니라 <b>Node 한 프로세스 안의 객체(액터)</b>이고, 서로 <b>메시지 큐(<code style="background:#313244;padding:1px 5px;border-radius:4px">engine/Net</code>)</b>로만 통신한다 — 지금은 <b>프로토콜·토폴로지·계약</b>을 헤드리스로 먼저 증명하는 단계(진짜 프로세스/원격/C++ 분리는 나중).
+    <b>큰 그림 두 문장.</b> ① "서버"들은 이제 <b>진짜 별 OS 프로세스</b>로 띄울 수 있고(step-0010 <code style="background:#313244;padding:1px 5px;border-radius:4px">runMulti</code> — child_process IPC·<b>공유 메모리 0</b>), <b>broker</b>가 lockstep 배리어로 결정론 tick 을 구동해 멀티프로세스 실행이 인프로세스(<code style="background:#313244;padding:1px 5px;border-radius:4px">engine/Net</code>)와 <b style="color:#a6e3a1">비트 동일</b>이다 — 전송은 아직 로컬 IPC 파이프(실 네트워크 소켓/버스는 나중).
     ② "월드 존"은 아직 <b>시뮬레이션을 하지 않는다</b> — <b>위치 맵 + 라우터</b>일 뿐이고, 결정론 시뮬(C++ 시뮬 코어)은 최후에 교체할 자리로 비워뒀다.
   </div>
 </div>
@@ -156,7 +156,7 @@
   <text class="lbl" x="380" y="412" text-anchor="middle">handoff (권위 토큰 · ack/재전송)</text>
   <text class="lbl" x="380" y="455" text-anchor="middle">· ghost (경계 구독) ·</text>
 </svg>
-<p class="arrowkey">↑ 존↔존(handoff·ghost)은 지금 <b style="color:#9399b2">직접 주소 메시지</b>다 — 이벤트 버스는 아직 없다. 핸드오프 토큰·증분 델타에 <b style="color:#a6e3a1">전송 손실을 입혀도</b> 반응적 복원으로 공백 0·desync 0 수렴(step-0008). 각 존엔 <b style="color:#a6e3a1">추종자(shadow)</b>가 입력 replay 로 lockstep 복제하고, <b>orch</b> 가 lease 하트비트로 존 <b style="color:#a6e3a1">사망을 감지→승격</b>(bounded gap→소유자=1 회복·강제 keyframe 재동기, step-0009).</p>
+<p class="arrowkey">↑ 존↔존(handoff·ghost)은 지금 <b style="color:#9399b2">직접 주소 메시지</b>다 — 이벤트 버스는 아직 없다. 핸드오프 토큰·증분 델타에 <b style="color:#a6e3a1">전송 손실을 입혀도</b> 반응적 복원으로 공백 0·desync 0 수렴(step-0008). 각 존엔 <b style="color:#a6e3a1">추종자(shadow)</b>가 입력 replay 로 lockstep 복제하고, <b>orch</b> 가 lease 하트비트로 존 <b style="color:#a6e3a1">사망을 감지→승격</b>(step-0009). <b style="color:#a6e3a1">step-0010</b>: 위 모든 박스(login·gateway·zone·추종자·orch·registry)를 <b>별 OS 프로세스</b>로 띄워 위 화살표가 전부 <b>프로세스 경계를 넘는 직렬화 IPC</b>(공유 메모리 0)가 되고, <b>broker</b>의 lockstep 배리어로 멀티프로세스가 인프로세스와 <b style="color:#a6e3a1">비트 동일</b>(E2E 동치)이다.</p>
 
 <h2>2. 서버별 — 무엇을 / 어디까지 도나 (정직한 상태)</h2>
 <table>
@@ -168,7 +168,8 @@
   <tr><td class="s">zone1f·zone2f</td><td>월드</td><td>추종자(shadow) — 입력 replay 로 권위 lockstep 복제, 사망 감지 시 승격(권위 인수·강제 keyframe)</td><td class="ok">✅ 작동(failover) — 복제 충실도 divergence 0·상태 전송 0, 무사망 시 수동(뷰 미발행)</td></tr>
   <tr><td class="s">orch</td><td>코디</td><td>lease 하트비트 감시 → 존 사망 감지 → 단일 승격(펜싱)·relink·reroute·retire</td><td class="stub">🟡 failover 착수 — 사망→승격(bounded gap→소유자=1). 배치·부하분산·재-provisioning ✗</td></tr>
   <tr><td class="s">client</td><td>—</td><td>auth→connect→move→view 수명주기 + seq 손실 감지→resync(NAK)</td><td class="ok">✅ 작동 — 사망·승격은 view_delta reset 으로만 보임(은닉)</td></tr>
-  <tr><td class="s">Net (전송)</td><td>버스</td><td>지연·손실·재정렬 전송 모델 (step-0004) + 핸드오프·델타 라우트 확장 (step-0008)</td><td class="stub">🟡 모델 작동 — 핸드오프·증분 라우트에 손실 입힘(routeFilter), 반응적 복원으로 견딤</td></tr>
+  <tr><td class="s">Net (전송)</td><td>버스</td><td>지연·손실·재정렬 전송 모델 (step-0004) + 핸드오프·델타 라우트 확장 (step-0008)</td><td class="stub">🟡 모델 작동 — 핸드오프·증분 라우트에 손실 입힘(routeFilter), 반응적 복원으로 견딤. step-0010 에선 broker 의 <b>전송 substrate</b></td></tr>
+  <tr><td class="s">broker · host (cluster)</td><td>버스/코디</td><td>broker: engine Net 을 전송 substrate 로 소유 + lockstep 배리어로 원격 onMsg/onTick 디스패치(전역 발신 순서 보존). host: 자식 프로세스 — 자기 몫 액터 + HostNet shim</td><td class="ok">✅ 작동(step-0010) — 각 서버 별 OS 프로세스(IPC·공유 메모리 0)·멀티프로세스=인프로세스 비트 동일. 단 broker 단일점·IPC 파이프(실 소켓/버스 ✗)</td></tr>
   <tr><td class="s">가방·채팅·길드…</td><td>서비스</td><td>아이템 원장·채널 팬아웃 등</td><td class="none">⬜ 없음</td></tr>
   <tr><td class="s">이벤트 버스</td><td>버스</td><td>서버간 pub/sub</td><td class="none">⬜ 없음 (존↔존은 지금 직접 주소 메시지)</td></tr>
   <tr><td class="s">캐시·DB</td><td>데이터</td><td>영속 (write-behind)</td><td class="none">⬜ 없음 (프로세스 죽으면 세계도 죽음)</td></tr>
@@ -191,11 +192,11 @@
   <tr><td class="s">1 엣지</td><td>로그인 · 게이트웨이</td><td class="stub">🟡 스텁 동작 (대기열·만료·재접속 ✗)</td></tr>
   <tr><td class="s">2 월드</td><td>존·인스턴스 (분할·AOI·핸드오프·failover·시뮬)</td><td class="ok">🟡 <b>분할·증분 AOI·핸드오프·손실 복원·추종자 승격(failover) ✅ / 시뮬은 C++로 연기</b> ← 지금 작업 중심</td></tr>
   <tr><td class="s">3 서비스</td><td>가방·채팅·길드·거래소·우편·랭킹</td><td class="none">⬜ 없음</td></tr>
-  <tr><td class="s">4 버스</td><td>이벤트 버스 (pub/sub)</td><td class="stub">🟡 전송모델(핸드오프·델타 라우트까지) / pub/sub 없음</td></tr>
-  <tr><td class="s">5 코디</td><td>세션/프레즌스 · 오케스트레이터</td><td class="stub">🟡 세션 발급 + orch failover(lease 감지·승격) / 배치·분산·재-provisioning 없음</td></tr>
+  <tr><td class="s">4 버스</td><td>이벤트 버스 (pub/sub)</td><td class="stub">🟡 전송모델 + <b>실 프로세스 경계(IPC) 현실화</b>(step-0010) / pub/sub 버스 분산·실 네트워크 소켓 없음</td></tr>
+  <tr><td class="s">5 코디</td><td>세션/프레즌스 · 오케스트레이터</td><td class="stub">🟡 세션 발급 + orch failover(lease 감지·승격) + <b>broker(lockstep 배리어)</b> / 배치·분산·재-provisioning·broker 단일점 분산 없음</td></tr>
   <tr><td class="s">6 데이터</td><td>캐시 · DB · write-behind</td><td class="none">⬜ 없음</td></tr>
 </table>
-<p class="sub" style="margin-top:10px"><b>한 문장 요약.</b> 지금까지 <b>엣지(접속) → 월드(존)</b> 의 기본 골격과 월드 존의 핵심 동작(결정론 복제·증분 AOI·분할·핸드오프·전송 손실 복원·추종자 승격 failover)을 헤드리스로 세웠고, <b>서비스·버스(pub/sub)·데이터·시뮬</b>은 아직 비어 있는 박스다(코디는 orch failover 로 부분 착수).</p>
+<p class="sub" style="margin-top:10px"><b>한 문장 요약.</b> 지금까지 <b>엣지(접속) → 월드(존)</b> 의 기본 골격과 월드 존의 핵심 동작(결정론 복제·증분 AOI·분할·핸드오프·전송 손실 복원·추종자 승격 failover)을 헤드리스로 세우고 <b>step-0010 에서 전 박스를 진짜 별 OS 프로세스로 분리</b>(IPC·공유 메모리 0·E2E 비트 동일·<code>node verify.js</code> 한 줄 원격 기동)했으며, <b>서비스·버스(pub/sub 분산)·데이터·시뮬·실 네트워크 소켓</b>은 아직 비어 있는/후속 박스다.</p>
 
 <div class="note">
   <b>갱신 규칙.</b> 이 문서는 <a href="STATE.md">STATE.md</a> 의 <b>파생 시각 요약</b>이다 — "어디까지 왔나"의 권위는 STATE.md(중복 SSOT 금지).
