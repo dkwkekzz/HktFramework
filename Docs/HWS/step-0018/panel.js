@@ -21,7 +21,7 @@
   var panel = {
     coreGlobal: 'HWS_SIM',
     title: 'HWS step-0018 — <span style="color:#57e0c8">막</span>: flux 결합 도메인(couple)',
-    subtitle: 'step-0017 의 액적은 측정 윤곽(kin 연결 성분)일 뿐이었다 — 내부 E 공유·공통 경계(막)가 없었다. 이 step 은 그 액적을 <b>물리적 flux 결합 도메인</b>으로 올린다: 같은 유전형(kin)으로 4-인접한 생명끼리 <b>필드 E 를 국소 공유·재분배</b>한다(쌍 거래 — 보존) → 액적 내부 E 가 균질해지고(공유 larder), 경계엔 단차(<b>막</b>)가 <b>창발</b>한다("막은 액적의 표면으로" — author 안 함). <b>형태는 flux 의 하류</b>(INTERPRET-UE §5) — 시뮬이 형태를 빚으면 같은 렌즈가 코드 0 으로 그린다. 응집(위치)과 달리 <b>실제 E 재분배</b>지만 쌍 거래라 장부 보존. <code>node step-0018/verify.js</code> 로 회귀·장부·결정론·membrane·sustain 검증.',
+    subtitle: 'step-0017 의 액적은 측정 윤곽(kin 연결 성분)일 뿐이었다 — 내부 E 공유·공통 경계(막)가 없었다. 이 step 은 그 액적을 <b>물리적 flux 결합 도메인</b>으로 올린다: 같은 유전형(kin)으로 4-인접한 생명끼리 <b>필드 E 를 국소 공유·재분배</b>한다(쌍 거래 — 보존) → 액적 내부 E 가 균질해지고(공유 larder), 경계엔 단차(<b>막</b>)가 <b>창발</b>한다("막은 액적의 표면으로" — author 안 함). <b>형태는 flux 의 하류</b>(INTERPRET §5) — 시뮬이 형태를 빚으면 같은 렌즈가 코드 0 으로 그린다. 응집(위치)과 달리 <b>실제 E 재분배</b>지만 쌍 거래라 장부 보존. <code>node step-0018/verify.js</code> 로 회귀·장부·결정론·membrane·sustain 검증.',
     overlays: { sourceSink: false, pools: true, life: true, centroid: true, sparkline: true },
     poolOpts: { minE: 1.5, prom: 0.3 },
 
@@ -174,7 +174,7 @@
     legend:
       '<span style="color:#e86060">●</span>tag1(저적합) <span style="color:#78c860">●</span>tag2 <span style="color:#60a8e8">●</span>tag3 <span style="color:#c870e0">●</span>tag4(고적합) — 유전 생명, 같은 색 선으로 이으면 <b>한 개체</b>(flux 결합 도메인) &nbsp; <span style="color:#c89b6a">■</span>R &nbsp; <span style="color:#57e0c8">■</span>활성도 A &nbsp; <span style="color:#fff7d2">★</span>별<br>' +
       '<b>막/flux 결합</b>: "혼합 군집" 을 놓으면 같은 색끼리 액적(개체)으로 갈리고(차등 응집), 그 액적 *안에서* kin 끼리 <b>E 를 공유</b>한다 → 액적 내부 E 가 균질해지고 경계엔 <b>막</b>(단차)이 창발한다. 우측 "막 지수(경계/내부 ΔE)" 가 1→3+ 로 오르면 막이 생긴 것. "kMembrane" 을 올리면 막이 또렷해진다. <code>verify membrane</code>: 막 지수 2→3.5.<br>' +
-      '<b>형태는 flux 의 하류</b>(INTERPRET-UE §5): 막은 렌더러가 그린 게 아니라 *시뮬*이 빚은 형태다 — 같은 해석 렌즈가 바닥 E 하이트필드의 도메인+막을 코드 0 으로 받아 그린다. "막/flux 결합" 체크를 끄면 step-0017(측정 윤곽일 뿐 — 막 없음)으로. 공유는 *실제 E 재분배*지만 쌍 거래라 churn 을 안 깬다(<code>verify sustain</code>). 잔차 &lt;1e-6 이면 <span class="pass">PASS</span>.',
+      '<b>형태는 flux 의 하류</b>(INTERPRET §5): 막은 렌더러가 그린 게 아니라 *시뮬*이 빚은 형태다 — 같은 해석 렌즈가 바닥 E 하이트필드의 도메인+막을 코드 0 으로 받아 그린다. "막/flux 결합" 체크를 끄면 step-0017(측정 윤곽일 뿐 — 막 없음)으로. 공유는 *실제 E 재분배*지만 쌍 거래라 churn 을 안 깬다(<code>verify sustain</code>). 잔차 &lt;1e-6 이면 <span class="pass">PASS</span>.',
 
     actions: {
       seedSortMix: function (api) {

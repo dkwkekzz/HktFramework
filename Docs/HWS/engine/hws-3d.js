@@ -65,7 +65,7 @@
       { kind: 'check', id: 'view3d', label: '3D 뷰', def: true, view: true,
         title: 'WebGL2 3D 뷰 ↔ 2D 캔버스 전환. 프레젠테이션 전용 — 시뮬·검증에 영향 없음.' },
       { kind: 'check', id: 'worldview', label: '세계 해석(2분할)', def: true, view: true,
-        title: '오른쪽에 세계 해석 뷰를 나란히 — 높이=*물질*(R 고체+저활성 E 액체)·빛=*에너지*(고활성 E·A, 안 솟고 발광). 차이는 흐르는 에너지 제거 + 색·재질·빛(상/조성/밀도/광택). 렌더러는 형태를 author 안 함(분포 재성형 0). 왼쪽=에너지 변위(h=E+R). 설계: INTERPRET-UE.md §5b. 프레젠테이션 전용.' }
+        title: '오른쪽에 세계 해석 뷰를 나란히 — 높이=*물질*(R 고체+저활성 E 액체)·빛=*에너지*(고활성 E·A, 안 솟고 발광). 차이는 흐르는 에너지 제거 + 색·재질·빛(상/조성/밀도/광택). 렌더러는 형태를 author 안 함(분포 재성형 0). 왼쪽=에너지 변위(h=E+R). 설계: INTERPRET.md §5b. 프레젠테이션 전용.' }
     ]}]);
     var origHook = panel.drawHook;
     p.drawHook = function (ctx, info) { sync(info); if (origHook) origHook(ctx, info); };
@@ -416,7 +416,7 @@
     vlabel(ctx, CV_SIZE / 2, '에너지 변위', '#9fb0c0');
     if (split) {
       vlabel(ctx, CV_SIZE + CV_SIZE / 2, '세계 해석 (물질)', '#e6c860');
-      /* 세계 해석 범례 — 높이=물질(R 고체+저활성 E 액체)·빛=에너지(고활성 E·A) 분해 (INTERPRET-UE §5b) */
+      /* 세계 해석 범례 — 높이=물질(R 고체+저활성 E 액체)·빛=에너지(고활성 E·A) 분해 (INTERPRET §5b) */
       ctx.textAlign = 'left'; ctx.font = '11px Consolas';
       var leg = [['#1a5a86', '물 · 액체 (저활성 E · 투과)'], ['#52473f', '돌 · 암반 (R 고체 · 무광)'],
                  ['#c89a6a', '나무 · 결정 (R + 유전 G)'], ['#ffb04d', '빛 · 에너지 (고활성 A → 높이 0)']];
@@ -571,7 +571,7 @@
   /* ════════ GL 백엔드 (WebGPU 경첩 — 이 아래만 교체하면 API 를 갈아탈 수 있다) ════════ */
 
   /* 필드 텍스처는 RGBA32F — r=E(흐르는 흐름량), g=R(굳은 저장체, step-0008~. 없으면 0), b=G(유전형 태그, step-0015~. 없으면 0).
-   * 높이 = hOf(E+R): 퇴적이 지형을 *키운다*(VISION-UE "pool 지속성→반영구 지형" 행의 구현). 태그(b)는 높이 무관(색만).
+   * 높이 = hOf(E+R): 퇴적이 지형을 *키운다*(VISION "pool 지속성→반영구 지형" 행의 구현). 태그(b)는 높이 무관(색만).
    * 색 = E 열지도 램프를 저장체 색으로 블렌드 — 저장체 색은 유전형 태그면 클론 색(storeCol), 0 이면 호박색(무유전). 블렌드 포화점 uSatR 은 *이 세계의 maxR* 에 적응한다 —
    *   step-0008(농축 R~5)이든 step-0009(기복으로 얇게 펴진 R~3)이든 강한 퇴적이 항상 또렷(고정 /20 은
    *   얇은 퇴적을 거의 못 보였음 — 사용자 피드백 반영). R 없는 step 은 g=0 이라 무영향. */
@@ -620,7 +620,7 @@
     'void main(){ float d=max(dot(normalize(vNormal),uLight),0.0); o=vec4(vColor*(0.42+0.62*d),1.0); }'
   ].join('\n');
 
-  /* ── 세계 해석 셰이더 (INTERPRET-UE §5b — 물질 표현) — 같은 텍스처(E,R,G,A)를 *물질/에너지*로 갈라 읽는다.
+  /* ── 세계 해석 셰이더 (INTERPRET §5b — 물질 표현) — 같은 텍스처(E,R,G,A)를 *물질/에너지*로 갈라 읽는다.
    * 척추 정합(SPINE 척추 체크 2·INTERPRET §4): 렌더러는 *형태(실루엣)를 author 하지 않는다* — R·E *분포*는 시뮬이 정한다.
    *   렌더러에 허용된 차이는 둘뿐: ① *어느 양이 높이가 되는가*(물질=R+저활성E, 흐르는 에너지는 빼서 빛으로 — §4 "정직한 읽기")
    *   ② *색·재질·빛*(상·조성·밀도·광택·발광 — §3). 높이로 분포를 *재성형*(예: 물 평탄화)하면 §4 가 금지한 형태 author 다.
@@ -756,7 +756,7 @@
     var gl = S.gl;
     R = {};
     R.progT = mkProg(gl, VS_TERRAIN, FS_TERRAIN);
-    R.progW = mkProg(gl, VS_WORLD, FS_WORLD);               // 세계 해석 렌즈(INTERPRET-UE)
+    R.progW = mkProg(gl, VS_WORLD, FS_WORLD);               // 세계 해석 렌즈(INTERPRET)
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
