@@ -5,8 +5,8 @@
  *  - reg     : 회귀 0 — kAniso=0 이면 step-0024 와 비트 동일(anisotropy 통째 skip·R·E·G 불변). 방향성 결정화 스택 해시를 golden curv@ 와 대조.
  *  - conserve: 보존 — 방향성 결정화(E→R 쌍 거래 — 결정화/복제와 같은 경계)가 도는 내내 닫힌 장부 잔차 < 1e-6.
  *  - det     : 결정론 — kAniso on 같은 시드 2회 비트 동일(축 E→R 침착·태그 복사가 R·E·G 를 바꿔 해시에. 순차 — 축은 태그의 결정 함수, Math.random 금지).
- *  - aniso   : 가설 — 방향성 결정화(genotype 이 결정축을 정함). crystal 아레나(중심 유전 씨앗 tag1, 다른 법칙 다 off, anisotropy 만 on/off):
- *              결정이 선호 축(가로)으로만 자라 *이방성*(needle/결정축) → R 분포 주축비(이방성 지수)↑·축X 분산≫축Y 분산. off 면 씨앗 그대로(등방 disc·지수≈1). 방향성은 author 아닌 *측정/창발*.
+ *  - aniso   : 가설 — 방향성 결정화(genotype 이 *결정축*을 정함). crystal 아레나(중심 유전 씨앗, 다른 법칙 다 off, anisotropy 만 on/off):
+ *              결정이 *태그의 선호 축*으로만 자라 이방성(needle/결정축) → R 주축비↑. 핵심: tag1→가로(axisX≫axisY)·tag2→세로(axisY≫axisX) *직교* — 같은 법칙·다른 태그가 다른 축(유전형이 축을 정함). off 면 씨앗 그대로(등방·지수≈1).
  *  - sustain : 방향성 결정화(실제 E→R 재분배)가 step-0024 의 끝없는 churn 을 *깨지 않는가*(공멸 없이 지평선 생존·후반 출생≈사망>0 — E→R 쌍 거래·자기제한 게이트라 동역학 직교).
  *  - all     : 전 모드 + 요약
  *
@@ -59,11 +59,11 @@ function anisoArena(extra) {
   }, extra || {});
 }
 var ARENA_T = 20;   // needle 가 격자 wrap 전에 또렷한 이방성에 들 만큼(20 tick → 축당 ~20 칸, 중심 32±20 ∈ [12,52] 안전).
-/* 중심 유전 R 씨앗(tag1 disc r2) 하나 — anisotropy 가 가로 축으로 needle 결정축을 키운다. */
-function seedGeneDisc(sim) { ENG.spawnGene(sim, 32, 32, 2, 1, 1.0); }
-/* crystal 아레나 1회 — kAniso 를 주고 R 하이트필드 이방성 측정. */
-function anisoRun(seed, ka) {
-  var sim = ENG.createSim(seed, anisoArena({ kAniso: ka })); seedGeneDisc(sim); ENG.run(sim, ARENA_T);
+/* 중심 유전 R 씨앗(태그 disc r2) 하나 — anisotropy 가 *그 태그의 선호 축*으로 needle 결정축을 키운다(tag1·3→가로·tag2·4→세로). */
+function seedGeneDisc(sim, tag) { ENG.spawnGene(sim, 32, 32, 2, tag != null ? tag : 1, 1.0); }
+/* crystal 아레나 1회 — kAniso·씨앗 태그를 주고 R 하이트필드 이방성 측정. */
+function anisoRun(seed, ka, tag) {
+  var sim = ENG.createSim(seed, anisoArena({ kAniso: ka })); seedGeneDisc(sim, tag); ENG.run(sim, ARENA_T);
   var a = ENG.measureAnisotropy(sim), led = ENG.ledger(sim);
   return { aniso: a.aniso, axisX: a.axisX, axisY: a.axisY, cells: a.cells, sumR: a.sumR, anisoGrown: sim.anisoGrown, residual: led.residual };
 }
@@ -98,18 +98,19 @@ function det(seed) {
   return { seed: seed, hashA: ENG.hashState(a), hashB: ENG.hashState(b), pass: bit && ENG.hashState(a) === ENG.hashState(b) };
 }
 
-/* ── aniso: 가설 — 방향성 결정화(genotype 이 결정축을 정함). crystal 아레나서 anisotropy on(kAniso=1) vs off(kAniso=0). ──
+/* ── aniso: 가설 — 방향성 결정화(genotype 이 *결정축*을 정함). crystal 아레나서 anisotropy on(kAniso=1) vs off(kAniso=0). ──
  *  ① 방향성 실활성: anisoGrown>0(선호 축 E→R 침착이 실제로 일어난다).
- *  ② 이방성 결정축: aniso(R 주축비)↑·on>1(등방 blob 대신 한 축으로 자란 needle/결정축)·axisX≫axisY(가로 축으로 자랐다 — tag1 의 선호 축).
- *     보존: anisotropy 는 E→R 쌍 거래라 잔차<1e-6. */
+ *  ② 이방성 결정축: aniso(R 주축비)↑·on≫1(등방 blob 대신 한 축으로 자란 needle/결정축, off 씨앗은 ≈1).
+ *  ③ *genotype 이 축을 정한다*(핵심 thesis — "방향성 결정화"의 창의 주장): tag1(선호 축=가로)은 axisX≫axisY, tag2(선호 축=세로)는 axisY≫axisX 로 *직교* — 같은 법칙·다른 태그가 다른 결정축.
+ *     (tag1 만 보면 "다 가로로 자란다"와 구별 못 한다 — 직교 두 태그라야 *유전형이 축을 정함*이 증명된다.) 보존: anisotropy 는 E→R 쌍 거래라 잔차<1e-6. */
 function anisoTest(seed) {
-  var off = anisoRun(seed, 0), on = anisoRun(seed, 1);
-  var pass = on.anisoGrown > 0                            // ① 방향성 실활성
-    && on.aniso > off.aniso                               // ② 이방성↑(off 등방 씨앗 대비)
-    && on.aniso > 2.0                                     //   결정축(needle) — 또렷한 이방성
-    && on.axisX > on.axisY                                //   가로 축(tag1 의 선호 축)으로 자랐다
-    && on.residual < 1e-6;                                //   E→R 쌍 거래(보존)라 닫힌 장부
-  return { seed: seed, anOff: off.aniso, anOn: on.aniso, axOn: on.axisX, ayOn: on.axisY, clOff: off.cells, clOn: on.cells, grown: on.anisoGrown, residual: on.residual, pass: pass };
+  var off = anisoRun(seed, 0, 1), onX = anisoRun(seed, 1, 1), onY = anisoRun(seed, 1, 2);
+  var pass = onX.anisoGrown > 0                           // ① 방향성 실활성
+    && onX.aniso > off.aniso && onX.aniso > 2.0           // ② 이방성↑(off 등방 씨앗 ≈1 대비)·또렷한 결정축
+    && onX.axisX > onX.axisY                              // ③ tag1 → 가로 축(선호 축=x)
+    && onY.axisY > onY.axisX                              // ③ tag2 → 세로 축(선호 축=y) — *genotype 이 축을 정한다*(thesis)
+    && onX.residual < 1e-6;                               //   E→R 쌍 거래(보존)라 닫힌 장부
+  return { seed: seed, anOff: off.aniso, anOn: onX.aniso, t1axX: onX.axisX, t1axY: onX.axisY, t2axX: onY.axisX, t2axY: onY.axisY, grown: onX.anisoGrown, residual: onX.residual, pass: pass };
 }
 
 /* ── sustain: 방향성 결정화(실제 E→R 재분배)가 끝없는 churn 을 유지(공멸 없이 35k 생존·후반 출생≈사망>0). 전체 스택. ── */
@@ -144,11 +145,11 @@ function runMode(mode, seeds) {
     console.log('결정론: crystal 아레나(방향성 활성) 같은 시드 2회 비트 동일(축 E→R 침착·태그 복사가 R·E·G 를 바꿔 해시에. 축은 태그의 결정 함수 — Math.random 금지).');
     return rd.every(function (r) { return r.pass; });
   } else if (mode === 'aniso') {
-    var rk = seeds.map(anisoTest); table(rk, ['seed', 'anOff', 'anOn', 'axOn', 'ayOn', 'clOff', 'clOn', 'grown', 'residual', 'pass']);
-    console.log('방향성 결정화(genotype 이 결정축을 정함): 이방성 지수(R 주축비) ' + avg(rk, 'anOff').toFixed(2) + '→' + avg(rk, 'anOn').toFixed(2) +
-      ' (등방 씨앗 → 한 축으로 자란 needle/결정축)·축 분산 가로 ' + avg(rk, 'axOn').toFixed(0) + ' ≫ 세로 ' + avg(rk, 'ayOn').toFixed(1) +
-      ' (tag1 의 선호 축=가로로 자랐다). R 결정 셀 ' + avg(rk, 'clOff').toFixed(0) + '→' + avg(rk, 'clOn').toFixed(0) + '·방향성 성장 ' + avg(rk, 'grown').toFixed(0) +
-      '. 방향성은 author 아닌 *측정/창발*(태그→축 국소 법칙만 깖 — 척추 체크 2). E→R 쌍 거래(보존)라 잔차 ' + avg(rk, 'residual').toExponential(2) + '.');
+    var rk = seeds.map(anisoTest); table(rk, ['seed', 'anOff', 'anOn', 't1axX', 't1axY', 't2axX', 't2axY', 'grown', 'residual', 'pass']);
+    console.log('방향성 결정화(genotype 이 *결정축*을 정함): 이방성 지수(R 주축비) ' + avg(rk, 'anOff').toFixed(2) + '→' + avg(rk, 'anOn').toFixed(2) +
+      ' (등방 씨앗 → 한 축 needle/결정축). *유전형이 축을 정한다*: tag1 축 분산 가로 ' + avg(rk, 't1axX').toFixed(0) + ' ≫ 세로 ' + avg(rk, 't1axY').toFixed(1) +
+      ' · tag2 가로 ' + avg(rk, 't2axX').toFixed(1) + ' ≪ 세로 ' + avg(rk, 't2axY').toFixed(0) + ' (직교 — 같은 법칙·다른 태그가 다른 결정축). 방향성 성장 ' + avg(rk, 'grown').toFixed(0) +
+      '. author 아닌 *측정/창발*(태그→축 국소 법칙만 깖 — 척추 체크 2). E→R 쌍 거래(보존)라 잔차 ' + avg(rk, 'residual').toExponential(2) + '.');
     return rk.every(function (r) { return r.pass; });
   } else if (mode === 'sustain') {
     var st = sustainTest(); table(st.rows, ['seed', 'finPop', 'finStars', 'lateBirths', 'lateDeaths', 'nOrg', 'maxOrg', 'anisoGrown', 'collapse']);
