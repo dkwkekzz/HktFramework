@@ -273,6 +273,40 @@
       somaFrac: (somaN + germN) ? somaN / (somaN + germN) : 0, roleGap: gMean - sMean };
   }
 
+  /* 생식세포 계통 측정 — step-0022. sequester(⑦b)가 빚은 *불가역 상속 계통*(germ/soma)을 author 아닌 *측정*으로 읽는다.
+   * 0021 measureDifferentiation 은 역할을 *위치*(4-근방 점유)로 읽었으나, germline 은 역할이 *계통 속성 a.soma*(불가역 fate)에 산다 — 위치 무관. 위치·태그·m·a.soma 만 *읽고* 동역학에 되먹이지 않는다(측정 읽기전용). 반환:
+   *   soma/germ — 각 계통 세포 수(같은 genotype 인데 *상속된* 두 계통). somaFrac = soma/(soma+germ) ≈ kGermline(할당 비율, 안정).
+   *   somaM/germM — 각 계통 평균 m. roleGap = germM − somaM(germ 이 soma 의 export 로 fed → 양수·큼: 생식세포 계통에 자원 집중).
+   *   somaMaxM — soma 계통 최대 m(Weismann 격리 지표: < mDiv 면 soma 가 번식 임계에 못 닿음 = 번식이 germ 전용).
+   *   somaSurface/somaSurfaceFrac — *표면*(빈 4-근방 ≥1)에 있는 soma 세포 수 / (전체 soma 대비) 비율. >0 이면 fate 가 *위치 무관*(불가역 계통) 증거 — 0021 위치 분화라면 soma≡갇힌 내부라 0.
+   *   surfaceSomaFrac — *표면 세포 중* soma 계통 비율(= somaSurface/(표면 세포 총수)). 위치 무관 fate 의 *강한* 서명: 계통이면 ≈kGermline(표면도 무작위 할당), 0021 위치 분화면 표면=전부 germ → 0.
+   *   committed — fate 가 정해진(a.soma!==undefined) 유전형 세포 수(계통 격리가 도는 범위). */
+  function measureGermline(sim) {
+    var ag = sim.agents, W = sim.p.W, H = sim.p.H, N = W * H, mDiv = sim.p.mDiv;
+    var occ = sim._germMeas; if (!occ || occ.length !== N) occ = sim._germMeas = new Int32Array(N);
+    occ.fill(0);
+    for (var i = 0; i < ag.length; i++) occ[ag[i].center] = i + 1;                       // *모든* 생명(표면 판정용)
+    var somaN = 0, germN = 0, somaM = 0, germM = 0, somaMax = 0, somaSurf = 0, germSurf = 0, committed = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      if (a.soma === undefined) continue;                                                // 미커밋(계통 격리 off 또는 무유전) — 셈에서 제외
+      committed++;
+      var x = a.x, y = a.y, occN = 0;                                                     // 표면 판정 — 빈 4-근방 ≥1 면 표면(번식 자리 있음)
+      if (occ[a.center - x + (x + 1) % W] > 0) occN++;
+      if (occ[a.center - x + (x - 1 + W) % W] > 0) occN++;
+      if (occ[((y + 1) % H) * W + x] > 0) occN++;
+      if (occ[((y - 1 + H) % H) * W + x] > 0) occN++;
+      var surface = occN < 4;
+      if (a.soma === 1) { somaN++; somaM += a.m; if (a.m > somaMax) somaMax = a.m; if (surface) somaSurf++; }
+      else { germN++; germM += a.m; if (surface) germSurf++; }
+    }
+    var sMean = somaN ? somaM / somaN : 0, gMean = germN ? germM / germN : 0, surfN = somaSurf + germSurf;
+    return { soma: somaN, germ: germN, somaM: sMean, germM: gMean, somaMaxM: somaMax,
+      somaFrac: (somaN + germN) ? somaN / (somaN + germN) : 0, roleGap: gMean - sMean,
+      somaSurface: somaSurf, somaSurfaceFrac: somaN ? somaSurf / somaN : 0,
+      surfaceSomaFrac: surfN ? somaSurf / surfN : 0, committed: committed, weismann: somaMax < mDiv };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -412,6 +446,9 @@
     /* 생명 유전형 a.g(step-0016) — *가법*: 생명 유전이 활성(lifeGeneInit)일 때만 먹인다(kInherit=0 이면 false → skip → 과거 골든 전부 불변).
      * 이산 유전 정보(생명 태그)가 결정론·재현에 들어간다(같은 시드 2회 a.g 도 비트 동일). 위 x,y,m 뒤에 *태그*만 더한다. */
     if (sim.lifeGeneInit) for (var kg = 0; kg < ag.length; kg++) feed(new Float64Array([ag[kg].g || 0]).buffer);
+    /* 생식세포 계통 fate a.soma(step-0022) — *가법*: 계통 격리가 활성(germInit)일 때만 먹인다(kGermline=0 이면 false → skip → 과거 골든 전부 불변).
+     * 불가역 계통 정보(germ=0/soma=1, 미커밋=0)가 결정론·재현에 들어간다(같은 시드 2회 a.soma 도 비트 동일). */
+    if (sim.germInit) for (var kf = 0; kf < ag.length; kf++) feed(new Float64Array([ag[kf].soma ? 1 : 0]).buffer);
     /* 별(step-0011) — *가법*: 별이 있을 때만 먹인다. 별 없는 과거 시나리오(0001~0010)는 이 분기 skip →
      * 해시 비트 동일(골든 불변, verify-sim-engine 으로 증명). 별 위치·연료로 결정론·재현 보장. */
     var st = sim.stars;
@@ -449,7 +486,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

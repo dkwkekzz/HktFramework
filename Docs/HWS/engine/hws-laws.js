@@ -165,13 +165,23 @@
     pubSynergy: 2.0,     // 시너지 배수 b/c (>1 이라야 양의 합). 한 협동자의 기부 c 가 b=syn·c 의 이득을 *집단*에 — 대칭 kin 클러스터서 1인당 순이득 (syn−1)·c>0(공공재).
                          //   =1 이면 보존적(share 류 — 침투 없음), >1 이면 강한 침투. 전체 스택 기본 2.0. 통제 아레나서 협동(공공재)이 *지속*을 넘어 침투하는지 잰다.
     /* ── step-0021: 세포 분화(differentiate — 같은 genotype 이 *위치*에 따라 다른 phenotype: 갇힌 내부=soma(체세포·provision)·표면=germ(생식). 진짜 분업, SPINE 주요 전이 사다리 "사회 → 분화된 다세포") ── */
-    kDiff: 0             // 분화 마스터. 0 = off = step-0020 과 비트 동일(회귀, m 불변 → pub@ 해시 무관). >0 이면 세포 분화 on:
+    kDiff: 0,            // 분화 마스터. 0 = off = step-0020 과 비트 동일(회귀, m 불변 → pub@ 해시 무관). >0 이면 세포 분화 on:
                          //   0019 risk-pooling·0020 공공재는 모든 협동자가 *같은* 역할(공동 채집)이었다 — 진짜 분업이 아니었다. differentiate 는 *같은 genotype 이 위치에 따라
                          //   다른 phenotype* 을 갖게 한다: 각 생명이 제 4-근방 점유를 *위치 정보*로 읽어 — 4-근방이 모두 찬 *갇힌 내부* 세포(빈칸 0 = 번식 불가)는 soma(체세포),
                          //   빈칸 있는 *표면* 세포는 germ(생식 가능). soma 는 번식 못 하므로 제 잉여(m−dangerLine, 굶주리면 보류 — 자기 보호)의 kDiff 를 제 4-근방 kin 에게
                          //   *기부*(m→m 쌍 거래 — 보존)해 germ 의 번식을 떠받친다. 한 클론 안에서 표면=번식하는 몸·내부=먹여 주는 몸으로 *역할이 갈린다*(positional information → 분업).
                          //   분업 이득: kDiff=0 이면 갇힌 내부 세포의 m 은 격리(번식 못 해 쌓이기만) — kDiff>0 이면 그 m 이 표면 germ 으로 흘러 *번식으로 전환*(개체군 성장↑).
                          //   장부: 기부 m→m 쌍 거래(나간 만큼 들어옴 → sumM 불변, share/pubgood 의 m-경계). 0~1(잉여의 기부 비율). 전체 스택 기본 0.3.
+    /* ── step-0022: 생식세포 계통 격리(germline — 분열 자식 일부를 *불가역* germ/soma 로 일찍 떼어 두는 Weismann 장벽. 위치 무관 *상속* 분화, SPINE 주요 전이 사다리 "분화된 다세포") ── */
+    kGermline: 0         // 생식세포 계통 마스터 = soma 계통 할당 비율. 0 = off = step-0021 과 비트 동일(회귀, a.soma 미작동 → germInit false → diff@ 해시 무관). >0 이면 germline 격리 on:
+                         //   step-0021 differentiate 는 *위치 기반 동적* 분화였다 — 세포가 옮기면 역할(soma/germ)이 바뀌고 매 tick 재판정(commitment 없음). 진짜 다세포 분화는 *유전적 계통 격리*다:
+                         //   분열 자식 일부를 *불가역* germ(평생 생식만)/soma(평생 체세포)로 일찍 떼어 둔다(Weismann 장벽 — germ plasm 의 조기 격리). 이 법칙이 그 *상속되는 불가역 fate* 를 더한다:
+                         //   (1) 계통 commitment(불가역) — 유전형 있는 미커밋 생명이 *한 번* fate 를 받는다(위치 무관, 시드 의사난수 < kGermline 면 soma, 아니면 germ). 한 번 정해지면 *영원히* 안 바뀐다
+                         //       (옮겨 표면에 가도 soma 면 soma — 0021 위치 동적과 결정적 차이). 분열 자식도 미커밋으로 태어나 다음 tick 커밋 → "분열 자식을 germ/soma 로 떼어 둠"(germ 부모만 분열하므로 모든 자식은 germ 에서 남).
+                         //   (2) soma 의 Weismann 격리 + provision — soma 계통은 제 잉여(m−dangerLine)를 4-근방 germ kin 에게 *전량* export(m→m 쌍 거래 — 보존) → soma m 이 dangerLine(<mDiv)에 묶여 *번식 임계에 영영 못 닿는다*
+                         //       → 번식이 *생식세포 계통(germ) 전용*이 된다(reproduce 동결 — author 분기 없이 *창발적*으로 격리: soma 가 m 을 못 쌓아 ⑧reproduce 가 자연히 skip). soma 의 유전자는 *제가 떠받친 germline 을 통해서만* 전파(Weismann).
+                         //   0021 분화(위치)와의 차이: 0021 은 phenotype=f(genotype, *위치*) 라 가역·동적. germline 은 phenotype=f(genotype, *계통*) 라 *불가역·상속*(genotype↔phenotype 에 *유전되는* 다세포 층). kGermline 은 soma 할당 비율(0~1).
+                         //   척추: 새 *필드* 없음(fate 는 생명 *속성* a.soma — 단일 척추) · authored 분기 없음(번식 격리는 *창발*[soma 가 m 을 export 해 임계 미달], reproduce 에 type 분기 안 박음 — 활성도 환원) · 국소 문턱(제 4-근방 germ kin·제 m 만, 전역 조율자 0) · 닫힌 장부(export m→m 쌍 거래 — 보존; fate 는 비가역 *상태*지 에너지 아님 — 비가역≠비보존).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -739,6 +749,55 @@
     sim.differentiated += moved;                                                         // 누적 분화 provision 량(통계 — m→m 쌍 거래라 장부 무관)
   }
 
+  /* ⑦b 생식세포 계통 격리(sequester, step-0022) — kGermline=0 이면 통째로 건너뜀(회귀 0, a.soma 미작동 → germInit false → diff@ 비트 동일·새 해시 항 0).
+   * SPINE 주요 전이 사다리 "분화된 다세포"(상속되는 분화) + STATE 🔴 최우선: step-0021 differentiate 는 phenotype 을 *(genotype, 위치)* 의 함수로 만들었으나 — *위치 기반*이라 세포가 옮기면
+   *   역할이 바뀌고(동적 plasticity) 매 tick 재판정한다(commitment 없음). 진짜 다세포 분화의 다음 칸은 *유전적 계통 격리*다 = Weismann 장벽: 분열 자식 일부를 *불가역* germ(평생 생식)/soma(평생 체세포)로
+   *   일찍 떼어 둔다(germ plasm 조기 격리). 이 법칙이 그 *상속되는 불가역 fate* 를 더한다 — phenotype=f(genotype, *계통*), 위치 무관·불가역.
+   * 메커니즘(국소·m 재분배·쌍 거래 보존 — 두 패스):
+   *   패스1 commitment(불가역) — 유전형 있는 *미커밋*(a.soma===undefined) 생명에 fate 를 *한 번* 부여한다: tumbleHash(x,y,bornTick,seed) < kGermline 면 soma(1), 아니면 germ(0). 위치를 안 본다(0021 과 결정적 차이) ·
+   *     한 번 정해지면 분기에서 다시 안 건드린다(불가역). 분열 자식은 미커밋으로 태어나(reproduce 동결) 다음 tick 여기서 커밋 → "분열 자식을 germ/soma 로 떼어 둠"(soma 는 번식 못 하므로 *모든* 자식은 germ 부모에서 남 = germline).
+   *   패스2 soma 의 Weismann 격리 + provision — soma 계통(a.soma===1)은 제 잉여(m−keep, keep=dangerLine=mDeath·SHARE_BAND < mDiv)를 4-근방 *germ kin*(같은 태그·a.soma===0)에게 *전량* export(m→m 쌍 거래 — 보존) →
+   *     soma m 이 keep 에 묶여 *분열 임계 mDiv 에 영영 못 닿는다* → ⑧reproduce 가 soma 를 자연히 skip(번식이 germ 전용 = 생식세포 격리). soma 의 유전자는 제가 떠받친 germline 을 통해서만 전파(Weismann — soma 는 진화적 막다른 길).
+   * 왜 ⑦b(metabolize 뒤·reproduce 앞)인가: Weismann 격리는 *흡수(metabolize ⑦) 직후·번식(reproduce ⑧) 직전*에 soma 를 비워야 한다 — ⑦이 더한 intake 까지 export 해 soma 가 mDiv 밑에 있을 때 ⑧이 판정(0021 differentiate ⑥f 는 흡수 전이라 자리 안 됨).
+   *   reproduce 를 *안 건드린다*(동결) — 번식 격리를 type 분기로 박지 않고 *창발*시킨다(soma 가 m 을 못 쌓아 자연히 미분열, 활성도 환원). 순차(occ 제자리·scan=agent 배열 순서, 패스1 먼저 전부 커밋 → 패스2 는 kin fate 를 *확정* 후 읽음 — 결정론, Math.random 금지).
+   * 척추: 새 *필드* 없음(fate 는 생명 속성 a.soma — 단일 척추) · authored 분기 없음(번식 격리는 창발) · 국소 문턱(제 4-근방 germ kin·제 m, 전역 조율자 0) · 닫힌 장부(export m→m 쌍 거래 — 보존; fate 는 비가역 *상태*지 에너지 아님). */
+  function sequester(sim) {
+    var p = sim.p; if (p.kGermline === 0) { sim.germInit = false; return; }   // off: a.soma 미작동·해시 skip(과거 골든 diff@/tdiff@/… 전부 불변). inherit 처럼 매 tick 게이트(a.soma 는 에이전트 휘발 — 사망 시 사라짐).
+    if (!p.life || !sim.agents.length) { sim.germInit = true; return; }        // 켜졌으면 germInit on(씨앗 fate 가 해시에 들도록) — 개체 없어도 유지.
+    sim.germInit = true;
+    var ag = sim.agents, W = p.W, H = p.H, N = W * H, frac = p.kGermline;
+    var keep = p.mDeath * SHARE_BAND, seed = sim.seed;
+    var occ = sim.germOcc; if (!occ || occ.length !== N) occ = sim.germOcc = new Int32Array(N);
+    occ.fill(0);                                                               // 0 = 빈칸. 점유 칸엔 (agent index + 1) — kin·germ 판정용
+    for (var i = 0; i < ag.length; i++) occ[ag[i].center] = i + 1;
+    /* 패스1: 계통 commitment(불가역·위치 무관) — 미커밋 유전형 생명에 fate 를 한 번 부여. germ kin 판정 전에 *전부* 확정해야 패스2 가 결정적. */
+    for (var c = 0; c < ag.length; c++) {
+      var ac = ag[c]; if ((ac.g | 0) <= 0) continue;
+      if (ac.soma === undefined) {
+        var h = K.tumbleHash(ac.x, ac.y, ac.bornTick | 0, seed);
+        ac.soma = ((h >>> 16) * (1 / 65536) < frac) ? 1 : 0;                   // 시드 의사난수 < kGermline → soma 계통(1), 아니면 germ 계통(0). 영원히 불변.
+      }
+    }
+    var kinG = sim.germKin || (sim.germKin = [0, 0, 0, 0]);                    // 4-근방 germ kin 인덱스 재사용 버퍼(상태 아님)
+    var moved = 0;
+    /* 패스2: soma 의 Weismann 격리 + provision — soma 는 제 잉여를 germ kin 에게 전량 export → m 이 keep 에 묶여 번식 임계 미달(생식세포 격리). */
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      if (a.soma !== 1) continue;                                             // germ 계통 — 제 m 지켜 번식(생식세포). 분화는 soma 계통만.
+      var surplus = a.m - keep; if (surplus <= 0) continue;                   // 굶주리면 보류(자기 보호) — soma 도 제 생존선(keep)은 지킨다
+      var x = a.x, y = a.y, nG = 0;
+      for (var d = 0; d < 4; d++) {                                           // 4-근방 *germ* kin 수집(같은 태그·a.soma===0) — soma 의 잉여를 생식세포 계통에게
+        var oi = occ[((y + GENE_VN[d][1] + H) % H) * W + (x + GENE_VN[d][0] + W) % W];
+        if (oi > 0) { var b = ag[oi - 1]; if ((b.g | 0) === t && b.soma === 0) kinG[nG++] = oi - 1; }
+      }
+      if (nG === 0) continue;                                                 // 줄 germ kin 없음 — 격리된 soma(드묾, dead-end). 잉여 retain(이때만 mDiv 도달 가능 — 한계로 기록).
+      var per = surplus / nG;
+      a.m -= surplus;                                                         // 전량 export(Weismann — 생식세포 계통만 m 축적·번식)
+      for (var n = 0; n < nG; n++) { ag[kinG[n]].m += per; moved += per; }    // 4-근방 germ kin 에게 — soma 가 떠받쳐 germline 이 번식(상속되는 분업)
+    }
+    sim.germProvisioned += moved;                                            // 누적 격리 provision 량(통계 — m→m 쌍 거래라 장부 무관)
+  }
+
   /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
    * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
    * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
@@ -920,13 +979,14 @@
    * ⑥d 생물량 공유(share)는 ⑥b crowd 뒤·⑦생명 앞 — crowd 가 매긴 대사세 뒤의 m 을 kin 끼리 균등화해, 굶주린 kin 을 ⑦의 사망 판정 전에 떠받친다(개체 단위 생존).
    * ⑥e 공공재 협동(pubgood)은 ⑥d share 뒤·⑦생명 앞 — 떠받침(보존) 위에 공공재(양의 합 시너지) 이득을 얹어, ⑦의 사망/흡수 전에 kin 의 m 을 키운다(번식 가속·강한 침투).
    * ⑥f 세포 분화(differentiate)는 ⑥e pubgood 뒤·⑦생명 앞 — 공공재 채집 위에 *위치 기반* m 흐름(갇힌 내부 soma → kin germ)을 얹어, ⑦사망·⑧번식 전에 germ 의 m 을 키운다(분업 번식 가속).
+   * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, pubgood, differentiate, metabolize, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
