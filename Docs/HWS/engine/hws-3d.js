@@ -621,15 +621,14 @@
   ].join('\n');
 
   /* ── 세계 해석 셰이더 (INTERPRET-UE §5b — 물질 표현) — 같은 텍스처(E,R,G,A)를 *물질/에너지*로 갈라 읽는다.
-   * 핵심: 높이는 *에너지가 아니라 물질*이다 — 에너지 변위 뷰(h=E+R)와 달리 흐르는 에너지는 지형을 안 부풀린다.
-   *   현실 원리: 에너지=장=형태없음→빛 · 물질=응축상=부피→높이. 뜨거운 가스는 산이 안 되고 *빛난다*.
-   * 활성도 A 를 물질/에너지 분류 다이얼로 써 E 를 두 몫으로 가른다(새 필드 0 — 기존 E/R/A/G 를 다르게 읽음):
-   *   · 고활성 E(A 큼)  = *에너지*(흐르는 빛·열) → 높이 0, 발광으로                  (뜨거운 곳은 더 밝다)
-   *   · 저활성 E(A≈0)   = *액체 물질*(고인 물)   → 높이 = kLiquid·E (평평·투과)        (고인 곳은 솟는다)
-   *   · R(결정화 저장체) = *고체 물질*(바위/나무) → 높이 = R (불투명·솟음)
-   * 물질을 다속성으로 분화: 상(phase 이산 분기·lerp 금지) · 조성(G 태그 색·돌vs나무) · 밀도(R 크기) · 구조(막).
-   * 높이 = hOf(R + kLiquid·저활성E) — 두 뷰가 *높이부터* 갈린다. A 없는/꺼진 step 은 a=0 → 흐르는 에너지 0
-   *   → 모든 E 가 액체로 떠 물/지형만(초기 step: 응축 안 된 에너지 세계 — 평평+고인 물; R 누적 시 고체가 *솟는다*). */
+   * 핵심: 에너지 변위 뷰와 *완전히 다른 실루엣*을 만든다 — 같은 양을 다른 *함수*로 읽어 두 뷰가 갈린다.
+   *   현실 원리: 에너지=장=형태없음→빛 · 물질=응축상=부피→높이. 셋은 *서로 다른 렌더 함수*로 갈린다:
+   *   · 고체 R    → 지형이 *솟는다* hBed=hOf(R) (험준·무광·불투명, 에너지뷰의 E 언덕과 다른 R 만의 기복)
+   *   · 액체 저활성E → *평평한 물* (안 솟음! film=kFilm·(1-e^-E) 포화 → 깊이 무관 수평; 깊이는 *색*으로, 광택 표면)
+   *   · 에너지 고활성E·A → *빛* (높이 0, 발광 — "뜨거운 가스는 산이 안 되고 빛난다")
+   * 에너지 변위 뷰는 h=E+R(E 가 곧 언덕) — 여기선 그 E 고임이 *평평한 물*이 되어 실루엣이 완전히 갈린다.
+   * 물질 다속성, 속성마다 *다른 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝).
+   * A 없는/꺼진 step → 모든 E 가 평평한 물(초기: 응축 안 된 에너지 세계 — 물바다; R 누적 시 고체 지형이 *솟아오른다*). */
   var VS_WORLD = [
     '#version 300 es',
     'precision highp float;',
@@ -638,14 +637,17 @@
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uSatR, uSatA;',
     'uniform ivec2 uDim;',
-    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot;',
-    'const float kLiquid = 0.6;',                           // 액체(저활성 E)의 높이 기여 — 고체(R)보다 낮게(물은 평평, 바위는 솟음)
+    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet;',
+    'const float kFilm = 0.55;',                            // 액체 표면 막의 *최대* 높이 — 깊이와 무관히 수평(물은 안 솟는다, 깊이는 색으로)
     'float hOf(float e){ return min(uHS*log(1.0+max(e,0.0))/log(1.0+uSat), uHS*2.2); }',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율(소산 극단만 큼)
-    'float matAt(int x, int y){',                           // 물질 높이 = 고체 R + 액체(저활성 E). 흐르는 에너지(고활성 E)는 높이 0 — 토러스 wrap
+    'float matH(vec4 t){',                                  // 물질 높이 = 고체 지형(R 솟음) + 평평한 물 막. 흐르는 에너지(고활성 E)는 0
+    '  float lq=t.r*(1.0-actFrac(t.a));',                   // 저활성 E = 액체
+    '  return hOf(t.g) + kFilm*(1.0-exp(-lq*0.9));',        // hOf(R) 험준 + 포화 물막(평평)
+    '}',
+    'float hAtXY(int x, int y){',                           // 이웃 물질 높이(법선용) — 토러스 wrap
     '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
-    '  vec4 t=texelFetch(uE, ivec2(x,y), 0);',
-    '  return t.g + kLiquid*t.r*(1.0-actFrac(t.a));',
+    '  return matH(texelFetch(uE, ivec2(x,y), 0));',
     '}',
     'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 팔레트(2D GENE_COL 일관)
     '  int g=int(tag+0.5);',
@@ -658,35 +660,41 @@
     'void main(){',
     '  int x=int(aCell.x), y=int(aCell.y);',
     '  vec4 t=texelFetch(uE, ivec2(x,y), 0);',              // r=E, g=R, b=G태그, a=A활성도
-    '  float E=t.r, Rr=t.g, tag=t.b, A=t.a;',
-    '  float af=actFrac(A);',                               // 흐르는 에너지 비율
+    '  float E=t.r, Rr=t.g, tag=t.b;',
+    '  float af=actFrac(t.a);',                             // 흐르는 에너지 비율
     '  float liquidE=E*(1.0-af);',                          // 저활성 E = 액체 물질(고인 물)
     '  float flowE=E*af;',                                  // 고활성 E = 흐르는 에너지(빛 — 높이 0)
-    '  float mat=Rr + kLiquid*liquidE;',                    // 물질 높이(에너지 변위 h=E+R 과 다름 — 흐르는 E 빠짐)
-    /* 상(phase) 이산 분기(lerp 금지·결정화/증발 문턱): 고체(R 우세) vs 액체(저활성 E). 두 상 블렌드 없음 */
-    '  float depth=clamp(log(1.0+max(liquidE,0.0))/log(1.0+uSat),0.0,1.0);',
-    '  vec3 water=mix(vec3(0.04,0.07,0.13), vec3(0.10,0.40,0.55), depth);', // 액체: 물 깊이(투과·평평)
-    '  vec3 store=(tag>0.5)? geneCol(tag) : vec3(0.322,0.278,0.247);',      // 조성: 유전=나무/결정, 무유전=돌
-    '  float dens=clamp(Rr/uSatR, 0.0, 1.0);',              // 밀도(R 크기) → 견고함(높을수록 어둡고 불투명)
-    '  bool solid = (Rr > kLiquid*liquidE) && (Rr > 0.05);',// 상 판정 — R 우세면 고체, 아니면 액체
-    '  vBase = solid ? store*(0.55+0.45*dens) : water;',    // 상 이산 분기(물↔고체 블렌드 0)
-    '  vNormal=normalize(vec3(matAt(x-1,y)-matAt(x+1,y), 2.0, matAt(x,y-1)-matAt(x,y+1)));', // 법선=물질 기복
+    /* 상(phase) 3분기(lerp 0) — 속성마다 다른 함수: 고체(R 솟음·무광) / 액체(평평·광택) / 공허(없음·암흑) */
+    '  bool isSolid = Rr > 0.08 && Rr >= liquidE;',         // 고체 우세 = 바위/나무
+    '  bool isLiquid = !isSolid && liquidE > 0.03;',        // 액체 = 고인 물
+    '  float dens=clamp(Rr/uSatR, 0.0, 1.0);',              // 밀도(R) → 밝기·불투명(고체 전용 함수)
+    '  float depth=clamp(log(1.0+max(liquidE,0.0))/log(1.0+uSat),0.0,1.0);', // 깊이(액체 전용 함수, 색으로)
+    '  vec3 store=(tag>0.5)? geneCol(tag) : vec3(0.322,0.278,0.247);',       // 조성(G) → 유전=나무/결정, 무유전=돌
+    '  vec3 water=mix(vec3(0.22,0.52,0.60), vec3(0.02,0.09,0.20), depth);',  // 액체: 얕으면 청록·깊으면 짙은 남(깊이=색)
+    '  vec3 base; float wet;',
+    '  if (isSolid){ base = store*(0.50+0.50*dens); wet=0.0; }',             // 고체 — 밀도로 견고/불투명
+    '  else if (isLiquid){ base = water; wet=1.0; }',                        // 액체 — 광택 표면(FS 에서 반짝)
+    '  else { base = vec3(0.018,0.022,0.035); wet=0.0; }',                   // 공허/기체 — 거의 암흑(빈 공간)
+    '  vBase=base; vWet=wet;',
+    '  vNormal=normalize(vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1)));', // 법선=물질 기복(물은 평평→매끈)
     '  vHot=af;',                                           // 색온도(흰빛 정도 — 활성 클수록 흼)
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 세기 = 에너지(흐르는 E·A) — 높이서 뺀 만큼 빛으로
-    '  gl_Position=uMVP*vec4(aCell.x, hOf(mat), aCell.y, 1.0);', // 높이 = 물질만(흐르는 에너지는 0)
+    '  gl_Position=uMVP*vec4(aCell.x, matH(t), aCell.y, 1.0);', // 높이 = 물질만(고체 솟음+평평한 물, 흐르는 에너지 0)
     '}'].join('\n');
 
   var FS_WORLD = [
     '#version 300 es',
     'precision highp float;',
-    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot;',
+    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet;',
     'uniform vec3 uLight;',
     'out vec4 o;',
     'void main(){',
-    '  float d=max(dot(normalize(vNormal),uLight),0.0);',
+    '  vec3 N=normalize(vNormal);',
+    '  float d=max(dot(N,uLight),0.0);',
     '  vec3 lit=vBase*(0.30+0.70*d);',                      // 물질 = 조명 받는 표면(높이·법선·색)
+    '  float spec=vWet*pow(d, 28.0)*0.8;',                  // 액체 전용 — 광택 하이라이트(물은 반짝, 고체는 무광)
     '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 뜨거울수록 흰빛
-    '  o=vec4(lit + fire*vGlow*1.6, 1.0);',                 // 빛 = 에너지(높이 0) 발광 가산(조명 무관)
+    '  o=vec4(lit + vec3(spec) + fire*vGlow*1.6, 1.0);',    // 물질 표면 + 물 광택 + 에너지 발광(조명 무관)
     '}'].join('\n');
 
   var VS_POINT = [
