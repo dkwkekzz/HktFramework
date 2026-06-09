@@ -1,0 +1,2 @@
+{ "name":"kill-zone2", "seed":7, "ticks":60,
+  "cmds":[ { "tick":30, "kill":"zone2" } ] }
