@@ -140,11 +140,21 @@
     adhesionLambda: 1.0, // 이종 반발 가중 — 응집 점수 = (kin 접촉) − adhesionLambda·(비kin 접촉). 클수록 이종 분리가 날카롭다(표면장력↑).
     adhesionGain: 0.5,   // 이동 문턱 — 후보 칸 점수가 머무름보다 이만큼 *엄격히* 커야 옮긴다(jitter 방지·안정 액적). 점수가 정수라 0.5 = "≥1 개선".
     /* ── step-0018: 막/flux 결합 도메인(couple — 개체='계'를 측정 윤곽에서 *물리적 도메인*으로, SPINE 주요 전이 사다리 "다세포=flux 결합 도메인") ── */
-    kMembrane: 0         // 막 결합 마스터. 0 = off = step-0017 과 비트 동일(회귀, E 불변 → org@ 해시 무관). >0 이면 막/flux 결합 on:
+    kMembrane: 0,        // 막 결합 마스터. 0 = off = step-0017 과 비트 동일(회귀, E 불변 → org@ 해시 무관). >0 이면 막/flux 결합 on:
                          //   같은 유전형(kin=같은 a.g)으로 4-인접한 생명끼리 *필드 E 를 국소 공유·재분배*한다(쌍 거래 — 보존). 액적 내부가 균질해지고
                          //   (공유 larder) 경계엔 단차(막)가 *창발*한다("막은 액적의 표면으로" — author 안 함). 0017 의 측정 윤곽 액적을 *flux 결합
                          //   도메인*(내부 E 공유)으로 올린다(정직한 한계 #2 해소). 위치 아닌 *E 재분배*(adhere 와 다름)이되 쌍 거래라 장부 보존.
                          //   국소(4-인접 kin 쌍만, 전역 연결성분 안 씀 → 측정 읽기전용 보존)·강도 0~1(=0 무공유, =1 완전 균등화). (a) 개체↔대사 결합의 디딤돌.
+    /* ── step-0019: 개체↔대사 차등 결합(share — kin 생물량 m 공유 → 개체 단위 생존 → kin selection 선택압, SPINE §다섯째 축 "개체를 중립에서 적응으로") ── */
+    kShare: 0,           // 생물량 공유 마스터. 0 = off = step-0018 과 비트 동일(회귀, m 불변 → mem@ 해시 무관). >0 이면 kin m 공유 on:
+                         //   step-0018 couple 이 *필드 E* 를 kin 끼리 공유했듯, share 는 *생물량 m*(대사 재고)을 kin 끼리 공유한다(쌍 균등화 — 보존).
+                         //   단 couple(균일 — 개체군 *이득*만)과 달리 공유 강도가 *유전형의 함수*(coop)라 *차등* — 협동 유전형이 안 하는 것보다
+                         //   차등 적합도를 갖는다(kin selection *선택압*). 부유한 kin 이 굶주린 kin(같은 유전형)을 사망 직전 떠받쳐(risk-pooling) →
+                         //   협동 도메인이 *단위로* 생존(개체 단위 사멸 완화) → 협동 유전형이 번진다. *단 kin 이 뭉쳐야*(adhere=높은 혈연도) 작동(Hamilton rb>c).
+                         //   장부: m 쌍 거래(나간 만큼 들어옴 → sumM 불변, couple 의 m-아날로그)·국소(4-인접 kin 쌍만)·강도 0~1.
+    coopFit0: 1.0,       // 협동 표현형 절편 — coop(태그) = clamp(coopFit0 + coopFitStep·(태그−1), 0, 1) = 공유 propensity(0~1). 기본 1.0·step 0 = *균일 협동*
+    coopFitStep: 0.0     //   (모든 kin 이 완전 공유 — 전체 스택 risk-pooling, 0018 E-공유의 m-연장). 통제 아레나는 coopFit0=0·step=1 로 협동자(coop 1)vs배신자(coop 0)
+                         //   를 격리해 *선택압*(협동의 차등 번식)을 잰다. 협동을 *복제 적합도와 분리*(fit 맵과 별 노브)해야 kin selection 을 confound 없이 본다.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -569,6 +579,58 @@
     sim.coupled += shared;                                                             // 누적 공유 flux(통계 — 쌍 거래라 장부 무관)
   }
 
+  /* ⑥d 생물량 공유(share, step-0019) — kShare=0 이면 통째로 건너뜀(회귀 0, m 불변 → mem@ 비트 동일·새 해시 항 0).
+   * SPINE §다섯째 축 "개체를 *중립에서 적응으로*" + STATE (a) 개체↔대사 *차등* 결합: step-0018 의 couple 은 *필드 E* 를 kin 끼리 균일하게
+   *   공유해 개체에 *개체군 이득*(공유 larder → carrying capacity↑·개체 커짐)을 줬으나 — 모든 kin 이 똑같이 공유(분업 없음)라 *선택압*은 0이었다
+   *   (개체군 이득 ≠ 개체군 선택; kin selection 의 *맹아*지 선택 자체 아님). 이 법칙은 그 larder 를 *차등*으로 만든다: kin 끼리 공유하는 것을 *필드 E*
+   *   가 아니라 *생물량 m*(대사 재고 — 사망/번식을 직접 가르는 양)으로, 그 공유 강도를 *유전형의 함수*(coop)로. 협동 유전형(coop>0)은 굶주린 kin
+   *   (같은 유전형)을 사망 직전 떠받쳐(risk-pooling — m 균등화) 도메인이 *단위로* 생존하고, 그 kin 이 같은 협동 유전형을 실어 *번진다*(Hamilton 포괄적합도).
+   *   배신 유전형(coop=0)은 안 떠받쳐 굶주린 동료가 죽는다. *단 kin 이 뭉쳐야*(adhere=높은 혈연도 r) 협동자가 협동자 곁에 서 공유가 일어난다(rb>c).
+   *   → "공유하는 유전형 vs 안 하는 유전형의 차등 적합도"(0018 정직한 한계 #2)가 생겨 개체성이 *중립에서 적응으로*. 협동을 *복제 적합도(fit)와 분리*
+   *   (coop = 별 표현형 맵)해야 confound 없이 kin selection 만 잰다.
+   * 메커니즘(국소·m 재분배·쌍 거래 보존 — *균등화 아니라 표적 구조(targeted rescue)*): 각 4-인접 kin 쌍(같은 태그·인접 center) 중
+   *   *한쪽만 사망권*(m < dangerLine = mDeath·SHARE_BAND)이고 다른 쪽이 안전하면, 안전한 협동자가 *제 잉여*(m−dangerLine)로 굶주린 kin 을
+   *   dangerLine 까지 떠받친다: d = min(dangerLine−m[궁핍], m[부유]−dangerLine)·kShare·coop 를 부유→궁핍으로(나간 만큼 들어옴 → sumM 불변).
+   *   *균등화*(couple 식)가 아니다 — 균등화는 부유 kin 을 mDiv 밑으로 끌어내려 번식을 깎아(협동 비용↑) 선택 우위를 지운다. 표적 구조는
+   *   궁핍한 kin 의 *결손분*(작음)만 메워 부유 kin 의 번식을 거의 안 깎으면서(비용↓) 사망을 막는다(이득↑) → b>c 로 협동이 *선택*된다.
+   *   occIdx(center→agent index)로 이웃 *생명*을 찾는다(couple 은 필드 E[cell] 이라 셀 인덱스로 족했으나, m 은 *생명* 속성이라 점유 생명을 찾아야 함).
+   * 척추: 새 *필드* 없음(m 은 기존 생물량, coop 은 a.g 속성의 표현형 — 단일 척추) · authored 분기 없음(공유 *세율*만 coop 의 함수, E 동역학·활성도는
+   *   태그로 안 갈림 — inherit 의 차등 대사세와 같은 정합) · 국소 문턱(제 4-인접 kin 쌍만, 전역 조율자 0) · 닫힌 장부(m 쌍 거래 = 나간 만큼 들어옴, couple 과 같은 경계).
+   * ⑥d: ⑥b crowd(밀도세) 뒤·⑦생명(흡수·사망) 앞 — crowd 가 매긴 대사세 *뒤*의 m 을 보고, 굶주린 kin 을 ⑦의 사망 판정 *전에* 떠받친다. */
+  var SHARE_BAND = 3.0;                                                                // 사망권 폭(고정 상수, 노브 아님) — dangerLine = mDeath·SHARE_BAND. 이 밑이면 "궁핍"(구조 대상).
+  function share(sim) {
+    var p = sim.p; if (p.kShare === 0) return;
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, W = p.W, H = p.H, N = W * H, k = p.kShare;
+    var f0 = p.coopFit0, fStep = p.coopFitStep, danger = p.mDeath * SHARE_BAND;
+    var occ = sim.shareOcc; if (!occ || occ.length !== N) occ = sim.shareOcc = new Int32Array(N);
+    occ.fill(0);                                                                       // 0 = 무점유. 점유 칸엔 (agent index + 1)
+    for (var i = 0; i < ag.length; i++) { if ((ag[i].g | 0) > 0) occ[ag[i].center] = i + 1; }
+    var shared = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var coop = f0 + fStep * (t - 1); if (coop > 1) coop = 1; else if (coop < 0) coop = 0;
+      if (coop <= 0) continue;                                                         // 배신 유전형 — 떠받치지 않음(coop=0)
+      var kc = k * coop, c = a.center, x = a.x, y = a.y;
+      var rc = c - x + (x + 1) % W;                                                    // 우(+x) 이웃 center
+      var dc = ((y + 1) % H) * W + x;                                                  // 하(+y) 이웃 center (우/하만 — 쌍 중복 방지)
+      var ri = occ[rc]; if (ri > 0) { var b1 = ag[ri - 1]; if ((b1.g | 0) === t) shared += rescue(a, b1, danger, kc); }
+      var di = occ[dc]; if (di > 0) { var b2 = ag[di - 1]; if ((b2.g | 0) === t) shared += rescue(a, b2, danger, kc); }
+    }
+    sim.shared += shared;                                                              // 누적 구조 생물량(통계 — 쌍 거래라 장부 무관)
+  }
+  /* kin 쌍 표적 구조 — 한쪽만 사망권이면 안전한 쪽이 제 잉여로 궁핍한 쪽을 dangerLine 까지 떠받친다(작은 결손분만, 번식 거의 안 깎음). */
+  function rescue(a, b, danger, kc) {
+    var donor, recip;
+    if (a.m < danger && b.m >= danger) { donor = b; recip = a; }                       // a 궁핍·b 안전 → b 가 떠받침
+    else if (b.m < danger && a.m >= danger) { donor = a; recip = b; }                  // b 궁핍·a 안전 → a 가 떠받침
+    else return 0;                                                                     // 둘 다 안전이거나 둘 다 궁핍 → 구조 없음(잉여 없음)
+    var need = danger - recip.m, avail = donor.m - danger;                             // 결손분 vs 잉여
+    var d = (need < avail ? need : avail) * kc;                                         // 작은 쪽만큼만 — 번식 거의 안 깎음
+    donor.m -= d; recip.m += d;
+    return d;
+  }
+
   /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
    * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
    * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
@@ -747,13 +809,14 @@
    * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
    * ⑥c 막 결합(couple)은 ⑥a adhere 뒤·⑥b crowd 앞 — 정렬로 묶인 액적 위에서 kin 끼리 E 를 공유하고(막 창발), crowd·생명이 그 공유된 자리에서 잰다·흡수한다.
+   * ⑥d 생물량 공유(share)는 ⑥b crowd 뒤·⑦생명 앞 — crowd 가 매긴 대사세 뒤의 m 을 kin 끼리 균등화해, 굶주린 kin 을 ⑦의 사망 판정 전에 떠받친다(개체 단위 생존).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, metabolize, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, combust, ignite, move, adhere, couple, crowd, share, metabolize, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate,
-    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, move: move, adhere: adhere, couple: couple, crowd: crowd, share: share, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
