@@ -1,20 +1,9 @@
-/* HWS 공통 법칙 — *진화하는* 누적 법칙 집합. step 이 더해온 모든 항이 *순서 있는 게이트 함수*로 산다.
+/* ⚠ 자동 생성 파일 — 직접 편집하지 말 것. 진실 원천은 engine/laws/*.js.
+ * 재생성: `node engine/build-laws.js` · 동기화 검사: `node engine/build-laws.js --check`(verify 가 호출).
+ * 법칙 추가법·구조 설명은 engine/build-laws.js 머리말 참조.
  *
- * 설계(law-pipeline): step-0001~0010 은 step() 한 덩어리를 매번 복사·수정하며 항을 하나씩 늘렸다.
- *   여기선 그 덩어리를 *한 항 = 한 함수*로 분해한다. 각 법칙은 sim 을 받아 제자리 변형하는 순수 절차이고,
- *   자기 노브가 0/off 면 *통째로 일찍 반환*한다 — 이게 회귀 0(노브=0 → 직전 step 비트 동일)의 실현이다.
- *   step() 의 "①~⑧ 순서 불변"은 이제 매 파일 주석에 재입력되는 대신 LAW_ORDER 배열 *단일 출처*가 된다.
- *
- * 새 step 작성법: (1) 새 법칙 함수를 여기 추가(자기 노브로 게이트, 노브=0 면 early-return),
- *   (2) DEFAULTS 에 노브 1개 추가(기본 0 = 회귀), (3) LAW_ORDER 의 올바른 순서 자리에 삽입.
- *   세계의 *상태를 안 바꾸는* 측정/장부/disc 헬퍼는 여기 말고 engine/hws-kernel.js 에.
- *
- * 회귀 사슬(노브를 끄면 과거 step 으로 환원):
- *   pTumble=0 → 0009 · kRelief=0 → 0008 · kCryst=0 → 0007 · srcJump=0 → 0006 · baseCost=0 → 0005 ·
- *   move=0 → 0004 · repro=0 → 0003 · (에이전트 0) → 0002 · kA=0 → 0001.
- * 검증: `node engine/validate/verify-engine.js` 가 이 법칙 묶음이 step-0010/sim-core.js 와 비트 동일함을 증명.
- *
- * 브라우저: window.HWS_LAWS (window.HWS_KERNEL 선행 로드 필요) / Node: module.exports.
+ * 진화하는 누적 법칙 집합 — step 이 더해온 항이 *순서 있는 게이트 함수*로 산다(자기 노브=0 → early-return = 회귀 0).
+ * 순서 단일 출처 = LAW_ORDER(laws/order.js). 브라우저: window.HWS_LAWS (window.HWS_KERNEL 선행) / Node: module.exports.
  */
 (function (global) {
   'use strict';
@@ -166,6 +155,7 @@
                          //   =1 이면 보존적(share 류 — 침투 없음), >1 이면 강한 침투. 전체 스택 기본 2.0. 통제 아레나서 협동(공공재)이 *지속*을 넘어 침투하는지 잰다.
   };
 
+
   /* ─────────────────────────────────────────────────────────────────────────
    * 법칙들 — 매 tick 세계의 E/R/agents 를 제자리 변형. 각자 자기 노브로 게이트(노브=0 → early-return = 회귀).
    * 순서는 LAW_ORDER(아래)가 단일 출처로 고정한다: ①확산 ②증발 ③④구동 ⑤결정화 ⑥이동 ⑦생명 ⑧번식.
@@ -291,55 +281,6 @@
     sim.crystallized += cry; sim.weathered += wth;
   }
 
-  /* ⑤d 복제(R-주형 자기복제, step-0015) — kTemplate=0 이면 통째로 건너뜀(회귀 0, G·복제 불변 → 해시 가법 skip).
-   * SPINE §다섯째 축(유전): 저장(R)의 *씨앗 끝* — 자기복제하는 R-배치(genotype)가 제 사본의 결정화를 *촉매*한다.
-   *   복제 = E→R 쌍 거래(닫힌 장부, ⑤결정화와 같은 경계) + 유전형 태그 G 복사. 복제오류(geneMu)=변이, 기질(E) 경쟁=선택
-   *   → 다윈 동역학이 substrate 위에서 돈다(genotype = 복제된 R-패턴; 다양성은 *병렬 필드 아닌 속성*=태그 G 에 — 단일 척추).
-   *   유전은 *이산* 정보다(연속 필드는 번져 정보를 못 지킨다 — Schrödinger "비주기 결정") — G 는 Uint8 이산 태그, R 은 담체.
-   * 표현형: fit(tag) = geneFit0 + geneFitStep·(tag−1) = 복제 propensity(0~1). 높은 태그가 빨리 복제 → 선택이 평균 적합도를
-   *   올린다(geneFitStep=0 이면 중립=드리프트). genotype→phenotype 맵은 authored type 분기가 아니다 — E 동역학은 태그로
-   *   안 갈리고(필드는 여전히 E), 복제 *속도*만 태그의 함수다. 활성도(E flux)는 여전히 측정으로 환원(척추 체크 2).
-   * 국소(척추 체크 3): 주형은 제 4이웃(von Neumann)만 본다(전역 조율자 0). tick 시작 스냅샷(Gbuf)에서 주형을 읽어
-   *   같은 tick scan-order 연쇄 폭주를 막는다 — 한 tick = 한 세대. 빈 칸(G==0) 경쟁은 scan 먼저 온 주형이 차지(국소 자원경쟁).
-   * 순환(척추 체크 4): 풍화(⑤ kWeather)가 R 을 깎아 R < geneClear 면 G=0(기질이 사라지면 유전 정보도 소멸 — 정보는 저장
-   *   극단에만; 소산 극단 불꽃은 흐름이 패턴을 지운다). 빠른 복제(개체 척도) + 느린 풍화(세계 척도) = 유전 정보의 순환.
-   * 장부: 복제는 E→R 쌍 거래뿐(G 태그는 거래 0 — 정보지 에너지 아님). sumE+M+R+… 식 불변(잔차 동일). */
-  var GENE_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // 복제 이웃(4-근방) — scan 순서 고정(결정론·먼저 온 주형이 빈칸 차지)
-  function replicate(sim) {
-    var p = sim.p; if (p.kTemplate === 0) return;   // off: replicate no-op. geneInit 은 *건드리지 않는다* — A(읽기전용 측정·재베이스라인 필요)와 달리 G 는 *지속 상태*다:
-                                                    //   spawnGene 으로 심은 G 가 있으면(geneInit=true) kTemplate 을 꺼도 그 유전형이 해시에 남아야 한다(faithful fingerprint, sticky).
-                                                    //   kTemplate=0·미파종이면 geneInit 기본 false 유지 → G skip(과거 골든 std@/endo@/cwd@/fsm@/flux@ 불변).
-    sim.geneInit = true;
-    var E = sim.E, R = sim.R, G = sim.G, Gb = sim.Gbuf, W = p.W, H = p.H, N = W * H;
-    var rate = p.geneRate, gThr = p.geneThresh, mu = p.geneMu, nG = p.geneTypes;
-    var f0 = p.geneFit0, fStep = p.geneFitStep, gClr = p.geneClear, seed = sim.seed, tick = sim.tick;
-    var reps = 0, muts = 0, i;
-    /* 0. 유전 소거(풍화로 기질 사라진 칸의 태그 제거) + tick 시작 주형 스냅샷(Gb) — 같은 tick 연쇄 폭주 방지(한 tick=한 세대). */
-    for (i = 0; i < N; i++) { if (G[i] !== 0 && R[i] < gClr) G[i] = 0; Gb[i] = G[i]; }
-    /* 1. 복제 — 각 주형(Gb≠0 & R≥gThr)이 4이웃 빈칸(G==0, 기질 E≥rate)에 propensity=fit 로 침착·태그 복사(±변이). */
-    for (var y = 0; y < H; y++) {
-      for (var x = 0; x < W; x++) {
-        i = y * W + x;
-        var g = Gb[i]; if (g === 0 || R[i] < gThr) continue;
-        var fit = f0 + fStep * (g - 1); if (fit > 1) fit = 1; else if (fit < 0) fit = 0;
-        for (var d = 0; d < 4; d++) {
-          var nx = (x + GENE_VN[d][0] + W) % W, ny = (y + GENE_VN[d][1] + H) % H, j = ny * W + nx;
-          if (G[j] !== 0) continue;            // 이미 태그(live) — 먼저 온 주형이 차지(국소 자원경쟁, scan 순서)
-          if (E[j] < rate) continue;           // 기질 부족 — 복제할 E 가 없다(자원 문턱 → 경쟁=선택)
-          var h = K.tumbleHash(nx, ny, tick, seed);
-          if ((h >>> 16) * (1 / 65536) >= fit) continue;   // 발화 propensity = 적합도(표현형) — 고비트
-          E[j] -= rate; R[j] += rate;          // E→R 쌍 거래(닫힌 장부 — 결정화와 같은 경계)
-          var tag = g, mb = h & 0xffff;
-          if (mb * (1 / 65536) < mu) {         // 복제오류 = 변이(시드 의사난수) — ±1 이웃 태그로(wrap)
-            tag = ((g - 1 + ((mb & 1) ? 1 : nG - 1)) % nG) + 1; muts++;
-          }
-          G[j] = tag; reps++;
-        }
-      }
-    }
-    sim.geneReps += reps; sim.geneMut += muts;   // 누적 복제·변이(통계 — 장부 무관)
-  }
-
   /* ⑤b 점화·연소·소진(step-0011) — 구동 내생화. kIgnite=0 이면 통째로 건너뜀(회귀 0, stars 불변).
    * 별 = 활성도 축의 *소산 극단*(SPINE 결정2). 닫힌 고리: 저장체 R 이 임계를 넘으면 *세계 안에서* 점화
    * (R→연료, 쌍 거래) → 연료를 E 로 태우며 국소 봉우리가 되고(연료→E, 쌍 거래) → 소진하면 꺼진다(비가역, 결정3).
@@ -442,6 +383,107 @@
     }
   }
 
+  /* ⑤d 복제(R-주형 자기복제, step-0015) — kTemplate=0 이면 통째로 건너뜀(회귀 0, G·복제 불변 → 해시 가법 skip).
+   * SPINE §다섯째 축(유전): 저장(R)의 *씨앗 끝* — 자기복제하는 R-배치(genotype)가 제 사본의 결정화를 *촉매*한다.
+   *   복제 = E→R 쌍 거래(닫힌 장부, ⑤결정화와 같은 경계) + 유전형 태그 G 복사. 복제오류(geneMu)=변이, 기질(E) 경쟁=선택
+   *   → 다윈 동역학이 substrate 위에서 돈다(genotype = 복제된 R-패턴; 다양성은 *병렬 필드 아닌 속성*=태그 G 에 — 단일 척추).
+   *   유전은 *이산* 정보다(연속 필드는 번져 정보를 못 지킨다 — Schrödinger "비주기 결정") — G 는 Uint8 이산 태그, R 은 담체.
+   * 표현형: fit(tag) = geneFit0 + geneFitStep·(tag−1) = 복제 propensity(0~1). 높은 태그가 빨리 복제 → 선택이 평균 적합도를
+   *   올린다(geneFitStep=0 이면 중립=드리프트). genotype→phenotype 맵은 authored type 분기가 아니다 — E 동역학은 태그로
+   *   안 갈리고(필드는 여전히 E), 복제 *속도*만 태그의 함수다. 활성도(E flux)는 여전히 측정으로 환원(척추 체크 2).
+   * 국소(척추 체크 3): 주형은 제 4이웃(von Neumann)만 본다(전역 조율자 0). tick 시작 스냅샷(Gbuf)에서 주형을 읽어
+   *   같은 tick scan-order 연쇄 폭주를 막는다 — 한 tick = 한 세대. 빈 칸(G==0) 경쟁은 scan 먼저 온 주형이 차지(국소 자원경쟁).
+   * 순환(척추 체크 4): 풍화(⑤ kWeather)가 R 을 깎아 R < geneClear 면 G=0(기질이 사라지면 유전 정보도 소멸 — 정보는 저장
+   *   극단에만; 소산 극단 불꽃은 흐름이 패턴을 지운다). 빠른 복제(개체 척도) + 느린 풍화(세계 척도) = 유전 정보의 순환.
+   * 장부: 복제는 E→R 쌍 거래뿐(G 태그는 거래 0 — 정보지 에너지 아님). sumE+M+R+… 식 불변(잔차 동일). */
+  var GENE_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // 복제 이웃(4-근방) — scan 순서 고정(결정론·먼저 온 주형이 빈칸 차지)
+  function replicate(sim) {
+    var p = sim.p; if (p.kTemplate === 0) return;   // off: replicate no-op. geneInit 은 *건드리지 않는다* — A(읽기전용 측정·재베이스라인 필요)와 달리 G 는 *지속 상태*다:
+                                                    //   spawnGene 으로 심은 G 가 있으면(geneInit=true) kTemplate 을 꺼도 그 유전형이 해시에 남아야 한다(faithful fingerprint, sticky).
+                                                    //   kTemplate=0·미파종이면 geneInit 기본 false 유지 → G skip(과거 골든 std@/endo@/cwd@/fsm@/flux@ 불변).
+    sim.geneInit = true;
+    var E = sim.E, R = sim.R, G = sim.G, Gb = sim.Gbuf, W = p.W, H = p.H, N = W * H;
+    var rate = p.geneRate, gThr = p.geneThresh, mu = p.geneMu, nG = p.geneTypes;
+    var f0 = p.geneFit0, fStep = p.geneFitStep, gClr = p.geneClear, seed = sim.seed, tick = sim.tick;
+    var reps = 0, muts = 0, i;
+    /* 0. 유전 소거(풍화로 기질 사라진 칸의 태그 제거) + tick 시작 주형 스냅샷(Gb) — 같은 tick 연쇄 폭주 방지(한 tick=한 세대). */
+    for (i = 0; i < N; i++) { if (G[i] !== 0 && R[i] < gClr) G[i] = 0; Gb[i] = G[i]; }
+    /* 1. 복제 — 각 주형(Gb≠0 & R≥gThr)이 4이웃 빈칸(G==0, 기질 E≥rate)에 propensity=fit 로 침착·태그 복사(±변이). */
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        i = y * W + x;
+        var g = Gb[i]; if (g === 0 || R[i] < gThr) continue;
+        var fit = f0 + fStep * (g - 1); if (fit > 1) fit = 1; else if (fit < 0) fit = 0;
+        for (var d = 0; d < 4; d++) {
+          var nx = (x + GENE_VN[d][0] + W) % W, ny = (y + GENE_VN[d][1] + H) % H, j = ny * W + nx;
+          if (G[j] !== 0) continue;            // 이미 태그(live) — 먼저 온 주형이 차지(국소 자원경쟁, scan 순서)
+          if (E[j] < rate) continue;           // 기질 부족 — 복제할 E 가 없다(자원 문턱 → 경쟁=선택)
+          var h = K.tumbleHash(nx, ny, tick, seed);
+          if ((h >>> 16) * (1 / 65536) >= fit) continue;   // 발화 propensity = 적합도(표현형) — 고비트
+          E[j] -= rate; R[j] += rate;          // E→R 쌍 거래(닫힌 장부 — 결정화와 같은 경계)
+          var tag = g, mb = h & 0xffff;
+          if (mb * (1 / 65536) < mu) {         // 복제오류 = 변이(시드 의사난수) — ±1 이웃 태그로(wrap)
+            tag = ((g - 1 + ((mb & 1) ? 1 : nG - 1)) % nG) + 1; muts++;
+          }
+          G[j] = tag; reps++;
+        }
+      }
+    }
+    sim.geneReps += reps; sim.geneMut += muts;   // 누적 복제·변이(통계 — 장부 무관)
+  }
+
+  /* ⑧b 생명 유전(inherit, step-0016) — kInherit=0 이면 통째로 건너뜀(회귀 0, a.g 불변 → lifeGeneInit false → 해시 가법 skip).
+   * SPINE §다섯째 축 "유전↔생명 결합": step-0015 가 유전을 R(저장 극단)에 깔았다("유전이 개체보다 먼저"). 이 법칙은 그 genotype 을
+   *   *생명의 대사 엔진(m)에 단단히 묶는다* — 생명 = 자기복제 광물(genotype)을 소산 엔진(대사)에 묶어 활성도 *가운데* 선 것(SPINE 결정2;
+   *   주요 전이 사다리 복제분자→…→개체 의 다음 칸). 별의 *느슨한* 혈통(metallicity)과 달리 생명은 *단단한* 자기복제 — 유무가 아니라 결합의 단단함.
+   * 세 결합(모두 국소 — 전역 조율자 0):
+   *   (1) 부트스트랩(획득) — 유전형 없는 생명이 제가 선 칸의 R-genotype(G[center])을 *읽어* 제 유전형으로 삼는다(생명은 광물 유전자에서
+   *       부트스트랩, Cairns-Smith). step-0015 의 *이산* 태그를 그대로 읽는다 — 새 유전 시스템이 아니라 같은 genotype 의 *담체 이동*(R→생명).
+   *   (2) 상속 — 분열 자식(bornTick==tick)이 *인접 부모*(occ, 자식은 늘 부모의 4이웃에 태어난다)의 태그를 물려받는다(±변이=복제오류).
+   *       reproduce(⑧, 동결)를 안 건드린다 — 자식을 점유로 찾아 inherit 가 태그를 박는다(stigmergic, 부모 위치가 매개).
+   *   (3) 표현형→대사 — fit(태그)=geneFit0+geneFitStep·(태그−1) 가 낮으면 차등 대사세(inheritCost·(1−fit)·m, m→metabolized 쌍 거래,
+   *       crowd 와 같은 소산 경계). 고적합이 덜 내 *생명 개체군에서* 선택된다(R 위 선택을 넘어 *생명 자신*이 적응 — meanFit 상승).
+   * 척추: 새 *필드* 없음(a.g 는 생명 *속성* — 다양성은 병렬 필드 아닌 속성, 단일 척추) · authored 분기 없음(대사 *세율*만 태그의 함수,
+   *   E 동역학·활성도는 태그로 안 갈림 — 활성도 환원) · 국소 문턱(부트스트랩=내 칸 G, 상속=인접 부모, 표현형=내 m) · 닫힌 장부(표현형세=쌍 거래).
+   * ⑧b: ⑧reproduce 뒤(자식이 있어야 상속) · ⑨flux 앞(flux 가 net dE/dt 잰다 — inherit 는 m 만 바꿔 E 불변, 순서 무관하나 측정 앞이 옳다). */
+  function inherit(sim) {
+    var p = sim.p; if (p.kInherit === 0) { sim.lifeGeneInit = false; return; }   // off: a.g 미작동·해시 skip(과거 골든 불변). geneInit 처럼 sticky 아님 — a.g 는 에이전트가 휘발(사망 시 사라짐)이라 매 tick 게이트로 충분.
+    if (!p.life || !sim.agents.length) { sim.lifeGeneInit = true; return; }      // 켜졌으면 lifeGeneInit on(씨앗 a.g 가 해시에 들도록) — 개체 없어도 유지.
+    sim.lifeGeneInit = true;
+    var ag = sim.agents, G = sim.G, W = p.W, H = p.H, tick = sim.tick, seed = sim.seed;
+    var nG = p.geneTypes, mu = p.inheritMu, f0 = p.geneFit0, fStep = p.geneFitStep, cost = p.inheritCost;
+    /* occ: *이미 유전형을 가진* 생명의 점유 칸 → 태그(자식이 인접 부모를 찾는 매개). reproduce 는 자식을 배열 끝에 append 하고
+     * 태그를 안 박으므로(동결), inherit 시작 시점에 a.g 가 박힌 개체 = 부모(이전 tick 산 것 + 갓 심은 씨앗). 자식(a.g 미설정)은 제외.
+     * bornTick 으로 거르지 않는다 — 씨앗을 tick T 에 심고 같은 tick 에 번식하면 bornTick==tick 이라 부모가 빠지는 함정을 피한다. */
+    var occ = sim.inheritOcc; if (!occ) occ = sim.inheritOcc = new Map(); else occ.clear();
+    for (var k = 0; k < ag.length; k++) { var a0 = ag[k]; if (a0.g) occ.set(a0.center, a0.g); }
+    var muts = 0;
+    for (var k2 = 0; k2 < ag.length; k2++) {
+      var a = ag[k2];
+      if (!a.g) {                                  // 유전형 없음 — 상속(갓 태어난 자식) 또는 부트스트랩(기질에서 획득)
+        var got = 0;
+        if (a.bornTick === tick) {                 // 갓 태어남 → 인접 부모(occ)에서 상속(자식은 늘 부모의 4이웃)
+          for (var d = 0; d < 4; d++) {
+            var nx = (a.x + GENE_VN[d][0] + W) % W, ny = (a.y + GENE_VN[d][1] + H) % H, pg = occ.get(ny * W + nx);
+            if (pg) { got = pg; break; }
+          }
+          if (got) {                               // 복제오류 = 변이(시드 의사난수, 저비트)
+            var hh = K.tumbleHash(a.x, a.y, tick, seed);
+            if ((hh & 0xffff) * (1 / 65536) < mu) { got = ((got - 1 + ((hh & 1) ? 1 : nG - 1)) % nG) + 1; muts++; }
+          }
+        }
+        if (!got) got = G[a.center];               // 부트스트랩 — 제가 선 R-genotype 을 읽어 제 유전형으로(생명↔광물 결합). 무유전 기질이면 0(다음 tick 재시도).
+        a.g = got || 0;
+      }
+      if (a.g) {                                   // 표현형 → 대사: 저적합일수록 차등 대사세(선택). 닫힌 장부(crowd 와 같은 소산 경계).
+        var fit = f0 + fStep * (a.g - 1); if (fit > 1) fit = 1; else if (fit < 0) fit = 0;
+        var tax = cost * (1 - fit) * a.m; if (tax > a.m) tax = a.m;
+        a.m -= tax; sim.metabolized += tax;
+      }
+    }
+    sim.inheritMut += muts;                        // 누적 생명 변이(통계 — 장부 무관)
+  }
+
   /* ⑥ 이동 — run(주화성, 구배 따라 한 칸, step-0005) + tumble(step-0010, 갇히면 의사난수 한 칸).
    * 생명 off / 에이전트 0 / move off 면 통째로 건너뜀(회귀). pTumble=0 이면 tumble 분기 skip(=step-0009). */
   function move(sim) {
@@ -500,6 +542,99 @@
           }
         }
       }
+    }
+  }
+
+  /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
+   * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
+   * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
+   * 붐비면 net 손실이 커져(흡수<비용) 솎이고, 다음 ⑦생명에서 m<mDeath 면 죽는다(죽음 처리는 ⑦에 위임 — 중복 없음).
+   * 이것이 로지스틱 자기제한이다: 국소 밀도가 높을수록 1인당 생존이 어려워져 개체군이 *국소* 수용력으로 수렴한다.
+   * 척추: 새 필드 없음(필드는 여전히 E) · authored 분기 없음(연속 활성도 변조) · 국소 문턱(이웃만 셈, 전역 조율자 0) ·
+   * 닫힌 장부(혼잡세는 m→metabolized 쌍 거래, baseCost 와 같은 소산 경계 — sumE+M+R+…+metab−inj=E0 불변). */
+  function crowd(sim) {
+    var p = sim.p; if (p.kCrowd === 0) return;
+    if (!p.life || !sim.agents.length) return;
+    var ag = sim.agents, W = p.W, H = p.H, kC = p.kCrowd;
+    /* crowdR disc 오프셋(중심 제외) — 노브 변경 시에만 재계산, sim 에 캐시(상태 아님 → 해시·회귀 무관). */
+    var offs = sim.crowdOffsets;
+    if (!offs || sim.crowdOffR !== p.crowdR) { offs = sim.crowdOffsets = K.discOffsets(p.crowdR); sim.crowdOffR = p.crowdR; }
+    var occ = sim.crowdGrid, NG = W * H;
+    if (!occ || occ.length !== NG) occ = sim.crowdGrid = new Uint16Array(NG);
+    else occ.fill(0);
+    for (var k = 0; k < ag.length; k++) occ[ag[k].center]++;   // 점유 그리드(보통 셀당 1)
+    for (var k2 = 0; k2 < ag.length; k2++) {
+      var a = ag[k2], ax = a.x, ay = a.y, dens = 0;
+      for (var o = 0; o < offs.length; o++) {
+        var nx = (ax + offs[o][0] + W) % W, ny = (ay + offs[o][1] + H) % H;
+        dens += occ[ny * W + nx];
+      }
+      if (dens === 0) continue;
+      var tax = kC * dens;                                     // 혼잡 대사세(절대) — 밀도 비례
+      if (tax > a.m) tax = a.m;
+      a.m -= tax; sim.metabolized += tax;                      // 소산(스트레스 호흡, 닫힌 장부 sink)
+    }
+  }
+
+  /* ⑦ 생명(흡수·유지·사망) — step-0006 그대로. cost = m·mMaint + baseCost. survivors 를 sim.agents 로 넘긴다
+   * (원본은 생명 블록 끝에서 한 번 대입했지만, 여기선 ⑦ 끝에 대입 → ⑧ 번식이 그 배열을 읽고 push: 비트 동일). */
+  function metabolize(sim) {
+    var p = sim.p;
+    if (!p.life || !sim.agents.length) return;
+    var E = sim.E, ag = sim.agents, kL = p.kL, mMaint = p.mMaint, mDeath = p.mDeath, baseCost = p.baseCost;
+    var survivors = [];
+    for (var k = 0; k < ag.length; k++) {
+      var a = ag[k], cells = a.cells;
+      var got = 0;
+      for (var c = 0; c < cells.length; c++) {
+        var idx = cells[c], take = E[idx] * kL;
+        E[idx] -= take; got += take;
+      }
+      a.m += got;
+      var cost = a.m * mMaint + baseCost;
+      if (cost > a.m) cost = a.m;
+      a.m -= cost; sim.metabolized += cost;
+      if (a.m < mDeath) {
+        E[a.center] += a.m; a.m = 0;
+        a.deathTick = sim.tick; sim.deaths++;
+      } else {
+        survivors.push(a);
+      }
+    }
+    sim.agents = survivors;
+  }
+
+  /* ⑧ 번식 — repro off 면 건너뜀. 분열 = 생물량 내부 분배(부모 m/2 + 자식 m/2). step-0004 그대로.
+   * sim.agents(=⑦의 survivors)를 직접 읽고 push — 원본의 survivors push 와 동일 배열·동일 순서. */
+  function reproduce(sim) {
+    var p = sim.p;
+    if (!p.life || !p.repro) return;
+    var W = p.W, H = p.H, E = sim.E, survivors = sim.agents;
+    var mDiv = p.mDiv, divOff = sim.divOffsets, popCap = p.popCap, occ = sim.occSet;
+    occ.clear();
+    for (var s = 0; s < survivors.length; s++) occ.add(survivors[s].center);
+    var nDiv = survivors.length;
+    for (var s2 = 0; s2 < nDiv; s2++) {
+      var par = survivors[s2];
+      if (par.m < mDiv) continue;
+      if (survivors.length >= popCap) break;
+      var px = par.x, py = par.y, bestIdx = -1, bestE = -Infinity, bestX = 0, bestY = 0;
+      for (var o = 0; o < divOff.length; o++) {
+        var nx = (px + divOff[o][0] + W) % W, ny = (py + divOff[o][1] + H) % H;
+        var nidx = ny * W + nx;
+        if (occ.has(nidx)) continue;
+        if (E[nidx] > bestE) { bestE = E[nidx]; bestIdx = nidx; bestX = nx; bestY = ny; }
+      }
+      if (bestIdx < 0) continue;
+      var half = par.m * 0.5;
+      par.m = half;
+      survivors.push({
+        x: bestX, y: bestY, m: half,
+        cells: K.discCells(W, H, bestX, bestY, p.lifeR),
+        center: bestIdx, bornTick: sim.tick
+      });
+      occ.add(bestIdx);
+      sim.births++;
     }
   }
 
@@ -690,151 +825,6 @@
       }
     }
     sim.pubgood += produced;                                                            // 누적 공공재 이득(통계 — 기부는 m→m·시너지는 E→m, 둘 다 보존)
-  }
-
-  /* ⑥b 혼잡(밀도 의존 자기제한, step-0012) — kCrowd=0 이면 통째로 건너뜀(회귀 0, agents·장부 불변).
-   * 내생 구동(별)은 동결을 풀었으나 carrying capacity 가 없어 생명이 과증식→공멸했다(step-0011 §5). 이 법칙은
-   * 그 *음성 피드백*을 더한다: 각 생명이 *국소 밀도*(crowdR disc 안의 다른 생명 수)에 비례한 추가 대사세를 낸다 —
-   * 붐비면 net 손실이 커져(흡수<비용) 솎이고, 다음 ⑦생명에서 m<mDeath 면 죽는다(죽음 처리는 ⑦에 위임 — 중복 없음).
-   * 이것이 로지스틱 자기제한이다: 국소 밀도가 높을수록 1인당 생존이 어려워져 개체군이 *국소* 수용력으로 수렴한다.
-   * 척추: 새 필드 없음(필드는 여전히 E) · authored 분기 없음(연속 활성도 변조) · 국소 문턱(이웃만 셈, 전역 조율자 0) ·
-   * 닫힌 장부(혼잡세는 m→metabolized 쌍 거래, baseCost 와 같은 소산 경계 — sumE+M+R+…+metab−inj=E0 불변). */
-  function crowd(sim) {
-    var p = sim.p; if (p.kCrowd === 0) return;
-    if (!p.life || !sim.agents.length) return;
-    var ag = sim.agents, W = p.W, H = p.H, kC = p.kCrowd;
-    /* crowdR disc 오프셋(중심 제외) — 노브 변경 시에만 재계산, sim 에 캐시(상태 아님 → 해시·회귀 무관). */
-    var offs = sim.crowdOffsets;
-    if (!offs || sim.crowdOffR !== p.crowdR) { offs = sim.crowdOffsets = K.discOffsets(p.crowdR); sim.crowdOffR = p.crowdR; }
-    var occ = sim.crowdGrid, NG = W * H;
-    if (!occ || occ.length !== NG) occ = sim.crowdGrid = new Uint16Array(NG);
-    else occ.fill(0);
-    for (var k = 0; k < ag.length; k++) occ[ag[k].center]++;   // 점유 그리드(보통 셀당 1)
-    for (var k2 = 0; k2 < ag.length; k2++) {
-      var a = ag[k2], ax = a.x, ay = a.y, dens = 0;
-      for (var o = 0; o < offs.length; o++) {
-        var nx = (ax + offs[o][0] + W) % W, ny = (ay + offs[o][1] + H) % H;
-        dens += occ[ny * W + nx];
-      }
-      if (dens === 0) continue;
-      var tax = kC * dens;                                     // 혼잡 대사세(절대) — 밀도 비례
-      if (tax > a.m) tax = a.m;
-      a.m -= tax; sim.metabolized += tax;                      // 소산(스트레스 호흡, 닫힌 장부 sink)
-    }
-  }
-
-  /* ⑦ 생명(흡수·유지·사망) — step-0006 그대로. cost = m·mMaint + baseCost. survivors 를 sim.agents 로 넘긴다
-   * (원본은 생명 블록 끝에서 한 번 대입했지만, 여기선 ⑦ 끝에 대입 → ⑧ 번식이 그 배열을 읽고 push: 비트 동일). */
-  function metabolize(sim) {
-    var p = sim.p;
-    if (!p.life || !sim.agents.length) return;
-    var E = sim.E, ag = sim.agents, kL = p.kL, mMaint = p.mMaint, mDeath = p.mDeath, baseCost = p.baseCost;
-    var survivors = [];
-    for (var k = 0; k < ag.length; k++) {
-      var a = ag[k], cells = a.cells;
-      var got = 0;
-      for (var c = 0; c < cells.length; c++) {
-        var idx = cells[c], take = E[idx] * kL;
-        E[idx] -= take; got += take;
-      }
-      a.m += got;
-      var cost = a.m * mMaint + baseCost;
-      if (cost > a.m) cost = a.m;
-      a.m -= cost; sim.metabolized += cost;
-      if (a.m < mDeath) {
-        E[a.center] += a.m; a.m = 0;
-        a.deathTick = sim.tick; sim.deaths++;
-      } else {
-        survivors.push(a);
-      }
-    }
-    sim.agents = survivors;
-  }
-
-  /* ⑧ 번식 — repro off 면 건너뜀. 분열 = 생물량 내부 분배(부모 m/2 + 자식 m/2). step-0004 그대로.
-   * sim.agents(=⑦의 survivors)를 직접 읽고 push — 원본의 survivors push 와 동일 배열·동일 순서. */
-  function reproduce(sim) {
-    var p = sim.p;
-    if (!p.life || !p.repro) return;
-    var W = p.W, H = p.H, E = sim.E, survivors = sim.agents;
-    var mDiv = p.mDiv, divOff = sim.divOffsets, popCap = p.popCap, occ = sim.occSet;
-    occ.clear();
-    for (var s = 0; s < survivors.length; s++) occ.add(survivors[s].center);
-    var nDiv = survivors.length;
-    for (var s2 = 0; s2 < nDiv; s2++) {
-      var par = survivors[s2];
-      if (par.m < mDiv) continue;
-      if (survivors.length >= popCap) break;
-      var px = par.x, py = par.y, bestIdx = -1, bestE = -Infinity, bestX = 0, bestY = 0;
-      for (var o = 0; o < divOff.length; o++) {
-        var nx = (px + divOff[o][0] + W) % W, ny = (py + divOff[o][1] + H) % H;
-        var nidx = ny * W + nx;
-        if (occ.has(nidx)) continue;
-        if (E[nidx] > bestE) { bestE = E[nidx]; bestIdx = nidx; bestX = nx; bestY = ny; }
-      }
-      if (bestIdx < 0) continue;
-      var half = par.m * 0.5;
-      par.m = half;
-      survivors.push({
-        x: bestX, y: bestY, m: half,
-        cells: K.discCells(W, H, bestX, bestY, p.lifeR),
-        center: bestIdx, bornTick: sim.tick
-      });
-      occ.add(bestIdx);
-      sim.births++;
-    }
-  }
-
-  /* ⑧b 생명 유전(inherit, step-0016) — kInherit=0 이면 통째로 건너뜀(회귀 0, a.g 불변 → lifeGeneInit false → 해시 가법 skip).
-   * SPINE §다섯째 축 "유전↔생명 결합": step-0015 가 유전을 R(저장 극단)에 깔았다("유전이 개체보다 먼저"). 이 법칙은 그 genotype 을
-   *   *생명의 대사 엔진(m)에 단단히 묶는다* — 생명 = 자기복제 광물(genotype)을 소산 엔진(대사)에 묶어 활성도 *가운데* 선 것(SPINE 결정2;
-   *   주요 전이 사다리 복제분자→…→개체 의 다음 칸). 별의 *느슨한* 혈통(metallicity)과 달리 생명은 *단단한* 자기복제 — 유무가 아니라 결합의 단단함.
-   * 세 결합(모두 국소 — 전역 조율자 0):
-   *   (1) 부트스트랩(획득) — 유전형 없는 생명이 제가 선 칸의 R-genotype(G[center])을 *읽어* 제 유전형으로 삼는다(생명은 광물 유전자에서
-   *       부트스트랩, Cairns-Smith). step-0015 의 *이산* 태그를 그대로 읽는다 — 새 유전 시스템이 아니라 같은 genotype 의 *담체 이동*(R→생명).
-   *   (2) 상속 — 분열 자식(bornTick==tick)이 *인접 부모*(occ, 자식은 늘 부모의 4이웃에 태어난다)의 태그를 물려받는다(±변이=복제오류).
-   *       reproduce(⑧, 동결)를 안 건드린다 — 자식을 점유로 찾아 inherit 가 태그를 박는다(stigmergic, 부모 위치가 매개).
-   *   (3) 표현형→대사 — fit(태그)=geneFit0+geneFitStep·(태그−1) 가 낮으면 차등 대사세(inheritCost·(1−fit)·m, m→metabolized 쌍 거래,
-   *       crowd 와 같은 소산 경계). 고적합이 덜 내 *생명 개체군에서* 선택된다(R 위 선택을 넘어 *생명 자신*이 적응 — meanFit 상승).
-   * 척추: 새 *필드* 없음(a.g 는 생명 *속성* — 다양성은 병렬 필드 아닌 속성, 단일 척추) · authored 분기 없음(대사 *세율*만 태그의 함수,
-   *   E 동역학·활성도는 태그로 안 갈림 — 활성도 환원) · 국소 문턱(부트스트랩=내 칸 G, 상속=인접 부모, 표현형=내 m) · 닫힌 장부(표현형세=쌍 거래).
-   * ⑧b: ⑧reproduce 뒤(자식이 있어야 상속) · ⑨flux 앞(flux 가 net dE/dt 잰다 — inherit 는 m 만 바꿔 E 불변, 순서 무관하나 측정 앞이 옳다). */
-  function inherit(sim) {
-    var p = sim.p; if (p.kInherit === 0) { sim.lifeGeneInit = false; return; }   // off: a.g 미작동·해시 skip(과거 골든 불변). geneInit 처럼 sticky 아님 — a.g 는 에이전트가 휘발(사망 시 사라짐)이라 매 tick 게이트로 충분.
-    if (!p.life || !sim.agents.length) { sim.lifeGeneInit = true; return; }      // 켜졌으면 lifeGeneInit on(씨앗 a.g 가 해시에 들도록) — 개체 없어도 유지.
-    sim.lifeGeneInit = true;
-    var ag = sim.agents, G = sim.G, W = p.W, H = p.H, tick = sim.tick, seed = sim.seed;
-    var nG = p.geneTypes, mu = p.inheritMu, f0 = p.geneFit0, fStep = p.geneFitStep, cost = p.inheritCost;
-    /* occ: *이미 유전형을 가진* 생명의 점유 칸 → 태그(자식이 인접 부모를 찾는 매개). reproduce 는 자식을 배열 끝에 append 하고
-     * 태그를 안 박으므로(동결), inherit 시작 시점에 a.g 가 박힌 개체 = 부모(이전 tick 산 것 + 갓 심은 씨앗). 자식(a.g 미설정)은 제외.
-     * bornTick 으로 거르지 않는다 — 씨앗을 tick T 에 심고 같은 tick 에 번식하면 bornTick==tick 이라 부모가 빠지는 함정을 피한다. */
-    var occ = sim.inheritOcc; if (!occ) occ = sim.inheritOcc = new Map(); else occ.clear();
-    for (var k = 0; k < ag.length; k++) { var a0 = ag[k]; if (a0.g) occ.set(a0.center, a0.g); }
-    var muts = 0;
-    for (var k2 = 0; k2 < ag.length; k2++) {
-      var a = ag[k2];
-      if (!a.g) {                                  // 유전형 없음 — 상속(갓 태어난 자식) 또는 부트스트랩(기질에서 획득)
-        var got = 0;
-        if (a.bornTick === tick) {                 // 갓 태어남 → 인접 부모(occ)에서 상속(자식은 늘 부모의 4이웃)
-          for (var d = 0; d < 4; d++) {
-            var nx = (a.x + GENE_VN[d][0] + W) % W, ny = (a.y + GENE_VN[d][1] + H) % H, pg = occ.get(ny * W + nx);
-            if (pg) { got = pg; break; }
-          }
-          if (got) {                               // 복제오류 = 변이(시드 의사난수, 저비트)
-            var hh = K.tumbleHash(a.x, a.y, tick, seed);
-            if ((hh & 0xffff) * (1 / 65536) < mu) { got = ((got - 1 + ((hh & 1) ? 1 : nG - 1)) % nG) + 1; muts++; }
-          }
-        }
-        if (!got) got = G[a.center];               // 부트스트랩 — 제가 선 R-genotype 을 읽어 제 유전형으로(생명↔광물 결합). 무유전 기질이면 0(다음 tick 재시도).
-        a.g = got || 0;
-      }
-      if (a.g) {                                   // 표현형 → 대사: 저적합일수록 차등 대사세(선택). 닫힌 장부(crowd 와 같은 소산 경계).
-        var fit = f0 + fStep * (a.g - 1); if (fit > 1) fit = 1; else if (fit < 0) fit = 0;
-        var tax = cost * (1 - fit) * a.m; if (tax > a.m) tax = a.m;
-        a.m -= tax; sim.metabolized += tax;
-      }
-    }
-    sim.inheritMut += muts;                        // 누적 생명 변이(통계 — 장부 무관)
   }
 
   /* ⑨ 활성도 계량(flux, step-0014) — kFlux=0 이면 통째로 건너뜀(회귀 0, A·Eprev·fluxInit 불변 → 해시 가법 skip).

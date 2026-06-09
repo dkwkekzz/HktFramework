@@ -217,10 +217,25 @@ function runGolden() {
   return ok;
 }
 
+/* sync: 생성물 hws-laws.js 가 진실 원천 laws/*.js 와 일치하는가(직접 편집 = 드리프트 방지).
+ *   build-laws.js --check 가 파트를 다시 조립해 커밋된 hws-laws.js 와 바이트 비교한다. */
+function runSync() {
+  console.log('== sync: hws-laws.js ≡ engine/laws/*.js (생성 동기화) ==');
+  try {
+    require('child_process').execFileSync('node', [path.join(__dirname, '..', 'build-laws.js'), '--check'], { stdio: 'inherit' });
+    console.log('sync PASS\n');
+    return true;
+  } catch (e) {
+    console.log('sync FAIL — `node engine/build-laws.js` 로 hws-laws.js 를 재생성하라.\n');
+    return false;
+  }
+}
+
 var mode = process.argv[2] || 'all';
 var ok;
 if (mode === 'eq') ok = runEq();
 else if (mode === 'golden') ok = runGolden();
-else ok = [runEq(), runGolden()].every(Boolean);
+else if (mode === 'sync') ok = runSync();
+else ok = [runSync(), runEq(), runGolden()].every(Boolean);
 console.log(ok ? 'PASS' : 'FAIL');
 process.exit(ok ? 0 : 1);

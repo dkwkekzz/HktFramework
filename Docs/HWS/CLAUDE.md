@@ -52,7 +52,7 @@ step마다 다음 산출물을 만든다.
 - `step-NNNN.md` — 문서. 도입부에 "6요소 지도" 표, 가설·검증 결과·다음 예고를 담는다.
   - **쉽게 풀어 쓴 설명 (필수)** — 모든 `step-NNNN.md` 는 *비전문가도 따라올 수 있게* 결과를 풀어 쓴 절(예: "## 0. 쉽게 풀어 쓴 설명")을 **반드시** 포함한다(step-0019 가 표준 예). 규칙: ① 과학 *개념*(혈연 선택·해밀턴 법칙·소산구조 등)은 써도 좋되 *말로 풀어* 설명한다. ② *내부 약칭·기호를 설명의 주된 매개로 쓰지 않는다* — 노브명(`kShare` 등)·해시 키(`mem@` 등)·법칙 순서 기호(⑥d)·`code 식별자`·"Δ"·지수표기 수치(4.22e-13)는 피하거나 괄호 보조로만. 수치는 "거의 안 변함 / 4분의 1 넘게 줄어듦 / 오차 사실상 0" 처럼 *말로* 옮긴다. ③ "이 단계가 답한 질문 → 무엇을 바꿨나 → 무엇을 발견했나 → 왜 중요한가 → 솔직한 한계" 흐름을 권장한다. 정식 §(6요소·메커니즘·검증)은 그대로 *정확한 수치·기호*로 적되, 이 풀어 쓴 절이 그 길잡이가 된다(둘은 중복 아닌 두 독자층용).
 - **시뮬 로직** — *이 step 이 더한 법칙 한 항*만 작성한다. 작성 위치가 시기에 따라 갈린다:
-  - **step-0011~ (law-pipeline 표준)**: `engine/hws-laws.js` 에 **법칙 함수 1개 + `DEFAULTS` 노브 1개 + `LAW_ORDER` 한 자리**를 더한다(노브=0 → early-return = 회귀 0). 동결 헬퍼(disc·장부·측정·해시)는 `engine/hws-kernel.js`, 조립(createSim/step/run)은 `engine/hws-sim.js` — **sim-core.js 복사 없음**. 장부/해시를 확장할 땐 *기존 시나리오 해시를 바꾸지 않는 가법*(미존재 시 no-op)만 허용한다.
+  - **step-0011~ (law-pipeline 표준, 0021~ 도메인 파트로 분할)**: 법칙은 도메인 파트 `engine/laws/<도메인>.js`(flow·star·gene·life·social·measure)로 산다. 한 step = **① `laws/defaults.js` 에 노브 1개 + ② 해당 도메인 파트에 법칙 함수 1개 + ③ `laws/order.js` 의 `LAW_ORDER` 한 자리·`api` 한 줄**(노브=0 → early-return = 회귀 0). 작성 후 **`node engine/build-laws.js`** 로 생성물 `engine/hws-laws.js` 를 재조립한다(브라우저 셸이 로드하는 단일 파일 — 직접 편집 금지, verify 가 동기화 강제). 파트 내 함수/const 텍스트 순서는 동작 무관(한 IIFE 스코프). 동결 헬퍼(disc·장부·측정·해시)는 `engine/hws-kernel.js`, 조립(createSim/step/run)은 `engine/hws-sim.js` — **sim-core.js 복사 없음**. 장부/해시를 확장할 땐 *기존 시나리오 해시를 바꾸지 않는 가법*(미존재 시 no-op)만 허용한다.
   - **step-0001~0010 (복사 코어, 동결)**: 당시 `step-NNNN/sim-core.js`(직전 코어 복사 + 1항)를 *그대로 보존*한다(아카이브 — 닫은 step 불변).
 - `step-NNNN/verify.js` — 헤드리스 검증. 회귀(`reg`)·보존·결정론·가설을 수치로 출력.
 - `step-NNNN/panel.js` — 선언적 패널(이 step 의 노브·통계·버튼). 직전 step panel.js 를 복사해 새 노브 행만 더한다.
@@ -60,9 +60,9 @@ step마다 다음 산출물을 만든다.
 
 > **공통 엔진 — UI(step-0007~) · sim(step-0011~)**: 복제를 끝낸다. 공통 CSS·UI·3D 는
 > `engine/hws-ui.css` · `engine/hws-ui.js` · `engine/hws-3d.js`(3D 레이어, step-0009~), **공통 sim 은
-> `engine/hws-kernel.js`(동결 헬퍼) · `engine/hws-laws.js`(진화하는 법칙 파이프라인) ·
-> `engine/hws-sim.js`(조립)** 한 곳에만 있고 step 마다 복제하지 않는다. step-0011~ 은 `step-NNNN/` 에
-> verify.js + 작은 panel.js + 셸만 두고, 더한 시뮬 로직은 `hws-laws.js` 의 법칙 1개다.
+> `engine/hws-kernel.js`(동결 헬퍼) · **`engine/laws/*.js`(진화하는 법칙 — 도메인 파트, 진실 원천) → `engine/build-laws.js` 가
+> `engine/hws-laws.js` 로 생성**(셸이 로드하는 단일 번들; 직접 편집 금지) · `engine/hws-sim.js`(조립)** 한 곳에만 있고 step 마다
+> 복제하지 않는다. step-0011~ 은 `step-NNNN/` 에 verify.js + 작은 panel.js + 셸만 두고, 더한 시뮬 로직은 해당 도메인 파트의 법칙 1개다.
 > **회귀 앵커는 동결 *파일*이 아니라 동결 *해시*** — `node engine/validate/verify-sim-engine.js` 가
 > law-pipeline 이 step-0010 코어와 비트 동일함(+ `golden-sim.json` 표준 시나리오 해시)을 증명한다.
 > 커널/법칙을 고치면 이 스크립트가 전 시나리오 해시를 재검증해 드리프트를 즉시 잡는다. 패널 스펙·셸 HTML
@@ -84,7 +84,7 @@ step마다 다음 산출물을 만든다.
 
 1. **읽기 (필독 3종)** — `CLAUDE.md`(목표·규칙) · **[SPINE.md](SPINE.md)(존재론 척추)** · `STATE.md`(현재 위치·다음 가설)를 먼저 읽는다. **SPINE.md 숙지 없이 step 을 시작하지 않는다** — 한 조각이 척추 체크 4항에 맞는지부터 본다.
 2. **계획** — `STATE.md` 의 "다음"이 지정한 *한 조각*만 이번 step으로 정한다. 더 떠올라도 다음으로 전가한다. SPINE.md 척추 체크 4항에 어긋나면 조각을 고쳐 잡는다.
-3. **구현** — 직전 step 을 잇고 항을 *하나만* 더한다(0011~ 은 `engine/hws-laws.js` 에 법칙 1개 + 노브 1개 + `LAW_ORDER` 한 자리; sim-core.js 복사 없음). 산출물 작성 후 `verify-sim-engine.js` 로 골든 해시 불변 확인.
+3. **구현** — 직전 step 을 잇고 항을 *하나만* 더한다(0011~ 은 `laws/defaults.js` 노브 1개 + 도메인 파트 법칙 1개 + `laws/order.js` 의 `LAW_ORDER`·`api` 한 자리; sim-core.js 복사 없음). 작성 후 **`node engine/build-laws.js`** 로 `hws-laws.js` 재생성 → `verify-sim-engine.js` 로 동기화·회귀·골든 해시 불변 확인.
 4. **검증** — `verify.js` 로 가설 4기둥 + **SPINE.md 척추 체크 4항**을 모두 통과시킨다. 통과 못 하면 step을 닫지 않는다.
 5. **갱신** — 발견/한계의 *전문*은 이번 `step-NNNN.md` 에 기록한다. 그 다음 `STATE.md` 를 갱신한다(고정 크기 대시보드 — §1~6 덮어쓰기 / §7 인덱스만 append): §1 NOW 포인터 이동·§2 NEXT 가설 교체·§3 OPEN GAPS 마커/상태 갱신(해소된 격차는 ✅, 새 격차는 🔴)·§4 DURABLE CONSTRAINTS 에 이번 step 이 *반복적으로 작용할 정전 사실*만 추가·§5 6요소 갱신·§7 INDEX 1행 추가. 발견/한계를 STATE 에 문단으로 누적하지 않는다. 이번 step이 특정 요소를 진화시켰다면 해당 요소 문서(`step-0001/01~06`) 끝 "검증 현황과 수정 이력" 절도 갱신한다.
 6. **닫기** — step 문서 도입부 "6요소 지도" 표를 이번 step 기준으로 확정. 닫은 step 문서는 이후 수정하지 않는다(요소 문서는 §작업 구조의 예외 — 계속 갱신).
