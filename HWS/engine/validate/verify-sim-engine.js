@@ -47,6 +47,7 @@ var DIFF = { kDiff: 0.3 };  // 세포 분화(step-0021) — golden 의 diff@ 키
 var GERM = { kGermline: 0.3 };  // 생식세포 계통 격리(step-0022) — golden 의 germ@ 키가 + 계통 스택을 동결 잠근다(step-0023~ 회귀 앵커).
 var ANCHOR = { kAnchor: 1, anchorM: 0.6, anchorKin: 2 };  // 정착 생활사(step-0023) — golden 의 anchor@ 키가 + 정착 스택을 동결 잠근다(step-0024~ 회귀 앵커).
 var TENSION = { kTension: 1, tensionGamma: 0.10 };  // 곡률 기반 표면장력(step-0024) — golden 의 curv@ 키가 + 표면장력 스택을 동결 잠근다(step-0025~ 회귀 앵커).
+var ANISO = { kAniso: 1, anisoRate: 0.3, anisoThresh: 0.2 };  // 방향성 결정화(step-0025) — golden 의 aniso@ 키가 + 방향성 결정화 스택을 동결 잠근다(step-0026~ 회귀 앵커).
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H;
 
 function scn(extra) {
@@ -82,6 +83,8 @@ function germScn(extra) { return Object.assign({}, diffScn(), GERM, extra || {})
 function ancScn(extra) { return Object.assign({}, germScn(), ANCHOR, extra || {}); }
 /* 곡률 표면장력 켠 내생 시나리오(step-0024 스택) — step-0024/verify.js scn() 과 동일 상수. */
 function curvScn(extra) { return Object.assign({}, ancScn(), TENSION, extra || {}); }
+/* 방향성 결정화 켠 내생 시나리오(step-0025 스택) — step-0025/verify.js scn() 과 동일 상수. */
+function anisoScn(extra) { return Object.assign({}, curvScn(), ANISO, extra || {}); }
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -142,7 +145,23 @@ function curvTissueScn(extra) {
     kTension: 1, tensionGamma: 0.10
   }, extra || {});
 }
+/* 방향성 결정화 crystal 아레나(step-0025 anisotropy *실활성*) — step-0025/verify.js anisoArena() 와 동일 상수.
+ * 균일 E 장 + 중심 유전 씨앗(tag1) → 방향성 결정화가 선호 축(가로)으로만 E→R 침착해 needle/결정축을 키운다(이방성 지수>1). 다른 법칙 다 off(순수 R 형태 격리).
+ * aniso@(전체 스택, 희소라 큰 결정 드물어 방향성 약하게 켜짐 — 직교성 동결)와 달리 이 taniso@ 는 방향성 결정화 코드 경로(축 E→R 침착·태그 복사)를 *실제로* 도는 상태를 동결한다(드리프트 가드). */
+function anisoTissueScn(extra) {
+  return Object.assign({}, {
+    initE: 1.5, noise: 0.2, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kEvap: 0, kA: 0, baseCost: 0, life: false,
+    repro: false, move: false,
+    kCrowd: 0, kCryst: 0, kWeather: 0, kRelief: 0, kIgnite: 0, kFSM: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0,
+    geneTypes: 4, kAniso: 1, anisoRate: 0.3, anisoThresh: 0.2
+  }, extra || {});
+}
 function seedBlob(C, sim, tag) { for (var y = 24; y < 40; y++) for (var x = 24; x < 40; x++) { var a = C.spawnAgent(sim, x, y); a.g = tag; } }
+/* 방향성 결정화 씨앗(step-0025 crystal 아레나) — 중심에 유전 R 씨앗(tag1 disc r2) 하나. anisotropy 가 가로 축으로 needle 을 키운다. */
+function seedGeneDisc(C, sim) { C.spawnGene(sim, 32, 32, 2, 1, 1.0); }
 function seedTissue(C, sim) { for (var y = 26; y < 38; y++) for (var x = 26; x < 38; x++) { var a = C.spawnAgent(sim, x, y); a.g = 1; } }
 /* 흩어진 단일 클론 씨앗(step-0023 settling 아레나) — 정착이 흩어진 씨앗을 confluent 조직으로 모은다(정착 off 면 흩어진 채). */
 function seedScatter(C, sim) { for (var y = 18; y < 46; y += 3) for (var x = 18; x < 46; x += 3) { var a = C.spawnAgent(sim, x, y); a.g = 1; } }
@@ -240,6 +259,8 @@ function runEq() {
  *   tanc@ — step-0023 정착 settling 아레나(anchor *실활성* — 흩어진 씨앗이 고착해 confluent 조직). anchor@ 가 정착 본문을 거의 미커버라 이 키가 정착 코드 경로를 동결한다(드리프트 가드).
  *   curv@ — step-0024 곡률 표면장력 스택(전체 스택, 희소라 표면장력 거의 안 켜짐 — 직교성 동결). step-0025~ 의 회귀 앵커: 새 노브 kTension=0 이면 이 해시 불변.
  *   tcurv@ — step-0024 곡률 rounding 아레나(tension *실활성* — 볼록 돌기→오목 만 재배치로 둥글림·합침). curv@ 가 곡률 본문을 거의 미커버라 이 키가 곡률 코드 경로를 동결한다(드리프트 가드).
+ *   aniso@ — step-0025 방향성 결정화 스택(전체 스택, 희소라 큰 결정 드물어 방향성 거의 안 켜짐 — 직교성 동결). step-0026~ 의 회귀 앵커: 새 노브 kAniso=0 이면 이 해시 불변.
+ *   taniso@ — step-0025 방향성 결정화 crystal 아레나(anisotropy *실활성* — 유전 씨앗이 선호 축으로 needle 결정축을 키움). aniso@ 가 방향성 본문을 거의 미커버라 이 키가 방향성 코드 경로를 동결한다(드리프트 가드).
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -319,6 +340,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // tcurv@ — 곡률 rounding 아레나(tension *실활성*: E-막에 Young-Laplace 곡률 구배 → 고-E 돔). curv@ 의 미커버를 보완해 곡률 코드 경로를 동결. step-0025 회귀 앵커.
     var a = ENG.createSim(seed, curvTissueScn()); seedBlob(ENG, a, 1); ENG.run(a, 800);
     cur['tcurv@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // aniso@ — curv@ + 방향성 결정화(전체 스택, 희소라 큰 결정 드물어 방향성 거의 안 켜짐 — 직교성 동결). step-0026 회귀 앵커: 새 노브 kAniso=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, anisoScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
+    cur['aniso@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // taniso@ — 방향성 결정화 crystal 아레나(anisotropy *실활성*: 유전 씨앗이 선호 축으로 needle 결정축). aniso@ 의 미커버를 보완해 방향성 코드 경로를 동결. step-0026 회귀 앵커.
+    var a = ENG.createSim(seed, anisoTissueScn()); seedGeneDisc(ENG, a); ENG.run(a, 20);
+    cur['taniso@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

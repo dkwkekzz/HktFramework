@@ -389,6 +389,31 @@
       convexE: cxN ? cxE / cxN : 0, interiorE: inN ? inE / inN : 0, coreRatio: (cxN && inN && cxE > 1e-9) ? (inE / inN) / (cxE / cxN) : 0 };
   }
 
+  /* 방향성 결정화 측정 — step-0025. anisotropy(⑤e)가 빚은 *R 하이트필드의 이방성*(가지·결정축 vs 등방 blob)을 author 아닌 *측정*으로 읽는다.
+   * R 분포(저장체 = 물질 하이트필드)의 *2차 모멘트*(관성 텐서)의 주축비로 이방성을 잰다 — 등방 blob 이면 주축이 같아(≈1), 한 축으로 자란 needle/결정축이면 비율이 크다(>1).
+   *   토러스 wrap 은 *편차*를 최소거리로 보정한다(결정은 국소라 보통 wrap 안 함 — 안전장치). R 동역학에 되먹임 0(둘째 척추 아님 — 측정 읽기전용). 반환:
+   *   aniso — 주축비 λ1/λ2(이방성 지수, ≥1; >1 → 방향성 결정·1 ≈ 등방 blob). 형태 측정(4기둥 ④). · axisX/axisY — x/y 분산(Ixx/Iyy, 어느 축으로 자랐나) · l1/l2 주고유값 · cells/sumR(R 점유 셀·총 R). */
+  function measureAnisotropy(sim, eps) {
+    var R = sim.R, W = sim.p.W, H = sim.p.H, N = W * H, e = eps != null ? eps : 0.05;
+    var sw = 0, sx = 0, sy = 0, cells = 0, i, x, y;
+    for (i = 0; i < N; i++) { if (R[i] <= e) continue; x = i % W; y = (i - x) / W; sw += R[i]; sx += R[i] * x; sy += R[i] * y; cells++; }
+    if (sw <= 1e-12) return { aniso: 1, axisX: 0, axisY: 0, l1: 0, l2: 0, cells: 0, sumR: 0 };
+    var cx = sx / sw, cy = sy / sw, Ixx = 0, Iyy = 0, Ixy = 0, hW = W / 2, hH = H / 2;
+    for (i = 0; i < N; i++) {
+      if (R[i] <= e) continue;
+      x = i % W; y = (i - x) / W;
+      var dx = x - cx; if (dx > hW) dx -= W; else if (dx < -hW) dx += W;             // 토러스 편차 보정(결정 wrap 안전장치)
+      var dy = y - cy; if (dy > hH) dy -= H; else if (dy < -hH) dy += H;
+      var w = R[i]; Ixx += w * dx * dx; Iyy += w * dy * dy; Ixy += w * dx * dy;
+    }
+    Ixx /= sw; Iyy /= sw; Ixy /= sw;
+    var tr = Ixx + Iyy, det = Ixx * Iyy - Ixy * Ixy;
+    var disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+    var l1 = tr / 2 + disc, l2 = tr / 2 - disc;
+    var aniso = l2 > 1e-9 ? l1 / l2 : (l1 > 1e-9 ? Infinity : 1);
+    return { aniso: aniso, axisX: Ixx, axisY: Iyy, l1: l1, l2: l2, cells: cells, sumR: sw };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -568,7 +593,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,
