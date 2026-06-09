@@ -110,14 +110,14 @@ function det(seed) {
  *   ③ 보존: 분화가 *세게* 도는 조직서도 닫힌 장부(기부 m→m 쌍 거래라 잔차<1e-6). */
 function differTest(seed) {
   var off = diffRun(seed, 0), on = diffRun(seed, 0.6);
-  var dGap = on.roleGap - off.roleGap, germRatio = off.germM > 1e-9 ? on.germM / off.germM : 0;
-  var pass = dGap > 0.20                          // 위치가 phenotype 을 *세게* 가름(분화 — 같은 클론 두 역할)
+  var dGap = on.roleGap - off.roleGap;
+  var pass = dGap > 0.20                          // 위치가 phenotype 을 *세게* 가름(분화 — 같은 클론 두 역할). *주의*: 지표가 법칙과 같은 occN≥4 분할이라 mechanism 확인 성격(아래 ②가 독립 증거).
     && on.germM > 1.5 * off.germM                 // 표면 germ 이 내부 soma 의 provision 으로 fed(배증)
-    && off.roleGap < 0                            // 기준선: 분화 없으면 내부가 m 사장(roleGap 음 — 표면이 굶음)
+    && off.roleGap < 0                            // 기준선: 분화 없으면 내부가 m 사장(roleGap 음 — 단 이는 번식 기하 artifact, 내부=분열 불가→축적)
     && on.somaFrac > 0.5                          // 조직에 *갇힌 내부*(soma) 가 다수 — 분화할 내부가 있다
-    && on.pop > off.pop && on.births > off.births // 분업 이득 — 사장 생물량이 번식으로 전환(개체군 성장↑)
+    && on.pop > off.pop && on.births > off.births // ② 독립 증거 — 분업 이득: 사장 생물량이 번식으로 전환(개체군·출생↑, 법칙이 직접 안 만지는 결과)
     && on.residual < 1e-6;                        // 분화가 세게 도는 조직서도 닫힌 장부(기부 m→m 쌍 거래)
-  return { seed: seed, gapOff: off.roleGap, gapOn: on.roleGap, dGap: dGap, germOff: off.germM, germOn: on.germM, germRatio: germRatio,
+  return { seed: seed, gapOff: off.roleGap, gapOn: on.roleGap, dGap: dGap, germOff: off.germM, germOn: on.germM,
     somaFrac: on.somaFrac, popOff: off.pop, popOn: on.pop, bOff: off.births, bOn: on.births, residual: on.residual, differentiated: on.differentiated, pass: pass };
 }
 
