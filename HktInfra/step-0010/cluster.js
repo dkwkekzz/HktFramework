@@ -12,9 +12,11 @@ class Cluster {
     this.children = new Map();   // hostId -> child
     this.pending = new Map();    // hostId -> Map(reqId -> resolve)
     this.reqSeq = 0;
-    this.ipcMsgs = 0;            // broker→자식 IPC 메시지 수(프로세스 경계 통과량)
-    this.ipcBytes = 0;          // 직렬화 바이트 합
-    this.allSerializable = true; // 경계 넘는 모든 메시지가 순수 데이터(함수·심볼·순환 0)인가
+    this.ipcMsgs = 0;            // broker→자식 IPC 메시지 수(out 방향 경계 통과량)
+    this.ipcBytes = 0;          // out 직렬화 바이트 합
+    this.ipcMsgsIn = 0;         // 자식→broker IPC 메시지 수(in 방향)
+    this.ipcBytesIn = 0;        // in 직렬화 바이트 합
+    this.allSerializable = true; // *양방향* 경계 넘는 모든 메시지가 순수 데이터(함수·심볼·순환 0)인가
     this._pids = new Map();      // hostId -> pid
   }
   async spawn() {
@@ -24,6 +26,7 @@ class Cluster {
       this.children.set(h, child);
       this.pending.set(h, new Map());
       child.on('message', (m) => {
+        this._measureIn(m);   // 자식→broker 방향도 직렬화 검증·계측(양방향 = "직렬화로만" 의 정직한 측정)
         if (m.hello) { this._pids.set(h, m.pid); res(); return; }
         const pend = this.pending.get(h);
         const r = pend.get(m.reqId);
@@ -38,6 +41,13 @@ class Cluster {
     try { s = JSON.stringify(msg); } catch (e) { this.allSerializable = false; return; }
     if (typeof s !== 'string') { this.allSerializable = false; return; }
     this.ipcMsgs++; this.ipcBytes += s.length;
+  }
+  // 자식→broker 응답(sends 배열·스냅샷)도 같은 검증 — round-trip 으로 순수 데이터 확인(공유 참조 없음).
+  _measureIn(m) {
+    let s;
+    try { s = JSON.stringify(m); } catch (e) { this.allSerializable = false; return; }
+    if (typeof s !== 'string') { this.allSerializable = false; return; }
+    this.ipcMsgsIn++; this.ipcBytesIn += s.length;
   }
   rpc(hostId, msg) {
     return new Promise((res) => {
@@ -131,7 +141,9 @@ async function runMulti(opts, deps) {
   const snaps = await cluster.snapshotAll();
   const clusterInfo = {
     pids: cluster.pids(), parentPid: process.pid, hostIds,
-    placement: [...placement.entries()], ipcMsgs: cluster.ipcMsgs, ipcBytes: cluster.ipcBytes,
+    placement: [...placement.entries()],
+    ipcMsgs: cluster.ipcMsgs, ipcBytes: cluster.ipcBytes,
+    ipcMsgsIn: cluster.ipcMsgsIn, ipcBytesIn: cluster.ipcBytesIn,
     allSerializable: cluster.allSerializable,
   };
   await cluster.shutdown();

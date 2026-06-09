@@ -54,6 +54,9 @@ function finalLiveDesync(r) {
 // 검증 시나리오(공통)
 const BASIC = (seed) => ({ seed, ticks: 48, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true });
 const FAILS = (seed) => ({ seed, ticks: SC, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, failover: true, deathTick: DEATH, leaseTimeout: LEASE });
+// 전송 열화(손실·지연·재정렬·중복) ON — transport 모델은 broker substrate 에 사니(routeFilter=broker-local 함수),
+// 멀티프로세스도 *같은 손실 패턴*(같은 transport 시드)을 겪어 인프로세스와 비트 동일해야(전송 seam 일관).
+const TRANS = (seed) => ({ ...BASIC(seed), ticks: 60, transport: { seed: (seed ^ 0xABCD) >>> 0, delayMin: 0, delayMax: 2, loss: 0.2, redundancy: 3, routeFilter: NET.routeFilters.both } });
 
 // ── reg: 인프로세스 0010 → 0009 비트 동일(전송 seam 교체 비-침습) ──
 function reg(seeds) {
@@ -83,7 +86,7 @@ async function e2e(seeds) {
   console.log('== e2e: 멀티프로세스(각 서버 별 OS 프로세스·IPC) = 인프로세스 *비트 동일*(logDigest+fullDigest)·승격 일치·desync 0 ==');
   console.log('seed   | 시나리오 | 프로세스 | log동일 | full동일 | 승격(in/멀티) | 멀티 desync | 판정');
   for (const seed of seeds) {
-    for (const [name, cfg] of [['basic', BASIC(seed)], ['failover', FAILS(seed)]]) {
+    for (const [name, cfg] of [['basic', BASIC(seed)], ['transport', TRANS(seed)], ['failover', FAILS(seed)]]) {
       const a = run(cfg);
       const b = await runMulti(cfg);
       const okL = logDigest(a) === logDigest(b);
@@ -110,9 +113,9 @@ async function isolate(seeds) {
   const ok =
     check(pidSet.size === C.hostIds.length, `호스트 수(${C.hostIds.length}) != 구분 pid 수(${pidSet.size}) — 프로세스 미분리`) &&
     check(C.pids.every(p => p !== C.parentPid), `자식 pid 가 broker(${C.parentPid})와 같음 — 분리 위반`) &&
-    check(C.ipcMsgs > 0, `IPC 메시지 0 — 직렬화 통신 안 함`) &&
-    check(C.allSerializable, `경계 넘는 메시지에 비직렬화 데이터(함수·순환·공유 참조) 존재`);
-  console.log(`  broker pid ${C.parentPid} · 호스트 ${C.hostIds.length}개 · 구분 pid ${pidSet.size}개 · IPC 메시지 ${C.ipcMsgs}건 / ${C.ipcBytes} bytes · 전부 직렬화 가능 ${C.allSerializable}`);
+    check(C.ipcMsgs > 0 && C.ipcMsgsIn > 0, `IPC 메시지 0 — 직렬화 통신 안 함`) &&
+    check(C.allSerializable, `경계 넘는 메시지(양방향)에 비직렬화 데이터(함수·순환·공유 참조) 존재`);
+  console.log(`  broker pid ${C.parentPid} · 호스트 ${C.hostIds.length}개 · 구분 pid ${pidSet.size}개 · IPC out ${C.ipcMsgs}건/${C.ipcBytes}B · in ${C.ipcMsgsIn}건/${C.ipcBytesIn}B · 양방향 직렬화 가능 ${C.allSerializable}`);
   console.log('  배치(addr → host → pid):');
   const hostPid = new Map(C.hostIds.map((h, i) => [h, C.pids[i]]));
   for (const [addr, host] of C.placement) console.log(`    ${addr.padEnd(9)} → ${host.padEnd(9)} → pid ${hostPid.get(host)}`);
