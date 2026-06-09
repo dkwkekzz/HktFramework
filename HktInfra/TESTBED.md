@@ -94,9 +94,10 @@
 
 ```
 node run.js report [scenario]
-   │  ① 현재 step net-core 의 runMulti(실 멀티프로세스)를 headless 로 돈다
-   │  ② tick 마다 trace 수집: 메시지(from>to:payload)·엔티티·권위 소유자·seen 집합·이벤트(death/promote/handoff)
-   │     — 전부 net-core 가 이미 노출(net.log·zones·clients·totals). 백엔드는 읽기만, net-core 무수정
+   │  ① 현재 step net-core 를 headless 로 돈다 — 풍부한 per-tick 상태는 inproc run()+onTick 탭에서,
+   │     "진짜 멀티프로세스로 돌았다"는 runMulti 증명(pid·IPC 건수·logDigest 일치)을 함께 박는다 (→§10-1)
+   │  ② tick 마다 trace 수집: 메시지(from>to)·엔티티·권위 소유자·seen 집합·이벤트(death/promote/handoff)
+   │     — net.log·zones·clients·totals 는 이미 노출. per-tick 경계만 run 루프에 onTick 콜백 1회 추가(no-op 기본 → reg 0 불변, 닫힌 step 무수정)
    └─ ③ trace 를 JSON 으로 html 템플릿에 *인라인 임베드* → HktInfra/report.html (외부 의존·fetch 0 — 그냥 열기)
 ```
 
@@ -185,4 +186,55 @@ report.html 은 *사람*용 창이지만, 같은 trace(JSON)에 대해 에이전
 6. CLAUDE.md 절차·규약 갱신(§7) — *완료*(기존 html 8장 삭제 + step 마다 html 금지·testbed 집중 명시). `report.html` 은 생성물이라 gitignore.
 
 > 1~2 = 에이전트 자율 headless 검증(이미 토대 존재, §3-2 실증). 3~4 = 사람용 시각화(SYSTEM 흡수). 5 = 제어·재현 고리. 라이브 WS 는 보류 카드.
+
+---
+
+## 10. 구현 세부 — 이번 점검에서 보강한 설계 결정
+
+설계 본체(§1~9)는 *무엇을·왜*를 정한다. 구현에 들어가면 막히는 *어떻게* 여섯 가지를 여기서 못 박는다.
+
+### 10-1. 타임라인 데이터 출처 — inproc 상태 + 멀티프로세스 증명을 *분리* (§5 정정)
+
+멀티프로세스(`runMulti`)는 상태가 자식 프로세스 안에 있어 부모가 per-tick 전체 상태를 못 본다(verify 도 최종 상태 + 메시지 로그만 비교). 그러므로:
+
+- **풍부한 per-tick 상태**(엔티티 위치·권위 소유자·seen·desync)는 **inproc `run()`** 에서 딴다 — 단일 프로세스라 매 tick 전체 상태가 즉시 관찰 가능.
+- 이를 위해 `run`/`runMulti` 가 옵션 콜백 **`onTick(t, state)`** 를 받게 한다. **미제공 시 no-op → reg 0 불변**(동작 무변경). 이 훅은 net-core *복사 전진 템플릿*에 1회 들어가 현재/이후 step 이 자동 보유한다(닫힌 step 은 동결 — 소급 안 함, 과거는 최종 상태/로그만).
+- **"진짜 멀티프로세스로 돌았다"** 는 `runMulti` 증명(9 pid·IPC 건수·logDigest 일치)을 별 패널로 박는다. verify 가 이미 `runMulti ≡ inproc` 비트 동일을 보장하므로, **inproc 타임라인은 멀티프로세스 동작의 충실한 표현**이다.
+- **메시지 흐름** 레이어는 `runMulti` 의 broker.net.log(실 멀티프로세스 메시지)로 그려도 된다(둘은 bit-equal 이라 일관). tick 경계는 onTick 기준.
+
+### 10-2. trace 스키마 + 크기 예산
+
+- 스키마(초안): `{ meta:{step,seed,scenario,pids,ipc}, layers:{addr→layer}, ticks:[ {t, msgs:[{from,to,kind}], ents:[{id,x,y,owner}], desync, events:[…]} ] }`.
+- 크기: 80 tick × 수백 메시지 → 수백 KB~수 MB. 임베드 가능하나 ⒜ payload 는 `kind`/요약만(전문 아님) ⒝ 기본 tick 상한(예: 120) ⒞ 넘으면 메시지 샘플링.
+- **report 는 결정적**(같은 시드·시나리오 → 데이터 byte-동일) — 공유·diff 가능. (UI 셸은 고정 템플릿이라 통째로도 결정적.)
+
+### 10-3. 브라우저 인터랙티브 재실행 — "제어" 의 절반을 백엔드 없이 복원
+
+net-core 는 dual-mode(브라우저 전역)다. 이를 살려 report.html 이 net-core 를 *임베드*하면:
+
+- **싼 노브(반경·전송 손실·redundancy 등 순수 파라미터)는 브라우저에서 inproc `run()` 을 즉석 재실행** — 슬라이더가 *진짜 다시 돌린다*(옛 step html 슬라이더가 하던 것, 백엔드 0).
+- **구조적 변경(kill·인스턴스 수·멀티프로세스)만** 시나리오 재녹화(§5-3)가 필요.
+- 즉 제어 = ⒜ 브라우저 즉석(싼 파라미터) + ⒝ 시나리오 재녹화(구조)로 2분. 사용자가 원한 "제어" 가 라이브 WS 없이 상당 부분 복원된다.
+
+### 10-4. 시나리오 저장 위치 + verify 브리지 (§5-3 의 "그대로 verify 투입" 실체화)
+
+- 시나리오는 **`HktInfra/scenarios/*.json`(커밋)**. "이상 발견 → export → 회귀 케이스" 가 성립하려면 verify 가 시나리오를 먹어야 한다.
+- 현재 verify 는 *시드 인자*만 받는다 → **verify 에 `scenario <file>` 모드를 작게 추가**(seed·ticks·transport·cmds 를 `run/runMulti` 파라미터로 번역). `cmds`(kill/inject)는 기존 seam 에 매핑: `kill@t` → `deathTick`, `inject` → intent 주입 경로. run.js report 와 verify 가 *같은 번역기*를 공유(중복 0).
+
+### 10-5. 6계층 렌더용 addr→layer 맵
+
+- 토폴로지를 6계층으로 묶어 그리려면 인스턴스 주소→계층 매핑이 필요. **작은 선언 맵**(login/registry→엣지·코디, gateway→엣지, zone*→월드, orch/broker→코디)을 testbed 가 보유. 거의 불변 — 새 박스 추가 때만 갱신(SPINE §6 6계층과 정합).
+
+### 10-6. 잡다 (작은 결정)
+
+- **runMulti 없는 과거 step**: report 는 runMulti 가 있으면 멀티 증명 포함, 없으면 inproc 만(0001~0009 대상 시). 현재 탐지는 최신(runMulti 보유)이라 평소 무관.
+- **spine 비용**: 시리즈가 길어지면 reg N개 순차가 느려짐 → 필요 시 자식 동시 spawn 으로 병렬화. 지금은 순차로 충분.
+- **run.js 자기 검증**: run.js 는 얇아 별도 verify 불요 — 단 탐지 로직(현재 step·exit 집계)은 한 번 수동 확인.
+- **닫힌 step report 불가 항목**: per-tick 타임라인은 onTick 보유 step 부터. 그 이전은 최종 상태 + 메시지 로그 기반 축약 뷰로 폴백.
+
+---
+
+## 11. 점검 결론 — 설계 완비 여부
+
+§1~9(무엇을·왜)는 완비. §10 이 구현 6대 구멍(타임라인 출처·trace 스키마·브라우저 재실행·시나리오 브리지·계층 맵·잡다)을 메웠다. **남은 것은 설계가 아니라 구현**(§9 순서). 단 두 가지는 구현 1번 착수 전 *확정 필요*: ⒜ `onTick` 콜백을 net-core 템플릿에 넣는 형태(§10-1) ⒝ verify `scenario` 모드 + 공유 번역기(§10-4). 나머지는 구현하며 자연히 굳는다.
 </content>
