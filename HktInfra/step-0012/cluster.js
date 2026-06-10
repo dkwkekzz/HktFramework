@@ -11,7 +11,7 @@
 const net = require('net');
 const { spawn } = require('child_process');
 const path = require('path');
-const { mulberry32 } = require('../engine/index.js');
+const { fnv1a } = require('../engine/index.js');
 
 // ── 길이-프리픽스 프레이밍 — TCP 바이트 스트림에서 메시지 경계 복원([4바이트 BE 길이][UTF-8 JSON]). 0011 그대로. ──
 function frameOf(obj) {
@@ -58,14 +58,14 @@ class Cluster {
     this.port = 0;
     this.children = new Map();    // hostId -> child process
     // ── 열화 ──
-    this.wire = wire;             // { drop, dropSeed, partition:{host,at,until}, resendMs }
-    this.drng = wire ? mulberry32(((wire.dropSeed || 0) ^ 0x5E1FD30B) >>> 0) : null;
-    this.dropped = 0;             // 드롭된 cmd 프레임 수(재전송 유발)
-    this.resends = 0;             // 재전송 횟수
+    this.wire = wire;             // { drop, dropSeed, partition:{host,at} }
+    this.dropped = 0;             // 드롭된 프레임 수(cmd+res, 재전송 유발) — *결정론*(시드+reqId+방향+attempt 의 함수)
+    this.resends = 0;             // 재전송 라운드 수
+    this.dupCmds = 0;             // res 드롭으로 *중복* 전송된 cmd 수 = 호스트 reqId 멱등이 발동하는 횟수
+    this.idempotentHits = 0;      // 호스트가 실제로 캐시 회신(재실행 0)한 횟수 — 멱등 발동의 호스트-측 증거
     this.fencedHost = null;       // 재연결 후 펜싱된 호스트(출력 수용 0 — split-brain 방지)
     this.fencedAttempts = 0;      // 분단 동안 침묵 처리된 호스트-tick 수(failover 유발 회계)
     this.reconnectedAlive = false;// 분단 후 호스트가 살아 응답(펜스 ack)했는가
-    this.resendMs = (wire && wire.resendMs) || 8;
   }
 
   // TCP 서버 기동 → 각 호스트 spawn(IPC 0) → 역연결·hello·자기 토픽 구독 대기.
@@ -112,19 +112,14 @@ class Cluster {
   // 발행자 무수정 소비자 추가 — 같은 토픽 프레임 사본을 in-broker fn 으로 받는다(별 프로세스 구독자의 경량 대역).
   tap(topic, fn) { if (!this.taps.has(topic)) this.taps.set(topic, []); this.taps.get(topic).push(fn); }
 
-  // ── 토픽 발행 — 구독 소켓 전부 + tap 소비자에게 사본. 드롭 결정은 여기(링크 열화). ──
-  _publish(topic, msg, opts = {}) {
+  // ── 토픽 발행 — 구독 소켓 전부 + tap 소비자에게 사본. (드롭 결정은 rpc 루프에서 — 양방향·결정론) ──
+  _publish(topic, msg) {
     this.publishes++;
-    // tap 소비자(발행자 무수정) — 드롭과 무관히 관찰(수동 소비자)
+    // tap 소비자(발행자 무수정) — 수동 소비자
     const taps = this.taps.get(topic);
     if (taps) for (const fn of taps) { this.tapDeliveries++; try { fn(msg); } catch (e) { } }
     let f;
     try { f = frameOf(msg); } catch (e) { this.allSerializable = false; return false; }
-    // 링크 드롭(전송 열화) — 결정론 시드. 드롭되면 write 안 함(재전송이 메움).
-    if (this.wire && this.wire.drop && opts.dropable && (this.drng() % 1000) < Math.floor(this.wire.drop * 1000)) {
-      this.dropped++;
-      return false;
-    }
     const socks = this.subs.get(topic);
     if (!socks || !socks.size) return false;
     this.frames++; this.bytes += f.bytes;
@@ -138,28 +133,35 @@ class Cluster {
     this.framesIn++; this.bytesIn += 4 + Buffer.byteLength(s, 'utf8');
   }
 
-  // rpc — 호스트 토픽(cmd.<host>)으로 발행하고 res(reqId) 응답을 기다린다. 드롭 시 재전송(호스트 reqId 멱등).
-  rpc(hostId, msg) {
+  // 한 번 왕복 — cmd.<host> 발행 + res(reqId) 응답 대기. (드롭은 호출자 rpc 루프가 결정 — _rpcOnce 는 항상 write)
+  _rpcOnce(hostId, reqId, frame) {
     return new Promise((resolve) => {
-      const reqId = this.reqSeq++;
-      const frame = { ...msg, reqId, hostId };
-      const rec = { resolve, frame, attempts: 0 };
-      this.pending.get(hostId).set(reqId, rec);
-      this._deliverRpc(hostId, reqId, rec);
+      this.pending.get(hostId).set(reqId, { resolve });
+      this._publish('cmd.' + hostId, frame);
     });
   }
-  _deliverRpc(hostId, reqId, rec) {
-    rec.attempts++;
-    const ok = this._publish('cmd.' + hostId, rec.frame, { dropable: true });
-    // 열화 모드: cmd 또는 res 가 드롭될 수 있으니 응답 미수신 시 재전송(reqId 멱등). 캡으로 무한 방지.
-    if (this.wire && this.wire.drop) {
-      const cap = 60;
-      setTimeout(() => {
-        const pend = this.pending.get(hostId);
-        if (pend && pend.has(reqId) && rec.attempts < cap) { this.resends++; this._deliverRpc(hostId, reqId, rec); }
-      }, this.resendMs);
+  // 결정론 드롭 판정 — (시드, reqId, 방향, attempt)의 *순수 함수*. 타이머·RNG 호출순서 무관 → 드롭 패턴 재현 가능.
+  //   dir 0 = cmd(broker→host), 1 = res(host→broker). 같은 시드 → 같은 드롭 → 같은 카운트(문서 수치 재현).
+  _dropHash(reqId, dir, attempt) {
+    if (!this.wire || !this.wire.drop) return false;
+    const h = fnv1a((this.wire.dropSeed || 0) + ':' + reqId + ':' + dir + ':' + attempt);
+    return (h % 1000) < Math.floor(this.wire.drop * 1000);
+  }
+  // rpc — 신뢰 왕복. 무열화면 단일 왕복. 드롭 모드면 *양방향* 결정론 드롭 + 재전송(reqId 멱등):
+  //   · cmd 드롭 → 호스트 미수신 → 재시도(호스트는 그 reqId 를 *처음* 봄, 멱등 무발동)
+  //   · res 드롭 → 호스트 *수신·응답*했으나 broker 가 응답 유실 → 재전송 = *중복 cmd* → 호스트 멱등 캐시 회신(이중 적용 방지)
+  async rpc(hostId, msg) {
+    const reqId = this.reqSeq++;
+    const frame = { ...msg, reqId, hostId };
+    if (!this.wire || !this.wire.drop) return this._rpcOnce(hostId, reqId, frame);
+    const cap = 100;
+    for (let attempt = 1; attempt <= cap; attempt++) {
+      if (this._dropHash(reqId, 0, attempt)) { this.dropped++; this.resends++; continue; }  // cmd 유실 — 호스트 미수신
+      const reply = await this._rpcOnce(hostId, reqId, frame);
+      if (this._dropHash(reqId, 1, attempt)) { this.dropped++; this.resends++; this.dupCmds++; continue; }  // res 유실 — 재전송=중복 cmd
+      return reply;   // 양방향 통과 — 채택
     }
-    return ok;
+    return this._rpcOnce(hostId, reqId, frame);   // cap(극히 드묾) — 강제 1회
   }
 
   pids() { return [...this._pids.values()]; }
@@ -176,7 +178,11 @@ class Cluster {
   }
   async snapshotAll() {
     const out = new Map();
-    await Promise.all(this.hostIds.map(async h => { const r = await this.rpc(h, { cmd: 'snapshot' }); out.set(h, r.snap); }));
+    await Promise.all(this.hostIds.map(async h => {
+      const r = await this.rpc(h, { cmd: 'snapshot' });
+      out.set(h, r.snap);
+      this.idempotentHits += (r.idempotentHits || 0);   // 호스트-측 멱등 캐시 회신 수 합산(멱등 발동의 직접 증거)
+    }));
     return out;
   }
   async shutdown() {
@@ -282,7 +288,7 @@ async function runMulti(opts, deps) {
     allSerializable: cluster.allSerializable, wire: 'topic-bus',
     // 버스·열화 계측
     publishes: cluster.publishes, topics: [...cluster.subs.keys()], tapDeliveries: cluster.tapDeliveries,
-    dropped: cluster.dropped, resends: cluster.resends,
+    dropped: cluster.dropped, resends: cluster.resends, dupCmds: cluster.dupCmds, idempotentHits: cluster.idempotentHits,
     partitionHost: part ? part.host : null, partitionAt: part ? part.at : null,
     fencedHost: cluster.fencedHost, reconnectedAlive: cluster.reconnectedAlive, fencedAttempts: cluster.fencedAttempts,
   };

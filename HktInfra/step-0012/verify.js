@@ -140,24 +140,32 @@ async function bus(seeds) {
   console.log('  → 발행자(배리어)는 cmd.<host> 토픽으로 발행할 뿐 — 구독자(호스트)·tap 소비자를 *모른다*(직접 주소결합 제거).');
 }
 
-// ── drop: 전송 열화(프레임 드롭) + ack/resend → 무손실(인프로세스)과 비트 동일 ──
+// ── drop: 전송 열화(양방향 프레임 드롭) + ack/resend(reqId 멱등 실발동) → 무손실과 비트 동일·카운트 재현 ──
 async function drop(seeds) {
-  console.log('== drop: 버스 링크 프레임 드롭(시드) + seq/ack/resend(reqId 멱등) → 무손실(인프로세스)과 *비트 동일* ==');
-  console.log('seed   | 드롭률 | 드롭 프레임 | 재전송 | log동일 | full동일 | desync | 판정');
+  console.log('== drop: 버스 링크 *양방향* 프레임 드롭(결정론 시드) + resend(reqId 멱등 *실발동*) → 무손실과 *비트 동일* ==');
+  console.log('seed   | 드롭률 | 드롭(cmd+res) | 재전송 | 중복cmd | 멱등회신 | log동일 | full동일 | desync | 카운트재현 | 판정');
   for (const seed of seeds) {
     const a = run(FAILS(seed));
-    const b = await runMulti({ ...FAILS(seed), wire: { drop: 0.2, dropSeed: (seed ^ 0xD0B) >>> 0 } });
+    const W = { drop: 0.2, dropSeed: (seed ^ 0xD0B) >>> 0 };
+    const b = await runMulti({ ...FAILS(seed), wire: W });
+    const b2 = await runMulti({ ...FAILS(seed), wire: { ...W } });   // 같은 시드 재실행 → 드롭 카운트 동일해야(결정론)
+    const C = b.cluster, C2 = b2.cluster;
     const okL = logDigest(a) === logDigest(b);
     const okF = fullDigest(a) === fullDigest(b);
     const dB = finalLiveDesync(b);
+    // 카운트 재현성 — 드롭 결정이 (시드,reqId,방향,attempt)의 순수 함수라 타이머 무관 결정론.
+    const okRepro = C.dropped === C2.dropped && C.resends === C2.resends && C.dupCmds === C2.dupCmds && C.idempotentHits === C2.idempotentHits;
     const ok =
-      check(b.cluster.dropped > 0, `seed ${seed}: 드롭 0(열화 미주입)`) &&
-      check(okL, `seed ${seed}: net.log 다름(드롭이 의미를 깸 — 재전송 실패)`) &&
-      check(okF, `seed ${seed}: full 상태 다름`) &&
-      check(dB === 0, `seed ${seed}: desync ${dB}`);
-    console.log(`${pad(seed, 6)} | ${pad('0.2', 6)} | ${pad(b.cluster.dropped, 11)} | ${pad(b.cluster.resends, 6)} | ${(okL ? '예' : '아니오').padEnd(6)} | ${(okF ? '예' : '아니오').padEnd(7)} | ${pad(dB, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(C.dropped > 0, `seed ${seed}: 드롭 0(열화 미주입)`) &&
+      check(C.dupCmds > 0 && C.idempotentHits > 0, `seed ${seed}: 멱등 미발동(중복cmd ${C.dupCmds}·캐시회신 ${C.idempotentHits}) — res 드롭/멱등 경로 미검증`) &&
+      check(okL, `seed ${seed}: net.log 다름(드롭이 의미를 깸 — 재전송/멱등 실패)`) &&
+      check(okF, `seed ${seed}: full 상태 다름(멱등 깨져 이중 적용 의심)`) &&
+      check(dB === 0, `seed ${seed}: desync ${dB}`) &&
+      check(okRepro, `seed ${seed}: 드롭 카운트 비결정(${C.dropped}/${C.resends}/${C.dupCmds}/${C.idempotentHits} vs ${C2.dropped}/${C2.resends}/${C2.dupCmds}/${C2.idempotentHits})`);
+    console.log(`${pad(seed, 6)} | ${pad('0.2', 6)} | ${pad(C.dropped, 13)} | ${pad(C.resends, 6)} | ${pad(C.dupCmds, 7)} | ${pad(C.idempotentHits, 8)} | ${(okL ? '예' : '아니오').padEnd(6)} | ${(okF ? '예' : '아니오').padEnd(7)} | ${pad(dB, 6)} | ${(okRepro ? '예' : '아니오').padEnd(10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 링크가 프레임을 잃어도 reqId 멱등 재전송이 메워 배리어 시퀀스 불변 → 다이제스트 비트 동일(와이어 신뢰성).');
+  console.log('  → 링크가 *양방향* 프레임을 잃어도(res 유실 → 중복 cmd → 호스트 멱등 캐시 회신=이중 적용 0) 다이제스트 비트 동일.');
+  console.log('  → 드롭 판정이 (시드,reqId,방향,attempt)의 순수 함수 → 카운트까지 재현(문서 수치 = verify 출력).');
 }
 
 // ── partition: 소켓 분단 = 추상 사망의 현실화 → failover → 재연결+펜싱(split-brain 없음) ──

@@ -43,6 +43,7 @@ let hostNet = null;
 const actors = new Map();        // addr -> actor
 const specByAddr = new Map();    // addr -> spec(kind 판별용)
 const replyCache = new Map();    // reqId -> reply obj  (멱등 — 중복 reqId 는 재실행 없이 캐시 회신)
+let idempotentHits = 0;          // 중복 reqId 캐시 회신 수(멱등 발동 — broker 가 res 유실로 cmd 를 재전송했다는 증거)
 
 function snapshotActor(addr, a) {
   const spec = specByAddr.get(addr);
@@ -76,7 +77,7 @@ function reply(obj) { sock.write(frameOf({ ...obj, hostId })); }
 function handle(msg) {
   const { reqId, cmd } = msg;
   // 멱등 — 같은 reqId 재도착(broker 재전송)이면 재실행 없이 캐시 회신.
-  if (reqId !== undefined && replyCache.has(reqId)) { sock.write(frameOf(replyCache.get(reqId))); return; }
+  if (reqId !== undefined && replyCache.has(reqId)) { idempotentHits++; sock.write(frameOf(replyCache.get(reqId))); return; }
   let out = null;
   if (cmd === 'init') {
     hostNet = new HostNet();
@@ -108,7 +109,7 @@ function handle(msg) {
   } else if (cmd === 'snapshot') {
     const snap = {};
     for (const addr of actors.keys()) snap[addr] = snapshotActor(addr, actors.get(addr));
-    out = { reqId, snap, hostId };
+    out = { reqId, snap, idempotentHits, hostId };   // 멱등 발동 수 동봉(broker 가 합산 — 멱등의 호스트-측 증거)
   } else if (cmd === 'bye') {
     reply({ reqId, ok: true });
     sock.end();
