@@ -123,5 +123,15 @@
   "tdend@7": "2d121029",
   "tdend@1234": "a356ff50",
   "tdend@99": "fc4be2d5",
-  "tdend@2026": "33ac3946"
+  "tdend@2026": "33ac3946",
+  "select@42": "f9544aab",
+  "select@7": "ad00585e",
+  "select@1234": "0c539096",
+  "select@99": "65281d9c",
+  "select@2026": "d07b6328",
+  "tselect@42": "20afb9a5",
+  "tselect@7": "d80a5e57",
+  "tselect@1234": "423013bf",
+  "tselect@99": "c1a12e26",
+  "tselect@2026": "28eeefce"
 }
