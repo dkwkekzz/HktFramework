@@ -116,6 +116,7 @@ class Gateway {
       this.net.send(this.addr, m.from, { type: 'disconnect_ok' });
       this.byClient.delete(m.from);
       this.bySession.delete(bind.sessionId);
+      this.byAvatar.delete(bind.avatar);   // 가방 라우팅 인덱스도 대칭 정리(stale bind 로 item_recv 오라우팅 방지)
     }
   }
 }
@@ -499,7 +500,7 @@ class Client {
       this.phase = 'playing';
       this.avatar = p.avatar;
       this.rng = mulberry32((this.script.seed ^ 0xC11E) >>> 0);
-      this.itemRng = mulberry32((this.script.seed ^ 0x17E1) >>> 0);   // 가방 전용 — move rng(0xC11E)와 독립 스트림
+      if (this.script.inventory) this.itemRng = mulberry32((this.script.seed ^ 0x17E1) >>> 0);   // 가방 전용 — move rng(0xC11E)와 독립 스트림(OFF 면 미생성)
     } else if (p.type === 'connect_fail') {
       this.phase = 'rejected';
     } else if (p.type === 'view') {
