@@ -162,10 +162,11 @@ function decouple(seeds) {
     const sendSame = ['gateway', 'inventory', 'chat'].every(x => senderDigest(b, x) === senderDigest(a, x));
     const outSame = worldDigest(b) === worldDigest(a) && invDigest(b) === invDigest(a) && chatDigest(b) === chatDigest(a);
     // ④ 새 소비자 실수신 — audit 이 4개 토픽 발행 *전수*를 받았다(audit.seen[t] == net.log 의 토픽별 pub 수).
-    let evTotal = 0;
+    let evTotal = 0, auditTotal = 0;
     const consumed = TOPICS.every(t => {
       const pubs = topicPublishCount(a, t);
       evTotal += pubs;
+      auditTotal += (a.audit.seen.get(t) || 0);
       return (a.audit.seen.get(t) || 0) === pubs;
     });
     const ok =
@@ -176,10 +177,26 @@ function decouple(seeds) {
       check(sendSame, `seed ${seed}: audit 추가가 발행자 발신 스트림을 바꿈`) &&
       check(outSame, `seed ${seed}: audit 추가가 world/inv/chat 결과를 바꿈`) &&
       check(consumed && evTotal > 0, `seed ${seed}: audit 수신(${[...a.audit.seen.values()].join(',')}) != 토픽별 발행 수(전수 ${evTotal})`);
-    console.log(`${pad(seed, 6)} | ${pad(dOff, 12)} | ${pad(dOn + '/' + dOnA, 11)} | ${(blind ? '예' : '아니오').padEnd(9)} | ${(specSame ? '예' : '아니오').padEnd(20)} | ${(sendSame ? '예' : '아니오').padEnd(20)} | ${(outSame ? '예' : '아니오').padEnd(8)} | ${pad(evTotal + '/' + evTotal, 14)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad(dOff, 12)} | ${pad(dOn + '/' + dOnA, 11)} | ${(blind ? '예' : '아니오').padEnd(9)} | ${(specSame ? '예' : '아니오').padEnd(20)} | ${(sendSame ? '예' : '아니오').padEnd(20)} | ${(outSame ? '예' : '아니오').padEnd(8)} | ${pad(auditTotal + '/' + evTotal, 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
   console.log('  → 발행자(gateway·서비스)는 *토픽만* 알고 소비자 주소·존재를 모른다(구독자 0 = 폐기). 새 소비자(audit) 추가 = 버스 구독 테이블 행 추가뿐');
   console.log('    — 발행자 spec·발신 스트림·서비스 결과가 전부 비트 동일(N×N 직접 결합 제거의 약속: "새 소비자 추가가 발행자 무수정").');
+  // 버스 모드 + disconnect(leave) 건전성 — 0015 fanout 의 chat+leave 검사를 버스 경로로 반복: disconnect 의 leave 가
+  //   *토픽 발행*(svc.chat)으로 흘러도 구독 테이블이 정리되고(stale 팬아웃 방지) 누설/phantom/클라누설 위양성 0 유지.
+  console.log('  ── bus+leave(disconnect) 건전성: leave 가 svc.chat 토픽으로 흘러도 구독 정리·누설/phantom 위양성 0 ──');
+  console.log('seed   | leave발행 | 누설 | phantom | 클라누설0 | 직접0 | (참고)chatDesync | 판정');
+  for (const seed of seeds) {
+    const r = run({ ...BUSA(seed), leave: { 1: 40, 4: 45 } });   // client1·client4 가 도중 disconnect(서로 다른 region)
+    const leavePubs = r.net.log.filter(m => m.to === 'bus' && m.payload.type === 'pub' && m.payload.topic === 'svc.chat' && m.payload.ev.op === 'leave').length;
+    const leak = chatLeak(r), ph = chatPhantom(r), cl = chatClientNoLeak(r), dz = directSvcMsgs(r) === 0;
+    const ok =
+      check(leavePubs === 2, `seed ${seed} (leave): leave 발행 ${leavePubs}(2 여야 — disconnect 경로 미작동)`) &&
+      check(leak === 0, `seed ${seed} (leave): 누설 위양성 ${leak}(disconnect 수신자 byAvatar pruned)`) &&
+      check(ph === 0, `seed ${seed} (leave): phantom ${ph}`) &&
+      check(cl, `seed ${seed} (leave): 클라 측 누설 위양성(disconnect)`) &&
+      check(dz, `seed ${seed} (leave): 직접 메시지 발생`);
+    console.log(`${pad(seed, 6)} | ${pad(leavePubs, 9)} | ${pad(leak, 4)} | ${pad(ph, 7)} | ${(cl ? '예' : '아니오').padEnd(9)} | ${(dz ? '예' : '아니')}   | ${pad(chatDesync(r), 16)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
 }
 
 // ── degrade: 버스 홉 열화 — 라우팅 정확성·원장 보존은 loss-무관, 완전성만 graceful ──
