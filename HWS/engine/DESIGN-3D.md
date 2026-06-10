@@ -78,7 +78,7 @@ engine/
 
 ## 2단계 — 시뮬 공간의 3D 확장 (이후 step 의 한 조각)
 
-> ⚠️ **이 절은 [../VOXEL.md](../VOXEL.md) 로 승격됨**(전환 설계의 SSOT). V1(격자 z-일반화)은 **step-0028 에서 닫혔다**(`DEFAULTS.D`·`createSim` 의 `N=W·H·D`·커널 `discCells3`/`ballOffsets`/`tumbleHash3`). 아래는 그 전환의 *엔진(렌더) 쪽* 메모로 남긴다 — 시뮬 사다리(V2 z 확산·V3 중력·V4 지지 침착)·렌즈 사다리(L-V1 voxel·E=밝기)는 VOXEL.md·STATE.md·RENDER-STATE.md 가 SSOT.
+> ⚠️ **이 절은 [../VOXEL.md](../VOXEL.md) 로 승격됨**(전환 설계의 SSOT). V1(격자 z-일반화)은 **step-0029 에서 닫혔다**(`DEFAULTS.D`·`createSim` 의 `N=W·H·D`·커널 `discCells3`/`ballOffsets`/`tumbleHash3`). 아래는 그 전환의 *엔진(렌더) 쪽* 메모로 남긴다 — 시뮬 사다리(V2 z 확산·V3 중력·V4 지지 침착)·렌즈 사다리(L-V1 voxel·E=밝기)는 VOXEL.md·STATE.md·RENDER-STATE.md 가 SSOT.
 
 시뮬 공간 자체를 voxel 로 확장하는 것은 **sim-core 의 step** 이다(엔진 작업 아님). 불변 규칙·척추 체크를 그대로 통과해야 한다:
 

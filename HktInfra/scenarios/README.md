@@ -16,7 +16,7 @@
   "opts": { "clients":6, "zones":2, "radius":4, "grid":16, "incremental":true, "recovery":true },
   "cmds": [
     { "tick": 30, "kill": "zone1" },          // 지원: deathTick/killZone 으로 번역(failover 켬)
-    { "tick": 10, "inject": { "client":3, "move":[5,2] } }  // 미지원(net-core seam 대기) — 무시·경고
+    { "tick": 10, "inject": { "client":3, "move":[5,2] } }  // 클라 intent 주입(0016+ — 과거 step 은 경고 후 무시)
   ]
 }
 ```
@@ -31,7 +31,7 @@
 | `kill@t` | ✅ | `deathTick=t · killZone=<zone> · failover=true` |
 | `transport` | ✅ | 전송 모델 파라미터 |
 | `opts.*` | ✅ | run/runMulti 파라미터 패스스루 |
-| `inject` | 🟡 대기 | intent 주입 = net-core 의 *클라 write-seam* 필요. 동결 0012 엔 없음 → 다음 net-core 복사전진에서 활성(onTick 선례 §10-1). 경고 후 무시. |
+| `inject` | ✅ (0016+) | 클라 intent 주입 — step-0016 net-core 가 심은 write-seam(`opts.inject`)으로 번역. 결정론·멀티프로세스 비트 동일(verify `inject`). 예시: `inject-move.json`. 미지원 과거 step 은 경고 후 무시. |
 
 ## 검증 브리지 (`scenario` 모드 — §10-4 실현)
 

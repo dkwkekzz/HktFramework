@@ -225,7 +225,11 @@
                           //   (2) *곡률 증폭*(짧은 거리 활성, dendSharp) — 볼록 tip(8-근방 고체 적음)은 침착을 *증폭*, 오목 notch(고체 많음)는 *억제*. 짧은 활성 + 긴 억제 = Mullins-Sekerka(turing 과 같은 템플릿을 *전선*에 적용) → 평탄이 *옆가지*로 갈린다(author 안 함 — 침착 1개만 깖).
     dendRate: 0.06,       // 침착 속도 — 비고체 전선 셀 i 의 E→R 침착량 = dendRate·E[i]·곡률증폭(점진 누적 — thr 까지 여러 tick, 그래서 증폭 *속도차*가 tip 과 notch 의 운명을 가른다). 기질은 *그 칸의 E*(확산으로 채워지는 substrate). E[i]≥dendRate 라야 자란다(기질 문턱=자기제한, 기근서 멈춤).
     dendThresh: 0.5,      // 고체 문턱 — snap R[i] ≥ 이 값이면 결정(고체), 미만이면 *성장 전선 후보*. 침착이 누적돼 이 값을 넘으면 다음 tick 고체가 되어 전선이 한 겹 전진(결정화/anisotropy 의 핵 문턱 정신).
-    dendSharp: 1.0        // 곡률 증폭 세기(Mullins-Sekerka) — 침착증폭 = 1 + dendSharp·(3 − 고체8). 볼록 tip(고체8<3) 증폭·평탄(=3) 1·오목 notch(>3) 억제(≤0 면 침착 0). 0 = 곡률 무증폭(차폐만 — 약한 가지)·>0 = tip 가속(또렷한 옆가지)·클수록 가늘고 잦은 가지.
+    dendSharp: 1.0,       // 곡률 증폭 세기(Mullins-Sekerka) — 침착증폭 = 1 + dendSharp·(3 − 고체8). 볼록 tip(고체8<3) 증폭·평탄(=3) 1·오목 notch(>3) 억제(≤0 면 침착 0). 0 = 곡률 무증폭(차폐만 — 약한 가지)·>0 = tip 가속(또렷한 옆가지)·클수록 가늘고 잦은 가지.
+    /* ── step-0028: 선택 투과 막(permeate — 막이 *무엇을 통과시킬지 고르는* 능동 경계. 0018 couple[무차별 양방향 공유=수동 막]에서 선택 투과[외부 자원만 들이고 내부 가치는 가둠=능동 막]로. 형태 사다리 M) ── */
+    kPermeate: 0          // 선택 투과 막 마스터(=import 세율, 0~1). 0 = off = step-0027 과 비트 동일(permeate 통째 skip·E 불변 → dend@/tdend@ 해시 무관). >0 이면 on: kin 액적의 *표면 셀*(같은 태그 4-근방 ≥1 = droplet 일부 & 빈 바깥 이웃 ≥1 = 표면)이
+                          //   *빈 바깥*(occ==0=환경, 경쟁자[타-태그] 셀은 안 건드림)에서만 E 를 *안으로* 끌어온다(능동 import·정류=일방향). 0018 couple 은 kin 끼리 E 를 *무차별 양방향* 균등화(수동 막)였으나 — 진짜 막은 *무엇을 통과시킬지 고른다*:
+                          //   *외부 자원(E)만 들이고*(import) 안에 쌓인 가치는 *내보내지 않는다*(정류 — 한 방향). 확산(①diffuse)이 평형으로 되돌리려 해도, 막이 안쪽으로 퍼올려 *농도 차를 유지*한다(안 > 바깥, far-from-equilibrium 경계 — couple/확산 단독으론 못 하는 능동 축적).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -844,6 +848,47 @@
     sim.coupled += shared;                                                             // 누적 공유 flux(통계 — 쌍 거래라 장부 무관)
   }
 
+  /* ⑥c2 선택 투과 막(permeate, step-0028) — kPermeate=0 이면 통째로 건너뜀(회귀 0, E 불변 → dend@/tdend@ 비트 동일·새 해시 항 0).
+   * SPINE 주요 전이 사다리 "다세포(개체)=flux 결합 도메인"의 *능동 경계* + STATE 형태 사다리 M(🔴 최우선): step-0018 couple 은 *막을 빚었으나 수동*이었다 —
+   *   kin 끼리 E 를 *무차별 양방향*으로 균등화(공유 larder)할 뿐, *무엇을 통과시킬지 고르지* 못했다. 진짜 막(생체막)은 *반투과·능동*이다: *밖의 자원(substrate)은 들이고*(import) *안에 쌓은 가치는 가둔다*(retain).
+   * 이 법칙은 그 *선택 투과*(능동 경계)를 더한다 — 0018 의 막(액적 표면)을 *능동 펌프*로 올린다:
+   *   kin 액적의 *표면 셀*(같은 태그 4-근방 ≥1 = droplet 일부 & 빈 바깥 이웃 ≥1 = 표면)이 제 *빈 바깥*(occ==0 = 환경; 경쟁자[타-태그] 점유 셀은 *안 훔친다* — 환경서만 채취)에서 E 를 *안으로* 끌어온다:
+   *   d = kPermeate·E[바깥] 를 바깥 → 표면 셀로 옮긴다(능동 import·*정류=일방향* — 바깥에서 안으로만, 안에서 밖으로는 안 펌프). 쌍 거래(나간 만큼 들어옴 → sumE 불변, couple 과 같은 경계).
+   * 왜 *선택 투과*인가(0018 수동 막과의 차이): couple 은 *대칭*(양방향 균등화)이라 액적 안/밖 E 가 같아질 뿐(평형) — 농도 차를 *유지 못 한다*. permeate 는 *정류*(import 만)라, 확산(①diffuse)이 평형으로 되돌리려 *해도* 막이 안쪽으로 퍼올려
+   *   *안 > 바깥*의 농도 차를 **유지**한다(far-from-equilibrium 경계 — 능동 축적). 단일 E 세계에서 "선택"은 *방향*의 선택(밖의 자원은 들이고[import] 안의 가치는 가둠[retain·정류])이다 — 그게 반투과막의 단일-척추 해석.
+   * 왜 *표면만*(kin 액적의 surface)인가: 막은 액적의 *표면*으로 창발한다("개체 먼저·막은 뒤", 0017 설계결정 4 → 0018 → 0028 의 연장). 같은 태그 4-근방 ≥1(droplet 일부)이라야 막이 된다 — 외톨이(kin 0)는 droplet 아니라 막 없음(import 안 함 → 전체 스택서 희소 외톨이는 benign, 직교성).
+   * 척추: 새 *필드* 없음(같은 E 를 안으로 옮길 뿐 — 막/경계는 창발·kin 은 a.g 속성, 단일 척추) · authored 분기 없음(import *방향·세율*만 — 개체 종류 안 만듦, couple 의 kin 게이트와 같은 정신, 활성도 환원) ·
+   *   국소 문턱(제 4-근방 occ·그 빈칸 E 만 — 전역 조율자 0) · 닫힌 장부(바깥→안 E 쌍 거래 = 나간 만큼 들어옴, couple 과 같은 경계, 보존).
+   * ⑥c2: ⑥c couple 뒤·⑥b crowd 앞 — couple 이 kin 내부 E 를 공유(평탄 막)한 *뒤*, permeate 가 그 액적 표면에서 *바깥 자원을 능동 import*하고(농도 차 유지), 다음 crowd·⑦생명이 그 모인 E 를 잰다·흡수한다.
+   *   순차(occ 제자리·scan=agent 배열 순서)라 같은 패스서 먼저 옮긴 E 를 뒤가 본다(Gauss-Seidel, 결정론 — Math.random 금지). occ 는 법칙 내 불변(위치 아닌 E 만 흐른다)이라 막 판정은 패스 무관히 결정적. */
+  var PERM_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];                                     // 4-근방(von Neumann) — 표면 판정·import 방향
+  function permeate(sim) {
+    var p = sim.p; if (p.kPermeate === 0) return;
+    if (!sim.agents.length) return;                                                    // p.life 게이트 안 둠 — 막은 *경계*의 성질(대사와 직교). 아레나(life off)서도 막은 돈다.
+    var ag = sim.agents, E = sim.E, W = p.W, H = p.H, N = W * H, k = p.kPermeate;
+    var occ = sim.permOcc; if (!occ || occ.length !== N) occ = sim.permOcc = new Int16Array(N);
+    occ.fill(0);                                                                       // 0 = 빈 바깥(환경) 또는 무유전(kin 정체성 없음). 점유 칸엔 태그(>0=유전형)
+    for (var i = 0; i < ag.length; i++) { var g = ag[i].g | 0; if (g > 0) occ[ag[i].center] = g; }
+    var pumped = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var c = a.center, x = a.x, y = a.y, kin = 0;
+      var nb0 = ((y + PERM_VN[0][1] + H) % H) * W + (x + PERM_VN[0][0] + W) % W;        // 4-근방 center 미리 산출(스캔 순서 고정)
+      var nb1 = ((y + PERM_VN[1][1] + H) % H) * W + (x + PERM_VN[1][0] + W) % W;
+      var nb2 = ((y + PERM_VN[2][1] + H) % H) * W + (x + PERM_VN[2][0] + W) % W;
+      var nb3 = ((y + PERM_VN[3][1] + H) % H) * W + (x + PERM_VN[3][0] + W) % W;
+      if (occ[nb0] === t) kin++; if (occ[nb1] === t) kin++; if (occ[nb2] === t) kin++; if (occ[nb3] === t) kin++;
+      if (kin === 0) continue;                                                         // 외톨이(droplet 아님) — 막 아님(액적 표면만 능동 import)
+      /* import — *빈 바깥*(occ==0=환경)에서만, 그리고 *E>0 인 자리*에서만 E 를 안으로(정류=일방향). 경쟁자(타-태그 점유) 셀은 안 훔침. 표면(kin<4)이라야 빈 바깥이 있다.
+       * E[바깥]>0 게이트 = 정류 보장(음수 자리서 끌면 d<0 → 내부 가치를 *밖으로* 밀어 정류 위반) + d 를 [0,E[바깥]] clamp(k>1 과펌프 시 음수 방지). 표준 동역학은 E≥0 이라 둘 다 no-op → 골든 불변(결정화/turing/tension 과 같은 자원 문턱 정신). */
+      if (occ[nb0] === 0 && E[nb0] > 0) { var d0 = E[nb0] * k; if (d0 > E[nb0]) d0 = E[nb0]; E[nb0] -= d0; E[c] += d0; pumped += d0; }
+      if (occ[nb1] === 0 && E[nb1] > 0) { var d1 = E[nb1] * k; if (d1 > E[nb1]) d1 = E[nb1]; E[nb1] -= d1; E[c] += d1; pumped += d1; }
+      if (occ[nb2] === 0 && E[nb2] > 0) { var d2 = E[nb2] * k; if (d2 > E[nb2]) d2 = E[nb2]; E[nb2] -= d2; E[c] += d2; pumped += d2; }
+      if (occ[nb3] === 0 && E[nb3] > 0) { var d3 = E[nb3] * k; if (d3 > E[nb3]) d3 = E[nb3]; E[nb3] -= d3; E[c] += d3; pumped += d3; }
+    }
+    sim.permeated += pumped;                                                           // 누적 능동 import flux(통계 — 바깥→안 E 쌍 거래라 장부 무관)
+  }
+
   /* ⑥d 생물량 공유(share, step-0019) — kShare=0 이면 통째로 건너뜀(회귀 0, m 불변 → mem@ 비트 동일·새 해시 항 0).
    * SPINE §다섯째 축 "개체를 *중립에서 적응으로*" + STATE (a) 개체↔대사 *차등* 결합: step-0018 의 couple 은 *필드 E* 를 kin 끼리 균일하게
    *   공유해 개체에 *개체군 이득*(공유 larder → carrying capacity↑·개체 커짐)을 줬으나 — 모든 kin 이 똑같이 공유(분업 없음)라 *선택압*은 0이었다
@@ -1218,18 +1263,19 @@
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
    * ⑥a2 곡률 표면장력(tension)은 ⑥a adhere 뒤·⑥c couple 앞 — adhere 의 거친 정렬 위에 *곡률 다듬기*(볼록 돌기→오목 만)를 얹어 액적을 둥글리고 합치고(원형도↑·조직 수↓), couple 이 그 둥근 액적 위에서 E 를 공유한다(막은 둥근 경계에 실린다).
    * ⑥c 막 결합(couple)은 ⑥a adhere 뒤·⑥b crowd 앞 — 정렬로 묶인 액적 위에서 kin 끼리 E 를 공유하고(막 창발), crowd·생명이 그 공유된 자리에서 잰다·흡수한다.
+   * ⑥c2 선택 투과 막(permeate)은 ⑥c couple 뒤·⑥b crowd 앞 — couple 이 kin 내부 E 를 공유(수동 막)한 뒤, permeate 가 그 액적 *표면*에서 *바깥 자원만 능동 import*(정류·일방향)해 안>바깥 농도 차를 유지한다(능동 막, 형태 사다리 M). 빈 바깥서만 채취(경쟁자 안 훔침).
    * ⑥d 생물량 공유(share)는 ⑥b crowd 뒤·⑦생명 앞 — crowd 가 매긴 대사세 뒤의 m 을 kin 끼리 균등화해, 굶주린 kin 을 ⑦의 사망 판정 전에 떠받친다(개체 단위 생존).
    * ⑥e 공공재 협동(pubgood)은 ⑥d share 뒤·⑦생명 앞 — 떠받침(보존) 위에 공공재(양의 합 시너지) 이득을 얹어, ⑦의 사망/흡수 전에 kin 의 m 을 키운다(번식 가속·강한 침투).
    * ⑥f 세포 분화(differentiate)는 ⑥e pubgood 뒤·⑦생명 앞 — 공공재 채집 위에 *위치 기반* m 흐름(갇힌 내부 soma → kin germ)을 얹어, ⑦사망·⑧번식 전에 germ 의 m 을 키운다(분업 번식 가속).
    * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy, turing: turing, dendrite: dendrite,
-    combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, permeate: permeate, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;
