@@ -463,6 +463,30 @@
     return { area: area, perim: perim, tips: tips, roughness: rough, sumR: sumR };
   }
 
+  /* 선택 투과 막 측정 — step-0028. permeate(⑥c2)가 빚은 *능동 경계*(import 가 안>바깥 농도 차를 유지)를 author 아닌 *측정*으로 읽는다.
+   * 막이 *수동*(couple, 양방향 균등화 → 안≈바깥)인지 *능동/선택*(permeate, import·정류 → 안>바깥)인지를 *농도비*로 본다. 위치(center)·태그(g)·필드 E 만 *읽고* 동역학에 되먹이지 않는다(둘째 척추 아님 — 측정 읽기전용). 반환:
+   *   inside — kin 점유 셀(액적 *안*)의 평균 E. halo — 액적에 4-인접한 *빈 바깥*(occ==0=환경, 막이 퍼올리는 자리) 셀의 평균 E(중복 없이 한 번만 셈).
+   *   ratio  — inside / halo(>1 → 선택 투과 막이 농도 차 유지 = 능동 축적; ≈1 ≈ 수동 막[couple]·막 없음[평형]). 형태/경계 측정(4기둥 ④).
+   *   gradient — inside − halo(절대 농도 차). insideN/haloN — 셈한 안/바깥 셀 수. */
+  function measureSelective(sim) {
+    var ag = sim.agents, E = sim.E, W = sim.p.W, H = sim.p.H, N = W * H, k;
+    var occ = sim._selTag; if (!occ || occ.length !== N) occ = sim._selTag = new Int16Array(N);
+    occ.fill(0);                                                                       // 0 = 빈 바깥/무유전. 점유 칸엔 태그(>0)
+    var inSum = 0, inN = 0;
+    for (k = 0; k < ag.length; k++) { var g = ag[k].g | 0; if (g > 0) { occ[ag[k].center] = g; inSum += E[ag[k].center]; inN++; } }
+    var halo = sim._selHalo; if (!halo || halo.length !== N) halo = sim._selHalo = new Int8Array(N);
+    halo.fill(0);
+    var hSum = 0, hN = 0;
+    for (var s = 0; s < ag.length; s++) {
+      var a = ag[s], t = a.g | 0; if (t <= 0) continue;
+      var x = a.x, y = a.y;
+      var nb = [a.center - x + (x + 1) % W, a.center - x + (x - 1 + W) % W, ((y + 1) % H) * W + x, ((y - 1 + H) % H) * W + x];
+      for (var d = 0; d < 4; d++) { var j = nb[d]; if (occ[j] === 0 && halo[j] === 0) { halo[j] = 1; hSum += E[j]; hN++; } }   // 빈 바깥(환경) 한 번만
+    }
+    var inside = inN ? inSum / inN : 0, h = hN ? hSum / hN : 0;
+    return { inside: inside, halo: h, ratio: h > 1e-9 ? inside / h : 0, gradient: inside - h, insideN: inN, haloN: hN };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -642,7 +666,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring, measureDendrite: measureDendrite,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureSelective: measureSelective, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring, measureDendrite: measureDendrite,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

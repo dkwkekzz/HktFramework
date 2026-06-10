@@ -60,6 +60,7 @@
       anisoGrown: 0,       // step-0025: 누적 방향성 결정 성장 수 (통계용 — 선호 축 빈 이웃에 E→R 침착·태그 복사, E→R 쌍 거래라 장부 무관). anisoSnap(tick 시작 G 스냅샷)은 법칙이 지연 생성.
       turingConverted: 0,  // step-0026: 누적 E↔R 튜링 전환량 (통계용 — 셀별 E↔R 쌍 거래[자기촉매 침착·붕괴], 보존 경계라 장부 무관). R̄ 활성 커널은 법칙이 R 을 제자리에서 읽는다(상태 아님).
       dendriteGrown: 0,    // step-0027: 누적 가지 성장 침착량 (통계용 — 전선 셀 E→R 쌍 거래[곡률 증폭 침착], 보존 경계라 장부 무관). dendSnap(tick 시작 R 스냅샷)은 법칙이 지연 생성(상태 아님).
+      permeated: 0,        // step-0028: 누적 선택 투과 막 import flux (통계용 — kin 액적 표면이 빈 바깥에서 안으로 끄는 E 쌍 거래[능동·정류], 보존 경계라 장부 무관). permOcc(점유→태그)는 법칙이 지연 생성(상태 아님).
       crystallized: 0, weathered: 0,  // 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
       stars: [],           // step-0011: 살아있는 별 목록 {x,y,center,fuel}. 초기 0 → kIgnite=0 이면 영원히 0(회귀)
       burned: 0, starBirths: 0, starDeaths: 0,  // step-0011: 누적 연소량·점화·소진 수(통계용 — F 가 순잔액)
@@ -91,7 +92,7 @@
     DEFAULTS: L.DEFAULTS, laws: L,
     mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, createSim: createSim,
     aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, spawnGene: K.spawnGene, step: step, run: run,
-    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane, measureDifferentiation: K.measureDifferentiation, measureGermline: K.measureGermline, measureAnchor: K.measureAnchor, measureRoundness: K.measureRoundness, measureAnisotropy: K.measureAnisotropy, measureTuring: K.measureTuring, measureDendrite: K.measureDendrite,
+    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane, measureSelective: K.measureSelective, measureDifferentiation: K.measureDifferentiation, measureGermline: K.measureGermline, measureAnchor: K.measureAnchor, measureRoundness: K.measureRoundness, measureAnisotropy: K.measureAnisotropy, measureTuring: K.measureTuring, measureDendrite: K.measureDendrite,
     detectPools: K.detectPools, harvest: K.harvest, paintStore: K.paintStore, paintE: K.paintE, localE: K.localE, localStore: K.localStore,
     torusDist: K.torusDist, centroid: K.centroid, spread: K.spread, trackDist: K.trackDist, discCells: K.discCells,
     setSource: K.setSource, setSink: K.setSink,
