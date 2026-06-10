@@ -414,6 +414,39 @@
     return { aniso: aniso, axisX: Ixx, axisY: Iyy, l1: l1, l2: l2, cells: cells, sumR: sw };
   }
 
+  /* 가지치기 측정(step-0026) — 결정(R>eps & G≠0)이 곧은 needle 인가, 옆가지 친 덴드라이트인가를 *수직 분기*로 잰다.
+   * 각 결정 칸의 *수직 축*(태그 주축의 직교: 주축 가로→세로) 같은 태그 이웃이 있으면 가지(branchCell), 주축 이웃이 있으면 줄기(axialCell).
+   * 곧은 needle: 모든 칸이 한 줄(주축) → 수직 이웃 없음 → branchCells≈0. 덴드라이트: 옆가지가 수직으로 뻗음 → branchCells↑·perpExtent↑(주축 중심선에서의 수직 최대 거리).
+   * branchRatio = branchCells/axialCells (분기 밀도), perpExtent = 주축 중심선 대비 최대 수직 폭(가지 길이). 읽기 전용 — 동역학·장부·해시 무관. */
+  function measureBranching(sim, eps) {
+    var R = sim.R, G = sim.G, W = sim.p.W, H = sim.p.H, N = W * H, e = eps != null ? eps : 0.05;
+    var sw = 0, sx = 0, sy = 0, cells = 0, i, x, y;
+    for (i = 0; i < N; i++) { if (R[i] <= e || G[i] === 0) continue; x = i % W; y = (i - x) / W; sw += R[i]; sx += R[i] * x; sy += R[i] * y; cells++; }
+    if (cells === 0) return { cells: 0, branchCells: 0, axialCells: 0, branchRatio: 0, perpExtent: 0 };
+    var cx = sx / sw, cy = sy / sw, hW = W / 2, hH = H / 2;
+    var AX = [[[1, 0], [-1, 0]], [[0, 1], [0, -1]]];                 // 축0=가로(x)·축1=세로(y) — anisotropy 의 ANISO_AXIS 와 동일(태그→주축 = (tag−1)%2)
+    var branchCells = 0, axialCells = 0, perpMax = 0;
+    for (i = 0; i < N; i++) {
+      if (R[i] <= e || G[i] === 0) continue;
+      x = i % W; y = (i - x) / W;
+      var t = G[i], axIdx = (t - 1) % 2, ax = AX[axIdx], pp = AX[axIdx ^ 1];
+      var hasPerp = false, hasAxial = false, d, qx, qy, qj;
+      for (d = 0; d < 2; d++) {
+        qx = (x + pp[d][0] + W) % W; qy = (y + pp[d][1] + H) % H; qj = qy * W + qx;   // 수직 축 같은 태그 결정 이웃 = 가지
+        if (G[qj] === t && R[qj] > e) hasPerp = true;
+        qx = (x + ax[d][0] + W) % W; qy = (y + ax[d][1] + H) % H; qj = qy * W + qx;   // 주축 같은 태그 결정 이웃 = 줄기
+        if (G[qj] === t && R[qj] > e) hasAxial = true;
+      }
+      if (hasPerp) branchCells++;
+      if (hasAxial) axialCells++;
+      var dperp;                                                     // 주축 중심선 대비 수직 거리(가지 길이) — 주축 가로면 |y−cy|, 세로면 |x−cx|
+      if (axIdx === 0) { var dy = y - cy; if (dy > hH) dy -= H; else if (dy < -hH) dy += H; dperp = dy < 0 ? -dy : dy; }
+      else { var dx = x - cx; if (dx > hW) dx -= W; else if (dx < -hW) dx += W; dperp = dx < 0 ? -dx : dx; }
+      if (dperp > perpMax) perpMax = dperp;
+    }
+    return { cells: cells, branchCells: branchCells, axialCells: axialCells, branchRatio: axialCells ? branchCells / axialCells : 0, perpExtent: perpMax };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -593,7 +626,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureBranching: measureBranching,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

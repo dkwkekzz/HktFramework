@@ -58,6 +58,7 @@
       sessileCount: 0,     // step-0023: 정착(고착) 생명 수 스냅샷 (통계용 — a.sessile 은 매 tick 재계산 게이트, 위치만 영향이라 장부·해시 무관). anchorOcc(점유→agent index)는 법칙이 지연 생성.
       tensionFlux: 0,      // step-0024: 누적 곡률 표면장력 E flux (통계용 — 볼록 경계→오목/속 E 쌍 거래라 장부 무관). tensionOcc(점유→태그)·tensionN4(coordination)는 법칙이 지연 생성.
       anisoGrown: 0,       // step-0025: 누적 방향성 결정 성장 수 (통계용 — 선호 축 빈 이웃에 E→R 침착·태그 복사, E→R 쌍 거래라 장부 무관). anisoSnap(tick 시작 G 스냅샷)은 법칙이 지연 생성.
+      branchGrown: 0,      // step-0026: 누적 측면 가지 성장 수 (통계용 — 주축의 수직 빈 이웃에 sparse E→R 침착·태그 복사, E→R 쌍 거래라 장부 무관). branchSnap(tick 시작 G 스냅샷)은 법칙이 지연 생성.
       crystallized: 0, weathered: 0,  // 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
       stars: [],           // step-0011: 살아있는 별 목록 {x,y,center,fuel}. 초기 0 → kIgnite=0 이면 영원히 0(회귀)
       burned: 0, starBirths: 0, starDeaths: 0,  // step-0011: 누적 연소량·점화·소진 수(통계용 — F 가 순잔액)
@@ -89,7 +90,7 @@
     DEFAULTS: L.DEFAULTS, laws: L,
     mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, createSim: createSim,
     aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, spawnGene: K.spawnGene, step: step, run: run,
-    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane, measureDifferentiation: K.measureDifferentiation, measureGermline: K.measureGermline, measureAnchor: K.measureAnchor, measureRoundness: K.measureRoundness, measureAnisotropy: K.measureAnisotropy,
+    totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane, measureDifferentiation: K.measureDifferentiation, measureGermline: K.measureGermline, measureAnchor: K.measureAnchor, measureRoundness: K.measureRoundness, measureAnisotropy: K.measureAnisotropy, measureBranching: K.measureBranching,
     detectPools: K.detectPools, harvest: K.harvest, paintStore: K.paintStore, paintE: K.paintE, localE: K.localE, localStore: K.localStore,
     torusDist: K.torusDist, centroid: K.centroid, spread: K.spread, trackDist: K.trackDist, discCells: K.discCells,
     setSource: K.setSource, setSink: K.setSink,

@@ -48,6 +48,7 @@ var GERM = { kGermline: 0.3 };  // 생식세포 계통 격리(step-0022) — gol
 var ANCHOR = { kAnchor: 1, anchorM: 0.6, anchorKin: 2 };  // 정착 생활사(step-0023) — golden 의 anchor@ 키가 + 정착 스택을 동결 잠근다(step-0024~ 회귀 앵커).
 var TENSION = { kTension: 1, tensionGamma: 0.10 };  // 곡률 기반 표면장력(step-0024) — golden 의 curv@ 키가 + 표면장력 스택을 동결 잠근다(step-0025~ 회귀 앵커).
 var ANISO = { kAniso: 1, anisoRate: 0.3, anisoThresh: 0.2 };  // 방향성 결정화(step-0025) — golden 의 aniso@ 키가 + 방향성 결정화 스택을 동결 잠근다(step-0026~ 회귀 앵커).
+var BRANCH = { kBranch: 1, branchRate: 0.3, branchThresh: 0.2, branchSpacing: 4 };  // 가지치기(step-0026) — golden 의 branch@ 키가 + 가지치기 스택을 동결 잠근다(step-0027~ 회귀 앵커).
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H;
 
 function scn(extra) {
@@ -85,6 +86,8 @@ function ancScn(extra) { return Object.assign({}, germScn(), ANCHOR, extra || {}
 function curvScn(extra) { return Object.assign({}, ancScn(), TENSION, extra || {}); }
 /* 방향성 결정화 켠 내생 시나리오(step-0025 스택) — step-0025/verify.js scn() 과 동일 상수. */
 function anisoScn(extra) { return Object.assign({}, curvScn(), ANISO, extra || {}); }
+/* 가지치기 켠 내생 시나리오(step-0026 스택) — step-0026/verify.js scn() 과 동일 상수. */
+function branchScn(extra) { return Object.assign({}, anisoScn(), BRANCH, extra || {}); }
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -159,6 +162,14 @@ function anisoTissueScn(extra) {
     geneTypes: 4, kAniso: 1, anisoRate: 0.3, anisoThresh: 0.2
   }, extra || {});
 }
+/* 가지치기 needle 아레나(step-0026 branch *실활성*) — *방향성 off*(kAniso=0)·미리 칠한 가로 needle(tag1) + 가지치기 on.
+ * needle 을 얼려 두고 branch 만 돌려 *수직 측면 톱니*(고정 기둥 간격)를 깨끗이 키운다(anisotropy 의 주축 재성장이 톱니를 가로로 퍼뜨리는 cascade 를 격리 — 전체 스택 branch@ 는 그 cascade 로 채워짐, 정직한 한계). 균일 E·다른 법칙 다 off(순수 R 형태).
+ * branch@(전체 스택, 희소라 큰 결정 드물어 가지 약하게 켜짐 — 직교성 동결)와 달리 이 tbranch@ 는 가지치기 코드 경로(고정 기둥 수직 E→R 침착·태그 복사)를 *실제로* 도는 상태를 동결한다(드리프트 가드). */
+function branchTissueScn(extra) {
+  return anisoTissueScn(Object.assign({ kAniso: 0, kBranch: 1, branchRate: 0.3, branchThresh: 0.2, branchSpacing: 4 }, extra || {}));
+}
+/* 가로 needle 씨앗(step-0026 needle 아레나) — y=32, x=22..42 에 1-셀 두께 R 결정선(tag1). branch 가 고정 기둥에서 수직 톱니를 친다. */
+function seedNeedle(C, sim) { for (var x = 22; x <= 42; x++) C.spawnGene(sim, x, 32, 0, 1, 1.0); }
 function seedBlob(C, sim, tag) { for (var y = 24; y < 40; y++) for (var x = 24; x < 40; x++) { var a = C.spawnAgent(sim, x, y); a.g = tag; } }
 /* 방향성 결정화 씨앗(step-0025 crystal 아레나) — 중심에 유전 R 씨앗(tag1 disc r2) 하나. anisotropy 가 가로 축으로 needle 을 키운다. */
 function seedGeneDisc(C, sim) { C.spawnGene(sim, 32, 32, 2, 1, 1.0); }
@@ -261,6 +272,8 @@ function runEq() {
  *   tcurv@ — step-0024 곡률 rounding 아레나(tension *실활성* — 볼록 돌기→오목 만 재배치로 둥글림·합침). curv@ 가 곡률 본문을 거의 미커버라 이 키가 곡률 코드 경로를 동결한다(드리프트 가드).
  *   aniso@ — step-0025 방향성 결정화 스택(전체 스택, 희소라 큰 결정 드물어 방향성 거의 안 켜짐 — 직교성 동결). step-0026~ 의 회귀 앵커: 새 노브 kAniso=0 이면 이 해시 불변.
  *   taniso@ — step-0025 방향성 결정화 crystal 아레나(anisotropy *실활성* — 유전 씨앗이 선호 축으로 needle 결정축을 키움). aniso@ 가 방향성 본문을 거의 미커버라 이 키가 방향성 코드 경로를 동결한다(드리프트 가드).
+ *   branch@ — step-0026 가지치기 스택(전체 스택, 희소라 큰 결정 드물어 가지 거의 안 켜짐 — 직교성 동결). step-0027~ 의 회귀 앵커: 새 노브 kBranch=0 이면 이 해시 불변.
+ *   tbranch@ — step-0026 가지치기 crystal 아레나(branch *실활성* — needle 의 수직으로 sparse 측면 가지를 쳐 덴드라이트). branch@ 가 가지치기 본문을 거의 미커버라 이 키가 가지치기 코드 경로를 동결한다(드리프트 가드).
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -348,6 +361,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // taniso@ — 방향성 결정화 crystal 아레나(anisotropy *실활성*: 유전 씨앗이 선호 축으로 needle 결정축). aniso@ 의 미커버를 보완해 방향성 코드 경로를 동결. step-0026 회귀 앵커.
     var a = ENG.createSim(seed, anisoTissueScn()); seedGeneDisc(ENG, a); ENG.run(a, 20);
     cur['taniso@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // branch@ — aniso@ + 가지치기(전체 스택, 희소라 큰 결정 드물어 가지 거의 안 켜짐 — 직교성 동결). step-0027 회귀 앵커: 새 노브 kBranch=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, branchScn()); seedStars(ENG, a, 6); ENG.run(a, 2000); spawnStrongest(ENG, a, 5); seedGenes(ENG, a); ENG.run(a, 3000);
+    cur['branch@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // tbranch@ — 가지치기 needle 아레나(branch *실활성*: 얼린 needle 의 수직으로 고정 기둥 측면 톱니 → 덴드라이트). branch@ 의 미커버를 보완해 가지치기 코드 경로를 동결. step-0027 회귀 앵커.
+    var a = ENG.createSim(seed, branchTissueScn()); seedNeedle(ENG, a); ENG.run(a, 20);
+    cur['tbranch@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
