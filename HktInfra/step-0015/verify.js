@@ -123,13 +123,14 @@ function sacred(seeds) {
 // ── fanout: 팬아웃 라우팅 정확성(이 step 의 한 조각) — 누설 0·phantom 0·완전성·whisper 프라이버시·열화 내성 ──
 function fanout(seeds) {
   console.log('== fanout: 팬아웃 라우팅 = 누설 0(비-구독자·지역격리) · phantom 0 · chatDesync 0(완전성) · whisper 프라이버시 · 열화 보존 ==');
-  console.log('seed   | 누설 | phantom | chatDesync | whisper전용 | 클라누설0 | [열화]누설 | [열화]격리 | whisperFail | 판정');
+  console.log('  대비: 전송 열화에서 *완전성*([열화]완전성 chatDesync>0 = best-effort graceful 열화)은 깨지나 *라우팅 정확성*([열화]누설/phantom 0)은 loss-무관 보존.');
+  console.log('seed   | 누설 | phantom | chatDesync | whisper전용 | 클라누설0 | [열화]누설 | [열화]phantom | [열화]완전성 | whisperFail | 판정');
   for (const seed of seeds) {
     const r = run(CHAT(seed));              // 행복 경로
     const d = run(DEGRADE(seed));           // 채팅 홉 열화(redundancy+loss)
     const leak = chatLeak(r), ph = chatPhantom(r), dC = chatDesync(r);
     const wp = chatWhisperPrivate(r), cl = chatClientNoLeak(r);
-    const dLeak = chatLeak(d), dPh = chatPhantom(d);   // 열화: 누설 0·phantom 0 보존(라우팅 정확성은 loss 무관)
+    const dLeak = chatLeak(d), dPh = chatPhantom(d), dDesync = chatDesync(d);   // 열화: 누설/phantom 0 보존(정확성 loss-무관), 완전성(dDesync)은 graceful 열화
     const ok =
       check(leak === 0, `seed ${seed}: 누설 ${leak}(비-구독자 도달/지역격리 위반)`) &&
       check(ph === 0, `seed ${seed}: phantom ${ph}(서버 안 보낸 belief)`) &&
@@ -138,10 +139,23 @@ function fanout(seeds) {
       check(cl, `seed ${seed}: 클라 측 누설(구독 안 한 채널 수신)`) &&
       check(dLeak === 0, `seed ${seed}: 열화 아래 누설 ${dLeak}`) &&
       check(dPh === 0, `seed ${seed}: 열화 아래 phantom ${dPh}`);
-    console.log(`${pad(seed, 6)} | ${pad(leak, 4)} | ${pad(ph, 7)} | ${pad(dC, 10)} | ${(wp ? '예' : '아니오').padEnd(11)} | ${(cl ? '예' : '아니오').padEnd(9)} | ${pad(dLeak, 10)} | ${(dPh === 0 ? '보존' : '깨짐').padEnd(10)} | ${pad(r.chat.whisperFails, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad(leak, 4)} | ${pad(ph, 7)} | ${pad(dC, 10)} | ${(wp ? '예' : '아니오').padEnd(11)} | ${(cl ? '예' : '아니오').padEnd(9)} | ${pad(dLeak, 10)} | ${pad(dPh, 13)} | ${pad(dDesync, 12)} | ${pad(r.chat.whisperFails, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
   console.log('  → say = 구독자 Set 순회 팬아웃(비-구독자 도달 구조적 0) · region:X 는 X 멤버만(지역 격리) · whisper = 타깃 1명 직접.');
-  console.log('  → 전송 열화(loss)면 채팅은 best-effort(완전성만 graceful 열화) — *누설 0·지역 격리는 loss 무관 보존*(가방 idempotent transfer 와 대비되는 정직한 한계).');
+  console.log('  → 전송 열화(loss)면 채팅은 best-effort: [열화]완전성(chatDesync)>0 = 손실 발화 미복원(graceful)·한편 [열화]누설/phantom 0 = 라우팅 정확성 loss-무관 보존(가방 idempotent transfer 와 대비되는 정직한 한계).');
+  // 채팅 + disconnect(leave) 건전성 — 떠난 클라가 byAvatar 에서 pruned 돼도 누설/phantom/클라누설 검사가 *위양성 없이* 0 유지.
+  //   (완전성 chatDesync 는 떠난 클라로 향한 in-flight 배달 미수신이라 ≥0 정상 — best-effort.) 라우팅 정확성은 disconnect 무관.
+  console.log('  ── chat+leave(disconnect) 건전성: 떠난 클라가 byAvatar pruned 돼도 누설/phantom 위양성 0 ──');
+  console.log('seed   | 누설 | phantom | 클라누설0 | (참고)chatDesync | 판정');
+  for (const seed of seeds) {
+    const r = run({ ...CHAT(seed), leave: { 1: 40, 4: 45 } });   // client1·client4 가 도중 disconnect(서로 다른 region)
+    const leak = chatLeak(r), ph = chatPhantom(r), cl = chatClientNoLeak(r);
+    const ok =
+      check(leak === 0, `seed ${seed} (leave): 누설 위양성 ${leak}(disconnect 수신자 byAvatar pruned)`) &&
+      check(ph === 0, `seed ${seed} (leave): phantom ${ph}`) &&
+      check(cl, `seed ${seed} (leave): 클라 측 누설 위양성(disconnect)`);
+    console.log(`${pad(seed, 6)} | ${pad(leak, 4)} | ${pad(ph, 7)} | ${(cl ? '예' : '아니오').padEnd(9)} | ${pad(chatDesync(r), 16)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
 }
 
 // ── isolate: chat = 자기 OS 프로세스·broker/타 호스트와 다름·통신은 버스 프레임뿐 ──

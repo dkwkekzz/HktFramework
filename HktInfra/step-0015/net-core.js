@@ -53,7 +53,7 @@ class Gateway {
         const bind = { client: p.ref, sessionId: p.sessionId, avatar: p.avatar };
         this.byClient.set(p.ref, bind);
         this.bySession.set(p.sessionId, bind);
-        this.byAvatar.set(p.avatar, bind);   // 가방 결과 라우팅용(item off 면 net.send 0 → 비-침습)
+        this.byAvatar.set(p.avatar, bind);   // 가방·채팅 결과 라우팅용(item_result/chat_out → 대상 클라; service off 면 미사용 → 비-침습)
         this.net.send(this.addr, this.zones[0], { type: 'enter', sessionId: p.sessionId, avatar: p.avatar });
         if (this.replicas.length) this.net.send(this.addr, this.replicas[0], { type: 'enter', sessionId: p.sessionId, avatar: p.avatar });
         this.net.send(this.addr, p.ref, { type: 'connect_ok', avatar: p.avatar });
@@ -946,35 +946,42 @@ function chatPhantom(r) {
 }
 // 누설 — 비-구독자 도달 + 지역 격리 위반 수(둘 다 구조적 0이어야). 구독 테이블 교차검증(say 는 구독 Set 만 순회 = 구조적 보장).
 //   region:X 배달의 수신자 region 이 X 가 아니면 격리 위반. whisper 는 구독 무관(직접 라우팅) → 누설 검사 제외.
+//   주의 ① 수신자가 이후 disconnect 하면 byAvatar 에서 pruned(op:'leave') → 사후 재검증 불가. 배달 *시점*엔 구독자였음(팬아웃이
+//        channels[ch] Set 만 순회 = 비-구독자 배달 구조적 불가)이므로 *현재 부재* 수신자는 skip(이력 deliveries vs live 테이블 불일치
+//        false-positive 방지). ② 위반은 *배달당 1*만 — 비-구독자면 그걸로 카운트하고(else-if), 구독 중인데 region 불일치(상태 손상)는
+//        교차검증으로만 카운트(이중 집계 방지). region:X 구독은 join 이 X 멤버에게만 부여하므로 보통 redundant — 손상 탐지용.
 function chatLeak(r) {
   if (!r.chat) return 0;
   let leak = 0;
   for (const d of r.chat.deliveries) {
     if (d.channel === 'whisper') continue;
     const e = r.chat.byAvatar.get(d.to);
-    const subs = e ? e.subs : new Set();
-    if (!subs.has(d.channel)) leak++;                                         // 비-구독자에게 배달(구조적 0)
-    if (d.channel.startsWith('region:') && (!e || e.region !== d.channel.slice(7))) leak++;   // 지역 격리 위반
+    if (!e) continue;                                                        // disconnect 로 pruned — 배달 시점 구독자였음(skip)
+    if (!e.subs.has(d.channel)) leak++;                                      // 비-구독자에게 배달(구조적 0)
+    else if (d.channel.startsWith('region:') && e.region !== d.channel.slice(7)) leak++;   // 구독 ≠ region(상태 손상) 교차검증
   }
   return leak;
 }
-// whisper 프라이버시 — 모든 whisper 배달이 정확히 타깃 1명(제3자 0). deliveries 의 whisper 수 == chat.whispers(서버 회계).
+// whisper 프라이버시(카디널리티) — whisper 배달 수 == chat.whispers(팬아웃 1 = 제3자 0). *타깃 정확성*은 별도로 보장된다:
+//   _deliver 가 같은 p.toAvatar 를 *조회(byAvatar)와 기록(record.to) 양쪽*에 단일 소스로 써(오라우팅 불가) + phantom(B⊆D)가
+//   "타깃 아닌 클라가 그 whisper 를 믿으면" 잡는다. 이 함수는 그중 *팬아웃이 1을 넘지 않음*(브로드캐스트 누설)만 본다.
 function chatWhisperPrivate(r) {
   if (!r.chat) return true;
   const wd = r.chat.deliveries.filter(d => d.channel === 'whisper').length;
   return wd === r.chat.whispers;
 }
 // 채널 누락 — 클라가 받은 채널이 자기 구독(또는 귓속말 타깃)에 모두 부합하는가(클라 측 누설 0 교차검증).
+//   chatLeak 과 같은 disconnect 주의 — byAvatar pruned 된 클라(연결 중 정당 수신 후 떠남)는 skip(false-positive 방지).
 function chatClientNoLeak(r) {
   if (!r.chat) return true;
   for (const c of r.clients) {
     if (!c.avatar) continue;
     const e = r.chat.byAvatar.get(c.avatar);
-    const subs = e ? e.subs : new Set();
+    if (!e) continue;                                 // disconnect 로 pruned — 수신은 연결 중 정당했음(skip)
     for (const k of (c.chatRecv || [])) {
       const ch = k.split('|')[0];
       if (ch === 'whisper') continue;                 // 귓속말은 구독 무관(타깃 수신 — phantom 검사가 정당성 보증)
-      if (!subs.has(ch)) return false;                // 구독 안 한 채널 메시지 수신 = 누설
+      if (!e.subs.has(ch)) return false;              // 구독 안 한 채널 메시지 수신 = 누설
     }
   }
   return true;

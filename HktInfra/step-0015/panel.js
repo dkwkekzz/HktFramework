@@ -1,8 +1,8 @@
-// HktInfra step-0014 — 시각 관찰 셸 (프로세스 토폴로지 + 토픽 버스 트래픽 + 가방 서비스 박스) + 헤드리스 ASCII(Node)
-// 관찰하는 것: *전 서버가 별 프로세스가 되어 토픽 pub/sub 버스로 통신*하는 그림을 *눈으로*. 0013 위에 *가방(inventory) 박스*를
-//   더해 — host 태그 경계를 프로세스+버스 경계로 본다: 각 서버 박스(login·gateway·zone·orch·inventory…)를 노드로, 그 사이를
-//   흐르는 메시지를 *프로세스 경계를 넘는 버스 토픽 프레임* 으로 본다(공유 메모리 0). 가방은 존을 우회하는 *별도 채널*(신성한
-//   tick) — gateway↔inventory 엣지로 보인다. 데이터 층(compute)은 환경 무관(인프로세스 run() 만 사용 — 브라우저는 child_process 미로드).
+// HktInfra step-0015 — 시각 관찰 셸 (프로세스 토폴로지 + 토픽 버스 트래픽 + 가방·채팅 서비스 박스) + 헤드리스 ASCII(Node)
+// 관찰하는 것: *전 서버가 별 프로세스가 되어 토픽 pub/sub 버스로 통신*하는 그림을 *눈으로*. 0014 위에 *채팅(chat) 박스*를
+//   더해 — host 태그 경계를 프로세스+버스 경계로 본다: 각 서버 박스(login·gateway·zone·orch·inventory·chat…)를 노드로, 그 사이를
+//   흐르는 메시지를 *프로세스 경계를 넘는 버스 토픽 프레임* 으로 본다(공유 메모리 0). 가방·채팅은 존을 우회하는 *별도 채널*(신성한
+//   tick) — gateway↔inventory·gateway↔chat 엣지로 보인다. 데이터 층(compute)은 환경 무관(인프로세스 run() 만 사용 — 브라우저는 child_process 미로드).
 'use strict';
 (function () {
   const isNode = (typeof module !== 'undefined' && module.exports);
@@ -14,10 +14,10 @@
 
   function compute(p) {
     const ticks = p.ticks || 80, deathTick = p.deathTick || 40, leaseTimeout = p.leaseTimeout || 3;
-    const r = run({ seed: p.seed, ticks, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, failover: true, deathTick, leaseTimeout, inventory: true, itemOps: 10 });
+    const r = run({ seed: p.seed, ticks, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, failover: true, deathTick, leaseTimeout, inventory: true, itemOps: 10, chat: true, chatOps: 12, regions: 2 });
     // 프로세스 경계를 넘는 메시지(IPC) 집계 — host(from) != host(to) 인 모든 로그 메시지.
     const hosts = new Set();
-    for (const s of NET.buildTopology({ seed: p.seed, clients: 6, zones: 2, failover: true, inventory: true }).order) hosts.add(hostOf(s));
+    for (const s of NET.buildTopology({ seed: p.seed, clients: 6, zones: 2, failover: true, inventory: true, chat: true }).order) hosts.add(hostOf(s));
     const edges = new Map();          // "a>b" -> count
     const hostIO = new Map();         // host -> {sent, recv}
     const ipcTimeline = new Array(ticks).fill(0);
@@ -41,6 +41,8 @@
       leasesSent: r.totals.leasesSent, promotionKeyframes: r.totals.promotionKeyframes,
       // 가방 서비스(0014) — 원장/거래 계측(존 우회·신성한 tick).
       itemsMinted: r.inventory ? r.inventory.minted : 0, itemTransfers: r.inventory ? r.inventory.transfers : 0,
+      // 채팅 서비스(0015) — 가입/발화/팬아웃 계측(존 우회·신성한 tick).
+      chatJoins: r.chat ? r.chat.joins : 0, chatSays: r.chat ? r.chat.says : 0, chatFanout: r.chat ? r.chat.fanout : 0,
     };
   }
 
@@ -49,6 +51,7 @@
     clients: [60, 240], login: [200, 120], registry: [200, 360], gateway: [200, 240],
     zone1: [360, 130], zone2: [360, 240], orch: [360, 350],
     zone1f: [490, 130], zone2f: [490, 240],
+    inventory: [360, 430], chat: [490, 430],   // 게임 서비스 박스(0014·0015) — gateway↔service 엣지로 보임
   };
 
   function mountBrowser() {
@@ -120,6 +123,8 @@
         ['사망 tick → 승격 tick', r.deathTick + ' → ' + (r.promoTick || '-')],
         ['승격 / 승격 keyframe', r.promotions + ' / ' + r.promotionKeyframes],
         ['lease 하트비트 송신', r.leasesSent],
+        ['가방(존 우회) mint/xfer', r.itemsMinted + ' / ' + r.itemTransfers],
+        ['채팅(존 우회) say/팬아웃', r.chatSays + ' / ' + r.chatFanout],
         ['E2E 동치 (헤드리스 검증)', '인프로세스와 비트 동일', 'good'],
       ]);
       note.textContent = 'broker 단일점을 *토픽 pub/sub 버스*로 분산하고 소켓 층에 드롭·분단·재연결을 주입했다. 각 박스는 별 OS 프로세스이고, 선은 그 사이를 '
@@ -141,10 +146,11 @@
     const r = compute({ seed, leaseTimeout: 3, ticks: 80, deathTick: 40 });
     const blocks = ' ▁▂▃▄▅▆▇█';
     const spark = (a) => { const m = Math.max(1, ...a); return a.map(v => blocks[Math.min(8, Math.round((v / m) * 8))]).join(''); };
-    console.log(`\nstep-0012 관찰(토픽 버스 + 소켓 층 열화) — seed ${seed} · 사망 tick ${r.deathTick} · lease 타임아웃 ${r.leaseTimeout}`);
+    console.log(`\nstep-0015 관찰(가방·채팅 서비스 + 토픽 버스 + 소켓 층 열화) — seed ${seed} · 사망 tick ${r.deathTick} · lease 타임아웃 ${r.leaseTimeout}`);
     console.log(`  전 서버 박스를 별 프로세스로 분리 → 토픽 pub/sub 버스(직접 주소결합 제거)로 통신(공유 메모리 0). 인프로세스와 비트 동일(E2E 동치).\n`);
     console.log('  프로세스(호스트): ' + r.hosts.join(' · '));
     console.log('  프로세스 경계 버스 토픽: ' + r.ipcMsgs + ' 메시지 / ' + r.ipcBytes + ' payload bytes · lease ' + r.leasesSent + ' · 승격KF ' + r.promotionKeyframes);
+    console.log('  게임 서비스(존 우회·신성한 tick): 가방 mint ' + r.itemsMinted + '·xfer ' + r.itemTransfers + ' · 채팅 가입 ' + r.chatJoins + '·say ' + r.chatSays + '·팬아웃 ' + r.chatFanout);
     console.log('\n  버스 토픽 트래픽 / tick (빨=사망·분단 ' + r.deathTick + ' · 초=승격 ' + (r.promoTick || '-') + '):');
     console.log('    ' + spark(r.ipcTimeline));
     console.log('\n  주요 프로세스간 흐름(상위):');
