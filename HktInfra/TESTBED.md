@@ -218,8 +218,9 @@ net-core 는 dual-mode(브라우저 전역)다. 이를 살려 report.html 이 ne
 
 ### 10-4. 시나리오 저장 위치 + verify 브리지 (§5-3 의 "그대로 verify 투입" 실체화)
 
-- 시나리오는 **`HktInfra/scenarios/*.json`(커밋)**. "이상 발견 → export → 회귀 케이스" 가 성립하려면 verify 가 시나리오를 먹어야 한다.
-- 현재 verify 는 *시드 인자*만 받는다 → **verify 에 `scenario <file>` 모드를 작게 추가**(seed·ticks·transport·cmds 를 `run/runMulti` 파라미터로 번역). `cmds`(kill/inject)는 기존 seam 에 매핑: `kill@t` → `deathTick`, `inject` → intent 주입 경로. run.js report 와 verify 가 *같은 번역기*를 공유(중복 0).
+- 시나리오는 **`HktInfra/scenarios/*.json`(커밋)**. "이상 발견 → export → 회귀 케이스" 가 성립하려면 검증 게이트가 시나리오를 먹어야 한다.
+- 초안은 *시드 인자만 받는 verify 에 `scenario` 모드를 추가*하자였으나 — **verify.js 는 동결 step 안이라 수정 불가**(회귀 0·복사 전진 불변). 그래서 *라이브 단일 진입점* `run.js` 에 **`scenario <file>` 모드**를 두고, `report` 와 **같은 `loadScenario` 번역기**(seed·ticks·transport·cmds → `run/runMulti` 파라미터)를 공유한다 — "중복 0" 목표 그대로 충족. 이는 §5-4("에이전트도 trace 를 직접 단언, 한 데이터·두 소비")의 직접 실현이다: `run.js scenario` 가 trace 4기둥(권위=1·desync 0·kill→승격·멀티프로세스 비트 동일)을 *프로그램적으로* 단언·exit 0/1.
+- `cmds` 의 기존 seam 매핑: `kill@t` → `deathTick/killZone/failover`(✅). `inject`(클라 intent 주입)는 net-core 의 *write-seam* 이 필요한데 동결 0012 엔 없다 → onTick(§10-1) 이 0011 에 심긴 선례처럼 **다음 net-core 복사 전진에서 1회 심으면** run.js 레코더·verify 가 자동 소비(🟡 대기).
 
 ### 10-5. 6계층 렌더용 addr→layer 맵
 
@@ -237,4 +238,23 @@ net-core 는 dual-mode(브라우저 전역)다. 이를 살려 report.html 이 ne
 ## 11. 점검 결론 — 설계 완비 여부
 
 §1~9(무엇을·왜)는 완비. §10 이 구현 6대 구멍(타임라인 출처·trace 스키마·브라우저 재실행·시나리오 브리지·계층 맵·잡다)을 메웠다. **남은 것은 설계가 아니라 구현**(§9 순서). 단 두 가지는 구현 1번 착수 전 *확정 필요*: ⒜ `onTick` 콜백을 net-core 템플릿에 넣는 형태(§10-1) ⒝ verify `scenario` 모드 + 공유 번역기(§10-4). 나머지는 구현하며 자연히 굳는다.
+
+---
+
+## 12. 구현 현황 (2026-06 — 본 설계 채택 후 별 작업으로 구현)
+
+§9 순서대로 구현됐고, 라이브 WS(보류 카드)까지 섰다. **현재 `node run.js` 의 모드**: 기본(현재 step verify all)·`spine`(전 시리즈 회귀 사슬)·`<NNNN> [mode]`·`report [scen]`(녹화 레코더)·`scenario <file>`(검증 브리지)·`live [port]`(SSE 라이브 모니터). 손그림 html 8장은 폐기 완료.
+
+| 항목 | 설계 | 상태 |
+|---|---|---|
+| `run.js` 검증 진입점(기본·spine·`<NNNN>`) | §4 | ✅ — `node run.js`·`spine` 둘 다 ALL OK·exit 0(현재 step-0012, 12-step 비트 사슬) |
+| 레코더 코어 `report.html`(자기완결·멀티프로세스 증명) | §5·§9-3 | ✅ — `run.js report` 한 줄 → 인라인 trace html 1장(pid·IPC·logDigest 일치) |
+| 레코더 UI(스크럽 토폴로지·상태색·메시지 흐름·이벤트·6계층) | §5-2·§9-4 | ✅ |
+| **레코더 엔티티 공간 위치 + AOI 시각화** | §5-2·§10-1 ⒜·⒞ | ✅ — `onTick(t,state)` 훅(0011 심음)을 레코더가 소비, `report.html` 에 격자 공간 맵(권위 엔티티 위치·AOI 반경 원·존 경계) 추가 |
+| **`scenario` 검증 브리지(공유 번역기·trace 4기둥 단언)** | §5-4·§10-4 ⒝ | ✅ — `run.js scenario <file>`(verify.js 동결이라 run.js 에 둠, `loadScenario` 공유) |
+| 시나리오 제어 `kill@t`·`transport`·`opts` | §5-3 | ✅ — `scenarios/*.json`(커밋), 레코더·검증 공유 |
+| 시나리오 `inject`(클라 intent 주입) | §5-3·§10-4 | 🟡 **대기** — net-core 의 클라 *write-seam* 필요. 동결 0012 엔 없음(클라 move 는 시드 RNG 함수). run.js 단독 구현은 "둘째 구현 0"(§8) 위배 → **다음 net-core 복사 전진에서 1회 심음**(onTick §10-1 선례) → run.js 가 자동 소비. |
+| 라이브 WS 대시보드(보류 카드) | §3-3·§10-3 | ✅(범위 외 보너스) — `live.js`(SSE·존 kill 인터랙티브 failover) |
+
+> **남은 단 하나는 `inject`**, 그리고 그건 *설계 미비가 아니라* 동결 불변(frozen step + 둘째 구현 0)이 강제하는 *타이밍* 문제다 — 다음 step 의 net-core 가 복사 전진될 때 reg-safe write-seam 1줄을 심으면 testbed 쪽 코드 변경 없이 켜진다. 그 전까지 `inject` 명령은 경고 후 무시(kill/transport/opts 만 적용).
 </content>

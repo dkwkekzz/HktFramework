@@ -11,8 +11,10 @@
 //     node run.js spine            → step-0001..NNNN 회귀 사슬(각자 reg/det/repro 자동) 한 줄 요약 (에이전트: 회귀)
 //     node run.js <NNNN> [mode]    → 특정 step·모드 지정 실행(디버깅)                 (에이전트)
 //     node run.js report [scen]    → 현재 step 을 headless 녹화 → 자기완결 report.html (사람: 시각화, §5)
+//     node run.js scenario <file>  → 시나리오를 레코더와 *같은 번역기*로 돌려 trace 4기둥 단언 (에이전트: §5-4·§10-4)
 //
 //   report 외 모드는 stdout 텍스트 + exit code(에이전트가 읽고 판정). report 만 html 산출물을 만든다.
+//   scenario 는 report 와 loadScenario 번역기를 공유한다 — "레코더 이상 발견 → export → verify 회귀 케이스" 고리(§5-3).
 //   이 파일은 step 디렉토리를 *읽기/실행만* 한다 — 동결 단위(frozen step) 무수정(회귀 0 보존).
 // ════════════════════════════════════════════════════════════════════════
 
@@ -150,29 +152,71 @@ function defaultScenario() {
     opts: { clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true, failover: true, deathTick: 40, leaseTimeout: 4, killZone: 'zone1' },
   };
 }
-// 시나리오 파일(§5-3) → run()/runMulti() opts 로 번역.
-//   cmds 의 kill@t → deathTick/killZone 매핑(failover 머신 켬). inject 는 후속(경고).
+// 시나리오 파일(§5-3) → run()/runMulti() opts 로 번역. report·scenario 가 *공유*(중복 0).
+//   **중립 베이스(행복 경로)에서 출발** — kill/failover 는 `cmds.kill`(또는 명시 `opts.deathTick`)만 켠다.
+//   (defaultScenario 의 failover 예시 opts 를 베이스로 쓰면 빈 시나리오가 사망을 *상속*해 거짓 기대를 만든다 — 분리.)
 function loadScenario(file) {
   const sc = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const base = defaultScenario();
-  const opts = Object.assign({}, base.opts, sc.opts || {});
+  const base = { clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true };
+  const opts = Object.assign({}, base, sc.opts || {});
   if (sc.clients != null) opts.clients = sc.clients;
-  if (sc.transport !== undefined) base.transport = sc.transport;
   for (const c of (sc.cmds || [])) {
-    if (c.kill != null) { opts.deathTick = c.tick; opts.killZone = c.kill; opts.failover = true; }
-    if (c.inject != null) console.error('⚠ scenario inject 는 아직 미지원(후속, §5-3) — 무시함');
+    if (c.kill != null) { opts.deathTick = c.tick; opts.killZone = c.kill; opts.failover = true; if (opts.leaseTimeout == null) opts.leaseTimeout = 4; }
+    if (c.inject != null) console.error('⚠ scenario inject 는 net-core write-seam(클라 intent 주입) 이 필요 — 동결 0012 에 없어 무시함. 다음 net-core 복사전진(§10-1 onTick 선례)에서 활성(§5-3).');
   }
-  return { name: sc.name || path.basename(file), seed: sc.seed != null ? sc.seed : base.seed, ticks: sc.ticks != null ? sc.ticks : base.ticks, transport: base.transport, opts };
+  return { name: sc.name || path.basename(file), seed: sc.seed != null ? sc.seed : 42, ticks: sc.ticks != null ? sc.ticks : 48, transport: sc.transport !== undefined ? sc.transport : null, opts };
 }
 
 function fnv1a(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0; } return h >>> 0; }
 function logDigest(log) { return fnv1a(log.map(m => `${m.from}>${m.to}:${JSON.stringify(m.payload)}`).join('|')); }
+function pad(v, w) { return String(v).padStart(w); }
+function hex(v) { return '0x' + (v >>> 0).toString(16).padStart(8, '0'); }
+
+// per-tick 권위 소유자 — committed(유효 소유 수) + inflight(이주 중) 으로 *유효 소유자 수*를 재구성.
+//   =1 이어야 함(공백 0·중복 0). 레코더(buildTrace)와 시나리오 검증(cmdScenario)이 *같은 규칙*을 공유 — 둘째 구현 0.
+function frameOwners(committed, inflight) {
+  const owners = []; let violations = 0;
+  const avatars = new Set([...committed.keys(), ...inflight]);
+  for (const av of [...avatars].sort()) {
+    const cnt = committed.get(av) || 0;
+    const eff = cnt > 0 ? cnt : (inflight.has(av) ? 1 : 0);
+    const ok = eff === 1; if (!ok) violations++;
+    owners.push({ id: av, count: eff, inflight: inflight.has(av) && cnt === 0, ok });
+  }
+  return { owners, violations };
+}
+// run() 의 per-tick trace 전체에서 권위 위반 집계(전 tick 합·최악 tick). verify 의 "매 tick 소유자=1" 기둥.
+function authorityViolations(r) {
+  let total = 0, worst = 0;
+  for (const fr of r.trace) {
+    const { violations } = frameOwners(fr.committed, fr.inflight);
+    total += violations; if (violations > worst) worst = violations;
+  }
+  return { total, worst };
+}
+// 최종 desync — 겹친 뷰(클라 seen vs 권위 truth)가 일치하는가(=0). verify.finalLiveDesync 와 동일 규칙(공유 helper 재사용).
+function finalLiveDesync(NET, r) {
+  let d = 0;
+  for (const c of r.clients) {
+    if (!c.avatar) continue;
+    const truth = NET.globalAoiTruth(r, c.avatar);
+    if (truth === null) continue;
+    if (JSON.stringify(c.seenIds()) !== JSON.stringify(truth)) d++;
+  }
+  return d;
+}
 
 const EVENT_KINDS = new Set(['handoff', 'handoff_ack', 'lease', 'promote', 'relink', 'reroute', 'retire', 'leave']);
 
-// run() 반환에서 per-tick trace 추출(프레임 단위). net.log(tick 도장) + r.trace(권위 소유자/inflight).
+// run() 반환에서 per-tick trace 추출(프레임 단위). net.log(tick 도장) + r.trace(권위 소유자/inflight)
+//   + onTick 훅(§10-1)으로 per-tick *엔티티 공간 위치·AOI 반경*까지(레코더 마무리 ⒞).
 function buildTrace(NET, scenario) {
-  const runOpts = Object.assign({ seed: scenario.seed, ticks: scenario.ticks, transport: scenario.transport }, scenario.opts);
+  // onTick(t, state) — net-core 가 매 tick 권위 엔티티 위치를 흘려줌(미제공이면 호출 0 → reg 0 불변).
+  //   state.ents=[{id,x,y,zone,authority}], state.radius=AOI 반경, state.grid=격자 크기.
+  const tickEnts = new Map();
+  let aoiRadius = null, aoiGrid = null;
+  const onTick = (t, st) => { tickEnts.set(t, st.ents); if (aoiRadius == null) { aoiRadius = st.radius; aoiGrid = st.grid; } };
+  const runOpts = Object.assign({ seed: scenario.seed, ticks: scenario.ticks, transport: scenario.transport, onTick }, scenario.opts);
   const r = NET.run(runOpts);
   const topo = NET.buildTopology(runOpts);
   const boxes = topo.specs.map(s => ({ addr: s.addr, kind: s.kind, layer: layerOf(s) }));
@@ -190,17 +234,8 @@ function buildTrace(NET, scenario) {
     const t = r.trace[i].tick;
     const committed = r.trace[i].committed;   // Map avatar->count
     const inflight = r.trace[i].inflight;     // Set avatar
-    // 권위 소유자 패널: 매 엔티티 유효 소유자 수(=1 이어야 함). 공백(0)/중복(>1) 경보.
-    const owners = [];
-    let violations = 0;
-    const avatars = new Set([...committed.keys(), ...inflight]);
-    for (const av of [...avatars].sort()) {
-      const cnt = committed.get(av) || 0;
-      const eff = cnt > 0 ? cnt : (inflight.has(av) ? 1 : 0);
-      const ok = eff === 1;
-      if (!ok) violations++;
-      owners.push({ id: av, count: eff, inflight: inflight.has(av) && cnt === 0, ok });
-    }
+    // 권위 소유자 패널: 매 엔티티 유효 소유자 수(=1 이어야 함). 공백(0)/중복(>1) 경보. (공유 규칙 frameOwners)
+    const { owners, violations } = frameOwners(committed, inflight);
     // 메시지 흐름 (집계: from>to>kind → 건수). 클라↔게이트웨이/존간/제어평면 전부.
     const edgeMap = new Map();
     const events = [];
@@ -213,7 +248,7 @@ function buildTrace(NET, scenario) {
     }
     if (scenario.opts.deathTick === t) events.unshift({ kind: 'death', from: scenario.opts.killZone, to: scenario.opts.killZone });
     const msgs = [...edgeMap.entries()].map(([k, n]) => { const [from, to, kind] = k.split(''); return { from, to, kind, n }; });
-    ticks.push({ t, owners, violations, liveN: r.trace[i].liveN, msgs, events });
+    ticks.push({ t, owners, violations, liveN: r.trace[i].liveN, msgs, events, ents: tickEnts.get(t) || [] });
   }
 
   const meta = {
@@ -222,6 +257,7 @@ function buildTrace(NET, scenario) {
     promotions: r.totals ? r.totals.promotions : 0,
     handoffs: r.totals ? r.totals.handoffs : 0,
     inprocDigest: logDigest(r.net.log),
+    radius: aoiRadius, grid: aoiGrid,    // 공간 AOI 맵 렌더용(onTick 에서 채움 — 없으면 null)
   };
   return { meta, boxes, layers: boxes.reduce((m, b) => (m[b.addr] = b.layer, m), {}), ticks };
 }
@@ -274,6 +310,62 @@ async function cmdReport(scenarioFile) {
   console.log(`\n결과: report.html 생성 — ${out}`);
   console.log(`  권위 위반(전 tick 합) = ${trace.meta.totalViolations} · 승격 ${trace.meta.promotions} · 핸드오프 ${trace.meta.handoffs}`);
   return 0;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  scenario — 시나리오 검증 브리지 (TESTBED §5-4·§10-4)
+//   레코더(report)와 *같은 loadScenario 번역기*로 같은 입력을 돌려, trace 4기둥을 프로그램적으로 단언한다.
+//   verify.js(동결 step) 를 건드리지 않고 run.js(라이브 단일 진입점)에 둔다 — §5-4 "에이전트도 trace 를 직접 단언".
+//   "레코더에서 이상 발견 → scenario export → 회귀 케이스로 굳힘" 고리의 검증 쪽 끝.
+// ════════════════════════════════════════════════════════════════════════
+async function cmdScenario(scenarioFile) {
+  if (!scenarioFile) { console.error('사용: node run.js scenario <scenario.json>'); return 2; }
+  const steps = listSteps();
+  if (!steps.length) { console.error('step 없음'); return 2; }
+  const cur = steps[steps.length - 1];
+  warnStateDrift(cur.num);
+  const NET = require(path.join(cur.dir, 'net-core.js'));
+  if (typeof NET.run !== 'function') { console.error(`${cur.name}/net-core.js 가 run 을 노출하지 않습니다(시나리오 검증 비대상).`); return 2; }
+
+  const scenario = loadScenario(scenarioFile);   // ← report 와 공유하는 번역기(중복 0)
+  scenario.step = cur.name;
+  console.log(`▶ scenario — ${cur.name} 검증 (${scenario.name}, seed ${scenario.seed}, ${scenario.ticks} tick)`);
+  console.log('  report 와 같은 loadScenario 번역기·같은 net-core 실행 → trace 를 프로그램적으로 단언(TESTBED §5-4·§10-4)\n');
+
+  const runOpts = Object.assign({ seed: scenario.seed, ticks: scenario.ticks, transport: scenario.transport }, scenario.opts);
+  const r = NET.run(runOpts);
+  const inprocDigest = logDigest(r.net.log);
+
+  let FAIL = false;
+  const check = (cond, label) => { if (!cond) { FAIL = true; console.log('  FAIL: ' + label); } return cond; };
+
+  // 4기둥(verify 와 같은 양): ① 권위 단일 소유(매 tick) ② 수렴 desync 0 ③ (kill 시나리오면) failover 승격 ④ 멀티프로세스 비트 동일
+  const av = authorityViolations(r);
+  const desync = finalLiveDesync(NET, r);
+  const expectKill = scenario.opts.deathTick != null;
+  const promos = r.totals ? r.totals.promotions : 0;
+  const proof = await multiProof(NET, scenario);
+
+  console.log('  기둥                          | 값          | 판정');
+  console.log('  ------------------------------+-------------+------');
+  check(av.total === 0, `권위 위반(공백/중복) ${av.total} (최악 tick ${av.worst})`);
+  console.log(`  ① 권위 단일 소유(전 tick 합)  | ${pad(av.total, 11)} | ${av.total === 0 ? 'OK' : 'FAIL'}`);
+  check(desync === 0, `최종 desync ${desync}(겹친 뷰 수렴 깨짐)`);
+  console.log(`  ② 수렴 desync(겹친 뷰)        | ${pad(desync, 11)} | ${desync === 0 ? 'OK' : 'FAIL'}`);
+  if (expectKill) {
+    check(promos >= 1, `kill 시나리오인데 승격 ${promos}(<1)`);
+    console.log(`  ③ failover 승격(kill@${scenario.opts.deathTick} 기대) | ${pad(promos, 11)} | ${promos >= 1 ? 'OK' : 'FAIL'}`);
+  }
+  if (proof) {
+    const eq = proof.multiDigest === inprocDigest;
+    check(eq, `멀티프로세스 logDigest ${hex(proof.multiDigest)} ≠ 인프로세스 ${hex(inprocDigest)}`);
+    console.log(`  ④ 멀티프로세스 비트 동일      | ${pad(proof.pids.length + 'pid', 11)} | ${eq ? 'OK' : 'FAIL'}`);
+  } else {
+    console.log(`  ④ 멀티프로세스 비트 동일      | ${pad('(없음)', 11)} | inproc only`);
+  }
+
+  console.log(`\n결과: ${FAIL ? 'FAIL' : 'ALL OK'} — ${scenario.name} (log ${hex(inprocDigest)} · 핸드오프 ${r.totals ? r.totals.handoffs : 0})`);
+  return FAIL ? 1 : 0;
 }
 
 // ── 자기완결 html (외부 의존·fetch 0 — 그냥 열기). 데이터 인라인 임베드. ──
@@ -337,6 +429,8 @@ function renderHtml(trace) {
     <div class="kv"><span>live 엔티티</span><b id="sLive"></b></div>
     <div class="kv"><span>권위 위반</span><b id="sViol"></b></div>
     <div class="kv"><span>메시지 흐름</span><b id="sMsgs"></b></div>
+    <h2>공간 위치 + AOI <span id="sAoi" style="color:var(--dim);font-weight:normal"></span></h2>
+    <svg id="spatial" viewBox="0 0 300 300" style="width:100%;height:auto;background:#0b0f14;border:1px solid var(--line);border-radius:4px"></svg>
     <h2>권위 소유자 (=1 이어야 함)</h2>
     <div id="owners"></div>
     <h2>이벤트</h2>
@@ -408,6 +502,32 @@ BOXES.forEach(b=>{
 let cur=0,playing=false,timer=null;
 const scrub=document.getElementById('scrub');scrub.max=TICKS.length-1;
 
+// 공간 위치 + AOI 맵 — onTick(§10-1) 이 흘린 per-tick 권위 엔티티 위치를 격자에 그린다(레코더 마무리 ⒞).
+const spat=document.getElementById('spatial');
+const SP=300,SM=14,GRID=M.grid;   // GRID=null 이면 onTick 위치 없음(과거 step)
+const ZONE_COLOR={zone1:'#3fb950',zone2:'#39c5cf',zone1f:'#bc8cff',zone2f:'#d29922'};
+function gx(g){return SM+((g+0.5)/GRID)*(SP-SM*2);}
+document.getElementById('sAoi').textContent = GRID?('격자 '+GRID+' · AOI 반경 '+M.radius):'(위치 없음)';
+function drawSpatial(fr){
+  if(!GRID){spat.innerHTML='<text x=150 y=150 fill="#6e7681" font-size=11 text-anchor=middle>onTick 위치 없음(과거 step)</text>';return;}
+  let s='';
+  // 격자 외곽 + 존 경계(grid/2)
+  s+='<rect x='+SM+' y='+SM+' width='+(SP-SM*2)+' height='+(SP-SM*2)+' fill="none" stroke="#21262d"/>';
+  const bx=gx(GRID/2-0.5);
+  s+='<line x1='+bx+' y1='+SM+' x2='+bx+' y2='+(SP-SM)+' stroke="#30363d" stroke-dasharray="3 3"/>';
+  s+='<text x='+(bx-3)+' y='+(SP-3)+' fill="#484f58" font-size=9 text-anchor=end>zone1</text>';
+  s+='<text x='+(bx+3)+' y='+(SP-3)+' fill="#484f58" font-size=9>zone2</text>';
+  // AOI 반경 원(엷게) — 권위 엔티티마다
+  const rpx=(M.radius/GRID)*(SP-SM*2);
+  (fr.ents||[]).forEach(e=>{const cx=gx(e.x),cy=gx(e.y),c=ZONE_COLOR[e.zone]||'#8b949e';
+    s+='<circle cx='+cx+' cy='+cy+' r='+rpx.toFixed(1)+' fill="none" stroke="'+c+'" stroke-opacity="0.18"/>';});
+  (fr.ents||[]).forEach(e=>{const cx=gx(e.x),cy=gx(e.y),c=ZONE_COLOR[e.zone]||'#8b949e';
+    s+='<circle cx='+cx+' cy='+cy+' r=4 fill="'+c+'"/>';
+    s+='<text x='+(cx+6)+' y='+(cy+3)+' fill="#8b949e" font-size=9>'+e.id+'</text>';});
+  if(!(fr.ents||[]).length) s+='<text x=150 y=150 fill="#6e7681" font-size=11 text-anchor=middle>이 tick 권위 엔티티 없음</text>';
+  spat.innerHTML=s;
+}
+
 function draw(i){
   const fr=TICKS[i];
   document.getElementById('htick').textContent=fr.t;
@@ -442,6 +562,7 @@ function draw(i){
   acc.slice(-30).reverse().forEach(({t,e})=>{const d=document.createElement('div');d.className='ev';
     const c=e.kind==='death'?'bad':(e.kind==='promote'?'ok':'warn');
     d.innerHTML='<span class=tk>t'+t+'</span> <span class='+c+'>'+e.kind+'</span> '+(e.from!==e.to?(e.from+'→'+e.to):e.from);ev.appendChild(d);});
+  drawSpatial(fr);
   scrub.value=i;cur=i;
 }
 // 화살표 마커
@@ -487,9 +608,10 @@ async function main() {
   if (!cmd) code = cmdDefault();
   else if (cmd === 'spine') code = cmdSpine();
   else if (cmd === 'report') code = await cmdReport(argv[1]);
+  else if (cmd === 'scenario') code = await cmdScenario(argv[1]);
   else if (cmd === 'live') code = cmdLive(argv[1]);
   else if (/^\d+$/.test(cmd)) code = cmdStep(parseInt(cmd, 10), argv[1]);
-  else { console.error(`사용: node run.js [spine | report [scenario.json] | live [port] | <NNNN> [mode]]`); code = 2; }
+  else { console.error(`사용: node run.js [spine | report [scenario.json] | scenario <file.json> | live [port] | <NNNN> [mode]]`); code = 2; }
   if (code === null) return; // live: 서버 상주
   process.exit(code);
 }
