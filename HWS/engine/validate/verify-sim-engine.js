@@ -94,6 +94,19 @@ function turScn(extra) { return Object.assign({}, anisoScn(), TURING, extra || {
 function dendScn(extra) { return Object.assign({}, turScn(), DENDRITE, extra || {}); }
 /* 선택 투과 막 켠 내생 시나리오(step-0028 스택) — step-0028/verify.js scn() 과 동일 상수. */
 function selScn(extra) { return Object.assign({}, dendScn(), SELECT, extra || {}); }
+/* 6-이웃 z-확산 3D 아레나(step-0030 V2 *실활성*) — step-0030/verify.js zArena() 와 동일 상수.
+ * D=8 voxel 상자, 등방 확산(kD=kDz=0.15, 6-이웃 안정: 4·0.15+2·0.15=0.9<1) + z=0 source 구동 + 응집(z-항 코드 경로) — 다른 법칙 다 off.
+ * 골든 D=1 시나리오(std@~tselect@)는 z 항이 없어 z 확산 코드 경로를 *전혀 안 돈다* — 이 zdiff@ 가 V2 의 z-확산·z-응집 본문을 *실제로* 도는 상태를 동결한다(드리프트 가드). */
+function zdiffScn(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 1.0, noise: 0.5, drive: true,
+    source: { x: 16, y: 16, r: 3, rate: 0.05 }, sink: { x: 48, y: 48, r: 4, rate: 0.10 },
+    kD: 0.15, kDz: 0.15, kEvap: 0.001, kA: 0.3, aggMc: 1.1, aggW: 0.7, baseCost: 0, life: false,
+    repro: false, move: false,
+    kCrowd: 0, kCryst: 0, kWeather: 0, kRelief: 0, kIgnite: 0, kFSM: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -324,6 +337,7 @@ function runEq() {
  *   tdend@ — step-0027 덴드라이트 dendrite 아레나(dendrite *실활성* — 평탄 전선이 경계 불안정[곡률 증폭+기하 차폐]으로 옆가지). dend@ 가 덴드라이트 본문을 거의 미커버라 이 키가 덴드라이트 코드 경로를 동결한다(드리프트 가드).
  *   select@ — step-0028 선택 투과 막 스택(전체 스택, 희소라 큰 액적 드물어 막 거의 안 켜짐 — 직교성 동결). step-0029~ 의 회귀 앵커: 새 노브 kPermeate=0 이면 이 해시 불변.
  *   tselect@ — step-0028 선택 투과 막 membrane 아레나(permeate *실활성* — kin 액적 표면이 빈 바깥에서 E 능동 import·정류 → 안>바깥 농도 차). select@ 가 막 본문을 거의 미커버라 이 키가 막 코드 경로를 동결한다(드리프트 가드).
+ *   zdiff@ — step-0030 6-이웃 z-확산 3D 아레나(V2 *실활성* — D=8 voxel 상자, 등방 확산[kD=kDz=0.15] + z=0 source + z 응집). 골든 D=1 키들은 z 항이 산술 0 이라 z 코드 경로 미커버 — 이 키가 z-확산·z-응집 본문을 동결한다(드리프트 가드). step-0031~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -435,6 +449,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // tselect@ — 막 membrane 아레나(permeate *실활성*: kin 액적 표면이 빈 바깥서 E 능동 import → 안>바깥). select@ 의 미커버를 보완해 막 코드 경로를 동결. step-0029 회귀 앵커.
     var a = ENG.createSim(seed, selTissueScn()); seedSelBlock(ENG, a); ENG.run(a, 300);
     cur['tselect@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // zdiff@ — 6-이웃 z-확산 3D 아레나(step-0030 V2 *실활성*: D=8 voxel 상자, 등방 확산 + z 응집). 골든 D=1 키들은 z 코드 경로 미커버라 이 키가 z-확산·z-응집 본문을 동결. step-0031~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, zdiffScn()); ENG.run(a, 600);
+    cur['zdiff@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

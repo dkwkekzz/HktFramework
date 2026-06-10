@@ -28,6 +28,11 @@
                            //   인덱싱 규약: idx = (z·H + y)·W + x (z=0 평면 == 기존 2D 메모리 레이아웃). x·y 는 wrap, z 는 벽(클램프).
                            //   V1 은 *격자만* 일반화 — 법칙 산술 무수정(법칙들은 N=W·H 로 z=0 평면만 처리; z 확산은 V2, 중력은 V3). 상위 평면은 V1 에선 불활성(초기 noise 보존).
     kD: 0.20,              // 확산 계수 (4이웃, 안정 조건 kD <= 0.25)
+    /* ── step-0030: 6-이웃 확산(VOXEL.md V2 — 흐름·응집 stencil 에 z 항을 더해 상위 평면이 살아난다) ── */
+    kDz: 0,                // z 확산 계수(상하 이웃 = 6-이웃 stencil 의 z 항). 0 = off = 직전 step(V1) 비트 동일(회귀).
+                           //   D=1 이면 z 이웃이 없어 z 항이 *산술로* 0 = 회귀 0(kDz 값 무관). D>1·kDz>0 이면 z=0 평면의 E 가 z 로 퍼져
+                           //   상위 평면이 비로소 살아난다(z-결합). kDz=kD 면 *등방* 확산(x·y·z 동일 계수). 안정 조건(6-이웃): 4·kD + 2·kDz <= 1.
+                           //   z 확산은 *터의 진화*지 새 필드 아님 — diffuse 법칙의 stencil 을 z=0 평면에서 W×H×D 상자로 일반화(단일 척추).
     kEvap: 0.001,          // 증발률 — 매 tick E 의 kEvap 비율이 장부 T 로
     initE: 1.0,            // 초기 평균 E
     noise: 0.5,            // 초기 노이즈 진폭 (시드로 결정)
@@ -238,8 +243,11 @@
    * ───────────────────────────────────────────────────────────────────────── */
 
   /* ① 확산(+응집·기복) — E 의 흐름. *이 법칙이 E/buf 스왑을 소유한다*(확산 결과를 buf 에 써서 swap-in).
-   * kRelief≠0 이면 무대 경로(기복, donor-제한 upwind, h=E+kRelief·R 내리막), 0 이면 4이웃 선형 확산.
-   * kA≠0 이면 농도 창 응집을 같은 루프에서 가법(한 step=한 항이되 둘은 늘 같은 패스에서 계산됨 — 비트 동일 유지). */
+   * kRelief≠0 이면 무대 경로(기복, donor-제한 upwind, h=E+kRelief·R 내리막, z=0 평면 한정 — 3D 수직 수송은 V3 중력으로), 0 이면 선형 확산.
+   * kA≠0 이면 농도 창 응집을 같은 루프에서 가법(한 step=한 항이되 둘은 늘 같은 패스에서 계산됨 — 비트 동일 유지).
+   * step-0030(VOXEL.md V2): 선형 확산 경로(kRelief=0)를 *z=0 평면에서 W×H×D 상자로 일반화* — 4-이웃→6-이웃 stencil.
+   *   z 항(상하 이웃)은 kDz 로 스케일하고 *z 이웃이 존재할 때만* 더한다 → D=1 이면 z 이웃이 없어 산술로 0 = 회귀 0(전 골든 D=1 비트 불변).
+   *   모든 평면이 *같은 수치 스킴*(simultaneous buffer-update)으로 확산 → kDz=kD 면 등방. z 쌍 거래가 cancel 되어 총량 보존(잔차 불변). */
   function diffuse(sim) {
     var p = sim.p, W = p.W, H = p.H, E = sim.E, B = sim.buf, kD = p.kD;
     var kA = p.kA, mc = p.aggMc, w = p.aggW;
@@ -287,21 +295,33 @@
         }
       }
     } else {
-      /* 4이웃, wrap. 총량 보존 (step-0008 식 그대로 — kRelief=0 회귀 경로) */
-      for (y = 0; y < H; y++) {
-        var yN = ((y - 1 + H) % H) * W, yS = ((y + 1) % H) * W, yC = y * W;
-        for (x = 0; x < W; x++) {
-          var xW = (x - 1 + W) % W, xE = (x + 1) % W;
-          i = yC + x;
-          var eN = E[yN + x], eS = E[yS + x], eWc = E[yC + xW], eEc = E[yC + xE], eii = E[i];
-          B[i] = eii + kD * (eN + eS + eWc + eEc - 4 * eii);
-          if (kA !== 0) {
-            B[i] += kA * (
-              aggK(eii < eN ? eii : eN, mc, w) * (eii - eN) +
-              aggK(eii < eS ? eii : eS, mc, w) * (eii - eS) +
-              aggK(eii < eWc ? eii : eWc, mc, w) * (eii - eWc) +
-              aggK(eii < eEc ? eii : eEc, mc, w) * (eii - eEc)
-            );
+      /* 6이웃(x·y wrap·z 벽), wrap. 총량 보존. z=0 평면·D=1 이면 step-0008 식과 비트 동일(z 이웃 없어 z 항 산술 0 = 회귀 0). */
+      var D = p.D || 1, WH = W * H, kDz = p.kDz;
+      for (var z = 0; z < D; z++) {
+        var zb = z * WH, hasU = z + 1 < D, hasD = z > 0;     // 상(z+1)·하(z−1) 이웃 존재 여부 — z 벽(클램프). D=1 이면 둘 다 false → z 항 0.
+        for (y = 0; y < H; y++) {
+          var yN = ((y - 1 + H) % H) * W, yS = ((y + 1) % H) * W, yC = y * W;
+          for (x = 0; x < W; x++) {
+            var xW = (x - 1 + W) % W, xE = (x + 1) % W;
+            i = zb + yC + x;
+            var eN = E[zb + yN + x], eS = E[zb + yS + x], eWc = E[zb + yC + xW], eEc = E[zb + yC + xE], eii = E[i];
+            B[i] = eii + kD * (eN + eS + eWc + eEc - 4 * eii);
+            if (kDz !== 0) {                                  // z 항(6-이웃의 상하 흐름) — 존재하는 z 이웃만(D=1 이면 둘 다 없어 0 = 회귀). z 쌍 거래 cancel → 보존.
+              if (hasU) B[i] += kDz * (E[i + WH] - eii);
+              if (hasD) B[i] += kDz * (E[i - WH] - eii);
+            }
+            if (kA !== 0) {
+              B[i] += kA * (
+                aggK(eii < eN ? eii : eN, mc, w) * (eii - eN) +
+                aggK(eii < eS ? eii : eS, mc, w) * (eii - eS) +
+                aggK(eii < eWc ? eii : eWc, mc, w) * (eii - eWc) +
+                aggK(eii < eEc ? eii : eEc, mc, w) * (eii - eEc)
+              );
+              if (kDz !== 0) {                                // z 응집(stencil z 항) — 같은 정신. 대칭 aggK(min) 라 상하 쌍 거래 cancel → 보존.
+                if (hasU) { var eU = E[i + WH]; B[i] += kA * aggK(eii < eU ? eii : eU, mc, w) * (eii - eU); }
+                if (hasD) { var eDn = E[i - WH]; B[i] += kA * aggK(eii < eDn ? eii : eDn, mc, w) * (eii - eDn); }
+              }
+            }
           }
         }
       }
