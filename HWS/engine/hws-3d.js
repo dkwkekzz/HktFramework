@@ -217,7 +217,8 @@
     ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
     var Pm = mPersp(cam.fov, 1, 0.5, 800);                  // 뷰포트는 늘 정사각 → aspect=1 (분할 무관)
-    var Vm = mLookAt(camEye(), [cam.cx + cam.tx, 0, cam.cz + cam.tz], [0, 1, 0]);
+    var eye = camEye();                                     // 월드 카메라 위치 — 세계 해석 셰이더 프레넬/글린트 시선벡터
+    var Vm = mLookAt(eye, [cam.cx + cam.tx, 0, cam.cz + cam.tz], [0, 1, 0]);
     var MVP = mMul(Pm, Vm);
     gl.viewport(0, 0, glcv.width, glcv.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -240,14 +241,14 @@
     }
     /* ── 패스: 위 = 에너지 변위(원본 렌즈), (분할 시) 아래 = 세계 해석(활성도 분류 렌즈).
      * GL 뷰포트 원점은 좌하단 → 위 뷰포트가 vy=CV_SIZE, 아래가 vy=0. 비분할이면 단일 뷰포트 vy=0. ── */
-    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm);
-    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm);
+    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye);
+    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye);
     drawHud(sim, split);
   }
 
   /* 한 뷰포트에 지형(prog 선택)+오버레이 라인+생명 점을 그린다. 버퍼·텍스처는 호출 전 업로드됨.
    * world=false → 에너지 변위 셰이더(progT, 원본), true → 세계 해석 셰이더(progW, 활성도 분류). */
-  function drawView(vy, world, MVP, lnCount, agN, glcv, Pm) {
+  function drawView(vy, world, MVP, lnCount, agN, glcv, Pm, eye) {
     var gl = S.gl;
     gl.viewport(0, vy, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(위·아래 충돌 없음)
     /* ① 지형(하이트필드) */
@@ -257,7 +258,7 @@
     gl.uniform1i(u.uE, 0);
     gl.uniformMatrix4fv(u.uMVP, false, MVP);
     gl.uniform1f(u.uSat, R.sat); gl.uniform1f(u.uHS, HS); gl.uniform1f(u.uSatR, R.satR);
-    if (world) gl.uniform1f(u.uSatA, R.satA);
+    if (world) { gl.uniform1f(u.uSatA, R.satA); gl.uniform3f(u.uEye, eye[0], eye[1], eye[2]); }   // 물 프레넬/글린트 시선벡터
     gl.uniform2i(u.uDim, R.W, R.H);
     gl.uniform3f(u.uLight, 0.421, 0.781, 0.461);
     gl.depthMask(true); gl.disable(gl.BLEND);
@@ -628,7 +629,8 @@
    *   렌더러에 허용된 차이는 둘뿐: ① *어느 양이 높이가 되는가*(물질=R 만, 에너지는 흐르든 고이든 빼서 빛·재질로 — §4 "정직한 읽기")
    *   ② *색·재질·빛*(상·조성·밀도·광택·발광 — §3). 높이로 분포를 *재성형*(예: 물 평탄화)하면 §4 가 금지한 형태 author 다.
    * 그래서 높이 = hOf(R) only — 에너지뷰(h=E+R)와 *에너지 전부(E)만큼* 갈린다(RENDER §2: 응축상 R 만 공간 점유).
-   *   흐르는 에너지(고활성 E·A)는 솟지 않고 *빛*으로(별 연소·확산 전선). 고인 물(저활성 E)도 z 를 안 들어올리고 R 위에 *얹혀*(§5) *재질*(파랑·투과·광택)로만 읽는다 — 분포는 그대로(평탄화 0, 그냥 z 에 안 든다).
+   *   흐르는 에너지(고활성 E·A)는 솟지 않고 *빛*으로(별 연소·확산 전선). 고인 물(저활성 E)도 z 를 안 들어올리고 R 위에 *얹혀*(§5) *재질*로만 읽는다 — 분포는 그대로(평탄화 0, 그냥 z 에 안 든다).
+   *   물 렌즈(§5 "물 = R 위 반투명 막"): 바닥 물질색(store·dens)을 깊이(저활성 E)로 흡광 블렌드(Beer-Lambert transmit=exp(-depth·absorb)) — 얕으면 바닥 비침·청록, 깊으면 짙은 남. FS 에서 프레넬(비스듬할수록 표면 반사↑)·시선기반 글린트. 고체는 vWet=0 → 불투명·무광 불변.
    * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
    * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
@@ -639,7 +641,7 @@
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uSatR, uSatA;',
     'uniform ivec2 uDim;',
-    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet;',
+    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out vec3 vWorld;',
     'float hOf(float e){ return min(uHS*log(1.0+max(e,0.0))/log(1.0+uSat), uHS*2.2); }',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율(소산 극단만 큼)
     'float matH(vec4 t){',                                  // 물질 높이 = hOf(R) only — 에너지(흐르든 고이든)는 z 를 안 만든다. 응축상 R 만 공간을 점유(RENDER §2). 물(고인 E)도 안 솟고 R 위에 얹힌다(§5)
@@ -670,31 +672,44 @@
     '  float dens=clamp(Rr/uSatR, 0.0, 1.0);',              // 밀도(R) → 밝기·불투명(고체 전용 함수)
     '  float depth=clamp(log(1.0+max(liquidE,0.0))/log(1.0+uSat),0.0,1.0);', // 깊이(액체 전용 함수, 색으로)
     '  vec3 store=(tag>0.5)? geneCol(tag) : vec3(0.322,0.278,0.247);',       // 조성(G) → 유전=나무/결정, 무유전=돌
-    '  vec3 water=mix(vec3(0.22,0.52,0.60), vec3(0.02,0.09,0.20), depth);',  // 액체: 얕으면 청록·깊으면 짙은 남(깊이=색)
     '  vec3 base; float wet;',
     '  if (isSolid){ base = store*(0.50+0.50*dens); wet=0.0; }',             // 고체 — 밀도로 견고/불투명
-    '  else if (isLiquid){ base = water; wet=1.0; }',                        // 액체 — 광택·투과 재질(FS 에서 반짝)
+    '  else if (isLiquid){',                                                 // 물 = R 위 반투명 막(RENDER §5): 바닥 R 투과 + 깊이 흡광
+    '    vec3 bottom = store*(0.42+0.58*dens);',                             // 물 아래 바닥 물질색(고체와 같은 셰이딩 — 비쳐 보일 대상)
+    '    vec3 absorb = vec3(2.6, 1.15, 0.5);',                               // 색별 흡광계수: 빨강 먼저 죽고 파랑 남음(깊을수록 남빛)
+    '    vec3 transmit = exp(-depth*absorb);',                               // 바닥 투과율(Beer-Lambert) — 얕으면≈1(바닥 비침)·깊으면→0(불투명)
+    '    vec3 deep = vec3(0.02,0.09,0.22);',                                 // 깊은 물 산란색(짙은 남)
+    '    base = bottom*transmit + deep*(1.0-transmit);',                     // 얕으면 바닥 청록 비침 · 깊으면 짙은 남(깊이=흡광색)
+    '    wet=1.0;',                                                          // 액체 — FS 에서 프레넬 반사·글린트
+    '  }',
     '  else { base = vec3(0.018,0.022,0.035); wet=0.0; }',                   // 공허/기체 — 거의 암흑(빈 공간)
     '  vBase=base; vWet=wet;',
     '  vNormal=normalize(vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1)));', // 법선=물질 기복(분포 그대로)
     '  vHot=af;',                                           // 색온도(흰빛 정도 — 활성 클수록 흼)
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 세기 = 에너지(흐르는 E·A) — 높이서 뺀 만큼 빛으로
-    '  gl_Position=uMVP*vec4(aCell.x, matH(t), aCell.y, 1.0);', // 높이 = 물질(R) only — 에너지(흐르든 고이든) z 기여 0. 분포 재성형 0(물은 z 서 빠지되 분포 안 건드림)
+    '  vec3 wpos=vec3(aCell.x, matH(t), aCell.y);',         // 월드 좌표(FS 프레넬·글린트 시선벡터용)
+    '  vWorld=wpos;',
+    '  gl_Position=uMVP*vec4(wpos, 1.0);',                  // 높이 = 물질(R) only — 에너지(흐르든 고이든) z 기여 0. 분포 재성형 0(물은 z 서 빠지되 분포 안 건드림)
     '}'].join('\n');
 
   var FS_WORLD = [
     '#version 300 es',
     'precision highp float;',
-    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet;',
-    'uniform vec3 uLight;',
+    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in vec3 vWorld;',
+    'uniform vec3 uLight, uEye;',
     'out vec4 o;',
     'void main(){',
     '  vec3 N=normalize(vNormal);',
     '  float d=max(dot(N,uLight),0.0);',
     '  vec3 lit=vBase*(0.30+0.70*d);',                      // 물질 = 조명 받는 표면(높이·법선·색)
-    '  float spec=vWet*pow(d, 28.0)*0.8;',                  // 액체 전용 — 광택 하이라이트(물은 반짝·투과 느낌, 고체는 무광)
+    '  vec3 V=normalize(uEye - vWorld);',                   // 시선 벡터(프레넬·글린트용)
+    '  vec3 Rl=reflect(-uLight, N);',                       // 광원 반사 벡터(시선기반 스페큘러)
+    '  float spec=vWet*pow(max(dot(Rl,V),0.0), 40.0)*0.9;', // 액체 전용 — 매끈 표면 글린트(고체는 vWet=0 → 무광)
+    '  float fres=0.02 + 0.98*pow(1.0-max(dot(N,V),0.0), 5.0);', // 프레넬 — 비스듬히 볼수록 반사↑(정면=투과)
+    '  vec3 sky=vec3(0.32,0.46,0.62);',                     // 물이 반사하는 주변광/하늘색
+    '  vec3 surf=mix(lit, sky, fres*vWet);',                // 물만 프레넬 반사(바닥 투과 ↔ 표면 반사 보간), 고체 불변
     '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 뜨거울수록 흰빛
-    '  o=vec4(lit + vec3(spec) + fire*vGlow*1.6, 1.0);',    // 물질 표면 + 물 광택 + 에너지 발광(조명 무관)
+    '  o=vec4(surf + vec3(spec) + fire*vGlow*1.6, 1.0);',   // 물질/물 표면 + 글린트 + 에너지 발광(조명 무관)
     '}'].join('\n');
 
   var VS_POINT = [
@@ -763,7 +778,7 @@
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
-    R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight']);
+    R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight', 'uEye']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx']);
     R.uL = locs(gl, R.progL, ['uMVP']);
     R.tex = gl.createTexture();
