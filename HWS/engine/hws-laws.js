@@ -232,9 +232,21 @@
     dendThresh: 0.5,      // 고체 문턱 — snap R[i] ≥ 이 값이면 결정(고체), 미만이면 *성장 전선 후보*. 침착이 누적돼 이 값을 넘으면 다음 tick 고체가 되어 전선이 한 겹 전진(결정화/anisotropy 의 핵 문턱 정신).
     dendSharp: 1.0,       // 곡률 증폭 세기(Mullins-Sekerka) — 침착증폭 = 1 + dendSharp·(3 − 고체8). 볼록 tip(고체8<3) 증폭·평탄(=3) 1·오목 notch(>3) 억제(≤0 면 침착 0). 0 = 곡률 무증폭(차폐만 — 약한 가지)·>0 = tip 가속(또렷한 옆가지)·클수록 가늘고 잦은 가지.
     /* ── step-0028: 선택 투과 막(permeate — 막이 *무엇을 통과시킬지 고르는* 능동 경계. 0018 couple[무차별 양방향 공유=수동 막]에서 선택 투과[외부 자원만 들이고 내부 가치는 가둠=능동 막]로. 형태 사다리 M) ── */
-    kPermeate: 0          // 선택 투과 막 마스터(=import 세율, 0~1). 0 = off = step-0027 과 비트 동일(permeate 통째 skip·E 불변 → dend@/tdend@ 해시 무관). >0 이면 on: kin 액적의 *표면 셀*(같은 태그 4-근방 ≥1 = droplet 일부 & 빈 바깥 이웃 ≥1 = 표면)이
+    kPermeate: 0,         // 선택 투과 막 마스터(=import 세율, 0~1). 0 = off = step-0027 과 비트 동일(permeate 통째 skip·E 불변 → dend@/tdend@ 해시 무관). >0 이면 on: kin 액적의 *표면 셀*(같은 태그 4-근방 ≥1 = droplet 일부 & 빈 바깥 이웃 ≥1 = 표면)이
                           //   *빈 바깥*(occ==0=환경, 경쟁자[타-태그] 셀은 안 건드림)에서만 E 를 *안으로* 끌어온다(능동 import·정류=일방향). 0018 couple 은 kin 끼리 E 를 *무차별 양방향* 균등화(수동 막)였으나 — 진짜 막은 *무엇을 통과시킬지 고른다*:
                           //   *외부 자원(E)만 들이고*(import) 안에 쌓인 가치는 *내보내지 않는다*(정류 — 한 방향). 확산(①diffuse)이 평형으로 되돌리려 해도, 막이 안쪽으로 퍼올려 *농도 차를 유지*한다(안 > 바깥, far-from-equilibrium 경계 — couple/확산 단독으론 못 하는 능동 축적).
+    /* ── step-0031: 중력 구배(VOXEL.md V3 — E 의 하향 선호 흐름. z 확산[V2, 등방]에 *방향*을 줘 골에 고인 E = 바다 원형) ── */
+    kGravity: 0,         // 중력 계수(셀당/tick E 하향 유출 비율, 0~1). 0 = off = 직전 step(V2) 비트 동일(gravity 통째 skip·E 불변 → 골든 해시 무관).
+                          //   D=1 이면 아래(z−1) 이웃이 없어(z=0 바닥 벽) 산술로 0 = 회귀(이중 가드, kGravity 값 무관). D>1·kGravity>0 이면 각 셀이 제 E 의 kGravity 비율을
+                          //   *아래 이웃으로* 유출한다(donor-제한 쌍 거래 — 비율이라 음수 없음·보존). V2 의 z 확산은 *등방*(위아래 똑같이)이라 E 가 상자를 고루 채울 뿐 — 바다가 안 고인다.
+                          //   V3 는 *비등방*(아래만): E 가 가라앉아 z=0 바닥(더 못 내려가는 벽)부터 고이고, 등방 확산(V2)이 옆으로 펴 *골을 채우는 고임* = 바다. 방향 상수(아래)는
+                          //   scan-order 처럼 *법칙의 상수*지 전역 조율자 아님(판정은 z−1 로컬 한 칸만 — 척추 ③). R 차폐(아래가 고체면 옆으로)는 V5+ 백로그(현재는 순수 E 하향). R 의 중력(지면)은 V4 지지 침착(아래 kSupport).
+    /* ── step-0032: 지지 침착(VOXEL.md V4 — E→R 결정화를 지지 있는 칸으로 게이트. 공중 바위 차단·지면 바닥부터 쌓임) ── */
+    kSupport: 0,          // 지지 침착 마스터(0/1). 0 = off = 직전 step(V3) 비트 동일(crystallize 가 z=0 평면만 처리 = step-0031·게이트 무효 — *모든 D* 에서 2D 침착 그대로 = 회귀 0). >0 이면 on:
+                          //   crystallize 의 E→R 침착을 W×H×D 전 평면으로 일반화하되 *지지 있는 칸*에서만 굳힌다 — z=0 바닥(항상 지지) 또는 바로 아래 칸 R≥supportThresh(로컬 z−1 한 칸). 공중에 뜬 바위(부유 R)를 막고 지면이 *바닥부터* 쌓인다.
+                          //   D=1 이면 z=0 평면뿐이라 게이트가 항상 통과(바닥) = kSupport 값 무관 비트 동일(이중 가드). V3 중력(E→바다)이 바닥에 모은 E 가 굳어 지면(R)이 바닥부터 — "지면·바다가 스스로 고이는" 최소 3D 세계.
+                          //   *R 의 중력*(지면)을 *E 의 중력*(바다, V3)과 짝짓는다(VOXEL.md V-C). turing·덴드라이트 등 다른 침착의 3D 게이트·부유 R 붕괴는 V5+ 백로그.
+    supportThresh: 0.5,   // 지지 문턱 — z>0 셀은 바로 아래 칸 R 이 이 값 이상이라야 침착(지지). =0 이면 무게이트(아래 R≥0 항상 참 → 모든 칸 지지 → 부유 R 발생, 대조용). 침착 *위치*만 거르므로 결정론·장부 무관.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -330,6 +342,29 @@
   }
   var aggK = K.aggKernel;
 
+  /* ①g 중력 구배(gravity, step-0031, VOXEL.md V3) — kGravity=0 이면 통째로 건너뜀(회귀 0, E 불변 → 골든 해시 가법 skip).
+   * VOXEL.md V-C: 지면·바다가 *창발*하려면 E 가 아래로 모여야 한다. 중력은 둘째 전역 필드가 아니라 *흐름 법칙의 z-비등방 항* —
+   *   각 셀이 제 E 의 kGravity 비율을 *아래(z−1) 이웃*으로 유출하는 donor-제한 쌍 거래(나간 만큼 들어옴 → 보존; 비율이라 E≥0 유지).
+   * V2 의 z 확산은 *등방*(위아래 같은 계수)이라 E 가 상자를 고루 채울 뿐 — 바다가 안 고인다. V3 는 *아래만* 선호해 E 가 가라앉는다:
+   *   z=0 바닥은 더 못 내려가는 벽(아래 이웃 없음)이라 E 가 거기부터 고이고, 등방 확산(V2)이 옆으로 펴 *골을 채우는 고임* = 바다.
+   * scan: z 오름차순 단일 패스 — z 평면의 유출은 *이번 tick* 한 칸만 내려간다(z+1→z 로 새로 온 E 는 z 가 이미 처리됐으므로 다음 tick 에야 또 내려감 = 침전 속도 유한).
+   *   방향 상수(아래)는 scan-order 처럼 *법칙의 상수*지 전역 조율자 아님(판정은 z−1 로컬 한 칸 — 척추 ③ 국소 문턱). D=1 이면 z 이웃 없어 루프 비어 산술 0 = 회귀(이중 가드).
+   *   R 차폐(아래가 고체면 옆으로 우회)·지지 침착(E→R 바닥부터 쌓임)은 V4 로 전가 — 현재는 *순수 E 하향*(바다 원형만). */
+  function gravity(sim) {
+    var p = sim.p; if (p.kGravity === 0) return;
+    var D = p.D || 1; if (D < 2) return;                  // z 이웃 없음(D=1) = 회귀 0 (이중 가드: 노브=0 또는 z 벽)
+    var E = sim.E, WH = p.W * p.H, kG = p.kGravity;
+    for (var z = 1; z < D; z++) {                         // z=0 은 바닥 벽(아래 없음) — 받기만 하고 안 내려보낸다(고임 자리)
+      var zb = z * WH, below = zb - WH;
+      for (var k = 0; k < WH; k++) {
+        var i = zb + k, e = E[i];
+        if (e <= 0) continue;
+        var flow = e * kG;                                // 하향 유출(제 E 의 비율 → donor-제한, 음수 없음)
+        E[i] = e - flow; E[below + k] += flow;            // 쌍 거래(셀↔아래 셀) — 보존
+      }
+    }
+  }
+
   /* ② 증발 — 매 tick E 의 kEvap 비율이 장부 evaporated 로. */
   function evaporate(sim) {
     var p = sim.p, E = sim.E, N = p.W * p.H, kEvap = p.kEvap, evap = 0, d;
@@ -357,19 +392,28 @@
     sim.sunk += snk;
   }
 
-  /* ⑤ 결정화·풍화(step-0008) — kCryst=0 이면 통째로 건너뜀(회귀 0, R 불변). */
+  /* ⑤ 결정화·풍화(step-0008) — kCryst=0 이면 통째로 건너뜀(회귀 0, R 불변).
+   * step-0032(VOXEL.md V4 — 지지 침착): 침착(E→R)을 *지지 있는 칸*으로 게이트해 공중 바위(부유 R)를 막고 지면이 *바닥부터* 쌓이게 한다.
+   *   kSupport=0(기본): N=W·H = z=0 평면만(step-0031 비트 동일) · 게이트 무효(무조건 침착) → 직전 step 과 비트 동일(회귀 0, *모든 D* 에서 — 2D 침착 그대로).
+   *   kSupport>0: N=W·H·D = 전 평면으로 일반화 + 지지 게이트(z=0 바닥은 항상 지지[i<WH], z>0 은 바로 아래 칸 R≥supportThresh 라야 침착 — 로컬 z−1 한 칸).
+   *   D=1 이면 z=0 평면뿐이라 게이트가 항상 통과(바닥) → kSupport 값 무관 비트 동일(이중 가드). V3 중력이 바닥에 모은 E 가 굳어 지면이 바닥부터 쌓인다(R 의 중력=지면, E 의 중력=바다와 짝).
+   *   풍화(R→E)는 게이트 무관(침전 자리에서 그대로 erosion). 침착·풍화 모두 셀 안 E↔R 쌍 거래 — 보존(게이트는 침착 *위치*만 거른다, 장부 무관). */
   function crystallize(sim) {
     var p = sim.p; if (p.kCryst === 0) return;
-    var E = sim.E, N = p.W * p.H, R = sim.R, kC = p.kCryst, cth = p.crystThresh, kW = p.kWeather;
+    var E = sim.E, R = sim.R, kC = p.kCryst, cth = p.crystThresh, kW = p.kWeather;
+    var WH = p.W * p.H, kSup = p.kSupport, sth = p.supportThresh;
+    var N = (kSup !== 0 ? WH * (p.D || 1) : WH);   // 지지 침착 켜야 3D(전 평면). 끄면 z=0 평면(step-0031 비트 동일).
     var cry = 0, wth = 0;
     for (var i = 0; i < N; i++) {
       var ev = E[i];
       if (ev > cth) {                          // 문턱: 넘은 셀만 굳는다(국소 판정)
-        var dep = (ev - cth) * kC;
-        E[i] = ev - dep; R[i] += dep; cry += dep;
+        if (kSup === 0 || i < WH || R[i - WH] >= sth) {   // 지지 게이트: 끄면 무조건 · 켜면 z=0 바닥(i<WH) 또는 아래 칸 R≥문턱에서만(공중 바위 차단)
+          var dep = (ev - cth) * kC;
+          E[i] = ev - dep; R[i] += dep; cry += dep;
+        }
       }
       var ri = R[i];
-      if (ri !== 0) {                          // 풍화: 굳은 R 이 천천히 E 로(느린 역행)
+      if (ri !== 0) {                          // 풍화: 굳은 R 이 천천히 E 로(느린 역행) — 게이트 무관
         var rel = ri * kW;
         R[i] = ri - rel; E[i] += rel; wth += rel;
       }
@@ -1289,12 +1333,13 @@
    * ⑥f 세포 분화(differentiate)는 ⑥e pubgood 뒤·⑦생명 앞 — 공공재 채집 위에 *위치 기반* m 흐름(갇힌 내부 soma → kin germ)을 얹어, ⑦사망·⑧번식 전에 germ 의 m 을 키운다(분업 번식 가속).
    * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
+   * ①g 중력 구배(gravity)는 ①diffuse 바로 뒤·②evaporate 앞 — 확산이 옮긴 E 위에 *하향 침전*을 얹는다(흐름 단계: 등방 확산[V2] + 비등방 중력[V3]). E 하향 쌍 거래라 장부 불변.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, gravity, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
-    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy, turing: turing, dendrite: dendrite,
+    diffuse: diffuse, gravity: gravity, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy, turing: turing, dendrite: dendrite,
     combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, permeate: permeate, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

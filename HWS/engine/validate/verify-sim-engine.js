@@ -107,6 +107,32 @@ function zdiffScn(extra) {
     kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
   }, extra || {});
 }
+/* 중력 침전 3D 아레나(step-0031 V3 *실활성*) — step-0031/verify.js gravArena() 와 동일 상수.
+ * D=8 voxel 상자, 균일 E(noise 로 미세 섭동) + 중력 하향 침전(kGravity=0.2) — 다른 법칙(확산 포함) 다 off 라 *순수 중력* 코드 경로만 돈다.
+ * 골든 D=1 키들·zdiff@(kGravity=0)는 gravity 가 early-return 이라 이 코드 경로를 *전혀 안 돈다* — 이 grav@ 가 V3 의 z-하향 쌍 거래 본문을 동결한다(드리프트 가드). */
+function gravArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 1.0, noise: 0.5, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kGravity: 0.2,
+    kCrowd: 0, kCryst: 0, kWeather: 0, kRelief: 0, kIgnite: 0, kFSM: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
+/* 지지 침착 3D 아레나(step-0032 V4 *실활성*) — step-0032/verify.js supportArena() 와 동일 상수.
+ * D=8 voxel 상자, 균일 E(>crystThresh) + 중력 하향 침전(kGravity) + 결정화(kCryst) + 지지 게이트(kSupport=1) — 다른 법칙 다 off.
+ * 골든 D=1 키들(kSupport 미설정=0 → crystallize z=0 평면 = 비트 동일)·grav@(kCryst=0)는 3D+게이트 코드 경로를 *안 돈다* — 이 support@ 가 지지 게이트·3D 침착 본문을 동결한다(드리프트 가드). */
+function supportArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 2.0, noise: 0.5, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kGravity: 0.2, kCryst: 0.05, crystThresh: 1.0, kWeather: 0.0003, kSupport: 1, supportThresh: 0.5,
+    kCrowd: 0, kRelief: 0, kIgnite: 0, kFSM: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -338,6 +364,8 @@ function runEq() {
  *   select@ — step-0028 선택 투과 막 스택(전체 스택, 희소라 큰 액적 드물어 막 거의 안 켜짐 — 직교성 동결). step-0029~ 의 회귀 앵커: 새 노브 kPermeate=0 이면 이 해시 불변.
  *   tselect@ — step-0028 선택 투과 막 membrane 아레나(permeate *실활성* — kin 액적 표면이 빈 바깥에서 E 능동 import·정류 → 안>바깥 농도 차). select@ 가 막 본문을 거의 미커버라 이 키가 막 코드 경로를 동결한다(드리프트 가드).
  *   zdiff@ — step-0030 6-이웃 z-확산 3D 아레나(V2 *실활성* — D=8 voxel 상자, 등방 확산[kD=kDz=0.15] + z=0 source + z 응집). 골든 D=1 키들은 z 항이 산술 0 이라 z 코드 경로 미커버 — 이 키가 z-확산·z-응집 본문을 동결한다(드리프트 가드). step-0031~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   grav@ — step-0031 중력 침전 3D 아레나(V3 *실활성* — D=8 voxel 상자, 균일 E + 중력 하향 침전[kGravity=0.2], 확산 포함 다른 법칙 다 off). zdiff@·골든 D=1 키들은 kGravity=0 이라 gravity early-return → 코드 경로 미커버 — 이 키가 z-하향 쌍 거래 본문을 동결한다(드리프트 가드). step-0032~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   support@ — step-0032 지지 침착 3D 아레나(V4 *실활성* — D=8 voxel 상자, 균일 E + 중력 + 결정화 + 지지 게이트[kSupport=1]). 골든 D=1 키들은 kSupport=0 이라 crystallize z=0 평면(2D, 비트 동일)·grav@ 는 kCryst=0 — 3D+게이트 미커버 → 이 키가 지지 게이트·3D 침착 본문을 동결한다(드리프트 가드). step-0033~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -453,6 +481,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // zdiff@ — 6-이웃 z-확산 3D 아레나(step-0030 V2 *실활성*: D=8 voxel 상자, 등방 확산 + z 응집). 골든 D=1 키들은 z 코드 경로 미커버라 이 키가 z-확산·z-응집 본문을 동결. step-0031~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
     var a = ENG.createSim(seed, zdiffScn()); ENG.run(a, 600);
     cur['zdiff@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // grav@ — 중력 침전 3D 아레나(step-0031 V3 *실활성*: D=8 voxel 상자, 균일 E 가 중력으로 z=0 바닥에 침전). zdiff@(kGravity=0)는 gravity 미커버라 이 키가 z-하향 쌍 거래 본문을 동결. step-0032~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, gravArena()); ENG.run(a, 600);
+    cur['grav@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // support@ — 지지 침착 3D 아레나(step-0032 V4 *실활성*: D=8 voxel, 균일 E + 중력 + 결정화 + 지지 게이트). 골든 D=1 키들(kSupport=0→z=0 침착)·grav@(kCryst=0)는 3D+게이트 미커버라 이 키가 지지 게이트·3D 침착 본문을 동결. step-0033~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, supportArena()); ENG.run(a, 600);
+    cur['support@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

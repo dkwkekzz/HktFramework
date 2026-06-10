@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<title>HWS step-0032 — 지지 침착: E→R 침착을 지지 있는 칸으로 게이트 → 지면이 바닥부터 쌓인다 = 지면 원형(VOXEL.md V4)</title>
+<!-- 셸 HTML(3D 표준, law-pipeline): 공통 CSS + 공통 sim(커널·법칙·조립) + 공통 엔진 + 3D + 패널. 더블클릭 실행. -->
+<link rel="stylesheet" href="engine/hws-ui.css">
+</head><body>
+<script src="engine/hws-kernel.js"></script>     <!-- 동결 원시형 + 3D 헬퍼(discCells3·ballOffsets·tumbleHash3). window.HWS_KERNEL -->
+<script src="engine/hws-laws.js"></script>       <!-- 진화하는 법칙 파이프라인(+ DEFAULTS.kSupport, crystallize 지지 게이트). window.HWS_LAWS -->
+<script src="engine/hws-sim.js"></script>        <!-- 조립 코어(createSim 의 N=W·H·D voxel 격자). window.HWS_SIM -->
+<script src="engine/hws-ui.js"></script>         <!-- 공통 UI 엔진. window.HWS -->
+<script src="engine/hws-3d.js"></script>         <!-- 3D 레이어. window.HWS3D -->
+<script src="step-0032/panel.js"></script>       <!-- 이 step 의 노브(+지지 침착 kSupport)·통계. window.HWS_PANEL_0032 -->
+<script>HWS3D.bind(HWS.mount(window.HWS_SIM, HWS3D.attach(window.HWS_PANEL_0032)));</script>
+</body></html>

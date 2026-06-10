@@ -91,7 +91,7 @@ step마다 다음 산출물을 만든다.
 
 1. **읽기 (필독 3종)** — `CLAUDE.md`(목표·규칙) · **[SPINE.md](SPINE.md)(척추)** · `STATE.md`(현재 위치·다음 가설). **SPINE.md 숙지 없이 step 을 시작하지 않는다** — 한 조각이 큰 그림의 어느 박스/계약을 채우는지부터 본다.
 2. **계획** — `STATE.md` 의 "다음"이 지정한 *한 조각*만 이번 step으로 정한다. 더 떠올라도 다음으로 전가. 척추 체크 5항에 어긋나면 조각을 고쳐 잡는다.
-3. **구현** — 직전 step 프로토타입을 잇고 항을 *하나만* 더한다. 산출물 작성.
+3. **구현** — 직전 step 프로토타입을 잇고 항을 *하나만* 더한다. **step 골격은 `node engine/new-step.js` 로 생성**(직전 step 전체 복사 + 자기참조·reg 경로 치환 + md/concepts 골격 — 복사 전진의 *복사*는 기계가, 에이전트는 델타만 수정). 산출물 작성.
 4. **검증** — `node HktInfra/run.js`(현재 step 검증) + `node HktInfra/run.js spine`(전 시리즈 회귀 사슬)로 가설 4기둥 + **척추 체크 5항**을 모두 통과시킨다(에이전트 자율, exit 0). 통과 못 하면 step을 닫지 않는다. *시각 확인이 필요하면* `node HktInfra/run.js report` 로 `report.html` 1장 생성(html 손작성 아님).
 5. **갱신** — 발견/한계의 *전문*은 이번 `step-NNNN.md` 에 기록한 뒤 `STATE.md` 를 갱신한다(§1~6 덮어쓰기 / §7 인덱스만 append). **시각화는 testbed 가 자동 반영하므로 손으로 그릴 그림(html)은 없다** — `SYSTEM.html`·`step-NNNN.html` 은 폐기됐다([TESTBED.md](TESTBED.md)).
 6. **개념 해설** — 이번 step 의 **`step-NNNN-concepts.md`** 를 작성한다(개념 한눈표 + 핵심 개념 풀이, 위 산출물 규약). 정식 기록(`step-NNNN.md`)이 *무엇을 했나*라면, 이 문서는 *그 개념이 무엇이고 왜 중요한가*를 푼다.

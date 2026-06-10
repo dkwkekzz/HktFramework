@@ -114,16 +114,17 @@
 
   /* ════════ DOM 구성 ════════ */
 
-  /* 레이아웃 override — hws-ui.css 의 `.row{display:flex}`(캔버스|패널 가로 배치)를 *세로 적층*으로 바꿔
-   * 입력 UI(.panel)를 시각화 화면 *아래*로 내린다. 특히 2분할(1280px) 캔버스가 패널을 오른쪽으로 밀어내는
-   * 문제를 푼다. hws-ui.css 는 불변(D5)이라 파일을 고치지 않고 3D 레이어가 스타일 1줄을 주입한다(프레젠테이션 전용).
+  /* 레이아웃 override — hws-ui.css 의 `.row{display:flex}` 를 명시 가로 배치로 고정해 *입력 패널을 시각화 우측*에 둔다.
+   * 두 상태 뷰포트(에너지 변위·세계 해석)는 캔버스를 *세로로* 분할해 좌측 위·아래로 적층한다(render/ensureCanvasSize).
+   * 분할 캔버스가 폭 640 한 뷰포트라 패널을 오른쪽에 둬도 밀리지 않는다(과거 1280px 가로분할 때문에 패널을 아래로
+   * 내렸던 제약이 세로분할로 풀렸다). hws-ui.css 는 불변(D5)이라 파일을 고치지 않고 3D 레이어가 스타일 1줄을 주입한다.
    * 멱등: id 로 중복 주입 방지. */
   function injectLayoutCSS() {
     var doc = global.document;
     if (!doc || byId('hws3d-css')) return;
     var st = doc.createElement('style');
     st.id = 'hws3d-css';
-    st.textContent = '.row{flex-direction:column;}';
+    st.textContent = '.row{flex-direction:row;align-items:flex-start;}';
     (doc.head || doc.body || doc.documentElement).appendChild(st);
   }
 
@@ -211,7 +212,7 @@
       S.pools = S.core.detectPools(sim, (S.panel && S.panel.poolOpts) || { minE: 1.5, prom: 0.3 });
       S.poolTick = sim.tick;
     }
-    /* ── 분할 레이아웃: 세계 해석 뷰가 켜지면 캔버스를 2:1 로 넓혀 두 정사각 뷰포트 ── */
+    /* ── 분할 레이아웃: 세계 해석 뷰가 켜지면 캔버스를 1:2 로 높여 두 정사각 뷰포트(위·아래 적층) ── */
     var split = isWorld();
     ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
@@ -237,17 +238,18 @@
       gl.bufferData(gl.ARRAY_BUFFER, R.agArr.subarray(0, need), gl.DYNAMIC_DRAW);
       agN = ag.length;
     }
-    /* ── 패스: 왼쪽 = 에너지 변위(원본 렌즈), (분할 시) 오른쪽 = 세계 해석(활성도 분류 렌즈) ── */
-    drawView(0, false, MVP, ln.length, agN, glcv, Pm);
-    if (split) drawView(CV_SIZE, true, MVP, ln.length, agN, glcv, Pm);
+    /* ── 패스: 위 = 에너지 변위(원본 렌즈), (분할 시) 아래 = 세계 해석(활성도 분류 렌즈).
+     * GL 뷰포트 원점은 좌하단 → 위 뷰포트가 vy=CV_SIZE, 아래가 vy=0. 비분할이면 단일 뷰포트 vy=0. ── */
+    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm);
+    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm);
     drawHud(sim, split);
   }
 
   /* 한 뷰포트에 지형(prog 선택)+오버레이 라인+생명 점을 그린다. 버퍼·텍스처는 호출 전 업로드됨.
    * world=false → 에너지 변위 셰이더(progT, 원본), true → 세계 해석 셰이더(progW, 활성도 분류). */
-  function drawView(vx, world, MVP, lnCount, agN, glcv, Pm) {
+  function drawView(vy, world, MVP, lnCount, agN, glcv, Pm) {
     var gl = S.gl;
-    gl.viewport(vx, 0, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(좌·우 충돌 없음)
+    gl.viewport(0, vy, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(위·아래 충돌 없음)
     /* ① 지형(하이트필드) */
     var prog = world ? R.progW : R.progT, u = world ? R.uW : R.uT;
     gl.useProgram(prog);
@@ -277,7 +279,7 @@
       gl.uniformMatrix4fv(R.uP.uMVP, false, MVP);
       gl.uniform1f(R.uP.uSat, R.sat); gl.uniform1f(R.uP.uHS, HS);
       gl.uniform2i(R.uP.uDim, R.W, R.H);
-      gl.uniform1f(R.uP.uPx, Pm[5] * glcv.height / 2);      // 세계 길이 → 픽셀 환산 계수(뷰포트 높이=캔버스 높이)
+      gl.uniform1f(R.uP.uPx, Pm[5] * CV_SIZE / 2);          // 세계 길이 → 픽셀 환산 계수(뷰포트 높이=CV_SIZE, 세로분할이어도 캔버스 전체높이 아님)
       gl.bindVertexArray(R.vaoP);
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
       gl.depthMask(false);
@@ -287,11 +289,12 @@
     gl.bindVertexArray(null);
   }
 
-  /* 분할 토글에 맞춰 캔버스·HUD 크기 조정 — on 이면 2:1(두 정사각 뷰포트), off 면 정사각 1개 */
+  /* 분할 토글에 맞춰 캔버스·HUD 크기 조정 — on 이면 1:2(위·아래 두 정사각 뷰포트), off 면 정사각 1개.
+   * 세로 적층이라 폭은 늘 한 뷰포트(CV_SIZE)·높이만 2배가 된다(과거 가로분할은 폭 2배였다). */
   function ensureCanvasSize(split) {
-    var want = split ? CV_SIZE * 2 : CV_SIZE, glcv = S.dom.glcv, hud = S.dom.hud;
-    if (glcv.width !== want) { glcv.width = want; hud.width = want; }
-    if (glcv.height !== CV_SIZE) { glcv.height = CV_SIZE; hud.height = CV_SIZE; }
+    var wantH = split ? CV_SIZE * 2 : CV_SIZE, glcv = S.dom.glcv, hud = S.dom.hud;
+    if (glcv.width !== CV_SIZE) { glcv.width = CV_SIZE; hud.width = CV_SIZE; }
+    if (glcv.height !== wantH) { glcv.height = wantH; hud.height = wantH; }
   }
 
   /* ── 오버레이 라인 빌더 — 표면 위 링·빔·경계·호버. [x,y,z,r,g,b]×2 per line ── */
@@ -409,18 +412,18 @@
     ctx.fillStyle = '#5a6270'; ctx.font = '10px Segoe UI';
     if (ctx.measureText) {
       var hint = '드래그 회전 · 휠 줌 · Shift/우드래그 팬 · 클릭 = 클릭 동작';
-      ctx.fillText(hint, (split ? CV_SIZE : wdt) - ctx.measureText(hint).width - 8, hgt - 8);
+      ctx.fillText(hint, wdt - ctx.measureText(hint).width - 8, hgt - 8);
     }
-    /* ── 뷰포트 제목 라벨 (분할 시 좌=에너지 변위 · 우=세계 해석) ── */
+    /* ── 뷰포트 제목 라벨 (분할 시 위=에너지 변위 · 아래=세계 해석. HUD 는 좌상단 원점이라 아래 뷰포트는 y=CV_SIZE 만큼 내린다) ── */
     ctx.textAlign = 'center'; ctx.font = 'bold 13px Segoe UI';
-    vlabel(ctx, CV_SIZE / 2, '에너지 변위', '#9fb0c0');
+    vlabel(ctx, CV_SIZE / 2, 21, '에너지 변위', '#9fb0c0');
     if (split) {
-      vlabel(ctx, CV_SIZE + CV_SIZE / 2, '세계 해석 (물질)', '#e6c860');
+      vlabel(ctx, CV_SIZE / 2, CV_SIZE + 21, '세계 해석 (물질)', '#e6c860');
       /* 세계 해석 범례 — 높이=물질(R 고체 only)·에너지(E)는 z 0(고활성=빛·저활성=물 재질) 분해 (RENDER §2·§5) */
       ctx.textAlign = 'left'; ctx.font = '11px Consolas';
       var leg = [['#1a5a86', '물 · 액체 (저활성 E · 높이 0 · 투과)'], ['#52473f', '돌 · 암반 (R 고체 · 무광)'],
                  ['#c89a6a', '나무 · 결정 (R + 유전 G)'], ['#ffb04d', '빛 · 에너지 (고활성 A · 높이 0)']];
-      var lx = CV_SIZE + 10, ly = 34, lh = 16;
+      var lx = 10, ly = CV_SIZE + 34, lh = 16;
       for (var li = 0; li < leg.length; li++) {
         var yy = ly + li * lh;
         ctx.fillStyle = 'rgba(15,17,21,0.55)'; ctx.fillRect(lx, yy, 168, lh - 2);
@@ -431,11 +434,11 @@
     ctx.textAlign = 'left';                                 // 다음 프레임 sparkline/hover 가 left 기준이도록 복원
   }
 
-  /* 뷰포트 상단 가운데 제목 — 반투명 배경 + 색 텍스트 */
-  function vlabel(ctx, cx, txt, col) {
+  /* 뷰포트 상단 가운데 제목 — 반투명 배경 + 색 텍스트. cy = 텍스트 baseline(배경 사각은 그 위로) */
+  function vlabel(ctx, cx, cy, txt, col) {
     var w = ctx.measureText(txt).width;
-    ctx.fillStyle = 'rgba(15,17,21,0.62)'; ctx.fillRect(cx - w / 2 - 7, 6, w + 14, 21);
-    ctx.fillStyle = col; ctx.fillText(txt, cx, 21);
+    ctx.fillStyle = 'rgba(15,17,21,0.62)'; ctx.fillRect(cx - w / 2 - 7, cy - 15, w + 14, 21);
+    ctx.fillStyle = col; ctx.fillText(txt, cx, cy);
   }
 
   /* ════════ 입력 — 궤도 카메라 + 레이캐스트 클릭/호버 ════════ */
@@ -495,11 +498,11 @@
     var glcv = S.dom.glcv, r = glcv.getBoundingClientRect();
     var mx = ev.clientX - r.left, my = ev.clientY - r.top;
     if (mx < 0 || my < 0 || mx >= r.width || my >= r.height) return null;
-    /* 분할 시 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 픽킹 식 동일 */
+    /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 픽킹 식 동일 */
     var split = isWorld();
-    var halfCss = split ? r.width / 2 : r.width;            // CSS 폭 기준 한 뷰포트 폭
-    var localX = (split && mx >= halfCss) ? mx - halfCss : mx;
-    return pick(localX / halfCss * 2 - 1, 1 - my / r.height * 2);
+    var halfCss = split ? r.height / 2 : r.height;          // CSS 높이 기준 한 뷰포트 높이
+    var localY = (split && my >= halfCss) ? my - halfCss : my;
+    return pick(mx / r.width * 2 - 1, 1 - localY / halfCss * 2);
   }
 
   /* 픽킹 — 카메라 기저로 레이 생성 후 하이트필드 레이마칭(이분 정밀화). 셰이더와 같은 높이식 사용. */
