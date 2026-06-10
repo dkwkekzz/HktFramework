@@ -105,6 +105,8 @@ async function e2e(seeds) {
       const okP = persistDigest(a) === persistDigest(b);
       const leak = chatLeak(b), dC = chatDesync(b);
       const cons = itemConserved(b) && ledgerConsistent(b);
+      // anchor — restart 런이면 *무재시작 기준*과 비교(자족 증명). 인프로세스=멀티 비교만으론 양쪽 동일하게 깨진 복구를 못 잡는다.
+      const anchor = cfg.invRestart ? invDigest(b) === invDigest(run(PERSIST(seed))) : true;
       const ok =
         check(okL, `seed ${seed} ${name}: net.log 다름`) &&
         check(okW, `seed ${seed} ${name}: 월드 상태 다름`) &&
@@ -113,6 +115,7 @@ async function e2e(seeds) {
         check(okB, `seed ${seed} ${name}: 버스 라우팅/회계 다름`) &&
         check(okA, `seed ${seed} ${name}: audit 관찰 스트림 다름`) &&
         check(okP, `seed ${seed} ${name}: 영속 저널 다름`) &&
+        check(anchor, `seed ${seed} ${name}: restart 원장이 무재시작 기준과 다름(복구 비투명)`) &&
         check(leak === 0, `seed ${seed} ${name}: 누설 ${leak}`) &&
         check(dC === 0, `seed ${seed} ${name}: chatDesync ${dC}`) &&
         check(cons, `seed ${seed} ${name}: 원장 보존/정합 깨짐`);
@@ -288,10 +291,12 @@ async function repro(seeds) {
     const sig = (r) => invDigest(r) + '/' + persistDigest(r) + '/' + busDigest(r) + '/' + auditDigest(r) + '/' + chatDigest(r);
     const s1 = sig(m1), s2 = sig(m2), si = sig(inp);
     const w = worldDigest(m1) === worldDigest(inp) && worldDigest(m1) === worldDigest(m2);
+    const anchor = invDigest(inp) === invDigest(run(PERSIST(seed)));   // restart 원장이 무재시작 기준과 동일(자족 복구 증명)
     digests.add(invDigest(m1));
     const ok =
       check(s1 === s2, `seed ${seed}: 멀티 2회 다름`) &&
       check(s1 === si, `seed ${seed}: 멀티 != 인프로세스`) &&
+      check(anchor, `seed ${seed}: restart 원장이 무재시작 기준과 다름(복구 비투명)`) &&
       check(w, `seed ${seed}: world 다름`);
     console.log(`${pad(seed, 6)} | ${hex(invDigest(m1))}     | ${(s1 === s2 ? 'OK' : 'FAIL').padEnd(12)} | ${(s1 === si ? 'OK' : 'FAIL').padEnd(14)} | ${(w ? 'OK' : 'FAIL').padEnd(10)} | ${ok ? 'OK' : 'FAIL'}`);
   }

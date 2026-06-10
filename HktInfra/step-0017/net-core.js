@@ -487,19 +487,25 @@ class InventoryService {
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   // replay — 영속 저널(효과 로그)로 원장을 *재현*(상태 전송 아님 = §4 "복제=재현"). seq 순서대로 mint/xfer 적용.
-  //   mintTotal 을 mint 항목 수로 복원해 *이후 itemId 연속성* 보장(복구가 원장에 투명 = no-restart 와 비트 동일).
+  //   mintTotal·journalSeq 를 *최대값+1* 로 복원(개수 아님) → 이후 itemId 연속성·seq 단조 보장. 완전 저널이면 max+1==개수(복구 투명).
+  //   저널에 빈칸(write-behind 손실/비-contiguous)이 있어도 itemId 재사용·seq 중복이 구조적으로 불가(개수 기반의 함정 회피).
   replay(journal) {
     const sorted = (journal || []).slice().sort((a, b) => a.seq - b.seq);
+    let maxMintId = -1, maxSeq = -1;
     for (const e of sorted) {
+      if (e.seq > maxSeq) maxSeq = e.seq;
       if (e.kind === 'mint') {
         this.ledger.set(e.itemId, e.owner); this._own(e.owner, e.itemId);
-        this.minted++; this.mintTotal++;
+        this.minted++;
+        const idNum = parseInt(String(e.itemId).slice(4), 10);   // 'item<N>' → N (mintTotal 복원 = max(N)+1)
+        if (Number.isFinite(idNum) && idNum > maxMintId) maxMintId = idNum;
       } else if (e.kind === 'xfer') {
         this._unown(e.from, e.itemId); this.ledger.set(e.itemId, e.to); this._own(e.to, e.itemId);
         this.transfers++;
       }
     }
-    this.journalSeq = sorted.length;   // 다음 저널 항목은 죽기 전 마지막 +1 (저널 시퀀스 연속)
+    this.mintTotal = maxMintId + 1;   // 다음 mint itemId = 'item'+(max+1) (개수 아님 — 빈칸에도 재사용 0)
+    this.journalSeq = maxSeq + 1;     // 다음 저널 seq = max+1 (개수 아님 — 빈칸에도 중복 0)
   }
   itemCount() { return this.ledger.size; }
   ownerOf(itemId) { return this.ledger.get(itemId); }

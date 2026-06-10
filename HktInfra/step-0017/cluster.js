@@ -366,7 +366,7 @@ async function runMulti(opts, deps) {
     net_.tick++;
     // ── 가방 failover(0017) — tick 의 deliver *직전*(인프로세스 run() 의 crash+replay 와 같은 위치). 제어 평면(net_.log 비-기여). ──
     //   ① persist(안 죽음)에서 저널 읽기 ② 가방 호스트 진짜 kill(RAM 소실) ③ 새 호스트 spawn·init·replay(저널) ④ 'inventory' 라우팅 전환.
-    if (invRestart && net_.tick === invRestart.at && !invRestartDone) {
+    if (invRestart && placement.has('inventory') && net_.tick === invRestart.at && !invRestartDone) {   // inventory 존재 가드(인프로세스 run() 의 `&& inventory` 와 정합 — 부재 시 no-op·모드 발산 방지)
       invRestartDone = true;
       const oldHost = placeOf('inventory');
       let journal = [];
