@@ -139,7 +139,7 @@ function runMode(mode, seeds) {
     return rr.every(function (r) { return r.pass; });
   } else if (mode === 'conserve') {
     var rc = seeds.map(conserve); table(rc, ['seed', 'residual', 'sumE', 'store', 'biomass', 'pop', 'conv', 'pass']);
-    console.log('avg residual=' + avg(rc, 'residual').toExponential(3) + ' (튜링은 셀 안에서 E↔R 자기촉매 침착·붕괴 — 결정화/복제와 같은 쌍 거래 경계 → 장부 식 불변). 전체 스택은 희소라 큰 패턴 드물어 약하게 켜짐(conv~' + avg(rc, 'conv').toFixed(0) + ') — *튜링 활성* 효과는 turing 이 잰다.');
+    console.log('avg residual=' + avg(rc, 'residual').toExponential(3) + ' (튜링은 셀 안에서 E↔R 자기촉매 침착·붕괴 — 결정화/복제와 같은 쌍 거래 경계 → 장부 식 불변). 전체 스택은 이미 굳은 큰 R 위에서 *fixed point 근처 forward-back churn* 이라 전환 throughput(conv~' + avg(rc, 'conv').toFixed(0) + ')은 크되 *net 패턴*은 약하다(포화가 sink 를 눌러 진폭 작음) — *튜링 패턴*(균일 대칭 깨짐) 효과는 turing 아레나가 잰다.');
     return rc.every(function (r) { return r.pass; });
   } else if (mode === 'det') {
     var rd = seeds.map(det); table(rd, ['seed', 'hashA', 'hashB', 'pass']);
@@ -155,7 +155,7 @@ function runMode(mode, seeds) {
   } else if (mode === 'sustain') {
     var st = sustainTest(); table(st.rows, ['seed', 'finPop', 'finStars', 'lateBirths', 'lateDeaths', 'nOrg', 'maxOrg', 'conv', 'collapse']);
     console.log('튜링 on *공멸 없음*(지평선 ' + HORIZON + ' 전 시드 생존). 후반 출생/사망 ' + avg(st.rows, 'lateBirths').toFixed(0) + '/' + avg(st.rows, 'lateDeaths').toFixed(0) +
-      ' (≈균형 — carrying capacity ~' + avg(st.rows, 'finPop').toFixed(0) + '). 존재론 조각(튜링 패턴)이 동역학을 안 깬다(전체 스택은 희소라 거의 안 켜짐·셀별 E↔R 쌍 거래·자원 clamp — 직교성).');
+      ' (≈균형 — carrying capacity ~' + avg(st.rows, 'finPop').toFixed(0) + '). 존재론 조각(튜링 패턴)이 동역학을 안 깬다(전체 스택은 net 패턴 약함[포화가 sink 차단]·셀별 E↔R 쌍 거래·자원 clamp — 직교성; 단 turRate 를 크게[≳0.4] 올리면 sink 가 이겨 공멸하니 default 0.3 고정).');
     return st.pass;
   } else { console.error('unknown mode: ' + mode); process.exit(2); }
 }
