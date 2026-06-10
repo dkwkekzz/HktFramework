@@ -138,6 +138,7 @@ function layerOf(spec) {
     case 'login': case 'gateway': return 'edge';
     case 'registry': case 'orch': return 'coord';
     case 'zone': return 'world';
+    case 'inventory': case 'chat': return 'service';
     case 'client': return 'client';
     default: return 'other';
   }
