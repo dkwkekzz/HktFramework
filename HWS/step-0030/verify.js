@@ -14,7 +14,6 @@
  */
 'use strict';
 var ENG = require('../engine/hws-sim.js');
-var K = require('../engine/hws-kernel.js');
 
 var SEEDS = [42, 7, 1234, 99, 2026];
 var W = ENG.DEFAULTS.W, H = ENG.DEFAULTS.H, WH = W * H;
@@ -31,7 +30,7 @@ function zArena(extra) {
   }, extra || {});
 }
 /* 깨끗한 점 주입 아레나 — E=0 에서 시작해 한 점만 주입하고 *순수 확산*(구동·증발·응집 다 off)으로 퍼짐을 격리 측정. */
-function pointArena(D, kDz) { return zArena({ D: D, kDz: kDz, initE: 0, noise: 0, drive: true, source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 }, kEvap: 0, kA: 0 }); }
+function pointArena(D, kDz) { return zArena({ D: D, kDz: kDz, initE: 0, noise: 0, drive: false, source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 }, kEvap: 0, kA: 0 }); }
 /* 인덱스 (z·H+y)·W+x. 중심 (cx,cy,cz) 에 E 한 덩이 주입(외부 질량이라 E0 보정). */
 function inject(sim, cx, cy, cz, amount) { var i = (cz * H + cy) * W + cx; sim.E[i] += amount; sim.E0 += amount; }
 function planeSums(sim, D) { var s = []; for (var z = 0; z < D; z++) { var t = 0; for (var k = 0; k < WH; k++) t += sim.E[z * WH + k]; s.push(t); } return s; }
@@ -57,7 +56,8 @@ function zdiffuse(seed) {
   /* isotropy: 중간 z 한 점 주입 후 짧게 확산(벽 미도달) → x-이웃 ≡ z-이웃(kDz=kD 등방). */
   var iso = ENG.createSim(seed, pointArena(D, 0.15)); inject(iso, 32, 32, 4, amt); ENG.run(iso, 2);
   var ex = at(iso, 33, 32, 4), ey = at(iso, 32, 33, 4), ez = at(iso, 32, 32, 5);
-  var isoRatio = ex > 1e-12 ? ez / ex : 0, isoRel = ex > 1e-12 ? Math.abs(ez - ex) / ex : 1;
+  /* x·y·z 세 축 이웃이 모두 같아야 등방(kDz=kD). z 를 x·y 둘 다와 비교. */
+  var isoRatio = ex > 1e-12 ? ez / ex : 0, isoRel = ex > 1e-12 ? Math.max(Math.abs(ez - ex), Math.abs(ez - ey)) / ex : 1;
   /* anisotropy 대조: kDz=0 이면 z-이웃은 0(climb 없음), x-이웃은 > 0. */
   var an = ENG.createSim(seed, pointArena(D, 0)); inject(an, 32, 32, 4, amt); ENG.run(an, 2);
   var anEx = at(an, 33, 32, 4), anEz = at(an, 32, 32, 5);

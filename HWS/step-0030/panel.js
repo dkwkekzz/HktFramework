@@ -28,8 +28,8 @@
       ]},
       { items: [
         { kind: 'slider', id: 'D', label: '터 깊이 D (voxel)', param: 'D', min: 1, max: 8, step: 1, def: 1, fixed: 0, title: '시뮬 공간 깊이(z). 1 = 기존 2D(비트 동일). >1 = voxel 상자(W×H×D). *리셋 시 적용*되는 구조 노브. D>1 + kDz>0 이라야 z 확산으로 상위 평면이 산다. 3D 뷰는 아직 z=0 평면 하이트필드(voxel 렌더는 렌더러 트랙).' },
-        { kind: 'check', id: 'zdiffc', label: 'z 확산(6-이웃 — 상위 평면 깨움)', def: false, gateFor: 'kDz', title: 'step-0030 V2: 확산 stencil 을 4-이웃→6-이웃으로(z 항). z=0 평면 E 가 z 로 퍼져 상위 평면이 산다. 끄면(kDz=0) V1 — 상위 평면 불활성.' },
-        { kind: 'slider', id: 'kDz', label: 'kDz (z 확산 계수)', param: 'kDz', min: 0, max: 0.25, step: 0.01, def: 0.15, fixed: 2, gateBy: 'zdiffc', gateOff: 0, title: 'z 확산 계수(상하 이웃). 0 또는 D=1 이면 z 항 산술 0 = 회귀(직전 step 비트 동일). kDz=kD 면 등방. 안정: 4·kD+2·kDz ≤ 1. *리셋 불필요* — 즉시 적용.' }
+        { kind: 'check', id: 'zdiffc', label: 'z 확산(6-이웃 — 상위 평면 깨움)', def: false, gateFor: 'kDz', title: 'step-0030 V2: 확산 stencil 을 4-이웃→6-이웃으로(z 항). z=0 평면 E 가 z 로 퍼져 상위 평면이 산다. 끄면(kDz=0) V1 — 상위 평면 불활성. ⚠ z 항은 *선형 확산 경로*(kRelief=0)에만 있다 — 아래 "무대(기복)"가 켜져 있으면(기본 on) z 확산이 무효다(기복 경로는 z=0 평면 전용, 3D 수직은 V3 중력). z 확산을 보려면 무대를 끄고 D>1 로 리셋하라.' },
+        { kind: 'slider', id: 'kDz', label: 'kDz (z 확산 계수)', param: 'kDz', min: 0, max: 0.25, step: 0.01, def: 0.15, fixed: 2, gateBy: 'zdiffc', gateOff: 0, title: 'z 확산 계수(상하 이웃). 0 또는 D=1 이면 z 항 산술 0 = 회귀(직전 step 비트 동일). kDz=kD 면 등방. 안정: 4·kD+2·kDz ≤ 1. *리셋 불필요* — 즉시 적용. ⚠ "무대(기복)"가 켜져 있으면 무효(기복 경로엔 z 항 없음 — 무대를 끄라).' }
       ]},
       { items: [
         { kind: 'check', id: 'dendritec', label: '가지치기 덴드라이트(전선 경계 불안정→옆가지)', def: true, gateFor: 'kDendrite', title: '자라는 결정 전선에 Mullins-Sekerka 경계 불안정(곡률 증폭 + 기하 차폐)을 얹어 *옆가지*(눈송이/금속 덴드라이트). 둘째 필드 없이 E·R 만. R 하이트필드에 *가지*. 0 = step-0026.' },
@@ -134,7 +134,7 @@
         { kind: 'slider', id: 'kA', label: 'kA', param: 'kA', min: 0, max: 0.6, step: 0.01, def: 0.45, fixed: 2, gateBy: 'agg', gateOff: 0 }
       ]},
       { items: [
-        { kind: 'check', id: 'stage', label: '무대(기복)', def: true, gateFor: 'kRelief', title: '퇴적 R 이 흐름을 휜다(step-0009).' },
+        { kind: 'check', id: 'stage', label: '무대(기복)', def: true, gateFor: 'kRelief', title: '퇴적 R 이 흐름을 휜다(step-0009). ⚠ 켜져 있으면(기복 경로) z 확산(kDz)이 무효 — z 확산은 선형 확산 경로(kRelief=0)에만 있다. 3D z 확산을 보려면 무대를 끄라.' },
         { kind: 'slider', id: 'kRelief', label: 'kRelief', param: 'kRelief', min: 0, max: 3, step: 0.1, def: 1.0, fixed: 1, gateBy: 'stage', gateOff: 0 },
         { kind: 'check', id: 'cryst', label: '결정화(R)', def: true, gateFor: 'kCryst', title: '별이 주입한 E 가 굳어 R 로 — 복제·결정화·생명 부트스트랩의 기질.' },
         { kind: 'slider', id: 'kCryst', label: 'kCryst', param: 'kCryst', min: 0, max: 0.05, step: 0.005, def: 0.01, fixed: 3, gateBy: 'cryst', gateOff: 0 }
