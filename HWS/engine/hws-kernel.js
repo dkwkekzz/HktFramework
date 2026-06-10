@@ -38,6 +38,16 @@
     return (h ^ (h >>> 16)) >>> 0;
   }
 
+  /* 결정론적 3D tumble 해시(step-0028 V1) — tumbleHash 의 z-확장. z=0 이면 imul(0,·)=0 이라 tumbleHash(x,y,t,seed) 와 *비트 동일*
+   * (2D 해시 = 3D 해시의 z=0 슬라이스 → 기존 법칙은 tumbleHash 를 그대로 써 회귀 0; 3D 에이전트/별 siting 만 이걸 쓴다). */
+  function tumbleHash3(x, y, z, t, seed) {
+    var h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) +
+             Math.imul(z | 0, 2147483647) + Math.imul(t | 0, 2246822519) + Math.imul(seed | 0, 3266489917)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+
   /* 반경 r 원판에 포함되는 셀 인덱스 목록 (wrap) */
   function discCells(W, H, cx, cy, r) {
     var cells = [];
@@ -59,6 +69,38 @@
       for (var dx = -r; dx <= r; dx++) {
         if (dx === 0 && dy === 0) continue;
         if (dx * dx + dy * dy <= r * r) offs.push([dx, dy]);
+      }
+    }
+    return offs;
+  }
+
+  /* 반경 r 공(ball)에 포함되는 셀 인덱스 목록(step-0028 V1) — x·y wrap, z 벽(클램프). 인덱스 (z·H+y)·W+x.
+   * D=1·cz=0 이면 dz=0 만 살아 discCells(W,H,cx,cy,r) 와 *셀·순서 비트 동일*(dz 바깥 루프 1회) → 3D 헬퍼가 2D 의 진부분집합(회귀 안전). */
+  function discCells3(W, H, D, cx, cy, cz, r) {
+    var cells = [];
+    for (var dz = -r; dz <= r; dz++) {
+      var z = cz + dz; if (z < 0 || z >= D) continue;                 // z 는 wrap 안 함 — 바닥/천장 벽
+      for (var dy = -r; dy <= r; dy++) {
+        for (var dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy + dz * dz <= r * r) {
+            var x = (cx + dx + W) % W, y = (cy + dy + H) % H;
+            cells.push((z * H + y) * W + x);
+          }
+        }
+      }
+    }
+    return cells;
+  }
+
+  /* 반경 r 공의 (dx,dy,dz) 오프셋 목록(step-0028 V1) — 중심 제외, 스캔 순서(dz·dy·dx) 고정. D=1 호출부는 dz=0 만 쓰면 discOffsets 와 등가. */
+  function ballOffsets(r) {
+    var offs = [];
+    for (var dz = -r; dz <= r; dz++) {
+      for (var dy = -r; dy <= r; dy++) {
+        for (var dx = -r; dx <= r; dx++) {
+          if (dx === 0 && dy === 0 && dz === 0) continue;
+          if (dx * dx + dy * dy + dz * dz <= r * r) offs.push([dx, dy, dz]);
+        }
       }
     }
     return offs;
@@ -663,8 +705,8 @@
   }
 
   var api = {
-    mulberry32: mulberry32, tumbleHash: tumbleHash,
-    discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
+    mulberry32: mulberry32, tumbleHash: tumbleHash, tumbleHash3: tumbleHash3,
+    discCells: discCells, discOffsets: discOffsets, discCells3: discCells3, ballOffsets: ballOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
     measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureSelective: measureSelective, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring, measureDendrite: measureDendrite,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,

@@ -21,14 +21,16 @@
     p.source = Object.assign({}, L.DEFAULTS.source, (params && params.source) || {});
     p.sink = Object.assign({}, L.DEFAULTS.sink, (params && params.sink) || {});
     var rng = K.mulberry32(seed);
-    var N = p.W * p.H;
+    var N = p.W * p.H * (p.D || 1);          // step-0028 V1: voxel 격자 N=W·H·D (D=1 → W·H = 기존과 동일). 인덱스 (z·H+y)·W+x.
     var E = new Float64Array(N);
     for (var i = 0; i < N; i++) E[i] = p.initE + p.noise * (rng() - 0.5);
     var E0 = 0;
     for (i = 0; i < N; i++) E0 += E[i];
     return {
       p: p, seed: seed, tick: 0,
-      E: E, buf: new Float64Array(N),
+      /* buf = E 복사본(작업 버퍼). D=1 에선 diffuse 가 매 tick 읽기 전 전부 덮어써 초기값 무관 → 비트 동일(회귀).
+       * D>1 에선 diffuse 가 z=0 평면만 쓰므로(V1) 미작성 상위 평면이 스왑 후에도 초기 noise 를 보존해야 장부가 닫힌다(zeros 면 에너지 유실). */
+      E: E, buf: E.slice(),
       R: new Float64Array(N),                  // 저장체(굳은 흐름량). 초기 0 → kCryst=0 이면 영원히 0(회귀)
       hPot: new Float64Array(N),               // 흐름 퍼텐셜 h=E+kRelief·R 작업 버퍼(상태 아님)
       fLim: new Float64Array(N),               // donor 유출 제한 f 작업 버퍼(상태 아님)
@@ -90,7 +92,8 @@
   /* step-0010/sim-core.js 와 동일한 메서드 표면 — 엔진·패널·verify 가 그대로 쓴다. */
   var core = {
     DEFAULTS: L.DEFAULTS, laws: L,
-    mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, createSim: createSim,
+    mulberry32: K.mulberry32, tumbleHash: K.tumbleHash, tumbleHash3: K.tumbleHash3, createSim: createSim,
+    discCells3: K.discCells3, ballOffsets: K.ballOffsets,
     aggKernel: K.aggKernel, spawnAgent: K.spawnAgent, spawnStar: K.spawnStar, spawnGene: K.spawnGene, step: step, run: run,
     totalBiomass: K.totalBiomass, totalStore: K.totalStore, totalFuel: K.totalFuel, ledger: K.ledger, measure: K.measure, measureStore: K.measureStore, measureOrganisms: K.measureOrganisms, measureMembrane: K.measureMembrane, measureSelective: K.measureSelective, measureDifferentiation: K.measureDifferentiation, measureGermline: K.measureGermline, measureAnchor: K.measureAnchor, measureRoundness: K.measureRoundness, measureAnisotropy: K.measureAnisotropy, measureTuring: K.measureTuring, measureDendrite: K.measureDendrite,
     detectPools: K.detectPools, harvest: K.harvest, paintStore: K.paintStore, paintE: K.paintE, localE: K.localE, localStore: K.localStore,
