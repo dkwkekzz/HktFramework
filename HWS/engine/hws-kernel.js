@@ -414,6 +414,32 @@
     return { aniso: aniso, axisX: Ixx, axisY: Iyy, l1: l1, l2: l2, cells: cells, sumR: sw };
   }
 
+  /* 튜링 패턴 측정 — step-0026. turing(⑤f)이 빚은 *반응-확산 패턴*(반점/줄무늬)을 author 아닌 *측정*으로 읽는다.
+   * 균일이 깨졌는가(대칭 깨짐 = 진폭↑)와 *특성 파장*이 있는가(공간 자기상관의 첫 음수 lag·음의 dip)를 본다 — Turing 의 서명.
+   *   진폭(std) ↑ + 자기상관이 *유한 lag 에서 음수*(반점→골 = 특성 간격)면 패턴(노이즈는 진폭≈초기·자기상관 평탄). 위치(R 필드)만 *읽고* 동역학에 되먹이지 않는다(측정 읽기전용). 반환:
+   *   meanR/stdR/maxR — R 필드의 평균·표준편차(진폭 = 대칭 깨짐 세기)·최대(반점 봉우리).
+   *   firstNeg — 공간 자기상관(행+열, 토러스)이 처음 음수가 되는 lag(특성 *반*파장 — 반점에서 골까지). 0 이면 음수 없음(패턴 없음=노이즈/균일). 노이즈는 lag1 에서 바로 ≈0, 패턴은 lag>1 에서 양수→음수(공간 진동).
+   *   minAC — 자기상관 최소값(음의 dip 깊이 — 클수록 또렷한 반점/골 교대). 노이즈는 ≈0, 패턴은 뚜렷이 음수.
+   *   ac1 — lag1 자기상관(근방 양의 상관 = 반점 폭 > 1셀; 격자 체커보드면 음수 — 단파 catastrophe 의 서명). */
+  function measureTuring(sim, opt) {
+    opt = opt || {};
+    var R = sim.R, W = sim.p.W, H = sim.p.H, N = W * H, maxLag = opt.maxLag || 16, i, x, y, L;
+    var mean = 0; for (i = 0; i < N; i++) mean += R[i]; mean /= N;
+    var varR = 0, mx = 0; for (i = 0; i < N; i++) { var d = R[i] - mean; varR += d * d; if (R[i] > mx) mx = R[i]; }
+    var norm = varR;                                                                   // = Σ(R−mean)²
+    var ac = new Float64Array(maxLag + 1);
+    if (norm > 1e-12) {
+      for (y = 0; y < H; y++) for (x = 0; x < W; x++) {
+        var a0 = R[y * W + x] - mean;
+        for (L = 1; L <= maxLag; L++) ac[L] += a0 * ((R[y * W + (x + L) % W] - mean) + (R[((y + L) % H) * W + x] - mean));
+      }
+      for (L = 1; L <= maxLag; L++) ac[L] /= (2 * norm);                               // 행+열 평균 → 정규화 자기상관(ac[0]=1)
+    }
+    var firstNeg = 0, minAC = 0;
+    for (L = 1; L <= maxLag; L++) { if (ac[L] < minAC) minAC = ac[L]; if (firstNeg === 0 && ac[L] < 0) firstNeg = L; }
+    return { meanR: mean, stdR: Math.sqrt(varR / N), maxR: mx, firstNeg: firstNeg, minAC: minAC, ac1: ac[1] };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -593,7 +619,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

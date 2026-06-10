@@ -204,7 +204,16 @@
                            //   유전형 G(이산 태그)가 *결정축*을 정한다 — 같은 genotype 의 결정이 같은 축으로 자란다(눈송이 대칭·광물 격자 대칭의 게임화: 결정 대칭이 유전형에 실린다). 복제(⑤d, 등방 4-방향)와 달리 태그의 *선호 축* 두 이웃에만 E→R 침착·태그 복사 → 축 위로만 자라 needle/가지.
                            //   INTERPRET §5 형태발생("주형 성장 = 유전형이 *어디에 굳힐지* 지시"; 0015 는 복제 *속도*만 — 공간 배치 미지시였다)를 잇는다. R 속성(G)에 실어 단일 척추.
     anisoRate: 0.3,        // 방향성 침착량 — 선호 축 빈 이웃 칸당/tick E→R(결정화·복제와 같은 경계). 대상 이웃은 E ≥ anisoRate 여야 한다(기질 문턱=자기제한; E 부족이면 멈춤). 침착받은 이웃도 이만큼 R 을 얻어 다음 세대 결정 핵(축 연장).
-    anisoThresh: 0.2       // 주형 문턱 — R[i] ≥ 이 값 & G[i]≠0 인 칸이 결정 핵(국소 판정·결정화의 crystThresh 정신). anisoRate(0.3) ≥ 이 값이라 침착받은 빈칸이 곧 다음 핵이 된다(needle 연장).
+    anisoThresh: 0.2,      // 주형 문턱 — R[i] ≥ 이 값 & G[i]≠0 인 칸이 결정 핵(국소 판정·결정화의 crystThresh 정신). anisoRate(0.3) ≥ 이 값이라 침착받은 빈칸이 곧 다음 핵이 된다(needle 연장).
+    /* ── step-0026: E↔R 튜링 불안정(turing — *둘째 필드 없이* 비확산 R 자기촉매 + 확산 E 두 timescale → 균일이 깨져 반점/줄무늬. 형태 사다리 R4, *R 하이트필드*에 대칭 깨짐 패턴) ── */
+    kTuring: 0,            // 튜링 마스터. 0 = off = step-0025 와 비트 동일(회귀, turing 통째 skip·E·R 불변 → aniso@/taniso@ 해시 무관). >0(=1)이면 on: R1(couple)·R2(tension)·R3(anisotropy)은 형태를 *씨앗/주형*에서 키웠다(이미 구조가 있어야 자란다).
+                          //   R4 는 *균일에서* 형태가 *저절로 갈라지게* 한다(Turing 의 핵심 — 대칭 깨짐): 둘째 전역 필드를 *만들지 않고*(단일 척추) 이미 있는 두 필드 — *확산하는 E*(긴 거리)와 *비확산 저장상 R*(짧은 거리)
+                          //   — 의 *서로 다른 이동성*(=차등 확산, Turing 의 전제)을 반응에 묶는다. R 은 *자기촉매 활성자*(immobile activator): 국소 R 이 짙을수록 E→R 침착이 빨라진다(짧은 거리 활성 — R 의 *근방 커널* 함수). E 는 *확산 기질/억제자*(diffusing substrate):
+                          //   국소 침착이 E 를 비워(고갈) 이웃에서 천천히 채워지며 *긴 거리 억제*가 된다. 짧은 활성 + 긴 억제 = Turing(Gierer-Meinhardt) → 균일 정상상태가 *유한 파장*으로 불안정해져 반점/줄무늬가 *창발*한다(author 안 함 — 반응 1개만 깖).
+                          //   *반드시 근방 커널*: 순수 국소 R[i]² 자기촉매는 격자 척도로 폭주(체커보드 — 파장 없음, 단파 catastrophe). R 의 *짧은 거리 활성 커널*(R̄=근방 평균)이 그 단파를 끊어 *특성 파장*을 정한다(R 질량은 안 옮김 — 비확산; 커널은 *센싱*이지 수송 아님 → 셀별 E↔R 쌍 거래라 엄밀 보존).
+    turRate: 0.3,         // 반응 속도 — E→R 활성 a = turRate·E·R̄²/(1+(R̄/turSat)²)(*포화* 자기촉매, R̄=근방 활성 커널) · R→E 붕괴 d = turRate·turDecay·R. net=a−d 를 셀 안에서 E↔R 로 옮긴다(나간 만큼 — 보존). 클수록 빠른 패턴 형성. 활성·붕괴를 같은 turRate 로 묶어 timescale 비(=turDecay)만 노출.
+    turDecay: 0.5,        // R→E 붕괴 계수 c — 균일 고정점 E·R̄ ≈ c 를 정한다(붕괴/활성 비). 작으면 R 이 많이 굳고 크면 적게. 이 비가 Turing 의 두 timescale(빠른 E 확산 vs 느린 R 반응)을 가른다.
+    turSat: 2.5           // 활성 *포화* 척도(saturated Gierer-Meinhardt) — R̄ 가 이 값을 넘으면 자기촉매가 *상한*(E·turSat²)에 든다(R̄² 무한 성장 금지). 두 몫: (1) 반점 봉우리를 유한 높이로 묶어 *안정* 패턴(폭주 금지) (2) *이미 굳은 큰 R*(결정화/별이 쌓은 R) 위에선 활성 상한 < 붕괴(turDecay·R)라 net<0 → R 이 *되녹는다*(E→R 무한 sink 금지 → 전체 스택서 생명 E 안 굶김). 균일 정상상태 근처(R̄ 작음)에선 포화가 거의 안 걸려 불안정 유지.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -413,6 +422,39 @@
       }
     }
     sim.anisoGrown += grown;                                 // 누적 방향성 결정 성장 수(통계 — E→R 쌍 거래·태그 복사라 장부 무관)
+  }
+
+  /* ⑤f E↔R 튜링 불안정(turing, step-0026) — kTuring=0 이면 통째로 건너뜀(회귀 0, E·R 불변 → aniso@/taniso@ 비트 동일·새 해시 항 0).
+   * 형태 사다리 R4(INTERPRET §5) + SPINE 형태발생(소산구조/대칭 깨짐): R1(couple)·R2(tension)·R3(anisotropy)은 형태를 *씨앗/주형 위에서* 키웠다 — 이미 구조(액적·결정 핵)가 있어야 자랐다.
+   *   R4 는 *균일에서* 형태가 *저절로 갈라지게* 한다(Turing 의 핵심 — 대칭 깨짐 패턴): 균일 정상상태가 유한 파장으로 불안정해져 반점/줄무늬가 *창발*한다(author 안 함 — 반응 1개만 깖).
+   * *둘째 전역 필드 금지*(단일 척추): Turing 은 보통 두 확산 종(활성자+억제자)을 쓰지만, 우리는 *이미 있는* 두 필드 — *확산하는 E*(긴 거리)와 *비확산 저장상 R*(짧은 거리) — 의 *서로 다른 이동성*(차등 확산, Turing 의 전제)을 반응에 묶는다(새 필드 0).
+   *   R = 자기촉매 활성자(immobile activator): 국소 R 이 짙을수록 E→R 침착이 빨라진다(짧은 거리 활성). E = 확산 기질/억제자(diffusing substrate): 국소 침착이 E 를 비워(고갈) 이웃에서 천천히 채워지며 *긴 거리 억제*가 된다 → 짧은 활성 + 긴 억제 = Turing(Gierer-Meinhardt).
+   * 메커니즘(국소·E↔R 쌍 거래 보존): 각 셀에서 활성 a = turRate·E·R̄²(자기촉매 — R̄=짧은 거리 활성 커널[근방 5-셀 평균], 기질 E 에서) · 붕괴 d = turRate·turDecay·R(R→E). net = a−d 를 [−R, E] 로 clamp 해 *셀 안에서만* E↔R 로 옮긴다(E[i]−=net·R[i]+=net — 나간 만큼 들어옴, 결정화/복제와 같은 보존 경계).
+   *   E 확산은 ①diffuse 가 이미 함(긴 거리 억제). R 은 *질량을 안 옮긴다*(비확산 — 셀별 거래만). *반드시 근방 커널*: 순수 국소 R[i]² 자기촉매는 격자 척도로 폭주(체커보드 — 특성 파장 없는 단파 catastrophe, ill-posed). R̄(짧은 거리 활성)가 그 단파를 끊어 *유한 특성 파장*을 정한다 — 커널은 *센싱*(R 을 읽음)이지 *수송*(R 을 옮김)이 아니라 R 비확산·엄밀 보존을 깨지 않는다.
+   * 척추: 새 *필드* 없음(E·R 둘 다 기존 — 패턴은 창발, 단일 척추) · authored 분기 없음(E↔R 침착 *속도*만 E·R̄ 의 함수 — 개체 종류 안 만듦, crystallize 의 문턱 침착과 같은 정신, 활성도 환원) ·
+   *   국소 문턱(제 근방 5-셀 R̄·제 E 만 — 전역 조율자 0) · 닫힌 장부(셀별 E↔R 쌍 거래 — 결정화/복제와 같은 경계, 보존). 순차(R 을 제자리에서 읽고 씀 — Gauss-Seidel, 결정론 — Math.random 금지; tension/couple 과 같은 in-place 정신).
+   * ⑤f: ⑤e anisotropy 뒤·⑤c combust 앞 — replicate(⑤d)·anisotropy(⑤e)가 깐 R-genotype 결정 위에, 또 빈 자리에서도, *균일을 깨는* 반응-확산 패턴을 얹는다(같은 ⑤ 저장 형성 군집, R 하이트필드 = 물질 지형의 대칭 깨짐).
+   * 활성 커널 R̄ = (R[i] + von Neumann 4 이웃)/5 — 짧은 거리 활성(특성 파장의 출처). 아래 루프에 인라인. */
+  function turing(sim) {
+    var p = sim.p; if (p.kTuring === 0) return;
+    var E = sim.E, R = sim.R, W = p.W, H = p.H, k = p.turRate, dc = p.turDecay;
+    var satInv = p.turSat > 0 ? 1 / (p.turSat * p.turSat) : 0;   // 포화 척도(0 이면 무포화 — 순수 R̄²)
+    var conv = 0;
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var i = y * W + x;
+        var rc = R[i];
+        var rb = (rc + R[y * W + (x - 1 + W) % W] + R[y * W + (x + 1) % W] + R[((y - 1 + H) % H) * W + x] + R[((y + 1) % H) * W + x]) * 0.2;   // R̄ 짧은 거리 활성 커널(근방 5-셀 평균)
+        if (rb === 0 && rc === 0) continue;                  // 무-R 빈칸: 반응 0(no-op)
+        var rb2 = rb * rb;
+        var act = k * E[i] * rb2 / (1 + rb2 * satInv);        // E→R 포화 자기촉매(R̄ 큰 곳은 상한 → 폭주·무한 sink 금지)
+        var net = act - k * dc * rc;                          // − R→E 붕괴(R 큰 곳은 붕괴가 이겨 되녹음)
+        if (net > E[i]) net = E[i]; else if (net < -rc) net = -rc;   // [−R, E] clamp — E·R 음수 방지(결정화/복제와 같은 자원 문턱)
+        E[i] -= net; R[i] += net;                            // 셀 안 E↔R 쌍 거래(보존)
+        conv += net < 0 ? -net : net;
+      }
+    }
+    sim.turingConverted += conv;                             // 누적 E↔R 전환량(통계 — 셀별 쌍 거래라 장부 무관)
   }
 
   /* ⑤b 점화·연소·소진(step-0011) — 구동 내생화. kIgnite=0 이면 통째로 건너뜀(회귀 0, stars 불변).
@@ -1111,6 +1153,7 @@
    * ⑥b 혼잡(crowd)은 ⑥이동 뒤·⑦생명 앞 — 이동으로 정해진 자리의 국소 밀도로 혼잡세를 매기고, 죽음은 ⑦이 처리한다.
    * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
    * ⑤e 방향성 결정화(anisotropy)는 ⑤d replicate 뒤·⑤c combust 앞 — 등방 복제가 깐 R-genotype 위에 *방향성*(태그의 선호 축으로만 E→R 침착·태그 복사)을 얹어 등방 blob 대신 가지·결정축을 키운다(R 하이트필드 형태, 형태 사다리 R3).
+   * ⑤f 튜링 불안정(turing)은 ⑤e anisotropy 뒤·⑤c combust 앞 — 씨앗/주형에서 키운 형태(R1~R3) 위에, 또 빈 자리에서도, *균일을 깨는* 반응-확산 패턴(비확산 R 자기촉매 + 확산 E)을 얹어 반점/줄무늬를 키운다(R 하이트필드 대칭 깨짐, 형태 사다리 R4). E 확산은 ①diffuse 가 이미 한 긴 거리 억제.
    * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
    * ⑥a2 곡률 표면장력(tension)은 ⑥a adhere 뒤·⑥c couple 앞 — adhere 의 거친 정렬 위에 *곡률 다듬기*(볼록 돌기→오목 만)를 얹어 액적을 둥글리고 합치고(원형도↑·조직 수↓), couple 이 그 둥근 액적 위에서 E 를 공유한다(막은 둥근 경계에 실린다).
@@ -1121,11 +1164,11 @@
    * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, turing, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
-    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy,
+    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy, turing: turing,
     combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
