@@ -133,6 +133,26 @@ function supportArena(extra) {
     kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
   }, extra || {});
 }
+/* R 차폐 3D 아레나(step-0033 V5 *실활성*) — step-0033/verify.js occludeArena()/seedOcclude() 와 동일 상수.
+ * D=8 voxel 상자, 빈 세계 + 정적 R 지면 슬랩(z=3 전 평면) + 그 위(z=4..7) E 주입 + 중력(kGravity) + 차폐 게이트(kOcclude=1) — 다른 법칙 다 off(결정화·풍화 off → R 정적).
+ * grav@/support@(kOcclude=0)·골든 D=1 키들은 차폐 게이트 코드 경로를 *안 돈다* — 이 occl@ 가 차폐 본문(아래 R≥문턱 시 하향 차단)을 동결한다(드리프트 가드). */
+function occludeArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kGravity: 0.2, kOcclude: 1, occludeThresh: 0.5,
+    kCryst: 0, kWeather: 0, kSupport: 0,
+    kCrowd: 0, kRelief: 0, kIgnite: 0, kFSM: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
+var OCC_GZ = 3, OCC_RVAL = 1.0, OCC_EVAL = 2.0;
+function seedOcclude(sim) {                                            // 정적 R 지면 슬랩 + 그 위 E — 둘 다 E0(장부 baseline)에 산입. step-0033/verify.js seedOcclude() 와 동일.
+  var WH = sim.p.W * sim.p.H, D = sim.p.D, k, z, i;
+  for (k = 0; k < WH; k++) { i = OCC_GZ * WH + k; sim.R[i] = OCC_RVAL; sim.E0 += OCC_RVAL; }
+  for (z = OCC_GZ + 1; z < D; z++) for (k = 0; k < WH; k++) { i = z * WH + k; sim.E[i] += OCC_EVAL; sim.E0 += OCC_EVAL; }
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -366,6 +386,7 @@ function runEq() {
  *   zdiff@ — step-0030 6-이웃 z-확산 3D 아레나(V2 *실활성* — D=8 voxel 상자, 등방 확산[kD=kDz=0.15] + z=0 source + z 응집). 골든 D=1 키들은 z 항이 산술 0 이라 z 코드 경로 미커버 — 이 키가 z-확산·z-응집 본문을 동결한다(드리프트 가드). step-0031~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   grav@ — step-0031 중력 침전 3D 아레나(V3 *실활성* — D=8 voxel 상자, 균일 E + 중력 하향 침전[kGravity=0.2], 확산 포함 다른 법칙 다 off). zdiff@·골든 D=1 키들은 kGravity=0 이라 gravity early-return → 코드 경로 미커버 — 이 키가 z-하향 쌍 거래 본문을 동결한다(드리프트 가드). step-0032~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   support@ — step-0032 지지 침착 3D 아레나(V4 *실활성* — D=8 voxel 상자, 균일 E + 중력 + 결정화 + 지지 게이트[kSupport=1]). 골든 D=1 키들은 kSupport=0 이라 crystallize z=0 평면(2D, 비트 동일)·grav@ 는 kCryst=0 — 3D+게이트 미커버 → 이 키가 지지 게이트·3D 침착 본문을 동결한다(드리프트 가드). step-0033~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   occl@ — step-0033 R 차폐 3D 아레나(V5 *실활성* — D=8 voxel 상자, 정적 R 지면 슬랩[z=3] + 그 위 E + 중력 + 차폐 게이트[kOcclude=1]). grav@/support@ 는 kOcclude=0 이라 차폐 게이트 미커버 → 이 키가 차폐 본문(아래 R≥문턱 시 하향 차단)을 동결한다(드리프트 가드). step-0034~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -489,6 +510,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // support@ — 지지 침착 3D 아레나(step-0032 V4 *실활성*: D=8 voxel, 균일 E + 중력 + 결정화 + 지지 게이트). 골든 D=1 키들(kSupport=0→z=0 침착)·grav@(kCryst=0)는 3D+게이트 미커버라 이 키가 지지 게이트·3D 침착 본문을 동결. step-0033~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
     var a = ENG.createSim(seed, supportArena()); ENG.run(a, 600);
     cur['support@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // occl@ — R 차폐 3D 아레나(step-0033 V5 *실활성*: D=8 voxel, 정적 R 지면 슬랩[z=3] + 그 위 E + 중력 + 차폐 게이트[kOcclude=1]). grav@/support@(kOcclude=0)는 차폐 게이트 미커버라 이 키가 차폐 본문(아래 R≥문턱 시 하향 차단)을 동결. step-0034~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, occludeArena()); seedOcclude(a); ENG.run(a, 600);
+    cur['occl@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
