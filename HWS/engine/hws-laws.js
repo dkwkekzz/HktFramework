@@ -213,7 +213,15 @@
                           //   *반드시 근방 커널*: 순수 국소 R[i]² 자기촉매는 격자 척도로 폭주(체커보드 — 파장 없음, 단파 catastrophe). R 의 *짧은 거리 활성 커널*(R̄=근방 평균)이 그 단파를 끊어 *특성 파장*을 정한다(R 질량은 안 옮김 — 비확산; 커널은 *센싱*이지 수송 아님 → 셀별 E↔R 쌍 거래라 엄밀 보존).
     turRate: 0.3,         // 반응 속도 — E→R 활성 a = turRate·E·R̄²/(1+(R̄/turSat)²)(*포화* 자기촉매, R̄=근방 활성 커널) · R→E 붕괴 d = turRate·turDecay·R. net=a−d 를 셀 안에서 E↔R 로 옮긴다(나간 만큼 — 보존). 클수록 빠른 패턴 형성. 활성·붕괴를 같은 turRate 로 묶어 timescale 비(=turDecay)만 노출.
     turDecay: 0.5,        // R→E 붕괴 계수 c — 균일 고정점 E·R̄ ≈ c 를 정한다(붕괴/활성 비). 작으면 R 이 많이 굳고 크면 적게. 이 비가 Turing 의 두 timescale(빠른 E 확산 vs 느린 R 반응)을 가른다.
-    turSat: 2.5           // 활성 *포화* 척도(saturated Gierer-Meinhardt) — R̄ 가 이 값을 넘으면 자기촉매가 *상한*(E·turSat²)에 든다(R̄² 무한 성장 금지). 두 몫: (1) 반점 봉우리를 유한 높이로 묶어 *안정* 패턴(폭주 금지) (2) *이미 굳은 큰 R*(결정화/별이 쌓은 R) 위에선 활성 상한 < 붕괴(turDecay·R)라 net<0 → R 이 *되녹는다*(E→R 무한 sink 금지 → 전체 스택서 생명 E 안 굶김). 균일 정상상태 근처(R̄ 작음)에선 포화가 거의 안 걸려 불안정 유지.
+    turSat: 2.5,          // 활성 *포화* 척도(saturated Gierer-Meinhardt) — R̄ 가 이 값을 넘으면 자기촉매가 *상한*(E·turSat²)에 든다(R̄² 무한 성장 금지). 두 몫: (1) 반점 봉우리를 유한 높이로 묶어 *안정* 패턴(폭주 금지) (2) *이미 굳은 큰 R*(결정화/별이 쌓은 R) 위에선 활성 상한 < 붕괴(turDecay·R)라 net<0 → R 이 *되녹는다*(E→R 무한 sink 금지 → 전체 스택서 생명 E 안 굶김). 균일 정상상태 근처(R̄ 작음)에선 포화가 거의 안 걸려 불안정 유지.
+    /* ── step-0027: 가지치기 덴드라이트(dendrite — 결정 성장 전선이 *경계 불안정*[Mullins-Sekerka]으로 옆가지를 뻗는다. 형태 사다리 R5, *R 하이트필드*에 가지) ── */
+    kDendrite: 0,         // 덴드라이트 마스터. 0 = off = step-0026 과 비트 동일(회귀, dendrite 통째 skip·E·R·G 불변 → turing@/tturing@ 해시 무관). >0(=1)이면 on: R3(anisotropy)는 *곧은* needle(고정 축)을, R4(turing)는 *균일 대칭 깨짐*을 빚었다.
+                          //   R5 는 *자라는 결정 전선*을 *경계 불안정*(Mullins-Sekerka — 끝이 더 빨리 자라는 양의 되먹임)으로 *옆가지*를 뻗게 한다(눈송이·금속 덴드라이트의 마지막 큰 형태). 두 되먹임이 평탄 전선을 깬다:
+                          //   (1) *기하 차폐*(긴 거리 억제, ①diffuse 가 함) — 자라는 셀이 제 E 를 R 로 당기면 그 자리 E 가 비고, *튀어나온 tip* 은 빈 바깥에서 확산으로 빨리 채워지나 *오목한 만(notch)* 은 둘레가 다 고체라 못 채워져 멈춘다 → tip 만 전진.
+                          //   (2) *곡률 증폭*(짧은 거리 활성, dendSharp) — 볼록 tip(8-근방 고체 적음)은 침착을 *증폭*, 오목 notch(고체 많음)는 *억제*. 짧은 활성 + 긴 억제 = Mullins-Sekerka(turing 과 같은 템플릿을 *전선*에 적용) → 평탄이 *옆가지*로 갈린다(author 안 함 — 침착 1개만 깖).
+    dendRate: 0.06,       // 침착 속도 — 비고체 전선 셀 i 의 E→R 침착량 = dendRate·E[i]·곡률증폭(점진 누적 — thr 까지 여러 tick, 그래서 증폭 *속도차*가 tip 과 notch 의 운명을 가른다). 기질은 *그 칸의 E*(확산으로 채워지는 substrate). E[i]≥dendRate 라야 자란다(기질 문턱=자기제한, 기근서 멈춤).
+    dendThresh: 0.5,      // 고체 문턱 — snap R[i] ≥ 이 값이면 결정(고체), 미만이면 *성장 전선 후보*. 침착이 누적돼 이 값을 넘으면 다음 tick 고체가 되어 전선이 한 겹 전진(결정화/anisotropy 의 핵 문턱 정신).
+    dendSharp: 1.0        // 곡률 증폭 세기(Mullins-Sekerka) — 침착증폭 = 1 + dendSharp·(3 − 고체8). 볼록 tip(고체8<3) 증폭·평탄(=3) 1·오목 notch(>3) 억제(≤0 면 침착 0). 0 = 곡률 무증폭(차폐만 — 약한 가지)·>0 = tip 가속(또렷한 옆가지)·클수록 가늘고 잦은 가지.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -455,6 +463,53 @@
       }
     }
     sim.turingConverted += conv;                             // 누적 E↔R 전환량(통계 — 셀별 쌍 거래라 장부 무관)
+  }
+
+  /* ⑤g 가지치기 덴드라이트(dendrite, step-0027) — kDendrite=0 이면 통째로 건너뜀(회귀 0, E·R·G 불변 → turing@/tturing@ 비트 동일·새 해시 항 0).
+   * 형태 사다리 R5(INTERPRET §5) + SPINE 형태발생(경계 불안정): R3(anisotropy)은 *곧은* needle(고정 축)을, R4(turing)는 *균일 대칭 깨짐*(반점/줄무늬)을 빚었다. R5 는 *자라는 결정 전선*을 *경계 불안정*으로 *옆가지*를 뻗게 한다 — 결정 성장의 마지막 큰 형태(눈송이·금속 덴드라이트, 0025 한계 #1 직접 해소).
+   * Mullins-Sekerka 불안정(자라는 고체-액체 경계는 불안정 — 튀어나온 끝이 더 빨리 자라는 양의 되먹임): turing 과 *같은 템플릿*(짧은 활성 + 긴 억제)을 *균일 필드*가 아니라 *자라는 전선*에 적용한다. 둘째 필드 없이(단일 척추) E·R 만:
+   *   (1) *긴 거리 억제 = 기하 차폐*(①diffuse 가 함): 비고체 전선 셀 i 가 제 E[i]를 R[i]로 당기면 그 자리 E 가 비고, *볼록 tip* 은 바깥(빈칸) 쪽 확산으로 빨리 채워져 계속 자라나, *오목 notch* 는 둘레가 다 고체라 E 가 못 채워져 *멈춘다*(차폐). → tip 만 전진.
+   *   (2) *짧은 거리 활성 = 곡률 증폭*(dendSharp): 볼록 tip(8-근방 고체 적음=이산 곡률 큼)은 침착을 *증폭*하고 오목 notch(고체 많음)는 *억제*. 짧은 활성 + 긴 억제 = Mullins-Sekerka → 평탄 전선이 *유한 간격 옆가지*로 갈린다(author 안 함 — 침착 1개만 깖).
+   * 메커니즘(국소·E→R 쌍 거래 보존, in-place 셀별 독립): tick 시작 R 스냅샷(dendSnap)에서 *고체*(snap≥dendThresh)·*곡률*(8-근방 고체 수)을 읽어(한 tick=한 성장층, 스캔 순서 무관 — 각 셀이 제 snap 이웃만 봐 결정적), 비고체 전선 셀 i(snap<thr·고체 4-이웃≥1·E[i]≥dendRate)에:
+   *   증폭 amp = 1 + dendSharp·(3 − 고체8)(볼록<3 증폭·평탄=3 1·오목>3 억제). dep = dendRate·E[i]·amp 를 [0,E[i]] clamp 해 E[i]→R[i] 로 옮긴다(셀 안 쌍 거래 — 결정화/복제/anisotropy 와 같은 경계, 보존). 누적이 thr 을 넘으면 다음 tick 고체가 돼 전선이 한 겹 전진.
+   *   고체 이웃에 유전형 태그가 있으면(G≠0) 고체 문턱 넘을 때 전파(유전형 결정 가지) — 무유전 R 이면 G=0 유지(태그 거래 0 — 정보지 에너지 아님). anisotropy(축 고정 needle)와 달리 *전선 곡률*로 가지가 *저절로* 갈린다(불안정).
+   * 척추: 새 *필드* 없음(E·R 둘 다 기존 — 가지는 창발, 단일 척추) · authored 분기 없음(E→R 침착 *속도*만 E·곡률의 함수 — 개체 종류 안 만듦, crystallize/turing 의 문턱 침착과 같은 정신, 활성도 환원) ·
+   *   국소 문턱(제 4·8-근방 snap R·제 E 만 — 전역 조율자 0) · 닫힌 장부(셀별 E→R 쌍 거래 — 결정화/복제와 같은 경계, 보존). snap 으로 곡률·고체 판정이 tick 시작 형상에 고정돼 스캔 순서 무관(결정론 — Math.random 금지).
+   * ⑤g: ⑤f turing 뒤·⑤c combust 앞 — replicate(⑤d)·anisotropy(⑤e)가 깐 R-genotype 결정, turing(⑤f)이 깐 반점 위에, 또 무유전 R 씨앗 위에서도, *전선을 가지치는* 경계 불안정을 얹는다(같은 ⑤ 저장 형성 군집, R 하이트필드 = 물질 지형의 가지). */
+  var DEND_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];                                              // 전선 판정(4-근방 고체) — 가지가 4-연결로 자란다
+  var DEND_NB8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];          // 곡률 셈(8-근방 고체 = 이산 평균 곡률)
+  function dendrite(sim) {
+    var p = sim.p; if (p.kDendrite === 0) return;
+    var E = sim.E, R = sim.R, G = sim.G, W = p.W, H = p.H, N = W * H;
+    var rate = p.dendRate, thr = p.dendThresh, sharp = p.dendSharp;
+    var snap = sim.dendSnap; if (!snap || snap.length !== N) snap = sim.dendSnap = new Float64Array(N);
+    for (var i0 = 0; i0 < N; i0++) snap[i0] = R[i0];                                            // tick 시작 R 스냅샷(고체·곡률을 tick 시작 형상에서 — 한 tick=한 성장층, 스캔 순서 무관)
+    var grown = 0;
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var i = y * W + x;
+        if (snap[i] >= thr) continue;                                                          // 이미 고체(결정 내부) — 성장 대상 아님
+        if (E[i] < rate) continue;                                                             // 기질 부족 — 자랄 E 없음(자원 문턱=자기제한, 기근서 멈춤)
+        var solid4 = 0, srcTag = 0;                                                            // 4-근방 고체 수(성장 전선 판정) + 고체 태그(전파용)
+        for (var d = 0; d < 4; d++) {
+          var j = ((y + DEND_VN[d][1] + H) % H) * W + (x + DEND_VN[d][0] + W) % W;
+          if (snap[j] >= thr) { solid4++; if (srcTag === 0 && G[j] !== 0) srcTag = G[j]; }
+        }
+        if (solid4 === 0) continue;                                                            // 전선이 아님(고체 이웃 없음)
+        var solid8 = 0;                                                                        // 8-근방 고체 수 = 이산 곡률(볼록 tip 적음·오목 notch 많음)
+        for (var d2 = 0; d2 < 8; d2++) {
+          if (snap[((y + DEND_NB8[d2][1] + H) % H) * W + (x + DEND_NB8[d2][0] + W) % W] >= thr) solid8++;
+        }
+        var amp = 1 + sharp * (3 - solid8);                                                    // Mullins-Sekerka 곡률 증폭: 볼록 tip(<3) 가속·평탄(=3) 1·오목 notch(>3) 억제
+        if (amp <= 0) continue;                                                                // 오목 만(notch)은 음 증폭 → 침착 0(차폐 + 곡률이 함께 tip 만 키운다)
+        var dep = rate * E[i] * amp;
+        if (dep > E[i]) dep = E[i];                                                            // [0,E] clamp — E 음수 방지(결정화/복제와 같은 자원 문턱)
+        E[i] -= dep; R[i] += dep;                                                              // 셀 안 E→R 쌍 거래(보존)
+        if (srcTag !== 0 && R[i] >= thr) G[i] = srcTag;                                        // 고체 문턱 넘으면 유전형 태그 전파(유전 결정 가지; 무유전이면 G=0 유지 — 거래 0)
+        grown += dep;
+      }
+    }
+    sim.dendriteGrown += grown;                                                                // 누적 가지 성장 침착량(통계 — 셀 안 E→R 쌍 거래·태그 복사라 장부 무관)
   }
 
   /* ⑤b 점화·연소·소진(step-0011) — 구동 내생화. kIgnite=0 이면 통째로 건너뜀(회귀 0, stars 불변).
@@ -1154,6 +1209,7 @@
    * ⑤d 복제(replicate)는 ⑤결정화 뒤·⑤c 연소 앞 — 직전 결정화가 만든 R 주형을 읽어 E→R 로 자기복제한다(저장 형성 군집).
    * ⑤e 방향성 결정화(anisotropy)는 ⑤d replicate 뒤·⑤c combust 앞 — 등방 복제가 깐 R-genotype 위에 *방향성*(태그의 선호 축으로만 E→R 침착·태그 복사)을 얹어 등방 blob 대신 가지·결정축을 키운다(R 하이트필드 형태, 형태 사다리 R3).
    * ⑤f 튜링 불안정(turing)은 ⑤e anisotropy 뒤·⑤c combust 앞 — 씨앗/주형에서 키운 형태(R1~R3) 위에, 또 빈 자리에서도, *균일을 깨는* 반응-확산 패턴(비확산 R 자기촉매 + 확산 E)을 얹어 반점/줄무늬를 키운다(R 하이트필드 대칭 깨짐, 형태 사다리 R4). E 확산은 ①diffuse 가 이미 한 긴 거리 억제.
+   * ⑤g 가지치기 덴드라이트(dendrite)는 ⑤f turing 뒤·⑤c combust 앞 — replicate·anisotropy·turing 이 깐 R 결정/패턴 위에, 또 무유전 R 씨앗 위에서도, *자라는 전선*에 경계 불안정(Mullins-Sekerka: 곡률 증폭[짧은 활성]+기하 차폐[긴 억제, ①diffuse])을 얹어 평탄 전선을 *옆가지*로 가른다(R 하이트필드 가지, 형태 사다리 R5). turing 과 같은 템플릿을 *균일*이 아니라 *전선*에 적용.
    * ⑧b 생명 유전(inherit)은 ⑧번식 뒤·⑨계량 앞 — 자식이 있어야 인접 부모에서 상속하고, 표현형세는 다음 tick ⑦생명이 사망 처리한다.
    * ⑥a 차등 응집(adhere)은 ⑥move 뒤·⑥b crowd 앞 — 먹이를 쫓은 뒤 같은 자리에서 kin 으로 정렬하고, crowd 가 그 자리 밀도를 잰다.
    * ⑥a2 곡률 표면장력(tension)은 ⑥a adhere 뒤·⑥c couple 앞 — adhere 의 거친 정렬 위에 *곡률 다듬기*(볼록 돌기→오목 만)를 얹어 액적을 둥글리고 합치고(원형도↑·조직 수↓), couple 이 그 둥근 액적 위에서 E 를 공유한다(막은 둥근 경계에 실린다).
@@ -1164,11 +1220,11 @@
    * ⑦b 생식세포 계통 격리(sequester)는 ⑦metabolize 뒤·⑧reproduce 앞 — 흡수 직후·번식 직전에 soma 계통의 잉여를 germ kin 에게 전량 export 해 soma 가 mDiv 밑에 묶이게 하고(번식이 germ 전용으로 *창발* 격리), germ 은 fed 되어 번식 가속.
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, turing, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
-    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy, turing: turing,
+    diffuse: diffuse, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy, turing: turing, dendrite: dendrite,
     combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

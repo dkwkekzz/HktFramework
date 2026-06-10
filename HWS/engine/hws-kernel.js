@@ -440,6 +440,29 @@
     return { meanR: mean, stdR: Math.sqrt(varR / N), maxR: mx, firstNeg: firstNeg, minAC: minAC, ac1: ac[1] };
   }
 
+  /* 덴드라이트 가지 측정 — step-0027. dendrite(⑤g)이 빚은 *가지친 결정 전선*(옆가지)을 author 아닌 *측정*으로 읽는다.
+   * 자라는 결정이 *컴팩트한가*(둥근 덩이) *가지쳤는가*(경계 불안정 → 옆가지)를 *경계의 거칠기*로 본다 — Mullins-Sekerka 의 서명.
+   *   고체 = R[i] ≥ thr 셀. area = 고체 칸 수(결정 질량/넓이). perim = 고체-빈칸 경계 변 수(둘레 길이). tips = 빈 4-이웃 ≥3 인 고체 칸 수(튀어나온 가지 끝).
+   *   roughness = perim / (2·√(π·area)) — *크기 정규화* 거칠기(같은 넓이 원판 둘레로 나눔). 컴팩트 원판 ≈ 1, 가지친 덴드라이트 ≫ 1(가는 가지라 둘레가 길다). 위치(R 필드)만 *읽고* 동역학에 안 되먹인다(측정 읽기전용). */
+  function measureDendrite(sim, opt) {
+    opt = opt || {};
+    var R = sim.R, W = sim.p.W, H = sim.p.H, N = W * H, thr = opt.thr != null ? opt.thr : (sim.p.dendThresh || 0.5);
+    var area = 0, perim = 0, tips = 0, sumR = 0, i, x, y;
+    for (y = 0; y < H; y++) for (x = 0; x < W; x++) {
+      i = y * W + x; if (R[i] < thr) continue;
+      area++; sumR += R[i];
+      var empty = 0;                                                                    // 빈(비고체) 4-이웃 수 — 경계 변·가지 끝 판정
+      if (R[((y - 1 + H) % H) * W + x] < thr) empty++;
+      if (R[((y + 1) % H) * W + x] < thr) empty++;
+      if (R[y * W + (x - 1 + W) % W] < thr) empty++;
+      if (R[y * W + (x + 1) % W] < thr) empty++;
+      perim += empty;                                                                   // 고체-빈칸 경계 변 수(둘레)
+      if (empty >= 3) tips++;                                                            // 빈 이웃 ≥3 = 튀어나온 가지 끝(컴팩트 덩이엔 거의 없음)
+    }
+    var rough = area > 0 ? perim / (2 * Math.sqrt(Math.PI * area)) : 0;                  // 크기 정규화 거칠기(원판≈1·덴드라이트≫1)
+    return { area: area, perim: perim, tips: tips, roughness: rough, sumR: sumR };
+  }
+
   /* 고임 검출 — step-0002 와 동일. */
   function detectPools(sim, opt) {
     opt = opt || {};
@@ -619,7 +642,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash,
     discCells: discCells, discOffsets: discOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring, measureDendrite: measureDendrite,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,
