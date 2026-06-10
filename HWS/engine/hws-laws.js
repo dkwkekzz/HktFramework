@@ -875,11 +875,12 @@
       var nb3 = ((y + PERM_VN[3][1] + H) % H) * W + (x + PERM_VN[3][0] + W) % W;
       if (occ[nb0] === t) kin++; if (occ[nb1] === t) kin++; if (occ[nb2] === t) kin++; if (occ[nb3] === t) kin++;
       if (kin === 0) continue;                                                         // 외톨이(droplet 아님) — 막 아님(액적 표면만 능동 import)
-      /* import — *빈 바깥*(occ==0=환경)에서만 E 를 안으로(정류=일방향). 경쟁자(타-태그 점유) 셀은 안 훔침. 표면(kin<4)이라야 빈 바깥이 있다. */
-      if (occ[nb0] === 0) { var d0 = E[nb0] * k; E[nb0] -= d0; E[c] += d0; pumped += d0; }
-      if (occ[nb1] === 0) { var d1 = E[nb1] * k; E[nb1] -= d1; E[c] += d1; pumped += d1; }
-      if (occ[nb2] === 0) { var d2 = E[nb2] * k; E[nb2] -= d2; E[c] += d2; pumped += d2; }
-      if (occ[nb3] === 0) { var d3 = E[nb3] * k; E[nb3] -= d3; E[c] += d3; pumped += d3; }
+      /* import — *빈 바깥*(occ==0=환경)에서만, 그리고 *E>0 인 자리*에서만 E 를 안으로(정류=일방향). 경쟁자(타-태그 점유) 셀은 안 훔침. 표면(kin<4)이라야 빈 바깥이 있다.
+       * E[바깥]>0 게이트 = 정류 보장(음수 자리서 끌면 d<0 → 내부 가치를 *밖으로* 밀어 정류 위반) + d 를 [0,E[바깥]] clamp(k>1 과펌프 시 음수 방지). 표준 동역학은 E≥0 이라 둘 다 no-op → 골든 불변(결정화/turing/tension 과 같은 자원 문턱 정신). */
+      if (occ[nb0] === 0 && E[nb0] > 0) { var d0 = E[nb0] * k; if (d0 > E[nb0]) d0 = E[nb0]; E[nb0] -= d0; E[c] += d0; pumped += d0; }
+      if (occ[nb1] === 0 && E[nb1] > 0) { var d1 = E[nb1] * k; if (d1 > E[nb1]) d1 = E[nb1]; E[nb1] -= d1; E[c] += d1; pumped += d1; }
+      if (occ[nb2] === 0 && E[nb2] > 0) { var d2 = E[nb2] * k; if (d2 > E[nb2]) d2 = E[nb2]; E[nb2] -= d2; E[c] += d2; pumped += d2; }
+      if (occ[nb3] === 0 && E[nb3] > 0) { var d3 = E[nb3] * k; if (d3 > E[nb3]) d3 = E[nb3]; E[nb3] -= d3; E[c] += d3; pumped += d3; }
     }
     sim.permeated += pumped;                                                           // 누적 능동 import flux(통계 — 바깥→안 E 쌍 거래라 장부 무관)
   }
