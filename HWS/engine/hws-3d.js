@@ -65,7 +65,7 @@
       { kind: 'check', id: 'view3d', label: '3D 뷰', def: true, view: true,
         title: 'WebGL2 3D 뷰 ↔ 2D 캔버스 전환. 프레젠테이션 전용 — 시뮬·검증에 영향 없음.' },
       { kind: 'check', id: 'worldview', label: '세계 해석(2분할)', def: true, view: true,
-        title: '오른쪽에 세계 해석 뷰를 나란히 — 높이=*물질*(R 고체+저활성 E 액체)·빛=*에너지*(고활성 E·A, 안 솟고 발광). 차이는 흐르는 에너지 제거 + 색·재질·빛(상/조성/밀도/광택). 렌더러는 형태를 author 안 함(분포 재성형 0). 왼쪽=에너지 변위(h=E+R). 설계: INTERPRET.md §5b. 프레젠테이션 전용.' }
+        title: '오른쪽에 세계 해석 뷰를 나란히 — 높이=*물질*(R 고체 only)·에너지(E)는 흐르든 고이든 z 안 솟음(고활성=발광·저활성=물 재질). 차이는 에너지 전부 z 제거 + 색·재질·빛(상/조성/밀도/광택). 렌더러는 형태를 author 안 함(분포 재성형 0). 왼쪽=에너지 변위(h=E+R). 설계: RENDER.md §2·§5. 프레젠테이션 전용.' }
     ]}]);
     var origHook = panel.drawHook;
     p.drawHook = function (ctx, info) { sync(info); if (origHook) origHook(ctx, info); };
@@ -416,10 +416,10 @@
     vlabel(ctx, CV_SIZE / 2, '에너지 변위', '#9fb0c0');
     if (split) {
       vlabel(ctx, CV_SIZE + CV_SIZE / 2, '세계 해석 (물질)', '#e6c860');
-      /* 세계 해석 범례 — 높이=물질(R 고체+저활성 E 액체)·빛=에너지(고활성 E·A) 분해 (INTERPRET §5b) */
+      /* 세계 해석 범례 — 높이=물질(R 고체 only)·에너지(E)는 z 0(고활성=빛·저활성=물 재질) 분해 (RENDER §2·§5) */
       ctx.textAlign = 'left'; ctx.font = '11px Consolas';
-      var leg = [['#1a5a86', '물 · 액체 (저활성 E · 투과)'], ['#52473f', '돌 · 암반 (R 고체 · 무광)'],
-                 ['#c89a6a', '나무 · 결정 (R + 유전 G)'], ['#ffb04d', '빛 · 에너지 (고활성 A → 높이 0)']];
+      var leg = [['#1a5a86', '물 · 액체 (저활성 E · 높이 0 · 투과)'], ['#52473f', '돌 · 암반 (R 고체 · 무광)'],
+                 ['#c89a6a', '나무 · 결정 (R + 유전 G)'], ['#ffb04d', '빛 · 에너지 (고활성 A · 높이 0)']];
       var lx = CV_SIZE + 10, ly = 34, lh = 16;
       for (var li = 0; li < leg.length; li++) {
         var yy = ly + li * lh;
@@ -622,10 +622,10 @@
 
   /* ── 세계 해석 셰이더 (INTERPRET §5b — 물질 표현) — 같은 텍스처(E,R,G,A)를 *물질/에너지*로 갈라 읽는다.
    * 척추 정합(SPINE 척추 체크 2·INTERPRET §4): 렌더러는 *형태(실루엣)를 author 하지 않는다* — R·E *분포*는 시뮬이 정한다.
-   *   렌더러에 허용된 차이는 둘뿐: ① *어느 양이 높이가 되는가*(물질=R+저활성E, 흐르는 에너지는 빼서 빛으로 — §4 "정직한 읽기")
+   *   렌더러에 허용된 차이는 둘뿐: ① *어느 양이 높이가 되는가*(물질=R 만, 에너지는 흐르든 고이든 빼서 빛·재질로 — §4 "정직한 읽기")
    *   ② *색·재질·빛*(상·조성·밀도·광택·발광 — §3). 높이로 분포를 *재성형*(예: 물 평탄화)하면 §4 가 금지한 형태 author 다.
-   * 그래서 높이 = hOf(R + 저활성E) — 에너지뷰(h=E+R)와 *흐르는 에너지(고활성 E·A)만큼* 갈린다(별 연소·확산 전선이 솟지 않고 빛난다).
-   *   고인 물(저활성 E)은 *물질*이라 분포 그대로 높이에 실린다(평탄화 안 함) — 차이는 *재질*(파랑·투과·광택)로 읽는다.
+   * 그래서 높이 = hOf(R) only — 에너지뷰(h=E+R)와 *에너지 전부(E)만큼* 갈린다(RENDER §2: 응축상 R 만 공간 점유).
+   *   흐르는 에너지(고활성 E·A)는 솟지 않고 *빛*으로(별 연소·확산 전선). 고인 물(저활성 E)도 z 를 안 들어올리고 R 위에 *얹혀*(§5) *재질*(파랑·투과·광택)로만 읽는다 — 분포는 그대로(평탄화 0, 그냥 z 에 안 든다).
    * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
    * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
@@ -639,8 +639,8 @@
     'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet;',
     'float hOf(float e){ return min(uHS*log(1.0+max(e,0.0))/log(1.0+uSat), uHS*2.2); }',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율(소산 극단만 큼)
-    'float matH(vec4 t){',                                  // 물질 높이 = hOf(R 고체 + 저활성 E 액체). 흐르는 에너지(고활성 E)만 뺌 — 분포는 안 건드림(형태 author 0)
-    '  return hOf(t.g + t.r*(1.0-actFrac(t.a)));',
+    'float matH(vec4 t){',                                  // 물질 높이 = hOf(R) only — 에너지(흐르든 고이든)는 z 를 안 만든다. 응축상 R 만 공간을 점유(RENDER §2). 물(고인 E)도 안 솟고 R 위에 얹힌다(§5)
+    '  return hOf(t.g);',
     '}',
     'float hAtXY(int x, int y){',                           // 이웃 물질 높이(법선용) — 토러스 wrap
     '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
@@ -676,7 +676,7 @@
     '  vNormal=normalize(vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1)));', // 법선=물질 기복(분포 그대로)
     '  vHot=af;',                                           // 색온도(흰빛 정도 — 활성 클수록 흼)
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 세기 = 에너지(흐르는 E·A) — 높이서 뺀 만큼 빛으로
-    '  gl_Position=uMVP*vec4(aCell.x, matH(t), aCell.y, 1.0);', // 높이 = 물질(R+저활성E), 흐르는 에너지만 빠짐 — 분포 재성형 0
+    '  gl_Position=uMVP*vec4(aCell.x, matH(t), aCell.y, 1.0);', // 높이 = 물질(R) only — 에너지(흐르든 고이든) z 기여 0. 분포 재성형 0(물은 z 서 빠지되 분포 안 건드림)
     '}'].join('\n');
 
   var FS_WORLD = [
