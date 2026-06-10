@@ -1,0 +1,3 @@
+{ "name":"inject-move", "seed":42, "ticks":60,
+  "cmds":[ { "tick":20, "inject": { "client":0, "move":[3,0] } },
+           { "tick":25, "inject": { "client":2, "move":[0,2] } } ] }

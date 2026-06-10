@@ -220,7 +220,7 @@ net-core 는 dual-mode(브라우저 전역)다. 이를 살려 report.html 이 ne
 
 - 시나리오는 **`HktInfra/scenarios/*.json`(커밋)**. "이상 발견 → export → 회귀 케이스" 가 성립하려면 검증 게이트가 시나리오를 먹어야 한다.
 - 초안은 *시드 인자만 받는 verify 에 `scenario` 모드를 추가*하자였으나 — **verify.js 는 동결 step 안이라 수정 불가**(회귀 0·복사 전진 불변). 그래서 *라이브 단일 진입점* `run.js` 에 **`scenario <file>` 모드**를 두고, `report` 와 **같은 `loadScenario` 번역기**(seed·ticks·transport·cmds → `run/runMulti` 파라미터)를 공유한다 — "중복 0" 목표 그대로 충족. 이는 §5-4("에이전트도 trace 를 직접 단언, 한 데이터·두 소비")의 직접 실현이다: `run.js scenario` 가 trace 4기둥(권위=1·desync 0·kill→승격·멀티프로세스 비트 동일)을 *프로그램적으로* 단언·exit 0/1.
-- `cmds` 의 기존 seam 매핑: `kill@t` → `deathTick/killZone/failover`(✅). `inject`(클라 intent 주입)는 net-core 의 *write-seam* 이 필요한데 동결 0012 엔 없다 → onTick(§10-1) 이 0011 에 심긴 선례처럼 **다음 net-core 복사 전진에서 1회 심으면** run.js 레코더·verify 가 자동 소비(🟡 대기).
+- `cmds` 의 기존 seam 매핑: `kill@t` → `deathTick/killZone/failover`(✅). `inject`(클라 intent 주입) → `opts.inject`(✅ — 0012 동결엔 없어 대기였다가, onTick(§10-1) 선례처럼 **step-0016 net-core 복사 전진에서 심음**. run.js 가 `NET.SUPPORTS.inject` 로 기능 탐지해 자동 소비 — 미지원 과거 step 은 경고 후 무시).
 
 ### 10-5. 6계층 렌더용 addr→layer 맵
 
@@ -253,8 +253,8 @@ net-core 는 dual-mode(브라우저 전역)다. 이를 살려 report.html 이 ne
 | **레코더 엔티티 공간 위치 + AOI 시각화** | §5-2·§10-1 ⒜·⒞ | ✅ — `onTick(t,state)` 훅(0011 심음)을 레코더가 소비, `report.html` 에 격자 공간 맵(권위 엔티티 위치·AOI 반경 원·존 경계) 추가 |
 | **`scenario` 검증 브리지(공유 번역기·trace 4기둥 단언)** | §5-4·§10-4 ⒝ | ✅ — `run.js scenario <file>`(verify.js 동결이라 run.js 에 둠, `loadScenario` 공유) |
 | 시나리오 제어 `kill@t`·`transport`·`opts` | §5-3 | ✅ — `scenarios/*.json`(커밋), 레코더·검증 공유 |
-| 시나리오 `inject`(클라 intent 주입) | §5-3·§10-4 | 🟡 **대기** — net-core 의 클라 *write-seam* 필요. 동결 0012 엔 없음(클라 move 는 시드 RNG 함수). run.js 단독 구현은 "둘째 구현 0"(§8) 위배 → **다음 net-core 복사 전진에서 1회 심음**(onTick §10-1 선례) → run.js 가 자동 소비. |
+| 시나리오 `inject`(클라 intent 주입) | §5-3·§10-4 | ✅ — **step-0016 복사 전진에서 write-seam 심음**(`opts.inject`, 미제공=no-op→reg 0·run()/runMulti() 같은 위치라 멀티프로세스도 비트 동일). run.js `loadScenario` 가 `cmds[].inject` 를 자동 번역(`NET.SUPPORTS.inject` 기능 탐지 — 미지원 과거 step 은 경고 후 무시). `scenarios/inject-move.json` → `run.js scenario` ALL OK. |
 | 라이브 WS 대시보드(보류 카드) | §3-3·§10-3 | ✅(범위 외 보너스) — `live.js`(SSE·존 kill 인터랙티브 failover) |
 
-> **남은 단 하나는 `inject`**, 그리고 그건 *설계 미비가 아니라* 동결 불변(frozen step + 둘째 구현 0)이 강제하는 *타이밍* 문제다 — 다음 step 의 net-core 가 복사 전진될 때 reg-safe write-seam 1줄을 심으면 testbed 쪽 코드 변경 없이 켜진다. 그 전까지 `inject` 명령은 경고 후 무시(kill/transport/opts 만 적용).
+> **구현 현황 전 항목 ✅ — testbed 마무리 완료(0016).** `inject` 는 동결 불변(frozen step + 둘째 구현 0)이 강제한 *타이밍* 문제였고, step-0016 의 net-core 복사 전진에서 reg-safe write-seam 으로 심겨 켜졌다(verify `inject` 모드: 실효·결정론·멀티 비트 동일 5/5). 이후 새 박스 추가 시 §10-5 의 addr→layer 선언 맵만 갱신하면 된다(0016 에서 bus/audit 추가).
 </content>

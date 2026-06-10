@@ -138,7 +138,8 @@ function layerOf(spec) {
     case 'login': case 'gateway': return 'edge';
     case 'registry': case 'orch': return 'coord';
     case 'zone': return 'world';
-    case 'inventory': case 'chat': return 'service';
+    case 'inventory': case 'chat': case 'audit': return 'service';
+    case 'bus': return 'bus';
     case 'client': return 'client';
     default: return 'other';
   }
@@ -163,9 +164,16 @@ function loadScenario(file) {
   if (sc.clients != null) opts.clients = sc.clients;
   for (const c of (sc.cmds || [])) {
     if (c.kill != null) { opts.deathTick = c.tick; opts.killZone = c.kill; opts.failover = true; if (opts.leaseTimeout == null) opts.leaseTimeout = 4; }
-    if (c.inject != null) console.error('⚠ scenario inject 는 net-core write-seam(클라 intent 주입) 이 필요 — 동결 0012 에 없어 무시함. 다음 net-core 복사전진(§10-1 onTick 선례)에서 활성(§5-3).');
+    if (c.inject != null) (opts.inject = opts.inject || []).push({ tick: c.tick, client: c.inject.client, move: c.inject.move });
   }
   return { name: sc.name || path.basename(file), seed: sc.seed != null ? sc.seed : 42, ticks: sc.ticks != null ? sc.ticks : 48, transport: sc.transport !== undefined ? sc.transport : null, opts };
+}
+// inject 는 net-core 의 write-seam(0016 에서 심음 — NET.SUPPORTS.inject)이 필요. 미지원 net-core 면 경고 후 무시(과거 step 호환).
+function guardInject(NET, scenario) {
+  if (scenario.opts.inject && !(NET.SUPPORTS && NET.SUPPORTS.inject)) {
+    console.error('⚠ scenario inject 는 이 step net-core 가 미지원(write-seam 없음 — 0016 에서 심음) — 무시함.');
+    delete scenario.opts.inject;
+  }
 }
 
 function fnv1a(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0; } return h >>> 0; }
@@ -290,6 +298,7 @@ async function cmdReport(scenarioFile) {
     console.error(`${cur.name}/net-core.js 가 run/buildTopology 를 노출하지 않습니다(레코더 비대상).`); return 2;
   }
   const scenario = scenarioFile ? loadScenario(scenarioFile) : defaultScenario();
+  guardInject(NET, scenario);
   scenario.step = cur.name;
   console.log(`▶ report — ${cur.name} 녹화 (시나리오: ${scenario.name}, seed ${scenario.seed}, ${scenario.ticks} tick)`);
 
@@ -329,6 +338,7 @@ async function cmdScenario(scenarioFile) {
   if (typeof NET.run !== 'function') { console.error(`${cur.name}/net-core.js 가 run 을 노출하지 않습니다(시나리오 검증 비대상).`); return 2; }
 
   const scenario = loadScenario(scenarioFile);   // ← report 와 공유하는 번역기(중복 0)
+  guardInject(NET, scenario);
   scenario.step = cur.name;
   console.log(`▶ scenario — ${cur.name} 검증 (${scenario.name}, seed ${scenario.seed}, ${scenario.ticks} tick)`);
   console.log('  report 와 같은 loadScenario 번역기·같은 net-core 실행 → trace 를 프로그램적으로 단언(TESTBED §5-4·§10-4)\n');
