@@ -34,9 +34,26 @@
 
 ---
 
-# 두 트랙 — 시뮬(step)과 렌더러(프레젠테이션)
+# 두 트랙 — 시뮬(step)과 렌더러(렌즈)
 
-위 3축은 모두 **시뮬 트랙**(step 루프)이다. 직교하는 둘째 트랙 = **렌더러 트랙**: 스냅샷을 *읽기만* 해 세계로 번역한다(형태 author 금지, [SPINE.md](SPINE.md) §렌더러와 척추). 시뮬을 안 건드리므로 **step 번호 없이**(회귀·verify 4기둥 무관) 다른 세션에서 **동시 병행** 가능. 작업 규약 전체(단위·소유 파일·검증·문서 갱신)는 **[INTERPRET.md](INTERPRET.md) §9** — 렌더러 트랙의 SSOT. 한 줄 요약: *한 커밋 = 한 렌즈 · `engine/hws-3d.js`+`INTERPRET.md` 만 소유 · `STATE.md` 는 만지지 않는다.*
+위 3축은 모두 **시뮬 트랙**(step 루프)이다. 직교하는 둘째 트랙 = **렌더러 트랙**: 스냅샷(E·R·A·G)을 *읽기만* 해 세계로 번역한다(형태 author 금지). 시뮬을 안 건드리므로 **step 번호 없이**(회귀·verify 4기둥 무관) 다른 세션에서 **동시 병행** 가능.
+
+렌더러 트랙도 시뮬 트랙과 똑같이 **3축**으로 굴러간다 — 역할만 렌더용으로 바뀐다:
+
+| 축 | 파일 | 역할 |
+|---|---|---|
+| **척추(존재론)** | [RENDER.md](RENDER.md) | 필드→세계 번역 원칙. 에너지/물질·z축·렌즈. *거의 불변* |
+| **작은 실행 단위** | 렌즈 커밋 1개 | *한 커밋 = 한 렌즈*. RENDER-STATE 가 지정한 다음 렌즈 하나만 |
+| **상태 파일** | [RENDER-STATE.md](RENDER-STATE.md) | 켜진 렌즈·다음 렌즈·설계vs코드 격차·로드맵. *렌더러 트랙 SSOT* |
+
+**렌즈 루프**(시뮬 step 루프의 렌더러판):
+1. **읽기** — `RENDER.md`(척추) · `RENDER-STATE.md`(다음 렌즈) 먼저.
+2. **계획** — `RENDER-STATE.md` §NEXT 가 지정한 *한 렌즈*만 이번 커밋으로. 더 떠올라도 다음으로 전가.
+3. **구현** — `engine/hws-3d.js` 만 고친다(+ 프레젠테이션 한정 `hws-ui`). *분포 재성형 금지* — 도함수·필터로 읽기만(어느 양이 z·색·빛이 되는가만 고른다).
+4. **검증 3종** — ① `node engine/validate/verify-sim-engine.js` 골든 해시 불변(=시뮬 안 건드린 알리바이) ② `node engine/validate/smoke-dom-3d.js` ③ **눈 검증**(화면이 권위) + 척추 한 항(형태 author 0).
+5. **갱신** — `RENDER-STATE.md` 만 갱신(§1~5 덮어쓰기 · §6 INDEX 1줄 append). **`STATE.md`·`SPINE.md` 는 만지지 않는다**(시뮬 소유).
+
+**소유/불가침**: 렌더러 트랙은 `engine/hws-3d.js` + `RENDER.md` + `RENDER-STATE.md` 만 소유. 시뮬 파일(`hws-laws.js`·`hws-kernel.js`·`hws-sim.js`·`golden-sim.json`·`step-NNNN/*`·`STATE.md`·`SPINE.md`)은 불가침. 두 트랙 파일 집합이 disjoint → 동시 진행·머지 순서 무관.
 
 ---
 
