@@ -140,6 +140,7 @@ function layerOf(spec) {
     case 'zone': return 'world';
     case 'inventory': case 'chat': case 'audit': return 'service';
     case 'bus': return 'bus';
+    case 'persist': return 'data';
     case 'client': return 'client';
     default: return 'other';
   }
