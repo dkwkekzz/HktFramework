@@ -239,16 +239,31 @@
       gl.bufferData(gl.ARRAY_BUFFER, R.agArr.subarray(0, need), gl.DYNAMIC_DRAW);
       agN = ag.length;
     }
+    /* ── 별(구동) FSM 점 — 내생 별의 연소 상태(state: 0=living/kindling·1=burning·2=ash)를 *이산 재질*로 읽는다(RENDER §5 빛).
+     * 필드 없으면 no-op: kIgnite=0 이면 sim.stars 빈 배열 → stN=0 → 그리지 않음(골든/스모크 불변). FSM off(state undefined)면 풀가동=burning(1). ── */
+    var stz = sim.stars || [], stN = 0;
+    if (stz.length) {
+      var sneed = stz.length * 4;                          // (x, y, state, fuel)
+      if (!R.stArr || R.stArr.length < sneed) R.stArr = new Float32Array(Math.max(64, sneed * 2));
+      for (var si = 0; si < stz.length; si++) {
+        var s0 = stz[si];
+        R.stArr[si * 4] = s0.x; R.stArr[si * 4 + 1] = s0.y;
+        R.stArr[si * 4 + 2] = (s0.state === undefined ? 1 : s0.state); R.stArr[si * 4 + 3] = s0.fuel || 0;
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
+      gl.bufferData(gl.ARRAY_BUFFER, R.stArr.subarray(0, sneed), gl.DYNAMIC_DRAW);
+      stN = stz.length;
+    }
     /* ── 패스: 위 = 에너지 변위(원본 렌즈), (분할 시) 아래 = 세계 해석(활성도 분류 렌즈).
      * GL 뷰포트 원점은 좌하단 → 위 뷰포트가 vy=CV_SIZE, 아래가 vy=0. 비분할이면 단일 뷰포트 vy=0. ── */
-    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye);
-    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye);
+    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye, stN);
+    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);
     drawHud(sim, split);
   }
 
   /* 한 뷰포트에 지형(prog 선택)+오버레이 라인+생명 점을 그린다. 버퍼·텍스처는 호출 전 업로드됨.
    * world=false → 에너지 변위 셰이더(progT, 원본), true → 세계 해석 셰이더(progW, 활성도 분류). */
-  function drawView(vy, world, MVP, lnCount, agN, glcv, Pm, eye) {
+  function drawView(vy, world, MVP, lnCount, agN, glcv, Pm, eye, starN) {
     var gl = S.gl;
     gl.viewport(0, vy, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(위·아래 충돌 없음)
     /* ① 지형(하이트필드) */
@@ -285,6 +300,19 @@
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
       gl.depthMask(false);
       gl.drawArrays(gl.POINTS, 0, agN);
+    }
+    /* ④ 별 FSM(이산 재질) — kindling(어두운 응결핵)·burning(백열)·ash(식은 회색)로 이산 분기(lerp 0), 가산 발광 */
+    if (starN) {
+      gl.useProgram(R.progS);
+      gl.uniform1i(R.uS.uE, 0);
+      gl.uniformMatrix4fv(R.uS.uMVP, false, MVP);
+      gl.uniform1f(R.uS.uSat, R.sat); gl.uniform1f(R.uS.uHS, HS);
+      gl.uniform2i(R.uS.uDim, R.W, R.H);
+      gl.uniform1f(R.uS.uPx, Pm[5] * CV_SIZE / 2);
+      gl.bindVertexArray(R.vaoS);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+      gl.depthMask(false);
+      gl.drawArrays(gl.POINTS, 0, starN);
     }
     gl.depthMask(true); gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
@@ -635,6 +663,7 @@
    *   고체 거칠기 렌즈(§5 "지형·거칠기"): R 라플라시안 |∇²R|(고주파 성분)으로 고체 노멀을 미세 변조 — 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈. 높이는 불변(분포 재성형 0), 셰이딩 노멀만(§6 도함수 읽기). 진폭=∇R 거침·방향=셀 해시(서브셀 디테일 절차적). 액체/공허는 rough=0.
    *   유전형 색 렌즈(§4 "G→색은 절차적"): geneCol/storeCol/geneColP 가 고정 4색 팔레트 대신 *황금비 색상환 해시*(hue=fract(g·φ⁻¹) HSV→RGB) — 혈통이 무한히 갈려도 author 0 으로 색이 분화(고정 팔레트 캡 제거). 무유전(g=0)은 호박색 경로 그대로(과거 렌더 불변).
    *   파생 바람 렌즈(§5 "파생: 바람·해류"): ∇E(흐름량 중앙차분)로 하류 방향 flowmap 위상을 만들어, FS 에서 uTime 이류 띠로 발광을 변조 — 흐르는 에너지의 *세기*에 더해 *방향*을 보인다. 코어 불변(GPU 파생·도함수 읽기)·분포 author 0. 약한 ∇E/무흐름 셀은 flowVis=1(발광 불변).
+   *   별 FSM 렌즈(§5 빛 "FSM 이산 분기, lerp 금지"): 별 텍스처가 아닌 sim.stars[].state(0 kindling·1 burning·2 ash)를 읽어 *이산 재질* 점(VS_STAR/FS_STAR)으로 — 색·크기·높이가 문턱에서 딱 갈린다(연속 변조 아님). kIgnite=0 이면 stars 빈 배열 → no-op(필드 없으면 안 그림).
    * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
    * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
@@ -783,6 +812,44 @@
     '  o=vec4(vCol*a, a);',                                 // 유전형 색 발광(무유전은 호박색 — 불변)
     '}'].join('\n');
 
+  /* ── 별 FSM 점 (RENDER §5 빛 — "FSM 상태로 이산 분기, lerp 금지") — 내생 별의 연소 상태를 *이산 재질*로.
+   * 활성도(A 발광)는 연속 측정이라 *세기*만 비춘다 — FSM 라벨(kindling/burning/ash)은 *질적 상전이*(색·크기·높이가 문턱에서 딱 갈림).
+   * 분포 author 0: 별 위치·상태는 시뮬이 정하고(sim.stars), 렌더러는 상태→재질 분기만 고른다. lerp 없이 정수 state 로 분기. */
+  var VS_STAR = [
+    '#version 300 es',
+    'precision highp float;',
+    'layout(location=0) in vec4 aStar;',                    // (x, y, state, fuel) — state: 0=living/kindling 1=burning 2=ash
+    'uniform sampler2D uE;',
+    'uniform mat4 uMVP;',
+    'uniform float uSat, uHS, uPx;',
+    'uniform ivec2 uDim;',
+    'out vec3 vCol; out float vCore;',                      // 상태 색 + 핵 강도(FS 글로우 모양 — burning 날카로움·ash 흐림)
+    'void main(){',
+    '  int st=int(aStar.z+0.5);',                           // 연소 FSM 상태(이산)
+    '  vec2 t=texelFetch(uE, ivec2(int(aStar.x),int(aStar.y)), 0).rg;',
+    '  float h=min(uHS*log(1.0+max(t.r+t.g,0.0))/log(1.0+uSat), uHS*2.2);',
+    '  float lift; float rad; vec3 col;',
+    '  if (st==1){ col=vec3(1.00,0.92,0.66); lift=0.95; rad=2.0; vCore=1.0; }',    // burning — 백열·크게·솟은 화염(고강도 emissive)
+    '  else if (st==2){ col=vec3(0.30,0.29,0.31); lift=0.16; rad=0.7; vCore=0.22; }', // ash — 식은 회색·작게·가라앉음(불응기 잔불)
+    '  else { col=vec3(0.55,0.16,0.06); lift=0.45; rad=1.1; vCore=0.5; }',         // living/kindling — 어두운 응결핵(저활성·정지)
+    '  vec4 cp=uMVP*vec4(aStar.x, h+lift, aStar.y, 1.0);',
+    '  gl_Position=cp;',
+    '  vCol=col;',
+    '  gl_PointSize=clamp(2.0*rad*uPx/max(cp.w,0.001), 2.0, 80.0);',
+    '}'].join('\n');
+
+  var FS_STAR = [
+    '#version 300 es',
+    'precision highp float;',
+    'in vec3 vCol; in float vCore;',
+    'out vec4 o;',
+    'void main(){',
+    '  vec2 d=gl_PointCoord-0.5; float r2=dot(d,d);',
+    '  if (r2>0.25) discard;',
+    '  float core=exp(-r2*(8.0+24.0*vCore));',              // burning=날카로운 핵+넓은 글로우, ash=흐릿한 잔불
+    '  o=vec4(vCol*core*(0.6+1.4*vCore), core);',           // 상태별 발광 세기(가산 블렌딩 — burning 만 흰빛 블룸)
+    '}'].join('\n');
+
   var VS_LINE = [
     '#version 300 es',
     'precision highp float;',
@@ -807,10 +874,12 @@
     R.progT = mkProg(gl, VS_TERRAIN, FS_TERRAIN);
     R.progW = mkProg(gl, VS_WORLD, FS_WORLD);               // 세계 해석 렌즈(INTERPRET)
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
+    R.progS = mkProg(gl, VS_STAR, FS_STAR);                 // 별 FSM 이산 재질 점(RENDER §5 빛)
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
     R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight', 'uEye', 'uTime']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx']);
+    R.uS = locs(gl, R.progS, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx']);
     R.uL = locs(gl, R.progL, ['uMVP']);
     R.tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, R.tex);
@@ -820,6 +889,7 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     R.vaoT = gl.createVertexArray(); R.bufCell = gl.createBuffer(); R.bufIdx = gl.createBuffer();
     R.vaoP = gl.createVertexArray(); R.bufAg = gl.createBuffer();
+    R.vaoS = gl.createVertexArray(); R.bufStar = gl.createBuffer();
     R.vaoL = gl.createVertexArray(); R.bufLn = gl.createBuffer();
     gl.bindVertexArray(R.vaoP);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
@@ -827,6 +897,10 @@
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);   // (x,y,m) stride 16 — 생명 유전형 g 가 4번째 float
     gl.enableVertexAttribArray(1);
     gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);  // a.g(유전형 태그) — geneColP 로 점 색 분기
+    gl.bindVertexArray(R.vaoS);
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,state,fuel) stride 16 — 별 FSM 점
     gl.bindVertexArray(R.vaoL);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
     gl.enableVertexAttribArray(0);
