@@ -136,13 +136,19 @@
       panelEl.appendChild(presetRow);
     }
 
-    /* ── 패널 선언 컨트롤 ── */
+    /* ── 패널 선언 컨트롤 ──
+     * 프리셋 패널은 *검증 우선*: 누적 노브·액션(35 step 치 전체 스택)은 '고급' 박스로 접어 기본 화면을 비운다
+     * (확인할 건 호박색 프리셋 하나 + 통계뿐 — 나머지는 탐험용). 프리셋 없는 옛 패널은 그대로 인라인(하위호환). */
+    var useAdvanced = !!(panel.presets && panel.presets.length);
+    var advBox = useAdvanced ? doc.createElement('div') : null;
+    if (advBox) { advBox.className = 'advanced'; advBox.style.display = 'none'; }
+    var controlsParent = advBox || panelEl;
     var rows = panel.controls || [];
     for (var ri = 0; ri < rows.length; ri++) {
       var rowDiv = doc.createElement('div'); rowDiv.className = 'ctl';
       var items = rows[ri].items || [];
       for (var ci = 0; ci < items.length; ci++) buildItem(rowDiv, items[ci]);
-      panelEl.appendChild(rowDiv);
+      controlsParent.appendChild(rowDiv);
     }
 
     /* ── 통계표 ── */
@@ -157,6 +163,18 @@
       statCells.push(tdv);
     }
     panelEl.appendChild(table);
+
+    /* ── 고급(누적 노브·액션) — 프리셋 패널 한정: 기본 접힘, 토글로 전체 스택을 펼친다(탐험). ── */
+    if (useAdvanced) {
+      var advLabel = '고급 노브 ▾  (전체 스택 — 탐험용)';
+      var advToggle = mkBtn(advLabel); advToggle.className = 'advtoggle';
+      advToggle.addEventListener('click', function () {
+        var shown = advBox.style.display !== 'none';
+        advBox.style.display = shown ? 'none' : '';
+        advToggle.textContent = shown ? advLabel : '고급 노브 ▴  (접기)';
+      });
+      panelEl.appendChild(advToggle); panelEl.appendChild(advBox);
+    }
 
     /* ── 범례 ── */
     if (panel.legend) {

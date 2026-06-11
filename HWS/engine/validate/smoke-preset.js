@@ -46,6 +46,18 @@ function findByText(root, tag, text) {
   for (var i = 0; i < ch.length; i++) { var r = findByText(ch[i], tag, text); if (r) return r; }
   return null;
 }
+function findByClass(root, cls) {
+  if ((root.className || '').split(' ').indexOf(cls) >= 0) return root;
+  var ch = root.children || [];
+  for (var i = 0; i < ch.length; i++) { var r = findByClass(ch[i], cls); if (r) return r; }
+  return null;
+}
+function findByTextPrefix(root, tag, prefix) {
+  if (root.tagName === tag && (root.textContent || '').indexOf(prefix) === 0) return root;
+  var ch = root.children || [];
+  for (var i = 0; i < ch.length; i++) { var r = findByTextPrefix(ch[i], tag, prefix); if (r) return r; }
+  return null;
+}
 var document = {
   body: makeEl('body'),
   createElement: function (t) { return makeEl(t); },
@@ -113,5 +125,13 @@ var dEl = document.getElementById('D'), riseEl = document.getElementById('risec'
 check('D 슬라이더 UI = 8 동기화', String(dEl.value) === '8', 'D.value=' + dEl.value);
 check('부력 게이트 체크 on·슬라이더=1 동기화', riseEl.checked === true && String(riseSl.value) === '1', 'risec=' + riseEl.checked + ' kStarRise=' + riseSl.value);
 
-console.log(fail ? ('\n✗ 프리셋 스모크 ' + fail + ' 항 실패') : '\n✅ 프리셋 스모크 통과 — 회귀 상태→한 클릭→별이 하늘로(verify sun 수치 = 화면 경로 일치)');
+/* 검증 우선 레이아웃 — 누적 노브가 '고급' 박스로 접혀 기본은 안 보이고, 토글로 펼쳐진다. */
+var advBox = findByClass(document.body, 'advanced');
+check('누적 노브가 고급 박스로 접힘(기본 display:none)', !!advBox && advBox.style.display === 'none', advBox ? ('display=' + advBox.style.display) : '박스 없음');
+check('D 노브가 고급 박스 안에 격납됨', !!advBox && !!findById(advBox, 'D'));
+var advToggle = findByTextPrefix(document.body, 'BUTTON', '고급 노브');
+check('고급 토글 버튼 존재', !!advToggle);
+if (advToggle) { advToggle.dispatch('click'); check('토글 클릭 → 고급 박스 펼침', advBox.style.display === '', 'display="' + advBox.style.display + '"'); }
+
+console.log(fail ? ('\n✗ 프리셋 스모크 ' + fail + ' 항 실패') : '\n✅ 프리셋 스모크 통과 — 검증 우선 레이아웃(프리셋+통계 기본·노브 접힘)·한 클릭→별이 하늘로(verify sun 일치)');
 process.exit(fail ? 1 : 0);
