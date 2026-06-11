@@ -213,11 +213,13 @@
      *   물은 반투명으로 그 위에 블렌드(뒤 큐브가 비친다). 분류 문턱은 VS_VOXEL 과 동일(불일치 0).
      * L-V3: 고체 칸은 R 6-이웃 라플라시안(|∇²R| 고주파)을 *거칠기*로 미리 재 인스턴스에 싣는다 — 들쭉날쭉한 R=거친 암석.
      * L-V4: 빛 칸은 ∇E(흐름량 중앙차분) *하류 방향*을 월드 좌표로 미리 재 인스턴스에 싣는다 — FS 가 시간 이류 띠로 흐름 방향을 보인다.
-     * 분포 author 0: 어느 칸이 차 있는가·R·E 분포는 시뮬의 사실, 렌더러는 읽어서 큐브를 두고 도함수(∇²R·∇E)로 셰이딩만(RENDER §6·VOXEL V-A). */
+     * L-V5: *빈칸*(void)의 미량 E 가 수렴(∇²E<0)하면 안개 점(부드러운 스프라이트)을 따로 모은다 — 겹쳐 쌓여 볼류메트릭 안개(응결).
+     * 분포 author 0: 어느 칸이 차 있는가·R·E 분포는 시뮬의 사실, 렌더러는 읽어서 큐브를 두고 도함수(∇²R·∇E·∇²E)로 셰이딩만(RENDER §6·VOXEL V-A). */
     var satA = R.satA, satR = R.satR, STR = 11;             // 인스턴스 stride 11: (x,y,z, E,R,G,A, rough, fx,fy,fz)
-    var va = R.voxArr, vn = 0, vw = R.voxArrW, wn = 0;
+    var va = R.voxArr, vn = 0, vw = R.voxArrW, wn = 0, fa = R.fogArr, fn = 0;
     if (!va || va.length < 4096 * STR) va = R.voxArr = new Float32Array(4096 * STR);
     if (!vw || vw.length < 1024 * STR) vw = R.voxArrW = new Float32Array(1024 * STR);
+    if (!fa) fa = R.fogArr = new Float32Array(1024 * 4);    // 안개 점(L-V5): (x,y,z, density) — 빈칸 ∇²E 수렴
     function rN(x, y, z) {                                   // 이웃 R — x·y wrap(토러스)·z 클램프(벽). Rf 없으면 0(거칠기 무)
       x = ((x % W) + W) % W; y = ((y % H) + H) % H; if (z < 0) z = 0; else if (z >= D) z = D - 1;
       return Rf ? Rf[(z * H + y) * W + x] : 0;
@@ -233,8 +235,18 @@
       var liquidE = Ev * (1 - af), flowE = Ev * af;
       var solid = Rv > 0.08 && Rv >= liquidE;                // 고체(저장체 우세)
       var water = !solid && liquidE > 0.05;                  // 물(고인 E 우세) — 반투명 패스
-      if (!(solid || water || flowE > 0.035)) continue;      // 고체도·물도·빛도 아니면 void → 큐브 없음
       var z = (i / WH) | 0, rem = i - z * WH, yy = (rem / W) | 0, xx = rem - yy * W;   // i → (x,y,z)
+      if (!(solid || water || flowE > 0.035)) {              // 빈칸(void) → 큐브 없음. 단 미량 E 가 수렴(∇²E<0)하면 안개(L-V5)
+        if (Ev > 0.004) {
+          var lapE = eN(xx + 1, yy, z) + eN(xx - 1, yy, z) + eN(xx, yy + 1, z) + eN(xx, yy - 1, z) + eN(xx, yy, z + 1) + eN(xx, yy, z - 1) - 6 * Ev;
+          var fog = clamp(-lapE / Math.max(R.sat * 0.03, 1e-3), 0, 1) * clamp(Ev / Math.max(R.sat * 0.25, 1e-3), 0, 1);  // 수렴(∇²E<0) × 미량 E 농도
+          if (fog > 0.05) {
+            if ((fn + 1) * 4 > fa.length) { var nf = new Float32Array(fa.length * 2); nf.set(fa); fa = R.fogArr = nf; }
+            var of = fn * 4; fa[of] = xx; fa[of + 1] = yy; fa[of + 2] = z; fa[of + 3] = fog; fn++;
+          }
+        }
+        continue;
+      }
       var rough = 0;                                         // L-V3 거칠기 — 고체만(물·빛=매끈)
       if (solid && Rf) {
         var lapR = rN(xx + 1, yy, z) + rN(xx - 1, yy, z) + rN(xx, yy + 1, z) + rN(xx, yy - 1, z) + rN(xx, yy, z + 1) + rN(xx, yy, z - 1) - 6 * Rv;
@@ -259,9 +271,10 @@
         vn++;
       }
     }
-    R.voxN = vn; R.voxNW = wn;
+    R.voxN = vn; R.voxNW = wn; R.fogN = fn;
     if (vn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVox); gl.bufferData(gl.ARRAY_BUFFER, va.subarray(0, vn * STR), gl.DYNAMIC_DRAW); }
     if (wn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, vw.subarray(0, wn * STR), gl.DYNAMIC_DRAW); }
+    if (fn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufFog); gl.bufferData(gl.ARRAY_BUFFER, fa.subarray(0, fn * 4), gl.DYNAMIC_DRAW); }
     /* 틱 단위 캐시 — 개체수 히스토리·고임 (엔진 2D 와 같은 주기) */
     if (sim.tick !== S.lastTick) {
       S.lastTick = sim.tick;
@@ -352,6 +365,17 @@
           gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, R.voxNW);
           gl.depthMask(true); gl.disable(gl.BLEND);
         }
+      }
+      /* ② 안개(L-V5) — 빈칸 ∇²E 수렴을 부드러운 점 스프라이트로(겹쳐 쌓여 볼류메트릭). 알파-오버·깊이 테스트 on·쓰기 off(고체 뒤는 가림) */
+      if (R.fogN) {
+        gl.useProgram(R.progF);
+        gl.uniformMatrix4fv(R.uF.uMVP, false, MVP);
+        gl.uniform1f(R.uF.uPx, Pm[5] * CV_SIZE / 2);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+        gl.bindVertexArray(R.vaoF);
+        gl.drawArrays(gl.POINTS, 0, R.fogN);
+        gl.depthMask(true); gl.disable(gl.BLEND);
       }
     } else {
       /* ① 레거시 하이트필드(에너지 변위 — z=0 바닥 슬라이스) */
@@ -1086,6 +1110,36 @@
     '  o=vec4(vCol*core*(0.6+1.4*vCore), core);',           // 상태별 발광 세기(가산 블렌딩 — burning 만 흰빛 블룸)
     '}'].join('\n');
 
+  /* ── 안개 점 (L-V5 — RENDER §5 "파생: 안개·응결") — 빈칸 미량 E 의 수렴(∇²E<0)을 부드러운 점 스프라이트로.
+   * 겹쳐 쌓이는 저-알파 점 = 볼류메트릭 안개(응결). 진짜 raymarch(3D 텍스처)는 정제 백로그 — 여기선 점군 근사.
+   * 분포 author 0: 위치·∇²E 는 시뮬 E 의 도함수(읽기), 렌더러는 흐릿한 푸른 막만 얹는다. */
+  var VS_FOG = [
+    '#version 300 es',
+    'precision highp float;',
+    'layout(location=0) in vec4 aFog;',                     // (x, y, z, density) — sim 셀 + 안개 농도
+    'uniform mat4 uMVP;',
+    'uniform float uPx;',
+    'out float vDen;',
+    'void main(){',
+    '  vec3 c=vec3(aFog.x, aFog.z, aFog.y);',               // sim(x,y,z) → 월드(x, 위, 깊이)
+    '  vec4 cp=uMVP*vec4(c, 1.0);',
+    '  gl_Position=cp;',
+    '  vDen=aFog.w;',
+    '  gl_PointSize=clamp(2.6*uPx/max(cp.w,0.001), 4.0, 64.0);', // 셀보다 큰 스프라이트(겹쳐 부드럽게)
+    '}'].join('\n');
+
+  var FS_FOG = [
+    '#version 300 es',
+    'precision highp float;',
+    'in float vDen;',
+    'out vec4 o;',
+    'void main(){',
+    '  vec2 d=gl_PointCoord-0.5; float r2=dot(d,d);',
+    '  if (r2>0.25) discard;',
+    '  float a=exp(-r2*5.0)*vDen*0.20;',                    // 부드러운 가우시안 × 농도 × 낮은 세기(겹쳐 쌓임 = 볼륨)
+    '  o=vec4(vec3(0.62,0.70,0.82)*a, a);',                 // 푸르스름한 흰 안개(알파-오버 — 뒤를 흐리게)
+    '}'].join('\n');
+
   var VS_LINE = [
     '#version 300 es',
     'precision highp float;',
@@ -1111,11 +1165,13 @@
     R.progV = mkProg(gl, VS_VOXEL, FS_VOXEL);               // voxel 세계 렌즈(L-V1 — R 점유 인스턴스드 큐브)
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
     R.progS = mkProg(gl, VS_STAR, FS_STAR);                 // 별 FSM 이산 재질 점(RENDER §5 빛)
+    R.progF = mkProg(gl, VS_FOG, FS_FOG);                   // 안개 점(L-V5 — ∇²E 응결)
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
     R.uV = locs(gl, R.progV, ['uMVP', 'uSat', 'uSatR', 'uSatA', 'uScale', 'uLight', 'uEye', 'uTime']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx', 'uVoxel']);
     R.uS = locs(gl, R.progS, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx', 'uVoxel']);
+    R.uF = locs(gl, R.progF, ['uMVP', 'uPx']);
     R.uL = locs(gl, R.progL, ['uMVP']);
     R.tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, R.tex);
@@ -1129,6 +1185,7 @@
     R.vaoVW = gl.createVertexArray(); R.bufVoxW = gl.createBuffer();   // 물 voxel(반투명, L-V2)
     R.vaoP = gl.createVertexArray(); R.bufAg = gl.createBuffer();
     R.vaoS = gl.createVertexArray(); R.bufStar = gl.createBuffer();
+    R.vaoF = gl.createVertexArray(); R.bufFog = gl.createBuffer();     // 안개 점(L-V5)
     R.vaoL = gl.createVertexArray(); R.bufLn = gl.createBuffer();
     /* ── voxel VAO(L-V1·L-V2): 단위 큐브(정점 24=면당 4·법선 per-face) 공유 + 인스턴스(셀+필드, divisor 1).
      * 불투명·물 두 VAO 가 같은 큐브 버퍼를 쓰되 인스턴스 버퍼만 다르다(분리 패스 — 불투명 먼저·물 나중). ── */
@@ -1164,6 +1221,10 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,z,state) stride 16 — 별 FSM 점(z=부력 높이)
+    gl.bindVertexArray(R.vaoF);
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.bufFog);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,z,density) stride 16 — 안개 점(L-V5)
     gl.bindVertexArray(R.vaoL);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
     gl.enableVertexAttribArray(0);
