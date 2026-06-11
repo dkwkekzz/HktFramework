@@ -629,11 +629,14 @@ class ChatService {
   //   재발신은 억제하되 라우팅(channels/byAvatar)·deliveries·계측은 *비트 동일* 재구성(가방 replay 가 효과 재적용이라면, 채팅 replay 는 *커맨드 재실행*).
   replay(journal) {
     this.replaying = true;
-    const sorted = (journal || []).slice().sort((a, b) => a.seq - b.seq);
-    let maxSeq = -1;
-    for (const e of sorted) { if (e.seq > maxSeq) maxSeq = e.seq; this._process(e); }
-    this.journalSeq = maxSeq + 1;   // 다음 커맨드 seq = max+1(개수 아님 — 빈칸에도 중복 0)
-    this.replaying = false;
+    try {
+      const sorted = (journal || []).slice().sort((a, b) => a.seq - b.seq);
+      let maxSeq = -1;
+      for (const e of sorted) { if (e.seq > maxSeq) maxSeq = e.seq; this._process(e); }
+      this.journalSeq = maxSeq + 1;   // 다음 커맨드 seq = max+1(개수 아님 — 빈칸에도 중복 0)
+    } finally {
+      this.replaying = false;   // 예외(손상 커맨드)로 중단돼도 *persistent* replaying 플래그를 반드시 해제 — 안 그러면 이후 live 가 재발신/저널 영구 침묵
+    }
   }
   subscriberCount(ch) { const s = this.channels.get(ch); return s ? s.size : 0; }
 }
