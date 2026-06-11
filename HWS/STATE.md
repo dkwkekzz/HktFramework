@@ -3,7 +3,7 @@
 > "지금 어디까지 왔고 다음은 무엇인가"의 **단일 진실 원천(SSOT)**.
 > 큰 목표·규칙은 [CLAUDE.md](CLAUDE.md) · 존재론 척추는 [SPINE.md](SPINE.md) · 각 step의 상세 기록(의외의 발견·정직한 한계 전문 포함)은 `step-NNNN.md`.
 >
-> **구조 규칙(에이전트 효율 — 토큰이 step 수에 비례해 터지지 않게 *강제*)**: 이 파일은 *고정 크기 대시보드*다. §1~6은 step을 닫을 때마다 **덮어쓴다(rewrite)** — 누적하지 않는다. 오직 §7 INDEX만 **literal 1줄** append(`step | 조각 | 통과+핵심수치 1개` — *문단 금지*). 발견/한계의 *전문*은 STATE가 아니라 `step-NNNN.md`에 산다(STATE = 현재의 SSOT, step 문서 = 역사의 SSOT). **세 가지 누적 함정 금지**: ① §2/§5 에서 큰 호(arc)를 step별로 *재나열*하지 말 것 — 서사는 [SPINE.md](SPINE.md), STATE 는 직전 2~3 step + 포인터만 ② §3 에서 ✅해소된 격차를 전문 보존하지 말 것 — *인덱스 한 줄로 떨어뜨린다* ③ §4 는 *여러 step 이 반복 참조하는 불변*만 — 단일 step 교훈은 step 문서로. 닫힌 step 의 한-문단 INDEX 요약 history 는 [STATE-INDEX-ARCHIVE.md](STATE-INDEX-ARCHIVE.md)(읽기용·필독 아님). 마커: ✅해소 🟡부분 🔴열림(최우선) ⬜백로그 🔧노브.
+> **구조 규칙(에이전트 효율 — 토큰이 step 수에 비례해 터지지 않게 *강제*)**: 이 파일은 *고정 크기 대시보드*다. §1~6은 step을 닫을 때마다 **덮어쓴다(rewrite)** — 누적하지 않는다. 오직 §7 INDEX만 **literal 1줄** append(`step | 조각 | 통과+핵심수치 1개` — *문단 금지*). 발견/한계의 *전문*은 STATE가 아니라 `step-NNNN.md`에 산다(STATE = 현재의 SSOT, step 문서 = 역사의 SSOT). **세 가지 누적 함정 금지**: ① §2/§5 에서 큰 호(arc)를 step별로 *재나열*하지 말 것 — 서사는 [SPINE.md](SPINE.md), STATE 는 직전 2~3 step + 포인터만 ② §3 에서 ✅해소된 격차를 전문 보존하지 말 것 — *인덱스 한 줄로 떨어뜨린다* ③ §4 는 *여러 step 이 반복 참조하는 불변*만 — 단일 step 교훈은 step 문서로. 닫힌 step 의 발견·한계 전문은 각 `step-NNNN.md`(역사의 SSOT), 1줄 요약은 §7 INDEX. 마커: ✅해소 🟡부분 🔴열림(최우선) ⬜백로그 🔧노브.
 
 ---
 
@@ -50,7 +50,7 @@
 | ⬜ | **gross 통과 flux 미계량** | 0014 활성도는 *net* dE/dt — 정상 흐름(in/out 균형, net≈0·gross 큼) 셀을 저활성으로 본다. 관류형 개체엔 gross 계량 필요할 수 있음. |
 | ⬜ | **center-셀 / scan-order 이방성** | 법칙들이 center-셀·고정 scan 순서에 약하게 의존(깊은 핵 흐름·footprint export 한계). 누적 백로그. |
 
-> **✅ 해소된 격차 (0008~0025, 14건)** — 저장체(평형, 0008)·저장체가 무대(0009)·greedy 국소 최대 함정(0010)·별이 외부 주입(0011)·과증식-공멸(0012)·생명 churn(0012)·이산 비가역 문턱(0013, 별)·활성도 미측정(0014)·유전(0015·0016)·개체 공간 토대(0017)·물리적 막/도메인(0018)·개체 진화적 중립(0019)·협동 강한 침투(0020)·균일 역할→분업(0021)·불가역 계통 격리(0022). 상세 = 각 `step-NNNN.md` · §7 INDEX · [STATE-INDEX-ARCHIVE.md](STATE-INDEX-ARCHIVE.md).
+> **✅ 해소된 격차 (0008~0025, 14건)** — 저장체(평형, 0008)·저장체가 무대(0009)·greedy 국소 최대 함정(0010)·별이 외부 주입(0011)·과증식-공멸(0012)·생명 churn(0012)·이산 비가역 문턱(0013, 별)·활성도 미측정(0014)·유전(0015·0016)·개체 공간 토대(0017)·물리적 막/도메인(0018)·개체 진화적 중립(0019)·협동 강한 침투(0020)·균일 역할→분업(0021)·불가역 계통 격리(0022). 상세 = 각 `step-NNNN.md` · §7 INDEX.
 
 **게임화 cross-cutting**: 🔧 **G1 timescale**(노브 — 폭발이 빠름 씨앗1→정점 ~33tick; world-tick 을 렌더와 분리 + rate 재튜닝, 다운스트림) · ✅ **G2 동결**(0011 내생화→0012 자기제한으로 동역학적 종결 — 공멸 없이 후반 출생≈사망>0) · ✅ **G3 한 점 수렴**(0011 외부 source→떠도는 필멸 별·0012 공멸 제거로 떠돎이 영속).
 
@@ -119,13 +119,12 @@
 - 비전·게임 종착점: [VISION.md](VISION.md) · **렌더러 트랙(직교) 척추 [RENDER.md](RENDER.md) · 현황 [RENDER-STATE.md](RENDER-STATE.md)**
 - 엔진·패널 스펙: [engine/PANEL.md](engine/PANEL.md) · [engine/DESIGN-3D.md](engine/DESIGN-3D.md)
 - **의외의 발견 / 정직한 한계 전문**: 각 `step-NNNN.md` 의 §발견·§한계 (STATE 는 중복 보관 안 함 — 위 §3·§4 가 현재 load-bearing 요약).
-- **닫힌 step INDEX 상세 요약(한-문단)**: [STATE-INDEX-ARCHIVE.md](STATE-INDEX-ARCHIVE.md) (읽기용 아카이브 — step 작업 시 필독 아님).
 
 ---
 
 ## 7. INDEX — 시리즈 검증 현황 (유일하게 append, **literal 1줄/step**)
 
-> 규칙: 한 행 = `step | 더한 조각 | 통과/실패 + 핵심 수치 1개`. *문단 금지* — 발견·한계 전문은 `step-NNNN.md`, 한-문단 큐레이션 요약은 [STATE-INDEX-ARCHIVE.md](STATE-INDEX-ARCHIVE.md).
+> 규칙: 한 행 = `step | 더한 조각 | 통과/실패 + 핵심 수치 1개`. *문단 금지* — 발견·한계 전문은 `step-NNNN.md`.
 
 | step | 더한 한 조각 | 결과 (회귀 0 전제) |
 |---|---|---|

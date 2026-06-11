@@ -35,7 +35,7 @@
 >
 > **STATE.md 는 고정 크기 대시보드(에이전트 효율)**: §1~6(NOW·NEXT·OPEN GAPS·DURABLE CONSTRAINTS·6요소·빠른참조)은 step 마다 **덮어쓴다(rewrite)** — 누적하지 않는다. 오직 §7 INDEX 만 **literal 1줄/step** append. *의외의 발견·정직한 한계의 전문*은 STATE 가 아니라 `step-NNNN.md` 에 산다(STATE = 현재의 SSOT, step 문서 = 역사의 SSOT). 발견/한계가 다음 결정에 아직 작용(load-bearing)하면 STATE §3 OPEN GAPS 또는 §4 DURABLE CONSTRAINTS 에 *현재 상태로만* 반영하고, 후속 step 이 해소하면 인덱스 한 줄로 떨어진다.
 >
-> **누적 함정 금지 (토큰이 step 수에 비례해 터지지 않게 — "덮어쓴다"가 *크기를 묶는다*는 뜻)**: ① **§7 INDEX 는 literal 1줄** — `step | 더한 조각 | 통과/실패 + 핵심 수치 1개`, *문단 금지*. 한-문단 큐레이션 요약 history 는 `STATE-INDEX-ARCHIVE.md`(읽기용 아카이브·step 작업 시 필독 아님)에 둔다. ② **§5 6계층 진행에서 박스별 진척을 step별로 *재나열*하지 않는다** — 현재 마커 + 핵심 step 목록만(prose 누적 금지). ③ **§3 OPEN GAPS 에 ✅해소 격차를 전문 보존하지 않는다** — 해소되면 한 줄(또는 묶음 한 줄)로 떨어뜨리고 전문은 step 문서로. ④ **§4 DURABLE 은 *여러 step 이 반복 참조하는 불변*만**. STATE 가 비대해지면(대략 30KB 초과) 위 네 함정부터 점검·정리한다.
+> **누적 함정 금지 (토큰이 step 수에 비례해 터지지 않게 — "덮어쓴다"가 *크기를 묶는다*는 뜻)**: ① **§7 INDEX 는 literal 1줄** — `step | 더한 조각 | 통과/실패 + 핵심 수치 1개`, *문단 금지*. 발견·한계 전문은 각 `step-NNNN.md`(역사의 SSOT)에 둔다. ② **§5 6계층 진행에서 박스별 진척을 step별로 *재나열*하지 않는다** — 현재 마커 + 핵심 step 목록만(prose 누적 금지). ③ **§3 OPEN GAPS 에 ✅해소 격차를 전문 보존하지 않는다** — 해소되면 한 줄(또는 묶음 한 줄)로 떨어뜨리고 전문은 step 문서로. ④ **§4 DURABLE 은 *여러 step 이 반복 참조하는 불변*만**. STATE 가 비대해지면(대략 30KB 초과) 위 네 함정부터 점검·정리한다.
 >
 > **시각화는 `TESTBED.md`(검증·시각화 환경)로 일원화 — step마다 html 손작성 금지**: 예전엔 step 마다 `step-NNNN.html`(관찰 셸)과 `SYSTEM.html`(손그림 전체도)을 손으로 만들었으나 **전부 폐기**(기존 8장 삭제). 앞으로 전체 흐름·실 인스턴스 통신·동작 검증의 *시각화*는 **단일 testbed** — `node run.js report` 가 현재 step 의 실 멀티프로세스 실행을 *녹화*해 자기완결 `report.html`(타임라인 플레이어) 1장으로 떨군다(손그림 아님 = 항상 사실, 손갱신 0). "어디까지 왔나"의 권위는 여전히 **STATE.md**, 수치 권위는 `verify.js`(중복 SSOT 금지). 설계·구현 방향은 [TESTBED.md](TESTBED.md).
 

@@ -13,7 +13,7 @@ description: HktInfra step 한 바퀴(읽기→스캐폴드→구현→검증→
 
 **조건부** (해당 작업 시에만): `TOOLS.md`(박스의 도구/승격 결정 시) · `TESTBED.md`(run.js/report 구조 변경 시 — 통상 step 은 불필요).
 
-**읽기 금지** (STATE 가 명시 지시할 때만 예외): `STATE-INDEX-ARCHIVE.md` · 옛 `step-NNNN.md`·`step-NNNN-concepts.md` 문서들.
+**읽기 금지** (STATE 가 명시 지시할 때만 예외): 옛 `step-NNNN.md`·`step-NNNN-concepts.md` 문서들.
 
 **직전 step 코드는 부분 읽기만**: 스캐폴드가 복사를 끝내므로 직전 `net-core.js`(~80KB)·`cluster.js`·`verify.js` 를 통째로 읽을 필요 없다 — 이번 조각이 닿는 박스/모드만 Grep 으로 찾아 해당 구간을 읽는다.
 
