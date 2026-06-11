@@ -243,12 +243,12 @@
      * 필드 없으면 no-op: kIgnite=0 이면 sim.stars 빈 배열 → stN=0 → 그리지 않음(골든/스모크 불변). FSM off(state undefined)면 풀가동=burning(1). ── */
     var stz = sim.stars || [], stN = 0;
     if (stz.length) {
-      var sneed = stz.length * 4;                          // (x, y, state, fuel)
+      var sneed = stz.length * 4;                          // (x, y, state, z) — z=별 부력 높이(step-0035; 옛 fuel 슬롯 재사용, 셰이더 미사용이었음)
       if (!R.stArr || R.stArr.length < sneed) R.stArr = new Float32Array(Math.max(64, sneed * 2));
       for (var si = 0; si < stz.length; si++) {
         var s0 = stz[si];
         R.stArr[si * 4] = s0.x; R.stArr[si * 4 + 1] = s0.y;
-        R.stArr[si * 4 + 2] = (s0.state === undefined ? 1 : s0.state); R.stArr[si * 4 + 3] = s0.fuel || 0;
+        R.stArr[si * 4 + 2] = (s0.state === undefined ? 1 : s0.state); R.stArr[si * 4 + 3] = (s0.z || 0);   // 4번째 = 별 z(부력 상승, step-0035). 미설정/rise=0 → 0(회귀: z-리프트 0)
       }
       gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
       gl.bufferData(gl.ARRAY_BUFFER, R.stArr.subarray(0, sneed), gl.DYNAMIC_DRAW);
@@ -818,7 +818,7 @@
   var VS_STAR = [
     '#version 300 es',
     'precision highp float;',
-    'layout(location=0) in vec4 aStar;',                    // (x, y, state, fuel) — state: 0=living/kindling 1=burning 2=ash
+    'layout(location=0) in vec4 aStar;',                    // (x, y, state, z) — state: 0=living/kindling 1=burning 2=ash · z: 부력 상승 높이(step-0035)
     'uniform sampler2D uE;',
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uPx;',
@@ -832,7 +832,8 @@
     '  if (st==1){ col=vec3(1.00,0.92,0.66); lift=0.95; rad=2.0; vCore=1.0; }',    // burning — 백열·크게·솟은 화염(고강도 emissive)
     '  else if (st==2){ col=vec3(0.30,0.29,0.31); lift=0.16; rad=0.7; vCore=0.22; }', // ash — 식은 회색·작게·가라앉음(불응기 잔불)
     '  else { col=vec3(0.55,0.16,0.06); lift=0.45; rad=1.1; vCore=0.5; }',         // living/kindling — 어두운 응결핵(저활성·정지)
-    '  vec4 cp=uMVP*vec4(aStar.x, h+lift, aStar.y, 1.0);',
+    '  float zlift=aStar.w*uHS*0.35;',                      // 별 부력 z(step-0035) — 시뮬이 정한 star.z 를 *읽어* 높이로(분포 author 0). rise=0/z=0 → 0(회귀). 별이 하늘로 떠오르는 게 보인다(하이트필드는 z=0 평면뿐이라 별 마커만이라도 제 z 로 띄움 — L-V1 voxel 렌즈 전까지의 첫 z-인지 렌즈).
+    '  vec4 cp=uMVP*vec4(aStar.x, h+lift+zlift, aStar.y, 1.0);',
     '  gl_Position=cp;',
     '  vCol=col;',
     '  gl_PointSize=clamp(2.0*rad*uPx/max(cp.w,0.001), 2.0, 80.0);',
@@ -900,7 +901,7 @@
     gl.bindVertexArray(R.vaoS);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
     gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,state,fuel) stride 16 — 별 FSM 점
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,state,z) stride 16 — 별 FSM 점 + 부력 z-리프트
     gl.bindVertexArray(R.vaoL);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
     gl.enableVertexAttribArray(0);

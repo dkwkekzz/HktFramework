@@ -17,6 +17,7 @@
 - ✅ **고체 거칠기 = `∇R` 노멀 디테일**: R 라플라시안 `|∇²R|`(고주파)으로 고체 노멀 미세 변조 — 진폭=∇R 거침·방향=셀 해시(서브셀 절차적). 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈. *높이 불변*(분포 재성형 0)·셰이딩 노멀만. 액체/공허는 `rough=0`.
 - ✅ **`∇E` → 파생 바람 flowmap**: 흐름량 중앙차분 `∇E`로 하류 방향 위상(`vFlowPhase`)을 만들고, FS 에서 `uTime` 이류 띠로 발광 변조 — 흐르는 에너지의 *세기*에 더해 *방향*을 보인다. 코어 불변(GPU 파생·도함수 읽기)·분포 author 0. 약한 ∇E/무흐름 셀은 `flowVis=1`(발광 불변).
 - ✅ **FSM → 이산 재질**: 내생 별 `sim.stars[].state`(0 kindling·1 burning·2 ash)를 *이산 재질* 점(`VS_STAR`/`FS_STAR`)으로 — 색·크기·높이가 문턱에서 딱 갈림(lerp 0). kindling=어두운 응결핵·burning=백열 블룸·ash=식은 회색 잔불. `kIgnite=0`이면 `sim.stars` 빈 배열 → no-op(필드 없으면 안 그림).
+- 🟡 **별 z = 부력 높이**: `sim.stars[].z`(step-0035 부력)를 *읽어* 별 점을 제 z 만큼 띄운다(`VS_STAR` `zlift=z·uHS·0.35`, 옛 fuel 슬롯 재사용). 하이트필드는 z=0 평면뿐이라 별이 *떠오르는* 게 안 보이고 산서 굴러떨어져 보이던 걸 교정 — 별 마커만이라도 제 z 로 올려 부력 가시화. `kStarRise=0`/z 미설정 → `zlift=0`(회귀). **L-V1 voxel 렌즈 전 첫 z-인지 렌즈**(별 *위치*만 z — 별이 뿜은 E 의 高z 분포는 아직 z=0 평면뿐, L-V1 백로그). *눈 검증 대기*(헤드리스).
 
 ---
 
@@ -74,3 +75,4 @@
 | G → 절차적 색 | geneCol/storeCol/geneColP 고정 4색 → 황금비 색상환 해시(`hue=fract(g·φ⁻¹)` HSV→RGB) 3곳 일관, 혈통 무한 분화·무유전 호박색 불변 | golden PASS · 3D 스모크 PASS · 눈 검증(브라우저) |
 | ∇E → 파생 바람 | 중앙차분 ∇E 하류 방향 flowmap 위상 + `uTime` 이류 띠로 발광 변조(세기에 더해 방향). 무흐름/약한 ∇E 는 flowVis=1, 코어 불변 | golden PASS · 3D 스모크 PASS · 눈 검증(브라우저) |
 | FSM → 이산 재질 | 별 `sim.stars[].state`(0/1/2) → 이산 재질 점(VS_STAR/FS_STAR): kindling 어두운 응결핵·burning 백열 블룸·ash 회색 잔불, 색·크기·높이 문턱 분기(lerp 0). kIgnite=0 no-op | golden PASS · 3D 스모크 PASS · 눈 검증(브라우저) |
+| 별 z = 부력 높이 | `sim.stars[].z`(step-0035) 를 별 점 높이로 `zlift=z·uHS·0.35`(옛 fuel 슬롯 재사용) — 부력 상승 가시화(산서 굴러떨어짐 교정). rise=0/z 미설정 → 0(회귀). L-V1 전 첫 z-인지 렌즈(별 위치만 z) | golden PASS · 3D 스모크 PASS · 눈 검증 대기 |
