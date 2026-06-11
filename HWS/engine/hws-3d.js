@@ -212,14 +212,19 @@
      * L-V2: 불투명(고체·빛)과 물(고인 E)을 *두 인스턴스 집합*으로 가른다 — 불투명 먼저 그려 깊이를 채우고,
      *   물은 반투명으로 그 위에 블렌드(뒤 큐브가 비친다). 분류 문턱은 VS_VOXEL 과 동일(불일치 0).
      * L-V3: 고체 칸은 R 6-이웃 라플라시안(|∇²R| 고주파)을 *거칠기*로 미리 재 인스턴스에 싣는다 — 들쭉날쭉한 R=거친 암석.
-     * 분포 author 0: 어느 칸이 차 있는가·R 분포는 시뮬의 사실, 렌더러는 읽어서 큐브를 두고 도함수(∇²R)로 셰이딩만(RENDER §6·VOXEL V-A). */
-    var satA = R.satA, satR = R.satR, STR = 8;              // 인스턴스 stride 8: (x,y,z, E,R,G,A, rough)
+     * L-V4: 빛 칸은 ∇E(흐름량 중앙차분) *하류 방향*을 월드 좌표로 미리 재 인스턴스에 싣는다 — FS 가 시간 이류 띠로 흐름 방향을 보인다.
+     * 분포 author 0: 어느 칸이 차 있는가·R·E 분포는 시뮬의 사실, 렌더러는 읽어서 큐브를 두고 도함수(∇²R·∇E)로 셰이딩만(RENDER §6·VOXEL V-A). */
+    var satA = R.satA, satR = R.satR, STR = 11;             // 인스턴스 stride 11: (x,y,z, E,R,G,A, rough, fx,fy,fz)
     var va = R.voxArr, vn = 0, vw = R.voxArrW, wn = 0;
     if (!va || va.length < 4096 * STR) va = R.voxArr = new Float32Array(4096 * STR);
     if (!vw || vw.length < 1024 * STR) vw = R.voxArrW = new Float32Array(1024 * STR);
     function rN(x, y, z) {                                   // 이웃 R — x·y wrap(토러스)·z 클램프(벽). Rf 없으면 0(거칠기 무)
       x = ((x % W) + W) % W; y = ((y % H) + H) % H; if (z < 0) z = 0; else if (z >= D) z = D - 1;
       return Rf ? Rf[(z * H + y) * W + x] : 0;
+    }
+    function eN(x, y, z) {                                   // 이웃 E — x·y wrap·z 클램프 (∇E 바람용)
+      x = ((x % W) + W) % W; y = ((y % H) + H) % H; if (z < 0) z = 0; else if (z >= D) z = D - 1;
+      return E[(z * H + y) * W + x];
     }
     for (i = 0; i < N; i++) {
       var Ev = E[i], Rv = Rf ? Rf[i] : 0, Av = Af ? Af[i] : 0;
@@ -235,15 +240,22 @@
         var lapR = rN(xx + 1, yy, z) + rN(xx - 1, yy, z) + rN(xx, yy + 1, z) + rN(xx, yy - 1, z) + rN(xx, yy, z + 1) + rN(xx, yy, z - 1) - 6 * Rv;
         rough = clamp(Math.abs(lapR) / Math.max(satR, 1e-3) * 1.6, 0, 1);   // |∇²R| 정규화(매끈 R→0)
       }
+      var fwx = 0, fwy = 0, fwz = 0;                         // L-V4 ∇E 하류 방향(월드 좌표) — 빛 칸만(흐르는 E)
+      if (flowE > 0.03) {
+        var gx = eN(xx + 1, yy, z) - eN(xx - 1, yy, z), gy = eN(xx, yy + 1, z) - eN(xx, yy - 1, z), gz = eN(xx, yy, z + 1) - eN(xx, yy, z - 1);
+        fwx = -gx; fwy = -gz; fwz = -gy;                    // 하류(고E→저E)·sim(x,y,z)→월드(x,z,y) 축 매핑
+      }
       if (water) {
         if ((wn + 1) * STR > vw.length) { var nw = new Float32Array(vw.length * 2); nw.set(vw); vw = R.voxArrW = nw; }
         var ow = wn * STR;
         vw[ow] = xx; vw[ow + 1] = yy; vw[ow + 2] = z; vw[ow + 3] = Ev; vw[ow + 4] = Rv; vw[ow + 5] = Gf ? Gf[i] : 0; vw[ow + 6] = Av; vw[ow + 7] = 0;
+        vw[ow + 8] = 0; vw[ow + 9] = 0; vw[ow + 10] = 0;
         wn++;
       } else {
         if ((vn + 1) * STR > va.length) { var nv = new Float32Array(va.length * 2); nv.set(va); va = R.voxArr = nv; }
         var o = vn * STR;
         va[o] = xx; va[o + 1] = yy; va[o + 2] = z; va[o + 3] = Ev; va[o + 4] = Rv; va[o + 5] = Gf ? Gf[i] : 0; va[o + 6] = Av; va[o + 7] = rough;
+        va[o + 8] = fwx; va[o + 9] = fwy; va[o + 10] = fwz;
         vn++;
       }
     }
@@ -328,6 +340,7 @@
         gl.uniform1f(R.uV.uScale, VOX_SCALE);
         gl.uniform3f(R.uV.uLight, 0.421, 0.781, 0.461);
         gl.uniform3f(R.uV.uEye, eye[0], eye[1], eye[2]);    // 물 프레넬 시선벡터
+        gl.uniform1f(R.uV.uTime, (now() - R.t0) * 0.001);   // ∇E flowmap 이류 시간(세션 상대)
         if (R.voxN) {                                       // 불투명 패스 — 깊이 쓰기 on
           gl.bindVertexArray(R.vaoV);
           gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, R.voxN);
@@ -857,7 +870,9 @@
    * L-V2 물 볼륨: 물 큐브를 *반투명*으로 — 깊이(고인 E)로 Beer-Lambert 흡광·표면 프레넬(시선 비스듬할수록 반사↑) +
    *   불투명을 먼저 그려 뒤 큐브가 *비친다*. 쌓인 물 voxel 들이 블렌드로 누적돼 *볼륨감*이 난다(층이 깊을수록 짙음).
    * L-V3 거칠기: 고체 큐브 면 노멀을 R 라플라시안(|∇²R| — CPU 가 인스턴스에 실어 보냄)로 변조 — 들쭉날쭉한 R=거친 암석·매끈한 R=매끈.
-   *   높이 불변(분포 재성형 0)·셰이딩 노멀만(RENDER §6 도함수 읽기). 물·빛 큐브는 rough=0(불변). */
+   *   높이 불변(분포 재성형 0)·셰이딩 노멀만(RENDER §6 도함수 읽기). 물·빛 큐브는 rough=0(불변).
+   * L-V4 바람: 빛 큐브 발광을 ∇E 하류 방향(CPU 가 월드 좌표로 실어 보냄)으로 uTime 이류 띠로 변조 — 흐르는 에너지의 세기에 더해 *방향*.
+   *   코어 불변(GPU 파생·도함수 읽기)·분포 author 0. 무흐름/저활성 셀은 flowVis=1(발광 불변). */
   var VS_VOXEL = [
     '#version 300 es',
     'precision highp float;',
@@ -866,9 +881,10 @@
     'layout(location=2) in vec3 aCell;',                    // sim 셀 (x,y,z) — 인스턴스별
     'layout(location=3) in vec4 aField;',                   // (E,R,G태그,A) — 인스턴스별
     'layout(location=4) in float aRough;',                  // 거칠기 |∇²R|(L-V3) — 인스턴스별(고체만 >0)
+    'layout(location=5) in vec3 aFlow;',                    // ∇E 하류 방향·세기(월드, L-V4) — 인스턴스별(빛만 ≠0)
     'uniform mat4 uMVP;',
     'uniform float uSat, uSatR, uSatA, uScale;',
-    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out float vAlpha; out vec3 vWorld; out float vRough;',
+    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out float vAlpha; out vec3 vWorld; out float vRough; out vec3 vFlow;',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율
     'vec3 geneCol(float tag){',                             // 유전형 클론 색 — VS_WORLD 와 동일 절차적 해시(혈통 무한 분화, RENDER §4)
     '  int g=int(tag+0.5);',
@@ -897,7 +913,7 @@
     '    wet=1.0; alpha=clamp(0.30+0.62*depth, 0.30, 0.94);', // 얕으면 더 비치고(투명)·깊으면 짙음
     '  }',
     '  else { base = vec3(0.04,0.07,0.11); }',              // 빛만 있는 저밀도 칸 — 어두운 바탕에 발광 얹힘
-    '  vBase=base; vHot=af; vWet=wet; vAlpha=alpha; vRough=aRough;',
+    '  vBase=base; vHot=af; vWet=wet; vAlpha=alpha; vRough=aRough; vFlow=aFlow;',
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 = 흐르는 E·A (클수록 밝게)
     '  vNormal=aNrm;',                                      // 축 정렬 큐브 — 모델 회전 없음(법선 그대로·FS 가 거칠기로 변조)
     '  vec3 center=vec3(aCell.x, aCell.z, aCell.y);',       // sim-z = 월드 위(y) · sim-y = 월드 깊이(z)
@@ -909,8 +925,9 @@
   var FS_VOXEL = [
     '#version 300 es',
     'precision highp float;',
-    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in float vAlpha; in vec3 vWorld; in float vRough;',
+    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in float vAlpha; in vec3 vWorld; in float vRough; in vec3 vFlow;',
     'uniform vec3 uLight, uEye;',
+    'uniform float uTime, uSat;',
     'out vec4 o;',
     'vec3 hash33(vec3 p){',                                 // 절차적 미세 노멀 방향(서브셀 facet) — 거친 암석 질감
     '  p=fract(p*vec3(0.1031,0.1030,0.0973));',
@@ -926,14 +943,22 @@
     '  float d=max(dot(N,uLight),0.0);',
     '  vec3 lit=vBase*(0.34+0.66*d);',                      // 면 법선 램버트(큐브 면마다 음영)
     '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 뜨거울수록 흰빛
+    '  float flowVis=1.0;',                                 // L-V4 ∇E 바람 — 하류 방향으로 이동하는 밝기 띠(이류)
+    '  float flowMag=length(vFlow);',
+    '  if (flowMag>1e-4){',
+    '    vec3 fdir=vFlow/flowMag;',                         // 하류 단위 방향(월드)
+    '    float stripe=0.5+0.5*sin(dot(vWorld, fdir)*1.2 - uTime*2.2);', // 흐름 따라 정렬된 띠가 시간에 이동
+    '    flowVis=mix(1.0, 0.5+0.95*stripe, clamp(flowMag/(uSat*0.15),0.0,1.0)*vHot);', // 빠른 흐름·고활성에서만 방향 드러남
+    '  }',
+    '  vec3 emit=fire*vGlow*1.5*flowVis;',                  // 에너지 발광(흐름 방향 변조)
     '  if (vWet>0.5){',                                     // 물(L-V2) — 프레넬 반사 + 깊이 알파(반투명)
     '    vec3 V=normalize(uEye - vWorld);',
     '    float fres=0.03 + 0.97*pow(1.0-max(dot(N,V),0.0), 5.0);', // 비스듬할수록 표면 반사↑(정면=투과)
     '    vec3 sky=vec3(0.34,0.48,0.64);',                   // 물이 반사하는 하늘색
-    '    vec3 rgb=mix(lit, sky, fres) + fire*vGlow*1.5;',   // 투과(바닥 비침) ↔ 표면 반사 보간
+    '    vec3 rgb=mix(lit, sky, fres) + emit;',             // 투과(바닥 비침) ↔ 표면 반사 보간
     '    o=vec4(rgb, clamp(max(vAlpha, fres*0.9), 0.0, 1.0));', // 가장자리(프레넬) 더 또렷이
     '  } else {',
-    '    o=vec4(lit + fire*vGlow*1.5, 1.0);',               // 불투명(고체·빛)
+    '    o=vec4(lit + emit, 1.0);',                         // 불투명(고체·빛)
     '  }',
     '}'].join('\n');
 
@@ -1049,7 +1074,7 @@
     R.progS = mkProg(gl, VS_STAR, FS_STAR);                 // 별 FSM 이산 재질 점(RENDER §5 빛)
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
-    R.uV = locs(gl, R.progV, ['uMVP', 'uSat', 'uSatR', 'uSatA', 'uScale', 'uLight', 'uEye']);
+    R.uV = locs(gl, R.progV, ['uMVP', 'uSat', 'uSatR', 'uSatA', 'uScale', 'uLight', 'uEye', 'uTime']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx', 'uVoxel']);
     R.uS = locs(gl, R.progS, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx', 'uVoxel']);
     R.uL = locs(gl, R.progL, ['uMVP']);
@@ -1078,13 +1103,15 @@
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);   // 큐브 코너
       gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);  // 면 법선
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, R.bufCubeIdx);                                  // VAO 가 인덱스 버퍼 기억
-      gl.bindBuffer(gl.ARRAY_BUFFER, instBuf);                                               // 인스턴스 stride 32: (x,y,z, E,R,G,A, rough)
-      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 32, 0);    // 셀 (x,y,z)
+      gl.bindBuffer(gl.ARRAY_BUFFER, instBuf);                                               // 인스턴스 stride 44: (x,y,z, E,R,G,A, rough, fx,fy,fz)
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 44, 0);    // 셀 (x,y,z)
       gl.vertexAttribDivisor(2, 1);
-      gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 4, gl.FLOAT, false, 32, 12);   // 필드 (E,R,G,A)
+      gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 4, gl.FLOAT, false, 44, 12);   // 필드 (E,R,G,A)
       gl.vertexAttribDivisor(3, 1);
-      gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 32, 28);   // 거칠기(∇R, L-V3)
+      gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 44, 28);   // 거칠기(∇R, L-V3)
       gl.vertexAttribDivisor(4, 1);
+      gl.enableVertexAttribArray(5); gl.vertexAttribPointer(5, 3, gl.FLOAT, false, 44, 32);   // ∇E 하류 방향(월드, L-V4)
+      gl.vertexAttribDivisor(5, 1);
     }
     bindVoxVAO(R.vaoV, R.bufVox);
     bindVoxVAO(R.vaoVW, R.bufVoxW);
