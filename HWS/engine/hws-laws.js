@@ -252,6 +252,18 @@
                           //   gravity 가 아래(z−1) 칸으로 E 를 밀기 전, 그 칸 R≥occludeThresh 면 하향 유출을 *차단*(E 가 못 내려가 위에 고임). 옆으로 우회는 확산(①)이 담당 — 바다가 지면 *위에* 고인다.
                           //   D=1 이면 gravity 자체가 z 벽으로 early-return = kOcclude 값 무관 비트 동일(이중 가드). V3 중력(바다)을 *완성* — E 가 지면(R)을 통과 못 한다. 판정은 z−1 로컬 한 칸(척추 ③).
     occludeThresh: 0.5,   // 차폐 문턱 — 아래 칸 R 이 이 값 이상이면 하향 유출 차단(지면=고체). 빈칸(R=0)은 항상 통과. =0 으로 내리면 R=0 빈칸도 R≥0 참이라 전부 차단(중력 무효 — 대조용 극단). 차폐 *판정*만(양 안 바꿈 → 장부 무관).
+    /* ── step-0034: 부유 R 붕괴(VOXEL.md V5+ — 지지 잃은 R[공중 바위]이 아래로 무너진다. V4 지지 침착의 *동역학* 짝) ── */
+    kCollapse: 0,         // 부유 R 붕괴 마스터(붕괴율 0~1). 0 = off = 직전 step(V5) 비트 동일(collapse 가 통째로 early-return → R 불변 → coll@ 가법 skip·골든 무관). >0 이면 on:
+                          //   각 셀(z≥1)이 *아래(z−1) 칸이 비지지*(R<collapseThresh = 빈칸/물렁)면 제 R 의 kCollapse 비율을 아래로 떨군다(donor-제한 R↔R 쌍 거래 — 비율이라 음수 없음·보존).
+                          //   V4(지지 침착)는 R 이 *생길 때* 지지 없는 칸에 안 굳게 막았다(정적). V5+(붕괴)는 *이미 떠 있는* R(지지가 사라졌거나 다른 법칙이 공중에 깐)을 *무너뜨린다*(동역학) — 둘이 짝지어 R 의 중력이 완성된다.
+                          //   아래가 고체 지면(R≥collapseThresh)이면 안착(안 떨어짐) → R 이 바닥부터 *쌓인다*(지지 게이트의 역게이트 — 같은 문턱 collapseThresh). z 오름차순 단일 패스(한 tick 한 칸 낙하 = 침전 속도 유한, gravity 와 같은 정신).
+                          //   D=1 이면 z 이웃이 없어(z=0 바닥 벽) 통째 early-return = kCollapse 값 무관 비트 동일(이중 가드). 방향 상수(아래)는 gravity 처럼 *법칙의 상수*지 전역 조율자 아님(판정은 z−1 로컬 한 칸 — 척추 ③). R↔R 쌍 거래라 보존(척추 ④ — 비가역 낙하라도 양 보존).
+    collapseThresh: 0.5,  // 붕괴 지지 문턱 — 아래 칸 R 이 이 값 *미만*이면 비지지(떨어짐), 이상이면 지지(안착). supportThresh(침착 게이트)·occludeThresh(차폐)와 같은 척도(지면=고체 R 의 기준 통일). 붕괴 *위치*만 거르므로 결정론·장부 무관(R↔R 쌍 거래).
+    /* ── step-0035: 별 부력 상승(VOXEL.md V5+ — 소산 극단[별]이 떠올라 高z 하늘 배회=태양. step-0034 저장 극단[R] 침강의 짝 — 활성도 축이 연직축) ── */
+    kStarRise: 0,         // 별 부력 상승률(매 tick z 상승 칸수). 0 = off = 직전 step(V5+ 붕괴) 비트 동일(별이 z 미설정·2D disc 방출·서행만 — `rise` 게이트로 z 코드 미진입 → 골든 무관). >0 이면 on:
+                          //   점화한 별(소산 극단·활성도 최고)이 z=0(지면, R 핵)에서 태어나 매 tick 천장(z=D−1)까지 *떠오른다*(부력). 제 z 의 3D ball(discCells3)로 E 방출 → 높이서 뿜은 E 를 중력(V3 kGravity)이 아래로 끌어내려 *비처럼* 내린다 = **태양**.
+                          //   step-0034 붕괴(저장 R 침강)와 *대칭*: 저장 극단은 가라앉고(R collapse) 소산 극단은 떠오른다(star rise) → 활성도 연속축(SPINE 결정2)이 *연직 z 축*으로 실현(저장 아래·소산 위, 측정 아닌 동역학으로 창발). FSM on 이면 living(정지)→burning 부터 상승(kindling 은 지면서 차오름). 위치만 바꿈(거래 0) — 장부 무관.
+                          //   D=1 이면 D−1=0 이라 st.z<0 거짓 = 상승 0(이중 가드). 방향(위)은 scan-order 류 법칙 상수지 전역 조율자 아님(제 z 만 본다). 별이 천장 도달 후엔 거기서 서행(하늘 배회).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -368,6 +380,31 @@
         if (occ !== 0 && R[below + k] >= oth) continue;   // 아래 칸이 R(지면)로 막힘 → 하향 유출 차단(E 가 위에 고임 = 바다가 지면 위에). 옆으로 우회는 확산(①)이 담당.
         var flow = e * kG;                                // 하향 유출(제 E 의 비율 → donor-제한, 음수 없음)
         E[i] = e - flow; E[below + k] += flow;            // 쌍 거래(셀↔아래 셀) — 보존
+      }
+    }
+  }
+
+  /* ①c 부유 R 붕괴(collapse, step-0034, VOXEL.md V5+) — kCollapse=0 이면 통째로 건너뜀(회귀 0, R 불변 → 골든 해시 가법 skip).
+   * VOXEL.md V-C(R 의 중력)의 *동역학 짝*: V4(지지 침착, ⑤crystallize 게이트)는 R 이 *생길 때* 지지 없는 칸에 안 굳게 막았다(정적 — 처음부터 공중 바위가 안 생김).
+   *   그러나 *이미 떠 있는* R — 풍화·다른 침착 법칙(turing·덴드라이트)이 공중에 깐 R, 또는 아래 지지가 사라진 R — 은 V4 가 손대지 않는다. 이 step 은 그 *부유 R 을 무너뜨린다*: 아래(z−1)가 비지지면 제 R 을 아래로 떨군다.
+   * gravity(①g, E 의 중력)와 *같은 골격*이되 옮기는 양이 E 가 아니라 R 이고, 게이트가 *역방향*이다 —
+   *   gravity: 아래가 *고체*(R≥occludeThresh)면 *막힘*(E 는 고체 위에 고임=바다). collapse: 아래가 *비지지*(R<collapseThresh)면 *떨어짐*(R 은 지지 위에 쌓임=지면). 같은 문턱 척도(고체 R 기준 통일).
+   * scan: z 오름차순 단일 패스 — 이번 tick 한 칸만 내려간다(z+1→z 로 새로 온 R 은 z 가 이미 처리됐으므로 다음 tick 에야 또 내려감 = 낙하 속도 유한). z=0 은 바닥 벽(더 못 떨어짐 — 받기만 하는 안착 자리).
+   * 척추: 새 *필드* 없음(R 은 기존 저장상 — 단일 척추) · authored 분기 없음(R 의 낙하 *속도*만 — 개체 종류 안 만듦, gravity 와 같은 정신·활성도 환원) · 국소 문턱(제 z−1 아래 한 칸 R 만 — 전역 수면고·지형맵 같은 조율자 0) ·
+   *   닫힌 장부(R↔R 쌍 거래 — 나간 만큼 들어옴, 보존; 낙하는 비가역이라도 양 보존 = 비가역≠비보존). D=1 이면 z 이웃 없어 루프 비어 산술 0 = 회귀(이중 가드). 결정론(Math.random 0 — 방향은 법칙 상수).
+   * ①c: ①g gravity *뒤* — 두 중력 항을 묶는다(E 가 가라앉고[①g], R 이 무너진다[①c]). gravity 처럼 결정화(⑤) 앞이라 이번 tick 붕괴는 직전 tick R 형상에 작용(낙하 속도 유한, 일관). */
+  function collapse(sim) {
+    var p = sim.p; if (p.kCollapse === 0) return;
+    var D = p.D || 1; if (D < 2) return;                  // z 이웃 없음(D=1) = 회귀 0 (이중 가드: 노브=0 또는 z 벽)
+    var R = sim.R, WH = p.W * p.H, kC = p.kCollapse, cth = p.collapseThresh;
+    for (var z = 1; z < D; z++) {                         // z=0 은 바닥 벽(아래 없음) — 받기만 하는 안착 자리(R 이 바닥부터 쌓임)
+      var zb = z * WH, below = zb - WH;
+      for (var k = 0; k < WH; k++) {
+        var i = zb + k, r = R[i];
+        if (r <= 0) continue;
+        if (R[below + k] >= cth) continue;                // 아래가 고체 지면(지지) → R 안착(안 떨어짐). 미만이면 비지지 → 떨어짐(공중 바위 붕괴)
+        var flow = r * kC;                                // 하향 낙하(제 R 의 비율 → donor-제한, 음수 없음)
+        R[i] = r - flow; R[below + k] += flow;            // R↔R 쌍 거래(셀↔아래 셀) — 보존
       }
     }
   }
@@ -605,11 +642,13 @@
     var p = sim.p; if (p.kIgnite === 0) return;
     var E = sim.E, R = sim.R, W = p.W, H = p.H, stars = sim.stars;
     var starRate = p.starRate, dPer = p.starDriftPeriod;
+    var rise = p.kStarRise, D = p.D || 1;                     // step-0035 부력: rise=0 이면 아래 z 코드 미진입(별 z 미설정·2D 경로 = 회귀 0)
     /* 1. 각 별의 한 tick: 주입(연료→E, disc — sim.injected 로 경계 추적) → 소진 판정 → 서행(정한 방향 주기마다 한 칸).
      *    별은 *외부 질량(연료)을 태워 장에 주입하며 서행하는 채식지*다 — 생명이 그 E 봉우리를 쫓는다(churn 엔진). */
     var alive = [], fsm = p.kFSM !== 0;
     for (var s = 0; s < stars.length; s++) {
       var st = stars[s], cells = st.cells, nc = cells.length;
+      if (rise && st.z === undefined) st.z = 0;                 // step-0035 부력 안전 초기화(런 도중 켠 경우) — rise=0 이면 미진입(회귀)
       if (st.state === 2) {                                     // 재(ash) — 식는 ember: 주입 0·정지. ASH_LINGER tick 머물다 제거(비가역·불응기).
         if (++st.ashAge >= ASH_LINGER) { sim.starDeaths++; continue; }   //   점화 슬롯을 점유해 그 자리 재점화를 막는다(흥분성 매질 refractory).
         alive.push(st); continue;
@@ -626,9 +665,15 @@
       /* 서행 — burning 만 떠돈다(FSM on). living(kindling)은 정지해 핫코어를 쌓고, FSM off 면 늘 떠돈다(비트 동일).
        * 위치만 바꿈(거래 0). 점화 시 정한 방향으로 주기마다 한 칸 — 서행 봉우리를 생명이 따라온다. */
       st.age++;
-      if (st.age % dPer === 0 && (st.state === undefined || st.state === 1)) {
-        var nx = (st.x + st.vx + W) % W, ny = (st.y + st.vy + H) % H;
-        st.x = nx; st.y = ny; st.center = ny * W + nx; st.cells = K.discCells(W, H, nx, ny, p.starR);
+      /* 서행(xy, 주기마다) + 부력 상승(z, 매 tick 한 칸·천장까지, step-0035) — burning/FSM-off 만(living kindling 은 지면서 차오름).
+       * rise=0 이면 st.z 미설정 → 아래 else 의 2D disc 경로·dPer 마다만 recompute = 직전 step 비트 동일(회귀 0). */
+      var canMove = (st.state === undefined || st.state === 1), nx = st.x, ny = st.y, moved = false;
+      if (canMove && st.age % dPer === 0) { nx = (st.x + st.vx + W) % W; ny = (st.y + st.vy + H) % H; moved = true; }   // 서행(xy)
+      if (rise && canMove && st.z < D - 1) { st.z++; moved = true; }                                                   // 부력(z) — 소산 극단이 떠오름(R 침강의 짝)
+      if (moved) {
+        st.x = nx; st.y = ny;
+        if (st.z !== undefined) { st.center = (st.z * H + ny) * W + nx; st.cells = K.discCells3(W, H, D, nx, ny, st.z, p.starR); }   // 3D ball(부력 별 — 제 z 에서 방출)
+        else { st.center = ny * W + nx; st.cells = K.discCells(W, H, nx, ny, p.starR); }                                            // 2D disc(회귀 경로 — rise=0)
       }
       alive.push(st);
     }
@@ -657,6 +702,7 @@
         var d = STAR_DIR[K.tumbleHash(bx, by, sim.tick, sim.seed) & 3];
         var ns = { x: bx, y: by, center: bi, fuel: p.starFuel0, cells: K.discCells(W, H, bx, by, p.starR),
           vx: d[0], vy: d[1], age: 0, bornTick: sim.tick };
+        if (rise) { ns.z = 0; ns.cells = K.discCells3(W, H, D, bx, by, 0, p.starR); }   // step-0035: 부력 별은 z=0(지면 R 핵)에서 점화해 떠오른다. 3D ball 방출(rise=0 이면 z 필드 없음=2D=회귀).
         if (p.kFSM !== 0) { ns.state = 0; ns.burnMul = p.livingFrac; }   // FSM on: 갓 점화 = living(kindling). off: 필드 없음(회귀).
         stars.push(ns);
         sim.starBirths++;
@@ -1342,7 +1388,7 @@
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ①g 중력 구배(gravity)는 ①diffuse 바로 뒤·②evaporate 앞 — 확산이 옮긴 E 위에 *하향 침전*을 얹는다(흐름 단계: 등방 확산[V2] + 비등방 중력[V3]). E 하향 쌍 거래라 장부 불변.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, gravity, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, gravity, collapse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
