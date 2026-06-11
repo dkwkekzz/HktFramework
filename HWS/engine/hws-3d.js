@@ -295,12 +295,18 @@
     var MVP = mMul(Pm, Vm);
     gl.viewport(0, 0, glcv.width, glcv.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    /* 오버레이 라인·생명 점 버퍼는 두 뷰포트가 공유 — 한 번만 만들어 올린다(좌·우에서 같은 마커) */
+    /* 오버레이 라인 — 레거시 뷰는 하이트필드 위 마커(buildLines), voxel 뷰는 3D 박스·기둥·호버 큐브(buildLines3D). 별 버퍼 */
     var ln = buildLines(sim);
     if (ln.length) {
       gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ln), gl.DYNAMIC_DRAW);
     }
+    var ln3 = buildLines3D(sim);
+    if (ln3.length) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLnV);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ln3), gl.DYNAMIC_DRAW);
+    }
+    R.lnVoxN = ln3.length / 6;
     var ag = sim.agents || [], agN = 0;
     if (S.ov.life && ag.length) {
       var need = ag.length * 4;                            // (x, y, m, g) — g=생명 유전형 a.g(step-0016~, 0=무유전)
@@ -337,8 +343,8 @@
   /* 한 뷰포트를 그린다. 버퍼·텍스처는 호출 전 업로드됨. uVoxel = (world?1:0) 으로 점/별 위치를 분기한다:
    * world=false → 좌측 '에너지 변위'(레거시 2.5D 하이트필드, z=0 바닥 슬라이스 · progT) + 표준 오버레이.
    * world=true  → 우측 'voxel 세계'(L-V1·L-V2 — R 점유 인스턴스드 큐브 · progV) — 형태가 시뮬의 사실이라 발명 0(VOXEL V-A).
-   * 점/별은 양 뷰가 공유하되 uVoxel 로 높이를 가른다(하이트필드 z ↔ 진짜 sim-z). 라인 오버레이는 하이트필드
-   * 구성물이라 voxel 뷰에선 생략(3D 오버레이는 후속 렌즈). */
+   * 점/별은 양 뷰가 공유하되 uVoxel 로 높이를 가른다(하이트필드 z ↔ 진짜 sim-z). 오버레이 라인은 뷰별로 다른 버퍼:
+   * 레거시는 하이트필드 위 마커(vaoL), voxel 은 3D 박스·기둥·호버 큐브(vaoLV). */
   function drawView(vy, world, MVP, lnCount, agN, glcv, Pm, eye, starN) {
     var gl = S.gl;
     gl.viewport(0, vy, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(위·아래 충돌 없음)
@@ -375,6 +381,16 @@
         gl.depthMask(false);
         gl.bindVertexArray(R.vaoF);
         gl.drawArrays(gl.POINTS, 0, R.fogN);
+        gl.depthMask(true); gl.disable(gl.BLEND);
+      }
+      /* ③ 3D 오버레이(도메인 박스·source/sink 기둥·무게중심·호버 큐브) — voxel 월드 좌표. 깊이 테스트 on(공간감)·쓰기 off */
+      if (R.lnVoxN) {
+        gl.useProgram(R.progL);
+        gl.uniformMatrix4fv(R.uL.uMVP, false, MVP);
+        gl.bindVertexArray(R.vaoLV);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+        gl.drawArrays(gl.LINES, 0, R.lnVoxN);
         gl.depthMask(true); gl.disable(gl.BLEND);
       }
     } else {
@@ -494,6 +510,58 @@
     var x0 = cx - 0.5, x1 = cx + 0.5, z0 = cy - 0.5, z1 = cy + 0.5;
     push2(out, [x0, h, z0], [x1, h, z0], c); push2(out, [x1, h, z0], [x1, h, z1], c);
     push2(out, [x1, h, z1], [x0, h, z1], c); push2(out, [x0, h, z1], [x0, h, z0], c);
+  }
+
+  /* ── voxel 오버레이 라인 빌더(3D 오버레이) — 하이트필드가 아니라 *voxel 월드*에 마커를 둔다.
+   * 월드 좌표 = (sim-x, 위=sim-z, 깊이=sim-y). 도메인 박스 와이어 + source/sink 기둥·링 + 무게중심 기둥 + 호버 voxel 큐브. ── */
+  function buildLines3D(sim) {
+    var p = sim.p, W = p.W, H = p.H, D = p.D || 1, out = [], top = D - 1;
+    boxWire3(out, -0.5, -0.5, -0.5, W - 0.5, top + 0.5, H - 0.5, COL.border);   // 터 박스(W×H×D) 와이어프레임
+    if (S.ov.sourceSink) {
+      ring3(out, p.source.x, p.source.y, p.source.r, -0.4, COL.src);           // 샘 — 바닥 링 + 수직 기둥(z 전체)
+      beam3(out, p.source.x, p.source.y, top, COL.src);
+      ring3(out, p.sink.x, p.sink.y, p.sink.r, -0.4, COL.snk);                  // 싱크 — 링 + 십자
+      cross3(out, p.sink.x, p.sink.y, -0.4, 1.4, COL.snk);
+    }
+    if (S.ov.pools) {
+      for (var k = 0; k < S.pools.length; k++) ring3(out, S.pools[k].x, S.pools[k].y, 1.1, -0.4, COL.pool);
+    }
+    if (S.ov.centroid && S.core && S.core.centroid) {
+      var ct = S.core.centroid(sim);
+      if (ct) beam3(out, ct.x, ct.y, top, COL.centroid);                       // 무게중심 — 수직 기둥
+    }
+    if (S.hover && S.hover.z !== undefined) cubeWire3(out, S.hover.x, S.hover.z, S.hover.y, COL.hover);  // 호버 voxel 큐브
+    return out;
+  }
+  function ring3(out, sx, sy, r, yup, c) {                  // sim(sx,sy) 둘레 링(높이 yup) — 월드(sx+cos·r, yup, sy+sin·r)
+    var SEG = 36, prev = null;
+    for (var s = 0; s <= SEG; s++) {
+      var a = s / SEG * 2 * Math.PI, pt = [sx + Math.cos(a) * r, yup, sy + Math.sin(a) * r];
+      if (prev) push2(out, prev, pt, c);
+      prev = pt;
+    }
+  }
+  function beam3(out, sx, sy, top, c) {                     // 수직 기둥(바닥~천장) + 둘레 4선
+    push2(out, [sx, -0.45, sy], [sx, top + 0.6, sy], c);
+    for (var k = 0; k < 4; k++) {
+      var a = k * Math.PI / 2, x = sx + Math.cos(a) * 0.42, z = sy + Math.sin(a) * 0.42;
+      push2(out, [x, -0.4, z], [x, top + 0.4, z], c);
+    }
+  }
+  function cross3(out, sx, sy, yup, r, c) {                 // 수평 십자(높이 yup)
+    push2(out, [sx - r, yup, sy], [sx + r, yup, sy], c);
+    push2(out, [sx, yup, sy - r], [sx, yup, sy + r], c);
+  }
+  function boxWire3(out, x0, y0, z0, x1, y1, z1, c) {       // 상자 12 모서리(월드 좌표 직접)
+    push2(out, [x0, y0, z0], [x1, y0, z0], c); push2(out, [x1, y0, z0], [x1, y0, z1], c);  // 바닥 사각
+    push2(out, [x1, y0, z1], [x0, y0, z1], c); push2(out, [x0, y0, z1], [x0, y0, z0], c);
+    push2(out, [x0, y1, z0], [x1, y1, z0], c); push2(out, [x1, y1, z0], [x1, y1, z1], c);  // 천장 사각
+    push2(out, [x1, y1, z1], [x0, y1, z1], c); push2(out, [x0, y1, z1], [x0, y1, z0], c);
+    push2(out, [x0, y0, z0], [x0, y1, z0], c); push2(out, [x1, y0, z0], [x1, y1, z0], c);  // 수직 4 모서리
+    push2(out, [x1, y0, z1], [x1, y1, z1], c); push2(out, [x0, y0, z1], [x0, y1, z1], c);
+  }
+  function cubeWire3(out, cx, cyUp, cz, c) {                // 호버 voxel 큐브(월드 center = (cx, cyUp, cz))
+    boxWire3(out, cx - 0.5, cyUp - 0.5, cz - 0.5, cx + 0.5, cyUp + 0.5, cz + 0.5, c);
   }
 
   /* ── 높이 함수 — 셰이더 hOf 와 동일식(CPU, E+R 합산·클램프). 픽킹·오버레이가 공유한다. ── */
@@ -1186,7 +1254,8 @@
     R.vaoP = gl.createVertexArray(); R.bufAg = gl.createBuffer();
     R.vaoS = gl.createVertexArray(); R.bufStar = gl.createBuffer();
     R.vaoF = gl.createVertexArray(); R.bufFog = gl.createBuffer();     // 안개 점(L-V5)
-    R.vaoL = gl.createVertexArray(); R.bufLn = gl.createBuffer();
+    R.vaoL = gl.createVertexArray(); R.bufLn = gl.createBuffer();      // 오버레이 라인(레거시 하이트필드)
+    R.vaoLV = gl.createVertexArray(); R.bufLnV = gl.createBuffer();    // 오버레이 라인(voxel 3D)
     /* ── voxel VAO(L-V1·L-V2): 단위 큐브(정점 24=면당 4·법선 per-face) 공유 + 인스턴스(셀+필드, divisor 1).
      * 불투명·물 두 VAO 가 같은 큐브 버퍼를 쓰되 인스턴스 버퍼만 다르다(분리 패스 — 불투명 먼저·물 나중). ── */
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufCube);
@@ -1227,6 +1296,12 @@
     gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,z,density) stride 16 — 안개 점(L-V5)
     gl.bindVertexArray(R.vaoL);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+    gl.bindVertexArray(R.vaoLV);                            // voxel 3D 오버레이 라인(같은 포맷·다른 버퍼)
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLnV);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
     gl.enableVertexAttribArray(1);
