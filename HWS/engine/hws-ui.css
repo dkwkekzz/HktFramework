@@ -19,3 +19,13 @@ td.v { font-family: Consolas, monospace; }
 .legend { font-size: 11px; color: #8a93a0; margin-top: 8px; line-height: 1.6; }
 .src { color: #6fce8a; } .snk { color: #e07070; } .pool { color: #57d6e0; } .life { color: #f0d060; }
 .ctl { font-size: 12px; }
+/* 프리셋(데모/가설 재현) 행 — 다른 회색 버튼(재생·리셋·액션)과 한눈에 구분되게 호박색 박스 + 강조 버튼.
+ * "이 step 을 보려면 뭘 눌러야 하는가" 를 즉시 알리는 1순위 행동(primary CTA). */
+.presets { background: #221d12; border: 1px solid #6a5320; border-radius: 4px; padding: 7px 10px; margin-bottom: 10px; }
+.presets b { color: #ffd060; margin-right: 4px; }
+.presets button { background: #b8862a; color: #14161a; border-color: #d6a23a; font-weight: 600; }
+.presets button:hover { background: #d6a23a; }
+/* 고급(누적 노브·액션) — 검증 우선 패널에서 기본 접힘. 토글은 눈에 안 띄는 점선, 펼친 박스는 왼쪽 띠로 구획. */
+.advtoggle { background: transparent; border: 1px dashed #3a4250; color: #8a93a0; font-size: 11px; margin-top: 6px; padding: 3px 10px; }
+.advtoggle:hover { background: #20242b; }
+.advanced { border-left: 2px solid #2a3340; margin: 6px 0 0 2px; padding-left: 8px; }

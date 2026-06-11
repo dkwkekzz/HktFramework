@@ -104,6 +104,7 @@ console.log(`스캐폴드 완료: step-${P} → step-${N}
   1. engine/hws-laws.js — 법칙 1개 + DEFAULTS 노브 + LAW_ORDER 한 자리 (노브=0 → early-return)
   2. step-${N}/verify.js — 가설 시나리오 교체 (reg 는 새 노브=0 토글로 갱신)
   3. step-${N}/panel.js — 헤더 주석·title/subtitle·새 노브 행 1개 (프로즈의 "직전 step-${P}" 언급 갱신)
+     + presets(데모 아레나)·가설 수치 통계를 *이번 가설*(verify 새 시나리오)에 맞게 갱신 — "한 클릭으로 보이는" 가독성 유지(PANEL.md "presets" 절)
   4. step-${N}.html — title·법칙 주석 갱신
   5. step-${N}.md — 골격 채우기 (수치 = verify 출력)
   6. golden-sim.json 가법 키 + verify-sim-engine.js 시나리오 (미존재 시 no-op 규칙)
