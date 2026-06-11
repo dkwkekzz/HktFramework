@@ -511,10 +511,13 @@
       ctx.fillStyle = '#8a93a0'; ctx.font = '10px Consolas';
       ctx.fillText('개체수 ' + (sim.agents ? sim.agents.length : 0) + ' (peak ' + mxp + ')', gx + 5, gy + 12);
     }
-    if (S.hover) {                                          // 호버 셀 정보 — 2D 에 없던 관찰 보강
-      var hv = S.hover, idx = hv.y * sim.p.W + hv.x;
-      var txt = '셀 (' + hv.x + ',' + hv.y + ')  E ' + sim.E[idx].toFixed(3);
-      if (sim.R && sim.R[idx] > 0.005) txt += '  ·  저장체 R ' + sim.R[idx].toFixed(2);
+    if (S.hover) {                                          // 호버 셀 정보 — 2D 에 없던 관찰 보강(voxel 픽킹이면 z·A 까지)
+      var hv = S.hover, W = sim.p.W, H = sim.p.H;
+      var idx = (hv.z !== undefined) ? ((hv.z * H + hv.y) * W + hv.x) : (hv.y * W + hv.x);
+      var pos = (hv.z !== undefined) ? ('(' + hv.x + ',' + hv.y + ',' + hv.z + ')') : ('(' + hv.x + ',' + hv.y + ')');
+      var txt = '셀 ' + pos + '  E ' + sim.E[idx].toFixed(3);
+      if (sim.R && sim.R[idx] > 0.005) txt += '  ·  R ' + sim.R[idx].toFixed(2);
+      if (sim.A && sim.A[idx] > 1e-4) txt += '  ·  A ' + sim.A[idx].toFixed(3);
       var ag = sim.agents || [];
       for (var a = 0; a < ag.length; a++) if (ag[a].center === idx) { txt += '  ·  생명 m ' + ag[a].m.toFixed(2); break; }
       ctx.font = '12px Consolas';
@@ -610,37 +613,73 @@
             c.cz + c.tz + Math.cos(c.yaw) * cp * c.dist];
   }
 
-  /* 마우스 이벤트 → 셀. 캔버스 밖이면 null. */
+  /* 마우스 이벤트 → 셀. 캔버스 밖이면 null. voxel 뷰포트(분할 하단)는 voxel 레이캐스트, 그 외(레거시 하이트필드)는 하이트필드. */
   function evCell(ev) {
     var glcv = S.dom.glcv, r = glcv.getBoundingClientRect();
     var mx = ev.clientX - r.left, my = ev.clientY - r.top;
     if (mx < 0 || my < 0 || mx >= r.width || my >= r.height) return null;
-    /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 픽킹 식 동일 */
+    /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 레이 식 동일 */
     var split = isWorld();
     var halfCss = split ? r.height / 2 : r.height;          // CSS 높이 기준 한 뷰포트 높이
-    var localY = (split && my >= halfCss) ? my - halfCss : my;
-    return pick(mx / r.width * 2 - 1, 1 - localY / halfCss * 2);
+    var inVoxel = split && my >= halfCss;                   // 하단 = voxel 세계(render 의 vy=0 패스)
+    var localY = inVoxel ? my - halfCss : my;
+    var ndcX = mx / r.width * 2 - 1, ndcY = 1 - localY / halfCss * 2;
+    return inVoxel ? pickVoxel(ndcX, ndcY) : pick(ndcX, ndcY);
   }
 
-  /* 픽킹 — 카메라 기저로 레이 생성 후 하이트필드 레이마칭(이분 정밀화). 셰이더와 같은 높이식 사용. */
-  function pick(px, py) {
-    var sim = S.sim;
-    if (!sim) return null;
-    var cam = S.cam, eye = camEye(), tgt = [cam.cx + cam.tx, 0, cam.cz + cam.tz];
+  /* 카메라 기저로 픽셀 NDC → 월드 레이(eye·dir). 타깃 y=cam.cy 로 render 의 mLookAt 과 일치(D>1 voxel 프레이밍). */
+  function camRay(px, py) {
+    var cam = S.cam, eye = camEye(), tgt = [cam.cx + cam.tx, cam.cy, cam.cz + cam.tz];
     var fw = norm3([tgt[0] - eye[0], tgt[1] - eye[1], tgt[2] - eye[2]]);
     var rt = norm3(cross3(fw, [0, 1, 0]));
     var up = cross3(rt, fw);
-    var tf = Math.tan(cam.fov / 2);
-    var aspect = 1;                                         // 뷰포트는 늘 정사각(CV_SIZE²) — 분할이어도 1 (render 의 MVP 와 일치)
+    var tf = Math.tan(cam.fov / 2);                         // aspect=1 (뷰포트는 늘 정사각 CV_SIZE²)
     var dir = norm3([
-      fw[0] + rt[0] * px * tf * aspect + up[0] * py * tf,
-      fw[1] + rt[1] * px * tf * aspect + up[1] * py * tf,
-      fw[2] + rt[2] * px * tf * aspect + up[2] * py * tf
+      fw[0] + rt[0] * px * tf + up[0] * py * tf,
+      fw[1] + rt[1] * px * tf + up[1] * py * tf,
+      fw[2] + rt[2] * px * tf + up[2] * py * tf
     ]);
-    var T = cam.dist * 4 + 100, stepL = 0.5, prevF = null, prevT = 0;
+    return { eye: eye, dir: dir };
+  }
+
+  /* voxel 픽킹(L-V 픽킹) — 점유 큐브에 레이를 쏴 첫 충돌 셀(x,y,z)을 고른다. 인스턴스 빌드와 같은 점유 판정.
+   * 월드(x, 위=y, 깊이=z) → sim(x, y, z) 역매핑: sim-x=wx · sim-y=wz(깊이) · sim-z=wy(위). 고정 스텝 행진(셀 크기 1 < step). */
+  function pickVoxel(px, py) {
+    var sim = S.sim;
+    if (!sim) return null;
+    var p = sim.p, W = p.W, H = p.H, D = p.D || 1;
+    var ray = camRay(px, py), eye = ray.eye, dir = ray.dir;
+    var T = S.cam.dist * 4 + 200, step = 0.25;
+    for (var t = 0; t <= T; t += step) {
+      var sx = Math.round(eye[0] + dir[0] * t);             // 월드-x → sim-x
+      var sz = Math.round(eye[1] + dir[1] * t);             // 월드 위(y) → sim-z
+      var sy = Math.round(eye[2] + dir[2] * t);             // 월드 깊이(z) → sim-y
+      if (sx < 0 || sy < 0 || sz < 0 || sx >= W || sy >= H || sz >= D) continue;
+      if (occAt(sim, sx, sy, sz)) return { x: sx, y: sy, z: sz };
+    }
+    return null;
+  }
+
+  /* 셀 점유 판정 — voxel 인스턴스 빌드(render)와 동일 문턱(고체·물·빛). 비면 false(빈칸=void → 픽킹 통과). */
+  function occAt(sim, x, y, z) {
+    var W = sim.p.W, H = sim.p.H, idx = (z * H + y) * W + x;
+    var Ev = sim.E[idx], Rv = sim.R ? sim.R[idx] : 0, Av = sim.A ? sim.A[idx] : 0;
+    var an = (Av > 0 && R && R.satA > 0) ? clamp(Av / R.satA, 0, 1) : 0;
+    var tt = clamp((an - 0.16) / 0.84, 0, 1), af = tt * tt * (3 - 2 * tt);
+    var liquidE = Ev * (1 - af), flowE = Ev * af;
+    var solid = Rv > 0.08 && Rv >= liquidE;
+    return solid || liquidE > 0.05 || flowE > 0.035;
+  }
+
+  /* 픽킹(레거시 하이트필드) — 카메라 레이를 하이트필드에 레이마칭(이분 정밀화). 셰이더와 같은 높이식 사용. */
+  function pick(px, py) {
+    var sim = S.sim;
+    if (!sim) return null;
+    var ray = camRay(px, py), eye = ray.eye, dir = ray.dir;
+    var T = S.cam.dist * 4 + 100, stepL = 0.5, prevF = null, prevT = 0;
     for (var t = 0; t <= T; t += stepL) {
-      var x = eye[0] + dir[0] * t, y = eye[1] + dir[1] * t, z = eye[2] + dir[2] * t;
-      var f = y - hAt(sim, x, z);
+      var y = eye[1] + dir[1] * t;
+      var f = y - hAt(sim, eye[0] + dir[0] * t, eye[2] + dir[2] * t);
       if (prevF !== null && prevF > 0 && f <= 0) {
         var lo = prevT, hi = t;                             // 이분 — 교차점 정밀화
         for (var k = 0; k < 18; k++) {
