@@ -599,13 +599,14 @@
     '  if (t<0.5){ float u=t*2.0; return vec3(10.0+30.0*u,15.0+90.0*u,40.0+160.0*u)/255.0; }',
     '  float v=(t-0.5)*2.0; return vec3(40.0+215.0*v,105.0+120.0*v,200.0-60.0*v)/255.0;',
     '}',
-    'vec3 storeCol(float tag){',                            // 저장체 색 — 유전형 태그면 클론 색(2D GENE_COL 일관), 0 이면 호박색(무유전)
+    'vec3 storeCol(float tag){',                            // 저장체 색 — 유전형 태그 → 절차적 해시 색(혈통 무한 분화·팔레트 캡 제거, RENDER §4). 0 이면 호박색(무유전)
     '  int g=int(tag+0.5);',
-    '  if (g==1) return vec3(0.910,0.376,0.376);',          // tag1(저적합) 빨강
-    '  if (g==2) return vec3(0.471,0.784,0.376);',          // tag2 초록
-    '  if (g==3) return vec3(0.376,0.659,0.910);',          // tag3 파랑
-    '  if (g>=4) return vec3(0.784,0.439,0.878);',          // tag4(고적합) 보라
-    '  return vec3(0.784,0.608,0.416);',                    // 0 = 무유전 호박색(G 없는 step 은 늘 이 경로 → 과거 렌더 불변)
+    '  if (g<=0) return vec3(0.784,0.608,0.416);',          // 0 = 무유전 호박색(G 없는 step 은 늘 이 경로 → 과거 렌더 불변)
+    '  float h=fract(float(g)*0.6180339887);',              // 황금비 저불일치 색상환 — 인접 혈통도 또렷이 갈림(고정 4색 캡 제거)
+    '  float s=0.55+0.18*fract(float(g)*0.3247);',          // 채도·명도도 약하게 분화 → 같은 색상대 혈통 구분 보강
+    '  float v=0.80+0.15*fract(float(g)*0.7654);',
+    '  vec3 r=clamp(abs(mod(h*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);', // HSV→RGB(hue→rgb)
+    '  return v*mix(vec3(1.0), r, s);',
     '}',
     'void main(){',
     '  int x=int(aCell.x), y=int(aCell.y);',
@@ -632,6 +633,7 @@
    *   흐르는 에너지(고활성 E·A)는 솟지 않고 *빛*으로(별 연소·확산 전선). 고인 물(저활성 E)도 z 를 안 들어올리고 R 위에 *얹혀*(§5) *재질*로만 읽는다 — 분포는 그대로(평탄화 0, 그냥 z 에 안 든다).
    *   물 렌즈(§5 "물 = R 위 반투명 막"): 바닥 물질색(store·dens)을 깊이(저활성 E)로 흡광 블렌드(Beer-Lambert transmit=exp(-depth·absorb)) — 얕으면 바닥 비침·청록, 깊으면 짙은 남. FS 에서 프레넬(비스듬할수록 표면 반사↑)·시선기반 글린트. 고체는 vWet=0 → 불투명·무광 불변.
    *   고체 거칠기 렌즈(§5 "지형·거칠기"): R 라플라시안 |∇²R|(고주파 성분)으로 고체 노멀을 미세 변조 — 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈. 높이는 불변(분포 재성형 0), 셰이딩 노멀만(§6 도함수 읽기). 진폭=∇R 거침·방향=셀 해시(서브셀 디테일 절차적). 액체/공허는 rough=0.
+   *   유전형 색 렌즈(§4 "G→색은 절차적"): geneCol/storeCol/geneColP 가 고정 4색 팔레트 대신 *황금비 색상환 해시*(hue=fract(g·φ⁻¹) HSV→RGB) — 혈통이 무한히 갈려도 author 0 으로 색이 분화(고정 팔레트 캡 제거). 무유전(g=0)은 호박색 경로 그대로(과거 렌더 불변).
    * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
    * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
@@ -657,13 +659,14 @@
     '  return texelFetch(uE, ivec2(x,y), 0).g;',
     '}',
     'float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }', // 셀 해시 → 절차적 미세 노멀 방향
-    'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 팔레트(2D GENE_COL 일관)
+    'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 절차적 해시(혈통 무한 분화, RENDER §4)
     '  int g=int(tag+0.5);',
-    '  if (g==1) return vec3(0.910,0.376,0.376);',
-    '  if (g==2) return vec3(0.471,0.784,0.376);',
-    '  if (g==3) return vec3(0.376,0.659,0.910);',
-    '  if (g>=4) return vec3(0.784,0.439,0.878);',
-    '  return vec3(0.784,0.608,0.416);',                    // 0 = 무유전(여기선 도달 안 함 — 돌 경로가 가져감)
+    '  if (g<=0) return vec3(0.784,0.608,0.416);',          // 0 = 무유전(여기선 도달 안 함 — 돌 경로가 가져감)
+    '  float h=fract(float(g)*0.6180339887);',              // 황금비 저불일치 색상환
+    '  float s=0.55+0.18*fract(float(g)*0.3247);',
+    '  float v=0.80+0.15*fract(float(g)*0.7654);',
+    '  vec3 r=clamp(abs(mod(h*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);',
+    '  return v*mix(vec3(1.0), r, s);',
     '}',
     'void main(){',
     '  int x=int(aCell.x), y=int(aCell.y);',
@@ -733,14 +736,15 @@
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uPx;',
     'uniform ivec2 uDim;',
-    'out vec3 vCol;',                                       // 유전형 클론 색 → FS 로 전달(geneCol 팔레트, 2D GENE_COL 일관)
-    'vec3 geneColP(float tag){',
+    'out vec3 vCol;',                                       // 유전형 클론 색 → FS 로 전달(geneCol 과 동일 절차적 해시)
+    'vec3 geneColP(float tag){',                            // 생명 점 색 — geneCol 과 동일 절차적 해시(혈통 무한 분화, RENDER §4)
     '  int g=int(tag+0.5);',
-    '  if (g==1) return vec3(0.910,0.376,0.376);',          // tag1 빨강(저적합)
-    '  if (g==2) return vec3(0.471,0.784,0.376);',          // tag2 초록
-    '  if (g==3) return vec3(0.376,0.659,0.910);',          // tag3 파랑
-    '  if (g>=4) return vec3(0.784,0.439,0.878);',          // tag4 보라(고적합)
-    '  return vec3(0.96,0.84,0.40);',                       // 0 = 무유전 → 기존 호박색(과거 step 불변)
+    '  if (g<=0) return vec3(0.96,0.84,0.40);',             // 0 = 무유전 → 기존 호박색(과거 step 불변)
+    '  float hh=fract(float(g)*0.6180339887);',             // 황금비 저불일치 색상환
+    '  float ss=0.55+0.18*fract(float(g)*0.3247);',
+    '  float vv=0.82+0.14*fract(float(g)*0.7654);',         // 점은 발광이라 명도 floor 살짝 높임
+    '  vec3 rr=clamp(abs(mod(hh*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);',
+    '  return vv*mix(vec3(1.0), rr, ss);',
     '}',
     'void main(){',
     '  vec2 t=texelFetch(uE, ivec2(int(aAgent.x),int(aAgent.y)), 0).rg;',
