@@ -8,9 +8,12 @@
 
 | 문서 | 다루는 질문 |
 |---|---|
+| [PRIMER.md](PRIMER.md) | 이 세계 전체를 직관으로 — 별·둑·봉우리·에너지·유전·개체. `SPINE.md` 의 쉬운 풀이 입문서 |
 | [01-energy-and-matter.md](01-energy-and-matter.md) | "에너지(E)"란 무엇인가? 에너지와 물질(R)의 차이는? |
 | [02-ledger.md](02-ledger.md) | "장부"란 무엇이고 왜 닫혀 있어야 하나? 쌍 거래·잔차의 뜻은? |
 | [03-energy-flow-and-gravity.md](03-energy-flow-and-gravity.md) | 에너지는 유체가 아닌데 왜 위아래로 흐르나? "에너지가 중력을 받는다"는 무슨 뜻인가? |
+
+> [PRIMER.md](PRIMER.md) 가 *세계 전체의 직관 입문서*(넓고 얕게)라면, 번호 문서(01~)는 *특정 개념의 깊은 해설*(좁고 깊게)이다. 처음이라면 PRIMER 부터.
 
 ## 읽는 순서
 

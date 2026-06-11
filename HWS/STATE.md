@@ -115,7 +115,7 @@
 
 ## 6. 빠른 참조
 
-- 척추 체크 4항·존재론: [SPINE.md](SPINE.md) · **입문서(쉬운 풀이): [PRIMER.md](PRIMER.md)**
+- 척추 체크 4항·존재론: [SPINE.md](SPINE.md) · **입문서(쉬운 풀이): [concepts/PRIMER.md](concepts/PRIMER.md)** · 개념 해설 모음 [concepts/](concepts/README.md)
 - 비전·게임 종착점: [VISION.md](VISION.md) · **렌더러 트랙(직교) 척추 [RENDER.md](RENDER.md) · 현황 [RENDER-STATE.md](RENDER-STATE.md)**
 - 엔진·패널 스펙: [engine/PANEL.md](engine/PANEL.md) · [engine/DESIGN-3D.md](engine/DESIGN-3D.md)
 - **의외의 발견 / 정직한 한계 전문**: 각 `step-NNNN.md` 의 §발견·§한계 (STATE 는 중복 보관 안 함 — 위 §3·§4 가 현재 load-bearing 요약).

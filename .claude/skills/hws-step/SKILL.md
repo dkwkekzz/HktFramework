@@ -14,7 +14,7 @@ description: HWS 시뮬 step 한 바퀴(읽기→스캐폴드→구현→검증�
 
 **조건부** (해당 작업 시에만): `engine/PANEL.md`(패널 구조 변경 시 — 노브 행 1개 추가면 불필요) · `engine/DESIGN-3D.md`(3D 표현 변경 시).
 
-**읽기 금지** (STATE 가 명시 지시할 때만 예외): `PRIMER.md` · `VISION.md` · `STATE-INDEX-ARCHIVE.md` · 옛 `step-NNNN.md` 문서들 · `RENDER*.md`(렌더러 트랙 — 시뮬 step 과 직교).
+**읽기 금지** (STATE 가 명시 지시할 때만 예외): `concepts/`(PRIMER.md 등 해설 모음) · `VISION.md` · `STATE-INDEX-ARCHIVE.md` · 옛 `step-NNNN.md` 문서들 · `RENDER*.md`(렌더러 트랙 — 시뮬 step 과 직교).
 
 **큰 코드 파일은 부분 읽기만**:
 - `engine/hws-laws.js`(~160KB) 전체 읽기 금지 — Grep 으로 `LAW_ORDER`·`DEFAULTS`·직전 법칙 1개만 찾아 해당 구간을 offset/limit 로 읽는다. 새 법칙은 직전 법칙의 형식을 따른다.
