@@ -972,7 +972,8 @@ class Client {
     this.itemOps++;
   }
   // give 결과 확인(이 step·clientResend) — pending 에서 itemId 매칭분을 빼서 ok 면 giveLog(재발행 소스)로·실패면 폐기.
-  //   itemId 는 pending give 들 사이에서 유일(준 아이템은 belief 에서 빠져 재-give 불가) → FIFO 매칭 안전.
+  //   ⚠ 전제: 클라↔게이트웨이↔가방 홉이 *in-order*(현 시나리오는 전송층이 persist 홉만 손실 → give 경로 FIFO). 그때만 결과가 발신 순서대로 와 첫-매칭이 옳다.
+  //   재정렬 전송 하에선 같은 itemId 의 pending 이 다중 형성(belief 는 결과 시 갱신·발신 시 아님)되어 *틀린 toAvatar* 가 기록될 수 있다(§9 — 후속 opSeq 키잉으로 견고화).
   _confirmGive(itemId, ok) {
     const idx = this.givePending.findIndex(g => g.itemId === itemId);
     if (idx < 0) return;
