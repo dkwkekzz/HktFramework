@@ -42,6 +42,7 @@ step-0007 부터 각 step 의 HTML 은 **셸**(~12줄)이고, 시뮬 동작은 `
 | `poolOpts` | obj | `detectPools` 옵션. 기본 `{minE:1.5,prom:0.3}` |
 | `seeds`/`speeds`/`defaultSpeed` | | 시드·속도 셀렉트 덮어쓰기(기본 step-0006 값) |
 | `controls` | 행 배열 | 노브. `[{items:[...]}, ...]` — 각 행은 `.ctl` div |
+| `presets` | 배열 | **데모/가설 재현 버튼** `[{label, params, seed?, run?, note?, title?}]`. 한 클릭으로 *현상이 보이는 설정*으로 점프(아래 절) |
 | `stats` | 배열 | 통계표 행 `[{label, get(ctx)}]` |
 | `actions` | obj | 버튼 핸들러 `{name(api){}}` |
 | `clickModes` | obj | 캔버스 클릭 모드 `{name(api,x,y){}}` |
@@ -61,6 +62,31 @@ step-0007 부터 각 step 의 HTML 은 **셸**(~12줄)이고, 시뮬 동작은 `
   - `role:'click'`: 캔버스 클릭 모드를 이 셀렉트 값으로 디스패치
 - **button** `{kind:'button', id, label, action, title?}` — `actions[action](api)` 호출
 
+### presets — 데모/가설 재현 (가독성 표준)
+
+**왜**: 기본 패널은 회귀 상태(새 노브 off·V 사다리는 D=1)로 열린다 — 그래서 *직전 step 과 화면이 같다*. "설명은 그럴듯한데 시뮬을 보면 뭘 더했는지 모르겠다" 의 구조적 원인이다(4기둥 ①회귀 0 의 그림자). `presets` 는 이 격차를 메운다: **한 클릭으로 이 step 이 더한 현상이 *보이는* 설정으로 점프**한다.
+
+```js
+presets: [
+  { label: '☀ 별 부력 ON (D=8)',
+    params: sunArena(1),    // 전체 createSim 오버라이드 — verify.js 의 가설 시나리오와 *같은* 객체를 쓴다(핵심)
+    seed: seedSunCore,      // (선택) 리셋 직후 사용자 시딩 fn(sim, core) — 예: 점화 신호 R 핵
+    run: 200,               // (선택) 미리 진행할 tick 수 — 현상이 자라게(별이 천장까지 떠오르도록)
+    note: 'E 무게중심 z 가 ~6.36 으로 솟으면 별이 하늘로(=verify sun)',  // (선택) 토스트 한 줄
+    title: '...'            // (선택) 버튼 hover 설명 }
+]
+```
+
+엔진(`applyPreset`)이 ① `createSim(seed, params)` 재생성 → ② `seed(sim, core)` → ③ `run` tick 진행 → ④ **보이는 노브를 params 값에 동기화**(슬라이더·게이트 체크가 움직여 "무슨 설정인지" 드러남, 시뮬 영향 0) → ⑤ `note` 토스트 순으로 처리한다.
+
+**핵심 규약 — verify 와 같은 시나리오를 쓴다**: `params`(+`seed`)를 `verify.js` 의 가설 아레나(`sunArena()`/`seedSunCore()` 등)와 *같게* 두면 **화면이 보여주는 것 = verify 가 단언하는 수치**가 된다(가독성 + 신뢰). 둘이 드리프트하지 않도록 같은 상수·식을 쓴다(예: `comZ`).
+
+**가설 수치 통계(필수 동반)**: 프리셋과 짝으로, verify 의 가설 지표를 `stats` 행으로 화면에 띄운다 — 예: `E 무게중심 z` (verify `sun` 의 `comZ`). 3D 렌더(L-V1 voxel 렌즈)가 닫히기 전엔 z 축 현상이 화면에 안 그려지므로(하이트필드는 z=0 평면만), 이 **수치가 증거**다. 프리셋 ON 을 누르면 통계가 verify 와 같은 값(6.36)으로 솟는 걸 눈으로 확인한다.
+
+**주의**: 프리셋은 *출발점 스냅샷*이다 — 이후 헤더 '리셋'·노브 조작은 컨트롤 값에서 재구성되므로 비-컨트롤 격리(initE 등)는 풀린다(통상 스택으로 복귀). `panel.presets` 가 없으면 데모 행 자체가 안 그려진다(하위호환 — 기존 패널 무영향).
+
+**검증**: `node engine/validate/smoke-preset.js` — 회귀 상태로 열린 패널의 프리셋 버튼을 클릭해 별이 천장까지 떠오르고 E 무게중심 z 가 솟는지(=verify sun 수치) 헤드리스로 단언.
+
 ### stats `get(ctx)` 컨텍스트
 
 `ctx = {sim, core, m, led, pools}` (m=`measure`, led=`ledger`). 반환:
@@ -77,7 +103,8 @@ step-0007 부터 각 step 의 HTML 은 **셸**(~12줄)이고, 시뮬 동작은 `
 1. `step-NNNN/sim-core.js` — 직전 step 코어를 잇고 **항 하나** 추가(불변 규칙).
 2. `step-NNNN/verify.js` — 회귀·장부·결정론·가설 4기둥 검증(headless).
 3. `step-NNNN/panel.js` — **직전 step panel.js 를 복사**해 새 노브 행 1개 + 새 통계 행을 더한다.
-   (engine/validate/step-0006.panel.js 가 출발 템플릿.)
+   (engine/validate/step-0006.panel.js 가 출발 템플릿.) **`presets` 와 가설 수치 통계도 이번 step 의 현상에 맞게 갱신**한다 —
+   직전 step 의 데모 아레나·지표를 *이번 가설*(verify.js 의 새 시나리오)과 같게 바꾼다(위 "presets" 절). 그래야 다음 step 도 "한 클릭으로 보이는" 가독성을 이어받는다.
 4. `step-NNNN.html` — 위 **3D 표준 셸**에서 NNNN 만 바꾼다(attach/bind 포함 — 빼지 않는다).
 
 엔진(`hws-ui.js`/`hws-ui.css`/`hws-3d.js`)은 건드리지 않는다. step 이 *완전히 새로운 시각화*를

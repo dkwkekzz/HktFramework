@@ -117,6 +117,24 @@
     panelEl.appendChild(hdr2);
     ctrls['__seed'] = { el: selSeed }; ctrls['__speed'] = { el: selSpeed };
 
+    /* ── 프리셋(데모/가설 재현) 버튼 ──
+     * 이 step 이 더한 현상을 *한 클릭*으로 보이는 설정(D·격리 노브·시딩)으로 점프시킨다.
+     * 기본 패널은 회귀 상태(D=1·새 노브 off)로 열려 직전 step 과 화면이 같으므로 "뭘 더했는지"가 안 보인다.
+     * 프리셋은 그 격차를 메운다 — `panel.presets` 가 verify.js 의 가설 시나리오와 *같은* createSim 파라미터를 쓰면
+     * 화면이 보여주는 것 = verify 가 단언하는 것(가독성 + 신뢰). panel.presets 없으면 이 행 자체가 안 그려진다(하위호환). */
+    if (panel.presets && panel.presets.length) {
+      var presetRow = doc.createElement('div'); presetRow.className = 'ctl';
+      presetRow.appendChild(txt('데모 '));
+      for (var pp = 0; pp < panel.presets.length; pp++) {
+        (function (preset) {
+          var pb = mkBtn(preset.label); if (preset.title) pb.title = preset.title;
+          pb.addEventListener('click', function () { applyPreset(preset); });
+          presetRow.appendChild(pb); presetRow.appendChild(txt(' '));
+        })(panel.presets[pp]);
+      }
+      panelEl.appendChild(presetRow);
+    }
+
     /* ── 패널 선언 컨트롤 ── */
     var rows = panel.controls || [];
     for (var ri = 0; ri < rows.length; ri++) {
@@ -175,6 +193,47 @@
       popHist = []; lastSampledTick = -1; tickAcc = 0;
       if (panel.onReset) panel.onReset(api());
       draw();
+    }
+
+    /* 프리셋 적용 — 직전 step 과 같은 회귀 상태가 아니라 *현상이 보이는* 설정으로 시뮬을 다시 만든다.
+     *   ① preset.params(전체 createSim 오버라이드 — verify 시나리오와 공유 가능)로 sim 재생성
+     *   ② preset.seed(sim, core) 로 리셋 직후 사용자 시딩(예: 점화 신호 R 핵) — 선택
+     *   ③ preset.run 틱 만큼 미리 진행해 현상이 자라게(예: 별이 천장까지 떠오르도록) — 선택
+     *   ④ 보이는 노브를 프리셋 값에 맞춰 동기화(가독성 — 슬라이더/체크가 움직여 "무슨 설정인지" 드러남)
+     *   ⑤ preset.note 를 토스트로(가설 한 줄)
+     * 주의: 이후 헤더 '리셋'·노브 조작은 컨트롤 값에서 재구성(buildParams)되므로 비-컨트롤 격리(initE 등)는 풀린다 —
+     *   프리셋은 *출발점 스냅샷*이다(현상을 띄워 보고, 거기서 손대면 통상 스택으로 돌아온다). */
+    function applyPreset(preset) {
+      var seed = parseInt(val('__seed'), 10);
+      sim = core.createSim(seed, preset.params || {});
+      if (preset.seed) preset.seed(sim, core);
+      if (preset.run) for (var t = 0; t < preset.run; t++) core.step(sim);
+      syncControls(preset.params || {});
+      popHist = []; lastSampledTick = -1; tickAcc = 0;
+      if (preset.note) { msg = preset.note; msgUntil = perf() + 6000; }
+      draw();
+    }
+
+    /* 컨트롤 UI 를 파라미터 값에 맞춰 동기화(시뮬 영향 0 — 순수 가독성).
+     *   슬라이더는 값·표시를, 게이트 슬라이더는 게이트 체크까지(값이 gateOff 가 아니면 on), 체크는 checked 를 맞춘다.
+     *   대응 컨트롤이 없는 파라미터(initE·source rate 등)는 화면엔 안 뜨지만 sim 엔 이미 반영돼 있다. */
+    function syncControls(params) {
+      eachItem(panel, function (it) {
+        if (it.param == null || !(it.param in params)) return;
+        var c = ctrls[it.id]; if (!c) return;
+        var v = params[it.param], el = c.el;
+        if (it.kind === 'check') {
+          el.checked = !!v;
+        } else if (it.kind === 'slider') {
+          el.value = v;
+          var span = doc.getElementById('v_' + it.id);
+          if (span) span.textContent = (it.fixed != null) ? Number(v).toFixed(it.fixed) : String(v);
+          if (it.gateBy != null) {
+            var gc = ctrls[it.gateBy];
+            if (gc) gc.el.checked = (v !== (it.gateOff != null ? it.gateOff : 0));
+          }
+        }
+      });
     }
 
     /* api — 패널의 action/clickMode 핸들러에 넘기는 컨텍스트 */

@@ -15,12 +15,49 @@
     return { by: by, total: total, meanFit: total ? num / total : 0 };
   }
 
+  /* ── 데모(프리셋) — 별 부력 아레나: verify.js sunArena()/seedSunCore()/comZ() 와 *같은* 설정·식.
+   *   기본 패널은 회귀 상태(D=1·부력 off)로 열려 직전 step 과 화면이 같다 → "뭘 더했는지" 안 보임.
+   *   이 아레나(D=8 voxel·중력 off 격리·z=0 R 핵서 단일 별 점화)를 한 클릭으로 띄워, 화면이 보여주는 것 =
+   *   verify 가 단언하는 수치(E 무게중심 z)가 되게 한다. ON/OFF 두 프리셋으로 A/B 대조. */
+  function sunArena(kRise) {
+    return {
+      D: 8, initE: 0, noise: 0, drive: false,
+      source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+      kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+      kIgnite: 1, kStarRise: kRise, starRate: 0.06, starFuel0: 500, ignThresh: 1.5, starCap: 1, starGap: 6, starR: 2, starDriftPeriod: 20,
+      kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+      kCrowd: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+      kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+    };
+  }
+  function seedSunCore(sim, core) {   // z=0 정적 R 핵(점화 신호) — verify.js seedSunCore 와 동일(반경 2·값 2.0·E0 산입)
+    var W = sim.p.W, H = sim.p.H, disc = core.discCells(W, H, (W / 2) | 0, (H / 2) | 0, 2);
+    for (var k = 0; k < disc.length; k++) { sim.R[disc[k]] += 2.0; sim.E0 += 2.0; }
+  }
+  function comZE(sim) {                // E 무게중심 z(평면별 E 합 가중) — verify.js comZ 와 동일식. off≈0(바닥)·on 高z(하늘)
+    var p = sim.p, D = p.D || 1, WH = p.W * p.H, E = sim.E, num = 0, den = 0;
+    for (var z = 0; z < D; z++) { var t = 0; for (var k = 0; k < WH; k++) t += E[z * WH + k]; num += z * t; den += t; }
+    return { comZ: den > 0 ? num / den : 0, D: D };
+  }
+
   var panel = {
     coreGlobal: 'HWS_SIM',
     title: 'HWS step-0035 — <span style="color:#ffd060">별 부력 상승</span>: 소산 극단(별)이 떠올라 하늘서 E 를 뿜는다 = 태양(VOXEL.md V5+)',
     subtitle: 'step-0034 는 <i>저장 극단</i>(R)이 <b>가라앉는</b> 걸 더했다(부유 R 붕괴). 이 step 은 그 <b>대칭</b> — <i>소산 극단</i>(별 = 활성도 최고)이 <b>떠오른다</b>(부력). 이 step 은 <code>ignite</code> 법칙을 제자리 확장한다(LAW_ORDER 무변경): <b>kStarRise</b> 를 켜면 점화한 별이 z=0(지면 R 핵)에서 태어나 <b>매 tick 천장(z=D−1)까지 떠올라</b> 제 z 의 <b>3D ball</b>(discCells3)로 E 를 방출한다 → 하늘 높이서 뿜은 E 를 <code>gravity</code>(V3 중력)가 <b>아래로 끌어내려 비처럼</b> 내린다 = <b>태양</b>(높은 발원·낙하·바다). 저장 극단은 가라앉고 소산 극단은 떠올라 — <b>활성도 연속축(SPINE 결정2)이 *연직 z 축*으로 창발</b>한다(저장 아래·소산 위, 측정 아닌 동역학). <b>kStarRise=0 또는 D=1 이면 부력 무효(별 z 미설정·2D disc·서행만 / D−1=0 → 상승 0·discCells3≡discCells) = 직전 step 비트 동일</b>(회귀 0). 검증(중력 off 로 격리): <b>z=0 R 핵에서 점화 → 상승 off 면 별 z=0·E 바닥(무게중심 z=0·바닥 100%)·on 이면 별 천장(z=7)까지·E 위에(무게중심 z=6.36·천장 54%)</b>·잔차 1.5e-15·결정론. <code>node step-0035/verify.js</code> 로 reg·sun·conserve·det. (표준 스택은 step-0027 덴드라이트 그대로 — 별 부력과 직교.)',
     overlays: { sourceSink: false, pools: true, life: true, centroid: true, sparkline: true },
     poolOpts: { minE: 1.5, prom: 0.3 },
+
+    /* 데모 프리셋 — 이 step 이 더한 별 부력을 한 클릭으로 보이는 설정(verify sun 과 동일 아레나)으로. */
+    presets: [
+      { label: '☀ 별 부력 ON (태양·D=8)',
+        title: 'verify sun(on) 과 같은 설정: D=8 격리 아레나·z=0 R 핵서 단일 별 점화·kStarRise=1, 200 tick 미리 진행. 통계 "E 무게중심 z" 가 ~6.36(천장 54%)으로 솟으면 별이 하늘로 떠오른 것 = verify 가 단언하는 수치. (3D 뷰는 아직 z=0 평면만 그려 상승 자체는 안 보임 — voxel 렌즈 L-V1 백로그. 수치가 증거.)',
+        params: sunArena(1), seed: seedSunCore, run: 200,
+        note: '별 부력 ON — "E 무게중심 z" 가 ~6.36(천장)으로 솟으면 별이 하늘로(=verify sun). 화면 z=0 평면은 어두움(E 가 위에).' },
+      { label: '○ 부력 OFF (대조)',
+        title: 'verify sun(off) 과 같은 설정: 같은 아레나·핵·점화지만 kStarRise=0. "E 무게중심 z"=0(별이 바닥 z=0 에 머묾). ON 버튼과 번갈아 눌러 A/B 로 비교하면 부력이 더한 것이 또렷하다.',
+        params: sunArena(0), seed: seedSunCore, run: 200,
+        note: '부력 OFF(대조) — "E 무게중심 z"=0(별이 바닥에). ON 버튼과 번갈아 눌러 차이를 보라.' }
+    ],
 
     controls: [
       { items: [
@@ -255,6 +292,11 @@
     stats: [
       { label: 'tick', get: function (c) { return String(c.sim.tick); } },
       { label: 'sumE', get: function (c) { return c.m.sumE.toFixed(2); } },
+      { label: '<span style="color:#ffd060">E 무게중심 z</span> (가설: 별이 하늘로)', get: function (c) {
+          var r = comZE(c.sim); if (r.D < 2) return { text: 'z=0 평면(D=1) — 부력 비활성. 위 "데모" 버튼으로 D=8', cls: '' };
+          var maxZ = 0, st = c.sim.stars || []; for (var i = 0; i < st.length; i++) { var sz = st[i].z || 0; if (sz > maxZ) maxZ = sz; }
+          return { text: r.comZ.toFixed(2) + ' / 천장 z=' + (r.D - 1) + ' · 별최고 z=' + maxZ, cls: r.comZ > 5.0 ? 'pass' : '' };
+      } },
       { label: '<span style="color:#9ad24a">덴드라이트</span> (넓이 / 거칠기 / 가지끝)', get: function (c) { var d = window.HWS_SIM.measureDendrite(c.sim); return d.area ? (d.area + ' / ' + d.roughness.toFixed(2) + ' / ' + d.tips) : '—'; } },
       { label: '<span style="color:#46e0c8">튜링 패턴</span> (진폭 / 파장 lag)', get: function (c) { var d = window.HWS_SIM.measureTuring(c.sim); return (d.stdR.toFixed(3) + ' / ' + (d.firstNeg || '—')); } },
       { label: '<span style="color:#46e0c8">방향성 결정</span> (이방성 / 성장)', get: function (c) { var d = window.HWS_SIM.measureAnisotropy(c.sim); return d.cells ? ((isFinite(d.aniso) ? d.aniso.toFixed(2) : '∞') + ' / ' + (c.sim.anisoGrown || 0).toFixed(0)) : '—'; } },
