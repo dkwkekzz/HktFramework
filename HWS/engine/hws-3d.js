@@ -213,11 +213,13 @@
      *   물은 반투명으로 그 위에 블렌드(뒤 큐브가 비친다). 분류 문턱은 VS_VOXEL 과 동일(불일치 0).
      * L-V3: 고체 칸은 R 6-이웃 라플라시안(|∇²R| 고주파)을 *거칠기*로 미리 재 인스턴스에 싣는다 — 들쭉날쭉한 R=거친 암석.
      * L-V4: 빛 칸은 ∇E(흐름량 중앙차분) *하류 방향*을 월드 좌표로 미리 재 인스턴스에 싣는다 — FS 가 시간 이류 띠로 흐름 방향을 보인다.
-     * 분포 author 0: 어느 칸이 차 있는가·R·E 분포는 시뮬의 사실, 렌더러는 읽어서 큐브를 두고 도함수(∇²R·∇E)로 셰이딩만(RENDER §6·VOXEL V-A). */
+     * L-V5: *빈칸*(void)의 미량 E 가 수렴(∇²E<0)하면 안개 점(부드러운 스프라이트)을 따로 모은다 — 겹쳐 쌓여 볼류메트릭 안개(응결).
+     * 분포 author 0: 어느 칸이 차 있는가·R·E 분포는 시뮬의 사실, 렌더러는 읽어서 큐브를 두고 도함수(∇²R·∇E·∇²E)로 셰이딩만(RENDER §6·VOXEL V-A). */
     var satA = R.satA, satR = R.satR, STR = 11;             // 인스턴스 stride 11: (x,y,z, E,R,G,A, rough, fx,fy,fz)
-    var va = R.voxArr, vn = 0, vw = R.voxArrW, wn = 0;
+    var va = R.voxArr, vn = 0, vw = R.voxArrW, wn = 0, fa = R.fogArr, fn = 0;
     if (!va || va.length < 4096 * STR) va = R.voxArr = new Float32Array(4096 * STR);
     if (!vw || vw.length < 1024 * STR) vw = R.voxArrW = new Float32Array(1024 * STR);
+    if (!fa) fa = R.fogArr = new Float32Array(1024 * 4);    // 안개 점(L-V5): (x,y,z, density) — 빈칸 ∇²E 수렴
     function rN(x, y, z) {                                   // 이웃 R — x·y wrap(토러스)·z 클램프(벽). Rf 없으면 0(거칠기 무)
       x = ((x % W) + W) % W; y = ((y % H) + H) % H; if (z < 0) z = 0; else if (z >= D) z = D - 1;
       return Rf ? Rf[(z * H + y) * W + x] : 0;
@@ -233,8 +235,18 @@
       var liquidE = Ev * (1 - af), flowE = Ev * af;
       var solid = Rv > 0.08 && Rv >= liquidE;                // 고체(저장체 우세)
       var water = !solid && liquidE > 0.05;                  // 물(고인 E 우세) — 반투명 패스
-      if (!(solid || water || flowE > 0.035)) continue;      // 고체도·물도·빛도 아니면 void → 큐브 없음
       var z = (i / WH) | 0, rem = i - z * WH, yy = (rem / W) | 0, xx = rem - yy * W;   // i → (x,y,z)
+      if (!(solid || water || flowE > 0.035)) {              // 빈칸(void) → 큐브 없음. 단 미량 E 가 수렴(∇²E<0)하면 안개(L-V5)
+        if (Ev > 0.004) {
+          var lapE = eN(xx + 1, yy, z) + eN(xx - 1, yy, z) + eN(xx, yy + 1, z) + eN(xx, yy - 1, z) + eN(xx, yy, z + 1) + eN(xx, yy, z - 1) - 6 * Ev;
+          var fog = clamp(-lapE / Math.max(R.sat * 0.03, 1e-3), 0, 1) * clamp(Ev / Math.max(R.sat * 0.25, 1e-3), 0, 1);  // 수렴(∇²E<0) × 미량 E 농도
+          if (fog > 0.05) {
+            if ((fn + 1) * 4 > fa.length) { var nf = new Float32Array(fa.length * 2); nf.set(fa); fa = R.fogArr = nf; }
+            var of = fn * 4; fa[of] = xx; fa[of + 1] = yy; fa[of + 2] = z; fa[of + 3] = fog; fn++;
+          }
+        }
+        continue;
+      }
       var rough = 0;                                         // L-V3 거칠기 — 고체만(물·빛=매끈)
       if (solid && Rf) {
         var lapR = rN(xx + 1, yy, z) + rN(xx - 1, yy, z) + rN(xx, yy + 1, z) + rN(xx, yy - 1, z) + rN(xx, yy, z + 1) + rN(xx, yy, z - 1) - 6 * Rv;
@@ -259,9 +271,10 @@
         vn++;
       }
     }
-    R.voxN = vn; R.voxNW = wn;
+    R.voxN = vn; R.voxNW = wn; R.fogN = fn;
     if (vn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVox); gl.bufferData(gl.ARRAY_BUFFER, va.subarray(0, vn * STR), gl.DYNAMIC_DRAW); }
     if (wn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, vw.subarray(0, wn * STR), gl.DYNAMIC_DRAW); }
+    if (fn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufFog); gl.bufferData(gl.ARRAY_BUFFER, fa.subarray(0, fn * 4), gl.DYNAMIC_DRAW); }
     /* 틱 단위 캐시 — 개체수 히스토리·고임 (엔진 2D 와 같은 주기) */
     if (sim.tick !== S.lastTick) {
       S.lastTick = sim.tick;
@@ -282,12 +295,18 @@
     var MVP = mMul(Pm, Vm);
     gl.viewport(0, 0, glcv.width, glcv.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    /* 오버레이 라인·생명 점 버퍼는 두 뷰포트가 공유 — 한 번만 만들어 올린다(좌·우에서 같은 마커) */
+    /* 오버레이 라인 — 레거시 뷰는 하이트필드 위 마커(buildLines), voxel 뷰는 3D 박스·기둥·호버 큐브(buildLines3D). 별 버퍼 */
     var ln = buildLines(sim);
     if (ln.length) {
       gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ln), gl.DYNAMIC_DRAW);
     }
+    var ln3 = buildLines3D(sim);
+    if (ln3.length) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLnV);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ln3), gl.DYNAMIC_DRAW);
+    }
+    R.lnVoxN = ln3.length / 6;
     var ag = sim.agents || [], agN = 0;
     if (S.ov.life && ag.length) {
       var need = ag.length * 4;                            // (x, y, m, g) — g=생명 유전형 a.g(step-0016~, 0=무유전)
@@ -324,8 +343,8 @@
   /* 한 뷰포트를 그린다. 버퍼·텍스처는 호출 전 업로드됨. uVoxel = (world?1:0) 으로 점/별 위치를 분기한다:
    * world=false → 좌측 '에너지 변위'(레거시 2.5D 하이트필드, z=0 바닥 슬라이스 · progT) + 표준 오버레이.
    * world=true  → 우측 'voxel 세계'(L-V1·L-V2 — R 점유 인스턴스드 큐브 · progV) — 형태가 시뮬의 사실이라 발명 0(VOXEL V-A).
-   * 점/별은 양 뷰가 공유하되 uVoxel 로 높이를 가른다(하이트필드 z ↔ 진짜 sim-z). 라인 오버레이는 하이트필드
-   * 구성물이라 voxel 뷰에선 생략(3D 오버레이는 후속 렌즈). */
+   * 점/별은 양 뷰가 공유하되 uVoxel 로 높이를 가른다(하이트필드 z ↔ 진짜 sim-z). 오버레이 라인은 뷰별로 다른 버퍼:
+   * 레거시는 하이트필드 위 마커(vaoL), voxel 은 3D 박스·기둥·호버 큐브(vaoLV). */
   function drawView(vy, world, MVP, lnCount, agN, glcv, Pm, eye, starN) {
     var gl = S.gl;
     gl.viewport(0, vy, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(위·아래 충돌 없음)
@@ -352,6 +371,27 @@
           gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, R.voxNW);
           gl.depthMask(true); gl.disable(gl.BLEND);
         }
+      }
+      /* ② 안개(L-V5) — 빈칸 ∇²E 수렴을 부드러운 점 스프라이트로(겹쳐 쌓여 볼류메트릭). 알파-오버·깊이 테스트 on·쓰기 off(고체 뒤는 가림) */
+      if (R.fogN) {
+        gl.useProgram(R.progF);
+        gl.uniformMatrix4fv(R.uF.uMVP, false, MVP);
+        gl.uniform1f(R.uF.uPx, Pm[5] * CV_SIZE / 2);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+        gl.bindVertexArray(R.vaoF);
+        gl.drawArrays(gl.POINTS, 0, R.fogN);
+        gl.depthMask(true); gl.disable(gl.BLEND);
+      }
+      /* ③ 3D 오버레이(도메인 박스·source/sink 기둥·무게중심·호버 큐브) — voxel 월드 좌표. 깊이 테스트 on(공간감)·쓰기 off */
+      if (R.lnVoxN) {
+        gl.useProgram(R.progL);
+        gl.uniformMatrix4fv(R.uL.uMVP, false, MVP);
+        gl.bindVertexArray(R.vaoLV);
+        gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+        gl.drawArrays(gl.LINES, 0, R.lnVoxN);
+        gl.depthMask(true); gl.disable(gl.BLEND);
       }
     } else {
       /* ① 레거시 하이트필드(에너지 변위 — z=0 바닥 슬라이스) */
@@ -472,6 +512,58 @@
     push2(out, [x1, h, z1], [x0, h, z1], c); push2(out, [x0, h, z1], [x0, h, z0], c);
   }
 
+  /* ── voxel 오버레이 라인 빌더(3D 오버레이) — 하이트필드가 아니라 *voxel 월드*에 마커를 둔다.
+   * 월드 좌표 = (sim-x, 위=sim-z, 깊이=sim-y). 도메인 박스 와이어 + source/sink 기둥·링 + 무게중심 기둥 + 호버 voxel 큐브. ── */
+  function buildLines3D(sim) {
+    var p = sim.p, W = p.W, H = p.H, D = p.D || 1, out = [], top = D - 1;
+    boxWire3(out, -0.5, -0.5, -0.5, W - 0.5, top + 0.5, H - 0.5, COL.border);   // 터 박스(W×H×D) 와이어프레임
+    if (S.ov.sourceSink) {
+      ring3(out, p.source.x, p.source.y, p.source.r, -0.4, COL.src);           // 샘 — 바닥 링 + 수직 기둥(z 전체)
+      beam3(out, p.source.x, p.source.y, top, COL.src);
+      ring3(out, p.sink.x, p.sink.y, p.sink.r, -0.4, COL.snk);                  // 싱크 — 링 + 십자
+      cross3(out, p.sink.x, p.sink.y, -0.4, 1.4, COL.snk);
+    }
+    if (S.ov.pools) {
+      for (var k = 0; k < S.pools.length; k++) ring3(out, S.pools[k].x, S.pools[k].y, 1.1, -0.4, COL.pool);
+    }
+    if (S.ov.centroid && S.core && S.core.centroid) {
+      var ct = S.core.centroid(sim);
+      if (ct) beam3(out, ct.x, ct.y, top, COL.centroid);                       // 무게중심 — 수직 기둥
+    }
+    if (S.hover && S.hover.z !== undefined) cubeWire3(out, S.hover.x, S.hover.z, S.hover.y, COL.hover);  // 호버 voxel 큐브
+    return out;
+  }
+  function ring3(out, sx, sy, r, yup, c) {                  // sim(sx,sy) 둘레 링(높이 yup) — 월드(sx+cos·r, yup, sy+sin·r)
+    var SEG = 36, prev = null;
+    for (var s = 0; s <= SEG; s++) {
+      var a = s / SEG * 2 * Math.PI, pt = [sx + Math.cos(a) * r, yup, sy + Math.sin(a) * r];
+      if (prev) push2(out, prev, pt, c);
+      prev = pt;
+    }
+  }
+  function beam3(out, sx, sy, top, c) {                     // 수직 기둥(바닥~천장) + 둘레 4선
+    push2(out, [sx, -0.45, sy], [sx, top + 0.6, sy], c);
+    for (var k = 0; k < 4; k++) {
+      var a = k * Math.PI / 2, x = sx + Math.cos(a) * 0.42, z = sy + Math.sin(a) * 0.42;
+      push2(out, [x, -0.4, z], [x, top + 0.4, z], c);
+    }
+  }
+  function cross3(out, sx, sy, yup, r, c) {                 // 수평 십자(높이 yup)
+    push2(out, [sx - r, yup, sy], [sx + r, yup, sy], c);
+    push2(out, [sx, yup, sy - r], [sx, yup, sy + r], c);
+  }
+  function boxWire3(out, x0, y0, z0, x1, y1, z1, c) {       // 상자 12 모서리(월드 좌표 직접)
+    push2(out, [x0, y0, z0], [x1, y0, z0], c); push2(out, [x1, y0, z0], [x1, y0, z1], c);  // 바닥 사각
+    push2(out, [x1, y0, z1], [x0, y0, z1], c); push2(out, [x0, y0, z1], [x0, y0, z0], c);
+    push2(out, [x0, y1, z0], [x1, y1, z0], c); push2(out, [x1, y1, z0], [x1, y1, z1], c);  // 천장 사각
+    push2(out, [x1, y1, z1], [x0, y1, z1], c); push2(out, [x0, y1, z1], [x0, y1, z0], c);
+    push2(out, [x0, y0, z0], [x0, y1, z0], c); push2(out, [x1, y0, z0], [x1, y1, z0], c);  // 수직 4 모서리
+    push2(out, [x1, y0, z1], [x1, y1, z1], c); push2(out, [x0, y0, z1], [x0, y1, z1], c);
+  }
+  function cubeWire3(out, cx, cyUp, cz, c) {                // 호버 voxel 큐브(월드 center = (cx, cyUp, cz))
+    boxWire3(out, cx - 0.5, cyUp - 0.5, cz - 0.5, cx + 0.5, cyUp + 0.5, cz + 0.5, c);
+  }
+
   /* ── 높이 함수 — 셰이더 hOf 와 동일식(CPU, E+R 합산·클램프). 픽킹·오버레이가 공유한다. ── */
   function hCPU(e) {
     return Math.min(HS * Math.log(1 + Math.max(e, 0)) / Math.log(1 + (R ? R.sat : 8)), HS * 2.2);
@@ -511,10 +603,13 @@
       ctx.fillStyle = '#8a93a0'; ctx.font = '10px Consolas';
       ctx.fillText('개체수 ' + (sim.agents ? sim.agents.length : 0) + ' (peak ' + mxp + ')', gx + 5, gy + 12);
     }
-    if (S.hover) {                                          // 호버 셀 정보 — 2D 에 없던 관찰 보강
-      var hv = S.hover, idx = hv.y * sim.p.W + hv.x;
-      var txt = '셀 (' + hv.x + ',' + hv.y + ')  E ' + sim.E[idx].toFixed(3);
-      if (sim.R && sim.R[idx] > 0.005) txt += '  ·  저장체 R ' + sim.R[idx].toFixed(2);
+    if (S.hover) {                                          // 호버 셀 정보 — 2D 에 없던 관찰 보강(voxel 픽킹이면 z·A 까지)
+      var hv = S.hover, W = sim.p.W, H = sim.p.H;
+      var idx = (hv.z !== undefined) ? ((hv.z * H + hv.y) * W + hv.x) : (hv.y * W + hv.x);
+      var pos = (hv.z !== undefined) ? ('(' + hv.x + ',' + hv.y + ',' + hv.z + ')') : ('(' + hv.x + ',' + hv.y + ')');
+      var txt = '셀 ' + pos + '  E ' + sim.E[idx].toFixed(3);
+      if (sim.R && sim.R[idx] > 0.005) txt += '  ·  R ' + sim.R[idx].toFixed(2);
+      if (sim.A && sim.A[idx] > 1e-4) txt += '  ·  A ' + sim.A[idx].toFixed(3);
       var ag = sim.agents || [];
       for (var a = 0; a < ag.length; a++) if (ag[a].center === idx) { txt += '  ·  생명 m ' + ag[a].m.toFixed(2); break; }
       ctx.font = '12px Consolas';
@@ -610,37 +705,73 @@
             c.cz + c.tz + Math.cos(c.yaw) * cp * c.dist];
   }
 
-  /* 마우스 이벤트 → 셀. 캔버스 밖이면 null. */
+  /* 마우스 이벤트 → 셀. 캔버스 밖이면 null. voxel 뷰포트(분할 하단)는 voxel 레이캐스트, 그 외(레거시 하이트필드)는 하이트필드. */
   function evCell(ev) {
     var glcv = S.dom.glcv, r = glcv.getBoundingClientRect();
     var mx = ev.clientX - r.left, my = ev.clientY - r.top;
     if (mx < 0 || my < 0 || mx >= r.width || my >= r.height) return null;
-    /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 픽킹 식 동일 */
+    /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 레이 식 동일 */
     var split = isWorld();
     var halfCss = split ? r.height / 2 : r.height;          // CSS 높이 기준 한 뷰포트 높이
-    var localY = (split && my >= halfCss) ? my - halfCss : my;
-    return pick(mx / r.width * 2 - 1, 1 - localY / halfCss * 2);
+    var inVoxel = split && my >= halfCss;                   // 하단 = voxel 세계(render 의 vy=0 패스)
+    var localY = inVoxel ? my - halfCss : my;
+    var ndcX = mx / r.width * 2 - 1, ndcY = 1 - localY / halfCss * 2;
+    return inVoxel ? pickVoxel(ndcX, ndcY) : pick(ndcX, ndcY);
   }
 
-  /* 픽킹 — 카메라 기저로 레이 생성 후 하이트필드 레이마칭(이분 정밀화). 셰이더와 같은 높이식 사용. */
-  function pick(px, py) {
-    var sim = S.sim;
-    if (!sim) return null;
-    var cam = S.cam, eye = camEye(), tgt = [cam.cx + cam.tx, 0, cam.cz + cam.tz];
+  /* 카메라 기저로 픽셀 NDC → 월드 레이(eye·dir). 타깃 y=cam.cy 로 render 의 mLookAt 과 일치(D>1 voxel 프레이밍). */
+  function camRay(px, py) {
+    var cam = S.cam, eye = camEye(), tgt = [cam.cx + cam.tx, cam.cy, cam.cz + cam.tz];
     var fw = norm3([tgt[0] - eye[0], tgt[1] - eye[1], tgt[2] - eye[2]]);
     var rt = norm3(cross3(fw, [0, 1, 0]));
     var up = cross3(rt, fw);
-    var tf = Math.tan(cam.fov / 2);
-    var aspect = 1;                                         // 뷰포트는 늘 정사각(CV_SIZE²) — 분할이어도 1 (render 의 MVP 와 일치)
+    var tf = Math.tan(cam.fov / 2);                         // aspect=1 (뷰포트는 늘 정사각 CV_SIZE²)
     var dir = norm3([
-      fw[0] + rt[0] * px * tf * aspect + up[0] * py * tf,
-      fw[1] + rt[1] * px * tf * aspect + up[1] * py * tf,
-      fw[2] + rt[2] * px * tf * aspect + up[2] * py * tf
+      fw[0] + rt[0] * px * tf + up[0] * py * tf,
+      fw[1] + rt[1] * px * tf + up[1] * py * tf,
+      fw[2] + rt[2] * px * tf + up[2] * py * tf
     ]);
-    var T = cam.dist * 4 + 100, stepL = 0.5, prevF = null, prevT = 0;
+    return { eye: eye, dir: dir };
+  }
+
+  /* voxel 픽킹(L-V 픽킹) — 점유 큐브에 레이를 쏴 첫 충돌 셀(x,y,z)을 고른다. 인스턴스 빌드와 같은 점유 판정.
+   * 월드(x, 위=y, 깊이=z) → sim(x, y, z) 역매핑: sim-x=wx · sim-y=wz(깊이) · sim-z=wy(위). 고정 스텝 행진(셀 크기 1 < step). */
+  function pickVoxel(px, py) {
+    var sim = S.sim;
+    if (!sim) return null;
+    var p = sim.p, W = p.W, H = p.H, D = p.D || 1;
+    var ray = camRay(px, py), eye = ray.eye, dir = ray.dir;
+    var T = S.cam.dist * 4 + 200, step = 0.25;
+    for (var t = 0; t <= T; t += step) {
+      var sx = Math.round(eye[0] + dir[0] * t);             // 월드-x → sim-x
+      var sz = Math.round(eye[1] + dir[1] * t);             // 월드 위(y) → sim-z
+      var sy = Math.round(eye[2] + dir[2] * t);             // 월드 깊이(z) → sim-y
+      if (sx < 0 || sy < 0 || sz < 0 || sx >= W || sy >= H || sz >= D) continue;
+      if (occAt(sim, sx, sy, sz)) return { x: sx, y: sy, z: sz };
+    }
+    return null;
+  }
+
+  /* 셀 점유 판정 — voxel 인스턴스 빌드(render)와 동일 문턱(고체·물·빛). 비면 false(빈칸=void → 픽킹 통과). */
+  function occAt(sim, x, y, z) {
+    var W = sim.p.W, H = sim.p.H, idx = (z * H + y) * W + x;
+    var Ev = sim.E[idx], Rv = sim.R ? sim.R[idx] : 0, Av = sim.A ? sim.A[idx] : 0;
+    var an = (Av > 0 && R && R.satA > 0) ? clamp(Av / R.satA, 0, 1) : 0;
+    var tt = clamp((an - 0.16) / 0.84, 0, 1), af = tt * tt * (3 - 2 * tt);
+    var liquidE = Ev * (1 - af), flowE = Ev * af;
+    var solid = Rv > 0.08 && Rv >= liquidE;
+    return solid || liquidE > 0.05 || flowE > 0.035;
+  }
+
+  /* 픽킹(레거시 하이트필드) — 카메라 레이를 하이트필드에 레이마칭(이분 정밀화). 셰이더와 같은 높이식 사용. */
+  function pick(px, py) {
+    var sim = S.sim;
+    if (!sim) return null;
+    var ray = camRay(px, py), eye = ray.eye, dir = ray.dir;
+    var T = S.cam.dist * 4 + 100, stepL = 0.5, prevF = null, prevT = 0;
     for (var t = 0; t <= T; t += stepL) {
-      var x = eye[0] + dir[0] * t, y = eye[1] + dir[1] * t, z = eye[2] + dir[2] * t;
-      var f = y - hAt(sim, x, z);
+      var y = eye[1] + dir[1] * t;
+      var f = y - hAt(sim, eye[0] + dir[0] * t, eye[2] + dir[2] * t);
       if (prevF !== null && prevF > 0 && f <= 0) {
         var lo = prevT, hi = t;                             // 이분 — 교차점 정밀화
         for (var k = 0; k < 18; k++) {
@@ -1047,6 +1178,36 @@
     '  o=vec4(vCol*core*(0.6+1.4*vCore), core);',           // 상태별 발광 세기(가산 블렌딩 — burning 만 흰빛 블룸)
     '}'].join('\n');
 
+  /* ── 안개 점 (L-V5 — RENDER §5 "파생: 안개·응결") — 빈칸 미량 E 의 수렴(∇²E<0)을 부드러운 점 스프라이트로.
+   * 겹쳐 쌓이는 저-알파 점 = 볼류메트릭 안개(응결). 진짜 raymarch(3D 텍스처)는 정제 백로그 — 여기선 점군 근사.
+   * 분포 author 0: 위치·∇²E 는 시뮬 E 의 도함수(읽기), 렌더러는 흐릿한 푸른 막만 얹는다. */
+  var VS_FOG = [
+    '#version 300 es',
+    'precision highp float;',
+    'layout(location=0) in vec4 aFog;',                     // (x, y, z, density) — sim 셀 + 안개 농도
+    'uniform mat4 uMVP;',
+    'uniform float uPx;',
+    'out float vDen;',
+    'void main(){',
+    '  vec3 c=vec3(aFog.x, aFog.z, aFog.y);',               // sim(x,y,z) → 월드(x, 위, 깊이)
+    '  vec4 cp=uMVP*vec4(c, 1.0);',
+    '  gl_Position=cp;',
+    '  vDen=aFog.w;',
+    '  gl_PointSize=clamp(2.6*uPx/max(cp.w,0.001), 4.0, 64.0);', // 셀보다 큰 스프라이트(겹쳐 부드럽게)
+    '}'].join('\n');
+
+  var FS_FOG = [
+    '#version 300 es',
+    'precision highp float;',
+    'in float vDen;',
+    'out vec4 o;',
+    'void main(){',
+    '  vec2 d=gl_PointCoord-0.5; float r2=dot(d,d);',
+    '  if (r2>0.25) discard;',
+    '  float a=exp(-r2*5.0)*vDen*0.20;',                    // 부드러운 가우시안 × 농도 × 낮은 세기(겹쳐 쌓임 = 볼륨)
+    '  o=vec4(vec3(0.62,0.70,0.82)*a, a);',                 // 푸르스름한 흰 안개(알파-오버 — 뒤를 흐리게)
+    '}'].join('\n');
+
   var VS_LINE = [
     '#version 300 es',
     'precision highp float;',
@@ -1072,11 +1233,13 @@
     R.progV = mkProg(gl, VS_VOXEL, FS_VOXEL);               // voxel 세계 렌즈(L-V1 — R 점유 인스턴스드 큐브)
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
     R.progS = mkProg(gl, VS_STAR, FS_STAR);                 // 별 FSM 이산 재질 점(RENDER §5 빛)
+    R.progF = mkProg(gl, VS_FOG, FS_FOG);                   // 안개 점(L-V5 — ∇²E 응결)
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
     R.uV = locs(gl, R.progV, ['uMVP', 'uSat', 'uSatR', 'uSatA', 'uScale', 'uLight', 'uEye', 'uTime']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx', 'uVoxel']);
     R.uS = locs(gl, R.progS, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx', 'uVoxel']);
+    R.uF = locs(gl, R.progF, ['uMVP', 'uPx']);
     R.uL = locs(gl, R.progL, ['uMVP']);
     R.tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, R.tex);
@@ -1090,7 +1253,9 @@
     R.vaoVW = gl.createVertexArray(); R.bufVoxW = gl.createBuffer();   // 물 voxel(반투명, L-V2)
     R.vaoP = gl.createVertexArray(); R.bufAg = gl.createBuffer();
     R.vaoS = gl.createVertexArray(); R.bufStar = gl.createBuffer();
-    R.vaoL = gl.createVertexArray(); R.bufLn = gl.createBuffer();
+    R.vaoF = gl.createVertexArray(); R.bufFog = gl.createBuffer();     // 안개 점(L-V5)
+    R.vaoL = gl.createVertexArray(); R.bufLn = gl.createBuffer();      // 오버레이 라인(레거시 하이트필드)
+    R.vaoLV = gl.createVertexArray(); R.bufLnV = gl.createBuffer();    // 오버레이 라인(voxel 3D)
     /* ── voxel VAO(L-V1·L-V2): 단위 큐브(정점 24=면당 4·법선 per-face) 공유 + 인스턴스(셀+필드, divisor 1).
      * 불투명·물 두 VAO 가 같은 큐브 버퍼를 쓰되 인스턴스 버퍼만 다르다(분리 패스 — 불투명 먼저·물 나중). ── */
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufCube);
@@ -1125,8 +1290,18 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,z,state) stride 16 — 별 FSM 점(z=부력 높이)
+    gl.bindVertexArray(R.vaoF);
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.bufFog);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,z,density) stride 16 — 안개 점(L-V5)
     gl.bindVertexArray(R.vaoL);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+    gl.bindVertexArray(R.vaoLV);                            // voxel 3D 오버레이 라인(같은 포맷·다른 버퍼)
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLnV);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
     gl.enableVertexAttribArray(1);
