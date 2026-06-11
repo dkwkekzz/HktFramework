@@ -264,6 +264,12 @@
                           //   점화한 별(소산 극단·활성도 최고)이 z=0(지면, R 핵)에서 태어나 매 tick 천장(z=D−1)까지 *떠오른다*(부력). 제 z 의 3D ball(discCells3)로 E 방출 → 높이서 뿜은 E 를 중력(V3 kGravity)이 아래로 끌어내려 *비처럼* 내린다 = **태양**.
                           //   step-0034 붕괴(저장 R 침강)와 *대칭*: 저장 극단은 가라앉고(R collapse) 소산 극단은 떠오른다(star rise) → 활성도 연속축(SPINE 결정2)이 *연직 z 축*으로 실현(저장 아래·소산 위, 측정 아닌 동역학으로 창발). FSM on 이면 living(정지)→burning 부터 상승(kindling 은 지면서 차오름). 위치만 바꿈(거래 0) — 장부 무관.
                           //   D=1 이면 D−1=0 이라 st.z<0 거짓 = 상승 0(이중 가드). 방향(위)은 scan-order 류 법칙 상수지 전역 조율자 아님(제 z 만 본다). 별이 천장 도달 후엔 거기서 서행(하늘 배회).
+    /* ── step-0036: 별 하강·일생(VOXEL.md V5+ — 별 부력이 *활성도(연료 잔량)의 함수*가 된다. 0035 의 on/off 상승을 *연직 궤적*으로 완성: 태어나 떠올랐다 식으며 진다) ── */
+    kStarFall: 0,         // 별 하강(연료 쇠퇴 침강) 게이트. 0 = off = 직전 step(0035 상승) 비트 동일(`fall`=0 → dying 늘 false → 하강 분기 미진입 + 상승 조건의 `!dying` 무효 → 0035 그대로). >0 이면 on:
+                          //   연료 잔량이 starFallThresh 분율 아래로 떨어진 *죽어가는* 별은 부력을 잃고 매 tick z 한 칸씩 *가라앉는다*(z=0 까지). 가라앉는 동안에도 *계속 탄다*(제 z 의 3D ball 로 방출) → 방출 E 분포가 하강 경로를 따라 내려가 해시에 잡힌다(부력 상승[0035]이 z 만 바꿔 위치-only 였던 것과 달리, 하강은 *연소 중* 이라 E-필드 결과가 있다).
+                          //   완성하는 그림: 별이 z=0(R 핵)서 나(0035 birth)→연료 충분하면 천장까지 떠오르고(0035 rise·prime)→연료가 fallThresh 아래로 쇠하면 도로 가라앉는다(0036 set·일몰). 활성도 연속축(SPINE 결정2)이 *연직 궤적*으로: 高활성(연료 충분)=떠오름·쇠퇴(연료 부족)=가라앉음 — authored "별=위" 분기가 아니라 *활성도의 함수*로 z 가 정해진다.
+                          //   회귀(이중 가드): kStarFall=0 → fall=0 → dying=false(상승 분기 `!dying` 항상 참 = 0035 무변경·하강 분기 미진입). D=1 이면 st.z=0 고정(상승도 하강도 z 벽에 막힘) = 비트 동일. *부력 상승(kStarRise) 위에 얹힌다* — 떠오른 별(st.z 존재)만 가라앉을 수 있다(rise off 면 st.z 미설정 → dying=false).
+    starFallThresh: 0.5,  // 하강 개시 연료 분율(0~1, kStarFall>0 일 때만 의미). 연료 < starFuel0·starFallThresh 면 부력 상실(죽어가는 별). 0.5 = 절반 태우면 진다. (collapseThresh·occludeThresh 처럼 게이트에 딸린 문턱.)
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -643,6 +649,7 @@
     var E = sim.E, R = sim.R, W = p.W, H = p.H, stars = sim.stars;
     var starRate = p.starRate, dPer = p.starDriftPeriod;
     var rise = p.kStarRise, D = p.D || 1;                     // step-0035 부력: rise=0 이면 아래 z 코드 미진입(별 z 미설정·2D 경로 = 회귀 0)
+    var fall = p.kStarFall, fallFuel = p.starFuel0 * p.starFallThresh;   // step-0036 하강·일생: fall=0 이면 dying 늘 false → 상승 분기 무변경·하강 미진입(회귀 0)
     /* 1. 각 별의 한 tick: 주입(연료→E, disc — sim.injected 로 경계 추적) → 소진 판정 → 서행(정한 방향 주기마다 한 칸).
      *    별은 *외부 질량(연료)을 태워 장에 주입하며 서행하는 채식지*다 — 생명이 그 E 봉우리를 쫓는다(churn 엔진). */
     var alive = [], fsm = p.kFSM !== 0;
@@ -665,11 +672,16 @@
       /* 서행 — burning 만 떠돈다(FSM on). living(kindling)은 정지해 핫코어를 쌓고, FSM off 면 늘 떠돈다(비트 동일).
        * 위치만 바꿈(거래 0). 점화 시 정한 방향으로 주기마다 한 칸 — 서행 봉우리를 생명이 따라온다. */
       st.age++;
-      /* 서행(xy, 주기마다) + 부력 상승(z, 매 tick 한 칸·천장까지, step-0035) — burning/FSM-off 만(living kindling 은 지면서 차오름).
+      /* 서행(xy, 주기마다) + 부력 상승(z, 매 tick 한 칸·천장까지, step-0035) + 하강·일생(z, 연료 쇠퇴 시 침강, step-0036) — burning/FSM-off 만.
        * rise=0 이면 st.z 미설정 → 아래 else 의 2D disc 경로·dPer 마다만 recompute = 직전 step 비트 동일(회귀 0). */
       var canMove = (st.state === undefined || st.state === 1), nx = st.x, ny = st.y, moved = false;
       if (canMove && st.age % dPer === 0) { nx = (st.x + st.vx + W) % W; ny = (st.y + st.vy + H) % H; moved = true; }   // 서행(xy)
-      if (rise && canMove && st.z < D - 1) { st.z++; moved = true; }                                                   // 부력(z) — 소산 극단이 떠오름(R 침강의 짝)
+      /* step-0036 별 하강·일생: 연료 잔량이 starFallThresh 분율 아래로 떨어진 *죽어가는* 별은 부력을 잃고 가라앉는다(z↓·z=0 까지).
+       * 부력 = 활성도(연료)의 함수 — 高연료=떠오름(rise)·쇠퇴=가라앉음(fall). 하강 중에도 계속 타므로(위 방출) 방출 E 가 하강 경로를 따라 내려가 해시에 잡힌다.
+       * fall=0 이면 dying 늘 거짓 → 상승 분기 `!dying` 항상 참(0035 무변경)·하강 분기 미진입(회귀 0). rise 위에 얹힘: st.z 없으면(rise off) dying 거짓. */
+      var dying = (fall !== 0 && st.z !== undefined && st.fuel < fallFuel);
+      if (rise && canMove && !dying && st.z < D - 1) { st.z++; moved = true; }                                        // 부력 상승(z) — 연료 충분한 별이 떠오름(R 침강의 짝)
+      else if (dying && canMove && st.z > 0) { st.z--; moved = true; }                                                // 하강·일몰(z) — 연료 쇠한 별이 가라앉음(상승의 역·활성도 궤적 완성)
       if (moved) {
         st.x = nx; st.y = ny;
         if (st.z !== undefined) { st.center = (st.z * H + ny) * W + nx; st.cells = K.discCells3(W, H, D, nx, ny, st.z, p.starR); }   // 3D ball(부력 별 — 제 z 에서 방출)
