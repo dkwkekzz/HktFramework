@@ -273,7 +273,7 @@
     gl.uniform1i(u.uE, 0);
     gl.uniformMatrix4fv(u.uMVP, false, MVP);
     gl.uniform1f(u.uSat, R.sat); gl.uniform1f(u.uHS, HS); gl.uniform1f(u.uSatR, R.satR);
-    if (world) { gl.uniform1f(u.uSatA, R.satA); gl.uniform3f(u.uEye, eye[0], eye[1], eye[2]); gl.uniform1f(u.uTime, now() * 0.001); }   // 물 프레넬/글린트 시선벡터 + ∇E flowmap 이류 시간
+    if (world) { gl.uniform1f(u.uSatA, R.satA); gl.uniform3f(u.uEye, eye[0], eye[1], eye[2]); gl.uniform1f(u.uTime, (now() - R.t0) * 0.001); }   // 물 프레넬/글린트 시선벡터 + ∇E flowmap 이류 시간(세션 상대)
     gl.uniform2i(u.uDim, R.W, R.H);
     gl.uniform3f(u.uLight, 0.421, 0.781, 0.461);
     gl.depthMask(true); gl.disable(gl.BLEND);
@@ -911,6 +911,7 @@
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.043, 0.051, 0.064, 1);
     R.W = 0; R.H = 0; R.sat = 8; R.satR = 1.5; R.satA = 1e-6;
+    R.t0 = now();                                          // 애니메이션 시간 기준점 — uTime 을 세션 상대(작은 값)로 묶어 float32 정밀도 보존(긴 세션·Date.now 폴백 대비)
   }
 
   /* 격자 크기에 맞춘 정적 버퍼 — 정점=셀 중심(W·H개), 인덱스=쿼드 2삼각형. 크기가 바뀌면 재생성
