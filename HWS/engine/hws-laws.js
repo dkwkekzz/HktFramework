@@ -259,6 +259,11 @@
                           //   아래가 고체 지면(R≥collapseThresh)이면 안착(안 떨어짐) → R 이 바닥부터 *쌓인다*(지지 게이트의 역게이트 — 같은 문턱 collapseThresh). z 오름차순 단일 패스(한 tick 한 칸 낙하 = 침전 속도 유한, gravity 와 같은 정신).
                           //   D=1 이면 z 이웃이 없어(z=0 바닥 벽) 통째 early-return = kCollapse 값 무관 비트 동일(이중 가드). 방향 상수(아래)는 gravity 처럼 *법칙의 상수*지 전역 조율자 아님(판정은 z−1 로컬 한 칸 — 척추 ③). R↔R 쌍 거래라 보존(척추 ④ — 비가역 낙하라도 양 보존).
     collapseThresh: 0.5,  // 붕괴 지지 문턱 — 아래 칸 R 이 이 값 *미만*이면 비지지(떨어짐), 이상이면 지지(안착). supportThresh(침착 게이트)·occludeThresh(차폐)와 같은 척도(지면=고체 R 의 기준 통일). 붕괴 *위치*만 거르므로 결정론·장부 무관(R↔R 쌍 거래).
+    /* ── step-0035: 별 부력 상승(VOXEL.md V5+ — 소산 극단[별]이 떠올라 高z 하늘 배회=태양. step-0034 저장 극단[R] 침강의 짝 — 활성도 축이 연직축) ── */
+    kStarRise: 0,         // 별 부력 상승률(매 tick z 상승 칸수). 0 = off = 직전 step(V5+ 붕괴) 비트 동일(별이 z 미설정·2D disc 방출·서행만 — `rise` 게이트로 z 코드 미진입 → 골든 무관). >0 이면 on:
+                          //   점화한 별(소산 극단·활성도 최고)이 z=0(지면, R 핵)에서 태어나 매 tick 천장(z=D−1)까지 *떠오른다*(부력). 제 z 의 3D ball(discCells3)로 E 방출 → 높이서 뿜은 E 를 중력(V3 kGravity)이 아래로 끌어내려 *비처럼* 내린다 = **태양**.
+                          //   step-0034 붕괴(저장 R 침강)와 *대칭*: 저장 극단은 가라앉고(R collapse) 소산 극단은 떠오른다(star rise) → 활성도 연속축(SPINE 결정2)이 *연직 z 축*으로 실현(저장 아래·소산 위, 측정 아닌 동역학으로 창발). FSM on 이면 living(정지)→burning 부터 상승(kindling 은 지면서 차오름). 위치만 바꿈(거래 0) — 장부 무관.
+                          //   D=1 이면 D−1=0 이라 st.z<0 거짓 = 상승 0(이중 가드). 방향(위)은 scan-order 류 법칙 상수지 전역 조율자 아님(제 z 만 본다). 별이 천장 도달 후엔 거기서 서행(하늘 배회).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -637,11 +642,13 @@
     var p = sim.p; if (p.kIgnite === 0) return;
     var E = sim.E, R = sim.R, W = p.W, H = p.H, stars = sim.stars;
     var starRate = p.starRate, dPer = p.starDriftPeriod;
+    var rise = p.kStarRise, D = p.D || 1;                     // step-0035 부력: rise=0 이면 아래 z 코드 미진입(별 z 미설정·2D 경로 = 회귀 0)
     /* 1. 각 별의 한 tick: 주입(연료→E, disc — sim.injected 로 경계 추적) → 소진 판정 → 서행(정한 방향 주기마다 한 칸).
      *    별은 *외부 질량(연료)을 태워 장에 주입하며 서행하는 채식지*다 — 생명이 그 E 봉우리를 쫓는다(churn 엔진). */
     var alive = [], fsm = p.kFSM !== 0;
     for (var s = 0; s < stars.length; s++) {
       var st = stars[s], cells = st.cells, nc = cells.length;
+      if (rise && st.z === undefined) st.z = 0;                 // step-0035 부력 안전 초기화(런 도중 켠 경우) — rise=0 이면 미진입(회귀)
       if (st.state === 2) {                                     // 재(ash) — 식는 ember: 주입 0·정지. ASH_LINGER tick 머물다 제거(비가역·불응기).
         if (++st.ashAge >= ASH_LINGER) { sim.starDeaths++; continue; }   //   점화 슬롯을 점유해 그 자리 재점화를 막는다(흥분성 매질 refractory).
         alive.push(st); continue;
@@ -658,9 +665,15 @@
       /* 서행 — burning 만 떠돈다(FSM on). living(kindling)은 정지해 핫코어를 쌓고, FSM off 면 늘 떠돈다(비트 동일).
        * 위치만 바꿈(거래 0). 점화 시 정한 방향으로 주기마다 한 칸 — 서행 봉우리를 생명이 따라온다. */
       st.age++;
-      if (st.age % dPer === 0 && (st.state === undefined || st.state === 1)) {
-        var nx = (st.x + st.vx + W) % W, ny = (st.y + st.vy + H) % H;
-        st.x = nx; st.y = ny; st.center = ny * W + nx; st.cells = K.discCells(W, H, nx, ny, p.starR);
+      /* 서행(xy, 주기마다) + 부력 상승(z, 매 tick 한 칸·천장까지, step-0035) — burning/FSM-off 만(living kindling 은 지면서 차오름).
+       * rise=0 이면 st.z 미설정 → 아래 else 의 2D disc 경로·dPer 마다만 recompute = 직전 step 비트 동일(회귀 0). */
+      var canMove = (st.state === undefined || st.state === 1), nx = st.x, ny = st.y, moved = false;
+      if (canMove && st.age % dPer === 0) { nx = (st.x + st.vx + W) % W; ny = (st.y + st.vy + H) % H; moved = true; }   // 서행(xy)
+      if (rise && canMove && st.z < D - 1) { st.z++; moved = true; }                                                   // 부력(z) — 소산 극단이 떠오름(R 침강의 짝)
+      if (moved) {
+        st.x = nx; st.y = ny;
+        if (st.z !== undefined) { st.center = (st.z * H + ny) * W + nx; st.cells = K.discCells3(W, H, D, nx, ny, st.z, p.starR); }   // 3D ball(부력 별 — 제 z 에서 방출)
+        else { st.center = ny * W + nx; st.cells = K.discCells(W, H, nx, ny, p.starR); }                                            // 2D disc(회귀 경로 — rise=0)
       }
       alive.push(st);
     }
@@ -689,6 +702,7 @@
         var d = STAR_DIR[K.tumbleHash(bx, by, sim.tick, sim.seed) & 3];
         var ns = { x: bx, y: by, center: bi, fuel: p.starFuel0, cells: K.discCells(W, H, bx, by, p.starR),
           vx: d[0], vy: d[1], age: 0, bornTick: sim.tick };
+        if (rise) { ns.z = 0; ns.cells = K.discCells3(W, H, D, bx, by, 0, p.starR); }   // step-0035: 부력 별은 z=0(지면 R 핵)에서 점화해 떠오른다. 3D ball 방출(rise=0 이면 z 필드 없음=2D=회귀).
         if (p.kFSM !== 0) { ns.state = 0; ns.burnMul = p.livingFrac; }   // FSM on: 갓 점화 = living(kindling). off: 필드 없음(회귀).
         stars.push(ns);
         sim.starBirths++;
