@@ -197,6 +197,18 @@ function seedSunCore(sim) {                                            // z=0 �
 function fallArena(extra) {
   return sunArena(Object.assign({ kStarFall: 1, starFallThresh: 0.5 }, extra || {}));
 }
+/* 태양빛 비 3D 아레나(step-0037 V5+ *통합*) — fallArena(=0036 별 일생) 위에 중력(kGravity=0.2)을 켠다. step-0037/verify.js rainArena() 와 동일 상수.
+ * 별이 z=0 R 핵서 떴다 지며(0036) 高z 에서 뿌린 E 를 중력(V3)이 z=0 바닥으로 끌어내려 고이게 한다 = 바다(별빛→비→바다). 이 step 은 법칙 무변경 — 두 기존 법칙(ignite 별 일생·gravity)의 *합성*.
+ * fall@(kGravity=0)는 중력 미커버(방출 E 가 제자리) → 이 rain@ 가 별빛+중력 통합 본문(高z 방출 E 가 바닥에 고이는 합성 경로)을 동결한다(드리프트 가드). step-0038~ 회귀 앵커: 새 노브=0 이면 이 해시 불변. */
+function rainArena(extra) {
+  return fallArena(Object.assign({ kGravity: 0.2 }, extra || {}));
+}
+/* 별 죽음·일몰사 3D 아레나(step-0038 V5+) — fallArena(=0036 별 일생) 위에 일몰사(kStarSet=1)를 켠다. step-0038/verify.js deathArena() 와 동일 상수.
+ * 떠올랐다 다시 지는 별이 z=0(지평선)에 닿으면 꺼지고, 빈 starCap 자리에 R 핵서 다음 별이 난다(出沒生死 순환). 새 노브 kStarSet 게이트.
+ * fall@(kStarSet=0)는 일몰사 미커버(진 별이 z=0 서 계속 탐) → 이 death@ 가 일몰사 본문(떴다 진 별의 z=0 소멸·세대 재점화)을 동결(드리프트 가드). step-0039~ 회귀 앵커: 새 노브=0 이면 이 해시 불변. */
+function deathArena(extra) {
+  return fallArena(Object.assign({ kStarSet: 1 }, extra || {}));
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -573,6 +585,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // fall@ — 별 하강·일생 3D 아레나(step-0036 V5+ *실활성*: D=8 voxel, z=0 R 핵 + 별 점화·부력[kStarRise=1]·하강[kStarFall=1], 중력 off → 별이 떠올랐다 연료 쇠퇴로 가라앉으며 방출). sun@(kStarFall=0)는 하강 본문 미커버 — 이 키가 하강 중 방출(E 분포가 하강 경로 따라 내려가는 본문)을 동결. step-0037~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
     var a = ENG.createSim(seed, fallArena()); seedSunCore(a); ENG.run(a, 200);
     cur['fall@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // rain@ — 태양빛 비 3D 아레나(step-0037 V5+ *통합*: fallArena[=0036 별 일생] 위에 중력[kGravity=0.2] 켬 → 별이 떴다 지며 高z 에서 뿌린 E 를 중력이 z=0 바닥으로 끌어내려 고이게 함=바다). 이 step 은 법칙 무변경 — fall@(kGravity=0)는 중력 미커버 → 이 키가 별빛+중력 합성 경로(高z 방출 E 가 바닥에 고임)를 동결. step-0038~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, rainArena()); seedSunCore(a); ENG.run(a, 200);
+    cur['rain@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // death@ — 별 죽음·일몰사 3D 아레나(step-0038 V5+: fallArena[=0036 별 일생] 위에 일몰사[kStarSet=1] 켬 → 떴다 진 별이 z=0[지평선] 닿으면 꺼지고 R 핵서 다음 별 점화=세대 순환). fall@(kStarSet=0)는 일몰사 미커버(진 별이 z=0 서 계속 탐) → 이 키가 일몰사 본문(z=0 소멸·재점화)을 동결. step-0039~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, deathArena()); seedSunCore(a); ENG.run(a, 200);
+    cur['death@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

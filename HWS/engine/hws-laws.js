@@ -270,6 +270,10 @@
                           //   완성하는 그림: 별이 z=0(R 핵)서 나(0035 birth)→연료 충분하면 천장까지 떠오르고(0035 rise·prime)→연료가 fallThresh 아래로 쇠하면 도로 가라앉는다(0036 set·일몰). 활성도 연속축(SPINE 결정2)이 *연직 궤적*으로: 高활성(연료 충분)=떠오름·쇠퇴(연료 부족)=가라앉음 — authored "별=위" 분기가 아니라 *활성도의 함수*로 z 가 정해진다.
                           //   회귀(이중 가드): kStarFall=0 → fall=0 → dying=false(상승 분기 `!dying` 항상 참 = 0035 무변경·하강 분기 미진입). D=1 이면 st.z=0 고정(상승도 하강도 z 벽에 막힘) = 비트 동일. *부력 상승(kStarRise) 위에 얹힌다* — 떠오른 별(st.z 존재)만 가라앉을 수 있다(rise off 면 st.z 미설정 → dying=false).
     starFallThresh: 0.5,  // 하강 개시 연료 분율(0~1, kStarFall>0 일 때만 의미). 연료 < starFuel0·starFallThresh 면 부력 상실(죽어가는 별). 0.5 = 절반 태우면 진다. (collapseThresh·occludeThresh 처럼 게이트에 딸린 문턱.)
+    /* ── step-0038: 별 죽음·일몰사(VOXEL.md V5+ — 0036 하강 + 0013 FSM ash 연계. 0036 은 진 별이 z=0 서 *계속 탔다*[정직한 한계]. 떴다 진 별이 바닥[지평선]에 닿으면 *꺼진다* → 활성도 축이 *닫힌 궤적*으로) ── */
+    kStarSet: 0,          // 별 일몰사 게이트. 0 = off = 직전 step(0037 통합) 비트 동일(setDeath=0 → 죽음 코드 미진입·st.rose 미설정 → 골든 무관). >0 이면 on:
+                          //   *떠올랐다(st.rose) 다시 지는(dying)* 별이 바닥(z=0, 지평선)에 닿으면 꺼진다(FSM on=ash 불응기·off=즉시 제거). 연료가 남아도 *짐(set)* 자체가 죽음 — born(z=0)→천장→set(z=0)→死 로 활성도 궤적이 *닫힌다*(소산 극단이 저장 바닥에 안착=소산 정체성 상실, SPINE 결정2·3). starCap 자리가 비어 R 핵서 *다음 별*이 점화 → 세대 순환(出沒生死).
+                          //   회귀(이중 가드): kStarSet=0 → 죽음·st.rose 미진입(0037 무변경). D=1·rise off → st.z 가 1 못 됨(z 벽/미설정) → st.rose 안 켜짐 → 죽음 미발생 = 비트 동일. *부력 상승·하강(kStarRise·kStarFall) 위에 얹힌다* — 떠올랐다 지는 별만 죽는다. hashState 는 st.rose·st.z 미해싱(x·y·fuel·state 만) — st.rose 는 게이트로만 산다.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -650,6 +654,7 @@
     var starRate = p.starRate, dPer = p.starDriftPeriod;
     var rise = p.kStarRise, D = p.D || 1;                     // step-0035 부력: rise=0 이면 아래 z 코드 미진입(별 z 미설정·2D 경로 = 회귀 0)
     var fall = p.kStarFall, fallFuel = p.starFuel0 * p.starFallThresh;   // step-0036 하강·일생: fall=0 이면 dying 늘 false → 상승 분기 무변경·하강 미진입(회귀 0)
+    var setDeath = p.kStarSet;                                // step-0038 일몰사: 0 이면 죽음·st.rose 미진입(0037 비트 동일). 떴다 진 별(st.rose+dying)이 z=0 닿으면 꺼짐.
     /* 1. 각 별의 한 tick: 주입(연료→E, disc — sim.injected 로 경계 추적) → 소진 판정 → 서행(정한 방향 주기마다 한 칸).
      *    별은 *외부 질량(연료)을 태워 장에 주입하며 서행하는 채식지*다 — 생명이 그 E 봉우리를 쫓는다(churn 엔진). */
     var alive = [], fsm = p.kFSM !== 0;
@@ -686,6 +691,15 @@
         st.x = nx; st.y = ny;
         if (st.z !== undefined) { st.center = (st.z * H + ny) * W + nx; st.cells = K.discCells3(W, H, D, nx, ny, st.z, p.starR); }   // 3D ball(부력 별 — 제 z 에서 방출)
         else { st.center = ny * W + nx; st.cells = K.discCells(W, H, nx, ny, p.starR); }                                            // 2D disc(회귀 경로 — rise=0)
+      }
+      /* step-0038 별 죽음·일몰사: 떠올랐다(st.rose) 다시 지는(dying) 별이 바닥(z=0, 지평선)에 닿으면 꺼진다 — 0036 하강 + 0013 FSM ash 연계.
+       * setDeath=0 이면 st.rose 미설정·죽음 미진입(0037 비트 동일). D=1·rise off 면 st.z 가 1 못 됨 → rose 안 켜짐 → 죽음 미발생(이중 가드).
+       * 활성도 축이 *닫힌 궤적*: 소산 극단(별)이 저장 바닥(z=0)에 안착 = 소산 정체성 상실 = 死(SPINE 결정2·3·국소 z 문턱). 빈 starCap 자리에 R 핵서 다음 별 점화 → 세대 순환. 연료 남아도 *짐* 자체가 죽음. */
+      if (setDeath !== 0 && st.z !== undefined && st.z >= 1) st.rose = 1;   // 떠오른 적 표시(부력으로 z≥1 도달). 게이트로만 산다(hashState 미해싱). D=1·rise off 면 안 켜짐.
+      if (setDeath !== 0 && st.rose && dying && st.z === 0) {               // 일몰사 — 떴다 지는 별이 지평선(z=0)에 닿음
+        if (fsm) { st.state = 2; st.burnMul = 0; st.ashAge = 0; alive.push(st); }   // FSM on: ash 불응기(기존 소진사와 같은 경로)
+        else sim.starDeaths++;                                                       // FSM off: 즉시 제거(alive 에 안 넣음)
+        continue;
       }
       alive.push(st);
     }
