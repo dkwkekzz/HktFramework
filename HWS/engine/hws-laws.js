@@ -252,6 +252,13 @@
                           //   gravity 가 아래(z−1) 칸으로 E 를 밀기 전, 그 칸 R≥occludeThresh 면 하향 유출을 *차단*(E 가 못 내려가 위에 고임). 옆으로 우회는 확산(①)이 담당 — 바다가 지면 *위에* 고인다.
                           //   D=1 이면 gravity 자체가 z 벽으로 early-return = kOcclude 값 무관 비트 동일(이중 가드). V3 중력(바다)을 *완성* — E 가 지면(R)을 통과 못 한다. 판정은 z−1 로컬 한 칸(척추 ③).
     occludeThresh: 0.5,   // 차폐 문턱 — 아래 칸 R 이 이 값 이상이면 하향 유출 차단(지면=고체). 빈칸(R=0)은 항상 통과. =0 으로 내리면 R=0 빈칸도 R≥0 참이라 전부 차단(중력 무효 — 대조용 극단). 차폐 *판정*만(양 안 바꿈 → 장부 무관).
+    /* ── step-0034: 부유 R 붕괴(VOXEL.md V5+ — 지지 잃은 R[공중 바위]이 아래로 무너진다. V4 지지 침착의 *동역학* 짝) ── */
+    kCollapse: 0,         // 부유 R 붕괴 마스터(붕괴율 0~1). 0 = off = 직전 step(V5) 비트 동일(collapse 가 통째로 early-return → R 불변 → coll@ 가법 skip·골든 무관). >0 이면 on:
+                          //   각 셀(z≥1)이 *아래(z−1) 칸이 비지지*(R<collapseThresh = 빈칸/물렁)면 제 R 의 kCollapse 비율을 아래로 떨군다(donor-제한 R↔R 쌍 거래 — 비율이라 음수 없음·보존).
+                          //   V4(지지 침착)는 R 이 *생길 때* 지지 없는 칸에 안 굳게 막았다(정적). V5+(붕괴)는 *이미 떠 있는* R(지지가 사라졌거나 다른 법칙이 공중에 깐)을 *무너뜨린다*(동역학) — 둘이 짝지어 R 의 중력이 완성된다.
+                          //   아래가 고체 지면(R≥collapseThresh)이면 안착(안 떨어짐) → R 이 바닥부터 *쌓인다*(지지 게이트의 역게이트 — 같은 문턱 collapseThresh). z 오름차순 단일 패스(한 tick 한 칸 낙하 = 침전 속도 유한, gravity 와 같은 정신).
+                          //   D=1 이면 z 이웃이 없어(z=0 바닥 벽) 통째 early-return = kCollapse 값 무관 비트 동일(이중 가드). 방향 상수(아래)는 gravity 처럼 *법칙의 상수*지 전역 조율자 아님(판정은 z−1 로컬 한 칸 — 척추 ③). R↔R 쌍 거래라 보존(척추 ④ — 비가역 낙하라도 양 보존).
+    collapseThresh: 0.5,  // 붕괴 지지 문턱 — 아래 칸 R 이 이 값 *미만*이면 비지지(떨어짐), 이상이면 지지(안착). supportThresh(침착 게이트)·occludeThresh(차폐)와 같은 척도(지면=고체 R 의 기준 통일). 붕괴 *위치*만 거르므로 결정론·장부 무관(R↔R 쌍 거래).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -368,6 +375,31 @@
         if (occ !== 0 && R[below + k] >= oth) continue;   // 아래 칸이 R(지면)로 막힘 → 하향 유출 차단(E 가 위에 고임 = 바다가 지면 위에). 옆으로 우회는 확산(①)이 담당.
         var flow = e * kG;                                // 하향 유출(제 E 의 비율 → donor-제한, 음수 없음)
         E[i] = e - flow; E[below + k] += flow;            // 쌍 거래(셀↔아래 셀) — 보존
+      }
+    }
+  }
+
+  /* ①c 부유 R 붕괴(collapse, step-0034, VOXEL.md V5+) — kCollapse=0 이면 통째로 건너뜀(회귀 0, R 불변 → 골든 해시 가법 skip).
+   * VOXEL.md V-C(R 의 중력)의 *동역학 짝*: V4(지지 침착, ⑤crystallize 게이트)는 R 이 *생길 때* 지지 없는 칸에 안 굳게 막았다(정적 — 처음부터 공중 바위가 안 생김).
+   *   그러나 *이미 떠 있는* R — 풍화·다른 침착 법칙(turing·덴드라이트)이 공중에 깐 R, 또는 아래 지지가 사라진 R — 은 V4 가 손대지 않는다. 이 step 은 그 *부유 R 을 무너뜨린다*: 아래(z−1)가 비지지면 제 R 을 아래로 떨군다.
+   * gravity(①g, E 의 중력)와 *같은 골격*이되 옮기는 양이 E 가 아니라 R 이고, 게이트가 *역방향*이다 —
+   *   gravity: 아래가 *고체*(R≥occludeThresh)면 *막힘*(E 는 고체 위에 고임=바다). collapse: 아래가 *비지지*(R<collapseThresh)면 *떨어짐*(R 은 지지 위에 쌓임=지면). 같은 문턱 척도(고체 R 기준 통일).
+   * scan: z 오름차순 단일 패스 — 이번 tick 한 칸만 내려간다(z+1→z 로 새로 온 R 은 z 가 이미 처리됐으므로 다음 tick 에야 또 내려감 = 낙하 속도 유한). z=0 은 바닥 벽(더 못 떨어짐 — 받기만 하는 안착 자리).
+   * 척추: 새 *필드* 없음(R 은 기존 저장상 — 단일 척추) · authored 분기 없음(R 의 낙하 *속도*만 — 개체 종류 안 만듦, gravity 와 같은 정신·활성도 환원) · 국소 문턱(제 z−1 아래 한 칸 R 만 — 전역 수면고·지형맵 같은 조율자 0) ·
+   *   닫힌 장부(R↔R 쌍 거래 — 나간 만큼 들어옴, 보존; 낙하는 비가역이라도 양 보존 = 비가역≠비보존). D=1 이면 z 이웃 없어 루프 비어 산술 0 = 회귀(이중 가드). 결정론(Math.random 0 — 방향은 법칙 상수).
+   * ①c: ①g gravity *뒤* — 두 중력 항을 묶는다(E 가 가라앉고[①g], R 이 무너진다[①c]). gravity 처럼 결정화(⑤) 앞이라 이번 tick 붕괴는 직전 tick R 형상에 작용(낙하 속도 유한, 일관). */
+  function collapse(sim) {
+    var p = sim.p; if (p.kCollapse === 0) return;
+    var D = p.D || 1; if (D < 2) return;                  // z 이웃 없음(D=1) = 회귀 0 (이중 가드: 노브=0 또는 z 벽)
+    var R = sim.R, WH = p.W * p.H, kC = p.kCollapse, cth = p.collapseThresh;
+    for (var z = 1; z < D; z++) {                         // z=0 은 바닥 벽(아래 없음) — 받기만 하는 안착 자리(R 이 바닥부터 쌓임)
+      var zb = z * WH, below = zb - WH;
+      for (var k = 0; k < WH; k++) {
+        var i = zb + k, r = R[i];
+        if (r <= 0) continue;
+        if (R[below + k] >= cth) continue;                // 아래가 고체 지면(지지) → R 안착(안 떨어짐). 미만이면 비지지 → 떨어짐(공중 바위 붕괴)
+        var flow = r * kC;                                // 하향 낙하(제 R 의 비율 → donor-제한, 음수 없음)
+        R[i] = r - flow; R[below + k] += flow;            // R↔R 쌍 거래(셀↔아래 셀) — 보존
       }
     }
   }
@@ -1342,7 +1374,7 @@
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ①g 중력 구배(gravity)는 ①diffuse 바로 뒤·②evaporate 앞 — 확산이 옮긴 E 위에 *하향 침전*을 얹는다(흐름 단계: 등방 확산[V2] + 비등방 중력[V3]). E 하향 쌍 거래라 장부 불변.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, gravity, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, gravity, collapse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
