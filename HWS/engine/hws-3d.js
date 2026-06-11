@@ -217,7 +217,8 @@
     ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
     var Pm = mPersp(cam.fov, 1, 0.5, 800);                  // 뷰포트는 늘 정사각 → aspect=1 (분할 무관)
-    var Vm = mLookAt(camEye(), [cam.cx + cam.tx, 0, cam.cz + cam.tz], [0, 1, 0]);
+    var eye = camEye();                                     // 월드 카메라 위치 — 세계 해석 셰이더 프레넬/글린트 시선벡터
+    var Vm = mLookAt(eye, [cam.cx + cam.tx, 0, cam.cz + cam.tz], [0, 1, 0]);
     var MVP = mMul(Pm, Vm);
     gl.viewport(0, 0, glcv.width, glcv.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -238,16 +239,31 @@
       gl.bufferData(gl.ARRAY_BUFFER, R.agArr.subarray(0, need), gl.DYNAMIC_DRAW);
       agN = ag.length;
     }
+    /* ── 별(구동) FSM 점 — 내생 별의 연소 상태(state: 0=living/kindling·1=burning·2=ash)를 *이산 재질*로 읽는다(RENDER §5 빛).
+     * 필드 없으면 no-op: kIgnite=0 이면 sim.stars 빈 배열 → stN=0 → 그리지 않음(골든/스모크 불변). FSM off(state undefined)면 풀가동=burning(1). ── */
+    var stz = sim.stars || [], stN = 0;
+    if (stz.length) {
+      var sneed = stz.length * 4;                          // (x, y, state, fuel)
+      if (!R.stArr || R.stArr.length < sneed) R.stArr = new Float32Array(Math.max(64, sneed * 2));
+      for (var si = 0; si < stz.length; si++) {
+        var s0 = stz[si];
+        R.stArr[si * 4] = s0.x; R.stArr[si * 4 + 1] = s0.y;
+        R.stArr[si * 4 + 2] = (s0.state === undefined ? 1 : s0.state); R.stArr[si * 4 + 3] = s0.fuel || 0;
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
+      gl.bufferData(gl.ARRAY_BUFFER, R.stArr.subarray(0, sneed), gl.DYNAMIC_DRAW);
+      stN = stz.length;
+    }
     /* ── 패스: 위 = 에너지 변위(원본 렌즈), (분할 시) 아래 = 세계 해석(활성도 분류 렌즈).
      * GL 뷰포트 원점은 좌하단 → 위 뷰포트가 vy=CV_SIZE, 아래가 vy=0. 비분할이면 단일 뷰포트 vy=0. ── */
-    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm);
-    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm);
+    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye, stN);
+    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);
     drawHud(sim, split);
   }
 
   /* 한 뷰포트에 지형(prog 선택)+오버레이 라인+생명 점을 그린다. 버퍼·텍스처는 호출 전 업로드됨.
    * world=false → 에너지 변위 셰이더(progT, 원본), true → 세계 해석 셰이더(progW, 활성도 분류). */
-  function drawView(vy, world, MVP, lnCount, agN, glcv, Pm) {
+  function drawView(vy, world, MVP, lnCount, agN, glcv, Pm, eye, starN) {
     var gl = S.gl;
     gl.viewport(0, vy, CV_SIZE, CV_SIZE);                   // 뷰포트가 색·깊이 쓰기를 이 사각으로 한정(위·아래 충돌 없음)
     /* ① 지형(하이트필드) */
@@ -257,7 +273,7 @@
     gl.uniform1i(u.uE, 0);
     gl.uniformMatrix4fv(u.uMVP, false, MVP);
     gl.uniform1f(u.uSat, R.sat); gl.uniform1f(u.uHS, HS); gl.uniform1f(u.uSatR, R.satR);
-    if (world) gl.uniform1f(u.uSatA, R.satA);
+    if (world) { gl.uniform1f(u.uSatA, R.satA); gl.uniform3f(u.uEye, eye[0], eye[1], eye[2]); gl.uniform1f(u.uTime, (now() - R.t0) * 0.001); }   // 물 프레넬/글린트 시선벡터 + ∇E flowmap 이류 시간(세션 상대)
     gl.uniform2i(u.uDim, R.W, R.H);
     gl.uniform3f(u.uLight, 0.421, 0.781, 0.461);
     gl.depthMask(true); gl.disable(gl.BLEND);
@@ -284,6 +300,19 @@
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
       gl.depthMask(false);
       gl.drawArrays(gl.POINTS, 0, agN);
+    }
+    /* ④ 별 FSM(이산 재질) — kindling(어두운 응결핵)·burning(백열)·ash(식은 회색)로 이산 분기(lerp 0), 가산 발광 */
+    if (starN) {
+      gl.useProgram(R.progS);
+      gl.uniform1i(R.uS.uE, 0);
+      gl.uniformMatrix4fv(R.uS.uMVP, false, MVP);
+      gl.uniform1f(R.uS.uSat, R.sat); gl.uniform1f(R.uS.uHS, HS);
+      gl.uniform2i(R.uS.uDim, R.W, R.H);
+      gl.uniform1f(R.uS.uPx, Pm[5] * CV_SIZE / 2);
+      gl.bindVertexArray(R.vaoS);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+      gl.depthMask(false);
+      gl.drawArrays(gl.POINTS, 0, starN);
     }
     gl.depthMask(true); gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
@@ -598,13 +627,14 @@
     '  if (t<0.5){ float u=t*2.0; return vec3(10.0+30.0*u,15.0+90.0*u,40.0+160.0*u)/255.0; }',
     '  float v=(t-0.5)*2.0; return vec3(40.0+215.0*v,105.0+120.0*v,200.0-60.0*v)/255.0;',
     '}',
-    'vec3 storeCol(float tag){',                            // 저장체 색 — 유전형 태그면 클론 색(2D GENE_COL 일관), 0 이면 호박색(무유전)
+    'vec3 storeCol(float tag){',                            // 저장체 색 — 유전형 태그 → 절차적 해시 색(혈통 무한 분화·팔레트 캡 제거, RENDER §4). 0 이면 호박색(무유전)
     '  int g=int(tag+0.5);',
-    '  if (g==1) return vec3(0.910,0.376,0.376);',          // tag1(저적합) 빨강
-    '  if (g==2) return vec3(0.471,0.784,0.376);',          // tag2 초록
-    '  if (g==3) return vec3(0.376,0.659,0.910);',          // tag3 파랑
-    '  if (g>=4) return vec3(0.784,0.439,0.878);',          // tag4(고적합) 보라
-    '  return vec3(0.784,0.608,0.416);',                    // 0 = 무유전 호박색(G 없는 step 은 늘 이 경로 → 과거 렌더 불변)
+    '  if (g<=0) return vec3(0.784,0.608,0.416);',          // 0 = 무유전 호박색(G 없는 step 은 늘 이 경로 → 과거 렌더 불변)
+    '  float h=fract(float(g)*0.6180339887);',              // 황금비 저불일치 색상환 — 인접 혈통도 또렷이 갈림(고정 4색 캡 제거)
+    '  float s=0.55+0.18*fract(float(g)*0.3247);',          // 채도·명도도 약하게 분화 → 같은 색상대 혈통 구분 보강
+    '  float v=0.80+0.15*fract(float(g)*0.7654);',
+    '  vec3 r=clamp(abs(mod(h*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);', // HSV→RGB(hue→rgb)
+    '  return v*mix(vec3(1.0), r, s);',
     '}',
     'void main(){',
     '  int x=int(aCell.x), y=int(aCell.y);',
@@ -628,7 +658,12 @@
    *   렌더러에 허용된 차이는 둘뿐: ① *어느 양이 높이가 되는가*(물질=R 만, 에너지는 흐르든 고이든 빼서 빛·재질로 — §4 "정직한 읽기")
    *   ② *색·재질·빛*(상·조성·밀도·광택·발광 — §3). 높이로 분포를 *재성형*(예: 물 평탄화)하면 §4 가 금지한 형태 author 다.
    * 그래서 높이 = hOf(R) only — 에너지뷰(h=E+R)와 *에너지 전부(E)만큼* 갈린다(RENDER §2: 응축상 R 만 공간 점유).
-   *   흐르는 에너지(고활성 E·A)는 솟지 않고 *빛*으로(별 연소·확산 전선). 고인 물(저활성 E)도 z 를 안 들어올리고 R 위에 *얹혀*(§5) *재질*(파랑·투과·광택)로만 읽는다 — 분포는 그대로(평탄화 0, 그냥 z 에 안 든다).
+   *   흐르는 에너지(고활성 E·A)는 솟지 않고 *빛*으로(별 연소·확산 전선). 고인 물(저활성 E)도 z 를 안 들어올리고 R 위에 *얹혀*(§5) *재질*로만 읽는다 — 분포는 그대로(평탄화 0, 그냥 z 에 안 든다).
+   *   물 렌즈(§5 "물 = R 위 반투명 막"): 바닥 물질색(store·dens)을 깊이(저활성 E)로 흡광 블렌드(Beer-Lambert transmit=exp(-depth·absorb)) — 얕으면 바닥 비침·청록, 깊으면 짙은 남. FS 에서 프레넬(비스듬할수록 표면 반사↑)·시선기반 글린트. 고체는 vWet=0 → 불투명·무광 불변.
+   *   고체 거칠기 렌즈(§5 "지형·거칠기"): R 라플라시안 |∇²R|(고주파 성분)으로 고체 노멀을 미세 변조 — 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈. 높이는 불변(분포 재성형 0), 셰이딩 노멀만(§6 도함수 읽기). 진폭=∇R 거침·방향=셀 해시(서브셀 디테일 절차적). 액체/공허는 rough=0.
+   *   유전형 색 렌즈(§4 "G→색은 절차적"): geneCol/storeCol/geneColP 가 고정 4색 팔레트 대신 *황금비 색상환 해시*(hue=fract(g·φ⁻¹) HSV→RGB) — 혈통이 무한히 갈려도 author 0 으로 색이 분화(고정 팔레트 캡 제거). 무유전(g=0)은 호박색 경로 그대로(과거 렌더 불변).
+   *   파생 바람 렌즈(§5 "파생: 바람·해류"): ∇E(흐름량 중앙차분)로 하류 방향 flowmap 위상을 만들어, FS 에서 uTime 이류 띠로 발광을 변조 — 흐르는 에너지의 *세기*에 더해 *방향*을 보인다. 코어 불변(GPU 파생·도함수 읽기)·분포 author 0. 약한 ∇E/무흐름 셀은 flowVis=1(발광 불변).
+   *   별 FSM 렌즈(§5 빛 "FSM 이산 분기, lerp 금지"): 별 텍스처가 아닌 sim.stars[].state(0 kindling·1 burning·2 ash)를 읽어 *이산 재질* 점(VS_STAR/FS_STAR)으로 — 색·크기·높이가 문턱에서 딱 갈린다(연속 변조 아님). kIgnite=0 이면 stars 빈 배열 → no-op(필드 없으면 안 그림).
    * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
    * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
@@ -639,7 +674,7 @@
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uSatR, uSatA;',
     'uniform ivec2 uDim;',
-    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet;',
+    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out vec3 vWorld; out float vFlowPhase; out float vFlowMag;',
     'float hOf(float e){ return min(uHS*log(1.0+max(e,0.0))/log(1.0+uSat), uHS*2.2); }',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율(소산 극단만 큼)
     'float matH(vec4 t){',                                  // 물질 높이 = hOf(R) only — 에너지(흐르든 고이든)는 z 를 안 만든다. 응축상 R 만 공간을 점유(RENDER §2). 물(고인 E)도 안 솟고 R 위에 얹힌다(§5)
@@ -649,13 +684,23 @@
     '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
     '  return matH(texelFetch(uE, ivec2(x,y), 0));',
     '}',
-    'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 팔레트(2D GENE_COL 일관)
+    'float rAt(int x, int y){',                             // 이웃 R(저장체) — 토러스 wrap (∇R 거칠기용)
+    '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
+    '  return texelFetch(uE, ivec2(x,y), 0).g;',
+    '}',
+    'float eAt(int x, int y){',                             // 이웃 E(흐름량) — 토러스 wrap (∇E 바람용)
+    '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
+    '  return texelFetch(uE, ivec2(x,y), 0).r;',
+    '}',
+    'float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }', // 셀 해시 → 절차적 미세 노멀 방향
+    'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 절차적 해시(혈통 무한 분화, RENDER §4)
     '  int g=int(tag+0.5);',
-    '  if (g==1) return vec3(0.910,0.376,0.376);',
-    '  if (g==2) return vec3(0.471,0.784,0.376);',
-    '  if (g==3) return vec3(0.376,0.659,0.910);',
-    '  if (g>=4) return vec3(0.784,0.439,0.878);',
-    '  return vec3(0.784,0.608,0.416);',                    // 0 = 무유전(여기선 도달 안 함 — 돌 경로가 가져감)
+    '  if (g<=0) return vec3(0.784,0.608,0.416);',          // 0 = 무유전(여기선 도달 안 함 — 돌 경로가 가져감)
+    '  float h=fract(float(g)*0.6180339887);',              // 황금비 저불일치 색상환
+    '  float s=0.55+0.18*fract(float(g)*0.3247);',
+    '  float v=0.80+0.15*fract(float(g)*0.7654);',
+    '  vec3 r=clamp(abs(mod(h*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);',
+    '  return v*mix(vec3(1.0), r, s);',
     '}',
     'void main(){',
     '  int x=int(aCell.x), y=int(aCell.y);',
@@ -670,31 +715,60 @@
     '  float dens=clamp(Rr/uSatR, 0.0, 1.0);',              // 밀도(R) → 밝기·불투명(고체 전용 함수)
     '  float depth=clamp(log(1.0+max(liquidE,0.0))/log(1.0+uSat),0.0,1.0);', // 깊이(액체 전용 함수, 색으로)
     '  vec3 store=(tag>0.5)? geneCol(tag) : vec3(0.322,0.278,0.247);',       // 조성(G) → 유전=나무/결정, 무유전=돌
-    '  vec3 water=mix(vec3(0.22,0.52,0.60), vec3(0.02,0.09,0.20), depth);',  // 액체: 얕으면 청록·깊으면 짙은 남(깊이=색)
     '  vec3 base; float wet;',
     '  if (isSolid){ base = store*(0.50+0.50*dens); wet=0.0; }',             // 고체 — 밀도로 견고/불투명
-    '  else if (isLiquid){ base = water; wet=1.0; }',                        // 액체 — 광택·투과 재질(FS 에서 반짝)
+    '  else if (isLiquid){',                                                 // 물 = R 위 반투명 막(RENDER §5): 바닥 R 투과 + 깊이 흡광
+    '    vec3 bottom = store*(0.42+0.58*dens);',                             // 물 아래 바닥 물질색(고체와 같은 셰이딩 — 비쳐 보일 대상)
+    '    vec3 absorb = vec3(2.6, 1.15, 0.5);',                               // 색별 흡광계수: 빨강 먼저 죽고 파랑 남음(깊을수록 남빛)
+    '    vec3 transmit = exp(-depth*absorb);',                               // 바닥 투과율(Beer-Lambert) — 얕으면≈1(바닥 비침)·깊으면→0(불투명)
+    '    vec3 deep = vec3(0.02,0.09,0.22);',                                 // 깊은 물 산란색(짙은 남)
+    '    base = bottom*transmit + deep*(1.0-transmit);',                     // 얕으면 바닥 청록 비침 · 깊으면 짙은 남(깊이=흡광색)
+    '    wet=1.0;',                                                          // 액체 — FS 에서 프레넬 반사·글린트
+    '  }',
     '  else { base = vec3(0.018,0.022,0.035); wet=0.0; }',                   // 공허/기체 — 거의 암흑(빈 공간)
     '  vBase=base; vWet=wet;',
-    '  vNormal=normalize(vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1)));', // 법선=물질 기복(분포 그대로)
+    '  vec3 nrm=vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1));', // 법선=물질 기복(분포 그대로)
+    /* 고체 거칠기(RENDER §5) — R 고주파(라플라시안 |∇²R|)로 미세 노멀 변조: 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈.
+     * 높이 불변(분포 재성형 0)·셰이딩 노멀만(§6 도함수 읽기 허용). 진폭=∇R 거침, 방향=셀 해시(서브셀 디테일은 절차적). */
+    '  float lapR = rAt(x+1,y)+rAt(x-1,y)+rAt(x,y+1)+rAt(x,y-1) - 4.0*Rr;',        // R 라플라시안 = 고주파 성분
+    '  float rough = (isSolid ? 1.0 : 0.0) * clamp(abs(lapR)/max(uSatR,1e-3)*1.6, 0.0, 1.0);', // 거칠기(고체만·매끈 R→0)
+    '  vec3 detail = vec3(hash21(aCell)-0.5, 0.0, hash21(aCell+19.7)-0.5);',       // 절차적 미세 facet 방향(셀별)
+    '  vNormal=normalize(nrm + detail*rough*1.3);',                                // 거친 곳만 법선 흔들림 → 무광 암석 질감
     '  vHot=af;',                                           // 색온도(흰빛 정도 — 활성 클수록 흼)
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 세기 = 에너지(흐르는 E·A) — 높이서 뺀 만큼 빛으로
-    '  gl_Position=uMVP*vec4(aCell.x, matH(t), aCell.y, 1.0);', // 높이 = 물질(R) only — 에너지(흐르든 고이든) z 기여 0. 분포 재성형 0(물은 z 서 빠지되 분포 안 건드림)
+    /* ∇E → 파생 바람(RENDER §5 "파생: 바람·해류") — 흐름량 기울기를 읽어 흐르는 에너지의 *방향*을 flowmap 위상으로.
+     * 코어 불변(GPU 파생·도함수 읽기)·분포 author 0 — FS 에서 시간 이류 띠로 발광만 변조(세기에 더해 방향을 보인다). */
+    '  vec2 gradE=vec2(eAt(x+1,y)-eAt(x-1,y), eAt(x,y+1)-eAt(x,y-1));', // ∇E (중앙차분)
+    '  float gmag=length(gradE);',
+    '  vec2 flowDir=(gmag>1e-4)? -gradE/gmag : vec2(0.0);', // 하류 방향(고E→저E = 흐름)
+    '  vFlowPhase=dot(vec2(aCell.x,aCell.y), flowDir)*1.1;', // flowmap 위상 — 흐름 따라 정렬된 띠(FS 에서 시간 이동)
+    '  vFlowMag=clamp(gmag/(uSat*0.15), 0.0, 1.0);',        // ∇E 세기(약하면 무흐름 → 방향 안 보임)
+    '  vec3 wpos=vec3(aCell.x, matH(t), aCell.y);',         // 월드 좌표(FS 프레넬·글린트 시선벡터용)
+    '  vWorld=wpos;',
+    '  gl_Position=uMVP*vec4(wpos, 1.0);',                  // 높이 = 물질(R) only — 에너지(흐르든 고이든) z 기여 0. 분포 재성형 0(물은 z 서 빠지되 분포 안 건드림)
     '}'].join('\n');
 
   var FS_WORLD = [
     '#version 300 es',
     'precision highp float;',
-    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet;',
-    'uniform vec3 uLight;',
+    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in vec3 vWorld; in float vFlowPhase; in float vFlowMag;',
+    'uniform vec3 uLight, uEye;',
+    'uniform float uTime;',
     'out vec4 o;',
     'void main(){',
     '  vec3 N=normalize(vNormal);',
     '  float d=max(dot(N,uLight),0.0);',
     '  vec3 lit=vBase*(0.30+0.70*d);',                      // 물질 = 조명 받는 표면(높이·법선·색)
-    '  float spec=vWet*pow(d, 28.0)*0.8;',                  // 액체 전용 — 광택 하이라이트(물은 반짝·투과 느낌, 고체는 무광)
+    '  vec3 V=normalize(uEye - vWorld);',                   // 시선 벡터(프레넬·글린트용)
+    '  vec3 Rl=reflect(-uLight, N);',                       // 광원 반사 벡터(시선기반 스페큘러)
+    '  float spec=vWet*pow(max(dot(Rl,V),0.0), 40.0)*0.9;', // 액체 전용 — 매끈 표면 글린트(고체는 vWet=0 → 무광)
+    '  float fres=0.02 + 0.98*pow(1.0-max(dot(N,V),0.0), 5.0);', // 프레넬 — 비스듬히 볼수록 반사↑(정면=투과)
+    '  vec3 sky=vec3(0.32,0.46,0.62);',                     // 물이 반사하는 주변광/하늘색
+    '  vec3 surf=mix(lit, sky, fres*vWet);',                // 물만 프레넬 반사(바닥 투과 ↔ 표면 반사 보간), 고체 불변
     '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 뜨거울수록 흰빛
-    '  o=vec4(lit + vec3(spec) + fire*vGlow*1.6, 1.0);',    // 물질 표면 + 물 광택 + 에너지 발광(조명 무관)
+    '  float stripe=0.5+0.5*sin(vFlowPhase - uTime*2.2);',  // ∇E flowmap — 흐름 방향으로 이동하는 밝기 띠(이류)
+    '  float flowVis=mix(1.0, 0.55+0.9*stripe, vFlowMag*vHot);', // 빠른 흐름·강한 ∇E 에서만 방향 드러남(무흐름=1, 발광 불변)
+    '  o=vec4(surf + vec3(spec) + fire*vGlow*1.6*flowVis, 1.0);', // 물질/물 표면 + 글린트 + 에너지 발광(흐름 방향 변조)
     '}'].join('\n');
 
   var VS_POINT = [
@@ -706,14 +780,15 @@
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uPx;',
     'uniform ivec2 uDim;',
-    'out vec3 vCol;',                                       // 유전형 클론 색 → FS 로 전달(geneCol 팔레트, 2D GENE_COL 일관)
-    'vec3 geneColP(float tag){',
+    'out vec3 vCol;',                                       // 유전형 클론 색 → FS 로 전달(geneCol 과 동일 절차적 해시)
+    'vec3 geneColP(float tag){',                            // 생명 점 색 — geneCol 과 동일 절차적 해시(혈통 무한 분화, RENDER §4)
     '  int g=int(tag+0.5);',
-    '  if (g==1) return vec3(0.910,0.376,0.376);',          // tag1 빨강(저적합)
-    '  if (g==2) return vec3(0.471,0.784,0.376);',          // tag2 초록
-    '  if (g==3) return vec3(0.376,0.659,0.910);',          // tag3 파랑
-    '  if (g>=4) return vec3(0.784,0.439,0.878);',          // tag4 보라(고적합)
-    '  return vec3(0.96,0.84,0.40);',                       // 0 = 무유전 → 기존 호박색(과거 step 불변)
+    '  if (g<=0) return vec3(0.96,0.84,0.40);',             // 0 = 무유전 → 기존 호박색(과거 step 불변)
+    '  float hh=fract(float(g)*0.6180339887);',             // 황금비 저불일치 색상환
+    '  float ss=0.55+0.18*fract(float(g)*0.3247);',
+    '  float vv=0.82+0.14*fract(float(g)*0.7654);',         // 점은 발광이라 명도 floor 살짝 높임
+    '  vec3 rr=clamp(abs(mod(hh*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);',
+    '  return vv*mix(vec3(1.0), rr, ss);',
     '}',
     'void main(){',
     '  vec2 t=texelFetch(uE, ivec2(int(aAgent.x),int(aAgent.y)), 0).rg;',
@@ -735,6 +810,44 @@
     '  if (r2>0.25) discard;',
     '  float a=exp(-r2*16.0);',                             // 중심 핵 + 글로우 (가산 블렌딩 전제)
     '  o=vec4(vCol*a, a);',                                 // 유전형 색 발광(무유전은 호박색 — 불변)
+    '}'].join('\n');
+
+  /* ── 별 FSM 점 (RENDER §5 빛 — "FSM 상태로 이산 분기, lerp 금지") — 내생 별의 연소 상태를 *이산 재질*로.
+   * 활성도(A 발광)는 연속 측정이라 *세기*만 비춘다 — FSM 라벨(kindling/burning/ash)은 *질적 상전이*(색·크기·높이가 문턱에서 딱 갈림).
+   * 분포 author 0: 별 위치·상태는 시뮬이 정하고(sim.stars), 렌더러는 상태→재질 분기만 고른다. lerp 없이 정수 state 로 분기. */
+  var VS_STAR = [
+    '#version 300 es',
+    'precision highp float;',
+    'layout(location=0) in vec4 aStar;',                    // (x, y, state, fuel) — state: 0=living/kindling 1=burning 2=ash
+    'uniform sampler2D uE;',
+    'uniform mat4 uMVP;',
+    'uniform float uSat, uHS, uPx;',
+    'uniform ivec2 uDim;',
+    'out vec3 vCol; out float vCore;',                      // 상태 색 + 핵 강도(FS 글로우 모양 — burning 날카로움·ash 흐림)
+    'void main(){',
+    '  int st=int(aStar.z+0.5);',                           // 연소 FSM 상태(이산)
+    '  vec2 t=texelFetch(uE, ivec2(int(aStar.x),int(aStar.y)), 0).rg;',
+    '  float h=min(uHS*log(1.0+max(t.r+t.g,0.0))/log(1.0+uSat), uHS*2.2);',
+    '  float lift; float rad; vec3 col;',
+    '  if (st==1){ col=vec3(1.00,0.92,0.66); lift=0.95; rad=2.0; vCore=1.0; }',    // burning — 백열·크게·솟은 화염(고강도 emissive)
+    '  else if (st==2){ col=vec3(0.30,0.29,0.31); lift=0.16; rad=0.7; vCore=0.22; }', // ash — 식은 회색·작게·가라앉음(불응기 잔불)
+    '  else { col=vec3(0.55,0.16,0.06); lift=0.45; rad=1.1; vCore=0.5; }',         // living/kindling — 어두운 응결핵(저활성·정지)
+    '  vec4 cp=uMVP*vec4(aStar.x, h+lift, aStar.y, 1.0);',
+    '  gl_Position=cp;',
+    '  vCol=col;',
+    '  gl_PointSize=clamp(2.0*rad*uPx/max(cp.w,0.001), 2.0, 80.0);',
+    '}'].join('\n');
+
+  var FS_STAR = [
+    '#version 300 es',
+    'precision highp float;',
+    'in vec3 vCol; in float vCore;',
+    'out vec4 o;',
+    'void main(){',
+    '  vec2 d=gl_PointCoord-0.5; float r2=dot(d,d);',
+    '  if (r2>0.25) discard;',
+    '  float core=exp(-r2*(8.0+24.0*vCore));',              // burning=날카로운 핵+넓은 글로우, ash=흐릿한 잔불
+    '  o=vec4(vCol*core*(0.6+1.4*vCore), core);',           // 상태별 발광 세기(가산 블렌딩 — burning 만 흰빛 블룸)
     '}'].join('\n');
 
   var VS_LINE = [
@@ -761,10 +874,12 @@
     R.progT = mkProg(gl, VS_TERRAIN, FS_TERRAIN);
     R.progW = mkProg(gl, VS_WORLD, FS_WORLD);               // 세계 해석 렌즈(INTERPRET)
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
+    R.progS = mkProg(gl, VS_STAR, FS_STAR);                 // 별 FSM 이산 재질 점(RENDER §5 빛)
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
-    R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight']);
+    R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight', 'uEye', 'uTime']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx']);
+    R.uS = locs(gl, R.progS, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx']);
     R.uL = locs(gl, R.progL, ['uMVP']);
     R.tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, R.tex);
@@ -774,6 +889,7 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     R.vaoT = gl.createVertexArray(); R.bufCell = gl.createBuffer(); R.bufIdx = gl.createBuffer();
     R.vaoP = gl.createVertexArray(); R.bufAg = gl.createBuffer();
+    R.vaoS = gl.createVertexArray(); R.bufStar = gl.createBuffer();
     R.vaoL = gl.createVertexArray(); R.bufLn = gl.createBuffer();
     gl.bindVertexArray(R.vaoP);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
@@ -781,6 +897,10 @@
     gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);   // (x,y,m) stride 16 — 생명 유전형 g 가 4번째 float
     gl.enableVertexAttribArray(1);
     gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);  // a.g(유전형 태그) — geneColP 로 점 색 분기
+    gl.bindVertexArray(R.vaoS);
+    gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 16, 0);   // (x,y,state,fuel) stride 16 — 별 FSM 점
     gl.bindVertexArray(R.vaoL);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufLn);
     gl.enableVertexAttribArray(0);
@@ -791,6 +911,7 @@
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.043, 0.051, 0.064, 1);
     R.W = 0; R.H = 0; R.sat = 8; R.satR = 1.5; R.satA = 1e-6;
+    R.t0 = now();                                          // 애니메이션 시간 기준점 — uTime 을 세션 상대(작은 값)로 묶어 float32 정밀도 보존(긴 세션·Date.now 폴백 대비)
   }
 
   /* 격자 크기에 맞춘 정적 버퍼 — 정점=셀 중심(W·H개), 인덱스=쿼드 2삼각형. 크기가 바뀌면 재생성
