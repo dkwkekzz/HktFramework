@@ -155,6 +155,9 @@
 
   function isView3d() { var el = byId('view3d'); return el ? !!el.checked : true; }
   function isWorld() { var el = byId('worldview'); return el ? !!el.checked : true; }   // 2분할 세계 해석 뷰 on/off
+  /* D>1(3D voxel 세계) 단일 진실 — render·evCell·drawHud 가 공유한다(좌측 레거시 하이트필드 숨김·전체 voxel 픽킹).
+   * 여기 한 곳만 바꾸면 세 곳이 함께 따라온다(예측 술어가 분산돼 어긋나는 것 방지). */
+  function isVoxelWorld() { return (S.sim && S.sim.p ? (S.sim.p.D || 1) : 1) > 1; }
 
   function applyVisibility() {
     if (!S.dom) return;
@@ -290,7 +293,7 @@
      * 보여주기 때문(별이 z 로 떠오르면 z=0 평면이 비어 하이트필드가 오히려 *낮아*져 "가라앉은" 듯 보인다; 반대로
      * 바닥에 머문 별은 z=0 에 E 가 고여 *높아* 보인다 — 고도의 역). 우측 voxel 세계 단일 뷰만(높이=sim-z 정합).
      * D=1(2D)에선 z 축이 없어 레거시 뷰가 유일한 의미라 기존 2분할 토글을 그대로 둔다. */
-    var voxelOnly = D > 1;
+    var voxelOnly = isVoxelWorld();
     var split = !voxelOnly && isWorld();
     ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
@@ -725,11 +728,12 @@
     if (mx < 0 || my < 0 || mx >= r.width || my >= r.height) return null;
     /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 레이 식 동일.
      * D>1(voxelOnly)에선 단일 뷰포트 전체가 voxel 세계 → 항상 voxel 레이캐스트(render 와 동일 분기). */
-    var voxelOnly = (S.sim.p.D || 1) > 1;
+    var voxelOnly = isVoxelWorld();
     var split = !voxelOnly && isWorld();
     var halfCss = split ? r.height / 2 : r.height;          // CSS 높이 기준 한 뷰포트 높이
     var inVoxel = voxelOnly || (split && my >= halfCss);    // voxelOnly=전체 voxel · 분할=하단이 voxel 세계(render 의 vy=0 패스)
-    var localY = inVoxel ? my - halfCss : my;
+    /* 상단 뷰포트가 있을 때만(split 의 하단 voxel) 그 높이를 뺀다. voxelOnly 는 voxel 뷰포트가 캔버스 전체(vy=0·높이 r.height)라 오프셋 0 — my 그대로. */
+    var localY = (inVoxel && split) ? my - halfCss : my;
     var ndcX = mx / r.width * 2 - 1, ndcY = 1 - localY / halfCss * 2;
     return inVoxel ? pickVoxel(ndcX, ndcY) : pick(ndcX, ndcY);
   }
