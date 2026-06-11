@@ -258,7 +258,7 @@
     gl.uniform1i(u.uE, 0);
     gl.uniformMatrix4fv(u.uMVP, false, MVP);
     gl.uniform1f(u.uSat, R.sat); gl.uniform1f(u.uHS, HS); gl.uniform1f(u.uSatR, R.satR);
-    if (world) { gl.uniform1f(u.uSatA, R.satA); gl.uniform3f(u.uEye, eye[0], eye[1], eye[2]); }   // 물 프레넬/글린트 시선벡터
+    if (world) { gl.uniform1f(u.uSatA, R.satA); gl.uniform3f(u.uEye, eye[0], eye[1], eye[2]); gl.uniform1f(u.uTime, now() * 0.001); }   // 물 프레넬/글린트 시선벡터 + ∇E flowmap 이류 시간
     gl.uniform2i(u.uDim, R.W, R.H);
     gl.uniform3f(u.uLight, 0.421, 0.781, 0.461);
     gl.depthMask(true); gl.disable(gl.BLEND);
@@ -634,6 +634,7 @@
    *   물 렌즈(§5 "물 = R 위 반투명 막"): 바닥 물질색(store·dens)을 깊이(저활성 E)로 흡광 블렌드(Beer-Lambert transmit=exp(-depth·absorb)) — 얕으면 바닥 비침·청록, 깊으면 짙은 남. FS 에서 프레넬(비스듬할수록 표면 반사↑)·시선기반 글린트. 고체는 vWet=0 → 불투명·무광 불변.
    *   고체 거칠기 렌즈(§5 "지형·거칠기"): R 라플라시안 |∇²R|(고주파 성분)으로 고체 노멀을 미세 변조 — 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈. 높이는 불변(분포 재성형 0), 셰이딩 노멀만(§6 도함수 읽기). 진폭=∇R 거침·방향=셀 해시(서브셀 디테일 절차적). 액체/공허는 rough=0.
    *   유전형 색 렌즈(§4 "G→색은 절차적"): geneCol/storeCol/geneColP 가 고정 4색 팔레트 대신 *황금비 색상환 해시*(hue=fract(g·φ⁻¹) HSV→RGB) — 혈통이 무한히 갈려도 author 0 으로 색이 분화(고정 팔레트 캡 제거). 무유전(g=0)은 호박색 경로 그대로(과거 렌더 불변).
+   *   파생 바람 렌즈(§5 "파생: 바람·해류"): ∇E(흐름량 중앙차분)로 하류 방향 flowmap 위상을 만들어, FS 에서 uTime 이류 띠로 발광을 변조 — 흐르는 에너지의 *세기*에 더해 *방향*을 보인다. 코어 불변(GPU 파생·도함수 읽기)·분포 author 0. 약한 ∇E/무흐름 셀은 flowVis=1(발광 불변).
    * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
    * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
@@ -644,7 +645,7 @@
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uSatR, uSatA;',
     'uniform ivec2 uDim;',
-    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out vec3 vWorld;',
+    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out vec3 vWorld; out float vFlowPhase; out float vFlowMag;',
     'float hOf(float e){ return min(uHS*log(1.0+max(e,0.0))/log(1.0+uSat), uHS*2.2); }',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율(소산 극단만 큼)
     'float matH(vec4 t){',                                  // 물질 높이 = hOf(R) only — 에너지(흐르든 고이든)는 z 를 안 만든다. 응축상 R 만 공간을 점유(RENDER §2). 물(고인 E)도 안 솟고 R 위에 얹힌다(§5)
@@ -657,6 +658,10 @@
     'float rAt(int x, int y){',                             // 이웃 R(저장체) — 토러스 wrap (∇R 거칠기용)
     '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
     '  return texelFetch(uE, ivec2(x,y), 0).g;',
+    '}',
+    'float eAt(int x, int y){',                             // 이웃 E(흐름량) — 토러스 wrap (∇E 바람용)
+    '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
+    '  return texelFetch(uE, ivec2(x,y), 0).r;',
     '}',
     'float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }', // 셀 해시 → 절차적 미세 노멀 방향
     'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 절차적 해시(혈통 무한 분화, RENDER §4)
@@ -702,6 +707,13 @@
     '  vNormal=normalize(nrm + detail*rough*1.3);',                                // 거친 곳만 법선 흔들림 → 무광 암석 질감
     '  vHot=af;',                                           // 색온도(흰빛 정도 — 활성 클수록 흼)
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 세기 = 에너지(흐르는 E·A) — 높이서 뺀 만큼 빛으로
+    /* ∇E → 파생 바람(RENDER §5 "파생: 바람·해류") — 흐름량 기울기를 읽어 흐르는 에너지의 *방향*을 flowmap 위상으로.
+     * 코어 불변(GPU 파생·도함수 읽기)·분포 author 0 — FS 에서 시간 이류 띠로 발광만 변조(세기에 더해 방향을 보인다). */
+    '  vec2 gradE=vec2(eAt(x+1,y)-eAt(x-1,y), eAt(x,y+1)-eAt(x,y-1));', // ∇E (중앙차분)
+    '  float gmag=length(gradE);',
+    '  vec2 flowDir=(gmag>1e-4)? -gradE/gmag : vec2(0.0);', // 하류 방향(고E→저E = 흐름)
+    '  vFlowPhase=dot(vec2(aCell.x,aCell.y), flowDir)*1.1;', // flowmap 위상 — 흐름 따라 정렬된 띠(FS 에서 시간 이동)
+    '  vFlowMag=clamp(gmag/(uSat*0.15), 0.0, 1.0);',        // ∇E 세기(약하면 무흐름 → 방향 안 보임)
     '  vec3 wpos=vec3(aCell.x, matH(t), aCell.y);',         // 월드 좌표(FS 프레넬·글린트 시선벡터용)
     '  vWorld=wpos;',
     '  gl_Position=uMVP*vec4(wpos, 1.0);',                  // 높이 = 물질(R) only — 에너지(흐르든 고이든) z 기여 0. 분포 재성형 0(물은 z 서 빠지되 분포 안 건드림)
@@ -710,8 +722,9 @@
   var FS_WORLD = [
     '#version 300 es',
     'precision highp float;',
-    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in vec3 vWorld;',
+    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in vec3 vWorld; in float vFlowPhase; in float vFlowMag;',
     'uniform vec3 uLight, uEye;',
+    'uniform float uTime;',
     'out vec4 o;',
     'void main(){',
     '  vec3 N=normalize(vNormal);',
@@ -724,7 +737,9 @@
     '  vec3 sky=vec3(0.32,0.46,0.62);',                     // 물이 반사하는 주변광/하늘색
     '  vec3 surf=mix(lit, sky, fres*vWet);',                // 물만 프레넬 반사(바닥 투과 ↔ 표면 반사 보간), 고체 불변
     '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 뜨거울수록 흰빛
-    '  o=vec4(surf + vec3(spec) + fire*vGlow*1.6, 1.0);',   // 물질/물 표면 + 글린트 + 에너지 발광(조명 무관)
+    '  float stripe=0.5+0.5*sin(vFlowPhase - uTime*2.2);',  // ∇E flowmap — 흐름 방향으로 이동하는 밝기 띠(이류)
+    '  float flowVis=mix(1.0, 0.55+0.9*stripe, vFlowMag*vHot);', // 빠른 흐름·강한 ∇E 에서만 방향 드러남(무흐름=1, 발광 불변)
+    '  o=vec4(surf + vec3(spec) + fire*vGlow*1.6*flowVis, 1.0);', // 물질/물 표면 + 글린트 + 에너지 발광(흐름 방향 변조)
     '}'].join('\n');
 
   var VS_POINT = [
@@ -794,7 +809,7 @@
     R.progP = mkProg(gl, VS_POINT, FS_POINT);
     R.progL = mkProg(gl, VS_LINE, FS_LINE);
     R.uT = locs(gl, R.progT, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uDim', 'uLight']);
-    R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight', 'uEye']);
+    R.uW = locs(gl, R.progW, ['uE', 'uMVP', 'uSat', 'uHS', 'uSatR', 'uSatA', 'uDim', 'uLight', 'uEye', 'uTime']);
     R.uP = locs(gl, R.progP, ['uE', 'uMVP', 'uSat', 'uHS', 'uDim', 'uPx']);
     R.uL = locs(gl, R.progL, ['uMVP']);
     R.tex = gl.createTexture();
