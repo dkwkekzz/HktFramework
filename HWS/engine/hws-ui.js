@@ -229,6 +229,7 @@
       if (preset.run) for (var t = 0; t < preset.run; t++) core.step(sim);
       syncControls(preset.params || {});
       popHist = []; lastSampledTick = -1; tickAcc = 0;
+      if (panel.onReset) panel.onReset(api());   // reset() 과 동일 훅 — 프리셋도 '리셋' 의 일종(onReset 패널 정합)
       if (preset.note) { msg = preset.note; msgUntil = perf() + 6000; }
       draw();
     }
@@ -246,7 +247,8 @@
         } else if (it.kind === 'slider') {
           el.value = v;
           var span = doc.getElementById('v_' + it.id);
-          if (span) span.textContent = (it.fixed != null) ? Number(v).toFixed(it.fixed) : String(v);
+          var shown = Number(el.value);   // 브라우저가 [min,max] 로 클램프한 실제 값 — 라벨이 thumb 와 어긋나지 않게
+          if (span) span.textContent = (it.fixed != null) ? shown.toFixed(it.fixed) : String(shown);
           if (it.gateBy != null) {
             var gc = ctrls[it.gateBy];
             if (gc) gc.el.checked = (v !== (it.gateOff != null ? it.gateOff : 0));
