@@ -123,8 +123,9 @@
      * 프리셋은 그 격차를 메운다 — `panel.presets` 가 verify.js 의 가설 시나리오와 *같은* createSim 파라미터를 쓰면
      * 화면이 보여주는 것 = verify 가 단언하는 것(가독성 + 신뢰). panel.presets 없으면 이 행 자체가 안 그려진다(하위호환). */
     if (panel.presets && panel.presets.length) {
-      var presetRow = doc.createElement('div'); presetRow.className = 'ctl';
-      presetRow.appendChild(txt('데모 '));
+      var presetRow = doc.createElement('div'); presetRow.className = 'ctl presets';
+      var plbl = doc.createElement('b'); plbl.textContent = '▶ 이 step 보기:';
+      presetRow.appendChild(plbl); presetRow.appendChild(txt(' '));
       for (var pp = 0; pp < panel.presets.length; pp++) {
         (function (preset) {
           var pb = mkBtn(preset.label); if (preset.title) pb.title = preset.title;
