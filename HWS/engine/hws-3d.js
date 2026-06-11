@@ -631,6 +631,7 @@
    * 그래서 높이 = hOf(R) only — 에너지뷰(h=E+R)와 *에너지 전부(E)만큼* 갈린다(RENDER §2: 응축상 R 만 공간 점유).
    *   흐르는 에너지(고활성 E·A)는 솟지 않고 *빛*으로(별 연소·확산 전선). 고인 물(저활성 E)도 z 를 안 들어올리고 R 위에 *얹혀*(§5) *재질*로만 읽는다 — 분포는 그대로(평탄화 0, 그냥 z 에 안 든다).
    *   물 렌즈(§5 "물 = R 위 반투명 막"): 바닥 물질색(store·dens)을 깊이(저활성 E)로 흡광 블렌드(Beer-Lambert transmit=exp(-depth·absorb)) — 얕으면 바닥 비침·청록, 깊으면 짙은 남. FS 에서 프레넬(비스듬할수록 표면 반사↑)·시선기반 글린트. 고체는 vWet=0 → 불투명·무광 불변.
+   *   고체 거칠기 렌즈(§5 "지형·거칠기"): R 라플라시안 |∇²R|(고주파 성분)으로 고체 노멀을 미세 변조 — 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈. 높이는 불변(분포 재성형 0), 셰이딩 노멀만(§6 도함수 읽기). 진폭=∇R 거침·방향=셀 해시(서브셀 디테일 절차적). 액체/공허는 rough=0.
    * 두 뷰가 *같은 실루엣*인 자리는 버그가 아니라 §5 진단(시뮬에 형태가 없음) — 형태는 시뮬(형태 사다리)이 빚으면 렌즈가 공짜로 받는다.
    * 물질 다속성, 속성마다 다른 *읽기 함수*: 상(3분기 고체/액체/공허·lerp 0) · 조성(G→색조) · 밀도(R→밝기·불투명) · 광택(액체만 반짝). */
   var VS_WORLD = [
@@ -651,6 +652,11 @@
     '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
     '  return matH(texelFetch(uE, ivec2(x,y), 0));',
     '}',
+    'float rAt(int x, int y){',                             // 이웃 R(저장체) — 토러스 wrap (∇R 거칠기용)
+    '  x=(x+uDim.x)%uDim.x; y=(y+uDim.y)%uDim.y;',
+    '  return texelFetch(uE, ivec2(x,y), 0).g;',
+    '}',
+    'float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }', // 셀 해시 → 절차적 미세 노멀 방향
     'vec3 geneCol(float tag){',                             // 유전형 클론 색 — storeCol 과 동일 팔레트(2D GENE_COL 일관)
     '  int g=int(tag+0.5);',
     '  if (g==1) return vec3(0.910,0.376,0.376);',
@@ -684,7 +690,13 @@
     '  }',
     '  else { base = vec3(0.018,0.022,0.035); wet=0.0; }',                   // 공허/기체 — 거의 암흑(빈 공간)
     '  vBase=base; vWet=wet;',
-    '  vNormal=normalize(vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1)));', // 법선=물질 기복(분포 그대로)
+    '  vec3 nrm=vec3(hAtXY(x-1,y)-hAtXY(x+1,y), 2.0, hAtXY(x,y-1)-hAtXY(x,y+1));', // 법선=물질 기복(분포 그대로)
+    /* 고체 거칠기(RENDER §5) — R 고주파(라플라시안 |∇²R|)로 미세 노멀 변조: 들쭉날쭉한 R=거친 암석, 매끈한 R=매끈.
+     * 높이 불변(분포 재성형 0)·셰이딩 노멀만(§6 도함수 읽기 허용). 진폭=∇R 거침, 방향=셀 해시(서브셀 디테일은 절차적). */
+    '  float lapR = rAt(x+1,y)+rAt(x-1,y)+rAt(x,y+1)+rAt(x,y-1) - 4.0*Rr;',        // R 라플라시안 = 고주파 성분
+    '  float rough = (isSolid ? 1.0 : 0.0) * clamp(abs(lapR)/max(uSatR,1e-3)*1.6, 0.0, 1.0);', // 거칠기(고체만·매끈 R→0)
+    '  vec3 detail = vec3(hash21(aCell)-0.5, 0.0, hash21(aCell+19.7)-0.5);',       // 절차적 미세 facet 방향(셀별)
+    '  vNormal=normalize(nrm + detail*rough*1.3);',                                // 거친 곳만 법선 흔들림 → 무광 암석 질감
     '  vHot=af;',                                           // 색온도(흰빛 정도 — 활성 클수록 흼)
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 세기 = 에너지(흐르는 E·A) — 높이서 뺀 만큼 빛으로
     '  vec3 wpos=vec3(aCell.x, matH(t), aCell.y);',         // 월드 좌표(FS 프레넬·글린트 시선벡터용)
