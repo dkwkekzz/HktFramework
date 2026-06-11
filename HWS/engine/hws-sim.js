@@ -66,6 +66,7 @@
       crystallized: 0, weathered: 0,  // 누적 결정화량·풍화량 (통계용 — 장부와 무관, R 이 순잔액)
       stars: [],           // step-0011: 살아있는 별 목록 {x,y,center,fuel}. 초기 0 → kIgnite=0 이면 영원히 0(회귀)
       burned: 0, starBirths: 0, starDeaths: 0,  // step-0011: 누적 연소량·점화·소진 수(통계용 — F 가 순잔액)
+      ashSeeded: 0,        // step-0039: 누적 별 잔해→씨앗 침착 R(통계용 — 외부 연료가 R 로 내생화·E0 보정과 짝)
       A: new Float64Array(N),      // step-0014: 활성도 필드(통과 throughput EMA). 초기 0 → kFlux=0 이면 영원히 0(회귀)
       Eprev: new Float64Array(N),  // step-0014: 직전 tick 끝 E 스냅샷(dE/dt 측정 기준). kFlux=0 이면 미사용(회귀)
       fluxInit: false,             // step-0014: 활성도 첫 기준선 설정 여부 — 해시 가법 가드(false 면 A 해시 skip)
