@@ -191,6 +191,12 @@ function seedSunCore(sim) {                                            // z=0 �
   var p = sim.p, disc = ENG.discCells(p.W, p.H, (p.W / 2) | 0, (p.H / 2) | 0, 2);   // z=0 평면 원판(인덱스 y·W+x = z=0; siting 은 2D 라 z=0 핵만 본다)
   for (var k = 0; k < disc.length; k++) { sim.R[disc[k]] += SUN_RVAL; sim.E0 += SUN_RVAL; }
 }
+/* 별 하강·일생 3D 아레나(step-0036 V5+ *실활성*) — sunArena 와 동일하되 부력 위에 하강(kStarFall=1)을 켠다. step-0036/verify.js fallArena() 와 동일 상수.
+ * 별이 z=0 R 핵서 점화→연료 충분하면 천장까지 떠오르고(rise)→연료가 starFallThresh 아래로 쇠하면 도로 가라앉는다(fall, 가라앉는 동안에도 방출).
+ * sun@(kStarFall=0)는 하강 분기·연료 쇠퇴 침강 본문을 *안 돈다* → 이 fall@ 가 하강 중 방출(E 분포가 하강 경로 따라 내려가는 본문)을 동결한다(드리프트 가드). step-0037~ 회귀 앵커: 새 노브=0 이면 이 해시 불변. */
+function fallArena(extra) {
+  return sunArena(Object.assign({ kStarFall: 1, starFallThresh: 0.5 }, extra || {}));
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -427,6 +433,7 @@ function runEq() {
  *   occl@ — step-0033 R 차폐 3D 아레나(V5 *실활성* — D=8 voxel 상자, 정적 R 지면 슬랩[z=3] + 그 위 E + 중력 + 차폐 게이트[kOcclude=1]). grav@/support@ 는 kOcclude=0 이라 차폐 게이트 미커버 → 이 키가 차폐 본문(아래 R≥문턱 시 하향 차단)을 동결한다(드리프트 가드). step-0034~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   coll@ — step-0034 부유 R 붕괴 3D 아레나(V5+ *실활성* — D=8 voxel 상자, 공중 R 슬랩[z=5, 아래 빈칸] + 붕괴[kCollapse=0.2], 중력·결정화 다 off → 순수 R 낙하). grav@/support@/occl@ 는 kCollapse=0 이라 collapse early-return → 미커버 — 이 키가 R 하향 쌍 거래 본문(아래 비지지 시 낙하)을 동결한다(드리프트 가드). step-0035~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   sun@ — step-0035 별 부력 상승 3D 아레나(V5+ *실활성* — D=8 voxel 상자, z=0 R 핵[점화 신호] + 별 점화[kIgnite=1]·부력[kStarRise=1], 중력 off → 별이 떠올라 高z 에서 3D ball 방출). 골든 별 D=1 키들(std@~)은 kStarRise=0 이라 부력 미진입 → 미커버 — 이 키가 z-상승·3D ball 방출 본문을 동결한다(드리프트 가드). step-0036~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+ *   fall@ — step-0036 별 하강·일생 3D 아레나(V5+ *실활성* — sun@ 위에 하강[kStarFall=1]까지 켬 → 별이 떠올랐다 연료 쇠퇴로 가라앉으며 방출). sun@(kStarFall=0)는 하강 본문 미커버 → 이 키가 하강 중 방출(E 분포가 하강 경로 따라 내려가는 본문)을 동결한다(드리프트 가드). step-0037~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
@@ -562,6 +569,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // sun@ — 별 부력 상승 3D 아레나(step-0035 V5+ *실활성*: D=8 voxel, z=0 R 핵 + 별 점화·부력[kStarRise=1], 중력 off → 별이 떠올라 高z 에서 3D ball 방출). 골든 별 D=1 키들(std@~)은 kStarRise=0 이라 부력 미진입 — 이 키가 z-상승·3D ball 방출 본문을 동결. step-0036~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
     var a = ENG.createSim(seed, sunArena()); seedSunCore(a); ENG.run(a, 200);
     cur['sun@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // fall@ — 별 하강·일생 3D 아레나(step-0036 V5+ *실활성*: D=8 voxel, z=0 R 핵 + 별 점화·부력[kStarRise=1]·하강[kStarFall=1], 중력 off → 별이 떠올랐다 연료 쇠퇴로 가라앉으며 방출). sun@(kStarFall=0)는 하강 본문 미커버 — 이 키가 하강 중 방출(E 분포가 하강 경로 따라 내려가는 본문)을 동결. step-0037~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, fallArena()); seedSunCore(a); ENG.run(a, 200);
+    cur['fall@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

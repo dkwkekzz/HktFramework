@@ -155,6 +155,9 @@
 
   function isView3d() { var el = byId('view3d'); return el ? !!el.checked : true; }
   function isWorld() { var el = byId('worldview'); return el ? !!el.checked : true; }   // 2분할 세계 해석 뷰 on/off
+  /* D>1(3D voxel 세계) 단일 진실 — render·evCell·drawHud 가 공유한다(좌측 레거시 하이트필드 숨김·전체 voxel 픽킹).
+   * 여기 한 곳만 바꾸면 세 곳이 함께 따라온다(예측 술어가 분산돼 어긋나는 것 방지). */
+  function isVoxelWorld() { return (S.sim && S.sim.p ? (S.sim.p.D || 1) : 1) > 1; }
 
   function applyVisibility() {
     if (!S.dom) return;
@@ -285,8 +288,13 @@
       S.pools = S.core.detectPools(sim, (S.panel && S.panel.poolOpts) || { minE: 1.5, prom: 0.3 });
       S.poolTick = sim.tick;
     }
-    /* ── 분할 레이아웃: 세계 해석 뷰가 켜지면 캔버스를 1:2 로 높여 두 정사각 뷰포트(위·아래 적층) ── */
-    var split = isWorld();
+    /* ── 분할 레이아웃: 세계 해석 뷰가 켜지면 캔버스를 1:2 로 높여 두 정사각 뷰포트(위·아래 적층) ──
+     * D>1(3D voxel 세계)에선 좌측 '에너지 변위'(z=0 바닥 슬라이스 하이트필드)를 *숨긴다* — 부력·고도를 거꾸로
+     * 보여주기 때문(별이 z 로 떠오르면 z=0 평면이 비어 하이트필드가 오히려 *낮아*져 "가라앉은" 듯 보인다; 반대로
+     * 바닥에 머문 별은 z=0 에 E 가 고여 *높아* 보인다 — 고도의 역). 우측 voxel 세계 단일 뷰만(높이=sim-z 정합).
+     * D=1(2D)에선 z 축이 없어 레거시 뷰가 유일한 의미라 기존 2분할 토글을 그대로 둔다. */
+    var voxelOnly = isVoxelWorld();
+    var split = !voxelOnly && isWorld();
     ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
     var Pm = mPersp(cam.fov, 1, 0.5, 800);                  // 뷰포트는 늘 정사각 → aspect=1 (분할 무관)
@@ -335,9 +343,13 @@
     }
     /* ── 패스: 위 = 에너지 변위(레거시 2.5D 하이트필드), (분할 시) 아래 = voxel 세계(L-V1 — R 점유 큐브).
      * GL 뷰포트 원점은 좌하단 → 위 뷰포트가 vy=CV_SIZE, 아래가 vy=0. 비분할이면 단일 뷰포트 vy=0. ── */
-    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye, stN);
-    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);
-    drawHud(sim, split);
+    if (voxelOnly) {
+      drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);   // voxel 세계 단일(좌측 레거시 하이트필드 숨김 — 부력 정합)
+    } else {
+      drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye, stN);
+      if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);
+    }
+    drawHud(sim, split, voxelOnly);
   }
 
   /* 한 뷰포트를 그린다. 버퍼·텍스처는 호출 전 업로드됨. uVoxel = (world?1:0) 으로 점/별 위치를 분기한다:
@@ -583,7 +595,7 @@
 
   /* ════════ HUD (투명 2D 캔버스) — 스파크라인·호버 툴팁·토스트·조작 힌트 ════════ */
 
-  function drawHud(sim, split) {
+  function drawHud(sim, split, voxelOnly) {
     var ctx = S.dom.hctx, wdt = S.dom.hud.width, hgt = S.dom.hud.height;
     ctx.clearRect(0, 0, wdt, hgt);
     ctx.textAlign = 'left';
@@ -628,14 +640,18 @@
     }
     /* ── 뷰포트 제목 라벨 (분할 시 위=에너지 변위[레거시 2.5D] · 아래=voxel 세계[L-V1]. HUD 좌상단 원점이라 아래 뷰포트는 y=CV_SIZE 만큼 내린다) ── */
     ctx.textAlign = 'center'; ctx.font = 'bold 13px Segoe UI';
-    vlabel(ctx, CV_SIZE / 2, 21, '에너지 변위 (z=0 바닥 슬라이스 · 레거시 2.5D)', '#9fb0c0');
-    if (split) {
-      vlabel(ctx, CV_SIZE / 2, CV_SIZE + 21, 'voxel 세계 (3D · R 점유 큐브)', '#e6c860');
+    /* voxelOnly(D>1): 단일 뷰포트가 voxel 세계 — 레거시 '에너지 변위' 라벨을 쓰지 않는다(좌측 뷰 숨김). */
+    if (voxelOnly) vlabel(ctx, CV_SIZE / 2, 21, 'voxel 세계 (3D · R 점유 큐브 · 높이=sim-z)', '#e6c860');
+    else vlabel(ctx, CV_SIZE / 2, 21, '에너지 변위 (z=0 바닥 슬라이스 · 레거시 2.5D)', '#9fb0c0');
+    if (split || voxelOnly) {
+      /* voxel 세계 뷰포트 윗변: 분할이면 아래 뷰포트(vy=0 → HUD y=CV_SIZE) · voxelOnly 면 단일 뷰포트(y=0). */
+      var voxTop = split ? CV_SIZE : 0;
+      if (split) vlabel(ctx, CV_SIZE / 2, voxTop + 21, 'voxel 세계 (3D · R 점유 큐브)', '#e6c860');
       /* voxel 세계 범례 — 점유=물질(R) voxel(높이=sim-z, 발명 0)·에너지(E)는 색 밝기(고활성=빛·저활성=물) (VOXEL V-A·V-B) */
       ctx.textAlign = 'left'; ctx.font = '11px Consolas';
       var leg = [['#1a6e9c', '물 · 액체 (고인 E · 파란 voxel)'], ['#52473f', '돌 · 암반 (R 고체 큐브)'],
                  ['#c89a6a', '나무 · 결정 (R + 유전 G)'], ['#ffb04d', '빛 · 에너지 (흐르는 E·A · 발광)']];
-      var lx = 10, ly = CV_SIZE + 34, lh = 16;
+      var lx = 10, ly = voxTop + 34, lh = 16;
       for (var li = 0; li < leg.length; li++) {
         var yy = ly + li * lh;
         ctx.fillStyle = 'rgba(15,17,21,0.55)'; ctx.fillRect(lx, yy, 168, lh - 2);
@@ -710,11 +726,14 @@
     var glcv = S.dom.glcv, r = glcv.getBoundingClientRect();
     var mx = ev.clientX - r.left, my = ev.clientY - r.top;
     if (mx < 0 || my < 0 || mx >= r.width || my >= r.height) return null;
-    /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 레이 식 동일 */
-    var split = isWorld();
+    /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 레이 식 동일.
+     * D>1(voxelOnly)에선 단일 뷰포트 전체가 voxel 세계 → 항상 voxel 레이캐스트(render 와 동일 분기). */
+    var voxelOnly = isVoxelWorld();
+    var split = !voxelOnly && isWorld();
     var halfCss = split ? r.height / 2 : r.height;          // CSS 높이 기준 한 뷰포트 높이
-    var inVoxel = split && my >= halfCss;                   // 하단 = voxel 세계(render 의 vy=0 패스)
-    var localY = inVoxel ? my - halfCss : my;
+    var inVoxel = voxelOnly || (split && my >= halfCss);    // voxelOnly=전체 voxel · 분할=하단이 voxel 세계(render 의 vy=0 패스)
+    /* 상단 뷰포트가 있을 때만(split 의 하단 voxel) 그 높이를 뺀다. voxelOnly 는 voxel 뷰포트가 캔버스 전체(vy=0·높이 r.height)라 오프셋 0 — my 그대로. */
+    var localY = (inVoxel && split) ? my - halfCss : my;
     var ndcX = mx / r.width * 2 - 1, ndcY = 1 - localY / halfCss * 2;
     return inVoxel ? pickVoxel(ndcX, ndcY) : pick(ndcX, ndcY);
   }
