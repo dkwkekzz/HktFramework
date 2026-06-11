@@ -168,5 +168,15 @@
   "fall@7": "8fcbdcbd",
   "fall@1234": "85bc07cf",
   "fall@99": "0b60ba8f",
-  "fall@2026": "192c7630"
+  "fall@2026": "192c7630",
+  "rain@42": "9e92ee6e",
+  "rain@7": "85c74b38",
+  "rain@1234": "9e92ee6e",
+  "rain@99": "c2335bee",
+  "rain@2026": "db8858d5",
+  "death@42": "58a5a8d0",
+  "death@7": "d88208d0",
+  "death@1234": "58a5a8d0",
+  "death@99": "d2f75f78",
+  "death@2026": "566bac80"
 }
