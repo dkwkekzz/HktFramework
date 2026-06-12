@@ -274,6 +274,10 @@
     kStarSet: 0,          // 별 일몰사 게이트. 0 = off = 직전 step(0037 통합) 비트 동일(setDeath=0 → 죽음 코드 미진입·st.rose 미설정 → 골든 무관). >0 이면 on:
                           //   *떠올랐다(st.rose) 다시 지는(dying)* 별이 바닥(z=0, 지평선)에 닿으면 꺼진다(FSM on=ash 불응기·off=즉시 제거). 연료가 남아도 *짐(set)* 자체가 죽음 — born(z=0)→천장→set(z=0)→死 로 활성도 궤적이 *닫힌다*(소산 극단이 저장 바닥에 안착=소산 정체성 상실, SPINE 결정2·3). starCap 자리가 비어 R 핵서 *다음 별*이 점화 → 세대 순환(出沒生死).
                           //   회귀(이중 가드): kStarSet=0 → 죽음·st.rose 미진입(0037 무변경). D=1·rise off → st.z 가 1 못 됨(z 벽/미설정) → st.rose 안 켜짐 → 죽음 미발생 = 비트 동일. *부력 상승·하강(kStarRise·kStarFall) 위에 얹힌다* — 떠올랐다 지는 별만 죽는다. hashState 는 st.rose·st.z 미해싱(x·y·fuel·state 만) — st.rose 는 게이트로만 산다.
+    kAshSeed: 0,          // 죽은 별 잔해→새 씨앗 분율(step-0039 V5+). 0 = off = 직전 step(0038 일몰사) 비트 동일(ashSeed=0 → 잔해 침착 미진입 → 골든 무관). >0 이면 on:
+                          //   *일몰사(出沒生死)로 지는 별*이 z=0(무덤)에 닿아 꺼질 때, 미연소 외부 연료의 kAshSeed 분율이 그 자리 저장체 R 로 가라앉는다 = 별 잔해가 다음 별의 점화 *씨앗*이 된다(出沒生死 → 잔해 → 재구성 → 다음 별). SPINE 척도분리: 死(빠른 비가역, 개체 척도) 후 잔해가 저장 극단으로 *되돌아온다*(느린 재구성, 세계 척도 순환 — 별의 외부 질량이 세계 안 R 로 내생화). 0.5 = 절반 잔해.
+                          //   장부: 연료는 외부 질량(lhs 밖) → R 로 들이면서 *E0 를 같은 만큼 올려* 닫힌 장부 유지(seedSunCore·source harvest 와 같은 외부 유입 보정 — sunk 의 역). 비가역 死라도 보존(쌍 거래 아닌 경계 유입+baseline 보정).
+                          //   회귀(이중 가드): kAshSeed=0 → 잔해 침착 미진입(0038 무변경). D=1·rise off → 일몰사 미발생(st.rose 안 켜짐) → 잔해 침착 도달 못 함 = 비트 동일. *일몰사(kStarSet) 위에 얹힌다* — 지는 별만 잔해를 남긴다.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -655,6 +659,7 @@
     var rise = p.kStarRise, D = p.D || 1;                     // step-0035 부력: rise=0 이면 아래 z 코드 미진입(별 z 미설정·2D 경로 = 회귀 0)
     var fall = p.kStarFall, fallFuel = p.starFuel0 * p.starFallThresh;   // step-0036 하강·일생: fall=0 이면 dying 늘 false → 상승 분기 무변경·하강 미진입(회귀 0)
     var setDeath = p.kStarSet;                                // step-0038 일몰사: 0 이면 죽음·st.rose 미진입(0037 비트 동일). 떴다 진 별(st.rose+dying)이 z=0 닿으면 꺼짐.
+    var ashSeed = p.kAshSeed || 0;                            // step-0039 잔해→씨앗: 0 이면 일몰사 시 잔해 침착 미진입(0038 비트 동일). >0 이면 진 별의 미연소 연료 분율이 무덤(z=0)에 R 로 남아 다음 별 점화 씨앗이 됨.
     /* 1. 각 별의 한 tick: 주입(연료→E, disc — sim.injected 로 경계 추적) → 소진 판정 → 서행(정한 방향 주기마다 한 칸).
      *    별은 *외부 질량(연료)을 태워 장에 주입하며 서행하는 채식지*다 — 생명이 그 E 봉우리를 쫓는다(churn 엔진). */
     var alive = [], fsm = p.kFSM !== 0;
@@ -697,6 +702,10 @@
        * 활성도 축이 *닫힌 궤적*: 소산 극단(별)이 저장 바닥(z=0)에 안착 = 소산 정체성 상실 = 死(SPINE 결정2·3·국소 z 문턱). 빈 starCap 자리에 R 핵서 다음 별 점화 → 세대 순환. 연료 남아도 *짐* 자체가 죽음. */
       if (setDeath !== 0 && st.z !== undefined && st.z >= 1) st.rose = 1;   // 떠오른 적 표시(부력으로 z≥1 도달). 게이트로만 산다(hashState 미해싱). D=1·rise off 면 안 켜짐.
       if (setDeath !== 0 && st.rose && dying && st.z === 0) {               // 일몰사 — 떴다 지는 별이 지평선(z=0)에 닿음
+        /* step-0039 죽은 별 잔해→새 씨앗: 진 별의 미연소 외부 연료 일부가 무덤(z=0 평면)에 R 로 가라앉아 다음 별의 점화 씨앗이 된다.
+         * SPINE 척도분리(비가역인데 순환): 死는 빠르고 비가역(개체 척도)이나 잔해는 느리게 저장 극단으로 재구성(세계 척도) — 별의 외부 질량이 세계 안 R 로 내생화.
+         * 장부: 연료는 lhs 밖(외부 질량) → R 로 들이며 E0 를 같은 만큼 올려 닫힌 장부 유지(seedSunCore·harvest 와 같은 외부 유입 보정). ashSeed=0 이면 미진입(0038 비트 동일). */
+        if (ashSeed !== 0) { var grave = st.y * W + st.x, sd = ashSeed * st.fuel; R[grave] += sd; sim.E0 += sd; sim.ashSeeded += sd; }   // 무덤(z=0)에 잔해 R 침착 + baseline 보정
         if (fsm) { st.state = 2; st.burnMul = 0; st.ashAge = 0; alive.push(st); }   // FSM on: ash 불응기(기존 소진사와 같은 경로)
         else sim.starDeaths++;                                                       // FSM off: 즉시 제거(alive 에 안 넣음)
         continue;

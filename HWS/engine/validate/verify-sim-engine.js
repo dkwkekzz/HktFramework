@@ -209,6 +209,18 @@ function rainArena(extra) {
 function deathArena(extra) {
   return fallArena(Object.assign({ kStarSet: 1 }, extra || {}));
 }
+/* 죽은 별 잔해→새 씨앗 3D 아레나(step-0039 V5+) — deathArena(=0038 일몰사) 위에 잔해 침착(kAshSeed=0.5)을 켠다. step-0039/verify.js remnArena() 와 동일 상수.
+ * 일몰사로 지는 별이 z=0(무덤)에서 꺼질 때, 미연소 외부 연료의 절반이 그 자리 R 로 가라앉아 다음 별의 점화 씨앗이 된다(出沒生死 → 잔해 → 재구성). 새 노브 kAshSeed 게이트.
+ * death@(kAshSeed=0)는 잔해 침착 미커버(진 별이 흔적 없이 사라짐) → 이 remn@ 가 잔해 R 침착·E0 보정 본문을 동결(드리프트 가드). step-0040~ 회귀 앵커: 새 노브=0 이면 이 해시 불변. */
+function remnArena(extra) {
+  return deathArena(Object.assign({ kAshSeed: 0.5 }, extra || {}));
+}
+/* 전체 에너지 고리 폐합 3D 아레나(step-0040 V5+ *통합*) — rainArena(=0037 별빛→비→바다) 위에 결정화+지지 침착(kCryst·kSupport)을 켜 *바다를 지면/씨앗으로* 굳힌다. step-0040/verify.js cycleArena() 와 동일 상수.
+ * 별이 떴다 지며 뿌린 E 가 중력으로 z=0 바다로 고이고(0037) → 그 바다 E 가 결정화로 R(지면/씨앗)로 굳어(0008·0032 지지 게이트) → R 이 ignThresh 넘으면 새 별이 거기서 점화(0011) = E→별→비→바다→지면→새 별 *완전 self-running 폐합*. 이 step 은 법칙 무변경 — 검증된 부품(별 일생·중력·결정화·지지)의 합성.
+ * rain@(kCryst=0)는 결정화 미커버(바다가 안 굳음) → 이 ring@ 가 바다→지면/씨앗 폐합 본문(고인 E 가 R 로 굳어 새 점화 씨앗 됨)을 동결(드리프트 가드). step-0041~ 회귀 앵커: 새 부품(kCryst)=0 이면 이 해시 = rain@ 와 같은 경로(법칙 무변경). */
+function cycleArena(extra) {
+  return rainArena(Object.assign({ kCryst: 0.05, crystThresh: 2.0, kSupport: 1, supportThresh: 0.5, kWeather: 0, starCap: 3 }, extra || {}));
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -593,6 +605,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // death@ — 별 죽음·일몰사 3D 아레나(step-0038 V5+: fallArena[=0036 별 일생] 위에 일몰사[kStarSet=1] 켬 → 떴다 진 별이 z=0[지평선] 닿으면 꺼지고 R 핵서 다음 별 점화=세대 순환). fall@(kStarSet=0)는 일몰사 미커버(진 별이 z=0 서 계속 탐) → 이 키가 일몰사 본문(z=0 소멸·재점화)을 동결. step-0039~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
     var a = ENG.createSim(seed, deathArena()); seedSunCore(a); ENG.run(a, 200);
     cur['death@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // remn@ — 죽은 별 잔해→씨앗 3D 아레나(step-0039 V5+: deathArena[=0038 일몰사] 위에 잔해 침착[kAshSeed=0.5] 켬 → 진 별이 z=0 무덤에 미연소 연료 절반을 R 씨앗으로 남김). death@(kAshSeed=0)는 잔해 미커버(흔적 없이 사라짐) → 이 키가 잔해 R 침착·E0 보정 본문을 동결. step-0040~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
+    var a = ENG.createSim(seed, remnArena()); seedSunCore(a); ENG.run(a, 200);
+    cur['remn@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // ring@ — 전체 에너지 고리 폐합 3D 아레나(step-0040 V5+ *통합*: rainArena[=0037 별빛→비→바다] 위에 결정화+지지[kCryst=0.05·kSupport=1] 켬 → 바다 E 가 z=0 지면/씨앗 R 로 굳어 새 별 점화 = E→별→비→바다→지면→새 별 완전 폐합). 법칙 무변경 — rain@(kCryst=0)는 결정화 미커버 → 이 키가 바다→지면/씨앗 폐합 본문을 동결. step-0041~ 회귀 앵커: 새 부품(kCryst)=0 이면 rain@ 경로(법칙 무변경).
+    var a = ENG.createSim(seed, cycleArena()); seedSunCore(a); ENG.run(a, 500);
+    cur['ring@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
