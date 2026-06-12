@@ -218,5 +218,20 @@
   "shr3@7": "932b0d3b",
   "shr3@1234": "932b0d3b",
   "shr3@99": "932b0d3b",
-  "shr3@2026": "932b0d3b"
+  "shr3@2026": "932b0d3b",
+  "inh3@42": "6ea52cc0",
+  "inh3@7": "6ea52cc0",
+  "inh3@1234": "6ea52cc0",
+  "inh3@99": "6ea52cc0",
+  "inh3@2026": "6ea52cc0",
+  "cpl3@42": "ae2cf7b1",
+  "cpl3@7": "ae2cf7b1",
+  "cpl3@1234": "ae2cf7b1",
+  "cpl3@99": "ae2cf7b1",
+  "cpl3@2026": "ae2cf7b1",
+  "qual@42": "eb1e0af5",
+  "qual@7": "653c9ccc",
+  "qual@1234": "78e27741",
+  "qual@99": "9c0a3923",
+  "qual@2026": "53ec6ee6"
 }

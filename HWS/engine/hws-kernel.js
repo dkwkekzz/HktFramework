@@ -204,6 +204,15 @@
     return { sumE: sum, mean: mean, varE: v / N, maxE: mx };
   }
 
+  /* 엑서지 측정(step-0049) — X = Σ q·E(자유에너지·쓸 수 있는 에너지) + 평균 질 q̄. 둘째 법칙으로 degrade 가 X 를 단조 파괴(source[별 질 생산]서만 생산 — 후속).
+   * q 미발현(qInit=false)이면 0(질 축이 없는 세계 = 직전 step). X 는 *파괴되는* 측정량이지 보존 장부 항 아님. */
+  function measureExergy(sim) {
+    if (!sim.qInit) return { exergy: 0, meanQ: 0, lost: sim.exergyLost || 0 };
+    var q = sim.q, E = sim.E, N = E.length, X = 0, sumQ = 0, i;
+    for (i = 0; i < N; i++) { X += q[i] * E[i]; sumQ += q[i]; }
+    return { exergy: X, meanQ: sumQ / N, lost: sim.exergyLost || 0 };
+  }
+
   /* 저장체 측정 — 총량·최대·점유 셀 수(R>eps). 저장체가 어디에 얼마나 굳었나. */
   function measureStore(sim, eps) {
     var R = sim.R, N = R.length, sum = 0, mx = 0, cells = 0;
@@ -692,6 +701,9 @@
     /* 유전형 필드 G(step-0015) — *가법*: 복제가 활성(geneInit)일 때만 먹인다(kTemplate=0·미파종이면 false → skip → 과거 골든 전부 불변).
      * 이산 유전 정보(태그)가 결정론·재현에 들어간다(같은 시드 2회 G 도 비트 동일). R 은 이미 위에서 먹였으므로 G 는 *태그*만 더한다. */
     if (sim.geneInit) feed(sim.G.buffer);
+    /* 에너지 질 필드 q(step-0049) — *가법*: 강등이 활성(qInit)일 때만 먹인다(kDegrade=0 이면 false → skip → 과거 골든 전부 불변).
+     * 내재 질(intensive)이 결정론·재현에 들어간다(같은 시드 2회 q 도 비트 동일). E 는 이미 위에서 먹였으므로 q 는 *질*만 더한다. */
+    if (sim.qInit) feed(sim.q.buffer);
     return ('00000000' + h.toString(16)).slice(-8);
   }
 
@@ -711,7 +723,7 @@
     mulberry32: mulberry32, tumbleHash: tumbleHash, tumbleHash3: tumbleHash3,
     discCells: discCells, discOffsets: discOffsets, discCells3: discCells3, ballOffsets: ballOffsets, aggKernel: aggKernel, spawnAgent: spawnAgent, spawnStar: spawnStar, spawnGene: spawnGene,
     totalBiomass: totalBiomass, totalStore: totalStore, totalFuel: totalFuel, ledger: ledger,
-    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureSelective: measureSelective, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring, measureDendrite: measureDendrite,
+    measure: measure, measureStore: measureStore, measureOrganisms: measureOrganisms, measureMembrane: measureMembrane, measureSelective: measureSelective, measureDifferentiation: measureDifferentiation, measureGermline: measureGermline, measureAnchor: measureAnchor, measureRoundness: measureRoundness, measureAnisotropy: measureAnisotropy, measureTuring: measureTuring, measureDendrite: measureDendrite, measureExergy: measureExergy,
     detectPools: detectPools, harvest: harvest, paintStore: paintStore, paintE: paintE,
     localE: localE, localStore: localStore,
     torusDist: torusDist, centroid: centroid, spread: spread, trackDist: trackDist,

@@ -174,6 +174,10 @@
                          //   를 격리해 *선택압*(협동의 차등 번식)을 잰다. 협동을 *복제 적합도와 분리*(fit 맵과 별 노브)해야 kin selection 을 confound 없이 본다.
     kShareZ: 0,          // step-0046 V5+: 3D 생물량 공유(risk-pooling 을 연직축으로). 0 = off = 직전 step(V5+ 3D 차등 응집) 비트 동일(occ 그리드·쌍 셈이 2D[W·H·우/하 4-인접]·z>0 생명은 occ[a.center] 가 범위 밖이라 무시 → z 코드 미진입). >0 이면 on:
                          //   share 의 occ 그리드 W·H→W·H·D·kin 쌍을 우(+x)/하(+y) 에 위(+z) 추가(4-인접→6-인접) — 0045 가 3D 로 정렬한 z>0 kin 액적이 비로소 위/아래 동료를 떠받친다(risk-pooling 의 연직 일반화: z>0 굶주린 kin 이 z±1 안전 kin 에게 구조됨). D=1 이면 z 이웃이 없어 2D 와 동일(이중 가드). m 쌍 거래(보존)·rescue 는 a.m 만 바꿈(이미 해시 → moveZInit 무관·m 차이로 골든이 z-효과 잠금).
+    kInheritZ: 0,        // step-0047 V5+: 3D 생명 유전 상속(상속 부모 탐색을 연직축으로). 0 = off = 직전 step(V5+ 3D 생물량 공유) 비트 동일(상속 부모 탐색이 2D[GENE_VN 4-이웃·키 ny·W+nx = z=0 평면]이라 z>0 자식은 엉뚱한 z=0 평면을 봐 인접 부모를 못 찾음 → z 코드 미진입). >0 이면 on:
+                         //   inherit 의 자식→부모 탐색을 GENE_VN(평면 4-이웃)→GENE_VN6(평면 4 + z±1, 6-이웃)·키를 제 z 평면(a.z·WH+ny·W+nx) + z±1 로 — reproduce(0043 kDivZ)가 자식을 6-이웃에 낳으므로 z>0 자식은 *위/아래 부모*에게서 유전형을 상속한다(유전 정보의 연직 전파: 0016 의 3D 짝). D=1 이면 z 이웃이 없어 2D 와 동일(이중 가드). a.g 만 바꿈(이미 해시[lifeGeneInit] → 골든이 z-상속 잠금)·표현형세(tax)·부트스트랩 코드는 2D/3D 공통(미변경).
+    kCoupleZ: 0,         // step-0048 V5+: 3D 막/flux 결합(kin E-공유를 연직축으로). 0 = off = 직전 step(V5+ 3D 생명 유전 상속) 비트 동일(couple 의 kin 쌍 셈이 2D[우 rc 는 z-맞음이나 하 dc=((y+1)%H)·W+x 가 z 성분 떨굼=z=0 평면·위 +z 없음]이라 z>0 kin 은 위/아래 동료와 E 공유 못 함 → z 코드 미진입). >0 이면 on:
+                         //   couple 의 occ 그리드 W·H→W·H·D·kin 쌍을 우(+x)/하(+y) 에 위(+z) 추가(하 dc 도 z 평면 키로 교정·4-인접→6-인접) — 0045 가 3D 로 정렬한 z>0 kin 액적이 비로소 위/아래 동료와 필드 E 를 공유한다(막의 연직 일반화: z>0 액적 내부 E 가 연직으로 균질해지고 막이 3D 표면으로 창발). D=1 이면 z 이웃이 없어 2D 와 동일(이중 가드). E 쌍 거래(보존·균등화)·E 는 늘 해시 → 골든이 z-막 잠금(별도 게이트 불필요).
     /* ── step-0020: 공공재 협동(pubgood — 한 기부가 *여럿*을 살리는 양의 합 협동(시너지 b≫c) → 협동이 *지속*을 넘어 *강하게 침투*, SPINE §다섯째 축 "사회 칸") ── */
     kPublic: 0,          // 공공재 마스터. 0 = off = step-0019 과 비트 동일(회귀, m·E 불변 → share@ 해시 무관). >0 이면 공공재 협동 on:
                          //   step-0019 share 는 kin 끼리 *m 을 쌍 거래*(보존적 재분배 — b≈c)라 협동이 *지속*만 했다(강한 침투 아님). pubgood 은 *양의 합*이다:
@@ -288,6 +292,12 @@
                           //   *일몰사(出沒生死)로 지는 별*이 z=0(무덤)에 닿아 꺼질 때, 미연소 외부 연료의 kAshSeed 분율이 그 자리 저장체 R 로 가라앉는다 = 별 잔해가 다음 별의 점화 *씨앗*이 된다(出沒生死 → 잔해 → 재구성 → 다음 별). SPINE 척도분리: 死(빠른 비가역, 개체 척도) 후 잔해가 저장 극단으로 *되돌아온다*(느린 재구성, 세계 척도 순환 — 별의 외부 질량이 세계 안 R 로 내생화). 0.5 = 절반 잔해.
                           //   장부: 연료는 외부 질량(lhs 밖) → R 로 들이면서 *E0 를 같은 만큼 올려* 닫힌 장부 유지(seedSunCore·source harvest 와 같은 외부 유입 보정 — sunk 의 역). 비가역 死라도 보존(쌍 거래 아닌 경계 유입+baseline 보정).
                           //   회귀(이중 가드): kAshSeed=0 → 잔해 침착 미진입(0038 무변경). D=1·rise off → 일몰사 미발생(st.rose 안 켜짐) → 잔해 침착 도달 못 함 = 비트 동일. *일몰사(kStarSet) 위에 얹힌다* — 지는 별만 잔해를 남긴다.
+    /* ── step-0049: 에너지의 질(자유에너지·둘째 법칙 — SPINE 여섯째 축. E 에 *연속 질 축* q 를 더한다. 렌더 흑체 색온도[L-Q]의 선행) ── */
+    kDegrade: 0,          // 질 강등률(둘째 법칙). 0 = off = 직전 step(0048) 비트 동일(degrade 통째 skip → qInit=false → q 미할당·미해시 → 과거 골든 전부 불변). >0 이면 on:
+                          //   E 의 *내재 질* q[i]∈[0,1](농축도/온도 — 1=고질·저엔트로피[뜨거움] ↔ 0=열적·고엔트로피[식음])가 매 tick q·kDegrade 만큼 *단조 감소*한다(질만 내려가고 E 는 불변 — q 는 intensive 속성). 엑서지(자유에너지) X=Σq·E 가 단조 파괴된다(둘째 법칙·시간의 화살표 — 닫힌 세계는 열적 평형으로 식는다).
+                          //   척추: q 는 새 *필드* 아니라 *E 에 올라탄 intensive 속성*(단일 척추 — 온도가 열의 속성이듯·다섯째 축 G 가 R 에 올라타듯) · authored type 분기 없음(질은 태그·종류로 안 갈림 — 셀별 스칼라) · 국소(셀별 강등, 전역 조율자 0) · 닫힌 장부(강등은 E 미접촉 → 잔차 불변. q 는 에너지 아닌 *비율* — 활성도 A 와 같은 경계, 거래 0). 엑서지는 *파괴되는* 측정량이지 보존 장부 항 아님(destroyed = 둘째 법칙).
+                          //   Q1(이 step): q 는 *읽기 전용 계기처럼* 동역학에 안 되먹인다(생명이 질 구배로 사는 것·별이 고질을 *생산*하는 것·q 가 E 이동에 동승[advection]하는 것은 후속 step 으로 전가). 강등은 *균일 이완*(q -= q·kDegrade) — flux 비례 강등은 후속.
+    qInit0: 1.0,          // q 초기 베이스라인 — 첫 강등 tick 에 전 칸 q 를 이 값으로 채운다(intensive, [0,1]). 1.0 = 원시 고질(Big-Bang 류 뜨거운 시작 → 닫힌 세계가 둘째 법칙으로 식어내림, Q1 데모). kDegrade=0 이면 q 미초기화·미해시라 *무관*(회귀 0). 후속의 별 질 생산이 이 식음에 맞서 *구배*를 세운다(고질 별 근처 ↔ 저질 원거리).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -503,6 +513,7 @@
    *   극단에만; 소산 극단 불꽃은 흐름이 패턴을 지운다). 빠른 복제(개체 척도) + 느린 풍화(세계 척도) = 유전 정보의 순환.
    * 장부: 복제는 E→R 쌍 거래뿐(G 태그는 거래 0 — 정보지 에너지 아님). sumE+M+R+… 식 불변(잔차 동일). */
   var GENE_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];   // 복제 이웃(4-근방) — scan 순서 고정(결정론·먼저 온 주형이 빈칸 차지)
+  var GENE_VN6 = [[0, -1, 0], [0, 1, 0], [-1, 0, 0], [1, 0, 0], [0, 0, -1], [0, 0, 1]];  // step-0047 V5+: 3D 상속 부모 이웃(평면 4 + z±1, 6-근방) — reproduce(0043 kDivZ) 6-이웃 출생과 짝. scan 순서 dz 바깥(커널 규약)
   function replicate(sim) {
     var p = sim.p; if (p.kTemplate === 0) return;   // off: replicate no-op. geneInit 은 *건드리지 않는다* — A(읽기전용 측정·재베이스라인 필요)와 달리 G 는 *지속 상태*다:
                                                     //   spawnGene 으로 심은 G 가 있으면(geneInit=true) kTemplate 을 꺼도 그 유전형이 해시에 남아야 한다(faithful fingerprint, sticky).
@@ -1055,7 +1066,27 @@
   function couple(sim) {
     var p = sim.p; if (p.kMembrane === 0) return;
     if (!p.life || !sim.agents.length) return;
-    var ag = sim.agents, E = sim.E, W = p.W, H = p.H, N = W * H, k = p.kMembrane * 0.5;
+    var ag = sim.agents, E = sim.E, W = p.W, H = p.H, N = W * H, k = p.kMembrane * 0.5, D = p.D || 1;
+    if (p.kCoupleZ && D > 1) {                                  // ── 3D 경로(V5+): W·H·D occ + kin 쌍에 위(+z) 추가(하 dc 도 z 평면 키로 교정·4-인접→6-인접). z 벽(x·y wrap)
+      var WH3 = W * H, N3 = WH3 * D;
+      var occ3 = sim.coupleOcc3;
+      if (!occ3 || occ3.length !== N3) occ3 = sim.coupleOcc3 = new Int16Array(N3);
+      occ3.fill(0);                                            // 0 = 무점유/무유전. z>0 도 a.center 가 (z·H+y)·W+x → 제자리(2D occ 가 무시하던 자리)
+      for (var i3 = 0; i3 < ag.length; i3++) { var g3 = ag[i3].g | 0; if (g3 > 0) occ3[ag[i3].center] = g3; }
+      var shared3 = 0;
+      for (var s3 = 0; s3 < ag.length; s3++) {
+        var a3 = ag[s3], t3 = a3.g | 0; if (t3 <= 0) continue;
+        var c3 = a3.center, x3 = a3.x, y3 = a3.y, z3 = a3.z || 0;
+        var rc3 = c3 - x3 + (x3 + 1) % W;                      // 우(+x) 이웃 center(같은 z·y 행)
+        var dc3 = z3 * WH3 + ((y3 + 1) % H) * W + x3;          // 하(+y) 이웃 center(같은 z 평면 — 2D 가 떨구던 z 성분 교정)
+        if (occ3[rc3] === t3) { var dr3 = (E[c3] - E[rc3]) * k; E[c3] -= dr3; E[rc3] += dr3; shared3 += dr3 < 0 ? -dr3 : dr3; }
+        if (occ3[dc3] === t3) { var dd3 = (E[c3] - E[dc3]) * k; E[c3] -= dd3; E[dc3] += dd3; shared3 += dd3 < 0 ? -dd3 : dd3; }
+        if (z3 + 1 < D) { var zc3 = c3 + WH3; if (occ3[zc3] === t3) { var dz3 = (E[c3] - E[zc3]) * k; E[c3] -= dz3; E[zc3] += dz3; shared3 += dz3 < 0 ? -dz3 : dz3; } }   // 위(+z) 이웃 — 연직 막 공유(우/하/위만 훑어 6-인접 쌍을 한 번씩만, 좌/상/아래는 이웃의 우/하/위가 커버)
+      }
+      sim.coupled += shared3;
+      return;
+    }
+    /* ── 2D 경로(현행 — kCoupleZ=0 또는 D=1 이면 비트 동일·z>0 kin 은 하 dc 가 z=0 평면이라 위/아래 동료와 공유 못 함[옛 caveat 보존]). */
     var occ = sim.coupleOcc; if (!occ || occ.length !== N) occ = sim.coupleOcc = new Int16Array(N);
     occ.fill(0);                                                                       // 0 = 무점유/무유전(kin 정체성 없음 → 공유 제외)
     for (var i = 0; i < ag.length; i++) { var g = ag[i].g | 0; if (g > 0) occ[ag[i].center] = g; }
@@ -1483,6 +1514,7 @@
     sim.lifeGeneInit = true;
     var ag = sim.agents, G = sim.G, W = p.W, H = p.H, tick = sim.tick, seed = sim.seed;
     var nG = p.geneTypes, mu = p.inheritMu, f0 = p.geneFit0, fStep = p.geneFitStep, cost = p.inheritCost;
+    var D = p.D || 1, z3 = (p.kInheritZ && D > 1), WH = W * H;   // step-0047 V5+: 3D 경로 게이트(kInheritZ≠0·D>1 일 때만 6-이웃 부모 탐색). 0 또는 D=1 → 2D 경로(비트 동일).
     /* occ: *이미 유전형을 가진* 생명의 점유 칸 → 태그(자식이 인접 부모를 찾는 매개). reproduce 는 자식을 배열 끝에 append 하고
      * 태그를 안 박으므로(동결), inherit 시작 시점에 a.g 가 박힌 개체 = 부모(이전 tick 산 것 + 갓 심은 씨앗). 자식(a.g 미설정)은 제외.
      * bornTick 으로 거르지 않는다 — 씨앗을 tick T 에 심고 같은 tick 에 번식하면 bornTick==tick 이라 부모가 빠지는 함정을 피한다. */
@@ -1493,10 +1525,19 @@
       var a = ag[k2];
       if (!a.g) {                                  // 유전형 없음 — 상속(갓 태어난 자식) 또는 부트스트랩(기질에서 획득)
         var got = 0;
-        if (a.bornTick === tick) {                 // 갓 태어남 → 인접 부모(occ)에서 상속(자식은 늘 부모의 4이웃)
-          for (var d = 0; d < 4; d++) {
-            var nx = (a.x + GENE_VN[d][0] + W) % W, ny = (a.y + GENE_VN[d][1] + H) % H, pg = occ.get(ny * W + nx);
-            if (pg) { got = pg; break; }
+        if (a.bornTick === tick) {                 // 갓 태어남 → 인접 부모(occ)에서 상속(자식은 늘 부모의 이웃)
+          if (z3) {                                // ── 3D 경로(V5+): 6-이웃(평면 4 + z±1) 탐색 — reproduce(0043 kDivZ) 가 자식을 z±1 에도 낳으므로 위/아래 부모서 상속. z 벽(클램프)·x·y wrap.
+            var az = a.z || 0;
+            for (var d6 = 0; d6 < 6; d6++) {
+              var nz = az + GENE_VN6[d6][2]; if (nz < 0 || nz >= D) continue;   // z 벽
+              var nx6 = (a.x + GENE_VN6[d6][0] + W) % W, ny6 = (a.y + GENE_VN6[d6][1] + H) % H, pg6 = occ.get(nz * WH + ny6 * W + nx6);
+              if (pg6) { got = pg6; break; }
+            }
+          } else {                                 // ── 2D 경로(현행 — kInheritZ=0 또는 D=1 이면 비트 동일·z>0 자식은 키 ny·W+nx 가 z=0 평면이라 인접 부모 못 찾음[옛 caveat 보존]).
+            for (var d = 0; d < 4; d++) {
+              var nx = (a.x + GENE_VN[d][0] + W) % W, ny = (a.y + GENE_VN[d][1] + H) % H, pg = occ.get(ny * W + nx);
+              if (pg) { got = pg; break; }
+            }
           }
           if (got) {                               // 복제오류 = 변이(시드 의사난수, 저비트)
             var hh = K.tumbleHash(a.x, a.y, tick, seed);
@@ -1540,6 +1581,24 @@
     sim.fluxSum = sumA; sim.fluxPeak = peakA;                // 통계(상태 아님 재계산값 — 세계 활성도 총량/최고)
   }
 
+  /* ⑩ 에너지 질 강등(degrade, step-0049) — kDegrade=0 이면 통째로 건너뜀(회귀 0, q 미작동 → qInit=false → 해시 가법 skip → 과거 골든 불변).
+   * SPINE 여섯째 축(자유에너지·둘째 법칙): E 는 *양*만으론 못 산다 — 소비되는 건 *질*이다. E 의 내재 질 q[i]∈[0,1](농축도/온도, 1=고질 ↔ 0=열적)가
+   *   매 tick q·kDegrade 만큼 *단조 감소*한다(둘째 법칙 — 질은 한 방향으로만). 엑서지 X=Σq·E(자유에너지)가 단조 파괴된다(시간의 화살표).
+   * 척추: q 는 *E 에 올라탄 intensive 속성*(병렬 필드 아님 — 단일 척추) · 강등은 E 미접촉(장부 불변 — q 는 에너지 아닌 비율, A 와 같은 경계) ·
+   *   국소(셀별, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 — 종류로 안 갈림). LAW_ORDER *맨 끝*(flux 뒤) — 측정 계층 갱신(읽기 전용 계기처럼 동역학에 안 되먹임, Q1).
+   * Q1 한계(전가): 균일 이완(flux 비례 강등 아님)·별 질 생산 없음(q→0 으로만 식음)·q advection 없음(E 이동에 동승 안 함) — 후속 step. */
+  function degrade(sim) {
+    var p = sim.p; if (p.kDegrade === 0) { sim.qInit = false; return; }   // off: q 미작동·해시 skip(토글-off 도 0048 동일)·재활성 시 베이스라인 재초기화
+    var E = sim.E, q = sim.q, N = E.length, kD = p.kDegrade, i, d;
+    if (!sim.qInit) { for (i = 0; i < N; i++) q[i] = p.qInit0; sim.qInit = true; return; }   // 첫 활성 tick: q 베이스라인 설정만(강등은 다음 tick — fluxInit 과 같은 스파이크 회피 정신)
+    var lost = 0;
+    for (i = 0; i < N; i++) {
+      d = q[i] * kD;                                          // 단조 강등(둘째 법칙) — 질만 내려가고 E 는 불변(intensive)
+      q[i] -= d; lost += d * E[i];                            // 파괴된 엑서지 누적(통계 — destroyed, 보존 아님)
+    }
+    sim.exergyLost += lost;
+  }
+
   /* 순서 단일 출처(척추 결정: 순서 불변). step() 은 이 배열을 그대로 순회한다.
    * ⑤b 점화(ignite)는 ⑤결정화 뒤·⑥이동 앞 — 갓 굳은 R 을 읽어 점화하고, 별이 만든 봉우리를 생명이 같은 tick 에 쫓는다.
    * ⑤c 연소(combust)는 ⑤b ignite 앞 — 이번 tick 주입 전에 별 상태를 정해(이전 tick 잔열 기준) burnMul 을 ignite 가 읽는다.
@@ -1560,12 +1619,12 @@
    * ⑥0 정착 생활사(anchor)는 ⑥move *앞* — 이번 tick 운동 전에 정착 여부를 정해(시작 m·kin 기준) move·adhere 가 a.sessile 을 읽어 고착 생명을 skip 한다(잘 먹은 kin 코어가 자리를 지켜 confluent 조직 성장).
    * ①g 중력 구배(gravity)는 ①diffuse 바로 뒤·②evaporate 앞 — 확산이 옮긴 E 위에 *하향 침전*을 얹는다(흐름 단계: 등방 확산[V2] + 비등방 중력[V3]). E 하향 쌍 거래라 장부 불변.
    * ⑨ 계량(flux)은 *맨 끝* — 이번 tick 모든 법칙이 E 를 바꾼 *뒤* net dE/dt 를 재야 한 tick 전체의 throughput 이 된다. */
-  var LAW_ORDER = [diffuse, gravity, collapse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux];
+  var LAW_ORDER = [diffuse, gravity, collapse, evaporate, drive, crystallize, replicate, anisotropy, turing, dendrite, combust, ignite, anchor, move, adhere, tension, couple, permeate, crowd, share, pubgood, differentiate, metabolize, sequester, reproduce, inherit, flux, degrade];
 
   var api = {
     DEFAULTS: DEFAULTS, LAW_ORDER: LAW_ORDER,
     diffuse: diffuse, gravity: gravity, evaporate: evaporate, drive: drive, crystallize: crystallize, replicate: replicate, anisotropy: anisotropy, turing: turing, dendrite: dendrite,
-    combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, permeate: permeate, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux
+    combust: combust, ignite: ignite, anchor: anchor, move: move, adhere: adhere, tension: tension, couple: couple, permeate: permeate, crowd: crowd, share: share, pubgood: pubgood, differentiate: differentiate, sequester: sequester, metabolize: metabolize, reproduce: reproduce, inherit: inherit, flux: flux, degrade: degrade
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.HWS_LAWS = api;

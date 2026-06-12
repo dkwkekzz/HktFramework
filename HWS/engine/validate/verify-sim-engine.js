@@ -359,6 +359,81 @@ function seedKinColumns(sim) {                                          // 균�
     sim.agents.push({ x: x, y: y, z: z, m: seedM, g: 1, cells: [center], center: center, bornTick: sim.tick });
   }
 }
+/* 3D 생명 유전 상속 3D 아레나(step-0047 V5+ — inherit 부모 탐색의 연직축 일반화) — step-0047/verify.js inhArena()/seedInherit 와 동일 상수.
+ * D=8 voxel, 수직 컬럼 3개(같은 (x,y)·z=0..D−1·z 짝수=태그 박힌 부모[태그 1·2·3]·홀수=갓 태어난 자식 g=0)·inherit 만 on(이동·번식·흡수·혼잡·응집·공유 off → a.g 는 상속으로만). kInheritZ=1 → z>0 자식이 z±1 부모서 유전형 상속(연직 유전 전파).
+ * gene@/life@ 등 2D 키들(z=0 평면 상속)은 GENE_VN6·키 z·WH+ny·W+nx 미커버 → 이 키가 3D 상속 본문을 동결(드리프트 가드). step-0048~ 회귀 앵커: 새 노브(kInheritZ)=0 이면 2D 경로(비트 동일). */
+function inhArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, mDeath: 0, kL: 0, lifeR: 0,
+    life: true, move: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 0,
+    repro: false, mDiv: 1.2, divR: 1, popCap: 4096, kDivZ: 0,
+    kCrowd: 0, crowdR: 3, kCrowdZ: 0,
+    kAdhesion: 0, adhesionLambda: 1.0, adhesionGain: 0.5, kAdhereZ: 0,
+    kShare: 0, coopFit0: 1.0, coopFitStep: 0.0, kShareZ: 0,
+    kInherit: 1, inheritMu: 0, inheritCost: 0, geneTypes: 4, geneFit0: 1, geneFitStep: 0, kInheritZ: 1,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kRelief: 0, kFlux: 0, kTemplate: 0,
+    kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
+function seedInherit(sim) {                                             // 수직 컬럼 3개(z 짝수=부모 g=태그·bornTick=−1·홀수=자식 g=0·bornTick=0). step-0047/verify.js seedInherit 와 동일.
+  var E = sim.E, D = sim.p.D, W = sim.p.W, H = sim.p.H, WH = W * H, N = WH * D;
+  for (var i = 0; i < N; i++) { E[i] = 5; sim.E0 += 5; }
+  var cols = [[16, 16, 1], [22, 22, 2], [28, 28, 3]];
+  for (var c = 0; c < cols.length; c++) for (var z = 0; z < D; z++) {
+    var x = cols[c][0], y = cols[c][1], tag = cols[c][2], center = z * WH + y * W + x, even = (z & 1) === 0;
+    sim.E[center] -= 1;                                                 // 생물량 m=1 은 E 서 떼온다(닫힌 장부)
+    sim.agents.push({ x: x, y: y, z: z, m: 1, g: even ? tag : 0, cells: [center], center: center, bornTick: even ? -1 : 0 });
+  }
+}
+/* 3D 막/flux 결합 3D 아레나(step-0048 V5+ — couple kin E-공유의 연직축 일반화) — step-0048/verify.js cplArena()/seedCoupleColumns 와 동일 상수.
+ * D=8 voxel, 수직 kin 컬럼 3개(같은 (x,y)·태그 1·z=0..D−1·제 칸 E z 짝수 고=2.5·홀수 저=0.5)·couple 만 on(확산·중력·이동·번식·흡수·혼잡·응집·공유·유전 off → E 는 couple 로만). kCoupleZ=1 → z>0 kin 이 z±1 동료와 E 균등화(연직 막).
+ * org@/couple 2D 키들(z=0 평면 공유)은 W·H·D occ·+z 쌍·하 dc z 교정 미커버 → 이 키가 3D 막 본문을 동결(드리프트 가드). step-0049~ 회귀 앵커: 새 노브(kCoupleZ)=0 이면 2D 경로(비트 동일). */
+function cplArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, mDeath: 0, kL: 0, lifeR: 0,
+    life: true, move: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 0,
+    repro: false, mDiv: 1.2, divR: 1, popCap: 4096, kDivZ: 0,
+    kCrowd: 0, crowdR: 3, kCrowdZ: 0,
+    kAdhesion: 0, adhesionLambda: 1.0, adhesionGain: 0.5, kAdhereZ: 0,
+    kShare: 0, coopFit0: 1.0, coopFitStep: 0.0, kShareZ: 0,
+    kInherit: 0, inheritMu: 0, inheritCost: 0, kInheritZ: 0,
+    kMembrane: 0.5, kCoupleZ: 1,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kRelief: 0, kFlux: 0, kTemplate: 0,
+    kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
+function seedCoupleColumns(sim) {                                       // 수직 kin 컬럼 3개(태그 1·z 짝수 고 E=2.5·홀수 저 E=0.5·m=0.5 E 서 떼옴). step-0048/verify.js seedCoupleColumns 와 동일.
+  var E = sim.E, D = sim.p.D, W = sim.p.W, H = sim.p.H, WH = W * H, N = WH * D;
+  for (var i = 0; i < N; i++) { E[i] = 0; }
+  var cols = [[16, 16], [22, 22], [28, 28]];
+  for (var c = 0; c < cols.length; c++) for (var z = 0; z < D; z++) {
+    var x = cols[c][0], y = cols[c][1], center = z * WH + y * W + x;
+    E[center] = (z & 1) ? 1.0 : 3.0; sim.E0 += E[center];
+    E[center] -= 0.5;
+    sim.agents.push({ x: x, y: y, z: z, m: 0.5, g: 1, cells: [center], center: center, bornTick: sim.tick });
+  }
+}
+/* 에너지 질 강등 3D 아레나(step-0049 *실활성* — E 에 연속 질 축 q 를 더해 둘째 법칙으로 단조 강등) — step-0049/verify.js qArena() 와 동일 상수.
+ * D=8 voxel 상자, 균일 E(noise 섭동) + degrade 만 on(kDegrade=0.05·qInit0=1.0, 다른 법칙 다 off → E 안 움직임). 골든 전 키(kDegrade=0)는 q 미작동·미해시 → 이 qual@ 가 degrade 본문(q 단조 강등·해시 산입)을 동결한다(드리프트 가드).
+ * step-0050~ 회귀 앵커: 새 노브(kDegrade)=0 이면 q 미해시(과거 골든 전부 불변). */
+function qualArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 1.0, noise: 0.5, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kDegrade: 0.05, qInit0: 1.0,
+    kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kAshSeed: 0, kFSM: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0,
+    kMoveZ: 0, kDivZ: 0, kCrowdZ: 0, kAdhereZ: 0, kShareZ: 0, kInheritZ: 0, kCoupleZ: 0
+  }, extra || {});
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -775,6 +850,18 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // shr3@ — 3D 생물량 공유 3D 아레나(step-0046 V5+: 수직 kin 컬럼 3개[태그 1·z 짝수 안전·홀수 궁핍] + share[kShare=0.5] + kShareZ=1 → z>0 굶주린 kin 이 z±1 안전 kin 에게 구조). share@ 등 2D 키들(z=0 평면 구조)은 W·H·D occ·+z 쌍 미커버 → 이 키가 3D 구조 본문을 동결(드리프트 가드). step-0047~ 회귀 앵커: 새 노브(kShareZ)=0 이면 2D 경로(비트 동일).
     var a = ENG.createSim(seed, poolArena()); seedKinColumns(a); ENG.run(a, 8);
     cur['shr3@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // inh3@ — 3D 생명 유전 상속 3D 아레나(step-0047 V5+: 수직 컬럼 3개[z 짝수 부모 태그 1·2·3·홀수 자식 g=0] + inherit[kInherit=1] + kInheritZ=1 → z>0 자식이 z±1 부모서 유전형 상속). gene@/life@ 등 2D 키들(z=0 평면 상속)은 GENE_VN6·z 평면 키 미커버 → 이 키가 3D 상속 본문(a.g 연직 전파)을 동결(드리프트 가드). step-0048~ 회귀 앵커: 새 노브(kInheritZ)=0 이면 2D 경로(비트 동일).
+    var a = ENG.createSim(seed, inhArena()); seedInherit(a); ENG.run(a, 1);
+    cur['inh3@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // cpl3@ — 3D 막/flux 결합 3D 아레나(step-0048 V5+: 수직 kin 컬럼 3개[태그 1·z 짝수 고 E·홀수 저 E] + couple[kMembrane=0.5] + kCoupleZ=1 → z>0 kin 이 z±1 동료와 E 균등화). org@/2D couple 키들(z=0 평면 공유)은 W·H·D occ·+z 쌍·하 dc z 교정 미커버 → 이 키가 3D 막 본문(E 연직 균질화)을 동결(드리프트 가드). step-0049~ 회귀 앵커: 새 노브(kCoupleZ)=0 이면 2D 경로(비트 동일).
+    var a = ENG.createSim(seed, cplArena()); seedCoupleColumns(a); ENG.run(a, 20);
+    cur['cpl3@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qual@ — 에너지 질 강등 3D 아레나(step-0049: 균일 E + degrade[kDegrade=0.05·qInit0=1.0] → q 단조 강등·엑서지 X=Σq·E 파괴). 골든 전 키(kDegrade=0)는 q 미작동·미해시 → 이 키가 degrade 본문(q 단조 강등·해시 산입)을 동결(드리프트 가드). step-0050~ 회귀 앵커: 새 노브(kDegrade)=0 이면 q 미해시(과거 골든 전부 불변).
+    var a = ENG.createSim(seed, qualArena()); ENG.run(a, 30);
+    cur['qual@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
