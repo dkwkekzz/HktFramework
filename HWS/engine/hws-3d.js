@@ -155,9 +155,6 @@
 
   function isView3d() { var el = byId('view3d'); return el ? !!el.checked : true; }
   function isWorld() { var el = byId('worldview'); return el ? !!el.checked : true; }   // 2분할 세계 해석 뷰 on/off
-  /* D>1(3D voxel 세계) 단일 진실 — render·evCell·drawHud 가 공유한다(좌측 레거시 하이트필드 숨김·전체 voxel 픽킹).
-   * 여기 한 곳만 바꾸면 세 곳이 함께 따라온다(예측 술어가 분산돼 어긋나는 것 방지). */
-  function isVoxelWorld() { return (S.sim && S.sim.p ? (S.sim.p.D || 1) : 1) > 1; }
 
   function applyVisibility() {
     if (!S.dom) return;
@@ -187,15 +184,27 @@
     var WH = W * H, D = p.D || 1, N = E.length;             // voxel 격자(VOXEL V1): N=W·H·D. z=0 평면 == 첫 W·H 칸
     S.cam.cy = (D - 1) / 2;                                 // 카메라 수직 타깃 = 세계 중간 높이(D=1 → 0 = 기존 프레이밍)
     var e32 = R.e32, mx = 0, mxR = 0, mxA = 0;
-    /* 1패스: 전역 포화점은 *전 볼륨*(전 z) 기준 + 좌측 레거시 하이트필드 텍스처는 z=0 바닥 슬라이스만(첫 W·H) */
+    /* 1패스: 전역 포화점은 *전 볼륨*(전 z) 기준 */
     for (var i = 0; i < N; i++) {
       var v = E[i];
       if (v > mx) mx = v;                                   // 자동 명암 포화점은 2D 와 동일하게 E 기준(전 볼륨)
       if (Rf && Rf[i] > mxR) mxR = Rf[i];                   // 저장체 색 포화점은 R 분포에 적응(step 마다 농축도 다름)
       if (Af && Af[i] > mxA) mxA = Af[i];                   // 활성도 발광 포화점은 A 분포에 적응(소산만 높은 끝 — A_burn/A_store≈26)
-      if (i < WH) {                                         // z=0 바닥 슬라이스 → 좌측 '에너지 변위'(레거시 2.5D) + 점 높이
-        e32[i * 4] = v; e32[i * 4 + 1] = Rf ? Rf[i] : 0; e32[i * 4 + 2] = Gf ? Gf[i] : 0; e32[i * 4 + 3] = Af ? Af[i] : 0;
+    }
+    /* 좌측 '에너지 변위' 텍스처 = *칼럼 투영*(z 축 최대) — D>1 에선 z=0 바닥 슬라이스 대신 칼럼별 최대 E·R 을 위에서 내려다본다.
+     * 과거 z=0 슬라이스는 부력을 거꾸로 보였다(별이 z 로 떠오르면 z=0 이 비어 하이트필드가 *낮아*져 "가라앉은" 듯). 칼럼 최대는
+     * *어느 높이에든* 에너지가 있으면 그 칼럼을 세우므로 역전이 사라진다(에너지 스카이라인). 이렇게 좌측 뷰를 숨기지 않고 살린다 —
+     * 동역학(흐름·확산)은 이 열지도에서 가장 또렷하다. G·A 태그는 칼럼 대표 셀(E+R 최대 z)에서 취한다.
+     * D=1 이면 z 가 하나뿐이라 z=0 슬라이스와 비트 동일(회귀 0). */
+    for (var j = 0; j < WH; j++) {
+      var mE = 0, mR = 0, repK = -1, repG = 0, repA = 0;
+      for (var zz = 0; zz < D; zz++) {
+        var ci = j + zz * WH, ev = E[ci], rv = Rf ? Rf[ci] : 0;
+        if (ev > mE) mE = ev;
+        if (rv > mR) mR = rv;
+        if (ev + rv > repK) { repK = ev + rv; repG = Gf ? Gf[ci] : 0; repA = Af ? Af[ci] : 0; }
       }
+      e32[j * 4] = mE; e32[j * 4 + 1] = mR; e32[j * 4 + 2] = repG; e32[j * 4 + 3] = repA;
     }
     var autoEl = byId('auto');                              // 2D 와 같은 '자동 명암' 노브 공유
     /* 포화점을 목표값으로 지수 평활(EMA) — 강한 흐름 구배(기복 step-0009)에서 maxE 가 tick 간 출렁이면
@@ -289,12 +298,11 @@
       S.poolTick = sim.tick;
     }
     /* ── 분할 레이아웃: 세계 해석 뷰가 켜지면 캔버스를 1:2 로 높여 두 정사각 뷰포트(위·아래 적층) ──
-     * D>1(3D voxel 세계)에선 좌측 '에너지 변위'(z=0 바닥 슬라이스 하이트필드)를 *숨긴다* — 부력·고도를 거꾸로
-     * 보여주기 때문(별이 z 로 떠오르면 z=0 평면이 비어 하이트필드가 오히려 *낮아*져 "가라앉은" 듯 보인다; 반대로
-     * 바닥에 머문 별은 z=0 에 E 가 고여 *높아* 보인다 — 고도의 역). 우측 voxel 세계 단일 뷰만(높이=sim-z 정합).
-     * D=1(2D)에선 z 축이 없어 레거시 뷰가 유일한 의미라 기존 2분할 토글을 그대로 둔다. */
-    var voxelOnly = isVoxelWorld();
-    var split = !voxelOnly && isWorld();
+     * 위=에너지(D>1 칼럼 투영·D=1 z=0 슬라이스), 아래=voxel 세계. 과거엔 D>1 에서 좌측을 숨겼으나(z=0 슬라이스가
+     * 부력을 거꾸로 그려 — 별이 z 로 떠오르면 z=0 이 비어 하이트필드가 *낮아*져 "가라앉은" 듯), 칼럼 최대 투영은
+     * *어느 높이에든* 에너지가 있으면 그 칼럼을 세워 역전이 사라진다 → 좌측 뷰를 숨기지 않고 살린다. 에너지 동역학은
+     * 이 열지도에서 가장 또렷하다(숨기면 우측 voxel 점유[거의 정적]만 남아 "움직임 없음"처럼 보였다 — 사용자 피드백). */
+    var split = isWorld();
     ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
     var Pm = mPersp(cam.fov, 1, 0.5, 800);                  // 뷰포트는 늘 정사각 → aspect=1 (분할 무관)
@@ -317,10 +325,11 @@
     R.lnVoxN = ln3.length / 6;
     var ag = sim.agents || [], agN = 0;
     if (S.ov.life && ag.length) {
-      var need = ag.length * 4;                            // (x, y, m, g) — g=생명 유전형 a.g(step-0016~, 0=무유전)
-      if (!R.agArr || R.agArr.length < need) R.agArr = new Float32Array(Math.max(256, need * 2));
+      var need = ag.length * 5;                            // (x, y, m, g, z) — g=유전형 a.g(step-0016~), z=sim-z(step-0042~, voxel 세계 높이)
+      if (!R.agArr || R.agArr.length < need) R.agArr = new Float32Array(Math.max(320, need * 2));
       for (var k = 0; k < ag.length; k++) {
-        R.agArr[k * 4] = ag[k].x; R.agArr[k * 4 + 1] = ag[k].y; R.agArr[k * 4 + 2] = ag[k].m; R.agArr[k * 4 + 3] = ag[k].g || 0;
+        R.agArr[k * 5] = ag[k].x; R.agArr[k * 5 + 1] = ag[k].y; R.agArr[k * 5 + 2] = ag[k].m;
+        R.agArr[k * 5 + 3] = ag[k].g || 0; R.agArr[k * 5 + 4] = ag[k].z || 0;
       }
       gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
       gl.bufferData(gl.ARRAY_BUFFER, R.agArr.subarray(0, need), gl.DYNAMIC_DRAW);
@@ -343,13 +352,9 @@
     }
     /* ── 패스: 위 = 에너지 변위(레거시 2.5D 하이트필드), (분할 시) 아래 = voxel 세계(L-V1 — R 점유 큐브).
      * GL 뷰포트 원점은 좌하단 → 위 뷰포트가 vy=CV_SIZE, 아래가 vy=0. 비분할이면 단일 뷰포트 vy=0. ── */
-    if (voxelOnly) {
-      drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);   // voxel 세계 단일(좌측 레거시 하이트필드 숨김 — 부력 정합)
-    } else {
-      drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye, stN);
-      if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);
-    }
-    drawHud(sim, split, voxelOnly);
+    drawView(split ? CV_SIZE : 0, false, MVP, ln.length, agN, glcv, Pm, eye, stN);   // 위 = 에너지 투영(칼럼 최대)
+    if (split) drawView(0, true, MVP, ln.length, agN, glcv, Pm, eye, stN);            // 아래 = voxel 세계
+    drawHud(sim, split);
   }
 
   /* 한 뷰포트를 그린다. 버퍼·텍스처는 호출 전 업로드됨. uVoxel = (world?1:0) 으로 점/별 위치를 분기한다:
@@ -581,12 +586,16 @@
     return Math.min(HS * Math.log(1 + Math.max(e, 0)) / Math.log(1 + (R ? R.sat : 8)), HS * 2.2);
   }
   function eBilin(sim, x, y) {                              // wrap 쌍선형 — 링이 표면을 매끈히 타게
-    var W = sim.p.W, H = sim.p.H, E = sim.E, Rf = sim.R || null;
+    var W = sim.p.W, H = sim.p.H, E = sim.E, Rf = sim.R || null, WH = W * H, D = sim.p.D || 1;
     var x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
-    function at(xx, yy) {
+    function at(xx, yy) {                                   // 칼럼 최대(E·R 독립) — 렌더 하이트필드(칼럼 투영)와 같은 표면(픽킹·오버레이 정합). D=1 이면 z=0 한 칸과 동일
       xx = ((xx % W) + W) % W; yy = ((yy % H) + H) % H;
-      var i = yy * W + xx;
-      return E[i] + (Rf ? Rf[i] : 0);
+      var base = yy * W + xx, bestE = 0, bestR = 0;
+      for (var z = 0; z < D; z++) {
+        var i = base + z * WH, e = E[i], r = Rf ? Rf[i] : 0;
+        if (e > bestE) bestE = e; if (r > bestR) bestR = r;
+      }
+      return bestE + bestR;
     }
     return at(x0, y0) * (1 - fx) * (1 - fy) + at(x0 + 1, y0) * fx * (1 - fy)
          + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy;
@@ -595,7 +604,7 @@
 
   /* ════════ HUD (투명 2D 캔버스) — 스파크라인·호버 툴팁·토스트·조작 힌트 ════════ */
 
-  function drawHud(sim, split, voxelOnly) {
+  function drawHud(sim, split) {
     var ctx = S.dom.hctx, wdt = S.dom.hud.width, hgt = S.dom.hud.height;
     ctx.clearRect(0, 0, wdt, hgt);
     ctx.textAlign = 'left';
@@ -640,13 +649,13 @@
     }
     /* ── 뷰포트 제목 라벨 (분할 시 위=에너지 변위[레거시 2.5D] · 아래=voxel 세계[L-V1]. HUD 좌상단 원점이라 아래 뷰포트는 y=CV_SIZE 만큼 내린다) ── */
     ctx.textAlign = 'center'; ctx.font = 'bold 13px Segoe UI';
-    /* voxelOnly(D>1): 단일 뷰포트가 voxel 세계 — 레거시 '에너지 변위' 라벨을 쓰지 않는다(좌측 뷰 숨김). */
-    if (voxelOnly) vlabel(ctx, CV_SIZE / 2, 21, 'voxel 세계 (3D · R 점유 큐브 · 높이=sim-z)', '#e6c860');
-    else vlabel(ctx, CV_SIZE / 2, 21, '에너지 변위 (z=0 바닥 슬라이스 · 레거시 2.5D)', '#9fb0c0');
-    if (split || voxelOnly) {
-      /* voxel 세계 뷰포트 윗변: 분할이면 아래 뷰포트(vy=0 → HUD y=CV_SIZE) · voxelOnly 면 단일 뷰포트(y=0). */
-      var voxTop = split ? CV_SIZE : 0;
-      if (split) vlabel(ctx, CV_SIZE / 2, voxTop + 21, 'voxel 세계 (3D · R 점유 큐브)', '#e6c860');
+    /* 위(또는 단일) 뷰포트 = 에너지. D>1 은 칼럼 투영(위에서 내려다본 z-최대), D=1 은 레거시 z=0 슬라이스. */
+    var proj = (sim.p && (sim.p.D || 1) > 1);
+    vlabel(ctx, CV_SIZE / 2, 21, proj ? '에너지 투영 (칼럼 z-최대 · 위에서 내려다봄)' : '에너지 변위 (z=0 바닥 슬라이스 · 레거시 2.5D)', '#9fb0c0');
+    if (split) {
+      /* voxel 세계 뷰포트 윗변 = 아래 뷰포트(vy=0 → HUD y=CV_SIZE). */
+      var voxTop = CV_SIZE;
+      vlabel(ctx, CV_SIZE / 2, voxTop + 21, 'voxel 세계 (3D · R 점유 큐브)', '#e6c860');
       /* voxel 세계 범례 — 점유=물질(R) voxel(높이=sim-z, 발명 0)·에너지(E)는 색 밝기(고활성=빛·저활성=물) (VOXEL V-A·V-B) */
       ctx.textAlign = 'left'; ctx.font = '11px Consolas';
       var leg = [['#1a6e9c', '물 · 액체 (고인 E · 파란 voxel)'], ['#52473f', '돌 · 암반 (R 고체 큐브)'],
@@ -727,13 +736,11 @@
     var mx = ev.clientX - r.left, my = ev.clientY - r.top;
     if (mx < 0 || my < 0 || mx >= r.width || my >= r.height) return null;
     /* 세로 분할 시 위/아래 어느 뷰포트인지 가려 뷰포트-로컬 NDC 로 — 두 뷰포트는 같은 카메라/MVP 라 레이 식 동일.
-     * D>1(voxelOnly)에선 단일 뷰포트 전체가 voxel 세계 → 항상 voxel 레이캐스트(render 와 동일 분기). */
-    var voxelOnly = isVoxelWorld();
-    var split = !voxelOnly && isWorld();
+     * 분할이면 상단=에너지 투영(하이트필드 픽킹)·하단=voxel 세계(voxel 픽킹). 비분할은 단일 에너지 투영. */
+    var split = isWorld();
     var halfCss = split ? r.height / 2 : r.height;          // CSS 높이 기준 한 뷰포트 높이
-    var inVoxel = voxelOnly || (split && my >= halfCss);    // voxelOnly=전체 voxel · 분할=하단이 voxel 세계(render 의 vy=0 패스)
-    /* 상단 뷰포트가 있을 때만(split 의 하단 voxel) 그 높이를 뺀다. voxelOnly 는 voxel 뷰포트가 캔버스 전체(vy=0·높이 r.height)라 오프셋 0 — my 그대로. */
-    var localY = (inVoxel && split) ? my - halfCss : my;
+    var inVoxel = split && my >= halfCss;                   // 분할 하단이 voxel 세계(render 의 vy=0 패스)
+    var localY = inVoxel ? my - halfCss : my;
     var ndcX = mx / r.width * 2 - 1, ndcY = 1 - localY / halfCss * 2;
     return inVoxel ? pickVoxel(ndcX, ndcY) : pick(ndcX, ndcY);
   }
@@ -1117,6 +1124,7 @@
     'precision highp float;',
     'layout(location=0) in vec3 aAgent;',                   // (x, y, m)
     'layout(location=1) in float aGene;',                   // 생명 유전형 a.g(step-0016~) — 0=무유전. 2D drawHook 의 점 색과 일관.
+    'layout(location=2) in float aZ;',                      // 생명 sim-z(step-0042~) — voxel 세계에서 점 높이(없으면 0=바닥)
     'uniform sampler2D uE;',
     'uniform mat4 uMVP;',
     'uniform float uSat, uHS, uPx;',
@@ -1133,8 +1141,8 @@
     '  return vv*mix(vec3(1.0), rr, ss);',
     '}',
     'void main(){',
-    '  float h;',                                           // 점 높이: voxel 세계는 바닥(sim z=0=월드-y 0), 레거시는 하이트필드
-    '  if (uVoxel==1){ h=0.0; }',                           // 생명은 아직 2D(z=0) — sim 이 생명 z 를 빚으면(백로그) 여기로 받는다
+    '  float h;',                                           // 점 높이: voxel 세계는 sim-z(step-0042~ 생명 z-거주), 레거시는 하이트필드
+    '  if (uVoxel==1){ h=aZ; }',                            // 생명이 z>0 에 살면(이동·번식·혼잡 z) 제 높이에 그린다 — 수직 컬럼이 보인다
     '  else { vec2 t=texelFetch(uE, ivec2(int(aAgent.x),int(aAgent.y)), 0).rg;',
     '         h=min(uHS*log(1.0+max(t.r+t.g,0.0))/log(1.0+uSat), uHS*2.2); }',
     '  vec4 cp=uMVP*vec4(aAgent.x, h+0.55, aAgent.y, 1.0);',
@@ -1302,9 +1310,11 @@
     gl.bindVertexArray(R.vaoP);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufAg);
     gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);   // (x,y,m) stride 16 — 생명 유전형 g 가 4번째 float
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 20, 0);   // (x,y,m) stride 20 — g·z 가 4·5번째 float
     gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);  // a.g(유전형 태그) — geneColP 로 점 색 분기
+    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 12);  // a.g(유전형 태그) — geneColP 로 점 색 분기
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 20, 16);  // a.z(sim-z, step-0042~) — voxel 세계 점 높이
     gl.bindVertexArray(R.vaoS);
     gl.bindBuffer(gl.ARRAY_BUFFER, R.bufStar);
     gl.enableVertexAttribArray(0);
