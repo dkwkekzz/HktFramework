@@ -32,6 +32,7 @@
        * D>1 에선 diffuse 가 z=0 평면만 쓰므로(V1) 미작성 상위 평면이 스왑 후에도 초기 noise 를 보존해야 장부가 닫힌다(zeros 면 에너지 유실). */
       E: E, buf: E.slice(),
       R: new Float64Array(N),                  // 저장체(굳은 흐름량). 초기 0 → kCryst=0 이면 영원히 0(회귀)
+      Eth: new Float64Array(N),                // step-0045: 열 에너지(저질 — 둘째 법칙으로 자유 E 가 강등된 자리). 초기 0 → kQual=0 이면 영원히 0(회귀). 질 q=E/(E+Eth).
       hPot: new Float64Array(N),               // 흐름 퍼텐셜 h=E+kRelief·R 작업 버퍼(상태 아님)
       fLim: new Float64Array(N),               // donor 유출 제한 f 작업 버퍼(상태 아님)
       srcCells: K.discCells(p.W, p.H, p.source.x, p.source.y, p.source.r),
@@ -49,6 +50,8 @@
       moveOffsets: K.discOffsets(p.moveR),
       moves: 0,            // 누적 이동(run, 주화성) 수 (통계용)
       moveZInit: false,    // step-0042: z-이동 활성 여부 — 해시 가법 가드(false 면 agent.z 해시 skip → 과거 골든 불변)
+      qualInit: false,     // step-0045: 에너지 질 강등 활성 여부 — 해시 가법 가드(false 면 Eth 해시 skip → 과거 골든 불변)
+      thermalized: 0,      // step-0045: 누적 열화량(통계 — Eth 가 순잔액이라 장부 무관, R/weathered 와 같은 경계)
       tumbles: 0,          // 누적 탐사(tumble) 수 (통계용 — 위치 변경이라 장부 무관)
       tumbleBuf: [],       // tumble 빈 이웃 [idx,x,y…] 재사용 버퍼(상태 아님 — 매 호출 비움)
       adheres: 0,          // step-0017: 누적 차등 응집 이동 수 (통계용 — 위치 변경이라 장부 무관). adhereOcc(점유→태그)는 법칙이 지연 생성.

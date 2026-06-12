@@ -540,6 +540,15 @@ function runEq() {
  *   sun@ — step-0035 별 부력 상승 3D 아레나(V5+ *실활성* — D=8 voxel 상자, z=0 R 핵[점화 신호] + 별 점화[kIgnite=1]·부력[kStarRise=1], 중력 off → 별이 떠올라 高z 에서 3D ball 방출). 골든 별 D=1 키들(std@~)은 kStarRise=0 이라 부력 미진입 → 미커버 — 이 키가 z-상승·3D ball 방출 본문을 동결한다(드리프트 가드). step-0036~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  *   fall@ — step-0036 별 하강·일생 3D 아레나(V5+ *실활성* — sun@ 위에 하강[kStarFall=1]까지 켬 → 별이 떠올랐다 연료 쇠퇴로 가라앉으며 방출). sun@(kStarFall=0)는 하강 본문 미커버 → 이 키가 하강 중 방출(E 분포가 하강 경로 따라 내려가는 본문)을 동결한다(드리프트 가드). step-0037~ 회귀 앵커: 새 노브=0 이면 이 해시 불변.
  * 키 추가는 *미존재 시 no-op 가법*(DURABLE CONSTRAINT) — 기존 키는 비교, 새 키는 파일에 기록(드리프트 아님). */
+/* 에너지 질 강등 아레나(step-0045 V5+ — 자유에너지·둘째 법칙). 확산·증발 off(순수 국소 — advection 없음). 균일 E=1 + source(16,16 r2)가 자유 E 보충 + kQual=0.05 → source 셀은 질 유지·미보충 셀은 둘째 법칙 붕괴(q=E/(E+Eth)↓). step-0045/verify.js qualArena 와 동일 상수(골든 qual@ 와 일치). 32×32·D=1. */
+function qualArena(extra) {
+  return Object.assign({
+    W: 32, H: 32, D: 1, initE: 1, noise: 0, kEvap: 0, kD: 0, kDz: 0,
+    drive: true, source: { x: 16, y: 16, r: 2, rate: 0.2 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kQual: 0.05
+  }, extra || {});
+}
+
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
   var cur = {};
@@ -710,6 +719,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // cap3@ — 3D 혼잡 3D 아레나(step-0044 V5+: 생명 수직 컬럼 3개[z=0..7] + crowd[kCrowd=0.02] + kCrowdZ=1 → 수직 적층이 z-이웃 세 혼잡세). cwd@ 등 2D 키들(z=0 평면 혼잡)은 ball 밀도·W·H·D occ 미커버 → 이 키가 3D 혼잡 본문을 동결(드리프트 가드). step-0045~ 회귀 앵커: 새 노브(kCrowdZ)=0 이면 2D 경로(비트 동일).
     var a = ENG.createSim(seed, capArena()); seedColumns(a); ENG.run(a, 8);
     cur['cap3@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qual@ — 에너지 질 강등 2D 아레나(step-0045 V5+: source 자유 E 주입 + kQual=0.05 → E→Eth 열화·질 구배 q=E/(E+Eth)). 과거 키들(kQual=0)은 degrade·Eth 미커버 → 이 키가 degrade 쌍거래·Eth 해시 본문을 동결(드리프트 가드). step-0046~ 회귀 앵커: 새 노브(kQual)=0 이면 degrade early-return(비트 동일).
+    var a = ENG.createSim(seed, qualArena()); ENG.run(a, 40);
+    cur['qual@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
