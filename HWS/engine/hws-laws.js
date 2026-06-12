@@ -154,6 +154,8 @@
                          //   위치만 바꿈 — 장부 거래 0(move/tumble 과 같은 경계). 유전이 개체보다 먼저: a.g 가 정의돼야 kin 이 정의돼 묶인다.
     adhesionLambda: 1.0, // 이종 반발 가중 — 응집 점수 = (kin 접촉) − adhesionLambda·(비kin 접촉). 클수록 이종 분리가 날카롭다(표면장력↑).
     adhesionGain: 0.5,   // 이동 문턱 — 후보 칸 점수가 머무름보다 이만큼 *엄격히* 커야 옮긴다(jitter 방지·안정 액적). 점수가 정수라 0.5 = "≥1 개선".
+    kAdhereZ: 0,         // step-0045 V5+: 3D 차등 응집(kin 정렬을 연직축으로). 0 = off = 직전 step(V5+ 3D 자기제한) 비트 동일(occ 그리드·이동 후보·점수 셈이 2D[W·H·4이웃·8이웃]·z>0 생명은 occ[a.center] 가 범위 밖이라 무시 → z 코드 미진입). >0 이면 on:
+                         //   adhere 의 occ 그리드 W·H→W·H·D·이동 후보 4→6-이웃·kin 점수 셈 8(Moore 평면)→26(Moore 3D) 로 일반화 — z>0 으로 올라온 생명(0042 이동·0043 번식)도 위/아래(z±1) kin 을 세 정렬한다(cell sorting 의 연직 일반화: 같은 유전형이 3D 액적으로 뭉침). D=1 이면 z 이웃이 없어 2D 와 동일(이중 가드). 위치만 — 장부 거래 0(2D adhere 와 같은 경계). 0042·0043·0044 의 z 거주 생명에 비로소 다세포(kin) 정렬을 줌(crowd[0044]만 z-일반화됐던 caveat 해소).
     /* ── step-0018: 막/flux 결합 도메인(couple — 개체='계'를 측정 윤곽에서 *물리적 도메인*으로, SPINE 주요 전이 사다리 "다세포=flux 결합 도메인") ── */
     kMembrane: 0,        // 막 결합 마스터. 0 = off = step-0017 과 비트 동일(회귀, E 불변 → org@ 해시 무관). >0 이면 막/flux 결합 on:
                          //   같은 유전형(kin=같은 a.g)으로 4-인접한 생명끼리 *필드 E 를 국소 공유·재분배*한다(쌍 거래 — 보존). 액적 내부가 균질해지고
@@ -908,6 +910,9 @@
    *   occ(점유→태그)는 *순차 그리디*로 제자리 갱신(move/crowd 와 같은 정신) — 같은 scan 안에서 먼저 옮긴 생명을 뒤가 본다(결정론). */
   var ADHERE_VN = [[0, -1], [0, 1], [-1, 0], [1, 0]];                                   // 이동 후보(4-근방) — scan 순서 고정(결정론)
   var ADHERE_NB8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];  // 접촉 셈(8-근방, Moore)
+  /* step-0045 V5+: 3D 차등 응집용 오프셋 — 이동 후보 6-근방(VN6: 평면 4 + z±1)·접촉 셈 26-근방(Moore 3D, 3×3×3−중심). scan 순서 dz 바깥·dy·dx 안쪽(커널 규약). */
+  var ADHERE_VN6 = [[0, -1, 0], [0, 1, 0], [-1, 0, 0], [1, 0, 0], [0, 0, -1], [0, 0, 1]];
+  var ADHERE_NB26 = (function () { var a = []; for (var dz = -1; dz <= 1; dz++) for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { if (dx || dy || dz) a.push([dx, dy, dz]); } return a; })();
   function adhScore(occ, x, y, myTag, W, H, lam, selfCenter) {                          // 응집 점수 = kin − lam·타 (후보 칸 8이웃 점유 셈, 자기 칸 제외)
     var kin = 0, non = 0;
     for (var d = 0; d < 8; d++) {
@@ -918,10 +923,52 @@
     }
     return kin - lam * non;
   }
+  function adhScore3(occ3, x, y, z, myTag, W, H, D, lam, selfCenter) {                  // 3D 응집 점수 = kin − lam·타 (후보 칸 26이웃[Moore 3D] 점유 셈, 자기 칸 제외·z 벽)
+    var kin = 0, non = 0, WH = W * H;
+    for (var d = 0; d < 26; d++) {
+      var nz = z + ADHERE_NB26[d][2]; if (nz < 0 || nz >= D) continue;                  // z 벽(클램프 — wrap 안 함)
+      var nx = (x + ADHERE_NB26[d][0] + W) % W, ny = (y + ADHERE_NB26[d][1] + H) % H, idx = nz * WH + ny * W + nx;
+      if (idx === selfCenter) continue;                                                // 옮겨갈 생명의 *떠날* 자리는 세지 않는다
+      var t = occ3[idx]; if (t <= 0) continue;                                          // -1 빈칸·0 무유전 → 접촉 아님(kin 정체성 없음)
+      if (t === myTag) kin++; else non++;
+    }
+    return kin - lam * non;
+  }
   function adhere(sim) {
     var p = sim.p; if (p.kAdhesion === 0) return;
     if (!p.life || !sim.agents.length) return;
-    var ag = sim.agents, W = p.W, H = p.H, N = W * H, lam = p.adhesionLambda, gain = p.adhesionGain;
+    var ag = sim.agents, W = p.W, H = p.H, N = W * H, lam = p.adhesionLambda, gain = p.adhesionGain, D = p.D || 1;
+    if (p.kAdhereZ && D > 1) {                                  // ── 3D 경로(V5+): 26-이웃 kin 정렬 + W·H·D occ. z 벽 클램프(x·y wrap)
+      var WH3 = W * H, N3 = WH3 * D;
+      sim.moveZInit = true;                                     // z-정렬 활성 → hashState 가 agent.z 를 가법 해싱(0042 move 와 같은 플래그 — adhere 는 위치만 바꿔 m·E 불변이라 z 해시가 골든 잠금의 유일 경로)
+      var occ3 = sim.adhereOcc3;
+      if (!occ3 || occ3.length !== N3) occ3 = sim.adhereOcc3 = new Int16Array(N3);
+      occ3.fill(-1);                                            // -1 = 빈칸. 점유 칸엔 태그(0=무유전, >0=유전형)
+      for (var i3 = 0; i3 < ag.length; i3++) occ3[ag[i3].center] = ag[i3].g | 0;   // z>0 도 a.center 가 (z·H+y)·W+x → 제자리(2D occ 가 무시하던 자리)
+      var moved3 = 0;
+      for (var k3 = 0; k3 < ag.length; k3++) {
+        var a3 = ag[k3], myTag3 = a3.g | 0, a3x = a3.x, a3y = a3.y, a3z = a3.z || 0, a3c = a3.center;
+        if (a3.sessile) continue;                              // 정착 생명은 재정렬 건너뜀(occ 점유는 유지) — 2D 와 같은 게이트
+        var best3 = adhScore3(occ3, a3x, a3y, a3z, myTag3, W, H, D, lam, a3c) + gain;
+        var bI3 = -1, bX3 = 0, bY3 = 0, bZ3 = 0;
+        for (var d3 = 0; d3 < 6; d3++) {
+          var nz3 = a3z + ADHERE_VN6[d3][2]; if (nz3 < 0 || nz3 >= D) continue;       // z 벽(클램프)
+          var nx3 = (a3x + ADHERE_VN6[d3][0] + W) % W, ny3 = (a3y + ADHERE_VN6[d3][1] + H) % H, nidx3 = nz3 * WH3 + ny3 * W + nx3;
+          if (occ3[nidx3] !== -1) continue;                    // 빈칸만(점유 칸엔 못 들어간다)
+          var sc3 = adhScore3(occ3, nx3, ny3, nz3, myTag3, W, H, D, lam, a3c);
+          if (sc3 > best3) { best3 = sc3; bI3 = nidx3; bX3 = nx3; bY3 = ny3; bZ3 = nz3; }
+        }
+        if (bI3 >= 0) {                                         // kin 접촉이 늘어나는 빈칸으로(위/아래 포함) — 위치만(장부 거래 0)
+          occ3[a3c] = -1; occ3[bI3] = myTag3;
+          a3.x = bX3; a3.y = bY3; a3.z = bZ3; a3.center = bI3;
+          a3.cells = bZ3 === 0 ? K.discCells(W, H, bX3, bY3, p.lifeR) : K.discCells3(W, H, D, bX3, bY3, bZ3, p.lifeR);
+          moved3++;
+        }
+      }
+      sim.adheres += moved3;
+      return;
+    }
+    /* ── 2D 경로(현행 — kAdhereZ=0 또는 D=1 이면 비트 동일). */
     var occ = sim.adhereOcc; if (!occ || occ.length !== N) occ = sim.adhereOcc = new Int16Array(N);
     occ.fill(-1);                                                                      // -1 = 빈칸. 점유 칸엔 태그(0=무유전, >0=유전형)
     for (var i = 0; i < ag.length; i++) occ[ag[i].center] = ag[i].g | 0;

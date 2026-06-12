@@ -302,6 +302,34 @@ function seedColumns(sim) {                                            // 균일
     sim.agents.push({ x: x, y: y, z: z, m: seedM, cells: [center], center: center, bornTick: sim.tick });
   }
 }
+/* 3D 차등 응집 3D 아레나(step-0045 V5+ — 차등 응집[kin 정렬]의 연직축 일반화) — step-0045/verify.js sortArena()/seedKinBlock 과 동일 상수.
+ * D=8 voxel, 두 유전형 z-체커보드 블록(z∈[1,7))·adhere 만 on(이동·번식·흡수·대사·혼잡 off → 위치는 정렬로만). kAdhereZ=1 → z>0 거주 생명이 z±이웃 kin 을 세 3D 정렬(연직 cell sorting).
+ * org@ 등 2D 키들(z=0 평면 정렬)은 W·H·D occ·6-이웃·26-이웃 미커버 → 이 키가 3D 정렬 본문·agent.z 해시를 동결(드리프트 가드). step-0046~ 회귀 앵커: 새 노브(kAdhereZ)=0 이면 2D 경로(비트 동일). */
+function sortArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, mDeath: 0, kL: 0, lifeR: 0,
+    life: true, move: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 0,
+    repro: false, mDiv: 1.2, divR: 1, popCap: 4096, kDivZ: 0,
+    kCrowd: 0, crowdR: 3, kCrowdZ: 0,
+    kAdhesion: 1, adhesionLambda: 1.0, adhesionGain: 0.5, kAdhereZ: 1,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
+function seedKinBlock(sim) {                                            // 균일 E=2 + 두 유전형 z-체커보드 블록(x∈[12,24)·y∈[12,24)·z∈[1,7)·≈60% 채움). step-0045/verify.js seedKinBlock 과 동일.
+  var E = sim.E, D = sim.p.D, W = sim.p.W, H = sim.p.H, WH = W * H, N = WH * D;
+  for (var i = 0; i < N; i++) { E[i] = 2; sim.E0 += 2; }
+  for (var z = 1; z < 7; z++) for (var y = 12; y < 24; y++) for (var x = 12; x < 24; x++) {
+    if (((x * 3 + y * 5 + z * 7) % 5) >= 3) continue;
+    var center = z * WH + y * W + x, tag = 1 + ((x + y + z) & 1);
+    var seedM = sim.E[center] < 1 ? sim.E[center] : 1;
+    sim.E[center] -= seedM;
+    sim.agents.push({ x: x, y: y, z: z, m: seedM, g: tag, cells: [center], center: center, bornTick: sim.tick });
+  }
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -710,6 +738,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // cap3@ — 3D 혼잡 3D 아레나(step-0044 V5+: 생명 수직 컬럼 3개[z=0..7] + crowd[kCrowd=0.02] + kCrowdZ=1 → 수직 적층이 z-이웃 세 혼잡세). cwd@ 등 2D 키들(z=0 평면 혼잡)은 ball 밀도·W·H·D occ 미커버 → 이 키가 3D 혼잡 본문을 동결(드리프트 가드). step-0045~ 회귀 앵커: 새 노브(kCrowdZ)=0 이면 2D 경로(비트 동일).
     var a = ENG.createSim(seed, capArena()); seedColumns(a); ENG.run(a, 8);
     cur['cap3@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // adh3@ — 3D 차등 응집 3D 아레나(step-0045 V5+: 두 유전형 z-체커보드 블록[z∈[1,7)] + adhere[kAdhesion=1] + kAdhereZ=1 → z>0 거주 생명이 z±이웃 kin 을 세 3D 정렬). org@ 등 2D 키들(z=0 평면 정렬)은 W·H·D occ·6-이웃·26-이웃 미커버 → 이 키가 3D 정렬 본문·agent.z 해시를 동결(드리프트 가드). step-0046~ 회귀 앵커: 새 노브(kAdhereZ)=0 이면 2D 경로(비트 동일).
+    var a = ENG.createSim(seed, sortArena()); seedKinBlock(a); ENG.run(a, 40);
+    cur['adh3@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
