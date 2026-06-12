@@ -18,9 +18,12 @@ class InventoryService {
     this.persistBackup = opts.persistBackup || null;  // 보조 영속 스토어 주소(0027·persistBackup) — _journal 이중쓰기 대상. null = 0026 비트 동일(단일 persist).
     this.replicas = opts.replicas || [];  // N-replica 영속 스토어 주소 목록(0028·persistReplicas) — _journal 이 primary + 이 목록 전부에 fan-out. [] = 0027 비트 동일(N-replica 휴면). persistBackup 과 상호배타(토폴로지가 둘 중 하나만 와이어).
     this.quorumW = opts.quorumW || 0;     // 쓰기 정족수(이 step·quorumW) — 저널이 W개 스토어에 ack 되면 그 seq 를 durable 선언. >0 이면 _journal 이 q:true 로 ack 요청, 스토어가 회신. 0 = 0028 비트 동일(ack 0·낙관 fire-and-forget).
-    this.ackSeqs = new Map();             // seq -> Set<storeAddr> — durable ack 한 스토어 집합(이 step). size≥quorumW 면 그 seq durable.
-    this.durableSeq = -1;                 // 커밋 워터마크(이 step) — [0..durableSeq] 전 seq 가 ≥W ack(연속). 윈도 = (journalSeq-1) - durableSeq = 아직 정족수 미확인(정합성 윈도 가시화).
-    this.quorumAcks = 0;                  // 수신한 journal_ack 누적(이 step·계측)
+    this.ackSeqs = new Map();             // seq -> Set<storeAddr> — durable ack 한 스토어 집합(0029). size≥quorumW 면 그 seq durable.
+    this.durableSeq = -1;                 // 커밋 워터마크(0029) — [0..durableSeq] 전 seq 가 ≥W ack(연속). 윈도 = (journalSeq-1) - durableSeq = 아직 정족수 미확인(정합성 윈도 가시화).
+    this.quorumAcks = 0;                  // 수신한 journal_ack 누적(0029·계측)
+    this.windowFill = opts.windowFill || false;  // 정합성 윈도 *해소*(이 step·windowFill) — ON 이면 durableSeq 위 윈도(ack<W) seq 를 아직 ack 안 한 스토어에 주기적 재-fan-out → 정족수 채워 durable 로 전환. OFF = 0029 비트 동일(윈도 *감지*만·전환 0).
+    this.wfPeriod = opts.wfPeriod || 4;          // 윈도 해소 sweep 주기(제어 평면 결정론 상수·seed 무관·tick 동기 아님). ≥3 이라 직전 sweep fill 의 ack 가 다음 sweep 전에 기록(round-trip 2 tick < period → 이중 발신 0).
+    this.windowFills = 0;                 // 윈도 해소로 재발신한 저널 누적(이 step·계측 — ON 이면 >0·OFF 면 0)
     this.snapInterval = opts.snapshot || 0;  // 스냅샷 압축 주기(0018) — 저널 N항목마다 원장 스냅샷 발신(0 = 0017 비트 동일·압축 휴면).
     this.reliable = opts.reliable || false;  // 저널 홉 신뢰 전달(0023) — ON 이면 보낸 저널을 sentBuffer 에 보관하고 persist NAK 에 재전송(0008 ack/NAK 의 저널 홉 판). OFF = 0022 fire-and-forget 비트 동일.
     this.journalHb = opts.journalHb || false;  // 저널 홉 *tail* 손실 감지(이 step) — ON 이면 주기적 heartbeat 로 persist 에 maxSentSeq 통보 → persist 가 maxRecvSeq *위*의 tail 갭도 NAK 가능(0023 NAK-only 의 §9 사각 해소). reliable 위에 올라탐. OFF = 0023 비트 동일(heartbeat 0).
@@ -46,7 +49,7 @@ class InventoryService {
   _journal(entry) {
     if (!this.persist) return;
     const full = { ...entry, seq: this.journalSeq++ };
-    if (this.reliable) this.sentBuffer.set(full.seq, full);   // 신뢰 전달(0023) — 미-ack 보존(persist NAK 시 재전송). OFF 면 보관 0(0022 비트 동일).
+    if (this.reliable || this.windowFill) this.sentBuffer.set(full.seq, full);   // 미-ack 보존: 신뢰 전달(0023·persist NAK 재전송) 또는 윈도 해소(이 step·정족수 미달 seq 재발신 소스). 둘 다 OFF 면 보관 0(0029 비트 동일).
     // 쓰기 정족수 ack 요청(이 step) — quorumW>0 이면 q:true 를 실어 스토어가 저장 후 journal_ack 회신. quorumW 0 면 q 없음 = 0028 비트 동일(낙관 fire-and-forget).
     //   매 발신마다 별도 객체(0028 처럼) — 공유 참조 회피로 전송층 변형 안전. q 없으면 페이로드가 0028 과 비트 동일(reg 0).
     const mk = () => this.quorumW > 0 ? { type: 'journal', entry: full, q: true } : { type: 'journal', entry: full };
@@ -86,10 +89,33 @@ class InventoryService {
   //   heartbeat 가 maxSentSeq 를 알려주면 persist 가 [maxRecvSeq+1..maxSentSeq] tail 갭도 NAK → 재전송으로 메움(write-behind 신뢰성의 tail 절반).
   //   *존 tick 밖*(가방 자체 제어 평면 onTick — 존 net.log/상태 비-기여·신성한 tick 보존). OFF 면 onTick no-op(0023 비트 동일).
   onTick(t) {
-    if (!this.journalHb || !this.reliable || !this.persist) return;   // 휴면 = 0023 비트 동일(heartbeat 메시지 0)
-    if (this.journalSeq <= 0 || t % this.hbPeriod !== 0) return;       // 아직 보낸 저널 없음 or 비-heartbeat tick
-    this.net.send(this.addr, this.persist, { type: 'journal_hb', maxSentSeq: this.journalSeq - 1 });
-    this.journalHbs++;
+    // 저널 홉 tail heartbeat(0024) — journalHb ON 일 때만. 아래 윈도 해소(이 step)와 *독립*(둘 다 휴면이면 onTick no-op = 0029 비트 동일).
+    if (this.journalHb && this.reliable && this.persist && this.journalSeq > 0 && t % this.hbPeriod === 0) {
+      this.net.send(this.addr, this.persist, { type: 'journal_hb', maxSentSeq: this.journalSeq - 1 });
+      this.journalHbs++;
+    }
+    // 정합성 윈도 *해소*(이 step·windowFill) — 0029 가 윈도를 워터마크 위로 *감지*만 했다면, 이 sweep 은 그 윈도를 durable 로 *전환*한다.
+    //   durableSeq 위 [durableSeq+1..journalSeq-1] 중 ack<W 인 seq 를 *아직 ack 안 한* 스토어에 재-fan-out(resend:true·q:true) → 그 스토어가 저장 후 ack
+    //   → ackSeqs 가 W 충족 → _recordAck 의 워터마크가 전진 → 윈도가 위에서부터 닫힌다. 0023 재전송 메커니즘(resend 우회)을 *정족수* 목적에 재사용.
+    //   순수 반응형 제어 평면(존 tick 밖·net.log 비-기여로 신성한 tick 보존). wfPeriod≥3 → round-trip(2 tick) 안에 ack 기록 → 다음 sweep 전 반영 → acks.has(r) 가드가 이중 발신 0.
+    //   OFF 면 이 분기 휴면 → 0029 비트 동일(reg 0). quorumW 0 이면 durableSeq 미사용이라 무의미(토폴로지가 quorumW>0 전제로만 와이어).
+    if (this.windowFill && this.quorumW > 0 && this.persist && this.journalSeq > 0 && t % this.wfPeriod === 0) {
+      const stores = [this.persist, ...this.replicas];
+      for (let seq = this.durableSeq + 1; seq < this.journalSeq; seq++) {
+        const acks = this.ackSeqs.get(seq);
+        const n = acks ? acks.size : 0;
+        // 대상 = 정족수 *미달*(0<n<W): ≥1 사본이 durable 확인됐으나 W 미달. n===0 은 (ⓐ 원 발신이 아직 in-flight·미-ack
+        //   or ⓑ 전손실=0 사본)이라 제외 — in-flight 를 재발신하면 곧 도착할 원 발신과 중복·전손실은 0023 신뢰 홉 영역(정족수 아님). n≥W 는 이미 durable.
+        if (n === 0 || n >= this.quorumW) continue;
+        const e = this.sentBuffer.get(seq);
+        if (!e) continue;                                   // 버퍼에 없음(windowFill 이면 _journal 이 보존하므로 통상 존재)
+        for (const r of stores) {
+          if (acks && acks.has(r)) continue;                // 그 스토어가 이미 durable 보유(ack 함) — 재발신 0 = dupe 0
+          this.net.send(this.addr, r, { type: 'journal', entry: e, q: true, resend: true });   // resend:true → 손실 모델 우회(신뢰 배달)·q:true → 저장 후 ack 회신
+          this.windowFills++;
+        }
+      }
+    }
   }
   // 스냅샷 발신 — 현재 원장 상태(압축 베이스)를 persist 로. upToSeq = 직전 저널 항목 seq(스냅샷이 그 이하 효과를 *이미 반영*).
   //   ledger/mintTotal/minted/transfers 를 함께 — replay 가 이 베이스에서 tail 만 적용해 전체-저널 replay 와 비트 동일 재구성.
@@ -158,7 +184,7 @@ class InventoryService {
     this.ledger = new Map(); this.byOwner = new Map();
     this.mintTotal = 0; this.journalSeq = 0;
     this.sentBuffer = new Map(); this.resends = 0; this.journalHbs = 0;   // 신뢰 전달(0023) — 새 프로세스는 미-ack 버퍼 0(죽기 전 in-flight 는 소실 = §9 write-behind 윈도 잔존). heartbeat 계측도 리셋.
-    this.ackSeqs = new Map(); this.durableSeq = -1; this.quorumAcks = 0;   // 쓰기 정족수 상태 리셋(이 step) — 새 프로세스는 ack 집계 0(복구 후 다시 쌓임). quorumW 0 면 무관.
+    this.ackSeqs = new Map(); this.durableSeq = -1; this.quorumAcks = 0; this.windowFills = 0;   // 쓰기 정족수·윈도 해소 상태 리셋(0029·이 step) — 새 프로세스는 ack 집계/fill 계측 0(복구 후 다시 쌓임). quorumW 0 면 무관.
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   // replay — 영속 저널(효과 로그)로 원장을 *재현*(상태 전송 아님 = §4 "복제=재현"). seq 순서대로 mint/xfer 적용.
