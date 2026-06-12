@@ -21,9 +21,10 @@ class InventoryService {
     this.ackSeqs = new Map();             // seq -> Set<storeAddr> — durable ack 한 스토어 집합(0029). size≥quorumW 면 그 seq durable.
     this.durableSeq = -1;                 // 커밋 워터마크(0029) — [0..durableSeq] 전 seq 가 ≥W ack(연속). 윈도 = (journalSeq-1) - durableSeq = 아직 정족수 미확인(정합성 윈도 가시화).
     this.quorumAcks = 0;                  // 수신한 journal_ack 누적(0029·계측)
-    this.windowFill = opts.windowFill || false;  // 정합성 윈도 *해소*(이 step·windowFill) — ON 이면 durableSeq 위 윈도(ack<W) seq 를 아직 ack 안 한 스토어에 주기적 재-fan-out → 정족수 채워 durable 로 전환. OFF = 0029 비트 동일(윈도 *감지*만·전환 0).
-    this.wfPeriod = opts.wfPeriod || 4;          // 윈도 해소 sweep 주기(제어 평면 결정론 상수·seed 무관·tick 동기 아님). ≥3 이라 직전 sweep fill 의 ack 가 다음 sweep 전에 기록(round-trip 2 tick < period → 이중 발신 0).
-    this.windowFills = 0;                 // 윈도 해소로 재발신한 저널 누적(이 step·계측 — ON 이면 >0·OFF 면 0)
+    this.windowFill = opts.windowFill || false;  // 정합성 윈도 *해소*(0031·windowFill) — ON 이면 durableSeq 위 윈도(0<ack<W) seq 를 아직 ack 안 한 스토어에 주기적 재-fan-out → 정족수 채워 durable 로 전환. OFF = 0029 비트 동일(윈도 *감지*만·전환 0).
+    this.wfPeriod = opts.wfPeriod || 4;          // 윈도 해소 sweep 주기(0031·제어 평면 결정론 상수·seed 무관·tick 동기 아님). ≥3 이라 직전 sweep fill 의 ack 가 다음 sweep 전에 기록(round-trip 2 tick < period → 이중 발신 0).
+    this.wfWindow = opts.wfWindow || 0;          // 윈도 해소 sweep *유계 범위*(이 step·wfWindow) — sweep 이 매 tick [durableSeq+1 .. durableSeq+wfWindow] 만 훑는다(미끄러지는 유계 창 → per-sweep O(K) 비용 상한). durableSeq 가 전진하며 창이 따라 미끄러져 전체 윈도를 결국 덮는다. 0 = 무계(0031 비트 동일 — journalSeq-1 까지).
+    this.windowFills = 0;                 // 윈도 해소로 재발신한 저널 누적(0031·계측 — ON 이면 >0·OFF 면 0). fill 손실 retry(이 step) 시 재시도분만큼 증가.
     this.snapInterval = opts.snapshot || 0;  // 스냅샷 압축 주기(0018) — 저널 N항목마다 원장 스냅샷 발신(0 = 0017 비트 동일·압축 휴면).
     this.reliable = opts.reliable || false;  // 저널 홉 신뢰 전달(0023) — ON 이면 보낸 저널을 sentBuffer 에 보관하고 persist NAK 에 재전송(0008 ack/NAK 의 저널 홉 판). OFF = 0022 fire-and-forget 비트 동일.
     this.journalHb = opts.journalHb || false;  // 저널 홉 *tail* 손실 감지(이 step) — ON 이면 주기적 heartbeat 로 persist 에 maxSentSeq 통보 → persist 가 maxRecvSeq *위*의 tail 갭도 NAK 가능(0023 NAK-only 의 §9 사각 해소). reliable 위에 올라탐. OFF = 0023 비트 동일(heartbeat 0).
@@ -94,14 +95,17 @@ class InventoryService {
       this.net.send(this.addr, this.persist, { type: 'journal_hb', maxSentSeq: this.journalSeq - 1 });
       this.journalHbs++;
     }
-    // 정합성 윈도 *해소*(이 step·windowFill) — 0029 가 윈도를 워터마크 위로 *감지*만 했다면, 이 sweep 은 그 윈도를 durable 로 *전환*한다.
-    //   durableSeq 위 [durableSeq+1..journalSeq-1] 중 ack<W 인 seq 를 *아직 ack 안 한* 스토어에 재-fan-out(resend:true·q:true) → 그 스토어가 저장 후 ack
+    // 정합성 윈도 *해소*(0031·windowFill) — 0029 가 윈도를 워터마크 위로 *감지*만 했다면, 이 sweep 은 그 윈도를 durable 로 *전환*한다.
+    //   durableSeq 위 ack<W 인 seq 를 *아직 ack 안 한* 스토어에 재-fan-out(resend:true·q:true) → 그 스토어가 저장 후 ack
     //   → ackSeqs 가 W 충족 → _recordAck 의 워터마크가 전진 → 윈도가 위에서부터 닫힌다. 0023 재전송 메커니즘(resend 우회)을 *정족수* 목적에 재사용.
     //   순수 반응형 제어 평면(존 tick 밖·net.log 비-기여로 신성한 tick 보존). wfPeriod≥3 → round-trip(2 tick) 안에 ack 기록 → 다음 sweep 전 반영 → acks.has(r) 가드가 이중 발신 0.
+    //   *유계 sweep + fill 손실 retry(이 step)*: 매 sweep 은 [durableSeq+1 .. durableSeq+wfWindow] 만 훑어 per-sweep O(K) 비용 상한(미끄러지는 창). fill 자체가 손실돼도(ack 미수신 → n<W 유지)
+    //     *다음 sweep 이 같은 seq 를 자연 retry* → 결국 정족수 충족(주기적 재-scan = 내장 retry). durableSeq 전진에 창이 따라 미끄러져 전체 윈도를 덮는다. wfWindow 0 = 무계(0031 비트 동일).
     //   OFF 면 이 분기 휴면 → 0029 비트 동일(reg 0). quorumW 0 이면 durableSeq 미사용이라 무의미(토폴로지가 quorumW>0 전제로만 와이어).
     if (this.windowFill && this.quorumW > 0 && this.persist && this.journalSeq > 0 && t % this.wfPeriod === 0) {
       const stores = [this.persist, ...this.replicas];
-      for (let seq = this.durableSeq + 1; seq < this.journalSeq; seq++) {
+      const hi = this.wfWindow > 0 ? Math.min(this.journalSeq - 1, this.durableSeq + this.wfWindow) : this.journalSeq - 1;   // 유계 창 상한(이 step) — 0 면 무계(journalSeq-1·0031 동일)
+      for (let seq = this.durableSeq + 1; seq <= hi; seq++) {
         const acks = this.ackSeqs.get(seq);
         const n = acks ? acks.size : 0;
         // 대상 = 정족수 *미달*(0<n<W): ≥1 사본이 durable 확인됐으나 W 미달. n===0 은 (ⓐ 원 발신이 아직 in-flight·미-ack

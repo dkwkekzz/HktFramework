@@ -1,9 +1,9 @@
-// HktInfra step-0032 — 헤드리스 검증 (정합성 윈도 *해소* — quorum-fill: W 미달 윈도 seq 재-fan-out 으로 durable 전환)
+// HktInfra step-0032 — 헤드리스 검증 (윈도 해소의 *유계 sweep + fill 손실 retry*)
 // 사용: node step-0032/verify.js <mode> [seed]
-//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 모드 = wfill(아래).
-//   이 step 의 가설: 0029 가 정합성 윈도를 워터마크 위로 *감지*만 했다면, windowFill 은 그 윈도를 durable 로 *전환*한다.
-// 작성법(이 step 부터 정착): 누적 회귀(reg 등 18모드)는 키트가 든다 — 셸은 ctx 구성 + 새 모드만 추가한다:
-//   kit.MODES['<mode>'] = fn; kit.ORDER.splice(1, 0, '<mode>');
+//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 모드 = wfretry(아래).
+//   이 step 의 가설: 0031 윈도 해소 sweep 은 ⒜ fill 자체가 손실돼도 *주기적 재-scan 이 내장 retry* 로 수렴하고
+//                    ⒝ sweep 범위를 wfWindow 로 유계화(미끄러지는 창)해도 전체 윈도를 결국 덮는다(per-sweep O(K) 비용 상한).
+// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다(0031 wfill 은 그 step 의 *가설* 모드라 셸 한정 — 이 step 은 noloss 기준선이 그 동작을 재검증). 셸은 ctx 구성 + 이 step 의 새 모드만 추가.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../step-0031/net-core.js');   // reg 대조용(직전 step)
@@ -19,66 +19,89 @@ const JLOSS = 0.3;       // 저널 홉 손실율(0023~) — inventory→persist 
 
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-// ── 이 step 의 새 모드: wfill — 정합성 윈도 해소(quorum-fill) ──
+// ── 이 step 의 새 모드: wfretry — 윈도 해소의 유계 sweep + fill 손실 retry ──
 const { run, quorumMergeJournals, itemConserved, ledgerConsistent, itemDesync } = NET;
 const { check, pad } = kit.helpers;
 
-// 0029 의 quorum 쓰기 토폴로지 재사용 — primary + R=3 복제 = N+1=4 사본·W=3 정족수(비-신뢰 스토어·압축 OFF·restart 없음).
+// 0029/0031 quorum 쓰기 토폴로지 재사용 — primary + R=3 복제 = N+1=4 사본·W=3 정족수.
 const QR = 3, QW = 3;
+const WF_K = 8;   // 유계 sweep 창 크기(이 step) — 윈도(~24)보다 작게 잡아 *미끄러지는 창*이 전체를 덮는지 검증.
 const BASE = (seed) => ({ seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true });
 const WQ_BASE = (seed) => ({ ...BASE(seed), inventory: true, itemOps: 10, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, persist: true, persistReplicas: QR, quorumW: QW });
 const WTAIL_T = (total) => Math.floor(total * 0.6);   // 윈도 시작 seq(저널 후반 40% 가 정족수 미달)
-// tail 정족수 미달 손실(0029 XQUORUMLOSS) — persist2 는 *전* seq, persist3 은 seq≥T 추가 드롭 → seq≥T 홀더={primary,p4}=2(<W) = 윈도.
-//   재발신(resend:true)·ack(type!=journal) 은 routeFilter 제외 → 윈도 해소 fill 은 신뢰 배달(갭은 *정족수* 문제로 격리).
-const XQUORUMLOSS = (seed, T) => ({ seed: (seed ^ 0x71A0) >>> 0, delayMin: 0, delayMax: 0, loss: 1.0, redundancy: 1,
+
+// fill 무손실 윈도(0031 XQUORUMLOSS) — 원 발신만 떨굼(resend 제외) → fill 은 전부 배달(retry 0 의 기준선).
+const XQ_NOFILLLOSS = (seed, T) => ({ seed: (seed ^ 0x71A0) >>> 0, delayMin: 0, delayMax: 0, loss: 1.0, redundancy: 1,
   routeFilter: (m) => {
     if (m.payload.type !== 'journal' || m.payload.resend) return false;
     if (m.to === 'persist2') return true;
     if (m.to === 'persist3' && m.payload.entry.seq >= T) return true;
     return false;
   } });
-// 한 스토어 저널에 중복 seq 가 없는가(멱등 fill — 재발신이 이미 보유한 스토어를 안 친다는 증명)
+// fill 손실(이 step) — 원 발신(윈도 생성)에 더해 *각 (seq,store) fill 의 첫 시도*도 떨군다(loss 1.0):
+//   첫 fill 시도만 떨구고(seenFill 마킹) 둘째 시도부터 통과 → 결정론적으로 fill 당 정확히 1회 retry 강제.
+//   순수 결정론(PRNG 무관·seenFill 마킹 순서는 sweep 순서 = 결정론). run 마다 새 인스턴스(fresh 클로저).
+const XQ_FILLLOSS = (seed, T) => {
+  const seenFill = new Set();   // (seq:store) 첫 fill 시도 식별 — 첫 시도만 떨굼(retry 자극)
+  return { seed: (seed ^ 0x71A0) >>> 0, delayMin: 0, delayMax: 0, loss: 1.0, redundancy: 1,
+    routeFilter: (m) => {
+      if (m.payload.type !== 'journal') return false;
+      if (!m.payload.resend) {   // 원 발신 — 0031 윈도 생성 패턴(persist2 전부·persist3 seq≥T)
+        if (m.to === 'persist2') return true;
+        if (m.to === 'persist3' && m.payload.entry.seq >= T) return true;
+        return false;
+      }
+      if (m.to !== 'persist2' && m.to !== 'persist3') return false;   // primary/persist4 로의 fill 은 안 떨굼(보유자라 어차피 안 옴)
+      const key = m.payload.entry.seq + ':' + m.to;
+      if (seenFill.has(key)) return false;   // 이미 첫 시도를 떨궜음 → 이제 통과(retry 배달)
+      seenFill.add(key); return true;        // 첫 fill 시도 → 떨굼 → 다음 sweep 이 retry
+    } };
+};
 const noDupSeq = (store) => { const seen = new Set(); for (const e of store.journal) { if (seen.has(e.seq)) return false; seen.add(e.seq); } return true; };
 
-function wfill(seeds) {
-  console.log('== wfill: *가설* — 정합성 윈도 해소(quorum-fill): W 미달 윈도 seq 를 아직 ack 안 한 스토어에 재-fan-out → durable 로 전환 ==');
-  console.log('  OFF(0029) = 윈도 감지만(durableSeq 가 T-1 에 멈춤·윈도>0) / ON = 윈도 닫힘(durableSeq=total-1·윈도 0·fill>0)');
-  console.log('seed   | total |  T | OFF durSeq/win | ON durSeq/win | fills | crash{prim,p4} 생존: OFF/ON | dupe0 | desync0 | 판정');
+function wfretry(seeds) {
+  console.log('== wfretry: *가설* — 윈도 해소 sweep 의 ⒜ fill 손실 retry(주기 재-scan 이 내장 retry) ⒝ 유계 sweep(미끄러지는 창이 전체 윈도 덮음) ==');
+  console.log('  기준: 무손실 fill(0031) durSeq=total-1·fills=F0. fill손실(첫시도 드롭): 무계/유계(K=8) 둘 다 durSeq=total-1·윈도0·fills>F0(retry).');
+  console.log('seed   | total |  T | 무손실 durSeq/fills | fill손실·무계 durSeq/win/fills | fill손실·유계K=8 durSeq/win/fills | retry↑ | dupe0 | crash생존 | desync0 | 판정');
   for (const seed of seeds) {
-    const full = run(WQ_BASE(seed));
-    const total = full.inventory.journalSeq;
+    const total = run(WQ_BASE(seed)).inventory.journalSeq;
     const T = WTAIL_T(total);
-    const off = run({ ...WQ_BASE(seed), transport: XQUORUMLOSS(seed, T) });                    // 0029 ⒞ — 윈도 감지만
-    const on  = run({ ...WQ_BASE(seed), transport: XQUORUMLOSS(seed, T), windowFill: true });   // 이 step — 윈도 해소
-    const dOff = off.inventory.durableSeq, winOff = total - 1 - dOff;
-    const dOn = on.inventory.durableSeq, winOn = total - 1 - dOn;
-    const fills = on.inventory.windowFills;
-    // crash{primary, persist4}(0029 의 윈도 2홀더) 후 생존 {persist2, persist3} union 으로 무엇이 복구되나:
-    //   OFF — persist2(빈)·persist3(seq<T 만) → 윈도(seq≥T) 소실. ON — persist2(seq≥T fill)·persist3(seq<T+fill) → 전 seq 생존.
-    const survOff = new Set(quorumMergeJournals([off.replicaStores[0], off.replicaStores[1]]).journal.map(e => e.seq));
-    const survOn  = new Set(quorumMergeJournals([on.replicaStores[0],  on.replicaStores[1]]).journal.map(e => e.seq));
-    let allOff = true; for (let s = 0; s <= total - 1; s++) if (!survOff.has(s)) allOff = false;   // OFF 는 윈도 소실 → false
-    let allOn  = true; for (let s = 0; s <= total - 1; s++) if (!survOn.has(s))  allOn = false;    // ON 은 전 seq 생존 → true
-    // 멱등 fill — primary·복제 어느 저널에도 중복 seq 0(재발신이 비-홀더만 침)
-    const dupe0 = noDupSeq(on.persist) && on.replicaStores.every(noDupSeq);
-    const desync0 = itemConserved(on) && ledgerConsistent(on) && itemDesync(on) === 0;   // 라이브 원장 비-침습(영속 평면 변화가 월드 무관)
+    // 기준선 — fill 무손실(0031): 윈도 해소·retry 0
+    const noloss = run({ ...WQ_BASE(seed), transport: XQ_NOFILLLOSS(seed, T), windowFill: true });
+    // fill 손실·무계 sweep — 첫 fill 시도 드롭 → 다음 sweep retry → 수렴
+    const lossU  = run({ ...WQ_BASE(seed), transport: XQ_FILLLOSS(seed, T), windowFill: true });
+    // fill 손실·유계 sweep(K=8) — 미끄러지는 창 + retry → 여전히 수렴
+    const lossB  = run({ ...WQ_BASE(seed), transport: XQ_FILLLOSS(seed, T), windowFill: true, wfWindow: WF_K });
 
-    const offWindowSeen = dOff === T - 1 && winOff > 0;     // OFF = 0029 ⒞ 윈도 가시(워터마크가 윈도 앞 정지)
-    const onWindowClosed = dOn === total - 1 && winOn === 0 && fills > 0;   // ON = 윈도 닫힘(워터마크가 끝까지·실제 fill 발생)
+    const F0 = noloss.inventory.windowFills, dN = noloss.inventory.durableSeq;
+    const dU = lossU.inventory.durableSeq, winU = total - 1 - dU, FU = lossU.inventory.windowFills;
+    const dB = lossB.inventory.durableSeq, winB = total - 1 - dB, FB = lossB.inventory.windowFills;
+
+    const baseOK = dN === total - 1;                                // 무손실 기준선 수렴(0031)
+    const lossUOK = dU === total - 1 && winU === 0;                 // ⒜ fill 손실에도 무계 sweep 수렴(retry)
+    const lossBOK = dB === total - 1 && winB === 0;                 // ⒝ fill 손실 + 유계 sweep 도 수렴(미끄러지는 창)
+    const retryUp = FU > F0 && FB > F0;                             // retry 가 실제 발생(fill 손실분 재발신 → fills 증가)
+    const dupe0 = noDupSeq(lossB.persist) && lossB.replicaStores.every(noDupSeq) && lossU.replicaStores.every(noDupSeq);   // 첫 시도 드롭은 미저장·재시도만 저장 → 중복 0
+    // crash{primary,p4} 후 생존 {persist2,persist3} union 이 전 seq 보유(유계+retry 도 진짜 durable 생산)
+    const surv = new Set(quorumMergeJournals([lossB.replicaStores[0], lossB.replicaStores[1]]).journal.map(e => e.seq));
+    let crashAll = true; for (let s = 0; s <= total - 1; s++) if (!surv.has(s)) crashAll = false;
+    const desync0 = itemConserved(lossB) && ledgerConsistent(lossB) && itemDesync(lossB) === 0;
+
     const ok =
-      check(offWindowSeen, `seed ${seed}: OFF 윈도 가시 깨짐(durable ${dOff}·기대 ${T - 1}·win ${winOff})`) &&
-      check(onWindowClosed, `seed ${seed}: ON 윈도 미해소(durable ${dOn}·기대 ${total - 1}·win ${winOn}·fills ${fills})`) &&
-      check(!allOff, `seed ${seed}: OFF 인데 crash 후 전 seq 생존(윈도가 durable 화됨 = 윈도 정의 위반)`) &&
-      check(allOn, `seed ${seed}: ON 인데 crash 후 윈도 seq 소실(해소가 durable 화 못 함)`) &&
-      check(dupe0, `seed ${seed}: fill 이 중복 seq 생성(멱등 위반)`) &&
+      check(baseOK, `seed ${seed}: 무손실 기준선 미수렴(durable ${dN}/${total - 1})`) &&
+      check(lossUOK, `seed ${seed}: fill손실·무계 미수렴(durable ${dU}·win ${winU})`) &&
+      check(lossBOK, `seed ${seed}: fill손실·유계K=${WF_K} 미수렴(durable ${dB}·win ${winB})`) &&
+      check(retryUp, `seed ${seed}: retry 미발생(F0 ${F0}·FU ${FU}·FB ${FB} — fill 손실에도 재발신 안 늘음)`) &&
+      check(dupe0, `seed ${seed}: retry 가 중복 seq 생성(멱등 위반)`) &&
+      check(crashAll, `seed ${seed}: 유계+retry durable 이 crash{primary,p4} 에 소실(진짜 durable 아님)`) &&
       check(desync0, `seed ${seed}: 라이브 원장 보존/정합/desync 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(total, 5)} | ${pad(T, 2)} | ${pad(dOff + '/' + winOff, 14)} | ${pad(dOn + '/' + winOn, 13)} | ${pad(fills, 5)} | ${((allOff ? '전부' : '윈도소실') + '/' + (allOn ? '전부' : '윈도소실')).padEnd(26)} | ${(dupe0 ? '예' : '아니오').padEnd(5)} | ${(desync0 ? '예' : '아니오').padEnd(7)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad(total, 5)} | ${pad(T, 2)} | ${pad(dN + '/' + F0, 18)} | ${pad(dU + '/' + winU + '/' + FU, 29)} | ${pad(dB + '/' + winB + '/' + FB, 32)} | ${(retryUp ? '예' : '아니오').padEnd(6)} | ${(dupe0 ? '예' : '아니오').padEnd(5)} | ${(crashAll ? '전부' : '소실').padEnd(8)} | ${(desync0 ? '예' : '아니오').padEnd(7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 윈도 해소: durableSeq 위 W 미달 seq 를 비-홀더 스토어에 재-fan-out(resend:true·q:true) → 저장·ack → 정족수 충족 → 워터마크 전진 → 윈도 닫힘.');
-  console.log('    0029 는 윈도를 *감지*만 했다(워터마크가 T-1 에 멈춤) — 이 step 은 같은 윈도를 *전환*한다(durable=total-1). crash{primary,p4} 에 ON 은 전 seq 생존(윈도가 durable 화)·OFF 는 윈도 소실. windowFill 0 면 reg 0(0029 비트 동일).');
+  console.log('  → ⒜ fill 손실 retry: 첫 fill 시도가 떨궈져 ack 가 안 오면 seq 가 n<W 로 남는다 → *다음 sweep 이 같은 seq 를 자연 재발신*(주기 재-scan = 내장 retry) → 둘째 시도 배달 → 정족수 충족 → 수렴.');
+  console.log('    ⒝ 유계 sweep: 매 sweep [durableSeq+1 .. durableSeq+K] 만 훑어 per-sweep O(K) 상한. durableSeq 전진에 창이 미끄러져 전체 윈도(~24)를 K=8 로도 덮는다. 첫 시도 미저장·retry 만 저장 → dupe 0. wfWindow 0 = 무계(0031 비트 동일).');
 }
-kit.MODES['wfill'] = wfill;
-kit.ORDER.splice(1, 0, 'wfill');   // reg 직후(가설 우선 노출)
+kit.MODES['wfretry'] = wfretry;
+kit.ORDER.splice(1, 0, 'wfretry');   // reg 직후(가설 우선 노출)
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
