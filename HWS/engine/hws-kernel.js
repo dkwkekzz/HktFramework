@@ -184,12 +184,13 @@
    * 닫힌 장부에 들지 않는다. 별이 연료를 태워 E 로 *주입*하면 sim.injected 가 늘고(외부 source 와 같은 경계 항)
    * sumE 가 같이 늘어 식이 그대로 닫힌다. 즉 step-0010 장부 식과 동일 — 별은 source 의 위치를 내생화할 뿐. */
   function ledger(sim) {
-    var sumE = 0, E = sim.E;
-    for (var i = 0; i < E.length; i++) sumE += E[i];
+    var sumE = 0, sumEth = 0, E = sim.E, Eth = sim.Eth;
+    for (var i = 0; i < E.length; i++) { sumE += E[i]; if (Eth) sumEth += Eth[i]; }
     var M = totalBiomass(sim), R = totalStore(sim);
-    var lhs = sumE + M + R + sim.evaporated + sim.sunk + sim.metabolized - sim.injected;
+    /* step-0047: 열 에너지 Eth 가법 — degrade/폐열이 E→Eth 쌍 거래라 sumE+sumEth 보존(kQual=0·kLifeHeat=0 이면 Eth=0 → lhs·잔차 직전 step 과 동일). */
+    var lhs = sumE + sumEth + M + R + sim.evaporated + sim.sunk + sim.metabolized - sim.injected;
     var scale = Math.max(1, sim.E0 + sim.injected);
-    return { sumE: sumE, biomass: M, store: R, fuel: totalFuel(sim), residual: Math.abs(lhs - sim.E0) / scale };
+    return { sumE: sumE, thermal: sumEth, biomass: M, store: R, fuel: totalFuel(sim), residual: Math.abs(lhs - sim.E0) / scale };
   }
 
   /* 측정: 총량·평균·공간 분산·최대 */
@@ -661,6 +662,8 @@
     }
     feed(sim.E.buffer);
     feed(sim.R.buffer);
+    /* 열 에너지 Eth(step-0047) — *가법*: 에너지 질이 활성(qualInit, kQual≠0 또는 폐열 kLifeHeat≠0)일 때만 먹인다(둘 다 0 이면 false → skip → 과거 골든 전부 불변). 저질 에너지 분포가 결정론·재현에 들어간다. */
+    if (sim.qualInit) feed(sim.Eth.buffer);
     feed(new Float64Array([sim.injected, sim.evaporated, sim.sunk, sim.metabolized, sim.tick]).buffer);
     var ag = sim.agents;
     feed(new Float64Array([ag.length]).buffer);
