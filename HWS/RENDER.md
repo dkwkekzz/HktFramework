@@ -3,7 +3,7 @@
 > 스냅샷(E·R·A·G)을 *읽기만* 해 세계로 그린다. 형태를 author 하지 않는다.
 > 큰 목표 [CLAUDE.md](CLAUDE.md) · 존재론 척추 [SPINE.md](SPINE.md) · 렌더 엔진 배관 [engine/DESIGN-3D.md](engine/DESIGN-3D.md).
 >
-> ⚠️ **3D 전환 진행 중 ([VOXEL.md](VOXEL.md))**: 시뮬 voxel 전환(V1~V5+)·**렌더 L-V1(voxel 세계) 닫힘**. 이제 우측 뷰는 *R 점유 = 기하*인 진짜 voxel 세계다 — 공간 점유는 시뮬의 사실이고(높이 발명 0), 렌더러에 남는 권한은 *색·재질·빛*뿐(E 크기 = 밝기, 클수록 밝게). **따라서 아래 §2 제1원칙("sim은 2D — z는 렌더러가 발명")·§5 물 렌즈("R 위 막")는 *레거시 2.5D 좌측 뷰에만* 적용된다** — voxel 우측 뷰의 척추는 [VOXEL.md](VOXEL.md) §2·§4, 현황은 [RENDER-STATE.md](RENDER-STATE.md). §2/§5 의 전면 개정은 별도 문서 패스(L-V 사다리 완주 시).
+> ⚠️ **3D voxel 전환 완료 ([VOXEL.md](VOXEL.md) 보관됨)**: 렌더 L-V1~L-V5 + 픽킹 + 오버레이 닫힘. 우측 뷰는 *R 점유 = 기하*인 진짜 voxel 세계다 — 공간 점유는 시뮬의 사실이고(높이 발명 0), 렌더러에 남는 권한은 *색·재질·빛*뿐(E 크기 = 밝기, 클수록 밝게). **아래 §2 제1원칙("sim은 2D — z는 렌더러가 발명")·§5 물 렌즈("R 위 막")는 *레거시 2.5D 좌측 뷰(D=1)에만* 적용**되고, voxel 우측 뷰의 standing 원칙(점유=R=기하·E=색밝기)은 [RENDER-STATE.md](RENDER-STATE.md) §7 로 흡수했다(VOXEL.md 를 열 필요 없음). 현황·런북은 [RENDER-STATE.md](RENDER-STATE.md).
 
 ---
 
