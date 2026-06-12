@@ -55,6 +55,8 @@
     mDiv: 1.20,            // 분열 임계 — m >= mDiv 면 둘로 쪼갬(부모 m/2, 자식 m/2)
     divR: 1,               // 자식 배치 탐색 반경 — 이 disc 안 빈 이웃 중 E 최고 셀로
     popCap: 4096,          // 개체수 안전 상한(=격자 셀 수). 보통 자원이 먼저 제한 → 거의 안 닿음
+    kDivZ: 0,              // step-0043 V5+: 3D 번식(자식의 연직 출생). 0 = off = 직전 step(V5+ 생명 z-이동) 비트 동일(자식이 늘 z=0 평면에 태어남·reproduce 가 2D 이웃만 봄·z 코드 미진입 → pz 강제 0 → 인덱스 산술 동일 → moveZInit 미설정 → agent.z 해시 skip → 골든 무관). >0 이면 on:
+                          //   reproduce 의 자식 배치를 4-이웃[2D 평면]→6-이웃[3D]으로 — 부모 z-평면 + 위/아래(z±1) 후보 중 E 최고 칸에 자식을 둔다(번식이 연직축으로 일반화). 연직 E 구배가 있으면 자식이 *위로* 태어나 개체군이 *번식으로* 상승한다(0042 의 *이동* 상승과 짝 — substrate 위 다세포 탑승). D=1 이면 z±1 이 벽 밖이라 후보 0 = 비트 동일(이중 가드). m 만 반분(쌍 거래 보존)·위치만.
     /* ── step-0005: 이동(주화성 — 더 높은 E 이웃으로 한 칸씩) ── */
     move: true,            // 이동 on/off. off(또는 moveR=0) → step-0004 와 비트 동일(회귀)
     moveR: 1,              // 이동 반경(보폭). 1 = 4이웃 중 한 칸. 0 = 이동 없음(회귀)
@@ -1311,12 +1313,22 @@
   }
 
   /* ⑧ 번식 — repro off 면 건너뜀. 분열 = 생물량 내부 분배(부모 m/2 + 자식 m/2). step-0004 그대로.
-   * sim.agents(=⑦의 survivors)를 직접 읽고 push — 원본의 survivors push 와 동일 배열·동일 순서. */
+   * sim.agents(=⑦의 survivors)를 직접 읽고 push — 원본의 survivors push 와 동일 배열·동일 순서.
+   * step-0043 V5+: 3D 번식(kDivZ) — 자식 배치를 *연직축*으로 일반화(move 의 kMoveZ z-이동과 같은 형식·제자리 확장·새 LAW_ORDER 자리 없음).
+   *   0042 가 생명의 *이동*을 z 로 풀었으나(개체가 올라감), 번식은 여전히 자식을 z=0 평면에 떨궜다(부모가 z>0 이라도 자식이 바닥으로). 이 step 은
+   *   자식 후보를 부모 z-평면 + 위/아래(z±1)로 넓혀, 연직 E 구배가 있으면 자식이 *더 높은 에너지 쪽(위)에 태어난다* → 개체군이 *번식으로* 상승(다세포가
+   *   substrate 위에 탑승하는 두 경로: 이동[0042]과 번식[0043]). 분열은 여전히 m 반분(쌍 거래 보존)·위치만(E·R 안 건드림).
+   * 회귀(이중 가드): kDivZ=0 → pz 강제 0 → zBase=0 → 자식 인덱스가 기존 2D 와 비트 동일(자식이 z=0 평면)·moveZInit 미설정 → agent.z 해시 skip → 골든 불변.
+   *   D=1 → z±1 이 z 벽 밖이라 후보 0(이중 가드).
+   * 척추: 새 *필드* 없음(z 는 생명 *속성* — 단일 척추) · authored 분기 없음(자식 위치 바이어스만, type 분기 0 — 활성도 환원) ·
+   *   국소 문턱(부모 제 6-근방 빈칸·제 m 만, 전역 조율자 0) · 닫힌 장부(m 반분 쌍 거래 — 보존; z 출생은 비가역 *위치*지 에너지 아님). */
   function reproduce(sim) {
     var p = sim.p;
     if (!p.life || !p.repro) return;
     var W = p.W, H = p.H, E = sim.E, survivors = sim.agents;
     var mDiv = p.mDiv, divOff = sim.divOffsets, popCap = p.popCap, occ = sim.occSet;
+    var WH = W * H, D = p.D || 1, kDivZ = p.kDivZ;
+    if (kDivZ) sim.moveZInit = true;             // step-0043: 3D 번식 활성 → hashState 가 agent.z 를 가법 해싱(kDivZ=0 이면 미설정 → 골든 불변). move 의 kMoveZ 와 같은 플래그(둘 다 agent 에 의미 있는 z 를 부여 → 결정론 해시에 산입).
     occ.clear();
     for (var s = 0; s < survivors.length; s++) occ.add(survivors[s].center);
     var nDiv = survivors.length;
@@ -1324,19 +1336,29 @@
       var par = survivors[s2];
       if (par.m < mDiv) continue;
       if (survivors.length >= popCap) break;
-      var px = par.x, py = par.y, bestIdx = -1, bestE = -Infinity, bestX = 0, bestY = 0;
-      for (var o = 0; o < divOff.length; o++) {
+      var pz = (kDivZ && D > 1) ? (par.z || 0) : 0;   // 부모 z-평면(kDivZ=0 또는 D=1 → 강제 0 → zBase=0 → 인덱스 산술 동일=회귀·이중 가드)
+      var zBase = pz * WH;
+      var px = par.x, py = par.y, bestIdx = -1, bestE = -Infinity, bestX = 0, bestY = 0, bestZ = pz;
+      for (var o = 0; o < divOff.length; o++) {       // 부모 z-평면 안 (x,y) 후보(zBase=0 이면 기존 2D 인덱스와 비트 동일)
         var nx = (px + divOff[o][0] + W) % W, ny = (py + divOff[o][1] + H) % H;
-        var nidx = ny * W + nx;
+        var nidx = zBase + ny * W + nx;
         if (occ.has(nidx)) continue;
-        if (E[nidx] > bestE) { bestE = E[nidx]; bestIdx = nidx; bestX = nx; bestY = ny; }
+        if (E[nidx] > bestE) { bestE = E[nidx]; bestIdx = nidx; bestX = nx; bestY = ny; bestZ = pz; }
+      }
+      if (kDivZ && D > 1) {                            // 연직 출생: 위/아래(z±1) 같은 (x,y) 칸도 후보(연직 E 구배 있으면 더 높은 데로). D=1 이면 미진입(이중 가드)
+        for (var dz = -1; dz <= 1; dz += 2) {
+          var nz = pz + dz; if (nz < 0 || nz >= D) continue;   // z 벽(클램프 — wrap 안 함)
+          var zidx = nz * WH + py * W + px;
+          if (occ.has(zidx)) continue;
+          if (E[zidx] > bestE) { bestE = E[zidx]; bestIdx = zidx; bestX = px; bestY = py; bestZ = nz; }
+        }
       }
       if (bestIdx < 0) continue;
       var half = par.m * 0.5;
       par.m = half;
       survivors.push({
-        x: bestX, y: bestY, m: half,
-        cells: K.discCells(W, H, bestX, bestY, p.lifeR),
+        x: bestX, y: bestY, z: bestZ, m: half,        // step-0043: z 좌표(kDivZ=0 이면 늘 0 = 기존과 동일·moveZInit 미설정 시 해시 skip)
+        cells: bestZ === 0 ? K.discCells(W, H, bestX, bestY, p.lifeR) : K.discCells3(W, H, D, bestX, bestY, bestZ, p.lifeR),
         center: bestIdx, bornTick: sim.tick
       });
       occ.add(bestIdx);
