@@ -48,6 +48,7 @@
       births: 0,           // 누적 분열(출생) 수 (통계용)
       moveOffsets: K.discOffsets(p.moveR),
       moves: 0,            // 누적 이동(run, 주화성) 수 (통계용)
+      moveZInit: false,    // step-0042: z-이동 활성 여부 — 해시 가법 가드(false 면 agent.z 해시 skip → 과거 골든 불변)
       tumbles: 0,          // 누적 탐사(tumble) 수 (통계용 — 위치 변경이라 장부 무관)
       tumbleBuf: [],       // tumble 빈 이웃 [idx,x,y…] 재사용 버퍼(상태 아님 — 매 호출 비움)
       adheres: 0,          // step-0017: 누적 차등 응집 이동 수 (통계용 — 위치 변경이라 장부 무관). adhereOcc(점유→태그)는 법칙이 지연 생성.

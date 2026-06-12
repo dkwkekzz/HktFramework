@@ -236,6 +236,25 @@ function weqArena(extra) {
     kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
   }, extra || {});
 }
+/* 생명 z-이동 3D 아레나(step-0042 V5+ — 주화성의 연직축 일반화) — step-0042/verify.js mvzArena() 와 동일 상수.
+ * D=8 voxel, 정적 연직 E 구배(E(z)=1+z), z=0 평면에 생명 9 마리(3×3). kMoveZ=1 → 생명이 천장까지 오른다(연직 주화성). 순수 z-이동 격리(흡수·대사·번식 off).
+ * 골든 D=1·생명 키들(move 가 2D)은 z-이동 미커버 → 이 키가 move 6-이웃 z-주화성·agent.z 해시 본문을 동결(드리프트 가드). step-0043~ 회귀 앵커: 새 노브(kMoveZ)=0 이면 2D 경로(직전 비트 동일). */
+function mvzArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, kL: 0, lifeR: 0,
+    life: true, move: true, repro: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 1,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kCrowd: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
+function seedMvz(sim) {                                                 // 정적 연직 E 구배 E(z)=1+z + z=0 평면 생명 9 마리(3×3). step-0042/verify.js seedGradient/seedLife 와 동일.
+  var E = sim.E, D = sim.p.D, WH = sim.p.W * sim.p.H;
+  for (var z = 0; z < D; z++) { var base = 1 + z; for (var i = 0; i < WH; i++) { E[z * WH + i] = base; sim.E0 += base; } }
+  for (var gx = 0; gx < 3; gx++) for (var gy = 0; gy < 3; gy++) ENG.spawnAgent(sim, 20 + gx * 4, 20 + gy * 4);
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -632,6 +651,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // weq@ — 풍화 평형 closed 3D 아레나(step-0041 V5+: weqArena[균일 E·중력→바다·지지 침착→지면] 위에 풍화[kWeather=0.01] 켬 → R↔E 동적 평형, 물질 동결 회피). ring@ 등(kWeather=0)은 풍화 평형 미커버 → 이 키가 풍화 R→E 재구성·물질 carrying capacity 본문을 동결(드리프트 가드). step-0042~ 회귀 앵커: 새 부품(kWeather)=0 이면 풍화 분기 no-op(법칙 무변경).
     var a = ENG.createSim(seed, weqArena()); ENG.run(a, 1000);
     cur['weq@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // mvz@ — 생명 z-이동 3D 아레나(step-0042 V5+: 정적 연직 E 구배[E(z)=1+z] + z=0 생명 9 마리 + kMoveZ=1 → 천장까지 오름). 골든 생명 키들(move 2D)은 z-주화성 미커버 → 이 키가 move 6-이웃 z-주화성·agent.z 해시 본문을 동결(드리프트 가드). step-0043~ 회귀 앵커: 새 노브(kMoveZ)=0 이면 2D 경로(비트 동일).
+    var a = ENG.createSim(seed, mvzArena()); seedMvz(a); ENG.run(a, 30);
+    cur['mvz@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

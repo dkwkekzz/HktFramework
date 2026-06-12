@@ -122,7 +122,7 @@
     var seedM = sim.E[center] < want ? sim.E[center] : want;
     sim.E[center] -= seedM;
     var a = {
-      x: cx, y: cy, m: seedM,
+      x: cx, y: cy, z: 0, m: seedM,           // step-0042: z 좌표(기본 0 = z=0 평면 — center=cy·W+cx 와 일치). kMoveZ>0 일 때만 move 가 z 를 바꾼다(회귀: z=0 이면 모든 인덱스 2D 와 동일)
       cells: discCells(p.W, p.H, cx, cy, p.lifeR),
       center: center, bornTick: sim.tick
     };
@@ -665,6 +665,9 @@
     var ag = sim.agents;
     feed(new Float64Array([ag.length]).buffer);
     for (var k = 0; k < ag.length; k++) feed(new Float64Array([ag[k].x, ag[k].y, ag[k].m]).buffer);
+    /* 생명 z 좌표 a.z(step-0042) — *가법*: z-이동이 활성(moveZInit, kMoveZ!=0)일 때만 먹인다(kMoveZ=0 이면 false → skip → 과거 골든 전부 불변).
+     * 연직 위치(이산 z)가 결정론·재현에 들어간다(같은 시드 2회 a.z 도 비트 동일). 위 x,y,m 뒤에 *z* 만 더한다. */
+    if (sim.moveZInit) for (var kz = 0; kz < ag.length; kz++) feed(new Float64Array([ag[kz].z || 0]).buffer);
     /* 생명 유전형 a.g(step-0016) — *가법*: 생명 유전이 활성(lifeGeneInit)일 때만 먹인다(kInherit=0 이면 false → skip → 과거 골든 전부 불변).
      * 이산 유전 정보(생명 태그)가 결정론·재현에 들어간다(같은 시드 2회 a.g 도 비트 동일). 위 x,y,m 뒤에 *태그*만 더한다. */
     if (sim.lifeGeneInit) for (var kg = 0; kg < ag.length; kg++) feed(new Float64Array([ag[kg].g || 0]).buffer);
