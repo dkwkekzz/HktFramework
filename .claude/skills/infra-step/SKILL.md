@@ -15,19 +15,23 @@ description: HktInfra step 한 바퀴(읽기→스캐폴드→구현→검증→
 
 **읽기 금지** (STATE 가 명시 지시할 때만 예외): 옛 `step-NNNN.md`·`step-NNNN-concepts.md` 문서들.
 
-**직전 step 코드는 부분 읽기만**: 스캐폴드가 복사를 끝내므로 직전 `net-core.js`(~80KB)·`cluster.js`·`verify.js` 를 통째로 읽을 필요 없다 — 이번 조각이 닿는 박스/모드만 Grep 으로 찾아 해당 구간을 읽는다.
+**직전 step 코드는 박스 파일 단위로만**: 0030 분할 후 박스 1개=파일 1개(`gateway.js`·`zone.js`·`svc-*.js`·`persist.js`·`client.js`·`topology.js`·`metrics.js`) — 이번 조각이 닿는 박스 파일(통상 1~2개·2~18KB)만 읽는다. `net-core.js` 는 2.5KB 진입점(export 묶음)일 뿐이다. 누적 회귀 테스트는 `engine/verify-kit.js` 에 산다 — 새 모드 작성 시 kit 의 helpers(check·logDigest…)와 기존 모드 1개만 참고로 부분 읽기.
 
-## 2. 스캐폴드 — 복사 전진은 기계가
+## 2. 스캐폴드 — 복사 전진은 기계가, 복사분은 별도 커밋
 
 ```
 node engine/new-step.js        # 직전 step 전체 복사 + 자기참조·reg 경로 치환 + md/concepts 골격
+git add … && git commit -m "HktInfra step-NNNN scaffold (mechanical copy)"   # 2-커밋 관행 ①
 ```
 
-복사 전진(anti-DRY)의 *복사*는 이 스크립트의 일이다. 생성물은 **Edit 로만 수정** — 전체 Write 로 다시 쓰지 마라(step당 ~140KB 복사를 모델이 다시 쓰면 그게 최대 비용이다). 스크립트가 출력하는 "남은 일" 체크리스트를 따른다.
+복사 전진(anti-DRY)의 *복사*는 이 스크립트의 일이다. **scaffold 를 즉시 커밋**해 두면 이후 `git diff` 가 이 step 의 실질 델타만 보여준다(self-review 비용 절감 — 두 번째 커밋이 PR 의 실질). 생성물은 **Edit 로만 수정** — 전체 Write 로 다시 쓰지 마라. 스크립트가 출력하는 "남은 일" 체크리스트를 따른다.
 
-## 3. 구현 — 한 조각 + OFF 플래그
+## 3. 구현 — 한 조각 + OFF 플래그, 닿는 박스 파일만
 
-이번 조각의 프로토콜/박스만 Edit 로 추가 (플래그 OFF → 직전 step 비트 동일 = 회귀 0). 한 step 의 박스가 4개를 넘으면 박스 1개=파일 1개 분할(CLAUDE.md 임계 규칙). dual-mode 노출(`module.exports` + `globalThis`) 유지.
+- 이번 조각의 프로토콜은 **닿는 박스 파일**에만 Edit (플래그 OFF → 직전 step 비트 동일 = 회귀 0). 새 박스면 새 파일 + `net-core.js` 진입점에 require 1줄.
+- 이번 step 의 새 검증 모드는 `verify.js` 셸에 `kit.MODES['<mode>'] = fn; kit.ORDER.splice(1, 0, '<mode>')` 로만 추가 — **누적 회귀를 verify.js 로 복사해오지 않는다**(engine/verify-kit.js 가 든다·모드 제거 금지).
+- dual-mode 노출(`module.exports` + `globalThis`) 유지.
+- **비대화 트리거**: 박스 파일 >30KB 또는 step 디렉토리 >300KB 가 되면 다음 기능 step 전에 정리 step(재분할/승격·기능 0·reg 0)을 제안한다.
 
 ## 4. 검증 — spine 사슬은 백그라운드로
 
@@ -38,21 +42,22 @@ node engine/new-step.js        # 직전 step 전체 복사 + 자기참조·reg �
 ## 5. 갱신 — STATE.md 는 Edit 로만
 
 - **STATE.md 전체 Write 금지** — 바뀐 절(§1 NOW·§2 NEXT·§3·§4 추가분·§5·§7 append)만 개별 Edit.
-- 크기 예산: STATE ≤ 30KB · §1 NOW 항목당 ≤ 6줄(상세는 step 문서로) · §7 은 literal 1줄. 30KB 초과 시 STATE 헤더의 "누적 함정 4가지"부터 정리.
+- 크기 예산: STATE ≤ 30KB · §1 NOW 항목당 ≤ 6줄(상세는 step 문서로) · §7 은 literal 1줄(`step | 조각 | 통과+핵심수치 1개`). 30KB 초과 시 STATE 헤더의 "누적 함정"부터 정리(가장 비대한 §7 행 압축 포함 — 전문은 step 문서가 SSOT).
 - `step-NNNN.md` ≤ 18KB · `step-NNNN-concepts.md` ≤ 10KB — 발견/한계 전문은 step 문서에(STATE 아님).
 
-## 6. 닫기 체크리스트
+## 6. 닫기 — 기계 판정은 close-step 한 줄
 
-1. 4기둥(reg·결정론 전파·권위 보존+수렴·가설) + 척추 체크 5항 통과 (verify 출력 인용)
-2. `node run.js` + `node run.js spine` exit 0
-3. step-NNNN.md + step-NNNN-concepts.md 작성·수치=verify 출력
-4. STATE.md §1~6 Edit + §7 1줄 append
-5. 닫은 step 디렉토리는 이후 불변 (동결 단위)
+```
+node engine/close-step.js      # run.js + spine + 크기 예산 + 산출물·TODO·STATE §7 행 검사 (exit 0 필수)
+```
+
+에이전트가 남겨 판정할 것: ① 척추 체크 5항(설계 판정) ② 문서 수치 == verify 출력 ③ STATE §1~6 내용. 마지막으로 **델타 커밋**(2-커밋 관행 ②) — scaffold 커밋과 분리된, 이 step 의 실질만 담은 커밋. 닫은 step 디렉토리는 이후 불변(동결 단위).
 
 ## 금지 사항 (비용 함정)
 
 - 옛 step 문서·아카이브를 "참고로" 읽지 않는다 — STATE 가 현재의 SSOT 다.
-- 직전 step 코드를 통째로 읽거나 통째로 다시 쓰지 않는다 — 스캐폴드 + Grep + Edit.
+- 박스 파일을 통째로 다시 쓰거나(전체 Write), 누적 회귀를 verify.js 로 복사해오지 않는다 — 스캐폴드 + Grep + Edit + kit 모드 추가.
+- `engine/verify-kit.js` 에서 모드를 *빼지* 않는다(추가만) — 빼야 하면 별도 step 으로.
 - spine 사슬을 포그라운드로 기다리며 놀지 않는다.
 - step-NNNN.html·SYSTEM.html 손작성 금지 (testbed 일원화 — 폐기됨).
 - UE5 빌드는 이 트랙과 무관 — 실행하지 않는다.
