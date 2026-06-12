@@ -55,6 +55,8 @@
     mDiv: 1.20,            // 분열 임계 — m >= mDiv 면 둘로 쪼갬(부모 m/2, 자식 m/2)
     divR: 1,               // 자식 배치 탐색 반경 — 이 disc 안 빈 이웃 중 E 최고 셀로
     popCap: 4096,          // 개체수 안전 상한(=격자 셀 수). 보통 자원이 먼저 제한 → 거의 안 닿음
+    kDivZ: 0,              // step-0043 V5+: 3D 번식(자식의 연직 출생). 0 = off = 직전 step(V5+ 생명 z-이동) 비트 동일(자식이 늘 z=0 평면에 태어남·reproduce 가 2D 이웃만 봄·z 코드 미진입 → pz 강제 0 → 인덱스 산술 동일 → moveZInit 미설정 → agent.z 해시 skip → 골든 무관). >0 이면 on:
+                          //   reproduce 의 자식 배치를 4-이웃[2D 평면]→6-이웃[3D]으로 — 부모 z-평면 + 위/아래(z±1) 후보 중 E 최고 칸에 자식을 둔다(번식이 연직축으로 일반화). 연직 E 구배가 있으면 자식이 *위로* 태어나 개체군이 *번식으로* 상승한다(0042 의 *이동* 상승과 짝 — substrate 위 다세포 탑승). D=1 이면 z±1 이 벽 밖이라 후보 0 = 비트 동일(이중 가드). m 만 반분(쌍 거래 보존)·위치만.
     /* ── step-0005: 이동(주화성 — 더 높은 E 이웃으로 한 칸씩) ── */
     move: true,            // 이동 on/off. off(또는 moveR=0) → step-0004 와 비트 동일(회귀)
     moveR: 1,              // 이동 반경(보폭). 1 = 4이웃 중 한 칸. 0 = 이동 없음(회귀)
@@ -100,6 +102,8 @@
     crowdR: 3,            // 밀도 측정 반경 — 이 disc 안의 다른 생명 수가 혼잡도(국소만 본다). 별 방출 반경(starR=3)과
                          //   같은 척도 — 한 별의 채식지 넓이에서 몇이 경쟁하는가. R=2 면 솎임이 국소적이라 채식지를
                          //   다 덮어 공멸(과소), R=3 이상이면 생명이 흩어져 채식지에 E 가 남아 결정화→R 재충전→지속.
+    kCrowdZ: 0,           // step-0044 V5+: 3D 자기제한(혼잡 밀도 셈을 연직축으로). 0 = off = 직전 step(V5+ 3D 번식) 비트 동일(밀도 그리드·disc 가 2D[W·H]·z>0 생명은 occ[a.center] 가 범위 밖이라 무시 → z 코드 미진입). >0 이면 on:
+                         //   crowd 의 밀도 셈을 disc[2D]→ball[3D](crowdR 공)·occ 그리드 W·H→W·H·D 로 일반화 — 수직으로 적층한 생명도 서로의 z±이웃을 세 혼잡세를 낸다(0012 carrying capacity 의 연직 일반화: 3D 생명이 무한 적층 못 함). D=1 이면 z 이웃이 없어 2D 와 동일(이중 가드). 혼잡세 m→metabolized 쌍 거래(보존)·위치 무관.
     /* ── step-0013: 별 연소 FSM(living→burning→ash — 이산 비가역 문턱, SPINE 결정3 완전판) ── */
     kFSM: 0,             // 별 연소 FSM 마스터. 0 = off = step-0012 와 비트 동일(회귀, 별이 birth→full rate→fuel 소진).
                          //   1 이면 별의 alive→dead proto-FSM 가운데 *burning* 을 끼워 이산 3-상태 FSM 이 된다:
@@ -1257,12 +1261,36 @@
    * 붐비면 net 손실이 커져(흡수<비용) 솎이고, 다음 ⑦생명에서 m<mDeath 면 죽는다(죽음 처리는 ⑦에 위임 — 중복 없음).
    * 이것이 로지스틱 자기제한이다: 국소 밀도가 높을수록 1인당 생존이 어려워져 개체군이 *국소* 수용력으로 수렴한다.
    * 척추: 새 필드 없음(필드는 여전히 E) · authored 분기 없음(연속 활성도 변조) · 국소 문턱(이웃만 셈, 전역 조율자 0) ·
-   * 닫힌 장부(혼잡세는 m→metabolized 쌍 거래, baseCost 와 같은 소산 경계 — sumE+M+R+…+metab−inj=E0 불변). */
+   * 닫힌 장부(혼잡세는 m→metabolized 쌍 거래, baseCost 와 같은 소산 경계 — sumE+M+R+…+metab−inj=E0 불변).
+   * step-0044 V5+: 3D 자기제한(kCrowdZ) — 밀도 셈을 disc[2D 평면]→ball[3D]·occ 그리드 W·H→W·H·D 로 *제자리 일반화*(move kMoveZ·reproduce kDivZ 와 같은 형식·LAW_ORDER 무변경).
+   *   0042·0043 이 생명을 z>0 에 올렸으나 혼잡은 2D 평면만 봤다(occ[a.center] 가 z>0 에서 범위 밖 → 수직 적층 무시). 이제 수직으로 쌓인 생명도 제 z±이웃을 세 혼잡세를 낸다 = 0012 carrying capacity 의 연직 일반화(3D 생명이 무한 적층 못 함).
+   *   회귀(이중 가드): kCrowdZ=0 → 3D 블록 미진입(2D 경로 = 직전 step 비트 동일) / D=1 → z 이웃 없어 ball 의 z 항 소멸(2D 등가). 혼잡세는 a.m 만 바꿈(이미 해시) → moveZInit 무관(agent.z 미해싱이라도 m 차이로 골든이 z-효과를 잠금). */
   function crowd(sim) {
     var p = sim.p; if (p.kCrowd === 0) return;
     if (!p.life || !sim.agents.length) return;
-    var ag = sim.agents, W = p.W, H = p.H, kC = p.kCrowd;
-    /* crowdR disc 오프셋(중심 제외) — 노브 변경 시에만 재계산, sim 에 캐시(상태 아님 → 해시·회귀 무관). */
+    var ag = sim.agents, W = p.W, H = p.H, kC = p.kCrowd, D = p.D || 1;
+    if (p.kCrowdZ && D > 1) {                                   // ── 3D 경로(V5+): ball 밀도 셈 + W·H·D occ. z 벽 클램프(x·y wrap)
+      var WH = W * H, N = WH * D;
+      var offs3 = sim.crowdOffsets3;                            // ballOffsets(crowdR) — 중심 제외 (dx,dy,dz). 노브 변경 시만 재계산(캐시·상태 아님)
+      if (!offs3 || sim.crowdOffR3 !== p.crowdR) { offs3 = sim.crowdOffsets3 = K.ballOffsets(p.crowdR); sim.crowdOffR3 = p.crowdR; }
+      var occ3 = sim.crowdGrid3;
+      if (!occ3 || occ3.length !== N) occ3 = sim.crowdGrid3 = new Uint16Array(N);
+      else occ3.fill(0);
+      for (var kz = 0; kz < ag.length; kz++) occ3[ag[kz].center]++;   // 3D 점유 그리드(z>0 도 a.center 가 z·WH+y·W+x → 제자리)
+      for (var k3 = 0; k3 < ag.length; k3++) {
+        var a3 = ag[k3], a3x = a3.x, a3y = a3.y, a3z = a3.z || 0, dens3 = 0;
+        for (var o3 = 0; o3 < offs3.length; o3++) {
+          var nz = a3z + offs3[o3][2]; if (nz < 0 || nz >= D) continue;   // z 벽(클램프 — wrap 안 함)
+          var n3x = (a3x + offs3[o3][0] + W) % W, n3y = (a3y + offs3[o3][1] + H) % H;
+          dens3 += occ3[nz * WH + n3y * W + n3x];
+        }
+        if (dens3 === 0) continue;
+        var tax3 = kC * dens3; if (tax3 > a3.m) tax3 = a3.m;
+        a3.m -= tax3; sim.metabolized += tax3;                 // 소산(스트레스 호흡, 닫힌 장부 sink) — 2D 와 같은 경계
+      }
+      return;
+    }
+    /* ── 2D 경로(현행 — kCrowdZ=0 또는 D=1 이면 비트 동일). crowdR disc 오프셋(중심 제외) — 노브 변경 시에만 재계산, sim 에 캐시(상태 아님 → 해시·회귀 무관). */
     var offs = sim.crowdOffsets;
     if (!offs || sim.crowdOffR !== p.crowdR) { offs = sim.crowdOffsets = K.discOffsets(p.crowdR); sim.crowdOffR = p.crowdR; }
     var occ = sim.crowdGrid, NG = W * H;
@@ -1311,12 +1339,22 @@
   }
 
   /* ⑧ 번식 — repro off 면 건너뜀. 분열 = 생물량 내부 분배(부모 m/2 + 자식 m/2). step-0004 그대로.
-   * sim.agents(=⑦의 survivors)를 직접 읽고 push — 원본의 survivors push 와 동일 배열·동일 순서. */
+   * sim.agents(=⑦의 survivors)를 직접 읽고 push — 원본의 survivors push 와 동일 배열·동일 순서.
+   * step-0043 V5+: 3D 번식(kDivZ) — 자식 배치를 *연직축*으로 일반화(move 의 kMoveZ z-이동과 같은 형식·제자리 확장·새 LAW_ORDER 자리 없음).
+   *   0042 가 생명의 *이동*을 z 로 풀었으나(개체가 올라감), 번식은 여전히 자식을 z=0 평면에 떨궜다(부모가 z>0 이라도 자식이 바닥으로). 이 step 은
+   *   자식 후보를 부모 z-평면 + 위/아래(z±1)로 넓혀, 연직 E 구배가 있으면 자식이 *더 높은 에너지 쪽(위)에 태어난다* → 개체군이 *번식으로* 상승(다세포가
+   *   substrate 위에 탑승하는 두 경로: 이동[0042]과 번식[0043]). 분열은 여전히 m 반분(쌍 거래 보존)·위치만(E·R 안 건드림).
+   * 회귀(이중 가드): kDivZ=0 → pz 강제 0 → zBase=0 → 자식 인덱스가 기존 2D 와 비트 동일(자식이 z=0 평면)·moveZInit 미설정 → agent.z 해시 skip → 골든 불변.
+   *   D=1 → z±1 이 z 벽 밖이라 후보 0(이중 가드).
+   * 척추: 새 *필드* 없음(z 는 생명 *속성* — 단일 척추) · authored 분기 없음(자식 위치 바이어스만, type 분기 0 — 활성도 환원) ·
+   *   국소 문턱(부모 제 6-근방 빈칸·제 m 만, 전역 조율자 0) · 닫힌 장부(m 반분 쌍 거래 — 보존; z 출생은 비가역 *위치*지 에너지 아님). */
   function reproduce(sim) {
     var p = sim.p;
     if (!p.life || !p.repro) return;
     var W = p.W, H = p.H, E = sim.E, survivors = sim.agents;
     var mDiv = p.mDiv, divOff = sim.divOffsets, popCap = p.popCap, occ = sim.occSet;
+    var WH = W * H, D = p.D || 1, kDivZ = p.kDivZ;
+    if (kDivZ) sim.moveZInit = true;             // step-0043: 3D 번식 활성 → hashState 가 agent.z 를 가법 해싱(kDivZ=0 이면 미설정 → 골든 불변). move 의 kMoveZ 와 같은 플래그(둘 다 agent 에 의미 있는 z 를 부여 → 결정론 해시에 산입).
     occ.clear();
     for (var s = 0; s < survivors.length; s++) occ.add(survivors[s].center);
     var nDiv = survivors.length;
@@ -1324,19 +1362,29 @@
       var par = survivors[s2];
       if (par.m < mDiv) continue;
       if (survivors.length >= popCap) break;
-      var px = par.x, py = par.y, bestIdx = -1, bestE = -Infinity, bestX = 0, bestY = 0;
-      for (var o = 0; o < divOff.length; o++) {
+      var pz = (kDivZ && D > 1) ? (par.z || 0) : 0;   // 부모 z-평면(kDivZ=0 또는 D=1 → 강제 0 → zBase=0 → 인덱스 산술 동일=회귀·이중 가드)
+      var zBase = pz * WH;
+      var px = par.x, py = par.y, bestIdx = -1, bestE = -Infinity, bestX = 0, bestY = 0, bestZ = pz;
+      for (var o = 0; o < divOff.length; o++) {       // 부모 z-평면 안 (x,y) 후보(zBase=0 이면 기존 2D 인덱스와 비트 동일)
         var nx = (px + divOff[o][0] + W) % W, ny = (py + divOff[o][1] + H) % H;
-        var nidx = ny * W + nx;
+        var nidx = zBase + ny * W + nx;
         if (occ.has(nidx)) continue;
-        if (E[nidx] > bestE) { bestE = E[nidx]; bestIdx = nidx; bestX = nx; bestY = ny; }
+        if (E[nidx] > bestE) { bestE = E[nidx]; bestIdx = nidx; bestX = nx; bestY = ny; bestZ = pz; }
+      }
+      if (kDivZ && D > 1) {                            // 연직 출생: 위/아래(z±1) 같은 (x,y) 칸도 후보(연직 E 구배 있으면 더 높은 데로). D=1 이면 미진입(이중 가드)
+        for (var dz = -1; dz <= 1; dz += 2) {
+          var nz = pz + dz; if (nz < 0 || nz >= D) continue;   // z 벽(클램프 — wrap 안 함)
+          var zidx = nz * WH + py * W + px;
+          if (occ.has(zidx)) continue;
+          if (E[zidx] > bestE) { bestE = E[zidx]; bestIdx = zidx; bestX = px; bestY = py; bestZ = nz; }
+        }
       }
       if (bestIdx < 0) continue;
       var half = par.m * 0.5;
       par.m = half;
       survivors.push({
-        x: bestX, y: bestY, m: half,
-        cells: K.discCells(W, H, bestX, bestY, p.lifeR),
+        x: bestX, y: bestY, z: bestZ, m: half,        // step-0043: z 좌표(kDivZ=0 이면 늘 0 = 기존과 동일·moveZInit 미설정 시 해시 skip)
+        cells: bestZ === 0 ? K.discCells(W, H, bestX, bestY, p.lifeR) : K.discCells3(W, H, D, bestX, bestY, bestZ, p.lifeR),
         center: bestIdx, bornTick: sim.tick
       });
       occ.add(bestIdx);
