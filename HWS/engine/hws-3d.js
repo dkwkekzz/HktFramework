@@ -285,7 +285,25 @@
     }
     R.voxN = vn; R.voxNW = wn; R.fogN = fn;
     if (vn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVox); gl.bufferData(gl.ARRAY_BUFFER, va.subarray(0, vn * STR), gl.DYNAMIC_DRAW); }
-    if (wn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, vw.subarray(0, wn * STR), gl.DYNAMIC_DRAW); }
+    if (wn) {
+      /* L-V+ 물 정렬: 반투명 물 큐브를 카메라에서 *먼 것부터*(back-to-front) 정렬해 업로드한다. SRC_ALPHA over-블렌드는
+       * 순서 의존이라(뒤가 먼저 깔려야 흡광이 옳게 누적) i-순(카메라 무관) 빌드는 겹친 물기둥서 미세 순서 의존이 있었다(§3 🟡).
+       * author 0 — 분포·색·알파를 안 건드리고 *그리는 순서*만 바꾼다(수치·골든 불변). 월드중심=(simX,simZ,simY) ↔ camEye. */
+      var eyeW = camEye();
+      var wIdx = R.voxIdxW; if (!wIdx || wIdx.length < wn) wIdx = R.voxIdxW = new Int32Array(Math.max(1024, wn * 2));
+      var wDep = R.voxDepW; if (!wDep || wDep.length < wn) wDep = R.voxDepW = new Float32Array(Math.max(1024, wn * 2));
+      for (var wi = 0; wi < wn; wi++) {
+        var wb = wi * STR, ddx = vw[wb] - eyeW[0], ddy = vw[wb + 2] - eyeW[1], ddz = vw[wb + 1] - eyeW[2];
+        wIdx[wi] = wi; wDep[wi] = ddx * ddx + ddy * ddy + ddz * ddz;
+      }
+      wIdx.subarray(0, wn).sort(function (a, b) { return wDep[b] - wDep[a]; });   // 먼 것 먼저(내림차순)
+      var vws = R.voxArrWS; if (!vws || vws.length < wn * STR) vws = R.voxArrWS = new Float32Array(Math.max(1024 * STR, wn * STR * 2));
+      for (var wj = 0; wj < wn; wj++) {
+        var ws = wIdx[wj] * STR, wd = wj * STR;
+        for (var wc = 0; wc < STR; wc++) vws[wd + wc] = vw[ws + wc];
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, vws.subarray(0, wn * STR), gl.DYNAMIC_DRAW);
+    }
     if (fn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufFog); gl.bufferData(gl.ARRAY_BUFFER, fa.subarray(0, fn * 4), gl.DYNAMIC_DRAW); }
     /* 틱 단위 캐시 — 개체수 히스토리·고임 (엔진 2D 와 같은 주기) */
     if (sim.tick !== S.lastTick) {
