@@ -221,6 +221,21 @@ function remnArena(extra) {
 function cycleArena(extra) {
   return rainArena(Object.assign({ kCryst: 0.05, crystThresh: 2.0, kSupport: 1, supportThresh: 0.5, kWeather: 0, starCap: 3 }, extra || {}));
 }
+/* 풍화 평형 closed 3D 아레나(step-0041 V5+ — SPINE 척도분리 *느린 재구성*) — step-0041/verify.js weqArena() 와 동일 상수.
+ * 외부 연료 주입 0(별·source off)인 닫힌 저장소: 균일 E(initE=5)가 중력으로 z=0 바다로 고이고 → 지지 침착으로 지면 R 로 굳고 → *풍화(kWeather=0.01)로 R 이 천천히 E 로 되돌아온다*.
+ *   풍화 없이는 물질이 통째로 R 로 동결(E 굶음·새 동결 G2), 풍화로 R↔E 동적 평형(쌓임↔풍화 carrying capacity). ring@ 등(kWeather=0)은 풍화 평형 미커버 → 이 키가 풍화 R→E 재구성·물질 carrying capacity 본문을 동결(드리프트 가드).
+ *   법칙 무변경(풍화는 step-0008 부터 crystallize 안). step-0042~ 회귀 앵커: 새 부품(kWeather)=0 이면 풍화 분기 no-op(rel=0) → 물질 동결 경로(법칙 무변경). */
+function weqArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 5.0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, starRate: 0.06, starFuel0: 500, ignThresh: 1.5, starCap: 1, starGap: 6, starR: 2, starDriftPeriod: 20,
+    kFSM: 0, kGravity: 0.2, kCollapse: 0, kCryst: 0.05, crystThresh: 2.0, kSupport: 1, supportThresh: 0.5, kWeather: 0.01, kOcclude: 0,
+    kCrowd: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -613,6 +628,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // ring@ — 전체 에너지 고리 폐합 3D 아레나(step-0040 V5+ *통합*: rainArena[=0037 별빛→비→바다] 위에 결정화+지지[kCryst=0.05·kSupport=1] 켬 → 바다 E 가 z=0 지면/씨앗 R 로 굳어 새 별 점화 = E→별→비→바다→지면→새 별 완전 폐합). 법칙 무변경 — rain@(kCryst=0)는 결정화 미커버 → 이 키가 바다→지면/씨앗 폐합 본문을 동결. step-0041~ 회귀 앵커: 새 부품(kCryst)=0 이면 rain@ 경로(법칙 무변경).
     var a = ENG.createSim(seed, cycleArena()); seedSunCore(a); ENG.run(a, 500);
     cur['ring@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // weq@ — 풍화 평형 closed 3D 아레나(step-0041 V5+: weqArena[균일 E·중력→바다·지지 침착→지면] 위에 풍화[kWeather=0.01] 켬 → R↔E 동적 평형, 물질 동결 회피). ring@ 등(kWeather=0)은 풍화 평형 미커버 → 이 키가 풍화 R→E 재구성·물질 carrying capacity 본문을 동결(드리프트 가드). step-0042~ 회귀 앵커: 새 부품(kWeather)=0 이면 풍화 분기 no-op(법칙 무변경).
+    var a = ENG.createSim(seed, weqArena()); ENG.run(a, 1000);
+    cur['weq@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;
