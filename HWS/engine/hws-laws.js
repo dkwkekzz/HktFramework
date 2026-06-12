@@ -59,6 +59,8 @@
     move: true,            // 이동 on/off. off(또는 moveR=0) → step-0004 와 비트 동일(회귀)
     moveR: 1,              // 이동 반경(보폭). 1 = 4이웃 중 한 칸. 0 = 이동 없음(회귀)
     moveThresh: 0.02,      // 이동 임계 — 빈 이웃 E 가 현재 중심보다 이만큼 높아야 옮김(구배 문턱)
+    kMoveZ: 0,            // step-0042 V5+: 생명 z-이동(연직 주화성). 0 = off = 직전 step(V5+ 풍화) 비트 동일(생명이 z=0 평면에만 머묾·move 가 2D 이웃만 봄·z 코드 미진입 → moveZInit=false → agent.z 해시 skip → 골든 무관). >0 이면 on:
+                          //   move 의 run/tumble 6-이웃화 — 제 (x,y) 의 z±1 이웃도 후보로 봐, 위/아래로 더 높은 E 를 쫓는다(주화성이 연직축으로 일반화 — 생명이 에너지를 향해 *오른다*). D=1 이면 z 이웃이 없어 산술 0 = 비트 동일(이중 가드). 위치만 — 장부 거래 0(move 와 같은 경계).
     /* ── step-0006: 기초대사비(절대 생존 문턱) ── */
     baseCost: 0,           // 생물량과 무관한 절대 대사비. cost = m·mMaint + baseCost.
     /* ── step-0007: 떠도는 자원(source 가 주기적으로 +x 로 재배치, 토러스 wrap) ── */
@@ -811,37 +813,53 @@
   /* ⑥ 이동 — run(주화성, 구배 따라 한 칸, step-0005) + tumble(step-0010, 갇히면 의사난수 한 칸).
    * 생명 off / 에이전트 0 / move off 면 통째로 건너뜀(회귀). pTumble=0 이면 tumble 분기 skip(=step-0009).
    * step-0023: 정착(a.sessile=1)한 생명은 운동을 건너뛴다(제자리 유지 — 큰 안정 조직). a.sessile 미설정(kAnchor=0)이면 falsy → 건너뜀 0(회귀). */
+  /* ⑥ 이동(move, step-0005~) — 주화성 run + 탐사 tumble. step-0042 V5+: 생명 z-이동(kMoveZ) — 주화성을 *연직축*으로 일반화.
+   *   생명은 제 (x,y) 평면 이웃(2D)뿐 아니라 위/아래(z±1) 이웃의 E 도 비교해, 더 높은 E 를 향해 *오른다/내린다*(에너지 구배가 6-이웃이 됨).
+   *   에너지·물질 고리(0035~0041)가 닫혔으니, 이제 생명이 그 3D 순환의 *승객*으로 연직 에너지(천장의 별빛·바닥의 바다)를 쫓아 오른다.
+   * 회귀(이중 가드): kMoveZ=0 → z 이웃 후보 미진입(생명이 z=0 평면에만·move 가 2D 이웃만 = 직전 step 비트 동일·z 미설정→mz=0→zBase=0→인덱스 산술 동일).
+   *   D=1 → z±1 이 z 벽 밖이라 후보 0(이중 가드). 위치만 — 장부 거래 0(run/tumble 과 같은 경계). agent.z 는 hashState 가 moveZInit 일 때만 해싱(가법). */
   function move(sim) {
     var p = sim.p;
     if (!p.life || !sim.agents.length || !p.move) return;
-    var W = p.W, H = p.H, E = sim.E, ag = sim.agents;
-    var kL = p.kL, mMaint = p.mMaint, baseCost = p.baseCost;
+    var W = p.W, H = p.H, E = sim.E, ag = sim.agents, WH = W * H, D = p.D || 1;
+    var kL = p.kL, mMaint = p.mMaint, baseCost = p.baseCost, kMoveZ = p.kMoveZ;
     var moveOff = sim.moveOffsets, moveThresh = p.moveThresh, mocc = sim.occSet;
     var pTum = p.pTumble, tSeed = sim.seed, tTick = sim.tick;
+    if (kMoveZ) sim.moveZInit = true;            // z-이동 활성 → hashState 가 agent.z 를 가법 해싱(kMoveZ=0 이면 미설정 → 골든 불변)
     mocc.clear();
     for (var ms = 0; ms < ag.length; ms++) mocc.add(ag[ms].center);
     for (var mk = 0; mk < ag.length; mk++) {
       var mv = ag[mk];
       if (mv.sessile) continue;                  // step-0023: 정착(고착)한 생명은 주화성·탐사를 건너뜀(제자리 — kAnchor=0 이면 undefined=falsy → 회귀 0). 점유는 유지(mocc 에 남아 이웃을 막음).
+      var mz = mv.z || 0, zBase = mz * WH;        // 현재 z 평면(kMoveZ=0 이면 늘 0 → zBase=0 → 인덱스 산술 동일=회귀)
       var floor = E[mv.center] + moveThresh;
-      var mvx = mv.x, mvy = mv.y, bIdx = -1, bEv = floor, bX = 0, bY = 0;
+      var mvx = mv.x, mvy = mv.y, bIdx = -1, bEv = floor, bX = 0, bY = 0, bZ = mz;
       for (var mo = 0; mo < moveOff.length; mo++) {
         var mnx = (mvx + moveOff[mo][0] + W) % W, mny = (mvy + moveOff[mo][1] + H) % H;
-        var mnidx = mny * W + mnx;
+        var mnidx = zBase + mny * W + mnx;        // 같은 z 평면 이웃(zBase=0 이면 기존 2D 인덱스와 비트 동일)
         if (mocc.has(mnidx)) continue;
-        if (E[mnidx] > bEv) { bEv = E[mnidx]; bIdx = mnidx; bX = mnx; bY = mny; }
+        if (E[mnidx] > bEv) { bEv = E[mnidx]; bIdx = mnidx; bX = mnx; bY = mny; bZ = mz; }
+      }
+      if (kMoveZ && D > 1) {                      // z-이동: 위/아래(z±1) 같은 (x,y) 이웃도 후보(연직 주화성). D=1 이면 미진입(이중 가드)
+        for (var dz = -1; dz <= 1; dz += 2) {
+          var nz = mz + dz; if (nz < 0 || nz >= D) continue;   // z 벽(클램프 — wrap 안 함)
+          var znidx = nz * WH + mvy * W + mvx;
+          if (mocc.has(znidx)) continue;
+          if (E[znidx] > bEv) { bEv = E[znidx]; bIdx = znidx; bX = mvx; bY = mvy; bZ = nz; }
+        }
       }
       if (bIdx >= 0) {
-        /* run — 구배가 있으면 더 높은 E 이웃으로(step-0005~0009 그대로). */
+        /* run — 구배가 있으면 더 높은 E 이웃으로(step-0005~0009; 0042 부터 z±1 포함). */
         mocc.delete(mv.center);
-        mv.x = bX; mv.y = bY; mv.center = bIdx;
-        mv.cells = K.discCells(W, H, bX, bY, p.lifeR);
+        mv.x = bX; mv.y = bY; mv.z = bZ; mv.center = bIdx;
+        mv.cells = bZ === 0 ? K.discCells(W, H, bX, bY, p.lifeR) : K.discCells3(W, H, D, bX, bY, bZ, p.lifeR);
         mocc.add(bIdx);
         sim.moves++;
         continue;
       }
       /* tumble — 갇힘(구배 없음=국소 최대) → 굶주린 생명이 의사난수 방향 한 칸(옅은 골짜기 건너기).
-       * 굶주림 게이트: 입(disc)의 예측 흡수 < 이번 tick 비용이면 net 손실 — 도박할 만하다. 잘 먹는 정착 생명은 안 함. */
+       * 굶주림 게이트: 입(disc)의 예측 흡수 < 이번 tick 비용이면 net 손실 — 도박할 만하다. 잘 먹는 정착 생명은 안 함.
+       * z-이동 중에도 tumble 은 *제 z 평면 안*에서만(zBase) — 연직 탐사는 run 의 몫(구배 추종). z=0 이면 기존과 비트 동일. */
       if (pTum !== 0) {
         var mcells = mv.cells, intake = 0;
         for (var ic = 0; ic < mcells.length; ic++) intake += E[mcells[ic]];
@@ -851,7 +869,7 @@
           var empties = sim.tumbleBuf; empties.length = 0;   // 빈 이웃 [idx,x,y] (재사용 버퍼)
           for (var to = 0; to < moveOff.length; to++) {
             var tnx = (mvx + moveOff[to][0] + W) % W, tny = (mvy + moveOff[to][1] + H) % H;
-            var tnidx = tny * W + tnx;
+            var tnidx = zBase + tny * W + tnx;
             if (!mocc.has(tnidx)) empties.push(tnidx, tnx, tny);
           }
           var nE = empties.length / 3;
@@ -860,8 +878,8 @@
             if ((hsh >>> 16) * (1 / 65536) < pTum) {       // 발화(rate) — 고비트
               var pick = ((hsh & 0xffff) % nE) * 3;        // 방향 — 저비트(균등)
               mocc.delete(mv.center);
-              mv.x = empties[pick + 1]; mv.y = empties[pick + 2]; mv.center = empties[pick];
-              mv.cells = K.discCells(W, H, mv.x, mv.y, p.lifeR);
+              mv.x = empties[pick + 1]; mv.y = empties[pick + 2]; mv.center = empties[pick];   // z 불변(제 평면 tumble)
+              mv.cells = mz === 0 ? K.discCells(W, H, mv.x, mv.y, p.lifeR) : K.discCells3(W, H, D, mv.x, mv.y, mz, p.lifeR);
               mocc.add(empties[pick]);
               sim.tumbles++;
             }
