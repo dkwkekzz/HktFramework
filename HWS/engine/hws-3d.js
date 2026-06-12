@@ -298,13 +298,10 @@
       S.poolTick = sim.tick;
     }
     /* ── 분할 레이아웃: 세계 해석 뷰가 켜지면 캔버스를 1:2 로 높여 두 정사각 뷰포트(위·아래 적층) ──
-     * D>1(3D voxel 세계)에선 좌측 '에너지 변위'(z=0 바닥 슬라이스 하이트필드)를 *숨긴다* — 부력·고도를 거꾸로
-     * 보여주기 때문(별이 z 로 떠오르면 z=0 평면이 비어 하이트필드가 오히려 *낮아*져 "가라앉은" 듯 보인다; 반대로
-     * 바닥에 머문 별은 z=0 에 E 가 고여 *높아* 보인다 — 고도의 역). 우측 voxel 세계 단일 뷰만(높이=sim-z 정합).
-     * D=1(2D)에선 z 축이 없어 레거시 뷰가 유일한 의미라 기존 2분할 토글을 그대로 둔다. */
-    /* D>1 에서도 좌측 에너지 투영(칼럼 최대)을 *살린다* — 과거엔 z=0 슬라이스 부력 역전 때문에 좌측을 숨겼으나(voxelOnly),
-     * 칼럼 투영으로 역전이 사라져 좌·우(에너지 ↔ voxel 세계)를 나란히 둔다. 에너지 동역학은 좌측 열지도에서 가장 잘 보인다
-     * — 숨기면 우측 voxel 점유(거의 정적)만 남아 "움직임 없음"처럼 보였다. */
+     * 위=에너지(D>1 칼럼 투영·D=1 z=0 슬라이스), 아래=voxel 세계. 과거엔 D>1 에서 좌측을 숨겼으나(z=0 슬라이스가
+     * 부력을 거꾸로 그려 — 별이 z 로 떠오르면 z=0 이 비어 하이트필드가 *낮아*져 "가라앉은" 듯), 칼럼 최대 투영은
+     * *어느 높이에든* 에너지가 있으면 그 칼럼을 세워 역전이 사라진다 → 좌측 뷰를 숨기지 않고 살린다. 에너지 동역학은
+     * 이 열지도에서 가장 또렷하다(숨기면 우측 voxel 점유[거의 정적]만 남아 "움직임 없음"처럼 보였다 — 사용자 피드백). */
     var split = isWorld();
     ensureCanvasSize(split);
     var cam = S.cam, glcv = S.dom.glcv;
@@ -589,12 +586,16 @@
     return Math.min(HS * Math.log(1 + Math.max(e, 0)) / Math.log(1 + (R ? R.sat : 8)), HS * 2.2);
   }
   function eBilin(sim, x, y) {                              // wrap 쌍선형 — 링이 표면을 매끈히 타게
-    var W = sim.p.W, H = sim.p.H, E = sim.E, Rf = sim.R || null;
+    var W = sim.p.W, H = sim.p.H, E = sim.E, Rf = sim.R || null, WH = W * H, D = sim.p.D || 1;
     var x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
-    function at(xx, yy) {
+    function at(xx, yy) {                                   // 칼럼 최대(E·R 독립) — 렌더 하이트필드(칼럼 투영)와 같은 표면(픽킹·오버레이 정합). D=1 이면 z=0 한 칸과 동일
       xx = ((xx % W) + W) % W; yy = ((yy % H) + H) % H;
-      var i = yy * W + xx;
-      return E[i] + (Rf ? Rf[i] : 0);
+      var base = yy * W + xx, bestE = 0, bestR = 0;
+      for (var z = 0; z < D; z++) {
+        var i = base + z * WH, e = E[i], r = Rf ? Rf[i] : 0;
+        if (e > bestE) bestE = e; if (r > bestR) bestR = r;
+      }
+      return bestE + bestR;
     }
     return at(x0, y0) * (1 - fx) * (1 - fy) + at(x0 + 1, y0) * fx * (1 - fy)
          + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy;
