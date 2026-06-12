@@ -172,6 +172,8 @@
     coopFit0: 1.0,       // 협동 표현형 절편 — coop(태그) = clamp(coopFit0 + coopFitStep·(태그−1), 0, 1) = 공유 propensity(0~1). 기본 1.0·step 0 = *균일 협동*
     coopFitStep: 0.0,    //   (모든 kin 이 완전 공유 — 전체 스택 risk-pooling, 0018 E-공유의 m-연장). 통제 아레나는 coopFit0=0·step=1 로 협동자(coop 1)vs배신자(coop 0)
                          //   를 격리해 *선택압*(협동의 차등 번식)을 잰다. 협동을 *복제 적합도와 분리*(fit 맵과 별 노브)해야 kin selection 을 confound 없이 본다.
+    kShareZ: 0,          // step-0046 V5+: 3D 생물량 공유(risk-pooling 을 연직축으로). 0 = off = 직전 step(V5+ 3D 차등 응집) 비트 동일(occ 그리드·쌍 셈이 2D[W·H·우/하 4-인접]·z>0 생명은 occ[a.center] 가 범위 밖이라 무시 → z 코드 미진입). >0 이면 on:
+                         //   share 의 occ 그리드 W·H→W·H·D·kin 쌍을 우(+x)/하(+y) 에 위(+z) 추가(4-인접→6-인접) — 0045 가 3D 로 정렬한 z>0 kin 액적이 비로소 위/아래 동료를 떠받친다(risk-pooling 의 연직 일반화: z>0 굶주린 kin 이 z±1 안전 kin 에게 구조됨). D=1 이면 z 이웃이 없어 2D 와 동일(이중 가드). m 쌍 거래(보존)·rescue 는 a.m 만 바꿈(이미 해시 → moveZInit 무관·m 차이로 골든이 z-효과 잠금).
     /* ── step-0020: 공공재 협동(pubgood — 한 기부가 *여럿*을 살리는 양의 합 협동(시너지 b≫c) → 협동이 *지속*을 넘어 *강하게 침투*, SPINE §다섯째 축 "사회 칸") ── */
     kPublic: 0,          // 공공재 마스터. 0 = off = step-0019 과 비트 동일(회귀, m·E 불변 → share@ 해시 무관). >0 이면 공공재 협동 on:
                          //   step-0019 share 는 kin 끼리 *m 을 쌍 거래*(보존적 재분배 — b≈c)라 협동이 *지속*만 했다(강한 침투 아님). pubgood 은 *양의 합*이다:
@@ -1132,8 +1134,30 @@
   function share(sim) {
     var p = sim.p; if (p.kShare === 0) return;
     if (!p.life || !sim.agents.length) return;
-    var ag = sim.agents, W = p.W, H = p.H, N = W * H, k = p.kShare;
+    var ag = sim.agents, W = p.W, H = p.H, N = W * H, k = p.kShare, D = p.D || 1;
     var f0 = p.coopFit0, fStep = p.coopFitStep, danger = p.mDeath * SHARE_BAND;
+    if (p.kShareZ && D > 1) {                                   // ── 3D 경로(V5+): W·H·D occ + kin 쌍에 위(+z) 추가(4-인접→6-인접). z 벽(x·y wrap)
+      var WH3 = W * H, N3 = WH3 * D;
+      var occ3 = sim.shareOcc3;
+      if (!occ3 || occ3.length !== N3) occ3 = sim.shareOcc3 = new Int32Array(N3);
+      occ3.fill(0);                                            // 0 = 무점유. 점유 칸엔 (agent index + 1) — z>0 도 a.center 가 (z·H+y)·W+x → 제자리
+      for (var i3 = 0; i3 < ag.length; i3++) { if ((ag[i3].g | 0) > 0) occ3[ag[i3].center] = i3 + 1; }
+      var shared3 = 0;
+      for (var s3 = 0; s3 < ag.length; s3++) {
+        var a3 = ag[s3], t3 = a3.g | 0; if (t3 <= 0) continue;
+        var coop3 = f0 + fStep * (t3 - 1); if (coop3 > 1) coop3 = 1; else if (coop3 < 0) coop3 = 0;
+        if (coop3 <= 0) continue;                              // 배신 유전형 — 떠받치지 않음(coop=0)
+        var kc3 = k * coop3, c3 = a3.center, x3 = a3.x, y3 = a3.y, z3 = a3.z || 0;
+        var rc3 = c3 - x3 + (x3 + 1) % W;                      // 우(+x) 이웃 center(같은 z·y 행)
+        var dc3 = z3 * WH3 + ((y3 + 1) % H) * W + x3;          // 하(+y) 이웃 center(같은 z 평면)
+        var ri3 = occ3[rc3]; if (ri3 > 0) { var br = ag[ri3 - 1]; if ((br.g | 0) === t3) shared3 += rescue(a3, br, danger, kc3); }
+        var di3 = occ3[dc3]; if (di3 > 0) { var bd = ag[di3 - 1]; if ((bd.g | 0) === t3) shared3 += rescue(a3, bd, danger, kc3); }
+        if (z3 + 1 < D) { var zc3 = c3 + WH3, zi3 = occ3[zc3]; if (zi3 > 0) { var bz = ag[zi3 - 1]; if ((bz.g | 0) === t3) shared3 += rescue(a3, bz, danger, kc3); } }   // 위(+z) 이웃 — 연직 risk-pooling(우/하/위만 훑어 6-인접 쌍을 한 번씩만, 좌/상/아래는 이웃의 우/하/위가 커버)
+      }
+      sim.shared += shared3;
+      return;
+    }
+    /* ── 2D 경로(현행 — kShareZ=0 또는 D=1 이면 비트 동일). */
     var occ = sim.shareOcc; if (!occ || occ.length !== N) occ = sim.shareOcc = new Int32Array(N);
     occ.fill(0);                                                                       // 0 = 무점유. 점유 칸엔 (agent index + 1)
     for (var i = 0; i < ag.length; i++) { if ((ag[i].g | 0) > 0) occ[ag[i].center] = i + 1; }
