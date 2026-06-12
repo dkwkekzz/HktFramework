@@ -275,6 +275,33 @@ function seedDiv3(sim) {                                                // 정�
   for (var z = 0; z < D; z++) { var base = 1 + z; for (var i = 0; i < WH; i++) { E[z * WH + i] = base; sim.E0 += base; } }
   for (var gx = 0; gx < 3; gx++) for (var gy = 0; gy < 3; gy++) ENG.spawnAgent(sim, 16 + gx * 6, 16 + gy * 6);
 }
+/* 3D 혼잡 3D 아레나(step-0044 V5+ — 혼잡 carrying capacity 의 연직 일반화) — step-0044/verify.js capArena()/seedColumns 와 동일 상수.
+ * D=8 voxel, 생명 수직 컬럼 3개(같은 (x,y), z=0..D−1)·crowd 만 on(이동·번식·흡수·대사 off → m 은 혼잡세로만). kCrowdZ=1 → 수직 적층이 z-이웃 세 혼잡세를 냄(3D carrying capacity).
+ * cwd@ 등 2D 키들은 z=0 평면 혼잡만 커버 → 이 키가 ball 밀도 셈·W·H·D occ 본문을 동결(드리프트 가드). step-0045~ 회귀 앵커: 새 노브(kCrowdZ)=0 이면 2D 경로(비트 동일). */
+function capArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, mDeath: 0, kL: 0, lifeR: 0,
+    life: true, move: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 0,
+    repro: false, mDiv: 1.2, divR: 1, popCap: 4096, kDivZ: 0,
+    kCrowd: 0.02, crowdR: 3, kCrowdZ: 1,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
+  }, extra || {});
+}
+function seedColumns(sim) {                                            // 균일 E=2 + 생명 수직 컬럼 3개(각 z=0..D−1 적층). step-0044/verify.js seedColumns 와 동일.
+  var E = sim.E, D = sim.p.D, W = sim.p.W, H = sim.p.H, WH = W * H, N = WH * D;
+  for (var i = 0; i < N; i++) { E[i] = 2; sim.E0 += 2; }
+  var cols = [[16, 16], [22, 22], [28, 28]];
+  for (var c = 0; c < cols.length; c++) for (var z = 0; z < D; z++) {
+    var x = cols[c][0], y = cols[c][1], center = z * WH + y * W + x;
+    var seedM = sim.E[center] < 1 ? sim.E[center] : 1;
+    sim.E[center] -= seedM;
+    sim.agents.push({ x: x, y: y, z: z, m: seedM, cells: [center], center: center, bornTick: sim.tick });
+  }
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -679,6 +706,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // div3@ — 3D 번식 3D 아레나(step-0043 V5+: 정적 연직 E 구배[E(z)=1+z] + z=0 생명 9 마리 + kDivZ=1 → 자식이 위로 줄지어 태어나 천장까지). 골든 번식 키들(자식 z=0 평면)·mvz@(repro off)는 reproduce z-경로 미커버 → 이 키가 reproduce 6-이웃 z-출생·agent.z 해시 본문을 동결(드리프트 가드). step-0044~ 회귀 앵커: 새 노브(kDivZ)=0 이면 2D 경로(비트 동일).
     var a = ENG.createSim(seed, div3Arena()); seedDiv3(a); ENG.run(a, 30);
     cur['div3@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // cap3@ — 3D 혼잡 3D 아레나(step-0044 V5+: 생명 수직 컬럼 3개[z=0..7] + crowd[kCrowd=0.02] + kCrowdZ=1 → 수직 적층이 z-이웃 세 혼잡세). cwd@ 등 2D 키들(z=0 평면 혼잡)은 ball 밀도·W·H·D occ 미커버 → 이 키가 3D 혼잡 본문을 동결(드리프트 가드). step-0045~ 회귀 앵커: 새 노브(kCrowdZ)=0 이면 2D 경로(비트 동일).
+    var a = ENG.createSim(seed, capArena()); seedColumns(a); ENG.run(a, 8);
+    cur['cap3@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

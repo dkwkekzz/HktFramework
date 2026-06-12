@@ -102,6 +102,8 @@
     crowdR: 3,            // 밀도 측정 반경 — 이 disc 안의 다른 생명 수가 혼잡도(국소만 본다). 별 방출 반경(starR=3)과
                          //   같은 척도 — 한 별의 채식지 넓이에서 몇이 경쟁하는가. R=2 면 솎임이 국소적이라 채식지를
                          //   다 덮어 공멸(과소), R=3 이상이면 생명이 흩어져 채식지에 E 가 남아 결정화→R 재충전→지속.
+    kCrowdZ: 0,           // step-0044 V5+: 3D 자기제한(혼잡 밀도 셈을 연직축으로). 0 = off = 직전 step(V5+ 3D 번식) 비트 동일(밀도 그리드·disc 가 2D[W·H]·z>0 생명은 occ[a.center] 가 범위 밖이라 무시 → z 코드 미진입). >0 이면 on:
+                         //   crowd 의 밀도 셈을 disc[2D]→ball[3D](crowdR 공)·occ 그리드 W·H→W·H·D 로 일반화 — 수직으로 적층한 생명도 서로의 z±이웃을 세 혼잡세를 낸다(0012 carrying capacity 의 연직 일반화: 3D 생명이 무한 적층 못 함). D=1 이면 z 이웃이 없어 2D 와 동일(이중 가드). 혼잡세 m→metabolized 쌍 거래(보존)·위치 무관.
     /* ── step-0013: 별 연소 FSM(living→burning→ash — 이산 비가역 문턱, SPINE 결정3 완전판) ── */
     kFSM: 0,             // 별 연소 FSM 마스터. 0 = off = step-0012 와 비트 동일(회귀, 별이 birth→full rate→fuel 소진).
                          //   1 이면 별의 alive→dead proto-FSM 가운데 *burning* 을 끼워 이산 3-상태 FSM 이 된다:
@@ -1259,12 +1261,36 @@
    * 붐비면 net 손실이 커져(흡수<비용) 솎이고, 다음 ⑦생명에서 m<mDeath 면 죽는다(죽음 처리는 ⑦에 위임 — 중복 없음).
    * 이것이 로지스틱 자기제한이다: 국소 밀도가 높을수록 1인당 생존이 어려워져 개체군이 *국소* 수용력으로 수렴한다.
    * 척추: 새 필드 없음(필드는 여전히 E) · authored 분기 없음(연속 활성도 변조) · 국소 문턱(이웃만 셈, 전역 조율자 0) ·
-   * 닫힌 장부(혼잡세는 m→metabolized 쌍 거래, baseCost 와 같은 소산 경계 — sumE+M+R+…+metab−inj=E0 불변). */
+   * 닫힌 장부(혼잡세는 m→metabolized 쌍 거래, baseCost 와 같은 소산 경계 — sumE+M+R+…+metab−inj=E0 불변).
+   * step-0044 V5+: 3D 자기제한(kCrowdZ) — 밀도 셈을 disc[2D 평면]→ball[3D]·occ 그리드 W·H→W·H·D 로 *제자리 일반화*(move kMoveZ·reproduce kDivZ 와 같은 형식·LAW_ORDER 무변경).
+   *   0042·0043 이 생명을 z>0 에 올렸으나 혼잡은 2D 평면만 봤다(occ[a.center] 가 z>0 에서 범위 밖 → 수직 적층 무시). 이제 수직으로 쌓인 생명도 제 z±이웃을 세 혼잡세를 낸다 = 0012 carrying capacity 의 연직 일반화(3D 생명이 무한 적층 못 함).
+   *   회귀(이중 가드): kCrowdZ=0 → 3D 블록 미진입(2D 경로 = 직전 step 비트 동일) / D=1 → z 이웃 없어 ball 의 z 항 소멸(2D 등가). 혼잡세는 a.m 만 바꿈(이미 해시) → moveZInit 무관(agent.z 미해싱이라도 m 차이로 골든이 z-효과를 잠금). */
   function crowd(sim) {
     var p = sim.p; if (p.kCrowd === 0) return;
     if (!p.life || !sim.agents.length) return;
-    var ag = sim.agents, W = p.W, H = p.H, kC = p.kCrowd;
-    /* crowdR disc 오프셋(중심 제외) — 노브 변경 시에만 재계산, sim 에 캐시(상태 아님 → 해시·회귀 무관). */
+    var ag = sim.agents, W = p.W, H = p.H, kC = p.kCrowd, D = p.D || 1;
+    if (p.kCrowdZ && D > 1) {                                   // ── 3D 경로(V5+): ball 밀도 셈 + W·H·D occ. z 벽 클램프(x·y wrap)
+      var WH = W * H, N = WH * D;
+      var offs3 = sim.crowdOffsets3;                            // ballOffsets(crowdR) — 중심 제외 (dx,dy,dz). 노브 변경 시만 재계산(캐시·상태 아님)
+      if (!offs3 || sim.crowdOffR3 !== p.crowdR) { offs3 = sim.crowdOffsets3 = K.ballOffsets(p.crowdR); sim.crowdOffR3 = p.crowdR; }
+      var occ3 = sim.crowdGrid3;
+      if (!occ3 || occ3.length !== N) occ3 = sim.crowdGrid3 = new Uint16Array(N);
+      else occ3.fill(0);
+      for (var kz = 0; kz < ag.length; kz++) occ3[ag[kz].center]++;   // 3D 점유 그리드(z>0 도 a.center 가 z·WH+y·W+x → 제자리)
+      for (var k3 = 0; k3 < ag.length; k3++) {
+        var a3 = ag[k3], a3x = a3.x, a3y = a3.y, a3z = a3.z || 0, dens3 = 0;
+        for (var o3 = 0; o3 < offs3.length; o3++) {
+          var nz = a3z + offs3[o3][2]; if (nz < 0 || nz >= D) continue;   // z 벽(클램프 — wrap 안 함)
+          var n3x = (a3x + offs3[o3][0] + W) % W, n3y = (a3y + offs3[o3][1] + H) % H;
+          dens3 += occ3[nz * WH + n3y * W + n3x];
+        }
+        if (dens3 === 0) continue;
+        var tax3 = kC * dens3; if (tax3 > a3.m) tax3 = a3.m;
+        a3.m -= tax3; sim.metabolized += tax3;                 // 소산(스트레스 호흡, 닫힌 장부 sink) — 2D 와 같은 경계
+      }
+      return;
+    }
+    /* ── 2D 경로(현행 — kCrowdZ=0 또는 D=1 이면 비트 동일). crowdR disc 오프셋(중심 제외) — 노브 변경 시에만 재계산, sim 에 캐시(상태 아님 → 해시·회귀 무관). */
     var offs = sim.crowdOffsets;
     if (!offs || sim.crowdOffR !== p.crowdR) { offs = sim.crowdOffsets = K.discOffsets(p.crowdR); sim.crowdOffR = p.crowdR; }
     var occ = sim.crowdGrid, NG = W * H;
