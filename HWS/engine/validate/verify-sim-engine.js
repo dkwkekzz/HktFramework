@@ -549,6 +549,23 @@ function qualArena(extra) {
   }, extra || {});
 }
 
+/* 생명 폐열 아레나(step-0046 V5+ — 슈뢰딩거 음엔트로피). 균일 E=2 + 정적 생명 5(이동·번식 off)·kQual=0(자발 강등 격리) + kLifeHeat=0.3 → 대사 손실 일부가 저질 열 Eth 로 제자리에. step-0046/verify.js lifeHeatArena 와 동일 상수(골든 heat@ 와 일치). 32×32·D=1. */
+function lifeHeatArena(extra) {
+  return Object.assign({
+    W: 32, H: 32, D: 1, initE: 2, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kQual: 0,
+    life: true, kL: 0.05, mMaint: 0.03, mDeath: 0.05, baseCost: 0, lifeR: 1,
+    move: false, repro: false, pTumble: 0, kA: 0, kRelief: 0,
+    kLifeHeat: 0
+  }, extra || {});
+}
+function seedLifeHeat(sim) {   // 정적 생명 5 마리(고정 위치·각 m≤0.5 를 제 칸 E 서) — verify.js seedLifeHeat 와 동일
+  var W = sim.p.W, pts = [[8, 8], [16, 16], [24, 24], [8, 24], [24, 8]];
+  for (var i = 0; i < pts.length; i++) { var x = pts[i][0], y = pts[i][1], c = y * W + x, m = Math.min(0.5, sim.E[c]); sim.E[c] -= m; sim.agents.push({ x: x, y: y, z: 0, m: m, cells: [c], center: c, bornTick: 0 }); }
+  return sim.agents.length;
+}
+
 function runGolden() {
   console.log('== golden: 표준 시나리오 상태 해시 동결 잠금 ==');
   var cur = {};
@@ -723,6 +740,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // qual@ — 에너지 질 강등 2D 아레나(step-0045 V5+: source 자유 E 주입 + kQual=0.05 → E→Eth 열화·질 구배 q=E/(E+Eth)). 과거 키들(kQual=0)은 degrade·Eth 미커버 → 이 키가 degrade 쌍거래·Eth 해시 본문을 동결(드리프트 가드). step-0046~ 회귀 앵커: 새 노브(kQual)=0 이면 degrade early-return(비트 동일).
     var a = ENG.createSim(seed, qualArena()); ENG.run(a, 40);
     cur['qual@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // heat@ — 생명 폐열 2D 아레나(step-0046 V5+: 정적 생명 5 + kLifeHeat=0.3 → 대사 손실 일부가 Eth[저질 열]로 제자리). qual@ 등(kLifeHeat=0)은 폐열 미커버 → 이 키가 metabolize 폐열 쌍 분배·Eth 해시 본문을 동결(드리프트 가드). step-0047~ 회귀 앵커: 새 노브(kLifeHeat)=0 이면 metabolized += cost(비트 동일).
+    var a = ENG.createSim(seed, lifeHeatArena({ kLifeHeat: 0.3 })); seedLifeHeat(a); ENG.run(a, 20);
+    cur['heat@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

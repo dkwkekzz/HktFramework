@@ -288,6 +288,10 @@
     kQual: 0,             // 질 강등율. 0 = off = 직전 step(0044) 비트 동일(degrade early-return·Eth 영원히 0·qualInit=false → Eth 해시 skip → 골든 무관). >0 이면 on:
                           //   매 tick 자유 E 의 kQual 비율이 E→Eth(열 에너지)로 *일방 강등*(둘째 법칙)·쌍 거래(총 E+Eth 불변 = 양 보존·질만 떨어짐). 자유 E 생산은 source/별 주입(고질) → 질 구배 q=E/(E+Eth) 창발(주입 근처 고질→1·먼/고인 곳 저질→0). 슈뢰딩거 낙차(생명이 양 아닌 질로 산다)의 토대 + 렌더 L-Q(흑체 색온도)가 q 를 읽는다(RENDER §8).
                           //   정직한 한계(후속 step): advection 없음(질이 E 와 함께 안 흐름 — 받은 셀이 이웃 질 미상속)·생명 동역학 미연동(아직 측정 토대)·재활용 없음(Eth 누적 → 열사 위험, 풍화식 재활용 짝 후속). 한 step = 한 조각.
+    /* ── step-0046: 생명의 폐열(슈뢰딩거 음엔트로피 — 생명이 질로 산다·0045 의 "생명 미연동" 해소) ── */
+    kLifeHeat: 0,         // 대사 폐열 분율(0~1). 0 = off = 직전 step(0045) 비트 동일(heat 0 → metabolized += cost·Eth 무변경·qualInit 미설정 → 골든 무관). >0 이면 on:
+                          //   생명의 대사 손실(cost = m·mMaint + baseCost)의 kLifeHeat 분율이 *세계 밖 소멸(metabolized)* 대신 *저질 열 Eth* 로 제자리(a.center)에 머문다(나머지는 종전대로 metabolized). 생명은 고질 자유 E 를 먹어(흡수 kL) m 을 유지하고 *저질 엔트로피(열)를 환경에 배출* = 슈뢰딩거 "생명은 음엔트로피를 먹는다"·far-from-equilibrium 소산구조. 질 축(0045 Eth)을 생명 동역학에 연동.
+                          //   장부: cost 가 heat(→Eth) + (cost−heat)(→metabolized) 로 *쌍 분배*, 둘 다 lhs 라 보존(잔차 불변). 0045 의 둘째 법칙 강등(kQual)과 독립 — kQual=0 이라도 생명이 Eth 를 낸다. 한 step = 한 조각(생명의 *고질 우선 흡수*는 이미 구조적[free E 만 먹음]·열 advection·재활용은 후속).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -1330,7 +1334,7 @@
   function metabolize(sim) {
     var p = sim.p;
     if (!p.life || !sim.agents.length) return;
-    var E = sim.E, ag = sim.agents, kL = p.kL, mMaint = p.mMaint, mDeath = p.mDeath, baseCost = p.baseCost;
+    var E = sim.E, ag = sim.agents, kL = p.kL, mMaint = p.mMaint, mDeath = p.mDeath, baseCost = p.baseCost, kLifeHeat = p.kLifeHeat;
     var survivors = [];
     for (var k = 0; k < ag.length; k++) {
       var a = ag[k], cells = a.cells;
@@ -1342,7 +1346,11 @@
       a.m += got;
       var cost = a.m * mMaint + baseCost;
       if (cost > a.m) cost = a.m;
-      a.m -= cost; sim.metabolized += cost;
+      a.m -= cost;
+      /* step-0046: 대사 폐열 — 손실 cost 의 kLifeHeat 분율이 세계 밖 소멸(metabolized) 대신 *저질 열 Eth* 로 제자리(a.center)에 머문다. 생명이 고질 자유 E 를 먹어(위 흡수) m 을 유지하고 저질 엔트로피(열)를 환경에 배출 = 슈뢰딩거 음엔트로피 섭취·far-from-equilibrium 소산구조. kLifeHeat=0 → heat 0 → metabolized += cost(직전 step 비트 동일). Eth↔metabolized 둘 다 장부 lhs 라 보존(쌍 분배). */
+      var heat = cost * kLifeHeat;
+      if (heat > 0) { sim.Eth[a.center] += heat; sim.qualInit = true; }
+      sim.metabolized += cost - heat;
       if (a.m < mDeath) {
         E[a.center] += a.m; a.m = 0;
         a.deathTick = sim.tick; sim.deaths++;
