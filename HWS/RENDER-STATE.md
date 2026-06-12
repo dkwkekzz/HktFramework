@@ -128,19 +128,10 @@
 
 ---
 
-## 8. Render Step 진행법 (다른 세션 런북)
+## 8. Render Step 진행법 → `render-step` 스킬
 
-> 렌더 트랙은 시뮬 트랙과 **직교**라 다른 세션에서 독립 진행한다. **한 커밋 = 한 렌즈.** step 번호 없음·회귀/verify 4기둥 무관(그건 시뮬 트랙). 아래가 한 바퀴다.
+> 렌즈 루프(읽기→계획→구현→검증 3종→갱신)의 *실행 절차*는 **`render-step` 스킬**(`.claude/skills/render-step/`)이 토큰 효율로 안내한다 — 사용자가 "render step 진행/다음 렌즈"를 요청하면 발동. *권위*: 척추·author 금지선 = [RENDER.md](RENDER.md) · 루프 원칙 = [CLAUDE.md](CLAUDE.md) "렌즈 루프". 아래는 *대시보드가 들고 있는 standing 사실*만(절차는 스킬, 중복 금지).
 
-**소유/불가침**: 렌더 트랙이 *고치는 파일* = `engine/hws-3d.js`(+ 프레젠테이션 한정 `hws-ui.css`·`hws-ui.js`) · `RENDER.md` · `RENDER-STATE.md`. **불가침**(시뮬 소유 — 절대 안 건드림) = `hws-laws.js`·`hws-kernel.js`·`hws-sim.js`·`golden-sim.json`·`step-NNNN/*`·`STATE.md`·`SPINE.md`. 두 트랙 파일이 disjoint 라 동시 진행·머지 순서 무관.
+**소유/불가침**: 고치는 파일 = `engine/hws-3d.js`(+ 프레젠테이션 한정 `hws-ui`) · `RENDER.md` · `RENDER-STATE.md`. **불가침**(시뮬 소유) = `hws-laws.js`·`hws-kernel.js`·`hws-sim.js`·`golden-sim.json`·`step-NNNN/*`·`STATE.md`·`SPINE.md`. 두 트랙 disjoint — 커밋 전 `git status` 로 diff 가 렌더 파일에만 있는지 확인.
 
-**렌즈 루프 (한 바퀴)**:
-1. **읽기** — [RENDER.md](RENDER.md)(척추·author 금지선·§3 입력 계약 채널) · 이 문서 §2 NEXT(다음 렌즈)·§3 OPEN GAPS·§7(voxel 원칙). 시뮬이 *무슨 양을 내보내는지*가 렌즈의 재료다.
-2. **계획** — §2 NEXT 가 지정한 *한 렌즈*만. 더 떠올라도 다음으로 전가. **⛔ 시뮬 선행 렌즈**(L-Q·L-I)는 시뮬이 그 양(`q`·transport)을 안 내보내면 *시작 불가* — §3 blocked 표 확인.
-3. **구현** — `engine/hws-3d.js` 만 고친다. *분포 재성형 0* — 도함수·필터로 *읽기*만(어느 양이 색·빛이 되는가만 고름). 이웃 필요 양(`∇R`·`∇E`·`∇²E`)은 CPU 빌드가 6-이웃에서 사전계산해 인스턴스에 실어 보냄(셰이더는 셀별이라 이웃 못 봄).
-4. **검증 3종** — ① `node engine/validate/verify-sim-engine.js` 골든 해시 **불변**(=시뮬 안 건드린 알리바이) ② `node engine/validate/smoke-dom-3d.js` 3D 스모크 ③ **눈 검증**(화면이 권위) + 척추 한 항(형태·질 author 0).
-5. **갱신** — *이 문서만*: §1 NOW·§2 NEXT 덮어쓰기·§3 격차 갱신·§6 INDEX 1줄 append. **`STATE.md`·`SPINE.md` 는 안 만진다.**
-
-**author 금지선 (한 항)**: *어느 양*이 z·색·빛이 되는가는 읽기(허용) / 양의 *분포 재성형*·필드에 없는 형태(실루엣)·*질*을 손으로 박기는 author(금지). 색온도는 시뮬 `q` 발현 전엔 비워 둔다([RENDER.md](RENDER.md) §8).
-
-**지금 다음 렌즈**: 외형·인터랙션 칸은 완주 — 능동 프런티어는 시뮬로 넘어가 있다. 다음 *의미 있는* 렌즈 **L-Q(흑체 색온도)·L-I(조명)는 ⛔ 시뮬이 `q`·transport 를 내보내야** 켜진다(§3·§5·[RENDER.md](RENDER.md) §8). 그때까진 §2 의 성능/정제 칸(greedy meshing·안개 raymarch·물 정렬)만 진행 가능.
+**지금 다음 렌즈**: 외형·인터랙션 칸 완주 — 능동 프런티어는 시뮬로 넘어가 있다. 다음 *의미 있는* 렌즈 **L-Q(흑체 색온도)·L-I(조명)는 ⛔ 시뮬이 `q`·transport 를 내보내야** 켜진다(§3·§5·[RENDER.md](RENDER.md) §8). 그때까진 §2 의 성능/정제 칸(greedy meshing·안개 raymarch·물 정렬)만 진행 가능.
