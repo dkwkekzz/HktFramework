@@ -511,6 +511,9 @@ function seedQMetab(sim) {   // 평탄 E=2 + 고질(0.9)/저질(0.1) 두 구역 
   for (gx = 0; gx < 3; gx++) for (gy = 0; gy < 3; gy++) ENG.spawnAgent(sim, 18 + gx * 2, 26 + gy * 2);   // 고질 무리(y=26~30·q 0.9)
   for (gx = 0; gx < 3; gx++) for (gy = 0; gy < 3; gy++) ENG.spawnAgent(sim, 18 + gx * 2, 36 + gy * 2);   // 저질 무리(y=36~40·q 0.1)
 }
+/* 명시적 질 배출 2D 아레나(step-0054 *실활성* — 생명이 먹은 자리 residual q 강등, 엔트로피 export) — step-0054/verify.js qexpArena()/seedQMetab 와 동일.
+ * qmetArena 위에 kQExport=1 만 더한다(고질 무리가 먹은 자리 q↓). qmet@ 등 전 키(kQExport=0)는 *q 미접촉*이라 배출 미커버 → 이 키가 metabolize q-쓰기 본문(먹은 자리 q 강등·q 해시)을 동결(드리프트 가드). step-0055~ 회귀 앵커: 새 노브(kQExport)=0 이면 q[idx] 미접촉(과거 골든 전부 불변). */
+function qexpArena(extra) { return qmetArena(Object.assign({ kQExport: 1 }, extra || {})); }
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -955,6 +958,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // qmet@ — 질-의존 대사 2D 아레나(step-0053: 평탄 E=2 + 고질/저질 두 구역 + 정착 생명 두 무리[move off] + degrade[질 축 alive] + kQMetab=5 → 고질 위 무리가 더 많이 흡수해 m↑). qtax@ 등 전 키(kQMetab=0)는 *균일 흡수*라 질 가중 미커버 → 이 키가 metabolize 질 가중 본문(고질 무리 m↑·agent.m 해시)을 동결(드리프트 가드). step-0054~ 회귀 앵커: 새 노브(kQMetab)=0 이면 take=E·kL 바이트 동일.
     var a = ENG.createSim(seed, qmetArena()); seedQMetab(a); ENG.run(a, 12);
     cur['qmet@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qexp@ — 명시적 질 배출 2D 아레나(step-0054: qmet 셋업 + kQExport=1 → 생명이 먹은 자리 residual q 강등=엔트로피 export). qmet@ 등 전 키(kQExport=0)는 q 미접촉이라 배출 미커버 → 이 키가 metabolize q-쓰기 본문(먹은 자리 q↓·q 해시)을 동결(드리프트 가드). step-0055~ 회귀 앵커: 새 노브(kQExport)=0 이면 q[idx] 미접촉.
+    var a = ENG.createSim(seed, qexpArena()); seedQMetab(a); ENG.run(a, 12);
+    cur['qexp@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

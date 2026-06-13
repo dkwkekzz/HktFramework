@@ -317,6 +317,12 @@
                           //   metabolize(⑦)가 disc 칸에서 E→m 흡수할 때, take 를 *질 가중* take=E·kL·(1+kQMetab·q) 로 — 고질(고 q=엑서지 높은) E 를 더 많이·빨리 빨아들인다(슈뢰딩거: 생명은 *자유에너지*[저엔트로피 질]를 먹어 제 질서를 유지한다 — 양이 아니라 질을 먹는다). 0052 주화성(질 따라 *모임*)의 에너지론 짝(질 따라 *먹음*). 세계 척도에선 생명이 고질 E 를 우선 소비 → 장의 평균 질이 떨어짐(고질을 먹어 질 낮춤).
                           //   척추: q 는 E 에 올라탄 intensive 상태변수(단일 척추 — 새 필드 0) · authored 분기 없음(모든 생명 같은 q 가중 흡수 — 활성도 환원) · 국소(제 disc 칸 E·q 만, 전역 조율자 0) · 닫힌 장부(흡수는 E→m 쌍 거래로 보존 — q 는 *읽기만*[미수정·A·강등·주화성과 같은 읽기 경계]). take 는 E[idx] 로 클램프(고 kQMetab 에서도 음수 E 방지 — off 경로엔 무영향).
                           //   회귀(이중 가드): kQMetab=0 → take=E·kL 바이트 동일(원식·클램프 미진입). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 질 대사 없음 — degrade 위에 얹힘).
+    /* ── step-0054: 명시적 질 배출(생명이 먹은 자리 q 강등 — SPINE 여섯째 축. 0049~0053 까지 생명은 q 를 *읽기만* 했다[질 따라 모이고·먹되 남은 E 의 질은 안 건드림]. 이제 생명이 *처음으로 q 를 쓴다* → 슈뢰딩거 *능동* 질서 허묾[엔트로피 export] 완성) ── */
+    kQExport: 0,          // 명시적 질 배출 게이트(metabolize 가 먹은 자리 residual q 강등). 0 = off = 직전 step(0053) 비트 동일(q 미접촉 → 과거 골든 전부 불변). >0 이면 on:
+                          //   metabolize(⑦)가 disc 칸에서 take 를 흡수할 때(고질 우선, 0053), *남은 E 의 질을 깎는다*: q[idx] *= (1 − kQExport·(take/Ebefore)). 생명은 고질(엑서지 높은) 크림을 걷어먹어(0053) 자리에 *저질 찌꺼기*만 남긴다 — 먹은 비율(take/Ebefore)에 비례해 residual q 단조 감소. 이것이 슈뢰딩거의 *핵심*: 생명은 자유에너지를 먹어 제 질서를 유지하고 *그 대가로 환경에 엔트로피를 배출*한다(저엔트로피 흡입 → 고엔트로피 잔류). degrade(둘째 법칙·균일 식음)와 달리 *생명이 일한 자리에서만* 질이 깎인다 = 생명이 능동적으로 만드는 질 구배(저질 그림자).
+                          //   q 의 *첫 동역학적 쓰기*: 0049 degrade 는 셀별 균일 강등(생명 무관), 0050~0053 은 q 읽기/source 주입. 이제 *생명 대사*가 q 를 깎는다 → 생명-환경 되먹임 닫힘(생명이 질 따라 모이고[0052]·먹고[0053]·먹은 자리를 식힌다[0054]).
+                          //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · authored 분기 없음(모든 생명 같은 배출 — 활성도 환원) · 국소(제 disc 칸 q 만, 전역 조율자 0) · 닫힌 장부(q 는 *비율*이라 강등은 E·m 미접촉 — degrade·advection 과 같은 정신, 엑서지 X 는 *파괴되는* 측정량이지 보존 항 아님. 비가역[질 down 단조] ≠ 비보존). q ∈ [0,1] 보존(factor ∈ [0,1] — take ≤ Ebefore·kQExport ≤ 1 권장).
+                          //   회귀(이중 가드): kQExport=0 → q[idx] 미접촉(원식 그대로) 바이트 동일. qInit=false(degrade off)면 미진입(질 축 없는 세계엔 배출할 질 없음 — degrade 위에 얹힘).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -1457,14 +1463,18 @@
     /* step-0053 질-의존 대사(kQMetab): 흡수 take 를 *질 가중* E·kL·(1+kQMetab·q) 로 — 고질 E 가 더 영양(슈뢰딩거: 자유에너지를 먹는다).
      *   가드 ②(qInit): 질 축 살아있을 때만. 가드 ①(kQMetab=0): qmet=false → take=E·kL 바이트 동일(회귀 0). q 는 *읽기만*(미수정·E→m 쌍 거래로 보존). */
     var qmet = (p.kQMetab !== 0 && sim.qInit), kQM = p.kQMetab, Q = sim.q;
+    /* step-0054 명시적 질 배출(kQExport): 먹은 자리 residual q 를 깎는다 — 생명의 *첫 q-쓰기*(엔트로피 export).
+     *   가드 ②(qInit): 질 축 살아있을 때만. 가드 ①(kQExport=0): qexp=false → q[idx] 미접촉 바이트 동일(회귀 0). q 는 *비율*이라 강등은 E·m 미접촉(장부 불변 — degrade 와 같은 경계). */
+    var qexp = (p.kQExport !== 0 && sim.qInit), kQX = p.kQExport;
     var survivors = [];
     for (var k = 0; k < ag.length; k++) {
       var a = ag[k], cells = a.cells;
       var got = 0;
       for (var c = 0; c < cells.length; c++) {
-        var idx = cells[c], take = qmet ? E[idx] * kL * (1 + kQM * Q[idx]) : E[idx] * kL;
-        if (qmet && take > E[idx]) take = E[idx];   // 고 kQMetab 클램프(음수 E 방지 — off 경로엔 무영향: E·kL ≤ E)
+        var idx = cells[c], Ebefore = E[idx], take = qmet ? Ebefore * kL * (1 + kQM * Q[idx]) : Ebefore * kL;
+        if (qmet && take > Ebefore) take = Ebefore;   // 고 kQMetab 클램프(음수 E 방지 — off 경로엔 무영향: E·kL ≤ E)
         E[idx] -= take; got += take;
+        if (qexp && Ebefore > 0) Q[idx] *= (1 - kQX * (take / Ebefore));   // 먹은 비율만큼 residual q 강등(엔트로피 export·고질 크림 걷어먹은 저질 찌꺼기) — q 만 쓰고 E·m 미접촉(장부 불변)
       }
       a.m += got;
       var cost = a.m * mMaint + baseCost;
