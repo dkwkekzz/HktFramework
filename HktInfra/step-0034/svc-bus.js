@@ -52,6 +52,11 @@ class ServiceBus {
     for (const addr of subs) { this.deliveries++; this.net.send(this.addr, addr, { type: 'ev', topic: p.topic, ev: p.ev }); }
   }
   subscriberCount(topic) { const a = this.topics.get(topic); return a ? a.length : 0; }
+  // crash(0034) — 버스 프로세스 사망(RAM 소실)의 인프로세스 모델. 라우팅 테이블을 비운다 → 서비스 경로 단절(이후 pub 전부 unrouted).
+  //   버스는 *파생 상태*만 든다(누가 무엇을 구독하는가) — 진실 원천은 *소비자*다. 그래서 복구는 버스 내부 영속이 아니라
+  //   소비자들의 *재구독*(재협상·0033 동적 sub)으로 일어난다: routing 은 sub 메시지의 재-적용으로 재구성된다(이력 replay 불필요).
+  //   회계(publishes/deliveries…)는 누적 관찰 totals 라 유지 — 외부 관찰자(audit)·소비자(ranking)로 복구를 측정한다.
+  crash() { this.topics = new Map(); }
 }
 
 const __part = { ServiceBus };

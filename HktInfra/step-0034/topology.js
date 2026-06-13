@@ -204,6 +204,7 @@ function run(opts) {
   const inventory = map.get('inventory') || null;
   const chat = map.get('chat') || null;
   const bus = map.get('bus') || null;
+  const busSubs = bus ? ((topo.specs.find(s => s.addr === 'bus') || {}).opts || {}).subs || [] : [];   // 정적 subs spec(재협상 원천 — "소비자가 무엇을 구독했나"·0034 버스 failover)
   const audit = map.get('audit') || null;
   const ranking = map.get('ranking') || null;
   const persist = map.get('persist') || null;
@@ -267,6 +268,14 @@ function run(opts) {
     //   op={at,from,type:'sub'|'unsub',topic} — actor→bus 정규 net.send(시드 로그의 일부 = 결정론). 버스가 다음 step 에서 처리해 라우팅 테이블을 *양방향*으로 갱신.
     //   미제공이면 호출 0(reg 0 불변 — unsub/동적 sub 코드 휴면). 멀티프로세스 E2E 는 busReSub 를 안 주므로 cluster.js 무수정.
     if (opts.busReSub && bus) for (const op of opts.busReSub) if (op.at === i + 1) net.send(op.from, 'bus', { type: op.type, topic: op.topic });
+    // 버스 failover(이 step) — busRestart.at 에 bus.crash()(라우팅 RAM 소실 → 서비스 경로 단절), renegAt 에 *구독 재협상*(0033 동적 sub).
+    //   버스는 파생 상태(라우팅)만 들고 진실 원천은 소비자다 → 복구 = 소비자들이 (같은 주소의) 버스에 *재구독*(정적 subs spec 을 sub 메시지로 재발신).
+    //   renegAt 없으면 재협상 0 = 영구 단절(대조군 — 버스 단일점의 대가). busRestart 미제공이면 crash 0(reg 0 불변). 발행자(gateway/inventory…)는 같은 'bus' 주소라 무수정.
+    if (opts.busRestart && bus) {
+      if (i + 1 === opts.busRestart.at) bus.crash();
+      if (opts.busRestart.renegAt && i + 1 === opts.busRestart.renegAt)
+        for (const [topic, addr] of (busSubs || [])) net.send(addr, 'bus', { type: 'sub', topic });   // 각 소비자가 재구독(재협상) → 라우팅 재구성
+    }
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
