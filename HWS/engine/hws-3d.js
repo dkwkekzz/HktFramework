@@ -286,7 +286,7 @@
     }
     R.voxN = vn; R.voxNW = wn; R.fogN = fn;
     if (vn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVox); gl.bufferData(gl.ARRAY_BUFFER, va.subarray(0, vn * STR), gl.DYNAMIC_DRAW); }
-    if (wn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, vw.subarray(0, wn * STR), gl.DYNAMIC_DRAW); }
+    // 물(반투명) 업로드는 *카메라 정렬* 후로 미룬다(L-V2+ 물 정렬) — eye 확정(아래) 뒤 뒤→앞으로 정렬해 올린다(겹친 물 순서 의존 제거).
     if (fn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufFog); gl.bufferData(gl.ARRAY_BUFFER, fa.subarray(0, fn * 4), gl.DYNAMIC_DRAW); }
     /* 틱 단위 캐시 — 개체수 히스토리·고임 (엔진 2D 와 같은 주기) */
     if (sim.tick !== S.lastTick) {
@@ -310,6 +310,22 @@
     var eye = camEye();                                     // 월드 카메라 위치 — 세계 해석 셰이더 프레넬/글린트 시선벡터
     var Vm = mLookAt(eye, [cam.cx + cam.tx, cam.cy, cam.cz + cam.tz], [0, 1, 0]);
     var MVP = mMul(Pm, Vm);
+    /* ── 물 정렬(L-V2+): 반투명 물 큐브를 카메라 거리 *내림차순*(뒤→앞)으로 정렬해 업로드 — over-블렌드는 순서 의존이라
+     * 정렬 없이 인스턴스 순(셀 인덱스)으로 그리면 겹친 물기둥에서 뒤 큐브가 앞을 덮어 색·알파가 틀어진다(깊은 물에서 q 색온도[L-Q]도 뭉개짐).
+     * 인스턴스 월드 중심 = (x, z, y)(VS center 매핑). dist² 로 정렬해 먼 물부터 그린다(올바른 알파 누적). 분포 author 0 — 그리는 *순서*만 바꿈. ── */
+    if (R.voxNW) {
+      var wnS = R.voxNW, vwS = R.voxArrW, STRW = 12;
+      var wIdx = R.wIdx; if (!wIdx || wIdx.length < wnS) wIdx = R.wIdx = new Int32Array(Math.max(1024, wnS * 2));
+      var wDist = R.wDist; if (!wDist || wDist.length < wnS) wDist = R.wDist = new Float32Array(Math.max(1024, wnS * 2));
+      for (var wi = 0; wi < wnS; wi++) {
+        var wo = wi * STRW, dxw = vwS[wo] - eye[0], dyw = vwS[wo + 2] - eye[1], dzw = vwS[wo + 1] - eye[2];  // 월드 중심 (x,z,y)
+        wIdx[wi] = wi; wDist[wi] = dxw * dxw + dyw * dyw + dzw * dzw;
+      }
+      var wView = wIdx.subarray(0, wnS); wView.sort(function (a, b) { return wDist[b] - wDist[a]; });        // 먼 것 먼저(뒤→앞)
+      var wSort = R.voxArrWS; if (!wSort || wSort.length < wnS * STRW) wSort = R.voxArrWS = new Float32Array(Math.max(1024 * STRW, wnS * STRW * 2));
+      for (var wj = 0; wj < wnS; wj++) { var src = wIdx[wj] * STRW, dst = wj * STRW; for (var wk = 0; wk < STRW; wk++) wSort[dst + wk] = vwS[src + wk]; }
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, wSort.subarray(0, wnS * STRW), gl.DYNAMIC_DRAW);
+    }
     gl.viewport(0, 0, glcv.width, glcv.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     /* 오버레이 라인 — 레거시 뷰는 하이트필드 위 마커(buildLines), voxel 뷰는 3D 박스·기둥·호버 큐브(buildLines3D). 별 버퍼 */
