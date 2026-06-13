@@ -1138,9 +1138,15 @@
     '    vec3 V=normalize(uEye - vWorld);',
     '    float fres=0.03 + 0.97*pow(1.0-max(dot(N,V),0.0), 5.0);', // 비스듬할수록 표면 반사↑(정면=투과)
     '    vec3 sky=vec3(0.34,0.48,0.64);',                   // 물이 반사하는 하늘색
-    '    if (vQ>=0.0){ lit = mix(lit, blackbody(vQ), 0.55*clamp(vQ,0.0,1.0)); }', // L-Q: 고인 물도 제 색온도로(고질 웅덩이=덥혀진 색·저질=찬 남빛 불변·침강 hot plume 가 보임)
     '    vec3 rgb=mix(lit, sky, fres) + emit;',             // 투과(바닥 비침) ↔ 표면 반사 보간
-    '    o=vec4(rgb, clamp(max(vAlpha, fres*0.9), 0.0, 1.0));', // 가장자리(프레넬) 더 또렷이
+    '    float wA=clamp(max(vAlpha, fres*0.9), 0.0, 1.0);',
+    '    if (vQ>=0.0){',                                    // L-Q: 고인 물도 제 색온도로 — q 는 흐름(A) 아닌 *고인 E* 에 사니(이 아레나는 kFlux off) 물 채널이 질 가시화의 주경로
+    '      float qh=clamp(vQ,0.0,1.0);',
+    '      rgb = mix(rgb, blackbody(vQ), 0.75*qh);',        // 고질 물=제 색온도(저질=찬 남빛 불변·침강 hot plume·별 근처 구배)
+    '      rgb += blackbody(vQ) * qh*qh * 0.8;',            // 열복사 자체발광 — 흑체 세기는 온도(q)에 의존(흐름 없어도 뜨거운 물이 빛남). 저질=거의 0
+    '      wA = clamp(max(wA, qh*0.7), 0.0, 1.0);',         // 고질 물은 더 또렷이(따뜻한 색이 비치도록 알파↑)
+    '    }',
+    '    o=vec4(rgb, wA);',                                 // 가장자리(프레넬)·고질 더 또렷이
     '  } else {',
     '    o=vec4(lit + emit, 1.0);',                         // 불투명(고체·빛)
     '  }',
