@@ -440,6 +440,26 @@ function qualArena(extra) {
 function starqArena(extra) {
   return sunArena(Object.assign({ kDegrade: 0.05, qInit0: 0, kStarQual: 1 }, extra || {}));
 }
+/* q advection 3D 아레나(step-0051 V? *실활성* — 질이 gravity 하향 유출에 동승 → 침강 hot plume) — step-0051/verify.js qadvArena()/seedQTop() 와 동일 상수.
+ * D=8 voxel 상자, 천장(z=D−1) 평면에 고질 E 블록(seedQTop) + gravity(kGravity=0.3, 하향 침전) + degrade(kDegrade=0.01·질 축 alive) + kQAdvect=1(질 동승) — 확산·별·생명 다 off(순수 하향 수송). qInit0=0(냉각 — 천장 블록만 고질).
+ * starq@/qual@(kQAdvect=0)는 advection 미커버 → 이 qadv@ 가 gravity 질 동승 본문(하강 E 가 제 질을 데리고 내려감)을 동결한다(드리프트 가드). step-0052~ 회귀 앵커: 새 노브(kQAdvect)=0 이면 q 미접촉(과거 골든 전부 불변). */
+function qadvArena(extra) {
+  return Object.assign({}, {
+    D: 8, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kGravity: 0.3, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kAshSeed: 0, kStarQual: 0, kFSM: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0,
+    kMoveZ: 0, kDivZ: 0, kCrowdZ: 0, kAdhereZ: 0, kShareZ: 0, kInheritZ: 0, kCoupleZ: 0,
+    kDegrade: 0.01, qInit0: 0, kQAdvect: 1
+  }, extra || {});
+}
+function seedQTop(sim) {   // 천장(z=D−1) 평면에 고질 E 블록 — gravity 가 아래로 침전시키며 advection 이 질을 데리고 내려간다. q 축 alive(qInit=true).
+  var p = sim.p, WH = p.W * p.H, top = (p.D - 1) * WH, k;
+  for (k = 0; k < WH; k++) { sim.E[top + k] = 10; sim.E0 += 10; sim.q[top + k] = 1; }
+  sim.qInit = true;
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -872,6 +892,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // starq@ — 별 질 생산 3D 아레나(step-0050: sunArena[별 점화·부력·高z 방출] + degrade[kDegrade=0.05·qInit0=0 냉각 베이스라인] + kStarQual=1 → 별이 주입한 E 만 고질[q→1]·degrade 가 나머지를 식힘 = 질 구배). qual@(kStarQual=0·별 없음)는 별 질 블렌딩 미커버 → 이 키가 ignite 질 생산 본문(주입 칸 q 질량가중 혼합)을 동결(드리프트 가드). step-0051~ 회귀 앵커: 새 노브(kStarQual)=0 이면 q 미접촉(과거 골든 전부 불변).
     var a = ENG.createSim(seed, starqArena()); seedSunCore(a); ENG.run(a, 60);
     cur['starq@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qadv@ — q advection 3D 아레나(step-0051: 천장 고질 E 블록 + gravity[kGravity=0.3] + degrade[kDegrade=0.01] + kQAdvect=1 → 하강 E 가 제 질을 데리고 z=0 바다로 내려감=침강 hot plume). starq@/qual@(kQAdvect=0)는 advection 미커버 → 이 키가 gravity 질 동승 본문(하강 E 의 질 수송)을 동결(드리프트 가드). step-0052~ 회귀 앵커: 새 노브(kQAdvect)=0 이면 q 미접촉(과거 골든 전부 불변).
+    var a = ENG.createSim(seed, qadvArena()); seedQTop(a); ENG.run(a, 30);
+    cur['qadv@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

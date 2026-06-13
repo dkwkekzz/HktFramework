@@ -303,6 +303,11 @@
                           //   별이 연료를 태워 장에 주입하는 E 는 *고질*(핵융합 — 저엔트로피·뜨거움)이다. 주입 시 그 칸 q 를 *질량가중 혼합*으로 kStarQual 까지 끌어올린다(q ← (q·E + kStarQual·per)/(E+per), per=주입량). 별 근처는 매 tick 고질로 *재충전*되고, degrade(둘째 법칙)가 멀리·오래된 E 의 q 를 깎는다 → *질 구배*(고질 별 근처 ↔ 저질 원거리)가 창발한다(0049 의 균일 식음에 source 를 더해 구배를 세움). 슈뢰딩거 낙차의 원천 = 별빛의 자유에너지.
                           //   척추: 질 생산은 *오직 source(별 융합)*에서(SPINE 여섯째 축 — 질 생산은 source 한정) · q 는 E 에 올라탄 intensive 속성(단일 척추) · 국소(제 disc 칸만, 전역 조율자 0) · authored 분기 없음(별 주입 칸 스칼라 혼합) · 닫힌 장부(혼합은 E 미접촉 — q 는 비율, A·강등과 같은 경계. 엑서지 X=Σq·E 는 *생산되는* 측정량이지 보존 항 아님 — 비가역 ≠ 비보존의 짝).
                           //   회귀(이중 가드): kStarQual=0 → 블렌딩 미진입(0049 무변경). q 미발현(qInit=false, degrade off)이면 미진입(질 축 없는 세계엔 별 질도 없다 — q 가 살아있을 때만[degrade on] 별이 그 축에 고질을 싣는다). *degrade(kDegrade) 위에 얹힌다* — 둘 다 켜져야 구배(source+sink).
+    /* ── step-0051: q advection(질이 E 이동에 동승 — SPINE 여섯째 축. 별이 고질을 *생산*(0050)하고 둘째 법칙이 *파괴*(0049)하나, 질은 아직 *셀 고정*[E 가 움직여도 q 는 제자리]. 이제 질이 E 흐름을 따라 *수송*된다 → 하강 hot plume) ── */
+    kQAdvect: 0,          // q advection 게이트(gravity 하향 유출에 질 동승). 0 = off = 직전 step(0050) 비트 동일(advection 미진입 → q 미접촉 → 과거 골든 전부 불변). >0 이면 on:
+                          //   gravity(①g)가 셀 E 의 일부를 *아래(z−1)*로 유출할 때, 그 흐른 E 의 질(donor q)을 받는 칸에 *질량가중 혼합*으로 싣는다(q_below ← (q_below·E_below + q_donor·flow)/(E_below+flow)). 하강하는 고질 E 가 *제 열을 데리고 내려간다* = 침강 hot plume(별빛 hot rain 이 질을 데리고 바다로). donor q 는 불변(intensive — 남은 E 는 제 질 유지).
+                          //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · 국소(제 z−1 아래 한 칸만, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 혼합) · 닫힌 장부(advection 은 E 미접촉 — gravity 가 이미 옮긴 E 의 *질*만 따라감, q 는 비율·거래 0). 0050 별 질 생산[source]·0049 강등[sink]의 *수송* 짝.
+                          //   회귀(이중 가드): kQAdvect=0 → advection 미진입(0050 무변경). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 수송할 질 없음). gravity 안에 얹힘 — kGravity=0·D=1 이면 gravity 자체가 early-return 이라 도달 안 함.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -411,6 +416,7 @@
     var D = p.D || 1; if (D < 2) return;                  // z 이웃 없음(D=1) = 회귀 0 (이중 가드: 노브=0 또는 z 벽)
     var E = sim.E, WH = p.W * p.H, kG = p.kGravity;
     var occ = p.kOcclude, R = sim.R, oth = p.occludeThresh;   // step-0033 R 차폐(V5): occ=0 이면 아래 if 가 short-circuit → R 미참조·V3 비트 동일
+    var qadv = (p.kQAdvect !== 0 && sim.qInit), Q = sim.q;     // step-0051 q advection: 하향 유출 E 가 제 질(donor q)을 데리고 내려간다(qInit 일 때만 — 질 축 살아있을 때)
     for (var z = 1; z < D; z++) {                         // z=0 은 바닥 벽(아래 없음) — 받기만 하고 안 내려보낸다(고임 자리)
       var zb = z * WH, below = zb - WH;
       for (var k = 0; k < WH; k++) {
@@ -418,7 +424,9 @@
         if (e <= 0) continue;
         if (occ !== 0 && R[below + k] >= oth) continue;   // 아래 칸이 R(지면)로 막힘 → 하향 유출 차단(E 가 위에 고임 = 바다가 지면 위에). 옆으로 우회는 확산(①)이 담당.
         var flow = e * kG;                                // 하향 유출(제 E 의 비율 → donor-제한, 음수 없음)
-        E[i] = e - flow; E[below + k] += flow;            // 쌍 거래(셀↔아래 셀) — 보존
+        var bi = below + k;
+        if (qadv) { var eb = E[bi]; Q[bi] = (Q[bi] * eb + Q[i] * flow) / (eb + flow); }   // 질량가중 혼합(받는 칸 E_below 로 가중 — 하강 E 의 질이 아래로 동승·donor q[i] 불변[intensive])
+        E[i] = e - flow; E[bi] += flow;                   // 쌍 거래(셀↔아래 셀) — 보존
       }
     }
   }
