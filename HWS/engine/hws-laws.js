@@ -63,6 +63,10 @@
     moveThresh: 0.02,      // 이동 임계 — 빈 이웃 E 가 현재 중심보다 이만큼 높아야 옮김(구배 문턱)
     kMoveZ: 0,            // step-0042 V5+: 생명 z-이동(연직 주화성). 0 = off = 직전 step(V5+ 풍화) 비트 동일(생명이 z=0 평면에만 머묾·move 가 2D 이웃만 봄·z 코드 미진입 → moveZInit=false → agent.z 해시 skip → 골든 무관). >0 이면 on:
                           //   move 의 run/tumble 6-이웃화 — 제 (x,y) 의 z±1 이웃도 후보로 봐, 위/아래로 더 높은 E 를 쫓는다(주화성이 연직축으로 일반화 — 생명이 에너지를 향해 *오른다*). D=1 이면 z 이웃이 없어 산술 0 = 비트 동일(이중 가드). 위치만 — 장부 거래 0(move 와 같은 경계).
+    kQTaxis: 0,          // step-0052 SPINE 여섯째 축: 질-구배 주화성(엑서지 추종). 0 = off = 직전 step(0051) 비트 동일(주화성이 *순수 E* 만 따름·q 미참조). >0 이면 on:
+                          //   move 의 run(주화성) 단계에서 이웃 비교를 *질 가중 끌개* att = E·(1 + kQTaxis·q) 로 바꾼다 — 생명이 그저 E 많은 곳이 아니라 *질 좋은(고 q = 엑서지 높은) E* 로 모인다(슈뢰딩거 낙차: 생명은 *자유에너지*[저엔트로피 질]로 산다). kQTaxis=0 이면 att = E·(1+0) = E 라 *바이트 동일*(곱 1.0 정확) — 회귀 0(가드 ①).
+                          //   *q 의 첫 동역학 되먹임* — 0049~0051 까지 q 는 읽기 전용(강등·생산·수송 다 측정/장부 경계)이었으나, 이제 생명 운동이 q 에 *의존*한다(둘째 척추 아님 — q 는 측정값이 아니라 E 의 intensive 상태변수, SPINE 여섯째 축이 의도한 동역학화). 단 move 는 여전히 q 를 *읽기만*(q 미수정·E 미접촉·위치만 — 장부 거래 0).
+                          //   가드 ②: qInit=false(degrade off — 질 축 죽음)면 미진입(질 없는 세계엔 질 구배 없음 — kQAdvect·kStarQual 과 같은 정신, q 가 살아있을 때만[degrade on] 생명이 그 축을 탄다). 평면·연직(kMoveZ) 후보 둘 다 같은 끌개를 써 일관(z-이동도 엑서지 추종). tumble(탐사)은 q 무관(무방향 — 굶주림 게이트는 *실* E 흡수, 질-의존 대사는 후속).
     /* ── step-0006: 기초대사비(절대 생존 문턱) ── */
     baseCost: 0,           // 생물량과 무관한 절대 대사비. cost = m·mMaint + baseCost.
     /* ── step-0007: 떠도는 자원(source 가 주기적으로 +x 로 재배치, 토러스 wrap) ── */
@@ -308,6 +312,11 @@
                           //   gravity(①g)가 셀 E 의 일부를 *아래(z−1)*로 유출할 때, 그 흐른 E 의 질(donor q)을 받는 칸에 *질량가중 혼합*으로 싣는다(q_below ← (q_below·E_below + q_donor·flow)/(E_below+flow)). 하강하는 고질 E 가 *제 열을 데리고 내려간다* = 침강 hot plume(별빛 hot rain 이 질을 데리고 바다로). donor q 는 불변(intensive — 남은 E 는 제 질 유지).
                           //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · 국소(제 z−1 아래 한 칸만, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 혼합) · 닫힌 장부(advection 은 E 미접촉 — gravity 가 이미 옮긴 E 의 *질*만 따라감, q 는 비율·거래 0). 0050 별 질 생산[source]·0049 강등[sink]의 *수송* 짝.
                           //   회귀(이중 가드): kQAdvect=0 → advection 미진입(0050 무변경). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 수송할 질 없음). gravity 안에 얹힘 — kGravity=0·D=1 이면 gravity 자체가 early-return 이라 도달 안 함.
+    /* ── step-0053: 질-의존 대사(고질 E 가 더 영양 — SPINE 여섯째 축. 0052 가 생명을 질 따라 *모이게* 했으니, 이제 질을 *먹게* 한다 → 슈뢰딩거 낙차의 *에너지론* 완성) ── */
+    kQMetab: 0,          // 질-의존 대사 가중(metabolize 흡수 효율을 q 로 가중). 0 = off = 직전 step(0052) 비트 동일(흡수 take=E·kL 균일·q 미참조 → 과거 골든 전부 불변). >0 이면 on:
+                          //   metabolize(⑦)가 disc 칸에서 E→m 흡수할 때, take 를 *질 가중* take=E·kL·(1+kQMetab·q) 로 — 고질(고 q=엑서지 높은) E 를 더 많이·빨리 빨아들인다(슈뢰딩거: 생명은 *자유에너지*[저엔트로피 질]를 먹어 제 질서를 유지한다 — 양이 아니라 질을 먹는다). 0052 주화성(질 따라 *모임*)의 에너지론 짝(질 따라 *먹음*). 세계 척도에선 생명이 고질 E 를 우선 소비 → 장의 평균 질이 떨어짐(고질을 먹어 질 낮춤).
+                          //   척추: q 는 E 에 올라탄 intensive 상태변수(단일 척추 — 새 필드 0) · authored 분기 없음(모든 생명 같은 q 가중 흡수 — 활성도 환원) · 국소(제 disc 칸 E·q 만, 전역 조율자 0) · 닫힌 장부(흡수는 E→m 쌍 거래로 보존 — q 는 *읽기만*[미수정·A·강등·주화성과 같은 읽기 경계]). take 는 E[idx] 로 클램프(고 kQMetab 에서도 음수 E 방지 — off 경로엔 무영향).
+                          //   회귀(이중 가드): kQMetab=0 → take=E·kL 바이트 동일(원식·클램프 미진입). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 질 대사 없음 — degrade 위에 얹힘).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -866,26 +875,32 @@
     var moveOff = sim.moveOffsets, moveThresh = p.moveThresh, mocc = sim.occSet;
     var pTum = p.pTumble, tSeed = sim.seed, tTick = sim.tick;
     if (kMoveZ) sim.moveZInit = true;            // z-이동 활성 → hashState 가 agent.z 를 가법 해싱(kMoveZ=0 이면 미설정 → 골든 불변)
+    /* step-0052 질-구배 주화성(kQTaxis): 주화성 run 의 이웃 비교를 *질 가중 끌개* att=E·(1+kQTaxis·q) 로 — 생명이 고질(엑서지 높은) E 로 모인다(슈뢰딩거 낙차).
+     *   가드 ②(qInit): 질 축 살아있을 때만(degrade on). 가드 ①(kQTaxis=0): att=E·1.0=E 바이트 동일 → attr() 가 그대로 E[idx] 반환(회귀 0). q 는 *읽기만*(미수정·E 미접촉 — 위치만, move 와 같은 경계). */
+    var qtax = (p.kQTaxis !== 0 && sim.qInit), kQT = p.kQTaxis, Qf = sim.q;
+    function attr(idx) { return qtax ? E[idx] * (1 + kQT * Qf[idx]) : E[idx]; }   // 끌개: qtax off 면 순수 E(바이트 동일 — 회귀 0)
     mocc.clear();
     for (var ms = 0; ms < ag.length; ms++) mocc.add(ag[ms].center);
     for (var mk = 0; mk < ag.length; mk++) {
       var mv = ag[mk];
       if (mv.sessile) continue;                  // step-0023: 정착(고착)한 생명은 주화성·탐사를 건너뜀(제자리 — kAnchor=0 이면 undefined=falsy → 회귀 0). 점유는 유지(mocc 에 남아 이웃을 막음).
       var mz = mv.z || 0, zBase = mz * WH;        // 현재 z 평면(kMoveZ=0 이면 늘 0 → zBase=0 → 인덱스 산술 동일=회귀)
-      var floor = E[mv.center] + moveThresh;
+      var floor = attr(mv.center) + moveThresh;   // step-0052: 질 가중 끌개 기준(qtax off 면 E[center]+moveThresh 와 바이트 동일)
       var mvx = mv.x, mvy = mv.y, bIdx = -1, bEv = floor, bX = 0, bY = 0, bZ = mz;
       for (var mo = 0; mo < moveOff.length; mo++) {
         var mnx = (mvx + moveOff[mo][0] + W) % W, mny = (mvy + moveOff[mo][1] + H) % H;
         var mnidx = zBase + mny * W + mnx;        // 같은 z 평면 이웃(zBase=0 이면 기존 2D 인덱스와 비트 동일)
         if (mocc.has(mnidx)) continue;
-        if (E[mnidx] > bEv) { bEv = E[mnidx]; bIdx = mnidx; bX = mnx; bY = mny; bZ = mz; }
+        var aN = attr(mnidx);                     // step-0052: 끌개 비교(qtax off 면 E[mnidx] — 회귀 0)
+        if (aN > bEv) { bEv = aN; bIdx = mnidx; bX = mnx; bY = mny; bZ = mz; }
       }
       if (kMoveZ && D > 1) {                      // z-이동: 위/아래(z±1) 같은 (x,y) 이웃도 후보(연직 주화성). D=1 이면 미진입(이중 가드)
         for (var dz = -1; dz <= 1; dz += 2) {
           var nz = mz + dz; if (nz < 0 || nz >= D) continue;   // z 벽(클램프 — wrap 안 함)
           var znidx = nz * WH + mvy * W + mvx;
           if (mocc.has(znidx)) continue;
-          if (E[znidx] > bEv) { bEv = E[znidx]; bIdx = znidx; bX = mvx; bY = mvy; bZ = nz; }
+          var aZ = attr(znidx);                   // step-0052: z 후보도 같은 끌개(엑서지 추종 일관·qtax off 면 E[znidx])
+          if (aZ > bEv) { bEv = aZ; bIdx = znidx; bX = mvx; bY = mvy; bZ = nz; }
         }
       }
       if (bIdx >= 0) {
@@ -1439,12 +1454,16 @@
     var p = sim.p;
     if (!p.life || !sim.agents.length) return;
     var E = sim.E, ag = sim.agents, kL = p.kL, mMaint = p.mMaint, mDeath = p.mDeath, baseCost = p.baseCost;
+    /* step-0053 질-의존 대사(kQMetab): 흡수 take 를 *질 가중* E·kL·(1+kQMetab·q) 로 — 고질 E 가 더 영양(슈뢰딩거: 자유에너지를 먹는다).
+     *   가드 ②(qInit): 질 축 살아있을 때만. 가드 ①(kQMetab=0): qmet=false → take=E·kL 바이트 동일(회귀 0). q 는 *읽기만*(미수정·E→m 쌍 거래로 보존). */
+    var qmet = (p.kQMetab !== 0 && sim.qInit), kQM = p.kQMetab, Q = sim.q;
     var survivors = [];
     for (var k = 0; k < ag.length; k++) {
       var a = ag[k], cells = a.cells;
       var got = 0;
       for (var c = 0; c < cells.length; c++) {
-        var idx = cells[c], take = E[idx] * kL;
+        var idx = cells[c], take = qmet ? E[idx] * kL * (1 + kQM * Q[idx]) : E[idx] * kL;
+        if (qmet && take > E[idx]) take = E[idx];   // 고 kQMetab 클램프(음수 E 방지 — off 경로엔 무영향: E·kL ≤ E)
         E[idx] -= take; got += take;
       }
       a.m += got;
