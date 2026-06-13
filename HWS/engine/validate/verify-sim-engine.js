@@ -460,6 +460,26 @@ function seedQTop(sim) {   // 천장(z=D−1) 평면에 고질 E 블록 — grav
   for (k = 0; k < WH; k++) { sim.E[top + k] = 10; sim.E0 += 10; sim.q[top + k] = 1; }
   sim.qInit = true;
 }
+/* diffuse advection 2D 아레나(step-0055 *실활성* — 질이 *등방 확산* 흐름에 동승 → 고질이 사방으로 번짐) — step-0055/verify.js qdfaArena()/seedQBlob 와 동일 상수.
+ * 2D(D=1), 중앙 고질 E 블록(seedQBlob: 8×8·E 10·q 1) + 빈 배경(E 0·q 0) + diffuse(kD=0.2, 선형 경로 kRelief=0·kA=0) + degrade(kDegrade=0.01·질 축 alive) + kQDiffuse=1(질 동승). 별·생명·중력 다 off(순수 확산 수송).
+ * qadv@(gravity 동승)·qmet@/qexp@ 등 전 키(kQDiffuse=0)는 확산 advection 미커버 → 이 qdfa@ 가 diffuse 질 동승 본문(번지는 E 가 제 질을 데려감)을 동결(드리프트 가드). step-0056~ 회귀 앵커: 새 노브(kQDiffuse)=0 이면 q 미접촉(과거 골든 전부 불변). */
+function qdfaArena(extra) {
+  return Object.assign({}, {
+    D: 1, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0.2, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kAshSeed: 0, kStarQual: 0, kFSM: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0,
+    kMoveZ: 0, kDivZ: 0, kCrowdZ: 0, kAdhereZ: 0, kShareZ: 0, kInheritZ: 0, kCoupleZ: 0,
+    kDegrade: 0.01, qInit0: 0, kQAdvect: 0, kQTaxis: 0, kQMetab: 0, kQExport: 0, kQDiffuse: 1
+  }, extra || {});
+}
+function seedQBlob(sim) {   // 중앙 8×8 고질 E 블록(E 10·q 1) + 빈 배경 — diffuse 가 사방으로 펴며 advection 이 질을 데리고 번진다. q 축 alive.
+  var p = sim.p, W = p.W, H = p.H, cx = (W >> 1) - 4, cy = (H >> 1) - 4, x, y;
+  for (y = cy; y < cy + 8; y++) for (x = cx; x < cx + 8; x++) { var i = y * W + x; sim.E[i] = 10; sim.E0 += 10; sim.q[i] = 1; }
+  sim.qInit = true;
+}
 /* 질-구배 주화성 2D 아레나(step-0052 *실활성* — 생명이 *질 구배*[엑서지]를 따라 오른다, 슈뢰딩거 낙차) — step-0052/verify.js qtaxArena()/seedQHill 와 동일 상수.
  * 평탄 E=1(noise 0·kL 0·drive off — E 가 안 변해 *유일한* 방향 신호가 q) + 중앙(32,32) 방사형 고질 q 원뿔(seedQHill) + degrade(질 축 alive) + 생명 3×3(중심 밖) + kQTaxis=5(질 추종).
  * 골든 전 키(kQTaxis=0)는 *순수 E* 주화성(q 미참조)이라 질-구배 추종 미커버 → 이 키가 attr() 질 가중 끌개 본문(생명이 q 따라 모임·agent.x/y 해시)을 동결(드리프트 가드). step-0053~ 회귀 앵커: 새 노브(kQTaxis)=0 이면 attr=E(순수 E·바이트 동일). */
@@ -962,6 +982,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // qexp@ — 명시적 질 배출 2D 아레나(step-0054: qmet 셋업 + kQExport=1 → 생명이 먹은 자리 residual q 강등=엔트로피 export). qmet@ 등 전 키(kQExport=0)는 q 미접촉이라 배출 미커버 → 이 키가 metabolize q-쓰기 본문(먹은 자리 q↓·q 해시)을 동결(드리프트 가드). step-0055~ 회귀 앵커: 새 노브(kQExport)=0 이면 q[idx] 미접촉.
     var a = ENG.createSim(seed, qexpArena()); seedQMetab(a); ENG.run(a, 12);
     cur['qexp@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qdfa@ — diffuse advection 2D 아레나(step-0055: 중앙 고질 E 블록 + diffuse[kD=0.2] + degrade + kQDiffuse=1 → 번지는 E 가 제 질을 데려가 고질이 사방으로 advect). qadv@(gravity 동승)·이전 키(kQDiffuse=0)는 확산 advection 미커버 → 이 키가 diffuse 질 동승 본문을 동결(드리프트 가드). step-0056~ 회귀 앵커: 새 노브(kQDiffuse)=0 이면 q 미접촉.
+    var a = ENG.createSim(seed, qdfaArena()); seedQBlob(a); ENG.run(a, 20);
+    cur['qdfa@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

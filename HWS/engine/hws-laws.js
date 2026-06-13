@@ -323,6 +323,11 @@
                           //   q 의 *첫 동역학적 쓰기*: 0049 degrade 는 셀별 균일 강등(생명 무관), 0050~0053 은 q 읽기/source 주입. 이제 *생명 대사*가 q 를 깎는다 → 생명-환경 되먹임 닫힘(생명이 질 따라 모이고[0052]·먹고[0053]·먹은 자리를 식힌다[0054]).
                           //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · authored 분기 없음(모든 생명 같은 배출 — 활성도 환원) · 국소(제 disc 칸 q 만, 전역 조율자 0) · 닫힌 장부(q 는 *비율*이라 강등은 E·m 미접촉 — degrade·advection 과 같은 정신, 엑서지 X 는 *파괴되는* 측정량이지 보존 항 아님. 비가역[질 down 단조] ≠ 비보존). q ∈ [0,1] 보존(factor ∈ [0,1] — take ≤ Ebefore·kQExport ≤ 1 권장).
                           //   회귀(이중 가드): kQExport=0 → q[idx] 미접촉(원식 그대로) 바이트 동일. qInit=false(degrade off)면 미진입(질 축 없는 세계엔 배출할 질 없음 — degrade 위에 얹힘).
+    /* ── step-0055: diffuse advection(질이 *확산* E 흐름에 동승 — SPINE 여섯째 축 transport 짝. 0051 이 질을 *gravity*(하향) 흐름에 실었으나, 등방 *확산* 흐름엔 안 실렸다 → 질이 E 와 따로 논다[E 는 번지는데 q 는 제자리]. 이제 질이 확산 flux 에도 동승 → q 가 *모든 E 이동*을 따라가는 완전한 물리장) ── */
+    kQDiffuse: 0,         // q diffuse-advection 게이트(diffuse 선형 6-이웃 flux 에 질 동승). 0 = off = 직전 step(0054) 비트 동일(advection 미진입 → q 미접촉 → 과거 골든 전부 불변). >0 이면 on:
+                          //   diffuse(①, 선형 경로 kRelief=0)가 셀 E 를 이웃과 교환할 때, 받는 칸은 *들어온 E 의 질*을 질량가중으로 섞는다: 각 칸 new_q = (q·retained + Σ q_neighbor·inflow) / (확산 후 E). 고질 E 가 번지면 q 도 따라 번진다(0051 gravity 의 등방 확산 짝 — 하향뿐 아니라 사방으로). retained=내 E−유출, inflow=이웃에서 들어온 양(이웃 q 운반).
+                          //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · 국소(제 4(+2z)-이웃만, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 혼합) · 닫힌 장부(advection 은 E 미접촉 — diffuse 가 *이미 옮긴* E 의 *질*만 따라감, q 는 비율·거래 0). 0051 gravity transport(하향)의 *등방 확산* 짝.
+                          //   회귀(이중 가드): kQDiffuse=0 → advection 미진입(0054 무변경·q 버퍼 미할당·미스왑). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 수송할 질 없음). diffuse *선형 경로(kRelief=0)* 한정 — 기복(stage) 흐름은 후속(relief 경로 미동승). kD=0 이면 확산 flux 0 → q 불변.
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -385,6 +390,8 @@
     } else {
       /* 6이웃(x·y wrap·z 벽), wrap. 총량 보존. z=0 평면·D=1 이면 step-0008 식과 비트 동일(z 이웃 없어 z 항 산술 0 = 회귀 0). */
       var D = p.D || 1, WH = W * H, kDz = p.kDz;
+      var qadv = (p.kQDiffuse !== 0 && sim.qInit), Q = sim.q, QB = null;   // step-0055 diffuse advection: 확산 flux 가 제 질을 데리고 번진다(qInit 일 때만 — 질 축 살아있을 때·선형 경로 한정)
+      if (qadv) QB = sim.qBuf || (sim.qBuf = new Float64Array(E.length));  // q 더블버퍼(E 의 buf 와 같은 스왑 정신 — 옛 q 읽으며 새 q 작성, 셀 간 오염 방지)
       for (var z = 0; z < D; z++) {
         var zb = z * WH, hasU = z + 1 < D, hasD = z > 0;     // 상(z+1)·하(z−1) 이웃 존재 여부 — z 벽(클램프). D=1 이면 둘 다 false → z 항 0.
         for (y = 0; y < H; y++) {
@@ -397,6 +404,18 @@
             if (kDz !== 0) {                                  // z 항(6-이웃의 상하 흐름) — 존재하는 z 이웃만(D=1 이면 둘 다 없어 0 = 회귀). z 쌍 거래 cancel → 보존.
               if (hasU) B[i] += kDz * (E[i + WH] - eii);
               if (hasD) B[i] += kDz * (E[i - WH] - eii);
+            }
+            if (qadv) {                                       // step-0055: 확산 flux 에 질 동승(이 시점 B[i]=확산 후 E, kA 전). 받는 칸 = 질량가중(retained·내 q + Σ 이웃 inflow·이웃 q). E 미접촉(diffuse 가 옮긴 E 의 질만 따라감).
+              var bdiff = B[i], qi = Q[i], outS = 0, inN = 0, dqq;   // bdiff = retained + Σinflow = 확산 후 E(denom). retained = eii − Σoutflow.
+              dqq = eN  - eii; if (dqq > 0) inN += Q[zb + yN + x] * kD * dqq; else outS -= kD * dqq;   // dqq>0: 이웃이 더 높음 → 내게 inflow(이웃 q 운반); dqq<0: 유출(−kD·dqq>0)
+              dqq = eS  - eii; if (dqq > 0) inN += Q[zb + yS + x] * kD * dqq; else outS -= kD * dqq;
+              dqq = eWc - eii; if (dqq > 0) inN += Q[zb + yC + xW] * kD * dqq; else outS -= kD * dqq;
+              dqq = eEc - eii; if (dqq > 0) inN += Q[zb + yC + xE] * kD * dqq; else outS -= kD * dqq;
+              if (kDz !== 0) {
+                if (hasU) { dqq = E[i + WH] - eii; if (dqq > 0) inN += Q[i + WH] * kDz * dqq; else outS -= kDz * dqq; }
+                if (hasD) { dqq = E[i - WH] - eii; if (dqq > 0) inN += Q[i - WH] * kDz * dqq; else outS -= kDz * dqq; }
+              }
+              QB[i] = bdiff > 0 ? (qi * (eii - outS) + inN) / bdiff : qi;   // 질량가중 평균(denom=확산 후 E). E≤0 면 q 보존(나눗셈 회피)
             }
             if (kA !== 0) {
               B[i] += kA * (
@@ -413,6 +432,7 @@
           }
         }
       }
+      if (qadv) { sim.q = QB; sim.qBuf = Q; }   // q 스왑(E 의 buf 스왑과 같은 정신) — 새 q=QB, 옛 q 는 다음 tick 버퍼로 재활용
     }
     sim.E = B; sim.buf = E;
   }
