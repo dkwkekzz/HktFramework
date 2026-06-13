@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<title>HWS step-0050 — 별 질 생산(kStarQual): 별이 고질 E 를 낳아 질 구배를 세우다</title>
+<!-- 셸 HTML(3D 표준, law-pipeline): 공통 CSS + 공통 sim(커널·법칙·조립) + 공통 엔진 + 3D + 패널. 더블클릭 실행. -->
+<link rel="stylesheet" href="engine/hws-ui.css">
+</head><body>
+<script src="engine/hws-kernel.js"></script>     <!-- 동결 원시형 + 3D 헬퍼(discCells3·ballOffsets·tumbleHash3). window.HWS_KERNEL -->
+<script src="engine/hws-laws.js"></script>       <!-- 진화하는 법칙 파이프라인(이 step 은 ignite 에 별 질 생산 + kStarQual 노브 — 별 주입 E 를 고질로). window.HWS_LAWS -->
+<script src="engine/hws-sim.js"></script>        <!-- 조립 코어(createSim 의 N=W·H·D voxel 격자 + q 질 필드). window.HWS_SIM -->
+<script src="engine/hws-ui.js"></script>         <!-- 공통 UI 엔진. window.HWS -->
+<script src="engine/hws-3d.js"></script>         <!-- 3D 레이어. window.HWS3D -->
+<script src="step-0050/panel.js"></script>       <!-- 이 step 의 데모(별 질 생산)·통계. window.HWS_PANEL_0050 -->
+<script>HWS3D.bind(HWS.mount(window.HWS_SIM, HWS3D.attach(window.HWS_PANEL_0050)));</script>
+</body></html>

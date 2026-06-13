@@ -434,6 +434,12 @@ function qualArena(extra) {
     kMoveZ: 0, kDivZ: 0, kCrowdZ: 0, kAdhereZ: 0, kShareZ: 0, kInheritZ: 0, kCoupleZ: 0
   }, extra || {});
 }
+/* 별 질 생산 3D 아레나(step-0050 V? *실활성* — 별[핵융합]이 고질 E 를 생산해 둘째 법칙 식음에 맞섬 → 질 구배 창발) — step-0050/verify.js starqArena() 와 동일 상수.
+ * sunArena(별 부력 상승·z=0 R 핵서 점화·高z 에서 방출) 위에 degrade(kDegrade=0.05·*qInit0=0 냉각 베이스라인* → 별이 유일한 질 source) + kStarQual=1(주입 E 고질) 을 켠다.
+ * qual@(kStarQual=0·별 없음)는 별 질 블렌딩 미커버 → 이 starq@ 가 ignite 질 생산 본문(주입 칸 q 질량가중 혼합)을 동결한다(드리프트 가드). step-0051~ 회귀 앵커: 새 노브(kStarQual)=0 이면 q 미접촉(과거 골든 전부 불변). */
+function starqArena(extra) {
+  return sunArena(Object.assign({ kDegrade: 0.05, qInit0: 0, kStarQual: 1 }, extra || {}));
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -862,6 +868,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // qual@ — 에너지 질 강등 3D 아레나(step-0049: 균일 E + degrade[kDegrade=0.05·qInit0=1.0] → q 단조 강등·엑서지 X=Σq·E 파괴). 골든 전 키(kDegrade=0)는 q 미작동·미해시 → 이 키가 degrade 본문(q 단조 강등·해시 산입)을 동결(드리프트 가드). step-0050~ 회귀 앵커: 새 노브(kDegrade)=0 이면 q 미해시(과거 골든 전부 불변).
     var a = ENG.createSim(seed, qualArena()); ENG.run(a, 30);
     cur['qual@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // starq@ — 별 질 생산 3D 아레나(step-0050: sunArena[별 점화·부력·高z 방출] + degrade[kDegrade=0.05·qInit0=0 냉각 베이스라인] + kStarQual=1 → 별이 주입한 E 만 고질[q→1]·degrade 가 나머지를 식힘 = 질 구배). qual@(kStarQual=0·별 없음)는 별 질 블렌딩 미커버 → 이 키가 ignite 질 생산 본문(주입 칸 q 질량가중 혼합)을 동결(드리프트 가드). step-0051~ 회귀 앵커: 새 노브(kStarQual)=0 이면 q 미접촉(과거 골든 전부 불변).
+    var a = ENG.createSim(seed, starqArena()); seedSunCore(a); ENG.run(a, 60);
+    cur['starq@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

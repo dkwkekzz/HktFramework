@@ -297,7 +297,12 @@
                           //   E 의 *내재 질* q[i]∈[0,1](농축도/온도 — 1=고질·저엔트로피[뜨거움] ↔ 0=열적·고엔트로피[식음])가 매 tick q·kDegrade 만큼 *단조 감소*한다(질만 내려가고 E 는 불변 — q 는 intensive 속성). 엑서지(자유에너지) X=Σq·E 가 단조 파괴된다(둘째 법칙·시간의 화살표 — 닫힌 세계는 열적 평형으로 식는다).
                           //   척추: q 는 새 *필드* 아니라 *E 에 올라탄 intensive 속성*(단일 척추 — 온도가 열의 속성이듯·다섯째 축 G 가 R 에 올라타듯) · authored type 분기 없음(질은 태그·종류로 안 갈림 — 셀별 스칼라) · 국소(셀별 강등, 전역 조율자 0) · 닫힌 장부(강등은 E 미접촉 → 잔차 불변. q 는 에너지 아닌 *비율* — 활성도 A 와 같은 경계, 거래 0). 엑서지는 *파괴되는* 측정량이지 보존 장부 항 아님(destroyed = 둘째 법칙).
                           //   Q1(이 step): q 는 *읽기 전용 계기처럼* 동역학에 안 되먹인다(생명이 질 구배로 사는 것·별이 고질을 *생산*하는 것·q 가 E 이동에 동승[advection]하는 것은 후속 step 으로 전가). 강등은 *균일 이완*(q -= q·kDegrade) — flux 비례 강등은 후속.
-    qInit0: 1.0,          // q 초기 베이스라인 — 첫 강등 tick 에 전 칸 q 를 이 값으로 채운다(intensive, [0,1]). 1.0 = 원시 고질(Big-Bang 류 뜨거운 시작 → 닫힌 세계가 둘째 법칙으로 식어내림, Q1 데모). kDegrade=0 이면 q 미초기화·미해시라 *무관*(회귀 0). 후속의 별 질 생산이 이 식음에 맞서 *구배*를 세운다(고질 별 근처 ↔ 저질 원거리).
+    qInit0: 1.0,          // q 초기 베이스라인 — 첫 강등 tick 에 전 칸 q 를 이 값으로 채운다(intensive, [0,1]). 1.0 = 원시 고질(Big-Bang 류 뜨거운 시작 → 닫힌 세계가 둘째 법칙으로 식어내림, Q1 데모). kDegrade=0 이면 q 미초기화·미해시라 *무관*(회귀 0). 별 질 생산(kStarQual)이 이 식음에 맞서 *구배*를 세운다(고질 별 근처 ↔ 저질 원거리).
+    /* ── step-0050: 별 질 생산(에너지 질 arc 의 source 짝 — SPINE 여섯째 축. 별[핵융합]이 *고질* E 를 생산해 둘째 법칙 식음에 맞선다 → 질 *구배* 창발. 렌더 흑체 색온도[L-Q]의 본 페이로프) ── */
+    kStarQual: 0,         // 별 주입 E 의 질(intensive, [0,1]). 0 = off = 직전 step(0049) 비트 동일(블렌딩 미진입 → q 미접촉 → 과거 골든 전부 불변). >0 이면 on:
+                          //   별이 연료를 태워 장에 주입하는 E 는 *고질*(핵융합 — 저엔트로피·뜨거움)이다. 주입 시 그 칸 q 를 *질량가중 혼합*으로 kStarQual 까지 끌어올린다(q ← (q·E + kStarQual·per)/(E+per), per=주입량). 별 근처는 매 tick 고질로 *재충전*되고, degrade(둘째 법칙)가 멀리·오래된 E 의 q 를 깎는다 → *질 구배*(고질 별 근처 ↔ 저질 원거리)가 창발한다(0049 의 균일 식음에 source 를 더해 구배를 세움). 슈뢰딩거 낙차의 원천 = 별빛의 자유에너지.
+                          //   척추: 질 생산은 *오직 source(별 융합)*에서(SPINE 여섯째 축 — 질 생산은 source 한정) · q 는 E 에 올라탄 intensive 속성(단일 척추) · 국소(제 disc 칸만, 전역 조율자 0) · authored 분기 없음(별 주입 칸 스칼라 혼합) · 닫힌 장부(혼합은 E 미접촉 — q 는 비율, A·강등과 같은 경계. 엑서지 X=Σq·E 는 *생산되는* 측정량이지 보존 항 아님 — 비가역 ≠ 비보존의 짝).
+                          //   회귀(이중 가드): kStarQual=0 → 블렌딩 미진입(0049 무변경). q 미발현(qInit=false, degrade off)이면 미진입(질 축 없는 세계엔 별 질도 없다 — q 가 살아있을 때만[degrade on] 별이 그 축에 고질을 싣는다). *degrade(kDegrade) 위에 얹힌다* — 둘 다 켜져야 구배(source+sink).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -693,7 +698,15 @@
       }
       /* 주입율 — FSM on 이면 상태 배수(living=livingFrac, burning=1), off 면 원본(비트 동일: burnMul undefined). */
       var want = (st.burnMul !== undefined ? starRate * st.burnMul : starRate) * nc, inj = st.fuel < want ? st.fuel : want, per = inj / nc;
-      for (var bc = 0; bc < nc; bc++) E[cells[bc]] += per;
+      /* step-0050 별 질 생산(kStarQual): 별이 주입하는 E 는 *고질*(핵융합·저엔트로피)이다. 주입 시 그 칸 q 를 질량가중 혼합으로 kStarQual 까지 끌어올린다(q←(q·E+kStarQual·per)/(E+per)) →
+       *   degrade(둘째 법칙)가 멀리·오래된 q 를 깎는 동안 별 근처는 재충전 → *질 구배* 창발(0049 source 짝, 렌더 L-Q 본 페이로프). 강등처럼 E 미접촉(q 는 비율) — 장부 불변.
+       *   회귀(이중 가드): kStarQual=0 → 미진입(0049 비트 동일). qInit=false(degrade off) → 미진입(질 축 없는 세계엔 별 질 없음 — degrade 위에 얹힘). per>0 일 때만(소진 별 무변경). */
+      var sq = p.kStarQual, qOn = (sq !== 0 && sim.qInit && per > 0), Q = sim.q;
+      for (var bc = 0; bc < nc; bc++) {
+        var ic = cells[bc];
+        if (qOn) { var eb = E[ic]; Q[ic] = (Q[ic] * eb + sq * per) / (eb + per); }   // 주입 전 E(eb)로 질량가중 — 고질 융합 E 가 셀 질을 끌어올림(별 근처 고질·source)
+        E[ic] += per;
+      }
       st.fuel -= inj; sim.injected += inj; sim.burned += inj;
       if (st.fuel <= 1e-9) {                                    // 연료 소진(느린 변수) — FSM 이면 burning→ash(머문다), 아니면 즉시 꺼짐(비트 동일).
         if (fsm) { st.state = 2; st.burnMul = 0; st.ashAge = 0; alive.push(st); }
