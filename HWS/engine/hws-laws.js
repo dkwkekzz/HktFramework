@@ -63,6 +63,10 @@
     moveThresh: 0.02,      // 이동 임계 — 빈 이웃 E 가 현재 중심보다 이만큼 높아야 옮김(구배 문턱)
     kMoveZ: 0,            // step-0042 V5+: 생명 z-이동(연직 주화성). 0 = off = 직전 step(V5+ 풍화) 비트 동일(생명이 z=0 평면에만 머묾·move 가 2D 이웃만 봄·z 코드 미진입 → moveZInit=false → agent.z 해시 skip → 골든 무관). >0 이면 on:
                           //   move 의 run/tumble 6-이웃화 — 제 (x,y) 의 z±1 이웃도 후보로 봐, 위/아래로 더 높은 E 를 쫓는다(주화성이 연직축으로 일반화 — 생명이 에너지를 향해 *오른다*). D=1 이면 z 이웃이 없어 산술 0 = 비트 동일(이중 가드). 위치만 — 장부 거래 0(move 와 같은 경계).
+    kQTaxis: 0,          // step-0052 SPINE 여섯째 축: 질-구배 주화성(엑서지 추종). 0 = off = 직전 step(0051) 비트 동일(주화성이 *순수 E* 만 따름·q 미참조). >0 이면 on:
+                          //   move 의 run(주화성) 단계에서 이웃 비교를 *질 가중 끌개* att = E·(1 + kQTaxis·q) 로 바꾼다 — 생명이 그저 E 많은 곳이 아니라 *질 좋은(고 q = 엑서지 높은) E* 로 모인다(슈뢰딩거 낙차: 생명은 *자유에너지*[저엔트로피 질]로 산다). kQTaxis=0 이면 att = E·(1+0) = E 라 *바이트 동일*(곱 1.0 정확) — 회귀 0(가드 ①).
+                          //   *q 의 첫 동역학 되먹임* — 0049~0051 까지 q 는 읽기 전용(강등·생산·수송 다 측정/장부 경계)이었으나, 이제 생명 운동이 q 에 *의존*한다(둘째 척추 아님 — q 는 측정값이 아니라 E 의 intensive 상태변수, SPINE 여섯째 축이 의도한 동역학화). 단 move 는 여전히 q 를 *읽기만*(q 미수정·E 미접촉·위치만 — 장부 거래 0).
+                          //   가드 ②: qInit=false(degrade off — 질 축 죽음)면 미진입(질 없는 세계엔 질 구배 없음 — kQAdvect·kStarQual 과 같은 정신, q 가 살아있을 때만[degrade on] 생명이 그 축을 탄다). 평면·연직(kMoveZ) 후보 둘 다 같은 끌개를 써 일관(z-이동도 엑서지 추종). tumble(탐사)은 q 무관(무방향 — 굶주림 게이트는 *실* E 흡수, 질-의존 대사는 후속).
     /* ── step-0006: 기초대사비(절대 생존 문턱) ── */
     baseCost: 0,           // 생물량과 무관한 절대 대사비. cost = m·mMaint + baseCost.
     /* ── step-0007: 떠도는 자원(source 가 주기적으로 +x 로 재배치, 토러스 wrap) ── */
@@ -866,26 +870,32 @@
     var moveOff = sim.moveOffsets, moveThresh = p.moveThresh, mocc = sim.occSet;
     var pTum = p.pTumble, tSeed = sim.seed, tTick = sim.tick;
     if (kMoveZ) sim.moveZInit = true;            // z-이동 활성 → hashState 가 agent.z 를 가법 해싱(kMoveZ=0 이면 미설정 → 골든 불변)
+    /* step-0052 질-구배 주화성(kQTaxis): 주화성 run 의 이웃 비교를 *질 가중 끌개* att=E·(1+kQTaxis·q) 로 — 생명이 고질(엑서지 높은) E 로 모인다(슈뢰딩거 낙차).
+     *   가드 ②(qInit): 질 축 살아있을 때만(degrade on). 가드 ①(kQTaxis=0): att=E·1.0=E 바이트 동일 → attr() 가 그대로 E[idx] 반환(회귀 0). q 는 *읽기만*(미수정·E 미접촉 — 위치만, move 와 같은 경계). */
+    var qtax = (p.kQTaxis !== 0 && sim.qInit), kQT = p.kQTaxis, Qf = sim.q;
+    function attr(idx) { return qtax ? E[idx] * (1 + kQT * Qf[idx]) : E[idx]; }   // 끌개: qtax off 면 순수 E(바이트 동일 — 회귀 0)
     mocc.clear();
     for (var ms = 0; ms < ag.length; ms++) mocc.add(ag[ms].center);
     for (var mk = 0; mk < ag.length; mk++) {
       var mv = ag[mk];
       if (mv.sessile) continue;                  // step-0023: 정착(고착)한 생명은 주화성·탐사를 건너뜀(제자리 — kAnchor=0 이면 undefined=falsy → 회귀 0). 점유는 유지(mocc 에 남아 이웃을 막음).
       var mz = mv.z || 0, zBase = mz * WH;        // 현재 z 평면(kMoveZ=0 이면 늘 0 → zBase=0 → 인덱스 산술 동일=회귀)
-      var floor = E[mv.center] + moveThresh;
+      var floor = attr(mv.center) + moveThresh;   // step-0052: 질 가중 끌개 기준(qtax off 면 E[center]+moveThresh 와 바이트 동일)
       var mvx = mv.x, mvy = mv.y, bIdx = -1, bEv = floor, bX = 0, bY = 0, bZ = mz;
       for (var mo = 0; mo < moveOff.length; mo++) {
         var mnx = (mvx + moveOff[mo][0] + W) % W, mny = (mvy + moveOff[mo][1] + H) % H;
         var mnidx = zBase + mny * W + mnx;        // 같은 z 평면 이웃(zBase=0 이면 기존 2D 인덱스와 비트 동일)
         if (mocc.has(mnidx)) continue;
-        if (E[mnidx] > bEv) { bEv = E[mnidx]; bIdx = mnidx; bX = mnx; bY = mny; bZ = mz; }
+        var aN = attr(mnidx);                     // step-0052: 끌개 비교(qtax off 면 E[mnidx] — 회귀 0)
+        if (aN > bEv) { bEv = aN; bIdx = mnidx; bX = mnx; bY = mny; bZ = mz; }
       }
       if (kMoveZ && D > 1) {                      // z-이동: 위/아래(z±1) 같은 (x,y) 이웃도 후보(연직 주화성). D=1 이면 미진입(이중 가드)
         for (var dz = -1; dz <= 1; dz += 2) {
           var nz = mz + dz; if (nz < 0 || nz >= D) continue;   // z 벽(클램프 — wrap 안 함)
           var znidx = nz * WH + mvy * W + mvx;
           if (mocc.has(znidx)) continue;
-          if (E[znidx] > bEv) { bEv = E[znidx]; bIdx = znidx; bX = mvx; bY = mvy; bZ = nz; }
+          var aZ = attr(znidx);                   // step-0052: z 후보도 같은 끌개(엑서지 추종 일관·qtax off 면 E[znidx])
+          if (aZ > bEv) { bEv = aZ; bIdx = znidx; bX = mvx; bY = mvy; bZ = nz; }
         }
       }
       if (bIdx >= 0) {
