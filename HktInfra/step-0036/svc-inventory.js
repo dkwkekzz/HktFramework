@@ -35,15 +35,33 @@ class InventoryService {
     this.journalSeq = 0;          // 저널 항목 시퀀스(영속 효과 로그의 단조 순번 — replay 멱등·순서 보존)
     this.sentBuffer = new Map();  // seq -> 보낸 저널 항목(0023·reliable 일 때만 채움) — persist NAK 시 재전송 소스(미-ack 보존). 압축/bound 는 후속.
     this.resends = 0;             // NAK 에 응답해 재전송한 저널 항목 누적(0023·계측)
-    this.journalHbs = 0;          // 보낸 저널 heartbeat 수(이 step·journalHb·계측)
+    this.journalHbs = 0;          // 보낸 저널 heartbeat 수(0024·journalHb·계측)
+    // ── 버스 failover *결과 경로* 무손실(이 step·busResend) — 0034 의 §9(요청/결과 경로 in-flight 드롭=at-most-once) 해소. ──
+    //   0034 busfail 은 routing 복구(재구독)만 했다 — crash gap 에 떨군 svc.item.out *결과*(원장엔 적용됐으나 클라 미수신)는 영구 손실(클라 belief 가 원장보다 뒤처짐 = itemDesync).
+    //   producer replay(0023 홉 신뢰·0025 give-resend 의 *버스 판*): 발신한 결과를 보관했다가 버스 복구 시 재발행 → 뒤처진 클라가 따라잡음. 버스는 *살아 돌아온* 새 박스(영속 0)라
+    //   gap 의 떨군 메시지를 못 메운다 → 진실 원천(producer=가방)이 재발행해야 한다. 클라 belief 는 Set 갱신이라 *멱등*(재배달 무해) → consumer dedup 불요.
+    this.busResend = opts.busResend || false;  // ON 이면 발신 결과를 outBuffer 에 보관·버스 복구 시 재발행. OFF = 0035 비트 동일(보관 0·재발행 0).
+    this.outBuffer = [];          // 발신한 svc.item.out 결과 페이로드(busResend 일 때만) — 버스 복구 재발행 소스. 무계(유계 슬라이딩 창은 후속 — 0017→0018 압축 선례).
+    this.outResends = 0;          // 버스 복구 시 재발행한 결과 수(이 step·계측)
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
   _unown(owner, itemId) { const s = this.byOwner.get(owner); if (s) s.delete(itemId); }
   // 결과 발신 단일 경로 — 버스 ON 이면 svc.item.out 토픽 발행(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
   _out(msg) {
-    if (this.bus) this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out', ev: msg });
+    if (this.bus) {
+      if (this.busResend) this.outBuffer.push(msg);   // 버스 failover 결과 재발행 소스 보관(이 step). OFF 면 push 0 → 0035 비트 동일.
+      this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out', ev: msg });
+    }
     else this.net.send(this.addr, this.gateway, msg);
+  }
+  // 버스 failover 결과 재발행(이 step·busResend) — 버스 복구(재구독) 직후 트리거. 보관한 결과를 svc.item.out 에 다시 pub.
+  //   gap 에 떨군 결과(원장 적용·클라 미수신 → belief < 원장)를 재배달 → 게이트웨이가 클라에 중계 → belief 가 원장 따라잡음(itemDesync→0).
+  //   클라 belief 는 Set add/delete 라 *멱등*(이미 받은 결과 재배달 무해) → consumer dedup 불요. 순수 반응형 제어 평면(존 tick 밖·신성한 tick 보존).
+  //   OFF 면 호출돼도 즉시 반환(reg 0 불변). 재구독이 라우팅을 복구한 뒤라야 fan-out 됨(토폴로지가 reneg 다음에 트리거).
+  resendOut() {
+    if (!this.busResend || !this.bus) return;
+    for (const msg of this.outBuffer) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out', ev: msg }); this.outResends++; }
   }
   // 영속 저널 쓰기(write-behind) — 수락한 효과를 PersistStore 로 fire-and-forget. persist OFF 면 no-op(0016 비트 동일).
   //   결과 ack 는 영속 ack 를 *기다리지 않는다*(write-behind) — 신성한 tick 밖 비동기. 저널 항목 = 재현(event sourcing)의 입력.
@@ -188,7 +206,8 @@ class InventoryService {
     this.ledger = new Map(); this.byOwner = new Map();
     this.mintTotal = 0; this.journalSeq = 0;
     this.sentBuffer = new Map(); this.resends = 0; this.journalHbs = 0;   // 신뢰 전달(0023) — 새 프로세스는 미-ack 버퍼 0(죽기 전 in-flight 는 소실 = §9 write-behind 윈도 잔존). heartbeat 계측도 리셋.
-    this.ackSeqs = new Map(); this.durableSeq = -1; this.quorumAcks = 0; this.windowFills = 0;   // 쓰기 정족수·윈도 해소 상태 리셋(0029·이 step) — 새 프로세스는 ack 집계/fill 계측 0(복구 후 다시 쌓임). quorumW 0 면 무관.
+    this.ackSeqs = new Map(); this.durableSeq = -1; this.quorumAcks = 0; this.windowFills = 0;   // 쓰기 정족수·윈도 해소 상태 리셋(0029~0031) — 새 프로세스는 ack 집계/fill 계측 0(복구 후 다시 쌓임). quorumW 0 면 무관.
+    this.outBuffer = []; this.outResends = 0;   // 버스 failover 결과 재발행 버퍼 리셋(이 step) — 가방 crash 는 결과 버퍼도 소실(RAM). busResend OFF 면 무관.
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   // replay — 영속 저널(효과 로그)로 원장을 *재현*(상태 전송 아님 = §4 "복제=재현"). seq 순서대로 mint/xfer 적용.
