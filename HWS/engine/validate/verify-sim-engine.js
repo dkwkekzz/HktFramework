@@ -487,6 +487,30 @@ function seedQHill(sim) {   // 평탄 E=1 + 중앙(32,32) 방사형 고질 q 원
   sim.qInit = true;
   for (var gx = 0; gx < 3; gx++) for (var gy = 0; gy < 3; gy++) ENG.spawnAgent(sim, 18 + gx * 2, 18 + gy * 2);   // 중심서 ~17칸(원뿔 안) → 질 따라 중앙으로 오른다
 }
+/* 질-의존 대사 2D 아레나(step-0053 *실활성* — 고질 E 가 더 영양, 슈뢰딩거 낙차의 에너지론) — step-0053/verify.js qmetArena()/seedQMetab 와 동일 상수.
+ * 평탄 E=2 + 두 q 구역(고질 0.9·저질 0.1, 같은 E) + 정착 생명 두 무리(고질 위 3×3·저질 위 3×3·move off — 흡수 격리) + degrade(질 축 alive) + kQMetab=5. mMaint 0(순수 m 누적).
+ * qtax@ 등 전 키(kQMetab=0)는 *균일 흡수*(take=E·kL·q 무관)라 질-의존 대사 미커버 → 이 키가 metabolize 질 가중 본문(고질 무리 m↑·agent.m 해시)을 동결(드리프트 가드). step-0054~ 회귀 앵커: 새 노브(kQMetab)=0 이면 take=E·kL 바이트 동일. */
+function qmetArena(extra) {
+  return Object.assign({}, {
+    D: 1, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, mDeath: 0, kL: 0.05, lifeR: 0,
+    life: true, move: false, repro: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 0,
+    kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kAshSeed: 0, kStarQual: 0, kFSM: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0,
+    kDivZ: 0, kCrowdZ: 0, kAdhereZ: 0, kShareZ: 0, kInheritZ: 0, kCoupleZ: 0,
+    kDegrade: 0.01, qInit0: 0, kQAdvect: 0, kQTaxis: 0, kQMetab: 5
+  }, extra || {});
+}
+function seedQMetab(sim) {   // 평탄 E=2 + 고질(0.9)/저질(0.1) 두 구역 + 정착 생명 두 무리(고질 위 y=28·저질 위 y=36). q 축 alive.
+  var p = sim.p, W = p.W, H = p.H, N = W * H, E = sim.E, q = sim.q, i, gx, gy;
+  for (i = 0; i < N; i++) { E[i] = 2; sim.E0 += 2; q[i] = 0.1; }              // 평탄 E·저질 베이스
+  for (var y = 24; y < 32; y++) for (var x = 16; x < 26; x++) q[y * W + x] = 0.9;   // 고질 구역(고질 무리 자리)
+  sim.qInit = true;
+  for (gx = 0; gx < 3; gx++) for (gy = 0; gy < 3; gy++) ENG.spawnAgent(sim, 18 + gx * 2, 26 + gy * 2);   // 고질 무리(y=26~30·q 0.9)
+  for (gx = 0; gx < 3; gx++) for (gy = 0; gy < 3; gy++) ENG.spawnAgent(sim, 18 + gx * 2, 36 + gy * 2);   // 저질 무리(y=36~40·q 0.1)
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -927,6 +951,10 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // qtax@ — 질-구배 주화성 2D 아레나(step-0052: 평탄 E=1 + 방사형 고질 q 원뿔 + 생명 3×3[중심 밖] + degrade[질 축 alive] + kQTaxis=5 → 생명이 q 따라 중앙[고질]으로 모임=슈뢰딩거 낙차). qadv@ 등 전 키(kQTaxis=0)는 *순수 E* 주화성이라 질 가중 끌개 미커버 → 이 키가 attr() 본문(생명이 엑서지 따라 이동·agent.x/y 해시)을 동결(드리프트 가드). step-0053~ 회귀 앵커: 새 노브(kQTaxis)=0 이면 attr=E(바이트 동일).
     var a = ENG.createSim(seed, qtaxArena()); seedQHill(a); ENG.run(a, 24);
     cur['qtax@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qmet@ — 질-의존 대사 2D 아레나(step-0053: 평탄 E=2 + 고질/저질 두 구역 + 정착 생명 두 무리[move off] + degrade[질 축 alive] + kQMetab=5 → 고질 위 무리가 더 많이 흡수해 m↑). qtax@ 등 전 키(kQMetab=0)는 *균일 흡수*라 질 가중 미커버 → 이 키가 metabolize 질 가중 본문(고질 무리 m↑·agent.m 해시)을 동결(드리프트 가드). step-0054~ 회귀 앵커: 새 노브(kQMetab)=0 이면 take=E·kL 바이트 동일.
+    var a = ENG.createSim(seed, qmetArena()); seedQMetab(a); ENG.run(a, 12);
+    cur['qmet@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

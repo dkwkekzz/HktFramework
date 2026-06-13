@@ -312,6 +312,11 @@
                           //   gravity(①g)가 셀 E 의 일부를 *아래(z−1)*로 유출할 때, 그 흐른 E 의 질(donor q)을 받는 칸에 *질량가중 혼합*으로 싣는다(q_below ← (q_below·E_below + q_donor·flow)/(E_below+flow)). 하강하는 고질 E 가 *제 열을 데리고 내려간다* = 침강 hot plume(별빛 hot rain 이 질을 데리고 바다로). donor q 는 불변(intensive — 남은 E 는 제 질 유지).
                           //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · 국소(제 z−1 아래 한 칸만, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 혼합) · 닫힌 장부(advection 은 E 미접촉 — gravity 가 이미 옮긴 E 의 *질*만 따라감, q 는 비율·거래 0). 0050 별 질 생산[source]·0049 강등[sink]의 *수송* 짝.
                           //   회귀(이중 가드): kQAdvect=0 → advection 미진입(0050 무변경). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 수송할 질 없음). gravity 안에 얹힘 — kGravity=0·D=1 이면 gravity 자체가 early-return 이라 도달 안 함.
+    /* ── step-0053: 질-의존 대사(고질 E 가 더 영양 — SPINE 여섯째 축. 0052 가 생명을 질 따라 *모이게* 했으니, 이제 질을 *먹게* 한다 → 슈뢰딩거 낙차의 *에너지론* 완성) ── */
+    kQMetab: 0,          // 질-의존 대사 가중(metabolize 흡수 효율을 q 로 가중). 0 = off = 직전 step(0052) 비트 동일(흡수 take=E·kL 균일·q 미참조 → 과거 골든 전부 불변). >0 이면 on:
+                          //   metabolize(⑦)가 disc 칸에서 E→m 흡수할 때, take 를 *질 가중* take=E·kL·(1+kQMetab·q) 로 — 고질(고 q=엑서지 높은) E 를 더 많이·빨리 빨아들인다(슈뢰딩거: 생명은 *자유에너지*[저엔트로피 질]를 먹어 제 질서를 유지한다 — 양이 아니라 질을 먹는다). 0052 주화성(질 따라 *모임*)의 에너지론 짝(질 따라 *먹음*). 세계 척도에선 생명이 고질 E 를 우선 소비 → 장의 평균 질이 떨어짐(고질을 먹어 질 낮춤).
+                          //   척추: q 는 E 에 올라탄 intensive 상태변수(단일 척추 — 새 필드 0) · authored 분기 없음(모든 생명 같은 q 가중 흡수 — 활성도 환원) · 국소(제 disc 칸 E·q 만, 전역 조율자 0) · 닫힌 장부(흡수는 E→m 쌍 거래로 보존 — q 는 *읽기만*[미수정·A·강등·주화성과 같은 읽기 경계]). take 는 E[idx] 로 클램프(고 kQMetab 에서도 음수 E 방지 — off 경로엔 무영향).
+                          //   회귀(이중 가드): kQMetab=0 → take=E·kL 바이트 동일(원식·클램프 미진입). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 질 대사 없음 — degrade 위에 얹힘).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -1449,12 +1454,16 @@
     var p = sim.p;
     if (!p.life || !sim.agents.length) return;
     var E = sim.E, ag = sim.agents, kL = p.kL, mMaint = p.mMaint, mDeath = p.mDeath, baseCost = p.baseCost;
+    /* step-0053 질-의존 대사(kQMetab): 흡수 take 를 *질 가중* E·kL·(1+kQMetab·q) 로 — 고질 E 가 더 영양(슈뢰딩거: 자유에너지를 먹는다).
+     *   가드 ②(qInit): 질 축 살아있을 때만. 가드 ①(kQMetab=0): qmet=false → take=E·kL 바이트 동일(회귀 0). q 는 *읽기만*(미수정·E→m 쌍 거래로 보존). */
+    var qmet = (p.kQMetab !== 0 && sim.qInit), kQM = p.kQMetab, Q = sim.q;
     var survivors = [];
     for (var k = 0; k < ag.length; k++) {
       var a = ag[k], cells = a.cells;
       var got = 0;
       for (var c = 0; c < cells.length; c++) {
-        var idx = cells[c], take = E[idx] * kL;
+        var idx = cells[c], take = qmet ? E[idx] * kL * (1 + kQM * Q[idx]) : E[idx] * kL;
+        if (qmet && take > E[idx]) take = E[idx];   // 고 kQMetab 클램프(음수 E 방지 — off 경로엔 무영향: E·kL ≤ E)
         E[idx] -= take; got += take;
       }
       a.m += got;
