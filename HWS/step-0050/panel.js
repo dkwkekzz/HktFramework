@@ -1,9 +1,9 @@
-/* step-0049 패널 — 에너지의 질(degrade): E 에 연속 질 축 q 를 더해 둘째 법칙으로 단조 강등(SPINE 여섯째 축). 직전 step-0048(3D 막/flux 결합) 패널을 잇되 degrade 법칙 1개 + 노브 kDegrade·qInit0 을 더했다.
- * 0035~0048 까지 E 는 *무차별 단일 스칼라* + 이진 누출(E→T)뿐이었다 — "쓸 수 있는 E ↔ 잃은 T" 의 이분만 있고 *연속 질 축*이 없었다. 그래서 별의 뜨거운 E 한 단위와 식은 바다의 E 한 단위가 질 구별 0(렌더가 흑체 색온도를 못 읽음 — RENDER §8 L-Q 가 ⛔ 시뮬 q 선행).
- * 이 step 은 E 에 *내재 질* q[i]∈[0,1](농축도/온도, 1=고질·저엔트로피[뜨거움] ↔ 0=열적·고엔트로피[식음])을 더하고 둘째 법칙(degrade: q -= q·kDegrade 단조 감소)을 깐다 — 엑서지(자유에너지) X=Σq·E 가 단조 파괴된다(시간의 화살표·닫힌 세계는 열적 평형으로 식음).
- * 척추: q 는 새 *필드* 아니라 E 에 올라탄 intensive 속성(단일 척추 — 온도가 열의 속성이듯·다섯째 축 G 가 R 에 올라타듯) · 강등은 E 미접촉(장부 불변 — q 는 에너지 아닌 비율) · 국소 · authored 분기 없음. Q1: q 는 읽기 전용 계기처럼 동역학에 안 되먹임(생명이 질로 사는 것·별 질 생산·q advection 은 후속 step).
- * 회귀(가드): kDegrade=0 → degrade 통째 skip → qInit=false → q 미할당·미해시 → 직전 step(0048) 비트 동일. 브라우저: window.HWS_PANEL_0049
- * (아래 표준 스택·통계는 step-0027 덴드라이트 그대로 — 에너지 질 강등은 그 동역학과 직교[읽기 전용]. 이 step 이 시뮬 q 를 실어 렌더 L-Q[흑체 색온도]를 잠금 해제한다.) */
+/* step-0050 패널 — 별 질 생산(kStarQual): 별[핵융합]이 *고질* E 를 생산해 둘째 법칙 식음(0049 degrade)에 맞선다 → *질 구배*(고질 별 근처 ↔ 저질 원거리) 창발(SPINE 여섯째 축의 source 짝). 직전 step-0049(에너지 질 강등) 패널을 잇되 ignite 에 질 생산을 더하고 노브 kStarQual 1개를 더했다.
+ * 0049 가 E 에 연속 질 축 q∈[0,1] + 둘째 법칙 강등(degrade)을 깔았으나 *source 가 없어* 닫힌 세계가 한 방향으로만 식었다(질이 어디서나 균일 — 공간 구배 0). 이 step 은 별이 주입하는 E 를 고질(q→kStarQual)로 만든다.
+ * 별이 연료를 태워 주입하는 E 는 *고질*(핵융합·저엔트로피·뜨거움)이다 — 주입 칸 q 를 질량가중 혼합(q←(q·E+kStarQual·per)/(E+per))으로 끌어올린다. 별 근처는 매 tick 재충전되고 degrade 가 멀리·오래된 q 를 깎는다 → *질 구배*가 창발(0049 균일 식음에 source 를 더해 *구배*를 세움 = 슈뢰딩거 낙차의 원천·렌더 L-Q 본 페이로프).
+ * 척추: 질 생산은 *오직 source(별 융합)*에서 · q 는 E 에 올라탄 intensive 속성(단일 척추) · 국소(제 disc 칸만) · authored 분기 없음 · 혼합은 E 미접촉(장부 불변 — q 는 비율). 엑서지 X=Σq·E 는 *생산되는* 측정량(비가역 ≠ 비보존의 짝).
+ * 회귀(이중 가드): kStarQual=0 → 블렌딩 미진입(0049 비트 동일·별 주입 E 무질). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 별 질 없음 — degrade 위에 얹힘). 브라우저: window.HWS_PANEL_0050
+ * (아래 표준 스택·통계는 step-0027 덴드라이트 그대로 — 별 질 생산은 그 동역학과 직교[읽기 전용 측정 경계]. 이 step 이 질 *구배*를 실어 렌더 L-Q[흑체 색온도]의 본 페이로프를 켠다.) */
 (function (global) {
   'use strict';
   function stateCounts(sim) { var c = [0, 0, 0], st = sim.stars || []; for (var i = 0; i < st.length; i++) { var s = st[i].state; c[s === undefined ? 1 : s]++; } return c; }
@@ -26,13 +26,13 @@
     return [r | 0, g | 0, b | 0];
   }
 
-  /* ── 데모(프리셋) — 에너지 질 강등 아레나: verify.js qArena() 와 *같은* 설정.
-   *   기본 패널은 회귀 상태(D=1·kDegrade=0)로 열려 직전 step 과 화면이 같다 → "뭘 더했는지" 안 보임.
-   *   이 아레나(D=8·균일 E·degrade 만 on·나머지 동역학 off)에 *질 강등(kDegrade)* 만 켜고/끄고 두 프리셋으로 A/B 대조한다 —
-   *   화면이 보여주는 것 = verify 가 단언하는 수치(kDegrade OFF 면 질 축 없음·X=0 / ON 이면 q 가 원시 고질 1.0 에서 매 tick 식어 엑서지 X=Σq·E 단조 파괴·sumE 불변). 흑체 색이 백열→붉음으로 식어내린다(L-Q 미리보기). */
-  function qArena(kDeg) {
+  /* ── 데모(프리셋) — 별 질 생산 아레나: verify.js sqArena() 와 *같은* 설정.
+   *   기본 패널은 회귀 상태(D=1·kStarQual=0)로 열려 직전 step 과 화면이 같다 → "뭘 더했는지" 안 보임.
+   *   이 아레나(D=8·z=0 R 핵서 별 점화·부력 상승·degrade 0.05·냉각 베이스라인 qInit0=0·나머지 동역학 off)에 *별 질 생산(kStarQual)* 만 켜고/끄고 두 프리셋으로 A/B 대조한다 —
+   *   화면이 보여주는 것 = verify 가 단언하는 수치(kStarQual OFF 면 별이 E 는 주입해도 질 구배 없음·maxQ=0·X=0 / ON 이면 별 근처 q 가 고질로 떠오르고 degrade 가 나머지를 식혀 *질 구배* stdQ>0·엑서지 X>0). 흑체 색이 별 근처 백열↔원거리 붉음으로 갈린다(L-Q 미리보기). */
+  function sqArena(ksq) {
     return {
-      D: 8, initE: 1.0, noise: 0.5, drive: false,
+      D: 8, initE: 0, noise: 0, drive: false,
       source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
       kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, mDeath: 0, kL: 0, lifeR: 0,
       life: false, move: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 0,
@@ -42,30 +42,35 @@
       kShare: 0, coopFit0: 1.0, coopFitStep: 0.0, kShareZ: 0,
       kInherit: 0, inheritMu: 0, inheritCost: 0, kInheritZ: 0,
       kMembrane: 0, kCoupleZ: 0,
-      kDegrade: kDeg, qInit0: 1.0,
-      kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+      kDegrade: 0.05, qInit0: 0, kStarQual: ksq,
+      kIgnite: 1, kStarRise: 1, starRate: 0.06, starFuel0: 500, ignThresh: 1.5, starCap: 1, starGap: 6, starR: 2, starDriftPeriod: 20,
+      kStarFall: 0, kStarSet: 0, kAshSeed: 0, kFSM: 0, kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
       kRelief: 0, kFlux: 0, kTemplate: 0,
       kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0
     };
   }
+  function seedSunCore(sim, core) {   // z=0 정적 R 핵(점화 신호 — 별이 여기서 태어나 떠오른다). verify.js seedSunCore() 와 같다.
+    var disc = core.discCells(sim.p.W, sim.p.H, (sim.p.W / 2) | 0, (sim.p.H / 2) | 0, 2);
+    for (var k = 0; k < disc.length; k++) { sim.R[disc[k]] += 2.0; sim.E0 += 2.0; }
+  }
 
   var panel = {
     coreGlobal: 'HWS_SIM',
-    title: 'HWS step-0049 — <span style="color:#ffd060">에너지의 질 (q)</span>: 둘째 법칙으로 식는 세계 — E 에 연속 질 축을 더하다(SPINE 여섯째 축)',
-    subtitle: '0035~0048 까지 E 는 <b>무차별 단일 스칼라 + 이진 누출(E→T)</b>뿐이었다 — "쓸 수 있는 E ↔ 잃은 T" 의 이분만 있고 <i>연속 질 축</i>이 없었다(별의 뜨거운 E 한 단위 = 식은 바다의 E 한 단위, 질 구별 0 → 렌더가 흑체 색온도를 못 읽음, RENDER §8 L-Q 가 ⛔ 시뮬 q 선행). 이 step 은 E 에 <b>내재 질 <code>q</code>∈[0,1]</b>(농축도/온도 — 1=고질·저엔트로피[뜨거움] ↔ 0=열적·고엔트로피[식음])을 더하고 <b>둘째 법칙</b>(<code>degrade</code>: q −= q·kDegrade <b>단조 감소</b>)을 깐다 — <b>엑서지(자유에너지) X=Σq·E 가 단조 파괴</b>된다(시간의 화살표·닫힌 세계는 열적 평형으로 식음). 척추: <code>q</code> 는 새 <i>필드</i> 아니라 <b>E 에 올라탄 intensive 속성</b>(단일 척추 — 온도가 열의 속성이듯·다섯째 축 G 가 R 에 올라타듯) · 강등은 <b>E 미접촉</b>(장부 불변 — q 는 에너지 아닌 비율, A 와 같은 경계) · 국소 · authored 분기 없음. <b>Q1</b>: q 는 읽기 전용 계기처럼 동역학에 안 되먹임 — <i>생명이 질 구배로 사는 것·별이 고질을 생산하는 것·q 가 E 이동에 동승(advection)하는 것은 후속 step</i>. 검증(D=8·균일 E·degrade 만 on, 20~30 tick): <b>kDegrade OFF 면 질 축 없음(X=0) → ON(0.05) 이면 q 가 원시 고질 1.0 에서 식어 X 가 32765→7403 로 단조 파괴(평균 질 q̄ 0.23)·그동안 sumE 정확히 불변</b>. <b>kDegrade=0 → degrade 통째 skip → q 미해시 → 직전 step(0048) 비트 동일</b>(회귀 0). <code>node step-0049/verify.js</code> 로 reg·mix·conserve·det. 우측 화면은 <b>흑체 색</b>(질→색온도, L-Q 미리보기)으로 백열→붉음 식어내림이 보인다 — 이 q 가 렌더 L-Q(흑체 색온도)를 잠금 해제한다. (표준 스택은 step-0027 덴드라이트 그대로 — 에너지 질 강등은 그와 직교[읽기 전용].)',
+    title: 'HWS step-0050 — <span style="color:#ffd060">별 질 생산 (kStarQual)</span>: 별이 고질 E 를 낳아 둘째 법칙 식음에 맞서다 — *질 구배* 창발(SPINE 여섯째 축 source)',
+    subtitle: '0049 가 E 에 <b>연속 질 축 <code>q</code>∈[0,1]</b> + 둘째 법칙 강등(<code>degrade</code>)을 깔았으나 <i>source 가 없어</i> 닫힌 세계가 한 방향으로만 식었다(질이 어디서나 균일 — <b>공간 구배 0</b>). 슈뢰딩거·프리고진: 생명·소산이 사는 동력은 <b>질 구배(자유에너지 낙차)</b>인데, 0049 엔 그 구배를 *세우는* source 가 없었다. 이 step 은 별[핵융합]이 주입하는 E 를 <b>고질</b>(q→kStarQual·저엔트로피·뜨거움)로 만든다 — 주입 칸 q 를 <b>질량가중 혼합</b>(q←(q·E+kStarQual·per)/(E+per))으로 끌어올린다. 별 근처는 매 tick 재충전되고 <code>degrade</code> 가 멀리·오래된 q 를 깎는다 → <b>질 구배</b>(고질 별 근처 ↔ 저질 원거리)가 <b>창발</b>한다(0049 균일 식음에 source 를 더해 *구배*를 세움 = 슈뢰딩거 낙차의 원천). 척추: 질 생산은 <b>오직 source(별 융합)</b>에서 · <code>q</code> 는 E 에 올라탄 intensive 속성(단일 척추) · 국소(제 disc 칸만) · authored 분기 없음 · 혼합은 <b>E 미접촉</b>(장부 불변 — q 는 비율, 엑서지는 <i>생산되는</i> 측정량). 검증(D=8·z=0 R 핵서 별 점화·부력·degrade 0.05·냉각 베이스라인 qInit0=0, 60 tick): <b>kStarQual OFF 면 별이 E 는 주입해도 질 구배 없음(maxQ=0·X=0) → ON(1.0) 이면 별 근처 q 가 고질(maxQ 0.62)·degrade 가 나머지 식혀 공간 분산 stdQ 0.225(>0=구배)·엑서지 X 25.2(source 가 식음에 맞서 자유에너지 유지)</b>. <b>kStarQual=0 → 블렌딩 미진입 → 직전 step(0049) 비트 동일</b>(회귀 0·이중 가드: qInit=false 면도 미진입). <code>node step-0050/verify.js</code> 로 reg·grad·conserve·det. 우측 화면은 <b>흑체 색</b>(질→색온도, L-Q 미리보기)으로 별 근처 백열↔원거리 붉음으로 갈린다 — 이 <b>질 구배</b>가 렌더 L-Q(흑체 색온도)의 본 페이로프를 켠다. (표준 스택은 step-0027 덴드라이트 그대로 — 별 질 생산은 그와 직교[읽기 전용].)',
     overlays: { sourceSink: false, pools: true, life: true, centroid: true, sparkline: true },
     poolOpts: { minE: 1.5, prom: 0.3 },
 
-    /* 데모 프리셋 — 이 step 의 에너지 질 강등을 한 클릭으로 보이는 설정(verify mix 와 동일 아레나)으로. 둘 다 균일 E·degrade 만 — *질 강등(kDegrade)*만 토글. */
+    /* 데모 프리셋 — 이 step 의 별 질 생산을 한 클릭으로 보이는 설정(verify grad 와 동일 아레나)으로. 둘 다 별 점화·부력·degrade — *별 질 생산(kStarQual)*만 토글. seed 로 z=0 R 핵을 심어 별이 점화한다. */
     presets: [
-      { label: '🔥 에너지 질 강등 ON (둘째 법칙·식어내림·D=8)',
-        title: 'verify mix(on) 과 같은 설정: D=8·균일 E(노이즈 섭동)·degrade 만 on·*질 강등 kDegrade=0.05*(qInit0=1.0 원시 고질), 30 tick 진행. q 가 매 tick 식어 엑서지 X=Σq·E 가 32765→7403 로 *단조 파괴*(평균 질 q̄ 0.23) = 닫힌 세계가 열적 평형으로 식음(둘째 법칙). 그동안 sumE 는 정확히 불변(강등은 *질*만 내릴 뿐 E 미접촉). 통계 "에너지 질"의 엑서지가 줄고 q̄ 가 1→0.23 으로 떨어지면 켜진 것 = verify 가 단언하는 수치. 우측 흑체 색이 백열→붉음으로 식어내린다(L-Q 미리보기).',
-        params: qArena(0.05), run: 30,
-        note: '질 강등 ON — q 가 식어 엑서지 단조 파괴(X 32765→7403·q̄ 1→0.23)·sumE 불변. OFF 버튼과 번갈아 보라(통계 "에너지 질").' },
-      { label: '🧊 에너지 질 강등 OFF (질 축 없음·대조)',
-        title: 'verify mix(off) 과 같은 설정: 같은 아레나지만 kDegrade=0. degrade 통째 skip → q 미작동(질 축 없음·엑서지 X=0·식어내림 0) = 직전 step(0048) 비트 동일. ON 버튼과 번갈아 눌러 A/B 로 비교하면 둘째 법칙 식어내림이 또렷하다(흑체 색 변화 없음 vs 백열→붉음).',
-        params: qArena(0), run: 30,
-        note: '질 강등 OFF(대조) — q 미작동(엑서지 0). ON 버튼과 번갈아 눌러 식어내림을 보라.' }
+      { label: '☀️ 별 질 생산 ON (고질 source·질 구배·D=8)',
+        title: 'verify grad(on) 과 같은 설정: D=8·z=0 R 핵서 별 점화·부력 상승·degrade 0.05·냉각 베이스라인(qInit0=0)·*별 질 kStarQual=1*, 60 tick 진행. 별이 주입한 E 가 고질(q→1)로 떠오르고 degrade 가 나머지를 식혀 *질 구배*가 선다(별 근처 maxQ 0.62·공간 분산 stdQ 0.225·엑서지 X 25.2 — source 가 둘째 법칙 식음에 맞서 자유에너지 유지). 통계 "에너지 질"의 maxQ·구배가 뜨고, 우측 흑체 색이 별 근처 백열↔원거리 붉음으로 갈린다(L-Q 미리보기) = verify 가 단언하는 수치.',
+        params: sqArena(1.0), seed: seedSunCore, run: 60,
+        note: '별 질 생산 ON — 별이 고질 source(maxQ 0.62·stdQ 0.225 구배·X 25.2). OFF 버튼과 번갈아 보라(통계 "에너지 질").' },
+      { label: '🧊 별 질 생산 OFF (질 구배 없음·대조)',
+        title: 'verify grad(off) 과 같은 설정: 같은 아레나지만 kStarQual=0. 별이 E 는 주입해도 질은 무(degrade 가 q 를 0 베이스라인서 그대로 둠 → 질 구배 없음·maxQ=0·엑서지 X=0) = 직전 step(0049) 비트 동일. ON 버튼과 번갈아 눌러 A/B 로 비교하면 별 질 생산이 세우는 구배가 또렷하다(흑체 색 균일[무질] vs 별 근처 백열).',
+        params: sqArena(0), seed: seedSunCore, run: 60,
+        note: '별 질 생산 OFF(대조) — 별이 E 는 주입해도 질 0(maxQ=0). ON 버튼과 번갈아 눌러 구배를 보라.' }
     ],
 
     controls: [
@@ -74,9 +79,13 @@
         { kind: 'check', id: 'auto', label: '자동 명암', def: true, view: true, title: '화면 밝기를 현재 최대 E 에 맞춰 정규화' }
       ]},
       { items: [
-        { kind: 'check', id: 'degradec', label: '에너지 질 강등(둘째 법칙 — q 가 식어내림)', def: false, gateFor: 'kDegrade', title: 'step-0049 V?: E 에 내재 질 q∈[0,1](농축도/온도)을 더하고 매 tick q -= q·kDegrade 단조 감소(둘째 법칙). 엑서지 X=Σq·E 가 파괴된다(닫힌 세계는 열적 평형으로 식음). q 는 E 에 올라탄 intensive 속성(단일 척추)·강등은 E 미접촉(장부 불변). 기본 off(kDegrade=0) = 직전 step 비트 동일·정상 세계 뷰(질 오버레이 없음). 위 "에너지 질 강등 ON" 버튼이 데모 아레나(켜면 우측 흑체 색 미리보기 L-Q).' },
+        { kind: 'check', id: 'degradec', label: '에너지 질 강등(둘째 법칙 — q 가 식어내림)', def: false, gateFor: 'kDegrade', title: 'step-0049 V?: E 에 내재 질 q∈[0,1](농축도/온도)을 더하고 매 tick q -= q·kDegrade 단조 감소(둘째 법칙). 엑서지 X=Σq·E 가 파괴된다(닫힌 세계는 열적 평형으로 식음). q 는 E 에 올라탄 intensive 속성(단일 척추)·강등은 E 미접촉(장부 불변). 끄면(kDegrade=0) q 미작동(질 축 없음 — 직전 step 비트 동일). 위 "에너지 질 강등 ON" 버튼이 데모 아레나. 우측 화면이 흑체 색(L-Q 미리보기).' },
         { kind: 'slider', id: 'kDegrade', label: 'kDegrade (질 강등률)', param: 'kDegrade', min: 0, max: 0.2, step: 0.01, def: 0.05, fixed: 2, gateBy: 'degradec', gateOff: 0, title: '질 강등률(둘째 법칙). 0 = off = q 미작동·미해시(직전 step 비트 동일·회귀 0). >0 이면 매 tick q 가 이 비율로 식는다(엑서지 단조 파괴). E 미접촉(질만 내림)이라 장부·sumE 불변. *리셋 불필요* — 즉시 적용.' },
-        { kind: 'slider', id: 'qInit0', label: 'q 초기 질', param: 'qInit0', min: 0, max: 1, step: 0.05, def: 1.0, fixed: 2, title: 'q 초기 베이스라인(첫 강등 tick 에 전 칸을 이 값으로). 1.0 = 원시 고질(뜨거운 시작 → 식어내림). 후속의 별 질 생산이 이 식음에 맞서 구배를 세운다(고질 별 근처 ↔ 저질 원거리). *리셋 시 적용*.' }
+        { kind: 'slider', id: 'qInit0', label: 'q 초기 질', param: 'qInit0', min: 0, max: 1, step: 0.05, def: 1.0, fixed: 2, title: 'q 초기 베이스라인(첫 강등 tick 에 전 칸을 이 값으로). 1.0 = 원시 고질(뜨거운 시작 → 식어내림). 0 = 냉각 베이스라인(별 질 생산 데모용 — 별이 유일한 질 source 라 구배가 또렷). *리셋 시 적용*.' }
+      ]},
+      { items: [
+        { kind: 'check', id: 'starqualc', label: '별 질 생산(고질 source — 별 근처가 백열·질 구배)', def: false, gateFor: 'kStarQual', title: 'step-0050 V?: 별[핵융합]이 주입하는 E 를 고질(q→kStarQual)로 만든다 — 주입 칸 q 를 질량가중 혼합(q←(q·E+kStarQual·per)/(E+per))으로 끌어올림. 별 근처는 매 tick 재충전·degrade(둘째 법칙)가 나머지를 식힘 → *질 구배*(고질 별 근처 ↔ 저질 원거리) 창발 = 슈뢰딩거 낙차의 원천(렌더 L-Q 본 페이로프). 질은 *오직 source(별)*서 생산·혼합은 E 미접촉(장부 불변). 끄면(kStarQual=0) 별이 E 는 주입해도 질 0(직전 step 비트 동일). degrade 위에 얹힌다(질 축 살아야[degrade on] 별이 고질을 싣는다). 위 "별 질 생산 ON" 버튼이 데모 아레나.' },
+        { kind: 'slider', id: 'kStarQual', label: 'kStarQual (별 주입 E 의 질)', param: 'kStarQual', min: 0, max: 1, step: 0.05, def: 1.0, fixed: 2, gateBy: 'starqualc', gateOff: 0, title: '별 주입 E 의 질(intensive, [0,1]). 0 = off = 블렌딩 미진입(직전 step 비트 동일·회귀 0·이중 가드: qInit=false 면도 미진입). >0 이면 별 주입 칸 q 가 이 값까지 질량가중으로 떠오름(고질 source). E 미접촉(질만 올림)이라 장부 불변. *리셋 불필요* — 즉시 적용.' }
       ]},
       { items: [
         { kind: 'slider', id: 'D', label: '터 깊이 D (voxel)', param: 'D', min: 1, max: 8, step: 1, def: 1, fixed: 0, title: '시뮬 공간 깊이(z). 1 = 기존 2D(비트 동일). >1 = voxel 상자(W×H×D). *리셋 시 적용*되는 구조 노브. D>1 + kDz>0 이라야 z 확산으로 상위 평면이 산다. 3D 뷰는 아직 z=0 평면 하이트필드(voxel 렌더는 렌더러 트랙).' },
@@ -345,11 +354,16 @@
           if (D < 2 || !zOn) return { text: 'meanZ ' + mz.toFixed(2) + ' (z=0 평면 — z-이동/번식/혼잡 off. 위 "3D ..." 버튼으로)', cls: '' };
           return { text: 'meanZ ' + mz.toFixed(2) + ' / maxZ ' + mxz + ' / z>0 ' + (af * 100).toFixed(0) + '% (천장 z=' + top + ')', cls: (mxz >= top) ? 'pass' : '' };
       } },
-      { label: '<span style="color:#ffd060">에너지 질</span> (엑서지 X=Σq·E / 평균 질 q̄ — 가설: 둘째 법칙으로 단조 파괴)', get: function (c) {
+      { label: '<span style="color:#ffd060">에너지 질</span> (엑서지 X=Σq·E / 별 근처 고질 maxQ / 질 구배 stdQ — 가설: 별 source 가 구배를 세움)', get: function (c) {
           var sim = c.sim;
-          if (!sim.qInit) return { text: '질 축 없음 (kDegrade=0 — q 미작동. 위 "에너지 질 강등 ON" 버튼으로)', cls: '' };
-          var x = window.HWS_SIM.measureExergy(sim), degOn = (sim.p.kDegrade || 0) !== 0;
-          return { text: '엑서지 ' + x.exergy.toFixed(1) + ' / q̄ ' + x.meanQ.toFixed(3) + ' · 누적 파괴 ' + (sim.exergyLost || 0).toFixed(1), cls: degOn && x.meanQ < 0.9 ? 'pass' : '' };
+          if (!sim.qInit) return { text: '질 축 없음 (kDegrade=0 — q 미작동. 위 "별 질 생산 ON" 버튼으로)', cls: '' };
+          var x = window.HWS_SIM.measureExergy(sim), q = sim.q, E = sim.E, N = E.length, eps = 1e-9, i;
+          var maxQ = 0, sw = 0, swq = 0, n = 0;
+          for (i = 0; i < N; i++) { if (E[i] <= eps) continue; if (q[i] > maxQ) maxQ = q[i]; sw += E[i]; swq += q[i] * E[i]; n++; }
+          var qBarE = sw > 0 ? swq / sw : 0, v = 0;
+          for (i = 0; i < N; i++) { if (E[i] <= eps) continue; var d = q[i] - qBarE; v += d * d; }
+          var stdQ = n > 0 ? Math.sqrt(v / n) : 0, sqOn = (sim.p.kStarQual || 0) !== 0;
+          return { text: '엑서지 ' + x.exergy.toFixed(1) + ' / maxQ ' + maxQ.toFixed(3) + ' / 구배 ' + stdQ.toFixed(3), cls: sqOn && stdQ > 1e-4 ? 'pass' : '' };
       } },
       { label: '<span style="color:#9ad24a">덴드라이트</span> (넓이 / 거칠기 / 가지끝)', get: function (c) { var d = window.HWS_SIM.measureDendrite(c.sim); return d.area ? (d.area + ' / ' + d.roughness.toFixed(2) + ' / ' + d.tips) : '—'; } },
       { label: '<span style="color:#46e0c8">튜링 패턴</span> (진폭 / 파장 lag)', get: function (c) { var d = window.HWS_SIM.measureTuring(c.sim); return (d.stdR.toFixed(3) + ' / ' + (d.firstNeg || '—')); } },
@@ -364,7 +378,7 @@
 
     legend:
       '<span style="color:#fff7d2">■</span>고질 q(백열) <span style="color:#e67828">■</span>중질 <span style="color:#6e1e14">■</span>저질(붉음·식음) — 흑체 색온도(L-Q 미리보기·세기=E) &nbsp; <span style="color:#dca560">■</span>무유전 R &nbsp; <span style="color:#fff7d2">★</span>별<br>' +
-      '<b>에너지의 질 — E 에 연속 질 축 q (VOXEL 사다리 다음 큰 arc · SPINE 여섯째 축)</b>: 0035~0048 까지 E 는 <b>무차별 단일 스칼라 + 이진 누출(E→T)</b>뿐 — 별의 뜨거운 E 한 단위 = 식은 바다의 E 한 단위(질 구별 0). 슈뢰딩거·프리고진: 생명·소산이 실제로 *허무는* 건 양이 아니라 <b>질(자유에너지·저엔트로피)</b>이고 둘째 법칙이 그 질을 단조 감소시킨다. 이 step 은 E 에 <b>내재 질 <code>q</code>∈[0,1]</b>(농축도/온도 — 1=고질[뜨거움] ↔ 0=열적[식음])을 더하고 <code>degrade</code>(q −= q·kDegrade 단조 감소)를 깐다 — <b>엑서지 X=Σq·E 가 단조 파괴</b>된다(시간의 화살표·닫힌 세계는 열적 평형으로 식음). <code>q</code> 는 새 필드 아니라 <b>E 에 올라탄 intensive 속성</b>(단일 척추 — 온도가 열의 속성이듯). 강등은 <b>E 미접촉</b>(장부 불변 — q 는 에너지 아닌 비율). <b>Q1</b>: 읽기 전용 계기처럼 동역학에 안 되먹임(생명이 질로 사는 것·별 질 생산·q advection 은 후속). "에너지 질 강등" 켜고 보라(위 "에너지 질 강등 ON" 버튼). <code>verify mix</code>(D=8·균일 E·degrade 만): <b>OFF 면 질 축 없음(X=0) → ON(0.05) 이면 q 가 1.0 에서 식어 X 32765→7403 단조 파괴(q̄ 0.23)·sumE 정확히 불변</b>. <b>kDegrade=0 → degrade skip → q 미해시 → 직전 step 비트 동일</b>(회귀 0). 우측 화면은 <b>흑체 색</b>(질→색온도)으로 백열→붉음 식어내림 — <b>이 q 가 렌더 L-Q(흑체 색온도)를 잠금 해제한다</b>(RENDER §8).<br>' +
+      '<b>별 질 생산 — 별이 고질 source 가 되어 질 *구배*를 세움 (에너지 질 arc · SPINE 여섯째 축 source 짝)</b>: 0049 가 E 에 <b>연속 질 축 <code>q</code>∈[0,1]</b> + 둘째 법칙 강등(<code>degrade</code>)을 깔았으나 <i>source 가 없어</i> 닫힌 세계가 한 방향으로만 식었다(질이 어디서나 균일 — <b>공간 구배 0</b>). 슈뢰딩거·프리고진: 생명·소산이 사는 동력은 <b>질 구배(자유에너지 낙차)</b>인데, 그 구배를 *세우는* source 가 빠졌다. 이 step 은 별[핵융합]이 주입하는 E 를 <b>고질</b>(q→kStarQual·저엔트로피·뜨거움)로 만든다 — 주입 칸 q 를 <b>질량가중 혼합</b>(q←(q·E+kStarQual·per)/(E+per))으로 끌어올림. 별 근처는 매 tick 재충전·<code>degrade</code> 가 멀리·오래된 q 를 깎는다 → <b>질 구배</b>(고질 별 근처 ↔ 저질 원거리)가 <b>창발</b>(0049 균일 식음 + source = 구배 = 슈뢰딩거 낙차의 원천). 질 생산은 <b>오직 source(별)</b>서(단일 척추·국소)·혼합은 <b>E 미접촉</b>(장부 불변 — q 는 비율). "별 질 생산" 켜고 보라(위 "별 질 생산 ON" 버튼). <code>verify grad</code>(D=8·별 점화·degrade·냉각 베이스라인): <b>OFF 면 질 구배 없음(maxQ=0·X=0) → ON(1.0) 이면 별 근처 maxQ 0.62·공간 분산 stdQ 0.225(구배)·엑서지 X 25.2(source 가 식음에 맞서 자유에너지 유지)</b>. <b>kStarQual=0 → 블렌딩 미진입 → 직전 step 비트 동일</b>(회귀 0). 우측 화면은 <b>흑체 색</b>(질→색온도)으로 별 근처 백열↔원거리 붉음으로 갈린다 — <b>이 질 구배가 렌더 L-Q(흑체 색온도)의 본 페이로프를 켠다</b>(RENDER §8).<br>' +
       '<b>가지치기 덴드라이트(R5)</b>: R3(방향성)은 *곧은* needle 을, R4(튜링)는 *균일 대칭 깨짐*을 빚었다. 이 step 은 *자라는 결정 전선*을 *경계 불안정*(Mullins-Sekerka)으로 *옆가지*를 뻗게 한다 — *둘째 필드 없이* E·R 만(자라는 셀이 제 E 를 당겨 비우면 튀어나온 tip 은 빨리 채워지나 오목 만은 멈춤 = *기하 차폐*, 거기에 *곡률 증폭*[볼록 tip 가속]을 얹는다). "저-E 장 + 결정 씨앗" 버튼을 누르고 돌리면, 둥근 씨앗이 *저절로* 옆가지로 갈린다(다른 법칙은 클릭 동작·시드로 격리).<br>' +
       '<b>가지</b>: <code>verify dendrite</code>(dendrite 아레나) — 거칠기 1.67(곡률 무증폭=컴팩트 덩이)→24.56(곡률+차폐=가지·원판 ≈1 대비 ≫1)·가지 끝 4→34. *곡률 증폭이 평탄 전선을 옆가지로 가른다*(turing 의 "근방 커널 필수"와 같은 정신 — 차폐만이면 컴팩트, 정직한 한계). author 아닌 *창발*(침착 1개만 깖 — 척추 체크 2). 셀 안 E→R 쌍 거래(보존)라 churn 을 안 깬다(<code>verify sustain</code>·잔차 &lt;1e-6 <span class="pass">PASS</span>). <i>전체 스택은 희소·이미 굳은 R 이라 가지가 약하게만 — 현상은 dendrite 아레나에서.</i> "덴드라이트" 체크를 끄면 step-0026 으로.',
 
@@ -404,5 +418,5 @@
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = panel;
-  else global.HWS_PANEL_0049 = panel;
+  else global.HWS_PANEL_0050 = panel;
 })(typeof window !== 'undefined' ? window : globalThis);
