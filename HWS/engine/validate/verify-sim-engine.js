@@ -534,6 +534,47 @@ function seedQMetab(sim) {   // 평탄 E=2 + 고질(0.9)/저질(0.1) 두 구역 
 /* 명시적 질 배출 2D 아레나(step-0054 *실활성* — 생명이 먹은 자리 residual q 강등, 엔트로피 export) — step-0054/verify.js qexpArena()/seedQMetab 와 동일.
  * qmetArena 위에 kQExport=1 만 더한다(고질 무리가 먹은 자리 q↓). qmet@ 등 전 키(kQExport=0)는 *q 미접촉*이라 배출 미커버 → 이 키가 metabolize q-쓰기 본문(먹은 자리 q 강등·q 해시)을 동결(드리프트 가드). step-0055~ 회귀 앵커: 새 노브(kQExport)=0 이면 q[idx] 미접촉(과거 골든 전부 불변). */
 function qexpArena(extra) { return qmetArena(Object.assign({ kQExport: 1 }, extra || {})); }
+/* couple advection 2D 아레나(step-0056 *실활성* — 질이 *막 공유* E 흐름에 동승 → 막 안에서 E 가 균등화될 때 q 도 균등화) — step-0056/verify.js qcplArena()/seedQCouple 와 동일 상수.
+ * 2D(D=1), 8×8 kin 블록(태그 1) 좌 4열 고 E·고질(E 10·q 1)·우 4열 저 E·저질(E 0·q 0) + couple(kMembrane=0.5·우/하 kin 쌍 E 균등화) + degrade(kDegrade=0.01·질 축 alive) + kQCouple=1(질 동승). 확산·중력·이동·번식·흡수 다 off(순수 막 공유 수송).
+ * qdfa@(diffuse 동승)·qadv@(gravity 동승)·cpl3@ 등 전 키(kQCouple=0)는 막 공유 advection 미커버 → 이 qcpl@ 가 couple 질 동승 본문(공유 E 가 제 질을 데려감)을 동결(드리프트 가드). step-0057~ 회귀 앵커: 새 노브(kQCouple)=0 이면 q 미접촉(과거 골든 전부 불변). */
+function qcplArena(extra) {
+  return Object.assign({}, {
+    D: 1, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, mMaint: 0, mDeath: 0, kL: 0, lifeR: 0,
+    life: true, move: false, repro: false, moveR: 1, moveThresh: 0.02, pTumble: 0, kMoveZ: 0,
+    kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kAshSeed: 0, kStarQual: 0, kFSM: 0, kRelief: 0, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0,
+    kDivZ: 0, kCrowdZ: 0, kAdhereZ: 0, kShareZ: 0, kInheritZ: 0, kCoupleZ: 0,
+    kMembrane: 0.5,
+    kDegrade: 0.01, qInit0: 0, kQAdvect: 0, kQTaxis: 0, kQMetab: 0, kQExport: 0, kQDiffuse: 0, kQCouple: 1
+  }, extra || {});
+}
+function seedQCouple(sim) {   // 2D 8×8 kin 블록(태그 1) — 좌 4열 고 E·고질(E 10·q 1)·우 4열 저 E·저질(E 0·q 0). spawn 먼저(E=0→m=0) 뒤 E/q 설정. couple 이 좌→우 E 균등화하며 질 동승. q 축 alive.
+  var p = sim.p, W = p.W, H = p.H, cx = (W >> 1) - 4, cy = (H >> 1) - 4, x, y;
+  for (y = cy; y < cy + 8; y++) for (x = cx; x < cx + 8; x++) {
+    var a = ENG.spawnAgent(sim, x, y, 0); a.g = 1;             // m0=0·E=0 이라 m=0(couple 은 a.g·center 만 봄)
+    var i = y * W + x, hi = x < cx + 4;                        // 좌 4열 고질·우 4열 저질
+    sim.E[i] = hi ? 10 : 0; sim.E0 += sim.E[i]; sim.q[i] = hi ? 1 : 0;
+  }
+  sim.qInit = true;
+}
+/* relief advection 2D 아레나(step-0057 *실활성* — 질이 *기복(무대 비탈)* E 흐름에 동승 → 기복으로 번지는 E 가 제 질을 데려감) — step-0057/verify.js qrlfArena()/seedQBlob 와 동일 상수.
+ * 2D(D=1), 중앙 8×8 고질 E 블록(seedQBlob: E 10·q 1)·빈 배경 + diffuse 기복 경로(kRelief=1·h=E+kRelief·R, R=0 이라 h=E·donor-제한 upwind·kD=0.2 rate) + degrade(kDegrade=0.01·질 축 alive) + kQRelief=1(질 동승). 별·생명·중력 다 off(순수 기복 수송).
+ * qdfa@(선형 확산 동승·kRelief=0)·qcpl@(막 공유) 등 전 키(kQRelief=0)는 기복 advection 미커버 → 이 qrlf@ 가 relief 질 동승 본문(기복 flux 가 제 질을 데려감)을 동결(드리프트 가드). step-0058~ 회귀 앵커: 새 노브(kQRelief)=0 이면 q 미접촉(과거 골든 전부 불변). */
+function qrlfArena(extra) {
+  return Object.assign({}, {
+    D: 1, initE: 0, noise: 0, drive: false,
+    source: { x: 0, y: 0, r: 0, rate: 0 }, sink: { x: 0, y: 0, r: 0, rate: 0 },
+    kD: 0.2, kDz: 0, kEvap: 0, kA: 0, baseCost: 0, life: false, repro: false, move: false,
+    kGravity: 0, kCollapse: 0, kCryst: 0, kWeather: 0, kSupport: 0, kOcclude: 0,
+    kIgnite: 0, kStarRise: 0, kStarFall: 0, kStarSet: 0, kAshSeed: 0, kStarQual: 0, kFSM: 0, kRelief: 1, kFlux: 0, kTemplate: 0, kInherit: 0, inheritCost: 0,
+    kShare: 0, kPublic: 0, kDiff: 0, kGermline: 0, kAnchor: 0, kTension: 0, kMembrane: 0, kAdhesion: 0, kAniso: 0, kTuring: 0, kDendrite: 0, kPermeate: 0,
+    kMoveZ: 0, kDivZ: 0, kCrowdZ: 0, kAdhereZ: 0, kShareZ: 0, kInheritZ: 0, kCoupleZ: 0,
+    kDegrade: 0.01, qInit0: 0, kQAdvect: 0, kQTaxis: 0, kQMetab: 0, kQExport: 0, kQDiffuse: 0, kQCouple: 0, kQRelief: 1
+  }, extra || {});
+}
 /* 조밀 클론 조직 시나리오(step-0021 differentiate *실활성*) — step-0021/verify.js diffArena() 와 동일 상수.
  * diff@(전체 스택, 희소라 갇힌 세포 드물어 분화 거의 안 켜짐)와 달리, 이 tdiff@ 는 confluent 조직에서 분화 코드 경로(soma→germ 기부)를
  * *실제로* 도는 상태를 동결한다(드리프트 가드 — diff@ 만으론 differentiate 본문이 거의 미커버라는 점을 보완). */
@@ -986,6 +1027,14 @@ function runGolden() {
   SEEDS.forEach(function (seed) {                                      // qdfa@ — diffuse advection 2D 아레나(step-0055: 중앙 고질 E 블록 + diffuse[kD=0.2] + degrade + kQDiffuse=1 → 번지는 E 가 제 질을 데려가 고질이 사방으로 advect). qadv@(gravity 동승)·이전 키(kQDiffuse=0)는 확산 advection 미커버 → 이 키가 diffuse 질 동승 본문을 동결(드리프트 가드). step-0056~ 회귀 앵커: 새 노브(kQDiffuse)=0 이면 q 미접촉.
     var a = ENG.createSim(seed, qdfaArena()); seedQBlob(a); ENG.run(a, 20);
     cur['qdfa@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qcpl@ — couple advection 2D 아레나(step-0056: 8×8 kin 블록[좌 고질·우 저질] + couple[kMembrane=0.5] + degrade + kQCouple=1 → 막 공유로 좌→우 균등화되는 E 가 제 질을 데려가 우측 저질 칸 q↑). qdfa@(diffuse 동승)·cpl3@ 등 전 키(kQCouple=0)는 막 공유 advection 미커버 → 이 키가 couple 질 동승 본문을 동결(드리프트 가드). step-0057~ 회귀 앵커: 새 노브(kQCouple)=0 이면 q 미접촉.
+    var a = ENG.createSim(seed, qcplArena()); seedQCouple(a); ENG.run(a, 20);
+    cur['qcpl@' + seed] = ENG.hashState(a);
+  });
+  SEEDS.forEach(function (seed) {                                      // qrlf@ — relief advection 2D 아레나(step-0057: 중앙 고질 E 블록 + diffuse 기복 경로[kRelief=1·kD=0.2] + degrade + kQRelief=1 → 기복으로 번지는 E 가 제 질을 데려가 고질이 둑 밖으로 advect). qdfa@(선형 확산 동승)·qcpl@(막 공유) 등 전 키(kQRelief=0)는 기복 advection 미커버 → 이 키가 relief 질 동승 본문을 동결(드리프트 가드). step-0058~ 회귀 앵커: 새 노브(kQRelief)=0 이면 q 미접촉.
+    var a = ENG.createSim(seed, qrlfArena()); seedQBlob(a); ENG.run(a, 20);
+    cur['qrlf@' + seed] = ENG.hashState(a);
   });
   var gold = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
   var ok = true, added = 0;

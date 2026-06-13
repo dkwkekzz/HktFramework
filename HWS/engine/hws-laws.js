@@ -328,6 +328,16 @@
                           //   diffuse(①, 선형 경로 kRelief=0)가 셀 E 를 이웃과 교환할 때, 받는 칸은 *들어온 E 의 질*을 질량가중으로 섞는다: 각 칸 new_q = (q·retained + Σ q_neighbor·inflow) / (확산 후 E). 고질 E 가 번지면 q 도 따라 번진다(0051 gravity 의 등방 확산 짝 — 하향뿐 아니라 사방으로). retained=내 E−유출, inflow=이웃에서 들어온 양(이웃 q 운반).
                           //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · 국소(제 4(+2z)-이웃만, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 혼합) · 닫힌 장부(advection 은 E 미접촉 — diffuse 가 *이미 옮긴* E 의 *질*만 따라감, q 는 비율·거래 0). 0051 gravity transport(하향)의 *등방 확산* 짝.
                           //   회귀(이중 가드): kQDiffuse=0 → advection 미진입(0054 무변경·q 버퍼 미할당·미스왑). qInit=false(degrade off)면 미진입(질 축 없는 세계엔 수송할 질 없음). diffuse *선형 경로(kRelief=0)* 한정 — 기복(stage) 흐름은 후속(relief 경로 미동승). kD=0 이면 확산 flux 0 → q 불변.
+    /* ── step-0056: couple advection(질이 *막 공유* E 흐름에 동승 — SPINE 여섯째 축 transport 짝. 0051 gravity(하향)·0055 diffuse(등방)로 질이 *필드* E 이동을 따라갔으나, kin 막의 E 공유(couple, ⑥c)는 아직 q 를 안 데려간다 → 액적 안에서 E 가 균등화돼도 q 는 제자리[수송 누락]. 이제 couple flux 에도 동승 → 막 안에서 질도 균등화) ── */
+    kQCouple: 0,          // q couple-advection 게이트(couple 의 kin 쌍 E 공유에 질 동승). 0 = off = 직전 step(0055) 비트 동일(advection 미진입 → q 미접촉 → 과거 골든 전부 불변). >0 이면 on:
+                          //   couple(⑥c)이 kin 쌍 사이에서 E 를 균등화(d=(E[c]−E[nb])·k 만큼 c↔nb 이동)할 때, *흐른 E 의 질*을 받는 칸에 질량가중 혼합으로 싣는다: 받는 칸 q ← (q·E_recv + q_donor·|d|)/(E_recv+|d|). E 가 c→nb(d>0)면 c 가 donor, nb→c(d<0)면 nb 가 donor — *잃는 쪽*이 질 source(intensive·불변), *얻는 쪽*이 혼합. 막 안에서 E 가 평탄해지면 그 E 의 *질*도 평탄해진다(0048 수동 막 E-공유의 질 짝 — 액적이 연직·평면으로 균질 내부를 만들 때 q 도 균질). 2D·3D(kCoupleZ) 경로 모두 같은 혼합.
+                          //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · 국소(제 우/하(/위) kin 이웃 한 쌍만, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 혼합 — kin 게이트는 couple 이 이미 함) · 닫힌 장부(advection 은 E 미접촉 — couple 이 *이미 옮긴* E 의 *질*만 따라감, q 는 비율·거래 0). 0051 gravity(하향)·0055 diffuse(등방) transport 의 *막 공유* 짝 = E-이동 법칙 전반에 질 동승 완성.
+                          //   회귀(이중 가드): kQCouple=0 → 혼합 미진입(0055 무변경·q 미접촉) 바이트 동일. qInit=false(degrade off)면 미진입(질 축 없는 세계엔 수송할 질 없음). couple 안에 얹힘 — kMembrane=0·생명 off·무 kin 이면 couple 자체가 early-return 이라 도달 안 함. d=0(이미 평형)이면 |d|=0 → 분모=E_recv → q 불변.
+    /* ── step-0057: relief advection(질이 *기복(무대 비탈)* E 흐름에 동승 — SPINE 여섯째 축 transport 짝. 0051 gravity(하향)·0055 diffuse-선형(등방)·0056 couple(막 공유)로 질이 *대부분* E 이동을 따라갔으나, diffuse 의 *기복 경로*(kRelief≠0·무대 비탈 donor-제한 upwind)는 q 를 안 데려갔다 → 무대 둑 안으로 E 가 흘러도 q 는 제자리 stranded. 이제 기복 flux 에도 동승 → E-이동 법칙 전반 질 수송 *완성*) ── */
+    kQRelief: 0,          // q relief-advection 게이트(diffuse 기복 경로 flux 에 질 동승). 0 = off = 직전 step(0056) 비트 동일(advection 미진입 → q 미접촉 → 과거 골든 전부 불변). >0 이면 on:
+                          //   diffuse 의 기복 경로(kRelief≠0, h=E+kRelief·R 내리막 donor-제한 upwind·z=0 평면)가 셀 E 를 이웃과 교환할 때, 받는 칸이 *들어온 E 의 질*을 질량가중으로 섞는다: 각 칸 new_q = (q·retained + Σ q_neighbor·inflow) / (기복 후 E). retained=내 E−Σ유출, inflow=이웃에서 들어온 양(이웃 q 운반·내 q 유지). 무대 둑 안으로 고질 E 가 흘러들면 q 도 따라 든다 = q 가 *모든 E 이동*(하향[0051]+등방[0055]+막 공유[0056]+기복[이번])을 따라가는 완전한 물리장.
+                          //   척추: q 는 E 에 올라탄 intensive 속성(단일 척추 — 새 필드 0) · 국소(제 4-이웃, 전역 조율자 0) · authored 분기 없음(셀별 스칼라 혼합) · 닫힌 장부(advection 은 E 미접촉 — 기복 flux 가 *이미 옮긴* E 의 *질*만 따라감, q 는 비율·거래 0). 0055 diffuse-선형(등방)의 *기복(무대 비탈)* 짝 = 확산 두 경로(선형·기복) 모두 질 동승.
+                          //   회귀(이중 가드): kQRelief=0 → advection 미진입(0056 무변경·QB 미할당·미스왑) 바이트 동일. qInit=false(degrade off)면 미진입(질 축 없는 세계엔 수송할 질 없음). 기복 경로(kRelief≠0)에서만 — kRelief=0(선형 확산)이면 이 경로 미진입(거긴 kQDiffuse 담당). QB 는 *전체 복사 후 z=0 평면만 덮어씀*(relief z=0 한정 → z>0 q 보존).
   };
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -363,6 +373,8 @@
           fL[i] = dm > E[i] ? E[i] / dm : 1;
         }
       }
+      var qrel = (p.kQRelief !== 0 && sim.qInit), Q = sim.q, QB = null;   // step-0057 relief advection: 기복(무대 비탈) flux 가 제 질을 데리고 흐른다(qInit 일 때만 — 질 축 살아있을 때)
+      if (qrel) { QB = sim.qBuf || (sim.qBuf = new Float64Array(E.length)); QB.set(Q); }   // q 더블버퍼(옛 q 읽으며 새 q 작성). relief 는 z=0 평면 한정이라 *전체 복사 후 z=0 평면만 덮어씀* → z>0 q 보존
       for (y = 0; y < H; y++) {
         var yNb = ((y - 1 + H) % H) * W, ySb = ((y + 1) % H) * W, yCb = y * W;
         for (x = 0; x < W; x++) {
@@ -376,6 +388,14 @@
           dv = hc - hP[jE]; if (dv > 0) net -= fL[i] * kD * dv; else if (dv < 0) net += fL[jE] * kD * (hP[jE] - hc);
           var ei = E[i], bi = ei;
           B[i] = ei + net;
+          if (qrel) {                                       // step-0057: 기복 flux 에 질 동승(이 시점 net=기복 E 변화, kA 전). 받는 칸 = 질량가중(retained·내 q + Σ inflow·이웃 q). E 미접촉(relief 가 옮긴 E 의 질만 따라감).
+            var outS = 0, inN = 0, dq;                       // outS = Σ유출(내 q 유지), inN = Σ(이웃 q·inflow). retained = ei − outS. 분모 = ei + net = B[i].
+            dq = hc - hP[jN]; if (dq > 0) outS += fL[i] * kD * dq; else if (dq < 0) inN += Q[jN] * fL[jN] * kD * (hP[jN] - hc);
+            dq = hc - hP[jS]; if (dq > 0) outS += fL[i] * kD * dq; else if (dq < 0) inN += Q[jS] * fL[jS] * kD * (hP[jS] - hc);
+            dq = hc - hP[jW]; if (dq > 0) outS += fL[i] * kD * dq; else if (dq < 0) inN += Q[jW] * fL[jW] * kD * (hP[jW] - hc);
+            dq = hc - hP[jE]; if (dq > 0) outS += fL[i] * kD * dq; else if (dq < 0) inN += Q[jE] * fL[jE] * kD * (hP[jE] - hc);
+            QB[i] = bi + net > 0 ? (Q[i] * (ei - outS) + inN) / (ei + net) : Q[i];   // 질량가중 평균(denom=기복 후 E=B[i]). E≤0 면 q 보존
+          }
           if (kA !== 0) {
             var bN = E[jN], bS = E[jS], bW = E[jW], bE = E[jE];
             B[i] += kA * (
@@ -387,6 +407,7 @@
           }
         }
       }
+      if (qrel) { sim.q = QB; sim.qBuf = Q; }   // q 스왑(E 의 buf 스왑과 같은 정신) — 새 q=QB(z>0 는 복사본 유지), 옛 q 는 다음 tick 버퍼로
     } else {
       /* 6이웃(x·y wrap·z 벽), wrap. 총량 보존. z=0 평면·D=1 이면 step-0008 식과 비트 동일(z 이웃 없어 z 항 산술 0 = 회귀 0). */
       var D = p.D || 1, WH = W * H, kDz = p.kDz;
@@ -1129,6 +1150,11 @@
     var p = sim.p; if (p.kMembrane === 0) return;
     if (!p.life || !sim.agents.length) return;
     var ag = sim.agents, E = sim.E, W = p.W, H = p.H, N = W * H, k = p.kMembrane * 0.5, D = p.D || 1;
+    var qadv = (p.kQCouple !== 0 && sim.qInit), Q = sim.q;      // step-0056 couple advection: 막 공유 E 가 제 질을 데리고 흐른다(qInit 일 때만 — 질 축 살아있을 때). E 미접촉(couple 이 옮긴 E 의 질만 따라감).
+    function qmix(a, b, d) {                                    // 한 쌍 거래(E[a]−=d·E[b]+=d)의 질 동승 — *잃는 쪽*이 donor(q 불변·intensive), *얻는 쪽*이 질량가중 혼합. E 업데이트 *전* 호출(혼합에 거래 전 E 사용).
+      if (d > 0) { var eb = E[b]; if (eb + d > 0) Q[b] = (Q[b] * eb + Q[a] * d) / (eb + d); }       // d>0: a→b, b 가 받음(b 의 옛 E·q + 들어온 d·a 의 q)
+      else if (d < 0) { var ea = E[a], fd = -d; if (ea + fd > 0) Q[a] = (Q[a] * ea + Q[b] * fd) / (ea + fd); }  // d<0: b→a, a 가 받음(|d| 만큼·b 의 q)
+    }
     if (p.kCoupleZ && D > 1) {                                  // ── 3D 경로(V5+): W·H·D occ + kin 쌍에 위(+z) 추가(하 dc 도 z 평면 키로 교정·4-인접→6-인접). z 벽(x·y wrap)
       var WH3 = W * H, N3 = WH3 * D;
       var occ3 = sim.coupleOcc3;
@@ -1141,9 +1167,9 @@
         var c3 = a3.center, x3 = a3.x, y3 = a3.y, z3 = a3.z || 0;
         var rc3 = c3 - x3 + (x3 + 1) % W;                      // 우(+x) 이웃 center(같은 z·y 행)
         var dc3 = z3 * WH3 + ((y3 + 1) % H) * W + x3;          // 하(+y) 이웃 center(같은 z 평면 — 2D 가 떨구던 z 성분 교정)
-        if (occ3[rc3] === t3) { var dr3 = (E[c3] - E[rc3]) * k; E[c3] -= dr3; E[rc3] += dr3; shared3 += dr3 < 0 ? -dr3 : dr3; }
-        if (occ3[dc3] === t3) { var dd3 = (E[c3] - E[dc3]) * k; E[c3] -= dd3; E[dc3] += dd3; shared3 += dd3 < 0 ? -dd3 : dd3; }
-        if (z3 + 1 < D) { var zc3 = c3 + WH3; if (occ3[zc3] === t3) { var dz3 = (E[c3] - E[zc3]) * k; E[c3] -= dz3; E[zc3] += dz3; shared3 += dz3 < 0 ? -dz3 : dz3; } }   // 위(+z) 이웃 — 연직 막 공유(우/하/위만 훑어 6-인접 쌍을 한 번씩만, 좌/상/아래는 이웃의 우/하/위가 커버)
+        if (occ3[rc3] === t3) { var dr3 = (E[c3] - E[rc3]) * k; if (qadv) qmix(c3, rc3, dr3); E[c3] -= dr3; E[rc3] += dr3; shared3 += dr3 < 0 ? -dr3 : dr3; }
+        if (occ3[dc3] === t3) { var dd3 = (E[c3] - E[dc3]) * k; if (qadv) qmix(c3, dc3, dd3); E[c3] -= dd3; E[dc3] += dd3; shared3 += dd3 < 0 ? -dd3 : dd3; }
+        if (z3 + 1 < D) { var zc3 = c3 + WH3; if (occ3[zc3] === t3) { var dz3 = (E[c3] - E[zc3]) * k; if (qadv) qmix(c3, zc3, dz3); E[c3] -= dz3; E[zc3] += dz3; shared3 += dz3 < 0 ? -dz3 : dz3; } }   // 위(+z) 이웃 — 연직 막 공유(우/하/위만 훑어 6-인접 쌍을 한 번씩만, 좌/상/아래는 이웃의 우/하/위가 커버)
       }
       sim.coupled += shared3;
       return;
@@ -1158,8 +1184,8 @@
       var c = a.center, x = a.x, y = a.y;
       var rc = c - x + (x + 1) % W;                                                    // 우(+x) 이웃 center
       var dc = ((y + 1) % H) * W + x;                                                  // 하(+y) 이웃 center (우/하만 — 쌍 중복 방지)
-      if (occ[rc] === t) { var d1 = (E[c] - E[rc]) * k; E[c] -= d1; E[rc] += d1; shared += d1 < 0 ? -d1 : d1; }
-      if (occ[dc] === t) { var d2 = (E[c] - E[dc]) * k; E[c] -= d2; E[dc] += d2; shared += d2 < 0 ? -d2 : d2; }
+      if (occ[rc] === t) { var d1 = (E[c] - E[rc]) * k; if (qadv) qmix(c, rc, d1); E[c] -= d1; E[rc] += d1; shared += d1 < 0 ? -d1 : d1; }
+      if (occ[dc] === t) { var d2 = (E[c] - E[dc]) * k; if (qadv) qmix(c, dc, d2); E[c] -= d2; E[dc] += d2; shared += d2 < 0 ? -d2 : d2; }
     }
     sim.coupled += shared;                                                             // 누적 공유 flux(통계 — 쌍 거래라 장부 무관)
   }
