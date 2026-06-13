@@ -263,6 +263,10 @@ function run(opts) {
       chat.crash();
       if (chatpersist) chat.replay(chatpersist.journal, chatpersist.snapshot);   // 라우팅 스냅샷(이 step)+tail 커맨드 replay → 라우팅+deliveries 재현. chatpersist OFF → 소실.
     }
+    // 버스 동적 구독/해지(이 step) — busReSub.at tick 의 net.step *직전*에 지정 소비자가 bus 에 sub/unsub 발신(제어 평면·정규 라우팅).
+    //   op={at,from,type:'sub'|'unsub',topic} — actor→bus 정규 net.send(시드 로그의 일부 = 결정론). 버스가 다음 step 에서 처리해 라우팅 테이블을 *양방향*으로 갱신.
+    //   미제공이면 호출 0(reg 0 불변 — unsub/동적 sub 코드 휴면). 멀티프로세스 E2E 는 busReSub 를 안 주므로 cluster.js 무수정.
+    if (opts.busReSub && bus) for (const op of opts.busReSub) if (op.at === i + 1) net.send(op.from, 'bus', { type: op.type, topic: op.topic });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });

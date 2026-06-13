@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0032](step-0032.md) — **윈도 해소의 *유계 sweep + fill 손실 retry***: 0031 §9 의 두 낙관(fill 무손실 가정·sweep 무계)을 닫는다. ⒜ fill 이 떨궈져도 *주기 sweep 의 멱등 재-scan 이 곧 내장 retry*(별도 타이머/큐 0 — 다음 주기가 미-ack seq 재발신) ⒝ sweep 을 `wfWindow=K` 유계화(미끄러지는 창) → per-sweep O(K) 비용 상한. 둘 다 durableSeq total-1 수렴.
-- **한 줄 상태**: 검증 reg 25/25(0031 비트 동일)·신규 wfretry: fill 첫시도 드롭에도 무계·유계(K=8) 둘 다 durSeq=total-1/윈도0·fills=2×F0(92~96·retry 1회씩)·dupe 0·crash{primary,p4} 전 seq 생존·desync 0. 18+1모드 ALL OK·spine **32-step 사슬**·close-step 게이트 통과.
-- **다음**: §2 참조 — 버스 영속·failover(동적 구독 선결) · 활성 중 다운타임 일반 재발행 · 비동기 결정론(🔴 최우선) · 디스크 fsync·복제 anti-entropy · 빠른 retry(ack 타임아웃).
+- **닫힌 step**: [step-0033](step-0033.md) — **버스 동적 구독/해지(runtime sub/unsub)**: 버스 failover(STATE §2 ⒝)의 선결. 0016 이래 정적 선언 spec 뿐이던 버스 라우팅 테이블에 `unsub`(sub seam 의 대칭) + 런타임 양방향 변경을 더한다. 토글은 *그 (소비자,토픽) 행* 만 바꾸고 공동 구독자·발행자는 비트 동일. 닿는 파일 svc-bus.js·topology.js 둘뿐(cluster.js 무수정).
+- **한 줄 상태**: 검증 reg 25/25(0032 비트 동일)·신규 busdyn: audit 의 svc.item.out unsub@15→re-sub@18 → A0=60/A_unsub=30/A_resub=42(gap 손실 12·at-most-once)·ranking(공동 구독자) R0=R1=R2·발행자 pub 동일·audit 다른 토픽 동일·보존/정합/desync 0. 18+1모드 ALL OK·spine **33-step 사슬**·close-step 게이트 통과.
+- **다음**: §2 참조 — 버스 영속·failover 본체(동적 구독 ✅ 깔림 → 라우팅 영속+이력 replay) · 비동기 결정론(🔴 최우선) · 활성 중 다운타임 일반 재발행 · 정리(cluster.js 45KB 재분할).
 
 ---
 
-## 2. NEXT — step-0032 후 가설 (후보, 권위는 이 절)
+## 2. NEXT — step-0033 후 가설 (후보, 권위는 이 절)
 
-**step-0032 가 윈도 해소의 fill 손실 retry·유계 sweep 으로 0031 §9 ⒜⒝ 를 닫았다(데이터 계층 write-behind 신뢰성 0023~0032 사실상 포화 — 다음은 다른 계층 전진 권장). 후보: ⒝ *버스 영속·failover*(동적 구독 선결 — bus `sub` seam 존재·unsub/영속 미착수·0016 §9-2), ⒞ *활성 중 서비스 다운타임 일반 재발행*(0025/0026 은 quiescent — 온라인 kill+재발행 핸드셰이크), ⒟ *비동기 결정론(lockstep 배리어 해제)*(논리/벡터 클럭·🔴 최우선·broker=cluster.js 대공사·0012 §9-3), ⒠ *빠른 retry*(ack 타임아웃·0032 §9).**
+**step-0033 이 버스 *동적 구독/해지*(runtime sub/unsub)로 버스 failover 의 선결을 깔았다(라우팅 테이블 런타임 양방향 변경 — 토글은 그 소비자만·공동 구독자/발행자 비트 동일). 다음 후보: ⒝ *버스 영속·failover 본체*(이제 동적 구독 ✅ — 라우팅 테이블 영속(저널/스냅샷) + 죽은 버스→backup 재협상 + 이력 replay 로 gap 무손실. 0027 이중쓰기·0028 N-replica 패턴의 버스 판·0016 §9-2), ⒞ *활성 중 서비스 다운타임 일반 재발행*(0025/0026 은 quiescent — 온라인 kill+재발행 핸드셰이크), ⒟ *비동기 결정론(lockstep 배리어 해제)*(논리/벡터 클럭·🔴 최우선·broker=cluster.js 대공사·0012 §9-3), 🔧 *정리 step*(cluster.js 45KB>30KB 박스 트리거 재분할·기능 0·reg 0).**
 
 남은 격차: ⓐ 버스·월드 *영속 0*·서비스 복구 *활성 중 다운타임 일반형 미검증* ⓑ 스냅샷 *비유계*·압축 *단일 트리거*·재전송 amplification·heartbeat×압축 미결합·채팅 in-flight/홉 신뢰 미적용 ⓒ 디스크 fsync 0·복제 anti-entropy 0·빠른 retry(ack 타임아웃)·ack-손실×신뢰 스토어(0032 §9) ⓓ 비동기 결정론(lockstep 배리어) ⓔ give-resend opSeq 견고화·clientResync 멀티프로세스 패리티(0025 §9ⓕⓖ).
 
@@ -40,7 +40,7 @@
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정 검증·대기열·티켓 만료(0001 §8.5). |
 | ⬜ | **다중 클라 결정론 복제·예측** | 월드 | 0002~0004 의 결정론 복제·예측은 *C++ 시뮬 코어 승격*에서 부활(더미는 경량 라우터). 다중 클라 intent 인터리빙·예측/롤백(0001 §8.6). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신을 암묵 신뢰(0001 §8.3) — 분산 시 서버간 인증 필요. |
-| ⬜ | **버스 단일점·분산·동적 구독** | 버스 | 0016 ServiceBus = *단일 박스·영속 0*(죽으면 서비스 경로 단절 — 새 단일점)·구독은 정적 선언 spec(동적 구독/해지·구독자 장애 감지·이력/replay 없음·unrouted=at-most-once). 월드·제어 평면·존간 핸드오프는 직접 유지(의도 — 버스 승격 여부는 후속 판단). 다중 브로커 분산(0012 §9-1)·버스 failover 후속. |
+| 🟡 | **버스 단일점·분산·영속(동적 구독 ✅)** | 버스 | 0016 ServiceBus = *단일 박스·영속 0*(죽으면 서비스 경로 단절 — 새 단일점). **0033 동적 구독/해지 ✅**(런타임 `unsub`/`sub` — 라우팅 테이블 양방향 변경·토글은 그 소비자만·gap=at-most-once). 남은 것: 라우팅 *영속 0*·이력/replay 0·구독자 장애 감지 0·다중 브로커 분산(0012 §9-1)·버스 failover 본체. 월드·제어 평면·존간 핸드오프는 직접 유지(의도). |
 | 🟡 | **서비스 영속·failover (가방 ✅+압축 ✅+저널홉 신뢰·tail·in-flight give·mint ✅·채팅 ✅+압축 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방=event sourcing 효과 저널(0017·복구 투명)+스냅샷 압축(0018). 채팅=커맨드 로그 소싱(0021)+압축(0022). write-behind 신뢰성 체인 0023~0026·영속 failover 0027~0029(§7 INDEX 전문). 단 버스 라우팅 *영속 0*·채팅 in-flight/홉 신뢰 미적용·가방 일방 give(2PC 없음·0014 §9-2). |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService = *발신하는 소비자*(consume→publish·CQRS·발행자 무수정·프로젝션==원장). 0020 = *읽기 모델 영속·late-join*(랭킹 crash→쓰기 저널 reconstruct·자기 영속 0·투영==원장 — 0019 §9 해소). 단 *quiescent restart 만*(활성 중 다운타임+재발행 미검증·0020 §9)·증분 follow 0·런타임 사이클 탐지 0. 거래소·우편·길드는 반복 미착수. |
 | ⬜ | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | "누가 어디에" SSOT·존 배치·부하 분산·인스턴스 spawn. |
@@ -80,10 +80,10 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스. 대기열·만료·재접속 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제(현실 전송)·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(재-provisioning·divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방(InventoryService) 첫 박스 — 단일 소유·쌍 거래·dupe 0 +0015 채팅(ChatService) 둘째 박스 — 채널 팬아웃·지역 격리 +0016 서비스 경로가 버스 발행/구독으로 + AuditService(관찰 소비자) +0017 가방 failover·영속(kill→저널 replay) +0018 저널 스냅샷 압축 +0019 RankingService(발신하는 소비자) +0020 읽기 모델 영속·late-join +0021 채팅 영속·failover +0022 채팅 커맨드 로그 스냅샷 압축 +0023 저널 홉 신뢰 전달 +0024 저널 홉 tail 손실 감지 +0025 in-flight give 손실 복구 +0026 **in-flight mint 손실 복구**(id-reconciliation — 클라 belief 선언→서버 re-mint→newId 채택·write-behind 신뢰성 완결) +0027 **PersistStore failover**(이중쓰기 backup·2복제) +0028 **PersistStore N-replica+quorum-read**(_journal 복제 N fan-out·생존 union 복구) +0029 **quorum write ack**(W 정족수 후 durable·durableSeq 워터마크가 정합성 윈도 가시) +0031 **정합성 윈도 해소**(quorum-fill — 주기 sweep 이 W 미달 seq 재발신→durable 전환) +0032 **유계 sweep + fill 손실 retry**(미끄러지는 K 창·주기 재-scan=내장 retry). 전부 별 프로세스·tick 무관·신성한 tick·E2E 비트 동일·은닉. 활성 중 다운타임 일반 재발행·버스 영속·거래소/우편/길드 후속 |
-| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate(`engine/Net`) +0008 핸드오프/델타 라우트 +0010 IPC +0011 실 TCP 소켓 와이어 +0012 토픽 pub/sub 버스(*전송*·소켓 층 열화 내성) +0016 **서비스 의미**(ServiceBus — 발행/구독 계약·gateway↔service 직접 결합 0·발행자 무수정 소비자 추가) +0019 **발신 소비자**(ranking 이 svc.item.out 둘째 소비자로 구독→svc.rank.out 발행 = consume→publish 루프·발행자 무수정·루프 없음). 버스 단일점 제거(분산·failover)·동적 구독·이력/replay·런타임 사이클 탐지·서버간 인증 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·지역 격리) →0016 버스 발행/구독+audit →0017~0018 가방 failover·영속·스냅샷 →0019~0020 ranking(발신 소비자)·읽기모델 late-join →0021~0022 채팅 영속·스냅샷 →0023~0026 write-behind 신뢰성 완결(홉 NAK·tail·in-flight give/mint 복구) →0027~0029 persist failover·N-replica·quorum write ack →0031~0032 정합성 윈도 해소·유계 sweep+retry(전문 §7). 전부 별 프로세스·tick 무관·신성한 tick·E2E 비트 동일·은닉. 활성 중 다운타임 일반 재발행·버스 영속·거래소/우편/길드 후속 |
+| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate(`engine/Net`) +0008 핸드오프/델타 라우트 +0010 IPC +0011 실 TCP 소켓 와이어 +0012 토픽 pub/sub 버스(*전송*·소켓 층 열화 내성) +0016 **서비스 의미**(ServiceBus — 발행/구독 계약·gateway↔service 직접 결합 0·발행자 무수정 소비자 추가) +0019 **발신 소비자**(ranking 이 svc.item.out 둘째 소비자로 구독→svc.rank.out 발행 = consume→publish 루프·발행자 무수정·루프 없음) +0033 **동적 구독/해지**(runtime `unsub`/`sub` — 라우팅 테이블 양방향 변경·토글은 그 소비자만·공동 구독자/발행자 비트 동일·gap=at-most-once = 버스 failover 의 선결). 버스 단일점 제거(분산·failover)·라우팅 영속·이력/replay·런타임 사이클 탐지·서버간 인증 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010 broker(lockstep 배리어) +0011 broker=TCP 서버 +0012 broker=버스 허브·분단 감지·펜싱 +0013 진짜 kill(소켓 close 감지)·타임아웃 추측(거짓 사망)·epoch 펜싱·재-provisioning(split-brain 0·소유자 1). broker 물리 분산·분산 epoch·진짜 비동기(배리어 해제) 후속 |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스 — 가방 효과 저널(event sourcing·write-behind)·진짜 kill→replay 로 원장 재현(복구 투명) +0018 저널 스냅샷 압축 +0020 같은 저널이 읽기 모델 복구원으로도 +0021 chatpersist +0022 채팅 커맨드 로그 스냅샷 압축 +0023 저널 홉 신뢰 수신(NAK·dedup) +0024 tail 손실 감지(heartbeat·expectedMaxSeq) +0025 in-flight give 손실 복구(가방/persist 무수정) +0026 in-flight mint 손실 복구(id-reconciliation·write-behind 신뢰성 완결) +0027 **PersistStore failover**(이중쓰기 backup·2복제) +0028 **N-replica + quorum-read**(`_journal` 복제 N fan-out·`quorumMergeJournals` 생존 union 복구 — primary 포함 N 죽음·부분쓰기에도 무손실) +0029 **quorum write ack**(`journal_ack`·`durableSeq` 워터마크 = ≥W 사본 프런티어·정합성 윈도 가시·유계) +0031 **정합성 윈도 해소**(`windowFill` sweep 이 0<ack<W seq 를 비-홀더에 재-fan-out → 워터마크 전진 → 윈도 닫힘) +0032 **유계 sweep+fill 손실 retry**(`wfWindow` 미끄러지는 창·per-sweep O(K)·주기 재-scan=내장 retry → fill 손실에도 수렴·dupe 0). 증분 스냅샷·NAK 배칭·디스크 fsync·복제 anti-entropy·빠른 retry·월드 영속·버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스 — 가방 효과 저널(event sourcing·write-behind)·진짜 kill→replay →0018 스냅샷 압축 →0020 같은 저널이 읽기모델 복구원 →0021~0022 채팅 영속·스냅샷 →0023~0026 홉 신뢰(NAK·dedup·tail·in-flight give/mint 복구) →0027 failover(이중쓰기 backup) →0028 N-replica quorum-read(생존 union·부분쓰기 무손실) →0029 quorum write ack(`durableSeq` 워터마크·정합성 윈도 가시) →0031~0032 윈도 해소(`windowFill` sweep)+유계 K 창·fill 손실 retry(전문 §7). 증분 스냅샷·디스크 fsync·복제 anti-entropy·빠른 retry·월드/버스 영속 후속 |
 
 ---
 
@@ -131,3 +131,4 @@
 | [0030](step-0030.md) | 정리 step: 박스 1개=파일 1개 분할 + verify 누적회귀 18모드 engine 승격(verify-kit) + 닫기 게이트(close-step) + 2-커밋 관행 — 기능 추가 0 | 통과 · reg 25/25(0029 비트 동일·verbatim 이동)·18모드 ALL OK·spine 30-step 사슬·step 디렉토리 267.5→203.3KB(verify 73.7→1.6KB·net-core 진입점 2.5KB) |
 | [0031](step-0031.md) | 정합성 윈도 *해소*(quorum-fill — 주기 sweep 이 W 미달 윈도 seq 를 비-홀더 스토어에 재-fan-out resend·q → durable 전환·0029 §9 감지→전환) | 통과 · windowFill 0=0030 비트 동일(reg 25/25)·OFF durableSeq T-1/윈도 24(0029 감지)·ON durableSeq total-1/윈도 0·fill 46~48·crash{primary,p4} ON 전 seq 생존/OFF 윈도소실·dupe 0·desync 0·spine 31-step 사슬 |
 | [0032](step-0032.md) | 윈도 해소의 *유계 sweep + fill 손실 retry*(`wfWindow` 미끄러지는 K 창·주기 재-scan=내장 retry·0031 §9 ⒜⒝) | 통과 · wfWindow 0=0031 비트 동일(reg 25/25)·fill 첫시도 드롭에도 무계·유계 K=8 둘 다 durSeq=total-1/윈도0·fills=2×F0(92~96)·retry↑·dupe 0·crash{primary,p4} 전 seq 생존·desync 0·spine 32-step 사슬 |
+| [0033](step-0033.md) | 버스 *동적 구독/해지*(runtime `unsub`/`sub` — 라우팅 테이블 런타임 양방향 변경·버스 failover 의 선결·0016 §9-2) | 통과 · busReSub 0=0032 비트 동일(reg 25/25)·audit svc.item.out unsub@15→re-sub@18 → A0=60/Au=30/Ar=42(gap 손실 12·at-most-once)·ranking 공동구독 R0=R1=R2·발행자 pub 동일·다른 토픽 동일·보존/정합/desync 0·spine 33-step 사슬 |

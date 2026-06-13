@@ -1,13 +1,12 @@
-// HktInfra step-0033 — 정리 step: net-core 박스 1개=파일 1개 분할 (기능 추가 0 · 외부 계약 불변 · reg 비트 동일)
-// step-0029(PersistStore quorum write ack) 위에 *구조만* 바꾼다 — CLAUDE.md "박스별 파일 분할 임계"(한 step 박스 4개 초과) 시행:
-//   누적 10 박스(Gateway·Orchestrator·EntityZone·Inventory·Chat·Bus·Audit·Ranking·PersistStore·Client)가 단일 net-core.js(128KB)에
-//   살아 매 step 의 Grep·Edit 비용이 파일 크기에 비례해 커졌다. → 박스 1개=파일 1개로 분할, 이 진입점이 require/<script> 로 묶어
-//   *동일한* export 집합을 노출한다(verify·host·cluster·panel·run.js 의 require 인터페이스 무변경).
-//   파일 구조 = 목표 토폴로지(박스=독립 서버)와 일치: gateway·orchestrator·zone·svc-inventory·svc-chat·svc-bus·svc-audit·
-//   svc-ranking·persist·client + topology(배선·run)·metrics(회계·트루스 헬퍼)·common(engine 로드·DEFAULTS).
+// HktInfra step-0033 — 버스 동적 구독/해지 (runtime sub/unsub) — bus failover(영속·재라우팅)의 선결.
+// step-0032 위에 *한 조각*만 더한다: ServiceBus 의 `unsub` 메시지(sub seam 과 대칭) + 런타임에 라우팅 테이블을 *양방향*으로 바꾸는 능력.
+//   0016 이래 버스 구독은 토폴로지 빌더의 *정적 선언 spec* 으로만 채워졌다 — 분산 버스가 죽고 살아날 때 구독이 재협상되려면(소비자가
+//   새 브로커에 재구독·이전 라우트 해지) 라우팅 테이블을 런타임에 바꾸는 토대가 먼저다. 닿는 박스 파일: svc-bus.js(unsub+회계) ·
+//   topology.js(busReSub 제어 평면 트리거) 둘뿐. 새 검증 모드 = `busdyn`(verify.js 셸 한정).
 //
-// 척추(SPINE.md) 준수: 코드 본문은 0029 verbatim 이동(동작 불변) — 신성한 tick·결정론·권위·은닉 전부 0029 그대로.
-//   headless·원격 검증: node run.js 가 이 진입점 하나를 require — 검증 경로 무변경. 회귀 0 은 reg(25/25 비트 동일)가 증명.
+// 척추(SPINE.md) 준수: 버스는 여전히 *순수 반응형*(onTick 0)·신성한 tick 밖이며 라우팅 테이블 Map 이 유일 SSOT. sub/unsub 은 제어
+//   평면(정규 net.send) — 결정론·은닉 불변. busReSub 미제공 시 unsub/동적 코드 휴면 → 회귀 0(reg 25/25 비트 동일·E2E cluster.js 무수정).
+//   headless·원격 검증: node run.js 가 이 진입점 하나를 require — 검증 경로 무변경.
 'use strict';
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;
