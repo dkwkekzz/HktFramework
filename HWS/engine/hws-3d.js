@@ -227,7 +227,8 @@
      * L-V4: 빛 칸은 ∇E(흐름량 중앙차분) *하류 방향*을 월드 좌표로 미리 재 인스턴스에 싣는다 — FS 가 시간 이류 띠로 흐름 방향을 보인다.
      * L-V5: *빈칸*(void)의 미량 E 가 수렴(∇²E<0)하면 안개 점(부드러운 스프라이트)을 따로 모은다 — 겹쳐 쌓여 볼류메트릭 안개(응결).
      * 분포 author 0: 어느 칸이 차 있는가·R·E 분포는 시뮬의 사실, 렌더러는 읽어서 큐브를 두고 도함수(∇²R·∇E·∇²E)로 셰이딩만(RENDER §6·VOXEL V-A). */
-    var satA = R.satA, satR = R.satR, STR = 11;             // 인스턴스 stride 11: (x,y,z, E,R,G,A, rough, fx,fy,fz)
+    var satA = R.satA, satR = R.satR, STR = 12;             // 인스턴스 stride 12: (x,y,z, E,R,G,A, rough, fx,fy,fz, q[L-Q])
+    var qf = sim.qInit ? (sim.q || null) : null;            // L-Q 에너지 질 q — 시뮬 발현(qInit) 시에만 읽음(RENDER §8). 미발현이면 null → 인스턴스에 −1(렌즈 no-op·레거시 발광 유지)
     var va = R.voxArr, vn = 0, vw = R.voxArrW, wn = 0, fa = R.fogArr, fn = 0;
     if (!va || va.length < 4096 * STR) va = R.voxArr = new Float32Array(4096 * STR);
     if (!vw || vw.length < 1024 * STR) vw = R.voxArrW = new Float32Array(1024 * STR);
@@ -273,19 +274,19 @@
         if ((wn + 1) * STR > vw.length) { var nw = new Float32Array(vw.length * 2); nw.set(vw); vw = R.voxArrW = nw; }
         var ow = wn * STR;
         vw[ow] = xx; vw[ow + 1] = yy; vw[ow + 2] = z; vw[ow + 3] = Ev; vw[ow + 4] = Rv; vw[ow + 5] = Gf ? Gf[i] : 0; vw[ow + 6] = Av; vw[ow + 7] = 0;
-        vw[ow + 8] = 0; vw[ow + 9] = 0; vw[ow + 10] = 0;
+        vw[ow + 8] = 0; vw[ow + 9] = 0; vw[ow + 10] = 0; vw[ow + 11] = qf ? qf[i] : -1;   // L-Q 질(고인 물도 제 색온도로)
         wn++;
       } else {
         if ((vn + 1) * STR > va.length) { var nv = new Float32Array(va.length * 2); nv.set(va); va = R.voxArr = nv; }
         var o = vn * STR;
         va[o] = xx; va[o + 1] = yy; va[o + 2] = z; va[o + 3] = Ev; va[o + 4] = Rv; va[o + 5] = Gf ? Gf[i] : 0; va[o + 6] = Av; va[o + 7] = rough;
-        va[o + 8] = fwx; va[o + 9] = fwy; va[o + 10] = fwz;
+        va[o + 8] = fwx; va[o + 9] = fwy; va[o + 10] = fwz; va[o + 11] = qf ? qf[i] : -1;   // L-Q 질(흐르는 빛=흑체 색온도)
         vn++;
       }
     }
     R.voxN = vn; R.voxNW = wn; R.fogN = fn;
     if (vn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVox); gl.bufferData(gl.ARRAY_BUFFER, va.subarray(0, vn * STR), gl.DYNAMIC_DRAW); }
-    if (wn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, vw.subarray(0, wn * STR), gl.DYNAMIC_DRAW); }
+    // 물(반투명) 업로드는 *카메라 정렬* 후로 미룬다(L-V2+ 물 정렬) — eye 확정(아래) 뒤 뒤→앞으로 정렬해 올린다(겹친 물 순서 의존 제거).
     if (fn) { gl.bindBuffer(gl.ARRAY_BUFFER, R.bufFog); gl.bufferData(gl.ARRAY_BUFFER, fa.subarray(0, fn * 4), gl.DYNAMIC_DRAW); }
     /* 틱 단위 캐시 — 개체수 히스토리·고임 (엔진 2D 와 같은 주기) */
     if (sim.tick !== S.lastTick) {
@@ -309,6 +310,22 @@
     var eye = camEye();                                     // 월드 카메라 위치 — 세계 해석 셰이더 프레넬/글린트 시선벡터
     var Vm = mLookAt(eye, [cam.cx + cam.tx, cam.cy, cam.cz + cam.tz], [0, 1, 0]);
     var MVP = mMul(Pm, Vm);
+    /* ── 물 정렬(L-V2+): 반투명 물 큐브를 카메라 거리 *내림차순*(뒤→앞)으로 정렬해 업로드 — over-블렌드는 순서 의존이라
+     * 정렬 없이 인스턴스 순(셀 인덱스)으로 그리면 겹친 물기둥에서 뒤 큐브가 앞을 덮어 색·알파가 틀어진다(깊은 물에서 q 색온도[L-Q]도 뭉개짐).
+     * 인스턴스 월드 중심 = (x, z, y)(VS center 매핑). dist² 로 정렬해 먼 물부터 그린다(올바른 알파 누적). 분포 author 0 — 그리는 *순서*만 바꿈. ── */
+    if (R.voxNW) {
+      var wnS = R.voxNW, vwS = R.voxArrW, STRW = 12;
+      var wIdx = R.wIdx; if (!wIdx || wIdx.length < wnS) wIdx = R.wIdx = new Int32Array(Math.max(1024, wnS * 2));
+      var wDist = R.wDist; if (!wDist || wDist.length < wnS) wDist = R.wDist = new Float32Array(Math.max(1024, wnS * 2));
+      for (var wi = 0; wi < wnS; wi++) {
+        var wo = wi * STRW, dxw = vwS[wo] - eye[0], dyw = vwS[wo + 2] - eye[1], dzw = vwS[wo + 1] - eye[2];  // 월드 중심 (x,z,y)
+        wIdx[wi] = wi; wDist[wi] = dxw * dxw + dyw * dyw + dzw * dzw;
+      }
+      var wView = wIdx.subarray(0, wnS); wView.sort(function (a, b) { return wDist[b] - wDist[a]; });        // 먼 것 먼저(뒤→앞)
+      var wSort = R.voxArrWS; if (!wSort || wSort.length < wnS * STRW) wSort = R.voxArrWS = new Float32Array(Math.max(1024 * STRW, wnS * STRW * 2));
+      for (var wj = 0; wj < wnS; wj++) { var src = wIdx[wj] * STRW, dst = wj * STRW; for (var wk = 0; wk < STRW; wk++) wSort[dst + wk] = vwS[src + wk]; }
+      gl.bindBuffer(gl.ARRAY_BUFFER, R.bufVoxW); gl.bufferData(gl.ARRAY_BUFFER, wSort.subarray(0, wnS * STRW), gl.DYNAMIC_DRAW);
+    }
     gl.viewport(0, 0, glcv.width, glcv.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     /* 오버레이 라인 — 레거시 뷰는 하이트필드 위 마커(buildLines), voxel 뷰는 3D 박스·기둥·호버 큐브(buildLines3D). 별 버퍼 */
@@ -1039,9 +1056,10 @@
     'layout(location=3) in vec4 aField;',                   // (E,R,G태그,A) — 인스턴스별
     'layout(location=4) in float aRough;',                  // 거칠기 |∇²R|(L-V3) — 인스턴스별(고체만 >0)
     'layout(location=5) in vec3 aFlow;',                    // ∇E 하류 방향·세기(월드, L-V4) — 인스턴스별(빛만 ≠0)
+    'layout(location=6) in float aQ;',                      // 에너지 질 q(L-Q) — 인스턴스별([0,1], 미발현 −1)
     'uniform mat4 uMVP;',
     'uniform float uSat, uSatR, uSatA, uScale;',
-    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out float vAlpha; out vec3 vWorld; out float vRough; out vec3 vFlow;',
+    'out vec3 vBase; out vec3 vNormal; out float vGlow; out float vHot; out float vWet; out float vAlpha; out vec3 vWorld; out float vRough; out vec3 vFlow; out float vQ;',
     'float actFrac(float a){ return smoothstep(0.16, 1.0, clamp(a/uSatA, 0.0, 1.0)); }', // A→흐르는 에너지 비율
     'vec3 geneCol(float tag){',                             // 유전형 클론 색 — VS_WORLD 와 동일 절차적 해시(혈통 무한 분화, RENDER §4)
     '  int g=int(tag+0.5);',
@@ -1070,7 +1088,7 @@
     '    wet=1.0; alpha=clamp(0.30+0.62*depth, 0.30, 0.94);', // 얕으면 더 비치고(투명)·깊으면 짙음
     '  }',
     '  else { base = vec3(0.04,0.07,0.11); }',              // 빛만 있는 저밀도 칸 — 어두운 바탕에 발광 얹힘
-    '  vBase=base; vHot=af; vWet=wet; vAlpha=alpha; vRough=aRough; vFlow=aFlow;',
+    '  vBase=base; vHot=af; vWet=wet; vAlpha=alpha; vRough=aRough; vFlow=aFlow; vQ=aQ;',
     '  vGlow=af*(0.55 + 0.9*clamp(flowE/uSat, 0.0, 1.0));', // 발광 = 흐르는 E·A (클수록 밝게)
     '  vNormal=aNrm;',                                      // 축 정렬 큐브 — 모델 회전 없음(법선 그대로·FS 가 거칠기로 변조)
     '  vec3 center=vec3(aCell.x, aCell.z, aCell.y);',       // sim-z = 월드 위(y) · sim-y = 월드 깊이(z)
@@ -1082,7 +1100,7 @@
   var FS_VOXEL = [
     '#version 300 es',
     'precision highp float;',
-    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in float vAlpha; in vec3 vWorld; in float vRough; in vec3 vFlow;',
+    'in vec3 vBase; in vec3 vNormal; in float vGlow; in float vHot; in float vWet; in float vAlpha; in vec3 vWorld; in float vRough; in vec3 vFlow; in float vQ;',
     'uniform vec3 uLight, uEye;',
     'uniform float uTime, uSat;',
     'out vec4 o;',
@@ -1090,6 +1108,13 @@
     '  p=fract(p*vec3(0.1031,0.1030,0.0973));',
     '  p+=dot(p, p.yxz+33.33);',
     '  return fract((p.xxy+p.yxx)*p.zyx)*2.0-1.0;',
+    '}',
+    'vec3 blackbody(float q){',                             // L-Q 흑체 색온도 — 질 q∈[0,1]→색(저질 붉음→중 주황→고 백열). 2D 패널 미리보기와 동일 곡선(RENDER §8)
+    '  q=clamp(q,0.0,1.0);',
+    '  vec3 c = (q<0.5)',
+    '    ? vec3(110.0+q*2.0*120.0, 30.0+q*2.0*90.0, 20.0+q*2.0*20.0)',     // 붉음(110,30,20)→주황(230,120,40)
+    '    : vec3(230.0+(q-0.5)*2.0*25.0, 120.0+(q-0.5)*2.0*110.0, 40.0+(q-0.5)*2.0*185.0);',  // 주황→백열(255,230,225)
+    '  return c/255.0;',
     '}',
     'void main(){',
     '  vec3 N=normalize(vNormal);',
@@ -1099,7 +1124,8 @@
     '  }',
     '  float d=max(dot(N,uLight),0.0);',
     '  vec3 lit=vBase*(0.34+0.66*d);',                      // 면 법선 램버트(큐브 면마다 음영)
-    '  vec3 fire=mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 뜨거울수록 흰빛
+    '  vec3 fire = (vQ>=0.0) ? blackbody(vQ)',              // L-Q: 질 발현 시 흑체 색온도(원인 있는 색 — 별 근처 백열↔원거리 붉음·RENDER §8)
+    '                        : mix(vec3(1.0,0.55,0.18), vec3(1.0,0.95,0.72), vHot);', // 미발현이면 레거시(활성도 흰빛) — 렌즈 no-op
     '  float flowVis=1.0;',                                 // L-V4 ∇E 바람 — 하류 방향으로 이동하는 밝기 띠(이류)
     '  float flowMag=length(vFlow);',
     '  if (flowMag>1e-4){',
@@ -1112,6 +1138,7 @@
     '    vec3 V=normalize(uEye - vWorld);',
     '    float fres=0.03 + 0.97*pow(1.0-max(dot(N,V),0.0), 5.0);', // 비스듬할수록 표면 반사↑(정면=투과)
     '    vec3 sky=vec3(0.34,0.48,0.64);',                   // 물이 반사하는 하늘색
+    '    if (vQ>=0.0){ lit = mix(lit, blackbody(vQ), 0.55*clamp(vQ,0.0,1.0)); }', // L-Q: 고인 물도 제 색온도로(고질 웅덩이=덥혀진 색·저질=찬 남빛 불변·침강 hot plume 가 보임)
     '    vec3 rgb=mix(lit, sky, fres) + emit;',             // 투과(바닥 비침) ↔ 표면 반사 보간
     '    o=vec4(rgb, clamp(max(vAlpha, fres*0.9), 0.0, 1.0));', // 가장자리(프레넬) 더 또렷이
     '  } else {',
@@ -1295,15 +1322,17 @@
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);   // 큐브 코너
       gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);  // 면 법선
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, R.bufCubeIdx);                                  // VAO 가 인덱스 버퍼 기억
-      gl.bindBuffer(gl.ARRAY_BUFFER, instBuf);                                               // 인스턴스 stride 44: (x,y,z, E,R,G,A, rough, fx,fy,fz)
-      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 44, 0);    // 셀 (x,y,z)
+      gl.bindBuffer(gl.ARRAY_BUFFER, instBuf);                                               // 인스턴스 stride 48: (x,y,z, E,R,G,A, rough, fx,fy,fz, q)
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 48, 0);    // 셀 (x,y,z)
       gl.vertexAttribDivisor(2, 1);
-      gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 4, gl.FLOAT, false, 44, 12);   // 필드 (E,R,G,A)
+      gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 4, gl.FLOAT, false, 48, 12);   // 필드 (E,R,G,A)
       gl.vertexAttribDivisor(3, 1);
-      gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 44, 28);   // 거칠기(∇R, L-V3)
+      gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 48, 28);   // 거칠기(∇R, L-V3)
       gl.vertexAttribDivisor(4, 1);
-      gl.enableVertexAttribArray(5); gl.vertexAttribPointer(5, 3, gl.FLOAT, false, 44, 32);   // ∇E 하류 방향(월드, L-V4)
+      gl.enableVertexAttribArray(5); gl.vertexAttribPointer(5, 3, gl.FLOAT, false, 48, 32);   // ∇E 하류 방향(월드, L-V4)
       gl.vertexAttribDivisor(5, 1);
+      gl.enableVertexAttribArray(6); gl.vertexAttribPointer(6, 1, gl.FLOAT, false, 48, 44);   // 에너지 질 q(L-Q 흑체 색온도) — 미발현 −1
+      gl.vertexAttribDivisor(6, 1);
     }
     bindVoxVAO(R.vaoV, R.bufVox);
     bindVoxVAO(R.vaoVW, R.bufVoxW);
