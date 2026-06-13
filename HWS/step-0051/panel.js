@@ -80,16 +80,16 @@
         { kind: 'check', id: 'auto', label: '자동 명암', def: true, view: true, title: '화면 밝기를 현재 최대 E 에 맞춰 정규화' }
       ]},
       { items: [
-        { kind: 'check', id: 'degradec', label: '에너지 질 강등(둘째 법칙 — q 가 식어내림)', def: true, gateFor: 'kDegrade', title: 'step-0049 V?: E 에 내재 질 q∈[0,1](농축도/온도)을 더하고 매 tick q -= q·kDegrade 단조 감소(둘째 법칙). 엑서지 X=Σq·E 가 파괴된다(닫힌 세계는 열적 평형으로 식음). q 는 E 에 올라탄 intensive 속성(단일 척추)·강등은 E 미접촉(장부 불변). 끄면(kDegrade=0) q 미작동(질 축 없음 — 직전 step 비트 동일). 위 "에너지 질 강등 ON" 버튼이 데모 아레나. 우측 화면이 흑체 색(L-Q 미리보기).' },
+        { kind: 'check', id: 'degradec', label: '에너지 질 강등(둘째 법칙 — q 가 식어내림)', def: false, gateFor: 'kDegrade', title: 'step-0049 V?: E 에 내재 질 q∈[0,1](농축도/온도)을 더하고 매 tick q -= q·kDegrade 단조 감소(둘째 법칙). 엑서지 X=Σq·E 가 파괴된다(닫힌 세계는 열적 평형으로 식음). q 는 E 에 올라탄 intensive 속성(단일 척추)·강등은 E 미접촉(장부 불변). 끄면(kDegrade=0) q 미작동(질 축 없음 — 직전 step 비트 동일). 위 "에너지 질 강등 ON" 버튼이 데모 아레나. 우측 화면이 흑체 색(L-Q 미리보기).' },
         { kind: 'slider', id: 'kDegrade', label: 'kDegrade (질 강등률)', param: 'kDegrade', min: 0, max: 0.2, step: 0.01, def: 0.05, fixed: 2, gateBy: 'degradec', gateOff: 0, title: '질 강등률(둘째 법칙). 0 = off = q 미작동·미해시(직전 step 비트 동일·회귀 0). >0 이면 매 tick q 가 이 비율로 식는다(엑서지 단조 파괴). E 미접촉(질만 내림)이라 장부·sumE 불변. *리셋 불필요* — 즉시 적용.' },
         { kind: 'slider', id: 'qInit0', label: 'q 초기 질', param: 'qInit0', min: 0, max: 1, step: 0.05, def: 1.0, fixed: 2, title: 'q 초기 베이스라인(첫 강등 tick 에 전 칸을 이 값으로). 1.0 = 원시 고질(뜨거운 시작 → 식어내림). 0 = 냉각 베이스라인(별 질 생산 데모용 — 별이 유일한 질 source 라 구배가 또렷). *리셋 시 적용*.' }
       ]},
       { items: [
-        { kind: 'check', id: 'starqualc', label: '별 질 생산(고질 source — 별 근처가 백열·질 구배)', def: true, gateFor: 'kStarQual', title: 'step-0050 V?: 별[핵융합]이 주입하는 E 를 고질(q→kStarQual)로 만든다 — 주입 칸 q 를 질량가중 혼합(q←(q·E+kStarQual·per)/(E+per))으로 끌어올림. 별 근처는 매 tick 재충전·degrade(둘째 법칙)가 나머지를 식힘 → *질 구배*(고질 별 근처 ↔ 저질 원거리) 창발 = 슈뢰딩거 낙차의 원천(렌더 L-Q 본 페이로프). 질은 *오직 source(별)*서 생산·혼합은 E 미접촉(장부 불변). 끄면(kStarQual=0) 별이 E 는 주입해도 질 0(직전 step 비트 동일). degrade 위에 얹힌다(질 축 살아야[degrade on] 별이 고질을 싣는다). 위 "별 질 생산 ON" 버튼이 데모 아레나.' },
+        { kind: 'check', id: 'starqualc', label: '별 질 생산(고질 source — 별 근처가 백열·질 구배)', def: false, gateFor: 'kStarQual', title: 'step-0050 V?: 별[핵융합]이 주입하는 E 를 고질(q→kStarQual)로 만든다 — 주입 칸 q 를 질량가중 혼합(q←(q·E+kStarQual·per)/(E+per))으로 끌어올림. 별 근처는 매 tick 재충전·degrade(둘째 법칙)가 나머지를 식힘 → *질 구배*(고질 별 근처 ↔ 저질 원거리) 창발 = 슈뢰딩거 낙차의 원천(렌더 L-Q 본 페이로프). 질은 *오직 source(별)*서 생산·혼합은 E 미접촉(장부 불변). 끄면(kStarQual=0) 별이 E 는 주입해도 질 0(직전 step 비트 동일). degrade 위에 얹힌다(질 축 살아야[degrade on] 별이 고질을 싣는다). 위 "별 질 생산 ON" 버튼이 데모 아레나.' },
         { kind: 'slider', id: 'kStarQual', label: 'kStarQual (별 주입 E 의 질)', param: 'kStarQual', min: 0, max: 1, step: 0.05, def: 1.0, fixed: 2, gateBy: 'starqualc', gateOff: 0, title: '별 주입 E 의 질(intensive, [0,1]). 0 = off = 블렌딩 미진입(직전 step 비트 동일·회귀 0·이중 가드: qInit=false 면도 미진입). >0 이면 별 주입 칸 q 가 이 값까지 질량가중으로 떠오름(고질 source). E 미접촉(질만 올림)이라 장부 불변. *리셋 불필요* — 즉시 적용.' }
       ]},
       { items: [
-        { kind: 'check', id: 'qadvc', label: 'q advection(질이 E 흐름에 동승 — 침강 hot plume)', def: true, gateFor: 'kQAdvect', title: 'step-0051 V?: gravity(①g)가 셀 E 의 일부를 아래(z−1)로 유출할 때, 그 흐른 E 의 질(donor q)을 받는 칸에 질량가중 혼합(q_below←(q_below·E_below+q_donor·flow)/(E_below+flow))으로 싣는다 → 하강하는 고질 E 가 제 열을 데리고 내려간다 = 침강 hot plume(별빛 hot rain 이 질을 데리고 바다로). 0050 source·0049 sink 의 *수송* 짝. 끄면(kQAdvect=0) 하강 E 가 질 안 데려감(질이 천장에 stranded·직전 step 비트 동일). gravity 안에 얹힘(kGravity>0·D>1 이라야 작동)·degrade 위에(질 축 살아야). 위 "q advection ON" 버튼이 데모 아레나.' },
+        { kind: 'check', id: 'qadvc', label: 'q advection(질이 E 흐름에 동승 — 침강 hot plume)', def: false, gateFor: 'kQAdvect', title: 'step-0051 V?: gravity(①g)가 셀 E 의 일부를 아래(z−1)로 유출할 때, 그 흐른 E 의 질(donor q)을 받는 칸에 질량가중 혼합(q_below←(q_below·E_below+q_donor·flow)/(E_below+flow))으로 싣는다 → 하강하는 고질 E 가 제 열을 데리고 내려간다 = 침강 hot plume(별빛 hot rain 이 질을 데리고 바다로). 0050 source·0049 sink 의 *수송* 짝. 끄면(kQAdvect=0) 하강 E 가 질 안 데려감(질이 천장에 stranded·직전 step 비트 동일). gravity 안에 얹힘(kGravity>0·D>1 이라야 작동)·degrade 위에(질 축 살아야). 위 "q advection ON" 버튼이 데모 아레나.' },
         { kind: 'slider', id: 'kQAdvect', label: 'kQAdvect (질 동승 0/1)', param: 'kQAdvect', min: 0, max: 1, step: 1, def: 1, fixed: 0, gateBy: 'qadvc', gateOff: 0, title: 'q advection 마스터(0/1). 0 = off = advection 미진입(하강 E 가 질 안 데려감·직전 step 비트 동일·회귀 0·이중 가드: qInit=false 면도 미진입). 1 = on(gravity 하향 유출에 질 동승). E 미접촉(gravity 가 옮긴 E 의 질만 따라감)이라 장부 불변. *리셋 불필요* — 즉시 적용.' }
       ]},
       { items: [
@@ -266,7 +266,7 @@
         if (mxE > 1e-6) for (var yq = 0; yq < H; yq++) for (var xq = 0; xq < W; xq++) {
           var jq = yq * W + xq, eq = Eq[jq]; if (eq < mxE * 0.04) continue;
           var bb = blackbody(q[jq]), inten = eq / mxE; if (inten > 1) inten = 1;
-          ctx.fillStyle = 'rgba(' + bb[0] + ',' + bb[1] + ',' + bb[2] + ',' + (0.85 * inten).toFixed(3) + ')';
+          ctx.fillStyle = 'rgba(' + bb[0] + ',' + bb[1] + ',' + bb[2] + ',' + (0.55 * inten).toFixed(3) + ')';
           ctx.fillRect(xq * SCALE, yq * SCALE, SCALE, SCALE);
         }
       }

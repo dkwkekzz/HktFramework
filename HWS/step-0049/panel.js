@@ -74,7 +74,7 @@
         { kind: 'check', id: 'auto', label: '자동 명암', def: true, view: true, title: '화면 밝기를 현재 최대 E 에 맞춰 정규화' }
       ]},
       { items: [
-        { kind: 'check', id: 'degradec', label: '에너지 질 강등(둘째 법칙 — q 가 식어내림)', def: true, gateFor: 'kDegrade', title: 'step-0049 V?: E 에 내재 질 q∈[0,1](농축도/온도)을 더하고 매 tick q -= q·kDegrade 단조 감소(둘째 법칙). 엑서지 X=Σq·E 가 파괴된다(닫힌 세계는 열적 평형으로 식음). q 는 E 에 올라탄 intensive 속성(단일 척추)·강등은 E 미접촉(장부 불변). 끄면(kDegrade=0) q 미작동(질 축 없음 — 직전 step 비트 동일). 위 "에너지 질 강등 ON" 버튼이 데모 아레나. 우측 화면이 흑체 색(L-Q 미리보기).' },
+        { kind: 'check', id: 'degradec', label: '에너지 질 강등(둘째 법칙 — q 가 식어내림)', def: false, gateFor: 'kDegrade', title: 'step-0049 V?: E 에 내재 질 q∈[0,1](농축도/온도)을 더하고 매 tick q -= q·kDegrade 단조 감소(둘째 법칙). 엑서지 X=Σq·E 가 파괴된다(닫힌 세계는 열적 평형으로 식음). q 는 E 에 올라탄 intensive 속성(단일 척추)·강등은 E 미접촉(장부 불변). 기본 off(kDegrade=0) = 직전 step 비트 동일·정상 세계 뷰(질 오버레이 없음). 위 "에너지 질 강등 ON" 버튼이 데모 아레나(켜면 우측 흑체 색 미리보기 L-Q).' },
         { kind: 'slider', id: 'kDegrade', label: 'kDegrade (질 강등률)', param: 'kDegrade', min: 0, max: 0.2, step: 0.01, def: 0.05, fixed: 2, gateBy: 'degradec', gateOff: 0, title: '질 강등률(둘째 법칙). 0 = off = q 미작동·미해시(직전 step 비트 동일·회귀 0). >0 이면 매 tick q 가 이 비율로 식는다(엑서지 단조 파괴). E 미접촉(질만 내림)이라 장부·sumE 불변. *리셋 불필요* — 즉시 적용.' },
         { kind: 'slider', id: 'qInit0', label: 'q 초기 질', param: 'qInit0', min: 0, max: 1, step: 0.05, def: 1.0, fixed: 2, title: 'q 초기 베이스라인(첫 강등 tick 에 전 칸을 이 값으로). 1.0 = 원시 고질(뜨거운 시작 → 식어내림). 후속의 별 질 생산이 이 식음에 맞서 구배를 세운다(고질 별 근처 ↔ 저질 원거리). *리셋 시 적용*.' }
       ]},
@@ -252,7 +252,7 @@
         if (mxE > 1e-6) for (var yq = 0; yq < H; yq++) for (var xq = 0; xq < W; xq++) {
           var jq = yq * W + xq, eq = Eq[jq]; if (eq < mxE * 0.04) continue;
           var bb = blackbody(q[jq]), inten = eq / mxE; if (inten > 1) inten = 1;
-          ctx.fillStyle = 'rgba(' + bb[0] + ',' + bb[1] + ',' + bb[2] + ',' + (0.85 * inten).toFixed(3) + ')';
+          ctx.fillStyle = 'rgba(' + bb[0] + ',' + bb[1] + ',' + bb[2] + ',' + (0.55 * inten).toFixed(3) + ')';
           ctx.fillRect(xq * SCALE, yq * SCALE, SCALE, SCALE);
         }
       }
