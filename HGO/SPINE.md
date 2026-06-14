@@ -112,6 +112,20 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 >
 > **누적 함정 금지**: ① §7 INDEX 는 literal 1줄(문단 금지) ② §2·§5 에서 큰 호(arc)를 step별로 재나열 금지 — 서사 SSOT 는 이 SPINE §8 로드맵, STATE 는 직전 2~3 step + 포인터만 ③ §3 OPEN GAPS 에 ✅해소 격차 전문 보존 금지 ④ §4 DURABLE 은 *여러 step 이 반복 참조하는 불변*만. STATE 가 ~30KB 넘으면 이 네 함정부터 정리.
 
+### 6.1 시각화·검증 도구 — 누적하지 말고 공유하라
+
+**쌓여야 할 것과 쌓이면 안 될 것을 가른다.** ✅ *법칙*은 append-only 로 쌓인다(`engine/hgo-laws.js`, 노브=0 → 회귀 0). ❌ *뷰어·패널·검증기*는 쌓이지 않는다 — 옛 방식처럼 step 마다 html·panel·verify 를 복사해 누적하는 것을 **금지**한다(비효율·무의미한 중복).
+
+대신 한 step 이 더하는 시각화/검증 정보는 **장면 기술자(scene) 한 항**으로 통일한다 — `engine/scenes.js` 에 `{ id:'step-NNNN', init(초기 원자 배치), knobs, watch(관찰 지표), assert(가설 수치) }` ~10줄. **이 한 항이 세 소비자의 단일 출처**다(DRY):
+
+- **헤드리스 검증** `engine/verify.js step-NNNN` — 4기둥 + 장면 assert 를 수치 출력 (per-step verify.js 없음).
+- **골든 해시** — 같은 장면을 동결해 회귀 0 앵커.
+- **단일 뷰어** `viewer.html` — step 선택기에서 그 장면을 골라 "여기서 뭘 했는지"를 보여줌. 노브 패널은 엔진 노브에서 자동 생성.
+
+> **재현성은 복사가 아니라 결정론에서 온다.** 단일 뷰어로 옛 step 장면을 불러도 *결정론(같은 시드 → 같은 결과) + 동결 장면 + 회귀 0(노브=0 → 비트 동일)* 이 그때와 비트까지 똑같이 재현한다. 그래서 옛 step html 을 따로 보관할 필요가 없다. 이 불변식이 단일 뷰어를 안전하게 만든다.
+
+> **부트스트랩**: 위 공용 하네스(`viewer.html`·`engine/verify.js`·`engine/scenes.js`·골든)는 *원자 기반 구축* step 들이 한 번 만든다. 이후 step 은 하네스를 건드리지 않고 *법칙 1항 + 장면 1항*만 더한다.
+
 ---
 
 ## 7. 트랙 로스터 — 소유 파일 disjoint (병행·세션 분리)
@@ -120,7 +134,7 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 
 | 트랙 | 상태 | 소유 파일 (활성 시) | 활성 게이트 |
 |---|---|---|---|
-| **atom (원자)** | 🟢 활성 | `STATE.md` · `steps/*` · `engine/hgo-*.js` · `engine/validate/*` · `engine/new-step.js` | — (척추 보유·즉시) |
+| **atom (원자)** | 🟢 활성 | `STATE.md` · `steps/*` · `engine/hgo-*.js` · `engine/scenes.js` · `engine/verify.js` · `viewer.html` · `engine/validate/*` | — (척추 보유·즉시) |
 | **render (시각화)** | ⚪ 휴면 | `RENDER.md` · `RENDER-STATE.md` · `engine/hgo-render.js`(+ 프레젠테이션 한정 UI) | 방출(요건3)이 atom 트랙에 실린 뒤 — 읽을 빛이 생기면 |
 | **net (MMO)** | ⚪ 휴면 | `NET.md` · `NET-STATE.md` · `engine/hgo-net.js` | 결정론·보존이 안정되고 *공유할 상태*가 충분히 풍부해진 뒤 |
 
@@ -144,7 +158,7 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 
 ## 9. 검증 4기둥 (매 step 통과해야 닫을 수 있다)
 
-JS 결정론 샌드박스에서, 매 step 은 `step-NNNN/verify.js` 로 다음을 수치로 증명한다:
+JS 결정론 샌드박스에서, 매 step 은 공용 `engine/verify.js step-NNNN`(그 step 의 장면을 읽음 — §6.1)로 다음을 수치로 증명한다:
 
 1. **회귀 0** — 새로 더한 항(노브)을 끄면(계수=0) 직전 step 과 **비트 단위 동일**(`reg`, maxDiff=0). 새 법칙은 노브=0 → early-return.
 2. **닫힌 장부** — Q·B·L·E 보존 잔차 ≤ 임계(미시 ~1e-6 / 거시 ~1e-7). *비가역(핵 변환)이라도 닫힘.*

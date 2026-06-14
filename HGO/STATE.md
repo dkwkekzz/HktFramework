@@ -21,7 +21,7 @@
 
 ### step-0001 가설 (▶ 즉시 다음 step — Phase A)
 
-**조각 = 원자를 존재시킨다.** JS 결정론 샌드박스를 부트스트랩하고, 개별 원자(다발: Z·N·e·x·r·p)를 빈 2D/3D 무대에 띄워 *자유 운동*(상호작용 0·경계 wrap 또는 반사)시킨다. 이번 step 이 엔진 인프라(`engine/hgo-*.js` · `engine/validate/verify-sim-engine.js` · `golden-sim.json` · `engine/new-step.js`)와 검증 4기둥 토대를 깐다.
+**조각 = 원자를 존재시킨다.** JS 결정론 샌드박스를 부트스트랩하고, 개별 원자(다발: Z·N·e·x·r·p)를 빈 2D/3D 무대에 띄워 *자유 운동*(상호작용 0·경계 wrap 또는 반사)시킨다. 이번 step 이 **공용 하네스를 한 번 깐다**: `engine/hgo-*.js`(엔진) · `engine/scenes.js`(장면 레지스트리) · `engine/verify.js`(공용 헤드리스 검증) · `viewer.html`(단일 뷰어·step 선택기) · `engine/validate/*`(골든). 이후 step 은 하네스를 건드리지 않고 *법칙 1항 + 장면 1항*만 더한다(SPINE §6.1 — 복사·누적 폐기).
 
 - **더하는 것**: 원자 자료구조 + 운동 적분(symplectic/Euler, 결정론) + 보존 장부(Q·B·L·E 합산) + 빈 무대.
 - **회귀 0 토대**: 이번이 첫 step 이라 비교 대상이 없다 — 대신 *결정론*(같은 시드 → 같은 해시)과 *보존*(자유 운동서 E·운동량 보존 잔차)을 앵커로 박는다. step-0002 부터 새 법칙=노브0 → 회귀 0.
