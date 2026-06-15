@@ -295,6 +295,63 @@
         ];
       },
     },
+
+    'step-0006': {
+      id: 'step-0006',
+      title: '산란이 방향을 바꾼다 (각도 분포 + 최근접 원자 — 산란 정밀화)',
+      desc: 'step-0005 산란은 *전방*으로만 튀고 타깃을 *배열 인덱스 순*으로 골랐다(검토 지적). 이를 정밀화: ' +
+            '노브 scatterAngular 로 산란이 *등방 각도 분포*(광자가 진짜 방향을 바꿈)·*반경 내 최근접 원자* 선택으로 바뀐다. ' +
+            '게이트라서 노브를 끄면 step-0005 와 비트 동일(회귀 0). 2D 에너지·운동량을 정확히 보존하며, ' +
+            '이동 원자에서는 청색이동(inverse Compton)도 창발한다.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.7 ? 1 + ((rng() * 2) | 0) : 0;   // 70% 들뜸: 준위 1~2, 초기 최대 2
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // 정지 — 총 운동량 0 에서 출발
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1, kProp: 1, kScatter: 0.5, scatterR: 12, scatterAngular: 1 } };
+      },
+
+      watch(sim, K) {
+        let maxLevel = 0, px = 0, py = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0, m = K.mass(a); if (xi > maxLevel) maxLevel = xi; px += m * a.vx; py += m * a.vy; }
+        for (const p of sim.photons) { px += p.px || 0; py += p.py || 0; }
+        const dn = sim.deflectN | 0;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          scatters: sim.scatterCount | 0,
+          maxLevel,
+          meanDeflect: +(dn ? sim.deflectSum / dn : 0).toFixed(4),   // 평균 편향각(rad) — 전방-전용이면 0
+          totP: +Math.hypot(px, py).toExponential(2),                // 총 운동량(보존 → ≈0)
+        };
+      },
+
+      // 가설: ① 산란이 각도 분포(평균 편향각>0.1 rad, 전방-전용이면 0) ② 빛이 원자 재여기(산란>0·최대 준위≥3) ③ 2D 운동량 보존(원자+광자≈0).
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const dn = sim.deflectN | 0, meanDeflect = dn ? sim.deflectSum / dn : 0;
+        const scatters = sim.scatterCount | 0;
+        let maxLevel = 0, px = 0, py = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0, m = K.mass(a); if (xi > maxLevel) maxLevel = xi; px += m * a.vx; py += m * a.vy; }
+        for (const p of sim.photons) { px += p.px || 0; py += p.py || 0; }
+        const Ptot = Math.hypot(px, py);
+        return [
+          { name: '산란이 각도 분포로 방향 바꿈(평균 편향각>0.1 rad)', pass: dn > 0 && meanDeflect > 0.1, value: +meanDeflect.toFixed(4) },
+          { name: '빛이 원자 재여기(산란>0, 최대 준위≥3)', pass: scatters > 0 && maxLevel >= 3, value: scatters },
+          { name: '2D 운동량 보존(원자+광자 ≈0)', pass: Ptot < 1e-9, value: +Ptot.toExponential(2) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

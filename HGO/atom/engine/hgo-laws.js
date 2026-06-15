@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -101,6 +101,7 @@
     if (!k) return;                  // 노브=0 → early-return = 회귀 0
     const rng = sim.rng;
     if (!rng) return;
+    if (sim.knobs.scatterAngular) { scatterV2(sim, k, rng); return; }  // step-0006 게이트(기본 0 → 옛 전방 산란)
     const R = sim.knobs.scatterR || 10, R2 = R * R, xMax = 6;
     for (const p of sim.photons) {
       const Ein = p.E, pmag = Math.hypot(p.px || 0, p.py || 0);
@@ -127,6 +128,48 @@
         sim.scatterCount = (sim.scatterCount | 0) + 1;
         break;
       }
+    }
+  }
+
+  // 산란 정밀화(step-0006, 노브 scatterAngular 게이트) — 검토 반영:
+  //   ① 타깃을 *배열 인덱스 순 첫 적격*이 아니라 *반경 내 최근접* 원자로(편향 제거).
+  //   ② 전방(forward)만이 아니라 *등방 각도 분포*(시드 θ')로 산란 — 광자가 방향을 바꾼다.
+  //   노브 미설정 → scatter 가 옛 분기 사용(step-0005 비트 동일 = 회귀 0).
+  //   2D 에너지+운동량 동시 보존: 총 운동량 P = p_광자 + m·v_원자, 산란 방향 dir'=(cosθ',sinθ').
+  //     q² + q·2(m − P·dir') + (|P|² − |m v|² − 2mE + 2mG) = 0   (q=산란 후 광자 에너지)
+  //     q = (P·dir' − m) + √((m − P·dir')² − cc).  전방·정지 시 step-0005 해로 환원(+ 근).
+  //     원자 v ← (P − q·dir')/m, 광자 p ← q·dir'. 이동 원자면 청색이동(inverse Compton)도 창발.
+  function scatterV2(sim, k, rng) {
+    const R = sim.knobs.scatterR || 10, R2 = R * R, xMax = 6;
+    for (const p of sim.photons) {
+      const Ein = p.E, pmag = Math.hypot(p.px || 0, p.py || 0);
+      if (pmag <= 0) continue;                          // 방향 없는 광자는 산란 안 함
+      const idirx = p.px / pmag, idiry = p.py / pmag;   // 입사 방향(편향각 측정용)
+      let best = -1, bestD2 = R2;                        // 반경 내 *최근접* 적격 원자
+      for (let i = 0; i < sim.atoms.length; i++) {
+        const a = sim.atoms[i];
+        if ((a.x | 0) >= xMax) continue;                // 고준위 포화(이온화 영역 밖)
+        const dx = K.minImage(p.rx - a.rx, sim.W), dy = K.minImage(p.ry - a.ry, sim.H);
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) { bestD2 = d2; best = i; }
+      }
+      if (best < 0) continue;                           // 반경 내 적격 원자 없음
+      if (rng() >= k) continue;                         // 광자당 1회 확률(continue — 다음 광자로)
+      const a = sim.atoms[best], x = a.x | 0, G = K.levelE(x + 1) - K.levelE(x), m = K.mass(a);
+      const th = rng() * 2 * Math.PI, cth = Math.cos(th), sth = Math.sin(th);   // 등방 산란 방향
+      const Px = p.px + m * a.vx, Py = p.py + m * a.vy;  // 총 운동량(보존량)
+      const Pdir = Px * cth + Py * sth;
+      const cc = Px * Px + Py * Py - m * m * (a.vx * a.vx + a.vy * a.vy) - 2 * m * Ein + 2 * m * G;
+      const mp = m - Pdir, D2 = mp * mp - cc;
+      if (D2 < 0) continue;                             // 이 방향엔 보존 해 없음(시도 실패)
+      const q = (Pdir - m) + Math.sqrt(D2);             // 산란 후 광자 에너지(물리 근)
+      if (q <= 0) continue;                             // 광자 양에너지만
+      const defl = Math.acos(Math.max(-1, Math.min(1, idirx * cth + idiry * sth)));  // 편향각(입사↔산란)
+      sim.deflectSum = (sim.deflectSum || 0) + defl; sim.deflectN = (sim.deflectN | 0) + 1;
+      a.x = x + 1;                                       // 원자 한 준위 들뜸(재여기)
+      a.vx = (Px - q * cth) / m; a.vy = (Py - q * sth) / m;   // 2D 운동량 보존 반동
+      p.E = q; p.px = q * cth; p.py = q * sth; p.lambda = K.photonLambda(q);  // 광자 방향·에너지 변경
+      p.nscatter = (p.nscatter | 0) + 1; sim.scatterCount = (sim.scatterCount | 0) + 1;
     }
   }
 
