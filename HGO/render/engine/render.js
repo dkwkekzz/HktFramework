@@ -16,13 +16,16 @@
 
   // ── 순수 3D 수학 (캔버스 무관 — 헤드리스로 검증 가능) ──────────────────────────
   // 세계 좌표: x,y = 시뮬 평면(rx,ry) · z = 높이(항상 0, 시뮬에 z 없음). worldUp=(0,0,1).
-  // 카메라는 평면 중심을 타깃으로 방위각(yaw)·고도(pitch)로 궤도. yaw 는 sim.tick 에서 파생
-  //   → 상태 없음·결정론(같은 tick → 같은 화면). 재성형이 아니라 카메라 한 항(프레젠테이션).
+  // ── 인터랙티브 카메라 상태(렌즈 L-cam) — 프레젠테이션 한 항(시뮬 무관·결정론 영향 0) ──
+  //   사용자가 마우스로 뷰를 자유 변경: 드래그=궤도(yaw·pitch)·휠=줌(distScale)·우드래그|Shift드래그=팬(target).
+  //   카메라는 평면 중심을 타깃으로 방위각·고도로 궤도. 위치=sim (rx,ry,0) 그대로 — 분포 author 0.
+  const camState = { yaw: 0.6, pitch: 0.78, distScale: 1.85, panX: 0, panY: 0 };
+
   function makeCamera(W, H, tick, cv) {
-    const target = { x: W / 2, y: H / 2, z: 0 };
-    const yaw = 0.6 + (tick || 0) * 0.008;   // 3/4 뷰에서 출발해 재생 중 천천히 선회
-    const pitch = 0.78;                       // 고도 ≈45° — 평면을 내려다봄
-    const dist = 1.85 * Math.max(W, H);       // 카메라 거리
+    const target = { x: W / 2 + camState.panX, y: H / 2 + camState.panY, z: 0 };
+    const yaw = camState.yaw;                  // 3/4 뷰 기본 — 마우스로 자유 변경
+    const pitch = camState.pitch;              // 고도(드래그 상하로 조절·짐벌락 회피 클램프)
+    const dist = camState.distScale * Math.max(W, H);   // 카메라 거리(휠 줌)
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
     // 카메라 위치 = 타깃에서 방위·고도 방향으로 dist 만큼
     const eye = { x: target.x + dist * cp * cy, y: target.y + dist * cp * sy, z: target.z + dist * sp };
@@ -33,6 +36,37 @@
     const focal = 1.5 * (cv ? cv.width : 560);
     const cw = cv ? cv.width : 560, ch = cv ? cv.height : 560;
     return { eye, f, right, up, focal, cw, ch };
+  }
+
+  // 마우스로 카메라를 조종한다(공용 뷰어가 1회 배선). onChange = 정지 중에도 다시 그리게 하는 콜백.
+  function attachControls(canvas, onChange) {
+    if (canvas._hgoCamBound) return;          // 중복 바인딩 방지
+    canvas._hgoCamBound = true;
+    let drag = null;
+    const redraw = () => { if (typeof onChange === 'function') onChange(); };
+    canvas.addEventListener('mousedown', e => {
+      drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey };
+      e.preventDefault();
+    });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());   // 우드래그 팬용
+    window.addEventListener('mousemove', e => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.x = e.clientX; drag.y = e.clientY;
+      if (drag.pan) {                          // 화면 드래그 → 평면 팬(거리 비례)
+        camState.panX -= dx * camState.distScale * 0.09;
+        camState.panY += dy * camState.distScale * 0.09;
+      } else {                                 // 궤도 회전
+        camState.yaw -= dx * 0.008;
+        camState.pitch = Math.max(0.05, Math.min(1.5, camState.pitch + dy * 0.006));  // 짐벌락 회피
+      }
+      redraw();
+    });
+    window.addEventListener('mouseup', () => { drag = null; });
+    canvas.addEventListener('wheel', e => {    // 휠 줌(지수 — 부드러운 배율)
+      camState.distScale = Math.max(0.3, Math.min(8, camState.distScale * Math.exp(e.deltaY * 0.001)));
+      e.preventDefault(); redraw();
+    }, { passive: false });
   }
 
   // 세계 점 → 화면 {sx,sy,depth,scale}. depth=카메라 전방 거리(클수록 멀다·painter 정렬 키).
@@ -149,5 +183,5 @@
     }
   }
 
-  return { draw, makeCamera, project };
+  return { draw, makeCamera, project, attachControls, camState };
 });

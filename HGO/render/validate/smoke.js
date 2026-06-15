@@ -76,6 +76,23 @@ function run() {
   const hasPerspective = Math.abs(corner.depth - far.depth) > 1;
   checks.push({ name: 'L-3d: 원근 깊이차 존재(입체)', pass: hasPerspective, value: `Δdepth=${Math.abs(corner.depth - far.depth).toFixed(1)}` });
 
+  // ⑤ L-cam 카메라 조종(렌즈 assert): 궤도(yaw)·줌(distScale)이 화면에 반영되고, 타깃은 늘 중앙.
+  const cs = R3.camState, saved = { ...cs };
+  const cornerBefore = R3.project({ x: 0, y: 0, z: 0 }, R3.makeCamera(sim.W, sim.H, 0));
+  cs.yaw += 0.5;                                   // 회전
+  const cam2 = R3.makeCamera(sim.W, sim.H, 0);
+  const cornerAfter = R3.project({ x: 0, y: 0, z: 0 }, cam2);
+  const center2 = R3.project({ x: sim.W / 2, y: sim.H / 2, z: 0 }, cam2);
+  const orbitMoves = Math.hypot(cornerAfter.sx - cornerBefore.sx, cornerAfter.sy - cornerBefore.sy) > 5;
+  const stillCentered = Math.abs(center2.sx - cam2.cw / 2) < 1 && Math.abs(center2.sy - cam2.ch / 2) < 1;
+  cs.distScale *= 0.5;                             // 줌 인 → 모서리가 화면 중심에서 더 멀어짐(스케일↑)
+  const cornerZoom = R3.project({ x: 0, y: 0, z: 0 }, R3.makeCamera(sim.W, sim.H, 0));
+  const zoomChanges = Math.abs(cornerZoom.scale - cornerAfter.scale) > 1e-6;
+  Object.assign(cs, saved);                        // 상태 복원(다른 검증에 영향 0)
+  checks.push({ name: 'L-cam: 궤도 회전이 화면 반영', pass: orbitMoves, value: `Δpx=${Math.hypot(cornerAfter.sx - cornerBefore.sx, cornerAfter.sy - cornerBefore.sy).toFixed(0)}` });
+  checks.push({ name: 'L-cam: 회전해도 타깃 중앙 고정', pass: stillCentered, value: `(${center2.sx.toFixed(0)},${center2.sy.toFixed(0)})` });
+  checks.push({ name: 'L-cam: 줌이 스케일 변경', pass: zoomChanges, value: zoomChanges ? 'ok' : 'no' });
+
   return { checks, range, lineCount: lines.size, photonCount: ph.length };
 }
 
