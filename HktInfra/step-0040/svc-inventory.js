@@ -53,6 +53,10 @@ class InventoryService {
     //   give/reconcile 는 자체 멱등(owner/ledger 체크)이나 일관성 위해 같은 dedup 경로. OFF(reqId 없음)면 분기 휴면 = 0036 비트 동일.
     this.busResendReq = opts.busResendReq || false;  // ON 이면 reqId 실린 요청을 dedup(seenReqs). OFF = 0036 비트 동일(dedup 0).
     this.seenReqs = new Set();    // 처리한 요청 reqId(busResendReq ON·reqId 실릴 때만) — 재발행 중복 멱등 폐기(pickup 이중 mint 0).
+    // ── 요청 ack(이 step·busAck) — 게이트웨이 inBuffer 자기-크기조정의 소비자 측. 받은 reqId 를 svc.item.ack 로 통보(처리 확인). ──
+    //   dedup 으로 폐기하는 재발행분도 *ack 는 보낸다* — 그래야 ack 손실로 안 지워진 inBuffer 항목이 재발행→재-ack 되어 끝내 가지쳐진다(수렴).
+    this.busAck = opts.busAck || false;  // ON 이면 svc.item 수신마다 svc.item.ack{reqId} 발행. OFF = 0039 비트 동일(ack 발행 0).
+    this.acksSent = 0;            // 발행한 요청 ack 누적(이 step·계측)
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -166,6 +170,9 @@ class InventoryService {
     if (p.type === 'journal_nak') { if (this.reliable) this._resend(p.missing || []); return; }   // 저널 홉 NAK(0023) — persist 가 감지한 갭 재전송(reactive·신성한 tick 밖)
     if (p.type === 'journal_ack') { if (this.quorumW > 0) this._recordAck(p.seq, m.from); return; }   // 쓰기 정족수 ack(이 step) — 스토어 저장 확인 집계 → durableSeq 워터마크. quorumW 0 면 ack 자체가 안 옴(0028 비트 동일)
     if (p.type === 'ev' && p.topic === 'svc.item') p = p.ev;   // 버스 봉투 해체(구독 수신) — 직접 모드와 같은 item_req/item_reconcile
+    // 요청 ack 발행(이 step·busAck) — reqId 실린 svc.item 을 받을 때마다 *처리 확인* 통보(dedup 폐기분 포함 — 위 주석 참조).
+    //   게이트웨이가 이 ack 로 inBuffer 를 가지쳐 자기-크기조정. OFF(또는 reqId 없음·버스 OFF)면 발행 0 = 0039 비트 동일.
+    if (this.busAck && this.bus && p && p.reqId !== undefined) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.ack', ev: { reqId: p.reqId } }); this.acksSent++; }
     // 요청 dedup(이 step·busResendReq) — 게이트웨이 재발행이 gap 전 도달분도 다시 보내므로 reqId 로 *최초 1회만* 처리(pickup 이중 mint 0).
     //   reqId 없으면(busResendReq OFF·재발행 미사용) 분기 휴면 = 0036 비트 동일. 멱등(Set dedup) — 재발행 무해.
     if (this.busResendReq && p.reqId !== undefined) {

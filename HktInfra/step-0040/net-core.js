@@ -1,10 +1,11 @@
-// HktInfra step-0040 — 버스 failover replay 버퍼 *유계화* (busWindow 슬라이딩 K 창 — 메모리 무계 성장 해소).
-//   0036 outBuffer(가방 결과 replay)·0037 inBuffer(게이트웨이 요청 replay)는 발신한 *전* 결과/요청을 무계로 쌓아 장기 가동 시 메모리 무한 성장.
-//   failover 가 메우려는 건 gap 구간(crash→재구독)뿐이므로, 버퍼는 그 창을 덮을 만큼만 있으면 된다 — busWindow=K 면 두 버퍼를 *최근 K 개*로 슬라이딩(0032 wfWindow 의 버스 판).
-//   닿는 박스: gateway.js(inBuffer 슬라이딩)·svc-inventory.js(outBuffer 슬라이딩)·topo-build.js(busWindow 배선). K=0 = 0038 비트 동일.
+// HktInfra step-0040 — 요청 replay 버퍼 *자기-크기조정* (ack 기반 가지치기·busAck — 고정 K 수동 튜닝 해소).
+//   0039 고정 K(busWindow)는 *최대 예상 gap(다운타임×발신율)* 을 사전 추정해야 한다 — 작으면 손실·크면 메모리 낭비(0039 §9).
+//   ack-가지치기: 가방이 처리한 reqId 를 svc.item.ack 로 통보 → 게이트웨이가 ack 워터마크 이하 inBuffer 를 제거 → 버퍼엔 *미-ack(in-flight)* 만 남는다.
+//   정상 구간엔 ack 가 흘러 버퍼가 0 으로 drain·gap 구간엔 ack 도 끊겨 버퍼가 gap 만큼 *자동 성장* → 복구 replay 가 정확히 그만큼 덮어 *K 추정 없이* 무손실.
+//   닿는 박스: svc-inventory.js(reqId ack 발행)·gateway.js(ack 워터마크 가지치기·peak 계측)·topo-build.js(busAck 배선·svc.item.ack 구독). busAck=0 = 0039 비트 동일.
 //
-// 척추(SPINE.md) 준수: busWindow=0(기본)→0038 비트 동일(reg 0·OFF 경로 휴면)·존 tick 밖 제어 평면(신성한 tick 보존)·headless 원격 검증 무변경.
-//   K≥gap 이면 유계화가 동작에 *투명*(minted==base·desync 0)·K<gap 이면 손실 재현(바운드 load-bearing). 동결 단위는 step-0040/ 디렉토리 통째.
+// 척추(SPINE.md) 준수: busAck=0(기본)→0039 비트 동일(reg 0·OFF 경로 휴면)·존 tick 밖 제어 평면(신성한 tick 보존)·headless 원격 검증 무변경.
+//   ack 무손실(minted==base·desync 0)·버퍼 peak 가 가동 길이 무관(무계는 ∝발신 수)·idle drain. 동결 단위는 step-0040/ 디렉토리 통째.
 'use strict';
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;

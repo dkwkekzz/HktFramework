@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -32,7 +32,16 @@ class Gateway {
     //   떨군 요청뿐이므로, 버퍼는 그 창을 덮을 만큼만 있으면 된다. busWindow=K 면 *최근 K 개*만 보관(미끄러지는 유계 창) → per-producer 메모리 O(K) 상한.
     //   gap 요청은 재구독 시점에 *가장 최근* 항목들이라, K≥|gap 요청| 이면 전부 버퍼에 남아 재발행됨 = 무손실 유지. K<gap 이면 가장 오래된 gap 요청이 evict → 손실 재현(K 가 load-bearing).
     //   K=0 = 무계(0038 비트 동일). busResendReq OFF 면 inBuffer 미사용 → busWindow 무관(reg 0 불변).
-    this.busWindow = busWindow;           // inBuffer 유계 창 크기 K(이 step). 0 = 무계(0038 동일). >0 = 최근 K 개만(슬라이딩).
+    this.busWindow = busWindow;           // inBuffer 유계 창 크기 K(0039). 0 = 무계. >0 = 최근 K 개만(슬라이딩·고정 K).
+    // ── 요청 버퍼 *자기-크기조정*(이 step·busAck) — 0039 고정 K 의 §9(K 수동 튜닝·gap 초과 시 손실) 해소. ──
+    //   고정 K 는 *최대 예상 gap(다운타임×발신율)* 을 사전 추정해야 한다 — 작게 잡으면 손실, 크게 잡으면 메모리 낭비. ack-가지치기는 이를 *자동화*:
+    //   소비자(가방)가 처리한 reqId 를 svc.item.ack 로 통보 → 게이트웨이가 *ack 된 요청을 inBuffer 에서 가지치기*. 버퍼엔 *미-ack(in-flight)* 요청만 남는다.
+    //   정상 구간엔 ack 가 흘러 버퍼 ≈ 왕복 지연(작게 유지)·gap 구간엔 ack 도 끊겨 버퍼가 gap 만큼 *자동 성장* → 복구 replay 가 정확히 그만큼 덮어 무손실(K 추정 불필요).
+    //   busAck OFF 면 ack 발행/가지치기 0 = 0039 비트 동일. busResendReq 전제(inBuffer·reqId 필요) — busWindow 와 상호배타적으로 씀(둘 다 inBuffer 바운드).
+    this.busAck = busAck;                 // ON 이면 svc.item.ack 수신 시 inBuffer 가지치기(자기-크기조정). OFF = 0039 비트 동일(ack 미구독·가지치기 0).
+    this.inAcked = -1;                    // ack 워터마크 — 이 reqId 이하 전부 가방이 처리 확인(단조). inBuffer 가지치기 기준.
+    this.inBufPeak = 0;                   // inBuffer 최대 길이(계측) — 자기-크기조정의 유계 증거(ack 면 ≈in-flight·고정/무계면 K/무한).
+    this.inPruned = 0;                    // ack 로 가지친 요청 누적(이 step·계측)
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -48,7 +57,8 @@ class Gateway {
     const sent = this._svcSend('svc.item', this.inventory, ev);
     if (sent && this.busResendReq && this.bus) {
       this.inBuffer.push(ev);   // 버스 복구 시 재발행 — gap 에 떨군 요청을 다시 가방에 도달시킨다
-      if (this.busWindow > 0 && this.inBuffer.length > this.busWindow) this.inBuffer.shift();   // 미끄러지는 유계 창(이 step) — 최근 K 개만 보관(K=0 면 미실행 = 0038 동일)
+      if (this.busWindow > 0 && this.inBuffer.length > this.busWindow) this.inBuffer.shift();   // 미끄러지는 유계 창(0039) — 최근 K 개만 보관(K=0 면 미실행)
+      if (this.inBuffer.length > this.inBufPeak) this.inBufPeak = this.inBuffer.length;   // 최대 길이 계측(이 step) — 자기-크기조정 유계 증거
     }
     return sent;
   }
@@ -59,6 +69,15 @@ class Gateway {
   resendIn() {
     if (!this.busResendReq || !this.bus) return;
     for (const ev of this.inBuffer) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item', ev }); this.inResends++; }
+  }
+  // 요청 ack 수신(이 step·busAck) — 가방이 svc.item.ack 로 통보한 reqId 까지 inBuffer 가지치기(자기-크기조정).
+  //   ack 워터마크(inAcked)는 단조 — 이 reqId 이하 요청은 가방이 처리 확인했으므로 재발행 불필요(gap 손실 후보 아님) → 앞에서부터 제거.
+  //   inBuffer 는 inSeq(=reqId) 순서라 front 가 최소 reqId — front.reqId ≤ 워터마크 동안 shift(O(가지친 수)). 미-ack(in-flight) 요청만 남는다.
+  //   ack 도 gap 에 끊기므로 다운타임 동안엔 가지치기 멈춰 버퍼가 자동 성장 → 복구 replay 가 정확히 그만큼 덮음(K 추정 불필요). OFF 면 미발동(reg 0 불변).
+  _onItemAck(ev) {
+    if (!this.busAck || ev == null || ev.reqId === undefined) return;
+    if (ev.reqId > this.inAcked) this.inAcked = ev.reqId;
+    while (this.inBuffer.length && this.inBuffer[0].reqId <= this.inAcked) { this.inBuffer.shift(); this.inPruned++; }
   }
   // 가방 결과 중계 — 요청자(reqAvatar)에게 item_result, give 성공이면 수신자(toAvatar)에게 item_recv. 은닉: itemId/op 만 전달.
   //   직접 모드(0015)와 버스 모드(svc.item.out ev)가 *같은 중계 함수*를 쓴다 — 클라 와이어 계약 불변.
@@ -128,6 +147,8 @@ class Gateway {
       // 버스 구독 수신(ev 봉투) — 게이트웨이는 *토픽*만 안다(서비스 주소 무지). 중계는 직접 모드와 같은 함수(클라 계약 불변).
       if (p.type === 'ev') {
         if (p.topic === 'svc.item.out') { this._relayItemResult(p.ev); this._relayItemRecon(p.ev); }   // item_result + item_recon_map(이 step) 둘 다 버스 경유
+        else if (p.topic === 'svc.item.ack') this._onItemAck(p.ev);   // 요청 ack(이 step·busAck) — inBuffer 자기-크기조정 가지치기
+
         else if (p.topic === 'svc.chat.out') this._relayChatOut(p.ev);
         else if (p.topic === 'svc.rank.out') this._relayRank(p.ev);   // 랭킹(이 step) — 발신하는 소비자의 출력 중계
       }
