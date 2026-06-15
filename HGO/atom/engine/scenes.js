@@ -1176,6 +1176,225 @@
         ];
       },
     },
+
+    'step-0020': {
+      id: 'step-0020',
+      title: '반발 코어 (단거리 반발 → 쿨롱과 균형 → 평형 결합 길이 r_eq 창발)',
+      desc: 'step-0019 쿨롱장은 첫 연속력이었으나 *평형점이 없었다* — 반대전하는 골(연화 ε)로 붕괴·진동만 한다(결합이 "괴이"한 근본 ' +
+            '원인: 고정 거리가 없음). `repulse`(게이트 kRepulse)는 *단거리 반발 코어* U=kR/(r²+ε²)(force ∝ 1/r⁴) 를 더한다 — 쿨롱 ' +
+            '인력(1/r³)보다 *가팔라* 단거리를 지배하고 장거리엔 굴복한다. 둘의 합이 r_eq²+ε²=(2kR/(kC·|qaqb|))² 에서 *우물*을 만들어 ' +
+            '**평형 결합 길이 r_eq 가 창발**한다(author 한 거리 아님 — 두 연속력 합의 측정). r<r_eq→반발, r>r_eq→인력이 이겨 양쪽서 r_eq 로 ' +
+            '*복원*(안정 평형). 같은 심플렉틱 적분·PE 가법(E 완화)·연화 ε 재사용. 끄면 step-0019 비트 동일(회귀 0). 이것이 실제 결합 길이의 원리.',
+      ticks: 600,
+      ledgerTol: { E: 3e-3 },   // 연속력 2개(쿨롱+코어)의 반음시 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9 유지)
+
+      // r_eq 우물을 *고립*된 ±1 이온 3쌍으로 시연(rng 미사용 → 전 시드 동일 = 순수 결정론 측정). 각 쌍은 토러스서 멀리 떨어뜨려 쌍내력만 받게.
+      //   knobs: kCoulomb=1·coulombSoft(ε)=2·kRepulse=2.5 → s2_eq=(2·2.5/1)²=25 → r_eq=√(25−4)=√21≈4.583.
+      //   쌍 A=r_eq(평형, 정지→머무름) · 쌍 B=1.5·r_eq(밖, 정지→인력이 안으로) · 쌍 C=0.6·r_eq(안, 정지→코어가 밖으로). 셋이 안정 평형을 양쪽서 증명.
+      //   토러스 120·중심 60 간격 → 쌍 간 교차력(~1/60²) 무시 가능(각 쌍 *고립*). 오프셋을 완만히(±50%) 해 r_eq 근처 진동(폭주 방지).
+      init(rng, K) {
+        const W = 120, H = 120;
+        const REQ = Math.sqrt(21);                          // ≈4.583 (위 분석식)
+        const H1 = ELEMENTS[0];                             // 수소(Z=1,N=0,mass=1) — ±1 이온쌍
+        const pair = (cx, cy, d) => ([                      // 중심 (cx,cy), x 로 거리 d 벌린 cation(+1)·anion(−1), 정지
+          { Z: H1.Z, N: H1.N, e: 0,  x: 0, rx: cx - d / 2, ry: cy, vx: 0, vy: 0 },   // e=0 → q=+1
+          { Z: H1.Z, N: H1.N, e: 2,  x: 0, rx: cx + d / 2, ry: cy, vx: 0, vy: 0 },   // e=2 → q=−1
+        ]);
+        const atoms = [
+          ...pair(30, 30, REQ),          // A: 평형 거리
+          ...pair(90, 30, 1.5 * REQ),    // B: 평형 밖(인력 우세 → 안으로 복원)
+          ...pair(30, 90, 0.6 * REQ),    // C: 평형 안(반발 우세 → 밖으로 복원, 붕괴 방지)
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kCoulomb: 1, coulombSoft: 2, kRepulse: 2.5 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, sim.W), K.minImage(A[j].ry - A[i].ry, sim.H));
+        const m = coulombMetrics(sim);
+        return {
+          REQ: +Math.sqrt(21).toFixed(3),
+          dA: +dist(0, 1).toFixed(3),   // 평형서 출발 → r_eq 유지
+          dB: +dist(2, 3).toFixed(3),   // 밖서 출발 → 줄어듦(인력)
+          dC: +dist(4, 5).toFixed(3),   // 안서 출발 → 늘어남(반발 코어)
+          KE: +m.ke.toFixed(3),
+        };
+      },
+
+      // 가설: ① 평형 길이 r_eq 유지(쌍 A 가 r_eq 정지서 머무름 → 순 힘 0 = 결합 길이의 정의) ② 인력 복원(쌍 B r>r_eq → 안으로, dB<초기) ③ 반발 코어 복원·붕괴 방지(쌍 C r<r_eq → 밖으로, dC>초기 & dC>ε). 안정 평형을 양쪽서 증명. 총 E 유계 보존은 verify ②(E≤3e-3).
+      assert(ctx, K) {
+        const A = ctx.sim.atoms, W = ctx.sim.W, H = ctx.sim.H;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        const REQ = Math.sqrt(21);
+        const dA = dist(0, 1), dB = dist(2, 3), dC = dist(4, 5);
+        const dB0 = 1.5 * REQ, dC0 = 0.6 * REQ, eps = ctx.sim.knobs.coulombSoft;
+        return [
+          { name: '평형 길이 r_eq 유지(쌍 A 정지서 머무름 — 순 힘 0)', pass: Math.abs(dA - REQ) < 0.3, value: +dA.toFixed(3) },
+          { name: '인력 복원(쌍 B r>r_eq → 안으로, dB<초기)', pass: dB < dB0 * 0.95, value: +(dB - dB0).toFixed(3) },
+          { name: '반발 코어 복원·붕괴 방지(쌍 C r<r_eq → 밖으로, dC>초기 & dC>ε)', pass: dC > dC0 * 1.05 && dC > eps, value: +(dC - dC0).toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0021': {
+      id: 'step-0021',
+      title: '쿨롱+포획 결합 (bond 속도잠금 → 연속력 r_eq 유지, 위상→기하 완성)',
+      desc: 'step-0010 `bond` 는 포획 순간 둘을 질량중심 속도로 *잠그고* 상대 KE 를 흡수했다 — *위상*(누가 묶였나)만 있고 *거리*를 유지하는 ' +
+            '힘이 없어 결합이 충돌·반동에 흩어졌다("괴이"의 뿌리). step-0020 이 평형 결합 길이 r_eq 를 창발시켰으니, 게이트 `bondCoulombic` 은 ' +
+            'bond 의 *비탄성 속도잠금·KE흡수를 건너뛰고* 간선(위상)만 기록한다 — 이미 작동 중인 coulomb+repulse(하전 쌍)가 결합을 *r_eq 로 유지*한다. ' +
+            '차갑게 포획된 결합쌍이 *r_eq(√21≈4.583) 주위로 좁게 진동* = 실제 결합 길이(위상→기하 완성·분자 진동). 포획 시 속도 불변 → ' +
+            '*에너지 연속*(bondE=0, 불연속 0)·운동량 머신 보존. 끄면 step-0020 비트 동일(회귀 0). 분자가 비로소 *고정 결합 길이*를 가진다. ' +
+            '※ 보존계(마찰 0): 포획 에너지가 진동 진폭으로 남아 r_eq *로 수렴*이 아니라 r_eq *주위 유계 진동* — 차가운 포획이라 진폭이 작다.',
+      ticks: 800,
+      ledgerTol: { E: 3e-3 },   // 연속력(쿨롱+코어)의 반음시 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // 고립 ±이온 3쌍(토러스 멀리, rng 미사용 순수 결정론)을 r_eq 근처서 *차갑게*(미세 접근) tick 1 에 포획(bondR=6).
+      //   bondCoulombic=1 → 속도잠금 없이 간선만 → coulomb(1)+repulse(2.5)·ε=2 가 r_eq=√21≈4.583 우물에 가둠 → r_eq 주위 *좁은 진동*(분자 진동).
+      //   ※ 보존계(마찰 0)라 포획 에너지가 진동 진폭으로 남는다 → r_eq *로 수렴*이 아니라 r_eq *주위 유계 진동*. 차게 포획해야 진폭이 작아 결합 길이≈r_eq.
+      init(rng, K) {
+        const W = 400, H = 400;          // 토러스 크게·중심 240 간격 → 쌍 간 교차력(~1/240²) 무시(각 쌍 *진짜 고립*)
+        const H1 = ELEMENTS[0];                             // 수소(Z=1,N=0,mass=1) — ±1 이온쌍
+        const u = 0.03;                                     // 미세 접근(|v_rel|=0.06 ≪ bondVmax=1.5 → 차가운 포획 → 좁은 진동)
+        const pair = (cx, cy, d) => ([                      // 중심(cx,cy), x 로 거리 d, 서로 마주보고 u 로 접근(vn>0 → tick 1 포획)
+          { Z: H1.Z, N: H1.N, e: 0, x: 0, rx: cx - d / 2, ry: cy, vx: +u, vy: 0 },   // e=0 → q=+1, +x(파트너 쪽)
+          { Z: H1.Z, N: H1.N, e: 2, x: 0, rx: cx + d / 2, ry: cy, vx: -u, vy: 0 },   // e=2 → q=−1, −x(파트너 쪽)
+        ]);
+        const atoms = [
+          ...pair(80, 80, 4.2),          // 평형 살짝 안서 포획
+          ...pair(320, 80, Math.sqrt(21)),// 평형 거리서 포획
+          ...pair(80, 320, 5.0),         // 평형 살짝 밖서 포획
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kBond: 1, bondCoulombic: 1, bondR: 6, kCoulomb: 1, coulombSoft: 2, kRepulse: 2.5 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, sim.W), K.minImage(A[j].ry - A[i].ry, sim.H));
+        return {
+          REQ: +Math.sqrt(21).toFixed(3),
+          bonds: (sim.bonds || []).length,
+          bondE: +(sim.bondE || 0).toFixed(6),               // 쿨롱 결합은 흡수 0 (에너지 연속)
+          d1: +dist(0, 1).toFixed(3), d2: +dist(2, 3).toFixed(3), d3: +dist(4, 5).toFixed(3),
+          meanBondLen: +(((dist(0, 1) + dist(2, 3) + dist(4, 5)) / 3)).toFixed(3),
+        };
+      },
+
+      // 가설: ① 결합 형성(위상) — 3쌍 모두 간선 기록(bonds=3) ② 결합 길이≈r_eq(기하) — 차가운 포획 → 셋 다 r_eq 좁은 밴드 [0.8·r_eq, 1.2·r_eq] 안 진동(실제 결합 길이) ③ 탄성 결합(속도잠금 없음 → 에너지 연속) — bondE=0(비탄성 흡수 0). 총 E 유계 보존은 verify ②.
+      assert(ctx, K) {
+        const A = ctx.sim.atoms, W = ctx.sim.W, H = ctx.sim.H;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        const REQ = Math.sqrt(21), lo = 0.8 * REQ, hi = 1.2 * REQ;   // 좁은 밴드(차가운 포획 → 작은 진동 → 결합 길이≈r_eq)
+        const ds = [dist(0, 1), dist(2, 3), dist(4, 5)];
+        const nBonds = (ctx.sim.bonds || []).length;
+        const allInBand = ds.every(d => d >= lo && d <= hi);
+        const mean = (ds[0] + ds[1] + ds[2]) / 3;
+        return [
+          { name: '결합 형성(위상) — 3쌍 모두 간선 기록(bonds=3)', pass: nBonds === 3, value: nBonds },
+          { name: '결합 길이≈r_eq(기하) — 차가운 포획 → 셋 다 r_eq 좁은 밴드서 진동', pass: allInBand, value: +mean.toFixed(3) },
+          { name: '탄성 결합(속도잠금 없음 → 에너지 연속, bondE=0)', pass: (ctx.sim.bondE || 0) === 0, value: +(ctx.sim.bondE || 0).toFixed(6) },
+        ];
+      },
+    },
+
+    'step-0022': {
+      id: 'step-0022',
+      title: '보편 파울리 반발 (중성 포함 excluded-volume — 중성 등속운동 해소)',
+      desc: 'coulomb·repulse 는 *하전 쌍만* 작용해 중성 원자(q=0)는 서로 안 보고 *등속 직진*(겹쳐 통과)했다. 파울리 배타(전자 구름 겹침 반발)는 ' +
+            '전하와 무관한 *부피*다 → 새 법칙 `pauli`(게이트 kPauli)는 단거리 반발 U=kP/(r²+ε²)²(force ∝ 1/r⁶, repulse 보다 가팔라 *접촉서만*)를 ' +
+            '*모든 쌍*(전하 게이트 없음)에 싣는다. 중성 원자도 접촉서 밀어내 *겹침 방지*(물질의 부피)·*소프트 충돌*. 정면 접근 쌍은 튕기고(vx 반전), ' +
+            '빗겨 접근 쌍은 편향(vy 창발)된다 — 더는 등속 직진이 아니다. 같은 심플렉틱·연화 ε·PE 가법(E 완화) 재사용. 끄면 step-0021 비트 동일(회귀 0).',
+      ticks: 700,
+      ledgerTol: { E: 3e-3 },   // 연속력의 반음시 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // 중성 원자(H: e=1 → q=0) 2쌍을 고립(토러스 크게)·정면/빗겨 접근시켜 *중성이 상호작용*함을 시연. coulomb·repulse 안 켬(중성엔 무효).
+      //   pauli 만(kP=6·ε=2) → 접촉서 반발. 쌍1 정면(b=0) → 튕김(vx 반전). 쌍2 빗겨(b=2) → 편향(vy 창발). rng 미사용 순수 결정론.
+      init(rng, K) {
+        const W = 400, H = 400;
+        const H1 = ELEMENTS[0];                             // 수소(Z=1,N=0,mass=1)
+        const u = 0.15;                                     // 접근 속력(KE ≪ 파울리 장벽 → 튕김 보장)
+        const neutral = (rx, ry, vx, vy) => ({ Z: H1.Z, N: H1.N, e: 1, x: 0, rx, ry, vx, vy });  // e=1 → q=0 (중성)
+        const atoms = [
+          neutral(96, 100, +u, 0), neutral(104, 100, -u, 0),     // 쌍1 정면 접근(b=0) → 튕김
+          neutral(294, 300, +u, 0), neutral(306, 302, -u, 0),    // 쌍2 빗겨 접근(b=2) → 편향(vy)
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kPauli: 6, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, sim.W), K.minImage(A[j].ry - A[i].ry, sim.H));
+        return {
+          vxA: +A[0].vx.toFixed(4),       // 쌍1 정면: +0.15 → 반전(<0)이면 튕김
+          d_headon: +dist(0, 1).toFixed(3),
+          vyC: +A[2].vy.toFixed(4),        // 쌍2 빗겨: 0 → 음수면 편향
+          d_offset: +dist(2, 3).toFixed(3),
+        };
+      },
+
+      // 가설: ① 중성 정면 튕김(excluded-volume — 중성도 안 뚫음): 쌍1 vxA 반전(+u→<0). ② 중성 빗겨 편향(산란): 쌍2 vyC 창발(0→유의<0). ③ 둘 다 q=0(쿨롱·반발 무효) — 순수 파울리 효과. 총 E 유계·운동량 머신은 verify ②.
+      assert(ctx, K) {
+        const A = ctx.sim.atoms;
+        const allNeutral = A.every(a => (a.Z - a.e) === 0);
+        return [
+          { name: '중성 정면 튕김(excluded-volume — vxA 반전 +u→<0)', pass: A[0].vx < 0, value: +A[0].vx.toFixed(4) },
+          { name: '중성 빗겨 편향(산란 — vyC 창발 0→유의)', pass: Math.abs(A[2].vy) > 0.02, value: +A[2].vy.toFixed(4) },
+          { name: '둘 다 중성(q=0 — 쿨롱·반발 무효, 순수 파울리)', pass: allNeutral, value: allNeutral ? 1 : 0 },
+        ];
+      },
+    },
+
+    'step-0023': {
+      id: 'step-0023',
+      title: '반데르발스 인력 (중성 군집 — pauli 반발과 vdW 우물 → 응집)',
+      desc: 'step-0022 pauli 는 중성에 *반발만* 줘 중성 원자는 접촉서 튕길 뿐 *모이지 않았다*. 새 법칙 `vdw`(게이트 kVdW)는 보편 약한 인력 ' +
+            'U=−kV/(r²+ε²)(force ∝ 1/r⁴)를 *모든 쌍*에 더한다 — pauli 반발(1/r⁶)보다 덜 가팔라 *단거리는 반발이(붕괴 방지)·중거리는 인력이* 이긴다. ' +
+            '둘이 **vdW 우물**(최소 PE at s2_eq=2kP/kV → r_eq=√(2kP/kV−ε²)=4)을 만들어 근접한 중성 원자가 *응집*한다(condensation seed). 정지한 중성 ' +
+            '4원자(정사각형)가 서로 끌려 *수축*(평균 거리↓)하되 pauli 가 붕괴를 막아 *유계 군집*으로 묶인다. 같은 symplectic·연화 ε·PE 가법(E 완화) ' +
+            '재사용. 끄면 step-0022 비트 동일(회귀 0). ※ 1/r⁴ 힘이라 *단거리 약결합*(장거리 견인=중력은 Phase E).',
+      ticks: 1000,
+      ledgerTol: { E: 3e-3 },   // 연속력의 반음시 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // 중성 4원자(H: e=1 → q=0)를 정사각형(변 6)·정지로 놓고 vdw+pauli 만(쿨롱 안 켬) → 인력이 수축, pauli 가 붕괴 방지 → 유계 군집.
+      //   kV=0.6·kP=6·ε=2 → 중성 쌍 우물 r_eq=√(2·6/0.6−4)=√16=4. rng 미사용 순수 결정론. 토러스 크게(고립).
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, s = 3;  // 정사각형 반변 3 → 변 6
+        const H1 = ELEMENTS[0];
+        const neutral = (rx, ry) => ({ Z: H1.Z, N: H1.N, e: 1, x: 0, rx, ry, vx: 0, vy: 0 });  // e=1 → q=0, 정지
+        const atoms = [
+          neutral(cx - s, cy - s), neutral(cx + s, cy - s),
+          neutral(cx - s, cy + s), neutral(cx + s, cy + s),
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kPauli: 6, kVdW: 0.6, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms, n = A.length;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, sim.W), K.minImage(A[j].ry - A[i].ry, sim.H));
+        let sum = 0, mn = Infinity, mx = 0, c = 0;
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = dist(i, j); sum += d; c++; mn = Math.min(mn, d); mx = Math.max(mx, d); }
+        return { meanPair: +(sum / c).toFixed(3), minPair: +mn.toFixed(3), maxPair: +mx.toFixed(3) };
+      },
+
+      // 가설: ① 중성 인력 군집 — 평균 쌍거리 수축(final < 초기). 중성도 모인다. ② 붕괴 방지 — 최소 쌍거리 > ε(=2). pauli 가 우물 바닥서 막음. ③ 유계 군집 — 최대 쌍거리 유계(< 초기 대각 8.49·1.5). 안 흩어짐(bound). 총 E·운동량은 verify ②.
+      assert(ctx, K) {
+        const A = ctx.sim.atoms, n = A.length, W = ctx.sim.W, H = ctx.sim.H;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        let sum = 0, mn = Infinity, mx = 0, c = 0;
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = dist(i, j); sum += d; c++; mn = Math.min(mn, d); mx = Math.max(mx, d); }
+        const meanPair = sum / c;
+        const mean0 = (4 * 6 + 2 * Math.sqrt(72)) / 6;       // 초기 평균 쌍거리(변 6 ×4 + 대각 √72 ×2)/6 ≈ 6.83
+        const eps = ctx.sim.knobs.coulombSoft;
+        return [
+          { name: '중성 인력 군집 — 평균 쌍거리 수축(final < 초기 6.83)', pass: meanPair < mean0 * 0.95, value: +meanPair.toFixed(3) },
+          { name: '붕괴 방지 — 최소 쌍거리 > ε(pauli 가 우물 바닥서 막음)', pass: mn > eps, value: +mn.toFixed(3) },
+          { name: '유계 군집 — 최대 쌍거리 유계(안 흩어짐, bound)', pass: mx < Math.sqrt(72) * 1.5, value: +mx.toFixed(3) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
