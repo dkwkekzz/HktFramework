@@ -25,6 +25,11 @@
 //   L-recoil 줄기는 |p| 를 고른 창(STREAK_FRAC)에 정규화한 *글리프*였다(방향만). 트레일은 시뮬이 굴린 *실제 이동 거리*를
 //   그대로 읽어 잇는다(길이=측정 변위, 손박은 창 0) — 빛이 공간을 가른 자취. 변위 0(갓 방출된 step-0002 광자: rx0==rx)이면
 //   트레일을 author 하지 않는다(점만). 머리=현 위치(밝음)→꼬리=출생(투명). 색은 여전히 L-λ(λ→스펙트럼) 읽기.
+//
+// 렌즈 L-glow: 원자 *들뜸 준위*(x = 양자수 0,1,2,3 …)를 *광원 밝기*로 읽는다(입력 계약 §2: 들뜸 x=광원 밝기).
+//   이전엔 x 를 불리언(들뜸 유무)으로만 읽어 x=1 과 x=3 이 같아 보였다 — 이제 측정 최댓값(maxX)으로 정규화한
+//   *등급* 글로우로: 더 들뜬 원자가 더 밝게 발광한다(읽기). x=0(바닥 상태)이면 글로우 0(빛 author 0).
+//   밝기만 읽고 색은 중립 온백(presentation — hue author 0, "E=밝기"와 동형 magnitude 채널). 정규화는 측정.
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -112,6 +117,21 @@
     return m;
   }
 
+  // ── 렌즈 L-glow: 원자 들뜸 준위 x → 광원 밝기 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 들뜸 준위 최댓값을 *측정*(등급 정규화 기준 — 손박은 임계 0). 들뜬 원자 없으면 0.
+  function measureMaxExcitation(atoms) {
+    let m = 0;
+    for (const a of atoms) { const x = a.x | 0; if (x > m) m = x; }
+    return m;
+  }
+
+  // 들뜸 준위 x 를 측정 최댓값으로 정규화한 *광원 밝기* ∈[0,1](등급 — 불리언 아님).
+  //   maxX=0(들뜸 없음) 또는 x=0(바닥 상태)이면 0 — 빛을 author 하지 않는다(RENDER §3).
+  function excitationGlow(x, maxX) {
+    if (!(maxX > 0) || !(x > 0)) return 0;
+    return Math.min(1, x / maxX);
+  }
+
   // 광자 → 화면 줄기 {head,tail,mag,L}. 머리=현 위치(밝음)·꼬리=운동량 반대(자취). 길이 ∝ |p|/maxP.
   //   운동량이 0(방향 없음)이면 null — 줄기를 author 하지 않는다(RENDER §3). 운동량은 평면(z=0) 2D.
   function photonStreak(p, cam, maxP, worldLen) {
@@ -166,6 +186,7 @@
 
     // 개체 수집 후 painter 정렬(먼 것 먼저). 위치=sim (rx,ry,0) 그대로.
     const draws = [];
+    const maxX = measureMaxExcitation(sim.atoms);                  // 들뜸 글로우 정규화 기준(측정)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: 0 }, cam);
       if (pr.depth <= 0) continue;
@@ -182,7 +203,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K);
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX);
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam));
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -190,20 +211,35 @@
     drawStrip(ctx, sim, SP, range, cv.width, cv.height);   // 측정 스펙트럼 띠(2D HUD 오버레이)
   }
 
-  // 원자 = 음영 구(球). 반지름 = 질량(Z+N) — 읽기. 들뜸 x>0 = 더 밝게. 색 author 0.
-  function drawAtom(ctx, a, pr, K) {
+  // 원자 = 음영 구(球). 반지름 = 질량(Z+N) — 읽기.
+  //   렌즈 L-glow: 들뜸 *준위* x(0..maxX 양자수)를 *광원 밝기*로 등급 읽기 — 불리언(유무) 아님.
+  //   exc=x/maxX∈[0,1](측정 정규화). 차가운 기본(exc=0)→온백 발광(exc=1). x=0 이면 글로우 0(빛 author 0).
+  function drawAtom(ctx, a, pr, K, maxX) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
-    const excited = (a.x | 0) > 0;
-    const base = excited ? [0x39, 0x40, 0x5a] : [0x20, 0x24, 0x2f];
+    const exc = excitationGlow(a.x | 0, maxX); // 들뜸 준위 → 광원 밝기 ∈[0,1](측정 등급)
+    const cold = [0x20, 0x24, 0x2f], warm = [0x3b, 0x42, 0x5e];
+    const base = cold.map((c, k) => Math.round(c + (warm[k] - c) * exc));   // 준위에 따라 데워짐
     // 좌상단 광원 가정한 라디얼 그래디언트로 구의 입체감(프레젠테이션, 시뮬 양 아님)
     const g = ctx.createRadialGradient(pr.sx - r * 0.35, pr.sy - r * 0.35, r * 0.1, pr.sx, pr.sy, r);
-    const hi = base.map(v => Math.min(255, v + (excited ? 70 : 45)));
+    const hi = base.map(v => Math.min(255, v + 45 + Math.round(40 * exc)));  // 들뜸↑ → 하이라이트↑
     g.addColorStop(0, `rgb(${hi[0]},${hi[1]},${hi[2]})`);
     g.addColorStop(1, `rgb(${base[0]},${base[1]},${base[2]})`);
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(pr.sx, pr.sy, r, 0, 6.2832); ctx.fill();
+    // 발광 헤일로 = 들뜸 준위에 비례하는 광원 밝기(읽기 — magnitude 채널). 색은 중립 온백(hue author 0).
+    //   x=0(바닥)이면 헤일로 0 — 들뜨지 않은 원자는 빛을 author 하지 않는다.
+    if (exc > 0) {
+      const hr = r * (1.4 + 1.2 * exc);        // 헤일로 반경도 준위에 비례(밝을수록 멀리)
+      const gh = ctx.createRadialGradient(pr.sx, pr.sy, r * 0.5, pr.sx, pr.sy, hr);
+      gh.addColorStop(0, `rgba(255,238,210,${(0.45 * exc).toFixed(3)})`);
+      gh.addColorStop(1, 'rgba(255,238,210,0)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = gh;
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, hr, 0, 6.2832); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
   }
 
   // 광자 = 색 있는 발광 빌보드(가법 합성). 색 = λ → 스펙트럼(측정 범위 정규화 — L-λ 읽기).
@@ -295,5 +331,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, bondSegment };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment };
 });
