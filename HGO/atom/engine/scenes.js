@@ -787,6 +787,74 @@
         ];
       },
     },
+
+    'step-0014': {
+      id: 'step-0014',
+      title: '다전자 원자도 색을 구분한다 (전자 차폐 — 유효핵전하 Z_eff)',
+      desc: 'step-0013 의 E∝Z² 는 *단전자 이온*(e=1)만 정확했다 — 다전자 중성원자는 차폐로 닫힌 형식이 없어 아직 수소선을 냈다(STATE §3 🟡). ' +
+            'levelEZ 에 차폐 노브 `levelScreen`(σ)을 더한다: 다른 e−1 전자가 핵을 가려 *유효핵전하* Z_eff=Z−σ·(e−1) 로 E∝Z_eff² — ' +
+            '중성 He(e=2)·C(e=6)·O(e=8)가 *자기 선*을 내되 같은 Z 의 단전자 이온보다 *얕다*(차폐로 끌림 ↓). ' +
+            '같은 전이라도 He⁺(e=1) 3.0 vs 중성 He(e=2) 2.04 — 이온화 상태가 색을 바꾼다. Z·e 런 중 불변 → 흡수·방출 같은 Z_eff² 거래 → 닫힌 장부 정확. ' +
+            '게이트라서 끄면(levelScreen=0) 다전자는 step-0013(Z 무관) 그대로 = 회귀 0. 반동 없음 → 선 위치 깨끗.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[((i / 2) | 0) % ELEMENTS.length];   // 2개씩 한 원소(이온/중성 쌍)
+          const neutral = (i % 2) === 1;                          // 짝수 = 단전자 이온(e=1, 기준) · 홀수 = 중성(e=Z, 차폐)
+          atoms.push({
+            Z: el.Z, N: el.N, e: neutral ? el.Z : 1, x: 1 + ((rng() * 3) | 0),  // 준위 1~3 → 1→0 캐스케이드
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                         // 정지·무반동 → 선 위치 깨끗(아래 emit 만)
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // emit 만(recoil·prop 없음 → 광자 E = 정확한 ΔE). levelZ=1·levelScreen=0.35(Slater 형 차폐).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.3, levelZ: 1, levelScreen: 0.35 } };
+      },
+
+      // 1→0 전이 광자를 (Z,e) 별로 모은다 — 같은 Z 라도 e(이온화 상태)가 다르면 차폐로 선이 갈라짐.
+      _lines10(sim) {
+        const byZE = {};   // "Z|e" → 광자 E (정지·무반동 → 같은 (Z,e) 는 같은 E)
+        for (const p of sim.photons) {
+          if (p.from === 1 && p.to === 0) byZE[p.srcZ + '|' + p.srcE] = p.E;
+        }
+        return byZE;
+      },
+
+      watch(sim, K) {
+        const L = K.ledger(sim), byZE = this._lines10(sim);
+        const neutralE = new Set();
+        for (const key in byZE) { const e = +key.split('|')[1]; if (e > 1) neutralE.add(+byZE[key].toFixed(9)); }
+        const heIon = byZE['2|1'] || 0, heNeu = byZE['2|2'] || 0;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          neutralLines: neutralE.size,                       // 다전자(중성) 1→0 의 서로 다른 선(He·C·O 갈라짐)
+          E_He_ion: +heIon.toFixed(4),                       // He⁺(e=1) 1→0 = 3.0 (비차폐 Z²)
+          E_He_neutral: +heNeu.toFixed(4),                   // 중성 He(e=2) 1→0 = 2.042 (차폐 Z_eff²)
+          screenRatio: heIon > 0 ? +(heNeu / heIon).toFixed(4) : 0,  // 차폐/비차폐 = ((Z−σ)/Z)² < 1
+          E: +L.E.toFixed(3),
+        };
+      },
+
+      // 가설: ① 광자 방출됨 ② 다전자 중성원자도 원소 구분(중성 1→0 선 ≥2, He·C·O 차폐 스펙트럼) ③ 차폐가 유효전하 낮춤(중성 He < He⁺, 정확히 ((Z−σ)/Z)²). 닫힌 장부는 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, byZE = SCENES['step-0014']._lines10(sim);
+        const sigma = sim.knobs.levelScreen;
+        const neutralE = new Set();
+        for (const key in byZE) { const e = +key.split('|')[1]; if (e > 1) neutralE.add(+byZE[key].toFixed(9)); }
+        const heIon = byZE['2|1'] || 0, heNeu = byZE['2|2'] || 0;
+        const ratio = heIon > 0 ? heNeu / heIon : 0;
+        const expRatio = ((2 - sigma) / 2) * ((2 - sigma) / 2);   // 중성 He(e=2)/He⁺(e=1) = (Z_eff/Z)²
+        return [
+          { name: '광자 방출됨(자발 방출 count>0)', pass: sim.photons.length > 0, value: sim.photons.length },
+          { name: '다전자 중성원자도 원소 구분(중성 1→0 선 ≥2)', pass: neutralE.size >= 2, value: neutralE.size },
+          { name: '차폐가 유효전하 낮춤(중성 He < He⁺, ((Z−σ)/Z)² 정합)', pass: heIon > 0 && heNeu > 0 && ratio < 1 && Math.abs(ratio - expRatio) < 1e-9, value: +ratio.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

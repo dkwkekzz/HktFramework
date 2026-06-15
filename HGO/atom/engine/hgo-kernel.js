@@ -34,15 +34,19 @@
   // 준위 에너지의 Z 의존(step-0013, 노브 zScale 게이트 — 원소별 스펙트럼).
   //   ⚠ levelE 는 동결 앵커(Z 무관 수소 사다리)다 — 시그니처/수치 의미 불변. 여기 *새 함수*가 가법으로 Z 를 얹는다.
   //   단전자 *수소형* 이온(e=1)의 들뜸 E ∝ Z² (보어 닫힌 형식 E_n=−R·Z²/n² ⇒ 들뜸 E=Z²·levelE(x)).
-  //     다전자(e≠1)는 전자 차폐로 닫힌 형식이 없다 → Z 무관 유지(levelE 그대로, STATE §3 🔴 후속 정련).
-  //   zScale 블렌드: 0 → 정확히 levelE(x)(회귀 0·바이트 동일) · 1 → 완전 Z² 스케일 · 중간 → 보간(뷰어 슬라이더).
-  //   ★ 닫힌 장부 핵심: Z·e 는 *런 중 불변*(어느 법칙도 안 바꿈) → 한 원자의 zfac 가 상수 →
+  //   다전자(e≠1): step-0014 차폐 노브 screen 게이트 — 유효핵전하 Z_eff=Z−screen·(e−1) 로 E∝Z_eff²
+  //     (다른 e−1 전자가 핵을 가림 → 실효 끌림 ↓ → 준위 얕아짐). screen=0 → 다전자 Z 무관(step-0013 보존·회귀 0).
+  //   zScale 블렌드: 0 → 정확히 levelE(x)(회귀 0·바이트 동일) · 1 → 완전 Z(_eff)² 스케일 · 중간 → 보간(뷰어 슬라이더).
+  //   ★ 닫힌 장부 핵심: Z·e 는 *런 중 불변*(어느 법칙도 안 바꿈) → 한 원자의 zfac(Z_eff 포함) 가 상수 →
   //     흡수(scatter·reheat·chemilum)와 방출(emit)이 *같은 zfac* 로 거래 → 들뜸 E 의 가감이 정확히 상쇄(E 보존).
-  function levelEZ(x, Z, e, zScale) {
+  function levelEZ(x, Z, e, zScale, screen) {
     const base = levelE(x);
     if (!zScale) return base;                       // 노브=0 → 정확히 levelE (회귀 0)
-    const zfac = (e === 1) ? Z * Z : 1;             // 단전자 수소형 이온만 E∝Z²; 다전자는 Z 무관(차폐, 후속)
-    return base * (1 + zScale * (zfac - 1));        // 0→levelE · 1→Z²·levelE · 보간
+    let zfac;
+    if (e === 1) zfac = Z * Z;                      // 단전자 수소형 이온: 정확 E∝Z² (step-0013)
+    else if (screen) { const zeff = Z - screen * (e - 1); zfac = zeff * zeff; }  // 다전자: 유효핵전하 Z_eff² (step-0014 차폐)
+    else zfac = 1;                                  // 차폐 노브=0 → 다전자 Z 무관(step-0013 보존)
+    return base * (1 + zScale * (zfac - 1));        // 0→levelE · 1→Z(_eff)²·levelE · 보간
   }
   // 광자 파장 — λ = hc/ΔE. 색은 author 가 아니라 준위 차에서 *나온다*(SPINE §3 요건3).
   function photonLambda(dE) { return H_PLANCK * C / dE; }
@@ -54,14 +58,15 @@
   // 가법 규칙(SPINE §6.1): 들뜸항은 x=0 → 0, 광자항은 미존재/빈 배열 → 0 ⇒ 과거(step-0001) 장부 불변.
   function ledger(sim) {
     let Q = 0, B = 0, L = 0, E = 0, px = 0, py = 0;
-    const lz = (sim.knobs && sim.knobs.levelZ) || 0;  // 준위 Z 의존(step-0013, 미설정/0 → levelE 그대로 = 과거 장부 불변)
+    const lz = (sim.knobs && sim.knobs.levelZ) || 0;       // 준위 Z 의존(step-0013, 미설정/0 → levelE 그대로 = 과거 장부 불변)
+    const sc = (sim.knobs && sim.knobs.levelScreen) || 0;  // 다전자 차폐(step-0014, 미설정/0 → step-0013 그대로)
     for (const a of sim.atoms) {
       const m = mass(a);
       Q += a.Z - a.e;
       B += a.Z + a.N;
       L += a.e;
       const v2 = a.vx * a.vx + a.vy * a.vy;
-      E += m * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
+      E += m * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz, sc);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
       px += m * a.vx;
       py += m * a.vy;
     }
