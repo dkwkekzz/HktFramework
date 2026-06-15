@@ -70,7 +70,8 @@ function main() {
   const hypoPass = Object.values(checkAgg).every(c => c.pass);
 
   let ledgerOK = true, worst = LEDGER_KEYS[0];   // 기본 첫 키(전부 0 잔차여도 정의됨 — 부트스트랩 가드)
-  for (const k of LEDGER_KEYS) { if (maxResid[k] > tol[k]) ledgerOK = false; if (maxResid[k] > maxResid[worst]) worst = k; }
+  // worst = *허용오차 대비* 가장 초과한 키(절대 잔차 아님) — E 만 완화된 장면서 실패 키(예: px 1e-9 위반)를 정확 지목.
+  for (const k of LEDGER_KEYS) { if (maxResid[k] > tol[k]) ledgerOK = false; if (maxResid[k] / tol[k] > maxResid[worst] / tol[worst]) worst = k; }
   const tolNote = LEDGER_KEYS.filter(k => tol[k] !== LEDGER_TOL).map(k => `${k}≤${tol[k]}`).join(' ');
 
   const hasKnobLaw = require('./hgo-laws.js').LAW_ORDER.length > 0;

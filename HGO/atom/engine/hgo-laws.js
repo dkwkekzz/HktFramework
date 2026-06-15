@@ -345,7 +345,7 @@
         // step-0015 게이트 bondLocalE(=0 → 이전 비트 동일): 흡수 E 를 *그 결합 간선*에 per-bond 저장([i,j,Eabs]).
         //   전역 sim.bondE 는 그대로 두되(ledger 가 읽음·불변) 결합별 e[2] 가 그 합을 분해 → 어느 결합 E 인지 국소 추적(unbond·핵 회계 토대).
         const edge = sim.knobs.bondLocalE ? [i, j, absorbed] : [i, j];
-        if (ord) edge[3] = order;                           // 결합 차수 기록(미설정 → e[3]||1 = 단일, 회귀 0)
+        if (ord) { if (edge.length < 3) edge.push(0); edge[3] = order; }  // 차수 기록(미설정→e[3]||1=단일·회귀 0). E 슬롯 없으면 0 채워 희소 구멍 방지
         sim.bonds.push(edge);
         sim.bondKeys.add(key);
         if (vcap || cov) { deg[i] += order; deg[j] += order; }  // 차수 갱신(order 가중 — 이중 결합은 빈자리 2칸 소비)

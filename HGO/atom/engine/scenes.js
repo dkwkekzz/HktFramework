@@ -17,23 +17,10 @@
   // 수소·헬륨·탄소·산소 = 양성자 수의 위치.
   const ELEMENTS = [{ Z: 1, N: 0 }, { Z: 2, N: 2 }, { Z: 6, N: 6 }, { Z: 8, N: 8 }];
 
-  // step-0019 쿨롱 측정 헬퍼 — KE·PE(Plummer, 힘/ledger 와 동일 식)·전하별 평균 거리.
+  // step-0019 쿨롱 측정 헬퍼 — KE·전하별 평균 거리. PE 는 커널 공유 헬퍼 K.coulombPE(힘/ledger 와 한 출처, DRY).
   function keOf(atoms) { let s = 0; for (const a of atoms) { const m = a.Z + a.N; s += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return s; }
-  function peOf(atoms, sim, K) {
-    const kc = sim.knobs.kCoulomb || 0; if (!kc) return 0;
-    const eps2 = (sim.knobs.coulombSoft || 1) ** 2; let u = 0;
-    for (let i = 0; i < atoms.length; i++) {
-      const qi = atoms[i].Z - atoms[i].e; if (qi === 0) continue;
-      for (let j = i + 1; j < atoms.length; j++) {
-        const qj = atoms[j].Z - atoms[j].e; if (qj === 0) continue;
-        const dx = K.minImage(atoms[j].rx - atoms[i].rx, sim.W), dy = K.minImage(atoms[j].ry - atoms[i].ry, sim.H);
-        u += kc * qi * qj / Math.sqrt(dx * dx + dy * dy + eps2);
-      }
-    }
-    return u;
-  }
   function coulombMetrics(sim) {
-    const A = sim.atoms, K = (typeof require !== 'undefined') ? require('./hgo-kernel.js') : (typeof globalThis !== 'undefined' ? globalThis : this).HGO.kernel;
+    const A = sim.atoms;
     let oppSum = 0, oppN = 0, likeSum = 0, likeN = 0;
     for (let i = 0; i < A.length; i++) {
       const qi = A[i].Z - A[i].e;
@@ -44,7 +31,7 @@
         if (qi * qj < 0) { oppSum += d; oppN++; } else if (qi * qj > 0) { likeSum += d; likeN++; }
       }
     }
-    return { ke: keOf(A), pe: peOf(A, sim, K), oppD: oppN ? oppSum / oppN : 0, likeD: likeN ? likeSum / likeN : 0 };
+    return { ke: keOf(A), pe: K.coulombPE(A, sim.knobs, sim.W, sim.H), oppD: oppN ? oppSum / oppN : 0, likeD: likeN ? likeSum / likeN : 0 };
   }
 
   // 분자 측정 = 결합 간선의 *연결 성분*(union-find). author 한 객체 아님 — 순수 측정(SPINE §3 요건1).
@@ -1179,7 +1166,7 @@
       assert(ctx, K) {
         const sim = ctx.sim;
         const m1 = coulombMetrics(sim);
-        const ke0 = keOf(ctx.atoms0), pe0 = peOf(ctx.atoms0, sim, K);   // 초기(atoms0)
+        const ke0 = keOf(ctx.atoms0), pe0 = K.coulombPE(ctx.atoms0, sim.knobs, sim.W, sim.H);   // 초기(atoms0)
         const dKE = m1.ke - ke0, dPE = m1.pe - pe0;
         const dTotal = Math.abs(dKE + dPE);                              // KE+PE 변화(유계 보존이면 ≈0)
         return [
