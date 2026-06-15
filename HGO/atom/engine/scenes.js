@@ -855,6 +855,62 @@
         ];
       },
     },
+
+    'step-0015': {
+      id: 'step-0015',
+      title: '결합 에너지가 결합별로 산다 (전역 reservoir → 결합별 E 장부, unbond 의 토대)',
+      desc: 'step-0010~0011 의 결합 에너지는 *전역 스칼라* sim.bondE 하나였다 — 어느 결합의 에너지인지 알 수 없어 *결합 깸*(unbond)이 불가능했다(STATE 🟡). ' +
+            'bond 게이트 `bondLocalE` 로 흡수 KE 를 *그 결합 간선*에 per-bond 저장([i,j,Eabs])하고, chemilum 도 전역 풀이 아니라 *그 원자 자신의 결합*에서 인출한다 — ' +
+            '빛이 *그 분자의 결합 E*에서 나온다(국소성↑, 척추 ③). 전역 sim.bondE 는 그대로 두되 *결합별 합* = 전역(Σe[2]=bondE 불변) — ledger 무영향. ' +
+            '게이트라서 끄면(bondLocalE=0) 결합은 [i,j]·chemilum 전역 → step-0011 비트 동일(회귀 0). 이 결합별 장부가 다음 unbond(결합 깸)·핵 회계의 토대다.',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0011 과 동일 무대(결합·화학발광)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,   // 바닥 — 빛은 오직 결합 E 에서
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0011 사슬 + bondLocalE(결합별 E 장부) 한 노브만 추가.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [];
+        let sumE2 = 0, minE2 = Infinity; for (const e of bonds) { sumE2 += (e[2] || 0); if ((e[2] || 0) < minE2) minE2 = e[2] || 0; }
+        if (!bonds.length) minE2 = 0;
+        return {
+          atoms: sim.atoms.length,
+          bonds: sim.bondCount | 0,
+          chemilum: sim.chemilumCount | 0,
+          localDebit: sim.bondLocalDebit | 0,               // chemilum 이 결합별 장부서 인출한 횟수
+          sumBondE: +sumE2.toFixed(4),                       // Σ 결합별 E (= 전역과 일치해야)
+          globalBondE: +(sim.bondE || 0).toFixed(4),         // 전역 reservoir
+          ledgerResid: +Math.abs(sumE2 - (sim.bondE || 0)).toExponential(2),  // 국소 합 − 전역 (≈0)
+          minE2: +minE2.toFixed(4),                          // 최소 결합 E (≥0 — 국소 회계 유효)
+        };
+      },
+
+      // 가설: ① 결합별 E 장부 기록(결합 형성·각 간선이 E 저장>0) ② 국소 회계 충실(Σe[2] = 전역 bondE, 잔차≈0) ③ 국소 소비(chemilum 이 특정 결합서 인출>0 & 모든 e[2]≥0). 총 E 보존은 ②기둥(닫힌 장부).
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [];
+        let sumE2 = 0, allTriple = bonds.length > 0, minE2 = Infinity;
+        for (const e of bonds) { if (e.length < 3) allTriple = false; sumE2 += (e[2] || 0); if ((e[2] || 0) < minE2) minE2 = e[2] || 0; }
+        const resid = Math.abs(sumE2 - (sim.bondE || 0));
+        const debit = sim.bondLocalDebit | 0;
+        return [
+          { name: '결합별 E 장부 기록(결합 형성 & 각 간선이 E 저장)', pass: allTriple, value: bonds.length },
+          { name: '국소 회계 충실(Σ결합별E = 전역 bondE, 잔차≈0)', pass: resid <= 1e-9, value: +resid.toExponential(2) },
+          { name: '국소 소비(chemilum 이 특정 결합서 인출>0 & 모든 e[2]≥0)', pass: debit > 0 && minE2 >= -1e-12, value: debit },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
