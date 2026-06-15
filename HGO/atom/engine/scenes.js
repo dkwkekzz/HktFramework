@@ -911,6 +911,62 @@
         ];
       },
     },
+
+    'step-0016': {
+      id: 'step-0016',
+      title: '결합이 깨진다 (unbond — bond 의 역연산, 영구 이량체 → 충돌로 해방)',
+      desc: 'step-0010~0015 의 결합은 *영구*였다 — 한 번 묶이면 안 풀려 세계가 결합 쪽으로 래칫됐다(STATE 🟡). ' +
+            '새 법칙 `unbond`(게이트 kUnbond)는 bond 의 정확한 역: 외부 충돌(collide)이 결합 원자를 때려 두 원자의 *상대 KE* 가 ' +
+            '*그 결합에 저장된 e[2]*(step-0015 결합별 장부)를 넘으면 끊는다 — 저장 E 를 상대 운동으로 정확히 돌려주고(vcom 불변·Δp=0·ΔE=0) ' +
+            '전역 bondE 동기 차감·간선 제거. 트리거는 *측정된 상대 KE 대 저장 E* 비교뿐(author 분기 0, 척추 ②). ' +
+            '게이트라서 끄면(kUnbond=0) step-0015 비트 동일(회귀 0). 이로써 결합↔해체 순환이 열려 세계가 한쪽으로 굳지 않는다(SPINE §4 순환).',
+      ticks: 80,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0015 와 동일 무대(결합·화학발광·국소 E 장부)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.8, vy: (rng() * 2 - 1) * 0.8,   // step-0015 보다 약간 뜨겁게 — 충돌로 결합 깨기 좋게
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0015 사슬 + kUnbond(결합 깸) 한 노브만 추가. bondVmax 낮춰 약한 결합도 생기게(깰 대상 확보).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 1.5, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1, kUnbond: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [];
+        let sumE2 = 0, minE2 = Infinity; for (const e of bonds) { sumE2 += (e[2] || 0); if ((e[2] || 0) < minE2) minE2 = e[2] || 0; }
+        if (!bonds.length) minE2 = 0;
+        return {
+          atoms: sim.atoms.length,
+          bondsFormed: sim.bondCount | 0,                    // 형성된 결합 누적(bond)
+          unbonds: sim.unbondCount | 0,                       // 깨진 결합 누적(unbond)
+          liveBonds: bonds.length,                            // 현재 살아있는 결합 간선
+          chemilum: sim.chemilumCount | 0,
+          sumBondE: +sumE2.toFixed(4),                        // Σ 결합별 E
+          globalBondE: +(sim.bondE || 0).toFixed(4),          // 전역 reservoir
+          ledgerResid: +Math.abs(sumE2 - (sim.bondE || 0)).toExponential(2),  // 국소 합 − 전역 (≈0 — 깸 후에도 동기)
+        };
+      },
+
+      // 가설: ① 결합이 깨진다(unbond>0 — 영구 아님) ② 닫힌 장부 유지(Σe[2]=전역 bondE, 깸 후에도 잔차≈0) ③ 결합 동적 평형(형성>깸>0 & 일부 살아남음 → 래칫 아닌 순환). 총 E·p 보존은 ②기둥(verify ledger).
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [];
+        let sumE2 = 0; for (const e of bonds) sumE2 += (e[2] || 0);
+        const resid = Math.abs(sumE2 - (sim.bondE || 0));
+        const formed = sim.bondCount | 0, broke = sim.unbondCount | 0;
+        return [
+          { name: '결합이 깨진다(unbond>0 — 영구 이량체 아님)', pass: broke > 0, value: broke },
+          { name: '닫힌 장부 유지(Σ결합별E = 전역 bondE, 깸 후에도 잔차≈0)', pass: resid <= 1e-9, value: +resid.toExponential(2) },
+          { name: '결합 동적 평형(형성>깸>0 & 일부 살아남음 → 순환)', pass: formed > broke && broke > 0 && bonds.length > 0, value: formed },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

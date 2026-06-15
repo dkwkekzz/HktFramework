@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -368,9 +368,48 @@
     }
   }
 
+  // 결합 깸 = bond 의 정확한 역연산 (step-0016, *영구 결합의 해방*). step-0010 bond 는 상대 KE 를 흡수해
+  // 두 원자를 질량중심 속도로 잠갔다 — 이량체는 *영구*였다(한 번 묶이면 안 풀림). 하지만 외부 충돌(collide)이
+  // 결합 원자 하나를 때리면 두 원자의 상대속도가 다시 살아난다(va≠vb). 그 *상대 KE 가 그 결합에 저장된 e[2]*
+  // 를 넘으면 결합이 끊긴다 — 충분히 흔들린 결합만 깬다(약한 결합·뜨거운 환경서 먼저 깸).
+  //   닫힌 장부(bond 의 정확한 역): 저장 결합 E e[2] 를 *상대 운동으로 정확히 돌려준다*. 운동량 보존: 질량중심
+  //     속도 vcom 은 불변, 상대속도만 |v_rel'|²=|v_rel|²+2·e[2]/μ 로 확대(같은 방향) → Δp=0·ΔE=0
+  //     (전역 bondE↓e[2] = 상대 KE↑e[2]). step-0015 결합별 장부 e[2] 가 "얼마 돌려줄지"를 정확히 안다.
+  //   트리거(창발): ½μ|v_rel|² > e[2] — author `if(shouldBreak)` 0, 조건은 *측정된 상대 KE 대 저장 E* 비교뿐.
+  //     깬 뒤 상대속도가 커져(에너지 방출) bondVmax 를 넘으면 bond 가 재포획 못 함 → 즉시 재결합 thrash 회피.
+  //   국소: *그 두 원자 + 그 결합*만으로 판정(전역 조율자 0). 결정론: 위치·속도·e[2] 결정 → rng 불필요.
+  //   게이트 kUnbond(=0 → early-return = 회귀 0): 끄면 step-0015 비트 동일. bondLocalE 필요(e[2] = 돌려줄 E 의 출처).
+  function unbond(sim) {
+    const k = sim.knobs.kUnbond;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 깸 꺼짐 → 직전 비트)
+    if (!sim.bonds || !sim.bonds.length) return;         // 깰 결합 없음
+    const atoms = sim.atoms, n = atoms.length;
+    const kept = [];                 // 살아남는 결합(재구성 — 깬 간선 제거)
+    let broke = 0;
+    for (const e of sim.bonds) {
+      const Estored = e[2] || 0;     // 저장 결합 E (bondLocalE 꺼졌으면 0 → 못 깸 = 게이트 의존)
+      if (Estored <= 0) { kept.push(e); continue; }
+      const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
+      const ma = K.mass(a), mb = K.mass(b), M = ma + mb, mu = ma * mb / M;
+      const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+      const vrel2 = dvx * dvx + dvy * dvy;
+      if (0.5 * mu * vrel2 <= Estored) { kept.push(e); continue; }  // 상대 KE ≤ 저장 E → 아직 약하게 흔들림, 결합 유지
+      // 깸: 저장 E 를 상대 운동으로 돌려줌(vcom 불변 → 운동량 보존, v_rel 확대 → ΔKE = +Estored)
+      const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
+      const scale = Math.sqrt((vrel2 + 2 * Estored / mu) / vrel2);  // |v_rel'|/|v_rel| (vrel2>0 보장 — 위 비교)
+      const rvx = dvx * scale, rvy = dvy * scale;        // 확대된 상대속도(같은 방향 → 서로 더 밀어냄)
+      a.vx = vcx + (mb / M) * rvx; a.vy = vcy + (mb / M) * rvy;
+      b.vx = vcx - (ma / M) * rvx; b.vy = vcy - (ma / M) * rvy;
+      sim.bondE -= Estored;          // 전역 reservoir 동기 차감(Σe[2]=bondE 불변 유지)
+      sim.bondKeys.delete(i * n + j); // bondKey 제거 → bond 재포획 허용(단 빨라서 bondVmax 초과 → 실질 회피)
+      broke++;
+    }
+    if (broke) { sim.bonds = kept; sim.unbondCount = (sim.unbondCount | 0) + broke; }  // 간선 장부 교체 + 진단 카운터(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {
