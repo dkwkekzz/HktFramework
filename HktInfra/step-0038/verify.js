@@ -1,11 +1,10 @@
-// HktInfra step-0038 — 헤드리스 검증 (버스 failover *요청 경로 무손실* — gateway producer replay 로 base 대비 mint 손실 0)
+// HktInfra step-0038 — 헤드리스 검증 (정리 step: topology.js 박스-부품 분할 — 기능 추가 0·바이트 동일)
 // 사용: node step-0038/verify.js <mode> [seed]
-//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 모드 = busreq(아래·0036 위에 한 조각 확장).
-//   이 step 의 가설: 0036 은 버스 crash gap 의 *결과* 경로(svc.item.out)를 가방 producer replay 로 무손실화했다. 그 거울인 *요청* 경로(svc.item)는
-//                    아직 손실(gap 에 떨군 pickup/give 요청은 가방에 도달조차 못 해 mint 자체가 안 일어남 → 원장이 base 보다 작음 = mint 손실·0036 §9).
-//                    요청의 producer 인 *게이트웨이*가 발행 요청을 보관했다 버스 복구 시 *재발행*하면 gap 에 떨군 요청이 가방에 도달해 mint → base 대비 mint 손실 0.
-//                    재발행은 gap 전 도달분도 함께 보내므로(pickup 은 매번 새 itemId mint = 멱등 불가) 요청마다 reqId 를 실어 가방이 dedup → 이중 mint 0.
-// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 이 step 의 새 모드(busreq)만 추가.
+//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 은 *기능 0* — 새 가설 없음.
+//   정리 내용: topology.js 가 31KB>30KB 박스 임계를 넘겨 *토폴로지 구성*(routeFilters·buildTopology·makeActor)을 topo-build.js 로 분리(0030/0035 분할의 판).
+//   분할 투명성 증명: ⒜ `reg`(키트) — NET 이 직전 step(0037)과 *비트 동일*(net.log+상태+inv/chat/bus/rank). 분할은 내부 파일 구조만 = export·동작 불변.
+//                     ⒝ `busreq`(0037 에서 carried) — 분할 후에도 요청 경로 producer replay 가 그대로 동작(mint 손실 0)함을 행위로 재확인(split 투명성).
+// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 분할 투명성 행위 모드(busreq·기능 무변경)만 유지.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../step-0037/net-core.js');   // reg 대조용(직전 step)
@@ -21,7 +20,7 @@ const JLOSS = 0.3;       // 저널 홉 손실율(0023~) — inventory→persist 
 
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-// ── 이 step 의 새 모드: busreq — 버스 failover *요청 경로* 무손실(gateway producer replay·base 대비 mint 손실 0) ──
+// ── carried 모드: busreq — 0037 요청 경로 producer replay 가설(분할 후에도 그대로 동작 = split 투명성 행위 체크) ──
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
