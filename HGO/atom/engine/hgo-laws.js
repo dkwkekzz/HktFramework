@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -201,9 +201,39 @@
     sim.photons = keep;                              // 활성 배열 = 살아남은 광자만(유계)
   }
 
+  // 복사 바스 되먹임 = 재가열 (step-0008, *느린 순환 닫기*). step-0007 이 *모으기만* 한 복사 바스
+  // sim.escaped 의 에너지를 원자로 *되돌려* 들뜸(x)을 재공급한다 — 단조 냉각/소멸을 SPINE §4 "순환"으로.
+  //   왜 들뜸(운동량-자유)인가: 바스는 E 와 운동량 px·py 를 함께 인다. 등방 복사라 |p_바스| ≤ E_바스(c=1) →
+  //     *운동량-자유 잉여* surplus = E_바스 − |p_바스| ≥ 0 이 항상 있다. 이 잉여만 한 준위 비용 G 로 뽑아
+  //     원자 들뜸에 실으면(thermalized 흡수 — 사방 흡수가 net 반동 상쇄), 바스 운동량 px·py 불변.
+  //   닫힌 장부: bath.E ↓ G = 원자 들뜸 E ↑ G (정확 쌍 거래), 운동량 양쪽 불변 ⇒ Q·B·L·E·px·py 보존.
+  //     바스가 음에너지/비물리(E<|p|)로 가지 않게 G ≤ surplus 일 때만 흡수 → 흡수 후도 E ≥ |p| 유지.
+  //   순환: 들뜸 → 방출(emit) → 광자 → 노화 → 바스(escape) → 들뜸(reheat) … 루프가 닫힌다(self-running 씨앗).
+  //   국소: 원자 *혼자* + 바스 집계로 판정(원자-원자 조율자 0). 결정론: 확률 kReheat 는 sim.rng 만. 노브=0 → 회귀 0.
+  function reheat(sim) {
+    const k = sim.knobs.kReheat;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (재가열 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 의사난수 없으면 확률 판정 불가(Math.random 금지 — 결정론)
+    const bath = sim.escaped;
+    if (!bath || bath.E <= 0) return;                     // 줄 에너지 없음(바스 빔)
+    const xMax = sim.knobs.reheatXMax || 6;               // 준위 상한(이온화 영역 밖)
+    for (const a of sim.atoms) {
+      if (rng() >= k) continue;                           // 확률 kReheat 재흡수 시도
+      const x = a.x | 0;
+      if (x >= xMax) continue;                            // 고준위 포화
+      const G = K.levelE(x + 1) - K.levelE(x);            // 한 준위 ↑ 데우는 비용
+      const surplus = bath.E - Math.hypot(bath.px, bath.py);  // 운동량-자유 잉여(≥0, c=1)
+      if (G > surplus) continue;                          // 줄 운동량-자유 에너지 부족
+      bath.E -= G;                                        // 바스 에너지 차감(되돌림)
+      a.x = x + 1;                                         // 원자 한 준위 재여기(데움)
+      bath.reheated = (bath.reheated | 0) + 1;            // 재가열 횟수(진단·hash 미참여)
+    }
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {

@@ -408,6 +408,63 @@
         ];
       },
     },
+
+    'step-0008': {
+      id: 'step-0008',
+      title: '복사 바스가 원자를 다시 데운다 (재가열 — 느린 순환 닫기)',
+      desc: 'step-0007 의 복사 바스는 *모으기만* 했다 — 세계는 식기만 했다. reheat 법칙(노브 kReheat)으로 ' +
+            '바스에 고인 복사 E 를 원자로 *되돌려* 들뜸(x)을 재공급한다: 들뜸→방출→광자→노화→바스→들뜸 루프가 닫힌다(SPINE §4 순환의 첫 닫힘). ' +
+            '바스는 E·운동량을 함께 이지만, 등방 복사라 *운동량-자유 잉여*(E−|p|≥0)가 늘 있어 그 잉여만 한 준위 비용으로 뽑아 들뜸에 싣는다 — 바스 운동량 불변·정확 보존. ' +
+            '게이트라서 노브를 끄면 step-0007 비트 동일(회귀 0). 60 tick 런으로, 냉각만 하던 세계에 *재가열*이 들어와 들뜸이 되살아남을 본다.',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 200, H = 200, n = 40, atoms = [];   // 큰 무대 — 60 tick·c=1 직진이 wrap(half=100) 안
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;   // 60% 들뜸: 준위 1~3 — 초기 복사 공급원
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // 정지 — 등방 복사(바스 net 운동량 ≈0)
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // 방출→반동→전파→escape(바스 적립)→reheat(바스 인출) 전부 켜 순환 루프를 닫는다.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.15, kRecoil: 1, kProp: 1, kEscape: 1, escapeAge: 15, kReheat: 0.05 } };
+      },
+
+      watch(sim, K) {
+        const bath = sim.escaped || { E: 0, count: 0, reheated: 0, px: 0, py: 0 };
+        let exc = 0, excited = 0;
+        for (const a of sim.atoms) { exc += K.levelE(a.x); if ((a.x | 0) > 0) excited++; }
+        let activeE = 0; for (const p of sim.photons) activeE += p.E;
+        const surplus = bath.E - Math.hypot(bath.px || 0, bath.py || 0);
+        return {
+          atoms: sim.atoms.length,
+          excited,                                  // 들뜬 원자 수(재가열로 0 으로 안 죽음)
+          excE: +exc.toFixed(3),                    // 총 들뜸 E(재가열 재공급 — 순환 증거)
+          reheated: bath.reheated | 0,              // 바스→원자 재가열 횟수
+          bathE: +bath.E.toFixed(3),                // 바스 잔여 에너지(재가열로 줄어듦)
+          surplus: +surplus.toFixed(3),             // 바스 운동량-자유 잉여(≥0 유지)
+          radE: +(activeE + bath.E).toFixed(3),
+        };
+      },
+
+      // 가설: ① 바스가 원자를 재가열함(reheat count>0) ② 재가열로 들뜸이 재공급(런 끝까지 들뜬 원자>0) ③ 바스 잉여 음수 안 됨(E≥|p| 물리 유지). 총 E 보존은 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, bath = sim.escaped || { E: 0, reheated: 0, px: 0, py: 0 };
+        const reheated = bath.reheated | 0;
+        let excited = 0; for (const a of sim.atoms) if ((a.x | 0) > 0) excited++;
+        const surplus = bath.E - Math.hypot(bath.px || 0, bath.py || 0);
+        return [
+          { name: '바스가 원자를 재가열함(reheat count>0)', pass: reheated > 0, value: reheated },
+          { name: '재가열로 들뜸이 재공급됨(런 끝 들뜬 원자>0)', pass: excited > 0, value: excited },
+          { name: '바스 운동량-자유 잉여 ≥0(E≥|p| 물리 유지)', pass: surplus >= -1e-9, value: +surplus.toFixed(3) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
