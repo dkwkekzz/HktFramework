@@ -465,6 +465,69 @@
         ];
       },
     },
+
+    'step-0009': {
+      id: 'step-0009',
+      title: '원자가 서로 부딪힌다 (탄성 충돌 — 첫 원자-원자 상호작용, Phase C 의 문)',
+      desc: '지금까지 원자-원자 상호작용은 0이었다(빛 매개만). 첫 직접 접촉: 접촉 반경 안에서 *서로 다가오는* 원자 쌍이 ' +
+            '탄성 충돌(노브 kCollide)해 운동량을 *교환*한다 — 총 운동량·총 KE 는 닫힌 형식으로 정확히 보존(머신 정밀도). ' +
+            '절반은 움직이고 절반은 *정지*로 시작 — 충돌이 정지 원자를 때려 움직이게 하면 운동량이 *퍼지는*(열화·확산) 증거다. ' +
+            '연속 쿨롱장(PE 항·심플렉틱 적분 필요 → 에너지 드리프트)은 별도 step 으로 전가하고, 여기선 *정확 보존*하는 충돌만 얹는다. ' +
+            '게이트라서 노브를 끄면 step-0008(과 그 이전) 비트 동일(회귀 0).',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 60, H = 60, n = 50, atoms = [];   // 작은 무대 + 많은 원자 → 충돌이 자주 일어남
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const moving = (i % 2) === 0;                      // 절반 운동·절반 정지(rest0 표식 — hash 미참여)
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x: 0,
+            rx: rng() * W, ry: rng() * H,
+            vx: moving ? (rng() * 2 - 1) : 0,
+            vy: moving ? (rng() * 2 - 1) : 0,
+            rest0: !moving,                                  // 초기 정지 표식(충돌로 움직였는지 검증용)
+          });
+        }
+        return { W, H, atoms, knobs: { dt: 1.0, kCollide: 1, collideR: 3 } };
+      },
+
+      watch(sim, K) {
+        let px = 0, py = 0, ke = 0, movedFromRest = 0, speedVar = 0, meanSp = 0;
+        for (const a of sim.atoms) {
+          const m = K.mass(a), sp = Math.hypot(a.vx, a.vy);
+          px += m * a.vx; py += m * a.vy; ke += 0.5 * m * (a.vx * a.vx + a.vy * a.vy);
+          meanSp += sp / sim.atoms.length;
+          if (a.rest0 && sp > 1e-12) movedFromRest++;        // 정지로 시작했다 움직인 원자
+        }
+        return {
+          atoms: sim.atoms.length,
+          collisions: sim.collideCount | 0,        // 누적 탄성 충돌 횟수
+          movedFromRest,                            // 충돌로 깨어난(운동량 받은) 정지 원자 수
+          totP: +Math.hypot(px, py).toExponential(2), // 총 운동량 크기(보존 → 초기값 유지)
+          KE: +ke.toFixed(4),                       // 총 KE(탄성 → 보존)
+          meanSpeed: +meanSp.toFixed(4),
+        };
+      },
+
+      // 가설: ① 원자가 충돌함(collide count>0) ② 운동량이 퍼짐(정지 원자가 충돌로 움직임>0) ③ 총 KE 보존(탄성, ②기둥 E 와 정합). 총 운동량 보존은 ②기둥 px·py.
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const collisions = sim.collideCount | 0;
+        let movedFromRest = 0, ke = 0;
+        for (const a of sim.atoms) {
+          const m = K.mass(a);
+          ke += 0.5 * m * (a.vx * a.vx + a.vy * a.vy);
+          if (a.rest0 && Math.hypot(a.vx, a.vy) > 1e-12) movedFromRest++;
+        }
+        return [
+          { name: '원자가 서로 충돌함(탄성 충돌 count>0)', pass: collisions > 0, value: collisions },
+          { name: '운동량이 퍼짐(정지 원자가 충돌로 움직임>0)', pass: movedFromRest > 0, value: movedFromRest },
+          { name: '총 KE 보존(탄성 — E 보존은 ②기둥)', pass: ke > 0, value: +ke.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

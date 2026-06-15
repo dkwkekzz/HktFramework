@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -231,9 +231,43 @@
     }
   }
 
+  // 탄성 2체 충돌 = 첫 원자-원자 상호작용 (step-0009, *Phase C 의 문*). 지금까지 원자-원자
+  // 상호작용은 0(빛 매개만)이었다. 접촉 반경 collideR 안에서 *서로 다가오는* 원자 쌍이 충돌 법선(중심선)
+  // 방향으로 탄성 충돌한다 — 운동량을 *교환*하되 총 운동량·총 KE 를 *정확히* 보존(닫힌 형식, 머신 정밀도).
+  //   왜 충돌(연속 쿨롱 아님)인가: 연속 보존력(쿨롱 1/r²)을 동결 적분기(반음시 오일러)로 풀면 O(dt²)
+  //     에너지 드리프트가 생겨 1e-9 정밀 장부를 못 맞춘다. HGO 전 법칙처럼 *닫힌 형식 교환*(KE·p 정확)
+  //     인 탄성 충돌이 첫 직접 상호작용으로 정합 — 쿨롱장(PE 항·심플렉틱 적분 필요)은 별도 step 전가.
+  //   닫힌 장부: 임펄스 j=2μ·vn(μ=환원질량) 을 법선 n 으로 — Δp_a=−j·n, Δp_b=+j·n ⇒ 총 운동량 불변,
+  //     법선 상대속도 부호만 반전(|v_n| 보존) ⇒ 총 KE 불변(탄성). 멀어지는 쌍(vn≤0)은 건너뜀(겹침 중복·끈적임 방지).
+  //   국소: *그 두 원자*만으로 판정(전역 조율자 0, 토러스 min-image 거리). 결정론: rng 불필요(위치·속도 결정).
+  //   순환: 운동량이 빠른 원자→느린 원자로 퍼져 *열화·확산*(SPINE §3 요건2 운동E=온도) — 결합·분자의 토대.
+  function collide(sim) {
+    const k = sim.knobs.kCollide;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (충돌 항 꺼짐 → 직전 비트)
+    const R = sim.knobs.collideR || 3, R2 = R * R;
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i];
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j];
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        const d2 = dx * dx + dy * dy;
+        if (d2 > R2 || d2 === 0) continue;                 // 접촉 반경 밖(또는 완전 겹침 — 0 나눗셈 가드)
+        const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;  // 충돌 법선(a→b 단위 벡터)
+        const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도의 법선 성분(>0 = 다가옴)
+        if (vn <= 0) continue;                              // 멀어지는/접선 → 충돌 안 함(겹침 중복 방지)
+        const ma = K.mass(a), mb = K.mass(b);
+        const imp = 2 * vn / (ma + mb);                     // 탄성 임펄스 계수(= 2vn/(ma+mb))
+        a.vx -= imp * mb * nx; a.vy -= imp * mb * ny;        // Δv_a = −2 m_b/(m_a+m_b)·vn·n
+        b.vx += imp * ma * nx; b.vy += imp * ma * ny;        // Δv_b = +2 m_a/(m_a+m_b)·vn·n (총 p·KE 보존)
+        sim.collideCount = (sim.collideCount | 0) + 1;       // 진단 카운터(hash 미참여)
+      }
+    }
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, collide };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'collide'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {
