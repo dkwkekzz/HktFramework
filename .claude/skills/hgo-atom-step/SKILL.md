@@ -5,11 +5,11 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 
 # HGO 원자 트랙 step 루프 — 토큰 효율 실행 절차
 
-규칙의 권위는 `HGO/CLAUDE.md`(목표)·`HGO/SPINE.md`(척추·검증 4기둥·척추 체크 4항·단일 뷰어 원칙 §6.1)·`HGO/ATOM-STATE.md`(현재·다음)다. 이 스킬은 그 절차를 **토큰·시간 효율적으로** 실행하는 방법만 정한다. 작업 디렉토리: `HGO/`. 기질: **JS 결정론 샌드박스**(단일 `viewer.html` + 헤드리스 verify) — UE5/MMO 통합은 net 트랙(휴면) 몫.
+규칙의 권위는 `HGO/CLAUDE.md`(목표)·`HGO/SPINE.md`(척추·검증 4기둥·척추 체크 4항·단일 뷰어 원칙 §6.1)·`HGO/atom/STATE.md`(현재·다음)다. 이 스킬은 그 절차를 **토큰·시간 효율적으로** 실행하는 방법만 정한다. **작업 디렉토리: `HGO/atom/`** — 이하 모든 상대 경로(`engine/`·`steps/`·`viewer.html`·`STATE.md`)는 이 트랙 폴더 기준. 기질: **JS 결정론 샌드박스**(단일 `viewer.html` + 헤드리스 verify) — UE5/MMO 통합은 net 트랙(휴면) 몫.
 
 ## 1. 읽기 — 허용 목록만 (그 외 읽지 마라)
 
-**필독 3종**: `HGO/CLAUDE.md` · `HGO/SPINE.md` · `HGO/ATOM-STATE.md` (전체).
+**필독 3종**: `HGO/CLAUDE.md` · `HGO/SPINE.md` · `HGO/atom/STATE.md` (전체).
 
 **읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md` 문서들(STATE 가 현재의 SSOT) · render/net 트랙 파일(`RENDER*`·`NET*` — 직교 트랙).
 
@@ -36,9 +36,9 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 - `node engine/validate/verify-sim-engine.js`(풀 골든 런)는 오래 걸린다 — `run_in_background` 로 돌려놓고 그동안 step 문서·장면을 진행. 법칙 고칠 때마다 포그라운드 대기 금지. 닫기 직전 1회 최종 PASS 확인.
 - **시각화**: `viewer.html` 를 열고 step 선택 → 그 장면이 결정론적으로 돌며 "여기서 뭘 했는지"를 보여줌(결정론 + 동결 장면이라 옛 step 도 비트까지 재현). step 문서는 `viewer.html#step-NNNN` 로 링크만 단다.
 
-## 5. 갱신 — ATOM-STATE.md 는 Edit 로만
+## 5. 갱신 — STATE.md 는 Edit 로만
 
-- **ATOM-STATE.md 전체 Write 금지** — 바뀐 절(§1 NOW·§2 NEXT·§3·§4 추가분·§5·§7 append)만 개별 Edit.
+- **STATE.md 전체 Write 금지** — 바뀐 절(§1 NOW·§2 NEXT·§3·§4 추가분·§5·§7 append)만 개별 Edit.
 - 크기 예산: STATE ≤ 30KB · §1 NOW 항목당 ≤ 6줄(상세는 step 문서로) · §7 은 literal 1줄. 초과 시 SPINE §6 "누적 함정"부터 정리.
 - `step-NNNN.md` 예산 ≤ 14KB — 발견/한계 전문은 여기(STATE 아님). **"쉽게 풀어 쓴 설명" 절 필수**(비전문가도 따라올 수 있게·수치는 말로). `viewer.html#step-NNNN` 링크 포함.
 
@@ -47,7 +47,7 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 1. 검증 4기둥(SPINE §9) + 척추 체크 4항(SPINE §5) 전부 통과 (`engine/verify.js step-NNNN` 출력 인용)
 2. 풀 골든 런 PASS (회귀 0 알리바이 — 0002~)
 3. `step-NNNN.md` "쉽게 풀어 쓴 설명" 절 + 뷰어 링크 포함·수치=verify 출력
-4. ATOM-STATE.md §1~6 Edit + §7 1줄 append
+4. STATE.md §1~6 Edit + §7 1줄 append
 5. 닫은 step 파일은 이후 불변 (장면은 `scenes.js` 에 동결로 남아 뷰어가 영구 재현)
 
 ## 7. 활성 게이트 점검 (휴면 트랙 깨우기)
