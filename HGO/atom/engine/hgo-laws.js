@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -438,9 +438,45 @@
     if (broke) { sim.bonds = kept; sim.unbondCount = (sim.unbondCount | 0) + broke; }  // 간선 장부 교체 + 진단 카운터(hash 미참여)
   }
 
+  // 쿨롱장 = 첫 *연속* 보존력 (step-0019, *공간 결합력 — 기하의 근원*). 지금까지 모든 상호작용은
+  // *닫힌 형식 이산 교환*(collide·bond·unbond — 순간 속도 편집)이라 결합엔 *평형 길이·각도*가 없었다:
+  // bond 는 포획 *순간* 거리에 속도만 잠갔을 뿐(STATE 후보 B·step-0015 "괴이한 기하"의 근본 원인).
+  // coulomb 은 *거리 의존* 힘 F = kC·qa·qb/r² 를 매 tick 속도에 싣는다 — 같은부호 반발·반대부호 인력.
+  //   왜 이제 가능한가: step()=applyForces(v 갱신)→integrate(새 v 로 r) 가 *반음시(symplectic) 오일러*라
+  //     에너지(KE+PE)가 *유계 진동*으로 보존된다(secular drift 0). 단 머신 0(1e-9)은 아님 — 연속 적분의 O(dt²)
+  //     진동(STATE 경고). ⇒ ledger 에 *PE 항*(kernel 가법, kCoulomb 게이트)을 더하고 그 장면만 E 허용오차 완화.
+  //   연화(Plummer) ε: r²→r²+ε² 로 특이점·무한 PE 차단(U=kC·qa·qb/√(r²+ε²), F=−∇U 정확 보존력). ε 가 짧은 길이 척도.
+  //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 총 운동량 *정확* 보존(머신 0). Q·B·L·x 불변(쿨롱은 전하 위치만 바꿈).
+  //   국소: *그 두 하전 원자*만(min-image). 결정론: 위치·전하 결정 → rng 불필요. 게이트 kCoulomb=0 → early-return = 회귀 0.
+  function coulomb(sim) {
+    const kc = sim.knobs.kCoulomb;
+    if (!kc) return;                 // 노브=0 → early-return = 회귀 0 (연속력 꺼짐 → 직전 비트)
+    const dt = sim.knobs.dt;
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(특이점 차단)
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i], qa = a.Z - a.e;
+      if (qa === 0) continue;                              // 중성 → 쿨롱 0
+      const ma = K.mass(a);
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j], qb = b.Z - b.e;
+        if (qb === 0) continue;
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
+        // 힘(a 에 작용) = −kC·qa·qb / s2^1.5 · d (d=a→b). 반대부호(qaqb<0)→ +d 방향(인력)·같은부호→ −d(반발).
+        const fOverR = -kc * qa * qb / (s2 * Math.sqrt(s2));
+        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용하는 힘 벡터(b 엔 −fx,−fy → 운동량 정확 보존)
+        const mb = K.mass(b);
+        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;    // 반음시 오일러: 속도부터 갱신(integrate 가 새 v 로 위치)
+        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+      }
+    }
+    sim.coulombActive = 1;                                 // 진단 플래그(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {

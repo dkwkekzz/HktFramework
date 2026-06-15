@@ -17,6 +17,36 @@
   // 수소·헬륨·탄소·산소 = 양성자 수의 위치.
   const ELEMENTS = [{ Z: 1, N: 0 }, { Z: 2, N: 2 }, { Z: 6, N: 6 }, { Z: 8, N: 8 }];
 
+  // step-0019 쿨롱 측정 헬퍼 — KE·PE(Plummer, 힘/ledger 와 동일 식)·전하별 평균 거리.
+  function keOf(atoms) { let s = 0; for (const a of atoms) { const m = a.Z + a.N; s += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return s; }
+  function peOf(atoms, sim, K) {
+    const kc = sim.knobs.kCoulomb || 0; if (!kc) return 0;
+    const eps2 = (sim.knobs.coulombSoft || 1) ** 2; let u = 0;
+    for (let i = 0; i < atoms.length; i++) {
+      const qi = atoms[i].Z - atoms[i].e; if (qi === 0) continue;
+      for (let j = i + 1; j < atoms.length; j++) {
+        const qj = atoms[j].Z - atoms[j].e; if (qj === 0) continue;
+        const dx = K.minImage(atoms[j].rx - atoms[i].rx, sim.W), dy = K.minImage(atoms[j].ry - atoms[i].ry, sim.H);
+        u += kc * qi * qj / Math.sqrt(dx * dx + dy * dy + eps2);
+      }
+    }
+    return u;
+  }
+  function coulombMetrics(sim) {
+    const A = sim.atoms, K = (typeof require !== 'undefined') ? require('./hgo-kernel.js') : (typeof globalThis !== 'undefined' ? globalThis : this).HGO.kernel;
+    let oppSum = 0, oppN = 0, likeSum = 0, likeN = 0;
+    for (let i = 0; i < A.length; i++) {
+      const qi = A[i].Z - A[i].e;
+      for (let j = i + 1; j < A.length; j++) {
+        const qj = A[j].Z - A[j].e;
+        const dx = K.minImage(A[j].rx - A[i].rx, sim.W), dy = K.minImage(A[j].ry - A[i].ry, sim.H);
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (qi * qj < 0) { oppSum += d; oppN++; } else if (qi * qj > 0) { likeSum += d; likeN++; }
+      }
+    }
+    return { ke: keOf(A), pe: peOf(A, sim, K), oppD: oppN ? oppSum / oppN : 0, likeD: likeN ? likeSum / likeN : 0 };
+  }
+
   // 분자 측정 = 결합 간선의 *연결 성분*(union-find). author 한 객체 아님 — 순수 측정(SPINE §3 요건1).
   //   count = 크기≥2 성분 수(=분자 수) · maxSize = 최대 성분 원자 수.
   function molecules(sim) {
@@ -1104,6 +1134,58 @@
           { name: '다중 결합 형성(multiBonds>0 — 이중·삼중)', pass: multi > 0, value: multi },
           { name: 'order 가중 화학량론(covVacancy 초과 원자 0)', pass: overValence === 0, value: overValence },
           { name: '다중 결합 고립 이량체(O₂·N₂ > 0 — 양 원자가 포화→2원자 분자)', pass: multiDimers > 0, value: multiDimers },
+        ];
+      },
+    },
+
+    'step-0019': {
+      id: 'step-0019',
+      title: '쿨롱장 (첫 연속 보존력 — 거리 의존 인력/반발, 평형 기하의 근원)',
+      desc: 'step-0010~0018 의 결합은 *닫힌 형식 이산 교환*(포획 순간 속도만 잠금)이라 *평형 길이·각도*가 없었다 — 결합 기하가 ' +
+            '충돌·반동에 흩어져 "괴이"했다(STATE 후보 B). `coulomb`(게이트 kCoulomb)은 첫 *연속* 보존력 F=kC·qa·qb/r²(연화 ε) 을 매 tick ' +
+            '속도에 싣는다: 같은부호 반발·반대부호 인력. step() 이 *반음시(symplectic) 오일러*(v 먼저→r) 라 에너지(KE+PE)가 *유계 진동*으로 보존된다 ' +
+            '(머신 0 아님 — 연속 적분 O(dt²), STATE 경고대로 E 만 허용오차 완화). ledger 에 PE 항 가법(kCoulomb 게이트), 운동량·전하는 머신 정밀 보존. ' +
+            '끄면 step-0018 비트 동일(회귀 0). 이 연속력이 평형 결합 길이(이후 step 의 반발 코어와 결합)·분자 기하의 *근원*이다.',
+      ticks: 600,
+      ledgerTol: { E: 3e-3 },   // 연속력의 반음시 유계 진동(E 만 완화 — Q·B·L·px·py 는 머신 1e-9 유지). dt 작을수록 ↓(symplectic, drift 0)
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 30, atoms = [];   // 하전 이온 구름(중성 제외 — 쿨롱이 작용)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,   // ±1 이온 교대(절반 +·절반 −)
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.2, vy: (rng() * 2 - 1) * 0.2,        // 거의 정지 — 힘이 운동을 만들게
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // 쿨롱만(bond·collide 끔) — 새 연속력을 고립 시연. dt 작게(symplectic 진동↓)·연화 2(특이점 차단).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kCoulomb: 1, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const m = coulombMetrics(sim);
+        return {
+          atoms: sim.atoms.length,
+          KE: +m.ke.toFixed(3), PE: +m.pe.toFixed(3),
+          meanOppDist: +m.oppD.toFixed(3),                  // 반대전하쌍 평균 거리(끌림 → 작아짐)
+          meanLikeDist: +m.likeD.toFixed(3),                // 같은전하쌍 평균 거리(반발 → 커짐)
+        };
+      },
+
+      // 가설: ① 인력/반발 선택성(반대전하 평균거리 < 같은전하 평균거리 — 끌림이 반대를 모으고 반발이 같은 걸 밂) ② KE↔PE 교환(보존력이 일함 — ΔKE·ΔPE<0, 둘 다 유의) ③ 총 에너지 유계 보존(|Δ(KE+PE)| ≤ 3e-3, symplectic). 운동량 정확 보존은 verify ② px·py(머신 1e-9).
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const m1 = coulombMetrics(sim);
+        const ke0 = keOf(ctx.atoms0), pe0 = peOf(ctx.atoms0, sim, K);   // 초기(atoms0)
+        const dKE = m1.ke - ke0, dPE = m1.pe - pe0;
+        const dTotal = Math.abs(dKE + dPE);                              // KE+PE 변화(유계 보존이면 ≈0)
+        return [
+          { name: '인력/반발 선택성(반대전하 평균거리 < 같은전하 평균거리)', pass: m1.oppD < m1.likeD, value: +(m1.likeD - m1.oppD).toFixed(3) },
+          { name: 'KE↔PE 교환(보존력이 일함 — ΔKE·ΔPE<0 & 유의)', pass: dKE * dPE < 0 && Math.abs(dKE) > 1e-3, value: +dKE.toFixed(3) },
+          { name: '총 에너지 유계 보존(|Δ(KE+PE)| ≤ 3e-3, symplectic)', pass: dTotal <= 3e-3, value: +dTotal.toExponential(2) },
         ];
       },
     },

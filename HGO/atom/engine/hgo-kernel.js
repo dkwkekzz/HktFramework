@@ -76,6 +76,21 @@
     if (sim.escaped) { E += sim.escaped.E; px += sim.escaped.px || 0; py += sim.escaped.py || 0; }
     // 결합 E reservoir(step-0010 bond): 비탄성 포획서 흡수한 상대 KE. 운동량-자유(스칼라) → E 만 가법. 미존재(과거)→0 → 장부 불변.
     if (sim.bondE) E += sim.bondE;
+    // 쿨롱 PE(step-0019 coulomb): 연속 보존력의 위치 에너지 U=Σ_{i<j} kC·qa·qb/√(r²+ε²)(Plummer, 힘 법칙과 *정확히* 일치).
+    //   가법 규칙: kCoulomb 미설정/0(과거 전 장면) → PE 항 0 → 장부 불변. 켜지면 KE↔PE 가 교환되며 총 E 유계 보존(반음시).
+    const kc = (sim.knobs && sim.knobs.kCoulomb) || 0;
+    if (kc) {
+      const eps2 = ((sim.knobs.coulombSoft || 1)) ** 2;
+      const A = sim.atoms;
+      for (let i = 0; i < A.length; i++) {
+        const qi = A[i].Z - A[i].e; if (qi === 0) continue;
+        for (let j = i + 1; j < A.length; j++) {
+          const qj = A[j].Z - A[j].e; if (qj === 0) continue;
+          const dx = minImage(A[j].rx - A[i].rx, sim.W), dy = minImage(A[j].ry - A[i].ry, sim.H);
+          E += kc * qi * qj / Math.sqrt(dx * dx + dy * dy + eps2);
+        }
+      }
+    }
     return { Q, B, L, E, px, py };
   }
 
