@@ -10,7 +10,14 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1 };
+
+  // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
+  //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
+  //   H(e1)→1·He(e2)→0(noble·비활성)·C(e6)→4·O(e8)→2 = 실제 원자가가 e+마법수에서 그대로 나온다(SPINE §3 요건1·4).
+  const SHELL_MAGIC = [2, 10, 18, 36];
+  function covVacancy(e) { for (const m of SHELL_MAGIC) if (e < m) return m - e; return 0; }  // 0 = 이미 닫힌 껍질(또는 초과)
+
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -281,6 +288,11 @@
   //   collide 와의 정합: bond 가 먼저 돌아 상대속도를 0 으로 잠그면 뒤따르는 collide 는 vn≤0 으로 그 쌍을 건너뜀(중복 0).
   //   ⊕ step-0012 게이트 `bondValence`(=0 → 무제한·이전 비트 동일): 원자당 결합 수를 *원자가 = |Z−e|*(전하 다발서
   //     창발, author 0)로 제한 → ±1 이온은 cap 1 → 이량체만(과응집 blob 해소). step-0006 scatterAngular 정밀화와 동형 게이트.
+  //   ⊕ step-0017 게이트 `bondCovalent`(=0 → 이온결합만·step-0016 비트 동일): *둘째 선택성*을 더한다 — 반대 전하(이온)가
+  //     아닌 *중성*(q=0) 원자 쌍이 *외각 껍질 빈자리*(covVacancy)를 공유해 결합한다. 이온=전자 전이(반대 전하), 공유=전자 공유(중성).
+  //     공유 원자가 = 빈자리(H1·C4·O2·He0) → 결합 수 한계가 *e 다발*서 창발(author 0). 포획·reservoir 는 이온과 동일 기계 재사용.
+  //   ⊕ step-0018 게이트 `bondOrder`(=0 → 단일 결합만·step-0017 비트 동일): 공유 쌍이 *남은 빈자리만큼* 전자쌍을 다중 공유한다.
+  //     차수 = min(남은 빈자리, ordMax) → O=O 이중·N≡N 삼중. 간선에 차수 e[3] 기록·빈자리 order 칸 소비 → 화학량론(O₂·N₂ 고립 이량체)이 창발.
   function bond(sim) {
     const k = sim.knobs.kBond;
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 항 꺼짐 → 직전 비트)
@@ -289,16 +301,31 @@
     if (!sim.bonds) { sim.bonds = []; sim.bondKeys = new Set(); }  // 결합 간선 장부(미존재→지연 초기화)
     const atoms = sim.atoms, n = atoms.length;
     const vcap = sim.knobs.bondValence || 0;             // 원자가 한계 게이트(0=무제한 → step-0010/0011 비트 동일)
+    const cov = sim.knobs.bondCovalent || 0;             // 공유결합 게이트(0 → 이온만, step-0016 비트 동일)
+    const ord = sim.knobs.bondOrder || 0;                // 결합 차수 게이트(0 → 단일 결합만, step-0017 비트 동일)
+    const ordMax = sim.knobs.bondOrderMax || 3;          // 최대 차수(삼중 N≡N 까지)
     let deg = null;
-    if (vcap) { deg = new Array(n).fill(0); for (const e of sim.bonds) { deg[e[0]]++; deg[e[1]]++; } }  // 현 결합 차수(이전 tick 누적)
+    if (vcap || cov) { deg = new Array(n).fill(0); for (const e of sim.bonds) { const o = e[3] || 1; deg[e[0]] += o; deg[e[1]] += o; } }  // 현 결합 차수(order 가중 — 이중=2칸 소비)
     for (let i = 0; i < n; i++) {
       const a = atoms[i];
       for (let j = i + 1; j < n; j++) {
         const key = i * n + j;
         if (sim.bondKeys.has(key)) continue;                 // 이미 결합 — 재포획·이중 흡수 금지
         const b = atoms[j];
-        if ((a.Z - a.e) * (b.Z - b.e) >= 0) continue;        // 반대 전하만 끌림(같은 전하/중성 → collide 탄성)
-        if (vcap && (deg[i] >= Math.abs(a.Z - a.e) || deg[j] >= Math.abs(b.Z - b.e))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
+        const qa = a.Z - a.e, qb = b.Z - b.e;
+        let order = 1;                                       // 결합 차수(기본 단일 — bondOrder=0 이면 불변)
+        if (qa * qb < 0) {                                   // ── 이온결합: 반대 전하 끌림(기존 경로) ──
+          if (vcap && (deg[i] >= Math.abs(qa) || deg[j] >= Math.abs(qb))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
+        } else {                                             // ── 반대 전하 아님 → 이온 불가 ──
+          if (!cov) continue;                                // 게이트 off → 기존처럼 skip(같은 전하/중성, 회귀 0)
+          if (qa !== 0 || qb !== 0) continue;                // 공유는 *중성 원자만*(같은부호 이온은 반발 → collide 탄성)
+          const va = covVacancy(a.e), vb = covVacancy(b.e);  // 외각 껍질 빈자리(다음 닫힌 껍질까지)
+          if (va <= 0 || vb <= 0) continue;                  // 한쪽이라도 껍질 채움(noble, 예: He) → 공유 안 함
+          if (deg[i] >= va || deg[j] >= vb) continue;        // 공유 원자가 포화(빈자리 = 결합 수 한계 — e 다발서 창발)
+          // step-0018 게이트 bondOrder(=0 → 단일·step-0017 비트 동일): *같은 쌍*이 남은 빈자리만큼 전자쌍 다중 공유.
+          //   차수 = min(남은 빈자리 i, 남은 빈자리 j, ordMax) → O(빈자리2)+O = O=O 이중·N(빈자리3)+N = N≡N 삼중. 화학량론이 빈자리서 창발.
+          if (ord) order = Math.min(va - deg[i], vb - deg[j], ordMax);
+        }
         const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
         const d2 = dx * dx + dy * dy;
         if (d2 > R2 || d2 === 0) continue;                   // 접촉 반경 밖(또는 완전 겹침 가드)
@@ -317,10 +344,14 @@
         sim.bondE = (sim.bondE || 0) + absorbed;             // 흡수 KE park(닫힌 장부, 전역 합 = Σ 결합별 E)
         // step-0015 게이트 bondLocalE(=0 → 이전 비트 동일): 흡수 E 를 *그 결합 간선*에 per-bond 저장([i,j,Eabs]).
         //   전역 sim.bondE 는 그대로 두되(ledger 가 읽음·불변) 결합별 e[2] 가 그 합을 분해 → 어느 결합 E 인지 국소 추적(unbond·핵 회계 토대).
-        sim.bonds.push(sim.knobs.bondLocalE ? [i, j, absorbed] : [i, j]);
+        const edge = sim.knobs.bondLocalE ? [i, j, absorbed] : [i, j];
+        if (ord) { if (edge.length < 3) edge.push(0); edge[3] = order; }  // 차수 기록(미설정→e[3]||1=단일·회귀 0). E 슬롯 없으면 0 채워 희소 구멍 방지
+        sim.bonds.push(edge);
         sim.bondKeys.add(key);
-        if (vcap) { deg[i]++; deg[j]++; }                   // 차수 갱신(같은 tick 내 후속 쌍이 포화 보게)
+        if (vcap || cov) { deg[i] += order; deg[j] += order; }  // 차수 갱신(order 가중 — 이중 결합은 빈자리 2칸 소비)
         sim.bondCount = (sim.bondCount | 0) + 1;             // 진단 카운터(결합 간선은 hash 참여)
+        if (qa === 0 && qb === 0) sim.covalentCount = (sim.covalentCount | 0) + 1;  // 공유결합 횟수(중성 쌍 = 공유, 진단·hash 미참여)
+        if (order >= 2) sim.multiBondCount = (sim.multiBondCount | 0) + 1;  // 다중 결합(이중·삼중) 횟수(진단·hash 미참여)
       }
     }
   }
@@ -368,9 +399,84 @@
     }
   }
 
+  // 결합 깸 = bond 의 정확한 역연산 (step-0016, *영구 결합의 해방*). step-0010 bond 는 상대 KE 를 흡수해
+  // 두 원자를 질량중심 속도로 잠갔다 — 이량체는 *영구*였다(한 번 묶이면 안 풀림). 하지만 외부 충돌(collide)이
+  // 결합 원자 하나를 때리면 두 원자의 상대속도가 다시 살아난다(va≠vb). 그 *상대 KE 가 그 결합에 저장된 e[2]*
+  // 를 넘으면 결합이 끊긴다 — 충분히 흔들린 결합만 깬다(약한 결합·뜨거운 환경서 먼저 깸).
+  //   닫힌 장부(bond 의 정확한 역): 저장 결합 E e[2] 를 *상대 운동으로 정확히 돌려준다*. 운동량 보존: 질량중심
+  //     속도 vcom 은 불변, 상대속도만 |v_rel'|²=|v_rel|²+2·e[2]/μ 로 확대(같은 방향) → Δp=0·ΔE=0
+  //     (전역 bondE↓e[2] = 상대 KE↑e[2]). step-0015 결합별 장부 e[2] 가 "얼마 돌려줄지"를 정확히 안다.
+  //   트리거(창발): ½μ|v_rel|² > e[2] — author `if(shouldBreak)` 0, 조건은 *측정된 상대 KE 대 저장 E* 비교뿐.
+  //     깬 뒤 상대속도가 커져(에너지 방출) bondVmax 를 넘으면 bond 가 재포획 못 함 → 즉시 재결합 thrash 회피.
+  //   국소: *그 두 원자 + 그 결합*만으로 판정(전역 조율자 0). 결정론: 위치·속도·e[2] 결정 → rng 불필요.
+  //   게이트 kUnbond(=0 → early-return = 회귀 0): 끄면 step-0015 비트 동일. bondLocalE 필요(e[2] = 돌려줄 E 의 출처).
+  function unbond(sim) {
+    const k = sim.knobs.kUnbond;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 깸 꺼짐 → 직전 비트)
+    if (!sim.bonds || !sim.bonds.length) return;         // 깰 결합 없음
+    const atoms = sim.atoms, n = atoms.length;
+    const kept = [];                 // 살아남는 결합(재구성 — 깬 간선 제거)
+    let broke = 0;
+    for (const e of sim.bonds) {
+      const Estored = e[2] || 0;     // 저장 결합 E (bondLocalE 꺼졌으면 0 → 못 깸 = 게이트 의존)
+      if (Estored <= 0) { kept.push(e); continue; }
+      const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
+      const ma = K.mass(a), mb = K.mass(b), M = ma + mb, mu = ma * mb / M;
+      const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+      const vrel2 = dvx * dvx + dvy * dvy;
+      if (0.5 * mu * vrel2 <= Estored) { kept.push(e); continue; }  // 상대 KE ≤ 저장 E → 아직 약하게 흔들림, 결합 유지
+      // 깸: 저장 E 를 상대 운동으로 돌려줌(vcom 불변 → 운동량 보존, v_rel 확대 → ΔKE = +Estored)
+      const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
+      const scale = Math.sqrt((vrel2 + 2 * Estored / mu) / vrel2);  // |v_rel'|/|v_rel| (vrel2>0 보장 — 위 비교)
+      const rvx = dvx * scale, rvy = dvy * scale;        // 확대된 상대속도(같은 방향 → 서로 더 밀어냄)
+      a.vx = vcx + (mb / M) * rvx; a.vy = vcy + (mb / M) * rvy;
+      b.vx = vcx - (ma / M) * rvx; b.vy = vcy - (ma / M) * rvy;
+      sim.bondE -= Estored;          // 전역 reservoir 동기 차감(Σe[2]=bondE 불변 유지)
+      sim.bondKeys.delete(i * n + j); // bondKey 제거 → bond 재포획 허용(단 빨라서 bondVmax 초과 → 실질 회피)
+      broke++;
+    }
+    if (broke) { sim.bonds = kept; sim.unbondCount = (sim.unbondCount | 0) + broke; }  // 간선 장부 교체 + 진단 카운터(hash 미참여)
+  }
+
+  // 쿨롱장 = 첫 *연속* 보존력 (step-0019, *공간 결합력 — 기하의 근원*). 지금까지 모든 상호작용은
+  // *닫힌 형식 이산 교환*(collide·bond·unbond — 순간 속도 편집)이라 결합엔 *평형 길이·각도*가 없었다:
+  // bond 는 포획 *순간* 거리에 속도만 잠갔을 뿐(STATE 후보 B·step-0015 "괴이한 기하"의 근본 원인).
+  // coulomb 은 *거리 의존* 힘 F = kC·qa·qb/r² 를 매 tick 속도에 싣는다 — 같은부호 반발·반대부호 인력.
+  //   왜 이제 가능한가: step()=applyForces(v 갱신)→integrate(새 v 로 r) 가 *반음시(symplectic) 오일러*라
+  //     에너지(KE+PE)가 *유계 진동*으로 보존된다(secular drift 0). 단 머신 0(1e-9)은 아님 — 연속 적분의 O(dt²)
+  //     진동(STATE 경고). ⇒ ledger 에 *PE 항*(kernel 가법, kCoulomb 게이트)을 더하고 그 장면만 E 허용오차 완화.
+  //   연화(Plummer) ε: r²→r²+ε² 로 특이점·무한 PE 차단(U=kC·qa·qb/√(r²+ε²), F=−∇U 정확 보존력). ε 가 짧은 길이 척도.
+  //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 총 운동량 *정확* 보존(머신 0). Q·B·L·x 불변(쿨롱은 전하 위치만 바꿈).
+  //   국소: *그 두 하전 원자*만(min-image). 결정론: 위치·전하 결정 → rng 불필요. 게이트 kCoulomb=0 → early-return = 회귀 0.
+  function coulomb(sim) {
+    const kc = sim.knobs.kCoulomb;
+    if (!kc) return;                 // 노브=0 → early-return = 회귀 0 (연속력 꺼짐 → 직전 비트)
+    const dt = sim.knobs.dt;
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(특이점 차단)
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i], qa = a.Z - a.e;
+      if (qa === 0) continue;                              // 중성 → 쿨롱 0
+      const ma = K.mass(a);
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j], qb = b.Z - b.e;
+        if (qb === 0) continue;
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
+        // 힘(a 에 작용) = −kC·qa·qb / s2^1.5 · d (d=a→b). 반대부호(qaqb<0)→ +d 방향(인력)·같은부호→ −d(반발).
+        const fOverR = -kc * qa * qb / (s2 * Math.sqrt(s2));
+        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용하는 힘 벡터(b 엔 −fx,−fy → 운동량 정확 보존)
+        const mb = K.mass(b);
+        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;    // 반음시 오일러: 속도부터 갱신(integrate 가 새 v 로 위치)
+        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+      }
+    }
+    sim.coulombActive = 1;                                 // 진단 플래그(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {
@@ -389,5 +495,5 @@
     }
   }
 
-  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap };
+  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy };
 });

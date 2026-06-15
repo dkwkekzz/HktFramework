@@ -51,6 +51,25 @@
   // 광자 파장 — λ = hc/ΔE. 색은 author 가 아니라 준위 차에서 *나온다*(SPINE §3 요건3).
   function photonLambda(dE) { return H_PLANCK * C / dE; }
 
+  // 쿨롱 위치 에너지(step-0019) — Plummer U=Σ_{i<j 하전} kC·qa·qb/√(r²+ε²). 힘 법칙(F=−∇U)과 *정확히* 동일 식.
+  //   ledger 와 장면 측정(peOf)이 *한 출처*를 공유해야 KE↔PE 보존이 비트 단위로 성립(DRY — 두 곳 desync 방지).
+  //   미하전(q=0)·kCoulomb=0 → 0 (과거 장부 불변). atoms 인자로 임의 스냅샷(초기/최종) PE 측정 가능.
+  function coulombPE(atoms, knobs, W, H) {
+    const kc = (knobs && knobs.kCoulomb) || 0;
+    if (!kc) return 0;
+    const eps2 = (knobs.coulombSoft || 1) ** 2;
+    let u = 0;
+    for (let i = 0; i < atoms.length; i++) {
+      const qi = atoms[i].Z - atoms[i].e; if (qi === 0) continue;
+      for (let j = i + 1; j < atoms.length; j++) {
+        const qj = atoms[j].Z - atoms[j].e; if (qj === 0) continue;
+        const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
+        u += kc * qi * qj / Math.sqrt(dx * dx + dy * dy + eps2);
+      }
+    }
+    return u;
+  }
+
   // 닫힌 장부: 보존되어야 할 양들의 총합 (SPINE §2)
   //  Q 전하 = Σ(Z−e) · B 바리온 = Σ(Z+N) · L 렙톤 = Σe
   //  E 에너지-질량 = Σ(m·c² + ½m·v² + 들뜸E) + Σ 광자E  (e=mc² 정지+운동+들뜸+복사)
@@ -76,6 +95,9 @@
     if (sim.escaped) { E += sim.escaped.E; px += sim.escaped.px || 0; py += sim.escaped.py || 0; }
     // 결합 E reservoir(step-0010 bond): 비탄성 포획서 흡수한 상대 KE. 운동량-자유(스칼라) → E 만 가법. 미존재(과거)→0 → 장부 불변.
     if (sim.bondE) E += sim.bondE;
+    // 쿨롱 PE(step-0019 coulomb): 연속 보존력의 위치 에너지(공유 헬퍼 — 힘 법칙·장면 측정과 한 출처).
+    //   가법 규칙: kCoulomb 미설정/0(과거 전 장면) → 0 → 장부 불변. 켜지면 KE↔PE 가 교환되며 총 E 유계 보존(반음시).
+    E += coulombPE(sim.atoms, sim.knobs, sim.W, sim.H);
     return { Q, B, L, E, px, py };
   }
 
@@ -112,5 +134,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, levelE, levelEZ, photonLambda, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, levelE, levelEZ, photonLambda, coulombPE, ledger, minImage, hashState };
 });

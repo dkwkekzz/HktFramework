@@ -9,9 +9,30 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (K) {
   'use strict';
 
+  // 법칙 모듈의 공유 헬퍼(step-0017 공유결합 빈자리) — 노드(require)·브라우저(root.HGO.laws) 양쪽 가드.
+  const L = (typeof require !== 'undefined') ? require('./hgo-laws.js')
+          : ((typeof globalThis !== 'undefined' ? globalThis : this).HGO || {}).laws;
+
   // 원소는 author 한 타입이 아니라 (Z,N) 다발의 값일 뿐 (SPINE §3 요건1).
   // 수소·헬륨·탄소·산소 = 양성자 수의 위치.
   const ELEMENTS = [{ Z: 1, N: 0 }, { Z: 2, N: 2 }, { Z: 6, N: 6 }, { Z: 8, N: 8 }];
+
+  // step-0019 쿨롱 측정 헬퍼 — KE·전하별 평균 거리. PE 는 커널 공유 헬퍼 K.coulombPE(힘/ledger 와 한 출처, DRY).
+  function keOf(atoms) { let s = 0; for (const a of atoms) { const m = a.Z + a.N; s += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return s; }
+  function coulombMetrics(sim) {
+    const A = sim.atoms;
+    let oppSum = 0, oppN = 0, likeSum = 0, likeN = 0;
+    for (let i = 0; i < A.length; i++) {
+      const qi = A[i].Z - A[i].e;
+      for (let j = i + 1; j < A.length; j++) {
+        const qj = A[j].Z - A[j].e;
+        const dx = K.minImage(A[j].rx - A[i].rx, sim.W), dy = K.minImage(A[j].ry - A[i].ry, sim.H);
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (qi * qj < 0) { oppSum += d; oppN++; } else if (qi * qj > 0) { likeSum += d; likeN++; }
+      }
+    }
+    return { ke: keOf(A), pe: K.coulombPE(A, sim.knobs, sim.W, sim.H), oppD: oppN ? oppSum / oppN : 0, likeD: likeN ? likeSum / likeN : 0 };
+  }
 
   // 분자 측정 = 결합 간선의 *연결 성분*(union-find). author 한 객체 아님 — 순수 측정(SPINE §3 요건1).
   //   count = 크기≥2 성분 수(=분자 수) · maxSize = 최대 성분 원자 수.
@@ -908,6 +929,250 @@
           { name: '결합별 E 장부 기록(결합 형성 & 각 간선이 E 저장)', pass: allTriple, value: bonds.length },
           { name: '국소 회계 충실(Σ결합별E = 전역 bondE, 잔차≈0)', pass: resid <= 1e-9, value: +resid.toExponential(2) },
           { name: '국소 소비(chemilum 이 특정 결합서 인출>0 & 모든 e[2]≥0)', pass: debit > 0 && minE2 >= -1e-12, value: debit },
+        ];
+      },
+    },
+
+    'step-0016': {
+      id: 'step-0016',
+      title: '결합이 깨진다 (unbond — bond 의 역연산, 영구 이량체 → 충돌로 해방)',
+      desc: 'step-0010~0015 의 결합은 *영구*였다 — 한 번 묶이면 안 풀려 세계가 결합 쪽으로 래칫됐다(STATE 🟡). ' +
+            '새 법칙 `unbond`(게이트 kUnbond)는 bond 의 정확한 역: 외부 충돌(collide)이 결합 원자를 때려 두 원자의 *상대 KE* 가 ' +
+            '*그 결합에 저장된 e[2]*(step-0015 결합별 장부)를 넘으면 끊는다 — 저장 E 를 상대 운동으로 정확히 돌려주고(vcom 불변·Δp=0·ΔE=0) ' +
+            '전역 bondE 동기 차감·간선 제거. 트리거는 *측정된 상대 KE 대 저장 E* 비교뿐(author 분기 0, 척추 ②). ' +
+            '게이트라서 끄면(kUnbond=0) step-0015 비트 동일(회귀 0). 이로써 결합↔해체 순환이 열려 세계가 한쪽으로 굳지 않는다(SPINE §4 순환).',
+      ticks: 80,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0015 와 동일 무대(결합·화학발광·국소 E 장부)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.8, vy: (rng() * 2 - 1) * 0.8,   // step-0015 보다 약간 뜨겁게 — 충돌로 결합 깨기 좋게
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0015 사슬 + kUnbond(결합 깸) 한 노브만 추가. bondVmax 낮춰 약한 결합도 생기게(깰 대상 확보).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 1.5, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1, kUnbond: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [];
+        let sumE2 = 0, minE2 = Infinity; for (const e of bonds) { sumE2 += (e[2] || 0); if ((e[2] || 0) < minE2) minE2 = e[2] || 0; }
+        if (!bonds.length) minE2 = 0;
+        return {
+          atoms: sim.atoms.length,
+          bondsFormed: sim.bondCount | 0,                    // 형성된 결합 누적(bond)
+          unbonds: sim.unbondCount | 0,                       // 깨진 결합 누적(unbond)
+          liveBonds: bonds.length,                            // 현재 살아있는 결합 간선
+          chemilum: sim.chemilumCount | 0,
+          sumBondE: +sumE2.toFixed(4),                        // Σ 결합별 E
+          globalBondE: +(sim.bondE || 0).toFixed(4),          // 전역 reservoir
+          ledgerResid: +Math.abs(sumE2 - (sim.bondE || 0)).toExponential(2),  // 국소 합 − 전역 (≈0 — 깸 후에도 동기)
+        };
+      },
+
+      // 가설: ① 결합이 깨진다(unbond>0 — 영구 아님) ② 닫힌 장부 유지(Σe[2]=전역 bondE, 깸 후에도 잔차≈0) ③ 결합 동적 평형(형성>깸>0 & 일부 살아남음 → 래칫 아닌 순환). 총 E·p 보존은 ②기둥(verify ledger).
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [];
+        let sumE2 = 0; for (const e of bonds) sumE2 += (e[2] || 0);
+        const resid = Math.abs(sumE2 - (sim.bondE || 0));
+        const formed = sim.bondCount | 0, broke = sim.unbondCount | 0;
+        return [
+          { name: '결합이 깨진다(unbond>0 — 영구 이량체 아님)', pass: broke > 0, value: broke },
+          { name: '닫힌 장부 유지(Σ결합별E = 전역 bondE, 깸 후에도 잔차≈0)', pass: resid <= 1e-9, value: +resid.toExponential(2) },
+          { name: '결합 동적 평형(형성>깸>0 & 일부 살아남음 → 순환)', pass: formed > broke && broke > 0 && bonds.length > 0, value: formed },
+        ];
+      },
+    },
+
+    'step-0017': {
+      id: 'step-0017',
+      title: '공유결합 (중성 원자가 외각 껍질을 공유 — 이온결합 옆 둘째 선택성)',
+      desc: 'step-0010~0016 의 결합은 *이온결합*(반대 전하 전이)뿐이었다 — 중성 원자는 만나도 collide 로 튕길 뿐(STATE 요건1). ' +
+            'bond 게이트 `bondCovalent`(=0 → 이온만, step-0016 비트 동일)가 *둘째 선택성*을 더한다: *중성*(q=0) 원자 쌍이 ' +
+            '*외각 껍질 빈자리*(다음 닫힌 껍질 2·10·18 까지 부족분)를 공유해 결합한다. 공유 원자가 = 빈자리 → H 1·C 4·O 2·He 0(noble) 이 ' +
+            '*e 다발 + 마법수*에서 그대로 창발한다(author `if(isWater)` 0, 척추 ①②). 포획·결합 E reservoir·분자 측정은 이온결합 기계를 그대로 재사용 — ' +
+            '바뀐 것은 *국소 선택 규칙*뿐. 끄면 중성 쌍은 collide 탄성(회귀 0). 이로써 분자가 *반대 전하 없이도* 만들어진다(물·메탄형).',
+      ticks: 80,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // *중성* 원자 무대(e=Z) — 공유결합 시연(이온 아님)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];   // H·He·C·O
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z, x: 0,                     // 중성(e=Z) → 전하 0 → 이온결합 불가, 공유결합 후보
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0015 사슬(국소 E 장부) + bondCovalent(공유결합) 한 노브. kUnbond 도 켜 결합 동역학 유지. 이온결합은 무대에 이온이 0이라 자동 0.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1, kUnbond: 1, bondCovalent: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        for (const e of bonds) { deg[e[0]]++; deg[e[1]]++; }
+        let overValence = 0, heBonds = 0, maxDeg = 0;
+        for (let i = 0; i < atoms.length; i++) {
+          const vac = L.covVacancy(atoms[i].e);
+          if (deg[i] > vac) overValence++;                  // 빈자리 초과(있으면 안 됨)
+          if (vac === 0 && deg[i] > 0) heBonds++;            // noble(He) 인데 결합(있으면 안 됨)
+          if (deg[i] > maxDeg) maxDeg = deg[i];
+        }
+        const mol = molecules(sim);
+        return {
+          atoms: atoms.length,
+          bondsFormed: sim.bondCount | 0,
+          covalent: sim.covalentCount | 0,                  // 공유결합 횟수(중성 쌍)
+          liveBonds: bonds.length,
+          molecules: mol.count,                              // 형성된 분자(연결 성분 ≥2) 수
+          maxMolSize: mol.maxSize,
+          maxDeg,                                            // 최대 결합 차수(C=4 까지 가능)
+          overValence,                                       // 빈자리 초과 원자 수(0 이어야)
+          heBonds,                                           // noble 원자의 결합 수(0 이어야)
+        };
+      },
+
+      // 가설: ① 중성 원자가 공유결합(covalent>0 — 이온 없이 분자 형성) ② 빈자리 = 원자가 한계(어떤 원자도 covVacancy 초과 0) ③ noble 비활성(He 결합 0 — 닫힌 껍질은 공유 안 함). 총 E·p·Q·B 보존은 verify ② 기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        for (const e of bonds) { deg[e[0]]++; deg[e[1]]++; }
+        let overValence = 0, heBonds = 0;
+        for (let i = 0; i < atoms.length; i++) {
+          const vac = L.covVacancy(atoms[i].e);
+          if (deg[i] > vac) overValence++;
+          if (vac === 0 && deg[i] > 0) heBonds++;
+        }
+        const cov = sim.covalentCount | 0;
+        return [
+          { name: '중성 원자가 공유결합(covalent>0 — 이온 없이 분자)', pass: cov > 0, value: cov },
+          { name: '빈자리 = 원자가 한계(covVacancy 초과 원자 0)', pass: overValence === 0, value: overValence },
+          { name: 'noble 비활성(He 등 닫힌 껍질 결합 0)', pass: heBonds === 0, value: heBonds },
+        ];
+      },
+    },
+
+    'step-0018': {
+      id: 'step-0018',
+      title: '결합 차수 (이중·삼중 결합 — 같은 쌍이 빈자리만큼 전자쌍 다중 공유)',
+      desc: 'step-0017 공유결합은 *단일 결합*(간선 1·전자쌍 1)뿐 — 빈자리가 2 이상이어도 한 쌍은 한 번만 묶였다(STATE 요건1). ' +
+            'bond 게이트 `bondOrder`(=0 → 단일만, step-0017 비트 동일)가 *같은 쌍*이 남은 빈자리만큼 전자쌍을 다중 공유하게 한다: ' +
+            '차수 = min(남은 빈자리 i·j, ordMax) → O(빈자리2)=O *이중*·N(빈자리3)≡N *삼중*. 간선에 차수 e[3] 기록, 빈자리를 order 칸 소비. ' +
+            '⇒ 화학량론이 빈자리서 창발: O₂·N₂ 가 *고립 이량체*(이중·삼중 결합이 양쪽 원자가를 한 번에 채움)로 떨어진다(단일 결합이면 O 가 사슬로 자랐다). ' +
+            '끄면 차수 1·step-0017 비트 동일(회귀 0). 결합에 *세기/겹수*가 생겨 분자 위상이 원자가 화학을 따른다.',
+      ticks: 80,
+
+      init(rng, K) {
+        // *중성* 원자 무대 — N(Z7,빈자리3·삼중)·O(Z8,빈자리2·이중) 로 다중 결합 이량체(N₂·O₂)를 깨끗이 보인다(장면 로컬 원소, 전역 ELEMENTS 불변).
+        const LOCAL = [{ Z: 7, N: 7 }, { Z: 8, N: 8 }];   // N·O
+        const W = 50, H = 50, n = 50, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = LOCAL[(rng() * LOCAL.length) | 0];
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z, x: 0,                     // 중성(e=Z) → 공유결합 후보
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0017 사슬 + bondOrder(결합 차수) 한 노브. kUnbond 도 켜 동역학 유지.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1, kUnbond: 1, bondCovalent: 1, bondOrder: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        let maxOrder = 0;
+        for (const e of bonds) { const o = e[3] || 1; deg[e[0]] += o; deg[e[1]] += o; if (o > maxOrder) maxOrder = o; }
+        let overValence = 0, multiDimers = 0;
+        for (let i = 0; i < atoms.length; i++) if (deg[i] > L.covVacancy(atoms[i].e)) overValence++;
+        for (const e of bonds) { const o = e[3] || 1; if (o >= 2 && deg[e[0]] === o && deg[e[1]] === o) multiDimers++; }  // 다중 결합 고립 이량체(O₂·N₂)
+        const mol = molecules(sim);
+        return {
+          atoms: atoms.length,
+          bondsFormed: sim.bondCount | 0,
+          multiBonds: sim.multiBondCount | 0,                // 이중·삼중 결합 횟수
+          maxOrder,                                          // 최대 결합 차수(3=삼중 N≡N)
+          multiDimers,                                       // 다중 결합으로 양쪽 원자가 포화된 고립 이량체(O₂·N₂)
+          liveBonds: bonds.length,
+          molecules: mol.count,
+          maxMolSize: mol.maxSize,
+          overValence,                                       // order 가중 빈자리 초과(0 이어야)
+        };
+      },
+
+      // 가설: ① 다중 결합 형성(multiBonds>0 — 이중·삼중) ② order 가중 화학량론(어떤 원자도 covVacancy 초과 0 — 차수가 빈자리 정확 소비) ③ 다중 결합 고립 이량체(O₂·N₂>0 — 이중·삼중이 양 원자가를 한 번에 채워 분자가 2원자로 떨어짐). 총 보존은 verify ② 기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        for (const e of bonds) { const o = e[3] || 1; deg[e[0]] += o; deg[e[1]] += o; }
+        let overValence = 0, multiDimers = 0;
+        for (let i = 0; i < atoms.length; i++) if (deg[i] > L.covVacancy(atoms[i].e)) overValence++;
+        for (const e of bonds) { const o = e[3] || 1; if (o >= 2 && deg[e[0]] === o && deg[e[1]] === o) multiDimers++; }
+        const multi = sim.multiBondCount | 0;
+        return [
+          { name: '다중 결합 형성(multiBonds>0 — 이중·삼중)', pass: multi > 0, value: multi },
+          { name: 'order 가중 화학량론(covVacancy 초과 원자 0)', pass: overValence === 0, value: overValence },
+          { name: '다중 결합 고립 이량체(O₂·N₂ > 0 — 양 원자가 포화→2원자 분자)', pass: multiDimers > 0, value: multiDimers },
+        ];
+      },
+    },
+
+    'step-0019': {
+      id: 'step-0019',
+      title: '쿨롱장 (첫 연속 보존력 — 거리 의존 인력/반발, 평형 기하의 근원)',
+      desc: 'step-0010~0018 의 결합은 *닫힌 형식 이산 교환*(포획 순간 속도만 잠금)이라 *평형 길이·각도*가 없었다 — 결합 기하가 ' +
+            '충돌·반동에 흩어져 "괴이"했다(STATE 후보 B). `coulomb`(게이트 kCoulomb)은 첫 *연속* 보존력 F=kC·qa·qb/r²(연화 ε) 을 매 tick ' +
+            '속도에 싣는다: 같은부호 반발·반대부호 인력. step() 이 *반음시(symplectic) 오일러*(v 먼저→r) 라 에너지(KE+PE)가 *유계 진동*으로 보존된다 ' +
+            '(머신 0 아님 — 연속 적분 O(dt²), STATE 경고대로 E 만 허용오차 완화). ledger 에 PE 항 가법(kCoulomb 게이트), 운동량·전하는 머신 정밀 보존. ' +
+            '끄면 step-0018 비트 동일(회귀 0). 이 연속력이 평형 결합 길이(이후 step 의 반발 코어와 결합)·분자 기하의 *근원*이다.',
+      ticks: 600,
+      ledgerTol: { E: 3e-3 },   // 연속력의 반음시 유계 진동(E 만 완화 — Q·B·L·px·py 는 머신 1e-9 유지). dt 작을수록 ↓(symplectic, drift 0)
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 30, atoms = [];   // 하전 이온 구름(중성 제외 — 쿨롱이 작용)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,   // ±1 이온 교대(절반 +·절반 −)
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.2, vy: (rng() * 2 - 1) * 0.2,        // 거의 정지 — 힘이 운동을 만들게
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // 쿨롱만(bond·collide 끔) — 새 연속력을 고립 시연. dt 작게(symplectic 진동↓)·연화 2(특이점 차단).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kCoulomb: 1, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const m = coulombMetrics(sim);
+        return {
+          atoms: sim.atoms.length,
+          KE: +m.ke.toFixed(3), PE: +m.pe.toFixed(3),
+          meanOppDist: +m.oppD.toFixed(3),                  // 반대전하쌍 평균 거리(끌림 → 작아짐)
+          meanLikeDist: +m.likeD.toFixed(3),                // 같은전하쌍 평균 거리(반발 → 커짐)
+        };
+      },
+
+      // 가설: ① 인력/반발 선택성(반대전하 평균거리 < 같은전하 평균거리 — 끌림이 반대를 모으고 반발이 같은 걸 밂) ② KE↔PE 교환(보존력이 일함 — ΔKE·ΔPE<0, 둘 다 유의) ③ 총 에너지 유계 보존(|Δ(KE+PE)| ≤ 3e-3, symplectic). 운동량 정확 보존은 verify ② px·py(머신 1e-9).
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const m1 = coulombMetrics(sim);
+        const ke0 = keOf(ctx.atoms0), pe0 = K.coulombPE(ctx.atoms0, sim.knobs, sim.W, sim.H);   // 초기(atoms0)
+        const dKE = m1.ke - ke0, dPE = m1.pe - pe0;
+        const dTotal = Math.abs(dKE + dPE);                              // KE+PE 변화(유계 보존이면 ≈0)
+        return [
+          { name: '인력/반발 선택성(반대전하 평균거리 < 같은전하 평균거리)', pass: m1.oppD < m1.likeD, value: +(m1.likeD - m1.oppD).toFixed(3) },
+          { name: 'KE↔PE 교환(보존력이 일함 — ΔKE·ΔPE<0 & 유의)', pass: dKE * dPE < 0 && Math.abs(dKE) > 1e-3, value: +dKE.toFixed(3) },
+          { name: '총 에너지 유계 보존(|Δ(KE+PE)| ≤ 3e-3, symplectic)', pass: dTotal <= 3e-3, value: +dTotal.toExponential(2) },
         ];
       },
     },
