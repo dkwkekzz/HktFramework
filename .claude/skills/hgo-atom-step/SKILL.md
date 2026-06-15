@@ -1,6 +1,6 @@
 ---
 name: hgo-atom-step
-description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증→갱신→닫기)를 토큰·시간 효율적으로 실행한다. 사용자가 "HGO step 진행/다음 step/원자 step"을 요청하면 사용.
+description: HGO atom(원자) 트랙 실행 루프(읽기→법칙·장면→검증→갱신→닫기). 보통 hgo-step 디스패처가 부른다; 사용자가 "atom 트랙"을 직접 지정했을 때도 사용.
 ---
 
 # HGO 원자 트랙 step 루프 — 토큰 효율 실행 절차

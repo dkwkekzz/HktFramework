@@ -29,6 +29,8 @@
 
 작업은 **트랙별·단계별로 세션이 분리되어도** 진행되도록 쪼갠다(이것이 이 구조의 요지다). 각 트랙 = `SKILL + STATE + steps` 한 벌. 파일 집합이 disjoint → 다른 세션에서 병행 가능. 트랙 로스터·활성 게이트·소유 파일은 [SPINE.md](SPINE.md) §트랙 로스터가 권위.
 
+> **진입점: `hgo-step`** — "HGO 다음 step / 진행" 이라고만 하면 [ROADMAP.md](ROADMAP.md) 로 트랙을 자동 선택(생산자→소비자 = atom▶render▶net)해 해당 트랙 스킬을 부른다. 특정 트랙을 직접 굴리려면 그 트랙 스킬(`hgo-<트랙>-step`)을 지정한다(병행 세션). 어떤 상태든 한 입력으로 진행된다.
+
 | 트랙 | 상태 | 역할 | SKILL | STATE |
 |---|---|---|---|---|
 | **atom (원자)** | 🟢 활성 | 원자 정의 + 상호작용 법칙을 step별로 추가 (핵심·척추 보유) | `hgo-atom-step` | [atom/STATE.md](atom/STATE.md) |
