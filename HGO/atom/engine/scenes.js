@@ -1041,6 +1041,72 @@
         ];
       },
     },
+
+    'step-0018': {
+      id: 'step-0018',
+      title: '결합 차수 (이중·삼중 결합 — 같은 쌍이 빈자리만큼 전자쌍 다중 공유)',
+      desc: 'step-0017 공유결합은 *단일 결합*(간선 1·전자쌍 1)뿐 — 빈자리가 2 이상이어도 한 쌍은 한 번만 묶였다(STATE 요건1). ' +
+            'bond 게이트 `bondOrder`(=0 → 단일만, step-0017 비트 동일)가 *같은 쌍*이 남은 빈자리만큼 전자쌍을 다중 공유하게 한다: ' +
+            '차수 = min(남은 빈자리 i·j, ordMax) → O(빈자리2)=O *이중*·N(빈자리3)≡N *삼중*. 간선에 차수 e[3] 기록, 빈자리를 order 칸 소비. ' +
+            '⇒ 화학량론이 빈자리서 창발: O₂·N₂ 가 *고립 이량체*(이중·삼중 결합이 양쪽 원자가를 한 번에 채움)로 떨어진다(단일 결합이면 O 가 사슬로 자랐다). ' +
+            '끄면 차수 1·step-0017 비트 동일(회귀 0). 결합에 *세기/겹수*가 생겨 분자 위상이 원자가 화학을 따른다.',
+      ticks: 80,
+
+      init(rng, K) {
+        // *중성* 원자 무대 — N(Z7,빈자리3·삼중)·O(Z8,빈자리2·이중) 로 다중 결합 이량체(N₂·O₂)를 깨끗이 보인다(장면 로컬 원소, 전역 ELEMENTS 불변).
+        const LOCAL = [{ Z: 7, N: 7 }, { Z: 8, N: 8 }];   // N·O
+        const W = 50, H = 50, n = 50, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = LOCAL[(rng() * LOCAL.length) | 0];
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z, x: 0,                     // 중성(e=Z) → 공유결합 후보
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0017 사슬 + bondOrder(결합 차수) 한 노브. kUnbond 도 켜 동역학 유지.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1, kUnbond: 1, bondCovalent: 1, bondOrder: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        let maxOrder = 0;
+        for (const e of bonds) { const o = e[3] || 1; deg[e[0]] += o; deg[e[1]] += o; if (o > maxOrder) maxOrder = o; }
+        let overValence = 0, multiDimers = 0;
+        for (let i = 0; i < atoms.length; i++) if (deg[i] > L.covVacancy(atoms[i].e)) overValence++;
+        for (const e of bonds) { const o = e[3] || 1; if (o >= 2 && deg[e[0]] === o && deg[e[1]] === o) multiDimers++; }  // 다중 결합 고립 이량체(O₂·N₂)
+        const mol = molecules(sim);
+        return {
+          atoms: atoms.length,
+          bondsFormed: sim.bondCount | 0,
+          multiBonds: sim.multiBondCount | 0,                // 이중·삼중 결합 횟수
+          maxOrder,                                          // 최대 결합 차수(3=삼중 N≡N)
+          multiDimers,                                       // 다중 결합으로 양쪽 원자가 포화된 고립 이량체(O₂·N₂)
+          liveBonds: bonds.length,
+          molecules: mol.count,
+          maxMolSize: mol.maxSize,
+          overValence,                                       // order 가중 빈자리 초과(0 이어야)
+        };
+      },
+
+      // 가설: ① 다중 결합 형성(multiBonds>0 — 이중·삼중) ② order 가중 화학량론(어떤 원자도 covVacancy 초과 0 — 차수가 빈자리 정확 소비) ③ 다중 결합 고립 이량체(O₂·N₂>0 — 이중·삼중이 양 원자가를 한 번에 채워 분자가 2원자로 떨어짐). 총 보존은 verify ② 기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        for (const e of bonds) { const o = e[3] || 1; deg[e[0]] += o; deg[e[1]] += o; }
+        let overValence = 0, multiDimers = 0;
+        for (let i = 0; i < atoms.length; i++) if (deg[i] > L.covVacancy(atoms[i].e)) overValence++;
+        for (const e of bonds) { const o = e[3] || 1; if (o >= 2 && deg[e[0]] === o && deg[e[1]] === o) multiDimers++; }
+        const multi = sim.multiBondCount | 0;
+        return [
+          { name: '다중 결합 형성(multiBonds>0 — 이중·삼중)', pass: multi > 0, value: multi },
+          { name: 'order 가중 화학량론(covVacancy 초과 원자 0)', pass: overValence === 0, value: overValence },
+          { name: '다중 결합 고립 이량체(O₂·N₂ > 0 — 양 원자가 포화→2원자 분자)', pass: multiDimers > 0, value: multiDimers },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
