@@ -658,6 +658,66 @@
         ];
       },
     },
+
+    'step-0012': {
+      id: 'step-0012',
+      title: '결합에 원자가 한계가 생긴다 (과응집 → 이량체, 화학량론의 씨앗)',
+      desc: 'step-0010 bond 는 한계 없이 묶여 거대 덩어리(≈26원자 blob)로 과응집했다(STATE 한계). bond 게이트 `bondValence` 로 ' +
+            '원자당 결합 수를 *원자가 = |Z−e|*(전하 다발서 창발, author 0)로 제한한다 — ±1 이온은 cap 1 → *이량체*(2원자)만. ' +
+            '거대 blob 이 사라지고 분자가 *정해진 크기*(화학량론)를 갖는다. 게이트라서 끄면 step-0010/0011 비트 동일(회귀 0, step-0006 scatterAngular 정밀화와 동형). ' +
+            '포화된 이온은 더는 결합 안 하고 collide 로 탄성 튕김(닫힌 장부 유지). 원자가는 *원소 타입이 아니라 전하 다발*에서 나온다.',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0010 과 동일 무대 — 한계 유무만 대조
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,   // ±1 이온 → 원자가 cap 1
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        // bond + bondValence(원자가 한계) + collide. step-0010 대비 추가는 bondValence 한 노브뿐.
+        return { W, H, atoms, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, bondValence: 1, kCollide: 1, collideR: 3 } };
+      },
+
+      watch(sim, K) {
+        const m = molecules(sim);
+        const deg = new Array(sim.atoms.length).fill(0);
+        for (const e of (sim.bonds || [])) { deg[e[0]]++; deg[e[1]]++; }
+        let maxDeg = 0; for (const d of deg) if (d > maxDeg) maxDeg = d;
+        let px = 0, py = 0; for (const a of sim.atoms) { const mm = K.mass(a); px += mm * a.vx; py += mm * a.vy; }
+        return {
+          atoms: sim.atoms.length,
+          bonds: sim.bondCount | 0,
+          molecules: m.count,                          // 분자 수(연결 성분 크기≥2)
+          maxMolecule: m.maxSize,                       // 최대 분자 크기(한계로 2 이하)
+          maxDegree: maxDeg,                            // 최대 결합 차수(원자가 ≤ |전하| = 1)
+          collisions: sim.collideCount | 0,
+          bondE: +(sim.bondE || 0).toFixed(3),
+          totP: +Math.hypot(px, py).toExponential(2),
+        };
+      },
+
+      // 가설: ① 원자가 한계가 분자 크기 제한(최대 분자 ≤2 — cap 1 이량체) ② 어느 원자도 원자가 초과 안 함(최대 차수 ≤1) ③ 한계가 결합을 죽이진 않음(분자 여전히 형성>0). 총 E·운동량 보존은 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, m = molecules(sim);
+        const deg = new Array(sim.atoms.length).fill(0);
+        for (const e of (sim.bonds || [])) { deg[e[0]]++; deg[e[1]]++; }
+        let maxDeg = 0, overCap = 0;
+        for (let i = 0; i < sim.atoms.length; i++) {
+          if (deg[i] > maxDeg) maxDeg = deg[i];
+          if (deg[i] > Math.abs(sim.atoms[i].Z - sim.atoms[i].e)) overCap++;   // 원자가 초과 원자(있으면 버그)
+        }
+        return [
+          { name: '원자가 한계가 분자 크기 제한(최대 분자 ≤2, 이량체)', pass: m.maxSize <= 2, value: m.maxSize },
+          { name: '어느 원자도 원자가 초과 안 함(차수 ≤ |전하|, 위반 0)', pass: overCap === 0, value: maxDeg },
+          { name: '한계가 결합을 죽이진 않음(분자 여전히 형성>0)', pass: m.count > 0, value: m.count },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

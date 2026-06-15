@@ -275,6 +275,8 @@
   //     게다가 빠른 쌍(|v_rel|>bondVmax)은 포획 못 하고 튕김 → *온도 의존 결합*(차가운 이온만 묶임)이 식에서 창발.
   //   국소: *그 두 원자*만으로 판정(전역 조율자 0, min-image). 결정론: 위치·속도·전하 결정 → rng 불필요.
   //   collide 와의 정합: bond 가 먼저 돌아 상대속도를 0 으로 잠그면 뒤따르는 collide 는 vn≤0 으로 그 쌍을 건너뜀(중복 0).
+  //   ⊕ step-0012 게이트 `bondValence`(=0 → 무제한·이전 비트 동일): 원자당 결합 수를 *원자가 = |Z−e|*(전하 다발서
+  //     창발, author 0)로 제한 → ±1 이온은 cap 1 → 이량체만(과응집 blob 해소). step-0006 scatterAngular 정밀화와 동형 게이트.
   function bond(sim) {
     const k = sim.knobs.kBond;
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 항 꺼짐 → 직전 비트)
@@ -282,6 +284,9 @@
     const vmax = sim.knobs.bondVmax || 1.5, vmax2 = vmax * vmax;  // 이 상대속력 미만에서만 포획
     if (!sim.bonds) { sim.bonds = []; sim.bondKeys = new Set(); }  // 결합 간선 장부(미존재→지연 초기화)
     const atoms = sim.atoms, n = atoms.length;
+    const vcap = sim.knobs.bondValence || 0;             // 원자가 한계 게이트(0=무제한 → step-0010/0011 비트 동일)
+    let deg = null;
+    if (vcap) { deg = new Array(n).fill(0); for (const e of sim.bonds) { deg[e[0]]++; deg[e[1]]++; } }  // 현 결합 차수(이전 tick 누적)
     for (let i = 0; i < n; i++) {
       const a = atoms[i];
       for (let j = i + 1; j < n; j++) {
@@ -289,6 +294,7 @@
         if (sim.bondKeys.has(key)) continue;                 // 이미 결합 — 재포획·이중 흡수 금지
         const b = atoms[j];
         if ((a.Z - a.e) * (b.Z - b.e) >= 0) continue;        // 반대 전하만 끌림(같은 전하/중성 → collide 탄성)
+        if (vcap && (deg[i] >= Math.abs(a.Z - a.e) || deg[j] >= Math.abs(b.Z - b.e))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
         const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
         const d2 = dx * dx + dy * dy;
         if (d2 > R2 || d2 === 0) continue;                   // 접촉 반경 밖(또는 완전 겹침 가드)
@@ -305,6 +311,7 @@
         a.vx = vcx; a.vy = vcy; b.vx = vcx; b.vy = vcy;      // 질량중심 속도로 잠금 → 같이 움직임(공간 결합 유지)
         sim.bondE = (sim.bondE || 0) + (keBefore - keAfter); // 흡수 KE park(닫힌 장부)
         sim.bonds.push([i, j]); sim.bondKeys.add(key);
+        if (vcap) { deg[i]++; deg[j]++; }                   // 차수 갱신(같은 tick 내 후속 쌍이 포화 보게)
         sim.bondCount = (sim.bondCount | 0) + 1;             // 진단 카운터(결합 간선은 hash 참여)
       }
     }
