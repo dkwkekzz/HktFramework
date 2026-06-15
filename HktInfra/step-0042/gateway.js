@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false, busSeenBound = false) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -46,7 +46,12 @@ class Gateway {
     //   svc.item.out 으로 받은 결과를 클라에 *중계할 때마다* 그 outSeq 를 svc.item.out.ack 로 통보(중계 확인) → 가방이 ack 워터마크 이하 outBuffer 를 가지친다.
     //   결과는 클라 belief Set 갱신이라 *멱등*(재배달 무해) → consumer dedup 불요(0036 발견) — ack 는 *버퍼 가지치기*만 위한 신호다. OFF 면 발행 0 = 0040 비트 동일.
     this.busOutAck = busOutAck;           // ON 이면 svc.item.out 중계마다 svc.item.out.ack{outSeq} 발행. OFF = 0040 비트 동일(ack 발행 0).
-    this.outAcksSent = 0;                 // 발행한 결과 ack 누적(이 step·계측)
+    this.outAcksSent = 0;                 // 발행한 결과 ack 누적(0041·계측)
+    // ── seenReqs 유계화(이 step·busSeenBound) — 가방 dedup 집합(seenReqs·0037)의 *무계 성장* 해소(0040/0041 §9). ──
+    //   가방 seenReqs 는 처리한 *전* reqId 를 무계로 쌓는다(재발행 이중 mint 방어) → 장기 가동 시 무한 성장. 그러나 게이트웨이가 재발행하는 건 inBuffer(미-ack=reqId>inAcked)뿐이라
+    //   reqId≤inAcked 는 영영 재출현하지 않는다 → 가방은 그 이하 dedup 상태를 잊어도 안전. inAcked 가 전진할 때 그 prune 프런티어를 svc.item.seen 으로 통보(busAck 의 역방향 워터마크).
+    this.busSeenBound = busSeenBound;     // ON 이면 inAcked 전진 시 svc.item.seen{upTo} 발행. OFF = 0041 비트 동일(발행 0). busAck+busResendReq 전제.
+    this.seenWmSent = 0;                  // 발행한 seen 워터마크 누적(이 step·계측)
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -81,8 +86,13 @@ class Gateway {
   //   ack 도 gap 에 끊기므로 다운타임 동안엔 가지치기 멈춰 버퍼가 자동 성장 → 복구 replay 가 정확히 그만큼 덮음(K 추정 불필요). OFF 면 미발동(reg 0 불변).
   _onItemAck(ev) {
     if (!this.busAck || ev == null || ev.reqId === undefined) return;
+    const before = this.inAcked;
     if (ev.reqId > this.inAcked) this.inAcked = ev.reqId;
     while (this.inBuffer.length && this.inBuffer[0].reqId <= this.inAcked) { this.inBuffer.shift(); this.inPruned++; }
+    // seenReqs 유계화(이 step·busSeenBound) — inAcked 가 전진하면 그 prune 프런티어를 가방에 통보(역방향 워터마크).
+    //   가방이 inBuffer 에서 reqId≤inAcked 를 가지쳤으므로 *그 이하는 다시 재발행되지 않는다* → 가방이 seenReqs dedup 집합에서 안전히 잊을 수 있다.
+    //   reqId 단조 + 게이트웨이가 각 reqId 를 1회만 발신(재발행만 중복·재발행 범위는 >inAcked) → ≤inAcked 는 영영 재출현 0 → dedup 정확성 보존(dupe 0). OFF 면 발행 0 = 0041 비트 동일.
+    if (this.busSeenBound && this.bus && this.inAcked > before) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.seen', ev: { upTo: this.inAcked } }); this.seenWmSent++; }
   }
   // 결과 ack 발행(이 step·busOutAck) — svc.item.out 결과를 중계할 때마다 그 outSeq 를 가방에 통보(0040 요청 ack 발행의 거울).
   //   가방이 이 ack 로 outBuffer 를 가지쳐 자기-크기조정. outSeq 없으면(busOutAck OFF·가방 미태깅) 발행 0 = 0040 비트 동일.

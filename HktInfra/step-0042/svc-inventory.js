@@ -53,7 +53,13 @@ class InventoryService {
     //   give/reconcile 는 자체 멱등(owner/ledger 체크)이나 일관성 위해 같은 dedup 경로. OFF(reqId 없음)면 분기 휴면 = 0036 비트 동일.
     this.busResendReq = opts.busResendReq || false;  // ON 이면 reqId 실린 요청을 dedup(seenReqs). OFF = 0036 비트 동일(dedup 0).
     this.seenReqs = new Set();    // 처리한 요청 reqId(busResendReq ON·reqId 실릴 때만) — 재발행 중복 멱등 폐기(pickup 이중 mint 0).
-    // ── 요청 ack(이 step·busAck) — 게이트웨이 inBuffer 자기-크기조정의 소비자 측. 받은 reqId 를 svc.item.ack 로 통보(처리 확인). ──
+    // ── seenReqs 유계화(이 step·busSeenBound) — 게이트웨이 prune 워터마크(svc.item.seen)로 dedup 집합 가지치기(0040/0041 §9 해소). ──
+    //   게이트웨이가 inAcked(=inBuffer prune 프런티어)를 통보 → 그 이하 reqId 는 영영 재발행 0 → seenReqs 에서 안전히 제거(미-재출현이라 dupe 보존). busAck 의 역방향 워터마크.
+    this.busSeenBound = opts.busSeenBound || false;  // ON 이면 svc.item.seen 수신 시 seenReqs 가지치기. OFF = 0041 비트 동일(가지치기 0·무계).
+    this.seenWatermark = -1;      // seen prune 워터마크 — 이 reqId 이하 dedup 상태는 잊음(단조)
+    this.seenReqsPeak = 0;        // seenReqs 최대 크기(계측) — 유계화 증거(bound 면 ≈in-flight·무계면 ∝처리 수)
+    this.seenPruned = 0;          // 워터마크로 가지친 reqId 누적(이 step·계측)
+    // ── 요청 ack(0040·busAck) — 게이트웨이 inBuffer 자기-크기조정의 소비자 측. 받은 reqId 를 svc.item.ack 로 통보(처리 확인). ──
     //   dedup 으로 폐기하는 재발행분도 *ack 는 보낸다* — 그래야 ack 손실로 안 지워진 inBuffer 항목이 재발행→재-ack 되어 끝내 가지쳐진다(수렴).
     this.busAck = opts.busAck || false;  // ON 이면 svc.item 수신마다 svc.item.ack{reqId} 발행. OFF = 0039 비트 동일(ack 발행 0).
     this.acksSent = 0;            // 발행한 요청 ack 누적(0040·계측)
@@ -91,6 +97,14 @@ class InventoryService {
     if (!this.busOutAck || ev == null || ev.outSeq === undefined) return;
     if (ev.outSeq > this.outAcked) this.outAcked = ev.outSeq;
     while (this.outBuffer.length && this.outBuffer[0].outSeq <= this.outAcked) { this.outBuffer.shift(); this.outPruned++; }
+  }
+  // seen 워터마크 수신(이 step·busSeenBound) — 게이트웨이가 svc.item.seen 으로 통보한 inAcked(prune 프런티어) 이하 reqId 를 seenReqs 에서 제거.
+  //   reqId≤upTo 는 게이트웨이 inBuffer 에서 이미 가지쳐져 *영영 재발행되지 않는다* → dedup 상태가 불필요(잊어도 dupe 0). 워터마크는 단조 — 새 upTo 가 더 클 때만 가지친다.
+  //   Set 이라 순서 보장이 없으니 upTo 이하를 순회 제거(O(가지친 수)). 가방 crash 후엔 seenReqs 리셋이므로 워터마크도 무관(별개 생애).
+  _onSeenWatermark(ev) {
+    if (!this.busSeenBound || ev == null || ev.upTo === undefined || ev.upTo <= this.seenWatermark) return;
+    this.seenWatermark = ev.upTo;
+    for (const r of this.seenReqs) if (r <= this.seenWatermark) { this.seenReqs.delete(r); this.seenPruned++; }
   }
   // 버스 failover 결과 재발행(이 step·busResend) — 버스 복구(재구독) 직후 트리거. 보관한 결과를 svc.item.out 에 다시 pub.
   //   gap 에 떨군 결과(원장 적용·클라 미수신 → belief < 원장)를 재배달 → 게이트웨이가 클라에 중계 → belief 가 원장 따라잡음(itemDesync→0).
@@ -189,7 +203,8 @@ class InventoryService {
     let p = m.payload;
     if (p.type === 'journal_nak') { if (this.reliable) this._resend(p.missing || []); return; }   // 저널 홉 NAK(0023) — persist 가 감지한 갭 재전송(reactive·신성한 tick 밖)
     if (p.type === 'journal_ack') { if (this.quorumW > 0) this._recordAck(p.seq, m.from); return; }   // 쓰기 정족수 ack(0029) — 스토어 저장 확인 집계 → durableSeq 워터마크. quorumW 0 면 ack 자체가 안 옴(0028 비트 동일)
-    if (p.type === 'ev' && p.topic === 'svc.item.out.ack') { this._onOutAck(p.ev); return; }   // 결과 ack(이 step·busOutAck) — 게이트웨이→가방 자기-크기조정 경로. busOutAck OFF 면 미구독 = 0040 비트 동일.
+    if (p.type === 'ev' && p.topic === 'svc.item.out.ack') { this._onOutAck(p.ev); return; }   // 결과 ack(0041·busOutAck) — 게이트웨이→가방 자기-크기조정 경로. busOutAck OFF 면 미구독 = 0040 비트 동일.
+    if (p.type === 'ev' && p.topic === 'svc.item.seen') { this._onSeenWatermark(p.ev); return; }   // seen 워터마크(이 step·busSeenBound) — 게이트웨이 prune 프런티어 → seenReqs 가지치기. OFF 면 미구독 = 0041 비트 동일.
     if (p.type === 'ev' && p.topic === 'svc.item') p = p.ev;   // 버스 봉투 해체(구독 수신) — 직접 모드와 같은 item_req/item_reconcile
     // 요청 ack 발행(이 step·busAck) — reqId 실린 svc.item 을 받을 때마다 *처리 확인* 통보(dedup 폐기분 포함 — 위 주석 참조).
     //   게이트웨이가 이 ack 로 inBuffer 를 가지쳐 자기-크기조정. OFF(또는 reqId 없음·버스 OFF)면 발행 0 = 0039 비트 동일.
@@ -199,6 +214,7 @@ class InventoryService {
     if (this.busResendReq && p.reqId !== undefined) {
       if (this.seenReqs.has(p.reqId)) return;   // 이미 처리(재발행 중복) — 폐기
       this.seenReqs.add(p.reqId);
+      if (this.seenReqs.size > this.seenReqsPeak) this.seenReqsPeak = this.seenReqs.size;   // 최대 크기 계측(이 step) — 유계화 증거
     }
     if (p.type === 'item_reconcile') {
       // id-reconciliation(이 step·mintRecon) — 클라가 믿는 아이템 id 목록을 받아 원장에 없는 것을 re-mint(새 id).
@@ -255,7 +271,8 @@ class InventoryService {
     this.sentBuffer = new Map(); this.resends = 0; this.journalHbs = 0;   // 신뢰 전달(0023) — 새 프로세스는 미-ack 버퍼 0(죽기 전 in-flight 는 소실 = §9 write-behind 윈도 잔존). heartbeat 계측도 리셋.
     this.ackSeqs = new Map(); this.durableSeq = -1; this.quorumAcks = 0; this.windowFills = 0;   // 쓰기 정족수·윈도 해소 상태 리셋(0029~0031) — 새 프로세스는 ack 집계/fill 계측 0(복구 후 다시 쌓임). quorumW 0 면 무관.
     this.outBuffer = []; this.outResends = 0;   // 버스 failover 결과 재발행 버퍼 리셋(0036) — 가방 crash 는 결과 버퍼도 소실(RAM). busResend OFF 면 무관.
-    this.seenReqs = new Set();   // 요청 dedup 집합 리셋(이 step) — 새 프로세스는 처리 이력 0(busResendReq OFF 면 무관).
+    this.seenReqs = new Set();   // 요청 dedup 집합 리셋(0037) — 새 프로세스는 처리 이력 0(busResendReq OFF 면 무관).
+    this.seenWatermark = -1;     // seen prune 워터마크 리셋(이 step) — 새 생애는 dedup 이력 0 이라 워터마크도 초기화(busSeenBound OFF 면 무관).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   // replay — 영속 저널(효과 로그)로 원장을 *재현*(상태 전송 아님 = §4 "복제=재현"). seq 순서대로 mint/xfer 적용.
