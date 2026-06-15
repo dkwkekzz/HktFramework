@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- viewer.html — 단일 뷰어. step 선택기로 장면을 골라 결정론적으로 돌린다.
+<!-- viewer.html — 단일 뷰어(하나뿐). step 선택기로 장면을 골라 결정론적으로 돌린다.
      step 마다 복제하지 않는다(SPINE §6.1) — engine/scenes.js 의 장면 한 항을 읽을 뿐.
-     색=속도(운동에너지=온도)·크기=질량(Z+N) — 둘 다 물리량 읽기지 author 아님. -->
+     캔버스 그리기는 render 트랙 모듈(../render/engine/render.js)에 위임 — 뷰어는 하네스만. -->
 <meta charset="utf-8">
 <title>HGO viewer — atom</title>
 <style>
@@ -34,7 +34,7 @@
     <h3 id="title" style="margin:.2em 0"></h3>
     <p id="desc"></p>
     <div id="watch"></div>
-    <div class="legend">● 크기 = 질량(Z+N) · 색 = 속도(파랑 느림 → 빨강 빠름 = 운동에너지/온도)<br>색·형태를 author 하지 않는다 — 물리량을 읽을 뿐(SPINE §6.1).</div>
+    <div class="legend">● 원자: 크기 = 질량(Z+N) · 밝기 = 들뜸(x>0) · 광자: 색 = 방출 파장 λ=hc/ΔE(보라 고에너지 → 빨강 저에너지) · 하단 띠 = 측정 스펙트럼선<br>색·형태를 author 하지 않는다 — sim 양을 읽어 번역할 뿐(render 트랙, SPINE §6.1/§7).</div>
   </div>
 </div>
 
@@ -42,6 +42,10 @@
 <script src="engine/hgo-laws.js"></script>
 <script src="engine/hgo-sim.js"></script>
 <script src="engine/scenes.js"></script>
+<!-- render 트랙(시각화)의 렌더 모듈을 load — 단일 뷰어가 그리기를 render 에 위임(SPINE §6.1·§7).
+     viewer 는 하네스(장면 선택·재생·노브·watch)만, 캔버스 번역은 render 가 구현. -->
+<script src="../render/engine/spectral.js"></script>
+<script src="../render/engine/render.js"></script>
 <script>
 const { kernel: K, sim: S, scenes: SC } = HGO;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -83,25 +87,8 @@ function reset() {
   draw();
 }
 
-function speedColor(a) {
-  const s = Math.min(Math.hypot(a.vx, a.vy) / 1.6, 1);   // 0..1
-  const hue = 240 - 240 * s;                              // 파랑→빨강
-  return `hsl(${hue},80%,60%)`;
-}
-
 function draw() {
-  ctx.clearRect(0, 0, cv.width, cv.height);
-  const sx = cv.width / sim.W, sy = cv.height / sim.H;
-  for (const a of sim.atoms) {
-    const r = 2 + Math.sqrt(K.mass(a));
-    ctx.beginPath();
-    ctx.arc(a.rx * sx, a.ry * sy, r, 0, 6.2832);
-    ctx.fillStyle = speedColor(a);
-    ctx.globalAlpha = a.Z === a.e ? 0.9 : 1;               // 이온(전하≠0)은 또렷이
-    ctx.fill();
-    if (a.Z !== a.e) { ctx.lineWidth = 1; ctx.strokeStyle = '#f9e2af'; ctx.stroke(); } // 이온 테두리
-  }
-  ctx.globalAlpha = 1;
+  HGORender.render.draw(ctx, sim, K);   // 캔버스 렌더링을 render 트랙 모듈에 위임(SPINE §6.1 단일 뷰어)
   $('tick').textContent = `tick ${sim.tick}`;
   const w = scene.watch(sim, K);
   $('watch').innerHTML = Object.entries(w).map(([k, v]) => `<span class="k">${k}</span> = ${v}`).join('\n');
