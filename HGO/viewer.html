@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- engine/viewer.html — 공용 단일 뷰어(하나뿐, 트랙 무관 하네스). step 선택기로 장면을 골라 결정론적으로 돌린다.
-     step 마다 복제하지 않는다(SPINE §6.1) — atom 트랙의 scenes.js 장면 한 항을 읽을 뿐.
-     atom 시뮬은 ../atom/engine/ 에서, 캔버스 그리기는 render 모듈 ../render/engine/render.js 에서 load — 뷰어는 하네스만. -->
+<!-- viewer.html — 공용 단일 뷰어(하나뿐, 트랙 무관 하네스). HGO/ 루트에 산다(트랙 폴더 밖 중립지).
+     step 선택기로 장면을 골라 결정론적으로 돌린다 — step 마다 복제하지 않는다(SPINE §6.1), atom 트랙의 scenes.js 장면 한 항을 읽을 뿐.
+     atom 시뮬은 atom/engine/ 에서, 캔버스 그리기는 render 모듈 render/engine/render.js 에서 load — 뷰어는 하네스만. -->
 <meta charset="utf-8">
 <title>HGO viewer (공용 단일 뷰어)</title>
 <style>
@@ -34,18 +34,18 @@
     <h3 id="title" style="margin:.2em 0"></h3>
     <p id="desc"></p>
     <div id="watch"></div>
-    <div class="legend">● 원자: 크기 = 질량(Z+N) · 밝기 = 들뜸(x>0) · 광자: 색 = 방출 파장 λ=hc/ΔE(보라 고에너지 → 빨강 저에너지) · 하단 띠 = 측정 스펙트럼선<br>색·형태를 author 하지 않는다 — sim 양을 읽어 번역할 뿐(render 트랙, SPINE §6.1/§7).</div>
+    <div class="legend">3D 무대(L-3d): 평면 세계(z=0)를 원근 카메라로 — 원자 = 음영 구(크기=질량 Z+N · 밝기=들뜸 x>0) · 광자 = 발광 빌보드(색 = 방출 파장 λ=hc/ΔE, 보라 고에너지 → 빨강 저에너지) · 바닥 격자 = z=0 기준 · 하단 띠 = 측정 스펙트럼선 · 재생하면 카메라 선회<br>z 를 author 하지 않는다(시뮬은 위치가 2D) — 평면을 *표현만* 입체화. 색·형태 author 0, sim 양을 읽어 번역할 뿐(render 트랙, SPINE §6.1/§7).</div>
   </div>
 </div>
 
-<script src="../atom/engine/hgo-kernel.js"></script>
-<script src="../atom/engine/hgo-laws.js"></script>
-<script src="../atom/engine/hgo-sim.js"></script>
-<script src="../atom/engine/scenes.js"></script>
+<script src="atom/engine/hgo-kernel.js"></script>
+<script src="atom/engine/hgo-laws.js"></script>
+<script src="atom/engine/hgo-sim.js"></script>
+<script src="atom/engine/scenes.js"></script>
 <!-- render 트랙(시각화)의 렌더 모듈을 load — 단일 뷰어가 그리기를 render 에 위임(SPINE §6.1·§7).
      viewer 는 하네스(장면 선택·재생·노브·watch)만, 캔버스 번역은 render 가 구현. -->
-<script src="../render/engine/spectral.js"></script>
-<script src="../render/engine/render.js"></script>
+<script src="render/engine/spectral.js"></script>
+<script src="render/engine/render.js"></script>
 <script>
 const { kernel: K, sim: S, scenes: SC } = HGO;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');

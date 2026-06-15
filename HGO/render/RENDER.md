@@ -12,7 +12,7 @@
 
 atom 트랙은 *세계를 굴린다*(보존·결정론·창발). render 트랙은 그 스냅샷을 받아 **사람 눈에 보이는 빛**으로 번역한다. 번역기는 *분포를 재성형하지 않는다* — 어느 양이 색이 되고 어느 양이 밝기가 되는가만 고른다(읽기). 위치는 시뮬 `(rx,ry)` 그대로.
 
-> **단일 뷰어 — render 는 뷰어를 클론하지 않는다(SPINE §6.1).** 뷰어는 하나뿐: `HGO/engine/viewer.html`(공용 셸 — 트랙 무관, 장면 선택·재생·노브·watch). render 트랙은 *그 단일 뷰어의 캔버스 렌더링을 구현*한다 — `render/engine/render.js`(그리기) + `render/engine/spectral.js`(λ→색). 공용 셸이 이 모듈을 `<script src=../render/...>` 로 load 해 `draw()` 를 위임한다. **render 는 자기 viewer.html 을 두지 않고, atom/ 도 안 건드린다** — 그리기 배선은 트랙 밖 공유 셸(`HGO/engine/`)에서.
+> **단일 뷰어 — render 는 뷰어를 클론하지 않는다(SPINE §6.1).** 뷰어는 하나뿐: `HGO/viewer.html`(공용 셸 — 트랙 무관, 장면 선택·재생·노브·watch). render 트랙은 *그 단일 뷰어의 캔버스 렌더링을 구현*한다 — `render/engine/render.js`(그리기) + `render/engine/spectral.js`(λ→색). 공용 셸이 이 모듈을 `<script src=render/...>` 로 load 해 `draw()` 를 위임한다. **render 는 자기 viewer.html 을 두지 않고, atom/ 도 안 건드린다** — 그리기 배선은 트랙 밖 공유 셸(`HGO/viewer.html`, 루트)에서.
 
 > 왜 직교인가: 렌더가 시뮬을 안 건드리므로(폴더 disjoint, SPINE §7) 결정론이 자동 보존된다 — 같은 시드 → 같은 세계 → 같은 화면. 렌더 렌즈를 아무리 갈아도 골든 해시는 비트 불변이어야 한다(시뮬 알리바이).
 
@@ -61,9 +61,9 @@ atom 트랙은 *세계를 굴린다*(보존·결정론·창발). render 트랙�
 
 매 렌즈를 닫을 때 3종:
 
-1. **시뮬 알리바이**: 커밋 전 `git status` diff 는 `render/` · `HGO/engine/viewer.html`(공유 셸 배선) · 스킬에만. **`atom/` 은 diff 0**(이제 viewer 가 트랙 밖이라 atom/ 을 아예 안 건드림 — 진짜 disjoint). 잡히면 *실수로 시뮬을 만진 것* — 되돌려라(렌더는 읽기만 → 골든 해시 비트 불변).
+1. **시뮬 알리바이**: 커밋 전 `git status` diff 는 `render/` · `HGO/viewer.html`(공유 셸 배선) · 스킬에만. **`atom/` 은 diff 0**(이제 viewer 가 트랙 밖이라 atom/ 을 아예 안 건드림 — 진짜 disjoint). 잡히면 *실수로 시뮬을 만진 것* — 되돌려라(렌더는 읽기만 → 골든 해시 비트 불변).
 2. **헤드리스 스모크**: `node render/validate/smoke.js` — 번역이 옳게 도는지 수치 확인(광자→유효 RGB·물리 순서·스펙트럼선 수).
-3. **눈 검증(권위)**: 헤드리스로는 못 본다 — *사용자 브라우저 확인*이 권위다. 단일 뷰어 `HGO/engine/viewer.html` 을 열어 확인하고 결과를 RENDER-STATE §6 INDEX 에 기록.
+3. **눈 검증(권위)**: 헤드리스로는 못 본다 — *사용자 브라우저 확인*이 권위다. 단일 뷰어 `HGO/viewer.html` 을 열어 확인하고 결과를 RENDER-STATE §6 INDEX 에 기록.
 
 + 척추 한 항: **형태·질 author 0**(§3 통과).
 
@@ -71,8 +71,8 @@ atom 트랙은 *세계를 굴린다*(보존·결정론·창발). render 트랙�
 
 ## 6. 불가침 (비용·정합 함정)
 
-- **atom/ 을 만지지 않는다** — `atom/engine/*`(laws·sim·kernel·scenes·verify·golden) · `atom/STATE.md` · `../SPINE.md` · `atom/steps/*` 은 시뮬 소유. 렌더는 읽기만. (viewer 가 트랙 밖 `HGO/engine/` 으로 빠져 atom/ 은 진짜 disjoint.)
-- **공유 셸 `HGO/engine/viewer.html`(SPINE §6.1·§7)**: 트랙 무관 단일 뷰어. render 는 그리기 모듈 load + `draw()` 위임 배선만(프레젠테이션, 결정론·골든 무관). 장면·sim 로직·hash 는 안 건드림.
+- **atom/ 을 만지지 않는다** — `atom/engine/*`(laws·sim·kernel·scenes·verify·golden) · `atom/STATE.md` · `../SPINE.md` · `atom/steps/*` 은 시뮬 소유. 렌더는 읽기만. (viewer 가 트랙 밖 `HGO/` 루트로 빠져 atom/ 은 진짜 disjoint.)
+- **공유 셸 `HGO/viewer.html`(SPINE §6.1·§7)**: 트랙 무관 단일 뷰어. render 는 그리기 모듈 load + `draw()` 위임 배선만(프레젠테이션, 결정론·골든 무관). 장면·sim 로직·hash 는 안 건드림.
 - **`../SPINE.md`·`../CLAUDE.md` 를 고치지 않는다** — 공유 라우터·척추는 시뮬 트랙 권위. 렌더 상태는 오직 `RENDER-STATE.md`.
 - 시뮬 step 문서·옛 장면을 "참고로" 통째 읽지 않는다 — 입력 계약(§2)만 알면 된다.
 - 빌드(UE5)는 이 트랙과 무관 — 실행하지 않는다.

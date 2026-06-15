@@ -106,7 +106,7 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 | **작은 실행 단위** | `steps/step-NNNN.md` + 코어/검증 | 한 step = 한 조각. 직전 step 을 잇고 *하나만* 더한다 | step마다 |
 | **상태 파일** | 트랙 폴더의 `STATE.md` (atom: [atom/STATE.md](atom/STATE.md)) | 현재 위치 · 다음 가설 · 열린 격차 · 시리즈 인덱스 | step마다 |
 
-> **트랙은 폴더로 산다.** 트랙 내부 경로(`engine/`·`steps/`·`STATE.md`)는 그 트랙 폴더 기준이다(활성 atom = `HGO/atom/`). 공유 문서(CLAUDE 라우터·SPINE 척추)는 `HGO/` 루트, **공용 하네스(`viewer.html`)는 트랙 무관 `HGO/engine/`** 에 산다 — 이 문서의 트랙 내부 경로는 모두 *트랙 폴더 상대* 표기.
+> **트랙은 폴더로 산다.** 트랙 내부 경로(`engine/`·`steps/`·`STATE.md`)는 그 트랙 폴더 기준이다(활성 atom = `HGO/atom/`). 공유 문서(CLAUDE 라우터·SPINE 척추)와 **공용 하네스(`viewer.html`, 트랙 무관)는 `HGO/` 루트**에 산다(`engine/` 는 각 트랙 폴더 안에만 — `atom/engine/`·`render/engine/`) — 이 문서의 트랙 내부 경로는 모두 *트랙 폴더 상대* 표기.
 >
 > **단일 진실 원천(SSOT)**: "지금 어디까지·다음은 무엇"은 **오직 그 트랙의 STATE**(atom 은 `atom/STATE.md`). 닫은 step 문서는 그 step 의 *기록*이라 이후 수정하지 않는다.
 >
@@ -122,11 +122,11 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 
 - **헤드리스 검증** `engine/verify.js step-NNNN` — 4기둥 + 장면 assert 를 수치 출력 (per-step verify.js 없음).
 - **골든 해시** — 같은 장면을 동결해 회귀 0 앵커.
-- **단일 뷰어** `HGO/engine/viewer.html`(공용·트랙 무관) — step 선택기에서 그 장면을 골라 "여기서 뭘 했는지"를 보여줌. 노브 패널은 엔진 노브에서 자동 생성. 캔버스 그리기는 render 트랙 모듈에 위임(시각화는 render 가 구현).
+- **단일 뷰어** `HGO/viewer.html`(공용·트랙 무관) — step 선택기에서 그 장면을 골라 "여기서 뭘 했는지"를 보여줌. 노브 패널은 엔진 노브에서 자동 생성. 캔버스 그리기는 render 트랙 모듈에 위임(시각화는 render 가 구현).
 
 > **재현성은 복사가 아니라 결정론에서 온다.** 단일 뷰어로 옛 step 장면을 불러도 *결정론(같은 시드 → 같은 결과) + 동결 장면 + 회귀 0(노브=0 → 비트 동일)* 이 그때와 비트까지 똑같이 재현한다. 그래서 옛 step html 을 따로 보관할 필요가 없다. 이 불변식이 단일 뷰어를 안전하게 만든다.
 
-> **부트스트랩**: 위 공용 하네스(`HGO/engine/viewer.html`[트랙 무관]·atom 의 `engine/verify.js`·`engine/scenes.js`·골든)는 *원자 기반 구축* step 들이 한 번 만든다. 이후 step 은 하네스를 건드리지 않고 *법칙 1항 + 장면 1항*만 더한다. **뷰어는 트랙이 아니라 `HGO/engine/` 에 산다** — 어느 트랙도 *구현*하지 않는 공유 셸이라(시각화 구현은 render 모듈), 트랙 폴더 밖에 둔다.
+> **부트스트랩**: 위 공용 하네스(`HGO/viewer.html`[트랙 무관]·atom 의 `engine/verify.js`·`engine/scenes.js`·골든)는 *원자 기반 구축* step 들이 한 번 만든다. 이후 step 은 하네스를 건드리지 않고 *법칙 1항 + 장면 1항*만 더한다. **뷰어는 트랙이 아니라 `HGO/` 루트에 산다** — 어느 트랙도 *구현*하지 않는 공유 셸이라(시각화 구현은 render 모듈), 트랙 폴더 밖에 둔다.
 
 ---
 
@@ -137,11 +137,11 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 | 트랙 | 상태 | 소유 파일 (활성 시) | 활성 게이트 |
 |---|---|---|---|
 | **atom (원자)** | 🟢 활성 | **`atom/`** 폴더 전체 (`STATE.md` · `steps/` · `engine/`[hgo-*.js·scenes.js·verify.js·validate]) | — (척추 보유·즉시) |
-| **(공용 하네스)** | — | **`HGO/engine/`** (`viewer.html` — 트랙 무관 단일 뷰어 셸) | 어느 트랙도 소유 안 함 — atom 하네스 + render 그리기 위임이 함께 사는 중립지 |
+| **(공용 하네스)** | — | **`HGO/viewer.html`** (트랙 무관 단일 뷰어 셸 — 루트) | 어느 트랙도 소유 안 함 — atom 하네스 + render 그리기 위임이 함께 사는 중립지 |
 | **render (시각화)** | ⚪ 휴면 | **`render/`** 폴더 (`RENDER.md`[렌즈 척추] · `STATE.md` · 렌더 코드) | 방출(요건3)이 atom 트랙에 실린 뒤 — 읽을 빛이 생기면 |
 | **net (MMO)** | ⚪ 휴면 | **`net/`** 폴더 (`NET.md` · `STATE.md` · 네트 코드) | 결정론·보존이 안정되고 *공유할 상태*가 충분히 풍부해진 뒤 |
 
-**불가침**: render/net 트랙은 atom 트랙 폴더(`atom/` — 시뮬 코어·`STATE.md`·step 문서)에 *쓰지* 않는다 — 스냅샷을 **읽기만** 한다(서버 권위·형태 author 금지). 공유 셸 `HGO/engine/viewer.html` 은 예외적으로 트랙 무관 — render 가 그리기 위임을 배선할 수 있다(atom/ 은 안 건드림). 이로써 결정론(같은 시드 → 같은 화면/복제)이 자동 보존된다. 각 휴면 트랙은 깨어날 때 *자기 폴더*와 SKILL(`.claude/skills/hgo-<트랙>-step/`)을 만들며, 이 atom 트랙을 형식 본보기로 삼는다. 폴더 집합이 disjoint → 트랙·세션 충돌 0.
+**불가침**: render/net 트랙은 atom 트랙 폴더(`atom/` — 시뮬 코어·`STATE.md`·step 문서)에 *쓰지* 않는다 — 스냅샷을 **읽기만** 한다(서버 권위·형태 author 금지). 공유 셸 `HGO/viewer.html` 은 예외적으로 트랙 무관 — render 가 그리기 위임을 배선할 수 있다(atom/ 은 안 건드림). 이로써 결정론(같은 시드 → 같은 화면/복제)이 자동 보존된다. 각 휴면 트랙은 깨어날 때 *자기 폴더*와 SKILL(`.claude/skills/hgo-<트랙>-step/`)을 만들며, 이 atom 트랙을 형식 본보기로 삼는다. 폴더 집합이 disjoint → 트랙·세션 충돌 0.
 
 ---
 

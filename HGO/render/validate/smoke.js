@@ -3,7 +3,7 @@
 //     ① atom 엔진을 읽기 전용으로 로드해 장면(빛 있는 step)을 돌리면 광자가 나온다.
 //     ② 각 광자 λ 가 유효한 RGB 로 번역된다(0..255, 검정 아님).
 //     ③ 물리 순서 보존 — 짧은 λ(고에너지)는 더 파랗고, 긴 λ(저에너지)는 더 빨갛다.
-//   알리바이(atom/ 진짜 diff 0 — viewer 는 트랙 밖 HGO/engine/ 공유 셸)는
+//   알리바이(atom/ 진짜 diff 0 — viewer 는 트랙 밖 HGO/ 루트 공유 셸)는
 //   커밋 전 `git status` 로 확인(RENDER.md §5).
 //
 // 사용: node render/validate/smoke.js
@@ -14,6 +14,7 @@ const K = require(path.join(ATOM, 'hgo-kernel.js'));
 const S = require(path.join(ATOM, 'hgo-sim.js'));
 const SC = require(path.join(ATOM, 'scenes.js'));
 const SP = require(path.join(__dirname, '..', 'engine', 'spectral.js'));
+const R3 = require(path.join(__dirname, '..', 'engine', 'render.js'));
 
 const SCENE = 'step-0002';
 const SEED = 42;
@@ -58,6 +59,22 @@ function run() {
   // 측정된 스펙트럼선 수
   const lines = new Set(ph.map(p => p.from + '→' + p.to));
   checks.push({ name: '측정된 스펙트럼선 수(≥1)', pass: lines.size >= 1, value: lines.size });
+
+  // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
+  //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
+  const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
+  const center = R3.project({ x: sim.W / 2, y: sim.H / 2, z: 0 }, cam);
+  const corner = R3.project({ x: 0, y: 0, z: 0 }, cam);
+  const far = R3.project({ x: sim.W, y: sim.H, z: 0 }, cam);
+  // 타깃(평면 중심)은 화면 중앙 근처로 투영
+  const centered = Math.abs(center.sx - cam.cw / 2) < 1 && Math.abs(center.sy - cam.ch / 2) < 1;
+  checks.push({ name: 'L-3d: 평면 중심 → 화면 중앙', pass: centered, value: `(${center.sx.toFixed(0)},${center.sy.toFixed(0)})` });
+  // 모든 평면 점이 카메라 앞(depth>0)으로 투영(뒤집힘·NaN 없음)
+  const inFront = [center, corner, far].every(p => p.depth > 0 && Number.isFinite(p.sx) && Number.isFinite(p.sy));
+  checks.push({ name: 'L-3d: 평면 점 카메라 앞(depth>0·유한)', pass: inFront, value: `d=[${corner.depth.toFixed(0)},${far.depth.toFixed(0)}]` });
+  // 원근 깊이차 — 가까운 모서리와 먼 모서리의 depth 가 분리(평행이 아닌 입체)
+  const hasPerspective = Math.abs(corner.depth - far.depth) > 1;
+  checks.push({ name: 'L-3d: 원근 깊이차 존재(입체)', pass: hasPerspective, value: `Δdepth=${Math.abs(corner.depth - far.depth).toFixed(1)}` });
 
   return { checks, range, lineCount: lines.size, photonCount: ph.length };
 }
