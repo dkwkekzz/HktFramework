@@ -1,6 +1,6 @@
 # HGO — 큰 목표 (라우터)
 
-> 이 문서는 **목표와 참조 위치만** 보관하는 얇은 라우터다. 골격·설계·작업 절차의 권위는 [SPINE.md](SPINE.md), 현재 위치는 [STATE.md](STATE.md), 실행 방법은 트랙별 SKILL 이다. **step 작업 전 [SPINE.md](SPINE.md)·[STATE.md](STATE.md) 필독.**
+> 이 문서는 **목표와 참조 위치만** 보관하는 얇은 라우터다. 골격·설계·작업 절차의 권위는 [SPINE.md](SPINE.md), 현재 위치는 트랙별 `*-STATE.md`(atom: [ATOM-STATE.md](ATOM-STATE.md)), 실행 방법은 트랙별 SKILL 이다. **step 작업 전 [SPINE.md](SPINE.md)·해당 트랙 STATE 필독.**
 
 ## 큰 목표
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | **큰 목표** | `CLAUDE.md` (이 문서) | 궁극 목표 · 참조 위치 | 거의 불변 |
 | **골격·설계** | [SPINE.md](SPINE.md) | 원자 존재론 · 작업 구조 · 트랙 로스터 · 검증 4기둥 · 로드맵 | 거의 불변 |
-| **현재 상태** | [STATE.md](STATE.md) | 지금 어디까지 · 다음 가설 · 열린 격차 · 시리즈 인덱스 | step마다 |
+| **현재 상태** | 트랙별 `*-STATE.md` (atom: [ATOM-STATE.md](ATOM-STATE.md)) | 지금 어디까지 · 다음 가설 · 열린 격차 · 시리즈 인덱스 | step마다 |
 | **상세 기록** | `steps/step-NNNN.md` | 한 step = 한 조각. 발견·한계 전문 | step마다 추가 |
 | **실행 방법** | `.claude/skills/hgo-<트랙>-step/SKILL.md` | 트랙별 step 루프를 토큰·시간 효율로 실행 | 거의 불변 |
 
@@ -30,7 +30,7 @@
 
 | 트랙 | 상태 | 역할 | SKILL | STATE |
 |---|---|---|---|---|
-| **atom (원자)** | 🟢 활성 | 원자 정의 + 상호작용 법칙을 step별로 추가 (핵심·척추 보유) | `hgo-atom-step` | [STATE.md](STATE.md) |
+| **atom (원자)** | 🟢 활성 | 원자 정의 + 상호작용 법칙을 step별로 추가 (핵심·척추 보유) | `hgo-atom-step` | [ATOM-STATE.md](ATOM-STATE.md) |
 | **render (시각화)** | ⚪ 휴면 | 스냅샷을 읽어 광자 방출(색·이펙트)로 번역 | (활성 시 생성) | (활성 시 `RENDER-STATE.md`) |
 | **net (MMO)** | ⚪ 휴면 | 보존·결정론 위에서 공유 세계를 복제 | (활성 시 생성) | (활성 시 `NET-STATE.md`) |
 

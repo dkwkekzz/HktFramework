@@ -1,7 +1,7 @@
 # SPINE — 척추 (모든 step 작업 전 필독)
 
 > 이 문서는 HGO 세계의 **존재론적 척추**다 — *무엇이 원자이고, 무엇이 보존되며, 어떻게 상호작용·흐름·발광·붕괴가 그 위에서 창발하는가.* 그리고 그 위에서 *어떻게 일하는가*(작업 구조·트랙·검증).
-> 큰 목표는 [CLAUDE.md](CLAUDE.md), 현재 위치는 [STATE.md](STATE.md). **step 루프 1단계(읽기)에서 이 문서를 반드시 숙지한 뒤 한 조각을 정한다.**
+> 큰 목표는 [CLAUDE.md](CLAUDE.md), 현재 위치는 [ATOM-STATE.md](ATOM-STATE.md). **step 루프 1단계(읽기)에서 이 문서를 반드시 숙지한 뒤 한 조각을 정한다.**
 >
 > 핵심 한 줄: **원자를 타입으로 박지 마라. 보존되는 양들의 다발 하나만 두고, 원소·결합·빛·붕괴는 창발시켜라.** 척추가 여러 개면 그건 우격다짐 통합이다.
 
@@ -104,9 +104,9 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 |---|---|---|---|
 | **큰 목표** | [CLAUDE.md](CLAUDE.md) | 궁극 목표 · 참조 위치 | 거의 불변 |
 | **작은 실행 단위** | `steps/step-NNNN.md` + 코어/검증 | 한 step = 한 조각. 직전 step 을 잇고 *하나만* 더한다 | step마다 |
-| **상태 파일** | [STATE.md](STATE.md) | 현재 위치 · 다음 가설 · 열린 격차 · 시리즈 인덱스 | step마다 |
+| **상태 파일** | 트랙별 `*-STATE.md` (atom: [ATOM-STATE.md](ATOM-STATE.md)) | 현재 위치 · 다음 가설 · 열린 격차 · 시리즈 인덱스 | step마다 |
 
-> **단일 진실 원천(SSOT)**: "지금 어디까지·다음은 무엇"은 **오직 STATE.md**. 닫은 step 문서는 그 step 의 *기록*이라 이후 수정하지 않는다.
+> **단일 진실 원천(SSOT)**: "지금 어디까지·다음은 무엇"은 **오직 그 트랙의 STATE**(atom 은 `ATOM-STATE.md`). 닫은 step 문서는 그 step 의 *기록*이라 이후 수정하지 않는다.
 >
 > **STATE.md 는 고정 크기 대시보드(에이전트 효율)**: §1~6 은 step 마다 **덮어쓴다(rewrite)** — 누적 금지. 오직 §7 INDEX 만 **literal 1줄/step** append. *의외의 발견·정직한 한계의 전문*은 STATE 가 아니라 `step-NNNN.md` 에 산다(STATE = 현재의 SSOT, step 문서 = 역사의 SSOT). 발견/한계가 다음 결정에 아직 작용(load-bearing)하면 STATE §3·§4 에 *현재 상태로만* 반영하고, 후속이 해소하면 인덱스 한 줄로 떨어진다.
 >
@@ -134,11 +134,11 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 
 | 트랙 | 상태 | 소유 파일 (활성 시) | 활성 게이트 |
 |---|---|---|---|
-| **atom (원자)** | 🟢 활성 | `STATE.md` · `steps/*` · `engine/hgo-*.js` · `engine/scenes.js` · `engine/verify.js` · `viewer.html` · `engine/validate/*` | — (척추 보유·즉시) |
+| **atom (원자)** | 🟢 활성 | `ATOM-STATE.md` · `steps/*` · `engine/hgo-*.js` · `engine/scenes.js` · `engine/verify.js` · `viewer.html` · `engine/validate/*` | — (척추 보유·즉시) |
 | **render (시각화)** | ⚪ 휴면 | `RENDER.md` · `RENDER-STATE.md` · `engine/hgo-render.js`(+ 프레젠테이션 한정 UI) | 방출(요건3)이 atom 트랙에 실린 뒤 — 읽을 빛이 생기면 |
 | **net (MMO)** | ⚪ 휴면 | `NET.md` · `NET-STATE.md` · `engine/hgo-net.js` | 결정론·보존이 안정되고 *공유할 상태*가 충분히 풍부해진 뒤 |
 
-**불가침**: render/net 트랙은 *시뮬 파일*(`hgo-*.js` 시뮬 코어·`STATE.md`·step 문서)을 만지지 않는다 — 스냅샷을 **읽기만** 한다(서버 권위·형태 author 금지). 이로써 결정론(같은 시드 → 같은 화면/복제)이 자동 보존된다. 각 휴면 트랙은 깨어날 때 자기 SKILL(`.claude/skills/hgo-<트랙>-step/`)과 STATE 를 만들며, 이 atom 트랙 SKILL 을 형식 본보기로 삼는다.
+**불가침**: render/net 트랙은 *시뮬 파일*(`hgo-*.js` 시뮬 코어·`ATOM-STATE.md`·step 문서)을 만지지 않는다 — 스냅샷을 **읽기만** 한다(서버 권위·형태 author 금지). 이로써 결정론(같은 시드 → 같은 화면/복제)이 자동 보존된다. 각 휴면 트랙은 깨어날 때 자기 SKILL(`.claude/skills/hgo-<트랙>-step/`)과 STATE 를 만들며, 이 atom 트랙 SKILL 을 형식 본보기로 삼는다.
 
 ---
 
@@ -172,5 +172,5 @@ JS 결정론 샌드박스에서, 매 step 은 공용 `engine/verify.js step-NNNN
 ## 10. 빠른 참조
 
 - 작업 절차(토큰 효율 실행): `.claude/skills/hgo-atom-step/SKILL.md`
-- 현재 위치·다음 가설·열린 격차: [STATE.md](STATE.md)
+- 현재 위치·다음 가설·열린 격차: [ATOM-STATE.md](ATOM-STATE.md)
 - 의외의 발견 / 정직한 한계 전문: 각 `steps/step-NNNN.md` (STATE 는 중복 보관 안 함)

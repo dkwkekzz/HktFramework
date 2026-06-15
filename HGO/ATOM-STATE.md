@@ -1,4 +1,4 @@
-# STATE — 살아있는 현재 (atom 트랙)
+# ATOM-STATE — 살아있는 현재 (atom 트랙)
 
 > "지금 어디까지 왔고 다음은 무엇인가"의 **단일 진실 원천(SSOT)**.
 > 큰 목표는 [CLAUDE.md](CLAUDE.md) · 존재론·골격 척추는 [SPINE.md](SPINE.md) · 각 step 의 상세 기록(발견·한계 전문)은 `steps/step-NNNN.md`.
