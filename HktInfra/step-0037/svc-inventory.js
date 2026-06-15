@@ -42,7 +42,13 @@ class InventoryService {
     //   gap 의 떨군 메시지를 못 메운다 → 진실 원천(producer=가방)이 재발행해야 한다. 클라 belief 는 Set 갱신이라 *멱등*(재배달 무해) → consumer dedup 불요.
     this.busResend = opts.busResend || false;  // ON 이면 발신 결과를 outBuffer 에 보관·버스 복구 시 재발행. OFF = 0035 비트 동일(보관 0·재발행 0).
     this.outBuffer = [];          // 발신한 svc.item.out 결과 페이로드(busResend 일 때만) — 버스 복구 재발행 소스. 무계(유계 슬라이딩 창은 후속 — 0017→0018 압축 선례).
-    this.outResends = 0;          // 버스 복구 시 재발행한 결과 수(이 step·계측)
+    this.outResends = 0;          // 버스 복구 시 재발행한 결과 수(0036·계측)
+    // ── 버스 failover *요청 경로* 무손실의 가방 측(이 step·busResendReq) — 게이트웨이 요청 재발행의 멱등 수신. ──
+    //   게이트웨이가 버스 복구 시 보관 요청을 재발행하면 gap *전* 도달한 요청도 함께 온다 → pickup 은 매번 새 itemId 를 mint 하므로
+    //   dedup 없이는 이중 mint(dupe). 요청에 실린 producer-local reqId 를 seenReqs 에 기록해 *최초 1회만* 처리(0023 persist recvSeqs 의 요청 홉 판).
+    //   give/reconcile 는 자체 멱등(owner/ledger 체크)이나 일관성 위해 같은 dedup 경로. OFF(reqId 없음)면 분기 휴면 = 0036 비트 동일.
+    this.busResendReq = opts.busResendReq || false;  // ON 이면 reqId 실린 요청을 dedup(seenReqs). OFF = 0036 비트 동일(dedup 0).
+    this.seenReqs = new Set();    // 처리한 요청 reqId(busResendReq ON·reqId 실릴 때만) — 재발행 중복 멱등 폐기(pickup 이중 mint 0).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -153,6 +159,12 @@ class InventoryService {
     if (p.type === 'journal_nak') { if (this.reliable) this._resend(p.missing || []); return; }   // 저널 홉 NAK(0023) — persist 가 감지한 갭 재전송(reactive·신성한 tick 밖)
     if (p.type === 'journal_ack') { if (this.quorumW > 0) this._recordAck(p.seq, m.from); return; }   // 쓰기 정족수 ack(이 step) — 스토어 저장 확인 집계 → durableSeq 워터마크. quorumW 0 면 ack 자체가 안 옴(0028 비트 동일)
     if (p.type === 'ev' && p.topic === 'svc.item') p = p.ev;   // 버스 봉투 해체(구독 수신) — 직접 모드와 같은 item_req/item_reconcile
+    // 요청 dedup(이 step·busResendReq) — 게이트웨이 재발행이 gap 전 도달분도 다시 보내므로 reqId 로 *최초 1회만* 처리(pickup 이중 mint 0).
+    //   reqId 없으면(busResendReq OFF·재발행 미사용) 분기 휴면 = 0036 비트 동일. 멱등(Set dedup) — 재발행 무해.
+    if (this.busResendReq && p.reqId !== undefined) {
+      if (this.seenReqs.has(p.reqId)) return;   // 이미 처리(재발행 중복) — 폐기
+      this.seenReqs.add(p.reqId);
+    }
     if (p.type === 'item_reconcile') {
       // id-reconciliation(이 step·mintRecon) — 클라가 믿는 아이템 id 목록을 받아 원장에 없는 것을 re-mint(새 id).
       //   belief = 서버가 라이브로 확인한 사실 → crash 가 그 mint 저널을 소실했을 뿐 → 서버가 새 id 로 재발급(권위 재-확인).
@@ -207,7 +219,8 @@ class InventoryService {
     this.mintTotal = 0; this.journalSeq = 0;
     this.sentBuffer = new Map(); this.resends = 0; this.journalHbs = 0;   // 신뢰 전달(0023) — 새 프로세스는 미-ack 버퍼 0(죽기 전 in-flight 는 소실 = §9 write-behind 윈도 잔존). heartbeat 계측도 리셋.
     this.ackSeqs = new Map(); this.durableSeq = -1; this.quorumAcks = 0; this.windowFills = 0;   // 쓰기 정족수·윈도 해소 상태 리셋(0029~0031) — 새 프로세스는 ack 집계/fill 계측 0(복구 후 다시 쌓임). quorumW 0 면 무관.
-    this.outBuffer = []; this.outResends = 0;   // 버스 failover 결과 재발행 버퍼 리셋(이 step) — 가방 crash 는 결과 버퍼도 소실(RAM). busResend OFF 면 무관.
+    this.outBuffer = []; this.outResends = 0;   // 버스 failover 결과 재발행 버퍼 리셋(0036) — 가방 crash 는 결과 버퍼도 소실(RAM). busResend OFF 면 무관.
+    this.seenReqs = new Set();   // 요청 dedup 집합 리셋(이 step) — 새 프로세스는 처리 이력 0(busResendReq OFF 면 무관).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   // replay — 영속 저널(효과 로그)로 원장을 *재현*(상태 전송 아님 = §4 "복제=재현"). seq 순서대로 mint/xfer 적용.

@@ -60,6 +60,7 @@ function buildTopology(opts) {
     windowFill = false,
     wfWindow = 0,
     busResend = false,
+    busResendReq = false,
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
@@ -85,7 +86,7 @@ function buildTopology(opts) {
   //   persistBackup(0027 단일 backup)과 상호배타: persistReplicas≥1 이면 그 경로를 대체(둘 다 'persist2' 를 쓰므로 충돌 방지). 둘 다 0 = 0027/0026 비트 동일.
   const persistReplicaAddrs = (persistReplicas >= 1 && persistAddr) ? Array.from({ length: persistReplicas }, (_, k) => 'persist' + (k + 2)) : [];
   // 버스 ON 이면 gateway 는 서비스 *주소를 모른다*(inventoryAddr/chatAddr = null — 토픽만) = 직접 결합의 구조적 제거.
-  add({ addr: 'gateway', kind: 'gateway', opts: { zoneAddrs, replicas, inventoryAddr: busAddr ? null : inventoryAddr, chatAddr: busAddr ? null : chatAddr, busAddr } });
+  add({ addr: 'gateway', kind: 'gateway', opts: { zoneAddrs, replicas, inventoryAddr: busAddr ? null : inventoryAddr, chatAddr: busAddr ? null : chatAddr, busAddr, busResendReq: busAddr ? busResendReq : false } });
   // [버스] ServiceBus — bus ON 일 때만 토폴로지에 존재(OFF = 0015 토폴로지 비트 동일). onTick 없음 = 신성한 tick 밖.
   //   구독 = 선언 spec(이 테이블이 SSOT). *새 소비자(audit) 추가 = 여기 행 추가뿐* — 발행자 spec 무수정(decouple 가설).
   if (bus) {
@@ -115,7 +116,7 @@ function buildTopology(opts) {
   //   replicas (0028) — persistReplicas≥1 이면 fan-out 대상 목록. [] 면 0027 비트 동일(N-replica 휴면).
   //   quorumW (이 step) — persist ON 일 때만 의미(저널에 q 플래그·ack 집계·durableSeq). 0 면 0028 비트 동일(ack 0).
   //   windowFill (0031) — persist+quorumW>0 일 때만 의미(윈도 해소 sweep). wfWindow (이 step) — 유계 sweep 범위(0=무계·0031 동일). OFF → 0029 비트 동일(sweep 0).
-  if (inventory) add({ addr: 'inventory', kind: 'inventory', opts: { gateway: 'gateway', bus: busAddr, persist: persistAddr, persistBackup: persistBackupAddr, replicas: persistReplicaAddrs, quorumW: persistAddr ? quorumW : 0, windowFill: persistAddr ? windowFill : false, wfWindow: persistAddr ? wfWindow : 0, snapshot: persistAddr ? snapshot : 0, reliable: persistAddr ? journalReliable : false, journalHb: persistAddr ? journalHeartbeat : false, busResend: busAddr ? busResend : false } });
+  if (inventory) add({ addr: 'inventory', kind: 'inventory', opts: { gateway: 'gateway', bus: busAddr, persist: persistAddr, persistBackup: persistBackupAddr, replicas: persistReplicaAddrs, quorumW: persistAddr ? quorumW : 0, windowFill: persistAddr ? windowFill : false, wfWindow: persistAddr ? wfWindow : 0, snapshot: persistAddr ? snapshot : 0, reliable: persistAddr ? journalReliable : false, journalHb: persistAddr ? journalHeartbeat : false, busResend: busAddr ? busResend : false, busResendReq: busAddr ? busResendReq : false } });
   // [데이터] 채팅 영속 스토어(이 step) — chatpersist ON 일 때만 존재(OFF = 0020 토폴로지 비트 동일). PersistStore *재사용*(범용 저널) —
   //   가방 persist 와 *독립 인스턴스*(채팅 커맨드 로그). 채팅보다 먼저 등록(onTick 0·순서 무관). 채팅이 죽어도 이 박스는 산다(데이터 계층).
   if (chatPersistAddr) add({ addr: 'chatpersist', kind: 'persist', opts: {} });
@@ -157,7 +158,7 @@ function makeActor(spec, net) {
   switch (spec.kind) {
     case 'login': a = new LoginServer(spec.opts.accounts, spec.opts.seed); break;
     case 'registry': a = new SessionRegistry(); break;
-    case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr); break;
+    case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr, spec.opts.busResendReq); break;
     case 'zone': a = new EntityZone(spec.seed, spec.opts); break;
     case 'orch': a = new Orchestrator(spec.opts); break;
     case 'inventory': a = new InventoryService(spec.opts); break;
@@ -276,8 +277,11 @@ function run(opts) {
       if (i + 1 === opts.busRestart.at) bus.crash();
       if (opts.busRestart.renegAt && i + 1 === opts.busRestart.renegAt) {
         for (const [topic, addr] of (busSubs || [])) net.send(addr, 'bus', { type: 'sub', topic });   // 각 소비자가 재구독(재협상) → 라우팅 재구성
-        // 결과 경로 무손실(이 step·busResend) — 재구독 *직후* 가방이 보관한 svc.item.out 결과를 재발행(producer replay).
-        //   재구독 sub 메시지가 먼저 큐에 들어가므로(같은 tick·FIFO), 다음 step 에서 bus 가 sub→pub 순으로 처리 = 라우팅 복구 후 fan-out → gap 에 떨군 결과가 뒤처진 클라에 재배달.
+        // 요청 경로 무손실(이 step·busResendReq) — 재구독 직후 게이트웨이가 보관한 svc.item *요청*을 재발행(producer replay).
+        //   재구독 sub 메시지가 먼저 큐에 들어가므로(같은 tick·FIFO) bus 가 sub→pub 순으로 처리 = 라우팅 복구 후 fan-out → gap 에 떨군 요청이 가방에 도달해 mint/xfer(원장이 base 따라잡음).
+        //   가방이 reqId 로 dedup(gap 전 도달분 재발행은 무해) → 이중 mint 0. busResendReq OFF 면 resendIn() 즉시 반환(reg 0 불변). 재협상 없으면 호출 0(라우팅 죽은 채 = 대조군).
+        if (opts.busResendReq) { const gw = map.get('gateway'); if (gw) gw.resendIn(); }
+        // 결과 경로 무손실(0036·busResend) — 재구독 직후 가방이 보관한 svc.item.out 결과를 재발행(producer replay).
         //   busResend OFF 면 resendOut() 즉시 반환(reg 0 불변). 재협상(renegAt) 없으면 호출 0(라우팅 죽은 채라 재발행 무의미 = 대조군).
         if (opts.busResend && inventory) inventory.resendOut();
       }

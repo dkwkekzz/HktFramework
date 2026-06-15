@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -18,6 +18,15 @@ class Gateway {
     this.bus = busAddr;                   // 이벤트 버스 주소(null = 버스 OFF → 0015 직접 라우팅 비트 동일)
     this.dropped = 0;
     this.rejected = 0;
+    // ── 버스 failover *요청 경로* 무손실(이 step·busResendReq) — 0036 의 §9(요청 드롭=base 대비 mint 손실) 해소. ──
+    //   0036 은 *결과* 경로(svc.item.out)를 producer(가방) replay 로 무손실화했다. *요청* 경로(svc.item)는 그 거울:
+    //   crash gap 에 떨군 클라 요청(pickup/give/reconcile)은 가방에 도달조차 못 해 mint 자체가 안 일어난다(원장이 base 보다 작음 = mint 손실).
+    //   요청의 producer 는 *게이트웨이*다 — 발행한 요청을 inBuffer 에 보관했다 버스 복구 시 재발행(가방 resendOut 의 게이트웨이 판).
+    //   재발행은 멱등 불가능한 pickup 을 이중 mint 할 수 있으므로 요청마다 producer-local reqId(단조)를 실어 가방이 dedup(seenReqs).
+    this.busResendReq = busResendReq;     // ON 이면 svc.item 요청을 reqId 태깅·inBuffer 보관·버스 복구 시 재발행. OFF = 0036 비트 동일(태깅 0·보관 0·재발행 0).
+    this.inBuffer = [];                   // 발행한 svc.item 요청 ev(busResendReq 일 때만) — 버스 복구 재발행 소스. 무계(유계 슬라이딩 창은 후속 — 0036 outBuffer 와 동일 한계).
+    this.inSeq = 0;                       // producer-local 요청 reqId 카운터(단조·결정론 — 클라 op 순서가 시드 함수). 가방 dedup 키.
+    this.inResends = 0;                   // 버스 복구 시 재발행한 요청 수(이 step·계측)
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -25,6 +34,22 @@ class Gateway {
     if (this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic, ev }); return true; }
     if (directAddr) { this.net.send(this.addr, directAddr, ev); return true; }
     return false;
+  }
+  // svc.item 요청 발신(이 step·busResendReq) — _svcSend 위 얇은 래퍼. ON 이면 reqId 태깅 + inBuffer 보관(버스 복구 재발행 소스).
+  //   OFF 면 ev 무변형 → _svcSend 그대로 = 0036 비트 동일(reqId 없음·보관 0). 버스 OFF(직접 모드)면 보관 안 함(재발행 무의미).
+  _itemReq(ev) {
+    if (this.busResendReq) ev = { ...ev, reqId: this.inSeq++ };   // 요청 dedup 키(producer-local 단조) — 가방이 재발행 중복을 멱등 폐기
+    const sent = this._svcSend('svc.item', this.inventory, ev);
+    if (sent && this.busResendReq && this.bus) this.inBuffer.push(ev);   // 버스 복구 시 재발행 — gap 에 떨군 요청을 다시 가방에 도달시킨다
+    return sent;
+  }
+  // 버스 failover 요청 재발행(이 step·busResendReq) — 버스 복구(재구독) 직후 트리거(가방 resendOut 과 같은 위치).
+  //   보관한 svc.item 요청을 다시 pub → gap 에 떨군 요청이 가방에 도달해 mint/xfer 발생(원장이 base 따라잡음 = mint 손실 0).
+  //   gap *전* 도달한 요청도 함께 재발행되나 가방이 reqId 로 dedup(seenReqs) → 이중 mint 0(멱등). 순수 반응형 제어 평면(존 tick 밖).
+  //   OFF 면 호출돼도 즉시 반환(reg 0 불변). 재구독이 라우팅을 복구한 뒤라야 fan-out(토폴로지가 reneg 다음에 트리거).
+  resendIn() {
+    if (!this.busResendReq || !this.bus) return;
+    for (const ev of this.inBuffer) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item', ev }); this.inResends++; }
   }
   // 가방 결과 중계 — 요청자(reqAvatar)에게 item_result, give 성공이면 수신자(toAvatar)에게 item_recv. 은닉: itemId/op 만 전달.
   //   직접 모드(0015)와 버스 모드(svc.item.out ev)가 *같은 중계 함수*를 쓴다 — 클라 와이어 계약 불변.
@@ -122,18 +147,18 @@ class Gateway {
     } else if (p.type === 'item_pickup') {
       // 가방 분리 — 아이템 인텐트는 *존을 우회*해 서비스 경로로(존 tick 비-침습). 버스 ON 이면 svc.item 토픽 발행(주소 무지).
       const bind = this.byClient.get(m.from);
-      if (bind && (this.bus || this.inventory)) this._svcSend('svc.item', this.inventory, { type: 'item_req', op: 'pickup', avatar: bind.avatar });
+      if (bind && (this.bus || this.inventory)) this._itemReq({ type: 'item_req', op: 'pickup', avatar: bind.avatar });
       else this.dropped++;
     } else if (p.type === 'item_give') {
       const bind = this.byClient.get(m.from);
-      if (bind && (this.bus || this.inventory)) this._svcSend('svc.item', this.inventory, { type: 'item_req', op: 'give', fromAvatar: bind.avatar, toAvatar: p.toAvatar, itemId: p.itemId });
+      if (bind && (this.bus || this.inventory)) this._itemReq({ type: 'item_req', op: 'give', fromAvatar: bind.avatar, toAvatar: p.toAvatar, itemId: p.itemId });
       else this.dropped++;
     } else if (p.type === 'item_reconcile') {
       // id-reconciliation 요청(이 step·mintRecon) — 클라가 보낸 belief 목록을 가방에 전달. 가방이 없는 id 를 re-mint.
       //   클라가 avatar 를 포함하지 않아도 됨 — 게이트웨이가 bind.avatar 로 주입(은닉 유지: 클라는 서비스 내부 주소 모름).
       //   버스 ON 이면 svc.item 토픽 발행(주소 무지 — item_pickup/give 와 같은 경로). mintRecon OFF 면 클라가 메시지 0 → 도달 0(reg 0 불변).
       const bind = this.byClient.get(m.from);
-      if (bind && (this.bus || this.inventory)) this._svcSend('svc.item', this.inventory, { type: 'item_reconcile', reqAvatar: bind.avatar, owned: p.owned });
+      if (bind && (this.bus || this.inventory)) this._itemReq({ type: 'item_reconcile', reqAvatar: bind.avatar, owned: p.owned });
       else this.dropped++;
     } else if (p.type === 'chat_join') {
       // 채팅 분리 — 구독 인텐트는 *존을 우회*해 서비스 경로로(존 tick 비-침습). 버스 ON 이면 svc.chat 토픽 발행(주소 무지).
