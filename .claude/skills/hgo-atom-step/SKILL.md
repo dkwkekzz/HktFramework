@@ -7,9 +7,16 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 
 규칙의 권위는 `HGO/CLAUDE.md`(목표)·`HGO/SPINE.md`(척추·검증 4기둥·척추 체크 4항·단일 뷰어 원칙 §6.1)·`HGO/atom/STATE.md`(현재·다음)다. 이 스킬은 그 절차를 **토큰·시간 효율적으로** 실행하는 방법만 정한다. **작업 디렉토리: `HGO/atom/`** — 이하 모든 상대 경로(`engine/`·`steps/`·`viewer.html`·`STATE.md`)는 이 트랙 폴더 기준. 기질: **JS 결정론 샌드박스**(단일 `viewer.html` + 헤드리스 verify) — UE5/MMO 통합은 net 트랙(휴면) 몫.
 
-## 1. 읽기 — 허용 목록만 (그 외 읽지 마라)
+## 1. 읽기 + 다음 step 자동 선택 (그 외 읽지 마라)
 
-**필독 3종**: `HGO/CLAUDE.md` · `HGO/SPINE.md` · `HGO/atom/STATE.md` (전체).
+**필독 4종**: `HGO/CLAUDE.md` · `HGO/SPINE.md` · `HGO/atom/ROADMAP.md` · `HGO/atom/STATE.md` (전체).
+
+**다음 step 자동 선택 — 사용자에게 매번 묻지 않는다**:
+1. `ROADMAP.md` 를 위에서 아래로 읽는다.
+2. **다음 step = 첫 미완료(☐) 항목.** (사용자가 특정 step/방향을 지정했으면 그게 우선.)
+3. 완료 판별: `steps/step-NNNN.md` 존재 + STATE §7 INDEX 줄. STATE §2 가 이미 그 칸의 펼친 가설을 담고 있으면 그대로 진행.
+4. 마일스톤(◆)에 닿았으면 그 트랙 활성화는 *별도 세션* 몫 — ROADMAP/STATE 에 한 줄 남기고 atom 트랙의 다음 ☐ 로 계속.
+5. 척추 체크 4항(SPINE §5)에 안 맞으면 조각을 고쳐 잡고 ROADMAP 도 손본다(revisable).
 
 **읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md` 문서들(STATE 가 현재의 SSOT) · render/net 트랙 파일(`RENDER*`·`NET*` — 직교 트랙).
 
@@ -48,7 +55,8 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 2. 풀 골든 런 PASS (회귀 0 알리바이 — 0002~)
 3. `step-NNNN.md` "쉽게 풀어 쓴 설명" 절 + 뷰어 링크 포함·수치=verify 출력
 4. STATE.md §1~6 Edit + §7 1줄 append
-5. 닫은 step 파일은 이후 불변 (장면은 `scenes.js` 에 동결로 남아 뷰어가 영구 재현)
+5. **`ROADMAP.md` 에서 이 step 줄을 ☐→☑ 로** (필요 시 다음 항목 재정렬) — 다음 세션이 첫 ☐ 로 자동 진행
+6. 닫은 step 파일은 이후 불변 (장면은 `scenes.js` 에 동결로 남아 뷰어가 영구 재현)
 
 ## 7. 활성 게이트 점검 (휴면 트랙 깨우기)
 
