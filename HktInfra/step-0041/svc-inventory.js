@@ -56,7 +56,17 @@ class InventoryService {
     // ── 요청 ack(이 step·busAck) — 게이트웨이 inBuffer 자기-크기조정의 소비자 측. 받은 reqId 를 svc.item.ack 로 통보(처리 확인). ──
     //   dedup 으로 폐기하는 재발행분도 *ack 는 보낸다* — 그래야 ack 손실로 안 지워진 inBuffer 항목이 재발행→재-ack 되어 끝내 가지쳐진다(수렴).
     this.busAck = opts.busAck || false;  // ON 이면 svc.item 수신마다 svc.item.ack{reqId} 발행. OFF = 0039 비트 동일(ack 발행 0).
-    this.acksSent = 0;            // 발행한 요청 ack 누적(이 step·계측)
+    this.acksSent = 0;            // 발행한 요청 ack 누적(0040·계측)
+    // ── 결과 replay 버퍼 *자기-크기조정*(이 step·busOutAck) — 0040 요청 버퍼 ack-가지치기의 *결과 경로 거울*(0040 §9 해소). ──
+    //   0039 고정 K(busWindow)는 outBuffer 도 *최대 예상 gap* 사전 추정이 필요했다(작으면 결과 손실→desync·크면 낭비). 0040 은 그 §9 를 *요청* 경로(inBuffer)에서 ack 로 풀었고
+    //   이 step 은 *결과* 경로(outBuffer)에서 같은 원리로 푼다: 결과의 소비자(게이트웨이)가 *중계한 outSeq* 를 svc.item.out.ack 로 통보 → 가방이 ack 워터마크 이하 outBuffer 를
+    //   가지친다. 버퍼엔 *미-ack(클라 미반영 가능)* 결과만 남는다(자기-크기조정). 정상 구간엔 ack 가 흘러 0 으로 drain·gap 구간엔 ack 끊겨 자동 성장 → 복구 resendOut 이 그만큼 덮어 K 추정 없이 무손실.
+    //   busOutAck OFF 면 outSeq 미부여·가지치기 0 = 0040 비트 동일(reg). busResend 전제(outBuffer·outSeq 필요) — busWindow 와 상호배타로 씀(둘 다 outBuffer 바운드).
+    this.busOutAck = opts.busOutAck || false;  // ON 이면 결과에 outSeq 태깅 + svc.item.out.ack 수신 시 outBuffer 가지치기. OFF = 0040 비트 동일(태깅 0·가지치기 0).
+    this.outSeq = 0;             // 결과 producer-local 단조 순번(busOutAck ON 일 때만 부여) — ack 워터마크/가지치기 기준
+    this.outAcked = -1;          // 결과 ack 워터마크 — 이 outSeq 이하 결과는 게이트웨이가 중계 확인(단조). outBuffer 가지치기 기준.
+    this.outBufPeak = 0;         // outBuffer 최대 길이(계측) — 자기-크기조정 유계 증거(ack 면 ≈in-flight·고정/무계면 K/무한)
+    this.outPruned = 0;          // ack 로 가지친 결과 누적(이 step·계측)
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -65,12 +75,22 @@ class InventoryService {
   _out(msg) {
     if (this.bus) {
       if (this.busResend) {
+        if (this.busOutAck) msg.outSeq = this.outSeq++;   // 결과 단조 순번 부여(이 step) — ack 워터마크/가지치기 기준. OFF 면 미부여 = 0040 비트 동일(게이트웨이가 outSeq 무시).
         this.outBuffer.push(msg);   // 버스 failover 결과 재발행 소스 보관(0036). OFF 면 push 0 → 0035 비트 동일.
-        if (this.busWindow > 0 && this.outBuffer.length > this.busWindow) this.outBuffer.shift();   // 미끄러지는 유계 창(이 step) — 최근 K 개만(K=0 면 미실행 = 0038 동일)
+        if (this.busWindow > 0 && this.outBuffer.length > this.busWindow) this.outBuffer.shift();   // 미끄러지는 유계 창(0039) — 최근 K 개만(K=0 면 미실행 = 0038 동일)
+        if (this.outBuffer.length > this.outBufPeak) this.outBufPeak = this.outBuffer.length;   // 최대 길이 계측(이 step) — 자기-크기조정 유계 증거
       }
       this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out', ev: msg });
     }
     else this.net.send(this.addr, this.gateway, msg);
+  }
+  // 결과 ack 수신(이 step·busOutAck) — 게이트웨이가 svc.item.out.ack 로 통보한 outSeq 까지 outBuffer 가지치기(자기-크기조정).
+  //   ack 워터마크(outAcked)는 단조 — 이 outSeq 이하 결과는 게이트웨이가 클라에 중계 확인했으므로 재발행 불필요(gap 손실 후보 아님) → 앞에서부터 제거.
+  //   outBuffer 는 outSeq 순서라 front 가 최소 outSeq — front.outSeq ≤ 워터마크 동안 shift(O(가지친 수)). 미-ack(in-flight) 결과만 남는다. 0040 _onItemAck 의 결과 경로 거울.
+  _onOutAck(ev) {
+    if (!this.busOutAck || ev == null || ev.outSeq === undefined) return;
+    if (ev.outSeq > this.outAcked) this.outAcked = ev.outSeq;
+    while (this.outBuffer.length && this.outBuffer[0].outSeq <= this.outAcked) { this.outBuffer.shift(); this.outPruned++; }
   }
   // 버스 failover 결과 재발행(이 step·busResend) — 버스 복구(재구독) 직후 트리거. 보관한 결과를 svc.item.out 에 다시 pub.
   //   gap 에 떨군 결과(원장 적용·클라 미수신 → belief < 원장)를 재배달 → 게이트웨이가 클라에 중계 → belief 가 원장 따라잡음(itemDesync→0).
@@ -168,7 +188,8 @@ class InventoryService {
   onMsg(m) {
     let p = m.payload;
     if (p.type === 'journal_nak') { if (this.reliable) this._resend(p.missing || []); return; }   // 저널 홉 NAK(0023) — persist 가 감지한 갭 재전송(reactive·신성한 tick 밖)
-    if (p.type === 'journal_ack') { if (this.quorumW > 0) this._recordAck(p.seq, m.from); return; }   // 쓰기 정족수 ack(이 step) — 스토어 저장 확인 집계 → durableSeq 워터마크. quorumW 0 면 ack 자체가 안 옴(0028 비트 동일)
+    if (p.type === 'journal_ack') { if (this.quorumW > 0) this._recordAck(p.seq, m.from); return; }   // 쓰기 정족수 ack(0029) — 스토어 저장 확인 집계 → durableSeq 워터마크. quorumW 0 면 ack 자체가 안 옴(0028 비트 동일)
+    if (p.type === 'ev' && p.topic === 'svc.item.out.ack') { this._onOutAck(p.ev); return; }   // 결과 ack(이 step·busOutAck) — 게이트웨이→가방 자기-크기조정 경로. busOutAck OFF 면 미구독 = 0040 비트 동일.
     if (p.type === 'ev' && p.topic === 'svc.item') p = p.ev;   // 버스 봉투 해체(구독 수신) — 직접 모드와 같은 item_req/item_reconcile
     // 요청 ack 발행(이 step·busAck) — reqId 실린 svc.item 을 받을 때마다 *처리 확인* 통보(dedup 폐기분 포함 — 위 주석 참조).
     //   게이트웨이가 이 ack 로 inBuffer 를 가지쳐 자기-크기조정. OFF(또는 reqId 없음·버스 OFF)면 발행 0 = 0039 비트 동일.

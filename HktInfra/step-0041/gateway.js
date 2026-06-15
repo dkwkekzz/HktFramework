@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -41,7 +41,12 @@ class Gateway {
     this.busAck = busAck;                 // ON 이면 svc.item.ack 수신 시 inBuffer 가지치기(자기-크기조정). OFF = 0039 비트 동일(ack 미구독·가지치기 0).
     this.inAcked = -1;                    // ack 워터마크 — 이 reqId 이하 전부 가방이 처리 확인(단조). inBuffer 가지치기 기준.
     this.inBufPeak = 0;                   // inBuffer 최대 길이(계측) — 자기-크기조정의 유계 증거(ack 면 ≈in-flight·고정/무계면 K/무한).
-    this.inPruned = 0;                    // ack 로 가지친 요청 누적(이 step·계측)
+    this.inPruned = 0;                    // ack 로 가지친 요청 누적(0040·계측)
+    // ── 결과 ack(이 step·busOutAck) — 가방 outBuffer 자기-크기조정의 소비자 측(0040 요청 ack 의 거울). ──
+    //   svc.item.out 으로 받은 결과를 클라에 *중계할 때마다* 그 outSeq 를 svc.item.out.ack 로 통보(중계 확인) → 가방이 ack 워터마크 이하 outBuffer 를 가지친다.
+    //   결과는 클라 belief Set 갱신이라 *멱등*(재배달 무해) → consumer dedup 불요(0036 발견) — ack 는 *버퍼 가지치기*만 위한 신호다. OFF 면 발행 0 = 0040 비트 동일.
+    this.busOutAck = busOutAck;           // ON 이면 svc.item.out 중계마다 svc.item.out.ack{outSeq} 발행. OFF = 0040 비트 동일(ack 발행 0).
+    this.outAcksSent = 0;                 // 발행한 결과 ack 누적(이 step·계측)
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -78,6 +83,13 @@ class Gateway {
     if (!this.busAck || ev == null || ev.reqId === undefined) return;
     if (ev.reqId > this.inAcked) this.inAcked = ev.reqId;
     while (this.inBuffer.length && this.inBuffer[0].reqId <= this.inAcked) { this.inBuffer.shift(); this.inPruned++; }
+  }
+  // 결과 ack 발행(이 step·busOutAck) — svc.item.out 결과를 중계할 때마다 그 outSeq 를 가방에 통보(0040 요청 ack 발행의 거울).
+  //   가방이 이 ack 로 outBuffer 를 가지쳐 자기-크기조정. outSeq 없으면(busOutAck OFF·가방 미태깅) 발행 0 = 0040 비트 동일.
+  _ackOut(ev) {
+    if (!this.busOutAck || !this.bus || ev == null || ev.outSeq === undefined) return;
+    this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out.ack', ev: { outSeq: ev.outSeq } });
+    this.outAcksSent++;
   }
   // 가방 결과 중계 — 요청자(reqAvatar)에게 item_result, give 성공이면 수신자(toAvatar)에게 item_recv. 은닉: itemId/op 만 전달.
   //   직접 모드(0015)와 버스 모드(svc.item.out ev)가 *같은 중계 함수*를 쓴다 — 클라 와이어 계약 불변.
@@ -146,8 +158,8 @@ class Gateway {
     if (this.bus && m.from === this.bus) {
       // 버스 구독 수신(ev 봉투) — 게이트웨이는 *토픽*만 안다(서비스 주소 무지). 중계는 직접 모드와 같은 함수(클라 계약 불변).
       if (p.type === 'ev') {
-        if (p.topic === 'svc.item.out') { this._relayItemResult(p.ev); this._relayItemRecon(p.ev); }   // item_result + item_recon_map(이 step) 둘 다 버스 경유
-        else if (p.topic === 'svc.item.ack') this._onItemAck(p.ev);   // 요청 ack(이 step·busAck) — inBuffer 자기-크기조정 가지치기
+        if (p.topic === 'svc.item.out') { this._relayItemResult(p.ev); this._relayItemRecon(p.ev); this._ackOut(p.ev); }   // item_result + item_recon_map 중계 + 결과 ack(이 step·busOutAck)
+        else if (p.topic === 'svc.item.ack') this._onItemAck(p.ev);   // 요청 ack(0040·busAck) — inBuffer 자기-크기조정 가지치기
 
         else if (p.topic === 'svc.chat.out') this._relayChatOut(p.ev);
         else if (p.topic === 'svc.rank.out') this._relayRank(p.ev);   // 랭킹(이 step) — 발신하는 소비자의 출력 중계
