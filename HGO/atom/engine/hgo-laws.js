@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -20,16 +20,17 @@
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (방출 항 꺼짐 → 직전 비트)
     const rng = sim.rng;
     if (!rng) return;                // 런타임 의사난수 없으면 방출 불가(Math.random 금지 — 결정론)
+    const lz = sim.knobs.levelZ, sc = sim.knobs.levelScreen;  // 준위 Z 의존·다전자 차폐(0 → levelE = 회귀 0)
     for (const a of sim.atoms) {
       if ((a.x | 0) <= 0) continue;            // 바닥 상태는 방출 안 함
       if (rng() >= k) continue;                // 자발 방출 확률 kEmit
       const x0 = a.x | 0, x1 = x0 - 1;
-      const dE = K.levelE(x0) - K.levelE(x1);  // 준위 차 = 광자 에너지 (λ author 안 함)
+      const dE = K.levelEZ(x0, a.Z, a.e, lz, sc) - K.levelEZ(x1, a.Z, a.e, lz, sc);  // 준위 차 = 광자 에너지 (λ author 안 함; lz=0 → levelE)
       a.x = x1;                                 // 한 준위 강하 (들뜸 E ↓)
       //  px·py: 광자 운동량(recoil 법칙이 채움) · src: 반동 줄 원자 · recoiled: 반동 처리 플래그.
-      //  rx0·ry0·birth: 방출 위치·시각(propagate 검증용). E0·nscatter: 방출 에너지·산란 횟수(scatter 검증용). hash 미참여.
+      //  rx0·ry0·birth: 방출 위치·시각(propagate 검증용). E0·nscatter: 방출 에너지·산란 횟수(scatter 검증용). srcZ·srcE: 발원 원소 Z·전자수(step-0013·0014 스펙트럼 검증). hash 미참여.
       //  recoil 꺼짐(kRecoil=0)이면 px=py=0 으로 남아 장부 운동량 0 가법 → step-0002 비트 동일.
-      sim.photons.push({ E: dE, lambda: K.photonLambda(dE), rx: a.rx, ry: a.ry, rx0: a.rx, ry0: a.ry, birth: sim.tick, from: x0, to: x1, px: 0, py: 0, src: a, recoiled: false, E0: dE, nscatter: 0 });
+      sim.photons.push({ E: dE, lambda: K.photonLambda(dE), rx: a.rx, ry: a.ry, rx0: a.rx, ry0: a.ry, birth: sim.tick, from: x0, to: x1, px: 0, py: 0, src: a, recoiled: false, E0: dE, nscatter: 0, srcZ: a.Z, srcE: a.e });
     }
   }
 
@@ -103,6 +104,7 @@
     if (!rng) return;
     if (sim.knobs.scatterAngular) { scatterV2(sim, k, rng); return; }  // step-0006 게이트(기본 0 → 옛 전방 산란)
     const R = sim.knobs.scatterR || 10, R2 = R * R, xMax = 6;
+    const lz = sim.knobs.levelZ, sc = sim.knobs.levelScreen;  // 준위 Z 의존·다전자 차폐(0 → levelE = 회귀 0)
     for (const p of sim.photons) {
       const Ein = p.E, pmag = Math.hypot(p.px || 0, p.py || 0);
       if (pmag <= 0) continue;       // 방향 없는 광자(무반동)는 산란 안 함
@@ -113,7 +115,7 @@
         if (x >= xMax) continue;     // 고준위 포화(이온화 영역 — 범위 밖)
         const dx = K.minImage(p.rx - a.rx, sim.W), dy = K.minImage(p.ry - a.ry, sim.H);
         if (dx * dx + dy * dy > R2) continue;                 // 근접 반경 밖
-        const G = K.levelE(x + 1) - K.levelE(x);              // 한 준위 ↑ 들뜸 비용
+        const G = K.levelEZ(x + 1, a.Z, a.e, lz, sc) - K.levelEZ(x, a.Z, a.e, lz, sc);  // 한 준위 ↑ 들뜸 비용(lz=0 → levelE)
         const m = K.mass(a), vd = a.vx * dirx + a.vy * diry, bb = 1 - vd;
         const D = bb * bb - 2 * G / m;
         if (D < 0) continue;                                  // 반동 과대 → 이 전이 불가
@@ -141,6 +143,7 @@
   //     원자 v ← (P − q·dir')/m, 광자 p ← q·dir'. 이동 원자면 청색이동(inverse Compton)도 창발.
   function scatterV2(sim, k, rng) {
     const R = sim.knobs.scatterR || 10, R2 = R * R, xMax = 6;
+    const lz = sim.knobs.levelZ, sc = sim.knobs.levelScreen;  // 준위 Z 의존·다전자 차폐(0 → levelE = 회귀 0)
     for (const p of sim.photons) {
       const Ein = p.E, pmag = Math.hypot(p.px || 0, p.py || 0);
       if (pmag <= 0) continue;                          // 방향 없는 광자는 산란 안 함
@@ -155,7 +158,7 @@
       }
       if (best < 0) continue;                           // 반경 내 적격 원자 없음
       if (rng() >= k) continue;                         // 광자당 1회 확률(continue — 다음 광자로)
-      const a = sim.atoms[best], x = a.x | 0, G = K.levelE(x + 1) - K.levelE(x), m = K.mass(a);
+      const a = sim.atoms[best], x = a.x | 0, G = K.levelEZ(x + 1, a.Z, a.e, lz, sc) - K.levelEZ(x, a.Z, a.e, lz, sc), m = K.mass(a);
       const th = rng() * 2 * Math.PI, cth = Math.cos(th), sth = Math.sin(th);   // 등방 산란 방향
       const Px = p.px + m * a.vx, Py = p.py + m * a.vy;  // 총 운동량(보존량)
       const Pdir = Px * cth + Py * sth;
@@ -218,11 +221,12 @@
     const bath = sim.escaped;
     if (!bath || bath.E <= 0) return;                     // 줄 에너지 없음(바스 빔)
     const xMax = sim.knobs.reheatXMax || 6;               // 준위 상한(이온화 영역 밖)
+    const lz = sim.knobs.levelZ, sc = sim.knobs.levelScreen;  // 준위 Z 의존·다전자 차폐(0 → levelE = 회귀 0)
     for (const a of sim.atoms) {
       if (rng() >= k) continue;                           // 확률 kReheat 재흡수 시도
       const x = a.x | 0;
       if (x >= xMax) continue;                            // 고준위 포화
-      const G = K.levelE(x + 1) - K.levelE(x);            // 한 준위 ↑ 데우는 비용
+      const G = K.levelEZ(x + 1, a.Z, a.e, lz, sc) - K.levelEZ(x, a.Z, a.e, lz, sc);  // 한 준위 ↑ 데우는 비용(lz=0 → levelE)
       const surplus = bath.E - Math.hypot(bath.px, bath.py);  // 운동량-자유 잉여(≥0, c=1)
       if (G > surplus) continue;                          // 줄 운동량-자유 에너지 부족
       bath.E -= G;                                        // 바스 에너지 차감(되돌림)
@@ -309,8 +313,12 @@
         const keBefore = 0.5 * ma * (a.vx * a.vx + a.vy * a.vy) + 0.5 * mb * (b.vx * b.vx + b.vy * b.vy);
         const keAfter = 0.5 * M * (vcx * vcx + vcy * vcy);
         a.vx = vcx; a.vy = vcy; b.vx = vcx; b.vy = vcy;      // 질량중심 속도로 잠금 → 같이 움직임(공간 결합 유지)
-        sim.bondE = (sim.bondE || 0) + (keBefore - keAfter); // 흡수 KE park(닫힌 장부)
-        sim.bonds.push([i, j]); sim.bondKeys.add(key);
+        const absorbed = keBefore - keAfter;
+        sim.bondE = (sim.bondE || 0) + absorbed;             // 흡수 KE park(닫힌 장부, 전역 합 = Σ 결합별 E)
+        // step-0015 게이트 bondLocalE(=0 → 이전 비트 동일): 흡수 E 를 *그 결합 간선*에 per-bond 저장([i,j,Eabs]).
+        //   전역 sim.bondE 는 그대로 두되(ledger 가 읽음·불변) 결합별 e[2] 가 그 합을 분해 → 어느 결합 E 인지 국소 추적(unbond·핵 회계 토대).
+        sim.bonds.push(sim.knobs.bondLocalE ? [i, j, absorbed] : [i, j]);
+        sim.bondKeys.add(key);
         if (vcap) { deg[i]++; deg[j]++; }                   // 차수 갱신(같은 tick 내 후속 쌍이 포화 보게)
         sim.bondCount = (sim.bondCount | 0) + 1;             // 진단 카운터(결합 간선은 hash 참여)
       }
@@ -335,15 +343,26 @@
     const bonded = new Set();
     for (const e of sim.bonds) { bonded.add(e[0]); bonded.add(e[1]); }  // 결합 참여 원자 집합
     const xMax = sim.knobs.chemilumXMax || 6;            // 준위 상한(이온화 영역 밖)
+    const lz = sim.knobs.levelZ, sc = sim.knobs.levelScreen;  // 준위 Z 의존·다전자 차폐(0 → levelE = 회귀 0)
+    const local = sim.knobs.bondLocalE;                  // step-0015 게이트: 결합별 E 장부서 인출(0 → 전역 풀, 이전 비트 동일)
     const atoms = sim.atoms, n = atoms.length;
     for (let i = 0; i < n; i++) {
       if (!bonded.has(i)) continue;                      // *결합한 원자만* 화학발광(선택성·국소)
       if (rng() >= k) continue;                          // 확률 kChemilum 발광 시도
       const a = atoms[i], x = a.x | 0;
       if (x >= xMax) continue;                            // 고준위 포화
-      const G = K.levelE(x + 1) - K.levelE(x);           // 한 준위 ↑ 데우는 비용
-      if (G > sim.bondE) continue;                        // 결합 E 부족
-      sim.bondE -= G;                                     // 결합 reservoir 차감(빛으로 새어나감)
+      const G = K.levelEZ(x + 1, a.Z, a.e, lz, sc) - K.levelEZ(x, a.Z, a.e, lz, sc);  // 한 준위 ↑ 데우는 비용(lz=0 → levelE)
+      if (local) {
+        // 국소 인출: *그 원자의 결합* 중 E 충분한 첫 간선서 차감(배열 순 → 결정론). 전역 합도 동기 차감(Σe[2]=bondE 불변).
+        let be = null;
+        for (const e of sim.bonds) { if ((e[0] === i || e[1] === i) && (e[2] || 0) >= G) { be = e; break; } }
+        if (!be) continue;                                // 이 원자의 어느 결합도 E 부족
+        be[2] -= G; sim.bondE -= G;                        // 그 결합 E 차감(국소) + 전역 합 동기
+        sim.bondLocalDebit = (sim.bondLocalDebit | 0) + 1; // 국소 인출 횟수(진단·hash 미참여)
+      } else {
+        if (G > sim.bondE) continue;                       // 결합 E 부족(전역 풀)
+        sim.bondE -= G;                                    // 결합 reservoir 차감(빛으로 새어나감)
+      }
       a.x = x + 1;                                        // 결합 원자 한 준위 재여기(이후 emit 가 광자로)
       sim.chemilumCount = (sim.chemilumCount | 0) + 1;    // 화학발광 횟수(진단·hash 미참여)
     }

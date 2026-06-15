@@ -718,6 +718,199 @@
         ];
       },
     },
+
+    'step-0013': {
+      id: 'step-0013',
+      title: '원소가 색을 구분한다 (준위 Z 의존 — 단전자 이온 스펙트럼 E∝Z²)',
+      desc: '지금까지 준위 에너지 levelE(x) 는 Z 를 무시해 He⁺·C·O 가 전부 *수소선*을 냈다(STATE §3 🔴). ' +
+            'levelEZ(노브 levelZ) 게이트로 *단전자 수소형 이온*(e=1)의 들뜸 E 를 ∝Z² 로 만든다(보어 닫힌 형식 E_n=−R·Z²/n²) — ' +
+            '같은 전이라도 Z 가 크면 광자가 더 푸르다(λ=hc/Z²ΔE). H⁺e1·He⁺·C⁵⁺·O⁷⁺(전부 e=1, Z=1·2·6·8)를 들떠 방출시키면 ' +
+            '1→0 전이가 *원소마다 다른 선*(0.75·Z²)으로 갈라진다 — render 가 원소를 색으로 구분할 토대. ' +
+            'Z·e 는 런 중 불변이라 흡수·방출이 같은 Z² 로 거래 → 닫힌 장부 정확 유지. 게이트라서 끄면(levelZ=0) levelE 그대로 = step-0012 이전 비트 동일(회귀 0). 반동 없음 → 선 위치가 깨끗한 Z²(정지계 스펙트럼).',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[i % ELEMENTS.length];           // 4 원소 균등(H·He·C·O 전부 존재 — 라운드로빈)
+          const x = 1 + ((rng() * 3) | 0);                    // 준위 1~3(전부 들뜸 → 1→0 전이로 캐스케이드)
+          atoms.push({
+            Z: el.Z, N: el.N, e: 1, x,                        // e=1 → *단전자 수소형 이온*(E∝Z² 적용 대상)
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                      // 정지 — 반동 없음(아래 kRecoil=0)·도플러 0 → 선 위치 깨끗
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // emit 만 켠다(recoil·prop 없음 → 광자 E = 정확한 준위차 ΔE = 0.75·Z²). levelZ=1 → 완전 Z² 스케일.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.3, levelZ: 1 } };
+      },
+
+      // 1→0 전이 광자를 발원 원소 Z 별로 모은다(전이당 한 선 = 한 색). 정지·무반동 → 같은 Z 는 같은 E.
+      _lines10(sim) {
+        const byZ = {};
+        for (const p of sim.photons) {
+          if (p.from === 1 && p.to === 0) (byZ[p.srcZ] || (byZ[p.srcZ] = [])).push(p.E);
+        }
+        return byZ;
+      },
+
+      watch(sim, K) {
+        const L = K.ledger(sim);
+        const byZ = this._lines10(sim);
+        const distinctE = new Set();
+        for (const z in byZ) for (const e of byZ[z]) distinctE.add(+e.toFixed(9));
+        const eH = byZ[1] ? byZ[1][0] : 0, eHe = byZ[2] ? byZ[2][0] : 0;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          lines10: distinctE.size,                          // 1→0 의 *서로 다른* 선(=원소 수만큼 갈라짐)
+          elemZ: Object.keys(byZ).length,                    // 1→0 광자를 낸 원소(Z) 수
+          E_H_10: +eH.toFixed(4),                            // H(Z1) 1→0 광자 E = 0.75
+          E_He_10: +eHe.toFixed(4),                          // He(Z2) 1→0 광자 E = 3.0 (=4×H)
+          ratioHeH: eH > 0 ? +(eHe / eH).toFixed(4) : 0,     // Z² 스케일 → 정확히 4
+          E: +L.E.toFixed(3),
+        };
+      },
+
+      // 가설: ① 광자 방출됨 ② 원소가 스펙트럼을 구분(1→0 선 수 = 1→0 을 낸 원소 수, 각 Z 가 제 선) ③ Z² 스케일 정합(He⁺/H = 4). 닫힌 장부는 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, byZ = SCENES['step-0013']._lines10(sim);
+        const zList = Object.keys(byZ);
+        const distinctE = new Set();
+        for (const z of zList) for (const e of byZ[z]) distinctE.add(+e.toFixed(9));
+        const eH = byZ[1] ? byZ[1][0] : 0, eHe = byZ[2] ? byZ[2][0] : 0;
+        const ratio = eH > 0 ? eHe / eH : 0;
+        return [
+          { name: '광자 방출됨(자발 방출 count>0)', pass: sim.photons.length > 0, value: sim.photons.length },
+          { name: '원소가 스펙트럼을 구분(1→0 선 수 = 원소 수, ≥2)', pass: zList.length >= 2 && distinctE.size === zList.length, value: distinctE.size },
+          { name: 'Z² 스케일 정합(He⁺ 1→0 = 4× H 1→0)', pass: Math.abs(ratio - 4) < 1e-9, value: +ratio.toFixed(4) },
+        ];
+      },
+    },
+
+    'step-0014': {
+      id: 'step-0014',
+      title: '다전자 원자도 색을 구분한다 (전자 차폐 — 유효핵전하 Z_eff)',
+      desc: 'step-0013 의 E∝Z² 는 *단전자 이온*(e=1)만 정확했다 — 다전자 중성원자는 차폐로 닫힌 형식이 없어 아직 수소선을 냈다(STATE §3 🟡). ' +
+            'levelEZ 에 차폐 노브 `levelScreen`(σ)을 더한다: 다른 e−1 전자가 핵을 가려 *유효핵전하* Z_eff=Z−σ·(e−1) 로 E∝Z_eff² — ' +
+            '중성 He(e=2)·C(e=6)·O(e=8)가 *자기 선*을 내되 같은 Z 의 단전자 이온보다 *얕다*(차폐로 끌림 ↓). ' +
+            '같은 전이라도 He⁺(e=1) 3.0 vs 중성 He(e=2) 2.04 — 이온화 상태가 색을 바꾼다. Z·e 런 중 불변 → 흡수·방출 같은 Z_eff² 거래 → 닫힌 장부 정확. ' +
+            '게이트라서 끄면(levelScreen=0) 다전자는 step-0013(Z 무관) 그대로 = 회귀 0. 반동 없음 → 선 위치 깨끗.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[((i / 2) | 0) % ELEMENTS.length];   // 2개씩 한 원소(이온/중성 쌍)
+          const neutral = (i % 2) === 1;                          // 짝수 = 단전자 이온(e=1, 기준) · 홀수 = 중성(e=Z, 차폐)
+          atoms.push({
+            Z: el.Z, N: el.N, e: neutral ? el.Z : 1, x: 1 + ((rng() * 3) | 0),  // 준위 1~3 → 1→0 캐스케이드
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                         // 정지·무반동 → 선 위치 깨끗(아래 emit 만)
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // emit 만(recoil·prop 없음 → 광자 E = 정확한 ΔE). levelZ=1·levelScreen=0.35(Slater 형 차폐).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.3, levelZ: 1, levelScreen: 0.35 } };
+      },
+
+      // 1→0 전이 광자를 (Z,e) 별로 모은다 — 같은 Z 라도 e(이온화 상태)가 다르면 차폐로 선이 갈라짐.
+      _lines10(sim) {
+        const byZE = {};   // "Z|e" → 광자 E (정지·무반동 → 같은 (Z,e) 는 같은 E)
+        for (const p of sim.photons) {
+          if (p.from === 1 && p.to === 0) byZE[p.srcZ + '|' + p.srcE] = p.E;
+        }
+        return byZE;
+      },
+
+      watch(sim, K) {
+        const L = K.ledger(sim), byZE = this._lines10(sim);
+        const neutralE = new Set();
+        for (const key in byZE) { const e = +key.split('|')[1]; if (e > 1) neutralE.add(+byZE[key].toFixed(9)); }
+        const heIon = byZE['2|1'] || 0, heNeu = byZE['2|2'] || 0;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          neutralLines: neutralE.size,                       // 다전자(중성) 1→0 의 서로 다른 선(He·C·O 갈라짐)
+          E_He_ion: +heIon.toFixed(4),                       // He⁺(e=1) 1→0 = 3.0 (비차폐 Z²)
+          E_He_neutral: +heNeu.toFixed(4),                   // 중성 He(e=2) 1→0 = 2.042 (차폐 Z_eff²)
+          screenRatio: heIon > 0 ? +(heNeu / heIon).toFixed(4) : 0,  // 차폐/비차폐 = ((Z−σ)/Z)² < 1
+          E: +L.E.toFixed(3),
+        };
+      },
+
+      // 가설: ① 광자 방출됨 ② 다전자 중성원자도 원소 구분(중성 1→0 선 ≥2, He·C·O 차폐 스펙트럼) ③ 차폐가 유효전하 낮춤(중성 He < He⁺, 정확히 ((Z−σ)/Z)²). 닫힌 장부는 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, byZE = SCENES['step-0014']._lines10(sim);
+        const sigma = sim.knobs.levelScreen;
+        const neutralE = new Set();
+        for (const key in byZE) { const e = +key.split('|')[1]; if (e > 1) neutralE.add(+byZE[key].toFixed(9)); }
+        const heIon = byZE['2|1'] || 0, heNeu = byZE['2|2'] || 0;
+        const ratio = heIon > 0 ? heNeu / heIon : 0;
+        const expRatio = ((2 - sigma) / 2) * ((2 - sigma) / 2);   // 중성 He(e=2)/He⁺(e=1) = (Z_eff/Z)²
+        return [
+          { name: '광자 방출됨(자발 방출 count>0)', pass: sim.photons.length > 0, value: sim.photons.length },
+          { name: '다전자 중성원자도 원소 구분(중성 1→0 선 ≥2)', pass: neutralE.size >= 2, value: neutralE.size },
+          { name: '차폐가 유효전하 낮춤(중성 He < He⁺, ((Z−σ)/Z)² 정합)', pass: heIon > 0 && heNeu > 0 && ratio < 1 && Math.abs(ratio - expRatio) < 1e-9, value: +ratio.toFixed(4) },
+        ];
+      },
+    },
+
+    'step-0015': {
+      id: 'step-0015',
+      title: '결합 에너지가 결합별로 산다 (전역 reservoir → 결합별 E 장부, unbond 의 토대)',
+      desc: 'step-0010~0011 의 결합 에너지는 *전역 스칼라* sim.bondE 하나였다 — 어느 결합의 에너지인지 알 수 없어 *결합 깸*(unbond)이 불가능했다(STATE 🟡). ' +
+            'bond 게이트 `bondLocalE` 로 흡수 KE 를 *그 결합 간선*에 per-bond 저장([i,j,Eabs])하고, chemilum 도 전역 풀이 아니라 *그 원자 자신의 결합*에서 인출한다 — ' +
+            '빛이 *그 분자의 결합 E*에서 나온다(국소성↑, 척추 ③). 전역 sim.bondE 는 그대로 두되 *결합별 합* = 전역(Σe[2]=bondE 불변) — ledger 무영향. ' +
+            '게이트라서 끄면(bondLocalE=0) 결합은 [i,j]·chemilum 전역 → step-0011 비트 동일(회귀 0). 이 결합별 장부가 다음 unbond(결합 깸)·핵 회계의 토대다.',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0011 과 동일 무대(결합·화학발광)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,   // 바닥 — 빛은 오직 결합 E 에서
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0011 사슬 + bondLocalE(결합별 E 장부) 한 노브만 추가.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [];
+        let sumE2 = 0, minE2 = Infinity; for (const e of bonds) { sumE2 += (e[2] || 0); if ((e[2] || 0) < minE2) minE2 = e[2] || 0; }
+        if (!bonds.length) minE2 = 0;
+        return {
+          atoms: sim.atoms.length,
+          bonds: sim.bondCount | 0,
+          chemilum: sim.chemilumCount | 0,
+          localDebit: sim.bondLocalDebit | 0,               // chemilum 이 결합별 장부서 인출한 횟수
+          sumBondE: +sumE2.toFixed(4),                       // Σ 결합별 E (= 전역과 일치해야)
+          globalBondE: +(sim.bondE || 0).toFixed(4),         // 전역 reservoir
+          ledgerResid: +Math.abs(sumE2 - (sim.bondE || 0)).toExponential(2),  // 국소 합 − 전역 (≈0)
+          minE2: +minE2.toFixed(4),                          // 최소 결합 E (≥0 — 국소 회계 유효)
+        };
+      },
+
+      // 가설: ① 결합별 E 장부 기록(결합 형성·각 간선이 E 저장>0) ② 국소 회계 충실(Σe[2] = 전역 bondE, 잔차≈0) ③ 국소 소비(chemilum 이 특정 결합서 인출>0 & 모든 e[2]≥0). 총 E 보존은 ②기둥(닫힌 장부).
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [];
+        let sumE2 = 0, allTriple = bonds.length > 0, minE2 = Infinity;
+        for (const e of bonds) { if (e.length < 3) allTriple = false; sumE2 += (e[2] || 0); if ((e[2] || 0) < minE2) minE2 = e[2] || 0; }
+        const resid = Math.abs(sumE2 - (sim.bondE || 0));
+        const debit = sim.bondLocalDebit | 0;
+        return [
+          { name: '결합별 E 장부 기록(결합 형성 & 각 간선이 E 저장)', pass: allTriple, value: bonds.length },
+          { name: '국소 회계 충실(Σ결합별E = 전역 bondE, 잔차≈0)', pass: resid <= 1e-9, value: +resid.toExponential(2) },
+          { name: '국소 소비(chemilum 이 특정 결합서 인출>0 & 모든 e[2]≥0)', pass: debit > 0 && minE2 >= -1e-12, value: debit },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
