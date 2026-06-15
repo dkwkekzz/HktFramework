@@ -60,6 +60,17 @@ function run() {
   const lines = new Set(ph.map(p => p.from + '→' + p.to));
   checks.push({ name: '측정된 스펙트럼선 수(≥1)', pass: lines.size >= 1, value: lines.size });
 
+  // ⑥ L-line 정제(렌즈 assert): 전이선별 빈도 집계 — 선 수가 유니크 전이와 일치하고,
+  //    빈도 합 = 전체 광자 수(누락·중복 0), maxCount 가 데이터에서 측정됨(세기 정규화 기준).
+  const agg = SP.measureLines(ph);
+  const sumCount = agg.lines.reduce((s, l) => s + l.count, 0);
+  checks.push({ name: 'L-line: 집계 선 수 = 유니크 전이', pass: agg.lines.length === lines.size, value: `${agg.lines.length}` });
+  checks.push({ name: 'L-line: 빈도 합 = 전체 광자(보존)', pass: sumCount === ph.length, value: `${sumCount}/${ph.length}` });
+  checks.push({ name: 'L-line: maxCount 측정됨(≥1·세기 정규화)', pass: agg.maxCount >= 1, value: `${agg.maxCount}` });
+  // λ 오름차순 정렬(보라→빨강 순 = 분광기 배치) 보존
+  const sortedAsc = agg.lines.every((l, i) => i === 0 || agg.lines[i - 1].lambda <= l.lambda);
+  checks.push({ name: 'L-line: λ 오름차순 정렬(분광 배치)', pass: sortedAsc, value: sortedAsc ? 'ok' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

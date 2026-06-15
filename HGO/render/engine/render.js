@@ -7,6 +7,10 @@
 //   그대로 두고(위치=sim (rx,ry,0)), *표현만* 입체화한다: 원자=음영 구(球), 광자=발광 빌보드,
 //   z=0 바닥 격자, 궤도 카메라. 색은 여전히 L-λ(광자 λ→스펙트럼, spectral.js)에서 *읽는다*.
 //   원 vs 구·평행 vs 원근은 프레젠테이션 선택일 뿐 — 분포 재성형 0, 시뮬 객체 비변경.
+//
+// 렌즈 L-line: 하단 스펙트럼 띠를 *유무*에서 *세기*로 정제한다(읽기 정제 — 새 시뮬 양 0).
+//   spectral.measureLines 가 광자를 전이선(from→to)별로 빈도 집계 → 선 밝기 = 빈도/최대빈도(측정 정규화).
+//   실측 분광기처럼 강한 전이는 밝고 약한 전이는 흐리다 — 세는 것이지 author 가 아니다.
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -166,19 +170,23 @@
     }
   }
 
-  // 측정된 스펙트럼선을 캔버스 하단 띠로(실제 스펙트럼선의 창발 — 색=λ). 화면 고정 HUD.
+  // 측정된 스펙트럼선을 캔버스 하단 띠로(실제 분광기의 창발 — 색=λ, 밝기=세기). 화면 고정 HUD.
+  //   렌즈 L-line: 선은 *유무*가 아니라 *세기*(전이별 광자 빈도)를 보인다 — measureLines 가
+  //   from→to 별로 집계, maxCount(데이터에서 잰 최댓값)로 정규화. 강한 선=밝고, 약한 선=흐리게.
   function drawStrip(ctx, sim, SP, range, W, H) {
-    const h = 14, y0 = H - h;
+    const h = 18, y0 = H - h;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#05060a';
     ctx.fillRect(0, y0, W, h);
-    const lines = new Map();   // 'from→to' → lambda (중복 제거)
-    for (const p of sim.photons) lines.set(p.from + '→' + p.to, p.lambda);
-    for (const lambda of lines.values()) {
-      const nm = SP.lambdaToNm(lambda, range.lo, range.hi);
+    const { lines, maxCount } = SP.measureLines(sim.photons);
+    for (const ln of lines) {
+      const nm = SP.lambdaToNm(ln.lambda, range.lo, range.hi);
       const x = ((nm - 400) / 300) * W;
       const [cr, cg, cb] = SP.wavelengthToRGB(nm);
-      ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+      // 세기 = 빈도/최대빈도 (측정 정규화). 약한 선도 식별되게 바닥 밝기 0.25 부여 후 세기로 가산.
+      const inten = maxCount > 0 ? ln.count / maxCount : 1;
+      const a = 0.25 + 0.75 * inten;
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${a.toFixed(3)})`;
       ctx.fillRect(x - 2, y0, 4, h);
     }
   }
