@@ -70,6 +70,24 @@
     return u;
   }
 
+  // 중력 위치 에너지(step-0028) — Plummer U_grav = Σ_{i<j *모든 쌍*} −kG·ma·mb/√(r²+ε²) ≤ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
+  //   쿨롱의 *질량판*: 전하 q→질량 m(=Z+N), 항상 인력(부호 고정 −). 전하 게이트 없음(중력은 보편 — 중성 포함 모든 쌍).
+  //   coulombPE 와 같은 연화 ε(coulombSoft 공유, DRY). kGravity 미설정/0(0027 이하) → 0 → 과거 장부 불변.
+  function gravityPE(atoms, knobs, W, H) {
+    const kg = (knobs && knobs.kGravity) || 0;
+    if (!kg) return 0;
+    const eps2 = (knobs.coulombSoft || 1) ** 2;
+    let u = 0;
+    for (let i = 0; i < atoms.length; i++) {
+      const mi = mass(atoms[i]);
+      for (let j = i + 1; j < atoms.length; j++) {
+        const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
+        u += -kg * mi * mass(atoms[j]) / Math.sqrt(dx * dx + dy * dy + eps2);
+      }
+    }
+    return u;
+  }
+
   // 반발 코어 위치 에너지(step-0020) — U_rep = Σ_{i<j 하전} kR/(r²+ε²) ≥ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
   //   coulombPE 와 같은 쌍·게이트·연화(DRY). kRepulse 미설정/0(0019 이하) → 0 → 과거 장부 불변. 쿨롱 인력과 합쳐 r_eq 우물을 만든다.
   function repulsePE(atoms, knobs, W, H) {
@@ -121,6 +139,55 @@
     return u;
   }
 
+  // 결합 스프링 위치 에너지(step-0026) — U_spring = Σ_{결합 간선} ½·kS·(r−r_eq)² ≥ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
+  //   *결합 간선만*(sim.bonds — coulomb/vdw 류 전쌍 아님) → 중성 공유결합에 평형 길이 부여. kBondSpring 미설정/0(0025 이하) → 0 → 과거 장부 불변.
+  function bondSpringPE(sim) {
+    const ks = (sim.knobs && sim.knobs.kBondSpring) || 0;
+    if (!ks || !sim.bonds || !sim.bonds.length) return 0;
+    const req = sim.knobs.bondReq || 4;
+    const A = sim.atoms;
+    let u = 0;
+    for (const e of sim.bonds) {
+      const a = A[e[0]], b = A[e[1]];
+      const dx = minImage(b.rx - a.rx, sim.W), dy = minImage(b.ry - a.ry, sim.H);
+      const dr = Math.sqrt(dx * dx + dy * dy) - req;
+      u += 0.5 * ks * dr * dr;
+    }
+    return u;
+  }
+
+  // 결합 각도 위치 에너지(step-0027) — U_angle = Σ_{한 중심에 모인 결합쌍} ½·kA·(θ−θ₀)² ≥ 0. 힘 법칙(F=−∇U)과 동일 식.
+  //   *한 원자에 모인 결합 간선쌍*(VSEPR)만 → 중성·하전 분자에 평형 각도 부여. kBondAngle 미설정/0(0026 이하) → 0 → 과거 장부 불변.
+  function bondAnglePE(sim) {
+    const ka = (sim.knobs && sim.knobs.kBondAngle) || 0;
+    if (!ka || !sim.bonds || !sim.bonds.length) return 0;
+    const t0 = sim.knobs.bondAngleTarget;
+    const A = sim.atoms, W = sim.W, H = sim.H;
+    const nbr = new Map();
+    for (const e of sim.bonds) {
+      if (!nbr.has(e[0])) nbr.set(e[0], []);
+      if (!nbr.has(e[1])) nbr.set(e[1], []);
+      nbr.get(e[0]).push(e[1]); nbr.get(e[1]).push(e[0]);
+    }
+    let u = 0;
+    for (const [ci, ns] of nbr) {
+      if (ns.length < 2) continue;
+      const ai = A[ci];
+      for (let p = 0; p < ns.length; p++) for (let q = p + 1; q < ns.length; q++) {
+        const aj = A[ns[p]], ak = A[ns[q]];
+        const axx = minImage(aj.rx - ai.rx, W), axy = minImage(aj.ry - ai.ry, H);
+        const bxx = minImage(ak.rx - ai.rx, W), bxy = minImage(ak.ry - ai.ry, H);
+        const la = Math.hypot(axx, axy), lb = Math.hypot(bxx, bxy);
+        if (la === 0 || lb === 0) continue;
+        let cos = (axx * bxx + axy * bxy) / (la * lb);
+        if (cos > 1) cos = 1; else if (cos < -1) cos = -1;
+        const d = Math.acos(cos) - t0;
+        u += 0.5 * ka * d * d;
+      }
+    }
+    return u;
+  }
+
   // 닫힌 장부: 보존되어야 할 양들의 총합 (SPINE §2)
   //  Q 전하 = Σ(Z−e) · B 바리온 = Σ(Z+N) · L 렙톤 = Σe
   //  E 에너지-질량 = Σ(m·c² + ½m·v² + 들뜸E) + Σ 광자E  (e=mc² 정지+운동+들뜸+복사)
@@ -137,8 +204,14 @@
       L += a.e;
       const v2 = a.vx * a.vx + a.vy * a.vy;
       E += m * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz, sc);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
+      // 핵 결합/저장 에너지(step-0031 decay): 불안정 동위원소가 품은 붕괴 Q값(Δm·c² 저장고). 붕괴 시 KE 로 빠진다 → E 닫힘.
+      //   미존재(과거 전 장면 a.nuc undefined) → 0 가법 → 장부·해시 불변. 핵 변환이라도 Σ(mc²+KE+a.nuc) 보존.
+      E += a.nuc || 0;
       px += m * a.vx;
       py += m * a.vy;
+      // 렙톤 수: e 가 곧 렙톤이나, 베타붕괴(n→p, e+1)는 반중성미자(L=−1)를 방출 → a.lep 가 그 음의 렙톤 수를 담아 L 닫힘(SPINE §2 렙톤 정련).
+      //   미존재(과거 a.lep undefined) → 0 가법 → 과거 L 불변.
+      L += a.lep || 0;
     }
     // 복사장: 에너지 + 운동량(recoil). px·py 미설정(step-0002 이하) → 0 가법 → 과거 장부 불변.
     if (sim.photons) for (const p of sim.photons) { E += p.E; px += p.px || 0; py += p.py || 0; }
@@ -155,6 +228,12 @@
     E += pauliPE(sim.atoms, sim.knobs, sim.W, sim.H);
     // 반데르발스 보편 인력 PE(step-0023 vdw): 모든 쌍의 인력 PE(≤0). kVdW 미설정/0 → 0 → 장부 불변.
     E += vdwPE(sim.atoms, sim.knobs, sim.W, sim.H);
+    // 결합 스프링 PE(step-0026 bondSpring): 결합 간선의 평형 길이 복원 PE(≥0). kBondSpring 미설정/0 → 0 → 장부 불변.
+    E += bondSpringPE(sim);
+    // 결합 각도 PE(step-0027 bondAngle): 한 중심에 모인 결합쌍의 평형 각도 복원 PE(≥0). kBondAngle 미설정/0 → 0 → 장부 불변.
+    E += bondAnglePE(sim);
+    // 중력 PE(step-0028 gravity): 모든 쌍의 인력 PE(≤0). kGravity 미설정/0 → 0 → 장부 불변.
+    E += gravityPE(sim.atoms, sim.knobs, sim.W, sim.H);
     return { Q, B, L, E, px, py };
   }
 
@@ -191,5 +270,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
 });
