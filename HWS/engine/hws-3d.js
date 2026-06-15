@@ -777,20 +777,51 @@
     return { eye: eye, dir: dir };
   }
 
-  /* voxel 픽킹(L-V 픽킹) — 점유 큐브에 레이를 쏴 첫 충돌 셀(x,y,z)을 고른다. 인스턴스 빌드와 같은 점유 판정.
-   * 월드(x, 위=y, 깊이=z) → sim(x, y, z) 역매핑: sim-x=wx · sim-y=wz(깊이) · sim-z=wy(위). 고정 스텝 행진(셀 크기 1 < step). */
+  /* voxel 픽킹(L-V 픽킹 — DDA 정밀화) — 점유 큐브에 레이를 쏴 첫 충돌 셀(x,y,z)을 고른다. 인스턴스 빌드와 같은 점유 판정.
+   * 월드(x, 위=y, 깊이=z) → sim(x, y, z) 역매핑: sim-x=wx · sim-y=wz(깊이) · sim-z=wy(위). 단위 큐브(셀 i = [i-0.5, i+0.5]).
+   * 고정 스텝 행진을 Amanatides-Woo voxel DDA 로 교체: 레이가 지나는 셀만 *순서대로* 정확히 방문(누락·오버샘플 0).
+   * 도메인 박스(AABB)로 먼저 클립해 빈 공간 행진을 건너뛴다 → 첫 충돌이 항상 정확(고정 스텝의 반올림 오류 제거). */
   function pickVoxel(px, py) {
     var sim = S.sim;
     if (!sim) return null;
     var p = sim.p, W = p.W, H = p.H, D = p.D || 1;
     var ray = camRay(px, py), eye = ray.eye, dir = ray.dir;
-    var T = S.cam.dist * 4 + 200, step = 0.25;
-    for (var t = 0; t <= T; t += step) {
-      var sx = Math.round(eye[0] + dir[0] * t);             // 월드-x → sim-x
-      var sz = Math.round(eye[1] + dir[1] * t);             // 월드 위(y) → sim-z
-      var sy = Math.round(eye[2] + dir[2] * t);             // 월드 깊이(z) → sim-y
-      if (sx < 0 || sy < 0 || sz < 0 || sx >= W || sy >= H || sz >= D) continue;
-      if (occAt(sim, sx, sy, sz)) return { x: sx, y: sy, z: sz };
+
+    // 도메인 AABB (월드 좌표). 축0=sim-x→[−0.5,W−0.5] · 축1=위(sim-z)→[−0.5,D−0.5] · 축2=깊이(sim-y)→[−0.5,H−0.5].
+    var lo = [-0.5, -0.5, -0.5], hi = [W - 0.5, D - 0.5, H - 0.5];
+    var t0 = 0, t1 = Infinity;                              // 슬랩 교차로 박스 진입/이탈 t 구간
+    for (var a = 0; a < 3; a++) {
+      if (Math.abs(dir[a]) < 1e-9) {                        // 축에 평행 — 박스 밖이면 영영 안 들어옴
+        if (eye[a] < lo[a] || eye[a] > hi[a]) return null;
+      } else {
+        var inv = 1 / dir[a], ta = (lo[a] - eye[a]) * inv, tb = (hi[a] - eye[a]) * inv;
+        if (ta > tb) { var s = ta; ta = tb; tb = s; }
+        if (ta > t0) t0 = ta;
+        if (tb < t1) t1 = tb;
+      }
+    }
+    if (t0 > t1) return null;                               // 레이가 도메인을 비껴감
+
+    // DDA 초기화 — 박스 진입점의 셀에서 출발(셀 = round(월드좌표), 경계는 반정수).
+    var cell = [0, 0, 0], stepA = [0, 0, 0], tMax = [0, 0, 0], tDelta = [0, 0, 0];
+    for (var a2 = 0; a2 < 3; a2++) {
+      var sPos = eye[a2] + dir[a2] * t0;                    // 진입점 좌표
+      cell[a2] = Math.round(sPos);
+      if (dir[a2] > 0)      { stepA[a2] = 1;  tMax[a2] = t0 + ((cell[a2] + 0.5) - sPos) / dir[a2]; tDelta[a2] = 1 / dir[a2]; }
+      else if (dir[a2] < 0) { stepA[a2] = -1; tMax[a2] = t0 + ((cell[a2] - 0.5) - sPos) / dir[a2]; tDelta[a2] = -1 / dir[a2]; }
+      else                  { stepA[a2] = 0;  tMax[a2] = Infinity; tDelta[a2] = Infinity; }
+    }
+
+    var guard = (W + H + D) * 2 + 8;                        // 박스 내 셀 교차 ≤ W+H+D (수치 안전망)
+    for (var t = t0; t <= t1 && guard-- > 0; ) {
+      var sx = cell[0], sz = cell[1], sy = cell[2];         // 월드(x,위,깊이) → sim(x,z,y)
+      if (sx >= 0 && sy >= 0 && sz >= 0 && sx < W && sy < H && sz < D && occAt(sim, sx, sy, sz))
+        return { x: sx, y: sy, z: sz };
+      // 가장 가까운 경계 축으로 한 셀 전진
+      var ax = (tMax[0] < tMax[1]) ? (tMax[0] < tMax[2] ? 0 : 2) : (tMax[1] < tMax[2] ? 1 : 2);
+      cell[ax] += stepA[ax];
+      t = tMax[ax];
+      tMax[ax] += tDelta[ax];
     }
     return null;
   }
