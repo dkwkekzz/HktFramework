@@ -173,6 +173,69 @@
         ];
       },
     },
+
+    'step-0004': {
+      id: 'step-0004',
+      title: '빛이 날아간다 (광자 전파 — 운동량 방향으로 광속 c 직진)',
+      desc: '정지·들뜬 원자에서 방출(kEmit)·반동(kRecoil)으로 *방향을 가진* 광자가 생기면, 전파 법칙(노브 kProp)으로 ' +
+            '그 광자가 운동량 방향으로 광속 c 로 직진한다(토러스 wrap). 복사장이 더는 방출점에 고이지 않고 *공간으로 퍼진다* — ' +
+            '흡수·전파의 무대. 위치만 바뀌므로 에너지·운동량 장부는 그대로 닫힌다(보존-자명). ' +
+            '큰 무대(400²)로 런 동안 wrap 을 피해 직진·광속을 정밀 측정한다.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 400, H = 400, n = 40, atoms = [];   // 큰 무대 — 50 tick·c=1 이면 최대 이동 50 ≪ 200(half)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                // 정지 — 광자 방향 = 순수 반동 방향(등방 분수)
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1, kProp: 1 } };
+      },
+
+      watch(sim, K) {
+        const c = K.C, k = sim.knobs.kProp, dt = sim.knobs.dt;
+        let n = 0, disp = 0, agesum = 0;
+        for (const p of sim.photons) {
+          if (Math.hypot(p.px || 0, p.py || 0) <= 0) continue;
+          n++;
+          disp += Math.hypot(K.minImage(p.rx - p.rx0, sim.W), K.minImage(p.ry - p.ry0, sim.H));
+          agesum += (sim.tick - p.birth);
+        }
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          meanDisp: +(n ? disp / n : 0).toFixed(3),       // 광자 평균 비행 거리
+          meanSpeed: +(agesum ? disp / agesum : 0).toFixed(4),  // 거리/나이 ≈ 광속 c·k
+        };
+      },
+
+      // 가설: ① 광자가 전파한다(이동 거리>0) ② 광속 c 로 직진(거리 = c·나이, 전부) ③ 복사장이 공간으로 퍼진다.
+      assert(ctx, K) {
+        const sim = ctx.sim, ph = sim.photons, c = K.C, k = sim.knobs.kProp, dt = sim.knobs.dt;
+        let n = 0, moved = 0, speedOK = 0, dispSum = 0;
+        for (const p of ph) {
+          if (Math.hypot(p.px || 0, p.py || 0) <= 0) continue;
+          n++;
+          const disp = Math.hypot(K.minImage(p.rx - p.rx0, sim.W), K.minImage(p.ry - p.ry0, sim.H));
+          dispSum += disp;
+          if (disp > 0) moved++;
+          const expected = c * k * dt * (sim.tick - p.birth);   // 직진·광속 → 거리 = c·나이
+          if (Math.abs(disp - expected) < 1e-9) speedOK++;
+        }
+        return [
+          { name: '광자가 전파한다(평균 비행 거리>0)', pass: n > 0 && moved === n, value: +(n ? dispSum / n : 0).toFixed(3) },
+          { name: '광속 c 로 직진(거리=c·나이, 전부)', pass: n > 0 && speedOK === n, value: n ? speedOK : 0 },
+          { name: '복사장이 공간으로 퍼짐(전파 광자 다수)', pass: n > 0, value: n },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
