@@ -20,7 +20,7 @@
 |---|---|---|---|
 | **큰 목표** | `CLAUDE.md` (이 문서) | 궁극 목표 · 참조 위치 | 거의 불변 |
 | **골격·설계** | [SPINE.md](SPINE.md) | 원자 존재론 · 작업 구조 · 트랙 로스터 · 검증 4기둥 | 거의 불변 |
-| **순서 계획** | 트랙 폴더의 `ROADMAP.md` (atom: [atom/ROADMAP.md](atom/ROADMAP.md)) | 어떤 step 을 어떤 순서로 (수정 가능) — 세션이 첫 ☐ 를 자동 선택 | 가끔 |
+| **순서 계획** | [ROADMAP.md](ROADMAP.md) (프로젝트 전체) | 무엇을 어떤 순서로 · 트랙 활성화 마일스톤 (수정 가능) — 세션이 자기 트랙 섹션 첫 ☐ 자동 선택 | 가끔 |
 | **현재 상태** | 트랙 폴더의 `STATE.md` (atom: [atom/STATE.md](atom/STATE.md)) | 지금 어디까지 · 다음 가설 · 열린 격차 · 시리즈 인덱스 | step마다 |
 | **상세 기록** | `<트랙>/steps/step-NNNN.md` (atom: `atom/steps/`) | 한 step = 한 조각. 발견·한계 전문 | step마다 추가 |
 | **실행 방법** | `.claude/skills/hgo-<트랙>-step/SKILL.md` | 트랙별 step 루프를 토큰·시간 효율로 실행 | 거의 불변 |

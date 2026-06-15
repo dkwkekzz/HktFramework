@@ -9,14 +9,14 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 
 ## 1. 읽기 + 다음 step 자동 선택 (그 외 읽지 마라)
 
-**필독 4종**: `HGO/CLAUDE.md` · `HGO/SPINE.md` · `HGO/atom/ROADMAP.md` · `HGO/atom/STATE.md` (전체).
+**필독 4종**: `HGO/CLAUDE.md` · `HGO/SPINE.md` · `HGO/ROADMAP.md`(프로젝트 전체 순서) · `HGO/atom/STATE.md` (전체).
 
 **다음 step 자동 선택 — 사용자에게 매번 묻지 않는다**:
-1. `ROADMAP.md` 를 위에서 아래로 읽는다.
-2. **다음 step = 첫 미완료(☐) 항목.** (사용자가 특정 step/방향을 지정했으면 그게 우선.)
+1. `HGO/ROADMAP.md` 의 **atom 트랙 섹션**을 위에서 아래로 읽는다(다른 트랙 섹션은 무시 — 직교).
+2. **다음 step = atom 섹션 첫 미완료(☐) 항목.** (사용자가 특정 step/방향을 지정했으면 그게 우선.)
 3. 완료 판별: `steps/step-NNNN.md` 존재 + STATE §7 INDEX 줄. STATE §2 가 이미 그 칸의 펼친 가설을 담고 있으면 그대로 진행.
-4. 마일스톤(◆)에 닿았으면 그 트랙 활성화는 *별도 세션* 몫 — ROADMAP/STATE 에 한 줄 남기고 atom 트랙의 다음 ☐ 로 계속.
-5. 척추 체크 4항(SPINE §5)에 안 맞으면 조각을 고쳐 잡고 ROADMAP 도 손본다(revisable).
+4. 마일스톤(◆)에 닿았으면 그 트랙 활성화는 *별도 세션* 몫 — STATE §2 에 한 줄 남기고 atom 섹션의 다음 ☐ 로 계속(이 세션은 atom 만).
+5. 척추 체크 4항(SPINE §5)에 안 맞으면 조각을 고쳐 잡고 ROADMAP atom 섹션도 손본다(revisable).
 
 **읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md` 문서들(STATE 가 현재의 SSOT) · render/net 트랙 파일(`RENDER*`·`NET*` — 직교 트랙).
 
@@ -55,7 +55,7 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 2. 풀 골든 런 PASS (회귀 0 알리바이 — 0002~)
 3. `step-NNNN.md` "쉽게 풀어 쓴 설명" 절 + 뷰어 링크 포함·수치=verify 출력
 4. STATE.md §1~6 Edit + §7 1줄 append
-5. **`ROADMAP.md` 에서 이 step 줄을 ☐→☑ 로** (필요 시 다음 항목 재정렬) — 다음 세션이 첫 ☐ 로 자동 진행
+5. **`HGO/ROADMAP.md` 의 *atom 섹션*에서 이 step 줄을 ☐→☑ 로** (자기 섹션만 — 필요 시 다음 항목 재정렬) — 다음 세션이 첫 ☐ 로 자동 진행
 6. 닫은 step 파일은 이후 불변 (장면은 `scenes.js` 에 동결로 남아 뷰어가 영구 재현)
 
 ## 7. 활성 게이트 점검 (휴면 트랙 깨우기)

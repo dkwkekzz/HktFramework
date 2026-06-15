@@ -17,7 +17,7 @@
 
 ## 2. NEXT
 
-> 순서(어떤 step 을 다음에)는 [ROADMAP.md](ROADMAP.md) 가 권위(첫 ☐ 자동 선택) · 큰 호 서사는 [SPINE.md](SPINE.md) §8. STATE 는 *다음 한 조각의 펼친 가설*과 직전 2~3 step 만.
+> 순서(어떤 step 을 다음에)는 프로젝트 [../ROADMAP.md](../ROADMAP.md) 의 atom 섹션이 권위(첫 ☐ 자동 선택) · 큰 호 서사는 [SPINE.md](SPINE.md) §8. STATE 는 *다음 한 조각의 펼친 가설*과 직전 2~3 step 만.
 
 직전 흐름: **step-0001** 이 원자 다발·결정론 엔진·보존 장부·자유 운동·공용 하네스를 깔았다(무대 + 규칙 0). 이제 *첫 법칙*을 얹는다.
 
