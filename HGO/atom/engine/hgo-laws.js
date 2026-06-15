@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -310,9 +310,41 @@
     }
   }
 
+  // 화학발광 = 결합 에너지가 빛이 된다 (step-0011, *bondE reservoir 의 방출*). step-0010 bond 는 흡수한 상대
+  // KE 를 sim.bondE 에 *모으기만* 했다(escape 가 광자를 바스에 모으기만 한 것과 동형). chemilum 법칙(노브 kChemilum)이
+  // 그 결합 E 를 *결합한 원자의 전자 들뜸(x)* 으로 되돌린다 — 들뜬 원자는 emit(0002)이 광자로 낸다.
+  //   ⇒ 사슬: bond(상대 KE→bondE) → chemilum(bondE→들뜸) → emit(들뜸→광자 λ=hc/ΔE). *결합 에너지가 빛으로 새어나온다*(화학발광 토이, render 신호).
+  //   왜 들뜸(운동량-자유)인가: bondE 는 스칼라 reservoir(운동량 0). 한 준위 비용 G 만큼 bondE 에서 빼 원자 들뜸에
+  //     실으면 운동량 불변·E 정확 보존(reheat 의 바스→들뜸과 동형 — 단 *출처가 화학 결합*·*대상이 결합 원자*).
+  //   선택성·국소: 결합에 참여한 원자만 빛난다(그 결합 reservoir 가 그 원자들의 것). 비결합 원자 0 — 결합 간선으로 판정(전역 조율자 0).
+  //   닫힌 장부: sim.bondE ↓ G = 원자 들뜸 E ↑ G (정확 쌍 거래), 운동량 불변 ⇒ Q·B·L·E·px·py 보존. 노브=0 → 회귀 0.
+  function chemilum(sim) {
+    const k = sim.knobs.kChemilum;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (화학발광 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 의사난수 없으면 확률 판정 불가(Math.random 금지 — 결정론)
+    if (!sim.bondE || sim.bondE <= 0) return;            // 줄 결합 에너지 없음
+    if (!sim.bonds || !sim.bonds.length) return;         // 결합(빛날 원자) 없음
+    const bonded = new Set();
+    for (const e of sim.bonds) { bonded.add(e[0]); bonded.add(e[1]); }  // 결합 참여 원자 집합
+    const xMax = sim.knobs.chemilumXMax || 6;            // 준위 상한(이온화 영역 밖)
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      if (!bonded.has(i)) continue;                      // *결합한 원자만* 화학발광(선택성·국소)
+      if (rng() >= k) continue;                          // 확률 kChemilum 발광 시도
+      const a = atoms[i], x = a.x | 0;
+      if (x >= xMax) continue;                            // 고준위 포화
+      const G = K.levelE(x + 1) - K.levelE(x);           // 한 준위 ↑ 데우는 비용
+      if (G > sim.bondE) continue;                        // 결합 E 부족
+      sim.bondE -= G;                                     // 결합 reservoir 차감(빛으로 새어나감)
+      a.x = x + 1;                                        // 결합 원자 한 준위 재여기(이후 emit 가 광자로)
+      sim.chemilumCount = (sim.chemilumCount | 0) + 1;    // 화학발광 횟수(진단·hash 미참여)
+    }
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, collide };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'collide'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {

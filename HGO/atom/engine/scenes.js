@@ -600,6 +600,64 @@
         ];
       },
     },
+
+    'step-0011': {
+      id: 'step-0011',
+      title: '결합 에너지가 빛이 된다 (화학발광 — bondE → 들뜸 → 광자)',
+      desc: 'step-0010 bond 는 흡수한 상대 KE 를 결합 E reservoir(sim.bondE)에 *모으기만* 했다(escape 가 광자를 바스에 모으듯). ' +
+            'chemilum 법칙(노브 kChemilum)이 그 결합 에너지를 *결합한 원자의 전자 들뜸(x)*으로 되돌린다 — 들뜬 원자는 emit(0002)이 광자로 낸다. ' +
+            '사슬: bond(상대 KE→bondE) → chemilum(bondE→들뜸) → emit(들뜸→광자 λ=hc/ΔE). *결합 에너지가 빛으로 새어나온다*(화학발광 토이, render 신호). ' +
+            '모든 원자를 x=0(바닥)으로 시작 — 빛의 유일한 출처가 결합 에너지임을 증명. 결합 안 한 원자는 빛나지 않는다(선택성 창발). ' +
+            '운동량-자유 준위 거래라 E 정확 보존(bondE↓ = 들뜸E↑ = 광자E↑). 게이트라서 노브를 끄면 step-0010 비트 동일(회귀 0).',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0010 과 같은 조밀 무대(결합 형성)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;                      // 절반 양이온·절반 음이온(반대전하 결합)
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,  // 바닥 상태 — 빛은 오직 결합 E 에서
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // bond(결합·bondE 적립) → chemilum(bondE→들뜸) → emit·recoil·prop(들뜸→광자) 사슬을 켠다. collide 공존.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3 } };
+      },
+
+      watch(sim, K) {
+        const bonded = new Set(); for (const e of (sim.bonds || [])) { bonded.add(e[0]); bonded.add(e[1]); }
+        let excited = 0, maxLevel = 0, px = 0, py = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0, m = K.mass(a); if (xi > 0) excited++; if (xi > maxLevel) maxLevel = xi; px += m * a.vx; py += m * a.vy; }
+        let pe = 0; for (const p of sim.photons) { pe += p.E; px += p.px || 0; py += p.py || 0; }
+        return {
+          atoms: sim.atoms.length,
+          bonds: sim.bondCount | 0,
+          chemilum: sim.chemilumCount | 0,         // 화학발광(bondE→들뜸) 횟수
+          photons: sim.photons.length,              // 결합 에너지서 나온 광자
+          photonE: +pe.toFixed(3),
+          bondE: +(sim.bondE || 0).toFixed(3),      // 잔여 결합 E(빛으로 빠져나가 줄어듦)
+          excited,                                   // 들뜬 원자(전부 결합 원자 — 선택성)
+          totP: +Math.hypot(px, py).toExponential(2),
+        };
+      },
+
+      // 가설: ① 화학발광 발생(bondE→들뜸 전환>0) ② 결합 에너지가 빛이 됨(초기 x=0 전부 → 광자 방출>0) ③ 빛나는 건 결합한 원자만(비결합 들뜸=0). 총 E·운동량 보존은 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const bonded = new Set(); for (const e of (sim.bonds || [])) { bonded.add(e[0]); bonded.add(e[1]); }
+        let nonBondedExcited = 0;
+        for (let i = 0; i < sim.atoms.length; i++) if ((sim.atoms[i].x | 0) > 0 && !bonded.has(i)) nonBondedExcited++;
+        const chem = sim.chemilumCount | 0, photons = sim.photons.length;
+        return [
+          { name: '화학발광 발생(bondE→들뜸 전환 count>0)', pass: chem > 0, value: chem },
+          { name: '결합 에너지가 빛이 됨(초기 x=0 → 광자 방출>0)', pass: photons > 0, value: photons },
+          { name: '빛나는 건 결합한 원자만(비결합 들뜸=0)', pass: chem > 0 && nonBondedExcited === 0, value: nonBondedExcited },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
