@@ -13,6 +13,20 @@
   // 수소·헬륨·탄소·산소 = 양성자 수의 위치.
   const ELEMENTS = [{ Z: 1, N: 0 }, { Z: 2, N: 2 }, { Z: 6, N: 6 }, { Z: 8, N: 8 }];
 
+  // 분자 측정 = 결합 간선의 *연결 성분*(union-find). author 한 객체 아님 — 순수 측정(SPINE §3 요건1).
+  //   count = 크기≥2 성분 수(=분자 수) · maxSize = 최대 성분 원자 수.
+  function molecules(sim) {
+    const n = sim.atoms.length, parent = new Array(n);
+    for (let i = 0; i < n; i++) parent[i] = i;
+    const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+    for (const e of (sim.bonds || [])) { const ri = find(e[0]), rj = find(e[1]); if (ri !== rj) parent[ri] = rj; }
+    const size = {};
+    for (let i = 0; i < n; i++) { const r = find(i); size[r] = (size[r] || 0) + 1; }
+    let count = 0, maxSize = 1;
+    for (const r in size) { if (size[r] >= 2) count++; if (size[r] > maxSize) maxSize = size[r]; }
+    return { count, maxSize };
+  }
+
   const SCENES = {
     'step-0001': {
       id: 'step-0001',
@@ -525,6 +539,182 @@
           { name: '원자가 서로 충돌함(탄성 충돌 count>0)', pass: collisions > 0, value: collisions },
           { name: '운동량이 퍼짐(정지 원자가 충돌로 움직임>0)', pass: movedFromRest > 0, value: movedFromRest },
           { name: '총 KE 보존(탄성 — E 보존은 ②기둥)', pass: ke > 0, value: +ke.toFixed(4) },
+        ];
+      },
+    },
+
+    'step-0010': {
+      id: 'step-0010',
+      title: '원자가 서로 들러붙는다 (이온결합 — 첫 비탄성 포획, 분자의 씨앗)',
+      desc: 'step-0009 충돌은 탄성(튕김)뿐 — 원자는 만나도 흩어졌다. bond 법칙(노브 kBond)으로 ' +
+            '느리게 다가오는 *반대 전하* 쌍(q_a·q_b<0, 쿨롱 끌림)이 *비탄성 포획*된다: 상대 운동을 완전 흡수해 ' +
+            '질량중심 속도로 잠기고(같이 움직임) 결합으로 묶인다. 흡수한 상대 KE 는 *결합 E reservoir*(sim.bondE)로 park — ' +
+            '총 운동량·총 E 정확 보존(닫힌 장부, step-0007 광자 binning 동형). 분자는 author 가 아니라 *결합 간선의 연결 성분*으로 측정(SPINE §3 요건1). ' +
+            '같은 전하/중성·빠른 쌍은 결합 안 하고 collide 로 탄성 튕김 — 선택성·온도 의존이 창발(author `if(isMolecule)` 0). ' +
+            '게이트라서 노브를 끄면 step-0009(과 그 이전) 비트 동일(회귀 0).',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // 작고 조밀 → 느린 반대전하 접촉 잦음
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;                      // 절반 양이온(e=Z−1, q=+1)·절반 음이온(e=Z+1, q=−1)
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,  // 느린 속도 → 다수가 포획 임계(bondVmax) 안
+          });
+        }
+        // bond(포획)+collide(탄성) 둘 다 켜 — 차가운 반대전하는 묶이고, 같은전하/빠른 쌍은 튕긴다(선택성 창발).
+        return { W, H, atoms, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kCollide: 1, collideR: 3 } };
+      },
+
+      watch(sim, K) {
+        const m = molecules(sim);
+        let px = 0, py = 0, ke = 0;
+        for (const a of sim.atoms) { const mm = K.mass(a); px += mm * a.vx; py += mm * a.vy; ke += 0.5 * mm * (a.vx * a.vx + a.vy * a.vy); }
+        return {
+          atoms: sim.atoms.length,
+          bonds: sim.bondCount | 0,                  // 누적 결합(포획) 횟수
+          molecules: m.count,                         // 분자 수(크기≥2 연결 성분 — 측정, author 0)
+          maxMolecule: m.maxSize,                     // 최대 분자 크기(원자 수)
+          collisions: sim.collideCount | 0,           // 탄성 충돌(같은 전하/빠른 쌍)
+          bondE: +(sim.bondE || 0).toFixed(4),        // 결합 E reservoir(흡수한 상대 KE)
+          totP: +Math.hypot(px, py).toExponential(2), // 총 운동량(보존)
+          KE: +ke.toFixed(4),
+        };
+      },
+
+      // 가설: ① 결합이 형성됨(비탄성 포획 count>0) ② 분자가 창발(연결 성분 크기≥2 측정>0) ③ 결합은 반대 전하 쌍만(선택성 창발, 전부). 총 E·운동량 보존은 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, m = molecules(sim), bonds = sim.bonds || [];
+        let oppositeOK = 0;
+        for (const e of bonds) {
+          const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+          if ((a.Z - a.e) * (b.Z - b.e) < 0) oppositeOK++;     // 반대 전하 쌍이어야(선택성 창발 검증)
+        }
+        return [
+          { name: '결합이 형성됨(비탄성 포획 count>0)', pass: (sim.bondCount | 0) > 0, value: sim.bondCount | 0 },
+          { name: '분자가 창발(연결 성분 크기≥2 측정>0)', pass: m.count > 0, value: m.count },
+          { name: '결합은 반대 전하 쌍만(선택성 창발, 전부)', pass: bonds.length > 0 && oppositeOK === bonds.length, value: oppositeOK },
+        ];
+      },
+    },
+
+    'step-0011': {
+      id: 'step-0011',
+      title: '결합 에너지가 빛이 된다 (화학발광 — bondE → 들뜸 → 광자)',
+      desc: 'step-0010 bond 는 흡수한 상대 KE 를 결합 E reservoir(sim.bondE)에 *모으기만* 했다(escape 가 광자를 바스에 모으듯). ' +
+            'chemilum 법칙(노브 kChemilum)이 그 결합 에너지를 *결합한 원자의 전자 들뜸(x)*으로 되돌린다 — 들뜬 원자는 emit(0002)이 광자로 낸다. ' +
+            '사슬: bond(상대 KE→bondE) → chemilum(bondE→들뜸) → emit(들뜸→광자 λ=hc/ΔE). *결합 에너지가 빛으로 새어나온다*(화학발광 토이, render 신호). ' +
+            '모든 원자를 x=0(바닥)으로 시작 — 빛의 유일한 출처가 결합 에너지임을 증명. 결합 안 한 원자는 빛나지 않는다(선택성 창발). ' +
+            '운동량-자유 준위 거래라 E 정확 보존(bondE↓ = 들뜸E↑ = 광자E↑). 게이트라서 노브를 끄면 step-0010 비트 동일(회귀 0).',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0010 과 같은 조밀 무대(결합 형성)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;                      // 절반 양이온·절반 음이온(반대전하 결합)
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,  // 바닥 상태 — 빛은 오직 결합 E 에서
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // bond(결합·bondE 적립) → chemilum(bondE→들뜸) → emit·recoil·prop(들뜸→광자) 사슬을 켠다. collide 공존.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3 } };
+      },
+
+      watch(sim, K) {
+        const bonded = new Set(); for (const e of (sim.bonds || [])) { bonded.add(e[0]); bonded.add(e[1]); }
+        let excited = 0, maxLevel = 0, px = 0, py = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0, m = K.mass(a); if (xi > 0) excited++; if (xi > maxLevel) maxLevel = xi; px += m * a.vx; py += m * a.vy; }
+        let pe = 0; for (const p of sim.photons) { pe += p.E; px += p.px || 0; py += p.py || 0; }
+        return {
+          atoms: sim.atoms.length,
+          bonds: sim.bondCount | 0,
+          chemilum: sim.chemilumCount | 0,         // 화학발광(bondE→들뜸) 횟수
+          photons: sim.photons.length,              // 결합 에너지서 나온 광자
+          photonE: +pe.toFixed(3),
+          bondE: +(sim.bondE || 0).toFixed(3),      // 잔여 결합 E(빛으로 빠져나가 줄어듦)
+          excited,                                   // 들뜬 원자(전부 결합 원자 — 선택성)
+          totP: +Math.hypot(px, py).toExponential(2),
+        };
+      },
+
+      // 가설: ① 화학발광 발생(bondE→들뜸 전환>0) ② 결합 에너지가 빛이 됨(초기 x=0 전부 → 광자 방출>0) ③ 빛나는 건 결합한 원자만(비결합 들뜸=0). 총 E·운동량 보존은 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const bonded = new Set(); for (const e of (sim.bonds || [])) { bonded.add(e[0]); bonded.add(e[1]); }
+        let nonBondedExcited = 0;
+        for (let i = 0; i < sim.atoms.length; i++) if ((sim.atoms[i].x | 0) > 0 && !bonded.has(i)) nonBondedExcited++;
+        const chem = sim.chemilumCount | 0, photons = sim.photons.length;
+        return [
+          { name: '화학발광 발생(bondE→들뜸 전환 count>0)', pass: chem > 0, value: chem },
+          { name: '결합 에너지가 빛이 됨(초기 x=0 → 광자 방출>0)', pass: photons > 0, value: photons },
+          { name: '빛나는 건 결합한 원자만(비결합 들뜸=0)', pass: chem > 0 && nonBondedExcited === 0, value: nonBondedExcited },
+        ];
+      },
+    },
+
+    'step-0012': {
+      id: 'step-0012',
+      title: '결합에 원자가 한계가 생긴다 (과응집 → 이량체, 화학량론의 씨앗)',
+      desc: 'step-0010 bond 는 한계 없이 묶여 거대 덩어리(≈26원자 blob)로 과응집했다(STATE 한계). bond 게이트 `bondValence` 로 ' +
+            '원자당 결합 수를 *원자가 = |Z−e|*(전하 다발서 창발, author 0)로 제한한다 — ±1 이온은 cap 1 → *이량체*(2원자)만. ' +
+            '거대 blob 이 사라지고 분자가 *정해진 크기*(화학량론)를 갖는다. 게이트라서 끄면 step-0010/0011 비트 동일(회귀 0, step-0006 scatterAngular 정밀화와 동형). ' +
+            '포화된 이온은 더는 결합 안 하고 collide 로 탄성 튕김(닫힌 장부 유지). 원자가는 *원소 타입이 아니라 전하 다발*에서 나온다.',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // step-0010 과 동일 무대 — 한계 유무만 대조
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const cation = (i % 2) === 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: cation ? el.Z - 1 : el.Z + 1, x: 0,   // ±1 이온 → 원자가 cap 1
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        // bond + bondValence(원자가 한계) + collide. step-0010 대비 추가는 bondValence 한 노브뿐.
+        return { W, H, atoms, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, bondValence: 1, kCollide: 1, collideR: 3 } };
+      },
+
+      watch(sim, K) {
+        const m = molecules(sim);
+        const deg = new Array(sim.atoms.length).fill(0);
+        for (const e of (sim.bonds || [])) { deg[e[0]]++; deg[e[1]]++; }
+        let maxDeg = 0; for (const d of deg) if (d > maxDeg) maxDeg = d;
+        let px = 0, py = 0; for (const a of sim.atoms) { const mm = K.mass(a); px += mm * a.vx; py += mm * a.vy; }
+        return {
+          atoms: sim.atoms.length,
+          bonds: sim.bondCount | 0,
+          molecules: m.count,                          // 분자 수(연결 성분 크기≥2)
+          maxMolecule: m.maxSize,                       // 최대 분자 크기(한계로 2 이하)
+          maxDegree: maxDeg,                            // 최대 결합 차수(원자가 ≤ |전하| = 1)
+          collisions: sim.collideCount | 0,
+          bondE: +(sim.bondE || 0).toFixed(3),
+          totP: +Math.hypot(px, py).toExponential(2),
+        };
+      },
+
+      // 가설: ① 원자가 한계가 분자 크기 제한(최대 분자 ≤2 — cap 1 이량체) ② 어느 원자도 원자가 초과 안 함(최대 차수 ≤1) ③ 한계가 결합을 죽이진 않음(분자 여전히 형성>0). 총 E·운동량 보존은 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, m = molecules(sim);
+        const deg = new Array(sim.atoms.length).fill(0);
+        for (const e of (sim.bonds || [])) { deg[e[0]]++; deg[e[1]]++; }
+        let maxDeg = 0, overCap = 0;
+        for (let i = 0; i < sim.atoms.length; i++) {
+          if (deg[i] > maxDeg) maxDeg = deg[i];
+          if (deg[i] > Math.abs(sim.atoms[i].Z - sim.atoms[i].e)) overCap++;   // 원자가 초과 원자(있으면 버그)
+        }
+        return [
+          { name: '원자가 한계가 분자 크기 제한(최대 분자 ≤2, 이량체)', pass: m.maxSize <= 2, value: m.maxSize },
+          { name: '어느 원자도 원자가 초과 안 함(차수 ≤ |전하|, 위반 0)', pass: overCap === 0, value: maxDeg },
+          { name: '한계가 결합을 죽이진 않음(분자 여전히 형성>0)', pass: m.count > 0, value: m.count },
         ];
       },
     },

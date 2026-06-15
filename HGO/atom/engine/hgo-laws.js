@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -265,9 +265,93 @@
     }
   }
 
+  // 이온결합 = 첫 *비탄성* 원자-원자 상호작용 (step-0010, *분자의 씨앗*). step-0009 충돌은 탄성(튕김)뿐 —
+  // 원자는 만나도 다시 흩어졌다. 결합은 *느리게 다가오는 반대 전하* 쌍(q_a·q_b<0, 쿨롱 끌림)을 *포획*한다:
+  // 상대 운동을 완전 흡수(perfectly inelastic)해 둘을 질량중심 속도로 잠그고(va=vb=vcom → 같이 움직임) 결합으로 묶는다.
+  //   닫힌 장부: 흡수된 상대 KE(½μ|v_a−v_b|²)는 사라지지 않고 *결합 E reservoir* sim.bondE 로 park —
+  //     총 운동량(vcom 가중 → 정확)·총 E(KE 감소분 = bondE 증가분) 정확 보존. step-0007 광자→바스 binning 과 동형 회계.
+  //   분자 = author 한 객체가 아니라 *결합 간선의 연결 성분*으로 측정(SPINE §3 요건1) — 법칙은 간선만 기록, 분자는 장면이 센다.
+  //   선택성(창발): 끌림은 *반대 전하만*. 같은 전하/중성은 결합 안 하고 collide 로 탄성 튕김(author `if(isMolecule)` 0).
+  //     게다가 빠른 쌍(|v_rel|>bondVmax)은 포획 못 하고 튕김 → *온도 의존 결합*(차가운 이온만 묶임)이 식에서 창발.
+  //   국소: *그 두 원자*만으로 판정(전역 조율자 0, min-image). 결정론: 위치·속도·전하 결정 → rng 불필요.
+  //   collide 와의 정합: bond 가 먼저 돌아 상대속도를 0 으로 잠그면 뒤따르는 collide 는 vn≤0 으로 그 쌍을 건너뜀(중복 0).
+  //   ⊕ step-0012 게이트 `bondValence`(=0 → 무제한·이전 비트 동일): 원자당 결합 수를 *원자가 = |Z−e|*(전하 다발서
+  //     창발, author 0)로 제한 → ±1 이온은 cap 1 → 이량체만(과응집 blob 해소). step-0006 scatterAngular 정밀화와 동형 게이트.
+  function bond(sim) {
+    const k = sim.knobs.kBond;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 항 꺼짐 → 직전 비트)
+    const R = sim.knobs.bondR || 3, R2 = R * R;
+    const vmax = sim.knobs.bondVmax || 1.5, vmax2 = vmax * vmax;  // 이 상대속력 미만에서만 포획
+    if (!sim.bonds) { sim.bonds = []; sim.bondKeys = new Set(); }  // 결합 간선 장부(미존재→지연 초기화)
+    const atoms = sim.atoms, n = atoms.length;
+    const vcap = sim.knobs.bondValence || 0;             // 원자가 한계 게이트(0=무제한 → step-0010/0011 비트 동일)
+    let deg = null;
+    if (vcap) { deg = new Array(n).fill(0); for (const e of sim.bonds) { deg[e[0]]++; deg[e[1]]++; } }  // 현 결합 차수(이전 tick 누적)
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i];
+      for (let j = i + 1; j < n; j++) {
+        const key = i * n + j;
+        if (sim.bondKeys.has(key)) continue;                 // 이미 결합 — 재포획·이중 흡수 금지
+        const b = atoms[j];
+        if ((a.Z - a.e) * (b.Z - b.e) >= 0) continue;        // 반대 전하만 끌림(같은 전하/중성 → collide 탄성)
+        if (vcap && (deg[i] >= Math.abs(a.Z - a.e) || deg[j] >= Math.abs(b.Z - b.e))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        const d2 = dx * dx + dy * dy;
+        if (d2 > R2 || d2 === 0) continue;                   // 접촉 반경 밖(또는 완전 겹침 가드)
+        const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;   // 결합 법선(a→b 단위 벡터)
+        const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+        const vn = dvx * nx + dvy * ny;                      // 상대속도 법선 성분(>0 = 다가옴)
+        if (vn <= 0) continue;                               // 멀어지는/접선 → 포획 안 함
+        if (dvx * dvx + dvy * dvy > vmax2) continue;         // 너무 빠르면 포획 못 함(탄성 튕김은 collide 몫)
+        const ma = K.mass(a), mb = K.mass(b), M = ma + mb;
+        const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;  // 질량중심 속도
+        // 흡수한 상대 KE = KE_before − KE_after(질량중심) ≥0 → 결합 E reservoir 로 park (총 E·운동량 보존)
+        const keBefore = 0.5 * ma * (a.vx * a.vx + a.vy * a.vy) + 0.5 * mb * (b.vx * b.vx + b.vy * b.vy);
+        const keAfter = 0.5 * M * (vcx * vcx + vcy * vcy);
+        a.vx = vcx; a.vy = vcy; b.vx = vcx; b.vy = vcy;      // 질량중심 속도로 잠금 → 같이 움직임(공간 결합 유지)
+        sim.bondE = (sim.bondE || 0) + (keBefore - keAfter); // 흡수 KE park(닫힌 장부)
+        sim.bonds.push([i, j]); sim.bondKeys.add(key);
+        if (vcap) { deg[i]++; deg[j]++; }                   // 차수 갱신(같은 tick 내 후속 쌍이 포화 보게)
+        sim.bondCount = (sim.bondCount | 0) + 1;             // 진단 카운터(결합 간선은 hash 참여)
+      }
+    }
+  }
+
+  // 화학발광 = 결합 에너지가 빛이 된다 (step-0011, *bondE reservoir 의 방출*). step-0010 bond 는 흡수한 상대
+  // KE 를 sim.bondE 에 *모으기만* 했다(escape 가 광자를 바스에 모으기만 한 것과 동형). chemilum 법칙(노브 kChemilum)이
+  // 그 결합 E 를 *결합한 원자의 전자 들뜸(x)* 으로 되돌린다 — 들뜬 원자는 emit(0002)이 광자로 낸다.
+  //   ⇒ 사슬: bond(상대 KE→bondE) → chemilum(bondE→들뜸) → emit(들뜸→광자 λ=hc/ΔE). *결합 에너지가 빛으로 새어나온다*(화학발광 토이, render 신호).
+  //   왜 들뜸(운동량-자유)인가: bondE 는 스칼라 reservoir(운동량 0). 한 준위 비용 G 만큼 bondE 에서 빼 원자 들뜸에
+  //     실으면 운동량 불변·E 정확 보존(reheat 의 바스→들뜸과 동형 — 단 *출처가 화학 결합*·*대상이 결합 원자*).
+  //   선택성·국소: 결합에 참여한 원자만 빛난다(그 결합 reservoir 가 그 원자들의 것). 비결합 원자 0 — 결합 간선으로 판정(전역 조율자 0).
+  //   닫힌 장부: sim.bondE ↓ G = 원자 들뜸 E ↑ G (정확 쌍 거래), 운동량 불변 ⇒ Q·B·L·E·px·py 보존. 노브=0 → 회귀 0.
+  function chemilum(sim) {
+    const k = sim.knobs.kChemilum;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (화학발광 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 의사난수 없으면 확률 판정 불가(Math.random 금지 — 결정론)
+    if (!sim.bondE || sim.bondE <= 0) return;            // 줄 결합 에너지 없음
+    if (!sim.bonds || !sim.bonds.length) return;         // 결합(빛날 원자) 없음
+    const bonded = new Set();
+    for (const e of sim.bonds) { bonded.add(e[0]); bonded.add(e[1]); }  // 결합 참여 원자 집합
+    const xMax = sim.knobs.chemilumXMax || 6;            // 준위 상한(이온화 영역 밖)
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      if (!bonded.has(i)) continue;                      // *결합한 원자만* 화학발광(선택성·국소)
+      if (rng() >= k) continue;                          // 확률 kChemilum 발광 시도
+      const a = atoms[i], x = a.x | 0;
+      if (x >= xMax) continue;                            // 고준위 포화
+      const G = K.levelE(x + 1) - K.levelE(x);           // 한 준위 ↑ 데우는 비용
+      if (G > sim.bondE) continue;                        // 결합 E 부족
+      sim.bondE -= G;                                     // 결합 reservoir 차감(빛으로 새어나감)
+      a.x = x + 1;                                        // 결합 원자 한 준위 재여기(이후 emit 가 광자로)
+      sim.chemilumCount = (sim.chemilumCount | 0) + 1;    // 화학발광 횟수(진단·hash 미참여)
+    }
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, collide };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'collide'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {
