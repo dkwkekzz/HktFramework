@@ -35,7 +35,7 @@ function hypothesisCtx(r) {
     if (!(a.rx >= 0 && a.rx < W && a.ry >= 0 && a.ry < H)) bounded = false;
     maxC = Math.max(maxC, a.rx, a.ry);
   }
-  return { meanDisp: disp / r.sim.atoms.length, allBounded: bounded, maxCoord: maxC, hashChanged: r.hashBefore !== r.hashAfter };
+  return { meanDisp: disp / r.sim.atoms.length, allBounded: bounded, maxCoord: maxC, hashChanged: r.hashBefore !== r.hashAfter, sim: r.sim };
 }
 
 function main() {
