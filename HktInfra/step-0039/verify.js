@@ -1,10 +1,11 @@
-// HktInfra step-0039 — 헤드리스 검증 (정리 step: topology.js 박스-부품 분할 — 기능 추가 0·바이트 동일)
+// HktInfra step-0039 — 헤드리스 검증 (버스 failover replay 버퍼 *유계화* — busWindow 슬라이딩 K 창)
 // 사용: node step-0039/verify.js <mode> [seed]
-//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 은 *기능 0* — 새 가설 없음.
-//   정리 내용: topology.js 가 31KB>30KB 박스 임계를 넘겨 *토폴로지 구성*(routeFilters·buildTopology·makeActor)을 topo-build.js 로 분리(0030/0035 분할의 판).
-//   분할 투명성 증명: ⒜ `reg`(키트) — NET 이 직전 step(0037)과 *비트 동일*(net.log+상태+inv/chat/bus/rank). 분할은 내부 파일 구조만 = export·동작 불변.
-//                     ⒝ `busreq`(0037 에서 carried) — 분할 후에도 요청 경로 producer replay 가 그대로 동작(mint 손실 0)함을 행위로 재확인(split 투명성).
-// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 분할 투명성 행위 모드(busreq·기능 무변경)만 유지.
+//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 가설 = `buswin`.
+//   더한 한 조각: 0036 outBuffer(결과)·0037 inBuffer(요청) 의 *무계 성장* 을 0032 wfWindow 의 버스 판으로 유계화 —
+//                 busWindow=K 면 두 replay 버퍼가 *최근 K 개*로 슬라이딩(메모리 O(K) 상한). K≥gap 이면 무손실 유지·K<gap 이면 손실 재현.
+//   검증: ⒜ `reg`(키트) — busWindow=0(기본)이면 NET 이 직전 step(0038)과 *비트 동일*(replay 버퍼 미사용·OFF 경로).
+//         ⒝ `buswin`(이 step·가설) — unbnd(K=0·무계) vs bnd(K≥gap·유계 무손실) vs tiny(K<gap·유계 손실) 비교로 ① 버퍼 유계 ② K≥gap 무손실 ③ 바운드 load-bearing 증명.
+// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 이번 step 가설 모드(buswin)만 더한다.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../step-0038/net-core.js');   // reg 대조용(직전 step)
@@ -20,51 +21,59 @@ const JLOSS = 0.3;       // 저널 홉 손실율(0023~) — inventory→persist 
 
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-// ── carried 모드: busreq — 0037 요청 경로 producer replay 가설(분할 후에도 그대로 동작 = split 투명성 행위 체크) ──
-const { run, itemConserved, ledgerConsistent } = NET;
+// ── 이 step 의 가설 모드: buswin — 버스 failover replay 버퍼(0036 outBuffer·0037 inBuffer)를 유계 K 창으로 슬라이딩 ──
+const { run, itemConserved, ledgerConsistent, itemDesync } = NET;
 const { check, pad } = kit.helpers;
 
-// 가방·채팅·버스·audit·ranking 가 도는 토폴로지(영속/quorum 불필요 — 버스 라우팅만 자극). 0036 busfail 과 동일 베이스.
+// 가방·채팅·버스·audit·ranking 가 도는 토폴로지(영속/quorum 불필요 — 버스 라우팅만 자극). 0036/0037 busfail 과 동일 베이스.
 const BUS_BASE = (seed) => ({ seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, inventory: true, itemOps: 10, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true });
-// svc.item 요청 스트림은 활성 초반에 몰린다(사전 측정). crash→재협상 창이 활성 구간을 가르게 잡아 *요청* gap 드롭을 강제.
+// svc.item 요청 스트림은 활성 초반에 몰린다. crash@12→재협상@14 가 활성 구간을 갈라 gap 에 18개 요청/결과가 떨어진다(사전 측정·아래 K 임계의 근거).
 const CRASH_AT = 12, RENEG_AT = 14;
+const K_ADQ = 24;   // 유계-충분: K≥gap(18) — 두 버퍼가 24 로 묶이되 gap 을 덮어 무손실(unbnd 60 의 40%).
+const K_TINY = 8;   // 유계-부족: K<gap(18) — gap 의 가장 오래된 요청/결과가 evict → 손실 재현(바운드가 load-bearing 임을 보임).
 
-function busreq(seeds) {
-  console.log('== busreq: *가설* — 버스 crash gap 에 떨군 svc.item *요청*을 게이트웨이(producer)가 *재발행*하면 가방에 도달해 base 대비 mint 손실 0 ==');
-  console.log(`  bus.crash(@${CRASH_AT}) → 재협상(@${RENEG_AT}). recover(재구독만·gap 요청 손실=대조군) vs resendReq(재구독+요청 재발행·busResendReq ON·무손실) 비교.`);
-  console.log('seed   | minted base/recov/resendReq | mint손실 recov | 복구 resendReq | inResends | 원장valid | 판정');
+function buswin(seeds) {
+  console.log('== buswin: *가설* — 0036/0037 producer replay 버퍼를 *유계 K 창*(busWindow)으로 슬라이딩: K≥gap 이면 메모리 유계 + 무손실, K<gap 이면 손실 재현(0032 wfWindow 의 버스 판) ==');
+  console.log(`  bus.crash(@${CRASH_AT})→재협상(@${RENEG_AT}). 모두 busResend+busResendReq ON(전 replay). unbnd(K=0·무계) vs bnd(K=${K_ADQ}≥gap) vs tiny(K=${K_TINY}<gap) 비교.`);
+  console.log('seed   | minted base/unbnd/bnd/tiny | buf unbnd/bnd/tiny | desync unbnd/bnd/tiny | 판정');
   for (const seed of seeds) {
-    const base     = run(BUS_BASE(seed));   // crash 0 — 전 요청 도달
-    const recov    = run({ ...BUS_BASE(seed), busRestart: { at: CRASH_AT, renegAt: RENEG_AT } });                        // crash + 재구독만 = 요청 gap 손실(대조군)
-    const resendReq = run({ ...BUS_BASE(seed), busRestart: { at: CRASH_AT, renegAt: RENEG_AT }, busResendReq: true });   // crash + 재구독 + 요청 재발행(이 step) = 무손실
+    const base  = run(BUS_BASE(seed));   // crash 0 — 전 요청/결과 도달(무손실 기준)
+    const R = (K) => run({ ...BUS_BASE(seed), busRestart: { at: CRASH_AT, renegAt: RENEG_AT }, busResend: true, busResendReq: true, busWindow: K });
+    const unbnd = R(0), bnd = R(K_ADQ), tiny = R(K_TINY);
 
-    const mBase = base.inventory.minted, mRecov = recov.inventory.minted, mResend = resendReq.inventory.minted;
-    const inResends = resendReq.gateway.inResends;
+    const mB = base.inventory.minted;
+    const mU = unbnd.inventory.minted, mA = bnd.inventory.minted, mT = tiny.inventory.minted;
+    // 두 replay 버퍼(게이트웨이 inBuffer·가방 outBuffer) 의 최종 길이 — 유계화의 직접 증거(슬라이딩 후 ≤K).
+    const bufU = Math.max(unbnd.gateway.inBuffer.length, unbnd.inventory.outBuffer.length);
+    const bufA = Math.max(bnd.gateway.inBuffer.length, bnd.inventory.outBuffer.length);
+    const bufT = Math.max(tiny.gateway.inBuffer.length, tiny.inventory.outBuffer.length);
+    const dU = itemDesync(unbnd), dA = itemDesync(bnd), dT = itemDesync(tiny);
 
-    // 이 step 의 핵심: recov(재구독만)는 gap 의 떨군 *요청* 때문에 그 pickup 이 mint 되지 않음 → 원장이 base 보다 작다(mint 손실).
-    //   resendReq(busResendReq ON)는 게이트웨이가 보관 요청을 재발행 → gap 요청이 가방에 도달해 mint → minted 가 base 와 *정확히* 일치.
-    //   *정확히* 가 핵심: gap 전 도달분도 재발행되므로 dedup 없으면 base 초과(이중 mint) — minted==base 가 dedup 작동(멱등)을 동시 증명.
-    const lostWithoutResend = mRecov < mBase;          // 대조군: 재구독만으론 요청 gap 손실(mint 누락)
-    const losslessWithResend = mResend === mBase;      // 가설: 요청 재발행으로 mint 손실 0 *그리고* 이중 mint 0(dedup)
-    const resendHappened = inResends > 0;              // 재발행이 실제 일어남(producer replay 발동)
-    // 원장 무손상 — 요청 재발행/dedup 이 원장 보존(size==minted)·정합(byOwner≡ledger)을 깨지 않는다(재발행이 dupe 를 안 만든다).
-    const ledgerValid = itemConserved(resendReq) && ledgerConsistent(resendReq) && itemConserved(recov) && ledgerConsistent(recov);
+    // ① 유계: K>0 면 두 버퍼가 K 로 묶인다(unbnd 는 K=0 라 활성 op 수만큼 무계 성장 → bufU > K_ADQ).
+    const bounded = bufA <= K_ADQ && bufT <= K_TINY && bufU > K_ADQ;
+    // ② K≥gap 무손실 투명: bnd 가 unbnd(무계)와 *비트적으로 같은 결과* — minted==base 이고 desync 0(유계화가 동작에 무영향).
+    const adequateLossless = mU === mB && mA === mB && dU === 0 && dA === 0;
+    // ③ 바운드 load-bearing: K<gap 이면 가장 오래된 gap 요청/결과가 evict → 손실 재현(minted<base 또는 desync>0). 임의 K 가 아니라 *gap 을 덮어야* 무손실.
+    const tinyLossy = mT < mB || dT > 0;
+    // 원장 무손상 — 유계 슬라이딩이 원장 보존(size==minted)·정합(byOwner≡ledger)을 깨지 않는다(전 변형이 dupe 0).
+    const ledgerValid = itemConserved(bnd) && ledgerConsistent(bnd) && itemConserved(tiny) && ledgerConsistent(tiny) && itemConserved(unbnd) && ledgerConsistent(unbnd);
 
     const ok =
-      check(lostWithoutResend, `seed ${seed}: 대조군(재구독만) mint 손실 안 보임(base ${mBase}·recov ${mRecov})`) &&
-      check(losslessWithResend, `seed ${seed}: 요청 재발행 후 minted≠base(이중 mint 또는 잔존 손실·base ${mBase}·resendReq ${mResend})`) &&
-      check(resendHappened, `seed ${seed}: 요청 재발행 0(producer replay 미발동·inResends ${inResends})`) &&
-      check(ledgerValid, `seed ${seed}: 요청 재발행/dedup 이 원장 보존/정합 깨뜨림(손상)`);
-    console.log(`${pad(seed,6)} | ${pad(mBase+'/'+mRecov+'/'+mResend,27)} | ${pad(mBase-mRecov,14)} | ${pad(mResend-mRecov,14)} | ${pad(inResends,9)} | ${(ledgerValid?'예':'아니오').padEnd(8)} | ${ok?'OK':'FAIL'}`);
+      check(bounded, `seed ${seed}: 버퍼 유계 안 됨(bnd ${bufA}≤${K_ADQ}? tiny ${bufT}≤${K_TINY}? unbnd ${bufU}>${K_ADQ}?)`) &&
+      check(adequateLossless, `seed ${seed}: K≥gap 무손실/투명 깨짐(base ${mB}·unbnd ${mU}·bnd ${mA}·desync ${dU}/${dA})`) &&
+      check(tinyLossy, `seed ${seed}: K<gap 인데 손실 안 보임(바운드 비-load-bearing? tiny minted ${mT}·desync ${dT})`) &&
+      check(ledgerValid, `seed ${seed}: 유계 슬라이딩이 원장 보존/정합 깨뜨림(손상)`);
+    console.log(`${pad(seed,6)} | ${pad(mB+'/'+mU+'/'+mA+'/'+mT,25)} | ${pad(bufU+'/'+bufA+'/'+bufT,18)} | ${pad(dU+'/'+dA+'/'+dT,21)} | ${ok?'OK':'FAIL'}`);
   }
-  console.log(`  → 0036 거울: 버스는 *살아 돌아온* 새 박스(영속 0)라 crash gap 에 떨군 *요청*도 못 메운다 — 요청의 진실 원천(producer=게이트웨이)이 보관했다 재발행해야 한다.`);
-  console.log(`    recover(재구독만)는 routing 만 복구 → gap 의 떨군 *요청*(가방 미도달 → mint 안 됨)은 영구 손실(원장 < base = mint 손실·양측 모름이라 desync 0·0036 §9 = 대조군).`);
-  console.log(`    resendReq(busResendReq ON)는 0036 결과 producer replay 의 *요청 판* — 게이트웨이가 svc.item 요청을 재발행 → gap 요청이 가방 도달·mint(원장이 base 따라잡음). reqId dedup 으로 gap 전 도달분 재발행은 멱등(이중 mint 0).`);
-  console.log(`    정직한 한계: inBuffer 무계(유계 슬라이딩 창은 후속 — 0036 outBuffer 와 동일). *give 요청* 재발행은 result-ahead/클라 재-give 와 얽혀(transfers≠base·desync 0 수렴은 유지) 완전 복구는 0025 give-resend 결합 영역. busResendReq OFF = 0036 비트 동일(reg).`);
+  console.log(`  → 0036 outBuffer·0037 inBuffer 는 발신한 *전* 결과/요청을 무계로 쌓았다(장기 가동 시 메모리 무한 성장). failover 가 메우려는 건 gap 구간뿐이라,`);
+  console.log(`    버퍼는 그 창을 덮을 만큼만 있으면 된다 — busWindow=K 로 *최근 K 개*만 보관(미끄러지는 유계 창·0032 wfWindow 의 버스 판) → per-producer 메모리 O(K) 상한.`);
+  console.log(`    bnd(K=${K_ADQ}≥gap 18): 두 버퍼 ≤${K_ADQ}(무계 unbnd 60 의 40%) *그리고* minted==base·desync 0 — 유계화가 동작에 *투명*(gap 요청/결과는 재구독 시점 최근 항목이라 K 안에 남음).`);
+  console.log(`    tiny(K=${K_TINY}<gap 18): 가장 오래된 gap 요청/결과가 evict → minted<base·desync>0(손실 재현) — 바운드가 load-bearing(임의 K 가 아니라 gap 을 덮어야 무손실).`);
+  console.log(`    정직한 한계: gap 크기(18)는 crash↔reneg 창과 요청 분포의 함수 — 운영에선 K 를 *최대 예상 다운타임×발신율* 로 잡아야(적응형 K 는 후속). busWindow=0 = 0038 비트 동일(reg).`);
 }
-kit.MODES['busreq'] = busreq;
-kit.ORDER.splice(1, 0, 'busreq');   // reg 직후(가설 우선 노출)
+kit.MODES['buswin'] = buswin;
+kit.ORDER.splice(1, 0, 'buswin');   // reg 직후(가설 우선 노출)
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

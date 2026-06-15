@@ -1,10 +1,10 @@
-// HktInfra step-0039 — 정리 step: topology.js 박스-부품 분할 (31KB>30KB 박스 트리거 — 기능 추가 0).
-//   topology.js 가 31KB 로 박스 임계(30KB)를 넘겨, *토폴로지 구성*(routeFilters·buildTopology·makeActor)을 topo-build.js 로 분리한다.
-//   topology.js 는 *run 드라이버 + 진입점*(quorumMergeJournals·run·runMulti)으로 남고, build 부품을 require 해 동일 export 를 재노출.
-//   이 net-core 진입점은 부품 목록에 topo-build.js 를 더해 묶을 뿐(export 집합·동작 불변) — 0030 net-core 분할·0035 cluster 분할의 topology 판.
+// HktInfra step-0039 — 버스 failover replay 버퍼 *유계화* (busWindow 슬라이딩 K 창 — 메모리 무계 성장 해소).
+//   0036 outBuffer(가방 결과 replay)·0037 inBuffer(게이트웨이 요청 replay)는 발신한 *전* 결과/요청을 무계로 쌓아 장기 가동 시 메모리 무한 성장.
+//   failover 가 메우려는 건 gap 구간(crash→재구독)뿐이므로, 버퍼는 그 창을 덮을 만큼만 있으면 된다 — busWindow=K 면 두 버퍼를 *최근 K 개*로 슬라이딩(0032 wfWindow 의 버스 판).
+//   닿는 박스: gateway.js(inBuffer 슬라이딩)·svc-inventory.js(outBuffer 슬라이딩)·topo-build.js(busWindow 배선). K=0 = 0038 비트 동일.
 //
-// 척추(SPINE.md) 준수: 기능 0·바이트 동일(verbatim 이동)·export 집합 불변 → reg 0(0037 비트 동일·E2E cluster.js 무수정).
-//   분할은 *내부 파일 구조*만 — 동결 단위는 여전히 step-0039/ 디렉토리 통째. headless·원격 검증: node run.js 가 이 진입점 하나를 require — 검증 경로 무변경.
+// 척추(SPINE.md) 준수: busWindow=0(기본)→0038 비트 동일(reg 0·OFF 경로 휴면)·존 tick 밖 제어 평면(신성한 tick 보존)·headless 원격 검증 무변경.
+//   K≥gap 이면 유계화가 동작에 *투명*(minted==base·desync 0)·K<gap 이면 손실 재현(바운드 load-bearing). 동결 단위는 step-0039/ 디렉토리 통째.
 'use strict';
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;

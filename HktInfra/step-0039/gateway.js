@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -24,9 +24,15 @@ class Gateway {
     //   요청의 producer 는 *게이트웨이*다 — 발행한 요청을 inBuffer 에 보관했다 버스 복구 시 재발행(가방 resendOut 의 게이트웨이 판).
     //   재발행은 멱등 불가능한 pickup 을 이중 mint 할 수 있으므로 요청마다 producer-local reqId(단조)를 실어 가방이 dedup(seenReqs).
     this.busResendReq = busResendReq;     // ON 이면 svc.item 요청을 reqId 태깅·inBuffer 보관·버스 복구 시 재발행. OFF = 0036 비트 동일(태깅 0·보관 0·재발행 0).
-    this.inBuffer = [];                   // 발행한 svc.item 요청 ev(busResendReq 일 때만) — 버스 복구 재발행 소스. 무계(유계 슬라이딩 창은 후속 — 0036 outBuffer 와 동일 한계).
+    this.inBuffer = [];                   // 발행한 svc.item 요청 ev(busResendReq 일 때만) — 버스 복구 재발행 소스. busWindow>0 이면 최근 K 개로 슬라이딩(유계·이 step).
     this.inSeq = 0;                       // producer-local 요청 reqId 카운터(단조·결정론 — 클라 op 순서가 시드 함수). 가방 dedup 키.
     this.inResends = 0;                   // 버스 복구 시 재발행한 요청 수(이 step·계측)
+    // ── 유계 replay 버퍼(이 step·busWindow) — 0036 outBuffer·0037 inBuffer 의 *무계 성장* 해소(0032 wfWindow 의 버스 판). ──
+    //   0037 inBuffer 는 발행한 *전* 요청을 무계로 쌓는다 → 장기 가동 시 메모리 무한 성장(런타임 위험). failover 가 메우려는 건 *gap 구간*(crash→재구독)에
+    //   떨군 요청뿐이므로, 버퍼는 그 창을 덮을 만큼만 있으면 된다. busWindow=K 면 *최근 K 개*만 보관(미끄러지는 유계 창) → per-producer 메모리 O(K) 상한.
+    //   gap 요청은 재구독 시점에 *가장 최근* 항목들이라, K≥|gap 요청| 이면 전부 버퍼에 남아 재발행됨 = 무손실 유지. K<gap 이면 가장 오래된 gap 요청이 evict → 손실 재현(K 가 load-bearing).
+    //   K=0 = 무계(0038 비트 동일). busResendReq OFF 면 inBuffer 미사용 → busWindow 무관(reg 0 불변).
+    this.busWindow = busWindow;           // inBuffer 유계 창 크기 K(이 step). 0 = 무계(0038 동일). >0 = 최근 K 개만(슬라이딩).
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -40,7 +46,10 @@ class Gateway {
   _itemReq(ev) {
     if (this.busResendReq) ev = { ...ev, reqId: this.inSeq++ };   // 요청 dedup 키(producer-local 단조) — 가방이 재발행 중복을 멱등 폐기
     const sent = this._svcSend('svc.item', this.inventory, ev);
-    if (sent && this.busResendReq && this.bus) this.inBuffer.push(ev);   // 버스 복구 시 재발행 — gap 에 떨군 요청을 다시 가방에 도달시킨다
+    if (sent && this.busResendReq && this.bus) {
+      this.inBuffer.push(ev);   // 버스 복구 시 재발행 — gap 에 떨군 요청을 다시 가방에 도달시킨다
+      if (this.busWindow > 0 && this.inBuffer.length > this.busWindow) this.inBuffer.shift();   // 미끄러지는 유계 창(이 step) — 최근 K 개만 보관(K=0 면 미실행 = 0038 동일)
+    }
     return sent;
   }
   // 버스 failover 요청 재발행(이 step·busResendReq) — 버스 복구(재구독) 직후 트리거(가방 resendOut 과 같은 위치).

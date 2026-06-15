@@ -41,8 +41,12 @@ class InventoryService {
     //   producer replay(0023 홉 신뢰·0025 give-resend 의 *버스 판*): 발신한 결과를 보관했다가 버스 복구 시 재발행 → 뒤처진 클라가 따라잡음. 버스는 *살아 돌아온* 새 박스(영속 0)라
     //   gap 의 떨군 메시지를 못 메운다 → 진실 원천(producer=가방)이 재발행해야 한다. 클라 belief 는 Set 갱신이라 *멱등*(재배달 무해) → consumer dedup 불요.
     this.busResend = opts.busResend || false;  // ON 이면 발신 결과를 outBuffer 에 보관·버스 복구 시 재발행. OFF = 0035 비트 동일(보관 0·재발행 0).
-    this.outBuffer = [];          // 발신한 svc.item.out 결과 페이로드(busResend 일 때만) — 버스 복구 재발행 소스. 무계(유계 슬라이딩 창은 후속 — 0017→0018 압축 선례).
+    this.outBuffer = [];          // 발신한 svc.item.out 결과 페이로드(busResend 일 때만) — 버스 복구 재발행 소스. busWindow>0 이면 최근 K 개로 슬라이딩(유계·이 step).
     this.outResends = 0;          // 버스 복구 시 재발행한 결과 수(0036·계측)
+    // ── 유계 replay 버퍼(이 step·busWindow) — outBuffer(0036)·게이트웨이 inBuffer(0037)의 *무계 성장* 해소(0032 wfWindow 의 버스 판). ──
+    //   0036 outBuffer 는 발신한 *전* 결과를 무계로 쌓는다 → 장기 가동 시 메모리 무한 성장. failover 가 메우는 건 gap 구간 결과뿐이므로 그 창을 덮을 만큼만 보관하면 된다.
+    //   busWindow=K 면 *최근 K 개*만(미끄러지는 유계 창) → 메모리 O(K) 상한. gap 결과는 재구독 시점 최근 항목이라 K≥|gap 결과| 이면 무손실 유지. K<gap 이면 손실 재현.
+    this.busWindow = opts.busWindow || 0;  // outBuffer 유계 창 크기 K(이 step). 0 = 무계(0038 동일). >0 = 최근 K 개만(슬라이딩).
     // ── 버스 failover *요청 경로* 무손실의 가방 측(이 step·busResendReq) — 게이트웨이 요청 재발행의 멱등 수신. ──
     //   게이트웨이가 버스 복구 시 보관 요청을 재발행하면 gap *전* 도달한 요청도 함께 온다 → pickup 은 매번 새 itemId 를 mint 하므로
     //   dedup 없이는 이중 mint(dupe). 요청에 실린 producer-local reqId 를 seenReqs 에 기록해 *최초 1회만* 처리(0023 persist recvSeqs 의 요청 홉 판).
@@ -56,7 +60,10 @@ class InventoryService {
   // 결과 발신 단일 경로 — 버스 ON 이면 svc.item.out 토픽 발행(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
   _out(msg) {
     if (this.bus) {
-      if (this.busResend) this.outBuffer.push(msg);   // 버스 failover 결과 재발행 소스 보관(이 step). OFF 면 push 0 → 0035 비트 동일.
+      if (this.busResend) {
+        this.outBuffer.push(msg);   // 버스 failover 결과 재발행 소스 보관(0036). OFF 면 push 0 → 0035 비트 동일.
+        if (this.busWindow > 0 && this.outBuffer.length > this.busWindow) this.outBuffer.shift();   // 미끄러지는 유계 창(이 step) — 최근 K 개만(K=0 면 미실행 = 0038 동일)
+      }
       this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out', ev: msg });
     }
     else this.net.send(this.addr, this.gateway, msg);
