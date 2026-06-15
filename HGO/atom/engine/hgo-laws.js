@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -336,12 +336,21 @@
         if (dvx * dvx + dvy * dvy > vmax2) continue;         // 너무 빠르면 포획 못 함(탄성 튕김은 collide 몫)
         const ma = K.mass(a), mb = K.mass(b), M = ma + mb;
         const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;  // 질량중심 속도
+        // ⊕ step-0021 게이트 bondCoulombic(=0 → 비탄성 vcom 잠금·step-0020 비트 동일): 켜면 *속도잠금·KE흡수를 건너뛰고*
+        //   간선(위상)만 기록한다. 이미 작동 중인 coulomb+repulse(하전 쌍)가 그 결합을 r_eq 로 *유지* → 결합쌍이 r_eq 주위로 진동
+        //   (위상→기하 완성: bond 가 거리까지 잠그던 "괴이함"을 연속력 평형으로 대체). 포획 시 속도 불변·bondE 불변 ⇒ *에너지 연속*
+        //   (불연속 0·새 PE 항 불필요 — 쿨롱+코어 PE 는 이미 ledger). 단 하전(이온) 결합에만 유효 — 중성 공유결합은 유지력 없음(후속).
+        const coulombic = sim.knobs.bondCoulombic || 0;
         // 흡수한 상대 KE = KE_before − KE_after(질량중심) ≥0 → 결합 E reservoir 로 park (총 E·운동량 보존)
         const keBefore = 0.5 * ma * (a.vx * a.vx + a.vy * a.vy) + 0.5 * mb * (b.vx * b.vx + b.vy * b.vy);
         const keAfter = 0.5 * M * (vcx * vcx + vcy * vcy);
-        a.vx = vcx; a.vy = vcy; b.vx = vcx; b.vy = vcy;      // 질량중심 속도로 잠금 → 같이 움직임(공간 결합 유지)
-        const absorbed = keBefore - keAfter;
-        sim.bondE = (sim.bondE || 0) + absorbed;             // 흡수 KE park(닫힌 장부, 전역 합 = Σ 결합별 E)
+        let absorbed = 0;
+        if (!coulombic) {                                    // 기존: 비탄성 vcom 잠금 → 위상만(거리 미유지, 충돌·반동에 흩어짐)
+          a.vx = vcx; a.vy = vcy; b.vx = vcx; b.vy = vcy;    // 질량중심 속도로 잠금 → 같이 움직임
+          absorbed = keBefore - keAfter;                     // 흡수 상대 KE
+          sim.bondE = (sim.bondE || 0) + absorbed;           // 흡수 KE park(닫힌 장부, 전역 합 = Σ 결합별 E)
+        }
+        // coulombic: 속도·bondE 불변 → 에너지 연속. 간선은 위상 라벨, 기하(r_eq)는 coulomb+repulse 가 창발 유지.
         // step-0015 게이트 bondLocalE(=0 → 이전 비트 동일): 흡수 E 를 *그 결합 간선*에 per-bond 저장([i,j,Eabs]).
         //   전역 sim.bondE 는 그대로 두되(ledger 가 읽음·불변) 결합별 e[2] 가 그 합을 분해 → 어느 결합 E 인지 국소 추적(unbond·핵 회계 토대).
         const edge = sim.knobs.bondLocalE ? [i, j, absorbed] : [i, j];
@@ -474,9 +483,103 @@
     sim.coulombActive = 1;                                 // 진단 플래그(hash 미참여)
   }
 
+  // repulse 은 *단거리 반발 코어* U=kR/(r²+ε²) (force ∝ 1/r⁴ — 쿨롱 1/r³ 보다 가팔라 *단거리* 지배·*장거리* 굴복)
+  //   을 매 tick 속도에 싣는다. 왜 필요한가: 순수 쿨롱(0019)은 평형점이 없다 — 반대전하는 골(연화 ε)로 붕괴·진동만 한다.
+  //   단거리 반발을 더하면 인력(1/r³)↔반발(1/r⁴)이 균형하는 지점에서 *평형 결합 길이 r_eq* 가 창발한다(r²+ε²=(2kR/(kC·|qaqb|))²).
+  //     → 결합이 비로소 *고정 거리*를 가진다(STATE "괴이한 기하" 해소·실제 결합 길이 원리). r<r_eq 면 반발이, r>r_eq 면 인력이 이겨
+  //     양쪽서 r_eq 로 *복원* = 안정 평형. 닫힌 형식 author 아님 — 두 연속력의 합에서 *창발*(척추 체크 ②).
+  //   기질 재사용: coulomb 과 동일 *반음시(symplectic)* 적분(v→r) → 총 E(KE+PE) 유계 보존(E 만 완화). 연화 ε=coulombSoft 공유(노브 1개).
+  //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 운동량 *머신* 보존. PE 항 U_rep≥0 가법(kRepulse 게이트). Q·B·L·x 불변.
+  //   국소: *그 두 하전 원자*만(coulomb 과 같은 쌍·게이트·min-image). 결정론: 위치 결정 → rng 불필요. kRepulse=0 → early-return = 회귀 0.
+  function repulse(sim) {
+    const kr = sim.knobs.kRepulse;
+    if (!kr) return;                 // 노브=0 → early-return = 회귀 0 (반발 코어 꺼짐 → 0019 비트)
+    const dt = sim.knobs.dt;
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(쿨롱과 공유)
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i], qa = a.Z - a.e;
+      if (qa === 0) continue;                              // 중성 → 코어 0 (쿨롱과 같은 쌍 게이트)
+      const ma = K.mass(a);
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j], qb = b.Z - b.e;
+        if (qb === 0) continue;
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
+        // U_rep = kR/s2 → F_on_a = −∇_a U = −kR·2/s2² · d (d=a→b) → a 를 −d(b 반대편) 로 밂 = 반발(전하부호 무관).
+        const fOverR = -kr * 2 / (s2 * s2);
+        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
+        const mb = K.mass(b);
+        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;    // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
+        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+      }
+    }
+    sim.repulseActive = 1;                                 // 진단 플래그(hash 미참여)
+  }
+
+  // pauli 은 *보편* 단거리 반발(excluded-volume) U=kP/(r²+ε²)² (force ∝ 1/r⁶) 을 *모든 쌍*(전하 무관)에 싣는다.
+  //   왜 필요한가: coulomb·repulse 는 *하전 쌍만* 작용 → 중성 원자(q=0)는 서로 안 보고 *등속 직진*(겹쳐 통과)했다.
+  //     파울리 배타(전자 구름 겹침 반발)는 전하와 무관한 *부피*다 → 게이트를 떼어 중성 포함 모든 쌍이 접촉서 밀어내게 한다(물질의 부피·소프트 충돌).
+  //   왜 repulse 보다 가파른가(1/r⁶ vs 1/r⁴): excluded-volume 은 *접촉에서만* 작용해야(장거리 균일 반발=기체 팽창 회피) → 짧은 사거리.
+  //   기질 재사용: coulomb·repulse 와 동일 *반음시(symplectic)* 적분(v→r)·연화 ε(coulombSoft 공유) → 총 E 유계 보존(E 만 완화).
+  //   닫힌 장부: 쌍별 등·반작용 ⇒ 운동량 *머신* 보존. PE 항 U_pauli≥0 가법(kPauli 게이트, 모든 쌍). Q·B·L·x 불변(위치만 바꿈).
+  //   국소: *그 두 원자*만(min-image). 결정론: 위치 결정 → rng 불필요. kPauli=0 → early-return = 회귀 0.
+  function pauli(sim) {
+    const kp = sim.knobs.kPauli;
+    if (!kp) return;                 // 노브=0 → early-return = 회귀 0 (파울리 반발 꺼짐 → 0021 비트)
+    const dt = sim.knobs.dt;
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(쿨롱·반발과 공유)
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i], ma = K.mass(a);                  // 전하 게이트 없음 — 중성 포함 모든 원자
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j];
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
+        // U_pauli = kP/s2² → F_on_a = −∇_a U = −kP·4/s2³ · d (d=a→b) → a 를 −d(b 반대편) 로 밂 = 반발(전하 무관).
+        const fOverR = -kp * 4 / (s2 * s2 * s2);
+        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
+        const mb = K.mass(b);
+        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;    // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
+        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+      }
+    }
+    sim.pauliActive = 1;                                   // 진단 플래그(hash 미참여)
+  }
+
+  // vdw 은 *보편* 약한 인력(반데르발스/London) U=−kV/(r²+ε²)(force ∝ 1/r⁴, 인력)을 *모든 쌍*(전하 무관)에 싣는다.
+  //   왜 필요한가: step-0022 pauli 는 중성에 *반발만* 줬다 → 중성은 접촉서 튕길 뿐 *모이지 않았다*(군집 없음). 인력을 더해야 자연스러운 응집/궤도.
+  //   왜 pauli(1/r⁶)보다 덜 가파른가(1/r⁴): 단거리는 pauli 반발이 이겨 *붕괴 방지*, 중거리는 vdw 인력이 이겨 *끌어모음* → 둘이 **vdW 우물** 형성
+  //     (최소 PE at s2_eq=2kP/kV) → 중성 원자가 r_eq 간격으로 *응집*(condensation). 우물 = author 아닌 두 보편력 합의 측정.
+  //   ※ 1/r⁴ 힘이라 *단거리 약결합*(장거리 인력은 1/r² 중력 — Phase E). 이미 근접한 중성만 묶인다(원거리 견인 아님 — 정직한 vdW).
+  //   기질 재사용: 동일 symplectic 적분·연화 ε. 닫힌 장부: 쌍별 등·반작용 → 운동량 머신. PE 항 U_vdw≤0 가법(kVdW 게이트). Q·B·L·x 불변.
+  //   국소: 그 두 원자만(min-image). 결정론: rng 불필요. kVdW=0 → early-return = 회귀 0.
+  function vdw(sim) {
+    const kv = sim.knobs.kVdW;
+    if (!kv) return;                 // 노브=0 → early-return = 회귀 0 (인력 꺼짐 → 0022 비트)
+    const dt = sim.knobs.dt;
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i], ma = K.mass(a);                  // 전하 게이트 없음 — 중성 포함 모든 원자(vdW 는 보편)
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j];
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+        const s2 = dx * dx + dy * dy + eps2;
+        // U_vdw = −kV/s2 → F_on_a = −∇_a U = +kV·2/s2² · d (d=a→b) → a 를 +d(b 쪽)로 당김 = 인력.
+        const fOverR = kv * 2 / (s2 * s2);
+        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
+        const mb = K.mass(b);
+        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;
+        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+      }
+    }
+    sim.vdwActive = 1;                                     // 진단 플래그(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {

@@ -70,6 +70,57 @@
     return u;
   }
 
+  // 반발 코어 위치 에너지(step-0020) — U_rep = Σ_{i<j 하전} kR/(r²+ε²) ≥ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
+  //   coulombPE 와 같은 쌍·게이트·연화(DRY). kRepulse 미설정/0(0019 이하) → 0 → 과거 장부 불변. 쿨롱 인력과 합쳐 r_eq 우물을 만든다.
+  function repulsePE(atoms, knobs, W, H) {
+    const kr = (knobs && knobs.kRepulse) || 0;
+    if (!kr) return 0;
+    const eps2 = (knobs.coulombSoft || 1) ** 2;
+    let u = 0;
+    for (let i = 0; i < atoms.length; i++) {
+      const qi = atoms[i].Z - atoms[i].e; if (qi === 0) continue;
+      for (let j = i + 1; j < atoms.length; j++) {
+        const qj = atoms[j].Z - atoms[j].e; if (qj === 0) continue;
+        const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
+        u += kr / (dx * dx + dy * dy + eps2);
+      }
+    }
+    return u;
+  }
+
+  // 파울리 보편 반발 위치 에너지(step-0022) — U_pauli = Σ_{i<j *모든 쌍*} kP/(r²+ε²)² ≥ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
+  //   repulse 와 달리 *전하 게이트 없음*(중성 포함 모든 쌍 — 부피는 전하 무관). kPauli 미설정/0(0021 이하) → 0 → 과거 장부 불변.
+  function pauliPE(atoms, knobs, W, H) {
+    const kp = (knobs && knobs.kPauli) || 0;
+    if (!kp) return 0;
+    const eps2 = (knobs.coulombSoft || 1) ** 2;
+    let u = 0;
+    for (let i = 0; i < atoms.length; i++) {
+      for (let j = i + 1; j < atoms.length; j++) {
+        const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
+        const s2 = dx * dx + dy * dy + eps2;
+        u += kp / (s2 * s2);
+      }
+    }
+    return u;
+  }
+
+  // 반데르발스 보편 인력 위치 에너지(step-0023) — U_vdw = Σ_{i<j *모든 쌍*} −kV/(r²+ε²) ≤ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
+  //   전하 게이트 없음(vdW 는 보편). pauli 반발과 합쳐 우물(s2_eq=2kP/kV) 형성. kVdW 미설정/0(0022 이하) → 0 → 과거 장부 불변.
+  function vdwPE(atoms, knobs, W, H) {
+    const kv = (knobs && knobs.kVdW) || 0;
+    if (!kv) return 0;
+    const eps2 = (knobs.coulombSoft || 1) ** 2;
+    let u = 0;
+    for (let i = 0; i < atoms.length; i++) {
+      for (let j = i + 1; j < atoms.length; j++) {
+        const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
+        u += -kv / (dx * dx + dy * dy + eps2);
+      }
+    }
+    return u;
+  }
+
   // 닫힌 장부: 보존되어야 할 양들의 총합 (SPINE §2)
   //  Q 전하 = Σ(Z−e) · B 바리온 = Σ(Z+N) · L 렙톤 = Σe
   //  E 에너지-질량 = Σ(m·c² + ½m·v² + 들뜸E) + Σ 광자E  (e=mc² 정지+운동+들뜸+복사)
@@ -98,6 +149,12 @@
     // 쿨롱 PE(step-0019 coulomb): 연속 보존력의 위치 에너지(공유 헬퍼 — 힘 법칙·장면 측정과 한 출처).
     //   가법 규칙: kCoulomb 미설정/0(과거 전 장면) → 0 → 장부 불변. 켜지면 KE↔PE 가 교환되며 총 E 유계 보존(반음시).
     E += coulombPE(sim.atoms, sim.knobs, sim.W, sim.H);
+    // 반발 코어 PE(step-0020 repulse): 단거리 반발의 위치 에너지(쿨롱 PE 와 한 쌍·게이트). kRepulse 미설정/0 → 0 → 장부 불변.
+    E += repulsePE(sim.atoms, sim.knobs, sim.W, sim.H);
+    // 파울리 보편 반발 PE(step-0022 pauli): 모든 쌍의 excluded-volume PE. kPauli 미설정/0 → 0 → 장부 불변.
+    E += pauliPE(sim.atoms, sim.knobs, sim.W, sim.H);
+    // 반데르발스 보편 인력 PE(step-0023 vdw): 모든 쌍의 인력 PE(≤0). kVdW 미설정/0 → 0 → 장부 불변.
+    E += vdwPE(sim.atoms, sim.knobs, sim.W, sim.H);
     return { Q, B, L, E, px, py };
   }
 
@@ -134,5 +191,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, levelE, levelEZ, photonLambda, coulombPE, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, ledger, minImage, hashState };
 });
