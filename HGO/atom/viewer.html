@@ -23,7 +23,7 @@
   <button id="play">▶ play</button>
   <button id="stepBtn">step</button>
   <button id="reset">reset</button>
-  <label>dt <input id="dt" type="range" min="0.1" max="2" step="0.1" value="1"><span id="dtv">1.0</span></label>
+  <span id="knobs"></span>
   <label>seed <input id="seed" type="number" value="42" style="width:6em"></label>
   <span id="tick" class="k"></span>
 </header>
@@ -55,14 +55,31 @@ function buildSceneList() {
   sel.value = SC.SCENES[fromHash] ? fromHash : Object.keys(SC.SCENES)[0];
 }
 
+// 노브 패널을 엔진 노브(sim.knobs = DEFAULTS + 장면 spec.knobs)에서 *자동 생성* —
+// 새 step 이 노브를 더해도 viewer.html 은 건드리지 않는다(단일 뷰어 원칙, SPINE §6.1).
+function buildKnobs() {
+  const box = $('knobs'); box.innerHTML = '';
+  for (const k of Object.keys(sim.knobs)) {
+    const v = sim.knobs[k], max = Math.max(1, v * 2), step = +(max / 100).toPrecision(2);
+    const lab = document.createElement('label'), val = document.createElement('span');
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = 0; inp.max = max; inp.step = step; inp.value = v;
+    val.textContent = (+v).toFixed(2);
+    inp.oninput = e => { sim.knobs[k] = +e.target.value; val.textContent = (+e.target.value).toFixed(2); };
+    lab.append(k + ' ', inp, val);
+    box.appendChild(lab);
+  }
+}
+
 function reset() {
   scene = SC.SCENES[$('scene').value];
   location.hash = scene.id;
-  const seed = parseInt($('seed').value, 10) >>> 0;
+  const raw = parseInt($('seed').value, 10);
+  const seed = (Number.isFinite(raw) ? raw : 42) >>> 0;   // 빈 입력 → NaN → 42 (seed 0 은 유효)
   sim = S.createSim(scene.init(K.mulberry32(seed), K));
-  sim.knobs.dt = parseFloat($('dt').value);
   $('title').textContent = scene.title;
   $('desc').textContent = scene.desc;
+  buildKnobs();
   draw();
 }
 
@@ -97,7 +114,6 @@ $('seed').onchange = reset;
 $('play').onclick = e => { playing = !playing; e.target.textContent = playing ? '❚❚ pause' : '▶ play'; };
 $('stepBtn').onclick = () => { S.step(sim); draw(); };
 $('reset').onclick = reset;
-$('dt').oninput = e => { $('dtv').textContent = (+e.target.value).toFixed(1); if (sim) sim.knobs.dt = +e.target.value; };
 window.onhashchange = () => { const h = location.hash.slice(1); if (SC.SCENES[h] && h !== $('scene').value) { $('scene').value = h; reset(); } };
 
 buildSceneList();

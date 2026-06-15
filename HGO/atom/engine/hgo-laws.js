@@ -20,7 +20,7 @@
     for (const name of LAW_ORDER) LAWS[name](sim);
   }
 
-  function wrap(v, max) { v %= max; return v < 0 ? v + max : v; }
+  function wrap(v, max) { v %= max; if (v < 0) v += max; return v === max ? 0 : v; } // [0,max) 보장 — 음수 wrap 의 부동소수 반올림이 정확히 max 를 내는 경우를 0 으로 접는다
 
   // 적분(기질): 자유 운동 — 위치 += 속도·dt, 토러스 경계 wrap.
   // 힘이 없으므로 v 불변 → 에너지·운동량 정확 보존(닫힌 장부 잔차 0).

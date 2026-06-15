@@ -118,7 +118,7 @@ CLAUDE 가 던진 원자의 요건을, *새 자료형 없이* 위 다발 + 국�
 
 **쌓여야 할 것과 쌓이면 안 될 것을 가른다.** ✅ *법칙*은 append-only 로 쌓인다(`engine/hgo-laws.js`, 노브=0 → 회귀 0). ❌ *뷰어·패널·검증기*는 쌓이지 않는다 — 옛 방식처럼 step 마다 html·panel·verify 를 복사해 누적하는 것을 **금지**한다(비효율·무의미한 중복).
 
-대신 한 step 이 더하는 시각화/검증 정보는 **장면 기술자(scene) 한 항**으로 통일한다 — `engine/scenes.js` 에 `{ id:'step-NNNN', init(초기 원자 배치), knobs, watch(관찰 지표), assert(가설 수치) }` ~10줄. **이 한 항이 세 소비자의 단일 출처**다(DRY):
+대신 한 step 이 더하는 시각화/검증 정보는 **장면 기술자(scene) 한 항**으로 통일한다 — `engine/scenes.js` 에 `{ id, title, desc, ticks, init(rng,K)→spec, watch(sim,K)→지표, assert(ctx,K)→[{name,pass,value}] }` ~15줄(노브는 `init` 이 돌려주는 `spec.knobs` 안에 산다). **이 한 항이 세 소비자의 단일 출처**다(DRY):
 
 - **헤드리스 검증** `engine/verify.js step-NNNN` — 4기둥 + 장면 assert 를 수치 출력 (per-step verify.js 없음).
 - **골든 해시** — 같은 장면을 동결해 회귀 0 앵커.

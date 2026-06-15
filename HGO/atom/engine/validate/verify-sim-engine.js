@@ -31,9 +31,19 @@ function main() {
   if (fs.existsSync(GOLDEN)) golden = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
 
   if (update) {
-    golden = Object.assign(golden, cur); // 가법: 기존 장면 해시 보존, 새 장면 추가
+    // 진짜 가법: *미존재 시에만* 채운다. 기존 앵커는 절대 덮어쓰지 않는다(회귀 0 불변).
+    // 기존과 다르면 경고만 — 의도된 변경이면 해당 항목을 골든에서 수동 삭제 후 재실행.
+    let added = 0, kept = 0;
+    for (const id of Object.keys(cur)) {
+      golden[id] = golden[id] || {};
+      for (const s of SEEDS) {
+        if (golden[id][s] === undefined) { golden[id][s] = cur[id][s]; added++; }
+        else if (golden[id][s] !== cur[id][s]) console.warn(`  ! ${id}/${s}: 기존 앵커 ${golden[id][s]} ≠ 현재 ${cur[id][s]} — 보존(덮어쓰지 않음).`);
+        else kept++;
+      }
+    }
     fs.writeFileSync(GOLDEN, JSON.stringify(golden, null, 2) + '\n');
-    console.log(`골든 갱신: ${GOLDEN} (장면 ${Object.keys(cur).join(', ')})`);
+    console.log(`골든 갱신: +${added} 추가 · ${kept} 보존 (${GOLDEN})`);
     return;
   }
 

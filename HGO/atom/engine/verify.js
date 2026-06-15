@@ -46,28 +46,31 @@ function main() {
   console.log(`\n=== verify ${scene.id} — ${scene.title} ===`);
   console.log(`시드 ${JSON.stringify(SEEDS)} · ${scene.ticks} tick\n`);
 
-  let determinism = true, maxResidual = 0, hypoPass = true;
-  const watchAvg = {};
+  let determinism = true, maxResidual = 0;
+  const watchAvg = {}, checkAgg = {};   // ④ 가설: 이름→{pass:전 시드 통과, value:시드42 값}
 
   for (const seed of SEEDS) {
     const r1 = simulate(scene, seed);
     const r2 = simulate(scene, seed);                 // ③ 결정론: 같은 시드 2회
     if (r1.hashAfter !== r2.hashAfter) determinism = false;
     maxResidual = Math.max(maxResidual, ledgerResidual(r1.ledgerBefore, r1.ledgerAfter)); // ②
-    const checks = scene.assert(hypothesisCtx(r1), K);  // ④
-    for (const c of checks) if (!c.pass) hypoPass = false;
+    for (const c of scene.assert(hypothesisCtx(r1), K)) { // ④ 전 시드 집계
+      const a = checkAgg[c.name] || (checkAgg[c.name] = { pass: true, value: c.value });
+      if (!c.pass) a.pass = false;
+      if (seed === SEEDS[0]) a.value = c.value;
+    }
     const w = scene.watch(r1.sim, K);
     for (const k in w) watchAvg[k] = (watchAvg[k] || 0) + w[k] / SEEDS.length;
   }
+  const hypoPass = Object.values(checkAgg).every(c => c.pass);
 
-  // ① 회귀 0
   const hasKnobLaw = require('./hgo-laws.js').LAW_ORDER.length > 0;
   console.log(`① 회귀 0 : ${hasKnobLaw ? '(상위 step 에서 새 노브=0 → 직전 비트 동일 검사)' : 'N/A — 부트스트랩(첫 step). 결정론·보존이 앵커.'}`);
   console.log(`② 닫힌 장부 : 잔차 ${maxResidual.toExponential(2)}  ${maxResidual <= LEDGER_TOL ? 'PASS' : 'FAIL'}  (Q·B·L·E·px·py, 임계 ${LEDGER_TOL})`);
   console.log(`③ 결정론 : ${determinism ? 'PASS' : 'FAIL'}  (같은 시드 2회 → 상태 해시 일치)`);
-  console.log(`④ 가설 :`);
-  for (const c of scene.assert(hypothesisCtx(simulate(scene, SEEDS[0])), K))
-    console.log(`     ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+  console.log(`④ 가설 (전 시드 통과 여부, 값=시드 ${SEEDS[0]}):`);
+  for (const name of Object.keys(checkAgg))
+    console.log(`     ${checkAgg[name].pass ? 'PASS' : 'FAIL'}  ${name} = ${checkAgg[name].value}`);
   console.log(`\n관찰(시드 평균):`, JSON.stringify(watchAvg));
 
   const ok = determinism && maxResidual <= LEDGER_TOL && hypoPass;
