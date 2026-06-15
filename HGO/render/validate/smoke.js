@@ -102,6 +102,30 @@ function run() {
   const stkNone = R3.photonStreak({ rx: 1, ry: 1, px: 0, py: 0 }, cam4, maxP, worldLen);
   checks.push({ name: 'L-recoil: 무방향 광자 → 줄기 없음(author 0)', pass: stkNone === null, value: stkNone === null ? 'null' : 'BAD' });
 
+  // ⑦b L-trail(렌즈 assert): propagate 장면(step-0004)은 광자가 출생(rx0,ry0)에서 *실제로* 이동(rx,ry)한다.
+  //    렌더는 그 측정 변위를 읽어 전파 트레일(출생→현재)을 그린다 — 정규화 글리프가 아니라 실거리.
+  //    변위 0(방출만)이면 트레일 0(author 0).
+  const movedPh = sim4.photons.filter(p => Math.hypot(p.rx - p.rx0, p.ry - p.ry0) > 1e-9).length;
+  checks.push({ name: 'L-trail: 광자 출생→현재 실변위(시뮬 선행)', pass: movedPh > 0, value: `${movedPh}/${sim4.photons.length}` });
+  const ptr = sim4.photons.find(p => Math.hypot(p.rx - p.rx0, p.ry - p.ry0) > 1e-9);
+  const trail = R3.photonTrail(ptr, cam4);
+  const trailPx = trail ? Math.hypot(trail.head.sx - trail.tail.sx, trail.head.sy - trail.tail.sy) : 0;
+  checks.push({ name: 'L-trail: 변위 광자 → 화면 트레일(출생≠현재)', pass: trailPx > 1, value: trail ? `Δpx=${trailPx.toFixed(0)}` : 'null' });
+  // 트레일 축이 *투영된 출생→현재 방향*과 정렬(읽기 충실 — 머리−꼬리 = +변위 투영)
+  let trAligned = false;
+  if (trail) {
+    const a3 = R3.project({ x: ptr.rx0, y: ptr.ry0, z: 0 }, cam4);
+    const b3 = R3.project({ x: ptr.rx, y: ptr.ry, z: 0 }, cam4);
+    const sdx = trail.head.sx - trail.tail.sx, sdy = trail.head.sy - trail.tail.sy;
+    const mdx = b3.sx - a3.sx, mdy = b3.sy - a3.sy;
+    trAligned = (sdx * mdx + sdy * mdy) > 0;
+  }
+  checks.push({ name: 'L-trail: 트레일 축 = 출생→현재 방향', pass: trAligned, value: trAligned ? 'ok' : 'no' });
+  // author 0: 변위 0 광자(step-0002 방출만 — rx0==rx)는 트레일 없음(null)
+  const emitOnly = ph.find(p => Math.hypot(p.rx - p.rx0, p.ry - p.ry0) <= 1e-9) || { rx: 1, ry: 1, rx0: 1, ry0: 1 };
+  const trNone = R3.photonTrail(emitOnly, cam4);
+  checks.push({ name: 'L-trail: 무변위 광자 → 트레일 없음(author 0)', pass: trNone === null, value: trNone === null ? 'null' : 'BAD' });
+
   // ⑧ L-bond(렌즈 assert): 결합 장면(step-0012)은 sim.bonds = [i,j] 원자쌍(연결 성분 간선)을 내보낸다.
   //    렌더는 그 쌍을 *읽어* 두 원자를 잇는 선분으로 번역한다 — 결합 없으면 선 0(author 0).
   const sceneB = SC.SCENES['step-0012'];
