@@ -102,6 +102,25 @@ function run() {
   const stkNone = R3.photonStreak({ rx: 1, ry: 1, px: 0, py: 0 }, cam4, maxP, worldLen);
   checks.push({ name: 'L-recoil: 무방향 광자 → 줄기 없음(author 0)', pass: stkNone === null, value: stkNone === null ? 'null' : 'BAD' });
 
+  // ⑧ L-bond(렌즈 assert): 결합 장면(step-0012)은 sim.bonds = [i,j] 원자쌍(연결 성분 간선)을 내보낸다.
+  //    렌더는 그 쌍을 *읽어* 두 원자를 잇는 선분으로 번역한다 — 결합 없으면 선 0(author 0).
+  const sceneB = SC.SCENES['step-0012'];
+  const simB = S.createSim(sceneB.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simB, sceneB.ticks);
+  const bonds = simB.bonds || [];
+  checks.push({ name: 'L-bond: 시뮬이 결합쌍 내보냄(시뮬 선행)', pass: bonds.length > 0, value: `${bonds.length} 결합` });
+  // 모든 결합이 유효 원자 인덱스 쌍(읽기 충실 — 없는 원자/자기참조 0)
+  const validIdx = bonds.every(([i, j]) => simB.atoms[i] && simB.atoms[j] && i !== j);
+  checks.push({ name: 'L-bond: 결합쌍이 유효 원자 인덱스(읽기 충실)', pass: validIdx, value: validIdx ? 'ok' : 'BAD' });
+  // 대표 결합 → 화면 선분(두 원자 분리 — 머리≠꼬리)
+  const camB = R3.makeCamera(simB.W, simB.H, 0);
+  const seg = R3.bondSegment(bonds[0], simB, camB);
+  const segPx = seg ? Math.hypot(seg.a.sx - seg.b.sx, seg.a.sy - seg.b.sy) : 0;
+  checks.push({ name: 'L-bond: 결합 → 화면 선분(두 원자 잇기)', pass: segPx > 0, value: seg ? `Δpx=${segPx.toFixed(0)}` : 'null' });
+  // author 0: 무효 원자 인덱스(빈 원자 배열) → 선분 없음
+  const segNone = R3.bondSegment([0, 1], { atoms: [] }, camB);
+  checks.push({ name: 'L-bond: 무효 원자 → 선분 없음(author 0)', pass: segNone === null, value: segNone === null ? 'null' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

@@ -15,6 +15,11 @@
 // 렌즈 L-recoil: 광자 *진행 방향*(운동량 px,py = p=E/c, 시뮬 step-0003 recoil·0004 propagate 가 실음)을
 //   읽어 *빛 줄기/이방성*으로 번역한다. 줄기 방향 = 운동량 방향(읽기), 줄기 길이 ∝ |p|(측정 정규화 — maxP).
 //   px=py=0 광자(방출만 한 step-0002)는 *방향이 없으니 줄기를 author 하지 않는다*(빌보드 점만). 위치=sim 그대로.
+//
+// 렌즈 L-bond: 시뮬이 내보낸 *결합 목록*(sim.bonds = [i,j] 원자쌍 — 연결 성분의 간선, step-0010 bond·0012 valence)을
+//   읽어 결합한 두 원자를 잇는 *선*으로 번역한다 — 분자 윤곽은 시뮬이 측정한 연결성에서 창발한다.
+//   *어느 원자가 결합인가*는 읽기(sim.bonds), 선은 그 연결을 보일 뿐(분포·실루엣 author 0). 위치=두 원자의 sim (rx,ry,0) 그대로.
+//   결합이 없으면(sim.bonds 비었거나 결합 0) 선을 author 하지 않는다 — 격자처럼 구조선(시뮬 양 아닌 무대 장치 색).
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -115,6 +120,18 @@
     return { head, tail, mag, L };
   }
 
+  // ── 렌즈 L-bond: 결합 [i,j] → 화면 선분 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 결합쌍의 두 원자(인덱스)를 투영해 잇는 선분 {a,b} 를 돌려준다. 인덱스가 무효(없는 원자)거나
+  //   카메라 뒤(depth≤0)면 null — 결합을 author 하지 않는다(RENDER §3). 위치=두 원자의 sim (rx,ry,0) 그대로.
+  function bondSegment(bond, sim, cam) {
+    const a = sim.atoms[bond[0]], b = sim.atoms[bond[1]];
+    if (!a || !b) return null;
+    const pa = project({ x: a.rx, y: a.ry, z: 0 }, cam);
+    const pb = project({ x: b.rx, y: b.ry, z: 0 }, cam);
+    if (pa.depth <= 0 || pb.depth <= 0) return null;
+    return { a: pa, b: pb };
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -127,6 +144,7 @@
     ctx.fillRect(0, 0, cv.width, cv.height);
 
     drawGrid(ctx, sim, cam);   // z=0 바닥 격자(입체 기준선 — 시뮬 양 아님, 무대 장치)
+    drawBonds(ctx, sim, cam);  // 결합선(분자 윤곽 — sim.bonds 읽기, 구의 하층에 깔아 연결을 보임)
 
     // 개체 수집 후 painter 정렬(먼 것 먼저). 위치=sim (rx,ry,0) 그대로.
     const draws = [];
@@ -193,6 +211,23 @@
     ctx.beginPath(); ctx.arc(pr.sx, pr.sy, rad, 0, 6.2832); ctx.fill();
   }
 
+  // 렌즈 L-bond: 시뮬이 측정한 결합(sim.bonds = [i,j] 연결 성분 간선)을 두 원자를 잇는 선으로.
+  //   결합 *존재*는 읽기(sim.bonds) — 선이 그 연결을 보일 뿐. 색은 구조선(격자와 동형 무대 장치 톤,
+  //   시뮬 양을 거짓 인코딩하지 않음). 결합 0이면 선 0(author 0). 굵기=원근(평균 스케일).
+  function drawBonds(ctx, sim, cam) {
+    const bonds = sim.bonds;
+    if (!bonds || !bonds.length) return;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(176,198,255,0.55)';   // 연한 청백 구조선(분자 결합 — 무대 톤)
+    ctx.lineCap = 'round';
+    for (const bond of bonds) {
+      const seg = bondSegment(bond, sim, cam);
+      if (!seg) continue;
+      ctx.lineWidth = Math.max(1, (seg.a.scale + seg.b.scale));   // 원근 굵기(가까울수록 굵게)
+      ctx.beginPath(); ctx.moveTo(seg.a.sx, seg.a.sy); ctx.lineTo(seg.b.sx, seg.b.sy); ctx.stroke();
+    }
+  }
+
   // z=0 바닥 격자 — 평면을 원근으로 그어 입체 기준을 준다(무대 장치, 시뮬 양 0).
   function drawGrid(ctx, sim, cam) {
     const N = 10, W = sim.W, H = sim.H;
@@ -232,5 +267,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, measureMaxMomentum };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, measureMaxMomentum, bondSegment };
 });
