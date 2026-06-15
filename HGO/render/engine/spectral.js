@@ -55,5 +55,23 @@
     return (lo <= hi) ? { lo, hi } : null;
   }
 
-  return { wavelengthToRGB, lambdaToNm, photonColor, measureRange };
+  // 렌즈 L-line: 누적 광자를 전이선(from→to)별로 *빈도 집계*한다(읽기 정제 — 새 시뮬 양 불필요).
+  //   실측 분광기의 스펙트럼선처럼 선의 *세기*는 그 전이로 방출된 광자 수(빈도)다 — author 가 아니라
+  //   시뮬이 굴린 방출 통계를 *세는* 것. maxCount 는 데이터에서 *잰* 최대 빈도(정규화 기준 — 손박은 임계 0).
+  //   반환: λ 오름차순(=보라→빨강 순) 선 배열 + 측정된 maxCount.
+  function measureLines(photons) {
+    const acc = new Map();   // 'from→to' → {key, lambda, count}
+    for (const p of photons) {
+      const key = p.from + '→' + p.to;
+      const e = acc.get(key);
+      if (e) e.count++;
+      else acc.set(key, { key, lambda: p.lambda, count: 1 });
+    }
+    const lines = [...acc.values()].sort((a, b) => a.lambda - b.lambda);
+    let maxCount = 0;
+    for (const l of lines) if (l.count > maxCount) maxCount = l.count;
+    return { lines, maxCount };
+  }
+
+  return { wavelengthToRGB, lambdaToNm, photonColor, measureRange, measureLines };
 });

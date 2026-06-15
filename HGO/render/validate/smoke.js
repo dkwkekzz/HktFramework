@@ -60,6 +60,48 @@ function run() {
   const lines = new Set(ph.map(p => p.from + '→' + p.to));
   checks.push({ name: '측정된 스펙트럼선 수(≥1)', pass: lines.size >= 1, value: lines.size });
 
+  // ⑥ L-line 정제(렌즈 assert): 전이선별 빈도 집계 — 선 수가 유니크 전이와 일치하고,
+  //    빈도 합 = 전체 광자 수(누락·중복 0), maxCount 가 데이터에서 측정됨(세기 정규화 기준).
+  const agg = SP.measureLines(ph);
+  const sumCount = agg.lines.reduce((s, l) => s + l.count, 0);
+  checks.push({ name: 'L-line: 집계 선 수 = 유니크 전이', pass: agg.lines.length === lines.size, value: `${agg.lines.length}` });
+  checks.push({ name: 'L-line: 빈도 합 = 전체 광자(보존)', pass: sumCount === ph.length, value: `${sumCount}/${ph.length}` });
+  checks.push({ name: 'L-line: maxCount 측정됨(≥1·세기 정규화)', pass: agg.maxCount >= 1, value: `${agg.maxCount}` });
+  // λ 오름차순 정렬(보라→빨강 순 = 분광기 배치) 보존
+  const sortedAsc = agg.lines.every((l, i) => i === 0 || agg.lines[i - 1].lambda <= l.lambda);
+  checks.push({ name: 'L-line: λ 오름차순 정렬(분광 배치)', pass: sortedAsc, value: sortedAsc ? 'ok' : 'BAD' });
+
+  // ⑦ L-recoil(렌즈 assert): propagate 장면(step-0004)은 광자에 운동량(px,py = p=E/c) 방향을 실어 보낸다.
+  //    렌더는 그 방향을 읽어 빛 줄기를 그린다 — px=py=0(방출만)이면 줄기 없음(방향 author 0).
+  const scene4 = SC.SCENES['step-0004'];
+  const sim4 = S.createSim(scene4.init(K.mulberry32(SEED >>> 0), K));
+  S.run(sim4, scene4.ticks);
+  const maxP = R3.measureMaxMomentum(sim4.photons);
+  const directed = sim4.photons.filter(p => Math.hypot(p.px || 0, p.py || 0) > 1e-9).length;
+  checks.push({ name: 'L-recoil: 광자 운동량 방향 실림(시뮬 선행)', pass: maxP > 0 && directed > 0, value: `dir ${directed}/${sim4.photons.length}·maxP ${maxP.toFixed(3)}` });
+
+  const cam4 = R3.makeCamera(sim4.W, sim4.H, 0);
+  const worldLen = 0.08 * Math.max(sim4.W, sim4.H);
+  const pdir = sim4.photons.find(p => Math.hypot(p.px || 0, p.py || 0) > 1e-9);
+  const stk = R3.photonStreak(pdir, cam4, maxP, worldLen);
+  const streakPx = stk ? Math.hypot(stk.head.sx - stk.tail.sx, stk.head.sy - stk.tail.sy) : 0;
+  checks.push({ name: 'L-recoil: 방향 광자 → 화면 줄기(머리≠꼬리)', pass: streakPx > 1, value: stk ? `Δpx=${streakPx.toFixed(0)}` : 'null' });
+
+  // 줄기 축이 *투영된 운동량 방향*과 정렬(읽기 충실 — 양의 내적). 머리−꼬리 = +운동량 투영.
+  let aligned = false;
+  if (stk) {
+    const a2 = R3.project({ x: pdir.rx, y: pdir.ry, z: 0 }, cam4);
+    const b2 = R3.project({ x: pdir.rx + pdir.px, y: pdir.ry + pdir.py, z: 0 }, cam4);
+    const sdx = stk.head.sx - stk.tail.sx, sdy = stk.head.sy - stk.tail.sy;
+    const mdx = b2.sx - a2.sx, mdy = b2.sy - a2.sy;
+    aligned = (sdx * mdx + sdy * mdy) > 0;
+  }
+  checks.push({ name: 'L-recoil: 줄기 축 = 투영 운동량 방향', pass: aligned, value: aligned ? 'ok' : 'no' });
+
+  // author 0: 운동량 0 광자(step-0002 방출만)는 줄기 없음(null)
+  const stkNone = R3.photonStreak({ rx: 1, ry: 1, px: 0, py: 0 }, cam4, maxP, worldLen);
+  checks.push({ name: 'L-recoil: 무방향 광자 → 줄기 없음(author 0)', pass: stkNone === null, value: stkNone === null ? 'null' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
