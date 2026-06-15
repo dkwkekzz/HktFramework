@@ -778,19 +778,33 @@
   }
 
   /* voxel 픽킹(L-V 픽킹) — 점유 큐브에 레이를 쏴 첫 충돌 셀(x,y,z)을 고른다. 인스턴스 빌드와 같은 점유 판정.
-   * 월드(x, 위=y, 깊이=z) → sim(x, y, z) 역매핑: sim-x=wx · sim-y=wz(깊이) · sim-z=wy(위). 고정 스텝 행진(셀 크기 1 < step). */
+   * 월드(x, 위=y, 깊이=z) → sim(x, y, z) 역매핑: sim-x=wx · sim-z=wy(위) · sim-y=wz(깊이).
+   * Amanatides–Woo 그리드 DDA — 셀(크기 1·경계 반정수)을 *빠짐없이 정확히* 통과한다(고정 스텝의 셀 건너뜀·과행진 제거).
+   * 3 월드축을 sim 축으로 매핑: 월드-x→sim-x[W] · 월드-위(y)→sim-z[D] · 월드-깊이(z)→sim-y[H]. */
   function pickVoxel(px, py) {
     var sim = S.sim;
     if (!sim) return null;
     var p = sim.p, W = p.W, H = p.H, D = p.D || 1;
     var ray = camRay(px, py), eye = ray.eye, dir = ray.dir;
-    var T = S.cam.dist * 4 + 200, step = 0.25;
-    for (var t = 0; t <= T; t += step) {
-      var sx = Math.round(eye[0] + dir[0] * t);             // 월드-x → sim-x
-      var sz = Math.round(eye[1] + dir[1] * t);             // 월드 위(y) → sim-z
-      var sy = Math.round(eye[2] + dir[2] * t);             // 월드 깊이(z) → sim-y
-      if (sx < 0 || sy < 0 || sz < 0 || sx >= W || sy >= H || sz >= D) continue;
-      if (occAt(sim, sx, sy, sz)) return { x: sx, y: sy, z: sz };
+    var lim = [W, D, H];                                    // 각 월드축의 sim 범위(x · 위 · 깊이)
+    var cell = [0, 0, 0], stp = [0, 0, 0], tMax = [0, 0, 0], tDel = [0, 0, 0];
+    var EPS = 1e-9, a;
+    for (a = 0; a < 3; a++) {
+      var o = eye[a], d = dir[a], ix = Math.round(o);       // 셀 center=정수·경계=반정수 → round = 셀 인덱스
+      cell[a] = ix;
+      if (d > EPS)      { stp[a] = 1;  tMax[a] = (ix + 0.5 - o) / d; tDel[a] = 1 / d; }
+      else if (d < -EPS){ stp[a] = -1; tMax[a] = (ix - 0.5 - o) / d; tDel[a] = -1 / d; }
+      else              { stp[a] = 0;  tMax[a] = Infinity;           tDel[a] = Infinity; }  // 축에 평행 — 그 슬랩에 머묾
+    }
+    var T = S.cam.dist * 4 + 200, t = 0, guard = Math.ceil(T) * 3 + 16;
+    for (var i = 0; i < guard && t <= T; i++) {
+      var sx = cell[0], sz = cell[1], sy = cell[2];         // 위=sim-z · 깊이=sim-y
+      if (sx >= 0 && sy >= 0 && sz >= 0 && sx < W && sy < H && sz < D &&
+          occAt(sim, sx, sy, sz)) return { x: sx, y: sy, z: sz };
+      // 가장 가까운 다음 셀 경계축으로 한 칸 전진(t = 그 경계까지 거리)
+      var ax = (tMax[0] < tMax[1]) ? (tMax[0] < tMax[2] ? 0 : 2)
+                                   : (tMax[1] < tMax[2] ? 1 : 2);
+      cell[ax] += stp[ax]; t = tMax[ax]; tMax[ax] += tDel[ax];
     }
     return null;
   }
