@@ -102,6 +102,30 @@ function run() {
   const stkNone = R3.photonStreak({ rx: 1, ry: 1, px: 0, py: 0 }, cam4, maxP, worldLen);
   checks.push({ name: 'L-recoil: 무방향 광자 → 줄기 없음(author 0)', pass: stkNone === null, value: stkNone === null ? 'null' : 'BAD' });
 
+  // ⑦b L-trail(렌즈 assert): propagate 장면(step-0004)은 광자가 출생(rx0,ry0)에서 *실제로* 이동(rx,ry)한다.
+  //    렌더는 그 측정 변위를 읽어 전파 트레일(출생→현재)을 그린다 — 정규화 글리프가 아니라 실거리.
+  //    변위 0(방출만)이면 트레일 0(author 0).
+  const movedPh = sim4.photons.filter(p => Math.hypot(p.rx - p.rx0, p.ry - p.ry0) > 1e-9).length;
+  checks.push({ name: 'L-trail: 광자 출생→현재 실변위(시뮬 선행)', pass: movedPh > 0, value: `${movedPh}/${sim4.photons.length}` });
+  const ptr = sim4.photons.find(p => Math.hypot(p.rx - p.rx0, p.ry - p.ry0) > 1e-9);
+  const trail = R3.photonTrail(ptr, cam4);
+  const trailPx = trail ? Math.hypot(trail.head.sx - trail.tail.sx, trail.head.sy - trail.tail.sy) : 0;
+  checks.push({ name: 'L-trail: 변위 광자 → 화면 트레일(출생≠현재)', pass: trailPx > 1, value: trail ? `Δpx=${trailPx.toFixed(0)}` : 'null' });
+  // 트레일 축이 *투영된 출생→현재 방향*과 정렬(읽기 충실 — 머리−꼬리 = +변위 투영)
+  let trAligned = false;
+  if (trail) {
+    const a3 = R3.project({ x: ptr.rx0, y: ptr.ry0, z: 0 }, cam4);
+    const b3 = R3.project({ x: ptr.rx, y: ptr.ry, z: 0 }, cam4);
+    const sdx = trail.head.sx - trail.tail.sx, sdy = trail.head.sy - trail.tail.sy;
+    const mdx = b3.sx - a3.sx, mdy = b3.sy - a3.sy;
+    trAligned = (sdx * mdx + sdy * mdy) > 0;
+  }
+  checks.push({ name: 'L-trail: 트레일 축 = 출생→현재 방향', pass: trAligned, value: trAligned ? 'ok' : 'no' });
+  // author 0: 변위 0 광자(step-0002 방출만 — rx0==rx)는 트레일 없음(null)
+  const emitOnly = ph.find(p => Math.hypot(p.rx - p.rx0, p.ry - p.ry0) <= 1e-9) || { rx: 1, ry: 1, rx0: 1, ry0: 1 };
+  const trNone = R3.photonTrail(emitOnly, cam4);
+  checks.push({ name: 'L-trail: 무변위 광자 → 트레일 없음(author 0)', pass: trNone === null, value: trNone === null ? 'null' : 'BAD' });
+
   // ⑧ L-bond(렌즈 assert): 결합 장면(step-0012)은 sim.bonds = [i,j] 원자쌍(연결 성분 간선)을 내보낸다.
   //    렌더는 그 쌍을 *읽어* 두 원자를 잇는 선분으로 번역한다 — 결합 없으면 선 0(author 0).
   const sceneB = SC.SCENES['step-0012'];
@@ -120,6 +144,21 @@ function run() {
   // author 0: 무효 원자 인덱스(빈 원자 배열) → 선분 없음
   const segNone = R3.bondSegment([0, 1], { atoms: [] }, camB);
   checks.push({ name: 'L-bond: 무효 원자 → 선분 없음(author 0)', pass: segNone === null, value: segNone === null ? 'null' : 'BAD' });
+
+  // ⑨ L-glow(렌즈 assert): 원자 들뜸 준위 x(양자수 0..3)를 *광원 밝기*로 *등급* 읽는다(불리언 on/off 아님).
+  //    측정 최댓값(maxX)으로 정규화 — 더 들뜬 원자가 더 밝다. x=0(바닥)이면 글로우 0(빛 author 0).
+  const maxX = R3.measureMaxExcitation(sim.atoms);
+  checks.push({ name: 'L-glow: 원자 들뜸 준위 측정됨(시뮬 선행)', pass: maxX > 0, value: `maxX ${maxX}` });
+  checks.push({ name: 'L-glow: 바닥 원자(x=0) → 글로우 0(author 0)', pass: R3.excitationGlow(0, maxX) === 0, value: `${R3.excitationGlow(0, maxX)}` });
+  if (maxX >= 2) {
+    const graded = R3.excitationGlow(maxX, maxX) > R3.excitationGlow(1, maxX);
+    checks.push({ name: 'L-glow: 높은 들뜸 = 더 밝음(등급, 불리언 아님)', pass: graded, value: `g(${maxX})=${R3.excitationGlow(maxX, maxX).toFixed(2)}>g(1)=${R3.excitationGlow(1, maxX).toFixed(2)}` });
+  } else {
+    checks.push({ name: 'L-glow: 등급(단일 준위 — 생략)', pass: true, value: 'single level' });
+  }
+  // 단조 증가(읽기 충실 — 준위↑ → 밝기↑) + 정규화 상한 1(클램프)
+  const mono = R3.excitationGlow(1, maxX) <= R3.excitationGlow(2, maxX) && R3.excitationGlow(2, maxX) <= R3.excitationGlow(3, maxX);
+  checks.push({ name: 'L-glow: 준위↑ → 밝기↑ 단조·상한 1', pass: mono && R3.excitationGlow(99, maxX) === 1, value: mono ? 'ok' : 'BAD' });
 
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
