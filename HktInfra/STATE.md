@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0042](step-0042.md) — **가방 seenReqs dedup 집합 *유계화*(busSeenBound)** — busAck(0040)의 *역방향* 워터마크(0040/0041 §9). 게이트웨이가 재발행하는 건 inBuffer(reqId>inAcked)뿐 → reqId≤inAcked 는 영영 재출현 0. 게이트웨이가 `inAcked`(prune 프런티어)를 `svc.item.seen` 으로 통보 → 가방이 그 이하 `seenReqs` 제거. 재발행 범위(>inAcked)와 dedup 보관 범위(≤워터마크)가 상보적이라 dedup 도 영구 보관 없이 유계·정확(dupe 0). 닿는 파일 gateway.js·svc-inventory.js·topo-build.js·verify.js.
-- **한 줄 상태**: reg 25/25(0041 비트 동일·busSeenBound=0 휴면)·seenbound ALL OK — minted base==unbnd==bound(dedup 보존)·dupe 0·seenReqs peak 60→24(유계)·final 0(idle drain)·run-length 무관(unbnd 60→120→180 vs bound peak 24)·failover dupe 0(peak 60→54·gap 보존). E2E 비트 동일·spine **42-step**·close-step 통과.
-- **다음**: §2 참조 — 다중 소비자 min-워터마크 · 다중 게이트웨이 producer 워터마크 · give×result-ahead · 비동기 결정론(🔴 최우선). 정리 후보: svc-inventory.js 30KB 근접.
+- **닫힌 step**: [step-0043](step-0043.md) — **정리 step: `svc-inventory.js` 박스-부품 3분할**(34KB>30KB 비대화 트리거·0038 §9 예고·기능 0·reg 0). 단일 클래스 `InventoryService` 를 *원장 코어*(`-core.js`)·*write-behind 영속*(`-persist.js`)·*버스 결과·replay*(`-bus.js`)로 가른다. cluster(0035)·topology(0038)는 다중 심볼이라 통째 이동이었으나 가방은 단일 클래스 → 코어가 클래스 정의·export, 영속/버스가 `Object.assign(prototype,…)` *프로토타입 증강*(메서드 본문 바이트 동일·콤마만 추가).
+- **한 줄 상태**: reg 25/25(0042 비트 동일 — 가방 직접 자극 모드가 분할 *직접* 증명·cluster E2E-only 보다 강함)·seenbound ALL OK·E2E 14프로세스 비트동일. 박스 34.2KB→최대 19.6KB(전 박스 <30KB). spine **43-step**·close-step 통과.
+- **다음**: §2 참조 — 다중 소비자 min-워터마크 · 다중 게이트웨이 producer 워터마크 · give×result-ahead · 비동기 결정론(🔴 최우선). 정리 후보: step 디렉토리 316KB>300KB → 안정 박스 `engine/` 승격.
 
 ---
 
-## 2. NEXT — step-0042 후 가설 (후보, 권위는 이 절)
+## 2. NEXT — step-0043 후 가설 (후보, 권위는 이 절)
 
-**step-0042 가 ⒝‴-*seenReqs 유계화*(busSeenBound — 게이트웨이 inAcked 역방향 워터마크→가방 dedup 집합 가지치기·run-length 무관·dupe 0)을 닫았다. 요청(0040)·결과(0041) 버퍼 + dedup 집합(0042) 모두 워터마크 유계화 완료 — 신뢰 전달 메모리 폐루프. 남은 후보: *다중 소비자 min-워터마크*(결과 ack 가 게이트웨이에만 키잉 — ranking 등 둘째 소비자가 뒤처지면 min-워터마크 필요·0041 §9), *다중 게이트웨이 producer 워터마크*(reqId 네임스페이스 겹침·0042 §9), ⒝-*give 요청×result-ahead 결합*(give 재발행 transfers≠base·0025 give-resend 통합·0037 §9), ⒞ *활성 중 서비스 다운타임 일반 재발행*(0025/0026 quiescent → 온라인 kill+재발행 핸드셰이크), ⒟ *비동기 결정론(lockstep 배리어 해제)*(논리/벡터 클럭·🔴 최우선·broker 대공사·0012 §9-3), 🔧 정리 후보(svc-inventory.js 30KB 근접).**
+**step-0043 이 정리 step(`svc-inventory.js` 34KB>30KB → 박스-부품 3분할·프로토타입 증강·기능 0·reg 0)을 닫았다 — 0038 §9 예고분 해소. 박스 파일 트리거는 비웠으나 step 디렉토리는 316KB(>300KB) 잔존(분할은 총량 무감) → 🔧 *안정 박스 `engine/` 승격* 정리 step 이 후속 정리 후보(0030 의 verify-kit 판). 기능 트랙 남은 후보: *다중 소비자 min-워터마크*(결과 ack 가 게이트웨이에만 키잉 — ranking 등 둘째 소비자가 뒤처지면 min-워터마크 필요·0041 §9), *다중 게이트웨이 producer 워터마크*(reqId 네임스페이스 겹침·0042 §9), ⒝-*give 요청×result-ahead 결합*(give 재발행 transfers≠base·0025 give-resend 통합·0037 §9), ⒞ *활성 중 서비스 다운타임 일반 재발행*(0025/0026 quiescent → 온라인 kill+재발행 핸드셰이크), ⒟ *비동기 결정론(lockstep 배리어 해제)*(논리/벡터 클럭·🔴 최우선·broker 대공사·0012 §9-3).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -139,3 +139,4 @@
 | [0040](step-0040.md) | 요청 replay 버퍼 *자기-크기조정*(ack 가지치기·busAck — 가방 reqId ack→게이트웨이 워터마크 가지치기·0039 고정 K 의 §9 해소) | 통과 · busAck 0=0039 비트 동일(reg 25/25)·ack minted==base·desync 0(K 추정 0) / 미-튜닝 fixedK8(<gap) minted−10·desync 4(대조)·ack final 0(idle drain)·peak 가동-길이 무관(unbnd 60→120→180 ∝발신 vs ack peak 24 고정)·dupe 0·spine 40-step |
 | [0041](step-0041.md) | *결과* replay 버퍼 *자기-크기조정*(ack 가지치기·busOutAck — 게이트웨이 outSeq ack→가방 outBuffer 가지치기·0040 요청 경로의 거울·결과 손실=desync·0040 §9 해소) | 통과 · busOutAck 0=0040 비트 동일(reg 25/25)·ack desync 0(K 추정 0·unbnd 와 동일) / 미-튜닝 fixedK8(<gap) desync 4(대조·결과 손실)·ack outBuf final 0(idle drain)·peak 가동-길이 무관(unbnd 60→120→180 ∝발신 vs ack peak 24 고정)·outPruned 60·rankDesync 0·dupe 0·spine 41-step |
 | [0042](step-0042.md) | 가방 seenReqs dedup 집합 *유계화*(busSeenBound — 게이트웨이 inAcked 역방향 워터마크 svc.item.seen→가방 seenReqs 가지치기·재발행 범위와 상보·0040/0041 §9 해소) | 통과 · busSeenBound 0=0041 비트 동일(reg 25/25)·minted base==unbnd==bound(dedup 보존)·dupe 0·seenReqs peak 60→24(유계)·final 0(idle drain)·run-length 무관(unbnd 60→120→180 ∝처리 vs bound peak 24 고정)·failover dupe 0(peak 60→54·gap 보존)·spine 42-step |
+| [0043](step-0043.md) | 정리 step: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·단일 클래스→코어/영속/버스 프로토타입 증강·메서드 바이트 동일·기능 0) | 통과 · reg 25/25(0042 비트 동일·가방 직접 자극 직접증명)·박스 34.2KB→최대 19.6KB(전 박스 <30KB)·E2E 14프로세스 비트동일·spine 43-step |
