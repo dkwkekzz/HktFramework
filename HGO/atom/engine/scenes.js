@@ -48,6 +48,26 @@
     return { count, maxSize };
   }
 
+  // step-0025 격자 질서 측정 — 다체 응집의 *결정 구조*를 측정(author 아님, SPINE §3 측정 원칙).
+  //   nnMean=평균 최근접 거리(다체 자기-간격) · psi6=육방 결합방위 질서 |⟨e^{i6θ}⟩|(삼각격자→1·무질서→0) · minPair · ke.
+  //   ψ6 은 *내부* 원자(1차 셸 배위 ≥5)만 평균 — 경계 원자 제외. rcut=1.4·nnMean(1차 셸만, 2차 √3·nn 은 제외).
+  function latticeOrder(sim, K) {
+    const A = sim.atoms, n = A.length, W = sim.W, H = sim.H;
+    const dxf = (i, j) => K.minImage(A[j].rx - A[i].rx, W), dyf = (i, j) => K.minImage(A[j].ry - A[i].ry, H);
+    const dist = (i, j) => Math.hypot(dxf(i, j), dyf(i, j));
+    let ke = 0; for (const a of A) ke += 0.5 * K.mass(a) * (a.vx * a.vx + a.vy * a.vy);
+    let nnSum = 0, minPair = Infinity;
+    for (let i = 0; i < n; i++) { let mn = Infinity; for (let j = 0; j < n; j++) if (i !== j) mn = Math.min(mn, dist(i, j)); nnSum += mn; minPair = Math.min(minPair, mn); }
+    const nnMean = nnSum / n, rcut = 1.4 * nnMean;
+    let psiSum = 0, interior = 0;
+    for (let i = 0; i < n; i++) {
+      let coord = 0, re = 0, im = 0;
+      for (let j = 0; j < n; j++) { if (i === j) continue; const d = dist(i, j); if (d < rcut) { coord++; const th = Math.atan2(dyf(i, j), dxf(i, j)); re += Math.cos(6 * th); im += Math.sin(6 * th); } }
+      if (coord >= 5) { interior++; psiSum += Math.hypot(re, im) / coord; }   // 육방 질서: |Σe^{i6θ}|/배위
+    }
+    return { ke, nnMean, minPair, psi6: interior ? psiSum / interior : 0, interior };
+  }
+
   const SCENES = {
     'step-0001': {
       id: 'step-0001',
@@ -1446,6 +1466,49 @@
           { name: '응고 — 최종 원자 총 KE→0(우물 바닥 정착, 호흡 멈춤)', pass: ke < 1e-3, value: +ke.toFixed(6) },
           { name: '복사 소산 — 복사 바스 E>0(뺀 KE 가 복사로 누적)', pass: bathE > 0, value: +bathE.toFixed(4) },
           { name: '우물 응축 — meanPair 우물로 수축(< 초기 0.7배) ∧ minPair>ε(붕괴 방지)', pass: meanPair < mean0 * 0.7 && mn > eps, value: +meanPair.toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0025': {
+      id: 'step-0025',
+      title: '다체 결정 격자 (삼각 격자 = vdW+pauli 의 안정 바닥상태 — 식혀 응고)',
+      desc: 'step-0024 는 4원자를 식혀 우물에 정착시켰다. 이제 *다체*(19원자)에서 응고가 *결정 구조*를 만드는지 측정한다(새 법칙 0 — vdw+pauli+radiate ' +
+            '의 창발). 19원자를 육방(삼각) 격자로 *느슨한* 간격 a=4(쌍 r_eq)에 시드 → radiate 로 식히면 다체 평형 *자기-간격*(nn≈2.95, 이웃 다수의 ' +
+            '합력으로 쌍 r_eq 보다 압축)으로 수축하되 *육방 질서를 유지*(ψ6≈0.99) = 삼각 격자가 2D 안정 바닥상태. 대조: 정사각 격자(다른 대칭)를 식히면 ' +
+            '글래스(ψ6≈0.16)로 녹는다 → 법칙이 삼각을 *선택*(author 아님, 측정). 이것이 *물질 구조*(결정 고체)의 창발 — Phase C 의 분자→물질 칸. 격자는 ' +
+            'author 한 좌표가 아니라 국소력의 고정점이다. 새 법칙·노브 없음(회귀 0 자동 — 엔진 무변경, 기존 골든 전부 불변).',
+      ticks: 4000,
+      ledgerTol: { E: 3e-3 },   // 연속 보존력(vdw·pauli)의 반음시 유계 진동(E 만 완화). radiate KE→바스는 머신 정확.
+
+      // 19원자 육방(삼각) 격자: 중심 1 + 1차 링 6 + 2차 링 12. 간격 a=4(쌍 r_eq, 느슨)로 시드 → 식혀 자기-간격 nn≈2.95 로 응고.
+      //   중성 H(e=1→q=0)·정지. rng 미사용 순수 결정론(확률 법칙 0 → 시드 무관 동일). 토러스 크게(고립).
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, a = 4, rings = 2;
+        const atoms = [{ Z: 1, N: 0, e: 1, x: 0, rx: cx, ry: cy, vx: 0, vy: 0 }];   // 중심
+        for (let ring = 1; ring <= rings; ring++) for (let side = 0; side < 6; side++) {
+          const a1 = side * Math.PI / 3, a2 = (side + 1) * Math.PI / 3;             // 육각 꼭짓점 → 변 보간
+          const x1 = cx + ring * a * Math.cos(a1), y1 = cy + ring * a * Math.sin(a1);
+          const x2 = cx + ring * a * Math.cos(a2), y2 = cy + ring * a * Math.sin(a2);
+          for (let k = 0; k < ring; k++) { const t = k / ring; atoms.push({ Z: 1, N: 0, e: 1, x: 0, rx: x1 + (x2 - x1) * t, ry: y1 + (y2 - y1) * t, vx: 0, vy: 0 }); }
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kPauli: 6, kVdW: 0.6, kRadiate: 1, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const m = latticeOrder(sim, K);
+        return { psi6: +m.psi6.toFixed(3), nnMean: +m.nnMean.toFixed(3), minPair: +m.minPair.toFixed(3), atomKE: +m.ke.toExponential(2), interior: m.interior };
+      },
+
+      // 가설: ① 결정 질서 — 육방 ψ6>0.9(삼각 격자 장거리 질서 유지). ② 다체 자기-간격 — nn 이 쌍 r_eq=4 서 다체 평형(<3.5)으로 압축 ∧ minPair>ε(붕괴 방지). ③ 응고 — 최종 원자 총 KE→0(식어 격자에 정착). 총 E·운동량 머신은 verify ②.
+      assert(ctx, K) {
+        const m = latticeOrder(ctx.sim, K);
+        const eps = ctx.sim.knobs.coulombSoft;
+        return [
+          { name: '결정 질서 — 육방 ψ6 > 0.9 (삼각 격자 장거리 질서 유지)', pass: m.psi6 > 0.9, value: +m.psi6.toFixed(3) },
+          { name: '다체 자기-간격 — nn 이 쌍 r_eq=4 서 다체 평형으로 압축(<3.5) ∧ minPair>ε', pass: m.nnMean < 3.5 && m.minPair > eps, value: +m.nnMean.toFixed(3) },
+          { name: '응고 — 최종 원자 총 KE→0 (식어 격자에 정착)', pass: m.ke < 1e-3, value: +m.ke.toExponential(2) },
         ];
       },
     },
