@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- engine/viewer.html — 공용 단일 뷰어(하나뿐, 트랙 무관 하네스). step 선택기로 장면을 골라 결정론적으로 돌린다.
-     step 마다 복제하지 않는다(SPINE §6.1) — atom 트랙의 scenes.js 장면 한 항을 읽을 뿐.
-     atom 시뮬은 ../atom/engine/ 에서, 캔버스 그리기는 render 모듈 ../render/engine/render.js 에서 load — 뷰어는 하네스만. -->
+<!-- viewer.html — 공용 단일 뷰어(하나뿐, 트랙 무관 하네스). HGO/ 루트에 산다(트랙 폴더 밖 중립지).
+     step 선택기로 장면을 골라 결정론적으로 돌린다 — step 마다 복제하지 않는다(SPINE §6.1), atom 트랙의 scenes.js 장면 한 항을 읽을 뿐.
+     atom 시뮬은 atom/engine/ 에서, 캔버스 그리기는 render 모듈 render/engine/render.js 에서 load — 뷰어는 하네스만. -->
 <meta charset="utf-8">
 <title>HGO viewer (공용 단일 뷰어)</title>
 <style>
@@ -38,14 +38,14 @@
   </div>
 </div>
 
-<script src="../atom/engine/hgo-kernel.js"></script>
-<script src="../atom/engine/hgo-laws.js"></script>
-<script src="../atom/engine/hgo-sim.js"></script>
-<script src="../atom/engine/scenes.js"></script>
+<script src="atom/engine/hgo-kernel.js"></script>
+<script src="atom/engine/hgo-laws.js"></script>
+<script src="atom/engine/hgo-sim.js"></script>
+<script src="atom/engine/scenes.js"></script>
 <!-- render 트랙(시각화)의 렌더 모듈을 load — 단일 뷰어가 그리기를 render 에 위임(SPINE §6.1·§7).
      viewer 는 하네스(장면 선택·재생·노브·watch)만, 캔버스 번역은 render 가 구현. -->
-<script src="../render/engine/spectral.js"></script>
-<script src="../render/engine/render.js"></script>
+<script src="render/engine/spectral.js"></script>
+<script src="render/engine/render.js"></script>
 <script>
 const { kernel: K, sim: S, scenes: SC } = HGO;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');

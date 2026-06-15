@@ -1,4 +1,4 @@
-// render.js — 렌더 트랙의 그리기 구현. 공용 단일 뷰어(HGO/engine/viewer.html)가 이 모듈을 load 해
+// render.js — 렌더 트랙의 그리기 구현. 공용 단일 뷰어(HGO/viewer.html)가 이 모듈을 load 해
 //   캔버스 렌더링을 *위임*한다(SPINE §6.1 단일 뷰어 — 뷰어를 클론하지 않는다).
 //   렌더는 atom 스냅샷(atoms·photons)을 *읽기만* 한다 — 위치·양은 sim 그대로, 색만 번역.
 //

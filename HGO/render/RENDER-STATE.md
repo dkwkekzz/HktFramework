@@ -10,7 +10,7 @@
 ## 1. NOW
 
 - **닫힌 렌즈**: **렌즈-002 (L-3d)** — *평면 세계가 입체 무대가 된다.* 시뮬은 위치가 2D(`rx,ry`) 뿐이라 z 를 시뮬 양에서 author 하지 않고(RENDER §3 — 없는 실루엣 금지), 모든 개체를 평면 z=0 에 그대로 둔 채 *표현만* 입체화한다: 원자=음영 구(球, 반지름=질량·밝기=들뜸), 광자=발광 빌보드(색은 여전히 L-λ 의 λ→스펙트럼), z=0 바닥 격자, 궤도 카메라(yaw 를 `sim.tick` 에서 파생 → 상태 없음·결정론). 소프트웨어 원근 투영(`render/engine/render.js` 의 `makeCamera`/`project` — 캔버스 2D, WebGL 무의존 → 헤드리스 검증 가능). 원 vs 구·평행 vs 원근은 프레젠테이션 선택 — 분포 재성형 0, 시뮬 객체 비변경.
-- **한 줄 상태**: 빛이 입체 공간에서 빛난다 — 어둑한 구의 들판 위로 색 광자가 떠 있고, 바닥 격자가 평면을 기울여 보여준다. 재생하면 카메라가 선회해 평면임이 드러난다(시뮬 양 0의 무대 장치). 알리바이 성립(**atom/ diff 0** — diff 는 `render/` + 공유 셸 `HGO/engine/viewer.html` 배선만).
+- **한 줄 상태**: 빛이 입체 공간에서 빛난다 — 어둑한 구의 들판 위로 색 광자가 떠 있고, 바닥 격자가 평면을 기울여 보여준다. 재생하면 카메라가 선회해 평면임이 드러난다(시뮬 양 0의 무대 장치). 알리바이 성립(**atom/ diff 0** — diff 는 `render/` + 공유 셸 `HGO/viewer.html` 배선만).
 - **다음**: §2 — **L-line**(누적 스펙트럼 분광 띠 정제) 또는 시뮬이 광자 방향을 내보내면 **L-recoil**(이제 3D 무대라 빛 줄기를 입체로 그릴 채비 됨).
 
 ---
@@ -53,8 +53,8 @@
 
 ## 5. 소유 / 불가침 (SPINE §7)
 
-- **소유**: `render/` 폴더 (`RENDER.md` · `RENDER-STATE.md` · `engine/spectral.js` · `engine/render.js` · `validate/smoke.js`). **render 는 viewer.html 을 두지 않는다** — 단일 뷰어는 트랙 밖 공유 셸 `HGO/engine/viewer.html`.
-- **불가침**: `atom/`(시뮬 코어·`STATE.md`·`steps/`·골든) · `../SPINE.md` · `../CLAUDE.md` — 읽기만(atom/ 진짜 diff 0). **공유 셸** `HGO/engine/viewer.html` 은 render 그리기 위임 배선만 허용(RENDER §6). 스킬은 `.claude/skills/hgo-render-step/`.
+- **소유**: `render/` 폴더 (`RENDER.md` · `RENDER-STATE.md` · `engine/spectral.js` · `engine/render.js` · `validate/smoke.js`). **render 는 viewer.html 을 두지 않는다** — 단일 뷰어는 트랙 밖 공유 셸 `HGO/viewer.html`.
+- **불가침**: `atom/`(시뮬 코어·`STATE.md`·`steps/`·골든) · `../SPINE.md` · `../CLAUDE.md` — 읽기만(atom/ 진짜 diff 0). **공유 셸** `HGO/viewer.html` 은 render 그리기 위임 배선만 허용(RENDER §6). 스킬은 `.claude/skills/hgo-render-step/`.
 
 ---
 
@@ -62,5 +62,5 @@
 
 > 규칙: 한 행 = `렌즈 | 읽은 양→번역 | 통과 + 핵심 수치 1개`. *문단 금지* — 전문은 이 문서 아님(렌더는 step 문서 없음, 렌즈는 가볍다).
 
-렌즈-001 (L-λ) | 광자 lambda → 가시광 스펙트럼 색 + 측정 스펙트럼 띠 (render.js 그리기, 공용 뷰어 HGO/engine/viewer.html 위임) | 스모크 PASS(광자 51·선 3·λ[1.333,20.571]·순서 보존) · atom/ diff 0 · 눈 검증 ⏳(사용자 브라우저)
+렌즈-001 (L-λ) | 광자 lambda → 가시광 스펙트럼 색 + 측정 스펙트럼 띠 (render.js 그리기, 공용 뷰어 HGO/viewer.html 위임) | 스모크 PASS(광자 51·선 3·λ[1.333,20.571]·순서 보존) · atom/ diff 0 · 눈 검증 ⏳(사용자 브라우저)
 렌즈-002 (L-3d) | 평면 세계(z=0) → 원근 3D 무대(음영 구·발광 빌보드·바닥 격자·궤도 카메라, yaw=sim.tick 파생) — 위치=sim(rx,ry,0) 그대로, z author 0 | 스모크 PASS(중심→(280,280)·평면 depth>0·Δdepth=98.2 원근) · atom/ diff 0 · 눈 검증 ⏳(사용자 브라우저)
