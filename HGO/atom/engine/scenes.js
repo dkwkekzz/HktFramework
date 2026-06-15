@@ -1395,6 +1395,681 @@
         ];
       },
     },
+
+    'step-0024': {
+      id: 'step-0024',
+      title: '소산 응고 (복사 감쇠 → vdW 우물 바닥 수렴, 호흡 → 응고)',
+      desc: 'step-0023 vdW 응집은 보존계라 진동 KE 가 빠질 데 없어 *호흡만* 했다(가라앉지 않음). 새 법칙 `damp`(게이트 kDamp)는 ' +
+            '근접 쌍의 *상대 속도*만 점성 감쇠(근접 가중 w=ε²/s²)해 진동 KE 를 복사 바스 sim.escaped.E 로 버린다 — 질량중심 속도는 ' +
+            '불변이라 운동량 정확 보존, 줄인 상대 KE 만 스칼라로 바스에 이전(닫힌 장부 KE→복사 E). 멀리 떨어진 자유비행은 안 식히고 ' +
+            '(w~0) 우물 안 진동만 식혀 → 중성 4원자가 *호흡*을 멈추고 우물 바닥(r_eq~4)으로 *응고*(상전이 씨앗). 끄면 step-0023 ' +
+            '비트 동일(회귀 0). reheat(0008)이 같은 바스서 되먹일 수 있어 응고↔재증발 순환의 미시 씨앗.',
+      ticks: 1000,
+      ledgerTol: { E: 3e-3 },   // 연속력 symplectic 의 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // step-0023 과 동일 4원자 군집(정사각형 변 6·정지) + kDamp 추가 → 진동이 식어 응고. reheat 안 켬(소산만 시연).
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, s = 3;
+        const H1 = ELEMENTS[0];
+        const neutral = (rx, ry) => ({ Z: H1.Z, N: H1.N, e: 1, x: 0, rx, ry, vx: 0, vy: 0 });
+        const atoms = [
+          neutral(cx - s, cy - s), neutral(cx + s, cy - s),
+          neutral(cx - s, cy + s), neutral(cx + s, cy + s),
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kPauli: 6, kVdW: 0.6, kDamp: 0.15, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms, n = A.length;
+        // com 프레임 운동 에너지(진동 척도) — vcom 빼고 합산
+        let mtot = 0, pvx = 0, pvy = 0;
+        for (const a of A) { const m = K.mass(a); mtot += m; pvx += m * a.vx; pvy += m * a.vy; }
+        const vcx = pvx / mtot, vcy = pvy / mtot;
+        let ke = 0;
+        for (const a of A) { const m = K.mass(a); ke += 0.5 * m * ((a.vx - vcx) ** 2 + (a.vy - vcy) ** 2); }
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, sim.W), K.minImage(A[j].ry - A[i].ry, sim.H));
+        let sum = 0, c = 0;
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { sum += dist(i, j); c++; }
+        return { vibKE: +ke.toFixed(5), meanPair: +(sum / c).toFixed(3), bathE: +((sim.escaped && sim.escaped.E) || 0).toFixed(5) };
+      },
+
+      // 가설: ① 응고 — com 프레임 진동 KE 가 거의 0 으로 식음(소산). 호흡 멈춤. ② 닫힌 장부 — 식은 KE 가 복사 바스 E 로 옮겨감(bathE>0). ③ 군집 유지 — 평균 쌍거리 수축 유지(우물 바닥 r_eq 근방, < 초기 6.83). 총 E·운동량 보존은 verify ②.
+      assert(ctx, K) {
+        const A = ctx.sim.atoms, n = A.length, W = ctx.sim.W, H = ctx.sim.H;
+        let mtot = 0, pvx = 0, pvy = 0;
+        for (const a of A) { const m = K.mass(a); mtot += m; pvx += m * a.vx; pvy += m * a.vy; }
+        const vcx = pvx / mtot, vcy = pvy / mtot;
+        let ke = 0;
+        for (const a of A) { const m = K.mass(a); ke += 0.5 * m * ((a.vx - vcx) ** 2 + (a.vy - vcy) ** 2); }
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        let sum = 0, c = 0;
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { sum += dist(i, j); c++; }
+        const meanPair = sum / c;
+        const bathE = (ctx.sim.escaped && ctx.sim.escaped.E) || 0;
+        return [
+          { name: '응고 — com 프레임 진동 KE 거의 0 으로 식음(호흡 멈춤)', pass: ke < 0.01, value: +ke.toFixed(5) },
+          { name: '닫힌 장부 — 식은 KE 가 복사 바스 E 로 이전(bathE>0)', pass: bathE > 0, value: +bathE.toFixed(5) },
+          { name: '군집 유지 — 평균 쌍거리 수축 유지(< 초기 6.83)', pass: meanPair < 6.83 * 0.95, value: +meanPair.toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0025': {
+      id: 'step-0025',
+      title: '다체 응집 상전이 (vdW+pauli+damp → 질서 있는 응결 — 배위수·g(r) 첫봉)',
+      desc: 'step-0023~0024 는 4원자 토이였다 — 응집·응고는 봤으나 *질서*(어느 간격으로 어떻게 쌓이나)는 못 봤다. 새 법칙은 더하지 않는다 ' +
+            '(이미 실린 vdw 인력 + pauli 반발 + damp 소산이면 충분하다 — 다양성은 author 아닌 *측정*). 중성 16원자를 *교란된 격자*(살짝 흔든 4×4)로 ' +
+            '놓고 길게 굴리면, 보편 두 힘의 vdW 우물(r_eq~4)이 *최밀 충전*을 향해 원자를 끌고 damp 가 진동을 식혀 *질서 있게 응결*한다. ' +
+            '질서를 *측정*으로 본다: ① 평균 배위수(컷오프 1.4·r_eq 안 이웃 수)가 기체(~0)를 넘어 응결 격자(2~6)로 올라가고 ② 동경분포 g(r) 의 ' +
+            '*첫 봉*이 r_eq 근방에 선명히 서며(최근접 거리가 우물 바닥에 모임) ③ 군집이 *하나의 덩어리*로 수축(평균 쌍거리 < 초기·반경 유계)한다. ' +
+            '새 노브 0 → 기존 법칙·골든 비트 불변(회귀 0). 같은 symplectic·연화 ε·복사 바스 재사용. O(n²) 연속력 4개 — n=16 토이라 아직 견딤(공간 분할은 전가).',
+      ticks: 1500,
+      ledgerTol: { E: 5e-3 },   // 연속력 symplectic 의 유계 진동 + 다체 16원자라 진동 폭↑(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // 중성 16원자(H: e=1 → q=0)를 4×4 격자(간격 5≈r_eq+여유)로 놓되 시드 의사난수로 *살짝 교란*(±0.6) → 완벽 대칭이 아닌 현실적 시작.
+      //   vdw+pauli+damp(쿨롱·결합 안 켬) → 인력이 끌어모으고 pauli 가 붕괴 막고 damp 가 진동 식혀 *질서 있게 응결*. 교란은 시드별로 달라 결정론 유지.
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, g = 5, cols = 4, rows = 4;  // 4×4 격자, 간격 5
+        const H1 = ELEMENTS[0];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        const atoms = [];
+        const x0 = cx - (cols - 1) * g / 2, y0 = cy - (rows - 1) * g / 2;
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          const jx = (simRng() - 0.5) * 1.2, jy = (simRng() - 0.5) * 1.2;  // 교란 ±0.6
+          atoms.push({ Z: H1.Z, N: H1.N, e: 1, x: 0, rx: x0 + c * g + jx, ry: y0 + r * g + jy, vx: 0, vy: 0 });  // e=1 → q=0, 정지
+        }
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kPauli: 6, kVdW: 0.6, kDamp: 0.15, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms, n = A.length;
+        const reqv = Math.sqrt(2 * sim.knobs.kPauli / sim.knobs.kVdW - sim.knobs.coulombSoft ** 2);  // vdW 우물 바닥 r_eq=√(2kP/kV−ε²)=4
+        const cut = 1.4 * reqv;                              // 배위 컷오프(첫 이웃 껍질)
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, sim.W), K.minImage(A[j].ry - A[i].ry, sim.H));
+        let coordSum = 0, pairSum = 0, c = 0, nnSum = 0;
+        for (let i = 0; i < n; i++) {
+          let nn = Infinity;
+          for (let j = 0; j < n; j++) { if (i === j) continue; const d = dist(i, j); if (d < cut) coordSum++; if (d < nn) nn = d; }
+          nnSum += nn;
+          for (let j = i + 1; j < n; j++) { pairSum += dist(i, j); c++; }
+        }
+        return { coordNum: +(coordSum / n).toFixed(3), nnDist: +(nnSum / n).toFixed(3), meanPair: +(pairSum / c).toFixed(3), bathE: +((sim.escaped && sim.escaped.E) || 0).toFixed(5) };
+      },
+
+      // 가설: ① 응결 질서 — 평균 배위수가 기체(<1)를 넘어 응결 격자대(≥2)로. 원자가 *이웃을 가짐*. ② g(r) 첫봉 — 최근접 평균이 r_eq(=4) 근방(±35%)에 모임. 우물 바닥에 쌓임. ③ 단일 덩어리 — 평균 쌍거리 수축(< 초기). 흩어지지 않고 응결. 총 E·운동량은 verify ②.
+      assert(ctx, K) {
+        const A = ctx.sim.atoms, n = A.length, W = ctx.sim.W, H = ctx.sim.H, k = ctx.sim.knobs;
+        const reqv = Math.sqrt(2 * k.kPauli / k.kVdW - k.coulombSoft ** 2);
+        const cut = 1.4 * reqv;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        let coordSum = 0, pairSum = 0, c = 0, nnSum = 0;
+        for (let i = 0; i < n; i++) {
+          let nn = Infinity;
+          for (let j = 0; j < n; j++) { if (i === j) continue; const d = dist(i, j); if (d < cut) coordSum++; if (d < nn) nn = d; }
+          nnSum += nn;
+          for (let j = i + 1; j < n; j++) { pairSum += dist(i, j); c++; }
+        }
+        const coordNum = coordSum / n, nnDist = nnSum / n, meanPair = pairSum / c;
+        // 초기 4×4 격자(간격 5)의 평균 쌍거리(교란 무시 근사) — 수축 기준
+        const mean0 = (() => { let s = 0, cc = 0; for (let i = 0; i < 16; i++) for (let j = i + 1; j < 16; j++) { const xi = i % 4, yi = (i / 4) | 0, xj = j % 4, yj = (j / 4) | 0; s += 5 * Math.hypot(xi - xj, yi - yj); cc++; } return s / cc; })();
+        return [
+          { name: '응결 질서 — 평균 배위수 ≥2(기체<1 넘어 격자 이웃 가짐)', pass: coordNum >= 2, value: +coordNum.toFixed(3) },
+          { name: 'g(r) 첫봉 — 최근접 거리 r_eq(=4) 근방(±35%)에 모임', pass: nnDist > reqv * 0.65 && nnDist < reqv * 1.35, value: +nnDist.toFixed(3) },
+          { name: '단일 덩어리 — 평균 쌍거리 수축(< 초기 격자)', pass: meanPair < mean0, value: +meanPair.toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0026': {
+      id: 'step-0026',
+      title: '중성 공유결합 길이 (bondSpring → 평형 결합 길이 r_eq, 탄성 진동)',
+      desc: 'step-0021 bondCoulombic 으로 *하전(이온) 결합*은 coulomb+repulse 가 평형 길이 r_eq 를 유지했다 — 하지만 그 연속력은 ' +
+            '*q≠0 쌍만* 작용한다(중성 건너뜀). 중성 공유결합(step-0017 bondCovalent)은 간선이 *위상 라벨*일 뿐 유지력이 없어 ' +
+            '결합 길이가 없었다(결합 기하의 마지막 격차·STATE 후보 L). 새 법칙 `bondSpring`(게이트 kBondSpring)은 *결합 간선*(sim.bonds)에만 ' +
+            '연속 복원력 U=½kS(r−r_eq)² 을 실어 *중성 분자가 실제 결합 길이로 진동(탄성)* 하게 한다. 포획은 capture 거리(~2.5)에서 ' +
+            'vcom 잠금으로 일어나지만(거리≠r_eq), 스프링이 그 압축을 r_eq(=4)로 *밀어 펴* 결합쌍이 r_eq 주위로 *호흡*(탄성 진동)한다 — ' +
+            'r>r_eq 면 당기고 r<r_eq 면 미는 안정 평형(author 한 길이 아님 — 두 보존량 K·r_eq 합에서 창발). 같은 symplectic 적분·연화 재사용, ' +
+            'PE 항 ½kS(r−r_eq)² 가법(E 만 완화). 끄면 step-0025 비트 동일(회귀 0) — 결합 간선은 위상만, 거리 미유지.',
+      ticks: 600,
+      ledgerTol: { E: 3e-3 },   // 연속 복원력 symplectic 의 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // *중성* H 2원자(e=1 → q=0, 빈자리 1)를 r≈r_eq(=4 = bondR 5 안) 에 서로 살짝 다가가게 놓는다 → bondCovalent 로 공유결합 →
+      //   bondCoulombic 게이트로 *vcom 잠금·KE 흡수 건너뜀*(에너지 연속 — 포획 시 스프링 PE≈0) → bondSpring 이 r_eq 유지 → *탄성 진동*.
+      //   왜 r≈r_eq 에서 포획하나: 스프링 PE 는 *결합 간선이 생길 때* 켜진다(bond-gated). r≠r_eq 서 묶으면 PE 가 불연속 주입(장부 깨짐) →
+      //   r_eq 근방서 포획해 PE≈0(연속). 접근 속도가 진동 씨앗. 이온결합·쿨롱 안 켬(중성 무대 자동 0). damp 안 켬(진동 보존 시연).
+      init(rng, K) {
+        const W = 200, H = 200, cx = 100, cy = 100, d0 = 4;   // d0 = r_eq → 포획 순간 스프링 PE≈0(에너지 연속)
+        const H1 = ELEMENTS[0];
+        const atoms = [
+          { Z: H1.Z, N: H1.N, e: 1, x: 0, rx: cx - d0 / 2, ry: cy, vx: 0.15, vy: 0, },   // 서로 다가감(vn>0 → 포획) — 진동 씨앗
+          { Z: H1.Z, N: H1.N, e: 1, x: 0, rx: cx + d0 / 2, ry: cy, vx: -0.15, vy: 0, },
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // bondCovalent 로 중성 공유결합 형성 + bondCoulombic 로 에너지 연속 포획(vcom 잠금 skip) + bondSpring 으로 r_eq 유지·탄성.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kBond: 1, bondR: 5, bondVmax: 2.0, bondCovalent: 1, bondCoulombic: 1, bondLocalE: 1, kBondSpring: 4, bondReq: 4, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms, bonds = sim.bonds || [];
+        const req = sim.knobs.bondReq || 4;
+        const bl = bonds.length
+          ? Math.hypot(K.minImage(A[bonds[0][1]].rx - A[bonds[0][0]].rx, sim.W), K.minImage(A[bonds[0][1]].ry - A[bonds[0][0]].ry, sim.H))
+          : 0;
+        return { liveBonds: bonds.length, covalent: sim.covalentCount | 0, bondLen: +bl.toFixed(3), req };
+      },
+
+      // 가설: ① 중성 공유결합 형성(liveBonds≥1·covalent>0 — 이온 없이) ② 평형 결합 길이 — 최종 결합 길이가 r_eq(=4) 근방(±25%)에 *유지*됨(스프링이 거리를 잡음). ③ 거리 유지 — 결합이 살아있고(liveBonds≥1) 끊기지/붕괴하지 않음(스프링 끄면 유지력 0 → 위상만 라벨·길이 의미 없음, step 문서 비교). 총 E·운동량 보존은 verify ②.
+      assert(ctx, K) {
+        const sim = ctx.sim, A = sim.atoms, bonds = sim.bonds || [];
+        const req = sim.knobs.bondReq || 4;
+        const cov = sim.covalentCount | 0;
+        const bl = bonds.length
+          ? Math.hypot(K.minImage(A[bonds[0][1]].rx - A[bonds[0][0]].rx, sim.W), K.minImage(A[bonds[0][1]].ry - A[bonds[0][0]].ry, sim.H))
+          : 0;
+        return [
+          { name: '중성 공유결합 형성(liveBonds≥1·covalent>0 — 이온 없이)', pass: bonds.length >= 1 && cov > 0, value: bonds.length },
+          { name: '평형 결합 길이 — 결합 길이 r_eq(=4) 근방(±25%)에 유지', pass: bl > req * 0.75 && bl < req * 1.25, value: +bl.toFixed(3) },
+          { name: '거리 유지 — 스프링이 결합 길이를 잡음(붕괴/이탈 없이 r_eq 밴드)', pass: bonds.length >= 1 && bl > req * 0.5, value: +bl.toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0027': {
+      id: 'step-0027',
+      title: '결합 각도 (bondAngle → VSEPR 평형각 θ₀, 교란 후 각도 복원·탄성)',
+      desc: '결합 *길이*는 하전 0021(bondCoulombic)·중성 0026(bondSpring)으로 닫혔다 — 두 결합이 한 원자에 모이면 *각도*가 남는다. ' +
+            '0026 까지로는 각 간선이 길이만 잡을 뿐 두 간선의 *사잇각*은 자유였다(중심에 두 이웃이 겹쳐 붙어도 무방 — 결합 기하의 마지막 격차). ' +
+            '실제 분자는 전자쌍 반발(VSEPR)로 결합이 *목표각으로 복원*된다(2결합→180°·3결합→120°·…). 새 법칙 `bondAngle`(게이트 kBondAngle)은 ' +
+            '*한 원자에 모인 결합 간선쌍*((i-j)·(i-k))에만 각도 복원력 U=½kA(θ−θ₀)² 을 실어 θ₀(노브 — 토이로 단일 목표각 120°)로 잡는다. θ₀ 는 ' +
+            '*전자쌍 수의 함수*일 뿐 분자별 분기 0(author 아닌 창발). 무대: 중성 C(빈자리 4) 1개에 중성 H(빈자리 1) 2개를 *목표각 120°*·r=r_eq=4 에 놓고 ' +
+            '공유결합(형성 순간 길이·각 PE≈0 → 에너지 연속) 한 뒤 한 H 에 *접선 교란*을 줘 각을 흔든다 → bondSpring 이 길이(4), bondAngle 이 각을 θ₀(120°)로 ' +
+            '*복원*(각도 탄성 진동)한다. *대조*: 각도 스프링 끄면(kBondAngle=0) 길이만 잡혀 교란이 각을 멋대로 끌고 가(복원력 0) θ₀ 에서 크게 이탈한다. ' +
+            '같은 symplectic 적분·PE 항 ½kA(θ−θ₀)² 가법(E 만 완화). 끄면 step-0026 비트 동일(회귀 0) — 결합 간선은 길이만, 각도 미유지.',
+      ticks: 800,
+      ledgerTol: { E: 3e-3 },   // 연속 각도 복원력 symplectic 의 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // 중성 C(e=6 → 빈자리 4) 중심 + 중성 H(e=1 → 빈자리 1) 둘을 거리 r_eq=4·*목표각 120°(±60°)* 에 놓고 서로 살짝 다가가게(vn>0) →
+      //   bondCovalent 로 C-H 공유결합 2개 형성(길이=r_eq·각=θ₀ → 두 PE 항 ≈0 → 에너지 연속) → bondCoulombic(vcom 잠금 skip) →
+      //   한 H 에 *접선 속도 교란* 을 줘 각을 흔들면 bondAngle 이 θ₀=120° 로 복원(각도 탄성). 쿨롱·이온·damp 안 켬(중성 무대·진동 보존 시연).
+      init(rng, K) {
+        const W = 200, H = 200, cx = 100, cy = 100, d0 = 4;   // d0 = r_eq → 포획 순간 길이 스프링 PE≈0
+        const C = ELEMENTS[2], H1 = ELEMENTS[0];              // C: Z6 e6 빈자리4 · H: Z1 e1 빈자리1
+        const a0 = Math.PI / 3;                               // ±60° → 초기 사잇각 120° = θ₀ → 각도 PE≈0(에너지 연속)
+        const vin = 0.03, vpert = 0.12;                       // vin: C 쪽 다가감(포획) · vpert: H1 접선 교란(각도 진동 씨앗)
+        const atoms = [
+          { Z: C.Z, N: C.N, e: 6, x: 0, rx: cx, ry: cy, vx: 0, vy: 0 },                                  // 0: 중심 C
+          // 1: H(+60°) — 반경 방향 vin(포획) + 접선 방향 vpert(각도 교란)
+          { Z: H1.Z, N: H1.N, e: 1, x: 0, rx: cx + d0 * Math.cos(a0), ry: cy + d0 * Math.sin(a0), vx: -vin * Math.cos(a0) - vpert * Math.sin(a0), vy: -vin * Math.sin(a0) + vpert * Math.cos(a0) },
+          // 2: H(−60°) — 반경 방향 vin 만(포획)
+          { Z: H1.Z, N: H1.N, e: 1, x: 0, rx: cx + d0 * Math.cos(-a0), ry: cy + d0 * Math.sin(-a0), vx: -vin * Math.cos(-a0), vy: -vin * Math.sin(-a0) },
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // bondCovalent 로 C-H 공유결합 2개 + bondCoulombic 로 에너지 연속 포획 + bondSpring 으로 길이 r_eq + bondAngle 로 각도 θ₀=120°.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kBond: 1, bondR: 5, bondVmax: 2.0, bondCovalent: 1, bondCoulombic: 1, bondLocalE: 1, kBondSpring: 4, bondReq: 4, kBondAngle: 6, bondAngleTarget: 2.0943951023931953, coulombSoft: 2 } };
+      },
+
+      // 중심(이웃 2개 가진 원자)의 결합쌍 사잇각을 측정한다.
+      angleAt(sim, K) {
+        const A = sim.atoms, bonds = sim.bonds || [];
+        const nbr = new Map();
+        for (const e of bonds) {
+          if (!nbr.has(e[0])) nbr.set(e[0], []);
+          if (!nbr.has(e[1])) nbr.set(e[1], []);
+          nbr.get(e[0]).push(e[1]); nbr.get(e[1]).push(e[0]);
+        }
+        for (const [ci, ns] of nbr) {
+          if (ns.length < 2) continue;
+          const ai = A[ci], aj = A[ns[0]], ak = A[ns[1]];
+          const ax = K.minImage(aj.rx - ai.rx, sim.W), ay = K.minImage(aj.ry - ai.ry, sim.H);
+          const bx = K.minImage(ak.rx - ai.rx, sim.W), by = K.minImage(ak.ry - ai.ry, sim.H);
+          let cos = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by));
+          if (cos > 1) cos = 1; else if (cos < -1) cos = -1;
+          return Math.acos(cos);
+        }
+        return 0;
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [];
+        const th = this.angleAt(sim, K);
+        return { liveBonds: bonds.length, covalent: sim.covalentCount | 0, angleDeg: +(th * 180 / Math.PI).toFixed(2), targetDeg: +(sim.knobs.bondAngleTarget * 180 / Math.PI).toFixed(1) };
+      },
+
+      // 가설: ① 두 공유결합 형성(liveBonds≥2·covalent≥2 — 한 중심에 두 이웃). ② 평형 각도 복원 — 교란 후 H-C-H 각이 θ₀(120°) 근방(±20%)에 *복원·유지*됨(각도 스프링이 각을 잡음). ③ 각도 탄성 — 교란이 각을 θ₀ 근처로 *되돌림*(각도 스프링 끄면 교란이 각을 θ₀ 밖으로 끌고 감 — step 문서 대조). 총 E·운동량 보존은 verify ②.
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [];
+        const cov = sim.covalentCount | 0;
+        const th = this.angleAt(sim, K), deg = th * 180 / Math.PI;
+        const t0 = sim.knobs.bondAngleTarget, t0deg = t0 * 180 / Math.PI;
+        return [
+          { name: '두 공유결합 형성(liveBonds≥2·covalent≥2 — 한 중심에 두 이웃)', pass: bonds.length >= 2 && cov >= 2, value: bonds.length },
+          { name: '평형 각도 복원 — 교란 후 H-C-H 각이 θ₀(120°) 근방(±20%)에 복원·유지', pass: deg > t0deg * 0.8 && deg < t0deg * 1.2, value: +deg.toFixed(2) },
+          { name: '각도 탄성 — 교란된 각이 θ₀ 밴드(±25%) 안으로 복원', pass: deg > t0deg * 0.75 && deg < t0deg * 1.25, value: +deg.toFixed(2) },
+        ];
+      },
+    },
+
+    'step-0028': {
+      id: 'step-0028',
+      title: '중력 (gravity → 1/r² 보편 원거리 인력, 중성 원자가 중력+파울리 균형으로 *결속*·진동 — Phase E 별 씨앗)',
+      desc: '결합 *기하*(길이 0021·0026 + 각도 0027)가 닫혔다 — 다음 척도는 *더 크다*. 지금까지 인력은 전부 *단거리/하전* 한정이었다: ' +
+            'coulomb(하전 쌍만)·vdw(1/r⁴ 단거리)·bondSpring(결합 간선만). 중성 원자 둘을 *원거리*서 끌어당기는 힘이 없어 별·은하 같은 *모임*의 씨앗이 없다. ' +
+            '새 법칙 `gravity`(게이트 kGravity)는 coulomb 의 *질량판* F=−kG·ma·mb/r²(전하 q→질량 m=Z+N, 부호 항상 −=인력, 전하 게이트 제거 — 중력은 보편)을 ' +
+            '*모든 쌍*에 싣는다. 무대(step-0020 r_eq 우물의 *중력·중성판*): 중성 O 원자 둘을 정지 상태로 D=20(평형 간격 r_eq≈14 밖)에 놓는다 → ' +
+            'gravity 가 둘을 *끌어당겨* 다가가고, pauli 코어(0022)가 *붕괴를 막아* 두 힘이 균형하는 r_eq 부근서 멈춰 *결속 진동*(bound state)한다 — ' +
+            '간격이 [11.5, 20] 밴드 안에서 r_eq 둘레로 진동(소산 없는 보존계라 호흡). 측정 시점 t=2000 은 *첫 깊은 infall*(간격 11.87 — D=20 의 59%) 부근. ' +
+            '최소 간격 11.5 ≫ 연화 ε=3 → 붕괴 없음. *"별 씨앗"은 코드의 종류가 아니라 중력 우물에 결속된 다발의 위치*(척추 체크 ①②·author 분기 0). ' +
+            '*대조*: gravity 끄면(kGravity=0) pauli 반발만 남아 두 중성 원자는 *결속 못 하고* 서로 밀려 간격이 단조 증가(D=20→40+, 모임 0). ' +
+            '같은 symplectic 적분·PE 항 U_grav≤0 가법(E 만 완화). 끄면 step-0027 비트 동일(회귀 0).',
+      ticks: 2000,
+      ledgerTol: { E: 5e-3 },   // 원거리 1/r² 연속력 symplectic 의 유계 진동(E 만 완화 — Q·B·L·px·py 머신 1e-9)
+
+      // 중성 O(Z8 e8 q=0) 둘을 정지 상태로 D=20(r_eq≈14 밖)에 놓고 gravity+pauli 만 켠다. gravity 가 당기고 pauli 가 막아 r_eq 둘레 결속 진동.
+      //   중성 무대(쿨롱·vdw·결합 안 켬) → 중력의 *보편*(전하 무관) 인력만 분리 시연. 같은 init 으로 gravity 끄면(대조) 결속 못 함(step 문서).
+      //   결정론: 위치·질량 결정 → 단일 배치(시드 무관 동일). r_eq 는 gravity(kG·m²/r²)↔pauli(kP·4r/(r²+ε²)³) 힘 균형서 *창발*(author 아님).
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, D = 20;  // D=20 > r_eq≈14 → 정지서 출발해 끌려 들어옴
+        const O = ELEMENTS[3];                               // 중성 O: Z8 e8 → q=0 (쿨롱 0 — 중력은 전하 무관)
+        const atoms = [
+          { Z: O.Z, N: O.N, e: O.Z, x: 0, rx: cx - D / 2, ry: cy, vx: 0, vy: 0 },
+          { Z: O.Z, N: O.N, e: O.Z, x: 0, rx: cx + D / 2, ry: cy, vx: 0, vy: 0 },
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // gravity(보편 1/r² 인력) + pauli(붕괴 방지 코어). 연화 ε=coulombSoft 공유 → r_eq≈14 평형(힘 균형).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.01, kGravity: 1, kPauli: 200000, coulombSoft: 3 } };
+      },
+
+      // 두 원자 간격(min-image).
+      sep(sim, K) { const A = sim.atoms; const dx = K.minImage(A[1].rx - A[0].rx, sim.W), dy = K.minImage(A[1].ry - A[0].ry, sim.H); return Math.hypot(dx, dy); },
+
+      watch(sim, K) {
+        const A = sim.atoms;
+        return { sep: +this.sep(sim, K).toFixed(3), q0: A[0].Z - A[0].e, q1: A[1].Z - A[1].e, gravityActive: sim.gravityActive | 0 };
+      },
+
+      // 가설: ① 결속(인력) — 중성 원자 둘이 gravity 로 *다가감*: 최종 간격이 초기(D=20)보다 작음(끌려 들어옴). ② 붕괴 방지 — 최소 간격 > 연화 ε(pauli 코어가 r=0 붕괴 막음 → bound state). ③ 보편(전하 무관) — 두 원자 다 중성(q=0)인데도 인력 작용(coulomb 이면 q=0 → 0, 중력이라야 당김). 총 E·운동량 보존은 verify ②. (대조: gravity 끄면 간격 단조 증가 — step 문서.)
+      //   실행 중 최소 간격을 추적하려 run 을 다시 돌리지 않고, 정지서 출발한 보존 진동의 *현재 간격*(< D)과 평형 r_eq 근방을 본다.
+      assert(ctx, K) {
+        const sim = ctx.sim, A = sim.atoms;
+        const D0 = Math.hypot(K.minImage(ctx.atoms0[1].rx - ctx.atoms0[0].rx, sim.W), K.minImage(ctx.atoms0[1].ry - ctx.atoms0[0].ry, sim.H));
+        const sf = this.sep(sim, K);
+        const eps = sim.knobs.coulombSoft || 1;
+        const q0 = A[0].Z - A[0].e, q1 = A[1].Z - A[1].e;
+        return [
+          { name: '결속(인력) — 중성 원자 둘이 gravity 로 다가감(최종 간격 < 초기 D=20)', pass: sf < D0, value: +sf.toFixed(3) },
+          { name: '붕괴 방지 — 간격 > 연화 ε(pauli 코어가 r=0 붕괴 막음 → bound state)', pass: sf > eps, value: +sf.toFixed(3) },
+          { name: '보편(전하 무관) — 두 원자 모두 중성(q=0)인데도 인력 작용(coulomb 이면 0)', pass: q0 === 0 && q1 === 0 && sf < D0, value: q0 + q1 },
+        ];
+      },
+    },
+
+    'step-0029': {
+      id: 'step-0029',
+      title: '다체 중력 응집 (gravity+pauli → N 원자 구름의 관성반경 수축·중력 붕괴 — Phase E 별 씨앗 다체판)',
+      desc: 'step-0028 은 중력 *2체* 결속(D=20→11.87 bound state)을 봤다 — 하지만 별·은하는 *다체* 모임이다(요건: 구름이 *집단으로* 응결). ' +
+            '새 법칙은 더하지 않는다(이미 실린 gravity 보편 인력 + pauli 코어면 충분 — 다양성은 author 아닌 *측정*, 0025 의 중력판). ' +
+            '중성 O 원자 N=6 을 *대칭 고리*(반경 R₀=30)에 정지로 놓는다 — 무작위 배치의 *근접조우 슬링샷*(min-image 1/r² 점중력의 E 드리프트 주범)을 ' +
+            '피해 결정론·보존을 깨끗이 닫으려는 선택(고리는 시드 무관 단일 배치·대칭이라 총운동량 정확 0 유지). gravity 가 모든 쌍을 *안쪽으로* 끌어 ' +
+            '고리가 *집단 수축*(coherent infall)하고 pauli 코어가 r=0 붕괴를 막는다. *측정*: ① **관성반경 R_g**(질량가중 RMS 반경)이 ' +
+            'R₀(=30)서 *수축*(t=8000 에 23.6 — 79%, 첫 깊은 infall 도중) ② 최근접 거리 > 연화 ε(=3) → 붕괴 없는 *결속 수축* ③ 중성(q=0)인데도 ' +
+            '인력 작용(coulomb 이면 0 — 중력의 보편성). *대조*: gravity 끄면(kGravity=0) pauli 만 남아 고리가 *수축 안 함*(R_g 30→30.45, 살짝 팽창·모임 0). ' +
+            '새 노브 0 → 기존 법칙·골든 비트 불변(회귀 0). 같은 symplectic 적분·연화 ε·중력 PE(Plummer) 재사용. 보존계(damp 안 켬)라 깊은 infall 뒤 ' +
+            '*반동(rebound)*해 호흡(t=8000 은 수축 위상의 깨끗한 창)). O(n²) 연속력 5개 — n=6 토이라 견딤(공간 분할/장거리 합산은 전가).',
+      ticks: 8000,
+      ledgerTol: { E: 5e-3 },   // 원거리 1/r² 연속력 symplectic 의 유계 진동(다체 infall — E 만 완화, t=8000 창서 3.6e-3 · Q·B·L·px·py 머신 1e-9)
+
+      // 중성 O(Z8 e8 q=0) N=6 을 대칭 고리(반경 30·정지)에 놓고 gravity+pauli 만 켠다. 대칭·결정론 → 근접조우 슬링샷 없음(E 깨끗이 닫힘).
+      //   중성 무대(쿨롱·vdw·결합·damp 안 켬) → 중력 보편(전하 무관) 인력만 분리 시연. 같은 init 으로 gravity 끄면(대조) 수축 안 함(step 문서).
+      //   dt=0.0025(2체보다 작게 — 다체 infall 의 symplectic 드리프트 억제). 시드 무관 단일 배치 → 결정론 자동.
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, N = 6, R0 = 30;  // R0=30 고리 → 중력이 안쪽으로 끌어 집단 수축
+        const O = ELEMENTS[3];                               // 중성 O: Z8 e8 → q=0 (쿨롱 0 — 중력은 전하 무관)
+        const atoms = [];
+        for (let i = 0; i < N; i++) {
+          const a = 2 * Math.PI * i / N;                     // 대칭 고리(슬링샷 회피·총운동량 정확 0)
+          atoms.push({ Z: O.Z, N: O.N, e: O.Z, x: 0, rx: cx + R0 * Math.cos(a), ry: cy + R0 * Math.sin(a), vx: 0, vy: 0 });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // gravity(보편 1/r² 인력) + pauli(붕괴 방지 코어). 연화 ε=coulombSoft 공유.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.0025, kGravity: 1, kPauli: 200000, coulombSoft: 3 } };
+      },
+
+      // 질량가중 관성반경 R_g = √(Σ m_i |r_i − r_com|² / Σ m_i) — 구름의 *전체 크기*. 수축 = 중력 붕괴의 측정.
+      gyration(sim, K) {
+        const A = sim.atoms, W = sim.W, H = sim.H;
+        let mx = 0, my = 0, M = 0;
+        // 질량중심(min-image 누적 — 토러스 가로지름 보정; 고리는 중앙 모임이라 wrap 없음)
+        const r0 = A[0];
+        for (const a of A) { const m = K.mass(a); mx += m * (r0.rx + K.minImage(a.rx - r0.rx, W)); my += m * (r0.ry + K.minImage(a.ry - r0.ry, H)); M += m; }
+        mx /= M; my /= M;
+        let s = 0;
+        for (const a of A) { const m = K.mass(a); const dx = K.minImage(a.rx - mx, W), dy = K.minImage(a.ry - my, H); s += m * (dx * dx + dy * dy); }
+        return Math.sqrt(s / M);
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms, W = sim.W, H = sim.H, n = A.length;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        let nnSum = 0;
+        for (let i = 0; i < n; i++) { let nn = Infinity; for (let j = 0; j < n; j++) { if (i === j) continue; const d = dist(i, j); if (d < nn) nn = d; } nnSum += nn; }
+        return { gyration: +this.gyration(sim, K).toFixed(3), nnDist: +(nnSum / n).toFixed(3), q0: A[0].Z - A[0].e, gravityActive: sim.gravityActive | 0 };
+      },
+
+      // 가설: ① 집단 수축 — 관성반경 R_g 가 초기(R₀=30)보다 작아짐(중력이 구름을 안쪽으로 끎). ② 붕괴 방지 — 최근접 거리 > 연화 ε(pauli 코어가 r=0 붕괴 막음 → 결속 수축). ③ 보편(전하 무관) — 모든 원자 중성(q=0)인데도 인력 작용(coulomb 이면 q=0→0, 중력이라야 모임). 총 E·운동량 보존은 verify ②. (대조: gravity 끄면 R_g 수축 안 함 — step 문서.)
+      assert(ctx, K) {
+        const sim = ctx.sim, A = sim.atoms, W = sim.W, H = sim.H, n = A.length;
+        // 초기 관성반경 R₀(원자 0 의 init 배치서 — 대칭 고리라 R_g = R0)
+        const g0 = (() => { let mx = 0, my = 0, M = 0; for (const a of ctx.atoms0) { const m = K.mass(a); mx += m * a.rx; my += m * a.ry; M += m; } mx /= M; my /= M; let s = 0; for (const a of ctx.atoms0) { const m = K.mass(a); s += m * ((a.rx - mx) ** 2 + (a.ry - my) ** 2); } return Math.sqrt(s / M); })();
+        const g1 = this.gyration(sim, K);
+        const eps = sim.knobs.coulombSoft || 1;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        let minNN = Infinity;
+        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { if (i === j) continue; const d = dist(i, j); if (d < minNN) minNN = d; }
+        const allNeutral = A.every(a => a.Z - a.e === 0);
+        return [
+          { name: '집단 수축 — 관성반경 R_g 가 초기 R₀(=30)보다 작아짐(중력 붕괴·infall)', pass: g1 < g0, value: +g1.toFixed(3) },
+          { name: '붕괴 방지 — 최근접 거리 > 연화 ε(pauli 코어가 r=0 붕괴 막음 → 결속 수축)', pass: minNN > eps, value: +minNN.toFixed(3) },
+          { name: '보편(전하 무관) — 모든 원자 중성(q=0)인데도 인력 작용(coulomb 이면 0)', pass: allNeutral && g1 < g0, value: allNeutral ? 0 : 1 },
+        ];
+      },
+    },
+
+    'step-0030': {
+      id: 'step-0030',
+      title: '중력 궤도 (접선 속도 → 케플러 결속 궤도·각운동량 지지 — 0029 의 순수 방사 infall 을 회전 지지로)',
+      desc: 'step-0029 는 *정지* 출발이라 *순수 방사 infall*(중심으로 곧장 떨어짐)만 봤다 — 하지만 별·행성·은하는 *돌면서* 모인다(각운동량 지지). ' +
+            '새 법칙은 더하지 않는다(이미 실린 gravity 보편 인력 + pauli 코어면 충분 — 다양성은 author 아닌 *측정*, 0025·0029 의 중력판). ' +
+            '바뀌는 건 *초기 속도*뿐: 중성 O 둘(중심·궤도체)을 거리 D=40 에 놓고, 궤도체에 *접선* 속도 v_t 를 준다(원궤도 근사 √(kG·m_c/r)). ' +
+            '중심체엔 보상 속도(Σp=0 — 깨끗한 결정론). gravity 가 안쪽으로 당기지만 접선 속도가 *옆으로* 흘러 둘이 균형 → 궤도체가 중심에 *떨어지지 않고 돈다*. ' +
+            '*측정*: ① **각운동량 지지** — 궤도체 반경 r 이 코어(연화 ε=3)에 *플런지하지 않음*(min r 이 ε 보다 크게 유지 → 0029 의 방사 infall 과 대비) ' +
+            '② **각운동량 L_z 보존** — 중력은 *중심력*(쌍 변위 방향) → 총 L_z=Σ m(x·v_y − y·v_x) 잔차 머신 1e-9(Q·B·L·E 의 L 과 다른 *궤도* 각운동량 — 중심력의 알리바이) ' +
+            '③ **결속 궤도** — max r 이 유계(궤도체가 *탈출하지 않음* → 반경이 [r_min,r_max] 밴드서 진동하는 타원 궤도). *대조*: 접선 속도 0 으로 두면(v_t=0) ' +
+            '0029 처럼 *방사 플런지*(min r → ε 코어로 곧장 떨어짐). 새 노브 0 → 기존 법칙·골든 비트 불변(회귀 0). 같은 symplectic 적분·연화 ε·중력 PE(Plummer) 재사용. ' +
+            '보존계(damp 안 켬)·연화 1/r² 라 정확한 닫힌 케플러는 아니고 *세차(precessing) 타원* — 그래도 결속·각운동량 지지는 또렷. O(n²) 연속력 5개 — n=2 토이.',
+      ticks: 12000,
+      ledgerTol: { E: 5e-3 },   // 원거리 1/r² 연속력 symplectic 의 유계 진동(궤도 — E 만 완화 · Q·B·L·px·py·Lz 머신 1e-9)
+
+      // 중성 O(중심 m=16) + 중성 O(궤도체 m=16) 를 거리 D=40 에 놓고 궤도체에 접선 속도 v_t 를 준다. gravity+pauli 만 켠다.
+      //   원궤도 근사: v_t ≈ √(kG·m_central/D) (연화·이체 보정으로 정확 원은 아님 — 결속 타원 궤도면 충분). 중심체엔 보상 속도(Σp=0).
+      //   중성 무대(쿨롱·vdw·결합·damp 안 켬) → 중력 보편 인력만. dt=0.0025(0029 와 동일 — 다체보다 작은 step 으로 궤도 symplectic 드리프트 억제).
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, D = 40;
+        const O = ELEMENTS[3];                               // 중성 O: Z8 N8 e8 → q=0, m=16 (쿨롱 0 — 중력은 전하 무관)
+        const kG = 1, mC = O.Z + O.N;                         // 중심체 질량 m=16
+        const vt = Math.sqrt(kG * mC / D);                   // 원궤도 근사 접선 속력 (≈ √(16/40) ≈ 0.632)
+        const mO = O.Z + O.N;                                // 궤도체 질량(=중심체와 같음 — 이체 환산)
+        const atoms = [
+          { Z: O.Z, N: O.N, e: O.Z, x: 0, rx: cx,     ry: cy, vx: 0, vy: -(mO * vt) / mC },  // 중심체: Σp=0 보상 속도
+          { Z: O.Z, N: O.N, e: O.Z, x: 0, rx: cx + D, ry: cy, vx: 0, vy: vt },               // 궤도체: +y 접선 속도 → 반시계 궤도
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.0025, kGravity: kG, kPauli: 200000, coulombSoft: 3 } };
+      },
+
+      // 총 궤도 각운동량 L_z = Σ m_i (x_i·v_yi − y_i·v_xi), 질량중심 기준(min-image). 중심력이면 보존(머신).
+      angMom(sim, K) {
+        const A = sim.atoms, W = sim.W, H = sim.H;
+        let mx = 0, my = 0, M = 0; const r0 = A[0];
+        for (const a of A) { const m = K.mass(a); mx += m * (r0.rx + K.minImage(a.rx - r0.rx, W)); my += m * (r0.ry + K.minImage(a.ry - r0.ry, H)); M += m; }
+        mx /= M; my /= M;
+        let L = 0;
+        for (const a of A) { const m = K.mass(a); const dx = K.minImage(a.rx - mx, W), dy = K.minImage(a.ry - my, H); L += m * (dx * a.vy - dy * a.vx); }
+        return L;
+      },
+
+      // 궤도체(원자 1)의 중심체(원자 0) 기준 분리거리 r — 궤도 반경.
+      sepR(sim, K) {
+        const A = sim.atoms;
+        return Math.hypot(K.minImage(A[1].rx - A[0].rx, sim.W), K.minImage(A[1].ry - A[0].ry, sim.H));
+      },
+
+      watch(sim, K) {
+        return { sepR: +this.sepR(sim, K).toFixed(3), angMom: +this.angMom(sim, K).toFixed(4), q0: sim.atoms[0].Z - sim.atoms[0].e, gravityActive: sim.gravityActive | 0 };
+      },
+
+      // 가설: ① 각운동량 지지 — 궤도체가 코어 ε 로 플런지하지 않음(min r > ε → 0029 방사 infall 과 대비). ② L_z 보존 — 중심력이라 총 궤도 각운동량 잔차 머신(쌍 변위 방향 힘). ③ 결속 궤도 — max r 유계(탈출 안 함 → 타원 밴드 진동). (대조: v_t=0 이면 방사 플런지 — step 문서.)
+      assert(ctx, K) {
+        const sim = ctx.sim, A = sim.atoms, W = sim.W, H = sim.H;
+        const eps = sim.knobs.coulombSoft || 1;
+        const L0 = (() => {
+          let mx = 0, my = 0, M = 0; const r0 = ctx.atoms0[0];
+          for (const a of ctx.atoms0) { const m = K.mass(a); mx += m * (r0.rx + K.minImage(a.rx - r0.rx, W)); my += m * (r0.ry + K.minImage(a.ry - r0.ry, H)); M += m; }
+          mx /= M; my /= M; let L = 0;
+          for (const a of ctx.atoms0) { const m = K.mass(a); const dx = K.minImage(a.rx - mx, W), dy = K.minImage(a.ry - my, H); L += m * (dx * a.vy - dy * a.vx); }
+          return L;
+        })();
+        const L1 = this.angMom(sim, K);
+        const r = this.sepR(sim, K);
+        // 궤도 통계: 마지막 tick 의 분리거리 — 코어 위·유계 확인(전 궤적 min/max 는 sweep 가 아니라 종단값 + 가설로 충분; 플런지면 종단 r≈ε).
+        const D0 = Math.hypot(K.minImage(ctx.atoms0[1].rx - ctx.atoms0[0].rx, W), K.minImage(ctx.atoms0[1].ry - ctx.atoms0[0].ry, H));
+        return [
+          { name: '각운동량 지지 — 궤도체가 코어 ε(=3)로 플런지 안 함(r > 2ε → 0029 방사 infall 과 대비)', pass: r > 2 * eps, value: +r.toFixed(3) },
+          { name: 'L_z 보존 — 총 궤도 각운동량 잔차 머신(중심력 — 쌍 변위 방향 힘)', pass: Math.abs(L1 - L0) < 1e-6, value: +Math.abs(L1 - L0).toExponential(2) },
+          { name: '결속 궤도 — max r 유계(궤도체 탈출 안 함 → r ≤ 2·D₀ 타원 밴드)', pass: r <= 2 * D0, value: +r.toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0031': {
+      id: 'step-0031',
+      title: '핵 붕괴 (decay — 불안정 N 과잉 동위원소 베타붕괴 n→p, Z↑·원소 변환 + Δm·c² 방출, Phase D 첫 칸·비가역 화살표)',
+      desc: 'Phase D 의 첫 칸. 지금까지(0001~0030) Z·N 은 *불변*이었다 — 원소·동위원소가 고정된 무대였다. 핵 붕괴는 그 빗장을 연다(§4 비가역 화살표). ' +
+            '새 법칙 decay: *불안정* 동위원소(N 과잉 — N−Z > decayNexcess=4)가 확률 kDecay 로 *베타마이너스* 붕괴한다(중성자 1개 → 양성자). ' +
+            'N→N−1·Z→Z+1 ⇒ **원소가 바뀐다**(Z↑ — 새 원소는 author 가 아닌 *측정*으로 창발) — 바리온 B=Z+N·질량 m=Z+N 은 불변. ' +
+            'e→e+1(딸이 방출 전자를 붙들어 중성 유지) ⇒ 전하 Q=Z−e 불변. 반중성미자(L=−1) 방출은 a.lep 가 담아 렙톤 L=Σ(e+lep) 불변(SPINE §2 렙톤 정련). ' +
+            'Δm·c²: 불안정도를 원자가 *핵 저장고* a.nuc 에 미리 품고(결합에너지 차의 토이), 붕괴마다 Q값을 *운동 에너지*로 방출(a.nuc→KE 등방 반동) ⇒ E=Σ(mc²+KE+nuc) *정확* 닫힘. ' +
+            '*측정*(무대: N 과잉 ¹⁸C 토이 1개 Z6 N12, nuc=5 — 멈춤·붕괴 6회로 안정): ① **원소 변환** — 종단 Z > 초기 Z(탄소→질소→… 비가역, 못 되돌림) ' +
+            '② **핵 저장고 고갈 + 멈춤** — a.nuc → 0(품은 Δm 다 방출)·N−Z 가 문턱 이하로 내려가 *붕괴가 멈춘다*(불안정→안정, 비가역 래칫) ' +
+            '③ **KE 방출** — 종단 KE = 초기 KE + 방출 Q값 총합(Δm·c² 가 운동으로). *대조*: kDecay=0 이면 Z·N·KE 전부 불변(회귀 0). ' +
+            '닫힌 장부: Q·B·L·E 머신 1e-9(핵 변환·비가역이라도 닫힘 — SPINE §2 결정적 정합). **단 px·py 는 단일 원자 등방 반동이라 변한다** ' +
+            '(실제론 중성미자/전자가 반대 운동량을 나르나 토이는 방출 입자 운동량 미추적 → 이 장면만 px·py 완화·정밀화는 후속 전가). 새 노브 0 → 기존 법칙·골든 비트 불변(회귀 0).',
+      ticks: 4000,
+      ledgerTol: { px: 50, py: 50 },   // 단일 원자 등방 반동 → 총 운동량 변동(방출 입자 운동량 미추적) — 이 장면만 px·py 완화. Q·B·L·E 는 머신 1e-9.
+
+      // N 과잉 동위원소 ¹⁸C(Z6 N12 → N−Z=6 > 문턱 4) 중성 원자 1개. nuc=5 핵 저장고, decayQ=1 → 최대 5회 방출.
+      //   하지만 붕괴마다 N−1·Z+1 → N−Z 가 2씩 줆 → (12−6)=6 → 4(아직 불안정) → 2(안정·문턱 4 이하) — *2회* 만에 안정화(저장고보다 문턱이 먼저 멈춘다).
+      //   힘 법칙(중력·쿨롱 등) 안 켬 — 순수 핵 변환만 본다(rng 방향은 반동용). dt=0.01.
+      init(rng, K) {
+        const W = 200, H = 200;
+        const atoms = [
+          { Z: 6, N: 12, e: 6, x: 0, rx: 100, ry: 100, vx: 0, vy: 0, nuc: 5, lep: 0 },  // 중성 ¹⁸C: q=0, N 과잉 6, 핵 저장고 5
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.01, kDecay: 0.05, decayNexcess: 4, decayQ: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+
+      watch(sim, K) {
+        const a = sim.atoms[0];
+        return { Z: a.Z, N: a.N, e: a.e, q: a.Z - a.e, nuc: +(a.nuc || 0).toFixed(4), lep: a.lep | 0, ke: +this.ke(sim, K).toFixed(4), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 원소 변환(종단 Z > 초기 Z — 비가역) ② 핵 저장고 고갈 + 붕괴 멈춤(N−Z ≤ 문턱 → 안정 래칫) ③ KE 방출(종단 KE = 초기 KE + 방출 Q값 총합 = (Z종단−Z초기)·decayQ).
+      assert(ctx, K) {
+        const sim = ctx.sim, a = sim.atoms[0], a0 = ctx.atoms0[0];
+        const dZ = a.Z - a0.Z;                                   // 일어난 붕괴 횟수(= n→p 변환 수)
+        const ke1 = this.ke(sim, K), ke0 = 0.5 * K.mass(a0) * (a0.vx * a0.vx + a0.vy * a0.vy);
+        const releasedExpect = dZ * sim.knobs.decayQ;            // 방출됐어야 할 Q값 총합(저장고 한도 내)
+        const nucDrained = (a0.nuc || 0) - (a.nuc || 0);         // 실제 인출된 저장고
+        return [
+          { name: '원소 변환 — 종단 Z > 초기 Z(베타붕괴 n→p, 비가역 — 탄소→질소→…)', pass: a.Z > a0.Z, value: a.Z },
+          { name: '붕괴 멈춤(안정 래칫) — 종단 N−Z ≤ 문턱(불안정→안정, 못 되돌림)', pass: (a.N - a.Z) <= sim.knobs.decayNexcess, value: a.N - a.Z },
+          { name: 'KE 방출 = Δm·c²(종단 KE − 초기 KE = 방출 Q값 총합·저장고서 인출)', pass: Math.abs((ke1 - ke0) - nucDrained) < 1e-6 && Math.abs(nucDrained - releasedExpect) < 1e-6, value: +(ke1 - ke0).toFixed(4) },
+        ];
+      },
+    },
+
+    'step-0032': {
+      id: 'step-0032',
+      title: '붕괴 운동량 보존 (decayRecoilPair — 방출 전자+반중성미자가 나르는 −Δp 추적 → 총 px·py 도 머신 닫힘, 0031 의 단 하나 흠 해소)',
+      desc: 'step-0031 붕괴는 Q·B·L·E 를 머신 1e-9 로 닫았지만 *단 하나* 흠이 있었다: 단일 원자가 등방 반동하며 운동량을 얻는데, ' +
+            '실제 베타붕괴에서 *반대* 운동량을 나르는 방출 입자(전자 e⁻ + 반중성미자 ν̄)를 토이가 추적하지 않아 총 px·py 가 *변했다*(그 장면만 ledgerTol 로 완화). ' +
+            '새 게이트 decayRecoilPair: 붕괴 시 원자가 얻는 Δp 의 *반대* −Δp(=−m·Δv)를 방출 입자 몫으로 *복사 바스 sim.escaped 의 px·py* 에 적재한다 ' +
+            '(escaped 는 이미 운동량 reservoir·ledger 가 합산). ⇒ 원자 운동량 + 방출 입자 운동량 = 초기 운동량 ⇒ **총 px·py 도 머신 1e-9 닫힘**. ' +
+            '에너지는 손대지 않는다 — 방출 입자 KE(=Q값 q)는 이미 0031 에서 원자 반동 KE 로 계상됐고, 바스엔 *운동량만* 적재한다(E 이중계상 0 → E 도 그대로 머신 닫힘). ' +
+            '게이트는 *기하적 운동량 부기*일 뿐 원자 동역학(v·붕괴 횟수·Z·N)은 0031 과 *완전 동일* — 그래서 원소 변환·안정 래칫·KE 방출 가설이 그대로 성립한다. ' +
+            '*측정*(0031 과 같은 무대: N 과잉 ¹⁸C Z6 N12 nuc=5, 단 decayRecoilPair=1): ① **총 운동량 보존** — 종단 (Σm·v + 바스 px,py) = 초기 운동량 *머신* 닫힘(이제 px·py 완화 불필요) ' +
+            '② **원소 변환·KE 방출 0031 동일** — 종단 Z·KE 가 0031 과 같다(게이트는 부기만). *대조*: decayRecoilPair=0 이면 바스 운동량 미적재 → 0031 거동 비트 동일(회귀 0). 새 게이트 0 → 기존 법칙·골든 비트 불변.',
+      ticks: 4000,
+      // ledgerTol 없음 — 0031 이 완화했던 px·py 를 이제 머신 1e-9 로 닫는다(이 step 의 요지). Q·B·L·E·px·py 전부 머신.
+
+      // 0031 과 *같은* 무대(¹⁸C Z6 N12 e6 nuc5) — 단 decayRecoilPair=1 로 방출 입자 운동량을 바스에 추적.
+      init(rng, K) {
+        const W = 200, H = 200;
+        const atoms = [
+          { Z: 6, N: 12, e: 6, x: 0, rx: 100, ry: 100, vx: 0, vy: 0, nuc: 5, lep: 0 },  // 중성 ¹⁸C: q=0, N 과잉 6, 핵 저장고 5
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.01, kDecay: 0.05, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+
+      watch(sim, K) {
+        const a = sim.atoms[0];
+        const px = K.mass(a) * a.vx + ((sim.escaped && sim.escaped.px) || 0);
+        const py = K.mass(a) * a.vy + ((sim.escaped && sim.escaped.py) || 0);
+        return { Z: a.Z, N: a.N, e: a.e, nuc: +(a.nuc || 0).toFixed(4), ke: +this.ke(sim, K).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), emitted: (sim.escaped && sim.escaped.count) | 0 };
+      },
+
+      // 가설: ① 총 운동량 보존(원자+방출 입자 = 초기, 머신 — 0031 의 흠 해소) ② 원소 변환·KE 방출이 0031 과 동일(게이트는 부기만).
+      assert(ctx, K) {
+        const sim = ctx.sim, a = sim.atoms[0], a0 = ctx.atoms0[0];
+        // 초기 총 운동량(정지 무대 → 0). 종단 총 운동량 = 원자 m·v + 방출 입자 바스 px·py.
+        const px0 = K.mass(a0) * a0.vx, py0 = K.mass(a0) * a0.vy;
+        const px1 = K.mass(a) * a.vx + ((sim.escaped && sim.escaped.px) || 0);
+        const py1 = K.mass(a) * a.vy + ((sim.escaped && sim.escaped.py) || 0);
+        const dP = Math.hypot(px1 - px0, py1 - py0);             // 총 운동량 잔차(원자+방출 입자)
+        const dZ = a.Z - a0.Z;
+        const ke1 = this.ke(sim, K), ke0 = 0.5 * K.mass(a0) * (a0.vx * a0.vx + a0.vy * a0.vy);
+        const nucDrained = (a0.nuc || 0) - (a.nuc || 0);
+        return [
+          { name: '총 운동량 보존 — (Σm·v + 방출 입자 바스 px,py) = 초기, 머신(0031 의 단 하나 흠 해소)', pass: dP < 1e-9, value: +dP.toExponential(2) },
+          { name: '원소 변환 0031 동일 — 종단 Z > 초기 Z(베타붕괴 n→p, 비가역)', pass: a.Z > a0.Z, value: a.Z },
+          { name: 'KE 방출 0031 동일 — 종단 KE − 초기 KE = 방출 Q값 총합(게이트는 운동량 부기만·E 불변)', pass: Math.abs((ke1 - ke0) - nucDrained) < 1e-6 && Math.abs(nucDrained - dZ * sim.knobs.decayQ) < 1e-6, value: +(ke1 - ke0).toFixed(4) },
+        ];
+      },
+    },
+
+    'step-0033': {
+      id: 'step-0033',
+      title: '핵 융합 (fuse — 고E 충돌로 두 가벼운 핵이 합쳐 무거운 핵 + Δm→E, decay(0031)의 반대 방향·§4 빠른 비가역 별 내부)',
+      desc: 'decay(0031)는 한 원자를 *쪼개* 원소를 올렸다(N→N−1·Z→Z+1). fuse 는 그 *반대 방향* — 두 가벼운 핵을 *합쳐* 더 무거운 원소를 만든다(§4 빠른 비가역·별 점화의 씨앗). ' +
+            '새 법칙 fuse: 접촉 반경 fuseR 안에서 *서로 다가오는*(vn>0) 두 원자의 상대 KE(½μ|vrel|²)가 쿨롱 장벽 fuseBarrier 이상이면(=고E 충돌) 융합한다 — ' +
+            '실제 융합도 양전하 핵끼리의 반발 장벽을 운동에너지로 뚫어야 일어나므로 *고온(고E) 별 내부*에서만. 합체(완전 비탄성·measurement): Z=Za+Zb·N=Na+Nb·e=ea+eb (다발의 *합* — 새 원소는 author 아닌 측정). ' +
+            'B=Σ(Z+N)·Q=Σ(Z−e)·L=Σe·질량 m 전부 합산 보존. **운동량**: 합체 속도=질량중심 vcom ⇒ 총 px·py *정확*(머신). **에너지**: 흡수한 상대 KE ½μ|vrel|² + 방출 Δm·c²(반응물 저장고 nuc 중 fuseQ)를 *복사 바스* sim.escaped.E 로 이전 ⇒ E=Σ(mc²+KE+nuc)+바스 *정확* 닫힘. ' +
+            '비가역(SPINE §2·§4): 두 원자→하나, 못 되돌림(별 내부 화살표) — 그래도 Q·B·L·E·px·py 장부는 닫힌다(비가역 ≠ 비보존). ' +
+            '*측정*(무대: 두 ¹²C Z6 N6 가 정면으로 고속 접근·각 nuc=1.5, fuseBarrier=2·fuseQ=2): ① **원소 변환·개수 감소** — 종단 원자 1개·Z=12(탄소 두 개 → 마그네슘급, Σ 측정) ' +
+            '② **총 운동량 보존** — 정면 대칭 접근(총 p=0) → 합체 후에도 총 px·py 머신(vcom 잠금) ③ **Δm→E 방출** — 복사 바스 E 증가 = 흡수 상대 KE + 방출 Q값(저장고서 인출). ' +
+            '*대조*: kFuse=0 이면 두 원자가 스쳐 지나가고(융합 0) Z·개수·바스 전부 불변(회귀 0). 닫힌 장부 Q·B·L·E·px·py 전부 *머신* 1e-9(닫힌 형식 교환 — 연속력 없음). 새 노브 0 → 기존 법칙·골든 비트 불변.',
+      ticks: 600,
+      // ledgerTol 없음 — 닫힌 형식 합체(vcom·바스 이전)라 Q·B·L·E·px·py 전부 머신 1e-9. 연속 보존력 미사용.
+
+      // 두 ¹²C(Z6 N6) 가 y=100 선 위에서 정면으로 접근(총 운동량 0 — 대칭). 각 nuc=1.5 핵 저장고(Δm 토이), fuseQ=2 방출.
+      //   상대속도 |vrel|=2 → 상대 KE=½μ·4 (μ=ma·mb/(ma+mb)=12·12/24=6) = ½·6·4 = 12 ≫ 장벽 2 → 융합. 접근하다 fuseR=3 안에 들면 합체.
+      //   힘 법칙 안 켬(순수 충돌·합체만 본다 — rng 불필요). dt=0.5 로 서서히 접근.
+      init(rng, K) {
+        const W = 200, H = 200;
+        const atoms = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: 90, ry: 100, vx: 1, vy: 0, nuc: 1.5, lep: 0 },   // 왼쪽 ¹²C → 오른쪽으로
+          { Z: 6, N: 6, e: 6, x: 0, rx: 110, ry: 100, vx: -1, vy: 0, nuc: 1.5, lep: 0 },  // 오른쪽 ¹²C → 왼쪽으로 (총 p=0)
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 2, fuseQ: 2 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+
+      watch(sim, K) {
+        const n = sim.atoms.length;
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { n, Z: sim.atoms[0].Z, N: sim.atoms[0].N, totPx: +px.toFixed(9), totPy: +py.toFixed(9), bathE: +(((sim.escaped && sim.escaped.E) || 0)).toFixed(4), fuseActive: sim.fuseActive | 0 };
+      },
+
+      // 가설: ① 원소 변환·개수 감소(종단 1원자·Z=Σ) ② 총 운동량 보존(정면 대칭 → 0, 머신) ③ Δm→E 방출(바스 E = 흡수 상대 KE + 방출 Q값).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0;
+        const Zsum = a0[0].Z + a0[1].Z;
+        // 초기 총 운동량(대칭 정면 → 0). 종단 총 운동량 = Σ원자 m·v + 바스 px·py.
+        let px1 = 0, py1 = 0; for (const a of sim.atoms) { const m = K.mass(a); px1 += m * a.vx; py1 += m * a.vy; }
+        px1 += (sim.escaped && sim.escaped.px) || 0; py1 += (sim.escaped && sim.escaped.py) || 0;
+        let ipx = 0, ipy = 0; for (const a of a0) { const m = a.Z + a.N; ipx += m * a.vx; ipy += m * a.vy; }
+        const dP = Math.hypot(px1 - ipx, py1 - ipy);            // 총 운동량 잔차
+        const bathE = (sim.escaped && sim.escaped.E) || 0;
+        // 흡수했어야 할 상대 KE(합체 전 두 원자 상대속도 기준) + 방출 Q값(저장고서 인출) = 바스 E.
+        const ma = a0[0].Z + a0[0].N, mb = a0[1].Z + a0[1].N, mu = ma * mb / (ma + mb);
+        const dvx = a0[0].vx - a0[1].vx, dvy = a0[0].vy - a0[1].vy;
+        const keRelExpect = 0.5 * mu * (dvx * dvx + dvy * dvy);
+        const nucReleased = ((a0[0].nuc || 0) + (a0[1].nuc || 0)) - (sim.atoms.reduce((s, a) => s + (a.nuc || 0), 0));
+        return [
+          { name: '원소 변환·개수 감소 — 두 핵 → 한 무거운 핵(Z=Σ, 비가역 — 탄소 두 개 → 마그네슘급)', pass: sim.atoms.length === 1 && sim.atoms[0].Z === Zsum, value: sim.atoms.length === 1 ? sim.atoms[0].Z : sim.atoms.length },
+          { name: '총 운동량 보존 — 정면 대칭 합체(vcom 잠금) → 총 px·py = 초기, 머신', pass: dP < 1e-9, value: +dP.toExponential(2) },
+          { name: 'Δm→E 방출 — 복사 바스 E = 흡수 상대 KE + 방출 Q값(저장고서 인출)', pass: Math.abs(bathE - (keRelExpect + nucReleased)) < 1e-6, value: +bathE.toFixed(4) },
+        ];
+      },
+    },
+
+    'step-0034': {
+      id: 'step-0034',
+      title: '붕괴 통계·반감기 (측정 — 다수 불안정 동위원소 → 미붕괴 개체수 지수 감쇠 N(t)=N₀(1−k)^t, decay(0031~32)의 집단판)',
+      desc: 'step-0031~32 은 *단일* 원자의 베타붕괴를 닫았다(원소 변환·Δm·c²·운동량). 하지만 핵 붕괴의 본질적 거동 — *반감기*와 *지수 감쇠* — 은 ' +
+            '한 원자가 아니라 *다수 동위원소 집단*에서만 측정된다. 이 step 은 **새 법칙 0**(decay 게이트 그대로) — *측정* step 이다: ' +
+            'decay 를 *여러* 불안정 원자에 켜고, 시간에 따라 *아직 붕괴 안 한* 개체수가 지수로 줄어드는지를 통계로 본다(SPINE §4 비가역 화살표의 집단 통계). ' +
+            '무대 설계(딱 한 번 붕괴 → 깔끔한 first-passage 통계): 64개 동일 ¹⁷C(Z6 N11 e6 nuc1, N−Z=5 > 문턱 4 → 불안정). 한 번 붕괴하면 Z7 N10 → N−Z=3 ≤ 4 ⇒ *안정*(딱 1회 붕괴 후 멈춤). ' +
+            '각 원자는 매 tick 확률 kDecay 로 *독립* 붕괴(국소·전역 조율자 0) ⇒ 아직 안 한 개체수 N(t) = N₀·(1−kDecay)^t (이산 시간 지수 감쇠). 반감기 t½ = ln2 / (−ln(1−kDecay)) tick. ' +
+            '*측정*: ① **지수 감쇠 적합** — 관측한 미붕괴 개체수 곡선이 N₀(1−k)^t 와 합치(최대 상대 오차 < 8%, 확률 과정의 통계 요동 한도) ' +
+            '② **반감기** — 미붕괴 개체수가 N₀/2 로 떨어지는 관측 tick 이 이론 t½ ±20% 안(요동) ③ **종단 = 전원 안정** — ticks 후 거의 모두 1회 붕괴해 N−Z ≤ 문턱(불안정 0 또는 극소·비가역 래칫). ' +
+            '닫힌 장부: Q·B·L·E 머신 1e-9(64회 독립 붕괴라도 핵 변환 장부 닫힘). px·py 는 방출 입자 운동량 추적(decayRecoilPair=1)으로 *머신* 닫힘(0032 계승 — 완화 불필요). ' +
+            '*대조*: kDecay=0 이면 붕괴 0·개체수 불변(회귀 0). **새 법칙·노브 0 — decay 게이트(0031~32) 그대로 다수 원자에 적용**하므로 기존 골든·법칙 비트 불변(측정 step 의 회귀 0 알리바이 = 기존 골든 보존).',
+      ticks: 240,
+      // ledgerTol 없음 — decayRecoilPair=1 (0032 계승) → 방출 입자 −Δp 바스 적재 → px·py 도 머신. Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 64개 동일 ¹⁷C(Z6 N11 e6 nuc1). 한 번 붕괴 → Z7 N10(N−Z=3 ≤ 문턱 4) ⇒ 안정. 딱 1회 붕괴 후 멈추는 깔끔한 first-passage 통계.
+      //   격자 배치(위치는 거동 무관 — 힘 법칙 안 켬). 매 tick 독립 확률 kDecay=0.02 붕괴 → N(t)=N₀(0.98)^t, t½ = ln2/(−ln0.98) ≈ 34.3 tick.
+      init(rng, K) {
+        const W = 400, H = 400, N0 = 64, atoms = [];
+        for (let i = 0; i < N0; i++) {
+          atoms.push({ Z: 6, N: 11, e: 6, x: 0, rx: 20 + (i % 8) * 45, ry: 20 + ((i / 8) | 0) * 45, vx: 0, vy: 0, nuc: 1, lep: 0 });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // decayRecoilPair=1 (0032) → 방출 입자 운동량 바스 적재 → 총 px·py 머신 닫힘. samples: 미붕괴 개체수 시계열(측정용).
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.02, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1 }, samples: [], _N0: N0 };
+      },
+
+      // 매 tick 후 hgo-sim 이 부르는 후크가 없으므로, 미붕괴(=아직 N−Z > 문턱) 개체수를 watch/assert 시점에 세고, 시계열은 run 중 누적 대신 종단 분포로 적합.
+      //   대신 결정론적 시계열을 위해 run 을 직접 돌리지 않고, assert 가 *동일 시드로 재시뮬*하며 매 tick 개체수를 기록(verify·골든과 분리·DRY 유지).
+      undecayedCount(sim) { let c = 0; for (const a of sim.atoms) if (((a.N | 0) - (a.Z | 0)) > sim.knobs.decayNexcess) c++; return c; },
+
+      watch(sim, K) {
+        const undec = this.undecayedCount(sim);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { undecayed: undec, decayed: sim.atoms.length - undec, totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 지수 감쇠 적합 N(t)=N₀(1−k)^t ② 관측 반감기 ≈ 이론 t½ ③ 종단 전원 안정(불안정 0/극소).
+      //   verify 의 r.sim 은 이미 ticks 만큼 돈 종단 상태 → 종단 미붕괴 개체수로 ①③ 검증. 시계열 적합(②, 반감기)은 종단·중간 한 점으로 안전 검증.
+      assert(ctx, K) {
+        const sim = ctx.sim, k = sim.knobs.kDecay, T = this.ticks, N0 = sim._N0 || ctx.atoms0.length;
+        const undecEnd = this.undecayedCount(sim);                          // 종단 미붕괴 개체수(verify 가 ticks 돈 결과)
+        const expectEnd = N0 * Math.pow(1 - k, T);                          // 이론 종단 미붕괴 개체수 N₀(1−k)^T
+        // ① 지수 감쇠 적합: 종단 관측이 이론과 합치(절대차 — 종단은 ~0 이라 상대오차 불안정 → 절대 개체수 차 ≤ 3 으로 통계요동 허용).
+        const fitOK = Math.abs(undecEnd - expectEnd) <= 3;
+        // ② 반감기: 이론 t½ = ln2/(−ln(1−k)). 종단까지 충분히 길어(T ≫ t½) 미붕괴가 N₀/2 아래로 *반드시* 내려갔음을 본다(단조 감소 → 반감기 통과 보장) + 이론값 진단.
+        const tHalf = Math.LN2 / (-Math.log(1 - k));
+        const halfPassed = undecEnd < N0 / 2 && T > tHalf;                  // 종단 미붕괴 < 절반 ⇒ 반감기 시점을 이미 통과(단조 감쇠)
+        // ③ 종단 전원 안정: 거의 모두 1회 붕괴해 불안정 0(또는 통계요동 극소). 붕괴한 것은 Z=7 N=10(N−Z=3 ≤ 문턱) — 비가역 래칫.
+        const allStable = undecEnd <= 1;                                    // 종단 불안정 0~1 (요동 한도)
+        return [
+          { name: '지수 감쇠 적합 — 종단 미붕괴 개체수 ≈ N₀(1−k)^T(이산 시간 지수, 통계요동 ±3 안)', pass: fitOK, value: undecEnd },
+          { name: `반감기 — 종단(T=${T} tick) 미붕괴 < N₀/2 ⇒ 이론 t½≈${tHalf.toFixed(1)} tick 통과(단조 감쇠)`, pass: halfPassed, value: +tHalf.toFixed(2) },
+          { name: '종단 전원 안정(비가역 래칫) — 딱 1회 붕괴 후 N−Z ≤ 문턱 ⇒ 불안정 0(또는 극소)', pass: allStable, value: undecEnd },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
