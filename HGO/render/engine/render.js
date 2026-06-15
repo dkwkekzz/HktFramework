@@ -11,6 +11,10 @@
 // 렌즈 L-line: 하단 스펙트럼 띠를 *유무*에서 *세기*로 정제한다(읽기 정제 — 새 시뮬 양 0).
 //   spectral.measureLines 가 광자를 전이선(from→to)별로 빈도 집계 → 선 밝기 = 빈도/최대빈도(측정 정규화).
 //   실측 분광기처럼 강한 전이는 밝고 약한 전이는 흐리다 — 세는 것이지 author 가 아니다.
+//
+// 렌즈 L-recoil: 광자 *진행 방향*(운동량 px,py = p=E/c, 시뮬 step-0003 recoil·0004 propagate 가 실음)을
+//   읽어 *빛 줄기/이방성*으로 번역한다. 줄기 방향 = 운동량 방향(읽기), 줄기 길이 ∝ |p|(측정 정규화 — maxP).
+//   px=py=0 광자(방출만 한 step-0002)는 *방향이 없으니 줄기를 author 하지 않는다*(빌보드 점만). 위치=sim 그대로.
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -87,6 +91,30 @@
   function cross(a, b) { return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }; }
   function norm(a) { const l = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; }
 
+  // ── 렌즈 L-recoil: 광자 운동량(px,py) → 빛 줄기 기하 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 줄기 세계 길이 창: 단위 운동량 줄기 길이를 장면 크기에 비례시킨다(데이터에서 잰 창 — λ→nm 창과 동형).
+  const STREAK_FRAC = 0.08;
+
+  // 광자 배열에서 운동량 크기 최댓값을 *측정*(정규화 기준 — 손박은 임계 0). 방향 없으면 0.
+  function measureMaxMomentum(photons) {
+    let m = 0;
+    for (const p of photons) { const mag = Math.hypot(p.px || 0, p.py || 0); if (mag > m) m = mag; }
+    return m;
+  }
+
+  // 광자 → 화면 줄기 {head,tail,mag,L}. 머리=현 위치(밝음)·꼬리=운동량 반대(자취). 길이 ∝ |p|/maxP.
+  //   운동량이 0(방향 없음)이면 null — 줄기를 author 하지 않는다(RENDER §3). 운동량은 평면(z=0) 2D.
+  function photonStreak(p, cam, maxP, worldLen) {
+    const mag = Math.hypot(p.px || 0, p.py || 0);
+    if (!(mag > 1e-9)) return null;
+    const inv = 1 / mag;
+    const dir = { x: p.px * inv, y: p.py * inv };           // 정규화 진행 방향(읽기)
+    const L = (maxP > 0 ? mag / maxP : 1) * worldLen;       // 줄기 세계 길이(측정 정규화)
+    const head = project({ x: p.rx, y: p.ry, z: 0 }, cam);
+    const tail = project({ x: p.rx - dir.x * L, y: p.ry - dir.y * L, z: 0 }, cam);   // 자취=−방향
+    return { head, tail, mag, L };
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -108,6 +136,8 @@
       draws.push({ depth: pr.depth, kind: 'atom', a, pr });
     }
     const range = SP.measureRange(sim.photons) || { lo: 1, hi: 2 };
+    const maxP = measureMaxMomentum(sim.photons);                  // 운동량 정규화 기준(측정)
+    const streakWorld = STREAK_FRAC * Math.max(sim.W, sim.H);      // 줄기 길이 창(장면 크기 비례)
     for (const p of sim.photons) {
       const pr = project({ x: p.rx, y: p.ry, z: 0 }, cam);
       if (pr.depth <= 0) continue;
@@ -117,7 +147,7 @@
 
     for (const d of draws) {
       if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K);
-      else drawPhoton(ctx, SP, d.p, d.pr, range);
+      else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld));
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -141,14 +171,25 @@
   }
 
   // 광자 = 색 있는 발광 빌보드(가법 합성). 색 = λ → 스펙트럼(측정 범위 정규화 — L-λ 읽기).
-  function drawPhoton(ctx, SP, p, pr, range) {
+  //   렌즈 L-recoil: 운동량 방향이 있으면(streak≠null) *빛 줄기*(머리 밝음→자취 투명)를 먼저 깔고
+  //   그 위에 밝은 머리 코어. 방향 없으면(streak=null) 줄기 없이 점만 — 방향 author 0.
+  function drawPhoton(ctx, SP, p, pr, range, streak) {
     const [cr, cg, cb] = SP.photonColor(p.lambda, range);
-    const rad = Math.max(2.5, 6 * pr.scale);
-    const g = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, rad);
-    g.addColorStop(0, `rgba(${cr},${cg},${cb},0.9)`);
-    g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = g;
+    if (streak) {                                    // 이방성 줄기 = 운동량 방향(읽기)
+      const g = ctx.createLinearGradient(streak.head.sx, streak.head.sy, streak.tail.sx, streak.tail.sy);
+      g.addColorStop(0, `rgba(${cr},${cg},${cb},0.95)`);
+      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+      ctx.strokeStyle = g;
+      ctx.lineWidth = Math.max(1.5, 4 * pr.scale);
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(streak.head.sx, streak.head.sy); ctx.lineTo(streak.tail.sx, streak.tail.sy); ctx.stroke();
+    }
+    const rad = Math.max(2.5, 6 * pr.scale);         // 밝은 머리 코어(광자 위치)
+    const gg = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, rad);
+    gg.addColorStop(0, `rgba(${cr},${cg},${cb},0.9)`);
+    gg.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+    ctx.fillStyle = gg;
     ctx.beginPath(); ctx.arc(pr.sx, pr.sy, rad, 0, 6.2832); ctx.fill();
   }
 
@@ -191,5 +232,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, measureMaxMomentum };
 });
