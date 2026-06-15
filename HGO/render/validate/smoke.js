@@ -3,7 +3,7 @@
 //     ① atom 엔진을 읽기 전용으로 로드해 장면(빛 있는 step)을 돌리면 광자가 나온다.
 //     ② 각 광자 λ 가 유효한 RGB 로 번역된다(0..255, 검정 아님).
 //     ③ 물리 순서 보존 — 짧은 λ(고에너지)는 더 파랗고, 긴 λ(저에너지)는 더 빨갛다.
-//   시뮬 코어 알리바이(atom 엔진·STATE·steps·골든 비변경; viewer.html 만 하네스 배선)는
+//   알리바이(atom/ 진짜 diff 0 — viewer 는 트랙 밖 HGO/engine/ 공유 셸)는
 //   커밋 전 `git status` 로 확인(RENDER.md §5).
 //
 // 사용: node render/validate/smoke.js

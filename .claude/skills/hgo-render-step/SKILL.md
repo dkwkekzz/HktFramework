@@ -24,7 +24,7 @@ description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→�
 `RENDER-STATE.md` §2 NEXT 가 지정한 *한 렌즈*만 이번 커밋으로. 더 떠올라도 다음으로 전가.
 
 - **⛔ 시뮬 선행 렌즈는 시작 불가** — `L-recoil`(광자 방향)·`L-T`(온도색)·`L-bond`(결합)는 시뮬이 그 양을 *내보낸 뒤*에만(§4 게이트). 시뮬이 안 내보내면 *시작하지 마라* — 가능 칸(L-line 같은 읽기 정제)만 진행. 근사로 author 금지(연성 author).
-- 스캐폴드 없음 — `engine/render.js`(그리기)·`engine/spectral.js`(번역)을 직접 Edit. **render 는 자기 viewer.html 을 두지 않는다** — 단일 뷰어 `atom/viewer.html`(공유 하네스)이 render 모듈을 load 해 위임(SPINE §6.1). 새 렌즈가 새 채널을 쓰면 viewer 배선 한 줄만 추가 가능.
+- 스캐폴드 없음 — `engine/render.js`(그리기)·`engine/spectral.js`(번역)을 직접 Edit. **render 는 자기 viewer.html 을 두지 않는다** — 공용 단일 뷰어 `HGO/engine/viewer.html`(트랙 밖 공유 셸)이 render 모듈을 load 해 위임(SPINE §6.1). 새 렌즈가 새 채널을 쓰면 공유 셸 배선 한 줄만 추가 가능(atom/ 은 안 건드림).
 
 ## 3. 구현 — `render/` 안에서만
 
@@ -35,9 +35,9 @@ description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→�
 
 ## 4. 검증 3종 — 화면이 권위
 
-1. **시뮬 알리바이**: 커밋 전 `git status` diff 는 `render/`(+ 스킬)에만 — *예외*는 `atom/viewer.html` 한 줄 배선(공유 하네스, RENDER §6). **시뮬 코어**(`atom/engine/*`·`atom/STATE.md`·`atom/steps/*`·골든)는 **diff 0**. 잡히면 *실수로 시뮬을 만진 것* — 되돌려라(렌더는 읽기만 → 골든 비트 불변).
+1. **시뮬 알리바이**: 커밋 전 `git status` diff 는 `render/` · `HGO/engine/viewer.html`(공유 셸 배선) · 스킬에만. **`atom/` 은 diff 0**(viewer 가 트랙 밖이라 진짜 disjoint). 잡히면 *실수로 시뮬을 만진 것* — 되돌려라(렌더는 읽기만 → 골든 비트 불변).
 2. **헤드리스 스모크**: `node render/validate/smoke.js` — 번역이 옳게 도는지 수치(광자→유효 RGB·물리 순서·스펙트럼선). 새 렌즈는 그 렌즈의 assert 한 항 가법.
-3. **눈 검증(권위)**: 헤드리스로는 못 본다 — *사용자 브라우저 확인*이 권위. 단일 뷰어 `atom/viewer.html` 을 열어 확인 요청하고, 결과를 RENDER-STATE §6 INDEX 에 기록(예: "눈 검증 PASS(사용자 브라우저)"). + 척추 한 항(형태·질 author 0).
+3. **눈 검증(권위)**: 헤드리스로는 못 본다 — *사용자 브라우저 확인*이 권위. 공용 단일 뷰어 `HGO/engine/viewer.html` 을 열어 확인 요청하고, 결과를 RENDER-STATE §6 INDEX 에 기록(예: "눈 검증 PASS(사용자 브라우저)"). + 척추 한 항(형태·질 author 0).
 
 ## 5. 갱신 — `RENDER-STATE.md` 만 Edit 로
 
@@ -47,7 +47,7 @@ description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→�
 
 ## 6. 닫기 체크리스트
 
-1. 시뮬 알리바이 — `git status` diff 가 `render/`(+ 스킬)에만 (시뮬 코어 diff 0; `atom/viewer.html` 하네스 배선만 예외)
+1. 시뮬 알리바이 — `git status` diff 가 `render/` · `HGO/engine/viewer.html`(공유 셸) · 스킬에만 (`atom/` diff 0)
 2. 헤드리스 스모크 PASS + 눈 검증(사용자 확인)
 3. 척추 한 항(형태·질 author 0) 통과
 4. RENDER-STATE §1~3 Edit + §6 INDEX 1줄 append
@@ -55,7 +55,7 @@ description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→�
 
 ## 금지 사항 (비용·정합 함정)
 
-- **시뮬 코어(atom/engine·STATE·steps·골든)를 만지지 않는다** — 커밋 전 `git status` 로 확인. `atom/viewer.html` 은 공유 하네스라 render 모듈 load 배선만 예외(장면·sim 로직 금지).
+- **atom/ 을 만지지 않는다**(engine·STATE·steps·골든) — 커밋 전 `git status` 로 확인. 그리기 배선은 트랙 밖 공유 셸 `HGO/engine/viewer.html` 에서만(장면·sim 로직·hash 금지).
 - ⛔ blocked 렌즈를 시뮬 선행 없이 *근사로 author* 하지 않는다(연성 author — RENDER §3).
 - 시뮬 내부(hgo-laws·sim·kernel·step 문서)를 "참고로" 읽지 않는다 — 입력 계약(RENDER §2)이 인터페이스.
 - 같은 파일을 반복해서 통째로 다시 읽지 않는다(이미 작고 컨텍스트에 있다).

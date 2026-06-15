@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 렌즈**: **렌즈-001 (L-λ)** — *광자가 색으로 빛난다.* atom 스냅샷(`sim.photons[].lambda`)을 읽어 가시광 스펙트럼 곡선으로 번역(`render/engine/spectral.js`). 짧은 λ=고에너지=보라 ↔ 긴 λ=저에너지=빨강 — 색을 author 하지 않고 λ 에서 읽음. 측정된 λ 범위를 가시광 창(400~700nm)에 선형 정규화(파장 차 보존·창은 데이터에서 *잼*). 그리기는 `render/engine/render.js` 가 구현, **단일 뷰어 `atom/viewer.html`** 이 그 모듈을 load 해 `draw()` 위임(별도 뷰어 없음 — SPINE §6.1).
-- **한 줄 상태**: 트랙이 깨어났다 — 시뮬이 내보낸 빛(step-0002 방출)이 처음으로 *눈에 보이는 색*이 됐다. 원자는 어둑한 광원, 광자는 색 빛, 측정 스펙트럼선은 하단 띠로. 시뮬 코어 알리바이 성립(atom 엔진·STATE·steps·골든 diff 0; viewer.html 만 하네스 배선).
+- **닫힌 렌즈**: **렌즈-001 (L-λ)** — *광자가 색으로 빛난다.* atom 스냅샷(`sim.photons[].lambda`)을 읽어 가시광 스펙트럼 곡선으로 번역(`render/engine/spectral.js`). 짧은 λ=고에너지=보라 ↔ 긴 λ=저에너지=빨강 — 색을 author 하지 않고 λ 에서 읽음. 측정된 λ 범위를 가시광 창(400~700nm)에 선형 정규화(파장 차 보존·창은 데이터에서 *잼*). 그리기는 `render/engine/render.js` 가 구현, **공용 단일 뷰어 `HGO/engine/viewer.html`** 이 그 모듈을 load 해 `draw()` 위임(별도 뷰어 없음 — SPINE §6.1; viewer 는 트랙 밖 공유 셸).
+- **한 줄 상태**: 트랙이 깨어났다 — 시뮬이 내보낸 빛(step-0002 방출)이 처음으로 *눈에 보이는 색*이 됐다. 원자는 어둑한 광원, 광자는 색 빛, 측정 스펙트럼선은 하단 띠로. 알리바이 성립(**atom/ diff 0** — viewer 가 공유 `HGO/engine/` 으로 빠져 진짜 disjoint).
 - **다음**: §2 — **L-line**(누적 스펙트럼 분광 띠) 또는 시뮬이 광자 방향을 내보내면 **L-recoil**.
 
 ---
@@ -52,8 +52,8 @@
 
 ## 5. 소유 / 불가침 (SPINE §7)
 
-- **소유**: `render/` 폴더 (`RENDER.md` · `RENDER-STATE.md` · `engine/spectral.js` · `engine/render.js` · `validate/smoke.js`). **render 는 viewer.html 을 두지 않는다** — 단일 뷰어는 atom 소유.
-- **불가침**: 시뮬 코어(`atom/engine/*`·`atom/STATE.md`·`atom/steps/*`·골든) · `../SPINE.md` · `../CLAUDE.md` — 읽기만. **예외**: `atom/viewer.html`(공유 하네스) 은 render 모듈 load 한 줄 배선만 허용(RENDER §6). 스킬은 `.claude/skills/hgo-render-step/`.
+- **소유**: `render/` 폴더 (`RENDER.md` · `RENDER-STATE.md` · `engine/spectral.js` · `engine/render.js` · `validate/smoke.js`). **render 는 viewer.html 을 두지 않는다** — 단일 뷰어는 트랙 밖 공유 셸 `HGO/engine/viewer.html`.
+- **불가침**: `atom/`(시뮬 코어·`STATE.md`·`steps/`·골든) · `../SPINE.md` · `../CLAUDE.md` — 읽기만(atom/ 진짜 diff 0). **공유 셸** `HGO/engine/viewer.html` 은 render 그리기 위임 배선만 허용(RENDER §6). 스킬은 `.claude/skills/hgo-render-step/`.
 
 ---
 
@@ -61,4 +61,4 @@
 
 > 규칙: 한 행 = `렌즈 | 읽은 양→번역 | 통과 + 핵심 수치 1개`. *문단 금지* — 전문은 이 문서 아님(렌더는 step 문서 없음, 렌즈는 가볍다).
 
-렌즈-001 (L-λ) | 광자 lambda → 가시광 스펙트럼 색 + 측정 스펙트럼 띠 (render.js 그리기, 단일 뷰어 atom/viewer.html 위임) | 스모크 PASS(광자 51·선 3·λ[1.333,20.571]·순서 보존) · 시뮬 코어 alibi diff 0 · 눈 검증 ⏳(사용자 브라우저)
+렌즈-001 (L-λ) | 광자 lambda → 가시광 스펙트럼 색 + 측정 스펙트럼 띠 (render.js 그리기, 공용 뷰어 HGO/engine/viewer.html 위임) | 스모크 PASS(광자 51·선 3·λ[1.333,20.571]·순서 보존) · atom/ diff 0 · 눈 검증 ⏳(사용자 브라우저)
