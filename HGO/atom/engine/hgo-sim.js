@@ -7,11 +7,15 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (L) {
   'use strict';
 
-  // spec: { W, H, atoms:[{Z,N,e,x,rx,ry,vx,vy}], knobs:{} }
+  // spec: { W, H, atoms:[{Z,N,e,x,rx,ry,vx,vy}], knobs:{}, rng? }
+  // photons: 방출 법칙이 쌓는 복사장(step-0002~). 빈 배열 → 과거 장부·해시 불변(가법).
+  // rng: 런타임 시드 의사난수(자발 방출 등 확률 법칙용). 장면 init 이 결정론적으로 만든다.
   function createSim(spec) {
     return {
       W: spec.W, H: spec.H,
       atoms: spec.atoms,
+      photons: [],
+      rng: spec.rng || null,
       knobs: Object.assign({}, L.DEFAULTS, spec.knobs || {}),
       tick: 0,
     };

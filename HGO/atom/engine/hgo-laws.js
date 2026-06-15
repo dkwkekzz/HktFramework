@@ -2,20 +2,39 @@
 // 한 step = 힘 법칙 1개 + 노브 + LAW_ORDER 한 자리 (노브=0 → early-return = 회귀 0).
 // step-0001(부트스트랩): 힘 법칙 0개 — 자유 운동(적분)만이 기질이다.
 ;(function (root, factory) {
-  const mod = factory();
+  const K = (typeof require !== 'undefined') ? require('./hgo-kernel.js') : root.HGO.kernel;
+  const mod = factory(K);
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
   else (root.HGO = root.HGO || {}).laws = mod;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (K) {
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0 };
 
-  // 힘 법칙 레지스트리 + 실행 순서. step-0002~ 부터 채운다(쿨롱·충돌·결합·핵 …).
-  const LAWS = {};
-  const LAW_ORDER = [];
+  // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
+  //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
+  //   국소: 그 원자 *혼자*로 판정(이웃·전역 조율자 0). 결정론: sim.rng(시드 의사난수)만.
+  function emit(sim) {
+    const k = sim.knobs.kEmit;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (방출 항 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 런타임 의사난수 없으면 방출 불가(Math.random 금지 — 결정론)
+    for (const a of sim.atoms) {
+      if ((a.x | 0) <= 0) continue;            // 바닥 상태는 방출 안 함
+      if (rng() >= k) continue;                // 자발 방출 확률 kEmit
+      const x0 = a.x | 0, x1 = x0 - 1;
+      const dE = K.levelE(x0) - K.levelE(x1);  // 준위 차 = 광자 에너지 (λ author 안 함)
+      a.x = x1;                                 // 한 준위 강하 (들뜸 E ↓)
+      sim.photons.push({ E: dE, lambda: K.photonLambda(dE), rx: a.rx, ry: a.ry, from: x0, to: x1 });
+    }
+  }
 
-  // 힘 적용: 각 법칙이 원자의 속도(v)를 고친다. 지금은 비어 있음(힘 0).
+  // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
+  const LAWS = { emit };
+  const LAW_ORDER = ['emit'];
+
+  // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {
     for (const name of LAW_ORDER) LAWS[name](sim);
   }

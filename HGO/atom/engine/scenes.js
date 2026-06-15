@@ -55,6 +55,62 @@
         ];
       },
     },
+
+    'step-0002': {
+      id: 'step-0002',
+      title: '원자가 빛난다 (전자 들뜸 → 자발 방출 → 광자 λ=hc/ΔE)',
+      desc: '일부 원자를 들뜬 전자 준위(x=1~3)로 초기화하고, 자발 방출 법칙(노브 kEmit)으로 ' +
+            '들뜬 원자가 한 준위씩 떨어지며 광자를 낸다. 파장 λ=hc/ΔE 는 준위 차에서 *창발*(색을 author 안 함) — ' +
+            '비선형 준위(보어) 덕에 서로 다른 전이가 서로 다른 스펙트럼선을 만든다. 들뜸 E ↓ = 광자 E ↑(닫힌 장부 쌍 거래).',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;   // 60% 들뜸: 준위 1~3
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: rng() * 2 - 1, vy: rng() * 2 - 1,
+          });
+        }
+        // 런타임 자발 방출용 시드 의사난수 — rng 한 번 더 소비해 결정론적으로 파생.
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1 } };
+      },
+
+      watch(sim, K) {
+        const L = K.ledger(sim);
+        let excited = 0, exc = 0;
+        for (const a of sim.atoms) { if ((a.x | 0) > 0) excited++; exc += K.levelE(a.x); }
+        let pe = 0; for (const p of sim.photons) pe += p.E;
+        return {
+          atoms: sim.atoms.length,
+          excited, photons: sim.photons.length,
+          excE: +exc.toFixed(3), photonE: +pe.toFixed(3),
+          E: +L.E.toFixed(3),
+        };
+      },
+
+      // 가설: ① 광자가 방출된다 ② 파장이 준위 차에서 창발(λ=hc/ΔE, author 0) ③ 서로 다른 전이 → 서로 다른 스펙트럼선.
+      assert(ctx, K) {
+        const ph = ctx.sim.photons, n = ph.length;
+        let lambdaOK = n > 0;
+        const lines = new Set();
+        for (const p of ph) {
+          const dE = K.levelE(p.from) - K.levelE(p.to);
+          if (Math.abs(p.lambda - K.photonLambda(dE)) > 1e-12) lambdaOK = false;  // λ 는 ΔE 의 함수(창발), 저장값과 일치
+          lines.add(p.from + '→' + p.to);
+        }
+        return [
+          { name: '광자 방출됨(자발 방출 count>0)', pass: n > 0, value: n },
+          { name: '파장이 준위 차에서 창발(λ=hc/ΔE)', pass: lambdaOK, value: n > 0 ? +ph[0].lambda.toFixed(4) : 0 },
+          { name: '서로 다른 전이 → 서로 다른 스펙트럼선(≥2)', pass: lines.size >= 2, value: lines.size },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
