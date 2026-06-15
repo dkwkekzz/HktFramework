@@ -111,6 +111,68 @@
         ];
       },
     },
+
+    'step-0003': {
+      id: 'step-0003',
+      title: '광자가 원자를 민다 (운동량 반동 p=E/c → recoil shift)',
+      desc: '모든 원자를 *정지*(v=0)·들뜬 준위로 초기화하고, 자발 방출(kEmit)에 더해 반동 법칙(노브 kRecoil)을 켠다. ' +
+            '방출 광자가 운동량 p=E/c 를 나르고 원자는 반대로 밀린다 — 정지에서 시작해도 빛 때문에 움직인다. ' +
+            '준위차 ΔE 는 광자 E_ph + 원자 반동 KE 로 갈라져(recoil shift) 광자 E 가 ΔE 보다 작아지고, ' +
+            '가벼운 원자일수록 반동·shift 가 크다(질량 의존 — author 0, 식에서 창발). 총 운동량은 정확히 0(광자↔원자 상쇄).',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;   // 60% 들뜸: 준위 1~3
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // *정지* 시작 → 운동은 오직 광자 반동에서
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1 } };
+      },
+
+      watch(sim, K) {
+        let speed = 0, apx = 0, apy = 0, ppx = 0, ppy = 0;
+        for (const a of sim.atoms) { const m = K.mass(a); speed += Math.hypot(a.vx, a.vy); apx += m * a.vx; apy += m * a.vy; }
+        for (const p of sim.photons) { ppx += p.px || 0; ppy += p.py || 0; }
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          meanSpeed: +(speed / sim.atoms.length).toFixed(5),     // 정지(0)에서 반동으로 얻은 평균 속력
+          atomP: +Math.hypot(apx, apy).toFixed(4),               // 원자 총 운동량 크기
+          photonP: +Math.hypot(ppx, ppy).toFixed(4),             // 광자 총 운동량 크기(원자와 상쇄)
+          totP: +Math.hypot(apx + ppx, apy + ppy).toExponential(2), // 총합 ≈ 0
+        };
+      },
+
+      // 가설: ① 정지 원자가 광자 반동으로 움직인다 ② 총 운동량 보존(원자+광자 ≈0) ③ recoil shift(광자 E<준위차 ΔE).
+      assert(ctx, K) {
+        const sim = ctx.sim, ph = sim.photons;
+        let px = 0, py = 0, speed = 0;
+        for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; speed += Math.hypot(a.vx, a.vy); }
+        for (const p of ph) { px += p.px || 0; py += p.py || 0; }
+        const Ptot = Math.hypot(px, py), meanSpeed = speed / sim.atoms.length;
+        let nr = 0, shifted = 0, shiftSum = 0;
+        for (const p of ph) {
+          if (!p.recoiled) continue;
+          nr++;
+          const gap = K.levelE(p.from) - K.levelE(p.to);         // 전체 준위차(p.E 는 이미 E_ph 로 줄어듦)
+          if (p.E < gap - 1e-12) shifted++;
+          shiftSum += (gap - p.E) / gap;
+        }
+        return [
+          { name: '정지 원자가 광자 반동으로 움직임(평균 속력>0)', pass: meanSpeed > 0, value: +meanSpeed.toFixed(5) },
+          { name: '총 운동량 보존(원자+광자 ≈0)', pass: Ptot < 1e-9, value: +Ptot.toExponential(2) },
+          { name: 'recoil shift(광자 E<준위차 ΔE, 전부)', pass: nr > 0 && shifted === nr, value: nr ? +(shiftSum / nr).toFixed(4) : 0 },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
