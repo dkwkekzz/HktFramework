@@ -9,6 +9,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (K) {
   'use strict';
 
+  // 법칙 모듈의 공유 헬퍼(step-0017 공유결합 빈자리) — 노드(require)·브라우저(root.HGO.laws) 양쪽 가드.
+  const L = (typeof require !== 'undefined') ? require('./hgo-laws.js')
+          : ((typeof globalThis !== 'undefined' ? globalThis : this).HGO || {}).laws;
+
   // 원소는 author 한 타입이 아니라 (Z,N) 다발의 값일 뿐 (SPINE §3 요건1).
   // 수소·헬륨·탄소·산소 = 양성자 수의 위치.
   const ELEMENTS = [{ Z: 1, N: 0 }, { Z: 2, N: 2 }, { Z: 6, N: 6 }, { Z: 8, N: 8 }];
@@ -964,6 +968,76 @@
           { name: '결합이 깨진다(unbond>0 — 영구 이량체 아님)', pass: broke > 0, value: broke },
           { name: '닫힌 장부 유지(Σ결합별E = 전역 bondE, 깸 후에도 잔차≈0)', pass: resid <= 1e-9, value: +resid.toExponential(2) },
           { name: '결합 동적 평형(형성>깸>0 & 일부 살아남음 → 순환)', pass: formed > broke && broke > 0 && bonds.length > 0, value: formed },
+        ];
+      },
+    },
+
+    'step-0017': {
+      id: 'step-0017',
+      title: '공유결합 (중성 원자가 외각 껍질을 공유 — 이온결합 옆 둘째 선택성)',
+      desc: 'step-0010~0016 의 결합은 *이온결합*(반대 전하 전이)뿐이었다 — 중성 원자는 만나도 collide 로 튕길 뿐(STATE 요건1). ' +
+            'bond 게이트 `bondCovalent`(=0 → 이온만, step-0016 비트 동일)가 *둘째 선택성*을 더한다: *중성*(q=0) 원자 쌍이 ' +
+            '*외각 껍질 빈자리*(다음 닫힌 껍질 2·10·18 까지 부족분)를 공유해 결합한다. 공유 원자가 = 빈자리 → H 1·C 4·O 2·He 0(noble) 이 ' +
+            '*e 다발 + 마법수*에서 그대로 창발한다(author `if(isWater)` 0, 척추 ①②). 포획·결합 E reservoir·분자 측정은 이온결합 기계를 그대로 재사용 — ' +
+            '바뀐 것은 *국소 선택 규칙*뿐. 끄면 중성 쌍은 collide 탄성(회귀 0). 이로써 분자가 *반대 전하 없이도* 만들어진다(물·메탄형).',
+      ticks: 80,
+
+      init(rng, K) {
+        const W = 50, H = 50, n = 50, atoms = [];   // *중성* 원자 무대(e=Z) — 공유결합 시연(이온 아님)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];   // H·He·C·O
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z, x: 0,                     // 중성(e=Z) → 전하 0 → 이온결합 불가, 공유결합 후보
+            rx: rng() * W, ry: rng() * H,
+            vx: (rng() * 2 - 1) * 0.5, vy: (rng() * 2 - 1) * 0.5,
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // step-0015 사슬(국소 E 장부) + bondCovalent(공유결합) 한 노브. kUnbond 도 켜 결합 동역학 유지. 이온결합은 무대에 이온이 0이라 자동 0.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 2.0, kChemilum: 0.1, kEmit: 0.1, kRecoil: 1, kProp: 1, kCollide: 1, collideR: 3, bondLocalE: 1, kUnbond: 1, bondCovalent: 1 } };
+      },
+
+      watch(sim, K) {
+        const bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        for (const e of bonds) { deg[e[0]]++; deg[e[1]]++; }
+        let overValence = 0, heBonds = 0, maxDeg = 0;
+        for (let i = 0; i < atoms.length; i++) {
+          const vac = L.covVacancy(atoms[i].e);
+          if (deg[i] > vac) overValence++;                  // 빈자리 초과(있으면 안 됨)
+          if (vac === 0 && deg[i] > 0) heBonds++;            // noble(He) 인데 결합(있으면 안 됨)
+          if (deg[i] > maxDeg) maxDeg = deg[i];
+        }
+        const mol = molecules(sim);
+        return {
+          atoms: atoms.length,
+          bondsFormed: sim.bondCount | 0,
+          covalent: sim.covalentCount | 0,                  // 공유결합 횟수(중성 쌍)
+          liveBonds: bonds.length,
+          molecules: mol.count,                              // 형성된 분자(연결 성분 ≥2) 수
+          maxMolSize: mol.maxSize,
+          maxDeg,                                            // 최대 결합 차수(C=4 까지 가능)
+          overValence,                                       // 빈자리 초과 원자 수(0 이어야)
+          heBonds,                                           // noble 원자의 결합 수(0 이어야)
+        };
+      },
+
+      // 가설: ① 중성 원자가 공유결합(covalent>0 — 이온 없이 분자 형성) ② 빈자리 = 원자가 한계(어떤 원자도 covVacancy 초과 0) ③ noble 비활성(He 결합 0 — 닫힌 껍질은 공유 안 함). 총 E·p·Q·B 보존은 verify ② 기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, bonds = sim.bonds || [], atoms = sim.atoms;
+        const deg = new Array(atoms.length).fill(0);
+        for (const e of bonds) { deg[e[0]]++; deg[e[1]]++; }
+        let overValence = 0, heBonds = 0;
+        for (let i = 0; i < atoms.length; i++) {
+          const vac = L.covVacancy(atoms[i].e);
+          if (deg[i] > vac) overValence++;
+          if (vac === 0 && deg[i] > 0) heBonds++;
+        }
+        const cov = sim.covalentCount | 0;
+        return [
+          { name: '중성 원자가 공유결합(covalent>0 — 이온 없이 분자)', pass: cov > 0, value: cov },
+          { name: '빈자리 = 원자가 한계(covVacancy 초과 원자 0)', pass: overValence === 0, value: overValence },
+          { name: 'noble 비활성(He 등 닫힌 껍질 결합 0)', pass: heBonds === 0, value: heBonds },
         ];
       },
     },

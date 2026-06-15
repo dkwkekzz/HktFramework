@@ -10,7 +10,14 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0 };
+
+  // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
+  //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
+  //   H(e1)→1·He(e2)→0(noble·비활성)·C(e6)→4·O(e8)→2 = 실제 원자가가 e+마법수에서 그대로 나온다(SPINE §3 요건1·4).
+  const SHELL_MAGIC = [2, 10, 18, 36];
+  function covVacancy(e) { for (const m of SHELL_MAGIC) if (e < m) return m - e; return 0; }  // 0 = 이미 닫힌 껍질(또는 초과)
+
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -281,6 +288,9 @@
   //   collide 와의 정합: bond 가 먼저 돌아 상대속도를 0 으로 잠그면 뒤따르는 collide 는 vn≤0 으로 그 쌍을 건너뜀(중복 0).
   //   ⊕ step-0012 게이트 `bondValence`(=0 → 무제한·이전 비트 동일): 원자당 결합 수를 *원자가 = |Z−e|*(전하 다발서
   //     창발, author 0)로 제한 → ±1 이온은 cap 1 → 이량체만(과응집 blob 해소). step-0006 scatterAngular 정밀화와 동형 게이트.
+  //   ⊕ step-0017 게이트 `bondCovalent`(=0 → 이온결합만·step-0016 비트 동일): *둘째 선택성*을 더한다 — 반대 전하(이온)가
+  //     아닌 *중성*(q=0) 원자 쌍이 *외각 껍질 빈자리*(covVacancy)를 공유해 결합한다. 이온=전자 전이(반대 전하), 공유=전자 공유(중성).
+  //     공유 원자가 = 빈자리(H1·C4·O2·He0) → 결합 수 한계가 *e 다발*서 창발(author 0). 포획·reservoir 는 이온과 동일 기계 재사용.
   function bond(sim) {
     const k = sim.knobs.kBond;
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 항 꺼짐 → 직전 비트)
@@ -289,16 +299,25 @@
     if (!sim.bonds) { sim.bonds = []; sim.bondKeys = new Set(); }  // 결합 간선 장부(미존재→지연 초기화)
     const atoms = sim.atoms, n = atoms.length;
     const vcap = sim.knobs.bondValence || 0;             // 원자가 한계 게이트(0=무제한 → step-0010/0011 비트 동일)
+    const cov = sim.knobs.bondCovalent || 0;             // 공유결합 게이트(0 → 이온만, step-0016 비트 동일)
     let deg = null;
-    if (vcap) { deg = new Array(n).fill(0); for (const e of sim.bonds) { deg[e[0]]++; deg[e[1]]++; } }  // 현 결합 차수(이전 tick 누적)
+    if (vcap || cov) { deg = new Array(n).fill(0); for (const e of sim.bonds) { deg[e[0]]++; deg[e[1]]++; } }  // 현 결합 차수(이온 cap·공유 빈자리 cap 공용)
     for (let i = 0; i < n; i++) {
       const a = atoms[i];
       for (let j = i + 1; j < n; j++) {
         const key = i * n + j;
         if (sim.bondKeys.has(key)) continue;                 // 이미 결합 — 재포획·이중 흡수 금지
         const b = atoms[j];
-        if ((a.Z - a.e) * (b.Z - b.e) >= 0) continue;        // 반대 전하만 끌림(같은 전하/중성 → collide 탄성)
-        if (vcap && (deg[i] >= Math.abs(a.Z - a.e) || deg[j] >= Math.abs(b.Z - b.e))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
+        const qa = a.Z - a.e, qb = b.Z - b.e;
+        if (qa * qb < 0) {                                   // ── 이온결합: 반대 전하 끌림(기존 경로) ──
+          if (vcap && (deg[i] >= Math.abs(qa) || deg[j] >= Math.abs(qb))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
+        } else {                                             // ── 반대 전하 아님 → 이온 불가 ──
+          if (!cov) continue;                                // 게이트 off → 기존처럼 skip(같은 전하/중성, 회귀 0)
+          if (qa !== 0 || qb !== 0) continue;                // 공유는 *중성 원자만*(같은부호 이온은 반발 → collide 탄성)
+          const va = covVacancy(a.e), vb = covVacancy(b.e);  // 외각 껍질 빈자리(다음 닫힌 껍질까지)
+          if (va <= 0 || vb <= 0) continue;                  // 한쪽이라도 껍질 채움(noble, 예: He) → 공유 안 함
+          if (deg[i] >= va || deg[j] >= vb) continue;        // 공유 원자가 포화(빈자리 = 결합 수 한계 — e 다발서 창발)
+        }
         const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
         const d2 = dx * dx + dy * dy;
         if (d2 > R2 || d2 === 0) continue;                   // 접촉 반경 밖(또는 완전 겹침 가드)
@@ -319,8 +338,9 @@
         //   전역 sim.bondE 는 그대로 두되(ledger 가 읽음·불변) 결합별 e[2] 가 그 합을 분해 → 어느 결합 E 인지 국소 추적(unbond·핵 회계 토대).
         sim.bonds.push(sim.knobs.bondLocalE ? [i, j, absorbed] : [i, j]);
         sim.bondKeys.add(key);
-        if (vcap) { deg[i]++; deg[j]++; }                   // 차수 갱신(같은 tick 내 후속 쌍이 포화 보게)
+        if (vcap || cov) { deg[i]++; deg[j]++; }            // 차수 갱신(같은 tick 내 후속 쌍이 이온 cap·공유 빈자리 포화 보게)
         sim.bondCount = (sim.bondCount | 0) + 1;             // 진단 카운터(결합 간선은 hash 참여)
+        if (qa === 0 && qb === 0) sim.covalentCount = (sim.covalentCount | 0) + 1;  // 공유결합 횟수(중성 쌍 = 공유, 진단·hash 미참여)
       }
     }
   }
@@ -428,5 +448,5 @@
     }
   }
 
-  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap };
+  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy };
 });
