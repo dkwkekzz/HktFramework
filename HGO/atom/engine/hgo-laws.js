@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kRadiate: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -577,9 +577,46 @@
     sim.vdwActive = 1;                                     // 진단 플래그(hash 미참여)
   }
 
+  // radiate 은 *복사 감쇠*(소산) — 근접 쌍의 *상대 radial 운동* KE 를 복사 바스로 빼낸다(DPD 소산력의 결정론판).
+  //   왜 필요한가: step-0023 vdw+pauli 는 보존계라 응집이 *호흡*(영구 진동)만 했다 — 우물에 빠지긴 해도 바닥에 못 정착하고 영원히 출렁였다.
+  //     실제 응축(액·고체)은 진동 에너지를 *복사*로 잃고 우물 바닥에 *정착*(응고)한다. 이 감쇠가 그 손실 채널 — 호흡을 *진짜 응고*로 바꾼다.
+  //   형태: 쌍별 dashpot F_a = −γ·w·(d̂·v_ab)·d̂ (d=a→b, v_ab=va−vb). 상대 *radial* 속도에만 작용 → 등·반작용(운동량 머신)·
+  //     병진/회전 불변(Galilean — 군집 전체 표류는 안 식음). w=1/s2 로 *단거리*(근접 군집만 식음 — 기체 전역 감쇠 회피). γ=kRadiate.
+  //   닫힌 장부: 쌍에서 뺀 ΔKE 를 *그대로* 복사 바스 sim.escaped.E(step-0007 reservoir)에 적재(KE→복사 E) → 총 E *머신* 보존(유계 아님!).
+  //     바스 운동량 불변(스칼라 E 만 적재), 원자 운동량 등·반작용 → px·py 머신. Q·B·L·x·위치 불변(속도만 건드림).
+  //   국소: 그 두 원자만(min-image). 결정론: rng 불필요. kRadiate=0 → early-return = 회귀 0 (감쇠 꺼짐 → 0023 비트).
+  function radiate(sim) {
+    const kd = sim.knobs.kRadiate;
+    if (!kd) return;                 // 노브=0 → early-return = 회귀 0 (감쇠 꺼짐 → 0023 비트)
+    const dt = sim.knobs.dt;
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(쿨롱·pauli·vdw 와 공유)
+    const atoms = sim.atoms, n = atoms.length;
+    const bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });  // 복사 바스(step-0007 reservoir 재사용)
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i], ma = K.mass(a);                  // 전하 게이트 없음 — 보편 감쇠(모든 쌍)
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j], mb = K.mass(b);
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
+        const vrelx = a.vx - b.vx, vrely = a.vy - b.vy;    // v_ab = v_a − v_b
+        const proj = dx * vrelx + dy * vrely;              // (d·v_ab) = radial 상대속도 × |d|(부호 보존)
+        // F_a = −γ·w·(d̂·v_ab)·d̂ = −(kd/s2)·proj/s2 · d  (w=1/s2 단거리, d̂d̂ 의 1/|d|² 를 s2 로 연화). dE=F_a·v_ab=−(kd/s2²)proj²≤0 → 소산.
+        const fscale = -(kd / (s2 * s2)) * proj;
+        const fax = fscale * dx, fay = fscale * dy;        // a 에 작용(b 엔 −fax,−fay → 운동량 정확 보존)
+        // 정착 회계: 임펄스 전후 두 원자 KE 차를 *그대로* 바스로(KE→복사 E, 총 E 머신 보존 — 유계 아님)
+        const ke0 = 0.5 * ma * (a.vx * a.vx + a.vy * a.vy) + 0.5 * mb * (b.vx * b.vx + b.vy * b.vy);
+        a.vx += (fax / ma) * dt; a.vy += (fay / ma) * dt;
+        b.vx -= (fax / mb) * dt; b.vy -= (fay / mb) * dt;
+        const ke1 = 0.5 * ma * (a.vx * a.vx + a.vy * a.vy) + 0.5 * mb * (b.vx * b.vx + b.vy * b.vy);
+        bath.E += ke0 - ke1;                               // 뺀 KE 를 복사 바스로 적재(닫힌 장부)
+      }
+    }
+    sim.radiateActive = 1;                                 // 진단 플래그(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, radiate };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'radiate'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {

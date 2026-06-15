@@ -1395,6 +1395,60 @@
         ];
       },
     },
+
+    'step-0024': {
+      id: 'step-0024',
+      title: '복사 감쇠 (소산 — 호흡하는 군집이 우물 바닥에 응고)',
+      desc: 'step-0023 vdw+pauli 는 보존계라 응집이 *호흡*(영구 진동)만 했다 — 우물에 빠지긴 해도 바닥에 못 정착하고 영원히 출렁였다. ' +
+            '새 법칙 `radiate`(게이트 kRadiate)는 *복사 감쇠*(소산): 근접 쌍의 *상대 radial 운동* KE 를 dashpot F=−γ·w·(d̂·v_ab)·d̂ 로 ' +
+            '빼내어 복사 바스 sim.escaped.E 에 적재한다(KE→복사 E). 뺀 KE 를 *정확히* 바스로 옮기므로 총 E 가 *머신* 보존(유계 아님!)·' +
+            '쌍별 등반작용이라 운동량 머신. 같은 4원자 군집이 이제 호흡을 *잃고* 우물 바닥에 *정착*(응고) — 원자 총 KE→0·바스 E↑(복사로 식음). ' +
+            'pauli 는 식어도 붕괴를 막아 군집은 유계로 남는다. 끄면 step-0023 비트 동일(회귀 0). *비가역 응고 + 닫힌 장부* = SPINE §4 의 빠른 비가역.',
+      ticks: 2000,
+      ledgerTol: { E: 3e-3 },   // 연속 보존력(vdw·pauli)의 반음시 유계 진동(E 만 완화). radiate 의 KE→바스는 머신 정확 — 잔차에 안 더함.
+
+      // step-0023 과 *같은* 중성 4원자 정사각형(변 6·정지)에 radiate 만 더해(kRadiate=2 — 과감쇠 아닌 *저감쇠*) 호흡을 식힌다. 쿨롱 안 켬(중성).
+      //   저감쇠라 군집이 *우물로 수축*(변 6→r_eq≈4)한 뒤 진동을 잃고 정착(과감쇠면 출발점서 얼어붙음). kV=0.6·kP=6·ε=2 → vdW 우물 r_eq≈4.
+      //   rng 미사용 순수 결정론. 토러스 크게(고립).
+      init(rng, K) {
+        const W = 400, H = 400, cx = 200, cy = 200, s = 3;  // 정사각형 반변 3 → 변 6 (0023 동일)
+        const H1 = ELEMENTS[0];
+        const neutral = (rx, ry) => ({ Z: H1.Z, N: H1.N, e: 1, x: 0, rx, ry, vx: 0, vy: 0 });  // e=1 → q=0, 정지
+        const atoms = [
+          neutral(cx - s, cy - s), neutral(cx + s, cy - s),
+          neutral(cx - s, cy + s), neutral(cx + s, cy + s),
+        ];
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.05, kPauli: 6, kVdW: 0.6, kRadiate: 2, coulombSoft: 2 } };
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms, n = A.length;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, sim.W), K.minImage(A[j].ry - A[i].ry, sim.H));
+        let sum = 0, mn = Infinity, c = 0, ke = 0;
+        for (let i = 0; i < n; i++) { ke += 0.5 * K.mass(A[i]) * (A[i].vx * A[i].vx + A[i].vy * A[i].vy); }
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = dist(i, j); sum += d; c++; mn = Math.min(mn, d); }
+        return { atomKE: +ke.toFixed(6), bathE: +((sim.escaped && sim.escaped.E) || 0).toFixed(4), meanPair: +(sum / c).toFixed(3), minPair: +mn.toFixed(3) };
+      },
+
+      // 가설: ① 응고 — 최종 원자 총 KE→0(우물 바닥 정착, 호흡 멈춤). ② 복사 소산 — 바스 E>0(뺀 KE 가 복사로 누적). ③ 우물 응축 — meanPair 가 초기(6.83)서 r_eq 우물로 수축하되 minPair>ε(붕괴 방지). 총 E 머신 보존·운동량 머신은 verify ②.
+      assert(ctx, K) {
+        const A = ctx.sim.atoms, n = A.length, W = ctx.sim.W, H = ctx.sim.H;
+        const dist = (i, j) => Math.hypot(K.minImage(A[j].rx - A[i].rx, W), K.minImage(A[j].ry - A[i].ry, H));
+        let ke = 0, sum = 0, mn = Infinity, c = 0;
+        for (let i = 0; i < n; i++) ke += 0.5 * K.mass(A[i]) * (A[i].vx * A[i].vx + A[i].vy * A[i].vy);
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = dist(i, j); sum += d; c++; mn = Math.min(mn, d); }
+        const meanPair = sum / c;
+        const mean0 = (4 * 6 + 2 * Math.sqrt(72)) / 6;       // 초기 평균 쌍거리(변 6 ×4 + 대각 √72 ×2)/6 ≈ 6.83
+        const bathE = (ctx.sim.escaped && ctx.sim.escaped.E) || 0;
+        const eps = ctx.sim.knobs.coulombSoft;
+        return [
+          { name: '응고 — 최종 원자 총 KE→0(우물 바닥 정착, 호흡 멈춤)', pass: ke < 1e-3, value: +ke.toFixed(6) },
+          { name: '복사 소산 — 복사 바스 E>0(뺀 KE 가 복사로 누적)', pass: bathE > 0, value: +bathE.toFixed(4) },
+          { name: '우물 응축 — meanPair 우물로 수축(< 초기 0.7배) ∧ minPair>ε(붕괴 방지)', pass: meanPair < mean0 * 0.7 && mn > eps, value: +meanPair.toFixed(3) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
