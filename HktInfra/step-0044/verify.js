@@ -1,11 +1,11 @@
-// HktInfra step-0044 — 헤드리스 검증 (가방 seenReqs dedup 집합 *유계화* — 게이트웨이 prune 워터마크·busSeenBound)
+// HktInfra step-0044 — 헤드리스 검증 (다중 소비자 min-워터마크 — 결과 버퍼 가지치기를 모든 소비자 frontier 의 최소로·busMinWm)
 // 사용: node step-0044/verify.js <mode> [seed]
-//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 가설 = `seenbound`.
-//   더한 한 조각: 0037 가방 seenReqs(요청 dedup 집합)는 처리한 *전* reqId 를 무계로 쌓는다 → 장기 가동 시 무한 성장(0040/0041 §9). 그러나 게이트웨이가 재발행하는 건 inBuffer(미-ack=reqId>inAcked)뿐.
-//                 게이트웨이가 inAcked(prune 프런티어)를 svc.item.seen 으로 통보 → 가방이 그 이하 reqId 를 seenReqs 에서 제거(영영 재출현 0 → dupe 보존). busAck 의 역방향 워터마크.
-//   검증: ⒜ `reg`(키트) — busSeenBound=0(기본)이면 NET 이 직전 step(0041)과 *비트 동일*(seen 발행/가지치기·구독 0).
-//         ⒝ `seenbound`(이 step·가설) — ① 유계화(seenReqs peak run-length 무관·무계는 ∝처리 수 성장) ② dedup 정확성 보존(minted==base·dupe 0) ③ failover 에도 dupe 0(gap 구간 워터마크 정지 → gap reqId 보존).
-// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 이번 step 가설 모드(seenbound)만 더한다.
+//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 가설 = `minwm`.
+//   더한 한 조각: 0041 결과 ack(busOutAck)는 outBuffer 를 *게이트웨이 단일* 소비자 frontier 까지 가지쳤다(§9 ①). svc.item.out 의 둘째 소비자(ranking)가 게이트웨이보다 *늦게* 복구되면
+//                 단일 워터마크 + 소비자 dedup 0(=0043)으론 정확 복구가 안 된다(재발행×live 중복→이중 적용·또는 starve). 일반화: 각 소비자가 frontier 를 통보 → 가방이 *최소(min)*까지만 가지치기 + 소비자 outSeq dedup.
+//   검증: ⒜ `reg`(키트) — busMinWm=0(기본)이면 NET 이 직전 step(0043)과 *비트 동일*(소비자 태깅/min 계산/ranking ack·dedup 0).
+//         ⒝ `minwm`(이 step·가설) — 비대칭 복구(ranking 늦은 재구독)에서 single(0043)은 투영≠원장(over>0)·min 은 투영==원장(rankProjectionFaithful)·outBuffer 보존(peak↑).
+// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 이번 step 가설 모드(minwm)만 더한다.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../step-0043/net-core.js');   // reg 대조용(직전 step)
@@ -21,69 +21,46 @@ const JLOSS = 0.3;       // 저널 홉 손실율(0023~) — inventory→persist 
 
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-// ── 이 step 의 가설 모드: seenbound — 가방 seenReqs(0037 dedup 집합)를 게이트웨이 prune 워터마크로 유계화 ──
-const { run, itemConserved, ledgerConsistent } = NET;
+// ── 이 step 의 가설 모드: minwm — 결과 버퍼 가지치기를 *모든 소비자 frontier 의 최소(min)*로 일반화(다중 소비자) ──
+const { run, itemConserved, ledgerConsistent, rankProjectionFaithful, ledgerCounts } = NET;
 const { check, pad } = kit.helpers;
 
 // 가방·채팅·버스·audit·ranking 가 도는 토폴로지(영속/quorum 불필요 — 버스 라우팅만 자극). 0040/0041 과 동일 베이스.
 const BUS_BASE = (seed, ticks = 70, ops = 10) => ({ seed, ticks, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, inventory: true, itemOps: ops, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true });
-// crash@12→재협상@14 — failover 에도 dupe 0 검증용(gap 구간 워터마크 정지 → gap reqId 보존 → 재발행 dedup).
-const CRASH_AT = 12, RENEG_AT = 14;
+// crash@12→gateway 재협상@14→ranking 늦은 재협상@16 — 비대칭 복구로 min-워터마크 자극(단일 워터마크는 ranking 정확 복구 실패).
+const CRASH_AT = 12, RENEG_AT = 14, RANK_RENEG_AT = 16;
 
-function seenbound(seeds) {
-  console.log('== seenbound: *가설* — 0037 가방 seenReqs(요청 dedup 집합)를 게이트웨이 *prune 워터마크*로 유계화: 게이트웨이가 inAcked 를 svc.item.seen 으로 통보 → 가방이 그 이하 reqId 를 seenReqs 에서 제거(영영 재출현 0 → dupe 보존) ==');
-  console.log('  요청 경로는 모두 busResendReq+busAck ON. unbnd(seenReqs 무계·∝처리 수) vs bound(busSeenBound·워터마크 가지치기) 비교.');
-  console.log('seed   | minted base/unbnd/bound | seenReqs final unbnd/bound | seenReqsPeak unbnd/bound | seenPruned | dupe | 판정');
-  // 요청 경로 자기-크기조정(busResendReq+busAck)은 양 변종 공통 — seenReqs 유계화(busSeenBound)만 변수.
-  const REQ = { busResendReq: true, busAck: true };
+function minwm(seeds) {
+  console.log('== minwm: *가설* — 0041 결과 ack 는 *게이트웨이 단일* 소비자 frontier 까지 outBuffer 를 가지쳤다(§9 ①). svc.item.out 의 둘째 소비자(ranking)가 게이트웨이보다 *늦게* 복구되면, 단일 워터마크 + 소비자 dedup 0(=0043)으론 정확 복구 불가(투영≠원장). 다중 소비자 min-워터마크(모든 소비자 frontier 의 최소까지만 가지치기) + ranking outSeq dedup → 늦은 ranking 도 *정확히* 따라잡음(투영==원장) ==');
+  console.log(`  crash@${CRASH_AT}→gateway 재협상@${RENEG_AT}→ranking 늦은 재협상@${RANK_RENEG_AT}(비대칭). single(busMinWm OFF=0043 동작) vs min(busMinWm ON) 대조.`);
+  console.log('seed   | rankFaithful single/min | single 투영오차(over/under) | outBuf peak single/min | outPruned min | 판정');
+  const FO = { busRestart: { at: CRASH_AT, renegAt: RENEG_AT }, rankRenegAt: RANK_RENEG_AT, busResend: true, busOutAck: true };
   for (const seed of seeds) {
-    const base  = run(BUS_BASE(seed));                                   // dedup 기계 OFF — minted 기준
-    const unbnd = run({ ...BUS_BASE(seed), ...REQ });                    // seenReqs 무계: dedup 정확하나 ∝처리 수 성장
-    const bound = run({ ...BUS_BASE(seed), ...REQ, busSeenBound: true }); // seenReqs 유계: 워터마크 가지치기
-
-    const mB = base.inventory.minted, mU = unbnd.inventory.minted, mO = bound.inventory.minted;
-    const finU = unbnd.inventory.seenReqs.size, finO = bound.inventory.seenReqs.size;
-    const peakU = unbnd.inventory.seenReqsPeak, peakO = bound.inventory.seenReqsPeak;
-    const prunedO = bound.inventory.seenPruned;
-    // dupe = ledger 보존 위반(아이템 소멸 없음·minted==ledger.size). 유계화가 dedup 을 깨면 이중 mint → ledger>minted.
-    const dupe = (itemConserved(unbnd) && itemConserved(bound)) ? 0 : 1;
-
-    // ① dedup 정확성 보존: 유계화해도 minted 동일·원장 정합(가지친 reqId 는 영영 재출현 0 이라 dedup 손실 0).
-    const correct = mB === mU && mU === mO && dupe === 0 && ledgerConsistent(bound) && ledgerConsistent(unbnd);
-    // ② 유계화: bound 의 seenReqs 가 무계보다 작다(final·peak 둘 다) — run-length 무관성은 아래 sweep 에서.
-    const bounded = finO < finU && peakO < peakU && prunedO > 0;
-
+    const single = run({ ...BUS_BASE(seed), ...FO });                   // 단일 워터마크(0043 동작) — 늦은 ranking 정확 복구 실패
+    const min    = run({ ...BUS_BASE(seed), ...FO, busMinWm: true });   // min-워터마크 + dedup — 정확 복구
+    const fS = rankProjectionFaithful(single), fM = rankProjectionFaithful(min);
+    // single 투영 오차 방향 진단: over=재발행×live 이중 적용·under=starve(가지친 결과 못 받음). min 은 0/0(정확).
+    const tc = ledgerCounts(single); let over = 0, under = 0;
+    for (const [a, n] of tc) { const g = single.ranking.ranks.get(a) || 0; if (g > n) over += g - n; if (g < n) under += n - g; }
+    for (const [a, n] of single.ranking.ranks) if (!tc.has(a)) over += n;
+    const peakS = single.inventory.outBufPeak, peakM = min.inventory.outBufPeak;
+    // ① min 은 정확 복구(투영==원장) ② single 은 부정합(데모 자극 성립) ③ min 이 더 보존(peak↑·뒤처진 소비자용) ④ 원장 자기-정합(가방 권위 무영향)
     const ok =
-      check(correct, `seed ${seed}: 유계화가 dedup 깨뜨림(base ${mB}·unbnd ${mU}·bound ${mO} minted·dupe ${dupe})`) &&
-      check(bounded, `seed ${seed}: seenReqs 유계화 안 됨(final ${finU}→${finO}·peak ${peakU}→${peakO}·pruned ${prunedO})`);
-    console.log(`${pad(seed,6)} | ${pad(mB+'/'+mU+'/'+mO,23)} | ${pad(finU+'/'+finO,26)} | ${pad(peakU+'/'+peakO,24)} | ${pad(prunedO,10)} | ${pad(dupe,4)} | ${ok?'OK':'FAIL'}`);
+      check(fM, `seed ${seed}: min-워터마크인데 ranking 투영 ≠ 원장(불완전 복구·over ${over} under ${under})`) &&
+      check(!fS, `seed ${seed}: single 워터마크인데 ranking 투영 정합(데모 자극 실패)`) &&
+      check(peakM > peakS, `seed ${seed}: min 이 더 보존 안 함(peak ${peakS}→${peakM})`) &&
+      check(ledgerConsistent(min) && itemConserved(min), `seed ${seed}: 원장 자기-정합 깨짐(min)`);
+    console.log(`${pad(seed,6)} | ${pad((fS?'T':'F')+'/'+(fM?'T':'F'),23)} | ${pad('over '+over+' / under '+under,27)} | ${pad(peakS+'/'+peakM,22)} | ${pad(min.inventory.outPruned,13)} | ${ok?'OK':'FAIL'}`);
   }
-  // run-length 무관성(핵심) — 가동을 늘리면 무계 seenReqs 는 ∝ 처리 수로 성장하나 bound peak 는 *in-flight 상한*(가동 길이 무관)에 머문다.
-  const sd = seeds[0];
-  console.log(`  run-length 무관성(seed ${sd}·crash 없음) — 무계는 가동 길이에 비례 성장, bound peak 는 in-flight 상한에 고정:`);
-  for (const [ticks, ops] of [[70, 10], [140, 20], [210, 30]]) {
-    const u = run({ ...BUS_BASE(sd, ticks, ops), ...REQ });
-    const o = run({ ...BUS_BASE(sd, ticks, ops), ...REQ, busSeenBound: true });
-    console.log(`    ticks ${pad(ticks,3)} ops ${pad(ops,2)} | unbnd seenReqs ${pad(u.inventory.seenReqs.size,3)}(∝처리) · bound peak ${pad(o.inventory.seenReqsPeak,3)}(고정) · bound final ${o.inventory.seenReqs.size}`);
-  }
-  // failover 에도 dupe 0 — gap 구간엔 ack 가 끊겨 게이트웨이 inAcked 정지 → seen 워터마크도 정지 → gap reqId 가 seenReqs 에 *보존* → 복구 재발행이 dedup 으로 폐기(이중 mint 0).
-  console.log(`  failover dupe 0(crash@${CRASH_AT}→재협상@${RENEG_AT}·busResend+busOutAck 무손실 위에 busSeenBound):`);
-  for (const seed of seeds) {
-    const G = { busRestart: { at: CRASH_AT, renegAt: RENEG_AT }, busResend: true, busResendReq: true, busAck: true, busOutAck: true };
-    const fb = run({ ...BUS_BASE(seed), ...G });                          // failover·유계화 OFF
-    const fo = run({ ...BUS_BASE(seed), ...G, busSeenBound: true });      // failover·유계화 ON
-    const dupe = (itemConserved(fb) && itemConserved(fo)) ? 0 : 1;
-    const ok = check(fb.inventory.minted === fo.inventory.minted && dupe === 0 && ledgerConsistent(fo), `seed ${seed}: failover 유계화 dupe(minted ${fb.inventory.minted} vs ${fo.inventory.minted}·dupe ${dupe})`);
-    console.log(`    seed ${pad(seed,5)} | minted off/on ${pad(fb.inventory.minted+'/'+fo.inventory.minted,9)} · seenReqs peak ${pad(fb.inventory.seenReqsPeak+'/'+fo.inventory.seenReqsPeak,9)} · dupe ${dupe} | ${ok?'OK':'FAIL'}`);
-  }
-  console.log(`  → 0037 seenReqs 는 처리한 *전* reqId 를 무계로 쌓았다(0040/0041 §9) — 게이트웨이가 재발행하는 건 inBuffer(미-ack=reqId>inAcked)뿐이라 reqId≤inAcked 는 영영 재출현 0.`);
-  console.log(`    유계화: 게이트웨이가 inAcked(prune 프런티어)를 svc.item.seen 으로 통보 → 가방이 그 이하 reqId 를 seenReqs 에서 제거(busAck 의 *역방향* 워터마크).`);
-  console.log(`    정상 구간엔 워터마크가 흘러 seenReqs 가 in-flight 만 남고·gap 구간엔 워터마크 정지로 gap reqId 가 보존(재발행 dedup) → run-length 무관 + dupe 0 동시 달성(위 sweep·failover).`);
-  console.log(`    정직한 한계: 워터마크는 *게이트웨이 단일 producer* 기준 — 다중 게이트웨이 producer 면 per-producer 워터마크 필요. busSeenBound=0 = 0041 비트 동일(reg).`);
+  console.log(`  → 0041 결과 ack 는 *게이트웨이 단일* 소비자에 키잉(§9 ①). 둘째 소비자(ranking)가 늦게 복구되면 단일 워터마크 + dedup 0(=0043)으론 투영≠원장(over>0 — resendOut×live 이중 적용).`);
+  console.log(`    이 step: ⒜ ranking 을 *ack 하는 1급 소비자*로(svc.item.out.ack{outSeq,consumer:'ranking'}) ⒝ 가방이 *모든 기대 소비자 frontier 의 최소(min)*까지만 outBuffer 가지치기(가장 뒤처진 소비자 보존) ⒞ ranking outSeq dedup(재발행×live 중복 멱등).`);
+  console.log(`    → 늦은 ranking 도 보존된 buffer 를 replay 받아 *정확히* 따라잡음(rankProjectionFaithful·투영==원장). outBuf peak single<min 이 보존을 가시화. busMinWm=0 = 0043 비트 동일(reg).`);
+  console.log(`    정직한 한계: 영구 뒤처진 소비자는 min 을 눌러 buffer 를 무계 보유(min-워터마크의 대가) — 적응형 축출/소비자 lease 후속. 다중 게이트웨이 producer 워터마크(0042 §9)도 후속.`);
 }
-kit.MODES['seenbound'] = seenbound;
-kit.ORDER.splice(1, 0, 'seenbound');   // reg 직후(가설 우선 노출)
+
+kit.MODES['minwm'] = minwm;
+kit.ORDER.splice(1, 0, 'minwm');   // reg 직후(가설 우선 노출)
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

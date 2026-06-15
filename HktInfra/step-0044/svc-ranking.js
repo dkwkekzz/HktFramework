@@ -17,6 +17,12 @@ class RankingService {
     this.ranks = new Map();        // avatar -> count (보유 아이템 수 투영 — 원장 byOwner 크기의 파생, 권위 아님)
     this.consumed = 0;             // svc.item.out 소비 수(발신하는 소비자의 *입력* 회계)
     this.published = 0;            // svc.rank.out 발행 수(consume→publish 의 *출력* 회계 — 변경분만, 유계)
+    // ── 다중 소비자 min-워터마크의 *소비자 측*(이 step·busMinWm) — ranking 도 게이트웨이처럼 결과를 ack 하는 1급 소비자가 된다. ──
+    //   ⒜ 자기 frontier(소비 확인 outSeq)를 svc.item.out.ack{outSeq,consumer:'ranking'} 로 통보 → 가방이 min(gateway,ranking) 까지만 가지치기(이 소비자가 뒤처지면 보존).
+    //   ⒝ outSeq dedup — 재발행(resendOut)과 live 배달이 겹쳐도(같은 결과 2회 도달) counts 이중 적용 방지(rank 는 Set 아닌 ±카운트라 멱등 아님 → frontier 로 멱등화).
+    //   busMinWm OFF 면 outSeq 미태깅 → 이 경로 휴면 = 0043 비트 동일(ack 0·dedup 0).
+    this.busMinWm = opts.busMinWm || false;
+    this.outFrontier = -1;         // 소비 확인 outSeq 워터마크(단조) — 이하 재배달은 멱등 폐기·ack 의 frontier.
   }
   _bump(avatar, delta) {
     const next = (this.ranks.get(avatar) || 0) + delta;
@@ -29,6 +35,13 @@ class RankingService {
     const p = m.payload;
     if (p.type !== 'ev' || p.topic !== 'svc.item.out') return;   // svc.item.out 구독 수신만(가방 결과 스트림)
     const ev = p.ev;
+    // 다중 소비자 min-워터마크 소비자 측(이 step·busMinWm) — outSeq dedup + frontier ack. *모든* svc.item.out(실패·recon 포함)에 대해 frontier 를 전진시켜
+    //   가방의 outSeq 순열과 1:1 매칭(item_result&&ok 게이트보다 *먼저* — 게이트 통과 못 한 결과도 ack 해야 워터마크가 막히지 않는다). OFF/미태깅이면 휴면(0043 동일).
+    if (this.busMinWm && ev.outSeq !== undefined) {
+      if (ev.outSeq <= this.outFrontier) return;   // 이미 소비(재발행×live 중복) — 멱등 폐기(counts 이중 적용 0)
+      this.outFrontier = ev.outSeq;
+      if (this.bus) this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out.ack', ev: { outSeq: ev.outSeq, consumer: 'ranking' } });
+    }
     if (ev.type !== 'item_result' || !ev.ok) return;             // 실패 op 는 원장 무변경 → rank 무변경(p.ok 게이트)
     this.consumed++;
     if (ev.op === 'pickup') this._bump(ev.reqAvatar, +1);
@@ -40,6 +53,7 @@ class RankingService {
   crash() {
     this.ranks = new Map();
     this.consumed = 0; this.published = 0;
+    this.outFrontier = -1;   // 소비 frontier 리셋(이 step) — 새 프로세스는 소비 이력 0(busMinWm OFF 면 무관).
   }
   // reconstruct(이 step) — 읽기 모델의 *late-join*: 자기 영속 0 인데도 *쓰기 모델의 영속 저널*(PersistStore)을 replay 해 투영을 재계산한다.
   //   매핑: mint → owner +1, xfer → from -1·to +1 (= item_result pickup/give 투영과 정확히 같다 — 저널은 가방이 *수락한* 효과만 담아

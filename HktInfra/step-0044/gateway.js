@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false, busSeenBound = false) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false, busSeenBound = false, busMinWm = false) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -51,7 +51,9 @@ class Gateway {
     //   가방 seenReqs 는 처리한 *전* reqId 를 무계로 쌓는다(재발행 이중 mint 방어) → 장기 가동 시 무한 성장. 그러나 게이트웨이가 재발행하는 건 inBuffer(미-ack=reqId>inAcked)뿐이라
     //   reqId≤inAcked 는 영영 재출현하지 않는다 → 가방은 그 이하 dedup 상태를 잊어도 안전. inAcked 가 전진할 때 그 prune 프런티어를 svc.item.seen 으로 통보(busAck 의 역방향 워터마크).
     this.busSeenBound = busSeenBound;     // ON 이면 inAcked 전진 시 svc.item.seen{upTo} 발행. OFF = 0041 비트 동일(발행 0). busAck+busResendReq 전제.
-    this.seenWmSent = 0;                  // 발행한 seen 워터마크 누적(이 step·계측)
+    this.seenWmSent = 0;                  // 발행한 seen 워터마크 누적(0042·계측)
+    // ── 다중 소비자 min-워터마크(이 step·busMinWm) — 게이트웨이는 결과의 *한* 소비자다(둘째 = ranking). ON 이면 결과 ack 에 consumer:'gateway' 태깅 → 가방이 소비자별 frontier 로 min 계산. ──
+    this.busMinWm = busMinWm;             // ON 이면 svc.item.out.ack 에 consumer 태깅. OFF = 0043 비트 동일(태깅 0·단일 워터마크).
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -98,7 +100,9 @@ class Gateway {
   //   가방이 이 ack 로 outBuffer 를 가지쳐 자기-크기조정. outSeq 없으면(busOutAck OFF·가방 미태깅) 발행 0 = 0040 비트 동일.
   _ackOut(ev) {
     if (!this.busOutAck || !this.bus || ev == null || ev.outSeq === undefined) return;
-    this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out.ack', ev: { outSeq: ev.outSeq } });
+    // busMinWm ON 이면 consumer 태깅(다중 소비자 min 의 정의역 키) — OFF 면 0043 비트 동일({outSeq} 단일 워터마크).
+    const ack = this.busMinWm ? { outSeq: ev.outSeq, consumer: 'gateway' } : { outSeq: ev.outSeq };
+    this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out.ack', ev: ack });
     this.outAcksSent++;
   }
   // 가방 결과 중계 — 요청자(reqAvatar)에게 item_result, give 성공이면 수신자(toAvatar)에게 item_recv. 은닉: itemId/op 만 전달.

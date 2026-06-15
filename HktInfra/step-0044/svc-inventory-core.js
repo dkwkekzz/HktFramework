@@ -75,7 +75,14 @@ class InventoryService {
     this.outSeq = 0;             // 결과 producer-local 단조 순번(busOutAck ON 일 때만 부여) — ack 워터마크/가지치기 기준
     this.outAcked = -1;          // 결과 ack 워터마크 — 이 outSeq 이하 결과는 게이트웨이가 중계 확인(단조). outBuffer 가지치기 기준.
     this.outBufPeak = 0;         // outBuffer 최대 길이(계측) — 자기-크기조정 유계 증거(ack 면 ≈in-flight·고정/무계면 K/무한)
-    this.outPruned = 0;          // ack 로 가지친 결과 누적(이 step·계측)
+    this.outPruned = 0;          // ack 로 가지친 결과 누적(0041·계측)
+    // ── 다중 소비자 min-워터마크(이 step·busMinWm) — 0041 busOutAck 의 §9 ① 해소. ──
+    //   0041 결과 ack 는 *게이트웨이 단일* 소비자에 키잉됐다 — svc.item.out 의 둘째 소비자(ranking)가 게이트웨이보다 뒤처지면 outBuffer 를 *너무 일찍* 가지칠 위험(starve).
+    //   N-소비자 일반화: 각 소비자가 자기 frontier(중계/소비 확인 outSeq)를 svc.item.out.ack{outSeq,consumer} 로 통보 → 가방이 *모든 기대 소비자 워터마크의 최소(min)* 까지만 가지친다.
+    //   → 가장 뒤처진 소비자도 안전(미-ack 결과 보존) → 비대칭 복구(늦은 재구독)에도 그 소비자가 replay 로 따라잡는다. busMinWm OFF 면 단일 워터마크(outAcked·0043 비트 동일). busOutAck 전제.
+    this.busMinWm = opts.busMinWm || false;
+    this.outConsumers = opts.outConsumers || [];   // 기대 결과 소비자 id 목록(예: ['gateway','ranking']) — min 의 정의역. busMinWm ON 일 때만 비어있지 않음.
+    this.consumerWm = new Map();   // consumer id -> 그 소비자의 ack 워터마크(최대 확인 outSeq·단조). min 계산의 입력.
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -153,7 +160,8 @@ class InventoryService {
     this.ackSeqs = new Map(); this.durableSeq = -1; this.quorumAcks = 0; this.windowFills = 0;   // 쓰기 정족수·윈도 해소 상태 리셋(0029~0031) — 새 프로세스는 ack 집계/fill 계측 0(복구 후 다시 쌓임). quorumW 0 면 무관.
     this.outBuffer = []; this.outResends = 0;   // 버스 failover 결과 재발행 버퍼 리셋(0036) — 가방 crash 는 결과 버퍼도 소실(RAM). busResend OFF 면 무관.
     this.seenReqs = new Set();   // 요청 dedup 집합 리셋(0037) — 새 프로세스는 처리 이력 0(busResendReq OFF 면 무관).
-    this.seenWatermark = -1;     // seen prune 워터마크 리셋(이 step) — 새 생애는 dedup 이력 0 이라 워터마크도 초기화(busSeenBound OFF 면 무관).
+    this.seenWatermark = -1;     // seen prune 워터마크 리셋(0042) — 새 생애는 dedup 이력 0 이라 워터마크도 초기화(busSeenBound OFF 면 무관).
+    this.consumerWm = new Map(); // 다중 소비자 워터마크 리셋(이 step) — 새 프로세스는 소비자 ack 이력 0(busMinWm OFF 면 무관·outConsumers 는 config 라 유지).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   itemCount() { return this.ledger.size; }

@@ -22,7 +22,17 @@ Object.assign(InventoryService.prototype, {
   //   outBuffer 는 outSeq 순서라 front 가 최소 outSeq — front.outSeq ≤ 워터마크 동안 shift(O(가지친 수)). 미-ack(in-flight) 결과만 남는다. 0040 _onItemAck 의 결과 경로 거울.
   _onOutAck(ev) {
     if (!this.busOutAck || ev == null || ev.outSeq === undefined) return;
-    if (ev.outSeq > this.outAcked) this.outAcked = ev.outSeq;
+    if (this.busMinWm && ev.consumer !== undefined) {
+      // 다중 소비자 min-워터마크(이 step) — 소비자별 frontier 갱신 후 *모든 기대 소비자 워터마크의 최소(min)* 까지만 가지친다.
+      //   한 소비자가 앞서가도(게이트웨이) 뒤처진 소비자(ranking)의 frontier 가 min 을 눌러 그 이하만 prune → 뒤처진 소비자가 필요로 하는 결과를 *보존*(starve 0).
+      const cur = this.consumerWm.get(ev.consumer);
+      if (cur === undefined || ev.outSeq > cur) this.consumerWm.set(ev.consumer, ev.outSeq);   // 소비자 frontier 단조 갱신
+      let min = Infinity;
+      for (const c of this.outConsumers) { const w = this.consumerWm.get(c); min = Math.min(min, w === undefined ? -1 : w); }   // 미-ack 소비자는 -1 → min 정지(아무도 굶지 않을 때까지 보존)
+      if (min !== Infinity && min > this.outAcked) this.outAcked = min;   // min 은 소비자 frontier 전진으로만 오름 → outAcked 단조
+    } else {
+      if (ev.outSeq > this.outAcked) this.outAcked = ev.outSeq;   // 단일 워터마크(0041) — busMinWm OFF·consumer 미태깅이면 0043 비트 동일
+    }
     while (this.outBuffer.length && this.outBuffer[0].outSeq <= this.outAcked) { this.outBuffer.shift(); this.outPruned++; }
   },
   // seen 워터마크 수신(이 step·busSeenBound) — 게이트웨이가 svc.item.seen 으로 통보한 inAcked(prune 프런티어) 이하 reqId 를 seenReqs 에서 제거.

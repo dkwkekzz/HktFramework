@@ -115,13 +115,22 @@ function run(opts) {
     if (opts.busRestart && bus) {
       if (i + 1 === opts.busRestart.at) bus.crash();
       if (opts.busRestart.renegAt && i + 1 === opts.busRestart.renegAt) {
-        for (const [topic, addr] of (busSubs || [])) net.send(addr, 'bus', { type: 'sub', topic });   // 각 소비자가 재구독(재협상) → 라우팅 재구성
+        // 다중 소비자 min-워터마크 데모(이 step·rankRenegAt) — ranking 재구독을 게이트웨이보다 *늦춘다*(비대칭 복구).
+        //   rankRenegAt 미설정이면 ranking 도 여기서 재구독(0043 비트 동일). 설정 시 ranking 구독만 보류 → 아래 rankRenegAt 블록에서 재구독.
+        for (const [topic, addr] of (busSubs || [])) { if (opts.rankRenegAt && addr === 'ranking') continue; net.send(addr, 'bus', { type: 'sub', topic }); }   // 각 소비자가 재구독(재협상) → 라우팅 재구성
         // 요청 경로 무손실(이 step·busResendReq) — 재구독 직후 게이트웨이가 보관한 svc.item *요청*을 재발행(producer replay).
         //   재구독 sub 메시지가 먼저 큐에 들어가므로(같은 tick·FIFO) bus 가 sub→pub 순으로 처리 = 라우팅 복구 후 fan-out → gap 에 떨군 요청이 가방에 도달해 mint/xfer(원장이 base 따라잡음).
         //   가방이 reqId 로 dedup(gap 전 도달분 재발행은 무해) → 이중 mint 0. busResendReq OFF 면 resendIn() 즉시 반환(reg 0 불변). 재협상 없으면 호출 0(라우팅 죽은 채 = 대조군).
         if (opts.busResendReq) { const gw = map.get('gateway'); if (gw) gw.resendIn(); }
         // 결과 경로 무손실(0036·busResend) — 재구독 직후 가방이 보관한 svc.item.out 결과를 재발행(producer replay).
         //   busResend OFF 면 resendOut() 즉시 반환(reg 0 불변). 재협상(renegAt) 없으면 호출 0(라우팅 죽은 채라 재발행 무의미 = 대조군).
+        if (opts.busResend && inventory) inventory.resendOut();
+      }
+      // ranking 늦은 재구독(이 step·rankRenegAt) — 게이트웨이 복구(renegAt) *후* ranking 이 뒤늦게 재구독 + 결과 재발행.
+      //   단일 워터마크면 outBuffer 가 게이트웨이 ack 로 이미 가지쳐져 ranking 이 굶는다(starve → rankProjection 깨짐). min-워터마크면 ranking frontier 가 min 을 눌러 buffer 보존 → 재발행이 따라잡힌다.
+      //   미설정이면 이 블록 휴면 = 0043 비트 동일. ranking 의 outSeq dedup 이 재발행×live 중복을 멱등 폐기(counts 이중 적용 0).
+      if (opts.rankRenegAt && i + 1 === opts.rankRenegAt) {
+        for (const [topic, addr] of (busSubs || [])) if (addr === 'ranking') net.send(addr, 'bus', { type: 'sub', topic });
         if (opts.busResend && inventory) inventory.resendOut();
       }
     }
