@@ -111,6 +111,247 @@
         ];
       },
     },
+
+    'step-0003': {
+      id: 'step-0003',
+      title: '광자가 원자를 민다 (운동량 반동 p=E/c → recoil shift)',
+      desc: '모든 원자를 *정지*(v=0)·들뜬 준위로 초기화하고, 자발 방출(kEmit)에 더해 반동 법칙(노브 kRecoil)을 켠다. ' +
+            '방출 광자가 운동량 p=E/c 를 나르고 원자는 반대로 밀린다 — 정지에서 시작해도 빛 때문에 움직인다. ' +
+            '준위차 ΔE 는 광자 E_ph + 원자 반동 KE 로 갈라져(recoil shift) 광자 E 가 ΔE 보다 작아지고, ' +
+            '가벼운 원자일수록 반동·shift 가 크다(질량 의존 — author 0, 식에서 창발). 총 운동량은 정확히 0(광자↔원자 상쇄).',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;   // 60% 들뜸: 준위 1~3
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // *정지* 시작 → 운동은 오직 광자 반동에서
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1 } };
+      },
+
+      watch(sim, K) {
+        let speed = 0, apx = 0, apy = 0, ppx = 0, ppy = 0;
+        for (const a of sim.atoms) { const m = K.mass(a); speed += Math.hypot(a.vx, a.vy); apx += m * a.vx; apy += m * a.vy; }
+        for (const p of sim.photons) { ppx += p.px || 0; ppy += p.py || 0; }
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          meanSpeed: +(speed / sim.atoms.length).toFixed(5),     // 정지(0)에서 반동으로 얻은 평균 속력
+          atomP: +Math.hypot(apx, apy).toFixed(4),               // 원자 총 운동량 크기
+          photonP: +Math.hypot(ppx, ppy).toFixed(4),             // 광자 총 운동량 크기(원자와 상쇄)
+          totP: +Math.hypot(apx + ppx, apy + ppy).toExponential(2), // 총합 ≈ 0
+        };
+      },
+
+      // 가설: ① 정지 원자가 광자 반동으로 움직인다 ② 총 운동량 보존(원자+광자 ≈0) ③ recoil shift(광자 E<준위차 ΔE).
+      assert(ctx, K) {
+        const sim = ctx.sim, ph = sim.photons;
+        let px = 0, py = 0, speed = 0;
+        for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; speed += Math.hypot(a.vx, a.vy); }
+        for (const p of ph) { px += p.px || 0; py += p.py || 0; }
+        const Ptot = Math.hypot(px, py), meanSpeed = speed / sim.atoms.length;
+        let nr = 0, shifted = 0, shiftSum = 0;
+        for (const p of ph) {
+          if (!p.recoiled) continue;
+          nr++;
+          const gap = K.levelE(p.from) - K.levelE(p.to);         // 전체 준위차(p.E 는 이미 E_ph 로 줄어듦)
+          if (p.E < gap - 1e-12) shifted++;
+          shiftSum += (gap - p.E) / gap;
+        }
+        return [
+          { name: '정지 원자가 광자 반동으로 움직임(평균 속력>0)', pass: meanSpeed > 0, value: +meanSpeed.toFixed(5) },
+          { name: '총 운동량 보존(원자+광자 ≈0)', pass: Ptot < 1e-9, value: +Ptot.toExponential(2) },
+          { name: 'recoil shift(광자 E<준위차 ΔE, 전부)', pass: nr > 0 && shifted === nr, value: nr ? +(shiftSum / nr).toFixed(4) : 0 },
+        ];
+      },
+    },
+
+    'step-0004': {
+      id: 'step-0004',
+      title: '빛이 날아간다 (광자 전파 — 운동량 방향으로 광속 c 직진)',
+      desc: '정지·들뜬 원자에서 방출(kEmit)·반동(kRecoil)으로 *방향을 가진* 광자가 생기면, 전파 법칙(노브 kProp)으로 ' +
+            '그 광자가 운동량 방향으로 광속 c 로 직진한다(토러스 wrap). 복사장이 더는 방출점에 고이지 않고 *공간으로 퍼진다* — ' +
+            '흡수·전파의 무대. 위치만 바뀌므로 에너지·운동량 장부는 그대로 닫힌다(보존-자명). ' +
+            '큰 무대(400²)로 런 동안 wrap 을 피해 직진·광속을 정밀 측정한다.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 400, H = 400, n = 40, atoms = [];   // 큰 무대 — 50 tick·c=1 이면 최대 이동 50 ≪ 200(half)
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                // 정지 — 광자 방향 = 순수 반동 방향(등방 분수)
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1, kProp: 1 } };
+      },
+
+      watch(sim, K) {
+        const c = K.C, k = sim.knobs.kProp, dt = sim.knobs.dt;
+        let n = 0, disp = 0, agesum = 0;
+        for (const p of sim.photons) {
+          if (Math.hypot(p.px || 0, p.py || 0) <= 0) continue;
+          n++;
+          disp += Math.hypot(K.minImage(p.rx - p.rx0, sim.W), K.minImage(p.ry - p.ry0, sim.H));
+          agesum += (sim.tick - p.birth);
+        }
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          meanDisp: +(n ? disp / n : 0).toFixed(3),       // 광자 평균 비행 거리
+          meanSpeed: +(agesum ? disp / agesum : 0).toFixed(4),  // 거리/나이 ≈ 광속 c·k
+        };
+      },
+
+      // 가설: ① 광자가 전파한다(이동 거리>0) ② 광속 c 로 직진(거리 = c·나이, 전부) ③ 복사장이 공간으로 퍼진다.
+      assert(ctx, K) {
+        const sim = ctx.sim, ph = sim.photons, c = K.C, k = sim.knobs.kProp, dt = sim.knobs.dt;
+        let n = 0, moved = 0, speedOK = 0, dispSum = 0;
+        for (const p of ph) {
+          if (Math.hypot(p.px || 0, p.py || 0) <= 0) continue;
+          n++;
+          const disp = Math.hypot(K.minImage(p.rx - p.rx0, sim.W), K.minImage(p.ry - p.ry0, sim.H));
+          dispSum += disp;
+          if (disp > 0) moved++;
+          const expected = c * k * dt * (sim.tick - p.birth);   // 직진·광속 → 거리 = c·나이
+          if (Math.abs(disp - expected) < 1e-9) speedOK++;
+        }
+        return [
+          { name: '광자가 전파한다(평균 비행 거리>0)', pass: n > 0 && moved === n, value: +(n ? dispSum / n : 0).toFixed(3) },
+          { name: '광속 c 로 직진(거리=c·나이, 전부)', pass: n > 0 && speedOK === n, value: n ? speedOK : 0 },
+          { name: '복사장이 공간으로 퍼짐(전파 광자 다수)', pass: n > 0, value: n },
+        ];
+      },
+    },
+
+    'step-0005': {
+      id: 'step-0005',
+      title: '빛이 원자를 재여기한다 (비탄성 산란 — 순환의 씨앗)',
+      desc: '방출·반동·전파로 날아간 광자가 근처 원자를 만나면, 한 준위 들뜸을 *주고* 그만큼 *적색이동해 살아남는다*(비탄성 산란). ' +
+            '세계가 식기만 하던 단조 냉각(step-0002~0004)에 *재여기*가 생겨 들뜸이 재공급된다 — 순환의 첫 씨앗. ' +
+            '잉여 에너지를 살아남은 광자가 가져가므로 원자는 정수 준위로 깔끔히 점프하고, E·운동량은 정확히 보존된다(Compton형). ' +
+            '초기 준위는 0~2 로 제한 — 산란이 그 위(≥3)로 원자를 끌어올리면 빛이 일한 증거.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.7 ? 1 + ((rng() * 2) | 0) : 0;   // 70% 들뜸: 준위 1~2(흡수자=방출자), 초기 최대 2
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // 정지 — 총 운동량 0 에서 출발
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1, kProp: 1, kScatter: 0.5, scatterR: 12 } };
+      },
+
+      watch(sim, K) {
+        let maxLevel = 0, exc = 0, redshifted = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0; if (xi > maxLevel) maxLevel = xi; exc += K.levelE(a.x); }
+        for (const p of sim.photons) if ((p.nscatter | 0) > 0 && p.E < p.E0) redshifted++;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          scatters: sim.scatterCount | 0,         // 누적 산란(재여기) 횟수
+          maxLevel,                                // 도달 최대 준위(초기 ≤2 → ≥3 이면 빛이 끌어올림)
+          excE: +exc.toFixed(3),                   // 총 들뜸 에너지(재공급)
+          redshifted,                              // 적색이동한 광자 수
+        };
+      },
+
+      // 가설: ① 빛이 원자를 재여기(산란 count>0) ② 산란 광자가 적색이동(E<방출 E0, 전부) ③ 들뜸이 초기 이상으로 재공급(최대 준위≥3).
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const scatters = sim.scatterCount | 0;
+        let maxLevel = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0; if (xi > maxLevel) maxLevel = xi; }
+        let ns = 0, redOK = 0;
+        for (const p of sim.photons) {
+          if ((p.nscatter | 0) <= 0) continue;
+          ns++;
+          if (p.E < p.E0 - 1e-12) redOK++;          // 산란 광자는 방출 에너지보다 작아야(잉여를 원자에 줌)
+        }
+        return [
+          { name: '빛이 원자를 재여기함(비탄성 산란 count>0)', pass: scatters > 0, value: scatters },
+          { name: '산란 광자가 적색이동(E<방출 E0, 전부)', pass: ns > 0 && redOK === ns, value: ns },
+          { name: '들뜸이 초기(≤2) 넘어 재공급됨(최대 준위≥3)', pass: maxLevel >= 3, value: maxLevel },
+        ];
+      },
+    },
+
+    'step-0006': {
+      id: 'step-0006',
+      title: '산란이 방향을 바꾼다 (각도 분포 + 최근접 원자 — 산란 정밀화)',
+      desc: 'step-0005 산란은 *전방*으로만 튀고 타깃을 *배열 인덱스 순*으로 골랐다(검토 지적). 이를 정밀화: ' +
+            '노브 scatterAngular 로 산란이 *등방 각도 분포*(광자가 진짜 방향을 바꿈)·*반경 내 최근접 원자* 선택으로 바뀐다. ' +
+            '게이트라서 노브를 끄면 step-0005 와 비트 동일(회귀 0). 2D 에너지·운동량을 정확히 보존하며, ' +
+            '이동 원자에서는 청색이동(inverse Compton)도 창발한다.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.7 ? 1 + ((rng() * 2) | 0) : 0;   // 70% 들뜸: 준위 1~2, 초기 최대 2
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // 정지 — 총 운동량 0 에서 출발
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1, kProp: 1, kScatter: 0.5, scatterR: 12, scatterAngular: 1 } };
+      },
+
+      watch(sim, K) {
+        let maxLevel = 0, px = 0, py = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0, m = K.mass(a); if (xi > maxLevel) maxLevel = xi; px += m * a.vx; py += m * a.vy; }
+        for (const p of sim.photons) { px += p.px || 0; py += p.py || 0; }
+        const dn = sim.deflectN | 0;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          scatters: sim.scatterCount | 0,
+          maxLevel,
+          meanDeflect: +(dn ? sim.deflectSum / dn : 0).toFixed(4),   // 평균 편향각(rad) — 전방-전용이면 0
+          totP: +Math.hypot(px, py).toExponential(2),                // 총 운동량(보존 → ≈0)
+        };
+      },
+
+      // 가설: ① 산란이 각도 분포(평균 편향각>0.1 rad, 전방-전용이면 0) ② 빛이 원자 재여기(산란>0·최대 준위≥3) ③ 2D 운동량 보존(원자+광자≈0).
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const dn = sim.deflectN | 0, meanDeflect = dn ? sim.deflectSum / dn : 0;
+        const scatters = sim.scatterCount | 0;
+        let maxLevel = 0, px = 0, py = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0, m = K.mass(a); if (xi > maxLevel) maxLevel = xi; px += m * a.vx; py += m * a.vy; }
+        for (const p of sim.photons) { px += p.px || 0; py += p.py || 0; }
+        const Ptot = Math.hypot(px, py);
+        return [
+          { name: '산란이 각도 분포로 방향 바꿈(평균 편향각>0.1 rad)', pass: dn > 0 && meanDeflect > 0.1, value: +meanDeflect.toFixed(4) },
+          { name: '빛이 원자 재여기(산란>0, 최대 준위≥3)', pass: scatters > 0 && maxLevel >= 3, value: scatters },
+          { name: '2D 운동량 보존(원자+광자 ≈0)', pass: Ptot < 1e-9, value: +Ptot.toExponential(2) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

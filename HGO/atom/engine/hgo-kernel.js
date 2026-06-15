@@ -37,7 +37,7 @@
   // 닫힌 장부: 보존되어야 할 양들의 총합 (SPINE §2)
   //  Q 전하 = Σ(Z−e) · B 바리온 = Σ(Z+N) · L 렙톤 = Σe
   //  E 에너지-질량 = Σ(m·c² + ½m·v² + 들뜸E) + Σ 광자E  (e=mc² 정지+운동+들뜸+복사)
-  //  px,py 운동량 = Σ m·v
+  //  px,py 운동량 = Σ m·v + Σ 광자운동량(p.px,p.py — step-0003 recoil 가법, 미설정 → 0)
   // 가법 규칙(SPINE §6.1): 들뜸항은 x=0 → 0, 광자항은 미존재/빈 배열 → 0 ⇒ 과거(step-0001) 장부 불변.
   function ledger(sim) {
     let Q = 0, B = 0, L = 0, E = 0, px = 0, py = 0;
@@ -51,7 +51,8 @@
       px += m * a.vx;
       py += m * a.vy;
     }
-    if (sim.photons) for (const p of sim.photons) E += p.E;  // 복사 에너지(빈 배열 → 0)
+    // 복사장: 에너지 + 운동량(recoil). px·py 미설정(step-0002 이하) → 0 가법 → 과거 장부 불변.
+    if (sim.photons) for (const p of sim.photons) { E += p.E; px += p.px || 0; py += p.py || 0; }
     return { Q, B, L, E, px, py };
   }
 
