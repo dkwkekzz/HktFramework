@@ -718,6 +718,75 @@
         ];
       },
     },
+
+    'step-0013': {
+      id: 'step-0013',
+      title: '원소가 색을 구분한다 (준위 Z 의존 — 단전자 이온 스펙트럼 E∝Z²)',
+      desc: '지금까지 준위 에너지 levelE(x) 는 Z 를 무시해 He⁺·C·O 가 전부 *수소선*을 냈다(STATE §3 🔴). ' +
+            'levelEZ(노브 levelZ) 게이트로 *단전자 수소형 이온*(e=1)의 들뜸 E 를 ∝Z² 로 만든다(보어 닫힌 형식 E_n=−R·Z²/n²) — ' +
+            '같은 전이라도 Z 가 크면 광자가 더 푸르다(λ=hc/Z²ΔE). H⁺e1·He⁺·C⁵⁺·O⁷⁺(전부 e=1, Z=1·2·6·8)를 들떠 방출시키면 ' +
+            '1→0 전이가 *원소마다 다른 선*(0.75·Z²)으로 갈라진다 — render 가 원소를 색으로 구분할 토대. ' +
+            'Z·e 는 런 중 불변이라 흡수·방출이 같은 Z² 로 거래 → 닫힌 장부 정확 유지. 게이트라서 끄면(levelZ=0) levelE 그대로 = step-0012 이전 비트 동일(회귀 0). 반동 없음 → 선 위치가 깨끗한 Z²(정지계 스펙트럼).',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[i % ELEMENTS.length];           // 4 원소 균등(H·He·C·O 전부 존재 — 라운드로빈)
+          const x = 1 + ((rng() * 3) | 0);                    // 준위 1~3(전부 들뜸 → 1→0 전이로 캐스케이드)
+          atoms.push({
+            Z: el.Z, N: el.N, e: 1, x,                        // e=1 → *단전자 수소형 이온*(E∝Z² 적용 대상)
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                      // 정지 — 반동 없음(아래 kRecoil=0)·도플러 0 → 선 위치 깨끗
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // emit 만 켠다(recoil·prop 없음 → 광자 E = 정확한 준위차 ΔE = 0.75·Z²). levelZ=1 → 완전 Z² 스케일.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.3, levelZ: 1 } };
+      },
+
+      // 1→0 전이 광자를 발원 원소 Z 별로 모은다(전이당 한 선 = 한 색). 정지·무반동 → 같은 Z 는 같은 E.
+      _lines10(sim) {
+        const byZ = {};
+        for (const p of sim.photons) {
+          if (p.from === 1 && p.to === 0) (byZ[p.srcZ] || (byZ[p.srcZ] = [])).push(p.E);
+        }
+        return byZ;
+      },
+
+      watch(sim, K) {
+        const L = K.ledger(sim);
+        const byZ = this._lines10(sim);
+        const distinctE = new Set();
+        for (const z in byZ) for (const e of byZ[z]) distinctE.add(+e.toFixed(9));
+        const eH = byZ[1] ? byZ[1][0] : 0, eHe = byZ[2] ? byZ[2][0] : 0;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          lines10: distinctE.size,                          // 1→0 의 *서로 다른* 선(=원소 수만큼 갈라짐)
+          elemZ: Object.keys(byZ).length,                    // 1→0 광자를 낸 원소(Z) 수
+          E_H_10: +eH.toFixed(4),                            // H(Z1) 1→0 광자 E = 0.75
+          E_He_10: +eHe.toFixed(4),                          // He(Z2) 1→0 광자 E = 3.0 (=4×H)
+          ratioHeH: eH > 0 ? +(eHe / eH).toFixed(4) : 0,     // Z² 스케일 → 정확히 4
+          E: +L.E.toFixed(3),
+        };
+      },
+
+      // 가설: ① 광자 방출됨 ② 원소가 스펙트럼을 구분(1→0 선 수 = 1→0 을 낸 원소 수, 각 Z 가 제 선) ③ Z² 스케일 정합(He⁺/H = 4). 닫힌 장부는 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, byZ = SCENES['step-0013']._lines10(sim);
+        const zList = Object.keys(byZ);
+        const distinctE = new Set();
+        for (const z of zList) for (const e of byZ[z]) distinctE.add(+e.toFixed(9));
+        const eH = byZ[1] ? byZ[1][0] : 0, eHe = byZ[2] ? byZ[2][0] : 0;
+        const ratio = eH > 0 ? eHe / eH : 0;
+        return [
+          { name: '광자 방출됨(자발 방출 count>0)', pass: sim.photons.length > 0, value: sim.photons.length },
+          { name: '원소가 스펙트럼을 구분(1→0 선 수 = 원소 수, ≥2)', pass: zList.length >= 2 && distinctE.size === zList.length, value: distinctE.size },
+          { name: 'Z² 스케일 정합(He⁺ 1→0 = 4× H 1→0)', pass: Math.abs(ratio - 4) < 1e-9, value: +ratio.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
