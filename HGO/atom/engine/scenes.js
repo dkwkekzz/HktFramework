@@ -236,6 +236,65 @@
         ];
       },
     },
+
+    'step-0005': {
+      id: 'step-0005',
+      title: '빛이 원자를 재여기한다 (비탄성 산란 — 순환의 씨앗)',
+      desc: '방출·반동·전파로 날아간 광자가 근처 원자를 만나면, 한 준위 들뜸을 *주고* 그만큼 *적색이동해 살아남는다*(비탄성 산란). ' +
+            '세계가 식기만 하던 단조 냉각(step-0002~0004)에 *재여기*가 생겨 들뜸이 재공급된다 — 순환의 첫 씨앗. ' +
+            '잉여 에너지를 살아남은 광자가 가져가므로 원자는 정수 준위로 깔끔히 점프하고, E·운동량은 정확히 보존된다(Compton형). ' +
+            '초기 준위는 0~2 로 제한 — 산란이 그 위(≥3)로 원자를 끌어올리면 빛이 일한 증거.',
+      ticks: 50,
+
+      init(rng, K) {
+        const W = 100, H = 100, n = 40, atoms = [];
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.7 ? 1 + ((rng() * 2) | 0) : 0;   // 70% 들뜸: 준위 1~2(흡수자=방출자), 초기 최대 2
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // 정지 — 총 운동량 0 에서 출발
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.1, kRecoil: 1, kProp: 1, kScatter: 0.5, scatterR: 12 } };
+      },
+
+      watch(sim, K) {
+        let maxLevel = 0, exc = 0, redshifted = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0; if (xi > maxLevel) maxLevel = xi; exc += K.levelE(a.x); }
+        for (const p of sim.photons) if ((p.nscatter | 0) > 0 && p.E < p.E0) redshifted++;
+        return {
+          atoms: sim.atoms.length,
+          photons: sim.photons.length,
+          scatters: sim.scatterCount | 0,         // 누적 산란(재여기) 횟수
+          maxLevel,                                // 도달 최대 준위(초기 ≤2 → ≥3 이면 빛이 끌어올림)
+          excE: +exc.toFixed(3),                   // 총 들뜸 에너지(재공급)
+          redshifted,                              // 적색이동한 광자 수
+        };
+      },
+
+      // 가설: ① 빛이 원자를 재여기(산란 count>0) ② 산란 광자가 적색이동(E<방출 E0, 전부) ③ 들뜸이 초기 이상으로 재공급(최대 준위≥3).
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const scatters = sim.scatterCount | 0;
+        let maxLevel = 0;
+        for (const a of sim.atoms) { const xi = a.x | 0; if (xi > maxLevel) maxLevel = xi; }
+        let ns = 0, redOK = 0;
+        for (const p of sim.photons) {
+          if ((p.nscatter | 0) <= 0) continue;
+          ns++;
+          if (p.E < p.E0 - 1e-12) redOK++;          // 산란 광자는 방출 에너지보다 작아야(잉여를 원자에 줌)
+        }
+        return [
+          { name: '빛이 원자를 재여기함(비탄성 산란 count>0)', pass: scatters > 0, value: scatters },
+          { name: '산란 광자가 적색이동(E<방출 E0, 전부)', pass: ns > 0 && redOK === ns, value: ns },
+          { name: '들뜸이 초기(≤2) 넘어 재공급됨(최대 준위≥3)', pass: maxLevel >= 3, value: maxLevel },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
