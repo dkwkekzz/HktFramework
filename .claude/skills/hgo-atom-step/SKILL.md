@@ -20,7 +20,7 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 **옛 방식(HWS)처럼 step 마다 `panel.js`·`html`·`verify.js` 를 복사해 쌓지 않는다.** 뷰어·검증기·골든은 **공용 1벌**이고 step 마다 복제하지 않는다. 한 step 이 더하는 것은 *append-only* 둘뿐:
 
 1. **법칙** — `engine/hgo-laws.js` 에 법칙 1개 + 노브 + `LAW_ORDER` 한 자리(§3).
-2. **장면(scene)** — `engine/scenes.js` 에 이 step 의 장면 기술자 한 항(~10줄): `{ id:'step-NNNN', init(초기 원자 배치), knobs(강조 노브), watch(관찰 지표), assert(가설 수치) }`. **이 한 항이 검증·골든 해시·시각화 셋 모두의 단일 출처다**(DRY).
+2. **장면(scene)** — `engine/scenes.js` 에 이 step 의 장면 기술자 한 항(~12줄): `{ id:'step-NNNN', init(초기 원자 배치+노브), watch(관찰 지표), assert(가설 수치), observe(관찰 가이드 — §4) }`. **이 한 항이 검증·골든 해시·시각화·관찰 가이드 모두의 단일 출처다**(DRY).
 
 그 외 산출물은 `steps/step-NNNN.md`(마크다운 기록) 하나뿐. **복사되는 html·panel·verify 는 0개.**
 
@@ -36,6 +36,27 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 - `node engine/validate/verify-sim-engine.js`(풀 골든 런)는 오래 걸린다 — `run_in_background` 로 돌려놓고 그동안 step 문서·장면을 진행. 법칙 고칠 때마다 포그라운드 대기 금지. 닫기 직전 1회 최종 PASS 확인.
 - **시각화**: `viewer.html` 를 열고 step 선택 → 그 장면이 결정론적으로 돌며 "여기서 뭘 했는지"를 보여줌(결정론 + 동결 장면이라 옛 step 도 비트까지 재현). step 문서는 `viewer.html#step-NNNN` 로 링크만 단다.
 
+### 현상 확인(관찰) — 눈대중 금지, *두 계기*로 확정
+
+법칙을 추가하면 "그 현상이 정말 일어났나"를 확인해야 한다. **눈으로만 보면 속는다** — 반동·산란 등은 화면상 거의 안 움직이거나(작은 Δv), 직관과 반대로 보인다(색=빛/광자, 어두움=물질/원자; 정지에서 시작하면 step 이 오히려 더 멈춰 보임). 그래서 *두 계기*로 본다:
+
+1. **객관(헤드리스)** — `verify.js` 의 가설 assert 가 핵심 수치로 PASS. 예) step-0003 은 화면상 거의 안 움직여 보여도 `meanSpeed` 0→양수 + `totP`≈0(1e-16) 이 "빛이 원자를 밀었다"를 증명한다. 문서 수치는 이 출력 그대로.
+2. **주관(뷰어)** — 장면의 `observe` 가 "눈으로 뭘 보게 되나 + 어느 watch 신호를 봐야 하나 + 안 보이면 어떤 노브를 돌려라"를 step 선택만으로 알려준다.
+
+### 장면이 에디터를 스스로 설정한다 — `observe` 필수
+
+각 장면은 **반드시** `observe` 한 항을 갖는다(표시 전용 — hash·verify·골든에 안 쓰여 회귀 0, 가법):
+
+```js
+observe: {
+  look: '눈에 뭐가 보이나(한 줄) — 직관과 어긋나면 왜 그런지까지',
+  signals: ['강조할 watch 키', …],   // watch() 가 실제로 내는 키여야 함
+  tip: '안 보이면 이렇게 — 노브 조작·해석 힌트(무엇이 확정 증거인지)',
+}
+```
+
+단일 뷰어가 step 선택 시 이걸 읽어 **관찰 가이드 패널을 자동 생성**하고 `signals` 의 watch 키를 ★ 로 강조한다. 노브는 이미 `init` 노브에서 자동 생성되므로, **step 설정을 맞추면 에디터 속성(노브·관찰 신호·가이드)이 알아서 맞춰진다** — `viewer.html` 은 건드리지 않는다(단일 뷰어 원칙, SPINE §6.1). `signals` 키는 그 장면 `watch()` 가 실제로 내는 키와 일치시켜라(없는 키는 강조되지 않음).
+
 ## 5. 갱신 — STATE.md 는 Edit 로만
 
 - **STATE.md 전체 Write 금지** — 바뀐 절(§1 NOW·§2 NEXT·§3·§4 추가분·§5·§7 append)만 개별 Edit.
@@ -46,9 +67,10 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 
 1. 검증 4기둥(SPINE §9) + 척추 체크 4항(SPINE §5) 전부 통과 (`engine/verify.js step-NNNN` 출력 인용)
 2. 풀 골든 런 PASS (회귀 0 알리바이 — 0002~)
-3. `step-NNNN.md` "쉽게 풀어 쓴 설명" 절 + 뷰어 링크 포함·수치=verify 출력
-4. STATE.md §1~6 Edit + §7 1줄 append
-5. 닫은 step 파일은 이후 불변 (장면은 `scenes.js` 에 동결로 남아 뷰어가 영구 재현)
+3. 장면에 `observe`(look·signals·tip) 포함 — 뷰어가 step 선택만으로 관찰 가이드·신호 ★강조를 자동 설정(§4). `signals` 는 `watch()` 키와 일치.
+4. `step-NNNN.md` "쉽게 풀어 쓴 설명" 절 + 뷰어 링크 포함·수치=verify 출력
+5. STATE.md §1~6 Edit + §7 1줄 append
+6. 닫은 step 파일은 이후 불변 (장면은 `scenes.js` 에 동결로 남아 뷰어가 영구 재현)
 
 ## 7. 활성 게이트 점검 (휴면 트랙 깨우기)
 

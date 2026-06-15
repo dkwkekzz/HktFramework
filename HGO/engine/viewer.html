@@ -16,6 +16,9 @@
   #desc { color: #9399b2; margin: 0 0 10px; }
   #watch { white-space: pre-wrap; background: #11131c; border: 1px solid #1e2230; border-radius: 6px; padding: 10px; }
   .k { color: #89b4fa; } .legend { color: #7f849c; margin-top: 10px; }
+  .sig { color: #f9e2af; font-weight: bold; }
+  #observe { background: #11131c; border: 1px solid #313547; border-left: 3px solid #f9e2af; border-radius: 6px; padding: 8px 10px; margin: 0 0 10px; color: #bac2de; }
+  #observe:empty { display: none; }
 </style>
 
 <header>
@@ -33,6 +36,7 @@
   <div id="side">
     <h3 id="title" style="margin:.2em 0"></h3>
     <p id="desc"></p>
+    <div id="observe"></div>
     <div id="watch"></div>
     <div class="legend">● 원자: 크기 = 질량(Z+N) · 밝기 = 들뜸(x>0) · 광자: 색 = 방출 파장 λ=hc/ΔE(보라 고에너지 → 빨강 저에너지) · 하단 띠 = 측정 스펙트럼선<br>색·형태를 author 하지 않는다 — sim 양을 읽어 번역할 뿐(render 트랙, SPINE §6.1/§7).</div>
   </div>
@@ -75,6 +79,18 @@ function buildKnobs() {
   }
 }
 
+// 관찰 가이드 — scene.observe(있으면)를 읽어 "눈으로 뭘 보나 + 어느 watch 신호를 봐야 하나"를 자동 표시.
+//   step 선택만으로 에디터가 관찰 셋업을 맞춘다(노브는 buildKnobs, 핵심 신호는 watch 패널에서 ★ 강조).
+//   observe 미설정 장면이면 빈 문자열 → :empty 로 숨김(과거 장면 무영향, 가법).
+function renderObserve(o) {
+  if (!o) return '';
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const sigs = (o.signals || []).map(s => '★' + esc(s)).join(' · ');
+  return `<b>👁 관찰</b> — ${esc(o.look)}`
+    + (sigs ? `<br><span class="sig">신호: ${sigs}</span> (아래 watch 패널에서 ★ 강조)` : '')
+    + (o.tip ? `<br>💡 ${esc(o.tip)}` : '');
+}
+
 function reset() {
   scene = SC.SCENES[$('scene').value];
   location.hash = scene.id;
@@ -83,6 +99,7 @@ function reset() {
   sim = S.createSim(scene.init(K.mulberry32(seed), K));
   $('title').textContent = scene.title;
   $('desc').textContent = scene.desc;
+  $('observe').innerHTML = renderObserve(scene.observe);   // step 별 관찰 가이드 자동 셋업
   buildKnobs();
   draw();
 }
@@ -91,7 +108,11 @@ function draw() {
   HGORender.render.draw(ctx, sim, K);   // 캔버스 렌더링을 render 트랙 모듈에 위임(SPINE §6.1 단일 뷰어)
   $('tick').textContent = `tick ${sim.tick}`;
   const w = scene.watch(sim, K);
-  $('watch').innerHTML = Object.entries(w).map(([k, v]) => `<span class="k">${k}</span> = ${v}`).join('\n');
+  const sig = new Set((scene.observe && scene.observe.signals) || []);   // observe.signals 키는 ★ 강조
+  $('watch').innerHTML = Object.entries(w).map(([k, v]) => {
+    const on = sig.has(k);
+    return `<span class="${on ? 'sig' : 'k'}">${on ? '★ ' : ''}${k}</span> = ${v}`;
+  }).join('\n');
 }
 
 function loop() { if (playing) { S.step(sim); draw(); } requestAnimationFrame(loop); }
