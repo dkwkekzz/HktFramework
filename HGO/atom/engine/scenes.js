@@ -352,6 +352,182 @@
         ];
       },
     },
+
+    'step-0007': {
+      id: 'step-0007',
+      title: '오래된 빛이 복사 바스로 빠진다 (광자 소멸/binning — 무한 누적 정리)',
+      desc: 'step-0004~6 의 전파·산란은 광자를 *살려두기만* 해서 활성 배열이 무한 누적했다(STATE 🔴, 긴 런서 비대). ' +
+            'escape 법칙(노브 kEscape)으로 나이 ≥ escapeAge 인 광자를 활성 sim.photons 에서 빼 *복사 바스* sim.escaped 로 *이전*한다. ' +
+            '그냥 지우면 E·운동량이 누출돼 장부가 깨지므로, 빠진 광자의 E·px·py 를 바스에 누적 — 활성합+바스합은 정확히 불변(닫힌 장부). ' +
+            '활성 광자 나이가 escapeAge 로 유계 → 런서가 비대해지지 않는다. 바스는 미래 재가열(순환)의 reservoir 씨앗. ' +
+            '게이트라서 노브를 끄면 step-0006 비트 동일(회귀 0). 30 tick 런으로 *유계 활성*(나이 ≤ escapeAge)과 *누적 바스*가 동시에 산다.',
+      ticks: 30,
+
+      init(rng, K) {
+        const W = 200, H = 200, n = 40, atoms = [];   // 큰 무대 — 30 tick·c=1 직진이 wrap(half=100) 안
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;   // 60% 들뜸: 준위 1~3 — 시간에 걸쳐 방출(광자 공급)
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // 정지 — 광자 방향 = 순수 반동 방향
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // 방출·반동·전파로 광자가 날아가 나이 들면 escape 가 바스로 이전. escapeAge=20 → 나이 20 이상 binning.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.15, kRecoil: 1, kProp: 1, kEscape: 1, escapeAge: 20 } };
+      },
+
+      watch(sim, K) {
+        const bath = sim.escaped || { E: 0, count: 0 };
+        let activeE = 0, maxAge = 0;
+        for (const p of sim.photons) { activeE += p.E; const age = sim.tick - p.birth; if (age > maxAge) maxAge = age; }
+        return {
+          atoms: sim.atoms.length,
+          active: sim.photons.length,            // 활성 광자(유계 — 무한 누적 안 함)
+          escaped: bath.count,                    // 복사 바스로 이전된 광자 수
+          activeE: +activeE.toFixed(3),
+          bathE: +bath.E.toFixed(3),              // 복사 바스 누적 에너지
+          radE: +(activeE + bath.E).toFixed(3),   // 총 복사 E(활성+바스 — 불변 회계)
+          maxAge,                                  // 활성 광자 최대 나이(≤ escapeAge → 유계)
+        };
+      },
+
+      // 가설: ① 광자가 복사 바스로 이전됨(소멸 회계, escaped>0) ② 활성 배열 유계(모든 활성 광자 나이≤escapeAge) ③ 복사 E 가 바스에 누적·보존(바스 E>0, 총 E 보존은 ②기둥).
+      assert(ctx, K) {
+        const sim = ctx.sim, bath = sim.escaped || { E: 0, count: 0 };
+        const ageMax = sim.knobs.escapeAge || 1e9;
+        let maxAge = 0;
+        for (const p of sim.photons) { const age = sim.tick - p.birth; if (age > maxAge) maxAge = age; }
+        return [
+          { name: '광자가 복사 바스로 이전됨(escaped count>0)', pass: bath.count > 0, value: bath.count },
+          { name: '활성 배열 유계(모든 활성 광자 나이 ≤ escapeAge)', pass: maxAge <= ageMax, value: maxAge },
+          { name: '복사 에너지가 바스에 누적·보존(바스 E>0)', pass: bath.E > 0, value: +bath.E.toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0008': {
+      id: 'step-0008',
+      title: '복사 바스가 원자를 다시 데운다 (재가열 — 느린 순환 닫기)',
+      desc: 'step-0007 의 복사 바스는 *모으기만* 했다 — 세계는 식기만 했다. reheat 법칙(노브 kReheat)으로 ' +
+            '바스에 고인 복사 E 를 원자로 *되돌려* 들뜸(x)을 재공급한다: 들뜸→방출→광자→노화→바스→들뜸 루프가 닫힌다(SPINE §4 순환의 첫 닫힘). ' +
+            '바스는 E·운동량을 함께 이지만, 등방 복사라 *운동량-자유 잉여*(E−|p|≥0)가 늘 있어 그 잉여만 한 준위 비용으로 뽑아 들뜸에 싣는다 — 바스 운동량 불변·정확 보존. ' +
+            '게이트라서 노브를 끄면 step-0007 비트 동일(회귀 0). 60 tick 런으로, 냉각만 하던 세계에 *재가열*이 들어와 들뜸이 되살아남을 본다.',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 200, H = 200, n = 40, atoms = [];   // 큰 무대 — 60 tick·c=1 직진이 wrap(half=100) 안
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const x = rng() < 0.6 ? 1 + ((rng() * 3) | 0) : 0;   // 60% 들뜸: 준위 1~3 — 초기 복사 공급원
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x,
+            rx: rng() * W, ry: rng() * H,
+            vx: 0, vy: 0,                                       // 정지 — 등방 복사(바스 net 운동량 ≈0)
+          });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // 방출→반동→전파→escape(바스 적립)→reheat(바스 인출) 전부 켜 순환 루프를 닫는다.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1.0, kEmit: 0.15, kRecoil: 1, kProp: 1, kEscape: 1, escapeAge: 15, kReheat: 0.05 } };
+      },
+
+      watch(sim, K) {
+        const bath = sim.escaped || { E: 0, count: 0, reheated: 0, px: 0, py: 0 };
+        let exc = 0, excited = 0;
+        for (const a of sim.atoms) { exc += K.levelE(a.x); if ((a.x | 0) > 0) excited++; }
+        let activeE = 0; for (const p of sim.photons) activeE += p.E;
+        const surplus = bath.E - Math.hypot(bath.px || 0, bath.py || 0);
+        return {
+          atoms: sim.atoms.length,
+          excited,                                  // 들뜬 원자 수(재가열로 0 으로 안 죽음)
+          excE: +exc.toFixed(3),                    // 총 들뜸 E(재가열 재공급 — 순환 증거)
+          reheated: bath.reheated | 0,              // 바스→원자 재가열 횟수
+          bathE: +bath.E.toFixed(3),                // 바스 잔여 에너지(재가열로 줄어듦)
+          surplus: +surplus.toFixed(3),             // 바스 운동량-자유 잉여(≥0 유지)
+          radE: +(activeE + bath.E).toFixed(3),
+        };
+      },
+
+      // 가설: ① 바스가 원자를 재가열함(reheat count>0) ② 재가열로 들뜸이 재공급(런 끝까지 들뜬 원자>0) ③ 바스 잉여 음수 안 됨(E≥|p| 물리 유지). 총 E 보존은 ②기둥.
+      assert(ctx, K) {
+        const sim = ctx.sim, bath = sim.escaped || { E: 0, reheated: 0, px: 0, py: 0 };
+        const reheated = bath.reheated | 0;
+        let excited = 0; for (const a of sim.atoms) if ((a.x | 0) > 0) excited++;
+        const surplus = bath.E - Math.hypot(bath.px || 0, bath.py || 0);
+        return [
+          { name: '바스가 원자를 재가열함(reheat count>0)', pass: reheated > 0, value: reheated },
+          { name: '재가열로 들뜸이 재공급됨(런 끝 들뜬 원자>0)', pass: excited > 0, value: excited },
+          { name: '바스 운동량-자유 잉여 ≥0(E≥|p| 물리 유지)', pass: surplus >= -1e-9, value: +surplus.toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0009': {
+      id: 'step-0009',
+      title: '원자가 서로 부딪힌다 (탄성 충돌 — 첫 원자-원자 상호작용, Phase C 의 문)',
+      desc: '지금까지 원자-원자 상호작용은 0이었다(빛 매개만). 첫 직접 접촉: 접촉 반경 안에서 *서로 다가오는* 원자 쌍이 ' +
+            '탄성 충돌(노브 kCollide)해 운동량을 *교환*한다 — 총 운동량·총 KE 는 닫힌 형식으로 정확히 보존(머신 정밀도). ' +
+            '절반은 움직이고 절반은 *정지*로 시작 — 충돌이 정지 원자를 때려 움직이게 하면 운동량이 *퍼지는*(열화·확산) 증거다. ' +
+            '연속 쿨롱장(PE 항·심플렉틱 적분 필요 → 에너지 드리프트)은 별도 step 으로 전가하고, 여기선 *정확 보존*하는 충돌만 얹는다. ' +
+            '게이트라서 노브를 끄면 step-0008(과 그 이전) 비트 동일(회귀 0).',
+      ticks: 60,
+
+      init(rng, K) {
+        const W = 60, H = 60, n = 50, atoms = [];   // 작은 무대 + 많은 원자 → 충돌이 자주 일어남
+        for (let i = 0; i < n; i++) {
+          const el = ELEMENTS[(rng() * ELEMENTS.length) | 0];
+          const ion = rng() < 0.2 ? 1 : 0;
+          const moving = (i % 2) === 0;                      // 절반 운동·절반 정지(rest0 표식 — hash 미참여)
+          atoms.push({
+            Z: el.Z, N: el.N, e: el.Z - ion, x: 0,
+            rx: rng() * W, ry: rng() * H,
+            vx: moving ? (rng() * 2 - 1) : 0,
+            vy: moving ? (rng() * 2 - 1) : 0,
+            rest0: !moving,                                  // 초기 정지 표식(충돌로 움직였는지 검증용)
+          });
+        }
+        return { W, H, atoms, knobs: { dt: 1.0, kCollide: 1, collideR: 3 } };
+      },
+
+      watch(sim, K) {
+        let px = 0, py = 0, ke = 0, movedFromRest = 0, speedVar = 0, meanSp = 0;
+        for (const a of sim.atoms) {
+          const m = K.mass(a), sp = Math.hypot(a.vx, a.vy);
+          px += m * a.vx; py += m * a.vy; ke += 0.5 * m * (a.vx * a.vx + a.vy * a.vy);
+          meanSp += sp / sim.atoms.length;
+          if (a.rest0 && sp > 1e-12) movedFromRest++;        // 정지로 시작했다 움직인 원자
+        }
+        return {
+          atoms: sim.atoms.length,
+          collisions: sim.collideCount | 0,        // 누적 탄성 충돌 횟수
+          movedFromRest,                            // 충돌로 깨어난(운동량 받은) 정지 원자 수
+          totP: +Math.hypot(px, py).toExponential(2), // 총 운동량 크기(보존 → 초기값 유지)
+          KE: +ke.toFixed(4),                       // 총 KE(탄성 → 보존)
+          meanSpeed: +meanSp.toFixed(4),
+        };
+      },
+
+      // 가설: ① 원자가 충돌함(collide count>0) ② 운동량이 퍼짐(정지 원자가 충돌로 움직임>0) ③ 총 KE 보존(탄성, ②기둥 E 와 정합). 총 운동량 보존은 ②기둥 px·py.
+      assert(ctx, K) {
+        const sim = ctx.sim;
+        const collisions = sim.collideCount | 0;
+        let movedFromRest = 0, ke = 0;
+        for (const a of sim.atoms) {
+          const m = K.mass(a);
+          ke += 0.5 * m * (a.vx * a.vx + a.vy * a.vy);
+          if (a.rest0 && Math.hypot(a.vx, a.vy) > 1e-12) movedFromRest++;
+        }
+        return [
+          { name: '원자가 서로 충돌함(탄성 충돌 count>0)', pass: collisions > 0, value: collisions },
+          { name: '운동량이 퍼짐(정지 원자가 충돌로 움직임>0)', pass: movedFromRest > 0, value: movedFromRest },
+          { name: '총 KE 보존(탄성 — E 보존은 ②기둥)', pass: ke > 0, value: +ke.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

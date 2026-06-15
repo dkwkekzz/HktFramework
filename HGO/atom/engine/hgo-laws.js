@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0 };
 
   // 자발 방출(step-0002): 들뜬 원자(x>0)가 확률 kEmit 로 한 준위 강하 → 광자 1개.
   //   닫힌 장부: 원자 들뜸 E ↓ = 광자 E ↑ (정확 쌍 거래, ΔE = levelE(x)−levelE(x−1)).
@@ -173,9 +173,101 @@
     }
   }
 
+  // 광자 소멸/복사 바스 binning (step-0007, *순환의 reservoir*). 오래되거나(나이 ≥ escapeAge)
+  // 저에너지인(E ≤ escapeEmin) 광자를 활성 sim.photons 에서 빼 *복사 바스* sim.escaped 로 *이전*한다.
+  //   왜 binning 인가: 전파(0004)·산란(0005~6)은 광자를 *살려두므로* 활성 배열이 무한 누적(STATE 🔴, 긴 런서 비대).
+  //     그냥 지우면 E·운동량 누출 → 장부 파탄. 대신 바스에 E·px·py 를 누적 *이전* → 활성합+바스합=불변(정확 보존).
+  //   닫힌 장부: 광자가 배열에서 사라져도 그 E·p 가 sim.escaped 로 옮겨가고 ledger 가 바스를 합산(가법, 미존재→0).
+  //   유계: 살아남은 광자 나이 ≤ escapeAge 로 활성 길이 유계 → 런서 비대 방지. 바스는 미래 *재가열*의
+  //     reservoir(SPINE §4 느린 순환 씨앗) — 지금은 모으기만, 되먹임은 후속 step.
+  //   저에너지 binning(escapeEmin)은 산란 q→0 적색이동으로 생긴 거의-0 에너지 광자(λ→∞ 폭주 후보)도
+  //     바스로 흡수해 정리한다(검토 잔여 q→0 의 실용적 해소 — in-scatter λ 클램프는 별도 step 전가).
+  //   국소: 광자 *혼자*의 나이·에너지로 판정(이웃·전역 조율자 0). 노브=0 → early-return = 회귀 0.
+  function escape(sim) {
+    const k = sim.knobs.kEscape;
+    if (!k) return;                                  // 노브=0 → early-return = 회귀 0 (binning 꺼짐 → 직전 비트)
+    const ageMax = sim.knobs.escapeAge || 1e9;       // 미설정 → 사실상 무한(나이로 안 뺌)
+    const eMin = sim.knobs.escapeEmin || 0;          // 미설정 → 0(저에너지로 안 뺌, 광자 E>0)
+    const bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
+    const keep = [];
+    for (const p of sim.photons) {
+      if ((sim.tick - p.birth) >= ageMax || p.E <= eMin) {
+        bath.E += p.E; bath.px += p.px || 0; bath.py += p.py || 0; bath.count++;  // 바스로 *이전*(E·운동량 정확 보존)
+        p.src = null;                                // 발원 원자 참조 해제(검토 잔여 — 빠진 광자 GC 허용, hash·ledger 무관)
+      } else {
+        keep.push(p);                                // 살아남은 활성 광자(나이 < escapeAge)
+      }
+    }
+    sim.photons = keep;                              // 활성 배열 = 살아남은 광자만(유계)
+  }
+
+  // 복사 바스 되먹임 = 재가열 (step-0008, *느린 순환 닫기*). step-0007 이 *모으기만* 한 복사 바스
+  // sim.escaped 의 에너지를 원자로 *되돌려* 들뜸(x)을 재공급한다 — 단조 냉각/소멸을 SPINE §4 "순환"으로.
+  //   왜 들뜸(운동량-자유)인가: 바스는 E 와 운동량 px·py 를 함께 인다. 등방 복사라 |p_바스| ≤ E_바스(c=1) →
+  //     *운동량-자유 잉여* surplus = E_바스 − |p_바스| ≥ 0 이 항상 있다. 이 잉여만 한 준위 비용 G 로 뽑아
+  //     원자 들뜸에 실으면(thermalized 흡수 — 사방 흡수가 net 반동 상쇄), 바스 운동량 px·py 불변.
+  //   닫힌 장부: bath.E ↓ G = 원자 들뜸 E ↑ G (정확 쌍 거래), 운동량 양쪽 불변 ⇒ Q·B·L·E·px·py 보존.
+  //     바스가 음에너지/비물리(E<|p|)로 가지 않게 G ≤ surplus 일 때만 흡수 → 흡수 후도 E ≥ |p| 유지.
+  //   순환: 들뜸 → 방출(emit) → 광자 → 노화 → 바스(escape) → 들뜸(reheat) … 루프가 닫힌다(self-running 씨앗).
+  //   국소: 원자 *혼자* + 바스 집계로 판정(원자-원자 조율자 0). 결정론: 확률 kReheat 는 sim.rng 만. 노브=0 → 회귀 0.
+  function reheat(sim) {
+    const k = sim.knobs.kReheat;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (재가열 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 의사난수 없으면 확률 판정 불가(Math.random 금지 — 결정론)
+    const bath = sim.escaped;
+    if (!bath || bath.E <= 0) return;                     // 줄 에너지 없음(바스 빔)
+    const xMax = sim.knobs.reheatXMax || 6;               // 준위 상한(이온화 영역 밖)
+    for (const a of sim.atoms) {
+      if (rng() >= k) continue;                           // 확률 kReheat 재흡수 시도
+      const x = a.x | 0;
+      if (x >= xMax) continue;                            // 고준위 포화
+      const G = K.levelE(x + 1) - K.levelE(x);            // 한 준위 ↑ 데우는 비용
+      const surplus = bath.E - Math.hypot(bath.px, bath.py);  // 운동량-자유 잉여(≥0, c=1)
+      if (G > surplus) continue;                          // 줄 운동량-자유 에너지 부족
+      bath.E -= G;                                        // 바스 에너지 차감(되돌림)
+      a.x = x + 1;                                         // 원자 한 준위 재여기(데움)
+      bath.reheated = (bath.reheated | 0) + 1;            // 재가열 횟수(진단·hash 미참여)
+    }
+  }
+
+  // 탄성 2체 충돌 = 첫 원자-원자 상호작용 (step-0009, *Phase C 의 문*). 지금까지 원자-원자
+  // 상호작용은 0(빛 매개만)이었다. 접촉 반경 collideR 안에서 *서로 다가오는* 원자 쌍이 충돌 법선(중심선)
+  // 방향으로 탄성 충돌한다 — 운동량을 *교환*하되 총 운동량·총 KE 를 *정확히* 보존(닫힌 형식, 머신 정밀도).
+  //   왜 충돌(연속 쿨롱 아님)인가: 연속 보존력(쿨롱 1/r²)을 동결 적분기(반음시 오일러)로 풀면 O(dt²)
+  //     에너지 드리프트가 생겨 1e-9 정밀 장부를 못 맞춘다. HGO 전 법칙처럼 *닫힌 형식 교환*(KE·p 정확)
+  //     인 탄성 충돌이 첫 직접 상호작용으로 정합 — 쿨롱장(PE 항·심플렉틱 적분 필요)은 별도 step 전가.
+  //   닫힌 장부: 임펄스 j=2μ·vn(μ=환원질량) 을 법선 n 으로 — Δp_a=−j·n, Δp_b=+j·n ⇒ 총 운동량 불변,
+  //     법선 상대속도 부호만 반전(|v_n| 보존) ⇒ 총 KE 불변(탄성). 멀어지는 쌍(vn≤0)은 건너뜀(겹침 중복·끈적임 방지).
+  //   국소: *그 두 원자*만으로 판정(전역 조율자 0, 토러스 min-image 거리). 결정론: rng 불필요(위치·속도 결정).
+  //   순환: 운동량이 빠른 원자→느린 원자로 퍼져 *열화·확산*(SPINE §3 요건2 운동E=온도) — 결합·분자의 토대.
+  function collide(sim) {
+    const k = sim.knobs.kCollide;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (충돌 항 꺼짐 → 직전 비트)
+    const R = sim.knobs.collideR || 3, R2 = R * R;
+    const atoms = sim.atoms, n = atoms.length;
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i];
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j];
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        const d2 = dx * dx + dy * dy;
+        if (d2 > R2 || d2 === 0) continue;                 // 접촉 반경 밖(또는 완전 겹침 — 0 나눗셈 가드)
+        const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;  // 충돌 법선(a→b 단위 벡터)
+        const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도의 법선 성분(>0 = 다가옴)
+        if (vn <= 0) continue;                              // 멀어지는/접선 → 충돌 안 함(겹침 중복 방지)
+        const ma = K.mass(a), mb = K.mass(b);
+        const imp = 2 * vn / (ma + mb);                     // 탄성 임펄스 계수(= 2vn/(ma+mb))
+        a.vx -= imp * mb * nx; a.vy -= imp * mb * ny;        // Δv_a = −2 m_b/(m_a+m_b)·vn·n
+        b.vx += imp * ma * nx; b.vy += imp * ma * ny;        // Δv_b = +2 m_a/(m_a+m_b)·vn·n (총 p·KE 보존)
+        sim.collideCount = (sim.collideCount | 0) + 1;       // 진단 카운터(hash 미참여)
+      }
+    }
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, collide };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'collide'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   function applyForces(sim) {

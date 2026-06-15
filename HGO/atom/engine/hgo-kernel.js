@@ -53,6 +53,8 @@
     }
     // 복사장: 에너지 + 운동량(recoil). px·py 미설정(step-0002 이하) → 0 가법 → 과거 장부 불변.
     if (sim.photons) for (const p of sim.photons) { E += p.E; px += p.px || 0; py += p.py || 0; }
+    // 복사 바스(step-0007 escape): 활성 배열에서 빠진 광자의 E·운동량 reservoir. 미존재(과거)→0 가법 → 장부 불변.
+    if (sim.escaped) { E += sim.escaped.E; px += sim.escaped.px || 0; py += sim.escaped.py || 0; }
     return { Q, B, L, E, px, py };
   }
 
@@ -81,6 +83,8 @@
       mixI(sim.photons.length);
       for (const p of sim.photons) { mixI(p.from); mixI(p.to); mixF(p.E); mixF(p.rx); mixF(p.ry); }
     }
+    // 복사 바스(step-0007): *정의됐을 때만* 섞는다 → 과거(바스 0) 해시 불변(가법 규칙).
+    if (sim.escaped) { mixI(sim.escaped.count | 0); mixF(sim.escaped.E); mixF(sim.escaped.px); mixF(sim.escaped.py); }
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
