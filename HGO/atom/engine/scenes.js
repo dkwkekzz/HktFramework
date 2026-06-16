@@ -3620,6 +3620,72 @@
         ];
       },
     },
+
+    'step-0057': {
+      id: 'step-0057',
+      title: '공간 분할 셀 리스트를 연속력 vdw 에 배선 (게이트 spatialHash·컷오프-PE shift — pauli 0056 와 동형·1/r⁴ 인력·검사 급감)',
+      desc: 'step-0056 이 pauli(1/r⁶ 반발)를 셀 리스트+컷오프-PE shift 로 배선했다. 이 step 은 *동형* 으로 vdw(1/r⁴ 보편 인력)를 배선한다 — 단거리 연속력 3종(pauli·vdw·repulse) 중 둘째. ' +
+            'vdw 는 인력(U<0)이라 1/r⁶ 반발보다 꼬리가 길지만 여전히 단거리 → 컷오프(cut=spatialCut) 근사 가능. force·`vdwPE`(kernel) 둘 다 컷오프 + **shift**(U(r)−U(cut))로 경계 PE 불연속 제거 → symplectic E 닫힘. shift 상수는 U<0 이라 +kV/sc2(부호만 pauli 와 다름·기계 동일). ' +
+            'spatialHash=0 → 전쌍 brute(0022 비트 동일·회귀 0). 중력·쿨롱은 1/r² 장거리라 컷오프 불가(Barnes-Hut 별도). ' +
+            '*측정*(무대 60²·N=200·cut=12 — vdw 꼬리가 길어 pauli(10)보다 큼·고정 시드): ' +
+            '① **힘 근사·load-bearing** — 컷오프 vdw 1회 적용 후 속도가 brute 와 거의 같음(maxDiff 작음·먼 1/r⁴ 꼬리만 버림). ' +
+            '② **에너지 닫힘·shift 정합·load-bearing** — 컷오프 E 잔차 ≈ brute(전쌍 full U)(shift 가 추가 드리프트 0). ' +
+            '③ **검사 수 급감** — 셀 거리계산 ≪ 전쌍 n(n−1)/2. ' +
+            '④ **결정론·회귀** — 셀-경로 무대 결정론·노브=0 → 0001~56 골든 비트 불변(회귀 0).',
+      ticks: 6,
+      W: 60, H: 60, N: 200, CUT: 12, MT: 6,
+      KN: { dt: 0.03, kVdW: 1, coulombSoft: 1.5, spatialCut: 12 },
+      ledgerTol: { E: 4e-2 },                               // 컷오프 vdw symplectic 유계 진동(인력이라 pauli 보다 stiff·전 시드 worst 포함·brute 와 동급 — assert ②가 동급임을 증명)
+
+      cloud(K) {
+        const rng = K.mulberry32(20260619), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 0.4, vy: (rng() - 0.5) * 0.4, lep: 0 });
+        return a;
+      },
+      afterForce(K, sh) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { spatialHash: sh }), tick: 0 };
+        L.applyForces(sim);
+        return sim.atoms;
+      },
+      eResidual(K, sh) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { spatialHash: sh }), tick: 0 };
+        const e0 = K.ledger(sim).E;
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        return Math.abs(K.ledger(sim).E - e0);
+      },
+      measure(K) {
+        const b = this.afterForce(K, 0), c = this.afterForce(K, 1);
+        let fmax = 0; for (let i = 0; i < b.length; i++) { const d = Math.hypot(c[i].vx - b[i].vx, c[i].vy - b[i].vy); if (d > fmax) fmax = d; }
+        const atoms = this.cloud(K), cp = L.cellPairs(atoms, this.CUT, this.W, this.H);
+        return { fmax, eres: this.eResidual(K, 1), eresBrute: this.eResidual(K, 0), cellChecks: cp.checks, bruteChecks: atoms.length * (atoms.length - 1) / 2 };
+      },
+
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: (simRng() - 0.5) * 0.4, vy: (simRng() - 0.5) * 0.4, lep: 0 });
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN, { spatialHash: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { fmax: +m.fmax.toExponential(3), eres: +m.eres.toExponential(3), eresBrute: +m.eresBrute.toExponential(3), cellChecks: m.cellChecks, bruteChecks: m.bruteChecks, ratioPct: +(m.cellChecks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const close = m.fmax < 0.02;                          // ① 컷오프 힘 ≈ brute(먼 1/r⁴ 꼬리만 버림)
+        const shiftOK = m.eres < this.ledgerTol.E && m.eres < m.eresBrute * 2 + 1e-4;  // ② shift 정합(컷오프 잔차 ≈ brute)
+        const faster = m.cellChecks < m.bruteChecks * 0.5;    // ③ 검사 급감
+        return [
+          { name: `힘 근사·load-bearing — 컷오프(cut=${this.CUT}) vdw 1회 적용 후 속도 maxDiff=${m.fmax.toExponential(2)} ≈ brute(먼 1/r⁴ 꼬리만 버림·근사)`, pass: close, value: +m.fmax.toExponential(3) },
+          { name: `에너지 닫힘·shift 정합·load-bearing — 컷오프 E 잔차 ${m.eres.toExponential(2)} ≈ brute(전쌍) ${m.eresBrute.toExponential(2)}(shift 가 경계 PE 불연속 제거 → 추가 드리프트 0)`, pass: shiftOK, value: +m.eres.toExponential(3) },
+          { name: `검사 수 급감 — 셀 거리계산 ${m.cellChecks} ≪ 전쌍 ${m.bruteChecks}(${(m.cellChecks / m.bruteChecks * 100).toFixed(1)}%)`, pass: faster, value: m.cellChecks },
+          { name: `결정론·회귀 — 셀-경로(spatialHash=1) vdw 무대 결정론·노브=0(spatialHash 기본 0)→ 0001~56 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.cellChecks },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

@@ -156,15 +156,22 @@
 
   // 반데르발스 보편 인력 위치 에너지(step-0023) — U_vdw = Σ_{i<j *모든 쌍*} −kV/(r²+ε²) ≤ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
   //   전하 게이트 없음(vdW 는 보편). pauli 반발과 합쳐 우물(s2_eq=2kP/kV) 형성. kVdW 미설정/0(0022 이하) → 0 → 과거 장부 불변.
+  // step-0057 게이트 spatialHash(=0 → 전쌍 full U·회귀 0): pauliPE(0056)와 동형 컷오프+shift. U_shifted=−kV/s2−(−kV/sc2) (r≤cut)·0 (r>cut).
+  //   vdW 는 U<0(인력)이라 shift 상수 −U(cut)=+kV/sc2>0 — r=cut 에서 U 0 연속화 → 경계 PE 점프 0 → symplectic E 닫힘(force=−∇U 정합).
   function vdwPE(atoms, knobs, W, H) {
     const kv = (knobs && knobs.kVdW) || 0;
     if (!kv) return 0;
     const eps2 = (knobs.coulombSoft || 1) ** 2;
+    const sh = (knobs && knobs.spatialHash) || 0;
+    const cut = (knobs && knobs.spatialCut) || 8, cut2 = cut * cut;
+    const uCut = sh ? -kv / (cut2 + eps2) : 0;          // r=cut 에서의 U(연속화 shift 상수·vdW 는 음수)
     let u = 0;
     for (let i = 0; i < atoms.length; i++) {
       for (let j = i + 1; j < atoms.length; j++) {
         const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
-        u += -kv / (dx * dx + dy * dy + eps2);
+        const r2 = dx * dx + dy * dy;
+        if (sh && r2 > cut2) continue;                  // 컷오프 밖 → 0(force 도 0 — 정합)
+        u += -kv / (r2 + eps2) - uCut;                  // shift: r=cut 에서 0 연속(경계 PE 점프 0)
       }
     }
     return u;

@@ -573,25 +573,32 @@
   //   ※ 1/r⁴ 힘이라 *단거리 약결합*(장거리 인력은 1/r² 중력 — Phase E). 이미 근접한 중성만 묶인다(원거리 견인 아님 — 정직한 vdW).
   //   기질 재사용: 동일 symplectic 적분·연화 ε. 닫힌 장부: 쌍별 등·반작용 → 운동량 머신. PE 항 U_vdw≤0 가법(kVdW 게이트). Q·B·L·x 불변.
   //   국소: 그 두 원자만(min-image). 결정론: rng 불필요. kVdW=0 → early-return = 회귀 0.
+  // ⊕ step-0057 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): pauli(0056)와 *동형* 셀 배선. vdW 는 1/r⁴ 인력이라 pauli(1/r⁶)보다
+  //   꼬리가 길지만 여전히 단거리 → 컷오프(cut=spatialCut) 근사 가능. force·`vdwPE`(kernel) 둘 다 컷오프 + shift(U(r)−U(cut))로
+  //   경계 PE 불연속 제거 → symplectic E 닫힘. vdW 는 U<0(인력)이라 shift −U(cut)>0(부호만 pauli 와 다름·기계는 동일).
   function vdw(sim) {
     const kv = sim.knobs.kVdW;
     if (!kv) return;                 // 노브=0 → early-return = 회귀 0 (인력 꺼짐 → 0022 비트)
     const dt = sim.knobs.dt;
     const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);
     const atoms = sim.atoms, n = atoms.length;
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i], ma = K.mass(a);                  // 전하 게이트 없음 — 중성 포함 모든 원자(vdW 는 보편)
-      for (let j = i + 1; j < n; j++) {
-        const b = atoms[j];
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
-        const s2 = dx * dx + dy * dy + eps2;
-        // U_vdw = −kV/s2 → F_on_a = −∇_a U = +kV·2/s2² · d (d=a→b) → a 를 +d(b 쪽)로 당김 = 인력.
-        const fOverR = kv * 2 / (s2 * s2);
-        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
-        const mb = K.mass(b);
-        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;
-        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
-      }
+    function doPair(i, j) {                                // brute·cellPairs 공용 — 같은 힘 식(전하 게이트 없음·중성 포함·vdW 보편)
+      const a = atoms[i], b = atoms[j];
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+      const s2 = dx * dx + dy * dy + eps2;
+      // U_vdw = −kV/s2 → F_on_a = −∇_a U = +kV·2/s2² · d (d=a→b) → a 를 +d(b 쪽)로 당김 = 인력.
+      const fOverR = kv * 2 / (s2 * s2);
+      const fx = fOverR * dx, fy = fOverR * dy;            // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
+      const ma = K.mass(a), mb = K.mass(b);
+      a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;
+      b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+    }
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(0022 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) doPair(i, j);
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(컷오프 근사·vdwPE 와 컷오프+shift 정합)
+      const cut = sim.knobs.spatialCut || 8;
+      const pairs = cellPairs(atoms, cut, sim.W, sim.H).pairs;
+      for (const p of pairs) doPair(p[0], p[1]);
     }
     sim.vdwActive = 1;                                     // 진단 플래그(hash 미참여)
   }
