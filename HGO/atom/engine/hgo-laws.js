@@ -303,6 +303,12 @@
   //     공유 원자가 = 빈자리(H1·C4·O2·He0) → 결합 수 한계가 *e 다발*서 창발(author 0). 포획·reservoir 는 이온과 동일 기계 재사용.
   //   ⊕ step-0018 게이트 `bondOrder`(=0 → 단일 결합만·step-0017 비트 동일): 공유 쌍이 *남은 빈자리만큼* 전자쌍을 다중 공유한다.
   //     차수 = min(남은 빈자리, ordMax) → O=O 이중·N≡N 삼중. 간선에 차수 e[3] 기록·빈자리 order 칸 소비 → 화학량론(O₂·N₂ 고립 이량체)이 창발.
+  // ⊕ step-0059 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): collide(0055)와 *동형* 셀 배선 — 마지막 *이벤트형* 단거리 법칙.
+  //   bond 는 접촉 반경 R 내에서만 포획하는 단거리 이벤트라 전쌍 O(n²) 대신 셀 리스트(cellPairs·cut=R)로 이웃만 훑을 수 있다.
+  //   핵심(collide 와 같음): cellPairs 가 R 내 쌍을 *brute 와 같은 집합*(0054)으로 주므로, 그 쌍을 *(i,j) 오름차순 정렬*해 brute 의
+  //   i<j 순서와 똑같이 처리하면 — deg[]·bondKeys·bonds 가 처리 순서에 의존하지만 그 순서가 같으므로 — 결합 결과가 **비트까지 동일**
+  //   (켜도 회귀 0). R 밖 쌍은 cellPairs 가 안 주지만 brute 경로서도 d2>R2 로 skip(no-op)이라 *형성되는 결합 집합*이 정확 같다.
+  //   탄성 충돌(0055)과 동형 — bond 도 *순간 속도 편집*(연속 PE 항 없음·bondE 회계)이라 컷오프-PE shift 불필요(연속력 0056~58 과 다름).
   function bond(sim) {
     const k = sim.knobs.kBond;
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 항 꺼짐 → 직전 비트)
@@ -316,34 +322,34 @@
     const ordMax = sim.knobs.bondOrderMax || 3;          // 최대 차수(삼중 N≡N 까지)
     let deg = null;
     if (vcap || cov) { deg = new Array(n).fill(0); for (const e of sim.bonds) { const o = e[3] || 1; deg[e[0]] += o; deg[e[1]] += o; } }  // 현 결합 차수(order 가중 — 이중=2칸 소비)
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i];
-      for (let j = i + 1; j < n; j++) {
+    // 한 쌍 포획 처리(brute·cellPairs 공용 — 같은 코드 → 같은 결과). 모든 skip 은 return(브루트의 continue 와 등가).
+    function doPair(i, j) {
+        const a = atoms[i];
         const key = i * n + j;
-        if (sim.bondKeys.has(key)) continue;                 // 이미 결합 — 재포획·이중 흡수 금지
+        if (sim.bondKeys.has(key)) return;                   // 이미 결합 — 재포획·이중 흡수 금지
         const b = atoms[j];
         const qa = a.Z - a.e, qb = b.Z - b.e;
         let order = 1;                                       // 결합 차수(기본 단일 — bondOrder=0 이면 불변)
         if (qa * qb < 0) {                                   // ── 이온결합: 반대 전하 끌림(기존 경로) ──
-          if (vcap && (deg[i] >= Math.abs(qa) || deg[j] >= Math.abs(qb))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
+          if (vcap && (deg[i] >= Math.abs(qa) || deg[j] >= Math.abs(qb))) return;  // 원자가 포화 → 결합 안 함(collide 탄성)
         } else {                                             // ── 반대 전하 아님 → 이온 불가 ──
-          if (!cov) continue;                                // 게이트 off → 기존처럼 skip(같은 전하/중성, 회귀 0)
-          if (qa !== 0 || qb !== 0) continue;                // 공유는 *중성 원자만*(같은부호 이온은 반발 → collide 탄성)
+          if (!cov) return;                                  // 게이트 off → 기존처럼 skip(같은 전하/중성, 회귀 0)
+          if (qa !== 0 || qb !== 0) return;                  // 공유는 *중성 원자만*(같은부호 이온은 반발 → collide 탄성)
           const va = covVacancy(a.e), vb = covVacancy(b.e);  // 외각 껍질 빈자리(다음 닫힌 껍질까지)
-          if (va <= 0 || vb <= 0) continue;                  // 한쪽이라도 껍질 채움(noble, 예: He) → 공유 안 함
-          if (deg[i] >= va || deg[j] >= vb) continue;        // 공유 원자가 포화(빈자리 = 결합 수 한계 — e 다발서 창발)
+          if (va <= 0 || vb <= 0) return;                    // 한쪽이라도 껍질 채움(noble, 예: He) → 공유 안 함
+          if (deg[i] >= va || deg[j] >= vb) return;          // 공유 원자가 포화(빈자리 = 결합 수 한계 — e 다발서 창발)
           // step-0018 게이트 bondOrder(=0 → 단일·step-0017 비트 동일): *같은 쌍*이 남은 빈자리만큼 전자쌍 다중 공유.
           //   차수 = min(남은 빈자리 i, 남은 빈자리 j, ordMax) → O(빈자리2)+O = O=O 이중·N(빈자리3)+N = N≡N 삼중. 화학량론이 빈자리서 창발.
           if (ord) order = Math.min(va - deg[i], vb - deg[j], ordMax);
         }
         const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
         const d2 = dx * dx + dy * dy;
-        if (d2 > R2 || d2 === 0) continue;                   // 접촉 반경 밖(또는 완전 겹침 가드)
+        if (d2 > R2 || d2 === 0) return;                     // 접촉 반경 밖(또는 완전 겹침 가드)
         const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;   // 결합 법선(a→b 단위 벡터)
         const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
         const vn = dvx * nx + dvy * ny;                      // 상대속도 법선 성분(>0 = 다가옴)
-        if (vn <= 0) continue;                               // 멀어지는/접선 → 포획 안 함
-        if (dvx * dvx + dvy * dvy > vmax2) continue;         // 너무 빠르면 포획 못 함(탄성 튕김은 collide 몫)
+        if (vn <= 0) return;                                 // 멀어지는/접선 → 포획 안 함
+        if (dvx * dvx + dvy * dvy > vmax2) return;           // 너무 빠르면 포획 못 함(탄성 튕김은 collide 몫)
         const ma = K.mass(a), mb = K.mass(b), M = ma + mb;
         const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;  // 질량중심 속도
         // ⊕ step-0021 게이트 bondCoulombic(=0 → 비탄성 vcom 잠금·step-0020 비트 동일): 켜면 *속도잠금·KE흡수를 건너뛰고*
@@ -371,7 +377,13 @@
         sim.bondCount = (sim.bondCount | 0) + 1;             // 진단 카운터(결합 간선은 hash 참여)
         if (qa === 0 && qb === 0) sim.covalentCount = (sim.covalentCount | 0) + 1;  // 공유결합 횟수(중성 쌍 = 공유, 진단·hash 미참여)
         if (order >= 2) sim.multiBondCount = (sim.multiBondCount | 0) + 1;  // 다중 결합(이중·삼중) 횟수(진단·hash 미참여)
-      }
+    }
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(직전 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) doPair(i, j);
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(정렬해 brute 와 같은 순서 → 비트 동일·빠름)
+      const pairs = cellPairs(atoms, R, sim.W, sim.H).pairs;
+      pairs.sort((p, q) => (p[0] - q[0]) || (p[1] - q[1]));  // (i,j) 오름차순 = brute i<j 순서 → 처리 순서 일치 → 비트 동일
+      for (const p of pairs) doPair(p[0], p[1]);
     }
   }
 

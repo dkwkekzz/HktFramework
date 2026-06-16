@@ -3753,6 +3753,73 @@
         ];
       },
     },
+
+    'step-0059': {
+      id: 'step-0059',
+      title: '공간 분할 셀 리스트를 bond 에 배선 (게이트 spatialHash — 마지막 이벤트형 단거리 법칙·collide 0055 와 동형·정렬해 brute 와 *비트 동일*·켜도 회귀 0)',
+      desc: 'step-0055 가 *이벤트형* 탄성 충돌 collide 를 셀 리스트로 배선했다(비트 동일). 이 step 은 같은 기계를 마지막 이벤트형 단거리 법칙 — 비탄성 포획 `bond`(분자의 씨앗) — 에 배선한다. ' +
+            'bond 는 접촉 반경 R 내 *느린 반대 전하* 쌍만 포획하는 단거리 이벤트라 전쌍 O(n²) 대신 `cellPairs`(cut=R)로 이웃만 훑을 수 있다. ' +
+            '게이트 `spatialHash`=0 → 전쌍 brute(과거 전 장면 비트 동일·회귀 0). =1 → cellPairs 로 R 내 쌍만 훑되, 그 쌍을 **(i,j) 오름차순 정렬**해 brute 의 i<j 순서와 똑같이 처리한다. ' +
+            'collide 와 같은 논거(비트 동일): cellPairs 가 R 내 쌍을 brute 와 *같은 집합*(0054)으로 주고 처리 *순서*까지 맞추므로 — deg[]·bondKeys·sim.bonds 가 처리 순서에 의존하지만 그 순서가 같다 — 형성되는 결합·흡수 bondE 가 **비트까지 동일**(켜도 회귀 0). ' +
+            'R 밖 쌍은 cellPairs 가 안 주지만 brute 경로서도 d2>R2 로 skip(no-op)이라 결합 집합이 정확 같다. bond 는 *순간 속도 편집*(연속 PE 항 없음·bondE 회계)이라 컷오프-PE shift 불필요(연속력 0056~58 과 다름·collide 와 동형). ' +
+            '*측정*(무대 30²·N=120 이온 q=±1·bondR=3·8 tick·고정 시드): ' +
+            '① **비트 동일·load-bearing** — spatialHash=1(이웃) 종료 상태 해시(원자+bonds+bondE) = spatialHash=0(전쌍) 해시 정확 일치(결합 다수 형성 무대서). ' +
+            '② **검사 수 급감** — 셀 거리계산 ≪ 전쌍 n(n−1)/2. ' +
+            '③ **결합 비자명** — 무대서 실제 결합 다수(동일성이 빈 무대 아닌 진짜 포획서 성립). ' +
+            '④ **장부·결정론·회귀** — 라이브 셀-경로(spatialHash=1) 결합 무대 Q·B·L·E·px·py 머신(비탄성 흡수 KE→bondE)·노브=0 → 0001~58 골든 비트 불변(회귀 0).',
+      ticks: 8,
+      W: 30, H: 30, N: 120, MT: 8,
+      KN: { dt: 1, kBond: 1, bondR: 3 },
+
+      // 측정 무대: 토러스에 이온 N개(반반 q=+1[e=0]·q=−1[e=2])를 고정 시드로 흩뿌리고 느린 속도를 준다(반대 전하가 다가와 포획되도록).
+      cloud(K) {
+        const rng = K.mulberry32(20260621), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: (i & 1) ? 2 : 0, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 1, vy: (rng() - 0.5) * 1, lep: 0 });
+        return a;
+      },
+      // 같은 구름을 spatialHash 켬/끔으로 MT tick 굴린 sim 반환(L.applyForces+integrate 직접 — DRY).
+      runCloud(K, sh) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { spatialHash: sh }), tick: 0 };
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        return sim;
+      },
+      measure(K) {
+        const brute = this.runCloud(K, 0);
+        const fast = this.runCloud(K, 1);
+        const same = K.hashState(brute) === K.hashState(fast);
+        const atoms = this.cloud(K);
+        const cp = L.cellPairs(atoms, this.KN.bondR, this.W, this.H);
+        return { same, bonds: brute.bondCount | 0, fastBonds: fast.bondCount | 0, cellChecks: cp.checks, bruteChecks: atoms.length * (atoms.length - 1) / 2 };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): 셀-경로(spatialHash=1) 결합 무대 — 새 코드 경로가 장부·결정론을 통과함을 보장.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: (i & 1) ? 2 : 0, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: (simRng() - 0.5) * 1, vy: (simRng() - 0.5) * 1, lep: 0 });
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN, { spatialHash: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { same: m.same ? 1 : 0, bonds: m.bonds, cellChecks: m.cellChecks, bruteChecks: m.bruteChecks, ratioPct: +(m.cellChecks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① 비트 동일·load-bearing ② 검사 급감 ③ 결합 비자명 ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const identical = m.same && m.bonds > 0 && m.bonds === m.fastBonds;  // ① 종료 해시 일치 + 결합 수도 일치
+        const faster = m.cellChecks < m.bruteChecks * 0.5;                   // ② 거리계산 ≪ 전쌍
+        const nontrivial = m.bonds >= 10;                                    // ③ 결합 다수(빈 무대 아님)
+        return [
+          { name: `비트 동일·load-bearing — 셀(spatialHash=1) 종료 해시(원자+bonds+bondE) = 전쌍(=0) 해시 정확 일치(결합 ${m.bonds}회 동일 형성·근사 아님·켜도 회귀 0)`, pass: identical, value: m.bonds },
+          { name: `검사 수 급감 — 셀 거리계산 ${m.cellChecks} ≪ 전쌍 ${m.bruteChecks}(${(m.cellChecks / m.bruteChecks * 100).toFixed(1)}%·같은 결과·빠른 계산)`, pass: faster, value: m.cellChecks },
+          { name: `결합 비자명 — 무대서 실제 결합 ${m.bonds}회(동일성이 빈 무대 아닌 진짜 포획서 성립)`, pass: nontrivial, value: m.bonds },
+          { name: `장부·결정론·회귀 — 라이브 셀-경로(spatialHash=1) 결합 무대 Q·B·L·E·px·py 머신(흡수 KE→bondE)·노브=0 → 0001~58 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.bonds },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

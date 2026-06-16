@@ -9,10 +9,10 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0058](steps/step-0058.md) — **공간 분할 셀 리스트를 연속력 repulse 에 배선(pauli/vdw 와 동형·단거리 힘 배선 완결)**. repulse(1/r⁴ 반발 코어·하전 쌍만·전하 게이트 doPair 보존 → brute 비트 동일). force·`repulsePE` 컷오프+shift. spatialHash=0 → 전쌍 brute(회귀 0). 측정(60²·N=200 이온·cut=12·6 tick): ①힘 maxDiff **2.01e-4**≈brute ②**E 닫힘·shift 정합** 컷오프 잔차 **9.75e-3 ≈ brute 9.72e-3**(추가 드리프트 0·load-bearing) ③검사 **7085≪19900(35.6%)** ④셀-경로 결정론·노브=0. **장부 1.87e-2(E≤0.04 완화)**·골든 **290/290**(회귀 0). **단거리 힘 4종(collide·pauli·vdw·repulse) 공간 분할 배선 완결.**
-- **닫힌 step(직전)**: [step-0057](steps/step-0057.md) — cellPairs 를 연속력 vdw 에 배선(pauli 와 동형·컷오프-PE shift·E 닫힘 컷오프 잔차 1.16e-2≈brute·힘 maxDiff 2.86e-4·검사 36.6%). 골든 285/285.
-- **한 줄 상태**: Phase C 결합 기하 + Phase E 중력 궤도 + **Phase D 핵 동역학 닫힘** + **상대론 완비(0047 c·0049 KE)** + **공간 분할: 열거기 0054 → 단거리 힘 4종 셀 배선 완결 collide 0055·pauli 0056·vdw 0057·repulse 0058(컷오프-PE shift·E 닫힘)** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 진짜 다체 핵합성 시계열 미(staged 만)·**bond 셀 배선 미(collide 와 동형 전가)·gravity/coulomb 장거리 컷오프 불가(Barnes-Hut 별도)**·E_G 절대 척도 토이·force relKE 정합 미·핵+화학 동시 무대·세 안정점·이중마법수 미.
-- **다음**: **step-0059** (§2) — 1순위: **gravity/coulomb 장거리 합산(Barnes-Hut/PM — 단거리 4종 완결 후 남은 O(n²)·컷오프 불가)** · bond 도 collide 와 동형 배선 · 진짜 다체 핵합성 시계열(공간 분할 완비 후 규모) · force relKE 정합. 한 step = 한 조각.
+- **닫힌 step**: [step-0059](steps/step-0059.md) — **공간 분할 셀 리스트를 bond 에 배선(collide 0055 와 동형·마지막 이벤트형 단거리 법칙)**. bond 이중 루프 → `doPair(i,j)` 추출·게이트 spatialHash. spatialHash=0 → 전쌍 brute(회귀 0). =1 → cellPairs(cut=bondR) 정렬해 brute i<j 순서와 동일 → **비트 동일**(deg/bondKeys/bonds 순서 의존이나 같은 순서). 측정(30²·N=120 이온 q=±1·bondR=3·8 tick): ①**비트 동일** 셀 해시(원자+bonds+bondE)=전쌍 해시·결합 **116회 동일** ②검사 **672≪7140(9.4%)** ③결합 비자명 116 ④장부 **5.68e-14**(흡수 KE→bondE 머신·완화 없음). 골든 **295/295**(회귀 0). **단거리 법칙 5종(collide·bond 이벤트 + pauli·vdw·repulse 연속력) 공간 분할 배선 완결.**
+- **닫힌 step(직전)**: [step-0058](steps/step-0058.md) — cellPairs 를 연속력 repulse 에 배선(pauli/vdw 와 동형·컷오프-PE shift·E 닫힘 컷오프 잔차 9.75e-3≈brute·힘 maxDiff 2.01e-4·검사 35.6%). 골든 290/290.
+- **한 줄 상태**: Phase C 결합 기하 + Phase E 중력 궤도 + **Phase D 핵 동역학 닫힘** + **상대론 완비(0047 c·0049 KE)** + **공간 분할: 열거기 0054 → 단거리 법칙 5종 셀 배선 완결 collide 0055·pauli 0056·vdw 0057·repulse 0058·bond 0059** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 진짜 다체 핵합성 시계열 미(staged 만)·**gravity/coulomb 장거리 컷오프 불가(Barnes-Hut 별도·다음)**·unbond 셀 배선 미(전쌍·이미 작음)·E_G 절대 척도 토이·force relKE 정합 미·핵+화학 동시 무대·세 안정점·이중마법수 미.
+- **다음**: **step-0060** (§2) — 1순위: **gravity/coulomb 장거리 합산(Barnes-Hut/PM — 단거리 5종 완결 후 남은 유일한 O(n²)·컷오프 불가)** · 진짜 다체 핵합성 시계열(공간 분할 완비 후 규모) · force relKE 정합. 한 step = 한 조각.
 
 ---
 
@@ -20,13 +20,13 @@
 
 > 큰 호(arc)의 서사(원자→빛→화학→핵→별)는 [SPINE.md](SPINE.md) §8 로드맵이 SSOT. STATE 는 *다음 한 조각*과 직전 2~3 step 만.
 
-직전 흐름(전문 §7 INDEX): **0054** 열거기 `cellPairs` → **0055** collide(이벤트·비트 동일) → **0056** pauli → **0057** vdw → **0058** repulse(연속력 컷오프-PE shift). **단거리 힘 4종(이벤트 collide + 연속력 pauli·vdw·repulse) 공간 분할 배선 완결.** 남은 O(n²)는 장거리 1/r²(gravity·coulomb) — 컷오프 불가라 Barnes-Hut/PM 별도.
+직전 흐름(전문 §7 INDEX): **0054** 열거기 `cellPairs` → **0055** collide → **0056** pauli → **0057** vdw → **0058** repulse → **0059** bond(이벤트·비트 동일). **단거리 법칙 5종(이벤트 collide·bond + 연속력 pauli·vdw·repulse) 공간 분할 배선 완결.** 남은 O(n²)는 장거리 1/r²(gravity·coulomb) — 컷오프 불가라 Barnes-Hut/PM 별도.
 
-### step-0059 가설 (▶ 즉시 다음 step — 한 조각)
+### step-0060 가설 (▶ 즉시 다음 step — 한 조각)
 
-**후보 gravity/coulomb 장거리 합산(Barnes-Hut/PM)** ← *권장·단거리 4종 완결 후 남은 유일한 O(n²)(0054~58 이 단거리만 해결). gravity·coulomb 은 1/r² 라 컷오프하면 누락이 커 셀 리스트 부적합 → 쿼드트리 무게중심 근사(Barnes-Hut θ 기준) 또는 PM(격자 FFT). 게이트(예 `bhTheta`/`farField`)=0 → 전쌍 brute = 회귀 0. 측정: 근사 force maxDiff<tol·검사 O(n log n)·E 닫힘. 난이도 상(단거리보다 무거움 — 자료구조 신규).*
+**후보 Barnes-Hut 쿼드트리 enumerator(새 법칙 0 — cellPairs 0054 의 장거리판)** ← *권장·단거리 5종 완결 후 남은 유일한 O(n²) 공략의 첫 칸. gravity·coulomb 은 1/r² 라 컷오프 누락이 커 셀 부적합 → 무게중심 쿼드트리(Barnes-Hut θ 기준). 0054 가 cellPairs 를 "만들고 brute 동치 측정"만 했듯, 0060 도 트리를 **만들고 θ→0(또는 게이트 off) 시 brute 와 동치임을 측정**만(force 미배선·LAW_ORDER 미참여·새 법칙 0=골든 보존=회귀 0). 측정: θ=0 가속 = brute 가속(tol 내)·검사 O(n log n). 토러스 min-image 는 노드 COM 으로 근사(토이). force 배선은 0061(gravity)·0062(coulomb)·측정 0063.*
 
-**후보 bond 셀 배선(collide(0055)와 동형 — R 내 이벤트·(i,j) 정렬 비트 동일·난이도 하)** · **진짜 다체 핵합성 시계열(공간 분할 완비 후 규모 가능)** · **방출 입자 추적 입자화** · **세 안정 동중원소·이중마법수** · **force relKE 일-에너지 정합(큰 작업)**.
+**후보 진짜 다체 핵합성 시계열(공간 분할 완비 후 규모 가능)** · **unbond 셀 배선(전쌍·이미 작음)** · **방출 입자 추적 입자화** · **세 안정 동중원소·이중마법수** · **force relKE 일-에너지 정합(큰 작업)**.
 
 - **더하는 것(공통)**: 법칙/게이트 1개 + 노브 + `engine/scenes.js` 장면 `step-0050` 한 항(노브=0 → 회귀 0). 측정 step 이면 새 법칙 0(scene 만)도 가능 — 그땐 기존 골든 보존이 회귀 0 알리바이.
 - **닫는 조건**: 회귀 0(노브=0 → 직전 비트 동일·골든 가법) + 닫힌 장부(연속력은 E 완화·핵 변환은 비가역이라도 Q·B·L·E·px·py 닫힘) + 결정론 + 가설 수치.
@@ -47,7 +47,7 @@
 | ⬜ | **산란 위상함수·in-scatter λ 클램프** | step-0006 등방 각도 + 최근접 타깃 정밀화, step-0007 이 `p.src` 해제(binned)·저E binning(q→0 *사후* 흡수). 남은 것: 각도별 확률(위상함수, 현재 균일)·q→0 을 *방출 시점에* 막는 in-scatter λ 클램프. 별도 step. |
 | 🟡 | **준위 에너지 Z 의존 — Z·차폐 해소, 껍질·미세구조 백로그** | step-0013 단전자 E∝Z²(He⁺/H=4) + step-0014 다전자 *유효핵전하* Z_eff=Z−σ(e−1)·E∝Z_eff²(중성 He·C·O 제 선, He⁺ 3.0 vs 중성 He 2.04) ✅. 남은 것: *균일 차폐* σ 단순화 → 껍질별 Slater 계수·미세구조(스핀-궤도)·상대론(고 Z)·다중항은 후속 정밀화(백로그, load-bearing 아님). |
 | ✅ | **결합 깸(unbond)** | step-0016 `unbond`(상대 KE>e[2] 면 결합 깸·역연산·닫힌 장부) ✅. |
-| 🟡 | **성능 최적화(이웃 질의·공간 분할·장거리 합산)** | **단거리 힘 4종 공간 분할 배선 완결** ✅: 열거기 `cellPairs`(0054) → 이벤트 `collide`(0055·비트 동일) → 연속력 `pauli`(0056)·`vdw`(0057)·`repulse`(0058·컷오프-PE shift·E 잔차 brute 와 동급·spatialHash 끄면 회귀 0). 남은 것: ① **gravity·coulomb 장거리 1/r²(컷오프 불가) → Barnes-Hut/PM**(step-0059 유력·유일 남은 O(n²)) ② `bond` 도 collide 와 동형 이벤트 배선(난이도 하). |
+| 🟡 | **성능 최적화(이웃 질의·공간 분할·장거리 합산)** | **단거리 법칙 5종 공간 분할 배선 완결** ✅: 열거기 `cellPairs`(0054) → 이벤트 `collide`(0055)·`bond`(0059·둘 다 (i,j) 정렬 비트 동일) → 연속력 `pauli`(0056)·`vdw`(0057)·`repulse`(0058·컷오프-PE shift·E 잔차 brute 와 동급·spatialHash 끄면 회귀 0). 남은 것: ① **gravity·coulomb 장거리 1/r²(컷오프 불가) → Barnes-Hut/PM**(step-0060~ 유일 남은 O(n²)) ② `unbond` 전쌍(결합 간선 순회·이미 작음). |
 | ✅ | **결합 기하(평형 길이·각도)** | 길이(0021 bondCoulombic·0026 bondSpring 4.011)+각도(0027 bondAngle VSEPR 118.44°)+소산 응결(0024 damp·0025 배위수 3.25) ✅. 전가: 다체 각도 평형·Morse·단결정 g(r). |
 | 🟡 | **상대론적 운동(c=1 근처)** | **운동량+에너지 둘 다 ✅**(0047 `relCap` 좌표속도<c + 0049 `relKE` KE=(γ−1)mc²·전문 §7). 남은 것: **force 상호작용서 relKE 일-에너지 정합**(자유 드리프트만 닫힘·법칙별 ½mv² 가정 재작성)·상대론적 충돌/산란. 후속(큰 작업). |
 | 🟡 | **렙톤 수·중성미자 회계** | 0031~34 닫힘: β붕괴 반중성미자 L=−1 을 `a.lep` 에 담아 L=Σ(e+lep) 머신·방출 입자 −Δp 를 바스 px·py 에 적재(총 운동량 머신)·다수 집단서도 확인 ✅. 남은 것: 방출 입자를 *추적 입자*로 명시(위치·속도·스펙트럼·개별 KE)·전자포획·μ/τ 렙톤. 후속. |
@@ -79,7 +79,7 @@
 | 1 | 원소·결합 (Z·N·e → 원소·이온·원자가·분자) | 🟡 **화학(0001~27)** 이온/공유결합·분자=연결 성분·원자가·차수·길이 r_eq·각도 VSEPR 닫힘 + **핵 변환(0031~53)** 붕괴·융합·골짜기 B(Z,N)·정지질량 편입·별 점화·율 두 방향·Gamow 두 축·흡열 문턱·핵합성 사다리 닫힘(단계 §7 INDEX). 다체 시계열·세 안정점 후속 |
 | 2 | 에너지 변위·흐름 (e=mc²·운동·결합·핵) | 🟡 운동/정지/운동량 장부 + 들뜸·복사·재가열 순환 + 결합 E·화학발광 + PE 항(쿨롱·반발·pauli·vdw·중력) + damp + **핵 Δm·c² 정지질량 편입 M=A−B** + **완전 상대론 KE=(γ−1)mc²(0049)** + 흡열 문턱(0051)(§7). force relKE 정합 후속 |
 | 3 | 빛 방출 (준위 전이 → λ → 색·이펙트) | 🟡 자발 방출 λ=hc/ΔE(0002)·반동·도플러·전파 c·산란·바스 binning·화학발광·단전자 Z²·**다전자 차폐 Z_eff²(0014)**(§7). 색→이펙트는 render 트랙 |
-| 4 | 위치·운동 / 준위 / 핵 안정·붕괴 / 껍질 | 🟡 **Phase A~C/E**(자유 운동·준위·충돌·결합 기하·중력 궤도) + **Phase D 핵**(붕괴·융합·골짜기·별 점화·시계열·율) + **상대론 완비(0047 c·0049 KE)** + **공간 분할 단거리 힘 배선(0054~58)**(§7). force relKE·세 안정점·이중마법수·부껍질 후속 |
+| 4 | 위치·운동 / 준위 / 핵 안정·붕괴 / 껍질 | 🟡 **Phase A~C/E**(자유 운동·준위·충돌·결합 기하·중력 궤도) + **Phase D 핵**(붕괴·융합·골짜기·별 점화·시계열·율) + **상대론 완비(0047 c·0049 KE)** + **공간 분할 단거리 법칙 5종 배선(0054~59)**(§7). force relKE·세 안정점·이중마법수·부껍질 후속 |
 
 ---
 
@@ -153,3 +153,4 @@ step-0055 | 공간 분할 셀 리스트를 collide 에 배선(게이트 spatialH
 step-0056 | 공간 분할 셀 리스트를 연속력 pauli 에 배선(게이트 spatialHash — force·pauliPE 둘 다 컷오프 cut=spatialCut + shift U(r)−U(cut)로 경계 PE 불연속 제거 → symplectic E 닫힘·연속력 첫 배선) | PASS(장부 1.15e-2 E≤0.03 완화 symplectic·골든 280/280·spatialHash=0 기본 → pauli/pauliPE full U 불변=회귀 0·60²·N200·cut10·6tick·①힘 maxDiff 1.15e-5≈brute 먼 1/r⁶ 꼬리만 버림·②E 닫힘 컷오프 잔차 9.25e-3≈brute 9.25e-3 추가 드리프트 0 shift 정합 load-bearing·③검사 4949≪19900 24.9%) · render:없음(내부)
 step-0057 | 공간 분할 셀 리스트를 연속력 vdw 에 배선(pauli 0056 와 동형 — force·vdwPE 컷오프+shift·vdW 인력 U<0 이라 shift −U(cut)>0 부호만 다름) | PASS(장부 1.80e-2 E≤0.04 완화 symplectic·골든 285/285·spatialHash=0 기본 → vdw/vdwPE full U 불변=회귀 0·60²·N200·cut12·6tick·①힘 maxDiff 2.86e-4≈brute 먼 1/r⁴ 꼬리만 버림·②E 닫힘 컷오프 잔차 1.16e-2≈brute 1.17e-2 추가 드리프트 0 shift 정합 load-bearing·③검사 7275≪19900 36.6%) · render:없음(내부)
 step-0058 | 공간 분할 셀 리스트를 연속력 repulse 에 배선(pauli/vdw 와 동형·단거리 힘 4종 배선 완결 — repulse 하전 쌍만·전하 게이트 doPair 보존 → brute 비트 동일·repulsePE 컷오프+shift) | PASS(장부 1.87e-2 E≤0.04 완화·골든 290/290·spatialHash=0 기본 → repulse/repulsePE full U 불변=회귀 0·60²·N200 이온·cut12·6tick·①힘 maxDiff 2.01e-4≈brute 먼 1/r⁴ 꼬리만 버림·②E 닫힘 컷오프 잔차 9.75e-3≈brute 9.72e-3 추가 드리프트 0 shift 정합 load-bearing·③검사 7085≪19900 35.6%) · render:없음(내부)
+step-0059 | 공간 분할 셀 리스트를 bond 에 배선(collide 0055 와 동형·마지막 이벤트형 단거리 법칙 — bond 이중 루프 → doPair(i,j)·cellPairs(cut=bondR) (i,j) 정렬해 brute 순서와 동일 → 비트 동일·단거리 법칙 5종 배선 완결) | PASS(장부 5.68e-14 라이브 셀-경로·골든 295/295·spatialHash=0 기본 → 전쌍 brute 비트 불변=회귀 0·30²·N120 이온 q=±1·bondR3·8tick·①비트 동일 셀 해시(원자+bonds+bondE)=전쌍 해시 결합 116회 동일 형성 근사 아님·②검사 672≪7140 9.4%·③결합 비자명 116·④흡수 KE→bondE 머신 완화없음) · render:없음(내부)
