@@ -2768,6 +2768,85 @@
         ];
       },
     },
+
+    'step-0046': {
+      id: 'step-0046',
+      title: '융합 율 = 쿨롱 장벽 양자 터널링 — Gamow exp(−√(E_G/E)) (fuseGamow — 고전 계단 → 매끈 지수·sub-barrier 터널링·고E 급증)',
+      desc: 'step-0033·0041 의 융합(fuse)은 쿨롱 장벽을 *고전 계단*으로 다뤘다: 상대 KE keRel < fuseBarrier 면 융합 0, 이상이면 *반드시* 융합(all-or-nothing). 율의 *형태*는 author 한 문턱. 실제 융합은 두 양전하 핵이 장벽을 *양자 터널링*으로 뚫는다(Gamow 1928·별이 빛나는 이유). ' +
+            '이 step 은 융합 율의 함수형을 장벽서 끌어낸다(게이트 fuseGamow): 접근하는 쌍마다 **P = exp(−√(E_G/E))** 확률로 융합(E=keRel·E_G=쿨롱 장벽 척도). ⇒ 고전적으로 못 넘는 *저E 에서도 작은 확률로* 융합(sub-barrier 터널링)·고E 일수록 *급증* — 계단이 매끈한 지수로. ' +
+            '0045 가 *붕괴* 율을 Sargent Q⁵ 로 닫았듯, 이 step 은 *융합* 율을 Gamow 터널링으로 닫는다 — 핵 율 두 방향(붕괴·융합)이 둘 다 함수형서 창발(author 0). E_G/E 의 √ 가 핵심: 저E 서 매우 가팔라(작은 E 차가 큰 율 차) "별 중심 온도가 조금만 낮아도 핵융합이 멈춘다". ' +
+            '*측정*(무대: ²H+²H 정면 쌍 200개씩 두 집단·**nuc 없음**·서로 떨어져 1쌍=1시도·fuseEG=9·고정 시드 t=1 단일 시도 측정): ' +
+            '① **율 ∝ exp(−√(E_G/E))** — 저E E=1 측정 융합분율 ≈ exp(−√9)=0.050·고E E=4 ≈ exp(−√(9/4))=0.223(둘 다 지수 공식 부근). ' +
+            '② **sub-barrier 터널링** — 고전(fuseGamow=0·barrier=2)은 E=1<2 면 융합 0(장벽 못 넘음)인데 Gamow 는 E=1 서도 >0 융합(고전 금지 영역을 *뚫음*)·고전 E=4>2 는 200/200(계단). ' +
+            '③ **계단 → 매끈(가파름)** — 고전은 이분법(0 또는 200), Gamow 는 둘 다 0<x<200 매끈·4배 E 가 융합율을 ~4.5배(=exp(√9−√(9/4))) 올림(저E 급억제·고E 급증). ' +
+            '④ **에너지 불변·율만 바뀜** — 융합 발열 ΔB_fus=B(⁴He)−2B(²H)>0 는 게이트와 무관(rate 게이트는 *언제/얼마나 자주* 융합할지만·*얼마나*(ΔB_fus)는 불변)·닫힌 장부 Q·B·L·E·px·py 머신(rest=(A−B)c²·vcom·바스). ' +
+            '*대조*: fuseGamow=0 → 0041 hard cutoff(계단·rng 무소비·회귀 0). 새 게이트 0 → 0001~45 법칙·골든 비트 불변.',
+      ticks: 4,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·rest=(A−B)c²(0041 계승) → Q·B·L·E·px·py 머신. Gamow 는 *언제* 융합할지(확률)만 바꿈.
+
+      EG: 9, EL: 1, EH: 4, BAR: 2, NP: 400,                   // Gamow 에너지·저E·고E·고전 장벽(EL<BAR<EH·sub-barrier 대조)·쌍 수
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0, fuseEG: 9 },
+      // ²H+²H(Z1 N1 e1·nuc 없음·μ=1·keRel=2v²=E) 정면 쌍 NP개. 격자(간격 9 > R+d=5)로 쌍끼리 교차융합 0·d=2<R=3 라 tick0 에 1시도.
+      pop(E) {
+        const v = Math.sqrt(E / 2), a = [];                   // keRel=½μ|vrel|²=½·1·(2v)²=2v²=E
+        for (let i = 0; i < this.NP; i++) {
+          const x = (i % 20) * 9 + 8, y = Math.floor(i / 20) * 9 + 8;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: x, ry: y, vx: v, vy: 0, lep: 0 });        // 왼쪽 ²H → 오른쪽
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: x + 2, ry: y, vx: -v, vy: 0, lep: 0 });   // 오른쪽 ²H → 왼쪽(쌍 총 p=0·d=2)
+        }
+        return a;
+      },
+      // 라이브 sim(장부·결정론 기둥): 고E 집단·Gamow 켬·barrier 0. 융합이 일어나며 Q·B·L·E·px·py 닫힘 확인.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 200, H: 200, atoms: this.pop(this.EH), rng: simRng, knobs: Object.assign({}, this.KN, { fuseGamow: 1, fuseBarrier: 0 }) };
+      },
+      // 고정 시드 단일 시도 측정(엔진 step 재사용·하네스 미변경): gamow/barrier/E 조합으로 t tick 후 융합 수(=원자 감소분).
+      measure(K, gamow, E, barrier, t) {
+        const sim = { W: 200, H: 200, atoms: this.pop(E), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseGamow: gamow, fuseBarrier: barrier }), tick: 0 };
+        const n0 = sim.atoms.length;
+        for (let i = 0; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        return n0 - sim.atoms.length;                         // 융합 수(합체마다 원자 1 감소 = 쌍 1 소비)
+      },
+      P(E) { return Math.exp(-Math.sqrt(this.EG / E)); },      // Gamow 융합 확률 exp(−√(EG/E))
+      dBfus(K, pair) { return K.binding(2, 2, pair) - 2 * K.binding(1, 1, pair); },  // ²H+²H→⁴He 결합 이득(융합 발열)
+
+      watch(sim, K) {
+        const gL = this.measure(K, 1, this.EL, 0, 1), gH = this.measure(K, 1, this.EH, 0, 1);
+        const cL = this.measure(K, 0, this.EL, this.BAR, 1), cH = this.measure(K, 0, this.EH, this.BAR, 1);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          gamowLo: gL, gamowHi: gH, classLo: cL, classHi: cH,
+          predLo: +(this.P(this.EL) * this.NP).toFixed(1), predHi: +(this.P(this.EH) * this.NP).toFixed(1),
+          rateRatio: +(gH / gL).toFixed(2), predRatio: +(this.P(this.EH) / this.P(this.EL)).toFixed(2),
+          dBfus: +this.dBfus(K, 1).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0,
+        };
+      },
+
+      // 가설: ① 율 ∝ exp(−√(EG/E)) ② sub-barrier 터널링 ③ 계단→매끈(가파름) ④ 에너지 불변·장부.
+      assert(ctx, K) {
+        const NP = this.NP;
+        const gL = this.measure(K, 1, this.EL, 0, 1), gH = this.measure(K, 1, this.EH, 0, 1);
+        const cL = this.measure(K, 0, this.EL, this.BAR, 1), cH = this.measure(K, 0, this.EH, this.BAR, 1);
+        const predL = this.P(this.EL) * NP, predH = this.P(this.EH) * NP;
+        // ① 측정 융합분율이 Gamow 공식 부근(유한 표본 ~±2.5σ): |측정−예측| 밴드. NP=400 → σ_L≈4·σ_H≈8 → 밴드 ±15·±25.
+        const formL = Math.abs(gL - predL) <= 15, formH = Math.abs(gH - predH) <= 25;
+        // ② sub-barrier 터널링: 고전(barrier=2)은 E=1<2 면 0(금지)·Gamow E=1 은 >0(뚫음)·고전 E=4>2 는 전부 융합(계단=NP).
+        const subBarrier = cL === 0 && gL > 0 && cH === NP;        // cH: NP쌍 전부 융합(원자 감소 = NP)
+        // ③ 계단→매끈: 고전은 이분법(0 또는 NP)·Gamow 는 둘 다 0<x<NP 매끈·율비 ≈ exp(√EG−√(EG/EH))=exp(1.5)=4.48(band [3,6.5]).
+        const smooth = gL > 0 && gL < NP && gH > 0 && gH < NP && (cL === 0 || cL === NP) && (cH === 0 || cH === NP);
+        const ratio = gH / gL, ratioOK = ratio >= 3 && ratio <= 6.5;
+        // ④ 에너지 불변: ΔB_fus(융합 발열)은 게이트와 무관(>0)·닫힌 장부는 기둥 ②(라이브 sim)가 머신 보증.
+        const dB = this.dBfus(K, 1);
+        return [
+          { name: `율 ∝ exp(−√(EG/E)) — 저E E=${this.EL} 융합 ${gL}≈예측 ${predL.toFixed(1)}(exp(−√9)·×${NP})·고E E=${this.EH} 융합 ${gH}≈예측 ${predH.toFixed(1)}(exp(−√2.25)·×${NP})`, pass: formL && formH, value: gH },
+          { name: `sub-barrier 터널링 — 고전(barrier=${this.BAR}) E=${this.EL}<${this.BAR} 융합 ${cL}(금지)인데 Gamow E=${this.EL} 융합 ${gL}>0(장벽 뚫음)·고전 E=${this.EH}>${this.BAR} 융합 ${cH}/${NP}(계단)`, pass: subBarrier, value: gL },
+          { name: `계단→매끈(가파름) — 고전 이분법(0 또는 ${NP})·Gamow 매끈(${gL},${gH} 둘 다 0<x<${NP})·율비 ${ratio.toFixed(2)}≈exp(1.5)=4.48(4배 E → ~4.5배 율)`, pass: smooth && ratioOK, value: +ratio.toFixed(2) },
+          { name: `에너지 불변·율만 — 융합 발열 ΔB_fus=B(⁴He)−2B(²H)=${dB.toFixed(4)}>0 게이트 무관(rate 게이트는 *언제/얼마나 자주*만)·닫힌 장부 Q·B·L·E·px·py 머신(기둥 ②)`, pass: dB > 0, value: +dB.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

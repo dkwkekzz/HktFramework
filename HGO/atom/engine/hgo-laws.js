@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -752,13 +752,19 @@
   //     • Δm·c² 방출(융합 에너지): 반응물이 품은 핵 저장고 nuc(a.nuc+b.nuc) 중 fuseQ 를 *방출* — sim.escaped.E 로 이전(복사로 빠짐).
   //       남은 저장고는 product.nuc 으로 계승. ⇒ E=Σ(mc²+KE+nuc)+바스 *정확* 닫힘(저장고→바스 이전은 회계상 이동일 뿐, 총 E 불변).
   //   비가역(SPINE §2·§4): 두 원자가 하나로 — 못 되돌림(별 내부 화살표). 하지만 Q·B·L·E·px·py 장부는 *닫힌다*(비가역 ≠ 비보존).
-  //   국소: *그 두 원자*만으로 판정(전역 조율자 0·토러스 min-image). 결정론: rng 불필요(위치·속도·문턱 결정). 노브 kFuse=0 → early-return = 회귀 0.
+  //   국소: *그 두 원자*만으로 판정(전역 조율자 0·토러스 min-image). 결정론: 문턱 경로는 rng 불필요(위치·속도 결정), Gamow 경로는 sim.rng(시드 의사난수)만. 노브 kFuse=0 → early-return = 회귀 0.
   //   주의: 합체로 원자 *개수가 준다* — 한 tick 에 한 원자가 두 번 합쳐지지 않도록 소비 플래그로 가드(겹침 중복 0). 죽은 원자는 배열서 압축.
+  //   장벽 돌파(step-0046 fuseGamow): 0041 까지 장벽은 *고전 hard cutoff*(keRel<barrier 면 융합 0·이상이면 *반드시* 융합) — 계단 함수.
+  //     실제 융합은 두 양전하 핵이 쿨롱 장벽을 *양자 터널링*으로 뚫는다(Gamow 1928): 고전적으로 못 넘는 저E 에서도 *작은 확률* exp(−√(E_G/E))로 융합·고E 일수록 급증.
+  //     fuseGamow=1 이면 keRel 마다 P=exp(−√(fuseEG/keRel)) 확률로 융합(rng()<P) — 계단이 매끈한 지수로·sub-barrier 터널링 창발. 0 → 0041 hard cutoff(rng 무소비·회귀 0).
   function fuse(sim) {
     const k = sim.knobs.kFuse;
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (융합 항 꺼짐 → 직전 비트)
     const R = sim.knobs.fuseR || 3, R2 = R * R;
-    const barrier = sim.knobs.fuseBarrier || 0;            // 쿨롱 장벽: 상대 KE 가 이 이상이어야 융합(고E 충돌)
+    const barrier = sim.knobs.fuseBarrier || 0;            // 쿨롱 장벽: 상대 KE 가 이 이상이어야 융합(고E 충돌·고전 hard cutoff)
+    const gamow = sim.knobs.fuseGamow;                     // 양자 터널링 율(step-0046, 0 → hard barrier·rng 무소비·회귀 0)
+    const EG = sim.knobs.fuseEG || 0;                      // Gamow 에너지 — 쿨롱 장벽 높이의 척도(P=exp(−√(EG/E))·클수록 억제 ↑)
+    const grng = gamow ? sim.rng : null;                   // Gamow 경로만 rng 소비(없으면 hard barrier 로 폴백)
     const qRel = sim.knobs.fuseQ || 0;                     // 융합마다 방출하는 Δm·c² Q값(저장고 잔량 한도 내)
     const fmf = sim.knobs.fuseMassFormula;                 // 융합 Q값을 결합에너지서(step-0041, 0 → author fuseQ·저장고 거동·회귀 0)
     const pr = sim.knobs.decayPairing;                     // fmf 면 ΔB_fus 의 페어링 게이트(ledger·decay 와 같은 B 사용)
@@ -780,7 +786,9 @@
         const ma = K.mass(a), mb = K.mass(b), mu = (ma * mb) / (ma + mb);
         const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
         const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy);   // 상대 KE = ½μ|vrel|²(쿨롱 장벽 돌파 판정용)
-        if (keRel < barrier) continue;                      // 장벽 미돌파 → 융합 안 함(저E 는 collide/bond 몫)
+        if (grng) {                                         // 양자 터널링(Gamow): 고전 장벽 아래서도 P=exp(−√(EG/E))로 융합
+          if (grng() >= Math.exp(-Math.sqrt(EG / keRel))) continue;  // 터널링 실패(장벽 반사) — keRel>0 보장(vn>0 → vrel≠0)
+        } else if (keRel < barrier) continue;               // 고전 hard cutoff(gamow=0 → 0041 거동·회귀 0)·저E 는 collide/bond 몫
         // 합체: vcom 으로 잠근 새 원자(다발 합산). 총 운동량 정확 보존, 흡수된 상대 KE 는 바스로.
         const M = ma + mb;
         const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
