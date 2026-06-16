@@ -215,6 +215,29 @@ function run() {
   const mono = R3.excitationGlow(1, maxX) <= R3.excitationGlow(2, maxX) && R3.excitationGlow(2, maxX) <= R3.excitationGlow(3, maxX);
   checks.push({ name: 'L-glow: 준위↑ → 밝기↑ 단조·상한 1', pass: mono && R3.excitationGlow(99, maxX) === 1, value: mono ? 'ok' : 'BAD' });
 
+  // ⑫ L-element(렌즈 assert): 핵 변환 장면(step-0035, ²²C→C/N/O/F 다단 사슬)은 원자들의 *양성자 수* Z(원소)를
+  //    바꾼다 — 종단엔 Z∈{6,7,8,9} 가 공존한다. 렌더는 그 Z 를 *읽어* 색조로 번역(측정 Z 범위 정규화) →
+  //    원소가 바뀌면 색이 바뀐다. 종류별 색 박기 0(연속 사상). 변이 없는 장면(단일 원소)은 무채색(가짜 색 author 0).
+  const sceneZ = SC.SCENES['step-0035'];
+  const simZ = S.createSim(sceneZ.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simZ, sceneZ.ticks);
+  const zr = R3.measureZRange(simZ.atoms);
+  const zset = [...new Set(simZ.atoms.map(a => a.Z | 0))].sort((p, q) => p - q);
+  checks.push({ name: 'L-element: 시뮬이 원소(Z) 변이 내보냄(시뮬 선행)', pass: zr.hi > zr.lo, value: `Z[${zr.lo},${zr.hi}]·${zset.length}종` });
+  // 서로 다른 원소 → 서로 다른 색조(읽기 충실 — 원소가 구분된다)
+  const hueLo = R3.elementHue(zr.lo, zr.lo, zr.hi), hueHi = R3.elementHue(zr.hi, zr.lo, zr.hi);
+  checks.push({ name: 'L-element: 다른 원소 → 다른 색조(원소 구분)', pass: Math.abs(hueLo - hueHi) > 1e-6, value: `hue ${hueLo.toFixed(2)}→${hueHi.toFixed(2)}` });
+  // 색조가 Z 에 단조(연속 사상 — 저 Z→파랑(큰 hue)·고 Z→빨강(작은 hue))
+  const monoZ = zset.every((z, i) => i === 0 || R3.elementHue(zset[i - 1], zr.lo, zr.hi) >= R3.elementHue(z, zr.lo, zr.hi));
+  checks.push({ name: 'L-element: 색조 Z 단조(연속 사상·종류별 색 박기 0)', pass: monoZ, value: monoZ ? 'ok' : 'BAD' });
+  // 모든 Z → 유효 RGB(HSV 변환·0..255·검정 아님)
+  let zRgbOk = true;
+  for (const z of zset) { const c = R3.hsvToRgb(R3.elementHue(z, zr.lo, zr.hi), 0.55, 0.5); if (!(c.length === 3 && c.every(v => v >= 0 && v <= 255)) || c[0] + c[1] + c[2] === 0) zRgbOk = false; }
+  checks.push({ name: 'L-element: 모든 원소 → 유효 RGB(0..255·비검정)', pass: zRgbOk, value: zRgbOk ? 'ok' : 'BAD' });
+  // author 0: 변이 없는 장면(단일 원소 lo==hi)은 Z 무관 중립 색조(가짜 색 author 0)
+  const flat = R3.elementHue(6, 8, 8) === R3.elementHue(9, 8, 8);
+  checks.push({ name: 'L-element: 단일 원소(범위 0) → 중립 색조(author 0)', pass: flat, value: flat ? 'neutral' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

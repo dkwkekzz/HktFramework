@@ -41,6 +41,13 @@
 //   읽어 결합선 *밝기*로 번역한다(magnitude 채널 — "광자 E=밝기"·"들뜸 x=밝기"와 동형). 측정 최댓값(maxE)으로
 //   정규화한 등급 밝기: 강한 결합일수록 밝게. 색조는 중립 청백(hue author 0 — 밝기만 읽음). Eabs 없는 결합
 //   (step-0010~12, bond[2]===undefined)이거나 E=0 이면 기본 구조선 톤(밝기 0 가산 — 시뮬이 안 낸 E author 0).
+//
+// 렌즈 L-element: 시뮬이 내보낸 *양성자 수* Z(= 원소 정체성, atoms 채널)를 원자 구의 *색조*(hue)로 읽는다.
+//   지금까지 구의 색은 들뜸 x(밝기, L-glow)만 실었고 Z 는 *크기*(질량 Z+N)에만 쓰여, 핵 변환(붕괴·융합)이
+//   Z+N 보존(β붕괴)·정지 무대에선 화면에 *안 보였다* — 바뀌는 건 Z 뿐인데 색 채널이 없었다.
+//   L-element 가 Z 를 색조로 읽으면 *원소가 바뀌면 색이 바뀐다*(탄소→질소→산소 …): 붕괴·융합이 색 이동으로 보인다.
+//   author 0: 종류별 색 박기(`if(Z==8) 파랑`)가 아니라 *측정 Z 범위*[lo,hi]를 색조 창에 정규화하는 *연속 사상*
+//   (λ→가시광 창과 동형). 변이 없는 장면(단일 원소 → 범위 0)은 중립 무채색(가짜 색 author 0). 밝기는 여전히 들뜸 x(L-glow, 직교 채널).
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -141,6 +148,43 @@
   function excitationGlow(x, maxX) {
     if (!(maxX > 0) || !(x > 0)) return 0;
     return Math.min(1, x / maxX);
+  }
+
+  // ── 렌즈 L-element: 원자 양성자 수 Z(원소 정체성) → 색조 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 색조 창(presentation): 저 Z → 파랑(0.66)·고 Z → 빨강(0). λ→가시광 창과 동형 — 측정 범위를 창에 정규화.
+  const ELEMENT_HUE_LO = 0.66;   // 측정 최저 Z 의 색조(파랑)
+  const ELEMENT_HUE_REF = 0.58;  // 단일 원소(범위 0)일 때 중립 기준 색조(변이 author 0)
+
+  // 원자 배열에서 Z 범위를 *측정*(색조 정규화 기준 — 손박은 임계 0). 원자 없으면 {lo:0,hi:0}.
+  function measureZRange(atoms) {
+    let lo = Infinity, hi = -Infinity;
+    for (const a of atoms) { const z = a.Z | 0; if (z < lo) lo = z; if (z > hi) hi = z; }
+    if (!Number.isFinite(lo)) return { lo: 0, hi: 0 };
+    return { lo, hi };
+  }
+
+  // Z 를 측정 범위[lo,hi]로 정규화한 색조 ∈[0,1](연속 사상 — 종류별 색 박기 0).
+  //   범위 0(단일 원소 — 변이 없음)이면 중립 기준 색조: 시뮬에 없는 색 변이를 author 하지 않는다(RENDER §3).
+  function elementHue(Z, lo, hi) {
+    if (!(hi > lo)) return ELEMENT_HUE_REF;
+    const t = ((Z | 0) - lo) / (hi - lo);             // 측정 정규화 ∈[0,1]
+    return ELEMENT_HUE_LO * (1 - Math.max(0, Math.min(1, t)));
+  }
+
+  // HSV → RGB(0..255) — 색조를 화면 색으로(presentation 변환, 분포 재성형 0).
+  function hsvToRgb(h, s, v) {
+    const i = Math.floor(h * 6), f = h * 6 - i;
+    const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+    let r, g, b;
+    switch (((i % 6) + 6) % 6) {
+      case 0: r = v; g = t; b = p; break;
+      case 1: r = q; g = v; b = p; break;
+      case 2: r = p; g = v; b = t; break;
+      case 3: r = p; g = q; b = v; break;
+      case 4: r = t; g = p; b = v; break;
+      default: r = v; g = p; b = q; break;
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
   }
 
   // 광자 → 화면 줄기 {head,tail,mag,L}. 머리=현 위치(밝음)·꼬리=운동량 반대(자취). 길이 ∝ |p|/maxP.
@@ -246,6 +290,7 @@
     // 개체 수집 후 painter 정렬(먼 것 먼저). 위치=sim (rx,ry,0) 그대로.
     const draws = [];
     const maxX = measureMaxExcitation(sim.atoms);                  // 들뜸 글로우 정규화 기준(측정)
+    const zRange = measureZRange(sim.atoms);                       // 원소 색조 정규화 기준(측정 Z 범위 — L-element)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: 0 }, cam);
       if (pr.depth <= 0) continue;
@@ -262,7 +307,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX);
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange);
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam));
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -272,13 +317,19 @@
 
   // 원자 = 음영 구(球). 반지름 = 질량(Z+N) — 읽기.
   //   렌즈 L-glow: 들뜸 *준위* x(0..maxX 양자수)를 *광원 밝기*로 등급 읽기 — 불리언(유무) 아님.
-  //   exc=x/maxX∈[0,1](측정 정규화). 차가운 기본(exc=0)→온백 발광(exc=1). x=0 이면 글로우 0(빛 author 0).
-  function drawAtom(ctx, a, pr, K, maxX) {
+  //     exc=x/maxX∈[0,1](측정 정규화). x=0 이면 글로우 0(빛 author 0).
+  //   렌즈 L-element: 양성자 수 Z(원소 정체성)를 *색조*로 등급 읽기(측정 Z 범위 정규화) — 원소 바뀌면 색 바뀜.
+  //     색조와 밝기는 직교: hue=Z(원소)·value=들뜸 x. 변이 없는 장면(범위 0)은 무채색(가짜 색 author 0).
+  function drawAtom(ctx, a, pr, K, maxX, zRange) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
     const exc = excitationGlow(a.x | 0, maxX); // 들뜸 준위 → 광원 밝기 ∈[0,1](측정 등급)
-    const cold = [0x20, 0x24, 0x2f], warm = [0x3b, 0x42, 0x5e];
-    const base = cold.map((c, k) => Math.round(c + (warm[k] - c) * exc));   // 준위에 따라 데워짐
+    const zr = zRange || { lo: 0, hi: 0 };
+    const spread = zr.hi > zr.lo;              // 측정 Z 변이 존재 여부(없으면 무채색 — author 0)
+    const hue = elementHue(a.Z | 0, zr.lo, zr.hi);   // 원소 → 색조(연속 사상·측정 정규화)
+    const sat = spread ? 0.55 : 0.12;          // 변이 없으면 거의 무채색(시뮬에 없는 색 author 0)
+    const val = 0.16 + 0.22 * exc;             // 들뜸이 밝기 — L-glow 채널 유지(직교)
+    const base = hsvToRgb(hue, sat, val);      // 색조=원소(Z)·밝기=들뜸(x)
     // 좌상단 광원 가정한 라디얼 그래디언트로 구의 입체감(프레젠테이션, 시뮬 양 아님)
     const g = ctx.createRadialGradient(pr.sx - r * 0.35, pr.sy - r * 0.35, r * 0.1, pr.sx, pr.sy, r);
     const hi = base.map(v => Math.min(255, v + 45 + Math.round(40 * exc)));  // 들뜸↑ → 하이라이트↑
@@ -402,5 +453,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb };
 });
