@@ -848,12 +848,16 @@
       else if (((a.N | 0) - (a.Z | 0)) <= nx) continue;                          // author 문턱(안정·N 과잉 아님)
       if ((a.nuc || 0) <= 0) continue;                     // 핵 저장고 빈 원자는 더 못 방출(이미 다 쓴 붕괴 — 비가역 화살표 끝)
       // 붕괴 확률: 평탄 kDecay 가 기본. decayRateExcess>0 이면 *핵 불안정도*(N−Z 의 문턱 초과분)에 비례해 가속 —
-      //   반감기가 author 한 평탄 상수가 아니라 핵 상태(N−Z)의 *함수*로 창발한다(안정선서 멀수록 빨리 붕괴 — Sargent 류).
-      //   keff = min(1, kDecay·(1 + decayRateExcess·excess)). 종류별 author 0 — excess 는 다발 양(N−Z)일 뿐.
+      //   반감기가 author 한 평탄 상수가 아니라 핵 상태의 *함수*로 창발한다(안정선서 멀수록 빨리 붕괴 — Sargent 류).
+      //   keff = min(1, kDecay·(1 + decayRateExcess·excess)). 종류별 author 0 — excess 는 *선택된 채널*의 과잉(다발 양)일 뿐.
       //   노브=0 → keff=kDecay = 평탄(회귀 0 — rng 소비·비교 동일).
       let keff = k;
       if (sim.knobs.decayRateExcess) {
-        const excess = ((a.N | 0) - (a.Z | 0)) - nx;       // 문턱 초과 불안정도(>0 — 위 안정 게이트로 보장)
+        // 불안정도 = *선택된 채널*의 과잉, 문턱 초과분: β⁻(chan=0)=중성자 과잉 N−Z · β⁺(chan=1)=양성자 과잉 Z−N.
+        //   0 으로 바닥(Math.max) — 가속 모델 k(1+R·excess)는 excess≥0 에서만 유효(음수 외삽 = 모델 붕괴 → keff<0 → 확률 아님).
+        //   excess<0 이어도 채널 게이트를 통과한 원자는 *최소 기본율 k* 로 붕괴(얼지 않음). β⁻ author 문턱 경로(0036)는 N−Z>nx 보장 → 바닥 no-op·회귀 0.
+        const imbalance = chan ? ((a.Z | 0) - (a.N | 0)) : ((a.N | 0) - (a.Z | 0));
+        const excess = Math.max(0, imbalance - nx);
         keff = Math.min(1, k * (1 + sim.knobs.decayRateExcess * excess));
       }
       if (rng() >= keff) continue;                          // 붕괴 확률 keff(불안정도 의존)
