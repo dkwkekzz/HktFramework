@@ -836,6 +836,7 @@
     const bp = sim.knobs.decayBetaPlus;                     // β⁺/전자포획 채널(step-0038, 0 → β⁻ 한 방향만·회귀 0)
     const dp = sim.knobs.decayPairing;                      // 페어링항 δ(step-0039, 0 → δ 미가법·0038 거동·회귀 0)
     const md = sim.knobs.massDefect;                        // 결합E 정지질량 편입(step-0040, 0 → nuc 저장고 연료·회귀 0)
+    const useBind = mf || md;                               // md(정지질량=A−B)는 binding 기반 안정·Q 를 *함의*한다 — md 켜고 mf 끈 불일치서도 q=ΔB 로 닫힘(레저 −B 변화와 정합·md=0 이면 mf 그대로·회귀 0)
     let bath = null;
     for (const a of sim.atoms) {
       // 안정성 게이트: mf 면 *결합에너지*가 정한다(ΔB>0 발열 → 골짜기로 진행 · ΔB≤0 → 골짜기 안정, author 문턱 0).
@@ -844,7 +845,7 @@
       //     β⁻ ΔB⁻=B(Z+1,N−1)−B(Z,N) · β⁺ ΔB⁺=B(Z−1,N+1)−B(Z,N). B 는 Z 에 대해 concave(질량공식) → 둘 중 최대 하나만 >0(골짜기 한쪽).
       //     그래서 β⁻ 가 불리(ΔB⁻≤0)일 때만 β⁺ 를 본다 — 둘 다 ≤0 이면 안정 골짜기(완전한 양방향 골짜기). bp=0 → 0037 거동 비트 동일.
       let dB = 0, chan = 0;                                                       // chan: 0=β⁻(n→p·Z↑) · 1=β⁺(p→n·Z↓)
-      if (mf) {
+      if (useBind) {                                                              // mf 또는 md — 둘 다 결합에너지가 안정·Q 의 출처(정합 강제)
         dB = K.bindingDelta(a.Z | 0, a.N | 0, dp);                                // β⁻ 결합 이득 ΔB⁻ (dp 면 페어링 δ 포함)
         if (dB <= 0) {                                                            // β⁻ 불리(중성자 과잉 아님)
           if (bp) {                                                              // β⁺ 채널 켬: 양성자 과잉이면 반대 방향으로 골짜기 수렴
@@ -870,9 +871,9 @@
         keff = Math.min(1, k * (1 + sim.knobs.decayRateExcess * excess));
       }
       if (rng() >= keff) continue;                          // 붕괴 확률 keff(불안정도 의존)
-      // 방출 Q값: mf 면 *결합에너지 이득* ΔB(질량공식서 창발 — 발열량이 author 상수 아님), 아니면 author decayQ.
-      //   md(0040) 면 발열량은 정지질량 변화 ΔM=−ΔB 가 직접 공급(저장고 무관·캡 없음) — ledger 의 −B 편입이 자동 상쇄. md=0 이면 nuc 저장고 한도.
-      const q0 = mf ? dB : sim.knobs.decayQ;
+      // 방출 Q값: useBind(mf|md) 면 *결합에너지 이득* ΔB(질량공식서 창발 — 발열량이 author 상수 아님), 아니면 author decayQ.
+      //   md(0040) 면 발열량은 정지질량 변화 ΔM=−ΔB 가 직접 공급(저장고 무관·캡 없음) — ledger 의 −B 편입이 자동 상쇄(useBind 라 q=ΔB 보장). md=0 이면 nuc 저장고 한도.
+      const q0 = useBind ? dB : sim.knobs.decayQ;
       const q = md ? q0 : Math.min(a.nuc, q0);
       // 변환: 원소가 바뀐다(Z 이동). 전하·바리온 보존, 렙톤은 (반)중성미자로 닫음(L=Σ(e+lep) 불변).
       if (chan) {

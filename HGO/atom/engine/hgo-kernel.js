@@ -219,8 +219,10 @@
     let Q = 0, B = 0, L = 0, E = 0, px = 0, py = 0;
     const lz = (sim.knobs && sim.knobs.levelZ) || 0;       // 준위 Z 의존(step-0013, 미설정/0 → levelE 그대로 = 과거 장부 불변)
     const sc = (sim.knobs && sim.knobs.levelScreen) || 0;  // 다전자 차폐(step-0014, 미설정/0 → step-0013 그대로)
-    const md = (sim.knobs && sim.knobs.massDefect) || 0;   // 결합E 정지질량 편입(step-0040, 0 → A·c²+nuc 저장고 = 과거 장부 불변)
-    const pr = (sim.knobs && sim.knobs.decayPairing) || 0; // md 일 때 −B 의 페어링 게이트(decay 와 같은 B 사용)
+    // 결합E 정지질량 편입(step-0040 massDefect). fuseMassFormula(0041)도 *융합 Q를 binding 서* 빼므로 정지질량이 −B 여야 닫힌다 →
+    //   둘 중 하나라도 켜지면 rest=A−B 로 편입(fmf 가 md 를 *함의*·불일치 조합서도 닫힘). 둘 다 0(과거 전 장면) → m·c²+nuc 그대로(회귀 0).
+    const md = (sim.knobs && (sim.knobs.massDefect || sim.knobs.fuseMassFormula)) || 0;
+    const pr = (sim.knobs && sim.knobs.decayPairing) || 0; // md 일 때 −B 의 페어링 게이트(decay·fuse 와 같은 B 사용)
     for (const a of sim.atoms) {
       const m = mass(a);
       Q += a.Z - a.e;
