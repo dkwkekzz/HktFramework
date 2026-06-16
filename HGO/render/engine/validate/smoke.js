@@ -273,6 +273,24 @@ function run() {
   const flatN = R3.isotopeShade(10, 10, 10) === 0 && R3.isotopeShade(13, 10, 10) === 0;
   checks.push({ name: 'L-isotope: 단일 동위원소(범위 0) → 코어 0(author 0)', pass: flatN, value: flatN ? 'none' : 'BAD' });
 
+  // ⑮ L-molecule(렌즈 assert): 결합 그래프의 *연결 성분* = 분자(같은 분자 한 덩이). 결합 간선(sim.bonds=[i,j])을
+  //    *읽어* union-find 로 측정한다 — 분포 author 0. 합성 그래프로 측정 정확성 + 실제 장면(step-0012)서 분자 수.
+  const cgTwo = R3.connectedComponents([[0, 1], [2, 3]], 4);   // 두 분자(0-1·2-3)
+  const twoOk = cgTwo.count === 2 && cgTwo.comp[0] === cgTwo.comp[1] && cgTwo.comp[2] === cgTwo.comp[3] && cgTwo.comp[0] !== cgTwo.comp[2];
+  checks.push({ name: 'L-molecule: 연결 성분 측정(0-1·2-3 → 2 분자)', pass: twoOk, value: `count ${cgTwo.count}·comp[${cgTwo.comp.join(',')}]` });
+  // 이행적 연결(사슬 0-1-2)은 한 분자로 합쳐진다(읽기 충실 — union-find)
+  const cgChain = R3.connectedComponents([[0, 1], [1, 2]], 3);
+  checks.push({ name: 'L-molecule: 사슬(0-1-2) → 한 분자(이행 연결)', pass: cgChain.count === 1 && cgChain.comp[0] === cgChain.comp[2], value: `count ${cgChain.count}` });
+  // 같은 분자=같은 색·다른 분자=다른 색(그룹 구분 채널) · 단일 분자/미결합 = 중립(author 0)
+  const hA = R3.moleculeHue(0, 2), hB = R3.moleculeHue(1, 2);
+  checks.push({ name: 'L-molecule: 다른 분자 → 다른 색(같은 분자 동색)', pass: Math.abs(hA - hB) > 1e-6, value: `hue ${hA.toFixed(2)}≠${hB.toFixed(2)}` });
+  const molNeutral = R3.moleculeHue(0, 1) === R3.moleculeHue(5, 1) && R3.moleculeHue(-1, 3) === R3.moleculeHue(0, 1);
+  checks.push({ name: 'L-molecule: 단일 분자/미결합 → 중립(author 0)', pass: molNeutral, value: molNeutral ? 'neutral' : 'BAD' });
+  // 실제 장면(step-0012) — 시뮬 결합서 분자 수 측정(읽기), 결합 원자는 같은 분자·미결합 원자는 −1
+  const ccB = R3.connectedComponents(simB.bonds || [], simB.atoms.length);
+  const bondedSameMol = (simB.bonds || []).every(([i, j]) => ccB.comp[i] >= 0 && ccB.comp[i] === ccB.comp[j]);
+  checks.push({ name: 'L-molecule: 결합 원자 같은 분자(연결 읽기 충실)', pass: ccB.count >= 1 && bondedSameMol, value: `${ccB.count} 분자` });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

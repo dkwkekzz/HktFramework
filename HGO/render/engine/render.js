@@ -60,6 +60,14 @@
 //   측정 N 범위[lo,hi]로 정규화한 등급으로 안쪽 코어 밝기를 매긴다: 중성자 많을수록 밝은 코어(중성자 풍부=조밀한 핵).
 //   색조(Z·L-element)·밝기(x·L-glow)·고리(Q·L-ion)와 직교한 *별도 글리프*(안쪽 코어). 변이 없으면(단일 동위원소 → 범위 0)
 //   코어 0 — 시뮬에 없는 구분을 author 하지 않는다(RENDER §3). 핵 변환서 Z(색)·N(코어)이 함께 움직여 (Z,N) 궤적을 보인다.
+//
+// 렌즈 L-molecule: 시뮬이 내보낸 결합 간선(sim.bonds=[i,j])으로 원자들의 *연결 성분*(같은 분자)을 *측정*해
+//   분자별 *묶음 색*으로 읽는다. L-bond(렌즈-006)는 결합쌍을 청백 *구조선*으로만 그어 어느 선이 한 분자에
+//   속하는지(연결 성분)는 화면에 *안 보였다* — 여러 분자가 한 무대에 있으면 결합망이 한 색으로 뭉개졌다.
+//   L-molecule 이 결합 그래프의 연결 성분을 읽어(union-find 측정 — author 0) 같은 분자의 결합선을 같은 색조로,
+//   다른 분자는 다른 색조로 칠한다 → 분자가 *한 덩이*로 보인다. 색조는 분자 id 의 presentation 사상(황금각 분산 —
+//   종류별 색 박기 아닌 측정된 연결 성분 라벨의 구분). 결합 E(L-Ebond)=밝기·차수(L-order)=평행선과 직교(색조 채널).
+//   단일 분자(연결 성분 1) 또는 결합 0 이면 중립 청백(시뮬에 없는 구분을 author 하지 않는다 — RENDER §3).
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -321,6 +329,44 @@
     return lines;
   }
 
+  // ── 렌즈 L-molecule: 결합 그래프 → 연결 성분(분자) (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 결합 간선(sim.bonds=[i,j])으로 union-find 연결 성분을 *측정*한다(그래프 읽기 — 분포 author 0).
+  //   반환 {comp,count}: comp[원자 인덱스]=분자 id(0..count−1)·결합에 안 든 원자는 −1, count=분자 수.
+  //   결합 0이면 count 0 — 분자를 author 하지 않는다(RENDER §3). 이행적 연결(0-1-2)은 한 분자로 합쳐진다.
+  function connectedComponents(bonds, atomCount) {
+    const parent = new Array(atomCount);
+    for (let i = 0; i < atomCount; i++) parent[i] = i;
+    const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+    const bonded = new Uint8Array(atomCount);
+    for (const b of (bonds || [])) {
+      const i = b[0], j = b[1];
+      if (!(i >= 0 && i < atomCount && j >= 0 && j < atomCount) || i === j) continue;
+      bonded[i] = 1; bonded[j] = 1;
+      const ri = find(i), rj = find(j);
+      if (ri !== rj) parent[ri] = rj;
+    }
+    // 성분 루트를 0..count−1 로 재라벨(결합에 든 원자만 — 고립 원자는 −1, 분자 아님)
+    const label = new Map();
+    const comp = new Array(atomCount).fill(-1);
+    let count = 0;
+    for (let i = 0; i < atomCount; i++) {
+      if (!bonded[i]) continue;
+      const r = find(i);
+      if (!label.has(r)) label.set(r, count++);
+      comp[i] = label.get(r);
+    }
+    return { comp, count };
+  }
+
+  // 분자 id → 색조 ∈[0,1)(presentation 사상). 같은 분자=같은 색·다른 분자=다른 색(그룹 구분 채널 — magnitude 아님).
+  //   황금각(0.618…) 회전으로 인접 id 색을 최대 분리(종류별 색 박기 0 — id 는 측정된 연결 성분 라벨).
+  //   단일 분자(count≤1)거나 미결합(id<0)이면 중립 기준 색조 — 구분할 분자가 없으니 author 하지 않는다(RENDER §3).
+  const MOLECULE_HUE_REF = 0.58;          // 단일 분자/미결합 — 중립(L-bond 청백 톤과 동형)
+  function moleculeHue(compId, count) {
+    if (!(count > 1) || compId < 0) return MOLECULE_HUE_REF;
+    return ((compId * 0.61803398875) % 1 + 1) % 1;
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -464,12 +510,15 @@
   //   시뮬 양을 거짓 인코딩하지 않음). 결합 0이면 선 0(author 0). 굵기=원근(평균 스케일).
   //   렌즈 L-order: 결합 차수(bond[3], step-0018 bondOrder)를 읽어 선을 차수만큼 평행 복제한다(단일·이중·삼중).
   //   렌즈 L-Ebond: 결합 E(bond[2]=Eabs, step-0015)를 읽어 선 밝기를 등급화(maxE 정규화 — 강한 결합=밝게).
+  //   렌즈 L-molecule: 결합 그래프의 연결 성분(분자)을 측정해 분자별 *색조*로(같은 분자 동색·다른 분자 이색). 밝기(E)·평행선(차수)과 직교.
   function drawBonds(ctx, sim, cam) {
     const bonds = sim.bonds;
     if (!bonds || !bonds.length) return;
     ctx.globalCompositeOperation = 'source-over';
     ctx.lineCap = 'round';
     const maxE = measureMaxBondEnergy(bonds);     // 결합 E 정규화 기준(측정 — 손박은 임계 0)
+    const cc = connectedComponents(bonds, sim.atoms.length);   // 분자(연결 성분) 측정 — 같은 분자 묶음색
+    const spread = cc.count > 1;                  // 분자 ≥2 → 색조로 구분(단일 분자면 중립 — author 0)
     for (const bond of bonds) {
       const seg = bondSegment(bond, sim, cam);
       if (!seg) continue;
@@ -478,9 +527,12 @@
       const sepPx = lw * 2.2;                     // 평행선 간격(굵기 비례 — 겹치지 않게, presentation)
       // 결합 E → 밝기 등급(magnitude 채널). E 없거나 0 이면 g=0 → 기본 구조선 톤(밝기 가산 0, author 0).
       const g = bondGlow(bondEnergy(bond), maxE);
-      const base = [176, 198, 255], a = 0.40 + 0.55 * g;     // 강한 결합일수록 불투명·밝게
-      const c = base.map(v => Math.min(255, Math.round(v + (255 - v) * 0.5 * g)));   // E↑ → 흰색 쪽으로(밝기)
-      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;             // 청백, 색조 author 0
+      // 렌즈 L-molecule: 분자 id → 색조(hue 채널 — 분자 구분). 단일 분자면 거의 무채색(L-bond 청백 톤·author 0).
+      const hue = moleculeHue(cc.comp[bond[0]], cc.count);
+      const sat = spread ? 0.50 : 0.12;           // 분자 ≥2 → 채색 구분·단일 분자 → 중립(시뮬에 없는 색 author 0)
+      const val = 0.72 + 0.28 * g;                // 결합 E → 명도(L-Ebond 직교 — value 채널, 강한 결합 밝게)
+      const c = hsvToRgb(hue, sat, val), a = 0.40 + 0.55 * g;   // 색조=분자·명도/불투명=E(직교 채널)
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
       ctx.lineWidth = lw;
       for (const ln of bondMultiline(seg, order, sepPx)) {   // 차수만큼 평행 복제
         ctx.beginPath(); ctx.moveTo(ln.a.sx, ln.a.sy); ctx.lineTo(ln.b.sx, ln.b.sy); ctx.stroke();
@@ -527,5 +579,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue };
 });
