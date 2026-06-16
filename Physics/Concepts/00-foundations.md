@@ -42,6 +42,7 @@
 | 2.1 | [foundations/01-vectors.md](foundations/01-vectors.md) | 벡터 | norm·정규화·내적·외적·2D 외적 |
 | 2.2 | [foundations/02-matrices-transforms.md](foundations/02-matrices-transforms.md) | 행렬과 변환 | 아핀 4x4·합성·정규직교·Gram-Schmidt·(UE5 워크드 예제) |
 | 2.3 | [foundations/03-rotations.md](foundations/03-rotations.md) | 회전의 표현 | 행렬·오일러·축각·사원수·SLERP |
+| 2.3a | [foundations/03a-quaternions-geometric.md](foundations/03a-quaternions-geometric.md) | 사원수 기하학적 심화 | 복소수→S³·반각·sandwich·이중 덮개·SLERP (🎨 드래그 viz) |
 | 2.4 | [foundations/04-calculus-ode.md](foundations/04-calculus-ode.md) | 미적분·ODE | 도함수·상태공간·안정성·테일러 |
 | 2.5 | [foundations/05-numerical-floating-point.md](foundations/05-numerical-floating-point.md) | 수치해석·부동소수점 | IEEE754·상쇄·조건수·epsilon 비교 |
 | 2.6 | [foundations/06-identities-approximations.md](foundations/06-identities-approximations.md) | 항등식·근사 | 소각근사·NLERP·clamp·rsqrt |

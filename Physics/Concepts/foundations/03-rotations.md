@@ -27,6 +27,8 @@ K  =  |  uz   0   -ux |
 
 **(d) 사원수 (quaternion)** — 게임 물리의 사실상 표준. 단위 사원수가 3D 회전을 표현한다.
 
+> 📐 **근본부터 기하학적 심화**: "왜 4D인가 · 왜 반각인가 · 왜 양옆에서 곱하나 · 왜 `q`와 `-q`가 같은가"를 복소수→초구→이중 덮개→SLERP 로 풀어낸 전용 문서 → [03a-quaternions-geometric.md](03a-quaternions-geometric.md) (🎨 드래그 시각화 포함).
+
 ```
 q = w + x*i + y*j + z*k = (w, v),   v = (x, y, z)
 i^2 = j^2 = k^2 = ijk = -1
