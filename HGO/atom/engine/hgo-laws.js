@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEndo: 0, relCap: 0, relKE: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -768,6 +768,10 @@
     //   터널링 지수 √(E_G/E) ∝ Z₁Z₂(전하곱). 무거운(고Z) 핵일수록 장벽 급증 → 융합 급억제(별 핵합성서 철 너머 융합이 어려운 이유).
     //   egPair = EG·(Za·Zb)²(쌍마다·아래 루프서). Za·Zb=1(²H+²H) → egPair=EG(0046 상수와 동일·회귀 0)·고전하 쌍은 ²제곱으로 급증.
     const egCharge = sim.knobs.fuseEGcharge;
+    // E_G 환산질량 μ 의존(step-0052, fuseEGmu=0 → 0050 거동·회귀 0): 실제 Gamow 에너지 E_G=(παZ₁Z₂)²·2μc² →
+    //   (Z₁Z₂)² 뿐 아니라 *환산질량 μ* 에도 비례. 0050 은 전하곱만(μ 고정 토이). 같은 전하·에너지서도 무거운 핵(고 μ)일수록
+    //   터널링 지수 √(E_G/E) ∝ √μ 커져 융합 급억제 → *동위원소 의존* 융합(예: ³H+³H 가 ²H+²H 보다 어렵게 융합). egPair ∝ μ 가법.
+    const egMu = sim.knobs.fuseEGmu;
     const grng = gamow ? sim.rng : null;                   // Gamow 경로만 rng 소비(없으면 hard barrier 로 폴백)
     const qRel = sim.knobs.fuseQ || 0;                     // 융합마다 방출하는 Δm·c² Q값(저장고 잔량 한도 내)
     const fmf = sim.knobs.fuseMassFormula;                 // 융합 Q값을 결합에너지서(step-0041, 0 → author fuseQ·저장고 거동·회귀 0)
@@ -798,7 +802,7 @@
         const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy);   // 상대 KE = ½μ|vrel|²(쿨롱 장벽 돌파 판정용)
         if (grng) {                                         // 양자 터널링(Gamow): 고전 장벽 아래서도 P=exp(−√(EG/E))로 융합
           const zz = (a.Z | 0) * (b.Z | 0);                 // 전하곱 Z₁Z₂(전하 의존 게이트서 장벽 척도)
-          const egPair = egCharge ? EG * zz * zz : EG;      // E_G ∝ (Z₁Z₂)² → 지수 √(egPair/E)=Z₁Z₂·√(EG/E)(전하곱 선형 억제)·게이트=0 → 상수 EG(회귀 0)
+          const egPair = (egCharge ? EG * zz * zz : EG) * (egMu ? mu : 1);  // E_G ∝ (Z₁Z₂)²·μ → 지수 √(egPair/E)(전하곱 선형 + √μ)·egMu=0 → μ 미가법(0050·회귀 0)·²H+²H μ=1 → 1배 baseline
           if (grng() >= Math.exp(-Math.sqrt(egPair / keRel))) continue;  // 터널링 실패(장벽 반사) — keRel>0 보장(vn>0 → vrel≠0)
         } else if (keRel < barrier) continue;               // 고전 hard cutoff(gamow=0 → 0041 거동·회귀 0)·저E 는 collide/bond 몫
         // 합체: vcom 으로 잠근 새 원자(다발 합산). 총 운동량 정확 보존, 흡수된 상대 KE 는 바스로.

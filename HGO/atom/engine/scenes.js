@@ -3244,6 +3244,87 @@
         ];
       },
     },
+
+    'step-0052': {
+      id: 'step-0052',
+      title: 'Gamow 장벽의 환산질량 의존 E_G ∝ μ — 동위원소 융합 사다리 (fuseEGmu — 같은 전하·에너지서 무거운 핵일수록 융합 급억제·³H+³H ≪ ²H+²H ≪ ¹H+¹H·게이트=0 회귀 0)',
+      desc: 'step-0050 이 Gamow 장벽 척도를 전하서 끌어냈으나(E_G ∝ (Z₁Z₂)²) *환산질량* 의존은 author(μ 고정 토이). 실제 Gamow 에너지 E_G=(παZ₁Z₂)²·2μc² 는 (Z₁Z₂)² **와** μ 둘 다에 비례 — 0050 의 전하 축에 *질량 축*이 빠져 있었다. ' +
+            '이 step 은 그 μ 축을 더한다(게이트 fuseEGmu): 접근 쌍마다 egPair = fuseEG·(Z_a·Z_b)²·**μ** → 터널링 지수 √(egPair/E) = Z₁Z₂·**√μ**·√(fuseEG/E)(전하곱 선형 + 환산질량 √). ⇒ 전하가 같아도(Z₁Z₂ 고정) 무거운 핵(고 μ)일수록 장벽 ↑ → 같은 충돌 에너지서 융합 *급억제*. ' +
+            '이것이 **동위원소 융합 사다리**: 같은 원소(Z 동일)라도 무거운 동위원소가 더 어렵게 융합한다(²H 가 ¹H 보다, ³H 가 ²H 보다 어렵게) — 0050 의 원소 사다리(전하)와 직교하는 질량 사다리. ²H+²H 는 μ=1 이라 0050 baseline 그대로(회귀 친화). ' +
+            '*측정*(무대 200²·정면 쌍 400개씩 세 핵종·**같은 전하 Z₁Z₂=1·같은 충돌 E=1**·fuseEG=1·fuseEGcharge=1·고정 시드 t=1 단일 시도·fuseGamow=1·fuseBarrier=0): 세 수소 동위원소 ¹H(μ=0.5)·²H(μ=1)·³H(μ=1.5) — *전하만 같고 질량만* 다르게. ' +
+            '① **환산질량 의존 억제(창발)** — 게이트 켬·같은 Z₁Z₂·E: ³H+³H(μ=1.5) ≪ ²H+²H(μ=1) ≪ ¹H+¹H(μ=0.5)(고 μ 강억제·장벽 ∝√μ·단조). ' +
+            '② **지수 ∝ √μ(환산질량 제곱근)** — 측정 −ln(분율) 비 e₃H/e₂H ≈ √(μ₃/μ₂)=√1.5=1.225(질량 제곱근 사다리). ' +
+            '③ **대조(질량 무관 baseline)** — fuseEGmu=0 이면 세 핵종 *같은 융합수*(μ 미가법·전하만)·게이트 켜야 갈림 ⇒ 게이트 load-bearing. ' +
+            '④ **²H baseline=0050·장부·회귀** — ²H+²H(μ=1)는 게이트 켜도 1배(0050 169 동일)·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ²H 무대)·fuseEGmu=0 → 0001~51 비트 동일. ' +
+            '*대조*: fuseEGmu=0 → egPair 에 μ 미가법(0050 거동·rng 소비 동일·회귀 0). 새 게이트 0 → 0001~51 법칙·골든 비트 불변.',
+      ticks: 4,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·rest=(A−B)c²(라이브 ²H 무대) → Q·B·L·E·px·py 머신. μ 게이트는 *어느 쌍이* 융합할지(확률)만 바꿈.
+
+      EG: 1, E: 1, NP: 400,                                   // Gamow 기준 에너지·충돌 에너지·쌍 수
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0, fuseEG: 1, fuseEGcharge: 1 },
+      // 세 수소 동위원소(Z=1 동일·N={0,1,2} → μ=m/2={0.5,1,1.5}). 격자(간격 9)로 쌍끼리 교차융합 0·d=2<R=3 라 tick0 1시도.
+      pop(Z, N, E) {
+        const m = Z + N, v = Math.sqrt(E / m), a = [];
+        for (let i = 0; i < this.NP; i++) {
+          const x = (i % 20) * 9 + 8, y = ((i / 20) | 0) * 9 + 8;
+          a.push({ Z, N, e: Z, x: 0, rx: x, ry: y, vx: v, vy: 0, lep: 0 });          // 왼쪽 → 오른쪽
+          a.push({ Z, N, e: Z, x: 0, rx: x + 2, ry: y, vx: -v, vy: 0, lep: 0 });     // 오른쪽 → 왼쪽(쌍 총 p=0·d=2)
+        }
+        return a;
+      },
+      // 고정 시드 단일 시도 측정(μ게이트/핵종 조합으로 t=1 후 융합 수 = 원자 감소분).
+      measure(K, egMu, Z, N) {
+        const sim = { W: 200, H: 200, atoms: this.pop(Z, N, this.E), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGmu: egMu }), tick: 0 };
+        const n0 = sim.atoms.length;
+        L.applyForces(sim); L.integrate(sim); sim.tick++;     // 단일 시도(t=1) — 1쌍=1 Gamow 시도
+        return n0 - sim.atoms.length;
+      },
+      muOf(Z, N) { const m = Z + N; return (m * m) / (m + m); },   // 환산질량 μ = m/2(자기융합)
+      P(mu) { return Math.exp(-Math.sqrt(this.EG * 1 * mu / this.E)); },  // Z₁Z₂=1·환산질량 μ 의 Gamow 확률
+
+      // 라이브 sim(장부·결정론 기둥): ²H 무대(μ=1·0050 baseline)·μ 게이트 켬(egPair=EG·1·1=EG). 융합이 일어나며 Q·B·L·E·px·py 닫힘.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 200, H: 200, atoms: this.pop(1, 1, this.E), rng: simRng, knobs: Object.assign({}, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGmu: 1 }) };
+      },
+
+      watch(sim, K) {
+        const h1On = this.measure(K, 1, 1, 0), h2On = this.measure(K, 1, 1, 1), h3On = this.measure(K, 1, 1, 2);
+        const h1Off = this.measure(K, 0, 1, 0), h2Off = this.measure(K, 0, 1, 1), h3Off = this.measure(K, 0, 1, 2);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          h1On, h2On, h3On, h1Off, h2Off, h3Off,
+          pred1: +(this.P(0.5) * this.NP).toFixed(1), pred2: +(this.P(1) * this.NP).toFixed(1), pred3: +(this.P(1.5) * this.NP).toFixed(1),
+          sqrtMuRatio: +(Math.log(h3On / this.NP) / Math.log(h2On / this.NP)).toFixed(3),
+          totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0,
+        };
+      },
+
+      // 가설: ① μ 의존 억제(창발) ② 지수 ∝ √μ ③ 대조(질량 무관 baseline) ④ ²H baseline=0050·장부·회귀.
+      assert(ctx, K) {
+        const NP = this.NP;
+        const h1On = this.measure(K, 1, 1, 0), h2On = this.measure(K, 1, 1, 1), h3On = this.measure(K, 1, 1, 2);
+        const h1Off = this.measure(K, 0, 1, 0), h2Off = this.measure(K, 0, 1, 1), h3Off = this.measure(K, 0, 1, 2);
+        // ① μ 의존 억제: 같은 전하·E 서 고 μ 강억제 — ³H(μ1.5) < ²H(μ1) < ¹H(μ0.5) 단조.
+        const muSuppress = h3On < h2On && h2On < h1On && h3On > 0;
+        // ② 지수 ∝ √μ: −ln(분율) 비 e₃H/e₂H ≈ √(μ₃/μ₂)=√1.5=1.225(밴드 [1.1,1.4]).
+        const e2 = -Math.log(h2On / NP), e3 = -Math.log(h3On / NP), ratio = e3 / e2;
+        const sqrtMu = ratio >= 1.1 && ratio <= 1.4;
+        // ③ 대조(질량 무관 baseline): 게이트 끄면 세 핵종 같은 융합수(μ 미가법·전하만)·켜면 갈림.
+        const flatEqual = h1Off === h2Off && h2Off === h3Off;
+        const muSplit = h1On > h2On && h2On > h3On;
+        const baseline = flatEqual && muSplit;
+        // ④ ²H baseline=0050: ²H(μ=1) 게이트 켜도 1배(0050 169 동일)·끔=켬·닫힌 장부는 라이브 기둥(②)이 머신 보증.
+        const h2Match = h2On === h2Off;
+        return [
+          { name: `환산질량 의존 억제(창발) — 게이트 켬·같은 Z₁Z₂=1·E=${this.E}: ³H+³H(μ=1.5) ${h3On} ≪ ²H+²H(μ=1) ${h2On} ≪ ¹H+¹H(μ=0.5) ${h1On}(고 μ 강억제·장벽 ∝√μ·단조)`, pass: muSuppress, value: h3On },
+          { name: `지수 ∝ √μ(환산질량 제곱근) — −ln(분율) 비 e₃H/e₂H=${ratio.toFixed(3)} ≈ √(μ₃/μ₂)=√1.5=1.225(질량 제곱근 사다리)`, pass: sqrtMu, value: +ratio.toFixed(3) },
+          { name: `대조(질량 무관 baseline) — fuseEGmu=0 세 핵종 같은 융합수 ¹H ${h1Off}=²H ${h2Off}=³H ${h3Off}(μ 미가법·전하만)·게이트 켜면 ${h1On}≫${h2On}≫${h3On} ⇒ load-bearing`, pass: baseline, value: h2Off },
+          { name: `²H baseline=0050·장부·회귀 — ²H+²H(μ=1) 게이트 켜도 1배(켬 ${h2On}=끔 ${h2Off}=0050 169)·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ²H 무대)·fuseEGmu=0 → 0001~51 비트 동일`, pass: h2Match, value: h2On },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
