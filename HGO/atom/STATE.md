@@ -9,10 +9,10 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0058](steps/step-0058.md) — **공간 분할 셀 리스트를 연속력 repulse 에 배선(pauli/vdw 와 동형·단거리 힘 배선 완결)**. repulse(1/r⁴ 반발 코어·하전 쌍만·전하 게이트 doPair 보존 → brute 비트 동일). force·`repulsePE` 컷오프+shift. spatialHash=0 → 전쌍 brute(회귀 0). 측정(60²·N=200 이온·cut=12·6 tick): ①힘 maxDiff **2.01e-4**≈brute ②**E 닫힘·shift 정합** 컷오프 잔차 **9.75e-3 ≈ brute 9.72e-3**(추가 드리프트 0·load-bearing) ③검사 **7085≪19900(35.6%)** ④셀-경로 결정론·노브=0. **장부 1.87e-2(E≤0.04 완화)**·골든 **290/290**(회귀 0). **단거리 힘 4종(collide·pauli·vdw·repulse) 공간 분할 배선 완결.**
-- **닫힌 step(직전)**: [step-0057](steps/step-0057.md) — cellPairs 를 연속력 vdw 에 배선(pauli 와 동형·컷오프-PE shift·E 닫힘 컷오프 잔차 1.16e-2≈brute·힘 maxDiff 2.86e-4·검사 36.6%). 골든 285/285.
-- **한 줄 상태**: Phase C 결합 기하 + Phase E 중력 궤도 + **Phase D 핵 동역학 닫힘** + **상대론 완비(0047 c·0049 KE)** + **공간 분할: 열거기 0054 → 단거리 힘 4종 셀 배선 완결 collide 0055·pauli 0056·vdw 0057·repulse 0058(컷오프-PE shift·E 닫힘)** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 진짜 다체 핵합성 시계열 미(staged 만)·**bond 셀 배선 미(collide 와 동형 전가)·gravity/coulomb 장거리 컷오프 불가(Barnes-Hut 별도)**·E_G 절대 척도 토이·force relKE 정합 미·핵+화학 동시 무대·세 안정점·이중마법수 미.
-- **다음**: **step-0059** (§2) — 1순위: **gravity/coulomb 장거리 합산(Barnes-Hut/PM — 단거리 4종 완결 후 남은 O(n²)·컷오프 불가)** · bond 도 collide 와 동형 배선 · 진짜 다체 핵합성 시계열(공간 분할 완비 후 규모) · force relKE 정합. 한 step = 한 조각.
+- **닫힌 step**: [step-0063](steps/step-0063.md) — **다체 중력 응집(측정·새 법칙 0 — 공간 분할 셀 pauli + Barnes-Hut 트리 gravity 동시 무대·N=600 구름 붕괴)**. 인프라(0054~62) 위 첫 규모 현상. 코드 변경 0(scene 만)=골든 보존=회귀 0. 두 운동량 복원(BH 질량가중 차감 0061 + 셀 쌍별 반작용 0056) 동시 무대서 함께 px·py 머신. 측정(160²·N=600·dt=0.012·θ=0.5·72tick): ①**중력 응집** R_g **25.16→24.57 단조 수축**(2.31%) ②**대조** kGravity=0 → R_g **25.16→25.16 평탄**(붕괴는 중력 때문·끄면 0·author 아닌 측정) ③**동시 무대 px·py 머신**(dpx 4.35e-14)·E 상대 드리프트 **0.075%** ④BH 검사 **50367≪359400(14.0%)** O(n log n). 장부 E≤60 완화(symplectic·정지질량 대비 상대 0.075%)·골든 **315/315**(회귀 0).
+- **닫힌 step(직전)**: [step-0062](steps/step-0062.md) — BH 트리를 coulomb 에 배선(전하가중·하전만 평균 차감 → px·py 머신+중성 불변 0.00e+0·가속 maxDiff 1.53e-4·검사 35.1%). 골든 310/310. **모든 힘(단거리 5+장거리 2) O(n²) 탈출 완료.**
+- **한 줄 상태**: Phase C 결합 기하 + Phase E 중력 궤도 + **Phase D 핵 동역학 닫힘** + **상대론 완비(0047 c·0049 KE)** + **공간 분할 완비(0054~62·모든 힘 O(n log n)) + 다체 규모 무대 가동(0063·N=600 중력 붕괴·셀+BH 동시)** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 진짜 다체 핵합성 시계열 미(staged 만)·**토러스 min-image COM 토이(Ewald/PM 별도)·BH 단극자(중성 노드 쌍극자 누락)**·unbond 셀 배선 미·E_G 절대 척도 토이·force relKE 정합 미·핵+화학 동시 무대·세 안정점·이중마법수 미.
+- **다음**: **step-0064** (§2) — 1순위: **진짜 다체 핵합성 시계열(공간 분할 fuse 로 ²H 점화 사다리 다체·0053 의 시계열판)** · gravity+coulomb 동시 farField 무대 · force relKE 정합 · Ewald/PM 정밀 주기 합. 한 step = 한 조각.
 
 ---
 
@@ -20,13 +20,13 @@
 
 > 큰 호(arc)의 서사(원자→빛→화학→핵→별)는 [SPINE.md](SPINE.md) §8 로드맵이 SSOT. STATE 는 *다음 한 조각*과 직전 2~3 step 만.
 
-직전 흐름(전문 §7 INDEX): **0054** 열거기 `cellPairs` → **0055** collide(이벤트·비트 동일) → **0056** pauli → **0057** vdw → **0058** repulse(연속력 컷오프-PE shift). **단거리 힘 4종(이벤트 collide + 연속력 pauli·vdw·repulse) 공간 분할 배선 완결.** 남은 O(n²)는 장거리 1/r²(gravity·coulomb) — 컷오프 불가라 Barnes-Hut/PM 별도.
+직전 흐름(전문 §7 INDEX): 단거리 5종 셀(0054~59) → BH 트리(0060) → gravity·coulomb 배선(0061~62·평균 가속 차감 px·py 머신) → **0063** 다체 중력 응집(셀+BH 동시 무대·N=600 붕괴·인프라 위 첫 규모 현상). 인프라+규모 가동 확인 — 이제 *동역학적 규모 현상*(핵합성 시계열·별 형성)이 열렸다.
 
-### step-0059 가설 (▶ 즉시 다음 step — 한 조각)
+### step-0064 가설 (▶ 즉시 다음 step — 한 조각)
 
-**후보 gravity/coulomb 장거리 합산(Barnes-Hut/PM)** ← *권장·단거리 4종 완결 후 남은 유일한 O(n²)(0054~58 이 단거리만 해결). gravity·coulomb 은 1/r² 라 컷오프하면 누락이 커 셀 리스트 부적합 → 쿼드트리 무게중심 근사(Barnes-Hut θ 기준) 또는 PM(격자 FFT). 게이트(예 `bhTheta`/`farField`)=0 → 전쌍 brute = 회귀 0. 측정: 근사 force maxDiff<tol·검사 O(n log n)·E 닫힘. 난이도 상(단거리보다 무거움 — 자료구조 신규).*
+**후보 진짜 다체 핵합성 시계열(0053 의 시계열판·새 법칙 0 또는 fuse 셀 배선)** ← *권장·0063 이 *정적 힘* 다체(중력 응집)를 보였으니, 다음은 *변환* 다체 — 공간 분할 무대서 ²H 군집을 점화해 핵합성 사다리(0050~53 게이트)를 *시계열*로(0048 의 ⁶He 봉우리를 다체·큰 N 으로). fuse 가 아직 전쌍 O(n²)라 셀 배선(collide 0055 와 동형·R 내 이벤트) 먼저면 규모 가능. 측정: 연료 단조 감소·생성핵 봉우리·ΣB 보존·전 게이트 켬.*
 
-**후보 bond 셀 배선(collide(0055)와 동형 — R 내 이벤트·(i,j) 정렬 비트 동일·난이도 하)** · **진짜 다체 핵합성 시계열(공간 분할 완비 후 규모 가능)** · **방출 입자 추적 입자화** · **세 안정 동중원소·이중마법수** · **force relKE 일-에너지 정합(큰 작업)**.
+**후보 gravity+coulomb 동시 farField 무대(독립 차감 정합)** · **fuse 셀 배선(collide 동형)** · **unbond 셀 배선** · **force relKE 일-에너지 정합(큰 작업)** · **Ewald/PM 정밀 주기 합(min-image COM 토이 해소)**.
 
 - **더하는 것(공통)**: 법칙/게이트 1개 + 노브 + `engine/scenes.js` 장면 `step-0050` 한 항(노브=0 → 회귀 0). 측정 step 이면 새 법칙 0(scene 만)도 가능 — 그땐 기존 골든 보존이 회귀 0 알리바이.
 - **닫는 조건**: 회귀 0(노브=0 → 직전 비트 동일·골든 가법) + 닫힌 장부(연속력은 E 완화·핵 변환은 비가역이라도 Q·B·L·E·px·py 닫힘) + 결정론 + 가설 수치.
@@ -47,7 +47,7 @@
 | ⬜ | **산란 위상함수·in-scatter λ 클램프** | step-0006 등방 각도 + 최근접 타깃 정밀화, step-0007 이 `p.src` 해제(binned)·저E binning(q→0 *사후* 흡수). 남은 것: 각도별 확률(위상함수, 현재 균일)·q→0 을 *방출 시점에* 막는 in-scatter λ 클램프. 별도 step. |
 | 🟡 | **준위 에너지 Z 의존 — Z·차폐 해소, 껍질·미세구조 백로그** | step-0013 단전자 E∝Z²(He⁺/H=4) + step-0014 다전자 *유효핵전하* Z_eff=Z−σ(e−1)·E∝Z_eff²(중성 He·C·O 제 선, He⁺ 3.0 vs 중성 He 2.04) ✅. 남은 것: *균일 차폐* σ 단순화 → 껍질별 Slater 계수·미세구조(스핀-궤도)·상대론(고 Z)·다중항은 후속 정밀화(백로그, load-bearing 아님). |
 | ✅ | **결합 깸(unbond)** | step-0016 `unbond`(상대 KE>e[2] 면 결합 깸·역연산·닫힌 장부) ✅. |
-| 🟡 | **성능 최적화(이웃 질의·공간 분할·장거리 합산)** | **단거리 힘 4종 공간 분할 배선 완결** ✅: 열거기 `cellPairs`(0054) → 이벤트 `collide`(0055·비트 동일) → 연속력 `pauli`(0056)·`vdw`(0057)·`repulse`(0058·컷오프-PE shift·E 잔차 brute 와 동급·spatialHash 끄면 회귀 0). 남은 것: ① **gravity·coulomb 장거리 1/r²(컷오프 불가) → Barnes-Hut/PM**(step-0059 유력·유일 남은 O(n²)) ② `bond` 도 collide 와 동형 이벤트 배선(난이도 하). |
+| 🟡 | **성능 최적화(이웃 질의·공간 분할·장거리 합산)** | **공간 분할 인프라 완비** — 단거리 법칙 5종 셀 배선(0054~59) + 장거리 Barnes-Hut 트리 gravity·coulomb 배선(0060~62 게이트 farField·θ→0 동치·평균 가속 차감으로 px·py 머신·중성 불변·검사 ~35%·off → 전쌍 brute 회귀 0). **모든 힘 O(n log n).** 남은 것: ① 토러스 min-image COM 토이 → Ewald/PM 정밀 주기 합·BH 단극자 → 멀티폴 ② `unbond` 전쌍(결합 간선 순회·이미 작음). |
 | ✅ | **결합 기하(평형 길이·각도)** | 길이(0021 bondCoulombic·0026 bondSpring 4.011)+각도(0027 bondAngle VSEPR 118.44°)+소산 응결(0024 damp·0025 배위수 3.25) ✅. 전가: 다체 각도 평형·Morse·단결정 g(r). |
 | 🟡 | **상대론적 운동(c=1 근처)** | **운동량+에너지 둘 다 ✅**(0047 `relCap` 좌표속도<c + 0049 `relKE` KE=(γ−1)mc²·전문 §7). 남은 것: **force 상호작용서 relKE 일-에너지 정합**(자유 드리프트만 닫힘·법칙별 ½mv² 가정 재작성)·상대론적 충돌/산란. 후속(큰 작업). |
 | 🟡 | **렙톤 수·중성미자 회계** | 0031~34 닫힘: β붕괴 반중성미자 L=−1 을 `a.lep` 에 담아 L=Σ(e+lep) 머신·방출 입자 −Δp 를 바스 px·py 에 적재(총 운동량 머신)·다수 집단서도 확인 ✅. 남은 것: 방출 입자를 *추적 입자*로 명시(위치·속도·스펙트럼·개별 KE)·전자포획·μ/τ 렙톤. 후속. |
@@ -79,7 +79,7 @@
 | 1 | 원소·결합 (Z·N·e → 원소·이온·원자가·분자) | 🟡 **화학(0001~27)** 이온/공유결합·분자=연결 성분·원자가·차수·길이 r_eq·각도 VSEPR 닫힘 + **핵 변환(0031~53)** 붕괴·융합·골짜기 B(Z,N)·정지질량 편입·별 점화·율 두 방향·Gamow 두 축·흡열 문턱·핵합성 사다리 닫힘(단계 §7 INDEX). 다체 시계열·세 안정점 후속 |
 | 2 | 에너지 변위·흐름 (e=mc²·운동·결합·핵) | 🟡 운동/정지/운동량 장부 + 들뜸·복사·재가열 순환 + 결합 E·화학발광 + PE 항(쿨롱·반발·pauli·vdw·중력) + damp + **핵 Δm·c² 정지질량 편입 M=A−B** + **완전 상대론 KE=(γ−1)mc²(0049)** + 흡열 문턱(0051)(§7). force relKE 정합 후속 |
 | 3 | 빛 방출 (준위 전이 → λ → 색·이펙트) | 🟡 자발 방출 λ=hc/ΔE(0002)·반동·도플러·전파 c·산란·바스 binning·화학발광·단전자 Z²·**다전자 차폐 Z_eff²(0014)**(§7). 색→이펙트는 render 트랙 |
-| 4 | 위치·운동 / 준위 / 핵 안정·붕괴 / 껍질 | 🟡 **Phase A~C/E**(자유 운동·준위·충돌·결합 기하·중력 궤도) + **Phase D 핵**(붕괴·융합·골짜기·별 점화·시계열·율) + **상대론 완비(0047 c·0049 KE)** + **공간 분할 단거리 힘 배선(0054~58)**(§7). force relKE·세 안정점·이중마법수·부껍질 후속 |
+| 4 | 위치·운동 / 준위 / 핵 안정·붕괴 / 껍질 | 🟡 **Phase A~C/E**(자유 운동·준위·충돌·결합 기하·중력 궤도) + **Phase D 핵**(붕괴·융합·골짜기·별 점화·시계열·율) + **상대론 완비(0047 c·0049 KE)** + **공간 분할 완비(단거리 5종 셀 0054~59 + 장거리 BH gravity·coulomb 0060~62·모든 힘 O(n log n))**(§7). force relKE·세 안정점·이중마법수·부껍질 후속 |
 
 ---
 
@@ -153,3 +153,8 @@ step-0055 | 공간 분할 셀 리스트를 collide 에 배선(게이트 spatialH
 step-0056 | 공간 분할 셀 리스트를 연속력 pauli 에 배선(게이트 spatialHash — force·pauliPE 둘 다 컷오프 cut=spatialCut + shift U(r)−U(cut)로 경계 PE 불연속 제거 → symplectic E 닫힘·연속력 첫 배선) | PASS(장부 1.15e-2 E≤0.03 완화 symplectic·골든 280/280·spatialHash=0 기본 → pauli/pauliPE full U 불변=회귀 0·60²·N200·cut10·6tick·①힘 maxDiff 1.15e-5≈brute 먼 1/r⁶ 꼬리만 버림·②E 닫힘 컷오프 잔차 9.25e-3≈brute 9.25e-3 추가 드리프트 0 shift 정합 load-bearing·③검사 4949≪19900 24.9%) · render:없음(내부)
 step-0057 | 공간 분할 셀 리스트를 연속력 vdw 에 배선(pauli 0056 와 동형 — force·vdwPE 컷오프+shift·vdW 인력 U<0 이라 shift −U(cut)>0 부호만 다름) | PASS(장부 1.80e-2 E≤0.04 완화 symplectic·골든 285/285·spatialHash=0 기본 → vdw/vdwPE full U 불변=회귀 0·60²·N200·cut12·6tick·①힘 maxDiff 2.86e-4≈brute 먼 1/r⁴ 꼬리만 버림·②E 닫힘 컷오프 잔차 1.16e-2≈brute 1.17e-2 추가 드리프트 0 shift 정합 load-bearing·③검사 7275≪19900 36.6%) · render:없음(내부)
 step-0058 | 공간 분할 셀 리스트를 연속력 repulse 에 배선(pauli/vdw 와 동형·단거리 힘 4종 배선 완결 — repulse 하전 쌍만·전하 게이트 doPair 보존 → brute 비트 동일·repulsePE 컷오프+shift) | PASS(장부 1.87e-2 E≤0.04 완화·골든 290/290·spatialHash=0 기본 → repulse/repulsePE full U 불변=회귀 0·60²·N200 이온·cut12·6tick·①힘 maxDiff 2.01e-4≈brute 먼 1/r⁴ 꼬리만 버림·②E 닫힘 컷오프 잔차 9.75e-3≈brute 9.72e-3 추가 드리프트 0 shift 정합 load-bearing·③검사 7085≪19900 35.6%) · render:없음(내부)
+step-0059 | 공간 분할 셀 리스트를 bond 에 배선(collide 0055 와 동형·마지막 이벤트형 단거리 법칙 — bond 이중 루프 → doPair(i,j)·cellPairs(cut=bondR) (i,j) 정렬해 brute 순서와 동일 → 비트 동일·단거리 법칙 5종 배선 완결) | PASS(장부 5.68e-14 라이브 셀-경로·골든 295/295·spatialHash=0 기본 → 전쌍 brute 비트 불변=회귀 0·30²·N120 이온 q=±1·bondR3·8tick·①비트 동일 셀 해시(원자+bonds+bondE)=전쌍 해시 결합 116회 동일 형성 근사 아님·②검사 672≪7140 9.4%·③결합 비자명 116·④흡수 KE→bondE 머신 완화없음) · render:없음(내부)
+step-0060 | Barnes-Hut 무게중심 쿼드트리 가속 합산 bhForces(측정·새 법칙 0 — 장거리 1/r² 를 O(n log n)·먼 무리를 무게중심 한 점으로 lump s/d<θ·cellPairs 0054 의 장거리판·LAW_ORDER 미참여·force 미배선) | PASS(자유 드리프트 장부 0·골든 300/300·새 법칙 0=회귀 0·120²·NP1000·soft1·①θ=0 가속=전쌍 brute maxDiff 2.22e-14 ~머신 같은 항 트리 DFS 합 순서만 다름 상호작용 999000=999000 일치 근사 아님·②θ=0.2 상대오차 2.10% 무게중심 lump·③검사 390287≪999000 39.1% O(n log n)·θ 정확도↔속도 노브 θ→0 전쌍 수렴) · render:없음(내부)
+step-0061 | Barnes-Hut 트리를 gravity 에 배선(게이트 farField — collide 가 cellPairs 배선한 것의 장거리판·BH 무게중심 lump 는 쌍별 반작용 아님 → 질량가중 평균 가속 c 차감으로 px·py 머신 복원·등가원리 중력 보편이라 균일 가속 무해) | PASS(라이브 farField=1 Q·B·L·px·py 머신 E≤0.3 완화 symplectic·골든 305/305·farField=0 기본 → 전쌍 brute 비트 동일=회귀 0·60²·N200 중력+pauli·dt0.01·θ0.5·6tick·①가속 maxDiff 9.68e-4≈brute·②운동량 머신 5.33e-15 날것이면 dpx~0.8·③E 잔차 9.31e-2≈brute 1.08e-1 BH 추가 드리프트 0 load-bearing·④검사 14101≪39800 35.4%) · render:없음(내부)
+step-0062 | Barnes-Hut 트리를 coulomb 에 배선(전하가중·gravity 0061 와 동형·bhForces charged 인자 기본 falsy 0060/0061 불변·단극자 weight=Z−e·쿨롱 전하 의존이라 평균 가속 차감을 하전만 → px·py 머신+중성 불변 brute 일치) | PASS(라이브 farField=1 Q·B·L·px·py 머신 E≤0.01 완화·골든 310/310·farField=0 기본 → 전쌍 brute 비트 동일=회귀 0·60²·N200 ±1/중성 3분할·dt0.01·θ0.5·6tick·①가속 maxDiff 1.53e-4≈brute·②운동량 머신 9.99e-16·③중성 불변 0.00e+0 차감도 하전만 load-bearing·④E 잔차 4.90e-4≈brute 5.28e-4·⑤검사 13963≪39800 35.1%·모든 힘 O(n²) 탈출 완료) · render:없음(내부)
+step-0063 | 다체 중력 응집(측정·새 법칙 0 — 공간 분할 셀 pauli + Barnes-Hut 트리 gravity 동시 무대·N=600 구름 붕괴·인프라 0054~62 위 첫 규모 현상·0029 의 규모판 N6→N600) | PASS(라이브 farField=1+spatialHash=1 Q·B·L·px·py 머신 E≤60 완화 symplectic 정지질량 대비 상대 0.075%·골든 315/315·새 법칙 0=회귀 0·160²·N600·dt0.012·θ0.5·cut8·72tick·①중력 R_g 25.16→24.57 단조 수축 2.31%·②대조 kGravity=0 R_g 25.16→25.16 평탄 붕괴는 중력 때문 author 아닌 측정 load-bearing·③동시 무대 dpx 4.35e-14 dpy 5.08e-15 머신 두 운동량 복원 정합·④BH 검사 50367≪359400 14.0% O(n log n)) · render:L-cluster?(중력 응집 위치 채널·기존 r 로 보이나 군집 강조 렌즈 후보)

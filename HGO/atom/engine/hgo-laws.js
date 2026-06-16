@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -303,6 +303,12 @@
   //     공유 원자가 = 빈자리(H1·C4·O2·He0) → 결합 수 한계가 *e 다발*서 창발(author 0). 포획·reservoir 는 이온과 동일 기계 재사용.
   //   ⊕ step-0018 게이트 `bondOrder`(=0 → 단일 결합만·step-0017 비트 동일): 공유 쌍이 *남은 빈자리만큼* 전자쌍을 다중 공유한다.
   //     차수 = min(남은 빈자리, ordMax) → O=O 이중·N≡N 삼중. 간선에 차수 e[3] 기록·빈자리 order 칸 소비 → 화학량론(O₂·N₂ 고립 이량체)이 창발.
+  // ⊕ step-0059 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): collide(0055)와 *동형* 셀 배선 — 마지막 *이벤트형* 단거리 법칙.
+  //   bond 는 접촉 반경 R 내에서만 포획하는 단거리 이벤트라 전쌍 O(n²) 대신 셀 리스트(cellPairs·cut=R)로 이웃만 훑을 수 있다.
+  //   핵심(collide 와 같음): cellPairs 가 R 내 쌍을 *brute 와 같은 집합*(0054)으로 주므로, 그 쌍을 *(i,j) 오름차순 정렬*해 brute 의
+  //   i<j 순서와 똑같이 처리하면 — deg[]·bondKeys·bonds 가 처리 순서에 의존하지만 그 순서가 같으므로 — 결합 결과가 **비트까지 동일**
+  //   (켜도 회귀 0). R 밖 쌍은 cellPairs 가 안 주지만 brute 경로서도 d2>R2 로 skip(no-op)이라 *형성되는 결합 집합*이 정확 같다.
+  //   탄성 충돌(0055)과 동형 — bond 도 *순간 속도 편집*(연속 PE 항 없음·bondE 회계)이라 컷오프-PE shift 불필요(연속력 0056~58 과 다름).
   function bond(sim) {
     const k = sim.knobs.kBond;
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (결합 항 꺼짐 → 직전 비트)
@@ -316,34 +322,34 @@
     const ordMax = sim.knobs.bondOrderMax || 3;          // 최대 차수(삼중 N≡N 까지)
     let deg = null;
     if (vcap || cov) { deg = new Array(n).fill(0); for (const e of sim.bonds) { const o = e[3] || 1; deg[e[0]] += o; deg[e[1]] += o; } }  // 현 결합 차수(order 가중 — 이중=2칸 소비)
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i];
-      for (let j = i + 1; j < n; j++) {
+    // 한 쌍 포획 처리(brute·cellPairs 공용 — 같은 코드 → 같은 결과). 모든 skip 은 return(브루트의 continue 와 등가).
+    function doPair(i, j) {
+        const a = atoms[i];
         const key = i * n + j;
-        if (sim.bondKeys.has(key)) continue;                 // 이미 결합 — 재포획·이중 흡수 금지
+        if (sim.bondKeys.has(key)) return;                   // 이미 결합 — 재포획·이중 흡수 금지
         const b = atoms[j];
         const qa = a.Z - a.e, qb = b.Z - b.e;
         let order = 1;                                       // 결합 차수(기본 단일 — bondOrder=0 이면 불변)
         if (qa * qb < 0) {                                   // ── 이온결합: 반대 전하 끌림(기존 경로) ──
-          if (vcap && (deg[i] >= Math.abs(qa) || deg[j] >= Math.abs(qb))) continue;  // 원자가 포화 → 결합 안 함(collide 탄성)
+          if (vcap && (deg[i] >= Math.abs(qa) || deg[j] >= Math.abs(qb))) return;  // 원자가 포화 → 결합 안 함(collide 탄성)
         } else {                                             // ── 반대 전하 아님 → 이온 불가 ──
-          if (!cov) continue;                                // 게이트 off → 기존처럼 skip(같은 전하/중성, 회귀 0)
-          if (qa !== 0 || qb !== 0) continue;                // 공유는 *중성 원자만*(같은부호 이온은 반발 → collide 탄성)
+          if (!cov) return;                                  // 게이트 off → 기존처럼 skip(같은 전하/중성, 회귀 0)
+          if (qa !== 0 || qb !== 0) return;                  // 공유는 *중성 원자만*(같은부호 이온은 반발 → collide 탄성)
           const va = covVacancy(a.e), vb = covVacancy(b.e);  // 외각 껍질 빈자리(다음 닫힌 껍질까지)
-          if (va <= 0 || vb <= 0) continue;                  // 한쪽이라도 껍질 채움(noble, 예: He) → 공유 안 함
-          if (deg[i] >= va || deg[j] >= vb) continue;        // 공유 원자가 포화(빈자리 = 결합 수 한계 — e 다발서 창발)
+          if (va <= 0 || vb <= 0) return;                    // 한쪽이라도 껍질 채움(noble, 예: He) → 공유 안 함
+          if (deg[i] >= va || deg[j] >= vb) return;          // 공유 원자가 포화(빈자리 = 결합 수 한계 — e 다발서 창발)
           // step-0018 게이트 bondOrder(=0 → 단일·step-0017 비트 동일): *같은 쌍*이 남은 빈자리만큼 전자쌍 다중 공유.
           //   차수 = min(남은 빈자리 i, 남은 빈자리 j, ordMax) → O(빈자리2)+O = O=O 이중·N(빈자리3)+N = N≡N 삼중. 화학량론이 빈자리서 창발.
           if (ord) order = Math.min(va - deg[i], vb - deg[j], ordMax);
         }
         const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
         const d2 = dx * dx + dy * dy;
-        if (d2 > R2 || d2 === 0) continue;                   // 접촉 반경 밖(또는 완전 겹침 가드)
+        if (d2 > R2 || d2 === 0) return;                     // 접촉 반경 밖(또는 완전 겹침 가드)
         const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;   // 결합 법선(a→b 단위 벡터)
         const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
         const vn = dvx * nx + dvy * ny;                      // 상대속도 법선 성분(>0 = 다가옴)
-        if (vn <= 0) continue;                               // 멀어지는/접선 → 포획 안 함
-        if (dvx * dvx + dvy * dvy > vmax2) continue;         // 너무 빠르면 포획 못 함(탄성 튕김은 collide 몫)
+        if (vn <= 0) return;                                 // 멀어지는/접선 → 포획 안 함
+        if (dvx * dvx + dvy * dvy > vmax2) return;           // 너무 빠르면 포획 못 함(탄성 튕김은 collide 몫)
         const ma = K.mass(a), mb = K.mass(b), M = ma + mb;
         const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;  // 질량중심 속도
         // ⊕ step-0021 게이트 bondCoulombic(=0 → 비탄성 vcom 잠금·step-0020 비트 동일): 켜면 *속도잠금·KE흡수를 건너뛰고*
@@ -371,7 +377,13 @@
         sim.bondCount = (sim.bondCount | 0) + 1;             // 진단 카운터(결합 간선은 hash 참여)
         if (qa === 0 && qb === 0) sim.covalentCount = (sim.covalentCount | 0) + 1;  // 공유결합 횟수(중성 쌍 = 공유, 진단·hash 미참여)
         if (order >= 2) sim.multiBondCount = (sim.multiBondCount | 0) + 1;  // 다중 결합(이중·삼중) 횟수(진단·hash 미참여)
-      }
+    }
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(직전 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) doPair(i, j);
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(정렬해 brute 와 같은 순서 → 비트 동일·빠름)
+      const pairs = cellPairs(atoms, R, sim.W, sim.H).pairs;
+      pairs.sort((p, q) => (p[0] - q[0]) || (p[1] - q[1]));  // (i,j) 오름차순 = brute i<j 순서 → 처리 순서 일치 → 비트 동일
+      for (const p of pairs) doPair(p[0], p[1]);
     }
   }
 
@@ -467,12 +479,37 @@
   //   연화(Plummer) ε: r²→r²+ε² 로 특이점·무한 PE 차단(U=kC·qa·qb/√(r²+ε²), F=−∇U 정확 보존력). ε 가 짧은 길이 척도.
   //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 총 운동량 *정확* 보존(머신 0). Q·B·L·x 불변(쿨롱은 전하 위치만 바꿈).
   //   국소: *그 두 하전 원자*만(min-image). 결정론: 위치·전하 결정 → rng 불필요. 게이트 kCoulomb=0 → early-return = 회귀 0.
+  // ⊕ step-0062 게이트 farField(=0 → 전쌍 brute·회귀 0): gravity(0061)와 *동형* — coulomb 을 Barnes-Hut 트리(bhForces·charged=1)로 가속.
+  //   =1 → bhForces(charged) 가 *쿨롱장* F_i=Σ q_j·d/s2^1.5(전하가중 단극자·질량-COM 전개점)를 돌려주고, 쿨롱 가속 a_i=−(kc·q_i/m_i)·F_i.
+  //   ⚠️ 운동량 복원(gravity 와 차이): 중력은 보편(질량가중 평균 차감·등가원리)이었으나 쿨롱은 *전하 의존* → 중성은 brute 서 안 움직인다.
+  //     해소: 인공 net force 를 *하전 원자에서만* 질량가중 평균 가속 c'=Σ_q m·a/Σ_q m 로 빼 Σ_q m·(a−c')=0 → px·py 머신·중성은 불변(brute 일치).
+  //     하전끼리 상대 가속(a_i−c')−(a_j−c')=a_i−a_j 불변. E 만 symplectic 완화(0019 선례). farField=0(기본) → 전쌍 brute(비트 동일·회귀 0).
   function coulomb(sim) {
     const kc = sim.knobs.kCoulomb;
     if (!kc) return;                 // 노브=0 → early-return = 회귀 0 (연속력 꺼짐 → 직전 비트)
     const dt = sim.knobs.dt;
     const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(특이점 차단)
     const atoms = sim.atoms, n = atoms.length;
+    if (sim.knobs.farField) {                              // 게이트=1 → Barnes-Hut 전하가중 트리(O(n log n)·운동량 복원)
+      const soft = sim.knobs.coulombSoft || 1, theta = sim.knobs.spatialTheta || 0.5;
+      const fld = bhForces(atoms, theta, sim.W, sim.H, soft, true).accel;  // 쿨롱장 F_i=Σ q_j·d/s2^1.5
+      const rax = new Array(n), ray = new Array(n);
+      let mx = 0, my = 0, Mq = 0;                          // 하전 원자만 질량가중 평균 가속(인공 net force 제거)
+      for (let i = 0; i < n; i++) {
+        const a = atoms[i], qa = a.Z - a.e;
+        if (qa === 0) { rax[i] = 0; ray[i] = 0; continue; } // 중성 → 쿨롱 0(brute 일치·불변)
+        const m = K.mass(a), pref = -kc * qa / m;
+        rax[i] = pref * fld[i].ax; ray[i] = pref * fld[i].ay;
+        mx += m * rax[i]; my += m * ray[i]; Mq += m;
+      }
+      const cx = Mq > 0 ? mx / Mq : 0, cy = Mq > 0 ? my / Mq : 0;
+      for (let i = 0; i < n; i++) {
+        if (atoms[i].Z - atoms[i].e === 0) continue;        // 중성 불변(평균 차감도 하전만)
+        atoms[i].vx += (rax[i] - cx) * dt; atoms[i].vy += (ray[i] - cy) * dt;  // 쿨롱 가속 − 하전 평균 → px·py 머신
+      }
+      sim.coulombActive = 1;
+      return;
+    }
     for (let i = 0; i < n; i++) {
       const a = atoms[i], qa = a.Z - a.e;
       if (qa === 0) continue;                              // 중성 → 쿨롱 0
@@ -749,13 +786,31 @@
   //   기질 재사용: coulomb·pauli 와 동일 *반음시(symplectic)* 적분(v→r)·연화 ε(coulombSoft 공유) → 총 E(KE+PE) 유계 보존(E 만 완화).
   //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 총 운동량 *정확* 보존(머신 0). PE 항 U_grav≤0 가법(kGravity 게이트). Q·B·L·x 불변.
   //   국소: *그 두 원자*만(min-image). 결정론: 위치·질량 결정 → rng 불필요. 게이트 kGravity=0 → early-return = 회귀 0.
+  // ⊕ step-0061 게이트 farField(=0 → 전쌍 brute·회귀 0): collide(0055)가 cellPairs 를 배선한 것의 *장거리판* — gravity 를
+  //   Barnes-Hut 트리(bhForces 0060)로 가속한다. =1 → bhForces(θ=spatialTheta) 가 g_i=Σ m_j·d/s2^1.5(질량가중 1/r² *가속*·mi 무관)
+  //   를 돌려주고, 중력 가속 = kg·g_i 이므로 v_i += kg·g_i·dt 로 싣는다. brute 와 *같은 식*(0060 이 brute 동치 측정 완료).
+  //   ⚠️ 비대칭 → 운동량 복원: 단거리 셀 배선(0055~59)은 *비트 동일/컷오프 근사*였지만, BH 는 노드 무게중심 lump 라 힘이 *쌍별 등·반작용이
+  //     아니다* → 날것 그대로면 총 운동량 px·py 가 머신 보존 안 됨(BH 의 알려진 인공 net force). **해소(중력 한정·등가원리)**: 질량가중 평균
+  //     가속 c=Σm·g/Σm 를 빼고 싣는다(g_i→g_i−c). 중력은 *보편*(모든 질량 같은 가속) → 균일 가속 차감은 *상대 운동 불변*(COM 드리프트만 제거)
+  //     이라 물리적으로 무해하고, brute 의 Σm·a=0(반작용)과 같은 0-net 으로 맞춰 px·py *머신* 보존 + 정확도도 공통오차(c) 제거로 개선.
+  //     E 만 symplectic 유계 진동(0019 선례·그 장면 ledgerTol.E 완화). farField=0(기본) → 전쌍 brute → 과거 비트 동일(회귀 0).
   function gravity(sim) {
     const kg = sim.knobs.kGravity;
     if (!kg) return;                 // 노브=0 → early-return = 회귀 0 (중력 꺼짐 → step-0027 비트)
     const dt = sim.knobs.dt;
     const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(쿨롱·파울리와 공유)
     const atoms = sim.atoms, n = atoms.length;
-    for (let i = 0; i < n; i++) {
+    if (sim.knobs.farField) {                              // 게이트=1 → Barnes-Hut 트리 가속(O(n log n)·운동량 복원)
+      const soft = sim.knobs.coulombSoft || 1, theta = sim.knobs.spatialTheta || 0.5;
+      const acc = bhForces(atoms, theta, sim.W, sim.H, soft).accel;  // g_i=Σ m_j·d/s2^1.5 (0060 과 한 출처식)
+      let mx = 0, my = 0, M = 0;                           // 질량가중 평균 가속(인공 net force = COM 드리프트 → 제거)
+      for (let i = 0; i < n; i++) { const m = K.mass(atoms[i]); mx += m * acc[i].ax; my += m * acc[i].ay; M += m; }
+      const cx = M > 0 ? mx / M : 0, cy = M > 0 ? my / M : 0;
+      for (let i = 0; i < n; i++) { atoms[i].vx += kg * (acc[i].ax - cx) * dt; atoms[i].vy += kg * (acc[i].ay - cy) * dt; }  // 중력 가속 = kg·(g_i−c)·등가원리 무해·px·py 머신 보존
+      sim.gravityActive = 1;
+      return;
+    }
+    for (let i = 0; i < n; i++) {                          // 게이트=0 → 전쌍 brute(step-0027 비트 동일·머신 보존·회귀 0)
       const a = atoms[i], ma = K.mass(a);                  // 전하 게이트 없음 — 중성 포함 모든 원자(중력은 보편)
       for (let j = i + 1; j < n; j++) {
         const b = atoms[j], mb = K.mass(b);
@@ -1022,6 +1077,76 @@
     return { pairs, checks };
   }
 
+  // Barnes-Hut 무게중심 쿼드트리 가속 합산(step-0060 — cellPairs 의 *장거리판*): gravity·coulomb 의 1/r² 는 컷오프하면
+  //   누락이 커 셀 리스트(0054)가 부적합하다 — 먼 원자도 *집단으로* 무시 못 할 인력을 준다. 대신 멀리 있는 원자 *무리*를
+  //   그 *무게중심 한 점*으로 근사한다(Barnes & Hut 1986): 노드 크기 s, 거리 d 가 s/d<θ 면 그 노드를 한 번에 lump.
+  //   → 한 원자가 보는 상호작용이 O(n) → O(log n) 으로, 전체 O(n²) → **O(n log n)**.
+  //   *force 법칙 아님*(LAW_ORDER·DEFAULTS 미참여) → step-0060 은 이 구조를 *만들고 brute 와 동치임을 측정*만(새 법칙 0·골든 보존=회귀 0).
+  //     force 배선(gravity·coulomb 을 이 합산으로 가속)은 후속 step(0061·0062). cellPairs(0054)→collide(0055) 와 같은 분리.
+  //   θ→0 동치: θ²·d²=0 < s² 항상 → 어떤 노드도 lump 안 됨 → 모든 잎(단일/소수 원자)까지 펼쳐 *전쌍과 같은 항 집합* 합산.
+  //     단 합 *순서*는 트리 DFS 라 brute(j 순)와 달라 부동소수 재정렬 → maxDiff ~머신(1e-13·"같은 항·다른 순서"·근사 아님).
+  //   토러스: 노드 무게중심까지의 변위는 min-image(토이 근사 — 노드가 경계 안 contiguous 박스라 COM 이 박스 내). 결정론: 위치만(rng 0).
+  //   반환 { accel:[{ax,ay}…], checks } — accel = Σ w_j·d/s2^1.5 (단극자 1/r² 장·노드 합 w 로 lump). checks=상호작용 횟수.
+  //   ⊕ charged(step-0062, 기본 falsy → 질량가중 g·0060/0061 불변): 켜면 *전하* w_j=Z−e 로 가중(쿨롱장 F_i=Σ q_j·d/s2^1.5).
+  //     트리 build·무게중심(cx,cy)은 *늘 질량가중*(0060 비트 동일) — 전하는 단극자 모멘트(node.q=Σq)로만 합산(질량-COM 을 전개점으로·far ref 무해).
+  function bhForces(atoms, theta, W, H, soft, charged) {
+    const n = atoms.length;
+    const eps2 = (soft || 1) * (soft || 1);
+    const S = Math.max(W, H), MAXD = 48;                     // 루트 = 정사각 [0,S)²(원자는 [0,W)×[0,H)⊂[0,S)²). 깊이 캡(좌표 거의 중복 가드)
+    function makeNode(x0, y0, sz) { return { x0, y0, sz, mass: 0, cx: 0, cy: 0, bodies: null, kids: null }; }
+    const root = makeNode(0, 0, S);
+    function quadrant(node, rx, ry) { return (ry >= node.y0 + node.sz / 2 ? 2 : 0) + (rx >= node.x0 + node.sz / 2 ? 1 : 0); }  // 0좌하 1우하 2좌상 3우상
+    function subdivide(node) {
+      const h = node.sz / 2;
+      node.kids = [makeNode(node.x0, node.y0, h), makeNode(node.x0 + h, node.y0, h), makeNode(node.x0, node.y0 + h, h), makeNode(node.x0 + h, node.y0 + h, h)];
+    }
+    function insert(node, i, depth) {
+      if (node.kids) { insert(node.kids[quadrant(node, atoms[i].rx, atoms[i].ry)], i, depth + 1); return; }
+      if (!node.bodies) node.bodies = [];
+      node.bodies.push(i);                                   // 잎에 담음
+      if (node.bodies.length > 1 && depth < MAXD) {          // 이미 차 있고 더 쪼갤 수 있음 → 분할·재분배
+        const bs = node.bodies; node.bodies = null; subdivide(node);
+        for (const b of bs) insert(node.kids[quadrant(node, atoms[b].rx, atoms[b].ry)], b, depth + 1);
+      }
+    }
+    for (let i = 0; i < n; i++) insert(root, i, 0);
+    function com(node) {                                     // 무게중심(질량가중·늘) + 단극자 모멘트(질량 mass·전하 q) 상향 계산
+      if (node.kids) { let m = 0, q = 0, mx = 0, my = 0; for (const c of node.kids) { com(c); if (c.mass > 0) { m += c.mass; q += c.q; mx += c.mass * c.cx; my += c.mass * c.cy; } } node.mass = m; node.q = q; if (m > 0) { node.cx = mx / m; node.cy = my / m; } return; }
+      if (node.bodies) { let m = 0, q = 0, mx = 0, my = 0; for (const b of node.bodies) { const a = atoms[b], mb = a.Z + a.N; m += mb; q += a.Z - a.e; mx += mb * a.rx; my += mb * a.ry; } node.mass = m; node.q = q; if (m > 0) { node.cx = mx / m; node.cy = my / m; } }
+    }
+    com(root);
+    const theta2 = theta * theta;
+    let checks = 0;
+    const accel = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i]; let ax = 0, ay = 0;
+      const stack = [root];
+      while (stack.length) {
+        const node = stack.pop();
+        if (node.mass === 0) continue;                       // 빈 노드(원자 0) skip — 질량은 늘 >0 이면 원자 있음
+        if (node.kids) {                                     // 내부 노드 — θ 기준 판정
+          const dx = K.minImage(node.cx - a.rx, W), dy = K.minImage(node.cy - a.ry, H);
+          const d2 = dx * dx + dy * dy;
+          if (node.sz * node.sz < theta2 * d2) {             // s/d<θ → 노드를 무게중심 한 점으로 lump(단극자 w=mass 또는 q)
+            const w = charged ? node.q : node.mass;
+            const s2 = d2 + eps2, inv = w / (s2 * Math.sqrt(s2));
+            ax += inv * dx; ay += inv * dy; checks++;
+          } else { for (const c of node.kids) stack.push(c); }  // 너무 가까움/큼 → 자식 펼침
+        } else if (node.bodies) {                            // 잎 — 담긴 원자 각자 전쌍식(자기 제외)
+          for (const b of node.bodies) {
+            if (b === i) continue;
+            const a2 = atoms[b], w = charged ? (a2.Z - a2.e) : (a2.Z + a2.N);
+            const dx = K.minImage(a2.rx - a.rx, W), dy = K.minImage(a2.ry - a.ry, H);
+            const s2 = dx * dx + dy * dy + eps2, inv = w / (s2 * Math.sqrt(s2));
+            ax += inv * dx; ay += inv * dy; checks++;
+          }
+        }
+      }
+      accel[i] = { ax, ay };
+    }
+    return { accel, checks };
+  }
+
   // 적분(기질): 자유 운동 — 위치 += 속도·dt, 토러스 경계 wrap.
   // 힘이 없으므로 v 불변 → 에너지·운동량 정확 보존(닫힌 장부 잔차 0).
   //
@@ -1045,5 +1170,5 @@
     }
   }
 
-  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy, cellPairs };
+  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy, cellPairs, bhForces };
 });
