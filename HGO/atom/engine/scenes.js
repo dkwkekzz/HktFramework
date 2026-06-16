@@ -2636,6 +2636,74 @@
         ];
       },
     },
+
+    'step-0044': {
+      id: 'step-0044',
+      title: '붕괴 사슬 시계열 — Bateman (측정 — ¹⁸C→¹⁸N→¹⁸O 다단 사슬·중간핵 개체수가 0서 솟아 봉우리 찍고 내림·척도 분리를 시간축에)',
+      desc: 'step-0034~35 가 붕괴 통계(반감기 t½)·다단 사슬(C→N→O→F)을 보였으나 *종단*만 봤다(중간핵의 *시간*에 따른 거동은 미측정). step-0043 의 fuse→decay 연쇄도 한 *고리*일 뿐 시간곡선이 없다. ' +
+            '이 step 은 *새 법칙 0*(decay 게이트 0031~42 그대로·`L.applyForces`/`integrate` 재사용·엔진·하네스 미변경)으로 붕괴 사슬의 **시간곡선**(Bateman)을 측정한다 — A→B→C 사슬서 중간핵 B 의 개체수가 0 에서 *솟아올라 봉우리*를 찍고 *다시 내려가는* 고전적 과도 신호(부모 지수 감쇠·자손 누적). ' +
+            '평탄율(decayRateExcess=0)이라 두 전이 율이 같다(λ_A=λ_B=kDecay) → 등율 Bateman: N_A(t)=N₀e^(−λt)·N_B(t)=N₀λt·e^(−λt)(봉우리 t≈1/λ)·N_C(t)=N₀(1−e^(−λt)(1+λt)). 이것이 §4 척도 분리(빠른·느린 사슬)를 *시간축*에 명시하는 첫 곡선. ' +
+            '*측정*(무대: 60개 ¹⁸C Z6 N12 **nuc 없음**·서로 떨어져 상호작용 0·decayMassFormula=1·decayPairing=1·decayBetaPlus=0(순 β⁻ 사슬)·massDefect=1·decayRecoilPair=1·kDecay=0.03·시계열은 고정 시드 재시뮬레이션 t=[0,20,40,60,80,120,160]): ' +
+            '① **부모 지수 감쇠** — N_A(¹⁸C) 단조 감소(60→~0)·평탄율 지수꼴. ' +
+            '② **중간핵 Bateman 과도** — N_B(¹⁸N)가 0서 솟아 *내부* 봉우리(t≈40, 1/λ 부근)를 찍고 다시 내림(봉우리 > 시작 0·봉우리 > 종단) ⇒ 솟음-내림이 사슬 중간핵의 지문. ' +
+            '③ **종점 누적** — N_C(¹⁸O 안정) 단조 증가·종단 ~전수(≥90%). ' +
+            '④ **닫힌 사슬(바리온)** — 모든 t 에서 N_A+N_B+N_C = 60(중간핵 안 새고 *지나갈* 뿐·B 보존). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(decay 게이트 계승·rest=(A−B)c²). 새 법칙 0 — scene 만 → 0001~43 법칙·골든 비트 불변(회귀 0=기존 골든 보존).',
+      ticks: 160,
+      // ledgerTol 없음 — 0040 와 같은 decay 게이트(rest=(A−B)c²·decayRecoilPair) → Q·B·L·E·px·py 머신.
+
+      // 60개 ¹⁸C(Z6 N12·nuc 없음) 격자 배치(상호작용 0 — 순 붕괴). β⁻ 사슬 6→7→8(¹⁸C→¹⁸N→¹⁸O)·bp=0 순 β⁻·Z8 서 멈춤(안정).
+      KN: { dt: 1, kDecay: 0.03, decayMassFormula: 1, decayPairing: 1, decayBetaPlus: 0, massDefect: 1, decayRecoilPair: 1, decayNexcess: 4, decayQ: 1 },
+      CHK: [0, 20, 40, 60, 80, 120, 160],
+      pop() { const a = []; for (let i = 0; i < 60; i++) a.push({ Z: 6, N: 12, e: 6, x: 0, rx: (i % 10) * 30 + 15, ry: Math.floor(i / 10) * 40 + 20, vx: 0, vy: 0, lep: 0 }); return a; },
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 300, H: 300, atoms: this.pop(), rng: simRng, knobs: Object.assign({}, this.KN) };
+      },
+      // 시계열: 고정 시드 재시뮬레이션(엔진 step 재사용 L.applyForces+integrate) — 결정론·자가완결(하네스 미변경). 체크포인트마다 A/B/C 개체수.
+      series(K) {
+        const sim = { W: 300, H: 300, atoms: this.pop(), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN), tick: 0 };
+        const out = []; let prev = 0;
+        for (const t of this.CHK) {
+          for (let i = prev; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+          prev = t;
+          let A = 0, B = 0, C = 0; for (const x of sim.atoms) { if (x.Z === 6) A++; else if (x.Z === 7) B++; else if (x.Z === 8) C++; }
+          out.push({ t, A, B, C });
+        }
+        return out;
+      },
+
+      watch(sim, K) {
+        const s = this.series(K);
+        let bPeak = 0, bPeakT = 0; for (const r of s) if (r.B > bPeak) { bPeak = r.B; bPeakT = r.t; }
+        let live = {}; for (const a of sim.atoms) live[a.Z] = (live[a.Z] | 0) + 1;     // 본 run 종단(하네스 시드)
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { A40: s[2].A, Bpeak: bPeak, BpeakT: bPeakT, C160: s[s.length - 1].C, B160: s[s.length - 1].B, runZ8: live[8] | 0, totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 부모 지수 감쇠 ② 중간핵 Bateman 과도(0서 솟아 내부 봉우리→내림) ③ 종점 누적 ④ 닫힌 사슬(A+B+C=60 전 t).
+      assert(ctx, K) {
+        const s = this.series(K), n = s.length, N0 = 60;
+        // ① 부모 단조 감소 + 거의 소진.
+        let parentMono = true; for (let i = 1; i < n; i++) if (s[i].A > s[i - 1].A) parentMono = false;
+        const parentDecays = parentMono && s[n - 1].A <= N0 * 0.1;
+        // ② 중간핵 Bateman 과도: 봉우리 인덱스가 내부(0·끝 아님)·봉우리>시작(0)·봉우리>종단(솟음-내림).
+        let pk = 0; for (let i = 1; i < n; i++) if (s[i].B > s[pk].B) pk = i;
+        const transient = pk > 0 && pk < n - 1 && s[pk].B > s[0].B && s[pk].B > s[n - 1].B && s[0].B === 0;
+        // ③ 종점 단조 증가 + 종단 거의 전수.
+        let endMono = true; for (let i = 1; i < n; i++) if (s[i].C < s[i - 1].C) endMono = false;
+        const endAccum = endMono && s[n - 1].C >= N0 * 0.9;
+        // ④ 닫힌 사슬: 전 체크포인트 A+B+C=60(중간핵 안 새고 지나갈 뿐·B 보존).
+        let closed = true; for (const r of s) if (r.A + r.B + r.C !== N0) closed = false;
+        return [
+          { name: `부모 지수 감쇠 — N_A(¹⁸C) 단조 감소 60→${s[n - 1].A}(평탄율 지수꼴·거의 소진)`, pass: parentDecays, value: s[n - 1].A },
+          { name: `중간핵 Bateman 과도 — N_B(¹⁸N) 0서 솟아 내부 봉우리 ${s[pk].B}(t=${s[pk].t}≈1/λ) 찍고 내림(${s[0].B}→${s[pk].B}→${s[n - 1].B}) ⇒ 솟음-내림 지문`, pass: transient, value: s[pk].B },
+          { name: `종점 누적 — N_C(¹⁸O 안정) 단조 증가·종단 ${s[n - 1].C}/${N0}(≥90% 전수)`, pass: endAccum, value: s[n - 1].C },
+          { name: `닫힌 사슬(바리온) — 전 체크포인트 N_A+N_B+N_C=${N0}(중간핵 안 새고 지나갈 뿐·B 보존)`, pass: closed, value: N0 },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
