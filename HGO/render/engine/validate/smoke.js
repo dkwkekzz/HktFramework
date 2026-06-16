@@ -238,6 +238,23 @@ function run() {
   const flat = R3.elementHue(6, 8, 8) === R3.elementHue(9, 8, 8);
   checks.push({ name: 'L-element: 단일 원소(범위 0) → 중립 색조(author 0)', pass: flat, value: flat ? 'neutral' : 'BAD' });
 
+  // ⑬ L-ion(렌즈 assert): 이온결합 장면(step-0010)은 원자 전하 Q=Z−e 를 양이온(+1)·음이온(−1) 둘 다 실어 보낸다.
+  //    렌더는 그 전하를 *읽어* 테두리 고리로 번역(부호 발산 — 양이온 따뜻·음이온 차가움·세기=|Q|/maxQ 측정).
+  //    중성(Q=0)은 고리 0(author 0). e·Z 는 atoms 채널에 늘 실림(계약 감사서 드러난 미독 채널).
+  const sceneI = SC.SCENES['step-0010'];
+  const simI = S.createSim(sceneI.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simI, sceneI.ticks);
+  const maxQ = R3.measureMaxAbsCharge(simI.atoms);
+  const qset = [...new Set(simI.atoms.map(a => R3.ionCharge(a)))].sort((p, q) => p - q);
+  checks.push({ name: 'L-ion: 시뮬이 전하(Z−e) 실음(시뮬 선행)', pass: maxQ > 0, value: `Q${JSON.stringify(qset)}·maxQ ${maxQ}` });
+  // 부호 구분: 양이온·음이온 둘 다 고리 세기 >0(읽기 충실), 중성은 0(author 0)
+  const cation = qset.find(q => q > 0), anion = qset.find(q => q < 0);
+  const signOk = cation !== undefined && anion !== undefined && R3.ionRing(cation, maxQ) > 0 && R3.ionRing(anion, maxQ) > 0 && R3.ionRing(0, maxQ) === 0;
+  checks.push({ name: 'L-ion: 양·음이온 고리>0·중성 고리=0(부호 발산·author 0)', pass: signOk, value: `+${cation}/${anion}·중성0` });
+  // 세기 단조(|Q|↑ → 고리↑) + 정규화 상한 1(클램프)
+  const monoQ = R3.ionRing(0, maxQ) <= R3.ionRing(maxQ, maxQ) && R3.ionRing(maxQ * 9, maxQ) === 1;
+  checks.push({ name: 'L-ion: |Q|↑ → 고리↑ 단조·상한 1', pass: monoQ, value: monoQ ? 'ok' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

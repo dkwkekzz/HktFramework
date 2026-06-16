@@ -48,6 +48,12 @@
 //   L-element 가 Z 를 색조로 읽으면 *원소가 바뀌면 색이 바뀐다*(탄소→질소→산소 …): 붕괴·융합이 색 이동으로 보인다.
 //   author 0: 종류별 색 박기(`if(Z==8) 파랑`)가 아니라 *측정 Z 범위*[lo,hi]를 색조 창에 정규화하는 *연속 사상*
 //   (λ→가시광 창과 동형). 변이 없는 장면(단일 원소 → 범위 0)은 중립 무채색(가짜 색 author 0). 밝기는 여전히 들뜸 x(L-glow, 직교 채널).
+//
+// 렌즈 L-ion: 시뮬이 내보낸 *전하* Q=Z−e(이온화 상태, atoms 채널의 Z·e — 늘 실림)를 원자 구의 *테두리 고리*로 읽는다.
+//   색조(Z·L-element)·밝기(x·L-glow)와 직교한 *별도 글리프*(고리)다. 전하는 *부호 있는* 양 → 발산(diverging) 사상:
+//   양이온(Q>0·전자 부족)=따뜻한 고리·음이온(Q<0·전자 과잉)=차가운 고리·중성(Q=0)=고리 0(빛 author 0과 동형).
+//   세기(고리 굵기·불투명도) = |Q|/maxAbs(측정 정규화 — 손박은 임계 0). 종류별 색 박기 아닌 *부호 채널의 발산 정규화*
+//   (측정 범위를 화면 창에 맞춤 — RENDER §3 허용). 계약 감사서 드러난 미독 채널(e·Z 늘 있으나 전하를 읽는 렌즈 0)을 읽음.
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -171,6 +177,27 @@
     return ELEMENT_HUE_LO * (1 - Math.max(0, Math.min(1, t)));
   }
 
+  // ── 렌즈 L-ion: 원자 전하 Q=Z−e(이온화) → 테두리 고리 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 부호 있는 발산 톤: 양이온(전자 부족)=따뜻함·음이온(전자 과잉)=차가움. presentation 창(측정 정규화).
+  const CATION_TONE = [255, 200, 120];   // Q>0(전자 부족) — 따뜻한 고리
+  const ANION_TONE = [120, 190, 255];    // Q<0(전자 과잉) — 차가운 고리
+
+  // 원자 전하 Q = Z − e(읽기 — 양수=양이온·음수=음이온·0=중성).
+  function ionCharge(a) { return (a.Z | 0) - (a.e | 0); }
+
+  // 원자 배열에서 |전하| 최댓값을 *측정*(고리 세기 정규화 기준 — 손박은 임계 0). 전부 중성이면 0.
+  function measureMaxAbsCharge(atoms) {
+    let m = 0;
+    for (const a of atoms) { const q = Math.abs(ionCharge(a)); if (q > m) m = q; }
+    return m;
+  }
+
+  // 전하를 측정 최댓값으로 정규화한 *고리 세기* ∈[0,1](등급). maxAbs=0 또는 Q=0(중성)이면 0(고리 author 0).
+  function ionRing(charge, maxAbs) {
+    if (!(maxAbs > 0) || !(Math.abs(charge) > 0)) return 0;
+    return Math.min(1, Math.abs(charge) / maxAbs);
+  }
+
   // HSV → RGB(0..255) — 색조를 화면 색으로(presentation 변환, 분포 재성형 0).
   function hsvToRgb(h, s, v) {
     const i = Math.floor(h * 6), f = h * 6 - i;
@@ -291,6 +318,7 @@
     const draws = [];
     const maxX = measureMaxExcitation(sim.atoms);                  // 들뜸 글로우 정규화 기준(측정)
     const zRange = measureZRange(sim.atoms);                       // 원소 색조 정규화 기준(측정 Z 범위 — L-element)
+    const maxQ = measureMaxAbsCharge(sim.atoms);                   // 이온 고리 정규화 기준(측정 |전하| 최댓값 — L-ion)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: 0 }, cam);
       if (pr.depth <= 0) continue;
@@ -307,7 +335,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange);
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ);
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam));
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -320,7 +348,8 @@
   //     exc=x/maxX∈[0,1](측정 정규화). x=0 이면 글로우 0(빛 author 0).
   //   렌즈 L-element: 양성자 수 Z(원소 정체성)를 *색조*로 등급 읽기(측정 Z 범위 정규화) — 원소 바뀌면 색 바뀜.
   //     색조와 밝기는 직교: hue=Z(원소)·value=들뜸 x. 변이 없는 장면(범위 0)은 무채색(가짜 색 author 0).
-  function drawAtom(ctx, a, pr, K, maxX, zRange) {
+  //   렌즈 L-ion: 전하 Q=Z−e(이온화)를 *테두리 고리*로 읽기 — 양이온 따뜻·음이온 차가움(발산)·중성 고리 0. 색조·밝기와 직교.
+  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
     const exc = excitationGlow(a.x | 0, maxX); // 들뜸 준위 → 광원 밝기 ∈[0,1](측정 등급)
@@ -338,6 +367,16 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(pr.sx, pr.sy, r, 0, 6.2832); ctx.fill();
+    // 렌즈 L-ion: 전하 Q=Z−e 를 테두리 고리로(부호 발산 — 양이온 따뜻·음이온 차가움, 세기=|Q|/maxQ 측정).
+    //   중성(Q=0) 또는 maxQ=0 이면 고리 0 — 시뮬에 없는 전하를 author 하지 않는다(RENDER §3).
+    const q = ionCharge(a), ringI = ionRing(q, maxQ || 0);
+    if (ringI > 0) {
+      const tone = q > 0 ? CATION_TONE : ANION_TONE;          // 부호 → 발산 톤(종류별 색 박기 아님)
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(${tone[0]},${tone[1]},${tone[2]},${(0.45 + 0.5 * ringI).toFixed(3)})`;
+      ctx.lineWidth = Math.max(1, (1 + 2 * ringI) * pr.scale);  // 세기 → 굵기(측정 등급)
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, r + ctx.lineWidth * 0.6, 0, 6.2832); ctx.stroke();
+    }
     // 발광 헤일로 = 들뜸 준위에 비례하는 광원 밝기(읽기 — magnitude 채널). 색은 중립 온백(hue author 0).
     //   x=0(바닥)이면 헤일로 0 — 들뜨지 않은 원자는 빛을 author 하지 않는다.
     if (exc > 0) {
@@ -453,5 +492,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing };
 });
