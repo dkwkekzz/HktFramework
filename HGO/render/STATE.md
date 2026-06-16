@@ -1,4 +1,4 @@
-# RENDER-STATE — 살아있는 현재 (render 트랙)
+# STATE — 살아있는 현재 (render 트랙)
 
 > "지금 어느 렌즈까지 왔고 다음 렌즈는 무엇인가"의 **단일 진실 원천(SSOT)**.
 > 렌즈 척추·입력 계약·author 금지선은 [RENDER.md](RENDER.md) · 시뮬 존재론은 [../SPINE.md](../SPINE.md) · 시뮬 현재는 [../atom/STATE.md](../atom/STATE.md).
@@ -66,7 +66,7 @@
 
 ## 5. 소유 / 불가침 (SPINE §7)
 
-- **소유**: `render/` 폴더 (`RENDER.md` · `RENDER-STATE.md` · `engine/spectral.js` · `engine/render.js` · `validate/smoke.js`). **render 는 viewer.html 을 두지 않는다** — 단일 뷰어는 트랙 밖 공유 셸 `HGO/viewer.html`.
+- **소유**: `render/` 폴더 (`RENDER.md` · `STATE.md` · `engine/spectral.js` · `engine/render.js` · `engine/validate/smoke.js`). **render 는 viewer.html 을 두지 않는다** — 단일 뷰어는 트랙 밖 공유 셸 `HGO/viewer.html`.
 - **불가침**: `atom/`(시뮬 코어·`STATE.md`·`steps/`·골든) · `../SPINE.md` · `../CLAUDE.md` — 읽기만(atom/ 진짜 diff 0). **공유 셸** `HGO/viewer.html` 은 render 그리기 위임 배선만 허용(RENDER §6). 스킬은 `.claude/skills/hgo-render-step/`.
 
 ---

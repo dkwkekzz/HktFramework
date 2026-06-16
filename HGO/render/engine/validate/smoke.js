@@ -1,4 +1,4 @@
-// render/validate/smoke.js — 렌더 트랙 헤드리스 스모크.
+// render/engine/validate/smoke.js — 렌더 트랙 헤드리스 스모크.
 //   화면(눈 검증)이 권위지만, 그 전에 *번역이 옳게 도는지*를 수치로 확인한다:
 //     ① atom 엔진을 읽기 전용으로 로드해 장면(빛 있는 step)을 돌리면 광자가 나온다.
 //     ② 각 광자 λ 가 유효한 RGB 로 번역된다(0..255, 검정 아님).
@@ -6,15 +6,15 @@
 //   알리바이(atom/ 진짜 diff 0 — viewer 는 트랙 밖 HGO/ 루트 공유 셸)는
 //   커밋 전 `git status` 로 확인(RENDER.md §5).
 //
-// 사용: node render/validate/smoke.js
+// 사용: node render/engine/validate/smoke.js
 'use strict';
 const path = require('path');
-const ATOM = path.join(__dirname, '..', '..', 'atom', 'engine');
+const ATOM = path.join(__dirname, '..', '..', '..', 'atom', 'engine');
 const K = require(path.join(ATOM, 'hgo-kernel.js'));
 const S = require(path.join(ATOM, 'hgo-sim.js'));
 const SC = require(path.join(ATOM, 'scenes.js'));
-const SP = require(path.join(__dirname, '..', 'engine', 'spectral.js'));
-const R3 = require(path.join(__dirname, '..', 'engine', 'render.js'));
+const SP = require(path.join(__dirname, '..', 'spectral.js'));
+const R3 = require(path.join(__dirname, '..', 'render.js'));
 
 const SCENE = 'step-0002';
 const SEED = 42;
