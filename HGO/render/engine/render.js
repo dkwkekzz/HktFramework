@@ -82,6 +82,12 @@
 //   정규화한 *등급* 헤일로로: 많이 산란한 광자일수록 더 퍼지고 흐린 빛(여러 번 튕겨 방향이 흩어진 빛의 표현).
 //   밝기·반경만 읽고 톤은 중립 냉백(magnitude 채널 — L-glow 들뜸 글로우와 동형, hue author 0). nscatter=0(직진)이면
 //   헤일로 0 — 안 튕긴 빛에 산란을 author 하지 않는다(RENDER §3). 핵 색(lambda)·출처 고리(srcZ)·줄기(운동량)와 직교.
+//
+// 렌즈 L-velocity: 시뮬이 원자에 늘 싣는 *속도 벡터*(vx,vy)를 원자 *운동 자취*로 읽는다. 원자는 거의 모든 장면서
+//   움직이나(중력·충돌·반발) 정지 프레임엔 *정적 구*로만 보여 어디로 가는지 안 보였다(운동 방향 미독 — 광자는 L-recoil
+//   로 운동량을 보이는데 원자는 0이었다). 이는 ⛔blocked 인 *온도색(L-T)* 과 **다르다** — 열 의미화(흑체색)가 아니라
+//   *순수 운동 방향*(광자 L-recoil 의 원자판). 속도 방향 = 자취 방향(읽기), 길이 ∝ |v|/maxV(측정 정규화). 톤은 중립
+//   냉백(hue author 0 — 온도색 아님). |v|=0(정지)이면 자취 0(author 0). 색조(Z)·밝기(x)·고리(Q)·코어(N)와 직교 글리프.
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -167,6 +173,30 @@
     let m = 0;
     for (const p of photons) { const mag = Math.hypot(p.px || 0, p.py || 0); if (mag > m) m = mag; }
     return m;
+  }
+
+  // ── 렌즈 L-velocity: 원자 속도 벡터(vx,vy) → 운동 자취 글리프 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 원자는 거의 모든 장면서 vx,vy 로 움직이나(중력·충돌·반발) 정지 프레임엔 *정적 구*로만 보였다(운동 방향 미독).
+  //   이는 ⛔blocked 인 *온도색(L-T)* 과 다르다 — 열 의미화(흑체색)가 아니라 *순수 운동 방향*(광자 L-recoil 의 원자판).
+  //   원자 배열에서 속력 최댓값을 *측정*(자취 길이 정규화 기준 — 손박은 임계 0). 정지면 0.
+  function measureMaxSpeed(atoms) {
+    let m = 0;
+    for (const a of atoms) { const v = Math.hypot(a.vx || 0, a.vy || 0); if (v > m) m = v; }
+    return m;
+  }
+
+  // 원자 속도 → 화면 운동 자취 {head,tail,mag}. 머리=현 위치(밝음)·꼬리=−속도(뒤쪽 자취). 길이 ∝ |v|/maxV(측정).
+  //   속도 0(정지)이면 null — 운동을 author 하지 않는다(RENDER §3). photonStreak(운동량)과 동형. 속도는 평면(z=0) 2D.
+  function atomVelocityStreak(a, cam, maxV, worldLen) {
+    const mag = Math.hypot(a.vx || 0, a.vy || 0);
+    if (!(mag > 1e-9)) return null;
+    const inv = 1 / mag;
+    const dir = { x: a.vx * inv, y: a.vy * inv };          // 정규화 진행 방향(읽기)
+    const L = (maxV > 0 ? mag / maxV : 1) * worldLen;      // 자취 세계 길이(측정 정규화)
+    const head = project({ x: a.rx, y: a.ry, z: 0 }, cam);                     // 머리=원자 현 위치(밝음)
+    const tail = project({ x: a.rx - dir.x * L, y: a.ry - dir.y * L, z: 0 }, cam);  // 꼬리=−속도(뒤쪽 자취)
+    if (head.depth <= 0 || tail.depth <= 0) return null;
+    return { head, tail, mag };
   }
 
   // ── 렌즈 L-glow: 원자 들뜸 준위 x → 광원 밝기 (캔버스 무관 순수 — 헤드리스 검증) ──
@@ -427,6 +457,8 @@
     const zRange = measureZRange(sim.atoms);                       // 원소 색조 정규화 기준(측정 Z 범위 — L-element)
     const maxQ = measureMaxAbsCharge(sim.atoms);                   // 이온 고리 정규화 기준(측정 |전하| 최댓값 — L-ion)
     const nRange = measureNRange(sim.atoms);                       // 동위원소 코어 정규화 기준(측정 N 범위 — L-isotope)
+    const maxV = measureMaxSpeed(sim.atoms);                       // 운동 자취 정규화 기준(측정 최대 속력 — L-velocity)
+    const velWorld = STREAK_FRAC * Math.max(sim.W, sim.H);         // 운동 자취 길이 창(장면 크기 비례 — 줄기와 동일 창)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: 0 }, cam);
       if (pr.depth <= 0) continue;
@@ -445,7 +477,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange);
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld));
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -460,9 +492,22 @@
   //     색조와 밝기는 직교: hue=Z(원소)·value=들뜸 x. 변이 없는 장면(범위 0)은 무채색(가짜 색 author 0).
   //   렌즈 L-ion: 전하 Q=Z−e(이온화)를 *테두리 고리*로 읽기 — 양이온 따뜻·음이온 차가움(발산)·중성 고리 0. 색조·밝기와 직교.
   //   렌즈 L-isotope: 중성자 수 N(동위원소)을 *안쪽 동심 코어*로 읽기 — 중성자 많을수록 밝은 코어. 단일 동위원소면 코어 0.
-  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ, nRange) {
+  //   렌즈 L-velocity: 속도 벡터(vx,vy)를 *운동 자취*로 읽기 — 머리=현 위치·꼬리=−속도, 길이 ∝ |v|. 정지면 자취 0. 온도색 아님(중립).
+  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ, nRange, vel) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
+    // 렌즈 L-velocity: 운동 자취(속도 방향, 측정 |v|/maxV 길이) — 구 아래 깔아 진행 방향을 보임. 톤 중립 냉백(온도색 아님·hue author 0).
+    //   정지(|v|=0)면 vel=null → 자취 0(시뮬에 없는 운동을 author 하지 않는다, RENDER §3). 광자 L-recoil 줄기와 동형.
+    if (vel) {
+      const g = ctx.createLinearGradient(vel.head.sx, vel.head.sy, vel.tail.sx, vel.tail.sy);
+      g.addColorStop(0, 'rgba(186,196,216,0.6)');    // 머리=원자(짙음)
+      g.addColorStop(1, 'rgba(186,196,216,0)');      // 꼬리=−속도 자취(투명)
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = g;
+      ctx.lineWidth = Math.max(1, 1.8 * pr.scale);
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(vel.head.sx, vel.head.sy); ctx.lineTo(vel.tail.sx, vel.tail.sy); ctx.stroke();
+    }
     const exc = excitationGlow(a.x | 0, maxX); // 들뜸 준위 → 광원 밝기 ∈[0,1](측정 등급)
     const zr = zRange || { lo: 0, hi: 0 };
     const spread = zr.hi > zr.lo;              // 측정 Z 변이 존재 여부(없으면 무채색 — author 0)
@@ -644,5 +689,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak };
 });

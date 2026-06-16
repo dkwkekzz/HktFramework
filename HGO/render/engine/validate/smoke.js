@@ -339,6 +339,35 @@ function run() {
   const monoSc = R3.scatterGlow(1, maxSc) <= R3.scatterGlow(2, maxSc) && R3.scatterGlow(2, maxSc) <= R3.scatterGlow(maxSc, maxSc) && R3.scatterGlow(maxSc * 9, maxSc) === 1 && R3.scatterGlow(5, 0) === 0;
   checks.push({ name: 'L-scatter: n↑ → 헤일로↑ 단조·상한 1·무산란 0', pass: monoSc, value: monoSc ? 'ok' : 'BAD' });
 
+  // ⑱ L-velocity(렌즈 assert): 원자는 거의 모든 장면서 vx,vy 로 움직이나(step-0009 maxV~2.4) 정지 프레임엔 정적 구로만
+  //    보였다(운동 방향 미독). 렌더는 속도 벡터를 *읽어* 운동 자취로 번역(머리=현 위치·꼬리=−속도, 길이 ∝ |v|/maxV).
+  //    ⛔blocked 인 *온도색(L-T)* 과 다르다 — 열 의미화 아닌 순수 운동 방향(광자 L-recoil 의 원자판). 정지(|v|=0)면 자취 0(author 0).
+  const sceneV = SC.SCENES['step-0009'];
+  const simV = S.createSim(sceneV.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simV, sceneV.ticks);
+  const maxV = R3.measureMaxSpeed(simV.atoms);
+  const movingAtoms = simV.atoms.filter(a => Math.hypot(a.vx || 0, a.vy || 0) > 1e-9).length;
+  checks.push({ name: 'L-velocity: 원자 속도 벡터 실림(시뮬 선행)', pass: maxV > 0 && movingAtoms > 0, value: `maxV ${maxV.toFixed(3)}·운동 ${movingAtoms}/${simV.atoms.length}` });
+  const camV = R3.makeCamera(simV.W, simV.H, 0);
+  const velWorld = 0.08 * Math.max(simV.W, simV.H);
+  const av = simV.atoms.find(a => Math.hypot(a.vx || 0, a.vy || 0) > 1e-9);
+  const vstk = R3.atomVelocityStreak(av, camV, maxV, velWorld);
+  const velPx = vstk ? Math.hypot(vstk.head.sx - vstk.tail.sx, vstk.head.sy - vstk.tail.sy) : 0;
+  checks.push({ name: 'L-velocity: 운동 원자 → 화면 자취(머리≠꼬리)', pass: velPx > 1, value: vstk ? `Δpx=${velPx.toFixed(0)}` : 'null' });
+  // 자취 축이 *투영된 속도 방향*과 정렬(읽기 충실 — 머리−꼬리 = +속도 투영, 꼬리=−v 라 head−tail=+v)
+  let vAligned = false;
+  if (vstk) {
+    const a0 = R3.project({ x: av.rx, y: av.ry, z: 0 }, camV);
+    const b0 = R3.project({ x: av.rx + av.vx, y: av.ry + av.vy, z: 0 }, camV);
+    const sdx = vstk.head.sx - vstk.tail.sx, sdy = vstk.head.sy - vstk.tail.sy;
+    const mdx = b0.sx - a0.sx, mdy = b0.sy - a0.sy;
+    vAligned = (sdx * mdx + sdy * mdy) > 0;
+  }
+  checks.push({ name: 'L-velocity: 자취 축 = 투영 속도 방향', pass: vAligned, value: vAligned ? 'ok' : 'no' });
+  // author 0: 정지 원자(v=0)는 자취 없음(null)
+  const vNone = R3.atomVelocityStreak({ rx: 1, ry: 1, vx: 0, vy: 0 }, camV, maxV, velWorld);
+  checks.push({ name: 'L-velocity: 정지 원자 → 자취 없음(author 0)', pass: vNone === null, value: vNone === null ? 'null' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
