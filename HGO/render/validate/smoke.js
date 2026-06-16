@@ -182,6 +182,24 @@ function run() {
   const order12 = R3.bondOrder(bonds[0]);
   checks.push({ name: 'L-order: 차수 없는 결합 → 단일(author 0)', pass: order12 === 1, value: `order ${order12}` });
 
+  // ⑪ L-Ebond(렌즈 assert): bondLocalE 장면(step-0015)은 sim.bonds 에 결합 E(bond[2]=Eabs)를 실어 보낸다.
+  //    렌더는 그 E 를 *읽어* 결합선 밝기로 등급화(maxE 정규화) — 강한 결합=밝게. E 없으면 밝기 0(author 0).
+  const sceneE = SC.SCENES['step-0015'];
+  const simE = S.createSim(sceneE.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simE, sceneE.ticks);
+  const bondsE = simE.bonds || [];
+  const maxE = R3.measureMaxBondEnergy(bondsE);
+  checks.push({ name: 'L-Ebond: 시뮬이 결합 E 내보냄(시뮬 선행)', pass: maxE > 0, value: `maxE ${maxE.toFixed(3)}` });
+  // 강한 결합 → 약한 결합보다 밝다(등급, 읽기 충실)
+  const es = bondsE.map(b => R3.bondEnergy(b)).filter(e => e > 0).sort((p, q) => p - q);
+  const graded = es.length >= 2 && R3.bondGlow(es[es.length - 1], maxE) > R3.bondGlow(es[0], maxE);
+  checks.push({ name: 'L-Ebond: 강한 결합 = 더 밝음(등급)', pass: graded, value: es.length >= 2 ? `g(${es[es.length-1].toFixed(2)})=${R3.bondGlow(es[es.length-1],maxE).toFixed(2)}>g(${es[0].toFixed(2)})=${R3.bondGlow(es[0],maxE).toFixed(2)}` : 'single' });
+  // 단조·정규화 상한 1(클램프)
+  const monoE = R3.bondGlow(0.1, maxE) <= R3.bondGlow(0.5, maxE) && R3.bondGlow(0.5, maxE) <= R3.bondGlow(maxE, maxE);
+  checks.push({ name: 'L-Ebond: E↑ → 밝기↑ 단조·상한 1', pass: monoE && R3.bondGlow(maxE * 9, maxE) === 1, value: monoE ? 'ok' : 'BAD' });
+  // author 0: E 없는 결합(step-0012, bond[2]===undefined) → 밝기 0
+  checks.push({ name: 'L-Ebond: E 없는 결합 → 밝기 0(author 0)', pass: R3.bondEnergy(bonds[0]) === 0 && R3.bondGlow(R3.bondEnergy(bonds[0]), maxE) === 0, value: `${R3.bondEnergy(bonds[0])}` });
+
   // ⑨ L-glow(렌즈 assert): 원자 들뜸 준위 x(양자수 0..3)를 *광원 밝기*로 *등급* 읽는다(불리언 on/off 아님).
   //    측정 최댓값(maxX)으로 정규화 — 더 들뜬 원자가 더 밝다. x=0(바닥)이면 글로우 0(빛 author 0).
   const maxX = R3.measureMaxExcitation(sim.atoms);

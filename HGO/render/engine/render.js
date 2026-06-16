@@ -36,6 +36,11 @@
 //   결합선을 그 차수만큼 *평행 복제*한다(단일 1줄·이중 2줄·삼중 3줄). 차수는 시뮬 측정값(읽기) —
 //   평행선 글리프는 그 수를 보일 뿐(분포·실루엣 author 0). 차수가 없는 결합(step-0010~12, bond[3]===undefined)은
 //   단일선(order 1, 종전 L-bond 와 동일) — 시뮬이 안 내보낸 차수를 근사로 author 하지 않는다(RENDER §3).
+//
+// 렌즈 L-Ebond: 시뮬이 내보낸 *결합 에너지*(sim.bonds[k][2]=Eabs = 결합에 국소화된 E, step-0015 bondLocalE 가 실음)를
+//   읽어 결합선 *밝기*로 번역한다(magnitude 채널 — "광자 E=밝기"·"들뜸 x=밝기"와 동형). 측정 최댓값(maxE)으로
+//   정규화한 등급 밝기: 강한 결합일수록 밝게. 색조는 중립 청백(hue author 0 — 밝기만 읽음). Eabs 없는 결합
+//   (step-0010~12, bond[2]===undefined)이거나 E=0 이면 기본 구조선 톤(밝기 0 가산 — 시뮬이 안 낸 E author 0).
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -185,6 +190,26 @@
     return Math.round(o);
   }
 
+  // ── 렌즈 L-Ebond: 결합 에너지(sim.bonds[k][2]=Eabs) → 결합선 밝기 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 결합 배열에서 결합 E 최댓값을 *측정*(등급 정규화 기준 — 손박은 임계 0). Eabs 없는 결합은 0 취급.
+  function measureMaxBondEnergy(bonds) {
+    let m = 0;
+    for (const b of bonds) { const e = b[2]; if (Number.isFinite(e) && e > m) m = e; }
+    return m;
+  }
+
+  // 결합 E 를 읽는다(없거나 음수면 0 — 시뮬이 안 낸 E author 0). Eabs = bond[2].
+  function bondEnergy(bond) {
+    const e = bond[2];
+    return (Number.isFinite(e) && e > 0) ? e : 0;
+  }
+
+  // 결합 E 를 측정 최댓값으로 정규화한 *밝기* ∈[0,1](등급). maxE=0 또는 E=0 이면 0(밝기 가산 0 — author 0).
+  function bondGlow(E, maxE) {
+    if (!(maxE > 0) || !(E > 0)) return 0;
+    return Math.min(1, E / maxE);
+  }
+
   // 화면 선분 {a,b} 를 차수만큼 *평행 복제*한다 — 결합 축에 수직으로 ±sepPx 오프셋(중심 대칭).
   //   order=1 → [중심 1줄] · order=2 → [±sep/2] · order=3 → [−sep,0,+sep]. 평행선 간격은 presentation
   //   (lineWidth 와 동형 글리프 창 — 측정 양 아님). 순수 화면 수학(분포 재성형 0).
@@ -313,18 +338,24 @@
   //   결합 *존재*는 읽기(sim.bonds) — 선이 그 연결을 보일 뿐. 색은 구조선(격자와 동형 무대 장치 톤,
   //   시뮬 양을 거짓 인코딩하지 않음). 결합 0이면 선 0(author 0). 굵기=원근(평균 스케일).
   //   렌즈 L-order: 결합 차수(bond[3], step-0018 bondOrder)를 읽어 선을 차수만큼 평행 복제한다(단일·이중·삼중).
+  //   렌즈 L-Ebond: 결합 E(bond[2]=Eabs, step-0015)를 읽어 선 밝기를 등급화(maxE 정규화 — 강한 결합=밝게).
   function drawBonds(ctx, sim, cam) {
     const bonds = sim.bonds;
     if (!bonds || !bonds.length) return;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = 'rgba(176,198,255,0.55)';   // 연한 청백 구조선(분자 결합 — 무대 톤)
     ctx.lineCap = 'round';
+    const maxE = measureMaxBondEnergy(bonds);     // 결합 E 정규화 기준(측정 — 손박은 임계 0)
     for (const bond of bonds) {
       const seg = bondSegment(bond, sim, cam);
       if (!seg) continue;
       const lw = Math.max(1, (seg.a.scale + seg.b.scale));   // 원근 굵기(가까울수록 굵게)
       const order = bondOrder(bond);              // 결합 차수 읽기(없으면 1 — 단일선, author 0)
       const sepPx = lw * 2.2;                     // 평행선 간격(굵기 비례 — 겹치지 않게, presentation)
+      // 결합 E → 밝기 등급(magnitude 채널). E 없거나 0 이면 g=0 → 기본 구조선 톤(밝기 가산 0, author 0).
+      const g = bondGlow(bondEnergy(bond), maxE);
+      const base = [176, 198, 255], a = 0.40 + 0.55 * g;     // 강한 결합일수록 불투명·밝게
+      const c = base.map(v => Math.min(255, Math.round(v + (255 - v) * 0.5 * g)));   // E↑ → 흰색 쪽으로(밝기)
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;             // 청백, 색조 author 0
       ctx.lineWidth = lw;
       for (const ln of bondMultiline(seg, order, sepPx)) {   // 차수만큼 평행 복제
         ctx.beginPath(); ctx.moveTo(ln.a.sx, ln.a.sy); ctx.lineTo(ln.b.sx, ln.b.sy); ctx.stroke();
@@ -371,5 +402,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow };
 });

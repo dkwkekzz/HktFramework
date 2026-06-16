@@ -53,9 +53,11 @@ atom 트랙은 *세계를 굴린다*(보존·결정론·창발). render 트랙�
 | **L-recoil** | ✅ 렌즈-005 | 광자 운동량(px,py) → 빛 줄기/이방성(길이∝\|p\|, 방향 0 이면 줄기 없음) | ✅ 충족 — step-0003 recoil·0004 propagate 가 p=E/c 방향을 실음 |
 | **L-bond** | ✅ 렌즈-006 | 결합쌍 `sim.bonds`([i,j]) → 결합한 두 원자를 잇는 선(분자 윤곽=연결 성분) | ✅ 충족 — step-0010 bond·0012 valence 가 sim.bonds(연결 성분 간선)를 실음 |
 | **L-order** | ✅ 렌즈-009 | 결합 차수 `sim.bonds[k][3]`(공유 전자쌍 수) → 결합선 평행 복제(단일 1줄·이중 2줄·삼중 3줄) | ✅ 충족 — step-0018 bondOrder 가 [i,j,Eabs,order] 로 차수를 실음(O=O 이중·N≡N 삼중) |
+| **L-Ebond** | ✅ 렌즈-010 | 결합 E `sim.bonds[k][2]`(Eabs) → 결합선 밝기 등급(maxE 정규화 — 강한 결합=밝게) | ✅ 충족 — step-0015 bondLocalE 가 [i,j,Eabs] 로 결합별 E 를 실음 |
 | **L-T** | ⛔ blocked | 운동 E(속도) → 흑체 온도색 | 시뮬이 *온도/열*을 의미 있게 굴린 뒤(현재 자유 운동만) |
+| **L-nuc** | ⛔ blocked | 붕괴·융합 *이벤트* → 변환 플래시/입자 줄기 | 시뮬이 *이벤트 신호*(붕괴/융합 타임스탬프·방출 입자)를 내보낸 뒤 — 현재 scene 불리언 `decayActive`/`fuseActive`·per-atom `nuc`/`lep`(보존 장부)만이라 *언제 변환됐는가*가 없음. nuc/lep 는 빛이 아니라 장부 → glow author 금지 |
 
-> blocked 렌즈는 *시작하지 마라*(§3 연성 author). 가능 칸(L-line 같은 정제)만 진행.
+> blocked 렌즈는 *시작하지 마라*(§3 연성 author). 가능 칸(L-line 같은 정제)만 진행. 핵 변환(step-0031~34)의 *결과*(Z+N 질량·위치·방출 KE→운동)는 render 가 이미 읽는 위치·질량 채널로 자동 표시 — 변환 *순간*만 이벤트 신호 대기.
 
 ---
 
