@@ -145,6 +145,61 @@ function run() {
   const segNone = R3.bondSegment([0, 1], { atoms: [] }, camB);
   checks.push({ name: 'L-bond: 무효 원자 → 선분 없음(author 0)', pass: segNone === null, value: segNone === null ? 'null' : 'BAD' });
 
+  // ⑩ L-order(렌즈 assert): bondOrder 장면(step-0018)은 sim.bonds 에 결합 차수(bond[3] = 공유 전자쌍 수,
+  //    단일1·이중2·삼중3)를 실어 보낸다. 렌더는 그 차수를 *읽어* 결합선을 차수만큼 평행 복제한다(O=O 두 줄·N≡N 세 줄).
+  //    차수 없는 결합(step-0010~12, bond[3]===undefined)은 단일선(order 1, author 0).
+  const sceneO = SC.SCENES['step-0018'];
+  const simO = S.createSim(sceneO.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simO, sceneO.ticks);
+  const bondsO = simO.bonds || [];
+  const maxOrder = bondsO.reduce((m, b) => Math.max(m, R3.bondOrder(b)), 0);
+  checks.push({ name: 'L-order: 시뮬이 결합 차수 내보냄(시뮬 선행)', pass: maxOrder >= 2, value: `maxOrder ${maxOrder}` });
+  // 차수 분포 읽기 충실 — 합 = 결합 수(누락·중복 0)
+  const odist = {};
+  for (const b of bondsO) { const o = R3.bondOrder(b); odist[o] = (odist[o] || 0) + 1; }
+  const osum = Object.values(odist).reduce((s, v) => s + v, 0);
+  checks.push({ name: 'L-order: 차수 분포 합 = 결합 수(읽기 충실)', pass: osum === bondsO.length, value: JSON.stringify(odist) });
+  // 차수 k → 평행선 k 줄
+  const camO = R3.makeCamera(simO.W, simO.H, 0);
+  const bondMax = bondsO.find(b => R3.bondOrder(b) === maxOrder);
+  const segO = R3.bondSegment(bondMax, simO, camO);
+  const mlines = R3.bondMultiline(segO, maxOrder, 6);
+  checks.push({ name: 'L-order: 차수 k → 평행선 k 줄', pass: mlines.length === maxOrder, value: `${mlines.length} 줄(order ${maxOrder})` });
+  // 평행선은 *평행*(각 줄 축 방향 동일, 외적 0) + *분리*(첫↔끝 줄 겹치지 않음)
+  let parallelSep = mlines.length >= 2;
+  if (parallelSep) {
+    const d0 = { x: mlines[0].b.sx - mlines[0].a.sx, y: mlines[0].b.sy - mlines[0].a.sy };
+    for (const ln of mlines) {
+      const d = { x: ln.b.sx - ln.a.sx, y: ln.b.sy - ln.a.sy };
+      if (Math.abs(d0.x * d.y - d0.y * d.x) > 1e-6) parallelSep = false;   // 외적≠0 → 안 평행
+    }
+    const last = mlines[mlines.length - 1];
+    const sep = Math.hypot(mlines[0].a.sx - last.a.sx, mlines[0].a.sy - last.a.sy);
+    if (!(sep > 1)) parallelSep = false;
+  }
+  checks.push({ name: 'L-order: 평행선 평행·분리(겹침 0)', pass: parallelSep, value: parallelSep ? 'ok' : 'no' });
+  // author 0: 차수 없는 결합(step-0012, bond[3]===undefined) → 단일선(order 1)
+  const order12 = R3.bondOrder(bonds[0]);
+  checks.push({ name: 'L-order: 차수 없는 결합 → 단일(author 0)', pass: order12 === 1, value: `order ${order12}` });
+
+  // ⑪ L-Ebond(렌즈 assert): bondLocalE 장면(step-0015)은 sim.bonds 에 결합 E(bond[2]=Eabs)를 실어 보낸다.
+  //    렌더는 그 E 를 *읽어* 결합선 밝기로 등급화(maxE 정규화) — 강한 결합=밝게. E 없으면 밝기 0(author 0).
+  const sceneE = SC.SCENES['step-0015'];
+  const simE = S.createSim(sceneE.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simE, sceneE.ticks);
+  const bondsE = simE.bonds || [];
+  const maxE = R3.measureMaxBondEnergy(bondsE);
+  checks.push({ name: 'L-Ebond: 시뮬이 결합 E 내보냄(시뮬 선행)', pass: maxE > 0, value: `maxE ${maxE.toFixed(3)}` });
+  // 강한 결합 → 약한 결합보다 밝다(등급, 읽기 충실)
+  const es = bondsE.map(b => R3.bondEnergy(b)).filter(e => e > 0).sort((p, q) => p - q);
+  const graded = es.length >= 2 && R3.bondGlow(es[es.length - 1], maxE) > R3.bondGlow(es[0], maxE);
+  checks.push({ name: 'L-Ebond: 강한 결합 = 더 밝음(등급)', pass: graded, value: es.length >= 2 ? `g(${es[es.length-1].toFixed(2)})=${R3.bondGlow(es[es.length-1],maxE).toFixed(2)}>g(${es[0].toFixed(2)})=${R3.bondGlow(es[0],maxE).toFixed(2)}` : 'single' });
+  // 단조·정규화 상한 1(클램프)
+  const monoE = R3.bondGlow(0.1, maxE) <= R3.bondGlow(0.5, maxE) && R3.bondGlow(0.5, maxE) <= R3.bondGlow(maxE, maxE);
+  checks.push({ name: 'L-Ebond: E↑ → 밝기↑ 단조·상한 1', pass: monoE && R3.bondGlow(maxE * 9, maxE) === 1, value: monoE ? 'ok' : 'BAD' });
+  // author 0: E 없는 결합(step-0012, bond[2]===undefined) → 밝기 0
+  checks.push({ name: 'L-Ebond: E 없는 결합 → 밝기 0(author 0)', pass: R3.bondEnergy(bonds[0]) === 0 && R3.bondGlow(R3.bondEnergy(bonds[0]), maxE) === 0, value: `${R3.bondEnergy(bonds[0])}` });
+
   // ⑨ L-glow(렌즈 assert): 원자 들뜸 준위 x(양자수 0..3)를 *광원 밝기*로 *등급* 읽는다(불리언 on/off 아님).
   //    측정 최댓값(maxX)으로 정규화 — 더 들뜬 원자가 더 밝다. x=0(바닥)이면 글로우 0(빛 author 0).
   const maxX = R3.measureMaxExcitation(sim.atoms);
