@@ -30,6 +30,12 @@
 //   이전엔 x 를 불리언(들뜸 유무)으로만 읽어 x=1 과 x=3 이 같아 보였다 — 이제 측정 최댓값(maxX)으로 정규화한
 //   *등급* 글로우로: 더 들뜬 원자가 더 밝게 발광한다(읽기). x=0(바닥 상태)이면 글로우 0(빛 author 0).
 //   밝기만 읽고 색은 중립 온백(presentation — hue author 0, "E=밝기"와 동형 magnitude 채널). 정규화는 측정.
+//
+// 렌즈 L-order: 시뮬이 내보낸 *결합 차수*(sim.bonds[k][3] = order ∈ {1,2,3} = 공유 전자쌍 수,
+//   step-0018 bondOrder 가 빈자리만큼 다중 공유를 측정해 실음 — O=O 이중·N≡N 삼중)를 읽어
+//   결합선을 그 차수만큼 *평행 복제*한다(단일 1줄·이중 2줄·삼중 3줄). 차수는 시뮬 측정값(읽기) —
+//   평행선 글리프는 그 수를 보일 뿐(분포·실루엣 author 0). 차수가 없는 결합(step-0010~12, bond[3]===undefined)은
+//   단일선(order 1, 종전 L-bond 와 동일) — 시뮬이 안 내보낸 차수를 근사로 author 하지 않는다(RENDER §3).
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -170,6 +176,34 @@
     return { a: pa, b: pb };
   }
 
+  // ── 렌즈 L-order: 결합 차수(sim.bonds[k][3]) → 다중 평행선 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 결합 차수를 *읽는다*(없으면 1 — 단일선, author 0). 정수 ≥1 로 클램프(읽기 충실).
+  //   step-0018 bondOrder 가 [i,j,Eabs,order] 로 실음 · 그 전 장면(step-0010~12)은 [i,j] → order undefined → 1.
+  function bondOrder(bond) {
+    const o = bond[3];
+    if (!Number.isFinite(o) || o < 1) return 1;
+    return Math.round(o);
+  }
+
+  // 화면 선분 {a,b} 를 차수만큼 *평행 복제*한다 — 결합 축에 수직으로 ±sepPx 오프셋(중심 대칭).
+  //   order=1 → [중심 1줄] · order=2 → [±sep/2] · order=3 → [−sep,0,+sep]. 평행선 간격은 presentation
+  //   (lineWidth 와 동형 글리프 창 — 측정 양 아님). 순수 화면 수학(분포 재성형 0).
+  function bondMultiline(seg, order, sepPx) {
+    const n = Math.max(1, order | 0);
+    const dx = seg.b.sx - seg.a.sx, dy = seg.b.sy - seg.a.sy;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len, py = dx / len;          // 결합 축에 수직인 단위 벡터(평행 오프셋 방향)
+    const lines = [];
+    for (let i = 0; i < n; i++) {
+      const off = (i - (n - 1) / 2) * sepPx;      // 중심 대칭 오프셋
+      lines.push({
+        a: { sx: seg.a.sx + px * off, sy: seg.a.sy + py * off },
+        b: { sx: seg.b.sx + px * off, sy: seg.b.sy + py * off },
+      });
+    }
+    return lines;
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -275,9 +309,10 @@
     ctx.beginPath(); ctx.arc(pr.sx, pr.sy, rad, 0, 6.2832); ctx.fill();
   }
 
-  // 렌즈 L-bond: 시뮬이 측정한 결합(sim.bonds = [i,j] 연결 성분 간선)을 두 원자를 잇는 선으로.
+  // 렌즈 L-bond: 시뮬이 측정한 결합(sim.bonds = [i,j,…] 연결 성분 간선)을 두 원자를 잇는 선으로.
   //   결합 *존재*는 읽기(sim.bonds) — 선이 그 연결을 보일 뿐. 색은 구조선(격자와 동형 무대 장치 톤,
   //   시뮬 양을 거짓 인코딩하지 않음). 결합 0이면 선 0(author 0). 굵기=원근(평균 스케일).
+  //   렌즈 L-order: 결합 차수(bond[3], step-0018 bondOrder)를 읽어 선을 차수만큼 평행 복제한다(단일·이중·삼중).
   function drawBonds(ctx, sim, cam) {
     const bonds = sim.bonds;
     if (!bonds || !bonds.length) return;
@@ -287,8 +322,13 @@
     for (const bond of bonds) {
       const seg = bondSegment(bond, sim, cam);
       if (!seg) continue;
-      ctx.lineWidth = Math.max(1, (seg.a.scale + seg.b.scale));   // 원근 굵기(가까울수록 굵게)
-      ctx.beginPath(); ctx.moveTo(seg.a.sx, seg.a.sy); ctx.lineTo(seg.b.sx, seg.b.sy); ctx.stroke();
+      const lw = Math.max(1, (seg.a.scale + seg.b.scale));   // 원근 굵기(가까울수록 굵게)
+      const order = bondOrder(bond);              // 결합 차수 읽기(없으면 1 — 단일선, author 0)
+      const sepPx = lw * 2.2;                     // 평행선 간격(굵기 비례 — 겹치지 않게, presentation)
+      ctx.lineWidth = lw;
+      for (const ln of bondMultiline(seg, order, sepPx)) {   // 차수만큼 평행 복제
+        ctx.beginPath(); ctx.moveTo(ln.a.sx, ln.a.sy); ctx.lineTo(ln.b.sx, ln.b.sy); ctx.stroke();
+      }
     }
   }
 
@@ -331,5 +371,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline };
 });

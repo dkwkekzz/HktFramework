@@ -26,7 +26,7 @@ atom 트랙은 *세계를 굴린다*(보존·결정론·창발). render 트랙�
 |---|---|---|
 | **atoms** | `{Z,N,e,x,rx,ry,vx,vy}` | 위치(rx,ry)=화면 좌표 · 질량(Z+N)=크기 · 들뜸(x)=광원 밝기 · 속도(vx,vy)=온도색(후속) |
 | **photons** | `{E,lambda,rx,ry,rx0,ry0,px,py,from,to}` | **lambda → 스펙트럼 색**(L-λ) · E=밝기 · (from,to)=스펙트럼선 · **(px,py)=운동량 방향 → 빛 줄기**(L-recoil, step-0003·0004 실음; 0 이면 방향 없음) · (rx0,ry0)=출생 위치 |
-| **bonds** | `[[i,j], …]` (원자 인덱스 쌍) | **결합쌍 → 분자 결합선**(L-bond, step-0010 bond·0012 valence 실음) — 결합한 두 원자를 잇는 선 · 연결 성분 = 분자 윤곽(읽기); 빈 배열이면 선 없음 |
+| **bonds** | `[[i,j,Eabs?,order?], …]` (원자 인덱스 쌍 + 선택 필드) | **결합쌍 → 분자 결합선**(L-bond, step-0010 bond·0012 valence 실음) — 결합한 두 원자를 잇는 선 · 연결 성분 = 분자 윤곽(읽기); 빈 배열이면 선 없음. **[3]=결합 차수 order → 평행선 수**(L-order, step-0018 bondOrder; undefined 면 단일). [2]=Eabs 결합 E(step-0015) |
 | **kernel** | `K.levelE·photonLambda·mass·ledger` | 파생량 재계산(읽기 보조) |
 
 > 채널은 *시뮬이 이미 내보낸 양*만이다. 시뮬에 없는 양(예: 광자 진행 방향)은 시뮬이 내보낼 때까지 렌즈를 *시작하지 않는다*(§4 blocked).
@@ -52,6 +52,7 @@ atom 트랙은 *세계를 굴린다*(보존·결정론·창발). render 트랙�
 | **L-line** | ✅ 렌즈-004 | 누적 광자 → 전이선별 빈도 띠(밝기=빈도/maxCount, 측정 정규화) | — (읽기 정제) |
 | **L-recoil** | ✅ 렌즈-005 | 광자 운동량(px,py) → 빛 줄기/이방성(길이∝\|p\|, 방향 0 이면 줄기 없음) | ✅ 충족 — step-0003 recoil·0004 propagate 가 p=E/c 방향을 실음 |
 | **L-bond** | ✅ 렌즈-006 | 결합쌍 `sim.bonds`([i,j]) → 결합한 두 원자를 잇는 선(분자 윤곽=연결 성분) | ✅ 충족 — step-0010 bond·0012 valence 가 sim.bonds(연결 성분 간선)를 실음 |
+| **L-order** | ✅ 렌즈-009 | 결합 차수 `sim.bonds[k][3]`(공유 전자쌍 수) → 결합선 평행 복제(단일 1줄·이중 2줄·삼중 3줄) | ✅ 충족 — step-0018 bondOrder 가 [i,j,Eabs,order] 로 차수를 실음(O=O 이중·N≡N 삼중) |
 | **L-T** | ⛔ blocked | 운동 E(속도) → 흑체 온도색 | 시뮬이 *온도/열*을 의미 있게 굴린 뒤(현재 자유 운동만) |
 
 > blocked 렌즈는 *시작하지 마라*(§3 연성 author). 가능 칸(L-line 같은 정제)만 진행.
