@@ -11,7 +11,7 @@
 
 - **닫힌 step**: [step-0057](steps/step-0057.md) — **공간 분할 셀 리스트를 연속력 vdw 에 배선(pauli 0056 와 동형·컷오프-PE shift)**. 단거리 연속력 3종 중 둘째 — vdw(1/r⁴ 보편 인력). force·`vdwPE` 둘 다 컷오프(cut=12·vdw 꼬리가 pauli 보다 길어 넓게) + shift(U<0 이라 −U(cut)>0·부호만 다름). spatialHash=0 → 전쌍 brute(회귀 0). 측정(60²·N=200·cut=12·6 tick): ①힘 maxDiff **2.86e-4**≈brute(먼 1/r⁴ 꼬리만 버림) ②**E 닫힘·shift 정합** 컷오프 잔차 **1.16e-2 ≈ brute 1.17e-2**(추가 드리프트 0·load-bearing) ③검사 **7275≪19900(36.6%)** ④셀-경로 결정론·노브=0. **장부 1.80e-2(E≤0.04 완화·symplectic)**·골든 **285/285**(회귀 0).
 - **닫힌 step(직전)**: [step-0056](steps/step-0056.md) — cellPairs 를 연속력 pauli 에 배선(컷오프-PE shift·E 닫힘 컷오프 잔차 9.25e-3≈brute·힘 maxDiff 1.15e-5·검사 24.9%). 골든 280/280.
-- **한 줄 상태**: Phase C 결합 기하 완결 + Phase E 중력 2체→응집→궤도 + **Phase D 핵 동역학 닫힘**(붕괴·융합·골짜기·정지질량 편입·별 점화·시계열·율 두 방향·Gamow 두 축 0050/0052·흡열 0051·핵합성 사다리 0053) + **상대론 완비(0047 c·0049 KE)** + **공간 분할: 열거기 0054 → collide 배선 0055(비트 동일) → 연속력 pauli 0056·vdw 0057 배선(컷오프-PE shift·E 닫힘)** — 전문 §7 INDEX. ⚠️한계: 진짜 다체 핵합성 시계열 미(staged 만)·**repulse/bond 셀 배선 미(동형 전가)**·E_G 절대 척도 토이·force relKE 정합 미·핵+화학 동시 무대·세 안정점·이중마법수 미.
+- **한 줄 상태**: Phase C 결합 기하 + Phase E 중력 궤도 + **Phase D 핵 동역학 닫힘** + **상대론 완비(0047 c·0049 KE)** + **공간 분할: 열거기 0054 → 단거리 힘 셀 배선 collide 0055·pauli 0056·vdw 0057(컷오프-PE shift·E 닫힘)** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 진짜 다체 핵합성 시계열 미(staged 만)·**repulse/bond 셀 배선 미(동형 전가)**·E_G 절대 척도 토이·force relKE 정합 미·핵+화학 동시 무대·세 안정점·이중마법수 미.
 - **다음**: **step-0058** (§2) — 1순위: repulse 도 pauli/vdw(0056/0057)와 동형 컷오프-PE shift 배선(단거리 연속력 마지막) · bond 도 collide(0055)와 동형 배선 · 진짜 다체 핵합성 시계열(연속력 배선 후 규모) · force relKE 정합. 한 step = 한 조각.
 
 ---
