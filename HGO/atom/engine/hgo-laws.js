@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -829,7 +829,16 @@
     for (const a of sim.atoms) {
       if (((a.N | 0) - (a.Z | 0)) <= nx) continue;         // 안정(N 과잉 아님) → 붕괴 안 함
       if ((a.nuc || 0) <= 0) continue;                     // 핵 저장고 빈 원자는 더 못 방출(이미 다 쓴 붕괴 — 비가역 화살표 끝)
-      if (rng() >= k) continue;                            // 붕괴 확률 kDecay
+      // 붕괴 확률: 평탄 kDecay 가 기본. decayRateExcess>0 이면 *핵 불안정도*(N−Z 의 문턱 초과분)에 비례해 가속 —
+      //   반감기가 author 한 평탄 상수가 아니라 핵 상태(N−Z)의 *함수*로 창발한다(안정선서 멀수록 빨리 붕괴 — Sargent 류).
+      //   keff = min(1, kDecay·(1 + decayRateExcess·excess)). 종류별 author 0 — excess 는 다발 양(N−Z)일 뿐.
+      //   노브=0 → keff=kDecay = 평탄(회귀 0 — rng 소비·비교 동일).
+      let keff = k;
+      if (sim.knobs.decayRateExcess) {
+        const excess = ((a.N | 0) - (a.Z | 0)) - nx;       // 문턱 초과 불안정도(>0 — 위 안정 게이트로 보장)
+        keff = Math.min(1, k * (1 + sim.knobs.decayRateExcess * excess));
+      }
+      if (rng() >= keff) continue;                          // 붕괴 확률 keff(불안정도 의존)
       const q = Math.min(a.nuc, sim.knobs.decayQ);         // 이번 붕괴가 방출하는 Q값(저장고 잔량 한도)
       // n→p 변환: 원소가 바뀐다(Z↑·N↓). 전하·바리온 보존, 렙톤은 반중성미자로 닫음.
       a.N -= 1; a.Z += 1; a.e += 1; a.lep = (a.lep || 0) - 1;

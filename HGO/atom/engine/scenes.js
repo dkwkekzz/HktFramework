@@ -2137,6 +2137,68 @@
         ];
       },
     },
+
+    'step-0036': {
+      id: 'step-0036',
+      title: '불안정도-의존 반감기 (decayRateExcess — 붕괴율이 핵 불안정도 N−Z 의 함수로 창발, 평탄 상수 kDecay → 핵 상태 의존)',
+      desc: 'step-0034~35 까지 붕괴 확률 `kDecay` 는 *평탄 상수*였다 — 모든 불안정 핵이 똑같은 율로 붕괴했다(반감기를 author 한 셈). 하지만 실제 핵은 *안정선에서 멀수록 빨리 붕괴*한다(중성자 과잉이 클수록 짧은 반감기 — Sargent 류). ' +
+            '이 step 은 그 반감기를 *핵 상태에서 창발*시킨다. 새 게이트 decayRateExcess: 붕괴 확률을 평탄 상수 대신 *불안정도*(N−Z 의 문턱 초과분 `excess`)에 비례해 키운다 — keff = min(1, kDecay·(1 + decayRateExcess·excess)). ' +
+            '종류별 author 0 — `excess` 는 다발의 양(N−Z)일 뿐이고, *어느 원소가 빠른지*를 박지 않는다(원소표 분기 0). 반감기는 이제 핵 상태(N−Z)의 *함수*로 측정에서 나온다(질량공식서 Q값·율 창발은 다음 단계 — 여기선 율이 불안정도에 의존함까지). ' +
+            '*측정*(무대: 두 집단 각 32개, 둘 다 한 번 붕괴하면 안정해지는 first-passage 라 반감기가 깔끔): **A=저불안정 ¹⁷C(Z6 N11, N−Z=5 → excess 1)** vs **B=고불안정 ¹⁸C(Z6 N12, N−Z=6 → excess 2)**. ' +
+            'decayRateExcess=5 ⇒ keff_A = 0.02·(1+5·1) = 0.12, keff_B = 0.02·(1+5·2) = 0.22 — *같은 법칙*인데 B 가 거의 2배 빠르다(불안정도가 커서). T=12 tick 中流 스냅샷: ' +
+            '① **불안정도-의존 반감기 창발** — 고불안정 B 집단의 미붕괴 개체수 < 저불안정 A(B 가 빨리 붕괴 — 율이 N−Z 에서 나옴) ② **율법 정량 적합** — 두 집단 미붕괴 ≈ N₀(1−keff)^T, keff=kDecay·(1+decayRateExcess·excess)(통계요동 ±5 안) ' +
+            '③ **단일 붕괴 first-passage 정합** — 붕괴한 원자는 전부 안정(N−Z≤문턱)·아무도 2회 붕괴 안 함(Z≤초기+1). ' +
+            '닫힌 장부: Q·B·L·E·px·py 머신 1e-9(decayRecoilPair=1 — 방출 입자 −Δp 바스 적재 계승). *대조*: decayRateExcess=0 이면 두 집단 *같은* 평탄율(0034 거동)·반감기 동일(회귀 0 — keff=kDecay·rng 소비 동일). 새 게이트 0 → 기존 법칙·골든 비트 불변.',
+      ticks: 12,
+      // ledgerTol 없음 — decayRecoilPair=1 (0032~35 계승) → px·py 도 머신. Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 두 집단 각 32개. A=¹⁷C(Z6 N11, excess=N−Z−nx=1·느림), B=¹⁸C(Z6 N12, excess=2·빠름). 둘 다 1회 붕괴 후 안정(first-passage).
+      //   decayRateExcess=5 → keff_A=0.12, keff_B=0.22. *같은 게이트*인데 불안정도가 커서 B 가 ~2배 빠르다. nuc=1(1회 붕괴분). 힘 법칙 안 켬.
+      init(rng, K) {
+        const W = 400, H = 400, atoms = [];
+        for (let i = 0; i < 32; i++) atoms.push({ Z: 6, N: 11, e: 6, x: 0, rx: 20 + (i % 8) * 20, ry: 20 + ((i / 8) | 0) * 20, vx: 0, vy: 0, nuc: 1, lep: 0 });   // A 저불안정 excess1
+        for (let i = 0; i < 32; i++) atoms.push({ Z: 6, N: 12, e: 6, x: 0, rx: 200 + (i % 8) * 20, ry: 20 + ((i / 8) | 0) * 20, vx: 0, vy: 0, nuc: 1, lep: 0 }); // B 고불안정 excess2
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.02, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayRateExcess: 5 } };
+      },
+
+      // 그룹별 미붕괴(=아직 N−Z>문턱) 개체수. 분류는 *초기* 불안정도(atoms0 의 excess)로 — 인덱스 정렬(decay 는 재배열 0).
+      counts(sim, a0, nx) {
+        let aU = 0, bU = 0; for (let i = 0; i < sim.atoms.length; i++) {
+          const a = sim.atoms[i], b = a0[i], ex0 = (b.N - b.Z) - nx, undec = (a.N - a.Z) > nx;
+          if (ex0 === 1 && undec) aU++; else if (ex0 === 2 && undec) bU++;
+        } return { aU, bU };
+      },
+
+      watch(sim, K) {
+        const nx = sim.knobs.decayNexcess;
+        // 미붕괴(=아직 불안정) 개체수만 그룹별로. 미붕괴 A 는 여전히 ¹⁷C(N=11), 미붕괴 B 는 ¹⁸C(N=12) — 붕괴한 것은 N≠11·12 또는 안정이라 제외.
+        let aU = 0, bU = 0; for (const a of sim.atoms) { if ((a.N - a.Z) <= nx) continue; if (a.N === 11) aU++; else if (a.N === 12) bU++; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { undecA: aU, undecB: bU, totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 창발 순서(고불안정 B 미붕괴 < 저불안정 A) ② 율법 정량 적합 ③ 단일 붕괴 first-passage 정합.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, nx = sim.knobs.decayNexcess, k = sim.knobs.kDecay, R = sim.knobs.decayRateExcess, T = this.ticks;
+        const { aU, bU } = this.counts(sim, a0, nx);
+        let aN = 0, bN = 0, stableIfDecayed = true, noDouble = true;
+        for (let i = 0; i < sim.atoms.length; i++) {
+          const a = sim.atoms[i], b = a0[i], ex0 = (b.N - b.Z) - nx;
+          if (ex0 === 1) aN++; else if (ex0 === 2) bN++;
+          if (a.Z > b.Z) { if ((a.N - a.Z) > nx) stableIfDecayed = false; if (a.Z > b.Z + 1) noDouble = false; }
+        }
+        const keffA = Math.min(1, k * (1 + R * 1)), keffB = Math.min(1, k * (1 + R * 2));
+        const predA = aN * Math.pow(1 - keffA, T), predB = bN * Math.pow(1 - keffB, T);
+        const TOL = 5;
+        return [
+          { name: '불안정도-의존 반감기 창발 — 고불안정 B(N−Z=6) 미붕괴 < 저불안정 A(N−Z=5)(같은 게이트·B 가 빨리 붕괴, 율이 N−Z 에서 창발)', pass: bU < aU, value: `A${aU}>B${bU}` },
+          { name: `율법 정량 적합 — 두 집단 미붕괴 ≈ N₀(1−keff)^T, keff=kDecay·(1+decayRateExcess·excess)[keffA=${keffA.toFixed(2)} keffB=${keffB.toFixed(2)}] ±${TOL}`, pass: Math.abs(aU - predA) <= TOL && Math.abs(bU - predB) <= TOL, value: `A${aU}~${predA.toFixed(1)}|B${bU}~${predB.toFixed(1)}` },
+          { name: '단일 붕괴 first-passage 정합 — 붕괴한 원자 전부 안정(N−Z≤문턱)·2회 붕괴 0(Z≤초기+1)', pass: stableIfDecayed && noDouble, value: aN + bN },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
