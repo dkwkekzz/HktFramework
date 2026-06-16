@@ -1034,6 +1034,73 @@
     return { pairs, checks };
   }
 
+  // Barnes-Hut 무게중심 쿼드트리 가속 합산(step-0060 — cellPairs 의 *장거리판*): gravity·coulomb 의 1/r² 는 컷오프하면
+  //   누락이 커 셀 리스트(0054)가 부적합하다 — 먼 원자도 *집단으로* 무시 못 할 인력을 준다. 대신 멀리 있는 원자 *무리*를
+  //   그 *무게중심 한 점*으로 근사한다(Barnes & Hut 1986): 노드 크기 s, 거리 d 가 s/d<θ 면 그 노드를 한 번에 lump.
+  //   → 한 원자가 보는 상호작용이 O(n) → O(log n) 으로, 전체 O(n²) → **O(n log n)**.
+  //   *force 법칙 아님*(LAW_ORDER·DEFAULTS 미참여) → step-0060 은 이 구조를 *만들고 brute 와 동치임을 측정*만(새 법칙 0·골든 보존=회귀 0).
+  //     force 배선(gravity·coulomb 을 이 합산으로 가속)은 후속 step(0061·0062). cellPairs(0054)→collide(0055) 와 같은 분리.
+  //   θ→0 동치: θ²·d²=0 < s² 항상 → 어떤 노드도 lump 안 됨 → 모든 잎(단일/소수 원자)까지 펼쳐 *전쌍과 같은 항 집합* 합산.
+  //     단 합 *순서*는 트리 DFS 라 brute(j 순)와 달라 부동소수 재정렬 → maxDiff ~머신(1e-13·"같은 항·다른 순서"·근사 아님).
+  //   토러스: 노드 무게중심까지의 변위는 min-image(토이 근사 — 노드가 경계 안 contiguous 박스라 COM 이 박스 내). 결정론: 위치만(rng 0).
+  //   반환 { accel:[{ax,ay}…], checks } — accel = Σ m_j·d/s2^1.5 (질량가중 1/r² *가속*·mi 무관 → 노드 총질량 lump 가능). checks=상호작용 횟수.
+  function bhForces(atoms, theta, W, H, soft) {
+    const n = atoms.length;
+    const eps2 = (soft || 1) * (soft || 1);
+    const S = Math.max(W, H), MAXD = 48;                     // 루트 = 정사각 [0,S)²(원자는 [0,W)×[0,H)⊂[0,S)²). 깊이 캡(좌표 거의 중복 가드)
+    function makeNode(x0, y0, sz) { return { x0, y0, sz, mass: 0, cx: 0, cy: 0, bodies: null, kids: null }; }
+    const root = makeNode(0, 0, S);
+    function quadrant(node, rx, ry) { return (ry >= node.y0 + node.sz / 2 ? 2 : 0) + (rx >= node.x0 + node.sz / 2 ? 1 : 0); }  // 0좌하 1우하 2좌상 3우상
+    function subdivide(node) {
+      const h = node.sz / 2;
+      node.kids = [makeNode(node.x0, node.y0, h), makeNode(node.x0 + h, node.y0, h), makeNode(node.x0, node.y0 + h, h), makeNode(node.x0 + h, node.y0 + h, h)];
+    }
+    function insert(node, i, depth) {
+      if (node.kids) { insert(node.kids[quadrant(node, atoms[i].rx, atoms[i].ry)], i, depth + 1); return; }
+      if (!node.bodies) node.bodies = [];
+      node.bodies.push(i);                                   // 잎에 담음
+      if (node.bodies.length > 1 && depth < MAXD) {          // 이미 차 있고 더 쪼갤 수 있음 → 분할·재분배
+        const bs = node.bodies; node.bodies = null; subdivide(node);
+        for (const b of bs) insert(node.kids[quadrant(node, atoms[b].rx, atoms[b].ry)], b, depth + 1);
+      }
+    }
+    for (let i = 0; i < n; i++) insert(root, i, 0);
+    function com(node) {                                     // 무게중심·총질량 상향 계산
+      if (node.kids) { let m = 0, mx = 0, my = 0; for (const c of node.kids) { com(c); if (c.mass > 0) { m += c.mass; mx += c.mass * c.cx; my += c.mass * c.cy; } } node.mass = m; if (m > 0) { node.cx = mx / m; node.cy = my / m; } return; }
+      if (node.bodies) { let m = 0, mx = 0, my = 0; for (const b of node.bodies) { const a = atoms[b], mb = a.Z + a.N; m += mb; mx += mb * a.rx; my += mb * a.ry; } node.mass = m; if (m > 0) { node.cx = mx / m; node.cy = my / m; } }
+    }
+    com(root);
+    const theta2 = theta * theta;
+    let checks = 0;
+    const accel = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i]; let ax = 0, ay = 0;
+      const stack = [root];
+      while (stack.length) {
+        const node = stack.pop();
+        if (node.mass === 0) continue;
+        if (node.kids) {                                     // 내부 노드 — θ 기준 판정
+          const dx = K.minImage(node.cx - a.rx, W), dy = K.minImage(node.cy - a.ry, H);
+          const d2 = dx * dx + dy * dy;
+          if (node.sz * node.sz < theta2 * d2) {             // s/d<θ → 노드를 무게중심 한 점으로 lump
+            const s2 = d2 + eps2, inv = node.mass / (s2 * Math.sqrt(s2));
+            ax += inv * dx; ay += inv * dy; checks++;
+          } else { for (const c of node.kids) stack.push(c); }  // 너무 가까움/큼 → 자식 펼침
+        } else if (node.bodies) {                            // 잎 — 담긴 원자 각자 전쌍식(자기 제외)
+          for (const b of node.bodies) {
+            if (b === i) continue;
+            const a2 = atoms[b], mb = a2.Z + a2.N;
+            const dx = K.minImage(a2.rx - a.rx, W), dy = K.minImage(a2.ry - a.ry, H);
+            const s2 = dx * dx + dy * dy + eps2, inv = mb / (s2 * Math.sqrt(s2));
+            ax += inv * dx; ay += inv * dy; checks++;
+          }
+        }
+      }
+      accel[i] = { ax, ay };
+    }
+    return { accel, checks };
+  }
+
   // 적분(기질): 자유 운동 — 위치 += 속도·dt, 토러스 경계 wrap.
   // 힘이 없으므로 v 불변 → 에너지·운동량 정확 보존(닫힌 장부 잔차 0).
   //
@@ -1057,5 +1124,5 @@
     }
   }
 
-  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy, cellPairs };
+  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy, cellPairs, bhForces };
 });

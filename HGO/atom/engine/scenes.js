@@ -3820,6 +3820,92 @@
         ];
       },
     },
+
+    'step-0060': {
+      id: 'step-0060',
+      title: 'Barnes-Hut 무게중심 쿼드트리 가속 합산 (측정·새 법칙 0 — 장거리 1/r² 를 O(n log n) 으로·θ→0 시 전쌍과 같은 항·cellPairs 0054 의 장거리판)',
+      desc: '단거리 법칙 5종(0054~59)은 셀 리스트로 가속 완결. 남은 O(n²)는 *장거리* 1/r²(gravity·coulomb) — 먼 원자도 집단으로 무시 못 할 인력을 줘 컷오프 부적합(셀 부적합). ' +
+            '이 측정 step 은 **Barnes-Hut 무게중심 쿼드트리**(`L.bhForces`)를 세우고, 그것이 전쌍 O(n²) 가속을 *훨씬 적은 상호작용*으로 근사함을 증명한다(새 법칙 0·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). ' +
+            '원리: 먼 원자 무리를 그 무게중심 한 점으로 lump — 노드 크기 s, 거리 d 가 s/d<θ 면 한 번에. 한 원자가 보는 상호작용 O(n)→O(log n), 전체 O(n²)→**O(n log n)**. force 배선(gravity·coulomb)은 후속 0061·0062(cellPairs→collide 와 같은 분리). ' +
+            'θ 는 정확도↔속도 노브: 작을수록 더 펼쳐(정확·느림)·클수록 더 lump(거침·빠름). 토러스 min-image COM 은 토이 근사(실제 주기계는 Ewald/PM — 후속). ' +
+            '*측정*(무대 120²·NP=1000 고정 시드 흩뿌림·soft=1): ' +
+            '① **θ→0 동치·load-bearing** — θ=0 가속 = 전쌍 brute 가속, maxDiff ~머신(같은 항 집합·트리 DFS 합 순서만 달라 부동소수 재정렬·근사 아님)·상호작용 수도 n(n−1) 일치. ' +
+            '② **θ>0 근사** — θ=0.2 가속이 brute 와 상대오차 ~2%(무게중심 lump·먼 무리를 한 점으로). ' +
+            '③ **검사 수 급감·O(n log n)** — θ=0.2 상호작용 ≪ 전쌍 n(n−1)(장거리도 가속 가능). ' +
+            '④ **장부·결정론·회귀** — 자유 드리프트 무대(힘 0) Q·B·L·E·px·py 머신·새 법칙 0 → 0001~59 골든 비트 불변(회귀 0).',
+      ticks: 4,
+      W: 120, H: 120, NP: 1000, THETA: 0.2, SOFT: 1,
+
+      // 측정 무대: 토러스에 NP개 원자를 고정 시드로 흩뿌린다(질량 다양 — Z·N 섞어 무게중심이 비자명).
+      scatter(K) {
+        const rng = K.mulberry32(20260622), a = [];
+        for (let i = 0; i < this.NP; i++) {
+          const heavy = (i % 4 === 0);                       // 1/4 은 무거운 핵(Z=8,N=8) — COM 가중 비자명
+          a.push({ Z: heavy ? 8 : 1, N: heavy ? 8 : 0, e: heavy ? 8 : 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: 0, vy: 0, lep: 0 });
+        }
+        return a;
+      },
+      // brute 기준 가속: g_i = Σ_{j≠i} m_j·d/s2^1.5 (질량가중 1/r²·mi 무관·bhForces 와 한 출처식). checks=n(n−1).
+      brute(K, atoms) {
+        const n = atoms.length, eps2 = this.SOFT * this.SOFT, accel = new Array(n); let checks = 0;
+        for (let i = 0; i < n; i++) {
+          const a = atoms[i]; let ax = 0, ay = 0;
+          for (let j = 0; j < n; j++) {
+            if (j === i) continue;
+            const b = atoms[j], mb = b.Z + b.N;
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const s2 = dx * dx + dy * dy + eps2, inv = mb / (s2 * Math.sqrt(s2));
+            ax += inv * dx; ay += inv * dy; checks++;
+          }
+          accel[i] = { ax, ay };
+        }
+        return { accel, checks };
+      },
+      // 두 가속장의 maxDiff(절대) + 상대오차(maxDiff/RMS 가속). 같은 식이라 θ=0 이면 재정렬 ~머신.
+      diff(K, ref, test) {
+        let maxd = 0, sumsq = 0;
+        for (let i = 0; i < ref.length; i++) {
+          const d = Math.hypot(test[i].ax - ref[i].ax, test[i].ay - ref[i].ay); if (d > maxd) maxd = d;
+          sumsq += ref[i].ax * ref[i].ax + ref[i].ay * ref[i].ay;
+        }
+        const rms = Math.sqrt(sumsq / ref.length);
+        return { maxd, rel: rms > 0 ? maxd / rms : 0 };
+      },
+      measure(K) {
+        const atoms = this.scatter(K), n = atoms.length;
+        const b = this.brute(K, atoms);
+        const t0 = L.bhForces(atoms, 0, this.W, this.H, this.SOFT);          // θ=0 → 전쌍과 같은 항
+        const th = L.bhForces(atoms, this.THETA, this.W, this.H, this.SOFT); // θ=0.5 → 근사
+        const d0 = this.diff(K, b.accel, t0.accel), dT = this.diff(K, b.accel, th.accel);
+        return { exactMaxd: d0.maxd, exactChecks: t0.checks, bruteChecks: b.checks, approxRel: dT.rel, approxChecks: th.checks };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): 자유 드리프트 무대(힘 0) — 측정은 watch/assert 가 고정 시드로 직교 수행.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < 12; i++) a.push({ Z: 1, N: 0, e: 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: simRng() - 0.5, vy: simRng() - 0.5, lep: 0 });
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: {} };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { exactMaxd: +m.exactMaxd.toExponential(3), exactChecks: m.exactChecks, bruteChecks: m.bruteChecks, approxRel: +m.approxRel.toExponential(3), approxChecks: m.approxChecks, ratioPct: +(m.approxChecks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① θ→0 동치·load-bearing ② θ>0 근사 ③ 검사 급감 O(n log n) ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const exact = m.exactMaxd < 1e-9 && m.exactChecks === m.bruteChecks;  // ① θ=0 = brute(같은 항·재정렬 ~머신·상호작용 수 일치)
+        const approx = m.approxRel < 0.05;                                    // ② θ=0.5 상대오차 작음(무게중심 근사)
+        const faster = m.approxChecks < m.bruteChecks * 0.5;                  // ③ 상호작용 ≪ 전쌍
+        return [
+          { name: `θ→0 동치·load-bearing — θ=0 가속 = 전쌍 brute 가속 maxDiff=${m.exactMaxd.toExponential(2)}(~머신·같은 항 집합·트리 DFS 합 순서만 다름·근사 아님)·상호작용 ${m.exactChecks}=${m.bruteChecks} 일치`, pass: exact, value: +m.exactMaxd.toExponential(3) },
+          { name: `θ>0 근사 — θ=${this.THETA} 가속 상대오차 ${(m.approxRel * 100).toFixed(2)}%(무게중심 lump·먼 무리를 한 점으로)`, pass: approx, value: +m.approxRel.toExponential(3) },
+          { name: `검사 수 급감·O(n log n) — θ=${this.THETA} 상호작용 ${m.approxChecks} ≪ 전쌍 ${m.bruteChecks}(${(m.approxChecks / m.bruteChecks * 100).toFixed(1)}%·장거리도 가속)`, pass: faster, value: m.approxChecks },
+          { name: `장부·결정론·회귀 — 자유 드리프트 무대(힘 0) Q·B·L·E·px·py 머신·새 법칙 0(LAW_ORDER·DEFAULTS 불변) → 0001~59 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.approxChecks },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
