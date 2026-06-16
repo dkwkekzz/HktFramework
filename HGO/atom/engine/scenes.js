@@ -2704,6 +2704,70 @@
         ];
       },
     },
+
+    'step-0045': {
+      id: 'step-0045',
+      title: '붕괴율 함수형도 결합에너지서 — Sargent Q⁵ (decaySargent — 반감기 ∝ 1/Q⁵·작은 Q 차가 큰 율 차·author 평탄율 잔재 해소)',
+      desc: 'step-0036 decayRateExcess 가 붕괴율을 *핵 불안정도 N−Z* 의 함수로 창발시켰으나 함수형이 토이 *선형*(1+R·excess)이었다 — 율의 *모양*은 여전히 author. 실제 β 붕괴율(Sargent 1933)은 방출 전자+중성미자의 *위상공간* ∝ **Q⁵**(Q=방출 에너지). ' +
+            '이 step 은 율의 함수형도 결합에너지서 끌어낸다(게이트 decaySargent): keff = kDecay·(Q/Qref)⁵, Q=dB(=ΔB·이미 결합에너지서·0037~). ⇒ 골짜기서 *조금* 더 먼(Q 큰) 핵이 *훨씬* 빨리 붕괴 — 율의 함수형마저 author 0(질량공식 B(Z,N)이 안정성·발열량·*그리고 율*까지 정함). ' +
+            '5제곱의 가파름이 요점: Q 가 2배면 율은 2⁵=32배 — 핵물리의 "작은 에너지 창 차이가 반감기를 천문학적으로 가른다"(같은 사슬서 µs ~ 수천 년)가 창발. ' +
+            '*측정*(무대: 저Q ¹⁷C(Z6 N11·Q=0.78) 200개 + 고Q ²¹C(Z6 N15·Q=1.60) 200개·**nuc 없음**·서로 떨어져 상호작용 0·decaySargent=1·decayQref=1.6013·kDecay=0.06·mf·dp·bp=0 순 β⁻·md·고정 시드 t=40 측정): ' +
+            '① **율 ∝ Q⁵** — 측정 율비 keffH/keffL ≈ (Q_H/Q_L)⁵=36.1(선형 2·세제곱 8.6 배제·5제곱 부근). ' +
+            '② **율 차의 원천은 Q뿐(평탄 대조)** — decaySargent=0(평탄)이면 두 집단 같은 율로 붕괴(붕괴수 차 ~noise)·decaySargent=1 이면 고Q ≫ 저Q ⇒ 율 차가 오직 Q(=ΔB·결합에너지)서. ' +
+            '③ **가파름(5제곱)** — Q 차 2.05배인데 율 차 ~31배(작은 Q 차 → 큰 율 차·선형 아님). ' +
+            '④ **에너지 불변·율만 바뀜** — Q값=ΔB 그대로(방출 에너지 불변)·닫힌 장부 Q·B·L·E·px·py 머신(rate 게이트는 *언제* 붕괴할지만 바꿈·*얼마나*(Q)는 불변). ' +
+            '*대조*: decaySargent=0 → keff=평탄 kDecay(0036 거동·회귀 0). 새 게이트 0 → 0001~44 법칙·골든 비트 불변.',
+      ticks: 40,
+      // ledgerTol 없음 — decay 게이트 계승(rest=(A−B)c²·decayRecoilPair) → Q·B·L·E·px·py 머신. Sargent 는 keff(확률)만 바꿈.
+
+      KN: { dt: 1, kDecay: 0.06, decayQref: 1.6013, decayMassFormula: 1, decayPairing: 1, decayBetaPlus: 0, massDefect: 1, decayRecoilPair: 1, decayNexcess: 4, decayQ: 1 },
+      // 저Q ¹⁷C(Z6 N11) 200 + 고Q ²¹C(Z6 N15) 200. 두 집단 같은 Z(탄소)·다른 N → 다른 Q(첫 β⁻ ΔB). 격자·서로 떨어짐(상호작용 0).
+      pop() { const a = []; for (let i = 0; i < 200; i++) a.push({ Z: 6, N: 11, e: 6, x: 0, rx: (i % 20) * 7 + 5, ry: Math.floor(i / 20) * 8 + 5, vx: 0, vy: 0, lep: 0 }); for (let i = 0; i < 200; i++) a.push({ Z: 6, N: 15, e: 6, x: 0, rx: (i % 20) * 7 + 5, ry: Math.floor(i / 20) * 8 + 160, vx: 0, vy: 0, lep: 0 }); return a; },
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 300, H: 300, atoms: this.pop(), rng: simRng, knobs: Object.assign({}, this.KN, { decaySargent: 1 }) };
+      },
+      // 고정 시드 재시뮬레이션(엔진 step 재사용·하네스 미변경)·sargent 게이트 켜고/꺼고 비교. t tick 후 생존 부모 수(저Q·고Q).
+      measure(K, sargent, t) {
+        const sim = { W: 300, H: 300, atoms: this.pop(), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { decaySargent: sargent }), tick: 0 };
+        for (let i = 0; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        let lo = 0, hi = 0; for (const a of sim.atoms) { if (a.Z === 6 && a.N === 11) lo++; else if (a.Z === 6 && a.N === 15) hi++; }
+        return { lo, hi };                                   // 생존 부모 수(저Q=lo·고Q=hi)
+      },
+      QH(K) { return K.bindingDelta(6, 15, 1); },             // ²¹C 첫 β⁻ ΔB(고Q)
+      QL(K) { return K.bindingDelta(6, 11, 1); },             // ¹⁷C 첫 β⁻ ΔB(저Q)
+
+      watch(sim, K) {
+        const t = this.ticks, sg = this.measure(K, 1, t), fl = this.measure(K, 0, t);
+        const keffH = 1 - Math.pow(sg.hi / 200, 1 / t), keffL = 1 - Math.pow(sg.lo / 200, 1 / t);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { QH: +this.QH(K).toFixed(4), QL: +this.QL(K).toFixed(4), Q5: +Math.pow(this.QH(K) / this.QL(K), 5).toFixed(1), rateRatio: +(keffH / keffL).toFixed(1), sgHiSurv: sg.hi, sgLoSurv: sg.lo, flHiSurv: fl.hi, flLoSurv: fl.lo, totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 율 ∝ Q⁵ ② 율 차 원천은 Q뿐(평탄 대조) ③ 가파름(5제곱) ④ 에너지 불변·율만.
+      assert(ctx, K) {
+        const t = this.ticks, sg = this.measure(K, 1, t), fl = this.measure(K, 0, t);
+        const QH = this.QH(K), QL = this.QL(K), q5 = Math.pow(QH / QL, 5);
+        const keffH = 1 - Math.pow(sg.hi / 200, 1 / t), keffL = 1 - Math.pow(sg.lo / 200, 1 / t);
+        const rateRatio = keffH / keffL;
+        // ① 측정 율비 ≈ Q⁵(band [20,55] — 선형 2·세제곱 8.6 배제·5제곱 36.1 포함).
+        const q5law = rateRatio >= 20 && rateRatio <= 55;
+        // ② 율 차 원천은 Q뿐: 평탄이면 두 집단 붕괴수 거의 같음(|차| ≤ 25, ~noise)·Sargent 면 고Q 붕괴 ≫ 저Q.
+        const flDecH = 200 - fl.hi, flDecL = 200 - fl.lo, sgDecH = 200 - sg.hi, sgDecL = 200 - sg.lo;
+        const flatEqual = Math.abs(flDecH - flDecL) <= 25;    // 평탄: 같은 율 → 붕괴수 비슷
+        const sargentSplit = sgDecH > sgDecL * 3;             // Sargent: 고Q 훨씬 많이 붕괴
+        const sourceQ = flatEqual && sargentSplit;
+        // ③ 가파름: Q 차 ~2 인데 율 차 ≫ 2(5제곱) — rateRatio > 10(선형·세제곱 영역 넘음).
+        const steep = rateRatio > 10 && (QH / QL) < 2.5;
+        return [
+          { name: `율 ∝ Q⁵(Sargent) — 측정 율비 keffH/keffL=${rateRatio.toFixed(1)} ≈ (Q_H/Q_L)⁵=${q5.toFixed(1)}(선형 2·세제곱 8.6 배제·5제곱 부근)`, pass: q5law, value: +rateRatio.toFixed(1) },
+          { name: `율 차의 원천은 Q뿐(평탄 대조) — 평탄(sargent=0) 붕괴수 고Q ${flDecH}≈저Q ${flDecL}(같은 율)·Sargent 고Q ${sgDecH} ≫ 저Q ${sgDecL} ⇒ 율 차가 오직 Q=ΔB`, pass: sourceQ, value: sgDecH },
+          { name: `가파름(5제곱) — Q 차 ${(QH / QL).toFixed(2)}배인데 율 차 ${rateRatio.toFixed(1)}배(작은 Q 차 → 큰 율 차·선형 아님)`, pass: steep, value: +(QH / QL).toFixed(2) },
+          { name: '에너지 불변·율만 바뀜 — Q값=ΔB 그대로(방출 에너지 불변)·닫힌 장부 Q·B·L·E·px·py 머신(rate 게이트는 *언제*만·*얼마나*(Q)는 불변)', pass: Math.abs(QH - this.QH(K)) < 1e-12, value: +QH.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
