@@ -317,6 +317,28 @@ function run() {
   const srcFlat = R3.measureSrcZRange([{ srcZ: 6 }, { srcZ: 6 }]);
   checks.push({ name: 'L-source: 단일 출처(범위 0) → 고리 0(author 0)', pass: !(srcFlat.hi > srcFlat.lo), value: `[${srcFlat.lo},${srcFlat.hi}]` });
 
+  // ⑰ L-scatter(렌즈 assert): 산란 장면(step-0005)은 광자에 *산란 횟수* nscatter 를 싣는다(몇 번 튕겼나).
+  //    광자 색(L-λ)은 *현재* 에너지만 보여 11번 산란한 광자와 갓 방출된 같은 색 광자가 똑같았다(산란 이력 미독).
+  //    렌더는 nscatter 를 *읽어* 산란 헤일로로 등급화(maxScatter 정규화 — 많이 튕길수록 넓고 짙게). 직진(0)이면 0(author 0).
+  const sceneSc = SC.SCENES['step-0005'];
+  const simSc = S.createSim(sceneSc.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simSc, sceneSc.ticks);
+  const maxSc = R3.measureMaxScatter(simSc.photons);
+  const scattered = simSc.photons.filter(p => (p.nscatter | 0) > 0).length;
+  checks.push({ name: 'L-scatter: 광자에 산란 횟수 nscatter 실림(시뮬 선행)', pass: maxSc > 0 && scattered > 0, value: `maxScatter ${maxSc}·산란광자 ${scattered}/${simSc.photons.length}` });
+  // 부채 입증: 색(L-λ)은 *현재 에너지*만 보인다 — 산란할수록 λ 가 변해도, 같은 색 구간(λ 0.1폭)에
+  //   산란 횟수가 *여럿* 공존한다(색=에너지 연속·nscatter=사건 수 이산 — 색이 산란 *횟수*를 못 가린다).
+  const byLam = {};
+  for (const p of simSc.photons) { const k = (+p.lambda).toFixed(1); (byLam[k] = byLam[k] || new Set()).add(p.nscatter | 0); }
+  const bandsMultiScatter = Object.values(byLam).filter(s => s.size > 1).length;
+  checks.push({ name: 'L-scatter: 같은 색 구간에 산란 횟수 복수(부채 실재)', pass: bandsMultiScatter > 0, value: `${bandsMultiScatter} 구간 — 색이 횟수 못 가림` });
+  // 많이 산란한 광자 = 더 짙은 헤일로(등급, 읽기 충실) · 직진(0)이면 0(author 0)
+  const gradedSc = R3.scatterGlow(maxSc, maxSc) > R3.scatterGlow(1, maxSc) && R3.scatterGlow(0, maxSc) === 0;
+  checks.push({ name: 'L-scatter: 많이 산란 = 더 짙은 헤일로(등급)·직진 0', pass: gradedSc, value: `g(${maxSc})=${R3.scatterGlow(maxSc, maxSc).toFixed(2)}>g(1)=${R3.scatterGlow(1, maxSc).toFixed(2)}·g(0)=0` });
+  // 단조 + 정규화 상한 1(클램프) + maxScatter=0(산란 장면 아님)이면 전부 0(author 0)
+  const monoSc = R3.scatterGlow(1, maxSc) <= R3.scatterGlow(2, maxSc) && R3.scatterGlow(2, maxSc) <= R3.scatterGlow(maxSc, maxSc) && R3.scatterGlow(maxSc * 9, maxSc) === 1 && R3.scatterGlow(5, 0) === 0;
+  checks.push({ name: 'L-scatter: n↑ → 헤일로↑ 단조·상한 1·무산란 0', pass: monoSc, value: monoSc ? 'ok' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

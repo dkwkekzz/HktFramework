@@ -75,6 +75,13 @@
 //   L-source 가 srcZ 를 *측정 범위 정규화*해 출처 고리 색조로(L-element 와 *동일 사상* — 저 Z 파랑→고 Z 빨강):
 //   광자 핵은 여전히 lambda(전이색·직교 채널), 바깥 고리만 출처 원소색. 같은 원소가 낸 빛은 같은 고리색.
 //   단일 원소(범위 0)·srcZ 없으면 고리 0 — 시뮬에 없는 구분을 author 하지 않는다(RENDER §3).
+//
+// 렌즈 L-scatter: 시뮬이 광자에 늘 싣는 *산란 횟수* nscatter(이 빛이 몇 번 튕겼나, step-0005·0006 산란 장면)를
+//   *산란 헤일로*로 읽는다. 광자 색(L-λ)은 *현재* 에너지만 보여 — 11번 산란해 색이 붉어진 광자와 갓 방출된
+//   같은 색 광자가 화면에서 똑같았다(산란 이력이 안 보임, 실 스냅샷 감사 미독 채널). nscatter 를 측정 최댓값으로
+//   정규화한 *등급* 헤일로로: 많이 산란한 광자일수록 더 퍼지고 흐린 빛(여러 번 튕겨 방향이 흩어진 빛의 표현).
+//   밝기·반경만 읽고 톤은 중립 냉백(magnitude 채널 — L-glow 들뜸 글로우와 동형, hue author 0). nscatter=0(직진)이면
+//   헤일로 0 — 안 튕긴 빛에 산란을 author 하지 않는다(RENDER §3). 핵 색(lambda)·출처 고리(srcZ)·줄기(운동량)와 직교.
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -175,6 +182,21 @@
   function excitationGlow(x, maxX) {
     if (!(maxX > 0) || !(x > 0)) return 0;
     return Math.min(1, x / maxX);
+  }
+
+  // ── 렌즈 L-scatter: 광자 산란 횟수 nscatter → 산란 헤일로 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 광자 배열에서 산란 횟수 최댓값을 *측정*(등급 정규화 기준 — 손박은 임계 0). 산란 광자 없으면 0.
+  function measureMaxScatter(photons) {
+    let m = 0;
+    for (const p of photons) { const n = p.nscatter | 0; if (n > m) m = n; }
+    return m;
+  }
+
+  // 산란 횟수 n 을 측정 최댓값으로 정규화한 *헤일로 세기* ∈[0,1](등급 — L-glow 와 동형 magnitude).
+  //   maxN=0(아무도 안 튕김) 또는 n=0(직진 광자)이면 0 — 산란을 author 하지 않는다(RENDER §3).
+  function scatterGlow(n, maxN) {
+    if (!(maxN > 0) || !(n > 0)) return 0;
+    return Math.min(1, n / maxN);
   }
 
   // ── 렌즈 L-element: 원자 양성자 수 Z(원소 정체성) → 색조 (캔버스 무관 순수 — 헤드리스 검증) ──
@@ -413,6 +435,7 @@
     const range = SP.measureRange(sim.photons) || { lo: 1, hi: 2 };
     const maxP = measureMaxMomentum(sim.photons);                  // 운동량 정규화 기준(측정)
     const szRange = measureSrcZRange(sim.photons);                 // 광자 출처 원소 색조 정규화 기준(측정 srcZ 범위 — L-source)
+    const maxScatter = measureMaxScatter(sim.photons);             // 산란 헤일로 정규화 기준(측정 최대 산란 횟수 — L-scatter)
     const streakWorld = STREAK_FRAC * Math.max(sim.W, sim.H);      // 줄기 길이 창(장면 크기 비례)
     for (const p of sim.photons) {
       const pr = project({ x: p.rx, y: p.ry, z: 0 }, cam);
@@ -423,7 +446,7 @@
 
     for (const d of draws) {
       if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange);
-      else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange);
+      else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -496,9 +519,21 @@
   //   렌즈 L-recoil: 운동량 방향이 있으면(streak≠null) *빛 줄기 글리프*(머리 밝음→투명)를 그 위에,
   //   마지막에 밝은 머리 코어. 둘 다 없으면(방출만) 점만 — 방향·경로 author 0.
   //   렌즈 L-source: 방출 원소 srcZ 를 *출처 고리*로(색조=원소, L-element 와 동일 사상). 핵 색(lambda=전이)과 직교.
-  function drawPhoton(ctx, SP, p, pr, range, streak, trail, szRange) {
+  //   렌즈 L-scatter: 산란 횟수 nscatter 를 *산란 헤일로*로(많이 튕긴 빛=더 퍼진 흐린 빛, magnitude 채널). 직진(nscatter=0)이면 헤일로 0.
+  function drawPhoton(ctx, SP, p, pr, range, streak, trail, szRange, maxScatter) {
     const [cr, cg, cb] = SP.photonColor(p.lambda, range);
     ctx.globalCompositeOperation = 'lighter';
+    // 렌즈 L-scatter: 산란 헤일로 = 산란 횟수 등급(측정 정규화 — 많이 튕긴 빛일수록 넓고 짙은 흐린 빛). 직진이면 0(author 0).
+    //   톤은 중립 냉백(magnitude 채널 — hue author 0). 핵 코어보다 먼저 깔아 코어가 위에 뜨게(흩어진 빛의 표현).
+    const sg = scatterGlow(p.nscatter | 0, maxScatter || 0);
+    if (sg > 0) {
+      const sr = Math.max(3, 7 * pr.scale) * (1.6 + 2.4 * sg);   // 많이 산란할수록 넓게 퍼짐
+      const gs = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, sr);
+      gs.addColorStop(0, `rgba(205,216,236,${(0.32 * sg).toFixed(3)})`);
+      gs.addColorStop(1, 'rgba(205,216,236,0)');
+      ctx.fillStyle = gs;
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, sr, 0, 6.2832); ctx.fill();
+    }
     if (trail) {                                     // 실제 전파 경로 = 출생→현재 변위(측정 — 손박은 창 0)
       const g = ctx.createLinearGradient(trail.head.sx, trail.head.sy, trail.tail.sx, trail.tail.sy);
       g.addColorStop(0, `rgba(${cr},${cg},${cb},0.5)`);
@@ -609,5 +644,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow };
 });
