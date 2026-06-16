@@ -2427,6 +2427,66 @@
         ];
       },
     },
+
+    'step-0041': {
+      id: 'step-0041',
+      title: '융합 Q값도 결합에너지서 (fuseMassFormula — fuseQ author 해소, ΔB_fus=B(생성)−ΣB(반응)·²H+²H→⁴He 별 점화)',
+      desc: 'step-0040 이 *붕괴* 발열량을 정지질량 M=A−B 로 편입했으나, *융합*(fuse, 0033)의 발열량은 여전히 author 상수 fuseQ + nuc 저장고였다 — 핵 에너지의 두 방향 중 한쪽만 결합에너지로 통합. ' +
+            '이 step 은 융합 Q값도 결합에너지서 창발시킨다(게이트 fuseMassFormula): 두 핵이 합칠 때 방출 = **ΔB_fus = B(생성) − B(a) − B(b)**(생성핵이 더 단단히 묶인 만큼이 에너지로·author fuseQ 폐기). ' +
+            'massDefect(0040)와 짝: 생성핵 정지질량이 (A−B(생성))·c² 로 ΔB_fus 만큼 *줄고*(질량 결손) 그만큼 복사 바스로 — **융합 발열 = 정지질량 감소**(e=mc²·저장고 무관). ' +
+            '발열/흡열도 author 0: 가벼운 핵은 ΔB_fus>0(발열·별 점화·²H→⁴He), 철 너머는 ΔB_fus<0(흡열) — *측정*으로 갈린다. ' +
+            '*측정*(무대: 8개 ²H(중수소) Z1 N1 e1 **nuc 없음**, 4쌍 정면 고속 접근·fuseMassFormula=1·massDefect=1·decayPairing=1·kFuse=1·fuseBarrier=0.1·kDecay=0): ' +
+            '① **융합 Q값 = 결합 이득 ΔB_fus** — 쌍당 방출(핵) = B(⁴He)−2B(²H) = +1.344 > 0(발열·결합에너지서·author 0). ' +
+            '② **nuc 저장고 폐기(fuse)** — Σnuc=0 인데도 4쌍 합체해 ⁴He 4개(개수 8→4·Z=2=Σ) ⇒ 연료는 정지질량. ' +
+            '③ **융합 발열 = 정지질량 감소** — 총 정지질량 에너지 감소 = 바스로 간 핵 방출(ΔrestE = −Σ ΔB_fus) 머신(e=mc²). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(rest=(A−B)c²·vcom·바스). *대조*: fuseMassFormula=0 이면 author fuseQ·저장고 경로(0033 거동·nuc 없으면 방출 0). 새 게이트 0 → fuseQ author·nuc 거동 → 0001~40 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — 닫힌 형식 합체(vcom·바스)·rest=(A−B)c² 가 ΔB_fus 만큼 줄어 바스 핵 방출과 상쇄 → Q·B·L·E·px·py 머신.
+
+      // 8개 ²H(Z1 N1 e1·**nuc 없음**) 4쌍. 각 쌍 정면 접근(vx=±1·총 p=0): gap 8 → dt=0.5 로 닫혀 fuseR=3 안에 들면 합체 → ⁴He(Z2 N2).
+      //   ΔB_fus = B(2,2,pair)−2B(1,1,pair) > 0(발열). vcom=0 → 생성핵 정지·흡수 상대 KE(쌍당 2)는 바스로. kDecay=0(순수 융합 — ⁴He 안 붕괴).
+      init(rng, K) {
+        const W = 200, H = 200, atoms = [];
+        for (let p = 0; p < 4; p++) {
+          const y = 40 + p * 40;
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: 96, ry: y, vx: 1, vy: 0, lep: 0 });   // 왼쪽 ²H → 오른쪽
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: 104, ry: y, vx: -1, vy: 0, lep: 0 });  // 오른쪽 ²H → 왼쪽 (쌍 총 p=0)
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 0.1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      restE(atoms, K, pair) { let e = 0; for (const a of atoms) e += (K.mass(a) - K.binding(a.Z | 0, a.N | 0, pair)); return e; },
+      dBfus(K, pair) { return K.binding(2, 2, pair) - 2 * K.binding(1, 1, pair); },  // ²H+²H→⁴He 결합 이득
+      // 합체 전 4쌍이 흡수할 상대 KE 합(쌍별 ½μ|vrel|² — 비탄성 합체로 바스에 park).
+      keRelSum(a0, K) { let s = 0; for (let i = 0; i < a0.length; i += 2) { const a = a0[i], b = a0[i + 1], ma = a.Z + a.N, mb = b.Z + b.N, mu = ma * mb / (ma + mb), dx = a.vx - b.vx, dy = a.vy - b.vy; s += 0.5 * mu * (dx * dx + dy * dy); } return s; },
+
+      watch(sim, K) {
+        let totNuc = 0, he = 0; for (const a of sim.atoms) { totNuc += a.nuc || 0; if (a.Z === 2 && a.N === 2) he++; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        const bathE = (sim.escaped && sim.escaped.E) || 0;
+        return { n: sim.atoms.length, he, totNuc, dBfus: +this.dBfus(K, 1).toFixed(4), bathE: +bathE.toFixed(4), restE: +this.restE(sim.atoms, K, 1).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0 };
+      },
+
+      // 가설: ① 융합 Q값=결합 이득 ΔB_fus(발열·author 0) ② nuc 저장고 폐기(Σnuc=0 인데 합체) ③ 융합 발열=정지질량 감소(e=mc²).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0;
+        let totNuc = 0, allHe = true; for (const a of sim.atoms) { totNuc += a.nuc || 0; if (!(a.Z === 2 && a.N === 2)) allHe = false; }
+        const nFus = a0.length - sim.atoms.length;                       // 합체 횟수(원자 감소분 = 쌍 수)
+        const bathE = (sim.escaped && sim.escaped.E) || 0;
+        const keRelSum = this.keRelSum(a0, K);
+        const nuclearReleased = bathE - keRelSum;                        // 바스 = 흡수 상대 KE + 핵 방출 ⇒ 핵 방출분
+        const dBfusTot = nFus * this.dBfus(K, 1);                        // Σ ΔB_fus(쌍 수 × 쌍당 결합 이득)
+        const restBefore = this.restE(a0, K, 1), restAfter = this.restE(sim.atoms, K, 1);
+        return [
+          { name: `융합 Q값 = 결합 이득 ΔB_fus — 쌍당 방출(핵) = B(⁴He)−2B(²H) = ${this.dBfus(K, 1).toFixed(4)} > 0(발열·결합에너지서·author 0)`, pass: this.dBfus(K, 1) > 0 && Math.abs(nuclearReleased - dBfusTot) < 1e-6, value: +this.dBfus(K, 1).toFixed(4) },
+          { name: `nuc 저장고 폐기(fuse) — Σa.nuc=${totNuc} 인데도 ${nFus}쌍 합체 → ⁴He ${sim.atoms.length}개(개수 8→${sim.atoms.length}·전부 Z2 N2) ⇒ 연료=정지질량`, pass: totNuc === 0 && allHe && nFus === 4, value: totNuc },
+          { name: '융합 발열 = 정지질량 감소 — ΔrestE = −Σ ΔB_fus(생성핵 질량 결손이 바스로) 머신(e=mc²)', pass: Math.abs((restAfter - restBefore) + dBfusTot) < 1e-6, value: +(restAfter - restBefore).toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

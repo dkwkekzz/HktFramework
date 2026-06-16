@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -760,6 +760,8 @@
     const R = sim.knobs.fuseR || 3, R2 = R * R;
     const barrier = sim.knobs.fuseBarrier || 0;            // 쿨롱 장벽: 상대 KE 가 이 이상이어야 융합(고E 충돌)
     const qRel = sim.knobs.fuseQ || 0;                     // 융합마다 방출하는 Δm·c² Q값(저장고 잔량 한도 내)
+    const fmf = sim.knobs.fuseMassFormula;                 // 융합 Q값을 결합에너지서(step-0041, 0 → author fuseQ·저장고 거동·회귀 0)
+    const pr = sim.knobs.decayPairing;                     // fmf 면 ΔB_fus 의 페어링 게이트(ledger·decay 와 같은 B 사용)
     const atoms = sim.atoms, n = atoms.length;
     let bath = null, fusedAny = false;
     const dead = new Array(n).fill(false);                 // 이미 합쳐져 소비된 원자(한 tick 중복 합체 가드)
@@ -783,14 +785,19 @@
         const M = ma + mb;
         const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
         const nucSum = (a.nuc || 0) + (b.nuc || 0);
-        const released = Math.min(qRel, nucSum);            // 방출 Δm·c²(저장고 잔량 한도)
+        // 방출 Δm·c²: fmf(0041) 면 *결합에너지 이득* ΔB_fus = B(생성)−B(a)−B(b)(질량공식서 — 발열량이 author 상수 아님·massDefect 와 짝).
+        //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
+        const Zp = a.Z + b.Z, Np = a.N + b.N;
+        const released = fmf
+          ? (K.binding(Zp, Np, pr) - K.binding(a.Z | 0, a.N | 0, pr) - K.binding(b.Z | 0, b.N | 0, pr))
+          : Math.min(qRel, nucSum);
         if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
-        bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스(E 닫힘)
+        bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스. fmf+md: 생성 핵 정지질량이 ΔB_fus 만큼 줄어 상쇄(E 닫힘)
         bath.count = (bath.count | 0) + 1;
-        // a 를 product 로 갱신(다발 합산·vcom·저장고 계승−방출). b 는 dead 표시 → 배열서 압축.
+        // a 를 product 로 갱신(다발 합산·vcom·저장고 계승). b 는 dead 표시 → 배열서 압축.
         a.Z += b.Z; a.N += b.N; a.e += b.e; a.lep = (a.lep || 0) + (b.lep || 0);
         a.vx = vcx; a.vy = vcy;
-        a.nuc = nucSum - released;                          // 남은 저장고 계승(방출분 제외)
+        a.nuc = fmf ? nucSum : nucSum - released;           // fmf: 저장고 미인출(연료=ΔM 정지질량·massDefect)·계승만. else: 저장고서 방출분 제외
         a.x = 0;                                            // 들뜸은 합체로 초기화(토이 — 핵 들뜸 별도 모형 전가)
         dead[j] = true; fusedAny = true;
         break;                                              // a 는 이번 tick 더 안 합침(i 다음으로)
