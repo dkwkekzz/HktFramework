@@ -68,6 +68,13 @@
 //   다른 분자는 다른 색조로 칠한다 → 분자가 *한 덩이*로 보인다. 색조는 분자 id 의 presentation 사상(황금각 분산 —
 //   종류별 색 박기 아닌 측정된 연결 성분 라벨의 구분). 결합 E(L-Ebond)=밝기·차수(L-order)=평행선과 직교(색조 채널).
 //   단일 분자(연결 성분 1) 또는 결합 0 이면 중립 청백(시뮬에 없는 구분을 author 하지 않는다 — RENDER §3).
+//
+// 렌즈 L-source: 시뮬이 광자에 늘 싣는 *방출 원소* srcZ(이 빛을 낸 원자의 Z)를 광자 *출처 고리*로 읽는다.
+//   광자 색(L-λ)은 *전이*(from→to 준위차)로 정해져 원소 무관 — 같은 전이를 탄소·산소·헬륨이 방출해도 *같은 색*(λ 동일).
+//   그래서 "어느 원소가 이 빛을 냈는가"는 화면에서 안 보였다(계약 감사 미독 채널 — atoms 의 Z 누락과 동형, 광자판).
+//   L-source 가 srcZ 를 *측정 범위 정규화*해 출처 고리 색조로(L-element 와 *동일 사상* — 저 Z 파랑→고 Z 빨강):
+//   광자 핵은 여전히 lambda(전이색·직교 채널), 바깥 고리만 출처 원소색. 같은 원소가 낸 빛은 같은 고리색.
+//   단일 원소(범위 0)·srcZ 없으면 고리 0 — 시뮬에 없는 구분을 author 하지 않는다(RENDER §3).
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -225,6 +232,17 @@
   function isotopeShade(N, lo, hi) {
     if (!(hi > lo)) return 0;
     return Math.max(0, Math.min(1, ((N | 0) - lo) / (hi - lo)));
+  }
+
+  // ── 렌즈 L-source: 광자 방출 원소 srcZ → 출처 고리 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 광자 색(L-λ)은 *전이*(from→to 준위차)로 정해져 원소 무관이다 — 같은 전이를 탄소·산소가 방출해도 같은 색.
+  //   그래서 *어느 원소가 이 빛을 냈는가*(srcZ, atoms 와 별개로 광자에 늘 실림)는 화면에서 안 보였다(계약 감사 미독 채널).
+  //   광자 배열에서 srcZ 범위를 *측정*(출처 색조 정규화 기준 — 손박은 임계 0). srcZ 없으면 {lo:0,hi:0}.
+  function measureSrcZRange(photons) {
+    let lo = Infinity, hi = -Infinity;
+    for (const p of photons) { const z = p.srcZ; if (z === undefined) continue; if (z < lo) lo = z; if (z > hi) hi = z; }
+    if (!Number.isFinite(lo)) return { lo: 0, hi: 0 };
+    return { lo, hi };
   }
 
   // HSV → RGB(0..255) — 색조를 화면 색으로(presentation 변환, 분포 재성형 0).
@@ -394,6 +412,7 @@
     }
     const range = SP.measureRange(sim.photons) || { lo: 1, hi: 2 };
     const maxP = measureMaxMomentum(sim.photons);                  // 운동량 정규화 기준(측정)
+    const szRange = measureSrcZRange(sim.photons);                 // 광자 출처 원소 색조 정규화 기준(측정 srcZ 범위 — L-source)
     const streakWorld = STREAK_FRAC * Math.max(sim.W, sim.H);      // 줄기 길이 창(장면 크기 비례)
     for (const p of sim.photons) {
       const pr = project({ x: p.rx, y: p.ry, z: 0 }, cam);
@@ -404,7 +423,7 @@
 
     for (const d of draws) {
       if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange);
-      else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam));
+      else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange);
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -476,7 +495,8 @@
   //   렌즈 L-trail: 실제 변위가 있으면(trail≠null) *전파 자취*(출생→현재 실거리, 가장 흐리게)를 맨 아래 깔고,
   //   렌즈 L-recoil: 운동량 방향이 있으면(streak≠null) *빛 줄기 글리프*(머리 밝음→투명)를 그 위에,
   //   마지막에 밝은 머리 코어. 둘 다 없으면(방출만) 점만 — 방향·경로 author 0.
-  function drawPhoton(ctx, SP, p, pr, range, streak, trail) {
+  //   렌즈 L-source: 방출 원소 srcZ 를 *출처 고리*로(색조=원소, L-element 와 동일 사상). 핵 색(lambda=전이)과 직교.
+  function drawPhoton(ctx, SP, p, pr, range, streak, trail, szRange) {
     const [cr, cg, cb] = SP.photonColor(p.lambda, range);
     ctx.globalCompositeOperation = 'lighter';
     if (trail) {                                     // 실제 전파 경로 = 출생→현재 변위(측정 — 손박은 창 0)
@@ -503,6 +523,16 @@
     gg.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
     ctx.fillStyle = gg;
     ctx.beginPath(); ctx.arc(pr.sx, pr.sy, rad, 0, 6.2832); ctx.fill();
+    // 렌즈 L-source: 방출 원소 srcZ → 출처 고리(측정 srcZ 범위 정규화·색조=원소, L-element 와 동일 사상).
+    //   같은 원소가 낸 빛은 같은 고리색 — 전이가 같아 핵 색(lambda)이 같아도 출처가 갈린다. 핵 색과 직교 글리프.
+    //   srcZ 없거나 변이 없으면(단일 원소 → 범위 0) 고리 0 — 시뮬에 없는 구분을 author 하지 않는다(RENDER §3).
+    if (p.srcZ !== undefined && szRange && szRange.hi > szRange.lo) {
+      const [rr, rg, rb] = hsvToRgb(elementHue(p.srcZ | 0, szRange.lo, szRange.hi), 0.7, 1);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = `rgba(${rr},${rg},${rb},0.75)`;
+      ctx.lineWidth = Math.max(1, 1.6 * pr.scale);
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, rad * 0.9, 0, 6.2832); ctx.stroke();
+    }
   }
 
   // 렌즈 L-bond: 시뮬이 측정한 결합(sim.bonds = [i,j,…] 연결 성분 간선)을 두 원자를 잇는 선으로.
@@ -579,5 +609,5 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue };
+  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange };
 });

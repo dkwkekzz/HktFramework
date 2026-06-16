@@ -291,6 +291,32 @@ function run() {
   const bondedSameMol = (simB.bonds || []).every(([i, j]) => ccB.comp[i] >= 0 && ccB.comp[i] === ccB.comp[j]);
   checks.push({ name: 'L-molecule: 결합 원자 같은 분자(연결 읽기 충실)', pass: ccB.count >= 1 && bondedSameMol, value: `${ccB.count} 분자` });
 
+  // ⑯ L-source(렌즈 assert): 광자 색(L-λ)은 *전이*(from→to 준위차)로 정해져 원소 무관 — 같은 전이를 탄소·산소·헬륨이
+  //    방출해도 *같은 lambda(같은 색)*. 그래서 *방출 원소* srcZ(광자에 늘 실림)는 색으로 안 보였다(계약 감사 미독 채널).
+  //    렌더는 srcZ 를 *읽어* 출처 고리 색조로(측정 srcZ 범위 정규화·L-element 와 동일 사상). 단일 원소면 고리 0(author 0).
+  const szr = R3.measureSrcZRange(ph);
+  const szset = [...new Set(ph.map(p => p.srcZ).filter(z => z !== undefined))].sort((a, b) => a - b);
+  checks.push({ name: 'L-source: 광자에 방출 원소 srcZ 실림(시뮬 선행)', pass: szr.hi > szr.lo, value: `srcZ[${szr.lo},${szr.hi}]·${szset.length}종` });
+  // 부채 입증: 같은 전이(from→to)를 다른 원소가 내면 lambda(색) 동일인데 srcZ 는 다르다(색이 출처를 못 가린다)
+  const byT = {};
+  for (const p of ph) { const k = p.from + '>' + p.to; (byT[k] = byT[k] || []).push(p); }
+  let sameColorDiffSrc = false;
+  for (const k in byT) {
+    const g = byT[k];
+    const lset = new Set(g.map(p => +p.lambda.toFixed(6))), zs = new Set(g.map(p => p.srcZ));
+    if (lset.size === 1 && zs.size > 1) sameColorDiffSrc = true;   // 같은 색·다른 출처 = 미독 부채 실재
+  }
+  checks.push({ name: 'L-source: 같은 전이·다른 원소 = 같은 색(부채 실재)', pass: sameColorDiffSrc, value: sameColorDiffSrc ? '색이 출처 못 가림' : 'n/a' });
+  // 다른 출처 원소 → 다른 고리 색조(읽기 충실 — 출처가 구분된다)
+  const hSrcLo = R3.elementHue(szr.lo, szr.lo, szr.hi), hSrcHi = R3.elementHue(szr.hi, szr.lo, szr.hi);
+  checks.push({ name: 'L-source: 다른 출처 → 다른 고리 색(출처 구분)', pass: Math.abs(hSrcLo - hSrcHi) > 1e-6, value: `hue ${hSrcLo.toFixed(2)}→${hSrcHi.toFixed(2)}` });
+  // 색조가 srcZ 에 단조(L-element 와 동일 사상 — 저 Z 파랑(큰 hue)·고 Z 빨강(작은 hue))
+  const monoSrc = szset.every((z, i) => i === 0 || R3.elementHue(szset[i - 1], szr.lo, szr.hi) >= R3.elementHue(z, szr.lo, szr.hi));
+  checks.push({ name: 'L-source: 고리 색조 srcZ 단조(L-element 동일 사상)', pass: monoSrc, value: monoSrc ? 'ok' : 'BAD' });
+  // author 0: 단일 출처 원소(범위 0)면 중립(고리 author 0 — drawPhoton 이 szRange.hi>lo 일 때만 고리)
+  const srcFlat = R3.measureSrcZRange([{ srcZ: 6 }, { srcZ: 6 }]);
+  checks.push({ name: 'L-source: 단일 출처(범위 0) → 고리 0(author 0)', pass: !(srcFlat.hi > srcFlat.lo), value: `[${srcFlat.lo},${srcFlat.hi}]` });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
