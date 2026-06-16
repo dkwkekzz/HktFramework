@@ -255,6 +255,24 @@ function run() {
   const monoQ = R3.ionRing(0, maxQ) <= R3.ionRing(maxQ, maxQ) && R3.ionRing(maxQ * 9, maxQ) === 1;
   checks.push({ name: 'L-ion: |Q|↑ → 고리↑ 단조·상한 1', pass: monoQ, value: monoQ ? 'ok' : 'BAD' });
 
+  // ⑭ L-isotope(렌즈 assert): 다단 사슬 장면(step-0035)은 같은 A=22 에서 N(중성자·동위원소)을 13~16 으로 바꾼다.
+  //    렌더는 그 N 을 *읽어* 안쪽 코어 밝기로 번역(측정 N 범위 정규화 — 중성자↑ 밝은 코어). 단일 동위원소는 코어 0(author 0).
+  const sceneN = SC.SCENES['step-0035'];
+  const simN = S.createSim(sceneN.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simN, sceneN.ticks);
+  const nr = R3.measureNRange(simN.atoms);
+  const nset = [...new Set(simN.atoms.map(a => a.N | 0))].sort((p, q) => p - q);
+  checks.push({ name: 'L-isotope: 시뮬이 중성자 수(N) 변이 실음(시뮬 선행)', pass: nr.hi > nr.lo, value: `N[${nr.lo},${nr.hi}]·${nset.length}종` });
+  // 중성자 많은 동위원소 = 더 밝은 코어(등급, 읽기 충실) · 최소 N = 코어 0(정규화 바닥)
+  const gradedN = R3.isotopeShade(nr.hi, nr.lo, nr.hi) > R3.isotopeShade(nr.lo, nr.lo, nr.hi) && R3.isotopeShade(nr.lo, nr.lo, nr.hi) === 0;
+  checks.push({ name: 'L-isotope: 중성자↑ → 밝은 코어(등급)', pass: gradedN, value: `c(${nr.hi})=${R3.isotopeShade(nr.hi, nr.lo, nr.hi).toFixed(2)}>c(${nr.lo})=0` });
+  // 단조 + 정규화 상한 1(클램프)
+  const monoN = R3.isotopeShade(nr.lo + 1, nr.lo, nr.hi) <= R3.isotopeShade(nr.hi, nr.lo, nr.hi) && R3.isotopeShade(nr.hi + 99, nr.lo, nr.hi) === 1;
+  checks.push({ name: 'L-isotope: N↑ → 코어↑ 단조·상한 1', pass: monoN, value: monoN ? 'ok' : 'BAD' });
+  // author 0: 단일 동위원소(범위 0) → 코어 0(가짜 구분 없음)
+  const flatN = R3.isotopeShade(10, 10, 10) === 0 && R3.isotopeShade(13, 10, 10) === 0;
+  checks.push({ name: 'L-isotope: 단일 동위원소(범위 0) → 코어 0(author 0)', pass: flatN, value: flatN ? 'none' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
