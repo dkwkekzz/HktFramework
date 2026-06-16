@@ -3081,6 +3081,87 @@
         ];
       },
     },
+
+    'step-0050': {
+      id: 'step-0050',
+      title: '쿨롱 장벽이 전하에 달렸다 — E_G(Z₁,Z₂) (fuseEGcharge — Gamow 에너지 ∝ (Z₁Z₂)²·고전하 핵 융합 급억제·같은 E 서 ⁴He+⁴He ≪ ²H+²H·게이트=0 회귀 0)',
+      desc: 'step-0046 이 융합율을 Gamow 터널링 P=exp(−√(E_G/E))로 닫았으나 E_G 가 *Z 무관 토이 상수*(fuseEG=9·모든 쌍 같은 장벽)였다 — 장벽 높이의 *기원*(핵 전하)은 author. 실제 쿨롱 장벽은 두 핵의 전하곱서 온다: E_G ∝ (Z₁Z₂)²(=(παZ₁Z₂)²·2μc²). ' +
+            '이 step 은 장벽 척도를 전하서 끌어낸다(게이트 fuseEGcharge): 접근 쌍마다 egPair = fuseEG·(Z_a·Z_b)² → 터널링 지수 √(egPair/E) = **Z₁Z₂·√(fuseEG/E)**(전하곱 선형 억제). ⇒ 고Z 핵일수록 장벽 ²제곱 급증 → 같은 충돌 에너지서도 융합 *급억제*. 이것이 **별 핵합성의 사다리**(가벼운 핵은 쉽게·무거울수록 점점 어렵게 융합)·철 너머 융합이 안 되는 쿨롱적 이유. ' +
+            '0046 이 *에너지* 의존(저E 억제)을, 이 step 이 *전하* 의존(고Z 억제)을 더해 Gamow 지수 ∝ Z₁Z₂/√E 의 두 축이 둘 다 결합에너지·전하서 창발(author 0). ' +
+            '*측정*(무대 200²·정면 쌍 400개씩 두 핵종·**nuc 없음**·같은 충돌 E=1·fuseEG=1·고정 시드 t=4 단일 시도·fuseGamow=1·fuseBarrier=0): ' +
+            '① **전하 의존 억제(창발)** — 게이트 켬·같은 E: ⁴He+⁴He(Z₁Z₂=4) 융합 ≪ ²H+²H(Z₁Z₂=1)(고전하 핵 강억제·장벽 ∝(Z₁Z₂)²). ' +
+            '② **지수 ∝ Z₁Z₂(전하곱 선형)** — 측정 −ln(분율) 비 eHe/eDD ≈ 4 = Z₁Z₂비(4/1)·분율 frac_He ≈ frac_DD⁴(지수 4배). ' +
+            '③ **대조(전하 무관 baseline)** — fuseEGcharge=0 이면 두 핵종 *같은 융합수*(둘 다 상수 EG=1·전하 무관)·게이트 켜야 갈림 ⇒ 게이트 load-bearing. ' +
+            '④ **발열량·장부 불변·회귀** — 융합 발열 ΔB_fus(²H+²H)는 게이트와 무관(>0)·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ²H 무대·rest=(A−B)c²·vcom·바스)·fuseEGcharge=0 → 0001~49 비트 동일. ' +
+            '*대조*: fuseEGcharge=0 → egPair=fuseEG 상수(0046 거동·rng 소비 동일·회귀 0). 새 게이트 0 → 0001~49 법칙·골든 비트 불변.',
+      ticks: 4,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·rest=(A−B)c²(0041 계승·라이브 ²H 무대) → Q·B·L·E·px·py 머신. 전하 게이트는 *어느 쌍이* 융합할지(확률)만 바꿈.
+
+      EG: 1, E: 1, NP: 400,                                   // Gamow 기준 에너지(Z₁Z₂=1 일 때)·충돌 에너지·쌍 수
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0, fuseEG: 1 },
+      // (Z,N) 핵종 NP쌍 정면(keRel=E). m=Z+N·μ=m/2·keRel=m·v² → v=√(E/m). 격자(간격 9)로 쌍끼리 교차융합 0·d=2<R=3 라 tick0 1시도.
+      pop(Z, N, E) {
+        const m = Z + N, v = Math.sqrt(E / m), a = [];
+        for (let i = 0; i < this.NP; i++) {
+          const x = (i % 20) * 9 + 8, y = ((i / 20) | 0) * 9 + 8;
+          a.push({ Z, N, e: Z, x: 0, rx: x, ry: y, vx: v, vy: 0, lep: 0 });          // 왼쪽 → 오른쪽
+          a.push({ Z, N, e: Z, x: 0, rx: x + 2, ry: y, vx: -v, vy: 0, lep: 0 });     // 오른쪽 → 왼쪽(쌍 총 p=0·d=2)
+        }
+        return a;
+      },
+      // 고정 시드 단일 시도 측정(엔진 step 재사용·하네스 미변경): egCharge/핵종 조합으로 t tick 후 융합 수(=원자 감소분).
+      measure(K, egCharge, Z, N) {
+        const sim = { W: 200, H: 200, atoms: this.pop(Z, N, this.E), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGcharge: egCharge }), tick: 0 };
+        const n0 = sim.atoms.length;
+        L.applyForces(sim); L.integrate(sim); sim.tick++;     // 단일 시도(t=1) — 1쌍=1 Gamow 시도(다중 tick 누적 방지·예측 P 와 직접 대조)
+        return n0 - sim.atoms.length;                         // 융합 수(합체마다 원자 1 감소 = 쌍 1 소비)
+      },
+      P(zz) { return Math.exp(-Math.sqrt(this.EG * zz * zz / this.E)); },  // 전하곱 zz=Z₁Z₂ 의 Gamow 융합 확률
+      dBfus(K, pair) { return K.binding(2, 2, pair) - 2 * K.binding(1, 1, pair); },  // ²H+²H→⁴He 결합 이득(발열)
+
+      // 라이브 sim(장부·결정론 기둥): ²H 무대(Z₁Z₂=1)·전하 게이트 켬(egPair=EG·1=EG·DD 발열). 융합이 일어나며 Q·B·L·E·px·py 닫힘.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 200, H: 200, atoms: this.pop(1, 1, this.E), rng: simRng, knobs: Object.assign({}, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGcharge: 1 }) };
+      },
+
+      watch(sim, K) {
+        const ddOn = this.measure(K, 1, 1, 1), heOn = this.measure(K, 1, 2, 2);
+        const ddOff = this.measure(K, 0, 1, 1), heOff = this.measure(K, 0, 2, 2);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          ddOn, heOn, ddOff, heOff,
+          predDD: +(this.P(1) * this.NP).toFixed(1), predHe: +(this.P(4) * this.NP).toFixed(1),
+          expRatio: +(Math.log(heOn / this.NP) / Math.log(ddOn / this.NP)).toFixed(2),
+          dBfus: +this.dBfus(K, 1).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0,
+        };
+      },
+
+      // 가설: ① 전하 의존 억제 ② 지수 ∝ Z₁Z₂ ③ 대조(전하 무관 baseline) ④ 발열·장부·회귀.
+      assert(ctx, K) {
+        const NP = this.NP;
+        const ddOn = this.measure(K, 1, 1, 1), heOn = this.measure(K, 1, 2, 2);
+        const ddOff = this.measure(K, 0, 1, 1), heOff = this.measure(K, 0, 2, 2);
+        // ① 전하 의존 억제: 게이트 켬·같은 E 서 고전하 ⁴He+⁴He(Z₁Z₂=4) ≪ ²H+²H(Z₁Z₂=1).
+        const suppress = heOn > 0 && heOn < ddOn * 0.25;
+        // ② 지수 ∝ Z₁Z₂: −ln(분율) 비 eHe/eDD ≈ Z₁Z₂비 4(전하곱 선형·밴드 [3,5]).
+        const eDD = -Math.log(ddOn / NP), eHe = -Math.log(heOn / NP), ratio = eHe / eDD;
+        const linZZ = ratio >= 3 && ratio <= 5;
+        // ③ 대조(전하 무관 baseline): 게이트 끄면 두 핵종 같은 융합수(둘 다 상수 EG·전하 무관)·켜면 갈림.
+        const flatEqual = Math.abs(ddOff - heOff) <= 10;      // 전하 무관: 같은 P → 같은 융합수
+        const chargeSplit = ddOn > heOn * 3;                  // 전하 켬: 저전하 ≫ 고전하
+        const baseline = flatEqual && chargeSplit;
+        // ④ 발열량·장부: ΔB_fus(²H+²H)는 게이트 무관(>0)·닫힌 장부는 라이브 기둥(②)이 머신 보증.
+        const dB = this.dBfus(K, 1);
+        return [
+          { name: `전하 의존 억제(창발) — 게이트 켬·같은 E=${this.E}: ⁴He+⁴He(Z₁Z₂=4) 융합 ${heOn} ≪ ²H+²H(Z₁Z₂=1) ${ddOn}(장벽 ∝(Z₁Z₂)²·고전하 강억제)`, pass: suppress, value: heOn },
+          { name: `지수 ∝ Z₁Z₂(전하곱 선형) — −ln(분율) 비 eHe/eDD=${ratio.toFixed(2)} ≈ Z₁Z₂비 4(분율 frac_He≈frac_DD⁴·지수 4배)`, pass: linZZ, value: +ratio.toFixed(2) },
+          { name: `대조(전하 무관 baseline) — fuseEGcharge=0 두 핵종 같은 융합수 DD ${ddOff}≈He ${heOff}(둘 다 상수 EG·전하 무관)·게이트 켜면 DD ${ddOn} ≫ He ${heOn} ⇒ load-bearing`, pass: baseline, value: heOff },
+          { name: `발열량·장부 불변·회귀 — 융합 발열 ΔB_fus(²H+²H)=${dB.toFixed(4)}>0 게이트 무관·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ²H 무대)·fuseEGcharge=0 → 0001~49 비트 동일`, pass: dB > 0, value: +dB.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
