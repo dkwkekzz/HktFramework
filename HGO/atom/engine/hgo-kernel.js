@@ -112,17 +112,24 @@
 
   // 반발 코어 위치 에너지(step-0020) — U_rep = Σ_{i<j 하전} kR/(r²+ε²) ≥ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
   //   coulombPE 와 같은 쌍·게이트·연화(DRY). kRepulse 미설정/0(0019 이하) → 0 → 과거 장부 불변. 쿨롱 인력과 합쳐 r_eq 우물을 만든다.
+  // step-0058 게이트 spatialHash(=0 → 전쌍 full U·회귀 0): pauliPE(0056)·vdwPE(0057)와 동형 컷오프+shift. 하전 쌍만(전하 게이트 보존).
+  //   U_shifted=kR/s2−kR/sc2 (r≤cut)·0 (r>cut) — r=cut 에서 0 연속화 → 경계 PE 점프 0 → symplectic E 닫힘(force=−∇U 정합).
   function repulsePE(atoms, knobs, W, H) {
     const kr = (knobs && knobs.kRepulse) || 0;
     if (!kr) return 0;
     const eps2 = (knobs.coulombSoft || 1) ** 2;
+    const sh = (knobs && knobs.spatialHash) || 0;
+    const cut = (knobs && knobs.spatialCut) || 8, cut2 = cut * cut;
+    const uCut = sh ? kr / (cut2 + eps2) : 0;           // r=cut 에서의 U(연속화 shift 상수)
     let u = 0;
     for (let i = 0; i < atoms.length; i++) {
       const qi = atoms[i].Z - atoms[i].e; if (qi === 0) continue;
       for (let j = i + 1; j < atoms.length; j++) {
         const qj = atoms[j].Z - atoms[j].e; if (qj === 0) continue;
         const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
-        u += kr / (dx * dx + dy * dy + eps2);
+        const r2 = dx * dx + dy * dy;
+        if (sh && r2 > cut2) continue;                  // 컷오프 밖 → 0(force 도 0 — 정합)
+        u += kr / (r2 + eps2) - uCut;                   // shift: r=cut 에서 0 연속(경계 PE 점프 0)
       }
     }
     return u;

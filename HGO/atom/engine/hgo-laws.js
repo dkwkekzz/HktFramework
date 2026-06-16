@@ -501,28 +501,33 @@
   //   기질 재사용: coulomb 과 동일 *반음시(symplectic)* 적분(v→r) → 총 E(KE+PE) 유계 보존(E 만 완화). 연화 ε=coulombSoft 공유(노브 1개).
   //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 운동량 *머신* 보존. PE 항 U_rep≥0 가법(kRepulse 게이트). Q·B·L·x 불변.
   //   국소: *그 두 하전 원자*만(coulomb 과 같은 쌍·게이트·min-image). 결정론: 위치 결정 → rng 불필요. kRepulse=0 → early-return = 회귀 0.
+  // ⊕ step-0058 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): pauli(0056)·vdw(0057)와 *동형* 셀 배선·단거리 연속력 마지막.
+  //   repulse 는 1/r⁴ 반발 코어이나 *하전 쌍만*(qa·qb≠0) 작동 — 전하 게이트를 doPair 안에 보존(brute 경로 비트 동일).
+  //   force·`repulsePE`(kernel) 둘 다 컷오프(cut=spatialCut) + shift(U(r)−U(cut))로 경계 PE 불연속 제거 → symplectic E 닫힘.
   function repulse(sim) {
     const kr = sim.knobs.kRepulse;
     if (!kr) return;                 // 노브=0 → early-return = 회귀 0 (반발 코어 꺼짐 → 0019 비트)
     const dt = sim.knobs.dt;
     const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(쿨롱과 공유)
     const atoms = sim.atoms, n = atoms.length;
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i], qa = a.Z - a.e;
-      if (qa === 0) continue;                              // 중성 → 코어 0 (쿨롱과 같은 쌍 게이트)
-      const ma = K.mass(a);
-      for (let j = i + 1; j < n; j++) {
-        const b = atoms[j], qb = b.Z - b.e;
-        if (qb === 0) continue;
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
-        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
-        // U_rep = kR/s2 → F_on_a = −∇_a U = −kR·2/s2² · d (d=a→b) → a 를 −d(b 반대편) 로 밂 = 반발(전하부호 무관).
-        const fOverR = -kr * 2 / (s2 * s2);
-        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
-        const mb = K.mass(b);
-        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;    // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
-        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
-      }
+    function doPair(i, j) {                                // brute·cellPairs 공용 — 전하 게이트 보존(중성 쌍 skip)
+      const a = atoms[i]; if (a.Z - a.e === 0) return;     // 중성 → 코어 0 (쿨롱과 같은 쌍 게이트)
+      const b = atoms[j]; if (b.Z - b.e === 0) return;
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+      const s2 = dx * dx + dy * dy + eps2;                 // 연화 거리²
+      // U_rep = kR/s2 → F_on_a = −∇_a U = −kR·2/s2² · d (d=a→b) → a 를 −d(b 반대편) 로 밂 = 반발(전하부호 무관).
+      const fOverR = -kr * 2 / (s2 * s2);
+      const fx = fOverR * dx, fy = fOverR * dy;            // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
+      const ma = K.mass(a), mb = K.mass(b);
+      a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;      // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
+      b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+    }
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(0019 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) doPair(i, j);
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(컷오프 근사·repulsePE 와 컷오프+shift 정합)
+      const cut = sim.knobs.spatialCut || 8;
+      const pairs = cellPairs(atoms, cut, sim.W, sim.H).pairs;
+      for (const p of pairs) doPair(p[0], p[1]);
     }
     sim.repulseActive = 1;                                 // 진단 플래그(hash 미참여)
   }
