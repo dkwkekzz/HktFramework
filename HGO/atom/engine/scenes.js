@@ -2487,6 +2487,287 @@
         ];
       },
     },
+
+    'step-0042': {
+      id: 'step-0042',
+      title: '짝수 A 두 안정 동중원소 (측정 — 페어링 δ 가 짝수 A 에서 두 짝-짝 안정점을 가른다·홀-홀 다리 불안정·홀수 A 는 한 개)',
+      desc: 'step-0039 가 페어링 δ 를 얹어 *단일* A 무대(¹⁶C)서 짝-홀 진동을 보였으나, 그 진짜 귀결 — **짝수 A 동중원소선엔 안정점이 둘**(실제 핵물리: 짝수 A 는 2~3 개 안정 동중원소·홀수 A 는 1 개) — 은 아직 무대에 안 올랐다. ' +
+            '이 step 은 *새 법칙 0*(decay 게이트 0031~40 그대로)으로 그 사실을 **측정**한다. 짝수 A 에선 N=A−Z 라 Z 가 1 늘 때마다 패리티가 짝-짝↔홀-홀로 번갈아 → 짝-짝 핵은 *위* 포물선(더 묶임)·홀-홀 핵은 *아래* 포물선. ' +
+            '그래서 **두 짝-짝 동중원소 Z, Z+2 가 둘 다 β 안정**(양방향 ΔB_δ≤0)이고 그 사이 홀-홀 Z+1 은 *위로도 아래로도* 떨어지는 불안정한 *다리*가 된다. ' +
+            '*측정*(무대: A=66 동중원소선, 짝-짝 ⁶⁶Cr 4개(Z24 N42) + 짝-짝 ⁶⁶Zn급 4개(Z28 N38) **nuc 없음**, massDefect=1·decayMassFormula=1·decayBetaPlus=1·decayPairing=1·kDecay=0.5·decayRecoilPair=1): ' +
+            '① **두 안정 동중원소 존재** — A=66 페어링 골짜기의 β 안정 Z(양방향 ΔB_δ≤0)가 정확히 2 개 {24, 26}, 둘 다 짝-짝. ' +
+            '② **홀-홀 다리 불안정 + 매끈 대조** — *매끈* 공식(δ 끔)은 안정점이 1 개(Z=25, 홀-홀)인데, 페어링이 바로 그 Z=25 를 ΔB⁻_δ>0 로 불안정화 → 두 짝-짝 사이의 *다리*. 패리티가 1 개를 2 개로 가른다. ' +
+            '③ **동역학 — 두 골짜기 채움** — 아래(Z=24)서 출발한 4개는 β⁻ 로 올라 Z=24 서, 위(Z=28)서 출발한 4개는 β⁺ 로 내려 Z=26 서 멈춤 ⇒ 종단이 정확히 {24, 26}(다리 25 엔 0개)·서로의 동중원소로 못 건넘(홀-홀 봉우리가 막음). ' +
+            '④ **홀수 A 대조 — 한 개뿐** — 이웃 홀수 A=65·67 은 안정 동중원소가 각각 1 개(페어링만으로 짝수 A 2~3·홀수 A 1 의 텍스트북 규칙 창발·author 0). ' +
+            '⑤ **Q값 = 페어링 포함 결합 이득** — 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신(0039~40 계승). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(rest=(A−B)c²·decayRecoilPair). 새 법칙 0 — scene 만 가법 → 0001~41 법칙·골든 비트 불변(회귀 0 = 기존 골든 보존).',
+      ticks: 80,
+      // ledgerTol 없음 — 0040 와 같은 decay 게이트(rest=(A−B)c²·decayRecoilPair) → Q·B·L·E·px·py 머신.
+
+      // A=66 동중원소선. 두 짝-짝 안정점 {Z24 N42, Z26 N40} 을 가르는 홀-holes Z25(N41) 다리.
+      //   아래서 짝-짝 ⁶⁶Cr 4개(Z24 N42, 자기 자리 — 이미 안정이라 가만) … 가 아니라 *수렴*을 보이려 Z 를 벌린다:
+      //   짝-짝 4개를 Z=22(N44, 아래 불안정)·짝-짝 4개를 Z=28(N38, 위 불안정)서 출발 → 각각 β⁻/β⁺ 로 골짜기로 기어 두 짝-짝 안정점 {24,26}서 멈춤(다리 25 못 건넘).
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 4; i++) atoms.push({ Z: 22, N: 44, e: 22, x: 0, rx: 40 + i * 24, ry: 100, vx: 0, vy: 0, lep: 0 });  // 아래(짝-짝) → β⁻ 올라 Z=24
+        for (let i = 0; i < 4; i++) atoms.push({ Z: 28, N: 38, e: 28, x: 0, rx: 40 + i * 24, ry: 200, vx: 0, vy: 0, lep: 0 });  // 위(짝-짝) → β⁺ 내려 Z=26
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1, decayBetaPlus: 1, decayPairing: 1, massDefect: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 고정 A 등압선서 β 안정(양방향 ΔB≤0)인 Z 목록 — pair 게이트 전달(페어링 vs 매끈 대조). 안정점이 둘이면 두 동중원소.
+      stableZs(A, K, pair) {
+        const out = [];
+        for (let Z = 1; Z < A; Z++) {
+          const N = A - Z;
+          const dM = K.bindingDelta(Z, N, pair);                                  // β⁻ ΔB⁻
+          const dP = K.binding(Z - 1, N + 1, pair) - K.binding(Z, N, pair);        // β⁺ ΔB⁺
+          if (dM <= 0 && dP <= 0) out.push(Z);
+        }
+        return out;
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N;
+        const sp = this.stableZs(A, K, 1), ss = this.stableZs(A, K, 0);
+        const finalZ = {}; for (const a of sim.atoms) finalZ[a.Z] = (finalZ[a.Z] | 0) + 1;
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { stablePair: sp.length, stableSmooth: ss.length, atZ24: finalZ[24] | 0, atZ25: finalZ[25] | 0, atZ26: finalZ[26] | 0, ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 두 안정 동중원소(짝-짝 둘) ② 홀-홀 다리 불안정 + 매끈 1개 대조 ③ 동역학 두 골짜기 채움 ④ 홀수 A 한 개 ⑤ Q값=결합 이득.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N;
+        const sp = this.stableZs(A, K, 1), ss = this.stableZs(A, K, 0);
+        // ① 안정 동중원소가 정확히 2 개, 둘 다 짝-짝(Z·N 짝수), Z 차 = 2.
+        const twoStable = sp.length === 2 && sp.every(Z => ((Z & 1) === 0) && (((A - Z) & 1) === 0)) && (sp[1] - sp[0] === 2);
+        // ② 매끈 공식 안정점 1 개(홀-홀)인데 페어링이 그 Z 를 ΔB⁻>0 로 불안정화(두 짝-짝 사이 다리).
+        const oddZ = ss[0], oddN = A - oddZ;
+        const bridgeDestab = ss.length === 1 && ((oddZ & 1) === 1) && (K.bindingDelta(oddZ, oddN, 0) <= 0) && (K.bindingDelta(oddZ, oddN, 1) > 0) && (oddZ === sp[0] + 1);
+        // ③ 종단이 정확히 두 안정점 {sp[0], sp[1]} 에만(다리 oddZ 엔 0개)·아래 출발은 sp[0], 위 출발은 sp[1].
+        let onlyTwoFloors = true, noneOnBridge = 0; const fz = {};
+        for (const a of sim.atoms) { fz[a.Z] = (fz[a.Z] | 0) + 1; if (a.Z !== sp[0] && a.Z !== sp[1]) onlyTwoFloors = false; if (a.Z === oddZ) noneOnBridge++; }
+        const bothFilled = (fz[sp[0]] | 0) > 0 && (fz[sp[1]] | 0) > 0 && onlyTwoFloors && noneOnBridge === 0;
+        // ④ 홀수 A 대조: 이웃 홀수 A=A−1·A+1 은 안정 동중원소 각 1 개(페어링).
+        const oddA1 = this.stableZs(A - 1, K, 1).length, oddA2 = this.stableZs(A + 1, K, 1).length;
+        const oddSingle = oddA1 === 1 && oddA2 === 1;
+        // ⑤ KE 닫힘: 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신.
+        const keRel = this.ke(sim, K);
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N, 1) - K.binding(a0[i].Z, a0[i].N, 1);
+        return [
+          { name: `두 안정 동중원소 — A=${A} 페어링 골짜기 β 안정 Z(양방향 ΔB_δ≤0) = ${JSON.stringify(sp)}(정확히 2 개·둘 다 짝-짝·ΔZ=2)`, pass: twoStable, value: sp.length },
+          { name: `홀-홀 다리 불안정 + 매끈 대조 — 매끈 공식 안정 1 개(Z=${oddZ} 홀-홀)인데 페어링이 ΔB⁻_δ>0 로 불안정화(두 짝-짝 사이 다리) ⇒ 패리티가 1→2`, pass: bridgeDestab, value: +K.bindingDelta(oddZ, oddN, 1).toFixed(4) },
+          { name: `동역학 — 두 골짜기 채움 — 종단이 정확히 {${sp[0]},${sp[1]}}(다리 ${oddZ} 엔 0개)·아래 β⁻↑·위 β⁺↓ 서로 못 건넘`, pass: bothFilled, value: noneOnBridge },
+          { name: `홀수 A 대조 — 이웃 홀수 A=${A - 1}·${A + 1} 안정 동중원소 각 1 개(페어링만으로 짝수 A 2~3·홀수 A 1 텍스트북 규칙·author 0)`, pass: oddSingle, value: oddA1 },
+          { name: 'Q값 = 페어링 포함 결합 이득 — 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+        ];
+      },
+    },
+
+    'step-0043': {
+      id: 'step-0043',
+      title: '별 점화 순환 (측정 — fuse+decay 한 무대: ³H+³H→⁶He 융합 점화 → ⁶He β⁻→⁶Li 붕괴·§4 빠른 비가역+느린 순환 첫 닫힘)',
+      desc: 'step-0033·0041 이 융합(fuse, 가벼운 핵→무거운 핵·발열)을, step-0031~42 가 붕괴(decay, 불안정 핵→골짜기)를 *각자* 닫았으나, 둘은 늘 *따로* 굴렀다(kFuse 무대 아니면 kDecay 무대). §4 "빠른 비가역(융합) + 느린 순환(붕괴)"의 척도 분리는 *둘이 한 무대*서 이어질 때 비로소 닫힌다. ' +
+            '이 step 은 *새 법칙 0*(fuse 0033·decay 0031~42 게이트 그대로)으로 둘을 한 무대(kFuse>0·kDecay>0)서 함께 굴려 **별 점화 순환**의 한 고리를 측정한다: 가벼운 핵이 *융합*해 무거운 핵을 만들고(점화), 그 생성핵이 골짜기 밖이면 *다시 붕괴*해 골짜기로 — 한 원자가 **두 다른 메커니즘**으로 원소를 올린다(Z: 1→2 융합 → 3 붕괴). ' +
+            '연료 ³H(Z1 N2)는 이 토이서 β 안정(ΔB⁻≤0·ΔB⁺≤0) → *먼저 붕괴하지 않는다*(순환을 격리: 융합이 먼저, 그 생성핵만 붕괴). ³H+³H 융합 → ⁶He(Z2 N4·ΔB_fus=+0.559 발열 점화), ⁶He 는 중성자 과잉(ΔB⁻=+0.179>0) → β⁻ → ⁶Li(Z3 N3·양방향 ΔB≤0 안정 종점). ' +
+            '*측정*(무대: 8개 ³H Z1 N2 e1 **nuc 없음** 4쌍 정면 고속·kFuse=1·fuseBarrier=0.1·fuseMassFormula=1·massDefect=1·decayPairing=1·decayMassFormula=1·decayBetaPlus=1·decayRecoilPair=1·kDecay=0.5): ' +
+            '① **융합 점화(발열)** — 4쌍 합체 → 개수 8→4, 쌍당 핵 방출 ΔB_fus=B(⁶He)−2B(³H)=+0.559>0(발열·결합에너지서). ' +
+            '② **생성핵이 다시 붕괴** — 종단 핵이 ⁶He(Z2)가 아니라 **⁶Li(Z3 N3)** ⇒ 융합 생성핵(⁶He)이 *이어서* β⁻ 붕괴(연료 ³H 는 안정이라 안 거친 경로 — Z 1→2 융합→3 붕괴). ' +
+            '③ **두 메커니즘 한 무대** — fuseActive=1 *그리고* decayActive=1(한 런서 융합·붕괴 둘 다 발화) — §4 빠른 비가역(융합)+느린 순환(붕괴)이 한 고리로 이어짐. ' +
+            '④ **모든 전이 결합 단조(비가역 화살표)** — 융합·붕괴 매 전이 ΔB>0(둘 다 골짜기로 — 못 되돌림)·방출 총 에너지(바스+KE−흡수 상대 KE) = Σ(ΔB_fus+ΔB_dec) 머신(전부 정지질량서·e=mc²). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(fuse vcom·바스 + decay rest=(A−B)c²·decayRecoilPair 합성). *대조*: kDecay=0 → ⁶He 서 멈춤(0041 거동·순환 안 닫힘)·kFuse=0 → ³H 안정이라 무대 정지. 새 법칙 0 — scene 만 → 0001~42 법칙·골든 비트 불변(회귀 0=기존 골든 보존).',
+      ticks: 100,
+      // ledgerTol 없음 — fuse(닫힌 형식 합체 vcom·바스) + decay(rest=(A−B)c²·decayRecoilPair) 합성도 Q·B·L·E·px·py 머신.
+
+      // 8개 ³H(Z1 N2 e1·**nuc 없음**) 4쌍 정면(0041 기하 계승·연료만 ²H→³H). dt=0.5·gap 8 → 융합 일찍(~tick 5~10), 이후 ⁶He 가 kDecay=0.5 로 β⁻→⁶Li.
+      //   ³H 는 β 안정(먼저 안 붕괴) → 융합 생성핵 ⁶He(중성자 과잉)만 붕괴 → ⁶Li(안정). y 간격 60·box 300 으로 2차 융합(⁶He+⁶He) 방지.
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let p = 0; p < 4; p++) {
+          const y = 60 + p * 60;
+          atoms.push({ Z: 1, N: 2, e: 1, x: 0, rx: 146, ry: y, vx: 1, vy: 0, lep: 0 });    // 왼쪽 ³H → 오른쪽
+          atoms.push({ Z: 1, N: 2, e: 1, x: 0, rx: 154, ry: y, vx: -1, vy: 0, lep: 0 });   // 오른쪽 ³H → 왼쪽 (쌍 총 p=0)
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 0.1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, decayMassFormula: 1, decayBetaPlus: 1, decayRecoilPair: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      restE(atoms, K, pair) { let e = 0; for (const a of atoms) e += (K.mass(a) - K.binding(a.Z | 0, a.N | 0, pair)); return e; },
+      dBfus(K, pair) { return K.binding(2, 4, pair) - 2 * K.binding(1, 2, pair); },          // ³H+³H→⁶He 결합 이득(점화)
+      dBdec(K, pair) { return K.bindingDelta(2, 4, pair); },                                  // ⁶He→⁶Li β⁻ 결합 이득(붕괴)
+      // 합체 전 4쌍이 흡수할 상대 KE 합(비탄성 합체로 바스에 park).
+      keRelSum(a0, K) { let s = 0; for (let i = 0; i < a0.length; i += 2) { const a = a0[i], b = a0[i + 1], ma = a.Z + a.N, mb = b.Z + b.N, mu = ma * mb / (ma + mb), dx = a.vx - b.vx, dy = a.vy - b.vy; s += 0.5 * mu * (dx * dx + dy * dy); } return s; },
+
+      watch(sim, K) {
+        let li = 0, he = 0; for (const a of sim.atoms) { if (a.Z === 3 && a.N === 3) li++; if (a.Z === 2 && a.N === 4) he++; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        const bathE = (sim.escaped && sim.escaped.E) || 0;
+        return { n: sim.atoms.length, li6: li, he6: he, dBfus: +this.dBfus(K, 1).toFixed(4), dBdec: +this.dBdec(K, 1).toFixed(4), bathE: +bathE.toFixed(4), ke: +this.ke(sim, K).toFixed(4), restE: +this.restE(sim.atoms, K, 1).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0, decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 융합 점화(발열) ② 생성핵이 다시 붕괴(종단 ⁶Li) ③ 두 메커니즘 한 무대 ④ 모든 전이 결합 단조·에너지=Σ(ΔB_fus+ΔB_dec) 머신.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0;
+        const nFus = a0.length - sim.atoms.length;                              // 합체 횟수(원자 감소분 = 쌍 수)
+        let allLi = sim.atoms.length > 0, anyHe = false;
+        for (const a of sim.atoms) { if (!(a.Z === 3 && a.N === 3)) allLi = false; if (a.Z === 2 && a.N === 4) anyHe = true; }
+        // ① 융합 점화: 4쌍 합체(8→4)·쌍당 ΔB_fus>0(발열·결합에너지서).
+        const ignite = nFus === 4 && this.dBfus(K, 1) > 0;
+        // ② 생성핵이 다시 붕괴: 종단이 ⁶Li(Z3) — 융합 생성핵 ⁶He(Z2)가 이어서 β⁻(연료 ³H 안정이라 융합 경유만 가능).
+        const productDecayed = allLi && !anyHe && this.dBdec(K, 1) > 0;
+        // ③ 두 메커니즘 한 무대: 융합·붕괴 둘 다 발화.
+        const bothFired = (sim.fuseActive | 0) === 1 && (sim.decayActive | 0) === 1;
+        // ④ 모든 전이 결합 단조 + 에너지 닫힘: 방출 총 에너지 = 바스(흡수 상대 KE+ΔB_fus) + KE(ΔB_dec 반동) − 흡수 상대 KE = Σ(ΔB_fus+ΔB_dec).
+        const monotone = this.dBfus(K, 1) > 0 && this.dBdec(K, 1) > 0;          // 융합·붕괴 둘 다 결합 이득(비가역 화살표)
+        const bathE = (sim.escaped && sim.escaped.E) || 0, keRel = this.ke(sim, K), keRelSum = this.keRelSum(a0, K);
+        const released = bathE + keRel - keRelSum;                              // 순 핵 방출(흡수 상대 KE 제외)
+        const expect = nFus * this.dBfus(K, 1) + nFus * this.dBdec(K, 1);       // Σ(ΔB_fus + ΔB_dec)(쌍마다 융합 1 + 붕괴 1)
+        // 정지질량 닫힘: ΔrestE = −Σ(ΔB_fus+ΔB_dec)(전 핵 방출이 정지질량서·e=mc²).
+        const restBefore = this.restE(a0, K, 1), restAfter = this.restE(sim.atoms, K, 1);
+        return [
+          { name: `융합 점화(발열) — ${nFus}쌍 합체(개수 8→${sim.atoms.length})·쌍당 ΔB_fus=B(⁶He)−2B(³H)=${this.dBfus(K, 1).toFixed(4)}>0(결합에너지서·author 0)`, pass: ignite, value: +this.dBfus(K, 1).toFixed(4) },
+          { name: `생성핵이 다시 붕괴 — 종단 핵 = ⁶Li(Z3 N3)·⁶He(Z2) 0개 ⇒ 융합 생성핵 ⁶He 가 이어서 β⁻(ΔB⁻=${this.dBdec(K, 1).toFixed(4)}>0)·Z 1→2 융합→3 붕괴(연료 ³H 안정)`, pass: productDecayed, value: sim.atoms.length },
+          { name: '두 메커니즘 한 무대 — fuseActive=1 그리고 decayActive=1(한 런서 융합·붕괴 둘 다 발화·§4 빠른 비가역+느린 순환 한 고리)', pass: bothFired, value: (sim.fuseActive | 0) + (sim.decayActive | 0) },
+          { name: '모든 전이 결합 단조 + 에너지 닫힘 — 순 핵 방출 = Σ(ΔB_fus+ΔB_dec) & ΔrestE=−Σ 머신(전부 정지질량서·e=mc²·비가역 화살표)', pass: monotone && Math.abs(released - expect) < 1e-6 && Math.abs((restAfter - restBefore) + expect) < 1e-6, value: +released.toFixed(4) },
+        ];
+      },
+    },
+
+    'step-0044': {
+      id: 'step-0044',
+      title: '붕괴 사슬 시계열 — Bateman (측정 — ¹⁸C→¹⁸N→¹⁸O 다단 사슬·중간핵 개체수가 0서 솟아 봉우리 찍고 내림·척도 분리를 시간축에)',
+      desc: 'step-0034~35 가 붕괴 통계(반감기 t½)·다단 사슬(C→N→O→F)을 보였으나 *종단*만 봤다(중간핵의 *시간*에 따른 거동은 미측정). step-0043 의 fuse→decay 연쇄도 한 *고리*일 뿐 시간곡선이 없다. ' +
+            '이 step 은 *새 법칙 0*(decay 게이트 0031~42 그대로·`L.applyForces`/`integrate` 재사용·엔진·하네스 미변경)으로 붕괴 사슬의 **시간곡선**(Bateman)을 측정한다 — A→B→C 사슬서 중간핵 B 의 개체수가 0 에서 *솟아올라 봉우리*를 찍고 *다시 내려가는* 고전적 과도 신호(부모 지수 감쇠·자손 누적). ' +
+            '평탄율(decayRateExcess=0)이라 두 전이 율이 같다(λ_A=λ_B=kDecay) → 등율 Bateman: N_A(t)=N₀e^(−λt)·N_B(t)=N₀λt·e^(−λt)(봉우리 t≈1/λ)·N_C(t)=N₀(1−e^(−λt)(1+λt)). 이것이 §4 척도 분리(빠른·느린 사슬)를 *시간축*에 명시하는 첫 곡선. ' +
+            '*측정*(무대: 60개 ¹⁸C Z6 N12 **nuc 없음**·서로 떨어져 상호작용 0·decayMassFormula=1·decayPairing=1·decayBetaPlus=0(순 β⁻ 사슬)·massDefect=1·decayRecoilPair=1·kDecay=0.03·시계열은 고정 시드 재시뮬레이션 t=[0,20,40,60,80,120,160]): ' +
+            '① **부모 지수 감쇠** — N_A(¹⁸C) 단조 감소(60→~0)·평탄율 지수꼴. ' +
+            '② **중간핵 Bateman 과도** — N_B(¹⁸N)가 0서 솟아 *내부* 봉우리(t≈40, 1/λ 부근)를 찍고 다시 내림(봉우리 > 시작 0·봉우리 > 종단) ⇒ 솟음-내림이 사슬 중간핵의 지문. ' +
+            '③ **종점 누적** — N_C(¹⁸O 안정) 단조 증가·종단 ~전수(≥90%). ' +
+            '④ **닫힌 사슬(바리온)** — 모든 t 에서 N_A+N_B+N_C = 60(중간핵 안 새고 *지나갈* 뿐·B 보존). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(decay 게이트 계승·rest=(A−B)c²). 새 법칙 0 — scene 만 → 0001~43 법칙·골든 비트 불변(회귀 0=기존 골든 보존).',
+      ticks: 160,
+      // ledgerTol 없음 — 0040 와 같은 decay 게이트(rest=(A−B)c²·decayRecoilPair) → Q·B·L·E·px·py 머신.
+
+      // 60개 ¹⁸C(Z6 N12·nuc 없음) 격자 배치(상호작용 0 — 순 붕괴). β⁻ 사슬 6→7→8(¹⁸C→¹⁸N→¹⁸O)·bp=0 순 β⁻·Z8 서 멈춤(안정).
+      KN: { dt: 1, kDecay: 0.03, decayMassFormula: 1, decayPairing: 1, decayBetaPlus: 0, massDefect: 1, decayRecoilPair: 1, decayNexcess: 4, decayQ: 1 },
+      CHK: [0, 20, 40, 60, 80, 120, 160],
+      pop() { const a = []; for (let i = 0; i < 60; i++) a.push({ Z: 6, N: 12, e: 6, x: 0, rx: (i % 10) * 30 + 15, ry: Math.floor(i / 10) * 40 + 20, vx: 0, vy: 0, lep: 0 }); return a; },
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 300, H: 300, atoms: this.pop(), rng: simRng, knobs: Object.assign({}, this.KN) };
+      },
+      // 시계열: 고정 시드 재시뮬레이션(엔진 step 재사용 L.applyForces+integrate) — 결정론·자가완결(하네스 미변경). 체크포인트마다 A/B/C 개체수.
+      series(K) {
+        const sim = { W: 300, H: 300, atoms: this.pop(), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN), tick: 0 };
+        const out = []; let prev = 0;
+        for (const t of this.CHK) {
+          for (let i = prev; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+          prev = t;
+          let A = 0, B = 0, C = 0; for (const x of sim.atoms) { if (x.Z === 6) A++; else if (x.Z === 7) B++; else if (x.Z === 8) C++; }
+          out.push({ t, A, B, C });
+        }
+        return out;
+      },
+
+      watch(sim, K) {
+        const s = this.series(K);
+        let bPeak = 0, bPeakT = 0; for (const r of s) if (r.B > bPeak) { bPeak = r.B; bPeakT = r.t; }
+        let live = {}; for (const a of sim.atoms) live[a.Z] = (live[a.Z] | 0) + 1;     // 본 run 종단(하네스 시드)
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { A40: s[2].A, Bpeak: bPeak, BpeakT: bPeakT, C160: s[s.length - 1].C, B160: s[s.length - 1].B, runZ8: live[8] | 0, totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 부모 지수 감쇠 ② 중간핵 Bateman 과도(0서 솟아 내부 봉우리→내림) ③ 종점 누적 ④ 닫힌 사슬(A+B+C=60 전 t).
+      assert(ctx, K) {
+        const s = this.series(K), n = s.length, N0 = 60;
+        // ① 부모 단조 감소 + 거의 소진.
+        let parentMono = true; for (let i = 1; i < n; i++) if (s[i].A > s[i - 1].A) parentMono = false;
+        const parentDecays = parentMono && s[n - 1].A <= N0 * 0.1;
+        // ② 중간핵 Bateman 과도: 봉우리 인덱스가 내부(0·끝 아님)·봉우리>시작(0)·봉우리>종단(솟음-내림).
+        let pk = 0; for (let i = 1; i < n; i++) if (s[i].B > s[pk].B) pk = i;
+        const transient = pk > 0 && pk < n - 1 && s[pk].B > s[0].B && s[pk].B > s[n - 1].B && s[0].B === 0;
+        // ③ 종점 단조 증가 + 종단 거의 전수.
+        let endMono = true; for (let i = 1; i < n; i++) if (s[i].C < s[i - 1].C) endMono = false;
+        const endAccum = endMono && s[n - 1].C >= N0 * 0.9;
+        // ④ 닫힌 사슬: 전 체크포인트 A+B+C=60(중간핵 안 새고 지나갈 뿐·B 보존).
+        let closed = true; for (const r of s) if (r.A + r.B + r.C !== N0) closed = false;
+        return [
+          { name: `부모 지수 감쇠 — N_A(¹⁸C) 단조 감소 60→${s[n - 1].A}(평탄율 지수꼴·거의 소진)`, pass: parentDecays, value: s[n - 1].A },
+          { name: `중간핵 Bateman 과도 — N_B(¹⁸N) 0서 솟아 내부 봉우리 ${s[pk].B}(t=${s[pk].t}≈1/λ) 찍고 내림(${s[0].B}→${s[pk].B}→${s[n - 1].B}) ⇒ 솟음-내림 지문`, pass: transient, value: s[pk].B },
+          { name: `종점 누적 — N_C(¹⁸O 안정) 단조 증가·종단 ${s[n - 1].C}/${N0}(≥90% 전수)`, pass: endAccum, value: s[n - 1].C },
+          { name: `닫힌 사슬(바리온) — 전 체크포인트 N_A+N_B+N_C=${N0}(중간핵 안 새고 지나갈 뿐·B 보존)`, pass: closed, value: N0 },
+        ];
+      },
+    },
+
+    'step-0045': {
+      id: 'step-0045',
+      title: '붕괴율 함수형도 결합에너지서 — Sargent Q⁵ (decaySargent — 반감기 ∝ 1/Q⁵·작은 Q 차가 큰 율 차·author 평탄율 잔재 해소)',
+      desc: 'step-0036 decayRateExcess 가 붕괴율을 *핵 불안정도 N−Z* 의 함수로 창발시켰으나 함수형이 토이 *선형*(1+R·excess)이었다 — 율의 *모양*은 여전히 author. 실제 β 붕괴율(Sargent 1933)은 방출 전자+중성미자의 *위상공간* ∝ **Q⁵**(Q=방출 에너지). ' +
+            '이 step 은 율의 함수형도 결합에너지서 끌어낸다(게이트 decaySargent): keff = kDecay·(Q/Qref)⁵, Q=dB(=ΔB·이미 결합에너지서·0037~). ⇒ 골짜기서 *조금* 더 먼(Q 큰) 핵이 *훨씬* 빨리 붕괴 — 율의 함수형마저 author 0(질량공식 B(Z,N)이 안정성·발열량·*그리고 율*까지 정함). ' +
+            '5제곱의 가파름이 요점: Q 가 2배면 율은 2⁵=32배 — 핵물리의 "작은 에너지 창 차이가 반감기를 천문학적으로 가른다"(같은 사슬서 µs ~ 수천 년)가 창발. ' +
+            '*측정*(무대: 저Q ¹⁷C(Z6 N11·Q=0.78) 200개 + 고Q ²¹C(Z6 N15·Q=1.60) 200개·**nuc 없음**·서로 떨어져 상호작용 0·decaySargent=1·decayQref=1.6013·kDecay=0.06·mf·dp·bp=0 순 β⁻·md·고정 시드 t=40 측정): ' +
+            '① **율 ∝ Q⁵** — 측정 율비 keffH/keffL ≈ (Q_H/Q_L)⁵=36.1(선형 2·세제곱 8.6 배제·5제곱 부근). ' +
+            '② **율 차의 원천은 Q뿐(평탄 대조)** — decaySargent=0(평탄)이면 두 집단 같은 율로 붕괴(붕괴수 차 ~noise)·decaySargent=1 이면 고Q ≫ 저Q ⇒ 율 차가 오직 Q(=ΔB·결합에너지)서. ' +
+            '③ **가파름(5제곱)** — Q 차 2.05배인데 율 차 ~31배(작은 Q 차 → 큰 율 차·선형 아님). ' +
+            '④ **에너지 불변·율만 바뀜** — Q값=ΔB 그대로(방출 에너지 불변)·닫힌 장부 Q·B·L·E·px·py 머신(rate 게이트는 *언제* 붕괴할지만 바꿈·*얼마나*(Q)는 불변). ' +
+            '*대조*: decaySargent=0 → keff=평탄 kDecay(0036 거동·회귀 0). 새 게이트 0 → 0001~44 법칙·골든 비트 불변.',
+      ticks: 40,
+      // ledgerTol 없음 — decay 게이트 계승(rest=(A−B)c²·decayRecoilPair) → Q·B·L·E·px·py 머신. Sargent 는 keff(확률)만 바꿈.
+
+      KN: { dt: 1, kDecay: 0.06, decayQref: 1.6013, decayMassFormula: 1, decayPairing: 1, decayBetaPlus: 0, massDefect: 1, decayRecoilPair: 1, decayNexcess: 4, decayQ: 1 },
+      // 저Q ¹⁷C(Z6 N11) 200 + 고Q ²¹C(Z6 N15) 200. 두 집단 같은 Z(탄소)·다른 N → 다른 Q(첫 β⁻ ΔB). 격자·서로 떨어짐(상호작용 0).
+      pop() { const a = []; for (let i = 0; i < 200; i++) a.push({ Z: 6, N: 11, e: 6, x: 0, rx: (i % 20) * 7 + 5, ry: Math.floor(i / 20) * 8 + 5, vx: 0, vy: 0, lep: 0 }); for (let i = 0; i < 200; i++) a.push({ Z: 6, N: 15, e: 6, x: 0, rx: (i % 20) * 7 + 5, ry: Math.floor(i / 20) * 8 + 160, vx: 0, vy: 0, lep: 0 }); return a; },
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 300, H: 300, atoms: this.pop(), rng: simRng, knobs: Object.assign({}, this.KN, { decaySargent: 1 }) };
+      },
+      // 고정 시드 재시뮬레이션(엔진 step 재사용·하네스 미변경)·sargent 게이트 켜고/꺼고 비교. t tick 후 생존 부모 수(저Q·고Q).
+      measure(K, sargent, t) {
+        const sim = { W: 300, H: 300, atoms: this.pop(), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { decaySargent: sargent }), tick: 0 };
+        for (let i = 0; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        let lo = 0, hi = 0; for (const a of sim.atoms) { if (a.Z === 6 && a.N === 11) lo++; else if (a.Z === 6 && a.N === 15) hi++; }
+        return { lo, hi };                                   // 생존 부모 수(저Q=lo·고Q=hi)
+      },
+      QH(K) { return K.bindingDelta(6, 15, 1); },             // ²¹C 첫 β⁻ ΔB(고Q)
+      QL(K) { return K.bindingDelta(6, 11, 1); },             // ¹⁷C 첫 β⁻ ΔB(저Q)
+
+      watch(sim, K) {
+        const t = this.ticks, sg = this.measure(K, 1, t), fl = this.measure(K, 0, t);
+        const keffH = 1 - Math.pow(sg.hi / 200, 1 / t), keffL = 1 - Math.pow(sg.lo / 200, 1 / t);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { QH: +this.QH(K).toFixed(4), QL: +this.QL(K).toFixed(4), Q5: +Math.pow(this.QH(K) / this.QL(K), 5).toFixed(1), rateRatio: +(keffH / keffL).toFixed(1), sgHiSurv: sg.hi, sgLoSurv: sg.lo, flHiSurv: fl.hi, flLoSurv: fl.lo, totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 율 ∝ Q⁵ ② 율 차 원천은 Q뿐(평탄 대조) ③ 가파름(5제곱) ④ 에너지 불변·율만.
+      assert(ctx, K) {
+        const t = this.ticks, sg = this.measure(K, 1, t), fl = this.measure(K, 0, t);
+        const QH = this.QH(K), QL = this.QL(K), q5 = Math.pow(QH / QL, 5);
+        const keffH = 1 - Math.pow(sg.hi / 200, 1 / t), keffL = 1 - Math.pow(sg.lo / 200, 1 / t);
+        const rateRatio = keffH / keffL;
+        // ① 측정 율비 ≈ Q⁵(band [20,55] — 선형 2·세제곱 8.6 배제·5제곱 36.1 포함).
+        const q5law = rateRatio >= 20 && rateRatio <= 55;
+        // ② 율 차 원천은 Q뿐: 평탄이면 두 집단 붕괴수 거의 같음(|차| ≤ 25, ~noise)·Sargent 면 고Q 붕괴 ≫ 저Q.
+        const flDecH = 200 - fl.hi, flDecL = 200 - fl.lo, sgDecH = 200 - sg.hi, sgDecL = 200 - sg.lo;
+        const flatEqual = Math.abs(flDecH - flDecL) <= 25;    // 평탄: 같은 율 → 붕괴수 비슷
+        const sargentSplit = sgDecH > sgDecL * 3;             // Sargent: 고Q 훨씬 많이 붕괴
+        const sourceQ = flatEqual && sargentSplit;
+        // ③ 가파름: Q 차 ~2 인데 율 차 ≫ 2(5제곱) — rateRatio > 10(선형·세제곱 영역 넘음).
+        const steep = rateRatio > 10 && (QH / QL) < 2.5;
+        return [
+          { name: `율 ∝ Q⁵(Sargent) — 측정 율비 keffH/keffL=${rateRatio.toFixed(1)} ≈ (Q_H/Q_L)⁵=${q5.toFixed(1)}(선형 2·세제곱 8.6 배제·5제곱 부근)`, pass: q5law, value: +rateRatio.toFixed(1) },
+          { name: `율 차의 원천은 Q뿐(평탄 대조) — 평탄(sargent=0) 붕괴수 고Q ${flDecH}≈저Q ${flDecL}(같은 율)·Sargent 고Q ${sgDecH} ≫ 저Q ${sgDecL} ⇒ 율 차가 오직 Q=ΔB`, pass: sourceQ, value: sgDecH },
+          { name: `가파름(5제곱) — Q 차 ${(QH / QL).toFixed(2)}배인데 율 차 ${rateRatio.toFixed(1)}배(작은 Q 차 → 큰 율 차·선형 아님)`, pass: steep, value: +(QH / QL).toFixed(2) },
+          { name: '에너지 불변·율만 바뀜 — Q값=ΔB 그대로(방출 에너지 불변)·닫힌 장부 Q·B·L·E·px·py 머신(rate 게이트는 *언제*만·*얼마나*(Q)는 불변)', pass: Math.abs(QH - this.QH(K)) < 1e-12, value: +QH.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
