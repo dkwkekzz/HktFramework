@@ -93,7 +93,7 @@ forces 적용 → [03] 적분 → [04] 충돌 감지(broad→narrow) → [05] �
 
 | # | 문서 | 한 줄 | 핵심 선행 |
 |---|---|---|---|
-| 00 | [00-foundations.md](00-foundations.md) | 선형대수 · 사원수 · 미적분 · 부동소수점·수치 안정성 | — |
+| 00 | [00-foundations.md](00-foundations.md) | 선형대수 · 사원수 · 미적분 · 부동소수점·수치 안정성 (허브 + [foundations/](foundations/) 6개 세부 문서) | — |
 | 01 | [01-kinematics.md](01-kinematics.md) | 운동 기술: 위치/속도/가속, 회전 표현, 좌표 변환 | 00 |
 | 02 | [02-dynamics.md](02-dynamics.md) | 힘·토크·질량·관성텐서, Newton–Euler, 운동량 | 00·01 |
 | 03 | [03-time-integration.md](03-time-integration.md) | ODE 적분기, 안정성/에너지 드리프트, 고정 timestep | 02 |
