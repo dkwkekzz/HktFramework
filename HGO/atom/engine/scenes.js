@@ -2199,6 +2199,58 @@
         ];
       },
     },
+
+    'step-0037': {
+      id: 'step-0037',
+      title: '질량공식·안정 골짜기 (decayMassFormula — 붕괴 Q값·멈춤이 결합에너지 B(Z,N)서 창발, author 문턱·decayQ 해소)',
+      desc: 'step-0036 까지 붕괴의 *멈춤*(N−Z≤문턱)도 *발열량*(decayQ)도 author 한 상수였다. 이 step 은 둘 다 *결합에너지에서 창발*시킨다. 새 게이트 decayMassFormula: ' +
+            '반경험적 질량공식(Bethe–Weizsäcker 토이) B(Z,N) = aV·A − aS·A^(2/3) − aC·Z(Z−1)/A^(1/3) − aA·(N−Z)²/A 를 kernel 에 두고(부피는 결합↑·표면/쿨롱/비대칭은 결합↓), ' +
+            'β⁻ 붕괴를 *결합이 늘 때만*(ΔB = B(Z+1,N−1) − B(Z,N) > 0, 발열) 진행한다. ⇒ **멈춤 = ΔB≤0 = 안정 골짜기**(author 문턱 아님), **방출 Q값 = ΔB**(author decayQ 아님). ' +
+            '골짜기 위치는 *쿨롱(양성자 반발 — 저 Z 선호) vs 비대칭(N=Z 선호)* 경쟁이 정한다 — 종류별 author 0(어느 원소가 안정인지 박지 않음). 에너지는 0031 그대로 nuc 저장고 → KE(ΔB 만큼) ⇒ E 정확 닫힘(저장고는 ΔB 보다 크게 둬 *골짜기*가 멈춤을 정하게 함). ' +
+            '*측정*(무대: N 과잉 ¹⁸C 8개 Z6 N12 nuc2, decayMassFormula=1·kDecay=0.5·decayRecoilPair=1): ① **안정 골짜기 창발** — 모든 원자 종단 Z = argmax_Z B(Z,A=18)(결합 최대 = 안정). ' +
+            '② **Q값 = 결합에너지 차** — 방출 총 KE = Σ(B(종단)−B(초기)) *머신*(발열량이 ΔB 서 나옴, decayQ 상수 아님) ③ **멈춤 = ΔB 부호 전환** — 종단서 β⁻ ΔB ≤ 0 < 직전 단계 ΔB(더 붕괴하면 결합 감소 → 멈춤, author 문턱 아님). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신 1e-9(decayRecoilPair=1 계승). *대조*: decayMassFormula=0 이면 author 문턱(N−Z≤4)·decayQ 거동(0031~36)·종단 Z=7(골짜기 아님·회귀 0). 새 게이트 0 → 기존 법칙·골든 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — nuc→KE(ΔB) 정확 이전·decayRecoilPair=1 → Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // N 과잉 ¹⁸C 8개(Z6 N12 → A=18). nuc=2 저장고(ΔB_total≈1.36 보다 큼 → *골짜기*가 멈춤을 정함, 저장고 고갈 아님).
+      //   질량공식 구동: 6→7→8 (ΔB>0), Z=8 서 ΔB<0 → 멈춤 = 안정 골짜기 argmax B(=¹⁸O). kDecay=0.5(빠른 수렴)·힘 법칙 안 켬.
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 8; i++) atoms.push({ Z: 6, N: 12, e: 6, x: 0, rx: 50 + i * 30, ry: 100, vx: 0, vy: 0, nuc: 2, lep: 0 });
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 고정 A 등방선의 결합 최대 Z*(안정 골짜기) — argmax_Z B(Z, A−Z). author 0(B 측정으로 골짜기 창발).
+      valleyZ(A, K) { let zs = 1, bm = -Infinity; for (let Z = 1; Z < A; Z++) { const b = K.binding(Z, A - Z); if (b > bm) { bm = b; zs = Z; } } return zs; },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N, zStar = this.valleyZ(A, K);
+        let atValley = 0, maxZ = 0; for (const a of sim.atoms) { if (a.Z === zStar) atValley++; maxZ = Math.max(maxZ, a.Z); }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { zStar, atValley, maxZ, ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 안정 골짜기 창발(종단 Z=argmax B) ② Q값=결합에너지 차(총 KE=ΣΔB 머신) ③ 멈춤=ΔB 부호 전환(종단 ΔB≤0<직전).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N, zStar = this.valleyZ(A, K);
+        let allValley = true, signFlip = true;
+        for (const a of sim.atoms) {
+          if (a.Z !== zStar) allValley = false;
+          if (!(K.bindingDelta(a.Z, a.N) <= 0 && K.bindingDelta(a.Z - 1, a.N + 1) > 0)) signFlip = false;  // 종단서 더 붕괴 불리·직전은 유리
+        }
+        const keRel = this.ke(sim, K);                                     // 방출된 총 KE(정지 무대 → 0서 시작)
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N) - K.binding(a0[i].Z, a0[i].N);
+        return [
+          { name: `안정 골짜기 창발 — 모든 원자 종단 Z = argmax_Z B(Z,A=${A})(결합 최대=안정, 쿨롱 vs 비대칭 경쟁이 골짜기 정함·author 0)`, pass: allValley, value: zStar },
+          { name: 'Q값 = 결합에너지 차 — 방출 총 KE = Σ(B(종단)−B(초기))(발열량이 ΔB 서 창발, decayQ 상수 아님), 머신', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+          { name: '멈춤 = ΔB 부호 전환(골짜기) — 종단 β⁻ ΔB ≤ 0 < 직전 단계 ΔB(더 붕괴하면 결합↓ → 멈춤, author 문턱 아님)', pass: signFlip, value: +K.bindingDelta(sim.atoms[0].Z, sim.atoms[0].N).toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
