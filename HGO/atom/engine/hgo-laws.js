@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -252,27 +252,37 @@
   //     법선 상대속도 부호만 반전(|v_n| 보존) ⇒ 총 KE 불변(탄성). 멀어지는 쌍(vn≤0)은 건너뜀(겹침 중복·끈적임 방지).
   //   국소: *그 두 원자*만으로 판정(전역 조율자 0, 토러스 min-image 거리). 결정론: rng 불필요(위치·속도 결정).
   //   순환: 운동량이 빠른 원자→느린 원자로 퍼져 *열화·확산*(SPINE §3 요건2 운동E=온도) — 결합·분자의 토대.
+  // ⊕ step-0055 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): 충돌은 *접촉 반경 R 내*에서만 작동하는 단거리 이벤트라
+  //   전쌍 O(n²) 대신 셀 리스트(cellPairs·cut=R)로 이웃만 훑을 수 있다. 핵심: cellPairs 가 R 내 쌍을 *brute 와 같은 집합*으로
+  //   주므로(step-0054), 그 쌍을 *(i,j) 오름차순 정렬*해 brute 의 i<j 순서와 똑같이 처리하면 충돌 결과가 **비트까지 동일**
+  //   (켜도 회귀 0·"같은 결과·빠른 계산"). 충돌은 탄성(쌍별 p·KE 정확 보존)이라 컷오프-PE 정합 문제 없음(연속력 pauli·vdw·repulse
+  //   배선은 컷오프-PE shift 가 필요 — 후속 step). 중력·쿨롱은 장거리라 컷오프 불가(Barnes-Hut 별도·이슈 #5).
   function collide(sim) {
     const k = sim.knobs.kCollide;
     if (!k) return;                  // 노브=0 → early-return = 회귀 0 (충돌 항 꺼짐 → 직전 비트)
     const R = sim.knobs.collideR || 3, R2 = R * R;
     const atoms = sim.atoms, n = atoms.length;
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i];
-      for (let j = i + 1; j < n; j++) {
-        const b = atoms[j];
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
-        const d2 = dx * dx + dy * dy;
-        if (d2 > R2 || d2 === 0) continue;                 // 접촉 반경 밖(또는 완전 겹침 — 0 나눗셈 가드)
-        const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;  // 충돌 법선(a→b 단위 벡터)
-        const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도의 법선 성분(>0 = 다가옴)
-        if (vn <= 0) continue;                              // 멀어지는/접선 → 충돌 안 함(겹침 중복 방지)
-        const ma = K.mass(a), mb = K.mass(b);
-        const imp = 2 * vn / (ma + mb);                     // 탄성 임펄스 계수(= 2vn/(ma+mb))
-        a.vx -= imp * mb * nx; a.vy -= imp * mb * ny;        // Δv_a = −2 m_b/(m_a+m_b)·vn·n
-        b.vx += imp * ma * nx; b.vy += imp * ma * ny;        // Δv_b = +2 m_a/(m_a+m_b)·vn·n (총 p·KE 보존)
-        sim.collideCount = (sim.collideCount | 0) + 1;       // 진단 카운터(hash 미참여)
-      }
+    // 한 쌍 충돌 처리(brute·cellPairs 공용 — 같은 코드 → 같은 결과). 반환값 없음(원자 속도 직접 갱신).
+    function doPair(i, j) {
+      const a = atoms[i], b = atoms[j];
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+      const d2 = dx * dx + dy * dy;
+      if (d2 > R2 || d2 === 0) return;                  // 접촉 반경 밖(또는 완전 겹침 — 0 나눗셈 가드)
+      const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;  // 충돌 법선(a→b 단위 벡터)
+      const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도의 법선 성분(>0 = 다가옴)
+      if (vn <= 0) return;                              // 멀어지는/접선 → 충돌 안 함(겹침 중복 방지)
+      const ma = K.mass(a), mb = K.mass(b);
+      const imp = 2 * vn / (ma + mb);                     // 탄성 임펄스 계수(= 2vn/(ma+mb))
+      a.vx -= imp * mb * nx; a.vy -= imp * mb * ny;        // Δv_a = −2 m_b/(m_a+m_b)·vn·n
+      b.vx += imp * ma * nx; b.vy += imp * ma * ny;        // Δv_b = +2 m_a/(m_a+m_b)·vn·n (총 p·KE 보존)
+      sim.collideCount = (sim.collideCount | 0) + 1;       // 진단 카운터(hash 미참여)
+    }
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(직전 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) doPair(i, j);
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(정렬해 brute 와 같은 순서 → 비트 동일·빠름)
+      const pairs = cellPairs(atoms, R, sim.W, sim.H).pairs;
+      pairs.sort((p, q) => (p[0] - q[0]) || (p[1] - q[1]));  // (i,j) 오름차순 = brute i<j 순서 → 처리 순서 일치 → 비트 동일
+      for (const p of pairs) doPair(p[0], p[1]);
     }
   }
 

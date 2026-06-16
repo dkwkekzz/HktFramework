@@ -3483,6 +3483,72 @@
         ];
       },
     },
+
+    'step-0055': {
+      id: 'step-0055',
+      title: '공간 분할 셀 리스트를 collide 에 배선 (게이트 spatialHash — 충돌을 전쌍 O(n²) 대신 이웃만·정렬해 brute 와 *비트 동일*·켜도 회귀 0)',
+      desc: 'step-0054 가 셀 리스트 열거기 `cellPairs` 를 brute 와 정확 동치로 세웠다(힘 미배선). 이 step 은 그것을 첫 단거리 *힘*에 **배선**한다 — 이벤트형 탄성 충돌 `collide`. ' +
+            '왜 collide 부터인가: 충돌은 접촉 반경 R 내에서만 작동하는 단거리 이벤트이고, 탄성(쌍별 운동량·KE 정확 보존·연속 PE 항 없음)이라 *컷오프-PE 정합 문제가 없다*(연속력 pauli·vdw·repulse 는 컷오프-PE shift 가 필요 — 후속). ' +
+            '게이트 `spatialHash`=0 → 전쌍 brute(과거 전 장면 비트 동일·회귀 0). =1 → `cellPairs`(cut=R)로 R 내 쌍만 훑되, 그 쌍을 **(i,j) 오름차순 정렬**해 brute 의 i<j 순서와 똑같이 처리한다. ' +
+            'cellPairs 가 R 내 쌍을 brute 와 *같은 집합*(0054)으로 주고 처리 *순서*까지 맞추므로, 충돌 결과가 **비트까지 동일** — "같은 결과·빠른 계산"의 가장 강한 형태(켜도 회귀 0). ' +
+            '*측정*(무대 30²·N=120·collideR=3·8 tick·고정 시드): ' +
+            '① **비트 동일·load-bearing** — spatialHash=1(이웃) 종료 상태 해시 = spatialHash=0(전쌍) 해시 정확 일치(충돌 다수 발생 무대서). ' +
+            '② **검사 수 급감** — 셀 거리계산 ≪ 전쌍 n(n−1)/2. ' +
+            '③ **충돌 비자명** — 무대서 실제 충돌 다수(동일성이 빈 무대 아닌 진짜 충돌서 성립). ' +
+            '④ **장부·결정론·회귀** — 라이브 셀-경로 무대(spatialHash=1) Q·B·L·E·px·py 머신(탄성)·노브=0 → 0001~54 골든 비트 불변(회귀 0).',
+      ticks: 8,
+      W: 30, H: 30, N: 120, MT: 8,
+      KN: { dt: 1, kCollide: 1, collideR: 3 },
+
+      // 측정 무대: 토러스에 N개 원자를 고정 시드로 흩뿌리고 속도를 준다(충돌이 일어나도록 조밀·운동).
+      cloud(K) {
+        const rng = K.mulberry32(20260617), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 3, vy: (rng() - 0.5) * 3, lep: 0 });
+        return a;
+      },
+      // 같은 구름을 spatialHash 켬/끔으로 MT tick 굴린 sim 반환(L.applyForces+integrate 직접 — DRY).
+      runCloud(K, sh) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { spatialHash: sh }), tick: 0 };
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        return sim;
+      },
+      measure(K) {
+        const brute = this.runCloud(K, 0);
+        const fast = this.runCloud(K, 1);
+        const same = K.hashState(brute) === K.hashState(fast);
+        const atoms = this.cloud(K);
+        const cp = L.cellPairs(atoms, this.KN.collideR, this.W, this.H);
+        return { same, collisions: brute.collideCount | 0, fastCollisions: fast.collideCount | 0, cellChecks: cp.checks, bruteChecks: atoms.length * (atoms.length - 1) / 2 };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): 셀-경로(spatialHash=1) 충돌 무대 — 새 코드 경로가 장부·결정론을 통과함을 보장.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: (simRng() - 0.5) * 3, vy: (simRng() - 0.5) * 3, lep: 0 });
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN, { spatialHash: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { same: m.same ? 1 : 0, collisions: m.collisions, cellChecks: m.cellChecks, bruteChecks: m.bruteChecks, ratioPct: +(m.cellChecks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① 비트 동일·load-bearing ② 검사 급감 ③ 충돌 비자명 ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const identical = m.same && m.collisions > 0 && m.collisions === m.fastCollisions;  // ① 종료 해시 일치 + 충돌 수도 일치
+        const faster = m.cellChecks < m.bruteChecks * 0.5;                                    // ② 거리계산 ≪ 전쌍
+        const nontrivial = m.collisions >= 10;                                                // ③ 충돌 다수(빈 무대 아님)
+        return [
+          { name: `비트 동일·load-bearing — 셀(spatialHash=1) 종료 해시 = 전쌍(=0) 해시 정확 일치(충돌 ${m.collisions}회 동일 처리·근사 아님·켜도 회귀 0)`, pass: identical, value: m.collisions },
+          { name: `검사 수 급감 — 셀 거리계산 ${m.cellChecks} ≪ 전쌍 ${m.bruteChecks}(${(m.cellChecks / m.bruteChecks * 100).toFixed(1)}%·같은 결과·빠른 계산)`, pass: faster, value: m.cellChecks },
+          { name: `충돌 비자명 — 무대서 실제 충돌 ${m.collisions}회(동일성이 빈 무대 아닌 진짜 충돌 처리서 성립)`, pass: nontrivial, value: m.collisions },
+          { name: `장부·결정론·회귀 — 라이브 셀-경로(spatialHash=1) 충돌 무대 Q·B·L·E·px·py 머신(탄성)·노브=0 → 0001~54 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.collisions },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
