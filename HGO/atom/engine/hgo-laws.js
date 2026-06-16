@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -827,6 +827,7 @@
     const pair = sim.knobs.decayRecoilPair;                // 방출 입자 운동량 추적(0032 게이트, 0 → 0031 거동·회귀 0)
     const mf = sim.knobs.decayMassFormula;                 // 질량공식 구동(step-0037, 0 → author 문턱·decayQ 거동·회귀 0)
     const bp = sim.knobs.decayBetaPlus;                     // β⁺/전자포획 채널(step-0038, 0 → β⁻ 한 방향만·회귀 0)
+    const dp = sim.knobs.decayPairing;                      // 페어링항 δ(step-0039, 0 → δ 미가법·0038 거동·회귀 0)
     let bath = null;
     for (const a of sim.atoms) {
       // 안정성 게이트: mf 면 *결합에너지*가 정한다(ΔB>0 발열 → 골짜기로 진행 · ΔB≤0 → 골짜기 안정, author 문턱 0).
@@ -836,10 +837,10 @@
       //     그래서 β⁻ 가 불리(ΔB⁻≤0)일 때만 β⁺ 를 본다 — 둘 다 ≤0 이면 안정 골짜기(완전한 양방향 골짜기). bp=0 → 0037 거동 비트 동일.
       let dB = 0, chan = 0;                                                       // chan: 0=β⁻(n→p·Z↑) · 1=β⁺(p→n·Z↓)
       if (mf) {
-        dB = K.bindingDelta(a.Z | 0, a.N | 0);                                    // β⁻ 결합 이득 ΔB⁻
+        dB = K.bindingDelta(a.Z | 0, a.N | 0, dp);                                // β⁻ 결합 이득 ΔB⁻ (dp 면 페어링 δ 포함)
         if (dB <= 0) {                                                            // β⁻ 불리(중성자 과잉 아님)
           if (bp) {                                                              // β⁺ 채널 켬: 양성자 과잉이면 반대 방향으로 골짜기 수렴
-            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1) - K.binding(a.Z | 0, a.N | 0);  // β⁺ 결합 이득 ΔB⁺
+            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1, dp) - K.binding(a.Z | 0, a.N | 0, dp);  // β⁺ 결합 이득 ΔB⁺
             if (dBp <= 0) continue;                                              // 양방향 ΔB≤0 → 안정 골짜기(질량공식 창발)
             dB = dBp; chan = 1;                                                  // β⁺ 진행(p→n·Z↓·발열 ΔB⁺)
           } else continue;                                                       // β⁺ 끔 → 0037 거동(β⁻ 만·회귀 0)

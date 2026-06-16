@@ -2306,6 +2306,72 @@
         ];
       },
     },
+
+    'step-0039': {
+      id: 'step-0039',
+      title: '페어링항 δ(짝-홀) (decayPairing — 짝-짝 +δ·홀-홀 −δ → 안정선의 짝-홀 진동, 홀-홀 핵 불안정화)',
+      desc: 'step-0037~38 이 결합에너지 B(Z,N)서 안정 골짜기를 *양방향*으로 닫았으나, 질량공식이 *매끈*해(쿨롱·표면·비대칭 다 연속) 실제 안정선의 *짝-홀 진동*(odd-even staggering)이 없다 — 짝-짝 핵이 더 안정하고 홀-홀 핵이 덜 안정한 양자 효과(스핀 반대 핵자쌍의 결합)가 미반영. ' +
+            '이 step 은 kernel binding 에 페어링항 δ(Z,N)을 *가법*으로 얹는다(게이트 decayPairing): 짝-짝 +δ · 홀-홀 −δ · 홀수 A 0, δ=aP/√A. ' +
+            '효과: B 가 더는 Z 에 매끈하지 않고 *지그재그*(짝수 Z 봉우리·홀수 Z 골) → 매끈한 공식이 *안정*이라 한 **홀-홀 핵이 페어링으로 β 불안정**해져 짝-짝 이웃으로 한 칸 더 붕괴한다(실제: ¹⁶N 홀-홀 β⁻ 7초 → ¹⁶O 짝-짝 안정). ' +
+            '*측정*(무대: 중성자 과잉 ¹⁶C 8개 Z6 N10 nuc2, decayMassFormula=1·decayBetaPlus=1·**decayPairing=1**·kDecay=0.5·decayRecoilPair=1): ' +
+            '① **짝-홀 진동 — 골짜기가 홀→짝으로 이동** — 페어링 켜면 종단 Z=argmax_Z B_δ(Z,A=16)=8(¹⁶O, 짝-짝)인데 *페어링 끈* 매끈 공식의 argmax 는 Z=7(¹⁶N, 홀-홀) ⇒ 패리티가 골짜기를 옮긴다. ' +
+            '② **홀-홀 핵 불안정화** — 매끈 공식이 안정(ΔB⁻≤0)이라 한 ¹⁶N(Z7 N9)이 페어링에선 ΔB⁻_δ>0 ⇒ β⁻ 발열 → 짝-짝 ¹⁶O 로 한 칸 더. ' +
+            '③ **종단 = 짝-짝 진짜 안정** — 모든 원자 종단 Z·N 둘 다 짝수, 양방향 ΔB_δ≤0(페어링 포함 진짜 골짜기 바닥). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신 1e-9(0038 계승). *대조*: decayPairing=0 이면 매끈 공식이라 8개 전부 홀-홀 ¹⁶N(Z=7)서 멈춘다(0038 거동·골든 비트 불변). 새 게이트 0 → kernel binding δ 미가법 → 0001~38 법칙·골든 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — nuc→KE(ΔB_δ) 정확 이전·decayRecoilPair=1·e±1/lep∓1 대칭 → Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 중성자 과잉 ¹⁶C 8개(Z6 N10 → A=16, 짝-짝). nuc=2 저장고(ΔB_δ total≈0.27 보다 큼 → 골짜기가 멈춤을 정함).
+      //   페어링 구동: 6→7(ΔB⁻>0)→8(홀-홀 7→짝-짝 8 도 ΔB⁻_δ>0), Z=8 서 양방향 ΔB_δ≤0 → 멈춤. 페어링 끄면 매끈 공식 골짜기 Z=7(홀-홀)서 멈춤.
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 8; i++) atoms.push({ Z: 6, N: 10, e: 6, x: 0, rx: 50 + i * 30, ry: 100, vx: 0, vy: 0, nuc: 2, lep: 0 });
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1, decayBetaPlus: 1, decayPairing: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 고정 A 등압선의 결합 최대 Z*(안정 골짜기) — argmax_Z B(Z,A−Z). pair 게이트 전달(매끈 vs 페어링 골짜기 대조).
+      valleyZ(A, K, pair) { let zs = 1, bm = -Infinity; for (let Z = 1; Z < A; Z++) { const b = K.binding(Z, A - Z, pair); if (b > bm) { bm = b; zs = Z; } } return zs; },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N;
+        const zStarP = this.valleyZ(A, K, 1), zStarS = this.valleyZ(A, K, 0);   // 페어링 vs 매끈 골짜기
+        let atValley = 0, allEvenEven = 1; for (const a of sim.atoms) { if (a.Z === zStarP) atValley++; if ((a.Z & 1) || (a.N & 1)) allEvenEven = 0; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { zStarPair: zStarP, zStarSmooth: zStarS, atValley, allEvenEven, termZ: sim.atoms[0].Z, ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 짝-홀 진동(페어링 골짜기 짝수 Z ≠ 매끈 골짜기 홀수 Z) ② 홀-홀 ¹⁶N 불안정화(매끈 안정 → 페어링 ΔB⁻>0) ③ 종단=짝-짝 진짜 안정.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N;
+        const zStarP = this.valleyZ(A, K, 1), zStarS = this.valleyZ(A, K, 0);
+        // ① 모든 원자 종단 = 페어링 골짜기(짝수)·매끈 골짜기(홀수)와 다름 ⇒ 패리티가 골짜기를 옮김.
+        let allValley = true; for (const a of sim.atoms) if (a.Z !== zStarP) allValley = false;
+        const stagger = allValley && (zStarP !== zStarS) && ((zStarP & 1) === 0) && ((zStarS & 1) === 1);
+        // ② 매끈 공식이 안정이라 한 홀-홀 ¹⁶N(=매끈 골짜기 zStarS, N=A−zStarS): 매끈 ΔB⁻≤0 인데 페어링 ΔB⁻>0 ⇒ 불안정화.
+        const oddZ = zStarS, oddN = A - zStarS;
+        const dSmooth = K.bindingDelta(oddZ, oddN, 0), dPair = K.bindingDelta(oddZ, oddN, 1);
+        const destab = (dSmooth <= 0) && (dPair > 0);
+        // ③ 종단 짝-짝 & 페어링 포함 양방향 ΔB_δ≤0(진짜 바닥).
+        let trueFloor = true;
+        for (const a of sim.atoms) {
+          const dM = K.bindingDelta(a.Z, a.N, 1);                                  // β⁻ ΔB⁻_δ
+          const dP = K.binding(a.Z - 1, a.N + 1, 1) - K.binding(a.Z, a.N, 1);      // β⁺ ΔB⁺_δ
+          if (!((a.Z & 1) === 0 && (a.N & 1) === 0 && dM <= 0 && dP <= 0)) trueFloor = false;
+        }
+        // KE 닫힘: 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신(발열량이 페어링 포함 ΔB 서).
+        const keRel = this.ke(sim, K);
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N, 1) - K.binding(a0[i].Z, a0[i].N, 1);
+        return [
+          { name: `짝-홀 진동 — 종단 Z = 페어링 골짜기 argmax B_δ(짝수)=${zStarP} ≠ 매끈 공식 골짜기(홀수)=${zStarS} ⇒ 패리티가 골짜기를 옮김`, pass: stagger, value: zStarP },
+          { name: `홀-홀 ¹⁶N(Z=${oddZ}) 불안정화 — 매끈 공식 ΔB⁻≤0(안정)인데 페어링 ΔB⁻>0 ⇒ β⁻ 발열 → 짝-짝 한 칸 더`, pass: destab, value: +dPair.toFixed(4) },
+          { name: 'Q값 = 페어링 포함 결합 이득 — 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+          { name: '종단 = 짝-짝 진짜 안정 — 전 원자 Z·N 짝수 & 양방향 ΔB_δ≤0(페어링 포함 골짜기 바닥)', pass: trueFloor, value: zStarP },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

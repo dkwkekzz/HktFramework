@@ -28,13 +28,22 @@
   //   부피(aV)는 결합을 키우고, 표면(aS)·쿨롱(aC, 양성자 반발)·비대칭(aA, N≠Z 불리)은 깎는다.
   //   결합 B 가 클수록 안정. **베타붕괴 Q값·안정 골짜기가 여기서 창발** — 쿨롱(저 Z 선호) vs 비대칭(N=Z 선호) 경쟁이 골짜기 위치를 정한다(author 0).
   //   토이 계수(자연 단위 c=1): ΔB 를 KE<c 로 유지하도록 축소 — 결정론 상수라 헤더 고정(CLAUDE 규약: 시뮬 상수는 CVar 예외).
-  const BIND = { aV: 1.0, aS: 0.5, aC: 0.1048, aA: 1.35 };
-  function binding(Z, N) {
-    Z = Z | 0; N = N | 0; const A = Z + N; if (A <= 0) return 0;
-    return BIND.aV * A - BIND.aS * Math.pow(A, 2 / 3) - BIND.aC * Z * (Z - 1) / Math.cbrt(A) - BIND.aA * (N - Z) * (N - Z) / A;
+  const BIND = { aV: 1.0, aS: 0.5, aC: 0.1048, aA: 1.35, aP: 0.6 };
+  // 페어링항 δ(Z,N)(step-0039, pair 게이트) — 짝-짝 +δ(스핀 반대 쌍이 더 결합·안정) · 홀-홀 −δ(덜 결합·불안정) · 홀수 A 0.
+  //   짝지은 핵자 쌍이 에너지를 낮춘다 → 안정선의 짝-홀 진동(odd-even staggering)이 창발: 매끈한 질량공식이 *안정*이라 한 홀-홀 핵이
+  //   페어링으로 불안정해져 짝-짝 이웃으로 한 칸 더 붕괴한다(예: ¹⁶N 홀-홀 → ¹⁶O 짝-짝). δ = aP/√A(텍스트북 12·A^(−1/2) 토이).
+  function pairingDelta(Z, N) {
+    const eZ = ((Z & 1) === 0), eN = ((N & 1) === 0);
+    const s = (eZ && eN) ? 1 : ((!eZ && !eN) ? -1 : 0);   // 짝-짝 + · 홀-홀 − · 홀수 A(한쪽만 짝) 0
+    return s ? s * BIND.aP / Math.sqrt(Z + N) : 0;
   }
-  // β⁻(n→p) 붕괴의 결합에너지 이득 ΔB = B(Z+1,N−1) − B(Z,N). >0 이면 *발열*(골짜기 쪽으로) → 붕괴 진행, ≤0 이면 안정(골짜기).
-  function bindingDelta(Z, N) { return binding(Z + 1, N - 1) - binding(Z, N); }
+  function binding(Z, N, pair) {
+    Z = Z | 0; N = N | 0; const A = Z + N; if (A <= 0) return 0;
+    const b = BIND.aV * A - BIND.aS * Math.pow(A, 2 / 3) - BIND.aC * Z * (Z - 1) / Math.cbrt(A) - BIND.aA * (N - Z) * (N - Z) / A;
+    return pair ? b + pairingDelta(Z, N) : b;             // pair=0/undefined → 정확히 b(δ 미가법) = 비트 동일·회귀 0
+  }
+  // β⁻(n→p) 붕괴의 결합에너지 이득 ΔB = B(Z+1,N−1) − B(Z,N). >0 이면 *발열*(골짜기 쪽으로) → 붕괴 진행, ≤0 이면 안정(골짜기). pair 게이트 전달.
+  function bindingDelta(Z, N, pair) { return binding(Z + 1, N - 1, pair) - binding(Z, N, pair); }
 
   // 전자 들뜸 준위(x)의 에너지 — 이산 에너지 *고유값*(슈뢰딩거 수소 스펙트럼 E_n=−R/n², n=x+1; x=0 바닥→0).
   //   ※ 보어의 *궤도* 그림(불확정성 위배 → 하이젠베르크·슈뢰딩거가 기각)이 아니라, 그 그림이 우연히 맞힌
@@ -283,5 +292,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
 });
