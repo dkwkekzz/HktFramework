@@ -27,8 +27,20 @@ Object.assign(InventoryService.prototype, {
       //   한 소비자가 앞서가도(게이트웨이) 뒤처진 소비자(ranking)의 frontier 가 min 을 눌러 그 이하만 prune → 뒤처진 소비자가 필요로 하는 결과를 *보존*(starve 0).
       const cur = this.consumerWm.get(ev.consumer);
       if (cur === undefined || ev.outSeq > cur) this.consumerWm.set(ev.consumer, ev.outSeq);   // 소비자 frontier 단조 갱신
+      // 소비자 lease 축출(이 step·busConsumerLease) — 산 소비자의 ack 가 sweep 를 구동한다(별도 tick 불요·결정론).
+      //   방금 ack 한 소비자의 *침묵 기준*(consumerSeen)을 현재 생산자 frontier 로 갱신 → 그 뒤 frontier 가 leaseSpan 이상 전진하도록 재-ack 안 한 소비자(=죽음)를 evicted 에 넣어 min 정의역에서 뺀다.
+      //   침묵 신호(frontier−lastSeen)는 ack 사건이 갱신하므로 생산 버스트에도 산 소비자를 오축출 안 함(content lag 와 다름). ack 이력 없는(undefined) 소비자는 미확립이라 정의역 밖. OFF·leaseSpan 0 면 휴면(evicted 안 채워짐 → 0044 비트 동일).
+      if (this.busConsumerLease && this.leaseSpan > 0) {
+        const frontier = this.outSeq - 1;
+        this.consumerSeen.set(ev.consumer, frontier);   // 방금 ack = 산 것 → 침묵 기준 리셋
+        for (const c of this.outConsumers) {
+          if (c === ev.consumer || this.evicted.has(c)) continue;
+          const seen = this.consumerSeen.get(c);
+          if (seen !== undefined && frontier - seen > this.leaseSpan) { this.evicted.add(c); this.evictions++; }
+        }
+      }
       let min = Infinity;
-      for (const c of this.outConsumers) { const w = this.consumerWm.get(c); min = Math.min(min, w === undefined ? -1 : w); }   // 미-ack 소비자는 -1 → min 정지(아무도 굶지 않을 때까지 보존)
+      for (const c of this.outConsumers) { if (this.evicted.has(c)) continue; const w = this.consumerWm.get(c); min = Math.min(min, w === undefined ? -1 : w); }   // 미-ack 소비자는 -1 → min 정지·축출된 죽은 소비자는 정의역 제외(이 step). evicted 빔=0044 동일.
       if (min !== Infinity && min > this.outAcked) this.outAcked = min;   // min 은 소비자 frontier 전진으로만 오름 → outAcked 단조
     } else {
       if (ev.outSeq > this.outAcked) this.outAcked = ev.outSeq;   // 단일 워터마크(0041) — busMinWm OFF·consumer 미태깅이면 0043 비트 동일

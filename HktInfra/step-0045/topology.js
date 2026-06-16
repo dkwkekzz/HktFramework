@@ -134,6 +134,10 @@ function run(opts) {
         if (opts.busResend && inventory) inventory.resendOut();
       }
     }
+    // 소비자 영구 다운(이 step·rankDie) — ranking 이 지정 tick 에 svc.item.out 구독을 해지하고 영영 재구독하지 않는다(영구 뒤처진 소비자 = 0044 §9 자극).
+    //   이후 ranking 은 결과를 못 받아 ack 가 끊긴다 → consumerWm 고정 → min-워터마크가 그 frontier 에 묶여 outBuffer 무계 성장(busConsumerLease OFF). lease ON 이면 가방이 leaseSpan 뒤처짐 후 축출 → drain.
+    //   busReSub unsub 경로(0033) 재사용 — 정규 제어 평면(시드 로그의 일부 = 결정론). 미설정이면 휴면(reg 0 불변·멀티프로세스 E2E 는 미주입).
+    if (opts.rankDie && ranking && i + 1 === opts.rankDie) net.send('ranking', 'bus', { type: 'unsub', topic: 'svc.item.out' });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });

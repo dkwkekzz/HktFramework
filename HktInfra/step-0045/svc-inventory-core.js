@@ -83,6 +83,18 @@ class InventoryService {
     this.busMinWm = opts.busMinWm || false;
     this.outConsumers = opts.outConsumers || [];   // 기대 결과 소비자 id 목록(예: ['gateway','ranking']) — min 의 정의역. busMinWm ON 일 때만 비어있지 않음.
     this.consumerWm = new Map();   // consumer id -> 그 소비자의 ack 워터마크(최대 확인 outSeq·단조). min 계산의 입력.
+    // ── 소비자 lease/축출(이 step·busConsumerLease) — 0044 min-워터마크의 §9 *영구 뒤처진 소비자* 대가 해소. ──
+    //   min-워터마크는 *모든* 기대 소비자 frontier 의 최소까지만 가지치므로, 한 소비자가 *영영* ack 를 멈추면(crash·영구 다운) 그 frontier 에 min 이 고정돼 outBuffer 가 무계 성장한다
+    //   (자기-크기조정이 *가장 느린* 소비자에 묶임 — 0044 §9). lease: 생산자 frontier(최신 부여 outSeq)보다 leaseSpan 이상 뒤처진 소비자를 *죽은 것*으로 보고 min 정의역에서 축출 → min 이 산 소비자만으로 전진 → 버퍼 drain.
+    //   liveness 신호 = *침묵 길이*(content lag 아님): 각 소비자가 ack 한 *시점의 생산자 frontier*(consumerSeen)를 기록 → 그 뒤 frontier 가 leaseSpan 이상 전진하도록 *다시 ack 안 하면* 죽은 것.
+    //   content lag(frontier−consumerWm)은 생산 버스트에 산 소비자도 일시로 커져 오축출한다 — 침묵 신호는 ack 사건 자체가 갱신하므로 산(계속 ack)/죽음(ack 끊김)을 정확히 가른다.
+    //   leaseSpan 은 정상 ack 간격(침묵)보다 커야 한다 — 작으면 일시 지연을 오축출. 영구-죽음 vs 일시-지연의 분리는 이 임계가 진다(정직한 한계·§9). ack 이력 없는(undefined) 소비자는 아직 미확립이라 축출 정의역 밖.
+    //   busConsumerLease OFF 면 evicted 항상 비어 0044 비트 동일(축출 0·min 정의역 무변경). busMinWm 전제(단일 워터마크엔 정의역 개념 없음).
+    this.busConsumerLease = opts.busConsumerLease || false;
+    this.leaseSpan = opts.leaseSpan || 0;   // ack 시점 이후 생산자 frontier 가 이만큼 전진하도록 *재-ack 없으면* 죽은 것으로 간주(축출). 0 = 축출 없음(0044 동일).
+    this.evicted = new Set();               // 축출된 죽은 소비자 id — min 정의역에서 제외. crash 시 리셋.
+    this.evictions = 0;                     // 축출 누적(계측) — lease 가 죽은 소비자를 정의역에서 떨군 횟수.
+    this.consumerSeen = new Map();          // consumer id -> 그 소비자가 마지막 ack 한 *시점의 생산자 frontier*(침묵 측정 기준). content 워터마크(consumerWm)와 별개.
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -161,7 +173,8 @@ class InventoryService {
     this.outBuffer = []; this.outResends = 0;   // 버스 failover 결과 재발행 버퍼 리셋(0036) — 가방 crash 는 결과 버퍼도 소실(RAM). busResend OFF 면 무관.
     this.seenReqs = new Set();   // 요청 dedup 집합 리셋(0037) — 새 프로세스는 처리 이력 0(busResendReq OFF 면 무관).
     this.seenWatermark = -1;     // seen prune 워터마크 리셋(0042) — 새 생애는 dedup 이력 0 이라 워터마크도 초기화(busSeenBound OFF 면 무관).
-    this.consumerWm = new Map(); // 다중 소비자 워터마크 리셋(이 step) — 새 프로세스는 소비자 ack 이력 0(busMinWm OFF 면 무관·outConsumers 는 config 라 유지).
+    this.consumerWm = new Map(); // 다중 소비자 워터마크 리셋(0044) — 새 프로세스는 소비자 ack 이력 0(busMinWm OFF 면 무관·outConsumers 는 config 라 유지).
+    this.evicted = new Set(); this.evictions = 0; this.consumerSeen = new Map();   // 축출·침묵 이력 리셋(이 step) — 새 프로세스는 산 소비자 가정·정의역 복원(busConsumerLease OFF 면 무관·leaseSpan 은 config 라 유지).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   itemCount() { return this.ledger.size; }
