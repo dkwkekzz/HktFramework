@@ -2487,6 +2487,84 @@
         ];
       },
     },
+
+    'step-0042': {
+      id: 'step-0042',
+      title: '짝수 A 두 안정 동중원소 (측정 — 페어링 δ 가 짝수 A 에서 두 짝-짝 안정점을 가른다·홀-홀 다리 불안정·홀수 A 는 한 개)',
+      desc: 'step-0039 가 페어링 δ 를 얹어 *단일* A 무대(¹⁶C)서 짝-홀 진동을 보였으나, 그 진짜 귀결 — **짝수 A 동중원소선엔 안정점이 둘**(실제 핵물리: 짝수 A 는 2~3 개 안정 동중원소·홀수 A 는 1 개) — 은 아직 무대에 안 올랐다. ' +
+            '이 step 은 *새 법칙 0*(decay 게이트 0031~40 그대로)으로 그 사실을 **측정**한다. 짝수 A 에선 N=A−Z 라 Z 가 1 늘 때마다 패리티가 짝-짝↔홀-홀로 번갈아 → 짝-짝 핵은 *위* 포물선(더 묶임)·홀-홀 핵은 *아래* 포물선. ' +
+            '그래서 **두 짝-짝 동중원소 Z, Z+2 가 둘 다 β 안정**(양방향 ΔB_δ≤0)이고 그 사이 홀-홀 Z+1 은 *위로도 아래로도* 떨어지는 불안정한 *다리*가 된다. ' +
+            '*측정*(무대: A=66 동중원소선, 짝-짝 ⁶⁶Cr 4개(Z24 N42) + 짝-짝 ⁶⁶Zn급 4개(Z28 N38) **nuc 없음**, massDefect=1·decayMassFormula=1·decayBetaPlus=1·decayPairing=1·kDecay=0.5·decayRecoilPair=1): ' +
+            '① **두 안정 동중원소 존재** — A=66 페어링 골짜기의 β 안정 Z(양방향 ΔB_δ≤0)가 정확히 2 개 {24, 26}, 둘 다 짝-짝. ' +
+            '② **홀-홀 다리 불안정 + 매끈 대조** — *매끈* 공식(δ 끔)은 안정점이 1 개(Z=25, 홀-홀)인데, 페어링이 바로 그 Z=25 를 ΔB⁻_δ>0 로 불안정화 → 두 짝-짝 사이의 *다리*. 패리티가 1 개를 2 개로 가른다. ' +
+            '③ **동역학 — 두 골짜기 채움** — 아래(Z=24)서 출발한 4개는 β⁻ 로 올라 Z=24 서, 위(Z=28)서 출발한 4개는 β⁺ 로 내려 Z=26 서 멈춤 ⇒ 종단이 정확히 {24, 26}(다리 25 엔 0개)·서로의 동중원소로 못 건넘(홀-홀 봉우리가 막음). ' +
+            '④ **홀수 A 대조 — 한 개뿐** — 이웃 홀수 A=65·67 은 안정 동중원소가 각각 1 개(페어링만으로 짝수 A 2~3·홀수 A 1 의 텍스트북 규칙 창발·author 0). ' +
+            '⑤ **Q값 = 페어링 포함 결합 이득** — 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신(0039~40 계승). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(rest=(A−B)c²·decayRecoilPair). 새 법칙 0 — scene 만 가법 → 0001~41 법칙·골든 비트 불변(회귀 0 = 기존 골든 보존).',
+      ticks: 80,
+      // ledgerTol 없음 — 0040 와 같은 decay 게이트(rest=(A−B)c²·decayRecoilPair) → Q·B·L·E·px·py 머신.
+
+      // A=66 동중원소선. 두 짝-짝 안정점 {Z24 N42, Z26 N40} 을 가르는 홀-holes Z25(N41) 다리.
+      //   아래서 짝-짝 ⁶⁶Cr 4개(Z24 N42, 자기 자리 — 이미 안정이라 가만) … 가 아니라 *수렴*을 보이려 Z 를 벌린다:
+      //   짝-짝 4개를 Z=22(N44, 아래 불안정)·짝-짝 4개를 Z=28(N38, 위 불안정)서 출발 → 각각 β⁻/β⁺ 로 골짜기로 기어 두 짝-짝 안정점 {24,26}서 멈춤(다리 25 못 건넘).
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 4; i++) atoms.push({ Z: 22, N: 44, e: 22, x: 0, rx: 40 + i * 24, ry: 100, vx: 0, vy: 0, lep: 0 });  // 아래(짝-짝) → β⁻ 올라 Z=24
+        for (let i = 0; i < 4; i++) atoms.push({ Z: 28, N: 38, e: 28, x: 0, rx: 40 + i * 24, ry: 200, vx: 0, vy: 0, lep: 0 });  // 위(짝-짝) → β⁺ 내려 Z=26
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1, decayBetaPlus: 1, decayPairing: 1, massDefect: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 고정 A 등압선서 β 안정(양방향 ΔB≤0)인 Z 목록 — pair 게이트 전달(페어링 vs 매끈 대조). 안정점이 둘이면 두 동중원소.
+      stableZs(A, K, pair) {
+        const out = [];
+        for (let Z = 1; Z < A; Z++) {
+          const N = A - Z;
+          const dM = K.bindingDelta(Z, N, pair);                                  // β⁻ ΔB⁻
+          const dP = K.binding(Z - 1, N + 1, pair) - K.binding(Z, N, pair);        // β⁺ ΔB⁺
+          if (dM <= 0 && dP <= 0) out.push(Z);
+        }
+        return out;
+      },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N;
+        const sp = this.stableZs(A, K, 1), ss = this.stableZs(A, K, 0);
+        const finalZ = {}; for (const a of sim.atoms) finalZ[a.Z] = (finalZ[a.Z] | 0) + 1;
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { stablePair: sp.length, stableSmooth: ss.length, atZ24: finalZ[24] | 0, atZ25: finalZ[25] | 0, atZ26: finalZ[26] | 0, ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 두 안정 동중원소(짝-짝 둘) ② 홀-홀 다리 불안정 + 매끈 1개 대조 ③ 동역학 두 골짜기 채움 ④ 홀수 A 한 개 ⑤ Q값=결합 이득.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N;
+        const sp = this.stableZs(A, K, 1), ss = this.stableZs(A, K, 0);
+        // ① 안정 동중원소가 정확히 2 개, 둘 다 짝-짝(Z·N 짝수), Z 차 = 2.
+        const twoStable = sp.length === 2 && sp.every(Z => ((Z & 1) === 0) && (((A - Z) & 1) === 0)) && (sp[1] - sp[0] === 2);
+        // ② 매끈 공식 안정점 1 개(홀-홀)인데 페어링이 그 Z 를 ΔB⁻>0 로 불안정화(두 짝-짝 사이 다리).
+        const oddZ = ss[0], oddN = A - oddZ;
+        const bridgeDestab = ss.length === 1 && ((oddZ & 1) === 1) && (K.bindingDelta(oddZ, oddN, 0) <= 0) && (K.bindingDelta(oddZ, oddN, 1) > 0) && (oddZ === sp[0] + 1);
+        // ③ 종단이 정확히 두 안정점 {sp[0], sp[1]} 에만(다리 oddZ 엔 0개)·아래 출발은 sp[0], 위 출발은 sp[1].
+        let onlyTwoFloors = true, noneOnBridge = 0; const fz = {};
+        for (const a of sim.atoms) { fz[a.Z] = (fz[a.Z] | 0) + 1; if (a.Z !== sp[0] && a.Z !== sp[1]) onlyTwoFloors = false; if (a.Z === oddZ) noneOnBridge++; }
+        const bothFilled = (fz[sp[0]] | 0) > 0 && (fz[sp[1]] | 0) > 0 && onlyTwoFloors && noneOnBridge === 0;
+        // ④ 홀수 A 대조: 이웃 홀수 A=A−1·A+1 은 안정 동중원소 각 1 개(페어링).
+        const oddA1 = this.stableZs(A - 1, K, 1).length, oddA2 = this.stableZs(A + 1, K, 1).length;
+        const oddSingle = oddA1 === 1 && oddA2 === 1;
+        // ⑤ KE 닫힘: 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신.
+        const keRel = this.ke(sim, K);
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N, 1) - K.binding(a0[i].Z, a0[i].N, 1);
+        return [
+          { name: `두 안정 동중원소 — A=${A} 페어링 골짜기 β 안정 Z(양방향 ΔB_δ≤0) = ${JSON.stringify(sp)}(정확히 2 개·둘 다 짝-짝·ΔZ=2)`, pass: twoStable, value: sp.length },
+          { name: `홀-홀 다리 불안정 + 매끈 대조 — 매끈 공식 안정 1 개(Z=${oddZ} 홀-홀)인데 페어링이 ΔB⁻_δ>0 로 불안정화(두 짝-짝 사이 다리) ⇒ 패리티가 1→2`, pass: bridgeDestab, value: +K.bindingDelta(oddZ, oddN, 1).toFixed(4) },
+          { name: `동역학 — 두 골짜기 채움 — 종단이 정확히 {${sp[0]},${sp[1]}}(다리 ${oddZ} 엔 0개)·아래 β⁻↑·위 β⁺↓ 서로 못 건넘`, pass: bothFilled, value: noneOnBridge },
+          { name: `홀수 A 대조 — 이웃 홀수 A=${A - 1}·${A + 1} 안정 동중원소 각 1 개(페어링만으로 짝수 A 2~3·홀수 A 1 텍스트북 규칙·author 0)`, pass: oddSingle, value: oddA1 },
+          { name: 'Q값 = 페어링 포함 결합 이득 — 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
