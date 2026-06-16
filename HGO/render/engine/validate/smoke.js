@@ -273,6 +273,101 @@ function run() {
   const flatN = R3.isotopeShade(10, 10, 10) === 0 && R3.isotopeShade(13, 10, 10) === 0;
   checks.push({ name: 'L-isotope: 단일 동위원소(범위 0) → 코어 0(author 0)', pass: flatN, value: flatN ? 'none' : 'BAD' });
 
+  // ⑮ L-molecule(렌즈 assert): 결합 그래프의 *연결 성분* = 분자(같은 분자 한 덩이). 결합 간선(sim.bonds=[i,j])을
+  //    *읽어* union-find 로 측정한다 — 분포 author 0. 합성 그래프로 측정 정확성 + 실제 장면(step-0012)서 분자 수.
+  const cgTwo = R3.connectedComponents([[0, 1], [2, 3]], 4);   // 두 분자(0-1·2-3)
+  const twoOk = cgTwo.count === 2 && cgTwo.comp[0] === cgTwo.comp[1] && cgTwo.comp[2] === cgTwo.comp[3] && cgTwo.comp[0] !== cgTwo.comp[2];
+  checks.push({ name: 'L-molecule: 연결 성분 측정(0-1·2-3 → 2 분자)', pass: twoOk, value: `count ${cgTwo.count}·comp[${cgTwo.comp.join(',')}]` });
+  // 이행적 연결(사슬 0-1-2)은 한 분자로 합쳐진다(읽기 충실 — union-find)
+  const cgChain = R3.connectedComponents([[0, 1], [1, 2]], 3);
+  checks.push({ name: 'L-molecule: 사슬(0-1-2) → 한 분자(이행 연결)', pass: cgChain.count === 1 && cgChain.comp[0] === cgChain.comp[2], value: `count ${cgChain.count}` });
+  // 같은 분자=같은 색·다른 분자=다른 색(그룹 구분 채널) · 단일 분자/미결합 = 중립(author 0)
+  const hA = R3.moleculeHue(0, 2), hB = R3.moleculeHue(1, 2);
+  checks.push({ name: 'L-molecule: 다른 분자 → 다른 색(같은 분자 동색)', pass: Math.abs(hA - hB) > 1e-6, value: `hue ${hA.toFixed(2)}≠${hB.toFixed(2)}` });
+  const molNeutral = R3.moleculeHue(0, 1) === R3.moleculeHue(5, 1) && R3.moleculeHue(-1, 3) === R3.moleculeHue(0, 1);
+  checks.push({ name: 'L-molecule: 단일 분자/미결합 → 중립(author 0)', pass: molNeutral, value: molNeutral ? 'neutral' : 'BAD' });
+  // 실제 장면(step-0012) — 시뮬 결합서 분자 수 측정(읽기), 결합 원자는 같은 분자·미결합 원자는 −1
+  const ccB = R3.connectedComponents(simB.bonds || [], simB.atoms.length);
+  const bondedSameMol = (simB.bonds || []).every(([i, j]) => ccB.comp[i] >= 0 && ccB.comp[i] === ccB.comp[j]);
+  checks.push({ name: 'L-molecule: 결합 원자 같은 분자(연결 읽기 충실)', pass: ccB.count >= 1 && bondedSameMol, value: `${ccB.count} 분자` });
+
+  // ⑯ L-source(렌즈 assert): 광자 색(L-λ)은 *전이*(from→to 준위차)로 정해져 원소 무관 — 같은 전이를 탄소·산소·헬륨이
+  //    방출해도 *같은 lambda(같은 색)*. 그래서 *방출 원소* srcZ(광자에 늘 실림)는 색으로 안 보였다(계약 감사 미독 채널).
+  //    렌더는 srcZ 를 *읽어* 출처 고리 색조로(측정 srcZ 범위 정규화·L-element 와 동일 사상). 단일 원소면 고리 0(author 0).
+  const szr = R3.measureSrcZRange(ph);
+  const szset = [...new Set(ph.map(p => p.srcZ).filter(z => z !== undefined))].sort((a, b) => a - b);
+  checks.push({ name: 'L-source: 광자에 방출 원소 srcZ 실림(시뮬 선행)', pass: szr.hi > szr.lo, value: `srcZ[${szr.lo},${szr.hi}]·${szset.length}종` });
+  // 부채 입증: 같은 전이(from→to)를 다른 원소가 내면 lambda(색) 동일인데 srcZ 는 다르다(색이 출처를 못 가린다)
+  const byT = {};
+  for (const p of ph) { const k = p.from + '>' + p.to; (byT[k] = byT[k] || []).push(p); }
+  let sameColorDiffSrc = false;
+  for (const k in byT) {
+    const g = byT[k];
+    const lset = new Set(g.map(p => +p.lambda.toFixed(6))), zs = new Set(g.map(p => p.srcZ));
+    if (lset.size === 1 && zs.size > 1) sameColorDiffSrc = true;   // 같은 색·다른 출처 = 미독 부채 실재
+  }
+  checks.push({ name: 'L-source: 같은 전이·다른 원소 = 같은 색(부채 실재)', pass: sameColorDiffSrc, value: sameColorDiffSrc ? '색이 출처 못 가림' : 'n/a' });
+  // 다른 출처 원소 → 다른 고리 색조(읽기 충실 — 출처가 구분된다)
+  const hSrcLo = R3.elementHue(szr.lo, szr.lo, szr.hi), hSrcHi = R3.elementHue(szr.hi, szr.lo, szr.hi);
+  checks.push({ name: 'L-source: 다른 출처 → 다른 고리 색(출처 구분)', pass: Math.abs(hSrcLo - hSrcHi) > 1e-6, value: `hue ${hSrcLo.toFixed(2)}→${hSrcHi.toFixed(2)}` });
+  // 색조가 srcZ 에 단조(L-element 와 동일 사상 — 저 Z 파랑(큰 hue)·고 Z 빨강(작은 hue))
+  const monoSrc = szset.every((z, i) => i === 0 || R3.elementHue(szset[i - 1], szr.lo, szr.hi) >= R3.elementHue(z, szr.lo, szr.hi));
+  checks.push({ name: 'L-source: 고리 색조 srcZ 단조(L-element 동일 사상)', pass: monoSrc, value: monoSrc ? 'ok' : 'BAD' });
+  // author 0: 단일 출처 원소(범위 0)면 중립(고리 author 0 — drawPhoton 이 szRange.hi>lo 일 때만 고리)
+  const srcFlat = R3.measureSrcZRange([{ srcZ: 6 }, { srcZ: 6 }]);
+  checks.push({ name: 'L-source: 단일 출처(범위 0) → 고리 0(author 0)', pass: !(srcFlat.hi > srcFlat.lo), value: `[${srcFlat.lo},${srcFlat.hi}]` });
+
+  // ⑰ L-scatter(렌즈 assert): 산란 장면(step-0005)은 광자에 *산란 횟수* nscatter 를 싣는다(몇 번 튕겼나).
+  //    광자 색(L-λ)은 *현재* 에너지만 보여 11번 산란한 광자와 갓 방출된 같은 색 광자가 똑같았다(산란 이력 미독).
+  //    렌더는 nscatter 를 *읽어* 산란 헤일로로 등급화(maxScatter 정규화 — 많이 튕길수록 넓고 짙게). 직진(0)이면 0(author 0).
+  const sceneSc = SC.SCENES['step-0005'];
+  const simSc = S.createSim(sceneSc.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simSc, sceneSc.ticks);
+  const maxSc = R3.measureMaxScatter(simSc.photons);
+  const scattered = simSc.photons.filter(p => (p.nscatter | 0) > 0).length;
+  checks.push({ name: 'L-scatter: 광자에 산란 횟수 nscatter 실림(시뮬 선행)', pass: maxSc > 0 && scattered > 0, value: `maxScatter ${maxSc}·산란광자 ${scattered}/${simSc.photons.length}` });
+  // 부채 입증: 색(L-λ)은 *현재 에너지*만 보인다 — 산란할수록 λ 가 변해도, 같은 색 구간(λ 0.1폭)에
+  //   산란 횟수가 *여럿* 공존한다(색=에너지 연속·nscatter=사건 수 이산 — 색이 산란 *횟수*를 못 가린다).
+  const byLam = {};
+  for (const p of simSc.photons) { const k = (+p.lambda).toFixed(1); (byLam[k] = byLam[k] || new Set()).add(p.nscatter | 0); }
+  const bandsMultiScatter = Object.values(byLam).filter(s => s.size > 1).length;
+  checks.push({ name: 'L-scatter: 같은 색 구간에 산란 횟수 복수(부채 실재)', pass: bandsMultiScatter > 0, value: `${bandsMultiScatter} 구간 — 색이 횟수 못 가림` });
+  // 많이 산란한 광자 = 더 짙은 헤일로(등급, 읽기 충실) · 직진(0)이면 0(author 0)
+  const gradedSc = R3.scatterGlow(maxSc, maxSc) > R3.scatterGlow(1, maxSc) && R3.scatterGlow(0, maxSc) === 0;
+  checks.push({ name: 'L-scatter: 많이 산란 = 더 짙은 헤일로(등급)·직진 0', pass: gradedSc, value: `g(${maxSc})=${R3.scatterGlow(maxSc, maxSc).toFixed(2)}>g(1)=${R3.scatterGlow(1, maxSc).toFixed(2)}·g(0)=0` });
+  // 단조 + 정규화 상한 1(클램프) + maxScatter=0(산란 장면 아님)이면 전부 0(author 0)
+  const monoSc = R3.scatterGlow(1, maxSc) <= R3.scatterGlow(2, maxSc) && R3.scatterGlow(2, maxSc) <= R3.scatterGlow(maxSc, maxSc) && R3.scatterGlow(maxSc * 9, maxSc) === 1 && R3.scatterGlow(5, 0) === 0;
+  checks.push({ name: 'L-scatter: n↑ → 헤일로↑ 단조·상한 1·무산란 0', pass: monoSc, value: monoSc ? 'ok' : 'BAD' });
+
+  // ⑱ L-velocity(렌즈 assert): 원자는 거의 모든 장면서 vx,vy 로 움직이나(step-0009 maxV~2.4) 정지 프레임엔 정적 구로만
+  //    보였다(운동 방향 미독). 렌더는 속도 벡터를 *읽어* 운동 자취로 번역(머리=현 위치·꼬리=−속도, 길이 ∝ |v|/maxV).
+  //    ⛔blocked 인 *온도색(L-T)* 과 다르다 — 열 의미화 아닌 순수 운동 방향(광자 L-recoil 의 원자판). 정지(|v|=0)면 자취 0(author 0).
+  const sceneV = SC.SCENES['step-0009'];
+  const simV = S.createSim(sceneV.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simV, sceneV.ticks);
+  const maxV = R3.measureMaxSpeed(simV.atoms);
+  const movingAtoms = simV.atoms.filter(a => Math.hypot(a.vx || 0, a.vy || 0) > 1e-9).length;
+  checks.push({ name: 'L-velocity: 원자 속도 벡터 실림(시뮬 선행)', pass: maxV > 0 && movingAtoms > 0, value: `maxV ${maxV.toFixed(3)}·운동 ${movingAtoms}/${simV.atoms.length}` });
+  const camV = R3.makeCamera(simV.W, simV.H, 0);
+  const velWorld = 0.08 * Math.max(simV.W, simV.H);
+  const av = simV.atoms.find(a => Math.hypot(a.vx || 0, a.vy || 0) > 1e-9);
+  const vstk = R3.atomVelocityStreak(av, camV, maxV, velWorld);
+  const velPx = vstk ? Math.hypot(vstk.head.sx - vstk.tail.sx, vstk.head.sy - vstk.tail.sy) : 0;
+  checks.push({ name: 'L-velocity: 운동 원자 → 화면 자취(머리≠꼬리)', pass: velPx > 1, value: vstk ? `Δpx=${velPx.toFixed(0)}` : 'null' });
+  // 자취 축이 *투영된 속도 방향*과 정렬(읽기 충실 — 머리−꼬리 = +속도 투영, 꼬리=−v 라 head−tail=+v)
+  let vAligned = false;
+  if (vstk) {
+    const a0 = R3.project({ x: av.rx, y: av.ry, z: 0 }, camV);
+    const b0 = R3.project({ x: av.rx + av.vx, y: av.ry + av.vy, z: 0 }, camV);
+    const sdx = vstk.head.sx - vstk.tail.sx, sdy = vstk.head.sy - vstk.tail.sy;
+    const mdx = b0.sx - a0.sx, mdy = b0.sy - a0.sy;
+    vAligned = (sdx * mdx + sdy * mdy) > 0;
+  }
+  checks.push({ name: 'L-velocity: 자취 축 = 투영 속도 방향', pass: vAligned, value: vAligned ? 'ok' : 'no' });
+  // author 0: 정지 원자(v=0)는 자취 없음(null)
+  const vNone = R3.atomVelocityStreak({ rx: 1, ry: 1, vx: 0, vy: 0 }, camV, maxV, velWorld);
+  checks.push({ name: 'L-velocity: 정지 원자 → 자취 없음(author 0)', pass: vNone === null, value: vNone === null ? 'null' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
