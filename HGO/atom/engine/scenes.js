@@ -2070,6 +2070,73 @@
         ];
       },
     },
+
+    'step-0035': {
+      id: 'step-0035',
+      title: '다단 붕괴 사슬 (측정 — 멀리 떨어진 동위원소가 원소 사다리를 *여러 단계* 오르며 딸→손자 핵 축적, decay(0031~34)의 *연쇄*판)',
+      desc: 'step-0034 는 *1회 붕괴 후 안정*(first-passage)을 측정했다 — 한 원자가 딱 한 번 붕괴하고 멈췄다. 하지만 실제 핵 붕괴의 풍부함은 *사슬*에 있다: ' +
+            '안정선에서 *멀리* 떨어진 핵은 한 번 붕괴해도 여전히 불안정해 *다시* 붕괴하고, 또 다시 — 원소 사다리를 *여러 단계* 오르며 딸→손자→증손자를 거쳐 안정 종점에 닿는다. ' +
+            '이 step 은 **새 법칙 0**(decay 게이트 그대로) — *측정* step 이다: decay 법칙은 이미 사슬을 *창발*시킨다(매 tick 불안정 원자가 N−Z>문턱·저장고>0 이면 또 붕괴 → Z↑·N↓ 반복). 무대만 바꿔 *연쇄*를 본다. ' +
+            '무대 설계(멀리 떨어진 ²²C → 3단 사슬): 64개 동일 ²²C(Z6 N16 e6 nuc3, N−Z=10 ≫ 문턱 4 → 매우 불안정). 매 붕괴마다 N−Z 가 2씩 줆 ⇒ 10→8→6→4 — *3회* 붕괴해야 안정(N−Z≤4)에 닿는다. ' +
+            '사슬 경로: **C(6) → N(7) → O(8) → F(9)** (탄소→질소→산소→플루오린, 각 단계가 새 원소를 *측정*으로 창발 — author 0). 핵 저장고 nuc=3 = 3단 Q값(decayQ=1)이라 안정과 동시에 저장고도 고갈(두 멈춤 일치). ' +
+            '각 원자는 매 tick 확률 kDecay 로 *독립* 붕괴(국소·전역 조율자 0) ⇒ 집단은 사다리를 따라 *흐르는 파동* — 어떤 건 아직 C, 어떤 건 N·O 중간종, 선두는 안정 종점 F 에 *축적*. ' +
+            '*측정*(T=120 tick·中流 스냅샷): ① **다단 사슬 완주** — 종단 최대 Z = 안정 종점(초기 6 + 3단 = 9) ⇒ ≥1 원자가 C→N→O→F *3단 전부* 거침(0031·0034 의 단일 붕괴를 넘어선 *연쇄* 증거) ' +
+            '② **딸 핵 축적(중간종 동시 존재)** — 종단 서로 다른 원소 ≥ 3종 동시 출현(사슬이 중간 딸 N·O 를 *지나가며 채운다* — 사다리 위 분포) ' +
+            '③ **단조 래칫·종점 배수(drain)** — 모든 원자가 초기 Z(6) ≤ Z ≤ 안정 종점(9) 안(비가역 화살표·상한=안정 sink), 종점 F 의 모든 원자는 안정(N−Z≤문턱)이며 *안정 종점 개체수 > 초기종 개체수*(source C → sink F 로 배수). ' +
+            '닫힌 장부: Q·B·L·E·px·py 머신 1e-9(원자당 최대 3회·총 ~190회 독립 붕괴라도 핵 변환 장부 닫힘 — decayRecoilPair=1 으로 방출 입자 −Δp 바스 적재 → px·py 도 머신, 0032·0034 계승). ' +
+            '*대조*: kDecay=0 이면 붕괴 0·전원 C(6) 고정·distinct=1(회귀 0). **새 법칙·노브 0 — decay 게이트(0031~34) 그대로 *멀리 떨어진* 동위원소에 적용**하므로 기존 골든·법칙 비트 불변(측정 step 의 회귀 0 알리바이 = 기존 골든 보존).',
+      ticks: 120,
+      // ledgerTol 없음 — decayRecoilPair=1 (0032~34 계승) → 방출 입자 −Δp 바스 적재 → px·py 도 머신. Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 64개 동일 ²²C(Z6 N16 e6 nuc3, N−Z=10 ≫ 문턱 4). 사슬: 10→8→6→4 (3회 붕괴) ⇒ C(6)→N(7)→O(8)→F(9), 종점 안정.
+      //   nuc=3 = 3단 decayQ(=1)이라 안정과 저장고 고갈이 동시(두 멈춤 일치). T=120 = 中流(평균 완주 ~3/k=150 tick 전) → 사다리 위 분포가 풍부.
+      //   격자 배치(위치는 거동 무관 — 힘 법칙 안 켬). 매 tick 독립 확률 kDecay=0.02.
+      init(rng, K) {
+        const W = 400, H = 400, N0 = 64, atoms = [];
+        for (let i = 0; i < N0; i++) {
+          atoms.push({ Z: 6, N: 16, e: 6, x: 0, rx: 20 + (i % 8) * 45, ry: 20 + ((i / 8) | 0) * 45, vx: 0, vy: 0, nuc: 3, lep: 0 });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // decayRecoilPair=1 (0032~34) → 방출 입자 운동량 바스 적재 → 총 px·py 머신 닫힘. nuc=3 → 원자당 최대 3단 붕괴.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.02, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1 }, _N0: N0 };
+      },
+
+      // 종단 원소 분포(Z→개수) + 최대/최소 Z. 사슬은 *같은 원자가 제자리서 Z 를 올리는* 흐름 — 별 객체 생성 없음(다발의 양 변화).
+      dist(sim) { const d = {}; for (const a of sim.atoms) d[a.Z] = (d[a.Z] | 0) + 1; return d; },
+
+      watch(sim, K) {
+        const d = this.dist(sim), zs = Object.keys(d).map(Number);
+        const maxZ = Math.max(...zs), minZ = Math.min(...zs);
+        let sumZ = 0; for (const a of sim.atoms) sumZ += a.Z;
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { maxZ, minZ, distinct: zs.length, source6: d[6] | 0, sink9: d[9] | 0, meanZ: +(sumZ / sim.atoms.length).toFixed(2), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 다단 사슬 완주(종단 maxZ = 안정 종점 = 초기+3단) ② 딸 핵 축적(distinct 원소 ≥ 3) ③ 단조 래칫·종점 배수(전원 [Z0,종점] 안·sink 안정·sink>source).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0[0], Z0 = a0.Z, nx = sim.knobs.decayNexcess;
+        // 안정 종점 Z = 초기 + min(안정까지 붕괴 수, 저장고 한도). N−Z 가 2씩 줄어 ≤nx 까지: ceil(((N−Z)−nx)/2). 저장고: floor(nuc/decayQ).
+        const decaysToStable = Math.ceil(((a0.N - a0.Z) - nx) / 2);
+        const nucCap = Math.floor((a0.nuc || 0) / sim.knobs.decayQ);
+        const dMax = Math.min(decaysToStable, nucCap);                   // 완주 단계 수(=3)
+        const endpointZ = Z0 + dMax;                                     // 안정 종점 Z(=9)
+        const d = this.dist(sim), zs = Object.keys(d).map(Number);
+        const maxZ = Math.max(...zs), minZ = Math.min(...zs), distinct = zs.length;
+        // ③ 단조 래칫: 모든 원자 Z0 ≤ Z ≤ endpointZ(비가역 — 만 오름·상한=안정 sink), 종점 원자는 전부 안정, sink > source.
+        let inBand = true, sinkAllStable = true;
+        for (const a of sim.atoms) {
+          if (a.Z < Z0 || a.Z > endpointZ) inBand = false;
+          if (a.Z === endpointZ && (a.N - a.Z) > nx) sinkAllStable = false;
+        }
+        const sink = d[endpointZ] | 0, source = d[Z0] | 0;
+        return [
+          { name: `다단 사슬 완주 — 종단 최대 Z = 안정 종점(초기 ${Z0} + ${dMax}단 = ${endpointZ}, C→N→O→F *3단* 거침 — 단일 붕괴 0031·0034 넘어섬)`, pass: maxZ === endpointZ && dMax >= 2, value: maxZ },
+          { name: '딸 핵 축적 — 종단 서로 다른 원소 ≥ 3종 동시 출현(사슬이 중간 딸 N·O 를 지나가며 채움·사다리 위 분포)', pass: distinct >= 3, value: distinct },
+          { name: `단조 래칫·종점 배수 — 전원 ${Z0}≤Z≤${endpointZ}(비가역·상한=안정 sink)·종점 전부 안정·안정종점 개체수 > 초기종(source→sink drain)`, pass: inBand && sinkAllStable && sink > source, value: sink },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
