@@ -11,7 +11,9 @@ description: HGO 원자 트랙 step 한 바퀴(읽기→법칙·장면→검증�
 
 **필독 3종**: `HGO/CLAUDE.md` · `HGO/SPINE.md` · `HGO/atom/STATE.md` (전체).
 
-**읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md` 문서들(STATE 가 현재의 SSOT) · render/net 트랙 파일(`RENDER*`·`NET*` — 직교 트랙).
+**이슈 원장 점검(전파 고리 — 다음 조각 고르기 전)**: `reviews/README.md` §2 열린 이슈 원장을 본다. 묶음 리뷰(`hgo-atom-review`)가 적은 이슈는 *과거 step 을 고치라는 게 아니라 이후 게이트 step 으로 반영하라*는 권고다. 무르익은(arc 와 맞고 load-bearing) 이슈가 있으면 그것이 **이번 step 의 정당한 후보** — STATE §2 NEXT(근시일) 또는 §3 OPEN GAPS(백로그)로 승급해 처리한다. arc(SPINE §8) 우선순위가 먼저 — 원장은 *권고*, 스케줄은 여기서 정한다. 처리한 이슈는 다음 리뷰가 engine 변경을 보고 ✅떨군다(원장에 직접 쓰지 않음 — 원장은 review 권한).
+
+**읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md` 문서들(STATE 가 현재의 SSOT) · render/net 트랙 파일(`RENDER*`·`NET*` — 직교 트랙) · `reviews/review-*`·`reviews/phase-*`·`reviews/FOUNDATIONS.md`(리뷰 회고·서사 — step 진행엔 원장 §2 만 필요).
 
 **큰 코드 파일은 부분 읽기만**: `engine/hgo-*.js`·`engine/scenes.js` 전체 읽기 금지 — Grep 으로 `LAW_ORDER`·`DEFAULTS`·직전 법칙/장면 1개만 찾아 offset/limit 로 해당 구간만. 새 항은 직전 항의 형식을 따른다.
 
