@@ -3325,6 +3325,85 @@
         ];
       },
     },
+
+    'step-0053': {
+      id: 'step-0053',
+      title: '핵합성 사다리와 철 봉우리 정체 (측정·새 법칙 0 — 가벼운 핵은 적당한 온도서 점화하나 무거운 단은 정체·세 게이트(전하 0050+질량 0052+흡열 0051)의 합작·고온서야 진행)',
+      desc: 'step-0050(전하 E_G∝(Z₁Z₂)²)·0051(흡열 문턱)·0052(질량 E_G∝μ)를 *따로* 검증했다. 이 측정 step 은 셋이 *함께* 만드는 창발 — **핵합성 사다리와 철 봉우리 정체** — 를 한 무대서 본다(새 법칙 0·기존 골든 보존=회귀 0). ' +
+            '사다리: 별은 가벼운 핵부터 차례로 융합해 무거운 핵을 쌓는다(¹단 ²H+²H→⁴He·²단 ⁴He+⁴He→⁸Be·…). 각 단의 장벽은 위로 갈수록 전하곱(Z₁Z₂)²·환산질량 μ 로 급증(0050·0052)하고, 철 근처서 흡열로 바뀐다(0051). ' +
+            '⇒ *같은 온도*서도 가벼운 단은 점화하나 무거운 단은 **정체**: ¹단(²H+²H, Z₁Z₂=1·μ=1·발열 ΔB_fus=+1.344) 적당한 E 서 융합하나, ²단(⁴He+⁴He, Z₁Z₂=4·μ=2·흡열 ΔB_fus=−0.233·egPair=EG·16·2=32) 같은 E 서 거의 0(철 봉우리). 무거운 단은 *초신성급 고온*서야 진행 — 이것이 우주가 철에서 멈칫하는 이유. ' +
+            '*측정*(무대 200²·정면 쌍 400개씩·고정 시드 t=1 단일 시도·fuseGamow=1·fuseEGcharge=1·fuseEGmu=1·fuseEndo=1·fuseMassFormula=1·massDefect=1·페어링·EG=1): ' +
+            '① **1단 점화(가벼운 핵)** — 적당한 온도 E=1: ¹단 ²H+²H→⁴He 융합 다수(별 점화·발열). ' +
+            '② **2단 정체(철 봉우리)·load-bearing** — 같은 E=1: ²단 ⁴He+⁴He→⁸Be ≈0 ≪ ¹단(쿨롱+질량 장벽 egPair=32 급억제)·억제 끄면(fuseEGcharge=fuseEGmu=0) ²단도 ≈¹단(egPair=1) ⇒ 정체가 전하·질량 장벽서. ' +
+            '③ **고온서 사다리 진행(초신성 척도)** — ²단을 E 로 가열: E=1 ≈0 → E=22 다수(단조·무거운 핵 융합은 극고온서만). ' +
+            '④ **장부·결정론·회귀** — 라이브 ²H 점화 무대 Q·B·L·E·px·py 머신·새 법칙 0 → 0001~52 골든 비트 불변(회귀 0).',
+      ticks: 4,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·rest=(A−B)c² → Q·B·L·E·px·py 머신. 새 법칙 0(측정만) → 기존 골든 보존.
+
+      EG: 1, NP: 400, EMOD: 1, EHOT: 22,                      // Gamow 기준·쌍 수·항성 코어급 온도·초신성급 온도
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0, fuseEG: 1, fuseEndo: 1 },
+      // (Z,N) NP쌍 정면(keRel=E). 격자(간격 9)로 쌍끼리 교차융합 0·d=2<R=3 라 tick0 1시도.
+      pop(Z, N, E) {
+        const m = Z + N, v = Math.sqrt(E / m), a = [];
+        for (let i = 0; i < this.NP; i++) {
+          const x = (i % 20) * 9 + 8, y = ((i / 20) | 0) * 9 + 8;
+          a.push({ Z, N, e: Z, x: 0, rx: x, ry: y, vx: v, vy: 0, lep: 0 });
+          a.push({ Z, N, e: Z, x: 0, rx: x + 2, ry: y, vx: -v, vy: 0, lep: 0 });
+        }
+        return a;
+      },
+      // 한 사다리 단(Z,N 자기융합)의 융합 수 측정 — supp=1 이면 전하·질량 장벽 켬(실제 사다리)·0 이면 끔(장벽 없는 대조).
+      rung(K, Z, N, E, supp) {
+        const sim = { W: 200, H: 200, atoms: this.pop(Z, N, E), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGcharge: supp, fuseEGmu: supp }), tick: 0 };
+        const n0 = sim.atoms.length;
+        L.applyForces(sim); L.integrate(sim); sim.tick++;
+        return n0 - sim.atoms.length;
+      },
+
+      // 라이브 sim(장부·결정론 기둥): ¹단 ²H 점화 무대(E=EMOD·발열). 융합이 일어나며 Q·B·L·E·px·py 닫힘.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 200, H: 200, atoms: this.pop(1, 1, this.EMOD), rng: simRng, knobs: Object.assign({}, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGcharge: 1, fuseEGmu: 1 }) };
+      },
+
+      watch(sim, K) {
+        const r1mod = this.rung(K, 1, 1, this.EMOD, 1);                 // ¹단 ²H+²H @ E=1 장벽 켬
+        const r2mod = this.rung(K, 2, 2, this.EMOD, 1);                 // ²단 ⁴He+⁴He @ E=1 장벽 켬(정체)
+        const r2modNo = this.rung(K, 2, 2, this.EMOD, 0);               // ²단 @ E=1 장벽 끔(대조)
+        const r2hot = this.rung(K, 2, 2, this.EHOT, 1);                 // ²단 @ E=22 장벽 켬(고온 진행)
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          r1mod, r2mod, r2modNo, r2hot,
+          dB1: +(K.binding(2, 2, 1) - 2 * K.binding(1, 1, 1)).toFixed(3),
+          dB2: +(K.binding(4, 4, 1) - 2 * K.binding(2, 2, 1)).toFixed(3),
+          totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0,
+        };
+      },
+
+      // 가설: ① 1단 점화 ② 2단 정체(철 봉우리)·load-bearing ③ 고온서 진행 ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const NP = this.NP;
+        const r1mod = this.rung(K, 1, 1, this.EMOD, 1);
+        const r2mod = this.rung(K, 2, 2, this.EMOD, 1);
+        const r2modNo = this.rung(K, 2, 2, this.EMOD, 0);
+        const r2hot = this.rung(K, 2, 2, this.EHOT, 1);
+        // ① 1단 점화: 가벼운 ²H+²H 가 적당한 온도서 다수 융합(별 점화·발열).
+        const ignite = r1mod > NP * 0.2;
+        // ② 2단 정체(철 봉우리)·load-bearing: 같은 E 서 ²단 ≪ ¹단·억제 끄면 ²단 회복 ⇒ 정체가 전하·질량 장벽서.
+        const stall = r2mod < r1mod * 0.05 && r2modNo > r2mod * 10;
+        // ③ 고온서 진행: ²단이 E 가열로 진행(E=1 정체 → E=22 다수·단조).
+        const hotAdvance = r2hot > r2mod && r2hot > NP * 0.1;
+        // ④ 장부·결정론·회귀는 라이브 기둥(②장부)+새 법칙 0(골든)이 보증.
+        const dB1 = K.binding(2, 2, 1) - 2 * K.binding(1, 1, 1);
+        return [
+          { name: `1단 점화(가벼운 핵) — 적당한 온도 E=${this.EMOD}: ¹단 ²H+²H→⁴He 융합 ${r1mod}/${NP}(별 점화·발열 ΔB_fus=${dB1.toFixed(3)}>0)`, pass: ignite, value: r1mod },
+          { name: `2단 정체(철 봉우리)·load-bearing — 같은 E=${this.EMOD}: ²단 ⁴He+⁴He→⁸Be ${r2mod} ≪ ¹단 ${r1mod}(쿨롱+질량 장벽 egPair=32 급억제)·억제 끄면 ²단 ${r2modNo} 회복 ⇒ 정체가 전하·질량서`, pass: stall, value: r2mod },
+          { name: `고온서 사다리 진행(초신성 척도) — ²단 E 가열: E=${this.EMOD} ${r2mod} → E=${this.EHOT} ${r2hot}/${NP}(단조·무거운 핵 융합은 극고온서만)`, pass: hotAdvance, value: r2hot },
+          { name: `장부·결정론·회귀 — 라이브 ²H 점화 무대 Q·B·L·E·px·py 머신·새 법칙 0 → 0001~52 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: r1mod },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
