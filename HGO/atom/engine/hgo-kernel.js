@@ -223,6 +223,10 @@
     //   둘 중 하나라도 켜지면 rest=A−B 로 편입(fmf 가 md 를 *함의*·불일치 조합서도 닫힘). 둘 다 0(과거 전 장면) → m·c²+nuc 그대로(회귀 0).
     const md = (sim.knobs && (sim.knobs.massDefect || sim.knobs.fuseMassFormula)) || 0;
     const pr = (sim.knobs && sim.knobs.decayPairing) || 0; // md 일 때 −B 의 페어링 게이트(decay·fuse 와 같은 B 사용)
+    // 완전 상대론적 운동에너지(step-0049 relKE): 0047 이 저장 v 를 *고유속도(celerity) u=γ·v_coord* 로 재해석해 운동량 p=m·u 를 상대론화했으나,
+    //   운동에너지는 여전히 토이 ½m|u|². 이 게이트는 KE 도 상대론화한다 — KE=(γ−1)mc², γ=√(1+|u|²/c²)(저속 극한서 ½m|u|² 회복·고속서 발산=c 에 무한 에너지 벽).
+    //   relKE=0(과거 전 장면) → ½m·v2 그대로(비트 동일·회귀 0). md/levelEZ 와 같은 *레저 게이트*(force 법칙 아님 — LAW_ORDER 미참여).
+    const rk = (sim.knobs && sim.knobs.relKE) || 0;
     for (const a of sim.atoms) {
       const m = mass(a);
       Q += a.Z - a.e;
@@ -231,7 +235,7 @@
       const v2 = a.vx * a.vx + a.vy * a.vy;
       // 정지질량 에너지: md 면 결합에너지를 정지질량에 편입(M=A−B → 결합한 핵이 *가볍다*·질량 결손), 아니면 A·c²(+nuc 저장고).
       //   md=0 → (m)·c²+0.5mv²+들뜸 그대로 + 아래 a.nuc → 과거 비트 동일(회귀 0). md=1 → −B 편입·nuc 미가법(저장고 폐기).
-      E += (md ? (m - binding(a.Z | 0, a.N | 0, pr)) : m) * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz, sc);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
+      E += (md ? (m - binding(a.Z | 0, a.N | 0, pr)) : m) * C * C + (rk ? (Math.sqrt(1 + v2 / (C * C)) - 1) * m * C * C : 0.5 * m * v2) + levelEZ(a.x, a.Z, a.e, lz, sc);  // KE: rk → (γ−1)mc²(상대론) / 0 → ½mv²(토이·회귀 0) · 들뜸(x=0 → 0; lz=0 → levelE)
       // 핵 결합/저장 에너지(step-0031 decay): 불안정 동위원소가 품은 붕괴 Q값(Δm·c² 저장고). 붕괴 시 KE 로 빠진다 → E 닫힘.
       //   미존재(과거 전 장면 a.nuc undefined) → 0 가법 → 장부·해시 불변. 핵 변환이라도 Σ(mc²+KE+a.nuc) 보존.
       //   md(0040) 면 저장고 폐기 — 발열량은 −B 정지질량 변화서 직접 나온다(나머지 nuc 회계는 md=0 경로 전용).

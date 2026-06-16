@@ -2924,6 +2924,244 @@
         ];
       },
     },
+
+    'step-0048': {
+      id: 'step-0048',
+      title: '별 점화의 시간곡선 — fuse+decay 합성 (측정 — ³H+³H→⁶He 융합 점화로 솟고 ⁶He β⁻→⁶Li 붕괴로 내림·중간핵 ⁶He 가 봉우리+꼬리·두 율을 한 시간축에)',
+      desc: 'step-0043 이 fuse→decay 한 고리(³H+³H→⁶He→⁶Li)를 *종단*만 보았고(시간 거동 미측정), step-0044 가 시간곡선(Bateman)을 보였으나 *붕괴 한 방향*뿐(source 가 또 다른 붕괴). 둘을 잇지 못했다 — *융합이 source, 붕괴가 sink* 인 합성 시간곡선은 미측정. ' +
+            '이 step 은 *새 법칙 0*(fuse 0033·0041·0046 + decay 0031~42 게이트 그대로·`L.applyForces`/`integrate` 재사용·엔진·하네스 미변경)으로 별 점화의 **합성 시간곡선**을 측정한다 — 중간핵 ⁶He 의 개체수가 *융합으로 0서 솟아*(점화 봉우리) *붕괴로 다시 내려가는*(꼬리) 한 신호. source(융합율)·sink(붕괴율)가 *한 시간축*서 겹친 첫 곡선. ' +
+            '0044 Bateman 은 A→B→C 가 *전부 붕괴*(부모도 붕괴해 B 를 공급)였으나, 여기 source 는 **융합**(두 ³H 가 *만나* 합쳐 ⁶He 를 공급) — 점화는 *공간 상호작용*(접근·충돌)이 율을 정하고(0046 류), 꼬리는 *핵 불안정*(ΔB⁻>0)이 정한다(0045 류). 두 다른 기원의 율이 한 봉우리-꼬리로 합성된다(§4 빠른 비가역 융합 + 느린 순환 붕괴를 *시간축*에 명시). ' +
+            '연료 ³H(Z1 N2)는 β 안정(ΔB⁻≤0·ΔB⁺≤0) → 먼저 안 붕괴(순환 격리: 융합이 점화, 그 생성핵 ⁶He 만 붕괴). ³H+³H → ⁶He(ΔB_fus>0 발열 점화) → ⁶He β⁻ → ⁶Li(Z3 N3 양방향 ΔB≤0 안정 종점). ' +
+            '*측정*(무대 440×520·40쌍 ³H Z1 N2 e1 **nuc 없음**·정면 접근(staggered gap → 점화 시각 분산해 봉우리 매끈)·kFuse=1·fuseBarrier=0.1·fuseMassFormula=1·massDefect=1·decayMassFormula=1·decayPairing=1·decayBetaPlus=1·decayRecoilPair=1·kDecay=0.03·고정 시드 재시뮬레이션 체크포인트): ' +
+            '① **연료 점화 소진** — N_fuel(³H) 단조 감소(80→~0)·융합이 연료를 먹어 ⁶He 로(점화 source). ' +
+            '② **점화 봉우리 + 붕괴 꼬리(합성)** — N_He(⁶He)가 0서 *솟아*(융합 점화) 내부 봉우리를 찍고 *다시 내림*(β⁻ 붕괴 꼬리) ⇒ source(융합)·sink(붕괴) 두 율이 한 시간축서 겹친 봉우리-꼬리(봉우리 내부·>시작 0·>종단). ' +
+            '③ **종점 누적** — N_Li(⁶Li 안정) 단조 증가·종단 ~전수(≥90% of 40)·꼬리가 ⁶Li 로 흘러듦. ' +
+            '④ **닫힌 바리온** — 모든 체크포인트서 ΣB=Σ(Z+N)=240(=80×3)·핵 안 새고 융합·붕괴 둘 다 B 보존(2×³H→⁶He→⁶Li 다 B=6). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(fuse vcom·바스 + decay rest=(A−B)c²·decayRecoilPair 합성·0043 계승). 새 법칙 0 — scene 만 → 0001~47 법칙·골든 비트 불변(회귀 0=기존 골든 보존).',
+      ticks: 240,
+      // ledgerTol 없음 — 0043 fuse+decay 합성과 같은 게이트(rest=(A−B)c²·vcom·바스) → Q·B·L·E·px·py 머신.
+
+      NPAIR: 40,
+      KN: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 0.1, fuseMassFormula: 1, massDefect: 1, decayMassFormula: 1, decayPairing: 1, decayBetaPlus: 1, decayRecoilPair: 1, kDecay: 0.03, decayNexcess: 4, decayQ: 1 },
+      CHK: [0, 15, 35, 60, 95, 140, 190, 240],
+      // 40쌍 ³H(Z1 N2 e1·nuc 없음) 그리드(5×8)·정면 접근. gap 을 쌍마다 늘려 점화 시각 분산(staggered) → ⁶He 봉우리가 계단 아닌 매끈한 솟음.
+      //   접근율 1/tick(dt=0.5·vx=±1) → gap g 면 ~ (g−fuseR) tick 에 융합. gap 8..~43 → 점화 ~5..40 tick 분산. 열·행 간격 80×60 ≫ gap/2 → 쌍끼리 교차융합 0(합체 후 vcom=0 정지).
+      pop() {
+        const a = [];
+        for (let p = 0; p < this.NPAIR; p++) {
+          const col = p % 5, row = (p / 5) | 0, cx = 60 + col * 80, cy = 40 + row * 60, g = 8 + p * 0.9;
+          a.push({ Z: 1, N: 2, e: 1, x: 0, rx: cx - g / 2, ry: cy, vx: 1, vy: 0, lep: 0 });   // 왼쪽 ³H → 오른쪽
+          a.push({ Z: 1, N: 2, e: 1, x: 0, rx: cx + g / 2, ry: cy, vx: -1, vy: 0, lep: 0 });  // 오른쪽 ³H → 왼쪽 (쌍 총 p=0)
+        }
+        return a;
+      },
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 440, H: 520, atoms: this.pop(), rng: simRng, knobs: Object.assign({}, this.KN) };
+      },
+
+      // 시계열: 고정 시드 재시뮬레이션(엔진 step 재사용 L.applyForces+integrate·하네스 미변경·결정론). 체크포인트마다 연료/중간/종점 개체수.
+      series(K) {
+        const sim = { W: 440, H: 520, atoms: this.pop(), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN), tick: 0 };
+        const out = []; let prev = 0;
+        for (const t of this.CHK) {
+          for (let i = prev; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+          prev = t;
+          let fuel = 0, he = 0, li = 0, B = 0;
+          for (const x of sim.atoms) { if (x.Z === 1 && x.N === 2) fuel++; else if (x.Z === 2 && x.N === 4) he++; else if (x.Z === 3 && x.N === 3) li++; B += (x.Z | 0) + (x.N | 0); }
+          out.push({ t, fuel, he, li, B });
+        }
+        return out;
+      },
+      dBfus(K, pair) { return K.binding(2, 4, pair) - 2 * K.binding(1, 2, pair); },   // ³H+³H→⁶He 결합 이득(점화)
+      dBdec(K, pair) { return K.bindingDelta(2, 4, pair); },                          // ⁶He→⁶Li β⁻ 결합 이득(꼬리)
+
+      watch(sim, K) {
+        const s = this.series(K);
+        let pk = 0; for (let i = 1; i < s.length; i++) if (s[i].he > s[pk].he) pk = i;
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          fuel0: s[0].fuel, fuelEnd: s[s.length - 1].fuel, HePeak: s[pk].he, HePeakT: s[pk].t, HeEnd: s[s.length - 1].he,
+          LiEnd: s[s.length - 1].li, Btot: s[0].B, dBfus: +this.dBfus(K, 1).toFixed(4), dBdec: +this.dBdec(K, 1).toFixed(4),
+          totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0, decayActive: sim.decayActive | 0,
+        };
+      },
+
+      // 가설: ① 연료 점화 소진 ② 점화 봉우리+붕괴 꼬리(합성·0서 솟아 내부 봉우리→내림) ③ 종점 누적 ④ 닫힌 바리온(ΣB=240 전 t).
+      assert(ctx, K) {
+        const s = this.series(K), n = s.length, NA = this.NPAIR * 2, NP = this.NPAIR, B0 = NA * 3;
+        // ① 연료 단조 감소 + 거의 소진(융합이 ³H 를 먹음).
+        let fuelMono = true; for (let i = 1; i < n; i++) if (s[i].fuel > s[i - 1].fuel) fuelMono = false;
+        const fuelBurn = fuelMono && s[n - 1].fuel <= NA * 0.1;
+        // ② 합성 봉우리-꼬리: ⁶He 봉우리 인덱스 내부(0·끝 아님)·봉우리>시작(0)·봉우리>종단·시작=0(점화 전).
+        let pk = 0; for (let i = 1; i < n; i++) if (s[i].he > s[pk].he) pk = i;
+        const peakTail = pk > 0 && pk < n - 1 && s[pk].he > s[0].he && s[pk].he > s[n - 1].he && s[0].he === 0;
+        // ③ 종점 단조 증가 + 종단 거의 전수(꼬리가 ⁶Li 로).
+        let liMono = true; for (let i = 1; i < n; i++) if (s[i].li < s[i - 1].li) liMono = false;
+        const liAccum = liMono && s[n - 1].li >= NP * 0.9;
+        // ④ 닫힌 바리온: 전 체크포인트 ΣB=240(융합·붕괴 둘 다 B 보존·핵 안 샘).
+        let closed = true; for (const r of s) if (r.B !== B0) closed = false;
+        return [
+          { name: `연료 점화 소진 — N_fuel(³H) 단조 감소 ${NA}→${s[n - 1].fuel}(융합이 연료 먹어 ⁶He 로·점화 source·거의 소진)`, pass: fuelBurn, value: s[n - 1].fuel },
+          { name: `점화 봉우리 + 붕괴 꼬리(합성) — N_He(⁶He) 0서 솟아 내부 봉우리 ${s[pk].he}(t=${s[pk].t}) 찍고 내림(${s[0].he}→${s[pk].he}→${s[n - 1].he}) ⇒ source(융합)·sink(붕괴) 한 시간축 봉우리-꼬리`, pass: peakTail, value: s[pk].he },
+          { name: `종점 누적 — N_Li(⁶Li 안정) 단조 증가·종단 ${s[n - 1].li}/${NP}(≥90%·꼬리가 ⁶Li 로 흘러듦)`, pass: liAccum, value: s[n - 1].li },
+          { name: `닫힌 바리온 — 전 체크포인트 ΣB=Σ(Z+N)=${B0}(=${NA}×3)·핵 안 새고 융합·붕괴 둘 다 B 보존(2×³H→⁶He→⁶Li 다 B=6)`, pass: closed, value: B0 },
+        ];
+      },
+    },
+
+    'step-0049': {
+      id: 'step-0049',
+      title: '완전 상대론적 운동에너지 — KE=(γ−1)mc² (relKE — 0047 운동량 상한의 에너지짝·c 에 무한 에너지 벽·저속서 ½mu² 회복·게이트=0 회귀 0)',
+      desc: 'step-0047 이 저장 (vx,vy) 를 *고유속도(celerity) u=γ·v_coord* 로 재해석해 운동량 p=m·u 를 상대론화하고 좌표속도 상한 |v_coord|<c 를 박았으나, *운동에너지*는 여전히 토이 ½m|u|²(ledger 의 0.5·m·v² 항)였다 — 상대론화가 운동량서 멈추고 에너지엔 안 닿았다(STATE §3 🟡 완전 상대론적 KE). ' +
+            '이 step 은 그 짝을 채운다(레저 게이트 relKE): 운동에너지도 **KE=(γ−1)mc²**, γ=√(1+|u|²/c²)(저장 celerity 로 정의·0047 과 같은 γ). md(정지질량 편입)·levelEZ(준위 에너지)와 같은 *레저 게이트*(force 법칙 아님·LAW_ORDER 미참여) — relKE=0 이면 ½m|u|² 그대로(과거 전 장면 비트 동일·회귀 0). ' +
+            '두 극한이 요점: ① **저속**(|u|≪c) γ−1≈½|u|²/c² → (γ−1)mc²→½m|u|²(뉴턴 운동에너지 회복·대응원리). ② **고속**(v_coord→c) γ→∞ → KE→∞ — *c 에 도달하려면 무한 에너지*가 든다(0047 의 좌표속도 상한을 에너지 쪽서 다시 봉인: 운동량·에너지 둘 다 c 를 인과율 벽으로 만든다). 같은 γ 가 운동량(0047)·에너지(0049)를 한 재해석서 묶는다(author if(v>c) 0). ' +
+            '*측정*(무대 2000²·자유 드리프트·다른 법칙 전부 게이트 0·relCap=1·relKE=1·celerity u∈{0.5,1,2,5,20,100} 단일 원자 질량1·KE=ledger.E−Σm·c²·t=10): ' +
+            '① **공식 정합(celerity)** — 측정 KE(relKE=1) = Σ(γ−1)mc², γ=√(1+u²)(머신·author 0). ' +
+            '② **저속 뉴턴 극한** — u=0.5 서 상대론 KE/토이 ½mu² ≈ 0.943(→1 회복)·전 u 상대론 KE ≤ 토이(에너지 포화·√(1+x)−1<½x). ' +
+            '③ **두 γ 형식 일치(0047 정합)** — γ_celerity=√(1+u²) = γ_β=1/√(1−β²), β=v_coord/c(=0047 좌표속도)·머신 ⇒ 운동량·에너지가 *한 γ* 로 묶임. ' +
+            '④ **고속 에너지 벽** — v_coord→c 일수록 KE→∞(u=100 좌표속도 0.99995 서 KE≈99.0 ≫ u=0.5 좌표속도 0.447 서 0.118)·c 도달엔 무한 에너지(0047 운동량 상한의 에너지짝). ' +
+            '⑤ **대조(게이트 끄면 토이)·회귀** — relKE=0 측정 KE = Σ½mu²(토이) ≠ 상대론(게이트 load-bearing)·게이트=0 → 0001~48 레저·골든 비트 불변. ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(자유 드리프트 → 속도 불변 → KE 불변 → E 잔차 머신·드리프트는 위치만).',
+      ticks: 10,
+      W: 2000, H: 2000, US: [0.5, 1, 2, 5, 20, 100], T: 10,
+
+      keRel(u) { const c = K.C; return (Math.sqrt(1 + (u * u) / (c * c)) - 1) * c * c; },  // (γ−1)mc²·m=1
+      keToy(u) { return 0.5 * u * u; },                                                    // ½mu²·m=1
+      gCel(u) { const c = K.C; return Math.sqrt(1 + (u * u) / (c * c)); },                 // γ from celerity u
+      vCoord(u) { const c = K.C; return u / Math.sqrt(1 + (u * u) / (c * c)); },           // 좌표속도(0047)
+      gBeta(b) { const c = K.C; return 1 / Math.sqrt(1 - (b * b) / (c * c)); },            // γ from β=v_coord/c
+      pop() {  // celerity 집단(서로 떨어져 비상호작용 — 어차피 모든 force 법칙 게이트 0)
+        return this.US.map((u, i) => ({ Z: 1, N: 0, e: 1, x: 0, rx: 10, ry: 50 + i * 100, vx: u, vy: 0 }));
+      },
+      // 측정 KE = ledger.E − Σ 정지질량(=Σ m·c²). 자유 드리프트 → KE 불변(t 무관). rk: relKE 게이트 on/off.
+      measureKE(K, rk) {
+        const sim = { W: this.W, H: this.H, atoms: this.pop(), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, { dt: 1, relCap: 1, relKE: rk }), tick: 0 };
+        for (let i = 0; i < this.T; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const led = K.ledger(sim); let rest = 0; for (const a of sim.atoms) rest += K.mass(a) * K.C * K.C;
+        return led.E - rest;
+      },
+      // 라이브 sim(장부·결정론 기둥): celerity 집단·relCap+relKE 켬. 자유 드리프트 → Q·B·L·E·px·py 머신.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.pop(), rng: null, knobs: { dt: 1, relCap: 1, relKE: 1 } };
+      },
+
+      watch(sim, K) {
+        const keOn = this.measureKE(K, 1), keOff = this.measureKE(K, 0);
+        return {
+          keRelTot: +keOn.toFixed(6), keToyTot: +keOff.toFixed(6),
+          ke_u05: +this.keRel(0.5).toFixed(6), ke_u100: +this.keRel(100).toFixed(6),
+          vcoord_u100: +this.vCoord(100).toFixed(6), ratioLow: +(this.keRel(0.5) / this.keToy(0.5)).toFixed(6),
+        };
+      },
+
+      // 가설: ① 공식 정합 ② 저속 뉴턴 극한 ③ 두 γ 형식 일치 ④ 고속 에너지 벽 ⑤ 대조·회귀.
+      assert(ctx, K) {
+        const c = K.C, US = this.US;
+        const keOn = this.measureKE(K, 1), keOff = this.measureKE(K, 0);
+        const expRel = US.reduce((s, u) => s + this.keRel(u), 0), expToy = US.reduce((s, u) => s + this.keToy(u), 0);
+        // ① 공식 정합(celerity): 측정 KE(relKE=1) = Σ(γ−1)mc² 머신.
+        const formula = Math.abs(keOn - expRel) < 1e-9;
+        // ② 저속 뉴턴 극한: u=0.5 rel/toy ∈(0.9,1)·전 u rel≤toy(에너지 포화 √(1+x)−1<½x).
+        const ratioLow = this.keRel(0.5) / this.keToy(0.5);
+        const newton = ratioLow > 0.9 && ratioLow < 1 && US.every(u => this.keRel(u) <= this.keToy(u) + 1e-12);
+        // ③ 두 γ 형식 일치: γ_celerity=√(1+u²) = γ_β=1/√(1−β²)(β=v_coord/c=0047 좌표속도)·머신.
+        let gammaOK = true; for (const u of US) if (Math.abs(this.gCel(u) - this.gBeta(this.vCoord(u))) > 1e-9) gammaOK = false;
+        // ④ 고속 에너지 벽: v_coord→c 일수록 KE→∞(u=100 KE ≫ u=0.5·좌표속도<c)·c 도달엔 무한 에너지.
+        const wall = this.keRel(100) > this.keRel(0.5) * 100 && this.vCoord(100) < c && this.keRel(100) > 50;
+        // ⑤ 대조(게이트 끄면 토이)·회귀: relKE=0 측정 KE = Σ½mu²(토이) ≠ 상대론 → 게이트 load-bearing.
+        const control = Math.abs(keOff - expToy) < 1e-9 && Math.abs(keOff - keOn) > 1e-3;
+        return [
+          { name: `공식 정합(celerity) — 측정 KE(relKE=1)=${keOn.toFixed(4)} = Σ(γ−1)mc²(γ=√(1+u²))=${expRel.toFixed(4)} 머신(author 0)`, pass: formula, value: +keOn.toFixed(4) },
+          { name: `저속 뉴턴 극한 — u=0.5 상대론 KE/토이 ½mu²=${ratioLow.toFixed(4)}(→1 회복)·전 u 상대론 KE≤토이(에너지 포화 √(1+x)−1<½x·대응원리)`, pass: newton, value: +ratioLow.toFixed(4) },
+          { name: `두 γ 형식 일치(0047 정합) — γ_celerity=√(1+u²) = γ_β=1/√(1−β²)(β=v_coord/c=0047 좌표속도) 머신 ⇒ 운동량·에너지가 한 γ 로 묶임`, pass: gammaOK, value: +this.gCel(5).toFixed(4) },
+          { name: `고속 에너지 벽 — u=100 좌표속도 ${this.vCoord(100).toFixed(5)}<c 서 KE=${this.keRel(100).toFixed(2)} ≫ u=0.5 좌표속도 ${this.vCoord(0.5).toFixed(3)} 서 ${this.keRel(0.5).toFixed(3)}·c 도달엔 무한 에너지(0047 운동량 상한의 에너지짝)`, pass: wall, value: +this.keRel(100).toFixed(2) },
+          { name: `대조(게이트 끄면 토이)·회귀 — relKE=0 측정 KE=${keOff.toFixed(2)} = Σ½mu²(토이)=${expToy.toFixed(2)} ≠ 상대론 ${keOn.toFixed(2)}(게이트 load-bearing·끄면 0001~48 비트 동일)`, pass: control, value: +keOff.toFixed(2) },
+        ];
+      },
+    },
+
+    'step-0050': {
+      id: 'step-0050',
+      title: '쿨롱 장벽이 전하에 달렸다 — E_G(Z₁,Z₂) (fuseEGcharge — Gamow 에너지 ∝ (Z₁Z₂)²·고전하 핵 융합 급억제·같은 E 서 ⁴He+⁴He ≪ ²H+²H·게이트=0 회귀 0)',
+      desc: 'step-0046 이 융합율을 Gamow 터널링 P=exp(−√(E_G/E))로 닫았으나 E_G 가 *Z 무관 토이 상수*(fuseEG=9·모든 쌍 같은 장벽)였다 — 장벽 높이의 *기원*(핵 전하)은 author. 실제 쿨롱 장벽은 두 핵의 전하곱서 온다: E_G ∝ (Z₁Z₂)²(=(παZ₁Z₂)²·2μc²). ' +
+            '이 step 은 장벽 척도를 전하서 끌어낸다(게이트 fuseEGcharge): 접근 쌍마다 egPair = fuseEG·(Z_a·Z_b)² → 터널링 지수 √(egPair/E) = **Z₁Z₂·√(fuseEG/E)**(전하곱 선형 억제). ⇒ 고Z 핵일수록 장벽 ²제곱 급증 → 같은 충돌 에너지서도 융합 *급억제*. 이것이 **별 핵합성의 사다리**(가벼운 핵은 쉽게·무거울수록 점점 어렵게 융합)·철 너머 융합이 안 되는 쿨롱적 이유. ' +
+            '0046 이 *에너지* 의존(저E 억제)을, 이 step 이 *전하* 의존(고Z 억제)을 더해 Gamow 지수 ∝ Z₁Z₂/√E 의 두 축이 둘 다 결합에너지·전하서 창발(author 0). ' +
+            '*측정*(무대 200²·정면 쌍 400개씩 두 핵종·**nuc 없음**·같은 충돌 E=1·fuseEG=1·고정 시드 t=4 단일 시도·fuseGamow=1·fuseBarrier=0): ' +
+            '① **전하 의존 억제(창발)** — 게이트 켬·같은 E: ⁴He+⁴He(Z₁Z₂=4) 융합 ≪ ²H+²H(Z₁Z₂=1)(고전하 핵 강억제·장벽 ∝(Z₁Z₂)²). ' +
+            '② **지수 ∝ Z₁Z₂(전하곱 선형)** — 측정 −ln(분율) 비 eHe/eDD ≈ 4 = Z₁Z₂비(4/1)·분율 frac_He ≈ frac_DD⁴(지수 4배). ' +
+            '③ **대조(전하 무관 baseline)** — fuseEGcharge=0 이면 두 핵종 *같은 융합수*(둘 다 상수 EG=1·전하 무관)·게이트 켜야 갈림 ⇒ 게이트 load-bearing. ' +
+            '④ **발열량·장부 불변·회귀** — 융합 발열 ΔB_fus(²H+²H)는 게이트와 무관(>0)·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ²H 무대·rest=(A−B)c²·vcom·바스)·fuseEGcharge=0 → 0001~49 비트 동일. ' +
+            '*대조*: fuseEGcharge=0 → egPair=fuseEG 상수(0046 거동·rng 소비 동일·회귀 0). 새 게이트 0 → 0001~49 법칙·골든 비트 불변.',
+      ticks: 4,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·rest=(A−B)c²(0041 계승·라이브 ²H 무대) → Q·B·L·E·px·py 머신. 전하 게이트는 *어느 쌍이* 융합할지(확률)만 바꿈.
+
+      EG: 1, E: 1, NP: 400,                                   // Gamow 기준 에너지(Z₁Z₂=1 일 때)·충돌 에너지·쌍 수
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0, fuseEG: 1 },
+      // (Z,N) 핵종 NP쌍 정면(keRel=E). m=Z+N·μ=m/2·keRel=m·v² → v=√(E/m). 격자(간격 9)로 쌍끼리 교차융합 0·d=2<R=3 라 tick0 1시도.
+      pop(Z, N, E) {
+        const m = Z + N, v = Math.sqrt(E / m), a = [];
+        for (let i = 0; i < this.NP; i++) {
+          const x = (i % 20) * 9 + 8, y = ((i / 20) | 0) * 9 + 8;
+          a.push({ Z, N, e: Z, x: 0, rx: x, ry: y, vx: v, vy: 0, lep: 0 });          // 왼쪽 → 오른쪽
+          a.push({ Z, N, e: Z, x: 0, rx: x + 2, ry: y, vx: -v, vy: 0, lep: 0 });     // 오른쪽 → 왼쪽(쌍 총 p=0·d=2)
+        }
+        return a;
+      },
+      // 고정 시드 단일 시도 측정(엔진 step 재사용·하네스 미변경): egCharge/핵종 조합으로 t tick 후 융합 수(=원자 감소분).
+      measure(K, egCharge, Z, N) {
+        const sim = { W: 200, H: 200, atoms: this.pop(Z, N, this.E), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGcharge: egCharge }), tick: 0 };
+        const n0 = sim.atoms.length;
+        L.applyForces(sim); L.integrate(sim); sim.tick++;     // 단일 시도(t=1) — 1쌍=1 Gamow 시도(다중 tick 누적 방지·예측 P 와 직접 대조)
+        return n0 - sim.atoms.length;                         // 융합 수(합체마다 원자 1 감소 = 쌍 1 소비)
+      },
+      P(zz) { return Math.exp(-Math.sqrt(this.EG * zz * zz / this.E)); },  // 전하곱 zz=Z₁Z₂ 의 Gamow 융합 확률
+      dBfus(K, pair) { return K.binding(2, 2, pair) - 2 * K.binding(1, 1, pair); },  // ²H+²H→⁴He 결합 이득(발열)
+
+      // 라이브 sim(장부·결정론 기둥): ²H 무대(Z₁Z₂=1)·전하 게이트 켬(egPair=EG·1=EG·DD 발열). 융합이 일어나며 Q·B·L·E·px·py 닫힘.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 200, H: 200, atoms: this.pop(1, 1, this.E), rng: simRng, knobs: Object.assign({}, this.KN, { fuseGamow: 1, fuseBarrier: 0, fuseEGcharge: 1 }) };
+      },
+
+      watch(sim, K) {
+        const ddOn = this.measure(K, 1, 1, 1), heOn = this.measure(K, 1, 2, 2);
+        const ddOff = this.measure(K, 0, 1, 1), heOff = this.measure(K, 0, 2, 2);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          ddOn, heOn, ddOff, heOff,
+          predDD: +(this.P(1) * this.NP).toFixed(1), predHe: +(this.P(4) * this.NP).toFixed(1),
+          expRatio: +(Math.log(heOn / this.NP) / Math.log(ddOn / this.NP)).toFixed(2),
+          dBfus: +this.dBfus(K, 1).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0,
+        };
+      },
+
+      // 가설: ① 전하 의존 억제 ② 지수 ∝ Z₁Z₂ ③ 대조(전하 무관 baseline) ④ 발열·장부·회귀.
+      assert(ctx, K) {
+        const NP = this.NP;
+        const ddOn = this.measure(K, 1, 1, 1), heOn = this.measure(K, 1, 2, 2);
+        const ddOff = this.measure(K, 0, 1, 1), heOff = this.measure(K, 0, 2, 2);
+        // ① 전하 의존 억제: 게이트 켬·같은 E 서 고전하 ⁴He+⁴He(Z₁Z₂=4) ≪ ²H+²H(Z₁Z₂=1).
+        const suppress = heOn > 0 && heOn < ddOn * 0.25;
+        // ② 지수 ∝ Z₁Z₂: −ln(분율) 비 eHe/eDD ≈ Z₁Z₂비 4(전하곱 선형·밴드 [3,5]).
+        const eDD = -Math.log(ddOn / NP), eHe = -Math.log(heOn / NP), ratio = eHe / eDD;
+        const linZZ = ratio >= 3 && ratio <= 5;
+        // ③ 대조(전하 무관 baseline): 게이트 끄면 두 핵종 같은 융합수(둘 다 상수 EG·전하 무관)·켜면 갈림.
+        const flatEqual = Math.abs(ddOff - heOff) <= 10;      // 전하 무관: 같은 P → 같은 융합수
+        const chargeSplit = ddOn > heOn * 3;                  // 전하 켬: 저전하 ≫ 고전하
+        const baseline = flatEqual && chargeSplit;
+        // ④ 발열량·장부: ΔB_fus(²H+²H)는 게이트 무관(>0)·닫힌 장부는 라이브 기둥(②)이 머신 보증.
+        const dB = this.dBfus(K, 1);
+        return [
+          { name: `전하 의존 억제(창발) — 게이트 켬·같은 E=${this.E}: ⁴He+⁴He(Z₁Z₂=4) 융합 ${heOn} ≪ ²H+²H(Z₁Z₂=1) ${ddOn}(장벽 ∝(Z₁Z₂)²·고전하 강억제)`, pass: suppress, value: heOn },
+          { name: `지수 ∝ Z₁Z₂(전하곱 선형) — −ln(분율) 비 eHe/eDD=${ratio.toFixed(2)} ≈ Z₁Z₂비 4(분율 frac_He≈frac_DD⁴·지수 4배)`, pass: linZZ, value: +ratio.toFixed(2) },
+          { name: `대조(전하 무관 baseline) — fuseEGcharge=0 두 핵종 같은 융합수 DD ${ddOff}≈He ${heOff}(둘 다 상수 EG·전하 무관)·게이트 켜면 DD ${ddOn} ≫ He ${heOn} ⇒ load-bearing`, pass: baseline, value: heOff },
+          { name: `발열량·장부 불변·회귀 — 융합 발열 ΔB_fus(²H+²H)=${dB.toFixed(4)}>0 게이트 무관·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ²H 무대)·fuseEGcharge=0 → 0001~49 비트 동일`, pass: dB > 0, value: +dB.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
