@@ -2251,6 +2251,61 @@
         ];
       },
     },
+
+    'step-0038': {
+      id: 'step-0038',
+      title: 'β⁺/전자포획 채널 (decayBetaPlus — 양성자 과잉도 반대 방향으로 안정 골짜기 수렴, 완전한 양방향 골짜기)',
+      desc: 'step-0037 이 결합에너지 B(Z,N)서 *안정 골짜기*를 창발시켰으나 붕괴는 β⁻(n→p·Z↑) *한 방향*뿐 — 중성자 과잉(골짜기 아래)만 수렴하고 *양성자 과잉*(골짜기 위)은 못 내려온다. ' +
+            '이 step 은 새 게이트 decayBetaPlus 로 β⁺(p→n·Z↓) 채널을 켠다: β⁻ 가 불리(ΔB⁻=B(Z+1,N−1)−B(Z,N)≤0)일 때 β⁺ 결합 이득 ΔB⁺=B(Z−1,N+1)−B(Z,N)>0 이면 *반대 방향*으로 진행한다. ' +
+            'B 는 고정 A 에서 Z 에 대해 concave(쿨롱 vs 비대칭) → 둘 중 최대 하나만 >0 ⇒ 골짜기 한쪽으로만 굴러간다. **둘 다 ≤0 = 안정 골짜기**(이제 양방향 완성). ' +
+            '보존: β⁺ 는 Z↓·N↑(B=Z+N 불변)·e−1(중성 유지 — 방출 양전자가 +1 나름 ⇒ Q=Z−e 불변)·lep+1(중성미자 L=+1, e−1 상쇄 ⇒ L 불변) — β⁻ 와 *대칭 반대*. Q값=ΔB⁺ 도 결합에너지서(0037 계승). ' +
+            '*측정*(무대: 양성자 과잉 ¹⁸Ne 8개 Z10 N8 nuc2, decayMassFormula=1·decayBetaPlus=1·kDecay=0.5·decayRecoilPair=1): ① **골짜기를 위에서 수렴** — 모든 원자 종단 Z = argmax_Z B(Z,A=18)=8(=¹⁸O, 0037 의 중성자 과잉 ¹⁸C 가 *아래에서* 도달한 같은 골짜기). ' +
+            '② **Q값 = β⁺ 결합 이득** — 방출 총 KE = Σ(B(종단)−B(초기)) *머신*(10→9→8 두 번 β⁺·발열량 ΔB⁺ 서) ③ **멈춤 = β⁺ ΔB⁺ 부호 전환** — 종단서 ΔB⁺≤0<직전 단계 ΔB⁺. ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신 1e-9(e−1·lep+1 대칭·decayRecoilPair=1 계승). *대조*: decayBetaPlus=0 이면 양성자 과잉은 β⁻ 불리(ΔB⁻≤0)라 *멈춰* Z=10 에 갇힌다(골짜기 못 감) — β⁺ 가 위쪽 골짜기 채널. 새 게이트 0 → 0037 법칙·골든 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — nuc→KE(ΔB⁺) 정확 이전·decayRecoilPair=1·e−1/lep+1 대칭 → Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 양성자 과잉 ¹⁸Ne 8개(Z10 N8 → A=18, N−Z=−2). nuc=2 저장고(ΔB⁺_total≈1.36 보다 큼 → 골짜기가 멈춤을 정함).
+      //   질량공식+β⁺ 구동: 10→9→8 (ΔB⁺>0), Z=8 서 양방향 ΔB≤0 → 멈춤 = 안정 골짜기 argmax B(=¹⁸O, 0037 의 ¹⁸C 와 같은 골짜기 — 위/아래서 수렴).
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 8; i++) atoms.push({ Z: 10, N: 8, e: 10, x: 0, rx: 50 + i * 30, ry: 100, vx: 0, vy: 0, nuc: 2, lep: 0 });
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1, decayBetaPlus: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 고정 A 등방선의 결합 최대 Z*(안정 골짜기) — argmax_Z B(Z, A−Z). author 0(B 측정으로 골짜기 창발).
+      valleyZ(A, K) { let zs = 1, bm = -Infinity; for (let Z = 1; Z < A; Z++) { const b = K.binding(Z, A - Z); if (b > bm) { bm = b; zs = Z; } } return zs; },
+      // β⁺ 결합 이득 ΔB⁺ = B(Z−1,N+1) − B(Z,N) (β⁻ 의 bindingDelta 와 대칭).
+      betaPlusDelta(Z, N, K) { return K.binding(Z - 1, N + 1) - K.binding(Z, N); },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N, zStar = this.valleyZ(A, K);
+        let atValley = 0, minZ = 99; for (const a of sim.atoms) { if (a.Z === zStar) atValley++; minZ = Math.min(minZ, a.Z); }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { zStar, atValley, minZ, ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 골짜기를 위에서 수렴(종단 Z=argmax B) ② Q값=β⁺ 결합 이득(총 KE=ΣΔB⁺ 머신) ③ 멈춤=β⁺ ΔB⁺ 부호 전환.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N, zStar = this.valleyZ(A, K);
+        let allValley = true, signFlip = true;
+        for (const a of sim.atoms) {
+          if (a.Z !== zStar) allValley = false;
+          // 종단서 β⁺ 도 불리(ΔB⁺≤0)·직전 단계(Z+1·N−1)는 유리(ΔB⁺>0) ⇒ 골짜기 위쪽 경계.
+          if (!(this.betaPlusDelta(a.Z, a.N, K) <= 0 && this.betaPlusDelta(a.Z + 1, a.N - 1, K) > 0)) signFlip = false;
+        }
+        const keRel = this.ke(sim, K);                                     // 방출된 총 KE(정지 무대 → 0서 시작)
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N) - K.binding(a0[i].Z, a0[i].N);
+        return [
+          { name: `골짜기를 위에서 수렴 — 양성자 과잉(Z=${a0[0].Z}) 전부 종단 Z = argmax_Z B(Z,A=${A})(0037 의 중성자 과잉이 아래서 도달한 같은 골짜기)`, pass: allValley, value: zStar },
+          { name: 'Q값 = β⁺ 결합 이득 — 방출 총 KE = Σ(B(종단)−B(초기))(발열량이 ΔB⁺ 서, β⁻ 와 대칭), 머신', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+          { name: '멈춤 = β⁺ ΔB⁺ 부호 전환(골짜기 위쪽) — 종단 ΔB⁺ ≤ 0 < 직전 단계 ΔB⁺(더 β⁺ 면 결합↓ → 멈춤)', pass: signFlip, value: +this.betaPlusDelta(sim.atoms[0].Z, sim.atoms[0].N, K).toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
