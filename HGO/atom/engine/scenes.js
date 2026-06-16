@@ -3010,6 +3010,77 @@
         ];
       },
     },
+
+    'step-0049': {
+      id: 'step-0049',
+      title: '완전 상대론적 운동에너지 — KE=(γ−1)mc² (relKE — 0047 운동량 상한의 에너지짝·c 에 무한 에너지 벽·저속서 ½mu² 회복·게이트=0 회귀 0)',
+      desc: 'step-0047 이 저장 (vx,vy) 를 *고유속도(celerity) u=γ·v_coord* 로 재해석해 운동량 p=m·u 를 상대론화하고 좌표속도 상한 |v_coord|<c 를 박았으나, *운동에너지*는 여전히 토이 ½m|u|²(ledger 의 0.5·m·v² 항)였다 — 상대론화가 운동량서 멈추고 에너지엔 안 닿았다(STATE §3 🟡 완전 상대론적 KE). ' +
+            '이 step 은 그 짝을 채운다(레저 게이트 relKE): 운동에너지도 **KE=(γ−1)mc²**, γ=√(1+|u|²/c²)(저장 celerity 로 정의·0047 과 같은 γ). md(정지질량 편입)·levelEZ(준위 에너지)와 같은 *레저 게이트*(force 법칙 아님·LAW_ORDER 미참여) — relKE=0 이면 ½m|u|² 그대로(과거 전 장면 비트 동일·회귀 0). ' +
+            '두 극한이 요점: ① **저속**(|u|≪c) γ−1≈½|u|²/c² → (γ−1)mc²→½m|u|²(뉴턴 운동에너지 회복·대응원리). ② **고속**(v_coord→c) γ→∞ → KE→∞ — *c 에 도달하려면 무한 에너지*가 든다(0047 의 좌표속도 상한을 에너지 쪽서 다시 봉인: 운동량·에너지 둘 다 c 를 인과율 벽으로 만든다). 같은 γ 가 운동량(0047)·에너지(0049)를 한 재해석서 묶는다(author if(v>c) 0). ' +
+            '*측정*(무대 2000²·자유 드리프트·다른 법칙 전부 게이트 0·relCap=1·relKE=1·celerity u∈{0.5,1,2,5,20,100} 단일 원자 질량1·KE=ledger.E−Σm·c²·t=10): ' +
+            '① **공식 정합(celerity)** — 측정 KE(relKE=1) = Σ(γ−1)mc², γ=√(1+u²)(머신·author 0). ' +
+            '② **저속 뉴턴 극한** — u=0.5 서 상대론 KE/토이 ½mu² ≈ 0.943(→1 회복)·전 u 상대론 KE ≤ 토이(에너지 포화·√(1+x)−1<½x). ' +
+            '③ **두 γ 형식 일치(0047 정합)** — γ_celerity=√(1+u²) = γ_β=1/√(1−β²), β=v_coord/c(=0047 좌표속도)·머신 ⇒ 운동량·에너지가 *한 γ* 로 묶임. ' +
+            '④ **고속 에너지 벽** — v_coord→c 일수록 KE→∞(u=100 좌표속도 0.99995 서 KE≈99.0 ≫ u=0.5 좌표속도 0.447 서 0.118)·c 도달엔 무한 에너지(0047 운동량 상한의 에너지짝). ' +
+            '⑤ **대조(게이트 끄면 토이)·회귀** — relKE=0 측정 KE = Σ½mu²(토이) ≠ 상대론(게이트 load-bearing)·게이트=0 → 0001~48 레저·골든 비트 불변. ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(자유 드리프트 → 속도 불변 → KE 불변 → E 잔차 머신·드리프트는 위치만).',
+      ticks: 10,
+      W: 2000, H: 2000, US: [0.5, 1, 2, 5, 20, 100], T: 10,
+
+      keRel(u) { const c = K.C; return (Math.sqrt(1 + (u * u) / (c * c)) - 1) * c * c; },  // (γ−1)mc²·m=1
+      keToy(u) { return 0.5 * u * u; },                                                    // ½mu²·m=1
+      gCel(u) { const c = K.C; return Math.sqrt(1 + (u * u) / (c * c)); },                 // γ from celerity u
+      vCoord(u) { const c = K.C; return u / Math.sqrt(1 + (u * u) / (c * c)); },           // 좌표속도(0047)
+      gBeta(b) { const c = K.C; return 1 / Math.sqrt(1 - (b * b) / (c * c)); },            // γ from β=v_coord/c
+      pop() {  // celerity 집단(서로 떨어져 비상호작용 — 어차피 모든 force 법칙 게이트 0)
+        return this.US.map((u, i) => ({ Z: 1, N: 0, e: 1, x: 0, rx: 10, ry: 50 + i * 100, vx: u, vy: 0 }));
+      },
+      // 측정 KE = ledger.E − Σ 정지질량(=Σ m·c²). 자유 드리프트 → KE 불변(t 무관). rk: relKE 게이트 on/off.
+      measureKE(K, rk) {
+        const sim = { W: this.W, H: this.H, atoms: this.pop(), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, { dt: 1, relCap: 1, relKE: rk }), tick: 0 };
+        for (let i = 0; i < this.T; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const led = K.ledger(sim); let rest = 0; for (const a of sim.atoms) rest += K.mass(a) * K.C * K.C;
+        return led.E - rest;
+      },
+      // 라이브 sim(장부·결정론 기둥): celerity 집단·relCap+relKE 켬. 자유 드리프트 → Q·B·L·E·px·py 머신.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.pop(), rng: null, knobs: { dt: 1, relCap: 1, relKE: 1 } };
+      },
+
+      watch(sim, K) {
+        const keOn = this.measureKE(K, 1), keOff = this.measureKE(K, 0);
+        return {
+          keRelTot: +keOn.toFixed(6), keToyTot: +keOff.toFixed(6),
+          ke_u05: +this.keRel(0.5).toFixed(6), ke_u100: +this.keRel(100).toFixed(6),
+          vcoord_u100: +this.vCoord(100).toFixed(6), ratioLow: +(this.keRel(0.5) / this.keToy(0.5)).toFixed(6),
+        };
+      },
+
+      // 가설: ① 공식 정합 ② 저속 뉴턴 극한 ③ 두 γ 형식 일치 ④ 고속 에너지 벽 ⑤ 대조·회귀.
+      assert(ctx, K) {
+        const c = K.C, US = this.US;
+        const keOn = this.measureKE(K, 1), keOff = this.measureKE(K, 0);
+        const expRel = US.reduce((s, u) => s + this.keRel(u), 0), expToy = US.reduce((s, u) => s + this.keToy(u), 0);
+        // ① 공식 정합(celerity): 측정 KE(relKE=1) = Σ(γ−1)mc² 머신.
+        const formula = Math.abs(keOn - expRel) < 1e-9;
+        // ② 저속 뉴턴 극한: u=0.5 rel/toy ∈(0.9,1)·전 u rel≤toy(에너지 포화 √(1+x)−1<½x).
+        const ratioLow = this.keRel(0.5) / this.keToy(0.5);
+        const newton = ratioLow > 0.9 && ratioLow < 1 && US.every(u => this.keRel(u) <= this.keToy(u) + 1e-12);
+        // ③ 두 γ 형식 일치: γ_celerity=√(1+u²) = γ_β=1/√(1−β²)(β=v_coord/c=0047 좌표속도)·머신.
+        let gammaOK = true; for (const u of US) if (Math.abs(this.gCel(u) - this.gBeta(this.vCoord(u))) > 1e-9) gammaOK = false;
+        // ④ 고속 에너지 벽: v_coord→c 일수록 KE→∞(u=100 KE ≫ u=0.5·좌표속도<c)·c 도달엔 무한 에너지.
+        const wall = this.keRel(100) > this.keRel(0.5) * 100 && this.vCoord(100) < c && this.keRel(100) > 50;
+        // ⑤ 대조(게이트 끄면 토이)·회귀: relKE=0 측정 KE = Σ½mu²(토이) ≠ 상대론 → 게이트 load-bearing.
+        const control = Math.abs(keOff - expToy) < 1e-9 && Math.abs(keOff - keOn) > 1e-3;
+        return [
+          { name: `공식 정합(celerity) — 측정 KE(relKE=1)=${keOn.toFixed(4)} = Σ(γ−1)mc²(γ=√(1+u²))=${expRel.toFixed(4)} 머신(author 0)`, pass: formula, value: +keOn.toFixed(4) },
+          { name: `저속 뉴턴 극한 — u=0.5 상대론 KE/토이 ½mu²=${ratioLow.toFixed(4)}(→1 회복)·전 u 상대론 KE≤토이(에너지 포화 √(1+x)−1<½x·대응원리)`, pass: newton, value: +ratioLow.toFixed(4) },
+          { name: `두 γ 형식 일치(0047 정합) — γ_celerity=√(1+u²) = γ_β=1/√(1−β²)(β=v_coord/c=0047 좌표속도) 머신 ⇒ 운동량·에너지가 한 γ 로 묶임`, pass: gammaOK, value: +this.gCel(5).toFixed(4) },
+          { name: `고속 에너지 벽 — u=100 좌표속도 ${this.vCoord(100).toFixed(5)}<c 서 KE=${this.keRel(100).toFixed(2)} ≫ u=0.5 좌표속도 ${this.vCoord(0.5).toFixed(3)} 서 ${this.keRel(0.5).toFixed(3)}·c 도달엔 무한 에너지(0047 운동량 상한의 에너지짝)`, pass: wall, value: +this.keRel(100).toFixed(2) },
+          { name: `대조(게이트 끄면 토이)·회귀 — relKE=0 측정 KE=${keOff.toFixed(2)} = Σ½mu²(토이)=${expToy.toFixed(2)} ≠ 상대론 ${keOn.toFixed(2)}(게이트 load-bearing·끄면 0001~48 비트 동일)`, pass: control, value: +keOff.toFixed(2) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
