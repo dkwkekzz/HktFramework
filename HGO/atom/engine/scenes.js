@@ -2565,6 +2565,77 @@
         ];
       },
     },
+
+    'step-0043': {
+      id: 'step-0043',
+      title: '별 점화 순환 (측정 — fuse+decay 한 무대: ³H+³H→⁶He 융합 점화 → ⁶He β⁻→⁶Li 붕괴·§4 빠른 비가역+느린 순환 첫 닫힘)',
+      desc: 'step-0033·0041 이 융합(fuse, 가벼운 핵→무거운 핵·발열)을, step-0031~42 가 붕괴(decay, 불안정 핵→골짜기)를 *각자* 닫았으나, 둘은 늘 *따로* 굴렀다(kFuse 무대 아니면 kDecay 무대). §4 "빠른 비가역(융합) + 느린 순환(붕괴)"의 척도 분리는 *둘이 한 무대*서 이어질 때 비로소 닫힌다. ' +
+            '이 step 은 *새 법칙 0*(fuse 0033·decay 0031~42 게이트 그대로)으로 둘을 한 무대(kFuse>0·kDecay>0)서 함께 굴려 **별 점화 순환**의 한 고리를 측정한다: 가벼운 핵이 *융합*해 무거운 핵을 만들고(점화), 그 생성핵이 골짜기 밖이면 *다시 붕괴*해 골짜기로 — 한 원자가 **두 다른 메커니즘**으로 원소를 올린다(Z: 1→2 융합 → 3 붕괴). ' +
+            '연료 ³H(Z1 N2)는 이 토이서 β 안정(ΔB⁻≤0·ΔB⁺≤0) → *먼저 붕괴하지 않는다*(순환을 격리: 융합이 먼저, 그 생성핵만 붕괴). ³H+³H 융합 → ⁶He(Z2 N4·ΔB_fus=+0.559 발열 점화), ⁶He 는 중성자 과잉(ΔB⁻=+0.179>0) → β⁻ → ⁶Li(Z3 N3·양방향 ΔB≤0 안정 종점). ' +
+            '*측정*(무대: 8개 ³H Z1 N2 e1 **nuc 없음** 4쌍 정면 고속·kFuse=1·fuseBarrier=0.1·fuseMassFormula=1·massDefect=1·decayPairing=1·decayMassFormula=1·decayBetaPlus=1·decayRecoilPair=1·kDecay=0.5): ' +
+            '① **융합 점화(발열)** — 4쌍 합체 → 개수 8→4, 쌍당 핵 방출 ΔB_fus=B(⁶He)−2B(³H)=+0.559>0(발열·결합에너지서). ' +
+            '② **생성핵이 다시 붕괴** — 종단 핵이 ⁶He(Z2)가 아니라 **⁶Li(Z3 N3)** ⇒ 융합 생성핵(⁶He)이 *이어서* β⁻ 붕괴(연료 ³H 는 안정이라 안 거친 경로 — Z 1→2 융합→3 붕괴). ' +
+            '③ **두 메커니즘 한 무대** — fuseActive=1 *그리고* decayActive=1(한 런서 융합·붕괴 둘 다 발화) — §4 빠른 비가역(융합)+느린 순환(붕괴)이 한 고리로 이어짐. ' +
+            '④ **모든 전이 결합 단조(비가역 화살표)** — 융합·붕괴 매 전이 ΔB>0(둘 다 골짜기로 — 못 되돌림)·방출 총 에너지(바스+KE−흡수 상대 KE) = Σ(ΔB_fus+ΔB_dec) 머신(전부 정지질량서·e=mc²). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(fuse vcom·바스 + decay rest=(A−B)c²·decayRecoilPair 합성). *대조*: kDecay=0 → ⁶He 서 멈춤(0041 거동·순환 안 닫힘)·kFuse=0 → ³H 안정이라 무대 정지. 새 법칙 0 — scene 만 → 0001~42 법칙·골든 비트 불변(회귀 0=기존 골든 보존).',
+      ticks: 100,
+      // ledgerTol 없음 — fuse(닫힌 형식 합체 vcom·바스) + decay(rest=(A−B)c²·decayRecoilPair) 합성도 Q·B·L·E·px·py 머신.
+
+      // 8개 ³H(Z1 N2 e1·**nuc 없음**) 4쌍 정면(0041 기하 계승·연료만 ²H→³H). dt=0.5·gap 8 → 융합 일찍(~tick 5~10), 이후 ⁶He 가 kDecay=0.5 로 β⁻→⁶Li.
+      //   ³H 는 β 안정(먼저 안 붕괴) → 융합 생성핵 ⁶He(중성자 과잉)만 붕괴 → ⁶Li(안정). y 간격 60·box 300 으로 2차 융합(⁶He+⁶He) 방지.
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let p = 0; p < 4; p++) {
+          const y = 60 + p * 60;
+          atoms.push({ Z: 1, N: 2, e: 1, x: 0, rx: 146, ry: y, vx: 1, vy: 0, lep: 0 });    // 왼쪽 ³H → 오른쪽
+          atoms.push({ Z: 1, N: 2, e: 1, x: 0, rx: 154, ry: y, vx: -1, vy: 0, lep: 0 });   // 오른쪽 ³H → 왼쪽 (쌍 총 p=0)
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 0.1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, decayMassFormula: 1, decayBetaPlus: 1, decayRecoilPair: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      restE(atoms, K, pair) { let e = 0; for (const a of atoms) e += (K.mass(a) - K.binding(a.Z | 0, a.N | 0, pair)); return e; },
+      dBfus(K, pair) { return K.binding(2, 4, pair) - 2 * K.binding(1, 2, pair); },          // ³H+³H→⁶He 결합 이득(점화)
+      dBdec(K, pair) { return K.bindingDelta(2, 4, pair); },                                  // ⁶He→⁶Li β⁻ 결합 이득(붕괴)
+      // 합체 전 4쌍이 흡수할 상대 KE 합(비탄성 합체로 바스에 park).
+      keRelSum(a0, K) { let s = 0; for (let i = 0; i < a0.length; i += 2) { const a = a0[i], b = a0[i + 1], ma = a.Z + a.N, mb = b.Z + b.N, mu = ma * mb / (ma + mb), dx = a.vx - b.vx, dy = a.vy - b.vy; s += 0.5 * mu * (dx * dx + dy * dy); } return s; },
+
+      watch(sim, K) {
+        let li = 0, he = 0; for (const a of sim.atoms) { if (a.Z === 3 && a.N === 3) li++; if (a.Z === 2 && a.N === 4) he++; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        const bathE = (sim.escaped && sim.escaped.E) || 0;
+        return { n: sim.atoms.length, li6: li, he6: he, dBfus: +this.dBfus(K, 1).toFixed(4), dBdec: +this.dBdec(K, 1).toFixed(4), bathE: +bathE.toFixed(4), ke: +this.ke(sim, K).toFixed(4), restE: +this.restE(sim.atoms, K, 1).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0, decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 융합 점화(발열) ② 생성핵이 다시 붕괴(종단 ⁶Li) ③ 두 메커니즘 한 무대 ④ 모든 전이 결합 단조·에너지=Σ(ΔB_fus+ΔB_dec) 머신.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0;
+        const nFus = a0.length - sim.atoms.length;                              // 합체 횟수(원자 감소분 = 쌍 수)
+        let allLi = sim.atoms.length > 0, anyHe = false;
+        for (const a of sim.atoms) { if (!(a.Z === 3 && a.N === 3)) allLi = false; if (a.Z === 2 && a.N === 4) anyHe = true; }
+        // ① 융합 점화: 4쌍 합체(8→4)·쌍당 ΔB_fus>0(발열·결합에너지서).
+        const ignite = nFus === 4 && this.dBfus(K, 1) > 0;
+        // ② 생성핵이 다시 붕괴: 종단이 ⁶Li(Z3) — 융합 생성핵 ⁶He(Z2)가 이어서 β⁻(연료 ³H 안정이라 융합 경유만 가능).
+        const productDecayed = allLi && !anyHe && this.dBdec(K, 1) > 0;
+        // ③ 두 메커니즘 한 무대: 융합·붕괴 둘 다 발화.
+        const bothFired = (sim.fuseActive | 0) === 1 && (sim.decayActive | 0) === 1;
+        // ④ 모든 전이 결합 단조 + 에너지 닫힘: 방출 총 에너지 = 바스(흡수 상대 KE+ΔB_fus) + KE(ΔB_dec 반동) − 흡수 상대 KE = Σ(ΔB_fus+ΔB_dec).
+        const monotone = this.dBfus(K, 1) > 0 && this.dBdec(K, 1) > 0;          // 융합·붕괴 둘 다 결합 이득(비가역 화살표)
+        const bathE = (sim.escaped && sim.escaped.E) || 0, keRel = this.ke(sim, K), keRelSum = this.keRelSum(a0, K);
+        const released = bathE + keRel - keRelSum;                              // 순 핵 방출(흡수 상대 KE 제외)
+        const expect = nFus * this.dBfus(K, 1) + nFus * this.dBdec(K, 1);       // Σ(ΔB_fus + ΔB_dec)(쌍마다 융합 1 + 붕괴 1)
+        // 정지질량 닫힘: ΔrestE = −Σ(ΔB_fus+ΔB_dec)(전 핵 방출이 정지질량서·e=mc²).
+        const restBefore = this.restE(a0, K, 1), restAfter = this.restE(sim.atoms, K, 1);
+        return [
+          { name: `융합 점화(발열) — ${nFus}쌍 합체(개수 8→${sim.atoms.length})·쌍당 ΔB_fus=B(⁶He)−2B(³H)=${this.dBfus(K, 1).toFixed(4)}>0(결합에너지서·author 0)`, pass: ignite, value: +this.dBfus(K, 1).toFixed(4) },
+          { name: `생성핵이 다시 붕괴 — 종단 핵 = ⁶Li(Z3 N3)·⁶He(Z2) 0개 ⇒ 융합 생성핵 ⁶He 가 이어서 β⁻(ΔB⁻=${this.dBdec(K, 1).toFixed(4)}>0)·Z 1→2 융합→3 붕괴(연료 ³H 안정)`, pass: productDecayed, value: sim.atoms.length },
+          { name: '두 메커니즘 한 무대 — fuseActive=1 그리고 decayActive=1(한 런서 융합·붕괴 둘 다 발화·§4 빠른 비가역+느린 순환 한 고리)', pass: bothFired, value: (sim.fuseActive | 0) + (sim.decayActive | 0) },
+          { name: '모든 전이 결합 단조 + 에너지 닫힘 — 순 핵 방출 = Σ(ΔB_fus+ΔB_dec) & ΔrestE=−Σ 머신(전부 정지질량서·e=mc²·비가역 화살표)', pass: monotone && Math.abs(released - expect) < 1e-6 && Math.abs((restAfter - restBefore) + expect) < 1e-6, value: +released.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
