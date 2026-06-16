@@ -130,16 +130,25 @@
 
   // 파울리 보편 반발 위치 에너지(step-0022) — U_pauli = Σ_{i<j *모든 쌍*} kP/(r²+ε²)² ≥ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
   //   repulse 와 달리 *전하 게이트 없음*(중성 포함 모든 쌍 — 부피는 전하 무관). kPauli 미설정/0(0021 이하) → 0 → 과거 장부 불변.
+  // step-0056 게이트 spatialHash(=0 → 전쌍 full U·회귀 0): pauli force 가 컷오프(cut=spatialCut) 내 쌍만 작용하면
+  //   PE 도 같은 컷오프 + **shift** 로 합산해야 force=−∇U 가 정합한다. U_shifted(r)=kP/s²²−kP/s_cut²² (r≤cut)·0 (r>cut).
+  //   shift 상수는 r=cut 에서 U 를 0 으로 연속화 → 쌍이 컷오프 경계를 가로질러도 PE 점프 0 → symplectic E 닫힘(완화 최소).
+  //   sh=0(과거 전 장면): uCut=0·컷오프 검사 없음 → 전쌍 full U 그대로(비트 동일·회귀 0).
   function pauliPE(atoms, knobs, W, H) {
     const kp = (knobs && knobs.kPauli) || 0;
     if (!kp) return 0;
     const eps2 = (knobs.coulombSoft || 1) ** 2;
+    const sh = (knobs && knobs.spatialHash) || 0;
+    const cut = (knobs && knobs.spatialCut) || 8, cut2 = cut * cut;
+    const sc2 = cut2 + eps2, uCut = sh ? kp / (sc2 * sc2) : 0;   // r=cut 에서의 U(연속화 shift 상수)
     let u = 0;
     for (let i = 0; i < atoms.length; i++) {
       for (let j = i + 1; j < atoms.length; j++) {
         const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
-        const s2 = dx * dx + dy * dy + eps2;
-        u += kp / (s2 * s2);
+        const r2 = dx * dx + dy * dy;
+        if (sh && r2 > cut2) continue;                  // 컷오프 밖 → 0(force 도 0 — 정합)
+        const s2 = r2 + eps2;
+        u += kp / (s2 * s2) - uCut;                     // shift: r=cut 에서 0 연속(경계 가로질러도 PE 점프 0)
       }
     }
     return u;

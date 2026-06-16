@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -534,25 +534,34 @@
   //   기질 재사용: coulomb·repulse 와 동일 *반음시(symplectic)* 적분(v→r)·연화 ε(coulombSoft 공유) → 총 E 유계 보존(E 만 완화).
   //   닫힌 장부: 쌍별 등·반작용 ⇒ 운동량 *머신* 보존. PE 항 U_pauli≥0 가법(kPauli 게이트, 모든 쌍). Q·B·L·x 불변(위치만 바꿈).
   //   국소: *그 두 원자*만(min-image). 결정론: 위치 결정 → rng 불필요. kPauli=0 → early-return = 회귀 0.
+  // ⊕ step-0056 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): 파울리 반발은 1/r⁶ *초단거리* 라 컷오프 밖 기여가 무시 가능 →
+  //   셀 리스트(cellPairs·cut=spatialCut)로 이웃 쌍만 힘을 싣는다. collide(0055)와 달리 pauli 는 *연속력* — 컷오프는 *근사*다
+  //   (먼 꼬리 1/r⁶ 를 버림). 그래서 켜도 brute 와 비트 동일이 아니라 *수치 근사*(힘 maxDiff<tol). **장부 정합 핵심**: force 가
+  //   컷오프 내 쌍만 작용하므로 `pauliPE`(kernel)도 같은 컷오프 + **shift**(U(r)−U(cut))로 합산 — 경계 가로지를 때 PE 불연속 0 →
+  //   symplectic E 닫힘(force=−∇U_shifted, shift 는 상수라 컷오프 내 힘 불변). 중력·쿨롱은 1/r² 장거리라 컷오프 불가(Barnes-Hut 별도).
   function pauli(sim) {
     const kp = sim.knobs.kPauli;
     if (!kp) return;                 // 노브=0 → early-return = 회귀 0 (파울리 반발 꺼짐 → 0021 비트)
     const dt = sim.knobs.dt;
     const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(쿨롱·반발과 공유)
     const atoms = sim.atoms, n = atoms.length;
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i], ma = K.mass(a);                  // 전하 게이트 없음 — 중성 포함 모든 원자
-      for (let j = i + 1; j < n; j++) {
-        const b = atoms[j];
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
-        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
-        // U_pauli = kP/s2² → F_on_a = −∇_a U = −kP·4/s2³ · d (d=a→b) → a 를 −d(b 반대편) 로 밂 = 반발(전하 무관).
-        const fOverR = -kp * 4 / (s2 * s2 * s2);
-        const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
-        const mb = K.mass(b);
-        a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;    // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
-        b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
-      }
+    function doPair(i, j) {                                // brute·cellPairs 공용 — 같은 힘 식(전하 게이트 없음·중성 포함)
+      const a = atoms[i], b = atoms[j];
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
+      const s2 = dx * dx + dy * dy + eps2;                 // 연화 거리²
+      // U_pauli = kP/s2² → F_on_a = −∇_a U = −kP·4/s2³ · d (d=a→b) → a 를 −d(b 반대편) 로 밂 = 반발(전하 무관).
+      const fOverR = -kp * 4 / (s2 * s2 * s2);
+      const fx = fOverR * dx, fy = fOverR * dy;            // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
+      const ma = K.mass(a), mb = K.mass(b);
+      a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;      // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
+      b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+    }
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(0021 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) doPair(i, j);
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(컷오프 근사·빠름·pauliPE 와 컷오프+shift 정합)
+      const cut = sim.knobs.spatialCut || 8;
+      const pairs = cellPairs(atoms, cut, sim.W, sim.H).pairs;
+      for (const p of pairs) doPair(p[0], p[1]);
     }
     sim.pauliActive = 1;                                   // 진단 플래그(hash 미참여)
   }

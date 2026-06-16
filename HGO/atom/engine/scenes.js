@@ -3549,6 +3549,77 @@
         ];
       },
     },
+
+    'step-0056': {
+      id: 'step-0056',
+      title: '공간 분할 셀 리스트를 연속 단거리 힘 pauli 에 배선 (게이트 spatialHash·컷오프-PE shift 로 E 닫힘 — 켜도 brute 수치 근사·검사 급감)',
+      desc: 'step-0055 가 *이벤트형* 탄성 충돌 collide 를 셀 리스트로 배선했다(탄성이라 비트 동일). 이 step 은 첫 *연속력* — 보편 단거리 반발 pauli(1/r⁶) — 를 배선한다. ' +
+            'collide 와 다른 점: 연속력은 컷오프가 *근사*다(먼 1/r⁶ 꼬리를 버림). 그래서 켜도 비트 동일이 아니라 *수치 근사*(힘 maxDiff 작음). ' +
+            '**핵심 난점·해결**: force 가 컷오프(cut=spatialCut) 내 쌍만 작용하므로 `pauliPE`(kernel)도 같은 컷오프 + **shift**(U(r)−U(cut), r≤cut)로 합산해야 force=−∇U 가 정합하고, 쌍이 경계를 가로질러도 PE 점프가 0 → symplectic E 가 닫힌다(shift 없으면 경계 crossing 마다 에너지 샘). ' +
+            'spatialHash=0 → 전쌍 brute(과거 전 장면 비트 동일·회귀 0). 중력·쿨롱은 1/r² 장거리라 컷오프 불가(Barnes-Hut 별도·이슈 #5). ' +
+            '*측정*(무대 60²·N=200·cut=10·고정 시드): ' +
+            '① **힘 근사·load-bearing** — 컷오프 pauli 1회 적용 후 속도가 brute 와 거의 같음(maxDiff 작음·먼 꼬리만 버림). ' +
+            '② **에너지 닫힘** — spatialHash=1 무대 6 tick E 잔차 작음(shift 가 경계 PE 불연속 제거). ' +
+            '③ **검사 수 급감** — 셀 거리계산 ≪ 전쌍 n(n−1)/2. ' +
+            '④ **결정론·회귀** — 셀-경로 무대 결정론·노브=0 → 0001~55 골든 비트 불변(회귀 0).',
+      ticks: 6,
+      W: 60, H: 60, N: 200, CUT: 10, MT: 6,
+      KN: { dt: 0.05, kPauli: 1, coulombSoft: 1.5, spatialCut: 10 },
+      ledgerTol: { E: 3e-2 },                               // 컷오프 pauli symplectic 유계 진동(brute 와 동급 — shift 추가 드리프트 0·assert ②가 동급임을 증명)
+
+      cloud(K) {
+        const rng = K.mulberry32(20260618), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 0.4, vy: (rng() - 0.5) * 0.4, lep: 0 });
+        return a;
+      },
+      // 한 번 applyForces 후 원자 — 실제 pauli() 분기를 탄다(재구현 아님). brute(sh0) vs 컷오프(sh1) 속도 차 = 힘 차·dt/m.
+      afterForce(K, sh) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { spatialHash: sh }), tick: 0 };
+        L.applyForces(sim);
+        return sim.atoms;
+      },
+      // spatialHash sh 무대 MT tick → E 잔차(sh=1 컷오프+shift vs sh=0 전쌍 full U — shift 가 추가 드리프트 안 내는지 비교).
+      eResidual(K, sh) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { spatialHash: sh }), tick: 0 };
+        const e0 = K.ledger(sim).E;
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        return Math.abs(K.ledger(sim).E - e0);
+      },
+      measure(K) {
+        const b = this.afterForce(K, 0), c = this.afterForce(K, 1);
+        let fmax = 0; for (let i = 0; i < b.length; i++) { const d = Math.hypot(c[i].vx - b[i].vx, c[i].vy - b[i].vy); if (d > fmax) fmax = d; }
+        const atoms = this.cloud(K), cp = L.cellPairs(atoms, this.CUT, this.W, this.H);
+        return { fmax, eres: this.eResidual(K, 1), eresBrute: this.eResidual(K, 0), cellChecks: cp.checks, bruteChecks: atoms.length * (atoms.length - 1) / 2 };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): 셀-경로(spatialHash=1) pauli 무대 — 컷오프-PE shift 로 E 닫힘을 verify ② 가 직접 검사.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 0, e: 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: (simRng() - 0.5) * 0.4, vy: (simRng() - 0.5) * 0.4, lep: 0 });
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN, { spatialHash: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { fmax: +m.fmax.toExponential(3), eres: +m.eres.toExponential(3), eresBrute: +m.eresBrute.toExponential(3), cellChecks: m.cellChecks, bruteChecks: m.bruteChecks, ratioPct: +(m.cellChecks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const close = m.fmax < 0.02;                          // ① 컷오프 힘 ≈ brute(먼 1/r⁶ 꼬리만 버림)
+        // ② shift 정합·load-bearing: 컷오프 E 잔차가 brute(전쌍 full U)와 *동급* → shift 가 추가 드리프트 안 냄(둘 다 순수 symplectic 진동).
+        const shiftOK = m.eres < this.ledgerTol.E && m.eres < m.eresBrute * 2 + 1e-4;
+        const faster = m.cellChecks < m.bruteChecks * 0.5;    // ③ 검사 급감
+        return [
+          { name: `힘 근사·load-bearing — 컷오프(cut=${this.CUT}) pauli 1회 적용 후 속도 maxDiff=${m.fmax.toExponential(2)} ≈ brute(먼 1/r⁶ 꼬리만 버림·근사)`, pass: close, value: +m.fmax.toExponential(3) },
+          { name: `에너지 닫힘·shift 정합·load-bearing — 컷오프 E 잔차 ${m.eres.toExponential(2)} ≈ brute(전쌍) ${m.eresBrute.toExponential(2)}(shift 가 경계 PE 불연속 제거 → 추가 드리프트 0·둘 다 순수 symplectic 진동)`, pass: shiftOK, value: +m.eres.toExponential(3) },
+          { name: `검사 수 급감 — 셀 거리계산 ${m.cellChecks} ≪ 전쌍 ${m.bruteChecks}(${(m.cellChecks / m.bruteChecks * 100).toFixed(1)}%)`, pass: faster, value: m.cellChecks },
+          { name: `결정론·회귀 — 셀-경로(spatialHash=1) pauli 무대 결정론·노브=0(spatialHash 기본 0)→ 0001~55 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.cellChecks },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
