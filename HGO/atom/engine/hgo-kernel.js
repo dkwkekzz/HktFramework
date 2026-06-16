@@ -23,6 +23,19 @@
   // 원자 질량 = 양성자 + 중성자 (전자 질량 무시 — 단순화, SPINE §3 요건4-4)
   function mass(a) { return a.Z + a.N; }
 
+  // 반경험적 질량공식(Bethe–Weizsäcker 토이) 결합에너지 B(Z,N) — 핵 *안정성*의 출처(원소표 author 0).
+  //   B = aV·A − aS·A^(2/3) − aC·Z(Z−1)/A^(1/3) − aA·(N−Z)²/A   (A=Z+N · 페어링 δ 생략 — 후속 정밀화)
+  //   부피(aV)는 결합을 키우고, 표면(aS)·쿨롱(aC, 양성자 반발)·비대칭(aA, N≠Z 불리)은 깎는다.
+  //   결합 B 가 클수록 안정. **베타붕괴 Q값·안정 골짜기가 여기서 창발** — 쿨롱(저 Z 선호) vs 비대칭(N=Z 선호) 경쟁이 골짜기 위치를 정한다(author 0).
+  //   토이 계수(자연 단위 c=1): ΔB 를 KE<c 로 유지하도록 축소 — 결정론 상수라 헤더 고정(CLAUDE 규약: 시뮬 상수는 CVar 예외).
+  const BIND = { aV: 1.0, aS: 0.5, aC: 0.1048, aA: 1.35 };
+  function binding(Z, N) {
+    Z = Z | 0; N = N | 0; const A = Z + N; if (A <= 0) return 0;
+    return BIND.aV * A - BIND.aS * Math.pow(A, 2 / 3) - BIND.aC * Z * (Z - 1) / Math.cbrt(A) - BIND.aA * (N - Z) * (N - Z) / A;
+  }
+  // β⁻(n→p) 붕괴의 결합에너지 이득 ΔB = B(Z+1,N−1) − B(Z,N). >0 이면 *발열*(골짜기 쪽으로) → 붕괴 진행, ≤0 이면 안정(골짜기).
+  function bindingDelta(Z, N) { return binding(Z + 1, N - 1) - binding(Z, N); }
+
   // 전자 들뜸 준위(x)의 에너지 — 이산 에너지 *고유값*(슈뢰딩거 수소 스펙트럼 E_n=−R/n², n=x+1; x=0 바닥→0).
   //   ※ 보어의 *궤도* 그림(불확정성 위배 → 하이젠베르크·슈뢰딩거가 기각)이 아니라, 그 그림이 우연히 맞힌
   //     *에너지 고유값*만 쓴다 — 궤도·반지름·각운동량 양자화는 시뮬 안 함(전이만 관측, 하이젠베르크 정신).
@@ -270,5 +283,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
 });

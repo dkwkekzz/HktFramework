@@ -2070,6 +2070,187 @@
         ];
       },
     },
+
+    'step-0035': {
+      id: 'step-0035',
+      title: '다단 붕괴 사슬 (측정 — 멀리 떨어진 동위원소가 원소 사다리를 *여러 단계* 오르며 딸→손자 핵 축적, decay(0031~34)의 *연쇄*판)',
+      desc: 'step-0034 는 *1회 붕괴 후 안정*(first-passage)을 측정했다 — 한 원자가 딱 한 번 붕괴하고 멈췄다. 하지만 실제 핵 붕괴의 풍부함은 *사슬*에 있다: ' +
+            '안정선에서 *멀리* 떨어진 핵은 한 번 붕괴해도 여전히 불안정해 *다시* 붕괴하고, 또 다시 — 원소 사다리를 *여러 단계* 오르며 딸→손자→증손자를 거쳐 안정 종점에 닿는다. ' +
+            '이 step 은 **새 법칙 0**(decay 게이트 그대로) — *측정* step 이다: decay 법칙은 이미 사슬을 *창발*시킨다(매 tick 불안정 원자가 N−Z>문턱·저장고>0 이면 또 붕괴 → Z↑·N↓ 반복). 무대만 바꿔 *연쇄*를 본다. ' +
+            '무대 설계(멀리 떨어진 ²²C → 3단 사슬): 64개 동일 ²²C(Z6 N16 e6 nuc3, N−Z=10 ≫ 문턱 4 → 매우 불안정). 매 붕괴마다 N−Z 가 2씩 줆 ⇒ 10→8→6→4 — *3회* 붕괴해야 안정(N−Z≤4)에 닿는다. ' +
+            '사슬 경로: **C(6) → N(7) → O(8) → F(9)** (탄소→질소→산소→플루오린, 각 단계가 새 원소를 *측정*으로 창발 — author 0). 핵 저장고 nuc=3 = 3단 Q값(decayQ=1)이라 안정과 동시에 저장고도 고갈(두 멈춤 일치). ' +
+            '각 원자는 매 tick 확률 kDecay 로 *독립* 붕괴(국소·전역 조율자 0) ⇒ 집단은 사다리를 따라 *흐르는 파동* — 어떤 건 아직 C, 어떤 건 N·O 중간종, 선두는 안정 종점 F 에 *축적*. ' +
+            '*측정*(T=120 tick·中流 스냅샷): ① **다단 사슬 완주** — 종단 최대 Z = 안정 종점(초기 6 + 3단 = 9) ⇒ ≥1 원자가 C→N→O→F *3단 전부* 거침(0031·0034 의 단일 붕괴를 넘어선 *연쇄* 증거) ' +
+            '② **딸 핵 축적(중간종 동시 존재)** — 종단 서로 다른 원소 ≥ 3종 동시 출현(사슬이 중간 딸 N·O 를 *지나가며 채운다* — 사다리 위 분포) ' +
+            '③ **단조 래칫·종점 배수(drain)** — 모든 원자가 초기 Z(6) ≤ Z ≤ 안정 종점(9) 안(비가역 화살표·상한=안정 sink), 종점 F 의 모든 원자는 안정(N−Z≤문턱)이며 *안정 종점 개체수 > 초기종 개체수*(source C → sink F 로 배수). ' +
+            '닫힌 장부: Q·B·L·E·px·py 머신 1e-9(원자당 최대 3회·총 ~190회 독립 붕괴라도 핵 변환 장부 닫힘 — decayRecoilPair=1 으로 방출 입자 −Δp 바스 적재 → px·py 도 머신, 0032·0034 계승). ' +
+            '*대조*: kDecay=0 이면 붕괴 0·전원 C(6) 고정·distinct=1(회귀 0). **새 법칙·노브 0 — decay 게이트(0031~34) 그대로 *멀리 떨어진* 동위원소에 적용**하므로 기존 골든·법칙 비트 불변(측정 step 의 회귀 0 알리바이 = 기존 골든 보존).',
+      ticks: 120,
+      // ledgerTol 없음 — decayRecoilPair=1 (0032~34 계승) → 방출 입자 −Δp 바스 적재 → px·py 도 머신. Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 64개 동일 ²²C(Z6 N16 e6 nuc3, N−Z=10 ≫ 문턱 4). 사슬: 10→8→6→4 (3회 붕괴) ⇒ C(6)→N(7)→O(8)→F(9), 종점 안정.
+      //   nuc=3 = 3단 decayQ(=1)이라 안정과 저장고 고갈이 동시(두 멈춤 일치). T=120 = 中流(평균 완주 ~3/k=150 tick 전) → 사다리 위 분포가 풍부.
+      //   격자 배치(위치는 거동 무관 — 힘 법칙 안 켬). 매 tick 독립 확률 kDecay=0.02.
+      init(rng, K) {
+        const W = 400, H = 400, N0 = 64, atoms = [];
+        for (let i = 0; i < N0; i++) {
+          atoms.push({ Z: 6, N: 16, e: 6, x: 0, rx: 20 + (i % 8) * 45, ry: 20 + ((i / 8) | 0) * 45, vx: 0, vy: 0, nuc: 3, lep: 0 });
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        // decayRecoilPair=1 (0032~34) → 방출 입자 운동량 바스 적재 → 총 px·py 머신 닫힘. nuc=3 → 원자당 최대 3단 붕괴.
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.02, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1 }, _N0: N0 };
+      },
+
+      // 종단 원소 분포(Z→개수) + 최대/최소 Z. 사슬은 *같은 원자가 제자리서 Z 를 올리는* 흐름 — 별 객체 생성 없음(다발의 양 변화).
+      dist(sim) { const d = {}; for (const a of sim.atoms) d[a.Z] = (d[a.Z] | 0) + 1; return d; },
+
+      watch(sim, K) {
+        const d = this.dist(sim), zs = Object.keys(d).map(Number);
+        const maxZ = Math.max(...zs), minZ = Math.min(...zs);
+        let sumZ = 0; for (const a of sim.atoms) sumZ += a.Z;
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { maxZ, minZ, distinct: zs.length, source6: d[6] | 0, sink9: d[9] | 0, meanZ: +(sumZ / sim.atoms.length).toFixed(2), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 다단 사슬 완주(종단 maxZ = 안정 종점 = 초기+3단) ② 딸 핵 축적(distinct 원소 ≥ 3) ③ 단조 래칫·종점 배수(전원 [Z0,종점] 안·sink 안정·sink>source).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0[0], Z0 = a0.Z, nx = sim.knobs.decayNexcess;
+        // 안정 종점 Z = 초기 + min(안정까지 붕괴 수, 저장고 한도). N−Z 가 2씩 줄어 ≤nx 까지: ceil(((N−Z)−nx)/2). 저장고: floor(nuc/decayQ).
+        const decaysToStable = Math.ceil(((a0.N - a0.Z) - nx) / 2);
+        const nucCap = Math.floor((a0.nuc || 0) / sim.knobs.decayQ);
+        const dMax = Math.min(decaysToStable, nucCap);                   // 완주 단계 수(=3)
+        const endpointZ = Z0 + dMax;                                     // 안정 종점 Z(=9)
+        const d = this.dist(sim), zs = Object.keys(d).map(Number);
+        const maxZ = Math.max(...zs), minZ = Math.min(...zs), distinct = zs.length;
+        // ③ 단조 래칫: 모든 원자 Z0 ≤ Z ≤ endpointZ(비가역 — 만 오름·상한=안정 sink), 종점 원자는 전부 안정, sink > source.
+        let inBand = true, sinkAllStable = true;
+        for (const a of sim.atoms) {
+          if (a.Z < Z0 || a.Z > endpointZ) inBand = false;
+          if (a.Z === endpointZ && (a.N - a.Z) > nx) sinkAllStable = false;
+        }
+        const sink = d[endpointZ] | 0, source = d[Z0] | 0;
+        return [
+          { name: `다단 사슬 완주 — 종단 최대 Z = 안정 종점(초기 ${Z0} + ${dMax}단 = ${endpointZ}, C→N→O→F *3단* 거침 — 단일 붕괴 0031·0034 넘어섬)`, pass: maxZ === endpointZ && dMax >= 2, value: maxZ },
+          { name: '딸 핵 축적 — 종단 서로 다른 원소 ≥ 3종 동시 출현(사슬이 중간 딸 N·O 를 지나가며 채움·사다리 위 분포)', pass: distinct >= 3, value: distinct },
+          { name: `단조 래칫·종점 배수 — 전원 ${Z0}≤Z≤${endpointZ}(비가역·상한=안정 sink)·종점 전부 안정·안정종점 개체수 > 초기종(source→sink drain)`, pass: inBand && sinkAllStable && sink > source, value: sink },
+        ];
+      },
+    },
+
+    'step-0036': {
+      id: 'step-0036',
+      title: '불안정도-의존 반감기 (decayRateExcess — 붕괴율이 핵 불안정도 N−Z 의 함수로 창발, 평탄 상수 kDecay → 핵 상태 의존)',
+      desc: 'step-0034~35 까지 붕괴 확률 `kDecay` 는 *평탄 상수*였다 — 모든 불안정 핵이 똑같은 율로 붕괴했다(반감기를 author 한 셈). 하지만 실제 핵은 *안정선에서 멀수록 빨리 붕괴*한다(중성자 과잉이 클수록 짧은 반감기 — Sargent 류). ' +
+            '이 step 은 그 반감기를 *핵 상태에서 창발*시킨다. 새 게이트 decayRateExcess: 붕괴 확률을 평탄 상수 대신 *불안정도*(N−Z 의 문턱 초과분 `excess`)에 비례해 키운다 — keff = min(1, kDecay·(1 + decayRateExcess·excess)). ' +
+            '종류별 author 0 — `excess` 는 다발의 양(N−Z)일 뿐이고, *어느 원소가 빠른지*를 박지 않는다(원소표 분기 0). 반감기는 이제 핵 상태(N−Z)의 *함수*로 측정에서 나온다(질량공식서 Q값·율 창발은 다음 단계 — 여기선 율이 불안정도에 의존함까지). ' +
+            '*측정*(무대: 두 집단 각 32개, 둘 다 한 번 붕괴하면 안정해지는 first-passage 라 반감기가 깔끔): **A=저불안정 ¹⁷C(Z6 N11, N−Z=5 → excess 1)** vs **B=고불안정 ¹⁸C(Z6 N12, N−Z=6 → excess 2)**. ' +
+            'decayRateExcess=5 ⇒ keff_A = 0.02·(1+5·1) = 0.12, keff_B = 0.02·(1+5·2) = 0.22 — *같은 법칙*인데 B 가 거의 2배 빠르다(불안정도가 커서). T=12 tick 中流 스냅샷: ' +
+            '① **불안정도-의존 반감기 창발** — 고불안정 B 집단의 미붕괴 개체수 < 저불안정 A(B 가 빨리 붕괴 — 율이 N−Z 에서 나옴) ② **율법 정량 적합** — 두 집단 미붕괴 ≈ N₀(1−keff)^T, keff=kDecay·(1+decayRateExcess·excess)(통계요동 ±5 안) ' +
+            '③ **단일 붕괴 first-passage 정합** — 붕괴한 원자는 전부 안정(N−Z≤문턱)·아무도 2회 붕괴 안 함(Z≤초기+1). ' +
+            '닫힌 장부: Q·B·L·E·px·py 머신 1e-9(decayRecoilPair=1 — 방출 입자 −Δp 바스 적재 계승). *대조*: decayRateExcess=0 이면 두 집단 *같은* 평탄율(0034 거동)·반감기 동일(회귀 0 — keff=kDecay·rng 소비 동일). 새 게이트 0 → 기존 법칙·골든 비트 불변.',
+      ticks: 12,
+      // ledgerTol 없음 — decayRecoilPair=1 (0032~35 계승) → px·py 도 머신. Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 두 집단 각 32개. A=¹⁷C(Z6 N11, excess=N−Z−nx=1·느림), B=¹⁸C(Z6 N12, excess=2·빠름). 둘 다 1회 붕괴 후 안정(first-passage).
+      //   decayRateExcess=5 → keff_A=0.12, keff_B=0.22. *같은 게이트*인데 불안정도가 커서 B 가 ~2배 빠르다. nuc=1(1회 붕괴분). 힘 법칙 안 켬.
+      init(rng, K) {
+        const W = 400, H = 400, atoms = [];
+        for (let i = 0; i < 32; i++) atoms.push({ Z: 6, N: 11, e: 6, x: 0, rx: 20 + (i % 8) * 20, ry: 20 + ((i / 8) | 0) * 20, vx: 0, vy: 0, nuc: 1, lep: 0 });   // A 저불안정 excess1
+        for (let i = 0; i < 32; i++) atoms.push({ Z: 6, N: 12, e: 6, x: 0, rx: 200 + (i % 8) * 20, ry: 20 + ((i / 8) | 0) * 20, vx: 0, vy: 0, nuc: 1, lep: 0 }); // B 고불안정 excess2
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.02, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayRateExcess: 5 } };
+      },
+
+      // 그룹별 미붕괴(=아직 N−Z>문턱) 개체수. 분류는 *초기* 불안정도(atoms0 의 excess)로 — 인덱스 정렬(decay 는 재배열 0).
+      counts(sim, a0, nx) {
+        let aU = 0, bU = 0; for (let i = 0; i < sim.atoms.length; i++) {
+          const a = sim.atoms[i], b = a0[i], ex0 = (b.N - b.Z) - nx, undec = (a.N - a.Z) > nx;
+          if (ex0 === 1 && undec) aU++; else if (ex0 === 2 && undec) bU++;
+        } return { aU, bU };
+      },
+
+      watch(sim, K) {
+        const nx = sim.knobs.decayNexcess;
+        // 미붕괴(=아직 불안정) 개체수만 그룹별로. 미붕괴 A 는 여전히 ¹⁷C(N=11), 미붕괴 B 는 ¹⁸C(N=12) — 붕괴한 것은 N≠11·12 또는 안정이라 제외.
+        let aU = 0, bU = 0; for (const a of sim.atoms) { if ((a.N - a.Z) <= nx) continue; if (a.N === 11) aU++; else if (a.N === 12) bU++; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { undecA: aU, undecB: bU, totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 창발 순서(고불안정 B 미붕괴 < 저불안정 A) ② 율법 정량 적합 ③ 단일 붕괴 first-passage 정합.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, nx = sim.knobs.decayNexcess, k = sim.knobs.kDecay, R = sim.knobs.decayRateExcess, T = this.ticks;
+        const { aU, bU } = this.counts(sim, a0, nx);
+        let aN = 0, bN = 0, stableIfDecayed = true, noDouble = true;
+        for (let i = 0; i < sim.atoms.length; i++) {
+          const a = sim.atoms[i], b = a0[i], ex0 = (b.N - b.Z) - nx;
+          if (ex0 === 1) aN++; else if (ex0 === 2) bN++;
+          if (a.Z > b.Z) { if ((a.N - a.Z) > nx) stableIfDecayed = false; if (a.Z > b.Z + 1) noDouble = false; }
+        }
+        const keffA = Math.min(1, k * (1 + R * 1)), keffB = Math.min(1, k * (1 + R * 2));
+        const predA = aN * Math.pow(1 - keffA, T), predB = bN * Math.pow(1 - keffB, T);
+        const TOL = 5;
+        return [
+          { name: '불안정도-의존 반감기 창발 — 고불안정 B(N−Z=6) 미붕괴 < 저불안정 A(N−Z=5)(같은 게이트·B 가 빨리 붕괴, 율이 N−Z 에서 창발)', pass: bU < aU, value: `A${aU}>B${bU}` },
+          { name: `율법 정량 적합 — 두 집단 미붕괴 ≈ N₀(1−keff)^T, keff=kDecay·(1+decayRateExcess·excess)[keffA=${keffA.toFixed(2)} keffB=${keffB.toFixed(2)}] ±${TOL}`, pass: Math.abs(aU - predA) <= TOL && Math.abs(bU - predB) <= TOL, value: `A${aU}~${predA.toFixed(1)}|B${bU}~${predB.toFixed(1)}` },
+          { name: '단일 붕괴 first-passage 정합 — 붕괴한 원자 전부 안정(N−Z≤문턱)·2회 붕괴 0(Z≤초기+1)', pass: stableIfDecayed && noDouble, value: aN + bN },
+        ];
+      },
+    },
+
+    'step-0037': {
+      id: 'step-0037',
+      title: '질량공식·안정 골짜기 (decayMassFormula — 붕괴 Q값·멈춤이 결합에너지 B(Z,N)서 창발, author 문턱·decayQ 해소)',
+      desc: 'step-0036 까지 붕괴의 *멈춤*(N−Z≤문턱)도 *발열량*(decayQ)도 author 한 상수였다. 이 step 은 둘 다 *결합에너지에서 창발*시킨다. 새 게이트 decayMassFormula: ' +
+            '반경험적 질량공식(Bethe–Weizsäcker 토이) B(Z,N) = aV·A − aS·A^(2/3) − aC·Z(Z−1)/A^(1/3) − aA·(N−Z)²/A 를 kernel 에 두고(부피는 결합↑·표면/쿨롱/비대칭은 결합↓), ' +
+            'β⁻ 붕괴를 *결합이 늘 때만*(ΔB = B(Z+1,N−1) − B(Z,N) > 0, 발열) 진행한다. ⇒ **멈춤 = ΔB≤0 = 안정 골짜기**(author 문턱 아님), **방출 Q값 = ΔB**(author decayQ 아님). ' +
+            '골짜기 위치는 *쿨롱(양성자 반발 — 저 Z 선호) vs 비대칭(N=Z 선호)* 경쟁이 정한다 — 종류별 author 0(어느 원소가 안정인지 박지 않음). 에너지는 0031 그대로 nuc 저장고 → KE(ΔB 만큼) ⇒ E 정확 닫힘(저장고는 ΔB 보다 크게 둬 *골짜기*가 멈춤을 정하게 함). ' +
+            '*측정*(무대: N 과잉 ¹⁸C 8개 Z6 N12 nuc2, decayMassFormula=1·kDecay=0.5·decayRecoilPair=1): ① **안정 골짜기 창발** — 모든 원자 종단 Z = argmax_Z B(Z,A=18)(결합 최대 = 안정). ' +
+            '② **Q값 = 결합에너지 차** — 방출 총 KE = Σ(B(종단)−B(초기)) *머신*(발열량이 ΔB 서 나옴, decayQ 상수 아님) ③ **멈춤 = ΔB 부호 전환** — 종단서 β⁻ ΔB ≤ 0 < 직전 단계 ΔB(더 붕괴하면 결합 감소 → 멈춤, author 문턱 아님). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신 1e-9(decayRecoilPair=1 계승). *대조*: decayMassFormula=0 이면 author 문턱(N−Z≤4)·decayQ 거동(0031~36)·종단 Z=7(골짜기 아님·회귀 0). 새 게이트 0 → 기존 법칙·골든 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — nuc→KE(ΔB) 정확 이전·decayRecoilPair=1 → Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // N 과잉 ¹⁸C 8개(Z6 N12 → A=18). nuc=2 저장고(ΔB_total≈1.36 보다 큼 → *골짜기*가 멈춤을 정함, 저장고 고갈 아님).
+      //   질량공식 구동: 6→7→8 (ΔB>0), Z=8 서 ΔB<0 → 멈춤 = 안정 골짜기 argmax B(=¹⁸O). kDecay=0.5(빠른 수렴)·힘 법칙 안 켬.
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 8; i++) atoms.push({ Z: 6, N: 12, e: 6, x: 0, rx: 50 + i * 30, ry: 100, vx: 0, vy: 0, nuc: 2, lep: 0 });
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 고정 A 등방선의 결합 최대 Z*(안정 골짜기) — argmax_Z B(Z, A−Z). author 0(B 측정으로 골짜기 창발).
+      valleyZ(A, K) { let zs = 1, bm = -Infinity; for (let Z = 1; Z < A; Z++) { const b = K.binding(Z, A - Z); if (b > bm) { bm = b; zs = Z; } } return zs; },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N, zStar = this.valleyZ(A, K);
+        let atValley = 0, maxZ = 0; for (const a of sim.atoms) { if (a.Z === zStar) atValley++; maxZ = Math.max(maxZ, a.Z); }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { zStar, atValley, maxZ, ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 안정 골짜기 창발(종단 Z=argmax B) ② Q값=결합에너지 차(총 KE=ΣΔB 머신) ③ 멈춤=ΔB 부호 전환(종단 ΔB≤0<직전).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N, zStar = this.valleyZ(A, K);
+        let allValley = true, signFlip = true;
+        for (const a of sim.atoms) {
+          if (a.Z !== zStar) allValley = false;
+          if (!(K.bindingDelta(a.Z, a.N) <= 0 && K.bindingDelta(a.Z - 1, a.N + 1) > 0)) signFlip = false;  // 종단서 더 붕괴 불리·직전은 유리
+        }
+        const keRel = this.ke(sim, K);                                     // 방출된 총 KE(정지 무대 → 0서 시작)
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N) - K.binding(a0[i].Z, a0[i].N);
+        return [
+          { name: `안정 골짜기 창발 — 모든 원자 종단 Z = argmax_Z B(Z,A=${A})(결합 최대=안정, 쿨롱 vs 비대칭 경쟁이 골짜기 정함·author 0)`, pass: allValley, value: zStar },
+          { name: 'Q값 = 결합에너지 차 — 방출 총 KE = Σ(B(종단)−B(초기))(발열량이 ΔB 서 창발, decayQ 상수 아님), 머신', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+          { name: '멈춤 = ΔB 부호 전환(골짜기) — 종단 β⁻ ΔB ≤ 0 < 직전 단계 ΔB(더 붕괴하면 결합↓ → 멈춤, author 문턱 아님)', pass: signFlip, value: +K.bindingDelta(sim.atoms[0].Z, sim.atoms[0].N).toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
