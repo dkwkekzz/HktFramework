@@ -28,13 +28,22 @@
   //   부피(aV)는 결합을 키우고, 표면(aS)·쿨롱(aC, 양성자 반발)·비대칭(aA, N≠Z 불리)은 깎는다.
   //   결합 B 가 클수록 안정. **베타붕괴 Q값·안정 골짜기가 여기서 창발** — 쿨롱(저 Z 선호) vs 비대칭(N=Z 선호) 경쟁이 골짜기 위치를 정한다(author 0).
   //   토이 계수(자연 단위 c=1): ΔB 를 KE<c 로 유지하도록 축소 — 결정론 상수라 헤더 고정(CLAUDE 규약: 시뮬 상수는 CVar 예외).
-  const BIND = { aV: 1.0, aS: 0.5, aC: 0.1048, aA: 1.35 };
-  function binding(Z, N) {
-    Z = Z | 0; N = N | 0; const A = Z + N; if (A <= 0) return 0;
-    return BIND.aV * A - BIND.aS * Math.pow(A, 2 / 3) - BIND.aC * Z * (Z - 1) / Math.cbrt(A) - BIND.aA * (N - Z) * (N - Z) / A;
+  const BIND = { aV: 1.0, aS: 0.5, aC: 0.1048, aA: 1.35, aP: 0.6 };
+  // 페어링항 δ(Z,N)(step-0039, pair 게이트) — 짝-짝 +δ(스핀 반대 쌍이 더 결합·안정) · 홀-홀 −δ(덜 결합·불안정) · 홀수 A 0.
+  //   짝지은 핵자 쌍이 에너지를 낮춘다 → 안정선의 짝-홀 진동(odd-even staggering)이 창발: 매끈한 질량공식이 *안정*이라 한 홀-홀 핵이
+  //   페어링으로 불안정해져 짝-짝 이웃으로 한 칸 더 붕괴한다(예: ¹⁶N 홀-홀 → ¹⁶O 짝-짝). δ = aP/√A(텍스트북 12·A^(−1/2) 토이).
+  function pairingDelta(Z, N) {
+    const eZ = ((Z & 1) === 0), eN = ((N & 1) === 0);
+    const s = (eZ && eN) ? 1 : ((!eZ && !eN) ? -1 : 0);   // 짝-짝 + · 홀-홀 − · 홀수 A(한쪽만 짝) 0
+    return s ? s * BIND.aP / Math.sqrt(Z + N) : 0;
   }
-  // β⁻(n→p) 붕괴의 결합에너지 이득 ΔB = B(Z+1,N−1) − B(Z,N). >0 이면 *발열*(골짜기 쪽으로) → 붕괴 진행, ≤0 이면 안정(골짜기).
-  function bindingDelta(Z, N) { return binding(Z + 1, N - 1) - binding(Z, N); }
+  function binding(Z, N, pair) {
+    Z = Z | 0; N = N | 0; const A = Z + N; if (A <= 0) return 0;
+    const b = BIND.aV * A - BIND.aS * Math.pow(A, 2 / 3) - BIND.aC * Z * (Z - 1) / Math.cbrt(A) - BIND.aA * (N - Z) * (N - Z) / A;
+    return pair ? b + pairingDelta(Z, N) : b;             // pair=0/undefined → 정확히 b(δ 미가법) = 비트 동일·회귀 0
+  }
+  // β⁻(n→p) 붕괴의 결합에너지 이득 ΔB = B(Z+1,N−1) − B(Z,N). >0 이면 *발열*(골짜기 쪽으로) → 붕괴 진행, ≤0 이면 안정(골짜기). pair 게이트 전달.
+  function bindingDelta(Z, N, pair) { return binding(Z + 1, N - 1, pair) - binding(Z, N, pair); }
 
   // 전자 들뜸 준위(x)의 에너지 — 이산 에너지 *고유값*(슈뢰딩거 수소 스펙트럼 E_n=−R/n², n=x+1; x=0 바닥→0).
   //   ※ 보어의 *궤도* 그림(불확정성 위배 → 하이젠베르크·슈뢰딩거가 기각)이 아니라, 그 그림이 우연히 맞힌
@@ -210,16 +219,23 @@
     let Q = 0, B = 0, L = 0, E = 0, px = 0, py = 0;
     const lz = (sim.knobs && sim.knobs.levelZ) || 0;       // 준위 Z 의존(step-0013, 미설정/0 → levelE 그대로 = 과거 장부 불변)
     const sc = (sim.knobs && sim.knobs.levelScreen) || 0;  // 다전자 차폐(step-0014, 미설정/0 → step-0013 그대로)
+    // 결합E 정지질량 편입(step-0040 massDefect). fuseMassFormula(0041)도 *융합 Q를 binding 서* 빼므로 정지질량이 −B 여야 닫힌다 →
+    //   둘 중 하나라도 켜지면 rest=A−B 로 편입(fmf 가 md 를 *함의*·불일치 조합서도 닫힘). 둘 다 0(과거 전 장면) → m·c²+nuc 그대로(회귀 0).
+    const md = (sim.knobs && (sim.knobs.massDefect || sim.knobs.fuseMassFormula)) || 0;
+    const pr = (sim.knobs && sim.knobs.decayPairing) || 0; // md 일 때 −B 의 페어링 게이트(decay·fuse 와 같은 B 사용)
     for (const a of sim.atoms) {
       const m = mass(a);
       Q += a.Z - a.e;
       B += a.Z + a.N;
       L += a.e;
       const v2 = a.vx * a.vx + a.vy * a.vy;
-      E += m * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz, sc);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
+      // 정지질량 에너지: md 면 결합에너지를 정지질량에 편입(M=A−B → 결합한 핵이 *가볍다*·질량 결손), 아니면 A·c²(+nuc 저장고).
+      //   md=0 → (m)·c²+0.5mv²+들뜸 그대로 + 아래 a.nuc → 과거 비트 동일(회귀 0). md=1 → −B 편입·nuc 미가법(저장고 폐기).
+      E += (md ? (m - binding(a.Z | 0, a.N | 0, pr)) : m) * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz, sc);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
       // 핵 결합/저장 에너지(step-0031 decay): 불안정 동위원소가 품은 붕괴 Q값(Δm·c² 저장고). 붕괴 시 KE 로 빠진다 → E 닫힘.
       //   미존재(과거 전 장면 a.nuc undefined) → 0 가법 → 장부·해시 불변. 핵 변환이라도 Σ(mc²+KE+a.nuc) 보존.
-      E += a.nuc || 0;
+      //   md(0040) 면 저장고 폐기 — 발열량은 −B 정지질량 변화서 직접 나온다(나머지 nuc 회계는 md=0 경로 전용).
+      if (!md) E += a.nuc || 0;
       px += m * a.vx;
       py += m * a.vy;
       // 렙톤 수: e 가 곧 렙톤이나, 베타붕괴(n→p, e+1)는 반중성미자(L=−1)를 방출 → a.lep 가 그 음의 렙톤 수를 담아 L 닫힘(SPINE §2 렙톤 정련).
@@ -283,5 +299,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
 });

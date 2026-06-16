@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -760,6 +760,8 @@
     const R = sim.knobs.fuseR || 3, R2 = R * R;
     const barrier = sim.knobs.fuseBarrier || 0;            // 쿨롱 장벽: 상대 KE 가 이 이상이어야 융합(고E 충돌)
     const qRel = sim.knobs.fuseQ || 0;                     // 융합마다 방출하는 Δm·c² Q값(저장고 잔량 한도 내)
+    const fmf = sim.knobs.fuseMassFormula;                 // 융합 Q값을 결합에너지서(step-0041, 0 → author fuseQ·저장고 거동·회귀 0)
+    const pr = sim.knobs.decayPairing;                     // fmf 면 ΔB_fus 의 페어링 게이트(ledger·decay 와 같은 B 사용)
     const atoms = sim.atoms, n = atoms.length;
     let bath = null, fusedAny = false;
     const dead = new Array(n).fill(false);                 // 이미 합쳐져 소비된 원자(한 tick 중복 합체 가드)
@@ -783,14 +785,19 @@
         const M = ma + mb;
         const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
         const nucSum = (a.nuc || 0) + (b.nuc || 0);
-        const released = Math.min(qRel, nucSum);            // 방출 Δm·c²(저장고 잔량 한도)
+        // 방출 Δm·c²: fmf(0041) 면 *결합에너지 이득* ΔB_fus = B(생성)−B(a)−B(b)(질량공식서 — 발열량이 author 상수 아님·massDefect 와 짝).
+        //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
+        const Zp = a.Z + b.Z, Np = a.N + b.N;
+        const released = fmf
+          ? (K.binding(Zp, Np, pr) - K.binding(a.Z | 0, a.N | 0, pr) - K.binding(b.Z | 0, b.N | 0, pr))
+          : Math.min(qRel, nucSum);
         if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
-        bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스(E 닫힘)
+        bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스. fmf+md: 생성 핵 정지질량이 ΔB_fus 만큼 줄어 상쇄(E 닫힘)
         bath.count = (bath.count | 0) + 1;
-        // a 를 product 로 갱신(다발 합산·vcom·저장고 계승−방출). b 는 dead 표시 → 배열서 압축.
+        // a 를 product 로 갱신(다발 합산·vcom·저장고 계승). b 는 dead 표시 → 배열서 압축.
         a.Z += b.Z; a.N += b.N; a.e += b.e; a.lep = (a.lep || 0) + (b.lep || 0);
         a.vx = vcx; a.vy = vcy;
-        a.nuc = nucSum - released;                          // 남은 저장고 계승(방출분 제외)
+        a.nuc = fmf ? nucSum : nucSum - released;           // fmf: 저장고 미인출(연료=ΔM 정지질량·massDefect)·계승만. else: 저장고서 방출분 제외
         a.x = 0;                                            // 들뜸은 합체로 초기화(토이 — 핵 들뜸 별도 모형 전가)
         dead[j] = true; fusedAny = true;
         break;                                              // a 는 이번 tick 더 안 합침(i 다음으로)
@@ -827,6 +834,9 @@
     const pair = sim.knobs.decayRecoilPair;                // 방출 입자 운동량 추적(0032 게이트, 0 → 0031 거동·회귀 0)
     const mf = sim.knobs.decayMassFormula;                 // 질량공식 구동(step-0037, 0 → author 문턱·decayQ 거동·회귀 0)
     const bp = sim.knobs.decayBetaPlus;                     // β⁺/전자포획 채널(step-0038, 0 → β⁻ 한 방향만·회귀 0)
+    const dp = sim.knobs.decayPairing;                      // 페어링항 δ(step-0039, 0 → δ 미가법·0038 거동·회귀 0)
+    const md = sim.knobs.massDefect;                        // 결합E 정지질량 편입(step-0040, 0 → nuc 저장고 연료·회귀 0)
+    const useBind = mf || md;                               // md(정지질량=A−B)는 binding 기반 안정·Q 를 *함의*한다 — md 켜고 mf 끈 불일치서도 q=ΔB 로 닫힘(레저 −B 변화와 정합·md=0 이면 mf 그대로·회귀 0)
     let bath = null;
     for (const a of sim.atoms) {
       // 안정성 게이트: mf 면 *결합에너지*가 정한다(ΔB>0 발열 → 골짜기로 진행 · ΔB≤0 → 골짜기 안정, author 문턱 0).
@@ -835,18 +845,18 @@
       //     β⁻ ΔB⁻=B(Z+1,N−1)−B(Z,N) · β⁺ ΔB⁺=B(Z−1,N+1)−B(Z,N). B 는 Z 에 대해 concave(질량공식) → 둘 중 최대 하나만 >0(골짜기 한쪽).
       //     그래서 β⁻ 가 불리(ΔB⁻≤0)일 때만 β⁺ 를 본다 — 둘 다 ≤0 이면 안정 골짜기(완전한 양방향 골짜기). bp=0 → 0037 거동 비트 동일.
       let dB = 0, chan = 0;                                                       // chan: 0=β⁻(n→p·Z↑) · 1=β⁺(p→n·Z↓)
-      if (mf) {
-        dB = K.bindingDelta(a.Z | 0, a.N | 0);                                    // β⁻ 결합 이득 ΔB⁻
+      if (useBind) {                                                              // mf 또는 md — 둘 다 결합에너지가 안정·Q 의 출처(정합 강제)
+        dB = K.bindingDelta(a.Z | 0, a.N | 0, dp);                                // β⁻ 결합 이득 ΔB⁻ (dp 면 페어링 δ 포함)
         if (dB <= 0) {                                                            // β⁻ 불리(중성자 과잉 아님)
           if (bp) {                                                              // β⁺ 채널 켬: 양성자 과잉이면 반대 방향으로 골짜기 수렴
-            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1) - K.binding(a.Z | 0, a.N | 0);  // β⁺ 결합 이득 ΔB⁺
+            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1, dp) - K.binding(a.Z | 0, a.N | 0, dp);  // β⁺ 결합 이득 ΔB⁺
             if (dBp <= 0) continue;                                              // 양방향 ΔB≤0 → 안정 골짜기(질량공식 창발)
             dB = dBp; chan = 1;                                                  // β⁺ 진행(p→n·Z↓·발열 ΔB⁺)
           } else continue;                                                       // β⁺ 끔 → 0037 거동(β⁻ 만·회귀 0)
         }
       }
       else if (((a.N | 0) - (a.Z | 0)) <= nx) continue;                          // author 문턱(안정·N 과잉 아님)
-      if ((a.nuc || 0) <= 0) continue;                     // 핵 저장고 빈 원자는 더 못 방출(이미 다 쓴 붕괴 — 비가역 화살표 끝)
+      if (!md && (a.nuc || 0) <= 0) continue;              // 핵 저장고 빈 원자는 더 못 방출(md=0 경로). md(0040) 면 연료=−B 정지질량 변화 → 멈춤은 ΔB≤0(골짜기)이 정함(저장고 폐기)
       // 붕괴 확률: 평탄 kDecay 가 기본. decayRateExcess>0 이면 *핵 불안정도*(N−Z 의 문턱 초과분)에 비례해 가속 —
       //   반감기가 author 한 평탄 상수가 아니라 핵 상태의 *함수*로 창발한다(안정선서 멀수록 빨리 붕괴 — Sargent 류).
       //   keff = min(1, kDecay·(1 + decayRateExcess·excess)). 종류별 author 0 — excess 는 *선택된 채널*의 과잉(다발 양)일 뿐.
@@ -861,8 +871,10 @@
         keff = Math.min(1, k * (1 + sim.knobs.decayRateExcess * excess));
       }
       if (rng() >= keff) continue;                          // 붕괴 확률 keff(불안정도 의존)
-      // 방출 Q값: mf 면 *결합에너지 이득* ΔB(질량공식서 창발 — 발열량이 author 상수 아님), 아니면 author decayQ. 둘 다 저장고 한도.
-      const q = Math.min(a.nuc, mf ? dB : sim.knobs.decayQ);
+      // 방출 Q값: useBind(mf|md) 면 *결합에너지 이득* ΔB(질량공식서 창발 — 발열량이 author 상수 아님), 아니면 author decayQ.
+      //   md(0040) 면 발열량은 정지질량 변화 ΔM=−ΔB 가 직접 공급(저장고 무관·캡 없음) — ledger 의 −B 편입이 자동 상쇄(useBind 라 q=ΔB 보장). md=0 이면 nuc 저장고 한도.
+      const q0 = useBind ? dB : sim.knobs.decayQ;
+      const q = md ? q0 : Math.min(a.nuc, q0);
       // 변환: 원소가 바뀐다(Z 이동). 전하·바리온 보존, 렙톤은 (반)중성미자로 닫음(L=Σ(e+lep) 불변).
       if (chan) {
         // β⁺(p→n): Z↓·N↑ ⇒ B=Z+N 불변. e−1(중성 유지·방출 양전자가 +1 나름) ⇒ Q=Z−e 불변. 중성미자 L=+1 → lep+1(e−1 상쇄, ΔL=0).
@@ -879,7 +891,7 @@
       const sp1 = Math.sqrt(2 * ke1 / m);                  // 새 속력(KE 가 q 만큼 큼)
       const th = rng() * 2 * Math.PI;                      // 등방 반동 방향(시드 — 결정론)
       a.vx = sp1 * Math.cos(th); a.vy = sp1 * Math.sin(th);
-      a.nuc -= q;                                          // 저장고 인출(= KE 증가분 → E 정확 닫힘)
+      if (!md) a.nuc -= q;                                 // md=0: 저장고 인출(= KE 증가분 → E 닫힘). md(0040): 저장고 없음 — KE 증가분은 ledger 의 ΔM=−ΔB 정지질량 감소가 상쇄(E 닫힘)
       if (pair) {                                          // 방출 입자(e⁻+ν̄)가 나르는 반대 운동량 −Δp 를 바스에 적재 → 총 px·py 머신 닫힘
         if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
         bath.px += -(m * (a.vx - vx0));                    // −Δp_x (원자가 +Δp 얻으면 방출 입자는 −Δp)

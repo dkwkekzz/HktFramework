@@ -2306,6 +2306,187 @@
         ];
       },
     },
+
+    'step-0039': {
+      id: 'step-0039',
+      title: '페어링항 δ(짝-홀) (decayPairing — 짝-짝 +δ·홀-홀 −δ → 안정선의 짝-홀 진동, 홀-홀 핵 불안정화)',
+      desc: 'step-0037~38 이 결합에너지 B(Z,N)서 안정 골짜기를 *양방향*으로 닫았으나, 질량공식이 *매끈*해(쿨롱·표면·비대칭 다 연속) 실제 안정선의 *짝-홀 진동*(odd-even staggering)이 없다 — 짝-짝 핵이 더 안정하고 홀-홀 핵이 덜 안정한 양자 효과(스핀 반대 핵자쌍의 결합)가 미반영. ' +
+            '이 step 은 kernel binding 에 페어링항 δ(Z,N)을 *가법*으로 얹는다(게이트 decayPairing): 짝-짝 +δ · 홀-홀 −δ · 홀수 A 0, δ=aP/√A. ' +
+            '효과: B 가 더는 Z 에 매끈하지 않고 *지그재그*(짝수 Z 봉우리·홀수 Z 골) → 매끈한 공식이 *안정*이라 한 **홀-홀 핵이 페어링으로 β 불안정**해져 짝-짝 이웃으로 한 칸 더 붕괴한다(실제: ¹⁶N 홀-홀 β⁻ 7초 → ¹⁶O 짝-짝 안정). ' +
+            '*측정*(무대: 중성자 과잉 ¹⁶C 8개 Z6 N10 nuc2, decayMassFormula=1·decayBetaPlus=1·**decayPairing=1**·kDecay=0.5·decayRecoilPair=1): ' +
+            '① **짝-홀 진동 — 골짜기가 홀→짝으로 이동** — 페어링 켜면 종단 Z=argmax_Z B_δ(Z,A=16)=8(¹⁶O, 짝-짝)인데 *페어링 끈* 매끈 공식의 argmax 는 Z=7(¹⁶N, 홀-홀) ⇒ 패리티가 골짜기를 옮긴다. ' +
+            '② **홀-홀 핵 불안정화** — 매끈 공식이 안정(ΔB⁻≤0)이라 한 ¹⁶N(Z7 N9)이 페어링에선 ΔB⁻_δ>0 ⇒ β⁻ 발열 → 짝-짝 ¹⁶O 로 한 칸 더. ' +
+            '③ **종단 = 짝-짝 진짜 안정** — 모든 원자 종단 Z·N 둘 다 짝수, 양방향 ΔB_δ≤0(페어링 포함 진짜 골짜기 바닥). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신 1e-9(0038 계승). *대조*: decayPairing=0 이면 매끈 공식이라 8개 전부 홀-홀 ¹⁶N(Z=7)서 멈춘다(0038 거동·골든 비트 불변). 새 게이트 0 → kernel binding δ 미가법 → 0001~38 법칙·골든 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — nuc→KE(ΔB_δ) 정확 이전·decayRecoilPair=1·e±1/lep∓1 대칭 → Q·B·L·E·px·py 전부 머신 1e-9.
+
+      // 중성자 과잉 ¹⁶C 8개(Z6 N10 → A=16, 짝-짝). nuc=2 저장고(ΔB_δ total≈0.27 보다 큼 → 골짜기가 멈춤을 정함).
+      //   페어링 구동: 6→7(ΔB⁻>0)→8(홀-홀 7→짝-짝 8 도 ΔB⁻_δ>0), Z=8 서 양방향 ΔB_δ≤0 → 멈춤. 페어링 끄면 매끈 공식 골짜기 Z=7(홀-홀)서 멈춤.
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 8; i++) atoms.push({ Z: 6, N: 10, e: 6, x: 0, rx: 50 + i * 30, ry: 100, vx: 0, vy: 0, nuc: 2, lep: 0 });
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1, decayBetaPlus: 1, decayPairing: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 고정 A 등압선의 결합 최대 Z*(안정 골짜기) — argmax_Z B(Z,A−Z). pair 게이트 전달(매끈 vs 페어링 골짜기 대조).
+      valleyZ(A, K, pair) { let zs = 1, bm = -Infinity; for (let Z = 1; Z < A; Z++) { const b = K.binding(Z, A - Z, pair); if (b > bm) { bm = b; zs = Z; } } return zs; },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N;
+        const zStarP = this.valleyZ(A, K, 1), zStarS = this.valleyZ(A, K, 0);   // 페어링 vs 매끈 골짜기
+        let atValley = 0, allEvenEven = 1; for (const a of sim.atoms) { if (a.Z === zStarP) atValley++; if ((a.Z & 1) || (a.N & 1)) allEvenEven = 0; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { zStarPair: zStarP, zStarSmooth: zStarS, atValley, allEvenEven, termZ: sim.atoms[0].Z, ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① 짝-홀 진동(페어링 골짜기 짝수 Z ≠ 매끈 골짜기 홀수 Z) ② 홀-홀 ¹⁶N 불안정화(매끈 안정 → 페어링 ΔB⁻>0) ③ 종단=짝-짝 진짜 안정.
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N;
+        const zStarP = this.valleyZ(A, K, 1), zStarS = this.valleyZ(A, K, 0);
+        // ① 모든 원자 종단 = 페어링 골짜기(짝수)·매끈 골짜기(홀수)와 다름 ⇒ 패리티가 골짜기를 옮김.
+        let allValley = true; for (const a of sim.atoms) if (a.Z !== zStarP) allValley = false;
+        const stagger = allValley && (zStarP !== zStarS) && ((zStarP & 1) === 0) && ((zStarS & 1) === 1);
+        // ② 매끈 공식이 안정이라 한 홀-홀 ¹⁶N(=매끈 골짜기 zStarS, N=A−zStarS): 매끈 ΔB⁻≤0 인데 페어링 ΔB⁻>0 ⇒ 불안정화.
+        const oddZ = zStarS, oddN = A - zStarS;
+        const dSmooth = K.bindingDelta(oddZ, oddN, 0), dPair = K.bindingDelta(oddZ, oddN, 1);
+        const destab = (dSmooth <= 0) && (dPair > 0);
+        // ③ 종단 짝-짝 & 페어링 포함 양방향 ΔB_δ≤0(진짜 바닥).
+        let trueFloor = true;
+        for (const a of sim.atoms) {
+          const dM = K.bindingDelta(a.Z, a.N, 1);                                  // β⁻ ΔB⁻_δ
+          const dP = K.binding(a.Z - 1, a.N + 1, 1) - K.binding(a.Z, a.N, 1);      // β⁺ ΔB⁺_δ
+          if (!((a.Z & 1) === 0 && (a.N & 1) === 0 && dM <= 0 && dP <= 0)) trueFloor = false;
+        }
+        // KE 닫힘: 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신(발열량이 페어링 포함 ΔB 서).
+        const keRel = this.ke(sim, K);
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N, 1) - K.binding(a0[i].Z, a0[i].N, 1);
+        return [
+          { name: `짝-홀 진동 — 종단 Z = 페어링 골짜기 argmax B_δ(짝수)=${zStarP} ≠ 매끈 공식 골짜기(홀수)=${zStarS} ⇒ 패리티가 골짜기를 옮김`, pass: stagger, value: zStarP },
+          { name: `홀-홀 ¹⁶N(Z=${oddZ}) 불안정화 — 매끈 공식 ΔB⁻≤0(안정)인데 페어링 ΔB⁻>0 ⇒ β⁻ 발열 → 짝-짝 한 칸 더`, pass: destab, value: +dPair.toFixed(4) },
+          { name: 'Q값 = 페어링 포함 결합 이득 — 방출 총 KE = Σ(B_δ(종단)−B_δ(초기)) 머신', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+          { name: '종단 = 짝-짝 진짜 안정 — 전 원자 Z·N 짝수 & 양방향 ΔB_δ≤0(페어링 포함 골짜기 바닥)', pass: trueFloor, value: zStarP },
+        ];
+      },
+    },
+
+    'step-0040': {
+      id: 'step-0040',
+      title: '결합E 정지질량 편입 M=A−B (massDefect — nuc 저장고 폐기, 발열량이 정지질량 변화서 직접)',
+      desc: 'step-0031~39 의 붕괴 발열량(Δm·c²)은 원자가 미리 품은 *nuc 저장고*가 공급했다 — 결합에너지 B 가 이미 안정성·Q값(ΔB)을 정하는데도 에너지원은 별도 임시 장부였다(이중 회계). ' +
+            '이 step 은 그 저장고를 **폐기**한다(게이트 massDefect): 정지질량에 결합에너지를 직접 편입해 **M = A − B**(결합한 핵이 *가볍다* — 질량 결손). ' +
+            'ledger 의 정지질량 에너지가 (A−B)·c² 가 되면, 붕괴로 B 가 ΔB 늘 때 정지질량이 정확히 ΔB 줄고(M↓) 그만큼 KE 로 나온다 — **발열량 = 질량 결손 = ΔB**(e=mc² 그 자체·저장고 무관). ' +
+            '멈춤도 nuc 고갈이 아니라 *ΔB≤0(안정 골짜기)* 이 정한다(저장고는 늘 골짜기보다 컸던 임시 대역일 뿐 — 이제 본질만 남음). ' +
+            '*측정*(무대: 중성자 과잉 ¹⁶C 8개 Z6 N10 **nuc 없음**, massDefect=1·decayMassFormula=1·decayBetaPlus=1·decayPairing=1·kDecay=0.5·decayRecoilPair=1): ' +
+            '① **nuc 저장고 폐기** — Σa.nuc=0(저장고 0) 인데도 붕괴가 진행해 전원 종단 Z=argmax B_δ=8(¹⁶O) ⇒ 연료는 정지질량. ' +
+            '② **방출 KE = 질량 결손 ΔM** — 방출 총 KE = Σ(M(초기)−M(종단)) = Σ(B_δ(종단)−B_δ(초기)) 머신(에너지가 정지질량서 직접 나옴). ' +
+            '③ **정지질량↔운동 — ΔrestE = −ΔKE** — 총 정지질량 에너지 감소 = KE 증가 머신(저장고 없이 E 닫힘·e=mc²). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(rest term=(A−B)c²·완화 없음). *대조*: massDefect=0 이면 nuc 저장고 경로(0039 거동·nuc 없으면 즉시 멈춤). 새 게이트 0 → ledger A·c²+nuc·decay 저장고 연료 → 0001~39 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — rest energy=(A−B)c² 가 ΔB 만큼 줄고 KE 가 q=ΔB 만큼 늚(sqrt 왕복 반올림만) → Q·B·L·E·px·py 머신.
+
+      // 중성자 과잉 ¹⁶C 8개(Z6 N10 → A=16, 짝-짝). **nuc 필드 없음**(저장고 폐기) — 발열량은 M=A−B 정지질량 변화가 공급.
+      //   페어링 구동: 6→7→8, Z=8 서 양방향 ΔB_δ≤0 → 멈춤(0039 와 같은 골짜기·같은 KE — 연료원만 nuc→질량결손으로 바뀜).
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 8; i++) atoms.push({ Z: 6, N: 10, e: 6, x: 0, rx: 50 + i * 30, ry: 100, vx: 0, vy: 0, lep: 0 });
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1, decayBetaPlus: 1, decayPairing: 1, massDefect: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 정지질량 에너지 Σ M·c² = Σ(A − B_δ)·c²(c=1) — 결합이 클수록 가볍다(질량 결손).
+      restE(atoms, K, pair) { let e = 0; for (const a of atoms) e += (K.mass(a) - K.binding(a.Z | 0, a.N | 0, pair)); return e; }
+      ,
+      // 고정 A 등압선의 결합 최대 Z*(안정 골짜기) — argmax_Z B(Z,A−Z). pair 게이트 전달.
+      valleyZ(A, K, pair) { let zs = 1, bm = -Infinity; for (let Z = 1; Z < A; Z++) { const b = K.binding(Z, A - Z, pair); if (b > bm) { bm = b; zs = Z; } } return zs; },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N, zStar = this.valleyZ(A, K, 1);
+        let atValley = 0, totNuc = 0; for (const a of sim.atoms) { if (a.Z === zStar) atValley++; totNuc += a.nuc || 0; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { zStar, atValley, totNuc, restE: +this.restE(sim.atoms, K, 1).toFixed(5), ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① nuc 저장고 폐기(Σnuc=0 인데 골짜기 도달) ② 방출 KE=질량 결손 ΔM ③ ΔrestE=−ΔKE(정지질량↔운동).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N, zStar = this.valleyZ(A, K, 1);
+        let allValley = true, totNuc = 0; for (const a of sim.atoms) { if (a.Z !== zStar) allValley = false; totNuc += a.nuc || 0; }
+        const keRel = this.ke(sim, K);
+        // 방출 KE = Σ(B_δ(종단)−B_δ(초기)) = Σ(M(초기)−M(종단)) — 질량 결손이 KE 로.
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N, 1) - K.binding(a0[i].Z, a0[i].N, 1);
+        const restBefore = this.restE(a0, K, 1), restAfter = this.restE(sim.atoms, K, 1);
+        return [
+          { name: `nuc 저장고 폐기 — Σa.nuc=${totNuc}(저장고 0) 인데도 전원 종단 Z=argmax B_δ=${zStar}(¹⁶O) ⇒ 연료=정지질량(M=A−B)`, pass: (totNuc === 0) && allValley, value: totNuc },
+          { name: '방출 KE = 질량 결손 ΔM — 방출 총 KE = Σ(M(초기)−M(종단)) = Σ(B_δ종단−B_δ초기) 머신(에너지가 정지질량서 직접)', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+          { name: '정지질량↔운동 — ΔrestE = −ΔKE(총 정지질량 에너지 감소 = KE 증가, 저장고 없이 E 닫힘·e=mc²) 머신', pass: Math.abs((restAfter - restBefore) + keRel) < 1e-6, value: +(restAfter - restBefore).toFixed(5) },
+        ];
+      },
+    },
+
+    'step-0041': {
+      id: 'step-0041',
+      title: '융합 Q값도 결합에너지서 (fuseMassFormula — fuseQ author 해소, ΔB_fus=B(생성)−ΣB(반응)·²H+²H→⁴He 별 점화)',
+      desc: 'step-0040 이 *붕괴* 발열량을 정지질량 M=A−B 로 편입했으나, *융합*(fuse, 0033)의 발열량은 여전히 author 상수 fuseQ + nuc 저장고였다 — 핵 에너지의 두 방향 중 한쪽만 결합에너지로 통합. ' +
+            '이 step 은 융합 Q값도 결합에너지서 창발시킨다(게이트 fuseMassFormula): 두 핵이 합칠 때 방출 = **ΔB_fus = B(생성) − B(a) − B(b)**(생성핵이 더 단단히 묶인 만큼이 에너지로·author fuseQ 폐기). ' +
+            'massDefect(0040)와 짝: 생성핵 정지질량이 (A−B(생성))·c² 로 ΔB_fus 만큼 *줄고*(질량 결손) 그만큼 복사 바스로 — **융합 발열 = 정지질량 감소**(e=mc²·저장고 무관). ' +
+            '발열/흡열도 author 0: 가벼운 핵은 ΔB_fus>0(발열·별 점화·²H→⁴He), 철 너머는 ΔB_fus<0(흡열) — *측정*으로 갈린다. ' +
+            '*측정*(무대: 8개 ²H(중수소) Z1 N1 e1 **nuc 없음**, 4쌍 정면 고속 접근·fuseMassFormula=1·massDefect=1·decayPairing=1·kFuse=1·fuseBarrier=0.1·kDecay=0): ' +
+            '① **융합 Q값 = 결합 이득 ΔB_fus** — 쌍당 방출(핵) = B(⁴He)−2B(²H) = +1.344 > 0(발열·결합에너지서·author 0). ' +
+            '② **nuc 저장고 폐기(fuse)** — Σnuc=0 인데도 4쌍 합체해 ⁴He 4개(개수 8→4·Z=2=Σ) ⇒ 연료는 정지질량. ' +
+            '③ **융합 발열 = 정지질량 감소** — 총 정지질량 에너지 감소 = 바스로 간 핵 방출(ΔrestE = −Σ ΔB_fus) 머신(e=mc²). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(rest=(A−B)c²·vcom·바스). *대조*: fuseMassFormula=0 이면 author fuseQ·저장고 경로(0033 거동·nuc 없으면 방출 0). 새 게이트 0 → fuseQ author·nuc 거동 → 0001~40 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — 닫힌 형식 합체(vcom·바스)·rest=(A−B)c² 가 ΔB_fus 만큼 줄어 바스 핵 방출과 상쇄 → Q·B·L·E·px·py 머신.
+
+      // 8개 ²H(Z1 N1 e1·**nuc 없음**) 4쌍. 각 쌍 정면 접근(vx=±1·총 p=0): gap 8 → dt=0.5 로 닫혀 fuseR=3 안에 들면 합체 → ⁴He(Z2 N2).
+      //   ΔB_fus = B(2,2,pair)−2B(1,1,pair) > 0(발열). vcom=0 → 생성핵 정지·흡수 상대 KE(쌍당 2)는 바스로. kDecay=0(순수 융합 — ⁴He 안 붕괴).
+      init(rng, K) {
+        const W = 200, H = 200, atoms = [];
+        for (let p = 0; p < 4; p++) {
+          const y = 40 + p * 40;
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: 96, ry: y, vx: 1, vy: 0, lep: 0 });   // 왼쪽 ²H → 오른쪽
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: 104, ry: y, vx: -1, vy: 0, lep: 0 });  // 오른쪽 ²H → 왼쪽 (쌍 총 p=0)
+        }
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 0.1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      restE(atoms, K, pair) { let e = 0; for (const a of atoms) e += (K.mass(a) - K.binding(a.Z | 0, a.N | 0, pair)); return e; },
+      dBfus(K, pair) { return K.binding(2, 2, pair) - 2 * K.binding(1, 1, pair); },  // ²H+²H→⁴He 결합 이득
+      // 합체 전 4쌍이 흡수할 상대 KE 합(쌍별 ½μ|vrel|² — 비탄성 합체로 바스에 park).
+      keRelSum(a0, K) { let s = 0; for (let i = 0; i < a0.length; i += 2) { const a = a0[i], b = a0[i + 1], ma = a.Z + a.N, mb = b.Z + b.N, mu = ma * mb / (ma + mb), dx = a.vx - b.vx, dy = a.vy - b.vy; s += 0.5 * mu * (dx * dx + dy * dy); } return s; },
+
+      watch(sim, K) {
+        let totNuc = 0, he = 0; for (const a of sim.atoms) { totNuc += a.nuc || 0; if (a.Z === 2 && a.N === 2) he++; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        const bathE = (sim.escaped && sim.escaped.E) || 0;
+        return { n: sim.atoms.length, he, totNuc, dBfus: +this.dBfus(K, 1).toFixed(4), bathE: +bathE.toFixed(4), restE: +this.restE(sim.atoms, K, 1).toFixed(4), totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0 };
+      },
+
+      // 가설: ① 융합 Q값=결합 이득 ΔB_fus(발열·author 0) ② nuc 저장고 폐기(Σnuc=0 인데 합체) ③ 융합 발열=정지질량 감소(e=mc²).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0;
+        let totNuc = 0, allHe = true; for (const a of sim.atoms) { totNuc += a.nuc || 0; if (!(a.Z === 2 && a.N === 2)) allHe = false; }
+        const nFus = a0.length - sim.atoms.length;                       // 합체 횟수(원자 감소분 = 쌍 수)
+        const bathE = (sim.escaped && sim.escaped.E) || 0;
+        const keRelSum = this.keRelSum(a0, K);
+        const nuclearReleased = bathE - keRelSum;                        // 바스 = 흡수 상대 KE + 핵 방출 ⇒ 핵 방출분
+        const dBfusTot = nFus * this.dBfus(K, 1);                        // Σ ΔB_fus(쌍 수 × 쌍당 결합 이득)
+        const restBefore = this.restE(a0, K, 1), restAfter = this.restE(sim.atoms, K, 1);
+        return [
+          { name: `융합 Q값 = 결합 이득 ΔB_fus — 쌍당 방출(핵) = B(⁴He)−2B(²H) = ${this.dBfus(K, 1).toFixed(4)} > 0(발열·결합에너지서·author 0)`, pass: this.dBfus(K, 1) > 0 && Math.abs(nuclearReleased - dBfusTot) < 1e-6, value: +this.dBfus(K, 1).toFixed(4) },
+          { name: `nuc 저장고 폐기(fuse) — Σa.nuc=${totNuc} 인데도 ${nFus}쌍 합체 → ⁴He ${sim.atoms.length}개(개수 8→${sim.atoms.length}·전부 Z2 N2) ⇒ 연료=정지질량`, pass: totNuc === 0 && allHe && nFus === 4, value: totNuc },
+          { name: '융합 발열 = 정지질량 감소 — ΔrestE = −Σ ΔB_fus(생성핵 질량 결손이 바스로) 머신(e=mc²)', pass: Math.abs((restAfter - restBefore) + dBfusTot) < 1e-6, value: +(restAfter - restBefore).toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
