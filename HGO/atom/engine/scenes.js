@@ -2372,6 +2372,61 @@
         ];
       },
     },
+
+    'step-0040': {
+      id: 'step-0040',
+      title: '결합E 정지질량 편입 M=A−B (massDefect — nuc 저장고 폐기, 발열량이 정지질량 변화서 직접)',
+      desc: 'step-0031~39 의 붕괴 발열량(Δm·c²)은 원자가 미리 품은 *nuc 저장고*가 공급했다 — 결합에너지 B 가 이미 안정성·Q값(ΔB)을 정하는데도 에너지원은 별도 임시 장부였다(이중 회계). ' +
+            '이 step 은 그 저장고를 **폐기**한다(게이트 massDefect): 정지질량에 결합에너지를 직접 편입해 **M = A − B**(결합한 핵이 *가볍다* — 질량 결손). ' +
+            'ledger 의 정지질량 에너지가 (A−B)·c² 가 되면, 붕괴로 B 가 ΔB 늘 때 정지질량이 정확히 ΔB 줄고(M↓) 그만큼 KE 로 나온다 — **발열량 = 질량 결손 = ΔB**(e=mc² 그 자체·저장고 무관). ' +
+            '멈춤도 nuc 고갈이 아니라 *ΔB≤0(안정 골짜기)* 이 정한다(저장고는 늘 골짜기보다 컸던 임시 대역일 뿐 — 이제 본질만 남음). ' +
+            '*측정*(무대: 중성자 과잉 ¹⁶C 8개 Z6 N10 **nuc 없음**, massDefect=1·decayMassFormula=1·decayBetaPlus=1·decayPairing=1·kDecay=0.5·decayRecoilPair=1): ' +
+            '① **nuc 저장고 폐기** — Σa.nuc=0(저장고 0) 인데도 붕괴가 진행해 전원 종단 Z=argmax B_δ=8(¹⁶O) ⇒ 연료는 정지질량. ' +
+            '② **방출 KE = 질량 결손 ΔM** — 방출 총 KE = Σ(M(초기)−M(종단)) = Σ(B_δ(종단)−B_δ(초기)) 머신(에너지가 정지질량서 직접 나옴). ' +
+            '③ **정지질량↔운동 — ΔrestE = −ΔKE** — 총 정지질량 에너지 감소 = KE 증가 머신(저장고 없이 E 닫힘·e=mc²). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(rest term=(A−B)c²·완화 없음). *대조*: massDefect=0 이면 nuc 저장고 경로(0039 거동·nuc 없으면 즉시 멈춤). 새 게이트 0 → ledger A·c²+nuc·decay 저장고 연료 → 0001~39 비트 불변.',
+      ticks: 60,
+      // ledgerTol 없음 — rest energy=(A−B)c² 가 ΔB 만큼 줄고 KE 가 q=ΔB 만큼 늚(sqrt 왕복 반올림만) → Q·B·L·E·px·py 머신.
+
+      // 중성자 과잉 ¹⁶C 8개(Z6 N10 → A=16, 짝-짝). **nuc 필드 없음**(저장고 폐기) — 발열량은 M=A−B 정지질량 변화가 공급.
+      //   페어링 구동: 6→7→8, Z=8 서 양방향 ΔB_δ≤0 → 멈춤(0039 와 같은 골짜기·같은 KE — 연료원만 nuc→질량결손으로 바뀜).
+      init(rng, K) {
+        const W = 300, H = 300, atoms = [];
+        for (let i = 0; i < 8; i++) atoms.push({ Z: 6, N: 10, e: 6, x: 0, rx: 50 + i * 30, ry: 100, vx: 0, vy: 0, lep: 0 });
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W, H, atoms, rng: simRng, knobs: { dt: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1, decayRecoilPair: 1, decayMassFormula: 1, decayBetaPlus: 1, decayPairing: 1, massDefect: 1 } };
+      },
+
+      ke(sim, K) { let e = 0; for (const a of sim.atoms) { const m = K.mass(a); e += 0.5 * m * (a.vx * a.vx + a.vy * a.vy); } return e; },
+      // 정지질량 에너지 Σ M·c² = Σ(A − B_δ)·c²(c=1) — 결합이 클수록 가볍다(질량 결손).
+      restE(atoms, K, pair) { let e = 0; for (const a of atoms) e += (K.mass(a) - K.binding(a.Z | 0, a.N | 0, pair)); return e; }
+      ,
+      // 고정 A 등압선의 결합 최대 Z*(안정 골짜기) — argmax_Z B(Z,A−Z). pair 게이트 전달.
+      valleyZ(A, K, pair) { let zs = 1, bm = -Infinity; for (let Z = 1; Z < A; Z++) { const b = K.binding(Z, A - Z, pair); if (b > bm) { bm = b; zs = Z; } } return zs; },
+
+      watch(sim, K) {
+        const A = sim.atoms[0].Z + sim.atoms[0].N, zStar = this.valleyZ(A, K, 1);
+        let atValley = 0, totNuc = 0; for (const a of sim.atoms) { if (a.Z === zStar) atValley++; totNuc += a.nuc || 0; }
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return { zStar, atValley, totNuc, restE: +this.restE(sim.atoms, K, 1).toFixed(5), ke: +this.ke(sim, K).toFixed(5), totPx: +px.toFixed(9), totPy: +py.toFixed(9), decayActive: sim.decayActive | 0 };
+      },
+
+      // 가설: ① nuc 저장고 폐기(Σnuc=0 인데 골짜기 도달) ② 방출 KE=질량 결손 ΔM ③ ΔrestE=−ΔKE(정지질량↔운동).
+      assert(ctx, K) {
+        const sim = ctx.sim, a0 = ctx.atoms0, A = a0[0].Z + a0[0].N, zStar = this.valleyZ(A, K, 1);
+        let allValley = true, totNuc = 0; for (const a of sim.atoms) { if (a.Z !== zStar) allValley = false; totNuc += a.nuc || 0; }
+        const keRel = this.ke(sim, K);
+        // 방출 KE = Σ(B_δ(종단)−B_δ(초기)) = Σ(M(초기)−M(종단)) — 질량 결손이 KE 로.
+        let bGain = 0; for (let i = 0; i < sim.atoms.length; i++) bGain += K.binding(sim.atoms[i].Z, sim.atoms[i].N, 1) - K.binding(a0[i].Z, a0[i].N, 1);
+        const restBefore = this.restE(a0, K, 1), restAfter = this.restE(sim.atoms, K, 1);
+        return [
+          { name: `nuc 저장고 폐기 — Σa.nuc=${totNuc}(저장고 0) 인데도 전원 종단 Z=argmax B_δ=${zStar}(¹⁶O) ⇒ 연료=정지질량(M=A−B)`, pass: (totNuc === 0) && allValley, value: totNuc },
+          { name: '방출 KE = 질량 결손 ΔM — 방출 총 KE = Σ(M(초기)−M(종단)) = Σ(B_δ종단−B_δ초기) 머신(에너지가 정지질량서 직접)', pass: Math.abs(keRel - bGain) < 1e-6, value: +keRel.toFixed(5) },
+          { name: '정지질량↔운동 — ΔrestE = −ΔKE(총 정지질량 에너지 감소 = KE 증가, 저장고 없이 E 닫힘·e=mc²) 머신', pass: Math.abs((restAfter - restBefore) + keRel) < 1e-6, value: +(restAfter - restBefore).toFixed(5) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

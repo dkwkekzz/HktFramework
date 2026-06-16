@@ -219,16 +219,21 @@
     let Q = 0, B = 0, L = 0, E = 0, px = 0, py = 0;
     const lz = (sim.knobs && sim.knobs.levelZ) || 0;       // 준위 Z 의존(step-0013, 미설정/0 → levelE 그대로 = 과거 장부 불변)
     const sc = (sim.knobs && sim.knobs.levelScreen) || 0;  // 다전자 차폐(step-0014, 미설정/0 → step-0013 그대로)
+    const md = (sim.knobs && sim.knobs.massDefect) || 0;   // 결합E 정지질량 편입(step-0040, 0 → A·c²+nuc 저장고 = 과거 장부 불변)
+    const pr = (sim.knobs && sim.knobs.decayPairing) || 0; // md 일 때 −B 의 페어링 게이트(decay 와 같은 B 사용)
     for (const a of sim.atoms) {
       const m = mass(a);
       Q += a.Z - a.e;
       B += a.Z + a.N;
       L += a.e;
       const v2 = a.vx * a.vx + a.vy * a.vy;
-      E += m * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz, sc);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
+      // 정지질량 에너지: md 면 결합에너지를 정지질량에 편입(M=A−B → 결합한 핵이 *가볍다*·질량 결손), 아니면 A·c²(+nuc 저장고).
+      //   md=0 → (m)·c²+0.5mv²+들뜸 그대로 + 아래 a.nuc → 과거 비트 동일(회귀 0). md=1 → −B 편입·nuc 미가법(저장고 폐기).
+      E += (md ? (m - binding(a.Z | 0, a.N | 0, pr)) : m) * C * C + 0.5 * m * v2 + levelEZ(a.x, a.Z, a.e, lz, sc);  // 들뜸 에너지(x=0 → 0; lz=0 → levelE)
       // 핵 결합/저장 에너지(step-0031 decay): 불안정 동위원소가 품은 붕괴 Q값(Δm·c² 저장고). 붕괴 시 KE 로 빠진다 → E 닫힘.
       //   미존재(과거 전 장면 a.nuc undefined) → 0 가법 → 장부·해시 불변. 핵 변환이라도 Σ(mc²+KE+a.nuc) 보존.
-      E += a.nuc || 0;
+      //   md(0040) 면 저장고 폐기 — 발열량은 −B 정지질량 변화서 직접 나온다(나머지 nuc 회계는 md=0 경로 전용).
+      if (!md) E += a.nuc || 0;
       px += m * a.vx;
       py += m * a.vy;
       // 렙톤 수: e 가 곧 렙톤이나, 베타붕괴(n→p, e+1)는 반중성미자(L=−1)를 방출 → a.lep 가 그 음의 렙톤 수를 담아 L 닫힘(SPINE §2 렙톤 정련).
