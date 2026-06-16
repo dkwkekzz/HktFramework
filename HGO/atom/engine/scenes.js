@@ -2924,6 +2924,92 @@
         ];
       },
     },
+
+    'step-0048': {
+      id: 'step-0048',
+      title: '별 점화의 시간곡선 — fuse+decay 합성 (측정 — ³H+³H→⁶He 융합 점화로 솟고 ⁶He β⁻→⁶Li 붕괴로 내림·중간핵 ⁶He 가 봉우리+꼬리·두 율을 한 시간축에)',
+      desc: 'step-0043 이 fuse→decay 한 고리(³H+³H→⁶He→⁶Li)를 *종단*만 보았고(시간 거동 미측정), step-0044 가 시간곡선(Bateman)을 보였으나 *붕괴 한 방향*뿐(source 가 또 다른 붕괴). 둘을 잇지 못했다 — *융합이 source, 붕괴가 sink* 인 합성 시간곡선은 미측정. ' +
+            '이 step 은 *새 법칙 0*(fuse 0033·0041·0046 + decay 0031~42 게이트 그대로·`L.applyForces`/`integrate` 재사용·엔진·하네스 미변경)으로 별 점화의 **합성 시간곡선**을 측정한다 — 중간핵 ⁶He 의 개체수가 *융합으로 0서 솟아*(점화 봉우리) *붕괴로 다시 내려가는*(꼬리) 한 신호. source(융합율)·sink(붕괴율)가 *한 시간축*서 겹친 첫 곡선. ' +
+            '0044 Bateman 은 A→B→C 가 *전부 붕괴*(부모도 붕괴해 B 를 공급)였으나, 여기 source 는 **융합**(두 ³H 가 *만나* 합쳐 ⁶He 를 공급) — 점화는 *공간 상호작용*(접근·충돌)이 율을 정하고(0046 류), 꼬리는 *핵 불안정*(ΔB⁻>0)이 정한다(0045 류). 두 다른 기원의 율이 한 봉우리-꼬리로 합성된다(§4 빠른 비가역 융합 + 느린 순환 붕괴를 *시간축*에 명시). ' +
+            '연료 ³H(Z1 N2)는 β 안정(ΔB⁻≤0·ΔB⁺≤0) → 먼저 안 붕괴(순환 격리: 융합이 점화, 그 생성핵 ⁶He 만 붕괴). ³H+³H → ⁶He(ΔB_fus>0 발열 점화) → ⁶He β⁻ → ⁶Li(Z3 N3 양방향 ΔB≤0 안정 종점). ' +
+            '*측정*(무대 440×520·40쌍 ³H Z1 N2 e1 **nuc 없음**·정면 접근(staggered gap → 점화 시각 분산해 봉우리 매끈)·kFuse=1·fuseBarrier=0.1·fuseMassFormula=1·massDefect=1·decayMassFormula=1·decayPairing=1·decayBetaPlus=1·decayRecoilPair=1·kDecay=0.03·고정 시드 재시뮬레이션 체크포인트): ' +
+            '① **연료 점화 소진** — N_fuel(³H) 단조 감소(80→~0)·융합이 연료를 먹어 ⁶He 로(점화 source). ' +
+            '② **점화 봉우리 + 붕괴 꼬리(합성)** — N_He(⁶He)가 0서 *솟아*(융합 점화) 내부 봉우리를 찍고 *다시 내림*(β⁻ 붕괴 꼬리) ⇒ source(융합)·sink(붕괴) 두 율이 한 시간축서 겹친 봉우리-꼬리(봉우리 내부·>시작 0·>종단). ' +
+            '③ **종점 누적** — N_Li(⁶Li 안정) 단조 증가·종단 ~전수(≥90% of 40)·꼬리가 ⁶Li 로 흘러듦. ' +
+            '④ **닫힌 바리온** — 모든 체크포인트서 ΣB=Σ(Z+N)=240(=80×3)·핵 안 새고 융합·붕괴 둘 다 B 보존(2×³H→⁶He→⁶Li 다 B=6). ' +
+            '닫힌 장부 Q·B·L·E·px·py 머신(fuse vcom·바스 + decay rest=(A−B)c²·decayRecoilPair 합성·0043 계승). 새 법칙 0 — scene 만 → 0001~47 법칙·골든 비트 불변(회귀 0=기존 골든 보존).',
+      ticks: 240,
+      // ledgerTol 없음 — 0043 fuse+decay 합성과 같은 게이트(rest=(A−B)c²·vcom·바스) → Q·B·L·E·px·py 머신.
+
+      NPAIR: 40,
+      KN: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 0.1, fuseMassFormula: 1, massDefect: 1, decayMassFormula: 1, decayPairing: 1, decayBetaPlus: 1, decayRecoilPair: 1, kDecay: 0.03, decayNexcess: 4, decayQ: 1 },
+      CHK: [0, 15, 35, 60, 95, 140, 190, 240],
+      // 40쌍 ³H(Z1 N2 e1·nuc 없음) 그리드(5×8)·정면 접근. gap 을 쌍마다 늘려 점화 시각 분산(staggered) → ⁶He 봉우리가 계단 아닌 매끈한 솟음.
+      //   접근율 1/tick(dt=0.5·vx=±1) → gap g 면 ~ (g−fuseR) tick 에 융합. gap 8..~43 → 점화 ~5..40 tick 분산. 열·행 간격 80×60 ≫ gap/2 → 쌍끼리 교차융합 0(합체 후 vcom=0 정지).
+      pop() {
+        const a = [];
+        for (let p = 0; p < this.NPAIR; p++) {
+          const col = p % 5, row = (p / 5) | 0, cx = 60 + col * 80, cy = 40 + row * 60, g = 8 + p * 0.9;
+          a.push({ Z: 1, N: 2, e: 1, x: 0, rx: cx - g / 2, ry: cy, vx: 1, vy: 0, lep: 0 });   // 왼쪽 ³H → 오른쪽
+          a.push({ Z: 1, N: 2, e: 1, x: 0, rx: cx + g / 2, ry: cy, vx: -1, vy: 0, lep: 0 });  // 오른쪽 ³H → 왼쪽 (쌍 총 p=0)
+        }
+        return a;
+      },
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 440, H: 520, atoms: this.pop(), rng: simRng, knobs: Object.assign({}, this.KN) };
+      },
+
+      // 시계열: 고정 시드 재시뮬레이션(엔진 step 재사용 L.applyForces+integrate·하네스 미변경·결정론). 체크포인트마다 연료/중간/종점 개체수.
+      series(K) {
+        const sim = { W: 440, H: 520, atoms: this.pop(), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN), tick: 0 };
+        const out = []; let prev = 0;
+        for (const t of this.CHK) {
+          for (let i = prev; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+          prev = t;
+          let fuel = 0, he = 0, li = 0, B = 0;
+          for (const x of sim.atoms) { if (x.Z === 1 && x.N === 2) fuel++; else if (x.Z === 2 && x.N === 4) he++; else if (x.Z === 3 && x.N === 3) li++; B += (x.Z | 0) + (x.N | 0); }
+          out.push({ t, fuel, he, li, B });
+        }
+        return out;
+      },
+      dBfus(K, pair) { return K.binding(2, 4, pair) - 2 * K.binding(1, 2, pair); },   // ³H+³H→⁶He 결합 이득(점화)
+      dBdec(K, pair) { return K.bindingDelta(2, 4, pair); },                          // ⁶He→⁶Li β⁻ 결합 이득(꼬리)
+
+      watch(sim, K) {
+        const s = this.series(K);
+        let pk = 0; for (let i = 1; i < s.length; i++) if (s[i].he > s[pk].he) pk = i;
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          fuel0: s[0].fuel, fuelEnd: s[s.length - 1].fuel, HePeak: s[pk].he, HePeakT: s[pk].t, HeEnd: s[s.length - 1].he,
+          LiEnd: s[s.length - 1].li, Btot: s[0].B, dBfus: +this.dBfus(K, 1).toFixed(4), dBdec: +this.dBdec(K, 1).toFixed(4),
+          totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0, decayActive: sim.decayActive | 0,
+        };
+      },
+
+      // 가설: ① 연료 점화 소진 ② 점화 봉우리+붕괴 꼬리(합성·0서 솟아 내부 봉우리→내림) ③ 종점 누적 ④ 닫힌 바리온(ΣB=240 전 t).
+      assert(ctx, K) {
+        const s = this.series(K), n = s.length, NA = this.NPAIR * 2, NP = this.NPAIR, B0 = NA * 3;
+        // ① 연료 단조 감소 + 거의 소진(융합이 ³H 를 먹음).
+        let fuelMono = true; for (let i = 1; i < n; i++) if (s[i].fuel > s[i - 1].fuel) fuelMono = false;
+        const fuelBurn = fuelMono && s[n - 1].fuel <= NA * 0.1;
+        // ② 합성 봉우리-꼬리: ⁶He 봉우리 인덱스 내부(0·끝 아님)·봉우리>시작(0)·봉우리>종단·시작=0(점화 전).
+        let pk = 0; for (let i = 1; i < n; i++) if (s[i].he > s[pk].he) pk = i;
+        const peakTail = pk > 0 && pk < n - 1 && s[pk].he > s[0].he && s[pk].he > s[n - 1].he && s[0].he === 0;
+        // ③ 종점 단조 증가 + 종단 거의 전수(꼬리가 ⁶Li 로).
+        let liMono = true; for (let i = 1; i < n; i++) if (s[i].li < s[i - 1].li) liMono = false;
+        const liAccum = liMono && s[n - 1].li >= NP * 0.9;
+        // ④ 닫힌 바리온: 전 체크포인트 ΣB=240(융합·붕괴 둘 다 B 보존·핵 안 샘).
+        let closed = true; for (const r of s) if (r.B !== B0) closed = false;
+        return [
+          { name: `연료 점화 소진 — N_fuel(³H) 단조 감소 ${NA}→${s[n - 1].fuel}(융합이 연료 먹어 ⁶He 로·점화 source·거의 소진)`, pass: fuelBurn, value: s[n - 1].fuel },
+          { name: `점화 봉우리 + 붕괴 꼬리(합성) — N_He(⁶He) 0서 솟아 내부 봉우리 ${s[pk].he}(t=${s[pk].t}) 찍고 내림(${s[0].he}→${s[pk].he}→${s[n - 1].he}) ⇒ source(융합)·sink(붕괴) 한 시간축 봉우리-꼬리`, pass: peakTail, value: s[pk].he },
+          { name: `종점 누적 — N_Li(⁶Li 안정) 단조 증가·종단 ${s[n - 1].li}/${NP}(≥90%·꼬리가 ⁶Li 로 흘러듦)`, pass: liAccum, value: s[n - 1].li },
+          { name: `닫힌 바리온 — 전 체크포인트 ΣB=Σ(Z+N)=${B0}(=${NA}×3)·핵 안 새고 융합·붕괴 둘 다 B 보존(2×³H→⁶He→⁶Li 다 B=6)`, pass: closed, value: B0 },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
