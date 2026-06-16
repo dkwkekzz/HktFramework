@@ -3162,6 +3162,88 @@
         ];
       },
     },
+
+    'step-0051': {
+      id: 'step-0051',
+      title: '흡열 융합 에너지 문턱 — 철 너머는 공짜가 아니다 (fuseEndo — ΔB_fus<0 융합은 상대 KE≥|ΔB_fus| 일 때만·발열은 문턱 0·게이트=0 회귀 0)',
+      desc: 'step-0046·0050 이 융합 *율*(Gamow 터널링·전하 장벽)을 닫았으나 *에너지적 허용*은 안 봤다 — fuse 는 ΔB_fus 의 *부호*를 무시하고 무조건 합체했다. ' +
+            '융합 발열량 ΔB_fus=B(생성)−B(a)−B(b)는 가벼운 핵서 >0(발열·별 점화·0041)·**철 너머서 <0(흡열)**. 0050 까지 ΔB_fus<0(흡열)이라도 fuse 가 *무조건* 합체하고 bath.E += keRel+released(음수)로 **복사 바스 E 가 음수**가 됐다(에너지를 무에서 빌림 — 비물리). ' +
+            '이 step 은 흡열 비용을 강제한다(게이트 fuseEndo): released<0 이면 생성핵 정지질량이 |ΔB_fus| 만큼 *늘어*(M=A−B·0040~41) 그 차액을 *상대 KE 가 지불*해야 한다 → keRel<|ΔB_fus| 면 융합 *에너지적 금지*. ' +
+            '이것이 **철 봉우리**의 에너지면(0050 의 쿨롱 *율* 억제와 짝): 가벼운 핵 융합은 발열이라 문턱 0(별 점화)·무거운 핵 융합은 흡열이라 고E 군집(고온·중력 압축)서만 — 철 너머 핵합성이 *별의 죽음*(초신성)에서야 일어나는 이유. ' +
+            '*측정*(무대 200²·정면 쌍 200개씩·hard cutoff fuseGamow=0·고정 시드 t=1 단일 시도·fuseMassFormula=1·massDefect=1·decayPairing=1·keRel=E 정확): 페어링 켜면 ²H+²H→⁴He 발열(ΔB_fus=+1.344)·**⁴He+⁴He→⁸Be 흡열(ΔB_fus=−0.2327)** — 같은 *측정*으로 부호 갈림(author 0). ' +
+            '① **흡열 문턱(창발)** — 게이트 켬·저E(E=0.1<|ΔB_fus|): 흡열 ⁴He+⁴He 융합 0(금지)·발열 ²H+²H 융합 전부(발열은 문턱 없음). ' +
+            '② **문턱=|ΔB_fus|(에너지 경계)** — E 를 쓸면 ⁴He+⁴He 는 keRel=E≥|ΔB_fus|=0.2327 일 때만 융합: E=0.2 금지(0)·E=0.25 전부(200)·경계가 |ΔB_fus| 를 가름(author 문턱 0·결합에너지서 창발). ' +
+            '③ **대조(게이트 끄면 흡열 공짜·바스 음수)** — fuseEndo=0 이면 ⁴He+⁴He 가 저E 서도 융합하고 **복사 바스 E<0**(에너지 무에서 빌림·비물리)·켜면 융합 0·바스 0 ⇒ 게이트 load-bearing. ' +
+            '④ **발열 무관·장부·회귀** — 발열 ²H+²H 는 게이트와 무관(켬=끔)·ΔB_fus(DD)>0·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ⁴He 흡열 무대·고E 서 융합·rest=(A−B)c²·vcom·바스 E≥0)·fuseEndo=0 → 0001~50 비트 동일. ' +
+            '*대조*: fuseEndo=0 → 부호 무시(0050 거동·회귀 0). 새 게이트 0 → 0001~50 법칙·골든 비트 불변.',
+      ticks: 4,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·rest=(A−B)c²(0041 계승) → Q·B·L·E·px·py 머신. 흡열 게이트는 *어느 쌍이* 융합할지(에너지 허용)만 바꿈.
+
+      EXLO: 0.1, EBELOW: 0.2, EABOVE: 0.25, EHIGH: 1, NP: 200,    // 저E(문턱 아래)·경계 아래/위·고E(라이브)·쌍 수
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, kDecay: 0 },
+      // (Z,N) 핵종 NP쌍 정면(keRel=E 정확: μ=m/2·|vrel|=2v·keRel=2μv²=m·v² → v=√(E/m)). 격자(간격 9)로 쌍끼리 교차융합 0·d=2<R=3 라 tick0 1시도.
+      pop(Z, N, E) {
+        const m = Z + N, v = Math.sqrt(E / m), a = [];
+        for (let i = 0; i < this.NP; i++) {
+          const x = (i % 20) * 9 + 8, y = ((i / 20) | 0) * 9 + 8;
+          a.push({ Z, N, e: Z, x: 0, rx: x, ry: y, vx: v, vy: 0, lep: 0 });          // 왼쪽 → 오른쪽
+          a.push({ Z, N, e: Z, x: 0, rx: x + 2, ry: y, vx: -v, vy: 0, lep: 0 });     // 오른쪽 → 왼쪽(쌍 총 p=0·d=2·keRel=E)
+        }
+        return a;
+      },
+      // 고정 시드 단일 시도 측정(hard cutoff·rng 무소비): endo/핵종/E 조합으로 t=1 후 {융합 수, 바스 E}.
+      measure(K, endo, Z, N, E) {
+        const sim = { W: 200, H: 200, atoms: this.pop(Z, N, E), photons: [], rng: K.mulberry32(20260616), knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseGamow: 0, fuseBarrier: 0, fuseEndo: endo }), tick: 0 };
+        const n0 = sim.atoms.length;
+        L.applyForces(sim); L.integrate(sim); sim.tick++;     // 단일 시도(t=1)·hard cutoff → 다가오는 쌍은 흡열 금지 아니면 전부 융합
+        return { fused: n0 - sim.atoms.length, bathE: (sim.escaped && sim.escaped.E) || 0 };
+      },
+      dBHe(K, pair) { return K.binding(4, 4, pair) - 2 * K.binding(2, 2, pair); },   // ⁴He+⁴He→⁸Be 결합 이득(흡열<0)
+      dBDD(K, pair) { return K.binding(2, 2, pair) - 2 * K.binding(1, 1, pair); },   // ²H+²H→⁴He 결합 이득(발열>0)
+
+      // 라이브 sim(장부·결정론 기둥): ⁴He 흡열 무대·고E(E=1≫|ΔB_fus|)·게이트 켬 → 흡열 융합이 *허용*되며 Q·B·L·E·px·py 닫힘(rest mass 증가분 KE 가 지불·바스 E≥0).
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        return { W: 200, H: 200, atoms: this.pop(2, 2, this.EHIGH), rng: simRng, knobs: Object.assign({}, this.KN, { fuseEndo: 1 }) };
+      },
+
+      watch(sim, K) {
+        const heLowOn = this.measure(K, 1, 2, 2, this.EXLO), heLowOff = this.measure(K, 0, 2, 2, this.EXLO);
+        const ddLowOn = this.measure(K, 1, 1, 1, this.EXLO), ddLowOff = this.measure(K, 0, 1, 1, this.EXLO);
+        const heBelow = this.measure(K, 1, 2, 2, this.EBELOW), heAbove = this.measure(K, 1, 2, 2, this.EABOVE);
+        let px = 0, py = 0; for (const a of sim.atoms) { const m = K.mass(a); px += m * a.vx; py += m * a.vy; }
+        px += (sim.escaped && sim.escaped.px) || 0; py += (sim.escaped && sim.escaped.py) || 0;
+        return {
+          heLowOn: heLowOn.fused, heLowOff: heLowOff.fused, bathOff: +heLowOff.bathE.toFixed(2),
+          ddLowOn: ddLowOn.fused, ddLowOff: ddLowOff.fused,
+          heBelow: heBelow.fused, heAbove: heAbove.fused,
+          dBHe: +this.dBHe(K, 1).toFixed(4), dBDD: +this.dBDD(K, 1).toFixed(4),
+          totPx: +px.toFixed(9), totPy: +py.toFixed(9), fuseActive: sim.fuseActive | 0,
+        };
+      },
+
+      // 가설: ① 흡열 문턱(창발) ② 문턱=|ΔB_fus| 경계 ③ 대조(게이트 끄면 흡열 공짜·바스 음수) ④ 발열 무관·장부·회귀.
+      assert(ctx, K) {
+        const NP = this.NP, absHe = -this.dBHe(K, 1);          // |ΔB_fus(⁴He+⁴He)| = 0.2327(흡열 비용)
+        const heLowOn = this.measure(K, 1, 2, 2, this.EXLO), heLowOff = this.measure(K, 0, 2, 2, this.EXLO);
+        const ddLowOn = this.measure(K, 1, 1, 1, this.EXLO), ddLowOff = this.measure(K, 0, 1, 1, this.EXLO);
+        const heBelow = this.measure(K, 1, 2, 2, this.EBELOW), heAbove = this.measure(K, 1, 2, 2, this.EABOVE);
+        // ① 흡열 문턱 창발: 게이트 켬·저E(E<|ΔB_fus|) 서 흡열 ⁴He+⁴He 융합 0(금지)·발열 ²H+²H 융합 전부(문턱 없음).
+        const endoBlocked = heLowOn.fused === 0 && ddLowOn.fused === NP;
+        // ② 문턱=|ΔB_fus| 경계: E=0.2(<|ΔB_fus|) 금지·E=0.25(>|ΔB_fus|) 전부·경계가 |ΔB_fus|=0.2327 을 가름.
+        const boundary = heBelow.fused === 0 && heAbove.fused === NP && this.EBELOW < absHe && absHe < this.EABOVE;
+        // ③ 대조: 게이트 끄면 흡열 ⁴He+⁴He 가 저E 서도 융합하고 *복사 바스 E<0*(비물리)·켜면 융합 0·바스 0 ⇒ load-bearing.
+        const freeEndo = heLowOff.fused === NP && heLowOff.bathE < 0 && heLowOn.fused === 0 && heLowOn.bathE === 0;
+        // ④ 발열 무관: 발열 ²H+²H 는 게이트와 무관(켬=끔)·ΔB_fus(DD)>0·닫힌 장부는 라이브 기둥(②)이 머신 보증.
+        const dBdd = this.dBDD(K, 1), exoUntouched = ddLowOn.fused === ddLowOff.fused && dBdd > 0;
+        return [
+          { name: `흡열 문턱(창발) — 게이트 켬·저E(E=${this.EXLO}<|ΔB_fus|=${absHe.toFixed(4)}): 흡열 ⁴He+⁴He 융합 ${heLowOn.fused}(금지) · 발열 ²H+²H 융합 ${ddLowOn.fused}/${NP}(문턱 없음·발열은 자유)`, pass: endoBlocked, value: heLowOn.fused },
+          { name: `문턱=|ΔB_fus|(에너지 경계) — ⁴He+⁴He keRel=E≥|ΔB_fus| 일 때만: E=${this.EBELOW} 금지 ${heBelow.fused} · E=${this.EABOVE} 전부 ${heAbove.fused}/${NP}·경계 ${this.EBELOW}<|ΔB_fus|=${absHe.toFixed(4)}<${this.EABOVE}(결합에너지서 창발)`, pass: boundary, value: +absHe.toFixed(4) },
+          { name: `대조(게이트 끄면 흡열 공짜·바스 음수) — fuseEndo=0 흡열 ⁴He+⁴He 저E 융합 ${heLowOff.fused}/${NP}·복사 바스 E=${heLowOff.bathE.toFixed(2)}<0(에너지 무에서 빌림·비물리)·켜면 융합 ${heLowOn.fused}·바스 0 ⇒ load-bearing`, pass: freeEndo, value: +heLowOff.bathE.toFixed(2) },
+          { name: `발열 무관·장부·회귀 — 발열 ²H+²H 게이트 무관(켬 ${ddLowOn.fused}=끔 ${ddLowOff.fused})·ΔB_fus(DD)=${dBdd.toFixed(4)}>0·닫힌 장부 Q·B·L·E·px·py 머신(라이브 ⁴He 흡열 무대)·fuseEndo=0 → 0001~50 비트 동일`, pass: exoUntouched, value: +dBdd.toFixed(4) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
