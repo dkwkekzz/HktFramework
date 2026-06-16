@@ -949,6 +949,48 @@
 
   function wrap(v, max) { v %= max; if (v < 0) v += max; return v === max ? 0 : v; } // [0,max) 보장 — 음수 wrap 의 부동소수 반올림이 정확히 max 를 내는 경우를 0 으로 접는다
 
+  // 셀 리스트 이웃 열거(step-0054 — 공간 분할의 "옳게 먼저, 빠르게 나중에"): 토러스 무대를 변≥cut 인 셀 격자로 쪼개,
+  //   각 원자를 *제 셀 + 8 이웃 셀*(경계 wrap)만 훑어 min-image 거리 ≤cut 인 쌍 [i,j](i<j)를 모은다. 전쌍 O(n²) 대신 O(n·밀도).
+  //   왜 정확한가: 셀 변 cw=W/floor(W/cut) ≥ cut → cut 이내 두 원자는 *반드시* 같거나 인접한 셀에 든다(3×3 밖은 거리>cut 보장).
+  //     brute 와 *완전히 같은* min-image·cut² 비교식을 써 누락·과잉 0 → 쌍 집합이 비트까지 동일(근사 아님·assert ① load-bearing).
+  //   *force 법칙 아님*(LAW_ORDER·DEFAULTS 미참여) → 이번 step 은 이 구조를 *만들고 brute 와 동치임을 측정*만 한다(새 법칙 0·골든 보존=회귀 0).
+  //     force 배선(단거리 힘 pauli·vdw·repulse 를 이 열거로 가속 + 컷오프-PE 장부 재조정)은 후속 step. 중력은 컷오프 불가(장거리)라 Barnes-Hut/PM 별도.
+  //   결정론: rng 불필요(위치만)·버킷 push·셀/쌍 순회 모두 원자 인덱스 순서 고정. 작은 격자(ncx<3)서 wrap 이 같은 셀을 거듭 가리키면 seen 으로 dedup(쌍 1회).
+  //   반환 { pairs:[[i,j]…], checks } — checks=거리 계산 횟수(전쌍 n(n−1)/2 대비 급감 측정용).
+  function cellPairs(atoms, cut, W, H) {
+    const n = atoms.length;
+    const ncx = Math.max(1, Math.floor(W / cut)), ncy = Math.max(1, Math.floor(H / cut));
+    const cw = W / ncx, ch = H / ncy;                        // 셀 변 ≥ cut (이웃 셀 밖은 거리>cut 보장)
+    const buckets = new Map();                               // 셀키 → 원자 인덱스 배열(인덱스 순 push → 결정론)
+    const cellIdx = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i];
+      const cx = Math.min(ncx - 1, Math.max(0, Math.floor(a.rx / cw)));
+      const cy = Math.min(ncy - 1, Math.max(0, Math.floor(a.ry / ch)));
+      cellIdx[i] = (cy << 16) | cx;
+      const key = cy * ncx + cx;
+      let list = buckets.get(key); if (!list) buckets.set(key, list = []); list.push(i);
+    }
+    const cut2 = cut * cut, pairs = []; let checks = 0;
+    for (let i = 0; i < n; i++) {
+      const cx = cellIdx[i] & 0xffff, cy = cellIdx[i] >> 16;
+      const seen = new Set();                                // 작은 격자(ncx/ncy<3) wrap 중복 방문 → 셀키 dedup(쌍 1회만)
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = ((cx + dx) % ncx + ncx) % ncx, ny = ((cy + dy) % ncy + ncy) % ncy;
+        const key = ny * ncx + nx;
+        if (seen.has(key)) continue; seen.add(key);
+        const list = buckets.get(key); if (!list) continue;
+        for (const j of list) {
+          if (j <= i) continue;                              // i<j 쌍만(자기·중복 제외)
+          checks++;
+          const ddx = K.minImage(atoms[j].rx - atoms[i].rx, W), ddy = K.minImage(atoms[j].ry - atoms[i].ry, H);
+          if (ddx * ddx + ddy * ddy <= cut2) pairs.push([i, j]);
+        }
+      }
+    }
+    return { pairs, checks };
+  }
+
   // 적분(기질): 자유 운동 — 위치 += 속도·dt, 토러스 경계 wrap.
   // 힘이 없으므로 v 불변 → 에너지·운동량 정확 보존(닫힌 장부 잔차 0).
   //
@@ -972,5 +1014,5 @@
     }
   }
 
-  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy };
+  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy, cellPairs };
 });

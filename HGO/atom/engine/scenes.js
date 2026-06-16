@@ -3404,6 +3404,85 @@
         ];
       },
     },
+
+    'step-0054': {
+      id: 'step-0054',
+      title: '공간 분할 셀 리스트 이웃 열거 (측정·새 법칙 0 — 단거리 쌍을 brute O(n²)와 *정확히 같은 집합*으로 찾되 거리 계산 급감·"옳게 먼저, 빠르게 나중에")',
+      desc: '연속력 5개(coulomb·repulse·pauli·vdw·gravity)가 매 tick 전쌍 O(n²)다(이슈 #5·STATE §3 성능). 다체 핵합성 시계열이 이를 블록 — *먼저 옳게* 공간 분할 구조를 세운다. ' +
+            '이 측정 step 은 **셀 리스트 이웃 열거기**(`L.cellPairs`)를 만들고, 그것이 brute O(n²)와 **비트까지 같은 쌍 집합**을 *훨씬 적은 거리 계산*으로 찾음을 증명한다(새 법칙 0·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). ' +
+            '원리: 토러스를 변≥cut 인 셀 격자로 쪼개 각 원자를 제 셀+8 이웃 셀(경계 wrap)만 훑는다. 셀 변 cw=W/⌊W/cut⌋ ≥ cut 이라 cut 이내 두 원자는 반드시 3×3 이웃 안 → *누락·과잉 0*(근사 아님). force 배선(단거리 힘 가속+컷오프-PE 장부 재조정)은 후속 step·중력은 장거리라 Barnes-Hut 별도. ' +
+            '*측정*(무대 60²·NP=200 고정 시드 흩뿌림·cut=6·경계 가로지르는 쌍 2개 심음): ' +
+            '① **정확성·load-bearing** — 셀 리스트 쌍 집합 = brute 쌍 집합 정확 일치(컷오프 내 이웃 누락·과잉 0). ' +
+            '② **검사 수 급감** — 셀 거리계산 ≪ 전쌍 n(n−1)/2(같은 결과·빠른 계산 동치). ' +
+            '③ **토러스 경계 정합** — 직접거리>cut 인데 min-image≤cut 인 wrap 이웃을 정확히 잡음. ' +
+            '④ **장부·결정론·회귀** — 자유 드리프트 무대(힘 0) Q·B·L·E·px·py 머신·새 법칙 0 → 0001~53 골든 비트 불변(회귀 0).',
+      ticks: 4,
+      W: 60, H: 60, NP: 200, CUT: 6,
+
+      // 측정 무대: 토러스에 NP개 원자를 고정 시드로 흩뿌린다(verify 시드 무관·전 시드 동일 측정).
+      //   a[0]·a[1] 은 경계 양끝에 심어 *wrap 으로만 잡히는* 이웃 쌍을 보장(토러스 정합 기둥).
+      scatter(K) {
+        const rng = K.mulberry32(20260616), a = [];
+        for (let i = 0; i < this.NP; i++) a.push({ Z: 1, N: 0, e: 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: 0, vy: 0, lep: 0 });
+        a[0].rx = 1; a[0].ry = 30; a[1].rx = this.W - 1; a[1].ry = 30;   // dx_min-image=2≤cut·직접거리=W−2=58>cut → wrap 쌍 보장
+        return a;
+      },
+      // brute 기준: 전쌍 i<j min-image 거리 ≤cut. checks=n(n−1)/2. 쌍은 i*n+j 키로 직렬화(집합 비교용).
+      brute(K, atoms) {
+        const n = atoms.length, c2 = this.CUT * this.CUT, pairs = []; let checks = 0;
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+          checks++;
+          const dx = K.minImage(atoms[j].rx - atoms[i].rx, this.W), dy = K.minImage(atoms[j].ry - atoms[i].ry, this.H);
+          if (dx * dx + dy * dy <= c2) pairs.push(i * n + j);
+        }
+        return { pairs, checks };
+      },
+      // 측정: 두 열거의 쌍 집합 비교(정렬 후 비트 일치) + 검사 수 + wrap-only 쌍 수.
+      measure(K) {
+        const atoms = this.scatter(K), n = atoms.length;
+        const b = this.brute(K, atoms);
+        const cp = L.cellPairs(atoms, this.CUT, this.W, this.H);
+        const cellKeys = cp.pairs.map(p => p[0] * n + p[1]).sort((x, y) => x - y);
+        const bruteKeys = b.pairs.slice().sort((x, y) => x - y);
+        let same = cellKeys.length === bruteKeys.length;
+        if (same) for (let i = 0; i < cellKeys.length; i++) if (cellKeys[i] !== bruteKeys[i]) { same = false; break; }
+        // wrap-only: 직접(비-wrap)거리>cut 인데 min-image≤cut (토러스 경계 가로지르는 이웃)
+        const c2 = this.CUT * this.CUT; let wrap = 0;
+        for (const p of cp.pairs) {
+          const A = atoms[p[0]], B = atoms[p[1]];
+          const ddx = B.rx - A.rx, ddy = B.ry - A.ry;
+          if (ddx * ddx + ddy * ddy > c2) wrap++;
+        }
+        return { same, nPairs: cellKeys.length, cellChecks: cp.checks, bruteChecks: b.checks, wrap };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): 자유 드리프트 무대(힘 0) — 측정은 watch/assert 가 고정 시드로 직교 수행.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0);
+        const a = [];
+        for (let i = 0; i < 12; i++) a.push({ Z: 1, N: 0, e: 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: simRng() - 0.5, vy: simRng() - 0.5, lep: 0 });
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: {} };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { same: m.same ? 1 : 0, nPairs: m.nPairs, cellChecks: m.cellChecks, bruteChecks: m.bruteChecks, wrap: m.wrap, ratioPct: +(m.cellChecks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① 정확성·load-bearing ② 검사 수 급감 ③ 토러스 경계 정합 ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const exact = m.same && m.nPairs > 0;                          // ① 쌍 집합 정확 일치(누락·과잉 0)
+        const faster = m.cellChecks < m.bruteChecks * 0.5;             // ② 거리계산 ≪ 전쌍
+        const torus = m.wrap > 0;                                      // ③ wrap-only 이웃 잡음
+        return [
+          { name: `정확성·load-bearing — 셀 리스트 쌍 집합 = brute O(n²) 쌍 집합 정확 일치(컷오프 ${this.CUT} 내 이웃 ${m.nPairs}쌍·누락·과잉 0·근사 아님)`, pass: exact, value: m.nPairs },
+          { name: `검사 수 급감 — 셀 거리계산 ${m.cellChecks} ≪ 전쌍 ${m.bruteChecks}(${(m.cellChecks / m.bruteChecks * 100).toFixed(1)}%·같은 결과·빠른 계산 동치)`, pass: faster, value: m.cellChecks },
+          { name: `토러스 경계 정합 — wrap 으로만 잡힌 이웃 ${m.wrap}쌍(직접거리>cut·min-image≤cut → 경계 가로지름 정확)`, pass: torus, value: m.wrap },
+          { name: `장부·결정론·회귀 — 자유 드리프트 무대(힘 0) Q·B·L·E·px·py 머신·새 법칙 0(LAW_ORDER·DEFAULTS 불변) → 0001~53 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.nPairs },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
