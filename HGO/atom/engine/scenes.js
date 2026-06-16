@@ -2847,6 +2847,83 @@
         ];
       },
     },
+
+    'step-0047': {
+      id: 'step-0047',
+      title: '상대론적 좌표속도 상한 — c = 무대 최고속 (relCap — |v_coord|<c 창발·인과율 레일·운동량 보존·게이트=0 회귀 0)',
+      desc: '여태 적분(기질)은 위치 += v·dt 로 *좌표속도에 상한이 없었다*. 자연 단위 c=1 인데 수소 반동(0003)·고E 융합(0046) 반동은 속력이 ~0.5c 를 넘봤고, 원리상 c 를 돌파할 수 있었다(STATE §3 ⬜ 상대론적 운동). ' +
+            '이 step 은 "c = 무대 최고속"을 *인과율 레일*로 박는다(게이트 relCap). 단순 클램프(|v| 잘라내기)는 운동량·KE 를 몰래 버려 닫힌 장부를 깬다 — 대신 *재해석*한다: 저장된 (vx,vy) 를 **고유속도(celerity) u=γ·v_coord** 로 본다. ' +
+            '그러면 운동량 p=m·u=γ·m·v_coord 는 *상대론적 운동량* 그대로(ledger px=Σm·vx 무변경)이고, 공간을 실제 가로지르는 **좌표속도 v_coord = u/γ, γ=√(1+|u|²/c²)** 는 |v_coord|<c 를 *항상* 만족한다. ' +
+            '드리프트는 위치만 바꾸므로 Q·B·L·E·px·py 전부 *보존-자명*(propagate 와 동형)·게이트=0 이면 v_coord=u(원시 v)라 과거 전 장면 비트 동일(회귀 0). 핵심: 광속 돌파 불가가 *함수형서* 나온다 — u→∞ 라도 v_coord→c 점근(도달 0), author 한 if(v>c) 분기 0. ' +
+            '*측정*(무대 2000²·자유 드리프트·다른 법칙 전부 게이트 0·celerity u∈{0.5,1,2,5,20,100} 단일 원자 질량1·t=10·좌표속도=변위/(t·dt)): ' +
+            '① **인과율 상한** — relCap=1 이면 모든 celerity 의 좌표속도 ≤ c(=1)·최고 celerity u=100 도 0.99995<1. ' +
+            '② **창발 공식 정합** — 측정 좌표속도 = u/√(1+u²)(u=1→0.7071·u=5→0.9806 머신 부근·author 0). ' +
+            '③ **대조(게이트 끄면 c 돌파)** — relCap=0 이면 좌표속도=celerity 그대로(u=2→2·u=20→20 둘 다 >c)·레일이 load-bearing. ' +
+            '④ **단조 점근** — celerity↑ → 좌표속도↑ 단조이되 *전부* <c(0.447<0.707<0.894<0.981<0.999<c·도달 없음). ' +
+            '⑤ **운동량 보존(클램프와 다름)** — relCap 켜고/끄고 최종 운동량 px 동일(=초기 Σm·u=128.5)·레일은 *위치*만 바운드, *운동량*은 안 깎는다(단순 클램프 대비 결정적 차이).',
+      ticks: 10,
+      W: 2000, H: 2000, US: [0.5, 1, 2, 5, 20, 100], T: 10,
+
+      f(u) { const c = K.C; return u / Math.sqrt(1 + (u * u) / (c * c)); },  // 좌표속도 공식 v_coord=u/γ
+      pop() {  // celerity 집단(서로 떨어져 비상호작용 — 어차피 모든 법칙 게이트 0)
+        return this.US.map((u, i) => ({ Z: 1, N: 0, e: 1, x: 0, rx: 10, ry: 50 + i * 100, vx: u, vy: 0 }));
+      },
+      // 단일 원자 좌표속도 측정(엔진 step 재사용·하네스 미변경): celerity u·게이트 rc·t tick 후 변위/(t·dt).
+      measure(K, rc, u, t) {
+        const a = { Z: 1, N: 0, e: 1, x: 0, rx: 10, ry: 10, vx: u, vy: 0 };
+        const sim = { W: this.W, H: this.H, atoms: [a], photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, { dt: 1, relCap: rc }), tick: 0 };
+        for (let i = 0; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const dx = K.minImage(a.rx - 10, this.W), dy = K.minImage(a.ry - 10, this.H);
+        return Math.hypot(dx, dy) / (t * 1);                  // 좌표속도(dt=1)
+      },
+      // 운동량 측정: celerity 집단을 게이트 rc 로 t tick 후 총 px(=Σm·vx). 레일이 운동량을 안 깎음을 보인다.
+      momentum(K, rc, t) {
+        const sim = { W: this.W, H: this.H, atoms: this.pop(), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, { dt: 1, relCap: rc }), tick: 0 };
+        for (let i = 0; i < t; i++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        let px = 0; for (const a of sim.atoms) px += K.mass(a) * a.vx; return px;
+      },
+      // 라이브 sim(장부·결정론 기둥): celerity 집단·relCap 켬. 드리프트는 위치만 → Q·B·L·E·px·py 머신.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.pop(), rng: null, knobs: { dt: 1, relCap: 1 } };
+      },
+
+      watch(sim, K) {
+        const on = this.US.map(u => this.measure(K, 1, u, this.T));
+        const maxOn = Math.max.apply(null, on);
+        return {
+          maxOn: +maxOn.toFixed(6), spd_u1: +on[1].toFixed(6), spd_u5: +on[3].toFixed(6), spd_u100: +on[5].toFixed(6),
+          offHi: +this.measure(K, 0, 20, this.T).toFixed(6), pxOn: +this.momentum(K, 1, this.T).toFixed(6), pxOff: +this.momentum(K, 0, this.T).toFixed(6),
+        };
+      },
+
+      // 가설: ① 인과율 상한 ② 창발 공식 ③ 대조 돌파 ④ 단조 점근 ⑤ 운동량 보존.
+      assert(ctx, K) {
+        const c = K.C, T = this.T;
+        const on = this.US.map(u => this.measure(K, 1, u, T));   // relCap=1 좌표속도들
+        const maxOn = Math.max.apply(null, on);
+        // ① 인과율 상한: 모든 좌표속도 ≤ c.
+        const cap = on.every(s => s <= c + 1e-12);
+        // ② 창발 공식: 측정 좌표속도 = u/√(1+u²)(대표 u=1·u=5 머신 부근).
+        const form = Math.abs(on[1] - this.f(1)) < 1e-9 && Math.abs(on[3] - this.f(5)) < 1e-9;
+        // ③ 대조(게이트 끄면 돌파): relCap=0 좌표속도=celerity(u=2→2·u=20→20 둘 다 >c).
+        const offLo = this.measure(K, 0, 2, T), offHi = this.measure(K, 0, 20, T);
+        const control = offLo > c && offHi > c && Math.abs(offLo - 2) < 1e-9 && Math.abs(offHi - 20) < 1e-9;
+        // ④ 단조 점근: celerity↑ → 좌표속도↑ 단조·전부 <c.
+        let mono = true; for (let i = 1; i < on.length; i++) if (!(on[i] > on[i - 1])) mono = false;
+        const asymptote = mono && on[on.length - 1] < c;
+        // ⑤ 운동량 보존: relCap 켜고/끄고 최종 px 동일(=초기 Σm·u). 레일은 위치만 바운드·운동량 불변.
+        const p0 = this.US.reduce((s, u) => s + u, 0);          // Σm·u (질량 1)
+        const pxOn = this.momentum(K, 1, T), pxOff = this.momentum(K, 0, T);
+        const pcons = Math.abs(pxOn - pxOff) < 1e-12 && Math.abs(pxOn - p0) < 1e-9;
+        return [
+          { name: `인과율 상한 — relCap=1 모든 celerity 좌표속도 ≤ c(=${c})·최고 u=100 좌표속도 ${on[5].toFixed(5)}<1(광속 돌파 불가 창발)`, pass: cap, value: +maxOn.toFixed(5) },
+          { name: `창발 공식 정합 — 측정 좌표속도 = u/√(1+u²)(u=1 측정 ${on[1].toFixed(4)}≈${this.f(1).toFixed(4)}·u=5 측정 ${on[3].toFixed(4)}≈${this.f(5).toFixed(4)}·author if(v>c) 0)`, pass: form, value: +on[3].toFixed(4) },
+          { name: `대조(게이트 끄면 c 돌파) — relCap=0 좌표속도=celerity(u=2→${offLo.toFixed(2)}·u=20→${offHi.toFixed(2)} 둘 다 >c)·레일 load-bearing`, pass: control, value: +offHi.toFixed(2) },
+          { name: `단조 점근 — celerity↑→좌표속도↑ 단조이되 전부<c(${on.map(s => s.toFixed(5)).join('<')} < ${c}·c 도달 0)`, pass: asymptote, value: +on[on.length - 1].toFixed(5) },
+          { name: `운동량 보존(클램프와 다름) — relCap 켜고 px ${pxOn.toFixed(2)} = 끄고 ${pxOff.toFixed(2)} = 초기 Σm·u ${p0.toFixed(1)}(레일은 위치만 바운드·운동량 안 깎음)`, pass: pcons, value: +pxOn.toFixed(2) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

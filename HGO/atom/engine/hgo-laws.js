@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, relCap: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -932,11 +932,24 @@
 
   // 적분(기질): 자유 운동 — 위치 += 속도·dt, 토러스 경계 wrap.
   // 힘이 없으므로 v 불변 → 에너지·운동량 정확 보존(닫힌 장부 잔차 0).
+  //
+  // 상대론적 좌표속도 상한(step-0047, 게이트 relCap=0 → 회귀 0): "c = 무대 최고속"을 인과율 레일로 박는다.
+  //   재해석: 저장된 (vx,vy) 를 *고유속도(celerity/proper velocity) u = γ·v_coord* 로 본다. 그러면
+  //     - 운동량 p = m·u = γ·m·v_coord = *상대론적 운동량* 그대로 → ledger px=Σm·vx 무변경(보존 자명).
+  //     - 공간을 실제 가로지르는 *좌표속도* v_coord = u/γ, γ=√(1+|u|²/c²) → |v_coord| < c *항상*(상한 창발).
+  //   드리프트는 위치만 바꾼다 → Q·B·L·E·px·py 전부 보존-자명(propagate 와 동형). 게이트=0 이면 v_coord=u(원시 v)
+  //   라 과거 전 장면과 비트 동일(회귀 0). u→∞ 면 v_coord→c(점근·도달 0) = 광속 돌파 불가가 *함수형서* 나온다(author 0).
+  //   토이 한계: 에너지는 ½m·u²(celerity Newtonian) 그대로 — 완전 상대론적 KE=(γ−1)mc² 는 후속 정밀화(STATE §3).
   function integrate(sim) {
-    const dt = sim.knobs.dt;
+    const dt = sim.knobs.dt, rc = sim.knobs.relCap, c = K.C;
     for (const a of sim.atoms) {
-      a.rx = wrap(a.rx + a.vx * dt, sim.W);
-      a.ry = wrap(a.ry + a.vy * dt, sim.H);
+      let vx = a.vx, vy = a.vy;
+      if (rc) {                                       // 게이트=0 → 원시 v(회귀 0). 켜면 좌표속도로 환산.
+        const g = Math.sqrt(1 + (vx * vx + vy * vy) / (c * c));  // γ = √(1+|u|²/c²)
+        vx /= g; vy /= g;                             // v_coord = u/γ → |v_coord| < c 항상
+      }
+      a.rx = wrap(a.rx + vx * dt, sim.W);
+      a.ry = wrap(a.ry + vy * dt, sim.H);
     }
   }
 
