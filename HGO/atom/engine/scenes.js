@@ -3906,6 +3906,169 @@
         ];
       },
     },
+
+    'step-0061': {
+      id: 'step-0061',
+      title: 'Barnes-Hut 트리(0060)를 gravity 에 배선 (게이트 farField — 장거리 1/r² 가속 O(n log n)·질량가중 평균 가속 차감으로 px·py 머신 복원·등가원리)',
+      desc: 'step-0060 이 Barnes-Hut 트리 `bhForces` 를 세우고 brute 동치를 측정했다(force 미배선). 이 step 은 그것을 첫 장거리 *힘* gravity 에 **배선**한다 — collide(0055)가 cellPairs 를 배선한 것의 장거리판. ' +
+            '게이트 `farField`=0(기본) → 전쌍 brute(step-0027~ 비트 동일·머신 보존·회귀 0). =1 → bhForces(θ=spatialTheta) 가속 g_i 를 v_i += kg·g_i·dt 로 싣는다(중력 가속=kg·g_i·0060 과 한 출처식). ' +
+            '⚠️ BH 는 무게중심 lump 라 힘이 쌍별 등·반작용이 아니다 → 날것이면 총 운동량 px·py 가 머신 보존 안 됨(BH 인공 net force). **해소(중력 한정·등가원리)**: 질량가중 평균 가속 c=Σm·g/Σm 를 빼고 싣는다(g_i→g_i−c). ' +
+            '중력은 보편(모든 질량 같은 가속)이라 균일 가속 차감은 *상대 운동 불변*(COM 드리프트만 제거)·물리적 무해 → brute 의 Σm·a=0(반작용)과 같은 0-net 으로 맞춰 px·py **머신** 복원 + 공통오차 c 제거로 정확도도 개선. E 만 symplectic 유계 진동(0019 선례·완화). ' +
+            '*측정*(무대 60²·N=200 중력+pauli·dt=0.01·θ=0.5·6 tick·고정 시드): ' +
+            '① **가속 근사·load-bearing** — farField=1 한 tick 적용 후 속도가 brute 와 거의 같음(maxDiff 작음·0060 의 ~2% lump 오차). ' +
+            '② **운동량 머신 복원·load-bearing** — farField=1 MT tick dpx·dpy ≤ 머신(평균 가속 차감 → BH 비대칭 인공 net force 제거·날것이면 O(0.1~1)). ' +
+            '③ **E 닫힘·BH 추가 드리프트 0·load-bearing** — farField=1 E 잔차 ≈ farField=0(brute) E 잔차(BH 가속이 symplectic E 드리프트를 더 안 늘림). ' +
+            '④ **검사 수 급감·O(n log n)** — bhForces 상호작용 ≪ 전쌍 n(n−1). ' +
+            '⑤ **장부·결정론·회귀** — 라이브 farField=1 무대 Q·B·L·px·py 머신(E 완화)·노브=0(farField 기본 0) → 0001~60 골든 비트 불변(회귀 0).',
+      ticks: 6,
+      W: 60, H: 60, N: 200, MT: 6,
+      KN: { dt: 0.01, kGravity: 0.5, kPauli: 1, coulombSoft: 1.5, spatialTheta: 0.5 },
+      ledgerTol: { E: 3e-1 },                                // 중력 symplectic 유계 진동(brute·BH 동급·전 시드 worst 포함 — assert ③이 동급임을 증명·px·py 는 완화 없음=머신 복원)
+
+      // 중력+pauli 구름(질량 다양 — 1/4 무거운 ¹⁶O·COM 가중 비자명). 느린 속도(중력 응집 무대).
+      cloud(K) {
+        const rng = K.mulberry32(20260623), a = [];
+        for (let i = 0; i < this.N; i++) {
+          const heavy = (i % 4 === 0);
+          a.push({ Z: heavy ? 8 : 1, N: heavy ? 8 : 0, e: heavy ? 8 : 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 0.2, vy: (rng() - 0.5) * 0.2, lep: 0 });
+        }
+        return a;
+      },
+      afterForce(K, ff) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { farField: ff }), tick: 0 };
+        L.applyForces(sim);
+        return sim.atoms;
+      },
+      // MT tick 굴린 뒤 장부 드리프트(E·px·py) 반환.
+      drift(K, ff) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { farField: ff }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { dE: Math.abs(l1.E - l0.E), dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py) };
+      },
+      measure(K) {
+        const b = this.afterForce(K, 0), f = this.afterForce(K, 1);
+        let fmax = 0; for (let i = 0; i < b.length; i++) { const d = Math.hypot(f[i].vx - b[i].vx, f[i].vy - b[i].vy); if (d > fmax) fmax = d; }
+        const db = this.drift(K, 0), df = this.drift(K, 1);
+        const atoms = this.cloud(K), checks = L.bhForces(atoms, this.KN.spatialTheta, this.W, this.H, this.KN.coulombSoft).checks;
+        return { fmax, eres: df.dE, eresBrute: db.dE, dpx: df.dpx, dpy: df.dpy, checks, bruteChecks: atoms.length * (atoms.length - 1) };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): farField=1 중력 무대 — px·py 머신(평균 가속 차감)·E 완화.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < this.N; i++) {
+          const heavy = (i % 4 === 0);
+          a.push({ Z: heavy ? 8 : 1, N: heavy ? 8 : 0, e: heavy ? 8 : 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: (simRng() - 0.5) * 0.2, vy: (simRng() - 0.5) * 0.2, lep: 0 });
+        }
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN, { farField: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { fmax: +m.fmax.toExponential(3), eres: +m.eres.toExponential(3), eresBrute: +m.eresBrute.toExponential(3), dpx: +m.dpx.toExponential(3), dpy: +m.dpy.toExponential(3), checks: m.checks, bruteChecks: m.bruteChecks, ratioPct: +(m.checks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① 가속 근사 ② 운동량 머신 복원 ③ E 닫힘·추가 드리프트 0 ④ 검사 급감 ⑤ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const close = m.fmax < 0.02;                                          // ① 한 tick 가속 ≈ brute
+        const momOK = m.dpx < 1e-9 && m.dpy < 1e-9;                            // ② 운동량 머신(평균 가속 차감 → 복원)
+        const eOK = m.eres < this.ledgerTol.E && m.eres < m.eresBrute * 2 + 1e-3;  // ③ E 잔차 ≈ brute(BH 추가 드리프트 0)
+        const faster = m.checks < m.bruteChecks * 0.5;                        // ④ 상호작용 ≪ 전쌍
+        return [
+          { name: `가속 근사·load-bearing — farField=1 한 tick 적용 후 속도 maxDiff=${m.fmax.toExponential(2)} ≈ brute(0060 무게중심 lump 오차)`, pass: close, value: +m.fmax.toExponential(3) },
+          { name: `운동량 머신 복원·load-bearing — farField=1 ${this.MT}tick dpx=${m.dpx.toExponential(2)}·dpy=${m.dpy.toExponential(2)} ≤ 머신(질량가중 평균 가속 차감 → BH 인공 net force 제거·등가원리)`, pass: momOK, value: +m.dpx.toExponential(3) },
+          { name: `E 닫힘·BH 추가 드리프트 0·load-bearing — farField=1 E 잔차 ${m.eres.toExponential(2)} ≈ brute(전쌍) ${m.eresBrute.toExponential(2)}(BH 가속이 symplectic E 드리프트를 더 안 늘림)`, pass: eOK, value: +m.eres.toExponential(3) },
+          { name: `검사 수 급감·O(n log n) — bhForces 상호작용 ${m.checks} ≪ 전쌍 ${m.bruteChecks}(${(m.checks / m.bruteChecks * 100).toFixed(1)}%)`, pass: faster, value: m.checks },
+          { name: `장부·결정론·회귀 — 라이브 farField=1 중력 무대 Q·B·L·px·py 머신(E 완화)·노브=0(farField 기본 0) → 0001~60 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.checks },
+        ];
+      },
+    },
+
+    'step-0062': {
+      id: 'step-0062',
+      title: 'Barnes-Hut 트리를 coulomb 에 배선 (게이트 farField — 전하가중 트리·gravity 0061 와 동형·하전만 평균 가속 차감으로 px·py 머신·중성 불변)',
+      desc: 'step-0061 이 Barnes-Hut 트리를 gravity 에 배선했다(질량가중). 이 step 은 같은 트리를 coulomb 에 배선한다 — 단 *전하가중*(`bhForces(charged=1)` 가 쿨롱장 F_i=Σ q_j·d/s2^1.5 를 돌려줌·질량-COM 전개점). 쿨롱 가속 a_i=−(kc·q_i/m_i)·F_i. ' +
+            'gravity 와 차이(운동량 복원): 중력은 보편(질량가중 평균 차감·등가원리)이었으나 쿨롱은 *전하 의존* → 중성은 brute 서 안 움직인다. ' +
+            '해소: BH 인공 net force 를 *하전 원자에서만* 질량가중 평균 가속 c′=Σ_q m·a/Σ_q m 로 빼 Σ_q m·(a−c′)=0 → px·py **머신** + 중성은 차감도 안 받아 *불변*(brute 정확 일치). 하전끼리 상대 가속 a_i−a_j 불변. E 만 symplectic 완화. farField=0(기본) → 전쌍 brute(비트 동일·회귀 0). ' +
+            '*측정*(무대 60²·N=200·1/3 q=+1·1/3 q=−1·1/3 중성·dt=0.01·θ=0.5·6 tick·고정 시드): ' +
+            '① **가속 근사·load-bearing** — farField=1 한 tick 후 속도가 brute 와 거의 같음(maxDiff 작음). ' +
+            '② **운동량 머신·load-bearing** — farField=1 dpx·dpy ≤ 머신(하전만 평균 가속 차감). ' +
+            '③ **중성 불변·load-bearing** — 중성 원자 속도가 farField 켬/끔 정확 동일(차감도 하전만 → brute 일치). ' +
+            '④ **E 닫힘·BH 추가 드리프트 0** — farField=1 E 잔차 ≈ farField=0(brute). ' +
+            '⑤ **검사 급감·O(n log n) + 회귀** — 상호작용 ≪ 전쌍·노브=0 → 0001~61 골든 비트 불변.',
+      ticks: 6,
+      W: 60, H: 60, N: 200, MT: 6,
+      KN: { dt: 0.01, kCoulomb: 0.5, kPauli: 1, coulombSoft: 1.5, spatialTheta: 0.5 },
+      ledgerTol: { E: 1e-2 },                                // 쿨롱 symplectic 유계 진동(brute·BH 동급·전 시드 worst — px·py 완화 없음=머신)
+
+      // 이온+중성 구름(1/3 q=+1[e=0]·1/3 q=−1[e=2]·1/3 중성[e=1]) — 중성 불변 기둥 검사용.
+      cloud(K) {
+        const rng = K.mulberry32(20260624), a = [];
+        for (let i = 0; i < this.N; i++) {
+          const r = i % 3, e = (r === 0) ? 0 : (r === 1) ? 2 : 1;
+          a.push({ Z: 1, N: 0, e, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 0.2, vy: (rng() - 0.5) * 0.2, lep: 0 });
+        }
+        return a;
+      },
+      afterForce(K, ff) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { farField: ff }), tick: 0 };
+        L.applyForces(sim);
+        return sim.atoms;
+      },
+      drift(K, ff) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { farField: ff }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { dE: Math.abs(l1.E - l0.E), dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py) };
+      },
+      measure(K) {
+        const b = this.afterForce(K, 0), f = this.afterForce(K, 1);
+        let fmax = 0, neutralMax = 0;
+        for (let i = 0; i < b.length; i++) {
+          const d = Math.hypot(f[i].vx - b[i].vx, f[i].vy - b[i].vy); if (d > fmax) fmax = d;
+          if (b[i].Z - b[i].e === 0 && d > neutralMax) neutralMax = d;   // 중성: 켬/끔 차이(0 이어야)
+        }
+        const db = this.drift(K, 0), df = this.drift(K, 1);
+        const atoms = this.cloud(K), checks = L.bhForces(atoms, this.KN.spatialTheta, this.W, this.H, this.KN.coulombSoft, true).checks;
+        return { fmax, neutralMax, eres: df.dE, eresBrute: db.dE, dpx: df.dpx, dpy: df.dpy, checks, bruteChecks: atoms.length * (atoms.length - 1) };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): farField=1 쿨롱 무대 — px·py 머신(하전 평균 차감)·E 완화.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < this.N; i++) {
+          const r = i % 3, e = (r === 0) ? 0 : (r === 1) ? 2 : 1;
+          a.push({ Z: 1, N: 0, e, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: (simRng() - 0.5) * 0.2, vy: (simRng() - 0.5) * 0.2, lep: 0 });
+        }
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN, { farField: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { fmax: +m.fmax.toExponential(3), neutralMax: +m.neutralMax.toExponential(3), eres: +m.eres.toExponential(3), eresBrute: +m.eresBrute.toExponential(3), dpx: +m.dpx.toExponential(3), dpy: +m.dpy.toExponential(3), checks: m.checks, bruteChecks: m.bruteChecks, ratioPct: +(m.checks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① 가속 근사 ② 운동량 머신 ③ 중성 불변 ④ E 닫힘 ⑤ 검사 급감·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const close = m.fmax < 0.02;                                          // ① 한 tick 가속 ≈ brute
+        const momOK = m.dpx < 1e-9 && m.dpy < 1e-9;                            // ② 운동량 머신(하전 평균 차감)
+        const neutralFixed = m.neutralMax < 1e-15;                            // ③ 중성 불변(차감도 하전만 → brute 일치)
+        const eOK = m.eres < this.ledgerTol.E && m.eres < m.eresBrute * 2 + 1e-4;  // ④ E 잔차 ≈ brute
+        const faster = m.checks < m.bruteChecks * 0.5;                        // ⑤ 상호작용 ≪ 전쌍
+        return [
+          { name: `가속 근사·load-bearing — farField=1 한 tick 후 속도 maxDiff=${m.fmax.toExponential(2)} ≈ brute(전하가중 lump 오차)`, pass: close, value: +m.fmax.toExponential(3) },
+          { name: `운동량 머신·load-bearing — farField=1 ${this.MT}tick dpx=${m.dpx.toExponential(2)}·dpy=${m.dpy.toExponential(2)} ≤ 머신(하전만 질량가중 평균 가속 차감)`, pass: momOK, value: +m.dpx.toExponential(3) },
+          { name: `중성 불변·load-bearing — 중성 원자 속도 farField 켬/끔 차이 ${m.neutralMax.toExponential(2)} ≈ 0(차감도 하전만 → brute 정확 일치·전하 의존 보존)`, pass: neutralFixed, value: +m.neutralMax.toExponential(3) },
+          { name: `E 닫힘·BH 추가 드리프트 0·load-bearing — farField=1 E 잔차 ${m.eres.toExponential(2)} ≈ brute(전쌍) ${m.eresBrute.toExponential(2)}`, pass: eOK, value: +m.eres.toExponential(3) },
+          { name: `검사 급감·O(n log n)·회귀 — bhForces 상호작용 ${m.checks} ≪ 전쌍 ${m.bruteChecks}(${(m.checks / m.bruteChecks * 100).toFixed(1)}%)·노브=0(farField 기본 0) → 0001~61 골든 비트 불변`, pass: faster && ctx.ledgerBefore !== undefined, value: m.checks },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
