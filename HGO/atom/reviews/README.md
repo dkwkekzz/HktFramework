@@ -25,7 +25,7 @@
 | A 무대 | [phase-A-stage.md](phase-A-stage.md) | 🟢 닫힘(0001) |
 | B 빛 | [phase-B-light.md](phase-B-light.md) | 🟢 닫힘(0002~0008) |
 | C 화학 | [phase-C-chemistry.md](phase-C-chemistry.md) | 🟢 닫힘(0009~0027 결합 기하) |
-| D 핵 | [phase-D-nuclear.md](phase-D-nuclear.md) | 🟢 닫힘(0031~0050 변환·안정성·발열·시계열·율 두 방향·상대론) |
+| D 핵 | [phase-D-nuclear.md](phase-D-nuclear.md) | 🟢 닫힘(0031~0053 변환·안정성·발열·시계열·율 두 방향·상대론·**철 봉우리 완성**) |
 | E 별 | _(중력 씨앗 0028~0030 만 — 미완결, 보류)_ | ⬜ |
 
 ## 1. 묶음 감사 인덱스 (한 줄/묶음)
