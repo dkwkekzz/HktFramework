@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, bondAngleVSEPR: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, bondMorseOrderNL: 0, bondMorseAlphaPair: 0, bondReqPair: 0, bondKindPair: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, disperseAutoOtsu: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8, kCoreHarvest: 0, harvestDeg: 8 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, bondAngleVSEPR: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, bondMorseOrderNL: 0, bondMorseAlphaPair: 0, bondReqPair: 0, bondKindPair: 0, bondBadger: 0, bondAlphaD: 0, bondAngleLonePair: 0, bondLonePairOrder: 0, bondAngleKind: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, disperseAutoOtsu: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8, kCoreHarvest: 0, harvestDeg: 8 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -846,11 +846,13 @@
     const vsepr = sim.knobs.bondAngleVSEPR;              // step-0099 배위수별 θ₀(=0 → 단일 t0base·비트 동일·회귀 0)
     const atoms = sim.atoms, W = sim.W, H = sim.H;
     // 각 원자에 모인 이웃(결합 상대) 목록을 측정한다(연결 성분의 각도판 — author 분기 0).
-    const nbr = new Map();
+    const nbr = new Map(), ordSum = new Map();              // step-0104 ordSum: 중심별 Σ(결합 차수) — 고립쌍 전자 회계용
     for (const e of sim.bonds) {
       if (!nbr.has(e[0])) nbr.set(e[0], []);
       if (!nbr.has(e[1])) nbr.set(e[1], []);
       nbr.get(e[0]).push(e[1]); nbr.get(e[1]).push(e[0]);
+      const o = e[3] || 1;
+      ordSum.set(e[0], (ordSum.get(e[0]) || 0) + o); ordSum.set(e[1], (ordSum.get(e[1]) || 0) + o);
     }
     for (const [ci, ns] of nbr) {
       if (ns.length < 2) continue;                        // 결합 1개 이하 → 각도 없음
@@ -858,7 +860,30 @@
       // step-0099 VSEPR: 목표각 θ₀ 를 *중심 원자의 배위수*(ns.length — 측정된 결합 수)로 — 전자쌍 반발이 결합을 최대한 벌린다.
       //   2배위 180°(선형)·3배위 120°(평면삼각)·4배위 109.47°(정사면체 acos(−⅓))·5+ 90°(토이). "물 104.5°" 같은 분자별 각 author 0 —
       //   배위수의 함수 하나가 모든 분자 각을 정한다(연결 성분 측정의 각도판). 게이트 0 → 단일 t0base(0027 토이)·비트 동일·회귀 0.
-      const t0 = vsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
+      // step-0103 고립 전자쌍 각 압축 — bondAngleLonePair(=0 → 이 분기 건너뜀·0099 비트 동일·회귀 0) 면 *전자 도메인 수*(결합 + 고립쌍)로 θ₀:
+      //   배위수(결합 수)만 보던 0099 의 맹점 — 2결합이라도 고립쌍이 있으면 *선형(180°)이 아니다*. 입체수 SN = 결합수 + LP(K.valenceElectrons 로 측정),
+      //   기하는 SN 의 함수(SN2 180·SN3 120·SN4 109.47·SN5+ 90), 고립쌍이 결합각을 *압축*(LP·노브 rad). 예: 물 O(2결합·LP2·SN4)→109.47−2·comp≈104.5°(굽음).
+      //   "물 104.5°" 분기 0 — e(전자 수)와 결합 위상서 창발. 대조: Be(2결합·LP0·SN2)→180°(선형 유지) = 같은 배위수라도 고립쌍이 각을 가름.
+      // step-0104 결합 차수 회계 — bondLonePairOrder(=0 → 결합 전자=ns.length·0103 비트 동일·회귀 0) 면 결합 전자수를 Σ(차수)로:
+      //   고립쌍 LP = ⌊(valence − 결합전자)/2⌋ 의 *결합전자* 를 이웃 수(ns.length)가 아닌 *차수 합*으로. 이중결합은 중심 전자 2개를 쓴다(σ+π).
+      //   도메인(SN 골격) 은 여전히 σ 수(ns.length — VSEPR 은 다중결합을 *한 도메인*으로 셈). 예: CO₂ C(2 이중결합·Σ차수4·LP0·SN2)→180° 선형.
+      //   0103(차수 무시)은 Σ차수=ns.length 로 봐 CO₂ LP1·SN3·120°(굽음·틀림). 단일결합(차수1)만이면 Σ차수=ns.length → 0103 비트 동일.
+      // step-0105 각도 종류 통합 게이트 — bondAngleKind(=0 → 아래 셋 개별 노브만·0104 비트 동일·회귀 0) 켜면 한 토글로 *현실적 각 모델 셋 동시*:
+      //   VSEPR 배위수(0099) + 고립쌍 압축(0103·통합 게이트가 압축값 운반) + 차수 회계(0104). kind ≡ (bondAngleVSEPR=1, bondAngleLonePair=kind, bondLonePairOrder=1).
+      //   새 물리 0 — 0100(D·α·r_eq 통합)의 각도판(일관성/편의). OR 배선 → 게이트 0 이면 셋 다 개별 노브로 환원(비트 동일).
+      const kind = sim.knobs.bondAngleKind;
+      const lpComp = sim.knobs.bondAngleLonePair || kind;   // 고립쌍 압축값(rad·통합 게이트가 운반)
+      const useVsepr = vsepr || kind, useOrder = sim.knobs.bondLonePairOrder || kind;
+      let t0;
+      if (lpComp) {
+        const v = K.valenceElectrons(ai.e);
+        const bondElec = useOrder ? (ordSum.get(ci) || ns.length) : ns.length;
+        const lp = Math.max(0, Math.floor((v - bondElec) / 2)), sn = ns.length + lp;
+        const t0sn = sn <= 2 ? Math.PI : sn === 3 ? 2 * Math.PI / 3 : sn === 4 ? Math.acos(-1 / 3) : Math.PI / 2;
+        t0 = t0sn - lp * lpComp;                            // 고립쌍 압축(LP개·압축값 rad)
+      } else {
+        t0 = useVsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
+      }
       // 같은 중심에 모인 모든 이웃쌍 (j<k) 에 각도 복원력
       for (let p = 0; p < ns.length; p++) for (let q = p + 1; q < ns.length; q++) {
         const aj = atoms[ns[p]], ak = atoms[ns[q]];

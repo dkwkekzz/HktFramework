@@ -225,6 +225,24 @@
       const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
       alpha *= Math.sqrt(za * zb);
     }
+    // step-0101 Badger 규칙 축간 상관 — bondBadger(=0 → Math.pow(_,0)=1 → α 불변·회귀 0) 면 α 를 *결과 r_eq 의 함수*로 묶는다:
+    //   긴 결합일수록 *부드럽다*(실측 Badger 규칙 k_force ∝ 1/(r_eq−d)³). Morse k=2Dα² 에서 α ∝ r_eq^(−p) 면 k ∝ r_eq^(−2p).
+    //   α_eff *= (bondReq_base / r_eq_eff)^bondBadger. 0094 폭축(α)과 0095 길이축(r_eq)은 0100 까지 *독립* — 이 항이 둘을 *상관*(합집합 아닌 연결).
+    //   r_eq=base(편차 0·예: H–H Z1) 결합은 (base/base)^p=1 → 무영향 = Badger 는 *길이 편차에만* 작용(전역 스케일 아님). author 분기 0(r_eq 의 멱함수).
+    if (knobs.bondBadger) {
+      const reqBase = (knobs.bondReq) || 4;
+      const reqEff = morseReq(knobs, a, b);                // 0095 종류별 r_eq(게이트 off 면 base → 인자 1·회귀 0)
+      if (reqEff > 0) alpha *= Math.pow(reqBase / reqEff, knobs.bondBadger);
+    }
+    // step-0102 D↔α 상관(둘째 Badger 축) — bondAlphaD(=0 → Math.pow(_,0)=1 → α 불변·회귀 0) 면 α 를 *깊이 D 의 함수*로 묶는다:
+    //   깊은(강한) 결합일수록 *가파르다*(실측: 결합 에너지↑ ⇒ 힘 상수↑). α_eff *= (D_eff/D_base)^bondAlphaD.
+    //   0101 이 α↔r_eq(길이)를 묶었다면 여기선 α↔D(깊이) — 셋째 화학 축까지 α 가 *받게* 됨(k=2Dα² 가 D·α 양쪽서 강성). D_eff=base(깊이 편차 0·예: H–H) 면 인자 1 → 무영향.
+    //   *주의*: morseD 를 order=1 로 호출(이 함수는 결합 간선 차수 e[3] 를 못 봄) — 차수별 깊이→α 연계는 후속. author 분기 0(D 의 멱함수).
+    if (knobs.bondAlphaD) {
+      const Dbase = (knobs.bondMorseD) || 0;
+      const Deff = morseD(knobs, a, b, 1);                 // 0089 종류별 깊이(게이트 off 면 Dbase → 인자 1·회귀 0)
+      if (Dbase > 0 && Deff > 0) alpha *= Math.pow(Deff / Dbase, knobs.bondAlphaD);
+    }
     return alpha;
   }
 
@@ -239,6 +257,14 @@
       req *= (Math.cbrt(za) + Math.cbrt(zb)) / 2;
     }
     return req;
+  }
+
+  // step-0103 원자가 전자 수(valence) — 외각(최근접 닫힌 껍질 아래) 전자 수. 고립 전자쌍 회계의 입력.
+  //   v = e − (e 미만 최대 닫힌 껍질 전자수). 닫힌 껍질 [2,10,18,36](He·Ne·Ar·Kr). 예: O(e8)→8−2=6·C(e6)→4·N(e7)→5·Be(e4)→2·H(e1)→1.
+  //   고립쌍 LP = ⌊(v − 결합수)/2⌋(공유결합 1개당 외각 전자 1개 기여, 남은 외각 전자가 쌍 지음). author 분기 0 — e 와 결합 위상의 함수.
+  function valenceElectrons(e) {
+    let prev = 0; for (const m of [2, 10, 18, 36]) { if (m < e) prev = m; else break; }
+    return Math.max(0, (e | 0) - prev);
   }
 
   function bondSpringPE(sim) {
@@ -268,17 +294,32 @@
     const t0base = sim.knobs.bondAngleTarget;
     const vsepr = sim.knobs.bondAngleVSEPR;              // step-0099 배위수별 θ₀(=0 → 단일 t0base·PE 불변·회귀 0) — 힘(bondAngle)과 같은 θ₀ 라야 E 닫힘
     const A = sim.atoms, W = sim.W, H = sim.H;
-    const nbr = new Map();
+    const nbr = new Map(), ordSum = new Map();              // step-0104 ordSum: 중심별 Σ(결합 차수)
     for (const e of sim.bonds) {
       if (!nbr.has(e[0])) nbr.set(e[0], []);
       if (!nbr.has(e[1])) nbr.set(e[1], []);
       nbr.get(e[0]).push(e[1]); nbr.get(e[1]).push(e[0]);
+      const o = e[3] || 1;
+      ordSum.set(e[0], (ordSum.get(e[0]) || 0) + o); ordSum.set(e[1], (ordSum.get(e[1]) || 0) + o);
     }
     let u = 0;
     for (const [ci, ns] of nbr) {
       if (ns.length < 2) continue;
       const ai = A[ci];
-      const t0 = vsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
+      // step-0103 고립쌍 θ₀ + 0104 차수 회계 + 0105 통합 게이트 bondAngleKind — 힘(bondAngle)과 *같은* 분기라야 E 닫힘(게이트 0 → 0099/0103/0104 θ₀·회귀 0).
+      const kind = sim.knobs.bondAngleKind;
+      const lpComp = sim.knobs.bondAngleLonePair || kind;
+      const useVsepr = vsepr || kind, useOrder = sim.knobs.bondLonePairOrder || kind;
+      let t0;
+      if (lpComp) {
+        const v = valenceElectrons(ai.e);
+        const bondElec = useOrder ? (ordSum.get(ci) || ns.length) : ns.length;
+        const lp = Math.max(0, Math.floor((v - bondElec) / 2)), sn = ns.length + lp;
+        const t0sn = sn <= 2 ? Math.PI : sn === 3 ? 2 * Math.PI / 3 : sn === 4 ? Math.acos(-1 / 3) : Math.PI / 2;
+        t0 = t0sn - lp * lpComp;
+      } else {
+        t0 = useVsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
+      }
       for (let p = 0; p < ns.length; p++) for (let q = p + 1; q < ns.length; q++) {
         const aj = A[ns[p]], ak = A[ns[q]];
         const axx = minImage(aj.rx - ai.rx, W), axy = minImage(aj.ry - ai.ry, H);
@@ -388,5 +429,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, morseD, morseAlpha, morseReq, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, morseD, morseAlpha, morseReq, valenceElectrons, ledger, minImage, hashState };
 });
