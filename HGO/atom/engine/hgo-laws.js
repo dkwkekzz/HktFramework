@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -1168,21 +1168,32 @@
     const zmin = sim.knobs.disperseZmin || 0;             // 0 → 모든 가스가 복사압을 받음(기본). >0 → 무거운 핵(Z≥zmin)만(선택)
     // step-0085 *층상 핵합성* 게이트 disperseOuterDeg(=0 → 전원·0084 비트 동일·회귀 0): >0 면 *저밀도 외곽*(국소 이웃 수 ≤ deg)만 분다.
     //   고밀도 코어 산물은 *안 불어* → 코어가 무거운 원소를 *보존*(천정 maxZ 유지)·겉껍질만 별풍(진짜 별의 층상 구조). coolOuter(0083)의 밀도 게이트와 동형.
+    // step-0087 *동적 층상 임계* 게이트 disperseAutoDeg∈(0,1](=0 → 수동 disperseOuterDeg·0085/0086 비트 동일·회귀 0):
+    //   >0 면 코어/겉 경계를 *밀도 분포의 분위수*로 자동 정한다 — 분산 후보(Z≥zmin)의 deg 분포에서 q=disperseAutoDeg 분위수를 임계로(0.5=중앙값).
+    //   별이 진화하며 밀도 분포가 바뀌어도 경계가 *따라간다*(scale-free) → 0085 의 수동 임계 brittleness(고밀도선 odeg=8 이 전원 코어 분류→별풍 0) 해소.
     const odeg = sim.knobs.disperseOuterDeg || 0;
-    let deg = null;
-    if (odeg > 0) {                                       // 밀도 한정 켤 때만 국소 이웃 수 1패스(브루트 O(n²)·측정 scene 규모 충분)
+    const autoDeg = sim.knobs.disperseAutoDeg || 0;
+    let deg = null, odegEff = odeg;
+    if (odeg > 0 || autoDeg > 0) {                        // 밀도 한정(수동 or 자동) 켤 때만 국소 이웃 수 1패스(브루트 O(n²)·측정 scene 규모 충분)
       const dr = sim.knobs.coolR || 6, dr2 = dr * dr, A = sim.atoms, na = A.length;
       deg = new Int32Array(na);
       for (let i = 0; i < na; i++) { const ai = A[i];
         for (let j = i + 1; j < na; j++) { const bj = A[j];
           const dx = K.minImage(bj.rx - ai.rx, sim.W), dy = K.minImage(bj.ry - ai.ry, sim.H);
           if (dx * dx + dy * dy <= dr2) { deg[i]++; deg[j]++; } } }
+      if (autoDeg > 0) {                                  // 자동 임계: 분산 후보(Z≥zmin)의 deg 분포 q-분위수 → 코어/겉 경계(밀도 적응)
+        const vals = [];
+        for (let i = 0; i < na; i++) if ((A[i].Z | 0) >= zmin) vals.push(deg[i]);
+        if (vals.length) { vals.sort((a, b) => a - b);
+          const q = autoDeg > 1 ? 1 : autoDeg;            // (0,1] 클램프
+          odegEff = vals[Math.min(vals.length - 1, Math.floor(q * (vals.length - 1)))]; }
+      }
     }
     const atomsArr = sim.atoms;
     for (let idx = 0; idx < atomsArr.length; idx++) {
       const a = atomsArr[idx];
       if ((a.Z | 0) < zmin) continue;                     // 선택 게이트(기본 zmin=0 → 전원)
-      if (deg && deg[idx] > odeg) continue;               // 층상 게이트: 고밀도 코어 산물은 안 붐(천정 보존)
+      if (deg && deg[idx] > odegEff) continue;            // 층상 게이트: 고밀도 코어 산물은 안 붐(천정 보존·odegEff=수동 odeg or 자동 분위수)
       if (bath.E <= 0) break;                             // 바스 고갈 — 더 못 흩음(E 음수 방지)
       if (rng() >= k) continue;                           // 복사압 확률 kDisperse
       const draw = Math.min(eps, bath.E);                 // 바스 잔량 한도 내 인출(흡열 문턱 정신)
