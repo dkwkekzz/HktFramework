@@ -198,13 +198,16 @@
     const ks = (sim.knobs && sim.knobs.kBondSpring) || 0;
     if (!ks || !sim.bonds || !sim.bonds.length) return 0;
     const req = sim.knobs.bondReq || 4;
+    const morse = sim.knobs.bondMorse || 0;              // Morse PE(step-0074, 0 → 조화·과거 비트 동일)
+    const D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;
     const A = sim.atoms;
     let u = 0;
     for (const e of sim.bonds) {
       const a = A[e[0]], b = A[e[1]];
       const dx = minImage(b.rx - a.rx, sim.W), dy = minImage(b.ry - a.ry, sim.H);
-      const dr = Math.sqrt(dx * dx + dy * dy) - req;
-      u += 0.5 * ks * dr * dr;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (morse) { const w = 1 - Math.exp(-alpha * (r - req)); u += D * w * w; }  // Morse U=D(1−e^{−α(r−r₀)})²
+      else { const dr = r - req; u += 0.5 * ks * dr * dr; }                       // 조화 U=½kS(r−r₀)²
     }
     return u;
   }

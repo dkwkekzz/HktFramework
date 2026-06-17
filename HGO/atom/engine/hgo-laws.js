@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -697,12 +697,18 @@
   //   기질 재사용: coulomb·repulse·pauli·vdw 와 동일 *반음시(symplectic)* 적분(v→r) → 총 E(KE+½kS(r−r_eq)²) 유계 보존(E 만 완화).
   //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 운동량 *머신* 보존. PE 항 U_spring≥0 가법(kBondSpring 게이트). Q·B·L·x 불변.
   //   국소: *그 결합의 두 원자*만(간선 = 그 둘의 위상). 결정론: 위치 결정 → rng 불필요. kBondSpring=0 → early-return = 회귀 0.
+  // ⊕ step-0074 게이트 bondMorse(=0 → 조화 bondSpring·회귀 0): 조화 우물 U=½kS(r−r₀)² 은 *무한 깊이* — 결합이 절대 안 끊긴다
+  //   (아무리 가열해도 r₀ 로 복귀)·대칭이라 열팽창 0. 실제 결합은 Morse U=D(1−e^{−α(r−r₀)})² — *유한* 깊이 D(해리에너지)서 끊기고
+  //   비대칭(밂쪽 가파름·당김쪽 완만 → 열팽창). bondMorse=1 이면 fmag=dU/dr=2Dα·x(1−x)(x=e^{−α(r−r₀)}): r>r₀ → x<1 인력·
+  //   r≫r₀ → x→0 → fmag→0(해리·복원력 소멸)·r<r₀ → x>1 반발·r=r₀ → fmag=0(평형). bondMorse=0 → 조화 fmag=ks(r−r₀)(과거 비트).
   function bondSpring(sim) {
     const ks = sim.knobs.kBondSpring;
     if (!ks) return;                 // 노브=0 → early-return = 회귀 0 (결합 스프링 꺼짐 → step-0025 비트)
     if (!sim.bonds || !sim.bonds.length) return;         // 결합(작용 대상 간선) 없음
     const dt = sim.knobs.dt;
-    const req = sim.knobs.bondReq || 4;                  // 평형 결합 길이 r_eq
+    const req = sim.knobs.bondReq || 4;                  // 평형 결합 길이 r_eq=r₀
+    const morse = sim.knobs.bondMorse || 0;              // 비조화 Morse 게이트(0 → 조화·회귀 0)
+    const D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;  // 해리에너지 D·우물 폭 α
     const atoms = sim.atoms, n = atoms.length;
     for (const e of sim.bonds) {
       const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
@@ -710,8 +716,10 @@
       const r = Math.sqrt(dx * dx + dy * dy);
       if (r === 0) continue;                              // 완전 겹침 가드(방향 미정의)
       const nx = dx / r, ny = dy / r;                     // a→b 단위 벡터(복원 방향)
-      // U=½kS(r−req)² → F_on_a = −∂U/∂r_a = +kS·(r−req)·n (r>req → +n: b 쪽 당김=인력 / r<req → −n: 밂=반발)
-      const fmag = ks * (r - req);
+      // U=½kS(r−req)² → F_on_a = +kS·(r−req)·n (조화) / Morse U=D(1−x)²(x=e^{−α(r−r₀)}) → fmag=dU/dr=2Dα·x(1−x)
+      const fmag = morse
+        ? (function () { const x = Math.exp(-alpha * (r - req)); return 2 * D * alpha * x * (1 - x); })()
+        : ks * (r - req);
       const fx = fmag * nx, fy = fmag * ny;               // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
       const ma = K.mass(a), mb = K.mass(b);
       a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;     // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
@@ -938,8 +946,29 @@
       }
     }
     if (fusedAny) {                                         // 죽은 원자 압축(개수 감소 — 합체 측정)
+      // ⊕ step-0073 게이트 fuseRebond(#D·=0 → 옛 거동·회귀 0): 압축이 sim.atoms 인덱스를 *당기는데* bonds 간선은 *원자 인덱스*를
+      //   저장 → 결합 활성 무대서 융합을 켜면 간선이 어긋난다(핵 변환과 화학 결합을 *한 무대*서 못 굴림). =1 이면 압축과 함께
+      //   ⓐ 소비된 원자에 닿은 결합은 끊고(핵반응이 화학 결합 파괴·per-bond E e[2]를 바스로 환원 → E 닫힘) ⓑ 살아남은 결합은
+      //   *새 인덱스*로 재배선한다. remap 은 단조(인덱스 순 push) → i<j 순서·키 i*n+j 규약 보존. 기존 fuse 장면(0033·0064·0065·0068·
+      //   0070·0072)은 bonds 없어 이 분기 무관 → 비트 불변(=0 이든 =1 이든 회귀 0). bondKeys 는 새 n 으로 재생성(다음 tick bond() 정합).
+      const remap = new Array(n).fill(-1);
       const live = [];
-      for (let i = 0; i < n; i++) if (!dead[i]) live.push(atoms[i]);
+      for (let i = 0; i < n; i++) if (!dead[i]) { remap[i] = live.length; live.push(atoms[i]); }
+      if (sim.knobs.fuseRebond && sim.bonds && sim.bonds.length) {
+        const kept = [];
+        for (const e of sim.bonds) {
+          const ni = remap[e[0]], nj = remap[e[1]];
+          if (ni < 0 || nj < 0) {                            // 한 끝이 융합에 소비됨 → 결합 끊김(핵반응이 결합 파괴)
+            const Eb = e[2] || 0;                            // per-bond E(bondLocalE) → 바스로 환원(전역 sim.bondE 와 동기·E 닫힘)
+            if (Eb) { if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 }); bath.E += Eb; sim.bondE = (sim.bondE || 0) - Eb; }
+            continue;
+          }
+          const ne = e.slice(); ne[0] = ni; ne[1] = nj; kept.push(ne);  // 살아남은 결합 재배선(나머지 슬롯 E·차수 보존)
+        }
+        sim.bonds = kept;
+        const nn = live.length; sim.bondKeys = new Set();
+        for (const e of kept) sim.bondKeys.add(e[0] * nn + e[1]);       // 새 n 으로 키 재생성(bond() doPair 키 규약 정합)
+      }
       sim.atoms = live;
     }
     sim.fuseActive = 1;                                     // 진단 플래그(hash 미참여)
@@ -1046,9 +1075,82 @@
     sim.decayActive = 1;                                   // 진단 플래그(hash 미참여)
   }
 
+  // disperse 은 *별 죽음·분산* — SPINE §4 의 *느린 순환*을 닫는 마지막 칸(중력이 모은 가스를 *되흩는* 힘).
+  //   지금까지 Phase E 는 *모으기만* 했다: gravity(0028)가 구름을 끌어모으고 fuse(0033~)가 핵합성으로 무거운 원소를 쌓았다(빠른 비가역 화살표·§4).
+  //   하지만 §4 의 순환은 *되돌림*을 요구한다 — "무거운 원소는 항성 죽음·분산으로 아주 느리게 흩어져 다음 별의 재료가 된다". 그 *흩는* 힘이 없었다.
+  //   물리: 별 내부 융합이 쌓은 *복사 에너지*(sim.escaped.E — fuse 가 keRel+ΔB_fus 를 park 한 바스)가 가스를 다시 *밀어낸다*(복사압·항성풍·초신성).
+  //     별의 죽음은 author 한 사건이 아니라 *모은 에너지가 임계를 넘으면 스스로 터지는* 창발이다(척추 체크 ①②). 연료=바스 E(융합 산물).
+  //   기질 재사용: reheat(0008)가 바스 E→들뜸이었다면, disperse 는 바스 E→*운동 에너지*(등방 반동). decay(0031)의 등방 KE 반동 + 0032 의
+  //     −Δp 바스 적재(운동량 부기)를 그대로 물려받는다 — 한 원자가 바스서 ε 만큼 KE 를 얻고(등방·시드 방향), 방출된 복사 입자가 나르는 −Δp 는 바스에.
+  //   닫힌 장부: E = 바스서 인출한 ε 가 원자 KE 로(바스 E−=ε·KE+=ε) → 총 E *정확* 보존(이중계상 0). 운동량 = 원자 +Δp·바스 −Δp → 총 px·py *정확* 보존(0032 동형).
+  //     Q·B·L·x·Z·N 불변(순수 운동량·에너지 재분배 — 핵 변환 없음). 바스 E 고갈(≤0)이면 멈춤(무에서 빌리지 않음 — 0051 흡열 문턱 정신).
+  //   비가역·순환(SPINE §4): 모은 가스를 *흩음* — 빠른 모음(중력)의 *반대 방향*. fuse(빠른 비가역 모음)↔disperse(느린 되흩음)가 §4 척도 분리 순환을 닫는다.
+  //   국소: *그 원자 혼자*로 판정(이웃·전역 조율자 0 — 바스는 0007~ 의 전역 복사 reservoir·#1 기존 한계 disclosed). 결정론: 확률·방향 sim.rng(시드 의사난수)만.
+  //   게이트 kDisperse=0 → early-return = 회귀 0(분산 꺼짐 → 직전 비트).
+  function disperse(sim) {
+    const k = sim.knobs.kDisperse;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (분산 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 의사난수 없으면 방향·확률 불가(Math.random 금지 — 결정론)
+    const bath = sim.escaped;
+    if (!bath || bath.E <= 0) return;                     // 복사 바스 E 가 없으면 흩을 연료 0(무에서 빌리지 않음)
+    const eps = sim.knobs.disperseE || 1;                 // 한 번에 바스서 인출해 운동 KE 로 바꾸는 복사 에너지 양자
+    const zmin = sim.knobs.disperseZmin || 0;             // 0 → 모든 가스가 복사압을 받음(기본). >0 → 무거운 핵(Z≥zmin)만(선택)
+    for (const a of sim.atoms) {
+      if ((a.Z | 0) < zmin) continue;                     // 선택 게이트(기본 zmin=0 → 전원)
+      if (bath.E <= 0) break;                             // 바스 고갈 — 더 못 흩음(E 음수 방지)
+      if (rng() >= k) continue;                           // 복사압 확률 kDisperse
+      const draw = Math.min(eps, bath.E);                 // 바스 잔량 한도 내 인출(흡열 문턱 정신)
+      // 등방 반동: ½m·v'² = ½m·v² + draw 를 풀어 KE 를 정확히 draw 만큼 올린다(방향은 시드 — decay 0031 동형).
+      const m = K.mass(a);
+      const vx0 = a.vx, vy0 = a.vy;
+      const ke0 = 0.5 * m * (vx0 * vx0 + vy0 * vy0);
+      const sp1 = Math.sqrt(2 * (ke0 + draw) / m);        // 새 속력(KE 가 draw 만큼 큼)
+      const th = rng() * 2 * Math.PI;                     // 등방 방향(시드 — 결정론)
+      a.vx = sp1 * Math.cos(th); a.vy = sp1 * Math.sin(th);
+      bath.E -= draw;                                     // 바스 E → 원자 KE (총 E 정확 보존)
+      bath.px += -(m * (a.vx - vx0));                     // 방출 복사 입자가 나르는 −Δp → 바스(총 px·py 머신·0032 동형)
+      bath.py += -(m * (a.vy - vy0));
+      bath.count = (bath.count | 0) + 1;
+    }
+    sim.disperseActive = 1;                               // 진단 플래그(hash 미참여)
+  }
+
+  // bondBreak 은 *거리형 결합 해리* — Morse(0074)를 위상까지 완성한다. Morse 우물은 유한 깊이라 r≫r₀ 면 복원력→0(0074) →
+  //   가열된 결합쌍이 멀어져도 *간선(sim.bonds)은 남아* "유령 결합"이 된다(힘은 0 이나 위상상 여전히 분자). unbond(0016)은 *충돌 KE* 기준
+  //   이라 천천히 벌어지는 Morse 해리를 못 떼낸다. bondBreak 은 *거리* 기준: r > unbondDist 면 간선을 떼어 분자(연결 성분)가 *실제로 쪼개진다*.
+  //   닫힌 장부(E): 간선 제거 시 ⓐ 그 결합의 PE(bondSpringPE/Morse U(r) — ledger 가 sim.bonds 로 합산하던 항)가 사라지고 ⓑ 흡수 KE 저장고
+  //     e[2](bondLocalE) 도 떼낸다 → 둘 다 복사 바스(sim.escaped.E)로 환원(결합 에너지가 빛으로 방출). ΔE = −U(r)−e[2] + (U(r)+e[2]) = 0 (정확 닫힘).
+  //     속도 불변 → 운동량 *정확* 보존(머신). Q·B·L·x·Z·N 불변(순수 위상 편집 + E 부기).
+  //   국소: *그 결합의 두 원자*만(간선 = 그 둘의 위상). 결정론: 위치 결정 → rng 불필요. 게이트 unbondDist=0 → early-return = 회귀 0.
+  function bondBreak(sim) {
+    const rd = sim.knobs.unbondDist;
+    if (!rd) return;                 // 노브=0 → early-return = 회귀 0 (거리 해리 꺼짐 → 직전 비트)
+    if (!sim.bonds || !sim.bonds.length) return;         // 떼낼 결합 없음
+    const atoms = sim.atoms, n = atoms.length, rd2 = rd * rd;
+    const morse = sim.knobs.bondMorse || 0, D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;
+    const ks = sim.knobs.kBondSpring || 0, req = sim.knobs.bondReq || 4;
+    const kept = []; let broke = 0, bath = null;
+    for (const e of sim.bonds) {
+      const a = atoms[e[0]], b = atoms[e[1]];
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+      const r2 = dx * dx + dy * dy;
+      if (r2 <= rd2) { kept.push(e); continue; }          // 임계 이내 → 결합 유지
+      const r = Math.sqrt(r2);                            // 거리 초과 → 해리
+      // 떼내는 결합의 PE U(r)(ledger 가 간선 제거로 잃는 항) + 흡수 KE e[2] 를 바스로 환원 → 총 E 정확 닫힘.
+      const w = morse ? (1 - Math.exp(-alpha * (r - req))) : 0;
+      const Upe = morse ? D * w * w : 0.5 * ks * (r - req) * (r - req);
+      const Eb = (e[2] || 0) + Upe;
+      if (Eb) { if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 }); bath.E += Eb; sim.bondE = (sim.bondE || 0) - (e[2] || 0); bath.count = (bath.count | 0) + 1; }
+      if (sim.bondKeys) sim.bondKeys.delete(e[0] * n + e[1]);
+      broke++;
+    }
+    if (broke) { sim.bonds = kept; sim.dissocCount = (sim.dissocCount | 0) + broke; }  // 간선 장부 교체 + 진단 카운터(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, bondSpring, bondAngle, gravity, fuse, decay };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, bondSpring, bondAngle, gravity, fuse, decay, disperse, bondBreak };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'bondBreak'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).

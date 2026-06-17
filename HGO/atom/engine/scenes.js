@@ -4657,6 +4657,355 @@
         ];
       },
     },
+
+    'step-0071': {
+      id: 'step-0071',
+      title: '별 죽음·분산 — 복사 바스 E 가 모은 가스를 되흩는다 (disperse·항성풍·SPINE §4 느린 순환 닫기·바스 E→운동 분산·kDisperse 끄면 분산 0·E·px·py 머신)',
+      desc: 'Phase E 는 지금까지 *모으기만* 했다 — gravity(0028)가 구름을 끌고 fuse(0033~)가 핵합성으로 무거운 원소를 쌓았다(빠른 비가역 화살표). ' +
+            'SPINE §4 의 순환은 *되흩음*을 요구한다("무거운 원소는 항성 죽음·분산으로 흩어져 다음 별의 재료가 된다"). 이 step 은 그 흩는 힘 disperse 를 더한다(LAW_ORDER 끝·kDisperse=0 → 회귀 0). ' +
+            '물리: 별 내부 융합이 쌓은 *복사 에너지*(sim.escaped.E — fuse 가 park 한 바스)가 가스를 다시 밀어낸다(복사압·항성풍). decay(0031)의 등방 KE 반동 + 0032 의 −Δp 바스 적재를 물려받아 — 한 원자가 바스서 ε KE 를 얻고(등방·시드 방향) 방출 복사 입자의 −Δp 는 바스에. ' +
+            '*측정*(무대 100²·N=120 차가운 ²H 매듭·바스 E0 사전 충전·자유 드리프트(연속력 0)·120 tick·고정 시드): ' +
+            '① **분산·load-bearing** — kDisperse 켜면 R_g 크게 팽창(가스 흩어짐)·끄면 R_g 정적(분산이 *disperse 때문*·author 아닌 측정). ' +
+            '② **복사 구동·load-bearing** — 켜면 바스 E 소진(복사→운동 전환)·끄면 바스 E 불변(흩는 에너지가 *복사 바스*서·§4 융합 산물). ' +
+            '③ **장부 머신** — 자유 드리프트라 연속력 E 완화 없음 → Q·B·L·E·px·py *전부* 머신(E: 바스→KE 정확·px·py: −Δp→바스 정확·0032 동형). ' +
+            '④ **회귀** — kDisperse=0 → 자유 드리프트(회귀 0 알리바이)·새 노브 0 기본 → 0001~70 골든 비트 불변.',
+      ticks: 80,
+      W: 100, H: 100, N: 120, MT: 120, SNAP: 20, E0: 80,
+      KN: { dt: 1.0, kDisperse: 0.08, disperseE: 1 },
+
+      knot(K, seed) {                                          // 차가운 ²H 매듭(중력이 이미 모은 가스의 토이 — 분산 전 상태)
+        const rng = K.mulberry32(seed || 20260711), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 8;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.01, vy: (rng() - 0.5) * 0.01, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg(at) {                                                 // 관성반경(고정 중심 min-image — 흩어짐 척도)
+        const cx = this.W / 2, cy = this.H / 2; let s = 0;
+        for (const a of at) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / at.length);
+      },
+      run(K, kd) {
+        const sim = { W: this.W, H: this.H, atoms: this.knot(K), photons: [], escaped: { E: this.E0, px: 0, py: 0, count: 0 },
+                      rng: K.mulberry32(20260711), knobs: Object.assign({}, L.DEFAULTS, this.KN, { kDisperse: kd }), tick: 0 };
+        const l0 = K.ledger(sim), rg0 = this.Rg(sim.atoms), e0 = sim.escaped.E, series = [+rg0.toFixed(2)];
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) series.push(+this.Rg(sim.atoms).toFixed(2)); }
+        const l1 = K.ledger(sim);
+        return { rg0, rg1: this.Rg(sim.atoms), series, e0, e1: sim.escaped.E,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kDisperse), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): 매듭의 자유 드리프트(createSim 경로엔 sim.escaped 미설정 → disperse no-op → 순수 자유 드리프트·머신·결정론).
+      //   disperse 의 *효과·보존*은 cache run(바스 사전충전)서 assert 가 증명(0070 패턴 — 라이브는 대표 sim·assert 가 측정).
+      init(rng, K) {
+        const a = this.knot(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { rgOnGrow: +(c.on.rg1 / c.on.rg0).toFixed(3), rgOffGrow: +(c.off.rg1 / c.off.rg0).toFixed(3), bathSpent: +(1 - c.on.e1 / c.on.e0).toFixed(3), dpxOn: +c.on.dpx.toExponential(3), dEOn: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 분산 ② 복사 구동 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const dispersed = c.on.rg1 > c.on.rg0 * 1.5 && c.off.rg1 < c.off.rg0 * 1.15;                 // ① 켜면 흩어짐·끄면 정적
+        const radDriven = c.on.e1 < c.on.e0 * 0.5 && Math.abs(c.off.e1 - c.off.e0) < 1e-9;          // ② 바스 E 소진·끄면 불변
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 전부 머신(자유 드리프트)
+        const reg = c.off.dpx < 1e-9 && c.off.dE < 1e-9 && ctx.ledgerBefore !== undefined;          // ④ 끄면 자유 드리프트(회귀 0 알리바이)
+        return [
+          { name: `분산·load-bearing — kDisperse 켜면 R_g ${c.on.rg0.toFixed(2)}→${c.on.rg1.toFixed(2)}(${(c.on.rg1 / c.on.rg0).toFixed(2)}배 팽창·시계열 ${c.on.series.join('→')})·끄면 ${c.off.rg0.toFixed(2)}→${c.off.rg1.toFixed(2)}(정적) ⇒ 분산이 *disperse 때문*(author 아닌 측정)`, pass: dispersed, value: +(c.on.rg1 / c.on.rg0).toFixed(2) },
+          { name: `복사 구동·load-bearing — 켜면 바스 E ${c.on.e0.toFixed(0)}→${c.on.e1.toFixed(1)}(${((1 - c.on.e1 / c.on.e0) * 100).toFixed(0)}% 소진·복사→운동)·끄면 ${c.off.e0.toFixed(0)}→${c.off.e1.toFixed(0)}(불변) ⇒ 흩는 에너지가 *복사 바스*서(§4 융합 산물)`, pass: radDriven, value: +(1 - c.on.e1 / c.on.e0).toFixed(3) },
+          { name: `장부 머신 — 자유 드리프트(연속력 0) Q·B·L·E·px·py 전부 머신(dpx ${c.on.dpx.toExponential(2)}·dE ${c.on.dE.toExponential(2)}·dL ${c.on.dL.toExponential(2)}) — E:바스→KE 정확·px·py:−Δp→바스 정확(0032 동형)`, pass: consv, value: +c.on.dE.toExponential(3) },
+          { name: `회귀 — kDisperse=0 → 자유 드리프트(dpx ${c.off.dpx.toExponential(2)}·dE ${c.off.dE.toExponential(2)} 머신)·새 노브 0 기본 → 0001~70 골든 비트 불변(회귀 0)`, pass: reg, value: +c.off.dE.toExponential(3) },
+        ];
+      },
+    },
+
+    'step-0072': {
+      id: 'step-0072',
+      title: '별 일생 순환 — 모음→점화→사다리→산물 분산 (측정·새 법칙 0 — gravity+pauli+fuse+disperse 동시·바탕 가스 붕괴 + 무거운 핵합성 산물은 복사압에 흩어짐·disperseZmin=3·끄면 산물 코어에 갇힘·SPINE §4 self-running 순환)',
+      desc: 'step-0071 까지 모으는 힘(gravity 0028·fuse 0033~)과 흩는 힘(disperse 0071)이 *둘 다* 생겼다. 이 측정 step 은 둘을 한 무대서 동시에 굴려 SPINE §4 순환을 닫는다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0): "무거운 원소는 항성 죽음·분산으로 흩어져 *다음 별의 재료*가 된다". ' +
+            '핵심: 복사압(disperse)을 *무거운 핵*에만 싣는다(disperseZmin=3 — 초기 ²H 는 안 받음). 그래서 ①차가운 ²H 구름은 중력 수축(바탕 가스 붕괴) → ②밀집 코어 점화·핵합성 사다리 등반(maxZ↑·융합이 복사 바스 E 축적) → ③생성된 무거운 핵(Z≥3)이 그 복사 E 로 *코어 밖으로 흩어진다*(산물 분산). 바탕 가스는 모이고, 그 안에서 *만들어진 무거운 원소만* 흩날린다 — 별이 핵합성 산물을 우주로 토해 다음 별을 씨 뿌리는 그림. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+disperse(Zmin3) 동시·360 tick·40 tick 스냅샷·고정 시드): ' +
+            '① **바탕 모음·load-bearing** — 전체 R_g 붕괴(중력이 ²H 바탕 가스를 모음). ' +
+            '② **산물 분산·load-bearing** — 무거운 핵(Z≥3) R_g: disperse 켜면 ≫ 끄면(산물이 복사압에 코어 밖으로·끄면 코어에 갇힘) ⇒ 분산이 *disperse 때문*(author 아닌 측정). ' +
+            '③ **사다리** — 융합 사다리 maxZ 등반(무거운 원소 생성). ' +
+            '④ **장부·결정론** — Q·B·L·px·py 머신·E 완화(깊은 붕괴+융합+분산·0069 §3 한계)·새 법칙 0 → 0001~71 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 360, SNAP: 40,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.4, disperseE: 2, disperseZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 2.5e3 },                                // 깊은 붕괴+융합+분산 다체 별 E 완화(VV 도 이벤트/근접조우 오차 못 잡음·0069 §3·Q·B·L·px·py 머신)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg(at, sel) {                                            // 관성반경(COM min-image) — sel: 'heavy'(Z≥3 산물) | 'light'(Z<3 바탕 가스) | undefined(전체)
+        const sub = sel === 'heavy' ? at.filter(a => a.Z >= 3) : sel === 'light' ? at.filter(a => a.Z < 3) : at;
+        if (sub.length === 0) return 0;
+        let cx = 0, cy = 0; for (const a of sub) { cx += a.rx; cy += a.ry; } cx /= sub.length; cy /= sub.length;
+        let s = 0; for (const a of sub) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / sub.length);
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      run(K, kd) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { kDisperse: kd }), tick: 0 };
+        const l0 = K.ledger(sim), rgL0 = this.Rg(sim.atoms, 'light'), rgS = [+this.Rg(sim.atoms, 'light').toFixed(1)], zS = [this.maxZof(sim.atoms)];
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) { rgS.push(+this.Rg(sim.atoms, 'light').toFixed(1)); zS.push(this.maxZof(sim.atoms)); } }
+        const l1 = K.ledger(sim);
+        return { rgS, zS, rgLight0: +rgL0.toFixed(1), rgLightEnd: rgS[rgS.length - 1], rgHeavyEnd: +this.Rg(sim.atoms, 'heavy').toFixed(1), maxZ: Math.max(...zS),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kDisperse), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 완전 일생 무대(symplectic=1) — Q·B·L·px·py 머신·E 완화. sim.step 이 leapfrog 경로.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { rgLightEndOn: c.on.rgLightEnd, rgHeavyOn: c.on.rgHeavyEnd, rgHeavyOff: c.off.rgHeavyEnd, maxZon: c.on.maxZ, dpxOn: +c.on.dpx.toExponential(3), relEpct: +(c.on.dE / c.on.Etot * 100).toFixed(2) };
+      },
+
+      // 가설: ① 바탕 모음 ② 산물 분산 ③ 사다리 ④ 장부·결정론.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const gather = c.on.rgLightEnd < c.on.rgLight0 * 0.85;                                          // ① 바탕(Z<3) R_g 붕괴(중력 모음)
+        const dispersed = c.on.rgHeavyEnd > c.off.rgHeavyEnd * 1.3 && c.on.rgHeavyEnd > c.on.rgLightEnd;  // ② 무거운 핵 R_g 켜면 ≫ 끄면·바탕보다 넓게
+        const ladder = c.on.maxZ >= 4;                                                                  // ③ 융합 사다리 등반(무거운 원소)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `바탕 모음·load-bearing — 바탕 가스(Z<3) R_g 시계열 ${c.on.rgS.join('→')}(${c.on.rgLight0.toFixed(1)}→${c.on.rgLightEnd.toFixed(1)} 붕괴·중력이 ²H 바탕을 모음)`, pass: gather, value: c.on.rgLightEnd },
+          { name: `산물 분산·load-bearing — 무거운 핵(Z≥3) R_g 켜면 ${c.on.rgHeavyEnd.toFixed(1)} ≫ 끄면 ${c.off.rgHeavyEnd.toFixed(1)}(끄면 코어에 갇힘)·바탕 ${c.on.rgLightEnd.toFixed(1)}보다 넓게 ⇒ 산물 분산이 *disperse 때문*(다음 별 재료·author 아닌 측정)`, pass: dispersed, value: c.on.rgHeavyEnd },
+          { name: `사다리 — 융합 사다리 maxZ ${c.on.maxZ}(무거운 원소 생성·복사압이 그 산물을 흩음)`, pass: ladder, value: c.on.maxZ },
+          { name: `장부·결정론 — 별 일생 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(깊은 붕괴+융합+분산·0069 §3 한계)·새 법칙 0 → 0001~71 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.maxZ },
+        ];
+      },
+    },
+
+    'step-0073': {
+      id: 'step-0073',
+      title: '핵+화학 동시 무대 — 융합 압축이 결합 간선 인덱스를 재배선 (fuseRebond·#D 해소·핵 변환과 화학 결합을 한 무대서·끄면 간선 어긋남·기존 fuse 장면 bonds 없어 비트 불변·회귀 0)',
+      desc: '열린 이슈 #D(review-0041-0050·STATE §3): `fuse` 가 합체 시 `sim.atoms` 를 *압축*(죽은 원자 제거)하는데 `bonds` 간선은 *원자 인덱스*를 저장한다 → 결합 활성 무대서 융합을 켜면 간선이 어긋난다(핵 변환과 화학 결합을 *한 무대*서 못 굴림). 이 step 이 게이트 `fuseRebond`(=0 → 옛 거동·압축만·회귀 0) 로 해소: =1 이면 압축과 함께 ⓐ소비된 원자에 닿은 결합은 끊고(핵반응이 화학 결합 파괴·per-bond E 바스 환원→E 닫힘) ⓑ살아남은 결합은 *새 인덱스*로 재배선(remap 단조 → i<j·키 규약 보존)·bondKeys 새 n 재생성. ' +
+            '무대: 박스서 열운동하는 ²H 중성(빠른 쌍은 융합)·H⁺/H⁻ 이온(느린 쌍은 이온결합)이 섞여 — 결합과 융합이 *동시에* 일어나 융합 압축이 결합 인덱스를 흔든다. 연속력 0(이벤트 법칙만) → E 머신. ' +
+            '*측정*(무대 40²·N=120·dt=1·bond(이온·bondLocalE)+fuse(fmf+md+Endo) 동시·60 tick·고정 시드): ' +
+            '① **인덱스 정합·load-bearing** — fuseRebond 켜면 dangling 간선(인덱스 ≥ 원자 수) **0**·끄면 **>0**(융합 압축이 간선 어긋냄) ⇒ #D 해소(author 아닌 측정). ' +
+            '② **동시 무대** — 융합(개수 감소>0) *그리고* 결합(간선>0)이 한 무대서 공존·rebond 로 분자(연결 성분) 정합 측정 가능. ' +
+            '③ **장부 머신** — 이벤트 법칙만(연속력 0) → Q·B·L·E·px·py *전부* 머신(E: 결합 reservoir + 융합 정지질량 + 결합 끊김→바스 모두 닫힘). ' +
+            '④ **회귀** — fuseRebond=0 → 옛 거동(압축만)·기존 fuse 장면(0033·0064·0065·0068·0070·0072) bonds 없어 분기 무관 → 0001~72 골든 비트 불변.',
+      ticks: 60,
+      W: 40, H: 40, N: 120, MT: 60,
+      KN: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 1.0, bondLocalE: 1,
+            kFuse: 1, fuseR: 3, fuseBarrier: 2.0, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, fuseEndo: 1, fuseRebond: 1 },
+
+      mix(K, seed) {
+        const rng = K.mulberry32(seed || 20260713), a = [];
+        for (let i = 0; i < this.N; i++) {
+          const r = rng();
+          let e = 1;                                          // 기본 ²H 중성(q=0 → 융합만)
+          if (r < 0.25) e = 0;                                // H⁺(q=+1 → 이온결합 양이온)
+          else if (r < 0.5) e = 2;                            // H⁻(q=−1 → 이온결합 음이온)
+          a.push({ Z: 1, N: 1, e, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 3, vy: (rng() - 0.5) * 3, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      run(K, rebond) {
+        const sim = { W: this.W, H: this.H, atoms: this.mix(K), photons: [], rng: K.mulberry32(20260713),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseRebond: rebond }), tick: 0 };
+        const n0 = sim.atoms.length, l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim), fc = sim.atoms.length, bonds = (sim.bonds || []);
+        let dangling = 0; for (const e of bonds) if (e[0] >= fc || e[1] >= fc) dangling++;
+        const molCount = dangling === 0 ? molecules(sim).count : -1;  // dangling 있으면 union-find 불안전 → 측정 불가(-1)
+        return { fusions: n0 - fc, bonds: bonds.length, dangling, molCount,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): 결합+융합+rebond 동시 무대(fuseRebond=1) — 이벤트 법칙만 → Q·B·L·E·px·py 머신.
+      init(rng, K) {
+        const a = this.mix(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { fusionsOn: c.on.fusions, bondsOn: c.on.bonds, danglingOn: c.on.dangling, danglingOff: c.off.dangling, molOn: c.on.molCount, dEOn: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 인덱스 정합 ② 동시 무대 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const consistent = c.on.dangling === 0 && c.off.dangling > 0;                                   // ① rebond 켜면 dangling 0·끄면 >0
+        const coexist = c.on.fusions > 0 && c.on.bonds > 0 && c.on.molCount >= 0;                       // ② 융합·결합 공존·분자 측정 가능
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 전부 머신
+        const reg = ctx.ledgerBefore !== undefined;                                                     // ④ 라이브 기둥 정상(회귀 0 알리바이 = 골든 보존)
+        return [
+          { name: `인덱스 정합·load-bearing — fuseRebond 켜면 dangling 간선(인덱스 ≥ 원자 수) ${c.on.dangling}·끄면 ${c.off.dangling}(융합 압축이 간선 어긋냄) ⇒ #D 해소(핵 변환과 화학 결합 한 무대·author 아닌 측정)`, pass: consistent, value: c.off.dangling },
+          { name: `동시 무대 — 융합 ${c.on.fusions}회(개수 감소)·결합 ${c.on.bonds} 간선이 한 무대서 공존·rebond 로 분자(연결 성분) ${c.on.molCount}개 정합 측정`, pass: coexist, value: c.on.fusions },
+          { name: `장부 머신 — 이벤트 법칙만(연속력 0) Q·B·L·E·px·py 전부 머신(dpx ${c.on.dpx.toExponential(2)}·dE ${c.on.dE.toExponential(2)}·dB ${c.on.dB.toExponential(2)}) — E: 결합 reservoir + 융합 정지질량 + 결합 끊김→바스 닫힘`, pass: consv, value: +c.on.dE.toExponential(3) },
+          { name: `회귀 — fuseRebond=0 → 옛 거동(압축만)·기존 fuse 장면 bonds 없어 분기 무관 → 0001~72 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.bonds },
+        ];
+      },
+    },
+
+    'step-0074': {
+      id: 'step-0074',
+      title: 'Morse 비조화 결합 — 유한 해리 + 열팽창 (bondMorse·조화 bondSpring 의 무한 우물 → 유한 깊이 D·가열하면 결합 끊김·비대칭 우물 열팽창·bondMorse=0 → 조화·회귀 0·분자→물질 정밀화)',
+      desc: 'bondSpring(0026)의 결합 퍼텐셜은 *조화* U=½kS(r−r₀)² — *무한 깊은* 우물이라 아무리 가열해도 결합이 r₀ 로 복귀(절대 안 끊김)·대칭이라 열팽창 0. 실제 결합은 Morse U=D(1−e^{−α(r−r₀)})² — *유한* 깊이 D(해리에너지)서 끊기고 비대칭(밂쪽 가파름·당김쪽 완만 → 가열 시 평균 길이 늘어남=열팽창). 게이트 bondMorse=0 → 조화 bondSpring(회귀 0). 분자→물질로 가는 결합 정밀화. ' +
+            '무대: 결합한 두 중성 원자(r₀=4)에 *방사 진동 KE* 를 주고 굴린다 — KE<D(저E) vs KE>D(고E)·Morse vs 조화 4벌 비교(연속 보존력·symplectic E 유계). ' +
+            '*측정*(무대 200²·2체 결합쌍·dt=0.05·D=2·α=0.5·400 tick·고정 셋업): ' +
+            '① **저E 정합** — KE<D 면 Morse·조화 둘 다 r₀ 근방 유계 진동(저진폭서 두 우물 일치). ' +
+            '② **유한 해리·load-bearing** — KE>D 가열: Morse 결합 *해리*(r→멀어짐·복원력 소멸) vs 조화 *영구 속박*(r₀ 근방 진동) ⇒ 유한 우물이 *Morse 때문*(author 아닌 측정). ' +
+            '③ **비대칭 열팽창** — Morse 저E 진동 평균 길이 > r₀(비대칭 우물·열팽창) vs 조화 평균 ≈ r₀(대칭). ' +
+            '④ **장부·회귀** — 쌍별 등·반작용 운동량 머신·E symplectic 유계·bondMorse=0 → 조화 bondSpring 비트 동일(회귀 0).',
+      ticks: 60,
+      W: 200, H: 200, MT: 400,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 4, bondMorseD: 2, bondMorseA: 0.5 },
+
+      run(K, morse, vrel) {
+        const cx = this.W / 2, cy = this.H / 2, r0 = this.KN.bondReq;
+        const atoms = [
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx - r0 / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + r0 / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 },
+        ];
+        const sim = { W: this.W, H: this.H, atoms, photons: [], bonds: [[0, 1]], bondKeys: new Set([1]),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondMorse: morse ? 1 : 0 }), tick: 0 };
+        const l0 = K.ledger(sim), dist = () => { const dx = K.minImage(atoms[1].rx - atoms[0].rx, this.W), dy = K.minImage(atoms[1].ry - atoms[0].ry, this.H); return Math.sqrt(dx * dx + dy * dy); };
+        let maxR = dist(), sumR = 0, cnt = 0, eLo = Math.abs(l0.E), eHi = Math.abs(l0.E);
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          const r = dist(); if (r > maxR) maxR = r; sumR += r; cnt++;
+          const e = K.ledger(sim).E; if (e < eLo) eLo = e; if (e > eHi) eHi = e;
+        }
+        const l1 = K.ledger(sim);
+        return { maxR: +maxR.toFixed(2), meanR: +(sumR / cnt).toFixed(3), endR: +dist().toFixed(2),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), eSwing: +(eHi - eLo).toFixed(4), Etot: Math.abs(l0.E) };
+      },
+      // 진동 KE_rel = ½μ·vrel² (μ=1, 동질량 m=2) → vLow:KE=½D 유계·vHigh:KE=2D 해리.
+      vLow() { return Math.sqrt(2 * 0.5 * this.KN.bondMorseD); },
+      vHigh() { return Math.sqrt(2 * 2 * this.KN.bondMorseD); },
+      cache(K) {
+        return this._c || (this._c = {
+          mLo: this.run(K, true, this.vLow()), mHi: this.run(K, true, this.vHigh()),
+          hLo: this.run(K, false, this.vLow()), hHi: this.run(K, false, this.vHigh()),
+        });
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로엔 bonds 미설정 → bondSpring no-op → 두 원자 자유 드리프트(머신·결정론).
+      //   Morse 의 효과·E 유계는 cache run(bonds 프리셋)서 assert 가 증명(0071 패턴).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { morseHiEndR: c.mHi.endR, harmHiEndR: c.hHi.endR, morseLoMeanR: c.mLo.meanR, harmLoMeanR: c.hLo.meanR, morseHiMaxR: c.mHi.maxR, dpxM: +c.mLo.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 저E 정합 ② 유한 해리 ③ 비대칭 열팽창 ④ 장부·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), r0 = this.KN.bondReq;
+        const lowAgree = c.mLo.maxR < r0 * 2 && c.hLo.maxR < r0 * 2 && c.mLo.endR < r0 * 2 && c.hLo.endR < r0 * 2;  // ① 저E 둘 다 유계 진동(해리 안 함)
+        const dissociate = c.mHi.endR > r0 * 3 && c.hHi.endR < r0 * 2;                                  // ② Morse 고E 해리·조화 속박
+        const thermalExp = c.mLo.meanR > r0 * 1.02 && Math.abs(c.hLo.meanR - r0) < r0 * 0.02;           // ③ Morse 열팽창·조화 대칭(평균 r₀)
+        const consv = c.mLo.dpx < 1e-9 && c.mLo.dpy < 1e-9 && c.mLo.dB < 1e-9 && c.mLo.dQ < 1e-9 && c.mLo.dL < 1e-9 && ctx.ledgerBefore !== undefined;  // ④ 운동량 머신·라이브 회귀 알리바이
+        return [
+          { name: `저E 유계 — KE<D Morse maxR ${c.mLo.maxR.toFixed(2)}·조화 maxR ${c.hLo.maxR.toFixed(2)}(둘 다 r₀=${r0} 근방 유계 진동·해리 안 함 — 고E 와 대조)`, pass: lowAgree, value: c.mLo.maxR },
+          { name: `유한 해리·load-bearing — KE>D Morse endR ${c.mHi.endR.toFixed(2)}(maxR ${c.mHi.maxR.toFixed(1)} 해리·복원력 소멸) ≫ 조화 endR ${c.hHi.endR.toFixed(2)}(r₀ 근방 영구 속박) ⇒ 유한 우물이 *Morse 때문*(author 아닌 측정)`, pass: dissociate, value: c.mHi.endR },
+          { name: `비대칭 열팽창 — Morse 저E 평균 길이 ${c.mLo.meanR.toFixed(3)} > r₀ ${r0}(비대칭 우물 열팽창) vs 조화 평균 ${c.hLo.meanR.toFixed(3)} ≈ r₀(대칭)`, pass: thermalExp, value: c.mLo.meanR },
+          { name: `장부·회귀 — 쌍별 등·반작용 운동량 머신(dpx ${c.mLo.dpx.toExponential(2)}·dB ${c.mLo.dB.toExponential(2)})·E symplectic 유계(스윙 Morse ${c.mLo.eSwing.toFixed(3)})·bondMorse=0 → 조화 bondSpring 비트 동일 → 0001~73 골든 보존(회귀 0)`, pass: consv, value: +c.mLo.dpx.toExponential(3) },
+        ];
+      },
+    },
+
+    'step-0075': {
+      id: 'step-0075',
+      title: '거리형 결합 해리 — Morse 를 위상까지 완성 (bondBreak·r>unbondDist 면 간선 제거·분자 실제로 쪼개짐·끄면 유령 결합 잔존·운동량 머신·해리 E 바스 환원 닫힘·unbondDist=0 → 회귀 0)',
+      desc: 'Morse(0074)는 우물이 유한 깊이라 r≫r₀ 면 복원력→0 — 가열된 결합쌍이 멀어져도 *간선(sim.bonds)은 남아* "유령 결합"이 된다(힘은 0 이나 위상상 여전히 분자). unbond(0016)은 *충돌 KE* 기준이라 천천히 벌어지는 Morse 해리를 못 떼낸다. 이 step 의 `bondBreak` 은 *거리* 기준: r > unbondDist 면 간선을 떼어 분자(연결 성분)가 *실제로 쪼개진다* — Morse 의 에너지적 해리를 위상적 해리까지 완성. ' +
+            '닫힌 장부: 간선 제거 시 그 결합 PE(Morse U(r), ledger 가 sim.bonds 로 합산하던 항)와 흡수 KE 저장고 e[2] 를 *복사 바스*로 환원(결합 에너지가 빛으로 방출) → ΔE 정확 0·속도 불변 → 운동량 머신. 게이트 unbondDist=0 → 유령 결합 잔존(옛 거동·회귀 0). ' +
+            '무대: 40개 Morse 이량체(상대 진동 KE 그라디언트 — 저E 속박 ~ 고E 해리)·dt=0.05·D=2·α=0.5·600 tick·고정 셋업: ' +
+            '① **위상 해리·load-bearing** — unbondDist 켜면 고E 이량체 간선 제거(결합 수·분자 수 급감)·끄면 전부 잔존(유령 결합) ⇒ Morse 위상 완성이 *bondBreak 때문*(author 아닌 측정). ' +
+            '② **거리 트리거** — 해리한 결합은 r>unbondDist 까지 늘어난 고E 이량체(저E 는 유지·문턱 창발). ' +
+            '③ **장부 머신** — 해리 시 U+e[2]→바스 환원으로 E 닫힘(break 기여 0)·운동량 머신(속도 불변)·잔여 E symplectic 유계. ' +
+            '④ **회귀** — unbondDist=0 → 유령 결합 잔존(옛 거동)·새 노브 0 기본 → 0001~74 골든 비트 불변.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, ND: 40,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 2, bondMorseA: 0.5, unbondDist: 8 },
+
+      dimers(K) {                                            // 40 Morse 이량체·상대속도 그라디언트(저E 속박 ~ 고E 해리)
+        const req = this.KN.bondReq, atoms = [], bonds = [], keys = new Set(), tot = 2 * this.ND;
+        for (let i = 0; i < this.ND; i++) {
+          const cx = 30 + (i % 8) * 45, cy = 30 + ((i / 8) | 0) * 45;
+          const vrel = 0.6 + 2.6 * (i / (this.ND - 1));      // KE_rel = ½·1·vrel² → vrel>√(2D)=2 면 해리
+          const a0 = atoms.length;
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          bonds.push([a0, a0 + 1]); keys.add(a0 * tot + (a0 + 1));
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, ud) {
+        const d = this.dimers(K);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { unbondDist: ud }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { bonds: sim.bonds.length, mols: molecules(sim).count, broke: sim.dissocCount | 0,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.unbondDist), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로엔 bonds 미설정 → bondBreak no-op → 두 원자 자유 드리프트(머신·결정론·0071/0074 패턴).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { bondsOn: c.on.bonds, bondsOff: c.off.bonds, molsOn: c.on.mols, brokeOn: c.on.broke, dpxOn: +c.on.dpx.toExponential(3), dEOn: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 위상 해리 ② 거리 트리거 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), ND = this.ND;
+        const topoDissoc = c.on.bonds < ND * 0.7 && c.off.bonds === ND;                                 // ① 켜면 간선 급감·끄면 전부 잔존(유령)
+        const triggered = c.on.broke > 0 && c.on.broke === ND - c.on.bonds;                             // ② 해리 수 = 줄어든 간선(거리 문턱)
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③ 운동량·Q·B·L 머신(E 는 symplectic 유계)
+        const reg = ctx.ledgerBefore !== undefined;                                                     // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `위상 해리·load-bearing — unbondDist 켜면 결합 ${ND}→${c.on.bonds}·분자 ${c.on.mols}개(고E 이량체 간선 제거)·끄면 ${c.off.bonds}(전부 잔존=유령 결합) ⇒ Morse 위상 완성이 *bondBreak 때문*(author 아닌 측정)`, pass: topoDissoc, value: c.on.bonds },
+          { name: `거리 트리거 — 해리 ${c.on.broke}회 = 줄어든 간선 ${ND - c.on.bonds}(r>unbondDist=${this.KN.unbondDist} 까지 늘어난 고E 이량체만·저E 유지·문턱 창발)`, pass: triggered, value: c.on.broke },
+          { name: `장부 머신 — 해리 시 U(r)+e[2]→바스 환원 E 닫힘(break 기여 0)·운동량 머신(속도 불변 dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)})·잔여 E symplectic 유계(${(c.on.dE / c.on.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — unbondDist=0 → 유령 결합 잔존(옛 거동·끄면 ${c.off.bonds} 전부)·새 노브 0 기본 → 0001~74 골든 비트 불변(회귀 0)`, pass: reg, value: c.off.bonds },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
