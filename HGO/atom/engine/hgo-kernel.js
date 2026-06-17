@@ -208,17 +208,44 @@
     return D;
   }
 
+  // step-0094 결합 종류별 Morse 폭 α — bondMorseAlphaPair(=0 → 균일 bondMorseA·0074~ 비트 동일·회귀 0) 면 α 를 결합 두 원자 Z 함수로:
+  //   α_eff = bondMorseA·√(Za·Zb)(기준 Z=1·1 → ×1 = H–H baseline·무거운 결합 *좁은(가파른)* 우물). D(0089 깊이)와 *직교* — α 는 우물 *폭*(강성)을 정한다:
+  //   k_force = 2Dα²·평형 근방 힘 상수 → α↑ ⇒ 우물 좁고 가팔라 같은 에너지서 진동 폭↓·해리 거리↓. 화학의 "결합마다 다른 강성/진동수"를 author 없이 Z 로.
+  //   morseD 와 같은 세 곳(force bondSpring·PE bondSpringPE·해리 bondBreak)이 *공유* → 퍼텐셜·힘·해리 환원 정합(장부 닫힘).
+  function morseAlpha(knobs, a, b) {
+    let alpha = (knobs && knobs.bondMorseA) || 1;
+    if (!knobs) return alpha;
+    if (knobs.bondMorseAlphaPair) {                       // step-0094 종류별(Z): 무거운 결합 좁은(가파른) 우물
+      const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
+      alpha *= Math.sqrt(za * zb);
+    }
+    return alpha;
+  }
+
+  // step-0095 결합 종류별 평형 길이 r_eq — bondReqPair(=0 → 균일 bondReq·0074~ 비트 동일·회귀 0) 면 r_eq 를 결합 두 원자 Z 함수로:
+  //   r_eq_eff = bondReq·(Z_a^⅓ + Z_b^⅓)/2(기준 Z=1·1 → ×1 = H–H baseline·*무거운 결합 긴* 길이). 공유 반지름 r ∝ Z^⅓(원자 크기 ~ 핵자 수^⅓)서 창발.
+  //   D(0089 깊이)·α(0094 폭)와 *직교*하는 셋째 화학 축 — 결합 기하의 평형 *위치*. morseD/morseAlpha 와 같은 세 곳(force·PE·해리)이 공유 → 정합.
+  function morseReq(knobs, a, b) {
+    let req = (knobs && knobs.bondReq) || 4;
+    if (!knobs) return req;
+    if (knobs.bondReqPair) {                              // step-0095 종류별(Z): 무거운 결합 긴 평형 길이(공유 반지름 ∝ Z^⅓)
+      const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
+      req *= (Math.cbrt(za) + Math.cbrt(zb)) / 2;
+    }
+    return req;
+  }
+
   function bondSpringPE(sim) {
     const ks = (sim.knobs && sim.knobs.kBondSpring) || 0;
     if (!ks || !sim.bonds || !sim.bonds.length) return 0;
-    const req = sim.knobs.bondReq || 4;
     const morse = sim.knobs.bondMorse || 0;              // Morse PE(step-0074, 0 → 조화·과거 비트 동일)
-    const alpha = sim.knobs.bondMorseA || 1;
     const A = sim.atoms;
     let u = 0;
     for (const e of sim.bonds) {
       const a = A[e[0]], b = A[e[1]];
       const D = morseD(sim.knobs, a, b, e[3]);           // step-0089 종류별 D + step-0090 차수별(게이트 0 → 균일 bondMorseD)
+      const alpha = morseAlpha(sim.knobs, a, b);         // step-0094 종류별 α(폭·게이트 0 → 균일 bondMorseA)·force/해리 와 공유
+      const req = morseReq(sim.knobs, a, b);             // step-0095 종류별 r_eq(평형 길이·게이트 0 → 균일 bondReq)·force/해리 와 공유
       const dx = minImage(b.rx - a.rx, sim.W), dy = minImage(b.ry - a.ry, sim.H);
       const r = Math.sqrt(dx * dx + dy * dy);
       if (morse) { const w = 1 - Math.exp(-alpha * (r - req)); u += D * w * w; }  // Morse U=D(1−e^{−α(r−r₀)})²
@@ -353,5 +380,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, morseD, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, morseD, morseAlpha, morseReq, ledger, minImage, hashState };
 });
