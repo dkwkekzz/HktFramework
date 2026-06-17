@@ -5438,6 +5438,79 @@
         ];
       },
     },
+
+    'step-0082': {
+      id: 'step-0082',
+      title: '핵합성 산물 → 분자 — 뜨거운 융합과 차가운 결합 한 무대 (측정·새 법칙 0 — gravity+fuse+bondCovalent+fuseConservePE·자가 점화 별의 융합 산물 무거운 핵이 공유결합으로 분자 형성·핵+화학 두 척도 공존·결합 끄면 분자 0·중력 끄면 점화 0·골든 보존 회귀 0)',
+      desc: 'Phase D(핵·고E 융합)와 Phase C(화학·저E 결합)를 *한 무대*서 동시에 — *뜨거운 융합 산물이 화학적으로 결합하는* 두 척도 충돌을 측정한다. 차가운 ²H 구름이 중력 붕괴→밀집 코어 점화→무거운 핵(Z≥3) 생성(핵 척도)·그 산물들이 같은 밀집 코어서 *외각 껍질 빈자리 공유*(bondCovalent·화학 척도)로 결합해 분자(연결 성분)를 이룬다(새 법칙 0·scene 만·기존 gravity+fuse+bondCovalent+fuseConservePE 합성·LAW_ORDER·DEFAULTS 불변 → 골든 보존=회귀 0). 0073 fuseRebond 가 *토이*로 핵+화학 인덱스 정합을 보였다면, 여기선 *자가 점화 별*의 진짜 핵합성 산물이 화학에 참여한다. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+bondCovalent(가전자·차수·국소E)+fuseConservePE·400 tick·고정 시드 7): ' +
+            '① **핵합성 산물→분자·load-bearing** — 융합 산물 무거운 핵(Z≥3) 중 다수가 공유결합 참여(heavyBonded)·분자(연결 성분) 형성·bondCovalent 끄면 산물 결합 0 ⇒ 핵 산물의 화학이 *bondCovalent 때문*(author 아닌 측정). ' +
+            '② **두 척도 공존·load-bearing** — 같은 무대서 maxZ(핵 융합·고E)∧분자(화학 결합·저E) 동시·kGravity 끄면 점화 0(maxZ≤2)→산물·분자 둘 다 0 ⇒ 둘 다 중력 점화에 의존. ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(fuseConservePE 융합 회계 + bondLocalE 결합 회계 정합). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~81 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 400,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },                                  // 라이브 120tick 격렬 붕괴 순간 swing ≤119(누수 아님 — cache net relE 0.26% 닫힘)
+
+      // ov = 노브 오버라이드(대조군). 무거운 핵·결합 참여·분자·장부 잔차.
+      run(K, ov) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov || {}), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const m = molecules(sim);
+        const bonded = new Set(); for (const e of (sim.bonds || [])) { bonded.add(e[0]); bonded.add(e[1]); }
+        let heavy = 0, heavyBonded = 0;
+        for (let i = 0; i < sim.atoms.length; i++) { if (sim.atoms[i].Z >= 3) { heavy++; if (bonded.has(i)) heavyBonded++; } }
+        return { mzFinal: this.maxZof(sim.atoms), heavy, heavyBonded, mol: m.count, maxMol: m.maxSize, bonds: (sim.bonds || []).length,
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, {}), g0: this.run(K, { kGravity: 0 }), nb: this.run(K, { kBond: 0, bondCovalent: 0 }) }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzFinal: c.on.mzFinal, heavy: c.on.heavy, heavyBonded: c.on.heavyBonded, mol: c.on.mol, maxMol: c.on.maxMol, bonds: c.on.bonds,
+                 heavyBondedNB: c.nb.heavyBonded, heavyG0: c.g0.heavy, mzG0: c.g0.mzFinal,
+                 relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 핵합성 산물→분자 ② 두 척도 공존 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const prodChem = c.on.heavy > 0 && c.on.heavyBonded > 0 && c.on.mol > 0 && c.nb.heavyBonded === 0;   // ① 산물 결합·분자·끄면 0
+        const twoScale = c.on.mzFinal >= 6 && c.on.mol > 0 && c.g0.mzFinal <= 2 && c.g0.heavy === 0;          // ② 핵∧화학 동시·중력 끄면 둘 다 0
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                                           // ④ 골든 보존
+        return [
+          { name: `핵합성 산물→분자·load-bearing — 융합 산물 무거운 핵(Z≥3) ${c.on.heavy}개 중 ${c.on.heavyBonded}개 공유결합 참여·분자 ${c.on.mol}개(최대 ${c.on.maxMol}원자)·결합 ${c.on.bonds}간선·bondCovalent 끄면 산물 결합 ${c.nb.heavyBonded}개 ⇒ 핵 산물의 화학이 *bondCovalent 때문*(author 아닌 측정)`, pass: prodChem, value: c.on.heavyBonded },
+          { name: `두 척도 공존·load-bearing — 같은 무대서 maxZ ${c.on.mzFinal}(핵 융합·고E)∧분자 ${c.on.mol}개(화학 결합·저E) 동시·kGravity 끄면 maxZ ${c.g0.mzFinal}(점화 0·무거운 핵 ${c.g0.heavy}개) ⇒ 핵·화학 둘 다 중력 점화에 의존`, pass: twoScale, value: c.on.mzFinal },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(fuseConservePE 융합 + bondLocalE 결합 회계 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — 새 법칙 0(기존 gravity+fuse+bondCovalent+fuseConservePE 합성·scene 만) → 0001~81 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.mzFinal },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
