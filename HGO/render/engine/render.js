@@ -199,6 +199,31 @@
     return { head, tail, mag };
   }
 
+  // ── 렌즈 L-escape: 세계 밖으로 빠져나간 입자(sim.escaped 누적) → 탈출 게이지 읽기 (캔버스 무관 순수) ──
+  // 핵 장면(붕괴·융합 step-0032~)은 입자/에너지가 경계를 넘어 *세계를 떠난다* — sim.escaped 가 그 총합을
+  //   누적한다({E, px, py, count}). 떠난 입자는 더는 장면에 없어 화면에 *완전히 안 보였다*(실 스냅샷 감사가 잡은
+  //   미독 부채 — 문서 §2 계약엔 없던 양). per-atom nuc/lep 장부(어느 보존 통에 들었나=추상 태그)와 다르다 —
+  //   escaped 는 *실제 방출된 입자/에너지*(광자처럼 개수·방향·E 를 가진 실측 방출량)다. 광자를 스펙트럼 띠로
+  //   집계 표시하듯(drawStrip), escaped 를 HUD 게이지로 집계 표시한다 — 장면 공간 글리프가 아닌 *오버레이*(위치 author 0).
+  //   읽는 양: count(정수 개수·정확)·E(에너지·정확)·net 운동량 (px,py)→방향 atan2(정확, 정규화 불필요).
+  //   스칼라 누적이라 in-frame 범위가 없다 — 크기 정규화(손박은 캡)를 피하고 *방향·개수·E 의 정확 읽기*만.
+  //   count=0(또는 escaped 없음)이면 null → 게이지 0(시뮬에 없는 탈출을 author 하지 않는다, RENDER §3).
+  function escapeReadout(escaped) {
+    if (!escaped) return null;
+    const count = escaped.count | 0;
+    if (count <= 0) return null;
+    const px = escaped.px || 0, py = escaped.py || 0;
+    const mag = Math.hypot(px, py);
+    const hasDir = mag > 1e-9;
+    return {
+      count,
+      E: escaped.E || 0,
+      mag,                                                 // |net 운동량| (실측 — 크기는 표시 안 함, 방향만)
+      angle: hasDir ? Math.atan2(py, px) : null,           // net 운동량 방향(정확 읽기) — |p|=0 등방 복사 탈출이면 방향 없음
+      hasDir,
+    };
+  }
+
   // ── 렌즈 L-glow: 원자 들뜸 준위 x → 광원 밝기 (캔버스 무관 순수 — 헤드리스 검증) ──
   // 들뜸 준위 최댓값을 *측정*(등급 정규화 기준 — 손박은 임계 0). 들뜬 원자 없으면 0.
   function measureMaxExcitation(atoms) {
@@ -483,6 +508,7 @@
     ctx.globalCompositeOperation = 'source-over';
 
     drawStrip(ctx, sim, SP, range, cv.width, cv.height);   // 측정 스펙트럼 띠(2D HUD 오버레이)
+    drawEscape(ctx, sim);                                  // 탈출 누적 게이지(L-escape — 2D HUD 오버레이·경계 밖 방출 입자)
   }
 
   // 원자 = 음영 구(球). 반지름 = 질량(Z+N) — 읽기.
@@ -689,5 +715,34 @@
     }
   }
 
-  return { draw, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak };
+  // 렌즈 L-escape: 탈출 누적(sim.escaped)을 좌상단 HUD 게이지로 — 스펙트럼 띠와 동형(집계 방출량 오버레이, 화면 고정).
+  //   방향 화살 = net 운동량 방향(atan2 정확 읽기 — 어느 쪽으로 빠져나갔나). |p|=0(등방 복사 탈출)이면 방향 없음 → 등방 고리.
+  //   텍스트 = 개수·E 원시값(정규화 없음 — 스칼라라 in-frame 범위 없음, 손박은 캡 0). escaped 없거나 count=0 이면 안 그림(author 0).
+  function drawEscape(ctx, sim) {
+    const r = escapeReadout(sim.escaped);
+    if (!r) return;                                    // 탈출 없음 → 아무것도 안 그림(author 0)
+    ctx.globalCompositeOperation = 'source-over';
+    const x0 = 12, y0 = 16, L = 24, cx = x0 + L, cy = y0 + L;
+    const TONE = 'rgba(210,180,255';                   // 탈출 톤(보라 — 세계를 떠난 방사)
+    ctx.lineWidth = 2; ctx.lineCap = 'round';
+    if (r.hasDir) {
+      const dx = Math.cos(r.angle), dy = Math.sin(r.angle);   // 화면 평면 나침반(2D HUD — 고정 길이 글리프, 방향만 읽기)
+      const ex = cx + dx * L, ey = cy + dy * L;
+      ctx.strokeStyle = `${TONE},0.85)`;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke();
+      const a1 = r.angle + 2.6, a2 = r.angle - 2.6, hl = 7;   // 화살촉
+      ctx.beginPath();
+      ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(a1) * hl, ey + Math.sin(a1) * hl);
+      ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(a2) * hl, ey + Math.sin(a2) * hl);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = `${TONE},0.6)`;                // |p|=0 등방 복사 탈출 — 방향 author 금지, 등방 고리로
+      ctx.beginPath(); ctx.arc(cx, cy, L * 0.55, 0, 6.2832); ctx.stroke();
+    }
+    ctx.fillStyle = `${TONE},0.9)`;
+    ctx.font = '11px monospace';
+    ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
+  }
+
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak };
 });
