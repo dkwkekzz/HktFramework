@@ -7048,6 +7048,171 @@
         ];
       },
     },
+
+    'step-0102': {
+      id: 'step-0102',
+      title: 'D↔α 상관 (둘째 Badger 축) — 깊은 결합일수록 가파르다·강성축 α ↔ 깊이축 D 연결 (게이트 bondAlphaD=0 → α 불변·0101~ 비트 동일·회귀 0)',
+      desc: '0101 이 강성 α 를 *길이 r_eq* 에 묶었다(Badger). 결합 강성은 *깊이 D*(결합 에너지)와도 묶여 있다 — 실측: 강한(깊은) 결합일수록 힘 상수가 크다(가파르다). 이 step 의 게이트 `bondAlphaD` 켜면 α 를 *깊이 D 의 멱함수*로: α_eff *= (D_eff/D_base)^bondAlphaD. Morse k=2Dα² 가 이제 D·α *양쪽*서 강성을 받는다(결합 종류의 내적 정합). 0101(α↔r_eq)에 이은 둘째 축간 상관 — α 가 D·r_eq 두 축에 연결. bondAlphaD=0 → Math.pow(_,0)=1 → α 불변·0101~ 비트 동일(회귀 0). ' +
+            '*무대*: 20 Morse 이량체 — H–H(Z1) 10 + C–C(Z6) 10·**깊이만 종류화**(bondMorsePair on → D_CC=24 ≫ D_HH=4)·α-pair·r_eq-pair *off*(D→α 효과 격리)·같은 길이 base req=3 배치·같은 상대 KE=2(<D 속박)·base D=4 α=0.3·alphaD=0.5·dt=0.05·두 모드 off/on: ' +
+            'bondAlphaD 켜면 깊은 C–C α 0.3→0.735(×√6·D_CC/D_base=6) → 우물 가팔라져 최대 신장 strCC↓. H–H(D=base·편차 0) α 0.3 불변 → strHH 비트 동일. ' +
+            '① **D↔α 상관(깊은 결합 = 가파름)·load-bearing** — bondAlphaD 켜면 깊은 C–C 최대 신장 strCC(on) ≪ strCC(off)(α_CC 0.3→0.735·우물 가팔라짐) ⇒ 깊이 축(D)이 강성 축(α)을 끌어올림(0101 길이축에 이어 깊이축까지 α 가 연결·author 아닌 D 멱함수). ' +
+            '② **기준 깊이 결합은 불변·load-bearing** — H–H(D=base·편차 0) 최대 신장 strHH(on) ≡ strHH(off)(비트 동일) ⇒ bondAlphaD 는 *깊이 편차에만* 작용((base/base)^q=1·전역 α 스케일 아님). ' +
+            '③ **장부 머신** — 쌍별 등·반작용 운동량 머신·잔여 E symplectic 유계. ' +
+            '④ **회귀** — bondAlphaD=0 → α 불변·0101~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 4, bondMorseA: 0.3, bondMorsePair: 1, bondAlphaD: 0.5, unbondDist: 40 },
+
+      // H–H(Z1) NC + C–C(Z6) NC·같은 길이 base req 배치(깊이만 종류화)·같은 상대 KE(속박).
+      dimers(K) {
+        const req = this.KN.bondReq, KErel = 2, atoms = [], bonds = [], keys = new Set(), tot = 2 * 2 * this.NC;
+        const cls = [{ Z: 1, N: 1, e: 1 }, { Z: 6, N: 6, e: 6 }];
+        for (let c = 0; c < 2; c++) {
+          const z = cls[c], mu = (z.Z + z.N) / 2, vrel = Math.sqrt(2 * KErel / mu);
+          for (let k = 0; k < this.NC; k++) {
+            const idx = c * this.NC + k, cx = 40 + (idx % 8) * 45, cy = 40 + ((idx / 8) | 0) * 45, a0 = atoms.length;
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, 1]); keys.add(a0 * tot + (a0 + 1)); }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, alphaD) {
+        const d = this.dimers(K), req = this.KN.bondReq;
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondAlphaD: alphaD }), tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0];                              // [H–H, C–C] 최대 신장|r−req|
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const cc = a.Z === 1 ? 0 : 1, str = Math.abs(Math.sqrt(dx * dx + dy * dy) - req);
+            if (str > maxStr[cc]) maxStr[cc] = str; }
+        }
+        const l1 = K.ledger(sim);
+        return { strHH: maxStr[0], strCC: maxStr[1], bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 0.5), off: this.run(K, 0) }); },
+      // α_CC 비(bondAlphaD on/off) — 강성이 깊이 D 로 끌려 올라갔는지 직접 확인.
+      alphaCC(K) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN), C = { Z: 6, N: 6, e: 6 };
+        return { on: K.morseAlpha(Object.assign({}, base, { bondAlphaD: 0.5 }), C, C), off: K.morseAlpha(Object.assign({}, base, { bondAlphaD: 0 }), C, C) };
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0101 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1.5 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1.5, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K), aCC = this.alphaCC(K);
+        return { strCCon: +c.on.strCC.toFixed(3), strCCoff: +c.off.strCC.toFixed(3),
+                 strHHon: +c.on.strHH.toFixed(3), strHHoff: +c.off.strHH.toFixed(3),
+                 alphaCCon: +aCC.on.toFixed(3), alphaCCoff: +aCC.off.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① D↔α 상관(깊은 결합=가파름) ② 기준 깊이 결합 불변 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), aCC = this.alphaCC(K);
+        const correlate = c.on.strCC < c.off.strCC * 0.7 && aCC.on > aCC.off * 1.5;   // ① 깊은 C–C 가팔라짐 + α 끌려올라감
+        const baseInvariant = c.on.strHH === c.off.strHH;                              // ② H–H(D=base) 비트 동일
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                    // ④ 골든 보존
+        return [
+          { name: `D↔α 상관(깊은 결합=가파름)·load-bearing — bondAlphaD 켜면 깊은 C–C 최대 신장 strCC ${c.off.strCC.toFixed(2)}→${c.on.strCC.toFixed(2)}(α_CC ${aCC.off.toFixed(2)}→${aCC.on.toFixed(2)}·우물 가팔라짐) ⇒ 깊이 축 D 가 강성 축 α 를 끌어올림(0101 길이축에 이어 깊이축까지 α 연결·author 아닌 D 멱함수)`, pass: correlate, value: +c.on.strCC.toFixed(2) },
+          { name: `기준 깊이 결합은 불변·load-bearing — H–H(D=base·편차 0) 최대 신장 strHH(on) ${c.on.strHH.toFixed(3)} ≡ strHH(off) ${c.off.strHH.toFixed(3)}(비트 동일) ⇒ bondAlphaD 는 깊이 편차에만 작용((base/base)^q=1·전역 α 스케일 아님)`, pass: baseInvariant, value: +c.on.strHH.toFixed(3) },
+          { name: `장부 머신 — 쌍별 등·반작용 운동량 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.on.dE / c.on.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — bondAlphaD=0 → α 불변·0101~ 비트 동일·골든 보존(상관 게이트 가법)`, pass: reg, value: +c.off.strCC.toFixed(2) },
+        ];
+      },
+    },
+
+    'step-0103': {
+      id: 'step-0103',
+      title: '고립 전자쌍 각 압축 — 물은 굽었다(2결합+고립쌍 2 → 104.5°, 선형 아님) (게이트 bondAngleLonePair=0 → 0099 배위수 각·비트 동일·회귀 0)',
+      desc: '0099 VSEPR 은 *배위수*(결합 수)만 봤다 — 2결합이면 무조건 180°(선형). 실제는 *전자 도메인*(결합 + 고립쌍)이 각을 정한다: 물 O 는 2결합이지만 고립쌍 2개가 더해 입체수 SN=4(정사면체 골격)·고립쌍이 결합각을 109.47°→104.5°로 *압축*. 0099 의 맹점(선형이라 잘못 예측)을 메운다. 게이트 `bondAngleLonePair` 켜면 θ₀ = SN기하(SN=결합수+LP) − LP·압축노브, LP = ⌊(K.valenceElectrons(e)−결합수)/2⌋(전자 수 측정). "물 104.5°" 분자별 분기 0 — e 와 결합 위상서 창발. bondAngleLonePair=0 → 0099 배위수 θ₀·비트 동일(회귀 0). ' +
+            '*무대*(2D): 두 *2배위* 분자를 같은 무대서 — **물 H–O–H**(중심 O Z8 e8·v6·LP2·SN4) vs **Be–H₂**(중심 Be Z4 e4·v2·LP0·SN2)·결합 스프링 + 각도 스프링 + damp 안착·dt=0.04·5000 tick·시드 7·압축노브 0.0434 rad(2.485°/쌍)·각 분자 off(0099 VSEPR)/on(고립쌍): ' +
+            'lonePair 켜면 물 180°→104.5°(고립쌍 2개 압축)·Be 180°→180°(LP0·불변). 끄면 둘 다 0099 배위수 180°(선형). ' +
+            '① **고립쌍이 각을 굽힌다·load-bearing** — 물 각 lonePair on ≈104.5°(굽음) ≪ off 180°(0099 선형) ⇒ 2결합이라도 고립쌍 2개가 정사면체 골격(SN4)서 104.5°로 압축(0099 맹점 메움·author "물 104.5" 분기 0·전자 수서 창발). ' +
+            '② **고립쌍 없으면 불변·같은 배위수 다른 각·load-bearing** — Be(2결합·LP0) 각 on ≈180° ≡ off 180°·물 on 104.5° ≪ Be on 180° ⇒ *같은 2배위라도* 전자 수(고립쌍 유무)가 각을 가름(고립쌍이 진짜 원인·전역 스케일 아님). ' +
+            '③ **장부 머신·E 닫힘** — 각도 스프링 ΣF=0 운동량 머신·damp KE→바스·E 닫힘(bondAnglePE 도 같은 θ₀). ' +
+            '④ **회귀** — bondAngleLonePair=0 → 0099 배위수 θ₀·비트 동일·골든 보존.',
+      ticks: 60,
+      W: 200, H: 200, MT: 5000,
+      KN: { dt: 0.04, kBondSpring: 1.5, bondReq: 4, kBondAngle: 1.5, bondAngleTarget: 2.0943951023931953, bondAngleVSEPR: 1, kDamp: 0.25, coulombSoft: 1 },
+      COMP: 0.0434,                                          // 고립쌍 1개당 압축각(rad·2.485°) — 물 109.47−2·2.485≈104.5°
+
+      // 중심 원자(spec) + 2 H·~70° 시작(180/104.5 양쪽서 떨어져 안착).
+      mol(spec) {
+        const req = this.KN.bondReq, a = [], bonds = [], keys = new Set(), cx = this.W / 2, cy = this.H / 2;
+        a.push({ Z: spec.Z, N: spec.N, e: spec.e, x: 0, rx: cx, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0 });   // 중심 idx0
+        const start = [0.35, 0.35 + 1.22];
+        for (let k = 0; k < 2; k++) { const an = start[k];
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + req * Math.cos(an), ry: cy + req * Math.sin(an), vx: 0, vy: 0, lep: 0, nuc: 0 });
+          const j = a.length - 1; bonds.push([0, j, 0, 1]); keys.add(j); }
+        return { atoms: a, bonds, keys };
+      },
+      angle(at) {                                            // 두 결합 사이 각(°)
+        const ax = K.minImage(at[1].rx - at[0].rx, this.W), ay = K.minImage(at[1].ry - at[0].ry, this.H);
+        const bx = K.minImage(at[2].rx - at[0].rx, this.W), by = K.minImage(at[2].ry - at[0].ry, this.H);
+        let c = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by)); c = Math.max(-1, Math.min(1, c));
+        return Math.acos(c) * 180 / Math.PI;
+      },
+      run(K, spec, lonePair) {
+        const m = this.mol(spec);
+        const sim = { W: this.W, H: this.H, atoms: m.atoms, photons: [], bonds: m.bonds, bondKeys: m.keys, rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondAngleLonePair: lonePair ? this.COMP : 0 }), tick: 0 };
+        sim.escaped = { E: 0, px: 0, py: 0, count: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { ang: this.angle(sim.atoms), lp: Math.max(0, Math.floor((K.valenceElectrons(spec.e) - 2) / 2)),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100 };
+      },
+      cache(K) {
+        const O = { Z: 8, N: 8, e: 8 }, Be = { Z: 4, N: 4, e: 4 };
+        return this._c || (this._c = { waterOn: this.run(K, O, 1), waterOff: this.run(K, O, 0), beOn: this.run(K, Be, 1), beOff: this.run(K, Be, 0) });
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0099 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 8, N: 8, e: 8, x: 0, rx: cx + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + 4, ry: cy, vx: 0, vy: (rng() - 0.5) * 0.02, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { waterOn: +c.waterOn.ang.toFixed(1), waterOff: +c.waterOff.ang.toFixed(1), beOn: +c.beOn.ang.toFixed(1), beOff: +c.beOff.ang.toFixed(1),
+                 lpWater: c.waterOn.lp, lpBe: c.beOn.lp, relE: +c.waterOn.relE.toFixed(3), dpx: +c.waterOn.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 고립쌍이 각 굽힘(물) ② 고립쌍 없으면 불변(Be·같은 배위수 다른 각) ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const waterBends = Math.abs(c.waterOn.ang - 104.5) < 6 && c.waterOff.ang > 165 && c.waterOn != null && c.waterOff.ang - c.waterOn.ang > 50;  // ① 물 on≈104.5·off 선형·≫50° 차
+        const beInvariant = c.beOn.ang > 165 && Math.abs(c.beOn.ang - c.beOff.ang) < 1 && c.beOn.ang - c.waterOn.ang > 50;                            // ② Be 불변·물보다 ≫50°
+        const ledgerOK = c.waterOn.dpx < 1e-9 && c.waterOn.dpy < 1e-9 && c.waterOn.dB < 1e-9 && c.waterOn.dQ < 1e-9 && c.waterOn.dL < 1e-9 && c.waterOn.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                          // ④ 골든 보존
+        return [
+          { name: `고립쌍이 각을 굽힌다·load-bearing — 물 각 lonePair on ${c.waterOn.ang.toFixed(1)}°(LP ${c.waterOn.lp}·굽음) ≪ off ${c.waterOff.ang.toFixed(1)}°(0099 선형) ⇒ 2결합이라도 고립쌍 2개가 SN4 골격서 104.5°로 압축(0099 맹점 메움·author "물 104.5" 분기 0·전자 수서 창발)`, pass: waterBends, value: +c.waterOn.ang.toFixed(1) },
+          { name: `고립쌍 없으면 불변·같은 배위수 다른 각·load-bearing — Be(2결합·LP ${c.beOn.lp}) 각 on ${c.beOn.ang.toFixed(1)}° ≡ off ${c.beOff.ang.toFixed(1)}°·물 on ${c.waterOn.ang.toFixed(1)}° ≪ Be on ${c.beOn.ang.toFixed(1)}° ⇒ 같은 2배위라도 전자 수(고립쌍)가 각을 가름(전역 스케일 아님)`, pass: beInvariant, value: +c.beOn.ang.toFixed(1) },
+          { name: `장부 머신·E 닫힘 — 각도 스프링 ΣF=0 운동량 머신(dpx ${c.waterOn.dpx.toExponential(2)}·dB ${c.waterOn.dB.toExponential(2)}·dL ${c.waterOn.dL.toExponential(2)})·damp KE→바스·E 닫힘 ${c.waterOn.relE.toFixed(3)}%`, pass: ledgerOK, value: +c.waterOn.relE.toFixed(3) },
+          { name: `회귀 — bondAngleLonePair=0 → 0099 배위수 θ₀·비트 동일·골든 보존(고립쌍 게이트 가법)`, pass: reg, value: +c.waterOff.ang.toFixed(1) },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };

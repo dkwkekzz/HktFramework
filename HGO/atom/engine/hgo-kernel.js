@@ -234,6 +234,15 @@
       const reqEff = morseReq(knobs, a, b);                // 0095 종류별 r_eq(게이트 off 면 base → 인자 1·회귀 0)
       if (reqEff > 0) alpha *= Math.pow(reqBase / reqEff, knobs.bondBadger);
     }
+    // step-0102 D↔α 상관(둘째 Badger 축) — bondAlphaD(=0 → Math.pow(_,0)=1 → α 불변·회귀 0) 면 α 를 *깊이 D 의 함수*로 묶는다:
+    //   깊은(강한) 결합일수록 *가파르다*(실측: 결합 에너지↑ ⇒ 힘 상수↑). α_eff *= (D_eff/D_base)^bondAlphaD.
+    //   0101 이 α↔r_eq(길이)를 묶었다면 여기선 α↔D(깊이) — 셋째 화학 축까지 α 가 *받게* 됨(k=2Dα² 가 D·α 양쪽서 강성). D_eff=base(깊이 편차 0·예: H–H) 면 인자 1 → 무영향.
+    //   *주의*: morseD 를 order=1 로 호출(이 함수는 결합 간선 차수 e[3] 를 못 봄) — 차수별 깊이→α 연계는 후속. author 분기 0(D 의 멱함수).
+    if (knobs.bondAlphaD) {
+      const Dbase = (knobs.bondMorseD) || 0;
+      const Deff = morseD(knobs, a, b, 1);                 // 0089 종류별 깊이(게이트 off 면 Dbase → 인자 1·회귀 0)
+      if (Dbase > 0 && Deff > 0) alpha *= Math.pow(Deff / Dbase, knobs.bondAlphaD);
+    }
     return alpha;
   }
 
@@ -248,6 +257,14 @@
       req *= (Math.cbrt(za) + Math.cbrt(zb)) / 2;
     }
     return req;
+  }
+
+  // step-0103 원자가 전자 수(valence) — 외각(최근접 닫힌 껍질 아래) 전자 수. 고립 전자쌍 회계의 입력.
+  //   v = e − (e 미만 최대 닫힌 껍질 전자수). 닫힌 껍질 [2,10,18,36](He·Ne·Ar·Kr). 예: O(e8)→8−2=6·C(e6)→4·N(e7)→5·Be(e4)→2·H(e1)→1.
+  //   고립쌍 LP = ⌊(v − 결합수)/2⌋(공유결합 1개당 외각 전자 1개 기여, 남은 외각 전자가 쌍 지음). author 분기 0 — e 와 결합 위상의 함수.
+  function valenceElectrons(e) {
+    let prev = 0; for (const m of [2, 10, 18, 36]) { if (m < e) prev = m; else break; }
+    return Math.max(0, (e | 0) - prev);
   }
 
   function bondSpringPE(sim) {
@@ -287,7 +304,15 @@
     for (const [ci, ns] of nbr) {
       if (ns.length < 2) continue;
       const ai = A[ci];
-      const t0 = vsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
+      // step-0103 고립쌍 θ₀ — 힘(bondAngle)과 *같은* 분기라야 E 닫힘(게이트 0 → 0099 θ₀·회귀 0).
+      let t0;
+      if (sim.knobs.bondAngleLonePair) {
+        const v = valenceElectrons(ai.e), lp = Math.max(0, Math.floor((v - ns.length) / 2)), sn = ns.length + lp;
+        const t0sn = sn <= 2 ? Math.PI : sn === 3 ? 2 * Math.PI / 3 : sn === 4 ? Math.acos(-1 / 3) : Math.PI / 2;
+        t0 = t0sn - lp * sim.knobs.bondAngleLonePair;
+      } else {
+        t0 = vsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
+      }
       for (let p = 0; p < ns.length; p++) for (let q = p + 1; q < ns.length; q++) {
         const aj = A[ns[p]], ak = A[ns[q]];
         const axx = minImage(aj.rx - ai.rx, W), axy = minImage(aj.ry - ai.ry, H);
@@ -397,5 +422,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, morseD, morseAlpha, morseReq, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, morseD, morseAlpha, morseReq, valenceElectrons, ledger, minImage, hashState };
 });
