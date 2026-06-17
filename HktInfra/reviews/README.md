@@ -40,6 +40,7 @@
 | [review-0001-0010](review-0001-0010.md) | 0001~0010 | 헤드리스 토대 — 4박스 → 복제·핸드오프·failover → 멀티프로세스 IPC | ①✅ ②🟡 ③✅강화 ④✅ ⑤🟡 | #1 결정론 이원화 · #2 실 전송/버스 · #4 broker lockstep (+#3·#5·#6) |
 | [review-0011-0020](review-0011-0020.md) | 0011~0020 | 와이어 현실화(TCP·토픽 버스·진짜 kill) → 게임 서비스 분리(가방·채팅) → 버스 의미 → 데이터 영속(저널·스냅샷·CQRS late-join) | ①✅강력 ②🟡 ③✅확장 ④✅확장 ⑤✅현실화 | #2·#5 ✅해소 · #1·#3·#4·#6 유지 · #7 채팅 신뢰전달·#8 panel-kit Math.random(신규) |
 | [review-0021-0030](review-0021-0030.md) | 0021~0030 | 서비스 영속 완성(채팅 커맨드 로그·압축) → write-behind 신뢰성 4부작(NAK·heartbeat·give·mint) → PersistStore quorum(이중쓰기·N복제·write ack) → 박스 분할 정리 | ①✅ ②🟡 ③✅강화 ④✅ ⑤✅ | #1·#3·#4·#6·#7·#8 유지 · #9 give-resend 견고성(신규) |
+| [review-0031-0040](review-0031-0040.md) | 0031~0040 | 정합성 윈도 해소(quorum-fill·유계 sweep) → 버스 동적 구독·failover·양경로 producer replay 무손실 → replay 버퍼 유계·ack 자기-크기조정 → 정리 2건(cluster·topology 분할) | ①✅ ②🟡 ③✅강화 ④✅ ⑤✅ | #1·#3·#4·#6·#7·#8·#9 유지 · #10 give×result-ahead(신규) |
 
 ## 2. 열린 이슈 원장 (교차-배치 이월 — **유일하게 갱신**)
 
@@ -54,7 +55,8 @@
 - **#6 | 동적 경계·N 존 오케스트레이션 부재** | ③/성능 | 0001-0010 | 🟡 열림 — 현재 2 존 정적·전 존 브로드캐스트 | **목적지 STATE §3** → 게이트: 오케스트레이터 동적 배치·존 spawn(SPINE §2 코디네이션 계층). 0011-0020 미착수
 - **#7 | 채팅 best-effort — per-message ack/resend·홉 신뢰 부재** | 서비스 | 0011-0020 | 🟡 유지 — 0015 채팅=fire-and-forget 팬아웃·0021/0022 가 *영속·압축*은 더했으나 *전달 신뢰*(홉 ack/resend)는 미적용·0023/0024 신뢰화는 가방 홉 한정(0024 §9 ⓒ) | **목적지 STATE §3**(이미 "채팅 in-flight/홉 신뢰 미적용" 추적) → 게이트: 채널 시퀀스·ack/resend(0008/0023 복원 패턴의 채팅 판·끄면 회귀 0)
 - **#8 | `engine/panel-kit.js:29` Math.random** | ②/정리 | 0011-0020 | 🟡 신규(경미) — 브라우저 DOM 컨트롤 위젯 id 생성·헤드리스 verify/`compute()` 경로 밖(다이제스트 무관)이나 공유 `engine/` 의 결정론-금지 잠복 foot-gun | **목적지 STATE §3 OPEN GAPS**(정리성) → 게이트: 시드 카운터/결정론 id 로 교체(끄면 시각 위젯만 영향=회귀 0)
-- **#9 | give-resend 견고성 — in-order 의존 + 멀티프로세스 패리티 갭** | ③/⑤ | 0021-0030 | 🟡 신규 — 0025 §9 ⓕⓖ: ⒜ `_confirmGive` 가 클라 홉 in-order 암묵 의존(재정렬 시 itemId 첫-매칭이 틀린 toAvatar→seed 1234 itemDesync 2 재현) ⒝ `clientResync`/`resendGives` 가 인프로세스 `run()` 에만·`runMulti`/host/cluster 미구현(멀티프로세스 클라 resend 부재) | **목적지 STATE §3** → 게이트: opSeq 키 매칭 견고화 + 멀티프로세스 클라 resend 핸드셰이크(현 시나리오 FIFO·인프로세스라 미발현=회귀 0)
+- **#9 | give-resend 견고성 + 멀티프로세스 패리티 갭** | ③/⑤ | 0021-0030 | 🟡 유지(범위 확장) — 0025 §9 ⓕⓖ: ⒜ `_confirmGive` in-order 의존(재정렬 시 seed 1234 itemDesync 2) ⒝ `clientResync`/`resendGives` 인프로세스 `run()` 에만. **+0031-0040: 버스 failover replay(busResend/busResendReq)도 인프로세스 가설 모드만**(`cluster.js` 무수정·멀티프로세스 버스 failover 미검증) | **목적지 STATE §3** → 게이트: opSeq 키 매칭 + 멀티프로세스 failover 핸드셰이크(현 시나리오 FIFO·인프로세스라 미발현=회귀 0)
+- **#10 | give 요청 × result-ahead 결합 미해소(transfers≠base)** | 서비스/버스 | 0031-0040 | 🟡 신규 — 0037/0039/0040 §9: 버스 gap 에 떨군 give 요청 재발행 시 결과 미수신 클라가 재-give → 원 give 재도달 시 owner 바뀌어 실패(failedOps) → *다른 유효 결과*로 수렴(원장 자기-정합·desync 0 이나 transfers≠base) | **목적지 STATE §2/§3**(이미 "give×result-ahead 0037 §9" 추적) → 게이트: 0025 클라 give-resend × 버스 요청 replay 통합 복구
 
 ### 해소 ✅ (인덱스에서 제거 — 기록만)
 
@@ -62,6 +64,7 @@
 - **#5 | failover 펜싱·split-brain 미검증** (0001-0010 발견) → ✅ **0012**(링크 분단+재연결 fence·split-brain 0) + **0013**(진짜 child.kill·epoch 펜싱·거짓 사망=진짜 사망 비트 동일·재-provisioning N≥2·divergence 0).
 - (기록만·후속 게이트가 메운 0011-0020 신규) write-behind 윈도(0017~0020) → 0023~0026 신뢰성 완결 · ServiceBus 단일점·정적 구독(0016) → 0033 동적 구독+0034 failover.
 - (기록만·후속 게이트가 메운 0021-0030 신규) 정합성 윈도 해소 부재(0029 §9 — durableSeq 감지만) → 0031 quorum-fill + 0032 유계 sweep/retry.
+- (기록만·후속 게이트가 메운 0031-0040 신규) 결과 outBuffer ack-가지치기 부재(0040 §9 ⒜) → 0041 busOutAck · seenReqs 무계(0040 §9 ⒝) → 0042 busSeenBound + 0047 busSeenNs.
 
 ---
 
