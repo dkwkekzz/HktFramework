@@ -1,5 +1,5 @@
 'use strict';
-// step-0048 정리 분할 — InventoryService *원장 코어*(생성자 + 트랜잭션 onMsg + crash + 조회).
+// step-0050 — 적응형 leaseSpan(busLeaseAdapt) 상태(consumerMaxGap) 추가. InventoryService *원장 코어*(생성자 + 트랜잭션 onMsg + crash + 조회).
 //   write-behind 영속은 svc-inventory-persist.js, 버스 결과/replay 는 svc-inventory-bus.js 가 프로토타입 증강(Object.assign).
 //   진입점 svc-inventory.js 가 셋을 묶어 동일 export(InventoryService) 노출 — 분할은 *파일 구조*만(바이트·동작 불변·reg 0).
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
@@ -113,6 +113,13 @@ class InventoryService {
     //   busLeaseLife OFF 면 ⒜ 지연 baseline 미확립(consumerSeen 은 0045 처럼 ack 때만)·⒝ 재admission 0 → 0047 비트 동일(evicted 동작 무변경). busConsumerLease·busMinWm 전제.
     this.busLeaseLife = opts.busLeaseLife || false;
     this.readmissions = 0;                  // 재admission 누적(계측·이 step) — 축출됐던 소비자가 돌아와 min 정의역에 복귀한 횟수.
+    // ── 적응형 leaseSpan(step-0050·busLeaseAdapt) — 0048/0049 lease 의 *정직한 한계* 해소(고정 leaseSpan 의 영구-죽음 vs 일시-지연 분리·svc-inventory-core.js §lease·0048 verify §9). ──
+    //   문제: 고정 leaseSpan 은 *정상 ack 간격(침묵)보다 커야* 산 소비자를 안 쫓는다 — 그 간격은 생산율×소비자 cadence 의 함수라 *사전에 모른다*. 너무 작으면 산 소비자 오축출(leaseSpan≤5 에서 live ranking 축출 재현), 너무 크면 죽은 소비자 늦게 감지.
+    //   해법: 임계를 *관측된 cadence* 로 self-size. 소비자 c 가 ack 할 때마다 그 직전 침묵(frontier−consumerSeen = c 가 *살아서* 견딘 ack 간격)을 보고 per-c 러닝 최대(consumerMaxGap)를 키운다. 축출 임계 = consumerMaxGap(c) + leaseSpan(이제 *여유 마진*).
+    //   → 산 소비자: 침묵이 자기 관측 cadence 를 마진만큼만 넘지 않으면 오축출 0(임계가 cadence 를 따라 올라감). 죽은 소비자: ack 끊김 → consumerMaxGap 동결 → 침묵이 동결값+마진 초과 → 여전히 축출(죽음 감지 보존·유계).
+    //   leaseSpan 의 의미 전환: 고정-임계(OFF) → 관측 cadence 위의 *마진*(ON). 사전에 cadence 를 몰라도 된다(0048 §9 의 "임계를 사람이 맞춰야" 해소). busLeaseAdapt OFF 면 consumerMaxGap 미사용 = 0049 비트 동일(고정 leaseSpan 예측). busConsumerLease 전제.
+    this.busLeaseAdapt = opts.busLeaseAdapt || false;
+    this.consumerMaxGap = new Map();        // consumer id -> 그 소비자가 *살아서 ack 하며* 보인 최대 침묵(frontier 단위·단조 증가). 적응형 축출 임계의 cadence 추정.
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
