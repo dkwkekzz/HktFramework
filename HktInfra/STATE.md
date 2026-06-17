@@ -9,23 +9,23 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0048](step-0048.md) — **소비자 lease lifecycle 정합**(busLeaseLife·0045 §9/리뷰 §2·§3 해소). 0045 lease 는 침묵 기준을 *첫 ack 시점*에야 세움 → §2 never-ack 소비자는 미확립=축출 불가+min -1 고정(무계)·§3 evicted 영구=돌아와도 정의역 미복귀(starve 재발). 해법: ⒜ sweep 가 처음 본 미-ack 소비자 기준을 frontier 로 *지연* 확립(leaseSpan grace→산 소비자 오축출 0)→영영-죽음 leaseSpan 뒤 축출 ⒝ 재-ack 시 evicted 제거(재admission). 닿는 파일 svc-inventory-core/bus·topo-build·verify.
-- **한 줄 상태**: reg 25/25(0047 비트 동일)·leaselife ALL OK — §2 never-ack OFF outBufPeak 60→180(∝run-length·ev 0) vs ON **36→36**(유계·ev 1)·§3 revival OFF readm 0·영영 evicted vs ON **readm 1·복귀**·ctl 오축출 0(peak 24=leaseOnly). E2E 14프로세스 비트동일·spine **48-step**·close 통과.
-- **다음**: §2 참조 — per-producer ack 워터마크(다중 게이트웨이) · give×result-ahead · 적응형 leaseSpan · 비동기 결정론(🔴). 정리 후보: 안정 박스 `engine/` 승격(디렉토리 누적).
+- **닫힌 step**: [step-0049](step-0049.md) — **단일 살아있는 소스 `src/` 전환**(복사 전진 폐기·정리 step·기능 0·reg 0). step 마다 박스 26파일을 통째 복사하던 방식을 종료: 코드는 `src/` 한 곳에서 *제자리 수정* + `baseline/` 회전 스냅샷 1벌(reg 대조) + archive `step-0001~0048/`(전환 시점 동결·spine 역사 사슬). reg/역사 보장은 이미 `verify-kit`(add-only)+git 에 중복 존재 → 보장 0 손실, 통복사 비용만 소멸. 현재 step 권위 = `src/STEP`. 도구 `run.js`·`new-step.js`·`close-step.js` 재배선.
+- **한 줄 상태**: reg ALL OK(src=baseline=0048 비트 동일·월드해시 5시드 `0x7a122947`… 보존)·E2E 14프로세스 비트동일·spine **archive 48+src ALL OK(49)**·close 통과. 0048 기능 무변경.
+- **다음**: §2 참조 — per-producer ack 워터마크(다중 게이트웨이) · give×result-ahead · 적응형 leaseSpan · 비동기 결정론(🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0048 이 *소비자 lease lifecycle 정합*(busLeaseLife — 지연 baseline=never-ack 축출·재admission=축출 가역·리뷰 §2/§3 해소)을 닫았다. 남은 후보: *per-producer ack 워터마크*(0047 §9·다중 게이트웨이·현재 단일이라 충분), *적응형 leaseSpan*(0048 §9·영구-죽음 vs 일시-지연 임계 자동화), ⒝ *give×result-ahead*(0037 §9), ⒞ *활성 중 다운타임 일반 재발행*(0025/0026), ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: step 디렉토리(실 271KB) → 안정 박스 `engine/` 승격.**
+**step-0049 가 *단일 살아있는 소스 src/ 전환*(복사 전진 폐기·정리 step·기능 0·reg 0)을 닫았다. 기능 후보(0048 이 남긴 것): *per-producer ack 워터마크*(0047 §9·다중 게이트웨이·현재 단일이라 충분), *적응형 leaseSpan*(0048 §9·영구-죽음 vs 일시-지연 임계 자동화), ⒝ *give×result-ahead*(0037 §9), ⒞ *활성 중 다운타임 일반 재발행*(0025/0026), ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격(이제 src/ 한 곳에서).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
 **병행 백로그(블로킹 아님)**: ⬜ per-producer ack/seenWm 유계화(0046 §9) · give×result-ahead·적응형 K(0037/0039 §9) · 디스크 fsync·anti-entropy·적응형 sweep(0031/0029 §9) · 버스 라우팅 영속/분산/replay(0034/0016 §9) · 활성 중 다운타임+재발행 핸드셰이크(0020~0022 §9) · 채팅 in-flight/홉 신뢰·heartbeat×압축(0023/0024 §9) · 읽기모델 증분 follow·증분 스냅샷(0018/0020 §9) · 월드 영속(존 intent 로그) · 거래소·우편·길드·존 넘는 거래(0014 §9-2) · 비동기 결정론(논리 클럭·0012 §9-3) · 서버간 인증·재접속·티켓. (✅ 해소분 = §3 묶음·§7.)
 
-**빌드 인프라 — `engine/` 한 곳(0004 추출·0030 확장)**: `index.js`(VM 커널·PRNG·FNV·`Net`·스텁·동결 `ISimCore`)·`panel-kit.js`·`verify-kit.js`(누적 회귀 18모드 팩토리·모드 제거 금지/추가만)·`close-step.js`(닫기 게이트)·`new-step.js`(스캐폴드). 코어 **dual-mode**. **step 절차**: ① `new-step.js`→scaffold 커밋(2-커밋 관행) ② 닿는 박스 파일만 Edit + verify.js 셸에 새 모드만 `kit.MODES['<mode>']=fn`·`kit.ORDER.splice`(가설 모드는 셸 한정·키트엔 누적 회귀만) ③ `close-step.js` 닫기 ④ 델타 커밋. 정리 step: 0030·0035·0038·0043(verbatim·기능 0·reg 0).
+**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049 전환)**: `engine/` = `index.js`(VM 커널·PRNG·FNV·`Net`·스텁·동결 `ISimCore`)·`panel-kit.js`·`verify-kit.js`(누적 회귀 팩토리·모드 제거 금지/추가만)·`close-step.js`·`new-step.js`. 코드는 **`src/`(박스 26파일·제자리 수정)** + `src/STEP`(현재 step 권위) + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌). 코어 **dual-mode**. **step 절차**: ① `new-step.js`(src→baseline 스냅샷·STEP 전진·코드 복사 0) ② src/ 의 닿는 박스만 Edit + verify 셸에 새 모드만 `kit.MODES['<mode>']=fn`·`kit.ORDER.splice`(가설 모드는 셸 한정·키트엔 누적 회귀만) ③ `close-step.js` 닫기 ④ **델타 1커밋 + `git tag step-NNNN`**(역사 보존). 정리 step: 0030·0035·0038·0043·**0049**(기능 0·reg 0).
 
-**TESTBED 도구(0010 후·동결 step 무수정)**: `run.js`(단일 진입점 — `node run.js`·`spine`·`<NNNN>`·`report`·`scenario`·`live`) + `report.html`(녹화 레코더·AOI 맵) + `live.js`(SSE). 훅 `onTick`·`scenario <file>`(trace 4기둥)·`inject`(write-seam·미제공=no-op→reg 0) ✅. 새 박스 추가 시 run.js 의 addr→layer 맵만 갱신.
+**TESTBED 도구(0010 후·0049 src/ 재배선)**: `run.js`(단일 진입점 — `node run.js`=src/·`spine`=archive+src·`<NNNN>`·`report`·`scenario`·`live`. 현재 step=`src/STEP`) + `report.html`(녹화 레코더·AOI 맵) + `live.js`(SSE). 훅 `onTick`·`scenario <file>`(trace 4기둥)·`inject`(write-seam·미제공=no-op→reg 0) ✅. 새 박스 추가 시 run.js 의 addr→layer 맵만 갱신.
 
 ---
 
@@ -141,7 +141,8 @@
 | [0042](step-0042.md) | 가방 seenReqs dedup 집합 *유계화*(busSeenBound — 게이트웨이 inAcked 역방향 워터마크 svc.item.seen→seenReqs 가지치기·0040/0041 §9 해소) | 통과 · busSeenBound 0=0041 비트 동일(reg 25/25)·minted base==bound(dedup 보존)·seenReqs peak 60→24 유계·run-length 무관·failover dupe 0·spine 42-step |
 | [0043](step-0043.md) | 정리 step: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·코어/영속/버스 증강·바이트 동일·기능 0) | 통과 · reg 25/25·박스 34→최대 19.6KB(<30KB)·E2E 14프로세스 비트동일·spine 43-step |
 | [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼를 모든 소비자 frontier 의 최소로 + ranking outSeq dedup·0041 §9 ① 해소) | 통과 · busMinWm 0=0043 비트 동일(reg 25/25)·비대칭 복구에서 single rankFaithful F(over 6) vs min T(투영==원장)·outBuf peak 24→36 보존·spine 44-step |
-| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — *침묵 길이*로 죽은 소비자 판정→min 정의역 축출→outBuffer 무계 보유 해소·0044 §9 대가) | 통과 · busConsumerLease 0=0044 비트 동일(reg 25/25)·ranking 영구 다운@14 lease OFF peak 36→156(∝run-length) vs ON 30→30(유계·ev1)·산 소비자 오축출 0(ctl)·침묵 신호 필수(§9)·spine 45-step |
-| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — 요청 dedup 을 (producer,reqId) 복합키로→다중 게이트웨이 reqId 겹침 충돌 해소·0042 §9 ①) | 통과 · busProducerNs 0=0045 비트 동일(reg 25/25)·둘째 게이트웨이(버스 seam) reqId 0..4 gw1 겹침 OFF minted Δ0(충돌 폐기) vs ON Δ5(복합키·보존)·원장 자기-정합·spine 46-step |
-| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 0046 복합키를 0042 busSeenBound 가 producer 별 가지치게·복합키×숫자 prune NaN 잠복 버그·리뷰 §1) | 통과 · busSeenNs 0=0046 비트 동일(reg 25/25)·busProducerNs+busSeenBound ON 에서 OFF seenReqsPeak 60→180(∝run-length·무력) vs ON 24→24(유계·drain 0)·minted 보존·ON×ON reg 사각(§9)·spine 47-step |
-| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — 지연 baseline 으로 never-ack 소비자 축출·§2 + 재admission 으로 축출 가역·§3·0045 §9/코드리뷰 §2·§3 해소) | 통과 · busLeaseLife 0=0047 비트 동일(reg 25/25)·§2 never-ack OFF outBufPeak 60→180(∝run-length·ev 0·못 축출) vs ON 36→36(유계·ev 1)·§3 revival OFF readm 0·영영 evicted vs ON readm 1·정의역 복귀·ctl 산 소비자 오축출 0(ev 0·peak 24=leaseOnly)·minted 보존·spine 48-step |
+| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — *침묵 길이*로 죽은 소비자 판정→min 정의역 축출→outBuffer 무계 보유 해소) | 통과 · 0=0044 비트 동일·ranking 다운@14 OFF peak 36→156(∝run-length) vs ON 30→30(유계·ev1)·오축출 0(ctl)·spine 45 |
+| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — 요청 dedup 을 (producer,reqId) 복합키로→reqId 겹침 충돌 해소) | 통과 · 0=0045 비트 동일·gw1 겹침 OFF minted Δ0(폐기) vs ON Δ5(복합키·보존)·spine 46 |
+| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 0046 복합키를 busSeenBound 가 producer 별 가지치게·prune NaN 잠복 버그) | 통과 · 0=0046 비트 동일·OFF seenReqsPeak 60→180(∝run-length) vs ON 24→24(유계)·ON×ON reg 사각(§9)·spine 47 |
+| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — 지연 baseline 으로 never-ack 소비자 축출·§2 + 재admission 으로 축출 가역·§3·0045 §9/코드리뷰 §2·§3 해소) | 통과 · 0=0047 비트 동일·§2 never-ack OFF outBufPeak 60→180(∝run-length·ev 0) vs ON 36→36(유계·ev 1)·§3 revival OFF readm 0·영영 evicted vs ON readm 1·복귀·ctl 오축출 0(peak 24)·spine 48 |
+| [0049](step-0049.md) | 단일 살아있는 소스 `src/` 전환(복사 전진 폐기·정리 step·기능 0·reg 0 — 코드 통복사 종료·src 제자리 수정+baseline 회전 1벌+archive 동결·도구 src/STEP 재배선) | 통과 · reg=src=baseline=0048 비트 동일(월드해시 5시드 보존)·E2E 14프로세스 비트동일·spine archive 48+src ALL OK(49) |

@@ -3,7 +3,8 @@
 /* HktInfra 닫기 게이트 — step 닫기 체크리스트의 *기계 검증분*을 한 줄로 돈다 (step-0030 도입).
  *
  * 사용: node engine/close-step.js [NNNN] [--no-spine]
- *   NNNN 생략 시 최대 step. --no-spine 은 작업 중 빠른 반복용(닫기 전 최종 1회는 spine 포함 필수).
+ *   NNNN 생략 시 src/STEP(현재 step 권위·0049 단일 src/ 전환). --no-spine 은 작업 중 빠른 반복용(닫기 전 최종 1회는 spine 포함 필수).
+ *   통과(exit 0) 후 에이전트가 할 일: 델타 커밋 + `git tag step-NNNN`(역사 고고학 보존 — 동결 step-NNNN/ 디렉토리를 대신한다).
  *
  * 하는 일(기계 판정 가능분):
  *   1. node run.js          — 현재 step 4기둥 (exit 0)
@@ -22,13 +23,10 @@ const ROOT = path.join(__dirname, '..');
 const pad = n => String(n).padStart(4, '0');
 const KB = n => (n / 1024).toFixed(1) + 'KB';
 
-const nums = fs.readdirSync(ROOT)
-  .map(n => /^step-(\d{4})$/.exec(n)).filter(Boolean)
-  .map(m => parseInt(m[1], 10))
-  .filter(n => fs.existsSync(path.join(ROOT, 'step-' + pad(n), 'verify.js')))
-  .sort((a, b) => a - b);
+// 현재 step 번호의 권위 = src/STEP (0049 단일 src/ 전환). 인자로 명시하면 그것을 따른다.
+const srcStep = (() => { try { return parseInt(fs.readFileSync(path.join(ROOT, 'src', 'STEP'), 'utf8').trim(), 10); } catch { return null; } })();
 const argNum = process.argv.find(a => /^\d+$/.test(a));
-const N = pad(argNum ? parseInt(argNum, 10) : nums[nums.length - 1]);
+const N = pad(argNum ? parseInt(argNum, 10) : srcStep);
 const noSpine = process.argv.includes('--no-spine');
 
 let failed = false;
@@ -74,5 +72,5 @@ else runJs(['spine'], 'node run.js spine — 전 시리즈 회귀 사슬');
 
 console.log(failed
   ? `결과: FAIL — step-${N} 은 아직 닫을 수 없다(위 ✗ 해소 후 재실행)`
-  : `결과: OK — 기계 판정분 통과. 남은 닫기 판정(에이전트): 척추 5항·문서 수치=verify 출력·STATE §1~6 갱신.`);
+  : `결과: OK — 기계 판정분 통과. 남은 닫기 판정(에이전트): 척추 5항·문서 수치=verify 출력·STATE §1~6 갱신. 그 후 델타 커밋 + git tag step-${N}.`);
 process.exit(failed ? 1 : 0);
