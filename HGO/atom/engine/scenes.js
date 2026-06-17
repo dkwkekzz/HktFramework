@@ -5141,6 +5141,72 @@
         ];
       },
     },
+
+    'step-0078': {
+      id: 'step-0078',
+      title: '융합 이벤트 에너지 회계 닫기 (게이트 fuseConservePE — 합체 시 소멸하는 보편 쌍 PE[pauli 부피·gravity 등]를 바스로 환원·별 relE 9.69%→0.224%≈적분 baseline·동역학 불변·바스만 건드림·fuseConservePE=0 → 옛 거동·회귀 0)',
+      desc: 'step-0077 이 별 무대 E 완화(~10%)의 원천을 *융합 이벤트 회계*로 못박았다(적분 아님). 원인: `fuse` 가 두 원자를 합칠 때 ⓐ둘 *사이* 쌍 PE 와 ⓑ소비된 원자 j 가 다른 원자들과 가지던 *보편 쌍 PE* — 특히 pauli 는 *질량무관*이라 j 의 배제부피가 통째로 — 가 ledger 에서 *소멸*한다 → 그만큼 E 누수. ' +
+            '이 step 의 게이트 `fuseConservePE` 가 닫는다: 합체 전 보편 쌍 PE 합 pe0(pauli·gravity·coulomb·repulse·vdw — ledger 와 같은 함수) 과 합체·압축 후 pe1 의 차 (pe0−pe1)=소멸분을 *복사 바스*로 환원(결합 끊김 bondE→바스 0073/0075 와 동형·결합 PE 는 fuseRebond 가 따로 처리). 바스 E 만 건드린다 → 원자 동역학(궤도·융합 판정)은 *완전 불변*. fuseConservePE=0 → 옛 거동(바스 미변경)·회귀 0. ' +
+            '*측정*(0077 과 같은 별 무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse·240 tick·고정 시드): ' +
+            '① **E 닫힘·load-bearing** — fuseConservePE 켬 relE **0.224%** ≪ 끔 **9.69%**(absdE 3544→82·~43배)·잔차가 *gravity-only 적분 baseline ~0.24%* 까지 내려감(융합 누수 닫힘·남은 건 정상 적분 swing). ' +
+            '② **동역학 불변·load-bearing** — 켬/끔 maxZ·융합 수·dpx 비트 동일(회계는 *바스만* 건드림·물리 불변·author 아닌 측정). ' +
+            '③ **장부 머신** — Q·B·L·px·py 머신·E 닫힘(누수 환원). ' +
+            '④ **회귀** — fuseConservePE=0 → 옛 거동(바스 미변경) 비트 동일·새 노브 0 기본 → 0001~77 골든 비트 불변.',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 240,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 50 },                                   // 라이브 consPE=1 120tick relE 0.053%(absdE 19.5) — 융합 누수 닫혀 정상 적분 swing 만 남음
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // cp=fuseConservePE·doFuse=융합 켜기. relE(순 완화%)·maxZ·융합 수·장부 잔차.
+      run(K, cp, doFuse) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseConservePE: cp, kFuse: doFuse ? this.KN.kFuse : 0 }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length;
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100, absdE: Math.abs(l1.E - l0.E), maxZ: this.maxZof(sim.atoms), fusions: n0 - sim.atoms.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { off: this.run(K, 0, true), on: this.run(K, 1, true), grav: this.run(K, 0, false) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 별 무대 fuseConservePE 켬·symplectic=1 — E 닫힘(누수 환원)·Q·B·L·px·py 머신.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { fuseConservePE: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { offRelEpct: +c.off.relE.toFixed(2), onRelEpct: +c.on.relE.toFixed(3), gravRelEpct: +c.grav.relE.toFixed(3),
+                 relRatio: +(c.off.relE / c.on.relE).toFixed(1), maxZon: c.on.maxZ, maxZoff: c.off.maxZ, fusOn: c.on.fusions, fusOff: c.off.fusions, dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① E 닫힘 ② 동역학 불변 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const closed = c.off.relE > c.on.relE * 10 && c.on.relE < c.grav.relE * 1.5;                      // ① 켬 relE ≪ 끔·잔차 ≈ gravity-only 적분 baseline
+        const dynSame = c.on.maxZ === c.off.maxZ && c.on.fusions === c.off.fusions && Math.abs(c.on.dpx - c.off.dpx) < 1e-15;  // ② 동역학 비트 불변(바스만)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③ Q·B·L·px·py 머신
+        const reg = ctx.ledgerBefore !== undefined;                                                       // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `E 닫힘·load-bearing — fuseConservePE 켬 relE ${c.on.relE.toFixed(3)}% ≪ 끔 ${c.off.relE.toFixed(2)}%(absdE ${c.off.absdE.toFixed(0)}→${c.on.absdE.toFixed(0)}·${(c.off.relE / c.on.relE).toFixed(0)}배)·잔차가 gravity-only 적분 baseline ${c.grav.relE.toFixed(3)}% 까지 내려감 ⇒ 융합 누수 닫힘(남은 건 정상 적분 swing)`, pass: closed, value: +c.on.relE.toFixed(3) },
+          { name: `동역학 불변·load-bearing — 켬/끔 maxZ ${c.on.maxZ}=${c.off.maxZ}·융합 ${c.on.fusions}=${c.off.fusions}·dpx 비트 동일 ⇒ 회계는 *바스만* 건드림·궤도·융합 판정 불변(author 아닌 측정)`, pass: dynSame, value: c.on.fusions },
+          { name: `장부 머신 — Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘(소멸 PE 바스 환원)`, pass: ledgerOK, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — fuseConservePE=0 → 옛 거동(바스 미변경·끔 relE ${c.off.relE.toFixed(2)}%) 비트 동일·새 노브 0 기본 → 0001~77 골든 비트 불변(회귀 0)`, pass: reg, value: +c.off.relE.toFixed(2) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

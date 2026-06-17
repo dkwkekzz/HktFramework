@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -878,6 +878,13 @@
     //   keRel<|ΔB_fus| 면 지불 불가 → 융합 *에너지적 금지*(철 너머 융합이 고E 군집서만 일어나는 이유·발열은 문턱 0).
     const endo = sim.knobs.fuseEndo;
     const atoms = sim.atoms, n = atoms.length;
+    // 융합 이벤트 PE 회계(step-0078, fuseConservePE=0 → 옛 거동·바스 미변경·회귀 0): 두 원자가 합쳐지면 *둘 사이* 및 *소비된 원자 j 가
+    //   다른 원자들과 가지던* 보편 쌍 PE(pauli 는 질량무관 → j 의 부피가 통째로 소멸·gravity/coulomb 등)가 ledger 에서 사라진다 → E 누수
+    //   (step-0077 이 별 relE ~10% 의 원천으로 격리). 합체 전 보편 쌍 PE 합 pe0 과 합체·압축 후 pe1 의 차(=소멸분)를 *복사 바스*로 환원해 닫는다.
+    //   결합(bond) PE 는 fuseRebond(0073)가 따로 per-bond 환원 → 여기선 *보편 쌍 5종*(pauli·gravity·coulomb·repulse·vdw·ledger 와 같은 함수)만.
+    const consPE = sim.knobs.fuseConservePE;
+    const sumPairPE = (at) => K.pauliPE(at, sim.knobs, sim.W, sim.H) + K.gravityPE(at, sim.knobs, sim.W, sim.H) + K.coulombPE(at, sim.knobs, sim.W, sim.H) + K.repulsePE(at, sim.knobs, sim.W, sim.H) + K.vdwPE(at, sim.knobs, sim.W, sim.H);
+    const pe0 = consPE ? sumPairPE(atoms) : 0;             // 합체 전 보편 쌍 PE(전 원자 live)
     let bath = null, fusedAny = false;
     const dead = new Array(n).fill(false);                 // 이미 합쳐져 소비된 원자(한 tick 중복 합체 가드)
     // 한 쌍 융합 시도(brute·cellPairs 공용 — 같은 코드 → 같은 결과). 융합하면 true(brute 의 break / cell 의 consumed 신호).
@@ -970,6 +977,13 @@
         for (const e of kept) sim.bondKeys.add(e[0] * nn + e[1]);       // 새 n 으로 키 재생성(bond() doPair 키 규약 정합)
       }
       sim.atoms = live;
+      // 융합 PE 회계(step-0078): 압축 후 보편 쌍 PE pe1 — 소멸분 (pe0−pe1) 을 바스로 환원해 ledger E 닫힘(pauli 부피 소멸·gravity 쌍 등).
+      //   live 는 압축 순서(인덱스 순) → ledger 가 끝 tick 에 sim.atoms 로 계산할 PE 와 비트 일치(소멸분 정확). fuseConservePE=0 → 미실행(회귀 0).
+      if (consPE) {
+        const pe1 = sumPairPE(live);
+        if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
+        bath.E += pe0 - pe1;
+      }
     }
     sim.fuseActive = 1;                                     // 진단 플래그(hash 미참여)
   }
