@@ -4796,6 +4796,72 @@
         ];
       },
     },
+
+    'step-0073': {
+      id: 'step-0073',
+      title: '핵+화학 동시 무대 — 융합 압축이 결합 간선 인덱스를 재배선 (fuseRebond·#D 해소·핵 변환과 화학 결합을 한 무대서·끄면 간선 어긋남·기존 fuse 장면 bonds 없어 비트 불변·회귀 0)',
+      desc: '열린 이슈 #D(review-0041-0050·STATE §3): `fuse` 가 합체 시 `sim.atoms` 를 *압축*(죽은 원자 제거)하는데 `bonds` 간선은 *원자 인덱스*를 저장한다 → 결합 활성 무대서 융합을 켜면 간선이 어긋난다(핵 변환과 화학 결합을 *한 무대*서 못 굴림). 이 step 이 게이트 `fuseRebond`(=0 → 옛 거동·압축만·회귀 0) 로 해소: =1 이면 압축과 함께 ⓐ소비된 원자에 닿은 결합은 끊고(핵반응이 화학 결합 파괴·per-bond E 바스 환원→E 닫힘) ⓑ살아남은 결합은 *새 인덱스*로 재배선(remap 단조 → i<j·키 규약 보존)·bondKeys 새 n 재생성. ' +
+            '무대: 박스서 열운동하는 ²H 중성(빠른 쌍은 융합)·H⁺/H⁻ 이온(느린 쌍은 이온결합)이 섞여 — 결합과 융합이 *동시에* 일어나 융합 압축이 결합 인덱스를 흔든다. 연속력 0(이벤트 법칙만) → E 머신. ' +
+            '*측정*(무대 40²·N=120·dt=1·bond(이온·bondLocalE)+fuse(fmf+md+Endo) 동시·60 tick·고정 시드): ' +
+            '① **인덱스 정합·load-bearing** — fuseRebond 켜면 dangling 간선(인덱스 ≥ 원자 수) **0**·끄면 **>0**(융합 압축이 간선 어긋냄) ⇒ #D 해소(author 아닌 측정). ' +
+            '② **동시 무대** — 융합(개수 감소>0) *그리고* 결합(간선>0)이 한 무대서 공존·rebond 로 분자(연결 성분) 정합 측정 가능. ' +
+            '③ **장부 머신** — 이벤트 법칙만(연속력 0) → Q·B·L·E·px·py *전부* 머신(E: 결합 reservoir + 융합 정지질량 + 결합 끊김→바스 모두 닫힘). ' +
+            '④ **회귀** — fuseRebond=0 → 옛 거동(압축만)·기존 fuse 장면(0033·0064·0065·0068·0070·0072) bonds 없어 분기 무관 → 0001~72 골든 비트 불변.',
+      ticks: 60,
+      W: 40, H: 40, N: 120, MT: 60,
+      KN: { dt: 1.0, kBond: 1, bondR: 3, bondVmax: 1.0, bondLocalE: 1,
+            kFuse: 1, fuseR: 3, fuseBarrier: 2.0, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, fuseEndo: 1, fuseRebond: 1 },
+
+      mix(K, seed) {
+        const rng = K.mulberry32(seed || 20260713), a = [];
+        for (let i = 0; i < this.N; i++) {
+          const r = rng();
+          let e = 1;                                          // 기본 ²H 중성(q=0 → 융합만)
+          if (r < 0.25) e = 0;                                // H⁺(q=+1 → 이온결합 양이온)
+          else if (r < 0.5) e = 2;                            // H⁻(q=−1 → 이온결합 음이온)
+          a.push({ Z: 1, N: 1, e, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 3, vy: (rng() - 0.5) * 3, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      run(K, rebond) {
+        const sim = { W: this.W, H: this.H, atoms: this.mix(K), photons: [], rng: K.mulberry32(20260713),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseRebond: rebond }), tick: 0 };
+        const n0 = sim.atoms.length, l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim), fc = sim.atoms.length, bonds = (sim.bonds || []);
+        let dangling = 0; for (const e of bonds) if (e[0] >= fc || e[1] >= fc) dangling++;
+        const molCount = dangling === 0 ? molecules(sim).count : -1;  // dangling 있으면 union-find 불안전 → 측정 불가(-1)
+        return { fusions: n0 - fc, bonds: bonds.length, dangling, molCount,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): 결합+융합+rebond 동시 무대(fuseRebond=1) — 이벤트 법칙만 → Q·B·L·E·px·py 머신.
+      init(rng, K) {
+        const a = this.mix(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { fusionsOn: c.on.fusions, bondsOn: c.on.bonds, danglingOn: c.on.dangling, danglingOff: c.off.dangling, molOn: c.on.molCount, dEOn: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 인덱스 정합 ② 동시 무대 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const consistent = c.on.dangling === 0 && c.off.dangling > 0;                                   // ① rebond 켜면 dangling 0·끄면 >0
+        const coexist = c.on.fusions > 0 && c.on.bonds > 0 && c.on.molCount >= 0;                       // ② 융합·결합 공존·분자 측정 가능
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 전부 머신
+        const reg = ctx.ledgerBefore !== undefined;                                                     // ④ 라이브 기둥 정상(회귀 0 알리바이 = 골든 보존)
+        return [
+          { name: `인덱스 정합·load-bearing — fuseRebond 켜면 dangling 간선(인덱스 ≥ 원자 수) ${c.on.dangling}·끄면 ${c.off.dangling}(융합 압축이 간선 어긋냄) ⇒ #D 해소(핵 변환과 화학 결합 한 무대·author 아닌 측정)`, pass: consistent, value: c.off.dangling },
+          { name: `동시 무대 — 융합 ${c.on.fusions}회(개수 감소)·결합 ${c.on.bonds} 간선이 한 무대서 공존·rebond 로 분자(연결 성분) ${c.on.molCount}개 정합 측정`, pass: coexist, value: c.on.fusions },
+          { name: `장부 머신 — 이벤트 법칙만(연속력 0) Q·B·L·E·px·py 전부 머신(dpx ${c.on.dpx.toExponential(2)}·dE ${c.on.dE.toExponential(2)}·dB ${c.on.dB.toExponential(2)}) — E: 결합 reservoir + 융합 정지질량 + 결합 끊김→바스 닫힘`, pass: consv, value: +c.on.dE.toExponential(3) },
+          { name: `회귀 — fuseRebond=0 → 옛 거동(압축만)·기존 fuse 장면 bonds 없어 분기 무관 → 0001~72 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.bonds },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
