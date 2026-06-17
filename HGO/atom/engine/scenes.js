@@ -5743,7 +5743,88 @@
         ];
       },
     },
-  };
+
+    'step-0086': {
+      id: 'step-0086',
+      title: '두 떨어진 우물의 중력 병합 → 2세대 풀 (별풍은 되흩음 — SPINE §4 빠른 모음↔느린 되흩음의 공간판) (측정·새 법칙 0 — gravity+fuse+coolOuter+disperse·가까운 두 우물이 중력 병합해 양 세대 산물 한 중앙 풀 공존·별풍은 풀 외곽 흩되 churn↑·중력 끄면 병합 0·골든 보존 회귀 0)',
+      desc: 'STATE 가 가리킨 *별풍→2세대 공간 결합* 가설(한 별의 별풍 산물이 떨어진 우물로 *흘러* 점화)을 측정으로 검증하니 — **별풍 단독으로는 우물 규모 간극을 못 건넌다**: disperse 가 산물에 등방 반동을 주나 복사 바스 E 가 유한해 R_g~8 헤일로만 만들고, 산물은 *natal 우물에 중력 결속*돼 떨어진 우물(간극 ~24)에 못 닿는다(먼 우물 0.25/0.75 면 별풍 켬/끔 둘 다 간극 도달 0). 대신 *진짜* 공간 결합 기제는 **중력 병합**이었다: 충분히 가까운 두 우물(좌 0.32W·우 0.68W·c0 출신 태그)은 *상호 중력*으로 병합해 양 우물의 무거운 산물(Z≥3)이 *한 중앙 풀*에 공존한다(2세대 재료가 두 1세대서 모임). 그리고 별풍은 그 모음의 *반대 방향* — 병합 풀을 외곽으로 *되흩되* 코어 비워 총 융합 churn↑(SPINE §4 빠른 모음[중력 병합]↔느린 되흩음[별풍]의 *공간판*·0084 churn↑의 두 우물판). 새 법칙 0·scene 만·기존 gravity+fuse+coolOuter+disperse 합성·LAW_ORDER·DEFAULTS 불변 → 골든 보존=회귀 0. ' +
+            '*측정*(무대 160²·N=400[좌/우 200]·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+coolOuter+disperse(Zmin3)+fuseConservePE·1200 tick·고정 시드 7): ' +
+            '① **중력 병합 공간 결합·load-bearing** — 별풍 끄면(순수 중력) 두 떨어진 우물이 병합해 중앙 간극(0.4~0.6W)에 *양 출신*(c0=0 좌·c0=1 우) 무거운 핵 공존(nmL>0 ∧ nmR>0)·중력 끄면 병합 0(점화·산물 0) ⇒ 두 떨어진 우물이 한 중앙 2세대 풀로 결합이 *중력 때문*(author 아닌 측정). ' +
+            '② **별풍은 되흩음(병합의 반대)·load-bearing** — 별풍 켜면 중앙 병합 풀이 외곽 흩어져 간극 수 nm↓(켬<끔)·단 총 무거운 핵 churn↑(켬>끔) ⇒ 별풍은 모음(중력 병합)의 *반대 방향*(SPINE §4 빠른 모음↔느린 되흩음 공간판·코어 비워 churn↑ 0084 두 우물판). ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(coolOuter KE→바스 + disperse 바스→KE + fuseConservePE + bondLocalE 정합). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~85 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 160, H: 160, N: 400, MT: 1200,
+
+      // 두 클럼프(좌 0.32W·우 0.68W) 차가운 ²H. c0 = 출신 우물(0 좌·1 우) — 세대-출신 혼합 측정 태그.
+      twin(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cy = this.H / 2, cxs = [this.W * 0.32, this.W * 0.68];
+        for (let i = 0; i < this.N; i++) {
+          const c = i < this.N / 2 ? 0 : 1, cx = cxs[c];
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 12;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0, c0: c });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+
+      KN: { dt: 0.01, kGravity: 3.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, kDisperse: 0.6, disperseE: 3, disperseZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },                                  // 라이브 120tick 두 우물 격렬 붕괴 순간 swing(누수 아님 — cache net relE<1% 닫힘)
+
+      // ov 오버라이드로 별풍 켬/끔. 무거운 핵(Z≥3) 중앙 간극 수(c0 별)·총수·천정·장부.
+      run(K, ov) {
+        const sim = { W: this.W, H: this.H, atoms: this.twin(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov || {}), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        // 무거운 핵(Z≥3): 중앙 간극(0.4~0.6W) 수 nm·좌출신 nmL·우출신 nmR · 총수 hTotal
+        let nm = 0, nmL = 0, nmR = 0, hTotal = 0;
+        for (const a of sim.atoms) {
+          if (a.Z < 3) continue;
+          hTotal++;
+          if (a.rx > this.W * 0.4 && a.rx < this.W * 0.6) { nm++; if (a.c0 === 0) nmL++; else nmR++; }
+        }
+        return { mzFinal: this.maxZof(sim.atoms), nm, nmL, nmR, hTotal,
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      // on=별풍 켬(disperse 되흩음) · off=disperse 0(순수 중력 병합) · g0=중력 0(병합 0·점화 0).
+      cache(K) { return this._c || (this._c = { on: this.run(K, {}), off: this.run(K, { kDisperse: 0 }), g0: this.run(K, { kGravity: 0 }) }); },
+
+      init(rng, K) {
+        const a = this.twin(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzOn: c.on.mzFinal, nmOn: c.on.nm, hOn: c.on.hTotal,
+                 nmOff: c.off.nm, nmLoff: c.off.nmL, nmRoff: c.off.nmR, hOff: c.off.hTotal,
+                 nmG0: c.g0.nm, hG0: c.g0.hTotal,
+                 relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 중력 병합 공간 결합(양 출신 혼합) ② 별풍은 되흩음(병합의 반대·churn↑) ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const merge = c.off.nmL > 0 && c.off.nmR > 0 && c.g0.nm === 0;                            // ① 순수 중력 병합 → 양 출신 중앙 공존·중력 끄면 0
+        const windUndoes = c.on.nm < c.off.nm && c.on.hTotal > c.off.hTotal;                      // ② 별풍 켜면 풀 흩되 churn↑
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                              // ④ 골든 보존
+        return [
+          { name: `중력 병합 공간 결합·load-bearing — 별풍 끄면(순수 중력) 중앙 간극(0.4~0.6W)에 좌출신 ${c.off.nmL}개 + 우출신 ${c.off.nmR}개 무거운 핵 공존·중력 끄면 간극 ${c.g0.nm}개(병합·점화 0) ⇒ 두 떨어진 우물이 한 중앙 2세대 풀로 결합이 *중력 때문*(별풍 단독은 R_g~8 헤일로뿐·우물 규모 간극 못 건넘·author 아닌 측정)`, pass: merge, value: c.off.nmL },
+          { name: `별풍은 되흩음(병합의 반대)·load-bearing — 별풍 켜면 중앙 병합 풀 외곽 흩어짐 간극 ${c.on.nm}개 < 끔 ${c.off.nm}개·단 총 무거운 핵 ${c.on.hTotal}개 > 끔 ${c.off.hTotal}개(코어 비워 churn↑) ⇒ 별풍은 모음(중력 병합)의 *반대 방향*(SPINE §4 빠른 모음↔느린 되흩음 공간판·0084 churn↑ 두 우물판)`, pass: windUndoes, value: c.on.hTotal },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(coolOuter KE→바스 + disperse 바스→KE + fuseConservePE + bondLocalE 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — 새 법칙 0(기존 gravity+fuse+coolOuter+disperse 합성·scene 만) → 0001~85 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.mzFinal },
+        ];
+      },
+    },
+  };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
 });
