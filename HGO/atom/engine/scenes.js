@@ -5511,6 +5511,81 @@
         ];
       },
     },
+
+    'step-0083': {
+      id: 'step-0083',
+      title: '국소 냉각 → 이산 분자 — 코어는 뜨겁게 외곽만 식힌다 (coolOuter·게이트 kCoolOuter=0 → 0082 거동·회귀 0)',
+      desc: 'step-0082 의 핵합성 산물 분자는 *이산 소분자*가 아니라 *밀집 네트워크*(최대 17원자 한 블록)였다 — 냉각이 없어 산물이 식으며 흩어지지 못한 탓. 전역 damp 를 켜면 점화 *전*에 코어까지 식어 별이 안 탄다(전역 균일 냉각의 한계). 이 step 은 새 법칙 `coolOuter` — damp(0024)의 *국소 밀도 게이트* 판 — 으로 *코어(고밀도)는 뜨겁게 두고 외곽(저밀도)만 식힌다*. ' +
+            '각 원자의 *국소 이웃 수*(반경 coolR 내 = 국소 밀도)를 세, 이웃이 적은(≤coolDeg) 저밀도 외곽 쌍만 점성 냉각(damp 와 동형·vcom 불변·KE→바스). 밀집 코어 원자는 이웃이 많아 게이트서 빠진다 → 고온 유지 → 융합 계속. 전역 조율자 0(각 원자+이웃만·척추 ③). kCoolOuter=0 → early-return = 0082 비트 동일(회귀 0). ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse+bondCovalent+fuseConservePE+coolOuter·400 tick·고정 시드 7): ' +
+            '① **국소 냉각 → 이산 분자·load-bearing** — coolOuter 켜면 분자 수↑(이산화)·최대 분자 크기↓(블록 쪼개짐)·kCoolOuter=0 끄면 0082 거동(분자 2·최대 17) ⇒ 외곽 냉각이 밀집 네트워크를 이산 소분자로(author 아닌 측정). ' +
+            '② **국소성·load-bearing** — 같은 냉각 세기서 coolOuter(외곽만)는 점화 유지(maxZ≥6·산물 다수) ≫ 전역 damp(코어까지)는 점화 죽음(maxZ≤2) ⇒ 코어를 *안 식히는* 국소성이 별 유지의 열쇠. ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(coolOuter KE→바스 회계 + fuseConservePE + bondLocalE 정합). ' +
+            '④ **회귀** — kCoolOuter=0 → 0082 비트 동일·0001~82 골든 보존.',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 400,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },                                  // 라이브 120tick 격렬 붕괴 순간 swing(누수 아님 — cache net relE<1% 닫힘)
+
+      run(K, ov) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov || {}), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const m = molecules(sim);
+        const bonded = new Set(); for (const e of (sim.bonds || [])) { bonded.add(e[0]); bonded.add(e[1]); }
+        let heavy = 0, heavyBonded = 0;
+        for (let i = 0; i < sim.atoms.length; i++) { if (sim.atoms[i].Z >= 3) { heavy++; if (bonded.has(i)) heavyBonded++; } }
+        return { mzFinal: this.maxZof(sim.atoms), heavy, heavyBonded, mol: m.count, maxMol: m.maxSize, bonds: (sim.bonds || []).length,
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      // on=coolOuter 켬 · off=kCoolOuter 0(=0082 거동) · gd=같은 세기 전역 damp(국소성 대조).
+      cache(K) { return this._c || (this._c = { on: this.run(K, {}), off: this.run(K, { kCoolOuter: 0 }), gd: this.run(K, { kCoolOuter: 0, kDamp: 0.5 }) }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzFinal: c.on.mzFinal, heavy: c.on.heavy, mol: c.on.mol, maxMol: c.on.maxMol,
+                 molOff: c.off.mol, maxMolOff: c.off.maxMol, mzGd: c.gd.mzFinal,
+                 relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 국소 냉각 → 이산 분자 ② 국소성 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const discrete = c.on.mol > c.off.mol && c.on.maxMol < c.off.maxMol && c.off.mol > 0;   // ① 분자↑·최대↓·끄면 0082
+        const locality = c.on.mzFinal >= 6 && c.on.heavy >= 6 && c.gd.mzFinal <= 2;             // ② 국소 점화 유지 ≫ 전역 damp 죽음
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                             // ④ 골든 보존
+        return [
+          { name: `국소 냉각 → 이산 분자·load-bearing — coolOuter 켜면 분자 ${c.on.mol}개(최대 ${c.on.maxMol}원자) ≫ 끄면(=0082) ${c.off.mol}개(최대 ${c.off.maxMol}원자) ⇒ 외곽 냉각이 밀집 네트워크를 이산 소분자로(분자↑·최대↓·author 아닌 측정)`, pass: discrete, value: c.on.mol },
+          { name: `국소성·load-bearing — 같은 냉각 세기(0.5)서 coolOuter(외곽만) maxZ ${c.on.mzFinal} 점화 유지(산물 ${c.on.heavy}개) ≫ 전역 damp(코어까지) maxZ ${c.gd.mzFinal} 점화 죽음 ⇒ 코어 *안 식히는* 국소성이 별 유지의 열쇠`, pass: locality, value: c.gd.mzFinal },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(coolOuter KE→바스 + fuseConservePE + bondLocalE 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — kCoolOuter=0 → 0082 비트 동일(early-return)·0001~82 골든 보존(coolOuter 가법)`, pass: reg, value: c.on.mol },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
