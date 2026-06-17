@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>3D Cellular Automata — Multi-state (Softology rule format)</title>
+<title>3D Cellular Automata — Multi-state + Living World</title>
 <style>
   :root {
     --bg: #0a0c10;
@@ -20,11 +20,11 @@
   canvas { display: block; }
 
   #panel {
-    position: fixed; top: 14px; left: 14px; width: 290px;
+    position: fixed; top: 14px; left: 14px; width: 300px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
     padding: 14px 16px; backdrop-filter: blur(10px);
     box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-    font-size: 13px; user-select: none;
+    font-size: 13px; user-select: none; max-height: calc(100vh - 28px); overflow-y: auto;
   }
   #panel h1 { font-size: 15px; margin: 0 0 2px; letter-spacing: 0.3px; }
   #panel .sub { color: var(--muted); font-size: 11px; margin-bottom: 12px; }
@@ -49,13 +49,15 @@
     border-radius: 6px; padding: 6px 8px; margin-top: 8px; word-break: break-all;
   }
   .desc { color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 6px; }
+  .sectsep { border: none; border-top: 1px solid var(--border); margin: 12px 0 4px; }
   #stats {
     position: fixed; bottom: 14px; left: 14px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
     padding: 8px 12px; font-family: ui-monospace, monospace; font-size: 12px;
-    display: flex; gap: 16px; backdrop-filter: blur(10px);
+    display: flex; gap: 14px; backdrop-filter: blur(10px); flex-wrap: wrap; max-width: calc(100vw - 28px);
   }
   #stats b { color: var(--accent); font-weight: 600; }
+  #stats .w { color: #4ea8ff; } #stats .v { color: #cfe3f7; } #stats .p { color: #5fd06a; }
   #hint {
     position: fixed; bottom: 14px; right: 14px; color: var(--muted); font-size: 11px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
@@ -69,37 +71,76 @@
 
 <div id="panel">
   <h1>3D Cellular Automata</h1>
-  <div class="sub">Multi-state · Softology rule format (S / B / States / N)</div>
+  <div class="sub">Multi-state CA · 또는 자기지속 Living World</div>
 
   <div class="row">
-    <label>Rule</label>
-    <select id="rule"></select>
-  </div>
-  <div class="ruletag" id="ruletag">—</div>
-  <div class="desc" id="ruledesc"></div>
-
-  <div id="customrow" style="display:none; margin-top:8px;">
-    <input type="text" id="customrule" placeholder="예: 9-26/5-7,12,13,15/5/M"
-      style="width:100%; background:#0f151d; color:var(--text); border:1px solid var(--border);
-             border-radius:7px; padding:7px 8px; font-family:ui-monospace,monospace; font-size:12px;" />
-    <div class="desc" style="margin-top:4px;">형식: <code>Survival / Birth / States / N</code> ·
-      범위는 <code>13-26</code>, 목록은 <code>5,6,7</code> · N=M(무어 26)/N(폰노이만 6) · 끝에 <code>/W</code>=wrap</div>
-    <button id="apply" style="width:100%; margin-top:6px;">▶ 이 규칙 적용</button>
-  </div>
-
-  <div class="row" style="margin-top:12px;">
-    <label>Wrap(토러스)</label>
-    <input type="checkbox" id="wrap" style="accent-color:var(--accent); width:16px; height:16px;" />
-  </div>
-
-  <div class="row">
-    <label>Color</label>
-    <select id="color">
-      <option value="state">By state (decay)</option>
-      <option value="position">By position (RGB)</option>
-      <option value="radial">By radius (heat)</option>
+    <label>Engine</label>
+    <select id="engine">
+      <option value="world">🌍 Living World (지형·유체·생명)</option>
+      <option value="ca">🧬 Rule CA (Softology)</option>
     </select>
   </div>
+
+  <!-- ============ Rule CA 컨트롤 ============ -->
+  <div id="ca-controls" style="display:none;">
+    <div class="row">
+      <label>Rule</label>
+      <select id="rule"></select>
+    </div>
+    <div class="ruletag" id="ruletag">—</div>
+    <div class="desc" id="ruledesc"></div>
+
+    <div id="customrow" style="display:none; margin-top:8px;">
+      <input type="text" id="customrule" placeholder="예: 9-26/5-7,12,13,15/5/M"
+        style="width:100%; background:#0f151d; color:var(--text); border:1px solid var(--border);
+               border-radius:7px; padding:7px 8px; font-family:ui-monospace,monospace; font-size:12px;" />
+      <div class="desc" style="margin-top:4px;">형식: <code>Survival / Birth / States / N</code> ·
+        범위는 <code>13-26</code>, 목록은 <code>5,6,7</code> · N=M(무어 26)/N(폰노이만 6) · 끝에 <code>/W</code>=wrap</div>
+      <button id="apply" style="width:100%; margin-top:6px;">▶ 이 규칙 적용</button>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <label>Wrap(토러스)</label>
+      <input type="checkbox" id="wrap" style="accent-color:var(--accent); width:16px; height:16px;" />
+    </div>
+
+    <div class="row">
+      <label>Color</label>
+      <select id="color">
+        <option value="state">By state (decay)</option>
+        <option value="position">By position (RGB)</option>
+        <option value="radial">By radius (heat)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ============ Living World 컨트롤 ============ -->
+  <div id="world-controls">
+    <div class="desc">바닥 바다가 증발→상승→응결→비로 순환하고(질량 보존), 빛·물이 있는 토양에서 식물이
+      자라고 그늘로 경쟁하다 죽어 토양으로 돌아간다. 리셋 없이 스스로 굴러간다.</div>
+    <div class="row" style="margin-top:10px;">
+      <label>☀ Sun (증발)</label>
+      <input type="range" id="sun" min="0" max="100" value="35" />
+      <span class="val" id="sunval">35</span>
+    </div>
+    <div class="row">
+      <label>🌧 Rain (응결)</label>
+      <input type="range" id="rain" min="0" max="100" value="35" />
+      <span class="val" id="rainval">35</span>
+    </div>
+    <div class="row">
+      <label>🌿 Growth (생명)</label>
+      <input type="range" id="growth" min="0" max="100" value="50" />
+      <span class="val" id="growthval">50</span>
+    </div>
+    <div class="row">
+      <label>🌊 Sea level</label>
+      <input type="range" id="sea" min="0" max="100" value="34" />
+      <span class="val" id="seaval">34</span>
+    </div>
+  </div>
+
+  <hr class="sectsep" />
   <div class="row">
     <label>Grid</label>
     <select id="size">
@@ -125,6 +166,9 @@
 <div id="stats">
   <span>Gen <b id="gen">0</b></span>
   <span>Cells <b id="cells">0</b></span>
+  <span id="st-w" style="display:none;">💧 <b class="w" id="cwater">0</b></span>
+  <span id="st-v" style="display:none;">☁ <b class="v" id="cvapor">0</b></span>
+  <span id="st-p" style="display:none;">🌿 <b class="p" id="cplant">0</b></span>
   <span>FPS <b id="fps">0</b></span>
 </div>
 <div id="hint">드래그=회전 · 휠=줌 · 우클릭드래그=이동</div>
@@ -133,23 +177,30 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 /* =========================================================================
- *  3D Cellular Automata
- *  - 다상태(multi-state) 규칙: Softology(Jason Rampe)가 정리한 표준 표기법
- *    "Survival / Birth / States / Neighbourhood" 을 그대로 사용한다.
- *      · Survival(S) : 살아있는 셀이 생존을 유지하는 '살아있는 이웃 수' 집합
- *      · Birth(B)    : 죽은 셀(state 0)이 태어나는 '살아있는 이웃 수' 집합
- *      · States      : 셀이 가질 수 있는 상태 수. State-1 = 완전히 살아있음.
- *                      생존 실패 시 즉사하지 않고 state 를 1씩 감소(refractory)시키며
- *                      0 이 될 때까지 서서히 소멸한다. States>2 일 때만 '잔상'이 생김.
- *      · Neighbourhood : 'M' = Moore(26 이웃), 'N' = von Neumann(6 이웃)
- *  - '살아있는 이웃'은 state == States-1 인 셀만 집계한다(죽어가는 셀 제외).
- *  - 경계는 비순환(out-of-bounds = dead). 시드는 중앙의 작은 난수 큐브.
+ *  3D Cellular Automata + Living World
+ *
+ *  ── 두 개의 시뮬 엔진을 같은 렌더러 위에 얹는다 ──
+ *
+ *  [1] Rule CA (CA3D) — 다상태(multi-state) Softology 규칙
+ *      "Survival / Birth / States / Neighbourhood" 표준 표기를 그대로 사용.
+ *      단일 규칙·단일 종(種)이라 랜덤 시드에선 결국 소멸/수렴하는 게 정상.
+ *
+ *  [2] Living World (World) — 자기지속(self-sustaining) 복잡계
+ *      여러 종류의 셀(암석/토양/물/수증기/식물)이 닫힌 순환 루프로 상호작용한다.
+ *        · 물 순환 : water ↔ vapor 만 변환(질량 보존). 바닥(따뜻)에서 증발 →
+ *                    수증기 상승 → 고도(차가움)에서 응결 → 비 → 흘러내려 고임.
+ *                    총량이 보존되므로 마르지도 넘치지도 않는 동적 평형.
+ *        · 빛/그늘 : 위에서 빛이 내려오며 고체·식물에 가려진다 → 캐노피 경쟁.
+ *        · 생명   : 빛+물 있는 토양에서 발아 → 위로 성장 → 증산(물→수증기) →
+ *                    노화·갈증으로 죽음 → 토양으로 분해(지력 환원) → 재발아.
+ *        · 유체   : 중력 낙하 + 대각/수평 흐름(falling-sand, in-place+moved 플래그).
+ *      외부 리셋 없이 세계가 스스로 굴러간다.
  * ========================================================================= */
 
-// ---- 규칙 프리셋 ----------------------------------------------------------
-// survival / birth 는 "포함되는 이웃 수" 의 명시 목록.
-// 정의는 Softology(Jason Rampe) 블로그 및 재구현 리포에서 검증한 값.
-//   참고: https://softologyblog.wordpress.com/2019/12/28/3d-cellular-automata-3/
+// ===========================================================================
+//  [1] Rule CA 엔진
+// ===========================================================================
+//  참고: https://softologyblog.wordpress.com/2019/12/28/3d-cellular-automata-3/
 const PRESETS = {
   "445": {
     survival: [4], birth: [4], states: 5, n: 'M',
@@ -165,7 +216,7 @@ const PRESETS = {
   },
   "Clouds 1": {
     survival: range(13,26), birth: [13,14,17,18,19], states: 2, n: 'M',
-    seed: { rf: 0.5, p: 0.6 },   // 큰 초기 덩어리가 있어야 유지된다
+    seed: { rf: 0.5, p: 0.6 },
     desc: "13-26/13,14,17-19/2/M. 응결·소멸을 반복하는 구름."
   },
   "Architecture": {
@@ -214,7 +265,6 @@ const PRESETS = {
 
 function range(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }
 
-// ---- 시뮬레이션 -----------------------------------------------------------
 class CA3D {
   constructor(size) { this.resize(size); }
   resize(size) {
@@ -230,7 +280,6 @@ class CA3D {
   seed() {
     const N = this.N;
     this.cur.fill(0);
-    // 시드 반경/밀도는 규칙별로 다를 수 있다(일부 규칙은 큰 초기 덩어리가 없으면 즉시 소멸).
     const r = Math.max(2, Math.floor(N * this.seedRF));
     const c = Math.floor(N / 2);
     const alive = this.states - 1;
@@ -244,15 +293,12 @@ class CA3D {
   setRule(rule) {
     this.states = rule.states;
     this.wrap = !!rule.wrap;
-    // 시드 파라미터(규칙별 override 가능, 기본은 중간 크기의 조밀한 덩어리)
     this.seedRF = (rule.seed && rule.seed.rf) || 0.2;
     this.seedP = (rule.seed && rule.seed.p) || 0.5;
-    // 빠른 조회용 boolean 테이블 (이웃 수 0..26)
     this.surv = new Uint8Array(27);
     this.brth = new Uint8Array(27);
     rule.survival.forEach(k => { if (k <= 26) this.surv[k] = 1; });
     rule.birth.forEach(k => { if (k <= 26) this.brth[k] = 1; });
-    // 이웃 오프셋
     this.offsets = [];
     if (rule.n === 'N') {
       this.offsets = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
@@ -268,14 +314,11 @@ class CA3D {
     const N = this.N, cur = this.cur, nxt = this.nxt;
     const alive = this.states - 1, offs = this.offsets, wrap = this.wrap;
     let live = 0;
-
     for (let z = 0; z < N; z++) {
       for (let y = 0; y < N; y++) {
         for (let x = 0; x < N; x++) {
           const i = (z * N + y) * N + x;
           const s = cur[i];
-
-          // 살아있는 이웃(state == alive) 카운트
           let count = 0;
           for (let o = 0; o < offs.length; o++) {
             let nx = x + offs[o][0], ny = y + offs[o][1], nz = z + offs[o][2];
@@ -288,18 +331,10 @@ class CA3D {
             }
             if (cur[(nz * N + ny) * N + nx] === alive) count++;
           }
-
           let ns;
-          if (s === 0) {
-            // 죽은 셀: birth 조건이면 탄생
-            ns = this.brth[count] ? alive : 0;
-          } else if (s === alive) {
-            // 살아있는 셀: survival 조건이면 유지, 아니면 쇠퇴 시작
-            ns = this.surv[count] ? alive : (alive - 1);
-          } else {
-            // 쇠퇴 중인 셀: 이웃과 무관하게 1씩 감소
-            ns = s - 1;
-          }
+          if (s === 0) ns = this.brth[count] ? alive : 0;
+          else if (s === alive) ns = this.surv[count] ? alive : (alive - 1);
+          else ns = s - 1;
           nxt[i] = ns;
           if (ns) live++;
         }
@@ -311,7 +346,369 @@ class CA3D {
   }
 }
 
-// ---- 렌더링 ---------------------------------------------------------------
+// ===========================================================================
+//  [2] Living World 엔진
+// ===========================================================================
+//  셀 타입. 0=AIR 은 빈 공간(렌더 생략).
+const T = { AIR: 0, ROCK: 1, SOIL: 2, SAND: 3, WATER: 4, VAPOR: 5, PLANT: 6 };
+
+// 생명 파라미터 (식물 에너지는 aux[] 에 0..MAX_E 로 저장)
+const L = {
+  START_E: 40,     // 발아/번식 시 초기 에너지
+  MAX_E: 200,      // 에너지 상한
+  GROW: 6,         // 빛+물 있을 때 광합성 에너지 획득
+  THIRST: 9,       // 물 없을 때 에너지 손실
+  IDLE: 1,         // 빛/물 있어도 매 스텝 기초대사 소모
+  SPREAD_COST: 32, // 번식 1회 비용
+  LIGHT_MIN: 45,   // 광합성·발아에 필요한 최소 빛
+  LIGHT_MAX: 255,
+  PLANT_SHADE: 70, // 식물이 아래로 드리우는 그늘
+  WATER_SHADE: 22, // 물속 감쇠
+};
+
+class World {
+  constructor(size) { this.resize(size); this.setParams({}); }
+  resize(size) {
+    this.N = size;
+    const n3 = size * size * size;
+    this.cur   = new Uint8Array(n3);  // 셀 타입
+    this.aux   = new Uint8Array(n3);  // 식물 에너지
+    this.light = new Uint8Array(n3);  // 빛 (매 스텝 top-down 계산)
+    this.moved = new Uint8Array(n3);  // 이번 스텝 이동/변환 완료 플래그
+    this.generation = 0;
+    this.liveCount = this.cWater = this.cVapor = this.cPlant = 0;
+    // 지형 노이즈 위상 (리사이즈마다 새 세계)
+    this.px = Math.random() * 6.28; this.pz = Math.random() * 6.28; this.pq = Math.random() * 6.28;
+  }
+  idx(x, y, z) { const N = this.N; return (z * N + y) * N + x; }
+  inb(x, y, z) { const N = this.N; return x >= 0 && y >= 0 && z >= 0 && x < N && y < N && z < N; }
+
+  // UI 슬라이더(0..100) → 실제 확률/배율
+  setParams(p) {
+    if (p.sun    !== undefined) this.sun    = p.sun;
+    if (p.rain   !== undefined) this.rain   = p.rain;
+    if (p.growth !== undefined) this.growth = p.growth;
+    if (p.seaPct !== undefined) this.seaPct = p.seaPct;
+    if (this.sun    === undefined) this.sun = 35;
+    if (this.rain   === undefined) this.rain = 35;
+    if (this.growth === undefined) this.growth = 50;
+    if (this.seaPct === undefined) this.seaPct = 34;
+  }
+
+  // ── 세계 생성 ──────────────────────────────────────────────────────────
+  seed() {
+    const N = this.N, cur = this.cur, aux = this.aux;
+    cur.fill(T.AIR); aux.fill(0);
+    const gb  = Math.floor(N * 0.30);                 // 평균 지표 높이
+    const amp = Math.max(2, Math.floor(N * 0.16));    // 기복
+    const sea = Math.max(2, Math.floor(N * this.seaPct / 100)); // 해수면
+
+    for (let z = 0; z < N; z++) {
+      for (let x = 0; x < N; x++) {
+        // 부드러운 언덕 (사인 옥타브 합)
+        let h = gb
+          + amp * 0.55 * (Math.sin(x * 0.25 + this.px) + Math.cos(z * 0.21 + this.pz))
+          + amp * 0.30 * Math.sin((x + z) * 0.13 + this.pq)
+          + amp * 0.15 * Math.cos((x - z) * 0.31);
+        h = Math.max(2, Math.min(N - 4, Math.round(h)));
+        for (let y = 0; y <= h; y++) {
+          this.cur[this.idx(x, y, z)] = (y < h - 1) ? T.ROCK : T.SOIL;
+        }
+        // 해수면 아래 빈 공간을 물로 채움 → 저지대에 바다/호수
+        for (let y = h + 1; y <= sea; y++) {
+          this.cur[this.idx(x, y, z)] = T.WATER;
+        }
+      }
+    }
+
+    // 물가 토양에 식물 씨앗 흩뿌리기
+    for (let z = 0; z < N; z++) {
+      for (let x = 0; x < N; x++) {
+        for (let y = N - 2; y >= 1; y--) {
+          const i = this.idx(x, y, z);
+          if (cur[i] === T.SOIL) {
+            const up = this.idx(x, y + 1, z);
+            if (cur[up] === T.AIR && this.nearWater(x, y + 1, z, 2) && Math.random() < 0.10) {
+              cur[up] = T.PLANT; aux[up] = L.START_E;
+            }
+            break; // 이 컬럼의 지표만
+          }
+        }
+      }
+    }
+    this.generation = 0;
+    this.recount();
+  }
+
+  // 무어 반경 r 안에 물이 있나
+  nearWater(x, y, z, r) {
+    const N = this.N, cur = this.cur;
+    for (let dz = -r; dz <= r; dz++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+          if (cur[(nz * N + ny) * N + nx] === T.WATER) return true;
+        }
+    return false;
+  }
+
+  // ── 한 스텝 ────────────────────────────────────────────────────────────
+  step() {
+    this.moved.fill(0);
+    this.computeLight();
+    this.lifePass();   // 생명: 발아/성장/증산/죽음
+    this.phasePass();  // 상변화: 증발 / 응결(비)
+    this.waterPass();  // 물: 중력 + 흐름
+    this.vaporPass();  // 수증기: 상승 + 확산(바람)
+    this.generation++;
+    this.recount();
+  }
+
+  // 위에서 내려오는 빛. 고체는 차단, 식물·물은 감쇠.
+  computeLight() {
+    const N = this.N, cur = this.cur, light = this.light;
+    for (let z = 0; z < N; z++) {
+      for (let x = 0; x < N; x++) {
+        let l = L.LIGHT_MAX;
+        for (let y = N - 1; y >= 0; y--) {
+          const i = (z * N + y) * N + x;
+          light[i] = l;                       // 이 셀에 도달한 빛
+          const t = cur[i];
+          if (t === T.ROCK || t === T.SOIL || t === T.SAND) l = 0;
+          else if (t === T.PLANT) l = Math.max(0, l - L.PLANT_SHADE);
+          else if (t === T.WATER) l = Math.max(0, l - L.WATER_SHADE);
+          // AIR, VAPOR 는 통과
+        }
+      }
+    }
+  }
+
+  // 생명: 식물 광합성/번식/증산/사멸 + 토양 발아
+  lifePass() {
+    const N = this.N, cur = this.cur, aux = this.aux, light = this.light, moved = this.moved;
+    const gMul = this.growth / 50;            // 0..2 배율
+    const pGerm = 0.012 * gMul;
+    const pSpread = 0.16 * gMul;
+    const pTrans = 0.06;
+    // 번식 방향 우선순위: 위 > 측면 위 > 측면 (캐노피처럼 위로 자란다)
+    const SPREAD = [
+      [0,1,0],[1,1,0],[-1,1,0],[0,1,1],[0,1,-1],
+      [1,0,0],[-1,0,0],[0,0,1],[0,0,-1]
+    ];
+    for (let z = 0; z < N; z++) {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const i = (z * N + y) * N + x;
+          const t = cur[i];
+
+          if (t === T.PLANT) {
+            if (moved[i]) continue;
+            let e = aux[i];
+            const lit = light[i] > L.LIGHT_MIN;
+            const watered = this.nearWater(x, y, z, 1);
+            if (lit && watered) e += L.GROW;
+            else if (!watered) e -= L.THIRST;
+            e -= L.IDLE;
+
+            // 증산: 인접 물 하나를 수증기로 (물 순환에 결합, 질량 보존)
+            if (watered && Math.random() < pTrans) {
+              this.convertNeighbor(x, y, z, T.WATER, T.VAPOR);
+            }
+            // 번식: 빛 받는 인접 AIR(토양/식물에 지지됨)로 성장
+            if (e > L.SPREAD_COST && Math.random() < pSpread) {
+              for (let k = 0; k < SPREAD.length; k++) {
+                const nx = x + SPREAD[k][0], ny = y + SPREAD[k][1], nz = z + SPREAD[k][2];
+                if (!this.inb(nx, ny, nz)) continue;
+                const ni = (nz * N + ny) * N + nx;
+                if (cur[ni] !== T.AIR || moved[ni]) continue;
+                if (light[ni] <= L.LIGHT_MIN) continue;
+                if (!this.supported(nx, ny, nz)) continue;
+                cur[ni] = T.PLANT; aux[ni] = L.START_E; moved[ni] = 1;
+                e -= L.SPREAD_COST;
+                break;
+              }
+            }
+            // 사멸 → 토양으로 분해(지력 환원)
+            if (e <= 0) { cur[i] = T.SOIL; aux[i] = 0; }
+            else aux[i] = Math.min(L.MAX_E, e);
+
+          } else if (t === T.SOIL) {
+            // 지표 토양에서 자연 발아
+            if (y + 1 >= N) continue;
+            const up = (z * N + (y + 1)) * N + x;
+            if (cur[up] === T.AIR && !moved[up] &&
+                light[up] > L.LIGHT_MIN && this.nearWater(x, y + 1, z, 2) &&
+                Math.random() < pGerm) {
+              cur[up] = T.PLANT; aux[up] = L.START_E; moved[up] = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // (x,y,z) 가 토양/식물/암석에 6-인접해 지지되는가 (떠 있는 식물 방지)
+  supported(x, y, z) {
+    const N = this.N, cur = this.cur;
+    const D = [[0,-1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,1,0]];
+    for (let k = 0; k < D.length; k++) {
+      const nx = x + D[k][0], ny = y + D[k][1], nz = z + D[k][2];
+      if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+      const t = cur[(nz * N + ny) * N + nx];
+      if (t === T.SOIL || t === T.PLANT || t === T.ROCK) return true;
+    }
+    return false;
+  }
+
+  // 6-이웃 중 from 타입 하나를 to 로 변환 (찾으면 true). 변환 셀은 moved 처리.
+  convertNeighbor(x, y, z, from, to) {
+    const N = this.N, cur = this.cur, moved = this.moved;
+    const D = [[0,1,0],[0,-1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]];
+    const s = (Math.random() * 6) | 0;
+    for (let k = 0; k < 6; k++) {
+      const d = D[(s + k) % 6];
+      const nx = x + d[0], ny = y + d[1], nz = z + d[2];
+      if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+      const ni = (nz * N + ny) * N + nx;
+      if (cur[ni] === from && !moved[ni]) { cur[ni] = to; moved[ni] = 1; return true; }
+    }
+    return false;
+  }
+
+  // 상변화: 표면 증발(water→vapor) / 고도·구름 응결(vapor→water=비)
+  phasePass() {
+    const N = this.N, cur = this.cur, moved = this.moved, light = this.light;
+    const sunR = this.sun / 100;
+    const rainR = this.rain / 100;
+    for (let z = 0; z < N; z++) {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const i = (z * N + y) * N + x;
+          if (moved[i]) continue;
+          const t = cur[i];
+
+          if (t === T.WATER) {
+            // 위가 공기인 수면에서, 따뜻하고(저고도) 빛 받을수록 증발
+            if (y + 1 < N && cur[(z * N + (y + 1)) * N + x] === T.AIR) {
+              const warm = 1 - y / (N - 1);
+              const litF = light[i] / 255;
+              const p = 0.10 * sunR * (0.35 + 0.65 * litF) * (0.3 + 0.7 * warm);
+              if (Math.random() < p) { cur[i] = T.VAPOR; moved[i] = 1; }
+            }
+          } else if (t === T.VAPOR) {
+            // 고도가 높을수록(차가움) 응결, 주변에 수증기 많으면(구름) 가속 → 소나기
+            const cold = y / (N - 1);
+            let vn = 0;
+            const D = [[0,1,0],[0,-1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]];
+            for (let k = 0; k < 6; k++) {
+              const nx = x + D[k][0], ny = y + D[k][1], nz = z + D[k][2];
+              if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+              if (cur[(nz * N + ny) * N + nx] === T.VAPOR) vn++;
+            }
+            const cloud = vn / 6;
+            const p = 0.06 * rainR * (0.2 + 0.8 * cold) * (0.4 + 0.9 * cloud);
+            if (Math.random() < p) { cur[i] = T.WATER; moved[i] = 1; }
+          }
+        }
+      }
+    }
+  }
+
+  // 물: 아래→대각아래→수평(표면 평탄화) 흐름. 바닥부터 위로 스캔(falling-sand).
+  waterPass() {
+    const N = this.N, cur = this.cur, moved = this.moved;
+    const H4 = [[1,0],[-1,0],[0,1],[0,-1]];
+    for (let y = 1; y < N; y++) {           // y=0(바닥)은 더 내려갈 곳 없음
+      for (let z = 0; z < N; z++) {
+        for (let x = 0; x < N; x++) {
+          const i = (z * N + y) * N + x;
+          if (cur[i] !== T.WATER || moved[i]) continue;
+          // 1) 바로 아래
+          const d = (z * N + (y - 1)) * N + x;
+          if (cur[d] === T.AIR && !moved[d]) { cur[d] = T.WATER; cur[i] = T.AIR; moved[d] = 1; continue; }
+          // 2) 대각 아래
+          let done = false;
+          const s = (Math.random() * 4) | 0;
+          for (let k = 0; k < 4; k++) {
+            const h = H4[(s + k) % 4];
+            const nx = x + h[0], nz = z + h[1];
+            if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+            const dd = (nz * N + (y - 1)) * N + nx;
+            if (cur[dd] === T.AIR && !moved[dd]) { cur[dd] = T.WATER; cur[i] = T.AIR; moved[dd] = 1; done = true; break; }
+          }
+          if (done) continue;
+          // 3) 수평 확산(아래가 고체일 때 표면을 평탄화)
+          for (let k = 0; k < 4; k++) {
+            const h = H4[(s + k) % 4];
+            const nx = x + h[0], nz = z + h[1];
+            if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+            const hi = (nz * N + y) * N + nx;
+            if (cur[hi] !== T.AIR || moved[hi]) continue;
+            const below = (nz * N + (y - 1)) * N + nx;
+            const bt = cur[below];
+            if (bt !== T.AIR) { cur[hi] = T.WATER; cur[i] = T.AIR; moved[hi] = 1; break; }
+          }
+        }
+      }
+    }
+  }
+
+  // 수증기: 위→대각위→수평(바람). 위부터 아래로 스캔.
+  vaporPass() {
+    const N = this.N, cur = this.cur, moved = this.moved;
+    const H4 = [[1,0],[-1,0],[0,1],[0,-1]];
+    for (let y = N - 2; y >= 0; y--) {       // 최상단은 더 올라갈 곳 없음
+      for (let z = 0; z < N; z++) {
+        for (let x = 0; x < N; x++) {
+          const i = (z * N + y) * N + x;
+          if (cur[i] !== T.VAPOR || moved[i]) continue;
+          // 1) 바로 위
+          const u = (z * N + (y + 1)) * N + x;
+          if (cur[u] === T.AIR && !moved[u]) { cur[u] = T.VAPOR; cur[i] = T.AIR; moved[u] = 1; continue; }
+          // 2) 대각 위 / 3) 수평(바람) — 합쳐서 확산
+          const s = (Math.random() * 4) | 0;
+          let done = false;
+          for (let k = 0; k < 4 && !done; k++) {
+            const h = H4[(s + k) % 4];
+            const nx = x + h[0], nz = z + h[1];
+            if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+            const du = (nz * N + (y + 1)) * N + nx;
+            if (cur[du] === T.AIR && !moved[du]) { cur[du] = T.VAPOR; cur[i] = T.AIR; moved[du] = 1; done = true; break; }
+          }
+          if (done) continue;
+          if (Math.random() < 0.5) {           // 가끔만 옆으로 흘러 구름 형태 유지
+            for (let k = 0; k < 4; k++) {
+              const h = H4[(s + k) % 4];
+              const nx = x + h[0], nz = z + h[1];
+              if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+              const hi = (nz * N + y) * N + nx;
+              if (cur[hi] === T.AIR && !moved[hi]) { cur[hi] = T.VAPOR; cur[i] = T.AIR; moved[hi] = 1; break; }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  recount() {
+    const cur = this.cur, n = cur.length;
+    let live = 0, w = 0, v = 0, p = 0;
+    for (let i = 0; i < n; i++) {
+      const t = cur[i];
+      if (t === T.AIR) continue;
+      live++;
+      if (t === T.WATER) w++;
+      else if (t === T.VAPOR) v++;
+      else if (t === T.PLANT) p++;
+    }
+    this.liveCount = live; this.cWater = w; this.cVapor = v; this.cPlant = p;
+  }
+}
+
+// ===========================================================================
+//  렌더링
+// ===========================================================================
 const host = document.getElementById('canvas-host');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -319,7 +716,6 @@ host.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0c10);
-// 옅은 안개 — 너무 강하면 셀이 배경(검정)으로 묻힌다. 거리 대비 약하게.
 scene.fog = new THREE.FogExp2(0x0a0c10, 0.003);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
@@ -332,9 +728,6 @@ const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(1, 1.4, 
 const rim = new THREE.DirectionalLight(0x88aaff, 0.5); rim.position.set(-1, -0.5, -1); scene.add(rim);
 
 const geom = new THREE.BoxGeometry(1, 1, 1);
-// InstancedMesh 의 per-instance 색(instanceColor)을 쓰려면 vertexColors 를 켜야 하고,
-// 그러면 셰이더가 지오메트리 'color' 속성을 곱한다. 흰색으로 채워둬야 instanceColor 가
-// 그대로 보인다(없으면 0 이 곱해져 전부 까맣게 렌더됨).
 {
   const cnt = geom.attributes.position.count;
   const white = new Float32Array(cnt * 3).fill(1);
@@ -352,9 +745,6 @@ function rebuildMesh(N) {
   const max = N * N * N;
   mesh = new THREE.InstancedMesh(geom, mat, max);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  // instanceColor 를 풀사이즈로 직접 할당한다. three 의 setColorAt 은 첫 호출 시
-  // new Float32Array(3 * this.count) 로 버퍼를 만드는데, 우리는 count 를 0 으로 두고
-  // 매 프레임 가변 갱신하므로 그대로 두면 0-length 버퍼가 만들어져 모든 색이 버려진다.
   mesh.instanceColor = new THREE.BufferAttribute(new Float32Array(max * 3), 3);
   mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
   mesh.count = 0;
@@ -375,10 +765,12 @@ function rebuildMesh(N) {
 
 let colorMode = 'state';
 
-function updateInstances(ca) {
+// ── Rule CA 렌더 ──
+function updateInstancesCA(ca) {
   const N = ca.N, cur = ca.cur, alive = ca.states - 1;
   const half = (N - 1) / 2;
   let n = 0;
+  dummy.scale.set(1, 1, 1);
   for (let z = 0; z < N; z++) {
     for (let y = 0; y < N; y++) {
       for (let x = 0; x < N; x++) {
@@ -387,15 +779,13 @@ function updateInstances(ca) {
         dummy.position.set(x - half, y - half, z - half);
         dummy.updateMatrix();
         mesh.setMatrixAt(n, dummy.matrix);
-
         if (colorMode === 'position') {
           color.setRGB(x / (N - 1), y / (N - 1), z / (N - 1));
         } else if (colorMode === 'radial') {
           const dx = (x - half), dy = (y - half), dz = (z - half);
           const d = Math.sqrt(dx*dx + dy*dy + dz*dz) / (half * Math.sqrt(3));
-          color.setHSL((1 - d) * 0.7, 0.85, 0.55);   // 중심=빨강/노랑 → 외곽=파랑
+          color.setHSL((1 - d) * 0.7, 0.85, 0.55);
         } else {
-          // state: 완전 생존=청록, 쇠퇴할수록 보라~분홍으로. 어두워지지 않게 밝기 하한 확보.
           const t = s / alive;
           color.setHSL(0.55 - (1 - t) * 0.45, 0.85, 0.4 + t * 0.3);
         }
@@ -409,16 +799,59 @@ function updateInstances(ca) {
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
 
-// ---- 앱 상태 / 루프 -------------------------------------------------------
+// ── Living World 렌더 (타입별 색·크기) ──
+function updateInstancesWorld(w) {
+  const N = w.N, cur = w.cur, aux = w.aux;
+  const half = (N - 1) / 2;
+  let n = 0;
+  for (let z = 0; z < N; z++) {
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const i = (z * N + y) * N + x;
+        const t = cur[i];
+        if (t === T.AIR) continue;
+        let sc = 1;
+        if (t === T.ROCK)       color.setRGB(0.30, 0.31, 0.34);
+        else if (t === T.SOIL)  color.setRGB(0.40, 0.28, 0.16);
+        else if (t === T.SAND)  color.setRGB(0.80, 0.72, 0.45);
+        else if (t === T.WATER) { const yf = 0.45 + 0.55 * (y / (N - 1)); color.setRGB(0.10 * yf, 0.42 * yf, 0.92 * yf); }
+        else if (t === T.VAPOR) { color.setRGB(0.85, 0.90, 0.97); sc = 0.6; }
+        else /* PLANT */ { const e = aux[i] / L.MAX_E; color.setHSL(0.18 + 0.16 * e, 0.75, 0.32 + 0.18 * e); sc = 0.9; }
+
+        dummy.position.set(x - half, y - half, z - half);
+        dummy.scale.set(sc, sc, sc);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(n, dummy.matrix);
+        mesh.setColorAt(n, color);
+        n++;
+      }
+    }
+  }
+  mesh.count = n;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+
+function updateInstances() {
+  if (engine === 'world') updateInstancesWorld(world);
+  else updateInstancesCA(ca);
+}
+
+// ===========================================================================
+//  앱 상태 / 루프
+// ===========================================================================
+let engine = 'world';
 let ca = new CA3D(32);
+let world = new World(32);
 let playing = true;
 let stepsPerSec = 8;
 let acc = 0, last = performance.now();
 let fpsT = last, fpsN = 0;
-
 let currentRule = null;
 
-// 프리셋 이름으로 적용
+function sim() { return engine === 'world' ? world : ca; }
+
+// ── Rule CA: 규칙 적용 ──
 function applyRule(name) {
   if (name === '__custom__') {
     document.getElementById('ruledesc').textContent = '커스텀 규칙 문자열을 입력하고 적용하세요.';
@@ -426,19 +859,14 @@ function applyRule(name) {
   }
   setActiveRule(PRESETS[name]);
 }
-
-// 규칙 객체를 실제로 활성화 (wrap 체크박스 반영)
 function setActiveRule(rule) {
   currentRule = Object.assign({}, rule, { wrap: document.getElementById('wrap').checked });
   ca.setRule(currentRule);
   document.getElementById('ruletag').textContent = ruleString(currentRule);
   document.getElementById('ruledesc').textContent = rule.desc || '커스텀 규칙.';
   ca.seed();
-  updateInstances(ca);
-  refreshStats();
+  if (engine === 'ca') { updateInstances(); refreshStats(); }
 }
-
-// "S/B/States/N[/W]" 문자열 → 규칙 객체. 실패 시 throw.
 function parseRuleString(str) {
   const parts = str.trim().split('/').map(s => s.trim());
   if (parts.length < 4) throw new Error('형식은 S/B/States/N 입니다');
@@ -463,12 +891,10 @@ function parseRuleString(str) {
   const wrap = parts.length >= 5 && parts[4].toUpperCase() === 'W';
   return { survival, birth, states, n: nl, wrap, desc: '커스텀 규칙: ' + str.trim() };
 }
-
 function ruleString(r) {
   const fmt = a => compress(a);
   return `S:${fmt(r.survival)} / B:${fmt(r.birth)} / ${r.states} / ${r.n}${r.wrap ? ' (wrap)' : ''}`;
 }
-// 연속 구간을 a-b 로 압축 표기
 function compress(arr) {
   if (!arr.length) return '∅';
   const a = [...arr].sort((x, y) => x - y);
@@ -482,8 +908,14 @@ function compress(arr) {
 }
 
 function refreshStats() {
-  document.getElementById('gen').textContent = ca.generation;
-  document.getElementById('cells').textContent = ca.liveCount.toLocaleString();
+  const s = sim();
+  document.getElementById('gen').textContent = s.generation;
+  document.getElementById('cells').textContent = s.liveCount.toLocaleString();
+  if (engine === 'world') {
+    document.getElementById('cwater').textContent = world.cWater.toLocaleString();
+    document.getElementById('cvapor').textContent = world.cVapor.toLocaleString();
+    document.getElementById('cplant').textContent = world.cPlant.toLocaleString();
+  }
 }
 
 function loop(now) {
@@ -495,9 +927,8 @@ function loop(now) {
     acc += dt;
     const interval = 1 / stepsPerSec;
     let did = false;
-    // 프레임당 최대 4스텝까지만 따라잡아 폭주 방지
-    for (let k = 0; k < 4 && acc >= interval; k++) { ca.step(); acc -= interval; did = true; }
-    if (did) { updateInstances(ca); refreshStats(); }
+    for (let k = 0; k < 4 && acc >= interval; k++) { sim().step(); acc -= interval; did = true; }
+    if (did) { updateInstances(); refreshStats(); }
   }
 
   renderer.render(scene, camera);
@@ -516,7 +947,9 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// ---- UI 바인딩 ------------------------------------------------------------
+// ===========================================================================
+//  UI 바인딩
+// ===========================================================================
 const ruleSel = document.getElementById('rule');
 Object.keys(PRESETS).forEach(name => {
   const o = document.createElement('option'); o.value = name; o.textContent = name; ruleSel.appendChild(o);
@@ -529,11 +962,10 @@ ruleSel.addEventListener('change', () => {
   customRow.style.display = ruleSel.value === '__custom__' ? 'block' : 'none';
   applyRule(ruleSel.value);
 });
-
 document.getElementById('apply').addEventListener('click', () => {
   try {
     const rule = parseRuleString(document.getElementById('customrule').value);
-    document.getElementById('wrap').checked = rule.wrap;   // /W 동기화
+    document.getElementById('wrap').checked = rule.wrap;
     setActiveRule(rule);
   } catch (e) {
     document.getElementById('ruledesc').textContent = '⚠ ' + e.message;
@@ -542,18 +974,69 @@ document.getElementById('apply').addEventListener('click', () => {
 document.getElementById('customrule').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('apply').click();
 });
-
 document.getElementById('wrap').addEventListener('change', () => {
   if (currentRule) setActiveRule(currentRule);
 });
-
 document.getElementById('color').addEventListener('change', e => {
-  colorMode = e.target.value; updateInstances(ca);
+  colorMode = e.target.value; if (engine === 'ca') updateInstances();
 });
+
+// World 슬라이더
+function bindWorldSlider(id, key) {
+  const el = document.getElementById(id), out = document.getElementById(id + 'val');
+  el.addEventListener('input', () => {
+    out.textContent = el.value;
+    world.setParams({ [key]: parseInt(el.value, 10) });
+    // 해수면은 지형 생성값이므로 변경 시 재생성
+    if (key === 'seaPct') { world.seed(); if (engine === 'world') { updateInstances(); refreshStats(); } }
+  });
+}
+bindWorldSlider('sun', 'sun');
+bindWorldSlider('rain', 'rain');
+bindWorldSlider('growth', 'growth');
+bindWorldSlider('sea', 'seaPct');
+
+// 엔진 전환
+const engineSel = document.getElementById('engine');
+function applyEngine() {
+  engine = engineSel.value;
+  const isWorld = engine === 'world';
+  document.getElementById('ca-controls').style.display = isWorld ? 'none' : 'block';
+  document.getElementById('world-controls').style.display = isWorld ? 'block' : 'none';
+  document.getElementById('st-w').style.display = isWorld ? 'inline' : 'none';
+  document.getElementById('st-v').style.display = isWorld ? 'inline' : 'none';
+  document.getElementById('st-p').style.display = isWorld ? 'inline' : 'none';
+  if (isWorld) {
+    world.setParams({
+      sun: +document.getElementById('sun').value,
+      rain: +document.getElementById('rain').value,
+      growth: +document.getElementById('growth').value,
+      seaPct: +document.getElementById('sea').value,
+    });
+    world.seed();
+  } else {
+    if (currentRule) ca.setRule(currentRule), ca.seed();
+    else applyRule(ruleSel.value);
+  }
+  updateInstances();
+  refreshStats();
+}
+engineSel.addEventListener('change', applyEngine);
+
+// 공통: Grid / Speed / Play / Step / Reset
 document.getElementById('size').addEventListener('change', e => {
   const N = parseInt(e.target.value, 10);
-  ca.resize(N); rebuildMesh(N);
-  if (currentRule) setActiveRule(currentRule); else applyRule(ruleSel.value);
+  ca.resize(N); world.resize(N); rebuildMesh(N);
+  if (engine === 'world') {
+    world.setParams({
+      sun: +document.getElementById('sun').value, rain: +document.getElementById('rain').value,
+      growth: +document.getElementById('growth').value, seaPct: +document.getElementById('sea').value,
+    });
+    world.seed();
+  } else {
+    if (currentRule) setActiveRule(currentRule); else applyRule(ruleSel.value);
+  }
+  updateInstances(); refreshStats();
 });
 const speedEl = document.getElementById('speed');
 speedEl.addEventListener('input', e => {
@@ -567,16 +1050,20 @@ playBtn.addEventListener('click', () => {
   playBtn.classList.toggle('primary', playing);
 });
 document.getElementById('step').addEventListener('click', () => {
-  ca.step(); updateInstances(ca); refreshStats();
+  sim().step(); updateInstances(); refreshStats();
 });
 document.getElementById('reset').addEventListener('click', () => {
-  ca.seed(); updateInstances(ca); refreshStats();
+  sim().seed(); updateInstances(); refreshStats();
 });
 
-// ---- 부트스트랩 -----------------------------------------------------------
-rebuildMesh(ca.N);
-ruleSel.value = 'Pyroclastic';   // 기본은 안정적으로 자라며 구조가 보이는 규칙
-applyRule(ruleSel.value);
+// ===========================================================================
+//  부트스트랩 — 기본은 Living World
+// ===========================================================================
+rebuildMesh(world.N);
+ruleSel.value = 'Pyroclastic';
+setActiveRule(PRESETS['Pyroclastic']);   // CA 엔진도 준비만 해 둔다
+engineSel.value = 'world';
+applyEngine();
 resize();
 requestAnimationFrame(loop);
 </script>
