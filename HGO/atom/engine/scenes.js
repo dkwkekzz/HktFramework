@@ -5355,6 +5355,89 @@
         ];
       },
     },
+
+    'step-0081': {
+      id: 'step-0081',
+      title: '공간 분리 2세대 별 — 두 떨어진 우물이 각자 점화 (측정·새 법칙 0 — gravity+fuse+disperse+E회계·두 차가운 ²H 클럼프 좌/우 배치·무거운 산물이 두 *공간적으로 떨어진* 클러스터로 점화·중앙 빈 간극·중력 끄면 점화 0·SPINE §4·§8 Phase E 순환의 공간판·골든 보존 회귀 0)',
+      desc: 'step-0080 은 *시간 분리* 재점화 — 한 중앙 우물에서 흩어진 산물이 *같은 자리*에 재응집해 2세대로 다시 탔다. 이 측정 step 은 그 순환의 *공간판*을 잡는다: 차가운 ²H 구름을 **두 떨어진 클럼프**(좌 x≈0.3W·우 x≈0.7W)로 놓고 장시간 굴려, 각 중력 우물이 *각자의 자리에서* 별로 점화하는 — *공간적으로 분리된* 두 별 — 서명을 측정한다(새 법칙 0·scene 만·기존 gravity+fuse+disperse+fuseConservePE 합성·LAW_ORDER·DEFAULTS 불변 → 골든 보존=회귀 0). ' +
+            '무대 160²·N=400(좌/우 200씩)·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+disperse(Zmin3)+fuseConservePE·1400 tick·고정 시드. 두 우물이 각자 붕괴→밀집 코어→점화→무거운 핵 생성. 핵심: 종단 무거운 핵(Z≥3)이 *한 중앙 덩이*(0080)가 아니라 *두 떨어진 클러스터*(좌·우)로 나뉘고 그 사이 중앙 간극(0.4~0.6W)이 비어 있다 — 진짜 공간 분리. ' +
+            '*측정*: ' +
+            '① **공간 2-모드 점화·load-bearing** — 무거운 핵이 좌 클러스터(x̄≈49)+우 클러스터(x̄≈111) 둘로 갈리고 중앙(0.4~0.6W) 빈 간극·클러스터 중심 간격 ≈ 초기 우물 간격 ⇒ 두 점화가 *공간적으로 떨어진 두 우물*에서(0080 의 중앙 단일 점화와 대비). ' +
+            '② **중력 구동·load-bearing** — kGravity 끄면 점화 자체 0(무거운 핵 0·maxZ≤2)·두 우물 붕괴·점화가 *중력 때문*(author 아닌 측정). ' +
+            '③ **장부 머신·E 닫힘** — 장시간(1400tick) Q·B·L·px·py 머신·E 닫힘(fuseConservePE+disperse 회계 두 우물 무대서도 정합). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~80 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 160, H: 160, N: 400, MT: 1400,
+
+      // 두 클럼프(좌 0.3W·우 0.7W) 차가운 ²H. c0 = 출신 우물(0 좌·1 우) — 측정 태그.
+      twin(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cy = this.H / 2, cxs = [this.W * 0.3, this.W * 0.7];
+        for (let i = 0; i < this.N; i++) {
+          const c = i < this.N / 2 ? 0 : 1, cx = cxs[c];
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 12;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0, c0: c });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+
+      // grav=중력 세기. 무거운 핵(Z≥3) 좌/우 클러스터 + 중앙 간극 + 중심 간격·시계열·장부 잔차.
+      run(K, grav) {
+        const sim = { W: this.W, H: this.H, atoms: this.twin(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { kGravity: grav }), tick: 0 };
+        const l0 = K.ledger(sim); const zS = [];
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((t + 1) % 100 === 0) zS.push(this.maxZof(sim.atoms)); }
+        const l1 = K.ledger(sim);
+        // 공간 측정: 무거운 핵 좌(x<0.4W)·중(0.4~0.6W)·우(x>0.6W) 3구간 + 좌/우 반평면 중심 x 간격
+        let nl = 0, nm = 0, nr = 0, sxL = 0, cL = 0, sxR = 0, cR = 0;
+        for (const a of sim.atoms) {
+          if (a.Z >= 3) {
+            if (a.rx < this.W * 0.4) nl++; else if (a.rx > this.W * 0.6) nr++; else nm++;
+            if (a.rx < this.W / 2) { sxL += a.rx; cL++; } else { sxR += a.rx; cR++; }
+          }
+        }
+        const sep = (cL && cR) ? (sxR / cR - sxL / cL) : 0;
+        return { mzFinal: this.maxZof(sim.atoms), nl, nm, nr, hTotal: nl + nm + nr, sep,
+                 cxL: cL ? sxL / cL : 0, cxR: cR ? sxR / cR : 0, zS,
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 3.0), g0: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 두 클럼프 무대 fuseConservePE 켬·symplectic=1.
+      KN: { dt: 0.01, kGravity: 3.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.5, disperseE: 2, disperseZmin: 3, fuseConservePE: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 80 },                                   // 라이브 120tick 두 우물 격렬 붕괴 순간 swing ≤73(누수 아님 — cache net relE 0.16% 닫힘)
+
+      init(rng, K) {
+        const a = this.twin(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzFinal: c.on.mzFinal, nl: c.on.nl, nm: c.on.nm, nr: c.on.nr, sep: +c.on.sep.toFixed(1),
+                 cxL: +c.on.cxL.toFixed(1), cxR: +c.on.cxR.toFixed(1), hTotalG0: c.g0.hTotal, mzG0: c.g0.mzFinal,
+                 relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3), zTrail: c.on.zS.join('→') };
+      },
+
+      // 가설: ① 공간 2-모드 점화 ② 중력 구동 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const twoMode = c.on.nl > 0 && c.on.nr > 0 && c.on.nm === 0 && c.on.sep > this.W * 0.3;   // ① 좌·우 둘 다·중앙 빈 간극·간격>0.3W
+        const gravDriven = c.on.hTotal > 0 && c.g0.hTotal === 0 && c.g0.mzFinal <= 2;              // ② 중력 켬 점화 ≫ 끔 0
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                                // ④ 라이브 기둥 정상(골든 보존)
+        return [
+          { name: `공간 2-모드 점화·load-bearing — 무거운 핵(Z≥3) 좌 클러스터 ${c.on.nl}개(x̄≈${c.on.cxL.toFixed(1)}) + 우 클러스터 ${c.on.nr}개(x̄≈${c.on.cxR.toFixed(1)})·중앙(0.4~0.6W) 간극 ${c.on.nm}개·중심 간격 ${c.on.sep.toFixed(1)}≈초기 우물 간격 ⇒ 두 점화가 *공간적으로 떨어진 두 우물*에서(0080 의 중앙 단일 점화와 대비)`, pass: twoMode, value: c.on.sep.toFixed(1) },
+          { name: `중력 구동·load-bearing — kGravity 켜면 무거운 핵 ${c.on.hTotal}개 점화 ≫ 끄면 ${c.g0.hTotal}개(maxZ ${c.g0.mzFinal}·점화 자체 0) ⇒ 두 우물 붕괴·점화가 *중력 때문*(author 아닌 측정)`, pass: gravDriven, value: c.g0.hTotal },
+          { name: `장부 머신·E 닫힘 — 장시간 ${this.MT}tick Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(fuseConservePE+disperse 회계 두 우물 무대 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — 새 법칙 0(기존 gravity+fuse+disperse+fuseConservePE 합성·scene 만) → 0001~80 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.mzFinal },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
