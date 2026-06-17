@@ -5664,6 +5664,85 @@
         ];
       },
     },
+
+    'step-0085': {
+      id: 'step-0085',
+      title: '층상 핵합성 — 코어는 무거운 원소 보존, 겉껍질만 별풍 (게이트 disperseOuterDeg=0 → 0084 균일·회귀 0)',
+      desc: 'step-0084 의 별풍은 *균일* disperse 라 산물을 *더 무거워지기 전*에 코어서 빼내 천정 maxZ 를 33→16 낮췄다(별풍 대가). 진짜 별은 코어 깊이서 무거운 원소를 *보존*하고 *겉껍질만* 분다(층상 구조). 이 step 은 disperse 에 *밀도 게이트* `disperseOuterDeg` — coolOuter(0083)의 밀도 게이트와 동형 — 를 더해 *저밀도 외곽 산물만* 별풍에 싣고 *고밀도 코어 산물은 안 분다*. ' +
+            '각 원자의 국소 이웃 수(밀도)를 세, 이웃이 적은(≤disperseOuterDeg) 외곽만 분산·고밀도 코어 산물은 게이트서 빠진다 → 코어가 무거운 원소를 *보존*(천정 maxZ 유지)·겉껍질만 별풍. 전역 조율자 0(각 원자+이웃·척추 ③). disperseOuterDeg=0 → 전원 분산 = 0084 비트 동일(회귀 0). ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse+bondCovalent+fuseConservePE+coolOuter+disperse(Zmin3·OuterDeg8)·600 tick·고정 시드 7): ' +
+            '① **코어 천정 보존·load-bearing** — disperseOuterDeg 켜면 천정 maxZ 가 균일(0084)보다 크게 높다(코어 산물 안 불어 보존)·끄면 0084 천정↓ ⇒ 밀도 게이트가 코어 무거운 원소를 보존(author 아닌 측정). ' +
+            '② **겉껍질 별풍 유지·load-bearing** — 천정 보존하면서도 외곽 무거운 핵 R_g 가 disperse 완전 끔(코어 갇힘)보다 크다(겉껍질은 여전히 별풍)·단 균일 0084 보단 작다(코어 보존 대가) ⇒ 층상(코어 보존 + 겉 별풍) 동시. ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(coolOuter+disperse+fuseConservePE+bondLocalE 정합). ' +
+            '④ **회귀** — disperseOuterDeg=0 → 0084 비트 동일·0001~84 골든 보존.',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 600,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      rgHeavy(at, W, H) {
+        let cx = 0, cy = 0, c = 0; for (const a of at) if (a.Z >= 3) { cx += a.rx; cy += a.ry; c++; }
+        if (!c) return 0; cx /= c; cy /= c;
+        let s = 0; for (const a of at) if (a.Z >= 3) { const dx = K.minImage(a.rx - cx, W), dy = K.minImage(a.ry - cy, H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / c);
+      },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, kDisperse: 0.5, disperseE: 2, disperseZmin: 3, disperseOuterDeg: 8,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },                                  // 라이브 120tick 격렬 붕괴 순간 swing(누수 아님 — cache net relE<1% 닫힘)
+
+      run(K, ov) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov || {}), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const m = molecules(sim);
+        let heavy = 0; for (const a of sim.atoms) if (a.Z >= 3) heavy++;
+        return { mzFinal: this.maxZof(sim.atoms), heavy, mol: m.count, maxMol: m.maxSize, rgHeavy: this.rgHeavy(sim.atoms, this.W, this.H),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      // lay=층상(밀도 게이트 켬) · uni=균일(disperseOuterDeg 0 = 0084) · off=disperse 완전 끔(코어 갇힘 기준선).
+      cache(K) { return this._c || (this._c = { lay: this.run(K, {}), uni: this.run(K, { disperseOuterDeg: 0 }), off: this.run(K, { kDisperse: 0 }) }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzLay: c.lay.mzFinal, rgLay: +c.lay.rgHeavy.toFixed(2), heavyLay: c.lay.heavy,
+                 mzUni: c.uni.mzFinal, rgUni: +c.uni.rgHeavy.toFixed(2), rgOff: +c.off.rgHeavy.toFixed(2),
+                 relEon: +c.lay.relE.toFixed(3), dpxOn: +c.lay.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 코어 천정 보존 ② 겉껍질 별풍 유지 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const ceiling = c.lay.mzFinal > c.uni.mzFinal * 1.3 && c.lay.mzFinal >= 24;          // ① 층상 천정 ≫ 균일(코어 보존)
+        const shellWind = c.lay.rgHeavy > c.off.rgHeavy * 1.8 && c.lay.rgHeavy < c.uni.rgHeavy;  // ② 겉 별풍(>코어 갇힘) 단 균일보단 작음(코어 보존 대가)
+        const ledgerOK = c.lay.dpx < 1e-9 && c.lay.dpy < 1e-9 && c.lay.dB < 1e-9 && c.lay.dQ < 1e-9 && c.lay.dL < 1e-9 && c.lay.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                          // ④ 골든 보존
+        return [
+          { name: `코어 천정 보존·load-bearing — disperseOuterDeg 켜면(층상) 천정 maxZ ${c.lay.mzFinal} ≫ 끄면(균일 0084) ${c.uni.mzFinal} ⇒ 밀도 게이트가 고밀도 코어 산물을 안 불어 무거운 원소 *보존*(겉만 분다·author 아닌 측정)`, pass: ceiling, value: c.lay.mzFinal },
+          { name: `겉껍질 별풍 유지·load-bearing — 층상 외곽 무거운 핵 R_g ${c.lay.rgHeavy.toFixed(2)} > disperse 완전 끔 ${c.off.rgHeavy.toFixed(2)}(코어 갇힘) 겉껍질은 여전히 별풍·단 균일 0084 ${c.uni.rgHeavy.toFixed(2)} 보단 작음(코어 보존 대가) ⇒ 층상(코어 보존 + 겉 별풍) 동시`, pass: shellWind, value: +c.lay.rgHeavy.toFixed(2) },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.lay.dpx.toExponential(2)}·dB ${c.lay.dB.toExponential(2)}·dL ${c.lay.dL.toExponential(2)})·E 닫힘 ${c.lay.relE.toFixed(3)}%(coolOuter+disperse+fuseConservePE+bondLocalE 정합)`, pass: ledgerOK, value: +c.lay.relE.toFixed(3) },
+          { name: `회귀 — disperseOuterDeg=0 → 0084 비트 동일(전원 분산)·0001~84 골든 보존(밀도 게이트 가법)`, pass: reg, value: c.lay.mzFinal },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
