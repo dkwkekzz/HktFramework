@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -1046,9 +1046,50 @@
     sim.decayActive = 1;                                   // 진단 플래그(hash 미참여)
   }
 
+  // disperse 은 *별 죽음·분산* — SPINE §4 의 *느린 순환*을 닫는 마지막 칸(중력이 모은 가스를 *되흩는* 힘).
+  //   지금까지 Phase E 는 *모으기만* 했다: gravity(0028)가 구름을 끌어모으고 fuse(0033~)가 핵합성으로 무거운 원소를 쌓았다(빠른 비가역 화살표·§4).
+  //   하지만 §4 의 순환은 *되돌림*을 요구한다 — "무거운 원소는 항성 죽음·분산으로 아주 느리게 흩어져 다음 별의 재료가 된다". 그 *흩는* 힘이 없었다.
+  //   물리: 별 내부 융합이 쌓은 *복사 에너지*(sim.escaped.E — fuse 가 keRel+ΔB_fus 를 park 한 바스)가 가스를 다시 *밀어낸다*(복사압·항성풍·초신성).
+  //     별의 죽음은 author 한 사건이 아니라 *모은 에너지가 임계를 넘으면 스스로 터지는* 창발이다(척추 체크 ①②). 연료=바스 E(융합 산물).
+  //   기질 재사용: reheat(0008)가 바스 E→들뜸이었다면, disperse 는 바스 E→*운동 에너지*(등방 반동). decay(0031)의 등방 KE 반동 + 0032 의
+  //     −Δp 바스 적재(운동량 부기)를 그대로 물려받는다 — 한 원자가 바스서 ε 만큼 KE 를 얻고(등방·시드 방향), 방출된 복사 입자가 나르는 −Δp 는 바스에.
+  //   닫힌 장부: E = 바스서 인출한 ε 가 원자 KE 로(바스 E−=ε·KE+=ε) → 총 E *정확* 보존(이중계상 0). 운동량 = 원자 +Δp·바스 −Δp → 총 px·py *정확* 보존(0032 동형).
+  //     Q·B·L·x·Z·N 불변(순수 운동량·에너지 재분배 — 핵 변환 없음). 바스 E 고갈(≤0)이면 멈춤(무에서 빌리지 않음 — 0051 흡열 문턱 정신).
+  //   비가역·순환(SPINE §4): 모은 가스를 *흩음* — 빠른 모음(중력)의 *반대 방향*. fuse(빠른 비가역 모음)↔disperse(느린 되흩음)가 §4 척도 분리 순환을 닫는다.
+  //   국소: *그 원자 혼자*로 판정(이웃·전역 조율자 0 — 바스는 0007~ 의 전역 복사 reservoir·#1 기존 한계 disclosed). 결정론: 확률·방향 sim.rng(시드 의사난수)만.
+  //   게이트 kDisperse=0 → early-return = 회귀 0(분산 꺼짐 → 직전 비트).
+  function disperse(sim) {
+    const k = sim.knobs.kDisperse;
+    if (!k) return;                  // 노브=0 → early-return = 회귀 0 (분산 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 의사난수 없으면 방향·확률 불가(Math.random 금지 — 결정론)
+    const bath = sim.escaped;
+    if (!bath || bath.E <= 0) return;                     // 복사 바스 E 가 없으면 흩을 연료 0(무에서 빌리지 않음)
+    const eps = sim.knobs.disperseE || 1;                 // 한 번에 바스서 인출해 운동 KE 로 바꾸는 복사 에너지 양자
+    const zmin = sim.knobs.disperseZmin || 0;             // 0 → 모든 가스가 복사압을 받음(기본). >0 → 무거운 핵(Z≥zmin)만(선택)
+    for (const a of sim.atoms) {
+      if ((a.Z | 0) < zmin) continue;                     // 선택 게이트(기본 zmin=0 → 전원)
+      if (bath.E <= 0) break;                             // 바스 고갈 — 더 못 흩음(E 음수 방지)
+      if (rng() >= k) continue;                           // 복사압 확률 kDisperse
+      const draw = Math.min(eps, bath.E);                 // 바스 잔량 한도 내 인출(흡열 문턱 정신)
+      // 등방 반동: ½m·v'² = ½m·v² + draw 를 풀어 KE 를 정확히 draw 만큼 올린다(방향은 시드 — decay 0031 동형).
+      const m = K.mass(a);
+      const vx0 = a.vx, vy0 = a.vy;
+      const ke0 = 0.5 * m * (vx0 * vx0 + vy0 * vy0);
+      const sp1 = Math.sqrt(2 * (ke0 + draw) / m);        // 새 속력(KE 가 draw 만큼 큼)
+      const th = rng() * 2 * Math.PI;                     // 등방 방향(시드 — 결정론)
+      a.vx = sp1 * Math.cos(th); a.vy = sp1 * Math.sin(th);
+      bath.E -= draw;                                     // 바스 E → 원자 KE (총 E 정확 보존)
+      bath.px += -(m * (a.vx - vx0));                     // 방출 복사 입자가 나르는 −Δp → 바스(총 px·py 머신·0032 동형)
+      bath.py += -(m * (a.vy - vy0));
+      bath.count = (bath.count | 0) + 1;
+    }
+    sim.disperseActive = 1;                               // 진단 플래그(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, bondSpring, bondAngle, gravity, fuse, decay };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, bondSpring, bondAngle, gravity, fuse, decay, disperse };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).

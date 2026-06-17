@@ -4657,6 +4657,73 @@
         ];
       },
     },
+
+    'step-0071': {
+      id: 'step-0071',
+      title: '별 죽음·분산 — 복사 바스 E 가 모은 가스를 되흩는다 (disperse·항성풍·SPINE §4 느린 순환 닫기·바스 E→운동 분산·kDisperse 끄면 분산 0·E·px·py 머신)',
+      desc: 'Phase E 는 지금까지 *모으기만* 했다 — gravity(0028)가 구름을 끌고 fuse(0033~)가 핵합성으로 무거운 원소를 쌓았다(빠른 비가역 화살표). ' +
+            'SPINE §4 의 순환은 *되흩음*을 요구한다("무거운 원소는 항성 죽음·분산으로 흩어져 다음 별의 재료가 된다"). 이 step 은 그 흩는 힘 disperse 를 더한다(LAW_ORDER 끝·kDisperse=0 → 회귀 0). ' +
+            '물리: 별 내부 융합이 쌓은 *복사 에너지*(sim.escaped.E — fuse 가 park 한 바스)가 가스를 다시 밀어낸다(복사압·항성풍). decay(0031)의 등방 KE 반동 + 0032 의 −Δp 바스 적재를 물려받아 — 한 원자가 바스서 ε KE 를 얻고(등방·시드 방향) 방출 복사 입자의 −Δp 는 바스에. ' +
+            '*측정*(무대 100²·N=120 차가운 ²H 매듭·바스 E0 사전 충전·자유 드리프트(연속력 0)·120 tick·고정 시드): ' +
+            '① **분산·load-bearing** — kDisperse 켜면 R_g 크게 팽창(가스 흩어짐)·끄면 R_g 정적(분산이 *disperse 때문*·author 아닌 측정). ' +
+            '② **복사 구동·load-bearing** — 켜면 바스 E 소진(복사→운동 전환)·끄면 바스 E 불변(흩는 에너지가 *복사 바스*서·§4 융합 산물). ' +
+            '③ **장부 머신** — 자유 드리프트라 연속력 E 완화 없음 → Q·B·L·E·px·py *전부* 머신(E: 바스→KE 정확·px·py: −Δp→바스 정확·0032 동형). ' +
+            '④ **회귀** — kDisperse=0 → 자유 드리프트(회귀 0 알리바이)·새 노브 0 기본 → 0001~70 골든 비트 불변.',
+      ticks: 80,
+      W: 100, H: 100, N: 120, MT: 120, SNAP: 20, E0: 80,
+      KN: { dt: 1.0, kDisperse: 0.08, disperseE: 1 },
+
+      knot(K, seed) {                                          // 차가운 ²H 매듭(중력이 이미 모은 가스의 토이 — 분산 전 상태)
+        const rng = K.mulberry32(seed || 20260711), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 8;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.01, vy: (rng() - 0.5) * 0.01, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg(at) {                                                 // 관성반경(고정 중심 min-image — 흩어짐 척도)
+        const cx = this.W / 2, cy = this.H / 2; let s = 0;
+        for (const a of at) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / at.length);
+      },
+      run(K, kd) {
+        const sim = { W: this.W, H: this.H, atoms: this.knot(K), photons: [], escaped: { E: this.E0, px: 0, py: 0, count: 0 },
+                      rng: K.mulberry32(20260711), knobs: Object.assign({}, L.DEFAULTS, this.KN, { kDisperse: kd }), tick: 0 };
+        const l0 = K.ledger(sim), rg0 = this.Rg(sim.atoms), e0 = sim.escaped.E, series = [+rg0.toFixed(2)];
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) series.push(+this.Rg(sim.atoms).toFixed(2)); }
+        const l1 = K.ledger(sim);
+        return { rg0, rg1: this.Rg(sim.atoms), series, e0, e1: sim.escaped.E,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kDisperse), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): 매듭의 자유 드리프트(createSim 경로엔 sim.escaped 미설정 → disperse no-op → 순수 자유 드리프트·머신·결정론).
+      //   disperse 의 *효과·보존*은 cache run(바스 사전충전)서 assert 가 증명(0070 패턴 — 라이브는 대표 sim·assert 가 측정).
+      init(rng, K) {
+        const a = this.knot(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { rgOnGrow: +(c.on.rg1 / c.on.rg0).toFixed(3), rgOffGrow: +(c.off.rg1 / c.off.rg0).toFixed(3), bathSpent: +(1 - c.on.e1 / c.on.e0).toFixed(3), dpxOn: +c.on.dpx.toExponential(3), dEOn: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 분산 ② 복사 구동 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const dispersed = c.on.rg1 > c.on.rg0 * 1.5 && c.off.rg1 < c.off.rg0 * 1.15;                 // ① 켜면 흩어짐·끄면 정적
+        const radDriven = c.on.e1 < c.on.e0 * 0.5 && Math.abs(c.off.e1 - c.off.e0) < 1e-9;          // ② 바스 E 소진·끄면 불변
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 전부 머신(자유 드리프트)
+        const reg = c.off.dpx < 1e-9 && c.off.dE < 1e-9 && ctx.ledgerBefore !== undefined;          // ④ 끄면 자유 드리프트(회귀 0 알리바이)
+        return [
+          { name: `분산·load-bearing — kDisperse 켜면 R_g ${c.on.rg0.toFixed(2)}→${c.on.rg1.toFixed(2)}(${(c.on.rg1 / c.on.rg0).toFixed(2)}배 팽창·시계열 ${c.on.series.join('→')})·끄면 ${c.off.rg0.toFixed(2)}→${c.off.rg1.toFixed(2)}(정적) ⇒ 분산이 *disperse 때문*(author 아닌 측정)`, pass: dispersed, value: +(c.on.rg1 / c.on.rg0).toFixed(2) },
+          { name: `복사 구동·load-bearing — 켜면 바스 E ${c.on.e0.toFixed(0)}→${c.on.e1.toFixed(1)}(${((1 - c.on.e1 / c.on.e0) * 100).toFixed(0)}% 소진·복사→운동)·끄면 ${c.off.e0.toFixed(0)}→${c.off.e1.toFixed(0)}(불변) ⇒ 흩는 에너지가 *복사 바스*서(§4 융합 산물)`, pass: radDriven, value: +(1 - c.on.e1 / c.on.e0).toFixed(3) },
+          { name: `장부 머신 — 자유 드리프트(연속력 0) Q·B·L·E·px·py 전부 머신(dpx ${c.on.dpx.toExponential(2)}·dE ${c.on.dE.toExponential(2)}·dL ${c.on.dL.toExponential(2)}) — E:바스→KE 정확·px·py:−Δp→바스 정확(0032 동형)`, pass: consv, value: +c.on.dE.toExponential(3) },
+          { name: `회귀 — kDisperse=0 → 자유 드리프트(dpx ${c.off.dpx.toExponential(2)}·dE ${c.off.dE.toExponential(2)} 머신)·새 노브 0 기본 → 0001~70 골든 비트 불변(회귀 0)`, pass: reg, value: +c.off.dE.toExponential(3) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
