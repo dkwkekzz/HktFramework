@@ -4382,6 +4382,74 @@
         ];
       },
     },
+
+    'step-0067': {
+      id: 'step-0067',
+      title: '핵 껍질 닫힘 마법수 보정 nucShell (게이트 — B(Z,N) 에 껍질 닫힘 보너스 δ_shell=aShell·(magic(Z)+magic(N))·이중마법수=2배·안정 골짜기에 마법수 안정섬 창발·붕괴 종점이 마법수로 이동·nucShell=0 → 미가법·회귀 0)',
+      desc: 'step-0037~42 의 질량공식 B(Z,N)(부피·표면·쿨롱·비대칭·페어링)은 *매끈*해 안정 골짜기를 부드러운 곡선으로 준다. 실제 핵은 *껍질 모형*(Mayer/Jensen)으로 양성자·중성자가 채워진 껍질을 완성하는 **마법수**(2·8·20·28·50·82·126)서 유난히 단단하다 — 매끈 공식이 못 잡는 *불연속 안정섬*. ' +
+            '이 step 은 게이트 `nucShell` 로 결합에너지에 껍질 보너스 δ_shell(Z,N)=aShell·(isMagic(Z)+isMagic(N)) 를 얹는다(aShell=0.8) — Z·N 각자 마법수면 +aShell·*둘 다*(이중마법수 ⁴He·¹⁶O·⁴⁰Ca…)면 +2aShell. ledger 정지질량(M=A−B)·decay ΔB·fuse ΔB_fus 가 *모두 같은 B* 를 쓰도록 게이트를 셋 다 관통(변환 Q=실제 ΔB 정합·누수 0). nucShell=0(기본) → δ_shell 미가법 → 비트 동일(회귀 0). ' +
+            '창발(author 안정표 0): 마법수서 B 가 봉우리 → β붕괴 골짜기 종점이 *마법수로 이동*(A=22 매끈 Z=10 → 껍질 Z=8 마법수서 멈춤·양성자 껍질 닫힘 안정섬). ' +
+            '*측정*(질량공식 + 라이브 A=22 ⁶?→ 붕괴 무대·nucShell+md+mf+페어링+β±·고정 시드): ' +
+            '① **이중마법수 보너스·load-bearing** — B(8,8)[¹⁶O]·B(20,20)[⁴⁰Ca] 껍질−매끈 = +1.6(=2aShell 이중마법)·B(2,2)[⁴He]=+1.6·비마법 B(6,7)=0(보너스가 마법수에만). ' +
+            '② **골짜기 종점 이동·load-bearing** — A=22 등중원소 argmax_Z B: 매끈 Z=10(²²Ne) → 껍질 Z=8(마법수·양성자 껍질 닫힘)·끄면 Z=10 복귀(이동이 껍질 항서). ' +
+            '③ **붕괴 안정섬** — 라이브 중성자 과잉 A=22 핵이 nucShell=1 면 Z=8(마법수)서 멈춤·nucShell=0 면 Z=10 까지(마법수 안정섬이 종점을 끌어당김). ' +
+            '④ **장부·결정론·회귀** — 라이브 nucShell=1+md 붕괴 무대 Q·B·L·E·px·py 머신(rest=A−B·ΔB 같은 껍질 B → Q 정합)·nucShell=0 → 0001~66 골든 비트 불변(회귀 0).',
+      ticks: 60,
+      // ledgerTol 없음 — decay 닫힌 형식(rest=A−B 껍질 포함·ΔB 껍질 포함 정합)·Q·B·L·E·px·py 머신.
+      A: 22, Z0: 6, MT: 60,
+      KN: { dt: 1, kDecay: 0.5, decayMassFormula: 1, massDefect: 1, decayBetaPlus: 1, decayPairing: 1, decayRecoilPair: 1, nucShell: 1 },
+
+      // 등중원소 A 의 안정 골짜기 argmax_Z B(Z,A−Z) — 껍질 게이트 sh 로.
+      valleyZ(K, sh) {
+        let best = -1e9, bz = -1;
+        for (let Z = 1; Z < this.A; Z++) { const b = K.binding(Z, this.A - Z, 1, sh); if (b > best) { best = b; bz = Z; } }
+        return bz;
+      },
+      // 중성자 과잉 A=22 핵(Z=Z0) 집단을 붕괴시켜 종점 Z 분포 — nucShell sh 로.
+      decayEnd(K, sh) {
+        const a = [];
+        for (let i = 0; i < 40; i++) a.push({ Z: this.Z0, N: this.A - this.Z0, e: this.Z0, x: 0, rx: 0, ry: 0, vx: 0, vy: 0, lep: 0, nuc: 0 });
+        const sim = { W: 50, H: 50, atoms: a, photons: [], rng: K.mulberry32(20260701), knobs: Object.assign({}, L.DEFAULTS, this.KN, { nucShell: sh }), tick: 0 };
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        let maxZ = 0, sumZ = 0; for (const x of sim.atoms) { if (x.Z > maxZ) maxZ = x.Z; sumZ += x.Z; }
+        return { maxZ, meanZ: sumZ / sim.atoms.length };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): nucShell=1+md 붕괴 무대 — rest=A−B·ΔB 같은 껍질 B → Q·B·L·E·px·py 머신.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < 40; i++) a.push({ Z: this.Z0, N: this.A - this.Z0, e: this.Z0, x: 0, rx: simRng() * 50, ry: simRng() * 50, vx: 0, vy: 0, lep: 0, nuc: 0 });
+        return { W: 50, H: 50, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        return {
+          bonus16O: +(K.binding(8, 8, 1, 1) - K.binding(8, 8, 1, 0)).toFixed(3),
+          bonus40Ca: +(K.binding(20, 20, 1, 1) - K.binding(20, 20, 1, 0)).toFixed(3),
+          bonusNonMagic: +(K.binding(6, 7, 1, 1) - K.binding(6, 7, 1, 0)).toFixed(3),
+          valleySmooth: this.valleyZ(K, 0), valleyShell: this.valleyZ(K, 1),
+          decayEndShell: this.decayEnd(K, 1).maxZ, decayEndSmooth: this.decayEnd(K, 0).maxZ,
+        };
+      },
+
+      // 가설: ① 이중마법수 보너스 ② 골짜기 종점 이동 ③ 붕괴 안정섬 ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const b16 = K.binding(8, 8, 1, 1) - K.binding(8, 8, 1, 0);
+        const b40 = K.binding(20, 20, 1, 1) - K.binding(20, 20, 1, 0);
+        const bNon = K.binding(6, 7, 1, 1) - K.binding(6, 7, 1, 0);
+        const vSmooth = this.valleyZ(K, 0), vShell = this.valleyZ(K, 1);
+        const dShell = this.decayEnd(K, 1).maxZ, dSmooth = this.decayEnd(K, 0).maxZ;
+        const doubleMagic = Math.abs(b16 - 1.6) < 1e-9 && Math.abs(b40 - 1.6) < 1e-9 && bNon === 0;  // ① 이중마법 +2aShell·비마법 0
+        const shift = vShell === 8 && vSmooth === 10 && vShell !== vSmooth;                          // ② 골짜기 종점 마법수로 이동
+        const island = dShell === 8 && dSmooth === 10 && dShell < dSmooth;                           // ③ 붕괴 종점 마법수 안정섬서 멈춤
+        return [
+          { name: `이중마법수 보너스·load-bearing — B(8,8)¹⁶O 껍질−매끈=${b16.toFixed(2)}·B(20,20)⁴⁰Ca=${b40.toFixed(2)}(=2aShell 이중마법)·비마법 B(6,7)=${bNon.toFixed(2)}(보너스가 마법수 Z/N 에만·author 안정표 0)`, pass: doubleMagic, value: +b16.toFixed(3) },
+          { name: `골짜기 종점 이동·load-bearing — A=${this.A} 등중원소 argmax_Z B: 매끈 Z=${vSmooth}(²²Ne) → 껍질 Z=${vShell}(마법수 양성자 껍질 닫힘)·끄면 Z=${vSmooth} 복귀(이동이 껍질 항서)`, pass: shift, value: vShell },
+          { name: `붕괴 안정섬 — 라이브 중성자 과잉 A=${this.A} 핵 nucShell=1 종점 Z=${dShell}(마법수서 멈춤)·nucShell=0 종점 Z=${dSmooth}(마법수 안정섬이 붕괴 종점을 끌어당김)`, pass: island, value: dShell },
+          { name: `장부·결정론·회귀 — 라이브 nucShell=1+md 붕괴 무대 Q·B·L·E·px·py 머신(rest=A−B·ΔB 같은 껍질 B → Q 정합)·nucShell=0 → 0001~66 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: dShell },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

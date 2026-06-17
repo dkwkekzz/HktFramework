@@ -28,7 +28,14 @@
   //   부피(aV)는 결합을 키우고, 표면(aS)·쿨롱(aC, 양성자 반발)·비대칭(aA, N≠Z 불리)은 깎는다.
   //   결합 B 가 클수록 안정. **베타붕괴 Q값·안정 골짜기가 여기서 창발** — 쿨롱(저 Z 선호) vs 비대칭(N=Z 선호) 경쟁이 골짜기 위치를 정한다(author 0).
   //   토이 계수(자연 단위 c=1): ΔB 를 KE<c 로 유지하도록 축소 — 결정론 상수라 헤더 고정(CLAUDE 규약: 시뮬 상수는 CVar 예외).
-  const BIND = { aV: 1.0, aS: 0.5, aC: 0.1048, aA: 1.35, aP: 0.6 };
+  const BIND = { aV: 1.0, aS: 0.5, aC: 0.1048, aA: 1.35, aP: 0.6, aShell: 0.8 };
+  // 마법수(껍질 닫힘 — step-0067): 양성자·중성자가 채워진 껍질을 완성하는 수. 이 수에서 핵이 *유난히 단단히* 묶인다(추가 결합).
+  //   실제 마법수 2·8·20·28·50·82·126(껍질 모형·Mayer/Jensen). 토이는 정수 일치만 본다(부드러운 봉우리는 후속 정밀화).
+  const MAGIC = [2, 8, 20, 28, 50, 82, 126];
+  function isMagic(n) { return MAGIC.indexOf(n | 0) >= 0 ? 1 : 0; }
+  // 껍질 닫힘 보너스 δ_shell(Z,N) = aShell·(isMagic(Z)+isMagic(N)) — Z·N 각자 마법수면 +aShell, *둘 다*(이중마법수)면 +2aShell(⁴He·¹⁶O·⁴⁰Ca…).
+  //   질량공식(매끈 부피·표면·쿨롱·비대칭)이 못 잡는 *불연속* 안정섬을 얹는다 — 안정 골짜기에 마법수 봉우리가 창발(author 안정표 0·측정으로).
+  function shellDelta(Z, N) { return BIND.aShell * (isMagic(Z) + isMagic(N)); }
   // 페어링항 δ(Z,N)(step-0039, pair 게이트) — 짝-짝 +δ(스핀 반대 쌍이 더 결합·안정) · 홀-홀 −δ(덜 결합·불안정) · 홀수 A 0.
   //   짝지은 핵자 쌍이 에너지를 낮춘다 → 안정선의 짝-홀 진동(odd-even staggering)이 창발: 매끈한 질량공식이 *안정*이라 한 홀-홀 핵이
   //   페어링으로 불안정해져 짝-짝 이웃으로 한 칸 더 붕괴한다(예: ¹⁶N 홀-홀 → ¹⁶O 짝-짝). δ = aP/√A(텍스트북 12·A^(−1/2) 토이).
@@ -37,13 +44,14 @@
     const s = (eZ && eN) ? 1 : ((!eZ && !eN) ? -1 : 0);   // 짝-짝 + · 홀-홀 − · 홀수 A(한쪽만 짝) 0
     return s ? s * BIND.aP / Math.sqrt(Z + N) : 0;
   }
-  function binding(Z, N, pair) {
+  function binding(Z, N, pair, shell) {
     Z = Z | 0; N = N | 0; const A = Z + N; if (A <= 0) return 0;
     const b = BIND.aV * A - BIND.aS * Math.pow(A, 2 / 3) - BIND.aC * Z * (Z - 1) / Math.cbrt(A) - BIND.aA * (N - Z) * (N - Z) / A;
-    return pair ? b + pairingDelta(Z, N) : b;             // pair=0/undefined → 정확히 b(δ 미가법) = 비트 동일·회귀 0
+    const r = pair ? b + pairingDelta(Z, N) : b;          // pair=0/undefined → 정확히 b(δ 미가법) = 비트 동일·회귀 0
+    return shell ? r + shellDelta(Z, N) : r;              // shell=0/undefined → 정확히 r(껍질 보너스 미가법) = 비트 동일·회귀 0(step-0067)
   }
-  // β⁻(n→p) 붕괴의 결합에너지 이득 ΔB = B(Z+1,N−1) − B(Z,N). >0 이면 *발열*(골짜기 쪽으로) → 붕괴 진행, ≤0 이면 안정(골짜기). pair 게이트 전달.
-  function bindingDelta(Z, N, pair) { return binding(Z + 1, N - 1, pair) - binding(Z, N, pair); }
+  // β⁻(n→p) 붕괴의 결합에너지 이득 ΔB = B(Z+1,N−1) − B(Z,N). >0 이면 *발열*(골짜기 쪽으로) → 붕괴 진행, ≤0 이면 안정(골짜기). pair·shell 게이트 전달.
+  function bindingDelta(Z, N, pair, shell) { return binding(Z + 1, N - 1, pair, shell) - binding(Z, N, pair, shell); }
 
   // 전자 들뜸 준위(x)의 에너지 — 이산 에너지 *고유값*(슈뢰딩거 수소 스펙트럼 E_n=−R/n², n=x+1; x=0 바닥→0).
   //   ※ 보어의 *궤도* 그림(불확정성 위배 → 하이젠베르크·슈뢰딩거가 기각)이 아니라, 그 그림이 우연히 맞힌
@@ -246,6 +254,7 @@
     //   둘 중 하나라도 켜지면 rest=A−B 로 편입(fmf 가 md 를 *함의*·불일치 조합서도 닫힘). 둘 다 0(과거 전 장면) → m·c²+nuc 그대로(회귀 0).
     const md = (sim.knobs && (sim.knobs.massDefect || sim.knobs.fuseMassFormula)) || 0;
     const pr = (sim.knobs && sim.knobs.decayPairing) || 0; // md 일 때 −B 의 페어링 게이트(decay·fuse 와 같은 B 사용)
+    const sh = (sim.knobs && sim.knobs.nucShell) || 0;     // md 일 때 −B 의 껍질 게이트(step-0067·decay·fuse 와 같은 B → 변환 Q=ΔB 정합·sh=0 → 회귀 0)
     // 완전 상대론적 운동에너지(step-0049 relKE): 0047 이 저장 v 를 *고유속도(celerity) u=γ·v_coord* 로 재해석해 운동량 p=m·u 를 상대론화했으나,
     //   운동에너지는 여전히 토이 ½m|u|². 이 게이트는 KE 도 상대론화한다 — KE=(γ−1)mc², γ=√(1+|u|²/c²)(저속 극한서 ½m|u|² 회복·고속서 발산=c 에 무한 에너지 벽).
     //   relKE=0(과거 전 장면) → ½m·v2 그대로(비트 동일·회귀 0). md/levelEZ 와 같은 *레저 게이트*(force 법칙 아님 — LAW_ORDER 미참여).
@@ -258,7 +267,7 @@
       const v2 = a.vx * a.vx + a.vy * a.vy;
       // 정지질량 에너지: md 면 결합에너지를 정지질량에 편입(M=A−B → 결합한 핵이 *가볍다*·질량 결손), 아니면 A·c²(+nuc 저장고).
       //   md=0 → (m)·c²+0.5mv²+들뜸 그대로 + 아래 a.nuc → 과거 비트 동일(회귀 0). md=1 → −B 편입·nuc 미가법(저장고 폐기).
-      E += (md ? (m - binding(a.Z | 0, a.N | 0, pr)) : m) * C * C + (rk ? (Math.sqrt(1 + v2 / (C * C)) - 1) * m * C * C : 0.5 * m * v2) + levelEZ(a.x, a.Z, a.e, lz, sc);  // KE: rk → (γ−1)mc²(상대론) / 0 → ½mv²(토이·회귀 0) · 들뜸(x=0 → 0; lz=0 → levelE)
+      E += (md ? (m - binding(a.Z | 0, a.N | 0, pr, sh)) : m) * C * C + (rk ? (Math.sqrt(1 + v2 / (C * C)) - 1) * m * C * C : 0.5 * m * v2) + levelEZ(a.x, a.Z, a.e, lz, sc);  // KE: rk → (γ−1)mc²(상대론) / 0 → ½mv²(토이·회귀 0) · 들뜸(x=0 → 0; lz=0 → levelE)
       // 핵 결합/저장 에너지(step-0031 decay): 불안정 동위원소가 품은 붕괴 Q값(Δm·c² 저장고). 붕괴 시 KE 로 빠진다 → E 닫힘.
       //   미존재(과거 전 장면 a.nuc undefined) → 0 가법 → 장부·해시 불변. 핵 변환이라도 Σ(mc²+KE+a.nuc) 보존.
       //   md(0040) 면 저장고 폐기 — 발열량은 −B 정지질량 변화서 직접 나온다(나머지 nuc 회계는 md=0 경로 전용).

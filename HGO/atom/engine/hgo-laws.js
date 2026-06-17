@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -862,6 +862,7 @@
     const qRel = sim.knobs.fuseQ || 0;                     // 융합마다 방출하는 Δm·c² Q값(저장고 잔량 한도 내)
     const fmf = sim.knobs.fuseMassFormula;                 // 융합 Q값을 결합에너지서(step-0041, 0 → author fuseQ·저장고 거동·회귀 0)
     const pr = sim.knobs.decayPairing;                     // fmf 면 ΔB_fus 의 페어링 게이트(ledger·decay 와 같은 B 사용)
+    const sh = sim.knobs.nucShell;                         // fmf 면 ΔB_fus 의 껍질 게이트(step-0067·ledger·decay 와 같은 B·0 → 미가법·회귀 0)
     // 흡열 융합 에너지 문턱(step-0051, fuseEndo=0 → 0050 거동·회귀 0):
     //   융합 발열량 ΔB_fus 는 가벼운 핵서 >0(발열·별 점화)·철 너머서 <0(흡열). 0050 까지 fuse 는 부호를 *안 봤다* —
     //   ΔB_fus<0 이라도 *무조건* 합체하고 bath.E += keRel+released(음수)로 복사 바스 E 가 음수가 됐다(에너지를 무에서 빌림).
@@ -897,7 +898,7 @@
       //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
       const Zp = a.Z + b.Z, Np = a.N + b.N;
       const released = fmf
-        ? (K.binding(Zp, Np, pr) - K.binding(a.Z | 0, a.N | 0, pr) - K.binding(b.Z | 0, b.N | 0, pr))
+        ? (K.binding(Zp, Np, pr, sh) - K.binding(a.Z | 0, a.N | 0, pr, sh) - K.binding(b.Z | 0, b.N | 0, pr, sh))
         : Math.min(qRel, nucSum);
       // 흡열 문턱 게이트: released<0(흡열)이고 상대 KE 가 그 비용을 못 갚으면(keRel+released<0) 융합 금지.
       //   국소(그 두 원자 keRel·ΔB_fus 만)·rng 무소비(수치 판정·결정론 불변)·fuseEndo=0 → 비검사 = 0050 비트 동일·회귀 0.
@@ -968,6 +969,7 @@
     const mf = sim.knobs.decayMassFormula;                 // 질량공식 구동(step-0037, 0 → author 문턱·decayQ 거동·회귀 0)
     const bp = sim.knobs.decayBetaPlus;                     // β⁺/전자포획 채널(step-0038, 0 → β⁻ 한 방향만·회귀 0)
     const dp = sim.knobs.decayPairing;                      // 페어링항 δ(step-0039, 0 → δ 미가법·0038 거동·회귀 0)
+    const sh = sim.knobs.nucShell;                          // 껍질 닫힘 보너스(step-0067, 0 → 미가법·0039 거동·회귀 0·ledger·fuse 와 같은 B)
     const md = sim.knobs.massDefect;                        // 결합E 정지질량 편입(step-0040, 0 → nuc 저장고 연료·회귀 0)
     const useBind = mf || md;                               // md(정지질량=A−B)는 binding 기반 안정·Q 를 *함의*한다 — md 켜고 mf 끈 불일치서도 q=ΔB 로 닫힘(레저 −B 변화와 정합·md=0 이면 mf 그대로·회귀 0)
     let bath = null;
@@ -979,10 +981,10 @@
       //     그래서 β⁻ 가 불리(ΔB⁻≤0)일 때만 β⁺ 를 본다 — 둘 다 ≤0 이면 안정 골짜기(완전한 양방향 골짜기). bp=0 → 0037 거동 비트 동일.
       let dB = 0, chan = 0;                                                       // chan: 0=β⁻(n→p·Z↑) · 1=β⁺(p→n·Z↓)
       if (useBind) {                                                              // mf 또는 md — 둘 다 결합에너지가 안정·Q 의 출처(정합 강제)
-        dB = K.bindingDelta(a.Z | 0, a.N | 0, dp);                                // β⁻ 결합 이득 ΔB⁻ (dp 면 페어링 δ 포함)
+        dB = K.bindingDelta(a.Z | 0, a.N | 0, dp, sh);                            // β⁻ 결합 이득 ΔB⁻ (dp 면 페어링 δ·sh 면 껍질 보너스 포함)
         if (dB <= 0) {                                                            // β⁻ 불리(중성자 과잉 아님)
           if (bp) {                                                              // β⁺ 채널 켬: 양성자 과잉이면 반대 방향으로 골짜기 수렴
-            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1, dp) - K.binding(a.Z | 0, a.N | 0, dp);  // β⁺ 결합 이득 ΔB⁺
+            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1, dp, sh) - K.binding(a.Z | 0, a.N | 0, dp, sh);  // β⁺ 결합 이득 ΔB⁺
             if (dBp <= 0) continue;                                              // 양방향 ΔB≤0 → 안정 골짜기(질량공식 창발)
             dB = dBp; chan = 1;                                                  // β⁺ 진행(p→n·Z↓·발열 ΔB⁺)
           } else continue;                                                       // β⁺ 끔 → 0037 거동(β⁻ 만·회귀 0)
