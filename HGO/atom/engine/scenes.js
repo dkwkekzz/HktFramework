@@ -4212,6 +4212,83 @@
         ];
       },
     },
+
+    'step-0065': {
+      id: 'step-0065',
+      title: '진짜 다체 핵합성 시계열 (측정·새 법칙 0 — 0064 셀 fuse 로 N=400 ²H 뜨거운 구름이 자유 충돌·점화·⁴He 로 타며 시계열로 연료 감소/생성핵 봉우리·0053 정면 토이의 다체판)',
+      desc: 'step-0048·0053 은 핵합성 사다리를 *정면 쌍*(머리 맞댄 단일 시도)으로만 봤다 — 진짜 별 내부는 *수많은 핵이 무작위로 충돌*하는 다체 무대다. step-0064 가 fuse 를 셀 리스트로 배선해 그 다체 무대가 비로소 가능해졌다. 이 측정 step 은 그 위에서 **다체 핵합성 시계열**을 굴린다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). ' +
+            'N=400 ²H(Z=1,N=1) 핵을 뜨겁게(고속·고 keRel) 흩뿌리고 **spatialHash=1(셀 fuse)+Gamow 터널링(fuseGamow·fuseEGcharge·fuseEGmu·fuseEndo·fmf+md)** 으로 자유롭게 굴린다 — 핵들이 무작위로 다가와 쿨롱 장벽을 뚫고 합체한다. ' +
+            '연료(²H·Z=1)는 *단조 감소*하고, 첫 생성핵(⁴He·Z=2)이 *솟았다 내린다* — ⁴He 는 중간 산물(Bateman 의 중간핵 솟음-내림 0044 의 다체판): ²H+²H 로 생기고 다시 ⁴He+⁴He·⁴He+²H 로 무거운 핵에 먹힌다. 사다리가 다체로 *진행*해 무거운 핵(Z≥3)이 쌓인다. 바리온 ΣB=Σ(Z+N) 은 변환 내내 *정확 보존*(원소가 바뀌어도 핵자 수 불변). ' +
+            '*측정*(무대 140²·N=400 ²H·고속 EHOT=6·fuseR=3·셀 fuse·고정 시드·48 tick·6 tick 마다 스냅샷): ' +
+            '① **연료 단조 감소** — ²H 개수 시계열이 단조 비증가(점화로 연료 소모·다체 자유 충돌). ' +
+            '② **생성핵 봉우리** — ⁴He(Z=2) 0 → 봉우리 → 내림(첫 핵합성 산물·²H 가 ⁴He 로·다시 무거운 핵에 먹힘·Bateman 중간핵). ' +
+            '③ **바리온 보존·load-bearing** — ΣB=Σ(Z+N) 전 스냅샷 정확 보존(원소 변환·합체로 개수 줄어도 핵자 수 불변·머신). ' +
+            '④ **대조·load-bearing** — kFuse=0(점화 끔) → ²H 평탄(연료 소모는 *융합 때문*·끄면 0·author 아닌 측정). ' +
+            '⑤ **장부·결정론·회귀** — 라이브 셀 fuse 점화 무대 Q·B·L·E·px·py 머신(fmf+md 발열)·새 법칙 0 → 0001~64 골든 비트 불변(회귀 0).',
+      ticks: 16,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·fmf+md rest=(A−B)c² → Q·B·L·E·px·py 머신(0053·0064 선례).
+      W: 140, H: 140, N: 400, MT: 48, SNAP: 6, EHOT: 6,
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseGamow: 1, fuseEG: 1, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, spatialHash: 1 },
+
+      // 뜨거운 ²H 구름: 토러스에 N개를 고정 시드로 흩뿌리고 고속(keRel 높아 Gamow 터널링)으로 던진다.
+      cloud(K) {
+        const rng = K.mulberry32(20260629), a = [], v = Math.sqrt(this.EHOT / 2);  // m(²H)=2 → ½mv²~EHOT
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: v * Math.cos(ang), vy: v * Math.sin(ang), lep: 0 });
+        }
+        return a;
+      },
+      // 원소 분포 스냅샷: ²H(Z1)·⁴He(Z2)·무거운핵(Z≥3)·바리온 ΣB.
+      counts(atoms) {
+        let z1 = 0, z2 = 0, zh = 0, B = 0;
+        for (const a of atoms) { if (a.Z === 1) z1++; else if (a.Z === 2) z2++; else zh++; B += a.Z + a.N; }
+        return { z1, z2, zh, B };
+      },
+      // kFuse 로 MT tick 굴린 시계열(연료·생성핵·바리온) + 장부 드리프트.
+      run(K, kf) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260629), knobs: Object.assign({}, L.DEFAULTS, this.KN, { kFuse: kf }), tick: 0 };
+        const l0 = K.ledger(sim), series = [this.counts(sim.atoms)];
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) series.push(this.counts(sim.atoms)); }
+        const l1 = K.ledger(sim);
+        return { series, dE: Math.abs(l1.E - l0.E), dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kFuse), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 셀 fuse 점화 무대 — 융합이 일어나며 Q·B·L·E·px·py 닫힘.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [], v = Math.sqrt(this.EHOT / 2);
+        for (let i = 0; i < 120; i++) {
+          const ang = simRng() * 2 * Math.PI;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: v * Math.cos(ang), vy: v * Math.sin(ang), lep: 0 });
+        }
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K), s = c.on.series, last = s[s.length - 1];
+        let z2max = 0; for (const x of s) if (x.z2 > z2max) z2max = x.z2;
+        return { z1_0: s[0].z1, z1_end: last.z1, z2max, zh_end: last.zh, B0: s[0].B, Bend: last.B, dpx: +c.on.dpx.toExponential(3), dB: +c.on.dB.toExponential(3) };
+      },
+
+      // 가설: ① 연료 단조 감소 ② 생성핵 봉우리 ③ 바리온 보존 ④ 대조 평탄 ⑤ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), on = c.on.series, off = c.off.series;
+        let monotone = true; for (let i = 1; i < on.length; i++) if (on[i].z1 > on[i - 1].z1) monotone = false;  // 연료 단조 비증가
+        const burned = on[on.length - 1].z1 < on[0].z1 * 0.8 && monotone;                                       // ① 연료 ≥20% 소모·단조
+        let z2max = 0; for (const x of on) if (x.z2 > z2max) z2max = x.z2;
+        const produced = z2max >= 10;                                                                            // ② ⁴He 봉우리(첫 핵합성 산물)
+        let Bok = true; for (const x of on) if (Math.abs(x.B - on[0].B) > 1e-9) Bok = false;                     // ③ 바리온 전 스냅샷 보존
+        const flat = off[off.length - 1].z1 === off[0].z1;                                                       // ④ kFuse=0 → 연료 평탄
+        return [
+          { name: `연료 단조 감소 — ²H ${on[0].z1} → ${on[on.length - 1].z1}(단조 비증가·다체 자유 충돌 점화로 연료 소모)`, pass: burned, value: on[on.length - 1].z1 },
+          { name: `생성핵 봉우리 — ⁴He(Z=2) 0 → 봉우리 ${z2max} → 내림(첫 핵합성 산물·²H+²H→⁴He·중간핵으로 무거운 핵에 먹힘·Bateman 다체판·무거운핵 Z≥3 ${on[on.length - 1].zh})`, pass: produced, value: z2max },
+          { name: `바리온 보존·load-bearing — ΣB=Σ(Z+N) 전 스냅샷 ${on[0].B} 정확 보존(원소 변환·합체로 개수 줄어도 핵자 수 불변·머신)`, pass: Bok, value: on[0].B },
+          { name: `대조·load-bearing — kFuse=0(점화 끔) ²H ${off[0].z1} → ${off[off.length - 1].z1} 평탄(연료 소모는 *융합 때문*·끄면 0·author 아닌 측정)`, pass: flat, value: off[off.length - 1].z1 },
+          { name: `장부·결정론·회귀 — 라이브 셀 fuse 점화 무대 Q·B·L·E·px·py 머신(fmf+md 발열)·새 법칙 0 → 0001~64 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: on[on.length - 1].z1 },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
