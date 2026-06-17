@@ -200,11 +200,17 @@
   function morseD(knobs, a, b, order) {
     let D = (knobs && knobs.bondMorseD) || 0;
     if (!knobs) return D;
-    if (knobs.bondMorsePair) {                            // step-0089 종류별(Z): 무거운 결합 깊은 우물
+    if (knobs.bondMorsePair || knobs.bondKindPair) {      // step-0089 종류별(Z): 무거운 결합 깊은 우물 (step-0100 통합 게이트 bondKindPair 가 셋 동시 — D·α·r_eq)
       const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
       D *= Math.sqrt(za * zb);
     }
-    if (knobs.bondMorseOrder) D *= (order || 1);          // step-0090 차수별: 다중 결합(이중·삼중)일수록 깊은 우물(D ∝ 차수·게이트 0 → 차수 무시·회귀 0)
+    if (knobs.bondMorseOrder) {                           // step-0090 차수별: 다중 결합(이중·삼중)일수록 깊은 우물(게이트 0 → 차수 무시·회귀 0)
+      const ord = order || 1;
+      // step-0098 차수 비선형 D — bondMorseOrderNL(=0 → 선형 0090 D∝차수·비트 동일·회귀 0): 켜면 지수 p=bondMorseOrderNL∈(0,1) 로 D ∝ 차수^p.
+      //   실제 화학서 다중결합 해리 에너지는 차수에 *포화 비선형*(예: C≡C/C–C ≈2.4·C=C/C–C ≈1.8 < 선형 3·2) — π 결합이 σ 보다 약해 차수↑ 한계효용↓.
+      //   삼중(ord3): 선형 ×3 vs NL ×3^p(p=0.6 → ×1.93<3). 단조↑(우물 깊어짐)은 유지하되 포화 — author 분기 0(차수의 멱함수).
+      D *= knobs.bondMorseOrderNL ? Math.pow(ord, knobs.bondMorseOrderNL) : ord;
+    }
     return D;
   }
 
@@ -215,7 +221,7 @@
   function morseAlpha(knobs, a, b) {
     let alpha = (knobs && knobs.bondMorseA) || 1;
     if (!knobs) return alpha;
-    if (knobs.bondMorseAlphaPair) {                       // step-0094 종류별(Z): 무거운 결합 좁은(가파른) 우물
+    if (knobs.bondMorseAlphaPair || knobs.bondKindPair) { // step-0094 종류별(Z): 무거운 결합 좁은(가파른) 우물 (step-0100 통합 게이트 bondKindPair)
       const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
       alpha *= Math.sqrt(za * zb);
     }
@@ -228,7 +234,7 @@
   function morseReq(knobs, a, b) {
     let req = (knobs && knobs.bondReq) || 4;
     if (!knobs) return req;
-    if (knobs.bondReqPair) {                              // step-0095 종류별(Z): 무거운 결합 긴 평형 길이(공유 반지름 ∝ Z^⅓)
+    if (knobs.bondReqPair || knobs.bondKindPair) {        // step-0095 종류별(Z): 무거운 결합 긴 평형 길이 (step-0100 통합 게이트 bondKindPair)
       const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
       req *= (Math.cbrt(za) + Math.cbrt(zb)) / 2;
     }
@@ -259,7 +265,8 @@
   function bondAnglePE(sim) {
     const ka = (sim.knobs && sim.knobs.kBondAngle) || 0;
     if (!ka || !sim.bonds || !sim.bonds.length) return 0;
-    const t0 = sim.knobs.bondAngleTarget;
+    const t0base = sim.knobs.bondAngleTarget;
+    const vsepr = sim.knobs.bondAngleVSEPR;              // step-0099 배위수별 θ₀(=0 → 단일 t0base·PE 불변·회귀 0) — 힘(bondAngle)과 같은 θ₀ 라야 E 닫힘
     const A = sim.atoms, W = sim.W, H = sim.H;
     const nbr = new Map();
     for (const e of sim.bonds) {
@@ -271,6 +278,7 @@
     for (const [ci, ns] of nbr) {
       if (ns.length < 2) continue;
       const ai = A[ci];
+      const t0 = vsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
       for (let p = 0; p < ns.length; p++) for (let q = p + 1; q < ns.length; q++) {
         const aj = A[ns[p]], ak = A[ns[q]];
         const axx = minImage(aj.rx - ai.rx, W), axy = minImage(aj.ry - ai.ry, H);

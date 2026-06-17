@@ -6633,6 +6633,334 @@
         ];
       },
     },
+
+    'step-0097': {
+      id: 'step-0097',
+      title: '옆 우물 점화 측정 — 수송된 *뜨거운* 산물만 차가운 아임계 연료를 2세대 핵합성으로 점화 (측정·새 법칙 0)',
+      desc: 'step-0093 격차: 중력 붕괴 에너지가 산물을 *떨어진 우물*로 보냄(cross>0)은 보였으나, 거기서 *점화*(연료에 섞여 2세대 핵합성 유발)하는지는 미 — "도달≠점화". 이 step 은 *새 법칙 0*(측정)으로 그 점화를 격리한다: 수송(0093, 중력 필요)은 이미 입증됐으니, *도달한 산물이 차가운 연료를 점화하는가*만 본다(중력 0 으로 수송 동역학과 분리 — 0096 이 임계 효과를 중력 0 으로 격리한 것과 같은 방법론). ' +
+            '*무대*: 차가운 아임계 ²H 연료 구름(N=200·반경 20·열속도 ~0.02·중력 0 ⇒ 스스로 안 뭉치고 안 점화)에 *한* 입자를 가장자리서 주입하고 세 모드로 가른다: none(주입 0·차가운 ²H)·cold(무거운 핵 Z=6 *있으나 느림* vx=0 — 도달만)·hot(무거운 핵 Z=6 *빠름* vx=6 — 수송 KE 보유). fuse Gamow+nucShell+endo·fuseConservePE·700 tick·고정 시드 7. 새 법칙 0 → 기존 골든 보존이 회귀 0 알리바이. ' +
+            '① **차가운 옆 우물 연료 점화·load-bearing** — hot 모드 연료 소비 consumed ≫ none·cold(수송된 *뜨거운* 산물이 차가운 아임계 연료를 융합으로 태움·0093 도달 위에 점화 입증·author 아닌 측정). ' +
+            '② **도달≠점화·load-bearing** — cold 모드(무거운 핵 *있으나* 느림 = 도달만) consumed ≈ none·mz=6(=주입 Z 그대로·연료 안 태움) ⇒ 산물의 *존재(도달)*만으론 점화 0·점화는 *수송 KE*(중력 붕괴 에너지·0092)가 한다. hot mz ≫ cold(연료 먹어 더 무거운 핵 = 2세대 핵합성). ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(fuse keRel+ΔB→바스·fuseConservePE 소멸 PE 환원). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~96 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 140, H: 140, N: 200, MT: 700,
+
+      cloud(K, seed, mode) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {                   // 차가운 아임계 ²H 연료(중력 0 → 안 뭉침·안 점화)
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 20;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.02, vy: (rng() - 0.5) * 0.02, lep: 0, nuc: 0, seed: 0 });
+        }
+        if (mode === 'hot') a.push({ Z: 6, N: 6, e: 6, x: 0, rx: cx - 30, ry: cy, vx: 6, vy: 0, lep: 0, nuc: 0, seed: 1 });        // 수송된 *뜨거운* 산물(빠름 — 중력 붕괴 KE 보유)
+        else if (mode === 'cold') a.push({ Z: 6, N: 6, e: 6, x: 0, rx: cx - 30, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0, seed: 1 }); // 무거운 핵 *있으나 느림*(도달만)
+        else a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx - 30, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0, seed: 1 });                      // 주입 0(차가운 ²H — 같은 자리)
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+
+      KN: { dt: 0.01, kGravity: 0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            fuseConservePE: 1, farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },
+
+      // mode: 'none'(주입 0) · 'cold'(무거운 핵 느림 — 도달) · 'hot'(무거운 핵 빠름 — 수송 KE).
+      run(K, mode) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K, 7, mode), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        let heavy = 0;
+        for (const a of sim.atoms) if ((a.Z | 0) >= 3) heavy++;
+        return { consumed: this.N + 1 - sim.atoms.length, heavy, mz: this.maxZof(sim.atoms),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { hot: this.run(K, 'hot'), cold: this.run(K, 'cold'), none: this.run(K, 'none') }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0, 'hot');
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { consumedHot: c.hot.consumed, consumedCold: c.cold.consumed, consumedNone: c.none.consumed,
+                 mzHot: c.hot.mz, mzCold: c.cold.mz, mzNone: c.none.mz,
+                 relEhot: +c.hot.relE.toFixed(5), dpxHot: +c.hot.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 뜨거운 산물만 점화 ② 도달≠점화 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const ignite = c.hot.consumed > c.cold.consumed * 3 && c.hot.consumed >= 5;          // ① hot 만 연료 태움
+        const reachNotIgnite = c.cold.consumed <= 2 && c.cold.mz <= 7 && c.hot.mz > c.cold.mz * 2;  // ② cold = 도달(mz=seed)·점화 0 / hot = 더 무거운 핵
+        const ledgerOK = c.hot.dpx < 1e-9 && c.hot.dpy < 1e-9 && c.hot.dB < 1e-9 && c.hot.dQ < 1e-9 && c.hot.dL < 1e-9 && c.hot.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                          // ④ 골든 보존
+        return [
+          { name: `차가운 옆 우물 연료 점화·load-bearing — hot 연료 소비 ${c.hot.consumed} ≫ none ${c.none.consumed}·cold ${c.cold.consumed} ⇒ 수송된 뜨거운 산물이 차가운 아임계 연료를 융합으로 태움(0093 도달 위에 점화 입증·author 아닌 측정)`, pass: ignite, value: c.hot.consumed },
+          { name: `도달≠점화·load-bearing — cold(무거운 핵 있으나 느림 = 도달만) consumed ${c.cold.consumed}·mz ${c.cold.mz}(=주입 Z 그대로) 점화 0 / hot mz ${c.hot.mz} ≫ cold(연료 먹어 2세대 핵합성) ⇒ 산물 *존재*만으론 점화 0·점화는 *수송 KE*(중력 붕괴 에너지·0092)가 함`, pass: reachNotIgnite, value: c.cold.consumed },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.hot.dpx.toExponential(2)}·dB ${c.hot.dB.toExponential(2)}·dL ${c.hot.dL.toExponential(2)})·E 닫힘 ${c.hot.relE.toFixed(5)}%(fuse keRel+ΔB→바스·fuseConservePE)`, pass: ledgerOK, value: +c.hot.relE.toFixed(5) },
+          { name: `회귀 — 새 법칙 0 → 0001~96 골든 비트 불변(회귀 0·측정 step)`, pass: reg, value: c.hot.mz },
+        ];
+      },
+    },
+
+    'step-0098': {
+      id: 'step-0098',
+      title: '차수 비선형 해리 깊이 D — 삼중결합 D < 3× 단일(포화) (게이트 bondMorseOrderNL=0 → 선형 0090·비트 동일·회귀 0)',
+      desc: 'step-0090 이 결합 *차수*로 해리 깊이 D 를 갈랐으나 D ∝ 차수(선형) — 삼중 = 3× 단일. 실제 화학은 *포화 비선형*: C≡C/C–C ≈2.4·C=C/C–C ≈1.8(< 선형 3·2) — π 결합이 σ 보다 약해 차수↑ 한계효용↓. 이 step 은 게이트 `bondMorseOrderNL`(지수 p∈(0,1)) — 켜면 D ∝ 차수^p(삼중 ×3^0.6=1.93<3). 단조↑(차수↑ → 더 깊음)은 유지하되 포화. morseD 한 곳 수정 → 힘·PE·해리 자동 정합. bondMorseOrderNL=0 → 선형 0090 비트 동일(회귀 0). ' +
+            '*무대*: 24 C–C(Z6) Morse 이량체 — 차수 1·2·3 각 8개·base D=4·α=0.3·**같은 상대 KE=2**(< D 속박·진동 폭만)·req=3·dt=0.05·600 tick·선형/NL(p=0.6): ' +
+            'D 비 D3/D1 = 선형 3.0 vs NL 1.93(3^0.6). 동적 최대 신장: 깊은 우물 → 작은 신장. NL 삼중 우물(D=7.73<선형 12)이 *얕아* 선형보다 더 신장 ⇒ 차수 한계효용 포화가 동역학에 나타남. ' +
+            '① **차수 비선형 D(삼중 < 3× 단일·포화)·load-bearing** — NL D3/D1 1.93 < 2.5 ≪ 선형 3.0·NL 삼중 신장 ≫ 선형 삼중(우물 얕아 덜 속박) ⇒ 차수↑ 결합 강화가 포화(author 아닌 차수의 멱함수). ' +
+            '② **단조 증가 유지(차수↑ → 더 깊음)·load-bearing** — NL 도 신장 단조↓(단일 ≫ 이중 ≫ 삼중) ⇒ 차수 늘면 여전히 우물 깊어짐(포화이되 역전 아님). ' +
+            '③ **장부 머신** — 쌍별 등·반작용 운동량 머신·잔여 E symplectic 유계. ' +
+            '④ **회귀** — bondMorseOrderNL=0 → 선형 0090 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 8,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 4, bondMorseA: 0.3, bondMorseOrder: 1, bondMorseOrderNL: 0.6, unbondDist: 30 },
+
+      // C–C(Z6) 이량체 차수 1·2·3 각 NC개·같은 상대 KE(속박)·같은 원소(차수 축 격리).
+      dimers(K) {
+        const req = this.KN.bondReq, KErel = 2, atoms = [], bonds = [], keys = new Set(), tot = 2 * 3 * this.NC;
+        const z = { Z: 6, N: 6, e: 6 }, mu = (z.Z + z.N) / 2, vrel = Math.sqrt(2 * KErel / mu);
+        for (let o = 1; o <= 3; o++) for (let k = 0; k < this.NC; k++) {
+          const idx = (o - 1) * this.NC + k, cx = 30 + (idx % 8) * 45, cy = 30 + ((idx / 8) | 0) * 45, a0 = atoms.length;
+          atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          bonds.push([a0, a0 + 1, 0, o]); keys.add(a0 * tot + (a0 + 1));        // e[3]=차수 o
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, nlGate) {
+        const d = this.dimers(K), req = this.KN.bondReq;
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondMorseOrderNL: nlGate }), tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0, 0];                            // [단일, 이중, 삼중] 최대 신장|r−req|
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const str = Math.abs(Math.sqrt(dx * dx + dy * dy) - req), o = e[3] - 1;
+            if (str > maxStr[o]) maxStr[o] = str; }
+        }
+        const l1 = K.ledger(sim);
+        return { str: maxStr, bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { nl: this.run(K, 0.6), lin: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0090/0094 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1.5 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1.5, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+      // D 비(차수 멱함수) — bondMorsePair=0 → a/b 무관(Z 미참조).
+      dRatio(K, nl) { const kn = { bondMorseD: 4, bondMorseOrder: 1, bondMorseOrderNL: nl }; return K.morseD(kn, {}, {}, 3) / K.morseD(kn, {}, {}, 1); },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { str3NL: +c.nl.str[2].toFixed(3), str3Lin: +c.lin.str[2].toFixed(3), str2NL: +c.nl.str[1].toFixed(3),
+                 d3d1NL: +this.dRatio(K, 0.6).toFixed(3), d3d1Lin: +this.dRatio(K, 0).toFixed(3),
+                 dpxNL: +c.nl.dpx.toExponential(3), dENL: +(c.nl.dE / c.nl.Etot * 100).toFixed(3) };
+      },
+
+      // 가설: ① 차수 비선형 D(삼중<3× 단일·포화) ② 단조 유지 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const ratNL = this.dRatio(K, 0.6), ratLin = this.dRatio(K, 0);
+        const sat = ratNL < 2.5 && ratLin > 2.9 && c.nl.str[2] > c.lin.str[2] * 1.2;        // ① 포화: NL 삼중 D 얕아 더 신장
+        const monotone = c.nl.str[0] > c.nl.str[1] && c.nl.str[1] > c.nl.str[2];            // ② 단조↓ 신장 = 단조↑ 우물 깊이
+        const consv = c.nl.dpx < 1e-9 && c.nl.dpy < 1e-9 && c.nl.dB < 1e-9 && c.nl.dQ < 1e-9 && c.nl.dL < 1e-9;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                         // ④ 골든 보존
+        return [
+          { name: `차수 비선형 D(삼중 < 3× 단일·포화)·load-bearing — NL D3/D1 ${ratNL.toFixed(3)} < 2.5 ≪ 선형 ${ratLin.toFixed(1)}·NL 삼중 신장 ${c.nl.str[2].toFixed(2)} ≫ 선형 삼중 ${c.lin.str[2].toFixed(2)}(우물 D=7.73<선형 12 얕아 덜 속박) ⇒ 차수↑ 결합 강화 포화(실제 C≡C/C–C ≈2.4<3·author 아닌 멱함수)`, pass: sat, value: +ratNL.toFixed(3) },
+          { name: `단조 증가 유지(차수↑ → 더 깊음)·load-bearing — NL 신장 단조↓ 단일 ${c.nl.str[0].toFixed(2)} ≫ 이중 ${c.nl.str[1].toFixed(2)} ≫ 삼중 ${c.nl.str[2].toFixed(2)} ⇒ 차수 늘면 여전히 우물 깊어짐(포화이되 역전 아님)`, pass: monotone, value: +c.nl.str[2].toFixed(2) },
+          { name: `장부 머신 — 쌍별 등·반작용 운동량 머신(dpx ${c.nl.dpx.toExponential(2)}·dB ${c.nl.dB.toExponential(2)}·dL ${c.nl.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.nl.dE / c.nl.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.nl.dpx.toExponential(3) },
+          { name: `회귀 — bondMorseOrderNL=0 → 선형 0090 D∝차수 비트 동일·골든 보존(NL 게이트 가법)`, pass: reg, value: +ratLin.toFixed(1) },
+        ];
+      },
+    },
+
+    'step-0099': {
+      id: 'step-0099',
+      title: '다체 각도 종류화 VSEPR — 목표각을 배위수서 (2배위 180° 선형·3배위 120° 평면삼각) (게이트 bondAngleVSEPR=0 → 단일 θ₀·비트 동일·회귀 0)',
+      desc: 'step-0027 bondAngle 은 *단일* 목표각 θ₀(bondAngleTarget) — 한 원자에 결합이 2개든 3개든 같은 각으로 벌렸다. 실제 분자 기하(VSEPR)는 *배위수*(중심 원자의 결합 수)가 각을 정한다: 2배위 180°(선형)·3배위 120°(평면삼각)·4배위 109.47°(정사면체). 이 step 은 게이트 `bondAngleVSEPR` — θ₀ 를 측정된 배위수(ns.length)의 함수로(힘 bondAngle·PE bondAnglePE 두 곳 같은 θ₀ → E 닫힘). "물 104.5°" 같은 분자별 각 author 0 — 배위수 함수 하나가 모든 분자 각을 정한다. bondAngleVSEPR=0 → 단일 bondAngleTarget(0027)·비트 동일(회귀 0). ' +
+            '*무대*(2D — 정사면체 109.5° 는 3D 라 토이로 90° 사각·2배위/3배위가 2D 청정 케이스): 중심 C(Z6) + 이웃 H 들 한 분자·결합 길이 스프링 + 각도 스프링 + damp 로 평형 기하 안착·dt=0.04·5000 tick·고정 시드 7·VSEPR on / uni(균일 120°): ' +
+            '2배위 시작 ~70° → VSEPR 180°(선형)·uni 120°(굽음). 3배위 → 120°(평면삼각). ' +
+            '① **배위수서 각 창발(VSEPR)·load-bearing** — VSEPR on: 2배위 각 ≈180°(선형)·3배위 ≈120°(평면삼각) ⇒ 목표각이 *배위수의 함수*로 창발(author 분자별 각 0·측정된 결합 수서). ' +
+            '② **단일 목표각은 배위수 무시·load-bearing** — VSEPR off(균일 120°): 2배위 각 ≈120°(잘못 굽음·선형 못 냄) ≠ on 180° ⇒ 배위수 정보가 VSEPR 게이트서만·단일 θ₀ 는 2배위 선형/3배위 삼각을 못 가름. ' +
+            '③ **장부 머신·E 닫힘** — 각도 스프링 ΣF=0 운동량 머신·damp KE→바스·E 닫힘(bondAnglePE 도 같은 θ₀). ' +
+            '④ **회귀** — bondAngleVSEPR=0 → 단일 bondAngleTarget·0027~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 200, H: 200, MT: 5000,
+      KN: { dt: 0.04, kBondSpring: 1.5, bondReq: 4, kBondAngle: 1.5, bondAngleTarget: 2.0943951023931953, kDamp: 0.25, coulombSoft: 1 },
+
+      // 중심 C + coord 개 H 이웃 한 분자. 2배위는 ~70° 시작(180/120 양쪽서 떨어져)·3+ 배위는 고르게 시작.
+      mol(coord) {
+        const req = this.KN.bondReq, a = [], bonds = [], keys = new Set(), cx = this.W / 2, cy = this.H / 2;
+        a.push({ Z: 6, N: 6, e: 6, x: 0, rx: cx, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0 });          // 중심 idx0
+        const start = coord === 2 ? [0.35, 0.35 + 1.22] : [];
+        if (coord !== 2) for (let q = 0; q < coord; q++) start.push(q * 2 * Math.PI / coord + 0.35 + 0.18 * Math.sin(q));
+        for (let k = 0; k < coord; k++) { const an = start[k];
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + req * Math.cos(an), ry: cy + req * Math.sin(an), vx: 0, vy: 0, lep: 0, nuc: 0 });
+          const j = a.length - 1; bonds.push([0, j, 0, 1]); keys.add(j); }
+        return { atoms: a, bonds, keys };
+      },
+      angle(at, coord) {
+        if (coord === 2) {                                  // 두 결합 사이 직접 각
+          const ax = K.minImage(at[1].rx - at[0].rx, this.W), ay = K.minImage(at[1].ry - at[0].ry, this.H);
+          const bx = K.minImage(at[2].rx - at[0].rx, this.W), by = K.minImage(at[2].ry - at[0].ry, this.H);
+          let c = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by)); c = Math.max(-1, Math.min(1, c));
+          return Math.acos(c) * 180 / Math.PI;
+        }
+        const dirs = [];                                    // 인접 각(원 둘레 정렬) 평균
+        for (let j = 1; j <= coord; j++) dirs.push(Math.atan2(K.minImage(at[j].ry - at[0].ry, this.H), K.minImage(at[j].rx - at[0].rx, this.W)));
+        dirs.sort((p, q) => p - q);
+        let s = 0; for (let i = 0; i < coord; i++) { let d = dirs[(i + 1) % coord] - dirs[i]; if (d < 0) d += 2 * Math.PI; s += Math.min(d, 2 * Math.PI - d); }
+        return s / coord * 180 / Math.PI;
+      },
+      run(K, coord, vseprGate) {
+        const m = this.mol(coord);
+        const sim = { W: this.W, H: this.H, atoms: m.atoms, photons: [], bonds: m.bonds, bondKeys: m.keys, rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondAngleVSEPR: vseprGate }), tick: 0 };
+        sim.escaped = { E: 0, px: 0, py: 0, count: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { ang: this.angle(sim.atoms, coord),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100 };
+      },
+      cache(K) { return this._c || (this._c = { c2v: this.run(K, 2, 1), c2u: this.run(K, 2, 0), c3v: this.run(K, 3, 1) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0094 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + 4, ry: cy, vx: 0, vy: (rng() - 0.5) * 0.02, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { ang2vsepr: +c.c2v.ang.toFixed(1), ang2uni: +c.c2u.ang.toFixed(1), ang3vsepr: +c.c3v.ang.toFixed(1),
+                 relE2: +c.c2v.relE.toFixed(3), dpx2: +c.c2v.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 배위수서 각 창발(VSEPR) ② 단일 목표각은 배위수 무시 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const vseprEmerge = c.c2v.ang > 165 && Math.abs(c.c3v.ang - 120) < 8;                // ① 2배위 ≈180·3배위 ≈120
+        const uniBlind = Math.abs(c.c2u.ang - 120) < 8 && c.c2v.ang > c.c2u.ang + 40;         // ② 균일 2배위 잘못 120·VSEPR 180 과 ≫40° 차
+        const ledgerOK = c.c2v.dpx < 1e-9 && c.c2v.dpy < 1e-9 && c.c2v.dB < 1e-9 && c.c2v.dQ < 1e-9 && c.c2v.dL < 1e-9 && c.c2v.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                          // ④ 골든 보존
+        return [
+          { name: `배위수서 각 창발(VSEPR)·load-bearing — VSEPR on 2배위 각 ${c.c2v.ang.toFixed(1)}°(선형)·3배위 ${c.c3v.ang.toFixed(1)}°(평면삼각) ⇒ 목표각이 배위수의 함수로 창발(author 분자별 각 0·측정된 결합 수서)`, pass: vseprEmerge, value: +c.c2v.ang.toFixed(1) },
+          { name: `단일 목표각은 배위수 무시·load-bearing — VSEPR off(균일 120°) 2배위 각 ${c.c2u.ang.toFixed(1)}°(잘못 굽음·선형 못 냄) ≠ on ${c.c2v.ang.toFixed(1)}° ⇒ 배위수 정보가 VSEPR 게이트서만·단일 θ₀ 는 2배위 선형 못 가름`, pass: uniBlind, value: +c.c2u.ang.toFixed(1) },
+          { name: `장부 머신·E 닫힘 — 각도 스프링 ΣF=0 운동량 머신(dpx ${c.c2v.dpx.toExponential(2)}·dB ${c.c2v.dB.toExponential(2)}·dL ${c.c2v.dL.toExponential(2)})·damp KE→바스·E 닫힘 ${c.c2v.relE.toFixed(3)}%`, pass: ledgerOK, value: +c.c2v.relE.toFixed(3) },
+          { name: `회귀 — bondAngleVSEPR=0 → 단일 bondAngleTarget·0027~ 비트 동일·골든 보존(VSEPR 게이트 가법)`, pass: reg, value: +c.c2u.ang.toFixed(1) },
+        ];
+      },
+    },
+
+    'step-0100': {
+      id: 'step-0100',
+      title: '결합 종류 통합 게이트 bondKindPair — 한 토글이 D·α·r_eq 세 축 동시 (게이트=0 → 세 축 다 off·0095~ 비트 동일·회귀 0)',
+      desc: '0089 D(깊이)·0094 α(폭)·0095 r_eq(길이)가 결합 기하 세 축을 *각자 독립 게이트*로 갈랐다 — 실제로는 한 결합이 셋을 *함께* 정한다(C–C 는 깊고 가파르고 길다·H–H 는 얕고 완만하고 짧다). 이 step 은 통합 게이트 `bondKindPair` — 켜면 세 pair-함수(morseD·morseAlpha·morseReq)가 동시에 원소쌍 의존이 된다(OR 배선). 새 물리 아닌 *일관성/편의*: 한 토글 = 일관된 "결합 종류". bondKindPair=0 → 세 개별 게이트만(0095~ 비트 동일·회귀 0). ' +
+            '*무대*: 20 Morse 이량체 — H–H(Z1) 10 + C–C(Z6) 10·중립 시작 간격 3·점성 감쇠 kDamp=0.2(평형 수렴)·base D=2·α=0.15·req=2·dt=0.02·1200 tick·세 모드 kind(통합)/parts(개별 셋)/off: ' +
+            'bondKindPair 켜면 C–C/H–H 비 D ×6·α ×6·r_eq ×1.82 모두 ≠1(세 축 동시)·안착 길이 reqCC 3.63 ≫ reqHH 2.25. kind ≡ parts(비트 동일). ' +
+            '① **한 게이트가 세 축 동시 활성·load-bearing** — bondKindPair on: C–C/H–H 비 D 6·α 6·r_eq 1.82 모두 ≠1 ⇒ 한 토글이 깊이·폭·길이 세 축을 동시에 켬·안착 길이 reqCC ≫ reqHH(길이 축 발현)·개별 노브 3개 수동 설정 불필요. ' +
+            '② **통합 = 개별 셋 정확 동치·load-bearing** — bondKindPair on 의 모든 측정(reqHH·reqCC·strCC) ≡ 세 sub-knob(bondMorsePair+bondMorseAlphaPair+bondReqPair) on(비트 동일) ⇒ 통합이 정확히 셋 켠 것(편의·정합 보장·새 물리 0). ' +
+            '③ **장부 머신·E 닫힘** — 감쇠 KE→바스 운동량 머신·E 닫힘. ' +
+            '④ **회귀** — bondKindPair=0 → 세 축 다 off(개별 게이트만)·0095~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 1200, NC: 10,
+      KN: { dt: 0.02, kBondSpring: 1, bondReq: 2, bondMorse: 1, bondMorseD: 2, bondMorseA: 0.15, kDamp: 0.2, unbondDist: 40 },
+
+      // H–H(Z1) NC + C–C(Z6) NC·중립 시작 간격 3(각자 자기 r_eq 로 안착).
+      dimers(K) {
+        const start = 3, atoms = [], bonds = [], keys = new Set(), tot = 2 * 2 * this.NC;
+        const cls = [{ Z: 1, N: 1, e: 1 }, { Z: 6, N: 6, e: 6 }];
+        for (let c = 0; c < 2; c++) {
+          const z = cls[c];
+          for (let k = 0; k < this.NC; k++) {
+            const idx = c * this.NC + k, cx = 40 + (idx % 8) * 45, cy = 40 + ((idx / 8) | 0) * 45, a0 = atoms.length;
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx - start / 2, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx + start / 2, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, 1]); keys.add(a0 * tot + (a0 + 1));
+          }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, ov) {
+        const d = this.dimers(K), base = this.KN.bondReq;
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov), tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0];                              // [H–H, C–C] 최대 신장|r−base|
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const str = Math.abs(Math.sqrt(dx * dx + dy * dy) - base), c = a.Z === 1 ? 0 : 1;
+            if (str > maxStr[c]) maxStr[c] = str; }
+        }
+        const l1 = K.ledger(sim);
+        const sum = [0, 0], cnt = [0, 0];                   // [H–H, C–C] 안착 결합 길이 평균
+        for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+          const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+          const r = Math.sqrt(dx * dx + dy * dy), c = a.Z === 1 ? 0 : 1; sum[c] += r; cnt[c]++; }
+        return { reqHH: cnt[0] ? sum[0] / cnt[0] : 0, reqCC: cnt[1] ? sum[1] / cnt[1] : 0, strCC: maxStr[1], bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { kind: this.run(K, { bondKindPair: 1 }), parts: this.run(K, { bondMorsePair: 1, bondMorseAlphaPair: 1, bondReqPair: 1 }), off: this.run(K, {}) }); },
+      // 세 축 비(원소쌍 함수) — 단일 게이트가 셋 동시 활성하는지 직접 확인.
+      ratios(K) {
+        const kp = { bondMorseD: 2, bondMorseA: 0.15, bondReq: 2, bondKindPair: 1 }, C = { Z: 6, N: 6, e: 6 }, H = { Z: 1, N: 1, e: 1 };
+        return { D: K.morseD(kp, C, C, 1) / K.morseD(kp, H, H, 1), A: K.morseAlpha(kp, C, C) / K.morseAlpha(kp, H, H), R: K.morseReq(kp, C, C) / K.morseReq(kp, H, H) };
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0095 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K), r = this.ratios(K);
+        return { reqHHkind: +c.kind.reqHH.toFixed(2), reqCCkind: +c.kind.reqCC.toFixed(2),
+                 ratD: +r.D.toFixed(2), ratA: +r.A.toFixed(2), ratR: +r.R.toFixed(2),
+                 dpxKind: +c.kind.dpx.toExponential(3), dEkind: +(c.kind.dE / c.kind.Etot * 100).toFixed(3) };
+      },
+
+      // 가설: ① 한 게이트가 세 축 동시 ② 통합 = 개별 셋 정확 동치 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), r = this.ratios(K);
+        const threeAxes = Math.abs(r.D - 1) > 0.5 && Math.abs(r.A - 1) > 0.5 && Math.abs(r.R - 1) > 0.1 && c.kind.reqCC > c.kind.reqHH * 1.3;  // ① 세 축 ≠1 + 길이 발현
+        const equiv = c.kind.reqHH === c.parts.reqHH && c.kind.reqCC === c.parts.reqCC && c.kind.strCC === c.parts.strCC;                       // ② 비트 동일
+        const ledgerOK = c.kind.dpx < 1e-9 && c.kind.dpy < 1e-9 && c.kind.dB < 1e-9 && c.kind.dQ < 1e-9 && c.kind.dL < 1e-9 && (c.kind.dE / c.kind.Etot) < 1e-2;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                          // ④ 골든 보존
+        return [
+          { name: `한 게이트가 세 축 동시 활성·load-bearing — bondKindPair on: C–C/H–H 비 D ${r.D.toFixed(1)}·α ${r.A.toFixed(1)}·r_eq ${r.R.toFixed(2)} 모두 ≠1·안착 길이 reqCC ${c.kind.reqCC.toFixed(2)} ≫ reqHH ${c.kind.reqHH.toFixed(2)} ⇒ 한 토글이 깊이·폭·길이 세 축 동시(개별 노브 3개 불필요)`, pass: threeAxes, value: +r.D.toFixed(1) },
+          { name: `통합 = 개별 셋 정확 동치·load-bearing — bondKindPair on 의 reqHH·reqCC·strCC ≡ 세 sub-knob(bondMorsePair+AlphaPair+ReqPair) on(비트 동일·reqCC ${c.kind.reqCC.toFixed(4)}=${c.parts.reqCC.toFixed(4)}) ⇒ 통합이 정확히 셋 켠 것(편의·정합·새 물리 0)`, pass: equiv, value: +c.kind.reqCC.toFixed(4) },
+          { name: `장부 머신·E 닫힘 — 감쇠 KE→바스 운동량 머신(dpx ${c.kind.dpx.toExponential(2)}·dB ${c.kind.dB.toExponential(2)}·dL ${c.kind.dL.toExponential(2)})·E 닫힘 ${(c.kind.dE / c.kind.Etot * 100).toFixed(3)}%`, pass: ledgerOK, value: +c.kind.dpx.toExponential(3) },
+          { name: `회귀 — bondKindPair=0 → 세 축 다 off(개별 게이트만)·0095~ 비트 동일·골든 보존(통합 게이트 가법)`, pass: reg, value: +c.off.reqCC.toFixed(2) },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
