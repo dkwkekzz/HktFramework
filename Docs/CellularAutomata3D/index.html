@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>3D Cellular Automata — Multi-state (Softology rule format)</title>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --panel: rgba(18, 22, 30, 0.86);
+    --border: #2a3242;
+    --accent: #4fd1c5;
+    --text: #d8e0ec;
+    --muted: #8b97a8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+  body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--text); }
+  #canvas-host { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  #panel {
+    position: fixed; top: 14px; left: 14px; width: 290px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    font-size: 13px; user-select: none;
+  }
+  #panel h1 { font-size: 15px; margin: 0 0 2px; letter-spacing: 0.3px; }
+  #panel .sub { color: var(--muted); font-size: 11px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; gap: 8px; }
+  .row label { color: var(--muted); flex: 0 0 auto; }
+  select, input[type="range"] { accent-color: var(--accent); }
+  select {
+    background: #131922; color: var(--text); border: 1px solid var(--border);
+    border-radius: 7px; padding: 5px 8px; font-size: 12px; flex: 1 1 auto; min-width: 0;
+  }
+  input[type="range"] { flex: 1 1 auto; min-width: 0; }
+  .btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+  button {
+    background: #1a2230; color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 6px; font-size: 12px; cursor: pointer; transition: 0.12s;
+  }
+  button:hover { border-color: var(--accent); color: #fff; }
+  button.primary { background: var(--accent); color: #06201d; border-color: var(--accent); font-weight: 600; }
+  .ruletag {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 11px;
+    color: var(--accent); background: #0f151d; border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; margin-top: 8px; word-break: break-all;
+  }
+  .desc { color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 6px; }
+  #stats {
+    position: fixed; bottom: 14px; left: 14px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; font-family: ui-monospace, monospace; font-size: 12px;
+    display: flex; gap: 16px; backdrop-filter: blur(10px);
+  }
+  #stats b { color: var(--accent); font-weight: 600; }
+  #hint {
+    position: fixed; bottom: 14px; right: 14px; color: var(--muted); font-size: 11px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
+    backdrop-filter: blur(10px);
+  }
+  .val { color: var(--text); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+</style>
+</head>
+<body>
+<div id="canvas-host"></div>
+
+<div id="panel">
+  <h1>3D Cellular Automata</h1>
+  <div class="sub">Multi-state · Softology rule format (S / B / States / N)</div>
+
+  <div class="row">
+    <label>Rule</label>
+    <select id="rule"></select>
+  </div>
+  <div class="ruletag" id="ruletag">—</div>
+  <div class="desc" id="ruledesc"></div>
+
+  <div class="row" style="margin-top:12px;">
+    <label>Color</label>
+    <select id="color">
+      <option value="state">By state (decay)</option>
+      <option value="position">By position (RGB)</option>
+      <option value="radial">By radius (heat)</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Grid</label>
+    <select id="size">
+      <option value="24">24³</option>
+      <option value="32" selected>32³</option>
+      <option value="48">48³</option>
+      <option value="64">64³</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Speed</label>
+    <input type="range" id="speed" min="1" max="30" value="8" />
+    <span class="val" id="speedval">8</span>
+  </div>
+
+  <div class="btns">
+    <button class="primary" id="play">⏸ Pause</button>
+    <button id="step">⏭ Step</button>
+    <button id="reset">⟳ Reset</button>
+  </div>
+</div>
+
+<div id="stats">
+  <span>Gen <b id="gen">0</b></span>
+  <span>Cells <b id="cells">0</b></span>
+  <span>FPS <b id="fps">0</b></span>
+</div>
+<div id="hint">드래그=회전 · 휠=줌 · 우클릭드래그=이동</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* =========================================================================
+ *  3D Cellular Automata
+ *  - 다상태(multi-state) 규칙: Softology(Jason Rampe)가 정리한 표준 표기법
+ *    "Survival / Birth / States / Neighbourhood" 을 그대로 사용한다.
+ *      · Survival(S) : 살아있는 셀이 생존을 유지하는 '살아있는 이웃 수' 집합
+ *      · Birth(B)    : 죽은 셀(state 0)이 태어나는 '살아있는 이웃 수' 집합
+ *      · States      : 셀이 가질 수 있는 상태 수. State-1 = 완전히 살아있음.
+ *                      생존 실패 시 즉사하지 않고 state 를 1씩 감소(refractory)시키며
+ *                      0 이 될 때까지 서서히 소멸한다. States>2 일 때만 '잔상'이 생김.
+ *      · Neighbourhood : 'M' = Moore(26 이웃), 'N' = von Neumann(6 이웃)
+ *  - '살아있는 이웃'은 state == States-1 인 셀만 집계한다(죽어가는 셀 제외).
+ *  - 경계는 비순환(out-of-bounds = dead). 시드는 중앙의 작은 난수 큐브.
+ * ========================================================================= */
+
+// ---- 규칙 프리셋 ----------------------------------------------------------
+// survival / birth 는 "포함되는 이웃 수" 의 명시 목록.
+const PRESETS = {
+  "445 (clean crystal)": {
+    survival: [4], birth: [4], states: 5, n: 'M',
+    desc: "가장 유명한 3D CA. 단순 규칙에서 깔끔한 결정질 구조가 자라난다."
+  },
+  "Clouds 1": {
+    survival: range(13,26), birth: [13,14,17,18,19], states: 2, n: 'M',
+    desc: "부드럽게 응결·소멸을 반복하는 구름 같은 거동."
+  },
+  "Amoeba": {
+    survival: range(9,26), birth: [5,6,7,12,13,15], states: 5, n: 'M',
+    desc: "꿈틀대며 퍼져나가는 아메바형 유기적 구조."
+  },
+  "Builder / Architecture": {
+    survival: [2,6,9], birth: [4,6,8,9], states: 10, n: 'M',
+    desc: "층층이 쌓아 올리는 구조물형 성장."
+  },
+  "Pyroclastic": {
+    survival: range(4,7), birth: range(6,8), states: 10, n: 'M',
+    desc: "끓어오르는 화쇄류처럼 격렬하게 증식/붕괴."
+  },
+  "Slow Decay": {
+    survival: [1,4,8,11].concat(range(13,26)), birth: range(13,26), states: 5, n: 'M',
+    desc: "느리게 부식되며 잔해가 길게 남는다."
+  },
+  "Crystal Growth (vonNeumann)": {
+    survival: range(0,6), birth: [1,3], states: 2, n: 'N',
+    desc: "6-이웃 규칙. 눈 결정처럼 축을 따라 뻗어나간다."
+  },
+  "Spiky Growth": {
+    survival: [0,1,2,3,7,8,9,11,12,13,18,21,22,24,26], birth: [13,17,20,21,22,23,24,25,26], states: 4, n: 'M',
+    desc: "가시처럼 날카로운 돌기를 뻗으며 성장."
+  },
+  "Coral": {
+    survival: range(5,8), birth: [6,7,9,12], states: 4, n: 'M',
+    desc: "산호처럼 분기하며 천천히 자라는 구조."
+  },
+  "Stable / Glider-ish (445 wrap)": {
+    survival: [4], birth: [4], states: 5, n: 'M', wrap: true,
+    desc: "445 규칙을 순환 경계(토러스)에서 — 끝없이 떠도는 잔해."
+  },
+};
+
+function range(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }
+
+// ---- 시뮬레이션 -----------------------------------------------------------
+class CA3D {
+  constructor(size) { this.resize(size); }
+  resize(size) {
+    this.N = size;
+    const n3 = size * size * size;
+    this.cur = new Uint8Array(n3);
+    this.nxt = new Uint8Array(n3);
+    this.generation = 0;
+    this.liveCount = 0;
+  }
+  idx(x, y, z) { const N = this.N; return (z * N + y) * N + x; }
+
+  seed() {
+    const N = this.N;
+    this.cur.fill(0);
+    const r = Math.max(2, Math.floor(N / 9));   // 중앙 시드 반경
+    const c = Math.floor(N / 2);
+    const alive = this.states - 1;
+    for (let z = c - r; z <= c + r; z++)
+      for (let y = c - r; y <= c + r; y++)
+        for (let x = c - r; x <= c + r; x++)
+          if (Math.random() < 0.34) this.cur[this.idx(x, y, z)] = alive;
+    this.generation = 0;
+  }
+
+  setRule(rule) {
+    this.states = rule.states;
+    this.wrap = !!rule.wrap;
+    // 빠른 조회용 boolean 테이블 (이웃 수 0..26)
+    this.surv = new Uint8Array(27);
+    this.brth = new Uint8Array(27);
+    rule.survival.forEach(k => { if (k <= 26) this.surv[k] = 1; });
+    rule.birth.forEach(k => { if (k <= 26) this.brth[k] = 1; });
+    // 이웃 오프셋
+    this.offsets = [];
+    if (rule.n === 'N') {
+      this.offsets = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+    } else {
+      for (let dz = -1; dz <= 1; dz++)
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++)
+            if (dx || dy || dz) this.offsets.push([dx, dy, dz]);
+    }
+  }
+
+  step() {
+    const N = this.N, cur = this.cur, nxt = this.nxt;
+    const alive = this.states - 1, offs = this.offsets, wrap = this.wrap;
+    let live = 0;
+
+    for (let z = 0; z < N; z++) {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const i = (z * N + y) * N + x;
+          const s = cur[i];
+
+          // 살아있는 이웃(state == alive) 카운트
+          let count = 0;
+          for (let o = 0; o < offs.length; o++) {
+            let nx = x + offs[o][0], ny = y + offs[o][1], nz = z + offs[o][2];
+            if (wrap) {
+              if (nx < 0) nx += N; else if (nx >= N) nx -= N;
+              if (ny < 0) ny += N; else if (ny >= N) ny -= N;
+              if (nz < 0) nz += N; else if (nz >= N) nz -= N;
+            } else if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) {
+              continue;
+            }
+            if (cur[(nz * N + ny) * N + nx] === alive) count++;
+          }
+
+          let ns;
+          if (s === 0) {
+            // 죽은 셀: birth 조건이면 탄생
+            ns = this.brth[count] ? alive : 0;
+          } else if (s === alive) {
+            // 살아있는 셀: survival 조건이면 유지, 아니면 쇠퇴 시작
+            ns = this.surv[count] ? alive : (alive - 1);
+          } else {
+            // 쇠퇴 중인 셀: 이웃과 무관하게 1씩 감소
+            ns = s - 1;
+          }
+          nxt[i] = ns;
+          if (ns) live++;
+        }
+      }
+    }
+    const t = this.cur; this.cur = this.nxt; this.nxt = t;
+    this.generation++;
+    this.liveCount = live;
+  }
+}
+
+// ---- 렌더링 ---------------------------------------------------------------
+const host = document.getElementById('canvas-host');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0c10);
+scene.fog = new THREE.FogExp2(0x0a0c10, 0.012);
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(1, 1.4, 0.8); scene.add(key);
+const rim = new THREE.DirectionalLight(0x88aaff, 0.4); rim.position.set(-1, -0.5, -1); scene.add(rim);
+
+const geom = new THREE.BoxGeometry(1, 1, 1);
+const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+let mesh = null;
+let wireBox = null;
+
+const dummy = new THREE.Object3D();
+const color = new THREE.Color();
+
+function rebuildMesh(N) {
+  if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.dispose(); }
+  const max = N * N * N;
+  mesh = new THREE.InstancedMesh(geom, mat, max);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.count = 0;
+  scene.add(mesh);
+
+  if (wireBox) scene.remove(wireBox);
+  wireBox = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(N, N, N)),
+    new THREE.LineBasicMaterial({ color: 0x2a3242 })
+  );
+  scene.add(wireBox);
+
+  const dist = N * 1.9;
+  camera.position.set(dist, dist * 0.7, dist);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+let colorMode = 'state';
+
+function updateInstances(ca) {
+  const N = ca.N, cur = ca.cur, alive = ca.states - 1;
+  const half = (N - 1) / 2;
+  let n = 0;
+  for (let z = 0; z < N; z++) {
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const s = cur[(z * N + y) * N + x];
+        if (!s) continue;
+        dummy.position.set(x - half, y - half, z - half);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(n, dummy.matrix);
+
+        if (colorMode === 'position') {
+          color.setRGB(x / (N - 1), y / (N - 1), z / (N - 1));
+        } else if (colorMode === 'radial') {
+          const dx = (x - half), dy = (y - half), dz = (z - half);
+          const d = Math.sqrt(dx*dx + dy*dy + dz*dz) / (half * Math.sqrt(3));
+          color.setHSL((1 - d) * 0.7, 0.85, 0.55);   // 중심=빨강/노랑 → 외곽=파랑
+        } else {
+          // state: 완전 생존=청록 밝게, 쇠퇴할수록 어둡고 보라로
+          const t = s / alive;
+          color.setHSL(0.5 - (1 - t) * 0.35, 0.8, 0.18 + t * 0.5);
+        }
+        mesh.setColorAt(n, color);
+        n++;
+      }
+    }
+  }
+  mesh.count = n;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+
+// ---- 앱 상태 / 루프 -------------------------------------------------------
+let ca = new CA3D(32);
+let playing = true;
+let stepsPerSec = 8;
+let acc = 0, last = performance.now();
+let fpsT = last, fpsN = 0;
+
+function applyRule(name) {
+  const rule = PRESETS[name];
+  ca.setRule(rule);
+  document.getElementById('ruletag').textContent = ruleString(rule);
+  document.getElementById('ruledesc').textContent = rule.desc;
+  ca.seed();
+  updateInstances(ca);
+  refreshStats();
+}
+
+function ruleString(r) {
+  const fmt = a => compress(a);
+  return `S:${fmt(r.survival)} / B:${fmt(r.birth)} / ${r.states} / ${r.n}${r.wrap ? ' (wrap)' : ''}`;
+}
+// 연속 구간을 a-b 로 압축 표기
+function compress(arr) {
+  if (!arr.length) return '∅';
+  const a = [...arr].sort((x, y) => x - y);
+  const out = []; let s = a[0], p = a[0];
+  for (let i = 1; i <= a.length; i++) {
+    if (a[i] === p + 1) { p = a[i]; continue; }
+    out.push(s === p ? `${s}` : `${s}-${p}`);
+    s = p = a[i];
+  }
+  return out.join(',');
+}
+
+function refreshStats() {
+  document.getElementById('gen').textContent = ca.generation;
+  document.getElementById('cells').textContent = ca.liveCount.toLocaleString();
+}
+
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = (now - last) / 1000; last = now;
+  controls.update();
+
+  if (playing) {
+    acc += dt;
+    const interval = 1 / stepsPerSec;
+    let did = false;
+    // 프레임당 최대 4스텝까지만 따라잡아 폭주 방지
+    for (let k = 0; k < 4 && acc >= interval; k++) { ca.step(); acc -= interval; did = true; }
+    if (did) { updateInstances(ca); refreshStats(); }
+  }
+
+  renderer.render(scene, camera);
+
+  fpsN++;
+  if (now - fpsT >= 500) {
+    document.getElementById('fps').textContent = Math.round((fpsN * 1000) / (now - fpsT));
+    fpsT = now; fpsN = 0;
+  }
+}
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+// ---- UI 바인딩 ------------------------------------------------------------
+const ruleSel = document.getElementById('rule');
+Object.keys(PRESETS).forEach(name => {
+  const o = document.createElement('option'); o.value = name; o.textContent = name; ruleSel.appendChild(o);
+});
+ruleSel.addEventListener('change', () => applyRule(ruleSel.value));
+
+document.getElementById('color').addEventListener('change', e => {
+  colorMode = e.target.value; updateInstances(ca);
+});
+document.getElementById('size').addEventListener('change', e => {
+  const N = parseInt(e.target.value, 10);
+  ca.resize(N); rebuildMesh(N); applyRule(ruleSel.value);
+});
+const speedEl = document.getElementById('speed');
+speedEl.addEventListener('input', e => {
+  stepsPerSec = parseInt(e.target.value, 10);
+  document.getElementById('speedval').textContent = stepsPerSec;
+});
+const playBtn = document.getElementById('play');
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  playBtn.textContent = playing ? '⏸ Pause' : '▶ Play';
+  playBtn.classList.toggle('primary', playing);
+});
+document.getElementById('step').addEventListener('click', () => {
+  ca.step(); updateInstances(ca); refreshStats();
+});
+document.getElementById('reset').addEventListener('click', () => {
+  ca.seed(); updateInstances(ca); refreshStats();
+});
+
+// ---- 부트스트랩 -----------------------------------------------------------
+rebuildMesh(ca.N);
+applyRule(ruleSel.value);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
