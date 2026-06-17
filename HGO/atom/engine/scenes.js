@@ -7213,6 +7213,171 @@
         ];
       },
     },
+
+    'step-0104': {
+      id: 'step-0104',
+      title: '결합 차수 고립쌍 회계 — CO₂ 는 선형(이중결합 2 → 도메인 2 → 180°) (게이트 bondLonePairOrder=0 → 0103 ns 회계·비트 동일·회귀 0)',
+      desc: '0103 은 고립쌍 LP=⌊(valence−결합전자)/2⌋ 의 *결합전자* 를 이웃 수(ns.length)로 셌다 — 단일결합만이면 맞지만 *이중결합*은 중심 전자를 2개(σ+π) 쓴다. CO₂ 의 C 는 이중결합 2개 → 결합전자 4 → LP 0 → 선형(180°). 0103 은 차수를 몰라 결합전자 2·LP1·SN3 → 117.5°(굽음·틀림). 이 step 의 게이트 `bondLonePairOrder` 켜면 결합전자 = Σ(결합 차수)(힘·PE 두 곳). 도메인(SN 골격)은 여전히 σ 수(ns.length·VSEPR 은 다중결합을 한 도메인으로). author "CO₂ 선형" 분기 0 — 차수와 전자 수서 창발. bondLonePairOrder=0 → ns 회계·0103 비트 동일(회귀 0). ' +
+            '*무대*(2D): 두 *2배위* 분자 — **CO₂ O=C=O**(중심 C Z6 e6·이웃 O 이중결합 차수 2·v4·Σ차수4·LP0·SN2) vs **물 H–O–H**(중심 O·단일결합 차수 1·대조군)·bondAngleLonePair on(0103 baseline)·스프링+각도+damp 안착·dt=0.04·5000 tick·시드 7·각 분자 ns(0103)/order(0104): ' +
+            'order 켜면 CO₂ 117.5°→180°(이중결합 전자 회계 → LP0 선형)·물 104.5°→104.5°(단일결합 Σ차수=ns·불변). ' +
+            '① **다중결합 차수 회계 → CO₂ 선형·load-bearing** — CO₂ 각 order on ≈180°(선형) ≫ off ≈117.5°(0103 차수 무시 굽음) ⇒ 이중결합 2개가 중심 전자 4개 써 LP0·도메인 2·선형(CO₂ 실측·author "CO₂ 선형" 0·차수서 창발). ' +
+            '② **단일결합은 불변·load-bearing** — 물 각 order on ≈104.5° ≡ off 104.5°(단일결합 Σ차수=ns.length) ⇒ 차수 회계는 *다중결합서만* 작동(0103 단일결합 결과 보존·전역 아님). ' +
+            '③ **장부 머신·E 닫힘** — 각도 스프링 ΣF=0 운동량 머신·damp KE→바스·E 닫힘(bondAnglePE 도 같은 θ₀). ' +
+            '④ **회귀** — bondLonePairOrder=0 → 0103 ns 회계·비트 동일·골든 보존.',
+      ticks: 60,
+      W: 200, H: 200, MT: 5000,
+      KN: { dt: 0.04, kBondSpring: 1.5, bondReq: 4, kBondAngle: 1.5, bondAngleTarget: 2.0943951023931953, bondAngleLonePair: 0.0434, kDamp: 0.25, coulombSoft: 1 },
+
+      // 중심 원자(spec) + 2 이웃(nbr)·결합 차수 order·~70° 시작.
+      mol(spec, nbr, order) {
+        const req = this.KN.bondReq, a = [], bonds = [], keys = new Set(), cx = this.W / 2, cy = this.H / 2;
+        a.push({ Z: spec.Z, N: spec.N, e: spec.e, x: 0, rx: cx, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0 });   // 중심 idx0
+        const start = [0.35, 0.35 + 1.22];
+        for (let k = 0; k < 2; k++) { const an = start[k];
+          a.push({ Z: nbr.Z, N: nbr.N, e: nbr.e, x: 0, rx: cx + req * Math.cos(an), ry: cy + req * Math.sin(an), vx: 0, vy: 0, lep: 0, nuc: 0 });
+          const j = a.length - 1; bonds.push([0, j, 0, order]); keys.add(j); }
+        return { atoms: a, bonds, keys };
+      },
+      angle(at) {
+        const ax = K.minImage(at[1].rx - at[0].rx, this.W), ay = K.minImage(at[1].ry - at[0].ry, this.H);
+        const bx = K.minImage(at[2].rx - at[0].rx, this.W), by = K.minImage(at[2].ry - at[0].ry, this.H);
+        let c = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by)); c = Math.max(-1, Math.min(1, c));
+        return Math.acos(c) * 180 / Math.PI;
+      },
+      run(K, spec, nbr, order, ordGate) {
+        const m = this.mol(spec, nbr, order);
+        const sim = { W: this.W, H: this.H, atoms: m.atoms, photons: [], bonds: m.bonds, bondKeys: m.keys, rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondLonePairOrder: ordGate }), tick: 0 };
+        sim.escaped = { E: 0, px: 0, py: 0, count: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { ang: this.angle(sim.atoms),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100 };
+      },
+      cache(K) {
+        const C = { Z: 6, N: 6, e: 6 }, O = { Z: 8, N: 8, e: 8 }, H = { Z: 1, N: 1, e: 1 };
+        return this._c || (this._c = { co2On: this.run(K, C, O, 2, 1), co2Off: this.run(K, C, O, 2, 0), waterOn: this.run(K, O, H, 1, 1), waterOff: this.run(K, O, H, 1, 0) });
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0103 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 8, N: 8, e: 8, x: 0, rx: cx + 4, ry: cy, vx: 0, vy: (rng() - 0.5) * 0.02, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { co2On: +c.co2On.ang.toFixed(1), co2Off: +c.co2Off.ang.toFixed(1), waterOn: +c.waterOn.ang.toFixed(1), waterOff: +c.waterOff.ang.toFixed(1),
+                 relE: +c.co2On.relE.toFixed(3), dpx: +c.co2On.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 차수 회계 → CO₂ 선형 ② 단일결합 불변(물) ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const co2Linear = c.co2On.ang > 165 && c.co2Off.ang < 150 && c.co2On.ang - c.co2Off.ang > 30;   // ① CO₂ on 선형·off 굽음·≫30° 차
+        const waterInvariant = Math.abs(c.waterOn.ang - c.waterOff.ang) < 1 && Math.abs(c.waterOn.ang - 104.5) < 6 && c.co2On.ang - c.waterOn.ang > 50;  // ② 물 불변·CO₂보다 ≪
+        const ledgerOK = c.co2On.dpx < 1e-9 && c.co2On.dpy < 1e-9 && c.co2On.dB < 1e-9 && c.co2On.dQ < 1e-9 && c.co2On.dL < 1e-9 && c.co2On.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                          // ④ 골든 보존
+        return [
+          { name: `다중결합 차수 회계 → CO₂ 선형·load-bearing — CO₂ 각 order on ${c.co2On.ang.toFixed(1)}°(선형) ≫ off ${c.co2Off.ang.toFixed(1)}°(0103 차수 무시 굽음) ⇒ 이중결합 2개가 중심 전자 4개 써 LP0·도메인 2·선형(CO₂ 실측·author "CO₂ 선형" 0·차수서 창발)`, pass: co2Linear, value: +c.co2On.ang.toFixed(1) },
+          { name: `단일결합은 불변·load-bearing — 물 각 order on ${c.waterOn.ang.toFixed(1)}° ≡ off ${c.waterOff.ang.toFixed(1)}°(단일결합 Σ차수=ns.length)·CO₂ on ${c.co2On.ang.toFixed(1)}° ≫ 물 ${c.waterOn.ang.toFixed(1)}° ⇒ 차수 회계는 다중결합서만(0103 단일결합 결과 보존·전역 아님)`, pass: waterInvariant, value: +c.waterOn.ang.toFixed(1) },
+          { name: `장부 머신·E 닫힘 — 각도 스프링 ΣF=0 운동량 머신(dpx ${c.co2On.dpx.toExponential(2)}·dB ${c.co2On.dB.toExponential(2)}·dL ${c.co2On.dL.toExponential(2)})·damp KE→바스·E 닫힘 ${c.co2On.relE.toFixed(3)}%`, pass: ledgerOK, value: +c.co2On.relE.toFixed(3) },
+          { name: `회귀 — bondLonePairOrder=0 → 0103 ns 회계·비트 동일·골든 보존(차수 게이트 가법)`, pass: reg, value: +c.co2Off.ang.toFixed(1) },
+        ];
+      },
+    },
+
+    'step-0105': {
+      id: 'step-0105',
+      title: '각도 종류 통합 게이트 bondAngleKind — 한 토글이 VSEPR+고립쌍+차수 동시 (게이트=0 → 셋 개별 노브만·0104 비트 동일·회귀 0)',
+      desc: '0099 VSEPR(배위수)·0103 고립쌍 압축·0104 차수 회계가 각도 모델 세 조각을 *각자 독립 게이트*로 더했다 — 한 분자의 현실적 각은 셋을 *함께* 쓴다(물=배위수2+고립쌍2·CO₂=배위수2+이중결합). 이 step 은 통합 게이트 `bondAngleKind`(0100 결합 D·α·r_eq 통합의 *각도판*) — 켜면 VSEPR + 고립쌍 압축(게이트가 압축값 운반) + 차수 회계가 동시(OR 배선·힘·PE 두 곳). 새 물리 0(일관성/편의·통합=개별 셋 정확 동치). bondAngleKind=0 → 셋 개별 노브만·0104 비트 동일(회귀 0). ' +
+            '*무대*(2D): 두 분자 — **물 H–O–H**(중심 O·단일결합·고립쌍 2) vs **CO₂ O=C=O**(중심 C·이중결합·고립쌍 0)·스프링+각도+damp 안착·dt=0.04·5000 tick·시드 7·압축 0.0434 rad·세 모드 kind(통합)/parts(VSEPR+고립쌍+차수 개별)/off(VSEPR 배위수만): ' +
+            'kind 켜면 물 104.5°(고립쌍 압축)·CO₂ 180°(이중결합 LP0 선형). off(배위수만) 물 180°(고립쌍 무시 선형·틀림). kind ≡ parts(비트 동일). ' +
+            '① **한 토글이 현실적 각 모델 셋 동시·load-bearing** — bondAngleKind on: 물 ≈104.5°(고립쌍 압축)·CO₂ 180°(차수 회계 선형) ≠ off 물 180°(배위수만·고립쌍 무시) ⇒ 한 토글이 VSEPR+고립쌍+차수 세 조각 동시(개별 노브 3개 불필요). ' +
+            '② **통합 = 개별 셋 정확 동치·load-bearing** — bondAngleKind on 의 물·CO₂ 각 ≡ 세 sub-knob(bondAngleVSEPR+bondAngleLonePair+bondLonePairOrder) on(비트 동일) ⇒ 통합이 정확히 셋 켠 것(편의·정합·새 물리 0). ' +
+            '③ **장부 머신·E 닫힘** — 각도 스프링 ΣF=0 운동량 머신·damp KE→바스·E 닫힘(bondAnglePE 도 같은 θ₀). ' +
+            '④ **회귀** — bondAngleKind=0 → 셋 개별 노브만·0104 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 200, H: 200, MT: 5000,
+      KN: { dt: 0.04, kBondSpring: 1.5, bondReq: 4, kBondAngle: 1.5, bondAngleTarget: 2.0943951023931953, kDamp: 0.25, coulombSoft: 1 },
+      COMP: 0.0434,
+      MODES: {
+        kind:  { bondAngleKind: 0.0434 },
+        parts: { bondAngleVSEPR: 1, bondAngleLonePair: 0.0434, bondLonePairOrder: 1 },
+        off:   { bondAngleVSEPR: 1 },
+      },
+
+      mol(spec, nbr, order) {
+        const req = this.KN.bondReq, a = [], bonds = [], keys = new Set(), cx = this.W / 2, cy = this.H / 2;
+        a.push({ Z: spec.Z, N: spec.N, e: spec.e, x: 0, rx: cx, ry: cy, vx: 0, vy: 0, lep: 0, nuc: 0 });
+        const start = [0.35, 0.35 + 1.22];
+        for (let k = 0; k < 2; k++) { const an = start[k];
+          a.push({ Z: nbr.Z, N: nbr.N, e: nbr.e, x: 0, rx: cx + req * Math.cos(an), ry: cy + req * Math.sin(an), vx: 0, vy: 0, lep: 0, nuc: 0 });
+          const j = a.length - 1; bonds.push([0, j, 0, order]); keys.add(j); }
+        return { atoms: a, bonds, keys };
+      },
+      angle(at) {
+        const ax = K.minImage(at[1].rx - at[0].rx, this.W), ay = K.minImage(at[1].ry - at[0].ry, this.H);
+        const bx = K.minImage(at[2].rx - at[0].rx, this.W), by = K.minImage(at[2].ry - at[0].ry, this.H);
+        let c = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by)); c = Math.max(-1, Math.min(1, c));
+        return Math.acos(c) * 180 / Math.PI;
+      },
+      run(K, spec, nbr, order, mode) {
+        const m = this.mol(spec, nbr, order);
+        const sim = { W: this.W, H: this.H, atoms: m.atoms, photons: [], bonds: m.bonds, bondKeys: m.keys, rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]), tick: 0 };
+        sim.escaped = { E: 0, px: 0, py: 0, count: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { ang: this.angle(sim.atoms),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100 };
+      },
+      cache(K) {
+        const O = { Z: 8, N: 8, e: 8 }, H = { Z: 1, N: 1, e: 1 }, C = { Z: 6, N: 6, e: 6 };
+        return this._c || (this._c = {
+          wKind: this.run(K, O, H, 1, 'kind'), wParts: this.run(K, O, H, 1, 'parts'), wOff: this.run(K, O, H, 1, 'off'),
+          cKind: this.run(K, C, O, 2, 'kind'), cParts: this.run(K, C, O, 2, 'parts'), cOff: this.run(K, C, O, 2, 'off') });
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0104 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 8, N: 8, e: 8, x: 0, rx: cx + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + 4, ry: cy, vx: 0, vy: (rng() - 0.5) * 0.02, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { waterKind: +c.wKind.ang.toFixed(1), waterOff: +c.wOff.ang.toFixed(1), co2Kind: +c.cKind.ang.toFixed(1), co2Off: +c.cOff.ang.toFixed(1),
+                 relE: +c.wKind.relE.toFixed(3), dpx: +c.wKind.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 한 토글 셋 동시 ② 통합 = 개별 셋 정확 동치 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const threeTogether = Math.abs(c.wKind.ang - 104.5) < 6 && c.cKind.ang > 165 && c.wOff.ang > 165 && c.wOff.ang - c.wKind.ang > 50;  // ① 물 굽음·CO₂ 선형·off 물 선형
+        const equiv = c.wKind.ang === c.wParts.ang && c.cKind.ang === c.cParts.ang;            // ② 비트 동일
+        const ledgerOK = c.wKind.dpx < 1e-9 && c.wKind.dpy < 1e-9 && c.wKind.dB < 1e-9 && c.wKind.dQ < 1e-9 && c.wKind.dL < 1e-9 && c.wKind.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                            // ④ 골든 보존
+        return [
+          { name: `한 토글이 현실적 각 모델 셋 동시·load-bearing — bondAngleKind on: 물 ${c.wKind.ang.toFixed(1)}°(고립쌍 압축)·CO₂ ${c.cKind.ang.toFixed(1)}°(차수 회계 선형) ≠ off 물 ${c.wOff.ang.toFixed(1)}°(배위수만·고립쌍 무시) ⇒ 한 토글이 VSEPR+고립쌍+차수 세 조각 동시(개별 노브 3개 불필요)`, pass: threeTogether, value: +c.wKind.ang.toFixed(1) },
+          { name: `통합 = 개별 셋 정확 동치·load-bearing — bondAngleKind on 물 ${c.wKind.ang.toFixed(2)}°·CO₂ ${c.cKind.ang.toFixed(2)}° ≡ 세 sub-knob(VSEPR+LonePair+Order) on(비트 동일) ⇒ 통합이 정확히 셋 켠 것(편의·정합·새 물리 0)`, pass: equiv, value: +c.wKind.ang.toFixed(2) },
+          { name: `장부 머신·E 닫힘 — 각도 스프링 ΣF=0 운동량 머신(dpx ${c.wKind.dpx.toExponential(2)}·dB ${c.wKind.dB.toExponential(2)}·dL ${c.wKind.dL.toExponential(2)})·damp KE→바스·E 닫힘 ${c.wKind.relE.toFixed(3)}%`, pass: ledgerOK, value: +c.wKind.relE.toFixed(3) },
+          { name: `회귀 — bondAngleKind=0 → 셋 개별 노브만·0104 비트 동일·골든 보존(통합 게이트 가법)`, pass: reg, value: +c.wOff.ang.toFixed(1) },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };

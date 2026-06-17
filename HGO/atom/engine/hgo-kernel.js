@@ -294,24 +294,31 @@
     const t0base = sim.knobs.bondAngleTarget;
     const vsepr = sim.knobs.bondAngleVSEPR;              // step-0099 배위수별 θ₀(=0 → 단일 t0base·PE 불변·회귀 0) — 힘(bondAngle)과 같은 θ₀ 라야 E 닫힘
     const A = sim.atoms, W = sim.W, H = sim.H;
-    const nbr = new Map();
+    const nbr = new Map(), ordSum = new Map();              // step-0104 ordSum: 중심별 Σ(결합 차수)
     for (const e of sim.bonds) {
       if (!nbr.has(e[0])) nbr.set(e[0], []);
       if (!nbr.has(e[1])) nbr.set(e[1], []);
       nbr.get(e[0]).push(e[1]); nbr.get(e[1]).push(e[0]);
+      const o = e[3] || 1;
+      ordSum.set(e[0], (ordSum.get(e[0]) || 0) + o); ordSum.set(e[1], (ordSum.get(e[1]) || 0) + o);
     }
     let u = 0;
     for (const [ci, ns] of nbr) {
       if (ns.length < 2) continue;
       const ai = A[ci];
-      // step-0103 고립쌍 θ₀ — 힘(bondAngle)과 *같은* 분기라야 E 닫힘(게이트 0 → 0099 θ₀·회귀 0).
+      // step-0103 고립쌍 θ₀ + 0104 차수 회계 + 0105 통합 게이트 bondAngleKind — 힘(bondAngle)과 *같은* 분기라야 E 닫힘(게이트 0 → 0099/0103/0104 θ₀·회귀 0).
+      const kind = sim.knobs.bondAngleKind;
+      const lpComp = sim.knobs.bondAngleLonePair || kind;
+      const useVsepr = vsepr || kind, useOrder = sim.knobs.bondLonePairOrder || kind;
       let t0;
-      if (sim.knobs.bondAngleLonePair) {
-        const v = valenceElectrons(ai.e), lp = Math.max(0, Math.floor((v - ns.length) / 2)), sn = ns.length + lp;
+      if (lpComp) {
+        const v = valenceElectrons(ai.e);
+        const bondElec = useOrder ? (ordSum.get(ci) || ns.length) : ns.length;
+        const lp = Math.max(0, Math.floor((v - bondElec) / 2)), sn = ns.length + lp;
         const t0sn = sn <= 2 ? Math.PI : sn === 3 ? 2 * Math.PI / 3 : sn === 4 ? Math.acos(-1 / 3) : Math.PI / 2;
-        t0 = t0sn - lp * sim.knobs.bondAngleLonePair;
+        t0 = t0sn - lp * lpComp;
       } else {
-        t0 = vsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
+        t0 = useVsepr ? (ns.length <= 2 ? Math.PI : ns.length === 3 ? 2 * Math.PI / 3 : ns.length === 4 ? Math.acos(-1 / 3) : Math.PI / 2) : t0base;
       }
       for (let p = 0; p < ns.length; p++) for (let q = p + 1; q < ns.length; q++) {
         const aj = A[ns[p]], ak = A[ns[q]];
