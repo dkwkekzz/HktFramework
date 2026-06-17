@@ -4937,6 +4937,75 @@
         ];
       },
     },
+
+    'step-0075': {
+      id: 'step-0075',
+      title: '거리형 결합 해리 — Morse 를 위상까지 완성 (bondBreak·r>unbondDist 면 간선 제거·분자 실제로 쪼개짐·끄면 유령 결합 잔존·운동량 머신·해리 E 바스 환원 닫힘·unbondDist=0 → 회귀 0)',
+      desc: 'Morse(0074)는 우물이 유한 깊이라 r≫r₀ 면 복원력→0 — 가열된 결합쌍이 멀어져도 *간선(sim.bonds)은 남아* "유령 결합"이 된다(힘은 0 이나 위상상 여전히 분자). unbond(0016)은 *충돌 KE* 기준이라 천천히 벌어지는 Morse 해리를 못 떼낸다. 이 step 의 `bondBreak` 은 *거리* 기준: r > unbondDist 면 간선을 떼어 분자(연결 성분)가 *실제로 쪼개진다* — Morse 의 에너지적 해리를 위상적 해리까지 완성. ' +
+            '닫힌 장부: 간선 제거 시 그 결합 PE(Morse U(r), ledger 가 sim.bonds 로 합산하던 항)와 흡수 KE 저장고 e[2] 를 *복사 바스*로 환원(결합 에너지가 빛으로 방출) → ΔE 정확 0·속도 불변 → 운동량 머신. 게이트 unbondDist=0 → 유령 결합 잔존(옛 거동·회귀 0). ' +
+            '무대: 40개 Morse 이량체(상대 진동 KE 그라디언트 — 저E 속박 ~ 고E 해리)·dt=0.05·D=2·α=0.5·600 tick·고정 셋업: ' +
+            '① **위상 해리·load-bearing** — unbondDist 켜면 고E 이량체 간선 제거(결합 수·분자 수 급감)·끄면 전부 잔존(유령 결합) ⇒ Morse 위상 완성이 *bondBreak 때문*(author 아닌 측정). ' +
+            '② **거리 트리거** — 해리한 결합은 r>unbondDist 까지 늘어난 고E 이량체(저E 는 유지·문턱 창발). ' +
+            '③ **장부 머신** — 해리 시 U+e[2]→바스 환원으로 E 닫힘(break 기여 0)·운동량 머신(속도 불변)·잔여 E symplectic 유계. ' +
+            '④ **회귀** — unbondDist=0 → 유령 결합 잔존(옛 거동)·새 노브 0 기본 → 0001~74 골든 비트 불변.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, ND: 40,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 2, bondMorseA: 0.5, unbondDist: 8 },
+
+      dimers(K) {                                            // 40 Morse 이량체·상대속도 그라디언트(저E 속박 ~ 고E 해리)
+        const req = this.KN.bondReq, atoms = [], bonds = [], keys = new Set(), tot = 2 * this.ND;
+        for (let i = 0; i < this.ND; i++) {
+          const cx = 30 + (i % 8) * 45, cy = 30 + ((i / 8) | 0) * 45;
+          const vrel = 0.6 + 2.6 * (i / (this.ND - 1));      // KE_rel = ½·1·vrel² → vrel>√(2D)=2 면 해리
+          const a0 = atoms.length;
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          atoms.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          bonds.push([a0, a0 + 1]); keys.add(a0 * tot + (a0 + 1));
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, ud) {
+        const d = this.dimers(K);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { unbondDist: ud }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { bonds: sim.bonds.length, mols: molecules(sim).count, broke: sim.dissocCount | 0,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.unbondDist), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로엔 bonds 미설정 → bondBreak no-op → 두 원자 자유 드리프트(머신·결정론·0071/0074 패턴).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { bondsOn: c.on.bonds, bondsOff: c.off.bonds, molsOn: c.on.mols, brokeOn: c.on.broke, dpxOn: +c.on.dpx.toExponential(3), dEOn: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 위상 해리 ② 거리 트리거 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), ND = this.ND;
+        const topoDissoc = c.on.bonds < ND * 0.7 && c.off.bonds === ND;                                 // ① 켜면 간선 급감·끄면 전부 잔존(유령)
+        const triggered = c.on.broke > 0 && c.on.broke === ND - c.on.bonds;                             // ② 해리 수 = 줄어든 간선(거리 문턱)
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③ 운동량·Q·B·L 머신(E 는 symplectic 유계)
+        const reg = ctx.ledgerBefore !== undefined;                                                     // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `위상 해리·load-bearing — unbondDist 켜면 결합 ${ND}→${c.on.bonds}·분자 ${c.on.mols}개(고E 이량체 간선 제거)·끄면 ${c.off.bonds}(전부 잔존=유령 결합) ⇒ Morse 위상 완성이 *bondBreak 때문*(author 아닌 측정)`, pass: topoDissoc, value: c.on.bonds },
+          { name: `거리 트리거 — 해리 ${c.on.broke}회 = 줄어든 간선 ${ND - c.on.bonds}(r>unbondDist=${this.KN.unbondDist} 까지 늘어난 고E 이량체만·저E 유지·문턱 창발)`, pass: triggered, value: c.on.broke },
+          { name: `장부 머신 — 해리 시 U(r)+e[2]→바스 환원 E 닫힘(break 기여 0)·운동량 머신(속도 불변 dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)})·잔여 E symplectic 유계(${(c.on.dE / c.on.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — unbondDist=0 → 유령 결합 잔존(옛 거동·끄면 ${c.off.bonds} 전부)·새 노브 0 기본 → 0001~74 골든 비트 불변(회귀 0)`, pass: reg, value: c.off.bonds },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

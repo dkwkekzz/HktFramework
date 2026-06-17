@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -1116,9 +1116,41 @@
     sim.disperseActive = 1;                               // 진단 플래그(hash 미참여)
   }
 
+  // bondBreak 은 *거리형 결합 해리* — Morse(0074)를 위상까지 완성한다. Morse 우물은 유한 깊이라 r≫r₀ 면 복원력→0(0074) →
+  //   가열된 결합쌍이 멀어져도 *간선(sim.bonds)은 남아* "유령 결합"이 된다(힘은 0 이나 위상상 여전히 분자). unbond(0016)은 *충돌 KE* 기준
+  //   이라 천천히 벌어지는 Morse 해리를 못 떼낸다. bondBreak 은 *거리* 기준: r > unbondDist 면 간선을 떼어 분자(연결 성분)가 *실제로 쪼개진다*.
+  //   닫힌 장부(E): 간선 제거 시 ⓐ 그 결합의 PE(bondSpringPE/Morse U(r) — ledger 가 sim.bonds 로 합산하던 항)가 사라지고 ⓑ 흡수 KE 저장고
+  //     e[2](bondLocalE) 도 떼낸다 → 둘 다 복사 바스(sim.escaped.E)로 환원(결합 에너지가 빛으로 방출). ΔE = −U(r)−e[2] + (U(r)+e[2]) = 0 (정확 닫힘).
+  //     속도 불변 → 운동량 *정확* 보존(머신). Q·B·L·x·Z·N 불변(순수 위상 편집 + E 부기).
+  //   국소: *그 결합의 두 원자*만(간선 = 그 둘의 위상). 결정론: 위치 결정 → rng 불필요. 게이트 unbondDist=0 → early-return = 회귀 0.
+  function bondBreak(sim) {
+    const rd = sim.knobs.unbondDist;
+    if (!rd) return;                 // 노브=0 → early-return = 회귀 0 (거리 해리 꺼짐 → 직전 비트)
+    if (!sim.bonds || !sim.bonds.length) return;         // 떼낼 결합 없음
+    const atoms = sim.atoms, n = atoms.length, rd2 = rd * rd;
+    const morse = sim.knobs.bondMorse || 0, D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;
+    const ks = sim.knobs.kBondSpring || 0, req = sim.knobs.bondReq || 4;
+    const kept = []; let broke = 0, bath = null;
+    for (const e of sim.bonds) {
+      const a = atoms[e[0]], b = atoms[e[1]];
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+      const r2 = dx * dx + dy * dy;
+      if (r2 <= rd2) { kept.push(e); continue; }          // 임계 이내 → 결합 유지
+      const r = Math.sqrt(r2);                            // 거리 초과 → 해리
+      // 떼내는 결합의 PE U(r)(ledger 가 간선 제거로 잃는 항) + 흡수 KE e[2] 를 바스로 환원 → 총 E 정확 닫힘.
+      const w = morse ? (1 - Math.exp(-alpha * (r - req))) : 0;
+      const Upe = morse ? D * w * w : 0.5 * ks * (r - req) * (r - req);
+      const Eb = (e[2] || 0) + Upe;
+      if (Eb) { if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 }); bath.E += Eb; sim.bondE = (sim.bondE || 0) - (e[2] || 0); bath.count = (bath.count | 0) + 1; }
+      if (sim.bondKeys) sim.bondKeys.delete(e[0] * n + e[1]);
+      broke++;
+    }
+    if (broke) { sim.bonds = kept; sim.dissocCount = (sim.dissocCount | 0) + broke; }  // 간선 장부 교체 + 진단 카운터(hash 미참여)
+  }
+
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, bondSpring, bondAngle, gravity, fuse, decay, disperse };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, bondSpring, bondAngle, gravity, fuse, decay, disperse, bondBreak };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'bondBreak'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).

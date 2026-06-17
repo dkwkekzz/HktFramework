@@ -9,10 +9,10 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0074](steps/step-0074.md) — **Morse 비조화 결합 `bondMorse`(조화 무한 우물 → 유한 깊이 D·가열하면 해리·비대칭 열팽창·U=D(1−e^{−α(r−r₀)})²·force+ledger PE 같은 게이트·bondMorse=0 → 조화 bondSpring·회귀 0·분자→물질 정밀화)**. 결합 2체에 진동 KE 주입(저E vs 고E·Morse vs 조화 4벌). 측정(200²·2체·dt0.05·D2·α0.5·400tick): ①저E 둘 다 유계(maxR 6.46/5.41 해리 안 함) ②**유한 해리** 고E Morse endR **45.09** ≫ 조화 6.59(load-bearing) ③**비대칭 열팽창** Morse 평균 **5.098**>r₀4 vs 조화 4.044≈r₀ ④운동량 머신·E symplectic 유계·bondMorse=0 조화 비트 동일. 골든 **370/370**(회귀 0·+5).
-- **닫힌 step(직전)**: [step-0073](steps/step-0073.md) — 핵+화학 동시 무대 fuseRebond(#D 해소·fuse 압축이 bonds 간선 인덱스 재배선·소비 원자 결합 끊김 bondE→바스·dangling 켜면 0 끄면 6·융합 51+결합 47 공존·이벤트 법칙만 머신·fuseRebond=0 → 옛 거동·회귀 0). 골든 365/365.
-- **한 줄 상태**: Phase C 결합 기하(+**Morse 비조화 0074**) + Phase E 중력 궤도 + **Phase D 핵 닫힘 + 다체 핵합성(0065) + 껍질 마법수(0067) + 별 점화(0068) + 사다리 등반 maxZ→12(0070) + 죽음·분산 disperse(0071) + 별 일생 순환(0072) + 핵+화학 동시 무대 #D 해소(0073·fuseRebond)** + **상대론 완비 + symplectic VV(0069)** + **공간 분할 완비(0054~64·모든 힘 O(n log n))** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 완전 무한 루프(흩어진 산물 → 2번째 별) 미·핵합성 산물이 *분자*를 이루는 풍부한 무대(C·O→분자·물질) 미·바스 비국소(#1)·깊은 붕괴+융합 E 완화(~11%·적응 시간단계 후속)·**토러스 min-image COM 토이(Ewald/PM)·BH 단극자**·force relKE 정합·결합 종류별 D·α·거리형 해리 unbond 미.
-- **다음**: **step-0075** (§2) — 1순위: **핵합성 산물→분자 측정(별 무대서 fuse 가 만든 C·O 가 bondCovalent+Morse 로 분자 이룸·핵+화학+Morse 합작·새 법칙 0·분자→물질 다리)** · 적응 시간단계(깊은 붕괴 E) · force relKE 정합 · 결합 종류별 D·α · Ewald/PM · 완전 무한 루프. 한 step = 한 조각.
+- **닫힌 step**: [step-0075](steps/step-0075.md) — **거리형 결합 해리 `bondBreak`(Morse 0074 를 위상까지 완성 — r>unbondDist 면 간선 제거·분자 실제 쪼개짐·해리 PE U(r)+흡수 KE e[2]→바스 환원 E 닫힘·속도 불변 운동량 머신·unbondDist=0 → 유령 결합 잔존·회귀 0)**. 40 Morse 이량체 진동 KE 그라디언트. 측정(400²·dt0.05·D2·α0.5·600tick): ①**위상 해리** unbondDist 켜면 결합 40→**19**·분자 19개·끄면 40 유령 잔존(load-bearing) ②거리 트리거 해리 **21**회=줄어든 간선·고E 만(문턱 창발) ③장부 머신 운동량 dpx 0·E 닫힘 잔여 symplectic 0.009% ④회귀 unbondDist=0 유령 잔존. 골든 **375/375**(회귀 0·+5).
+- **닫힌 step(직전)**: [step-0074](steps/step-0074.md) — Morse 비조화 결합 bondMorse(조화 무한 우물 → 유한 깊이 D·U=D(1−e^{−α(r−r₀)})²·고E Morse endR 45.09≫조화 6.59 해리·비대칭 열팽창 평균 5.098>r₀·운동량 머신 E 유계·bondMorse=0 → 조화·회귀 0). 골든 370/370.
+- **한 줄 상태**: Phase C 결합 기하·**일생(형성→열팽창 Morse 0074→해리 bondBreak 0075)** + Phase E 중력 궤도 + **Phase D 핵 닫힘 + 다체 핵합성(0065) + 껍질 마법수(0067) + 별 점화(0068) + 사다리 등반 maxZ→12(0070) + 죽음·분산 disperse(0071) + 별 일생 순환(0072) + 핵+화학 동시 무대 #D 해소(0073·fuseRebond)** + **상대론 완비 + symplectic VV(0069)** + **공간 분할 완비(0054~64·모든 힘 O(n log n))** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 완전 무한 루프(흩어진 산물 → 2번째 별) 미·핵합성 산물이 *분자*를 이루는 풍부한 무대(뜨거운 융합↔차가운 결합 척도 충돌·현 토이 covalent He 에서 멈춤) 미·바스 비국소(#1)·깊은 붕괴+융합 E 완화(~11%·적응 시간단계 후속)·**토러스 min-image COM 토이(Ewald/PM)·BH 단극자**·force relKE 정합·결합 종류별 D·α·Morse 변곡점 자동 임계 미.
+- **다음**: **step-0076** (§2) — 1순위: **적응 시간단계·근접조우 정규화(깊은 붕괴+융합 E ~11% 완화 해소·VV 가 못 잡는 이벤트/근접조우 오차·0069 §3 한계)** · force relKE 일-에너지 정합(큰 작업) · 결합 종류별 D·α·Morse 변곡점 자동 임계 · 완전 무한 루프(흩어진 산물 → 2번째 별) · Ewald/PM 정밀 주기 합. 한 step = 한 조각.
 
 ---
 
@@ -20,13 +20,13 @@
 
 > 큰 호(arc)의 서사(원자→빛→화학→핵→별)는 [SPINE.md](SPINE.md) §8 로드맵이 SSOT. STATE 는 *다음 한 조각*과 직전 2~3 step 만.
 
-직전 흐름(전문 §7 INDEX): **0071** 별 죽음·분산 `disperse` → **0072** 별 일생 순환 측정(SPINE §4) → **0073** 핵+화학 동시 무대 `fuseRebond`(#D 해소) → **0074** Morse 비조화 결합 `bondMorse`(유한 해리·열팽창). Phase E 순환 + 핵·화학 통합 무대 + 진짜다운 결합이 다 됐다 — 이제 그 조각들을 합쳐 *핵합성 산물이 분자를 이루는 무대*(분자→물질)를 본다.
+직전 흐름(전문 §7 INDEX): **0072** 별 일생 순환 측정(SPINE §4) → **0073** 핵+화학 동시 무대 `fuseRebond`(#D 해소) → **0074** Morse 비조화 결합 `bondMorse`(유한 해리·열팽창) → **0075** 거리형 결합 해리 `bondBreak`(Morse 위상 완성·분자 실제 쪼개짐). 결합의 일생(형성→열팽창→해리)이 닫혔다. 남은 큰 격차: *적분 정밀도*(깊은 붕괴+융합 E ~11% 완화·0069 §3)와 *완전 무한 루프*(흩어진 산물→2번째 별).
 
-### step-0075 가설 (▶ 즉시 다음 step — 한 조각)
+### step-0076 가설 (▶ 즉시 다음 step — 한 조각)
 
-**후보 핵합성 산물→분자 측정** ← *권장·새 법칙 0(scene 만·기존 골든 보존=회귀 0). 0073(fuseRebond)+0074(Morse)+bondCovalent(0017)를 합쳐: 뜨거운 ²H 가 fuse 로 C(Z6)·O(Z8) 를 만들고(중성·외각 빈자리 보유), 식으면 그 산물이 *공유결합*으로 분자를 이룬다(damp 로 냉각). 측정: ①핵합성 산물(Z≥3) 생성 ②그 산물이 결합·분자(연결 성분) 형성 ③fuseRebond 로 융합 압축 중에도 결합 정합 ④Q·B·L·px·py 머신·E 완화. 핵(원소)→화학(분자)→물질의 첫 통합 무대.*
+**후보 적응 시간단계·근접조우 정규화** ← *권장·0070/0072 의 E 완화 ~11% 가 가장 큰 미해소 격차(VV 도 못 잡는 이벤트/근접조우 순간 오차·0069 §3 한계). dt 를 국소 가속/근접거리에 맞춰 줄이거나(적응) 근접조우를 정규화(softening 동적). 게이트로 끄면 고정 dt(회귀 0). 측정: 같은 붕괴+융합 무대 E 완화 ≫ 적응 후 완화 급감·결정론 재현.*
 
-**후보 적응 시간단계·근접조우 정규화(깊은 붕괴 E ~11%)** · **force relKE 일-에너지 정합(큰 작업)** · **결합 종류별 D·α·거리형 해리 unbond** · **Ewald/PM 정밀 주기 합** · **완전 무한 루프(흩어진 산물 → 2번째 별)**.
+**후보 핵합성 산물→분자(뜨거운 융합↔차가운 결합 척도 충돌 풀이 필요)** · **force relKE 일-에너지 정합(큰 작업)** · **결합 종류별 D·α·Morse 변곡점 자동 임계** · **완전 무한 루프(흩어진 산물 → 2번째 별)** · **Ewald/PM 정밀 주기 합**.
 
 - **더하는 것(공통)**: 법칙/게이트 1개 + 노브 + `engine/scenes.js` 장면 한 항(노브=0 → 회귀 0). 측정 step 이면 새 법칙 0(scene 만)도 가능 — 그땐 기존 골든 보존이 회귀 0 알리바이.
 - **닫는 조건**: 회귀 0(노브=0 → 직전 비트 동일·골든 가법) + 닫힌 장부(연속력은 E 완화·핵 변환은 비가역이라도 Q·B·L·px·py 닫힘) + 결정론 + 가설 수치.
@@ -169,3 +169,4 @@ step-0071 | disperse 별 죽음·분산(복사 바스 E→가스 등방 KE 반�
 step-0072 | 별 일생 순환 측정(새 법칙 0 — gravity+pauli+fuse+disperse 동시·바탕 가스 모음 + 무거운 핵합성 산물 복사압 분산·disperseZmin=3·SPINE §4 self-running 순환 한 바퀴 기제) | PASS(VV 다체 별 Q·B·L·px·py 머신 dpx 5.56e-13 dB 0·E 완화 11.59% 깊은 붕괴+융합+분산 0069 §3 한계·골든 360/360·새 법칙 0=회귀 0·130²·N400 차가운 ²H·dt0.01·VV·중력+pauli+fuse Gamow+nucShell+disperse Zmin3·360tick·①바탕 모음 바탕(Z<3) R_g 21.1→7.9 붕괴 중력이 바탕 모음 load-bearing·②산물 분산 무거운 핵(Z≥3) R_g 켜면 18.7≫끄면 6.4 코어 갇힘 산물 분산이 disperse 때문 다음 별 재료 author 아닌 측정 load-bearing·③사다리 maxZ 12·④Q·B·L·px·py 머신 E 완화 적분 한계) · render:L-wind(산물 분산 — 무거운 핵 Z≥3 흩어짐·0071 L-wind 부채 연장·L-element 0065 와 결합)
 step-0073 | fuseRebond 핵+화학 동시 무대(#D 해소 — fuse 압축이 bonds 간선 인덱스 재배선·소비 원자 결합 끊김 bondE→바스·살아남은 결합 새 인덱스·remap 단조 i<j·bondKeys 새 n 재생성·fuseRebond=0 → 옛 거동·회귀 0) | PASS(이벤트 법칙만 Q·B·L·E·px·py 전부 머신 dpx 3.55e-15 dE 5.68e-14 dB 0·골든 365/365·fuseRebond=0 → 옛 거동·기존 fuse 장면 bonds 없어 분기 무관 비트 불변=회귀 0·40²·N120 ²H 중성+H⁺/H⁻ 이온·60tick·bond 이온 bondLocalE+fuse fmf+md+Endo 동시·①인덱스 정합 rebond 켜면 dangling 간선 0 끄면 6 융합 압축이 간선 어긋냄 #D 해소 author 아닌 측정 load-bearing·②동시 무대 융합 51회+결합 47 간선 공존 분자 5개 정합·③장부 머신 전부 연속력 0 E:결합 reservoir+융합 정지질량+결합 끊김→바스 닫힘·④회귀 fuseRebond=0 골든 보존) · render:없음(내부·결합 위상 구조·기존 r/bonds 채널)
 step-0074 | bondMorse Morse 비조화 결합(조화 무한 우물 → 유한 깊이 D Morse U=D(1−e^{−α(r−r₀)})²·force bondSpring+ledger bondSpringPE 같은 게이트·bondMorse=0 → 조화·회귀 0) | PASS(쌍별 등반작용 운동량 머신 dpx 0 dB 0·E symplectic 유계 스윙 0.076·골든 370/370·bondMorse=0 → 조화 bondSpring 비트 동일+기존 0026/0027 불변=회귀 0·200²·2체 결합쌍·dt0.05·D2·α0.5·400tick·Morse vs 조화 × 저E(KE½D) vs 고E(KE2D)·①저E 둘 다 유계 maxR 6.46/5.41 해리 안 함·②유한 해리 고E Morse endR 45.09≫조화 6.59 복원력 소멸 유한 우물이 Morse 때문 load-bearing·③비대칭 열팽창 Morse 평균 5.098>r₀4 조화 4.044≈r₀ load-bearing·④운동량 머신 E 유계 bondMorse=0 조화 비트) · render:L-bond?(결합 길이 진동·해리 — 기존 bonds 채널이나 해리/열팽창 강조 렌즈 후보)
+step-0075 | bondBreak 거리형 결합 해리(Morse 0074 위상 완성 — r>unbondDist 면 간선 제거·분자 실제 쪼개짐·해리 PE U(r)+흡수 KE e[2]→바스 환원 ΔE=0·속도 불변 운동량 머신·unbondDist=0 → 유령 결합 잔존·회귀 0) | PASS(운동량 머신 dpx 0 dB 0 dL 0·E 닫힘 break 기여 0 잔여 symplectic 0.009%·골든 375/375·unbondDist=0 → 유령 결합 잔존 기존 장면 bonds 영향 무관 비트 불변=회귀 0·400²·40 Morse 이량체 진동 KE 그라디언트·dt0.05·D2·α0.5·600tick·①위상 해리 unbondDist 켜면 결합 40→19 분자 19개 끄면 40 유령 잔존 Morse 위상 완성이 bondBreak 때문 author 아닌 측정 load-bearing·②거리 트리거 해리 21회=줄어든 간선 고E 만 문턱 창발·③장부 머신 U+e[2]→바스 환원 E 닫힘 운동량 속도 불변·④회귀 unbondDist=0 유령 잔존) · render:L-bond(결합 해리 — 간선 사라짐·0074 L-bond 부채 연장·분자 위상 변화 시각)
