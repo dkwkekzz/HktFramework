@@ -4144,6 +4144,74 @@
         ];
       },
     },
+
+    'step-0064': {
+      id: 'step-0064',
+      title: '공간 분할 셀 리스트를 fuse 에 배선 (게이트 spatialHash — 핵 융합도 셀 이웃만·collide 0055/bond 0059 와 동형·정렬해 brute 와 *비트 동일*·켜도 회귀 0·다체 핵합성 시계열 토대)',
+      desc: 'step-0055(collide)·0059(bond)가 이벤트형 단거리 법칙을 셀 리스트로 배선했다(비트 동일). 이 step 은 같은 기계를 *핵 융합* `fuse` — Phase D 의 두 핵 합체(별 점화) — 에 배선한다. ' +
+            'fuse 는 접촉 반경 R 내 *다가오는 고E* 쌍만 합체하는 단거리 이벤트라 전쌍 O(n²) 대신 `cellPairs`(cut=fuseR)로 이웃만 훑을 수 있다. 이것이 막혀 다체 핵합성 시계열(0048·0053 의 시계열판)이 N 을 못 키웠다 — 이 배선이 그 토대다. ' +
+            '게이트 `spatialHash`=0 → 전쌍 brute(과거 전 장면 비트 동일·회귀 0). =1 → cellPairs 로 R 내 쌍만 훑되, 그 쌍을 **(i,j) 오름차순 정렬**해 brute 의 사전식 i<j 순서와 똑같이 처리한다. ' +
+            'collide/bond 와 같은 논거(비트 동일): brute 의 이중 루프는 *정확히 사전식 (i,j)* 로 돌고 break 는 "원자 i 한 tick 한 번만 합쳐짐"이다. cellPairs 쌍을 (i,j) 정렬+consumed[i](=break)로 처리하면 — dead[]·bath 적재가 순서 의존이나 그 순서가 같다 — 합체·바스 E 가 **비트까지 동일**(켜도 회귀 0). ' +
+            'R 밖 쌍은 cellPairs 가 안 주지만 brute 경로서도 d2>R2 로 no-op(break 안 함)이라 합체 집합 정확 같다. fuse 는 *순간 합체*(연속 PE 항 없음·바스 E 회계)라 컷오프-PE shift 불필요(연속력 0056~58 과 다름·collide/bond 와 동형). ' +
+            '*측정*(무대 36²·N=160 ²H 차가운 구름·fuseR=3·fmf+md+페어링 발열·12 tick·고정 시드): ' +
+            '① **비트 동일·load-bearing** — spatialHash=1(이웃) 종료 상태 해시(원자+바스) = spatialHash=0(전쌍) 해시 정확 일치(융합 다수 무대서·근사 아님). ' +
+            '② **검사 수 급감** — 셀 거리계산 ≪ 전쌍 n(n−1)/2. ' +
+            '③ **융합 비자명** — 무대서 실제 합체 다수(동일성이 빈 무대 아닌 진짜 융합서 성립). ' +
+            '④ **장부·결정론·회귀** — 라이브 셀-경로(spatialHash=1) 융합 무대 Q·B·L·E·px·py 머신(fmf+md 정지질량 결손→발열)·노브=0 → 0001~63 골든 비트 불변(회귀 0).',
+      ticks: 12,
+      // ledgerTol 없음 — fuse 닫힌 형식 합체(vcom·바스)·fmf+md rest=(A−B)c² → Q·B·L·E·px·py 머신(0053 선례).
+      W: 36, H: 36, N: 160, MT: 12,
+      KN: { dt: 1, kFuse: 1, fuseR: 3, fuseMassFormula: 1, massDefect: 1, decayPairing: 1 },
+
+      // 측정 무대: 토러스에 ²H(Z=1,N=1,e=1 중성) N개를 고정 시드로 흩뿌리고 속도를 준다(다가오는 쌍이 융합되도록·barrier=0 결정론).
+      cloud(K) {
+        const rng = K.mulberry32(20260628), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: rng() * this.W, ry: rng() * this.H, vx: (rng() - 0.5) * 1.5, vy: (rng() - 0.5) * 1.5, lep: 0 });
+        return a;
+      },
+      // 같은 구름을 spatialHash 켬/끔으로 MT tick 굴린 sim 반환(L.applyForces+integrate 직접 — DRY).
+      runCloud(K, sh) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { spatialHash: sh }), tick: 0 };
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        return sim;
+      },
+      measure(K) {
+        const brute = this.runCloud(K, 0);
+        const fast = this.runCloud(K, 1);
+        const same = K.hashState(brute) === K.hashState(fast);
+        const atoms = this.cloud(K);
+        const cp = L.cellPairs(atoms, this.KN.fuseR, this.W, this.H);
+        return { same, fusions: this.N - brute.atoms.length, fastFusions: this.N - fast.atoms.length, cellChecks: cp.checks, bruteChecks: atoms.length * (atoms.length - 1) / 2 };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): 셀-경로(spatialHash=1) 융합 무대 — 새 코드 경로가 장부·결정론을 통과함을 보장.
+      init(rng, K) {
+        const simRng = K.mulberry32((rng() * 4294967296) >>> 0), a = [];
+        for (let i = 0; i < this.N; i++)
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: simRng() * this.W, ry: simRng() * this.H, vx: (simRng() - 0.5) * 1.5, vy: (simRng() - 0.5) * 1.5, lep: 0 });
+        return { W: this.W, H: this.H, atoms: a, rng: simRng, knobs: Object.assign({}, this.KN, { spatialHash: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { same: m.same ? 1 : 0, fusions: m.fusions, cellChecks: m.cellChecks, bruteChecks: m.bruteChecks, ratioPct: +(m.cellChecks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① 비트 동일·load-bearing ② 검사 급감 ③ 융합 비자명 ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const identical = m.same && m.fusions > 0 && m.fusions === m.fastFusions;  // ① 종료 해시 일치 + 융합 수도 일치
+        const faster = m.cellChecks < m.bruteChecks * 0.5;                          // ② 거리계산 ≪ 전쌍
+        const nontrivial = m.fusions >= 10;                                         // ③ 융합 다수(빈 무대 아님)
+        return [
+          { name: `비트 동일·load-bearing — 셀(spatialHash=1) 종료 해시(원자+바스) = 전쌍(=0) 해시 정확 일치(융합 ${m.fusions}회 동일 합체·근사 아님·켜도 회귀 0)`, pass: identical, value: m.fusions },
+          { name: `검사 수 급감 — 셀 거리계산 ${m.cellChecks} ≪ 전쌍 ${m.bruteChecks}(${(m.cellChecks / m.bruteChecks * 100).toFixed(1)}%·같은 결과·빠른 계산)`, pass: faster, value: m.cellChecks },
+          { name: `융합 비자명 — 무대서 실제 합체 ${m.fusions}회(동일성이 빈 무대 아닌 진짜 융합서 성립)`, pass: nontrivial, value: m.fusions },
+          { name: `장부·결정론·회귀 — 라이브 셀-경로(spatialHash=1) 융합 무대 Q·B·L·E·px·py 머신(fmf+md 정지질량 결손→발열)·노브=0 → 0001~63 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.fusions },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

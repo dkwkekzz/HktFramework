@@ -871,49 +871,69 @@
     const atoms = sim.atoms, n = atoms.length;
     let bath = null, fusedAny = false;
     const dead = new Array(n).fill(false);                 // 이미 합쳐져 소비된 원자(한 tick 중복 합체 가드)
-    for (let i = 0; i < n; i++) {
-      if (dead[i]) continue;
-      const a = atoms[i];
-      for (let j = i + 1; j < n; j++) {
-        if (dead[j]) continue;
-        const b = atoms[j];
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
-        const d2 = dx * dx + dy * dy;
-        if (d2 > R2 || d2 === 0) continue;                 // 접촉 반경 밖(또는 완전 겹침 가드)
-        const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;
-        const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도 법선 성분(>0 = 다가옴)
-        if (vn <= 0) continue;                              // 멀어지는 쌍은 융합 안 함
-        const ma = K.mass(a), mb = K.mass(b), mu = (ma * mb) / (ma + mb);
-        const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
-        const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy);   // 상대 KE = ½μ|vrel|²(쿨롱 장벽 돌파 판정용)
-        if (grng) {                                         // 양자 터널링(Gamow): 고전 장벽 아래서도 P=exp(−√(EG/E))로 융합
-          const zz = (a.Z | 0) * (b.Z | 0);                 // 전하곱 Z₁Z₂(전하 의존 게이트서 장벽 척도)
-          const egPair = (egCharge ? EG * zz * zz : EG) * (egMu ? mu : 1);  // E_G ∝ (Z₁Z₂)²·μ → 지수 √(egPair/E)(전하곱 선형 + √μ)·egMu=0 → μ 미가법(0050·회귀 0)·²H+²H μ=1 → 1배 baseline
-          if (grng() >= Math.exp(-Math.sqrt(egPair / keRel))) continue;  // 터널링 실패(장벽 반사) — keRel>0 보장(vn>0 → vrel≠0)
-        } else if (keRel < barrier) continue;               // 고전 hard cutoff(gamow=0 → 0041 거동·회귀 0)·저E 는 collide/bond 몫
-        // 합체: vcom 으로 잠근 새 원자(다발 합산). 총 운동량 정확 보존, 흡수된 상대 KE 는 바스로.
-        const M = ma + mb;
-        const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
-        const nucSum = (a.nuc || 0) + (b.nuc || 0);
-        // 방출 Δm·c²: fmf(0041) 면 *결합에너지 이득* ΔB_fus = B(생성)−B(a)−B(b)(질량공식서 — 발열량이 author 상수 아님·massDefect 와 짝).
-        //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
-        const Zp = a.Z + b.Z, Np = a.N + b.N;
-        const released = fmf
-          ? (K.binding(Zp, Np, pr) - K.binding(a.Z | 0, a.N | 0, pr) - K.binding(b.Z | 0, b.N | 0, pr))
-          : Math.min(qRel, nucSum);
-        // 흡열 문턱 게이트: released<0(흡열)이고 상대 KE 가 그 비용을 못 갚으면(keRel+released<0) 융합 금지.
-        //   국소(그 두 원자 keRel·ΔB_fus 만)·rng 무소비(수치 판정·결정론 불변)·fuseEndo=0 → 비검사 = 0050 비트 동일·회귀 0.
-        if (endo && released < 0 && keRel + released < 0) continue;  // 에너지 보존 물리 게이트(바스 E 음수 방지)
-        if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
-        bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스. fmf+md: 생성 핵 정지질량이 ΔB_fus 만큼 줄어 상쇄(E 닫힘)
-        bath.count = (bath.count | 0) + 1;
-        // a 를 product 로 갱신(다발 합산·vcom·저장고 계승). b 는 dead 표시 → 배열서 압축.
-        a.Z += b.Z; a.N += b.N; a.e += b.e; a.lep = (a.lep || 0) + (b.lep || 0);
-        a.vx = vcx; a.vy = vcy;
-        a.nuc = fmf ? nucSum : nucSum - released;           // fmf: 저장고 미인출(연료=ΔM 정지질량·massDefect)·계승만. else: 저장고서 방출분 제외
-        a.x = 0;                                            // 들뜸은 합체로 초기화(토이 — 핵 들뜸 별도 모형 전가)
-        dead[j] = true; fusedAny = true;
-        break;                                              // a 는 이번 tick 더 안 합침(i 다음으로)
+    // 한 쌍 융합 시도(brute·cellPairs 공용 — 같은 코드 → 같은 결과). 융합하면 true(brute 의 break / cell 의 consumed 신호).
+    //   모든 비융합 분기는 false 반환(브루트의 continue 와 등가). 융합 시 dead[j]=true·a 갱신·bath 적재.
+    function tryFuse(i, j) {
+      const a = atoms[i], b = atoms[j];
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+      const d2 = dx * dx + dy * dy;
+      if (d2 > R2 || d2 === 0) return false;             // 접촉 반경 밖(또는 완전 겹침 가드)
+      const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;
+      const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도 법선 성분(>0 = 다가옴)
+      if (vn <= 0) return false;                          // 멀어지는 쌍은 융합 안 함
+      const ma = K.mass(a), mb = K.mass(b), mu = (ma * mb) / (ma + mb);
+      const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+      const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy);   // 상대 KE = ½μ|vrel|²(쿨롱 장벽 돌파 판정용)
+      if (grng) {                                         // 양자 터널링(Gamow): 고전 장벽 아래서도 P=exp(−√(EG/E))로 융합
+        const zz = (a.Z | 0) * (b.Z | 0);                 // 전하곱 Z₁Z₂(전하 의존 게이트서 장벽 척도)
+        const egPair = (egCharge ? EG * zz * zz : EG) * (egMu ? mu : 1);  // E_G ∝ (Z₁Z₂)²·μ → 지수 √(egPair/E)(전하곱 선형 + √μ)·egMu=0 → μ 미가법(0050·회귀 0)·²H+²H μ=1 → 1배 baseline
+        if (grng() >= Math.exp(-Math.sqrt(egPair / keRel))) return false;  // 터널링 실패(장벽 반사) — keRel>0 보장(vn>0 → vrel≠0)
+      } else if (keRel < barrier) return false;           // 고전 hard cutoff(gamow=0 → 0041 거동·회귀 0)·저E 는 collide/bond 몫
+      // 합체: vcom 으로 잠근 새 원자(다발 합산). 총 운동량 정확 보존, 흡수된 상대 KE 는 바스로.
+      const M = ma + mb;
+      const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
+      const nucSum = (a.nuc || 0) + (b.nuc || 0);
+      // 방출 Δm·c²: fmf(0041) 면 *결합에너지 이득* ΔB_fus = B(생성)−B(a)−B(b)(질량공식서 — 발열량이 author 상수 아님·massDefect 와 짝).
+      //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
+      const Zp = a.Z + b.Z, Np = a.N + b.N;
+      const released = fmf
+        ? (K.binding(Zp, Np, pr) - K.binding(a.Z | 0, a.N | 0, pr) - K.binding(b.Z | 0, b.N | 0, pr))
+        : Math.min(qRel, nucSum);
+      // 흡열 문턱 게이트: released<0(흡열)이고 상대 KE 가 그 비용을 못 갚으면(keRel+released<0) 융합 금지.
+      //   국소(그 두 원자 keRel·ΔB_fus 만)·rng 무소비(수치 판정·결정론 불변)·fuseEndo=0 → 비검사 = 0050 비트 동일·회귀 0.
+      if (endo && released < 0 && keRel + released < 0) return false;  // 에너지 보존 물리 게이트(바스 E 음수 방지)
+      if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
+      bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스. fmf+md: 생성 핵 정지질량이 ΔB_fus 만큼 줄어 상쇄(E 닫힘)
+      bath.count = (bath.count | 0) + 1;
+      // a 를 product 로 갱신(다발 합산·vcom·저장고 계승). b 는 dead 표시 → 배열서 압축.
+      a.Z += b.Z; a.N += b.N; a.e += b.e; a.lep = (a.lep || 0) + (b.lep || 0);
+      a.vx = vcx; a.vy = vcy;
+      a.nuc = fmf ? nucSum : nucSum - released;           // fmf: 저장고 미인출(연료=ΔM 정지질량·massDefect)·계승만. else: 저장고서 방출분 제외
+      a.x = 0;                                            // 들뜸은 합체로 초기화(토이 — 핵 들뜸 별도 모형 전가)
+      dead[j] = true; fusedAny = true;
+      return true;
+    }
+    // ⊕ step-0064 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): collide(0055)·bond(0059)와 *동형* 셀 배선 — 융합도 접촉 반경 R 내
+    //   고E 충돌 이벤트라 전쌍 O(n²) 대신 셀 리스트(cellPairs·cut=R)로 이웃만 훑는다. 핵심: brute 의 이중 루프는 *정확히 사전식 (i,j) 순서*
+    //   (외 i↑·내 j↑)로 돌고, break 는 "원자 i 가 이번 tick 한 번만 합쳐짐"이다. cellPairs 쌍을 (i,j) 오름차순 정렬하면 같은 사전식 순서가 되고,
+    //   consumed[i](=brute break)로 i 의 잔여 쌍을 건너뛰면 — dead[]·rng(gamow)·bath 적재가 처리 순서에 의존하지만 그 순서가 같으므로 — 합체 결과가
+    //   **비트까지 동일**(켜도 회귀 0). R 밖 쌍은 cellPairs 가 안 주지만 brute 경로서도 d2>R2 로 return false(no-op·break 안 함)이라 합체 집합 정확 같다.
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(직전 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) {
+        if (dead[i]) continue;
+        for (let j = i + 1; j < n; j++) {
+          if (dead[j]) continue;
+          if (tryFuse(i, j)) break;                        // a 는 이번 tick 더 안 합침(i 다음으로)
+        }
+      }
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(정렬해 brute 와 같은 사전식 순서 → 비트 동일·빠름)
+      const pairs = cellPairs(atoms, R, sim.W, sim.H).pairs;
+      pairs.sort((p, q) => (p[0] - q[0]) || (p[1] - q[1]));  // (i,j) 오름차순 = brute i<j 사전식 순서 → 처리 순서 일치 → 비트 동일
+      const consumed = new Array(n).fill(false);          // a 로 합쳐진 원자(brute break 등가 — i 의 잔여 쌍 skip)
+      for (const p of pairs) {
+        const i = p[0], j = p[1];
+        if (dead[i] || dead[j] || consumed[i]) continue;
+        if (tryFuse(i, j)) consumed[i] = true;
       }
     }
     if (fusedAny) {                                         // 죽은 원자 압축(개수 감소 — 합체 측정)
