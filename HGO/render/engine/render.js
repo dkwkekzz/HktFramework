@@ -490,6 +490,26 @@
     return ((idx * 0.61803398875) % 1 + 1) % 1;
   }
 
+  // ── 렌즈 L-core: 원자 결속 코어/분산 헤일로 분류 core → 운명 테 글리프 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 분산 장면(step-0096 Otsu 이봉 골 임계)은 원자에 *구조적 운명* core(1=결속 코어=중력으로 묶여 남음·0=분산 헤일로
+  //   =경계로 흩어짐)를 싣는다. 밀도/반경 기울기로 *대략* 보이나 — sim 의 *임계 결정*(어느 원자를 코어로 셈했나, 골
+  //   경계가 어디인가)은 색 채널이 0이었다(atom-0100 재감사가 잡은 미독 per-atom 채널). 두 분류가 *공존*해야 구분이
+  //   의미 있다(전부 코어/전부 헤일로면 author 0). 원자 배열에서 *두 분류 공존 여부*를 측정(읽기 — 손박은 임계 0).
+  function measureCoreClasses(atoms) {
+    let has0 = false, has1 = false;
+    for (const a of atoms) {
+      if (a.core === undefined || a.core === null) continue;
+      if (a.core) has1 = true; else has0 = true;
+    }
+    return { present: has0 && has1 };   // 코어·헤일로 둘 다 있을 때만 구분(시뮬에 없는 분류 author 0)
+  }
+
+  // 원자 구조 운명 읽기 — core 진리값이면 결속(true)·거짓이면 분산(false)·core 없으면 null(글리프 author 0).
+  function coreBound(a) {
+    if (a.core === undefined || a.core === null) return null;
+    return !!a.core;
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -512,6 +532,7 @@
     const nRange = measureNRange(sim.atoms);                       // 동위원소 코어 정규화 기준(측정 N 범위 — L-isotope)
     const maxV = measureMaxSpeed(sim.atoms);                       // 운동 자취 정규화 기준(측정 최대 속력 — L-velocity)
     const pop = measurePopulations(sim.atoms);                     // 출신 집단 측정(c0 — L-population, 단일/없으면 오라 0)
+    const coreCls = measureCoreClasses(sim.atoms);                 // 결속 코어/분산 헤일로 공존 여부(core — L-core, 둘 다 있어야 구분)
     const velWorld = STREAK_FRAC * Math.max(sim.W, sim.H);         // 운동 자취 길이 창(장면 크기 비례 — 줄기와 동일 창)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: 0 }, cam);
@@ -531,7 +552,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop));
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null);
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -549,7 +570,8 @@
   //   렌즈 L-isotope: 중성자 수 N(동위원소)을 *안쪽 동심 코어*로 읽기 — 중성자 많을수록 밝은 코어. 단일 동위원소면 코어 0.
   //   렌즈 L-velocity: 속도 벡터(vx,vy)를 *운동 자취*로 읽기 — 머리=현 위치·꼬리=−속도, 길이 ∝ |v|. 정지면 자취 0. 온도색 아님(중립).
   //   렌즈 L-population: 출신 집단 c0(어느 별/풀 출신)을 *배경 오라*로 읽기(골든각 그룹 색조 — 같은 집단 동색). 단일/c0 없으면 오라 0. 모든 채널과 직교.
-  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ, nRange, vel, popHue) {
+  //   렌즈 L-core: 구조 운명 core(결속 코어 vs 분산 헤일로)를 *점선 운명 테*로 읽기 — 코어=조밀 청록 테·헤일로=옅은 보라 테. 두 분류 공존 안 하면 0.
+  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ, nRange, vel, popHue, coreFate) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
     // 렌즈 L-population: 출신 집단 c0 → 그룹 색조 오라(구 *아래* 부드러운 디스크 — 맨 바닥 배경 글리프). 같은 집단 동색·다른 집단 이색.
@@ -612,6 +634,19 @@
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = gc;
       ctx.beginPath(); ctx.arc(pr.sx, pr.sy, cr, 0, 6.2832); ctx.fill();
+    }
+    // 렌즈 L-core: 구조 운명 core(결속 코어 vs 분산 헤일로) → 점선 운명 테(분류 구분 글리프 — 색조·고리·코어와 직교).
+    //   결속(true)=조밀 청록 점선 테·분산(false)=옅은 보라 점선 테(둘 다 그려 *어느 운명*인지 보임). coreFate=null(두 분류
+    //   공존 안 함·core 없음)이면 안 그림 — 시뮬에 없는 분류를 author 하지 않는다(RENDER §3). 점선이라 솔리드 이온 고리와 구별.
+    if (coreFate !== null && coreFate !== undefined) {
+      const tone = coreFate ? [120, 230, 220] : [200, 170, 240];   // 결속=청록·분산=보라(부호 발산형 분류 톤)
+      const fr = coreFate ? r * 1.28 : r * 1.55;                    // 코어=가까운 테·헤일로=먼 테(운명 분리)
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(${tone[0]},${tone[1]},${tone[2]},${coreFate ? 0.75 : 0.4})`;
+      ctx.lineWidth = Math.max(1, 1.4 * pr.scale);
+      ctx.setLineDash([Math.max(2, 3 * pr.scale), Math.max(2, 3 * pr.scale)]);   // 점선 — 솔리드 이온 고리와 구별
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, fr, 0, 6.2832); ctx.stroke();
+      ctx.setLineDash([]);                                          // 점선 해제(다른 그리기에 영향 0)
     }
     // 발광 헤일로 = 들뜸 준위에 비례하는 광원 밝기(읽기 — magnitude 채널). 색은 중립 온백(hue author 0).
     //   x=0(바닥)이면 헤일로 0 — 들뜨지 않은 원자는 빛을 author 하지 않는다.
@@ -786,5 +821,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound };
 });

@@ -410,6 +410,25 @@ function run() {
   const noC0 = R3.measurePopulations([{ Z: 6 }, { Z: 8 }]).count === 0;   // c0 없는 장면 → 집단 0(오라 author 0)
   checks.push({ name: 'L-population: 단일 집단/c0 없음 → 오라 0(author 0)', pass: single0 && undef0 && noC0, value: single0 && undef0 && noC0 ? 'null' : 'BAD' });
 
+  // ㉑ L-core(렌즈 assert): 분산 장면(step-0096 Otsu 이봉 골 임계)은 원자에 *구조 운명* core(1=결속 코어=중력으로 묶여 남음·
+  //    0=분산 헤일로=경계로 흩어짐)를 싣는다. 밀도/반경으로 대략 보이나 sim 의 *임계 결정*(어느 원자를 코어로 셈했나)은
+  //    색 채널이 0이었다. 렌더는 core 를 *읽어* 점선 운명 테로(결속 청록·분산 보라). 두 분류 공존해야 구분(전부 한 분류면 author 0).
+  const sceneC = SC.SCENES['step-0096'];
+  const simC = S.createSim(sceneC.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simC, sceneC.ticks);
+  const coreCls = R3.measureCoreClasses(simC.atoms);
+  const nCore = simC.atoms.filter(a => R3.coreBound(a) === true).length;
+  const nHalo = simC.atoms.filter(a => R3.coreBound(a) === false).length;
+  checks.push({ name: 'L-core: 시뮬이 코어/헤일로 분류 실음(시뮬 선행·공존)', pass: coreCls.present && nCore > 0 && nHalo > 0, value: `코어 ${nCore}·헤일로 ${nHalo}` });
+  // 결속/분산이 갈린다(읽기 충실 — true/false 구분)
+  const boundOk = R3.coreBound({ core: 1 }) === true && R3.coreBound({ core: 0 }) === false;
+  checks.push({ name: 'L-core: 결속(1)·분산(0) 갈림(읽기 충실)', pass: boundOk, value: boundOk ? 'ok' : 'BAD' });
+  // author 0: 한 분류만(전부 코어) 또는 core 없으면 공존 false → 테 0
+  const allCore = R3.measureCoreClasses([{ core: 1 }, { core: 1 }]).present === false;
+  const noCore = R3.measureCoreClasses([{ Z: 6 }, { Z: 8 }]).present === false;
+  const coreNull = R3.coreBound({ Z: 6 }) === null;
+  checks.push({ name: 'L-core: 한 분류만/core 없음 → 테 0(author 0)', pass: allCore && noCore && coreNull, value: allCore && noCore && coreNull ? 'null' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
