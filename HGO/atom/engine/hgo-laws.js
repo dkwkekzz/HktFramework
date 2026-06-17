@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, bondMorseAlphaPair: 0, bondReqPair: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, disperseAutoOtsu: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8, kCoreHarvest: 0, harvestDeg: 8 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -733,6 +733,53 @@
     sim.coolOuterActive = 1;                              // 진단 플래그(hash 미참여)
   }
 
+  // coreHarvest 은 coolOuter(0083)의 *밀도 게이트를 뒤집은* 짝 — *고밀도 코어*(deg≥harvestDeg)의 무질서 KE 를 복사 바스로 수확한다(step-0092).
+  //   왜 필요한가(0091 발견): snEject 의 *방향성 기제*(국소 COM 바깥·집중)는 서나, *에너지원*이 작았다 — 방출 연료인 복사 바스(sim.escaped.E)를
+  //     주로 coolOuter(외곽 냉각)가 채우는데 그 양이 *중력 결속*보다 작아 산물이 우물을 완전 탈출 못 했다(maxR 캡 ~13 < 우물 간극 24·바스 E < 결속 하드월).
+  //   진짜 초신성 에너지원은 *중력 붕괴*다: 코어가 깊이 붕괴하며 *푼 중력 PE* 가 infall KE 로 코어에 쌓인다(virial — 깊은 우물일수록 코어 KE 큼).
+  //     coreHarvest 는 그 *코어 KE* 를 바스로 수확한다 — 사슬: 중력 PE → 코어 infall KE → 바스 E → snEject 방출 KE. 바스 예산이 *중력 결속 척도*로 커져
+  //     산물이 natal 우물 탈출 쪽으로 더 멀리 날아간다(0091 의 바스<결속 하드월을 *중력 붕괴 에너지*로 돌파). gravityPE 차분을 직접 회계하지 않고
+  //     *코어 KE 수확*으로 받는다(코어 KE 는 이미 적분이 gravityPE→KE 로 변환해 둔 것·이중계상 0·E 정확 닫힘).
+  //   기제는 coolOuter/damp 와 *정확히 동형*(쌍별 상대속도 vcom 불변 감쇠·빠진 상대 KE→바스·운동량 머신)이되 게이트만 반대: deg≥harvestDeg(코어).
+  //     coolOuter(외곽 냉각)+coreHarvest(코어 수확)가 함께면 별 엔진의 열 재분배 — 외곽 식고 코어 붕괴 에너지가 방출 연료가 된다.
+  //   국소: min-image·반경 coolR·degField(0088 셀/brute 공유). 결정론: rng 불필요. 게이트 kCoreHarvest=0 → early-return = 회귀 0(0091 이하 비트 동일).
+  function coreHarvest(sim) {
+    const kc = sim.knobs.kCoreHarvest;
+    if (!kc) return;                 // 노브=0 → early-return = 회귀 0
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);
+    const coolR = sim.knobs.coolR || 6, coolR2 = coolR * coolR;
+    const hDeg = sim.knobs.harvestDeg || 8;
+    const atoms = sim.atoms, n = atoms.length;
+    const bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
+    const deg = degField(sim, coolR);                     // 국소 밀도(coolOuter·disperse·snEject 와 공유)
+    for (let i = 0; i < n; i++) {
+      if (deg[i] < hDeg) continue;                        // 저밀도 외곽 제외 — *고밀도 코어만* 수확(coolOuter 와 반대 게이트)
+      const a = atoms[i], ma = K.mass(a);
+      for (let j = i + 1; j < n; j++) {
+        if (deg[j] < hDeg) continue;
+        const b = atoms[j], mb = K.mass(b);
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        const r2 = dx * dx + dy * dy;
+        if (r2 > coolR2) continue;
+        const s2 = r2 + eps2;
+        const w = eps2 / s2;                              // 근접 가중 ∈(0,1]
+        let f = kc * w;
+        if (f <= 0) continue;
+        if (f > 0.5) f = 0.5;                             // 안정성 클램프
+        const mu = (ma * mb) / (ma + mb);
+        const vrx = b.vx - a.vx, vry = b.vy - a.vy;
+        const v2 = vrx * vrx + vry * vry;
+        if (v2 === 0) continue;
+        const sa = f * mb / (ma + mb), sb = f * ma / (ma + mb);
+        a.vx += sa * vrx; a.vy += sa * vry;               // 상대속도↓·vcom 불변(코어 KE 수확)
+        b.vx -= sb * vrx; b.vy -= sb * vry;
+        const dKE = 0.5 * mu * v2 * (1 - (1 - f) * (1 - f));
+        bath.E += dKE; bath.count++;                      // 수확한 코어 KE → 복사 바스(운동량-자유) = 닫힌 장부
+      }
+    }
+    sim.coreHarvestActive = 1;                            // 진단 플래그(hash 미참여)
+  }
+
   // bondSpring 은 *결합 간선*(sim.bonds)에만 작용하는 연속 복원력 U=½·kS·(r−r_eq)² 을 매 tick 속도에 싣는다 —
   //   *중성 공유결합*에 평형 결합 길이 r_eq 를 부여한다(step-0026, *결합 기하의 마지막 격차*). 왜 필요한가:
   //   하전(이온) 결합은 step-0021 bondCoulombic 으로 coulomb+repulse 가 r_eq 를 유지했다 — 하지만 그 연속력은 *q≠0 쌍만*
@@ -754,13 +801,13 @@
     if (!ks) return;                 // 노브=0 → early-return = 회귀 0 (결합 스프링 꺼짐 → step-0025 비트)
     if (!sim.bonds || !sim.bonds.length) return;         // 결합(작용 대상 간선) 없음
     const dt = sim.knobs.dt;
-    const req = sim.knobs.bondReq || 4;                  // 평형 결합 길이 r_eq=r₀
     const morse = sim.knobs.bondMorse || 0;              // 비조화 Morse 게이트(0 → 조화·회귀 0)
-    const alpha = sim.knobs.bondMorseA || 1;             // 우물 폭 α(해리에너지 D 는 step-0089 종류별 — 아래 per-bond)
     const atoms = sim.atoms, n = atoms.length;
     for (const e of sim.bonds) {
       const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
       const D = K.morseD(sim.knobs, a, b, e[3]);          // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일 bondMorseD·회귀 0)
+      const alpha = K.morseAlpha(sim.knobs, a, b);        // step-0094 종류별 우물 폭 α(게이트 0 → 균일 bondMorseA·회귀 0)·PE/해리 와 공유
+      const req = K.morseReq(sim.knobs, a, b);            // step-0095 종류별 평형 길이 r_eq(게이트 0 → 균일 bondReq·회귀 0)·PE/해리 와 공유
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
       const r = Math.sqrt(dx * dx + dy * dy);
       if (r === 0) continue;                              // 완전 겹침 가드(방향 미정의)
@@ -1170,12 +1217,18 @@
     if (odeg > 0 || autoDeg > 0) {                        // 밀도 한정(수동 or 자동) 켤 때만 국소 이웃 수 1패스
       const dr = sim.knobs.coolR || 6, A = sim.atoms, na = A.length;
       deg = degField(sim, dr);                            // step-0088: spatialHash 켜면 셀 이웃·끄면 brute·deg 동일(coolOuter 와 공유)
-      if (autoDeg > 0) {                                  // 자동 임계: 분산 후보(Z≥zmin)의 deg 분포 q-분위수 → 코어/겉 경계(밀도 적응)
+      if (autoDeg > 0) {                                  // 자동 임계: 분산 후보(Z≥zmin)의 deg 분포 → 코어/겉 경계(밀도 적응)
         const vals = [];
         for (let i = 0; i < na; i++) if ((A[i].Z | 0) >= zmin) vals.push(deg[i]);
-        if (vals.length) { vals.sort((a, b) => a - b);
-          const q = autoDeg > 1 ? 1 : autoDeg;            // (0,1] 클램프
-          odegEff = vals[Math.min(vals.length - 1, Math.floor(q * (vals.length - 1)))]; }
+        if (vals.length) {
+          // step-0096 *이봉 골 자동* 게이트 disperseAutoOtsu(=0 → 0087 q-분위수·비트 동일·회귀 0):
+          //   q-분위수(중앙값 등)는 *모집단 비율 50/50* 가정 — 분포가 *기운(skewed) 이봉*이면 경계가 한 모드 *안*에 박혀 코어 일부를 겉으로 오분류한다.
+          //   Otsu(class 간 분산 최대)는 모집단 비율 가정 없이 *두 모드 사이 골*을 찾는다 → 기운 이봉서도 코어/겉을 바르게 가른다(0087 수동 q brittleness 해소).
+          if (sim.knobs.disperseAutoOtsu) odegEff = otsuThreshold(vals);
+          else { vals.sort((a, b) => a - b);
+            const q = autoDeg > 1 ? 1 : autoDeg;          // (0,1] 클램프
+            odegEff = vals[Math.min(vals.length - 1, Math.floor(q * (vals.length - 1)))]; }
+        }
       }
     }
     const atomsArr = sim.atoms;
@@ -1261,12 +1314,14 @@
     if (!rd) return;                 // 노브=0 → early-return = 회귀 0 (거리 해리 꺼짐 → 직전 비트)
     if (!sim.bonds || !sim.bonds.length) return;         // 떼낼 결합 없음
     const atoms = sim.atoms, n = atoms.length, rd2 = rd * rd;
-    const morse = sim.knobs.bondMorse || 0, alpha = sim.knobs.bondMorseA || 1;
-    const ks = sim.knobs.kBondSpring || 0, req = sim.knobs.bondReq || 4;
+    const morse = sim.knobs.bondMorse || 0;
+    const ks = sim.knobs.kBondSpring || 0;
     const kept = []; let broke = 0, bath = null;
     for (const e of sim.bonds) {
       const a = atoms[e[0]], b = atoms[e[1]];
       const D = K.morseD(sim.knobs, a, b, e[3]);         // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일·회귀 0)·force/PE 와 같은 D
+      const alpha = K.morseAlpha(sim.knobs, a, b);       // step-0094 종류별 우물 폭 α(게이트 0 → 균일·회귀 0)·force/PE 와 같은 α
+      const req = K.morseReq(sim.knobs, a, b);           // step-0095 종류별 평형 길이 r_eq(게이트 0 → 균일·회귀 0)·force/PE 와 같은 req
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
       const r2 = dx * dx + dy * dy;
       if (r2 <= rd2) { kept.push(e); continue; }          // 임계 이내 → 결합 유지
@@ -1283,8 +1338,8 @@
   }
 
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, coolOuter, bondSpring, bondAngle, gravity, fuse, decay, disperse, snEject, bondBreak };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'coolOuter', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'snEject', 'bondBreak'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, coolOuter, coreHarvest, bondSpring, bondAngle, gravity, fuse, decay, disperse, snEject, bondBreak };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'coolOuter', 'coreHarvest', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'snEject', 'bondBreak'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).
@@ -1388,6 +1443,28 @@
       }
     }
     return { pairs, checks };
+  }
+
+  // step-0096 Otsu 임계 — 정수 deg 분포의 *이봉 골*을 class-간 분산 최대로 찾는다(disperse 자동 층상 경계의 무가정 판).
+  //   각 후보 임계 t(deg≤t = 겉·deg>t = 코어)서 두 class 의 가중치 w0·w1 과 평균 μ0·μ1 로 σ²_b = w0·w1·(μ0−μ1)² 계산 → 최대 t = 두 모드 사이 골.
+  //   q-분위수(0087)와 달리 *모집단 비율 가정 0* — 기운 이봉서도 경계가 골에 박힌다(0087 brittleness 해소). 정수 히스토그램 1패스 O(range).
+  function otsuThreshold(vals) {
+    let lo = Infinity, hi = -Infinity;
+    for (const v of vals) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    if (hi <= lo) return hi;                                  // 단일 값 → 경계 = 그 값
+    const n = vals.length, hist = new Array(hi - lo + 1).fill(0);
+    let total = 0;
+    for (const v of vals) { hist[v - lo]++; total += v; }
+    let bestT = lo, bestVar = -1, w0 = 0, sum0 = 0;
+    for (let t = lo; t < hi; t++) {                           // 임계 t: class0 = deg ≤ t(겉)
+      w0 += hist[t - lo]; sum0 += t * hist[t - lo];
+      const w1 = n - w0;
+      if (w0 === 0 || w1 === 0) continue;
+      const mu0 = sum0 / w0, mu1 = (total - sum0) / w1;
+      const vb = w0 * w1 * (mu0 - mu1) * (mu0 - mu1);         // class-간 분산(가중)
+      if (vb > bestVar) { bestVar = vb; bestT = t; }
+    }
+    return bestT;
   }
 
   // step-0088 국소 밀도 deg 집계 — coolOuter(0083)·disperse(0085 disperseOuterDeg·0087 disperseAutoDeg)의 밀도 1패스를 공유.
