@@ -5073,6 +5073,74 @@
         ];
       },
     },
+
+    'step-0077': {
+      id: 'step-0077',
+      title: '별 E 완화 원천 격리 — 적응 서브스텝 무효 ⇒ 융합 이벤트 회계가 원천(적분 오차 아님) (측정·새 법칙 0 — 0076 adaptSub 를 0070 다체 별 무대에 적용·relE 안 줄음·gravity-only 깊은 붕괴 0.24%≪융합 무대 ~10%·골든 보존 회귀 0)',
+      desc: 'step-0070/0072 의 별 무대 E 완화(~10%)를 0069 §3 ②/STATE §3 은 "VV 가 못 잡는 이벤트/근접조우 오차"로 *뭉뚱그려* 두었다. step-0076 이 *순간* 적분 오차를 잡는 adaptSub 를 만들었으니, 이 측정 step 은 그것을 *다체 별 무대*에 적용해 완화의 *원천*을 가른다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0·0069 §3 ① "다체 무대 적용"과 동형). ' +
+            '두 대조가 원천을 못박는다: ⓐ **적응 무효** — 같은 별 무대(중력+pauli+fuse·dt=0.01)서 adaptSub 켜도(maxM↑·서브스텝 실제 작동) relE 가 *안 줄어든다*(오히려 미세 증가 — 더 잘게 적분하니 궤도 살짝 달라져 융합 수↑). ⇒ 완화는 *적분 오차가 아니다*. ⓑ **적분 무결** — 같은 깊이 *gravity-only*(kFuse=0·이벤트 0) 붕괴는 relE ~0.24%(VV 가 이미 잘 보존). ⇒ 적분은 무결하고 완화 ~10%는 *융합 이벤트* 때문(소비 원자 간 PE 소멸·Q 바스 회계가 ~314 융합 규모서 안 닫힘). ' +
+            '결론: 0070/0072 의 E 완화는 *적분 정밀도(adaptSub/dt)*로 못 줄인다 — **융합 이벤트의 에너지 회계**가 따로 닫혀야 한다(step-0078+ 후보). 미스어트리뷰션을 측정으로 바로잡음. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell·240 tick·고정 시드): ' +
+            '① **적응 무효·load-bearing** — adaptSub 켬 relE ≈ 끔(비율 ~1·안 줄음)·maxM≫1(서브스텝 실제 작동) ⇒ 완화는 적분 오차 아님. ' +
+            '② **적분 무결·load-bearing** — gravity-only(이벤트 0) 같은 붕괴 relE ~0.24% ≪ 융합 무대 ~10% ⇒ 완화는 *융합 이벤트* 때문. ' +
+            '③ **사다리 보존** — adaptSub 켜도 maxZ 사다리 등반 유지(물리 보존·정밀도만 바뀜). ' +
+            '④ **장부·결정론** — Q·B·L·px·py 머신·E 만 완화·새 법칙 0 → 0001~76 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 240,
+      VTOL: 0.01,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 2e3 },                                  // 별 무대 E 완화(라이브 120tick) — 이 step 이 *원천이 융합 이벤트 회계*임을 못박음(적분 아님)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // as=adaptSub·doFuse=융합 켜기. relE(순 완화%)·maxZ·융합 수·최대 서브스텝·장부 잔차.
+      run(K, as, doFuse) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { adaptSub: as, kFuse: doFuse ? this.KN.kFuse : 0 }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length; let maxM = 0;
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((sim.lastSub | 0) > maxM) maxM = sim.lastSub | 0; }
+        const l1 = K.ledger(sim);
+        return { relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100, maxZ: this.maxZof(sim.atoms), fusions: n0 - sim.atoms.length, maxM,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { off: this.run(K, 0, true), on: this.run(K, this.VTOL, true), grav: this.run(K, 0, false) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 별 무대 adaptSub 켜고(0076 적용) symplectic=1 — Q·B·L·px·py 머신·E 완화(원천=융합 이벤트).
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { adaptSub: this.VTOL }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { offRelEpct: +c.off.relE.toFixed(2), onRelEpct: +c.on.relE.toFixed(2), gravRelEpct: +c.grav.relE.toFixed(3),
+                 relRatio: +(c.on.relE / c.off.relE).toFixed(2), maxMon: c.on.maxM, maxZon: c.on.maxZ, fusionsOn: c.on.fusions, dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 적응 무효 ② 적분 무결 ③ 사다리 보존 ④ 장부·결정론.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const adaptNull = c.on.relE > c.off.relE * 0.8 && c.on.maxM > 4;                                  // ① 켜도 완화 안 줆(비율>0.8)·서브스텝 실제 작동
+        const integOK = c.grav.relE < 0.5 && c.off.relE > c.grav.relE * 10;                               // ② gravity-only 무결 ≪ 융합 무대(원천=이벤트)
+        const ladderKept = c.on.maxZ >= 6;                                                                // ③ adaptSub 켜도 사다리 등반 유지
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `적응 무효·load-bearing — 같은 별 무대 adaptSub 켬 relE ${c.on.relE.toFixed(2)}% ≈ 끔 ${c.off.relE.toFixed(2)}%(비율 ${(c.on.relE / c.off.relE).toFixed(2)}·안 줄음·켜면 maxM ${c.on.maxM}≫1 서브스텝 실제 작동) ⇒ 별 E 완화는 *적분 오차 아님*(author 아닌 측정)`, pass: adaptNull, value: +(c.on.relE / c.off.relE).toFixed(2) },
+          { name: `적분 무결·load-bearing — gravity-only(이벤트 0) 같은 깊이 붕괴 relE ${c.grav.relE.toFixed(3)}% ≪ 융합 무대 ${c.off.relE.toFixed(2)}%(${(c.off.relE / c.grav.relE).toFixed(0)}배) ⇒ VV 적분은 무결·완화 ~10%는 *융합 이벤트 회계* 때문(${c.off.fusions} 융합·소비 원자 PE 소멸·Q 바스)`, pass: integOK, value: +c.grav.relE.toFixed(3) },
+          { name: `사다리 보존 — adaptSub 켜도 maxZ ${c.on.maxZ}(사다리 등반 유지·물리 보존·정밀도만 바뀜)`, pass: ladderKept, value: c.on.maxZ },
+          { name: `장부·결정론 — 별 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 만 완화(원천=융합 이벤트)·새 법칙 0 → 0001~76 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.maxZ },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
