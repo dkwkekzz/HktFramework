@@ -702,16 +702,8 @@
     const coolDeg = sim.knobs.coolDeg || 8;
     const atoms = sim.atoms, n = atoms.length;
     const bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
-    // 1패스: 각 원자의 국소 이웃 수(반경 coolR 내) — 국소 밀도. (브루트 O(n²)·측정 scene 규모서 충분·결정론)
-    const deg = new Int32Array(n);
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i];
-      for (let j = i + 1; j < n; j++) {
-        const b = atoms[j];
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
-        if (dx * dx + dy * dy <= coolR2) { deg[i]++; deg[j]++; }
-      }
-    }
+    // 1패스: 각 원자의 국소 이웃 수(반경 coolR 내) — 국소 밀도. (step-0088 degField: spatialHash 켜면 셀 이웃·끄면 brute·deg 동일·결정론)
+    const deg = degField(sim, coolR);
     // 2패스: *양쪽 다 저밀도(외곽)*인 근접 쌍만 점성 냉각(damp 와 동형 — vcom 불변·KE→바스).
     for (let i = 0; i < n; i++) {
       if (deg[i] > coolDeg) continue;                   // 고밀도 코어 원자는 게이트서 제외(뜨겁게 유지)
@@ -1174,13 +1166,9 @@
     const odeg = sim.knobs.disperseOuterDeg || 0;
     const autoDeg = sim.knobs.disperseAutoDeg || 0;
     let deg = null, odegEff = odeg;
-    if (odeg > 0 || autoDeg > 0) {                        // 밀도 한정(수동 or 자동) 켤 때만 국소 이웃 수 1패스(브루트 O(n²)·측정 scene 규모 충분)
-      const dr = sim.knobs.coolR || 6, dr2 = dr * dr, A = sim.atoms, na = A.length;
-      deg = new Int32Array(na);
-      for (let i = 0; i < na; i++) { const ai = A[i];
-        for (let j = i + 1; j < na; j++) { const bj = A[j];
-          const dx = K.minImage(bj.rx - ai.rx, sim.W), dy = K.minImage(bj.ry - ai.ry, sim.H);
-          if (dx * dx + dy * dy <= dr2) { deg[i]++; deg[j]++; } } }
+    if (odeg > 0 || autoDeg > 0) {                        // 밀도 한정(수동 or 자동) 켤 때만 국소 이웃 수 1패스
+      const dr = sim.knobs.coolR || 6, A = sim.atoms, na = A.length;
+      deg = degField(sim, dr);                            // step-0088: spatialHash 켜면 셀 이웃·끄면 brute·deg 동일(coolOuter 와 공유)
       if (autoDeg > 0) {                                  // 자동 임계: 분산 후보(Z≥zmin)의 deg 분포 q-분위수 → 코어/겉 경계(밀도 적응)
         const vals = [];
         for (let i = 0; i < na; i++) if ((A[i].Z | 0) >= zmin) vals.push(deg[i]);
@@ -1350,6 +1338,26 @@
       }
     }
     return { pairs, checks };
+  }
+
+  // step-0088 국소 밀도 deg 집계 — coolOuter(0083)·disperse(0085 disperseOuterDeg·0087 disperseAutoDeg)의 밀도 1패스를 공유.
+  //   spatialHash 켜면 cellPairs(cut=radius) 셀 이웃만 세고(검사 ≪ n²), 끄면 brute O(n²). cut=radius(≤spatialCut)라 셀폭≥radius →
+  //   radius 내 어떤 쌍도 같은/이웃 셀에 → 셀 deg 가 brute deg 와 *정확 동일*(근사 아님)·deg 는 *횟수*라 쌍 순서 무관 → 켜도 비트 동일(회귀 0).
+  //   0054~64 가 *힘*을 셀 배선한 것의 *밀도판*. 결정론: 위치만(rng 0).
+  function degField(sim, radius) {
+    const atoms = sim.atoms, n = atoms.length, deg = new Int32Array(n);
+    if (sim.knobs.spatialHash) {
+      const cp = cellPairs(atoms, radius, sim.W, sim.H);     // cut=radius → 거리 필터 = radius (brute 와 동일 쌍집합)
+      for (const e of cp.pairs) { deg[e[0]]++; deg[e[1]]++; }
+      sim.degChecks = cp.checks;                             // 진단(hash 미참여)
+    } else {
+      const r2 = radius * radius;
+      for (let i = 0; i < n; i++) { const a = atoms[i];
+        for (let j = i + 1; j < n; j++) { const b = atoms[j];
+          const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+          if (dx * dx + dy * dy <= r2) { deg[i]++; deg[j]++; } } }
+    }
+    return deg;
   }
 
   // Barnes-Hut 무게중심 쿼드트리 가속 합산(step-0060 — cellPairs 의 *장거리판*): gravity·coulomb 의 1/r² 는 컷오프하면
