@@ -2,9 +2,9 @@
 'use strict';
 // ════════════════════════════════════════════════════════════════════════
 //  HktInfra/run.js — 단일 진입점 (TESTBED.md §4)
-//   흩어진 step-NNNN/verify.js 앞에 서는 얇은 오케스트레이터.
-//   "살아있다 = 손수정 없이 step 마다 자동으로 최신을 가리킨다" — 현재 step 은 파일시스템에서
-//   최대 번호 step-NNNN 디렉토리를 읽어 결정적으로 탐지한다(권위는 STATE.md, 어긋나면 경고).
+//   단일 살아있는 소스 src/ 앞에 서는 얇은 오케스트레이터 (0049 전환 — 복사 전진 폐기).
+//   "살아있다 = 손수정 없이 자동으로 최신을 가리킨다" — 현재 step 은 src/STEP 으로 탐지(권위는 STATE.md, 어긋나면 경고).
+//   직전 step 동결 스냅샷은 baseline/(reg 대조·회전 1벌), 역사 코드 사슬은 archive(step-0001..0048/).
 //
 //   모드 (TESTBED §4):
 //     node run.js                  → 현재 step `verify.js all` 실행·exit code 전파  (에이전트: 검증 권위)
@@ -34,6 +34,17 @@ function listSteps() {
     .sort((a, b) => a.num - b.num);
 }
 function stepDir(num) { return path.join(ROOT, 'step-' + String(num).padStart(4, '0')); }
+
+// ── 현재 step = 단일 살아있는 소스 src/ (0049 전환) ──────────────────────────
+//   복사 전진(동결 step-NNNN/ 통째)을 폐기하고, 코드는 src/ 한 곳에서 *제자리 수정*한다.
+//   직전 step 의 동결 스냅샷은 baseline/(회전·reg 대조용)에 1벌만 둔다. 역사 코드 사슬은 archive(step-0001..0048/)가 보존.
+const SRC = path.join(ROOT, 'src');
+function currentStep() {
+  let num = null;
+  try { num = parseInt(fs.readFileSync(path.join(SRC, 'STEP'), 'utf8').trim(), 10); } catch {}
+  if (!Number.isInteger(num)) num = stateNow();   // STEP 파일 없으면 STATE NOW 로 낙착
+  return { num, name: 'step-' + String(num).padStart(4, '0'), dir: SRC };
+}
 
 // STATE.md §1 NOW 와 정합 확인(권위는 STATE — 어긋나면 경고만, 막지 않음)
 function stateNow() {
@@ -89,18 +100,18 @@ function warnStateDrift(curNum) {
 
 // 기본: 현재 step verify all → exit 전파
 function cmdDefault() {
-  const steps = listSteps();
-  if (!steps.length) { console.error('step-NNNN 디렉토리를 찾지 못했습니다.'); return 2; }
-  const cur = steps[steps.length - 1];
+  const cur = currentStep();
+  if (!fs.existsSync(path.join(cur.dir, 'verify.js'))) { console.error('src/verify.js 를 찾지 못했습니다.'); return 2; }
   warnStateDrift(cur.num);
-  console.log(`▶ 현재 step = ${cur.name} · verify all (검증 권위)\n`);
+  console.log(`▶ 현재 step = ${cur.name} (src/) · verify all (검증 권위)\n`);
   const r = runVerify(cur.dir, 'all');
   return r.status == null ? 1 : r.status;
 }
 
 // 특정 step·모드
 function cmdStep(num, mode) {
-  const dir = stepDir(num);
+  const cur = currentStep();
+  const dir = (cur.num === num) ? cur.dir : stepDir(num);   // 현재 step(0049+)은 src/, 그 외는 archive
   if (!fs.existsSync(path.join(dir, 'verify.js'))) { console.error(`step-${num} verify.js 없음`); return 2; }
   const m = mode || 'all';
   console.log(`▶ step-${String(num).padStart(4, '0')} · verify ${m}\n`);
@@ -109,23 +120,29 @@ function cmdStep(num, mode) {
 }
 
 // spine: 전 사슬 회귀 한 줄 요약 (각 step reg/det/repro 자동)
+//   archive(step-0001..0048/ 동결 코드 사슬) + 현재 src/(reg=vs baseline). 0049 단일 src/ 전환 후
+//   신규 step 은 src/ 한 곳에서 굴러가므로, src 의 누적 모드(reg+가설)가 *현재 코드*에 전 역사 불변을 단언한다(역사 사슬보다 강함).
 function cmdSpine() {
-  const steps = listSteps();
-  if (!steps.length) { console.error('step 없음'); return 2; }
-  warnStateDrift(steps[steps.length - 1].num);
-  console.log('▶ spine — 전 시리즈 회귀 사슬 (각 step 회귀 모드 자동 선택)\n');
+  const archive = listSteps();
+  const cur = currentStep();
+  const haveSrc = fs.existsSync(path.join(cur.dir, 'verify.js'));
+  if (!archive.length && !haveSrc) { console.error('step 없음'); return 2; }
+  warnStateDrift(cur.num);
+  console.log('▶ spine — 전 시리즈 회귀 사슬 (archive 동결 코드 + 현재 src·각 회귀 모드 자동)\n');
   console.log('  step       | mode   | 결과');
   console.log('  -----------+--------+------');
-  let failed = 0;
-  for (const s of steps) {
+  let failed = 0, n = 0;
+  const chain = [...archive];
+  if (haveSrc) chain.push({ name: cur.name + ' (src)', dir: cur.dir });
+  for (const s of chain) {
     const mode = spineMode(s.dir);
     const r = runVerify(s.dir, mode, { capture: true });
-    const ok = r.status === 0;
+    const ok = r.status === 0; n++;
     if (!ok) failed++;
     const tail = (r.stdout || '').trim().split('\n').filter(l => /결과:/.test(l)).pop() || '';
-    console.log(`  ${s.name} | ${mode.padEnd(6)} | ${ok ? 'OK  ' : 'FAIL'}  ${ok ? '' : tail}`);
+    console.log(`  ${s.name.padEnd(10)} | ${mode.padEnd(6)} | ${ok ? 'OK  ' : 'FAIL'}  ${ok ? '' : tail}`);
   }
-  console.log('\n' + (failed ? `결과: FAIL (${failed} step 회귀 깨짐)` : `결과: ALL OK (${steps.length} step 비트 사슬 통과)`));
+  console.log('\n' + (failed ? `결과: FAIL (${failed} step 회귀 깨짐)` : `결과: ALL OK (${n} step 비트 사슬 통과)`));
   return failed ? 1 : 0;
 }
 
@@ -290,9 +307,8 @@ async function multiProof(NET, scenario) {
 }
 
 async function cmdReport(scenarioFile) {
-  const steps = listSteps();
-  if (!steps.length) { console.error('step 없음'); return 2; }
-  const cur = steps[steps.length - 1];
+  const cur = currentStep();
+  if (!fs.existsSync(path.join(cur.dir, 'net-core.js'))) { console.error('src/ 없음'); return 2; }
   warnStateDrift(cur.num);
   const NET = require(path.join(cur.dir, 'net-core.js'));
   if (typeof NET.run !== 'function' || typeof NET.buildTopology !== 'function') {
@@ -331,9 +347,8 @@ async function cmdReport(scenarioFile) {
 // ════════════════════════════════════════════════════════════════════════
 async function cmdScenario(scenarioFile) {
   if (!scenarioFile) { console.error('사용: node run.js scenario <scenario.json>'); return 2; }
-  const steps = listSteps();
-  if (!steps.length) { console.error('step 없음'); return 2; }
-  const cur = steps[steps.length - 1];
+  const cur = currentStep();
+  if (!fs.existsSync(path.join(cur.dir, 'net-core.js'))) { console.error('src/ 없음'); return 2; }
   warnStateDrift(cur.num);
   const NET = require(path.join(cur.dir, 'net-core.js'));
   if (typeof NET.run !== 'function') { console.error(`${cur.name}/net-core.js 가 run 을 노출하지 않습니다(시나리오 검증 비대상).`); return 2; }
@@ -597,9 +612,8 @@ draw(0);
 //  live — 진짜 라이브 모니터링 서버 (live.js 에 위임). report=녹화 재생, live=실시간.
 // ════════════════════════════════════════════════════════════════════════
 function cmdLive(portArg) {
-  const steps = listSteps();
-  if (!steps.length) { console.error('step 없음'); return 2; }
-  const cur = steps[steps.length - 1];
+  const cur = currentStep();
+  if (!fs.existsSync(path.join(cur.dir, 'net-core.js'))) { console.error('src/ 없음'); return 2; }
   warnStateDrift(cur.num);
   const NET = require(path.join(cur.dir, 'net-core.js'));
   if (typeof NET.buildTopology !== 'function' || typeof NET.makeActor !== 'function' || typeof NET.Net !== 'function') {

@@ -15,23 +15,22 @@ description: HktInfra step 한 바퀴(읽기→스캐폴드→구현→검증→
 
 **읽기 금지** (STATE 가 명시 지시할 때만 예외): 옛 `step-NNNN.md`·`step-NNNN-concepts.md` 문서들.
 
-**직전 step 코드는 박스 파일 단위로만**: 0030 분할 후 박스 1개=파일 1개(`gateway.js`·`zone.js`·`svc-*.js`·`persist.js`·`client.js`·`topology.js`·`metrics.js`) — 이번 조각이 닿는 박스 파일(통상 1~2개·2~18KB)만 읽는다. `net-core.js` 는 2.5KB 진입점(export 묶음)일 뿐이다. 누적 회귀 테스트는 `engine/verify-kit.js` 에 산다 — 새 모드 작성 시 kit 의 helpers(check·logDigest…)와 기존 모드 1개만 참고로 부분 읽기.
+**코드는 단일 소스 `src/` 의 박스 파일 단위로만**(0049 전환): 박스 1개=파일 1개(`gateway.js`·`zone.js`·`svc-*.js`·`persist.js`·`client.js`·`topology.js`·`metrics.js`) — 이번 조각이 닿는 박스 파일(통상 1~2개·2~18KB)만 읽는다. `net-core.js` 는 2.5KB 진입점(export 묶음)일 뿐이다. 누적 회귀 테스트는 `engine/verify-kit.js` 에 산다 — 새 모드 작성 시 kit 의 helpers(check·logDigest…)와 기존 모드 1개만 참고로 부분 읽기. **`baseline/` 은 직전 step 동결 스냅샷(reg 대조용·읽지 않는다)·archive `step-0001~0048/` 는 동결 역사(읽기 금지).**
 
-## 2. 스캐폴드 — 복사 전진은 기계가, 복사분은 별도 커밋
+## 2. 스캐폴드 — 코드 통복사 없음, src→baseline 스냅샷만
 
 ```
-node engine/new-step.js        # 직전 step 전체 복사 + 자기참조·reg 경로 치환 + md/concepts 골격
-git add … && git commit -m "HktInfra step-NNNN scaffold (mechanical copy)"   # 2-커밋 관행 ①
+node engine/new-step.js        # src/*.js → baseline/ 스냅샷 회전 + src/STEP 전진 + md/concepts 골격 (코드 복사 0)
 ```
 
-복사 전진(anti-DRY)의 *복사*는 이 스크립트의 일이다. **scaffold 를 즉시 커밋**해 두면 이후 `git diff` 가 이 step 의 실질 델타만 보여준다(self-review 비용 절감 — 두 번째 커밋이 PR 의 실질). 생성물은 **Edit 로만 수정** — 전체 Write 로 다시 쓰지 마라. 스크립트가 출력하는 "남은 일" 체크리스트를 따른다.
+복사 전진은 0049 에서 폐기됐다 — 코드는 `src/` 한 곳에서 *제자리 수정*한다. new-step 은 직전 src 를 `baseline/`(reg 대조용 1벌)로 굳히고 `src/STEP` 을 전진시킬 뿐, 코드를 복사하지 않는다. **별도 scaffold 커밋 불필요**(델타 1커밋). 스크립트가 출력하는 "남은 일" 체크리스트를 따른다.
 
-## 3. 구현 — 한 조각 + OFF 플래그, 닿는 박스 파일만
+## 3. 구현 — 한 조각 + OFF 플래그, src/ 의 닿는 박스 파일만
 
-- 이번 조각의 프로토콜은 **닿는 박스 파일**에만 Edit (플래그 OFF → 직전 step 비트 동일 = 회귀 0). 새 박스면 새 파일 + `net-core.js` 진입점에 require 1줄.
-- 이번 step 의 새 검증 모드는 `verify.js` 셸에 `kit.MODES['<mode>'] = fn; kit.ORDER.splice(1, 0, '<mode>')` 로만 추가 — **누적 회귀를 verify.js 로 복사해오지 않는다**(engine/verify-kit.js 가 든다·모드 제거 금지).
+- 이번 조각의 프로토콜은 `src/` 의 **닿는 박스 파일**에만 제자리 Edit (플래그 OFF → `baseline` 비트 동일 = 회귀 0). 새 박스면 `src/` 에 새 파일 + `net-core.js` 진입점에 require 1줄. 수정한 파일의 헤더 step 번호만 갱신(미수정 파일 헤더 = 마지막 수정 step 기록·건드리지 않음).
+- 이번 step 의 새 검증 모드는 `src/verify.js` 셸에 `kit.MODES['<mode>'] = fn; kit.ORDER.splice(1, 0, '<mode>')` 로만 추가. NETPREV 는 `../baseline/net-core.js` 고정(치환 없음). **누적 회귀를 verify.js 로 복사해오지 않는다**(engine/verify-kit.js 가 든다·모드 제거 금지).
 - dual-mode 노출(`module.exports` + `globalThis`) 유지.
-- **비대화 트리거**: 박스 파일 >30KB 또는 step 디렉토리 >300KB 가 되면 다음 기능 step 전에 정리 step(재분할/승격·기능 0·reg 0)을 제안한다.
+- **비대화 트리거**: 박스 파일 >30KB 가 되면 다음 기능 step 전에 정리 step(재분할/engine 승격·기능 0·reg 0)을 제안한다.
 
 ## 4. 검증 — spine 사슬은 백그라운드로
 
@@ -51,12 +50,13 @@ git add … && git commit -m "HktInfra step-NNNN scaffold (mechanical copy)"   #
 node engine/close-step.js      # run.js + spine + 크기 예산 + 산출물·TODO·STATE §7 행 검사 (exit 0 필수)
 ```
 
-에이전트가 남겨 판정할 것: ① 척추 체크 5항(설계 판정) ② 문서 수치 == verify 출력 ③ STATE §1~6 내용. 마지막으로 **델타 커밋**(2-커밋 관행 ②) — scaffold 커밋과 분리된, 이 step 의 실질만 담은 커밋. 닫은 step 디렉토리는 이후 불변(동결 단위).
+에이전트가 남겨 판정할 것: ① 척추 체크 5항(설계 판정) ② 문서 수치 == verify 출력 ③ STATE §1~6 내용. 마지막으로 **델타 1커밋 + `git tag step-NNNN`** — 이 step 의 실질만 담은 커밋 + 역사 고고학 보존용 태그(동결 step-NNNN/ 디렉토리를 대신한다).
 
 ## 금지 사항 (비용 함정)
 
 - 옛 step 문서·아카이브를 "참고로" 읽지 않는다 — STATE 가 현재의 SSOT 다.
-- 박스 파일을 통째로 다시 쓰거나(전체 Write), 누적 회귀를 verify.js 로 복사해오지 않는다 — 스캐폴드 + Grep + Edit + kit 모드 추가.
+- 박스 파일을 통째로 다시 쓰거나(전체 Write), 누적 회귀를 verify.js 로 복사해오지 않는다 — src/ 의 Grep + Edit + kit 모드 추가.
+- `src/`·`baseline/` 를 통째 복사하거나 새 `step-NNNN/` 코드 디렉토리를 만들지 않는다(복사 전진은 0049 에서 폐기) — 코드는 src/ 제자리 수정.
 - `engine/verify-kit.js` 에서 모드를 *빼지* 않는다(추가만) — 빼야 하면 별도 step 으로.
 - spine 사슬을 포그라운드로 기다리며 놀지 않는다.
 - step-NNNN.html·SYSTEM.html 손작성 금지 (testbed 일원화 — 폐기됨).
