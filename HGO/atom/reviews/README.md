@@ -25,8 +25,8 @@
 | A 무대 | [phase-A-stage.md](phase-A-stage.md) | 🟢 닫힘(0001) |
 | B 빛 | [phase-B-light.md](phase-B-light.md) | 🟢 닫힘(0002~0008) |
 | C 화학 | [phase-C-chemistry.md](phase-C-chemistry.md) | 🟢 닫힘(0009~0027 결합 기하) |
-| D 핵 | [phase-D-nuclear.md](phase-D-nuclear.md) | 🟢 닫힘(0031~0050 변환·안정성·발열·시계열·율 두 방향·상대론) |
-| E 별 | _(중력 씨앗 0028~0030 만 — 미완결, 보류)_ | ⬜ |
+| D 핵 | [phase-D-nuclear.md](phase-D-nuclear.md) | 🟢 닫힘(0031~0053 변환·안정성·발열·시계열·율 두 방향·상대론·**철 봉우리 완성**) |
+| E 별 | [phase-E-star.md](phase-E-star.md) | 🟡 성숙(0028~30 씨앗 + 0054~64 인프라 + 0063·65·66·68·70 붕괴→점화→사다리 등반·*죽음·분산 미*) |
 
 ## 1. 묶음 감사 인덱스 (한 줄/묶음)
 
@@ -37,6 +37,8 @@
 | [review-0021-0030](review-0021-0030.md) | 0021~0030 | 결합 기하 완결(길이·각도) · Phase E 중력 진입 | ①✅ ②✅ ③🟡 ④✅ | #5 중력 장거리 임박 · #6 E 완화 creep |
 | [review-0031-0040](review-0031-0040.md) | 0031~0040 | Phase D 핵 — 붕괴·융합·안정 골짜기 + 양방향·정지질량 편입 | ①✅강화 ②✅정점 ③🟡 ④✅ | #7 해소(0040/41) · #1 바스 강화 (전 step 감사 완료) |
 | [review-0041-0050](review-0041-0050.md) | 0041~0050 | 핵 율 두 방향(Sargent·Gamow) · 상대론 완비 · 핵합성 사다리 | ①✅강화 ②✅정점 ③🟡 ④✅ | #C force relKE · #D 핵화학 동시 (0046→0050·0047→0049 묶음 내 해소) |
+| [review-0051-0060](review-0051-0060.md) | 0051~0060 | 철 봉우리 완성(흡열·μ·사다리) · 공간 분할 단거리 배선 · BH 트리 | ①✅강화 ②✅정점 ③🟡개선 ④✅ | #5 해소(0054~62) · #E BH 주기경계(신규) · #6 부분(0069 VV) |
+| [review-0061-0070](review-0061-0070.md) | 0061~0070 | 장거리 BH 배선 · 다체 무대(N=600) · 별 일생(점화→사다리 등반 maxZ→12) | ①✅강화 ②✅정점 ③🟡개선 ④✅ | #6 적분 비용 ~11%(240tick 별) · #E·#1·#D·#C 이월 |
 
 ---
 
@@ -48,10 +50,10 @@
 ### 열림 🔴 / 부분 🟡 (다음 묶음 리뷰가 재점검 → engine 변경 보면 ✅떨굼)
 
 - **#1 | 전역 *바스* 공간 비국소** | ③ | 0001-0010 | 🟡 부분 — ~~bondE~~ ✅**0015 `bondLocalE` 해소**, **바스 `sim.escaped` 만 전역 단일**(0037 까지) · **damp(0024)·fuse 도 바스-쓰기 가담**(review-0021-0030) | **목적지 STATE §3**(arc Phase E 후 무르익음·render L-T 게이트 연동) → 게이트: 국소 복사장 노브(끄면 전역 바스 = 회귀 0)
-- **#5 | 연속력 O(n²) 전쌍 — 중력 장거리** | 성능/③ | 0011-0020 | 🟡→**임박**(review-0021-0030) — 연속력 **5개**(coulomb·repulse·pauli·vdw·gravity), 중력은 *컷오프 불가* → spatial-hash 부족·**Barnes-Hut/PM 필요** | **목적지 STATE §3**(이미 추적, 시점 임박 갱신) → 신규 전파 아님·기록만
-- **#6 | E 완화폭 creep** | ④ | 0021-0030 | 🟡 watch — 연속력·다체 ↑ → E 진동 ↑(0019 3e-3 → 0025+ 5e-3, symplectic 본질·disclosed) | **목적지 STATE §3** → 게이트: 고차 적분(velocity-Verlet) 또는 dt↓(끄면 현 거동 = 회귀 0)
+- **#E | BH 토러스 min-image COM 토이(주기 경계 정확 합 아님)** | ③/② | 0051-0060 | 🟡 신규(#5 PM 잔여 분기) — bhForces 노드 무게중심까지 변위가 min-image(가장 가까운 像만)·θ>0 상대오차 2~13% 가 경계 효과·일반 BH 보다 큼(`hgo-laws.js:1136`) | **목적지 STATE §3**(이미 "토러스 min-image COM 토이·Ewald/PM" 추적) → 게이트: Ewald/PM 정밀 주기 합(farField 유지·정밀화·끄면 현 min-image = 회귀 0)·arc Phase E 성숙 후
+- **#6 | 적분 정밀도 — E 완화(깊은 붕괴+융합)** | ④ | 0021-0030 | 🟡 부분(메커니즘 0069·잔여 큼) — **step-0069 `symplectic`**(velocity-Verlet) 2체 secular 553배 개선·잔여=다체 BH+fuse 근접조우 + 이벤트형 변환 미보정·**0070 별 run 240tick E 상대 ~11%**(헤드라인 ~3%는 120tick·`scenes.js:4641` relEpct)·Q·B·L·px·py 는 늘 머신 | **목적지 STATE §3 적분 정밀도**(이미 추적) → 게이트: **적응 시간단계·근접조우 정규화**(Phase E 별 *일생*에 load-bearing·끄면 현 거동 = 회귀 0)
 - **#C | force 상호작용서 relKE 일-에너지 정합** | ②/④ | 0041-0050 | 🟡 열림(load-bearing) — 0047 relCap·0049 relKE 가 *자유 드리프트*만 닫음·법칙별 에너지 회계 여전히 ½mv² 가정 | **목적지 STATE §3**(이미 🟡 상대론적 운동 추적) → 게이트: 법칙별 상대론 에너지 회계(큰 작업)
-- **#D | 핵·화학 동시 무대(massDefect 장면 전역 · fuse 압축 ↔ bonds 간선 인덱스)** | ① | 0041-0050 | 🟡 열림 — fuse 가 `sim.atoms` 압축 시 bonds 간선 *원자 인덱스* 어긋남 | **목적지 STATE §3**(이미 추적) → 게이트: 안정 id/간선 재배선(끄면 단일 트랙 = 회귀 0)
+- **#D | 핵·화학 동시 무대(fuse 압축 ↔ bonds 간선 인덱스 · +symplectic 결합 1-tick 지연)** | ① | 0041-0050 | 🟡 열림(범위 확장·0061-0070) — fuse 가 `sim.atoms` 압축 시 bonds 간선 *원자 인덱스* 어긋남 + symplectic=1 + 활성 bonds 면 bondSpring/bondAngle 가 직전 tick bonds 봄(VV 위상 지연·`hgo-laws.js:1070`·현 scene 0 무해) | **목적지 STATE §3**(이미 추적) → 게이트: 안정 id/간선 재배선 + VV 결합 위상(끄면 단일 트랙 = 회귀 0)
 - **#3 | `scatter` v1/v2 `xMax=6` 리터럴** | ② | 0001-0010 | 🔴 열림(경미) — `hgo-laws.js:113·152` 노브 아님(0011-0020 미해소 확인) | **목적지 STATE §3**(정리성) → 게이트: `scatterXMax` 노브화(기본 6 = 회귀 0)
 - **#4 | `reheat` 운동량 일방 트랩** | ④ | 0001-0010 | 🟡 부분(#1 바스에 종속) — `bath.px·py` 미배출 | **목적지 STATE §3** → #1 국소 복사장이 운동량 회계도 정련
 - **#2 | 광자 영속 자료형** | ① | 0001-0010 | 🟢 설계 수용(권고만) — 다발 밖 lifecycle | **목적지 STATE §3 백로그** → 추적 입자화 step 시 함께(load-bearing 아님)
@@ -64,6 +66,7 @@
 - #7 `a.nuc` 토이 핵 저장고(M=A−B 미편입) → step-0040 `massDefect`(붕괴) + step-0041 `fuseMassFormula`(융합) — rest=(m−B)c² 편입·nuc=0 무대서도 E 닫힘 (review-0031-0040)
 - 0046 Gamow E_G Z 무관 단일 상수 → step-0050 `fuseEGcharge`(E_G∝(Z₁Z₂)²) 묶음 내 해소 (review-0041-0050)
 - 0047 relCap KE 토이(운동량 상대론·에너지 ½mu²) → step-0049 `relKE`(KE=(γ−1)mc²) 묶음 내 해소 (review-0041-0050)
+- #5 연속력 O(n²) 5개 + 중력 장거리 → 단거리 5종 셀 배선(0055~59 collide/pauli/vdw/repulse/bond·컷오프-PE shift) + BH 트리(0060) + 장거리 gravity/coulomb 배선(0061·0062·운동량 복원 평균 차감) — 모든 힘 O(n log n)·N=600 다체 시연(0063·0066) (review-0051-0060·0061-0070)
 
 ---
 
