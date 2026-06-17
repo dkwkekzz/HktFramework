@@ -76,6 +76,7 @@
   <div class="row">
     <label>Engine</label>
     <select id="engine">
+      <option value="lenia">🔵 Lenia (단일규칙 연속 CA)</option>
       <option value="world">🌍 Living World (지형·유체·생명)</option>
       <option value="ca">🧬 Rule CA (Softology)</option>
     </select>
@@ -112,6 +113,25 @@
         <option value="radial">By radius (heat)</option>
       </select>
     </div>
+  </div>
+
+  <!-- ============ Lenia 컨트롤 ============ -->
+  <div id="lenia-controls">
+    <div class="desc"><b>진짜 셀룰러 오토마타.</b> 격자 전체에 "커널 1개 + 성장함수 1개"의
+      <b>동일한 단일 규칙</b>만 적용한다. 그 한 규칙에서 스스로 헤엄쳐 다니는 생명체
+      <b>Orbium 글라이더</b>가 창발한다 — 단일규칙·자기지속·이동을 모두 만족.</div>
+    <div class="row" style="margin-top:10px;">
+      <label>μ (성장 중심)</label>
+      <input type="range" id="lmu" min="100" max="250" value="150" />
+      <span class="val" id="lmuval">0.150</span>
+    </div>
+    <div class="row">
+      <label>σ (성장 폭)</label>
+      <input type="range" id="lsigma" min="8" max="40" value="15" />
+      <span class="val" id="lsigmaval">0.015</span>
+    </div>
+    <div class="desc">μ·σ 두 값만 바꿔도 규칙의 성격이 완전히 달라진다(Lenia 파라미터 공간 탐험).
+      기본값이 Orbium. Reset 으로 새 떼를 뿌린다.</div>
   </div>
 
   <!-- ============ Living World 컨트롤 ============ -->
@@ -935,6 +955,109 @@ class World {
 }
 
 // ===========================================================================
+//  [3] Lenia 엔진 — 단일규칙 연속 CA (Bert Wang-Chak Chan)
+// ===========================================================================
+//  진짜 셀룰러 오토마타: 격자의 모든 셀에 "커널 1개 + 성장함수 1개"의 동일한
+//  국소 규칙을 균일하게 적용한다. 타입도, 에이전트 로직도 없다. 그런데 이 단일
+//  규칙에서 스스로 헤엄쳐 다니는 생명체(Orbium 글라이더)가 창발한다 —
+//  단일규칙 + 자기지속 + "의미있게 이동하는 개체"를 모두 만족.
+//    · 셀 상태: 연속값 A ∈ [0,1]
+//    · 갱신:   A ← clip( A + (1/T)·G(K∗A) ),  K=정규화 커널, G=성장함수
+//    · Orbium 파라미터(검증): R=13, T=10, growth μ=0.15 σ=0.015, 커널 b=[1] 지수 bell
+//  참고: B. Chan, "Lenia — Biology of Artificial Life" (2019), Chakazul/Lenia.
+
+// ── Bert Chan RLE 디코더 (압축된 생명체 시드 → 2D 배열) ──
+function leniaCh2val(c) {
+  if (c === '.' || c === 'b') return 0;
+  if (c === 'o') return 255;
+  if (c.length === 1) return c.charCodeAt(0) - 65 + 1;              // 'A'→1 … 'X'→24
+  return (c.charCodeAt(0) - 112) * 24 + (c.charCodeAt(1) - 65 + 25); // 'pA'… 2글자
+}
+function leniaRle2arr(st) {
+  st = st.replace(/!+$/, '') + '$';
+  const rows = []; let cur = [], last = '', count = '';
+  for (const ch of st) {
+    if (ch >= '0' && ch <= '9') { count += ch; continue; }
+    if ('pqrstuvwxy@'.includes(ch)) { last = ch; continue; }
+    const token = last + ch;
+    const n = count ? parseInt(count, 10) : 1;
+    if (token === '$') { rows.push(cur); for (let i = 1; i < n; i++) rows.push([]); cur = []; }
+    else { const v = leniaCh2val(token) / 255; for (let i = 0; i < n; i++) cur.push(v); }
+    last = ''; count = '';
+  }
+  const w = Math.max(...rows.map(r => r.length));
+  return rows.map(r => { const o = r.slice(); while (o.length < w) o.push(0); return o; });
+}
+// Orbium unicaudatus (Chakazul/Lenia animals.json)
+const ORBIUM_RLE = "7.MD6.qL$6.pKqEqFURpApBRAqQ$5.VqTrSsBrOpXpWpTpWpUpCrQ$4.CQrQsTsWsApITNPpGqGvL$3.IpIpWrOsGsBqXpJ4.LsFrL$A.DpKpSpJpDqOqUqSqE5.ExD$qL.pBpTT2.qCrGrVrWqM5.sTpP$.pGpWpD3.qUsMtItQtJ6.tL$.uFqGH3.pXtOuR2vFsK5.sM$.tUqL4.GuNwAwVxBwNpC4.qXpA$2.uH5.vBxGyEyMyHtW4.qIpL$2.wV5.tIyG3yOxQqW2.FqHpJ$2.tUS4.rM2yOyJyOyHtVpPMpFqNV$2.HsR4.pUxAyOxLxDxEuVrMqBqGqKJ$3.sLpE3.pEuNxHwRwGvUuLsHrCqTpR$3.TrMS2.pFsLvDvPvEuPtNsGrGqIP$4.pRqRpNpFpTrNtGtVtStGsMrNqNpF$5.pMqKqLqRrIsCsLsIrTrFqJpHE$6.RpSqJqPqVqWqRqKpRXE$8.OpBpIpJpFTK!";
+
+class Lenia2D {
+  constructor(size) { this.R = 13; this.dt = 0.1; this.mu = 0.15; this.sigma = 0.015; this.resize(size); this.buildKernel(); }
+  resize(size) {
+    this.N = size;
+    this.A = new Float64Array(size * size);
+    this.B = new Float64Array(size * size);
+    this.generation = 0; this.liveCount = 0;
+    this.orb = leniaRle2arr(ORBIUM_RLE);
+  }
+  setParams(p) {
+    if (p.mu !== undefined) this.mu = p.mu;
+    if (p.sigma !== undefined) this.sigma = p.sigma;
+  }
+  // 도넛형 지수 bell 커널, 합=1 로 정규화
+  buildKernel() {
+    const R = this.R; this.kern = []; let ksum = 0;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const d = Math.sqrt(dx*dx + dy*dy) / R;
+      if (d > 0 && d < 1) { const w = Math.exp(4 - 1/(d*(1-d))); this.kern.push([dx, dy, w]); ksum += w; }
+    }
+    for (const k of this.kern) k[2] /= ksum;
+  }
+  // 시드: 여러 마리 Orbium 을 무작위 위치·회전으로 배치 → 사방으로 헤엄친다
+  seed() {
+    const N = this.N; this.A.fill(0);
+    const count = Math.max(2, Math.floor((N * N) / 2600));
+    for (let c = 0; c < count; c++) this.spawnOrbium((Math.random() * N) | 0, (Math.random() * N) | 0, (Math.random() * 4) | 0, Math.random() < 0.5);
+    this.generation = 0; this.recount();
+  }
+  // 회전(rot×90°)·반전(mir) 적용해 한 마리 배치(토러스 wrap)
+  spawnOrbium(cx, cy, rot, mir) {
+    const o = this.orb, oh = o.length, ow = o[0].length, N = this.N;
+    for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) {
+      let v = o[y][x]; if (!v) continue;
+      let sx = mir ? ow - 1 - x : x, sy = y;
+      let rx, ry;
+      if (rot === 0)      { rx = sx; ry = sy; }
+      else if (rot === 1) { rx = sy; ry = ow - 1 - sx; }
+      else if (rot === 2) { rx = ow - 1 - sx; ry = oh - 1 - sy; }
+      else                { rx = oh - 1 - sy; ry = sx; }
+      const gx = (cx + rx) % N, gy = (cy + ry) % N;
+      this.A[gy * N + gx] = v;
+    }
+  }
+  step() {
+    const N = this.N, A = this.A, B = this.B, kern = this.kern, dt = this.dt, mu = this.mu, s2 = 2 * this.sigma * this.sigma;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        let u = 0;
+        for (let k = 0; k < kern.length; k++) {
+          const kk = kern[k];
+          const nx = (x + kk[0] + N) % N, ny = (y + kk[1] + N) % N;
+          u += kk[2] * A[ny * N + nx];
+        }
+        const g = 2 * Math.exp(-((u - mu) * (u - mu)) / s2) - 1;  // 성장함수 G
+        let v = A[y * N + x] + dt * g;
+        B[y * N + x] = v < 0 ? 0 : v > 1 ? 1 : v;
+      }
+    }
+    this.A = B; this.B = A;
+    this.generation++;
+    this.recount();
+  }
+  recount() { let c = 0; const A = this.A; for (let i = 0; i < A.length; i++) if (A[i] > 0.1) c++; this.liveCount = c; }
+}
+
+// ===========================================================================
 //  렌더링
 // ===========================================================================
 const host = document.getElementById('canvas-host');
@@ -985,6 +1108,44 @@ function rebuildMesh(N) {
   );
   scene.add(wireBox);
 
+  const dist = N * 1.5;
+  camera.position.set(dist, dist * 0.7, dist);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+// ── Lenia: 연속 필드를 평면(DataTexture)으로 그린다 ──
+let leniaPlane = null, leniaTex = null, leniaPix = null;
+function rebuildLenia(N) {
+  if (leniaPlane) { scene.remove(leniaPlane); leniaPlane.geometry.dispose(); leniaPlane.material.dispose(); leniaTex.dispose(); }
+  leniaPix = new Uint8Array(N * N * 4);
+  leniaTex = new THREE.DataTexture(leniaPix, N, N, THREE.RGBAFormat);
+  leniaTex.magFilter = THREE.LinearFilter; leniaTex.minFilter = THREE.LinearFilter;
+  const pmat = new THREE.MeshBasicMaterial({ map: leniaTex });
+  leniaPlane = new THREE.Mesh(new THREE.PlaneGeometry(N, N), pmat);
+  leniaPlane.visible = false;
+  scene.add(leniaPlane);
+}
+function updateLenia(lenia) {
+  const N = lenia.N;
+  if (!leniaPix || leniaPix.length !== N * N * 4) rebuildLenia(N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const v = lenia.A[y * N + x];
+    const i = (y * N + x) * 4;
+    // 어두운 청록 → 밝은 형광 녹청 글로우
+    leniaPix[i]   = Math.min(255, v * v * 180);
+    leniaPix[i+1] = Math.min(255, Math.sqrt(v) * 255);
+    leniaPix[i+2] = Math.min(255, v * 150 + 40 * v);
+    leniaPix[i+3] = 255;
+  }
+  leniaTex.needsUpdate = true;
+}
+function setLeniaView(N) {
+  camera.position.set(0, 0, N * 1.25);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+function set3DView(N) {
   const dist = N * 1.5;
   camera.position.set(dist, dist * 0.7, dist);
   controls.target.set(0, 0, 0);
@@ -1062,23 +1223,34 @@ function updateInstancesWorld(w) {
 }
 
 function updateInstances() {
-  if (engine === 'world') updateInstancesWorld(world);
+  if (engine === 'lenia') updateLenia(lenia);
+  else if (engine === 'world') updateInstancesWorld(world);
   else updateInstancesCA(ca);
+}
+
+// 엔진별 3D 메쉬 vs Lenia 평면 표시 토글
+function setSceneVisibility() {
+  const isLenia = engine === 'lenia';
+  if (mesh) mesh.visible = !isLenia;
+  if (wireBox) wireBox.visible = !isLenia;
+  if (leniaPlane) leniaPlane.visible = isLenia;
 }
 
 // ===========================================================================
 //  앱 상태 / 루프
 // ===========================================================================
+const LENIA_N = 96;
 let engine = 'world';
 let ca = new CA3D(32);
 let world = new World(32);
+let lenia = new Lenia2D(LENIA_N);
 let playing = true;
 let stepsPerSec = 8;
 let acc = 0, last = performance.now();
 let fpsT = last, fpsN = 0;
 let currentRule = null;
 
-function sim() { return engine === 'world' ? world : ca; }
+function sim() { return engine === 'lenia' ? lenia : engine === 'world' ? world : ca; }
 
 // ── Rule CA: 규칙 적용 ──
 function applyRule(name) {
@@ -1227,18 +1399,39 @@ bindWorldSlider('growth', 'growth');
 bindWorldSlider('fauna', 'fauna');
 bindWorldSlider('sea', 'seaPct');
 
+// Lenia 슬라이더 (값/255·1000 표기)
+function bindLeniaSlider(id, key, div) {
+  const el = document.getElementById(id), out = document.getElementById(id + 'val');
+  el.addEventListener('input', () => {
+    const val = parseInt(el.value, 10) / div;
+    out.textContent = val.toFixed(3);
+    lenia.setParams({ [key]: val });
+  });
+}
+bindLeniaSlider('lmu', 'mu', 1000);
+bindLeniaSlider('lsigma', 'sigma', 1000);
+
 // 엔진 전환
 const engineSel = document.getElementById('engine');
 function applyEngine() {
   engine = engineSel.value;
-  const isWorld = engine === 'world';
-  document.getElementById('ca-controls').style.display = isWorld ? 'none' : 'block';
+  const isWorld = engine === 'world', isLenia = engine === 'lenia', isCA = engine === 'ca';
+  document.getElementById('ca-controls').style.display = isCA ? 'block' : 'none';
   document.getElementById('world-controls').style.display = isWorld ? 'block' : 'none';
+  document.getElementById('lenia-controls').style.display = isLenia ? 'block' : 'none';
   document.getElementById('st-w').style.display = isWorld ? 'inline' : 'none';
   document.getElementById('st-v').style.display = isWorld ? 'inline' : 'none';
   document.getElementById('st-p').style.display = isWorld ? 'inline' : 'none';
   document.getElementById('st-c').style.display = isWorld ? 'inline' : 'none';
-  if (isWorld) {
+  document.getElementById('size').disabled = isLenia;   // Lenia 는 고정 격자
+  document.getElementById('color').parentElement.style.display = isCA ? 'flex' : 'none';
+
+  if (isLenia) {
+    if (!leniaPlane || leniaPix.length !== LENIA_N * LENIA_N * 4) rebuildLenia(LENIA_N);
+    lenia.setParams({ mu: +document.getElementById('lmu').value / 1000, sigma: +document.getElementById('lsigma').value / 1000 });
+    lenia.seed();
+    setLeniaView(LENIA_N);
+  } else if (isWorld) {
     world.setParams({
       sun: +document.getElementById('sun').value,
       rain: +document.getElementById('rain').value,
@@ -1247,10 +1440,13 @@ function applyEngine() {
       seaPct: +document.getElementById('sea').value,
     });
     world.seed();
+    set3DView(world.N);
   } else {
     if (currentRule) ca.setRule(currentRule), ca.seed();
     else applyRule(ruleSel.value);
+    set3DView(ca.N);
   }
+  setSceneVisibility();
   updateInstances();
   refreshStats();
 }
@@ -1258,6 +1454,7 @@ engineSel.addEventListener('change', applyEngine);
 
 // 공통: Grid / Speed / Play / Step / Reset
 document.getElementById('size').addEventListener('change', e => {
+  if (engine === 'lenia') return;   // Lenia 는 고정 격자
   const N = parseInt(e.target.value, 10);
   ca.resize(N); world.resize(N); rebuildMesh(N);
   if (engine === 'world') {
@@ -1291,12 +1488,13 @@ document.getElementById('reset').addEventListener('click', () => {
 });
 
 // ===========================================================================
-//  부트스트랩 — 기본은 Living World
+//  부트스트랩 — 기본은 Lenia(단일규칙 연속 CA)
 // ===========================================================================
 rebuildMesh(world.N);
+rebuildLenia(LENIA_N);
 ruleSel.value = 'Pyroclastic';
 setActiveRule(PRESETS['Pyroclastic']);   // CA 엔진도 준비만 해 둔다
-engineSel.value = 'world';
+engineSel.value = 'lenia';
 applyEngine();
 resize();
 requestAnimationFrame(loop);
