@@ -5207,6 +5207,80 @@
         ];
       },
     },
+
+    'step-0079': {
+      id: 'step-0079',
+      title: '일생 순환 E 회계 닫기 + 회수 에너지가 분산을 먹인다 (측정·새 법칙 0 — 0078 fuseConservePE 를 0072 완전 일생 무대[gravity+fuse+disperse]에 적용·relE 11.59%→0.271%·회수 융합 E 가 disperse 바스로 흘러 churn↑ maxZ 12→19·골든 보존 회귀 0)',
+      desc: 'step-0078 은 0070 별 무대(gravity+fuse)서 융합 E 회계를 닫았다(동역학 불변 — 거기엔 바스 소비자가 없어 바스만 늘었다). 이 측정 step 은 그것을 0072 *완전 일생 순환* 무대(+disperse 복사압 분산)에 적용한다(새 법칙 0·scene 만·0078 노브 재사용·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). ' +
+            '여기선 disperse 가 *바스 E 를 끌어 원자 KE 로* 환원한다(복사압 → 가스 반동). 그래서 fuseConservePE 가 회수한 융합 PE 가 바스로 들어가면 — **그 에너지가 disperse 의 연료가 된다**(누수 막힘이 단지 장부 미용이 아니라 *물리적으로* 분산을 더 먹인다). 두 회계가 한 무대서 합성: fuse PE→바스, 바스→disperse KE. ' +
+            '*측정*(0072 와 같은 일생 무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse+disperse(Zmin3)·360 tick·고정 시드): ' +
+            '① **일생 E 닫힘·load-bearing** — fuseConservePE 켬 relE **0.271%** ≪ 끔 **11.59%**(absdE 4242→99·~43배)·disperse 동반 무대서도 융합 누수 닫힘. ' +
+            '② **회수 에너지가 분산 구동·load-bearing** — 켬 maxZ **19** > 끔 **12**·융합 **351**>**337**(회수 융합 PE 가 disperse 바스로 흘러 더 풍부한 churn) ⇒ 누수가 *물리적으로* 분산/등반을 덜 먹이고 있었음(author 아닌 측정·0078 무대선 바스 소비자 0 이라 동역학 불변이던 것과 대조). ' +
+            '③ **산물 분산 보존** — 무거운 핵(Z≥3) rgHeavy 켜도 바탕(Z<3)보다 넓게 분산(disperse 작동 유지). ' +
+            '④ **장부 머신·회귀** — Q·B·L·px·py 머신·E 닫힘·fuseConservePE=0 → 옛 거동 → 0001~78 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 360,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.4, disperseE: 2, disperseZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 60 },                                   // 라이브 일생 무대 fuseConservePE=1 120tick E 잔차 ~22(disperse churn↑·융합 누수는 닫힘)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg(at, sel) {
+        const sub = sel === 'heavy' ? at.filter(a => a.Z >= 3) : sel === 'light' ? at.filter(a => a.Z < 3) : at;
+        if (sub.length === 0) return 0;
+        let cx = 0, cy = 0; for (const a of sub) { cx += a.rx; cy += a.ry; } cx /= sub.length; cy /= sub.length;
+        let s = 0; for (const a of sub) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / sub.length);
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      run(K, cp) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseConservePE: cp }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length;
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100, absdE: Math.abs(l1.E - l0.E), maxZ: this.maxZof(sim.atoms), fusions: n0 - sim.atoms.length,
+                 rgHeavy: +this.Rg(sim.atoms, 'heavy').toFixed(1), rgLight: +this.Rg(sim.atoms, 'light').toFixed(1),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { off: this.run(K, 0), on: this.run(K, 1) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 완전 일생 무대 fuseConservePE 켬·symplectic=1 — E 닫힘(융합 누수 환원)·Q·B·L·px·py 머신.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { fuseConservePE: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { offRelEpct: +c.off.relE.toFixed(2), onRelEpct: +c.on.relE.toFixed(3), relRatio: +(c.off.relE / c.on.relE).toFixed(1),
+                 maxZon: c.on.maxZ, maxZoff: c.off.maxZ, fusOn: c.on.fusions, fusOff: c.off.fusions, rgHeavyOn: c.on.rgHeavy, rgLightOn: c.on.rgLight, dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 일생 E 닫힘 ② 회수 에너지가 분산 구동 ③ 산물 분산 보존 ④ 장부 머신·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const closed = c.off.relE > c.on.relE * 10 && c.on.relE < 1;                                      // ① 켬 relE ≪ 끔·1% 미만(누수 닫힘)
+        const drives = c.on.maxZ > c.off.maxZ && c.on.fusions > c.off.fusions;                            // ② 회수 E 가 churn 키움(disperse 연료)
+        const dispersed = c.on.rgHeavy > c.on.rgLight;                                                    // ③ 무거운 핵이 바탕보다 넓게(분산 작동)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `일생 E 닫힘·load-bearing — fuseConservePE 켬 relE ${c.on.relE.toFixed(3)}% ≪ 끔 ${c.off.relE.toFixed(2)}%(absdE ${c.off.absdE.toFixed(0)}→${c.on.absdE.toFixed(0)}·${(c.off.relE / c.on.relE).toFixed(0)}배)·disperse 동반 일생 무대서도 융합 누수 닫힘`, pass: closed, value: +c.on.relE.toFixed(3) },
+          { name: `회수 에너지가 분산 구동·load-bearing — 켬 maxZ ${c.on.maxZ} > 끔 ${c.off.maxZ}·융합 ${c.on.fusions}>${c.off.fusions}(회수 융합 PE 가 disperse 바스로 흘러 더 풍부한 churn) ⇒ 누수가 *물리적으로* 분산/등반을 덜 먹이고 있었음(0078 바스 소비자 0 동역학 불변과 대조·author 아닌 측정)`, pass: drives, value: c.on.maxZ },
+          { name: `산물 분산 보존 — 무거운 핵(Z≥3) rgHeavy ${c.on.rgHeavy} > 바탕(Z<3) rgLight ${c.on.rgLight}(disperse 작동 유지·산물 다음 별 재료)`, pass: dispersed, value: c.on.rgHeavy },
+          { name: `장부 머신·회귀 — 일생 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘·fuseConservePE=0 → 옛 거동 → 0001~78 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.maxZ },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
