@@ -105,6 +105,14 @@ class InventoryService {
     this.evicted = new Set();               // 축출된 죽은 소비자 id — min 정의역에서 제외. crash 시 리셋.
     this.evictions = 0;                     // 축출 누적(계측) — lease 가 죽은 소비자를 정의역에서 떨군 횟수.
     this.consumerSeen = new Map();          // consumer id -> 그 소비자가 마지막 ack 한 *시점의 생산자 frontier*(침묵 측정 기준). content 워터마크(consumerWm)와 별개.
+    // ── 소비자 lease *lifecycle 정합*(이 step·busLeaseLife) — 0045 lease 의 두 빈틈(코드리뷰 §2/§3) 해소. ──
+    //   ⒜ §2 *시작-시점 죽음*: 0045 는 침묵 기준(consumerSeen)을 *그 소비자가 처음 ack 한 시점*에야 세운다 → 한 번도 ack 안 한 소비자(구독했지만 영영 죽음)는 consumerSeen 미확립 → 축출 정의역 밖 = 영영 안 축출.
+    //      게다가 consumerWm 미확립이면 min 계산에서 -1 → min 이 -1 에 고정 → outBuffer 무계 성장(축출도 못 함). 해법: busLeaseLife ON 이면 sweep 가 *처음 본* 미-ack 소비자에 침묵 기준을 그때의 frontier 로 깔고(leaseSpan grace) → 다음 sweep 부터 측정 → 영영-죽음이면 leaseSpan 뒤 축출.
+    //      *지연(lazy)* 확립이라 산 소비자가 첫 ack 을 leaseSpan 안에 보내면 오축출 0(구성-시점 -1 baseline 은 시작 ack 지연이 leaseSpan 을 넘으면 건강한 소비자도 오축출 → 채택 안 함).
+    //   ⒝ §3 *축출 비가역*: 0045 는 evicted 에 한 번 들면 영영 빠지지 못한다 → 축출된 소비자가 *돌아와(재구독·재-ack)* 도 min 정의역에 복귀 못 함 → 그 소비자가 필요로 하는 *이후* 결과가 보존 안 됨(starve 재발). 해법: 축출된 소비자가 다시 ack 하면 evicted 에서 제거(재admission) → min 정의역 복귀 → 이후 결과 보존.
+    //   busLeaseLife OFF 면 ⒜ 지연 baseline 미확립(consumerSeen 은 0045 처럼 ack 때만)·⒝ 재admission 0 → 0047 비트 동일(evicted 동작 무변경). busConsumerLease·busMinWm 전제.
+    this.busLeaseLife = opts.busLeaseLife || false;
+    this.readmissions = 0;                  // 재admission 누적(계측·이 step) — 축출됐던 소비자가 돌아와 min 정의역에 복귀한 횟수.
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -187,7 +195,8 @@ class InventoryService {
     this.seenWatermark = -1;     // seen prune 워터마크 리셋(0042) — 새 생애는 dedup 이력 0 이라 워터마크도 초기화(busSeenBound OFF 면 무관).
     this.producerSeenWm = new Map();   // per-producer seen 워터마크 리셋(이 step) — 새 생애는 producer 별 prune 이력 0(busSeenNs OFF 면 무관).
     this.consumerWm = new Map(); // 다중 소비자 워터마크 리셋(0044) — 새 프로세스는 소비자 ack 이력 0(busMinWm OFF 면 무관·outConsumers 는 config 라 유지).
-    this.evicted = new Set(); this.evictions = 0; this.consumerSeen = new Map();   // 축출·침묵 이력 리셋(이 step) — 새 프로세스는 산 소비자 가정·정의역 복원(busConsumerLease OFF 면 무관·leaseSpan 은 config 라 유지).
+    this.evicted = new Set(); this.evictions = 0; this.consumerSeen = new Map();   // 축출·침묵 이력 리셋(0045) — 새 프로세스는 산 소비자 가정·정의역 복원(busConsumerLease OFF 면 무관·leaseSpan 은 config 라 유지).
+    this.readmissions = 0;   // 재admission 이력 리셋(이 step) — 새 프로세스는 복귀 이력 0(busLeaseLife OFF 면 무관). §2 지연 baseline 은 sweep 가 다시 깐다(상태 불요).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   itemCount() { return this.ledger.size; }

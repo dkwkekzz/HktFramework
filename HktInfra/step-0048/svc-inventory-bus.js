@@ -27,6 +27,11 @@ Object.assign(InventoryService.prototype, {
       //   한 소비자가 앞서가도(게이트웨이) 뒤처진 소비자(ranking)의 frontier 가 min 을 눌러 그 이하만 prune → 뒤처진 소비자가 필요로 하는 결과를 *보존*(starve 0).
       const cur = this.consumerWm.get(ev.consumer);
       if (cur === undefined || ev.outSeq > cur) this.consumerWm.set(ev.consumer, ev.outSeq);   // 소비자 frontier 단조 갱신
+      // §3 재admission(이 step·busLeaseLife) — 축출됐던 소비자가 *다시 ack* 하면(재구독→결과 수신→ack) 살아 돌아온 것 → evicted 에서 제거해 min 정의역 복귀.
+      //   복귀 후 그 소비자 frontier 가 다시 min 을 눌러 *이후* 결과를 보존(starve 재발 0). 이미 가지친 옛 결과는 그 소비자가 자기 저널 reconstruct(0020)로 복구(0045 §9·버퍼 replay 아님).
+      //   outAcked 단조라 복귀가 워터마크를 되돌리진 않는다(min>outAcked 일 때만 전진) — 전진을 *멈출* 뿐. 아래 sweep 가 c===ev.consumer 를 건너뛰어 갓 복귀한 소비자를 같은 tick 즉시 재축출하지 않는다.
+      //   busLeaseLife OFF 면 evicted 영구(0047 동일·재admission 0).
+      if (this.busLeaseLife && this.evicted.has(ev.consumer)) { this.evicted.delete(ev.consumer); this.readmissions++; }
       // 소비자 lease 축출(이 step·busConsumerLease) — 산 소비자의 ack 가 sweep 를 구동한다(별도 tick 불요·결정론).
       //   방금 ack 한 소비자의 *침묵 기준*(consumerSeen)을 현재 생산자 frontier 로 갱신 → 그 뒤 frontier 가 leaseSpan 이상 전진하도록 재-ack 안 한 소비자(=죽음)를 evicted 에 넣어 min 정의역에서 뺀다.
       //   침묵 신호(frontier−lastSeen)는 ack 사건이 갱신하므로 생산 버스트에도 산 소비자를 오축출 안 함(content lag 와 다름). ack 이력 없는(undefined) 소비자는 미확립이라 정의역 밖. OFF·leaseSpan 0 면 휴면(evicted 안 채워짐 → 0044 비트 동일).
@@ -36,7 +41,14 @@ Object.assign(InventoryService.prototype, {
         for (const c of this.outConsumers) {
           if (c === ev.consumer || this.evicted.has(c)) continue;
           const seen = this.consumerSeen.get(c);
-          if (seen !== undefined && frontier - seen > this.leaseSpan) { this.evicted.add(c); this.evictions++; }
+          if (seen === undefined) {
+            // §2 지연 baseline(이 step·busLeaseLife) — *처음 본* 미-ack 소비자에 침묵 기준을 now(frontier)로 깔고 이번엔 안 축출(leaseSpan grace).
+            //   → 다음 sweep 부터 frontier−seen 으로 측정 → 영영 ack 안 하면 leaseSpan 뒤 축출(0047 은 미확립이라 영영 못 축출 = §2 버그). 산 소비자는 grace 안에 ack 해 오축출 0.
+            //   busLeaseLife OFF 면 0047 처럼 미확립 = 정의역 밖(축출 불가·grace 도 안 깖 → consumerSeen 무변경 = 비트 동일).
+            if (this.busLeaseLife) this.consumerSeen.set(c, frontier);
+            continue;
+          }
+          if (frontier - seen > this.leaseSpan) { this.evicted.add(c); this.evictions++; }
         }
       }
       let min = Infinity;

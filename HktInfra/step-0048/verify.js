@@ -1,11 +1,13 @@
-// HktInfra step-0048 — 헤드리스 검증 (per-producer seen 워터마크 — busProducerNs 복합키를 busSeenBound 가 가지치게·busSeenNs)
+// HktInfra step-0048 — 헤드리스 검증 (소비자 lease lifecycle 정합 — 시작-시점 죽음 축출 + 축출 비가역 해소·busLeaseLife)
 // 사용: node step-0048/verify.js <mode> [seed]
-//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 가설 = `seenns`.
-//   더한 한 조각: 0046 busProducerNs ON 이면 seenReqs 키가 *복합키*(`producer\0reqId`·문자열)인데, 0042 busSeenBound 의 prune 은 `r <= upTo`(숫자 비교) → `'gw\05' <= 5` 는 false(NaN)
-//                 → 복합키가 *영영* 안 가지쳐져 seenReqs 가 무계 회귀(busSeenBound 무력화·0046 §9/리뷰 §1). 해법: 게이트웨이가 svc.item.seen 에 producer 태깅 → 가방이 producer 별 워터마크로 *그 producer 의* 복합키만 가지친다.
-//   검증: ⒜ `reg`(키트) — busSeenNs=0(기본)이면 NET 이 직전 step(0046)과 *비트 동일*(seen 미태깅·숫자 prune).
-//         ⒝ `seenns`(이 step·가설) — busProducerNs+busSeenBound ON 에서 busSeenNs OFF 는 seenReqsPeak 가 run-length 에 비례(무계·복합키 안 가지쳐짐)·ON 은 유계(run-length 무관·drain)·minted 보존(dedup 정확성).
-// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 이번 step 가설 모드(seenns)만 더한다.
+//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 가설 = `leaselife`.
+//   더한 한 조각: 0045 소비자 lease(busConsumerLease)의 두 빈틈(코드리뷰 §2/§3) 해소 —
+//     §2 *시작-시점 죽음*: 한 번도 ack 안 한 소비자는 침묵 기준(consumerSeen) 미확립 → 축출 정의역 밖 + consumerWm 미확립으로 min 을 -1 에 고정 → outBuffer 무계(축출도 못 함).
+//     §3 *축출 비가역*: 축출된 소비자가 돌아와도(재구독·재-ack) evicted 에서 못 빠져 min 정의역 미복귀 → 이후 결과 starve 재발.
+//   해법(busLeaseLife): ⒜ sweep 가 처음 본 미-ack 소비자에 침묵 기준을 frontier 로 *지연* 확립(leaseSpan grace) → 영영-죽음이면 leaseSpan 뒤 축출 ⒝ 축출된 소비자가 재-ack 하면 evicted 에서 제거(재admission).
+//   검증: ⒜ `reg`(키트) — busLeaseLife=0(기본)이면 NET 이 직전 step(0047)과 *비트 동일*(지연 baseline 미확립·재admission 0·evicted 동작 무변경).
+//         ⒝ `leaselife`(이 step·가설) — §2 never-ack 소비자에서 OFF outBufPeak ∝run-length(무계·축출 0) vs ON 유계(run-length 무관·ev≥1)·§3 revival 에서 OFF 비가역(readm 0·영영 evicted) vs ON 재admission(readm≥1·정의역 복귀)·산 소비자 오축출 0(ctl).
+// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 이번 step 가설 모드(leaselife)만 더한다.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../step-0047/net-core.js');   // reg 대조용(직전 step)
@@ -21,43 +23,65 @@ const JLOSS = 0.3;       // 저널 홉 손실율(0023~) — inventory→persist 
 
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-// ── 이 step 의 가설 모드: seenns — busProducerNs 복합키를 busSeenBound 가 가지치도록 per-producer seen 워터마크 ──
+// ── 이 step 의 가설 모드: leaselife — 소비자 lease 의 lifecycle 빈틈(시작-시점 죽음·축출 비가역) 해소 ──
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-// 단일 게이트웨이로 충분히 자극(자기 복합키 `gateway\0reqId` 가 숫자 워터마크에 안 걸리는 게 finding). busResendReq(reqId 태깅)+busAck(요청 ack)+busSeenBound(prune)+busProducerNs(복합키) 다 ON.
-//   busSeenBound prune 이 *복합키*를 만나는 조합 — busSeenNs OFF 면 prune 무력(무계), ON 이면 producer 별 가지치기(유계). ops 가 요청 생산량(×6 클라).
-const SEEN_BASE = (seed, ops) => ({ seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
+// 0045 clease 와 동일 베이스(버스+ranking 둘째 소비자·min-워터마크·결과 ack). ops 가 결과 생산량(×6 클라). leaseSpan 전제 + busConsumerLease ON.
+const BUS_BASE = (seed, ops) => ({ seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, inventory: true, itemOps: ops, chat: true, chatOps: 12, regions: 2,
-  bus: true, audit: true, ranking: true, busResendReq: true, busAck: true, busSeenBound: true, busProducerNs: true });
+  bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
+  busConsumerLease: true, leaseSpan: LEASE_SPAN });
+const LEASE_SPAN = 8;       // lease 임계(outSeq 뒤처짐) — 정상 ack lag·시작 grace 보다 크고, 영구 죽음은 frontier 전진으로 이내 초과 → 축출.
+const NEVER_DIE = 1;        // §2 — ranking 이 tick 1 에 구독 해지 → *한 번도 ack 안 함*(consumerSeen·consumerWm 영영 미확립). 0047 은 이 소비자를 못 축출(정의역 밖) → min -1 고정.
+const REVIVE_DIE = 14;      // §3 — ranking 이 초기 ack 으로 lease 확립한 *뒤* 다운(축출 대상). 0045 clease 의 RANK_DIE_AT 와 동일.
+const REVIVE_AT = 30;       // §3 — 축출된 ranking 이 재구독(busReSub sub) → 결과 재수신 → 재-ack. 0047 은 evicted 영구라 미복귀, 이 step 은 재admission.
 
-function seenns(seeds) {
-  console.log('== seenns: *가설* — 0046 busProducerNs ON 이면 seenReqs 키가 복합키(`producer\\0reqId`·문자열)인데, 0042 busSeenBound prune 은 숫자 비교(`r<=upTo`) → `\'gw\\05\'<=5` 는 false(NaN) → 복합키가 영영 안 가지쳐진다(busSeenBound 무력·seenReqs 무계 회귀·0046 §9/리뷰 §1). per-producer seen 워터마크(게이트웨이가 seen 에 producer 태깅 → 가방이 그 producer 복합키만 가지치기) → 유계 ==');
-  console.log('  단일 게이트웨이 + busProducerNs+busSeenBound+busAck+busResendReq ON. busSeenNs OFF(복합키 prune 실패·무계) vs ON(producer 별 prune·유계). ops 10/30(요청 ∝ 60/180)로 run-length 의존성 가시화.');
-  console.log('seed   | seenPeak off/on (ops10) | seenPeak off/on (ops30) | minted off/on(ops30) | seenFinal off/on | 판정');
+function leaselife(seeds) {
+  console.log('== leaselife: *가설* — 0045 소비자 lease(busConsumerLease)의 두 빈틈(코드리뷰 §2/§3) 해소. §2 시작-시점 죽음: 한 번도 ack 안 한 소비자는 consumerSeen 미확립 → 축출 정의역 밖 + consumerWm 미확립으로 min 을 -1 에 고정 → outBuffer 무계(축출도 못 함). §3 축출 비가역: 축출된 소비자가 돌아와도 evicted 에서 못 빠져 min 정의역 미복귀 → 이후 starve 재발. busLeaseLife: ⒜ 지연 baseline(처음 본 미-ack 소비자 침묵 기준을 frontier 로·leaseSpan grace) ⒝ 재-ack 시 재admission ==');
+  console.log(`  §2 never-ack: ranking 이 tick ${NEVER_DIE} 에 구독 해지(영영 ack 0). OFF(=0047·min -1 고정·축출 불가) vs ON(지연 baseline → leaseSpan ${LEASE_SPAN} 뒤 축출). ops 10/30(결과 ∝ 60/180)로 run-length 의존성 가시화.`);
+  console.log(`  §3 revival: ranking 다운@${REVIVE_DIE}(축출) → 재구독@${REVIVE_AT}. OFF(evicted 영구·readm 0) vs ON(재admission·정의역 복귀). 산 소비자 오축출 0(ctl).`);
+  console.log('seed   | §2 peak off/on (10/30) | §2 ev off/on | §3 ev/readm/evRank off→on | ctl ev/peak(=leaseOnly) | 판정');
+  const REVIVE = [{ at: REVIVE_AT, from: 'ranking', type: 'sub', topic: 'svc.item.out' }];   // 축출된 ranking 재구독(0033 동적 sub 재사용) → 재-ack 경로
   for (const seed of seeds) {
-    const off10 = run({ ...SEEN_BASE(seed, 10) });                      // busSeenNs OFF(=0046) — 복합키 prune 실패 → 무계
-    const on10  = run({ ...SEEN_BASE(seed, 10), busSeenNs: true });     // ON — producer 별 prune → 유계
-    const off30 = run({ ...SEEN_BASE(seed, 30) });                      // 더 긴 생산 — OFF peak 비례 성장(무계 증거)
-    const on30  = run({ ...SEEN_BASE(seed, 30), busSeenNs: true });     // ON peak 는 run-length 무관(유계 증거)
-    const pOff10 = off10.inventory.seenReqsPeak, pOn10 = on10.inventory.seenReqsPeak;
-    const pOff30 = off30.inventory.seenReqsPeak, pOn30 = on30.inventory.seenReqsPeak;
-    // ① ON 이 OFF 보다 작음(가지치기) ② OFF 는 run-length 에 비례(무계) ③ ON 은 run-length 무관(유계) ④ minted 보존(dedup 정확성·가지치기가 재처리 유발 0) ⑤ ON 은 idle drain(final 0) ⑥ 원장 자기-정합
+    // §2 never-ack — OFF(=0047) 는 min -1 고정·축출 불가(무계), ON 은 지연 baseline 으로 leaseSpan 뒤 축출(유계)
+    const a_off10 = run({ ...BUS_BASE(seed, 10), rankDie: NEVER_DIE });
+    const a_on10  = run({ ...BUS_BASE(seed, 10), rankDie: NEVER_DIE, busLeaseLife: true });
+    const a_off30 = run({ ...BUS_BASE(seed, 30), rankDie: NEVER_DIE });
+    const a_on30  = run({ ...BUS_BASE(seed, 30), rankDie: NEVER_DIE, busLeaseLife: true });
+    // §3 revival — OFF 는 evicted 영구(readm 0·ranking 영영 정의역 밖), ON 은 재-ack 시 재admission(정의역 복귀)
+    const b_off = run({ ...BUS_BASE(seed, 30), rankDie: REVIVE_DIE, busReSub: REVIVE });
+    const b_on  = run({ ...BUS_BASE(seed, 30), rankDie: REVIVE_DIE, busReSub: REVIVE, busLeaseLife: true });
+    // 대조군 ctl — ranking 죽음 *없음* + busLeaseLife ON → 오축출 0·재admission 0·peak == lease 만(0047) peak(정상 동작 무간섭)
+    const ctl   = run({ ...BUS_BASE(seed, 30), busLeaseLife: true });
+    const ctlNL = run({ ...BUS_BASE(seed, 30) });
+    const aPOff10 = a_off10.inventory.outBufPeak, aPOn10 = a_on10.inventory.outBufPeak;
+    const aPOff30 = a_off30.inventory.outBufPeak, aPOn30 = a_on30.inventory.outBufPeak;
+    const aEvOff = a_off30.inventory.evictions, aEvOn = a_on30.inventory.evictions;
+    const bEvOn = b_on.inventory.evictions, bRdOff = b_off.inventory.readmissions, bRdOn = b_on.inventory.readmissions;
+    const bRankOff = b_off.inventory.evicted.has('ranking'), bRankOn = b_on.inventory.evicted.has('ranking');
     const ok =
-      check(pOn30 < pOff30, `seed ${seed}: busSeenNs ON peak 가 OFF 보다 안 작음(ops30 ${pOff30}→${pOn30})`) &&
-      check(pOff30 > pOff10, `seed ${seed}: busSeenNs OFF peak 가 run-length 무관(무계면 ops10<ops30: ${pOff10},${pOff30})`) &&
-      check(pOn30 <= pOn10, `seed ${seed}: busSeenNs ON peak 가 run-length 에 비례(유계면 ops30≤ops10: ${pOn10},${pOn30})`) &&
-      check(off30.inventory.minted === on30.inventory.minted, `seed ${seed}: 가지치기가 dedup 정확성 깸(minted off ${off30.inventory.minted} ≠ on ${on30.inventory.minted})`) &&
-      check(on30.inventory.seenReqs.size === 0, `seed ${seed}: ON 인데 seenReqs idle drain 0 아님(final ${on30.inventory.seenReqs.size})`) &&
-      check(ledgerConsistent(on30) && itemConserved(on30) && ledgerConsistent(off30) && itemConserved(off30), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(pOff10 + '/' + pOn10, 23)} | ${pad(pOff30 + '/' + pOn30, 23)} | ${pad(off30.inventory.minted + '/' + on30.inventory.minted, 20)} | ${pad(off30.inventory.seenReqs.size + '/' + on30.inventory.seenReqs.size, 16)} | ${ok ? 'OK' : 'FAIL'}`);
+      // §2 ① ON 이 OFF 보다 작음(축출 drain) ② OFF run-length 비례(무계·min -1 고정) ③ ON run-length 무관(유계) ④ OFF 축출 0(0047 정의역 밖) ⑤ ON 축출 ≥1(지연 baseline) ⑥ minted 보존
+      check(aPOn30 < aPOff30, `seed ${seed}: §2 ON peak 가 OFF 보다 안 작음(ops30 ${aPOff30}→${aPOn30})`) &&
+      check(aPOff30 > aPOff10, `seed ${seed}: §2 OFF peak 가 run-length 무관(무계면 ops10<ops30: ${aPOff10},${aPOff30})`) &&
+      check(aPOn30 <= aPOn10, `seed ${seed}: §2 ON peak 가 run-length 에 비례(유계면 ops30≤ops10: ${aPOn10},${aPOn30})`) &&
+      check(aEvOff === 0 && aEvOn >= 1, `seed ${seed}: §2 never-ack 축출(OFF 0·ON≥1) 위반(off ${aEvOff}·on ${aEvOn})`) &&
+      check(a_off30.inventory.minted === a_on30.inventory.minted, `seed ${seed}: §2 가지치기가 dedup 정확성 깸(minted off ${a_off30.inventory.minted} ≠ on ${a_on30.inventory.minted})`) &&
+      // §3 ① ON 재admission ≥1 ② OFF 재admission 0(비가역) ③ ON 은 먼저 축출됨(재admission 유의미) ④ OFF 영영 evicted vs ON 정의역 복귀 ⑤ 원장 자기-정합
+      check(bRdOn >= 1 && bRdOff === 0, `seed ${seed}: §3 재admission(ON≥1·OFF 0) 위반(off ${bRdOff}·on ${bRdOn})`) &&
+      check(bEvOn >= 1, `seed ${seed}: §3 ON 이 먼저 축출 안 됨(재admission 무의미·ev ${bEvOn})`) &&
+      check(bRankOff === true && bRankOn === false, `seed ${seed}: §3 정의역 복귀 위반(OFF evicted ${bRankOff}·ON evicted ${bRankOn})`) &&
+      check(ledgerConsistent(b_on) && itemConserved(b_on) && ledgerConsistent(a_on30) && itemConserved(a_on30), `seed ${seed}: 원장 자기-정합 깨짐`) &&
+      // ctl 산 소비자 오축출 0·재admission 0·peak 무간섭(== lease 만 0047)
+      check(ctl.inventory.evictions === 0 && ctl.inventory.readmissions === 0 && ctl.inventory.outBufPeak === ctlNL.inventory.outBufPeak, `seed ${seed}: lease lifecycle 가 정상 동작 간섭(ctl ev ${ctl.inventory.evictions}·readm ${ctl.inventory.readmissions}·peak ${ctl.inventory.outBufPeak} vs leaseOnly ${ctlNL.inventory.outBufPeak})`);
+    console.log(`${pad(seed, 6)} | ${pad(aPOff10 + '/' + aPOn10 + ' ' + aPOff30 + '/' + aPOn30, 22)} | ${pad(aEvOff + '/' + aEvOn, 12)} | ${pad(bEvOn + '/' + bRdOff + '→' + bRdOn + '/' + bRankOff + '→' + bRankOn, 25)} | ${pad(ctl.inventory.evictions + '/' + ctl.inventory.outBufPeak + '(' + ctlNL.inventory.outBufPeak + ')', 23)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log(`  → 0046 복합키(producer\\0reqId·문자열) + 0042 숫자 prune(r<=upTo)은 NaN 비교라 영영 안 가지쳐짐 → busSeenNs OFF peak 가 요청량(run-length)에 비례(무계·busSeenBound 가 사실상 무력·리뷰 §1 재현).`);
-  console.log(`    이 step: 게이트웨이가 svc.item.seen 에 producer 태깅 → 가방이 producer 별 워터마크(producerSeenWm)로 *그 producer 의* 복합키만(접두사 일치 + 숫자 suffix ≤ upTo) 가지친다 → ON peak 가 run-length 무관(유계)·idle drain(final 0)·minted 보존(가지친 reqId 는 미-재출현이라 dupe 0).`);
-  console.log(`    busSeenNs=0 = 0046 비트 동일(seen 미태깅·숫자 prune·reg). 정직한 한계: per-producer ack 워터마크(busAck inBuffer 가지치기)는 단일 게이트웨이라 충분 — 다중 게이트웨이 producer 별 ack 가지치기는 후속.`);
+  console.log(`  → §2: 0045 lease 는 침묵 기준을 *첫 ack 시점*에야 세운다 → 한 번도 ack 안 한 소비자는 미확립 = 축출 정의역 밖 + consumerWm 미확립으로 min -1 고정 → OFF peak 가 생산량(run-length)에 비례(무계). 이 step 의 *지연 baseline*(처음 본 미-ack 소비자에 frontier 기준을 깔고 leaseSpan grace) → ON 은 축출(ev≥1)·유계(run-length 무관).`);
+  console.log(`    §3: 0045 는 evicted 가 영구라 축출된 소비자가 돌아와도 min 정의역 미복귀 → 이후 결과 starve 재발(OFF readm 0·영영 evicted). 이 step: 축출된 소비자가 재-ack 하면 evicted 에서 제거(재admission·readm≥1) → 정의역 복귀 → 이후 결과 보존. 옛 가지친 결과는 자기 저널 reconstruct(0020)로 복구(버퍼 replay 아님).`);
+  console.log(`    busLeaseLife=0 = 0047 비트 동일(지연 baseline 미확립·재admission 0·evicted 동작 무변경·reg). ctl: 산 소비자는 leaseSpan grace 안에 ack 해 오축출 0·peak 무간섭(구성-시점 -1 baseline 은 시작 ack 지연이 grace 를 넘으면 건강한 소비자도 오축출 → 지연 baseline 채택·§9). 정직한 한계: leaseSpan 은 영구-죽음 vs 일시-지연 분리 임계(여전히 오축출 위험)·다중 게이트웨이 producer 별 lease 는 후속.`);
 }
 
-kit.MODES['seenns'] = seenns;
-kit.ORDER.splice(1, 0, 'seenns');   // reg 직후(가설 우선 노출)
+kit.MODES['leaselife'] = leaselife;
+kit.ORDER.splice(1, 0, 'leaselife');   // reg 직후(가설 우선 노출)
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
