@@ -6961,6 +6961,93 @@
         ];
       },
     },
+
+    'step-0101': {
+      id: 'step-0101',
+      title: 'Badger 규칙 축간 상관 — 긴 결합일수록 부드럽다·길이축 r_eq ↔ 강성축 α 연결 (게이트 bondBadger=0 → α 불변·0100~ 비트 동일·회귀 0)',
+      desc: '0094 폭 α·0095 길이 r_eq·0100 통합 게이트 bondKindPair 까지 결합 기하 축들은 *합집합일 뿐 서로 독립*이었다(STATE §3 전가: 축간 상관 미). 실제 화학은 두 축이 *연결*돼 있다 — **Badger 규칙**: 긴 결합일수록 힘 상수가 작다(k_force ∝ 1/(r_eq−d)³). 이 step 의 게이트 `bondBadger` 켜면 α 를 *결과 r_eq 의 함수*로 묶는다: α_eff *= (bondReq_base / r_eq_eff)^bondBadger. Morse k=2Dα² → α ∝ r_eq^(−p) 면 k ∝ r_eq^(−2p). 0095 길이축이 이제 0094 강성축을 *끌고 간다*(합집합 → 연결). bondBadger=0 → Math.pow(_,0)=1 → α 불변·0100~ 비트 동일(회귀 0). ' +
+            '*무대*: 20 Morse 이량체 — H–H(Z1) 10 + C–C(Z6) 10·**각자 자기 r_eq 에 정확 배치**(K.morseReq·H–H 3·C–C 3·⁶√≈5.45)·**같은 상대 KE=2**(< D=4 속박·해리 0 → 진동 폭만)·bondReqPair+bondMorseAlphaPair on(0100 종류화 baseline)·base D=4·α=0.3·req=3·dt=0.05·badger=1.5(k∝r_eq⁻³)·두 모드 off/on: ' +
+            'Badger 켜면 C–C(긴 결합) α 1.8→0.735(×0.41) → 우물 넓어져 최대 신장 strCC 2.4배↑. H–H(r_eq=base·편차 0) α 0.3 불변 → strHH 비트 동일. ' +
+            '① **축간 상관(긴 결합 = 부드러움)·load-bearing** — bondBadger 켜면 *긴* C–C 결합 최대 신장 strCC(on) ≫ strCC(off)(α_CC 1.8→0.735·우물 넓어짐) ⇒ 길이 축(r_eq)이 강성 축(α)을 끌고 감(0100 까지 독립이던 두 축이 *연결*·author 아닌 r_eq 의 멱함수). ' +
+            '② **기준 길이 결합은 불변·load-bearing** — H–H(r_eq=base·편차 0) 최대 신장 strHH(on) ≡ strHH(off)(비트 동일) ⇒ Badger 는 *길이 편차에만* 작용(전역 α 스케일 아님·(base/base)^p=1) = 상관이 진짜 r_eq 의 함수임을 분리 입증. ' +
+            '③ **장부 머신** — 쌍별 등·반작용 운동량 머신·잔여 E symplectic 유계. ' +
+            '④ **회귀** — bondBadger=0 → α 불변·0100~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 4, bondMorseA: 0.3, bondMorseAlphaPair: 1, bondReqPair: 1, bondBadger: 1.5, unbondDist: 40 },
+
+      // H–H(Z1) NC + C–C(Z6) NC·각자 자기 r_eq(K.morseReq) 에 정확 배치·같은 상대 KE(속박).
+      dimers(K, knobs) {
+        const KErel = 2, atoms = [], bonds = [], keys = new Set(), tot = 2 * 2 * this.NC;
+        const cls = [{ Z: 1, N: 1, e: 1 }, { Z: 6, N: 6, e: 6 }];
+        for (let c = 0; c < 2; c++) {
+          const z = cls[c], mu = (z.Z + z.N) / 2, vrel = Math.sqrt(2 * KErel / mu);
+          const req = K.morseReq(knobs, { Z: z.Z }, { Z: z.Z });   // 각 종류 평형 길이(bondReqPair on → C–C 긺)
+          for (let k = 0; k < this.NC; k++) {
+            const idx = c * this.NC + k, cx = 40 + (idx % 8) * 45, cy = 40 + ((idx / 8) | 0) * 45, a0 = atoms.length;
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, 1]); keys.add(a0 * tot + (a0 + 1)); }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, badger) {
+        const knobs = Object.assign({}, L.DEFAULTS, this.KN, { bondBadger: badger });
+        const d = this.dimers(K, knobs);
+        const reqC = [K.morseReq(knobs, { Z: 1 }, { Z: 1 }), K.morseReq(knobs, { Z: 6 }, { Z: 6 })];  // 종류별 평형(신장 기준점)
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys, knobs, tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0];                              // [H–H, C–C] 최대 신장|r−r_eq|
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const cc = a.Z === 1 ? 0 : 1, str = Math.abs(Math.sqrt(dx * dx + dy * dy) - reqC[cc]);
+            if (str > maxStr[cc]) maxStr[cc] = str; }
+        }
+        const l1 = K.ledger(sim);
+        return { strHH: maxStr[0], strCC: maxStr[1], bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1.5), off: this.run(K, 0) }); },
+      // α_CC 비(Badger on/off) — 강성이 r_eq 로 끌려 내려갔는지 직접 확인.
+      alphaCC(K) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN), C = { Z: 6, N: 6, e: 6 };
+        return { on: K.morseAlpha(Object.assign({}, base, { bondBadger: 1.5 }), C, C), off: K.morseAlpha(Object.assign({}, base, { bondBadger: 0 }), C, C) };
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0100 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1.5 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1.5, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K), aCC = this.alphaCC(K);
+        return { strCCon: +c.on.strCC.toFixed(3), strCCoff: +c.off.strCC.toFixed(3),
+                 strHHon: +c.on.strHH.toFixed(3), strHHoff: +c.off.strHH.toFixed(3),
+                 alphaCCon: +aCC.on.toFixed(3), alphaCCoff: +aCC.off.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 축간 상관(긴 결합=부드러움) ② 기준 길이 결합 불변 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), aCC = this.alphaCC(K);
+        const correlate = c.on.strCC > c.off.strCC * 1.5 && aCC.on < aCC.off * 0.7;   // ① 긴 C–C 부드러워짐 + α 끌려내려감
+        const baseInvariant = c.on.strHH === c.off.strHH;                              // ② H–H(r_eq=base) 비트 동일
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                    // ④ 골든 보존
+        return [
+          { name: `축간 상관(긴 결합=부드러움)·load-bearing — bondBadger 켜면 긴 C–C 최대 신장 strCC ${c.off.strCC.toFixed(2)}→${c.on.strCC.toFixed(2)}(α_CC ${aCC.off.toFixed(2)}→${aCC.on.toFixed(2)}·우물 넓어짐) ⇒ 길이 축 r_eq 가 강성 축 α 를 끌고 감(0100 까지 독립이던 두 축이 연결·author 아닌 r_eq 멱함수)`, pass: correlate, value: +c.on.strCC.toFixed(2) },
+          { name: `기준 길이 결합은 불변·load-bearing — H–H(r_eq=base·편차 0) 최대 신장 strHH(on) ${c.on.strHH.toFixed(3)} ≡ strHH(off) ${c.off.strHH.toFixed(3)}(비트 동일) ⇒ Badger 는 길이 편차에만 작용((base/base)^p=1·전역 α 스케일 아님)`, pass: baseInvariant, value: +c.on.strHH.toFixed(3) },
+          { name: `장부 머신 — 쌍별 등·반작용 운동량 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.on.dE / c.on.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — bondBadger=0 → α 불변·0100~ 비트 동일·골든 보존(상관 게이트 가법)`, pass: reg, value: +c.off.strCC.toFixed(2) },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };

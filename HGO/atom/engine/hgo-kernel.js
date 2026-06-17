@@ -225,6 +225,15 @@
       const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
       alpha *= Math.sqrt(za * zb);
     }
+    // step-0101 Badger 규칙 축간 상관 — bondBadger(=0 → Math.pow(_,0)=1 → α 불변·회귀 0) 면 α 를 *결과 r_eq 의 함수*로 묶는다:
+    //   긴 결합일수록 *부드럽다*(실측 Badger 규칙 k_force ∝ 1/(r_eq−d)³). Morse k=2Dα² 에서 α ∝ r_eq^(−p) 면 k ∝ r_eq^(−2p).
+    //   α_eff *= (bondReq_base / r_eq_eff)^bondBadger. 0094 폭축(α)과 0095 길이축(r_eq)은 0100 까지 *독립* — 이 항이 둘을 *상관*(합집합 아닌 연결).
+    //   r_eq=base(편차 0·예: H–H Z1) 결합은 (base/base)^p=1 → 무영향 = Badger 는 *길이 편차에만* 작용(전역 스케일 아님). author 분기 0(r_eq 의 멱함수).
+    if (knobs.bondBadger) {
+      const reqBase = (knobs.bondReq) || 4;
+      const reqEff = morseReq(knobs, a, b);                // 0095 종류별 r_eq(게이트 off 면 base → 인자 1·회귀 0)
+      if (reqEff > 0) alpha *= Math.pow(reqBase / reqEff, knobs.bondBadger);
+    }
     return alpha;
   }
 
