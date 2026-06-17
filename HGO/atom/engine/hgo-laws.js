@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -862,6 +862,7 @@
     const qRel = sim.knobs.fuseQ || 0;                     // 융합마다 방출하는 Δm·c² Q값(저장고 잔량 한도 내)
     const fmf = sim.knobs.fuseMassFormula;                 // 융합 Q값을 결합에너지서(step-0041, 0 → author fuseQ·저장고 거동·회귀 0)
     const pr = sim.knobs.decayPairing;                     // fmf 면 ΔB_fus 의 페어링 게이트(ledger·decay 와 같은 B 사용)
+    const sh = sim.knobs.nucShell;                         // fmf 면 ΔB_fus 의 껍질 게이트(step-0067·ledger·decay 와 같은 B·0 → 미가법·회귀 0)
     // 흡열 융합 에너지 문턱(step-0051, fuseEndo=0 → 0050 거동·회귀 0):
     //   융합 발열량 ΔB_fus 는 가벼운 핵서 >0(발열·별 점화)·철 너머서 <0(흡열). 0050 까지 fuse 는 부호를 *안 봤다* —
     //   ΔB_fus<0 이라도 *무조건* 합체하고 bath.E += keRel+released(음수)로 복사 바스 E 가 음수가 됐다(에너지를 무에서 빌림).
@@ -871,49 +872,69 @@
     const atoms = sim.atoms, n = atoms.length;
     let bath = null, fusedAny = false;
     const dead = new Array(n).fill(false);                 // 이미 합쳐져 소비된 원자(한 tick 중복 합체 가드)
-    for (let i = 0; i < n; i++) {
-      if (dead[i]) continue;
-      const a = atoms[i];
-      for (let j = i + 1; j < n; j++) {
-        if (dead[j]) continue;
-        const b = atoms[j];
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
-        const d2 = dx * dx + dy * dy;
-        if (d2 > R2 || d2 === 0) continue;                 // 접촉 반경 밖(또는 완전 겹침 가드)
-        const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;
-        const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도 법선 성분(>0 = 다가옴)
-        if (vn <= 0) continue;                              // 멀어지는 쌍은 융합 안 함
-        const ma = K.mass(a), mb = K.mass(b), mu = (ma * mb) / (ma + mb);
-        const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
-        const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy);   // 상대 KE = ½μ|vrel|²(쿨롱 장벽 돌파 판정용)
-        if (grng) {                                         // 양자 터널링(Gamow): 고전 장벽 아래서도 P=exp(−√(EG/E))로 융합
-          const zz = (a.Z | 0) * (b.Z | 0);                 // 전하곱 Z₁Z₂(전하 의존 게이트서 장벽 척도)
-          const egPair = (egCharge ? EG * zz * zz : EG) * (egMu ? mu : 1);  // E_G ∝ (Z₁Z₂)²·μ → 지수 √(egPair/E)(전하곱 선형 + √μ)·egMu=0 → μ 미가법(0050·회귀 0)·²H+²H μ=1 → 1배 baseline
-          if (grng() >= Math.exp(-Math.sqrt(egPair / keRel))) continue;  // 터널링 실패(장벽 반사) — keRel>0 보장(vn>0 → vrel≠0)
-        } else if (keRel < barrier) continue;               // 고전 hard cutoff(gamow=0 → 0041 거동·회귀 0)·저E 는 collide/bond 몫
-        // 합체: vcom 으로 잠근 새 원자(다발 합산). 총 운동량 정확 보존, 흡수된 상대 KE 는 바스로.
-        const M = ma + mb;
-        const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
-        const nucSum = (a.nuc || 0) + (b.nuc || 0);
-        // 방출 Δm·c²: fmf(0041) 면 *결합에너지 이득* ΔB_fus = B(생성)−B(a)−B(b)(질량공식서 — 발열량이 author 상수 아님·massDefect 와 짝).
-        //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
-        const Zp = a.Z + b.Z, Np = a.N + b.N;
-        const released = fmf
-          ? (K.binding(Zp, Np, pr) - K.binding(a.Z | 0, a.N | 0, pr) - K.binding(b.Z | 0, b.N | 0, pr))
-          : Math.min(qRel, nucSum);
-        // 흡열 문턱 게이트: released<0(흡열)이고 상대 KE 가 그 비용을 못 갚으면(keRel+released<0) 융합 금지.
-        //   국소(그 두 원자 keRel·ΔB_fus 만)·rng 무소비(수치 판정·결정론 불변)·fuseEndo=0 → 비검사 = 0050 비트 동일·회귀 0.
-        if (endo && released < 0 && keRel + released < 0) continue;  // 에너지 보존 물리 게이트(바스 E 음수 방지)
-        if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
-        bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스. fmf+md: 생성 핵 정지질량이 ΔB_fus 만큼 줄어 상쇄(E 닫힘)
-        bath.count = (bath.count | 0) + 1;
-        // a 를 product 로 갱신(다발 합산·vcom·저장고 계승). b 는 dead 표시 → 배열서 압축.
-        a.Z += b.Z; a.N += b.N; a.e += b.e; a.lep = (a.lep || 0) + (b.lep || 0);
-        a.vx = vcx; a.vy = vcy;
-        a.nuc = fmf ? nucSum : nucSum - released;           // fmf: 저장고 미인출(연료=ΔM 정지질량·massDefect)·계승만. else: 저장고서 방출분 제외
-        a.x = 0;                                            // 들뜸은 합체로 초기화(토이 — 핵 들뜸 별도 모형 전가)
-        dead[j] = true; fusedAny = true;
-        break;                                              // a 는 이번 tick 더 안 합침(i 다음으로)
+    // 한 쌍 융합 시도(brute·cellPairs 공용 — 같은 코드 → 같은 결과). 융합하면 true(brute 의 break / cell 의 consumed 신호).
+    //   모든 비융합 분기는 false 반환(브루트의 continue 와 등가). 융합 시 dead[j]=true·a 갱신·bath 적재.
+    function tryFuse(i, j) {
+      const a = atoms[i], b = atoms[j];
+      const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+      const d2 = dx * dx + dy * dy;
+      if (d2 > R2 || d2 === 0) return false;             // 접촉 반경 밖(또는 완전 겹침 가드)
+      const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;
+      const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도 법선 성분(>0 = 다가옴)
+      if (vn <= 0) return false;                          // 멀어지는 쌍은 융합 안 함
+      const ma = K.mass(a), mb = K.mass(b), mu = (ma * mb) / (ma + mb);
+      const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+      const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy);   // 상대 KE = ½μ|vrel|²(쿨롱 장벽 돌파 판정용)
+      if (grng) {                                         // 양자 터널링(Gamow): 고전 장벽 아래서도 P=exp(−√(EG/E))로 융합
+        const zz = (a.Z | 0) * (b.Z | 0);                 // 전하곱 Z₁Z₂(전하 의존 게이트서 장벽 척도)
+        const egPair = (egCharge ? EG * zz * zz : EG) * (egMu ? mu : 1);  // E_G ∝ (Z₁Z₂)²·μ → 지수 √(egPair/E)(전하곱 선형 + √μ)·egMu=0 → μ 미가법(0050·회귀 0)·²H+²H μ=1 → 1배 baseline
+        if (grng() >= Math.exp(-Math.sqrt(egPair / keRel))) return false;  // 터널링 실패(장벽 반사) — keRel>0 보장(vn>0 → vrel≠0)
+      } else if (keRel < barrier) return false;           // 고전 hard cutoff(gamow=0 → 0041 거동·회귀 0)·저E 는 collide/bond 몫
+      // 합체: vcom 으로 잠근 새 원자(다발 합산). 총 운동량 정확 보존, 흡수된 상대 KE 는 바스로.
+      const M = ma + mb;
+      const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
+      const nucSum = (a.nuc || 0) + (b.nuc || 0);
+      // 방출 Δm·c²: fmf(0041) 면 *결합에너지 이득* ΔB_fus = B(생성)−B(a)−B(b)(질량공식서 — 발열량이 author 상수 아님·massDefect 와 짝).
+      //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
+      const Zp = a.Z + b.Z, Np = a.N + b.N;
+      const released = fmf
+        ? (K.binding(Zp, Np, pr, sh) - K.binding(a.Z | 0, a.N | 0, pr, sh) - K.binding(b.Z | 0, b.N | 0, pr, sh))
+        : Math.min(qRel, nucSum);
+      // 흡열 문턱 게이트: released<0(흡열)이고 상대 KE 가 그 비용을 못 갚으면(keRel+released<0) 융합 금지.
+      //   국소(그 두 원자 keRel·ΔB_fus 만)·rng 무소비(수치 판정·결정론 불변)·fuseEndo=0 → 비검사 = 0050 비트 동일·회귀 0.
+      if (endo && released < 0 && keRel + released < 0) return false;  // 에너지 보존 물리 게이트(바스 E 음수 방지)
+      if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
+      bath.E += keRel + released;                         // 흡수한 상대 KE + 방출 Δm·c² → 복사 바스. fmf+md: 생성 핵 정지질량이 ΔB_fus 만큼 줄어 상쇄(E 닫힘)
+      bath.count = (bath.count | 0) + 1;
+      // a 를 product 로 갱신(다발 합산·vcom·저장고 계승). b 는 dead 표시 → 배열서 압축.
+      a.Z += b.Z; a.N += b.N; a.e += b.e; a.lep = (a.lep || 0) + (b.lep || 0);
+      a.vx = vcx; a.vy = vcy;
+      a.nuc = fmf ? nucSum : nucSum - released;           // fmf: 저장고 미인출(연료=ΔM 정지질량·massDefect)·계승만. else: 저장고서 방출분 제외
+      a.x = 0;                                            // 들뜸은 합체로 초기화(토이 — 핵 들뜸 별도 모형 전가)
+      dead[j] = true; fusedAny = true;
+      return true;
+    }
+    // ⊕ step-0064 게이트 spatialHash(=0 → 전쌍 brute·회귀 0): collide(0055)·bond(0059)와 *동형* 셀 배선 — 융합도 접촉 반경 R 내
+    //   고E 충돌 이벤트라 전쌍 O(n²) 대신 셀 리스트(cellPairs·cut=R)로 이웃만 훑는다. 핵심: brute 의 이중 루프는 *정확히 사전식 (i,j) 순서*
+    //   (외 i↑·내 j↑)로 돌고, break 는 "원자 i 가 이번 tick 한 번만 합쳐짐"이다. cellPairs 쌍을 (i,j) 오름차순 정렬하면 같은 사전식 순서가 되고,
+    //   consumed[i](=brute break)로 i 의 잔여 쌍을 건너뛰면 — dead[]·rng(gamow)·bath 적재가 처리 순서에 의존하지만 그 순서가 같으므로 — 합체 결과가
+    //   **비트까지 동일**(켜도 회귀 0). R 밖 쌍은 cellPairs 가 안 주지만 brute 경로서도 d2>R2 로 return false(no-op·break 안 함)이라 합체 집합 정확 같다.
+    if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(직전 비트 동일·회귀 0)
+      for (let i = 0; i < n; i++) {
+        if (dead[i]) continue;
+        for (let j = i + 1; j < n; j++) {
+          if (dead[j]) continue;
+          if (tryFuse(i, j)) break;                        // a 는 이번 tick 더 안 합침(i 다음으로)
+        }
+      }
+    } else {                                               // 게이트=1 → 셀 리스트 이웃만(정렬해 brute 와 같은 사전식 순서 → 비트 동일·빠름)
+      const pairs = cellPairs(atoms, R, sim.W, sim.H).pairs;
+      pairs.sort((p, q) => (p[0] - q[0]) || (p[1] - q[1]));  // (i,j) 오름차순 = brute i<j 사전식 순서 → 처리 순서 일치 → 비트 동일
+      const consumed = new Array(n).fill(false);          // a 로 합쳐진 원자(brute break 등가 — i 의 잔여 쌍 skip)
+      for (const p of pairs) {
+        const i = p[0], j = p[1];
+        if (dead[i] || dead[j] || consumed[i]) continue;
+        if (tryFuse(i, j)) consumed[i] = true;
       }
     }
     if (fusedAny) {                                         // 죽은 원자 압축(개수 감소 — 합체 측정)
@@ -948,6 +969,7 @@
     const mf = sim.knobs.decayMassFormula;                 // 질량공식 구동(step-0037, 0 → author 문턱·decayQ 거동·회귀 0)
     const bp = sim.knobs.decayBetaPlus;                     // β⁺/전자포획 채널(step-0038, 0 → β⁻ 한 방향만·회귀 0)
     const dp = sim.knobs.decayPairing;                      // 페어링항 δ(step-0039, 0 → δ 미가법·0038 거동·회귀 0)
+    const sh = sim.knobs.nucShell;                          // 껍질 닫힘 보너스(step-0067, 0 → 미가법·0039 거동·회귀 0·ledger·fuse 와 같은 B)
     const md = sim.knobs.massDefect;                        // 결합E 정지질량 편입(step-0040, 0 → nuc 저장고 연료·회귀 0)
     const useBind = mf || md;                               // md(정지질량=A−B)는 binding 기반 안정·Q 를 *함의*한다 — md 켜고 mf 끈 불일치서도 q=ΔB 로 닫힘(레저 −B 변화와 정합·md=0 이면 mf 그대로·회귀 0)
     let bath = null;
@@ -959,10 +981,10 @@
       //     그래서 β⁻ 가 불리(ΔB⁻≤0)일 때만 β⁺ 를 본다 — 둘 다 ≤0 이면 안정 골짜기(완전한 양방향 골짜기). bp=0 → 0037 거동 비트 동일.
       let dB = 0, chan = 0;                                                       // chan: 0=β⁻(n→p·Z↑) · 1=β⁺(p→n·Z↓)
       if (useBind) {                                                              // mf 또는 md — 둘 다 결합에너지가 안정·Q 의 출처(정합 강제)
-        dB = K.bindingDelta(a.Z | 0, a.N | 0, dp);                                // β⁻ 결합 이득 ΔB⁻ (dp 면 페어링 δ 포함)
+        dB = K.bindingDelta(a.Z | 0, a.N | 0, dp, sh);                            // β⁻ 결합 이득 ΔB⁻ (dp 면 페어링 δ·sh 면 껍질 보너스 포함)
         if (dB <= 0) {                                                            // β⁻ 불리(중성자 과잉 아님)
           if (bp) {                                                              // β⁺ 채널 켬: 양성자 과잉이면 반대 방향으로 골짜기 수렴
-            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1, dp) - K.binding(a.Z | 0, a.N | 0, dp);  // β⁺ 결합 이득 ΔB⁺
+            const dBp = K.binding((a.Z | 0) - 1, (a.N | 0) + 1, dp, sh) - K.binding(a.Z | 0, a.N | 0, dp, sh);  // β⁺ 결합 이득 ΔB⁺
             if (dBp <= 0) continue;                                              // 양방향 ΔB≤0 → 안정 골짜기(질량공식 창발)
             dB = dBp; chan = 1;                                                  // β⁺ 진행(p→n·Z↓·발열 ΔB⁺)
           } else continue;                                                       // β⁺ 끔 → 0037 거동(β⁻ 만·회귀 0)
@@ -1029,8 +1051,34 @@
   const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
-  function applyForces(sim) {
-    for (const name of LAW_ORDER) LAWS[name](sim);
+  // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).
+  //   나머지(emit·recoil·…·collide·bond·fuse·decay·damp)는 *이벤트/소산* 법칙 — 한 tick 1회만(반쪽 안 함).
+  const FORCE_LAWS = new Set(['coulomb', 'repulse', 'pauli', 'vdw', 'bondSpring', 'bondAngle', 'gravity']);
+  // phase 인자(step-0069, 미지정 → 전 법칙·과거 비트 동일·회귀 0): 'force'=보존 연속력만(VV 반-kick) · 'event'=그 외만(VV 후 1회).
+  function applyForces(sim, phase) {
+    for (const name of LAW_ORDER) {
+      if (phase === 'force' && !FORCE_LAWS.has(name)) continue;   // 연속력만(VV 반-kick)
+      if (phase === 'event' && FORCE_LAWS.has(name)) continue;    // 이벤트/소산만(VV 후 1회)
+      LAWS[name](sim);
+    }
+  }
+
+  // velocity-Verlet(KDK·leapfrog) — 보존 연속력의 *2차* symplectic 적분(step-0069). symplectic Euler(1차·kick 전체+drift)가
+  //   깊은 중력 붕괴 근접조우서 E 를 *누적*(0068 한계·유계 아님)한 것을, 반-kick→drift→반-kick 으로 O(dt²) 오차로 줄여 *유계*로 만든다.
+  //   구조: ①반-kick(현 위치 가속 dt/2) ②drift(전 dt) ③새 위치서 반-kick(dt/2) ④이벤트/소산 법칙 1회. force 법칙은 sim.knobs.dt 를 읽으므로
+  //   반-kick 동안 dt 를 임시 절반으로 두고 *반드시 복원*(try/finally — 향후 법칙이 던져도 dt 오염 0). 게이트 sim.knobs.symplectic 로 sim.step 이 이 경로를 고른다(=0 → 옛 경로·회귀 0).
+  //   ⚠ 주의(미사용 조합): bond/unbond 는 *이벤트* 법칙(④ phase)이라 force 반-kick(①③) 뒤에 돈다 → symplectic=1 + 결합 동시 무대선 bondSpring/bondAngle 가
+  //     *직전 tick* 의 sim.bonds 를 봐 결합력에 1-tick 위상 지연이 생긴다(Euler 경로엔 없음·보존엔 무해). 현재 결합+symplectic 조합 scene 0 — 쓰려면 이 지연을 먼저 해소.
+  function leapfrog(sim) {
+    const dt0 = sim.knobs.dt;
+    try {
+      sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ① 반-kick(현 위치 가속)
+      sim.knobs.dt = dt0;       integrate(sim);              // ② drift(전 dt)
+      sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ③ 반-kick(새 위치 가속)
+      sim.knobs.dt = dt0;       applyForces(sim, 'event');   // ④ 이벤트/소산(충돌·융합·붕괴·damp 등) 1회
+    } finally {
+      sim.knobs.dt = dt0;                                    // 예외 경로서도 dt 복원(반-kick 0.5배 잔존 방지)
+    }
   }
 
   function wrap(v, max) { v %= max; if (v < 0) v += max; return v === max ? 0 : v; } // [0,max) 보장 — 음수 wrap 의 부동소수 반올림이 정확히 max 를 내는 경우를 0 으로 접는다
@@ -1170,5 +1218,5 @@
     }
   }
 
-  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy, cellPairs, bhForces };
+  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, leapfrog, wrap, covVacancy, cellPairs, bhForces };
 });

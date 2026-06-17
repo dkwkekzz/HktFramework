@@ -22,9 +22,10 @@
   }
 
   // 한 tick: 힘(법칙) → 적분 → tick++ . 순서가 결정론을 고정한다.
+  //   symplectic 게이트(step-0069, 기본 0 → 옛 경로·회귀 0): 1 이면 velocity-Verlet(leapfrog·2차)로 보존 연속력 적분(깊은 붕괴 E 누적 해소).
   function step(sim) {
-    L.applyForces(sim);
-    L.integrate(sim);
+    if (sim.knobs.symplectic) L.leapfrog(sim);   // velocity-Verlet(반-kick→drift→반-kick→이벤트 1회)
+    else { L.applyForces(sim); L.integrate(sim); }  // symplectic Euler(전 kick→drift·과거 비트 동일)
     sim.tick++;
   }
 
