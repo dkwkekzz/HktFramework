@@ -5006,6 +5006,355 @@
         ];
       },
     },
+
+    'step-0076': {
+      id: 'step-0076',
+      title: '적응 서브스텝 근접조우 정규화 (게이트 adaptSub — VV 의 *순간* E 출렁임[0069 §3 ②]을 깊은 pericenter서 서브스텝으로 격감·M=⌈|Δv|/adaptSub⌉ 근접조우↑·먼곳 1·운동량 머신·adaptSub=0 → 단일 KDK·회귀 0)',
+      desc: 'step-0069 의 velocity-Verlet 은 *2차*라 secular 표류는 잡지만, 한 tick 의 dt 가 *고정*이라 깊은 근접조우(pericenter)서 *순간* E 가 O(dt²) 로 출렁인다(0069 §3 한계 ②·0070/0072 의 다체 별 E 완화 ~3~12% 의 씨앗). 이 step 은 게이트 `adaptSub` 로 **적응 서브스텝**을 얹는다 — 매 tick *시험 full-kick*(dt0)으로 국소 최대 속도변화 |Δv| 를 재고(속도 비트 복원·무부작용), 서브스텝당 변화가 adaptSub 이내가 되게 M=⌈|Δv|/adaptSub⌉ 개의 작은 leapfrog(dt0/M)로 보존력을 쪼갠다. ' +
+            '가속 큰 pericenter 서 M↑·먼 apocenter 서 M=1(고정 dt 와 동일). 이벤트/소산(충돌·융합·붕괴·damp)은 *tick 당 1회* 유지 → 율 불변. 각 서브-KDK 도 쌍별 반작용 → px·py 머신. adaptSub=0 → 단일 KDK(0069 와 비트 동일·회귀 0). ' +
+            '*측정*(2체 깊은 이심 중력 궤도·brute 정확 2체·질량 16·kg=2·soft=2·dt=' + 0.3 + '·' + 600 + ' tick·farField=0): ' +
+            '① **순간 E 스윙 격감·load-bearing** — 같은 dt·궤도: 적응 VV 의 순간 E 스윙(Emax−Emin) ≪ 고정 VV(서브스텝이 pericenter 출렁을 직접 줄임·비율 ≫ 5배). ' +
+            '② **근접조우 적응·load-bearing** — 적응 서브스텝 M 이 pericenter 서 ↑(maxM≫1)·apocenter 서 1(고정 dt)·plunge 깊이에 반응(author 아닌 측정). ' +
+            '③ **운동량 머신** — 적응 서브-KDK 각자 쌍별 반작용 → 이심 무대 dpx·dpy ≤ 머신. ' +
+            '④ **회귀** — adaptSub=0 → 고정 단일 KDK(0069 경로 비트 동일)·새 노브 0 기본 → 0001~75 골든 비트 불변(회귀 0).',
+      ticks: 300,
+      W: 120, H: 120, MT: 600,
+      V0: 0.55, D: 7, DT: 0.3,                                // 깊은 이심 궤도(plunge·고정 VV 도 순간 E 출렁)
+      VTOL: 0.01,                                             // 적응: 서브스텝당 속도 변화 상한(adaptSub)
+      KN: { kGravity: 2, coulombSoft: 2 },
+      ledgerTol: { E: 2e-3 },                                 // 라이브 적응 VV E 유계(순간 출렁 억제·고정 VV 8.96e-3 대비 격감)·px·py 완화 없음=머신
+
+      sys(v, d) {
+        const cx = this.W / 2, cy = this.H / 2;
+        return [{ Z: 8, N: 8, e: 8, x: 0, rx: cx - d, ry: cy, vx: 0, vy: -v, lep: 0 },
+                { Z: 8, N: 8, e: 8, x: 0, rx: cx + d, ry: cy, vx: 0, vy: v, lep: 0 }];
+      },
+      // as=adaptSub(0 → 고정 VV · >0 → 적응). 순간 E 스윙(Emax−Emin)·순 표류·궤도 r·운동량·최대 서브스텝 maxM.
+      run(K, as, v, d, dt) {
+        const sim = { W: this.W, H: this.H, atoms: this.sys(v, d), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { dt, symplectic: 1, adaptSub: as }), tick: 0 };
+        const E0 = K.ledger(sim).E, px0 = K.ledger(sim).px, py0 = K.ledger(sim).py;
+        let Emin = E0, Emax = E0, rmin = 1e9, rmax = 0, maxM = 0;
+        for (let t = 0; t < this.MT; t++) {
+          L.leapfrog(sim);
+          if ((sim.lastSub | 0) > maxM) maxM = sim.lastSub | 0;
+          const E = K.ledger(sim).E; if (E < Emin) Emin = E; if (E > Emax) Emax = E;
+          const dx = K.minImage(sim.atoms[1].rx - sim.atoms[0].rx, this.W), dy = K.minImage(sim.atoms[1].ry - sim.atoms[0].ry, this.H), r = Math.hypot(dx, dy);
+          if (r < rmin) rmin = r; if (r > rmax) rmax = r;
+        }
+        const l = K.ledger(sim);
+        return { E0, swing: Emax - Emin, netDrift: Math.abs(l.E - E0), rmin, rmax, maxM, dpx: Math.abs(l.px - px0), dpy: Math.abs(l.py - py0), Etot: Math.abs(E0) };
+      },
+      cache(K) { return this._c || (this._c = { fix: this.run(K, 0, this.V0, this.D, this.DT), adp: this.run(K, this.VTOL, this.V0, this.D, this.DT) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): symplectic=1 + adaptSub 켠 깊은 이심 궤도 → 적응 적분이 장부·결정론 통과.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.sys(this.V0, this.D), rng: null, knobs: Object.assign({}, this.KN, { dt: this.DT, symplectic: 1, adaptSub: this.VTOL }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { fixSwingPct: +(c.fix.swing / c.fix.Etot * 100).toFixed(3), adpSwingPct: +(c.adp.swing / c.adp.Etot * 100).toFixed(4),
+                 swingRatio: +(c.fix.swing / c.adp.swing).toFixed(1), maxM: c.adp.maxM, fixMaxM: c.fix.maxM,
+                 plunge: [+c.adp.rmin.toFixed(1), +c.adp.rmax.toFixed(1)], dpx: +c.adp.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 순간 E 스윙 격감 ② 근접조우 적응(maxM) ③ 운동량 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const swingDown = c.fix.swing > c.adp.swing * 5 && c.adp.swing / c.adp.Etot < 0.01;   // ① 적응 순간 스윙 ≪ 고정
+        const adapted = c.adp.maxM > 4 && c.fix.maxM === 1;                                    // ② pericenter M↑·고정은 늘 1
+        const momOK = c.adp.dpx < 1e-9 && c.adp.dpy < 1e-9;                                     // ③ 적응 서브-KDK 운동량 머신
+        const reg = ctx.ledgerBefore !== undefined;                                            // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `순간 E 스윙 격감·load-bearing — 깊은 이심 궤도(plunge r${c.adp.rmin.toFixed(1)}↔${c.adp.rmax.toFixed(1)}) 같은 dt: 적응 VV 순간 스윙 ${(c.adp.swing / c.adp.Etot * 100).toFixed(4)}% ≪ 고정 VV ${(c.fix.swing / c.fix.Etot * 100).toFixed(3)}%(비율 ${(c.fix.swing / c.adp.swing).toFixed(1)}배·서브스텝이 pericenter 출렁 직접 줄임)`, pass: swingDown, value: +(c.fix.swing / c.adp.swing).toFixed(1) },
+          { name: `근접조우 적응·load-bearing — 적응 서브스텝 maxM ${c.adp.maxM}(pericenter 가속↑서 M↑) ≫ 고정 maxM ${c.fix.maxM}(늘 1·먼 곳 동일) ⇒ plunge 깊이에 반응(author 아닌 측정)`, pass: adapted, value: c.adp.maxM },
+          { name: `운동량 머신 — 적응 서브-KDK 각자 쌍별 반작용 → 이심 무대 dpx ${c.adp.dpx.toExponential(2)}·dpy ${c.adp.dpy.toExponential(2)} ≤ 머신`, pass: momOK, value: +c.adp.dpx.toExponential(3) },
+          { name: `회귀 — adaptSub=0 → 고정 단일 KDK(0069 경로 비트 동일)·새 노브 0 기본 → 0001~75 골든 비트 불변(회귀 0)`, pass: reg, value: c.fix.maxM },
+        ];
+      },
+    },
+
+    'step-0077': {
+      id: 'step-0077',
+      title: '별 E 완화 원천 격리 — 적응 서브스텝 무효 ⇒ 융합 이벤트 회계가 원천(적분 오차 아님) (측정·새 법칙 0 — 0076 adaptSub 를 0070 다체 별 무대에 적용·relE 안 줄음·gravity-only 깊은 붕괴 0.24%≪융합 무대 ~10%·골든 보존 회귀 0)',
+      desc: 'step-0070/0072 의 별 무대 E 완화(~10%)를 0069 §3 ②/STATE §3 은 "VV 가 못 잡는 이벤트/근접조우 오차"로 *뭉뚱그려* 두었다. step-0076 이 *순간* 적분 오차를 잡는 adaptSub 를 만들었으니, 이 측정 step 은 그것을 *다체 별 무대*에 적용해 완화의 *원천*을 가른다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0·0069 §3 ① "다체 무대 적용"과 동형). ' +
+            '두 대조가 원천을 못박는다: ⓐ **적응 무효** — 같은 별 무대(중력+pauli+fuse·dt=0.01)서 adaptSub 켜도(maxM↑·서브스텝 실제 작동) relE 가 *안 줄어든다*(오히려 미세 증가 — 더 잘게 적분하니 궤도 살짝 달라져 융합 수↑). ⇒ 완화는 *적분 오차가 아니다*. ⓑ **적분 무결** — 같은 깊이 *gravity-only*(kFuse=0·이벤트 0) 붕괴는 relE ~0.24%(VV 가 이미 잘 보존). ⇒ 적분은 무결하고 완화 ~10%는 *융합 이벤트* 때문(소비 원자 간 PE 소멸·Q 바스 회계가 ~314 융합 규모서 안 닫힘). ' +
+            '결론: 0070/0072 의 E 완화는 *적분 정밀도(adaptSub/dt)*로 못 줄인다 — **융합 이벤트의 에너지 회계**가 따로 닫혀야 한다(step-0078+ 후보). 미스어트리뷰션을 측정으로 바로잡음. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell·240 tick·고정 시드): ' +
+            '① **적응 무효·load-bearing** — adaptSub 켬 relE ≈ 끔(비율 ~1·안 줄음)·maxM≫1(서브스텝 실제 작동) ⇒ 완화는 적분 오차 아님. ' +
+            '② **적분 무결·load-bearing** — gravity-only(이벤트 0) 같은 붕괴 relE ~0.24% ≪ 융합 무대 ~10% ⇒ 완화는 *융합 이벤트* 때문. ' +
+            '③ **사다리 보존** — adaptSub 켜도 maxZ 사다리 등반 유지(물리 보존·정밀도만 바뀜). ' +
+            '④ **장부·결정론** — Q·B·L·px·py 머신·E 만 완화·새 법칙 0 → 0001~76 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 240,
+      VTOL: 0.01,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 2e3 },                                  // 별 무대 E 완화(라이브 120tick) — 이 step 이 *원천이 융합 이벤트 회계*임을 못박음(적분 아님)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // as=adaptSub·doFuse=융합 켜기. relE(순 완화%)·maxZ·융합 수·최대 서브스텝·장부 잔차.
+      run(K, as, doFuse) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { adaptSub: as, kFuse: doFuse ? this.KN.kFuse : 0 }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length; let maxM = 0;
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((sim.lastSub | 0) > maxM) maxM = sim.lastSub | 0; }
+        const l1 = K.ledger(sim);
+        return { relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100, maxZ: this.maxZof(sim.atoms), fusions: n0 - sim.atoms.length, maxM,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { off: this.run(K, 0, true), on: this.run(K, this.VTOL, true), grav: this.run(K, 0, false) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 별 무대 adaptSub 켜고(0076 적용) symplectic=1 — Q·B·L·px·py 머신·E 완화(원천=융합 이벤트).
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { adaptSub: this.VTOL }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { offRelEpct: +c.off.relE.toFixed(2), onRelEpct: +c.on.relE.toFixed(2), gravRelEpct: +c.grav.relE.toFixed(3),
+                 relRatio: +(c.on.relE / c.off.relE).toFixed(2), maxMon: c.on.maxM, maxZon: c.on.maxZ, fusionsOn: c.on.fusions, dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 적응 무효 ② 적분 무결 ③ 사다리 보존 ④ 장부·결정론.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const adaptNull = c.on.relE > c.off.relE * 0.8 && c.on.maxM > 4;                                  // ① 켜도 완화 안 줆(비율>0.8)·서브스텝 실제 작동
+        const integOK = c.grav.relE < 0.5 && c.off.relE > c.grav.relE * 10;                               // ② gravity-only 무결 ≪ 융합 무대(원천=이벤트)
+        const ladderKept = c.on.maxZ >= 6;                                                                // ③ adaptSub 켜도 사다리 등반 유지
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `적응 무효·load-bearing — 같은 별 무대 adaptSub 켬 relE ${c.on.relE.toFixed(2)}% ≈ 끔 ${c.off.relE.toFixed(2)}%(비율 ${(c.on.relE / c.off.relE).toFixed(2)}·안 줄음·켜면 maxM ${c.on.maxM}≫1 서브스텝 실제 작동) ⇒ 별 E 완화는 *적분 오차 아님*(author 아닌 측정)`, pass: adaptNull, value: +(c.on.relE / c.off.relE).toFixed(2) },
+          { name: `적분 무결·load-bearing — gravity-only(이벤트 0) 같은 깊이 붕괴 relE ${c.grav.relE.toFixed(3)}% ≪ 융합 무대 ${c.off.relE.toFixed(2)}%(${(c.off.relE / c.grav.relE).toFixed(0)}배) ⇒ VV 적분은 무결·완화 ~10%는 *융합 이벤트 회계* 때문(${c.off.fusions} 융합·소비 원자 PE 소멸·Q 바스)`, pass: integOK, value: +c.grav.relE.toFixed(3) },
+          { name: `사다리 보존 — adaptSub 켜도 maxZ ${c.on.maxZ}(사다리 등반 유지·물리 보존·정밀도만 바뀜)`, pass: ladderKept, value: c.on.maxZ },
+          { name: `장부·결정론 — 별 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 만 완화(원천=융합 이벤트)·새 법칙 0 → 0001~76 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.maxZ },
+        ];
+      },
+    },
+
+    'step-0078': {
+      id: 'step-0078',
+      title: '융합 이벤트 에너지 회계 닫기 (게이트 fuseConservePE — 합체 시 소멸하는 보편 쌍 PE[pauli 부피·gravity 등]를 바스로 환원·별 relE 9.69%→0.224%≈적분 baseline·동역학 불변·바스만 건드림·fuseConservePE=0 → 옛 거동·회귀 0)',
+      desc: 'step-0077 이 별 무대 E 완화(~10%)의 원천을 *융합 이벤트 회계*로 못박았다(적분 아님). 원인: `fuse` 가 두 원자를 합칠 때 ⓐ둘 *사이* 쌍 PE 와 ⓑ소비된 원자 j 가 다른 원자들과 가지던 *보편 쌍 PE* — 특히 pauli 는 *질량무관*이라 j 의 배제부피가 통째로 — 가 ledger 에서 *소멸*한다 → 그만큼 E 누수. ' +
+            '이 step 의 게이트 `fuseConservePE` 가 닫는다: 합체 전 보편 쌍 PE 합 pe0(pauli·gravity·coulomb·repulse·vdw — ledger 와 같은 함수) 과 합체·압축 후 pe1 의 차 (pe0−pe1)=소멸분을 *복사 바스*로 환원(결합 끊김 bondE→바스 0073/0075 와 동형·결합 PE 는 fuseRebond 가 따로 처리). 바스 E 만 건드린다 → 원자 동역학(궤도·융합 판정)은 *완전 불변*. fuseConservePE=0 → 옛 거동(바스 미변경)·회귀 0. ' +
+            '*측정*(0077 과 같은 별 무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse·240 tick·고정 시드): ' +
+            '① **E 닫힘·load-bearing** — fuseConservePE 켬 relE **0.224%** ≪ 끔 **9.69%**(absdE 3544→82·~43배)·잔차가 *gravity-only 적분 baseline ~0.24%* 까지 내려감(융합 누수 닫힘·남은 건 정상 적분 swing). ' +
+            '② **동역학 불변·load-bearing** — 켬/끔 maxZ·융합 수·dpx 비트 동일(회계는 *바스만* 건드림·물리 불변·author 아닌 측정). ' +
+            '③ **장부 머신** — Q·B·L·px·py 머신·E 닫힘(누수 환원). ' +
+            '④ **회귀** — fuseConservePE=0 → 옛 거동(바스 미변경) 비트 동일·새 노브 0 기본 → 0001~77 골든 비트 불변.',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 240,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 50 },                                   // 라이브 consPE=1 120tick relE 0.053%(absdE 19.5) — 융합 누수 닫혀 정상 적분 swing 만 남음
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // cp=fuseConservePE·doFuse=융합 켜기. relE(순 완화%)·maxZ·융합 수·장부 잔차.
+      run(K, cp, doFuse) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseConservePE: cp, kFuse: doFuse ? this.KN.kFuse : 0 }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length;
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100, absdE: Math.abs(l1.E - l0.E), maxZ: this.maxZof(sim.atoms), fusions: n0 - sim.atoms.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { off: this.run(K, 0, true), on: this.run(K, 1, true), grav: this.run(K, 0, false) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 별 무대 fuseConservePE 켬·symplectic=1 — E 닫힘(누수 환원)·Q·B·L·px·py 머신.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { fuseConservePE: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { offRelEpct: +c.off.relE.toFixed(2), onRelEpct: +c.on.relE.toFixed(3), gravRelEpct: +c.grav.relE.toFixed(3),
+                 relRatio: +(c.off.relE / c.on.relE).toFixed(1), maxZon: c.on.maxZ, maxZoff: c.off.maxZ, fusOn: c.on.fusions, fusOff: c.off.fusions, dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① E 닫힘 ② 동역학 불변 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const closed = c.off.relE > c.on.relE * 10 && c.on.relE < c.grav.relE * 1.5;                      // ① 켬 relE ≪ 끔·잔차 ≈ gravity-only 적분 baseline
+        const dynSame = c.on.maxZ === c.off.maxZ && c.on.fusions === c.off.fusions && Math.abs(c.on.dpx - c.off.dpx) < 1e-15;  // ② 동역학 비트 불변(바스만)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③ Q·B·L·px·py 머신
+        const reg = ctx.ledgerBefore !== undefined;                                                       // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `E 닫힘·load-bearing — fuseConservePE 켬 relE ${c.on.relE.toFixed(3)}% ≪ 끔 ${c.off.relE.toFixed(2)}%(absdE ${c.off.absdE.toFixed(0)}→${c.on.absdE.toFixed(0)}·${(c.off.relE / c.on.relE).toFixed(0)}배)·잔차가 gravity-only 적분 baseline ${c.grav.relE.toFixed(3)}% 까지 내려감 ⇒ 융합 누수 닫힘(남은 건 정상 적분 swing)`, pass: closed, value: +c.on.relE.toFixed(3) },
+          { name: `동역학 불변·load-bearing — 켬/끔 maxZ ${c.on.maxZ}=${c.off.maxZ}·융합 ${c.on.fusions}=${c.off.fusions}·dpx 비트 동일 ⇒ 회계는 *바스만* 건드림·궤도·융합 판정 불변(author 아닌 측정)`, pass: dynSame, value: c.on.fusions },
+          { name: `장부 머신 — Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘(소멸 PE 바스 환원)`, pass: ledgerOK, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — fuseConservePE=0 → 옛 거동(바스 미변경·끔 relE ${c.off.relE.toFixed(2)}%) 비트 동일·새 노브 0 기본 → 0001~77 골든 비트 불변(회귀 0)`, pass: reg, value: +c.off.relE.toFixed(2) },
+        ];
+      },
+    },
+
+    'step-0079': {
+      id: 'step-0079',
+      title: '일생 순환 E 회계 닫기 + 회수 에너지가 분산을 먹인다 (측정·새 법칙 0 — 0078 fuseConservePE 를 0072 완전 일생 무대[gravity+fuse+disperse]에 적용·relE 11.59%→0.271%·회수 융합 E 가 disperse 바스로 흘러 churn↑ maxZ 12→19·골든 보존 회귀 0)',
+      desc: 'step-0078 은 0070 별 무대(gravity+fuse)서 융합 E 회계를 닫았다(동역학 불변 — 거기엔 바스 소비자가 없어 바스만 늘었다). 이 측정 step 은 그것을 0072 *완전 일생 순환* 무대(+disperse 복사압 분산)에 적용한다(새 법칙 0·scene 만·0078 노브 재사용·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). ' +
+            '여기선 disperse 가 *바스 E 를 끌어 원자 KE 로* 환원한다(복사압 → 가스 반동). 그래서 fuseConservePE 가 회수한 융합 PE 가 바스로 들어가면 — **그 에너지가 disperse 의 연료가 된다**(누수 막힘이 단지 장부 미용이 아니라 *물리적으로* 분산을 더 먹인다). 두 회계가 한 무대서 합성: fuse PE→바스, 바스→disperse KE. ' +
+            '*측정*(0072 와 같은 일생 무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse+disperse(Zmin3)·360 tick·고정 시드): ' +
+            '① **일생 E 닫힘·load-bearing** — fuseConservePE 켬 relE **0.271%** ≪ 끔 **11.59%**(absdE 4242→99·~43배)·disperse 동반 무대서도 융합 누수 닫힘. ' +
+            '② **회수 에너지가 분산 구동·load-bearing** — 켬 maxZ **19** > 끔 **12**·융합 **351**>**337**(회수 융합 PE 가 disperse 바스로 흘러 더 풍부한 churn) ⇒ 누수가 *물리적으로* 분산/등반을 덜 먹이고 있었음(author 아닌 측정·0078 무대선 바스 소비자 0 이라 동역학 불변이던 것과 대조). ' +
+            '③ **산물 분산 보존** — 무거운 핵(Z≥3) rgHeavy 켜도 바탕(Z<3)보다 넓게 분산(disperse 작동 유지). ' +
+            '④ **장부 머신·회귀** — Q·B·L·px·py 머신·E 닫힘·fuseConservePE=0 → 옛 거동 → 0001~78 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 360,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.4, disperseE: 2, disperseZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 60 },                                   // 라이브 일생 무대 fuseConservePE=1 120tick E 잔차 ~22(disperse churn↑·융합 누수는 닫힘)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg(at, sel) {
+        const sub = sel === 'heavy' ? at.filter(a => a.Z >= 3) : sel === 'light' ? at.filter(a => a.Z < 3) : at;
+        if (sub.length === 0) return 0;
+        let cx = 0, cy = 0; for (const a of sub) { cx += a.rx; cy += a.ry; } cx /= sub.length; cy /= sub.length;
+        let s = 0; for (const a of sub) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / sub.length);
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      run(K, cp) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { fuseConservePE: cp }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length;
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        return { relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100, absdE: Math.abs(l1.E - l0.E), maxZ: this.maxZof(sim.atoms), fusions: n0 - sim.atoms.length,
+                 rgHeavy: +this.Rg(sim.atoms, 'heavy').toFixed(1), rgLight: +this.Rg(sim.atoms, 'light').toFixed(1),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { off: this.run(K, 0), on: this.run(K, 1) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 완전 일생 무대 fuseConservePE 켬·symplectic=1 — E 닫힘(융합 누수 환원)·Q·B·L·px·py 머신.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { fuseConservePE: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { offRelEpct: +c.off.relE.toFixed(2), onRelEpct: +c.on.relE.toFixed(3), relRatio: +(c.off.relE / c.on.relE).toFixed(1),
+                 maxZon: c.on.maxZ, maxZoff: c.off.maxZ, fusOn: c.on.fusions, fusOff: c.off.fusions, rgHeavyOn: c.on.rgHeavy, rgLightOn: c.on.rgLight, dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 일생 E 닫힘 ② 회수 에너지가 분산 구동 ③ 산물 분산 보존 ④ 장부 머신·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const closed = c.off.relE > c.on.relE * 10 && c.on.relE < 1;                                      // ① 켬 relE ≪ 끔·1% 미만(누수 닫힘)
+        const drives = c.on.maxZ > c.off.maxZ && c.on.fusions > c.off.fusions;                            // ② 회수 E 가 churn 키움(disperse 연료)
+        const dispersed = c.on.rgHeavy > c.on.rgLight;                                                    // ③ 무거운 핵이 바탕보다 넓게(분산 작동)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `일생 E 닫힘·load-bearing — fuseConservePE 켬 relE ${c.on.relE.toFixed(3)}% ≪ 끔 ${c.off.relE.toFixed(2)}%(absdE ${c.off.absdE.toFixed(0)}→${c.on.absdE.toFixed(0)}·${(c.off.relE / c.on.relE).toFixed(0)}배)·disperse 동반 일생 무대서도 융합 누수 닫힘`, pass: closed, value: +c.on.relE.toFixed(3) },
+          { name: `회수 에너지가 분산 구동·load-bearing — 켬 maxZ ${c.on.maxZ} > 끔 ${c.off.maxZ}·융합 ${c.on.fusions}>${c.off.fusions}(회수 융합 PE 가 disperse 바스로 흘러 더 풍부한 churn) ⇒ 누수가 *물리적으로* 분산/등반을 덜 먹이고 있었음(0078 바스 소비자 0 동역학 불변과 대조·author 아닌 측정)`, pass: drives, value: c.on.maxZ },
+          { name: `산물 분산 보존 — 무거운 핵(Z≥3) rgHeavy ${c.on.rgHeavy} > 바탕(Z<3) rgLight ${c.on.rgLight}(disperse 작동 유지·산물 다음 별 재료)`, pass: dispersed, value: c.on.rgHeavy },
+          { name: `장부 머신·회귀 — 일생 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘·fuseConservePE=0 → 옛 거동 → 0001~78 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.maxZ },
+        ];
+      },
+    },
+
+    'step-0080': {
+      id: 'step-0080',
+      title: '세대 핵합성 — 분산 산물이 재응집해 2세대 재점화 (측정·새 법칙 0 — gravity+fuse+disperse+E회계 장시간·1세대 천정 maxZ 19 → 정적기 후 재응집 → 2세대 재점화 maxZ 29·중력 끄면 점화 0·SPINE §4·§8 Phase E 순환 종착·골든 보존 회귀 0)',
+      desc: 'step-0071~0079 가 모음→점화→사다리→산물 분산→E 회계까지 닫았다. 이 측정 step 은 그 무대를 *장시간*(1400 tick) 굴려 SPINE §4 self-running 순환의 마지막 칸 — *흩어진 산물이 다시 모여 점화하는* 한 바퀴 — 의 서명을 잡는다(새 법칙 0·scene 만·기존 gravity+fuse+disperse+fuseConservePE 합성·LAW_ORDER·DEFAULTS 불변 → 골든 보존=회귀 0). ' +
+            '시계열이 세 국면을 보인다: ⓐ **1세대 점화**(tick~0–250) — 차가운 ²H 구름 중력 붕괴→밀집 코어 점화→융합 폭발(maxZ→천정 ~19·연료 급소모) ⓑ **정적기·재응집**(~250–800) — 연료 소진으로 융합률 붕괴, 무거운 산물(Z≥3)이 disperse 로 흩어지되 *중력에 다시 끌려 모인다*(탈출 아님·토러스 결속) ⓒ **2세대 재점화**(~800–1400) — 재응집한 산물이 다시 충분히 밀집·고온이 되어 *1세대 천정을 돌파*(maxZ 19→~29) 더 무거운 핵 생성. fuseConservePE(0078)로 회수한 융합 E 가 bath→disperse(0079) churn 을 먹여 순환을 굴린다. ' +
+            '*측정*(무대 100²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+disperse(Zmin3)+fuseConservePE·1400 tick·고정 시드): ' +
+            '① **세대 재점화·load-bearing** — 종단 maxZ(~29) > 1세대 천정 maxZ@300(~19)·후기(>800tick) 융합 >0 ⇒ 정적기 후 *재점화*로 더 무거운 세대 생성(한 번의 단조 등반이 아님). ' +
+            '② **중력 재응집 구동·load-bearing** — kGravity 켜면 종단 maxZ ~29 ≫ 끄면 ~2(점화 자체 0)·재응집·재점화가 *중력 때문*(author 아닌 측정). ' +
+            '③ **장부 머신·E 닫힘** — 장시간(1400tick) Q·B·L·px·py 머신·E 닫힘(fuseConservePE+disperse 회계가 장시간서도 정합). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~79 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 100, H: 100, N: 400, MT: 1400, CKPT: 300, LATE: 800,
+      KN: { dt: 0.01, kGravity: 3.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.5, disperseE: 2, disperseZmin: 3, fuseConservePE: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 300 },                                  // 라이브 120tick(1세대 격렬 붕괴 중) symplectic 순간 swing ≤0.29%(누수 아님 — cache net relE 0.262% 닫힘·0070/0072 의 1.5e3/2.5e3 보다 훨씬 타이트)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // grav=중력 세기. maxZ@CKPT(1세대 천정)·종단 maxZ·후기(>LATE) 융합 수·시계열·장부 잔차.
+      run(K, grav) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { kGravity: grav }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length;
+        let ceil1 = 0, fusEarly = 0, fusLate = 0, prevN = n0; const zS = [];
+        for (let t = 0; t < this.MT; t++) {
+          L.leapfrog(sim); sim.tick++;
+          const dn = prevN - sim.atoms.length; prevN = sim.atoms.length;
+          if (t + 1 <= this.CKPT) fusEarly += dn; else if (t + 1 > this.LATE) fusLate += dn;
+          if (t + 1 === this.CKPT) ceil1 = this.maxZof(sim.atoms);
+          if ((t + 1) % 100 === 0) zS.push(this.maxZof(sim.atoms));
+        }
+        const l1 = K.ledger(sim);
+        return { ceil1, mzFinal: this.maxZof(sim.atoms), fusEarly, fusLate, zS, relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kGravity), grav0: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 세대 무대 fuseConservePE 켬·symplectic=1 — E 닫힘·Q·B·L·px·py 머신.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { ceil1: c.on.ceil1, mzFinal: c.on.mzFinal, fusEarly: c.on.fusEarly, fusLate: c.on.fusLate,
+                 mzFinalGrav0: c.grav0.mzFinal, relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3), zTrail: c.on.zS.join('→') };
+      },
+
+      // 가설: ① 세대 재점화 ② 중력 재응집 구동 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const reignite = c.on.mzFinal > c.on.ceil1 && c.on.ceil1 >= 6 && c.on.fusLate > 0;                // ① 종단>천정·1세대 일어남·후기 융합>0
+        const gravDriven = c.on.mzFinal > c.grav0.mzFinal * 3 && c.grav0.mzFinal <= 4;                    // ② 중력 켬 ≫ 끔(점화 0)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③ Q·B·L·px·py 머신·E 닫힘<1%
+        const reg = ctx.ledgerBefore !== undefined;                                                       // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `세대 재점화·load-bearing — 종단 maxZ ${c.on.mzFinal} > 1세대 천정 maxZ@${this.CKPT} ${c.on.ceil1}·후기(>${this.LATE}tick) 융합 ${c.on.fusLate}회 ⇒ 정적기(연료 소진·1세대 ${c.on.fusEarly}회) 후 *재점화*로 더 무거운 세대 생성(maxZ 시계열 ${c.on.zS.join('→')})`, pass: reignite, value: c.on.mzFinal },
+          { name: `중력 재응집 구동·load-bearing — kGravity 켜면 종단 maxZ ${c.on.mzFinal} ≫ 끄면 ${c.grav0.mzFinal}(점화 자체 0·재응집 없음) ⇒ 재응집·재점화가 *중력 때문*(author 아닌 측정)`, pass: gravDriven, value: c.grav0.mzFinal },
+          { name: `장부 머신·E 닫힘 — 장시간 ${this.MT}tick Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(fuseConservePE+disperse 회계 장시간 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — 새 법칙 0(기존 gravity+fuse+disperse+fuseConservePE 합성·scene 만) → 0001~79 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.mzFinal },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

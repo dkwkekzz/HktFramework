@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -878,6 +878,13 @@
     //   keRel<|ΔB_fus| 면 지불 불가 → 융합 *에너지적 금지*(철 너머 융합이 고E 군집서만 일어나는 이유·발열은 문턱 0).
     const endo = sim.knobs.fuseEndo;
     const atoms = sim.atoms, n = atoms.length;
+    // 융합 이벤트 PE 회계(step-0078, fuseConservePE=0 → 옛 거동·바스 미변경·회귀 0): 두 원자가 합쳐지면 *둘 사이* 및 *소비된 원자 j 가
+    //   다른 원자들과 가지던* 보편 쌍 PE(pauli 는 질량무관 → j 의 부피가 통째로 소멸·gravity/coulomb 등)가 ledger 에서 사라진다 → E 누수
+    //   (step-0077 이 별 relE ~10% 의 원천으로 격리). 합체 전 보편 쌍 PE 합 pe0 과 합체·압축 후 pe1 의 차(=소멸분)를 *복사 바스*로 환원해 닫는다.
+    //   결합(bond) PE 는 fuseRebond(0073)가 따로 per-bond 환원 → 여기선 *보편 쌍 5종*(pauli·gravity·coulomb·repulse·vdw·ledger 와 같은 함수)만.
+    const consPE = sim.knobs.fuseConservePE;
+    const sumPairPE = (at) => K.pauliPE(at, sim.knobs, sim.W, sim.H) + K.gravityPE(at, sim.knobs, sim.W, sim.H) + K.coulombPE(at, sim.knobs, sim.W, sim.H) + K.repulsePE(at, sim.knobs, sim.W, sim.H) + K.vdwPE(at, sim.knobs, sim.W, sim.H);
+    const pe0 = consPE ? sumPairPE(atoms) : 0;             // 합체 전 보편 쌍 PE(전 원자 live)
     let bath = null, fusedAny = false;
     const dead = new Array(n).fill(false);                 // 이미 합쳐져 소비된 원자(한 tick 중복 합체 가드)
     // 한 쌍 융합 시도(brute·cellPairs 공용 — 같은 코드 → 같은 결과). 융합하면 true(brute 의 break / cell 의 consumed 신호).
@@ -970,6 +977,13 @@
         for (const e of kept) sim.bondKeys.add(e[0] * nn + e[1]);       // 새 n 으로 키 재생성(bond() doPair 키 규약 정합)
       }
       sim.atoms = live;
+      // 융합 PE 회계(step-0078): 압축 후 보편 쌍 PE pe1 — 소멸분 (pe0−pe1) 을 바스로 환원해 ledger E 닫힘(pauli 부피 소멸·gravity 쌍 등).
+      //   live 는 압축 순서(인덱스 순) → ledger 가 끝 tick 에 sim.atoms 로 계산할 PE 와 비트 일치(소멸분 정확). fuseConservePE=0 → 미실행(회귀 0).
+      if (consPE) {
+        const pe1 = sumPairPE(live);
+        if (!bath) bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
+        bath.E += pe0 - pe1;
+      }
     }
     sim.fuseActive = 1;                                     // 진단 플래그(hash 미참여)
   }
@@ -1171,16 +1185,45 @@
   //   반-kick 동안 dt 를 임시 절반으로 두고 *반드시 복원*(try/finally — 향후 법칙이 던져도 dt 오염 0). 게이트 sim.knobs.symplectic 로 sim.step 이 이 경로를 고른다(=0 → 옛 경로·회귀 0).
   //   ⚠ 주의(미사용 조합): bond/unbond 는 *이벤트* 법칙(④ phase)이라 force 반-kick(①③) 뒤에 돈다 → symplectic=1 + 결합 동시 무대선 bondSpring/bondAngle 가
   //     *직전 tick* 의 sim.bonds 를 봐 결합력에 1-tick 위상 지연이 생긴다(Euler 경로엔 없음·보존엔 무해). 현재 결합+symplectic 조합 scene 0 — 쓰려면 이 지연을 먼저 해소.
+  //   적응 서브스텝(step-0076, 게이트 adaptSub=0 → 단일 KDK·비트 동일·회귀 0): VV 가 *2차*라도 한 tick 의 dt 가 고정이라
+  //     깊은 근접조우(pericenter)서 *순간* E 가 O(dt²) 로 출렁인다(0069 §3 한계 ②). adaptSub>0 면 그 tick 의 *국소 최대 가속*을
+  //     시험 kick 으로 재고(속도 비트 복원), 서브스텝당 속도 변화 ≤ adaptSub 이 되게 M=⌈|Δv|/adaptSub⌉ 개의 작은 leapfrog 로
+  //     보존력만 쪼갠다(dt0/M). 가속 큰 근접조우서 M↑·먼 곳선 M=1(고정 dt 와 동일). 이벤트/소산(④)은 *tick 당 1회* 유지 —
+  //     서브스텝과 무관(충돌·융합·붕괴 율 불변). 각 서브-KDK 도 쌍별 반작용 → px·py 머신. 시간가변이라 엄밀 symplectic 은 아니나
+  //     근접조우 *순간* 오차를 직접 줄인다(순간 E 스윙 격감). 비용: tick 당 시험 force 1회 + M배 보존력(adaptSub=0 면 0).
   function leapfrog(sim) {
     const dt0 = sim.knobs.dt;
+    const M = sim.knobs.adaptSub > 0 ? chooseSubSteps(sim, dt0, sim.knobs.adaptSub) : 1;
+    sim.lastSub = M;                                         // 이번 tick 의 서브스텝 수(introspection — 해시·장부 무관·근접조우 M↑ 측정)
     try {
-      sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ① 반-kick(현 위치 가속)
-      sim.knobs.dt = dt0;       integrate(sim);              // ② drift(전 dt)
-      sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ③ 반-kick(새 위치 가속)
-      sim.knobs.dt = dt0;       applyForces(sim, 'event');   // ④ 이벤트/소산(충돌·융합·붕괴·damp 등) 1회
+      const sub = dt0 / M;
+      for (let k = 0; k < M; k++) {                          // M=1 → 단일 KDK(adaptSub=0 → 비트 동일·회귀 0)
+        sim.knobs.dt = sub * 0.5; applyForces(sim, 'force'); // ① 반-kick(현 위치 가속)
+        sim.knobs.dt = sub;       integrate(sim);            // ② drift(서브 dt)
+        sim.knobs.dt = sub * 0.5; applyForces(sim, 'force'); // ③ 반-kick(새 위치 가속)
+      }
+      sim.knobs.dt = dt0;       applyForces(sim, 'event');   // ④ 이벤트/소산(충돌·융합·붕괴·damp 등) tick 당 1회(서브스텝 무관)
     } finally {
-      sim.knobs.dt = dt0;                                    // 예외 경로서도 dt 복원(반-kick 0.5배 잔존 방지)
+      sim.knobs.dt = dt0;                                    // 예외 경로서도 dt 복원(반-kick 0.5배·서브 dt 잔존 방지)
     }
+  }
+
+  // 적응 서브스텝 수 선택(step-0076): 시험 full-kick(dt0)으로 *국소 최대 속도변화* |Δv|=max‖a·dt0‖ 를 재고 속도를 *비트 정확* 복원,
+  //   서브스텝당 변화가 vTol 이내가 되게 M=clamp(⌈|Δv|/vTol⌉, 1, ADAPT_SUB_MAX). 위치·bonds 불변(force 는 v 만 kick)이라 시험은 무부작용.
+  const ADAPT_SUB_MAX = 256;                                 // 비용 상한(극단 근접조우서 폭주 방지)
+  function chooseSubSteps(sim, dt0, vTol) {
+    const atoms = sim.atoms, n = atoms.length;
+    const vx0 = new Array(n), vy0 = new Array(n);
+    for (let i = 0; i < n; i++) { vx0[i] = atoms[i].vx; vy0[i] = atoms[i].vy; }
+    sim.knobs.dt = dt0; applyForces(sim, 'force');           // 시험 kick(전 보존력·dt0)
+    let amax2 = 0;
+    for (let i = 0; i < n; i++) {
+      const dvx = atoms[i].vx - vx0[i], dvy = atoms[i].vy - vy0[i], d2 = dvx * dvx + dvy * dvy;
+      if (d2 > amax2) amax2 = d2;
+      atoms[i].vx = vx0[i]; atoms[i].vy = vy0[i];            // 속도 비트 복원(시험 무부작용)
+    }
+    sim.knobs.dt = dt0;                                      // dt 복원(시험이 dt0 로 둠)
+    return Math.max(1, Math.min(ADAPT_SUB_MAX, Math.ceil(Math.sqrt(amax2) / vTol)));
   }
 
   function wrap(v, max) { v %= max; if (v < 0) v += max; return v === max ? 0 : v; } // [0,max) 보장 — 음수 wrap 의 부동소수 반올림이 정확히 max 를 내는 경우를 0 으로 접는다
