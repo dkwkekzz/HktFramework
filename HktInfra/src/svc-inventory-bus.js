@@ -1,5 +1,5 @@
 'use strict';
-// step-0048 정리 분할 — InventoryService *버스 결과/replay* 경로(_out·_onOutAck·_onSeenWatermark·resendOut).
+// step-0050 — 적응형 leaseSpan(busLeaseAdapt) 축출 임계. InventoryService *버스 결과/replay* 경로(_out·_onOutAck·_onSeenWatermark·resendOut).
 //   원장 코어(svc-inventory-core.js)의 프로토타입을 Object.assign 으로 증강(동작 불변). 진입점이 core 뒤에 로드한다.
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const { InventoryService } = __isNode ? require('./svc-inventory-core.js') : globalThis.__HktNetParts.svc_inventory_core;
@@ -37,6 +37,13 @@ Object.assign(InventoryService.prototype, {
       //   침묵 신호(frontier−lastSeen)는 ack 사건이 갱신하므로 생산 버스트에도 산 소비자를 오축출 안 함(content lag 와 다름). ack 이력 없는(undefined) 소비자는 미확립이라 정의역 밖. OFF·leaseSpan 0 면 휴면(evicted 안 채워짐 → 0044 비트 동일).
       if (this.busConsumerLease && this.leaseSpan > 0) {
         const frontier = this.outSeq - 1;
+        // 적응형 cadence 추정(이 step·busLeaseAdapt) — 방금 ack 한 소비자가 *살아서 견딘* 직전 침묵(frontier−이전 seen)을 per-c 러닝 최대로 키운다.
+        //   이 침묵은 c 가 ack 으로 끝낸 = *증명된 생존 cadence*. 죽은 소비자는 ack 안 하므로 자기 max 가 동결 → 아래 임계가 동결값+마진에서 멈춰 결국 축출(죽음 감지 보존).
+        //   busLeaseAdapt OFF 면 consumerMaxGap 미갱신 = 0049 비트 동일.
+        if (this.busLeaseAdapt) {
+          const prevSeen = this.consumerSeen.get(ev.consumer);
+          if (prevSeen !== undefined) { const gap = frontier - prevSeen, m = this.consumerMaxGap.get(ev.consumer) || 0; if (gap > m) this.consumerMaxGap.set(ev.consumer, gap); }
+        }
         this.consumerSeen.set(ev.consumer, frontier);   // 방금 ack = 산 것 → 침묵 기준 리셋
         for (const c of this.outConsumers) {
           if (c === ev.consumer || this.evicted.has(c)) continue;
@@ -48,7 +55,10 @@ Object.assign(InventoryService.prototype, {
             if (this.busLeaseLife) this.consumerSeen.set(c, frontier);
             continue;
           }
-          if (frontier - seen > this.leaseSpan) { this.evicted.add(c); this.evictions++; }
+          // 축출 임계 — 적응형(이 step·busLeaseAdapt)이면 관측 cadence(consumerMaxGap)+leaseSpan(여유 마진), 아니면 고정 leaseSpan(0049 동일).
+          //   적응형: 산 소비자는 침묵이 자기 cadence 를 마진 안에서만 넘어 오축출 0(임계가 cadence 를 따라 오름) / 죽은 소비자는 max 동결 → 침묵이 동결값+마진 초과 → 축출.
+          const threshold = this.busLeaseAdapt ? (this.consumerMaxGap.get(c) || 0) + this.leaseSpan : this.leaseSpan;
+          if (frontier - seen > threshold) { this.evicted.add(c); this.evictions++; }
         }
       }
       let min = Infinity;

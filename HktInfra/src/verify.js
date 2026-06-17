@@ -1,13 +1,12 @@
-// HktInfra step-0048 — 헤드리스 검증 (소비자 lease lifecycle 정합 — 시작-시점 죽음 축출 + 축출 비가역 해소·busLeaseLife)
-// 사용: node step-0048/verify.js <mode> [seed]
-//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (0001~0029 누적 모드 = 키트). 이 step 의 새 가설 = `leaselife`.
-//   더한 한 조각: 0045 소비자 lease(busConsumerLease)의 두 빈틈(코드리뷰 §2/§3) 해소 —
-//     §2 *시작-시점 죽음*: 한 번도 ack 안 한 소비자는 침묵 기준(consumerSeen) 미확립 → 축출 정의역 밖 + consumerWm 미확립으로 min 을 -1 에 고정 → outBuffer 무계(축출도 못 함).
-//     §3 *축출 비가역*: 축출된 소비자가 돌아와도(재구독·재-ack) evicted 에서 못 빠져 min 정의역 미복귀 → 이후 결과 starve 재발.
-//   해법(busLeaseLife): ⒜ sweep 가 처음 본 미-ack 소비자에 침묵 기준을 frontier 로 *지연* 확립(leaseSpan grace) → 영영-죽음이면 leaseSpan 뒤 축출 ⒝ 축출된 소비자가 재-ack 하면 evicted 에서 제거(재admission).
-//   검증: ⒜ `reg`(키트) — busLeaseLife=0(기본)이면 NET 이 직전 step(0047)과 *비트 동일*(지연 baseline 미확립·재admission 0·evicted 동작 무변경).
-//         ⒝ `leaselife`(이 step·가설) — §2 never-ack 소비자에서 OFF outBufPeak ∝run-length(무계·축출 0) vs ON 유계(run-length 무관·ev≥1)·§3 revival 에서 OFF 비가역(readm 0·영영 evicted) vs ON 재admission(readm≥1·정의역 복귀)·산 소비자 오축출 0(ctl).
-// 작성법: 누적 회귀(reg 등 18모드)는 키트가 든다. 셸은 ctx 구성 + 이번 step 가설 모드(leaselife)만 더한다.
+// HktInfra step-0050 — 헤드리스 검증 (적응형 leaseSpan — 축출 임계를 관측 cadence 로 self-size·busLeaseAdapt)
+// 사용: node src/verify.js <mode> [seed]
+//   mode 카탈로그·각 모드 문서: engine/verify-kit.js 헤더 (누적 회귀 모드 = 키트). 이 step 의 새 가설 = `adapt`.
+//   더한 한 조각: 0045~0048 소비자 lease 의 *정직한 한계* 해소 — 고정 leaseSpan 은 *정상 ack cadence(침묵)보다 커야* 산 소비자를 안 쫓는다.
+//     그 cadence(생산율×소비자 속도)는 사전에 알 수 없다 → 너무 작으면 *산* 소비자를 cadence 주기마다 반복 오축출(flapping), 너무 크면 죽은 소비자 늦게 감지(0048 verify §9).
+//   해법(busLeaseAdapt): 소비자가 ack 할 때마다 그 직전 침묵(=살아서 견딘 cadence)을 per-c 러닝 최대(consumerMaxGap)로 학습 → 축출 임계 = consumerMaxGap + leaseSpan(여유 마진). leaseSpan 의미: 고정 임계 → 관측 cadence 위 마진.
+//   검증: ⒜ `reg`(키트) — busLeaseAdapt=0(기본)이면 NET 이 직전 step(0049)과 *비트 동일*(consumerMaxGap 미사용·고정 leaseSpan 예측).
+//         ⒝ `adapt`(이 step·가설) — 고정 작은 leaseSpan(+readmission)은 산 소비자를 cadence 주기마다 재축출(flapping·ev ∝ 생산량) vs 적응형은 cadence 학습 후 정착(ev = O(1)·생산량 무관)·죽은 소비자는 *여전히* 축출(죽음 감지 보존·peak 유계 vs no-lease 무계)·minted 보존.
+// 작성법: 누적 회귀(reg 등)는 키트가 든다. 셸은 ctx 구성 + 이번 step 가설 모드(adapt)만 더한다.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');   // reg 대조용 — 직전 step의 동결 스냅샷. 항상 ../baseline 고정(0049 단일 src/ 전환: step 번호 치환 churn 소멸)
@@ -23,65 +22,57 @@ const JLOSS = 0.3;       // 저널 홉 손실율(0023~) — inventory→persist 
 
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-// ── 이 step 의 가설 모드: leaselife — 소비자 lease 의 lifecycle 빈틈(시작-시점 죽음·축출 비가역) 해소 ──
+// ── 이 step 의 가설 모드: adapt — 축출 임계를 관측 ack cadence 로 self-size(busLeaseAdapt) ──
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-// 0045 clease 와 동일 베이스(버스+ranking 둘째 소비자·min-워터마크·결과 ack). ops 가 결과 생산량(×6 클라). leaseSpan 전제 + busConsumerLease ON.
-const BUS_BASE = (seed, ops) => ({ seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
+// 0048 leaselife 와 동일 베이스(버스+ranking 둘째 소비자·min-워터마크·결과 ack·lifecycle 정합). ops 가 결과 생산량(×6 클라).
+//   leaseSpan 을 *작게*(SLACK=3) 둔다 — 산 ranking 의 정상 cadence(침묵 peak ~6)보다 작아 고정 임계로는 cadence 주기마다 오축출(flapping). 적응형 ON 이면 이 값이 *cadence 위 마진* 으로 의미 전환.
+//   busLeaseLife ON(readmission) — 고정 임계의 flapping(축출→재admission→재축출)을 *측정 가능*하게(영구 evicted 가 아니라 churn 횟수로). 적응형은 학습 후 정착해 churn 이 멈춘다.
+const SLACK = 3;           // 작은 leaseSpan — 고정(OFF): 절대 임계(<정상 cadence ~6 → flapping). 적응(ON): 관측 cadence 위 여유 마진.
+const DEAD_DIE = 14;       // 죽음 대조 — ranking 이 lease 확립 후 다운(영영 ack 끊김). 적응형도 *여전히* 축출해야(죽음 감지 보존).
+const BUS_BASE = (seed, ops, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, inventory: true, itemOps: ops, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
-  busConsumerLease: true, leaseSpan: LEASE_SPAN });
-const LEASE_SPAN = 8;       // lease 임계(outSeq 뒤처짐) — 정상 ack lag·시작 grace 보다 크고, 영구 죽음은 frontier 전진으로 이내 초과 → 축출.
-const NEVER_DIE = 1;        // §2 — ranking 이 tick 1 에 구독 해지 → *한 번도 ack 안 함*(consumerSeen·consumerWm 영영 미확립). 0047 은 이 소비자를 못 축출(정의역 밖) → min -1 고정.
-const REVIVE_DIE = 14;      // §3 — ranking 이 초기 ack 으로 lease 확립한 *뒤* 다운(축출 대상). 0045 clease 의 RANK_DIE_AT 와 동일.
-const REVIVE_AT = 30;       // §3 — 축출된 ranking 이 재구독(busReSub sub) → 결과 재수신 → 재-ack. 0047 은 evicted 영구라 미복귀, 이 step 은 재admission.
+  busConsumerLease: true, leaseSpan: SLACK, busLeaseLife: true, ...extra });
 
-function leaselife(seeds) {
-  console.log('== leaselife: *가설* — 0045 소비자 lease(busConsumerLease)의 두 빈틈(코드리뷰 §2/§3) 해소. §2 시작-시점 죽음: 한 번도 ack 안 한 소비자는 consumerSeen 미확립 → 축출 정의역 밖 + consumerWm 미확립으로 min 을 -1 에 고정 → outBuffer 무계(축출도 못 함). §3 축출 비가역: 축출된 소비자가 돌아와도 evicted 에서 못 빠져 min 정의역 미복귀 → 이후 starve 재발. busLeaseLife: ⒜ 지연 baseline(처음 본 미-ack 소비자 침묵 기준을 frontier 로·leaseSpan grace) ⒝ 재-ack 시 재admission ==');
-  console.log(`  §2 never-ack: ranking 이 tick ${NEVER_DIE} 에 구독 해지(영영 ack 0). OFF(=0047·min -1 고정·축출 불가) vs ON(지연 baseline → leaseSpan ${LEASE_SPAN} 뒤 축출). ops 10/30(결과 ∝ 60/180)로 run-length 의존성 가시화.`);
-  console.log(`  §3 revival: ranking 다운@${REVIVE_DIE}(축출) → 재구독@${REVIVE_AT}. OFF(evicted 영구·readm 0) vs ON(재admission·정의역 복귀). 산 소비자 오축출 0(ctl).`);
-  console.log('seed   | §2 peak off/on (10/30) | §2 ev off/on | §3 ev/readm/evRank off→on | ctl ev/peak(=leaseOnly) | 판정');
-  const REVIVE = [{ at: REVIVE_AT, from: 'ranking', type: 'sub', topic: 'svc.item.out' }];   // 축출된 ranking 재구독(0033 동적 sub 재사용) → 재-ack 경로
+function adapt(seeds) {
+  console.log('== adapt: *가설* — 소비자 lease 의 *정직한 한계*(0048 verify §9) 해소: 고정 leaseSpan 은 *정상 ack cadence(침묵)보다 커야* 산 소비자를 안 쫓는데, 그 cadence(생산율×소비자 속도)는 사전에 모른다. busLeaseAdapt: 소비자가 ack 할 때마다 그 직전 침묵(=살아서 견딘 cadence)을 per-c 러닝 최대(consumerMaxGap)로 학습 → 축출 임계 = consumerMaxGap + leaseSpan(여유 마진) ==');
+  console.log(`  live: ranking 은 *계속 산다*. 정상 cadence(침묵 peak ~6) > 고정 leaseSpan ${SLACK} → OFF 는 cadence 주기마다 오축출+재admission(flapping·ev ∝ 생산량). ON 은 cadence 학습 후 임계가 올라 정착(ev = O(1)·생산량 무관). ops 10/30 으로 생산량 의존성 가시화.`);
+  console.log(`  dead: ranking 이 tick ${DEAD_DIE} 에 다운(영영 ack 끊김). 적응형도 consumerMaxGap 동결 → 침묵이 동결값+마진 초과 → *여전히* 축출(죽음 감지 보존). peak 유계 vs lease 끔(no-lease·무계) 대조.`);
+  console.log('seed   | live ev OFF 10/30 | live ev ON 10/30 | dead ev/evicted/peak(noLease) | minted OFF/ON | 판정');
   for (const seed of seeds) {
-    // §2 never-ack — OFF(=0047) 는 min -1 고정·축출 불가(무계), ON 은 지연 baseline 으로 leaseSpan 뒤 축출(유계)
-    const a_off10 = run({ ...BUS_BASE(seed, 10), rankDie: NEVER_DIE });
-    const a_on10  = run({ ...BUS_BASE(seed, 10), rankDie: NEVER_DIE, busLeaseLife: true });
-    const a_off30 = run({ ...BUS_BASE(seed, 30), rankDie: NEVER_DIE });
-    const a_on30  = run({ ...BUS_BASE(seed, 30), rankDie: NEVER_DIE, busLeaseLife: true });
-    // §3 revival — OFF 는 evicted 영구(readm 0·ranking 영영 정의역 밖), ON 은 재-ack 시 재admission(정의역 복귀)
-    const b_off = run({ ...BUS_BASE(seed, 30), rankDie: REVIVE_DIE, busReSub: REVIVE });
-    const b_on  = run({ ...BUS_BASE(seed, 30), rankDie: REVIVE_DIE, busReSub: REVIVE, busLeaseLife: true });
-    // 대조군 ctl — ranking 죽음 *없음* + busLeaseLife ON → 오축출 0·재admission 0·peak == lease 만(0047) peak(정상 동작 무간섭)
-    const ctl   = run({ ...BUS_BASE(seed, 30), busLeaseLife: true });
-    const ctlNL = run({ ...BUS_BASE(seed, 30) });
-    const aPOff10 = a_off10.inventory.outBufPeak, aPOn10 = a_on10.inventory.outBufPeak;
-    const aPOff30 = a_off30.inventory.outBufPeak, aPOn30 = a_on30.inventory.outBufPeak;
-    const aEvOff = a_off30.inventory.evictions, aEvOn = a_on30.inventory.evictions;
-    const bEvOn = b_on.inventory.evictions, bRdOff = b_off.inventory.readmissions, bRdOn = b_on.inventory.readmissions;
-    const bRankOff = b_off.inventory.evicted.has('ranking'), bRankOn = b_on.inventory.evicted.has('ranking');
+    // live — ranking 계속 산다. OFF(고정 작은 임계)=cadence 주기마다 재축출(flapping·ev ∝ 생산량) vs ON(적응)=학습 후 정착(ev O(1))
+    const f10 = run({ ...BUS_BASE(seed, 10) });
+    const f30 = run({ ...BUS_BASE(seed, 30) });
+    const a10 = run({ ...BUS_BASE(seed, 10, { busLeaseAdapt: true }) });
+    const a30 = run({ ...BUS_BASE(seed, 30, { busLeaseAdapt: true }) });
+    // dead — ranking 다운(영영 ack 끊김). 적응형도 여전히 축출(죽음 감지) vs lease 끔(no-lease)=outBuffer 무계 보유
+    const dead   = run({ ...BUS_BASE(seed, 30, { busLeaseAdapt: true, rankDie: DEAD_DIE }) });
+    const deadNL = run({ ...BUS_BASE(seed, 30, { rankDie: DEAD_DIE, busConsumerLease: false }) });
+    const fEv10 = f10.inventory.evictions, fEv30 = f30.inventory.evictions;
+    const aEv10 = a10.inventory.evictions, aEv30 = a30.inventory.evictions;
+    const dEv = dead.inventory.evictions, dRank = dead.inventory.evicted.has('ranking');
+    const dPeak = dead.inventory.outBufPeak, dPeakNL = deadNL.inventory.outBufPeak;
     const ok =
-      // §2 ① ON 이 OFF 보다 작음(축출 drain) ② OFF run-length 비례(무계·min -1 고정) ③ ON run-length 무관(유계) ④ OFF 축출 0(0047 정의역 밖) ⑤ ON 축출 ≥1(지연 baseline) ⑥ minted 보존
-      check(aPOn30 < aPOff30, `seed ${seed}: §2 ON peak 가 OFF 보다 안 작음(ops30 ${aPOff30}→${aPOn30})`) &&
-      check(aPOff30 > aPOff10, `seed ${seed}: §2 OFF peak 가 run-length 무관(무계면 ops10<ops30: ${aPOff10},${aPOff30})`) &&
-      check(aPOn30 <= aPOn10, `seed ${seed}: §2 ON peak 가 run-length 에 비례(유계면 ops30≤ops10: ${aPOn10},${aPOn30})`) &&
-      check(aEvOff === 0 && aEvOn >= 1, `seed ${seed}: §2 never-ack 축출(OFF 0·ON≥1) 위반(off ${aEvOff}·on ${aEvOn})`) &&
-      check(a_off30.inventory.minted === a_on30.inventory.minted, `seed ${seed}: §2 가지치기가 dedup 정확성 깸(minted off ${a_off30.inventory.minted} ≠ on ${a_on30.inventory.minted})`) &&
-      // §3 ① ON 재admission ≥1 ② OFF 재admission 0(비가역) ③ ON 은 먼저 축출됨(재admission 유의미) ④ OFF 영영 evicted vs ON 정의역 복귀 ⑤ 원장 자기-정합
-      check(bRdOn >= 1 && bRdOff === 0, `seed ${seed}: §3 재admission(ON≥1·OFF 0) 위반(off ${bRdOff}·on ${bRdOn})`) &&
-      check(bEvOn >= 1, `seed ${seed}: §3 ON 이 먼저 축출 안 됨(재admission 무의미·ev ${bEvOn})`) &&
-      check(bRankOff === true && bRankOn === false, `seed ${seed}: §3 정의역 복귀 위반(OFF evicted ${bRankOff}·ON evicted ${bRankOn})`) &&
-      check(ledgerConsistent(b_on) && itemConserved(b_on) && ledgerConsistent(a_on30) && itemConserved(a_on30), `seed ${seed}: 원장 자기-정합 깨짐`) &&
-      // ctl 산 소비자 오축출 0·재admission 0·peak 무간섭(== lease 만 0047)
-      check(ctl.inventory.evictions === 0 && ctl.inventory.readmissions === 0 && ctl.inventory.outBufPeak === ctlNL.inventory.outBufPeak, `seed ${seed}: lease lifecycle 가 정상 동작 간섭(ctl ev ${ctl.inventory.evictions}·readm ${ctl.inventory.readmissions}·peak ${ctl.inventory.outBufPeak} vs leaseOnly ${ctlNL.inventory.outBufPeak})`);
-    console.log(`${pad(seed, 6)} | ${pad(aPOff10 + '/' + aPOn10 + ' ' + aPOff30 + '/' + aPOn30, 22)} | ${pad(aEvOff + '/' + aEvOn, 12)} | ${pad(bEvOn + '/' + bRdOff + '→' + bRdOn + '/' + bRankOff + '→' + bRankOn, 25)} | ${pad(ctl.inventory.evictions + '/' + ctl.inventory.outBufPeak + '(' + ctlNL.inventory.outBufPeak + ')', 23)} | ${ok ? 'OK' : 'FAIL'}`);
+      // live ① 고정 OFF 가 산 소비자를 축출(flapping·ev≥1) ② OFF ev 가 생산량에 비례(cadence 주기마다·ops30>ops10) ③ 적응 ON 이 OFF 보다 훨씬 적게 축출(학습) ④ ON ev 가 생산량 무관(O(1)·ops30≤ops10) ⑤ minted 보존(dedup 정확성)
+      check(fEv30 >= 1, `seed ${seed}: live OFF 가 산 소비자를 안 축출(flapping 부재·ev ${fEv30})`) &&
+      check(fEv30 > fEv10, `seed ${seed}: live OFF ev 가 생산량 비례 아님(flapping 이면 ops30>ops10: ${fEv10},${fEv30})`) &&
+      check(aEv30 < fEv30, `seed ${seed}: 적응 ON 이 OFF 보다 덜 축출 안 함(학습 실패·on ${aEv30}·off ${fEv30})`) &&
+      check(aEv30 <= aEv10, `seed ${seed}: 적응 ON ev 가 생산량 비례(O(1)이면 ops30≤ops10: ${aEv10},${aEv30})`) &&
+      check(f30.inventory.minted === a30.inventory.minted, `seed ${seed}: 적응이 dedup 정확성 깸(minted OFF ${f30.inventory.minted} ≠ ON ${a30.inventory.minted})`) &&
+      // dead ① 죽은 소비자는 적응형도 축출(죽음 감지 보존) ② 그 결과 outBuffer 유계 vs lease 끔(무계) ③ 원장 자기-정합
+      check(dEv >= 1 && dRank === true, `seed ${seed}: 적응이 죽은 소비자 축출 못 함(ev ${dEv}·evicted ${dRank})`) &&
+      check(dPeak < dPeakNL, `seed ${seed}: 죽음 축출이 outBuffer 유계화 못 함(peak ${dPeak} vs no-lease ${dPeakNL})`) &&
+      check(ledgerConsistent(a30) && itemConserved(a30) && ledgerConsistent(dead) && itemConserved(dead), `seed ${seed}: 원장 자기-정합 깨짐`);
+    console.log(`${pad(seed, 6)} | ${pad(fEv10 + '/' + fEv30, 17)} | ${pad(aEv10 + '/' + aEv30, 16)} | ${pad(dEv + '/' + dRank + '/' + dPeak + '(' + dPeakNL + ')', 29)} | ${pad(f30.inventory.minted + '/' + a30.inventory.minted, 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log(`  → §2: 0045 lease 는 침묵 기준을 *첫 ack 시점*에야 세운다 → 한 번도 ack 안 한 소비자는 미확립 = 축출 정의역 밖 + consumerWm 미확립으로 min -1 고정 → OFF peak 가 생산량(run-length)에 비례(무계). 이 step 의 *지연 baseline*(처음 본 미-ack 소비자에 frontier 기준을 깔고 leaseSpan grace) → ON 은 축출(ev≥1)·유계(run-length 무관).`);
-  console.log(`    §3: 0045 는 evicted 가 영구라 축출된 소비자가 돌아와도 min 정의역 미복귀 → 이후 결과 starve 재발(OFF readm 0·영영 evicted). 이 step: 축출된 소비자가 재-ack 하면 evicted 에서 제거(재admission·readm≥1) → 정의역 복귀 → 이후 결과 보존. 옛 가지친 결과는 자기 저널 reconstruct(0020)로 복구(버퍼 replay 아님).`);
-  console.log(`    busLeaseLife=0 = 0047 비트 동일(지연 baseline 미확립·재admission 0·evicted 동작 무변경·reg). ctl: 산 소비자는 leaseSpan grace 안에 ack 해 오축출 0·peak 무간섭(구성-시점 -1 baseline 은 시작 ack 지연이 grace 를 넘으면 건강한 소비자도 오축출 → 지연 baseline 채택·§9). 정직한 한계: leaseSpan 은 영구-죽음 vs 일시-지연 분리 임계(여전히 오축출 위험)·다중 게이트웨이 producer 별 lease 는 후속.`);
+  console.log(`  → live: 고정 작은 leaseSpan(${SLACK}) < 산 ranking 정상 cadence(~6) → OFF 는 cadence 주기마다 침묵이 임계 초과 → 오축출, busLeaseLife 가 재-ack 시 재admission → 다음 주기 또 축출(flapping·ev ∝ 생산량). 적응 ON 은 첫 cadence 를 학습(consumerMaxGap)해 임계를 cadence+마진 으로 올림 → bootstrap 1회 뒤 정착(ev=O(1)·생산량 무관).`);
+  console.log(`    dead: ranking 이 영영 ack 을 끊으면 consumerMaxGap 이 동결 → 침묵이 동결값+마진 초과 → 적응형도 *여전히* 축출(죽음 감지 보존) → outBuffer 유계(vs lease 끔 = min 이 죽은 frontier 에 고정 → 무계). leaseSpan 의 의미 전환: 고정 임계(OFF) → 관측 cadence 위 마진(ON) — 사전에 cadence 를 몰라도 산/죽음을 가른다.`);
+  console.log(`    busLeaseAdapt=0 = 0049 비트 동일(consumerMaxGap 미사용·고정 leaseSpan 예측·reg). 정직한 한계: bootstrap 1회 오축출은 readmission 으로 회복하나 *0* 은 아니다(첫 cadence 미관측 구간은 prior 가 없어 근본적) — 시작 grace prior 는 후속. 다중 게이트웨이 producer 별 cadence·EWMA 감쇠(cadence 가 줄 때 임계 하향)는 후속.`);
 }
 
-kit.MODES['leaselife'] = leaselife;
-kit.ORDER.splice(1, 0, 'leaselife');   // reg 직후(가설 우선 노출)
+kit.MODES['adapt'] = adapt;
+kit.ORDER.splice(1, 0, 'adapt');   // reg 직후(가설 우선 노출)
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
