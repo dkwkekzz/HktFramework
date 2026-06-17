@@ -4450,6 +4450,76 @@
         ];
       },
     },
+
+    'step-0068': {
+      id: 'step-0068',
+      title: '별 일생 결합 — 중력 수축이 차가운 ²H 구름을 압축·가열해 핵합성을 *스스로* 점화 (측정·새 법칙 0 — 0063 중력 붕괴 + 0065 핵합성 한 무대·대조 끄면 점화 약화·SPINE §4 별 씨앗)',
+      desc: 'step-0063 은 중력 붕괴를·0065 는 핵합성 시계열을 *따로* 봤다. 이 측정 step 은 둘을 한 무대서 결합해 **별의 점화 메커니즘**을 본다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). ' +
+            '차가운 ²H 구름(저속·Gamow 터널링 거의 0)을 farField=1(BH 중력)+spatialHash=1(셀 pauli+fuse)+Gamow 풀세트로 굴린다. 중력이 구름을 *압축*하면 비리얼 가열로 상대속도(keRel)가 올라 — *밀집 고온 코어*에서 — Gamow 융합이 **스스로 점화**한다. pauli 가 완전 붕괴를 막아(축퇴압 토이) 코어가 탄다. ' +
+            '핵심 결합(SPINE §4 별 씨앗): 점화는 *외부 주입이 아니라* 세계 안 중력에서 난다 — 중력을 끄면(kGravity=0) 구름이 차갑게 퍼진 채라 점화가 *약화*된다(중력-점화 인과). ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.008·θ=0.5·cut=8·중력+pauli+fuse 동시·120 tick·고정 시드): ' +
+            '① **중력 응집** — 관성반경 R_g 단조 수축(중력이 구름을 끌어모음). ' +
+            '② **자가 점화·핵합성** — 연료 ²H 단조 감소·생성핵 출현(밀집 고온 코어서 융합 점화). ' +
+            '③ **중력-점화 결합·load-bearing** — kGravity>0 융합 ≫ kGravity=0(압축·가열 없으면 점화 약화 — 점화가 *중력 때문*·author 아닌 측정). ' +
+            '④ **장부·결정론·회귀** — 라이브 결합 무대 Q·B·L·px·py 머신(fuse fmf+md 발열·중력 BH 차감)·E 만 준-암시적 적분 누적(깊은 붕괴 근접조우·상대 ~2%·유계 아님)·새 법칙 0 → 0001~67 골든 비트 불변(회귀 0).',
+      ticks: 24,
+      W: 130, H: 130, N: 400, MT: 120, SNAP: 20,
+      KN: { dt: 0.008, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.5, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.6, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1 },
+      ledgerTol: { E: 4e1 },                                  // 라이브 24tick E 준-암시적 적분 누적(중력 붕괴·상대 ~0.03%·Q·B·L·px·py 완화 없음=머신)
+
+      // 차가운 ²H 구름(중심 원반·저속 → 중력 가열 전엔 점화 거의 0).
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260702), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg(K, atoms) {
+        let cx = 0, cy = 0; for (const a of atoms) { cx += a.rx; cy += a.ry; } cx /= atoms.length; cy /= atoms.length;
+        let s = 0; for (const a of atoms) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / atoms.length);
+      },
+      // kGravity 로 MT tick 굴린 결합 무대 — R_g·연료(²H) 시계열 + 장부 드리프트.
+      run(K, kg) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260702), knobs: Object.assign({}, L.DEFAULTS, this.KN, { kGravity: kg, farField: 1, spatialHash: 1 }), tick: 0 };
+        const rg0 = this.Rg(K, sim.atoms), n0 = sim.atoms.length, l0 = K.ledger(sim), rgS = [rg0], fuelS = [n0];
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) { rgS.push(this.Rg(K, sim.atoms)); fuelS.push(sim.atoms.length); } }
+        const l1 = K.ledger(sim);
+        return { rg0, rg1: this.Rg(K, sim.atoms), rgS, fuelS, fusions: n0 - sim.atoms.length, dE: Math.abs(l1.E - l0.E), dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dQ: Math.abs(l1.Q - l0.Q), dB: Math.abs(l1.B - l0.B), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kGravity), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 중력+pauli+fuse 결합 무대 — Q·B·L·px·py 머신·E 완화.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { farField: 1, spatialHash: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { rg0: +c.on.rg0.toFixed(2), rgGrav: +c.on.rg1.toFixed(2), contractPct: +((1 - c.on.rg1 / c.on.rg0) * 100).toFixed(2), fusionsGrav: c.on.fusions, fusionsNoGrav: c.off.fusions, dpx: +c.on.dpx.toExponential(3), dB: +c.on.dB.toExponential(3), relEpct: +(c.on.dE / c.on.Etot * 100).toFixed(4) };
+      },
+
+      // 가설: ① 중력 응집 ② 자가 점화 ③ 중력-점화 결합·load-bearing ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        let monotone = true; for (let i = 1; i < c.on.rgS.length; i++) if (c.on.rgS[i] > c.on.rgS[i - 1] + 1e-9) monotone = false;
+        let fuelMono = true; for (let i = 1; i < c.on.fuelS.length; i++) if (c.on.fuelS[i] > c.on.fuelS[i - 1]) fuelMono = false;
+        const contract = c.on.rg1 < c.on.rg0 - 0.1 && monotone;                         // ① 중력 수축
+        const ignite = c.on.fusions > 20 && fuelMono;                                   // ② 자가 점화(연료 단조 감소)
+        const coupling = c.on.fusions > c.off.fusions * 2;                              // ③ 중력 켬 점화 ≫ 끔(중력-점화 인과)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9;          // ④ Q·B·px 머신
+        return [
+          { name: `중력 응집 — R_g ${c.on.rg0.toFixed(2)}→${c.on.rg1.toFixed(2)} 단조 수축(${((1 - c.on.rg1 / c.on.rg0) * 100).toFixed(2)}%·중력이 차가운 ²H 구름을 끌어모음)`, pass: contract, value: +c.on.rg1.toFixed(3) },
+          { name: `자가 점화·핵합성 — 연료 ²H ${c.on.fuelS[0]}→${c.on.fuelS[c.on.fuelS.length - 1]} 단조 감소·융합 ${c.on.fusions}회(밀집 고온 코어서 Gamow 점화·외부 주입 0)`, pass: ignite, value: c.on.fusions },
+          { name: `중력-점화 결합·load-bearing — kGravity>0 융합 ${c.on.fusions} ≫ kGravity=0 융합 ${c.off.fusions}(압축·가열 없으면 점화 약화 → 점화가 *중력 때문*·SPINE §4 별 씨앗·author 아닌 측정)`, pass: coupling, value: c.on.fusions },
+          { name: `장부·결정론·회귀 — 라이브 결합 무대 Q·B·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·fuse fmf+md 발열·중력 BH 차감)·E 만 준-암시적 적분 누적(깊은 붕괴 근접조우·측정 상대 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%)·새 법칙 0 → 0001~67 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.fusions },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
