@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -1051,8 +1051,28 @@
   const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
-  function applyForces(sim) {
-    for (const name of LAW_ORDER) LAWS[name](sim);
+  // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).
+  //   나머지(emit·recoil·…·collide·bond·fuse·decay·damp)는 *이벤트/소산* 법칙 — 한 tick 1회만(반쪽 안 함).
+  const FORCE_LAWS = new Set(['coulomb', 'repulse', 'pauli', 'vdw', 'bondSpring', 'bondAngle', 'gravity']);
+  // phase 인자(step-0069, 미지정 → 전 법칙·과거 비트 동일·회귀 0): 'force'=보존 연속력만(VV 반-kick) · 'event'=그 외만(VV 후 1회).
+  function applyForces(sim, phase) {
+    for (const name of LAW_ORDER) {
+      if (phase === 'force' && !FORCE_LAWS.has(name)) continue;   // 연속력만(VV 반-kick)
+      if (phase === 'event' && FORCE_LAWS.has(name)) continue;    // 이벤트/소산만(VV 후 1회)
+      LAWS[name](sim);
+    }
+  }
+
+  // velocity-Verlet(KDK·leapfrog) — 보존 연속력의 *2차* symplectic 적분(step-0069). symplectic Euler(1차·kick 전체+drift)가
+  //   깊은 중력 붕괴 근접조우서 E 를 *누적*(0068 한계·유계 아님)한 것을, 반-kick→drift→반-kick 으로 O(dt²) 오차로 줄여 *유계*로 만든다.
+  //   구조: ①반-kick(현 위치 가속 dt/2) ②drift(전 dt) ③새 위치서 반-kick(dt/2) ④이벤트/소산 법칙 1회. force 법칙은 sim.knobs.dt 를 읽으므로
+  //   반-kick 동안 dt 를 임시 절반으로 두고 *반드시 복원*(단일 스레드·결정론). 게이트 sim.knobs.symplectic 로 sim.step 이 이 경로를 고른다(=0 → 옛 경로·회귀 0).
+  function leapfrog(sim) {
+    const dt0 = sim.knobs.dt;
+    sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ① 반-kick(현 위치 가속)
+    sim.knobs.dt = dt0;       integrate(sim);              // ② drift(전 dt)
+    sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ③ 반-kick(새 위치 가속)
+    sim.knobs.dt = dt0;       applyForces(sim, 'event');   // ④ 이벤트/소산(충돌·융합·붕괴·damp 등) 1회
   }
 
   function wrap(v, max) { v %= max; if (v < 0) v += max; return v === max ? 0 : v; } // [0,max) 보장 — 음수 wrap 의 부동소수 반올림이 정확히 max 를 내는 경우를 0 으로 접는다
@@ -1192,5 +1212,5 @@
     }
   }
 
-  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, wrap, covVacancy, cellPairs, bhForces };
+  return { DEFAULTS, LAWS, LAW_ORDER, applyForces, integrate, leapfrog, wrap, covVacancy, cellPairs, bhForces };
 });

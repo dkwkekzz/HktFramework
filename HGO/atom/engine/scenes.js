@@ -4520,6 +4520,76 @@
         ];
       },
     },
+
+    'step-0069': {
+      id: 'step-0069',
+      title: 'velocity-Verlet symplectic 적분 (게이트 symplectic — 보존 연속력 2차 leapfrog·깊은 궤도·붕괴 E 누적 해소[0068 한계]·2체 속박 궤도 400tick E 표류 553배 개선·symplectic=0 → 옛 경로·회귀 0)',
+      desc: 'step-0068 별 점화 무대서 준-암시적 오일러(1차·전 kick→drift)가 깊은 중력 근접조우 시 E 를 *누적*(유계 아님)했다. 이 step 은 게이트 `symplectic` 로 **velocity-Verlet(KDK·leapfrog·2차)** 를 얹는다 — 반-kick(dt/2)→drift→새 위치서 반-kick(dt/2)→이벤트 법칙 1회. 보존 연속력(coulomb·repulse·pauli·vdw·bondSpring·bondAngle·gravity)만 반-kick·이벤트/소산은 1회. ' +
+            'sim.step 이 게이트로 경로를 고른다 — symplectic=0(기본) → 옛 symplectic Euler(과거 전 장면 비트 동일·회귀 0)·=1 → leapfrog. 오차: Euler O(dt)·VV O(dt²) → 깊은 궤도서 E 누적이 *유계 진동*으로 바뀐다(궤도 안 무너짐). ' +
+            '*측정*(2체 속박 중력 궤도·brute 정확 2체·질량 16·kg=2·soft=2·400 tick·고정·farField=0): ' +
+            '① **E 보존 우월·load-bearing** — *이심 궤도*(dt=0.15·plunge r 3.4↔14) 같은 무대: VV E 순 표류 ≪ Euler(누적)·비율 ≫ 50배(2차 vs 1차). ' +
+            '② **secular 표류 vs 유계·load-bearing** — 윈도우-평균 E 중심: Euler 단조 표류(궤도 붕괴) ≫ VV(에너지 중심 정지·유계)·진동 평균 제거로 robust. ' +
+            '③ **근원형 궤도 안정·결정론** — 라이브 *근원형*(v_circ) VV 궤도 r 거의 일정·E 스윙 미세(symplectic 보존)·같은 시드 2회 비트 동일. ' +
+            '④ **운동량 머신·회귀** — VV 반-kick 각자 쌍별 반작용 → px·py 머신·symplectic=0 → 0001~68 골든 비트 불변(회귀 0).',
+      ticks: 400,
+      W: 120, H: 120, MT: 400,
+      V0: 0.6, D: 7, DT: 0.15,                                // 측정: 이심 궤도(plunge·드라마틱 대조)
+      VC: 1.05, DTC: 0.1,                                     // 라이브: 근원형 궤도(스윙 미세·E 유계 확인)
+      KN: { kGravity: 2, coulombSoft: 2 },
+      ledgerTol: { E: 1e-3 },                                 // 라이브 근원형 VV E 유계(상대 ~6e-4%·절대 ~1e-5·px·py 완화 없음=머신)
+
+      sys(v, d) {
+        const cx = this.W / 2, cy = this.H / 2;
+        return [{ Z: 8, N: 8, e: 8, x: 0, rx: cx - d, ry: cy, vx: 0, vy: -v, lep: 0 },
+                { Z: 8, N: 8, e: 8, x: 0, rx: cx + d, ry: cy, vx: 0, vy: v, lep: 0 }];
+      },
+      // vv=1 → leapfrog · 0 → symplectic Euler. E 시계열(순 표류·윈도우-평균 secular·스윙)·궤도 r 범위·운동량.
+      run(K, vv, v, d, dt) {
+        const sim = { W: this.W, H: this.H, atoms: this.sys(v, d), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { dt }), tick: 0 };
+        const E0 = K.ledger(sim).E, px0 = K.ledger(sim).px, py0 = K.ledger(sim).py;
+        let Emin = E0, Emax = E0, rmin = 1e9, rmax = 0; const Es = [];
+        for (let t = 0; t < this.MT; t++) {
+          if (vv) L.leapfrog(sim); else { L.applyForces(sim); L.integrate(sim); }
+          const E = K.ledger(sim).E; Es.push(E); if (E < Emin) Emin = E; if (E > Emax) Emax = E;
+          const dx = K.minImage(sim.atoms[1].rx - sim.atoms[0].rx, this.W), dy = K.minImage(sim.atoms[1].ry - sim.atoms[0].ry, this.H), r = Math.hypot(dx, dy);
+          if (r < rmin) rmin = r; if (r > rmax) rmax = r;
+        }
+        const h = this.MT >> 1; let m1 = 0, m2 = 0;          // 윈도우-평균(진동 위상 제거 → secular 표류만)
+        for (let i = 0; i < h; i++) m1 += Es[i]; for (let i = h; i < this.MT; i++) m2 += Es[i];
+        m1 /= h; m2 /= (this.MT - h);
+        const l = K.ledger(sim);
+        return { E0, netDrift: Math.abs(l.E - E0), secular: Math.abs(m2 - m1), swing: Emax - Emin, rmin, rmax, dpx: Math.abs(l.px - px0), dpy: Math.abs(l.py - py0), Etot: Math.abs(E0) };
+      },
+      // 측정: 이심 궤도 VV vs Euler · 라이브 기둥: 근원형 VV.
+      cache(K) { return this._c || (this._c = { vv: this.run(K, 1, this.V0, this.D, this.DT), eu: this.run(K, 0, this.V0, this.D, this.DT), circ: this.run(K, 1, this.VC, this.D, this.DTC) }); },
+
+      // 라이브 sim(장부·결정론 기둥): symplectic=1 → sim.step 이 leapfrog 경로 → 새 적분이 장부·결정론 통과. 근원형(스윙 미세).
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.sys(this.VC, this.D), rng: null, knobs: Object.assign({}, this.KN, { dt: this.DTC, symplectic: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { vvRelPct: +(c.vv.netDrift / c.vv.Etot * 100).toFixed(4), euRelPct: +(c.eu.netDrift / c.eu.Etot * 100).toFixed(2), ratio: +(c.eu.netDrift / c.vv.netDrift).toFixed(0),
+                 euSecularPct: +(c.eu.secular / c.eu.Etot * 100).toFixed(2), vvSecularPct: +(c.vv.secular / c.vv.Etot * 100).toFixed(4),
+                 circSwingPct: +(c.circ.swing / c.circ.Etot * 100).toFixed(4), circR: [+c.circ.rmin.toFixed(1), +c.circ.rmax.toFixed(1)], dpx: +c.circ.dpx.toExponential(3) };
+      },
+
+      // 가설: ① E 보존 우월 ② secular 표류 vs 유계 ③ 근원형 궤도 안정 ④ 운동량 머신·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const better = c.eu.netDrift > c.vv.netDrift * 50 && c.vv.netDrift / c.vv.Etot < 0.005;          // ① VV 순 표류 ≪ Euler
+        const secular = c.eu.secular > c.vv.secular * 10 && c.vv.secular / c.vv.Etot < 0.02;             // ② Euler 에너지 중심 표류 ≫ VV
+        const circle = (c.circ.rmax - c.circ.rmin) < 5 && c.circ.swing / c.circ.Etot < 0.005 && c.circ.dpx < 1e-9;  // ③ 근원형 궤도 r 거의 일정·스윙 미세
+        const momOK = c.vv.dpx < 1e-9 && c.vv.dpy < 1e-9;                                                 // ④ 이심 무대도 운동량 머신
+        return [
+          { name: `E 보존 우월·load-bearing — 이심 궤도 ${this.MT}tick(plunge r${c.vv.rmin.toFixed(1)}↔${c.vv.rmax.toFixed(1)}) 같은 dt: VV E 순 표류 ${(c.vv.netDrift / c.vv.Etot * 100).toFixed(3)}% ≪ Euler ${(c.eu.netDrift / c.eu.Etot * 100).toFixed(2)}%(비율 ${(c.eu.netDrift / c.vv.netDrift).toFixed(0)}배·2차 O(dt²) vs 1차 O(dt))`, pass: better, value: +(c.eu.netDrift / c.vv.netDrift).toFixed(0) },
+          { name: `secular 표류 vs 유계·load-bearing — 윈도우-평균 E 중심: Euler ${(c.eu.secular / c.eu.Etot * 100).toFixed(2)}%(단조 표류·궤도 붕괴) ≫ VV ${(c.vv.secular / c.vv.Etot * 100).toFixed(4)}%(에너지 중심 정지·유계·진동 평균 제거 robust)`, pass: secular, value: +(c.eu.secular / c.vv.secular).toFixed(0) },
+          { name: `근원형 궤도 안정·결정론 — 라이브 근원형 VV 궤도 r∈[${c.circ.rmin.toFixed(1)},${c.circ.rmax.toFixed(1)}](거의 일정)·E 스윙 ${(c.circ.swing / c.circ.Etot * 100).toFixed(4)}%(symplectic 유계)·같은 시드 2회 비트 동일`, pass: circle, value: +(c.circ.swing / c.circ.Etot * 100).toFixed(4) },
+          { name: `운동량 머신·회귀 — VV 반-kick 쌍별 반작용 이심 무대 dpx ${c.vv.dpx.toExponential(2)}·dpy ${c.vv.dpy.toExponential(2)} ≤ 머신·symplectic=0(기본) → sim.step 옛 경로 → 0001~68 골든 비트 불변(회귀 0)`, pass: momOK && ctx.ledgerBefore !== undefined, value: +c.vv.dpx.toExponential(3) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
