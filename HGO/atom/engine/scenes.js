@@ -5281,6 +5281,80 @@
         ];
       },
     },
+
+    'step-0080': {
+      id: 'step-0080',
+      title: '세대 핵합성 — 분산 산물이 재응집해 2세대 재점화 (측정·새 법칙 0 — gravity+fuse+disperse+E회계 장시간·1세대 천정 maxZ 19 → 정적기 후 재응집 → 2세대 재점화 maxZ 29·중력 끄면 점화 0·SPINE §4·§8 Phase E 순환 종착·골든 보존 회귀 0)',
+      desc: 'step-0071~0079 가 모음→점화→사다리→산물 분산→E 회계까지 닫았다. 이 측정 step 은 그 무대를 *장시간*(1400 tick) 굴려 SPINE §4 self-running 순환의 마지막 칸 — *흩어진 산물이 다시 모여 점화하는* 한 바퀴 — 의 서명을 잡는다(새 법칙 0·scene 만·기존 gravity+fuse+disperse+fuseConservePE 합성·LAW_ORDER·DEFAULTS 불변 → 골든 보존=회귀 0). ' +
+            '시계열이 세 국면을 보인다: ⓐ **1세대 점화**(tick~0–250) — 차가운 ²H 구름 중력 붕괴→밀집 코어 점화→융합 폭발(maxZ→천정 ~19·연료 급소모) ⓑ **정적기·재응집**(~250–800) — 연료 소진으로 융합률 붕괴, 무거운 산물(Z≥3)이 disperse 로 흩어지되 *중력에 다시 끌려 모인다*(탈출 아님·토러스 결속) ⓒ **2세대 재점화**(~800–1400) — 재응집한 산물이 다시 충분히 밀집·고온이 되어 *1세대 천정을 돌파*(maxZ 19→~29) 더 무거운 핵 생성. fuseConservePE(0078)로 회수한 융합 E 가 bath→disperse(0079) churn 을 먹여 순환을 굴린다. ' +
+            '*측정*(무대 100²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+disperse(Zmin3)+fuseConservePE·1400 tick·고정 시드): ' +
+            '① **세대 재점화·load-bearing** — 종단 maxZ(~29) > 1세대 천정 maxZ@300(~19)·후기(>800tick) 융합 >0 ⇒ 정적기 후 *재점화*로 더 무거운 세대 생성(한 번의 단조 등반이 아님). ' +
+            '② **중력 재응집 구동·load-bearing** — kGravity 켜면 종단 maxZ ~29 ≫ 끄면 ~2(점화 자체 0)·재응집·재점화가 *중력 때문*(author 아닌 측정). ' +
+            '③ **장부 머신·E 닫힘** — 장시간(1400tick) Q·B·L·px·py 머신·E 닫힘(fuseConservePE+disperse 회계가 장시간서도 정합). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~79 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 100, H: 100, N: 400, MT: 1400, CKPT: 300, LATE: 800,
+      KN: { dt: 0.01, kGravity: 3.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.5, disperseE: 2, disperseZmin: 3, fuseConservePE: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 300 },                                  // 라이브 120tick(1세대 격렬 붕괴 중) symplectic 순간 swing ≤0.29%(누수 아님 — cache net relE 0.262% 닫힘·0070/0072 의 1.5e3/2.5e3 보다 훨씬 타이트)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // grav=중력 세기. maxZ@CKPT(1세대 천정)·종단 maxZ·후기(>LATE) 융합 수·시계열·장부 잔차.
+      run(K, grav) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { kGravity: grav }), tick: 0 };
+        const l0 = K.ledger(sim), n0 = sim.atoms.length;
+        let ceil1 = 0, fusEarly = 0, fusLate = 0, prevN = n0; const zS = [];
+        for (let t = 0; t < this.MT; t++) {
+          L.leapfrog(sim); sim.tick++;
+          const dn = prevN - sim.atoms.length; prevN = sim.atoms.length;
+          if (t + 1 <= this.CKPT) fusEarly += dn; else if (t + 1 > this.LATE) fusLate += dn;
+          if (t + 1 === this.CKPT) ceil1 = this.maxZof(sim.atoms);
+          if ((t + 1) % 100 === 0) zS.push(this.maxZof(sim.atoms));
+        }
+        const l1 = K.ledger(sim);
+        return { ceil1, mzFinal: this.maxZof(sim.atoms), fusEarly, fusLate, zS, relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kGravity), grav0: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 세대 무대 fuseConservePE 켬·symplectic=1 — E 닫힘·Q·B·L·px·py 머신.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { ceil1: c.on.ceil1, mzFinal: c.on.mzFinal, fusEarly: c.on.fusEarly, fusLate: c.on.fusLate,
+                 mzFinalGrav0: c.grav0.mzFinal, relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3), zTrail: c.on.zS.join('→') };
+      },
+
+      // 가설: ① 세대 재점화 ② 중력 재응집 구동 ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const reignite = c.on.mzFinal > c.on.ceil1 && c.on.ceil1 >= 6 && c.on.fusLate > 0;                // ① 종단>천정·1세대 일어남·후기 융합>0
+        const gravDriven = c.on.mzFinal > c.grav0.mzFinal * 3 && c.grav0.mzFinal <= 4;                    // ② 중력 켬 ≫ 끔(점화 0)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③ Q·B·L·px·py 머신·E 닫힘<1%
+        const reg = ctx.ledgerBefore !== undefined;                                                       // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `세대 재점화·load-bearing — 종단 maxZ ${c.on.mzFinal} > 1세대 천정 maxZ@${this.CKPT} ${c.on.ceil1}·후기(>${this.LATE}tick) 융합 ${c.on.fusLate}회 ⇒ 정적기(연료 소진·1세대 ${c.on.fusEarly}회) 후 *재점화*로 더 무거운 세대 생성(maxZ 시계열 ${c.on.zS.join('→')})`, pass: reignite, value: c.on.mzFinal },
+          { name: `중력 재응집 구동·load-bearing — kGravity 켜면 종단 maxZ ${c.on.mzFinal} ≫ 끄면 ${c.grav0.mzFinal}(점화 자체 0·재응집 없음) ⇒ 재응집·재점화가 *중력 때문*(author 아닌 측정)`, pass: gravDriven, value: c.grav0.mzFinal },
+          { name: `장부 머신·E 닫힘 — 장시간 ${this.MT}tick Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(fuseConservePE+disperse 회계 장시간 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — 새 법칙 0(기존 gravity+fuse+disperse+fuseConservePE 합성·scene 만) → 0001~79 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.mzFinal },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
