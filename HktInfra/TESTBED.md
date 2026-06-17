@@ -71,20 +71,20 @@
 
 ## 4. 산출물 ① — `HktInfra/run.js` (단일 진입점, 에이전트 자율 검증의 본체)
 
-흩어진 `step-NNNN/verify.js` 앞에 서는 얇은 오케스트레이터. **살아있다 = 손수정 없이 step 마다 자동으로 최신을 가리킨다.**
+단일 살아있는 소스 `src/` 앞에 서는 얇은 오케스트레이터(0049 전환 — 복사 전진 폐기). **살아있다 = 손수정 없이 자동으로 최신을 가리킨다.**
 
 ### 현재 step 자동 탐지
 
-`step-*/` 디렉토리 중 **최대 번호**를 현재로 본다(파일시스템 사실 — 결정적). 닫힌 step 만 디렉토리가 존재하므로 STATE.md §1 NOW 와 어긋날 일이 없다(어긋나면 STATE 가 권위 — 경고 출력).
+현재 step 은 `src/STEP`(현재 step 번호의 단일 권위)으로 본다. 코드는 `src/` 한 곳에서 제자리 수정되고, 직전 step 동결 스냅샷은 `baseline/`(reg 대조·회전 1벌), 역사 코드 사슬은 archive `step-0001..0048/`(0049 전환 시점 동결)에 산다. STATE.md §1 NOW 와 어긋나면 STATE 가 권위(경고 출력).
 
 ### 모드
 
 | 명령 | 동작 | 소비자 |
 |---|---|---|
-| `node run.js` (기본) | 현재 step `verify.js all` 실행·집계·**exit code 전파** | 에이전트(검증 권위) |
-| `node run.js spine` | step-0002..NNNN 각자 `verify.js reg`(+0001 `det`) 순차 — 전 사슬 비트동일 한 줄 요약 | 에이전트(회귀) |
-| `node run.js <NNNN> [mode]` | 특정 step·모드 지정 실행(디버깅) | 에이전트 |
-| **`node run.js report [scenario]`** | 현재 step `runMulti`(실 멀티프로세스) 를 headless 녹화 → 자기완결 `report.html` 생성 (§5) | 사람(시각화) |
+| `node run.js` (기본) | 현재 step(`src/`) `verify.js all` 실행·집계·**exit code 전파** | 에이전트(검증 권위) |
+| `node run.js spine` | archive(step-0001..0048 동결 코드) + 현재 `src` 각자 회귀 모드 — 전 사슬 한 줄 요약 | 에이전트(회귀) |
+| `node run.js <NNNN> [mode]` | 특정 step·모드 지정 실행(현재 번호=src/, 그 외=archive·디버깅) | 에이전트 |
+| **`node run.js report [scenario]`** | 현재 step(`src/`) `runMulti`(실 멀티프로세스) 를 headless 녹화 → 자기완결 `report.html` 생성 (§5) | 사람(시각화) |
 
 `report` 외 모드는 stdout 텍스트 + exit code — 에이전트가 읽고 판정. `report` 만 html 산출물을 만든다(그래도 생성은 headless).
 
@@ -114,7 +114,7 @@ SYSTEM.html 이 *손으로* 그리던 것을 *실 녹화에서 자동으로* 그
 - **6계층 위치 + 진행** — STATE §5 계층표를 현재 인스턴스에 매핑
 - **동작 검증 시각화** — per-tick 메시지 흐름·권위 소유자=1(공백/중복 경보)·desync(겹친 뷰 일치)·AOI 가시집합·핸드오프/failover 이벤트 마커. verify 4기둥이 *수치*로 증명하는 것을 *움직임*으로
 
-렌더는 기존 `engine/panel-kit.js` + `step-NNNN/panel.js` 의 `compute()` 재사용(데이터 층 환경 무관 규약 ⒜ 보존).
+렌더는 기존 `engine/panel-kit.js` + `src/panel.js` 의 `compute()` 재사용(데이터 층 환경 무관 규약 ⒜ 보존).
 
 ### 5-3. 제어 — 라이브 노브 대신 시나리오 파일
 
