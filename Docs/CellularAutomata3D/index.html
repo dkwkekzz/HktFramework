@@ -325,6 +325,14 @@ const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(1, 1.4, 
 const rim = new THREE.DirectionalLight(0x88aaff, 0.4); rim.position.set(-1, -0.5, -1); scene.add(rim);
 
 const geom = new THREE.BoxGeometry(1, 1, 1);
+// InstancedMesh 의 per-instance 색(instanceColor)을 쓰려면 vertexColors 를 켜야 하고,
+// 그러면 셰이더가 지오메트리 'color' 속성을 곱한다. 흰색으로 채워둬야 instanceColor 가
+// 그대로 보인다(없으면 0 이 곱해져 전부 까맣게 렌더됨).
+{
+  const cnt = geom.attributes.position.count;
+  const white = new Float32Array(cnt * 3).fill(1);
+  geom.setAttribute('color', new THREE.BufferAttribute(white, 3));
+}
 const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
 let mesh = null;
 let wireBox = null;
