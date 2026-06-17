@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -1201,6 +1201,54 @@
     sim.disperseActive = 1;                               // 진단 플래그(hash 미참여)
   }
 
+  // snEject — *초신성급 비결속 방출*(step-0091): 별풍(disperse·0071)이 *못 넘는* 중력 결속을 *집중·방향성* 임펄스로 돌파한다.
+  //   0086 발견: disperse 는 (a) 등방 *랜덤*(절반은 안쪽) (b) 소량 eps (c) 저밀도 외곽만 → 산물이 R_g~8 헤일로뿐·natal 우물에 *중력 결속*.
+  //   snEject 는 정반대 세 축: (a) *국소 질량중심서 바깥* 방향(코어 붕괴 충격의 방사 방출·등방 아님) (b) *큰* snImpulse(탈출 척도)
+  //     (c) *고밀도 코어*(deg≥snCoreDeg)의 무거운 핵(Z≥snZmin)만 — 코어 붕괴가 방아쇠(별풍은 외곽·초신성은 코어). → 산물이 우물 탈출속도 초과.
+  //   에너지: 바스서 인출(닫힘·disperse 동형 — KE += draw·총 E 보존). 운동량: 방출 입자가 나르는 −Δp → 바스(머신·0032 동형). Z·N·B·Q·L 불변.
+  //   국소: 각 원자 + coolR 이웃 질량중심만(전역 조율자 0·척추 ③). 결정론: 방향은 이웃 COM(위치 결정)·확률만 시드. 게이트 kSnEject=0 → early-return = 회귀 0.
+  function snEject(sim) {
+    const k = sim.knobs.kSnEject;
+    if (!k) return;                  // 게이트 0 → early-return = 회귀 0 (초신성 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 확률·폴백 방향에 시드 필요(Math.random 금지)
+    const bath = sim.escaped;
+    if (!bath || bath.E <= 0) return;                     // 방출 연료(복사 바스 E) 없으면 0(무에서 빌리지 않음)
+    const zmin = sim.knobs.snZmin || 3;                   // 무거운 핵(핵합성 산물)만 방출 대상
+    const imp = sim.knobs.snImpulse || 10;                // 한 번에 인출하는 *큰* 에너지(탈출 척도 — disperseE 보다 큼)
+    const coreDeg = sim.knobs.snCoreDeg || 8;             // 고밀도 코어 문턱(저밀도는 방아쇠 안 됨 — 코어 붕괴가 초신성)
+    const cr = sim.knobs.coolR || 6, cr2 = cr * cr;
+    const deg = degField(sim, cr);                        // 국소 밀도(0088 셀/brute 공유)
+    const A = sim.atoms, n = A.length;
+    for (let i = 0; i < n; i++) {
+      const a = A[i];
+      if ((a.Z | 0) < zmin) continue;                     // 무거운 핵만(초신성 산물)
+      if (deg[i] < coreDeg) continue;                     // 고밀도 코어만(붕괴 방아쇠 — 별풍 외곽과 반대)
+      if (bath.E <= 0) break;                             // 바스 고갈
+      if (rng() >= k) continue;                           // 방출 확률 kSnEject
+      // 국소 이웃 질량중심 변위 → 그 *반대*(바깥) 방향으로 방출(방향성 — disperse 등방과 결정적 차이)
+      let cx = 0, cy = 0, mtot = 0;
+      for (let j = 0; j < n; j++) { if (j === i) continue; const b = A[j];
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        if (dx * dx + dy * dy <= cr2) { const mb = K.mass(b); cx += dx * mb; cy += dy * mb; mtot += mb; } }
+      let ux, uy;
+      const cl = mtot > 0 ? Math.hypot(cx, cy) : 0;
+      if (cl > 0) { ux = -cx / cl; uy = -cy / cl; }       // 이웃 COM 반대 = 코어 바깥
+      else { const th = rng() * 2 * Math.PI; ux = Math.cos(th); uy = Math.sin(th); }  // 등밀도/고립 폴백(시드)
+      const draw = Math.min(imp, bath.E);
+      const m = K.mass(a);
+      const vx0 = a.vx, vy0 = a.vy;
+      const ke0 = 0.5 * m * (vx0 * vx0 + vy0 * vy0);
+      const sp1 = Math.sqrt(2 * (ke0 + draw) / m);        // KE += draw(바스서·총 E 보존)·속력 sp1
+      a.vx = sp1 * ux; a.vy = sp1 * uy;                   // 바깥 방향 방출(KE 보존·방향만 방사)
+      bath.E -= draw;                                     // 바스 E → 원자 KE
+      bath.px += -(m * (a.vx - vx0));                     // −Δp → 바스(총 px·py 머신)
+      bath.py += -(m * (a.vy - vy0));
+      bath.count = (bath.count | 0) + 1;
+    }
+    sim.snEjectActive = 1;                                // 진단 플래그(hash 미참여)
+  }
+
   // bondBreak 은 *거리형 결합 해리* — Morse(0074)를 위상까지 완성한다. Morse 우물은 유한 깊이라 r≫r₀ 면 복원력→0(0074) →
   //   가열된 결합쌍이 멀어져도 *간선(sim.bonds)은 남아* "유령 결합"이 된다(힘은 0 이나 위상상 여전히 분자). unbond(0016)은 *충돌 KE* 기준
   //   이라 천천히 벌어지는 Morse 해리를 못 떼낸다. bondBreak 은 *거리* 기준: r > unbondDist 면 간선을 떼어 분자(연결 성분)가 *실제로 쪼개진다*.
@@ -1235,8 +1283,8 @@
   }
 
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, coolOuter, bondSpring, bondAngle, gravity, fuse, decay, disperse, bondBreak };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'coolOuter', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'bondBreak'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, coolOuter, bondSpring, bondAngle, gravity, fuse, decay, disperse, snEject, bondBreak };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'coolOuter', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'snEject', 'bondBreak'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).

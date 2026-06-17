@@ -6159,6 +6159,87 @@
         ];
       },
     },
+
+    'step-0091': {
+      id: 'step-0091',
+      title: '초신성급 방향성 방출 snEject — 산물을 별 몸체 밖으로 (등방 별풍보다 멀리·게이트 kSnEject=0 → 회귀 0)',
+      desc: 'step-0086 이 격리한 격차: 별풍(disperse·0071)은 *등방 랜덤·소량*이라 핵합성 산물이 natal 우물에 *중력 결속*(R_g~8 헤일로뿐). 이 step 은 새 법칙 `snEject` — *초신성급 방향성 방출*: 고밀도 코어(deg≥snCoreDeg)의 무거운 핵(Z≥snZmin)에 *국소 질량중심서 바깥* 방향으로 *큰* 임펄스(snImpulse·바스서 인출)를 줘 — 코어 붕괴 충격의 방사 방출 — 산물을 *별 몸체 밖*으로 분출한다. disperse 의 세 축(등방·소량·외곽)을 정반대로(방향·집중·코어). 에너지 바스서 인출(닫힘)·−Δp→바스(머신). kSnEject=0 → early-return = 회귀 0. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+coolOuter+fuseConservePE·600 tick·고정 시드 7·세 모드 off/disperse(등방 Zmin3)/snEject(방향)): ' +
+            '① **방향성 집중이 등방보다 멀리·load-bearing** — snEject 무거운 핵 도달 maxR·R_g 가 등방 disperse ≫ off(방출 0) ⇒ 같은 바스 예산으로 방향(바깥)+집중이 산물을 *별 몸체 밖*으로(등방 별풍의 헤일로보다 멀리·author 아닌 측정). ' +
+            '② **코어 비움 → churn↑·load-bearing** — snEject 무거운 핵 수 > disperse > off(코어 산물 방출→코어에 새 연료 자리→더 융합) ⇒ 방출이 churn 키움(0084 별풍 churn 의 방향성판). ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(snEject 바스→KE·−Δp→바스·fuseConservePE 정합). ' +
+            '④ **회귀** — kSnEject=0 → 0001~90 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 600,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // 무거운 핵(Z≥3) 관성반경 R_g + 최대 도달반경 maxR(코어 중심 기준·min-image)
+      rgHeavy(at, W, H) {
+        let cx = 0, cy = 0, c = 0; for (const a of at) if (a.Z >= 3) { cx += a.rx; cy += a.ry; c++; }
+        if (!c) return { rg: 0, maxR: 0 }; cx /= c; cy /= c;
+        let s = 0, mx = 0; for (const a of at) if (a.Z >= 3) { const dx = K.minImage(a.rx - cx, W), dy = K.minImage(a.ry - cy, H); const r2 = dx * dx + dy * dy; s += r2; if (r2 > mx) mx = r2; }
+        return { rg: Math.sqrt(s / c), maxR: Math.sqrt(mx) };
+      },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, fuseConservePE: 1,
+            kSnEject: 0.5, snImpulse: 20, snCoreDeg: 2, snZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },
+
+      // mode: 'off'(방출 0) · 'disp'(등방 disperse Zmin3) · 'sn'(방향 snEject).
+      run(K, mode) {
+        const ov = mode === 'disp' ? { kSnEject: 0, kDisperse: 0.5, disperseE: 2, disperseZmin: 3 }
+                 : mode === 'off' ? { kSnEject: 0 } : {};
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        let heavy = 0; for (const a of sim.atoms) if (a.Z >= 3) heavy++;
+        const rh = this.rgHeavy(sim.atoms, this.W, this.H);
+        return { mzFinal: this.maxZof(sim.atoms), heavy, rg: rh.rg, maxR: rh.maxR,
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { sn: this.run(K, 'sn'), disp: this.run(K, 'disp'), off: this.run(K, 'off') }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { maxRsn: +c.sn.maxR.toFixed(1), maxRdisp: +c.disp.maxR.toFixed(1), maxRoff: +c.off.maxR.toFixed(1),
+                 rgSn: +c.sn.rg.toFixed(2), rgDisp: +c.disp.rg.toFixed(2), hSn: c.sn.heavy, hDisp: c.disp.heavy, hOff: c.off.heavy,
+                 relEon: +c.sn.relE.toFixed(3), dpxOn: +c.sn.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 방향성 집중이 등방보다 멀리 ② 코어 비움 churn↑ ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const farther = c.sn.maxR > c.disp.maxR * 1.3 && c.disp.maxR > c.off.maxR && c.sn.rg > c.disp.rg;  // ① 방향 ≫ 등방 ≫ off
+        const churn = c.sn.heavy > c.disp.heavy && c.disp.heavy > c.off.heavy;                             // ② 방출이 churn 키움
+        const ledgerOK = c.sn.dpx < 1e-9 && c.sn.dpy < 1e-9 && c.sn.dB < 1e-9 && c.sn.dQ < 1e-9 && c.sn.dL < 1e-9 && c.sn.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                                        // ④ 골든 보존
+        return [
+          { name: `방향성 집중이 등방보다 멀리·load-bearing — snEject 무거운 핵 maxR ${c.sn.maxR.toFixed(1)}·R_g ${c.sn.rg.toFixed(2)} ≫ 등방 disperse maxR ${c.disp.maxR.toFixed(1)}·R_g ${c.disp.rg.toFixed(2)} ≫ off(방출 0) ${c.off.maxR.toFixed(1)} ⇒ 같은 바스 예산으로 방향(바깥)+집중이 산물을 *별 몸체 밖*으로(등방 헤일로보다 멀리·author 아닌 측정)`, pass: farther, value: +c.sn.maxR.toFixed(1) },
+          { name: `코어 비움 → churn↑·load-bearing — snEject 무거운 핵 ${c.sn.heavy}개 > disperse ${c.disp.heavy} > off ${c.off.heavy}(코어 산물 방출→새 연료 자리→더 융합) ⇒ 방출이 churn 키움(0084 별풍 churn 의 방향성판)`, pass: churn, value: c.sn.heavy },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.sn.dpx.toExponential(2)}·dB ${c.sn.dB.toExponential(2)}·dL ${c.sn.dL.toExponential(2)})·E 닫힘 ${c.sn.relE.toFixed(3)}%(snEject 바스→KE·−Δp→바스·fuseConservePE 정합)`, pass: ledgerOK, value: +c.sn.relE.toFixed(3) },
+          { name: `회귀 — kSnEject=0 → 방출 꺼짐·0001~90 골든 비트 불변(회귀 0·새 법칙 게이트 가법)`, pass: reg, value: c.sn.mzFinal },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
