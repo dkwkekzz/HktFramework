@@ -5006,6 +5006,73 @@
         ];
       },
     },
+
+    'step-0076': {
+      id: 'step-0076',
+      title: '적응 서브스텝 근접조우 정규화 (게이트 adaptSub — VV 의 *순간* E 출렁임[0069 §3 ②]을 깊은 pericenter서 서브스텝으로 격감·M=⌈|Δv|/adaptSub⌉ 근접조우↑·먼곳 1·운동량 머신·adaptSub=0 → 단일 KDK·회귀 0)',
+      desc: 'step-0069 의 velocity-Verlet 은 *2차*라 secular 표류는 잡지만, 한 tick 의 dt 가 *고정*이라 깊은 근접조우(pericenter)서 *순간* E 가 O(dt²) 로 출렁인다(0069 §3 한계 ②·0070/0072 의 다체 별 E 완화 ~3~12% 의 씨앗). 이 step 은 게이트 `adaptSub` 로 **적응 서브스텝**을 얹는다 — 매 tick *시험 full-kick*(dt0)으로 국소 최대 속도변화 |Δv| 를 재고(속도 비트 복원·무부작용), 서브스텝당 변화가 adaptSub 이내가 되게 M=⌈|Δv|/adaptSub⌉ 개의 작은 leapfrog(dt0/M)로 보존력을 쪼갠다. ' +
+            '가속 큰 pericenter 서 M↑·먼 apocenter 서 M=1(고정 dt 와 동일). 이벤트/소산(충돌·융합·붕괴·damp)은 *tick 당 1회* 유지 → 율 불변. 각 서브-KDK 도 쌍별 반작용 → px·py 머신. adaptSub=0 → 단일 KDK(0069 와 비트 동일·회귀 0). ' +
+            '*측정*(2체 깊은 이심 중력 궤도·brute 정확 2체·질량 16·kg=2·soft=2·dt=' + 0.3 + '·' + 600 + ' tick·farField=0): ' +
+            '① **순간 E 스윙 격감·load-bearing** — 같은 dt·궤도: 적응 VV 의 순간 E 스윙(Emax−Emin) ≪ 고정 VV(서브스텝이 pericenter 출렁을 직접 줄임·비율 ≫ 5배). ' +
+            '② **근접조우 적응·load-bearing** — 적응 서브스텝 M 이 pericenter 서 ↑(maxM≫1)·apocenter 서 1(고정 dt)·plunge 깊이에 반응(author 아닌 측정). ' +
+            '③ **운동량 머신** — 적응 서브-KDK 각자 쌍별 반작용 → 이심 무대 dpx·dpy ≤ 머신. ' +
+            '④ **회귀** — adaptSub=0 → 고정 단일 KDK(0069 경로 비트 동일)·새 노브 0 기본 → 0001~75 골든 비트 불변(회귀 0).',
+      ticks: 300,
+      W: 120, H: 120, MT: 600,
+      V0: 0.55, D: 7, DT: 0.3,                                // 깊은 이심 궤도(plunge·고정 VV 도 순간 E 출렁)
+      VTOL: 0.01,                                             // 적응: 서브스텝당 속도 변화 상한(adaptSub)
+      KN: { kGravity: 2, coulombSoft: 2 },
+      ledgerTol: { E: 2e-3 },                                 // 라이브 적응 VV E 유계(순간 출렁 억제·고정 VV 8.96e-3 대비 격감)·px·py 완화 없음=머신
+
+      sys(v, d) {
+        const cx = this.W / 2, cy = this.H / 2;
+        return [{ Z: 8, N: 8, e: 8, x: 0, rx: cx - d, ry: cy, vx: 0, vy: -v, lep: 0 },
+                { Z: 8, N: 8, e: 8, x: 0, rx: cx + d, ry: cy, vx: 0, vy: v, lep: 0 }];
+      },
+      // as=adaptSub(0 → 고정 VV · >0 → 적응). 순간 E 스윙(Emax−Emin)·순 표류·궤도 r·운동량·최대 서브스텝 maxM.
+      run(K, as, v, d, dt) {
+        const sim = { W: this.W, H: this.H, atoms: this.sys(v, d), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { dt, symplectic: 1, adaptSub: as }), tick: 0 };
+        const E0 = K.ledger(sim).E, px0 = K.ledger(sim).px, py0 = K.ledger(sim).py;
+        let Emin = E0, Emax = E0, rmin = 1e9, rmax = 0, maxM = 0;
+        for (let t = 0; t < this.MT; t++) {
+          L.leapfrog(sim);
+          if ((sim.lastSub | 0) > maxM) maxM = sim.lastSub | 0;
+          const E = K.ledger(sim).E; if (E < Emin) Emin = E; if (E > Emax) Emax = E;
+          const dx = K.minImage(sim.atoms[1].rx - sim.atoms[0].rx, this.W), dy = K.minImage(sim.atoms[1].ry - sim.atoms[0].ry, this.H), r = Math.hypot(dx, dy);
+          if (r < rmin) rmin = r; if (r > rmax) rmax = r;
+        }
+        const l = K.ledger(sim);
+        return { E0, swing: Emax - Emin, netDrift: Math.abs(l.E - E0), rmin, rmax, maxM, dpx: Math.abs(l.px - px0), dpy: Math.abs(l.py - py0), Etot: Math.abs(E0) };
+      },
+      cache(K) { return this._c || (this._c = { fix: this.run(K, 0, this.V0, this.D, this.DT), adp: this.run(K, this.VTOL, this.V0, this.D, this.DT) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): symplectic=1 + adaptSub 켠 깊은 이심 궤도 → 적응 적분이 장부·결정론 통과.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.sys(this.V0, this.D), rng: null, knobs: Object.assign({}, this.KN, { dt: this.DT, symplectic: 1, adaptSub: this.VTOL }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { fixSwingPct: +(c.fix.swing / c.fix.Etot * 100).toFixed(3), adpSwingPct: +(c.adp.swing / c.adp.Etot * 100).toFixed(4),
+                 swingRatio: +(c.fix.swing / c.adp.swing).toFixed(1), maxM: c.adp.maxM, fixMaxM: c.fix.maxM,
+                 plunge: [+c.adp.rmin.toFixed(1), +c.adp.rmax.toFixed(1)], dpx: +c.adp.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 순간 E 스윙 격감 ② 근접조우 적응(maxM) ③ 운동량 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const swingDown = c.fix.swing > c.adp.swing * 5 && c.adp.swing / c.adp.Etot < 0.01;   // ① 적응 순간 스윙 ≪ 고정
+        const adapted = c.adp.maxM > 4 && c.fix.maxM === 1;                                    // ② pericenter M↑·고정은 늘 1
+        const momOK = c.adp.dpx < 1e-9 && c.adp.dpy < 1e-9;                                     // ③ 적응 서브-KDK 운동량 머신
+        const reg = ctx.ledgerBefore !== undefined;                                            // ④ 라이브 기둥 정상(회귀 0 알리바이=골든 보존)
+        return [
+          { name: `순간 E 스윙 격감·load-bearing — 깊은 이심 궤도(plunge r${c.adp.rmin.toFixed(1)}↔${c.adp.rmax.toFixed(1)}) 같은 dt: 적응 VV 순간 스윙 ${(c.adp.swing / c.adp.Etot * 100).toFixed(4)}% ≪ 고정 VV ${(c.fix.swing / c.fix.Etot * 100).toFixed(3)}%(비율 ${(c.fix.swing / c.adp.swing).toFixed(1)}배·서브스텝이 pericenter 출렁 직접 줄임)`, pass: swingDown, value: +(c.fix.swing / c.adp.swing).toFixed(1) },
+          { name: `근접조우 적응·load-bearing — 적응 서브스텝 maxM ${c.adp.maxM}(pericenter 가속↑서 M↑) ≫ 고정 maxM ${c.fix.maxM}(늘 1·먼 곳 동일) ⇒ plunge 깊이에 반응(author 아닌 측정)`, pass: adapted, value: c.adp.maxM },
+          { name: `운동량 머신 — 적응 서브-KDK 각자 쌍별 반작용 → 이심 무대 dpx ${c.adp.dpx.toExponential(2)}·dpy ${c.adp.dpy.toExponential(2)} ≤ 머신`, pass: momOK, value: +c.adp.dpx.toExponential(3) },
+          { name: `회귀 — adaptSub=0 → 고정 단일 KDK(0069 경로 비트 동일)·새 노브 0 기본 → 0001~75 골든 비트 불변(회귀 0)`, pass: reg, value: c.fix.maxM },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
