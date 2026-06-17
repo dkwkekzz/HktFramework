@@ -57,7 +57,7 @@
     display: flex; gap: 14px; backdrop-filter: blur(10px); flex-wrap: wrap; max-width: calc(100vw - 28px);
   }
   #stats b { color: var(--accent); font-weight: 600; }
-  #stats .w { color: #4ea8ff; } #stats .v { color: #cfe3f7; } #stats .p { color: #5fd06a; }
+  #stats .w { color: #4ea8ff; } #stats .v { color: #cfe3f7; } #stats .p { color: #5fd06a; } #stats .c { color: #ff7a59; }
   #hint {
     position: fixed; bottom: 14px; right: 14px; color: var(--muted); font-size: 11px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
@@ -129,9 +129,14 @@
       <span class="val" id="rainval">35</span>
     </div>
     <div class="row">
-      <label>🌿 Growth (생명)</label>
+      <label>🌿 Growth (식물)</label>
       <input type="range" id="growth" min="0" max="100" value="50" />
       <span class="val" id="growthval">50</span>
+    </div>
+    <div class="row">
+      <label>🦌 Fauna (동물)</label>
+      <input type="range" id="fauna" min="0" max="100" value="50" />
+      <span class="val" id="faunaval">50</span>
     </div>
     <div class="row">
       <label>🌊 Sea level</label>
@@ -169,6 +174,7 @@
   <span id="st-w" style="display:none;">💧 <b class="w" id="cwater">0</b></span>
   <span id="st-v" style="display:none;">☁ <b class="v" id="cvapor">0</b></span>
   <span id="st-p" style="display:none;">🌿 <b class="p" id="cplant">0</b></span>
+  <span id="st-c" style="display:none;">🦌 <b class="c" id="ccreature">0</b></span>
   <span>FPS <b id="fps">0</b></span>
 </div>
 <div id="hint">드래그=회전 · 휠=줌 · 우클릭드래그=이동</div>
@@ -350,7 +356,7 @@ class CA3D {
 //  [2] Living World 엔진
 // ===========================================================================
 //  셀 타입. 0=AIR 은 빈 공간(렌더 생략).
-const T = { AIR: 0, ROCK: 1, SOIL: 2, SAND: 3, WATER: 4, VAPOR: 5, PLANT: 6 };
+const T = { AIR: 0, ROCK: 1, SOIL: 2, SAND: 3, WATER: 4, VAPOR: 5, PLANT: 6, CREATURE: 7 };
 
 // 생명 파라미터 (식물 에너지는 aux[] 에 0..MAX_E 로 저장)
 const L = {
@@ -366,6 +372,16 @@ const L = {
   WATER_SHADE: 22, // 물속 감쇠
 };
 
+// 동물(초식 개체) 파라미터. 에너지는 aux[] 에 저장(식물과 공유, 타입으로 구분).
+const C = {
+  START: 55,    // 출생/번식 시 초기 에너지
+  MAX: 180,     // 에너지 상한
+  META: 1,      // 매 스텝 기초대사 소모(움직임의 대가)
+  FOOD: 34,     // 식물 1회 섭취 에너지
+  REPRO: 70,    // 번식 임계 에너지(잘 먹으면 쉽게 번식 → 개체군 회복)
+  SENSE: 6,     // 먹이 감지 반경(이 안의 식물 쪽으로 이동)
+};
+
 class World {
   constructor(size) { this.resize(size); this.setParams({}); }
   resize(size) {
@@ -376,7 +392,7 @@ class World {
     this.light = new Uint8Array(n3);  // 빛 (매 스텝 top-down 계산)
     this.moved = new Uint8Array(n3);  // 이번 스텝 이동/변환 완료 플래그
     this.generation = 0;
-    this.liveCount = this.cWater = this.cVapor = this.cPlant = 0;
+    this.liveCount = this.cWater = this.cVapor = this.cPlant = this.cCreature = 0;
     // 지형 노이즈 위상 (리사이즈마다 새 세계)
     this.px = Math.random() * 6.28; this.pz = Math.random() * 6.28; this.pq = Math.random() * 6.28;
   }
@@ -389,10 +405,12 @@ class World {
     if (p.rain   !== undefined) this.rain   = p.rain;
     if (p.growth !== undefined) this.growth = p.growth;
     if (p.seaPct !== undefined) this.seaPct = p.seaPct;
+    if (p.fauna  !== undefined) this.fauna  = p.fauna;
     if (this.sun    === undefined) this.sun = 35;
     if (this.rain   === undefined) this.rain = 35;
     if (this.growth === undefined) this.growth = 50;
     if (this.seaPct === undefined) this.seaPct = 34;
+    if (this.fauna  === undefined) this.fauna = 50;
   }
 
   // ── 세계 생성 ──────────────────────────────────────────────────────────
@@ -436,6 +454,24 @@ class World {
         }
       }
     }
+
+    // 동물(초식 개체)을 육지 지표에 흩뿌리기 — fauna 슬라이더에 비례
+    const popP = 0.012 * (this.fauna / 50);
+    for (let z = 0; z < N; z++) {
+      for (let x = 0; x < N; x++) {
+        for (let y = N - 2; y >= 1; y--) {
+          const i = this.idx(x, y, z);
+          const t = cur[i];
+          if (t === T.SOIL || t === T.ROCK || t === T.PLANT) {
+            const up = this.idx(x, y + 1, z);
+            if (cur[up] === T.AIR && Math.random() < popP) {
+              cur[up] = T.CREATURE; aux[up] = C.START;
+            }
+            break; // 이 컬럼의 지표만
+          }
+        }
+      }
+    }
     this.generation = 0;
     this.recount();
   }
@@ -457,12 +493,14 @@ class World {
   step() {
     this.moved.fill(0);
     this.computeLight();
-    this.lifePass();   // 생명: 발아/성장/증산/죽음
-    this.phasePass();  // 상변화: 증발 / 응결(비)
-    this.waterPass();  // 물: 중력 + 흐름
-    this.vaporPass();  // 수증기: 상승 + 확산(바람)
+    this.lifePass();     // 생명: 발아/성장/증산/죽음
+    this.creaturePass(); // 동물: 먹이 추적 이동 / 섭취 / 번식 / 사멸
+    this.phasePass();    // 상변화: 증발 / 응결(비)
+    this.waterPass();    // 물: 중력 + 흐름
+    this.vaporPass();    // 수증기: 상승 + 확산(바람)
     this.generation++;
     this.recount();
+    this.immigrate();    // 절멸 직전이면 외부에서 소수 재정착(안전판)
   }
 
   // 위에서 내려오는 빛. 고체는 차단, 식물·물은 감쇠.
@@ -574,6 +612,195 @@ class World {
       if (cur[ni] === from && !moved[ni]) { cur[ni] = to; moved[ni] = 1; return true; }
     }
     return false;
+  }
+
+  // ── 동물(초식 개체): 의미있는 이동 ──────────────────────────────────────
+  //  무작위 배회가 아니라 "감지 → 먹이 추적 → 섭취 → 번식 → 사멸"의 목적지향 행동.
+  //  지표 위를 걸어다니며(중력으로 낙하, 한 칸 climb 허용) 식물을 따라 무리가 이동한다.
+  creaturePass() {
+    const N = this.N, cur = this.cur, aux = this.aux, moved = this.moved;
+    const fMul = this.fauna / 50;
+    for (let z = 0; z < N; z++) {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const i = (z * N + y) * N + x;
+          if (cur[i] !== T.CREATURE || moved[i]) continue;
+          let e = aux[i] - C.META;
+
+          // 1) 인접 식물 섭취(있으면 그 자리에서 먹고 머문다)
+          const ate = this.eatPlant(x, y, z);
+          if (ate) e += C.FOOD;
+
+          // 2) 목적지(dst) 결정
+          let dx2 = x, dy2 = y, dz2 = z;
+          if (!ate) {
+            if (y > 0 && cur[(z * N + (y - 1)) * N + x] === T.AIR) {
+              dy2 = y - 1;                       // 공중이면 낙하(접지 유지)
+            } else {
+              // 먹이를 향해 갈 수 있는 방향을 모두 시도(막히면 우회)
+              const land = this.bestMove(x, y, z);
+              if (land) { dx2 = land[0]; dy2 = land[1]; dz2 = land[2]; }
+            }
+          }
+
+          // 3) 사멸(굶주림) → 토양으로 분해(지력 환원)
+          if (e <= 0) { cur[i] = T.SOIL; aux[i] = 0; continue; }
+          e = Math.min(C.MAX, e);
+
+          // 4) 이동 적용
+          let ci = i;
+          if (dx2 !== x || dy2 !== y || dz2 !== z) {
+            const ni = (dz2 * N + dy2) * N + dx2;
+            if (!moved[ni] && cur[ni] === T.AIR) {
+              cur[ni] = T.CREATURE; aux[ni] = e; moved[ni] = 1;
+              cur[i] = T.AIR; aux[i] = 0; ci = ni;
+            } else { aux[i] = e; }   // 목적지 막힘 → 제자리
+          } else { aux[i] = e; }
+
+          // 5) 번식: 잘 먹어 에너지 충분 + 주변이 너무 붐비지 않을 때만(과잉진동 억제)
+          const cx = ci % N, cy = ((ci / N) | 0) % N, cz = (ci / (N * N)) | 0;
+          if (aux[ci] > C.REPRO && this.crowd(cx, cy, cz) < 4 && Math.random() < 0.4 * fMul) {
+            const baby = this.walkTo(cx, cy, cz, 0, 0, true);
+            if (baby) {
+              const bi = (baby[2] * N + baby[1]) * N + baby[0];
+              if (!moved[bi] && cur[bi] === T.AIR) {
+                const half = (aux[ci] / 2) | 0;
+                cur[bi] = T.CREATURE; aux[bi] = half; moved[bi] = 1;
+                aux[ci] -= half;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 6-이웃 식물 하나를 섭취(AIR 로). 찾으면 true.
+  eatPlant(x, y, z) {
+    const N = this.N, cur = this.cur;
+    const D = [[0,-1,0],[0,1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]];
+    const s = (Math.random() * 6) | 0;
+    for (let k = 0; k < 6; k++) {
+      const d = D[(s + k) % 6];
+      const nx = x + d[0], ny = y + d[1], nz = z + d[2];
+      if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+      const ni = (nz * N + ny) * N + nx;
+      if (cur[ni] === T.PLANT) { cur[ni] = T.AIR; this.aux[ni] = 0; return true; }
+    }
+    return false;
+  }
+
+  // 가장 가까운 식물 쪽으로 갈 수 있는 한 칸을 고른다(막힌 방향은 우회).
+  //  먹이가 감지되면 거리를 줄이는 방향 우선, 없으면 무작위 배회.
+  bestMove(x, y, z) {
+    const tgt = this.senseNearestPlant(x, y, z, C.SENSE);
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    if (tgt) {
+      dirs.sort((a, b) => {
+        const da = (x + a[0] - tgt[0]) ** 2 + (z + a[1] - tgt[2]) ** 2;
+        const db = (x + b[0] - tgt[0]) ** 2 + (z + b[1] - tgt[2]) ** 2;
+        return da - db;
+      });
+    } else {
+      for (let k = 3; k > 0; k--) { const j = (Math.random() * (k + 1)) | 0; const t = dirs[k]; dirs[k] = dirs[j]; dirs[j] = t; }
+    }
+    for (let di = 0; di < 4; di++) {
+      const land = this.walkTo(x, y, z, dirs[di][0], dirs[di][1]);
+      if (land) return land;
+    }
+    return null;
+  }
+
+  // 감지 반경 r 안에서 가장 가까운 식물 좌표 [x,y,z], 없으면 null.
+  senseNearestPlant(x, y, z, r) {
+    const N = this.N, cur = this.cur;
+    let best = 1e9, bc = null;
+    for (let dz = -r; dz <= r; dz++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+          if (cur[(nz * N + ny) * N + nx] === T.PLANT) {
+            const d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 < best) { best = d2; bc = [nx, ny, nz]; }
+          }
+        }
+    return bc;
+  }
+
+  // 26-이웃 동물 수(밀집도). 번식 과밀 억제에 사용.
+  crowd(x, y, z) {
+    const N = this.N, cur = this.cur; let c = 0;
+    for (let dz = -1; dz <= 1; dz++)
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy && !dz) continue;
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+          if (cur[(nz * N + ny) * N + nx] === T.CREATURE) c++;
+        }
+    return c;
+  }
+
+  // 무어 반경 r 안에 식물이 있나
+  nearPlant(x, y, z, r) {
+    const N = this.N, cur = this.cur;
+    for (let dz = -r; dz <= r; dz++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          if (nx < 0 || ny < 0 || nz < 0 || nx >= N || ny >= N || nz >= N) continue;
+          if (cur[(nz * N + ny) * N + nx] === T.PLANT) return true;
+        }
+    return false;
+  }
+
+  // 외부에서의 이주(재정착): 동물이 절멸 직전이고 먹이가 풍부하면 경계 밖에서
+  //  소수가 들어온다. 개체군이 영구히 죽지 않게 하는 안전판(이동 생태 유지).
+  immigrate() {
+    const floor = Math.max(2, Math.round(this.fauna / 20));
+    if (this.cCreature >= floor || this.cPlant < 8) return;
+    if (Math.random() > 0.6 * (this.fauna / 50)) return;
+    const N = this.N, cur = this.cur;
+    for (let tries = 0; tries < 50; tries++) {
+      const x = (Math.random() * N) | 0, z = (Math.random() * N) | 0;
+      for (let y = N - 2; y >= 1; y--) {
+        const t = cur[(z * N + y) * N + x];
+        if (t === T.SOIL || t === T.ROCK || t === T.PLANT) {
+          const up = (z * N + (y + 1)) * N + x;
+          if (cur[up] === T.AIR && this.nearPlant(x, y + 1, z, 4)) {
+            cur[up] = T.CREATURE; this.aux[up] = C.START; this.cCreature++; return;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // (x,z) 방향으로 한 칸 걷는다. y, y±1 중 접지된 AIR 착지점을 찾아 [x,y,z] 반환.
+  //  any=true 면 4방향 모두 시도(번식용 빈자리 탐색).
+  walkTo(x, y, z, dx, dz, any) {
+    const N = this.N, cur = this.cur, moved = this.moved;
+    const dirs = any ? [[1,0],[-1,0],[0,1],[0,-1]] : [[dx, dz]];
+    for (let di = 0; di < dirs.length; di++) {
+      const nx = x + dirs[di][0], nz = z + dirs[di][1];
+      if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+      for (const ny of [y, y + 1, y - 1]) {     // 같은 높이 → 오르막 → 내리막
+        if (ny < 0 || ny >= N) continue;
+        const ni = (nz * N + ny) * N + nx;
+        if (cur[ni] !== T.AIR || moved[ni]) continue;
+        if (!this.isGround(nx, ny - 1, nz)) continue;  // 발 밑이 단단해야 함
+        return [nx, ny, nz];
+      }
+    }
+    return null;
+  }
+
+  // 발판이 되는가(흙/암석/식물/동물). 물·공기 위에는 못 선다.
+  isGround(x, y, z) {
+    if (y < 0) return true;                       // 월드 바닥
+    const t = this.cur[(z * this.N + y) * this.N + x];
+    return t === T.ROCK || t === T.SOIL || t === T.PLANT || t === T.CREATURE;
   }
 
   // 상변화: 표면 증발(water→vapor) / 고도·구름 응결(vapor→water=비)
@@ -693,7 +920,7 @@ class World {
 
   recount() {
     const cur = this.cur, n = cur.length;
-    let live = 0, w = 0, v = 0, p = 0;
+    let live = 0, w = 0, v = 0, p = 0, c = 0;
     for (let i = 0; i < n; i++) {
       const t = cur[i];
       if (t === T.AIR) continue;
@@ -701,8 +928,9 @@ class World {
       if (t === T.WATER) w++;
       else if (t === T.VAPOR) v++;
       else if (t === T.PLANT) p++;
+      else if (t === T.CREATURE) c++;
     }
-    this.liveCount = live; this.cWater = w; this.cVapor = v; this.cPlant = p;
+    this.liveCount = live; this.cWater = w; this.cVapor = v; this.cPlant = p; this.cCreature = c;
   }
 }
 
@@ -816,7 +1044,8 @@ function updateInstancesWorld(w) {
         else if (t === T.SAND)  color.setRGB(0.80, 0.72, 0.45);
         else if (t === T.WATER) { const yf = 0.45 + 0.55 * (y / (N - 1)); color.setRGB(0.10 * yf, 0.42 * yf, 0.92 * yf); }
         else if (t === T.VAPOR) { color.setRGB(0.85, 0.90, 0.97); sc = 0.6; }
-        else /* PLANT */ { const e = aux[i] / L.MAX_E; color.setHSL(0.18 + 0.16 * e, 0.75, 0.32 + 0.18 * e); sc = 0.9; }
+        else if (t === T.PLANT) { const e = aux[i] / L.MAX_E; color.setHSL(0.18 + 0.16 * e, 0.75, 0.32 + 0.18 * e); sc = 0.9; }
+        else /* CREATURE */ { const e = aux[i] / C.MAX; color.setHSL(0.03, 0.85, 0.45 + 0.2 * e); sc = 1.15; }
 
         dummy.position.set(x - half, y - half, z - half);
         dummy.scale.set(sc, sc, sc);
@@ -915,6 +1144,7 @@ function refreshStats() {
     document.getElementById('cwater').textContent = world.cWater.toLocaleString();
     document.getElementById('cvapor').textContent = world.cVapor.toLocaleString();
     document.getElementById('cplant').textContent = world.cPlant.toLocaleString();
+    document.getElementById('ccreature').textContent = world.cCreature.toLocaleString();
   }
 }
 
@@ -994,6 +1224,7 @@ function bindWorldSlider(id, key) {
 bindWorldSlider('sun', 'sun');
 bindWorldSlider('rain', 'rain');
 bindWorldSlider('growth', 'growth');
+bindWorldSlider('fauna', 'fauna');
 bindWorldSlider('sea', 'seaPct');
 
 // 엔진 전환
@@ -1006,11 +1237,13 @@ function applyEngine() {
   document.getElementById('st-w').style.display = isWorld ? 'inline' : 'none';
   document.getElementById('st-v').style.display = isWorld ? 'inline' : 'none';
   document.getElementById('st-p').style.display = isWorld ? 'inline' : 'none';
+  document.getElementById('st-c').style.display = isWorld ? 'inline' : 'none';
   if (isWorld) {
     world.setParams({
       sun: +document.getElementById('sun').value,
       rain: +document.getElementById('rain').value,
       growth: +document.getElementById('growth').value,
+      fauna: +document.getElementById('fauna').value,
       seaPct: +document.getElementById('sea').value,
     });
     world.seed();
@@ -1030,7 +1263,8 @@ document.getElementById('size').addEventListener('change', e => {
   if (engine === 'world') {
     world.setParams({
       sun: +document.getElementById('sun').value, rain: +document.getElementById('rain').value,
-      growth: +document.getElementById('growth').value, seaPct: +document.getElementById('sea').value,
+      growth: +document.getElementById('growth').value, fauna: +document.getElementById('fauna').value,
+      seaPct: +document.getElementById('sea').value,
     });
     world.seed();
   } else {
