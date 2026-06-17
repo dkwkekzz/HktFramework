@@ -47,11 +47,22 @@ Object.assign(InventoryService.prototype, {
     }
     while (this.outBuffer.length && this.outBuffer[0].outSeq <= this.outAcked) { this.outBuffer.shift(); this.outPruned++; }
   },
-  // seen 워터마크 수신(이 step·busSeenBound) — 게이트웨이가 svc.item.seen 으로 통보한 inAcked(prune 프런티어) 이하 reqId 를 seenReqs 에서 제거.
+  // seen 워터마크 수신(0042·busSeenBound) — 게이트웨이가 svc.item.seen 으로 통보한 inAcked(prune 프런티어) 이하 reqId 를 seenReqs 에서 제거.
   //   reqId≤upTo 는 게이트웨이 inBuffer 에서 이미 가지쳐져 *영영 재발행되지 않는다* → dedup 상태가 불필요(잊어도 dupe 0). 워터마크는 단조 — 새 upTo 가 더 클 때만 가지친다.
-  //   Set 이라 순서 보장이 없으니 upTo 이하를 순회 제거(O(가지친 수)). 가방 crash 후엔 seenReqs 리셋이므로 워터마크도 무관(별개 생애).
+  //   ── per-producer 복합키 가지치기(이 step·busSeenNs) — 0046 §9/리뷰 §1 해소. ──
+  //     0046 busProducerNs ON 이면 seenReqs 키가 *복합키*(`producer reqId`·문자열)인데, 0042 단일 네임스페이스 prune 은 `r <= upTo`(숫자 비교) → `'gw 5' <= 5` 는 false(NaN) → 복합키가 *영영* 안 가지쳐진다(busSeenBound 무력화·무계 회귀).
+  //     해법: busSeenNs ON 이면 producer 별 워터마크(producerSeenWm)를 두고, 게이트웨이가 통보한 (producer,upTo)로 *그 producer 의* 복합키만(접두사 일치 + 숫자 suffix ≤ upTo) 가지친다. busSeenNs OFF 면 0046 비트 동일(숫자 prune).
   _onSeenWatermark(ev) {
-    if (!this.busSeenBound || ev == null || ev.upTo === undefined || ev.upTo <= this.seenWatermark) return;
+    if (!this.busSeenBound || ev == null || ev.upTo === undefined) return;
+    if (this.busSeenNs && ev.producer !== undefined) {
+      const cur = this.producerSeenWm.get(ev.producer);
+      if (cur !== undefined && ev.upTo <= cur) return;   // producer 별 워터마크 단조
+      this.producerSeenWm.set(ev.producer, ev.upTo);
+      const prefix = ev.producer + '\u0000';   // 복합키 구분자(svc-inventory-core 의 dedup 키와 동일)
+      for (const k of this.seenReqs) if (typeof k === 'string' && k.startsWith(prefix) && parseInt(k.slice(prefix.length), 10) <= ev.upTo) { this.seenReqs.delete(k); this.seenPruned++; }   // 그 producer 의 복합키만 가지치기
+      return;
+    }
+    if (ev.upTo <= this.seenWatermark) return;
     this.seenWatermark = ev.upTo;
     for (const r of this.seenReqs) if (r <= this.seenWatermark) { this.seenReqs.delete(r); this.seenPruned++; }
   },

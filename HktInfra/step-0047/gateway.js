@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false, busSeenBound = false, busMinWm = false, busProducerNs = false) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false, busSeenBound = false, busMinWm = false, busProducerNs = false, busSeenNs = false) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -54,7 +54,8 @@ class Gateway {
     this.seenWmSent = 0;                  // 발행한 seen 워터마크 누적(0042·계측)
     // ── 다중 소비자 min-워터마크(이 step·busMinWm) — 게이트웨이는 결과의 *한* 소비자다(둘째 = ranking). ON 이면 결과 ack 에 consumer:'gateway' 태깅 → 가방이 소비자별 frontier 로 min 계산. ──
     this.busMinWm = busMinWm;             // ON 이면 svc.item.out.ack 에 consumer 태깅. OFF = 0043 비트 동일(태깅 0·단일 워터마크).
-    this.busProducerNs = busProducerNs;   // ON 이면 svc.item 요청에 producer(=게이트웨이 주소) 태깅 → 다중 게이트웨이 reqId 네임스페이스 분리(이 step). OFF = 0045 비트 동일(미태깅).
+    this.busProducerNs = busProducerNs;   // ON 이면 svc.item 요청에 producer(=게이트웨이 주소) 태깅 → 다중 게이트웨이 reqId 네임스페이스 분리(0046). OFF = 0045 비트 동일(미태깅).
+    this.busSeenNs = busSeenNs;           // ON 이면 svc.item.seen 워터마크에 producer 태깅 → 가방이 그 producer 의 복합키만 가지치기(이 step·0046 §9 해소). OFF = 0046 비트 동일(미태깅·숫자 워터마크).
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -95,7 +96,7 @@ class Gateway {
     // seenReqs 유계화(이 step·busSeenBound) — inAcked 가 전진하면 그 prune 프런티어를 가방에 통보(역방향 워터마크).
     //   가방이 inBuffer 에서 reqId≤inAcked 를 가지쳤으므로 *그 이하는 다시 재발행되지 않는다* → 가방이 seenReqs dedup 집합에서 안전히 잊을 수 있다.
     //   reqId 단조 + 게이트웨이가 각 reqId 를 1회만 발신(재발행만 중복·재발행 범위는 >inAcked) → ≤inAcked 는 영영 재출현 0 → dedup 정확성 보존(dupe 0). OFF 면 발행 0 = 0041 비트 동일.
-    if (this.busSeenBound && this.bus && this.inAcked > before) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.seen', ev: { upTo: this.inAcked } }); this.seenWmSent++; }
+    if (this.busSeenBound && this.bus && this.inAcked > before) { const sev = this.busSeenNs ? { upTo: this.inAcked, producer: this.addr } : { upTo: this.inAcked }; this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.seen', ev: sev }); this.seenWmSent++; }   // busSeenNs ON 이면 producer 태깅(가방이 복합키 가지치기·이 step). OFF = 0046 비트 동일.
   }
   // 결과 ack 발행(이 step·busOutAck) — svc.item.out 결과를 중계할 때마다 그 outSeq 를 가방에 통보(0040 요청 ack 발행의 거울).
   //   가방이 이 ack 로 outBuffer 를 가지쳐 자기-크기조정. outSeq 없으면(busOutAck OFF·가방 미태깅) 발행 0 = 0040 비트 동일.

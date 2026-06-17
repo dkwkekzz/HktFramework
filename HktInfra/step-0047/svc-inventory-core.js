@@ -62,7 +62,11 @@ class InventoryService {
     //   해법: dedup 키를 (producer, reqId) 복합키로 → 같은 reqId 라도 producer 다르면 별개. 가방은 버스 너머라 발신 게이트웨이를 구별 못 하므로(은닉) 요청에 실린 producer 태그가 유일한 네임스페이스 신호.
     //   busProducerNs OFF(또는 producer 미태깅·단일 게이트웨이)면 키=bare reqId = 0045 비트 동일(복합키 미사용). 0044 의 *소비자* min-워터마크의 *producer 측* 거울.
     this.busProducerNs = opts.busProducerNs || false;
-    // ── seenReqs 유계화(이 step·busSeenBound) — 게이트웨이 prune 워터마크(svc.item.seen)로 dedup 집합 가지치기(0040/0041 §9 해소). ──
+    // ── per-producer seen 워터마크(이 step·busSeenNs) — 0046 §9/리뷰 §1 해소. ──
+    //   0046 복합키(producer reqId·문자열) + 0042 단일-네임스페이스 숫자 prune(`r<=upTo`)은 `'gw 5'<=5`=false(NaN) → 복합키가 영영 안 가지쳐져 busSeenBound 가 무력(무계 회귀). busSeenNs ON 이면 producer 별 워터마크로 복합키를 가지친다.
+    this.busSeenNs = opts.busSeenNs || false;
+    this.producerSeenWm = new Map();   // producer id -> 그 producer 의 seen prune 워터마크(단조). 복합키 가지치기 기준. busSeenNs ON 일 때만.
+    // ── seenReqs 유계화(0042·busSeenBound) — 게이트웨이 prune 워터마크(svc.item.seen)로 dedup 집합 가지치기(0040/0041 §9 해소). ──
     //   게이트웨이가 inAcked(=inBuffer prune 프런티어)를 통보 → 그 이하 reqId 는 영영 재발행 0 → seenReqs 에서 안전히 제거(미-재출현이라 dupe 보존). busAck 의 역방향 워터마크.
     this.busSeenBound = opts.busSeenBound || false;  // ON 이면 svc.item.seen 수신 시 seenReqs 가지치기. OFF = 0041 비트 동일(가지치기 0·무계).
     this.seenWatermark = -1;      // seen prune 워터마크 — 이 reqId 이하 dedup 상태는 잊음(단조)
@@ -119,7 +123,7 @@ class InventoryService {
     //   reqId 없으면(busResendReq OFF·재발행 미사용) 분기 휴면 = 0036 비트 동일. 멱등(Set dedup) — 재발행 무해.
     if (this.busResendReq && p.reqId !== undefined) {
       // dedup 키 — busProducerNs ON·producer 태깅이면 (producer,reqId) 복합키로 producer 네임스페이스 분리(이 step). OFF/미태깅이면 bare reqId = 0045 비트 동일.
-      const key = (this.busProducerNs && p.producer !== undefined) ? p.producer + ' ' + p.reqId : p.reqId;
+      const key = (this.busProducerNs && p.producer !== undefined) ? p.producer + '\u0000' + p.reqId : p.reqId;
       if (this.seenReqs.has(key)) return;   // 이미 처리(재발행 중복·또는 같은 (producer,reqId)) — 폐기
       this.seenReqs.add(key);
       if (this.seenReqs.size > this.seenReqsPeak) this.seenReqsPeak = this.seenReqs.size;   // 최대 크기 계측 — 유계화 증거
@@ -181,6 +185,7 @@ class InventoryService {
     this.outBuffer = []; this.outResends = 0;   // 버스 failover 결과 재발행 버퍼 리셋(0036) — 가방 crash 는 결과 버퍼도 소실(RAM). busResend OFF 면 무관.
     this.seenReqs = new Set();   // 요청 dedup 집합 리셋(0037) — 새 프로세스는 처리 이력 0(busResendReq OFF 면 무관).
     this.seenWatermark = -1;     // seen prune 워터마크 리셋(0042) — 새 생애는 dedup 이력 0 이라 워터마크도 초기화(busSeenBound OFF 면 무관).
+    this.producerSeenWm = new Map();   // per-producer seen 워터마크 리셋(이 step) — 새 생애는 producer 별 prune 이력 0(busSeenNs OFF 면 무관).
     this.consumerWm = new Map(); // 다중 소비자 워터마크 리셋(0044) — 새 프로세스는 소비자 ack 이력 0(busMinWm OFF 면 무관·outConsumers 는 config 라 유지).
     this.evicted = new Set(); this.evictions = 0; this.consumerSeen = new Map();   // 축출·침묵 이력 리셋(이 step) — 새 프로세스는 산 소비자 가정·정의역 복원(busConsumerLease OFF 면 무관·leaseSpan 은 config 라 유지).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;

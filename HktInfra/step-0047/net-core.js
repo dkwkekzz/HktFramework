@@ -1,11 +1,11 @@
-// HktInfra step-0047 — 다중 게이트웨이 producer 네임스페이스 (가방 요청 dedup 을 (producer,reqId) 복합키로·busProducerNs·0042 §9 ① 해소).
-//   0037 reqId 는 *producer-local* 단조 카운터(게이트웨이마다 0,1,2…)다 — 단일 게이트웨이면 충분하나, SPINE "게이트웨이 군"처럼 *다중* 게이트웨이가 같은 가방에 발신하면
-//   reqId 네임스페이스가 겹친다(gw1 reqId k vs gw2 reqId k) → 단일 네임스페이스 seenReqs 가 gw2 의 k 를 gw1 의 *이미 처리한 k* 로 오인해 폐기(둘째 producer 요청 손실).
-//   해법: dedup 키를 (producer,reqId) 복합키로 분리 — 가방은 버스 너머라 발신 게이트웨이를 구별 못 하므로(은닉) 요청에 실린 producer 태그가 유일한 네임스페이스 신호. 0044 *소비자* min-워터마크의 *producer 측* 거울.
-//   닿는 박스: gateway.js(svc.item 에 producer 태깅)·svc-inventory-core.js(seenReqs 복합키 dedup)·topo-build.js(busProducerNs 배선)·topology.js(producerInject 둘째 producer 자극). busProducerNs=0 = 0045 비트 동일.
+// HktInfra step-0047 — per-producer seen 워터마크 (busProducerNs 복합키를 busSeenBound 가 가지치게·busSeenNs·0046 §9/리뷰 §1 해소).
+//   0046 busProducerNs ON 이면 seenReqs 키가 *복합키*(`producer\0reqId`·문자열)인데, 0042 busSeenBound 의 prune 은 `r <= upTo`(숫자 비교) → `'gw\05' <= 5` 는 false(NaN)
+//   → 복합키가 *영영* 안 가지쳐져 seenReqs 가 무계 회귀(busSeenBound 가 사실상 무력). 두 기능이 독립 copy-forward 되며 정합 안 됐던 잠복 버그(리뷰 §1).
+//   해법: 게이트웨이가 svc.item.seen 워터마크에 producer 태깅 → 가방이 producer 별 워터마크(producerSeenWm)로 *그 producer 의* 복합키만(접두사 일치 + 숫자 suffix ≤ upTo) 가지친다. 0046 producer 네임스페이스의 *prune 측* 완결.
+//   닿는 박스: gateway.js(svc.item.seen 에 producer 태깅)·svc-inventory-core.js(producerSeenWm 상태·복합키 구분자 텍스트화)·svc-inventory-bus.js(_onSeenWatermark producer 별 가지치기)·topo-build.js(busSeenNs 배선). busSeenNs=0 = 0046 비트 동일.
 //
-// 척추(SPINE.md) 준수: busProducerNs=0(기본)→0045 비트 동일(reg 0·producer 미태깅·키=bare reqId)·존 tick 밖 제어 평면(신성한 tick 보존)·headless 원격 검증 무변경.
-//   ON 이면 둘째 게이트웨이 reqId 충돌이 분리돼 요청 손실 0(minted 보존)·원장 권위 무영향. 동결 단위는 step-0047/ 디렉토리 통째.
+// 척추(SPINE.md) 준수: busSeenNs=0(기본)→0046 비트 동일(reg 0·seen 미태깅·숫자 prune)·존 tick 밖 제어 평면(신성한 tick 보존)·headless 원격 검증 무변경.
+//   ON 이면 복합키 seenReqs 가 유계(run-length 무관·idle drain)·minted 보존(가지친 reqId 미-재출현·dupe 0). 동결 단위는 step-0047/ 디렉토리 통째.
 'use strict';
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;

@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0046](step-0046.md) — **다중 게이트웨이 producer 네임스페이스**(busProducerNs·0042 §9 ① 해소). 0037 reqId 는 *producer-local* 단조 카운터(게이트웨이마다 0,1,2…) — 다중 게이트웨이가 같은 가방에 발신하면 네임스페이스가 겹쳐(gw1 reqId k vs gw2 reqId k) 단일 네임스페이스 dedup 이 gw2 의 k 를 gw1 의 *이미 처리한 k* 로 오인 폐기(요청 손실). 해법: 가방 dedup 키를 (producer,reqId) 복합키로 분리(가방은 버스 너머라 producer 태그가 유일한 네임스페이스 신호·은닉). 0044 *소비자* min-워터마크의 *producer 측* 거울. 닿는 파일 gateway·svc-inventory-core·topo-build·topology·verify.
-- **한 줄 상태**: reg 25/25(0045 비트 동일·OFF=producer 미태깅·키=bare reqId)·pns ALL OK — 둘째 게이트웨이(gateway2·버스 seam 주입) reqId 0..4 가 gateway1 과 겹칠 때 OFF minted Δ**0**(전부 충돌 폐기·손실) vs ON Δ**5**(복합키·전부 보존)·원장 자기-정합. E2E 14프로세스 비트동일·spine **46-step**·close 통과.
-- **다음**: §2 참조 — per-producer ack/seenWm · give×result-ahead · 활성 중 다운타임 재발행 · 비동기 결정론(🔴 최우선). 정리 후보: 안정 박스 `engine/` 승격.
+- **닫힌 step**: [step-0047](step-0047.md) — **per-producer seen 워터마크**(busSeenNs·0046 §9/코드리뷰 §1 해소). 0046 복합키(`producer`+null+`reqId`·문자열) + 0042 busSeenBound 숫자 prune(`r<=upTo`)은 문자열 키 비교가 NaN→false → 복합키가 영영 안 가지쳐짐 → seenReqs 무계 회귀(busSeenBound 무력·두 기능 독립 copy-forward 로 ON×ON 미검증된 잠복 버그). 해법: 게이트웨이가 `svc.item.seen` 에 producer 태깅 → 가방이 producer 별 워터마크(producerSeenWm)로 그 producer 복합키만 가지치기. 닿는 파일 gateway·svc-inventory-core/bus·topo-build·verify.
+- **한 줄 상태**: reg 25/25(0046 비트 동일·OFF=seen 미태깅·숫자 prune)·seenns ALL OK — busProducerNs+busSeenBound ON 에서 busSeenNs OFF seenReqsPeak 60→180(ops10→30·∝run-length 무계) vs ON **24→24**(유계·idle drain 0)·minted 보존(dedup 정확성). E2E 14프로세스 비트동일·spine **47-step**·close 통과.
+- **다음**: §2 참조 — 소비자 lease 보강(리뷰 §2/§3·🔴) · per-producer ack 워터마크 · give×result-ahead · 비동기 결정론(🔴). 정리 후보: 안정 박스 `engine/` 승격.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0046 가 *다중 게이트웨이 producer 네임스페이스*(busProducerNs — 가방 요청 dedup 을 (producer,reqId) 복합키로 분리→다중 게이트웨이 reqId 겹침 충돌 해소·0042 §9 ① )를 닫았다. 0044/0045 의 *소비자* 측 다중화(min-워터마크·lease)의 *producer 측* 거울. 남은 후보: *per-producer ack 워터마크/seenWm*(다중 게이트웨이 inBuffer·seenReqs 자기-크기조정·0046 §9 — pns 가 dedup 네임스페이스만), ⒝-*give×result-ahead 결합*(0037 §9), ⒞ *활성 중 서비스 다운타임 일반 재발행*(0025/0026 quiescent → 온라인 kill+재발행), ⒟ *비동기 결정론*(논리/벡터 클럭·🔴 최우선·broker 대공사·0012 §9-3). 🔧 정리 후보: step 디렉토리(du 316KB>300KB·실 바이트 260KB) → 안정 박스 `engine/` 승격.**
+**step-0047 가 *per-producer seen 워터마크*(busSeenNs — 0046 복합키를 0042 busSeenBound 가 producer 별로 가지치게·코드리뷰 §1 잠복 버그 해소)를 닫았다. 남은 후보: *소비자 lease 보강*(🔴 코드리뷰 §2/§3 — never-ack 소비자가 min 을 -1 에 고정+축출 불가·축출 후 재구독해도 정의역 미복귀; 0045 동결이라 별도 step), *per-producer ack 워터마크*(0047 §9·단일 게이트웨이라 현재 충분), ⒝-*give×result-ahead*(0037 §9), ⒞ *활성 중 다운타임 일반 재발행*(0025/0026 quiescent→온라인 kill+재발행), ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: step 디렉토리(du>300KB·실 260KB) → 안정 박스 `engine/` 승격.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -38,14 +38,14 @@
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정 검증·대기열·티켓 만료(0001 §8.5). |
 | ⬜ | **다중 클라 결정론 복제·예측** | 월드 | 0002~0004 의 결정론 복제·예측은 *C++ 시뮬 코어 승격*에서 부활(더미는 경량 라우터). 다중 클라 intent 인터리빙·예측/롤백(0001 §8.6). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신을 암묵 신뢰(0001 §8.3) — 분산 시 서버간 인증 필요. |
-| 🟡 | **버스 단일점·분산·영속(동적 구독·failover·결과/요청경로 무손실·replay 유계화 ✅)** | 버스 | 0016 ServiceBus = *단일 박스·영속 0*. 0033 동적 구독 + 0034 failover(재구독·진실 원천=소비자) + 0036/0037 결과/요청경로 무손실(producer replay·dedup) + 0039~0042 replay 유계화·요청/결과 ack 자기-크기조정·seenReqs 유계화 + 0044 min-워터마크 + 0045 소비자 lease/축출(침묵 길이로 죽은 소비자 축출) + 0046 **다중 게이트웨이 producer 네임스페이스**(busProducerNs — 요청 dedup (producer,reqId) 복합키→reqId 겹침 충돌 0·0042 §9 ① — 전문 §7). 남은 것: per-producer ack/seenWm 유계화(0046 §9)·give×result-ahead·라우팅 영속/replay 0·다중 브로커 분산. |
+| 🟡 | **버스 단일점·분산·영속(동적 구독·failover·결과/요청경로 무손실·replay 유계화 ✅)** | 버스 | 0016 ServiceBus = *단일 박스·영속 0*. 0033 동적 구독 + 0034 failover(재구독·진실 원천=소비자) + 0036/0037 결과/요청경로 무손실(producer replay) + 0039~0042 replay 유계화·요청/결과 ack 자기-크기조정·seenReqs 유계화 + 0044 min-워터마크 + 0045 소비자 lease/축출 + 0046 producer 네임스페이스((producer,reqId) 복합키) + 0047 **per-producer seen 워터마크**(busSeenNs — 복합키×숫자 prune 잠복 버그 해소·리뷰 §1 — 전문 §7). 남은 것: **소비자 lease 보강**(🔴 리뷰 §2/§3 — never-ack consumer min 고정+축출불가·축출 비가역)·per-producer ack·give×result-ahead·라우팅 영속·다중 브로커. |
 | 🟡 | **서비스 영속·failover (가방 ✅+압축 ✅+저널홉 신뢰·tail·in-flight give·mint ✅·채팅 ✅+압축 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방=효과 저널(0017)+압축(0018). 채팅=커맨드 로그 소싱(0021)+압축(0022). write-behind 신뢰성 0023~0026·영속 failover 0027~0029(§7 전문). 단 버스 라우팅 *영속 0*·채팅 in-flight/홉 신뢰 미적용·가방 일방 give(2PC 없음·0014 §9-2). |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService = *발신하는 소비자*(consume→publish·CQRS·프로젝션==원장). 0020 = *읽기 모델 영속·late-join*(랭킹 crash→쓰기 저널 reconstruct·투영==원장·0019 §9 해소). 단 *quiescent restart 만*(활성 중 다운타임+재발행 미검증·0020 §9)·증분 follow 0. 거래소·우편·길드 반복 미착수. |
 | ⬜ | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | "누가 어디에" SSOT·존 배치·부하 분산·인스턴스 spawn. |
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축 ✅·저널홉 신뢰+tail+in-flight give/mint ✅·persist failover+N-replica+quorum read/write ✅·윈도 해소 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층 6 첫 박스) = 가방 효과 저널(write-behind)+스냅샷 압축(0018). 저널홉 신뢰 0023~0026·failover 0027(이중쓰기)·N-replica quorum-read 0028·quorum-write ack 0029·윈도 해소 0031~0032(전문 §7). 단 *디스크 fsync 0·anti-entropy 0·빠른 retry 0·스냅샷 비유계·월드 영속 0* — 0032/0029/0018 §9. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위의 고리 닫기. |
 
-> **✅ 해소된 격차 (0001~0046)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격/복제/Sim 동결/현실 전송(0001~0004)·AOI·분할·핸드오프·증분·복원·failover(0005~0009)·프로세스 경계·TCP·버스 분산·진짜 kill failover(0010~0013)·게임 서비스 분리(0014~0015)·이벤트 버스 의미(0016)·가방/채팅 영속+압축(0017~0022)·발신 소비자·읽기 모델 영속(0019~0020)·write-behind 신뢰성 완결(0023~0026)·persist failover·N-replica·quorum write ack·윈도 해소(0027~0032)·버스 동적 구독+failover+결과/요청경로 무손실+replay 유계화+요청/결과 ack 자기-크기조정+seenReqs 유계화+min-워터마크+소비자 lease/축출+다중 게이트웨이 producer 네임스페이스(0033~0046 비-정리분).
+> **✅ 해소된 격차 (0001~0047)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격/복제/Sim 동결/현실 전송(0001~0004)·AOI·분할·핸드오프·증분·복원·failover(0005~0009)·프로세스 경계·TCP·버스 분산·진짜 kill failover(0010~0013)·게임 서비스 분리(0014~0015)·이벤트 버스 의미(0016)·가방/채팅 영속+압축(0017~0022)·발신 소비자·읽기 모델 영속(0019~0020)·write-behind 신뢰성 완결(0023~0026)·persist failover·N-replica·quorum write ack·윈도 해소(0027~0032)·버스 동적 구독+failover+결과/요청경로 무손실+replay 유계화+요청/결과 ack 자기-크기조정+seenReqs 유계화+min-워터마크+소비자 lease/축출+다중 게이트웨이 producer 네임스페이스(0033~0047 비-정리분).
 
 > **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5 필독): 매 step은 verify 4기둥 + 척추 체크 5항(① 신성한 tick ② 결정론 코어 ③ 권위 단일 소유 ④ 은닉·단일 연결 ⑤ headless·원격 검증)으로 판정. 분리 판정 기준: *그 일이 존 시뮬 tick 과 같은 박자로 돌아야 하는가?*
 
@@ -78,10 +78,10 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제(현실 전송)·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(재-provisioning·divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·지역 격리)→0016 버스+audit→0017~0018 가방 failover·영속·스냅샷→0019~0020 ranking(발신 소비자)·읽기모델 late-join→0021~0022 채팅 영속·스냅샷→0023~0026 write-behind 신뢰성 완결(홉 NAK·tail·in-flight give/mint)→0027~0029 persist failover·N-replica·quorum write ack→0031~0032 윈도 해소·유계 sweep+retry(전문 §7). 전부 별 프로세스·신성한 tick·E2E 비트 동일. 활성 중 다운타임 일반 재발행·거래소/우편/길드 후속 |
-| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자 추가)→0019 발신 소비자(ranking)→0033 동적 구독→0034 **failover**(재구독·진실 원천=소비자)→0036/0037 결과/요청경로 무손실(producer replay)→0039~0042 replay 유계화·요청/결과 ack 자기-크기조정·seenReqs 유계화→0044 min-워터마크(결과 버퍼를 모든 소비자 frontier 의 최소로·ranking dedup)→0045 소비자 lease/축출(침묵 길이로 죽은 소비자 판정→min 정의역 축출)→0046 **다중 게이트웨이 producer 네임스페이스**(busProducerNs — 요청 dedup 을 (producer,reqId) 복합키로→reqId 겹침 충돌 0). 버스 분산·per-producer ack/seenWm 유계화·라우팅 영속·서버간 인증 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010 broker(lockstep 배리어) +0011 broker=TCP 서버 +0012 broker=버스 허브·분단 감지·펜싱 +0013 진짜 kill(소켓 close 감지)·타임아웃 추측·epoch 펜싱·재-provisioning(split-brain 0·소유자 1). broker 물리 분산·진짜 비동기(배리어 해제) 후속 |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(가방 효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·in-flight give/mint 복구)→0027 failover(이중쓰기)→0028 N-replica quorum-read→0029 quorum write ack(`durableSeq` 워터마크)→0031~0032 윈도 해소+유계 K·fill retry(전문 §7). 증분 스냅샷·fsync·anti-entropy·월드/버스 영속 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·지역 격리)→0016 버스+audit→0017~0018 가방 failover·영속·스냅샷→0019~0020 ranking(발신 소비자)·읽기모델 late-join→0021~0022 채팅 영속·스냅샷→0023~0026 write-behind 신뢰성 완결(홉 NAK·tail·in-flight give/mint)→0027~0029 persist failover·N-replica·quorum write ack→0031~0032 윈도 해소·유계 sweep+retry(전문 §7). 전부 별 프로세스·신성한 tick·E2E 비트 동일. 거래소/우편/길드 후속 |
+| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자 추가)→0019 발신 소비자(ranking)→0033 동적 구독→0034 **failover**(재구독·진실 원천=소비자)→0036/0037 결과/요청경로 무손실(producer replay)→0039~0042 replay 유계화·요청/결과 ack 자기-크기조정·seenReqs 유계화→0044 min-워터마크(결과 버퍼를 모든 소비자 frontier 의 최소로·ranking dedup)→0045 소비자 lease/축출→0046 다중 게이트웨이 producer 네임스페이스((producer,reqId) 복합키)→0047 **per-producer seen 워터마크**(busSeenNs — 복합키를 busSeenBound 가 producer 별 가지치기·리뷰 §1 잠복 버그 해소). 버스 분산·소비자 lease 보강(리뷰 §2/§3)·per-producer ack·라우팅 영속·서버간 인증 후속 |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010 broker(lockstep 배리어) +0011 broker=TCP 서버 +0012 broker=버스 허브·분단 감지·펜싱 +0013 진짜 kill(소켓 close 감지)·epoch 펜싱·재-provisioning(split-brain 0). broker 물리 분산·진짜 비동기(배리어 해제) 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·in-flight give/mint)→0027 failover(이중쓰기)→0028 N-replica quorum-read→0029 quorum write ack(`durableSeq`)→0031~0032 윈도 해소+유계 K·fill retry(전문 §7). 증분 스냅샷·fsync·anti-entropy·월드/버스 영속 후속 |
 
 ---
 
@@ -109,7 +109,7 @@
 | [0010](step-0010.md) | 프로세스 경계 현실화 (실 프로세스/IPC·broker lockstep) | 통과 · 멀티프로세스=인프로세스 비트 동일·9 pid·공유 메모리 0 |
 | [0011](step-0011.md) | 실 TCP 소켓 전송 현실화 (IPC 파이프→TCP·프레이밍) | 통과 · 실 소켓=인프로세스 비트 동일·결정론=순서의 함수 |
 | [0012](step-0012.md) | 버스 분산+실 네트워크 열화 내성 (토픽 pub/sub·드롭+resend·분단·펜싱) | 통과 · 링크 분단=deathTick 비트 동일·소유자 1·split-brain 0·effectively-once |
-| [0013](step-0013.md) | 진짜 프로세스 kill 아래 failover (실 child.kill·소켓 close/타임아웃 추측 감지·재-provisioning·거짓 사망 epoch 펜싱) | 통과 · 진짜 kill=인프로세스 deathTick 비트 동일·divergence 0·N≥2·epoch 펜싱 split-brain 0·소유자 1 |
+| [0013](step-0013.md) | 진짜 프로세스 kill 아래 failover (실 child.kill·소켓 close/타임아웃 추측 감지·재-provisioning·거짓 사망 epoch 펜싱) | 통과 · 진짜 kill=인프로세스 deathTick 비트 동일·divergence 0·N≥2·epoch 펜싱 split-brain 0 |
 | [0014](step-0014.md) | 가방 서비스 분리 (아이템 원장을 존 tick 밖 비동기 서비스로·신성한 tick·단일 소유·쌍 거래·dupe 0) | 통과 · 가방 ON/OFF 월드 비트 동일(비-침습)·존 도달 item 0·소유자 1·conserved/consistent·E2E 비트 동일 |
 | [0015](step-0015.md) | 채팅 서비스 분리 (채널 팬아웃을 존 tick 밖 비동기 서비스로·구독 라우팅·비-구독자 누설 0·지역 격리·whisper) | 통과 · 채팅 ON/OFF 월드 비트 동일(비-침습)·존 도달 chat 0·누설 0·chatDesync 0·E2E 비트 동일 |
 | [0016](step-0016.md) | 이벤트 버스 서비스 층 (발행/구독 의미·gateway↔service 직접 결합 제거·발행자 무수정 소비자 추가 + inject seam) | 통과 · 버스 OFF=0015 비트 동일(25/25)·직접 결합 409~427→0·발행자 무수정 소비자 추가·E2E 6중 비트 동일(10~13 프로세스) |
@@ -123,10 +123,10 @@
 | [0024](step-0024.md) | 저널 홉 tail 손실 감지 (heartbeat→maxSentSeq 통보→tail NAK — 0023 §9 해소) | 통과 · OFF=0023 비트 동일(25/25)·tail ON=저널 완전·tailNAK 21~24 / OFF=tail 갭 미감지. in-flight §9 |
 | [0025](step-0025.md) | in-flight give 손실 복구 (클라 give-resend 로 복구 원장을 belief 로 재수렴 — 0024 §9 give 한정 해소) | 통과 · OFF=0024 비트 동일(25/25)·ON=itemDesync 0·재발행 3~9 / OFF=3~6. mint §9 |
 | [0026](step-0026.md) | in-flight mint 손실 복구: id-reconciliation (belief 선언→re-mint→newId 채택 — write-behind 신뢰성 완결·0025 §9 해소) | 통과 · OFF=0025 비트 동일(25/25)·ON=itemDesync 0·reconcile 6회·dupe 0 / OFF=6 |
-| [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조 persist 로 단일점 제거 (_journal primary+backup 동시 발신 → primary crash 후 persist2 에서 완전 복구) | 통과 · persistBackup OFF=0026 비트 동일(25/25)·primary crash ON=invDigest==무손실·persist2 writes==primary·spine 27-step |
-| [0028](step-0028.md) | PersistStore N-replica + quorum: 복제 N fan-out·생존 저널 union 복구로 영속 단일점 일반 해소 (quorumMergeJournals·0027 §9) | 통과 · persistReplicas 0=0027 비트 동일(25/25)·생존3 union==base 무손실·생존1=손실(정족수)·spine 28-step |
+| [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조 persist 로 단일점 제거 (_journal primary+backup 동시 발신 → primary crash 후 persist2 에서 완전 복구) | 통과 · persistBackup OFF=0026 비트 동일(25/25)·primary crash ON=invDigest==무손실·spine 27-step |
+| [0028](step-0028.md) | PersistStore N-replica + quorum: 복제 N fan-out·생존 저널 union 복구 (quorumMergeJournals·0027 §9) | 통과 · persistReplicas 0=0027 비트 동일(25/25)·생존3 union==base 무손실·생존1=손실(정족수)·spine 28-step |
 | [0029](step-0029.md) | PersistStore quorum *쓰기* ack: W 정족수 ack 후 durable 선언·정합성 윈도 가시화 (durableSeq 워터마크·0028 §9) | 통과 · quorumW 0=0028 비트 동일(25/25)·tail 미달=durableSeq T-1·윈도 23~24·워터마크=복구 프런티어·spine 29-step |
-| [0030](step-0030.md) | 정리 step: 박스 1개=파일 1개 분할 + verify 누적회귀 18모드 engine 승격(verify-kit) + 닫기 게이트(close-step) + 2-커밋 관행 — 기능 추가 0 | 통과 · reg 25/25(0029 비트 동일)·18모드 ALL OK·디렉토리 267.5→203.3KB·spine 30-step |
+| [0030](step-0030.md) | 정리 step: 박스 1개=파일 1개 분할 + 누적회귀 18모드 engine 승격(verify-kit) + 닫기 게이트(close-step) + 2-커밋 관행 — 기능 0 | 통과 · reg 25/25·18모드 ALL OK·디렉토리 267.5→203.3KB·spine 30-step |
 | [0031](step-0031.md) | 정합성 윈도 *해소*(quorum-fill — 주기 sweep 이 W 미달 윈도 seq 를 비-홀더 스토어에 재-fan-out resend → durable 전환·0029 §9) | 통과 · windowFill 0=0030 비트 동일(25/25)·ON durableSeq total-1/윈도 0·fill 46~48·dupe 0·spine 31-step |
 | [0032](step-0032.md) | 윈도 해소의 *유계 sweep + fill 손실 retry*(`wfWindow` 미끄러지는 K 창·주기 재-scan=내장 retry·0031 §9) | 통과 · wfWindow 0=0031 비트 동일(25/25)·유계 K=8 durSeq=total-1/윈도0·fills 92~96·dupe 0·spine 32-step |
 | [0033](step-0033.md) | 버스 *동적 구독/해지*(runtime `unsub`/`sub` — 라우팅 런타임 양방향 변경·failover 선결·0016 §9-2) | 통과 · busReSub 0=0032 비트 동일(reg 25/25)·unsub@15→re-sub@18 audit 30→42(gap 12)·spine 33-step |
@@ -140,6 +140,7 @@
 | [0041](step-0041.md) | *결과* replay 버퍼 *자기-크기조정*(busOutAck — 게이트웨이 outSeq ack→가방 outBuffer 가지치기·0040 요청 경로의 거울·0040 §9 해소) | 통과 · busOutAck 0=0040 비트 동일(reg 25/25)·ack desync 0 vs fixedK8 desync 4·peak 가동-길이 무관(unbnd 60→180 vs ack 24 고정)·outPruned 60·dupe 0·spine 41-step |
 | [0042](step-0042.md) | 가방 seenReqs dedup 집합 *유계화*(busSeenBound — 게이트웨이 inAcked 역방향 워터마크 svc.item.seen→seenReqs 가지치기·0040/0041 §9 해소) | 통과 · busSeenBound 0=0041 비트 동일(reg 25/25)·minted base==bound(dedup 보존)·seenReqs peak 60→24 유계·run-length 무관·failover dupe 0·spine 42-step |
 | [0043](step-0043.md) | 정리 step: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·단일 클래스→코어/영속/버스 프로토타입 증강·메서드 바이트 동일·기능 0) | 통과 · reg 25/25(0042 비트 동일)·박스 34.2KB→최대 19.6KB(전 박스 <30KB)·E2E 14프로세스 비트동일·spine 43-step |
-| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼를 모든 소비자 frontier 의 최소로 가지치기 + ranking outSeq dedup·0041 §9 ① 해소) | 통과 · busMinWm 0=0043 비트 동일(reg 25/25)·비대칭 복구(crash12→gw14→rank16)에서 single rankFaithful F(over 6) vs min T(투영==원장)·outBuf peak 24→36 보존·spine 44-step |
+| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼를 모든 소비자 frontier 의 최소로 + ranking outSeq dedup·0041 §9 ① 해소) | 통과 · busMinWm 0=0043 비트 동일(reg 25/25)·비대칭 복구에서 single rankFaithful F(over 6) vs min T(투영==원장)·outBuf peak 24→36 보존·spine 44-step |
 | [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 소비자 *침묵 길이*로 죽은 소비자 판정→min 정의역 축출→outBuffer 무계 보유 해소·0044 §9 대가) | 통과 · busConsumerLease 0=0044 비트 동일(reg 25/25·evicted 빔→min 정의역 무변경)·ranking 영구 다운@14 에서 lease OFF peak 36→156(∝run-length 무계) vs ON 30→30(유계·ev1)·산 소비자 오축출 0(ctl)·content lag 아닌 침묵 신호 필수(§9)·spine 45-step |
-| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — 요청 dedup 을 (producer,reqId) 복합키로→다중 게이트웨이 reqId 겹침 충돌 해소·0042 §9 ①) | 통과 · busProducerNs 0=0045 비트 동일(reg 25/25·producer 미태깅·키=bare reqId)·둘째 게이트웨이(버스 seam 주입) reqId 0..4 가 gw1 과 겹칠 때 OFF minted Δ0(전부 충돌 폐기) vs ON Δ5(복합키·전부 보존)·원장 자기-정합·은닉이 네임스페이스 근거(§9)·spine 46-step |
+| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — 요청 dedup 을 (producer,reqId) 복합키로→다중 게이트웨이 reqId 겹침 충돌 해소·0042 §9 ①) | 통과 · busProducerNs 0=0045 비트 동일(reg 25/25)·둘째 게이트웨이(버스 seam) reqId 0..4 gw1 겹침 OFF minted Δ0(충돌 폐기) vs ON Δ5(복합키·보존)·원장 자기-정합·spine 46-step |
+| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 0046 복합키를 0042 busSeenBound 가 producer 별 가지치게·복합키×숫자 prune NaN 잠복 버그·코드리뷰 §1 해소) | 통과 · busSeenNs 0=0046 비트 동일(reg 25/25)·busProducerNs+busSeenBound ON 에서 OFF seenReqsPeak 60→180(∝run-length·busSeenBound 무력) vs ON 24→24(유계·drain 0)·minted 보존·ON×ON 회귀 reg 사각(§9)·spine 47-step |
