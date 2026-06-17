@@ -4724,6 +4724,78 @@
         ];
       },
     },
+
+    'step-0072': {
+      id: 'step-0072',
+      title: '별 일생 순환 — 모음→점화→사다리→산물 분산 (측정·새 법칙 0 — gravity+pauli+fuse+disperse 동시·바탕 가스 붕괴 + 무거운 핵합성 산물은 복사압에 흩어짐·disperseZmin=3·끄면 산물 코어에 갇힘·SPINE §4 self-running 순환)',
+      desc: 'step-0071 까지 모으는 힘(gravity 0028·fuse 0033~)과 흩는 힘(disperse 0071)이 *둘 다* 생겼다. 이 측정 step 은 둘을 한 무대서 동시에 굴려 SPINE §4 순환을 닫는다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0): "무거운 원소는 항성 죽음·분산으로 흩어져 *다음 별의 재료*가 된다". ' +
+            '핵심: 복사압(disperse)을 *무거운 핵*에만 싣는다(disperseZmin=3 — 초기 ²H 는 안 받음). 그래서 ①차가운 ²H 구름은 중력 수축(바탕 가스 붕괴) → ②밀집 코어 점화·핵합성 사다리 등반(maxZ↑·융합이 복사 바스 E 축적) → ③생성된 무거운 핵(Z≥3)이 그 복사 E 로 *코어 밖으로 흩어진다*(산물 분산). 바탕 가스는 모이고, 그 안에서 *만들어진 무거운 원소만* 흩날린다 — 별이 핵합성 산물을 우주로 토해 다음 별을 씨 뿌리는 그림. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+disperse(Zmin3) 동시·360 tick·40 tick 스냅샷·고정 시드): ' +
+            '① **바탕 모음·load-bearing** — 전체 R_g 붕괴(중력이 ²H 바탕 가스를 모음). ' +
+            '② **산물 분산·load-bearing** — 무거운 핵(Z≥3) R_g: disperse 켜면 ≫ 끄면(산물이 복사압에 코어 밖으로·끄면 코어에 갇힘) ⇒ 분산이 *disperse 때문*(author 아닌 측정). ' +
+            '③ **사다리** — 융합 사다리 maxZ 등반(무거운 원소 생성). ' +
+            '④ **장부·결정론** — Q·B·L·px·py 머신·E 완화(깊은 붕괴+융합+분산·0069 §3 한계)·새 법칙 0 → 0001~71 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 360, SNAP: 40,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.4, disperseE: 2, disperseZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 2.5e3 },                                // 깊은 붕괴+융합+분산 다체 별 E 완화(VV 도 이벤트/근접조우 오차 못 잡음·0069 §3·Q·B·L·px·py 머신)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260712), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg(at, sel) {                                            // 관성반경(COM min-image) — sel: 'heavy'(Z≥3 산물) | 'light'(Z<3 바탕 가스) | undefined(전체)
+        const sub = sel === 'heavy' ? at.filter(a => a.Z >= 3) : sel === 'light' ? at.filter(a => a.Z < 3) : at;
+        if (sub.length === 0) return 0;
+        let cx = 0, cy = 0; for (const a of sub) { cx += a.rx; cy += a.ry; } cx /= sub.length; cy /= sub.length;
+        let s = 0; for (const a of sub) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / sub.length);
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      run(K, kd) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260712),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { kDisperse: kd }), tick: 0 };
+        const l0 = K.ledger(sim), rgL0 = this.Rg(sim.atoms, 'light'), rgS = [+this.Rg(sim.atoms, 'light').toFixed(1)], zS = [this.maxZof(sim.atoms)];
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) { rgS.push(+this.Rg(sim.atoms, 'light').toFixed(1)); zS.push(this.maxZof(sim.atoms)); } }
+        const l1 = K.ledger(sim);
+        return { rgS, zS, rgLight0: +rgL0.toFixed(1), rgLightEnd: rgS[rgS.length - 1], rgHeavyEnd: +this.Rg(sim.atoms, 'heavy').toFixed(1), maxZ: Math.max(...zS),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kDisperse), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): 완전 일생 무대(symplectic=1) — Q·B·L·px·py 머신·E 완화. sim.step 이 leapfrog 경로.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { rgLightEndOn: c.on.rgLightEnd, rgHeavyOn: c.on.rgHeavyEnd, rgHeavyOff: c.off.rgHeavyEnd, maxZon: c.on.maxZ, dpxOn: +c.on.dpx.toExponential(3), relEpct: +(c.on.dE / c.on.Etot * 100).toFixed(2) };
+      },
+
+      // 가설: ① 바탕 모음 ② 산물 분산 ③ 사다리 ④ 장부·결정론.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const gather = c.on.rgLightEnd < c.on.rgLight0 * 0.85;                                          // ① 바탕(Z<3) R_g 붕괴(중력 모음)
+        const dispersed = c.on.rgHeavyEnd > c.off.rgHeavyEnd * 1.3 && c.on.rgHeavyEnd > c.on.rgLightEnd;  // ② 무거운 핵 R_g 켜면 ≫ 끄면·바탕보다 넓게
+        const ladder = c.on.maxZ >= 4;                                                                  // ③ 융합 사다리 등반(무거운 원소)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `바탕 모음·load-bearing — 바탕 가스(Z<3) R_g 시계열 ${c.on.rgS.join('→')}(${c.on.rgLight0.toFixed(1)}→${c.on.rgLightEnd.toFixed(1)} 붕괴·중력이 ²H 바탕을 모음)`, pass: gather, value: c.on.rgLightEnd },
+          { name: `산물 분산·load-bearing — 무거운 핵(Z≥3) R_g 켜면 ${c.on.rgHeavyEnd.toFixed(1)} ≫ 끄면 ${c.off.rgHeavyEnd.toFixed(1)}(끄면 코어에 갇힘)·바탕 ${c.on.rgLightEnd.toFixed(1)}보다 넓게 ⇒ 산물 분산이 *disperse 때문*(다음 별 재료·author 아닌 측정)`, pass: dispersed, value: c.on.rgHeavyEnd },
+          { name: `사다리 — 융합 사다리 maxZ ${c.on.maxZ}(무거운 원소 생성·복사압이 그 산물을 흩음)`, pass: ladder, value: c.on.maxZ },
+          { name: `장부·결정론 — 별 일생 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(깊은 붕괴+융합+분산·0069 §3 한계)·새 법칙 0 → 0001~71 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.maxZ },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

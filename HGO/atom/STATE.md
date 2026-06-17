@@ -9,10 +9,10 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0071](steps/step-0071.md) — **별 죽음·분산 `disperse`(복사 바스 E 가 모은 가스를 되흩음·항성풍·SPINE §4 느린 순환의 *되흩음* 반쪽·LAW_ORDER 끝·kDisperse=0 → 회귀 0)**. fuse 가 바스에 park 한 복사 E 를 등방 KE 반동(decay 0031 동형)+−Δp 바스 적재(0032 동형)로 가스를 흩는다. 측정(100²·N=120 ²H 매듭·바스 E0=80·자유 드리프트·120tick): ①**분산** kDisperse 켜면 R_g 5.66→25.70 **4.54배** 팽창·끄면 정적(load-bearing) ②**복사 구동** 바스 E 80→0 **100% 소진**·끄면 불변(load-bearing) ③장부 **머신 전부**(연속력 0 자유 드리프트·dpx 3.19e-15·dE 1.14e-13) ④회귀 kDisperse=0 자유 드리프트. 골든 **355/355**(회귀 0·+5).
-- **닫힌 step(직전)**: [step-0070](steps/step-0070.md) — 별 핵합성 사다리(측정·새 법칙 0·0068 점화+0069 VV 로 자가 점화 별 오래 굴려 maxZ 1→2→4→6→7→10→12 단조 등반·distinct 12종·kGravity=0 → 사다리 0·E 완화 깊은 붕괴+융합 0069 §3 한계). 골든 350/350.
-- **한 줄 상태**: Phase C 결합 기하 + Phase E 중력 궤도 + **Phase D 핵 닫힘 + 다체 핵합성(0065) + 껍질 마법수(0067) + 별 점화 자가 결합(0068) + 별 핵합성 사다리 등반 maxZ→12(0070) + 별 죽음·분산 disperse(0071·SPINE §4 되흩음 반쪽)** + **상대론 완비 + symplectic VV(0069)** + **공간 분할 완비(0054~64·모든 힘 O(n log n))** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 완전 일생 순환(모음→점화→사다리→분산) *측정* 미(법칙은 다 있음·0072 후보)·바스 비국소(#1·disperse 도 전역 바스서 인출)·깊은 붕괴+융합 E 완화(~11%·적응 시간단계 후속)·**토러스 min-image COM 토이(Ewald/PM)·BH 단극자**·force relKE 정합·핵+화학 동시 무대·마법수 부드러운 봉우리 미.
-- **다음**: **step-0072** (§2) — 1순위: **완전 별 일생 순환 측정(모음→점화→사다리→분산·gravity+fuse+disperse 동시·R_g 붕괴→재팽창·SPINE §4 self-running 닫음·새 법칙 0)** · 핵+화학 동시 무대(#D fuse 압축↔bonds 인덱스) · 적응 시간단계(깊은 붕괴 E) · force relKE 정합 · Ewald/PM. 한 step = 한 조각.
+- **닫힌 step**: [step-0072](steps/step-0072.md) — **별 일생 순환 측정(새 법칙 0 — gravity+pauli+fuse+disperse 동시·바탕 가스 모음 + 무거운 핵합성 산물 복사압 분산·disperseZmin=3·SPINE §4 self-running 순환)**. 차가운 ²H 구름이 ①바탕 모음 ②점화·사다리 ③산물 분산. 측정(130²·N=400·VV·360tick): ①**바탕 모음** 바탕(Z<3) R_g 21.1→**7.9** 붕괴(load-bearing) ②**산물 분산** 무거운 핵(Z≥3) R_g 켜면 **18.7** ≫ 끄면 6.4 코어 갇힘(load-bearing) ③사다리 maxZ **12** ④Q·B·L·px·py 머신 dpx 5.56e-13·E 완화 11.59%(0069 §3 한계). 골든 **360/360**(회귀 0·+5).
+- **닫힌 step(직전)**: [step-0071](steps/step-0071.md) — disperse 별 죽음·분산(복사 바스 E→가스 등방 KE 반동 되흩음·decay 0031 반동+0032 −Δp 바스 동형·kDisperse=0 → 회귀 0·R_g 4.54배 팽창·바스 E 100% 소진·자유 드리프트 머신 전부). 골든 355/355.
+- **한 줄 상태**: Phase C 결합 기하 + Phase E 중력 궤도 + **Phase D 핵 닫힘 + 다체 핵합성(0065) + 껍질 마법수(0067) + 별 점화 자가 결합(0068) + 별 핵합성 사다리 등반 maxZ→12(0070) + 별 죽음·분산 disperse(0071) + 별 일생 순환 측정(0072·SPINE §4 모음→융합→산물 분산)** + **상대론 완비 + symplectic VV(0069)** + **공간 분할 완비(0054~64·모든 힘 O(n log n))** — 단계 전문 §7 INDEX·격차 §3. ⚠️한계: 완전 무한 루프(흩어진 산물 → 2번째 별) 미(한 바퀴 기제는 보임)·바스 비국소(#1)·깊은 붕괴+융합 E 완화(~11%·적응 시간단계 후속)·**토러스 min-image COM 토이(Ewald/PM)·BH 단극자**·force relKE 정합·핵+화학 동시 무대(#D)·마법수 부드러운 봉우리 미.
+- **다음**: **step-0073** (§2) — 1순위: **핵+화학 동시 무대(#D — fuse 압축 시 bonds 간선 인덱스 재배선·게이트 fuseRebond=0 → 옛 거동·회귀 0·핵 변환과 화학 결합을 한 무대서)** · 적응 시간단계(깊은 붕괴 E) · force relKE 정합 · Morse 퍼텐셜 · Ewald/PM. 한 step = 한 조각.
 
 ---
 
@@ -20,13 +20,13 @@
 
 > 큰 호(arc)의 서사(원자→빛→화학→핵→별)는 [SPINE.md](SPINE.md) §8 로드맵이 SSOT. STATE 는 *다음 한 조각*과 직전 2~3 step 만.
 
-직전 흐름(전문 §7 INDEX): **0068** 별 점화 자가 결합(중력→핵합성·별 씨앗) → **0069** velocity-Verlet symplectic 적분 → **0070** 별 핵합성 사다리 등반(maxZ→12·VV 다체) → **0071** 별 죽음·분산 `disperse`(복사 바스 E→가스 되흩음·SPINE §4 되흩음 반쪽). 이제 모으는 힘(gravity·fuse)도 흩는 힘(disperse)도 다 있다 — 남은 건 *둘을 한 무대서 굴려 완전 일생 순환을 측정*하는 것.
+직전 흐름(전문 §7 INDEX): **0069** velocity-Verlet symplectic 적분 → **0070** 별 핵합성 사다리 등반(maxZ→12·VV 다체) → **0071** 별 죽음·분산 `disperse`(복사 바스 E→가스 되흩음) → **0072** 별 일생 순환 측정(모음→융합→산물 분산·SPINE §4 self-running). Phase E 순환의 *한 바퀴 기제*가 다 보였다 — 이제 그 너머(분자→물질)로 가려면 핵 변환과 화학 결합이 *한 무대*서 함께 굴러야 한다.
 
-### step-0072 가설 (▶ 즉시 다음 step — 한 조각)
+### step-0073 가설 (▶ 즉시 다음 step — 한 조각)
 
-**후보 완전 별 일생 순환 측정** ← *권장·새 법칙 0(scene 만 — 기존 골든 보존=회귀 0). gravity+pauli+fuse+disperse 를 한 무대(차가운 ²H 구름)서 동시에. 시계열: R_g 붕괴(중력 모음) → maxZ 등반(융합 점화·사다리) → 바스 E 축적 → R_g 재팽창(disperse 흩음). 측정: ①R_g 붕괴→재팽창 비단조(모음·흩음 둘 다·load-bearing) ②kDisperse=0 → 단조 붕괴(재팽창 disperse 때문) ③무거운 원소가 흩어짐(분산 후 Z≥3 가 넓게) ④Q·B·L·px·py 머신·E 완화. SPINE §4 self-running 세계 순환을 닫는 milestone.*
+**후보 핵+화학 동시 무대(#D)** ← *권장·열린 이슈 #D(review-0041-0050)·STATE §3. `fuse` 가 합체 시 `sim.atoms` 를 압축(죽은 원자 제거)하는데 `bonds` 간선은 *원자 인덱스*를 저장 → 결합 활성 무대서 융합을 켜면 간선이 어긋난다. 게이트 `fuseRebond`=0 → 옛 거동(압축만·인덱스 어긋남) 비트 동일·회귀 0. =1 → 압축 시 ⓐ소비된 원자에 닿은 결합은 끊고(bondE 바스 환원·E 닫힘) ⓑ살아남은 결합은 새 인덱스로 재배선. 측정: 결합+융합 동시 무대서 fuseRebond 켜면 분자(연결 성분) 정합 유지·끄면 인덱스 깨짐. 기존 fuse 장면(0033·0064·0065·0068·0070·0072)은 bonds 없어 게이트 무관 → 비트 불변.*
 
-**후보 핵+화학 동시 무대(#D fuse 압축↔bonds 인덱스 재배선)** · **force relKE 일-에너지 정합(큰 작업)** · **적응 시간단계·근접조우 정규화(깊은 붕괴 E)** · **마법수 부드러운 봉우리/서브셸** · **Ewald/PM 정밀 주기 합(min-image COM 토이 해소)**.
+**후보 적응 시간단계·근접조우 정규화(깊은 붕괴 E ~11%)** · **Morse 퍼텐셜(비조화 결합·유한 해리)** · **force relKE 일-에너지 정합(큰 작업)** · **Ewald/PM 정밀 주기 합** · **완전 무한 루프(흩어진 산물 → 2번째 별)**.
 
 - **더하는 것(공통)**: 법칙/게이트 1개 + 노브 + `engine/scenes.js` 장면 한 항(노브=0 → 회귀 0). 측정 step 이면 새 법칙 0(scene 만)도 가능 — 그땐 기존 골든 보존이 회귀 0 알리바이.
 - **닫는 조건**: 회귀 0(노브=0 → 직전 비트 동일·골든 가법) + 닫힌 장부(연속력은 E 완화·핵 변환은 비가역이라도 Q·B·L·px·py 닫힘) + 결정론 + 가설 수치.
@@ -166,3 +166,4 @@ step-0068 | 별 일생 결합(측정·새 법칙 0 — 중력 수축이 차가�
 step-0069 | velocity-Verlet symplectic 적분(게이트 symplectic — 보존 연속력 2차 leapfrog·반-kick→drift→반-kick→이벤트 1회·applyForces(sim,phase) 로 force/event 분리·sim.step 게이트·깊은 궤도 E 누적[0068 한계] 해소·symplectic=0 → 옛 symplectic Euler 비트 동일·회귀 0) | PASS(라이브 근원형 VV px·py 머신·E 7.45e-9 완화 E≤1e-3 symplectic 유계·골든 345/345·symplectic=0 기본 → sim.step 옛 경로 비트 동일=회귀 0·2체 속박 중력 궤도 brute 질량16 kg2 soft2 400tick·①E 보존 우월 이심 궤도 plunge r3.4↔14 VV 순 표류 0.011%≪Euler 5.99% 553배 2차 O(dt²) vs 1차 O(dt) load-bearing·②secular 표류 vs 유계 윈도우-평균 E 중심 Euler 16.84% 궤도 붕괴≫VV 0.60% 에너지 중심 정지 28배 진동 평균 제거 robust load-bearing·③근원형 VV r∈[13.9,14.0] E 스윙 0.0002% symplectic 유계·④이심 무대 VV dpx 0 dpy 0 머신 반-kick 쌍별 반작용) · render:없음(내부·적분 정밀도·궤도 위치는 기존 r 채널)
 step-0070 | 별 핵합성 사다리(측정·새 법칙 0 — 0068 점화 + 0069 VV 로 자가 점화 별을 오래 굴려 무거운 원소 등반·VV 를 다체 BH+fuse 무대 첫 적용·SPINE §8 Phase E 정점) | PASS(VV 다체 별 Q·B·L·px·py 머신 dpx 4.63e-13 dB 0·E 완화 라이브 120tick ~1000 E≤1500 상대 ~3% 깊은 붕괴+융합 0069 §3 한계·골든 350/350·새 법칙 0=회귀 0·130²·N400 차가운 ²H·dt0.01·VV·중력+pauli+fuse Gamow+nucShell 동시·240tick·①사다리 등반 maxZ 1→2→4→6→7→10→12 단조 동시 원소 12종 별이 주기율표 쌓음 load-bearing·②중력 구동 kGravity=0 maxZ 1 융합 0 켬 융합 310 등반이 중력 때문 author 아닌 측정 load-bearing·③무거운 원소 잔존 ²H 14/400 소진 Z≥3 58 축적·④Q·B·px·py 머신 E 완화는 적분 한계) · render:L-element(원소 등반 maxZ→12·Z→색 시계열·0065 부채 연장·핵심 시각 신호)
 step-0071 | disperse 별 죽음·분산(복사 바스 E→가스 등방 KE 반동 되흩음·decay 0031 반동+0032 −Δp 바스 동형·SPINE §4 느린 순환 되흩음 반쪽·LAW_ORDER 끝·kDisperse=0 → 회귀 0) | PASS(자유 드리프트 Q·B·L·E·px·py 전부 머신 dpx 3.19e-15 dE 1.14e-13·골든 355/355·kDisperse=0 → 자유 드리프트 비트 동일=회귀 0·100²·N120 ²H 매듭·바스 E0=80·120tick·①분산 켜면 R_g 5.66→25.70 4.54배 팽창 끄면 5.66→5.68 정적 분산이 disperse 때문 author 아닌 측정 load-bearing·②복사 구동 바스 E 80→0 100% 소진 끄면 불변 흩는 에너지가 복사 바스서 §4 융합 산물 load-bearing·③장부 머신 전부 연속력 0 E:바스→KE px·py:−Δp→바스 0032 동형·④회귀 kDisperse=0 자유 드리프트) · render:L-wind?(복사압 분산 이벤트·위치는 기존 r 채널이나 복사 구동 강조 렌즈 후보)
+step-0072 | 별 일생 순환 측정(새 법칙 0 — gravity+pauli+fuse+disperse 동시·바탕 가스 모음 + 무거운 핵합성 산물 복사압 분산·disperseZmin=3·SPINE §4 self-running 순환 한 바퀴 기제) | PASS(VV 다체 별 Q·B·L·px·py 머신 dpx 5.56e-13 dB 0·E 완화 11.59% 깊은 붕괴+융합+분산 0069 §3 한계·골든 360/360·새 법칙 0=회귀 0·130²·N400 차가운 ²H·dt0.01·VV·중력+pauli+fuse Gamow+nucShell+disperse Zmin3·360tick·①바탕 모음 바탕(Z<3) R_g 21.1→7.9 붕괴 중력이 바탕 모음 load-bearing·②산물 분산 무거운 핵(Z≥3) R_g 켜면 18.7≫끄면 6.4 코어 갇힘 산물 분산이 disperse 때문 다음 별 재료 author 아닌 측정 load-bearing·③사다리 maxZ 12·④Q·B·L·px·py 머신 E 완화 적분 한계) · render:L-wind(산물 분산 — 무거운 핵 Z≥3 흩어짐·0071 L-wind 부채 연장·L-element 0065 와 결합)
