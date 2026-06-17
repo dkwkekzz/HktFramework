@@ -1066,13 +1066,19 @@
   // velocity-Verlet(KDK·leapfrog) — 보존 연속력의 *2차* symplectic 적분(step-0069). symplectic Euler(1차·kick 전체+drift)가
   //   깊은 중력 붕괴 근접조우서 E 를 *누적*(0068 한계·유계 아님)한 것을, 반-kick→drift→반-kick 으로 O(dt²) 오차로 줄여 *유계*로 만든다.
   //   구조: ①반-kick(현 위치 가속 dt/2) ②drift(전 dt) ③새 위치서 반-kick(dt/2) ④이벤트/소산 법칙 1회. force 법칙은 sim.knobs.dt 를 읽으므로
-  //   반-kick 동안 dt 를 임시 절반으로 두고 *반드시 복원*(단일 스레드·결정론). 게이트 sim.knobs.symplectic 로 sim.step 이 이 경로를 고른다(=0 → 옛 경로·회귀 0).
+  //   반-kick 동안 dt 를 임시 절반으로 두고 *반드시 복원*(try/finally — 향후 법칙이 던져도 dt 오염 0). 게이트 sim.knobs.symplectic 로 sim.step 이 이 경로를 고른다(=0 → 옛 경로·회귀 0).
+  //   ⚠ 주의(미사용 조합): bond/unbond 는 *이벤트* 법칙(④ phase)이라 force 반-kick(①③) 뒤에 돈다 → symplectic=1 + 결합 동시 무대선 bondSpring/bondAngle 가
+  //     *직전 tick* 의 sim.bonds 를 봐 결합력에 1-tick 위상 지연이 생긴다(Euler 경로엔 없음·보존엔 무해). 현재 결합+symplectic 조합 scene 0 — 쓰려면 이 지연을 먼저 해소.
   function leapfrog(sim) {
     const dt0 = sim.knobs.dt;
-    sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ① 반-kick(현 위치 가속)
-    sim.knobs.dt = dt0;       integrate(sim);              // ② drift(전 dt)
-    sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ③ 반-kick(새 위치 가속)
-    sim.knobs.dt = dt0;       applyForces(sim, 'event');   // ④ 이벤트/소산(충돌·융합·붕괴·damp 등) 1회
+    try {
+      sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ① 반-kick(현 위치 가속)
+      sim.knobs.dt = dt0;       integrate(sim);              // ② drift(전 dt)
+      sim.knobs.dt = dt0 * 0.5; applyForces(sim, 'force');   // ③ 반-kick(새 위치 가속)
+      sim.knobs.dt = dt0;       applyForces(sim, 'event');   // ④ 이벤트/소산(충돌·융합·붕괴·damp 등) 1회
+    } finally {
+      sim.knobs.dt = dt0;                                    // 예외 경로서도 dt 복원(반-kick 0.5배 잔존 방지)
+    }
   }
 
   function wrap(v, max) { v %= max; if (v < 0) v += max; return v === max ? 0 : v; } // [0,max) 보장 — 음수 wrap 의 부동소수 반올림이 정확히 max 를 내는 경우를 0 으로 접는다

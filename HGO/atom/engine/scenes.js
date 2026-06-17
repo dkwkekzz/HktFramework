@@ -4626,7 +4626,7 @@
         const n0 = sim.atoms.length, l0 = K.ledger(sim), snaps = [this.counts(sim.atoms)];
         for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) snaps.push(this.counts(sim.atoms)); }  // symplectic=1 → VV(다체 별)
         const l1 = K.ledger(sim);
-        return { snaps, fus: n0 - sim.atoms.length, dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+        return { snaps, fus: n0 - sim.atoms.length, dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
       },
       cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kGravity), off: this.run(K, 0) }); },
 
@@ -4648,12 +4648,12 @@
         const ladder = climb && last.maxZ >= 6 && last.distinct >= 6;                                          // ① 사다리 등반(무거운 원소·다종)
         const driven = c.off.snaps[c.off.snaps.length - 1].maxZ <= 1 && c.off.fus === 0 && c.on.fus > 50;      // ② 중력 끄면 사다리 0
         const heavy = last.z1 < this.N * 0.2 && last.zh >= 20;                                                 // ③ 연료 소진·무거운 핵 축적
-        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9;             // ④ Q·B·px·py 머신
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
         return [
           { name: `사다리 등반·load-bearing — maxZ 시계열 ${on.map(s => s.maxZ).join('→')} 단조 등반·동시 존재 원소 ${last.distinct}종(별이 ²H→⁴He→…무거운 핵으로 주기율표를 쌓음)`, pass: ladder, value: last.maxZ },
           { name: `중력 구동·load-bearing — kGravity=0 사다리 maxZ ${c.off.snaps[c.off.snaps.length - 1].maxZ}·융합 ${c.off.fus}(압축 없으면 점화·등반 0)·켬 융합 ${c.on.fus} ⇒ 사다리가 *중력 때문*(author 아닌 측정)`, pass: driven, value: c.off.fus },
           { name: `무거운 원소 잔존 — 종단 연료 ²H ${last.z1}/${this.N} 소진·무거운 핵(Z≥3) ${last.zh} 축적(별 핵합성 산물)`, pass: heavy, value: last.zh },
-          { name: `장부·결정론·회귀 — VV 다체 별 무대 Q·B·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(깊은 붕괴+융합·0069 §3 한계)·새 법칙 0 → 0001~69 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: last.maxZ },
+          { name: `장부·결정론·회귀 — VV 다체 별 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(깊은 붕괴+융합·0069 §3 한계)·새 법칙 0 → 0001~69 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: last.maxZ },
         ];
       },
     },
