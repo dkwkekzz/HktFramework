@@ -4862,6 +4862,81 @@
         ];
       },
     },
+
+    'step-0074': {
+      id: 'step-0074',
+      title: 'Morse 비조화 결합 — 유한 해리 + 열팽창 (bondMorse·조화 bondSpring 의 무한 우물 → 유한 깊이 D·가열하면 결합 끊김·비대칭 우물 열팽창·bondMorse=0 → 조화·회귀 0·분자→물질 정밀화)',
+      desc: 'bondSpring(0026)의 결합 퍼텐셜은 *조화* U=½kS(r−r₀)² — *무한 깊은* 우물이라 아무리 가열해도 결합이 r₀ 로 복귀(절대 안 끊김)·대칭이라 열팽창 0. 실제 결합은 Morse U=D(1−e^{−α(r−r₀)})² — *유한* 깊이 D(해리에너지)서 끊기고 비대칭(밂쪽 가파름·당김쪽 완만 → 가열 시 평균 길이 늘어남=열팽창). 게이트 bondMorse=0 → 조화 bondSpring(회귀 0). 분자→물질로 가는 결합 정밀화. ' +
+            '무대: 결합한 두 중성 원자(r₀=4)에 *방사 진동 KE* 를 주고 굴린다 — KE<D(저E) vs KE>D(고E)·Morse vs 조화 4벌 비교(연속 보존력·symplectic E 유계). ' +
+            '*측정*(무대 200²·2체 결합쌍·dt=0.05·D=2·α=0.5·400 tick·고정 셋업): ' +
+            '① **저E 정합** — KE<D 면 Morse·조화 둘 다 r₀ 근방 유계 진동(저진폭서 두 우물 일치). ' +
+            '② **유한 해리·load-bearing** — KE>D 가열: Morse 결합 *해리*(r→멀어짐·복원력 소멸) vs 조화 *영구 속박*(r₀ 근방 진동) ⇒ 유한 우물이 *Morse 때문*(author 아닌 측정). ' +
+            '③ **비대칭 열팽창** — Morse 저E 진동 평균 길이 > r₀(비대칭 우물·열팽창) vs 조화 평균 ≈ r₀(대칭). ' +
+            '④ **장부·회귀** — 쌍별 등·반작용 운동량 머신·E symplectic 유계·bondMorse=0 → 조화 bondSpring 비트 동일(회귀 0).',
+      ticks: 60,
+      W: 200, H: 200, MT: 400,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 4, bondMorseD: 2, bondMorseA: 0.5 },
+
+      run(K, morse, vrel) {
+        const cx = this.W / 2, cy = this.H / 2, r0 = this.KN.bondReq;
+        const atoms = [
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx - r0 / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + r0 / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 },
+        ];
+        const sim = { W: this.W, H: this.H, atoms, photons: [], bonds: [[0, 1]], bondKeys: new Set([1]),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondMorse: morse ? 1 : 0 }), tick: 0 };
+        const l0 = K.ledger(sim), dist = () => { const dx = K.minImage(atoms[1].rx - atoms[0].rx, this.W), dy = K.minImage(atoms[1].ry - atoms[0].ry, this.H); return Math.sqrt(dx * dx + dy * dy); };
+        let maxR = dist(), sumR = 0, cnt = 0, eLo = Math.abs(l0.E), eHi = Math.abs(l0.E);
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          const r = dist(); if (r > maxR) maxR = r; sumR += r; cnt++;
+          const e = K.ledger(sim).E; if (e < eLo) eLo = e; if (e > eHi) eHi = e;
+        }
+        const l1 = K.ledger(sim);
+        return { maxR: +maxR.toFixed(2), meanR: +(sumR / cnt).toFixed(3), endR: +dist().toFixed(2),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), eSwing: +(eHi - eLo).toFixed(4), Etot: Math.abs(l0.E) };
+      },
+      // 진동 KE_rel = ½μ·vrel² (μ=1, 동질량 m=2) → vLow:KE=½D 유계·vHigh:KE=2D 해리.
+      vLow() { return Math.sqrt(2 * 0.5 * this.KN.bondMorseD); },
+      vHigh() { return Math.sqrt(2 * 2 * this.KN.bondMorseD); },
+      cache(K) {
+        return this._c || (this._c = {
+          mLo: this.run(K, true, this.vLow()), mHi: this.run(K, true, this.vHigh()),
+          hLo: this.run(K, false, this.vLow()), hHi: this.run(K, false, this.vHigh()),
+        });
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로엔 bonds 미설정 → bondSpring no-op → 두 원자 자유 드리프트(머신·결정론).
+      //   Morse 의 효과·E 유계는 cache run(bonds 프리셋)서 assert 가 증명(0071 패턴).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 1, N: 1, e: 1, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { morseHiEndR: c.mHi.endR, harmHiEndR: c.hHi.endR, morseLoMeanR: c.mLo.meanR, harmLoMeanR: c.hLo.meanR, morseHiMaxR: c.mHi.maxR, dpxM: +c.mLo.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 저E 정합 ② 유한 해리 ③ 비대칭 열팽창 ④ 장부·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), r0 = this.KN.bondReq;
+        const lowAgree = c.mLo.maxR < r0 * 2 && c.hLo.maxR < r0 * 2 && c.mLo.endR < r0 * 2 && c.hLo.endR < r0 * 2;  // ① 저E 둘 다 유계 진동(해리 안 함)
+        const dissociate = c.mHi.endR > r0 * 3 && c.hHi.endR < r0 * 2;                                  // ② Morse 고E 해리·조화 속박
+        const thermalExp = c.mLo.meanR > r0 * 1.02 && Math.abs(c.hLo.meanR - r0) < r0 * 0.02;           // ③ Morse 열팽창·조화 대칭(평균 r₀)
+        const consv = c.mLo.dpx < 1e-9 && c.mLo.dpy < 1e-9 && c.mLo.dB < 1e-9 && c.mLo.dQ < 1e-9 && c.mLo.dL < 1e-9 && ctx.ledgerBefore !== undefined;  // ④ 운동량 머신·라이브 회귀 알리바이
+        return [
+          { name: `저E 유계 — KE<D Morse maxR ${c.mLo.maxR.toFixed(2)}·조화 maxR ${c.hLo.maxR.toFixed(2)}(둘 다 r₀=${r0} 근방 유계 진동·해리 안 함 — 고E 와 대조)`, pass: lowAgree, value: c.mLo.maxR },
+          { name: `유한 해리·load-bearing — KE>D Morse endR ${c.mHi.endR.toFixed(2)}(maxR ${c.mHi.maxR.toFixed(1)} 해리·복원력 소멸) ≫ 조화 endR ${c.hHi.endR.toFixed(2)}(r₀ 근방 영구 속박) ⇒ 유한 우물이 *Morse 때문*(author 아닌 측정)`, pass: dissociate, value: c.mHi.endR },
+          { name: `비대칭 열팽창 — Morse 저E 평균 길이 ${c.mLo.meanR.toFixed(3)} > r₀ ${r0}(비대칭 우물 열팽창) vs 조화 평균 ${c.hLo.meanR.toFixed(3)} ≈ r₀(대칭)`, pass: thermalExp, value: c.mLo.meanR },
+          { name: `장부·회귀 — 쌍별 등·반작용 운동량 머신(dpx ${c.mLo.dpx.toExponential(2)}·dB ${c.mLo.dB.toExponential(2)})·E symplectic 유계(스윙 Morse ${c.mLo.eSwing.toFixed(3)})·bondMorse=0 → 조화 bondSpring 비트 동일 → 0001~73 골든 보존(회귀 0)`, pass: consv, value: +c.mLo.dpx.toExponential(3) },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };

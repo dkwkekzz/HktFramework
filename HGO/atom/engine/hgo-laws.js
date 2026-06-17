@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -697,12 +697,18 @@
   //   기질 재사용: coulomb·repulse·pauli·vdw 와 동일 *반음시(symplectic)* 적분(v→r) → 총 E(KE+½kS(r−r_eq)²) 유계 보존(E 만 완화).
   //   닫힌 장부: 쌍별 등·반작용(Δp_a=+f·dt, Δp_b=−f·dt) ⇒ 운동량 *머신* 보존. PE 항 U_spring≥0 가법(kBondSpring 게이트). Q·B·L·x 불변.
   //   국소: *그 결합의 두 원자*만(간선 = 그 둘의 위상). 결정론: 위치 결정 → rng 불필요. kBondSpring=0 → early-return = 회귀 0.
+  // ⊕ step-0074 게이트 bondMorse(=0 → 조화 bondSpring·회귀 0): 조화 우물 U=½kS(r−r₀)² 은 *무한 깊이* — 결합이 절대 안 끊긴다
+  //   (아무리 가열해도 r₀ 로 복귀)·대칭이라 열팽창 0. 실제 결합은 Morse U=D(1−e^{−α(r−r₀)})² — *유한* 깊이 D(해리에너지)서 끊기고
+  //   비대칭(밂쪽 가파름·당김쪽 완만 → 열팽창). bondMorse=1 이면 fmag=dU/dr=2Dα·x(1−x)(x=e^{−α(r−r₀)}): r>r₀ → x<1 인력·
+  //   r≫r₀ → x→0 → fmag→0(해리·복원력 소멸)·r<r₀ → x>1 반발·r=r₀ → fmag=0(평형). bondMorse=0 → 조화 fmag=ks(r−r₀)(과거 비트).
   function bondSpring(sim) {
     const ks = sim.knobs.kBondSpring;
     if (!ks) return;                 // 노브=0 → early-return = 회귀 0 (결합 스프링 꺼짐 → step-0025 비트)
     if (!sim.bonds || !sim.bonds.length) return;         // 결합(작용 대상 간선) 없음
     const dt = sim.knobs.dt;
-    const req = sim.knobs.bondReq || 4;                  // 평형 결합 길이 r_eq
+    const req = sim.knobs.bondReq || 4;                  // 평형 결합 길이 r_eq=r₀
+    const morse = sim.knobs.bondMorse || 0;              // 비조화 Morse 게이트(0 → 조화·회귀 0)
+    const D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;  // 해리에너지 D·우물 폭 α
     const atoms = sim.atoms, n = atoms.length;
     for (const e of sim.bonds) {
       const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
@@ -710,8 +716,10 @@
       const r = Math.sqrt(dx * dx + dy * dy);
       if (r === 0) continue;                              // 완전 겹침 가드(방향 미정의)
       const nx = dx / r, ny = dy / r;                     // a→b 단위 벡터(복원 방향)
-      // U=½kS(r−req)² → F_on_a = −∂U/∂r_a = +kS·(r−req)·n (r>req → +n: b 쪽 당김=인력 / r<req → −n: 밂=반발)
-      const fmag = ks * (r - req);
+      // U=½kS(r−req)² → F_on_a = +kS·(r−req)·n (조화) / Morse U=D(1−x)²(x=e^{−α(r−r₀)}) → fmag=dU/dr=2Dα·x(1−x)
+      const fmag = morse
+        ? (function () { const x = Math.exp(-alpha * (r - req)); return 2 * D * alpha * x * (1 - x); })()
+        : ks * (r - req);
       const fx = fmag * nx, fy = fmag * ny;               // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
       const ma = K.mass(a), mb = K.mass(b);
       a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;     // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
