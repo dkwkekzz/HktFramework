@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -702,16 +702,8 @@
     const coolDeg = sim.knobs.coolDeg || 8;
     const atoms = sim.atoms, n = atoms.length;
     const bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
-    // 1패스: 각 원자의 국소 이웃 수(반경 coolR 내) — 국소 밀도. (브루트 O(n²)·측정 scene 규모서 충분·결정론)
-    const deg = new Int32Array(n);
-    for (let i = 0; i < n; i++) {
-      const a = atoms[i];
-      for (let j = i + 1; j < n; j++) {
-        const b = atoms[j];
-        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
-        if (dx * dx + dy * dy <= coolR2) { deg[i]++; deg[j]++; }
-      }
-    }
+    // 1패스: 각 원자의 국소 이웃 수(반경 coolR 내) — 국소 밀도. (step-0088 degField: spatialHash 켜면 셀 이웃·끄면 brute·deg 동일·결정론)
+    const deg = degField(sim, coolR);
     // 2패스: *양쪽 다 저밀도(외곽)*인 근접 쌍만 점성 냉각(damp 와 동형 — vcom 불변·KE→바스).
     for (let i = 0; i < n; i++) {
       if (deg[i] > coolDeg) continue;                   // 고밀도 코어 원자는 게이트서 제외(뜨겁게 유지)
@@ -764,10 +756,11 @@
     const dt = sim.knobs.dt;
     const req = sim.knobs.bondReq || 4;                  // 평형 결합 길이 r_eq=r₀
     const morse = sim.knobs.bondMorse || 0;              // 비조화 Morse 게이트(0 → 조화·회귀 0)
-    const D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;  // 해리에너지 D·우물 폭 α
+    const alpha = sim.knobs.bondMorseA || 1;             // 우물 폭 α(해리에너지 D 는 step-0089 종류별 — 아래 per-bond)
     const atoms = sim.atoms, n = atoms.length;
     for (const e of sim.bonds) {
       const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
+      const D = K.morseD(sim.knobs, a, b, e[3]);          // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일 bondMorseD·회귀 0)
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
       const r = Math.sqrt(dx * dx + dy * dy);
       if (r === 0) continue;                              // 완전 겹침 가드(방향 미정의)
@@ -1168,21 +1161,28 @@
     const zmin = sim.knobs.disperseZmin || 0;             // 0 → 모든 가스가 복사압을 받음(기본). >0 → 무거운 핵(Z≥zmin)만(선택)
     // step-0085 *층상 핵합성* 게이트 disperseOuterDeg(=0 → 전원·0084 비트 동일·회귀 0): >0 면 *저밀도 외곽*(국소 이웃 수 ≤ deg)만 분다.
     //   고밀도 코어 산물은 *안 불어* → 코어가 무거운 원소를 *보존*(천정 maxZ 유지)·겉껍질만 별풍(진짜 별의 층상 구조). coolOuter(0083)의 밀도 게이트와 동형.
+    // step-0087 *동적 층상 임계* 게이트 disperseAutoDeg∈(0,1](=0 → 수동 disperseOuterDeg·0085/0086 비트 동일·회귀 0):
+    //   >0 면 코어/겉 경계를 *밀도 분포의 분위수*로 자동 정한다 — 분산 후보(Z≥zmin)의 deg 분포에서 q=disperseAutoDeg 분위수를 임계로(0.5=중앙값).
+    //   별이 진화하며 밀도 분포가 바뀌어도 경계가 *따라간다*(scale-free) → 0085 의 수동 임계 brittleness(고밀도선 odeg=8 이 전원 코어 분류→별풍 0) 해소.
     const odeg = sim.knobs.disperseOuterDeg || 0;
-    let deg = null;
-    if (odeg > 0) {                                       // 밀도 한정 켤 때만 국소 이웃 수 1패스(브루트 O(n²)·측정 scene 규모 충분)
-      const dr = sim.knobs.coolR || 6, dr2 = dr * dr, A = sim.atoms, na = A.length;
-      deg = new Int32Array(na);
-      for (let i = 0; i < na; i++) { const ai = A[i];
-        for (let j = i + 1; j < na; j++) { const bj = A[j];
-          const dx = K.minImage(bj.rx - ai.rx, sim.W), dy = K.minImage(bj.ry - ai.ry, sim.H);
-          if (dx * dx + dy * dy <= dr2) { deg[i]++; deg[j]++; } } }
+    const autoDeg = sim.knobs.disperseAutoDeg || 0;
+    let deg = null, odegEff = odeg;
+    if (odeg > 0 || autoDeg > 0) {                        // 밀도 한정(수동 or 자동) 켤 때만 국소 이웃 수 1패스
+      const dr = sim.knobs.coolR || 6, A = sim.atoms, na = A.length;
+      deg = degField(sim, dr);                            // step-0088: spatialHash 켜면 셀 이웃·끄면 brute·deg 동일(coolOuter 와 공유)
+      if (autoDeg > 0) {                                  // 자동 임계: 분산 후보(Z≥zmin)의 deg 분포 q-분위수 → 코어/겉 경계(밀도 적응)
+        const vals = [];
+        for (let i = 0; i < na; i++) if ((A[i].Z | 0) >= zmin) vals.push(deg[i]);
+        if (vals.length) { vals.sort((a, b) => a - b);
+          const q = autoDeg > 1 ? 1 : autoDeg;            // (0,1] 클램프
+          odegEff = vals[Math.min(vals.length - 1, Math.floor(q * (vals.length - 1)))]; }
+      }
     }
     const atomsArr = sim.atoms;
     for (let idx = 0; idx < atomsArr.length; idx++) {
       const a = atomsArr[idx];
       if ((a.Z | 0) < zmin) continue;                     // 선택 게이트(기본 zmin=0 → 전원)
-      if (deg && deg[idx] > odeg) continue;               // 층상 게이트: 고밀도 코어 산물은 안 붐(천정 보존)
+      if (deg && deg[idx] > odegEff) continue;            // 층상 게이트: 고밀도 코어 산물은 안 붐(천정 보존·odegEff=수동 odeg or 자동 분위수)
       if (bath.E <= 0) break;                             // 바스 고갈 — 더 못 흩음(E 음수 방지)
       if (rng() >= k) continue;                           // 복사압 확률 kDisperse
       const draw = Math.min(eps, bath.E);                 // 바스 잔량 한도 내 인출(흡열 문턱 정신)
@@ -1201,6 +1201,54 @@
     sim.disperseActive = 1;                               // 진단 플래그(hash 미참여)
   }
 
+  // snEject — *초신성급 비결속 방출*(step-0091): 별풍(disperse·0071)이 *못 넘는* 중력 결속을 *집중·방향성* 임펄스로 돌파한다.
+  //   0086 발견: disperse 는 (a) 등방 *랜덤*(절반은 안쪽) (b) 소량 eps (c) 저밀도 외곽만 → 산물이 R_g~8 헤일로뿐·natal 우물에 *중력 결속*.
+  //   snEject 는 정반대 세 축: (a) *국소 질량중심서 바깥* 방향(코어 붕괴 충격의 방사 방출·등방 아님) (b) *큰* snImpulse(탈출 척도)
+  //     (c) *고밀도 코어*(deg≥snCoreDeg)의 무거운 핵(Z≥snZmin)만 — 코어 붕괴가 방아쇠(별풍은 외곽·초신성은 코어). → 산물이 우물 탈출속도 초과.
+  //   에너지: 바스서 인출(닫힘·disperse 동형 — KE += draw·총 E 보존). 운동량: 방출 입자가 나르는 −Δp → 바스(머신·0032 동형). Z·N·B·Q·L 불변.
+  //   국소: 각 원자 + coolR 이웃 질량중심만(전역 조율자 0·척추 ③). 결정론: 방향은 이웃 COM(위치 결정)·확률만 시드. 게이트 kSnEject=0 → early-return = 회귀 0.
+  function snEject(sim) {
+    const k = sim.knobs.kSnEject;
+    if (!k) return;                  // 게이트 0 → early-return = 회귀 0 (초신성 꺼짐 → 직전 비트)
+    const rng = sim.rng;
+    if (!rng) return;                // 확률·폴백 방향에 시드 필요(Math.random 금지)
+    const bath = sim.escaped;
+    if (!bath || bath.E <= 0) return;                     // 방출 연료(복사 바스 E) 없으면 0(무에서 빌리지 않음)
+    const zmin = sim.knobs.snZmin || 3;                   // 무거운 핵(핵합성 산물)만 방출 대상
+    const imp = sim.knobs.snImpulse || 10;                // 한 번에 인출하는 *큰* 에너지(탈출 척도 — disperseE 보다 큼)
+    const coreDeg = sim.knobs.snCoreDeg || 8;             // 고밀도 코어 문턱(저밀도는 방아쇠 안 됨 — 코어 붕괴가 초신성)
+    const cr = sim.knobs.coolR || 6, cr2 = cr * cr;
+    const deg = degField(sim, cr);                        // 국소 밀도(0088 셀/brute 공유)
+    const A = sim.atoms, n = A.length;
+    for (let i = 0; i < n; i++) {
+      const a = A[i];
+      if ((a.Z | 0) < zmin) continue;                     // 무거운 핵만(초신성 산물)
+      if (deg[i] < coreDeg) continue;                     // 고밀도 코어만(붕괴 방아쇠 — 별풍 외곽과 반대)
+      if (bath.E <= 0) break;                             // 바스 고갈
+      if (rng() >= k) continue;                           // 방출 확률 kSnEject
+      // 국소 이웃 질량중심 변위 → 그 *반대*(바깥) 방향으로 방출(방향성 — disperse 등방과 결정적 차이)
+      let cx = 0, cy = 0, mtot = 0;
+      for (let j = 0; j < n; j++) { if (j === i) continue; const b = A[j];
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        if (dx * dx + dy * dy <= cr2) { const mb = K.mass(b); cx += dx * mb; cy += dy * mb; mtot += mb; } }
+      let ux, uy;
+      const cl = mtot > 0 ? Math.hypot(cx, cy) : 0;
+      if (cl > 0) { ux = -cx / cl; uy = -cy / cl; }       // 이웃 COM 반대 = 코어 바깥
+      else { const th = rng() * 2 * Math.PI; ux = Math.cos(th); uy = Math.sin(th); }  // 등밀도/고립 폴백(시드)
+      const draw = Math.min(imp, bath.E);
+      const m = K.mass(a);
+      const vx0 = a.vx, vy0 = a.vy;
+      const ke0 = 0.5 * m * (vx0 * vx0 + vy0 * vy0);
+      const sp1 = Math.sqrt(2 * (ke0 + draw) / m);        // KE += draw(바스서·총 E 보존)·속력 sp1
+      a.vx = sp1 * ux; a.vy = sp1 * uy;                   // 바깥 방향 방출(KE 보존·방향만 방사)
+      bath.E -= draw;                                     // 바스 E → 원자 KE
+      bath.px += -(m * (a.vx - vx0));                     // −Δp → 바스(총 px·py 머신)
+      bath.py += -(m * (a.vy - vy0));
+      bath.count = (bath.count | 0) + 1;
+    }
+    sim.snEjectActive = 1;                                // 진단 플래그(hash 미참여)
+  }
+
   // bondBreak 은 *거리형 결합 해리* — Morse(0074)를 위상까지 완성한다. Morse 우물은 유한 깊이라 r≫r₀ 면 복원력→0(0074) →
   //   가열된 결합쌍이 멀어져도 *간선(sim.bonds)은 남아* "유령 결합"이 된다(힘은 0 이나 위상상 여전히 분자). unbond(0016)은 *충돌 KE* 기준
   //   이라 천천히 벌어지는 Morse 해리를 못 떼낸다. bondBreak 은 *거리* 기준: r > unbondDist 면 간선을 떼어 분자(연결 성분)가 *실제로 쪼개진다*.
@@ -1213,11 +1261,12 @@
     if (!rd) return;                 // 노브=0 → early-return = 회귀 0 (거리 해리 꺼짐 → 직전 비트)
     if (!sim.bonds || !sim.bonds.length) return;         // 떼낼 결합 없음
     const atoms = sim.atoms, n = atoms.length, rd2 = rd * rd;
-    const morse = sim.knobs.bondMorse || 0, D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;
+    const morse = sim.knobs.bondMorse || 0, alpha = sim.knobs.bondMorseA || 1;
     const ks = sim.knobs.kBondSpring || 0, req = sim.knobs.bondReq || 4;
     const kept = []; let broke = 0, bath = null;
     for (const e of sim.bonds) {
       const a = atoms[e[0]], b = atoms[e[1]];
+      const D = K.morseD(sim.knobs, a, b, e[3]);         // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일·회귀 0)·force/PE 와 같은 D
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
       const r2 = dx * dx + dy * dy;
       if (r2 <= rd2) { kept.push(e); continue; }          // 임계 이내 → 결합 유지
@@ -1234,8 +1283,8 @@
   }
 
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, coolOuter, bondSpring, bondAngle, gravity, fuse, decay, disperse, bondBreak };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'coolOuter', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'bondBreak'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, coolOuter, bondSpring, bondAngle, gravity, fuse, decay, disperse, snEject, bondBreak };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'coolOuter', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'snEject', 'bondBreak'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).
@@ -1339,6 +1388,26 @@
       }
     }
     return { pairs, checks };
+  }
+
+  // step-0088 국소 밀도 deg 집계 — coolOuter(0083)·disperse(0085 disperseOuterDeg·0087 disperseAutoDeg)의 밀도 1패스를 공유.
+  //   spatialHash 켜면 cellPairs(cut=radius) 셀 이웃만 세고(검사 ≪ n²), 끄면 brute O(n²). cut=radius(≤spatialCut)라 셀폭≥radius →
+  //   radius 내 어떤 쌍도 같은/이웃 셀에 → 셀 deg 가 brute deg 와 *정확 동일*(근사 아님)·deg 는 *횟수*라 쌍 순서 무관 → 켜도 비트 동일(회귀 0).
+  //   0054~64 가 *힘*을 셀 배선한 것의 *밀도판*. 결정론: 위치만(rng 0).
+  function degField(sim, radius) {
+    const atoms = sim.atoms, n = atoms.length, deg = new Int32Array(n);
+    if (sim.knobs.spatialHash) {
+      const cp = cellPairs(atoms, radius, sim.W, sim.H);     // cut=radius → 거리 필터 = radius (brute 와 동일 쌍집합)
+      for (const e of cp.pairs) { deg[e[0]]++; deg[e[1]]++; }
+      sim.degChecks = cp.checks;                             // 진단(hash 미참여)
+    } else {
+      const r2 = radius * radius;
+      for (let i = 0; i < n; i++) { const a = atoms[i];
+        for (let j = i + 1; j < n; j++) { const b = atoms[j];
+          const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+          if (dx * dx + dy * dy <= r2) { deg[i]++; deg[j]++; } } }
+    }
+    return deg;
   }
 
   // Barnes-Hut 무게중심 쿼드트리 가속 합산(step-0060 — cellPairs 의 *장거리판*): gravity·coulomb 의 1/r² 는 컷오프하면

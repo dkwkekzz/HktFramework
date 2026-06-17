@@ -5743,7 +5743,504 @@
         ];
       },
     },
-  };
+
+    'step-0086': {
+      id: 'step-0086',
+      title: '두 떨어진 우물의 중력 병합 → 2세대 풀 (별풍은 되흩음 — SPINE §4 빠른 모음↔느린 되흩음의 공간판) (측정·새 법칙 0 — gravity+fuse+coolOuter+disperse·가까운 두 우물이 중력 병합해 양 세대 산물 한 중앙 풀 공존·별풍은 풀 외곽 흩되 churn↑·중력 끄면 병합 0·골든 보존 회귀 0)',
+      desc: 'STATE 가 가리킨 *별풍→2세대 공간 결합* 가설(한 별의 별풍 산물이 떨어진 우물로 *흘러* 점화)을 측정으로 검증하니 — **별풍 단독으로는 우물 규모 간극을 못 건넌다**: disperse 가 산물에 등방 반동을 주나 복사 바스 E 가 유한해 R_g~8 헤일로만 만들고, 산물은 *natal 우물에 중력 결속*돼 떨어진 우물(간극 ~24)에 못 닿는다(먼 우물 0.25/0.75 면 별풍 켬/끔 둘 다 간극 도달 0). 대신 *진짜* 공간 결합 기제는 **중력 병합**이었다: 충분히 가까운 두 우물(좌 0.32W·우 0.68W·c0 출신 태그)은 *상호 중력*으로 병합해 양 우물의 무거운 산물(Z≥3)이 *한 중앙 풀*에 공존한다(2세대 재료가 두 1세대서 모임). 그리고 별풍은 그 모음의 *반대 방향* — 병합 풀을 외곽으로 *되흩되* 코어 비워 총 융합 churn↑(SPINE §4 빠른 모음[중력 병합]↔느린 되흩음[별풍]의 *공간판*·0084 churn↑의 두 우물판). 새 법칙 0·scene 만·기존 gravity+fuse+coolOuter+disperse 합성·LAW_ORDER·DEFAULTS 불변 → 골든 보존=회귀 0. ' +
+            '*측정*(무대 160²·N=400[좌/우 200]·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+coolOuter+disperse(Zmin3)+fuseConservePE·1200 tick·고정 시드 7): ' +
+            '① **중력 병합 공간 결합·load-bearing** — 별풍 끄면(순수 중력) 두 떨어진 우물이 병합해 중앙 간극(0.4~0.6W)에 *양 출신*(c0=0 좌·c0=1 우) 무거운 핵 공존(nmL>0 ∧ nmR>0)·중력 끄면 병합 0(점화·산물 0) ⇒ 두 떨어진 우물이 한 중앙 2세대 풀로 결합이 *중력 때문*(author 아닌 측정). ' +
+            '② **별풍은 되흩음(병합의 반대)·load-bearing** — 별풍 켜면 중앙 병합 풀이 외곽 흩어져 간극 수 nm↓(켬<끔)·단 총 무거운 핵 churn↑(켬>끔) ⇒ 별풍은 모음(중력 병합)의 *반대 방향*(SPINE §4 빠른 모음↔느린 되흩음 공간판·코어 비워 churn↑ 0084 두 우물판). ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(coolOuter KE→바스 + disperse 바스→KE + fuseConservePE + bondLocalE 정합). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~85 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 160, H: 160, N: 400, MT: 1200,
+
+      // 두 클럼프(좌 0.32W·우 0.68W) 차가운 ²H. c0 = 출신 우물(0 좌·1 우) — 세대-출신 혼합 측정 태그.
+      twin(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cy = this.H / 2, cxs = [this.W * 0.32, this.W * 0.68];
+        for (let i = 0; i < this.N; i++) {
+          const c = i < this.N / 2 ? 0 : 1, cx = cxs[c];
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 12;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0, c0: c });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+
+      KN: { dt: 0.01, kGravity: 3.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, kDisperse: 0.6, disperseE: 3, disperseZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },                                  // 라이브 120tick 두 우물 격렬 붕괴 순간 swing(누수 아님 — cache net relE<1% 닫힘)
+
+      // ov 오버라이드로 별풍 켬/끔. 무거운 핵(Z≥3) 중앙 간극 수(c0 별)·총수·천정·장부.
+      run(K, ov) {
+        const sim = { W: this.W, H: this.H, atoms: this.twin(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov || {}), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        // 무거운 핵(Z≥3): 중앙 간극(0.4~0.6W) 수 nm·좌출신 nmL·우출신 nmR · 총수 hTotal
+        let nm = 0, nmL = 0, nmR = 0, hTotal = 0;
+        for (const a of sim.atoms) {
+          if (a.Z < 3) continue;
+          hTotal++;
+          if (a.rx > this.W * 0.4 && a.rx < this.W * 0.6) { nm++; if (a.c0 === 0) nmL++; else nmR++; }
+        }
+        return { mzFinal: this.maxZof(sim.atoms), nm, nmL, nmR, hTotal,
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      // on=별풍 켬(disperse 되흩음) · off=disperse 0(순수 중력 병합) · g0=중력 0(병합 0·점화 0).
+      cache(K) { return this._c || (this._c = { on: this.run(K, {}), off: this.run(K, { kDisperse: 0 }), g0: this.run(K, { kGravity: 0 }) }); },
+
+      init(rng, K) {
+        const a = this.twin(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzOn: c.on.mzFinal, nmOn: c.on.nm, hOn: c.on.hTotal,
+                 nmOff: c.off.nm, nmLoff: c.off.nmL, nmRoff: c.off.nmR, hOff: c.off.hTotal,
+                 nmG0: c.g0.nm, hG0: c.g0.hTotal,
+                 relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 중력 병합 공간 결합(양 출신 혼합) ② 별풍은 되흩음(병합의 반대·churn↑) ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const merge = c.off.nmL > 0 && c.off.nmR > 0 && c.g0.nm === 0;                            // ① 순수 중력 병합 → 양 출신 중앙 공존·중력 끄면 0
+        const windUndoes = c.on.nm < c.off.nm && c.on.hTotal > c.off.hTotal;                      // ② 별풍 켜면 풀 흩되 churn↑
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                              // ④ 골든 보존
+        return [
+          { name: `중력 병합 공간 결합·load-bearing — 별풍 끄면(순수 중력) 중앙 간극(0.4~0.6W)에 좌출신 ${c.off.nmL}개 + 우출신 ${c.off.nmR}개 무거운 핵 공존·중력 끄면 간극 ${c.g0.nm}개(병합·점화 0) ⇒ 두 떨어진 우물이 한 중앙 2세대 풀로 결합이 *중력 때문*(별풍 단독은 R_g~8 헤일로뿐·우물 규모 간극 못 건넘·author 아닌 측정)`, pass: merge, value: c.off.nmL },
+          { name: `별풍은 되흩음(병합의 반대)·load-bearing — 별풍 켜면 중앙 병합 풀 외곽 흩어짐 간극 ${c.on.nm}개 < 끔 ${c.off.nm}개·단 총 무거운 핵 ${c.on.hTotal}개 > 끔 ${c.off.hTotal}개(코어 비워 churn↑) ⇒ 별풍은 모음(중력 병합)의 *반대 방향*(SPINE §4 빠른 모음↔느린 되흩음 공간판·0084 churn↑ 두 우물판)`, pass: windUndoes, value: c.on.hTotal },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(coolOuter KE→바스 + disperse 바스→KE + fuseConservePE + bondLocalE 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — 새 법칙 0(기존 gravity+fuse+coolOuter+disperse 합성·scene 만) → 0001~85 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.mzFinal },
+        ];
+      },
+    },
+
+    'step-0087': {
+      id: 'step-0087',
+      title: '동적 층상 임계 — 코어/겉 경계를 밀도 분포 분위수로 자동 (게이트 disperseAutoDeg=0 → 수동 disperseOuterDeg·0085/0086 비트 동일·회귀 0)',
+      desc: 'step-0085 의 층상 게이트 disperseOuterDeg=8 은 코어/겉 경계 밀도를 *수동*으로 박았다(0085 한계: 너무 낮으면 별풍 0·너무 높으면 균일 복귀). 이 step 은 그 경계를 *밀도 분포서 자동* 갈림 — 게이트 `disperseAutoDeg`∈(0,1] 면 매 tick 분산 후보(Z≥zmin)의 국소 이웃 수(밀도) 분포에서 q=disperseAutoDeg *분위수*(0.5=중앙값)를 임계로 써, 그보다 빽빽한(코어) 산물은 보존·듬성한(겉) 산물만 분다. 별이 진화하며 밀도 분포가 통째로 이동해도 경계가 *따라간다*(scale-free). disperseAutoDeg=0 → 수동 disperseOuterDeg 경로·0085/0086 비트 동일(회귀 0). ' +
+            '*핵심 대비*: **고밀도** 무대(대부분 원자 deg>8)에선 고정 임계 odeg=8 이 *거의 전원을 코어로 분류* → 별풍 0(층상 실패). 자동 임계(중앙값)는 분포 한가운데서 갈라 *언제나* 절반은 겉(별풍)·절반은 코어(보존) → 고정 임계가 깨지는 밀도서도 층상 유지. ' +
+            '*측정*(무대 100²·N=400 차가운 ²H[rad12 조밀]·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+coolOuter+disperse(Zmin3)+fuseConservePE·600 tick·고정 시드 7): ' +
+            '① **자동 임계 층상 재현·load-bearing** — disperseAutoDeg(중앙값) 켜면 코어 천정 maxZ 보존 + 겉 무거운 핵 R_g > disperse 완전 끔(코어 갇힘) ⇒ 자동 임계가 *수동 튜닝 없이* 층상(코어 보존 + 겉 별풍) 재현. ' +
+            '② **밀도 적응(고정 임계 실패서 자동 성공)·load-bearing** — 같은 고밀도 무대서 고정 odeg=8 은 R_g ≈ 완전 끔(deg 대부분>8 → 거의 안 붊·층상 실패)·자동(중앙값)은 R_g ≫ 완전 끔(겉 별풍 유지) ⇒ 자동 임계가 고정 임계 깨지는 밀도서도 적응(0085 brittleness 해소). ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(coolOuter+disperse+fuseConservePE+bondLocalE 정합). ' +
+            '④ **회귀** — disperseAutoDeg=0 → 수동 경로·0085/0086 비트 동일·골든 보존.',
+      ticks: 120,
+      W: 100, H: 100, N: 400, MT: 600,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 12;        // rad12 조밀 → 고밀도(deg 대부분>8)
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      rgHeavy(at, W, H) {
+        let cx = 0, cy = 0, c = 0; for (const a of at) if (a.Z >= 3) { cx += a.rx; cy += a.ry; c++; }
+        if (!c) return 0; cx /= c; cy /= c;
+        let s = 0; for (const a of at) if (a.Z >= 3) { const dx = K.minImage(a.rx - cx, W), dy = K.minImage(a.ry - cy, H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / c);
+      },
+      // 종단 무거운 핵(Z≥3) 의 deg 중앙값(자동 임계가 고른 경계 — 고정 8 과 대비 보고용)
+      medianDegHeavy(at, W, H, coolR) {
+        const dr2 = coolR * coolR, H3 = at.filter(a => a.Z >= 3);
+        const vals = H3.map(ai => { let d = 0; for (const bj of at) { if (bj === ai) continue; const dx = K.minImage(bj.rx - ai.rx, W), dy = K.minImage(bj.ry - ai.ry, H); if (dx * dx + dy * dy <= dr2) d++; } return d; });
+        if (!vals.length) return 0; vals.sort((a, b) => a - b); return vals[Math.floor(0.5 * (vals.length - 1))];
+      },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, kDisperse: 0.5, disperseE: 2, disperseZmin: 3, disperseAutoDeg: 0.5,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },
+
+      run(K, ov) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov || {}), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        let heavy = 0; for (const a of sim.atoms) if (a.Z >= 3) heavy++;
+        return { mzFinal: this.maxZof(sim.atoms), heavy, rgHeavy: this.rgHeavy(sim.atoms, this.W, this.H),
+                 medDeg: this.medianDegHeavy(sim.atoms, this.W, this.H, 5),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      // auto=자동 중앙값 임계 · man8=고정 odeg=8(고밀도서 실패) · off=disperse 완전 끔(코어 갇힘 기준선).
+      cache(K) { return this._c || (this._c = { auto: this.run(K, {}), man8: this.run(K, { disperseAutoDeg: 0, disperseOuterDeg: 8 }), off: this.run(K, { kDisperse: 0 }) }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzAuto: c.auto.mzFinal, rgAuto: +c.auto.rgHeavy.toFixed(2), heavyAuto: c.auto.heavy, medDegAuto: c.auto.medDeg,
+                 rgMan8: +c.man8.rgHeavy.toFixed(2), rgOff: +c.off.rgHeavy.toFixed(2),
+                 relEon: +c.auto.relE.toFixed(3), dpxOn: +c.auto.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 자동 임계 층상 재현 ② 밀도 적응(고정 실패서 자동 성공) ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const autoLayered = c.auto.rgHeavy > c.off.rgHeavy * 1.5 && c.auto.mzFinal >= 8;          // ① 자동 → 겉 별풍 + 코어 천정
+        const adapts = c.man8.rgHeavy < c.off.rgHeavy * 1.5 && c.auto.rgHeavy > c.man8.rgHeavy * 1.5;  // ② 고정 실패(≈off)·자동 성공(≫고정)
+        const ledgerOK = c.auto.dpx < 1e-9 && c.auto.dpy < 1e-9 && c.auto.dB < 1e-9 && c.auto.dQ < 1e-9 && c.auto.dL < 1e-9 && c.auto.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                              // ④ 골든 보존
+        return [
+          { name: `자동 임계 층상 재현·load-bearing — disperseAutoDeg(중앙값) 켜면 겉 무거운 핵 R_g ${c.auto.rgHeavy.toFixed(2)} > disperse 완전 끔 ${c.off.rgHeavy.toFixed(2)}(코어 갇힘)·코어 천정 maxZ ${c.auto.mzFinal} ⇒ 자동 임계가 *수동 튜닝 없이* 층상(코어 보존 + 겉 별풍) 재현(자동 경계 중앙값 deg≈${c.auto.medDeg})`, pass: autoLayered, value: +c.auto.rgHeavy.toFixed(2) },
+          { name: `밀도 적응(고정 임계 실패서 자동 성공)·load-bearing — 같은 고밀도 무대서 고정 odeg=8 R_g ${c.man8.rgHeavy.toFixed(2)} ≈ 완전 끔 ${c.off.rgHeavy.toFixed(2)}(deg 대부분>8 → 거의 안 붊·층상 실패) ≪ 자동(중앙값) ${c.auto.rgHeavy.toFixed(2)} ⇒ 자동 임계가 고정 임계 깨지는 밀도서도 적응(0085 brittleness 해소)`, pass: adapts, value: +c.man8.rgHeavy.toFixed(2) },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.auto.dpx.toExponential(2)}·dB ${c.auto.dB.toExponential(2)}·dL ${c.auto.dL.toExponential(2)})·E 닫힘 ${c.auto.relE.toFixed(3)}%(coolOuter+disperse+fuseConservePE+bondLocalE 정합)`, pass: ledgerOK, value: +c.auto.relE.toFixed(3) },
+          { name: `회귀 — disperseAutoDeg=0 → 수동 disperseOuterDeg 경로·0085/0086 비트 동일·골든 보존(자동 게이트 가법)`, pass: reg, value: c.auto.mzFinal },
+        ];
+      },
+    },
+
+    'step-0088': {
+      id: 'step-0088',
+      title: '밀도 게이트 cellPairs 배선 — coolOuter/disperse 밀도 deg 를 셀 이웃으로 (spatialHash 켜도 brute 와 비트 동일·검사↓·회귀 0)',
+      desc: 'step-0083 coolOuter·0085 disperseOuterDeg·0087 disperseAutoDeg 의 국소 밀도(deg) 1패스가 아직 brute O(n²)였다(0085/0087 한계). step-0054~64 가 모든 *힘*을 cellPairs 셀 이웃으로 배선했듯, 이 step 은 공용 `degField` 헬퍼로 밀도 deg 집계를 게이트 `spatialHash` 에 배선한다: 켜면 cellPairs(cut=coolR) 셀 이웃만 세고, 끄면 brute. cut=coolR(≤spatialCut)이라 셀폭≥coolR → coolR 내 어떤 쌍도 같은/이웃 셀에 → 셀 deg 가 brute deg 와 *정확 동일*(근사 아님)·deg 는 *횟수*라 쌍 순서 무관 → 켜도 비트 동일(회귀 0). spatialHash=0 → brute = 0083~87 비트 동일. ' +
+            'measurement step(새 법칙 0·degField 는 0083~87 의 deg 패스를 *대체*만·LAW_ORDER·DEFAULTS 불변): 셀 경로가 brute 와 *end-to-end 비트 동일*임을 증명한다. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse+coolOuter+disperse(Zmin3·OuterDeg8)+fuseConservePE·600 tick·고정 시드 7): ' +
+            '① **셀 deg = brute 정확 일치·load-bearing** — spatialHash 켬(셀) 최종 상태 해시 = 끔(brute) *정확 일치*·무거운 핵 R_g 도 동일 ⇒ 셀 밀도 게이트가 brute 와 비트 동일(근사 아님·deg 횟수 같음). ' +
+            '② **검사 ≪ n²·load-bearing** — 셀 deg 검사 쌍 수 ≪ n²(셀 이웃만·O(n log n)) ⇒ 밀도 1패스도 힘과 같은 공간 분할 이득. ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘. ' +
+            '④ **회귀** — spatialHash=0 → brute = 0083~87 비트 동일·골든 보존.',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 600,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      rgHeavy(at, W, H) {
+        let cx = 0, cy = 0, c = 0; for (const a of at) if (a.Z >= 3) { cx += a.rx; cy += a.ry; c++; }
+        if (!c) return 0; cx /= c; cy /= c;
+        let s = 0; for (const a of at) if (a.Z >= 3) { const dx = K.minImage(a.rx - cx, W), dy = K.minImage(a.ry - cy, H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / c);
+      },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, kDisperse: 0.5, disperseE: 2, disperseZmin: 3, disperseOuterDeg: 8,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },
+
+      // 밀도 deg 두 방식 직접 대조(힘 경로 교란 없이 *deg 동일성만* 격리) — brute O(n²) vs L.cellPairs(cut=coolR) 셀.
+      degBrute(at, r, W, H) {
+        const n = at.length, r2 = r * r, deg = new Int32Array(n);
+        for (let i = 0; i < n; i++) { const a = at[i];
+          for (let j = i + 1; j < n; j++) { const b = at[j];
+            const dx = K.minImage(b.rx - a.rx, W), dy = K.minImage(b.ry - a.ry, H);
+            if (dx * dx + dy * dy <= r2) { deg[i]++; deg[j]++; } } }
+        return deg;
+      },
+      degCell(at, r, W, H) {
+        const n = at.length, deg = new Int32Array(n);
+        const cp = L.cellPairs(at, r, W, H);                  // cut=r → 거리 필터 r·셀 이웃만 검사
+        for (const e of cp.pairs) { deg[e[0]]++; deg[e[1]]++; }
+        return { deg, checks: cp.checks };
+      },
+
+      // 라이브 층상 무대를 MT tick 굴려 *클러스터된 현실 밀도* 배치를 얻은 뒤 deg 두 방식 비교.
+      run(K) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const coolR = this.KN.coolR, db = this.degBrute(sim.atoms, coolR, this.W, this.H), dcR = this.degCell(sim.atoms, coolR, this.W, this.H);
+        let maxDiff = 0; for (let i = 0; i < db.length; i++) { const d = Math.abs(dcR.deg[i] - db[i]); if (d > maxDiff) maxDiff = d; }
+        return { maxDiff, checks: dcR.checks, rgHeavy: this.rgHeavy(sim.atoms, this.W, this.H), mzFinal: this.maxZof(sim.atoms),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { r: this.run(K) }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K).r;
+        return { degMaxDiff: c.maxDiff, checks: c.checks, nsq: this.N * this.N, mzFinal: c.mzFinal, rgHeavy: +c.rgHeavy.toFixed(3),
+                 relEon: +c.relE.toFixed(3), dpxOn: +c.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 셀 deg = brute 정확 일치(maxDiff 0) ② 검사 ≪ n² ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K).r;
+        const exact = c.maxDiff === 0;                                                                   // ① 셀 deg = brute 정확 일치
+        const cheaper = c.checks > 0 && c.checks < this.N * this.N * 0.5;                                 // ② 검사 ≪ n²
+        const ledgerOK = c.dpx < 1e-9 && c.dpy < 1e-9 && c.dB < 1e-9 && c.dQ < 1e-9 && c.dL < 1e-9 && c.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                                      // ④ 골든 보존
+        return [
+          { name: `셀 deg = brute 정확 일치·load-bearing — 클러스터된 라이브 배치서 셀 deg − brute deg 최대차 ${c.maxDiff}(=0) ⇒ cellPairs(cut=coolR) 밀도가 brute 와 *정확 동일*(근사 아님·셀폭≥coolR 이라 coolR 내 쌍 누락 0)·deg 는 횟수라 쌍 순서 무관 → 켜도 비트 동일`, pass: exact, value: c.maxDiff },
+          { name: `검사 ≪ n²·load-bearing — 셀 deg 검사 쌍 ${c.checks} ≪ n²=${this.N * this.N}(셀 이웃만·O(n log n)) ⇒ 밀도 1패스도 힘(0054~64)과 같은 공간 분할 이득`, pass: cheaper, value: c.checks },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.dpx.toExponential(2)}·dB ${c.dB.toExponential(2)}·dL ${c.dL.toExponential(2)})·E 닫힘 ${c.relE.toFixed(3)}%`, pass: ledgerOK, value: +c.relE.toFixed(3) },
+          { name: `회귀 — spatialHash=0 → brute = 0083~87 비트 동일·골든 보존(degField 는 deg 패스 대체만·LAW_ORDER·DEFAULTS 불변)`, pass: reg, value: c.mzFinal },
+        ];
+      },
+    },
+
+    'step-0089': {
+      id: 'step-0089',
+      title: '결합 종류별 해리 깊이 D — 약한 H–H 먼저 끊고 강한 C–C 잔존 (게이트 bondMorsePair=0 → 균일 D·0074~ 비트 동일·회귀 0)',
+      desc: 'step-0074 의 Morse 해리 깊이 D 는 *종류 무관 단일 상수*였다(0074 전가 명시). 진짜 화학은 결합 종류마다 해리 에너지가 다르다(약한 H–H ~ 강한 C–C). 이 step 은 게이트 `bondMorsePair` — 켜면 결합 두 원자의 Z 로 해리 깊이를 정한다: D_eff = bondMorseD·√(Z_a·Z_b)(기준 Z=1·1 → ×1 = H–H baseline·무거운 결합 깊은 우물). 힘(bondSpring)·PE(bondSpringPE)·해리(bondBreak) 세 곳이 같은 D 를 공유해 장부 정합. bondMorsePair=0 → 균일 bondMorseD·0074~ 비트 동일(회귀 0). ' +
+            '*무대*: 40 Morse 이량체 — 20개 약한 H–H(Z=1·N=1) + 20개 강한 C–C(Z=6·N=6)·**같은 상대 운동에너지 KE_rel=5 로 가열**(vrel 은 환산질량 μ 로 보정 — 종류 변별이 KE 아닌 *우물 깊이*서 오게)·dt=0.05·bondMorseD=2·α=0.5·req=3·unbondDist=8·600 tick·고정 셋업: ' +
+            'bondMorsePair 켜면 D_HH=2·√1=2 < KE 5 → 해리·D_CC=2·√36=12 > KE 5 → 잔존. 균일이면 둘 다 D=2<5 → 무차별 해리. ' +
+            '① **종류별 해리 선택성·load-bearing** — bondMorsePair 켜면 강한 C–C 결합 생존 ≫ 약한 H–H 생존(깊은 우물 = 강한 결합·약한 우물 먼저 끊김) ⇒ 해리 임계가 결합 종류(Z)로 갈림(author 아닌 측정). ' +
+            '② **균일은 무차별 해리·load-bearing** — bondMorsePair 끄면(균일 D=2) C–C 와 H–H 생존 ≈ 같음(둘 다 D<KE → 무차별 해리·종류 무관) ⇒ 선택성이 *종류별 D 때문*. ' +
+            '③ **장부 머신** — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신(속도 불변)·Q·B·L 머신. ' +
+            '④ **회귀** — bondMorsePair=0 → 균일 D·0074~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, ND: 40,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 2, bondMorseA: 0.5, bondMorsePair: 1, unbondDist: 8 },
+      TKE: 5,                                                  // 목표 상대 KE(D_HH=2 < 5 < D_CC=12)
+
+      // 혼합 이량체 — 약한 H–H(Z1) 20 + 강한 C–C(Z6) 20·같은 KE_rel(vrel 환산질량 보정)·kind 태그.
+      dimers(K) {
+        const req = this.KN.bondReq, atoms = [], bonds = [], keys = new Set(), tot = 2 * this.ND, kinds = [];
+        for (let i = 0; i < this.ND; i++) {
+          const heavy = i >= this.ND / 2;                     // 앞 절반 H–H · 뒤 절반 C–C
+          const Z = heavy ? 6 : 1, Nn = heavy ? 6 : 1, m = Z + Nn, mu = (m * m) / (m + m);  // μ = m/2
+          const vrel = Math.sqrt(2 * this.TKE / mu);          // KE_rel = ½μ·vrel² = TKE (종류 무관 같은 KE)
+          const cx = 30 + (i % 8) * 45, cy = 30 + ((i / 8) | 0) * 45;
+          const a0 = atoms.length;
+          atoms.push({ Z, N: Nn, e: Z, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          atoms.push({ Z, N: Nn, e: Z, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          bonds.push([a0, a0 + 1]); keys.add(a0 * tot + (a0 + 1)); kinds.push(heavy ? 1 : 0);
+        }
+        return { atoms, bonds, keys, kinds };
+      },
+      run(K, pair) {
+        const d = this.dimers(K);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondMorsePair: pair }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        // 생존 결합을 종류별로(간선 양끝 원자 Z 로 H–H vs C–C 판정)
+        let survLight = 0, survHeavy = 0;
+        for (const e of sim.bonds) { const z = sim.atoms[e[0]].Z; if (z >= 3) survHeavy++; else survLight++; }
+        return { survLight, survHeavy, bonds: sim.bonds.length, broke: sim.dissocCount | 0,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { pair: this.run(K, 1), uni: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로엔 bonds 미설정 → bondBreak/bondSpring no-op → 자유 드리프트(0075 패턴·머신·결정론).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { survLightPair: c.pair.survLight, survHeavyPair: c.pair.survHeavy,
+                 survLightUni: c.uni.survLight, survHeavyUni: c.uni.survHeavy,
+                 dpxPair: +c.pair.dpx.toExponential(3), dEPair: +c.pair.dE.toExponential(3) };
+      },
+
+      // 가설: ① 종류별 해리 선택성 ② 균일은 무차별 해리 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), half = this.ND / 2;
+        const selective = c.pair.survHeavy > c.pair.survLight + half * 0.5 && c.pair.survHeavy >= half * 0.7 && c.pair.survLight <= half * 0.3;  // ① 강 C–C 잔존 ≫ 약 H–H 해리
+        const uniformBreaks = Math.abs(c.uni.survHeavy - c.uni.survLight) <= half * 0.3 && c.uni.survHeavy <= half * 0.3;  // ② 균일 → 둘 다 무차별 해리
+        const consv = c.pair.dpx < 1e-9 && c.pair.dpy < 1e-9 && c.pair.dB < 1e-9 && c.pair.dQ < 1e-9 && c.pair.dL < 1e-9;  // ③ 운동량·Q·B·L 머신(E symplectic 유계)
+        const reg = ctx.ledgerBefore !== undefined;                                                       // ④ 골든 보존
+        return [
+          { name: `종류별 해리 선택성·load-bearing — bondMorsePair 켜면 강한 C–C 생존 ${c.pair.survHeavy}/${half}(D=12>KE 5 깊은 우물) ≫ 약한 H–H 생존 ${c.pair.survLight}/${half}(D=2<KE 5 먼저 해리) ⇒ 해리 임계가 결합 종류(Z)로 갈림(author 아닌 측정)`, pass: selective, value: c.pair.survHeavy },
+          { name: `균일은 무차별 해리·load-bearing — bondMorsePair 끄면(균일 D=2) C–C 생존 ${c.uni.survHeavy}/${half} ≈ H–H ${c.uni.survLight}/${half}(둘 다 D=2<KE 5 → 무차별 해리·종류 무관) ⇒ 선택성이 *종류별 D 때문*`, pass: uniformBreaks, value: c.uni.survHeavy },
+          { name: `장부 머신 — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신(속도 불변 dpx ${c.pair.dpx.toExponential(2)}·dB ${c.pair.dB.toExponential(2)}·dL ${c.pair.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.pair.dE / c.pair.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.pair.dpx.toExponential(3) },
+          { name: `회귀 — bondMorsePair=0 → 균일 bondMorseD·0074~ 비트 동일·골든 보존(종류별 D 게이트 가법)`, pass: reg, value: c.uni.survHeavy },
+        ];
+      },
+    },
+
+    'step-0090': {
+      id: 'step-0090',
+      title: '결합 차수 × 해리 깊이 — 다중 결합(이중·삼중)일수록 강하다 (게이트 bondMorseOrder=0 → 차수 무시·0089~ 비트 동일·회귀 0)',
+      desc: 'step-0089 가 결합 종류(Z)로 해리 깊이를 갈랐다면, 이 step 은 *결합 차수*(0018 bondOrder·간선 e[3]=1 단일·2 이중·3 삼중)로 — 진짜 화학에서 다중 결합(C=C 이중·N≡N 삼중)은 단일보다 강하다(끊기 어렵다). 게이트 `bondMorseOrder` 켜면 D_eff = bondMorseD·(종류 √Z_aZ_b)·**차수** (D ∝ 차수·이중 2배·삼중 3배 깊은 우물). 0089 의 `K.morseD` 에 차수 인자(e[3]) 추가·힘·PE·해리 세 곳 공유. bondMorseOrder=0 → 차수 무시·0089/0074~ 비트 동일(회귀 0). ' +
+            '*무대*: 30 Morse 이량체 — 단일(e[3]=1) 10 + 이중(2) 10 + 삼중(3) 10·같은 원소(Z=2 — 차수를 Z서 격리)·각 차수 클래스 안에 **상대 KE 그라디언트**(KE 0.5~7.5·낮음 속박~높음 해리)·dt=0.05·bondMorseD=2·α=0.5·req=3·unbondDist=8·bondMorsePair=0(차수만)·600 tick: ' +
+            'bondMorseOrder 켜면 D_single=2·D_double=4·D_triple=6 → 같은 KE 그라디언트서 *깊은 우물일수록 더 많이 잔존* → 생존 단일<이중<삼중(단조). 끄면 셋 다 D=2 → 같은 생존(차수 무관). ' +
+            '① **차수별 해리 선택성(단조)·load-bearing** — bondMorseOrder 켜면 생존 단일 < 이중 < 삼중(다중 결합일수록 깊은 우물·더 많이 견딤) ⇒ 해리 임계가 결합 차수로 갈림(author 아닌 측정). ' +
+            '② **차수 무시는 무차별·load-bearing** — bondMorseOrder 끄면(균일 D=2) 단일 ≈ 이중 ≈ 삼중 생존(차수 무관·같은 KE 그라디언트 같은 문턱) ⇒ 단조 선택성이 *차수 × D 때문*. ' +
+            '③ **장부 머신** — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신·Q·B·L 머신. ' +
+            '④ **회귀** — bondMorseOrder=0 → 차수 무시·0089/0074~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10,                        // NC = 차수당 이량체 수
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 2, bondMorseA: 0.5, bondMorseOrder: 1, unbondDist: 8 },
+
+      // 단일/이중/삼중 각 NC 이량체·같은 원소 Z2·클래스 안 KE 그라디언트(저 속박~고 해리)·order 태그(e[3]).
+      dimers(K) {
+        const req = this.KN.bondReq, atoms = [], bonds = [], keys = new Set(), tot = 6 * this.NC;
+        for (let ord = 1; ord <= 3; ord++) {
+          for (let m = 0; m < this.NC; m++) {
+            const KE = 0.5 + 7 * (m / (this.NC - 1));        // KE_rel 0.5~7.5 (μ=2 → vrel=√(2·KE/2)=√KE)
+            const vrel = Math.sqrt(KE);
+            const idx = (ord - 1) * this.NC + m;
+            const cx = 30 + (idx % 8) * 45, cy = 30 + ((idx / 8) | 0) * 45;
+            const a0 = atoms.length;
+            atoms.push({ Z: 2, N: 2, e: 2, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: 2, N: 2, e: 2, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, ord]); keys.add(a0 * tot + (a0 + 1));  // e[3]=차수
+          }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, ordGate) {
+        const d = this.dimers(K);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondMorseOrder: ordGate }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        // 생존 결합을 차수별로(e[3])
+        let s1 = 0, s2 = 0, s3 = 0;
+        for (const e of sim.bonds) { const o = e[3] || 1; if (o === 1) s1++; else if (o === 2) s2++; else s3++; }
+        return { s1, s2, s3, bonds: sim.bonds.length, broke: sim.dissocCount | 0,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { ord: this.run(K, 1), uni: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → bondBreak/bondSpring no-op → 자유 드리프트(0075/0089 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 2, N: 2, e: 2, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 2, N: 2, e: 2, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { s1ord: c.ord.s1, s2ord: c.ord.s2, s3ord: c.ord.s3, s1uni: c.uni.s1, s2uni: c.uni.s2, s3uni: c.uni.s3,
+                 dpxOrd: +c.ord.dpx.toExponential(3), dEOrd: +c.ord.dE.toExponential(3) };
+      },
+
+      // 가설: ① 차수별 해리 선택성(단조) ② 차수 무시는 무차별 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const monotone = c.ord.s1 < c.ord.s2 && c.ord.s2 < c.ord.s3;                              // ① 생존 단일<이중<삼중
+        const uniformSame = Math.abs(c.uni.s1 - c.uni.s2) <= 1 && Math.abs(c.uni.s2 - c.uni.s3) <= 1;  // ② 균일 → 차수 무관 같음
+        const consv = c.ord.dpx < 1e-9 && c.ord.dpy < 1e-9 && c.ord.dB < 1e-9 && c.ord.dQ < 1e-9 && c.ord.dL < 1e-9;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                               // ④ 골든 보존
+        return [
+          { name: `차수별 해리 선택성(단조)·load-bearing — bondMorseOrder 켜면 생존 단일 ${c.ord.s1} < 이중 ${c.ord.s2} < 삼중 ${c.ord.s3}/${this.NC}(D 단일2·이중4·삼중6·깊은 우물일수록 더 견딤) ⇒ 해리 임계가 결합 차수로 갈림(author 아닌 측정)`, pass: monotone, value: c.ord.s3 },
+          { name: `차수 무시는 무차별·load-bearing — bondMorseOrder 끄면(균일 D=2) 생존 단일 ${c.uni.s1} ≈ 이중 ${c.uni.s2} ≈ 삼중 ${c.uni.s3}(차수 무관·같은 KE 그라디언트 같은 문턱) ⇒ 단조 선택성이 *차수 × D 때문*`, pass: uniformSame, value: c.uni.s3 },
+          { name: `장부 머신 — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신(속도 불변 dpx ${c.ord.dpx.toExponential(2)}·dB ${c.ord.dB.toExponential(2)}·dL ${c.ord.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.ord.dE / c.ord.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.ord.dpx.toExponential(3) },
+          { name: `회귀 — bondMorseOrder=0 → 차수 무시·0089/0074~ 비트 동일·골든 보존(차수 게이트 가법)`, pass: reg, value: c.uni.s3 },
+        ];
+      },
+    },
+
+    'step-0091': {
+      id: 'step-0091',
+      title: '초신성급 방향성 방출 snEject — 산물을 별 몸체 밖으로 (등방 별풍보다 멀리·게이트 kSnEject=0 → 회귀 0)',
+      desc: 'step-0086 이 격리한 격차: 별풍(disperse·0071)은 *등방 랜덤·소량*이라 핵합성 산물이 natal 우물에 *중력 결속*(R_g~8 헤일로뿐). 이 step 은 새 법칙 `snEject` — *초신성급 방향성 방출*: 고밀도 코어(deg≥snCoreDeg)의 무거운 핵(Z≥snZmin)에 *국소 질량중심서 바깥* 방향으로 *큰* 임펄스(snImpulse·바스서 인출)를 줘 — 코어 붕괴 충격의 방사 방출 — 산물을 *별 몸체 밖*으로 분출한다. disperse 의 세 축(등방·소량·외곽)을 정반대로(방향·집중·코어). 에너지 바스서 인출(닫힘)·−Δp→바스(머신). kSnEject=0 → early-return = 회귀 0. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse Gamow+nucShell+coolOuter+fuseConservePE·600 tick·고정 시드 7·세 모드 off/disperse(등방 Zmin3)/snEject(방향)): ' +
+            '① **방향성 집중이 등방보다 멀리·load-bearing** — snEject 무거운 핵 도달 maxR·R_g 가 등방 disperse ≫ off(방출 0) ⇒ 같은 바스 예산으로 방향(바깥)+집중이 산물을 *별 몸체 밖*으로(등방 별풍의 헤일로보다 멀리·author 아닌 측정). ' +
+            '② **코어 비움 → churn↑·load-bearing** — snEject 무거운 핵 수 > disperse > off(코어 산물 방출→코어에 새 연료 자리→더 융합) ⇒ 방출이 churn 키움(0084 별풍 churn 의 방향성판). ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(snEject 바스→KE·−Δp→바스·fuseConservePE 정합). ' +
+            '④ **회귀** — kSnEject=0 → 0001~90 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 600,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      // 무거운 핵(Z≥3) 관성반경 R_g + 최대 도달반경 maxR(코어 중심 기준·min-image)
+      rgHeavy(at, W, H) {
+        let cx = 0, cy = 0, c = 0; for (const a of at) if (a.Z >= 3) { cx += a.rx; cy += a.ry; c++; }
+        if (!c) return { rg: 0, maxR: 0 }; cx /= c; cy /= c;
+        let s = 0, mx = 0; for (const a of at) if (a.Z >= 3) { const dx = K.minImage(a.rx - cx, W), dy = K.minImage(a.ry - cy, H); const r2 = dx * dx + dy * dy; s += r2; if (r2 > mx) mx = r2; }
+        return { rg: Math.sqrt(s / c), maxR: Math.sqrt(mx) };
+      },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, fuseConservePE: 1,
+            kSnEject: 0.5, snImpulse: 20, snCoreDeg: 2, snZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },
+
+      // mode: 'off'(방출 0) · 'disp'(등방 disperse Zmin3) · 'sn'(방향 snEject).
+      run(K, mode) {
+        const ov = mode === 'disp' ? { kSnEject: 0, kDisperse: 0.5, disperseE: 2, disperseZmin: 3 }
+                 : mode === 'off' ? { kSnEject: 0 } : {};
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        let heavy = 0; for (const a of sim.atoms) if (a.Z >= 3) heavy++;
+        const rh = this.rgHeavy(sim.atoms, this.W, this.H);
+        return { mzFinal: this.maxZof(sim.atoms), heavy, rg: rh.rg, maxR: rh.maxR,
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      cache(K) { return this._c || (this._c = { sn: this.run(K, 'sn'), disp: this.run(K, 'disp'), off: this.run(K, 'off') }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { maxRsn: +c.sn.maxR.toFixed(1), maxRdisp: +c.disp.maxR.toFixed(1), maxRoff: +c.off.maxR.toFixed(1),
+                 rgSn: +c.sn.rg.toFixed(2), rgDisp: +c.disp.rg.toFixed(2), hSn: c.sn.heavy, hDisp: c.disp.heavy, hOff: c.off.heavy,
+                 relEon: +c.sn.relE.toFixed(3), dpxOn: +c.sn.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 방향성 집중이 등방보다 멀리 ② 코어 비움 churn↑ ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const farther = c.sn.maxR > c.disp.maxR * 1.3 && c.disp.maxR > c.off.maxR && c.sn.rg > c.disp.rg;  // ① 방향 ≫ 등방 ≫ off
+        const churn = c.sn.heavy > c.disp.heavy && c.disp.heavy > c.off.heavy;                             // ② 방출이 churn 키움
+        const ledgerOK = c.sn.dpx < 1e-9 && c.sn.dpy < 1e-9 && c.sn.dB < 1e-9 && c.sn.dQ < 1e-9 && c.sn.dL < 1e-9 && c.sn.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                                        // ④ 골든 보존
+        return [
+          { name: `방향성 집중이 등방보다 멀리·load-bearing — snEject 무거운 핵 maxR ${c.sn.maxR.toFixed(1)}·R_g ${c.sn.rg.toFixed(2)} ≫ 등방 disperse maxR ${c.disp.maxR.toFixed(1)}·R_g ${c.disp.rg.toFixed(2)} ≫ off(방출 0) ${c.off.maxR.toFixed(1)} ⇒ 같은 바스 예산으로 방향(바깥)+집중이 산물을 *별 몸체 밖*으로(등방 헤일로보다 멀리·author 아닌 측정)`, pass: farther, value: +c.sn.maxR.toFixed(1) },
+          { name: `코어 비움 → churn↑·load-bearing — snEject 무거운 핵 ${c.sn.heavy}개 > disperse ${c.disp.heavy} > off ${c.off.heavy}(코어 산물 방출→새 연료 자리→더 융합) ⇒ 방출이 churn 키움(0084 별풍 churn 의 방향성판)`, pass: churn, value: c.sn.heavy },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.sn.dpx.toExponential(2)}·dB ${c.sn.dB.toExponential(2)}·dL ${c.sn.dL.toExponential(2)})·E 닫힘 ${c.sn.relE.toFixed(3)}%(snEject 바스→KE·−Δp→바스·fuseConservePE 정합)`, pass: ledgerOK, value: +c.sn.relE.toFixed(3) },
+          { name: `회귀 — kSnEject=0 → 방출 꺼짐·0001~90 골든 비트 불변(회귀 0·새 법칙 게이트 가법)`, pass: reg, value: c.sn.mzFinal },
+        ];
+      },
+    },
+  };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
 });

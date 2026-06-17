@@ -194,16 +194,31 @@
 
   // 결합 스프링 위치 에너지(step-0026) — U_spring = Σ_{결합 간선} ½·kS·(r−r_eq)² ≥ 0. 힘 법칙(F=−∇U)과 *정확히* 동일 식.
   //   *결합 간선만*(sim.bonds — coulomb/vdw 류 전쌍 아님) → 중성 공유결합에 평형 길이 부여. kBondSpring 미설정/0(0025 이하) → 0 → 과거 장부 불변.
+  // step-0089 결합 종류별 해리 깊이 D — bondMorsePair(=0 → 균일 bondMorseD·0074~ 비트 동일·회귀 0) 면 D 를 결합 두 원자 Z 함수로:
+  //   D_eff = bondMorseD·√(Za·Zb)(기준 Z=1·1 → ×1 = H–H baseline·무거운 결합 깊은 우물). 힘(bondSpring)·PE(bondSpringPE)·해리(bondBreak)
+  //   세 곳이 *공유* → 같은 D 로 퍼텐셜·힘·해리 환원이 정합(장부 닫힘). 진짜 화학의 "결합 종류마다 다른 해리 에너지"를 author 분기 없이 Z 로 측정.
+  function morseD(knobs, a, b, order) {
+    let D = (knobs && knobs.bondMorseD) || 0;
+    if (!knobs) return D;
+    if (knobs.bondMorsePair) {                            // step-0089 종류별(Z): 무거운 결합 깊은 우물
+      const za = Math.max(1, a.Z | 0), zb = Math.max(1, b.Z | 0);
+      D *= Math.sqrt(za * zb);
+    }
+    if (knobs.bondMorseOrder) D *= (order || 1);          // step-0090 차수별: 다중 결합(이중·삼중)일수록 깊은 우물(D ∝ 차수·게이트 0 → 차수 무시·회귀 0)
+    return D;
+  }
+
   function bondSpringPE(sim) {
     const ks = (sim.knobs && sim.knobs.kBondSpring) || 0;
     if (!ks || !sim.bonds || !sim.bonds.length) return 0;
     const req = sim.knobs.bondReq || 4;
     const morse = sim.knobs.bondMorse || 0;              // Morse PE(step-0074, 0 → 조화·과거 비트 동일)
-    const D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;
+    const alpha = sim.knobs.bondMorseA || 1;
     const A = sim.atoms;
     let u = 0;
     for (const e of sim.bonds) {
       const a = A[e[0]], b = A[e[1]];
+      const D = morseD(sim.knobs, a, b, e[3]);           // step-0089 종류별 D + step-0090 차수별(게이트 0 → 균일 bondMorseD)
       const dx = minImage(b.rx - a.rx, sim.W), dy = minImage(b.ry - a.ry, sim.H);
       const r = Math.sqrt(dx * dx + dy * dy);
       if (morse) { const w = 1 - Math.exp(-alpha * (r - req)); u += D * w * w; }  // Morse U=D(1−e^{−α(r−r₀)})²
@@ -338,5 +353,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, ledger, minImage, hashState };
+  return { C, RYDBERG, H_PLANCK, mulberry32, mass, binding, bindingDelta, pairingDelta, levelE, levelEZ, photonLambda, coulombPE, repulsePE, pauliPE, vdwPE, bondSpringPE, bondAnglePE, gravityPE, morseD, ledger, minImage, hashState };
 });
