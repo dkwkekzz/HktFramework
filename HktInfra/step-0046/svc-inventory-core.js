@@ -55,7 +55,13 @@ class InventoryService {
     //   dedup 없이는 이중 mint(dupe). 요청에 실린 producer-local reqId 를 seenReqs 에 기록해 *최초 1회만* 처리(0023 persist recvSeqs 의 요청 홉 판).
     //   give/reconcile 는 자체 멱등(owner/ledger 체크)이나 일관성 위해 같은 dedup 경로. OFF(reqId 없음)면 분기 휴면 = 0036 비트 동일.
     this.busResendReq = opts.busResendReq || false;  // ON 이면 reqId 실린 요청을 dedup(seenReqs). OFF = 0036 비트 동일(dedup 0).
-    this.seenReqs = new Set();    // 처리한 요청 reqId(busResendReq ON·reqId 실릴 때만) — 재발행 중복 멱등 폐기(pickup 이중 mint 0).
+    this.seenReqs = new Set();    // 처리한 요청 dedup 키(busResendReq ON·reqId 실릴 때만) — 재발행 중복 멱등 폐기(pickup 이중 mint 0). 키=reqId(단일 네임스페이스) 또는 (producer,reqId) 복합(이 step).
+    // ── 다중 게이트웨이 producer 네임스페이스(이 step·busProducerNs) — 0042 §9 ① 해소. ──
+    //   0037 reqId 는 *producer-local* 단조 카운터다(게이트웨이마다 0,1,2…). 단일 게이트웨이면 충분하나, SPINE 의 "게이트웨이 군"처럼 *다중* 게이트웨이가 같은 가방에 발신하면
+    //   reqId 네임스페이스가 겹친다(gw1 reqId k vs gw2 reqId k) → 단일 네임스페이스 seenReqs 는 gw2 의 k 를 gw1 의 *이미 처리한 k* 로 오인해 폐기(둘째 producer 요청 손실).
+    //   해법: dedup 키를 (producer, reqId) 복합키로 → 같은 reqId 라도 producer 다르면 별개. 가방은 버스 너머라 발신 게이트웨이를 구별 못 하므로(은닉) 요청에 실린 producer 태그가 유일한 네임스페이스 신호.
+    //   busProducerNs OFF(또는 producer 미태깅·단일 게이트웨이)면 키=bare reqId = 0045 비트 동일(복합키 미사용). 0044 의 *소비자* min-워터마크의 *producer 측* 거울.
+    this.busProducerNs = opts.busProducerNs || false;
     // ── seenReqs 유계화(이 step·busSeenBound) — 게이트웨이 prune 워터마크(svc.item.seen)로 dedup 집합 가지치기(0040/0041 §9 해소). ──
     //   게이트웨이가 inAcked(=inBuffer prune 프런티어)를 통보 → 그 이하 reqId 는 영영 재발행 0 → seenReqs 에서 안전히 제거(미-재출현이라 dupe 보존). busAck 의 역방향 워터마크.
     this.busSeenBound = opts.busSeenBound || false;  // ON 이면 svc.item.seen 수신 시 seenReqs 가지치기. OFF = 0041 비트 동일(가지치기 0·무계).
@@ -112,9 +118,11 @@ class InventoryService {
     // 요청 dedup(이 step·busResendReq) — 게이트웨이 재발행이 gap 전 도달분도 다시 보내므로 reqId 로 *최초 1회만* 처리(pickup 이중 mint 0).
     //   reqId 없으면(busResendReq OFF·재발행 미사용) 분기 휴면 = 0036 비트 동일. 멱등(Set dedup) — 재발행 무해.
     if (this.busResendReq && p.reqId !== undefined) {
-      if (this.seenReqs.has(p.reqId)) return;   // 이미 처리(재발행 중복) — 폐기
-      this.seenReqs.add(p.reqId);
-      if (this.seenReqs.size > this.seenReqsPeak) this.seenReqsPeak = this.seenReqs.size;   // 최대 크기 계측(이 step) — 유계화 증거
+      // dedup 키 — busProducerNs ON·producer 태깅이면 (producer,reqId) 복합키로 producer 네임스페이스 분리(이 step). OFF/미태깅이면 bare reqId = 0045 비트 동일.
+      const key = (this.busProducerNs && p.producer !== undefined) ? p.producer + ' ' + p.reqId : p.reqId;
+      if (this.seenReqs.has(key)) return;   // 이미 처리(재발행 중복·또는 같은 (producer,reqId)) — 폐기
+      this.seenReqs.add(key);
+      if (this.seenReqs.size > this.seenReqsPeak) this.seenReqsPeak = this.seenReqs.size;   // 최대 크기 계측 — 유계화 증거
     }
     if (p.type === 'item_reconcile') {
       // id-reconciliation(이 step·mintRecon) — 클라가 믿는 아이템 id 목록을 받아 원장에 없는 것을 re-mint(새 id).

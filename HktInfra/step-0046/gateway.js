@@ -7,7 +7,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 
 // ── [엣지] 게이트웨이 — 0009 그대로(replicas 를 생성자 인자로 받게만 조정 — 토폴로지 빌더가 단일 경로로 배선) ──
 class Gateway {
-  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false, busSeenBound = false, busMinWm = false) {
+  constructor(zoneAddrs, replicas = [], inventoryAddr = null, chatAddr = null, busAddr = null, busResendReq = false, busWindow = 0, busAck = false, busOutAck = false, busSeenBound = false, busMinWm = false, busProducerNs = false) {
     this.zones = zoneAddrs.slice();      // 권위 존 주소(enter 라우팅 = zones[0])
     this.replicas = replicas.slice();    // 추종자(shadow) 주소 — failover 시 입력 미러 대상(0009=빈 배열 → 비트 동일)
     this.byClient = new Map();
@@ -54,6 +54,7 @@ class Gateway {
     this.seenWmSent = 0;                  // 발행한 seen 워터마크 누적(0042·계측)
     // ── 다중 소비자 min-워터마크(이 step·busMinWm) — 게이트웨이는 결과의 *한* 소비자다(둘째 = ranking). ON 이면 결과 ack 에 consumer:'gateway' 태깅 → 가방이 소비자별 frontier 로 min 계산. ──
     this.busMinWm = busMinWm;             // ON 이면 svc.item.out.ack 에 consumer 태깅. OFF = 0043 비트 동일(태깅 0·단일 워터마크).
+    this.busProducerNs = busProducerNs;   // ON 이면 svc.item 요청에 producer(=게이트웨이 주소) 태깅 → 다중 게이트웨이 reqId 네임스페이스 분리(이 step). OFF = 0045 비트 동일(미태깅).
   }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
@@ -65,7 +66,7 @@ class Gateway {
   // svc.item 요청 발신(이 step·busResendReq) — _svcSend 위 얇은 래퍼. ON 이면 reqId 태깅 + inBuffer 보관(버스 복구 재발행 소스).
   //   OFF 면 ev 무변형 → _svcSend 그대로 = 0036 비트 동일(reqId 없음·보관 0). 버스 OFF(직접 모드)면 보관 안 함(재발행 무의미).
   _itemReq(ev) {
-    if (this.busResendReq) ev = { ...ev, reqId: this.inSeq++ };   // 요청 dedup 키(producer-local 단조) — 가방이 재발행 중복을 멱등 폐기
+    if (this.busResendReq) { ev = { ...ev, reqId: this.inSeq++ }; if (this.busProducerNs) ev.producer = this.addr; }   // 요청 dedup 키(producer-local 단조) — 가방이 재발행 중복을 멱등 폐기. busProducerNs ON 이면 producer(=게이트웨이 주소) 태깅 → 다중 게이트웨이 reqId 네임스페이스 분리(이 step). OFF 면 미태깅 = 0045 비트 동일.
     const sent = this._svcSend('svc.item', this.inventory, ev);
     if (sent && this.busResendReq && this.bus) {
       this.inBuffer.push(ev);   // 버스 복구 시 재발행 — gap 에 떨군 요청을 다시 가방에 도달시킨다

@@ -1,11 +1,11 @@
-// HktInfra step-0046 — 소비자 lease/축출 (영구 뒤처진 소비자를 min 정의역에서 떨궈 outBuffer 무계 보유 해소·busConsumerLease).
-//   0044 min-워터마크(busMinWm)는 outBuffer 를 *모든 기대 소비자 frontier 의 최소(min)*까지만 가지친다 — 자기-크기조정이 *가장 느린* 소비자에 묶인다(0044 §9 대가).
-//   한 소비자(ranking)가 *영영* 죽어 ack 가 끊기면 min 이 그 frontier 에 고정 → outBuffer 가 생산량(run-length)에 비례해 무계 성장한다.
-//   lease: 가방이 각 소비자의 *침묵 길이*(마지막 ack 시점의 생산자 frontier 대비 전진폭)를 추적 → leaseSpan 이상 침묵한 소비자를 *축출*(evicted Set·min 정의역 제외) → min 이 산 소비자만으로 전진 → 버퍼 drain.
-//   닿는 박스: svc-inventory-core.js(lease 상태·crash 리셋)·svc-inventory-bus.js(_onOutAck 침묵 sweep·축출·min 정의역 제외)·topo-build.js(busConsumerLease/leaseSpan 배선)·topology.js(rankDie 영구 다운 자극). busConsumerLease=0 = 0044 비트 동일.
+// HktInfra step-0046 — 다중 게이트웨이 producer 네임스페이스 (가방 요청 dedup 을 (producer,reqId) 복합키로·busProducerNs·0042 §9 ① 해소).
+//   0037 reqId 는 *producer-local* 단조 카운터(게이트웨이마다 0,1,2…)다 — 단일 게이트웨이면 충분하나, SPINE "게이트웨이 군"처럼 *다중* 게이트웨이가 같은 가방에 발신하면
+//   reqId 네임스페이스가 겹친다(gw1 reqId k vs gw2 reqId k) → 단일 네임스페이스 seenReqs 가 gw2 의 k 를 gw1 의 *이미 처리한 k* 로 오인해 폐기(둘째 producer 요청 손실).
+//   해법: dedup 키를 (producer,reqId) 복합키로 분리 — 가방은 버스 너머라 발신 게이트웨이를 구별 못 하므로(은닉) 요청에 실린 producer 태그가 유일한 네임스페이스 신호. 0044 *소비자* min-워터마크의 *producer 측* 거울.
+//   닿는 박스: gateway.js(svc.item 에 producer 태깅)·svc-inventory-core.js(seenReqs 복합키 dedup)·topo-build.js(busProducerNs 배선)·topology.js(producerInject 둘째 producer 자극). busProducerNs=0 = 0045 비트 동일.
 //
-// 척추(SPINE.md) 준수: busConsumerLease=0(기본)→0044 비트 동일(reg 0·evicted 항상 빔 → min 정의역 무변경)·존 tick 밖 순수 반응형 제어 평면(신성한 tick 보존)·headless 원격 검증 무변경.
-//   lease ON 이면 죽은 소비자 축출 후 outBuffer peak 가 run-length 무관(유계)·산 소비자 오축출 0·원장 권위 무영향. 동결 단위는 step-0046/ 디렉토리 통째.
+// 척추(SPINE.md) 준수: busProducerNs=0(기본)→0045 비트 동일(reg 0·producer 미태깅·키=bare reqId)·존 tick 밖 제어 평면(신성한 tick 보존)·headless 원격 검증 무변경.
+//   ON 이면 둘째 게이트웨이 reqId 충돌이 분리돼 요청 손실 0(minted 보존)·원장 권위 무영향. 동결 단위는 step-0046/ 디렉토리 통째.
 'use strict';
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;

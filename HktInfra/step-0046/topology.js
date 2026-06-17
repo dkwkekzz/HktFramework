@@ -138,6 +138,10 @@ function run(opts) {
     //   이후 ranking 은 결과를 못 받아 ack 가 끊긴다 → consumerWm 고정 → min-워터마크가 그 frontier 에 묶여 outBuffer 무계 성장(busConsumerLease OFF). lease ON 이면 가방이 leaseSpan 뒤처짐 후 축출 → drain.
     //   busReSub unsub 경로(0033) 재사용 — 정규 제어 평면(시드 로그의 일부 = 결정론). 미설정이면 휴면(reg 0 불변·멀티프로세스 E2E 는 미주입).
     if (opts.rankDie && ranking && i + 1 === opts.rankDie) net.send('ranking', 'bus', { type: 'unsub', topic: 'svc.item.out' });
+    // 다중 게이트웨이 producer 자극(이 step·producerInject) — 둘째 게이트웨이(gateway2)가 버스 seam 에 svc.item 요청을 발행(producer-local reqId 가 gateway1 과 겹침).
+    //   가방은 버스 너머라 발신 게이트웨이를 구별 못 한다(은닉) — producer 태그가 유일한 네임스페이스 신호. op={at,reqId,avatar,producer}. 정규 svc.item pub(실제 둘째 게이트웨이가 발신할 메시지와 동형).
+    //   busProducerNs OFF 면 가방이 reqId 만으로 dedup → gateway1 의 같은 reqId 와 충돌(둘째 producer 요청 폐기·손실). ON 이면 (producer,reqId) 분리 → 충돌 0. 미설정이면 휴면(reg 0 불변).
+    if (opts.producerInject && bus) for (const op of opts.producerInject) if (op.at === i + 1) net.send('gateway', 'bus', { type: 'pub', topic: 'svc.item', ev: { type: 'item_req', op: 'pickup', avatar: op.avatar, reqId: op.reqId, producer: op.producer } });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
