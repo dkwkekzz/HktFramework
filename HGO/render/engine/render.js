@@ -88,6 +88,14 @@
 //   로 운동량을 보이는데 원자는 0이었다). 이는 ⛔blocked 인 *온도색(L-T)* 과 **다르다** — 열 의미화(흑체색)가 아니라
 //   *순수 운동 방향*(광자 L-recoil 의 원자판). 속도 방향 = 자취 방향(읽기), 길이 ∝ |v|/maxV(측정 정규화). 톤은 중립
 //   냉백(hue author 0 — 온도색 아님). |v|=0(정지)이면 자취 0(author 0). 색조(Z)·밝기(x)·고리(Q)·코어(N)와 직교 글리프.
+//
+// 렌즈 L-population: 시뮬이 원자에 싣는 *출신 집단* c0(어느 별/우물/세대 풀에서 왔나, step-0081 2세대 별·0086 중력
+//   병합 풀·0093 성간 수송)을 원자 *오라*(구 아래 부드러운 그룹 색조 디스크)로 읽는다. 두 집단은 위치로 *떨어진 두
+//   덩이*로 보이나 — 어느 원자가 *어느 출신*인지(집단 라벨)는 색 채널이 없었다(실 스냅샷 재감사가 atom-0100 에서 잡은
+//   미독 per-atom 채널 — 분자 색조 L-molecule 의 *원자판*: 거기선 결합 간선의 연결 성분, 여기선 sim 이 실은 출신 라벨).
+//   c0 를 골든각 그룹 색조로 *읽어*(L-molecule moleculeHue 와 동일 사상 — 측정 라벨의 구분, 종류별 색 박기 0) 같은
+//   집단은 같은 오라·다른 집단은 다른 오라. 색조(Z)·밝기(x)·고리(Q)·코어(N)·자취(v)와 직교한 *별도 글리프*(배경 오라).
+//   단일 집단(라벨 1종)이거나 c0 없는 장면(대부분)은 오라 0 — 시뮬에 없는 구분을 author 하지 않는다(RENDER §3).
 ;(function (root, factory) {
   const mod = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = mod;
@@ -462,6 +470,26 @@
     return ((compId * 0.61803398875) % 1 + 1) % 1;
   }
 
+  // ── 렌즈 L-population: 원자 출신 집단 c0 → 그룹 색조 오라 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // 원자 배열에서 *출신 집단 라벨*(c0 — sim 이 2세대 별/병합 풀/수송 장면서 실음)을 *측정*한다(읽기 — 분포 author 0).
+  //   c0 가 없는 원자(대부분 장면)는 제외. 반환 {labels(정렬된 유니크 라벨), count(집단 수)}. 단일/없음이면 count≤1.
+  function measurePopulations(atoms) {
+    const set = new Set();
+    for (const a of atoms) { if (a.c0 !== undefined && a.c0 !== null) set.add(a.c0 | 0); }
+    const labels = [...set].sort((p, q) => p - q);
+    return { labels, count: labels.length };
+  }
+
+  // 출신 집단 라벨 c0 → 오라 색조 ∈[0,1)(presentation 사상 — moleculeHue 와 동형 그룹 구분 채널, magnitude 아님).
+  //   라벨을 측정 순위로 매겨 황금각(0.618…) 회전 색조로(인접 집단 색 최대 분리 — 종류별 색 박기 0, 측정 라벨의 구분).
+  //   단일 집단(count≤1)이거나 c0 없음(undefined)·미측정 라벨이면 null → 오라 0(시뮬에 없는 구분 author 0, RENDER §3).
+  function populationHue(c0, pop) {
+    if (!pop || !(pop.count > 1) || c0 === undefined || c0 === null) return null;
+    const idx = pop.labels.indexOf(c0 | 0);
+    if (idx < 0) return null;
+    return ((idx * 0.61803398875) % 1 + 1) % 1;
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -483,6 +511,7 @@
     const maxQ = measureMaxAbsCharge(sim.atoms);                   // 이온 고리 정규화 기준(측정 |전하| 최댓값 — L-ion)
     const nRange = measureNRange(sim.atoms);                       // 동위원소 코어 정규화 기준(측정 N 범위 — L-isotope)
     const maxV = measureMaxSpeed(sim.atoms);                       // 운동 자취 정규화 기준(측정 최대 속력 — L-velocity)
+    const pop = measurePopulations(sim.atoms);                     // 출신 집단 측정(c0 — L-population, 단일/없으면 오라 0)
     const velWorld = STREAK_FRAC * Math.max(sim.W, sim.H);         // 운동 자취 길이 창(장면 크기 비례 — 줄기와 동일 창)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: 0 }, cam);
@@ -502,7 +531,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld));
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop));
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -519,9 +548,22 @@
   //   렌즈 L-ion: 전하 Q=Z−e(이온화)를 *테두리 고리*로 읽기 — 양이온 따뜻·음이온 차가움(발산)·중성 고리 0. 색조·밝기와 직교.
   //   렌즈 L-isotope: 중성자 수 N(동위원소)을 *안쪽 동심 코어*로 읽기 — 중성자 많을수록 밝은 코어. 단일 동위원소면 코어 0.
   //   렌즈 L-velocity: 속도 벡터(vx,vy)를 *운동 자취*로 읽기 — 머리=현 위치·꼬리=−속도, 길이 ∝ |v|. 정지면 자취 0. 온도색 아님(중립).
-  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ, nRange, vel) {
+  //   렌즈 L-population: 출신 집단 c0(어느 별/풀 출신)을 *배경 오라*로 읽기(골든각 그룹 색조 — 같은 집단 동색). 단일/c0 없으면 오라 0. 모든 채널과 직교.
+  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ, nRange, vel, popHue) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
+    // 렌즈 L-population: 출신 집단 c0 → 그룹 색조 오라(구 *아래* 부드러운 디스크 — 맨 바닥 배경 글리프). 같은 집단 동색·다른 집단 이색.
+    //   popHue=null(단일 집단·c0 없음)이면 안 그림 — 시뮬에 없는 출신 구분을 author 하지 않는다(RENDER §3). 색조(Z)·자취(v) 등과 직교.
+    if (popHue !== null && popHue !== undefined) {
+      const [pr_, pg_, pb_] = hsvToRgb(popHue, 0.6, 0.95);
+      const aR = r * 2.4;                                          // 오라 반경(구보다 넓게 — 영역 톤)
+      const ga = ctx.createRadialGradient(pr.sx, pr.sy, r * 0.7, pr.sx, pr.sy, aR);
+      ga.addColorStop(0, `rgba(${pr_},${pg_},${pb_},0.20)`);       // 집단 색조 — 옅은 영역 오라
+      ga.addColorStop(1, `rgba(${pr_},${pg_},${pb_},0)`);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = ga;
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, aR, 0, 6.2832); ctx.fill();
+    }
     // 렌즈 L-velocity: 운동 자취(속도 방향, 측정 |v|/maxV 길이) — 구 아래 깔아 진행 방향을 보임. 톤 중립 냉백(온도색 아님·hue author 0).
     //   정지(|v|=0)면 vel=null → 자취 0(시뮬에 없는 운동을 author 하지 않는다, RENDER §3). 광자 L-recoil 줄기와 동형.
     if (vel) {
@@ -744,5 +786,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue };
 });

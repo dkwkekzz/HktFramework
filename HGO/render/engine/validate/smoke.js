@@ -387,6 +387,29 @@ function run() {
   const eNone = R3.escapeReadout(undefined), eZero = R3.escapeReadout({ E: 0, px: 0, py: 0, count: 0 });
   checks.push({ name: 'L-escape: 탈출 없음/count=0 → 게이지 0(author 0)', pass: eNone === null && eZero === null, value: eNone === null && eZero === null ? 'null' : 'BAD' });
 
+  // ⑳ L-population(렌즈 assert): 2세대 별/풀 장면(step-0081)은 원자에 *출신 집단* c0(어느 별/우물 출신)을 싣는다.
+  //    두 집단은 위치로 *떨어진 두 덩이*로 보이나, 어느 원자가 *어느 출신*인지(집단 라벨)는 색 채널이 없었다(미독 —
+  //    분자 색조 L-molecule 의 원자판: 거기선 연결 성분, 여기선 sim 이 실은 출신 라벨). 렌더는 c0 를 *읽어* 골든각
+  //    그룹 색조 오라로 — 같은 집단 동색·다른 집단 이색. 단일 집단/c0 없으면 오라 0(author 0).
+  const sceneP = SC.SCENES['step-0081'];
+  const simP = S.createSim(sceneP.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simP, sceneP.ticks);
+  const pop = R3.measurePopulations(simP.atoms);
+  checks.push({ name: 'L-population: 시뮬이 출신 집단 c0 실음(시뮬 선행)', pass: pop.count >= 2, value: `집단 ${pop.count}·라벨[${pop.labels.join(',')}]` });
+  // 다른 집단 → 다른 오라 색조(읽기 충실 — 출신 구분)
+  const hP0 = R3.populationHue(pop.labels[0], pop), hP1 = R3.populationHue(pop.labels[1], pop);
+  const popDistinct = hP0 !== null && hP1 !== null && Math.abs(hP0 - hP1) > 1e-6;
+  checks.push({ name: 'L-population: 다른 집단 → 다른 색조(출신 구분)', pass: popDistinct, value: `hue ${hP0 === null ? 'null' : hP0.toFixed(2)}≠${hP1 === null ? 'null' : hP1.toFixed(2)}` });
+  // 같은 집단(같은 c0) → 같은 색조(읽기 충실 — 그룹 동색)
+  const sameHue = R3.populationHue(pop.labels[0], pop) === R3.populationHue(pop.labels[0], pop);
+  checks.push({ name: 'L-population: 같은 집단 → 같은 색조(그룹 동색)', pass: sameHue, value: sameHue ? 'ok' : 'BAD' });
+  // author 0: 단일 집단(count≤1) 또는 c0 없음(undefined) → 오라 null
+  const popSingle = R3.measurePopulations([{ c0: 0 }, { c0: 0 }]);
+  const single0 = R3.populationHue(0, popSingle) === null;
+  const undef0 = R3.populationHue(undefined, pop) === null;
+  const noC0 = R3.measurePopulations([{ Z: 6 }, { Z: 8 }]).count === 0;   // c0 없는 장면 → 집단 0(오라 author 0)
+  checks.push({ name: 'L-population: 단일 집단/c0 없음 → 오라 0(author 0)', pass: single0 && undef0 && noC0, value: single0 && undef0 && noC0 ? 'null' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
