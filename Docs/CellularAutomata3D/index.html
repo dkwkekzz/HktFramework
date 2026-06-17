@@ -78,7 +78,21 @@
   <div class="ruletag" id="ruletag">—</div>
   <div class="desc" id="ruledesc"></div>
 
+  <div id="customrow" style="display:none; margin-top:8px;">
+    <input type="text" id="customrule" placeholder="예: 9-26/5-7,12,13,15/5/M"
+      style="width:100%; background:#0f151d; color:var(--text); border:1px solid var(--border);
+             border-radius:7px; padding:7px 8px; font-family:ui-monospace,monospace; font-size:12px;" />
+    <div class="desc" style="margin-top:4px;">형식: <code>Survival / Birth / States / N</code> ·
+      범위는 <code>13-26</code>, 목록은 <code>5,6,7</code> · N=M(무어 26)/N(폰노이만 6) · 끝에 <code>/W</code>=wrap</div>
+    <button id="apply" style="width:100%; margin-top:6px;">▶ 이 규칙 적용</button>
+  </div>
+
   <div class="row" style="margin-top:12px;">
+    <label>Wrap(토러스)</label>
+    <input type="checkbox" id="wrap" style="accent-color:var(--accent); width:16px; height:16px;" />
+  </div>
+
+  <div class="row">
     <label>Color</label>
     <select id="color">
       <option value="state">By state (decay)</option>
@@ -134,46 +148,65 @@
 
 // ---- 규칙 프리셋 ----------------------------------------------------------
 // survival / birth 는 "포함되는 이웃 수" 의 명시 목록.
+// 정의는 Softology(Jason Rampe) 블로그 및 재구현 리포에서 검증한 값.
+//   참고: https://softologyblog.wordpress.com/2019/12/28/3d-cellular-automata-3/
 const PRESETS = {
-  "445 (clean crystal)": {
+  "445": {
     survival: [4], birth: [4], states: 5, n: 'M',
-    desc: "가장 유명한 3D CA. 단순 규칙에서 깔끔한 결정질 구조가 자라난다."
-  },
-  "Clouds 1": {
-    survival: range(13,26), birth: [13,14,17,18,19], states: 2, n: 'M',
-    desc: "부드럽게 응결·소멸을 반복하는 구름 같은 거동."
+    desc: "가장 유명한 3D CA (4/4/5/M). 초반 정체 후 글라이더와 결정질 구조가 자라난다."
   },
   "Amoeba": {
     survival: range(9,26), birth: [5,6,7,12,13,15], states: 5, n: 'M',
-    desc: "꿈틀대며 퍼져나가는 아메바형 유기적 구조."
-  },
-  "Builder / Architecture": {
-    survival: [2,6,9], birth: [4,6,8,9], states: 10, n: 'M',
-    desc: "층층이 쌓아 올리는 구조물형 성장."
+    desc: "9-26/5-7,12,13,15/5/M. 꿈틀대는 팔로 천천히 퍼지는 유기적 구조."
   },
   "Pyroclastic": {
     survival: range(4,7), birth: range(6,8), states: 10, n: 'M',
-    desc: "끓어오르는 화쇄류처럼 격렬하게 증식/붕괴."
+    desc: "4-7/6-8/10/M. 화산 화쇄류처럼 끓어오르며 팽창."
   },
-  "Slow Decay": {
+  "Clouds 1": {
+    survival: range(13,26), birth: [13,14,17,18,19], states: 2, n: 'M',
+    desc: "13-26/13,14,17-19/2/M. 응결·소멸을 반복하는 구름."
+  },
+  "Architecture": {
+    survival: [4,5,6], birth: [3], states: 2, n: 'M',
+    desc: "4-6/3/2/M. 안정적인 건축물형 구조."
+  },
+  "Construction": {
+    survival: [0,1,2,4].concat(range(6,11)).concat(range(13,17)).concat(range(21,26)),
+    birth: [9,10,16,23,24], states: 2, n: 'M',
+    desc: "0-2,4,6-11,13-17,21-26/9,10,16,23,24/2/M. 복잡한 구조를 끝없이 짓는다."
+  },
+  "Builder 1": {
+    survival: [2,6,9], birth: [4,6,8,9], states: 10, n: 'M',
+    desc: "2,6,9/4,6,8,9/10/M. 층층이 쌓아 올리는 구조물형 성장."
+  },
+  "Builder 2": {
+    survival: [5,6,7], birth: [1], states: 2, n: 'M',
+    desc: "5-7/1/2/M. 단순 birth 로 골격을 세워나간다."
+  },
+  "Slow Decay 1": {
+    survival: range(13,26), birth: range(10,26), states: 3, n: 'M',
+    desc: "13-26/10-26/3/M. 빠르게 채우고 천천히 부식된다."
+  },
+  "Slow Decay 2": {
     survival: [1,4,8,11].concat(range(13,26)), birth: range(13,26), states: 5, n: 'M',
-    desc: "느리게 부식되며 잔해가 길게 남는다."
+    desc: "1,4,8,11,13-26/13-26/5/M. 잔해가 길게 남는 느린 부식."
   },
-  "Crystal Growth (vonNeumann)": {
+  "Crystal Growth 1 (vonNeumann)": {
     survival: range(0,6), birth: [1,3], states: 2, n: 'N',
-    desc: "6-이웃 규칙. 눈 결정처럼 축을 따라 뻗어나간다."
+    desc: "0-6/1,3/2/N. 6-이웃. 눈 결정처럼 축을 따라 뻗어나간다."
+  },
+  "Crystal Growth 2 (vonNeumann)": {
+    survival: [1,2], birth: [1,3], states: 5, n: 'N',
+    desc: "1,2/1,3/5/N. 잔상을 남기며 자라는 6-이웃 결정."
+  },
+  "Pulse Waves": {
+    survival: [3], birth: [1,2,3], states: 10, n: 'M',
+    desc: "3/1-3/10/M. 파동이 퍼져나가는 펄스 구조."
   },
   "Spiky Growth": {
     survival: [0,1,2,3,7,8,9,11,12,13,18,21,22,24,26], birth: [13,17,20,21,22,23,24,25,26], states: 4, n: 'M',
     desc: "가시처럼 날카로운 돌기를 뻗으며 성장."
-  },
-  "Coral": {
-    survival: range(5,8), birth: [6,7,9,12], states: 4, n: 'M',
-    desc: "산호처럼 분기하며 천천히 자라는 구조."
-  },
-  "Stable / Glider-ish (445 wrap)": {
-    survival: [4], birth: [4], states: 5, n: 'M', wrap: true,
-    desc: "445 규칙을 순환 경계(토러스)에서 — 끝없이 떠도는 잔해."
   },
 };
 
@@ -363,14 +396,52 @@ let stepsPerSec = 8;
 let acc = 0, last = performance.now();
 let fpsT = last, fpsN = 0;
 
+let currentRule = null;
+
+// 프리셋 이름으로 적용
 function applyRule(name) {
-  const rule = PRESETS[name];
-  ca.setRule(rule);
-  document.getElementById('ruletag').textContent = ruleString(rule);
-  document.getElementById('ruledesc').textContent = rule.desc;
+  if (name === '__custom__') {
+    document.getElementById('ruledesc').textContent = '커스텀 규칙 문자열을 입력하고 적용하세요.';
+    return;
+  }
+  setActiveRule(PRESETS[name]);
+}
+
+// 규칙 객체를 실제로 활성화 (wrap 체크박스 반영)
+function setActiveRule(rule) {
+  currentRule = Object.assign({}, rule, { wrap: document.getElementById('wrap').checked });
+  ca.setRule(currentRule);
+  document.getElementById('ruletag').textContent = ruleString(currentRule);
+  document.getElementById('ruledesc').textContent = rule.desc || '커스텀 규칙.';
   ca.seed();
   updateInstances(ca);
   refreshStats();
+}
+
+// "S/B/States/N[/W]" 문자열 → 규칙 객체. 실패 시 throw.
+function parseRuleString(str) {
+  const parts = str.trim().split('/').map(s => s.trim());
+  if (parts.length < 4) throw new Error('형식은 S/B/States/N 입니다');
+  const parseList = (txt) => {
+    const out = [];
+    if (txt === '' || txt === '∅') return out;
+    txt.split(',').forEach(tok => {
+      tok = tok.trim();
+      const m = tok.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); }
+      else if (/^\d+$/.test(tok)) out.push(+tok);
+      else throw new Error('이웃 수 파싱 실패: ' + tok);
+    });
+    return out;
+  };
+  const survival = parseList(parts[0]);
+  const birth = parseList(parts[1]);
+  const states = parseInt(parts[2], 10);
+  const nl = parts[3].toUpperCase();
+  if (!(states >= 2)) throw new Error('States 는 2 이상');
+  if (nl !== 'M' && nl !== 'N') throw new Error('Neighbourhood 는 M 또는 N');
+  const wrap = parts.length >= 5 && parts[4].toUpperCase() === 'W';
+  return { survival, birth, states, n: nl, wrap, desc: '커스텀 규칙: ' + str.trim() };
 }
 
 function ruleString(r) {
@@ -430,14 +501,39 @@ const ruleSel = document.getElementById('rule');
 Object.keys(PRESETS).forEach(name => {
   const o = document.createElement('option'); o.value = name; o.textContent = name; ruleSel.appendChild(o);
 });
-ruleSel.addEventListener('change', () => applyRule(ruleSel.value));
+const customOpt = document.createElement('option');
+customOpt.value = '__custom__'; customOpt.textContent = '✎ Custom rule…'; ruleSel.appendChild(customOpt);
+
+const customRow = document.getElementById('customrow');
+ruleSel.addEventListener('change', () => {
+  customRow.style.display = ruleSel.value === '__custom__' ? 'block' : 'none';
+  applyRule(ruleSel.value);
+});
+
+document.getElementById('apply').addEventListener('click', () => {
+  try {
+    const rule = parseRuleString(document.getElementById('customrule').value);
+    document.getElementById('wrap').checked = rule.wrap;   // /W 동기화
+    setActiveRule(rule);
+  } catch (e) {
+    document.getElementById('ruledesc').textContent = '⚠ ' + e.message;
+  }
+});
+document.getElementById('customrule').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('apply').click();
+});
+
+document.getElementById('wrap').addEventListener('change', () => {
+  if (currentRule) setActiveRule(currentRule);
+});
 
 document.getElementById('color').addEventListener('change', e => {
   colorMode = e.target.value; updateInstances(ca);
 });
 document.getElementById('size').addEventListener('change', e => {
   const N = parseInt(e.target.value, 10);
-  ca.resize(N); rebuildMesh(N); applyRule(ruleSel.value);
+  ca.resize(N); rebuildMesh(N);
+  if (currentRule) setActiveRule(currentRule); else applyRule(ruleSel.value);
 });
 const speedEl = document.getElementById('speed');
 speedEl.addEventListener('input', e => {
