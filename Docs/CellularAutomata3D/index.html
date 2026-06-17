@@ -153,7 +153,7 @@
 const PRESETS = {
   "445": {
     survival: [4], birth: [4], states: 5, n: 'M',
-    desc: "가장 유명한 3D CA (4/4/5/M). 초반 정체 후 글라이더와 결정질 구조가 자라난다."
+    desc: "가장 유명한 3D CA (4/4/5/M). 글라이더가 생겼다 점차 소멸하는 규칙 — 랜덤 시드에선 결국 사라진다(정상)."
   },
   "Amoeba": {
     survival: range(9,26), birth: [5,6,7,12,13,15], states: 5, n: 'M',
@@ -165,6 +165,7 @@ const PRESETS = {
   },
   "Clouds 1": {
     survival: range(13,26), birth: [13,14,17,18,19], states: 2, n: 'M',
+    seed: { rf: 0.5, p: 0.6 },   // 큰 초기 덩어리가 있어야 유지된다
     desc: "13-26/13,14,17-19/2/M. 응결·소멸을 반복하는 구름."
   },
   "Architecture": {
@@ -186,6 +187,7 @@ const PRESETS = {
   },
   "Slow Decay 1": {
     survival: range(13,26), birth: range(10,26), states: 3, n: 'M',
+    seed: { rf: 0.38, p: 0.6 },
     desc: "13-26/10-26/3/M. 빠르게 채우고 천천히 부식된다."
   },
   "Slow Decay 2": {
@@ -228,19 +230,23 @@ class CA3D {
   seed() {
     const N = this.N;
     this.cur.fill(0);
-    const r = Math.max(2, Math.floor(N / 9));   // 중앙 시드 반경
+    // 시드 반경/밀도는 규칙별로 다를 수 있다(일부 규칙은 큰 초기 덩어리가 없으면 즉시 소멸).
+    const r = Math.max(2, Math.floor(N * this.seedRF));
     const c = Math.floor(N / 2);
     const alive = this.states - 1;
     for (let z = c - r; z <= c + r; z++)
       for (let y = c - r; y <= c + r; y++)
         for (let x = c - r; x <= c + r; x++)
-          if (Math.random() < 0.34) this.cur[this.idx(x, y, z)] = alive;
+          if (Math.random() < this.seedP) this.cur[this.idx(x, y, z)] = alive;
     this.generation = 0;
   }
 
   setRule(rule) {
     this.states = rule.states;
     this.wrap = !!rule.wrap;
+    // 시드 파라미터(규칙별 override 가능, 기본은 중간 크기의 조밀한 덩어리)
+    this.seedRF = (rule.seed && rule.seed.rf) || 0.2;
+    this.seedP = (rule.seed && rule.seed.p) || 0.5;
     // 빠른 조회용 boolean 테이블 (이웃 수 0..26)
     this.surv = new Uint8Array(27);
     this.brth = new Uint8Array(27);
@@ -313,16 +319,17 @@ host.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0c10);
-scene.fog = new THREE.FogExp2(0x0a0c10, 0.012);
+// 옅은 안개 — 너무 강하면 셀이 배경(검정)으로 묻힌다. 거리 대비 약하게.
+scene.fog = new THREE.FogExp2(0x0a0c10, 0.003);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(1, 1.4, 0.8); scene.add(key);
-const rim = new THREE.DirectionalLight(0x88aaff, 0.4); rim.position.set(-1, -0.5, -1); scene.add(rim);
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(1, 1.4, 0.8); scene.add(key);
+const rim = new THREE.DirectionalLight(0x88aaff, 0.5); rim.position.set(-1, -0.5, -1); scene.add(rim);
 
 const geom = new THREE.BoxGeometry(1, 1, 1);
 // InstancedMesh 의 per-instance 색(instanceColor)을 쓰려면 vertexColors 를 켜야 하고,
@@ -345,6 +352,11 @@ function rebuildMesh(N) {
   const max = N * N * N;
   mesh = new THREE.InstancedMesh(geom, mat, max);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // instanceColor 를 풀사이즈로 직접 할당한다. three 의 setColorAt 은 첫 호출 시
+  // new Float32Array(3 * this.count) 로 버퍼를 만드는데, 우리는 count 를 0 으로 두고
+  // 매 프레임 가변 갱신하므로 그대로 두면 0-length 버퍼가 만들어져 모든 색이 버려진다.
+  mesh.instanceColor = new THREE.BufferAttribute(new Float32Array(max * 3), 3);
+  mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
   mesh.count = 0;
   scene.add(mesh);
 
@@ -355,7 +367,7 @@ function rebuildMesh(N) {
   );
   scene.add(wireBox);
 
-  const dist = N * 1.9;
+  const dist = N * 1.5;
   camera.position.set(dist, dist * 0.7, dist);
   controls.target.set(0, 0, 0);
   controls.update();
@@ -383,9 +395,9 @@ function updateInstances(ca) {
           const d = Math.sqrt(dx*dx + dy*dy + dz*dz) / (half * Math.sqrt(3));
           color.setHSL((1 - d) * 0.7, 0.85, 0.55);   // 중심=빨강/노랑 → 외곽=파랑
         } else {
-          // state: 완전 생존=청록 밝게, 쇠퇴할수록 어둡고 보라로
+          // state: 완전 생존=청록, 쇠퇴할수록 보라~분홍으로. 어두워지지 않게 밝기 하한 확보.
           const t = s / alive;
-          color.setHSL(0.5 - (1 - t) * 0.35, 0.8, 0.18 + t * 0.5);
+          color.setHSL(0.55 - (1 - t) * 0.45, 0.85, 0.4 + t * 0.3);
         }
         mesh.setColorAt(n, color);
         n++;
@@ -563,6 +575,7 @@ document.getElementById('reset').addEventListener('click', () => {
 
 // ---- 부트스트랩 -----------------------------------------------------------
 rebuildMesh(ca.N);
+ruleSel.value = 'Pyroclastic';   // 기본은 안정적으로 자라며 구조가 보이는 규칙
 applyRule(ruleSel.value);
 resize();
 requestAnimationFrame(loop);
