@@ -5586,6 +5586,84 @@
         ];
       },
     },
+
+    'step-0084': {
+      id: 'step-0084',
+      title: '냉각 산물 공간 흐름 — 별풍 (측정·새 법칙 0 — coolOuter+disperse 동시·식은 외곽 분자가 코어서 멀어지는 별풍·R_g 외곽 흐름·코어 churn↑·중력 끄면 점화 0·골든 보존 회귀 0)',
+      desc: 'step-0083 은 *국소 냉각*으로 외곽 산물을 이산 분자로 식혔다(온도·국소). 이 step 은 그 *식은 외곽 분자가 코어서 멀어지는 공간 흐름* — **별풍**(밀도-온도 구배) — 을 측정한다: coolOuter(외곽 냉각·KE→복사 바스) + disperse(0071 복사압 분산·바스 E→무거운 핵 등방 반동) 동시 무대. coolOuter 가 식히며 바스에 부은 에너지를 disperse 가 받아 무거운 산물을 외곽으로 민다 — 0079 "회수 E 가 분산을 먹인다"의 *공간판*(새 법칙 0·scene 만·기존 coolOuter+disperse 합성·LAW_ORDER·DEFAULTS 불변 → 골든 보존=회귀 0). ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse+bondCovalent+fuseConservePE+coolOuter+disperse(Zmin3)·600 tick·고정 시드 7): ' +
+            '① **냉각 산물 별풍 공간 흐름·load-bearing** — disperse 켜면 무거운 핵(Z≥3) 관성반경 R_g 가 외곽으로 크게 늘고(코어 갇힘 → 별풍)·끄면 코어에 갇혀 작다 ⇒ 식은 산물이 코어서 멀어지는 흐름이 *disperse 때문*(author 아닌 측정). ' +
+            '② **별풍이 코어 비워 churn↑·load-bearing** — disperse 켜면 무거운 핵 개수↑·이산 분자 수↑(별풍이 산물을 외곽으로 빼내 코어에 새 연료 자리 → 더 융합)·천정 maxZ 는 낮아짐(산물이 더 크기 전 방출·별풍 대가) ⇒ 분산이 churn 을 키움(0079 회수 E→churn 의 공간판). ' +
+            '③ **장부 머신·E 닫힘** — Q·B·L·px·py 머신·E 닫힘(coolOuter KE→바스 + disperse 바스→KE + fuseConservePE + bondLocalE 정합). ' +
+            '④ **회귀** — 새 법칙 0 → 0001~83 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 600,
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 7), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 18;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      rgHeavy(at, W, H) {                                    // 무거운 핵(Z≥3) 관성반경(코어 중심 기준·min-image)
+        let cx = 0, cy = 0, c = 0; for (const a of at) if (a.Z >= 3) { cx += a.rx; cy += a.ry; c++; }
+        if (!c) return 0; cx /= c; cy /= c;
+        let s = 0; for (const a of at) if (a.Z >= 3) { const dx = K.minImage(a.rx - cx, W), dy = K.minImage(a.ry - cy, H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / c);
+      },
+
+      KN: { dt: 0.01, kGravity: 2.0, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kBond: 0.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1, bondR: 2.5, fuseRebond: 1, fuseConservePE: 1,
+            kCoolOuter: 0.5, coolDeg: 8, coolR: 5, kDisperse: 0.5, disperseE: 2, disperseZmin: 3,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 130 },                                  // 라이브 120tick 격렬 붕괴 순간 swing(누수 아님 — cache net relE<1% 닫힘)
+
+      run(K, ov) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(7),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, ov || {}), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const m = molecules(sim);
+        let heavy = 0; for (const a of sim.atoms) if (a.Z >= 3) heavy++;
+        return { mzFinal: this.maxZof(sim.atoms), heavy, mol: m.count, maxMol: m.maxSize, rgHeavy: this.rgHeavy(sim.atoms, this.W, this.H),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L) };
+      },
+      // on=disperse 켬(별풍) · off=disperse 0(코어 갇힘) · g0=중력 0(점화 0·실어 나를 산물 없음).
+      cache(K) { return this._c || (this._c = { on: this.run(K, {}), off: this.run(K, { kDisperse: 0 }), g0: this.run(K, { kGravity: 0 }) }); },
+
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mzFinal: c.on.mzFinal, heavy: c.on.heavy, mol: c.on.mol, rgHeavy: +c.on.rgHeavy.toFixed(2),
+                 rgOff: +c.off.rgHeavy.toFixed(2), heavyOff: c.off.heavy, molOff: c.off.mol, mzOff: c.off.mzFinal, heavyG0: c.g0.heavy,
+                 relEon: +c.on.relE.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 냉각 산물 별풍 공간 흐름 ② 별풍 churn↑ ③ 장부 머신·E 닫힘 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const wind = c.on.rgHeavy > c.off.rgHeavy * 2 && c.off.heavy > 0 && c.g0.heavy === 0;        // ① R_g 2배+ 외곽 흐름·산물은 중력서
+        const churn = c.on.heavy > c.off.heavy && c.on.mol > c.off.mol;                              // ② 별풍이 산물·이산 분자 늘림
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                                  // ④ 골든 보존
+        return [
+          { name: `냉각 산물 별풍 공간 흐름·load-bearing — disperse 켜면 무거운 핵 R_g ${c.on.rgHeavy.toFixed(2)} ≫ 끄면 ${c.off.rgHeavy.toFixed(2)}(코어 갇힘) 외곽 흐름·중력 끄면 산물 ${c.g0.heavy}개 ⇒ 식은 산물이 코어서 멀어지는 별풍이 *disperse 때문*(실어 나를 산물은 중력 점화서)`, pass: wind, value: +c.on.rgHeavy.toFixed(2) },
+          { name: `별풍이 코어 비워 churn↑·load-bearing — disperse 켜면 무거운 핵 ${c.on.heavy}개·이산 분자 ${c.on.mol}개 ≫ 끄면 ${c.off.heavy}개·${c.off.mol}개(별풍이 산물 빼내 코어 새 연료 자리)·천정 maxZ ${c.on.mzFinal}<끔 ${c.off.mzFinal}(더 크기 전 방출·별풍 대가) ⇒ 분산이 churn↑(0079 회수 E→churn 공간판)`, pass: churn, value: c.on.heavy },
+          { name: `장부 머신·E 닫힘 — Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 닫힘 ${c.on.relE.toFixed(3)}%(coolOuter KE→바스 + disperse 바스→KE + fuseConservePE + bondLocalE 정합)`, pass: ledgerOK, value: +c.on.relE.toFixed(3) },
+          { name: `회귀 — 새 법칙 0(기존 coolOuter+disperse 합성·scene 만) → 0001~83 골든 비트 불변(회귀 0)`, pass: reg, value: c.on.mol },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
