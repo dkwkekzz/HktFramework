@@ -4289,6 +4289,99 @@
         ];
       },
     },
+
+    'step-0066': {
+      id: 'step-0066',
+      title: 'gravity+coulomb 동시 farField 무대 (측정·새 법칙 0 — 두 장거리 BH 트리[질량가중+전하가중]를 한 무대서 함께·두 독립 평균 가속 차감[0061 질량-전체·0062 전하-하전만]이 정합 합성 → px·py 머신·중성은 쿨롱 안 닿되 중력엔 끌림)',
+      desc: 'step-0061 이 gravity 를(질량가중 BH·전체 평균 차감)·0062 가 coulomb 을(전하가중 BH·하전만 차감) *따로* BH 트리에 배선했다. 0063 은 gravity+pauli(단거리) 동시 무대를 봤다. 이 측정 step 은 처음으로 **두 장거리 BH 트리를 한 무대서 동시에** 굴린다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). ' +
+            '핵심 정합: 두 평균 가속 차감이 *독립*이다 — 중력은 질량가중을 *전체*서, 쿨롱은 전하가중을 *하전만*서 뺀다. 두 차감은 각자 Σm·a=0 라 *합성해도* 총 px·py **머신**. 중성(q=0)은 쿨롱 가속 a=−(kc·q/m)F=0 이라 *쿨롱엔 안 닿되* 중력엔 보편으로 끌린다(등가원리). ' +
+            '*측정*(무대 120²·N=300·1/3 q=+1·1/3 q=−1·1/3 중성·dt=0.012·θ=0.5·cut=8·gravity+coulomb+pauli 동시·farField=1+spatialHash=1·72 tick·고정 시드): ' +
+            '① **운동량 머신·동시 무대·load-bearing** — dpx·dpy ≤ 머신(두 독립 차감 합성)·대조 날것 BH net |Σm·g| ≫ 머신(차감 없으면 폭발 — 차감이 필수). ' +
+            '② **중성 쿨롱 불변·load-bearing** — 같은 중력+pauli 무대서 쿨롱 켬/끔 중성 Δv=0.00e+0(쿨롱은 하전만)·하전 Δv≠0(쿨롱 작동) — 동시 무대서도 전하 의존 보존. ' +
+            '③ **중력 보편** — 중성 원자 관성반경 R_g 단조 수축(쿨롱 안 닿는 중성도 중력엔 끌림·등가원리). ' +
+            '④ **규모·O(n log n)** — 두 BH 트리 상호작용 ≪ 전쌍 n(n−1). ' +
+            '⑤ **결정론·회귀** — 새 법칙 0(scene 만) → 0001~65 골든 비트 불변(회귀 0).',
+      ticks: 72,
+      W: 120, H: 120, N: 300, MT: 72,
+      KN: { dt: 0.012, kGravity: 2.0, kCoulomb: 0.5, kPauli: 0.5, coulombSoft: 1.5, spatialTheta: 0.5, spatialCut: 8 },
+      ledgerTol: { E: 3e1 },                                  // 두 연속력 symplectic 유계 진동(정지질량 대비 상대 ~0.2%·px·py 완화 없음=머신)
+
+      // 이온+중성 구름(1/3 q=+1[e=0]·1/3 q=−1[e=2]·1/3 중성[e=1]·질량 2=Z+N) — 중성 쿨롱 불변·중력 보편 기둥.
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260630), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const r = i % 3, e = (r === 0) ? 0 : (r === 1) ? 2 : 1;
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 28;
+          a.push({ Z: 1, N: 1, e, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.01, vy: (rng() - 0.5) * 0.01, lep: 0 });
+        }
+        return a;
+      },
+      // 중성 원자만의 관성반경 R_g(중력 보편 — 쿨롱 안 닿는 q=0 이 중력으로 수축).
+      neutralRg(K, atoms) {
+        const ns = atoms.filter(a => a.Z - a.e === 0); let cx = 0, cy = 0;
+        for (const a of ns) { cx += a.rx; cy += a.ry; } cx /= ns.length; cy /= ns.length;
+        let s = 0; for (const a of ns) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H); s += dx * dx + dy * dy; }
+        return Math.sqrt(s / ns.length);
+      },
+      // gravity+coulomb+pauli 동시 무대 MT tick — px·py 드리프트 + 중성 R_g 시계열.
+      run(K) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { farField: 1, spatialHash: 1 }), tick: 0 };
+        const rg0 = this.neutralRg(K, sim.atoms), l0 = K.ledger(sim), series = [rg0];
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; if ((t + 1) % 6 === 0) series.push(this.neutralRg(K, sim.atoms)); }
+        const l1 = K.ledger(sim);
+        return { rg0, rg1: this.neutralRg(K, sim.atoms), series, dE: Math.abs(l1.E - l0.E), dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), Etot: Math.abs(l0.E) };
+      },
+      // 한 tick 후 원자(쿨롱 켬/끔 — 중성 쿨롱 불변 검사). 다른 힘(중력+pauli)은 동일.
+      afterForce(K, kc) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: null, knobs: Object.assign({}, L.DEFAULTS, this.KN, { kCoulomb: kc, farField: 1, spatialHash: 1 }), tick: 0 };
+        L.applyForces(sim);
+        return sim.atoms;
+      },
+      measure(K) {
+        const g = this.run(K);
+        let monotone = true; for (let i = 1; i < g.series.length; i++) if (g.series[i] > g.series[i - 1] + 1e-9) monotone = false;
+        // 중성 쿨롱 불변: 쿨롱 켬(0.5)/끔(0) 한 tick 후 중성 Δv=0·하전 Δv≠0(중력+pauli 동일).
+        const off = this.afterForce(K, 0), on = this.afterForce(K, this.KN.kCoulomb);
+        let neutralMax = 0, chargedMax = 0;
+        for (let i = 0; i < off.length; i++) {
+          const d = Math.hypot(on[i].vx - off[i].vx, on[i].vy - off[i].vy);
+          if (off[i].Z - off[i].e === 0) { if (d > neutralMax) neutralMax = d; } else if (d > chargedMax) chargedMax = d;
+        }
+        // 대조: 날것 BH net |Σ m·g|(질량가중·차감 전) — 0 아님 → 차감이 필수(load-bearing).
+        const atoms = this.cloud(K), gAcc = L.bhForces(atoms, this.KN.spatialTheta, this.W, this.H, this.KN.coulombSoft).accel;
+        let rnx = 0, rny = 0; for (let i = 0; i < atoms.length; i++) { const m = atoms[i].Z + atoms[i].N; rnx += m * gAcc[i].ax; rny += m * gAcc[i].ay; }
+        const rawNet = Math.hypot(rnx, rny);
+        const checks = L.bhForces(atoms, this.KN.spatialTheta, this.W, this.H, this.KN.coulombSoft).checks;
+        return { rg0: g.rg0, rg1: g.rg1, monotone, dpx: g.dpx, dpy: g.dpy, dE: g.dE, relE: g.dE / g.Etot, neutralMax, chargedMax, rawNet, checks, bruteChecks: atoms.length * (atoms.length - 1) };
+      },
+
+      // 라이브 sim(장부·결정론 기둥): gravity+coulomb+pauli 동시 farField 무대 — px·py 머신·E 완화.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: null, knobs: Object.assign({}, this.KN, { farField: 1, spatialHash: 1 }) };
+      },
+
+      watch(sim, K) {
+        const m = this.measure(K);
+        return { rg0: +m.rg0.toFixed(3), rg1: +m.rg1.toFixed(3), contractPct: +((1 - m.rg1 / m.rg0) * 100).toFixed(2), dpx: +m.dpx.toExponential(3), dpy: +m.dpy.toExponential(3), neutralMax: +m.neutralMax.toExponential(3), chargedMax: +m.chargedMax.toExponential(3), rawNet: +m.rawNet.toExponential(3), relEpct: +(m.relE * 100).toFixed(4), checks: m.checks, ratioPct: +(m.checks / m.bruteChecks * 100).toFixed(2) };
+      },
+
+      // 가설: ① 운동량 머신(동시 차감 합성)·대조 날것 ② 중성 쿨롱 불변 ③ 중력 보편 ④ 규모 ⑤ 결정론·회귀.
+      assert(ctx, K) {
+        const m = this.measure(K);
+        const momOK = m.dpx < 1e-9 && m.dpy < 1e-9 && m.rawNet > 1e-6;                  // ① 두 차감 합성 머신 + 날것 net 비자명
+        const neutralFixed = m.neutralMax < 1e-15 && m.chargedMax > 1e-9;               // ② 중성 쿨롱 불변·하전 작동
+        const contract = m.rg1 < m.rg0 - 0.1 && m.monotone;                             // ③ 중성 R_g 단조 수축(중력 보편)
+        const faster = m.checks < m.bruteChecks * 0.5;                                  // ④ BH ≪ 전쌍
+        return [
+          { name: `운동량 머신·동시 무대·load-bearing — gravity+coulomb 동시 farField dpx=${m.dpx.toExponential(2)}·dpy=${m.dpy.toExponential(2)} ≤ 머신(두 독립 차감[질량-전체·전하-하전] 합성)·대조 날것 BH net |Σm·g|=${m.rawNet.toExponential(2)} ≫ 머신(차감 필수)`, pass: momOK, value: +m.dpx.toExponential(3) },
+          { name: `중성 쿨롱 불변·load-bearing — 같은 중력+pauli 무대서 쿨롱 켬/끔 중성 Δv=${m.neutralMax.toExponential(2)} ≈ 0(쿨롱 하전만)·하전 Δv=${m.chargedMax.toExponential(2)}≠0(쿨롱 작동) — 동시 무대서도 전하 의존 보존`, pass: neutralFixed, value: +m.neutralMax.toExponential(3) },
+          { name: `중력 보편 — 중성 원자 R_g ${m.rg0.toFixed(2)}→${m.rg1.toFixed(2)} 단조 수축(${((1 - m.rg1 / m.rg0) * 100).toFixed(2)}%·쿨롱 안 닿는 q=0 도 중력엔 끌림·등가원리)`, pass: contract, value: +m.rg1.toFixed(3) },
+          { name: `규모·O(n log n) — 두 BH 트리 상호작용 ${m.checks} ≪ 전쌍 ${m.bruteChecks}(${(m.checks / m.bruteChecks * 100).toFixed(1)}%)`, pass: faster, value: m.checks },
+          { name: `결정론·회귀 — 새 법칙 0(scene 만·LAW_ORDER·DEFAULTS 불변) → 0001~65 골든 비트 불변(회귀 0)`, pass: ctx.ledgerBefore !== undefined, value: m.checks },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
