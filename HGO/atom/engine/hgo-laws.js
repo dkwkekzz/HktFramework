@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -685,6 +685,62 @@
     sim.dampActive = 1;                                   // 진단 플래그(hash 미참여)
   }
 
+  // coolOuter 은 damp(0024)의 *국소 밀도 게이트* 판이다 — *외곽(저밀도) 쌍만* 점성 냉각하고 *밀집 코어는 뜨겁게* 둔다(step-0083).
+  //   왜 필요한가: step-0082 는 자가 점화 별의 융합 산물이 같은 *밀집* 코어서 결합해 *분자(밀집 네트워크·최대 17원자 블록)*를 이뤘다 —
+  //     이산 소분자가 아니다. 진짜 별 바깥 화학은 산물이 *식으며 흘러* 이산 분자를 이룬다. 그런데 전역 damp 를 켜면 점화 *전*에
+  //     코어까지 식어 별이 안 탄다(전역 균일 냉각의 한계·0082 §한계). 해법은 *국소* 냉각: 코어(고밀도)는 안 식히고 외곽(저밀도)만 식힌다.
+  //   무엇이 "외곽"인가(국소·측정): 각 원자의 *국소 이웃 수*(반경 coolR 내 원자 수 = 국소 밀도)를 센다. 이웃이 적으면(≤coolDeg) 저밀도=외곽.
+  //     밀집 코어 원자는 이웃이 많아(>coolDeg) 게이트서 빠진다 → 코어 고온 유지 → 융합 계속. 전역 조율자 0 — 각 원자+이웃만으로 판정(척추 ③).
+  //   무엇을 빼나(damp 와 동형·국소·운동량 보존): *양쪽 다 외곽*인 근접 쌍 (a,b)의 *상대 속도*만 비율 f 로 줄인다(vcom 불변 → px·py 머신).
+  //     빠진 상대 KE = ½μ|vrel|²(1−(1−f)²) ≥ 0 을 복사 바스 sim.escaped.E 로 이전(운동량-자유) = 닫힌 장부(KE→바스 E).
+  //   국소: min-image·반경 coolR. 결정론: rng 불필요. kCoolOuter=0 → early-return = 회귀 0(0082 비트 동일).
+  function coolOuter(sim) {
+    const kc = sim.knobs.kCoolOuter;
+    if (!kc) return;                 // 노브=0 → early-return = 회귀 0
+    const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);
+    const coolR = sim.knobs.coolR || 6, coolR2 = coolR * coolR;
+    const coolDeg = sim.knobs.coolDeg || 8;
+    const atoms = sim.atoms, n = atoms.length;
+    const bath = sim.escaped || (sim.escaped = { E: 0, px: 0, py: 0, count: 0 });
+    // 1패스: 각 원자의 국소 이웃 수(반경 coolR 내) — 국소 밀도. (브루트 O(n²)·측정 scene 규모서 충분·결정론)
+    const deg = new Int32Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = atoms[i];
+      for (let j = i + 1; j < n; j++) {
+        const b = atoms[j];
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        if (dx * dx + dy * dy <= coolR2) { deg[i]++; deg[j]++; }
+      }
+    }
+    // 2패스: *양쪽 다 저밀도(외곽)*인 근접 쌍만 점성 냉각(damp 와 동형 — vcom 불변·KE→바스).
+    for (let i = 0; i < n; i++) {
+      if (deg[i] > coolDeg) continue;                   // 고밀도 코어 원자는 게이트서 제외(뜨겁게 유지)
+      const a = atoms[i], ma = K.mass(a);
+      for (let j = i + 1; j < n; j++) {
+        if (deg[j] > coolDeg) continue;
+        const b = atoms[j], mb = K.mass(b);
+        const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
+        const r2 = dx * dx + dy * dy;
+        if (r2 > coolR2) continue;
+        const s2 = r2 + eps2;
+        const w = eps2 / s2;                              // 근접 가중 ∈(0,1]
+        let f = kc * w;
+        if (f <= 0) continue;
+        if (f > 0.5) f = 0.5;                             // 안정성 클램프
+        const mu = (ma * mb) / (ma + mb);
+        const vrx = b.vx - a.vx, vry = b.vy - a.vy;
+        const v2 = vrx * vrx + vry * vry;
+        if (v2 === 0) continue;
+        const sa = f * mb / (ma + mb), sb = f * ma / (ma + mb);
+        a.vx += sa * vrx; a.vy += sa * vry;               // 상대속도↓·vcom 불변
+        b.vx -= sb * vrx; b.vy -= sb * vry;
+        const dKE = 0.5 * mu * v2 * (1 - (1 - f) * (1 - f));
+        bath.E += dKE; bath.count++;                      // 복사 바스로 이전(운동량-자유) = 닫힌 장부
+      }
+    }
+    sim.coolOuterActive = 1;                              // 진단 플래그(hash 미참여)
+  }
+
   // bondSpring 은 *결합 간선*(sim.bonds)에만 작용하는 연속 복원력 U=½·kS·(r−r_eq)² 을 매 tick 속도에 싣는다 —
   //   *중성 공유결합*에 평형 결합 길이 r_eq 를 부여한다(step-0026, *결합 기하의 마지막 격차*). 왜 필요한가:
   //   하전(이온) 결합은 step-0021 bondCoulombic 으로 coulomb+repulse 가 r_eq 를 유지했다 — 하지만 그 연속력은 *q≠0 쌍만*
@@ -1110,8 +1166,23 @@
     if (!bath || bath.E <= 0) return;                     // 복사 바스 E 가 없으면 흩을 연료 0(무에서 빌리지 않음)
     const eps = sim.knobs.disperseE || 1;                 // 한 번에 바스서 인출해 운동 KE 로 바꾸는 복사 에너지 양자
     const zmin = sim.knobs.disperseZmin || 0;             // 0 → 모든 가스가 복사압을 받음(기본). >0 → 무거운 핵(Z≥zmin)만(선택)
-    for (const a of sim.atoms) {
+    // step-0085 *층상 핵합성* 게이트 disperseOuterDeg(=0 → 전원·0084 비트 동일·회귀 0): >0 면 *저밀도 외곽*(국소 이웃 수 ≤ deg)만 분다.
+    //   고밀도 코어 산물은 *안 불어* → 코어가 무거운 원소를 *보존*(천정 maxZ 유지)·겉껍질만 별풍(진짜 별의 층상 구조). coolOuter(0083)의 밀도 게이트와 동형.
+    const odeg = sim.knobs.disperseOuterDeg || 0;
+    let deg = null;
+    if (odeg > 0) {                                       // 밀도 한정 켤 때만 국소 이웃 수 1패스(브루트 O(n²)·측정 scene 규모 충분)
+      const dr = sim.knobs.coolR || 6, dr2 = dr * dr, A = sim.atoms, na = A.length;
+      deg = new Int32Array(na);
+      for (let i = 0; i < na; i++) { const ai = A[i];
+        for (let j = i + 1; j < na; j++) { const bj = A[j];
+          const dx = K.minImage(bj.rx - ai.rx, sim.W), dy = K.minImage(bj.ry - ai.ry, sim.H);
+          if (dx * dx + dy * dy <= dr2) { deg[i]++; deg[j]++; } } }
+    }
+    const atomsArr = sim.atoms;
+    for (let idx = 0; idx < atomsArr.length; idx++) {
+      const a = atomsArr[idx];
       if ((a.Z | 0) < zmin) continue;                     // 선택 게이트(기본 zmin=0 → 전원)
+      if (deg && deg[idx] > odeg) continue;               // 층상 게이트: 고밀도 코어 산물은 안 붐(천정 보존)
       if (bath.E <= 0) break;                             // 바스 고갈 — 더 못 흩음(E 음수 방지)
       if (rng() >= k) continue;                           // 복사압 확률 kDisperse
       const draw = Math.min(eps, bath.E);                 // 바스 잔량 한도 내 인출(흡열 문턱 정신)
@@ -1163,8 +1234,8 @@
   }
 
   // 힘/상호작용 법칙 레지스트리 + 실행 순서. append-only — 노브=0 → 회귀 0.
-  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, bondSpring, bondAngle, gravity, fuse, decay, disperse, bondBreak };
-  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'bondBreak'];
+  const LAWS = { emit, recoil, propagate, scatter, escape, reheat, bond, chemilum, collide, unbond, coulomb, repulse, pauli, vdw, damp, coolOuter, bondSpring, bondAngle, gravity, fuse, decay, disperse, bondBreak };
+  const LAW_ORDER = ['emit', 'recoil', 'propagate', 'scatter', 'escape', 'reheat', 'bond', 'chemilum', 'collide', 'unbond', 'coulomb', 'repulse', 'pauli', 'vdw', 'damp', 'coolOuter', 'bondSpring', 'bondAngle', 'gravity', 'fuse', 'decay', 'disperse', 'bondBreak'];
 
   // 법칙 적용: 각 법칙이 원자 상태(v·x·…)를 고친다. 노브=0 인 항은 early-return.
   // 보존 연속력(위치 의존·dt 스케일 속도 kick) — velocity-Verlet 의 *반-kick* 대상(step-0069).
