@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -756,10 +756,11 @@
     const dt = sim.knobs.dt;
     const req = sim.knobs.bondReq || 4;                  // 평형 결합 길이 r_eq=r₀
     const morse = sim.knobs.bondMorse || 0;              // 비조화 Morse 게이트(0 → 조화·회귀 0)
-    const D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;  // 해리에너지 D·우물 폭 α
+    const alpha = sim.knobs.bondMorseA || 1;             // 우물 폭 α(해리에너지 D 는 step-0089 종류별 — 아래 per-bond)
     const atoms = sim.atoms, n = atoms.length;
     for (const e of sim.bonds) {
       const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
+      const D = K.morseD(sim.knobs, a, b, e[3]);          // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일 bondMorseD·회귀 0)
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
       const r = Math.sqrt(dx * dx + dy * dy);
       if (r === 0) continue;                              // 완전 겹침 가드(방향 미정의)
@@ -1212,11 +1213,12 @@
     if (!rd) return;                 // 노브=0 → early-return = 회귀 0 (거리 해리 꺼짐 → 직전 비트)
     if (!sim.bonds || !sim.bonds.length) return;         // 떼낼 결합 없음
     const atoms = sim.atoms, n = atoms.length, rd2 = rd * rd;
-    const morse = sim.knobs.bondMorse || 0, D = sim.knobs.bondMorseD || 0, alpha = sim.knobs.bondMorseA || 1;
+    const morse = sim.knobs.bondMorse || 0, alpha = sim.knobs.bondMorseA || 1;
     const ks = sim.knobs.kBondSpring || 0, req = sim.knobs.bondReq || 4;
     const kept = []; let broke = 0, bath = null;
     for (const e of sim.bonds) {
       const a = atoms[e[0]], b = atoms[e[1]];
+      const D = K.morseD(sim.knobs, a, b, e[3]);         // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일·회귀 0)·force/PE 와 같은 D
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
       const r2 = dx * dx + dy * dy;
       if (r2 <= rd2) { kept.push(e); continue; }          // 임계 이내 → 결합 유지

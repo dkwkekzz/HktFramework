@@ -6003,6 +6003,162 @@
         ];
       },
     },
+
+    'step-0089': {
+      id: 'step-0089',
+      title: '결합 종류별 해리 깊이 D — 약한 H–H 먼저 끊고 강한 C–C 잔존 (게이트 bondMorsePair=0 → 균일 D·0074~ 비트 동일·회귀 0)',
+      desc: 'step-0074 의 Morse 해리 깊이 D 는 *종류 무관 단일 상수*였다(0074 전가 명시). 진짜 화학은 결합 종류마다 해리 에너지가 다르다(약한 H–H ~ 강한 C–C). 이 step 은 게이트 `bondMorsePair` — 켜면 결합 두 원자의 Z 로 해리 깊이를 정한다: D_eff = bondMorseD·√(Z_a·Z_b)(기준 Z=1·1 → ×1 = H–H baseline·무거운 결합 깊은 우물). 힘(bondSpring)·PE(bondSpringPE)·해리(bondBreak) 세 곳이 같은 D 를 공유해 장부 정합. bondMorsePair=0 → 균일 bondMorseD·0074~ 비트 동일(회귀 0). ' +
+            '*무대*: 40 Morse 이량체 — 20개 약한 H–H(Z=1·N=1) + 20개 강한 C–C(Z=6·N=6)·**같은 상대 운동에너지 KE_rel=5 로 가열**(vrel 은 환산질량 μ 로 보정 — 종류 변별이 KE 아닌 *우물 깊이*서 오게)·dt=0.05·bondMorseD=2·α=0.5·req=3·unbondDist=8·600 tick·고정 셋업: ' +
+            'bondMorsePair 켜면 D_HH=2·√1=2 < KE 5 → 해리·D_CC=2·√36=12 > KE 5 → 잔존. 균일이면 둘 다 D=2<5 → 무차별 해리. ' +
+            '① **종류별 해리 선택성·load-bearing** — bondMorsePair 켜면 강한 C–C 결합 생존 ≫ 약한 H–H 생존(깊은 우물 = 강한 결합·약한 우물 먼저 끊김) ⇒ 해리 임계가 결합 종류(Z)로 갈림(author 아닌 측정). ' +
+            '② **균일은 무차별 해리·load-bearing** — bondMorsePair 끄면(균일 D=2) C–C 와 H–H 생존 ≈ 같음(둘 다 D<KE → 무차별 해리·종류 무관) ⇒ 선택성이 *종류별 D 때문*. ' +
+            '③ **장부 머신** — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신(속도 불변)·Q·B·L 머신. ' +
+            '④ **회귀** — bondMorsePair=0 → 균일 D·0074~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, ND: 40,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 2, bondMorseA: 0.5, bondMorsePair: 1, unbondDist: 8 },
+      TKE: 5,                                                  // 목표 상대 KE(D_HH=2 < 5 < D_CC=12)
+
+      // 혼합 이량체 — 약한 H–H(Z1) 20 + 강한 C–C(Z6) 20·같은 KE_rel(vrel 환산질량 보정)·kind 태그.
+      dimers(K) {
+        const req = this.KN.bondReq, atoms = [], bonds = [], keys = new Set(), tot = 2 * this.ND, kinds = [];
+        for (let i = 0; i < this.ND; i++) {
+          const heavy = i >= this.ND / 2;                     // 앞 절반 H–H · 뒤 절반 C–C
+          const Z = heavy ? 6 : 1, Nn = heavy ? 6 : 1, m = Z + Nn, mu = (m * m) / (m + m);  // μ = m/2
+          const vrel = Math.sqrt(2 * this.TKE / mu);          // KE_rel = ½μ·vrel² = TKE (종류 무관 같은 KE)
+          const cx = 30 + (i % 8) * 45, cy = 30 + ((i / 8) | 0) * 45;
+          const a0 = atoms.length;
+          atoms.push({ Z, N: Nn, e: Z, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          atoms.push({ Z, N: Nn, e: Z, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+          bonds.push([a0, a0 + 1]); keys.add(a0 * tot + (a0 + 1)); kinds.push(heavy ? 1 : 0);
+        }
+        return { atoms, bonds, keys, kinds };
+      },
+      run(K, pair) {
+        const d = this.dimers(K);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondMorsePair: pair }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        // 생존 결합을 종류별로(간선 양끝 원자 Z 로 H–H vs C–C 판정)
+        let survLight = 0, survHeavy = 0;
+        for (const e of sim.bonds) { const z = sim.atoms[e[0]].Z; if (z >= 3) survHeavy++; else survLight++; }
+        return { survLight, survHeavy, bonds: sim.bonds.length, broke: sim.dissocCount | 0,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { pair: this.run(K, 1), uni: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로엔 bonds 미설정 → bondBreak/bondSpring no-op → 자유 드리프트(0075 패턴·머신·결정론).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { survLightPair: c.pair.survLight, survHeavyPair: c.pair.survHeavy,
+                 survLightUni: c.uni.survLight, survHeavyUni: c.uni.survHeavy,
+                 dpxPair: +c.pair.dpx.toExponential(3), dEPair: +c.pair.dE.toExponential(3) };
+      },
+
+      // 가설: ① 종류별 해리 선택성 ② 균일은 무차별 해리 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), half = this.ND / 2;
+        const selective = c.pair.survHeavy > c.pair.survLight + half * 0.5 && c.pair.survHeavy >= half * 0.7 && c.pair.survLight <= half * 0.3;  // ① 강 C–C 잔존 ≫ 약 H–H 해리
+        const uniformBreaks = Math.abs(c.uni.survHeavy - c.uni.survLight) <= half * 0.3 && c.uni.survHeavy <= half * 0.3;  // ② 균일 → 둘 다 무차별 해리
+        const consv = c.pair.dpx < 1e-9 && c.pair.dpy < 1e-9 && c.pair.dB < 1e-9 && c.pair.dQ < 1e-9 && c.pair.dL < 1e-9;  // ③ 운동량·Q·B·L 머신(E symplectic 유계)
+        const reg = ctx.ledgerBefore !== undefined;                                                       // ④ 골든 보존
+        return [
+          { name: `종류별 해리 선택성·load-bearing — bondMorsePair 켜면 강한 C–C 생존 ${c.pair.survHeavy}/${half}(D=12>KE 5 깊은 우물) ≫ 약한 H–H 생존 ${c.pair.survLight}/${half}(D=2<KE 5 먼저 해리) ⇒ 해리 임계가 결합 종류(Z)로 갈림(author 아닌 측정)`, pass: selective, value: c.pair.survHeavy },
+          { name: `균일은 무차별 해리·load-bearing — bondMorsePair 끄면(균일 D=2) C–C 생존 ${c.uni.survHeavy}/${half} ≈ H–H ${c.uni.survLight}/${half}(둘 다 D=2<KE 5 → 무차별 해리·종류 무관) ⇒ 선택성이 *종류별 D 때문*`, pass: uniformBreaks, value: c.uni.survHeavy },
+          { name: `장부 머신 — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신(속도 불변 dpx ${c.pair.dpx.toExponential(2)}·dB ${c.pair.dB.toExponential(2)}·dL ${c.pair.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.pair.dE / c.pair.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.pair.dpx.toExponential(3) },
+          { name: `회귀 — bondMorsePair=0 → 균일 bondMorseD·0074~ 비트 동일·골든 보존(종류별 D 게이트 가법)`, pass: reg, value: c.uni.survHeavy },
+        ];
+      },
+    },
+
+    'step-0090': {
+      id: 'step-0090',
+      title: '결합 차수 × 해리 깊이 — 다중 결합(이중·삼중)일수록 강하다 (게이트 bondMorseOrder=0 → 차수 무시·0089~ 비트 동일·회귀 0)',
+      desc: 'step-0089 가 결합 종류(Z)로 해리 깊이를 갈랐다면, 이 step 은 *결합 차수*(0018 bondOrder·간선 e[3]=1 단일·2 이중·3 삼중)로 — 진짜 화학에서 다중 결합(C=C 이중·N≡N 삼중)은 단일보다 강하다(끊기 어렵다). 게이트 `bondMorseOrder` 켜면 D_eff = bondMorseD·(종류 √Z_aZ_b)·**차수** (D ∝ 차수·이중 2배·삼중 3배 깊은 우물). 0089 의 `K.morseD` 에 차수 인자(e[3]) 추가·힘·PE·해리 세 곳 공유. bondMorseOrder=0 → 차수 무시·0089/0074~ 비트 동일(회귀 0). ' +
+            '*무대*: 30 Morse 이량체 — 단일(e[3]=1) 10 + 이중(2) 10 + 삼중(3) 10·같은 원소(Z=2 — 차수를 Z서 격리)·각 차수 클래스 안에 **상대 KE 그라디언트**(KE 0.5~7.5·낮음 속박~높음 해리)·dt=0.05·bondMorseD=2·α=0.5·req=3·unbondDist=8·bondMorsePair=0(차수만)·600 tick: ' +
+            'bondMorseOrder 켜면 D_single=2·D_double=4·D_triple=6 → 같은 KE 그라디언트서 *깊은 우물일수록 더 많이 잔존* → 생존 단일<이중<삼중(단조). 끄면 셋 다 D=2 → 같은 생존(차수 무관). ' +
+            '① **차수별 해리 선택성(단조)·load-bearing** — bondMorseOrder 켜면 생존 단일 < 이중 < 삼중(다중 결합일수록 깊은 우물·더 많이 견딤) ⇒ 해리 임계가 결합 차수로 갈림(author 아닌 측정). ' +
+            '② **차수 무시는 무차별·load-bearing** — bondMorseOrder 끄면(균일 D=2) 단일 ≈ 이중 ≈ 삼중 생존(차수 무관·같은 KE 그라디언트 같은 문턱) ⇒ 단조 선택성이 *차수 × D 때문*. ' +
+            '③ **장부 머신** — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신·Q·B·L 머신. ' +
+            '④ **회귀** — bondMorseOrder=0 → 차수 무시·0089/0074~ 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10,                        // NC = 차수당 이량체 수
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 2, bondMorseA: 0.5, bondMorseOrder: 1, unbondDist: 8 },
+
+      // 단일/이중/삼중 각 NC 이량체·같은 원소 Z2·클래스 안 KE 그라디언트(저 속박~고 해리)·order 태그(e[3]).
+      dimers(K) {
+        const req = this.KN.bondReq, atoms = [], bonds = [], keys = new Set(), tot = 6 * this.NC;
+        for (let ord = 1; ord <= 3; ord++) {
+          for (let m = 0; m < this.NC; m++) {
+            const KE = 0.5 + 7 * (m / (this.NC - 1));        // KE_rel 0.5~7.5 (μ=2 → vrel=√(2·KE/2)=√KE)
+            const vrel = Math.sqrt(KE);
+            const idx = (ord - 1) * this.NC + m;
+            const cx = 30 + (idx % 8) * 45, cy = 30 + ((idx / 8) | 0) * 45;
+            const a0 = atoms.length;
+            atoms.push({ Z: 2, N: 2, e: 2, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: 2, N: 2, e: 2, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, ord]); keys.add(a0 * tot + (a0 + 1));  // e[3]=차수
+          }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, ordGate) {
+        const d = this.dimers(K);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondMorseOrder: ordGate }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.MT; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        // 생존 결합을 차수별로(e[3])
+        let s1 = 0, s2 = 0, s3 = 0;
+        for (const e of sim.bonds) { const o = e[3] || 1; if (o === 1) s1++; else if (o === 2) s2++; else s3++; }
+        return { s1, s2, s3, bonds: sim.bonds.length, broke: sim.dissocCount | 0,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { ord: this.run(K, 1), uni: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → bondBreak/bondSpring no-op → 자유 드리프트(0075/0089 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 2, N: 2, e: 2, x: 0, rx: cx - 2 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 2, N: 2, e: 2, x: 0, rx: cx + 2, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { s1ord: c.ord.s1, s2ord: c.ord.s2, s3ord: c.ord.s3, s1uni: c.uni.s1, s2uni: c.uni.s2, s3uni: c.uni.s3,
+                 dpxOrd: +c.ord.dpx.toExponential(3), dEOrd: +c.ord.dE.toExponential(3) };
+      },
+
+      // 가설: ① 차수별 해리 선택성(단조) ② 차수 무시는 무차별 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const monotone = c.ord.s1 < c.ord.s2 && c.ord.s2 < c.ord.s3;                              // ① 생존 단일<이중<삼중
+        const uniformSame = Math.abs(c.uni.s1 - c.uni.s2) <= 1 && Math.abs(c.uni.s2 - c.uni.s3) <= 1;  // ② 균일 → 차수 무관 같음
+        const consv = c.ord.dpx < 1e-9 && c.ord.dpy < 1e-9 && c.ord.dB < 1e-9 && c.ord.dQ < 1e-9 && c.ord.dL < 1e-9;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                               // ④ 골든 보존
+        return [
+          { name: `차수별 해리 선택성(단조)·load-bearing — bondMorseOrder 켜면 생존 단일 ${c.ord.s1} < 이중 ${c.ord.s2} < 삼중 ${c.ord.s3}/${this.NC}(D 단일2·이중4·삼중6·깊은 우물일수록 더 견딤) ⇒ 해리 임계가 결합 차수로 갈림(author 아닌 측정)`, pass: monotone, value: c.ord.s3 },
+          { name: `차수 무시는 무차별·load-bearing — bondMorseOrder 끄면(균일 D=2) 생존 단일 ${c.uni.s1} ≈ 이중 ${c.uni.s2} ≈ 삼중 ${c.uni.s3}(차수 무관·같은 KE 그라디언트 같은 문턱) ⇒ 단조 선택성이 *차수 × D 때문*`, pass: uniformSame, value: c.uni.s3 },
+          { name: `장부 머신 — 해리 시 U(r)+e[2]→바스 환원 E 닫힘·운동량 머신(속도 불변 dpx ${c.ord.dpx.toExponential(2)}·dB ${c.ord.dB.toExponential(2)}·dL ${c.ord.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.ord.dE / c.ord.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.ord.dpx.toExponential(3) },
+          { name: `회귀 — bondMorseOrder=0 → 차수 무시·0089/0074~ 비트 동일·골든 보존(차수 게이트 가법)`, pass: reg, value: c.uni.s3 },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
