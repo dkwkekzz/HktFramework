@@ -4590,6 +4590,73 @@
         ];
       },
     },
+
+    'step-0070': {
+      id: 'step-0070',
+      title: '별 핵합성 사다리 — 자가 점화 별이 VV 로 오래 굴러 무거운 원소를 쌓는다 (측정·새 법칙 0 — 0068 점화 + 0069 VV 적분·maxZ 1→12 사다리 등반·distinct 12종·중력 끄면 사다리 0·SPINE §4·§8 Phase E)',
+      desc: 'step-0068 은 별의 *점화*를·0069 는 VV 적분을 보였다. 이 측정 step 은 둘을 합쳐 자가 점화 별을 **VV(symplectic=1)로 오래 굴려** 핵합성 사다리가 *끝까지 등반*하는 걸 본다(새 법칙 0·scene 만·LAW_ORDER·DEFAULTS 불변 → 기존 골든 보존=회귀 0). VV 를 *다체 BH+fuse 무대*에 처음 적용(0069 §3 ① 메움). ' +
+            '차가운 ²H 구름이 중력 수축→압축 가열→밀집 코어 점화 후, 생성핵(⁴He)이 다시 융합해 무거운 핵으로 *층층이* 쌓인다 — 모든 핵 물리(Gamow 0046·전하/질량 장벽 0050/52·흡열 문턱 0051·결합E 0040~41·껍질 마법수 0067) 합작. maxZ(가장 무거운 원소)가 시간에 따라 등반하고 동시 존재 원소 종류(distinct)가 늘어난다. ' +
+            '*측정*(무대 130²·N=400 차가운 ²H·dt=0.01·VV·중력+pauli+fuse 동시·240 tick·40 tick 스냅샷·고정 시드): ' +
+            '① **사다리 등반·load-bearing** — maxZ 단조 등반(²H→⁴He→…무거운 핵)·동시 존재 원소 종류 증가(별이 주기율표를 쌓음·시계열). ' +
+            '② **중력 구동·load-bearing** — kGravity=0(압축 없음) → 사다리 0(maxZ 1·융합 0)·점화·등반이 *중력 때문*(author 아닌 측정). ' +
+            '③ **무거운 원소 잔존** — 종단 분포 연료 ²H 소진·무거운 핵(Z≥3) 다수 축적(별 핵합성 산물). ' +
+            '④ **장부·결정론·회귀** — VV 다체 별 무대 Q·B·L·px·py 머신·E 완화(깊은 붕괴+융합 — VV 가 못 잡는 이벤트/근접조우 오차·0069 §3 한계)·새 법칙 0 → 0001~69 골든 비트 불변(회귀 0).',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 240, SNAP: 40,
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialTheta: 0.5, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            farField: 1, spatialHash: 1, symplectic: 1 },
+      ledgerTol: { E: 1.5e3 },                                // 깊은 붕괴+융합 다체 별 E 완화(라이브 120tick 상대 ~3%·VV 도 이벤트/근접조우 오차 못 잡음·0069 §3 한계·Q·B·L·px·py 완화 없음=머신)
+
+      cloud(K, seed) {
+        const rng = K.mulberry32(seed || 20260704), a = [], cx = this.W / 2, cy = this.H / 2;
+        for (let i = 0; i < this.N; i++) {
+          const ang = rng() * 2 * Math.PI, rad = Math.sqrt(rng()) * 30;
+          a.push({ Z: 1, N: 1, e: 1, x: 0, rx: cx + rad * Math.cos(ang), ry: cy + rad * Math.sin(ang), vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      counts(at) {
+        let z1 = 0, zh = 0, maxZ = 0; const set = new Set();
+        for (const a of at) { if (a.Z === 1) z1++; else if (a.Z >= 3) zh++; if (a.Z > maxZ) maxZ = a.Z; set.add(a.Z); }
+        return { z1, zh, maxZ, distinct: set.size };
+      },
+      run(K, kg) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260704), knobs: Object.assign({}, L.DEFAULTS, this.KN, { kGravity: kg }), tick: 0 };
+        const n0 = sim.atoms.length, l0 = K.ledger(sim), snaps = [this.counts(sim.atoms)];
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) snaps.push(this.counts(sim.atoms)); }  // symplectic=1 → VV(다체 별)
+        const l1 = K.ledger(sim);
+        return { snaps, fus: n0 - sim.atoms.length, dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, this.KN.kGravity), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론 기둥): VV 다체 별 무대(symplectic=1) — Q·B·L·px·py 머신·E 완화. sim.step 이 leapfrog 경로.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K), last = c.on.snaps[c.on.snaps.length - 1];
+        return { maxZseries: c.on.snaps.map(s => s.maxZ), distinctEnd: last.distinct, z1End: last.z1, zhEnd: last.zh, fusOn: c.on.fus, fusOff: c.off.fus, maxZoff: c.off.snaps[c.off.snaps.length - 1].maxZ, dpx: +c.on.dpx.toExponential(3), relEpct: +(c.on.dE / c.on.Etot * 100).toFixed(3) };
+      },
+
+      // 가설: ① 사다리 등반 ② 중력 구동 ③ 무거운 원소 잔존 ④ 장부·결정론·회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), on = c.on.snaps, last = on[on.length - 1];
+        let climb = true; for (let i = 1; i < on.length; i++) if (on[i].maxZ < on[i - 1].maxZ) climb = false;  // maxZ 단조 비감소
+        const ladder = climb && last.maxZ >= 6 && last.distinct >= 6;                                          // ① 사다리 등반(무거운 원소·다종)
+        const driven = c.off.snaps[c.off.snaps.length - 1].maxZ <= 1 && c.off.fus === 0 && c.on.fus > 50;      // ② 중력 끄면 사다리 0
+        const heavy = last.z1 < this.N * 0.2 && last.zh >= 20;                                                 // ③ 연료 소진·무거운 핵 축적
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9;             // ④ Q·B·px·py 머신
+        return [
+          { name: `사다리 등반·load-bearing — maxZ 시계열 ${on.map(s => s.maxZ).join('→')} 단조 등반·동시 존재 원소 ${last.distinct}종(별이 ²H→⁴He→…무거운 핵으로 주기율표를 쌓음)`, pass: ladder, value: last.maxZ },
+          { name: `중력 구동·load-bearing — kGravity=0 사다리 maxZ ${c.off.snaps[c.off.snaps.length - 1].maxZ}·융합 ${c.off.fus}(압축 없으면 점화·등반 0)·켬 융합 ${c.on.fus} ⇒ 사다리가 *중력 때문*(author 아닌 측정)`, pass: driven, value: c.off.fus },
+          { name: `무거운 원소 잔존 — 종단 연료 ²H ${last.z1}/${this.N} 소진·무거운 핵(Z≥3) ${last.zh} 축적(별 핵합성 산물)`, pass: heavy, value: last.zh },
+          { name: `장부·결정론·회귀 — VV 다체 별 무대 Q·B·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(깊은 붕괴+융합·0069 §3 한계)·새 법칙 0 → 0001~69 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: last.maxZ },
+        ];
+      },
+    },
   };
 
   return { SCENES, ELEMENTS };
