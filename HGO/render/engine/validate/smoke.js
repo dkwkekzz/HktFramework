@@ -368,6 +368,25 @@ function run() {
   const vNone = R3.atomVelocityStreak({ rx: 1, ry: 1, vx: 0, vy: 0 }, camV, maxV, velWorld);
   checks.push({ name: 'L-velocity: 정지 원자 → 자취 없음(author 0)', pass: vNone === null, value: vNone === null ? 'null' : 'BAD' });
 
+  // ⑲ L-escape(렌즈 assert): 핵 장면(붕괴·융합 step-0032~)은 입자/에너지가 경계를 넘어 *세계를 떠난다* —
+  //    sim.escaped({E,px,py,count})가 그 총합을 누적한다. 떠난 입자는 장면에 없어 화면에 완전히 안 보였다(미독 부채).
+  //    렌더는 escaped 를 *읽어* HUD 게이지로(방향=net 운동량·개수·E). count=0 이면 게이지 0(author 0).
+  //    운동 탈출(|p|>0, E≈0=질량 입자 방향성)과 복사 탈출(E>0, |p|≈0=등방)을 구분 — 둘 다 실측 읽기.
+  const sceneEk = SC.SCENES['step-0034'];   // 운동 탈출(방향성 — |p|>0)
+  const simEk = S.createSim(sceneEk.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simEk, sceneEk.ticks);
+  const rEk = R3.escapeReadout(simEk.escaped);
+  checks.push({ name: 'L-escape: 시뮬이 탈출 입자 누적 실음(시뮬 선행)', pass: !!rEk && rEk.count > 0, value: rEk ? `count ${rEk.count}` : 'null' });
+  checks.push({ name: 'L-escape: 운동 탈출 → 방향 읽힘(|p|>0·atan2 유한)', pass: !!rEk && rEk.hasDir && Number.isFinite(rEk.angle), value: rEk && rEk.hasDir ? `θ=${rEk.angle.toFixed(2)}·|p|=${rEk.mag.toFixed(1)}` : 'no dir' });
+  const sceneEr = SC.SCENES['step-0033'];   // 복사 탈출(등방 — E>0·|p|≈0)
+  const simEr = S.createSim(sceneEr.init(K.mulberry32(SEED >>> 0), K));
+  S.run(simEr, sceneEr.ticks);
+  const rEr = R3.escapeReadout(simEr.escaped);
+  checks.push({ name: 'L-escape: 복사 탈출 → E>0·방향 없음(등방, author 0)', pass: !!rEr && rEr.E > 0 && !rEr.hasDir, value: rEr ? `E ${rEr.E.toFixed(1)}·dir ${rEr.hasDir}` : 'null' });
+  // author 0: 탈출 없는 장면(escaped 없음·count=0) → 게이지 0(null)
+  const eNone = R3.escapeReadout(undefined), eZero = R3.escapeReadout({ E: 0, px: 0, py: 0, count: 0 });
+  checks.push({ name: 'L-escape: 탈출 없음/count=0 → 게이지 0(author 0)', pass: eNone === null && eZero === null, value: eNone === null && eZero === null ? 'null' : 'BAD' });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);
