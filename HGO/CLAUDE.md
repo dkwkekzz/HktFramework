@@ -31,6 +31,7 @@
 | 트랙 | 상태 | 역할 | SKILL | STATE |
 |---|---|---|---|---|
 | **atom (원자)** | 🟢 활성 | 원자 정의 + 상호작용 법칙을 step별로 추가 (핵심·척추 보유) | `hgo-atom-step` | [atom/STATE.md](atom/STATE.md) |
+| **flux (단일 규칙)** | 🟢 활성 | *단일 국소 규칙* 하나(보존·촉매·임계)로 세계를 다시 짓고 층을 척도 분리로 창발시키는 평행 가설 트랙. atom 렌더러·뷰어 재사용. **별도 설계도 보유** | `hgo-flux-step` | [flux/STATE.md](flux/STATE.md) · [flux/SPINE.md](flux/SPINE.md) |
 | **render (시각화)** | ⚪ 휴면 | 스냅샷을 읽어 광자 방출(색·이펙트)로 번역 | (활성 시 생성) | (활성 시 `render/STATE.md`) |
 | **net (MMO)** | ⚪ 휴면 | 보존·결정론 위에서 공유 세계를 복제 | (활성 시 생성) | (활성 시 `NET-STATE.md`) |
 
