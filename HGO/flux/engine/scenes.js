@@ -184,6 +184,32 @@
       large0: +lg[0].toFixed(4), largeEnd: +lg[lg.length - 1].toFixed(4) };
   }
 
+  // 창발 측정(arc D — 산·물 공간 공존) — θ>0 한 세계의 relaxation 중, *같은 tick* 에 동결(산)·사태(물)
+  //   두 상이 *공간적으로 공존*하는가. 간선 상: active = 실제 흐르는 간선(물), frozen = 나머지(산, |d|≲θ).
+  //   peakCo = min(actFrac,froFrac) 의 시간 최대(둘 다 실질적인 정점). snap tick 의 *셀* 분율(물 셀=활성 간선에 닿는
+  //   셀, 산 셀=나머지)로 공간 공존을 본다. 시간이 가면 물→산(동결 전선 전진, actEnd→0). author 0: q·θ 의 함수.
+  function phaseCoexistence(spec, ticks, snap) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, sim = SIM.createSim(spec);
+    const thetaFix = Math.round(sim.knobs.theta * S), kappaFix = Math.round(sim.knobs.kappa * S);
+    const a = sim.atoms, edges = sim.edges, E = edges.length, n = a.length;
+    const edgeFrac = () => { let act = 0; for (let e = 0; e < E; e++) { const d = a[edges[e][0]].q - a[edges[e][1]].q, ad = d < 0 ? -d : d, ex = ad - thetaFix; if (ex > 0 && Math.floor(ex * kappaFix / S) > 0) act++; } return { act: act / E, fro: (E - act) / E }; };
+    const m0 = edgeFrac();
+    let peakCo = 0, peakT = 0, water = null;
+    for (let t = 0; t < ticks; t++) {
+      SIM.step(sim);
+      const m = edgeFrac(), co = Math.min(m.act, m.fro); if (co > peakCo) { peakCo = co; peakT = t + 1; }
+      if (t + 1 === snap) {                                  // 스냅샷: 셀 단위 물/산 분율(공간 공존)
+        const w = new Uint8Array(n);
+        for (let e = 0; e < E; e++) { const i = edges[e][0], j = edges[e][1], d = a[i].q - a[j].q, ad = d < 0 ? -d : d, ex = ad - thetaFix; if (ex > 0 && Math.floor(ex * kappaFix / S) > 0) { w[i] = 1; w[j] = 1; } }
+        let cw = 0; for (let i = 0; i < n; i++) if (w[i]) cw++; water = cw / n;
+      }
+    }
+    const mE = edgeFrac();
+    return { act0: +m0.act.toFixed(3), fro0: +m0.fro.toFixed(3), actEnd: +mE.act.toFixed(3), froEnd: +mE.fro.toFixed(3),
+      peakCo: +peakCo.toFixed(3), peakT, waterFrac: +(water || 0).toFixed(3), earthFrac: +(1 - (water || 0)).toFixed(3), snap };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -335,6 +361,27 @@
           { name: '시간 척도 분리(작은 척도 먼저 평형: τ_small < τ_large)', pass: sep.tauSmall < sep.tauLarge, value: `τ_small=${sep.tauSmall} < τ_large=${sep.tauLarge}` },
           { name: '분리비 유의(τ_large/τ_small > 1.5)', pass: sep.ratio > 1.5, value: `ratio=${sep.ratio}` },
           { name: '두 척도 모두 확산 감쇠(>1/e 줄어듦)', pass: sep.smallEnd < sep.small0 / Math.E && sep.largeEnd < sep.large0 / Math.E, value: `small ${sep.small0}→${sep.smallEnd}, large ${sep.large0}→${sep.largeEnd}` },
+        ];
+      },
+    },
+
+    // ── step-0007: arc D 완성 — 산·물 *공간* 공존(한 세계 한 tick) ── 새 법칙/노브 0(블롭 IC + θ=0.5 고정).
+    //   step-0006 은 두 척도의 *시간* 분리만 봤다(θ=0, 결국 둘 다 평탄). 여기선 단일 θ>0 한 세계에서 큰 기울기
+    //   영역은 아직 흐르고(물) 작은 기울기 영역은 이미 굳어(산) *같은 tick* 에 공간적으로 공존한다. 시간이 가면 물→산.
+    'step-0007': {
+      id: 'step-0007',
+      title: 'step-0007 — 척도 분리: 산(동결)·물(흐름) 공간 공존(한 세계)',
+      desc: '같은 단일 규칙·구조 풍경(블롭)을 θ=0.5 로 relaxation 한다(새 법칙·노브 0). 단일 문턱 한 세계에서 큰 기울기 영역은 아직 사태로 흐르고(물), 작은 기울기 영역은 이미 플럭스 0 으로 굳어(산) 같은 tick 에 두 국면이 공간적으로 공존한다. tick 160 스냅샷: 물 셀 0.555 · 산 셀 0.445(둘 다 실질). 시간이 가면 동결 전선이 전진해 물→산으로 전환(actEnd→0). 별도 법칙 없이 한 규칙이 한 필드에서 산과 물을 동시에 만든다(현상 지도 arc D 완성).',
+      ticks: 400,
+      init(rng, K, opts) { return blobSpec(0.5, (opts && opts.scale) || 12); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const p = phaseCoexistence(blobSpec(0.5), 400, 160);   // 상 공존 시계열 + tick160 셀 스냅샷(보조·결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '시간 공존(간선: 물·산 둘 다 실질, peakCo>0.1)', pass: p.peakCo > 0.1, value: `peakCo=${p.peakCo} @tick ${p.peakT}` },
+          { name: '공간 공존(tick160 셀: 물·산 둘 다 >0.3)', pass: p.waterFrac > 0.3 && p.earthFrac > 0.3, value: `물=${p.waterFrac} · 산=${p.earthFrac} @tick ${p.snap}` },
+          { name: '물→산 전환(동결 전선 전진: actEnd→0 < act0)', pass: p.actEnd < p.act0 && p.actEnd < 0.01, value: `act ${p.act0}→${p.actEnd}, fro ${p.fro0}→${p.froEnd}` },
         ];
       },
     },
