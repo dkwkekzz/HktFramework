@@ -26,6 +26,7 @@
   <button id="reset">reset</button>
   <span id="knobs"></span>
   <label>seed <input id="seed" type="number" value="42" style="width:6em"></label>
+  <label id="gridLab" style="display:none">격자 <select id="grid"></select></label>
   <label>배속 <input id="speed" type="range" min="0" max="1" step="0.001" value="0.25" style="width:9em"><span id="speedLbl" class="k">1.0×</span></label>
   <span id="tick" class="k"></span>
 </header>
@@ -77,6 +78,17 @@ const { kernel: K, sim: S, scenes: SC } = HGO;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 let sim, scene, playing = false;
+// 격자 스케일(프레젠테이션) — 셀 수 = scale³. 시뮬·결정론 불변(장면 init 이 opts.scale 로 격자만 재구성,
+//   미지원 트랙은 무시). flux 는 1728(12³)이 무거워 기본 8³=512 로 가볍게 — verify/골든은 트랙이 12 고정.
+let gridScale = (track === 'flux') ? 8 : 12;
+function buildGridSelect() {
+  // 격자 셀렉터는 init 이 opts.scale 을 읽는 트랙(현재 flux)에서만 노출. 그 외엔 숨김(아무 효과 없음 방지).
+  if (track !== 'flux') return;
+  const sel = $('grid'); $('gridLab').style.display = '';
+  for (const n of [6, 8, 10, 12, 16]) { const o = document.createElement('option'); o.value = n; o.textContent = n + '³ = ' + (n*n*n); sel.appendChild(o); }
+  sel.value = gridScale;
+  sel.onchange = () => { gridScale = +sel.value; reset(); };   // 스케일 바꾸면 sim 재생성
+}
 
 function buildSceneList() {
   const sel = $('scene');
@@ -106,7 +118,7 @@ function reset() {
   location.hash = scene.id;
   const raw = parseInt($('seed').value, 10);
   const seed = (Number.isFinite(raw) ? raw : 42) >>> 0;   // 빈 입력 → NaN → 42 (seed 0 은 유효)
-  sim = S.createSim(scene.init(K.mulberry32(seed), K));
+  sim = S.createSim(scene.init(K.mulberry32(seed), K, { scale: gridScale }));
   $('title').textContent = scene.title;
   $('desc').textContent = scene.desc;
   buildKnobs();
@@ -156,6 +168,7 @@ $('reset').onclick = reset;
 window.onhashchange = () => { const h = location.hash.slice(1); if (SC.SCENES[h] && h !== $('scene').value) { $('scene').value = h; reset(); } };
 
 buildSceneList();
+buildGridSelect();
 reset();
 HGORender.render.attachControls(cv, draw);   // 마우스 카메라 조종을 render 에 위임(정지 중 드래그도 draw 재호출)
 loop();

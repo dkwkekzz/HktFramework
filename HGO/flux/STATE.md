@@ -69,6 +69,7 @@
 
 - 단일 규칙: `F=κ·sign(d)·max(0,|d|−θ)^α`, `d=qᵢ−qⱼ` (SPINE §3).
 - 작업 디렉토리: `HGO/flux/`. 엔진: `engine/`. 장면: `engine/scenes.js`. 뷰어: `../viewer.html?track=flux`.
+- **뷰어 격자 스케일 조절**(성능): 뷰어 헤더 "격자" 셀렉터 6³~16³(기본 8³=512셀, 가볍게). 장면 init 이 `opts.scale` 로 격자만 재구성 — 시뮬·결정론·골든 불변(verify 는 12³ 고정). 렌더(L-glow)가 q 를 밝기로 이미 그림 — render.js 불변.
 - 검증: `node engine/verify.js step-NNNN` (4기둥 + 장면 assert). 풀 골든: `engine/validate/`.
 - 한 step = 장면 1항 + 측정 1개 + `steps/step-NNNN.md` 1개. 복사 0.
 

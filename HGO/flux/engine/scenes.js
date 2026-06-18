@@ -47,8 +47,8 @@
 
   // 결정론 거친 풍경(rng 미사용 — 셀 인덱스 정수 해시로 재현). θ 만 바꿔 freeze 전이를 본다(step-0003 θ-스윕).
   //   q ∈ [0,10] 의 고주파 거칢(이웃이 크게 다름 → θ=1 에서 많은 간선이 사태). 시드 무관 → 비트 재현.
-  function roughSpec(theta) {
-    const cols = 12, rows = 12, depth = 12, W = 100, H = 100, D = 100, S = K.SCALE;
+  function roughSpec(theta, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
     const atoms = []; let i = 0;
     for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
@@ -72,9 +72,11 @@
 
   // 결정론 블롭 풍경(transcendental 0 — 크로스플랫폼 비트, SPINE §9.3) — 큰 척도 구조 + 작은 노이즈.
   //   배경 q=1 + 3개 블롭(2차 falloff) + 정수 해시 노이즈. 동결 후 도메인/전선 분해를 본다(step-0004).
-  function blobSpec(theta) {
-    const cols = 12, rows = 12, depth = 12, W = 100, H = 100, D = 100, S = K.SCALE;
-    const centers = [[3, 3, 3, 8], [8, 4, 6, 6], [5, 9, 8, 7]];   // cx,cy,cz,height
+  function blobSpec(theta, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    // 블롭 중심 = 격자 비율 × 해상도(정수 반올림). n=12 면 원래 정수 중심 [3,3,3]/[8,4,6]/[5,9,8] 정확 복원(골든 불변).
+    const centers = [[3, 3, 3, 8], [8, 4, 6, 6], [5, 9, 8, 7]].map(b =>
+      [Math.round(b[0] / 12 * cols), Math.round(b[1] / 12 * rows), Math.round(b[2] / 12 * depth), b[3]]);
     const atoms = [];
     for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
@@ -158,8 +160,9 @@
       title: 'step-0001 — 기질: 단일 규칙 위의 3D 확산',
       desc: 'θ=0 이면 규칙 F=κ·sign(d)·|d|^α 는 순수 확산. 3D 격자 중앙 블롭이 6-이웃으로 퍼져 평형화하되 총량 Σq 는 불변(반대칭 보존). 세계의 유일한 법칙이 이 한 장면에서 처음 돈다.',
       ticks: 200,
-      init(rng, K) {
-        const cols = 12, rows = 12, depth = 12, W = 100, H = 100, D = 100, S = K.SCALE;
+      init(rng, K, opts) {
+        const n = (opts && opts.scale) || 12;       // 격자 해상도(뷰어 조절·기본 12 → verify/골든 불변)
+        const cols = n, rows = n, depth = n, W = 100, H = 100, D = 100, S = K.SCALE;
         const atoms = [];
         for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
           const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H;
@@ -191,8 +194,9 @@
       title: 'step-0002 — 임계: θ>0 의 자기조직화 동결(돌의 원형)',
       desc: '같은 단일 규칙에서 문턱 θ 만 올린다(새 법칙·노브 0). 거친 q 풍경의 큰 기울기는 사태로 흐르지만, 이웃 차가 θ 아래로 떨어지면 플럭스가 0 으로 잠긴다. 사태가 스스로 멈춰 모든 이웃 차가 θ 부근인 동결 상태로 자기조직화 — θ=0 확산(완전 평탄화)과 갈리는 첫 비확산 층(고체·구조의 토대).',
       ticks: 400,
-      init(rng, K) {
-        const cols = 12, rows = 12, depth = 12, W = 100, H = 100, D = 100, S = K.SCALE;
+      init(rng, K, opts) {
+        const n = (opts && opts.scale) || 12;       // 격자 해상도(뷰어 조절·기본 12 → verify/골든 불변)
+        const cols = n, rows = n, depth = n, W = 100, H = 100, D = 100, S = K.SCALE;
         const atoms = [];
         for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
           const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H;
@@ -224,7 +228,7 @@
       title: 'step-0003 — 임계: θ 가 확산↔동결 전이를 제어',
       desc: '같은 단일 규칙·같은 거친 풍경에서 문턱 θ 만 스윕한다(새 법칙·노브 0). 잔류 기울기(평형 후 남는 spread)가 θ 와 함께 단조로 커진다 — θ=0 은 거의 완전 평탄(확산), θ 클수록 더 굳는다(동결). 확산과 동결은 같은 규칙의 두 극한이고, θ 가 그 사이를 잇는 순서 노브임을 측정으로 보인다(arc B 임계의 골격).',
       ticks: 400,
-      init() { return roughSpec(1.0); },           // 메인 궤적(θ=1.0) — 해시/골든 대상
+      init(rng, K, opts) { return roughSpec(1.0, (opts && opts.scale) || 12); },   // 메인 궤적(θ=1.0)·격자 조절(기본 12=골든)
       watch(sim) { return Object.assign(measure(sim), frozenMeasure(sim)); },
       assert(w0, w1, K) {
         const thetas = [0, 0.5, 1, 2, 4];
@@ -248,7 +252,7 @@
       title: 'step-0004 — 구조: 동결 도메인 + 전선(지형의 씨앗)',
       desc: '구조 있는 q 풍경(3 블롭 + 노이즈)을 θ=1.0 으로 동결시킨다(새 법칙·노브 0). 동결 상태를 군집하면 가파른 경계(전선, |Δq|≥0.8)로 갈린 덩어리(도메인)가 남는다 — 균일(1개)도 완전 분절(셀 수)도 아닌 중간 구조. 도메인/전선은 지형·해안선의 씨앗(현상 지도 arc C).',
       ticks: 400,
-      init() { return blobSpec(1.0); },
+      init(rng, K, opts) { return blobSpec(1.0, (opts && opts.scale) || 12); },
       watch(sim) { return Object.assign(measure(sim), domains(sim, 0.8)); },
       assert(w0, w1) {
         return [
@@ -269,7 +273,7 @@
       title: 'step-0005 — 구조: 상관 길이 ξ(척도 비의존 지표)',
       desc: '동결 구조의 척도를 군집 임계 없이 잰다 — q 장 자기상관이 1/e 로 떨어지는 거리 ξ. 구조 풍경(블롭)은 ξ>1(여러 셀에 걸친 덩어리), 백색잡음은 ξ<1(이웃 무상관). 동결 세계가 특정 공간 척도를 가짐을 정량(arc C 완성·척도 분리 arc D 의 토대).',
       ticks: 400,
-      init() { return blobSpec(1.0); },
+      init(rng, K, opts) { return blobSpec(1.0, (opts && opts.scale) || 12); },
       watch(sim) { return Object.assign(measure(sim), correlationLength(sim)); },
       assert(w0, w1) {
         const rough = correlationLength(frozenSim(roughSpec(1.0), 400));   // 백색잡음 동결 대조(결정론)
