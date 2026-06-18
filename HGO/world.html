@@ -30,6 +30,7 @@
   <button id="step">step</button>
   <button id="reset">reset</button>
   <label>seed <input id="seed" type="number" value="42"></label>
+  <label>배속 <input id="speed" type="range" min="0" max="1" step="0.001" value="0.25" style="width:9em"><span class="tick" id="speedLbl">1.0×</span></label>
   <span class="tick" id="tickLbl"></span>
 </header>
 
@@ -176,7 +177,32 @@ $('legend').innerHTML =
   '<br>· 평행선 수 = 결합 차수(이중·삼중)' +
   '<br>· 색·형태는 author 0 — sim 의 Z·결합·위치를 읽어 번역만.';
 
-function loop() { if (playing) { S.step(sim); draw(); } requestAnimationFrame(loop); }
+// 배속(speed) — 프레임당 시뮬 step 수를 조절(시뮬 코어는 불변·결정론 보존, 데모 재생만 가속/감속).
+//   로그 슬라이더 t∈[0,1] → 0.1×~1000×(t=0.25 → 1.0× 기본). <1배는 분수 누적, >1배는 프레임당 다회 step.
+//   프레임당 시간 예산으로 폭주 방지(극단 배속 = 기계가 낼 수 있는 만큼).
+const STEP_BUDGET_MS = 12, MAX_STEPS_PER_FRAME = 20000;
+const speedFromSlider = t => 0.1 * Math.pow(10, t * 4);
+const fmtSpeed = v => (v >= 10 ? Math.round(v) : v.toFixed(1)) + '×';
+let speed = speedFromSlider(+$('speed').value), stepAcc = 0;
+$('speedLbl').textContent = fmtSpeed(speed);
+$('speed').oninput = e => { speed = speedFromSlider(+e.target.value); $('speedLbl').textContent = fmtSpeed(speed); };
+
+function loop() {
+  if (playing) {
+    stepAcc += speed;
+    let n = Math.min(Math.floor(stepAcc), MAX_STEPS_PER_FRAME);
+    stepAcc -= Math.floor(stepAcc);
+    if (n > 0) {
+      const t0 = performance.now();
+      for (let i = 0; i < n; i++) {
+        S.step(sim);
+        if ((i & 15) === 15 && performance.now() - t0 > STEP_BUDGET_MS) { stepAcc = 0; break; }
+      }
+      draw();
+    }
+  }
+  requestAnimationFrame(loop);
+}
 $('play').onclick = e => { playing = !playing; e.target.textContent = playing ? '❚❚ pause' : '▶ play'; };
 $('step').onclick = () => { S.step(sim); draw(); };
 $('reset').onclick = reset;
