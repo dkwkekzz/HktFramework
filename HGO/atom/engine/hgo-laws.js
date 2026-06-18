@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, bondAngleVSEPR: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, bondMorseOrderNL: 0, bondMorseAlphaPair: 0, bondReqPair: 0, bondKindPair: 0, bondBadger: 0, bondAlphaD: 0, bondAngleLonePair: 0, bondLonePairOrder: 0, bondAngleKind: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, disperseAutoOtsu: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8, kCoreHarvest: 0, harvestDeg: 8 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, bondAngleVSEPR: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, bondMorseOrderNL: 0, bondMorseAlphaPair: 0, bondReqPair: 0, bondKindPair: 0, bondBadger: 0, bondAlphaD: 0, bondAlphaDOrder: 0, bondAngleLonePair: 0, bondLonePairOrder: 0, bondAngleKind: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, disperseAutoOtsu: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8, kCoreHarvest: 0, harvestDeg: 8 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -806,7 +806,7 @@
     for (const e of sim.bonds) {
       const i = e[0], j = e[1], a = atoms[i], b = atoms[j];
       const D = K.morseD(sim.knobs, a, b, e[3]);          // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일 bondMorseD·회귀 0)
-      const alpha = K.morseAlpha(sim.knobs, a, b);        // step-0094 종류별 우물 폭 α(게이트 0 → 균일 bondMorseA·회귀 0)·PE/해리 와 공유
+      const alpha = K.morseAlpha(sim.knobs, a, b, e[3]);  // step-0094 종류별 우물 폭 α(게이트 0 → 균일 bondMorseA·회귀 0)·step-0106 차수→α(e[3]·게이트 0 → order=1·회귀 0)·PE/해리 와 공유
       const req = K.morseReq(sim.knobs, a, b);            // step-0095 종류별 평형 길이 r_eq(게이트 0 → 균일 bondReq·회귀 0)·PE/해리 와 공유
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
       const r = Math.sqrt(dx * dx + dy * dy);
@@ -1350,7 +1350,7 @@
     for (const e of sim.bonds) {
       const a = atoms[e[0]], b = atoms[e[1]];
       const D = K.morseD(sim.knobs, a, b, e[3]);         // step-0089 종류별 + 0090 차수별 해리 깊이(게이트 0 → 균일·회귀 0)·force/PE 와 같은 D
-      const alpha = K.morseAlpha(sim.knobs, a, b);       // step-0094 종류별 우물 폭 α(게이트 0 → 균일·회귀 0)·force/PE 와 같은 α
+      const alpha = K.morseAlpha(sim.knobs, a, b, e[3]); // step-0094 종류별 우물 폭 α(게이트 0 → 균일·회귀 0)·step-0106 차수→α(e[3]·게이트 0 → order=1·회귀 0)·force/PE 와 같은 α
       const req = K.morseReq(sim.knobs, a, b);           // step-0095 종류별 평형 길이 r_eq(게이트 0 → 균일·회귀 0)·force/PE 와 같은 req
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
       const r2 = dx * dx + dy * dy;

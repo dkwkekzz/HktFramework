@@ -218,7 +218,7 @@
   //   α_eff = bondMorseA·√(Za·Zb)(기준 Z=1·1 → ×1 = H–H baseline·무거운 결합 *좁은(가파른)* 우물). D(0089 깊이)와 *직교* — α 는 우물 *폭*(강성)을 정한다:
   //   k_force = 2Dα²·평형 근방 힘 상수 → α↑ ⇒ 우물 좁고 가팔라 같은 에너지서 진동 폭↓·해리 거리↓. 화학의 "결합마다 다른 강성/진동수"를 author 없이 Z 로.
   //   morseD 와 같은 세 곳(force bondSpring·PE bondSpringPE·해리 bondBreak)이 *공유* → 퍼텐셜·힘·해리 환원 정합(장부 닫힘).
-  function morseAlpha(knobs, a, b) {
+  function morseAlpha(knobs, a, b, order) {
     let alpha = (knobs && knobs.bondMorseA) || 1;
     if (!knobs) return alpha;
     if (knobs.bondMorseAlphaPair || knobs.bondKindPair) { // step-0094 종류별(Z): 무거운 결합 좁은(가파른) 우물 (step-0100 통합 게이트 bondKindPair)
@@ -237,10 +237,12 @@
     // step-0102 D↔α 상관(둘째 Badger 축) — bondAlphaD(=0 → Math.pow(_,0)=1 → α 불변·회귀 0) 면 α 를 *깊이 D 의 함수*로 묶는다:
     //   깊은(강한) 결합일수록 *가파르다*(실측: 결합 에너지↑ ⇒ 힘 상수↑). α_eff *= (D_eff/D_base)^bondAlphaD.
     //   0101 이 α↔r_eq(길이)를 묶었다면 여기선 α↔D(깊이) — 셋째 화학 축까지 α 가 *받게* 됨(k=2Dα² 가 D·α 양쪽서 강성). D_eff=base(깊이 편차 0·예: H–H) 면 인자 1 → 무영향.
-    //   *주의*: morseD 를 order=1 로 호출(이 함수는 결합 간선 차수 e[3] 를 못 봄) — 차수별 깊이→α 연계는 후속. author 분기 0(D 의 멱함수).
+    //   step-0106 차수→α(bondAlphaDOrder=0 → order=1 고정·0102 비트 동일·회귀 0): 켜면 D↔α 상관이 *실제 결합 차수*의 깊이를 본다.
+    //     0102 는 morseD 를 order=1 로 고정 호출(간선 차수 e[3] 못 봄)이라, 다중결합이 0090(bondMorseOrder)로 *깊어져도* 그 깊이가 α 로 안 번졌다.
+    //     bondAlphaDOrder 켜면 Deff=morseD(...,e[3]) → 깊은 다중결합(이중·삼중)일수록 D↑ → α↑(더 가파른 우물) — 깊이축의 차수 성분까지 강성축에 연결.
     if (knobs.bondAlphaD) {
       const Dbase = (knobs.bondMorseD) || 0;
-      const Deff = morseD(knobs, a, b, 1);                 // 0089 종류별 깊이(게이트 off 면 Dbase → 인자 1·회귀 0)
+      const Deff = morseD(knobs, a, b, knobs.bondAlphaDOrder ? (order || 1) : 1);  // 0089 종류별·0090 차수별 깊이(게이트 off 면 order=1 → 0102 비트 동일·회귀 0)
       if (Dbase > 0 && Deff > 0) alpha *= Math.pow(Deff / Dbase, knobs.bondAlphaD);
     }
     return alpha;
@@ -276,7 +278,7 @@
     for (const e of sim.bonds) {
       const a = A[e[0]], b = A[e[1]];
       const D = morseD(sim.knobs, a, b, e[3]);           // step-0089 종류별 D + step-0090 차수별(게이트 0 → 균일 bondMorseD)
-      const alpha = morseAlpha(sim.knobs, a, b);         // step-0094 종류별 α(폭·게이트 0 → 균일 bondMorseA)·force/해리 와 공유
+      const alpha = morseAlpha(sim.knobs, a, b, e[3]);   // step-0094 종류별 α(폭·게이트 0 → 균일 bondMorseA)·step-0106 차수→α(e[3]·게이트 0 → order=1·회귀 0)·force/해리 와 공유
       const req = morseReq(sim.knobs, a, b);             // step-0095 종류별 r_eq(평형 길이·게이트 0 → 균일 bondReq)·force/해리 와 공유
       const dx = minImage(b.rx - a.rx, sim.W), dy = minImage(b.ry - a.ry, sim.H);
       const r = Math.sqrt(dx * dx + dy * dy);

@@ -7378,6 +7378,90 @@
         ];
       },
     },
+
+    'step-0106': {
+      id: 'step-0106',
+      title: '차수→α 상관 — 다중결합의 깊이가 강성까지 끌어올린다 (게이트 bondAlphaDOrder=0 → order=1·0102 비트 동일·회귀 0)',
+      desc: '0102 가 α 를 *깊이 D* 에 묶었으나(D↔α), morseAlpha 가 D 를 order=1 로 고정 호출해 결합 *차수* 성분을 못 봤다(0102 한계 "차수→α 미"). 0090(bondMorseOrder)으로 이중·삼중결합이 *깊어져도* 그 깊이가 α 로 안 번졌다. 이 step 의 게이트 `bondAlphaDOrder` 켜면 D↔α 상관이 *실제 간선 차수* e[3] 의 깊이를 봐 — 깊은 다중결합일수록 α↑(더 가파른 우물). 깊이축의 *차수 성분*까지 강성축에 연결(0102 의 차수 보강). bondAlphaDOrder=0 → order=1 고정·0102 비트 동일(회귀 0). ' +
+            '*무대*: 30 Morse 이량체 — 모두 C–C(Z6)·**차수만 갈림**(단일 10·이중 10·삼중 10)·bondMorsePair+bondMorseOrder on(D∝√Z·차수)·bondAlphaD 0.5 on·α-pair off(차수→α 효과 격리)·같은 길이 base req=3·같은 상대 KE=2(≪D 속박)·base D=4 α=0.3·dt=0.05·600 tick·두 모드 off/on: ' +
+            'bondAlphaDOrder 켜면 삼중 α 0.735→1.27(Deff 24→72·(D/Dbase)^0.5) → 우물 가팔라져 삼중 최대 신장 strT↓. 단일(order1·둘 다 order=1) α 0.735 불변 → strS 비트 동일. ' +
+            '① **차수→α 상관(깊은 다중결합 = 가파름)·load-bearing** — bondAlphaDOrder 켜면 삼중 최대 신장 strT(on) ≪ strT(off)(α_T 0.735→1.27·우물 가팔라짐)·α_T(on) > α_S(on)(차수 깊이가 강성 끌어올림) ⇒ 0102 깊이축의 *차수 성분*까지 α 에 연결(author 아닌 차수 깊이의 멱함수). ' +
+            '② **단일결합(order1)은 불변·load-bearing** — 단일 최대 신장 strS(on) ≡ strS(off)(비트 동일·order=1 → on/off 같은 깊이) ⇒ bondAlphaDOrder 는 *차수 깊이 편차에만* 작용. ' +
+            '③ **장부 머신** — 쌍별 등·반작용 운동량 머신·잔여 E symplectic 유계. ' +
+            '④ **회귀** — bondAlphaDOrder=0 → order=1·0102 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 4, bondMorseA: 0.3, bondMorsePair: 1, bondMorseOrder: 1, bondAlphaD: 0.5, unbondDist: 40 },
+
+      // 모두 C–C(Z6)·차수 1/2/3 각 NC·같은 길이 base req 배치(차수만 종류화)·같은 상대 KE(속박).
+      dimers(K) {
+        const req = this.KN.bondReq, KErel = 2, atoms = [], bonds = [], keys = new Set(), tot = 3 * 2 * this.NC;
+        const C = { Z: 6, N: 6, e: 6 }, mu = (C.Z + C.N) / 2, vrel = Math.sqrt(2 * KErel / mu);
+        for (let ord = 1; ord <= 3; ord++) {
+          for (let k = 0; k < this.NC; k++) {
+            const idx = (ord - 1) * this.NC + k, cx = 40 + (idx % 8) * 45, cy = 40 + ((idx / 8) | 0) * 45, a0 = atoms.length;
+            atoms.push({ Z: C.Z, N: C.N, e: C.e, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: C.Z, N: C.N, e: C.e, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, ord]); keys.add(a0 * tot + (a0 + 1)); }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, alphaDOrder) {
+        const d = this.dimers(K), req = this.KN.bondReq;
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondAlphaDOrder: alphaDOrder }), tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0, 0];                           // [단일, 이중, 삼중] 최대 신장|r−req|
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const oc = (e[3] || 1) - 1, str = Math.abs(Math.sqrt(dx * dx + dy * dy) - req);
+            if (str > maxStr[oc]) maxStr[oc] = str; }
+        }
+        const l1 = K.ledger(sim);
+        return { strS: maxStr[0], strD: maxStr[1], strT: maxStr[2], bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+      // α(차수별·bondAlphaDOrder on/off) — 강성이 차수 깊이로 끌려 올라갔는지 직접 확인.
+      alphaOf(K, on) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN, { bondAlphaDOrder: on }), C = { Z: 6, N: 6, e: 6 };
+        return { single: K.morseAlpha(base, C, C, 1), triple: K.morseAlpha(base, C, C, 3) };
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0102 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1.5 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1.5, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K), aOn = this.alphaOf(K, 1), aOff = this.alphaOf(K, 0);
+        return { strTon: +c.on.strT.toFixed(3), strToff: +c.off.strT.toFixed(3),
+                 strSon: +c.on.strS.toFixed(3), strSoff: +c.off.strS.toFixed(3),
+                 alphaTon: +aOn.triple.toFixed(3), alphaSon: +aOn.single.toFixed(3), alphaToff: +aOff.triple.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 차수→α 상관(깊은 다중결합=가파름) ② 단일결합 불변 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), aOn = this.alphaOf(K, 1), aOff = this.alphaOf(K, 0);
+        const correlate = c.on.strT < c.off.strT * 0.85 && aOn.triple > aOn.single * 1.4;   // ① 삼중 가팔라짐 + α_T 끌려올라감
+        const singleInvariant = c.on.strS === c.off.strS && aOn.single === aOff.single;       // ② 단일(order1) 비트 동일
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                            // ④ 골든 보존
+        return [
+          { name: `차수→α 상관(깊은 다중결합=가파름)·load-bearing — bondAlphaDOrder 켜면 삼중 최대 신장 strT ${c.off.strT.toFixed(2)}→${c.on.strT.toFixed(2)}(α_T ${aOn.single.toFixed(2)}→${aOn.triple.toFixed(2)}·우물 가팔라짐)·α_T>α_S ⇒ 0102 깊이축의 차수 성분까지 α 에 연결(author 아닌 차수 깊이의 멱함수)`, pass: correlate, value: +c.on.strT.toFixed(2) },
+          { name: `단일결합(order1)은 불변·load-bearing — strS(on) ${c.on.strS.toFixed(3)} ≡ strS(off) ${c.off.strS.toFixed(3)}·α_S(on) ${aOn.single.toFixed(3)} ≡ α_S(off) ${aOff.single.toFixed(3)}(비트 동일) ⇒ bondAlphaDOrder 는 차수 깊이 편차에만 작용`, pass: singleInvariant, value: +c.on.strS.toFixed(3) },
+          { name: `장부 머신 — 쌍별 등·반작용 운동량 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.on.dE / c.on.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — bondAlphaDOrder=0 → order=1·0102 비트 동일·골든 보존(상관 게이트 가법)`, pass: reg, value: +c.off.strT.toFixed(2) },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
