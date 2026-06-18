@@ -70,6 +70,47 @@
     return +((mx - mn) / K.SCALE).toFixed(4);
   }
 
+  // 결정론 블롭 풍경(transcendental 0 — 크로스플랫폼 비트, SPINE §9.3) — 큰 척도 구조 + 작은 노이즈.
+  //   배경 q=1 + 3개 블롭(2차 falloff) + 정수 해시 노이즈. 동결 후 도메인/전선 분해를 본다(step-0004).
+  function blobSpec(theta) {
+    const cols = 12, rows = 12, depth = 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const centers = [[3, 3, 3, 8], [8, 4, 6, 6], [5, 9, 8, 7]];   // cx,cy,cz,height
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      let q = 1;
+      for (let b = 0; b < centers.length; b++) {
+        const cx = centers[b][0], cy = centers[b][1], cz = centers[b][2], h = centers[b][3];
+        const d2 = (c - cx) * (c - cx) + (r - cy) * (r - cy) + (z - cz) * (z - cz);
+        const f = 1 - d2 / 16; if (f > 0) q += h * f;            // 2차 falloff(transcendental 없음)
+      }
+      const idx = (z * rows + r) * cols + c;
+      const noise = ((Math.imul(idx + 1, 2654435761) >>> 0) % 1000) / 1000 * 0.2;   // 0..0.2 결정론 노이즈
+      atoms.push(cell(rx, ry, rz, Math.round((q + noise) * S)));
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: 0.1, theta, alpha: 1 } };
+  }
+
+  // 창발 측정(arc C — 도메인) — 동결 q 장을 군집해 "덩어리 + 전선"을 읽는다(author 라벨 0).
+  //   전선(front) = |Δq| ≥ frontEps 인 간선(가파른 경계). 그 간선을 *끊고* 남은 그래프의 연결성분 = 도메인.
+  //   반환: 도메인 수 nDom · 최대 도메인 셀 비율 maxFrac · 전선 간선 비율 frontFrac. union-find.
+  function domains(sim, frontEps) {
+    const S = K.SCALE, fFix = Math.round(frontEps * S);
+    const a = sim.atoms, edges = sim.edges, n = a.length;
+    const parent = new Int32Array(n); for (let i = 0; i < n; i++) parent[i] = i;
+    const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+    let front = 0;
+    for (let e = 0; e < edges.length; e++) {
+      const i = edges[e][0], j = edges[e][1];
+      const d = a[i].q - a[j].q, ad = d < 0 ? -d : d;
+      if (ad >= fFix) { front++; continue; }                 // 전선 → 끊음(도메인 경계)
+      const ri = find(i), rj = find(j); if (ri !== rj) parent[ri] = rj;
+    }
+    const size = new Map(); let mx = 0;
+    for (let i = 0; i < n; i++) { const r = find(i); const s = (size.get(r) || 0) + 1; size.set(r, s); if (s > mx) mx = s; }
+    return { nDom: size.size, maxFrac: +(mx / n).toFixed(4), frontFrac: +(front / edges.length).toFixed(4), nCells: n };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -156,6 +197,27 @@
           { name: 'θ-freeze 전이(잔류 spread ↑θ 단조)', pass: monotone, value: `θ${JSON.stringify(thetas)} → resid${JSON.stringify(resid)}` },
           { name: '확산극한(θ=0 거의 평탄)', pass: resid[0] < 0.5, value: `resid(θ=0)=${resid[0]}` },
           { name: '동결극한(θ↑ → 잔류 ↑)', pass: resid[resid.length - 1] > resid[0] + 1, value: `resid(θ=4)=${resid[resid.length - 1]} ≫ resid(θ=0)=${resid[0]}` },
+        ];
+      },
+    },
+
+    // ── step-0004: arc C — 동결 상태의 도메인 + 전선 구조 ── 새 법칙/노브 0(블롭 IC + θ=1.0 동결).
+    //   구조 있는 풍경(3 블롭 + 노이즈)이 동결하면 *가파른 경계(전선)*로 갈린 *덩어리(도메인)* 가 남는가.
+    //   전선 = |Δq|≥0.8 간선(끊음), 도메인 = 남은 연결성분. 1(균일)도 N(완전 분절)도 아니면 구조 창발.
+    'step-0004': {
+      id: 'step-0004',
+      title: 'step-0004 — 구조: 동결 도메인 + 전선(지형의 씨앗)',
+      desc: '구조 있는 q 풍경(3 블롭 + 노이즈)을 θ=1.0 으로 동결시킨다(새 법칙·노브 0). 동결 상태를 군집하면 가파른 경계(전선, |Δq|≥0.8)로 갈린 덩어리(도메인)가 남는다 — 균일(1개)도 완전 분절(셀 수)도 아닌 중간 구조. 도메인/전선은 지형·해안선의 씨앗(현상 지도 arc C).',
+      ticks: 400,
+      init() { return blobSpec(1.0); },
+      watch(sim) { return Object.assign(measure(sim), domains(sim, 0.8)); },
+      assert(w0, w1) {
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '구조 창발(1 < 도메인 < 셀수)', pass: w1.nDom > 1 && w1.nDom < w1.nCells, value: `nDom=${w1.nDom} / nCells=${w1.nCells}` },
+          { name: '전선 존재(0 < frontFrac < 1)', pass: w1.frontFrac > 0 && w1.frontFrac < 1, value: `frontFrac=${w1.frontFrac}` },
+          { name: '큰 도메인 존재(maxFrac>균일이상)', pass: w1.maxFrac > 1 / w1.nCells, value: `maxFrac=${w1.maxFrac}` },
+          { name: 'coarsening(작은 도메인 융합·지배 도메인 성장)', pass: w1.nDom < w0.nDom && w1.maxFrac > w0.maxFrac, value: `nDom ${w0.nDom}→${w1.nDom}, maxFrac ${w0.maxFrac}→${w1.maxFrac}` },
         ];
       },
     },
