@@ -29,7 +29,9 @@
 
   // 한 tick — 모든 이웃 간선에 규칙을 한 번. 델타 누적 후 일괄 적용(간선 순서 무관 → 결정론·순서 무관 보존).
   //   delta 는 정수만 담는다(Float64 지만 값은 정수 — 2⁵³ 내 +,− 비트 정확). κ·θ 는 노브(인간 단위)에서 fixed 로 환산.
+  //   둘째 보존 채널 p 가 opt-in(knobs.gamma) 이면 결합 경로로 — gamma 없으면 아래 원래 경로 *그대로*(회귀 0, SKILL §3).
   function apply(sim) {
+    if (sim.knobs.gamma) return applyCoupled(sim);   // arc E: p 채널·κ 변조(촉매). gamma 미설정 장면은 비트 불변.
     const kn = sim.knobs, SCALE = K.SCALE;
     const kappaFix = Math.round(kn.kappa * SCALE);   // κ → fixed(예: 0.2 → 13107). 튜닝 노브라 미세 근사 무방.
     const thetaFix = Math.round(kn.theta * SCALE);   // θ → fixed(q-단위 정수)
@@ -51,6 +53,36 @@
       a[k].x = a[k].q / SCALE;                 // 렌더 밝기 채널 = q 인간 단위(파생 실수 — 읽기 전용, 규칙에 환류 0)
     }
     sim.fluxLast = flux;                       // watch/측정용(hash 미참여)
+  }
+
+  // arc E — 둘째 보존 채널 p + 진짜 촉매(opt-in, knobs.gamma 일 때만). 새 *법칙* 아님(같은 규칙 rule() 을
+  //   q·p 두 채널에 각각 한 번, SPINE §1·§3). 촉매 = p 가 q 의 교환률 κ 를 *국소 변조*: κ_eff = κ·(1 + γ·p̄),
+  //   p̄ = (pᵢ+pⱼ)/2(간선 대칭 → κ_eff 가 i,j 대칭 → rule 의 반대칭 유지 → Σq 비트 보존). p 는 자기 규칙으로 확산
+  //   (kappaP·thetaP, 미지정 시 q 노브 따름). 정수 전용(floor) — 결정론. ⚠ κ_eff·Z<1 안정 조건은 장면 책임(γ·p̄ 가 넘으면 발산).
+  function applyCoupled(sim) {
+    const kn = sim.knobs, SCALE = K.SCALE;
+    const kqFix = Math.round(kn.kappa * SCALE);
+    const kpFix = Math.round((kn.kappaP != null ? kn.kappaP : kn.kappa) * SCALE);
+    const thetaFix = Math.round((kn.theta || 0) * SCALE);
+    const thetaPFix = Math.round((kn.thetaP || 0) * SCALE);
+    const alpha = Math.max(1, Math.round(kn.alpha || 1));
+    const gammaFix = Math.round(kn.gamma * SCALE);            // 결합 세기(인간 단위 → fixed)
+    const a = sim.atoms, edges = sim.edges;
+    const dq = sim._delta || (sim._delta = new Float64Array(a.length));
+    const dp = sim._deltaP || (sim._deltaP = new Float64Array(a.length));
+    dq.fill(0); dp.fill(0);
+    let flux = 0;
+    for (let e = 0; e < edges.length; e++) {
+      const i = edges[e][0], j = edges[e][1];
+      const pbar = (a[i].p + a[j].p) >> 1;                    // 정수 평균(floor·대칭)
+      const kqEff = kqFix + Math.floor(kqFix * Math.floor(gammaFix * pbar / SCALE) / SCALE);  // κ·(1+γ·p̄) 정수
+      const Fq = rule(a[i].q - a[j].q, kqEff, thetaFix, alpha, SCALE);
+      if (Fq !== 0) { dq[i] -= Fq; dq[j] += Fq; flux += Fq < 0 ? -Fq : Fq; }
+      const Fp = rule(a[i].p - a[j].p, kpFix, thetaPFix, alpha, SCALE);   // p 자기 확산(같은 규칙)
+      if (Fp !== 0) { dp[i] -= Fp; dp[j] += Fp; }
+    }
+    for (let k = 0; k < a.length; k++) { a[k].q += dq[k]; a[k].p += dp[k]; a[k].x = a[k].q / SCALE; }
+    sim.fluxLast = flux;
   }
 
   return { rule, apply };

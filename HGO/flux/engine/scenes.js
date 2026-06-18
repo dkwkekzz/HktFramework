@@ -254,6 +254,40 @@
     return { mean: +mean.toFixed(2), median: sizes[sizes.length >> 1], min: sizes[0], max: sizes[sizes.length - 1], n: sizes.length };
   }
 
+  // arc E 풍경 — 둘째 보존 채널 p(촉매 장). q 는 두 동일 범프(좌·우 대칭), p 는 좌반 고(촉매)·우반 저(정적).
+  //   kappaP=0 → p 정적(촉매 장만), gamma>0 → p 가 q 의 κ 변조. κ=0.05·γ·p̄ 가 안정역(κ_eff·Z<1) 안.
+  //   cellP = 렌더 계약 + p 필드(렌더는 p 무시 — q 만 밝기). n 스케일 시 범프/경계 비율 보존.
+  function catalystSpec(gamma, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const aC = Math.round(3 / 12 * cols), bC = Math.round(9 / 12 * cols), midR = Math.round(6 / 12 * rows), midZ = Math.round(6 / 12 * depth);
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      let q = 1; if ((c === aC || c === bC) && r === midR && z === midZ) q += 8;   // 좌·우 동일 범프
+      const p = c < cols / 2 ? 2 : 0;                                              // 좌반 고p(촉매)·우반 저p
+      atoms.push({ rx, ry, rz, q: Math.round(q * S), p: Math.round(p * S), x: q, Z: 1, N: 0, e: 1, vx: 0, vy: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: 0.05, theta: 0, alpha: 1, kappaP: 0, gamma } };
+  }
+
+  // 창발 측정(arc E — 이중 보존 + 촉매) — γ>0 일 때 고p 영역 범프가 저p 영역 범프보다 *빠르게* 평형(κ 변조).
+  //   τ = 범프 초과분(qcenter−1)이 초기(8)의 1/e 로 떨어지는 tick. 고p τ_A < 저p τ_B = 촉매. ΣQ·ΣP 독립 보존 확인.
+  function catalysis(gamma, ticks) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, sim = SIM.createSim(catalystSpec(gamma));
+    const cols = sim.cols, rows = sim.rows, depth = sim.depth, a = sim.atoms;
+    const idx = (c, r, z) => (z * rows + r) * cols + c;
+    const A = idx(Math.round(3 / 12 * cols), Math.round(6 / 12 * rows), Math.round(6 / 12 * depth));
+    const B = idx(Math.round(9 / 12 * cols), Math.round(6 / 12 * rows), Math.round(6 / 12 * depth));
+    let q0 = 0, p0 = 0; for (const x of a) { q0 += x.q; p0 += x.p; }
+    const exA = [(a[A].q - S) / S], exB = [(a[B].q - S) / S];
+    for (let t = 0; t < ticks; t++) { SIM.step(sim); exA.push((a[A].q - S) / S); exB.push((a[B].q - S) / S); }
+    let q1 = 0, p1 = 0; for (const x of a) { q1 += x.q; p1 += x.p; }
+    const tau = ser => { const thr = ser[0] / Math.E; for (let t = 1; t < ser.length; t++) if (ser[t] <= thr) return +(t - 1 + (ser[t - 1] - thr) / (ser[t - 1] - ser[t])).toFixed(2); return ticks; };
+    const finite = Number.isFinite(a[A].q) && Number.isFinite(a[B].q);
+    return { tauA: tau(exA), tauB: tau(exB), dQ: finite ? Math.abs(q1 - q0) / S : NaN, dP: finite ? Math.abs(p1 - p0) / S : NaN, finite };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -471,6 +505,27 @@
           { name: '사태 존재(θ=0.5: 평균>1·분포 폭 max>min)', pass: a05.mean > 1 && a05.max > a05.min, value: `mean=${a05.mean} (min ${a05.min}, max ${a05.max}, N=${a05.n})` },
           { name: 'θ 사태 국소화(평균 크기 θ↑ 단조↓)', pass: monoDown, value: `θ[0.5,1,2,4] → mean${JSON.stringify(means)}` },
           { name: 'θ=0 소산(사태 아닌 확산: 평균≈1 ≪ θ=0.5)', pass: a0.mean < 1.5 && a0.mean < a05.mean, value: `mean(θ=0)=${a0.mean} ≪ mean(θ=0.5)=${a05.mean}` },
+        ];
+      },
+    },
+
+    // ── step-0010: arc E 부트스트랩 — 둘째 보존 채널 p + 진짜 촉매(κ 변조) ── 규칙 정련(opt-in·회귀 0, SKILL §3).
+    //   단일 q 의 천장(A~D 다 측정, 무에서 패턴 없음)을 넘는 첫 발. p 가 q 의 교환률 κ 를 국소 변조 = 촉매:
+    //   고p 영역 범프가 저p 영역보다 빠르게 평형. 같은 규칙(rule())을 q·p 두 채널에 — 새 법칙 0. ΣQ·ΣP 독립 보존.
+    'step-0010': {
+      id: 'step-0010',
+      title: 'step-0010 — arc E: 둘째 보존량 p 가 q 를 촉매(κ 변조)',
+      desc: '단일 보존 q 의 천장(A~D·SOC 다 측정·무에서 패턴 없음)을 넘는 첫 발 — 둘째 보존량 p 를 opt-in 으로 도입(knobs.gamma·규칙 정련, gamma 없으면 과거 9 장면 비트 불변=회귀 0). p 가 q 의 교환률을 국소 변조(κ_eff=κ(1+γ·p̄)) = 진짜 촉매: q 의 동일 두 범프 중 고p 영역 범프가 저p 영역보다 빠르게 평형(τ_A<τ_B). 같은 규칙 rule() 을 q·p 두 채널에 각각(새 법칙 0), ΣQ·ΣP 독립 보존(비트). 한계: κ 변조는 q 평형(균일)을 안 깸 → 패턴 형성(상향 플럭스)은 cross-gradient 항이 필요(arc E 후속).',
+      ticks: 60,
+      init(rng, K, opts) { return catalystSpec(1.0, (opts && opts.scale) || 12); },   // 메인: γ=1 결합(안정역)
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const c0 = catalysis(0.0, 60), c1 = catalysis(1.0, 60);   // γ=0(대조)·γ=1(촉매) 보조 재실행(결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부·결합 경로)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6 && c1.finite, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}, γ1 |ΔΣq|=${c1.dQ.toExponential(2)}` },
+          { name: 'ΣP 독립 보존(둘째 채널 닫힌 장부)', pass: c1.finite && c1.dP < 1e-6, value: `|ΔΣp|=${c1.dP.toExponential(2)}` },
+          { name: '대조(γ=0: 고p·저p 범프 평형 동일)', pass: Math.abs(c0.tauA - c0.tauB) < 0.5, value: `τ_A=${c0.tauA} ≈ τ_B=${c0.tauB}` },
+          { name: '촉매(γ=1: 고p 범프 τ_A < 저p τ_B)', pass: c1.tauA < c1.tauB - 0.5, value: `τ_A(고p)=${c1.tauA} < τ_B(저p)=${c1.tauB}` },
         ];
       },
     },
