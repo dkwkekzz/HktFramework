@@ -119,6 +119,7 @@ function reset() {
   const raw = parseInt($('seed').value, 10);
   const seed = (Number.isFinite(raw) ? raw : 42) >>> 0;   // 빈 입력 → NaN → 42 (seed 0 은 유효)
   sim = S.createSim(scene.init(K.mulberry32(seed), K, { scale: gridScale }));
+  if (track === 'flux') sim.render = true;   // flux: tick 마다 렌더 채널(c0 밴드·전선 bonds) 갱신(프레젠테이션)
   $('title').textContent = scene.title;
   $('desc').textContent = scene.desc;
   buildKnobs();
