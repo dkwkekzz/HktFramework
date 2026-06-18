@@ -1,6 +1,6 @@
 ---
 name: hgo-render-step
-description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→번역→검증 3종→갱신)를 토큰·시간 효율적으로 실행한다. atom 시뮬 트랙과 직교 — 렌즈 번호로 세고 한 커밋 = 한 렌즈. 렌더는 atom 스냅샷을 *읽기만* 한다. 사용자가 "HGO render step 진행/다음 렌즈/렌즈 작업"을 요청하면 사용.
+description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→번역→검증 4종[알리바이·스모크·자동 픽셀 눈 검증·사용자 눈 검증]→갱신)를 토큰·시간 효율적으로 실행한다. atom 시뮬 트랙과 직교 — 렌즈 번호로 세고 한 커밋 = 한 렌즈. 렌더는 atom 스냅샷을 *읽기만* 한다. 사용자가 "HGO render step 진행/다음 렌즈/렌즈 작업"을 요청하면 사용.
 ---
 
 # HGO render step(렌즈) 루프 — 토큰 효율 실행 절차
@@ -36,12 +36,13 @@ description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→�
 - **시뮬 객체 비변경** — atoms·photons 에 렌더 필드 쓰지 않는다(섬광 등은 렌더 전용 병렬 배열).
 - **author 금지선(한 항)**: *어느 양이 색·빛이 되는가* = 읽기(허용) / 분포 재성형·시뮬에 없는 실루엣·질을 손으로 박기 = author(금지).
 
-## 4. 검증 3종 — 화면이 권위
+## 4. 검증 4종 — 화면이 권위
 
 1. **시뮬 알리바이**: 커밋 전 `git status` diff 는 `render/` · `HGO/viewer.html`(공유 셸 배선) · 스킬에만. **`atom/` 은 diff 0**(viewer 가 트랙 밖이라 진짜 disjoint). 잡히면 *실수로 시뮬을 만진 것* — 되돌려라(렌더는 읽기만 → 골든 비트 불변).
-2. **헤드리스 스모크**: `node render/engine/validate/smoke.js` — 번역이 옳게 도는지 수치(광자→유효 RGB·물리 순서·스펙트럼선). 새 렌즈는 그 렌즈의 assert 한 항 가법.
-3. **눈 검증(권위)**: 헤드리스로는 못 본다 — *사용자 브라우저 확인*이 권위. 공용 단일 뷰어 `HGO/viewer.html` 을 열어 확인 요청하고, 결과를 STATE §6 INDEX 에 기록(예: "눈 검증 PASS(사용자 브라우저)"). + 척추 한 항(형태·질 author 0).
-   - **"보인다(covered)" 주장의 게이트**: 어떤 atom 관측 양이 *화면에 보인다*고 STATE §3 격차를 ✅로 닫으려면 **눈 검증을 통과**해야 한다 — 문서에 *적힌 가정*으로 닫지 마라(이번 Z 누락의 근본 원인 = 검증 안 된 "이미 보인다" 주장). 눈 검증 전엔 ⏳로 둔다.
+2. **헤드리스 스모크**: `node render/engine/validate/smoke.js` — *번역 로직*이 옳게 도는지 수치(광자→유효 RGB·물리 순서·스펙트럼선). 새 렌즈는 그 렌즈의 assert 한 항 가법.
+3. **헤드리스 눈 검증(자동·먼저 돌려라)**: `node render/engine/validate/eye-capture.js` — smoke 가 *로직*이라면 이건 *실제 픽셀*이다. headless chromium(playwright)이 **실 `HGO/viewer.html` 을 띄워**(별도 HTML 0·viewer 전역 모듈 재사용) 진짜 캔버스를 스크린샷 + 픽셀 readback 으로 *상대 비교* 단언(깊이 배치 vs 평면 붕괴 등 — 환경 독립). 브라우저 없으면 우아하게 skip(exit 0). 새 렌즈의 "정말 그려지나?"를 *자동으로* 1차 확인 — `node …/eye-capture.js <sceneId> [ticks]` 로 임의 장면도 캡처(`render/captures/*.png`, .gitignore). **"보인다"를 주장하기 전 이걸 먼저 돌려 픽셀로 본다.**
+4. **눈 검증(최종 권위·질)**: 자동 픽셀 단언이 *그려짐·위치*를 객관 확인한다면, *미적·질적*(색 조화·형태 의도)은 여전히 *사용자 브라우저 확인*이 최종 권위. `HGO/viewer.html` 을 열어 확인 요청하고 결과를 STATE §6 INDEX 에 기록(예: "눈 검증 PASS(자동 픽셀 + 사용자 브라우저)"). + 척추 한 항(형태·질 author 0).
+   - **"보인다(covered)" 주장의 게이트**: 어떤 atom 관측 양이 *화면에 보인다*고 STATE §3 격차를 ✅로 닫으려면 **눈 검증(자동 픽셀 단언 + 필요 시 사용자 확인)을 통과**해야 한다 — 문서에 *적힌 가정*으로 닫지 마라(이번 Z 누락의 근본 원인 = 검증 안 된 "이미 보인다" 주장). 검증 전엔 ⏳로 둔다. *환경에 headless 브라우저가 없다고 단정 말고 `eye-capture.js` 를 먼저 돌려 봐라 — 있으면 자동으로 픽셀까지 본다.*
 
 ## 5. 갱신 — `STATE.md` 만 Edit 로
 
@@ -52,7 +53,7 @@ description: HGO render(시각화) 트랙 렌즈 한 바퀴(읽기→계획→�
 ## 6. 닫기 체크리스트
 
 1. 시뮬 알리바이 — `git status` diff 가 `render/` · `HGO/viewer.html`(공유 셸) · 스킬에만 (`atom/` diff 0)
-2. 헤드리스 스모크 PASS + 눈 검증(사용자 확인)
+2. 헤드리스 스모크 PASS + **헤드리스 눈 검증 `eye-capture.js` PASS(자동 픽셀)** + 눈 검증(사용자 확인·질)
 3. 척추 한 항(형태·질 author 0) 통과
 4. STATE §1~3 Edit + §6 INDEX 1줄 append
 5. 커밋 1개 = 렌즈 1개 (atom 파일 diff 0 확인 후 커밋)
