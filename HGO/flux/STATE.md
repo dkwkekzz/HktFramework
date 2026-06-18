@@ -69,6 +69,8 @@
 
 - 단일 규칙: `F=κ·sign(d)·max(0,|d|−θ)^α`, `d=qᵢ−qⱼ` (SPINE §3).
 - 작업 디렉토리: `HGO/flux/`. 엔진: `engine/`. 장면: `engine/scenes.js`. 뷰어: `../viewer.html?track=flux`.
+- **뷰어 격자 스케일 조절**(성능): 뷰어 헤더 "격자" 셀렉터 6³~16³(기본 8³=512셀, 가볍게). 장면 init 이 `opts.scale` 로 격자만 재구성 — 시뮬·결정론·골든 불변(verify 는 12³ 고정).
+- **렌더 구조 채널**(관찰 렌즈): flux-sim `decorate` 가 q 에서 측정한 구조를 스냅샷 채널로 내보냄(SPINE §7·author 0=q 함수)·`sim.render` 일 때만(뷰어). **c0**=q-레벨 밴드(기준 범위 정규화 6밴드 → 기존 L-population 이 밴드별 색: 확산=색 합쳐짐·동결=색 고정)·**bonds**=전선(θ>0 동결 경계≈θ, θ=0 큰 기울기 → 기존 L-bond 선·L-Ebond 밝기). hash 는 q 만이라 골든 불변·render.js 불변. 각 step 시간 변화 확인(헤드리스): 0001 밴드 2→1·전선 24→0·spread 10→0.001 / 0002 전선 1232→212 동결 / 0004 블롭 정착.
 - 검증: `node engine/verify.js step-NNNN` (4기둥 + 장면 assert). 풀 골든: `engine/validate/`.
 - 한 step = 장면 1항 + 측정 1개 + `steps/step-NNNN.md` 1개. 복사 0.
 
