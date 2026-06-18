@@ -1436,15 +1436,17 @@
   //   서브스텝당 변화가 vTol 이내가 되게 M=clamp(⌈|Δv|/vTol⌉, 1, ADAPT_SUB_MAX). 위치·bonds 불변(force 는 v 만 kick)이라 시험은 무부작용.
   const ADAPT_SUB_MAX = 256;                                 // 비용 상한(극단 근접조우서 폭주 방지)
   function chooseSubSteps(sim, dt0, vTol) {
-    const atoms = sim.atoms, n = atoms.length;
-    const vx0 = new Array(n), vy0 = new Array(n);
-    for (let i = 0; i < n; i++) { vx0[i] = atoms[i].vx; vy0[i] = atoms[i].vy; }
+    const atoms = sim.atoms, n = atoms.length, d3 = sim.knobs.drift3d;
+    const vx0 = new Array(n), vy0 = new Array(n), vz0 = d3 ? new Array(n) : null;
+    for (let i = 0; i < n; i++) { vx0[i] = atoms[i].vx; vy0[i] = atoms[i].vy; if (d3) vz0[i] = atoms[i].vz; }
     sim.knobs.dt = dt0; applyForces(sim, 'force');           // 시험 kick(전 보존력·dt0)
     let amax2 = 0;
     for (let i = 0; i < n; i++) {
-      const dvx = atoms[i].vx - vx0[i], dvy = atoms[i].vy - vy0[i], d2 = dvx * dvx + dvy * dvy;
+      const dvx = atoms[i].vx - vx0[i], dvy = atoms[i].vy - vy0[i];
+      const dvz = d3 ? (atoms[i].vz || 0) - (vz0[i] || 0) : 0;   // 3D 시험 kick 의 z 성분도 척도에 반영
+      const d2 = dvx * dvx + dvy * dvy + dvz * dvz;
       if (d2 > amax2) amax2 = d2;
-      atoms[i].vx = vx0[i]; atoms[i].vy = vy0[i];            // 속도 비트 복원(시험 무부작용)
+      atoms[i].vx = vx0[i]; atoms[i].vy = vy0[i]; if (d3) atoms[i].vz = vz0[i];  // 속도 비트 복원(시험 무부작용·vz 포함 — drift3d 3D kick 누수 방지)
     }
     sim.knobs.dt = dt0;                                      // dt 복원(시험이 dt0 로 둠)
     return Math.max(1, Math.min(ADAPT_SUB_MAX, Math.ceil(Math.sqrt(amax2) / vTol)));
