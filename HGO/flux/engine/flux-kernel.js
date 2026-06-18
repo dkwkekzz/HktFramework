@@ -29,14 +29,19 @@
   //   flux 셀은 단일 원소·단일 동위원소(Z=1,N=0 고정)라 모두 같은 크기 — 색·밝기는 q(=x 채널)가 정한다.
   function mass(a) { return (a.Z || 0) + (a.N || 0) || 1; }
 
-  // 격자(토러스) 이웃 간선 — 각 무방향 간선을 *한 번만* 나열(보존: 한 간선에서 −F/+F 한 쌍).
-  //   오른쪽·아래로만 연결 → 셀당 4-이웃(von Neumann)이되 간선 중복 0. 간선 순서 고정 → 결정론·순서 무관 보존.
-  function gridEdges(cols, rows) {
+  // 격자(토러스) 이웃 간선 — 3D von Neumann 6-이웃. 각 무방향 간선을 *한 번만* 나열(보존: −F/+F 한 쌍).
+  //   인덱스 i = (z·rows + r)·cols + c. +x·+y·+z 세 방향만 연결(wrap) → 셀당 6-이웃이되 간선 중복 0.
+  //   depth 미지정/1(2D 장면) → 단층: +z 간선 생략 → 옛 2D 4-이웃 간선과 정확히 동일(회귀 호환).
+  //   간선 순서 고정 → 결정론·순서 무관 보존. 위상(이웃)은 규칙의 4 자유도 중 하나(SPINE §3) — 법칙 추가 아님.
+  function gridEdges(cols, rows, depth) {
+    depth = depth || 1;
     const edges = [];
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const i = r * cols + c;
-      edges.push([i, r * cols + (c + 1) % cols]);   // 오른쪽 이웃(가로 wrap)
-      edges.push([i, ((r + 1) % rows) * cols + c]);  // 아래 이웃(세로 wrap)
+    const idx = (c, r, z) => (z * rows + r) * cols + c;
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const i = idx(c, r, z);
+      edges.push([i, idx((c + 1) % cols, r, z)]);              // +x 이웃(가로 wrap)
+      edges.push([i, idx(c, (r + 1) % rows, z)]);              // +y 이웃(세로 wrap)
+      if (depth > 1) edges.push([i, idx(c, r, (z + 1) % depth)]); // +z 이웃(깊이 wrap — 3D 만)
     }
     return edges;
   }

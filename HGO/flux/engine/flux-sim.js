@@ -1,4 +1,4 @@
-// flux-sim.js — 셀 상태 + tick + 렌더 계약 스냅샷. 셀 = 보존량 다발 {q,rx,ry}(+ 렌더 호환 필드).
+// flux-sim.js — 셀 상태 + tick + 렌더 계약 스냅샷. 셀 = 보존량 다발 {q,rx,ry,rz}(+ 렌더 호환 필드).
 //   tick = 단일 규칙(flux-laws.apply) 한 번. 스냅샷은 RENDER.md §2 계약을 그대로 만족 → 렌더러 불변 재사용.
 // atom 트랙과 동일하게 HGO.sim 전역(브라우저) / module.exports(Node)에 등록.
 ;(function (root, factory) {
@@ -13,13 +13,14 @@
   // 규칙의 4 자유도(노브)가 전부 — 새 노브를 더하지 않는다(SPINE §3). 장면이 *미존재 시 가법*으로만 덮어쓴다.
   const DEFAULTS = { kappa: 0.2, theta: 0, alpha: 1 };
 
-  // 장면 spec({ cols, rows, atoms, knobs })로 sim 을 만든다. 격자 이웃 간선은 여기서 한 번 계산(고정 위상).
+  // 장면 spec({ cols, rows, depth, atoms, knobs })로 sim 을 만든다. 격자 이웃 간선은 여기서 한 번 계산(고정 위상).
+  //   depth 미지정 → 1(2D 단층, 옛 장면 회귀 호환). depth>1 이면 3D 6-이웃 토러스.
   function createSim(spec) {
-    const cols = spec.cols, rows = spec.rows;
+    const cols = spec.cols, rows = spec.rows, depth = spec.depth || 1;
     const sim = {
-      W: spec.W || 100, H: spec.H || 100, cols, rows,
-      atoms: spec.atoms,                          // 렌더 계약: [{rx,ry,q,x,Z,N,e,vx,vy}]
-      edges: K.gridEdges(cols, rows),             // 무방향 간선(중복 0) — 보존·결정론의 토대
+      W: spec.W || 100, H: spec.H || 100, D: spec.D || 100, cols, rows, depth,
+      atoms: spec.atoms,                          // 렌더 계약: [{rx,ry,rz,q,x,Z,N,e,vx,vy}]
+      edges: K.gridEdges(cols, rows, depth),      // 무방향 간선(중복 0) — 보존·결정론의 토대
       knobs: Object.assign({}, DEFAULTS, spec.knobs || {}),
       tick: 0,
       // 렌더 계약 빈 채널(RENDER.md §2 "없으면 없음") — flux 엔 광자·결합·탈출이 없다.
