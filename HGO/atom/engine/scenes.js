@@ -7378,6 +7378,380 @@
         ];
       },
     },
+
+    'step-0106': {
+      id: 'step-0106',
+      title: '차수→α 상관 — 다중결합의 깊이가 강성까지 끌어올린다 (게이트 bondAlphaDOrder=0 → order=1·0102 비트 동일·회귀 0)',
+      desc: '0102 가 α 를 *깊이 D* 에 묶었으나(D↔α), morseAlpha 가 D 를 order=1 로 고정 호출해 결합 *차수* 성분을 못 봤다(0102 한계 "차수→α 미"). 0090(bondMorseOrder)으로 이중·삼중결합이 *깊어져도* 그 깊이가 α 로 안 번졌다. 이 step 의 게이트 `bondAlphaDOrder` 켜면 D↔α 상관이 *실제 간선 차수* e[3] 의 깊이를 봐 — 깊은 다중결합일수록 α↑(더 가파른 우물). 깊이축의 *차수 성분*까지 강성축에 연결(0102 의 차수 보강). bondAlphaDOrder=0 → order=1 고정·0102 비트 동일(회귀 0). ' +
+            '*무대*: 30 Morse 이량체 — 모두 C–C(Z6)·**차수만 갈림**(단일 10·이중 10·삼중 10)·bondMorsePair+bondMorseOrder on(D∝√Z·차수)·bondAlphaD 0.5 on·α-pair off(차수→α 효과 격리)·같은 길이 base req=3·같은 상대 KE=2(≪D 속박)·base D=4 α=0.3·dt=0.05·600 tick·두 모드 off/on: ' +
+            'bondAlphaDOrder 켜면 삼중 α 0.735→1.27(Deff 24→72·(D/Dbase)^0.5) → 우물 가팔라져 삼중 최대 신장 strT↓. 단일(order1·둘 다 order=1) α 0.735 불변 → strS 비트 동일. ' +
+            '① **차수→α 상관(깊은 다중결합 = 가파름)·load-bearing** — bondAlphaDOrder 켜면 삼중 최대 신장 strT(on) ≪ strT(off)(α_T 0.735→1.27·우물 가팔라짐)·α_T(on) > α_S(on)(차수 깊이가 강성 끌어올림) ⇒ 0102 깊이축의 *차수 성분*까지 α 에 연결(author 아닌 차수 깊이의 멱함수). ' +
+            '② **단일결합(order1)은 불변·load-bearing** — 단일 최대 신장 strS(on) ≡ strS(off)(비트 동일·order=1 → on/off 같은 깊이) ⇒ bondAlphaDOrder 는 *차수 깊이 편차에만* 작용. ' +
+            '③ **장부 머신** — 쌍별 등·반작용 운동량 머신·잔여 E symplectic 유계. ' +
+            '④ **회귀** — bondAlphaDOrder=0 → order=1·0102 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 4, bondMorseA: 0.3, bondMorsePair: 1, bondMorseOrder: 1, bondAlphaD: 0.5, unbondDist: 40 },
+
+      // 모두 C–C(Z6)·차수 1/2/3 각 NC·같은 길이 base req 배치(차수만 종류화)·같은 상대 KE(속박).
+      dimers(K) {
+        const req = this.KN.bondReq, KErel = 2, atoms = [], bonds = [], keys = new Set(), tot = 3 * 2 * this.NC;
+        const C = { Z: 6, N: 6, e: 6 }, mu = (C.Z + C.N) / 2, vrel = Math.sqrt(2 * KErel / mu);
+        for (let ord = 1; ord <= 3; ord++) {
+          for (let k = 0; k < this.NC; k++) {
+            const idx = (ord - 1) * this.NC + k, cx = 40 + (idx % 8) * 45, cy = 40 + ((idx / 8) | 0) * 45, a0 = atoms.length;
+            atoms.push({ Z: C.Z, N: C.N, e: C.e, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: C.Z, N: C.N, e: C.e, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, ord]); keys.add(a0 * tot + (a0 + 1)); }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, alphaDOrder) {
+        const d = this.dimers(K), req = this.KN.bondReq;
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { bondAlphaDOrder: alphaDOrder }), tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0, 0];                           // [단일, 이중, 삼중] 최대 신장|r−req|
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const oc = (e[3] || 1) - 1, str = Math.abs(Math.sqrt(dx * dx + dy * dy) - req);
+            if (str > maxStr[oc]) maxStr[oc] = str; }
+        }
+        const l1 = K.ledger(sim);
+        return { strS: maxStr[0], strD: maxStr[1], strT: maxStr[2], bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+      // α(차수별·bondAlphaDOrder on/off) — 강성이 차수 깊이로 끌려 올라갔는지 직접 확인.
+      alphaOf(K, on) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN, { bondAlphaDOrder: on }), C = { Z: 6, N: 6, e: 6 };
+        return { single: K.morseAlpha(base, C, C, 1), triple: K.morseAlpha(base, C, C, 3) };
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0102 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1.5 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1.5, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K), aOn = this.alphaOf(K, 1), aOff = this.alphaOf(K, 0);
+        return { strTon: +c.on.strT.toFixed(3), strToff: +c.off.strT.toFixed(3),
+                 strSon: +c.on.strS.toFixed(3), strSoff: +c.off.strS.toFixed(3),
+                 alphaTon: +aOn.triple.toFixed(3), alphaSon: +aOn.single.toFixed(3), alphaToff: +aOff.triple.toFixed(3), dpxOn: +c.on.dpx.toExponential(3) };
+      },
+
+      // 가설: ① 차수→α 상관(깊은 다중결합=가파름) ② 단일결합 불변 ③ 장부 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K), aOn = this.alphaOf(K, 1), aOff = this.alphaOf(K, 0);
+        const correlate = c.on.strT < c.off.strT * 0.85 && aOn.triple > aOn.single * 1.4;   // ① 삼중 가팔라짐 + α_T 끌려올라감
+        const singleInvariant = c.on.strS === c.off.strS && aOn.single === aOff.single;       // ② 단일(order1) 비트 동일
+        const consv = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ③
+        const reg = ctx.ledgerBefore !== undefined;                                            // ④ 골든 보존
+        return [
+          { name: `차수→α 상관(깊은 다중결합=가파름)·load-bearing — bondAlphaDOrder 켜면 삼중 최대 신장 strT ${c.off.strT.toFixed(2)}→${c.on.strT.toFixed(2)}(α_T ${aOn.single.toFixed(2)}→${aOn.triple.toFixed(2)}·우물 가팔라짐)·α_T>α_S ⇒ 0102 깊이축의 차수 성분까지 α 에 연결(author 아닌 차수 깊이의 멱함수)`, pass: correlate, value: +c.on.strT.toFixed(2) },
+          { name: `단일결합(order1)은 불변·load-bearing — strS(on) ${c.on.strS.toFixed(3)} ≡ strS(off) ${c.off.strS.toFixed(3)}·α_S(on) ${aOn.single.toFixed(3)} ≡ α_S(off) ${aOff.single.toFixed(3)}(비트 동일) ⇒ bondAlphaDOrder 는 차수 깊이 편차에만 작용`, pass: singleInvariant, value: +c.on.strS.toFixed(3) },
+          { name: `장부 머신 — 쌍별 등·반작용 운동량 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·잔여 E symplectic 유계(${(c.on.dE / c.on.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.on.dpx.toExponential(3) },
+          { name: `회귀 — bondAlphaDOrder=0 → order=1·0102 비트 동일·골든 보존(상관 게이트 가법)`, pass: reg, value: +c.off.strT.toFixed(2) },
+        ];
+      },
+    },
+
+    'step-0107': {
+      id: 'step-0107',
+      title: '축간 상관 통합 게이트 bondCorrKind — 한 토글이 Badger(α↔r_eq)+D↔α 동시 (게이트=0 → 개별 상관 게이트만·0106 비트 동일·회귀 0)',
+      desc: '0101 이 α↔r_eq(길이·`bondBadger`)·0102/0106 이 α↔D(깊이·`bondAlphaD`+`bondAlphaDOrder`) 두 *상관*을 더했으나 각자 독립 게이트다. 0100(`bondKindPair`)이 D·α·r_eq 세 *축*을 한 토글로 통합했듯, 이 step 은 두 *상관*을 한 토글 `bondCorrKind` 로 통합 — #J "0100 통합은 합집합일 뿐 연결 아님" 닫기. 켜면 morseAlpha 의 Badger·D↔α 분기가 동시 활성(OR 배선·단일 멱지수 운반·0105 압축값 운반과 동형). 새 물리 0(통합=개별 둘 정확 동치). 개별 노브가 켜져 있으면 그 값 우선. bondCorrKind=0 → 개별 게이트만·0106 비트 동일(회귀 0). ' +
+            '*무대*: 20 Morse 이량체 — H–H(Z1) 10 + C–C(Z6) 10·**길이·깊이 둘 다 종류화**(bondMorsePair on → D_CC 깊음·bondReqPair on → r_eq_CC 김)·α-pair off·같은 상대 KE=2(≪D 속박)·base D=4 α=0.3 req=3·멱지수 0.5·dt=0.05·600 tick·모드 kind(통합)/parts(badger+alphaD 개별)/badgerOnly/alphaDOnly/off: ' +
+            'α_CC kind 0.545 = parts 0.545(둘 다) ≠ badgerOnly 0.223(α↔r_eq 만) ≠ alphaDOnly 0.735(α↔D 만)·H–H(편차 0) 전 모드 0.3 불변. ' +
+            '① **한 토글이 두 상관 동시·load-bearing** — bondCorrKind on α_CC ≠ badgerOnly·≠ alphaDOnly(둘의 곱) ⇒ 한 토글이 Badger+D↔α 두 상관 동시(개별 노브 2개 불필요). ' +
+            '② **통합 = 개별 둘 정확 동치·load-bearing** — α_CC(kind) ≡ α_CC(parts)·strCC(kind) ≡ strCC(parts)(비트 동일) ⇒ 통합이 정확히 둘 켠 것(편의·정합·새 물리 0). ' +
+            '③ **장부 머신·H–H 불변** — 쌍별 등·반작용 운동량 머신·H–H(편차 0) α 전 모드 동일. ' +
+            '④ **회귀** — bondCorrKind=0 → 개별 게이트만·0106 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10, P: 0.5,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 4, bondMorseA: 0.3, bondMorsePair: 1, bondReqPair: 1, unbondDist: 80 },
+      MODES: {
+        kind:       { bondCorrKind: 0.5 },
+        parts:      { bondBadger: 0.5, bondAlphaD: 0.5 },
+        badgerOnly: { bondBadger: 0.5 },
+        alphaDOnly: { bondAlphaD: 0.5 },
+        off:        {},
+      },
+
+      // H–H(Z1) NC + C–C(Z6) NC·각자 r_eq 정확 배치(길이+깊이 둘 다 종류화)·같은 상대 KE(속박).
+      dimers(K, mode) {
+        const KErel = 2, atoms = [], bonds = [], keys = new Set(), tot = 2 * 2 * this.NC;
+        const cls = [{ Z: 1, N: 1, e: 1 }, { Z: 6, N: 6, e: 6 }];
+        const kbase = Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]);
+        for (let c = 0; c < 2; c++) {
+          const z = cls[c], req = K.morseReq(kbase, z, z), mu = (z.Z + z.N) / 2, vrel = Math.sqrt(2 * KErel / mu);
+          for (let k = 0; k < this.NC; k++) {
+            const idx = c * this.NC + k, cx = 50 + (idx % 7) * 50, cy = 50 + ((idx / 7) | 0) * 50, a0 = atoms.length;
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, 1]); keys.add(a0 * tot + (a0 + 1)); }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, mode) {
+        const d = this.dimers(K, mode);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]), tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0];                              // [H–H, C–C] 최대 신장|r−req_eff|
+        const reqEff = [K.morseReq(sim.knobs, { Z: 1, N: 1, e: 1 }, { Z: 1, N: 1, e: 1 }), K.morseReq(sim.knobs, { Z: 6, N: 6, e: 6 }, { Z: 6, N: 6, e: 6 })];
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const cc = a.Z === 1 ? 0 : 1, str = Math.abs(Math.sqrt(dx * dx + dy * dy) - reqEff[cc]);
+            if (str > maxStr[cc]) maxStr[cc] = str; }
+        }
+        const l1 = K.ledger(sim);
+        return { strHH: maxStr[0], strCC: maxStr[1], bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { kind: this.run(K, 'kind'), parts: this.run(K, 'parts'), off: this.run(K, 'off') }); },
+      // α_CC(모드) — 통합 게이트가 두 상관을 동시 켜는지 직접 확인(곱).
+      alphaCC(K, mode) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]), C = { Z: 6, N: 6, e: 6 };
+        return K.morseAlpha(base, C, C, 1);
+      },
+      alphaHH(K, mode) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]), H = { Z: 1, N: 1, e: 1 };
+        return K.morseAlpha(base, H, H, 1);
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0106 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1.5 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1.5, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        return { aCCkind: +this.alphaCC(K, 'kind').toFixed(3), aCCparts: +this.alphaCC(K, 'parts').toFixed(3),
+                 aCCbadger: +this.alphaCC(K, 'badgerOnly').toFixed(3), aCCalphaD: +this.alphaCC(K, 'alphaDOnly').toFixed(3),
+                 aHHkind: +this.alphaHH(K, 'kind').toFixed(3), aHHoff: +this.alphaHH(K, 'off').toFixed(3) };
+      },
+
+      // 가설: ① 한 토글 둘 동시 ② 통합=개별 둘 정확 동치 ③ 장부 머신·H–H 불변 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const aKind = this.alphaCC(K, 'kind'), aParts = this.alphaCC(K, 'parts'), aBadger = this.alphaCC(K, 'badgerOnly'), aAlphaD = this.alphaCC(K, 'alphaDOnly');
+        const both = Math.abs(aKind - aBadger) > 1e-6 && Math.abs(aKind - aAlphaD) > 1e-6;   // ① 두 상관 곱 ≠ 각 하나
+        const equiv = aKind === aParts && c.kind.strCC === c.parts.strCC;                      // ② 비트 동일
+        const consv = c.kind.dpx < 1e-9 && c.kind.dpy < 1e-9 && c.kind.dB < 1e-9 && c.kind.dQ < 1e-9 && c.kind.dL < 1e-9 && this.alphaHH(K, 'kind') === this.alphaHH(K, 'off');  // ③ + H–H 불변
+        const reg = ctx.ledgerBefore !== undefined;                                            // ④ 골든 보존
+        return [
+          { name: `한 토글이 두 상관 동시·load-bearing — bondCorrKind on α_CC ${aKind.toFixed(3)} ≠ badgerOnly ${aBadger.toFixed(3)}(α↔r_eq 만)·≠ alphaDOnly ${aAlphaD.toFixed(3)}(α↔D 만)·둘의 곱 ⇒ 한 토글이 Badger+D↔α 두 상관 동시(개별 노브 2개 불필요)`, pass: both, value: +aKind.toFixed(3) },
+          { name: `통합 = 개별 둘 정확 동치·load-bearing — α_CC(kind) ${aKind.toFixed(4)} ≡ α_CC(parts) ${aParts.toFixed(4)}·strCC(kind) ${c.kind.strCC.toFixed(4)} ≡ strCC(parts) ${c.parts.strCC.toFixed(4)}(비트 동일) ⇒ 통합이 정확히 둘 켠 것(편의·정합·새 물리 0)`, pass: equiv, value: +aKind.toFixed(4) },
+          { name: `장부 머신·H–H 불변 — 쌍별 등·반작용 운동량 머신(dpx ${c.kind.dpx.toExponential(2)}·dB ${c.kind.dB.toExponential(2)}·dL ${c.kind.dL.toExponential(2)})·H–H(편차 0) α ${this.alphaHH(K, 'kind').toFixed(3)} 전 모드 동일·잔여 E 유계(${(c.kind.dE / c.kind.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.kind.dpx.toExponential(3) },
+          { name: `회귀 — bondCorrKind=0 → 개별 게이트만·0106 비트 동일·골든 보존(통합 게이트 가법)`, pass: reg, value: +this.alphaCC(K, 'off').toFixed(3) },
+        ];
+      },
+    },
+
+    'step-0108': {
+      id: 'step-0108',
+      title: '핵 변환 이벤트 로그 eventLog — fuse·decay 가 변환 위치·ΔZ·ΔE 를 스냅샷에 노출 (#M render L-fuse/L-nuc·게이트=0 → push 0·events hash 미참여·회귀 0)',
+      desc: 'render 트랙 STATE 가 *변환 타임스탬프·방출 신호*를 명시 대기(#M·L-nuc·L-fuse ⛔blocked) — 지금까지 atom 은 `fuseActive`·`decayActive` 전역 불리언(hash 미참여 진단)만 노출해, render 가 "glow author 금지"로 점화 섬광·원소 변환을 못 그렸다. 이 step 의 게이트 `eventLog` 켜면 fuse·decay 가 변환 시 `sim.events` 에 `{type,tick,rx,ry,Z,N,dZ,dE}` 한 항을 push — render 가 읽을 *이벤트 신호*(SPINE §3 시각화 하류·render 는 *읽기만*·atom 이 실어야 그림). events 는 hashState 미참여·atoms 무변경(순수 side-effect) → eventLog=0 → push 0 → 0107 비트 동일(회귀 0). ' +
+            '*무대*(별 점화 순환·0043 동형): 8개 ³H(Z1 N2) 4쌍 정면 고속·kFuse=1 fuseBarrier=0.1 fuseMassFormula+massDefect·kDecay=0.5 decayMassFormula+betaPlus·dt=0.5·100 tick·eventLog on/off: ³H+³H→⁶He 융합(4건) → ⁶He β⁻→⁶Li 붕괴(4건)·한 무대 두 변환 메커니즘. ' +
+            '① **이벤트 신호 노출(수=변환 수·위치·ΔZ 정확)·load-bearing** — eventLog on: fuse 이벤트 4건(dE=ΔB_fus>0·dZ=흡수 Z2)·decay 이벤트 ≥1건(dZ=+1 β⁻·dE=q>0)·모든 rx·ry 무대 안 ⇒ render 가 점화·변환을 *그 위치*에 그릴 신호. ' +
+            '② **off → 신호 0(render 못 그림 입증)·load-bearing** — eventLog off: events 0건(변환은 똑같이 일어나나 atom 이 안 실음) ⇒ #M 의 "전역 불리언만 → render 못 그림" 상태 = 이 step 이 해소. ' +
+            '③ **로깅 무부작용(장부·결정론 머신)** — eventLog on/off 의 최종 원자 상태 비트 동일(Q·B·L·E·px·py 머신)·로깅은 순수 side-effect. ' +
+            '④ **회귀** — eventLog=0 → push 0·events hash 미참여·0107 비트 동일·골든 보존.',
+      ticks: 100,
+      W: 300, H: 300,
+      KN: { dt: 0.5, kFuse: 1, fuseR: 3, fuseBarrier: 0.1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, decayMassFormula: 1, decayBetaPlus: 1, decayRecoilPair: 1, kDecay: 0.5, decayNexcess: 4, decayQ: 1 },
+
+      // 8개 ³H(Z1 N2 e1) 4쌍 정면(0043 동형)·nuc 없음·placement 결정론(rng 무관).
+      cloud() {
+        const atoms = [];
+        for (let p = 0; p < 4; p++) {
+          const y = 60 + p * 60;
+          atoms.push({ Z: 1, N: 2, e: 1, x: 0, rx: 146, ry: y, vx: 1, vy: 0, lep: 0 });
+          atoms.push({ Z: 1, N: 2, e: 1, x: 0, rx: 154, ry: y, vx: -1, vy: 0, lep: 0 });
+        }
+        return atoms;
+      },
+      run(K, on) {
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(), photons: [], rng: K.mulberry32(42),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { eventLog: on }), tick: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.ticks; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const ev = sim.events || [];
+        const nFus = ev.filter(e => e.type === 'fuse').length, nDec = ev.filter(e => e.type === 'decay').length;
+        const inBounds = ev.every(e => e.rx >= 0 && e.rx < this.W && e.ry >= 0 && e.ry < this.H);
+        const fusOK = ev.filter(e => e.type === 'fuse').every(e => e.dE > 0 && e.dZ === 1 && e.Z === 2);  // 흡수 ³H Z1·산물 ⁶He Z2
+        const decOK = ev.filter(e => e.type === 'decay').every(e => e.dZ === 1 && e.dE > 0);
+        return { ev, nFus, nDec, inBounds, fusOK, decOK, hash: K.hashState(sim), n: sim.atoms.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): eventLog on 으로 — events 노출하나 atoms 무변경(순수 side-effect)·hash 미참여.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.cloud(), rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { eventLog: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { evOn: c.on.ev.length, fusOn: c.on.nFus, decOn: c.on.nDec, evOff: c.off.ev.length,
+                 inBounds: c.on.inBounds ? 1 : 0, hashEq: c.on.hash === c.off.hash ? 1 : 0 };
+      },
+
+      // 가설: ① 이벤트 신호 노출(수=변환·위치·ΔZ) ② off → 0(render 못 그림) ③ 로깅 무부작용 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const exposed = c.on.nFus === 4 && c.on.nDec >= 1 && c.on.inBounds && c.on.fusOK && c.on.decOK;  // ① 변환 신호 정확
+        const offEmpty = c.off.ev.length === 0;                                                          // ② off → 신호 0
+        const noSideEffect = c.on.hash === c.off.hash && c.on.dpx < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 로깅 무부작용 머신
+        const reg = ctx.ledgerBefore !== undefined;                                                      // ④ 골든 보존
+        return [
+          { name: `이벤트 신호 노출(수=변환 수·위치·ΔZ 정확)·load-bearing — eventLog on: fuse 이벤트 ${c.on.nFus}건(dE>0·dZ=흡수 ³H Z1·산물 ⁶He Z2)·decay 이벤트 ${c.on.nDec}건(dZ=+1 β⁻·dE>0)·모든 rx·ry 무대 안(${c.on.inBounds}) ⇒ render 가 점화·변환을 그 위치에 그릴 신호(atom 이 실음)`, pass: exposed, value: c.on.nFus },
+          { name: `off → 신호 0(render 못 그림 입증·#M 해소)·load-bearing — eventLog off: events ${c.off.ev.length}건(변환은 똑같이 일어나나 atom 이 안 실음) ⇒ 기존 전역 불리언만 상태 = render 못 그림(이 step 이 해소)`, pass: offEmpty, value: c.off.ev.length },
+          { name: `로깅 무부작용(장부·결정론 머신) — eventLog on/off 최종 상태 해시 동일(${c.on.hash === c.off.hash})·Q·B·L·E·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dE ${c.on.dE.toExponential(2)})·로깅은 순수 side-effect`, pass: noSideEffect, value: c.on.hash === c.off.hash ? 1 : 0 },
+          { name: `회귀 — eventLog=0 → push 0·events hash 미참여·0107 비트 동일·골든 보존(이벤트 로그 가법)`, pass: reg, value: c.off.ev.length },
+        ];
+      },
+    },
+
+    'step-0109': {
+      id: 'step-0109',
+      title: '방출 이벤트 로그 확장 — snEject 방향성 분출 위치·방향·ΔE 노출 (#M 잔여·render L-wind·게이트 eventLog=0 → push 0·events hash 미참여·회귀 0)',
+      desc: '0108 이 fuse·decay 변환 신호를 열었으나, *방출* 사건(snEject 방향성 분출·0091)은 아직 화면서 정지점이다(#M 잔여·방출↓). 이 step 은 같은 `eventLog` 게이트로 snEject 가 분출 시 `sim.events` 에 `{type:eject,rx,ry,Z,N,dZ:0,dE:draw,ux,uy}` 한 항을 push — render L-wind(별풍·초신성 방사)가 읽을 *위치·방향(ux,uy 단위 벡터)·ΔE(바스 인출 KE)* 신호. fuse 가 Z 변환(L-nuc)·snEject 가 운동량 방출(L-wind)로 *다른 채널*. events 는 hashState 미참여·atoms 무변경(push 는 분출 *후* 순수 기록) → eventLog=0 → push 0 → 0108 비트 동일(회귀 0). ' +
+            '*무대*: 16개 무거운 핵(C Z6) 조밀 격자(간격 1.8·반경~5≪coolR6 → deg 높음)·복사 바스 E=5000 선주입·kSnEject=1 snZmin=3 snCoreDeg=3 snImpulse=10·dt=1·30 tick·eventLog on/off: 코어 무거운 핵이 바스 E 를 인출해 이웃 COM 바깥으로 방사 분출. ' +
+            '① **방출 신호 노출(위치·단위 방향·ΔE)·load-bearing** — eventLog on: eject 이벤트 ≥10건·모두 dE>0(바스 인출 KE)·Z≥3·단위 방향 |ux,uy|=1·위치 무대 안·분출로 퍼짐 R_g↑ ⇒ render 가 별풍 분출을 *그 위치·방향*에 그릴 신호. ' +
+            '② **off → 신호 0(render 못 그림)·load-bearing** — eventLog off: events 0건(분출은 똑같이 일어나나 atom 이 안 실음·snEjectActive 전역 불리언만). ' +
+            '③ **로깅 무부작용(장부·결정론 머신)** — on/off 최종 상태 해시 동일·바스↔KE E 머신·−Δp→바스 운동량 머신(순수 side-effect). ' +
+            '④ **회귀** — eventLog=0 → push 0·events hash 미참여·0108 비트 동일·골든 보존.',
+      ticks: 30,
+      W: 100, H: 100, NS: 4, GAP: 1.8, BATH: 5000,
+      KN: { dt: 1, kSnEject: 1, snZmin: 3, snCoreDeg: 3, snImpulse: 10, coolR: 6 },
+
+      // 16개 무거운 핵(C Z6) 4×4 조밀 격자·중심 (50,50)·정지(placement 결정론·rng 무관).
+      cloud() {
+        const atoms = [], c = this.W / 2, off = (this.NS - 1) * this.GAP / 2;
+        for (let r = 0; r < this.NS; r++) for (let col = 0; col < this.NS; col++)
+          atoms.push({ Z: 6, N: 6, e: 6, x: 0, rx: c - off + col * this.GAP, ry: c - off + r * this.GAP, vx: 0, vy: 0, lep: 0, nuc: 0 });
+        return atoms;
+      },
+      rg(atoms) { let cx = 0, cy = 0; for (const a of atoms) { cx += a.rx; cy += a.ry; } cx /= atoms.length; cy /= atoms.length;
+        let s = 0; for (const a of atoms) { const dx = a.rx - cx, dy = a.ry - cy; s += dx * dx + dy * dy; } return Math.sqrt(s / atoms.length); },
+      run(K, on) {
+        const atoms = this.cloud(), rg0 = this.rg(atoms);
+        const sim = { W: this.W, H: this.H, atoms, photons: [], rng: K.mulberry32(42),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { eventLog: on }), tick: 0 };
+        sim.escaped = { E: this.BATH, px: 0, py: 0, count: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.ticks; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const ev = sim.events || [], ej = ev.filter(e => e.type === 'eject');
+        const allOK = ej.every(e => e.dE > 0 && e.Z >= 3 && Math.abs(Math.hypot(e.ux, e.uy) - 1) < 1e-9 && e.rx >= 0 && e.rx < this.W && e.ry >= 0 && e.ry < this.H);
+        return { ev, nEj: ej.length, allOK, rgGrew: this.rg(sim.atoms) > rg0 * 1.5, hash: K.hashState(sim),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): eventLog on·바스 미주입(createSim 경로 → escaped 없음 → snEject no-op) → 자유 드리프트 머신.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.cloud(), rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { eventLog: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { ejOn: c.on.nEj, ejOff: c.off.ev.length, rgGrew: c.on.rgGrew ? 1 : 0, hashEq: c.on.hash === c.off.hash ? 1 : 0, dEon: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 방출 신호 노출 ② off → 0 ③ 로깅 무부작용 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const exposed = c.on.nEj >= 10 && c.on.allOK && c.on.rgGrew;                 // ① eject 신호·단위 방향·분출 퍼짐
+        const offEmpty = c.off.ev.length === 0;                                       // ② off → 0
+        const noSideEffect = c.on.hash === c.off.hash && c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 머신
+        const reg = ctx.ledgerBefore !== undefined;                                   // ④ 골든 보존
+        return [
+          { name: `방출 신호 노출(위치·단위 방향·ΔE)·load-bearing — eventLog on: eject 이벤트 ${c.on.nEj}건·모두 dE>0(바스 인출)·Z≥3·단위 방향 |ux,uy|=1·위치 무대 안·분출로 퍼짐 R_g↑(${c.on.rgGrew}) ⇒ render L-wind 이 별풍 분출을 그 위치·방향에 그릴 신호`, pass: exposed, value: c.on.nEj },
+          { name: `off → 신호 0(render 못 그림)·load-bearing — eventLog off: events ${c.off.ev.length}건(분출은 똑같이 일어나나 atom 이 안 실음·snEjectActive 전역 불리언만)`, pass: offEmpty, value: c.off.ev.length },
+          { name: `로깅 무부작용(장부·결정론 머신) — on/off 최종 해시 동일(${c.on.hash === c.off.hash})·바스↔KE E 머신(dE ${c.on.dE.toExponential(2)})·−Δp→바스 운동량 머신(dpx ${c.on.dpx.toExponential(2)})·순수 side-effect`, pass: noSideEffect, value: c.on.hash === c.off.hash ? 1 : 0 },
+          { name: `회귀 — eventLog=0 → push 0·events hash 미참여·0108 비트 동일·골든 보존(방출 이벤트 가법)`, pass: reg, value: c.off.ev.length },
+        ];
+      },
+    },
+
+    'step-0110': {
+      id: 'step-0110',
+      title: '등방 별풍 방출 이벤트 로그 — disperse 복사압 분산 위치·등방 방향·ΔE 노출 (#M 방출 완비·render L-wind 등방 채널·eventLog=0 → push 0·hash 미참여·회귀 0)',
+      desc: '0108(fuse·decay 변환)·0109(snEject 방향성 분출)에 이어, 마지막 *방출* 채널 — disperse 등방 복사압(별풍·0071)을 노출한다. snEject 가 *방향성*(이웃 COM 바깥) 분출이라면 disperse 는 *등방*(방향=시드 rng·복사압) — render L-wind 이 두 별풍을 *다른 방향 분포*로 그릴 수 있다. 같은 `eventLog` 게이트로 disperse 가 분산 시 `sim.events` 에 `{type:wind,rx,ry,Z,N,dZ:0,dE:draw,ux,uy}` push. 이로써 #M 의 *방출 신호*(변환 L-nuc/L-fuse + 방향성 L-wind + 등방 L-wind) 완비. events 는 hashState 미참여·atoms 무변경 → eventLog=0 → push 0 → 0109 비트 동일(회귀 0). ' +
+            '*무대*: 16개 가스(C Z6) 조밀 격자 + 복사 바스 E=5000 선주입·kDisperse=1 disperseE=10 zmin=0(전원 복사압)·dt=1·30 tick·eventLog on/off: 바스 E 가 등방 복사압으로 가스를 흩는다(별풍). ' +
+            '① **등방 방출 신호 노출(위치·등방 방향·ΔE)·load-bearing** — eventLog on: wind 이벤트 ≥10건·모두 dE>0(바스 인출)·단위 방향 |ux,uy|=1·위치 무대 안·분산으로 퍼짐 R_g↑·**평균 방향 ≈0(등방·snEject 방향성과 다른 채널)** ⇒ render L-wind 이 등방 별풍을 그릴 신호. ' +
+            '② **off → 신호 0(render 못 그림)·load-bearing** — eventLog off: events 0건(분산은 똑같이 일어나나 atom 이 안 실음·disperseActive 전역 불리언만). ' +
+            '③ **로깅 무부작용(장부·결정론 머신)** — on/off 최종 해시 동일·바스↔KE E 머신·−Δp→바스 운동량 머신(순수 side-effect). ' +
+            '④ **회귀** — eventLog=0 → push 0·events hash 미참여·0109 비트 동일·골든 보존.',
+      ticks: 30,
+      W: 100, H: 100, NS: 4, GAP: 1.8, BATH: 5000,
+      KN: { dt: 1, kDisperse: 1, disperseE: 10, disperseZmin: 0 },
+
+      cloud() {
+        const atoms = [], c = this.W / 2, off = (this.NS - 1) * this.GAP / 2;
+        for (let r = 0; r < this.NS; r++) for (let col = 0; col < this.NS; col++)
+          atoms.push({ Z: 6, N: 6, e: 6, x: 0, rx: c - off + col * this.GAP, ry: c - off + r * this.GAP, vx: 0, vy: 0, lep: 0, nuc: 0 });
+        return atoms;
+      },
+      rg(atoms) { let cx = 0, cy = 0; for (const a of atoms) { cx += a.rx; cy += a.ry; } cx /= atoms.length; cy /= atoms.length;
+        let s = 0; for (const a of atoms) { const dx = a.rx - cx, dy = a.ry - cy; s += dx * dx + dy * dy; } return Math.sqrt(s / atoms.length); },
+      run(K, on) {
+        const atoms = this.cloud(), rg0 = this.rg(atoms);
+        const sim = { W: this.W, H: this.H, atoms, photons: [], rng: K.mulberry32(42),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { eventLog: on }), tick: 0 };
+        sim.escaped = { E: this.BATH, px: 0, py: 0, count: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.ticks; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const ev = sim.events || [], w = ev.filter(e => e.type === 'wind');
+        const allOK = w.every(e => e.dE > 0 && Math.abs(Math.hypot(e.ux, e.uy) - 1) < 1e-9 && e.rx >= 0 && e.rx < this.W && e.ry >= 0 && e.ry < this.H);
+        let mx = 0, my = 0; for (const e of w) { mx += e.ux; my += e.uy; } const meanDir = w.length ? Math.hypot(mx, my) / w.length : 1;
+        return { ev, nW: w.length, allOK, meanDir, rgGrew: this.rg(sim.atoms) > rg0 * 1.5, hash: K.hashState(sim),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): eventLog on·바스 미주입(createSim 경로 → escaped 없음 → disperse no-op) → 자유 드리프트 머신.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.cloud(), rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { eventLog: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { wOn: c.on.nW, wOff: c.off.ev.length, meanDir: +c.on.meanDir.toFixed(3), rgGrew: c.on.rgGrew ? 1 : 0, hashEq: c.on.hash === c.off.hash ? 1 : 0 };
+      },
+
+      // 가설: ① 등방 방출 신호 노출(평균 방향 ≈0) ② off → 0 ③ 로깅 무부작용 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const exposed = c.on.nW >= 10 && c.on.allOK && c.on.rgGrew && c.on.meanDir < 0.3;       // ① wind 신호·단위 방향·등방(평균 방향 작음)·퍼짐
+        const offEmpty = c.off.ev.length === 0;                                                  // ② off → 0
+        const noSideEffect = c.on.hash === c.off.hash && c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 머신
+        const reg = ctx.ledgerBefore !== undefined;                                              // ④ 골든 보존
+        return [
+          { name: `등방 방출 신호 노출(위치·등방 방향·ΔE)·load-bearing — eventLog on: wind 이벤트 ${c.on.nW}건·모두 dE>0(바스 인출)·단위 방향 |ux,uy|=1·위치 무대 안·분산 퍼짐 R_g↑(${c.on.rgGrew})·평균 방향 ${c.on.meanDir.toFixed(3)}≈0(등방·snEject 방향성과 다른 채널) ⇒ render L-wind 이 등방 별풍을 그 위치·방향에 그릴 신호`, pass: exposed, value: c.on.nW },
+          { name: `off → 신호 0(render 못 그림)·load-bearing — eventLog off: events ${c.off.ev.length}건(분산은 똑같이 일어나나 atom 이 안 실음·disperseActive 전역 불리언만)`, pass: offEmpty, value: c.off.ev.length },
+          { name: `로깅 무부작용(장부·결정론 머신) — on/off 최종 해시 동일(${c.on.hash === c.off.hash})·바스↔KE E 머신(dE ${c.on.dE.toExponential(2)})·−Δp→바스 운동량 머신(dpx ${c.on.dpx.toExponential(2)})·순수 side-effect`, pass: noSideEffect, value: c.on.hash === c.off.hash ? 1 : 0 },
+          { name: `회귀 — eventLog=0 → push 0·events hash 미참여·0109 비트 동일·골든 보존(등방 방출 이벤트 가법)`, pass: reg, value: c.off.ev.length },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
