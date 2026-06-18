@@ -200,20 +200,22 @@ function run() {
   // author 0: E 없는 결합(step-0012, bond[2]===undefined) → 밝기 0
   checks.push({ name: 'L-Ebond: E 없는 결합 → 밝기 0(author 0)', pass: R3.bondEnergy(bonds[0]) === 0 && R3.bondGlow(R3.bondEnergy(bonds[0]), maxE) === 0, value: `${R3.bondEnergy(bonds[0])}` });
 
-  // ⑨ L-glow(렌즈 assert): 원자 들뜸 준위 x(양자수 0..3)를 *광원 밝기*로 *등급* 읽는다(불리언 on/off 아님).
-  //    측정 최댓값(maxX)으로 정규화 — 더 들뜬 원자가 더 밝다. x=0(바닥)이면 글로우 0(빛 author 0).
-  const maxX = R3.measureMaxExcitation(sim.atoms);
-  checks.push({ name: 'L-glow: 원자 들뜸 준위 측정됨(시뮬 선행)', pass: maxX > 0, value: `maxX ${maxX}` });
-  checks.push({ name: 'L-glow: 바닥 원자(x=0) → 글로우 0(author 0)', pass: R3.excitationGlow(0, maxX) === 0, value: `${R3.excitationGlow(0, maxX)}` });
-  if (maxX >= 2) {
-    const graded = R3.excitationGlow(maxX, maxX) > R3.excitationGlow(1, maxX);
-    checks.push({ name: 'L-glow: 높은 들뜸 = 더 밝음(등급, 불리언 아님)', pass: graded, value: `g(${maxX})=${R3.excitationGlow(maxX, maxX).toFixed(2)}>g(1)=${R3.excitationGlow(1, maxX).toFixed(2)}` });
+  // ⑨ L-glow(렌즈 assert): 원자 magnitude x(atom 들뜸 양자수 0..3·flux 연속 q)를 *광원 밝기*로 *등급* 읽는다.
+  //    측정 *범위*[lo,hi]로 정규화(L-isotope 동형·max 단독 아님) — 좁은 범위도 전체 대비로 펴진다. x≤lo(바닥)이면 글로우 0.
+  //    "x=0→글로우 0"은 클램프로 범위 무관 보존(atom x≥0 → lo≥0 → glow(0)=0).
+  const xr = R3.measureExcitationRange(sim.atoms);
+  checks.push({ name: 'L-glow: 원자 들뜸 범위 측정됨(시뮬 선행)', pass: xr.hi > 0, value: `x[${xr.lo},${xr.hi}]` });
+  checks.push({ name: 'L-glow: 바닥 원자(x=0) → 글로우 0(author 0)', pass: R3.excitationGlow(0, xr.lo, xr.hi) === 0, value: `${R3.excitationGlow(0, xr.lo, xr.hi)}` });
+  if (xr.hi > xr.lo) {
+    const mid = xr.lo + (xr.hi - xr.lo) * 0.5;
+    const graded = R3.excitationGlow(xr.hi, xr.lo, xr.hi) > R3.excitationGlow(mid, xr.lo, xr.hi);
+    checks.push({ name: 'L-glow: 높은 들뜸 = 더 밝음(등급, 불리언 아님)', pass: graded, value: `g(hi)=${R3.excitationGlow(xr.hi, xr.lo, xr.hi).toFixed(2)}>g(mid)=${R3.excitationGlow(mid, xr.lo, xr.hi).toFixed(2)}` });
   } else {
-    checks.push({ name: 'L-glow: 등급(단일 준위 — 생략)', pass: true, value: 'single level' });
+    checks.push({ name: 'L-glow: 등급(단일 값 — 생략)', pass: true, value: 'single level' });
   }
-  // 단조 증가(읽기 충실 — 준위↑ → 밝기↑) + 정규화 상한 1(클램프)
-  const mono = R3.excitationGlow(1, maxX) <= R3.excitationGlow(2, maxX) && R3.excitationGlow(2, maxX) <= R3.excitationGlow(3, maxX);
-  checks.push({ name: 'L-glow: 준위↑ → 밝기↑ 단조·상한 1', pass: mono && R3.excitationGlow(99, maxX) === 1, value: mono ? 'ok' : 'BAD' });
+  // 단조 증가(읽기 충실 — magnitude↑ → 밝기↑) + 정규화 상한 1·하한 0(클램프, 범위 [0,3] 예시)
+  const mono = R3.excitationGlow(1, 0, 3) <= R3.excitationGlow(2, 0, 3) && R3.excitationGlow(2, 0, 3) <= R3.excitationGlow(3, 0, 3);
+  checks.push({ name: 'L-glow: magnitude↑ → 밝기↑ 단조·상한 1·하한 0', pass: mono && R3.excitationGlow(99, 0, 3) === 1 && R3.excitationGlow(-5, 0, 3) === 0, value: mono ? 'ok' : 'BAD' });
 
   // ⑫ L-element(렌즈 assert): 핵 변환 장면(step-0035, ²²C→C/N/O/F 다단 사슬)은 원자들의 *양성자 수* Z(원소)를
   //    바꾼다 — 종단엔 Z∈{6,7,8,9} 가 공존한다. 렌더는 그 Z 를 *읽어* 색조로 번역(측정 Z 범위 정규화) →
