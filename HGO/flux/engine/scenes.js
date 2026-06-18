@@ -229,6 +229,31 @@
     return { a1: run(1), a2: run(2), a3hi: run(3) };   // α=1·2 (κ 안정역) + α=3(같은 κ 발산 경계)
   }
 
+  // 창발 측정(arc B/C — 구동 사태 통계, 🔴 SOC) — 이 세계엔 구동이 없어 단일 궤적엔 사태가 없다. 동결 상태에
+  //   셀 1개 q 펄스를 *구동* 하고 relaxation 으로 풀리는 사태 크기(=q 가 eps 넘게 변한 셀 수)를 앙상블(여러
+  //   구동 위치)로 모은다. θ↑ 일수록 동결이 전파를 차단 → 사태가 국소화(평균 크기↓). θ=0 은 소산(사태 아닌 확산).
+  //   author 0: q·θ 의 함수. 멱법칙(척도 불변)은 유한 12³ 한계로 보류 — *평균 사태 크기의 θ 의존*까지 정량.
+  function avalancheStats(theta, pulse, relax, N) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const base = SIM.createSim(roughSpec(theta));               // 동결 기질(θ relaxed)
+    for (let t = 0; t < 400; t++) SIM.step(base);
+    const n = base.atoms.length, baseQ = base.atoms.map(a => a.q), eps = Math.round(0.01 * S), pf = Math.round(pulse * S);
+    const stride = Math.max(1, Math.floor(n / N)), sizes = [];
+    for (let site = 0; site < n; site += stride) {
+      const sim = SIM.createSim(roughSpec(theta));               // 동결 상태 복제 + 한 셀 구동
+      for (let k = 0; k < n; k++) sim.atoms[k].q = baseQ[k];
+      sim.atoms[site].q += pf;
+      const before = sim.atoms.map(a => a.q);
+      for (let t = 0; t < relax; t++) SIM.step(sim);
+      let sz = 0; for (let k = 0; k < n; k++) if (Math.abs(sim.atoms[k].q - before[k]) > eps) sz++;
+      sizes.push(sz);
+    }
+    sizes.sort((a, b) => a - b);
+    const mean = sizes.reduce((s, x) => s + x, 0) / sizes.length;
+    return { mean: +mean.toFixed(2), median: sizes[sizes.length >> 1], min: sizes[0], max: sizes[sizes.length - 1], n: sizes.length };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -422,6 +447,30 @@
           { name: 'α>1 효과적 동결(θ 없이 잔류↑: resid α2 ≫ α1)', pass: e.a2.resid > e.a1.resid + 0.5, value: `resid α1=${e.a1.resid} → α2=${e.a2.resid}` },
           { name: 'α=1 순수 확산 평탄(잔류≈0)', pass: e.a1.resid < 0.1, value: `resid(α=1)=${e.a1.resid}` },
           { name: '비선형 불안정 경계(α=3 같은 κ 발산·α=2 안정)', pass: e.a2.finite && !e.a3hi.finite, value: `α2 finite=${e.a2.finite}, α3 finite=${e.a3hi.finite}(resid=${e.a3hi.resid})` },
+        ];
+      },
+    },
+
+    // ── step-0009: 🔴 SOC — 구동 사태 크기의 θ 의존(앙상블) ── 새 법칙/노브 0(동결 기질 + 셀 1개 구동).
+    //   이 세계엔 구동이 없어 단일 궤적엔 사태가 없다. 동결 상태에 q 펄스를 넣고 풀어 사태 크기를 앙상블로 모은다.
+    //   θ↑ 동결이 전파 차단 → 사태 국소화(평균↓). θ=0 은 소산(확산). 메인 궤적 = roughSpec(0.5) 동결 기질.
+    'step-0009': {
+      id: 'step-0009',
+      title: 'step-0009 — 임계: 구동 사태 크기의 θ 의존(SOC 앙상블)',
+      desc: '동결 상태에 셀 하나 q 펄스를 구동(새 법칙·노브 0, 구동=IC 섭동)하고 relaxation 으로 풀리는 사태 크기(=q 가 변한 셀 수)를 여러 구동 위치 앙상블로 모은다. θ 가 클수록 동결이 사태 전파를 차단해 평균 사태 크기가 단조 감소(θ0.5=16 → θ4=3.6), θ=0 은 펄스가 소산(사태 아닌 확산, size≈1). 임계 사태가 동결 문턱에 제어됨을 측정 — 멱법칙(척도 불변)은 유한 12³ 한계로 보류(🔴 부분 충족).',
+      ticks: 400,
+      init(rng, K, opts) { return roughSpec(0.5, (opts && opts.scale) || 12); },   // 메인: 동결 기질
+      watch(sim) { return Object.assign(measure(sim), frozenMeasure(sim)); },
+      assert(w0, w1) {
+        const av = th => avalancheStats(th, 3.0, 200, 40);   // θ별 구동 사태 앙상블(보조·결정론)
+        const a0 = av(0.0), a05 = av(0.5), a1 = av(1.0), a2 = av(2.0), a4 = av(4.0);
+        const means = [a05.mean, a1.mean, a2.mean, a4.mean];
+        let monoDown = true; for (let k = 1; k < means.length; k++) if (means[k] > means[k - 1] + 1e-9) monoDown = false;
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '사태 존재(θ=0.5: 평균>1·분포 폭 max>min)', pass: a05.mean > 1 && a05.max > a05.min, value: `mean=${a05.mean} (min ${a05.min}, max ${a05.max}, N=${a05.n})` },
+          { name: 'θ 사태 국소화(평균 크기 θ↑ 단조↓)', pass: monoDown, value: `θ[0.5,1,2,4] → mean${JSON.stringify(means)}` },
+          { name: 'θ=0 소산(사태 아닌 확산: 평균≈1 ≪ θ=0.5)', pass: a0.mean < 1.5 && a0.mean < a05.mean, value: `mean(θ=0)=${a0.mean} ≪ mean(θ=0.5)=${a05.mean}` },
         ];
       },
     },
