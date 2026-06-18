@@ -23,7 +23,7 @@
 
 ## 1. 묶음 감사 인덱스 (한 줄/묶음)
 
-> 10 step = 1 묶음·십진 경계 정렬(0001–0010 · 0011–0020 · …). 닫힌 step 만 다룬다(STATE NOW 가 가리키는 미닫힘 step 제외). 닫힌 **0050** 까지 → 0001~0040 네 묶음 감사 완료 + **0041~0050 묶음 감사 미작성**(박스별 진행은 [progress/](progress/) 가 0050 까지 반영).
+> 10 step = 1 묶음·십진 경계 정렬(0001–0010 · 0011–0020 · …). 닫힌 step 만 다룬다(STATE NOW 가 가리키는 미닫힘 step 제외). 닫힌 **0050** 까지 → **0001~0050 다섯 묶음 감사 완료**(박스별 진행은 [progress/](progress/) 가 0050 까지 반영).
 
 | 묶음 | 범위 | 호(arc) | 척추 판정 | 열린 이슈 |
 |---|---|---|---|---|
@@ -31,6 +31,7 @@
 | [review-0011-0020](review-0011-0020.md) | 0011~0020 | 와이어 현실화(TCP·토픽 버스·진짜 kill) → 게임 서비스 분리(가방·채팅) → 버스 의미 → 데이터 영속(저널·스냅샷·CQRS late-join) | ①✅강력 ②🟡 ③✅확장 ④✅확장 ⑤✅현실화 | #2·#5 ✅해소 · #1·#3·#4·#6 유지 · #7 채팅 신뢰전달·#8 panel-kit Math.random(신규) |
 | [review-0021-0030](review-0021-0030.md) | 0021~0030 | 서비스 영속 완성(채팅 커맨드 로그·압축) → write-behind 신뢰성 4부작(NAK·heartbeat·give·mint) → PersistStore quorum(이중쓰기·N복제·write ack) → 박스 분할 정리 | ①✅ ②🟡 ③✅강화 ④✅ ⑤✅ | #1·#3·#4·#6·#7·#8 유지 · #9 give-resend 견고성(신규) |
 | [review-0031-0040](review-0031-0040.md) | 0031~0040 | 정합성 윈도 해소(quorum-fill·유계 sweep) → 버스 동적 구독·failover·양경로 producer replay 무손실 → replay 버퍼 유계·ack 자기-크기조정 → 정리 2건(cluster·topology 분할) | ①✅ ②🟡 ③✅강화 ④✅ ⑤✅ | #1·#3·#4·#6·#7·#8·#9 유지 · #10 give×result-ahead(신규) |
+| [review-0041-0050](review-0041-0050.md) | 0041~0050 | 버스 replay 자기-크기조정(결과/seen ack 워터마크·K 추정 폐기) → 다중 소비자 min-워터마크 → 소비자 lease lifecycle(축출·재admission·적응) → 정리 2건(가방 분할·src/ 전환) | ①✅ ②✅(🟡#8) ③✅ ④✅(🟡#11) ⑤✅(🟡#9) | 묶음내 자체해소 6사슬(리뷰가 0047·0048 견인) · #4·#8·#9·#10 유지 · #11 다중GW per-producer ack·#12 cadence EWMA/prior(신규) |
 
 ## 2. 열린 이슈 원장 (교차-배치 이월 — **유일하게 갱신**)
 
@@ -47,6 +48,8 @@
 - **#8 | `engine/panel-kit.js:29` Math.random** | ②/정리 | 0011-0020 | 🟡 신규(경미) — 브라우저 DOM 컨트롤 위젯 id 생성·헤드리스 verify/`compute()` 경로 밖(다이제스트 무관)이나 공유 `engine/` 의 결정론-금지 잠복 foot-gun | **목적지 STATE §3 OPEN GAPS**(정리성) → 게이트: 시드 카운터/결정론 id 로 교체(끄면 시각 위젯만 영향=회귀 0)
 - **#9 | give-resend 견고성 + 멀티프로세스 패리티 갭** | ③/⑤ | 0021-0030 | 🟡 유지(범위 확장) — 0025 §9 ⓕⓖ: ⒜ `_confirmGive` in-order 의존(재정렬 시 seed 1234 itemDesync 2) ⒝ `clientResync`/`resendGives` 인프로세스 `run()` 에만. **+0031-0040: 버스 failover replay(busResend/busResendReq)도 인프로세스 가설 모드만**(`cluster.js` 무수정·멀티프로세스 버스 failover 미검증) | **목적지 STATE §3** → 게이트: opSeq 키 매칭 + 멀티프로세스 failover 핸드셰이크(현 시나리오 FIFO·인프로세스라 미발현=회귀 0)
 - **#10 | give 요청 × result-ahead 결합 미해소(transfers≠base)** | 서비스/버스 | 0031-0040 | 🟡 신규 — 0037/0039/0040 §9: 버스 gap 에 떨군 give 요청 재발행 시 결과 미수신 클라가 재-give → 원 give 재도달 시 owner 바뀌어 실패(failedOps) → *다른 유효 결과*로 수렴(원장 자기-정합·desync 0 이나 transfers≠base) | **목적지 STATE §2/§3**(이미 "give×result-ahead 0037 §9" 추적) → 게이트: 0025 클라 give-resend × 버스 요청 replay 통합 복구
+- **#11 | per-producer ack 워터마크 + 다중 게이트웨이 풀 토폴로지** | ④/⑤ | 0041-0050 | 🟡 신규 — 0046~0048 §9: 0046 이 요청 dedup *네임스페이스*(복합키)만 분리·둘째 게이트웨이는 버스 producer seam 으로 대표(클라-대면 풀 와이어 아님)·ack/seen 의 producer 키잉 미착수(단일 게이트웨이라 미발현) | **목적지 STATE §3** → 게이트: busAck/busSeenBound 를 (producer,reqId) 별로 키잉 + 게이트웨이 군 배치(끄면 단일 게이트웨이 현 거동=회귀 0) |
+- **#12 | 적응형 lease cadence — EWMA 감쇠·시작 grace prior** | ④ | 0041-0050 | 🟡 신규 — 0050 §9: consumerMaxGap 단조 증가(감쇠 0 — 소비자가 빨라져도 임계 안 내려가 죽음 감지 느려질 수 있음)·prior 없어 첫 G-침묵 1회 bootstrap 오축출(ev=1·readmission 으로 회복하나 0 아님) | **목적지 STATE §3** → 게이트: cadence EWMA 감쇠 + 시작 cadence prior 주입(끄면 현 단조 거동=회귀 0)
 
 ### 해소 ✅ (인덱스에서 제거 — 기록만)
 
