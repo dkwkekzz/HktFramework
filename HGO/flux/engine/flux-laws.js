@@ -31,6 +31,7 @@
   //   delta 는 정수만 담는다(Float64 지만 값은 정수 — 2⁵³ 내 +,− 비트 정확). κ·θ 는 노브(인간 단위)에서 fixed 로 환산.
   //   둘째 보존 채널 p 가 opt-in(knobs.gamma) 이면 결합 경로로 — gamma 없으면 아래 원래 경로 *그대로*(회귀 0, SKILL §3).
   function apply(sim) {
+    if (sim.knobs.inertial) return applyInertial(sim); // arc F: 관성 적분(파동). inertial 미설정 장면은 비트 불변(회귀 0).
     if (sim.knobs.gamma) return applyCoupled(sim);   // arc E: p 채널·κ 변조(촉매). gamma 미설정 장면은 비트 불변.
     const kn = sim.knobs, SCALE = K.SCALE;
     const kappaFix = Math.round(kn.kappa * SCALE);   // κ → fixed(예: 0.2 → 13107). 튜닝 노브라 미세 근사 무방.
@@ -82,6 +83,39 @@
       if (Fp !== 0) { dp[i] -= Fp; dp[j] += Fp; }
     }
     for (let k = 0; k < a.length; k++) { a[k].q += dq[k]; a[k].p += dp[k]; a[k].x = a[k].q / SCALE; }
+    sim.fluxLast = flux;
+  }
+
+  // arc F — 관성 적분(opt-in, knobs.inertial 일 때만). 새 *법칙* 아님: 같은 힘 Gᵢ=−Σⱼ F(i→j) 를
+  //   과감쇠(q←q+G) 대신 **관성**으로 적분한다 — 심플렉틱 오일러(leapfrog): vᵢ ← vᵢ + Gᵢ ; qᵢ ← qᵢ + vᵢ.
+  //   바뀐 건 *역학*(힘을 운동으로 바꾸는 법)뿐, 힘의 법칙 rule() 은 step-0001 고정(SPINE §3·§4). inertial 미설정
+  //   장면은 위 과감쇠 경로 그대로 → 과거 10 장면 비트 불변(회귀 0). v 도 *고정소수점 정수*(vfix, q-단위/tick) —
+  //   정수 +,−,× 만 → 크로스플랫폼 비트 결정론(net lockstep). 보존: 반대칭(−F/+F)이 ΣG=0 → ΣΔv=0,
+  //   Σv₀=0(초기 정지) → ΣP 비트 불변. 같은 −F/+F 가 ΣΔq 도 정확 0(ΣΔq=Σv 증분, Σv≡0). ⚠ 안정역 CFL:
+  //   ω(k)=2√κ·|sin(k/2)|, 3D 6-이웃 ω_max=2√(κ·3) → κ·Z<4 (Z=6 → κ<2/3) 안에서 유계 진동(장면 책임).
+  function applyInertial(sim) {
+    const kn = sim.knobs, SCALE = K.SCALE;
+    const kappaFix = Math.round(kn.kappa * SCALE);
+    const thetaFix = Math.round((kn.theta || 0) * SCALE);
+    const alpha = Math.max(1, Math.round(kn.alpha || 1));
+    if (!kappaFix) return;
+    const a = sim.atoms, edges = sim.edges;
+    const G = sim._delta || (sim._delta = new Float64Array(a.length));
+    G.fill(0);
+    let flux = 0;
+    for (let e = 0; e < edges.length; e++) {                 // 알짜 힘 Gᵢ = −Σⱼ F(i→j) (반대칭 → ΣG=0)
+      const i = edges[e][0], j = edges[e][1];
+      const F = rule(a[i].q - a[j].q, kappaFix, thetaFix, alpha, SCALE);
+      if (F === 0) continue;
+      G[i] -= F; G[j] += F;                                  // i 가 j 에게 F → i 는 −F, j 는 +F (복원력)
+      flux += F < 0 ? -F : F;
+    }
+    for (let k = 0; k < a.length; k++) {                     // 심플렉틱 오일러(정수): v 먼저, 그 v 로 q
+      let v = (a[k].v || 0) + G[k];                          // vᵢ ← vᵢ + Gᵢ (정수 누적·ΣΔv=ΣG=0)
+      a[k].v = v;
+      a[k].q += v;                                           // qᵢ ← qᵢ + vᵢ (ΣΔq=Σv, Σv≡0 → Σq 비트 불변)
+      a[k].x = a[k].q / SCALE;                               // 렌더 밝기(파생·읽기 전용)
+    }
     sim.fluxLast = flux;
   }
 

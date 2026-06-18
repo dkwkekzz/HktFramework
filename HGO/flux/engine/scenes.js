@@ -288,6 +288,68 @@
     return { tauA: tau(exA), tauB: tau(exB), dQ: finite ? Math.abs(q1 - q0) / S : NaN, dP: finite ? Math.abs(p1 - p0) / S : NaN, finite };
   }
 
+  // arc F 풍경(관성·파동) — 중앙 펄스 IC, v=0(정지 출발), inertial=on, α=1. 과감쇠(q←q+G)가 아니라
+  //   관성(v←v+G; q←q+v)으로 적분 → 들뜸이 *전파·진동*하고 평형으로 죽지 않는다(SPINE §3·§4). κ 는 안정역(CFL).
+  function pulseSpec(kappa, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      const dc = Math.abs(c - (cols - 1) / 2), dr = Math.abs(r - (rows - 1) / 2), dz = Math.abs(z - (depth - 1) / 2);
+      const blob = (dc <= 1 && dr <= 1 && dz <= 1) ? 10 : 0;        // 중앙 3³ 펄스(step-0001 과 같은 IC, v=0)
+      atoms.push({ rx, ry, rz, q: Math.round((1 + blob) * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa, theta: 0, alpha: 1, inertial: 1 } };
+  }
+
+  // arc F 풍경 — x 축 평면파 q=1+A·cos(kₓc), kₓ=2π·m/cols. 분산관계 ω(k) 측정용(단일 모드 진동수).
+  function planeWaveSpec(kappa, m, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE, A = 3;
+    const kx = 2 * Math.PI * m / cols, atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      const q = 1 + A * Math.cos(kx * c);
+      atoms.push({ rx, ry, rz, q: Math.round(q * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa, theta: 0, alpha: 1, inertial: 1 } };
+  }
+
+  // 창발 측정(arc F — 파동) — 관성 적분이 파동을 내는지 *읽는* 지표(author 라벨 아님).
+  //   ① 보존: ΣQ·ΣP 비트 불변(관성도 반대칭 −F/+F 라 정확). ② 가역/유계: E=K+U 가 발산 없이 유계 진동
+  //   (심플렉틱이라 shadow-Hamiltonian 보존 → 표류 대신 밴드 진동, 확산처럼 0 으로 안 죽음). ③ 비단조: spread 가
+  //   감소만 하지 않고 오르내림(파동). ④ 분산관계: 평면파 모드 m 의 측정 ω 가 이론 2√κ·|sin(kₓ/2)| 과 일치.
+  function waveMeasure(kappa, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, sim = SIM.createSim(pulseSpec(kappa, n));
+    let q0 = 0, p0 = 0; for (const a of sim.atoms) { q0 += a.q; p0 += (a.v || 0); }
+    const E = s => {                                  // E = Σ½v² + Σ_간선 ½κ·d²  (α=1,θ=0 퍼텐셜)
+      let Kn = 0; for (const a of s.atoms) { const v = (a.v || 0) / S; Kn += 0.5 * v * v; }
+      let U = 0; for (const e of s.edges) { const d = (s.atoms[e[0]].q - s.atoms[e[1]].q) / S; U += 0.5 * kappa * d * d; }
+      return Kn + U;
+    };
+    const sp = s => { let mn = Infinity, mx = -Infinity; for (const a of s.atoms) { if (a.q < mn) mn = a.q; if (a.q > mx) mx = a.q; } return (mx - mn) / S; };
+    const E0 = E(sim), Es = [], sps = [sp(sim)];
+    for (let t = 0; t < ticks; t++) { SIM.step(sim); Es.push(E(sim)); sps.push(sp(sim)); }
+    let q1 = 0, p1 = 0; for (const a of sim.atoms) { q1 += a.q; p1 += (a.v || 0); }
+    const finite = Number.isFinite(sim.atoms[0].q) && Number.isFinite(Es[Es.length - 1]);
+    const eMin = Math.min.apply(null, Es), eMax = Math.max.apply(null, Es);
+    // 비단조: spread 가 한 번이라도 *증가*하면(파동 되돌아옴) true — 확산은 단조 감소만.
+    let rebounds = 0; for (let t = 1; t < sps.length; t++) if (sps[t] > sps[t - 1] + 1e-9) rebounds++;
+    // 분산관계: 모드 m=2 평면파를 돌려 진동 주기 → ω. 영점통과(평균 상향)로 주기 추정.
+    const m = 2, ksim = SIM.createSim(planeWaveSpec(kappa, m, n)), cols = ksim.cols, rows = ksim.rows, depth = ksim.depth, kx = 2 * Math.PI * m / cols;
+    const amp = s => { let x = 0; const a = s.atoms; for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) x += (a[(z * rows + r) * cols + c].q / S - 1) * Math.cos(kx * c); return x / (cols * rows * depth) * 2; };
+    const ser = []; for (let t = 0; t < 200; t++) { ser.push(amp(ksim)); SIM.step(ksim); }
+    const mean = ser.reduce((x, y) => x + y, 0) / ser.length; const cr = [];
+    for (let t = 1; t < ser.length; t++) if ((ser[t - 1] - mean) <= 0 && (ser[t] - mean) > 0) cr.push(t);
+    const period = cr.length > 1 ? (cr[cr.length - 1] - cr[0]) / (cr.length - 1) : NaN;
+    const omegaMeas = 2 * Math.PI / period, omegaThy = 2 * Math.sqrt(kappa) * Math.abs(Math.sin(kx / 2));
+    return {
+      dQ: finite ? Math.abs(q1 - q0) / S : NaN, dP: finite ? Math.abs(p1 - p0) / S : NaN, finite,
+      E0: +E0.toFixed(2), eMin: +eMin.toFixed(2), eMax: +eMax.toFixed(2), rebounds,
+      omegaMeas: +omegaMeas.toFixed(4), omegaThy: +omegaThy.toFixed(4), dispRatio: +(omegaMeas / omegaThy).toFixed(3),
+    };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -529,6 +591,30 @@
         ];
       },
     },
+    // ── step-0011: arc F 부트스트랩 — 관성 도입 = 파동 ── 규칙 정련(opt-in·회귀 0, SPINE §4·§6·SKILL §3).
+    //   Part I(과감쇠 확산 A~E)은 단일 q 의 천장을 확정했다 — 소산 동역학은 평형으로 *죽는다*. 같은 힘 Gᵢ=−Σⱼ F(i→j) 를
+    //   과감쇠(q←q+G) 대신 **관성**(v←v+G; q←q+v)으로 적분하면 세계가 *가역*이 되어 들뜸이 전파·진동하고 안 죽는다.
+    //   바뀐 건 역학뿐(힘의 법칙 rule() 고정). inertial 미설정 = 과거 10 장면 비트 불변(회귀 0). 측정: ΣQ·ΣP 비트 보존 +
+    //   E 유계(발산 0) + spread 비단조(파동·확산처럼 0 으로 안 죽음) + 분산관계 ω(k)=2√κ·|sin(k/2)| 일치.
+    'step-0011': {
+      id: 'step-0011',
+      title: 'step-0011 — arc F: 관성 도입 = 파동(가역·자기 구동)',
+      desc: '단일 q 의 천장(Part I A~E·소산은 평형으로 죽음)을 넘는 첫 발 — 같은 힘의 법칙 rule() 을 과감쇠(q←q+G) 대신 관성(v←v+G; q←q+v)으로 적분한다(opt-in knobs.inertial·규칙 정련, inertial 없으면 과거 10 장면 비트 불변=회귀 0). 중앙 펄스가 전파·반사·간섭하며 진동한다 — spread 가 단조 감소(확산처럼 죽음)하지 않고 오르내림(파동). 보존: ΣQ·ΣP 비트 불변(관성도 반대칭 −F/+F), E=K+U 발산 없이 유계(심플렉틱). 평면파 모드의 측정 진동수가 이산 파동방정식 분산관계 ω(k)=2√κ·|sin(kₓ/2)| 와 일치(ratio≈1) — 들뜸이 진짜 파동임의 측정 증거. κ=0.1 안정역(CFL: κ·Z<4). 같은 규칙·새 법칙 0, 바뀐 건 역학(SPINE §3·§4).',
+      ticks: 200,
+      init(rng, K, opts) { return pulseSpec(0.1, (opts && opts.scale) || 12); },   // 메인: 중앙 펄스·관성·κ=0.1(안정역)
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const wv = waveMeasure(0.1, 200);   // 보조 재실행(결정론): 보존·E 유계·비단조·분산관계
+        return [
+          { name: 'ΣQ 보존(닫힌 장부·관성 경로 비트)', pass: wv.finite && wv.dQ < 1e-6, value: `|ΔΣq|=${wv.dQ.toExponential(2)}` },
+          { name: 'ΣP 보존(운동량 닫힌 장부·반대칭 강제)', pass: wv.finite && wv.dP < 1e-6, value: `|ΔΣp|=${wv.dP.toExponential(2)}` },
+          { name: '가역·유계(E=K+U 발산 없이 유계·확산처럼 0 으로 안 죽음)', pass: wv.finite && wv.eMax < 4 * wv.E0 && wv.eMin > 0, value: `E0=${wv.E0}, E∈[${wv.eMin},${wv.eMax}]` },
+          { name: '파동(spread 비단조: 되돌아옴 — 확산은 단조↓)', pass: wv.rebounds > 5, value: `rebounds=${wv.rebounds}` },
+          { name: '분산관계 일치(ω_meas ≈ 2√κ·|sin(kₓ/2)|)', pass: Math.abs(wv.dispRatio - 1) < 0.05, value: `ω_meas=${wv.omegaMeas} vs ω_thy=${wv.omegaThy} (ratio=${wv.dispRatio})` },
+        ];
+      },
+    },
+
   };
 
   return { SCENES, measure };
