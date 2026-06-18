@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- viewer.html — 공용 단일 뷰어(하나뿐, 트랙 무관 하네스). HGO/ 루트에 산다(트랙 폴더 밖 중립지).
      step 선택기로 장면을 골라 결정론적으로 돌린다 — step 마다 복제하지 않는다(SPINE §6.1), atom 트랙의 scenes.js 장면 한 항을 읽을 뿐.
-     atom 시뮬은 atom/engine/ 에서, 캔버스 그리기는 render 모듈 render/engine/render.js 에서 load — 뷰어는 하네스만. -->
+     트랙 엔진(atom 기본 · ?track=flux 등)은 ?track 에 따라 동적 load, 캔버스 그리기는 render 모듈 render/engine/render.js 에서 load — 뷰어는 하네스만. -->
 <meta charset="utf-8">
 <title>HGO viewer (공용 단일 뷰어)</title>
 <style>
@@ -39,15 +39,29 @@
   </div>
 </div>
 
-<script src="atom/engine/hgo-kernel.js"></script>
-<script src="atom/engine/hgo-laws.js"></script>
-<script src="atom/engine/hgo-sim.js"></script>
-<script src="atom/engine/scenes.js"></script>
 <!-- render 트랙(시각화)의 렌더 모듈을 load — 단일 뷰어가 그리기를 render 에 위임(SPINE §6.1·§7).
-     viewer 는 하네스(장면 선택·재생·노브·watch)만, 캔버스 번역은 render 가 구현. -->
+     트랙 무관 공유 — 항상 load. viewer 는 하네스(장면 선택·재생·노브·watch)만, 캔버스 번역은 render 가 구현. -->
 <script src="render/engine/spectral.js"></script>
 <script src="render/engine/render.js"></script>
 <script>
+// 트랙 선택(단일 뷰어가 트랙을 고른다) — ?track=flux 면 flux 엔진, 기본은 atom.
+//   엔진은 트랙 무관하게 HGO.kernel/laws/sim/scenes 전역에 등록 → 뷰어 코드는 트랙을 모른다.
+//   엔진 파일은 ?track 에 따라 동적 load(아래) 후 boot() 가 돈다(SPINE §7, flux SPINE §7).
+const TRACKS = {
+  atom: ['atom/engine/hgo-kernel.js', 'atom/engine/hgo-laws.js', 'atom/engine/hgo-sim.js', 'atom/engine/scenes.js'],
+  flux: ['flux/engine/flux-kernel.js', 'flux/engine/flux-laws.js', 'flux/engine/flux-sim.js', 'flux/engine/scenes.js'],
+};
+const track = new URLSearchParams(location.search).get('track') || 'atom';
+const manifest = TRACKS[track] || TRACKS.atom;
+(function loadSeq(srcs, i) {            // 트랙 엔진을 순서대로 load → 끝나면 boot()
+  if (i >= srcs.length) { boot(); return; }
+  const s = document.createElement('script');
+  s.src = srcs[i]; s.onload = () => loadSeq(srcs, i + 1);
+  s.onerror = () => { document.getElementById('watch').textContent = '엔진 로드 실패: ' + s.src + '\n(이 트랙의 부트스트랩 step-0001 이 아직 엔진을 안 만들었을 수 있음)'; };
+  document.head.appendChild(s);
+})(manifest, 0);
+
+function boot() {
 const { kernel: K, sim: S, scenes: SC } = HGO;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
@@ -134,4 +148,5 @@ buildSceneList();
 reset();
 HGORender.render.attachControls(cv, draw);   // 마우스 카메라 조종을 render 에 위임(정지 중 드래그도 draw 재호출)
 loop();
+}   // boot() — 트랙 엔진 동적 load 완료 후 실행(위 loadSeq).
 </script>
