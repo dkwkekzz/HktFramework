@@ -8,7 +8,8 @@
 
 - **상태: ✅ step-0001 닫힘 — 부트스트랩 완료.** 공용 하네스(kernel·laws·sim·scenes·verify·golden)가 섰고, 세계의 *유일한 법칙*이 처음 돈다.
 - 단일 규칙(SPINE §3) 코딩·고정: `F(i→j)=κ·sign(d)·max(0,|d|−θ)^α`. `engine/flux-laws.js` 의 `rule()` 한 함수 — 이후 법칙 추가 0.
-- 검증 4기둥 PASS: Σq 정확 보존(Δ=0)·결정론(hash 69424498)·골든 회귀 0·확산 평형화(spread 10.01→0.136). θ=0 순수 확산 국면 확인.
+- 검증 4기둥 PASS: Σq **비트 정확** 보존(정수 Δ=0)·결정론(hash d0a96da5)·골든 회귀 0·확산 평형화(spread 10.01→0.137). θ=0 순수 확산 국면 확인.
+- **고정소수점 정수 정련(결정론 강화, SPINE §9.3)**: q 를 `qfix=round(q·SCALE)`(SCALE=2¹⁶, kernel) 정수로 저장. 규칙은 정수 `+,−,×,floor` 만(Math.pow 제거) → 크로스플랫폼 비트 결정론(net 트랙 lockstep 전제). 정수 −F/+F 쌍이 Σq 를 *정확* 보존(머신 정밀도보다 강함). `a.x=q/SCALE` 는 렌더 밝기용 파생 실수(읽기 전용·규칙 환류 0). 규칙 *형태* 불변, 표현·연산만 정수화.
 - 렌더: 공유 `../viewer.html?track=flux` 가 flux 엔진을 동적 load(브라우저 경로 스모크 통과 — `HGO.kernel/laws/sim/scenes` 등록·렌더 계약 스냅샷 모양 일치). render.js 불변.
 
 ## 2. NEXT
@@ -35,8 +36,8 @@
 ## 4. DURABLE CONSTRAINTS — 모든 step 이 지킬 정전(canonical) 사실
 
 - **법칙은 1개**: 규칙 함수는 step-0001 에 고정. 이후 step 은 *법칙을 추가하지 않는다*(장면+측정만, SPINE §5). 규칙 정련은 §4 검증이 강제할 때만·회귀 0 의무.
-- **Σq 불변**: 규칙의 반대칭(`F(i→j)=−F(j→i)`)이 보존을 강제 — author 한 회계 아님(SPINE §2).
-- **결정론**: rng 는 초기 배치만. 규칙·tick 은 결정론(같은 시드 → 같은 해시).
+- **Σq 불변(비트 정확)**: 규칙의 반대칭(`F(i→j)=−F(j→i)`)이 보존을 강제 — author 한 회계 아님(SPINE §2). q 가 고정소수점 정수라 같은 정수 F 가 ±로 가 **정확** 상쇄(머신 정밀도가 아니라 비트 0). float 누적 금지.
+- **결정론(정수 전용)**: rng 는 초기 배치만. 규칙·tick 은 정수 `+,−,×,floor` 만 — `Math.pow`·float 누적 금지(libm·반올림 비결정 차단, 크로스플랫폼 lockstep). q 표현은 kernel `SCALE`(2¹⁶) 단일 출처.
 - **author 0**: 층(고체·유체·전선)은 *측정*으로 드러난다 — 종류 라벨/분기 박기 금지(SPINE §4·§9).
 - **트랙 직교**: flux step 은 `../atom/`·`../render/` 를 만지지 않는다. 공유 셸(`../viewer.html`) 매니페스트 한 줄만 부트스트랩이 더함.
 - **렌더 불변 재사용**: render.js 한 줄 안 고침 — flux 는 RENDER.md §2 계약 스냅샷만 내보냄(SPINE §7).
@@ -50,4 +51,4 @@
 
 ## 7. INDEX — 시리즈 검증 현황 (유일하게 append, **literal 1줄/step**)
 
-- step-0001 ✅ 부트스트랩: 하네스 + 단일 규칙 + 확산 장면 · 4기둥 PASS(Σq Δ=0·hash 69424498·spread 10.01→0.136) · render:밝기=q(L-glow 잠정)
+- step-0001 ✅ 부트스트랩: 하네스 + 단일 규칙 + 확산 장면 · 4기둥 PASS(Σq 비트 Δ=0·hash d0a96da5·spread 10.01→0.137) · 고정소수점 정수 정련(SCALE=2¹⁶·Math.pow 제거·정수 결정론) · render:밝기=q/SCALE(L-glow 잠정)

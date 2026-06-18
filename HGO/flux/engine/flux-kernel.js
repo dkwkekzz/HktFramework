@@ -8,6 +8,12 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
+  // 고정소수점 스케일(SCALE) — 보존량 q 는 *정수 fixed-point*(qᵢ = round(q·SCALE))로 저장한다.
+  //   왜: float 누적·Math.pow 는 크로스플랫폼 비트 동일성이 없어(libm 차이) net 트랙(공유 결정론 세계)의
+  //   lockstep 을 깬다. 정수 −F/+F 쌍은 비트 단위로 상쇄 → Σq *정확* 보존(머신 정밀도보다 강함, SPINE §2/§9).
+  //   2¹⁶: 정수 곱(qmax·κfix ≈ 11·65536·13107 ≈ 9.4e9)이 2⁵³ 안 → +,−,×,floor 만 쓰면 IEEE754 비트 결정론.
+  const SCALE = 1 << 16;
+
   // 결정론 의사난수(mulberry32) — 시드 하나로 재현. 규칙 자체는 결정론, rng 는 *초기 배치*에만 쓴다(SPINE §3).
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -35,11 +41,11 @@
     return edges;
   }
 
-  // 상태 해시(결정론·골든) — q 를 1e-6 격자로 양자화해 FNV-1a. 같은 코드·같은 시드 → 같은 해시.
+  // 상태 해시(결정론·골든) — q 는 이미 고정소수점 *정수*라 양자화 불필요(비트 그대로 FNV-1a). 같은 코드·같은 시드 → 같은 해시.
   function hashSim(sim) {
     let h = 2166136261 >>> 0;
     for (const a of sim.atoms) {
-      const q = Math.round(a.q * 1e6) | 0;
+      const q = a.q | 0;
       h = Math.imul(h ^ (q & 0xff), 16777619);
       h = Math.imul(h ^ ((q >>> 8) & 0xff), 16777619);
       h = Math.imul(h ^ ((q >>> 16) & 0xff), 16777619);
@@ -48,5 +54,5 @@
     return (h >>> 0).toString(16).padStart(8, '0');
   }
 
-  return { mulberry32, mass, gridEdges, hashSim };
+  return { SCALE, mulberry32, mass, gridEdges, hashSim };
 });

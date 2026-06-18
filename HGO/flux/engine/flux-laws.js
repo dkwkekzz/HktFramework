@@ -15,31 +15,40 @@
   'use strict';
 
   // ── 단일 규칙(순수 함수) ── 기울기 d 와 노브(κ,θ,α)만으로 플럭스를 반환. 세계의 유일한 법칙.
-  function rule(d, kappa, theta, alpha) {
-    const ex = Math.abs(d) - theta;           // 문턱 초과분(임계 게이트)
-    if (ex <= 0) return 0;                     // 문턱 아래 → 동결(플럭스 0)
-    const mag = kappa * Math.pow(ex, alpha);   // 촉매: 초과분에 비례(α 비선형)
+  //   *고정소수점 정수* 구현 — d·θ·반환 F 는 모두 q-단위 정수(qfix). 규칙 *형태*는 불변(F=κ·sign(d)·max(0,|d|−θ)^α),
+  //   연산만 정수 +,−,×,floor 로(Math.pow 제거 → 크로스플랫폼 비트 결정론, SPINE §9.3). κ·θ 는 미리 fixed 로 받음.
+  function rule(d, kappaFix, thetaFix, alpha, SCALE) {
+    const ad = d < 0 ? -d : d;                 // |d| (정수)
+    const ex = ad - thetaFix;                  // 문턱 초과분(임계 게이트 — 정수)
+    if (ex <= 0) return 0;                      // 문턱 아래 → 동결(플럭스 0)
+    let pow = ex;                              // α=1 기본. α>1 은 정수 거듭제곱(매 곱마다 /SCALE 로 q-단위 유지).
+    for (let k = 1; k < alpha; k++) pow = Math.floor(pow * ex / SCALE);
+    const mag = Math.floor(pow * kappaFix / SCALE);   // 촉매: κ 곱(정수 floor — 결정론). 같은 F 가 ±로 가 보존 정확.
     return d < 0 ? -mag : mag;                 // 보존: d 의 부호를 따름(홀함수 → 반대칭)
   }
 
   // 한 tick — 모든 이웃 간선에 규칙을 한 번. 델타 누적 후 일괄 적용(간선 순서 무관 → 결정론·순서 무관 보존).
+  //   delta 는 정수만 담는다(Float64 지만 값은 정수 — 2⁵³ 내 +,− 비트 정확). κ·θ 는 노브(인간 단위)에서 fixed 로 환산.
   function apply(sim) {
-    const kn = sim.knobs, kappa = kn.kappa, theta = kn.theta, alpha = kn.alpha;
-    if (!kappa) return;                        // κ=0 → 정지(early-return)
+    const kn = sim.knobs, SCALE = K.SCALE;
+    const kappaFix = Math.round(kn.kappa * SCALE);   // κ → fixed(예: 0.2 → 13107). 튜닝 노브라 미세 근사 무방.
+    const thetaFix = Math.round(kn.theta * SCALE);   // θ → fixed(q-단위 정수)
+    const alpha = Math.max(1, Math.round(kn.alpha)); // 비선형 차수는 정수(비정수 α 는 정수 결정론을 깸 → 보류)
+    if (!kappaFix) return;                     // κ=0 → 정지(early-return)
     const a = sim.atoms, edges = sim.edges;
     const delta = sim._delta || (sim._delta = new Float64Array(a.length));
     delta.fill(0);
-    let flux = 0;                              // 진단: 이번 tick 의 총 |플럭스|(사태 세기)
+    let flux = 0;                              // 진단: 이번 tick 의 총 |플럭스|(사태 세기 — fixed)
     for (let e = 0; e < edges.length; e++) {
       const i = edges[e][0], j = edges[e][1];
-      const F = rule(a[i].q - a[j].q, kappa, theta, alpha);
+      const F = rule(a[i].q - a[j].q, kappaFix, thetaFix, alpha, SCALE);
       if (F === 0) continue;
-      delta[i] -= F; delta[j] += F;            // 반대칭 — i 가 잃는 만큼 j 가 얻음(닫힌 장부)
+      delta[i] -= F; delta[j] += F;            // 반대칭 — 같은 정수 F 가 i 에서 −·j 에서 + → Σq 비트 정확 불변
       flux += F < 0 ? -F : F;
     }
     for (let k = 0; k < a.length; k++) {
-      a[k].q += delta[k];
-      a[k].x = a[k].q;                         // 렌더 채널 동기(밝기=q, RENDER.md §2 — author 아님, 읽기 사상)
+      a[k].q += delta[k];                      // 정수 누적(정확 보존)
+      a[k].x = a[k].q / SCALE;                 // 렌더 밝기 채널 = q 인간 단위(파생 실수 — 읽기 전용, 규칙에 환류 0)
     }
     sim.fluxLast = flux;                       // watch/측정용(hash 미참여)
   }
