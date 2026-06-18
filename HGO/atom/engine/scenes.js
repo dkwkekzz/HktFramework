@@ -7921,6 +7921,85 @@
         ];
       },
     },
+
+    // ── 'garden' — 빛나는 화학 정원(통합 깃발 II) ───────────────────────────────────
+    //   옛 world.html 이 *시도했으나 얼려버린* 무대를 살린다: 따뜻한 C+H 가스가 분자로 응결하되
+    //   *얼지 않고* 끊임없이 결합을 맺고 끊으며(동적 평형), 그 결합 에너지가 복사 순환으로 *빛난다*.
+    //   새 법칙 0(LAW_ORDER·DEFAULTS 불변 → 골든 보존·회귀 0) — 닫은 화학 법칙(pauli·vdw·coulomb·bond·
+    //   bondSpring·bondAngle·Morse·unbond·bondBreak)을 *감쇠 없이* 켜 살아있게 두고, 발광 순환(emit·
+    //   recoil·propagate·escape·reheat)을 얹는다. world.html 의 실패(과감쇠 → 정적 격자)와 정반대.
+    'garden': {
+      id: 'garden',
+      title: '빛나는 화학 정원 — 따뜻한 C+H 가스가 분자로 피고 끊임없이 맺고 끊으며 빛난다 (통합·새 법칙 0 — 화학 법칙을 감쇠 없이 살려 동적 평형 + 결합 에너지 복사 순환 발광·world.html 의 "안 움직이는 바둑판"과 정반대)',
+      desc: '옛 world.html 은 옳은 화학 노브를 갖고도 *과감쇠+저온*으로 얼어 "안 움직이는 바둑판"이 됐다. 이 장면은 같은 화학을 *살린다*(새 법칙 0·scene 만 — LAW_ORDER·DEFAULTS 불변 → 골든 보존·회귀 0): ' +
+            '따뜻한 C(Z=6·원자가 4=허브)+H(Z=1·원자가 1=말단) 가스가 무작위로 흩어져(격자 아님): ' +
+            '① **분자가 핀다** — pauli(부피)+vdw(인력)+coulomb 으로 만나, 외각 껍질을 채우는 공유결합(bond·bondCovalent·bondValence)으로 맺어 *다양한 크기의 분자*가 창발한다(C 허브가 H 말단을 모아 큰 분자·연결 성분으로 *측정*·author 아님). bondSpring(평형 길이)+bondAngle(VSEPR)+Morse(유한 우물)로 진동·굽힘. ' +
+            '② **살아있다(얼지 않는다)** — 감쇠(damp)를 빼 탄성 충돌이 열을 보존 → 결합이 *맺어지고*(bond) 충돌·열로 *끊긴다*(unbond·bondBreak Morse 해리). 형성 ≫ 0 *그리고* 해리 ≫ 0 = 동적 평형(world.html 은 둘 다 0 으로 얼었다). ' +
+            '③ **빛난다** — 결합 형성·해리가 푼 에너지가 복사 바스로 가고(escape) 바스가 원자를 재여기(reheat)해 emit 이 광자(λ=hc/ΔE 스펙트럼색)로 낸다 — 정원이 화학 반응마다 *반짝인다*. kEmit 끄면 광자 0(빛은 화학에서·author 아님). ' +
+            '*측정*(무대 110²·N=150·25% C+75% H·dt=0.02·VV·고정 시드 캐시 MT=700): ' +
+            '① 분자(연결 성분 ≥2) 다수·다양한 크기(maxMol≥3) 형성. ② 결합 형성 ≫0 *그리고* 해리 ≫0(살아있음·평균 속력 유지). ③ 발광 emit 켜면 광자 지속 ≫ 끄면 0. ④ Q·B·L·px·py 머신·E 완화(연속 화학력 symplectic 유계 진동·0019 §). ' +
+            '뷰어(L-3d 카메라·L-molecule 분자색·L-bond 결합선·L-order 차수·L-λ 광자색)서 *반짝이며 맺고 끊는* 분자 정원이 보인다.',
+      ticks: 150,
+      W: 110, H: 110, N: 150, MT: 700, SNAP: 175,
+      KN: { dt: 0.02, coulombSoft: 2, kPauli: 4, kVdW: 0.4, kCollide: 1, collideR: 3,
+            kBond: 1, bondR: 5, bondVmax: 2.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1,
+            bondCoulombic: 1, kBondSpring: 2, bondReq: 4, kBondAngle: 3, bondAngleVSEPR: 1, bondAngleTarget: 2.0943951023931953,
+            bondMorse: 1, bondMorseD: 0.5, bondMorseA: 0.4, unbondDist: 9, bondBreak: 1, kUnbond: 1,
+            kChemilum: 0.2, kEmit: 0.35, kRecoil: 1, kProp: 1, kEscape: 0.015, kReheat: 0.15,   // 발광 복사 순환(결합 에너지 → 빛)
+            symplectic: 1, spatialHash: 1, spatialCut: 8 },
+      ledgerTol: { E: 2.5e3 },                                // 연속 화학력(coulomb·spring·Morse·vdw·pauli) symplectic 유계 진동 + 결합 형성/해리 + 복사 순환 E 완화(0019 §·Q·B·L·px·py 머신)
+
+      garden(K, seed) {                                       // 따뜻한 C+H 가스 무작위 분포(격자 아님·world.html 바둑판과 정반대)
+        const rng = K.mulberry32((seed >>> 0) || 20260618), a = [], temp = 2.5;
+        for (let i = 0; i < this.N; i++) {
+          const Z = rng() < 0.25 ? 6 : 1;                     // C(Z=6·원자가 4=허브) 25% + H(Z=1·원자가 1=말단) 75%
+          a.push({ Z, N: Z, e: Z, x: 0, rx: rng() * this.W, ry: rng() * this.H,
+                   vx: (rng() - 0.5) * temp, vy: (rng() - 0.5) * temp, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      meanSpeed(at) { let s = 0; for (const a of at) s += Math.hypot(a.vx, a.vy); return at.length ? s / at.length : 0; },
+      run(K, emitOn) {                                        // emitOn=false → kEmit=0(발광 끔) — 빛이 *화학(복사 순환)*서 옴을 가르는 대조군
+        const kn = Object.assign({}, L.DEFAULTS, this.KN, emitOn ? {} : { kEmit: 0 });
+        const sim = { W: this.W, H: this.H, atoms: this.garden(K), photons: [], rng: K.mulberry32(20260618), knobs: kn, tick: 0 };
+        const l0 = K.ledger(sim); const phS = [];
+        for (let t = 0; t < this.MT; t++) { L.leapfrog(sim); sim.tick++; if ((t + 1) % this.SNAP === 0) phS.push(sim.photons.length); }
+        const l1 = K.ledger(sim);
+        const m = molecules(sim);
+        return { mol: m.count, maxMol: m.maxSize, bonds: (sim.bonds || []).length,
+                 form: sim.bondCount | 0, dissoc: (sim.dissocCount | 0) + (sim.unbondCount | 0), photons: sim.photons.length, phS,
+                 spd: +this.meanSpeed(sim.atoms).toFixed(2),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, true), off: this.run(K, false) }); },
+
+      // 라이브 sim(장부·결정론 기둥): init 이 정원 무대를 만들고 verify 가 scene.ticks(=150) 돌려 Q·B·L·px·py 머신·E 완화 확인.
+      init(rng, K) {
+        const a = this.garden(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mol: c.on.mol, maxMol: c.on.maxMol, bonds: c.on.bonds, form: c.on.form, dissoc: c.on.dissoc,
+                 photonsOn: c.on.photons, photonsOff: c.off.photons, spd: c.on.spd, relEpct: +(c.on.dE / c.on.Etot * 100).toFixed(2) };
+      },
+
+      // 가설: ① 분자가 핀다(다양한 크기) ② 살아있다(맺고 끊고·평균 속력) ③ 빛난다(emit 켜면 광자·끄면 0) ④ 장부·결정론.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const bloom = c.on.mol >= 10 && c.on.maxMol >= 3;                                  // ① 분자 다수 + 다양한 크기(연결 성분 측정)
+        const alive = c.on.form > 20 && c.on.dissoc > 10 && c.on.spd > 0.3;                // ② 형성·해리 둘 다 ≫0 + 안 얼어붙음(world.html 은 0·정지)
+        const glow = c.on.photons > 10 && c.off.photons === 0;                             // ③ emit 켜면 광자장·끄면 정확히 0(빛은 화학서)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `분자가 핀다·load-bearing — 연결 성분 분자 ${c.on.mol}개(최대 ${c.on.maxMol}원자·다양한 크기) + 결합 ${c.on.bonds}간선 ⇒ C 허브가 H 말단을 모아 분자 창발(author 아닌 측정)`, pass: bloom, value: c.on.mol },
+          { name: `살아있다·load-bearing — 결합 형성 ${c.on.form}회 *그리고* 해리 ${c.on.dissoc}회(동적 평형·맺고 끊음)·평균 속력 ${c.on.spd}(안 얼어붙음) ⇒ world.html 의 정적 격자(형성·해리 0·정지)와 정반대`, pass: alive, value: c.on.form },
+          { name: `빛난다·load-bearing — 발광 emit 켜면 활성 광자 ${c.on.photons}(λ=hc/ΔE 스펙트럼색·시계열 ${c.on.phS.join('→')}) ≫ 끄면 ${c.off.photons} ⇒ 빛은 *결합 형성·해리 에너지(복사 순환)*서 옴(author 아닌 측정)`, pass: glow, value: c.on.photons },
+          { name: `장부·결정론 — 정원 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(연속 화학력 symplectic 유계 진동·0019 §)·새 법칙 0 → 기존 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.mol },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
