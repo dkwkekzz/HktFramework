@@ -10,7 +10,7 @@
   'use strict';
 
   // 노브 기본값 — step 마다 *미존재 시 가법*으로만 추가(과거 장면 무영향).
-  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, bondAngleVSEPR: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, bondMorseOrderNL: 0, bondMorseAlphaPair: 0, bondReqPair: 0, bondKindPair: 0, bondBadger: 0, bondAlphaD: 0, bondAlphaDOrder: 0, bondCorrKind: 0, bondAngleLonePair: 0, bondLonePairOrder: 0, bondAngleKind: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, disperseAutoOtsu: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8, kCoreHarvest: 0, harvestDeg: 8, eventLog: 0 };
+  const DEFAULTS = { dt: 1.0, kEmit: 0, kRecoil: 0, kProp: 0, kScatter: 0, scatterAngular: 0, kEscape: 0, kReheat: 0, kCollide: 0, kBond: 0, kChemilum: 0, levelZ: 0, levelScreen: 0, bondLocalE: 0, kUnbond: 0, bondCovalent: 0, bondOrder: 0, kCoulomb: 0, coulombSoft: 1, kRepulse: 0, bondCoulombic: 0, kPauli: 0, kVdW: 0, kDamp: 0, kBondSpring: 0, bondReq: 4, kBondAngle: 0, bondAngleTarget: 2.0943951023931953, kGravity: 0, bondAngleVSEPR: 0, kDecay: 0, decayNexcess: 4, decayQ: 1, decayRecoilPair: 0, decayRateExcess: 0, decayMassFormula: 0, decayBetaPlus: 0, decayPairing: 0, decaySargent: 0, decayQref: 1, nucShell: 0, symplectic: 0, massDefect: 0, kFuse: 0, fuseR: 3, fuseBarrier: 0, fuseQ: 0, fuseMassFormula: 0, fuseGamow: 0, fuseEG: 0, fuseEGcharge: 0, fuseEGmu: 0, fuseEndo: 0, relCap: 0, relKE: 0, drift3d: 0, spatialHash: 0, spatialCut: 8, farField: 0, spatialTheta: 0.5, kDisperse: 0, disperseE: 1, disperseZmin: 0, fuseRebond: 0, bondMorse: 0, bondMorseD: 0, bondMorseA: 1, bondMorsePair: 0, bondMorseOrder: 0, bondMorseOrderNL: 0, bondMorseAlphaPair: 0, bondReqPair: 0, bondKindPair: 0, bondBadger: 0, bondAlphaD: 0, bondAlphaDOrder: 0, bondCorrKind: 0, bondAngleLonePair: 0, bondLonePairOrder: 0, bondAngleKind: 0, unbondDist: 0, adaptSub: 0, fuseConservePE: 0, kCoolOuter: 0, coolR: 6, coolDeg: 8, disperseOuterDeg: 0, disperseAutoDeg: 0, disperseAutoOtsu: 0, kSnEject: 0, snZmin: 3, snImpulse: 10, snCoreDeg: 8, kCoreHarvest: 0, harvestDeg: 8, eventLog: 0 };
 
   // 외각 껍질 빈자리(step-0017 공유결합) = 다음 *닫힌 껍질* 전자수까지 부족분. author 한 원자가 0 — e 다발 + 마법수에서 창발.
   //   닫힌 껍질(noble) 전자수 [2,10,18,36] (He·Ne·Ar·Kr) — 옥텟 규칙의 토이. 중성 원소가 제 빈자리만큼 결합:
@@ -1605,16 +1605,22 @@
   //   드리프트는 위치만 바꾼다 → Q·B·L·E·px·py 전부 보존-자명(propagate 와 동형). 게이트=0 이면 v_coord=u(원시 v)
   //   라 과거 전 장면과 비트 동일(회귀 0). u→∞ 면 v_coord→c(점근·도달 0) = 광속 돌파 불가가 *함수형서* 나온다(author 0).
   //   토이 한계: 에너지는 ½m·u²(celerity Newtonian) 그대로 — 완전 상대론적 KE=(γ−1)mc² 는 후속 정밀화(STATE §3).
+  //   z축 자유 드리프트(step-0106 drift3d): 시뮬은 0105 까지 위치가 2D(rx,ry) 뿐이었다. 이 게이트는 원자 다발에 *세 번째 좌표* rz·vz 를
+  //   더해 자유 운동을 3차원으로 연다(VSEPR 정사면체·팔면체 등 입체 기하의 전제 — 0099 2D 한계의 근원). drift3d=0(기본) → vz 를 0 으로 눌러
+  //   z 가 *완전 불활성*(γ·드리프트 어디에도 안 들어감) ⇒ 과거 2D 전 장면과 비트 동일(회귀 0). 켜면 vz≠0 인 원자만 깊이 D 토러스서 z 드리프트.
+  //   장부: pz=Σm·vz 가 ledger 에 더해지고(2D 장면 vz 미존재 → 0 → 불변), 자유 드리프트라 힘 0 → pz 머신 보존. relCap 과 합성: γ 에 vz² 가
+  //   포함돼 |v_coord_3d|<c 가 3D 로 확장(d3=0 → vz=0 → 과거 γ 동일). z 운동·힘은 후속 step 이 각 force 법칙에 가법(이번은 드리프트 한 조각).
   function integrate(sim) {
-    const dt = sim.knobs.dt, rc = sim.knobs.relCap, c = K.C;
+    const dt = sim.knobs.dt, rc = sim.knobs.relCap, c = K.C, d3 = sim.knobs.drift3d;
     for (const a of sim.atoms) {
-      let vx = a.vx, vy = a.vy;
+      let vx = a.vx, vy = a.vy, vz = d3 ? (a.vz || 0) : 0;  // drift3d=0 → vz=0 → z 완전 불활성(과거 2D 비트 동일·회귀 0)
       if (rc) {                                       // 게이트=0 → 원시 v(회귀 0). 켜면 좌표속도로 환산.
-        const g = Math.sqrt(1 + (vx * vx + vy * vy) / (c * c));  // γ = √(1+|u|²/c²)
-        vx /= g; vy /= g;                             // v_coord = u/γ → |v_coord| < c 항상
+        const g = Math.sqrt(1 + (vx * vx + vy * vy + vz * vz) / (c * c));  // γ = √(1+|u|²/c²) — vz² 포함(d3=0 → 과거 γ 동일)
+        vx /= g; vy /= g; vz /= g;                     // v_coord = u/γ → |v_coord| < c 항상(3D 확장)
       }
       a.rx = wrap(a.rx + vx * dt, sim.W);
       a.ry = wrap(a.ry + vy * dt, sim.H);
+      if (d3 && a.vz !== undefined) a.rz = wrap((a.rz || 0) + vz * dt, sim.D || sim.W);  // z 드리프트(토러스 깊이 D, 미설정 → W)
     }
   }
 

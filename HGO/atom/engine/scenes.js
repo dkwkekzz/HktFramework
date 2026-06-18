@@ -7752,6 +7752,74 @@
         ];
       },
     },
+
+    // step-0111 — z축 자유 드리프트(`drift3d`): 0110 까지 위치가 2D(rx,ry) 뿐이던 무대에 *세 번째 좌표* rz·vz 를 더한다.
+    //   세계엔 새 자료형이 아니라 *원자 다발의 양 하나*(z 좌표)가 늘 뿐(SPINE 단일 척추). drift3d=0 → z 완전 불활성(2D 비트 동일·회귀 0).
+    //   장부에 z운동량 pz 가 더해지고, 자유 드리프트(힘 0)라 pz·E 머신 보존. z 에 작용하는 *힘*은 후속 step 이 각 force 법칙에 가법(한 조각).
+    'step-0111': {
+      id: 'step-0111',
+      title: '원자가 3D로 움직인다 (z축 자유 드리프트)',
+      desc: 'z축(rz·vz)을 원자 다발에 더해 자유 드리프트를 3차원으로 확장한다. 0110 까지 위치는 2D(rx,ry) 뿐 — ' +
+            '이제 세 번째 좌표가 깊이 D 토러스서 움직인다(VSEPR 정사면체·팔면체 등 입체 기하의 전제·0099 의 2D 한계 근원). ' +
+            'drift3d=0 → z 완전 불활성(2D 비트 동일·회귀 0)·닫힌 장부에 z운동량 pz 추가(자유 드리프트 → 머신 보존).',
+      ticks: 60,
+      W: 100, H: 100, D: 100,
+      KN: { drift3d: 1 },
+
+      // 결정론·시드 독립 미니 런(가설·회귀 한 출처·DRY) — drift3d 게이트만 토글해 on/off 비교.
+      run(K, d3) {
+        const cx = this.W / 2, cy = this.H / 2, cz = this.D / 2;
+        const a = [
+          { Z: 1, N: 0, e: 1, x: 0, rx: cx,     ry: cy,     rz: cz, vx: 0.30,  vy: 0,    vz: 0.50,  lep: 0, nuc: 0 },
+          { Z: 1, N: 0, e: 1, x: 0, rx: cx + 5, ry: cy,     rz: cz, vx: 0,     vy: 0.30, vz: -0.50, lep: 0, nuc: 0 },
+          { Z: 8, N: 8, e: 8, x: 0, rx: cx,     ry: cy + 5, rz: cz, vx: -0.10, vy: 0,    vz: 0.20,  lep: 0, nuc: 0 },
+        ];
+        const sim = { W: this.W, H: this.H, D: this.D, atoms: a, knobs: Object.assign({}, L.DEFAULTS, this.KN, { drift3d: d3 }) };
+        sim.escaped = { E: 0, px: 0, py: 0, count: 0 };
+        const rx0 = a.map(p => p.rx), ry0 = a.map(p => p.ry), rz0 = a.map(p => p.rz);
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.ticks; t++) { L.applyForces(sim); L.integrate(sim); sim.tick = (sim.tick || 0) + 1; }
+        const l1 = K.ledger(sim);
+        let zDisp = 0, xyDisp = 0;
+        for (let i = 0; i < a.length; i++) {
+          zDisp += Math.abs(K.minImage(a[i].rz - rz0[i], this.D));
+          xyDisp += Math.hypot(K.minImage(a[i].rx - rx0[i], this.W), K.minImage(a[i].ry - ry0[i], this.H));
+        }
+        return { zDisp, xyDisp, xy: a.map(p => [p.rx, p.ry]),
+                 dpz: Math.abs(l1.pz - l0.pz), dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py),
+                 dQ: Math.abs(l1.Q - l0.Q), dB: Math.abs(l1.B - l0.B), dL: Math.abs(l1.L - l0.L),
+                 relE: Math.abs(l1.E - l0.E) / Math.abs(l0.E) * 100 };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): 시드 의존 vz 로 z 운동 → 골든이 3D 해시를 동결한다.
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2, cz = this.D / 2;
+        const a = [
+          { Z: 1, N: 0, e: 1, x: 0, rx: cx,     ry: cy, rz: cz, vx: (rng() - 0.5) * 0.04, vy: 0,                    vz:  (0.4 + rng() * 0.1), lep: 0, nuc: 0 },
+          { Z: 1, N: 0, e: 1, x: 0, rx: cx + 4, ry: cy, rz: cz, vx: 0,                    vy: (rng() - 0.5) * 0.04, vz: -(0.4 + rng() * 0.1), lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, D: this.D, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { zDispOn: +c.on.zDisp.toFixed(2), zDispOff: +c.off.zDisp.toFixed(2), dpz: +c.on.dpz.toExponential(2), relE: +c.on.relE.toFixed(3) };
+      },
+
+      // 가설: ① z 가 움직인다(on) · 끄면 0 ② drift3d=0 → z 가 xy 평면 운동에 무영향(비트 동일·회귀) ③ pz·장부 머신·E 닫힘.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const zMoves = c.on.zDisp > 1 && c.off.zDisp === 0;                                           // ① 켜면 z 이동·끄면 정확히 0
+        const xySame = c.on.xy.every((p, i) => p[0] === c.off.xy[i][0] && p[1] === c.off.xy[i][1]);    // ② z 가 xy 에 무영향(회귀 비트)
+        const ledgerOK = c.on.dpz < 1e-9 && c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dQ < 1e-9 && c.on.dB < 1e-9 && c.on.dL < 1e-9 && c.on.relE < 1e-6;  // ③
+        return [
+          { name: `z축 자유 드리프트·load-bearing — drift3d on: z 변위 ${c.on.zDisp.toFixed(2)}(>0·3D 운동) vs off: ${c.off.zDisp.toFixed(2)}(z 불활성) ⇒ 세 번째 좌표가 깊이 D 토러스서 움직인다(0099 2D VSEPR 한계 푸는 전제)`, pass: zMoves, value: +c.on.zDisp.toFixed(2) },
+          { name: `회귀·load-bearing — drift3d=0 → z 완전 불활성·xy 비트 ${xySame ? '동일' : '다름'} ⇒ z 가 평면 운동에 무영향(과거 2D 전 장면 비트 동일·골든 보존)`, pass: xySame, value: c.off.zDisp },
+          { name: `pz 장부 머신·E 닫힘 — 자유 드리프트(힘 0) → z운동량 pz 보존(dpz ${c.on.dpz.toExponential(2)})·Q·B·L 머신(dB ${c.on.dB.toExponential(2)})·E 닫힘 ${c.on.relE.toExponential(2)}%`, pass: ledgerOK, value: +c.on.dpz.toExponential(2) },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
