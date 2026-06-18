@@ -37,7 +37,8 @@
       //  px·py: 광자 운동량(recoil 법칙이 채움) · src: 반동 줄 원자 · recoiled: 반동 처리 플래그.
       //  rx0·ry0·birth: 방출 위치·시각(propagate 검증용). E0·nscatter: 방출 에너지·산란 횟수(scatter 검증용). srcZ·srcE: 발원 원소 Z·전자수(step-0013·0014 스펙트럼 검증). hash 미참여.
       //  recoil 꺼짐(kRecoil=0)이면 px=py=0 으로 남아 장부 운동량 0 가법 → step-0002 비트 동일.
-      sim.photons.push({ E: dE, lambda: K.photonLambda(dE), rx: a.rx, ry: a.ry, rx0: a.rx, ry0: a.ry, birth: sim.tick, from: x0, to: x1, px: 0, py: 0, src: a, recoiled: false, E0: dE, nscatter: 0, srcZ: a.Z, srcE: a.e });
+      //  rz: 방출 원자의 z 깊이(step-0112 drift3d 3D 무대 — render 가 광자를 원자와 같은 깊이서 그림). 2D 장면 a.rz 미존재 → undefined → render z=0(비트·해시·장부 미참여 → 회귀 0).
+      sim.photons.push({ E: dE, lambda: K.photonLambda(dE), rx: a.rx, ry: a.ry, rz: a.rz, rx0: a.rx, ry0: a.ry, birth: sim.tick, from: x0, to: x1, px: 0, py: 0, src: a, recoiled: false, E0: dE, nscatter: 0, srcZ: a.Z, srcE: a.e });
     }
   }
 
@@ -587,16 +588,19 @@
     const dt = sim.knobs.dt;
     const eps2 = (sim.knobs.coulombSoft || 1) * (sim.knobs.coulombSoft || 1);  // 연화 길이²(쿨롱·반발과 공유)
     const atoms = sim.atoms, n = atoms.length;
+    const d3 = sim.knobs.drift3d;                          // 3D 게이트(step-0112): 켜면 z 까지 반발 → 구(球) 압력 지지(원반 아님). 끄면 z항 0 → 2D 비트 동일(회귀 0)
     function doPair(i, j) {                                // brute·cellPairs 공용 — 같은 힘 식(전하 게이트 없음·중성 포함)
       const a = atoms[i], b = atoms[j];
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
-      const s2 = dx * dx + dy * dy + eps2;                 // 연화 거리²
+      const dz = d3 ? K.minImage((b.rz || 0) - (a.rz || 0), sim.D || sim.W) : 0;        // z 변위(d3=0 → 0 → 2D 동일·회귀 0)
+      const s2 = dx * dx + dy * dy + dz * dz + eps2;       // 연화 거리²(d3 면 3D)
       // U_pauli = kP/s2² → F_on_a = −∇_a U = −kP·4/s2³ · d (d=a→b) → a 를 −d(b 반대편) 로 밂 = 반발(전하 무관).
       const fOverR = -kp * 4 / (s2 * s2 * s2);
       const fx = fOverR * dx, fy = fOverR * dy;            // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
       const ma = K.mass(a), mb = K.mass(b);
       a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;      // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
       b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+      if (d3) { const fz = fOverR * dz; a.vz = (a.vz || 0) + (fz / ma) * dt; b.vz = (b.vz || 0) - (fz / mb) * dt; }  // z 반발(pz 머신 보존)
     }
     if (!sim.knobs.spatialHash) {                          // 게이트=0 → 전쌍 brute(0021 비트 동일·회귀 0)
       for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) doPair(i, j);
@@ -944,17 +948,20 @@
       sim.gravityActive = 1;
       return;
     }
+    const d3 = sim.knobs.drift3d;                          // 3D 게이트(step-0112): 켜면 z(rz·vz)까지 끌어당김 → 평면 아닌 *구(球)* 붕괴. 끄면 z항 0 → 2D 비트 동일(회귀 0)
     for (let i = 0; i < n; i++) {                          // 게이트=0 → 전쌍 brute(step-0027 비트 동일·머신 보존·회귀 0)
       const a = atoms[i], ma = K.mass(a);                  // 전하 게이트 없음 — 중성 포함 모든 원자(중력은 보편)
       for (let j = i + 1; j < n; j++) {
         const b = atoms[j], mb = K.mass(b);
         const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);  // a→b 변위
-        const s2 = dx * dx + dy * dy + eps2;               // 연화 거리²
+        const dz = d3 ? K.minImage((b.rz || 0) - (a.rz || 0), sim.D || sim.W) : 0;        // z 변위(d3=0 → 0 → s2·힘 2D 동일·회귀 0)
+        const s2 = dx * dx + dy * dy + dz * dz + eps2;     // 연화 거리²(d3 면 3D)
         // U_grav = −kG·ma·mb/√s2 → F_on_a = −∇_a U = +kG·ma·mb/s2^1.5 · d (d=a→b) → a 를 +d(b 쪽)로 당김 = 인력(항상).
         const fOverR = kg * ma * mb / (s2 * Math.sqrt(s2));
         const fx = fOverR * dx, fy = fOverR * dy;          // a 에 작용(b 엔 −fx,−fy → 운동량 정확 보존)
         a.vx += (fx / ma) * dt; a.vy += (fy / ma) * dt;    // 반음시 오일러: 속도부터(integrate 가 새 v 로 위치)
         b.vx -= (fx / mb) * dt; b.vy -= (fy / mb) * dt;
+        if (d3) { const fz = fOverR * dz; a.vz = (a.vz || 0) + (fz / ma) * dt; b.vz = (b.vz || 0) - (fz / mb) * dt; }  // z 인력(pz 머신 보존)
       }
     }
     sim.gravityActive = 1;                                 // 진단 플래그(hash 미참여)
@@ -1017,15 +1024,18 @@
     //   모든 비융합 분기는 false 반환(브루트의 continue 와 등가). 융합 시 dead[j]=true·a 갱신·bath 적재.
     function tryFuse(i, j) {
       const a = atoms[i], b = atoms[j];
+      const d3 = sim.knobs.drift3d;                       // 3D 게이트(step-0112): 접촉 반경·상대속도를 z 까지(z 로 멀면 융합 안 함). 끄면 z항 0 → 2D 비트 동일(회귀 0)
       const dx = K.minImage(b.rx - a.rx, sim.W), dy = K.minImage(b.ry - a.ry, sim.H);
-      const d2 = dx * dx + dy * dy;
+      const dz = d3 ? K.minImage((b.rz || 0) - (a.rz || 0), sim.D || sim.W) : 0;
+      const d2 = dx * dx + dy * dy + dz * dz;             // 접촉 거리²(d3 면 3D)
       if (d2 > R2 || d2 === 0) return false;             // 접촉 반경 밖(또는 완전 겹침 가드)
-      const d = Math.sqrt(d2), nx = dx / d, ny = dy / d;
-      const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; // 상대속도 법선 성분(>0 = 다가옴)
+      const d = Math.sqrt(d2), nx = dx / d, ny = dy / d, nz = d3 ? dz / d : 0;
+      const dvz = d3 ? (a.vz || 0) - (b.vz || 0) : 0;
+      const vn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny + dvz * nz; // 상대속도 법선 성분(>0 = 다가옴·d3 면 z 포함)
       if (vn <= 0) return false;                          // 멀어지는 쌍은 융합 안 함
       const ma = K.mass(a), mb = K.mass(b), mu = (ma * mb) / (ma + mb);
       const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
-      const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy);   // 상대 KE = ½μ|vrel|²(쿨롱 장벽 돌파 판정용)
+      const keRel = 0.5 * mu * (dvx * dvx + dvy * dvy + dvz * dvz);   // 상대 KE = ½μ|vrel|²(d3 면 z 포함·쿨롱 장벽 돌파 판정용)
       if (grng) {                                         // 양자 터널링(Gamow): 고전 장벽 아래서도 P=exp(−√(EG/E))로 융합
         const zz = (a.Z | 0) * (b.Z | 0);                 // 전하곱 Z₁Z₂(전하 의존 게이트서 장벽 척도)
         const egPair = (egCharge ? EG * zz * zz : EG) * (egMu ? mu : 1);  // E_G ∝ (Z₁Z₂)²·μ → 지수 √(egPair/E)(전하곱 선형 + √μ)·egMu=0 → μ 미가법(0050·회귀 0)·²H+²H μ=1 → 1배 baseline
@@ -1034,6 +1044,7 @@
       // 합체: vcom 으로 잠근 새 원자(다발 합산). 총 운동량 정확 보존, 흡수된 상대 KE 는 바스로.
       const M = ma + mb;
       const vcx = (ma * a.vx + mb * b.vx) / M, vcy = (ma * a.vy + mb * b.vy) / M;
+      const vcz = d3 ? (ma * (a.vz || 0) + mb * (b.vz || 0)) / M : 0;   // z 운동량 보존 합체속도(d3=0 → 미사용)
       const nucSum = (a.nuc || 0) + (b.nuc || 0);
       // 방출 Δm·c²: fmf(0041) 면 *결합에너지 이득* ΔB_fus = B(생성)−B(a)−B(b)(질량공식서 — 발열량이 author 상수 아님·massDefect 와 짝).
       //   융합은 가벼운 핵서 발열(ΔB_fus>0·별 점화), 철 너머 흡열(ΔB_fus<0) — 둘 다 *측정*으로 창발(author 0). fmf=0 → author fuseQ(저장고 한도).
@@ -1049,7 +1060,7 @@
       bath.count = (bath.count | 0) + 1;
       // a 를 product 로 갱신(다발 합산·vcom·저장고 계승). b 는 dead 표시 → 배열서 압축.
       a.Z += b.Z; a.N += b.N; a.e += b.e; a.lep = (a.lep || 0) + (b.lep || 0);
-      a.vx = vcx; a.vy = vcy;
+      a.vx = vcx; a.vy = vcy; if (d3) a.vz = vcz;          // z 운동량 보존(a.rz 는 그대로·b 소비)
       a.nuc = fmf ? nucSum : nucSum - released;           // fmf: 저장고 미인출(연료=ΔM 정지질량·massDefect)·계승만. else: 저장고서 방출분 제외
       a.x = 0;                                            // 들뜸은 합체로 초기화(토이 — 핵 들뜸 별도 모형 전가)
       // step-0108 핵 변환 이벤트 로그(#M render L-fuse) — eventLog=0 → push 0·events hash 미참여 → 회귀 0. render 가 "점화 섬광"을 그릴 *위치·ΔZ·ΔE* 신호(atom 이 방출해야 render 가 그림·glow author 금지).
@@ -1425,15 +1436,17 @@
   //   서브스텝당 변화가 vTol 이내가 되게 M=clamp(⌈|Δv|/vTol⌉, 1, ADAPT_SUB_MAX). 위치·bonds 불변(force 는 v 만 kick)이라 시험은 무부작용.
   const ADAPT_SUB_MAX = 256;                                 // 비용 상한(극단 근접조우서 폭주 방지)
   function chooseSubSteps(sim, dt0, vTol) {
-    const atoms = sim.atoms, n = atoms.length;
-    const vx0 = new Array(n), vy0 = new Array(n);
-    for (let i = 0; i < n; i++) { vx0[i] = atoms[i].vx; vy0[i] = atoms[i].vy; }
+    const atoms = sim.atoms, n = atoms.length, d3 = sim.knobs.drift3d;
+    const vx0 = new Array(n), vy0 = new Array(n), vz0 = d3 ? new Array(n) : null;
+    for (let i = 0; i < n; i++) { vx0[i] = atoms[i].vx; vy0[i] = atoms[i].vy; if (d3) vz0[i] = atoms[i].vz; }
     sim.knobs.dt = dt0; applyForces(sim, 'force');           // 시험 kick(전 보존력·dt0)
     let amax2 = 0;
     for (let i = 0; i < n; i++) {
-      const dvx = atoms[i].vx - vx0[i], dvy = atoms[i].vy - vy0[i], d2 = dvx * dvx + dvy * dvy;
+      const dvx = atoms[i].vx - vx0[i], dvy = atoms[i].vy - vy0[i];
+      const dvz = d3 ? (atoms[i].vz || 0) - (vz0[i] || 0) : 0;   // 3D 시험 kick 의 z 성분도 척도에 반영
+      const d2 = dvx * dvx + dvy * dvy + dvz * dvz;
       if (d2 > amax2) amax2 = d2;
-      atoms[i].vx = vx0[i]; atoms[i].vy = vy0[i];            // 속도 비트 복원(시험 무부작용)
+      atoms[i].vx = vx0[i]; atoms[i].vy = vy0[i]; if (d3) atoms[i].vz = vz0[i];  // 속도 비트 복원(시험 무부작용·vz 포함 — drift3d 3D kick 누수 방지)
     }
     sim.knobs.dt = dt0;                                      // dt 복원(시험이 dt0 로 둠)
     return Math.max(1, Math.min(ADAPT_SUB_MAX, Math.ceil(Math.sqrt(amax2) / vTol)));

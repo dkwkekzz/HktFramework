@@ -7820,6 +7820,187 @@
         ];
       },
     },
+
+    // ── 'world' — 통합 깃발 장면(원자 트랙 전체가 빚은 세계를 한 무대에) ──────────────────
+    //   step-NNNN 이 아니라 *통합 무대*다: 지금껏 닫은 법칙(중력 0028·파울리 0022·융합 0033~·붕괴 0031~·분산 0071
+    //   + 복사 순환 emit 0002/recoil 0003/propagate 0004/escape 0007/reheat 0008)을 *동시에* 켜 SPINE §4
+    //   self-running 세계의 첫 통합 그림을 그린다. 새 법칙 0(LAW_ORDER·DEFAULTS 불변) → 기존 골든 비트 보존 = 회귀 0.
+    //   "바둑판이 안 움직인다"의 반대: 가스가 *모이고*(중력 붕괴) · *빛나고*(emit→광자 λ=hc/ΔE 스펙트럼색) ·
+    //   *원소를 빚고*(융합 사다리 maxZ↑ → L-element 색 이동) · *흩어진다*(disperse → 다음 별 재료). 색·형태 author 0.
+    'world': {
+      id: 'world',
+      title: '세계 — 3D 항성로: 가스 구름이 구(球)로 모여 별이 켜지고 원소를 빚고 빛난다 (통합·step-0112 — 중력·파울리·융합을 z축까지 + 복사 순환 발광 동시·SPINE §4 self-running 세계 첫 3D 통합 무대)',
+      desc: '원자 트랙이 닫은 법칙들을 *한 무대*서 동시에 굴린다(step-0112 가 중력·파울리·융합을 z축으로 확장 — drift3d=0 인 기존 110 장면은 z항 0 으로 비트 동일 → 골든 보존·회귀 0). ' +
+            '차가운 ²H 가스 *구(球)*(일부는 들뜬 준위 x=1~3 — 발광 씨앗)가: ' +
+            '① **구로 모인다** — 3D 중력(0028→0112)+파울리(0022→0112)가 *xy 평면이 아니라 z 까지* 끌어당겨 구름이 진짜 구(球)로 수축(3D 관성반경·z 폭 둘 다 붕괴). 이전 버전은 힘이 2D 라 *원반*으로만 뭉쳤다 — 이번엔 force 법칙이 rz·vz 를 읽어 입체로 무너진다. ' +
+            '② **빛난다** — 들뜬 전자가 자발 방출(emit 0002)로 광자를 내고(λ=hc/ΔE → 스펙트럼색), recoil(0003)·propagate(0004)로 날아가며, 오래된 빛은 복사 바스로 빠지고(escape 0007) 그 바스가 원자를 재여기(reheat 0008)해 *발광이 꺼지지 않고 순환*한다. ' +
+            '③ **원소를 빚는다** — 밀집 코어서 3D 융합 점화(fuse 0033→0112·Gamow 0050·질량공식 0041)로 사다리를 올라 무거운 핵 생성(maxZ↑) → L-element 가 Z 를 색으로 읽어 *색이 이동*한다(author 아닌 측정). ' +
+            '④ **흩어진다** — 생성된 무거운 핵(Z≥3)은 복사압(disperse 0071)으로 코어 밖으로 흩날려 *다음 별의 재료*가 된다. ' +
+            '*측정*(무대 130³·N=400·dt=0.01·VV·고정 시드 캐시 MT=360): ' +
+            '① 가스(Z<3) **3D 관성반경 + z 폭** 둘 다 붕괴(중력이 z 까지 모음 — 평면 아님). ② 발광 emit 켜면 활성 광자장 ≫ 끄면 0(빛은 emit 법칙서·author 아님). ③ 융합 사다리 maxZ≥4. ④ Q·B·L·px·py·pz 머신·E 완화(깊은 붕괴+융합+발광·0069 §3 한계). ' +
+            '뷰어(L-3d 카메라 드래그=회전)서 *진짜 입체로* 무너지고 빛나는 세계가 보인다.',
+      ticks: 120,
+      W: 130, H: 130, N: 400, MT: 360, SNAP: 60, EXC: 0.5,   // EXC: 들뜸 씨앗 비율(발광 시작점·물리는 emit 법칙이 굴림)
+      KN: { dt: 0.01, kGravity: 2.2, kPauli: 0.6, fuseR: 2.2, coulombSoft: 2.0, spatialCut: 8,
+            kFuse: 1, fuseGamow: 1, fuseEG: 0.5, fuseEGcharge: 1, fuseEGmu: 1, fuseEndo: 1, fuseMassFormula: 1, massDefect: 1, decayPairing: 1, nucShell: 1,
+            kDisperse: 0.4, disperseE: 2, disperseZmin: 3,
+            kEmit: 0.3, kRecoil: 1, kProp: 1, kEscape: 0.02, kReheat: 0.05,   // 복사 순환(발광·꺼지지 않게)
+            drift3d: 1, farField: 0, spatialHash: 1, symplectic: 1 },   // drift3d=1 → 힘이 z 까지(3D). farField=0 → 중력 brute(BH 트리는 2D — 3D 는 brute 경로)
+      ledgerTol: { E: 3e3 },                                  // 3D 깊은 붕괴+융합+분산+발광 통합 무대 E 완화(VV 도 근접조우·이벤트 오차 못 잡음·0069 §3·Q·B·L·px·py·pz 머신)
+
+      cloud(K, seed) {                                        // 3D 균일 구(球) 분포 — 방향(구면 균일) × 반경(∛u·R)
+        const rng = K.mulberry32((seed >>> 0) || 20260618), a = [], cx = this.W / 2, cy = this.H / 2, cz = 30;   // cz=30: 구가 바닥 격자(z=0) 위에 얹히도록(반경 28 → z∈[2,58]·토러스 이음새 회피·minImage 정확)
+        for (let i = 0; i < this.N; i++) {
+          const ct = 2 * rng() - 1, st = Math.sqrt(1 - ct * ct), ph = 2 * Math.PI * rng();   // 구면 균일 방향
+          const rad = Math.cbrt(rng()) * 28;                                                 // ∛u·R → 부피 균일(가장자리 쏠림 없음)
+          const ux = st * Math.cos(ph), uy = st * Math.sin(ph), uz = ct;
+          const exc = rng() < this.EXC ? (1 + (rng() * 3 | 0)) : 0;   // 일부 ²H 를 들뜬 준위(x=1~3) — 발광 씨앗(빛 자체는 emit 법칙이 냄)
+          a.push({ Z: 1, N: 1, e: 1, x: exc, rx: cx + rad * ux, ry: cy + rad * uy, rz: cz + rad * uz,
+                   vx: (rng() - 0.5) * 0.05, vy: (rng() - 0.5) * 0.05, vz: (rng() - 0.5) * 0.05, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      Rg3(at, sel) {                                          // 3D 관성반경(COM min-image·rx·ry·rz) — sel: 'heavy'(Z≥3) | 'light'(Z<3) | undefined
+        const sub = sel === 'heavy' ? at.filter(a => a.Z >= 3) : sel === 'light' ? at.filter(a => a.Z < 3) : at;
+        if (sub.length === 0) return 0;
+        let cx = 0, cy = 0, cz = 0; for (const a of sub) { cx += a.rx; cy += a.ry; cz += (a.rz || 0); }
+        cx /= sub.length; cy /= sub.length; cz /= sub.length;
+        let s = 0; for (const a of sub) { const dx = K.minImage(a.rx - cx, this.W), dy = K.minImage(a.ry - cy, this.H), dz = K.minImage((a.rz || 0) - cz, this.W); s += dx * dx + dy * dy + dz * dz; }
+        return Math.sqrt(s / sub.length);
+      },
+      Zext(at) {                                              // z 폭(표준편차) — 가스(Z<3)가 z 로도 무너지는지(평면이면 0 불변)
+        const sub = at.filter(a => a.Z < 3); if (sub.length === 0) return 0;
+        let cz = 0; for (const a of sub) cz += (a.rz || 0); cz /= sub.length;
+        let s = 0; for (const a of sub) { const dz = K.minImage((a.rz || 0) - cz, this.W); s += dz * dz; }
+        return Math.sqrt(s / sub.length);
+      },
+      maxZof(at) { let m = 0; for (const a of at) if (a.Z > m) m = a.Z; return m; },
+      run(K, emitOn) {                                        // emitOn=false → kEmit=0(발광 끔) — 빛이 *emit 법칙*서 옴을 가르는 대조군
+        const kn = Object.assign({}, L.DEFAULTS, this.KN, emitOn ? {} : { kEmit: 0 });
+        const sim = { W: this.W, H: this.H, atoms: this.cloud(K), photons: [], rng: K.mulberry32(20260618), knobs: kn, tick: 0 };
+        const l0 = K.ledger(sim), rg0 = this.Rg3(sim.atoms, 'light'), z0 = this.Zext(sim.atoms);
+        const rgS = [+rg0.toFixed(1)], zextS = [+z0.toFixed(1)]; let emitted = 0, maxZ = 1;
+        for (let t = 0; t < this.MT; t++) {
+          const pb = sim.photons.length; L.leapfrog(sim); sim.tick++;
+          if (sim.photons.length > pb) emitted += sim.photons.length - pb;
+          const mz = this.maxZof(sim.atoms); if (mz > maxZ) maxZ = mz;
+          if ((t + 1) % this.SNAP === 0) { rgS.push(+this.Rg3(sim.atoms, 'light').toFixed(1)); zextS.push(+this.Zext(sim.atoms).toFixed(1)); }
+        }
+        const l1 = K.ledger(sim);
+        return { rgS, zextS, rg0: +rg0.toFixed(1), rgEnd: rgS[rgS.length - 1], z0: +z0.toFixed(1), zEnd: zextS[zextS.length - 1],
+                 rgHeavyEnd: +this.Rg3(sim.atoms, 'heavy').toFixed(1), maxZ, emitted, photonsActive: sim.photons.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dpz: Math.abs((l1.pz || 0) - (l0.pz || 0)),
+                 dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, true), off: this.run(K, false) }); },
+
+      // 라이브 sim(장부·결정론 기둥): init 이 통합 노브로 무대를 만들고 verify 가 scene.ticks(=120) 돌려 Q·B·L·px·py·pz 머신·E 완화 확인.
+      init(rng, K) {
+        const a = this.cloud(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { rg3dOn: c.on.rgEnd, zExtOn: c.on.zEnd, maxZon: c.on.maxZ, photonsOn: c.on.photonsActive, photonsOff: c.off.photonsActive,
+                 emittedOn: c.on.emitted, dpzOn: +c.on.dpz.toExponential(2), relEpct: +(c.on.dE / c.on.Etot * 100).toFixed(2) };
+      },
+
+      // 가설: ① 구로 모인다(3D 관성반경 + z 폭 둘 다 붕괴 — 평면 아님) ② 빛난다 ③ 원소를 빚는다 ④ 장부·결정론(pz 포함).
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const gather3d = c.on.rgEnd < c.on.rg0 * 0.85 && c.on.zEnd < c.on.z0 * 0.85;                   // ① 3D 관성반경 *그리고* z 폭 둘 다 붕괴 = 진짜 구 수축(z 안 무너지면 원반)
+        const glow = c.on.photonsActive > 100 && c.off.photonsActive === 0;                           // ② emit 켜면 광자장·끄면 정확히 0(빛은 emit 법칙서)
+        const ladder = c.on.maxZ >= 4;                                                                 // ③ 융합 사다리 등반(무거운 원소)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dpz < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py·pz 머신
+        return [
+          { name: `구(球)로 모인다·load-bearing — 가스(Z<3) 3D 관성반경 ${c.on.rgS.join('→')}(${c.on.rg0.toFixed(1)}→${c.on.rgEnd.toFixed(1)}) *그리고* z 폭 ${c.on.zextS.join('→')}(${c.on.z0.toFixed(1)}→${c.on.zEnd.toFixed(1)}) 둘 다 붕괴 ⇒ 중력이 z 까지 끌어 *평면 아닌 구(球)*로 무너진다`, pass: gather3d, value: c.on.zEnd },
+          { name: `별이 빛난다·load-bearing — 발광 emit 켜면 활성 광자 ${c.on.photonsActive}(λ=hc/ΔE 스펙트럼색·누적 ${c.on.emitted} 방출) ≫ 끄면 ${c.off.photonsActive} ⇒ 빛은 *emit 법칙*서 옴(author 아닌 측정)`, pass: glow, value: c.on.photonsActive },
+          { name: `원소를 빚는다 — 3D 융합 사다리 maxZ ${c.on.maxZ}(수소→무거운 원소·L-element 가 Z 를 색으로 읽어 색 이동)`, pass: ladder, value: c.on.maxZ },
+          { name: `장부·결정론 — 통합 무대 Q·B·L·px·py·pz 머신(dpz ${c.on.dpz.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(깊은 붕괴+융합+발광·0069 §3 한계)·이 무대는 drift3d=1(3D)이되 z항이 게이트 뒤라 drift3d=0 인 기존 110 장면은 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.maxZ },
+        ];
+      },
+    },
+
+    // ── 'garden' — 빛나는 화학 정원(통합 깃발 II) ───────────────────────────────────
+    //   옛 world.html 이 *시도했으나 얼려버린* 무대를 살린다: 따뜻한 C+H 가스가 분자로 응결하되
+    //   *얼지 않고* 끊임없이 결합을 맺고 끊으며(동적 평형), 그 결합 에너지가 복사 순환으로 *빛난다*.
+    //   새 법칙 0(LAW_ORDER·DEFAULTS 불변 → 골든 보존·회귀 0) — 닫은 화학 법칙(pauli·vdw·coulomb·bond·
+    //   bondSpring·bondAngle·Morse·unbond·bondBreak)을 *감쇠 없이* 켜 살아있게 두고, 발광 순환(emit·
+    //   recoil·propagate·escape·reheat)을 얹는다. world.html 의 실패(과감쇠 → 정적 격자)와 정반대.
+    'garden': {
+      id: 'garden',
+      title: '빛나는 화학 정원 — 따뜻한 C+H 가스가 분자로 피고 끊임없이 맺고 끊으며 빛난다 (통합·새 법칙 0 — 화학 법칙을 감쇠 없이 살려 동적 평형 + 결합 에너지 복사 순환 발광·world.html 의 "안 움직이는 바둑판"과 정반대)',
+      desc: '옛 world.html 은 옳은 화학 노브를 갖고도 *과감쇠+저온*으로 얼어 "안 움직이는 바둑판"이 됐다. 이 장면은 같은 화학을 *살린다*(새 법칙 0·scene 만 — LAW_ORDER·DEFAULTS 불변 → 골든 보존·회귀 0): ' +
+            '따뜻한 C(Z=6·원자가 4=허브)+H(Z=1·원자가 1=말단) 가스가 무작위로 흩어져(격자 아님): ' +
+            '① **분자가 핀다** — pauli(부피)+vdw(인력)+coulomb 으로 만나, 외각 껍질을 채우는 공유결합(bond·bondCovalent·bondValence)으로 맺어 *다양한 크기의 분자*가 창발한다(C 허브가 H 말단을 모아 큰 분자·연결 성분으로 *측정*·author 아님). bondSpring(평형 길이)+bondAngle(VSEPR)+Morse(유한 우물)로 진동·굽힘. ' +
+            '② **살아있다(얼지 않는다)** — 감쇠(damp)를 빼 탄성 충돌이 열을 보존 → 결합이 *맺어지고*(bond) 충돌·열로 *끊긴다*(unbond·bondBreak Morse 해리). 형성 ≫ 0 *그리고* 해리 ≫ 0 = 동적 평형(world.html 은 둘 다 0 으로 얼었다). ' +
+            '③ **빛난다** — 결합 형성·해리가 푼 에너지가 복사 바스로 가고(escape) 바스가 원자를 재여기(reheat)해 emit 이 광자(λ=hc/ΔE 스펙트럼색)로 낸다 — 정원이 화학 반응마다 *반짝인다*. kEmit 끄면 광자 0(빛은 화학에서·author 아님). ' +
+            '*측정*(무대 110²·N=150·25% C+75% H·dt=0.02·Euler·고정 시드 캐시 MT=700): ' +
+            '① 분자(연결 성분 ≥2) 다수·다양한 크기(maxMol≥3) 형성. ② 결합 형성 ≫0 *그리고* 해리 ≫0(살아있음·평균 속력 유지). ③ 발광 emit 켜면 광자 지속 ≫ 끄면 0. ④ Q·B·L·px·py 머신·E 완화(연속 화학력+결합 형성·해리). ' +
+            '뷰어(L-3d 카메라·L-molecule 분자색·L-bond 결합선·L-order 차수·L-λ 광자색)서 *반짝이며 맺고 끊는* 분자 정원이 보인다.',
+      ticks: 150,
+      W: 110, H: 110, N: 150, MT: 700, SNAP: 175,
+      KN: { dt: 0.02, coulombSoft: 2, kPauli: 4, kVdW: 0.4, kCollide: 1, collideR: 3,
+            kBond: 1, bondR: 5, bondVmax: 2.5, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1,
+            bondCoulombic: 1, kBondSpring: 2, bondReq: 4, kBondAngle: 3, bondAngleVSEPR: 1, bondAngleTarget: 2.0943951023931953,
+            bondMorse: 1, bondMorseD: 0.5, bondMorseA: 0.4, unbondDist: 9, bondBreak: 1, kUnbond: 1,
+            kChemilum: 0.2, kEmit: 0.35, kRecoil: 1, kProp: 1, kEscape: 0.015, kReheat: 0.15,   // 발광 복사 순환(결합 에너지 → 빛)
+            spatialHash: 1, spatialCut: 8 },                  // symplectic 미설정(=0·Euler) — 결합 기하 장면(0026·0027)과 동일 경로. VV+결합은 bondSpring/bondAngle 1-tick 위상 지연(laws leapfrog ⚠) → Euler 로 회피
+      ledgerTol: { E: 2.5e3 },                                // 연속 화학력(coulomb·spring·Morse·vdw·pauli) + 결합 형성/해리 + 복사 순환 E 완화(Q·B·L·px·py 머신)
+
+      garden(K, seed) {                                       // 따뜻한 C+H 가스 무작위 분포(격자 아님·world.html 바둑판과 정반대)
+        const rng = K.mulberry32((seed >>> 0) || 20260618), a = [], temp = 2.5;
+        for (let i = 0; i < this.N; i++) {
+          const Z = rng() < 0.25 ? 6 : 1;                     // C(Z=6·원자가 4=허브) 25% + H(Z=1·원자가 1=말단) 75%
+          a.push({ Z, N: Z, e: Z, x: 0, rx: rng() * this.W, ry: rng() * this.H,
+                   vx: (rng() - 0.5) * temp, vy: (rng() - 0.5) * temp, lep: 0, nuc: 0 });
+        }
+        return a;
+      },
+      meanSpeed(at) { let s = 0; for (const a of at) s += Math.hypot(a.vx, a.vy); return at.length ? s / at.length : 0; },
+      run(K, emitOn) {                                        // emitOn=false → kEmit=0(발광 끔) — 빛이 *화학(복사 순환)*서 옴을 가르는 대조군
+        const kn = Object.assign({}, L.DEFAULTS, this.KN, emitOn ? {} : { kEmit: 0 });
+        const sim = { W: this.W, H: this.H, atoms: this.garden(K), photons: [], rng: K.mulberry32(20260618), knobs: kn, tick: 0 };
+        const l0 = K.ledger(sim); const phS = [];
+        // 적분기는 symplectic 노브를 따른다(라이브 sim.step 과 일치) — 정원은 미설정(=0·Euler)이라 bond+VV 1-tick 위상 지연 회피.
+        for (let t = 0; t < this.MT; t++) { if (sim.knobs.symplectic) L.leapfrog(sim); else { L.applyForces(sim); L.integrate(sim); } sim.tick++; if ((t + 1) % this.SNAP === 0) phS.push(sim.photons.length); }
+        const l1 = K.ledger(sim);
+        const m = molecules(sim);
+        return { mol: m.count, maxMol: m.maxSize, bonds: (sim.bonds || []).length,
+                 form: sim.bondCount | 0, dissoc: (sim.dissocCount | 0) + (sim.unbondCount | 0), photons: sim.photons.length, phS,
+                 spd: +this.meanSpeed(sim.atoms).toFixed(2),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, true), off: this.run(K, false) }); },
+
+      // 라이브 sim(장부·결정론 기둥): init 이 정원 무대를 만들고 verify 가 scene.ticks(=150) 돌려 Q·B·L·px·py 머신·E 완화 확인.
+      init(rng, K) {
+        const a = this.garden(K, (rng() * 4294967296) >>> 0);
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { mol: c.on.mol, maxMol: c.on.maxMol, bonds: c.on.bonds, form: c.on.form, dissoc: c.on.dissoc,
+                 photonsOn: c.on.photons, photonsOff: c.off.photons, spd: c.on.spd, relEpct: +(c.on.dE / c.on.Etot * 100).toFixed(2) };
+      },
+
+      // 가설: ① 분자가 핀다(다양한 크기) ② 살아있다(맺고 끊고·평균 속력) ③ 빛난다(emit 켜면 광자·끄면 0) ④ 장부·결정론.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const bloom = c.on.mol >= 10 && c.on.maxMol >= 3;                                  // ① 분자 다수 + 다양한 크기(연결 성분 측정)
+        const alive = c.on.form > 20 && c.on.dissoc > 10 && c.on.spd > 0.3;                // ② 형성·해리 둘 다 ≫0 + 안 얼어붙음(world.html 은 0·정지)
+        const glow = c.on.photons > 10 && c.off.photons === 0;                             // ③ emit 켜면 광자장·끄면 정확히 0(빛은 화학서)
+        const ledgerOK = c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9;  // ④ Q·B·L·px·py 머신
+        return [
+          { name: `분자가 핀다·load-bearing — 연결 성분 분자 ${c.on.mol}개(최대 ${c.on.maxMol}원자·다양한 크기) + 결합 ${c.on.bonds}간선 ⇒ C 허브가 H 말단을 모아 분자 창발(author 아닌 측정)`, pass: bloom, value: c.on.mol },
+          { name: `살아있다·load-bearing — 결합 형성 ${c.on.form}회 *그리고* 해리 ${c.on.dissoc}회(동적 평형·맺고 끊음)·평균 속력 ${c.on.spd}(안 얼어붙음) ⇒ world.html 의 정적 격자(형성·해리 0·정지)와 정반대`, pass: alive, value: c.on.form },
+          { name: `빛난다·load-bearing — 발광 emit 켜면 활성 광자 ${c.on.photons}(λ=hc/ΔE 스펙트럼색·시계열 ${c.on.phS.join('→')}) ≫ 끄면 ${c.off.photons} ⇒ 빛은 *결합 형성·해리 에너지(복사 순환)*서 옴(author 아닌 측정)`, pass: glow, value: c.on.photons },
+          { name: `장부·결정론 — 정원 무대 Q·B·L·px·py 머신(dpx ${c.on.dpx.toExponential(2)}·dB ${c.on.dB.toExponential(2)}·dL ${c.on.dL.toExponential(2)})·E 완화 ${(c.on.dE / c.on.Etot * 100).toFixed(2)}%(연속 화학력+결합 형성·해리)·새 법칙 0 → 기존 골든 비트 불변(회귀 0)`, pass: ledgerOK, value: c.on.mol },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };

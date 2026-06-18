@@ -355,8 +355,9 @@
     const inv = 1 / mag;
     const dir = { x: p.px * inv, y: p.py * inv };           // 정규화 진행 방향(읽기)
     const L = (maxP > 0 ? mag / maxP : 1) * worldLen;       // 줄기 세계 길이(측정 정규화)
-    const head = project({ x: p.rx, y: p.ry, z: 0 }, cam);
-    const tail = project({ x: p.rx - dir.x * L, y: p.ry - dir.y * L, z: 0 }, cam);   // 자취=−방향
+    const pz = p.rz || 0;                                  // 광자 깊이(step-0112 emit 가 방출 원자 rz 실음·2D 장면 미존재 → 0)
+    const head = project({ x: p.rx, y: p.ry, z: pz }, cam);
+    const tail = project({ x: p.rx - dir.x * L, y: p.ry - dir.y * L, z: pz }, cam);   // 자취=−방향
     return { head, tail, mag, L };
   }
 
@@ -367,8 +368,9 @@
     if (p.rx0 === undefined || p.ry0 === undefined) return null;
     const dx = p.rx - p.rx0, dy = p.ry - p.ry0;
     if (!(Math.hypot(dx, dy) > 1e-9)) return null;          // 변위 없음(갓 방출) → 트레일 0(author 0)
-    const head = project({ x: p.rx, y: p.ry, z: 0 }, cam);    // 머리 = 현 위치(밝음)
-    const tail = project({ x: p.rx0, y: p.ry0, z: 0 }, cam);  // 꼬리 = 출생 위치(자취 끝)
+    const pz = p.rz || 0;                                     // 광자 깊이(step-0112 emit 가 방출 원자 rz 실음·2D 장면 미존재 → 0)
+    const head = project({ x: p.rx, y: p.ry, z: pz }, cam);    // 머리 = 현 위치(밝음)
+    const tail = project({ x: p.rx0, y: p.ry0, z: pz }, cam);  // 꼬리 = 출생 위치(자취 끝)
     if (head.depth <= 0 || tail.depth <= 0) return null;
     return { head, tail };
   }
@@ -546,7 +548,7 @@
     const maxScatter = measureMaxScatter(sim.photons);             // 산란 헤일로 정규화 기준(측정 최대 산란 횟수 — L-scatter)
     const streakWorld = STREAK_FRAC * Math.max(sim.W, sim.H);      // 줄기 길이 창(장면 크기 비례)
     for (const p of sim.photons) {
-      const pr = project({ x: p.rx, y: p.ry, z: 0 }, cam);
+      const pr = project({ x: p.rx, y: p.ry, z: p.rz || 0 }, cam);   // 광자 깊이(step-0112 emit 가 방출 원자 rz 실음·2D 장면 미존재 → 0·비트 동일)
       if (pr.depth <= 0) continue;
       draws.push({ depth: pr.depth, kind: 'photon', p, pr });
     }

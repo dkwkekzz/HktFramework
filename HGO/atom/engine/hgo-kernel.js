@@ -107,12 +107,14 @@
     const kg = (knobs && knobs.kGravity) || 0;
     if (!kg) return 0;
     const eps2 = (knobs.coulombSoft || 1) ** 2;
+    const d3 = (knobs && knobs.drift3d) || 0, D = (knobs && knobs.D) || W;   // 3D 게이트(step-0112·d3=0 → z항 0 → 2D PE 동일·회귀 0)
     let u = 0;
     for (let i = 0; i < atoms.length; i++) {
       const mi = mass(atoms[i]);
       for (let j = i + 1; j < atoms.length; j++) {
         const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
-        u += -kg * mi * mass(atoms[j]) / Math.sqrt(dx * dx + dy * dy + eps2);
+        const dz = d3 ? minImage((atoms[j].rz || 0) - (atoms[i].rz || 0), D) : 0;
+        u += -kg * mi * mass(atoms[j]) / Math.sqrt(dx * dx + dy * dy + dz * dz + eps2);
       }
     }
     return u;
@@ -156,11 +158,13 @@
     const sh = (knobs && knobs.spatialHash) || 0;
     const cut = (knobs && knobs.spatialCut) || 8, cut2 = cut * cut;
     const sc2 = cut2 + eps2, uCut = sh ? kp / (sc2 * sc2) : 0;   // r=cut 에서의 U(연속화 shift 상수)
+    const d3 = (knobs && knobs.drift3d) || 0, D = (knobs && knobs.D) || W;   // 3D 게이트(step-0112·d3=0 → z항 0 → 2D PE 동일·회귀 0)
     let u = 0;
     for (let i = 0; i < atoms.length; i++) {
       for (let j = i + 1; j < atoms.length; j++) {
         const dx = minImage(atoms[j].rx - atoms[i].rx, W), dy = minImage(atoms[j].ry - atoms[i].ry, H);
-        const r2 = dx * dx + dy * dy;
+        const dz = d3 ? minImage((atoms[j].rz || 0) - (atoms[i].rz || 0), D) : 0;
+        const r2 = dx * dx + dy * dy + dz * dz;
         if (sh && r2 > cut2) continue;                  // 컷오프 밖 → 0(force 도 0 — 정합)
         const s2 = r2 + eps2;
         u += kp / (s2 * s2) - uCut;                     // shift: r=cut 에서 0 연속(경계 가로질러도 PE 점프 0)
