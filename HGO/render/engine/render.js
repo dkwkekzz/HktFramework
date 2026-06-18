@@ -104,7 +104,8 @@
   'use strict';
 
   // ── 순수 3D 수학 (캔버스 무관 — 헤드리스로 검증 가능) ──────────────────────────
-  // 세계 좌표: x,y = 시뮬 평면(rx,ry) · z = 높이(항상 0, 시뮬에 z 없음). worldUp=(0,0,1).
+  // 세계 좌표: x,y = 시뮬 평면(rx,ry) · z = 깊이(원자 a.rz — step-0111 drift3d 가 실음; rz 미존재 2D 장면 → 0). worldUp=(0,0,1).
+  //   ※ 광자(p)·바닥 격자는 아직 2D(z=0) — 광자 z 는 후속 atom step 이 실으면 같은 방식으로 배선(읽기만·author 0).
   // ── 인터랙티브 카메라 상태(렌즈 L-cam) — 프레젠테이션 한 항(시뮬 무관·결정론 영향 0) ──
   //   사용자가 마우스로 뷰를 자유 변경: 드래그=궤도(yaw·pitch)·휠=줌(distScale)·우드래그|Shift드래그=팬(target).
   //   카메라는 평면 중심을 타깃으로 방위각·고도로 궤도. 위치=sim (rx,ry,0) 그대로 — 분포 author 0.
@@ -201,8 +202,8 @@
     const inv = 1 / mag;
     const dir = { x: a.vx * inv, y: a.vy * inv };          // 정규화 진행 방향(읽기)
     const L = (maxV > 0 ? mag / maxV : 1) * worldLen;      // 자취 세계 길이(측정 정규화)
-    const head = project({ x: a.rx, y: a.ry, z: 0 }, cam);                     // 머리=원자 현 위치(밝음)
-    const tail = project({ x: a.rx - dir.x * L, y: a.ry - dir.y * L, z: 0 }, cam);  // 꼬리=−속도(뒤쪽 자취)
+    const head = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);                     // 머리=원자 현 위치(밝음·z=깊이 step-0111 drift3d, 미존재 → 0)
+    const tail = project({ x: a.rx - dir.x * L, y: a.ry - dir.y * L, z: a.rz || 0 }, cam);  // 꼬리=−속도(뒤쪽 자취·같은 깊이)
     if (head.depth <= 0 || tail.depth <= 0) return null;
     return { head, tail, mag };
   }
@@ -378,8 +379,8 @@
   function bondSegment(bond, sim, cam) {
     const a = sim.atoms[bond[0]], b = sim.atoms[bond[1]];
     if (!a || !b) return null;
-    const pa = project({ x: a.rx, y: a.ry, z: 0 }, cam);
-    const pb = project({ x: b.rx, y: b.ry, z: 0 }, cam);
+    const pa = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);
+    const pb = project({ x: b.rx, y: b.ry, z: b.rz || 0 }, cam);
     if (pa.depth <= 0 || pb.depth <= 0) return null;
     return { a: pa, b: pb };
   }
@@ -535,7 +536,7 @@
     const coreCls = measureCoreClasses(sim.atoms);                 // 결속 코어/분산 헤일로 공존 여부(core — L-core, 둘 다 있어야 구분)
     const velWorld = STREAK_FRAC * Math.max(sim.W, sim.H);         // 운동 자취 길이 창(장면 크기 비례 — 줄기와 동일 창)
     for (const a of sim.atoms) {
-      const pr = project({ x: a.rx, y: a.ry, z: 0 }, cam);
+      const pr = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);  // z=깊이(step-0111 drift3d·미존재 → 0·2D 비트 동일)
       if (pr.depth <= 0) continue;
       draws.push({ depth: pr.depth, kind: 'atom', a, pr });
     }
