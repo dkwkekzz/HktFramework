@@ -7792,13 +7792,16 @@
       },
       cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
 
-      // 라이브 sim(장부·결정론·골든 기둥): 시드 의존 vz 로 z 운동 → 골든이 3D 해시를 동결한다.
+      // 라이브 sim(장부·결정론·골든 기둥 + 뷰어 데모): 24 원자를 3D 큐브에 퍼뜨려 *세 방향 모두* 자유 드리프트.
+      //   뷰어서 열면 평면이 아니라 깊이로 흩어져 움직이는 게 한눈에 보인다(힘 0·자유 드리프트라 pz·E 머신 보존).
       init(rng, K) {
-        const cx = this.W / 2, cy = this.H / 2, cz = this.D / 2;
-        const a = [
-          { Z: 1, N: 0, e: 1, x: 0, rx: cx,     ry: cy, rz: cz, vx: (rng() - 0.5) * 0.04, vy: 0,                    vz:  (0.4 + rng() * 0.1), lep: 0, nuc: 0 },
-          { Z: 1, N: 0, e: 1, x: 0, rx: cx + 4, ry: cy, rz: cz, vx: 0,                    vy: (rng() - 0.5) * 0.04, vz: -(0.4 + rng() * 0.1), lep: 0, nuc: 0 },
-        ];
+        const a = [];
+        for (let i = 0; i < 24; i++) {
+          a.push({ Z: (i % 8) + 1, N: (i % 8) + 1, e: (i % 8) + 1, x: 0,
+            rx: 20 + rng() * 60, ry: 20 + rng() * 60, rz: 12 + rng() * 76,   // 큐브 전체에 산포(평면 아님)
+            vx: (rng() - 0.5) * 1.2, vy: (rng() - 0.5) * 1.2, vz: (rng() - 0.5) * 1.6,  // 세 축 모두 운동(z 진폭↑)
+            lep: 0, nuc: 0 });
+        }
         return { W: this.W, H: this.H, D: this.D, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
       },
 
