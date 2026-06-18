@@ -1284,6 +1284,8 @@
       bath.px += -(m * (a.vx - vx0));                     // 방출 복사 입자가 나르는 −Δp → 바스(총 px·py 머신·0032 동형)
       bath.py += -(m * (a.vy - vy0));
       bath.count = (bath.count | 0) + 1;
+      // step-0110 등방 별풍 방출 이벤트 로그(#M render L-wind 등방 채널) — eventLog=0 → push 0·events hash 미참여 → 회귀 0. snEject(0109)의 *방향성* 분출과 달리 disperse 는 *등방 복사압*(방향=시드 rng) — render 가 별풍을 *그 위치·방향·ΔE* 로 그릴 두 번째 방출 채널.
+      if (sim.knobs.eventLog) (sim.events || (sim.events = [])).push({ type: 'wind', tick: sim.tick, rx: a.rx, ry: a.ry, Z: a.Z | 0, N: a.N | 0, dZ: 0, dE: draw, ux: a.vx / sp1, uy: a.vy / sp1 });
     }
     sim.disperseActive = 1;                               // 진단 플래그(hash 미참여)
   }
