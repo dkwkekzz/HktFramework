@@ -26,10 +26,11 @@
 //   그대로 읽어 잇는다(길이=측정 변위, 손박은 창 0) — 빛이 공간을 가른 자취. 변위 0(갓 방출된 step-0002 광자: rx0==rx)이면
 //   트레일을 author 하지 않는다(점만). 머리=현 위치(밝음)→꼬리=출생(투명). 색은 여전히 L-λ(λ→스펙트럼) 읽기.
 //
-// 렌즈 L-glow: 원자 *들뜸 준위*(x = 양자수 0,1,2,3 …)를 *광원 밝기*로 읽는다(입력 계약 §2: 들뜸 x=광원 밝기).
-//   이전엔 x 를 불리언(들뜸 유무)으로만 읽어 x=1 과 x=3 이 같아 보였다 — 이제 측정 최댓값(maxX)으로 정규화한
-//   *등급* 글로우로: 더 들뜬 원자가 더 밝게 발광한다(읽기). x=0(바닥 상태)이면 글로우 0(빛 author 0).
-//   밝기만 읽고 색은 중립 온백(presentation — hue author 0, "E=밝기"와 동형 magnitude 채널). 정규화는 측정.
+// 렌즈 L-glow: 원자 *magnitude x*(밝기 채널 — atom 들뜸 양자수 0,1,2,3 …·flux 연속 보존량 q)를 *광원 밝기*로 읽는다(입력 계약 §2).
+//   불리언(유무)→등급으로 정제했으나 *최댓값 단독*(x/maxX) 정규화라 DC 오프셋이 큰 연속 장(flux 의 q≈1 위 작은 기울기)은
+//   전부 포화해 평형 근방 확산이 안 보였다 — 이제 형제 magnitude 렌즈(L-element·L-isotope)처럼 *측정 범위*[lo,hi]로 정규화:
+//   좁은 범위도 전체 대비로 펴진다(읽기). **"x=0→글로우 0" 보존**: atom x≥0 이라 바닥 원자가 곧 lo(=0) → glow(0)=0(클램프).
+//   밝기만 읽고 색은 중립 온백(presentation — hue author 0, "E=밝기"와 동형 magnitude 채널). 정규화는 측정. 절단(|0) 0.
 //
 // 렌즈 L-order: 시뮬이 내보낸 *결합 차수*(sim.bonds[k][3] = order ∈ {1,2,3} = 공유 전자쌍 수,
 //   step-0018 bondOrder 가 빈자리만큼 다중 공유를 측정해 실음 — O=O 이중·N≡N 삼중)를 읽어
@@ -233,19 +234,24 @@
     };
   }
 
-  // ── 렌즈 L-glow: 원자 들뜸 준위 x → 광원 밝기 (캔버스 무관 순수 — 헤드리스 검증) ──
-  // 들뜸 준위 최댓값을 *측정*(등급 정규화 기준 — 손박은 임계 0). 들뜬 원자 없으면 0.
-  function measureMaxExcitation(atoms) {
-    let m = 0;
-    for (const a of atoms) { const x = a.x | 0; if (x > m) m = x; }
-    return m;
+  // ── 렌즈 L-glow: 원자 magnitude x → 광원 밝기 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // x 는 *연속* magnitude 다(정수 절단 0) — atom 은 이산 들뜸 양자수(0,1,2,3)·flux 는 연속 보존량 q.
+  //   둘을 같은 사상으로 읽되, 형제 magnitude 렌즈(L-element measureZRange·L-isotope measureNRange)와 동형으로
+  //   *측정 범위*[lo,hi]를 정규화 기준으로 잰다(max 단독 아님 — 손박은 임계 0). 원자 없으면 {lo:0,hi:0}.
+  function measureExcitationRange(atoms) {
+    let lo = Infinity, hi = -Infinity;
+    for (const a of atoms) { const x = a.x || 0; if (x < lo) lo = x; if (x > hi) hi = x; }
+    if (!Number.isFinite(lo)) return { lo: 0, hi: 0 };
+    return { lo, hi };
   }
 
-  // 들뜸 준위 x 를 측정 최댓값으로 정규화한 *광원 밝기* ∈[0,1](등급 — 불리언 아님).
-  //   maxX=0(들뜸 없음) 또는 x=0(바닥 상태)이면 0 — 빛을 author 하지 않는다(RENDER §3).
-  function excitationGlow(x, maxX) {
-    if (!(maxX > 0) || !(x > 0)) return 0;
-    return Math.min(1, x / maxX);
+  // x 를 측정 범위[lo,hi]로 정규화한 *광원 밝기* ∈[0,1](등급·클램프 — isotopeShade 와 동일 구조).
+  //   범위 0(단일 값·들뜸 균일)이면 0(빛 author 0). x≤lo(최저)면 0 — **"x=0→글로우 0"이 보존된다**:
+  //   atom x 는 ≥0 이라 바닥 원자가 있으면 그게 곧 lo(=0) → glow(0)=0(클램프). flux 의 좁은 q 범위는
+  //   전체 대비로 펴져 평형 근방 확산이 보인다(max 단독 정규화의 DC 포화 해소). 절단(|0) 없이 연속 읽기.
+  function excitationGlow(x, lo, hi) {
+    if (!(hi > lo)) return 0;
+    return Math.max(0, Math.min(1, ((x || 0) - lo) / (hi - lo)));
   }
 
   // ── 렌즈 L-scatter: 광자 산란 횟수 nscatter → 산란 헤일로 (캔버스 무관 순수 — 헤드리스 검증) ──
@@ -529,7 +535,7 @@
 
     // 개체 수집 후 painter 정렬(먼 것 먼저). 위치=sim (rx,ry,0) 그대로.
     const draws = [];
-    const maxX = measureMaxExcitation(sim.atoms);                  // 들뜸 글로우 정규화 기준(측정)
+    const xRange = measureExcitationRange(sim.atoms);              // 밝기 글로우 정규화 기준(측정 x 범위 — L-glow, 연속)
     const zRange = measureZRange(sim.atoms);                       // 원소 색조 정규화 기준(측정 Z 범위 — L-element)
     const maxQ = measureMaxAbsCharge(sim.atoms);                   // 이온 고리 정규화 기준(측정 |전하| 최댓값 — L-ion)
     const nRange = measureNRange(sim.atoms);                       // 동위원소 코어 정규화 기준(측정 N 범위 — L-isotope)
@@ -555,7 +561,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, maxX, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null);
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, xRange, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null);
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -565,8 +571,8 @@
   }
 
   // 원자 = 음영 구(球). 반지름 = 질량(Z+N) — 읽기.
-  //   렌즈 L-glow: 들뜸 *준위* x(0..maxX 양자수)를 *광원 밝기*로 등급 읽기 — 불리언(유무) 아님.
-  //     exc=x/maxX∈[0,1](측정 정규화). x=0 이면 글로우 0(빛 author 0).
+  //   렌즈 L-glow: magnitude x(atom 들뜸 양자수·flux 연속 q)를 *광원 밝기*로 등급 읽기 — 측정 범위 정규화(L-isotope 동형).
+  //     exc=(x−lo)/(hi−lo)∈[0,1](클램프). x≤lo(최저)면 0 → 바닥 원자(x=0=lo) 글로우 0 보존(빛 author 0).
   //   렌즈 L-element: 양성자 수 Z(원소 정체성)를 *색조*로 등급 읽기(측정 Z 범위 정규화) — 원소 바뀌면 색 바뀜.
   //     색조와 밝기는 직교: hue=Z(원소)·value=들뜸 x. 변이 없는 장면(범위 0)은 무채색(가짜 색 author 0).
   //   렌즈 L-ion: 전하 Q=Z−e(이온화)를 *테두리 고리*로 읽기 — 양이온 따뜻·음이온 차가움(발산)·중성 고리 0. 색조·밝기와 직교.
@@ -574,7 +580,7 @@
   //   렌즈 L-velocity: 속도 벡터(vx,vy)를 *운동 자취*로 읽기 — 머리=현 위치·꼬리=−속도, 길이 ∝ |v|. 정지면 자취 0. 온도색 아님(중립).
   //   렌즈 L-population: 출신 집단 c0(어느 별/풀 출신)을 *배경 오라*로 읽기(골든각 그룹 색조 — 같은 집단 동색). 단일/c0 없으면 오라 0. 모든 채널과 직교.
   //   렌즈 L-core: 구조 운명 core(결속 코어 vs 분산 헤일로)를 *점선 운명 테*로 읽기 — 코어=조밀 청록 테·헤일로=옅은 보라 테. 두 분류 공존 안 하면 0.
-  function drawAtom(ctx, a, pr, K, maxX, zRange, maxQ, nRange, vel, popHue, coreFate) {
+  function drawAtom(ctx, a, pr, K, xRange, zRange, maxQ, nRange, vel, popHue, coreFate) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
     // 렌즈 L-population: 출신 집단 c0 → 그룹 색조 오라(구 *아래* 부드러운 디스크 — 맨 바닥 배경 글리프). 같은 집단 동색·다른 집단 이색.
@@ -601,7 +607,7 @@
       ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(vel.head.sx, vel.head.sy); ctx.lineTo(vel.tail.sx, vel.tail.sy); ctx.stroke();
     }
-    const exc = excitationGlow(a.x | 0, maxX); // 들뜸 준위 → 광원 밝기 ∈[0,1](측정 등급)
+    const exc = excitationGlow(a.x, xRange.lo, xRange.hi); // magnitude x → 광원 밝기 ∈[0,1](측정 범위 등급·연속·절단 0)
     const zr = zRange || { lo: 0, hi: 0 };
     const spread = zr.hi > zr.lo;              // 측정 Z 변이 존재 여부(없으면 무채색 — author 0)
     const hue = elementHue(a.Z | 0, zr.lo, zr.hi);   // 원소 → 색조(연속 사상·측정 정규화)
@@ -824,5 +830,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureMaxExcitation, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound };
 });

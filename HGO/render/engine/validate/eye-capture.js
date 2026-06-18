@@ -39,13 +39,16 @@ function installCap() {
   const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
   const setCam = () => { R.camState.yaw = 0.7; R.camState.pitch = 0.62; R.camState.distScale = 1.7; R.camState.panX = 0; R.camState.panY = 0; };
   const draw = (sim) => { setCam(); R.draw(ctx, sim, K); };
-  const analyze = () => {                                   // 밝은 구(원자)만 집계 — 격자(~57)·배경 제외
+  const analyze = (litMin) => {                            // 밝은 구(원자)만 집계 — 격자(~57)·배경 제외
+    const TH = litMin || 140;                              // lit 임계(flux 의 어두운 팔레트는 낮춰 호출)
     const w = cv.width, h = cv.height, d = ctx.getImageData(0, 0, w, h).data;
-    let minY = h, maxY = -1, lit = 0;
+    let minY = h, maxY = -1, lit = 0, bMin = 1e9, bMax = -1;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4; if (d[i] + d[i + 1] + d[i + 2] > 140) { lit++; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+      const i = (y * w + x) * 4, sum = d[i] + d[i + 1] + d[i + 2];
+      if (sum > TH) { lit++; if (y < minY) minY = y; if (y > maxY) maxY = y; if (sum < bMin) bMin = sum; if (sum > bMax) bMax = sum; }
     }
-    return { lit, vSpread: maxY < 0 ? 0 : maxY - minY };
+    // bSpread = lit 픽셀 밝기 대비(max−min) — L-glow 그라데이션 신호(평평하면 ≈0). bMax = 최대 밝기.
+    return { lit, vSpread: maxY < 0 ? 0 : maxY - minY, bSpread: bMax < 0 ? 0 : bMax - bMin, bMax: bMax < 0 ? 0 : bMax };
   };
   window.__cap = (kind, opt) => {
     opt = opt || {}; let sim;
@@ -60,9 +63,13 @@ function installCap() {
     } else if (kind === 'scene') {                           // 등록 장면(viewer 와 동형)
       sim = S.createSim(SC.SCENES[opt.id].init(K.mulberry32((opt.seed >>> 0) || 42), K));
       for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
+    } else if (kind === 'fluxglow') {                        // L-glow 렌즈: flux 확산 장면 + 균일 대조군
+      sim = S.createSim(SC.SCENES[opt.id || 'step-0001'].init(K.mulberry32(42), K));
+      for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
+      if (opt.flat) { const xv = sim.atoms[0].x; for (const a of sim.atoms) a.x = xv; }  // 대조군: x 균일 → 범위 0 → glow 0(평평)
     }
     draw(sim);
-    return analyze();
+    return analyze(opt.litMin);
   };
 }
 
@@ -76,9 +83,14 @@ async function main() {
   if (!process.env.PLAYWRIGHT_BROWSERS_PATH) process.env.PLAYWRIGHT_BROWSERS_PATH = bp;
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
+  // ?track= 지원(공유 단일 뷰어 — atom 기본·flux 등 다른 트랙 엔진을 viewer 가 동적 load). 플래그는 위치 인자에서 제외.
+  const trackArg = (process.argv.find(a => a.startsWith('--track=')) || '').split('=')[1] || '';
+  const pos = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  const fluxGlow = process.argv.includes('--flux-glow');
+
   const browser = await pw.chromium.launch();
   const page = await browser.newPage({ viewport: { width: 640, height: 640 } });
-  await page.goto(VIEWER);
+  await page.goto(VIEWER + (trackArg ? '?track=' + trackArg : ''));
   await page.waitForFunction('window.HGO && window.HGORender && window.HGORender.render');
   await page.evaluate(installCap);                          // 전역 모듈로 캡처 헬퍼 설치(별도 HTML 0)
   const cv = page.locator('#cv');
@@ -86,13 +98,24 @@ async function main() {
   const cap = (kind, opt) => page.evaluate(([k, o]) => window.__cap(k, o), [kind, opt]);
 
   const checks = [];
-  const argScene = process.argv[2];
+  const argScene = pos[0];
 
-  if (argScene) {                                            // 임의 등록 장면 스크린샷(사람 일별용)
-    const ticks = parseInt(process.argv[3] || '0', 10), seed = parseInt(process.argv[4] || '42', 10);
+  if (fluxGlow) {                                            // L-glow(flux): 평형 근방 확산이 픽셀에서 보이나(절단 제거·범위 정규화)
+    console.log('\n=== 눈 검증: L-glow 측정 범위 정규화 (실 flux viewer 픽셀 대비) ===');
+    const eq = await cap('fluxglow', { id: 'step-0001', ticks: 200, litMin: 90 });        await shot('flux-glow-eq.png');
+    const flat = await cap('fluxglow', { id: 'step-0001', ticks: 200, flat: true, litMin: 90 });  await shot('flux-glow-flat.png');
+    checks.push({ name: `평형 근방(tick200) 확산 밝기 대비 — 절단 제거·범위 정규화로 좁은 q 펴짐(균일 대조군 대비)`,
+      pass: eq.bSpread > flat.bSpread * 3 && eq.bSpread > 30, value: `대비 ${eq.bSpread} vs 균일 ${flat.bSpread}` });
+    const blob = await cap('fluxglow', { id: 'step-0001', ticks: 0, litMin: 90 });          await shot('flux-glow-blob.png');
+    checks.push({ name: `초기(tick0) 블롭도 보임(평형과 둘 다 대비 존재 — 모든 척도)`,
+      pass: blob.bSpread > 30, value: `대비 ${blob.bSpread}·lit ${blob.lit}` });
+    for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+    console.log(`  스크린샷: captures/{flux-glow-eq,flux-glow-flat,flux-glow-blob}.png`);
+  } else if (argScene) {                                     // 임의 등록 장면 스크린샷(사람 일별용)
+    const ticks = parseInt(pos[1] || '0', 10), seed = parseInt(pos[2] || '42', 10);
     const a = await cap('scene', { id: argScene, seed, ticks });
     await shot(`${argScene}-t${ticks}.png`);
-    console.log(`\n캡처: ${argScene} (seed ${seed}·${ticks}tick) → captures/${argScene}-t${ticks}.png · lit=${a.lit}·세로분산=${a.vSpread}px`);
+    console.log(`\n캡처: ${argScene} (seed ${seed}·${ticks}tick) → captures/${argScene}-t${ticks}.png · lit=${a.lit}·세로분산=${a.vSpread}px·밝기대비=${a.bSpread}`);
   } else {                                                   // 기본: L-3d 깊이 렌더 자동 눈 단언
     console.log('\n=== 눈 검증: L-3d 깊이 렌더 (실 viewer 픽셀 단언) ===');
     const col = await cap('column', { flat: false });  await shot('depth-column.png');
