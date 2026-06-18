@@ -1,0 +1,65 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#05060a}canvas{display:block}</style></head>
+<body>
+<!-- 눈 검증 하네스 — 단일 페이지(렌즈마다 복사 금지·SPINE §6.1). 실제 엔진 + 실제 render 모듈을
+     로드해 *결정적 장면*을 그리고, playwright(eye-capture.js)가 캔버스를 스크린샷 + 픽셀 readback 한다.
+     viewer.html 과 같은 모듈을 쓰되, 페이지 전역 훅(window.__*)으로 장면을 *코드로* 세워 자동 단언을 가능케 한다. -->
+<canvas id="cv" width="640" height="640"></canvas>
+<script src="../../../atom/engine/hgo-kernel.js"></script>
+<script src="../../../atom/engine/hgo-laws.js"></script>
+<script src="../../../atom/engine/hgo-sim.js"></script>
+<script src="../../../atom/engine/scenes.js"></script>
+<script src="../spectral.js"></script>
+<script src="../render.js"></script>
+<script>
+const { kernel: K, sim: S, scenes: SC } = HGO;
+const R = HGORender.render;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let sim = null;
+
+// 카메라(3/4 뷰) — 깊이(z=높이)가 세로 화면이동으로 보이게. 단언에서 각도 고정(결정적).
+function setCam(){ R.camState.yaw = 0.7; R.camState.pitch = 0.62; R.camState.distScale = 1.7; R.camState.panX = 0; R.camState.panY = 0; }
+function draw(){ setCam(); R.draw(ctx, sim, K); }
+
+// ── 장면 빌더(결정적) ────────────────────────────────────────────────
+// depth-column: 같은 (rx,ry), rz 만 6단계. flat=true 면 rz=0(2D 붕괴) — 깊이 렌더 대조군.
+function buildColumn(flat){
+  const cx=50, cy=50, Zs=[1,2,6,8,7,10], a=[];
+  for(let i=0;i<6;i++) a.push({Z:Zs[i],N:Zs[i],e:Zs[i],x:0,rx:cx,ry:cy,rz:flat?0:8+i*16,vx:0,vy:0,vz:0,lep:0,nuc:0});
+  sim = S.createSim({W:100,H:100,D:100,atoms:a,knobs:{drift3d:1}});
+}
+// depth-drift: 12 원자 한 깊이(rz=50)서 시작, vz 로 깊이 흩어짐. ticks 만큼 굴린다.
+function buildDrift(ticks){
+  const rng=K.mulberry32(42), a=[];
+  for(let i=0;i<12;i++) a.push({Z:(i%6)+1,N:(i%6)+1,e:(i%6)+1,x:0,rx:35+rng()*30,ry:35+rng()*30,rz:50,vx:0,vy:0,vz:(rng()-0.5)*2.2,lep:0,nuc:0});
+  sim = S.createSim({W:100,H:100,D:100,atoms:a,knobs:{drift3d:1,dt:1}});
+  for(let t=0;t<(ticks||0);t++) S.step(sim);
+}
+// 등록된 실 장면(scenes.js)도 그릴 수 있게 — viewer 와 동형(scene.init→createSim→ticks 굴림).
+function buildScene(id, seed, ticks){
+  const sc = SC.SCENES[id]; if(!sc) throw new Error('no scene '+id);
+  sim = S.createSim(sc.init(K.mulberry32(seed>>>0), K));
+  for(let t=0;t<(ticks||0);t++) S.step(sim);
+}
+
+// ── 픽셀 readback — 밝은 구(원자)만 집계(격자/배경 제외). 세로/가로 분산 측정 → 깊이 렌더 단언. ──
+function analyze(){
+  const w=cv.width, h=cv.height, d=ctx.getImageData(0,0,w,h).data;
+  let minX=w,minY=h,maxX=-1,maxY=-1,lit=0,sumY=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=(y*w+x)*4, b=d[i]+d[i+1]+d[i+2];
+    if(b>140){ lit++; sumY+=y; if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; } // 격자(~57)·배경 제외, 구 하이라이트만
+  }
+  return { lit, vSpread: maxY<0?0:maxY-minY, hSpread: maxX<0?0:maxX-minX, minY, maxY, cY: lit?sumY/lit:0 };
+}
+
+window.__build = (kind, opt)=>{
+  opt=opt||{};
+  if(kind==='column') buildColumn(opt.flat);
+  else if(kind==='drift') buildDrift(opt.ticks);
+  else if(kind==='scene') buildScene(opt.id, opt.seed==null?42:opt.seed, opt.ticks);
+  draw();
+  return { rz: sim.atoms.map(a=>+(a.rz==null?-1:a.rz).toFixed(1)), analysis: analyze() };
+};
+window.__ready = true;
+</script>
+</body></html>
