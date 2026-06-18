@@ -25,6 +25,7 @@
   <button id="reset">reset</button>
   <span id="knobs"></span>
   <label>seed <input id="seed" type="number" value="42" style="width:6em"></label>
+  <label>배속 <input id="speed" type="range" min="0" max="1" step="0.001" value="0.25" style="width:9em"><span id="speedLbl" class="k">1.0×</span></label>
   <span id="tick" class="k"></span>
 </header>
 
@@ -94,7 +95,33 @@ function draw() {
   $('watch').innerHTML = Object.entries(w).map(([k, v]) => `<span class="k">${k}</span> = ${v}`).join('\n');
 }
 
-function loop() { if (playing) { S.step(sim); draw(); } requestAnimationFrame(loop); }
+// 배속(speed) — 프레임당 시뮬 step 수를 조절(시뮬 코어는 불변·결정론 보존, 뷰어 재생만 가속/감속).
+//   슬라이더는 로그 스케일: t∈[0,1] → 0.1×~1000×. t=0.25 → 1.0×(기본).
+//   <1배: 분수 누적기로 N프레임마다 1 step. >1배: 프레임당 여러 step 후 1회 draw.
+//   폭주 방지: 프레임당 시간 예산 STEP_BUDGET_MS 를 넘기면 멈춰 UI 응답 보호(극단 배속 = 기계가 낼 수 있는 만큼).
+const STEP_BUDGET_MS = 12, MAX_STEPS_PER_FRAME = 20000;
+const speedFromSlider = t => 0.1 * Math.pow(10, t * 4);   // 0.1 .. 1000
+const fmtSpeed = v => (v >= 10 ? Math.round(v) : v.toFixed(1)) + '×';
+let speed = speedFromSlider(+$('speed').value), stepAcc = 0;
+$('speedLbl').textContent = fmtSpeed(speed);
+$('speed').oninput = e => { speed = speedFromSlider(+e.target.value); $('speedLbl').textContent = fmtSpeed(speed); };
+
+function loop() {
+  if (playing) {
+    stepAcc += speed;
+    let n = Math.min(Math.floor(stepAcc), MAX_STEPS_PER_FRAME);
+    stepAcc -= Math.floor(stepAcc);
+    if (n > 0) {
+      const t0 = performance.now();
+      for (let i = 0; i < n; i++) {
+        S.step(sim);
+        if ((i & 15) === 15 && performance.now() - t0 > STEP_BUDGET_MS) { stepAcc = 0; break; }
+      }
+      draw();
+    }
+  }
+  requestAnimationFrame(loop);
+}
 
 $('scene').onchange = reset;
 $('seed').onchange = reset;
