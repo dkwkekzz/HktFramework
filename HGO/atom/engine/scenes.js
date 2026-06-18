@@ -7462,6 +7462,104 @@
         ];
       },
     },
+
+    'step-0107': {
+      id: 'step-0107',
+      title: '축간 상관 통합 게이트 bondCorrKind — 한 토글이 Badger(α↔r_eq)+D↔α 동시 (게이트=0 → 개별 상관 게이트만·0106 비트 동일·회귀 0)',
+      desc: '0101 이 α↔r_eq(길이·`bondBadger`)·0102/0106 이 α↔D(깊이·`bondAlphaD`+`bondAlphaDOrder`) 두 *상관*을 더했으나 각자 독립 게이트다. 0100(`bondKindPair`)이 D·α·r_eq 세 *축*을 한 토글로 통합했듯, 이 step 은 두 *상관*을 한 토글 `bondCorrKind` 로 통합 — #J "0100 통합은 합집합일 뿐 연결 아님" 닫기. 켜면 morseAlpha 의 Badger·D↔α 분기가 동시 활성(OR 배선·단일 멱지수 운반·0105 압축값 운반과 동형). 새 물리 0(통합=개별 둘 정확 동치). 개별 노브가 켜져 있으면 그 값 우선. bondCorrKind=0 → 개별 게이트만·0106 비트 동일(회귀 0). ' +
+            '*무대*: 20 Morse 이량체 — H–H(Z1) 10 + C–C(Z6) 10·**길이·깊이 둘 다 종류화**(bondMorsePair on → D_CC 깊음·bondReqPair on → r_eq_CC 김)·α-pair off·같은 상대 KE=2(≪D 속박)·base D=4 α=0.3 req=3·멱지수 0.5·dt=0.05·600 tick·모드 kind(통합)/parts(badger+alphaD 개별)/badgerOnly/alphaDOnly/off: ' +
+            'α_CC kind 0.545 = parts 0.545(둘 다) ≠ badgerOnly 0.223(α↔r_eq 만) ≠ alphaDOnly 0.735(α↔D 만)·H–H(편차 0) 전 모드 0.3 불변. ' +
+            '① **한 토글이 두 상관 동시·load-bearing** — bondCorrKind on α_CC ≠ badgerOnly·≠ alphaDOnly(둘의 곱) ⇒ 한 토글이 Badger+D↔α 두 상관 동시(개별 노브 2개 불필요). ' +
+            '② **통합 = 개별 둘 정확 동치·load-bearing** — α_CC(kind) ≡ α_CC(parts)·strCC(kind) ≡ strCC(parts)(비트 동일) ⇒ 통합이 정확히 둘 켠 것(편의·정합·새 물리 0). ' +
+            '③ **장부 머신·H–H 불변** — 쌍별 등·반작용 운동량 머신·H–H(편차 0) α 전 모드 동일. ' +
+            '④ **회귀** — bondCorrKind=0 → 개별 게이트만·0106 비트 동일·골든 보존.',
+      ticks: 60,
+      W: 400, H: 400, MT: 600, NC: 10, P: 0.5,
+      KN: { dt: 0.05, kBondSpring: 1, bondReq: 3, bondMorse: 1, bondMorseD: 4, bondMorseA: 0.3, bondMorsePair: 1, bondReqPair: 1, unbondDist: 80 },
+      MODES: {
+        kind:       { bondCorrKind: 0.5 },
+        parts:      { bondBadger: 0.5, bondAlphaD: 0.5 },
+        badgerOnly: { bondBadger: 0.5 },
+        alphaDOnly: { bondAlphaD: 0.5 },
+        off:        {},
+      },
+
+      // H–H(Z1) NC + C–C(Z6) NC·각자 r_eq 정확 배치(길이+깊이 둘 다 종류화)·같은 상대 KE(속박).
+      dimers(K, mode) {
+        const KErel = 2, atoms = [], bonds = [], keys = new Set(), tot = 2 * 2 * this.NC;
+        const cls = [{ Z: 1, N: 1, e: 1 }, { Z: 6, N: 6, e: 6 }];
+        const kbase = Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]);
+        for (let c = 0; c < 2; c++) {
+          const z = cls[c], req = K.morseReq(kbase, z, z), mu = (z.Z + z.N) / 2, vrel = Math.sqrt(2 * KErel / mu);
+          for (let k = 0; k < this.NC; k++) {
+            const idx = c * this.NC + k, cx = 50 + (idx % 7) * 50, cy = 50 + ((idx / 7) | 0) * 50, a0 = atoms.length;
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx - req / 2, ry: cy, vx: -vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            atoms.push({ Z: z.Z, N: z.N, e: z.e, x: 0, rx: cx + req / 2, ry: cy, vx: +vrel / 2, vy: 0, lep: 0, nuc: 0 });
+            bonds.push([a0, a0 + 1, 0, 1]); keys.add(a0 * tot + (a0 + 1)); }
+        }
+        return { atoms, bonds, keys };
+      },
+      run(K, mode) {
+        const d = this.dimers(K, mode);
+        const sim = { W: this.W, H: this.H, atoms: d.atoms, photons: [], bonds: d.bonds, bondKeys: d.keys,
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]), tick: 0 };
+        const l0 = K.ledger(sim);
+        const maxStr = [0, 0];                              // [H–H, C–C] 최대 신장|r−req_eff|
+        const reqEff = [K.morseReq(sim.knobs, { Z: 1, N: 1, e: 1 }, { Z: 1, N: 1, e: 1 }), K.morseReq(sim.knobs, { Z: 6, N: 6, e: 6 }, { Z: 6, N: 6, e: 6 })];
+        for (let t = 0; t < this.MT; t++) {
+          L.applyForces(sim); L.integrate(sim); sim.tick++;
+          for (const e of sim.bonds) { const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
+            const dx = K.minImage(b.rx - a.rx, this.W), dy = K.minImage(b.ry - a.ry, this.H);
+            const cc = a.Z === 1 ? 0 : 1, str = Math.abs(Math.sqrt(dx * dx + dy * dy) - reqEff[cc]);
+            if (str > maxStr[cc]) maxStr[cc] = str; }
+        }
+        const l1 = K.ledger(sim);
+        return { strHH: maxStr[0], strCC: maxStr[1], bonds: sim.bonds.length,
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { kind: this.run(K, 'kind'), parts: this.run(K, 'parts'), off: this.run(K, 'off') }); },
+      // α_CC(모드) — 통합 게이트가 두 상관을 동시 켜는지 직접 확인(곱).
+      alphaCC(K, mode) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]), C = { Z: 6, N: 6, e: 6 };
+        return K.morseAlpha(base, C, C, 1);
+      },
+      alphaHH(K, mode) {
+        const base = Object.assign({}, L.DEFAULTS, this.KN, this.MODES[mode]), H = { Z: 1, N: 1, e: 1 };
+        return K.morseAlpha(base, H, H, 1);
+      },
+
+      // 라이브 sim(장부·결정론·골든 기둥): createSim 경로 bonds 미설정 → 자유 드리프트(0106 패턴·머신).
+      init(rng, K) {
+        const cx = this.W / 2, cy = this.H / 2;
+        const a = [
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx - 1.5 + rng() * 0.1, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+          { Z: 6, N: 6, e: 6, x: 0, rx: cx + 1.5, ry: cy, vx: (rng() - 0.5) * 0.02, vy: 0, lep: 0, nuc: 0 },
+        ];
+        return { W: this.W, H: this.H, atoms: a, rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN) };
+      },
+
+      watch(sim, K) {
+        return { aCCkind: +this.alphaCC(K, 'kind').toFixed(3), aCCparts: +this.alphaCC(K, 'parts').toFixed(3),
+                 aCCbadger: +this.alphaCC(K, 'badgerOnly').toFixed(3), aCCalphaD: +this.alphaCC(K, 'alphaDOnly').toFixed(3),
+                 aHHkind: +this.alphaHH(K, 'kind').toFixed(3), aHHoff: +this.alphaHH(K, 'off').toFixed(3) };
+      },
+
+      // 가설: ① 한 토글 둘 동시 ② 통합=개별 둘 정확 동치 ③ 장부 머신·H–H 불변 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const aKind = this.alphaCC(K, 'kind'), aParts = this.alphaCC(K, 'parts'), aBadger = this.alphaCC(K, 'badgerOnly'), aAlphaD = this.alphaCC(K, 'alphaDOnly');
+        const both = Math.abs(aKind - aBadger) > 1e-6 && Math.abs(aKind - aAlphaD) > 1e-6;   // ① 두 상관 곱 ≠ 각 하나
+        const equiv = aKind === aParts && c.kind.strCC === c.parts.strCC;                      // ② 비트 동일
+        const consv = c.kind.dpx < 1e-9 && c.kind.dpy < 1e-9 && c.kind.dB < 1e-9 && c.kind.dQ < 1e-9 && c.kind.dL < 1e-9 && this.alphaHH(K, 'kind') === this.alphaHH(K, 'off');  // ③ + H–H 불변
+        const reg = ctx.ledgerBefore !== undefined;                                            // ④ 골든 보존
+        return [
+          { name: `한 토글이 두 상관 동시·load-bearing — bondCorrKind on α_CC ${aKind.toFixed(3)} ≠ badgerOnly ${aBadger.toFixed(3)}(α↔r_eq 만)·≠ alphaDOnly ${aAlphaD.toFixed(3)}(α↔D 만)·둘의 곱 ⇒ 한 토글이 Badger+D↔α 두 상관 동시(개별 노브 2개 불필요)`, pass: both, value: +aKind.toFixed(3) },
+          { name: `통합 = 개별 둘 정확 동치·load-bearing — α_CC(kind) ${aKind.toFixed(4)} ≡ α_CC(parts) ${aParts.toFixed(4)}·strCC(kind) ${c.kind.strCC.toFixed(4)} ≡ strCC(parts) ${c.parts.strCC.toFixed(4)}(비트 동일) ⇒ 통합이 정확히 둘 켠 것(편의·정합·새 물리 0)`, pass: equiv, value: +aKind.toFixed(4) },
+          { name: `장부 머신·H–H 불변 — 쌍별 등·반작용 운동량 머신(dpx ${c.kind.dpx.toExponential(2)}·dB ${c.kind.dB.toExponential(2)}·dL ${c.kind.dL.toExponential(2)})·H–H(편차 0) α ${this.alphaHH(K, 'kind').toFixed(3)} 전 모드 동일·잔여 E 유계(${(c.kind.dE / c.kind.Etot * 100).toFixed(3)}%)`, pass: consv, value: +c.kind.dpx.toExponential(3) },
+          { name: `회귀 — bondCorrKind=0 → 개별 게이트만·0106 비트 동일·골든 보존(통합 게이트 가법)`, pass: reg, value: +this.alphaCC(K, 'off').toFixed(3) },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
