@@ -341,7 +341,7 @@
   //  px,py 운동량 = Σ m·v + Σ 광자운동량(p.px,p.py — step-0003 recoil 가법, 미설정 → 0)
   // 가법 규칙(SPINE §6.1): 들뜸항은 x=0 → 0, 광자항은 미존재/빈 배열 → 0 ⇒ 과거(step-0001) 장부 불변.
   function ledger(sim) {
-    let Q = 0, B = 0, L = 0, E = 0, px = 0, py = 0;
+    let Q = 0, B = 0, L = 0, E = 0, px = 0, py = 0, pz = 0;
     const lz = (sim.knobs && sim.knobs.levelZ) || 0;       // 준위 Z 의존(step-0013, 미설정/0 → levelE 그대로 = 과거 장부 불변)
     const sc = (sim.knobs && sim.knobs.levelScreen) || 0;  // 다전자 차폐(step-0014, 미설정/0 → step-0013 그대로)
     // 결합E 정지질량 편입(step-0040 massDefect). fuseMassFormula(0041)도 *융합 Q를 binding 서* 빼므로 정지질량이 −B 여야 닫힌다 →
@@ -358,7 +358,8 @@
       Q += a.Z - a.e;
       B += a.Z + a.N;
       L += a.e;
-      const v2 = a.vx * a.vx + a.vy * a.vy;
+      const vz = a.vz || 0;                                 // step-0106 z축 속도(미존재 → 0 → 과거 v2·pz 불변·회귀 0)
+      const v2 = a.vx * a.vx + a.vy * a.vy + vz * vz;        // 운동E·KE 에 z 성분 포함(vz=0 → 과거 비트 동일)
       // 정지질량 에너지: md 면 결합에너지를 정지질량에 편입(M=A−B → 결합한 핵이 *가볍다*·질량 결손), 아니면 A·c²(+nuc 저장고).
       //   md=0 → (m)·c²+0.5mv²+들뜸 그대로 + 아래 a.nuc → 과거 비트 동일(회귀 0). md=1 → −B 편입·nuc 미가법(저장고 폐기).
       E += (md ? (m - binding(a.Z | 0, a.N | 0, pr, sh)) : m) * C * C + (rk ? (Math.sqrt(1 + v2 / (C * C)) - 1) * m * C * C : 0.5 * m * v2) + levelEZ(a.x, a.Z, a.e, lz, sc);  // KE: rk → (γ−1)mc²(상대론) / 0 → ½mv²(토이·회귀 0) · 들뜸(x=0 → 0; lz=0 → levelE)
@@ -368,6 +369,7 @@
       if (!md) E += a.nuc || 0;
       px += m * a.vx;
       py += m * a.vy;
+      pz += m * vz;                                         // step-0106 z운동량(vz=0 → 0 → 과거 장부 불변·자유 드리프트서 머신 보존)
       // 렙톤 수: e 가 곧 렙톤이나, 베타붕괴(n→p, e+1)는 반중성미자(L=−1)를 방출 → a.lep 가 그 음의 렙톤 수를 담아 L 닫힘(SPINE §2 렙톤 정련).
       //   미존재(과거 a.lep undefined) → 0 가법 → 과거 L 불변.
       L += a.lep || 0;
@@ -393,7 +395,7 @@
     E += bondAnglePE(sim);
     // 중력 PE(step-0028 gravity): 모든 쌍의 인력 PE(≤0). kGravity 미설정/0 → 0 → 장부 불변.
     E += gravityPE(sim.atoms, sim.knobs, sim.W, sim.H);
-    return { Q, B, L, E, px, py };
+    return { Q, B, L, E, px, py, pz };
   }
 
   // 토러스 최소상(min-image) 변위 — 경계 wrap 을 가로지르는 거리 보정
@@ -415,6 +417,8 @@
     for (const a of sim.atoms) {
       mixI(a.Z); mixI(a.N); mixI(a.e); mixI(a.x | 0);
       mixF(a.rx); mixF(a.ry); mixF(a.vx); mixF(a.vy);
+      // z축(step-0106): *정의됐을 때만* 섞는다 → 과거(2D·rz 미존재) 해시 불변(가법 규칙).
+      if (a.rz !== undefined) { mixF(a.rz); mixF(a.vz || 0); }
     }
     // 광자: *비어 있지 않을 때만* 섞는다 → 과거(광자 0) 해시 불변(가법 규칙).
     if (sim.photons && sim.photons.length) {

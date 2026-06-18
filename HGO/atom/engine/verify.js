@@ -7,7 +7,7 @@ const S = require('./hgo-sim.js');
 const { SCENES } = require('./scenes.js');
 
 const SEEDS = [42, 7, 1234, 99, 2026];
-const LEDGER_KEYS = ['Q', 'B', 'L', 'E', 'px', 'py'];
+const LEDGER_KEYS = ['Q', 'B', 'L', 'E', 'px', 'py', 'pz'];   // pz: step-0106 z운동량(2D 장면 → pz=0·잔차 0·무영향)
 const LEDGER_TOL = 1e-9;
 
 function simulate(scene, seed) {
