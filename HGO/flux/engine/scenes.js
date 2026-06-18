@@ -72,7 +72,8 @@
 
   // 결정론 블롭 풍경(transcendental 0 — 크로스플랫폼 비트, SPINE §9.3) — 큰 척도 구조 + 작은 노이즈.
   //   배경 q=1 + 3개 블롭(2차 falloff) + 정수 해시 노이즈. 동결 후 도메인/전선 분해를 본다(step-0004).
-  function blobSpec(theta, n) {
+  //   alpha·kappa 는 선택 인자(미지정 → α=1·κ=0.1, 기존 0004~0007 호출과 비트 동일 = 회귀 0). step-0008 의 α 스윕이 쓴다.
+  function blobSpec(theta, n, alpha, kappa) {
     const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
     // 블롭 중심 = 격자 비율 × 해상도(정수 반올림). n=12 면 원래 정수 중심 [3,3,3]/[8,4,6]/[5,9,8] 정확 복원(골든 불변).
     const centers = [[3, 3, 3, 8], [8, 4, 6, 6], [5, 9, 8, 7]].map(b =>
@@ -90,7 +91,7 @@
       const noise = ((Math.imul(idx + 1, 2654435761) >>> 0) % 1000) / 1000 * 0.2;   // 0..0.2 결정론 노이즈
       atoms.push(cell(rx, ry, rz, Math.round((q + noise) * S)));
     }
-    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: 0.1, theta, alpha: 1 } };
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: kappa || 0.1, theta, alpha: alpha || 1 } };
   }
 
   // 창발 측정(arc C — 도메인) — 동결 q 장을 군집해 "덩어리 + 전선"을 읽는다(author 라벨 0).
@@ -150,6 +151,141 @@
       prevD = d; prevC = cv;
     }
     return { xi: +xi.toFixed(3), corr };
+  }
+
+  // 창발 측정(arc D — 시간 척도 분리) — 구조 풍경을 확산 relaxation 하며 두 *공간* 척도의 진폭 시계열을
+  //   수집한다. 작은 척도(이웃 차 RMS = 고주파 거칢)는 큰 척도(B³ 블록 평균의 편차 RMS = 저주파 변동)보다
+  //   *빠르게* 감쇠한다 — 확산에서 모드 감쇠율 ∝ k²(작은 파장 = 큰 k = 급감). 1/e 도달 tick = τ.
+  //   이것이 "산(느림)과 물(빠름) 한 세계 공존"의 핵: 같은 한 규칙이 척도에 따라 다른 *시간* 척도로 푼다.
+  //   author 0: q 의 함수일 뿐(라벨 없음·분기 없음). 지연 sim 참조(보조 측정·메인 해시 무관).
+  function scaleSeparation(spec, ticks, block) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, B = block || 4, sim = SIM.createSim(spec);
+    const cols = sim.cols, rows = sim.rows, depth = sim.depth, a = sim.atoms, edges = sim.edges, n = a.length;
+    const idx = (c, r, z) => (z * rows + r) * cols + c;
+    // 작은 척도: 이웃 차 RMS(고주파 — 인접 셀 거칢). q 평형화의 가장 작은 파장.
+    const small = () => { let s = 0; for (let e = 0; e < edges.length; e++) { const d = (a[edges[e][0]].q - a[edges[e][1]].q) / S; s += d * d; } return Math.sqrt(s / edges.length); };
+    // 큰 척도: B³ 블록 평균의 전역 평균 대비 편차 RMS(저주파 — 큰 덩어리 변동).
+    const large = () => {
+      let gm = 0; for (let i = 0; i < n; i++) gm += a[i].q; gm /= n;
+      const bc = Math.ceil(cols / B), br = Math.ceil(rows / B), nb = bc * br * Math.ceil(depth / B);
+      const sum = new Float64Array(nb), cnt = new Float64Array(nb);
+      for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const b = (((z / B) | 0) * br + ((r / B) | 0)) * bc + ((c / B) | 0); sum[b] += a[idx(c, r, z)].q; cnt[b]++;
+      }
+      let ss = 0, m = 0; for (let b = 0; b < nb; b++) if (cnt[b]) { const dv = sum[b] / cnt[b] - gm; ss += dv * dv; m++; }
+      return Math.sqrt(ss / m) / S;
+    };
+    const sm = [small()], lg = [large()];
+    for (let t = 0; t < ticks; t++) { SIM.step(sim); sm.push(small()); lg.push(large()); }
+    const tau = ser => { const thr = ser[0] / Math.E; for (let t = 1; t < ser.length; t++) if (ser[t] <= thr) return +(t - 1 + (ser[t - 1] - thr) / (ser[t - 1] - ser[t])).toFixed(2); return ticks; };
+    const tauS = tau(sm), tauL = tau(lg);
+    return { tauSmall: tauS, tauLarge: tauL, ratio: +(tauL / tauS).toFixed(2),
+      small0: +sm[0].toFixed(4), smallEnd: +sm[sm.length - 1].toFixed(4),
+      large0: +lg[0].toFixed(4), largeEnd: +lg[lg.length - 1].toFixed(4) };
+  }
+
+  // 창발 측정(arc D — 산·물 공간 공존) — θ>0 한 세계의 relaxation 중, *같은 tick* 에 동결(산)·사태(물)
+  //   두 상이 *공간적으로 공존*하는가. 간선 상: active = 실제 흐르는 간선(물), frozen = 나머지(산, |d|≲θ).
+  //   peakCo = min(actFrac,froFrac) 의 시간 최대(둘 다 실질적인 정점). snap tick 의 *셀* 분율(물 셀=활성 간선에 닿는
+  //   셀, 산 셀=나머지)로 공간 공존을 본다. 시간이 가면 물→산(동결 전선 전진, actEnd→0). author 0: q·θ 의 함수.
+  function phaseCoexistence(spec, ticks, snap) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, sim = SIM.createSim(spec);
+    const thetaFix = Math.round(sim.knobs.theta * S), kappaFix = Math.round(sim.knobs.kappa * S);
+    const a = sim.atoms, edges = sim.edges, E = edges.length, n = a.length;
+    const edgeFrac = () => { let act = 0; for (let e = 0; e < E; e++) { const d = a[edges[e][0]].q - a[edges[e][1]].q, ad = d < 0 ? -d : d, ex = ad - thetaFix; if (ex > 0 && Math.floor(ex * kappaFix / S) > 0) act++; } return { act: act / E, fro: (E - act) / E }; };
+    const m0 = edgeFrac();
+    let peakCo = 0, peakT = 0, water = null;
+    for (let t = 0; t < ticks; t++) {
+      SIM.step(sim);
+      const m = edgeFrac(), co = Math.min(m.act, m.fro); if (co > peakCo) { peakCo = co; peakT = t + 1; }
+      if (t + 1 === snap) {                                  // 스냅샷: 셀 단위 물/산 분율(공간 공존)
+        const w = new Uint8Array(n);
+        for (let e = 0; e < E; e++) { const i = edges[e][0], j = edges[e][1], d = a[i].q - a[j].q, ad = d < 0 ? -d : d, ex = ad - thetaFix; if (ex > 0 && Math.floor(ex * kappaFix / S) > 0) { w[i] = 1; w[j] = 1; } }
+        let cw = 0; for (let i = 0; i < n; i++) if (w[i]) cw++; water = cw / n;
+      }
+    }
+    const mE = edgeFrac();
+    return { act0: +m0.act.toFixed(3), fro0: +m0.fro.toFixed(3), actEnd: +mE.act.toFixed(3), froEnd: +mE.fro.toFixed(3),
+      peakCo: +peakCo.toFixed(3), peakT, waterFrac: +(water || 0).toFixed(3), earthFrac: +(1 - (water || 0)).toFixed(3), snap };
+  }
+
+  // 창발 측정(규칙 4 자유도 마지막 — α 비선형 차수) — 같은 블롭 풍경·θ=0 에서 α 만 바꿔 relaxation.
+  //   Φ(d)=…|d|^α 라 α>1 이면 |d|<1(작은 기울기) → |d|^α < |d| (sub-linear, 거의 안 흐름 = 효과적 동결),
+  //   |d|>1(큰 기울기) → super-linear (가속·폭주). 즉 α 가 *문턱 없이도* 동결을 만들고(잔류 spread↑) 큰 기울기는
+  //   불안정(κ 커지면 발산). author 0: 규칙 노브 스윕일 뿐. 발산 = q 가 2⁵³ 넘어 Σq 깨짐(유한성으로 안정 판정).
+  function alphaEffect(theta, kappa, ticks) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const run = (alpha) => {
+      const sim = SIM.createSim(blobSpec(theta, 12, alpha, kappa));
+      let q0 = 0; for (const a of sim.atoms) q0 += a.q;
+      for (let t = 0; t < ticks; t++) SIM.step(sim);
+      let mn = Infinity, mx = -Infinity, q1 = 0; for (const a of sim.atoms) { if (a.q < mn) mn = a.q; if (a.q > mx) mx = a.q; q1 += a.q; }
+      const resid = (mx - mn) / S, finite = Number.isFinite(resid), dq = Math.abs(q1 - q0) / S;
+      return { resid: finite ? +resid.toFixed(4) : Infinity, finite, dq: finite ? dq : NaN };
+    };
+    return { a1: run(1), a2: run(2), a3hi: run(3) };   // α=1·2 (κ 안정역) + α=3(같은 κ 발산 경계)
+  }
+
+  // 창발 측정(arc B/C — 구동 사태 통계, 🔴 SOC) — 이 세계엔 구동이 없어 단일 궤적엔 사태가 없다. 동결 상태에
+  //   셀 1개 q 펄스를 *구동* 하고 relaxation 으로 풀리는 사태 크기(=q 가 eps 넘게 변한 셀 수)를 앙상블(여러
+  //   구동 위치)로 모은다. θ↑ 일수록 동결이 전파를 차단 → 사태가 국소화(평균 크기↓). θ=0 은 소산(사태 아닌 확산).
+  //   author 0: q·θ 의 함수. 멱법칙(척도 불변)은 유한 12³ 한계로 보류 — *평균 사태 크기의 θ 의존*까지 정량.
+  function avalancheStats(theta, pulse, relax, N) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const base = SIM.createSim(roughSpec(theta));               // 동결 기질(θ relaxed)
+    for (let t = 0; t < 400; t++) SIM.step(base);
+    const n = base.atoms.length, baseQ = base.atoms.map(a => a.q), eps = Math.round(0.01 * S), pf = Math.round(pulse * S);
+    const stride = Math.max(1, Math.floor(n / N)), sizes = [];
+    for (let site = 0; site < n; site += stride) {
+      const sim = SIM.createSim(roughSpec(theta));               // 동결 상태 복제 + 한 셀 구동
+      for (let k = 0; k < n; k++) sim.atoms[k].q = baseQ[k];
+      sim.atoms[site].q += pf;
+      const before = sim.atoms.map(a => a.q);
+      for (let t = 0; t < relax; t++) SIM.step(sim);
+      let sz = 0; for (let k = 0; k < n; k++) if (Math.abs(sim.atoms[k].q - before[k]) > eps) sz++;
+      sizes.push(sz);
+    }
+    sizes.sort((a, b) => a - b);
+    const mean = sizes.reduce((s, x) => s + x, 0) / sizes.length;
+    return { mean: +mean.toFixed(2), median: sizes[sizes.length >> 1], min: sizes[0], max: sizes[sizes.length - 1], n: sizes.length };
+  }
+
+  // arc E 풍경 — 둘째 보존 채널 p(촉매 장). q 는 두 동일 범프(좌·우 대칭), p 는 좌반 고(촉매)·우반 저(정적).
+  //   kappaP=0 → p 정적(촉매 장만), gamma>0 → p 가 q 의 κ 변조. κ=0.05·γ·p̄ 가 안정역(κ_eff·Z<1) 안.
+  //   cellP = 렌더 계약 + p 필드(렌더는 p 무시 — q 만 밝기). n 스케일 시 범프/경계 비율 보존.
+  function catalystSpec(gamma, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const aC = Math.round(3 / 12 * cols), bC = Math.round(9 / 12 * cols), midR = Math.round(6 / 12 * rows), midZ = Math.round(6 / 12 * depth);
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      let q = 1; if ((c === aC || c === bC) && r === midR && z === midZ) q += 8;   // 좌·우 동일 범프
+      const p = c < cols / 2 ? 2 : 0;                                              // 좌반 고p(촉매)·우반 저p
+      atoms.push({ rx, ry, rz, q: Math.round(q * S), p: Math.round(p * S), x: q, Z: 1, N: 0, e: 1, vx: 0, vy: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: 0.05, theta: 0, alpha: 1, kappaP: 0, gamma } };
+  }
+
+  // 창발 측정(arc E — 이중 보존 + 촉매) — γ>0 일 때 고p 영역 범프가 저p 영역 범프보다 *빠르게* 평형(κ 변조).
+  //   τ = 범프 초과분(qcenter−1)이 초기(8)의 1/e 로 떨어지는 tick. 고p τ_A < 저p τ_B = 촉매. ΣQ·ΣP 독립 보존 확인.
+  function catalysis(gamma, ticks) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, sim = SIM.createSim(catalystSpec(gamma));
+    const cols = sim.cols, rows = sim.rows, depth = sim.depth, a = sim.atoms;
+    const idx = (c, r, z) => (z * rows + r) * cols + c;
+    const A = idx(Math.round(3 / 12 * cols), Math.round(6 / 12 * rows), Math.round(6 / 12 * depth));
+    const B = idx(Math.round(9 / 12 * cols), Math.round(6 / 12 * rows), Math.round(6 / 12 * depth));
+    let q0 = 0, p0 = 0; for (const x of a) { q0 += x.q; p0 += x.p; }
+    const exA = [(a[A].q - S) / S], exB = [(a[B].q - S) / S];
+    for (let t = 0; t < ticks; t++) { SIM.step(sim); exA.push((a[A].q - S) / S); exB.push((a[B].q - S) / S); }
+    let q1 = 0, p1 = 0; for (const x of a) { q1 += x.q; p1 += x.p; }
+    const tau = ser => { const thr = ser[0] / Math.E; for (let t = 1; t < ser.length; t++) if (ser[t] <= thr) return +(t - 1 + (ser[t - 1] - thr) / (ser[t - 1] - ser[t])).toFixed(2); return ticks; };
+    const finite = Number.isFinite(a[A].q) && Number.isFinite(a[B].q);
+    return { tauA: tau(exA), tauB: tau(exB), dQ: finite ? Math.abs(q1 - q0) / S : NaN, dP: finite ? Math.abs(p1 - p0) / S : NaN, finite };
   }
 
   const SCENES = {
@@ -282,6 +418,114 @@
           { name: '구조 척도(ξ>1: 여러 셀 상관)', pass: w1.xi > 1, value: `ξ(블롭)=${w1.xi}, corr=${JSON.stringify(w1.corr)}` },
           { name: '유한 척도(ξ<maxR: 무한상관 아님)', pass: w1.xi < 6, value: `ξ=${w1.xi} < maxR=6` },
           { name: '구조 vs 백색잡음(ξ_블롭 ≫ ξ_잡음)', pass: w1.xi > rough.xi, value: `ξ_블롭=${w1.xi} > ξ_잡음=${rough.xi}` },
+        ];
+      },
+    },
+
+    // ── step-0006: arc D — 시간 척도 분리(산 느림 + 물 빠름 공존) ── 새 법칙/노브 0(블롭 IC + θ=0 확산).
+    //   구조 풍경을 확산 relaxation 하며 두 공간 척도를 추적: 작은 척도(이웃 차)는 큰 척도(블록 변동)보다
+    //   먼저 평형된다. 확산 모드 감쇠율 ∝ k² → 같은 한 규칙이 척도에 따라 다른 *시간* 척도로 푼다 = 층 공존의 씨앗.
+    'step-0006': {
+      id: 'step-0006',
+      title: 'step-0006 — 척도 분리: 작은 척도 빠른 평형 + 큰 척도 느린 흐름',
+      desc: '같은 단일 규칙·구조 풍경(블롭)을 θ=0 확산으로 relaxation 한다(새 법칙·노브 0). 두 공간 척도의 진폭을 매 tick 추적하면 작은 척도(이웃 차 RMS=고주파)가 큰 척도(블록 평균 편차 RMS=저주파)보다 ~2배 빠르게 1/e 로 감쇠한다 — 확산 모드 감쇠율 ∝ k². 같은 한 규칙이 척도에 따라 다른 시간 척도로 풀린다는 측정: "산(느림)과 물(빠름)이 한 세계에 공존"의 토대(현상 지도 arc D).',
+      ticks: 200,
+      init(rng, K, opts) { return blobSpec(0.0, (opts && opts.scale) || 12); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const sep = scaleSeparation(blobSpec(0.0), 200, 4);   // 두 척도 시계열 수집(보조·결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '시간 척도 분리(작은 척도 먼저 평형: τ_small < τ_large)', pass: sep.tauSmall < sep.tauLarge, value: `τ_small=${sep.tauSmall} < τ_large=${sep.tauLarge}` },
+          { name: '분리비 유의(τ_large/τ_small > 1.5)', pass: sep.ratio > 1.5, value: `ratio=${sep.ratio}` },
+          { name: '두 척도 모두 확산 감쇠(>1/e 줄어듦)', pass: sep.smallEnd < sep.small0 / Math.E && sep.largeEnd < sep.large0 / Math.E, value: `small ${sep.small0}→${sep.smallEnd}, large ${sep.large0}→${sep.largeEnd}` },
+        ];
+      },
+    },
+
+    // ── step-0007: arc D 완성 — 산·물 *공간* 공존(한 세계 한 tick) ── 새 법칙/노브 0(블롭 IC + θ=0.5 고정).
+    //   step-0006 은 두 척도의 *시간* 분리만 봤다(θ=0, 결국 둘 다 평탄). 여기선 단일 θ>0 한 세계에서 큰 기울기
+    //   영역은 아직 흐르고(물) 작은 기울기 영역은 이미 굳어(산) *같은 tick* 에 공간적으로 공존한다. 시간이 가면 물→산.
+    'step-0007': {
+      id: 'step-0007',
+      title: 'step-0007 — 척도 분리: 산(동결)·물(흐름) 공간 공존(한 세계)',
+      desc: '같은 단일 규칙·구조 풍경(블롭)을 θ=0.5 로 relaxation 한다(새 법칙·노브 0). 단일 문턱 한 세계에서 큰 기울기 영역은 아직 사태로 흐르고(물), 작은 기울기 영역은 이미 플럭스 0 으로 굳어(산) 같은 tick 에 두 국면이 공간적으로 공존한다. tick 160 스냅샷: 물 셀 0.555 · 산 셀 0.445(둘 다 실질). 시간이 가면 동결 전선이 전진해 물→산으로 전환(actEnd→0). 별도 법칙 없이 한 규칙이 한 필드에서 산과 물을 동시에 만든다(현상 지도 arc D 완성).',
+      ticks: 400,
+      init(rng, K, opts) { return blobSpec(0.5, (opts && opts.scale) || 12); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const p = phaseCoexistence(blobSpec(0.5), 400, 160);   // 상 공존 시계열 + tick160 셀 스냅샷(보조·결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '시간 공존(간선: 물·산 둘 다 실질, peakCo>0.1)', pass: p.peakCo > 0.1, value: `peakCo=${p.peakCo} @tick ${p.peakT}` },
+          { name: '공간 공존(tick160 셀: 물·산 둘 다 >0.3)', pass: p.waterFrac > 0.3 && p.earthFrac > 0.3, value: `물=${p.waterFrac} · 산=${p.earthFrac} @tick ${p.snap}` },
+          { name: '물→산 전환(동결 전선 전진: actEnd→0 < act0)', pass: p.actEnd < p.act0 && p.actEnd < 0.01, value: `act ${p.act0}→${p.actEnd}, fro ${p.fro0}→${p.froEnd}` },
+        ];
+      },
+    },
+
+    // ── step-0008: 규칙 4 자유도 마지막 — α(비선형 차수) ── 새 법칙/노브 0(기존 α 노브 스윕, θ=0 고정).
+    //   지금껏 모든 장면이 α=1(선형 확산). α>1 이면 Φ=…|d|^α 가 작은 기울기(|d|<1)에서 sub-linear → 거의 안 흐름
+    //   (θ 없이도 *효과적 동결*), 큰 기울기(|d|>1)에서 super-linear → 가속(κ 커지면 발산). α 가 비선형 동역학의 마지막 자유도.
+    'step-0008': {
+      id: 'step-0008',
+      title: 'step-0008 — 비선형: α>1 가 문턱 없이 동결을 만든다',
+      desc: '규칙의 4 자유도 중 한 번도 안 쓴 α(비선형 지수)를 켠다(새 법칙·노브 0, θ=0 고정). Φ=κ·sign(d)·|d|^α 라 α=2 면 작은 기울기(|d|<1)는 |d|²<|d| 로 거의 안 흐르고(문턱 θ 없이도 효과적 동결 — 잔류 spread 남음), 큰 기울기는 가속한다. α=1(순수 확산, 잔류≈0)과 측정으로 갈린다. α=3·같은 κ 는 큰 기울기 폭주로 발산(비선형 불안정 경계) — α>1 은 안정 κ 가 더 작아야 함을 측정으로.',
+      ticks: 300,
+      init(rng, K, opts) { return blobSpec(0.0, (opts && opts.scale) || 12, 2, 0.1); },   // 메인: θ=0·α=2·κ=0.1(안정역)
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const e = alphaEffect(0.0, 0.1, 300);   // α∈{1,2,3} 블롭 θ=0 relaxation 비교(보조·결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부·α=2 안정)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6 && e.a2.finite, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}, α2 |Δq|=${e.a2.dq.toExponential(2)}` },
+          { name: 'α>1 효과적 동결(θ 없이 잔류↑: resid α2 ≫ α1)', pass: e.a2.resid > e.a1.resid + 0.5, value: `resid α1=${e.a1.resid} → α2=${e.a2.resid}` },
+          { name: 'α=1 순수 확산 평탄(잔류≈0)', pass: e.a1.resid < 0.1, value: `resid(α=1)=${e.a1.resid}` },
+          { name: '비선형 불안정 경계(α=3 같은 κ 발산·α=2 안정)', pass: e.a2.finite && !e.a3hi.finite, value: `α2 finite=${e.a2.finite}, α3 finite=${e.a3hi.finite}(resid=${e.a3hi.resid})` },
+        ];
+      },
+    },
+
+    // ── step-0009: 🔴 SOC — 구동 사태 크기의 θ 의존(앙상블) ── 새 법칙/노브 0(동결 기질 + 셀 1개 구동).
+    //   이 세계엔 구동이 없어 단일 궤적엔 사태가 없다. 동결 상태에 q 펄스를 넣고 풀어 사태 크기를 앙상블로 모은다.
+    //   θ↑ 동결이 전파 차단 → 사태 국소화(평균↓). θ=0 은 소산(확산). 메인 궤적 = roughSpec(0.5) 동결 기질.
+    'step-0009': {
+      id: 'step-0009',
+      title: 'step-0009 — 임계: 구동 사태 크기의 θ 의존(SOC 앙상블)',
+      desc: '동결 상태에 셀 하나 q 펄스를 구동(새 법칙·노브 0, 구동=IC 섭동)하고 relaxation 으로 풀리는 사태 크기(=q 가 변한 셀 수)를 여러 구동 위치 앙상블로 모은다. θ 가 클수록 동결이 사태 전파를 차단해 평균 사태 크기가 단조 감소(θ0.5=16 → θ4=3.6), θ=0 은 펄스가 소산(사태 아닌 확산, size≈1). 임계 사태가 동결 문턱에 제어됨을 측정 — 멱법칙(척도 불변)은 유한 12³ 한계로 보류(🔴 부분 충족).',
+      ticks: 400,
+      init(rng, K, opts) { return roughSpec(0.5, (opts && opts.scale) || 12); },   // 메인: 동결 기질
+      watch(sim) { return Object.assign(measure(sim), frozenMeasure(sim)); },
+      assert(w0, w1) {
+        const av = th => avalancheStats(th, 3.0, 200, 40);   // θ별 구동 사태 앙상블(보조·결정론)
+        const a0 = av(0.0), a05 = av(0.5), a1 = av(1.0), a2 = av(2.0), a4 = av(4.0);
+        const means = [a05.mean, a1.mean, a2.mean, a4.mean];
+        let monoDown = true; for (let k = 1; k < means.length; k++) if (means[k] > means[k - 1] + 1e-9) monoDown = false;
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '사태 존재(θ=0.5: 평균>1·분포 폭 max>min)', pass: a05.mean > 1 && a05.max > a05.min, value: `mean=${a05.mean} (min ${a05.min}, max ${a05.max}, N=${a05.n})` },
+          { name: 'θ 사태 국소화(평균 크기 θ↑ 단조↓)', pass: monoDown, value: `θ[0.5,1,2,4] → mean${JSON.stringify(means)}` },
+          { name: 'θ=0 소산(사태 아닌 확산: 평균≈1 ≪ θ=0.5)', pass: a0.mean < 1.5 && a0.mean < a05.mean, value: `mean(θ=0)=${a0.mean} ≪ mean(θ=0.5)=${a05.mean}` },
+        ];
+      },
+    },
+
+    // ── step-0010: arc E 부트스트랩 — 둘째 보존 채널 p + 진짜 촉매(κ 변조) ── 규칙 정련(opt-in·회귀 0, SKILL §3).
+    //   단일 q 의 천장(A~D 다 측정, 무에서 패턴 없음)을 넘는 첫 발. p 가 q 의 교환률 κ 를 국소 변조 = 촉매:
+    //   고p 영역 범프가 저p 영역보다 빠르게 평형. 같은 규칙(rule())을 q·p 두 채널에 — 새 법칙 0. ΣQ·ΣP 독립 보존.
+    'step-0010': {
+      id: 'step-0010',
+      title: 'step-0010 — arc E: 둘째 보존량 p 가 q 를 촉매(κ 변조)',
+      desc: '단일 보존 q 의 천장(A~D·SOC 다 측정·무에서 패턴 없음)을 넘는 첫 발 — 둘째 보존량 p 를 opt-in 으로 도입(knobs.gamma·규칙 정련, gamma 없으면 과거 9 장면 비트 불변=회귀 0). p 가 q 의 교환률을 국소 변조(κ_eff=κ(1+γ·p̄)) = 진짜 촉매: q 의 동일 두 범프 중 고p 영역 범프가 저p 영역보다 빠르게 평형(τ_A<τ_B). 같은 규칙 rule() 을 q·p 두 채널에 각각(새 법칙 0), ΣQ·ΣP 독립 보존(비트). 한계: κ 변조는 q 평형(균일)을 안 깸 → 패턴 형성(상향 플럭스)은 cross-gradient 항이 필요(arc E 후속).',
+      ticks: 60,
+      init(rng, K, opts) { return catalystSpec(1.0, (opts && opts.scale) || 12); },   // 메인: γ=1 결합(안정역)
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const c0 = catalysis(0.0, 60), c1 = catalysis(1.0, 60);   // γ=0(대조)·γ=1(촉매) 보조 재실행(결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부·결합 경로)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6 && c1.finite, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}, γ1 |ΔΣq|=${c1.dQ.toExponential(2)}` },
+          { name: 'ΣP 독립 보존(둘째 채널 닫힌 장부)', pass: c1.finite && c1.dP < 1e-6, value: `|ΔΣp|=${c1.dP.toExponential(2)}` },
+          { name: '대조(γ=0: 고p·저p 범프 평형 동일)', pass: Math.abs(c0.tauA - c0.tauB) < 0.5, value: `τ_A=${c0.tauA} ≈ τ_B=${c0.tauB}` },
+          { name: '촉매(γ=1: 고p 범프 τ_A < 저p τ_B)', pass: c1.tauA < c1.tauB - 0.5, value: `τ_A(고p)=${c1.tauA} < τ_B(저p)=${c1.tauB}` },
         ];
       },
     },
