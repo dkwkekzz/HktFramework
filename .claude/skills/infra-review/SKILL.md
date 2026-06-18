@@ -20,17 +20,17 @@ description: HktInfra 시리즈의 닫힌 step 들을 10개 묶음으로 회고 
 
 ## 핵심 원칙 — 리뷰는 "주장"이 아니라 "재현"이다
 
-step 문서의 PASS 는 *주장*이다. 리뷰의 권위는 **실물 코드(닫힌 `step-NNNN/*.js` 스냅샷 + `engine/*.js`) + run.js 재현 + grep 감사**다. "문서가 PASS 라 함"으로 닫지 마라 — 직접 돌려 수치를 인용하고, 코드 라인(`step-NNNN/<box>.js:line`)으로 알리바이를 댄다. 문서-코드 불일치를 찾는 게 리뷰의 본령.
+step 문서의 PASS 는 *주장*이다. 리뷰의 권위는 **실물 코드(현재 `src/*.js` + `engine/*.js`) + run.js 재현 + grep 감사**다. "문서가 PASS 라 함"으로 닫지 마라 — 직접 돌려 수치를 인용하고, 코드 라인(`src/<box>.js:line`)으로 알리바이를 댄다. 문서-코드 불일치를 찾는 게 리뷰의 본령.
 
-> **복사 전진 구조 유의**: HktInfra 는 step 마다 `step-NNNN/` 디렉토리 통째를 동결 스냅샷으로 복사 전진한다(anti-DRY). 따라서 *닫힌 step 폴더가 곧 그 step 의 역사 기록*이라 알리바이가 모호하지 않다 — 어떤 박스를 *더한* step 의 스냅샷(`step-NNNN/<box>.js:line`)을 가리킨다. 안정화돼 `engine/` 으로 승격된 부품은 `engine/<part>.js:line`. (HGO 의 단일 누적 파일과 다른 점 — 묶음 감사는 그 묶음의 *해당 step 스냅샷*을 알리바이로 쓴다.)
+> **단일 src 구조 유의 (0049 src/ 전환·이후 archive 폐기)**: HktInfra 는 더 이상 step 마다 `step-NNNN/` 디렉토리를 복사 전진하지 않는다 — 코드는 단일 살아있는 소스 `src/`(박스 1개=파일 1개) 한 곳에서 *제자리 수정*되고, 옛 동결 스냅샷 사슬은 삭제됐다. 따라서 알리바이는 *현재 코드*를 가리킨다: 어떤 불변이 걸린 메커니즘은 그게 사는 `src/<box>.js:line`(누적 코드 — 전 step 의 기능이 한 파일에 공존), 승격분은 `engine/<part>.js:line`. *그 step 이 더한 정확한 델타*가 필요하면 git 으로 캔다(`git log --oneline -- src/<box>.js` → `git show <commit>`). 역사 보존 = git 커밋(+ 이 reviews/ 원장). (HGO 의 단일 누적 파일과 같은 모델로 수렴 — 알리바이는 현재 누적 코드 + git 델타.)
 
 ## 1. 읽기 — 허용 목록만
 
 **필독**: `SPINE.md`(§5 척추 체크 5불변·§6 6계층·§2 박스별 책임) · `CLAUDE.md`(검증 4기둥) · `STATE.md`(§7 INDEX 로 묶음 범위 확인·§5 6계층 진행) · `reviews/README.md`(열린 이슈 원장) · `reviews/progress/`(직전 박스별 진행 — 이번 묶음이 건드린 박스 항목을 이어 그린다).
 
-**묶음 step 문서**: 그 10개 `step-NNNN.md`(+ 필요 시 `step-NNNN-concepts.md`) 만(전체 읽기 OK — 리뷰 대상). 묶음 밖 옛 step 문서는 읽지 마라.
+**묶음 step 문서**: 그 10개 `step-NNNN.md` 만(전체 읽기 OK — 리뷰 대상). 묶음 밖 옛 step 문서는 읽지 마라.
 
-**실물 코드(부분 읽기)**: 그 묶음이 더한 박스를 *해당 step 스냅샷*(`step-NNNN/<box>.js`)·승격분(`engine/*.js`)에서 Grep/offset 으로 *해당 함수만*. 전체 통독 금지(큰 파일). 회귀 가드(플래그=0 → early-return)·권위 쌍 거래(release+acquire)·결정론(시드 PRNG·`Math.random` 0)이 실제로 걸렸는지 *눈으로* 확인.
+**실물 코드(부분 읽기)**: 그 묶음이 더한 박스를 *현재* `src/<box>.js`·승격분(`engine/*.js`)에서 Grep/offset 으로 *해당 함수만*. 전체 통독 금지(큰 파일). *그 step 의 델타*가 모호하면 `git log -- src/<box>.js`/`git show` 로 캔다. 회귀 가드(플래그=0 → early-return)·권위 쌍 거래(release+acquire)·결정론(시드 PRNG·`Math.random` 0)이 실제로 걸렸는지 *눈으로* 확인.
 
 ## 2. 더할 것은 셋 — 복사·누적 폐기
 
@@ -46,8 +46,8 @@ step 문서의 PASS 는 *주장*이다. 리뷰의 권위는 **실물 코드(닫�
 
 > **narrative 금지**: "각 step 이 뭘 했나" 요약표를 두지 않는다(진행 지도·STATE INDEX 와 중복). 맨 위 한 줄로 *범위 + `progress/` 링크*만 가리키고 바로 감사로 들어간다.
 
-- **§1 척추 정합성** — SPINE §5 **5불변**(①신성한 tick ②결정론 코어 ③권위 단일소유 ④은닉·단일연결 ⑤headless·원격검증) 각각 판정(✅/🟡/🔴) + **코드 알리바이**(`step-NNNN/<box>.js:line` 또는 `engine/*.js:line`). 비판적으로 — 견고한 것은 견고하다 하고, 긴장·편차는 숨기지 말고 *이슈로 승격*. 회귀 0 규율·복사 전진 페이로드 유계(박스 30KB/디렉토리 300KB 예산) 구현 품질도 메타로.
-- **§2 검증 재현** — 대표 step 들 `node run.js <NNNN>`(+ 필요 모드) + `node run.js spine`(전 시리즈 회귀 사슬 — HGO 골든 등가·"어느 step 해시도 불변"의 증거) + grep 감사 실행 출력 인용. 풀 spine 사슬은 `run_in_background` 로.
+- **§1 척추 정합성** — SPINE §5 **5불변**(①신성한 tick ②결정론 코어 ③권위 단일소유 ④은닉·단일연결 ⑤headless·원격검증) 각각 판정(✅/🟡/🔴) + **코드 알리바이**(`src/<box>.js:line` 또는 `engine/*.js:line`). 비판적으로 — 견고한 것은 견고하다 하고, 긴장·편차는 숨기지 말고 *이슈로 승격*. 회귀 0 규율·박스 파일 유계(30KB 예산·초과 시 정리 step) 구현 품질도 메타로.
+- **§2 검증 재현** — 대표 step 들 `node run.js <NNNN>`(현재 step 만 가능 — archive 폐기) + `node run.js spine`(src 누적 회귀 — 전 역사 불변을 *현재 코드*에 단언·"어느 불변도 안 깨졌다"의 증거) + grep 감사 실행 출력 인용. 풀 spine 은 `run_in_background` 로.
 - **§3 이슈 → 후속 step 연결** — 표(#|이슈|항|상태|목적지→게이트/해소). **이게 이 스킬의 요지**(아래 §4).
 
 ### grep 감사 항목 (5불변 위반 탐지)
@@ -82,17 +82,17 @@ step 사슬은 *나열*이 아니라 *성장 이야기*로 — "VM → 복제 �
 ## 5. 닫기 체크리스트
 
 1. 감사 §2 검증 재현 전부 실행·인용(spine 사슬 ALL OK 포함) — 미실행 추정 금지.
-2. 감사 §1 척추 5불변 판정마다 코드 알리바이(`step-NNNN/<box>.js:line` 또는 `engine/*.js:line`) 1개 이상.
+2. 감사 §1 척추 5불변 판정마다 코드 알리바이(`src/<box>.js:line` 또는 `engine/*.js:line`) 1개 이상.
 3. 감사 §3 모든 이슈가 후속 step 에 연결됨(해소 게이트 step or 원장 이월+목적지·게이트).
 4. 감사 문서에 narrative 요약표 없음(범위 한 줄 + `progress/` 링크만) — 중복 0.
 5. `reviews/README.md` §1 감사 인덱스 append + §2 원장 갱신(해소 떨굼·신규 이월).
 6. **`reviews/progress/` 갱신** — 이번 묶음이 건드린 박스 항목을 해당 계층 파일에 직관적으로 반영(+ 필요 시 `progress/README.md` 상태 맵). 덮어쓰기·매 리뷰 필수·조건 없음. 진행 지도 없이는 리뷰를 닫지 않는다.
-7. **알리바이**: `git status` 에 `reviews/`(+스킬) 만 — `step-NNNN/`·`engine/`·`STATE.md`·`step-NNNN.md` diff **0**(리뷰는 인프라를 안 만진다). 잡히면 되돌려라.
+7. **알리바이**: `git status` 에 `reviews/`(+스킬) 만 — `src/`·`engine/`·`STATE.md`·`step-NNNN.md` diff **0**(리뷰는 인프라를 안 만진다). 잡히면 되돌려라.
 
 ## 금지 사항 (비용·정합 함정)
 
 - **문서 PASS 를 그대로 베끼지 않는다** — 직접 run.js 재현·grep 감사로 확인.
-- **STATE·step 스냅샷·engine·step 문서를 고치지 않는다** — 리뷰는 읽기 회고 + 원장·진행 지도 쓰기뿐(권고는 원장에).
+- **STATE·src·engine·step 문서를 고치지 않는다** — 리뷰는 읽기 회고 + 원장·진행 지도 쓰기뿐(권고는 원장에).
 - **이슈를 후속 step 연결 없이 남기지 않는다**(§4 불가침) — 떠다니는 이슈 = 미완 리뷰.
 - **진행 지도 갱신을 거르지 않는다**(§3.5) — 매 리뷰가 건드린 박스 항목을 `reviews/progress/` 에 갱신한다(트리거·조건·예외 없음). 감사만 하고 진행을 안 그리면 미완 리뷰.
 - **진행 지도를 한 파일에 몰지 않는다** — 주제(계층)별 파일·박스 단위(§3.5). 박스 항목은 *직관적 성장 이야기*만(점적 step 전문은 감사·step 문서).

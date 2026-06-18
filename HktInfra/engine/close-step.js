@@ -4,13 +4,13 @@
  *
  * 사용: node engine/close-step.js [NNNN] [--no-spine]
  *   NNNN 생략 시 src/STEP(현재 step 권위·0049 단일 src/ 전환). --no-spine 은 작업 중 빠른 반복용(닫기 전 최종 1회는 spine 포함 필수).
- *   통과(exit 0) 후 에이전트가 할 일: 델타 커밋 + `git tag step-NNNN`(역사 고고학 보존 — 동결 step-NNNN/ 디렉토리를 대신한다).
+ *   통과(exit 0) 후 에이전트가 할 일: 델타 커밋 + `git tag step-NNNN`(역사 고고학 보존 — git + reviews/ 가 옛 동결 step-NNNN/ 디렉토리를 대신한다).
  *
  * 하는 일(기계 판정 가능분):
  *   1. node run.js          — 현재 step 4기둥 (exit 0)
- *   2. node run.js spine    — 전 시리즈 회귀 사슬 (exit 0)
- *   3. 크기 예산 — STATE.md ≤ 30KB · step-NNNN.md ≤ 18KB · step-NNNN-concepts.md ≤ 10KB
- *   4. 산출물 존재 — step-NNNN.md · step-NNNN-concepts.md (골격 TODO 잔존 검사 포함)
+ *   2. node run.js spine    — src 누적 회귀(전 역사 불변을 현재 코드에 단언) (exit 0)
+ *   3. 크기 예산 — STATE.md ≤ 30KB · step-NNNN.md ≤ 18KB
+ *   4. 산출물 존재 — step-NNNN.md (골격 TODO 잔존 검사 포함)
  *   5. STATE.md §7 INDEX 에 [NNNN](step-NNNN.md) 행 존재
  *
  * 하지 않는 일(에이전트 판단): 척추 체크 5항의 *설계* 판정 · 문서 수치 == verify 출력 대조 · §1~6 내용 갱신.
@@ -38,7 +38,6 @@ console.log(`== close-step step-${N} — 닫기 게이트(기계 판정분) ==`)
 const budgets = [
   ['STATE.md', 30 * 1024],
   [`step-${N}.md`, 18 * 1024],
-  [`step-${N}-concepts.md`, 10 * 1024],
 ];
 for (const [f, max] of budgets) {
   const p = path.join(ROOT, f);

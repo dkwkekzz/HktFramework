@@ -4,11 +4,11 @@
 //  HktInfra/run.js — 단일 진입점 (TESTBED.md §4)
 //   단일 살아있는 소스 src/ 앞에 서는 얇은 오케스트레이터 (0049 전환 — 복사 전진 폐기).
 //   "살아있다 = 손수정 없이 자동으로 최신을 가리킨다" — 현재 step 은 src/STEP 으로 탐지(권위는 STATE.md, 어긋나면 경고).
-//   직전 step 동결 스냅샷은 baseline/(reg 대조·회전 1벌), 역사 코드 사슬은 archive(step-0001..0048/).
+//   직전 step 동결 스냅샷은 baseline/(reg 대조·회전 1벌). 역사 코드 사슬(archive step-NNNN/)은 폐기 — 역사는 git + reviews/ 가 보존.
 //
 //   모드 (TESTBED §4):
 //     node run.js                  → 현재 step `verify.js all` 실행·exit code 전파  (에이전트: 검증 권위)
-//     node run.js spine            → step-0001..NNNN 회귀 사슬(각자 reg/det/repro 자동) 한 줄 요약 (에이전트: 회귀)
+//     node run.js spine            → src 누적 회귀(reg + 전 가설 모드)로 전 역사 불변을 현재 코드에 단언 (에이전트: 회귀)
 //     node run.js <NNNN> [mode]    → 특정 step·모드 지정 실행(디버깅)                 (에이전트)
 //     node run.js report [scen]    → 현재 step 을 headless 녹화 → 자기완결 report.html (사람: 시각화, §5)
 //     node run.js scenario <file>  → 시나리오를 레코더와 *같은 번역기*로 돌려 trace 4기둥 단언 (에이전트: §5-4·§10-4)
@@ -25,19 +25,11 @@ const { spawnSync } = require('child_process');
 const ROOT = __dirname;
 
 // ── 현재 step 자동 탐지 (파일시스템 사실 — 결정적) ─────────────────────────
-function listSteps() {
-  return fs.readdirSync(ROOT)
-    .map(n => /^step-(\d{4})$/.exec(n))
-    .filter(Boolean)
-    .map(m => ({ num: parseInt(m[1], 10), name: m[0], dir: path.join(ROOT, m[0]) }))
-    .filter(s => fs.existsSync(path.join(s.dir, 'verify.js')))
-    .sort((a, b) => a.num - b.num);
-}
 function stepDir(num) { return path.join(ROOT, 'step-' + String(num).padStart(4, '0')); }
 
 // ── 현재 step = 단일 살아있는 소스 src/ (0049 전환) ──────────────────────────
 //   복사 전진(동결 step-NNNN/ 통째)을 폐기하고, 코드는 src/ 한 곳에서 *제자리 수정*한다.
-//   직전 step 의 동결 스냅샷은 baseline/(회전·reg 대조용)에 1벌만 둔다. 역사 코드 사슬은 archive(step-0001..0048/)가 보존.
+//   직전 step 의 동결 스냅샷은 baseline/(회전·reg 대조용)에 1벌만 둔다. 옛 역사 코드 사슬(archive step-NNNN/)도 폐기 — 역사는 git + reviews/, 전 역사 불변은 spine(src 누적 회귀)이 단언.
 const SRC = path.join(ROOT, 'src');
 function currentStep() {
   let num = null;
@@ -53,28 +45,6 @@ function stateNow() {
     const m = /닫힌 step\*\*:\s*\[step-(\d{4})\]/.exec(t);
     return m ? parseInt(m[1], 10) : null;
   } catch { return null; }
-}
-
-// verify.js 가 *지원하는 모드 토큰*을 정적 스캔으로 추출 ("살아있다" — 하드코딩 맵 없음).
-//   `mode === 'x'` 분기 + `const MODES = { x, y }` 객체 키 둘 다 모은다.
-function modesOf(dir) {
-  let src = '';
-  try { src = fs.readFileSync(path.join(dir, 'verify.js'), 'utf8'); } catch { return []; }
-  const set = new Set();
-  for (const m of src.matchAll(/mode\s*===\s*['"]([a-z0-9]+)['"]/g)) set.add(m[1]);
-  const mo = /const\s+MODES\s*=\s*\{([^}]*)\}/.exec(src);
-  if (mo) for (const k of mo[1].split(',')) {
-    const kk = k.trim().split(':')[0].trim();
-    if (/^[a-z0-9]+$/.test(kk)) set.add(kk);
-  }
-  return [...set];
-}
-// 회귀 사슬용 모드 선택: reg > det > repro > all (있는 것 중 첫째).
-//   0002+ 는 reg, 0001 은 det, 0005(경량 라우터·비트결정론 미사용)는 repro 로 자동 낙착.
-function spineMode(dir) {
-  const avail = modesOf(dir);
-  for (const m of ['reg', 'det', 'repro', 'all']) if (avail.includes(m)) return m;
-  return 'all';
 }
 
 function verifyArgs(dir, mode, seed) {
@@ -111,39 +81,26 @@ function cmdDefault() {
 // 특정 step·모드
 function cmdStep(num, mode) {
   const cur = currentStep();
-  const dir = (cur.num === num) ? cur.dir : stepDir(num);   // 현재 step(0049+)은 src/, 그 외는 archive
-  if (!fs.existsSync(path.join(dir, 'verify.js'))) { console.error(`step-${num} verify.js 없음`); return 2; }
+  const dir = (cur.num === num) ? cur.dir : stepDir(num);   // 현재 step 은 src/. 그 외 번호는 archive 폐기로 더는 없음(아래에서 graceful 에러)
+  if (!fs.existsSync(path.join(dir, 'verify.js'))) { console.error(`step-${num} verify.js 없음 (현재 step=${cur.num} 만 실행 가능 — archive 폐기)`); return 2; }
   const m = mode || 'all';
   console.log(`▶ step-${String(num).padStart(4, '0')} · verify ${m}\n`);
   const r = runVerify(dir, m);
   return r.status == null ? 1 : r.status;
 }
 
-// spine: 전 사슬 회귀 한 줄 요약 (각 step reg/det/repro 자동)
-//   archive(step-0001..0048/ 동결 코드 사슬) + 현재 src/(reg=vs baseline). 0049 단일 src/ 전환 후
-//   신규 step 은 src/ 한 곳에서 굴러가므로, src 의 누적 모드(reg+가설)가 *현재 코드*에 전 역사 불변을 단언한다(역사 사슬보다 강함).
+// spine: 단일 src 누적 회귀 — 전 역사 불변을 *현재 코드*에 단언 (archive 사슬 폐기 후)
+//   0049 단일 src/ 전환 이후 코드는 src/ 한 곳에서 제자리 수정되고, 안정화된 가설은 engine/verify-kit.js 의
+//   누적 모드(reg + wquorum + … + repro)로 승격된다. 이 누적 모드 전부(+ 이 step 의 새 가설)를 `verify.js all`
+//   로 현재 코드에 돌리면 "지금 코드가 전 역사 불변을 하나도 깨지 않는가"가 한 번에 증명된다 —
+//   step-NNNN/ 동결 스냅샷을 일일이 재실행하던 옛 사슬보다 강하다(현재 코드에 직접 단언하므로). 역사 보존은 git + reviews/.
 function cmdSpine() {
-  const archive = listSteps();
   const cur = currentStep();
-  const haveSrc = fs.existsSync(path.join(cur.dir, 'verify.js'));
-  if (!archive.length && !haveSrc) { console.error('step 없음'); return 2; }
+  if (!fs.existsSync(path.join(cur.dir, 'verify.js'))) { console.error('src/verify.js 를 찾지 못했습니다.'); return 2; }
   warnStateDrift(cur.num);
-  console.log('▶ spine — 전 시리즈 회귀 사슬 (archive 동결 코드 + 현재 src·각 회귀 모드 자동)\n');
-  console.log('  step       | mode   | 결과');
-  console.log('  -----------+--------+------');
-  let failed = 0, n = 0;
-  const chain = [...archive];
-  if (haveSrc) chain.push({ name: cur.name + ' (src)', dir: cur.dir });
-  for (const s of chain) {
-    const mode = spineMode(s.dir);
-    const r = runVerify(s.dir, mode, { capture: true });
-    const ok = r.status === 0; n++;
-    if (!ok) failed++;
-    const tail = (r.stdout || '').trim().split('\n').filter(l => /결과:/.test(l)).pop() || '';
-    console.log(`  ${s.name.padEnd(10)} | ${mode.padEnd(6)} | ${ok ? 'OK  ' : 'FAIL'}  ${ok ? '' : tail}`);
-  }
-  console.log('\n' + (failed ? `결과: FAIL (${failed} step 회귀 깨짐)` : `결과: ALL OK (${n} step 비트 사슬 통과)`));
-  return failed ? 1 : 0;
+  console.log(`▶ spine — 단일 src 누적 회귀 (${cur.name}/src · 누적 모드 전부 = 전 역사 불변을 현재 코드에 단언)\n`);
+  const r = runVerify(cur.dir, 'all');
+  return r.status == null ? 1 : r.status;
 }
 
 // ════════════════════════════════════════════════════════════════════════

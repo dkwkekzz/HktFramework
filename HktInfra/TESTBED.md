@@ -75,15 +75,15 @@
 
 ### 현재 step 자동 탐지
 
-현재 step 은 `src/STEP`(현재 step 번호의 단일 권위)으로 본다. 코드는 `src/` 한 곳에서 제자리 수정되고, 직전 step 동결 스냅샷은 `baseline/`(reg 대조·회전 1벌), 역사 코드 사슬은 archive `step-0001..0048/`(0049 전환 시점 동결)에 산다. STATE.md §1 NOW 와 어긋나면 STATE 가 권위(경고 출력).
+현재 step 은 `src/STEP`(현재 step 번호의 단일 권위)으로 본다. 코드는 `src/` 한 곳에서 제자리 수정되고, 직전 step 동결 스냅샷은 `baseline/`(reg 대조·회전 1벌)에 산다. 옛 역사 코드 사슬(archive `step-0001..0048/`)은 폐기 — 역사는 git 커밋 + `reviews/` 가 보존하고, 전 역사 불변은 spine 의 src 누적 회귀가 현재 코드에 직접 단언한다. STATE.md §1 NOW 와 어긋나면 STATE 가 권위(경고 출력).
 
 ### 모드
 
 | 명령 | 동작 | 소비자 |
 |---|---|---|
 | `node run.js` (기본) | 현재 step(`src/`) `verify.js all` 실행·집계·**exit code 전파** | 에이전트(검증 권위) |
-| `node run.js spine` | archive(step-0001..0048 동결 코드) + 현재 `src` 각자 회귀 모드 — 전 사슬 한 줄 요약 | 에이전트(회귀) |
-| `node run.js <NNNN> [mode]` | 특정 step·모드 지정 실행(현재 번호=src/, 그 외=archive·디버깅) | 에이전트 |
+| `node run.js spine` | 현재 `src` 누적 회귀(reg + 전 가설 모드 = `verify.js all`) — 전 역사 불변을 현재 코드에 단언 | 에이전트(회귀) |
+| `node run.js <NNNN> [mode]` | 특정 모드 지정 실행 — 현재 번호만(src/). 그 외 번호는 폐기(archive 없음) | 에이전트 |
 | **`node run.js report [scenario]`** | 현재 step(`src/`) `runMulti`(실 멀티프로세스) 를 headless 녹화 → 자기완결 `report.html` 생성 (§5) | 사람(시각화) |
 
 `report` 외 모드는 stdout 텍스트 + exit code — 에이전트가 읽고 판정. `report` 만 html 산출물을 만든다(그래도 생성은 headless).

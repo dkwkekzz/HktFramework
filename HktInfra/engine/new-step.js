@@ -8,11 +8,11 @@
  *   1. src/*.js → baseline/ 스냅샷(덮어쓰기) — 직전 step(= 지금 닫힌 src) 을 reg 대조용 *동결 1벌*로 굳힌다.
  *      (verify.js 의 NETPREV 는 항상 ../baseline/net-core.js — 더 이상 step 번호 치환 없음 = churn 0.)
  *   2. src/STEP 을 NNNN 으로 전진(현재 step 번호의 단일 권위).
- *   3. step-NNNN.md + step-NNNN-concepts.md 골격 생성 (CLAUDE.md 필수 절 목차).
+ *   3. step-NNNN.md 골격 생성 (CLAUDE.md 필수 절 목차). 직관 정리는 concepts 가 아니라 reviews/ 묶음 감사로 일원화.
  *
  * 하지 않는 일: 코드 복사·박스 헤더 치환(박스 파일의 step 번호 = *마지막 수정 step* 으로 둔다 = 의미 있는 기록)·
  *   새 프로토콜/박스 로직·STATE.md 갱신 — 그건 에이전트의 일(src/ 의 닿는 박스 파일만 Edit + verify 셸에 새 모드).
- * 안전: md/concepts 가 이미 있으면 중단(덮어쓰지 않음). baseline 스냅샷은 src 가 지금 *닫힌* 상태일 때만 의미 있다.
+ * 안전: md 가 이미 있으면 중단(덮어쓰지 않음). baseline 스냅샷은 src 가 지금 *닫힌* 상태일 때만 의미 있다.
  */
 const fs = require('fs');
 const path = require('path');
@@ -31,10 +31,7 @@ if (!Number.isInteger(next) || next <= curNum) { console.error(`잘못된 step �
 
 const C = pad(curNum), N = pad(next);
 const nextMd = path.join(ROOT, `step-${N}.md`);
-const nextConcepts = path.join(ROOT, `step-${N}-concepts.md`);
-for (const f of [nextMd, nextConcepts]) {
-  if (fs.existsSync(f)) { console.error('이미 존재: ' + f + ' — 중단(덮어쓰지 않음)'); process.exit(1); }
-}
+if (fs.existsSync(nextMd)) { console.error('이미 존재: ' + nextMd + ' — 중단(덮어쓰지 않음)'); process.exit(1); }
 
 // 1. src/*.js → baseline/ 스냅샷 (직전 step 동결 — reg 대조 대상)
 fs.mkdirSync(BASELINE, { recursive: true });
@@ -86,30 +83,15 @@ fs.writeFileSync(nextMd, `# step-${N} — (TODO: 제목 — 더한 한 조각 �
 ## 다음 (권위는 [STATE.md](STATE.md) §2)
 `);
 
-fs.writeFileSync(nextConcepts, `# step-${N} concepts — (TODO: 영어 제목)
-
-> 정식 기록: [step-${N}.md](step-${N}.md) · 현재 위치: [STATE.md](STATE.md)
-
-## 개념 한눈표
-
-| 개념 | 한 줄 정의 | 이 step 에서의 위치 |
-|------|-----------|---------------------|
-| | | |
-
-## 1. (TODO: 핵심 개념 — 무엇을·왜·어떻게 검증했나)
-
-## 한 줄 요약
-`);
-
 console.log(`스캐폴드 완료: step-${C} → step-${N} (단일 src/ 모델)
   baseline 스냅샷: src/*.js → baseline/ (${snapped.length}개 박스 — 직전 step 동결·reg 대조)
   src/STEP: ${C} → ${N}
-  생성: step-${N}.md · step-${N}-concepts.md
+  생성: step-${N}.md
 
 남은 일 (에이전트 — src/ 의 닿는 박스 파일만 Edit, 통복사 없음):
   1. src/<박스>.js — 이번 한 조각의 프로토콜/박스 + OFF 플래그 (수정한 파일 헤더만 step-${N} 으로 갱신)
   2. src/verify.js — 이번 step 의 새 가설 모드로 교체(kit.MODES['<mode>']=fn·kit.ORDER.splice). NETPREV 는 ../baseline 고정(불변).
-  3. step-${N}.md / step-${N}-concepts.md — 골격 채우기 (수치 = verify 출력)
+  3. step-${N}.md — 골격 채우기 (수치 = verify 출력)
   4. node run.js && node run.js spine 통과 확인 (reg = src vs baseline 비트 동일)
   5. STATE.md §1~6 갱신 + §7 INDEX 1줄 append
   6. node engine/close-step.js (닫기 게이트) → 통과 시 git tag step-${N}`);

@@ -10,8 +10,8 @@
 ## 1. NOW
 
 - **닫힌 step**: [step-0050](step-0050.md) — **적응형 leaseSpan**(busLeaseAdapt·소비자 lease 축출 임계를 관측 ack cadence 로 self-size·0048 §9 해소). 고정 leaseSpan 은 *모르는* 정상 cadence 보다 커야 산 소비자를 안 쫓는다 → 소비자가 ack 할 때마다 그 직전 침묵(살아서 견딘 cadence)을 per-c 러닝 최대 `consumerMaxGap` 로 학습 → 임계=consumerMaxGap+leaseSpan(여유 마진). 닿는 박스: svc-inventory-core/bus·topo-build.
-- **한 줄 상태**: reg ALL OK(src=baseline=0049 비트 동일·월드해시 5시드 `0x881d9b53`(zones1)… 보존)·E2E 14프로세스 비트동일·adapt: live 고정 OFF flapping ev∝생산량(6→26) vs 적응 ON 정착 ev=O(1)(1)·죽은 소비자 여전히 축출 peak 30(유계) vs no-lease 156·minted 보존·spine archive 48+src ALL OK.
-- **다음**: §2 참조 — per-producer ack 워터마크(다중 게이트웨이) · give×result-ahead · cadence EWMA 감쇠/시작 grace prior(0050 §9) · 비동기 결정론(🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **한 줄 상태**: reg ALL OK(src=baseline=0049 비트 동일·월드해시 5시드 `0x881d9b53`(zones1)… 보존)·E2E 14프로세스 비트동일·adapt: live 고정 OFF flapping ev∝생산량(6→26) vs 적응 ON 정착 ev=O(1)(1)·죽은 소비자 여전히 축출 peak 30(유계) vs no-lease 156·minted 보존·spine src 누적 ALL OK(archive 폐기).
+- **다음**: §2 참조(per-producer ack 워터마크 · cadence EWMA 감쇠/grace prior(0050 §9) · 비동기 결정론🔴 …). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
@@ -25,7 +25,7 @@
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049 전환)**: `engine/` = `index.js`(VM 커널·PRNG·FNV·`Net`·스텁·동결 `ISimCore`)·`panel-kit.js`·`verify-kit.js`(누적 회귀 팩토리·모드 제거 금지/추가만)·`close-step.js`·`new-step.js`. 코드는 **`src/`(박스 26파일·제자리 수정)** + `src/STEP`(현재 step 권위) + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌). 코어 **dual-mode**. **step 절차**: ① `new-step.js`(src→baseline 스냅샷·STEP 전진·코드 복사 0) ② src/ 의 닿는 박스만 Edit + verify 셸에 새 모드만 `kit.MODES['<mode>']=fn`·`kit.ORDER.splice`(가설 모드는 셸 한정·키트엔 누적 회귀만) ③ `close-step.js` 닫기 ④ **델타 1커밋 + `git tag step-NNNN`**(역사 보존). 정리 step: 0030·0035·0038·0043·**0049**(기능 0·reg 0).
 
-**TESTBED 도구(0010 후·0049 src/ 재배선)**: `run.js`(단일 진입점 — `node run.js`=src/·`spine`=archive+src·`<NNNN>`·`report`·`scenario`·`live`. 현재 step=`src/STEP`) + `report.html`(녹화 레코더·AOI 맵) + `live.js`(SSE). 훅 `onTick`·`scenario <file>`(trace 4기둥)·`inject`(write-seam·미제공=no-op→reg 0) ✅. 새 박스 추가 시 run.js 의 addr→layer 맵만 갱신.
+**TESTBED 도구(0049 src/ 재배선·archive 폐기)**: `run.js`(단일 진입점 — `node run.js`=src/·`spine`=src 누적 회귀(전 역사 불변 단언)·`<NNNN>`(현재 step만)·`report`·`scenario`·`live`. 현재 step=`src/STEP`) + `report.html`(녹화 레코더·AOI 맵) + `live.js`(SSE). 훅 `onTick`·`scenario <file>`(trace 4기둥)·`inject`(write-seam·미제공=no-op→reg 0) ✅. 새 박스 추가 시 run.js 의 addr→layer 맵만 갱신.
 
 ---
 

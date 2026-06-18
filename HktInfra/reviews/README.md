@@ -2,7 +2,7 @@
 
 > HktInfra 시리즈의 닫힌 step 을 *위 고도*에서 본다. step 문서가 *한 조각을 어떻게 구현했나*라면, reviews 는 *왜·정합한가·목표에 얼마나 왔나*를 푼다. 방법·포맷은 `.claude/skills/infra-review/SKILL.md`.
 >
-> 판정은 PASS 주장이 아니라 **실물 코드(닫힌 `../step-NNNN/*.js` 스냅샷 + `../engine/*.js`) + run.js 재현**으로. 닫힌 문서는 불변(역사) — 단 §2 열린 이슈 원장만 갱신(해소분 떨굼).
+> 판정은 PASS 주장이 아니라 **실물 코드(현재 `../src/*.js` + `../engine/*.js`, 필요시 git 델타) + run.js 재현**으로. 닫힌 문서는 불변(역사) — 단 §2 열린 이슈 원장만 갱신(해소분 떨굼).
 >
 > 권위 분리: 현재·다음 = [../STATE.md](../STATE.md) · 척추 = [../SPINE.md](../SPINE.md) · 6계층 arc = SPINE §6. reviews 는 **읽기 회고 + 전방 권고**일 뿐 STATE 를 대체하지 않는다. 찾은 load-bearing 이슈는 §2 원장에 권고로 쌓이고, step-loop(`infra-step`)이 그걸 *읽어* STATE §2/§3 로 승급·구현한다(전파 고리, §2).
 
@@ -65,5 +65,5 @@
 
 - **10 step = 1 리뷰·십진 경계 정렬**(0001–0010 · … · 0031–0040 · 0041–0050 …). 한 묶음은 NNN1~NNN0 십진 단위로 끊는다.
 - 리뷰는 **닫힌 step 만** 다룬다(STATE NOW 가 가리키는 미닫힘 step 제외).
-- HktInfra 는 step 마다 `step-NNNN/` 디렉토리 통째를 동결 스냅샷으로 복사 전진한다 — 알리바이는 그 박스를 *더한* step 의 스냅샷(`../step-NNNN/<box>.js:line`)을, 승격분은 `../engine/*.js:line` 을 가리킨다.
-- 검증 재현의 골든 등가물은 `node run.js spine`(전 시리즈 회귀 사슬) — ALL OK 가 "어느 step 해시도 불변"의 증거다.
+- HktInfra 는 코드를 단일 살아있는 소스 `../src/`(박스 1개=파일 1개) 한 곳에서 *제자리 수정*한다(0049 전환·이후 archive 폐기). 알리바이는 *현재 코드*를 가리킨다 — 불변이 사는 `../src/<box>.js:line`(누적 코드)·승격분 `../engine/*.js:line`. *그 step 의 정확한 델타*가 필요하면 git(`git log -- src/<box>.js`/`git show`).
+- 검증 재현의 골든 등가물은 `node run.js spine`(src 누적 회귀 — reg+전 가설 모드) — ALL OK 가 "전 역사 불변이 현재 코드에서 하나도 안 깨졌다"의 증거다.

@@ -65,14 +65,14 @@
 step마다 다음 산출물을 만든다.
 
 - `step-NNNN.md` — 문서. 도입부에 "6요소 지도" 표, 가설·검증 결과·다음 예고를 담는다.
-- `step-NNNN-concepts.md` — **개념 해설 문서**(step-0010 수립·이후 필수). `step-NNNN.md` 가 압축적·전문적 *정식 기록*이라면, 이 문서는 그 step 이 다루는 *핵심 개념*("무엇을·왜·어떻게 검증했나")을 풀어 설명한다. 제목·파일명은 영어(`step-NNNN-concepts.md`), 본문은 한국어. 도입부에 *개념 한눈표*(개념 → 한 줄 정의 → 이 step 에서의 위치)를 두고, 각 개념의 정의·인프라에서의 의미·이번 step 에서의 위치를 푼다. 비유는 *보조*로만(개념 설명이 주). `step-NNNN.md`·[STATE.md](STATE.md) 와 상호 링크. 닫은 step 의 개념 문서도 *이후 수정하지 않는다*(그 step 의 기록).
+  > **개념 해설(`step-NNNN-concepts.md`)은 폐기**(src 단일화 정리). 직관·개념 정리는 step 마다 곁들이지 않고 **`reviews/` 묶음 감사**(`infra-review` 스킬, 10-step 묶음)로 일원화한다 — step 트랙은 *세우고 검증*, 리뷰 트랙은 *정합 감사 + 직관 정리*. 기존 50개 concepts 는 삭제됨(역사는 git + `reviews/`).
 - `src/net-core.js` (+ 박스 파일들) — 브라우저/Node 겸용 프로토타입 코어. **모든 인프라 로직이 사는 단일 살아있는 소스.** 박스 1개=파일 1개 분할 구조(`gateway.js`·`zone.js`·`svc-*.js`·`persist.js`·`client.js` + `topology.js` 배선·`metrics.js` 회계·`common.js`) — `net-core.js` 는 부품을 묶어 동일 export 를 노출하는 *진입점*. 새 step 은 *닿는 박스 파일만* 제자리 Edit 한다(통복사 0). **dual-mode 노출 필수**(아래) — Node `require` 와 브라우저 `<script>` 전역 둘 다.
 - `src/verify.js` — 헤드리스 검증 *셸*. 누적 회귀(reg + 잔존 가설 모드)는 **`engine/verify-kit.js`**(0030 승격·모드 제거 금지/추가만)가 들고, 셸은 ctx 구성 + *이번 step 의 새 모드*만 `kit.MODES['<mode>'] = fn` 으로 더해 `kit.cli()` 에 위임한다. **`NETPREV` 는 항상 `../baseline/net-core.js`**(직전 step 동결 스냅샷) — step 번호 치환 없음(0049 전환). 회귀·결정론 전파·권위보존·수렴(desync)을 수치로 출력.
 - `src/STEP` — 현재 step 번호의 단일 권위(`run.js`·`close-step.js` 가 읽음). `new-step.js` 가 전진.
-- `baseline/` — 직전 step 의 *동결 코드 스냅샷 1벌*(reg 대조 대상·`new-step.js` 가 회전). 역사 코드 사슬은 archive `step-0001..0048/`(0049 전환 시점 동결) 가 보존.
+- `baseline/` — 직전 step 의 *동결 코드 스냅샷 1벌*(reg 대조 대상·`new-step.js` 가 회전). 역사 코드 사슬(옛 archive `step-0001..0048/`)은 폐기(src 단일화 정리) — 역사는 git 커밋 + `reviews/` 묶음 감사가 보존하고, spine 은 src 누적 회귀가 전 역사 불변을 *현재 코드*에 직접 단언한다.
 - (선택) `src/panel.js` — **관찰 데이터 함수**(`compute()`: 파라미터→시계열, 토폴로지·대역폭·desync). `engine/panel-kit.js` 위에 올리되 **DOM·html 셸은 만들지 않는다** — 헤드리스 ASCII(`node panel.js`)와 testbed 레코더(`report.html`)가 *같은 `compute()`* 를 재사용한다. **`step-NNNN.html` 은 더 이상 만들지 않는다**(시각화는 단일 testbed 로 일원화 — [TESTBED.md](TESTBED.md)).
 
-> **관찰 데이터 규약 (step-0004 수립, html 셸 폐기 후 갱신)**: ⒜ **데이터 층은 환경 무관** — panel.js 의 `compute()`(파라미터→시계열)는 DOM 을 안 만지고, `node panel.js`(ANSI ASCII)와 testbed 레코더(`report.html`)가 *같은 함수*를 쓴다(UE-free 불변을 관찰 도구까지: 관찰 데이터도 헤드리스 재현). ⒝ **빌드/서버 0** — testbed `report.html` 은 `run.js report` 가 headless 로 *생성*한 자기완결 파일(인라인 데이터·fetch 없음 → 그냥 열기). step 마다 html 을 손으로 만들지 않는다. ⒞ **dual-mode 모듈** — `engine/index.js`·`step-NNNN/net-core.js` 끝에 `if (module) module.exports=…; if (globalThis) globalThis.HktX=…` 둘 다. 이 패턴을 깨면 reg 0 으로 즉시 잡힌다(래퍼만 바뀌므로 동작 불변).
+> **관찰 데이터 규약 (step-0004 수립, html 셸 폐기 후 갱신)**: ⒜ **데이터 층은 환경 무관** — panel.js 의 `compute()`(파라미터→시계열)는 DOM 을 안 만지고, `node panel.js`(ANSI ASCII)와 testbed 레코더(`report.html`)가 *같은 함수*를 쓴다(UE-free 불변을 관찰 도구까지: 관찰 데이터도 헤드리스 재현). ⒝ **빌드/서버 0** — testbed `report.html` 은 `run.js report` 가 headless 로 *생성*한 자기완결 파일(인라인 데이터·fetch 없음 → 그냥 열기). step 마다 html 을 손으로 만들지 않는다. ⒞ **dual-mode 모듈** — `engine/index.js`·`src/net-core.js` 끝에 `if (module) module.exports=…; if (globalThis) globalThis.HktX=…` 둘 다. 이 패턴을 깨면 reg 0 으로 즉시 잡힌다(래퍼만 바뀌므로 동작 불변).
 
 > **공통 하니스 엔진 (`engine/` — step-0004 추출 완료)**: 결정론 VM 커널·시드 PRNG·FNV·전송 모델 `Net`·엣지/코디 스텁·동결 `ISimCore`·관찰 키트(`panel-kit.js`)·누적 회귀(`verify-kit.js`)·스캐폴드/닫기 게이트(`new-step.js`·`close-step.js`)는 복제하지 않는다 — `engine/` 한 곳에 산다. 코드는 `src/` 한 곳에서 제자리 수정한다(0049 전환).
 
@@ -93,10 +93,11 @@ step마다 다음 산출물을 만든다.
 
 1. **읽기 (필독 3종)** — `CLAUDE.md`(목표·규칙) · **[SPINE.md](SPINE.md)(척추)** · `STATE.md`(현재 위치·다음 가설). **SPINE.md 숙지 없이 step 을 시작하지 않는다** — 한 조각이 큰 그림의 어느 박스/계약을 채우는지부터 본다.
 2. **계획** — `STATE.md` 의 "다음"이 지정한 *한 조각*만 이번 step으로 정한다. 더 떠올라도 다음으로 전가. 척추 체크 5항에 어긋나면 조각을 고쳐 잡는다.
-3. **구현** — 직전 step 프로토타입을 잇고 항을 *하나만* 더한다. **step 골격은 `node engine/new-step.js` 로 연다**(src/*.js → baseline/ 스냅샷 회전 + src/STEP 전진 + md/concepts 골격 — 코드 통복사 0). 산출물 작성: `src/` 의 *닿는 박스 파일만* 제자리 Edit + `src/verify.js` 셸에 이번 step 의 새 모드 추가(NETPREV 는 ../baseline 고정). 닫을 때 델타 커밋 + `git tag step-NNNN`(역사 보존).
-4. **검증** — `node HktInfra/run.js`(현재 step 검증) + `node HktInfra/run.js spine`(전 시리즈 회귀 사슬)로 가설 4기둥 + **척추 체크 5항**을 모두 통과시킨다(에이전트 자율, exit 0). 통과 못 하면 step을 닫지 않는다. *시각 확인이 필요하면* `node HktInfra/run.js report` 로 `report.html` 1장 생성(html 손작성 아님).
+3. **구현** — 직전 step 프로토타입을 잇고 항을 *하나만* 더한다. **step 골격은 `node engine/new-step.js` 로 연다**(src/*.js → baseline/ 스냅샷 회전 + src/STEP 전진 + md 골격 — 코드 통복사 0). 산출물 작성: `src/` 의 *닿는 박스 파일만* 제자리 Edit + `src/verify.js` 셸에 이번 step 의 새 모드 추가(NETPREV 는 ../baseline 고정). 닫을 때 델타 커밋 + `git tag step-NNNN`(역사 보존).
+4. **검증** — `node HktInfra/run.js`(현재 step 검증) + `node HktInfra/run.js spine`(src 누적 회귀 — 전 역사 불변을 현재 코드에 단언)로 가설 4기둥 + **척추 체크 5항**을 모두 통과시킨다(에이전트 자율, exit 0). 통과 못 하면 step을 닫지 않는다. *시각 확인이 필요하면* `node HktInfra/run.js report` 로 `report.html` 1장 생성(html 손작성 아님).
 5. **갱신** — 발견/한계의 *전문*은 이번 `step-NNNN.md` 에 기록한 뒤 `STATE.md` 를 갱신한다(§1~6 덮어쓰기 / §7 인덱스만 append). **시각화는 testbed 가 자동 반영하므로 손으로 그릴 그림(html)은 없다** — `SYSTEM.html`·`step-NNNN.html` 은 폐기됐다([TESTBED.md](TESTBED.md)).
-6. **개념 해설** — 이번 step 의 **`step-NNNN-concepts.md`** 를 작성한다(개념 한눈표 + 핵심 개념 풀이, 위 산출물 규약). 정식 기록(`step-NNNN.md`)이 *무엇을 했나*라면, 이 문서는 *그 개념이 무엇이고 왜 중요한가*를 푼다.
-7. **닫기** — **`node engine/close-step.js`**(0030 도입)로 기계 판정분(검증 exit 0·크기 예산·산출물 존재·STATE §7 행)을 한 줄로 통과시킨 뒤, step 문서 도입부 "6요소 지도" 표를 이번 step 기준으로 확정. 닫은 step 문서(`step-NNNN.md`·`step-NNNN-concepts.md`)는 이후 수정하지 않는다.
+6. **닫기** — **`node engine/close-step.js`**(0030 도입)로 기계 판정분(검증 exit 0·크기 예산·산출물 존재·STATE §7 행)을 한 줄로 통과시킨 뒤, step 문서 도입부 "6요소 지도" 표를 이번 step 기준으로 확정. 닫은 step 문서(`step-NNNN.md`)는 이후 수정하지 않는다.
+
+> **직관 정리는 별도 트랙(직교)** — step 루프는 *세우고 검증*만 한다. 개념·직관 정리와 척추 정합 감사는 닫힌 step 10개를 묶어 회고하는 **`reviews/` 묶음 감사**(`infra-review` 스킬)가 담당한다(옛 per-step `concepts.md` 를 대체).
 
 > 각 step 문서의 "다음" 절이 다음 한 조각을 제안하지만, **현재 위치와 다음 가설의 권위는 `STATE.md`** 다. 둘이 어긋나면 `STATE.md` 를 따른다.
