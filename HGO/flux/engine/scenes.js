@@ -152,6 +152,38 @@
     return { xi: +xi.toFixed(3), corr };
   }
 
+  // 창발 측정(arc D — 시간 척도 분리) — 구조 풍경을 확산 relaxation 하며 두 *공간* 척도의 진폭 시계열을
+  //   수집한다. 작은 척도(이웃 차 RMS = 고주파 거칢)는 큰 척도(B³ 블록 평균의 편차 RMS = 저주파 변동)보다
+  //   *빠르게* 감쇠한다 — 확산에서 모드 감쇠율 ∝ k²(작은 파장 = 큰 k = 급감). 1/e 도달 tick = τ.
+  //   이것이 "산(느림)과 물(빠름) 한 세계 공존"의 핵: 같은 한 규칙이 척도에 따라 다른 *시간* 척도로 푼다.
+  //   author 0: q 의 함수일 뿐(라벨 없음·분기 없음). 지연 sim 참조(보조 측정·메인 해시 무관).
+  function scaleSeparation(spec, ticks, block) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, B = block || 4, sim = SIM.createSim(spec);
+    const cols = sim.cols, rows = sim.rows, depth = sim.depth, a = sim.atoms, edges = sim.edges, n = a.length;
+    const idx = (c, r, z) => (z * rows + r) * cols + c;
+    // 작은 척도: 이웃 차 RMS(고주파 — 인접 셀 거칢). q 평형화의 가장 작은 파장.
+    const small = () => { let s = 0; for (let e = 0; e < edges.length; e++) { const d = (a[edges[e][0]].q - a[edges[e][1]].q) / S; s += d * d; } return Math.sqrt(s / edges.length); };
+    // 큰 척도: B³ 블록 평균의 전역 평균 대비 편차 RMS(저주파 — 큰 덩어리 변동).
+    const large = () => {
+      let gm = 0; for (let i = 0; i < n; i++) gm += a[i].q; gm /= n;
+      const bc = Math.ceil(cols / B), br = Math.ceil(rows / B), nb = bc * br * Math.ceil(depth / B);
+      const sum = new Float64Array(nb), cnt = new Float64Array(nb);
+      for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const b = (((z / B) | 0) * br + ((r / B) | 0)) * bc + ((c / B) | 0); sum[b] += a[idx(c, r, z)].q; cnt[b]++;
+      }
+      let ss = 0, m = 0; for (let b = 0; b < nb; b++) if (cnt[b]) { const dv = sum[b] / cnt[b] - gm; ss += dv * dv; m++; }
+      return Math.sqrt(ss / m) / S;
+    };
+    const sm = [small()], lg = [large()];
+    for (let t = 0; t < ticks; t++) { SIM.step(sim); sm.push(small()); lg.push(large()); }
+    const tau = ser => { const thr = ser[0] / Math.E; for (let t = 1; t < ser.length; t++) if (ser[t] <= thr) return +(t - 1 + (ser[t - 1] - thr) / (ser[t - 1] - ser[t])).toFixed(2); return ticks; };
+    const tauS = tau(sm), tauL = tau(lg);
+    return { tauSmall: tauS, tauLarge: tauL, ratio: +(tauL / tauS).toFixed(2),
+      small0: +sm[0].toFixed(4), smallEnd: +sm[sm.length - 1].toFixed(4),
+      large0: +lg[0].toFixed(4), largeEnd: +lg[lg.length - 1].toFixed(4) };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -282,6 +314,27 @@
           { name: '구조 척도(ξ>1: 여러 셀 상관)', pass: w1.xi > 1, value: `ξ(블롭)=${w1.xi}, corr=${JSON.stringify(w1.corr)}` },
           { name: '유한 척도(ξ<maxR: 무한상관 아님)', pass: w1.xi < 6, value: `ξ=${w1.xi} < maxR=6` },
           { name: '구조 vs 백색잡음(ξ_블롭 ≫ ξ_잡음)', pass: w1.xi > rough.xi, value: `ξ_블롭=${w1.xi} > ξ_잡음=${rough.xi}` },
+        ];
+      },
+    },
+
+    // ── step-0006: arc D — 시간 척도 분리(산 느림 + 물 빠름 공존) ── 새 법칙/노브 0(블롭 IC + θ=0 확산).
+    //   구조 풍경을 확산 relaxation 하며 두 공간 척도를 추적: 작은 척도(이웃 차)는 큰 척도(블록 변동)보다
+    //   먼저 평형된다. 확산 모드 감쇠율 ∝ k² → 같은 한 규칙이 척도에 따라 다른 *시간* 척도로 푼다 = 층 공존의 씨앗.
+    'step-0006': {
+      id: 'step-0006',
+      title: 'step-0006 — 척도 분리: 작은 척도 빠른 평형 + 큰 척도 느린 흐름',
+      desc: '같은 단일 규칙·구조 풍경(블롭)을 θ=0 확산으로 relaxation 한다(새 법칙·노브 0). 두 공간 척도의 진폭을 매 tick 추적하면 작은 척도(이웃 차 RMS=고주파)가 큰 척도(블록 평균 편차 RMS=저주파)보다 ~2배 빠르게 1/e 로 감쇠한다 — 확산 모드 감쇠율 ∝ k². 같은 한 규칙이 척도에 따라 다른 시간 척도로 풀린다는 측정: "산(느림)과 물(빠름)이 한 세계에 공존"의 토대(현상 지도 arc D).',
+      ticks: 200,
+      init(rng, K, opts) { return blobSpec(0.0, (opts && opts.scale) || 12); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const sep = scaleSeparation(blobSpec(0.0), 200, 4);   // 두 척도 시계열 수집(보조·결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '시간 척도 분리(작은 척도 먼저 평형: τ_small < τ_large)', pass: sep.tauSmall < sep.tauLarge, value: `τ_small=${sep.tauSmall} < τ_large=${sep.tauLarge}` },
+          { name: '분리비 유의(τ_large/τ_small > 1.5)', pass: sep.ratio > 1.5, value: `ratio=${sep.ratio}` },
+          { name: '두 척도 모두 확산 감쇠(>1/e 줄어듦)', pass: sep.smallEnd < sep.small0 / Math.E && sep.largeEnd < sep.large0 / Math.E, value: `small ${sep.small0}→${sep.smallEnd}, large ${sep.large0}→${sep.largeEnd}` },
         ];
       },
     },
