@@ -21,7 +21,7 @@
 
 상태 기호: ✅ 자라는 중(씨앗+능력 누적) · 🌱 씨앗만(계약만 섰음) · ⬜ 미착수(아직 박스 없음)
 
-> **기준선**: 닫힌 step **~0050**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론) · UE 모듈 링크 0 hit(headless) · 박스 파일 전부 <30KB(최대 svc-inventory-core 29.6KB) · zone 핸드오프 acquire/release 쌍 거래·failover 실재 · persist quorum write ack(`durableSeq`) 실재 · `node run.js spine` 전 사슬 회귀.
+> **기준선**: 닫힌 step **~0050**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론) · UE 모듈 링크 0 hit(headless) · 박스 파일 전부 <30KB(최대 svc-inventory-core 29.6KB) · zone 핸드오프 acquire/release 쌍 거래·failover 실재 · persist quorum write ack(`durableSeq`) 실재 · `node run.js spine` = **ALL OK(49 step 비트 사슬 통과·archive 0001~0048 + src 0050)**.
 
 ## 다음 큰 걸음 (직관)
 
