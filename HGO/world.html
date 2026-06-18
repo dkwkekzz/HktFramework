@@ -1,187 +1,30 @@
 <!DOCTYPE html>
-<!-- world.html — "간단한 세계" 데모 페이지(트랙 무관·HGO/ 루트).
-     atom 트랙이 step 으로 *완성한 법칙*을 그대로 켜서 작은 세계를 굴린다 — 새 법칙 0, atom/ 파일 안 건드림(읽기만).
-       · 두 환경: 좌측 차가운·조밀역(분자로 응결) / 우측 따뜻한·성긴역(기체로 자유)
-       · 다양한 분자: 무거운 C(Z=6, 원자가 4 = 허브) + 가벼운 H(Z=1, 원자가 1 = 말단) → 크기·모양 다른 분자 창발(author 아닌 측정)
-       · 상호작용: 부피 배제(pauli)·약한 인력(vdw)·점성(damp)·공유결합(bond)·결합 길이/각도(spring/angle)·해리(break)
-     spec 은 _worldproto.js 로 헤드리스 검증(분자 형성·bounded·결정론·E 드리프트 ~수%/1200tick). 시각화는 물리의 하류 — 색/형태는 sim 의 양을 읽어 번역만. -->
+<!-- world.html — "세계" 진입점(트랙 무관·HGO/ 루트).
+     옛 world.html 은 자체 캔버스 뷰어를 인라인 복제하고(SPINE §6.1 단일 뷰어 위반·render 트랙 우회),
+     과감쇠 저온 화학만 켜 "안 움직이는 바둑판"이 됐으며, 없는 `_worldproto.js` 로 검증한다고 적혀 있었다(거짓).
+     이제 이 파일은 *얇은 진입점*이다 — 통합 'world' 장면(scenes.js)을 정규 단일 뷰어 viewer.html 에서 연다.
+       · 'world' 장면 = 원자 트랙이 닫은 법칙을 한 무대서 동시에: 중력 응집 + 융합 핵합성(원소 색 이동) +
+         복사 순환 발광(λ=hc/ΔE 스펙트럼색) + 무거운 산물 분산. 새 법칙 0·골든 보존(회귀 0)·verify 4기둥 PASS.
+       · 시각화는 render 트랙(L-3d 카메라·L-element·L-λ·L-bond)이 구현 — 색·형태 author 0. -->
 <meta charset="utf-8">
-<title>HGO — 간단한 세계</title>
+<title>HGO — 세계(항성로)</title>
+<meta http-equiv="refresh" content="0; url=viewer.html#world">
 <style>
-  body { margin: 0; background: #07090f; color: #cdd6f4; font: 13px/1.55 ui-monospace, monospace; }
-  header { padding: 10px 14px; border-bottom: 1px solid #1b1f2c; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-  button { background: #181b27; color: #cdd6f4; border: 1px solid #313547; border-radius: 5px; padding: 5px 11px; font: inherit; cursor: pointer; }
-  button:hover { border-color: #585b70; }
-  input { background: #11131c; color: #cdd6f4; border: 1px solid #313547; border-radius: 5px; padding: 4px 6px; font: inherit; width: 5em; }
-  #wrap { display: flex; gap: 16px; padding: 14px; align-items: flex-start; flex-wrap: wrap; }
-  canvas { background: #04050a; border: 1px solid #1b1f2c; border-radius: 8px; }
-  #side { width: 320px; }
-  h3 { margin: .2em 0 .5em; }
-  .hud { white-space: pre-wrap; background: #0e1018; border: 1px solid #1b1f2c; border-radius: 8px; padding: 11px 13px; }
-  .hud b { color: #89b4fa; }
-  .legend { color: #7f849c; margin-top: 12px; font-size: 12px; }
-  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
-  .tick { color: #f9e2af; }
+  body { margin: 0; background: #07090f; color: #cdd6f4; font: 14px/1.7 ui-monospace, monospace;
+         display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card { max-width: 560px; padding: 28px 32px; border: 1px solid #1b1f2c; border-radius: 10px; background: #0e1018; }
+  a { color: #89b4fa; }
+  .t { color: #a6e3a1; font-weight: bold; font-size: 16px; }
+  .d { color: #7f849c; margin-top: 10px; }
 </style>
-
-<header>
-  <strong style="color:#a6e3a1">HGO · 간단한 세계</strong>
-  <button id="play">❚❚ pause</button>
-  <button id="step">step</button>
-  <button id="reset">reset</button>
-  <label>seed <input id="seed" type="number" value="42"></label>
-  <span class="tick" id="tickLbl"></span>
-</header>
-
-<div id="wrap">
-  <canvas id="cv" width="720" height="480"></canvas>
-  <div id="side">
-    <h3>지금 일어나는 일</h3>
-    <div class="hud" id="hud"></div>
-    <div class="legend" id="legend"></div>
+<div class="card">
+  <div class="t">HGO · 세계(항성로)로 이동 중…</div>
+  <div class="d">
+    통합 'world' 장면을 정규 단일 뷰어에서 엽니다.<br>
+    자동 이동이 안 되면 → <a href="viewer.html#world">viewer.html#world 열기</a><br><br>
+    가스가 <b>모이고</b>(중력 붕괴) · <b>빛나고</b>(emit→광자 스펙트럼색) ·
+    <b>원소를 빚고</b>(융합 사다리 → 색 이동) · <b>흩어진다</b>(분산 → 다음 별 재료).<br>
+    드래그=회전 · 휠=줌 · ▶ play 로 시간을 굴리세요.
   </div>
 </div>
-
-<!-- atom 트랙 엔진을 *읽기만* 한다(법칙 완성은 step 의 일). 순서: kernel → laws → sim. -->
-<script src="atom/engine/hgo-kernel.js"></script>
-<script src="atom/engine/hgo-laws.js"></script>
-<script src="atom/engine/hgo-sim.js"></script>
-<script>
-const { kernel: K, sim: S } = HGO;
-const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-const $ = id => document.getElementById(id);
-
-const WORLD_W = 240, WORLD_H = 160;
-const SX = cv.width / WORLD_W, SY = cv.height / WORLD_H;   // 월드→캔버스 배율
-const REGION_SPLIT = 120;                                  // 좌(A 응결)/우(B 기체) 경계
-
-// --- 세계 만들기(= _worldproto.js 와 동일 spec). 새 법칙 0 — 기존 노브만 켠다. ---
-function buildWorld(seed) {
-  const rng = K.mulberry32(seed >>> 0);
-  const atoms = [];
-  const heavy = u => (u < 0.25 ? 6 : 1);                   // C(Z=6, 원자가4) 25% + H(Z=1, 원자가1) 75%
-  function placeGrid(x0, y0, cols, rows, spacing, jit, temp) {
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const Z = heavy(rng());
-      atoms.push({ Z, N: Z, e: Z, x: 0,
-        rx: x0 + c * spacing + (rng() - 0.5) * jit,
-        ry: y0 + r * spacing + (rng() - 0.5) * jit,
-        vx: (rng() - 0.5) * temp, vy: (rng() - 0.5) * temp });
-    }
-  }
-  placeGrid(30, 40, 9, 10, 4.8, 0.6, 0.10);   // A 차가움·조밀(90 → 결합 사거리 안 → 응결)
-  placeGrid(150, 30, 7, 7, 10.0, 1.5, 0.9);   // B 따뜻함·성김(49 → 사거리 밖 → 기체)
-  return { W: WORLD_W, H: WORLD_H, atoms, rng, knobs: {
-    dt: 0.02, coulombSoft: 2,
-    symplectic: 1, adaptSub: 0.2, spatialHash: 1, spatialCut: 8,   // 안정 적분(0069/0076/0083)
-    kPauli: 4, kVdW: 0.4, kDamp: 0.15,                             // 환경: 부피 배제 + 약한 인력 + 점성
-    kBond: 1, bondR: 5, bondVmax: 2, bondCovalent: 1, bondLocalE: 1, bondValence: 1, bondOrder: 1,
-    bondCoulombic: 1, kBondSpring: 2, bondReq: 4,                  // 화학: 공유결합 + 평형 길이
-    kBondAngle: 3, bondAngleVSEPR: 1, bondAngleTarget: 2.0943951023931953,
-    bondMorse: 1, bondMorseD: 0.6, bondMorseA: 0.4,               // 균일·완만한 유한 우물(끊길 수 있음)
-    unbondDist: 9, bondBreak: 1,
-  } };
-}
-
-let sim, playing = true;
-function reset() {
-  const raw = parseInt($('seed').value, 10);
-  sim = S.createSim(buildWorld(Number.isFinite(raw) ? raw : 42));
-  draw();
-}
-
-// 분자 = 결합 간선의 연결 성분(union-find) — author 객체 아닌 *측정*.
-function molecules() {
-  const n = sim.atoms.length, parent = Array.from({ length: n }, (_, i) => i);
-  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
-  for (const e of (sim.bonds || [])) { const a = find(e[0]), b = find(e[1]); if (a !== b) parent[a] = b; }
-  const comp = {};
-  for (let i = 0; i < n; i++) { const r = find(i); (comp[r] = comp[r] || []).push(i); }
-  return { compOf: i => find(i), groups: Object.values(comp) };
-}
-
-// 원소색(L-element 정신): Z 를 읽어 색으로 *번역*. H 차가운 파랑 → C 따뜻한 주황.
-function elemColor(Z) { return Z >= 6 ? '#ff9d5c' : (Z === 1 ? '#8ec7ff' : '#c0a6ff'); }
-// 분자(연결 성분)별 색조 — 같은 분자 동색.
-function molHue(root) { return (root * 47) % 360; }
-
-function draw() {
-  ctx.clearRect(0, 0, cv.width, cv.height);
-  // 두 환경 배경
-  ctx.fillStyle = 'rgba(70,120,200,0.05)'; ctx.fillRect(0, 0, REGION_SPLIT * SX, cv.height);
-  ctx.fillStyle = 'rgba(220,140,70,0.05)'; ctx.fillRect(REGION_SPLIT * SX, 0, cv.width, cv.height);
-  ctx.strokeStyle = '#1b1f2c'; ctx.beginPath(); ctx.moveTo(REGION_SPLIT * SX, 0); ctx.lineTo(REGION_SPLIT * SX, cv.height); ctx.stroke();
-  ctx.fillStyle = '#3a4a66'; ctx.font = '12px ui-monospace';
-  ctx.fillText('◀ 차가운 응결역 — 분자 형성', 10, 18);
-  ctx.fillText('따뜻한 기체역 — 자유 운동 ▶', REGION_SPLIT * SX + 10, 18);
-
-  const m = molecules();
-  // 결합선 = 분자 윤곽(sim.bonds 읽기). 차수만큼 평행선.
-  for (const e of (sim.bonds || [])) {
-    const a = sim.atoms[e[0]], b = sim.atoms[e[1]];
-    if (Math.abs(a.rx - b.rx) > WORLD_W / 2 || Math.abs(a.ry - b.ry) > WORLD_H / 2) continue; // 랩어라운드 간선 생략
-    const hue = molHue(m.compOf(e[0])), order = e[3] || 1;
-    ctx.strokeStyle = `hsla(${hue},65%,62%,0.85)`; ctx.lineWidth = 1.4;
-    const dx = b.ry - a.ry, dy = -(b.rx - a.rx), L = Math.hypot(dx, dy) || 1, ox = dx / L, oy = dy / L;
-    for (let k = 0; k < order; k++) {
-      const off = (k - (order - 1) / 2) * 1.6;
-      ctx.beginPath();
-      ctx.moveTo((a.rx + ox * off) * SX, (a.ry + oy * off) * SY);
-      ctx.lineTo((b.rx + ox * off) * SX, (b.ry + oy * off) * SY);
-      ctx.stroke();
-    }
-  }
-  // 원자 = 음영 원(크기=질량 Z+N · 색=원소 Z · 테두리=분자 색조)
-  for (let i = 0; i < sim.atoms.length; i++) {
-    const a = sim.atoms[i], rad = 2 + 0.7 * Math.sqrt(a.Z + a.N);
-    const x = a.rx * SX, y = a.ry * SY;
-    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2);
-    ctx.fillStyle = elemColor(a.Z); ctx.fill();
-    const root = m.compOf(i), bonded = (sim.bonds || []).some(e => e[0] === i || e[1] === i);
-    if (bonded) { ctx.lineWidth = 1.6; ctx.strokeStyle = `hsl(${molHue(root)},70%,55%)`; ctx.stroke(); }
-  }
-  hud(m);
-  $('tickLbl').textContent = `tick ${sim.tick}`;
-}
-
-function regionTemp(lo, hi) {
-  let s = 0, n = 0;
-  for (const a of sim.atoms) if (a.rx >= lo && a.rx < hi) { s += Math.hypot(a.vx, a.vy); n++; }
-  return n ? s / n : 0;
-}
-
-function hud(m) {
-  const mols = m.groups.filter(g => g.length >= 2);
-  const sizes = mols.map(g => g.length);
-  const maxMol = sizes.length ? Math.max(...sizes) : 0;
-  const free = m.groups.filter(g => g.length === 1).length;
-  const nz = {}; for (const a of sim.atoms) nz[a.Z] = (nz[a.Z] || 0) + 1;
-  const led = K.ledger(sim);
-  $('hud').innerHTML =
-    `<b>분자</b> ${mols.length}개  (최대 ${maxMol}원자 · 자유원자 ${free})\n` +
-    `<b>결합</b> ${(sim.bonds || []).length}간선\n` +
-    `<b>원소</b> H(Z1) ${nz[1] || 0} · C(Z6) ${nz[6] || 0}\n` +
-    `\n` +
-    `<b>온도(평균 속력)</b>\n` +
-    `   차가운 응결역 ${regionTemp(0, REGION_SPLIT).toFixed(3)}\n` +
-    `   따뜻한 기체역 ${regionTemp(REGION_SPLIT, WORLD_W).toFixed(3)}\n` +
-    `\n` +
-    `<b>닫힌 장부</b>  Q ${led.Q.toFixed(0)} · B ${led.B.toFixed(0)} · E ${led.E.toFixed(1)}`;
-}
-
-$('legend').innerHTML =
-  '<span class="sw" style="background:#8ec7ff"></span>H (Z=1 · 원자가 1 · 말단)' +
-  '<br><span class="sw" style="background:#ff9d5c"></span>C (Z=6 · 원자가 4 · 허브) → 더 큰 분자' +
-  '<br>· 테두리·결합선 색 = 분자(연결 성분)' +
-  '<br>· 평행선 수 = 결합 차수(이중·삼중)' +
-  '<br>· 색·형태는 author 0 — sim 의 Z·결합·위치를 읽어 번역만.';
-
-function loop() { if (playing) { S.step(sim); draw(); } requestAnimationFrame(loop); }
-$('play').onclick = e => { playing = !playing; e.target.textContent = playing ? '❚❚ pause' : '▶ play'; };
-$('step').onclick = () => { S.step(sim); draw(); };
-$('reset').onclick = reset;
-$('seed').onchange = reset;
-
-reset();
-loop();
-</script>
+<script>location.replace('viewer.html#world');</script>
