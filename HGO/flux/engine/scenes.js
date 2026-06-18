@@ -72,7 +72,8 @@
 
   // 결정론 블롭 풍경(transcendental 0 — 크로스플랫폼 비트, SPINE §9.3) — 큰 척도 구조 + 작은 노이즈.
   //   배경 q=1 + 3개 블롭(2차 falloff) + 정수 해시 노이즈. 동결 후 도메인/전선 분해를 본다(step-0004).
-  function blobSpec(theta, n) {
+  //   alpha·kappa 는 선택 인자(미지정 → α=1·κ=0.1, 기존 0004~0007 호출과 비트 동일 = 회귀 0). step-0008 의 α 스윕이 쓴다.
+  function blobSpec(theta, n, alpha, kappa) {
     const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
     // 블롭 중심 = 격자 비율 × 해상도(정수 반올림). n=12 면 원래 정수 중심 [3,3,3]/[8,4,6]/[5,9,8] 정확 복원(골든 불변).
     const centers = [[3, 3, 3, 8], [8, 4, 6, 6], [5, 9, 8, 7]].map(b =>
@@ -90,7 +91,7 @@
       const noise = ((Math.imul(idx + 1, 2654435761) >>> 0) % 1000) / 1000 * 0.2;   // 0..0.2 결정론 노이즈
       atoms.push(cell(rx, ry, rz, Math.round((q + noise) * S)));
     }
-    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: 0.1, theta, alpha: 1 } };
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: kappa || 0.1, theta, alpha: alpha || 1 } };
   }
 
   // 창발 측정(arc C — 도메인) — 동결 q 장을 군집해 "덩어리 + 전선"을 읽는다(author 라벨 0).
@@ -208,6 +209,24 @@
     const mE = edgeFrac();
     return { act0: +m0.act.toFixed(3), fro0: +m0.fro.toFixed(3), actEnd: +mE.act.toFixed(3), froEnd: +mE.fro.toFixed(3),
       peakCo: +peakCo.toFixed(3), peakT, waterFrac: +(water || 0).toFixed(3), earthFrac: +(1 - (water || 0)).toFixed(3), snap };
+  }
+
+  // 창발 측정(규칙 4 자유도 마지막 — α 비선형 차수) — 같은 블롭 풍경·θ=0 에서 α 만 바꿔 relaxation.
+  //   Φ(d)=…|d|^α 라 α>1 이면 |d|<1(작은 기울기) → |d|^α < |d| (sub-linear, 거의 안 흐름 = 효과적 동결),
+  //   |d|>1(큰 기울기) → super-linear (가속·폭주). 즉 α 가 *문턱 없이도* 동결을 만들고(잔류 spread↑) 큰 기울기는
+  //   불안정(κ 커지면 발산). author 0: 규칙 노브 스윕일 뿐. 발산 = q 가 2⁵³ 넘어 Σq 깨짐(유한성으로 안정 판정).
+  function alphaEffect(theta, kappa, ticks) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const run = (alpha) => {
+      const sim = SIM.createSim(blobSpec(theta, 12, alpha, kappa));
+      let q0 = 0; for (const a of sim.atoms) q0 += a.q;
+      for (let t = 0; t < ticks; t++) SIM.step(sim);
+      let mn = Infinity, mx = -Infinity, q1 = 0; for (const a of sim.atoms) { if (a.q < mn) mn = a.q; if (a.q > mx) mx = a.q; q1 += a.q; }
+      const resid = (mx - mn) / S, finite = Number.isFinite(resid), dq = Math.abs(q1 - q0) / S;
+      return { resid: finite ? +resid.toFixed(4) : Infinity, finite, dq: finite ? dq : NaN };
+    };
+    return { a1: run(1), a2: run(2), a3hi: run(3) };   // α=1·2 (κ 안정역) + α=3(같은 κ 발산 경계)
   }
 
   const SCENES = {
@@ -382,6 +401,27 @@
           { name: '시간 공존(간선: 물·산 둘 다 실질, peakCo>0.1)', pass: p.peakCo > 0.1, value: `peakCo=${p.peakCo} @tick ${p.peakT}` },
           { name: '공간 공존(tick160 셀: 물·산 둘 다 >0.3)', pass: p.waterFrac > 0.3 && p.earthFrac > 0.3, value: `물=${p.waterFrac} · 산=${p.earthFrac} @tick ${p.snap}` },
           { name: '물→산 전환(동결 전선 전진: actEnd→0 < act0)', pass: p.actEnd < p.act0 && p.actEnd < 0.01, value: `act ${p.act0}→${p.actEnd}, fro ${p.fro0}→${p.froEnd}` },
+        ];
+      },
+    },
+
+    // ── step-0008: 규칙 4 자유도 마지막 — α(비선형 차수) ── 새 법칙/노브 0(기존 α 노브 스윕, θ=0 고정).
+    //   지금껏 모든 장면이 α=1(선형 확산). α>1 이면 Φ=…|d|^α 가 작은 기울기(|d|<1)에서 sub-linear → 거의 안 흐름
+    //   (θ 없이도 *효과적 동결*), 큰 기울기(|d|>1)에서 super-linear → 가속(κ 커지면 발산). α 가 비선형 동역학의 마지막 자유도.
+    'step-0008': {
+      id: 'step-0008',
+      title: 'step-0008 — 비선형: α>1 가 문턱 없이 동결을 만든다',
+      desc: '규칙의 4 자유도 중 한 번도 안 쓴 α(비선형 지수)를 켠다(새 법칙·노브 0, θ=0 고정). Φ=κ·sign(d)·|d|^α 라 α=2 면 작은 기울기(|d|<1)는 |d|²<|d| 로 거의 안 흐르고(문턱 θ 없이도 효과적 동결 — 잔류 spread 남음), 큰 기울기는 가속한다. α=1(순수 확산, 잔류≈0)과 측정으로 갈린다. α=3·같은 κ 는 큰 기울기 폭주로 발산(비선형 불안정 경계) — α>1 은 안정 κ 가 더 작아야 함을 측정으로.',
+      ticks: 300,
+      init(rng, K, opts) { return blobSpec(0.0, (opts && opts.scale) || 12, 2, 0.1); },   // 메인: θ=0·α=2·κ=0.1(안정역)
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const e = alphaEffect(0.0, 0.1, 300);   // α∈{1,2,3} 블롭 θ=0 relaxation 비교(보조·결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부·α=2 안정)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6 && e.a2.finite, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}, α2 |Δq|=${e.a2.dq.toExponential(2)}` },
+          { name: 'α>1 효과적 동결(θ 없이 잔류↑: resid α2 ≫ α1)', pass: e.a2.resid > e.a1.resid + 0.5, value: `resid α1=${e.a1.resid} → α2=${e.a2.resid}` },
+          { name: 'α=1 순수 확산 평탄(잔류≈0)', pass: e.a1.resid < 0.1, value: `resid(α=1)=${e.a1.resid}` },
+          { name: '비선형 불안정 경계(α=3 같은 κ 발산·α=2 안정)', pass: e.a2.finite && !e.a3hi.finite, value: `α2 finite=${e.a2.finite}, α3 finite=${e.a3hi.finite}(resid=${e.a3hi.resid})` },
         ];
       },
     },
