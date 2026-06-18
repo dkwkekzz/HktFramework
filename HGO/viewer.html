@@ -19,6 +19,7 @@
 </style>
 
 <header>
+  <label>트랙 <select id="track"></select></label>
   <label>장면 <select id="scene"></select></label>
   <button id="play">▶ play</button>
   <button id="stepBtn">step</button>
@@ -53,6 +54,16 @@ const TRACKS = {
 };
 const track = new URLSearchParams(location.search).get('track') || 'atom';
 const manifest = TRACKS[track] || TRACKS.atom;
+
+// 트랙 스위처(공유 하네스) — 헤더에서 atom↔flux 전환. 엔진 파일이 정적 전역 등록이라
+//   런타임 교체보다 ?track 으로 페이지를 *다시 로드*해 고르는 편이 단순·안전(boot 가 한 번만 ?track 을 읽음).
+//   장면 id 는 트랙마다 다르므로(atom 의 #world ↔ flux 의 #step-0001) 전환 시 hash 는 버린다.
+(function buildTrackSelect() {
+  const sel = document.getElementById('track');
+  for (const t of Object.keys(TRACKS)) { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); }
+  sel.value = TRACKS[track] ? track : 'atom';   // 미지 트랙이면 기본(atom) 표기
+  sel.onchange = () => { location.href = location.pathname + '?track=' + sel.value; };
+})();
 (function loadSeq(srcs, i) {            // 트랙 엔진을 순서대로 load → 끝나면 boot()
   if (i >= srcs.length) { boot(); return; }
   const s = document.createElement('script');
