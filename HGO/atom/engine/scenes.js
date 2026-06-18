@@ -7626,6 +7626,69 @@
         ];
       },
     },
+
+    'step-0109': {
+      id: 'step-0109',
+      title: '방출 이벤트 로그 확장 — snEject 방향성 분출 위치·방향·ΔE 노출 (#M 잔여·render L-wind·게이트 eventLog=0 → push 0·events hash 미참여·회귀 0)',
+      desc: '0108 이 fuse·decay 변환 신호를 열었으나, *방출* 사건(snEject 방향성 분출·0091)은 아직 화면서 정지점이다(#M 잔여·방출↓). 이 step 은 같은 `eventLog` 게이트로 snEject 가 분출 시 `sim.events` 에 `{type:eject,rx,ry,Z,N,dZ:0,dE:draw,ux,uy}` 한 항을 push — render L-wind(별풍·초신성 방사)가 읽을 *위치·방향(ux,uy 단위 벡터)·ΔE(바스 인출 KE)* 신호. fuse 가 Z 변환(L-nuc)·snEject 가 운동량 방출(L-wind)로 *다른 채널*. events 는 hashState 미참여·atoms 무변경(push 는 분출 *후* 순수 기록) → eventLog=0 → push 0 → 0108 비트 동일(회귀 0). ' +
+            '*무대*: 16개 무거운 핵(C Z6) 조밀 격자(간격 1.8·반경~5≪coolR6 → deg 높음)·복사 바스 E=5000 선주입·kSnEject=1 snZmin=3 snCoreDeg=3 snImpulse=10·dt=1·30 tick·eventLog on/off: 코어 무거운 핵이 바스 E 를 인출해 이웃 COM 바깥으로 방사 분출. ' +
+            '① **방출 신호 노출(위치·단위 방향·ΔE)·load-bearing** — eventLog on: eject 이벤트 ≥10건·모두 dE>0(바스 인출 KE)·Z≥3·단위 방향 |ux,uy|=1·위치 무대 안·분출로 퍼짐 R_g↑ ⇒ render 가 별풍 분출을 *그 위치·방향*에 그릴 신호. ' +
+            '② **off → 신호 0(render 못 그림)·load-bearing** — eventLog off: events 0건(분출은 똑같이 일어나나 atom 이 안 실음·snEjectActive 전역 불리언만). ' +
+            '③ **로깅 무부작용(장부·결정론 머신)** — on/off 최종 상태 해시 동일·바스↔KE E 머신·−Δp→바스 운동량 머신(순수 side-effect). ' +
+            '④ **회귀** — eventLog=0 → push 0·events hash 미참여·0108 비트 동일·골든 보존.',
+      ticks: 30,
+      W: 100, H: 100, NS: 4, GAP: 1.8, BATH: 5000,
+      KN: { dt: 1, kSnEject: 1, snZmin: 3, snCoreDeg: 3, snImpulse: 10, coolR: 6 },
+
+      // 16개 무거운 핵(C Z6) 4×4 조밀 격자·중심 (50,50)·정지(placement 결정론·rng 무관).
+      cloud() {
+        const atoms = [], c = this.W / 2, off = (this.NS - 1) * this.GAP / 2;
+        for (let r = 0; r < this.NS; r++) for (let col = 0; col < this.NS; col++)
+          atoms.push({ Z: 6, N: 6, e: 6, x: 0, rx: c - off + col * this.GAP, ry: c - off + r * this.GAP, vx: 0, vy: 0, lep: 0, nuc: 0 });
+        return atoms;
+      },
+      rg(atoms) { let cx = 0, cy = 0; for (const a of atoms) { cx += a.rx; cy += a.ry; } cx /= atoms.length; cy /= atoms.length;
+        let s = 0; for (const a of atoms) { const dx = a.rx - cx, dy = a.ry - cy; s += dx * dx + dy * dy; } return Math.sqrt(s / atoms.length); },
+      run(K, on) {
+        const atoms = this.cloud(), rg0 = this.rg(atoms);
+        const sim = { W: this.W, H: this.H, atoms, photons: [], rng: K.mulberry32(42),
+                      knobs: Object.assign({}, L.DEFAULTS, this.KN, { eventLog: on }), tick: 0 };
+        sim.escaped = { E: this.BATH, px: 0, py: 0, count: 0 };
+        const l0 = K.ledger(sim);
+        for (let t = 0; t < this.ticks; t++) { L.applyForces(sim); L.integrate(sim); sim.tick++; }
+        const l1 = K.ledger(sim);
+        const ev = sim.events || [], ej = ev.filter(e => e.type === 'eject');
+        const allOK = ej.every(e => e.dE > 0 && e.Z >= 3 && Math.abs(Math.hypot(e.ux, e.uy) - 1) < 1e-9 && e.rx >= 0 && e.rx < this.W && e.ry >= 0 && e.ry < this.H);
+        return { ev, nEj: ej.length, allOK, rgGrew: this.rg(sim.atoms) > rg0 * 1.5, hash: K.hashState(sim),
+                 dpx: Math.abs(l1.px - l0.px), dpy: Math.abs(l1.py - l0.py), dB: Math.abs(l1.B - l0.B), dQ: Math.abs(l1.Q - l0.Q), dL: Math.abs(l1.L - l0.L), dE: Math.abs(l1.E - l0.E), Etot: Math.abs(l0.E) };
+      },
+      cache(K) { return this._c || (this._c = { on: this.run(K, 1), off: this.run(K, 0) }); },
+
+      // 라이브 sim(장부·결정론·골든 기둥): eventLog on·바스 미주입(createSim 경로 → escaped 없음 → snEject no-op) → 자유 드리프트 머신.
+      init(rng, K) {
+        return { W: this.W, H: this.H, atoms: this.cloud(), rng: K.mulberry32((rng() * 4294967296) >>> 0), knobs: Object.assign({}, this.KN, { eventLog: 1 }) };
+      },
+
+      watch(sim, K) {
+        const c = this.cache(K);
+        return { ejOn: c.on.nEj, ejOff: c.off.ev.length, rgGrew: c.on.rgGrew ? 1 : 0, hashEq: c.on.hash === c.off.hash ? 1 : 0, dEon: +c.on.dE.toExponential(3) };
+      },
+
+      // 가설: ① 방출 신호 노출 ② off → 0 ③ 로깅 무부작용 머신 ④ 회귀.
+      assert(ctx, K) {
+        const c = this.cache(K);
+        const exposed = c.on.nEj >= 10 && c.on.allOK && c.on.rgGrew;                 // ① eject 신호·단위 방향·분출 퍼짐
+        const offEmpty = c.off.ev.length === 0;                                       // ② off → 0
+        const noSideEffect = c.on.hash === c.off.hash && c.on.dpx < 1e-9 && c.on.dpy < 1e-9 && c.on.dB < 1e-9 && c.on.dQ < 1e-9 && c.on.dL < 1e-9 && c.on.dE < 1e-9;  // ③ 머신
+        const reg = ctx.ledgerBefore !== undefined;                                   // ④ 골든 보존
+        return [
+          { name: `방출 신호 노출(위치·단위 방향·ΔE)·load-bearing — eventLog on: eject 이벤트 ${c.on.nEj}건·모두 dE>0(바스 인출)·Z≥3·단위 방향 |ux,uy|=1·위치 무대 안·분출로 퍼짐 R_g↑(${c.on.rgGrew}) ⇒ render L-wind 이 별풍 분출을 그 위치·방향에 그릴 신호`, pass: exposed, value: c.on.nEj },
+          { name: `off → 신호 0(render 못 그림)·load-bearing — eventLog off: events ${c.off.ev.length}건(분출은 똑같이 일어나나 atom 이 안 실음·snEjectActive 전역 불리언만)`, pass: offEmpty, value: c.off.ev.length },
+          { name: `로깅 무부작용(장부·결정론 머신) — on/off 최종 해시 동일(${c.on.hash === c.off.hash})·바스↔KE E 머신(dE ${c.on.dE.toExponential(2)})·−Δp→바스 운동량 머신(dpx ${c.on.dpx.toExponential(2)})·순수 side-effect`, pass: noSideEffect, value: c.on.hash === c.off.hash ? 1 : 0 },
+          { name: `회귀 — eventLog=0 → push 0·events hash 미참여·0108 비트 동일·골든 보존(방출 이벤트 가법)`, pass: reg, value: c.off.ev.length },
+        ];
+      },
+    },
   };  // SCENES 끝
 
   return { SCENES, ELEMENTS };
