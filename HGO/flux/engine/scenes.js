@@ -111,6 +111,45 @@
     return { nDom: size.size, maxFrac: +(mx / n).toFixed(4), frontFrac: +(front / edges.length).toFixed(4), nCells: n };
   }
 
+  // spec 을 ticks 만큼 동결시켜 sim 반환(보조 측정용·메인 해시 무관). 지연 sim 참조(Node/브라우저).
+  function frozenSim(spec, ticks) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const sim = SIM.createSim(spec);
+    for (let t = 0; t < ticks; t++) SIM.step(sim);
+    return sim;
+  }
+
+  // 창발 측정(arc C 완성 — 상관 길이) — 군집 임계 무관한 척도 지표. q 장의 축별 자기상관 C(d) 가
+  //   1/e 로 떨어지는 거리 ξ(셀 단위·선형 보간). 백색잡음이면 ξ<1(이웃 무상관), 구조 있으면 ξ>1.
+  function correlationLength(sim) {
+    const a = sim.atoms, cols = sim.cols, rows = sim.rows, depth = sim.depth, n = a.length;
+    const idx = (c, r, z) => (z * rows + r) * cols + c;
+    let mean = 0; for (const x of a) mean += x.q; mean /= n;
+    let varr = 0; for (const x of a) { const dv = x.q - mean; varr += dv * dv; } varr /= n;
+    if (varr <= 0) return { xi: 0, corr: [] };
+    const maxR = Math.min(cols, rows, depth) >> 1;
+    const corr = [];
+    for (let d = 1; d <= maxR; d++) {
+      let s = 0, cnt = 0;
+      for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const dv = a[idx(c, r, z)].q - mean;
+        s += dv * (a[idx((c + d) % cols, r, z)].q - mean);
+        s += dv * (a[idx(c, (r + d) % rows, z)].q - mean);
+        s += dv * (a[idx(c, r, (z + d) % depth)].q - mean);
+        cnt += 3;
+      }
+      corr.push(+((s / cnt) / varr).toFixed(4));
+    }
+    const thr = 1 / Math.E;                       // 1/e ≈ 0.368
+    let xi = maxR, prevD = 0, prevC = 1;          // C(0)=1
+    for (let k = 0; k < corr.length; k++) {
+      const d = k + 1, cv = corr[k];
+      if (cv <= thr) { xi = prevD + (prevC - thr) / (prevC - cv) * (d - prevD); break; }
+      prevD = d; prevC = cv;
+    }
+    return { xi: +xi.toFixed(3), corr };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -218,6 +257,27 @@
           { name: '전선 존재(0 < frontFrac < 1)', pass: w1.frontFrac > 0 && w1.frontFrac < 1, value: `frontFrac=${w1.frontFrac}` },
           { name: '큰 도메인 존재(maxFrac>균일이상)', pass: w1.maxFrac > 1 / w1.nCells, value: `maxFrac=${w1.maxFrac}` },
           { name: 'coarsening(작은 도메인 융합·지배 도메인 성장)', pass: w1.nDom < w0.nDom && w1.maxFrac > w0.maxFrac, value: `nDom ${w0.nDom}→${w1.nDom}, maxFrac ${w0.maxFrac}→${w1.maxFrac}` },
+        ];
+      },
+    },
+
+    // ── step-0005: arc C 완성 — 공간 상관 길이 ξ(척도 비의존) ── 새 법칙/노브 0. step-0004 동결 세계를 새 렌즈로.
+    //   도메인 수는 군집 임계 의존 — ξ(자기상관 1/e 거리)는 임계 무관. 구조 풍경 ξ vs 백색잡음 ξ 대조로
+    //   "동결 구조가 특정 척도를 가진다"를 정량(균일도 백색잡음도 아님). 메인 궤적은 blobSpec(1.0)(step-0004 와 동일 세계).
+    'step-0005': {
+      id: 'step-0005',
+      title: 'step-0005 — 구조: 상관 길이 ξ(척도 비의존 지표)',
+      desc: '동결 구조의 척도를 군집 임계 없이 잰다 — q 장 자기상관이 1/e 로 떨어지는 거리 ξ. 구조 풍경(블롭)은 ξ>1(여러 셀에 걸친 덩어리), 백색잡음은 ξ<1(이웃 무상관). 동결 세계가 특정 공간 척도를 가짐을 정량(arc C 완성·척도 분리 arc D 의 토대).',
+      ticks: 400,
+      init() { return blobSpec(1.0); },
+      watch(sim) { return Object.assign(measure(sim), correlationLength(sim)); },
+      assert(w0, w1) {
+        const rough = correlationLength(frozenSim(roughSpec(1.0), 400));   // 백색잡음 동결 대조(결정론)
+        return [
+          { name: 'Σq 보존(닫힌 장부)', pass: Math.abs(w1.sumQ - w0.sumQ) < 1e-6, value: `Δ=${(w1.sumQ - w0.sumQ).toExponential(2)}` },
+          { name: '구조 척도(ξ>1: 여러 셀 상관)', pass: w1.xi > 1, value: `ξ(블롭)=${w1.xi}, corr=${JSON.stringify(w1.corr)}` },
+          { name: '유한 척도(ξ<maxR: 무한상관 아님)', pass: w1.xi < 6, value: `ξ=${w1.xi} < maxR=6` },
+          { name: '구조 vs 백색잡음(ξ_블롭 ≫ ξ_잡음)', pass: w1.xi > rough.xi, value: `ξ_블롭=${w1.xi} > ξ_잡음=${rough.xi}` },
         ];
       },
     },
