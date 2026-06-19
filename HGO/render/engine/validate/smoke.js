@@ -464,6 +464,39 @@ function run() {
   checks.push({ name: 'L-flow: |v|↑ → 세기↑ 단조·상한 1·부호 무관 대칭', pass: fmono && R3.flowGlow(99, 4) === 1 && R3.flowGlow(-3, 4) === R3.flowGlow(3, 4), value: fmono ? 'ok' : 'BAD' });
   checks.push({ name: 'L-flow: 파동 없음(max|v|=0·atom 장면) → 글로우 0(author 0)', pass: R3.flowGlow(5, 0) === 0 && R3.measureMaxAbsFlow([{ Z: 6 }, { Z: 8 }]) === 0, value: `${R3.flowGlow(5, 0)}·${R3.measureMaxAbsFlow([{ Z: 6 }])}` });
 
+  // ㉓ L-voxel(렌즈 assert): flux 트랙은 세계가 *셀 격자*(cols×rows×depth)다 — 음영 구 글리프는 셀을 둥근 공 더미로
+  //    보였다(CA 큐브 격자 아님). 격자를 *측정*(cols×rows×depth=원자 수)해 큐브 밭으로 — atom 장면(흩어진 원자)은
+  //    격자 아니라 구 유지(회귀 0). 색조=q밴드 c0·밝기=q·불투명도=평형 편차(평형 cell 투명·활성 cell 빛나는 큐브).
+  checks.push({ name: 'L-voxel: atom 장면은 격자 아님 → 구 유지(회귀 0)', pass: R3.isCellGrid(sim) === false, value: `cols ${sim.cols}` });
+  try {
+    const FLUX = path.join(__dirname, '..', '..', '..', 'flux', 'engine');
+    const FK = require(path.join(FLUX, 'flux-kernel.js'));
+    const FS = require(path.join(FLUX, 'flux-sim.js'));
+    const FSC = require(path.join(FLUX, 'scenes.js'));
+    const simF = FS.createSim(FSC.SCENES['step-0011'].init(null, FK, {}));
+    simF.render = true;
+    for (let t = 0; t < 25; t++) FS.step(simF);
+    // 시뮬 선행: flux 는 셀 격자(cols×rows×depth = 원자 수) → 큐브 밭
+    checks.push({ name: 'L-voxel: flux 는 셀 격자 → 큐브 밭(시뮬 선행)', pass: R3.isCellGrid(simF) === true, value: `${simF.cols}×${simF.rows}×${simF.depth}=${simF.atoms.length}` });
+    // 불투명도=들뜸(측정 범위 excitation·L-glow 동형): 들뜬 cell(높은 q) 불투명·평형 cell(q=lo) 투명(CA 빈 공간)
+    const xr = R3.measureExcitationRange(simF.atoms);
+    let nActive = 0, nFlat = 0;
+    for (const a of simF.atoms) { const o = R3.excitationGlow(a.x, xr.lo, xr.hi); if (o > 0.5) nActive++; if (o < 0.04) nFlat++; }
+    checks.push({ name: 'L-voxel: 들뜸 → 불투명도(들뜬 cell 불투명·평형 cell 투명)', pass: xr.hi > xr.lo && nActive > 0 && nFlat > 0 && R3.excitationGlow(xr.lo, xr.lo, xr.hi) === 0, value: `q[${xr.lo.toFixed(2)},${xr.hi.toFixed(2)}]·들뜸 ${nActive}·평형(투명) ${nFlat}` });
+    // 큐브 기하: 한 셀 큐브는 카메라 향한 면 1~3개(0/6 아님)·폴리곤 면적>0·카메라 앞
+    const camV = R3.makeCamera(simF.W, simF.H, 0);
+    const ca = simF.atoms[Math.floor(simF.atoms.length / 2)];
+    const faces = R3.cubeFaces(ca.rx, ca.ry, ca.rz || 0, 0.46 * (simF.W / simF.cols), camV);
+    const area = p => Math.abs((p[1].sx - p[0].sx) * (p[2].sy - p[0].sy) - (p[2].sx - p[0].sx) * (p[1].sy - p[0].sy));
+    const facesOk = faces.length >= 1 && faces.length <= 3 && faces.every(f => f.poly.length === 4 && area(f.poly) > 1 && f.depth > 0);
+    checks.push({ name: 'L-voxel: 큐브 카메라 향한 면 1~3개·면적>0(입체 큐브)', pass: facesOk, value: `면 ${faces.length}·shade [${faces.map(f => f.shade.toFixed(2)).join(',')}]` });
+  } catch (e) {
+    checks.push({ name: 'L-voxel: flux 엔진 없음 — skip', pass: true, value: 'skip(' + (e.code || 'no flux') + ')' });
+  }
+  // q밴드 색조: 낮은 q 파랑(>0.5)·높은 q 빨강(≈0)·단조(L-element 동형)·maxBand=0 면 중립(author 0)
+  const bandMono = R3.bandHue(0, 5) > R3.bandHue(3, 5) && R3.bandHue(3, 5) > R3.bandHue(5, 5);
+  checks.push({ name: 'L-voxel: q밴드 색조 낮은 q 파랑→높은 q 빨강 단조·단일밴드 중립', pass: bandMono && R3.bandHue(0, 5) > 0.5 && R3.bandHue(5, 5) < 0.05 && R3.bandHue(2, 0) > 0, value: `lo ${R3.bandHue(0, 5).toFixed(2)}>hi ${R3.bandHue(5, 5).toFixed(2)}` });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

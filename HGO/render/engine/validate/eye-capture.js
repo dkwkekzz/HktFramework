@@ -74,6 +74,34 @@ function installCap() {
       draw(sim);
       return analyzeFlow(opt.litMin, opt.margin);
     }
+    if (kind === 'fluxvoxel') {                              // L-voxel 렌즈: flux 셀 격자 → 큐브 밭(들뜬 cell 큐브·균일=투명 빈 공간)
+      sim = S.createSim(SC.SCENES[opt.id || 'step-0011'].init(K.mulberry32(42), K));
+      sim.render = true;
+      for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
+      if (opt.flat) { const xv = sim.atoms[0].x; for (const a of sim.atoms) a.x = xv; }  // 균일 대조군: q 평형 → range 0 → 큐브 0(빈 공간)
+      draw(sim);
+      return analyze(opt.litMin);                            // lit = 들뜬 큐브 픽셀 — 균일(평형)이면 0(CA 빈 공간)
+    }
+    if (kind === 'flowdiff') {                               // L-flow 렌즈(diff): 흐름 vs v=0 *픽셀 차*로 발산 글로우 격리(큐브 색 상쇄)
+      sim = S.createSim(SC.SCENES[opt.id || 'step-0011'].init(K.mulberry32(42), K));
+      sim.render = true;
+      for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
+      draw(sim);
+      const w = cv.width, h = cv.height, A = ctx.getImageData(0, 0, w, h).data;   // 흐름 있는 프레임
+      for (const a of sim.atoms) a.v = 0;                    // v=0 → 발산 글로우만 사라짐(같은 큐브)
+      draw(sim);
+      const B = ctx.getImageData(0, 0, w, h).data;           // 흐름 없는 프레임
+      let warmAdd = 0, coolAdd = 0, changed = 0;             // 차이 = 발산 글로우의 흔적(큐브는 동일 → 상쇄)
+      const MG = opt.margin || 12;
+      for (let p = 0; p < A.length; p += 4) {
+        const dr = A[p] - B[p], db = A[p + 2] - B[p + 2];
+        if (Math.abs(dr) + Math.abs(db) < 6) continue;       // 미미한 차 무시
+        changed++;
+        if (dr - db > MG) warmAdd++;                         // R 이 B 보다 더 늘어남 = 따뜻(차오름 v>0) 추가
+        else if (db - dr > MG) coolAdd++;                    // B 가 R 보다 더 늘어남 = 차가움(빠짐 v<0) 추가
+      }
+      return { warmAdd, coolAdd, changed };
+    }
     if (kind === 'column') {                                 // 같은 (x,y)·rz 다름(flat → rz=0 대조군)
       const a = []; for (let i = 0; i < 6; i++) a.push({ Z: [1, 2, 6, 8, 7, 10][i], N: 1, e: 1, x: 0, rx: 50, ry: 50, rz: opt.flat ? 0 : 8 + i * 16, vx: 0, vy: 0, vz: 0, lep: 0, nuc: 0 });
       sim = S.createSim({ W: 100, H: 100, D: 100, atoms: a, knobs: { drift3d: 1 } });
@@ -85,10 +113,6 @@ function installCap() {
     } else if (kind === 'scene') {                           // 등록 장면(viewer 와 동형)
       sim = S.createSim(SC.SCENES[opt.id].init(K.mulberry32((opt.seed >>> 0) || 42), K));
       for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
-    } else if (kind === 'fluxglow') {                        // L-glow 렌즈: flux 확산 장면 + 균일 대조군
-      sim = S.createSim(SC.SCENES[opt.id || 'step-0001'].init(K.mulberry32(42), K));
-      for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
-      if (opt.flat) { const xv = sim.atoms[0].x; for (const a of sim.atoms) a.x = xv; }  // 대조군: x 균일 → 범위 0 → glow 0(평평)
     }
     draw(sim);
     return analyze(opt.litMin);
@@ -110,6 +134,7 @@ async function main() {
   const pos = process.argv.slice(2).filter(a => !a.startsWith('--'));
   const fluxGlow = process.argv.includes('--flux-glow');
   const fluxFlow = process.argv.includes('--flux-flow');
+  const fluxVoxel = process.argv.includes('--flux-voxel');
 
   const browser = await pw.chromium.launch();
   const page = await browser.newPage({ viewport: { width: 640, height: 640 } });
@@ -123,29 +148,35 @@ async function main() {
   const checks = [];
   const argScene = pos[0];
 
-  if (fluxGlow) {                                            // L-glow(flux): 평형 근방 확산이 픽셀에서 보이나(절단 제거·범위 정규화)
+  if (fluxGlow) {                                            // L-glow(flux): 측정 범위 정규화로 q 가 큐브 밝기/불투명도 대비를 만드나(모든 척도)
     console.log('\n=== 눈 검증: L-glow 측정 범위 정규화 (실 flux viewer 픽셀 대비) ===');
-    const eq = await cap('fluxglow', { id: 'step-0001', ticks: 200, litMin: 90 });        await shot('flux-glow-eq.png');
-    const flat = await cap('fluxglow', { id: 'step-0001', ticks: 200, flat: true, litMin: 90 });  await shot('flux-glow-flat.png');
-    checks.push({ name: `평형 근방(tick200) 확산 밝기 대비 — 절단 제거·범위 정규화로 좁은 q 펴짐(균일 대조군 대비)`,
-      pass: eq.bSpread > flat.bSpread * 3 && eq.bSpread > 30, value: `대비 ${eq.bSpread} vs 균일 ${flat.bSpread}` });
-    const blob = await cap('fluxglow', { id: 'step-0001', ticks: 0, litMin: 90 });          await shot('flux-glow-blob.png');
+    const eq = await cap('fluxvoxel', { id: 'step-0001', ticks: 200, litMin: 60 });        await shot('flux-glow-eq.png');
+    checks.push({ name: `평형 근방(tick200) — 측정 범위 정규화로 좁은 q 가 큐브 밝기 대비로 펴짐`,
+      pass: eq.bSpread > 80 && eq.lit > 2000, value: `대비 ${eq.bSpread}·lit ${eq.lit}` });
+    const blob = await cap('fluxvoxel', { id: 'step-0001', ticks: 0, litMin: 60 });        await shot('flux-glow-blob.png');
     checks.push({ name: `초기(tick0) 블롭도 보임(평형과 둘 다 대비 존재 — 모든 척도)`,
-      pass: blob.bSpread > 30, value: `대비 ${blob.bSpread}·lit ${blob.lit}` });
+      pass: blob.bSpread > 80, value: `대비 ${blob.bSpread}·lit ${blob.lit}` });
     for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
-    console.log(`  스크린샷: captures/{flux-glow-eq,flux-glow-flat,flux-glow-blob}.png`);
-  } else if (fluxFlow) {                                     // L-flow(flux): 관성 파동의 흐름 방향이 발산 톤(따뜻=차오름·차가움=빠짐)으로 픽셀에 보이나
-    console.log('\n=== 눈 검증: L-flow 발산 글로우 (실 flux 파동 viewer 픽셀 대비) ===');
-    const flow = await cap('fluxflow', { id: 'step-0011', ticks: 25 });               await shot('flux-flow.png');
-    const flat = await cap('fluxflow', { id: 'step-0011', ticks: 25, flat: true });   await shot('flux-flow-noflow.png');
-    // 흐름 있으면 따뜻(차오름)·차가움(빠짐) *둘 다* 존재 = 흐름 방향이 부호 톤으로 보임(밝기=진폭만으론 못 봄)
-    checks.push({ name: `파동 흐름 — 차오름(따뜻)·빠짐(차가움) 둘 다 픽셀에 존재(흐름 방향 보임)`,
-      pass: flow.warm > 0 && flow.cool > 0, value: `따뜻 ${flow.warm}·차가움 ${flow.cool}` });
-    // flow 제거(v=0) 대조군 대비 — 발산 글로우가 사라지면 차가움(빠짐 톤) 픽셀이 급감(같은 q·밝기·오라)
-    checks.push({ name: `발산 글로우 알리바이 — flow 제거 시 차가움 픽셀 급감(v 가 그 톤의 원천)`,
-      pass: flow.cool > flat.cool * 2 && flow.cool > 200, value: `흐름 ${flow.cool} vs 무흐름 ${flat.cool}` });
+    console.log(`  스크린샷: captures/{flux-glow-eq,flux-glow-blob}.png`);
+  } else if (fluxFlow) {                                     // L-flow(flux): 관성 파동의 흐름 방향이 발산 톤(따뜻=차오름·차가움=빠짐)으로 보이나
+    console.log('\n=== 눈 검증: L-flow 발산 글로우 (실 flux 파동 viewer 픽셀 차 — 큐브 색 상쇄) ===');
+    const d = await cap('flowdiff', { id: 'step-0011', ticks: 25 });   await shot('flux-flow.png');
+    // 흐름 vs v=0 *픽셀 차*가 발산 글로우의 흔적 — 따뜻(차오름)·차가움(빠짐) *둘 다* 추가(부호 양쪽 = 흐름 방향)
+    checks.push({ name: `발산 글로우 — 흐름이 따뜻(차오름)·차가움(빠짐) 픽셀 둘 다 추가(v=0 대비 부호 양쪽)`,
+      pass: d.warmAdd > 100 && d.coolAdd > 100, value: `따뜻 +${d.warmAdd}·차가움 +${d.coolAdd}·변화 ${d.changed}` });
     for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
-    console.log(`  스크린샷: captures/{flux-flow,flux-flow-noflow}.png`);
+    console.log(`  스크린샷: captures/flux-flow.png (흐름 있는 프레임)`);
+  } else if (fluxVoxel) {                                    // L-voxel(flux): 셀 격자가 큐브 밭(CA 외형)으로·균일(평형) 필드는 투명(빈 공간)
+    console.log('\n=== 눈 검증: L-voxel 큐브 밭 (실 flux viewer 픽셀 — 들뜬 cell 큐브·균일 평형 투명) ===');
+    // 확산 장면(step-0001·관성 없음=v 0 → flow 글로우 무관·큐브만 격리) 블롭 vs 균일 대조군
+    const live = await cap('fluxvoxel', { id: 'step-0001', ticks: 8, litMin: 60 });               await shot('flux-voxel.png');
+    const flat = await cap('fluxvoxel', { id: 'step-0001', ticks: 8, flat: true, litMin: 60 });   await shot('flux-voxel-flat.png');
+    // 활성 블롭은 들뜬 큐브로(lit 큼)·균일(평형) 대조군은 range 0 → 큐브 0(투명 빈 공간 = CA)
+    checks.push({ name: `들뜬 cell 큐브 밭(활성 블롭 큐브 픽셀 존재)`, pass: live.lit > 5000, value: `lit ${live.lit}` });
+    checks.push({ name: `균일(평형) 필드 → 큐브 0(투명 빈 공간 = CA·author 0)`,
+      pass: live.lit > flat.lit * 5 && flat.lit < live.lit * 0.1, value: `활성 ${live.lit} ≫ 균일 ${flat.lit}` });
+    for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+    console.log(`  스크린샷: captures/{flux-voxel,flux-voxel-flat}.png`);
   } else if (argScene) {                                     // 임의 등록 장면 스크린샷(사람 일별용)
     const ticks = parseInt(pos[1] || '0', 10), seed = parseInt(pos[2] || '42', 10);
     const a = await cap('scene', { id: argScene, seed, ticks });

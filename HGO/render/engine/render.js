@@ -541,6 +541,78 @@
     return Math.min(1, (v < 0 ? -v : v) / maxAbs);
   }
 
+  // 셀 파동 운동량 발산 글로우를 화면에 그린다(구·큐브 공용 — 위치 기반·글리프 모양 무관). flowI=0 이면 안 그림(author 0).
+  function drawFlowGlow(ctx, sx, sy, r, v, maxFlow) {
+    const flowI = flowGlow(v, maxFlow || 0);
+    if (!(flowI > 0)) return;
+    const tone = (v > 0) ? FLOW_RISE_TONE : FLOW_FALL_TONE;       // 부호 → 발산 톤(차오름 호박·빠짐 파랑)
+    const fr = r * (1.2 + 1.1 * flowI);
+    const gf = ctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, fr);
+    gf.addColorStop(0, `rgba(${tone[0]},${tone[1]},${tone[2]},${(0.5 * flowI).toFixed(3)})`);
+    gf.addColorStop(1, `rgba(${tone[0]},${tone[1]},${tone[2]},0)`);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = gf;
+    ctx.beginPath(); ctx.arc(sx, sy, fr, 0, 6.2832); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // ── 렌즈 L-voxel: 공간 격자 cell → 복셀 큐브 밭 = 3D CA 외형 (캔버스 무관 순수 기하 — 헤드리스 검증) ──
+  // flux 트랙은 세계가 *셀 격자*(cols×rows×depth 토러스)다 — 현 L-3d 음영 *구*(球) 글리프는 셀을 둥근 공으로
+  //   그려 "공 더미"로 보였다(셀룰러 오토마타의 큐브 격자가 아님). L-voxel 은 격자 셀을 *큐브*로 번역한다:
+  //   색조=q밴드 c0(낮은 q 파랑→높은 q 빨강)·밝기=q magnitude(L-glow)·불투명도=평형 편차 |q−q̄|(평형 cell 투명·
+  //   활성 cell 빛나는 큐브). 큐브가 격자를 채워 *3D CA 외형*(원자=큐브 덩이·파동=큐브 마루/골)이 보인다.
+  //   게이트(시뮬 선행): flux 가 관성 파동으로 v·국소 에너지를 cell 에 실은 뒤(arc F step-0011 ✅·L-flow 로 확인).
+
+  // 시뮬이 *공간 채우는 셀 격자*인가 — cols×rows×depth = 원자 수면 격자(읽기·구조 측정, 종류 라벨 아님).
+  //   atom 장면(흩어진 원자)은 이를 만족 안 해 자동으로 구(球) 유지(회귀 0). flux 만 큐브로.
+  function isCellGrid(sim) {
+    const c = sim.cols | 0, r = sim.rows | 0, d = (sim.depth | 0) || 1;
+    return c > 1 && r > 1 && (c * r * d === sim.atoms.length);
+  }
+
+  // 셀 배열에서 q밴드 c0 최댓값을 *측정*(밴드 색조 정규화 기준). c0 없으면 0.
+  function measureMaxBand(atoms) {
+    let m = 0; for (const a of atoms) { const b = a.c0 | 0; if (b > m) m = b; }
+    return m;
+  }
+
+  // q밴드 c0 → 색조 ∈[0,1](낮은 q 파랑 0.66→높은 q 빨강 0·연속 사상 — L-element 동형 측정 정규화). maxBand=0 면 중립.
+  function bandHue(c0, maxBand) {
+    if (!(maxBand > 0)) return ELEMENT_HUE_REF;
+    return ELEMENT_HUE_LO * (1 - Math.max(0, Math.min(1, (c0 | 0) / maxBand)));
+  }
+
+  // 큐브 6면 — 월드 법선 n + 4 꼭짓점 인덱스(꼭짓점 i = (sx?4:0)+(sy?2:0)+(sz?1:0), s∈{−,+}). CCW 와인딩.
+  const CUBE_FACES = [
+    { n: [-1, 0, 0], idx: [0, 1, 3, 2] }, { n: [1, 0, 0], idx: [4, 6, 7, 5] },
+    { n: [0, -1, 0], idx: [0, 4, 5, 1] }, { n: [0, 1, 0], idx: [2, 3, 7, 6] },
+    { n: [0, 0, -1], idx: [0, 2, 6, 4] }, { n: [0, 0, 1], idx: [1, 5, 7, 3] },
+  ];
+  const CUBE_LIGHT = norm({ x: 0.4, y: 0.5, z: 0.9 });   // 라이트 방향(프레젠테이션 음영 — 큐브 입체감, 시뮬 양 아님)
+
+  // 셀 중심(cx,cy,cz)·반변 half 큐브의 *카메라 향한 면들*을 투영해 돌려준다(순수 기하 — 헤드리스 검증 가능).
+  //   각 면 {poly:[{sx,sy}×4], shade∈[0,1](라이트 음영), depth(면 중심 전방거리·painter)}. 카메라 뒤(depth≤0)면 제외.
+  function cubeFaces(cx, cy, cz, half, cam) {
+    const C = [];
+    for (let i = 0; i < 8; i++) {
+      const sx = (i & 4) ? 1 : -1, sy = (i & 2) ? 1 : -1, sz = (i & 1) ? 1 : -1;
+      C.push(project({ x: cx + sx * half, y: cy + sy * half, z: cz + sz * half }, cam));
+    }
+    const faces = [];
+    for (const f of CUBE_FACES) {
+      const n = f.n, fcx = cx + n[0] * half, fcy = cy + n[1] * half, fcz = cz + n[2] * half;
+      // 시선(면 중심→눈)과 법선이 마주봐야 카메라를 향함: dot(n, eye−faceCenter) > 0
+      const vx = cam.eye.x - fcx, vy = cam.eye.y - fcy, vz = cam.eye.z - fcz;
+      if (n[0] * vx + n[1] * vy + n[2] * vz <= 0) continue;       // 뒷면(back-face) 제외
+      const poly = f.idx.map(k => C[k]);
+      if (poly.some(p => p.depth <= 0)) continue;                  // 카메라 뒤 꼭짓점 제외
+      const fc = project({ x: fcx, y: fcy, z: fcz }, cam);
+      const shade = 0.45 + 0.55 * Math.max(0, n[0] * CUBE_LIGHT.x + n[1] * CUBE_LIGHT.y + n[2] * CUBE_LIGHT.z);
+      faces.push({ poly: poly.map(p => ({ sx: p.sx, sy: p.sy })), shade, depth: fc.depth });
+    }
+    return faces;
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -566,6 +638,10 @@
     const coreCls = measureCoreClasses(sim.atoms);                 // 결속 코어/분산 헤일로 공존 여부(core — L-core, 둘 다 있어야 구분)
     const maxFlow = measureMaxAbsFlow(sim.atoms);                  // 파동 운동량 발산 글로우 정규화 기준(측정 |v| 최댓값 — L-flow, flux 파동·atom 장면 0)
     const velWorld = STREAK_FRAC * Math.max(sim.W, sim.H);         // 운동 자취 길이 창(장면 크기 비례 — 줄기와 동일 창)
+    // 렌즈 L-voxel: 시뮬이 공간 채우는 셀 격자(flux cols×rows×depth)면 큐브 밭으로(아니면 구 — atom 장면 회귀 0).
+    const voxel = isCellGrid(sim);
+    const maxBand = voxel ? measureMaxBand(sim.atoms) : 0;         // q밴드 색조 정규화 기준(c0)
+    const cellHalf = voxel ? 0.46 * (sim.W / sim.cols) : 0;        // 큐브 반변(셀 간격의 ~92% — 살짝 띄워 셀 구분)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);  // z=깊이(step-0111 drift3d·미존재 → 0·2D 비트 동일)
       if (pr.depth <= 0) continue;
@@ -584,8 +660,10 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, xRange, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null, maxFlow);
-      else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
+      if (d.kind === 'atom') {
+        if (voxel) drawCell(ctx, d.a, cam, K, cellHalf, xRange, maxBand, maxFlow);   // 렌즈 L-voxel: 셀 → 큐브(CA 외형)
+        else drawAtom(ctx, d.a, d.pr, K, xRange, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null, maxFlow);
+      } else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -684,18 +762,7 @@
     // 렌즈 L-flow: 셀 파동 운동량 v(dq/dt) → 발산 글로우(가법 — v>0 차오름 따뜻·v<0 빠짐 차가움, 세기=|v|/maxFlow 측정).
     //   파동이 *어디로 흐르는가*를 보임 — 밝기(q magnitude)는 진폭만, 마루(차오름)와 골(빠짐)이 부호로 갈린다.
     //   maxFlow=0(파동 없음·atom 장면) 또는 v=0(마디)이면 안 그림 — 시뮬에 없는 흐름을 author 하지 않는다(RENDER §3).
-    const flowI = flowGlow(a.v, maxFlow || 0);
-    if (flowI > 0) {
-      const tone = (a.v > 0) ? FLOW_RISE_TONE : FLOW_FALL_TONE;   // 부호 → 발산 톤(종류별 색 박기 아님 — dq/dt 부호 읽기)
-      const fr = r * (1.2 + 1.1 * flowI);                          // 발산 글로우 반경(세기 비례)
-      const gf = ctx.createRadialGradient(pr.sx, pr.sy, r * 0.4, pr.sx, pr.sy, fr);
-      gf.addColorStop(0, `rgba(${tone[0]},${tone[1]},${tone[2]},${(0.5 * flowI).toFixed(3)})`);
-      gf.addColorStop(1, `rgba(${tone[0]},${tone[1]},${tone[2]},0)`);
-      ctx.globalCompositeOperation = 'lighter';                    // 가법 — 흐름 글로우
-      ctx.fillStyle = gf;
-      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, fr, 0, 6.2832); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-    }
+    drawFlowGlow(ctx, pr.sx, pr.sy, r, a.v, maxFlow);             // 부호 톤 차오름 호박·빠짐 파랑·세기 |v| (공용 헬퍼)
     // 발광 헤일로 = 들뜸 준위에 비례하는 광원 밝기(읽기 — magnitude 채널). 색은 중립 온백(hue author 0).
     //   x=0(바닥)이면 헤일로 0 — 들뜨지 않은 원자는 빛을 author 하지 않는다.
     if (exc > 0) {
@@ -708,6 +775,36 @@
       ctx.beginPath(); ctx.arc(pr.sx, pr.sy, hr, 0, 6.2832); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
+  }
+
+  // 셀 = 복셀 큐브(렌즈 L-voxel). 격자 셀을 큐브로 그려 *3D CA 외형*을 만든다(구 더미가 아닌 큐브 밭).
+  //   색조=q밴드 c0(낮은 q 파랑→높은 q 빨강)·밝기=q magnitude(L-glow exc)·불투명도=평형 편차 |q−q̄|(평형 cell 투명·
+  //   활성 cell 빛나는 큐브). 평형(편차≈0) 셀은 안 그림 → CA 빈 공간(활성 마루/골만 큐브로 떠오름). flow(v)는 발산 글로우 유지.
+  function drawCell(ctx, a, cam, K, half, xRange, maxBand, maxFlow) {
+    const exc = excitationGlow(a.x, xRange.lo, xRange.hi);   // q magnitude → 들뜸(측정 범위 정규화·L-glow 동형)
+    const op = exc;                                          // 불투명도=들뜸: 평형(q=lo→range 0)이면 투명(CA 빈 공간)·들뜬 cell 불투명
+    const center = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);
+    if (center.depth <= 0) return;
+    // flow 발산 글로우는 평형 cell 에서도(흐름은 들뜸과 별 채널) — 큐브 전에 깔아 활성 큐브 주위 톤
+    if (op > 0.04) {                                       // 들뜬 cell 만 큐브(평형은 투명 — author 0)
+      const hue = bandHue(a.c0 | 0, maxBand);                 // q밴드 → 색조(L-element 동형)
+      const base = hsvToRgb(hue, maxBand > 0 ? 0.6 : 0.12, 0.30 + 0.6 * exc);   // 색조=밴드·명도=q magnitude
+      const faces = cubeFaces(a.rx, a.ry, a.rz || 0, half, cam);
+      faces.sort((u, v) => v.depth - u.depth);              // 먼 면 먼저(painter)
+      ctx.globalCompositeOperation = 'source-over';
+      for (const f of faces) {
+        const c = base.map(v => Math.min(255, Math.round(v * f.shade)));    // 면 음영(라이트 — 입체감)
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.35 + 0.65 * op).toFixed(3)})`;   // 불투명도=편차(평형 투명)
+        ctx.beginPath();
+        ctx.moveTo(f.poly[0].sx, f.poly[0].sy);
+        for (let k = 1; k < f.poly.length; k++) ctx.lineTo(f.poly[k].sx, f.poly[k].sy);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.5 * op).toFixed(3)})`;   // 면 테두리(큐브 격자감)
+        ctx.lineWidth = Math.max(0.5, 0.5 * center.scale);
+        ctx.stroke();
+      }
+    }
+    drawFlowGlow(ctx, center.sx, center.sy, Math.max(2, half * center.scale), a.v, maxFlow);  // 렌즈 L-flow 유지(부호 톤)
   }
 
   // 광자 = 색 있는 발광 빌보드(가법 합성). 색 = λ → 스펙트럼(측정 범위 정규화 — L-λ 읽기).
@@ -869,5 +966,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow, isCellGrid, measureMaxBand, bandHue, cubeFaces };
 });
