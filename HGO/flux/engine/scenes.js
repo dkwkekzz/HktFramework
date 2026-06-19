@@ -350,6 +350,211 @@
     };
   }
 
+  // arc G 풍경(원자 = 자기 가둠) — 중앙 고진폭 펄스, 관성, 비선형 α(>1). pulseSpec(step-0011, α=1)와 같은 IC 형태지만
+  //   α 를 노브로 받는다(새 법칙·새 노브 0 — 기존 inertial·α 조합). 선형(α=1)은 분산해 흩어지지만 α>1 은 분산을
+  //   *되감아* 자기집속한다(FPUT형 비조화). κ 는 α>1 안정역(작은 κ — step-0008 의 α=3 발산 경계 회피).
+  function breatherSpec(kappa, amp, alpha, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      const dc = Math.abs(c - (cols - 1) / 2), dr = Math.abs(r - (rows - 1) / 2), dz = Math.abs(z - (depth - 1) / 2);
+      const blob = (dc < 1 && dr < 1 && dz < 1) ? amp : 0;          // 중앙 2³ 고진폭 펄스(v=0 정지 출발)
+      atoms.push({ rx, ry, rz, q: Math.round((1 + blob) * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa, theta: 0, alpha, inertial: 1 } };
+  }
+
+  // 창발 측정(arc G — 원자/자기 가둠) — 비선형이 분산을 *되감아* 들뜸을 가두는지 *읽는* 지표(author 라벨 아님).
+  //   같은 IC 를 선형(α=1)·비선형(α>1)로 돌려 *지속 최대진폭*(시작 과도 후 시간평균 peak)을 비교한다.
+  //   선형 파동은 흩어져 peak 가 배경으로 가라앉고(질량 0·골드스톤), 비선형 자기집속은 peak 를 높게 유지한다
+  //   (= 비분산 국소 들뜸 = 이산 브리더 씨앗). 유한 토러스라 분산파도 재귀(recurrence)로 가끔 재집속 →
+  //   *순간* peak 은 비단조 → 시간평균으로 본다. ΣQ·ΣP 비트 보존·발산 없음(유한)도 같이 확인.
+  function breatherMeasure(kappa, amp, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const peak = s => { let mx = 0; for (const a of s.atoms) { const e = Math.abs((a.q - S) / S); if (e > mx) mx = e; } return mx; };
+    const run = alpha => {
+      const sim = SIM.createSim(breatherSpec(kappa, amp, alpha, n));
+      let q0 = 0, p0 = 0; for (const a of sim.atoms) { q0 += a.q; p0 += (a.v || 0); }
+      let s = 0, cnt = 0, mn = Infinity;
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= 20) { const p = peak(sim); s += p; cnt++; if (p < mn) mn = p; } }
+      let q1 = 0, p1 = 0; for (const a of sim.atoms) { q1 += a.q; p1 += (a.v || 0); }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { mean: +(s / cnt).toFixed(4), min: +mn.toFixed(4), dQ: fin ? Math.abs(q1 - q0) / S : NaN, dP: fin ? Math.abs(p1 - p0) / S : NaN, fin };
+    };
+    const lin = run(1), non = run(2);
+    return { lin, non, ratio: +(non.mean / lin.mean).toFixed(3) };
+  }
+
+  // 창발 측정(arc G — 브리더 내부 진동수) — 갇힌 들뜸이 *진짜 이산 브리더*임을 가르는 결정적 지표(author 아님).
+  //   브리더 핵(부호 있는 최대 들뜸 = 가장 높은 봉우리)의 시간열 → 진동 주기 → 내부 진동수 ω_b. 선형 포논 전파
+  //   대역 상한 ω_max=2√(3κ)(3D 6-이웃, k=π 전 축; step-0011 분산관계 ω(k)=2√κ·|sin| 의 3축 합 최대) 와 비교.
+  //   경화(hardening) 비선형이면 ω_b 가 진폭 따라 *상승* → 대역 *밖*(공명할 포논 없음) → 방사 불가 → 영속 국소화.
+  //   진폭 2·3·4 를 돌려 (대역 밖 여부 + 경화 추세)를 함께 본다. ΣP 비트 보존도 확인.
+  function breathingMeasure(kappa, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const smax = s => { let mx = -Infinity; for (const a of s.atoms) { const e = (a.q - S) / S; if (e > mx) mx = e; } return mx; };  // 부호 있는 최대 들뜸(브리더 핵)
+    const run = amp => {
+      const sim = SIM.createSim(breatherSpec(kappa, amp, 2, n));
+      let p0 = 0; for (const a of sim.atoms) p0 += (a.v || 0);
+      const ser = []; for (let t = 0; t < ticks; t++) { ser.push(smax(sim)); SIM.step(sim); }
+      let p1 = 0; for (const a of sim.atoms) p1 += (a.v || 0);
+      const fin = Number.isFinite(sim.atoms[0].q);
+      const m = ser.reduce((x, y) => x + y, 0) / ser.length, cr = [];           // 평균 상향 영점통과 → 주기
+      for (let t = 1; t < ser.length; t++) if ((ser[t - 1] - m) <= 0 && (ser[t] - m) > 0) cr.push(t);
+      const per = cr.length > 1 ? (cr[cr.length - 1] - cr[0]) / (cr.length - 1) : NaN;
+      return { omega: +(2 * Math.PI / per).toFixed(4), ncross: cr.length, dP: fin ? Math.abs(p1 - p0) / S : NaN, fin };
+    };
+    return { a2: run(2), a3: run(3), a4: run(4), bandMax: +(2 * Math.sqrt(3 * kappa)).toFixed(4) };
+  }
+
+  // arc H/I 풍경(여러 브리더) — x 축을 따라 *여러* 고진폭 펄스(2³ 블록)를 일렬로 놓는다. breatherSpec 의 한 펄스를
+  //   centers 목록으로 일반화(새 법칙·새 노브 0 — 같은 inertial·α). 두 개(분자 씨앗)·세 개(사슬=고분자 씨앗)를
+  //   같은 코드로 만든다(DRY·복사 0). 중심은 비율로(n=12 면 항등 → 골든 불변·작은 격자는 위치 보존).
+  function lumpChainSpec(kappa, amp, alpha, centers, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const rmid = Math.floor((rows - 1) / 2), zmid = Math.floor((depth - 1) / 2);
+    const cset = centers.map(cc => Math.round(cc / 12 * cols));
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      let blob = 0;
+      for (const cc of cset) if ((c === cc || c === cc + 1) && (r === rmid || r === rmid + 1) && (z === zmid || z === zmid + 1)) blob = amp;
+      atoms.push({ rx, ry, rz, q: Math.round((1 + blob) * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa, theta: 0, alpha, inertial: 1 } };
+  }
+
+  // 창발 측정(arc H/I — 다체 국소화) — 여러 브리더가 *서로 다른 자리에* 동시에 갇혀 *공존*하는지 *읽는* 지표.
+  //   각 구획(seg = x 열 범위)의 시작 과도 후 시간평균 최대진폭(peak)을 본다 — 비선형(α=2)은 구획마다 코어를
+  //   유지하지만 선형(α=1)은 흩어져 합쳐진다. 코어가 *각 자리에 고정*(핀닝)되므로 N 개 펄스 → N 개 지속 코어
+  //   = 분자(2)·사슬(≥3, 고분자) 의 *기하* 씨앗. 결합에너지/포화(진짜 화학결합)는 author 0 — 측정 아닌 미해결.
+  function multiBreatherMeasure(kappa, amp, centers, segs, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const peakRange = (s, c0, c1) => { let mx = 0, i = 0, N = s.cols; for (let z = 0; z < N; z++) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { if (c >= c0 && c <= c1) { const e = Math.abs((s.atoms[i].q - S) / S); if (e > mx) mx = e; } i++; } return mx; };
+    const run = alpha => {
+      const sim = SIM.createSim(lumpChainSpec(kappa, amp, alpha, centers, n));
+      let p0 = 0; for (const a of sim.atoms) p0 += (a.v || 0);
+      const sums = segs.map(() => 0), mins = segs.map(() => Infinity); let cnt = 0;
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= 20) { segs.forEach((sg, k) => { const p = peakRange(sim, sg[0], sg[1]); sums[k] += p; if (p < mins[k]) mins[k] = p; }); cnt++; } }
+      let p1 = 0; for (const a of sim.atoms) p1 += (a.v || 0);
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { means: sums.map(s => +(s / cnt).toFixed(4)), mins: mins.map(m => +m.toFixed(4)), dP: fin ? Math.abs(p1 - p0) / S : NaN, fin };
+    };
+    const non = run(2), lin = run(1);
+    const ratios = non.means.map((m, k) => +(m / lin.means[k]).toFixed(3));
+    return { non, lin, ratios, minRatio: Math.min.apply(null, ratios), minMeanNon: Math.min.apply(null, non.means), nSeg: segs.length };
+  }
+
+  // arc G 측정 — 브리더 장수명(시간 지속). 단일 브리더를 길게 돌려 *후기 창*(late window) 평균 peak 가 선형 대비
+  //   높게 유지되는지 본다 — 원자가 *영속하는 물질*인지(전이 아닌 안정 구조). ΣP 비트 보존도.
+  function lifeMeasure(kappa, amp, ticks) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const peak = s => { let mx = 0; for (const a of s.atoms) { const e = Math.abs((a.q - S) / S); if (e > mx) mx = e; } return mx; };
+    const run = alpha => {
+      const sim = SIM.createSim(breatherSpec(kappa, amp, alpha, 12));
+      let p0 = 0; for (const a of sim.atoms) p0 += (a.v || 0);
+      let s = 0, n = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { s += peak(sim); n++; } }
+      let p1 = 0; for (const a of sim.atoms) p1 += (a.v || 0);
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { late: +(s / n).toFixed(4), dP: fin ? Math.abs(p1 - p0) / S : NaN, fin };
+    };
+    const non = run(2), lin = run(1);
+    return { non, lin, ratio: +(non.late / lin.late).toFixed(3) };
+  }
+
+  // arc G 측정 — 자기집속 세기 ∝ 진폭(경화). 진폭 스윕에서 (비선형/선형) 지속 peak 비가 진폭 따라 *증가* →
+  //   강한 들뜸일수록 더 단단히 갇힘 = "원자 크기"의 연속 스펙트럼. breatherMeasure 를 진폭 인자로 재사용.
+  function focusScaleMeasure(kappa, ticks) {
+    const amps = [0.5, 1, 2, 3, 4, 5];
+    const ratios = amps.map(a => breatherMeasure(kappa, a, ticks).ratio);
+    return { amps, ratios, lo: ratios[0], hi: ratios[ratios.length - 1] };
+  }
+
+  // arc G 풍경 — *뜨거운 잡음* IC(균일 q + 결정론 해시 노이즈·v=0). 모듈레이션 불안정으로 비선형이 에너지를
+  //   국소화하는지(브리더 자발 형성 = 무에서 물질) 보는 기질. rng 미사용(셀 인덱스 해시 → 비트 재현).
+  function hotSpec(amp, kappa, alpha, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const atoms = []; let i = 0;
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      const h = (Math.imul(i + 1, 2654435761) >>> 0) / 4294967296;       // 0..1 결정론(Knuth 승법 해시)
+      atoms.push({ rx, ry, rz, q: Math.round((1 + amp * (h - 0.5)) * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+      i++;
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa, theta: 0, alpha, inertial: 1 } };
+  }
+
+  // 창발 측정(arc G — 무에서 물질) — 뜨거운 잡음에서 비선형이 에너지를 *스스로 국소화*하는지 읽는 지표.
+  //   역참여비 P=(Σe²)²/Σe⁴(=실효 들뜸 셀 수, 낮을수록 국소화) + 지속 최대진폭. 비선형은 잡음을 모아 봉우리를
+  //   키우고(P↓·peak↑), 선형은 퍼진 채 남는다(P 큼). ΣQ 비트 보존도. P 안정(붕괴 안 함)은 populationMeasure.
+  function spontaneousMeasure(kappa, amp, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const stat = s => { let s1 = 0, s2 = 0, mx = 0, q = 0; for (const a of s.atoms) { const e = (a.q - S) / S, e2 = e * e; s1 += e2; s2 += e2 * e2; if (Math.abs(e) > mx) mx = Math.abs(e); q += a.q; } return { P: s2 > 0 ? s1 * s1 / s2 : 0, peak: mx, sumQ: q }; };
+    const run = alpha => {
+      const sim = SIM.createSim(hotSpec(amp, kappa, alpha, n));
+      const q0 = stat(sim).sumQ; let ps = 0, Ps = 0, cnt = 0; const lo = Math.floor(ticks / 2);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const st = stat(sim); ps += st.peak; Ps += st.P; cnt++; } }
+      const last = stat(sim), fin = Number.isFinite(sim.atoms[0].q);
+      return { pkLate: +(ps / cnt).toFixed(4), Plate: +(Ps / cnt).toFixed(1), dQ: fin ? Math.abs(last.sumQ - q0) / S : NaN, fin };
+    };
+    const non = run(2), lin = run(1);
+    return { non, lin, pkRatio: +(non.pkLate / lin.pkLate).toFixed(3), pRatio: +(lin.Plate / non.Plate).toFixed(3) };
+  }
+
+  // 풍경 — 임의 위치의 2³ 블록 펄스들(절대 좌표·corners=[c,r,z] 좌하단). lumpChainSpec(x-축·n=12 비율)과 달리
+  //   *임의 배치*(간격 스윕·n 자유)용. 두 브리더 결합 천장(bindingCeiling) 측정이 쓴다. 새 법칙·노브 0.
+  function blockLumpsSpec(kappa, amp, alpha, corners, n) {
+    const cols = n || 12, rows = n || 12, depth = n || 12, W = 100, H = 100, D = 100, S = K.SCALE;
+    const inB = (c, r, z, b) => (c === b[0] || c === b[0] + 1) && (r === b[1] || r === b[1] + 1) && (z === b[2] || z === b[2] + 1);
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      let blob = 0; for (const b of corners) if (inB(c, r, z, b)) { blob = amp; break; }
+      atoms.push({ rx, ry, rz, q: Math.round((1 + blob) * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa, theta: 0, alpha, inertial: 1 } };
+  }
+
+  // 창발 측정(arc H — 결합 천장) — 두 브리더의 지속 peak 가 *간격에 거의 무관*하고 단일 브리더 값 부근에
+  //   머무는지 본다(n=16 여유 상자). 강한 *고정-간격 결합*(인력 우물)이면 특정 간격에서 peak 가 크게 솟아야 하는데,
+  //   단일 q 는 약한 단거리 협동뿐 → 간격 의존이 작음(spread<임계)·단일값 근처. = 비결합/비포화(SPINE §5 blob).
+  function bindingCeilingMeasure(kappa, amp, ticks) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, n = 16, m = Math.floor((n - 1) / 2);   // m=7
+    const peak = s => { let mx = 0; for (const a of s.atoms) { const e = Math.abs((a.q - S) / S); if (e > mx) mx = e; } return mx; };
+    const meanPk = corners => { const sim = SIM.createSim(blockLumpsSpec(kappa, amp, 2, corners, n)); let s = 0, c = 0, fin = true; for (let t = 0; t < ticks; t++) { SIM.step(sim); if (!Number.isFinite(sim.atoms[0].q)) { fin = false; break; } if (t >= 20) { s += peak(sim); c++; } } return fin ? +(s / c).toFixed(4) : NaN; };
+    const single = meanPk([[m, m, m]]);
+    const seps = [2, 3, 4, 6, 8];
+    const pks = seps.map(sep => meanPk([[m - Math.ceil(sep / 2), m, m], [m - Math.ceil(sep / 2) + sep, m, m]]));
+    const mx = Math.max.apply(null, pks), mn = Math.min.apply(null, pks);
+    const fin = pks.every(Number.isFinite) && Number.isFinite(single);
+    return { single: +single.toFixed(4), seps, pks: pks.map(x => +x.toFixed(4)), spread: +(mx / mn).toFixed(3), maxOverSingle: +(mx / single).toFixed(3), minPk: +mn.toFixed(4), fin };
+  }
+
+  // 창발 측정(arc G — 자발 물질의 안정 개체수) — 뜨거운 비선형을 길게 돌려 역참여비 P 가 *안정화*(한 덩어리로
+  //   붕괴하지도, 다시 퍼지지도 않음)하는지 본다. 자발 형성된 국소 들뜸이 *지속하는 다체 개체군*(원자 기체)인지의
+  //   증거 — P(후기)≈P(중기)(안정)·P<선형(국소)·P≫1(한 덩어리 아님·여럿).
+  function populationMeasure(kappa, amp, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE;
+    const Pof = s => { let s1 = 0, s2 = 0; for (const a of s.atoms) { const e = (a.q - S) / S, e2 = e * e; s1 += e2; s2 += e2 * e2; } return s2 > 0 ? s1 * s1 / s2 : 0; };
+    const run = alpha => {
+      const sim = SIM.createSim(hotSpec(amp, kappa, alpha, n));
+      let pm = 0, pl = 0, cm = 0, cl = 0; const mid0 = Math.floor(ticks * 0.4), mid1 = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); const P = Pof(sim); if (t >= mid0 && t < mid1) { pm += P; cm++; } if (t >= Math.floor(ticks * 0.8)) { pl += P; cl++; } }
+      return { Pmid: +(pm / cm).toFixed(1), Plate: +(pl / cl).toFixed(1), fin: Number.isFinite(sim.atoms[0].q) };
+    };
+    const non = run(2), lin = run(1);
+    return { non, lin, drift: +(Math.abs(non.Plate - non.Pmid) / non.Pmid).toFixed(3), N: (n || 12) ** 3 };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -611,6 +816,205 @@
           { name: '가역·유계(E=K+U 발산 없이 유계·확산처럼 0 으로 안 죽음)', pass: wv.finite && wv.eMax < 4 * wv.E0 && wv.eMin > 0, value: `E0=${wv.E0}, E∈[${wv.eMin},${wv.eMax}]` },
           { name: '파동(spread 비단조: 되돌아옴 — 확산은 단조↓)', pass: wv.rebounds > 5, value: `rebounds=${wv.rebounds}` },
           { name: '분산관계 일치(ω_meas ≈ 2√κ·|sin(kₓ/2)|)', pass: Math.abs(wv.dispRatio - 1) < 0.05, value: `ω_meas=${wv.omegaMeas} vs ω_thy=${wv.omegaThy} (ratio=${wv.dispRatio})` },
+        ];
+      },
+    },
+
+    // ── step-0012: arc G — 비선형 자기 가둠 = 원자(이산 브리더 씨앗) ── 장면+측정만(법칙·노브 0, 기존 inertial·α 조합).
+    //   arc F(step-0011)는 *선형* 파동(α=1)을 세웠다 — 보존·E 유계·분산관계 측정 완료. 하지만 선형 파동은 분산해
+    //   흩어진다(질량 0, 골드스톤). 같은 관성 적분에 *비선형 α>1*(이미 있는 노브)을 켜면 분산을 *되감아* 자기집속 →
+    //   들뜸이 흩어지지 않고 한 자리에 갇힌다(이산 브리더 = 원자). 질량은 박지 않고 *측정*(SPINE §5·§9 arc G).
+    'step-0012': {
+      id: 'step-0012',
+      title: 'step-0012 — arc G: 비선형 자기 가둠 = 원자(이산 브리더 씨앗)',
+      desc: '선형 파동(arc F)은 분산해 흩어진다(질량 0). 같은 관성 적분(v←v+G; q←q+v)에 비선형 α>1(이미 있는 노브)을 켜면 — 같은 IC 의 중앙 펄스가 선형(α=1)에선 배경으로 가라앉지만 비선형(α=2)에선 분산을 되감아 한 자리에 갇힌다(자기집속·FPUT형 비조화). 측정: 시작 과도 후 시간평균 최대진폭(peak) 을 선형 vs 비선형으로 비교 — 비선형 peak 가 선형의 ~2배로 지속(=비분산 국소 들뜸 = 이산 브리더 씨앗). 질량은 author 하지 않고 갇힌 들뜸으로 *측정*(arc H 효과질량의 전제). κ=0.05 는 α>1 안정역(step-0008 α=3 발산 경계 회피)·amp=3·θ=0. 보존: ΣQ·ΣP 비트 불변(관성 비선형도 반대칭 −F/+F)·발산 없음(유한). 같은 규칙·새 법칙 0, 바뀐 건 노브 α 뿐(SPINE §3·§5).',
+      ticks: 400,
+      init(rng, K, opts) { return breatherSpec(0.05, 3, 2, (opts && opts.scale) || 12); },   // 메인: 중앙 펄스·관성·α=2·κ=0.05
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const b = breatherMeasure(0.05, 3, 400);   // 보조 재실행(결정론): 선형 vs 비선형 지속 peak·보존
+        return [
+          { name: 'ΣQ 보존(닫힌 장부·관성 비선형 경로 비트)', pass: b.non.fin && b.non.dQ < 1e-6, value: `|ΔΣq|=${b.non.dQ.toExponential(2)}` },
+          { name: 'ΣP 보존(운동량 닫힌 장부·반대칭 강제)', pass: b.non.fin && b.non.dP < 1e-6, value: `|ΔΣp|=${b.non.dP.toExponential(2)}` },
+          { name: '안정(α>1 발산 없이 유한)', pass: b.non.fin, value: `finite=${b.non.fin}` },
+          { name: '자기 가둠(비선형 지속 peak ≫ 선형 분산 peak)', pass: b.ratio > 1.5, value: `peak_non=${b.non.mean} vs peak_lin=${b.lin.mean} (ratio=${b.ratio})` },
+          { name: '비분산 국소화(비선형 들뜸이 배경으로 안 가라앉음)', pass: b.non.mean > 1.0, value: `peak_non(평균)=${b.non.mean} > 1.0` },
+        ];
+      },
+    },
+
+    // ── step-0013: arc G — 브리더 내부 진동수가 전파대역 밖(방사 불가 = 진짜 이산 브리더) ── 장면+측정만(법칙·노브 0).
+    //   step-0012 는 비선형이 들뜸을 *가둔다*를 측정했다(peak 비). 왜 안 흩어지나? — 갇힌 핵의 *내부 진동수 ω_b* 가
+    //   선형 포논 전파대역 상한 ω_max=2√(3κ) *밖*이라, 공명해 에너지를 실어 갈 포논 모드가 없어 *방사 불가*다.
+    //   경화(hardening) 비선형이라 ω_b 가 진폭 따라 상승 → 대역 밖으로 더 밀린다. 이게 이산 브리더의 결정적 서명.
+    'step-0013': {
+      id: 'step-0013',
+      title: 'step-0013 — arc G: 브리더 내부 진동수 전파대역 밖(방사 불가)',
+      desc: 'step-0012 는 비선형이 들뜸을 가둔다(peak 비 2.1배)를 쟀다. 이번엔 *왜* 안 흩어지는지를 측정한다 — 갇힌 핵(부호 있는 최대 들뜸)의 시간열에서 내부 진동수 ω_b 를 뽑아, 선형 파동(arc F)의 전파대역 상한 ω_max=2√(3κ)(3D 6-이웃·step-0011 분산관계의 3축 합 최대) 과 비교. 결과: ω_b 가 대역 *밖*(공명할 포논 모드 없음→에너지 실어 갈 곳 없음→방사 불가→영속 국소화)이고, 경화(hardening) 비선형이라 진폭 따라 ω_b 가 *상승*(amp2→3→4: 0.825→0.860→1.366) — 대역 밖으로 더 밀린다. 이것이 이산 브리더(=원자)의 결정적 서명. 같은 세계(breatherSpec) 새 렌즈·κ=0.05·θ=0. ΣP 비트 보존·발산 0. 새 법칙·새 노브 0(SPINE §5·§9 arc G).',
+      ticks: 400,
+      init(rng, K, opts) { return breatherSpec(0.05, 3, 2, (opts && opts.scale) || 12); },   // step-0012 와 같은 브리더 세계·새 측정 렌즈
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const f = breathingMeasure(0.05, 400);   // 보조 재실행(결정론): amp 2·3·4 의 ω_b·대역 상한
+        return [
+          { name: 'ΣP 보존(운동량 닫힌 장부·반대칭 강제)', pass: f.a3.fin && f.a3.dP < 1e-6, value: `|ΔΣp|=${f.a3.dP.toExponential(2)}` },
+          { name: '안정(α>1 발산 없이 유한)', pass: f.a4.fin, value: `finite=${f.a4.fin}` },
+          { name: '진동수 전파대역 밖(브리더 ω_b ≫ 포논 대역 상한 → 방사 불가)', pass: f.a4.omega > f.bandMax, value: `ω_b(amp4)=${f.a4.omega} vs ω_max=${f.bandMax} (ratio=${(f.a4.omega / f.bandMax).toFixed(2)})` },
+          { name: '경화 비선형(ω_b 가 진폭 따라 상승 → 대역 밖으로 밀림)', pass: f.a4.omega > f.a2.omega, value: `ω_b(amp2→4)=${f.a2.omega}→${f.a3.omega}→${f.a4.omega}` },
+          { name: 'step-0012 브리더(amp3)도 대역 위(가까스로 gap 안)', pass: f.a3.omega > f.bandMax, value: `ω_b(amp3)=${f.a3.omega} > ω_max=${f.bandMax}` },
+        ];
+      },
+    },
+
+    // ── step-0014: arc H — 두 브리더 공존(다체 국소화 = 분자/사슬의 기하 씨앗) ── 장면+측정만(법칙·노브 0).
+    //   arc G(0012·0013)는 *한* 브리더가 갇히고 대역 밖 진동수로 영속함을 측정했다. 분자·고분자로 가려면 먼저
+    //   *여럿*이 서로 다른 자리에 동시에 갇힐 수 있어야 한다(필요 조건). x 축 두 곳에 펄스를 놓고 각 반쪽이 코어를
+    //   유지하는지(비선형) vs 흩어지는지(선형) 측정. 핀닝(이산 격자가 브리더를 자리에 고정)이 공존을 가능케 한다.
+    'step-0014': {
+      id: 'step-0014',
+      title: 'step-0014 — arc H: 두 브리더 공존(다체 국소화 = 분자 기하 씨앗)',
+      desc: 'arc G 는 한 브리더의 가둠(0012)·대역 밖 진동수(0013)를 쟀다. 분자·고분자의 *필요 조건*은 여럿이 서로 다른 자리에 동시에 갇혀 공존하는 것. x 축 두 곳(중심 [2,8]·토러스 대칭)에 같은 펄스를 놓고 각 반쪽([0–5],[6–11])의 시작 과도 후 시간평균 peak 를 본다 — 비선형(α=2)은 두 코어를 각 자리에 유지(핀닝)하지만 선형(α=1)은 흩어져 합쳐진다. 측정: 두 반쪽 모두 비선형 peak≫선형(이산 격자가 브리더를 자리에 고정해 공존). 결합에너지/포화(진짜 화학결합)는 측정 아닌 미해결(author 0). κ=0.05·θ=0·amp=3. ΣP 비트 보존·발산 0. 새 법칙·새 노브 0(SPINE §5·§9 arc H).',
+      ticks: 400,
+      init(rng, K, opts) { return lumpChainSpec(0.05, 3, 2, [2, 8], (opts && opts.scale) || 12); },   // 두 브리더(분자 씨앗)
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const m = multiBreatherMeasure(0.05, 3, [2, 8], [[0, 5], [6, 11]], 400);
+        return [
+          { name: 'ΣP 보존(운동량 닫힌 장부·반대칭 강제)', pass: m.non.fin && m.non.dP < 1e-6, value: `|ΔΣp|=${m.non.dP.toExponential(2)}` },
+          { name: '안정(α>1 발산 없이 유한)', pass: m.non.fin, value: `finite=${m.non.fin}` },
+          { name: '두 코어 공존(각 반쪽 비선형 peak ≫ 선형 분산 — 모든 구획)', pass: m.minRatio > 1.4, value: `peak_non=[${m.non.means}] vs peak_lin=[${m.lin.means}] (minRatio=${m.minRatio})` },
+          { name: '각 코어 국소화 유지(가장 약한 구획도 peak>1.0)', pass: m.minMeanNon > 1.0, value: `min(peak_non)=${m.minMeanNon} > 1.0` },
+        ];
+      },
+    },
+
+    // ── step-0015: arc I — 세 브리더 일렬 = 사슬(고분자 1차 목표 방향) ── 장면+측정만(법칙·노브 0).
+    //   분자(둘, 0014)에서 사슬(셋 이상)로. x 축에 세 펄스를 *일렬*(collinear)로 놓고 세 구획이 모두 코어를
+    //   유지하면 = 길이>2 의 선형 사슬(고분자의 *기하* 씨앗, SPINE §5·§9 arc I, 1차 목표). 단일 스칼라 q + 격자
+    //   핀닝이 *덩어리(blob)*가 아니라 *선형 배열*을 유지하는지 측정. 진짜 원자가·포화 결합은 미해결(author 0).
+    'step-0015': {
+      id: 'step-0015',
+      title: 'step-0015 — arc I: 세 브리더 일렬 = 사슬(고분자 기하 씨앗·1차 목표)',
+      desc: '분자(둘, step-0014)에서 사슬(셋 이상)로 — 고분자는 flux 트랙의 1차 목표(SPINE §5·§9 arc I). x 축에 세 펄스를 일렬(중심 [0,4,8]·토러스 period-4 대칭)로 놓고 세 구획([0–3],[4–7],[8–11]) 모두 시작 과도 후 시간평균 peak 코어를 유지하는지(비선형) vs 흩어지는지(선형) 측정. 세 코어가 다 살아 *일렬로 고정*되면 = 길이>2 의 선형 사슬 = 고분자의 기하 씨앗. 단일 스칼라 q + 관성 + 비선형 + 격자 핀닝만으로 덩어리가 아닌 *선형 배열*을 유지함을 본다(SPINE §5 최소부터). 단, 방향성 원자가·결합 포화(진짜 고분자 화학)는 측정 아닌 미해결(author 0) — 코어가 *공존·고정*하는 기하만 측정. κ=0.05·θ=0·amp=3. ΣP 비트 보존·발산 0. 새 법칙·새 노브 0.',
+      ticks: 400,
+      init(rng, K, opts) { return lumpChainSpec(0.05, 3, 2, [0, 4, 8], (opts && opts.scale) || 12); },   // 세 브리더 일렬(사슬 씨앗)
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const m = multiBreatherMeasure(0.05, 3, [0, 4, 8], [[0, 3], [4, 7], [8, 11]], 400);
+        const allCores = m.non.means.every(x => x > 1.0);   // 세 구획 모두 코어 생존 = 사슬 길이 3
+        return [
+          { name: 'ΣP 보존(운동량 닫힌 장부·반대칭 강제)', pass: m.non.fin && m.non.dP < 1e-6, value: `|ΔΣp|=${m.non.dP.toExponential(2)}` },
+          { name: '안정(α>1 발산 없이 유한)', pass: m.non.fin, value: `finite=${m.non.fin}` },
+          { name: '세 코어 일렬 공존(사슬 길이 3 — 모든 구획 비선형 peak ≫ 선형)', pass: m.minRatio > 1.4, value: `peak_non=[${m.non.means}] vs peak_lin=[${m.lin.means}] (minRatio=${m.minRatio})` },
+          { name: '선형 사슬(덩어리 아님 — 세 구획 모두 코어 생존)', pass: allCores && m.nSeg === 3, value: `cores=${m.non.means.map(x => x > 1.0 ? 1 : 0).reduce((a, b) => a + b, 0)}/3 (peaks=[${m.non.means}])` },
+        ];
+      },
+    },
+
+    // ── step-0016: arc G — 브리더 장수명(원자는 영속하는 물질) ── 장면+측정만(법칙·노브 0).
+    //   arc G(0012·0013)는 브리더의 가둠·대역 밖 진동수를 *400틱* 동안 봤다. "물질"이라면 더 오래 살아야 한다.
+    //   같은 브리더를 1500틱 돌려, 후기 창(t≥900)의 평균 peak 가 선형 대비 높게 유지되는지(전이 아닌 안정 구조).
+    'step-0016': {
+      id: 'step-0016',
+      title: 'step-0016 — arc G: 브리더 장수명(원자는 영속하는 물질)',
+      desc: '브리더가 *물질*이라면 잠깐이 아니라 오래 살아야 한다. step-0012 의 브리더(breatherSpec·α=2·amp3·κ0.05)를 1500틱 돌려, 후기 창(t≥900·전체의 60% 이후)의 시간평균 peak 를 선형(α=1)과 비교 — 비선형은 후기에도 peak 를 높게 유지(소폭 감쇠하나 안정)하지만 선형은 일찍 가라앉는다. 원자가 전이(transient)가 아니라 *지속하는 안정 구조*임의 측정. ΣP 비트 보존. 새 법칙·새 노브 0(SPINE §5·§9 arc G).',
+      ticks: 1500,
+      init(rng, K, opts) { return breatherSpec(0.05, 3, 2, (opts && opts.scale) || 12); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const L = lifeMeasure(0.05, 3, 1500);
+        return [
+          { name: 'ΣP 보존(운동량 닫힌 장부·반대칭 강제)', pass: L.non.fin && L.non.dP < 1e-6, value: `|ΔΣp|=${L.non.dP.toExponential(2)}` },
+          { name: '안정(α>1 발산 없이 유한)', pass: L.non.fin, value: `finite=${L.non.fin}` },
+          { name: '장수명(후기 t≥900 비선형 peak ≫ 선형)', pass: L.ratio > 1.5, value: `late_non=${L.non.late} vs late_lin=${L.lin.late} (ratio=${L.ratio})` },
+          { name: '안정 구조(후기에도 코어 유지·전이 아님)', pass: L.non.late > 1.0, value: `late_non=${L.non.late} > 1.0` },
+        ];
+      },
+    },
+
+    // ── step-0017: arc G — 자기집속 세기 ∝ 진폭(경화·"원자 크기"의 연속 스펙트럼) ── 장면+측정만(법칙·노브 0).
+    //   브리더가 하나가 아니다 — 진폭이 클수록 더 단단히 갇힌다(경화 비선형). 진폭 0.5~5 스윕에서 (비선형/선형)
+    //   지속 peak 비가 진폭 따라 *증가* → 강한 들뜸일수록 자기집속이 세짐 = 갇힌 에너지(질량)의 연속 스펙트럼.
+    'step-0017': {
+      id: 'step-0017',
+      title: 'step-0017 — arc G: 자기집속 ∝ 진폭(경화·원자 크기 스펙트럼)',
+      desc: '원자(브리더)는 한 종류가 아니다 — 진폭이 클수록 자기집속이 세져 더 단단히 갇힌다(경화 비선형, step-0013 의 진동수-진폭 상승과 한 현상). 진폭 0.5→5 스윕에서 (비선형/선형) 지속 peak 비를 재면 진폭 따라 *증가*(2.06→2.50) — 갇힌 에너지(질량)의 연속 스펙트럼. 같은 규칙이 진폭만으로 다양한 "원자 크기"를 낸다(author 0 — 측정값). 메인 장면은 amp=3 브리더(breatherSpec). ΣP 비트 보존. 새 법칙·새 노브 0.',
+      ticks: 250,
+      init(rng, K, opts) { return breatherSpec(0.05, 3, 2, (opts && opts.scale) || 12); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const F = focusScaleMeasure(0.05, 250);
+        const mono = F.hi > F.lo;
+        return [
+          { name: '모든 진폭에서 자기 가둠(비선형/선형 peak 비 > 1.5)', pass: Math.min.apply(null, F.ratios) > 1.5, value: `ratios=[${F.ratios}] @amp=[${F.amps}]` },
+          { name: '경화(자기집속 ∝ 진폭 — 큰 진폭일수록 비 상승)', pass: mono, value: `ratio(amp0.5)=${F.lo} → ratio(amp5)=${F.hi}` },
+          { name: '연속 스펙트럼(진폭이 원자 크기를 매끄럽게 정함)', pass: F.hi - F.lo > 0.2, value: `Δratio=${(F.hi - F.lo).toFixed(3)} (${F.lo}→${F.hi})` },
+        ];
+      },
+    },
+
+    // ── step-0018: arc G — 무에서 물질: 뜨거운 잡음에서 브리더 자발 형성(모듈레이션 불안정) ── 장면+측정만(법칙·노브 0).
+    //   지금까지 브리더는 *손으로 펄스를 놓아* 만들었다. 진짜 "스스로 굴러가는 세계"라면 *featureless 한 잡음*에서
+    //   물질이 스스로 응결해야 한다. 균일 q + 결정론 노이즈를 비선형 관성으로 굴리면, 모듈레이션 불안정이 에너지를
+    //   봉우리로 모은다(브리더 씨앗) — 선형은 퍼진 채 남는다. 무에서 패턴(SPINE 큰 목표).
+    'step-0018': {
+      id: 'step-0018',
+      title: 'step-0018 — arc G: 무에서 물질(뜨거운 잡음→브리더 자발 형성)',
+      desc: '지금까진 브리더를 손으로 펄스를 놓아 만들었다. 스스로 굴러가는 세계라면 *featureless 잡음*에서 물질이 응결해야 한다 — 균일 q + 결정론 노이즈(hotSpec·rng 미사용·셀 해시)를 비선형 관성(α=2)으로 굴리면 모듈레이션 불안정이 에너지를 봉우리로 모은다(브리더 자발 형성). 측정: 역참여비 P=(Σe²)²/Σe⁴(낮을수록 국소)·지속 peak 를 비선형 vs 선형 비교 — 비선형은 P↓·peak↑(잡음→국소 물질), 선형은 퍼진 채(P 큼). ΣQ 비트 보존. 무에서 패턴(SPINE 큰 목표·author 0 측정). 새 법칙·새 노브 0.',
+      ticks: 800,
+      init(rng, K, opts) { return hotSpec(2, 0.05, 2, (opts && opts.scale) || 12); },   // 메인: 뜨거운 잡음·비선형 관성
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const M = spontaneousMeasure(0.05, 3, 800);
+        return [
+          { name: 'ΣQ 보존(닫힌 장부·뜨거운 비선형 경로 비트)', pass: M.non.fin && M.non.dQ < 1e-6, value: `|ΔΣq|=${M.non.dQ.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.non.fin, value: `finite=${M.non.fin}` },
+          { name: '자발 국소화(비선형 지속 peak > 선형 — 잡음이 봉우리로 응결)', pass: M.pkRatio > 1.15, value: `peak_non=${M.non.pkLate} vs peak_lin=${M.lin.pkLate} (ratio=${M.pkRatio})` },
+          { name: '국소화(비선형 역참여비 P < 선형 — 더 적은 셀에 집중)', pass: M.pRatio > 1.05, value: `P_lin=${M.lin.Plate} vs P_non=${M.non.Plate} (lin/non=${M.pRatio})` },
+        ];
+      },
+    },
+
+    // ── step-0019: arc H — 단일 q 의 결합 천장(두 브리더 약한 상호작용·고정 결합 없음) ── 장면+측정만(법칙·노브 0).
+    //   분자(arc H)의 핵심은 *고정-간격 결합*(인력 우물·결합에너지<0). 두 브리더를 간격을 바꿔 가며 놓고 지속 peak 를
+    //   재면, 강한 결합이면 특정 간격에서 크게 솟아야 한다. 측정 결과: 간격 의존이 작고 단일 브리더 값 부근 —
+    //   단일 q 는 약한 단거리 협동뿐 *고정 결합 없음* = 비결합/비포화(SPINE §5 blob 예측 확인). 다발 확장 명령.
+    'step-0019': {
+      id: 'step-0019',
+      title: 'step-0019 — arc H: 단일 q 결합 천장(약한 상호작용·고정 결합 없음)',
+      desc: '분자(arc H)의 핵심 신호는 고정-간격 결합(인력 우물·결합에너지<0). 두 브리더를 간격 2~8 로 바꿔 놓고(n=16 여유 상자) 지속 peak 를 재면 — 강한 결합이면 어떤 간격에서 크게 솟아야 한다. 측정: peak 의 간격 의존이 작고(spread<1.5) 단일 브리더 값 부근(maxOverSingle<1.5) — 단일 q 는 약한 단거리 협동만 있을 뿐 *고정 결합이 없다* = 비결합/비포화. SPINE §5 의 "단일 스칼라→등방·비포화→덩어리(blob)" 예측을 *측정으로* 확인 → 진짜 원자가 결합엔 다성분 보존 다발 확장 필요(measurement commands extension). 메인 장면은 간격 4 두 브리더. ΣP 비트 보존. 새 법칙·새 노브 0(author 0 — null 도 측정).',
+      ticks: 400,
+      init(rng, K, opts) { const m = 7; return blockLumpsSpec(0.05, 3, 2, [[m - 2, m, m], [m + 2, m, m]], (opts && opts.scale) || 16); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const B = bindingCeilingMeasure(0.05, 3, 400);
+        return [
+          { name: '안정(두 브리더 모든 간격 유한)', pass: B.fin, value: `finite=${B.fin}` },
+          { name: '두 코어 공존(모든 간격에서 코어 유지)', pass: B.minPk > 1.0, value: `min peak=${B.minPk} > 1.0 (pks=[${B.pks}])` },
+          { name: '고정 결합 없음(간격 의존 약함 — 결합 우물 부재)', pass: B.fin && B.spread < 1.5, value: `peak 간격 스프레드 max/min=${B.spread} < 1.5 (seps=[${B.seps}])` },
+          { name: '비결합(두 브리더 peak ≈ 단일 — 인력 증폭 없음)', pass: B.fin && B.maxOverSingle < 1.5, value: `max(pair)/single=${B.maxOverSingle} (single=${B.single})` },
+        ];
+      },
+    },
+
+    // ── step-0020: 종합 — 자발 물질은 안정 다체 개체군(원자 기체) → 단일 q 관성 사다리의 천장 ── 장면+측정만(법칙·노브 0).
+    //   step-0018 의 자발 형성이 *지속하는 다체 상태*(한 덩어리로 안 붕괴)임을 길게(1200틱) 확인. 종합: 단일 q +
+    //   관성은 *원자*(자기 가둠·대역 밖·장수명·자발 형성·공존)는 내지만, *고정 결합/포화*(분자·고분자 화학, 0019)는
+    //   못 낸다 = Part II 단일 q 천장. SPINE §5 처방대로 *측정이* 다성분 보존 다발(원자가) 확장을 명령한다.
+    'step-0020': {
+      id: 'step-0020',
+      title: 'step-0020 — 종합: 자발 물질=안정 원자 기체 → 단일 q 관성 천장',
+      desc: 'step-0018 의 자발 형성이 *지속하는 다체 상태*(원자 기체)인지 길게(1200틱) 확인 — 역참여비 P 가 안정화(한 덩어리로 붕괴도, 다시 퍼지지도 않음)·선형보다 국소·P≫1(여럿). 종합 천장: 단일 q + 관성은 원자(자기 가둠 0012·대역 밖 0013·장수명 0016·진폭 스펙트럼 0017·자발 형성 0018·공존 0014/0015)는 내지만 *고정 결합/포화*(분자·고분자 화학, 0019 천장)는 못 낸다 = Part II 단일 q 천장. SPINE §5 처방: *측정이* 다성분 보존 다발(원자가) 확장을 명령(atom 트랙 전하·핵자·전자 다발과 수렴). 메인 장면은 뜨거운 비선형. ΣQ 비트 보존. 새 법칙·새 노브 0.',
+      ticks: 1200,
+      init(rng, K, opts) { return hotSpec(2, 0.05, 2, (opts && opts.scale) || 12); },
+      watch(sim) { return measure(sim); },
+      assert(w0, w1) {
+        const P = populationMeasure(0.05, 2, 1200, 12);
+        return [
+          { name: '안정(발산 없이 유한)', pass: P.non.fin, value: `finite=${P.non.fin}` },
+          { name: '개체수 안정(P 후기≈중기 — 한 덩어리로 안 붕괴·안 퍼짐)', pass: P.non.fin && P.drift < 0.15, value: `P_mid=${P.non.Pmid} → P_late=${P.non.Plate} (drift=${P.drift})` },
+          { name: '국소 다체(비선형 P < 선형 — 잡음보다 응결)', pass: P.non.fin && P.non.Plate < P.lin.Plate, value: `P_non=${P.non.Plate} < P_lin=${P.lin.Plate}` },
+          { name: '여럿(원자 기체·한 덩어리 아님 P≫1)', pass: P.non.fin && P.non.Plate > P.N / 100, value: `P_non=${P.non.Plate} ≫ 1 (N/100=${(P.N / 100).toFixed(0)})` },
         ];
       },
     },
