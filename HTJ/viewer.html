@@ -37,6 +37,8 @@
 
     <div id="dyn">
       <div class="row"><label>α (확산율)</label><input id="alpha" type="number" min="0" max="0.166" step="0.01" value="0.14" /></div>
+      <div class="row" id="row-rate"><label>방출율</label><input id="rate" type="number" min="0" max="1" step="0.005" value="0.02" /></div>
+      <div class="row" id="row-crit"><label>점화 임계</label><input id="crit" type="number" min="0" step="50" value="300" /></div>
       <div class="row"><label>확산속도</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
       <div class="row"><label>장(field)</label><select id="brushField"></select></div>
       <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
@@ -54,7 +56,8 @@
 
     <div class="stat">
       <div>tick: <b id="s-tick">0</b></div>
-      <div>총 에너지: <b id="s-total">0</b> <span style="color:#5b6678">(보존)</span></div>
+      <div id="s-pot-row">잠재력: <b id="s-pot">0</b> <span style="color:#5b6678">(↓ 풀림)</span></div>
+      <div>총 에너지: <b id="s-total">0</b> <span style="color:#5b6678">(↑ 탄생)</span></div>
       <div>엔트로피: <b id="s-entropy">0</b> nats <span style="color:#5b6678">(↑)</span></div>
       <div>점유 셀: <b id="s-occ">0</b> / <span id="s-cells">0</span></div>
       <div>최대 E: <b id="s-max">0</b></div>
@@ -67,6 +70,7 @@
 <!-- 세계(법칙)는 engine/, 그리기는 viewer/ — viewer 는 engine 을 *읽기만* 한다(단방향). -->
 <script src="engine/htj-world.js"></script>
 <script src="engine/htj-energy.js"></script>
+<script src="engine/htj-potential.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -86,12 +90,27 @@
     },
     '0002': {
       label: 'step_0002 — 에너지 흐름', title: 'HTJ — 에너지 흐름', sub: '열역학 제2법칙 = 확산',
-      mode: 'energy', dynamics: true,
+      mode: 'energy', dynamics: true, release: false,
       init(w) { /* 빈(차가운) 상자 — 클릭으로 열원을 둔다 */ },
+      advance(w, p) { HTJEnergy.diffuseEnergy(w, p.alpha); },     // 법칙: 확산만
       note: '<b>클릭</b>=열 주입(선택한 장) · 드래그=회전 · 휠=줌 · 우드래그=이동.<br />빈 상자에 클릭으로 열원을 두면 ▶ 흐름에서 확산된다. 총량 *보존*·엔트로피 *증가* → 퍼져 균일(열적 죽음). 색=평균 대비 밀도(청→적).'
+    },
+    '0003': {
+      label: 'step_0003 — 에너지의 탄생', title: 'HTJ — 에너지의 탄생', sub: '잠재력 방출(potential→energy)',
+      mode: 'energy', dynamics: true, release: true,
+      init(w) { HTJPotential.seedPotential(w, { P0: 1000, r: w.N * 0.18 }); },  // 중앙 잠재력 저장고(에너지=0)
+      advance(w, p) { HTJPotential.releaseEnergy(w, p.rate); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 방출+확산
+      note: '<b>장(field)</b>을 potential↔energy 로 바꿔 본다 · 드래그=회전 · 휠=줌.<br />중앙 *잠재력 저장고*만 있고 에너지는 0(검음). ▶ 흐름에서 잠재력이 *방출율*만큼 에너지로 풀려(탄생) 확산된다. 잠재력↓+에너지↑ 이지만 *총합 보존* — 생성은 형태 변환일 뿐.'
+    },
+    '0004': {
+      label: 'step_0004 — 별의 점화', title: 'HTJ — 별의 점화', sub: '임계 방출(밀도 게이트)',
+      mode: 'energy', dynamics: true, release: true, ignite: true,
+      init(w) { HTJPotential.seedStarField(w, { core: 1000, background: 50, r: w.N * 0.25 }); },  // 별밭(코어+가스)
+      advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 임계 방출+확산
+      note: '<b>장(field)</b>을 potential↔energy 로 바꿔 본다 · 드래그=회전 · 휠=줌.<br />옅은 가스(P<임계) 위에 밀집한 *코어*. ▶ 흐름에서 *임계를 넘긴 코어만* 점화해 빛난다(=별) — 가스는 어둡다. 별은 타며 줄어들어 꺼진다(수명). 별빛은 확산으로 가스에 퍼진다. 총합 보존.'
     }
   };
-  function currentStep() { return document.getElementById('step').value || '0002'; }
+  function currentStep() { return document.getElementById('step').value || '0003'; }
 
   function resize() {
     const r = cv.parentElement.getBoundingClientRect();
@@ -104,6 +123,9 @@
   function readN() { return Math.max(4, Math.min(48, parseInt(document.getElementById('N').value, 10) || 24)); }
   function readAlpha() { return Math.max(0, Math.min(HTJEnergy.ALPHA_MAX, parseFloat(document.getElementById('alpha').value) || 0)); }
   function readSpeed() { return Math.max(1, Math.min(50, parseInt(document.getElementById('speed').value, 10) || 1)); }
+  function readRate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('rate').value) || 0)); }
+  function readCrit() { return Math.max(0, parseFloat(document.getElementById('crit').value) || 0); }
+  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit() }; }
   function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
   function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
   function brushField() { return document.getElementById('brushField').value || 'energy'; }
@@ -138,11 +160,16 @@
     document.getElementById('sub').textContent = st.sub + ' (step_' + currentStep() + ')';
     document.getElementById('note').innerHTML = st.note;
     document.getElementById('dyn').style.display = st.dynamics ? '' : 'none';
+    document.getElementById('row-rate').style.display = st.release ? '' : 'none';   // 방출율은 방출 step 에서만
+    document.getElementById('row-crit').style.display = st.ignite ? '' : 'none';    // 점화 임계는 점화 step 에서만
     reset();
   }
 
   function updateStats() {
+    const hasPot = !!world.fields.potential;
     document.getElementById('s-tick').textContent = tick;
+    document.getElementById('s-pot-row').style.display = hasPot ? '' : 'none';
+    if (hasPot) document.getElementById('s-pot').textContent = world.total('potential').toFixed(2);
     document.getElementById('s-total').textContent = world.total('energy').toFixed(2);
     document.getElementById('s-entropy').textContent = HTJEnergy.entropy(world).toFixed(4);
     document.getElementById('s-occ').textContent = world.count('energy', 1e-9);
@@ -180,15 +207,15 @@
     render(); updateStats();
   }
 
-  // 스텝 — 확산 1회(에너지가 이웃으로 흐른다). 이것이 세계를 굴리는 법칙. 동역학 step 에서만.
-  function stepOnce() { if (!STEPS[currentStep()].dynamics) return; HTJEnergy.diffuseEnergy(world, readAlpha()); tick++; render(); updateStats(); }
+  // 스텝 — 현재 step 의 법칙을 1회 굴린다(0002=확산 / 0003=방출+확산). 동역학 step 에서만.
+  function stepOnce() { const st = STEPS[currentStep()]; if (!st.dynamics) return; st.advance(world, advanceParams()); tick++; render(); updateStats(); }
 
-  // 흐름 — 확산을 연속 재생(시점 회전이 아니라 *세계의 동역학*).
+  // 흐름 — 법칙을 연속 재생(시점 회전이 아니라 *세계의 동역학*).
   let raf = 0;
   function loop() {
     if (!playing) return;
-    const a = readAlpha(), s = readSpeed();
-    for (let k = 0; k < s; k++) { HTJEnergy.diffuseEnergy(world, a); tick++; }   // 프레임당 여러 스텝 → 균일화가 눈에 보이게
+    const st = STEPS[currentStep()], p = advanceParams(), s = readSpeed();
+    for (let k = 0; k < s; k++) { st.advance(world, p); tick++; }   // 프레임당 여러 스텝 → 변화가 눈에 보이게
     render(); updateStats();
     raf = requestAnimationFrame(loop);
   }
@@ -231,7 +258,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0002';                       // 기본 = 현재 step
+    sel.value = '0004';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
@@ -265,6 +292,31 @@
     entropy() { return HTJEnergy.entropy(world); },
     totalEnergy() { return world.total('energy'); },
     maxEnergy() { return world.max('energy'); },
+    // 탄생 모드(step_0003) — 중앙 잠재력 저장고(에너지=0)로 초기화.
+    potentialInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJPotential.seedPotential(world, opts || { P0: 1000, r: (N | 0) * 0.18 });
+      tick = 0;
+    },
+    // 방출+확산을 steps 회 굴린다(세계의 동역학).
+    release(rate, alpha, steps) { for (let t = 0; t < (steps || 1); t++) { HTJPotential.releaseEnergy(world, rate); HTJEnergy.diffuseEnergy(world, alpha); tick++; } },
+    // 별 모드(step_0004) — 별밭 초기화(코어+가스).
+    starInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJPotential.seedStarField(world, opts || { core: 1000, background: 50, r: (N | 0) * 0.25 });
+      tick = 0;
+    },
+    // 임계 방출+확산을 steps 회 굴린다(별의 점화).
+    igniteRun(rate, crit, alpha, steps) { for (let t = 0; t < (steps || 1); t++) { HTJPotential.releaseEnergy(world, rate, { crit }); HTJEnergy.diffuseEnergy(world, alpha); tick++; } },
+    totalField(name) { return world.total(name); },
+    maxField(name) { return world.max(name); },
+    // 특정 장을 그린다(capture 가 potential/energy 를 골라 캡처) — 색 스케일은 평균*2 고정.
+    drawField(name) {
+      const mn = world.total(name) / world.fields[name].length;
+      surf = HTJRender.draw(ctx, world, cam, { field: name, colormap: 'heat', max: mn > 0 ? mn * 2 : 0 });
+    },
     // 기반 무대 모드(step_0001 회귀 호환) — 'energy' 장에 데모 공(팔레트 렌더).
     reseed(N, seed) {
       mode = 'cells';
