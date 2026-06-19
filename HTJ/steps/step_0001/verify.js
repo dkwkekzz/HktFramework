@@ -6,11 +6,11 @@
 //     3. 데모 시드(공)의 점유 셀 수가 *정확히* 기대값과 일치(회귀 가드)
 //     4. 인덱싱이 셀 배열 전체를 빠짐없이/겹침없이 덮는다
 //
-//   실행: node HTJ/step_0001/verify.js
+//   실행: node HTJ/steps/step_0001/verify.js
 //   이 파일은 닫힌 뒤 불변 — 이후 어떤 step 을 진행해도 통과해야 한다.
 'use strict';
 const path = require('path');
-const W = require(path.resolve(__dirname, '../engine/htj-world.js'));
+const W = require(path.resolve(__dirname, '../../engine/htj-world.js'));
 
 const checks = [];
 function check(name, pass, value) { checks.push({ name, pass: !!pass, value: value == null ? '' : String(value) }); }
