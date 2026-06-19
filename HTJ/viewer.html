@@ -38,6 +38,7 @@
     <div id="dyn">
       <div class="row"><label>α (확산율)</label><input id="alpha" type="number" min="0" max="0.166" step="0.01" value="0.14" /></div>
       <div class="row" id="row-rate"><label>방출율</label><input id="rate" type="number" min="0" max="1" step="0.005" value="0.02" /></div>
+      <div class="row" id="row-crit"><label>점화 임계</label><input id="crit" type="number" min="0" step="50" value="300" /></div>
       <div class="row"><label>확산속도</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
       <div class="row"><label>장(field)</label><select id="brushField"></select></div>
       <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
@@ -100,6 +101,13 @@
       init(w) { HTJPotential.seedPotential(w, { P0: 1000, r: w.N * 0.18 }); },  // 중앙 잠재력 저장고(에너지=0)
       advance(w, p) { HTJPotential.releaseEnergy(w, p.rate); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 방출+확산
       note: '<b>장(field)</b>을 potential↔energy 로 바꿔 본다 · 드래그=회전 · 휠=줌.<br />중앙 *잠재력 저장고*만 있고 에너지는 0(검음). ▶ 흐름에서 잠재력이 *방출율*만큼 에너지로 풀려(탄생) 확산된다. 잠재력↓+에너지↑ 이지만 *총합 보존* — 생성은 형태 변환일 뿐.'
+    },
+    '0004': {
+      label: 'step_0004 — 별의 점화', title: 'HTJ — 별의 점화', sub: '임계 방출(밀도 게이트)',
+      mode: 'energy', dynamics: true, release: true, ignite: true,
+      init(w) { HTJPotential.seedStarField(w, { core: 1000, background: 50, r: w.N * 0.25 }); },  // 별밭(코어+가스)
+      advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 임계 방출+확산
+      note: '<b>장(field)</b>을 potential↔energy 로 바꿔 본다 · 드래그=회전 · 휠=줌.<br />옅은 가스(P<임계) 위에 밀집한 *코어*. ▶ 흐름에서 *임계를 넘긴 코어만* 점화해 빛난다(=별) — 가스는 어둡다. 별은 타며 줄어들어 꺼진다(수명). 별빛은 확산으로 가스에 퍼진다. 총합 보존.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -116,7 +124,8 @@
   function readAlpha() { return Math.max(0, Math.min(HTJEnergy.ALPHA_MAX, parseFloat(document.getElementById('alpha').value) || 0)); }
   function readSpeed() { return Math.max(1, Math.min(50, parseInt(document.getElementById('speed').value, 10) || 1)); }
   function readRate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('rate').value) || 0)); }
-  function advanceParams() { return { alpha: readAlpha(), rate: readRate() }; }
+  function readCrit() { return Math.max(0, parseFloat(document.getElementById('crit').value) || 0); }
+  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit() }; }
   function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
   function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
   function brushField() { return document.getElementById('brushField').value || 'energy'; }
@@ -152,6 +161,7 @@
     document.getElementById('note').innerHTML = st.note;
     document.getElementById('dyn').style.display = st.dynamics ? '' : 'none';
     document.getElementById('row-rate').style.display = st.release ? '' : 'none';   // 방출율은 방출 step 에서만
+    document.getElementById('row-crit').style.display = st.ignite ? '' : 'none';    // 점화 임계는 점화 step 에서만
     reset();
   }
 
@@ -248,7 +258,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0003';                       // 기본 = 현재 step
+    sel.value = '0004';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
@@ -291,6 +301,15 @@
     },
     // 방출+확산을 steps 회 굴린다(세계의 동역학).
     release(rate, alpha, steps) { for (let t = 0; t < (steps || 1); t++) { HTJPotential.releaseEnergy(world, rate); HTJEnergy.diffuseEnergy(world, alpha); tick++; } },
+    // 별 모드(step_0004) — 별밭 초기화(코어+가스).
+    starInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJPotential.seedStarField(world, opts || { core: 1000, background: 50, r: (N | 0) * 0.25 });
+      tick = 0;
+    },
+    // 임계 방출+확산을 steps 회 굴린다(별의 점화).
+    igniteRun(rate, crit, alpha, steps) { for (let t = 0; t < (steps || 1); t++) { HTJPotential.releaseEnergy(world, rate, { crit }); HTJEnergy.diffuseEnergy(world, alpha); tick++; } },
     totalField(name) { return world.total(name); },
     maxField(name) { return world.max(name); },
     // 특정 장을 그린다(capture 가 potential/energy 를 골라 캡처) — 색 스케일은 평균*2 고정.

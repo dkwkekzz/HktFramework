@@ -244,6 +244,72 @@ async function mainPotential() {
   process.exit(ok ? 0 : 1);
 }
 
-(process.argv.includes('--potential') ? mainPotential()
+// ── step_0004: 별의 점화(임계 방출) 시계열 눈 검증 ──
+//   t=0: 별밭(코어+옅은 가스)의 잠재력 장. t=점화: 임계 넘긴 코어만 빛남(=별), 가스는 어둡다.
+//   t=확산: 별빛이 가스로 퍼진다. 캡처: capture_t0(잠재력)·capture_star(점화 직후)·capture(확산 후).
+//   실행: node viewer/capture.js --star [N] [steps]
+async function mainStar() {
+  const pw = loadPlaywright(), bp = browserPath();
+  const pos = process.argv.slice(2).filter(a => a !== '--star');
+  const N = parseInt(pos[0] || '28', 10);
+  const STEPS = parseInt(pos[1] || '120', 10);
+  const RATE = 0.05, CRIT = 300, ALPHA = 1 / 7;
+  const dir = path.resolve(__dirname, '../steps/step_0004');
+  const out = path.join(dir, 'capture.png'), outPot = path.join(dir, 'capture_t0.png'), outStar = path.join(dir, 'capture_star.png');
+
+  if (!pw || !bp) {
+    console.log(`\n캡처/눈 검증: ${!pw ? 'playwright 모듈' : 'chromium 브라우저'} 없음 — SKIP(비-치명).`);
+    process.exit(0);
+  }
+  if (!process.env.PLAYWRIGHT_BROWSERS_PATH) process.env.PLAYWRIGHT_BROWSERS_PATH = bp;
+  fs.mkdirSync(dir, { recursive: true });
+
+  const browser = await pw.chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 720, height: 720 } });
+  await page.goto(VIEWER);
+  await page.waitForFunction('window.HTJViewer && window.HTJWorld && window.HTJEnergy && window.HTJPotential && window.HTJRender');
+  await page.evaluate(analyzeSrc);
+
+  // t=0: 별밭(코어+가스) 잠재력 장.
+  await page.evaluate(([n]) => {
+    const V = window.HTJViewer;
+    V.setSize(700, 700);
+    V.starInit(n, { core: 1000, background: 50, r: n * 0.25 });
+    V.setCamera({ yaw: 0.7, pitch: 0.55, zoom: 1.0, panX: 0, panY: 0 });
+  }, [N]);
+  await page.evaluate(() => window.HTJViewer.drawField('potential'));
+  await page.locator('#cv').screenshot({ path: outPot });
+  const aPot = await page.evaluate(() => window.__analyze());
+
+  // 점화 직후(확산 거의 없이) — 코어만 빛난다(별의 형태).
+  await page.evaluate(([rate, crit]) => { window.HTJViewer.igniteRun(rate, crit, 0, 12); window.HTJViewer.drawField('energy'); }, [RATE, CRIT]);
+  await page.locator('#cv').screenshot({ path: outStar });
+  const aStar = await page.evaluate(() => window.__analyze());
+
+  // 확산 후 — 별빛이 가스로 퍼진다.
+  await page.evaluate(([rate, crit, alpha, steps]) => { window.HTJViewer.igniteRun(rate, crit, alpha, steps); window.HTJViewer.drawField('energy'); }, [RATE, CRIT, ALPHA, STEPS]);
+  await page.locator('#cv').screenshot({ path: out });
+  const aT = await page.evaluate(() => window.__analyze());
+  const mT = await page.evaluate(() => ({ P: window.HTJViewer.totalField('potential'), E: window.HTJViewer.totalField('energy'), maxP: window.HTJViewer.maxField('potential') }));
+
+  await browser.close();
+
+  const checks = [
+    { name: `t=0 별밭(잠재력)이 화면에 보임`, pass: aPot.lit > 0, value: `lit ${aPot.lit}px` },
+    { name: `점화 — 코어만 빛남(별 < 별밭 전체)`, pass: aStar.lit > 0 && aStar.lit < aPot.lit, value: `별 ${aStar.lit}px < 별밭 ${aPot.lit}px` },
+    { name: `확산 — 별빛이 가스로 퍼진다(t=T > 점화 직후)`, pass: aT.lit > aStar.lit, value: `${aStar.lit} → ${aT.lit}px` },
+    { name: `수명 — 별이 다 타 점화 정지(max P < crit)`, pass: mT.maxP < CRIT, value: `max P=${mT.maxP.toFixed(1)} < ${CRIT}` },
+    { name: `에너지가 태어남(E > 0)`, pass: mT.E > 0, value: `E=${mT.E.toFixed(1)}` },
+  ];
+  console.log(`\n=== 눈 검증: HTJ 별의 점화 (N=${N}·rate=${RATE}·crit=${CRIT}·α=1/7) ===`);
+  for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+  console.log(`  스크린샷: ${path.relative(process.cwd(), outPot)} (잠재력) · ${path.relative(process.cwd(), outStar)} (점화) · ${path.relative(process.cwd(), out)} (확산)`);
+  const ok = checks.every(c => c.pass);
+  console.log(`\n결과: ${ok ? '눈 검증 PASS ✅' : 'FAIL ❌'}\n`);
+  process.exit(ok ? 0 : 1);
+}
+
+(process.argv.includes('--star') ? mainStar()
+  : process.argv.includes('--potential') ? mainPotential()
   : process.argv.includes('--energy') ? mainEnergy() : main())
   .catch(e => { console.error(e); process.exit(1); });

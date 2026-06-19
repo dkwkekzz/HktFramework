@@ -31,15 +31,21 @@
   // 방출 1스텝 — 잠재력의 일부가 같은 셀의 에너지로 변환된다(국소·보존).
   //   rate=0 → 항등(early return) — 가법성/회귀 0 가드.
   //   rate∈(0,1] 이라야 잠재력 비음수 유지(Pᵢ ← Pᵢ(1−rate) ≥ 0).
+  //   opts.crit(점화 임계, 기본 0): P ≥ crit 인 셀만 방출한다 = **별**(밀집한 연료).
+  //     crit 미만(옅은 배경=어두운 성간 가스)은 방출하지 않는다 → 별은 author 하지 않는다:
+  //     "별의 형태" = 임계를 넘긴 영역의 모양. crit=0 → 무조건 방출(step_0003 와 동일, 회귀 0).
+  //     별은 타며 P↓ → P<crit 이 되면 점화가 꺼진다(수명). 임계 아래 잔여 연료는 잠긴다.
   function releaseEnergy(world, rate, opts) {
     opts = opts || {};
     const src = opts.from || SRC, dst = opts.to || DST;
+    const crit = opts.crit || 0;                       // 점화 임계(밀도 게이트)
     if (rate == null) rate = DEFAULT_RATE;
     if (!rate) return world;                           // 노브=0 → 세계 불변
     if (rate < 0 || rate > 1) throw new Error('releaseEnergy: rate must be in [0, 1]');
     const P = world.fields[src], E = world.fields[dst];
     if (!P) throw new Error(`releaseEnergy: field '${src}' 없음 — seedPotential 먼저 호출`);
     for (let i = 0; i < P.length; i++) {
+      if (crit > 0 && P[i] < crit) continue;           // 임계 미만 = 어두운 가스(방출 없음)
       const dE = rate * P[i];                          // 방출량 ∝ 남은 저장량
       P[i] -= dE;                                      // 잠재력 감소
       E[i] += dE;                                      // 에너지 탄생(같은 셀, 더하기)
@@ -73,5 +79,26 @@
     return world;
   }
 
-  return { releaseEnergy, seedPotential, SRC, DST, DEFAULT_RATE, VERSION: 1 };
+  // 데모 시드 — *별밭* 정물: 옅은 균일 배경(어두운 가스) 위에 밀집한 중심 코어(별의 연료).
+  //   코어는 중심에서 가장자리로 매끈히 감소(2차 봉우리)하므로, 점화 임계가 *코어보다 작은 구*를
+  //   잘라낸다 → "별"의 형태가 임계로 정해진다(반지름 r 의 봉우리, 정점 core, 바깥은 background).
+  //   법칙이 아니라 *초기 조건*: 별이 무엇에서 점화하는지 눈에 보이게 한다.
+  function seedStarField(world, opts) {
+    opts = opts || {};
+    const P = world.fields[SRC] || world.addField(SRC, { type: Float64Array });
+    const core = opts.core != null ? opts.core : 1000;        // 코어 정점 잠재력(밀집한 연료)
+    const bg = opts.background != null ? opts.background : 50; // 배경 잠재력(어두운 가스, 보통 < crit)
+    const N = world.N, c = (N - 1) / 2;
+    const r = opts.r != null ? opts.r : N * 0.25;
+    if (world.fields[DST]) world.fields[DST].fill(0);          // 에너지는 0(아직 점화 전)
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const dx = x - c, dy = y - c, dz = z - c, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const t = d / r;                                         // 0(중심)~1(코어 가장자리)
+      const bump = t < 1 ? (core - bg) * (1 - t * t) : 0;      // 2차 봉우리(정점 core→가장자리 0)
+      P[(z * N + y) * N + x] = bg + bump;                      // 배경 + 봉우리
+    }
+    return world;
+  }
+
+  return { releaseEnergy, seedPotential, seedStarField, SRC, DST, DEFAULT_RATE, VERSION: 2 };
 });
