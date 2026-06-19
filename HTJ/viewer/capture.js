@@ -8,7 +8,7 @@
 //
 //   실행:
 //     node viewer/capture.js [outPng] [N] [seed]
-//       기본 outPng = step_0001/capture.png · N=32 · seed=42
+//       기본 outPng = steps/step_0001/capture.png · N=32 · seed=42
 //
 //   브라우저 없으면 *우아하게 skip*(exit 0) — 머신마다 안 깨지게.
 'use strict';
@@ -56,7 +56,7 @@ function analyzeSrc() {
 
 async function main() {
   const pw = loadPlaywright(), bp = browserPath();
-  const outArg = process.argv[2] || path.resolve(__dirname, '../step_0001/capture.png');
+  const outArg = process.argv[2] || path.resolve(__dirname, '../steps/step_0001/capture.png');
   const N = parseInt(process.argv[3] || '32', 10);
   const seed = parseInt(process.argv[4] || '42', 10);
   const out = path.resolve(outArg);

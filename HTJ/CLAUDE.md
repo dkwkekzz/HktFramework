@@ -27,9 +27,10 @@ step 한 바퀴의 실행 절차(논의→구현→검증→기록)는 `htj-step
 | `.claude/skills/htj-step/SKILL.md` | step 한 바퀴(논의→구현→검증→기록)를 실행하는 절차 | 거의 불변 |
 | `engine/` | **세계(법칙·시뮬) src** — 한 곳에서 관리, step마다 가법적 확장. *확인용 코드 금지* | step마다 |
 | `viewer.html` · `viewer/` | **확인용** — 세계를 보여주는 뷰어 + 렌더(`viewer/htj-render.js`) + 헤드리스 캡처(`viewer/capture.js`) | step마다 |
-| `step_NNNN.md` | 한 step = 한 조각. 논의·구현·검증·발견 전문 | step마다 추가(닫은 뒤 불변) |
-| `step_NNNN/verify.js` | 그 step 법칙의 수치 검증 — 순수·영구. 이후에도 항상 통과해야 함 | step마다 추가(닫은 뒤 불변) |
-| `step_NNNN/capture.png` | 그 step 의 viewer 시뮬레이션 캡처 — 눈 검증 증거 | step마다 추가(닫은 뒤 불변) |
+| `steps/step_NNNN/` | **한 step = 한 폴더**. 모든 step 은 `steps/` 아래. 그 step 의 산출물을 담는다(닫은 뒤 불변): | step마다 추가 |
+| ┗ `steps/step_NNNN/step_NNNN.md` | 논의·구현·검증·발견 전문 + 쉽게 풀어 쓴 설명 + 다음 연결 | |
+| ┗ `steps/step_NNNN/verify.js` | 그 step 법칙의 수치 검증 — 순수·영구. 이후에도 항상 통과해야 함 | |
+| ┗ `steps/step_NNNN/capture.png` | 그 step 의 viewer 시뮬레이션 캡처 — 눈 검증 증거 | |
 
 > **세계 ↔ 확인용 분리 (단방향 의존)**: `engine/` 는 세계 그 자체(법칙)다. `viewer*` 는 그것을 *확인*하기 위한 도구일 뿐 — `viewer` 는 `engine` 을 *읽기만* 하고, `engine` 은 `viewer` 를 절대 모른다. 세계는 viewer 없이도 굴러가고 검증된다(`verify.js` 는 `engine/` 만 의존). 렌더 방식을 바꿔도 세계는 불변이어야 한다.
 
