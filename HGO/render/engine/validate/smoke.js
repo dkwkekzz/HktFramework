@@ -483,19 +483,22 @@ function run() {
     let nActive = 0, nFlat = 0;
     for (const a of simF.atoms) { const o = R3.excitationGlow(a.x, xr.lo, xr.hi); if (o > 0.5) nActive++; if (o < 0.04) nFlat++; }
     checks.push({ name: 'L-voxel: 들뜸 → 불투명도(들뜬 cell 불투명·평형 cell 투명)', pass: xr.hi > xr.lo && nActive > 0 && nFlat > 0 && R3.excitationGlow(xr.lo, xr.lo, xr.hi) === 0, value: `q[${xr.lo.toFixed(2)},${xr.hi.toFixed(2)}]·들뜸 ${nActive}·평형(투명) ${nFlat}` });
-    // 큐브 기하: 한 셀 큐브는 카메라 향한 면 1~3개(0/6 아님)·폴리곤 면적>0·카메라 앞
+    // 큐브 기하: 한 셀 큐브는 카메라 향한 면 1~3개(0/6 아님)·폴리곤 면적>0·카메라 앞(축별 반변)
     const camV = R3.makeCamera(simF.W, simF.H, 0);
     const ca = simF.atoms[Math.floor(simF.atoms.length / 2)];
-    const faces = R3.cubeFaces(ca.rx, ca.ry, ca.rz || 0, 0.46 * (simF.W / simF.cols), camV);
+    const hx = 0.46 * (simF.W / simF.cols), hy = 0.46 * (simF.H / simF.rows), hz = 0.46 * ((simF.D || simF.H) / (simF.depth || 1));
+    const faces = R3.cubeFaces(ca.rx, ca.ry, ca.rz || 0, hx, hy, hz, camV);
     const area = p => Math.abs((p[1].sx - p[0].sx) * (p[2].sy - p[0].sy) - (p[2].sx - p[0].sx) * (p[1].sy - p[0].sy));
     const facesOk = faces.length >= 1 && faces.length <= 3 && faces.every(f => f.poly.length === 4 && area(f.poly) > 1 && f.depth > 0);
     checks.push({ name: 'L-voxel: 큐브 카메라 향한 면 1~3개·면적>0(입체 큐브)', pass: facesOk, value: `면 ${faces.length}·shade [${faces.map(f => f.shade.toFixed(2)).join(',')}]` });
   } catch (e) {
     checks.push({ name: 'L-voxel: flux 엔진 없음 — skip', pass: true, value: 'skip(' + (e.code || 'no flux') + ')' });
   }
-  // q밴드 색조: 낮은 q 파랑(>0.5)·높은 q 빨강(≈0)·단조(L-element 동형)·maxBand=0 면 중립(author 0)
-  const bandMono = R3.bandHue(0, 5) > R3.bandHue(3, 5) && R3.bandHue(3, 5) > R3.bandHue(5, 5);
-  checks.push({ name: 'L-voxel: q밴드 색조 낮은 q 파랑→높은 q 빨강 단조·단일밴드 중립', pass: bandMono && R3.bandHue(0, 5) > 0.5 && R3.bandHue(5, 5) < 0.05 && R3.bandHue(2, 0) > 0, value: `lo ${R3.bandHue(0, 5).toFixed(2)}>hi ${R3.bandHue(5, 5).toFixed(2)}` });
+  // q밴드 색조(elementHue 재사용·measureBandRange): 낮은 q 파랑(>0.5)·높은 q 빨강(≈0)·단조·**밴드 변이 없으면(균일) 중립**(author 0)
+  const bandMono = R3.elementHue(0, 0, 5) > R3.elementHue(3, 0, 5) && R3.elementHue(3, 0, 5) > R3.elementHue(5, 0, 5);
+  const uniformBand = R3.measureBandRange([{ c0: 2 }, { c0: 2 }]);   // 균일 비-0 밴드 → 범위 0 → 중립(예전 maxBand 가드는 빨강 author 했음)
+  const uniformNeutral = R3.elementHue(2, uniformBand.lo, uniformBand.hi) > 0.5;   // 중립(ELEMENT_HUE_REF 0.58) — 빨강 아님
+  checks.push({ name: 'L-voxel: q밴드 색조 파랑→빨강 단조·균일 밴드 중립(author 0)', pass: bandMono && R3.elementHue(0, 0, 5) > 0.5 && R3.elementHue(5, 0, 5) < 0.05 && uniformNeutral, value: `lo ${R3.elementHue(0, 0, 5).toFixed(2)}>hi ${R3.elementHue(5, 0, 5).toFixed(2)}·균일 ${R3.elementHue(2, uniformBand.lo, uniformBand.hi).toFixed(2)}` });
 
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.

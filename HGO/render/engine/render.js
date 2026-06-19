@@ -570,16 +570,13 @@
     return c > 1 && r > 1 && (c * r * d === sim.atoms.length);
   }
 
-  // 셀 배열에서 q밴드 c0 최댓값을 *측정*(밴드 색조 정규화 기준). c0 없으면 0.
-  function measureMaxBand(atoms) {
-    let m = 0; for (const a of atoms) { const b = a.c0 | 0; if (b > m) m = b; }
-    return m;
-  }
-
-  // q밴드 c0 → 색조 ∈[0,1](낮은 q 파랑 0.66→높은 q 빨강 0·연속 사상 — L-element 동형 측정 정규화). maxBand=0 면 중립.
-  function bandHue(c0, maxBand) {
-    if (!(maxBand > 0)) return ELEMENT_HUE_REF;
-    return ELEMENT_HUE_LO * (1 - Math.max(0, Math.min(1, (c0 | 0) / maxBand)));
+  // 셀 배열에서 q밴드 c0 범위를 *측정*(밴드 색조 정규화 기준 — 손박은 임계 0·L-element measureZRange 동형). c0 없으면 {lo:0,hi:0}.
+  //   *범위*[lo,hi]로 잰다(최댓값 단독 아님) — 변이 없으면(밴드 균일) hi==lo → 색조 중립(가짜 색 author 0). c0 색조는 elementHue 재사용.
+  function measureBandRange(atoms) {
+    let lo = Infinity, hi = -Infinity;
+    for (const a of atoms) { const b = a.c0 | 0; if (b < lo) lo = b; if (b > hi) hi = b; }
+    if (!Number.isFinite(lo)) return { lo: 0, hi: 0 };
+    return { lo, hi };
   }
 
   // 큐브 6면 — 월드 법선 n + 4 꼭짓점 인덱스(꼭짓점 i = (sx?4:0)+(sy?2:0)+(sz?1:0), s∈{−,+}). CCW 와인딩.
@@ -589,26 +586,31 @@
     { n: [0, 0, -1], idx: [0, 2, 6, 4] }, { n: [0, 0, 1], idx: [1, 5, 7, 3] },
   ];
   const CUBE_LIGHT = norm({ x: 0.4, y: 0.5, z: 0.9 });   // 라이트 방향(프레젠테이션 음영 — 큐브 입체감, 시뮬 양 아님)
+  const CUBE_FILL_FRAC = 0.92;                            // 큐브 변이 셀 간격의 몇 배인가(살짝<1 → 셀 사이 틈으로 격자감, presentation 창)
 
-  // 셀 중심(cx,cy,cz)·반변 half 큐브의 *카메라 향한 면들*을 투영해 돌려준다(순수 기하 — 헤드리스 검증 가능).
-  //   각 면 {poly:[{sx,sy}×4], shade∈[0,1](라이트 음영), depth(면 중심 전방거리·painter)}. 카메라 뒤(depth≤0)면 제외.
-  function cubeFaces(cx, cy, cz, half, cam) {
+  // 셀 중심(cx,cy,cz)·축별 반변 h{x,y,z} 큐브의 *카메라 향한 면들*을 투영해 돌려준다(순수 기하 — 헤드리스 검증 가능).
+  //   각 면 {poly:[{sx,sy}×4], shade∈[0,1](라이트 음영), depth(꼭짓점 평균 전방거리·painter)}. 카메라 뒤(depth≤0)면 제외.
+  //   반변은 축별(hx,hy,hz)이라 비입방 격자(W/cols≠H/rows≠D/depth)서도 셀 간격에 맞는 큐브(겹침·틈 방지). depth 는
+  //   면 중심 재투영 대신 *이미 투영한 4 꼭짓점 depth 평균*으로(셀당 project 호출 8회로 — 면 중심 재투영 제거, hot path).
+  function cubeFaces(cx, cy, cz, hx, hy, hz, cam) {
     const C = [];
     for (let i = 0; i < 8; i++) {
       const sx = (i & 4) ? 1 : -1, sy = (i & 2) ? 1 : -1, sz = (i & 1) ? 1 : -1;
-      C.push(project({ x: cx + sx * half, y: cy + sy * half, z: cz + sz * half }, cam));
+      C.push(project({ x: cx + sx * hx, y: cy + sy * hy, z: cz + sz * hz }, cam));
     }
     const faces = [];
     for (const f of CUBE_FACES) {
-      const n = f.n, fcx = cx + n[0] * half, fcy = cy + n[1] * half, fcz = cz + n[2] * half;
+      const n = f.n, fcx = cx + n[0] * hx, fcy = cy + n[1] * hy, fcz = cz + n[2] * hz;
       // 시선(면 중심→눈)과 법선이 마주봐야 카메라를 향함: dot(n, eye−faceCenter) > 0
       const vx = cam.eye.x - fcx, vy = cam.eye.y - fcy, vz = cam.eye.z - fcz;
       if (n[0] * vx + n[1] * vy + n[2] * vz <= 0) continue;       // 뒷면(back-face) 제외
-      const poly = f.idx.map(k => C[k]);
-      if (poly.some(p => p.depth <= 0)) continue;                  // 카메라 뒤 꼭짓점 제외
-      const fc = project({ x: fcx, y: fcy, z: fcz }, cam);
+      const c0 = C[f.idx[0]], c1 = C[f.idx[1]], c2 = C[f.idx[2]], c3 = C[f.idx[3]];
+      if (c0.depth <= 0 || c1.depth <= 0 || c2.depth <= 0 || c3.depth <= 0) continue;   // 카메라 뒤 꼭짓점 제외
       const shade = 0.45 + 0.55 * Math.max(0, n[0] * CUBE_LIGHT.x + n[1] * CUBE_LIGHT.y + n[2] * CUBE_LIGHT.z);
-      faces.push({ poly: poly.map(p => ({ sx: p.sx, sy: p.sy })), shade, depth: fc.depth });
+      faces.push({
+        poly: [{ sx: c0.sx, sy: c0.sy }, { sx: c1.sx, sy: c1.sy }, { sx: c2.sx, sy: c2.sy }, { sx: c3.sx, sy: c3.sy }],
+        shade, depth: (c0.depth + c1.depth + c2.depth + c3.depth) * 0.25,   // 면 깊이 = 꼭짓점 평균(재투영 0)
+      });
     }
     return faces;
   }
@@ -640,8 +642,10 @@
     const velWorld = STREAK_FRAC * Math.max(sim.W, sim.H);         // 운동 자취 길이 창(장면 크기 비례 — 줄기와 동일 창)
     // 렌즈 L-voxel: 시뮬이 공간 채우는 셀 격자(flux cols×rows×depth)면 큐브 밭으로(아니면 구 — atom 장면 회귀 0).
     const voxel = isCellGrid(sim);
-    const maxBand = voxel ? measureMaxBand(sim.atoms) : 0;         // q밴드 색조 정규화 기준(c0)
-    const cellHalf = voxel ? 0.46 * (sim.W / sim.cols) : 0;        // 큐브 반변(셀 간격의 ~92% — 살짝 띄워 셀 구분)
+    const bandRange = voxel ? measureBandRange(sim.atoms) : null;  // q밴드 색조 정규화 기준(c0 범위 — elementHue 재사용)
+    // 큐브 축별 *반변*(= ½ × CUBE_FILL_FRAC × 셀 간격 — 살짝 띄워 셀 구분·비입방 격자서도 축별 맞춤)
+    const hf = 0.5 * CUBE_FILL_FRAC;
+    const cellH = voxel ? { x: hf * sim.W / sim.cols, y: hf * sim.H / sim.rows, z: hf * (sim.D || sim.H) / (sim.depth || 1) } : null;
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);  // z=깊이(step-0111 drift3d·미존재 → 0·2D 비트 동일)
       if (pr.depth <= 0) continue;
@@ -661,7 +665,7 @@
 
     for (const d of draws) {
       if (d.kind === 'atom') {
-        if (voxel) drawCell(ctx, d.a, cam, K, cellHalf, xRange, maxBand, maxFlow);   // 렌즈 L-voxel: 셀 → 큐브(CA 외형)
+        if (voxel) drawCell(ctx, d.a, cam, cellH, xRange, bandRange, maxFlow);   // 렌즈 L-voxel: 셀 → 큐브(CA 외형)
         else drawAtom(ctx, d.a, d.pr, K, xRange, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null, maxFlow);
       } else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
@@ -778,33 +782,33 @@
   }
 
   // 셀 = 복셀 큐브(렌즈 L-voxel). 격자 셀을 큐브로 그려 *3D CA 외형*을 만든다(구 더미가 아닌 큐브 밭).
-  //   색조=q밴드 c0(낮은 q 파랑→높은 q 빨강)·밝기=q magnitude(L-glow exc)·불투명도=평형 편차 |q−q̄|(평형 cell 투명·
-  //   활성 cell 빛나는 큐브). 평형(편차≈0) 셀은 안 그림 → CA 빈 공간(활성 마루/골만 큐브로 떠오름). flow(v)는 발산 글로우 유지.
-  function drawCell(ctx, a, cam, K, half, xRange, maxBand, maxFlow) {
-    const exc = excitationGlow(a.x, xRange.lo, xRange.hi);   // q magnitude → 들뜸(측정 범위 정규화·L-glow 동형)
-    const op = exc;                                          // 불투명도=들뜸: 평형(q=lo→range 0)이면 투명(CA 빈 공간)·들뜬 cell 불투명
+  //   색조=q밴드 c0(elementHue 재사용·낮은 q 파랑→높은 q 빨강·밴드 범위 정규화)·밝기/불투명도=q magnitude(measure 범위
+  //   excitation·L-glow 동형). 불투명도가 들뜸에 *연속 비례* → 평형(q=lo→exc 0)이면 투명(CA 빈 공간)·들뜬 cell 빛나는 큐브.
+  //   손박은 가시 임계 없이(exc>0 = q>lo 면 그림·exc=0 이면 면적 0) 측정으로만 가른다(STATE §4·RENDER §3). flow(v)는 발산 글로우 유지.
+  function drawCell(ctx, a, cam, cellH, xRange, bandRange, maxFlow) {
+    const exc = excitationGlow(a.x, xRange.lo, xRange.hi);   // q magnitude → 들뜸=불투명도(측정 범위 정규화·L-glow 동형). 평형(q=lo)→0(투명)
     const center = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);
     if (center.depth <= 0) return;
-    // flow 발산 글로우는 평형 cell 에서도(흐름은 들뜸과 별 채널) — 큐브 전에 깔아 활성 큐브 주위 톤
-    if (op > 0.04) {                                       // 들뜬 cell 만 큐브(평형은 투명 — author 0)
-      const hue = bandHue(a.c0 | 0, maxBand);                 // q밴드 → 색조(L-element 동형)
-      const base = hsvToRgb(hue, maxBand > 0 ? 0.6 : 0.12, 0.30 + 0.6 * exc);   // 색조=밴드·명도=q magnitude
-      const faces = cubeFaces(a.rx, a.ry, a.rz || 0, half, cam);
+    if (exc > 0) {                                          // q>lo(측정 범위) 면 큐브 — 평형(exc=0)은 투명(빈 공간·손박은 임계 0)
+      const hue = elementHue(a.c0 | 0, bandRange.lo, bandRange.hi);   // q밴드 → 색조(elementHue 재사용 — 밴드 변이 없으면 중립·author 0)
+      const sat = bandRange.hi > bandRange.lo ? 0.6 : 0.12;            // 밴드 변이 없으면 거의 무채색(시뮬에 없는 색 author 0)
+      const base = hsvToRgb(hue, sat, 0.30 + 0.6 * exc);               // 색조=밴드·명도=q magnitude
+      const faces = cubeFaces(a.rx, a.ry, a.rz || 0, cellH.x, cellH.y, cellH.z, cam);
       faces.sort((u, v) => v.depth - u.depth);              // 먼 면 먼저(painter)
       ctx.globalCompositeOperation = 'source-over';
       for (const f of faces) {
         const c = base.map(v => Math.min(255, Math.round(v * f.shade)));    // 면 음영(라이트 — 입체감)
-        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.35 + 0.65 * op).toFixed(3)})`;   // 불투명도=편차(평형 투명)
+        ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${exc.toFixed(3)})`;   // 불투명도=들뜸(연속 — 평형서 0 으로 페이드)
         ctx.beginPath();
         ctx.moveTo(f.poly[0].sx, f.poly[0].sy);
         for (let k = 1; k < f.poly.length; k++) ctx.lineTo(f.poly[k].sx, f.poly[k].sy);
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.5 * op).toFixed(3)})`;   // 면 테두리(큐브 격자감)
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.5 * exc).toFixed(3)})`;   // 면 테두리(큐브 격자감)
         ctx.lineWidth = Math.max(0.5, 0.5 * center.scale);
         ctx.stroke();
       }
     }
-    drawFlowGlow(ctx, center.sx, center.sy, Math.max(2, half * center.scale), a.v, maxFlow);  // 렌즈 L-flow 유지(부호 톤)
+    drawFlowGlow(ctx, center.sx, center.sy, Math.max(2, cellH.x * center.scale), a.v, maxFlow);  // 렌즈 L-flow 유지(부호 톤)
   }
 
   // 광자 = 색 있는 발광 빌보드(가법 합성). 색 = λ → 스펙트럼(측정 범위 정규화 — L-λ 읽기).
@@ -966,5 +970,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow, isCellGrid, measureMaxBand, bandHue, cubeFaces };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow, isCellGrid, measureBandRange, cubeFaces };
 });
