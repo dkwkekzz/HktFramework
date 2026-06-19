@@ -82,6 +82,26 @@ function installCap() {
       draw(sim);
       return analyze(opt.litMin);                            // lit = 들뜬 큐브 픽셀 — 균일(평형)이면 0(CA 빈 공간)
     }
+    if (kind === 'chanset') {                                // 채널 토글: opt.only=[키...] 면 그 채널만 켜고 나머지 끔(단독 격리 관찰)
+      sim = S.createSim(SC.SCENES[opt.id || 'step-0011'].init(K.mulberry32(42), K));
+      sim.render = true;
+      for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
+      for (const c of R.CHANNELS) R.channels[c.key] = !opt.only || opt.only.includes(c.key);   // only 목록만 표시
+      draw(sim);
+      const a = analyze(opt.litMin);
+      for (const c of R.CHANNELS) R.channels[c.key] = true;   // 복원
+      return a;
+    }
+    if (kind === 'fluxslice') {                              // L-voxel 슬라이스: 한 z층만 잘라 내부 파면(단면)을 드러냄(전체 블록=껍데기만)
+      sim = S.createSim(SC.SCENES[opt.id || 'step-0011'].init(K.mulberry32(42), K));
+      sim.render = true;
+      for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
+      R.voxelState.slice = (opt.slice == null) ? null : opt.slice;   // 정수=그 z층·null=전체 블록
+      draw(sim);
+      const a = analyze(opt.litMin);
+      R.voxelState.slice = null;                            // 복원(다른 캡처에 영향 0)
+      return a;
+    }
     if (kind === 'flowdiff') {                               // L-flow 렌즈(diff): 흐름 vs v=0 *픽셀 차*로 발산 글로우 격리(큐브 색 상쇄)
       sim = S.createSim(SC.SCENES[opt.id || 'step-0011'].init(K.mulberry32(42), K));
       sim.render = true;
@@ -135,6 +155,8 @@ async function main() {
   const fluxGlow = process.argv.includes('--flux-glow');
   const fluxFlow = process.argv.includes('--flux-flow');
   const fluxVoxel = process.argv.includes('--flux-voxel');
+  const fluxSlice = process.argv.includes('--flux-slice');
+  const fluxChannels = process.argv.includes('--flux-channels');
 
   const browser = await pw.chromium.launch();
   const page = await browser.newPage({ viewport: { width: 640, height: 640 } });
@@ -177,6 +199,25 @@ async function main() {
       pass: live.lit > flat.lit * 5 && flat.lit < live.lit * 0.1, value: `활성 ${live.lit} ≫ 균일 ${flat.lit}` });
     for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
     console.log(`  스크린샷: captures/{flux-voxel,flux-voxel-flat}.png`);
+  } else if (fluxChannels) {                                 // 채널 토글: 특정 채널만 켜서 격리 관찰되나(끄면 비고·솔로 표시)
+    console.log('\n=== 눈 검증: 채널 토글 (실 flux viewer — 특정 채널만 격리) ===');
+    const all = await cap('chanset', { id: 'step-0011', ticks: 25, only: null, litMin: 60 });          await shot('chan-all.png');
+    const flowOnly = await cap('chanset', { id: 'step-0011', ticks: 25, only: ['flow'], litMin: 60 }); await shot('chan-flow.png');
+    const none = await cap('chanset', { id: 'step-0011', ticks: 25, only: [], litMin: 60 });           await shot('chan-none.png');
+    // 전부 켬 = 가장 많은 픽셀 · flow 단독 = 부분집합(>0·전부보다 적음) · 전부 끔 = 거의 빔(격자도 꺼짐)
+    checks.push({ name: `flow 단독 격리 — flow 픽셀만(>0·전부 켬의 부분집합)`, pass: flowOnly.lit > 0 && flowOnly.lit < all.lit, value: `flow단독 ${flowOnly.lit} < 전부 ${all.lit}` });
+    checks.push({ name: `전부 끔 → 거의 빈 화면(채널이 그리기를 가른다)`, pass: none.lit < flowOnly.lit * 0.5, value: `전부끔 ${none.lit}` });
+    for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+    console.log(`  스크린샷: captures/{chan-all,chan-flow,chan-none}.png`);
+  } else if (fluxSlice) {                                    // L-voxel 슬라이스: 한 z층 단면이 파동 프로파일을 드러내나(전체 블록=껍데기만)
+    console.log('\n=== 눈 검증: L-voxel 슬라이스 (실 flux 파동 viewer — 내부 파면 단면) ===');
+    const full = await cap('fluxslice', { id: 'step-0011', ticks: 25, slice: null, litMin: 60 });   await shot('flux-slice-full.png');
+    const slice = await cap('fluxslice', { id: 'step-0011', ticks: 25, slice: 6, litMin: 60 });     await shot('flux-slice.png');
+    // 한 z층 단면은 전체 블록(껍데기)보다 픽셀 훨씬 적고(층 하나) — 그 안에서 q 가 변해 파동 프로파일이 보인다(밝기 대비>0)
+    checks.push({ name: `단면은 전체 블록보다 적은 픽셀(한 z층만 — 내부가 드러남)`, pass: slice.lit < full.lit * 0.6 && slice.lit > 500, value: `단면 ${slice.lit} vs 전체 ${full.lit}` });
+    checks.push({ name: `단면에 파동 프로파일(층 안에서 q 변화 = 밝기 대비)`, pass: slice.bSpread > 60, value: `대비 ${slice.bSpread}` });
+    for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+    console.log(`  스크린샷: captures/{flux-slice,flux-slice-full}.png`);
   } else if (argScene) {                                     // 임의 등록 장면 스크린샷(사람 일별용)
     const ticks = parseInt(pos[1] || '0', 10), seed = parseInt(pos[2] || '42', 10);
     const a = await cap('scene', { id: argScene, seed, ticks });
