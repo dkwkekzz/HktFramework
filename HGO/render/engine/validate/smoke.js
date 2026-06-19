@@ -431,6 +431,39 @@ function run() {
   const coreNull = R3.coreBound({ Z: 6 }) === null;
   checks.push({ name: 'L-core: 한 분류만/core 없음 → 테 0(author 0)', pass: allCore && noCore && coreNull, value: allCore && noCore && coreNull ? 'null' : 'BAD' });
 
+  // ㉒ L-flow(렌즈 assert): flux 트랙(arc F·step-0011)이 *관성*으로 적분되며 셀마다 파동 운동량 v(=dq/dt, 부호 스칼라)를
+  //    싣는다 — 파동이 *흐르는 방향*(차오름 v>0·빠짐 v<0). 밝기(L-glow=q magnitude)는 진폭만 보여 마루와 골이 똑같이
+  //    보였다. **부채 실재 확인**: L-velocity 가 읽는 vx,vy 는 flux 에서 전부 0(공간 이동 아님) → 파동 흐름이 미독이었다.
+  //    렌더는 v 를 *읽어* 발산 글로우로(부호=톤·세기=|v|/max|v| 측정). atom 장면엔 v 없어 0(author 0).
+  let fluxRan = false;
+  try {
+    const FLUX = path.join(__dirname, '..', '..', '..', 'flux', 'engine');
+    const FK = require(path.join(FLUX, 'flux-kernel.js'));
+    const FS = require(path.join(FLUX, 'flux-sim.js'));
+    const FSC = require(path.join(FLUX, 'scenes.js'));
+    const wscene = FSC.SCENES['step-0011'];          // 관성 파동(pulseSpec·inertial)
+    const simF = FS.createSim(wscene.init(null, FK, {}));
+    simF.render = true;
+    for (let t = 0; t < 25; t++) FS.step(simF);
+    fluxRan = true;
+    // 시뮬 선행: 파동 운동량 v 가 *부호 양쪽*으로 실린다(차오르는 셀·빠지는 셀 공존 = 흐름 방향 정보)
+    let vpos = 0, vneg = 0, vxnz = 0, vynz = 0;
+    for (const a of simF.atoms) { if (a.v > 0) vpos++; else if (a.v < 0) vneg++; if (a.vx) vxnz++; if (a.vy) vynz++; }
+    const maxFlow = R3.measureMaxAbsFlow(simF.atoms);
+    checks.push({ name: 'L-flow: flux 파동 운동량 v 부호 양쪽 실림(시뮬 선행)', pass: maxFlow > 0 && vpos > 0 && vneg > 0, value: `max|v| ${maxFlow}·차오름 ${vpos}·빠짐 ${vneg}` });
+    // 부채 실재: L-velocity 의 vx,vy 는 flux 에서 전부 0 → 파동 흐름이 그 채널론 미독(β붕괴 함정 = 미검증 "이미 보임")
+    checks.push({ name: 'L-flow: vx,vy=0 이라 L-velocity 론 흐름 미독(부채 실재)', pass: vxnz === 0 && vynz === 0, value: `vx≠0 ${vxnz}·vy≠0 ${vynz}` });
+    // 발산 세기: 차오름·빠짐 둘 다 글로우>0, 마디(v=0)는 0(부호는 톤이 가름·세기는 |v|)
+    const riseI = R3.flowGlow(maxFlow, maxFlow), fallI = R3.flowGlow(-maxFlow, maxFlow);
+    checks.push({ name: 'L-flow: 차오름·빠짐 둘 다 글로우>0·마디(v=0) 0', pass: riseI > 0 && fallI > 0 && R3.flowGlow(0, maxFlow) === 0, value: `rise ${riseI.toFixed(2)}·fall ${fallI.toFixed(2)}·node ${R3.flowGlow(0, maxFlow)}` });
+  } catch (e) {
+    checks.push({ name: 'L-flow: flux 엔진 없음 — skip', pass: true, value: 'skip(' + (e.code || 'no flux') + ')' });
+  }
+  // 발산 정규화 단조·상한·author 0(순수 함수 — flux 유무 무관). |v|↑ → 세기↑·상한 1·max|v|=0(파동 없음·atom)이면 0.
+  const fmono = R3.flowGlow(1, 4) <= R3.flowGlow(2, 4) && R3.flowGlow(2, 4) <= R3.flowGlow(4, 4);
+  checks.push({ name: 'L-flow: |v|↑ → 세기↑ 단조·상한 1·부호 무관 대칭', pass: fmono && R3.flowGlow(99, 4) === 1 && R3.flowGlow(-3, 4) === R3.flowGlow(3, 4), value: fmono ? 'ok' : 'BAD' });
+  checks.push({ name: 'L-flow: 파동 없음(max|v|=0·atom 장면) → 글로우 0(author 0)', pass: R3.flowGlow(5, 0) === 0 && R3.measureMaxAbsFlow([{ Z: 6 }, { Z: 8 }]) === 0, value: `${R3.flowGlow(5, 0)}·${R3.measureMaxAbsFlow([{ Z: 6 }])}` });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

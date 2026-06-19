@@ -519,6 +519,28 @@
     return !!a.core;
   }
 
+  // ── 렌즈 L-flow: 셀 파동 운동량 v(dq/dt, 부호 스칼라) → 발산 글로우 (캔버스 무관 순수 — 헤드리스 검증) ──
+  // flux 트랙(arc F·step-0011)이 *관성*으로 적분되며 셀마다 운동량 v(=dq/dt, q-단위/tick)를 싣는다 — 파동이
+  //   *흐르는 방향*(q 상승 vs 하강). 밝기(L-glow=q magnitude)는 *진폭*만 보여 — 같은 진폭이라도 차오르는 마루와
+  //   빠지는 골이 똑같이 보였다(파동을 정적 확산과 구별하는 정의적 관측량 v 가 미독). L-velocity(vx,vy 공간 벡터)와
+  //   다르다: flux 셀은 공간 이동이 아니라 *제자리 q 흐름률* — 부호 스칼라(벡터 아님). atom 장면엔 a.v 가 없어 0(author 0).
+  //   원자 배열에서 |v| 최댓값을 *측정*(발산 세기 정규화 기준 — 손박은 임계 0). v 없으면 0.
+  const FLOW_RISE_TONE = [255, 176, 96];   // v>0(q 차오름·유입) — 따뜻한 글로우
+  const FLOW_FALL_TONE = [96, 176, 255];   // v<0(q 빠짐·유출) — 차가운 글로우
+
+  function measureMaxAbsFlow(atoms) {
+    let m = 0;
+    for (const a of atoms) { const v = a.v; if (Number.isFinite(v)) { const av = v < 0 ? -v : v; if (av > m) m = av; } }
+    return m;
+  }
+
+  // 셀 파동 운동량을 측정 최댓값으로 정규화한 *발산 세기* ∈[0,1](등급 — L-ion 동형 magnitude·부호는 톤으로).
+  //   maxAbs=0(파동 없음·atom 장면) 또는 v=0(마디·정지)이면 0 — 시뮬에 없는 흐름을 author 하지 않는다(RENDER §3).
+  function flowGlow(v, maxAbs) {
+    if (!(maxAbs > 0) || !Number.isFinite(v) || v === 0) return 0;
+    return Math.min(1, (v < 0 ? -v : v) / maxAbs);
+  }
+
   // ── 그리기 (단일 뷰어가 매 프레임 호출: draw(ctx, sim, K). 상태 없음 — 스냅샷만 읽음) ──
   function draw(ctx, sim, K) {
     const SP = (typeof globalThis !== 'undefined' ? globalThis : this).HGORender.spectral;
@@ -542,6 +564,7 @@
     const maxV = measureMaxSpeed(sim.atoms);                       // 운동 자취 정규화 기준(측정 최대 속력 — L-velocity)
     const pop = measurePopulations(sim.atoms);                     // 출신 집단 측정(c0 — L-population, 단일/없으면 오라 0)
     const coreCls = measureCoreClasses(sim.atoms);                 // 결속 코어/분산 헤일로 공존 여부(core — L-core, 둘 다 있어야 구분)
+    const maxFlow = measureMaxAbsFlow(sim.atoms);                  // 파동 운동량 발산 글로우 정규화 기준(측정 |v| 최댓값 — L-flow, flux 파동·atom 장면 0)
     const velWorld = STREAK_FRAC * Math.max(sim.W, sim.H);         // 운동 자취 길이 창(장면 크기 비례 — 줄기와 동일 창)
     for (const a of sim.atoms) {
       const pr = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);  // z=깊이(step-0111 drift3d·미존재 → 0·2D 비트 동일)
@@ -561,7 +584,7 @@
     draws.sort((u, v) => v.depth - u.depth);
 
     for (const d of draws) {
-      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, xRange, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null);
+      if (d.kind === 'atom') drawAtom(ctx, d.a, d.pr, K, xRange, zRange, maxQ, nRange, atomVelocityStreak(d.a, cam, maxV, velWorld), populationHue(d.a.c0, pop), coreCls.present ? coreBound(d.a) : null, maxFlow);
       else drawPhoton(ctx, SP, d.p, d.pr, range, photonStreak(d.p, cam, maxP, streakWorld), photonTrail(d.p, cam), szRange, maxScatter);
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -580,7 +603,8 @@
   //   렌즈 L-velocity: 속도 벡터(vx,vy)를 *운동 자취*로 읽기 — 머리=현 위치·꼬리=−속도, 길이 ∝ |v|. 정지면 자취 0. 온도색 아님(중립).
   //   렌즈 L-population: 출신 집단 c0(어느 별/풀 출신)을 *배경 오라*로 읽기(골든각 그룹 색조 — 같은 집단 동색). 단일/c0 없으면 오라 0. 모든 채널과 직교.
   //   렌즈 L-core: 구조 운명 core(결속 코어 vs 분산 헤일로)를 *점선 운명 테*로 읽기 — 코어=조밀 청록 테·헤일로=옅은 보라 테. 두 분류 공존 안 하면 0.
-  function drawAtom(ctx, a, pr, K, xRange, zRange, maxQ, nRange, vel, popHue, coreFate) {
+  //   렌즈 L-flow: 셀 파동 운동량 v(dq/dt 부호 스칼라·flux arc F)를 *발산 글로우*로 읽기 — v>0(차오름) 따뜻·v<0(빠짐) 차가움, 세기 ∝ |v|. 파동 없으면(atom 장면) 0.
+  function drawAtom(ctx, a, pr, K, xRange, zRange, maxQ, nRange, vel, popHue, coreFate, maxFlow) {
     const wr = 1.5 + Math.sqrt(K.mass(a));     // 세계 반지름(질량에서 읽음)
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
     // 렌즈 L-population: 출신 집단 c0 → 그룹 색조 오라(구 *아래* 부드러운 디스크 — 맨 바닥 배경 글리프). 같은 집단 동색·다른 집단 이색.
@@ -656,6 +680,21 @@
       ctx.setLineDash([Math.max(2, 3 * pr.scale), Math.max(2, 3 * pr.scale)]);   // 점선 — 솔리드 이온 고리와 구별
       ctx.beginPath(); ctx.arc(pr.sx, pr.sy, fr, 0, 6.2832); ctx.stroke();
       ctx.setLineDash([]);                                          // 점선 해제(다른 그리기에 영향 0)
+    }
+    // 렌즈 L-flow: 셀 파동 운동량 v(dq/dt) → 발산 글로우(가법 — v>0 차오름 따뜻·v<0 빠짐 차가움, 세기=|v|/maxFlow 측정).
+    //   파동이 *어디로 흐르는가*를 보임 — 밝기(q magnitude)는 진폭만, 마루(차오름)와 골(빠짐)이 부호로 갈린다.
+    //   maxFlow=0(파동 없음·atom 장면) 또는 v=0(마디)이면 안 그림 — 시뮬에 없는 흐름을 author 하지 않는다(RENDER §3).
+    const flowI = flowGlow(a.v, maxFlow || 0);
+    if (flowI > 0) {
+      const tone = (a.v > 0) ? FLOW_RISE_TONE : FLOW_FALL_TONE;   // 부호 → 발산 톤(종류별 색 박기 아님 — dq/dt 부호 읽기)
+      const fr = r * (1.2 + 1.1 * flowI);                          // 발산 글로우 반경(세기 비례)
+      const gf = ctx.createRadialGradient(pr.sx, pr.sy, r * 0.4, pr.sx, pr.sy, fr);
+      gf.addColorStop(0, `rgba(${tone[0]},${tone[1]},${tone[2]},${(0.5 * flowI).toFixed(3)})`);
+      gf.addColorStop(1, `rgba(${tone[0]},${tone[1]},${tone[2]},0)`);
+      ctx.globalCompositeOperation = 'lighter';                    // 가법 — 흐름 글로우
+      ctx.fillStyle = gf;
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, fr, 0, 6.2832); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
     }
     // 발광 헤일로 = 들뜸 준위에 비례하는 광원 밝기(읽기 — magnitude 채널). 색은 중립 온백(hue author 0).
     //   x=0(바닥)이면 헤일로 0 — 들뜨지 않은 원자는 빛을 author 하지 않는다.
@@ -830,5 +869,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow };
 });

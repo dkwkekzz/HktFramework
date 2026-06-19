@@ -50,8 +50,30 @@ function installCap() {
     // bSpread = lit 픽셀 밝기 대비(max−min) — L-glow 그라데이션 신호(평평하면 ≈0). bMax = 최대 밝기.
     return { lit, vSpread: maxY < 0 ? 0 : maxY - minY, bSpread: bMax < 0 ? 0 : bMax - bMin, bMax: bMax < 0 ? 0 : bMax };
   };
+  // L-flow 분석 — lit 픽셀 중 따뜻(R≫B = 차오름 v>0)·차가움(B≫R = 빠짐 v<0) 우세 픽셀 집계.
+  //   발산 글로우가 그려지면 둘 다 존재(흐름 방향이 부호 톤으로 보임). flow 제거(v=0) 대조군은 차가움이 급감.
+  const analyzeFlow = (litMin, margin) => {
+    const TH = litMin || 70, MG = margin || 28;
+    const w = cv.width, h = cv.height, d = ctx.getImageData(0, 0, w, h).data;
+    let warm = 0, cool = 0, lit = 0;
+    for (let p = 0; p < d.length; p += 4) {
+      const r = d[p], g = d[p + 1], b = d[p + 2];
+      if (r + g + b <= TH) continue;
+      lit++;
+      if (r - b > MG) warm++; else if (b - r > MG) cool++;
+    }
+    return { warm, cool, lit };
+  };
   window.__cap = (kind, opt) => {
     opt = opt || {}; let sim;
+    if (kind === 'fluxflow') {                               // L-flow 렌즈: flux 관성 파동(step-0011) + flow 제거 대조군
+      sim = S.createSim(SC.SCENES[opt.id || 'step-0011'].init(K.mulberry32(42), K));
+      sim.render = true;
+      for (let t = 0; t < (opt.ticks || 0); t++) S.step(sim);
+      if (opt.flat) { for (const a of sim.atoms) a.v = 0; }  // 대조군: 파동 운동량 v=0 → 발산 글로우 0(흐름 톤 사라짐)
+      draw(sim);
+      return analyzeFlow(opt.litMin, opt.margin);
+    }
     if (kind === 'column') {                                 // 같은 (x,y)·rz 다름(flat → rz=0 대조군)
       const a = []; for (let i = 0; i < 6; i++) a.push({ Z: [1, 2, 6, 8, 7, 10][i], N: 1, e: 1, x: 0, rx: 50, ry: 50, rz: opt.flat ? 0 : 8 + i * 16, vx: 0, vy: 0, vz: 0, lep: 0, nuc: 0 });
       sim = S.createSim({ W: 100, H: 100, D: 100, atoms: a, knobs: { drift3d: 1 } });
@@ -87,6 +109,7 @@ async function main() {
   const trackArg = (process.argv.find(a => a.startsWith('--track=')) || '').split('=')[1] || '';
   const pos = process.argv.slice(2).filter(a => !a.startsWith('--'));
   const fluxGlow = process.argv.includes('--flux-glow');
+  const fluxFlow = process.argv.includes('--flux-flow');
 
   const browser = await pw.chromium.launch();
   const page = await browser.newPage({ viewport: { width: 640, height: 640 } });
@@ -111,6 +134,18 @@ async function main() {
       pass: blob.bSpread > 30, value: `대비 ${blob.bSpread}·lit ${blob.lit}` });
     for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
     console.log(`  스크린샷: captures/{flux-glow-eq,flux-glow-flat,flux-glow-blob}.png`);
+  } else if (fluxFlow) {                                     // L-flow(flux): 관성 파동의 흐름 방향이 발산 톤(따뜻=차오름·차가움=빠짐)으로 픽셀에 보이나
+    console.log('\n=== 눈 검증: L-flow 발산 글로우 (실 flux 파동 viewer 픽셀 대비) ===');
+    const flow = await cap('fluxflow', { id: 'step-0011', ticks: 25 });               await shot('flux-flow.png');
+    const flat = await cap('fluxflow', { id: 'step-0011', ticks: 25, flat: true });   await shot('flux-flow-noflow.png');
+    // 흐름 있으면 따뜻(차오름)·차가움(빠짐) *둘 다* 존재 = 흐름 방향이 부호 톤으로 보임(밝기=진폭만으론 못 봄)
+    checks.push({ name: `파동 흐름 — 차오름(따뜻)·빠짐(차가움) 둘 다 픽셀에 존재(흐름 방향 보임)`,
+      pass: flow.warm > 0 && flow.cool > 0, value: `따뜻 ${flow.warm}·차가움 ${flow.cool}` });
+    // flow 제거(v=0) 대조군 대비 — 발산 글로우가 사라지면 차가움(빠짐 톤) 픽셀이 급감(같은 q·밝기·오라)
+    checks.push({ name: `발산 글로우 알리바이 — flow 제거 시 차가움 픽셀 급감(v 가 그 톤의 원천)`,
+      pass: flow.cool > flat.cool * 2 && flow.cool > 200, value: `흐름 ${flow.cool} vs 무흐름 ${flat.cool}` });
+    for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+    console.log(`  스크린샷: captures/{flux-flow,flux-flow-noflow}.png`);
   } else if (argScene) {                                     // 임의 등록 장면 스크린샷(사람 일별용)
     const ticks = parseInt(pos[1] || '0', 10), seed = parseInt(pos[2] || '42', 10);
     const a = await cap('scene', { id: argScene, seed, ticks });
