@@ -150,13 +150,13 @@ async function mainEnergy() {
   }, [N]);
   await page.locator('#cv').screenshot({ path: out0 });
   const a0 = await page.evaluate(() => window.__analyze());
-  const m0 = await page.evaluate(() => ({ E: window.HTJViewer.totalEnergy(), S: window.HTJViewer.entropy(), max: window.HTJEnergy.maxEnergy(window.HTJViewer.world) }));
+  const m0 = await page.evaluate(() => ({ E: window.HTJViewer.totalEnergy(), S: window.HTJViewer.entropy(), max: window.HTJViewer.maxEnergy() }));
 
   // t=T: 확산 STEPS 회 → 퍼짐.
   await page.evaluate(([alpha, steps]) => { window.HTJViewer.diffuse(alpha, steps); window.HTJViewer.render(); }, [1 / 7, STEPS]);
   await page.locator('#cv').screenshot({ path: out });
   const aT = await page.evaluate(() => window.__analyze());
-  const mT = await page.evaluate(() => ({ E: window.HTJViewer.totalEnergy(), S: window.HTJViewer.entropy(), max: window.HTJEnergy.maxEnergy(window.HTJViewer.world) }));
+  const mT = await page.evaluate(() => ({ E: window.HTJViewer.totalEnergy(), S: window.HTJViewer.entropy(), max: window.HTJViewer.maxEnergy() }));
 
   await browser.close();
 

@@ -88,22 +88,21 @@
     updateStats();
   }
 
-  function occupied() { let c = 0; const E = world.energy; for (let i = 0; i < E.length; i++) if (E[i] > 1e-9) c++; return c; }
-
   function updateStats() {
     document.getElementById('s-tick').textContent = tick;
-    document.getElementById('s-total').textContent = world.totalEnergy().toFixed(2);
+    document.getElementById('s-total').textContent = world.total('energy').toFixed(2);
     document.getElementById('s-entropy').textContent = HTJEnergy.entropy(world).toFixed(4);
-    document.getElementById('s-occ').textContent = occupied();
-    document.getElementById('s-cells').textContent = world.energy.length;
-    document.getElementById('s-max').textContent = HTJEnergy.maxEnergy(world).toFixed(3);
+    document.getElementById('s-occ').textContent = world.count('energy', 1e-9);
+    document.getElementById('s-cells').textContent = world.fields.energy.length;
+    document.getElementById('s-max').textContent = world.max('energy').toFixed(3);
   }
 
   function render() {
     if (!world) return;
-    surf = (mode === 'energy')
-      ? HTJRender.draw(ctx, world, cam, { field: 'energy' })
-      : HTJRender.draw(ctx, world, cam);
+    // energy 모드 = 히트 램프(확산 흐름) / cells 모드 = 팔레트(무대 데모 공). 둘 다 'energy' 장.
+    surf = HTJRender.draw(ctx, world, cam, mode === 'energy'
+      ? { field: 'energy', colormap: 'heat' }
+      : { field: 'energy', colormap: 'palette' });
   }
 
   // 스텝 — 확산 1회(에너지가 이웃으로 흐른다). 이것이 세계를 굴리는 법칙.
@@ -165,7 +164,8 @@
     },
     diffuse(alpha, steps) { for (let t = 0; t < (steps || 1); t++) { HTJEnergy.diffuseEnergy(world, alpha); tick++; } },
     entropy() { return HTJEnergy.entropy(world); },
-    totalEnergy() { return world.totalEnergy(); },
+    totalEnergy() { return world.total('energy'); },
+    maxEnergy() { return world.max('energy'); },
     // 기반 무대 모드(step_0001 회귀 호환) — 데모 공(uint8 cells).
     reseed(N, seed) {
       mode = 'cells';

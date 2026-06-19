@@ -26,7 +26,7 @@ function check(name, pass, value) { checks.push({ name, pass: !!pass, value: val
   Eng.diffuseEnergy(w, 1 / 7);
   let nonzero = 0, farLeak = 0;
   for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    if (w.getE(x, y, z) > 0) {
+    if (w.get('energy', x, y, z) > 0) {
       nonzero++;
       const manhattan = Math.abs(x - c) + Math.abs(y - c) + Math.abs(z - c);
       if (manhattan > 1) farLeak++;          // 직접 이웃은 맨해튼 거리 1
@@ -40,9 +40,9 @@ function check(name, pass, value) { checks.push({ name, pass: !!pass, value: val
 {
   const N = 16, w = W.createWorld(N);
   Eng.seedHotSpot(w, { E0: 1000, half: 0 });
-  const E0 = w.totalEnergy();
+  const E0 = w.total('energy');
   for (let t = 0; t < 300; t++) Eng.diffuseEnergy(w, 1 / 7);
-  const E1 = w.totalEnergy();
+  const E1 = w.total('energy');
   const relErr = Math.abs(E1 - E0) / E0;
   check('제1법칙 — 총 에너지 보존(300스텝, 상대오차<1e-9)', relErr < 1e-9, `ΔE/E0 = ${relErr.toExponential(2)}`);
 }
@@ -84,7 +84,8 @@ function check(name, pass, value) { checks.push({ name, pass: !!pass, value: val
   let minVal = Infinity;
   for (let t = 0; t < 200; t++) {
     Eng.diffuseEnergy(w, 1 / 6);             // 상한 α 에서도 비음수
-    for (let i = 0; i < w.energy.length; i++) if (w.energy[i] < minVal) minVal = w.energy[i];
+    const E = w.fields.energy;
+    for (let i = 0; i < E.length; i++) if (E[i] < minVal) minVal = E[i];
   }
   check('비음수 — α=1/6 에서도 에너지 ≥ 0', minVal >= 0, `min E = ${minVal.toExponential(2)}`);
 }
@@ -95,7 +96,7 @@ function check(name, pass, value) { checks.push({ name, pass: !!pass, value: val
     const w = W.createWorld(16);
     Eng.seedHotSpot(w, { E0: 1000, half: 1 });
     for (let t = 0; t < 50; t++) Eng.diffuseEnergy(w, 1 / 7);
-    return w.energyFingerprint();
+    return w.fingerprint('energy');
   }
   const a = run(), b = run();
   check('결정론 — 같은 흐름 → 동일 에너지 지문', a === b, `0x${a.toString(16)} == 0x${b.toString(16)}`);
@@ -105,9 +106,9 @@ function check(name, pass, value) { checks.push({ name, pass: !!pass, value: val
 {
   const w = W.createWorld(16);
   Eng.seedHotSpot(w, { E0: 1000, half: 1 });
-  const fp0 = w.energyFingerprint();
+  const fp0 = w.fingerprint('energy');
   Eng.diffuseEnergy(w, 0);
-  check('항등 — α=0 이면 에너지 장 불변(회귀 0)', w.energyFingerprint() === fp0, `0x${fp0.toString(16)}`);
+  check('항등 — α=0 이면 에너지 장 불변(회귀 0)', w.fingerprint('energy') === fp0, `0x${fp0.toString(16)}`);
 }
 
 // ── 결과 ──

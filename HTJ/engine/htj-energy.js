@@ -1,6 +1,6 @@
 // htj-energy.js — HTJ 의 첫 *동역학*: 에너지 장의 흐름 = 열역학 제2법칙(엔트로피 증가).
 //
-//   step_0001 은 무대(셀 공간)만 세웠다 — 법칙 0개. 이 모듈이 세계를 처음으로 *굴린다*.
+//   step_0001 은 무대(격자 + 정적 장)만 세웠다 — 법칙 0개. 이 모듈이 세계를 처음으로 *굴린다*.
 //
 //   법칙은 **확산(diffusion)** 하나 — 가장 단순한 국소 보존 흐름:
 //     new_i = E_i + α · Σ_{이웃 j}(E_j − E_i)
@@ -11,9 +11,9 @@
 //       이중확률 사상은 분포를 *섞어*(majorization) 샤논 엔트로피를 단조 증가시킨다 → 증명 가능.
 //     평형: 연결된 격자에서 분포는 균일로 수렴 → 엔트로피 → ln(N³)(최대 무질서).
 //
-//   이 모듈은 세계(법칙) 그 자체다 — 렌더·캔버스·DOM 에 의존하지 않는다(Node 에서 그대로 돈다).
-//   미래 step 은 이 흐름에 *맞서는* 비선형/경쟁 법칙을 얹어, 확산을 거스르고 스스로 유지되는
-//   국소 패턴(= 원자)이 *창발*하게 한다. 원자는 author 하지 않는다 — 이 장 위에서 생겨난다.
+//   세계(법칙) 그 자체 — 렌더·캔버스·DOM 에 의존하지 않는다(Node 에서 그대로 돈다).
+//   'energy' 장 위에서 돈다. 미래 step 은 이 흐름에 *맞서는* 비선형/경쟁 법칙을 얹어,
+//   확산을 거스르고 스스로 유지되는 국소 패턴(= 원자)이 *창발*하게 한다(author 안 함).
 (function (root, factory) {
   'use strict';
   const api = factory();
@@ -25,17 +25,19 @@
   // α 안정 상한: 3D 6이웃 → α ≤ 1/6 이라야 대각(1−α·deg)≥0 (비음수·이중확률 보장).
   const ALPHA_MAX = 1 / 6;
   const DEFAULT_ALPHA = 1 / 7;   // 안정 상한 아래 기본값.
+  const FIELD = 'energy';
 
   // 확산 1스텝(동시 갱신) — 더블버퍼로 결정론·순서 무관.
   //   닫힌 경계(no-flux): 경계 밖 이웃과는 교환하지 않는다 → 에너지가 상자를 안 떠난다(총량 보존).
   //   α=0 → 항등(early return) — 가법성/회귀 0 가드.
-  function diffuseEnergy(world, alpha) {
+  function diffuseEnergy(world, alpha, name) {
+    name = name || FIELD;
     if (alpha == null) alpha = DEFAULT_ALPHA;
     if (!alpha) return world;                         // 노브=0 → 세계 불변
     if (alpha < 0 || alpha > ALPHA_MAX) throw new Error('diffuseEnergy: alpha must be in [0, 1/6]');
-    const N = world.N, E = world.energy, NN = N * N;
-    const out = world._escratch && world._escratch.length === E.length
-      ? world._escratch : (world._escratch = new Float64Array(E.length));
+    const N = world.N, E = world.fields[name], NN = N * N;
+    let out = world.scratch[name];
+    if (!out || out.length !== E.length) out = world.scratch[name] = new Float64Array(E.length);
     for (let z = 0; z < N; z++)
       for (let y = 0; y < N; y++)
         for (let x = 0; x < N; x++) {
@@ -55,8 +57,8 @@
 
   // 샤논 엔트로피 S = −Σ pᵢ ln pᵢ (pᵢ = Eᵢ/총에너지). 단위 nats.
   //   최소 0(에너지가 한 셀에 집중) ~ 최대 ln(점유 셀 수)(완전 균일). 제2법칙의 *측정자*.
-  function entropy(world) {
-    const E = world.energy;
+  function entropy(world, name) {
+    const E = world.fields[name || FIELD];
     let total = 0;
     for (let i = 0; i < E.length; i++) total += E[i];
     if (total <= 0) return 0;
@@ -69,8 +71,8 @@
   }
 
   // 에너지 분산(균질도 측정) — 평형(균일)에 가까울수록 0 으로 수렴.
-  function energyVariance(world) {
-    const E = world.energy, n = E.length;
+  function energyVariance(world, name) {
+    const E = world.fields[name || FIELD], n = E.length;
     let mean = 0;
     for (let i = 0; i < n; i++) mean += E[i];
     mean /= n;
@@ -83,7 +85,7 @@
   //   법칙이 아니라 *정물*: 흐름을 눈에 보이게 하는 초기 조건.
   function seedHotSpot(world, opts) {
     opts = opts || {};
-    const N = world.N, E = world.energy;
+    const N = world.N, E = world.fields[opts.field || FIELD];
     E.fill(0);
     const E0 = opts.E0 != null ? opts.E0 : 1000;
     const half = opts.half != null ? opts.half : 0;     // 반폭(셀): 0 → 1셀, 1 → 3³ 정육면체
@@ -97,13 +99,6 @@
     return world;
   }
 
-  // 현재 장의 최대 에너지(렌더 색 스케일용 — 확인용 도구가 읽는다).
-  function maxEnergy(world) {
-    const E = world.energy; let m = 0;
-    for (let i = 0; i < E.length; i++) if (E[i] > m) m = E[i];
-    return m;
-  }
-
-  return { diffuseEnergy, entropy, energyVariance, seedHotSpot, maxEnergy,
-           ALPHA_MAX, DEFAULT_ALPHA, VERSION: 1 };
+  return { diffuseEnergy, entropy, energyVariance, seedHotSpot,
+           ALPHA_MAX, DEFAULT_ALPHA, FIELD, VERSION: 2 };
 });
