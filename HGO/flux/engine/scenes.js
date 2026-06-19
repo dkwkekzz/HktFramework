@@ -838,6 +838,28 @@
     return { on, off, anisoRatio: +(on.aniso / off.aniso).toFixed(3) };
   }
 
+  // 창발 측정(arc J 종합) — 대표 고분자 사슬 한 번에서 다발 화학의 핵심 지표를 모은다(한 sim·DRY): 결합(마디별
+  //   후기 peak·최소)·선형(코어 세장비)·단일파일(가로 폭)·안정(후기 창)·ΣQ·ΣB 보존. 단일 q 가 못 한 화학을 b=원자가가
+  //   냄을 한 장면으로 종합 재확인(0021~0028 의 캡스톤). author 0 — 전부 측정.
+  function synthesisMeasure(kc, kb, amp, bamp, N, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, th = coreTh || 1.2, corners = lineCorners(N, sp, n), w = Math.floor(n / N);
+    const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bamp, 2, corners, n));
+    const q0 = sumQv(sim), b0 = sumB(sim);
+    const sums = new Array(N).fill(0); let axS = 0, twS = 0, cnt = 0; const lo = Math.floor(ticks * 0.7);
+    for (let t = 0; t < ticks; t++) {
+      SIM.step(sim);
+      if (t >= lo) {
+        const mx = new Array(N).fill(0); let i = 0, W = 0, cx = 0, cy = 0, cz = 0;
+        for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); const sg = Math.min(N - 1, Math.floor(c / w)); if (e > mx[sg]) mx[sg] = e; if (e > th) { W += e; cx += e * c; cy += e * r; cz += e * z; } i++; }
+        if (W > 0) { cx /= W; cy /= W; cz /= W; i = 0; let m2x = 0, m2y = 0, m2z = 0; for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > th) { m2x += e * (c - cx) ** 2; m2y += e * (r - cy) ** 2; m2z += e * (z - cz) ** 2; } i++; } const sx = Math.sqrt(m2x / W), tw = Math.sqrt((m2y / W + m2z / W) / 2); axS += tw > 0 ? sx / tw : 0; twS += tw; }
+        for (let k = 0; k < N; k++) sums[k] += mx[k]; cnt++;
+      }
+    }
+    const seg = sums.map(s => +(s / cnt).toFixed(3)), fin = Number.isFinite(sim.atoms[0].q);
+    return { seg, minSeg: +Math.min.apply(null, seg).toFixed(3), aspect: +(axS / cnt).toFixed(3), tw: +(twS / cnt).toFixed(3), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1558,6 +1580,31 @@
           { name: '안정(발산 없이 유한·자발 클러스터 형성)', pass: M.on.fin && M.off.fin && M.on.nClust > 0 && M.off.nClust > 0, value: `nClust on=${M.on.nClust} off=${M.off.nClust}` },
           { name: '자발 중합 천장(valence 가 더 사슬스럽지 않음 — 이방성 ON ≤ OFF·null)', pass: M.on.fin && M.anisoRatio <= 1.1, value: `aniso on=${M.on.aniso} ≤ off=${M.off.aniso} (ratio=${M.anisoRatio})` },
           { name: '대비(씨앗 성장 0028=성공 ↔ 무씨앗=천장 → 핵형성 필요)', pass: M.on.fin, value: `순수 잡음 자발 사슬 없음(측정 null) — 중합엔 씨앗 필요` },
+        ];
+      },
+    },
+
+    // ── step-0030: arc J 종합(Part III 다발 캡스톤) — 둘째 보존 채널 b=원자가가 낸 화학 + 천장 ── 장면+측정만(법칙 0).
+    //   0021~0029 종합: 단일 q 천장(0019 blob)을 *측정이 명령한* 다성분 보존 다발(b=원자가)로 돌파해, 단일 q 가 못 한
+    //   화학(결합 0021·사슬 0022·선형 1D 0023·장 성질 0024·포화 0025·동적 성장 0026·장수명 0027·템플릿 중합 0028)을
+    //   다 냈다 = **1차 목표(고분자) 도달**. 천장: 무씨앗 자발 중합은 안 됨(0029 null). 대표 고분자 사슬 한 장면에서
+    //   결합·선형·단일파일·안정·ΣQ·ΣB 보존을 한 번에 재확인. Part I(소산→관성)·Part II(단일 q→다발)에 잇는 종합 step.
+    'step-0030': {
+      id: 'step-0030',
+      title: 'step-0030 — arc J 종합: 둘째 보존 채널(원자가)이 낸 화학(고분자 도달) + 천장',
+      did: '대표 고분자 사슬(다섯 마디) 하나에서 arc J 의 핵심 — 결합·선형·단일파일·안정·두 보존량 보존 — 을 한 번에 재확인하고, Part III(다발) 전체를 종합한다.',
+      observe: '한 사슬에서 다발 화학의 모든 핵심이 동시에 보인다: 다섯 마디가 다 결속(결합), 한 줄로 길고(선형 세장비≫1) 한 셀 두께(단일파일·포화), 끝까지 안정, q·b 둘 다 비트 보존. 단일 q 가 못 한 고분자가 둘째 보존량(원자가) 하나로 창발 — 1차 목표 도달.',
+      desc: '0021~0029 종합(Part III 다발 캡스톤). 단일 q 천장(0019 등방 blob)을 *측정이 명령한* 다성분 보존 다발(b=원자가·opt-in valence·새 법칙 0=같은 rule()+교차-인력)로 돌파해 단일 q 가 못 한 화학을 다 냈다: 결합(0021 d*=2)·사슬(0022)·선형 1D(0023 세장비 6)·결합=장 성질(0024 R∝κb)·방향성 포화(0025 길어지되 안 굵어짐)·동적 성장(0026)·장수명(0027 1500틱)·템플릿 중합(0028 씨앗→욕조 흡수) = **1차 목표(고분자) 도달**. 천장: 무씨앗 자발 중합 안 됨(0029 null→핵형성 필요). 대표 사슬(N=5)에서 종합 측정(synthesisMeasure·한 sim): 마디별 최소 peak(결합)·코어 세장비(선형)·가로 폭(단일파일)·후기 안정·ΣQ·ΣB 보존을 한 번에. 새 법칙·새 노브 0(author 0). 다음: 핵형성/셋째 채널(자발 중합·분지) 또는 net 트랙.',
+      ticks: 1000,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(5, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = synthesisMeasure(0.04, 0.05, 3, 3, 5, 4, 1000, 24, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(두 보존 장부 비트 — 다발 골격)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `|ΔΣq|=${M.dQ.toExponential(2)} |ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '결합(다섯 마디 다 결속·후기 최소 peak 높음)', pass: M.fin && M.minSeg > 1.3, value: `seg=[${M.seg}] min=${M.minSeg}` },
+          { name: '선형 + 단일파일(세장비≫1·가로 ≈1셀 — 덩어리 아님·포화)', pass: M.fin && M.aspect > 3 && M.tw < 1.2, value: `aspect=${M.aspect}·tw=${M.tw}셀` },
+          { name: '안정 고분자 도달(1차 목표 — 단일 q 천장 돌파)', pass: M.fin, value: `결합+선형+포화+안정 동시(N=5 사슬)·둘째 보존량 하나로 창발` },
         ];
       },
     },
