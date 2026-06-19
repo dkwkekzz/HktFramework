@@ -140,5 +140,33 @@
     return list.length;   // 그린 표면 셀 수(디버그/검증용)
   }
 
-  return { draw, defaultCamera, FACES, VERSION: 1 };
+  // 화면 좌표(sx,sy) → 격자 셀 [x,y,z] 픽킹. draw 와 *동일한* 직교 투영을 재사용한다.
+  //   모든 셀 중심을 화면에 투영해, 클릭 근처(반경 R 픽셀)에서 가장 앞쪽(카메라 쪽) 셀을 고른다.
+  //   근처에 없으면 전역 최근접 셀로 폴백 → 빈(에너지 0) 공간에서도 항상 하나를 반환한다.
+  function pick(ctx, world, cam, sx, sy) {
+    const N = world.N, W = ctx.canvas.width, H = ctx.canvas.height, half = (N - 1) / 2;
+    const cy = Math.cos(cam.yaw), say = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const scale = (Math.min(W, H) * 0.80 / N) * cam.zoom;
+    const ox = W / 2 + cam.panX, oy = H / 2 + cam.panY;
+    const R = scale * 0.7;                          // 픽 반경 ≈ 셀 반폭
+    let best = -1, bestDepth = -Infinity, fbI = -1, fbDist = Infinity;
+    for (let z = 0; z < N; z++)
+      for (let y = 0; y < N; y++)
+        for (let x = 0; x < N; x++) {
+          const wx = x - half, wy = y - half, wz = z - half;
+          const x1 = wx * cy + wz * say;
+          const z1 = -wx * say + wz * cy;
+          const y2 = wy * cp - z1 * sp;
+          const z2 = wy * sp + z1 * cp;             // 깊이(클수록 카메라에 가까움)
+          const px = ox + x1 * scale, py = oy - y2 * scale;
+          const dx = px - sx, dy = py - sy, dist = Math.hypot(dx, dy);
+          if (dist <= R && z2 > bestDepth) { bestDepth = z2; best = (z * N + y) * N + x; }
+          if (dist < fbDist) { fbDist = dist; fbI = (z * N + y) * N + x; }
+        }
+    const i = best >= 0 ? best : fbI;
+    return i < 0 ? null : world.coords(i);
+  }
+
+  return { draw, pick, defaultCamera, FACES, VERSION: 2 };
 });

@@ -20,6 +20,7 @@
   button:hover { background: #212c3e; }
   button.primary { background: #1f3a5c; border-color: #2f5688; }
   input[type=number] { width: 64px; background: #11151d; color: #c8d0dc; border: 1px solid #2a3344; border-radius: 4px; padding: 4px 6px; font: inherit; }
+  select { background: #11151d; color: #c8d0dc; border: 1px solid #2a3344; border-radius: 4px; padding: 4px 6px; font: inherit; }
   .stat { color: #8a96a8; font-size: 11px; margin-top: 12px; border-top: 1px solid #1c2230; padding-top: 10px; }
   .stat b { color: #c8d0dc; font-weight: 600; }
   .note { color: #5b6678; font-size: 10px; margin-top: 10px; }
@@ -33,11 +34,13 @@
 
     <div class="row"><label>N (격자)</label><input id="N" type="number" min="4" max="48" step="1" value="24" /></div>
     <div class="row"><label>α (확산율)</label><input id="alpha" type="number" min="0" max="0.166" step="0.01" value="0.14" /></div>
-    <div class="row"><label>핫반폭</label><input id="half" type="number" min="0" max="6" step="1" value="0" /></div>
+    <div class="row"><label>장(field)</label><select id="brushField"></select></div>
+    <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
+    <div class="row"><label>열량</label><input id="brushAmt" type="number" min="1" step="50" value="800" /></div>
     <div class="row">
       <button id="play" class="primary">▶ 흐름</button>
       <button id="step">스텝</button>
-      <button id="reset">리셋</button>
+      <button id="reset">리셋(비우기)</button>
     </div>
     <div class="row">
       <button id="capture">📷 캡처(PNG)</button>
@@ -50,8 +53,8 @@
       <div>점유 셀: <b id="s-occ">0</b> / <span id="s-cells">0</span></div>
       <div>최대 E: <b id="s-max">0</b></div>
     </div>
-    <p class="note">드래그=회전 · 휠=줌 · 우클릭 드래그=이동.<br />
-      중앙에 모은 에너지가 이웃으로 흐른다. 총량은 *보존*되고 엔트로피는 *증가* — 뜨거운 덩어리가 식으며 퍼져 결국 균일(열적 죽음)로 간다. 색=에너지 밀도(청=차가움→적=뜨거움).</p>
+    <p class="note"><b>클릭</b>=열 주입(선택한 장) · 드래그=회전 · 휠=줌 · 우드래그=이동.<br />
+      빈 상자에 클릭으로 뜨거운 열원을 두면 ▶ 흐름에서 이웃으로 확산된다. 총량은 *보존*, 엔트로피는 *증가* — 식으며 퍼져 균일(열적 죽음)로 간다. 색=밀도(청=차가움→적=뜨거움).</p>
   </div>
   <div id="stage"><canvas id="cv"></canvas></div>
 </div>
@@ -77,13 +80,25 @@
 
   function readN() { return Math.max(4, Math.min(48, parseInt(document.getElementById('N').value, 10) || 24)); }
   function readAlpha() { return Math.max(0, Math.min(HTJEnergy.ALPHA_MAX, parseFloat(document.getElementById('alpha').value) || 0)); }
-  function readHalf() { return Math.max(0, Math.min(6, parseInt(document.getElementById('half').value, 10) || 0)); }
+  function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
+  function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
+  function brushField() { return document.getElementById('brushField').value || 'energy'; }
 
-  // 리셋 — 중앙에 에너지를 모은 초기조건(최소 엔트로피 출발).
+  // 인터랙션 대상 장 드롭다운을 world.fields 에서 채운다(장이 늘면 자동 반영).
+  function refreshFieldOptions() {
+    const sel = document.getElementById('brushField'), prev = sel.value;
+    sel.innerHTML = '';
+    for (const name of Object.keys(world.fields)) {
+      const o = document.createElement('option'); o.value = name; o.textContent = name; sel.appendChild(o);
+    }
+    if (prev && world.fields[prev]) sel.value = prev;
+  }
+
+  // 리셋 — 빈(차가운) 상자. 클릭으로 열원을 두고 ▶ 흐름으로 확산을 본다.
   function reset() {
     world = HTJWorld.createWorld(readN());
-    HTJEnergy.seedHotSpot(world, { E0: 1000, half: readHalf() });
     tick = 0;
+    refreshFieldOptions();
     render();
     updateStats();
   }
@@ -99,10 +114,24 @@
 
   function render() {
     if (!world) return;
-    // energy 모드 = 히트 램프(확산 흐름) / cells 모드 = 팔레트(무대 데모 공). 둘 다 'energy' 장.
-    surf = HTJRender.draw(ctx, world, cam, mode === 'energy'
-      ? { field: 'energy', colormap: 'heat' }
-      : { field: 'energy', colormap: 'palette' });
+    // 선택한 장을 그린다. 일반=히트 램프(청→적) / 무대 데모(cells 모드)=팔레트(값 1/2/3).
+    surf = HTJRender.draw(ctx, world, cam, { field: brushField(), colormap: mode === 'cells' ? 'palette' : 'heat' });
+  }
+
+  // 열 주입 — 클릭 지점의 셀을 픽해, 붓 반경의 구(球) 안 셀에 열량을 더한다(선택한 장).
+  function injectAt(sx, sy) {
+    const cell = HTJRender.pick(ctx, world, cam, sx, sy);
+    if (!cell) return;
+    const name = brushField(), r = readBrushR(), amt = readBrushAmt();
+    const [cx, cy, cz] = cell;
+    for (let dz = -r; dz <= r; dz++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy + dz * dz > r * r + 0.5) continue;   // 구 안만
+          const x = cx + dx, y = cy + dy, z = cz + dz;
+          if (world.inBounds(x, y, z)) world.set(name, x, y, z, world.get(name, x, y, z) + amt);
+        }
+    render(); updateStats();
   }
 
   // 스텝 — 확산 1회(에너지가 이웃으로 흐른다). 이것이 세계를 굴리는 법칙.
@@ -122,16 +151,29 @@
     if (on) raf = requestAnimationFrame(loop); else cancelAnimationFrame(raf);
   }
 
-  // ── 오빗 컨트롤 ──
+  // 클릭 화면좌표 → 캔버스 픽셀좌표(CSS 크기·dpr 보정).
+  function toCanvas(e) {
+    const r = cv.getBoundingClientRect();
+    return [(e.clientX - r.left) * (cv.width / r.width), (e.clientY - r.top) * (cv.height / r.height)];
+  }
+
+  // ── 오빗 + 클릭 주입 ──
+  //   좌버튼: 시작점에서 거의 안 움직이면(≤3px) 클릭=열 주입 / 움직이면 회전. 우버튼: 이동.
   let drag = null;
-  cv.addEventListener('mousedown', e => { drag = { x: e.clientX, y: e.clientY, b: e.button }; e.preventDefault(); });
-  window.addEventListener('mouseup', () => drag = null);
+  cv.addEventListener('mousedown', e => {
+    drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, b: e.button, moved: false };
+    e.preventDefault();
+  });
+  window.addEventListener('mouseup', e => {
+    if (drag && drag.b === 0 && !drag.moved) { const [px, py] = toCanvas(e); injectAt(px, py); }
+    drag = null;
+  });
   window.addEventListener('mousemove', e => {
     if (!drag) return;
-    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
-    if (drag.b === 2) { cam.panX += dx; cam.panY += dy; }
-    else { cam.yaw += dx * 0.01; cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch + dy * 0.01)); }
-    render();
+    const dx = e.clientX - drag.lx, dy = e.clientY - drag.ly; drag.lx = e.clientX; drag.ly = e.clientY;
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 3) drag.moved = true;
+    if (drag.b === 2) { cam.panX += dx; cam.panY += dy; render(); }
+    else if (drag.moved) { cam.yaw += dx * 0.01; cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch + dy * 0.01)); render(); }
   });
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('wheel', e => { cam.zoom = Math.max(0.2, Math.min(5, cam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); render(); e.preventDefault(); }, { passive: false });
@@ -141,7 +183,7 @@
   document.getElementById('step').onclick = stepOnce;
   document.getElementById('reset').onclick = () => { setPlaying(false); reset(); };
   document.getElementById('N').onchange = () => { setPlaying(false); reset(); };
-  document.getElementById('half').onchange = () => { setPlaying(false); reset(); };
+  document.getElementById('brushField').onchange = render;
   document.getElementById('capture').onclick = () => {
     const a = document.createElement('a');
     a.download = 'htj-energy.png';
@@ -166,7 +208,7 @@
     entropy() { return HTJEnergy.entropy(world); },
     totalEnergy() { return world.total('energy'); },
     maxEnergy() { return world.max('energy'); },
-    // 기반 무대 모드(step_0001 회귀 호환) — 데모 공(uint8 cells).
+    // 기반 무대 모드(step_0001 회귀 호환) — 'energy' 장에 데모 공(팔레트 렌더).
     reseed(N, seed) {
       mode = 'cells';
       world = HTJWorld.createWorld(N | 0);
