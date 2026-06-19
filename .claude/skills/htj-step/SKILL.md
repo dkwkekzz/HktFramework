@@ -27,12 +27,20 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 - `engine/` 에서 법칙을 관리한다. 새 법칙은 직전 법칙의 형식을 따르고, **가법적**으로 추가한다(기존 동작 회귀 0 — 노브=0 → early-return 패턴 권장).
 - `viewer.html` 에 이 step 의 세계가 보여질 시뮬레이션을 추가/갱신한다.
 
-## 3. 검증 — verify.js 로 완결성 보장
+## 3. 검증 — verify.js (수치) + 시뮬레이션 캡처 (눈)
 
-- `step_NNNN/verify.js` 를 작성해 그 법칙을 **완전히** 검증한다 (`node HTJ/step_NNNN/verify.js`).
+검증은 두 축이다. 둘 다 통과해야 step 을 닫는다.
+
+**(a) 수치 — `step_NNNN/verify.js`**
+- 그 법칙을 **완전히** 검증한다 (`node HTJ/step_NNNN/verify.js`).
 - verify 는 **자체로 온전·순수**해야 한다 — 외부 가변 상태에 의존하지 않고, 이후 어떤 step 을 진행해도 깨지지 않는다(영구 회귀 가드).
 - 닫기 전 **이전 step 들의 verify 를 전부 재실행**해 회귀 0 을 확인한다. 깨지면 멈추고 사용자와 논의한다.
 - 문서의 모든 수치는 verify 출력을 그대로 옮긴다.
+
+**(b) 눈 — 시뮬레이션 캡처**
+- `viewer.html` 에서 이 step 의 세계를 실제로 띄워 **화면을 캡처**한다 (headless 브라우저로 viewer 를 로드 → 대표 시점에서 스크린샷). 산출물: `step_NNNN/capture.png`(필요 시 여러 프레임).
+- 캡처가 *수치 검증의 가설과 일치하는지* 눈으로 확인한다 — 보존량이 퍼지는 모양, 패턴 창발 등 verify 가 주장하는 바가 화면에 실제로 보여야 한다. 어긋나면 멈추고 논의한다.
+- 캡처 이미지는 `step_NNNN.md` 에 첨부/참조한다.
 
 ## 4. 기록 — step_NNNN.md + STATE.md
 
@@ -43,8 +51,8 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 ## 5. 닫기 체크리스트
 
 1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0)
-2. `viewer.html` 에서 이 step 의 세계가 보인다
-3. `step_NNNN.md` "쉽게 풀어 쓴 설명" 포함 · 수치 = verify 출력 · 다음 연결 명시
+2. `viewer.html` 캡처(`step_NNNN/capture.png`) 확보 + 화면이 verify 가설과 일치
+3. `step_NNNN.md` "쉽게 풀어 쓴 설명" 포함 · 수치 = verify 출력 · 캡처 참조 · 다음 연결 명시
 4. `STATE.md` §1~5 Edit
 5. git: (로컬) `main` 에 commit·push / (원격) 지정 브랜치 규칙
 

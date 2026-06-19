@@ -28,6 +28,7 @@ step 한 바퀴의 실행 절차(논의→구현→검증→기록)는 `htj-step
 | `engine/` | 세계의 법칙 src — 한 곳에서 관리, step마다 가법적으로 확장 | step마다 |
 | `viewer.html` | 현재 세계를 보여주는 시뮬레이션 뷰어 | step마다 |
 | `step_NNNN.md` | 한 step = 한 조각. 논의·구현·검증·발견 전문 | step마다 추가(닫은 뒤 불변) |
-| `step_NNNN/verify.js` | 그 step 법칙의 완전 검증 — 순수·영구. 이후에도 항상 통과해야 함 | step마다 추가(닫은 뒤 불변) |
+| `step_NNNN/verify.js` | 그 step 법칙의 수치 검증 — 순수·영구. 이후에도 항상 통과해야 함 | step마다 추가(닫은 뒤 불변) |
+| `step_NNNN/capture.png` | 그 step 의 `viewer.html` 시뮬레이션 캡처 — 눈 검증 증거 | step마다 추가(닫은 뒤 불변) |
 
 > step 작업은 `htj-step` 스킬로 시작한다("HTJ step 진행" / "다음 step").
