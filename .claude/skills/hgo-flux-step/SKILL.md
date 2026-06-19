@@ -13,7 +13,9 @@ description: HGO flux 트랙 step 한 바퀴(읽기→장면·측정→검증→
 
 **필독 3종**: `HGO/CLAUDE.md` · `HGO/flux/SPINE.md` · `HGO/flux/STATE.md` (전체).
 
-**읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md` 문서들(STATE 가 현재의 SSOT) · atom/render/net 트랙 파일(`../atom/*`·`../render/*` — 직교 트랙·불가침) · `reviews/*`(리뷰 회고).
+**이슈 원장 점검(전파 고리 — 다음 조각 고르기 전)**: `reviews/README.md` §3 열린 이슈 원장을 본다. 묶음 리뷰(`hgo-flux-review`)가 적은 이슈는 *과거 step 을 고치라는 게 아니라 이후 게이트 step 으로 반영하라*는 권고다. 무르익은(arc 와 맞고 load-bearing) 이슈가 있으면 그것이 **이번 step 의 정당한 후보** — STATE §2 NEXT(근시일) 또는 §3 OPEN GAPS(백로그)로 승급해 처리한다. arc(SPINE §9) 우선순위가 먼저 — 원장은 *권고*, 스케줄은 STATE 가 정한다. 처리한 이슈는 다음 리뷰가 engine 변경(grep/golden)을 보고 ✅떨군다(원장에 직접 쓰지 않음 — 원장은 review 권한).
+
+**읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md` 문서들(STATE 가 현재의 SSOT) · atom/render/net 트랙 파일(`../atom/*`·`../render/*` — 직교 트랙·불가침) · `reviews/review-*`·`reviews/LADDER.md`(리뷰 회고·교육 해설 — step 진행엔 README §3 원장만 필요).
 
 **큰 코드 파일은 부분 읽기만**: `engine/flux-*.js`·`engine/scenes.js` 전체 읽기 금지 — Grep 으로 `SCENES`·직전 장면 1개·규칙 함수만 찾아 offset/limit 로 해당 구간만. 새 장면은 직전 장면의 형식을 따른다. **규칙 함수(`flux-laws.js`)는 읽되 *고치지 마라*** — 정련은 §3 예외에서만.
 
