@@ -27,6 +27,7 @@
   <span id="knobs"></span>
   <label>seed <input id="seed" type="number" value="42" style="width:6em"></label>
   <label id="gridLab" style="display:none">격자 <select id="grid"></select></label>
+  <label id="sliceLab" style="display:none" title="복셀 블록은 바깥 껍데기만 보임 — 한 z층만 잘라 내부 파면(단면)을 본다">단면 <input id="slice" type="range" style="width:8em"><span id="sliceLbl" class="k">전체</span></label>
   <label>배속 <input id="speed" type="range" min="0" max="1" step="0.001" value="0.25" style="width:9em"><span id="speedLbl" class="k">1.0×</span></label>
   <span id="tick" class="k"></span>
 </header>
@@ -87,7 +88,24 @@ function buildGridSelect() {
   const sel = $('grid'); $('gridLab').style.display = '';
   for (const n of [6, 8, 10, 12, 16]) { const o = document.createElement('option'); o.value = n; o.textContent = n + '³ = ' + (n*n*n); sel.appendChild(o); }
   sel.value = gridScale;
-  sel.onchange = () => { gridScale = +sel.value; reset(); };   // 스케일 바꾸면 sim 재생성
+  sel.onchange = () => { gridScale = +sel.value; reset(); if (buildSliceControl.refresh) buildSliceControl.refresh(); };   // 스케일 바꾸면 sim 재생성 + 단면 범위 갱신
+}
+
+// 단면(slice) 컨트롤 — flux 큐브 밭(L-voxel)은 꽉 찬 블록이라 바깥 껍데기만 보인다. 한 z층만 잘라 내부 파면을
+//   드러낸다(파동 관찰). 슬라이더 −1=전체 블록·0..depth−1=그 층. render 모듈의 voxelState.slice 에 위임(프레젠테이션).
+function buildSliceControl() {
+  if (track !== 'flux') return;
+  const inp = $('slice'), lbl = $('sliceLbl');
+  $('sliceLab').style.display = '';
+  const apply = () => {
+    const v = +inp.value;
+    HGORender.render.voxelState.slice = (v < 0) ? null : v;
+    lbl.textContent = (v < 0) ? '전체' : ('z=' + v + '/' + (gridScale - 1));
+    draw();
+  };
+  inp.oninput = apply;
+  buildSliceControl.refresh = () => { inp.min = -1; inp.max = gridScale - 1; inp.step = 1; inp.value = -1; apply(); };
+  buildSliceControl.refresh();
 }
 
 function buildSceneList() {
@@ -170,6 +188,7 @@ window.onhashchange = () => { const h = location.hash.slice(1); if (SC.SCENES[h]
 
 buildSceneList();
 buildGridSelect();
+buildSliceControl();
 reset();
 HGORender.render.attachControls(cv, draw);   // 마우스 카메라 조종을 render 에 위임(정지 중 드래그도 draw 재호출)
 loop();

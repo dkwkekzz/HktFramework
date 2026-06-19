@@ -112,6 +112,10 @@
   //   카메라는 평면 중심을 타깃으로 방위각·고도로 궤도. 위치=sim (rx,ry,0) 그대로 — 분포 author 0.
   const camState = { yaw: 0.6, pitch: 0.78, distScale: 1.85, panX: 0, panY: 0 };
 
+  // 렌즈 L-voxel 슬라이스(프레젠테이션 — 시뮬 무관) — flux 큐브 밭은 꽉 찬 3D 블록이라 바깥 껍데기만 보이고
+  //   *내부 파면이 가려진다*. slice 가 정수(z층 인덱스)면 그 한 층만 그려 파동 단면(프로파일)을 드러낸다(null=전체 블록).
+  const voxelState = { slice: null };
+
   function makeCamera(W, H, tick, cv) {
     const target = { x: W / 2 + camState.panX, y: H / 2 + camState.panY, z: 0 };
     const yaw = camState.yaw;                  // 3/4 뷰 기본 — 마우스로 자유 변경
@@ -646,7 +650,10 @@
     // 큐브 축별 *반변*(= ½ × CUBE_FILL_FRAC × 셀 간격 — 살짝 띄워 셀 구분·비입방 격자서도 축별 맞춤)
     const hf = 0.5 * CUBE_FILL_FRAC;
     const cellH = voxel ? { x: hf * sim.W / sim.cols, y: hf * sim.H / sim.rows, z: hf * (sim.D || sim.H) / (sim.depth || 1) } : null;
-    for (const a of sim.atoms) {
+    for (let i = 0; i < sim.atoms.length; i++) {
+      const a = sim.atoms[i];
+      // 렌즈 L-voxel 슬라이스: voxelState.slice 가 정수면 그 z층(인덱스 i=(z·rows+r)·cols+c)만 — 내부 파면 단면을 드러냄
+      if (voxel && voxelState.slice != null && Math.floor(i / (sim.cols * sim.rows)) !== voxelState.slice) continue;
       const pr = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);  // z=깊이(step-0111 drift3d·미존재 → 0·2D 비트 동일)
       if (pr.depth <= 0) continue;
       draws.push({ depth: pr.depth, kind: 'atom', a, pr });
@@ -970,5 +977,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow, isCellGrid, measureBandRange, cubeFaces };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, voxelState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow, isCellGrid, measureBandRange, cubeFaces };
 });
