@@ -738,6 +738,31 @@
     return { on, off, monGap, captured: on.gapLate <= sp + 0.5 };
   }
 
+  // 창발 측정(arc J — 고분자 장수명) — 사슬을 길게(ticks) 돌려 *후기 창*(late 20%)에도 모든 마디가 결속·선형을
+  //   유지하는지 본다. 원자(0016)·기체(0020)처럼, 사슬도 *영속하는 물질*(전이 아닌 안정 구조)이어야 진짜 고분자.
+  //   valence ON 최소 마디 peak·가로 폭(단일파일)을 OFF(단일 q 분산)와 비교. ΣQ·ΣB 보존도.
+  function chainLifeMeasure(kc, kb, amp, bamp, N, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, th = coreTh || 1.2, corners = lineCorners(N, sp, n), w = Math.floor(n / N);
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); const sums = new Array(N).fill(0); let twS = 0, cnt = 0; const lo = Math.floor(ticks * 0.8);
+      for (let t = 0; t < ticks; t++) {
+        SIM.step(sim);
+        if (t >= lo) {
+          const mx = new Array(N).fill(0); let i = 0, W = 0, cy = 0, cz = 0;
+          for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); const sg = Math.min(N - 1, Math.floor(c / w)); if (e > mx[sg]) mx[sg] = e; if (e > th) { W += e; cy += e * r; cz += e * z; } i++; }
+          if (W > 0) { cy /= W; cz /= W; i = 0; let my = 0, mz = 0; for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > th) { my += e * (r - cy) ** 2; mz += e * (z - cz) ** 2; } i++; } twS += Math.sqrt((my / W + mz / W) / 2); }
+          for (let k = 0; k < N; k++) sums[k] += mx[k]; cnt++;
+        }
+      }
+      const seg = sums.map(s => +(s / cnt).toFixed(3)), fin = Number.isFinite(sim.atoms[0].q);
+      return { seg, min: +Math.min.apply(null, seg).toFixed(3), tw: +(twS / cnt).toFixed(3), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, ratio: +(on.min / off.min).toFixed(3) };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1385,6 +1410,31 @@
           { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
           { name: '단량체 포획(ON 끝-단량체 거리 수축 → 사슬 성장)', pass: M.on.fin && M.captured, value: `gap_on=${M.on.gapLate} (init=5·결합 거리로 수축)` },
           { name: '성장 = 결합(ON 수축 ≪ OFF 단일 q 자유 표류)', pass: M.on.fin && M.on.gapLate < M.off.gapLate - 1, value: `gap_on=${M.on.gapLate} vs gap_off=${M.off.gapLate}` },
+        ];
+      },
+    },
+
+    // ── step-0027: arc J — 고분자 장수명: 사슬은 영속하는 안정 물질 ── 장면+측정만(법칙·노브 0).
+    //   원자(0016 장수명)·기체(0020 안정 개체군)처럼 *사슬*도 *영속하는 물질*(전이 아닌 안정 구조)이어야 진짜
+    //   고분자. 네 마디 사슬을 1500틱 길게 돌려 *후기 창*(late 20%)에도 모든 마디가 결속·단일파일을 유지하는지 —
+    //   valence ON 최소 마디 peak·가로 폭을 OFF(단일 q 분산)와 비교. 사슬이 안 풀리고 안 굵어지면 안정 고분자. 새 노브 0.
+    'step-0027': {
+      id: 'step-0027',
+      title: 'step-0027 — arc J: 고분자 장수명(사슬은 영속하는 안정 물질)',
+      did: '네 마디 사슬을 1500틱 길게 돌려, 끝까지(후기 20% 창) 네 마디가 다 결속돼 있고 한 셀 두께를 유지하는지 본다.',
+      observe: '전하 ON 이면 1500틱 뒤에도 네 마디가 다 살아있고(min 1.72) 사슬이 한 셀 두께를 유지한다 = 풀리지도 굵어지지도 않는 *안정 고분자*. OFF(단일 q)면 약해진다. 사슬도 원자·기체처럼 영속하는 물질.',
+      desc: '원자(0016 장수명)·자발 기체(0020 안정 개체군)처럼 *사슬*도 *영속하는 물질*(전이 아닌 안정 구조)이어야 진짜 고분자. 네 마디 사슬(간격 4)을 1500틱(n=20) 길게 돌려 *후기 창*(late 20%) 측정(chainLifeMeasure): 마디별 최소 peak·코어 가로 폭. valence ON: 후기 최소 마디 peak≈1.72(네 마디 다 결속)·가로 폭 단일파일 유지 ≫ OFF(단일 q 분산 1.12·ratio≈1.5). 사슬이 *안 풀리고 안 굵어짐* = 안정 고분자(영속 물질). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 1500틱 네 마디 사슬.',
+      ticks: 1500,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 20; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(4, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = chainLifeMeasure(0.04, 0.05, 3, 3, 4, 4, 1500, 20, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·1500틱 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin}` },
+          { name: '사슬 영속(후기 네 마디 다 결속 — 안 풀림)', pass: M.on.fin && M.on.min > 1.4, value: `late seg_on=[${M.on.seg}] min=${M.on.min}` },
+          { name: '단일파일 유지(후기 가로 폭 ≈1셀 — 안 굵어짐)', pass: M.on.fin && M.on.tw < 1.2, value: `tw_on=${M.on.tw}셀` },
+          { name: '안정 고분자(ON ≫ OFF 단일 q 분산)', pass: M.on.fin && M.ratio > 1.3, value: `min_on=${M.on.min} vs min_off=${M.off.min} (ratio=${M.ratio})` },
         ];
       },
     },
