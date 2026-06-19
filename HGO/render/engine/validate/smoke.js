@@ -500,6 +500,14 @@ function run() {
   const uniformNeutral = R3.elementHue(2, uniformBand.lo, uniformBand.hi) > 0.5;   // 중립(ELEMENT_HUE_REF 0.58) — 빨강 아님
   checks.push({ name: 'L-voxel: q밴드 색조 파랑→빨강 단조·균일 밴드 중립(author 0)', pass: bandMono && R3.elementHue(0, 0, 5) > 0.5 && R3.elementHue(5, 0, 5) < 0.05 && uniformNeutral, value: `lo ${R3.elementHue(0, 0, 5).toFixed(2)}>hi ${R3.elementHue(5, 0, 5).toFixed(2)}·균일 ${R3.elementHue(2, uniformBand.lo, uniformBand.hi).toFixed(2)}` });
 
+  // ㉔ 채널 토글: render 가 CHANNELS(키·라벨 SSOT)와 channels 상태를 노출 — 기본 표시·false 면 숨김. 특정 채널 격리 관찰용.
+  const hasChannels = Array.isArray(R3.CHANNELS) && R3.CHANNELS.length > 0 && R3.CHANNELS.every(c => c.key && c.label) && R3.channels && typeof R3.channels === 'object';
+  checks.push({ name: '채널: CHANNELS 목록·channels 상태 노출(viewer 자동 생성용)', pass: hasChannels, value: hasChannels ? `${R3.CHANNELS.length}채널` : 'BAD' });
+  // 기본은 전부 표시(channels 비어 있음 → chan 미설정 키는 표시). 끄면 숨김(렌즈 가드가 channels 를 읽음).
+  const keys = (R3.CHANNELS || []).map(c => c.key);
+  const flowKey = keys.includes('flow'), defaultsOn = keys.every(k => R3.channels[k] === undefined);   // 기본 미설정 = 표시
+  checks.push({ name: '채널: 기본 전부 표시(미설정=표시)·flow 등 키 존재', pass: flowKey && defaultsOn, value: `flow ${flowKey}·기본표시 ${defaultsOn}` });
+
   // ④ L-3d 투영(렌즈 assert): 평면 z=0 세계를 원근 카메라로 투영한다.
   //    캔버스 무관 순수 수학만 검증(눈 검증은 브라우저가 권위). cv 미지정 → 560×560 기본.
   const cam = R3.makeCamera(sim.W, sim.H, sim.tick);

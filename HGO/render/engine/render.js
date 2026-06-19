@@ -116,6 +116,27 @@
   //   *내부 파면이 가려진다*. slice 가 정수(z층 인덱스)면 그 한 층만 그려 파동 단면(프로파일)을 드러낸다(null=전체 블록).
   const voxelState = { slice: null };
 
+  // 채널 토글(프레젠테이션 — 시뮬 무관) — 특정 채널만 격리 관찰. channels[key]===false 면 그 렌즈를 숨긴다(기본 표시).
+  //   CHANNELS 가 키·라벨의 SSOT — 공유 셸 viewer.html 이 이걸 읽어 체크박스를 *자동 생성*한다(단일 뷰어·viewer 하드코딩 0).
+  const channels = {};
+  function chan(key) { return channels[key] !== false; }
+  const CHANNELS = [
+    { key: 'grid', label: '바닥 격자' },
+    { key: 'element', label: '원소 색조 Z' },
+    { key: 'band', label: 'q밴드 색(voxel)' },
+    { key: 'glow', label: '밝기 magnitude' },
+    { key: 'flow', label: '파동 흐름 v' },
+    { key: 'ion', label: '이온 고리 Q' },
+    { key: 'isotope', label: '동위원소 코어 N' },
+    { key: 'velocity', label: '속도 자취' },
+    { key: 'population', label: '출신 오라 c0' },
+    { key: 'core', label: '운명 테 core' },
+    { key: 'bond', label: '결합선' },
+    { key: 'photon', label: '광자(λ·줄기)' },
+    { key: 'escape', label: '탈출 게이지' },
+    { key: 'spectrum', label: '스펙트럼 띠' },
+  ];
+
   function makeCamera(W, H, tick, cv) {
     const target = { x: W / 2 + camState.panX, y: H / 2 + camState.panY, z: 0 };
     const yaw = camState.yaw;                  // 3/4 뷰 기본 — 마우스로 자유 변경
@@ -698,7 +719,7 @@
     const r = Math.max(1.2, wr * pr.scale);    // 화면 반지름(원근 축소)
     // 렌즈 L-population: 출신 집단 c0 → 그룹 색조 오라(구 *아래* 부드러운 디스크 — 맨 바닥 배경 글리프). 같은 집단 동색·다른 집단 이색.
     //   popHue=null(단일 집단·c0 없음)이면 안 그림 — 시뮬에 없는 출신 구분을 author 하지 않는다(RENDER §3). 색조(Z)·자취(v) 등과 직교.
-    if (popHue !== null && popHue !== undefined) {
+    if (popHue !== null && popHue !== undefined && chan('population')) {
       const [pr_, pg_, pb_] = hsvToRgb(popHue, 0.6, 0.95);
       const aR = r * 2.4;                                          // 오라 반경(구보다 넓게 — 영역 톤)
       const ga = ctx.createRadialGradient(pr.sx, pr.sy, r * 0.7, pr.sx, pr.sy, aR);
@@ -710,7 +731,7 @@
     }
     // 렌즈 L-velocity: 운동 자취(속도 방향, 측정 |v|/maxV 길이) — 구 아래 깔아 진행 방향을 보임. 톤 중립 냉백(온도색 아님·hue author 0).
     //   정지(|v|=0)면 vel=null → 자취 0(시뮬에 없는 운동을 author 하지 않는다, RENDER §3). 광자 L-recoil 줄기와 동형.
-    if (vel) {
+    if (vel && chan('velocity')) {
       const g = ctx.createLinearGradient(vel.head.sx, vel.head.sy, vel.tail.sx, vel.tail.sy);
       g.addColorStop(0, 'rgba(186,196,216,0.6)');    // 머리=원자(짙음)
       g.addColorStop(1, 'rgba(186,196,216,0)');      // 꼬리=−속도 자취(투명)
@@ -720,9 +741,9 @@
       ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(vel.head.sx, vel.head.sy); ctx.lineTo(vel.tail.sx, vel.tail.sy); ctx.stroke();
     }
-    const exc = excitationGlow(a.x, xRange.lo, xRange.hi); // magnitude x → 광원 밝기 ∈[0,1](측정 범위 등급·연속·절단 0)
+    const exc = chan('glow') ? excitationGlow(a.x, xRange.lo, xRange.hi) : 0; // magnitude x → 광원 밝기(채널 토글 off → 0)
     const zr = zRange || { lo: 0, hi: 0 };
-    const spread = zr.hi > zr.lo;              // 측정 Z 변이 존재 여부(없으면 무채색 — author 0)
+    const spread = zr.hi > zr.lo && chan('element');   // 측정 Z 변이 존재 + 채널 토글(없거나 off → 무채색)
     const hue = elementHue(a.Z | 0, zr.lo, zr.hi);   // 원소 → 색조(연속 사상·측정 정규화)
     const sat = spread ? 0.55 : 0.12;          // 변이 없으면 거의 무채색(시뮬에 없는 색 author 0)
     const val = 0.16 + 0.22 * exc;             // 들뜸이 밝기 — L-glow 채널 유지(직교)
@@ -738,7 +759,7 @@
     // 렌즈 L-ion: 전하 Q=Z−e 를 테두리 고리로(부호 발산 — 양이온 따뜻·음이온 차가움, 세기=|Q|/maxQ 측정).
     //   중성(Q=0) 또는 maxQ=0 이면 고리 0 — 시뮬에 없는 전하를 author 하지 않는다(RENDER §3).
     const q = ionCharge(a), ringI = ionRing(q, maxQ || 0);
-    if (ringI > 0) {
+    if (ringI > 0 && chan('ion')) {
       const tone = q > 0 ? CATION_TONE : ANION_TONE;          // 부호 → 발산 톤(종류별 색 박기 아님)
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = `rgba(${tone[0]},${tone[1]},${tone[2]},${(0.45 + 0.5 * ringI).toFixed(3)})`;
@@ -748,7 +769,7 @@
     // 렌즈 L-isotope: 중성자 수 N 을 안쪽 동심 코어 밝기로(측정 N 범위 정규화 — 중성자 많을수록 밝은 코어).
     //   단일 동위원소(범위 0) 또는 코어 0 이면 안 그림 — 시뮬에 없는 구분을 author 하지 않는다(RENDER §3).
     const iso = isotopeShade(a.N | 0, (nRange && nRange.lo) || 0, (nRange && nRange.hi) || 0);
-    if (iso > 0) {
+    if (iso > 0 && chan('isotope')) {
       const cr = r * 0.5;                                       // 안쪽 코어 반경(동심 — 바깥 색조와 분리)
       const gc = ctx.createRadialGradient(pr.sx, pr.sy, 0, pr.sx, pr.sy, cr);
       gc.addColorStop(0, `rgba(238,244,255,${(0.25 + 0.6 * iso).toFixed(3)})`);   // 중성자↑ → 밝은 코어
@@ -760,7 +781,7 @@
     // 렌즈 L-core: 구조 운명 core(결속 코어 vs 분산 헤일로) → 점선 운명 테(분류 구분 글리프 — 색조·고리·코어와 직교).
     //   결속(true)=조밀 청록 점선 테·분산(false)=옅은 보라 점선 테(둘 다 그려 *어느 운명*인지 보임). coreFate=null(두 분류
     //   공존 안 함·core 없음)이면 안 그림 — 시뮬에 없는 분류를 author 하지 않는다(RENDER §3). 점선이라 솔리드 이온 고리와 구별.
-    if (coreFate !== null && coreFate !== undefined) {
+    if (coreFate !== null && coreFate !== undefined && chan('core')) {
       const tone = coreFate ? [120, 230, 220] : [200, 170, 240];   // 결속=청록·분산=보라(부호 발산형 분류 톤)
       const fr = coreFate ? r * 1.28 : r * 1.55;                    // 코어=가까운 테·헤일로=먼 테(운명 분리)
       ctx.globalCompositeOperation = 'source-over';
@@ -773,7 +794,7 @@
     // 렌즈 L-flow: 셀 파동 운동량 v(dq/dt) → 발산 글로우(가법 — v>0 차오름 따뜻·v<0 빠짐 차가움, 세기=|v|/maxFlow 측정).
     //   파동이 *어디로 흐르는가*를 보임 — 밝기(q magnitude)는 진폭만, 마루(차오름)와 골(빠짐)이 부호로 갈린다.
     //   maxFlow=0(파동 없음·atom 장면) 또는 v=0(마디)이면 안 그림 — 시뮬에 없는 흐름을 author 하지 않는다(RENDER §3).
-    drawFlowGlow(ctx, pr.sx, pr.sy, r, a.v, maxFlow);             // 부호 톤 차오름 호박·빠짐 파랑·세기 |v| (공용 헬퍼)
+    if (chan('flow')) drawFlowGlow(ctx, pr.sx, pr.sy, r, a.v, maxFlow);   // 부호 톤 차오름 호박·빠짐 파랑·세기 |v| (공용 헬퍼)
     // 발광 헤일로 = 들뜸 준위에 비례하는 광원 밝기(읽기 — magnitude 채널). 색은 중립 온백(hue author 0).
     //   x=0(바닥)이면 헤일로 0 — 들뜨지 않은 원자는 빛을 author 하지 않는다.
     if (exc > 0) {
@@ -796,9 +817,10 @@
     const exc = excitationGlow(a.x, xRange.lo, xRange.hi);   // q magnitude → 들뜸=불투명도(측정 범위 정규화·L-glow 동형). 평형(q=lo)→0(투명)
     const center = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);
     if (center.depth <= 0) return;
-    if (exc > 0) {                                          // q>lo(측정 범위) 면 큐브 — 평형(exc=0)은 투명(빈 공간·손박은 임계 0)
-      const hue = elementHue(a.c0 | 0, bandRange.lo, bandRange.hi);   // q밴드 → 색조(elementHue 재사용 — 밴드 변이 없으면 중립·author 0)
-      const sat = bandRange.hi > bandRange.lo ? 0.6 : 0.12;            // 밴드 변이 없으면 거의 무채색(시뮬에 없는 색 author 0)
+    if (exc > 0 && chan('glow')) {                         // q>lo 면 큐브(밝기=magnitude 채널이 큐브 본체) — 평형(exc=0)·glow off 면 안 그림
+      const bandOn = chan('band') && bandRange.hi > bandRange.lo;     // 채널 토글 + 밴드 변이(없으면 무채색)
+      const hue = bandOn ? elementHue(a.c0 | 0, bandRange.lo, bandRange.hi) : ELEMENT_HUE_REF;   // q밴드 → 색조(elementHue 재사용)
+      const sat = bandOn ? 0.6 : 0.12;            // 밴드 변이 없거나 채널 off 면 거의 무채색(시뮬에 없는 색 author 0)
       const base = hsvToRgb(hue, sat, 0.30 + 0.6 * exc);               // 색조=밴드·명도=q magnitude
       const faces = cubeFaces(a.rx, a.ry, a.rz || 0, cellH.x, cellH.y, cellH.z, cam);
       faces.sort((u, v) => v.depth - u.depth);              // 먼 면 먼저(painter)
@@ -815,7 +837,7 @@
         ctx.stroke();
       }
     }
-    drawFlowGlow(ctx, center.sx, center.sy, Math.max(2, cellH.x * center.scale), a.v, maxFlow);  // 렌즈 L-flow 유지(부호 톤)
+    if (chan('flow')) drawFlowGlow(ctx, center.sx, center.sy, Math.max(2, cellH.x * center.scale), a.v, maxFlow);  // 렌즈 L-flow(부호 톤)
   }
 
   // 광자 = 색 있는 발광 빌보드(가법 합성). 색 = λ → 스펙트럼(측정 범위 정규화 — L-λ 읽기).
@@ -825,6 +847,7 @@
   //   렌즈 L-source: 방출 원소 srcZ 를 *출처 고리*로(색조=원소, L-element 와 동일 사상). 핵 색(lambda=전이)과 직교.
   //   렌즈 L-scatter: 산란 횟수 nscatter 를 *산란 헤일로*로(많이 튕긴 빛=더 퍼진 흐린 빛, magnitude 채널). 직진(nscatter=0)이면 헤일로 0.
   function drawPhoton(ctx, SP, p, pr, range, streak, trail, szRange, maxScatter) {
+    if (!chan('photon')) return;                           // 채널 토글: 광자 숨김(λ·줄기·트레일·출처·산란 일괄)
     const [cr, cg, cb] = SP.photonColor(p.lambda, range);
     ctx.globalCompositeOperation = 'lighter';
     // 렌즈 L-scatter: 산란 헤일로 = 산란 횟수 등급(측정 정규화 — 많이 튕긴 빛일수록 넓고 짙은 흐린 빛). 직진이면 0(author 0).
@@ -882,7 +905,7 @@
   //   렌즈 L-molecule: 결합 그래프의 연결 성분(분자)을 측정해 분자별 *색조*로(같은 분자 동색·다른 분자 이색). 밝기(E)·평행선(차수)과 직교.
   function drawBonds(ctx, sim, cam) {
     const bonds = sim.bonds;
-    if (!bonds || !bonds.length) return;
+    if (!chan('bond') || !bonds || !bonds.length) return;   // 채널 토글: 결합선 숨김
     ctx.globalCompositeOperation = 'source-over';
     ctx.lineCap = 'round';
     const maxE = measureMaxBondEnergy(bonds);     // 결합 E 정규화 기준(측정 — 손박은 임계 0)
@@ -911,6 +934,7 @@
 
   // z=0 바닥 격자 — 평면을 원근으로 그어 입체 기준을 준다(무대 장치, 시뮬 양 0).
   function drawGrid(ctx, sim, cam) {
+    if (!chan('grid')) return;                              // 채널 토글: 바닥 격자 숨김
     const N = 10, W = sim.W, H = sim.H;
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = 'rgba(60,70,100,0.25)';
@@ -931,6 +955,7 @@
   //   렌즈 L-line: 선은 *유무*가 아니라 *세기*(전이별 광자 빈도)를 보인다 — measureLines 가
   //   from→to 별로 집계, maxCount(데이터에서 잰 최댓값)로 정규화. 강한 선=밝고, 약한 선=흐리게.
   function drawStrip(ctx, sim, SP, range, W, H) {
+    if (!chan('spectrum')) return;                          // 채널 토글: 스펙트럼 띠 숨김
     const h = 18, y0 = H - h;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#05060a';
@@ -952,6 +977,7 @@
   //   방향 화살 = net 운동량 방향(atan2 정확 읽기 — 어느 쪽으로 빠져나갔나). |p|=0(등방 복사 탈출)이면 방향 없음 → 등방 고리.
   //   텍스트 = 개수·E 원시값(정규화 없음 — 스칼라라 in-frame 범위 없음, 손박은 캡 0). escaped 없거나 count=0 이면 안 그림(author 0).
   function drawEscape(ctx, sim) {
+    if (!chan('escape')) return;                       // 채널 토글: 탈출 게이지 숨김
     const r = escapeReadout(sim.escaped);
     if (!r) return;                                    // 탈출 없음 → 아무것도 안 그림(author 0)
     ctx.globalCompositeOperation = 'source-over';
@@ -977,5 +1003,5 @@
     ctx.fillText(`탈출 ${r.count}  E ${r.E.toFixed(1)}`, x0, cy + L + 14);
   }
 
-  return { draw, escapeReadout, makeCamera, project, attachControls, camState, voxelState, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow, isCellGrid, measureBandRange, cubeFaces };
+  return { draw, escapeReadout, makeCamera, project, attachControls, camState, voxelState, channels, CHANNELS, photonStreak, photonTrail, measureMaxMomentum, measureExcitationRange, excitationGlow, bondSegment, bondOrder, bondMultiline, measureMaxBondEnergy, bondEnergy, bondGlow, measureZRange, elementHue, hsvToRgb, ionCharge, measureMaxAbsCharge, ionRing, measureNRange, isotopeShade, connectedComponents, moleculeHue, measureSrcZRange, measureMaxScatter, scatterGlow, measureMaxSpeed, atomVelocityStreak, measurePopulations, populationHue, measureCoreClasses, coreBound, measureMaxAbsFlow, flowGlow, isCellGrid, measureBandRange, cubeFaces };
 });
