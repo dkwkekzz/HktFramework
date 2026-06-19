@@ -1,6 +1,6 @@
 # reviews/ — flux 트랙 회고·감사 레이어 (목적·도달·잔여를 step 위로)
 
-> flux 트랙의 닫힌 step 을 *위 고도*에서 본다. step 문서가 *한 조각(장면+측정)을 어떻게 했나*라면, reviews 는 사용자가 요청한 **세 축**을 푼다: ① **목적 부합**(단일 규칙 척추를 지켰나) ② **골격 주제별 도달**(SPINE arc 를 직관으로 어떻게 풀었나) ③ **LADDER 흐름 도달/잔여**(1차 목표=고분자까지 얼마나 왔나). 방법은 atom 트랙 [`.claude/skills/hgo-atom-review`](../../../.claude/skills/hgo-atom-review/SKILL.md)의 *큰 구조만* 참고(복사 아님).
+> flux 트랙의 닫힌 step 을 *위 고도*에서 본다. step 문서가 *한 조각(장면+측정)을 어떻게 했나*라면, reviews 는 **세 축**을 푼다: ① **목적 부합**(단일 규칙 척추를 지켰나) ② **골격 주제별 도달**(SPINE arc 를 직관으로 어떻게 풀었나) ③ **LADDER 흐름 도달/잔여**(1차 목표=고분자까지 얼마나 왔나). 리뷰 *방법·절차*는 스킬 [`.claude/skills/hgo-flux-review`](../../../.claude/skills/hgo-flux-review/SKILL.md)가 권위 — 이 README 는 *산출물*(인덱스·LADDER 지도·이슈 원장)만 보관한다.
 >
 > 판정은 PASS 주장이 아니라 **실물 코드(`../engine/*.js` `file:line`) + `verify.js all` 재현 + grep 감사**로. 닫힌 감사 문서는 불변(역사) — 단 §3 열린 이슈 원장만 갱신(해소분 떨굼).
 >
