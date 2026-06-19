@@ -118,11 +118,17 @@
 
   // 채널 토글(프레젠테이션 — 시뮬 무관) — 특정 채널만 격리 관찰. channels[key]===false 면 그 렌즈를 숨긴다(기본 표시).
   //   CHANNELS 가 키·라벨의 SSOT — 공유 셸 viewer.html 이 이걸 읽어 체크박스를 *자동 생성*한다(단일 뷰어·viewer 하드코딩 0).
+  //   **본체도 독립 채널이다**: 구(sphere=L-3d)·큐브(voxel=L-voxel)는 *글리프 본체*라 각자 채널을 가진다 — 끄면 본체가 사라져
+  //   오버레이(고리·자취·흐름)만 격리되고, 전부 끄면 빈 화면(두 트랙 다). element(Z 색)·band(q밴드 색)·glow(밝기)는 그 본체를
+  //   *칠하는* 채널이라 본체와 직교 — 본체 켜고 색 채널을 토글해 색 기여를 가린다(본체 off 면 칠할 면이 없어 무의미). 밝기(glow)를
+  //   본체 존재와 묶지 않는다(렌즈 혼동 금지): magnitude 는 본체를 *밝히는* 것이지 *만드는* 것이 아니다.
   const channels = {};
   function chan(key) { return channels[key] !== false; }
   const CHANNELS = [
     { key: 'grid', label: '바닥 격자' },
+    { key: 'sphere', label: '원자 구 본체(L-3d)' },
     { key: 'element', label: '원소 색조 Z' },
+    { key: 'voxel', label: '복셀 큐브 본체(L-voxel)' },
     { key: 'band', label: 'q밴드 색(voxel)' },
     { key: 'glow', label: '밝기 magnitude' },
     { key: 'flow', label: '파동 흐름 v' },
@@ -742,20 +748,24 @@
       ctx.beginPath(); ctx.moveTo(vel.head.sx, vel.head.sy); ctx.lineTo(vel.tail.sx, vel.tail.sy); ctx.stroke();
     }
     const exc = chan('glow') ? excitationGlow(a.x, xRange.lo, xRange.hi) : 0; // magnitude x → 광원 밝기(채널 토글 off → 0)
-    const zr = zRange || { lo: 0, hi: 0 };
-    const spread = zr.hi > zr.lo && chan('element');   // 측정 Z 변이 존재 + 채널 토글(없거나 off → 무채색)
-    const hue = elementHue(a.Z | 0, zr.lo, zr.hi);   // 원소 → 색조(연속 사상·측정 정규화)
-    const sat = spread ? 0.55 : 0.12;          // 변이 없으면 거의 무채색(시뮬에 없는 색 author 0)
-    const val = 0.16 + 0.22 * exc;             // 들뜸이 밝기 — L-glow 채널 유지(직교)
-    const base = hsvToRgb(hue, sat, val);      // 색조=원소(Z)·밝기=들뜸(x)
-    // 좌상단 광원 가정한 라디얼 그래디언트로 구의 입체감(프레젠테이션, 시뮬 양 아님)
-    const g = ctx.createRadialGradient(pr.sx - r * 0.35, pr.sy - r * 0.35, r * 0.1, pr.sx, pr.sy, r);
-    const hi = base.map(v => Math.min(255, v + 45 + Math.round(40 * exc)));  // 들뜸↑ → 하이라이트↑
-    g.addColorStop(0, `rgb(${hi[0]},${hi[1]},${hi[2]})`);
-    g.addColorStop(1, `rgb(${base[0]},${base[1]},${base[2]})`);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(pr.sx, pr.sy, r, 0, 6.2832); ctx.fill();
+    // 렌즈 L-3d: 원자 구 *본체* — 독립 채널(sphere). 끄면 본체가 사라져 오버레이(고리·자취·흐름·오라)만 격리 관찰된다.
+    //   색조=원소 Z(element 채널)·밝기=들뜸 x(glow 채널)는 본체를 *칠하는* 직교 채널 — 본체와 별개로 토글된다.
+    if (chan('sphere')) {
+      const zr = zRange || { lo: 0, hi: 0 };
+      const spread = zr.hi > zr.lo && chan('element');   // 측정 Z 변이 존재 + 채널 토글(없거나 off → 무채색)
+      const hue = elementHue(a.Z | 0, zr.lo, zr.hi);   // 원소 → 색조(연속 사상·측정 정규화)
+      const sat = spread ? 0.55 : 0.12;          // 변이 없으면 거의 무채색(시뮬에 없는 색 author 0)
+      const val = 0.16 + 0.22 * exc;             // 들뜸이 밝기 — L-glow 채널 유지(직교)
+      const base = hsvToRgb(hue, sat, val);      // 색조=원소(Z)·밝기=들뜸(x)
+      // 좌상단 광원 가정한 라디얼 그래디언트로 구의 입체감(프레젠테이션, 시뮬 양 아님)
+      const g = ctx.createRadialGradient(pr.sx - r * 0.35, pr.sy - r * 0.35, r * 0.1, pr.sx, pr.sy, r);
+      const hi = base.map(v => Math.min(255, v + 45 + Math.round(40 * exc)));  // 들뜸↑ → 하이라이트↑
+      g.addColorStop(0, `rgb(${hi[0]},${hi[1]},${hi[2]})`);
+      g.addColorStop(1, `rgb(${base[0]},${base[1]},${base[2]})`);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(pr.sx, pr.sy, r, 0, 6.2832); ctx.fill();
+    }
     // 렌즈 L-ion: 전하 Q=Z−e 를 테두리 고리로(부호 발산 — 양이온 따뜻·음이온 차가움, 세기=|Q|/maxQ 측정).
     //   중성(Q=0) 또는 maxQ=0 이면 고리 0 — 시뮬에 없는 전하를 author 하지 않는다(RENDER §3).
     const q = ionCharge(a), ringI = ionRing(q, maxQ || 0);
@@ -817,7 +827,7 @@
     const exc = excitationGlow(a.x, xRange.lo, xRange.hi);   // q magnitude → 들뜸=불투명도(측정 범위 정규화·L-glow 동형). 평형(q=lo)→0(투명)
     const center = project({ x: a.rx, y: a.ry, z: a.rz || 0 }, cam);
     if (center.depth <= 0) return;
-    if (exc > 0 && chan('glow')) {                         // q>lo 면 큐브(밝기=magnitude 채널이 큐브 본체) — 평형(exc=0)·glow off 면 안 그림
+    if (exc > 0 && chan('voxel')) {                        // q>lo 면 큐브(L-voxel 본체=독립 채널) — 평형(exc=0)·voxel off 면 안 그림
       const bandOn = chan('band') && bandRange.hi > bandRange.lo;     // 채널 토글 + 밴드 변이(없으면 무채색)
       const hue = bandOn ? elementHue(a.c0 | 0, bandRange.lo, bandRange.hi) : ELEMENT_HUE_REF;   // q밴드 → 색조(elementHue 재사용)
       const sat = bandOn ? 0.6 : 0.12;            // 밴드 변이 없거나 채널 off 면 거의 무채색(시뮬에 없는 색 author 0)

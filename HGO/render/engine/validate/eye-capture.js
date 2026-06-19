@@ -92,6 +92,16 @@ function installCap() {
       for (const c of R.CHANNELS) R.channels[c.key] = true;   // 복원
       return a;
     }
+    if (kind === 'chanatom') {                               // 채널 토글(원자 구 본체): 합성 흩어진 원자(격자 아님 → drawAtom 구)로 sphere 가드 격리 검증
+      const rng = K.mulberry32(42), atoms = [];
+      for (let i = 0; i < 24; i++) atoms.push({ Z: (i % 6) + 1, N: 1, e: 1, x: 1 + (i % 3), rx: 12 + rng() * 76, ry: 12 + rng() * 76, rz: 0, vx: 0, vy: 0, vz: 0, lep: 0, nuc: 0 });
+      sim = S.createSim({ W: 100, H: 100, atoms });          // cols/rows 없음 → isCellGrid false → 구(球) 렌더
+      for (const c of R.CHANNELS) R.channels[c.key] = !opt.only || opt.only.includes(c.key);   // only=[] 면 sphere 포함 전부 끔
+      draw(sim);
+      const a = analyze(opt.litMin);
+      for (const c of R.CHANNELS) R.channels[c.key] = true;   // 복원
+      return a;
+    }
     if (kind === 'fluxslice') {                              // L-voxel 슬라이스: 한 z층만 잘라 내부 파면(단면)을 드러냄(전체 블록=껍데기만)
       sim = S.createSim(SC.SCENES[opt.id || 'step-0011'].init(K.mulberry32(42), K));
       sim.render = true;
@@ -199,16 +209,24 @@ async function main() {
       pass: live.lit > flat.lit * 5 && flat.lit < live.lit * 0.1, value: `활성 ${live.lit} ≫ 균일 ${flat.lit}` });
     for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
     console.log(`  스크린샷: captures/{flux-voxel,flux-voxel-flat}.png`);
-  } else if (fluxChannels) {                                 // 채널 토글: 특정 채널만 켜서 격리 관찰되나(끄면 비고·솔로 표시)
-    console.log('\n=== 눈 검증: 채널 토글 (실 flux viewer — 특정 채널만 격리) ===');
-    const all = await cap('chanset', { id: 'step-0011', ticks: 25, only: null, litMin: 60 });          await shot('chan-all.png');
-    const flowOnly = await cap('chanset', { id: 'step-0011', ticks: 25, only: ['flow'], litMin: 60 }); await shot('chan-flow.png');
-    const none = await cap('chanset', { id: 'step-0011', ticks: 25, only: [], litMin: 60 });           await shot('chan-none.png');
-    // 전부 켬 = 가장 많은 픽셀 · flow 단독 = 부분집합(>0·전부보다 적음) · 전부 끔 = 거의 빔(격자도 꺼짐)
-    checks.push({ name: `flow 단독 격리 — flow 픽셀만(>0·전부 켬의 부분집합)`, pass: flowOnly.lit > 0 && flowOnly.lit < all.lit, value: `flow단독 ${flowOnly.lit} < 전부 ${all.lit}` });
-    checks.push({ name: `전부 끔 → 거의 빈 화면(채널이 그리기를 가른다)`, pass: none.lit < flowOnly.lit * 0.5, value: `전부끔 ${none.lit}` });
+  } else if (fluxChannels) {                                 // 채널 토글: 특정 채널만 켜서 격리 관찰되나(본체도 독립 채널·끄면 비고·솔로 표시)
+    console.log('\n=== 눈 검증: 채널 토글 (실 flux viewer — 본체 독립 채널·특정 채널 격리) ===');
+    const all = await cap('chanset', { id: 'step-0011', ticks: 25, only: null, litMin: 60 });               await shot('chan-all.png');
+    const voxelOnly = await cap('chanset', { id: 'step-0011', ticks: 25, only: ['voxel'], litMin: 60 });    await shot('chan-voxel.png');
+    const bodyBand = await cap('chanset', { id: 'step-0011', ticks: 25, only: ['voxel', 'band'], litMin: 60 });
+    const flowOnly = await cap('chanset', { id: 'step-0011', ticks: 25, only: ['flow'], litMin: 60 });      await shot('chan-flow.png');
+    const none = await cap('chanset', { id: 'step-0011', ticks: 25, only: [], litMin: 60 });                await shot('chan-none.png');
+    // 본체(voxel)는 독립 채널 — 단독으로 큐브 보임(glow 와 분리). band(색)는 본체를 *칠하는* 직교 채널이라 본체를 죽이지 않는다.
+    checks.push({ name: `큐브 본체(voxel) 단독 — 본체가 독립 채널로 보임(glow 와 분리)`, pass: voxelOnly.lit > 5000, value: `voxel단독 ${voxelOnly.lit}` });
+    checks.push({ name: `band 격리 — 색 채널이 본체를 죽이지 않음(본체+band 큐브 살아있음, 옛 버그=0 회귀 방지)`, pass: bodyBand.lit > 5000, value: `본체+band ${bodyBand.lit}` });
+    checks.push({ name: `flow 단독 격리 — flow 링만(>0·본체 없이 발산 글로우)`, pass: flowOnly.lit > 0 && flowOnly.lit < all.lit, value: `flow단독 ${flowOnly.lit} < 전부 ${all.lit}` });
+    checks.push({ name: `전부 끔 → 빈 화면(본체 포함 모든 렌즈가 그리기를 가른다)`, pass: none.lit === 0, value: `전부끔 ${none.lit}` });
+    // 원자 구 본체(sphere)도 독립 채널인지 — 합성 흩어진 원자(격자 아님 → drawAtom 구)로 sphere 가드 검증(트랙 무관)
+    const sphOn = await cap('chanatom', { only: null, litMin: 60 });    await shot('chan-sphere-on.png');
+    const sphOff = await cap('chanatom', { only: [], litMin: 60 });     await shot('chan-sphere-off.png');
+    checks.push({ name: `원자 구 본체(sphere) — 켜면 구 보임·끄면 빈 화면(본체 독립 채널·atom 트랙 격리)`, pass: sphOn.lit > 2000 && sphOff.lit === 0, value: `구 ${sphOn.lit}→끔 ${sphOff.lit}` });
     for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
-    console.log(`  스크린샷: captures/{chan-all,chan-flow,chan-none}.png`);
+    console.log(`  스크린샷: captures/{chan-all,chan-voxel,chan-flow,chan-none,chan-sphere-on,chan-sphere-off}.png`);
   } else if (fluxSlice) {                                    // L-voxel 슬라이스: 한 z층 단면이 파동 프로파일을 드러내나(전체 블록=껍데기만)
     console.log('\n=== 눈 검증: L-voxel 슬라이스 (실 flux 파동 viewer — 내부 파면 단면) ===');
     const full = await cap('fluxslice', { id: 'step-0011', ticks: 25, slice: null, litMin: 60 });   await shot('flux-slice-full.png');
