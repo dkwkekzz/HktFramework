@@ -638,6 +638,32 @@
     return { on: on.seg, off: off.seg, minOn: +minOn.toFixed(4), minOff: +minOff.toFixed(4), ratio: +(minOn / minOff).toFixed(3), fin, dQ: fin ? Math.abs(sumQv(cs) - q0) / S : NaN, dB: fin ? Math.abs(sumB(cs) - b0) / S : NaN };
   }
 
+  // 창발 측정(arc J — 사슬 선형성: 덩어리 아님) — 결합된 *코어*(고임계)의 q-가중 2차 모멘트로 세장비
+  //   (x-신장 σx / 가로 신장 √((σy²+σz²)/2)) + 가로 폭을 읽는다. 선형 사슬이면 세장비≫1·가로 폭≈1셀(단일파일),
+  //   덩어리면 ~1·두꺼움. valence 전하 ON 이 사슬을 *얇은 1D 선*으로 죄는지(OFF=단일 q 보다 선형·얇음) 본다.
+  function chainLinearityMeasure(kc, kb, amp, bamp, N, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, corners = lineCorners(N, sp, n), th = coreTh || 1.2;
+    const moments = sim => {
+      let i = 0, W = 0, cx = 0, cy = 0, cz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; W += w; cx += w * c; cy += w * r; cz += w * z; i++; }
+      if (W <= 0) return { ax: 0, wy: 0 };
+      cx /= W; cy /= W; cz /= W; i = 0; let mx = 0, my = 0, mz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; mx += w * (c - cx) ** 2; my += w * (r - cy) ** 2; mz += w * (z - cz) ** 2; i++; }
+      const sx = Math.sqrt(mx / W), tw = Math.sqrt((my / W + mz / W) / 2);
+      return { ax: tw > 0 ? sx / tw : 0, wy: tw };
+    };
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let as = 0, ws = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const m = moments(sim); as += m.ax; ws += m.wy; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { aspect: +(as / cnt).toFixed(3), tw: +(ws / cnt).toFixed(3), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1188,6 +1214,31 @@
           { name: '안정(발산 없이 유한)', pass: M.fin, value: `finite=${M.fin}` },
           { name: '세 마디 다 생존(ON 최소 마디 peak 높음 — 선형 사슬)', pass: M.fin && M.minOn > 1.4, value: `seg_on=[${M.on}] min=${M.minOn}` },
           { name: '사슬 = 결합(ON 최소 마디 ≫ OFF 단일 q 분산)', pass: M.fin && M.ratio > 1.3, value: `min_on=${M.minOn} vs min_off=${M.minOff} (ratio=${M.ratio})` },
+        ];
+      },
+    },
+
+    // ── step-0023: arc J — 사슬은 선형이다(덩어리 아님): 결합 사슬의 세장비 ≫ 1 ── 장면+측정만(법칙·노브 0).
+    //   0022 는 세 마디가 *산다*만 봤다. 고분자(1차 목표)의 정의는 결합이 *선형*(방향성)이라는 것 — 단일 q 천장의
+    //   "등방 덩어리(blob)"와 갈린다. 네 브리더 일렬의 *코어*(고임계) 2차 모멘트로 세장비(x-신장/가로 신장)를 재면,
+    //   valence 결합 사슬은 세장비≫1·가로 폭≈1셀(단일파일 선)이고 OFF(단일 q)보다 더 선형·얇다 = 진짜 1D 고분자.
+    'step-0023': {
+      id: 'step-0023',
+      title: 'step-0023 — arc J: 사슬은 선형이다(덩어리 아님·세장비 ≫ 1)',
+      did: '네 브리더를 일렬로 결합시키고, 결합된 코어 덩어리의 모양(세로로 긴가, 사방으로 퍼진 공인가)을 세장비로 잰다.',
+      observe: '결합 사슬은 한 줄로 길고(세장비≈6) 가로로 한 셀 두께뿐인 *단일파일 선*이다 — 등방 덩어리(blob)가 아니다. valence 를 끄면 더 두껍고 덜 선형. 단일 q 가 못 한 1D 고분자 모양이 측정으로 확인.',
+      desc: '0022 는 세 마디가 *산다*(결합)만 봤다. 고분자(1차 목표)의 정의는 결합이 *선형/방향성*이라는 것 — 0019 단일 q 천장의 "등방 비포화 덩어리(blob)"와 갈린다. 네 브리더 x-축 일렬(간격 4)의 *코어*(임계 1.2 이상) q-가중 2차 모멘트로 세장비(σx / √((σy²+σz²)/2)) + 가로 폭을 800틱 후기 측정. valence 결합 사슬(bamp=3): 세장비≈6·가로 폭≈0.8셀(단일파일 선) — OFF(bamp=0=단일 q)는 세장비≈3·가로 폭≈1.4(더 두껍고 덜 선형). 결합이 *축을 따라 선형*임을 직접 측정 = 진짜 1D 고분자 모양(덩어리 아님). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0).',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(4, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = chainLinearityMeasure(0.04, 0.05, 3, 3, 4, 4, 800, 16, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·사슬 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
+          { name: '사슬은 선형(세장비 ≫ 1 — 덩어리 아님)', pass: M.on.fin && M.on.aspect > 3, value: `aspect_on=${M.on.aspect} (가로폭=${M.on.tw}셀)` },
+          { name: '단일파일(가로 폭 ≈ 1셀)', pass: M.on.fin && M.on.tw < 1.2, value: `tw_on=${M.on.tw} 셀` },
+          { name: 'valence 가 더 선형·얇음(ON > OFF 단일 q)', pass: M.on.fin && M.on.aspect > M.off.aspect && M.on.tw < M.off.tw, value: `aspect on=${M.on.aspect} > off=${M.off.aspect}·tw on=${M.on.tw} < off=${M.off.tw}` },
         ];
       },
     },
