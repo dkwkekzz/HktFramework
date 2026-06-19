@@ -1,12 +1,13 @@
-// htj-world.js — HTJ 세계의 *기반 무대*: 셀로 구성된 3D 공간.
+// htj-world.js — HTJ 세계의 *기반 무대*: 격자 + 그 위에 사는 장(fields).
 //
-//   아직 법칙(동역학)은 없다. 이 모듈은 세계의 *기질*만 제공한다:
-//     - N³ 셀 격자(공간) + 전단사 인덱싱
-//     - 결정론 PRNG(같은 seed → 같은 세계) + 결정론 지문(fingerprint)
-//     - 관찰용 데모 시드(seedBall) — 법칙이 아니라 *정물*(기반 무대를 눈에 보이게)
+//   세계 = N³ 셀 격자(공간) 위에 이름 붙은 **장(field)** 들이 산다.
+//   장 = 셀마다 값 하나를 갖는 배열(예: energy = 연속 에너지 밀도, Float64).
+//   격자는 *위치*만 정하고, 무엇이 거기 있는지는 장이 정한다. 새 물리량은 장을 더해 표현한다.
 //
+//   원자·물질 같은 구조는 *사전 배열로 박지 않는다* — 장의 동역학이 굴러간 결과로 *창발*한다.
+//
+//   결정론(같은 seed/같은 연산 → 같은 세계) + 장-단위 결정론 지문(fingerprint)을 못 박는다.
 //   브라우저(viewer.html)·Node(verify.js) 양쪽에서 동일하게 동작(UMD).
-//   미래 step 은 이 위에 *보존되는 양*과 *국소 갱신 법칙*을 가법적으로 얹는다.
 (function (root, factory) {
   'use strict';
   const api = factory();
@@ -26,40 +27,67 @@
     };
   }
 
-  // 세계 = N³ 셀 격자. 각 셀은 uint8 값(0 = 빈 공간). 값의 *의미*는 미래 법칙이 정한다.
+  // 세계 = N³ 격자 + 이름 붙은 장들. 기본 장 'energy'(Float64) 를 갖고 시작한다.
   function createWorld(N) {
     N = N | 0;
     if (N <= 0) throw new Error('createWorld: N must be > 0');
-    const cells = new Uint8Array(N * N * N);
-    return {
+    const SIZE = N * N * N;
+    const fields = Object.create(null);            // 이름 → 셀별 값 배열(TypedArray)
+    const scratch = Object.create(null);           // 동시 갱신용 더블버퍼(장별)
+
+    const world = {
       N,
-      cells,
-      // 전단사 인덱싱: (x,y,z) ↔ i. z 가 가장 바깥(slab), 그 안에 y(row), x(col).
+      fields,
+      scratch,
+      // ── 격자 기하: 전단사 인덱싱. z 가 가장 바깥(slab), 그 안에 y(row), x(col). ──
       index(x, y, z) { return (z * N + y) * N + x; },
       coords(i) { const x = i % N; const y = ((i - x) / N) % N; const z = (i - x - y * N) / (N * N); return [x, y, z]; },
       inBounds(x, y, z) { return x >= 0 && y >= 0 && z >= 0 && x < N && y < N && z < N; },
-      get(x, y, z) { return cells[(z * N + y) * N + x]; },
-      set(x, y, z, v) { cells[(z * N + y) * N + x] = v & 0xff; },
-      clear() { cells.fill(0); },
-      count() { let c = 0; for (let i = 0; i < cells.length; i++) if (cells[i]) c++; return c; },
-      // 결정론 지문 — FNV-1a 32bit. 같은 셀 배열이면 같은 값(검증·회귀 가드용).
-      fingerprint() {
+
+      // ── 장 관리 ──
+      // 새 장을 격자 위에 만든다. opts.type=TypedArray 생성자(기본 Float64Array), opts.fill=초기값.
+      addField(name, opts) {
+        opts = opts || {};
+        const Type = opts.type || Float64Array;
+        const a = new Type(SIZE);
+        if (opts.fill) a.fill(opts.fill);
+        fields[name] = a;
+        return a;
+      },
+      field(name) { return fields[name]; },
+      get(name, x, y, z) { return fields[name][(z * N + y) * N + x]; },
+      set(name, x, y, z, v) { fields[name][(z * N + y) * N + x] = v; },
+      clear(name) { fields[name].fill(0); },
+
+      // ── 장 측정자 ──
+      total(name) { const a = fields[name]; let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; },
+      count(name, eps) { const a = fields[name]; eps = eps || 0; let c = 0; for (let i = 0; i < a.length; i++) if (a[i] > eps) c++; return c; },
+      max(name) { const a = fields[name]; let m = -Infinity; for (let i = 0; i < a.length; i++) if (a[i] > m) m = a[i]; return m; },
+      min(name) { const a = fields[name]; let m = Infinity; for (let i = 0; i < a.length; i++) if (a[i] < m) m = a[i]; return m; },
+
+      // 결정론 지문 — 장 바이트열 FNV-1a 32bit. 같은 장이면 같은 값(검증·회귀 가드용).
+      fingerprint(name) {
+        const a = fields[name];
+        const bytes = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
         let h = 0x811c9dc5;
-        for (let i = 0; i < cells.length; i++) { h ^= cells[i]; h = Math.imul(h, 0x01000193); }
+        for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 0x01000193); }
         return h >>> 0;
       }
     };
+    world.addField('energy', { type: Float64Array });   // 기본 장: 연속 에너지 밀도
+    return world;
   }
 
-  // 데모 시드 — 중심의 공(ball)을 채운다(법칙 아님, 기반 무대를 눈에 보이게 하는 정물).
+  // 데모 시드 — 중심의 공(ball)을 장에 채운다(법칙 아님, 무대를 눈에 보이게 하는 정물).
   //   동심 3띠로 값 1/2/3 부여 → 렌더러가 색으로 구분해 3D voxel 모양이 또렷이 보인다.
-  //   seed 인자는 받지만 결과는 결정론적(같은 N → 같은 공). 미래 step 은 seed 로 분포를 흩뿌린다.
+  //   결과는 결정론적(같은 N → 같은 공). 기본 대상 장은 'energy'.
   function seedBall(world, opts) {
     opts = opts || {};
-    const N = world.N;
+    const name = opts.field || 'energy';
+    const N = world.N, a = world.fields[name];
     const c = (N - 1) / 2;
     const r = opts.r != null ? opts.r : N * 0.42;
-    world.clear();
+    a.fill(0);
     for (let z = 0; z < N; z++)
       for (let y = 0; y < N; y++)
         for (let x = 0; x < N; x++) {
@@ -67,11 +95,11 @@
           const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
           if (d <= r) {
             const t = d / r;                     // 0(중심)~1(표면)
-            world.set(x, y, z, t < 0.55 ? 3 : t < 0.82 ? 2 : 1);
+            a[(z * N + y) * N + x] = t < 0.55 ? 3 : t < 0.82 ? 2 : 1;
           }
         }
     return world;
   }
 
-  return { mulberry32, createWorld, seedBall, VERSION: 1 };
+  return { mulberry32, createWorld, seedBall, VERSION: 2 };
 });
