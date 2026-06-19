@@ -763,6 +763,32 @@
     return { on, off, ratio: +(on.min / off.min).toFixed(3) };
   }
 
+  // 창발 측정(arc J — 씨앗 템플릿 중합) — 사슬 씨앗(seedN) + 끝 근처 *여러* 자유 단량체를 놓고, 결속된 사슬이
+  //   단량체를 *차례로 흡수*해 길어지는지(축선 위 결합 코어 수·연속 사슬 길이) 읽는다. valence ON 은 씨앗이 욕조를
+  //   템플릿으로 단량체를 끌어 *성장*(boundLen↑·ncore↑), OFF(단일 q)는 코어가 풀려 분산(축선 위 결속 0). ΣQ·ΣB 보존.
+  function seedGrowMeasure(kc, kb, amp, bamp, seedN, seedSp, mons, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor((n - 1) / 2), c0 = 3, idx = (c, r, z) => (z * n + r) * n + c;
+    const cor = []; for (let i = 0; i < seedN; i++) cor.push([c0 + i * seedSp, m, m]);
+    let endC = c0 + (seedN - 1) * seedSp; for (const g of mons) { endC += g; cor.push([endC, m, m]); }
+    const chainCores = sim => {
+      const p = new Array(n).fill(0);
+      for (let c = 0; c < n; c++) { let mx = 0; for (const r of [m, m + 1]) for (const z of [m, m + 1]) { const e = Math.abs((sim.atoms[idx(c, r, z)].q - S) / S); if (e > mx) mx = e; } p[c] = mx; }
+      const pk = []; for (let c = 0; c < n; c++) { const L = p[(c - 1 + n) % n], R = p[(c + 1) % n]; if (p[c] >= 1.2 && p[c] >= L && p[c] > R) { if (pk.length && c - pk[pk.length - 1] < 2) continue; pk.push(c); } }
+      let best = pk.length ? 1 : 0, run = 1; for (let i = 1; i < pk.length; i++) { if (pk[i] - pk[i - 1] <= 4) run++; else run = 1; if (run > best) best = run; }
+      return { ncore: pk.length, boundLen: best };
+    };
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, cor, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let bl = 0, nc = 0, cnt = 0; const lo = Math.floor(ticks * 0.7);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const r = chainCores(sim); bl += r.boundLen; nc += r.ncore; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { boundLen: +(bl / cnt).toFixed(2), ncore: +(nc / cnt).toFixed(2), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, total: seedN + mons.length };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1435,6 +1461,30 @@
           { name: '사슬 영속(후기 네 마디 다 결속 — 안 풀림)', pass: M.on.fin && M.on.min > 1.4, value: `late seg_on=[${M.on.seg}] min=${M.on.min}` },
           { name: '단일파일 유지(후기 가로 폭 ≈1셀 — 안 굵어짐)', pass: M.on.fin && M.on.tw < 1.2, value: `tw_on=${M.on.tw}셀` },
           { name: '안정 고분자(ON ≫ OFF 단일 q 분산)', pass: M.on.fin && M.ratio > 1.3, value: `min_on=${M.on.min} vs min_off=${M.off.min} (ratio=${M.ratio})` },
+        ];
+      },
+    },
+
+    // ── step-0028: arc J — 씨앗 템플릿 중합: 사슬이 단량체 욕조에서 자란다 ── 장면+측정만(법칙·노브 0).
+    //   0026 은 단량체 *하나* 포획. 진짜 중합은 *연쇄* — 사슬 씨앗이 둘레의 *여러* 자유 단량체를 차례로 끌어 길이가
+    //   자란다(템플릿 성장·고분자 1차 목표 동역학). 씨앗 사슬(3) + 끝 너머 자유 단량체 셋을 valence ON/OFF — ON 은
+    //   씨앗이 욕조를 템플릿으로 흡수해 ~5 코어 사슬로 *성장*, OFF(단일 q)는 축선 위 결속이 풀려 분산. 새 노브 0.
+    'step-0028': {
+      id: 'step-0028',
+      title: 'step-0028 — arc J: 씨앗 템플릿 중합(사슬이 단량체 욕조에서 자람)',
+      did: '세 마디 사슬 씨앗과 그 끝 너머에 자유 단량체 셋을 놓고, valence 를 켜고/끈 채 씨앗이 단량체를 흡수해 긴 사슬로 자라는지 본다.',
+      observe: '전하 ON 이면 씨앗이 떨어져 있던 단량체들을 차례로 끌어와 한 줄 사슬(약 다섯 코어)로 *자란다*. OFF(단일 q)면 축선 위 코어가 풀려 흩어진다. 사슬이 단량체 욕조에서 성장하는 *연쇄 중합*.',
+      desc: '0026 은 단량체 *하나* 포획. 진짜 중합은 *연쇄* — 사슬 씨앗이 둘레의 *여러* 자유 단량체를 차례로 끌어 길이가 자란다(템플릿 성장·고분자 1차 목표 동역학). 씨앗 사슬(N=3·간격 3) + 끝 너머 자유 단량체 셋(간격 [4,4,4]·포획 반경 안)을 valence ON(bamp=3)·OFF(bamp=0=단일 q)로 1000틱(n=24·κb=0.06). 측정(seedGrowMeasure): 축선 위 결합 코어 수·연속 사슬 길이(boundLen) — ON 은 씨앗이 욕조를 템플릿으로 흡수해 boundLen≈5·ncore≈6 사슬로 성장, OFF 는 축선 결속 0(분산). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 씨앗+단량체 욕조 성장.',
+      ticks: 1000,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24, m = Math.floor((n - 1) / 2), c0 = 3; const cor = []; for (let i = 0; i < 3; i++) cor.push([c0 + i * 3, m, m]); let e = c0 + 2 * 3; for (const g of [4, 4, 4]) { e += g; cor.push([e, m, m]); } return valenceLumpsSpec(0.04, 0.06, 3, 3, 2, cor, n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = seedGrowMeasure(0.04, 0.06, 3, 3, 3, 3, [4, 4, 4], 1000, 24);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·중합 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin}` },
+          { name: '템플릿 성장(ON 씨앗이 단량체 흡수 → 긴 사슬)', pass: M.on.fin && M.on.boundLen >= 4, value: `boundLen_on=${M.on.boundLen}·ncore_on=${M.on.ncore} (씨앗3+단량체3=${M.total})` },
+          { name: '성장 = 결합(ON ≫ OFF 단일 q 축선 분산)', pass: M.on.fin && M.on.boundLen > M.off.boundLen + 2, value: `boundLen on=${M.on.boundLen} vs off=${M.off.boundLen}` },
         ];
       },
     },
