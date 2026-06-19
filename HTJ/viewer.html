@@ -39,6 +39,7 @@
       <div class="row"><label>α (확산율)</label><input id="alpha" type="number" min="0" max="0.166" step="0.01" value="0.14" /></div>
       <div class="row" id="row-rate"><label>방출율</label><input id="rate" type="number" min="0" max="1" step="0.005" value="0.02" /></div>
       <div class="row" id="row-crit"><label>점화 임계</label><input id="crit" type="number" min="0" step="50" value="300" /></div>
+      <div class="row" id="row-radiate"><label>복사율(sink)</label><input id="radiate" type="number" min="0" max="1" step="0.02" value="0.2" /></div>
       <div class="row"><label>확산속도</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
       <div class="row"><label>장(field)</label><select id="brushField"></select></div>
       <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
@@ -49,6 +50,11 @@
       </div>
     </div>
 
+    <div class="row"><label>색 기준</label>
+      <select id="colorScale"><option value="relative">상대(평균)</option><option value="absolute">절대(고정)</option></select>
+    </div>
+    <div class="row" id="row-colormax"><label>색 최대E</label><input id="colorMax" type="number" min="0" step="50" value="1000" /></div>
+
     <div class="row">
       <button id="reset">리셋</button>
       <button id="capture">📷 캡처(PNG)</button>
@@ -58,6 +64,7 @@
       <div>tick: <b id="s-tick">0</b></div>
       <div id="s-pot-row">잠재력: <b id="s-pot">0</b> <span style="color:#5b6678">(↓ 풀림)</span></div>
       <div>총 에너지: <b id="s-total">0</b> <span style="color:#5b6678">(↑ 탄생)</span></div>
+      <div id="s-rad-row">복사 누적: <b id="s-rad">0</b> <span style="color:#5b6678">(→ 우주)</span></div>
       <div>엔트로피: <b id="s-entropy">0</b> nats <span style="color:#5b6678">(↑)</span></div>
       <div>점유 셀: <b id="s-occ">0</b> / <span id="s-cells">0</span></div>
       <div>최대 E: <b id="s-max">0</b></div>
@@ -71,6 +78,7 @@
 <script src="engine/htj-world.js"></script>
 <script src="engine/htj-energy.js"></script>
 <script src="engine/htj-potential.js"></script>
+<script src="engine/htj-radiate.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -111,6 +119,14 @@
       init(w) { HTJPotential.seedStarField(w, { core: 1000, background: 50, r: w.N * 0.25 }); },  // 별밭(코어+가스)
       advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 임계 방출+확산
       note: '처음엔 <b>검다</b>(에너지 0). <b>▶ 흐름</b>을 누르면 *임계 넘긴 코어만* 빨갛게 점화한다(=별) — 가스는 어둡다.<br />기본 α=0(확산 꺼짐)이라 별이 또렷이 보인다. <b>α(확산율)를 올리면</b> 별빛이 가스로 퍼진다. <b>점화 임계</b>를 올리면 별이 작아지고/안 켜진다 → "별 = 임계 위 영역".'
+    },
+    '0005': {
+      label: 'step_0005 — 빛나는 별', title: 'HTJ — 빛나는 별', sub: '경계 복사(sink) → 영구 그래디언트',
+      mode: 'energy', dynamics: true, release: true, ignite: true, radiate: true,
+      defaults: { alpha: 0.14, rate: 0.02, crit: 300, radiate: 0.2, colorScale: 'absolute', colorMax: 4000, view: 'energy' },
+      init(w) { HTJPotential.seedStarField(w, { core: 1e7, background: 0, r: w.N * 0.16 }); },  // 큰 연료 저장고
+      advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); HTJRadiate.radiate(w, p.radiate); },  // 법칙: 점화+확산+복사
+      note: '<b>▶ 흐름</b>: 큰 연료의 코어가 *계속* 점화(=별) → 에너지가 확산으로 바깥으로 흐르고 <b>경계에서 우주로 빠져나간다</b>(sink). 그래서 중심은 *꾸준히 밝고* 바깥은 어둡다 = 영구 그래디언트.<br /><b>색 기준=절대</b>라 에너지가 빠져나가며 *전체가 어두워지는 것*도 보인다. 복사율을 0 으로 하면 닫힌 상자처럼 다시 균일해진다(별이 안 빛남).'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -128,7 +144,9 @@
   function readSpeed() { return Math.max(1, Math.min(50, parseInt(document.getElementById('speed').value, 10) || 1)); }
   function readRate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('rate').value) || 0)); }
   function readCrit() { return Math.max(0, parseFloat(document.getElementById('crit').value) || 0); }
-  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit() }; }
+  function readRadiate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('radiate').value) || 0)); }
+  function readColorMax() { return Math.max(0, parseFloat(document.getElementById('colorMax').value) || 0); }
+  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit(), radiate: readRadiate() }; }
   function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
   function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
   function brushField() { return document.getElementById('brushField').value || 'energy'; }
@@ -165,21 +183,28 @@
     document.getElementById('dyn').style.display = st.dynamics ? '' : 'none';
     document.getElementById('row-rate').style.display = st.release ? '' : 'none';   // 방출율은 방출 step 에서만
     document.getElementById('row-crit').style.display = st.ignite ? '' : 'none';    // 점화 임계는 점화 step 에서만
-    // step별 *관찰하기 좋은* 기본 노브 적용(α·방출율·임계).
+    document.getElementById('row-radiate').style.display = st.radiate ? '' : 'none'; // 복사율은 sink step 에서만
+    // step별 *관찰하기 좋은* 기본 노브 적용(α·방출율·임계·복사율·색 기준).
     const d = st.defaults || {};
     if (d.alpha != null) document.getElementById('alpha').value = d.alpha;
     if (d.rate != null) document.getElementById('rate').value = d.rate;
     if (d.crit != null) document.getElementById('crit').value = d.crit;
+    if (d.radiate != null) document.getElementById('radiate').value = d.radiate;
+    document.getElementById('colorScale').value = d.colorScale || 'relative';
+    if (d.colorMax != null) document.getElementById('colorMax').value = d.colorMax;
+    document.getElementById('row-colormax').style.display = document.getElementById('colorScale').value === 'absolute' ? '' : 'none';
     reset();
     // 시작 시 보여줄 장(검은 화면 방지 등).
     if (d.view && world.fields[d.view]) { document.getElementById('brushField').value = d.view; render(); }
   }
 
   function updateStats() {
-    const hasPot = !!world.fields.potential;
+    const hasPot = !!world.fields.potential, hasRad = world.radiated != null;
     document.getElementById('s-tick').textContent = tick;
     document.getElementById('s-pot-row').style.display = hasPot ? '' : 'none';
     if (hasPot) document.getElementById('s-pot').textContent = world.total('potential').toFixed(2);
+    document.getElementById('s-rad-row').style.display = hasRad ? '' : 'none';
+    if (hasRad) document.getElementById('s-rad').textContent = world.radiated.toFixed(2);
     document.getElementById('s-total').textContent = world.total('energy').toFixed(2);
     document.getElementById('s-entropy').textContent = HTJEnergy.entropy(world).toFixed(4);
     document.getElementById('s-occ').textContent = world.count('energy', 1e-9);
@@ -190,12 +215,15 @@
   function render() {
     if (!world) return;
     const name = brushField();
-    // 색 스케일을 *평형 밀도(평균)* 에 고정한다: 갓 주입=빨강(E≫평균), 퍼질수록 모두 평균으로
-    // 수렴 → 전체가 같은 색(균일)으로. (매 프레임 최댓값 정규화는 봉우리를 늘 빨갛게 유지하고,
-    //  새 주입이 옛 열을 파랗게 '지워 보이게' 했음.) max=0 이면 draw 가 자동 폴백.
-    const mean = world.total(name) / world.fields[name].length;
+    // 색 기준 두 가지:
+    //  · 상대(평균): max = 평균*2 → "평균 대비" 분포를 본다(퍼지면 균일 색). 절대 총량은 색에 안 나타남.
+    //  · 절대(고정): max = 색최대E 고정값 → 같은 에너지는 늘 같은 색. *에너지가 빠져나가 어두워지는 것*·
+    //    별이 *계속 밝게* 유지되는 것이 보인다. (max=0 이면 draw 가 자동 폴백.)
+    let max;
+    if (document.getElementById('colorScale').value === 'absolute') max = readColorMax();
+    else { const mean = world.total(name) / world.fields[name].length; max = mean > 0 ? mean * 2 : 0; }
     surf = HTJRender.draw(ctx, world, cam, {
-      field: name, colormap: mode === 'cells' ? 'palette' : 'heat', max: mean > 0 ? mean * 2 : 0
+      field: name, colormap: mode === 'cells' ? 'palette' : 'heat', max
     });
   }
 
@@ -268,7 +296,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0004';                       // 기본 = 현재 step
+    sel.value = '0005';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
@@ -278,6 +306,11 @@
   document.getElementById('reset').onclick = () => { setPlaying(false); reset(); };
   document.getElementById('N').onchange = () => { setPlaying(false); reset(); };
   document.getElementById('brushField').onchange = render;
+  document.getElementById('colorScale').onchange = () => {
+    document.getElementById('row-colormax').style.display = document.getElementById('colorScale').value === 'absolute' ? '' : 'none';
+    render();
+  };
+  document.getElementById('colorMax').onchange = render;
   document.getElementById('capture').onclick = () => {
     const a = document.createElement('a');
     a.download = 'htj-' + currentStep() + '.png';
@@ -320,12 +353,15 @@
     },
     // 임계 방출+확산을 steps 회 굴린다(별의 점화).
     igniteRun(rate, crit, alpha, steps) { for (let t = 0; t < (steps || 1); t++) { HTJPotential.releaseEnergy(world, rate, { crit }); HTJEnergy.diffuseEnergy(world, alpha); tick++; } },
+    // 점화+확산+복사(sink)를 steps 회 굴린다(빛나는 별, step_0005).
+    steadyRun(rate, crit, alpha, rad, steps) { for (let t = 0; t < (steps || 1); t++) { HTJPotential.releaseEnergy(world, rate, { crit }); HTJEnergy.diffuseEnergy(world, alpha); HTJRadiate.radiate(world, rad); tick++; } },
+    radiated() { return world.radiated || 0; },
     totalField(name) { return world.total(name); },
     maxField(name) { return world.max(name); },
-    // 특정 장을 그린다(capture 가 potential/energy 를 골라 캡처) — 색 스케일은 평균*2 고정.
-    drawField(name) {
-      const mn = world.total(name) / world.fields[name].length;
-      surf = HTJRender.draw(ctx, world, cam, { field: name, colormap: 'heat', max: mn > 0 ? mn * 2 : 0 });
+    // 특정 장을 그린다(capture 가 골라 캡처). absMax>0 면 절대 색 스케일, 아니면 평균*2 상대.
+    drawField(name, absMax) {
+      const max = absMax > 0 ? absMax : (() => { const mn = world.total(name) / world.fields[name].length; return mn > 0 ? mn * 2 : 0; })();
+      surf = HTJRender.draw(ctx, world, cam, { field: name, colormap: 'heat', max });
     },
     // 기반 무대 모드(step_0001 회귀 호환) — 'energy' 장에 데모 공(팔레트 렌더).
     reseed(N, seed) {
