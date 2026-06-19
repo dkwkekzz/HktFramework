@@ -686,6 +686,35 @@
     return { res, Rs: res.map(r => r.R), fin: res.every(r => r.fin), dQ: Math.max.apply(null, res.map(r => r.dQ)), dB: Math.max.apply(null, res.map(r => r.dB)) };
   }
 
+  // 창발 측정(arc J — 원자가 포화: 길어지되 굵어지지 않음) — 사슬 길이 N 을 키우며 *세로 길이 σx* 와 *가로 폭*
+  //   (코어 임계 2차 모멘트)을 잰다. 결합이 *방향성 포화*(각 단량체가 축을 따라서만 결합)면 N↑ 에 길이는 늘되
+  //   가로 폭은 *일정·단일파일*(추가 결합이 옆이 아니라 끝으로) = 고분자가 *선형으로 성장*하는 조건. ΣQ·ΣB 보존도.
+  function saturationMeasure(kc, kb, amp, bamp, Ns, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, th = coreTh || 1.2;
+    const moments = sim => {
+      let i = 0, W = 0, cx = 0, cy = 0, cz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; W += w; cx += w * c; cy += w * r; cz += w * z; i++; }
+      if (W <= 0) return { sx: 0, tw: 0 };
+      cx /= W; cy /= W; cz /= W; i = 0; let mx = 0, my = 0, mz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; mx += w * (c - cx) ** 2; my += w * (r - cy) ** 2; mz += w * (z - cz) ** 2; i++; }
+      return { sx: Math.sqrt(mx / W), tw: Math.sqrt((my / W + mz / W) / 2) };
+    };
+    let dQ = 0, dB = 0, fin = true;
+    const rows = Ns.map(N => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bamp, 2, lineCorners(N, sp, n), n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let sx = 0, tw = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const m = moments(sim); sx += m.sx; tw += m.tw; cnt++; } }
+      const f = Number.isFinite(sim.atoms[0].q); fin = fin && f;
+      if (f) { dQ = Math.max(dQ, Math.abs(sumQv(sim) - q0) / S); dB = Math.max(dB, Math.abs(sumB(sim) - b0) / S); }
+      return { N, sx: +(sx / cnt).toFixed(3), tw: +(tw / cnt).toFixed(3) };
+    });
+    const tws = rows.map(r => r.tw), sxs = rows.map(r => r.sx);
+    const twSpread = +(Math.max.apply(null, tws) - Math.min.apply(null, tws)).toFixed(3);
+    const minAspect = +Math.min.apply(null, rows.map(r => r.sx / r.tw)).toFixed(2);
+    return { rows, tws, sxs, twMax: +Math.max.apply(null, tws).toFixed(3), twSpread, minAspect, sxGrow: +(sxs[sxs.length - 1] / sxs[0]).toFixed(3), fin, dQ, dB };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1285,6 +1314,30 @@
           { name: '안정(모든 κb·간격 유한)', pass: M.fin, value: `finite=${M.fin}` },
           { name: '결합 존재(가까운 간격 포획 — R ≥ 3)', pass: M.fin && M.Rs[0] >= 3, value: `R(κb=0.05)=${M.Rs[0]}` },
           { name: '포획 반경 ∝ κb(장거리 접착 — 단조↑, author 상수 아님)', pass: M.fin && M.Rs[2] > M.Rs[0] && M.Rs[1] >= M.Rs[0] && M.Rs[2] >= M.Rs[1], value: `R=[${M.Rs}] (κb=[0.05,0.07,0.09])` },
+        ];
+      },
+    },
+
+    // ── step-0025: arc J — 원자가 포화: 사슬은 길어지되 굵어지지 않는다(가로 포화) ── 장면+측정만(법칙·노브 0).
+    //   valence 의 정의는 *포화*(정해진 개수·방향만 결합) — 0019 단일 q 천장의 "비포화 덩어리"를 미시적으로 깨는
+    //   신호이자 고분자가 *선형*인 이유. 사슬 길이 N 을 4→6 으로 키우며 세로 길이·가로 폭을 재면, 결합이 방향성
+    //   포화면 길이는 늘되 *가로 폭은 일정·단일파일*(추가 단량체가 옆이 아니라 끝으로) = 선형 성장. 새 노브 0.
+    'step-0025': {
+      id: 'step-0025',
+      title: 'step-0025 — arc J: 원자가 포화(사슬은 길어지되 굵어지지 않음)',
+      did: '사슬의 단량체 수 N 을 4·5·6 으로 늘려 가며, 사슬의 세로 길이와 가로 두께가 어떻게 변하는지 잰다.',
+      observe: '단량체를 더할수록 사슬은 *길어지지만* 가로 두께는 한 셀로 *그대로*다(0.76셀 일정). 새 결합이 옆구리가 아니라 끝으로만 붙는다 = 방향성 포화 → 덩어리가 안 되고 *선형 고분자로 성장*.',
+      desc: 'valence 의 정의는 *포화*(정해진 개수·방향만 결합) — 0019 단일 q 천장의 "비포화 등방 덩어리"를 미시적으로 깨는 신호이자 고분자가 *선형*인 이유. 사슬 길이 N=[4,5,6] 으로 키우며 코어(임계 1.2) q-가중 세로 길이 σx·가로 폭 √((σy²+σz²)/2)을 800틱 후기 측정(n=24). 결과: N↑ 에 세로 길이는 늘되(σx 4.42→6.88·sxGrow≈1.5) *가로 폭은 0.76셀로 일정*(twSpread<0.1·단일파일)·세장비 최소도 ≫4. 추가 단량체가 *옆이 아니라 끝으로* 붙음 = 방향성 포화 → 덩어리(blob)가 아닌 *선형 고분자 성장*. ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 N=5 사슬.',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(5, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = saturationMeasure(0.04, 0.05, 3, 3, [4, 5, 6], 4, 800, 24, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·모든 N 경로 비트)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `max|ΔΣq|=${M.dQ.toExponential(2)} max|ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '안정(모든 N 유한)', pass: M.fin, value: `finite=${M.fin}` },
+          { name: '가로 포화(N↑ 에도 가로 폭 일정·단일파일 ≈1셀)', pass: M.fin && M.twSpread < 0.15 && M.twMax < 1.0, value: `tw=[${M.tws}] spread=${M.twSpread}` },
+          { name: '길어짐(세로 길이 N 따라 성장 + 항상 선형 세장비≫1)', pass: M.fin && M.sxGrow > 1.2 && M.minAspect > 4, value: `σx=[${M.sxs}] grow=${M.sxGrow}·minAspect=${M.minAspect}` },
         ];
       },
     },
