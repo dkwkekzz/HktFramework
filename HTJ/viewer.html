@@ -91,6 +91,7 @@
     '0002': {
       label: 'step_0002 — 에너지 흐름', title: 'HTJ — 에너지 흐름', sub: '열역학 제2법칙 = 확산',
       mode: 'energy', dynamics: true, release: false,
+      defaults: { alpha: 0.14, view: 'energy' },
       init(w) { /* 빈(차가운) 상자 — 클릭으로 열원을 둔다 */ },
       advance(w, p) { HTJEnergy.diffuseEnergy(w, p.alpha); },     // 법칙: 확산만
       note: '<b>클릭</b>=열 주입(선택한 장) · 드래그=회전 · 휠=줌 · 우드래그=이동.<br />빈 상자에 클릭으로 열원을 두면 ▶ 흐름에서 확산된다. 총량 *보존*·엔트로피 *증가* → 퍼져 균일(열적 죽음). 색=평균 대비 밀도(청→적).'
@@ -98,16 +99,18 @@
     '0003': {
       label: 'step_0003 — 에너지의 탄생', title: 'HTJ — 에너지의 탄생', sub: '잠재력 방출(potential→energy)',
       mode: 'energy', dynamics: true, release: true,
+      defaults: { alpha: 0.14, rate: 0.02, view: 'potential' },
       init(w) { HTJPotential.seedPotential(w, { P0: 1000, r: w.N * 0.18 }); },  // 중앙 잠재력 저장고(에너지=0)
       advance(w, p) { HTJPotential.releaseEnergy(w, p.rate); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 방출+확산
-      note: '<b>장(field)</b>을 potential↔energy 로 바꿔 본다 · 드래그=회전 · 휠=줌.<br />중앙 *잠재력 저장고*만 있고 에너지는 0(검음). ▶ 흐름에서 잠재력이 *방출율*만큼 에너지로 풀려(탄생) 확산된다. 잠재력↓+에너지↑ 이지만 *총합 보존* — 생성은 형태 변환일 뿐.'
+      note: '시작 화면 = <b>potential</b> 장(빨간 잠재력 저장고). ▶ 흐름을 누르면 저장고가 *풀리며 줄어든다*(↓).<br /><b>장(field)</b>을 energy 로 바꾸면 거기서 *태어난* 에너지(↑)가 확산되는 게 보인다. 잠재력↓+에너지↑ 이지만 *총합 보존* — 생성은 형태 변환일 뿐.'
     },
     '0004': {
       label: 'step_0004 — 별의 점화', title: 'HTJ — 별의 점화', sub: '임계 방출(밀도 게이트)',
       mode: 'energy', dynamics: true, release: true, ignite: true,
+      defaults: { alpha: 0, rate: 0.05, crit: 300, view: 'energy' },
       init(w) { HTJPotential.seedStarField(w, { core: 1000, background: 50, r: w.N * 0.25 }); },  // 별밭(코어+가스)
       advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 임계 방출+확산
-      note: '<b>장(field)</b>을 potential↔energy 로 바꿔 본다 · 드래그=회전 · 휠=줌.<br />옅은 가스(P<임계) 위에 밀집한 *코어*. ▶ 흐름에서 *임계를 넘긴 코어만* 점화해 빛난다(=별) — 가스는 어둡다. 별은 타며 줄어들어 꺼진다(수명). 별빛은 확산으로 가스에 퍼진다. 총합 보존.'
+      note: '처음엔 <b>검다</b>(에너지 0). <b>▶ 흐름</b>을 누르면 *임계 넘긴 코어만* 빨갛게 점화한다(=별) — 가스는 어둡다.<br />기본 α=0(확산 꺼짐)이라 별이 또렷이 보인다. <b>α(확산율)를 올리면</b> 별빛이 가스로 퍼진다. <b>점화 임계</b>를 올리면 별이 작아지고/안 켜진다 → "별 = 임계 위 영역".'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -162,7 +165,14 @@
     document.getElementById('dyn').style.display = st.dynamics ? '' : 'none';
     document.getElementById('row-rate').style.display = st.release ? '' : 'none';   // 방출율은 방출 step 에서만
     document.getElementById('row-crit').style.display = st.ignite ? '' : 'none';    // 점화 임계는 점화 step 에서만
+    // step별 *관찰하기 좋은* 기본 노브 적용(α·방출율·임계).
+    const d = st.defaults || {};
+    if (d.alpha != null) document.getElementById('alpha').value = d.alpha;
+    if (d.rate != null) document.getElementById('rate').value = d.rate;
+    if (d.crit != null) document.getElementById('crit').value = d.crit;
     reset();
+    // 시작 시 보여줄 장(검은 화면 방지 등).
+    if (d.view && world.fields[d.view]) { document.getElementById('brushField').value = d.view; render(); }
   }
 
   function updateStats() {
