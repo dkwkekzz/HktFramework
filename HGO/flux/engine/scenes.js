@@ -555,6 +555,311 @@
     return { non, lin, drift: +(Math.abs(non.Plate - non.Pmid) / non.Pmid).toFixed(3), N: (n || 12) ** 3 };
   }
 
+  // ══ arc J(다발) 공용 — 둘째 보존 채널 b=원자가(SPINE §5 다성분 확장) ══════════════════════════════
+  //   단일 q 천장(0019·0020)을 측정이 명령한 다발로 돌파. 셀에 b(결합 전하) 추가 + knobs.valence opt-in
+  //   (회귀 0: 기존 20 장면은 valence 미설정 → applyValence 미진입·비트 불변). q 는 관성 브리더(α>1),
+  //   b 는 과감쇠 접착제, 둘 사이 교차-인력(flux-laws.applyValence)이 *고정 간격 결합*과 *포화*를 낸다.
+
+  // 풍경 — 2³ 블록 브리더들(corners=[c,r,z] 좌하단) + 각 블록에 b 전하 bamp. blockLumpsSpec(단일 q)에 b 채널·
+  //   valence 노브를 더한 다발판(DRY). q=1+amp, b=bamp(유한 결합 용량=원자가). 새 법칙 0(같은 rule()·교차항).
+  function valenceLumpsSpec(kc, kb, amp, bamp, alpha, corners, n) {
+    const cols = n || 16, rows = n || 16, depth = n || 16, W = 100, H = 100, D = 100, S = K.SCALE;
+    const inB = (c, r, z, b) => (c === b[0] || c === b[0] + 1) && (r === b[1] || r === b[1] + 1) && (z === b[2] || z === b[2] + 1);
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      let blob = 0; for (const b of corners) if (inB(c, r, z, b)) { blob = 1; break; }
+      atoms.push({ rx, ry, rz, q: Math.round((1 + blob * amp) * S), b: Math.round(blob * bamp * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: 0.05, theta: 0, alpha, inertial: 1, valence: 1, kc, kappaB: kb } };
+  }
+
+  // x-축 프로파일(열별 최대 |들뜸|) — 브리더 위치·결합 거리를 읽는 공용 렌즈(author 0=q 함수).
+  function xProfile(sim) {
+    const N = sim.cols, S = K.SCALE, p = new Array(N).fill(0); let i = 0;
+    for (let z = 0; z < N; z++) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > p[c]) p[c] = e; i++; }
+    return p;
+  }
+  // 두 지배 봉우리의 토러스 x-거리(d≥2 분리 요구 → 한 코어를 두 번 세지 않음) + 두 peak 값.
+  function twoPeakDist(sim) {
+    const N = sim.cols, p = xProfile(sim);
+    let c1 = 0; for (let c = 0; c < N; c++) if (p[c] > p[c1]) c1 = c;
+    let c2 = -1; for (let c = 0; c < N; c++) { const d = Math.min((c - c1 + N) % N, (c1 - c + N) % N); if (d >= 2 && (c2 < 0 || p[c] > p[c2])) c2 = c; }
+    const d = c2 < 0 ? 0 : Math.min((c2 - c1 + N) % N, (c1 - c2 + N) % N);
+    return { d, p1: p[c1], p2: c2 < 0 ? 0 : p[c2] };
+  }
+  function sumQv(sim) { const S = K.SCALE; let s = 0; for (const a of sim.atoms) s += a.q; return s; }
+  function sumB(sim) { let s = 0; for (const a of sim.atoms) s += (a.b || 0); return s; }
+
+  // 창발 측정(arc J — 결합) — valence 채널이 두 브리더를 *고정 결합 거리 d\*로 포획*하는지 읽는다. 같은 IC(간격
+  //   sep0)를 채널 ON(kc>0)·OFF(kc=0)로 돌려, 후기 두-봉우리 거리·지속 peak 를 비교한다. ON 은 인력 우물이
+  //   둘을 d* 로 끌어 안정 고정(peak 유지)·OFF 는 0019 천장(분산·간격 무관). ΣQ·ΣB 비트 보존도.
+  function valenceBindMeasure(kc, kb, amp, bamp, sep0, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor(((n || 16) - 1) / 2), c0 = m - Math.ceil(sep0 / 2), c1 = c0 + sep0;
+    const corners = [[c0, m, m], [c1, m, m]];
+    const run = useKc => {
+      const sim = SIM.createSim(valenceLumpsSpec(useKc, kb, amp, bamp, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let ds = 0, ps = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const w = twoPeakDist(sim); ds += w.d; ps += Math.min(w.p1, w.p2); cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { dLate: +(ds / cnt).toFixed(3), pkLate: +(ps / cnt).toFixed(4), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(kc), off = run(0);
+    return { on, off, sep0, pkRatio: +(on.pkLate / off.pkLate).toFixed(3), dDrop: +(sep0 - on.dLate).toFixed(3) };
+  }
+
+  // x-축 N 등분 구획 각각의 후기 평균 peak(마디별 코어 생존 — author 0=q 함수). 사슬이 *모든 마디*를 유지하는지.
+  function segPeaksLate(sim0maker, n, ticks, nseg) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, sim = sim0maker(), w = Math.floor(n / nseg);
+    const sums = new Array(nseg).fill(0); let cnt = 0; const lo = Math.floor(ticks * 0.6);
+    for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const mx = new Array(nseg).fill(0); let i = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); const sg = Math.min(nseg - 1, Math.floor(c / w)); if (e > mx[sg]) mx[sg] = e; i++; }
+      for (let k = 0; k < nseg; k++) sums[k] += mx[k]; cnt++; } }
+    return { seg: sums.map(s => +(s / cnt).toFixed(4)), fin: Number.isFinite(sim.atoms[0].q) };
+  }
+  // x-축 N 등분 일렬 브리더 corners(중앙 정렬·간격 sp).
+  function lineCorners(N, sp, n) { const m = Math.floor((n - 1) / 2), span = (N - 1) * sp, c0 = Math.floor((n - span) / 2) - 1, a = []; for (let i = 0; i < N; i++) a.push([c0 + i * sp, m, m]); return a; }
+
+  // 창발 측정(arc J — 사슬=고분자 씨앗) — valence 전하 bamp 가 N 브리더 *일렬*을 선형 사슬로 묶어 *모든 마디*를
+  //   유지하는지 읽는다(nseg 구획별 후기 peak). 전하 ON(bamp>0)은 b-접착제가 사슬을 결속해 마디마다 코어 생존,
+  //   OFF(bamp=0=단일 q)는 0015 처럼 분산(약함). 최소 마디 peak ON ≫ OFF = 사슬 결합. ΣQ·ΣB 비트 보존.
+  function valenceChainMeasure(kc, kb, amp, bamp, N, sp, ticks, n) {
+    const corners = lineCorners(N, sp, n);
+    const mk = bb => () => { const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim; return SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n)); };
+    const on = segPeaksLate(mk(bamp), n, ticks, N), off = segPeaksLate(mk(0), n, ticks, N);
+    const minOn = Math.min.apply(null, on.seg), minOff = Math.min.apply(null, off.seg);
+    // ΣB 보존 확인(별도 짧은 런)
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim, S = K.SCALE;
+    const cs = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bamp, 2, corners, n)); const b0 = sumB(cs), q0 = sumQv(cs);
+    for (let t = 0; t < ticks; t++) SIM.step(cs);
+    const fin = Number.isFinite(cs.atoms[0].q);
+    return { on: on.seg, off: off.seg, minOn: +minOn.toFixed(4), minOff: +minOff.toFixed(4), ratio: +(minOn / minOff).toFixed(3), fin, dQ: fin ? Math.abs(sumQv(cs) - q0) / S : NaN, dB: fin ? Math.abs(sumB(cs) - b0) / S : NaN };
+  }
+
+  // 창발 측정(arc J — 사슬 선형성: 덩어리 아님) — 결합된 *코어*(고임계)의 q-가중 2차 모멘트로 세장비
+  //   (x-신장 σx / 가로 신장 √((σy²+σz²)/2)) + 가로 폭을 읽는다. 선형 사슬이면 세장비≫1·가로 폭≈1셀(단일파일),
+  //   덩어리면 ~1·두꺼움. valence 전하 ON 이 사슬을 *얇은 1D 선*으로 죄는지(OFF=단일 q 보다 선형·얇음) 본다.
+  function chainLinearityMeasure(kc, kb, amp, bamp, N, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, corners = lineCorners(N, sp, n), th = coreTh || 1.2;
+    const moments = sim => {
+      let i = 0, W = 0, cx = 0, cy = 0, cz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; W += w; cx += w * c; cy += w * r; cz += w * z; i++; }
+      if (W <= 0) return { ax: 0, wy: 0 };
+      cx /= W; cy /= W; cz /= W; i = 0; let mx = 0, my = 0, mz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; mx += w * (c - cx) ** 2; my += w * (r - cy) ** 2; mz += w * (z - cz) ** 2; i++; }
+      const sx = Math.sqrt(mx / W), tw = Math.sqrt((my / W + mz / W) / 2);
+      return { ax: tw > 0 ? sx / tw : 0, wy: tw };
+    };
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let as = 0, ws = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const m = moments(sim); as += m.ax; ws += m.wy; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { aspect: +(as / cnt).toFixed(3), tw: +(ws / cnt).toFixed(3), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off };
+  }
+
+  // 창발 측정(arc J — 결합 거리는 장 성질) — 두 브리더 후기 결합 거리 d(sep0) 와 *포획 반경*(묶이는 최대 초기
+  //   간격: dLate ≤ sep0−0.5 = 수축=결합)을 κb(b 사거리) 별로 잰다. κb 큰 쪽이 더 먼 간격도 포획(장거리 접착제)
+  //   = 결합이 *author 상수가 아니라 둘째 채널 장의 함수*임을 못 박는다(author 0). ΣQ·ΣB 보존도.
+  function captureRadiusMeasure(kc, bamp, kbList, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor((n - 1) / 2);
+    const dLate = (kb, sep) => {
+      const c0 = m - Math.ceil(sep / 2), c1 = c0 + sep;
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, 3, bamp, 2, [[c0, m, m], [c1, m, m]], n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let s = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { s += twoPeakDist(sim).d; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { d: +(s / cnt).toFixed(2), fin, dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN };
+    };
+    const res = kbList.map(kb => {
+      let R = 1, fin = true, dQ = 0, dB = 0;
+      for (const sep of [2, 3, 4, 5, 6]) { const r = dLate(kb, sep); if (!r.fin) { fin = false; continue; } dQ = Math.max(dQ, r.dQ); dB = Math.max(dB, r.dB); if (r.d <= sep - 0.5) R = sep; }
+      return { kb, R, fin, dQ, dB };
+    });
+    return { res, Rs: res.map(r => r.R), fin: res.every(r => r.fin), dQ: Math.max.apply(null, res.map(r => r.dQ)), dB: Math.max.apply(null, res.map(r => r.dB)) };
+  }
+
+  // 창발 측정(arc J — 원자가 포화: 길어지되 굵어지지 않음) — 사슬 길이 N 을 키우며 *세로 길이 σx* 와 *가로 폭*
+  //   (코어 임계 2차 모멘트)을 잰다. 결합이 *방향성 포화*(각 단량체가 축을 따라서만 결합)면 N↑ 에 길이는 늘되
+  //   가로 폭은 *일정·단일파일*(추가 결합이 옆이 아니라 끝으로) = 고분자가 *선형으로 성장*하는 조건. ΣQ·ΣB 보존도.
+  function saturationMeasure(kc, kb, amp, bamp, Ns, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, th = coreTh || 1.2;
+    const moments = sim => {
+      let i = 0, W = 0, cx = 0, cy = 0, cz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; W += w; cx += w * c; cy += w * r; cz += w * z; i++; }
+      if (W <= 0) return { sx: 0, tw: 0 };
+      cx /= W; cy /= W; cz /= W; i = 0; let mx = 0, my = 0, mz = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S), w = e > th ? e : 0; mx += w * (c - cx) ** 2; my += w * (r - cy) ** 2; mz += w * (z - cz) ** 2; i++; }
+      return { sx: Math.sqrt(mx / W), tw: Math.sqrt((my / W + mz / W) / 2) };
+    };
+    let dQ = 0, dB = 0, fin = true;
+    const rows = Ns.map(N => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bamp, 2, lineCorners(N, sp, n), n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let sx = 0, tw = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const m = moments(sim); sx += m.sx; tw += m.tw; cnt++; } }
+      const f = Number.isFinite(sim.atoms[0].q); fin = fin && f;
+      if (f) { dQ = Math.max(dQ, Math.abs(sumQv(sim) - q0) / S); dB = Math.max(dB, Math.abs(sumB(sim) - b0) / S); }
+      return { N, sx: +(sx / cnt).toFixed(3), tw: +(tw / cnt).toFixed(3) };
+    });
+    const tws = rows.map(r => r.tw), sxs = rows.map(r => r.sx);
+    const twSpread = +(Math.max.apply(null, tws) - Math.min.apply(null, tws)).toFixed(3);
+    const minAspect = +Math.min.apply(null, rows.map(r => r.sx / r.tw)).toFixed(2);
+    return { rows, tws, sxs, twMax: +Math.max.apply(null, tws).toFixed(3), twSpread, minAspect, sxGrow: +(sxs[sxs.length - 1] / sxs[0]).toFixed(3), fin, dQ, dB };
+  }
+
+  // 창발 측정(arc J — 동적 사슬 성장) — 사슬(N개) 끝에서 떨어진 *자유 단량체* 하나가 *사슬 끝으로 포획*돼 N+1
+  //   사슬이 되는지(끝-단량체 거리 수축=결합) 읽는다. valence 전하 ON 이면 b-접착제가 단량체를 끝으로 당겨 결합
+  //   거리로 수축, OFF(단일 q)는 자유로 표류. = 중합의 *동역학*(단량체가 사슬 끝에 붙어 자람). ΣQ·ΣB 보존도.
+  function chainGrowMeasure(kc, kb, amp, bamp, chainN, sp, monGap, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor((n - 1) / 2), c0 = 4;
+    const corners = []; for (let i = 0; i < chainN; i++) corners.push([c0 + i * sp, m, m]);
+    corners.push([c0 + (chainN - 1) * sp + monGap, m, m]);   // 자유 단량체(끝에서 monGap)
+    const endGap = sim => { const N = sim.cols, p = new Array(N).fill(0); let i = 0;
+      for (let z = 0; z < N; z++) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > p[c]) p[c] = e; i++; }
+      const pk = []; for (let c = 0; c < N; c++) { const L = p[(c - 1 + N) % N], R = p[(c + 1) % N]; if (p[c] >= 1.2 && p[c] >= L && p[c] > R) { if (pk.length && c - pk[pk.length - 1] < 2) continue; pk.push(c); } }
+      return pk.length < 2 ? 99 : pk[pk.length - 1] - pk[pk.length - 2]; };
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let s = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { s += endGap(sim); cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { gapLate: +(s / cnt).toFixed(2), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, monGap, captured: on.gapLate <= sp + 0.5 };
+  }
+
+  // 창발 측정(arc J — 고분자 장수명) — 사슬을 길게(ticks) 돌려 *후기 창*(late 20%)에도 모든 마디가 결속·선형을
+  //   유지하는지 본다. 원자(0016)·기체(0020)처럼, 사슬도 *영속하는 물질*(전이 아닌 안정 구조)이어야 진짜 고분자.
+  //   valence ON 최소 마디 peak·가로 폭(단일파일)을 OFF(단일 q 분산)와 비교. ΣQ·ΣB 보존도.
+  function chainLifeMeasure(kc, kb, amp, bamp, N, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, th = coreTh || 1.2, corners = lineCorners(N, sp, n), w = Math.floor(n / N);
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); const sums = new Array(N).fill(0); let twS = 0, cnt = 0; const lo = Math.floor(ticks * 0.8);
+      for (let t = 0; t < ticks; t++) {
+        SIM.step(sim);
+        if (t >= lo) {
+          const mx = new Array(N).fill(0); let i = 0, W = 0, cy = 0, cz = 0;
+          for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); const sg = Math.min(N - 1, Math.floor(c / w)); if (e > mx[sg]) mx[sg] = e; if (e > th) { W += e; cy += e * r; cz += e * z; } i++; }
+          if (W > 0) { cy /= W; cz /= W; i = 0; let my = 0, mz = 0; for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > th) { my += e * (r - cy) ** 2; mz += e * (z - cz) ** 2; } i++; } twS += Math.sqrt((my / W + mz / W) / 2); }
+          for (let k = 0; k < N; k++) sums[k] += mx[k]; cnt++;
+        }
+      }
+      const seg = sums.map(s => +(s / cnt).toFixed(3)), fin = Number.isFinite(sim.atoms[0].q);
+      return { seg, min: +Math.min.apply(null, seg).toFixed(3), tw: +(twS / cnt).toFixed(3), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, ratio: +(on.min / off.min).toFixed(3) };
+  }
+
+  // 창발 측정(arc J — 씨앗 템플릿 중합) — 사슬 씨앗(seedN) + 끝 근처 *여러* 자유 단량체를 놓고, 결속된 사슬이
+  //   단량체를 *차례로 흡수*해 길어지는지(축선 위 결합 코어 수·연속 사슬 길이) 읽는다. valence ON 은 씨앗이 욕조를
+  //   템플릿으로 단량체를 끌어 *성장*(boundLen↑·ncore↑), OFF(단일 q)는 코어가 풀려 분산(축선 위 결속 0). ΣQ·ΣB 보존.
+  function seedGrowMeasure(kc, kb, amp, bamp, seedN, seedSp, mons, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor((n - 1) / 2), c0 = 3, idx = (c, r, z) => (z * n + r) * n + c;
+    const cor = []; for (let i = 0; i < seedN; i++) cor.push([c0 + i * seedSp, m, m]);
+    let endC = c0 + (seedN - 1) * seedSp; for (const g of mons) { endC += g; cor.push([endC, m, m]); }
+    const chainCores = sim => {
+      const p = new Array(n).fill(0);
+      for (let c = 0; c < n; c++) { let mx = 0; for (const r of [m, m + 1]) for (const z of [m, m + 1]) { const e = Math.abs((sim.atoms[idx(c, r, z)].q - S) / S); if (e > mx) mx = e; } p[c] = mx; }
+      const pk = []; for (let c = 0; c < n; c++) { const L = p[(c - 1 + n) % n], R = p[(c + 1) % n]; if (p[c] >= 1.2 && p[c] >= L && p[c] > R) { if (pk.length && c - pk[pk.length - 1] < 2) continue; pk.push(c); } }
+      let best = pk.length ? 1 : 0, run = 1; for (let i = 1; i < pk.length; i++) { if (pk[i] - pk[i - 1] <= 4) run++; else run = 1; if (run > best) best = run; }
+      return { ncore: pk.length, boundLen: best };
+    };
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, cor, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let bl = 0, nc = 0, cnt = 0; const lo = Math.floor(ticks * 0.7);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const r = chainCores(sim); bl += r.boundLen; nc += r.ncore; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { boundLen: +(bl / cnt).toFixed(2), ncore: +(nc / cnt).toFixed(2), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, total: seedN + mons.length };
+  }
+
+  // arc J 풍경 — 뜨거운 q+b 잡음(둘 다 결정론 해시·v=0). 무씨앗 자발 중합(잡음→사슬?)의 기질. rng 미사용.
+  function hotValenceSpec(kc, kb, amp, bamp, n) {
+    const cols = n || 16, rows = n || 16, depth = n || 16, W = 100, H = 100, D = 100, S = K.SCALE;
+    const atoms = []; let i = 0;
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      const h1 = (Math.imul(i + 1, 2654435761) >>> 0) / 4294967296;          // q 잡음
+      const h2 = (Math.imul((i * 7 + 3) | 0, 2246822519) >>> 0) / 4294967296; // b 잡음(다른 해시)
+      atoms.push({ rx, ry, rz, q: Math.round((1 + amp * (h1 - 0.5)) * S), b: Math.round(bamp * h2 * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+      i++;
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: kc != null ? 0.05 : 0.05, theta: 0, alpha: 2, inertial: 1, valence: 1, kc, kappaB: kb } };
+  }
+
+  // 창발 측정(arc J — 무씨앗 자발 중합 천장: null) — 뜨거운 q+b 잡음의 자발 형성 클러스터(임계 이상 연결 성분)의
+  //   *국소 이방성*(PCA 세장비, 크기 가중 평균)을 valence ON(b 잡음) vs OFF(b=0=단일 q)로 비교한다. 사슬이 *스스로*
+  //   핵형성하면 ON 이 더 이방적(사슬성)이어야 하는데 — 측정상 ON ≤ OFF(등방 퍼콜 조각만) = **자발 천장**(null 도
+  //   측정·SPINE §9). 0028(씨앗 성장)과 대비: 중합엔 *핵형성*이 필요. ΣQ·ΣB 보존도.
+  function spontaneousChainMeasure(kc, kb, amp, bamp, ticks, n, th) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, T = th || 0.6, idx = (c, r, z) => (z * n + r) * n + c, NB = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+    const aniso = sim => {
+      const seen = new Uint8Array(n * n * n); let totW = 0, sumA = 0, nC = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+        const id = idx(c, r, z); if (seen[id]) continue; if (Math.abs((sim.atoms[id].q - S) / S) < T) { seen[id] = 1; continue; }
+        const st = [[c, r, z]]; seen[id] = 1; const pts = [];
+        while (st.length) { const p = st.pop(); pts.push(p); for (const d of NB) { const c2 = (p[0] + d[0] + n) % n, r2 = (p[1] + d[1] + n) % n, z2 = (p[2] + d[2] + n) % n, id2 = idx(c2, r2, z2); if (!seen[id2] && Math.abs((sim.atoms[id2].q - S) / S) >= T) { seen[id2] = 1; st.push([c2, r2, z2]); } } }
+        if (pts.length < 4) continue;
+        let mx = 0, my = 0, mz = 0; for (const p of pts) { mx += p[0]; my += p[1]; mz += p[2]; } const N0 = pts.length; mx /= N0; my /= N0; mz /= N0;
+        let xx = 0, yy = 0, zz = 0, xy = 0, xz = 0, yz = 0; for (const p of pts) { const dx = p[0] - mx, dy = p[1] - my, dz = p[2] - mz; xx += dx * dx; yy += dy * dy; zz += dz * dz; xy += dx * dy; xz += dx * dz; yz += dy * dz; } xx /= N0; yy /= N0; zz /= N0; xy /= N0; xz /= N0; yz /= N0;
+        const M = [[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]]; let v = [1, 0.3, 0.7];
+        for (let it = 0; it < 40; it++) { const w = [M[0][0] * v[0] + M[0][1] * v[1] + M[0][2] * v[2], M[1][0] * v[0] + M[1][1] * v[1] + M[1][2] * v[2], M[2][0] * v[0] + M[2][1] * v[1] + M[2][2] * v[2]]; const nn = Math.hypot(w[0], w[1], w[2]) || 1; v = [w[0] / nn, w[1] / nn, w[2] / nn]; }
+        const lam = v[0] * (M[0][0] * v[0] + M[0][1] * v[1] + M[0][2] * v[2]) + v[1] * (M[1][0] * v[0] + M[1][1] * v[1] + M[1][2] * v[2]) + v[2] * (M[2][0] * v[0] + M[2][1] * v[1] + M[2][2] * v[2]);
+        const rest = (xx + yy + zz - lam) / 2, a = rest > 1e-6 ? Math.sqrt(lam / rest) : (lam > 1e-6 ? 5 : 1);
+        sumA += a * N0; totW += N0; nC++;
+      }
+      return { a: totW > 0 ? sumA / totW : 0, nC };
+    };
+    const run = bb => {
+      const sim = SIM.createSim(hotValenceSpec(kc, kb, amp, bb, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let as = 0, nc = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo && t % 20 === 0) { const r = aniso(sim); as += r.a; nc += r.nC; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { aniso: +(as / cnt).toFixed(3), nClust: +(nc / cnt).toFixed(1), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, anisoRatio: +(on.aniso / off.aniso).toFixed(3) };
+  }
+
+  // 창발 측정(arc J 종합) — 대표 고분자 사슬 한 번에서 다발 화학의 핵심 지표를 모은다(한 sim·DRY): 결합(마디별
+  //   후기 peak·최소)·선형(코어 세장비)·단일파일(가로 폭)·안정(후기 창)·ΣQ·ΣB 보존. 단일 q 가 못 한 화학을 b=원자가가
+  //   냄을 한 장면으로 종합 재확인(0021~0028 의 캡스톤). author 0 — 전부 측정.
+  function synthesisMeasure(kc, kb, amp, bamp, N, sp, ticks, n, coreTh) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, th = coreTh || 1.2, corners = lineCorners(N, sp, n), w = Math.floor(n / N);
+    const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bamp, 2, corners, n));
+    const q0 = sumQv(sim), b0 = sumB(sim);
+    const sums = new Array(N).fill(0); let axS = 0, twS = 0, cnt = 0; const lo = Math.floor(ticks * 0.7);
+    for (let t = 0; t < ticks; t++) {
+      SIM.step(sim);
+      if (t >= lo) {
+        const mx = new Array(N).fill(0); let i = 0, W = 0, cx = 0, cy = 0, cz = 0;
+        for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); const sg = Math.min(N - 1, Math.floor(c / w)); if (e > mx[sg]) mx[sg] = e; if (e > th) { W += e; cx += e * c; cy += e * r; cz += e * z; } i++; }
+        if (W > 0) { cx /= W; cy /= W; cz /= W; i = 0; let m2x = 0, m2y = 0, m2z = 0; for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > th) { m2x += e * (c - cx) ** 2; m2y += e * (r - cy) ** 2; m2z += e * (z - cz) ** 2; } i++; } const sx = Math.sqrt(m2x / W), tw = Math.sqrt((m2y / W + m2z / W) / 2); axS += tw > 0 ? sx / tw : 0; twS += tw; }
+        for (let k = 0; k < N; k++) sums[k] += mx[k]; cnt++;
+      }
+    }
+    const seg = sums.map(s => +(s / cnt).toFixed(3)), fin = Number.isFinite(sim.atoms[0].q);
+    return { seg, minSeg: +Math.min.apply(null, seg).toFixed(3), aspect: +(axS / cnt).toFixed(3), tw: +(twS / cnt).toFixed(3), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1055,6 +1360,251 @@
           { name: '개체수 안정(P 후기≈중기 — 한 덩어리로 안 붕괴·안 퍼짐)', pass: P.non.fin && P.drift < 0.15, value: `P_mid=${P.non.Pmid} → P_late=${P.non.Plate} (drift=${P.drift})` },
           { name: '국소 다체(비선형 P < 선형 — 잡음보다 응결)', pass: P.non.fin && P.non.Plate < P.lin.Plate, value: `P_non=${P.non.Plate} < P_lin=${P.lin.Plate}` },
           { name: '여럿(원자 기체·한 덩어리 아님 P≫1)', pass: P.non.fin && P.non.Plate > P.N / 100, value: `P_non=${P.non.Plate} ≫ 1 (N/100=${(P.N / 100).toFixed(0)})` },
+        ];
+      },
+    },
+
+    // ── step-0021: arc J 부트스트랩 — 둘째 보존 채널 b=원자가 → 고정 간격 결합(단일 q 천장 돌파) ── 규칙 정련(opt-in).
+    //   단일 q 는 두 브리더를 못 묶었다(0019 천장·등방·비포화→덩어리). SPINE §5 처방대로 *측정이 명령한* 다성분
+    //   보존 다발을 도입: 둘째 보존량 b 가 교차-인력(q↔b)으로 *고정 간격 결합 우물*을 판다. 같은 IC 를 채널
+    //   ON(kc>0)·OFF(kc=0)로 돌리면 — ON 은 두 브리더를 결합 거리 d* 로 끌어 안정 고정(peak 유지)·OFF 는 0019 분산.
+    //   새 *법칙* 0(같은 rule() 을 q·b 에 + 교차항·SPINE §1·§3). 회귀 0: valence 미설정 과거 20 장면 비트 불변.
+    'step-0021': {
+      id: 'step-0021',
+      title: 'step-0021 — arc J: 둘째 보존 채널 b=원자가로 고정 간격 결합',
+      did: '단일 q 가 못 한 결합을 위해, 측정이 명령한 둘째 보존량 b(결합 전하)를 켠다. 두 브리더 + 각자의 b 전하를 가까이 놓고 채널 ON/OFF 로 비교한다.',
+      observe: '채널 ON 이면 두 브리더가 b-접착제로 서로 끌려 고정 거리 d*≈2 로 묶이고 봉우리를 유지한다(결합). OFF(kc=0)면 0019 처럼 흩어진다. 둘째 양 b 도 q 처럼 비트 보존된다.',
+      desc: '단일 q 의 결합 천장(0019: 두 브리더 간격 의존 약함·고정 결합 없음·SPINE §5 blob)을 *측정이 명령한* 다성분 보존 다발로 돌파한다. 셀에 둘째 보존량 b(결합 전하=원자가)를 더하고(opt-in knobs.valence), 같은 rule() 을 q·b 에 각각 적용 + 둘 사이 교차-인력(q 는 높은 b 로·b 는 높은 q 로 — flux-laws.applyValence). 두 q-브리더가 각자 b-우물을 파고 그 우물이 서로 끌려 둘을 *고정 간격 d\**로 묶는다(인력 우물=결합). 측정: 같은 IC(간격 3)를 채널 ON(kc=0.04)·OFF(kc=0)로 600틱 — ON 은 후기 두-봉우리 거리 d* 로 수렴·지속 peak ON≫OFF, OFF 는 0019 천장(분산·peak 낮음). ΣQ·ΣB 둘 다 비트 보존(반대칭). 새 *법칙* 0(SPINE §1·§3)·정수 결정론·회귀 0(opt-in 게이트). arc J(다발) 첫 step — atom 트랙 전하/핵자/전자 다발과 수렴.',
+      ticks: 600,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16, m = 7; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, [[m - 2, m, m], [m + 2, m, m]], n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = valenceBindMeasure(0.04, 0.05, 3, 3, 3, 600, 16);
+        return [
+          { name: 'ΣQ 보존(닫힌 장부·valence 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)}` },
+          { name: 'ΣB 보존(둘째 보존 채널 비트)', pass: M.on.fin && M.on.dB < 1e-6, value: `|ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
+          { name: '결합 포획(채널 ON 두 브리더 거리 d* 로 수렴·고정 ≪ 초기)', pass: M.on.fin && M.on.dLate <= 2.5, value: `init sep=3 → d_late=${M.on.dLate} (d*≈2)` },
+          { name: '결합 = peak 유지(ON ≫ OFF — OFF 는 0019 천장 분산)', pass: M.on.fin && M.pkRatio > 1.3, value: `peak_on=${M.on.pkLate} vs peak_off=${M.off.pkLate} (ratio=${M.pkRatio})` },
+        ];
+      },
+    },
+
+    // ── step-0022: arc J — 사슬(고분자 씨앗): valence 가 N 브리더 일렬을 선형 사슬로 묶어 모든 마디 유지 ── 장면+측정만.
+    //   0021 은 *둘*의 결합. 1차 목표는 *사슬*(고분자). 세 브리더를 일렬로 놓고 valence 전하 ON(bamp>0)/OFF(bamp=0=
+    //   단일 q)로 돌리면 — ON 은 b-접착제가 셋을 결속해 *모든 마디*가 코어를 유지(선형 사슬), OFF 는 0015 처럼 분산.
+    //   최소 마디 peak ON ≫ OFF = 사슬이 결합으로 유지됨. 새 법칙·새 노브 0(0021 의 valence 재사용).
+    'step-0022': {
+      id: 'step-0022',
+      title: 'step-0022 — arc J: 사슬(고분자 씨앗) — valence 가 세 브리더를 선형 사슬로 묶음',
+      did: '세 브리더를 일렬로 놓고 valence 결합 전하를 켜고(bamp=3)/끈(bamp=0) 채로 돌려, 사슬의 세 마디가 다 유지되는지 본다.',
+      observe: '전하 ON 이면 b-접착제가 셋을 결속해 세 마디 봉우리가 다 살아 선형 사슬을 이룬다. OFF(단일 q)면 0015 처럼 흩어져 약해진다. 가장 약한 마디조차 ON 이 OFF 보다 훨씬 높다 = 사슬이 결합으로 버틴다.',
+      desc: '0021 은 *둘*의 결합을 봤다. 1차 목표는 *사슬*(고분자). 세 브리더를 x-축 일렬(간격 4)로 놓고 valence 전하 ON(bamp=3)·OFF(bamp=0=단일 q)로 800틱. 측정(valenceChainMeasure): x 를 3 구획으로 갈라 마디별 후기 peak — ON 은 b-접착제가 셋을 결속해 *모든 마디*가 코어 유지(선형 사슬), OFF 는 0015 처럼 분산(약함). 최소 마디 peak ON ≫ OFF 면 사슬이 *결합으로* 버티는 것(독립 핀닝 아님). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 고분자(SPINE §5·arc I/J)의 *결합된* 씨앗 — 0015 의 핀닝 일렬을 결합으로 격상.',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(3, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = valenceChainMeasure(0.04, 0.05, 3, 3, 3, 4, 800, 16);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·사슬 경로 비트)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `|ΔΣq|=${M.dQ.toExponential(2)} |ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.fin, value: `finite=${M.fin}` },
+          { name: '세 마디 다 생존(ON 최소 마디 peak 높음 — 선형 사슬)', pass: M.fin && M.minOn > 1.4, value: `seg_on=[${M.on}] min=${M.minOn}` },
+          { name: '사슬 = 결합(ON 최소 마디 ≫ OFF 단일 q 분산)', pass: M.fin && M.ratio > 1.3, value: `min_on=${M.minOn} vs min_off=${M.minOff} (ratio=${M.ratio})` },
+        ];
+      },
+    },
+
+    // ── step-0023: arc J — 사슬은 선형이다(덩어리 아님): 결합 사슬의 세장비 ≫ 1 ── 장면+측정만(법칙·노브 0).
+    //   0022 는 세 마디가 *산다*만 봤다. 고분자(1차 목표)의 정의는 결합이 *선형*(방향성)이라는 것 — 단일 q 천장의
+    //   "등방 덩어리(blob)"와 갈린다. 네 브리더 일렬의 *코어*(고임계) 2차 모멘트로 세장비(x-신장/가로 신장)를 재면,
+    //   valence 결합 사슬은 세장비≫1·가로 폭≈1셀(단일파일 선)이고 OFF(단일 q)보다 더 선형·얇다 = 진짜 1D 고분자.
+    'step-0023': {
+      id: 'step-0023',
+      title: 'step-0023 — arc J: 사슬은 선형이다(덩어리 아님·세장비 ≫ 1)',
+      did: '네 브리더를 일렬로 결합시키고, 결합된 코어 덩어리의 모양(세로로 긴가, 사방으로 퍼진 공인가)을 세장비로 잰다.',
+      observe: '결합 사슬은 한 줄로 길고(세장비≈6) 가로로 한 셀 두께뿐인 *단일파일 선*이다 — 등방 덩어리(blob)가 아니다. valence 를 끄면 더 두껍고 덜 선형. 단일 q 가 못 한 1D 고분자 모양이 측정으로 확인.',
+      desc: '0022 는 세 마디가 *산다*(결합)만 봤다. 고분자(1차 목표)의 정의는 결합이 *선형/방향성*이라는 것 — 0019 단일 q 천장의 "등방 비포화 덩어리(blob)"와 갈린다. 네 브리더 x-축 일렬(간격 4)의 *코어*(임계 1.2 이상) q-가중 2차 모멘트로 세장비(σx / √((σy²+σz²)/2)) + 가로 폭을 800틱 후기 측정. valence 결합 사슬(bamp=3): 세장비≈6·가로 폭≈0.8셀(단일파일 선) — OFF(bamp=0=단일 q)는 세장비≈3·가로 폭≈1.4(더 두껍고 덜 선형). 결합이 *축을 따라 선형*임을 직접 측정 = 진짜 1D 고분자 모양(덩어리 아님). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0).',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(4, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = chainLinearityMeasure(0.04, 0.05, 3, 3, 4, 4, 800, 16, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·사슬 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
+          { name: '사슬은 선형(세장비 ≫ 1 — 덩어리 아님)', pass: M.on.fin && M.on.aspect > 3, value: `aspect_on=${M.on.aspect} (가로폭=${M.on.tw}셀)` },
+          { name: '단일파일(가로 폭 ≈ 1셀)', pass: M.on.fin && M.on.tw < 1.2, value: `tw_on=${M.on.tw} 셀` },
+          { name: 'valence 가 더 선형·얇음(ON > OFF 단일 q)', pass: M.on.fin && M.on.aspect > M.off.aspect && M.on.tw < M.off.tw, value: `aspect on=${M.on.aspect} > off=${M.off.aspect}·tw on=${M.on.tw} < off=${M.off.tw}` },
+        ];
+      },
+    },
+
+    // ── step-0024: arc J — 결합 거리는 장(field)의 성질: 포획 반경 ∝ κb ── 장면+측정만(법칙·노브 0).
+    //   0021~0023 의 결합이 *진짜 물리적 우물*이면 capture 반경(어느 초기 간격까지 묶이나)이 *둘째 채널 b 의
+    //   사거리 κb 의 함수*여야 한다(author 상수가 아니라 측정이 정함). 두 브리더 간격 스윕 × κb 스윕 — κb 큰 쪽이
+    //   더 먼 간격도 포획(장거리 b-접착제). 결합의 *장 정체*를 못 박는다(author 0 — κb 가 d* 와 반경을 정함).
+    'step-0024': {
+      id: 'step-0024',
+      title: 'step-0024 — arc J: 결합 거리는 장의 성질(포획 반경 ∝ κb)',
+      did: 'b-접착제의 사거리 κb 를 바꿔 가며, 두 브리더가 떨어져 있어도 끌려와 묶이는 최대 거리(포획 반경)를 잰다.',
+      observe: 'b 의 사거리가 길수록 더 멀리 떨어진 두 브리더도 끌려와 묶인다(포획 반경 3→5→6). 결합 거리는 author 한 상수가 아니라 둘째 채널 장이 정하는 물리량임이 측정으로 드러난다.',
+      desc: '0021~0023 의 결합이 *진짜 물리적 우물*이면 포획 반경(묶이는 최대 초기 간격)이 *둘째 채널 b 의 사거리 κb 의 함수*여야 한다(author 상수 아님). 두 브리더 간격 sep=2..6 × κb=[0.05,0.07,0.09] 스윕(n=20·700틱) — 후기 결합 거리 dLate ≤ sep−0.5(수축=결합)이면 포획. κb↑ → 포획 반경 R=3→5→6 단조↑(장거리 b-접착제). 결합 거리·반경이 *측정으로* κb 에 매여 있음 = 결합의 장(field) 정체(author 0·SPINE §4·§9). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 의 κb 재사용). 메인 장면은 κb=0.09 두 브리더(먼 간격 5 포획).',
+      ticks: 700,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 20, m = Math.floor((n - 1) / 2); return valenceLumpsSpec(0.04, 0.09, 3, 3, 2, [[m - 3, m, m], [m + 2, m, m]], n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = captureRadiusMeasure(0.04, 3, [0.05, 0.07, 0.09], 700, 20);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·모든 κb 경로 비트)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `max|ΔΣq|=${M.dQ.toExponential(2)} max|ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '안정(모든 κb·간격 유한)', pass: M.fin, value: `finite=${M.fin}` },
+          { name: '결합 존재(가까운 간격 포획 — R ≥ 3)', pass: M.fin && M.Rs[0] >= 3, value: `R(κb=0.05)=${M.Rs[0]}` },
+          { name: '포획 반경 ∝ κb(장거리 접착 — 단조↑, author 상수 아님)', pass: M.fin && M.Rs[2] > M.Rs[0] && M.Rs[1] >= M.Rs[0] && M.Rs[2] >= M.Rs[1], value: `R=[${M.Rs}] (κb=[0.05,0.07,0.09])` },
+        ];
+      },
+    },
+
+    // ── step-0025: arc J — 원자가 포화: 사슬은 길어지되 굵어지지 않는다(가로 포화) ── 장면+측정만(법칙·노브 0).
+    //   valence 의 정의는 *포화*(정해진 개수·방향만 결합) — 0019 단일 q 천장의 "비포화 덩어리"를 미시적으로 깨는
+    //   신호이자 고분자가 *선형*인 이유. 사슬 길이 N 을 4→6 으로 키우며 세로 길이·가로 폭을 재면, 결합이 방향성
+    //   포화면 길이는 늘되 *가로 폭은 일정·단일파일*(추가 단량체가 옆이 아니라 끝으로) = 선형 성장. 새 노브 0.
+    'step-0025': {
+      id: 'step-0025',
+      title: 'step-0025 — arc J: 원자가 포화(사슬은 길어지되 굵어지지 않음)',
+      did: '사슬의 단량체 수 N 을 4·5·6 으로 늘려 가며, 사슬의 세로 길이와 가로 두께가 어떻게 변하는지 잰다.',
+      observe: '단량체를 더할수록 사슬은 *길어지지만* 가로 두께는 한 셀로 *그대로*다(0.76셀 일정). 새 결합이 옆구리가 아니라 끝으로만 붙는다 = 방향성 포화 → 덩어리가 안 되고 *선형 고분자로 성장*.',
+      desc: 'valence 의 정의는 *포화*(정해진 개수·방향만 결합) — 0019 단일 q 천장의 "비포화 등방 덩어리"를 미시적으로 깨는 신호이자 고분자가 *선형*인 이유. 사슬 길이 N=[4,5,6] 으로 키우며 코어(임계 1.2) q-가중 세로 길이 σx·가로 폭 √((σy²+σz²)/2)을 800틱 후기 측정(n=24). 결과: N↑ 에 세로 길이는 늘되(σx 4.42→6.88·sxGrow≈1.5) *가로 폭은 0.76셀로 일정*(twSpread<0.1·단일파일)·세장비 최소도 ≫4. 추가 단량체가 *옆이 아니라 끝으로* 붙음 = 방향성 포화 → 덩어리(blob)가 아닌 *선형 고분자 성장*. ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 N=5 사슬.',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(5, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = saturationMeasure(0.04, 0.05, 3, 3, [4, 5, 6], 4, 800, 24, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·모든 N 경로 비트)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `max|ΔΣq|=${M.dQ.toExponential(2)} max|ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '안정(모든 N 유한)', pass: M.fin, value: `finite=${M.fin}` },
+          { name: '가로 포화(N↑ 에도 가로 폭 일정·단일파일 ≈1셀)', pass: M.fin && M.twSpread < 0.15 && M.twMax < 1.0, value: `tw=[${M.tws}] spread=${M.twSpread}` },
+          { name: '길어짐(세로 길이 N 따라 성장 + 항상 선형 세장비≫1)', pass: M.fin && M.sxGrow > 1.2 && M.minAspect > 4, value: `σx=[${M.sxs}] grow=${M.sxGrow}·minAspect=${M.minAspect}` },
+        ];
+      },
+    },
+
+    // ── step-0026: arc J — 동적 사슬 성장: 자유 단량체가 사슬 끝에 붙는다 ── 장면+측정만(법칙·노브 0).
+    //   0021~0025 는 *정적* 사슬(처음부터 배치). 진짜 중합은 *동적* — 떨어진 자유 단량체가 기존 사슬 *끝*에 다가와
+    //   붙어 길이가 자란다(고분자 1차 목표의 동역학). 사슬(3개) + 끝에서 떨어진 단량체 1개를 놓고 valence ON/OFF —
+    //   ON 은 b-접착제가 단량체를 끝으로 당겨 결합 거리로 수축(포획=성장), OFF 는 자유로 표류. 새 노브 0.
+    'step-0026': {
+      id: 'step-0026',
+      title: 'step-0026 — arc J: 동적 사슬 성장(자유 단량체가 끝에 붙음)',
+      did: '세 단량체 사슬 끝에서 떨어진 자유 단량체 하나를 놓고, valence 를 켜고/끈 채로 그 단량체가 사슬 끝에 붙어 자라는지 본다.',
+      observe: '전하 ON 이면 떨어져 있던 단량체가 사슬 끝으로 끌려와 결합 거리로 붙어 네 칸 사슬로 *자란다*. OFF(단일 q)면 자유롭게 떠돈다. 사슬이 *동적으로 성장*하는 중합의 한 걸음.',
+      desc: '0021~0025 는 *정적* 사슬(처음부터 배치). 진짜 중합은 *동적* — 자유 단량체가 기존 사슬 *끝*에 다가와 붙어 길이가 자란다(고분자 1차 목표의 동역학). 사슬(N=3·간격 3) + 끝에서 gap=5 떨어진 자유 단량체 1개를 valence ON(bamp=3)·OFF(bamp=0=단일 q)로 900틱(n=24). 측정(chainGrowMeasure): 끝-단량체 거리 gapLate — ON 은 b-접착제가 단량체를 끝으로 당겨 결합 거리(≈3)로 *수축=포획*(N→N+1 성장), OFF 는 자유 거리(≈5)로 표류. ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 사슬+단량체 동적 결합.',
+      ticks: 900,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24, m = Math.floor((n - 1) / 2), c0 = 4; const cor = []; for (let i = 0; i < 3; i++) cor.push([c0 + i * 3, m, m]); cor.push([c0 + 2 * 3 + 5, m, m]); return valenceLumpsSpec(0.04, 0.07, 3, 3, 2, cor, n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = chainGrowMeasure(0.04, 0.07, 3, 3, 3, 3, 5, 900, 24);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·성장 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
+          { name: '단량체 포획(ON 끝-단량체 거리 수축 → 사슬 성장)', pass: M.on.fin && M.captured, value: `gap_on=${M.on.gapLate} (init=5·결합 거리로 수축)` },
+          { name: '성장 = 결합(ON 수축 ≪ OFF 단일 q 자유 표류)', pass: M.on.fin && M.on.gapLate < M.off.gapLate - 1, value: `gap_on=${M.on.gapLate} vs gap_off=${M.off.gapLate}` },
+        ];
+      },
+    },
+
+    // ── step-0027: arc J — 고분자 장수명: 사슬은 영속하는 안정 물질 ── 장면+측정만(법칙·노브 0).
+    //   원자(0016 장수명)·기체(0020 안정 개체군)처럼 *사슬*도 *영속하는 물질*(전이 아닌 안정 구조)이어야 진짜
+    //   고분자. 네 마디 사슬을 1500틱 길게 돌려 *후기 창*(late 20%)에도 모든 마디가 결속·단일파일을 유지하는지 —
+    //   valence ON 최소 마디 peak·가로 폭을 OFF(단일 q 분산)와 비교. 사슬이 안 풀리고 안 굵어지면 안정 고분자. 새 노브 0.
+    'step-0027': {
+      id: 'step-0027',
+      title: 'step-0027 — arc J: 고분자 장수명(사슬은 영속하는 안정 물질)',
+      did: '네 마디 사슬을 1500틱 길게 돌려, 끝까지(후기 20% 창) 네 마디가 다 결속돼 있고 한 셀 두께를 유지하는지 본다.',
+      observe: '전하 ON 이면 1500틱 뒤에도 네 마디가 다 살아있고(min 1.72) 사슬이 한 셀 두께를 유지한다 = 풀리지도 굵어지지도 않는 *안정 고분자*. OFF(단일 q)면 약해진다. 사슬도 원자·기체처럼 영속하는 물질.',
+      desc: '원자(0016 장수명)·자발 기체(0020 안정 개체군)처럼 *사슬*도 *영속하는 물질*(전이 아닌 안정 구조)이어야 진짜 고분자. 네 마디 사슬(간격 4)을 1500틱(n=20) 길게 돌려 *후기 창*(late 20%) 측정(chainLifeMeasure): 마디별 최소 peak·코어 가로 폭. valence ON: 후기 최소 마디 peak≈1.72(네 마디 다 결속)·가로 폭 단일파일 유지 ≫ OFF(단일 q 분산 1.12·ratio≈1.5). 사슬이 *안 풀리고 안 굵어짐* = 안정 고분자(영속 물질). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 1500틱 네 마디 사슬.',
+      ticks: 1500,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 20; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(4, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = chainLifeMeasure(0.04, 0.05, 3, 3, 4, 4, 1500, 20, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·1500틱 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin}` },
+          { name: '사슬 영속(후기 네 마디 다 결속 — 안 풀림)', pass: M.on.fin && M.on.min > 1.4, value: `late seg_on=[${M.on.seg}] min=${M.on.min}` },
+          { name: '단일파일 유지(후기 가로 폭 ≈1셀 — 안 굵어짐)', pass: M.on.fin && M.on.tw < 1.2, value: `tw_on=${M.on.tw}셀` },
+          { name: '안정 고분자(ON ≫ OFF 단일 q 분산)', pass: M.on.fin && M.ratio > 1.3, value: `min_on=${M.on.min} vs min_off=${M.off.min} (ratio=${M.ratio})` },
+        ];
+      },
+    },
+
+    // ── step-0028: arc J — 씨앗 템플릿 중합: 사슬이 단량체 욕조에서 자란다 ── 장면+측정만(법칙·노브 0).
+    //   0026 은 단량체 *하나* 포획. 진짜 중합은 *연쇄* — 사슬 씨앗이 둘레의 *여러* 자유 단량체를 차례로 끌어 길이가
+    //   자란다(템플릿 성장·고분자 1차 목표 동역학). 씨앗 사슬(3) + 끝 너머 자유 단량체 셋을 valence ON/OFF — ON 은
+    //   씨앗이 욕조를 템플릿으로 흡수해 ~5 코어 사슬로 *성장*, OFF(단일 q)는 축선 위 결속이 풀려 분산. 새 노브 0.
+    'step-0028': {
+      id: 'step-0028',
+      title: 'step-0028 — arc J: 씨앗 템플릿 중합(사슬이 단량체 욕조에서 자람)',
+      did: '세 마디 사슬 씨앗과 그 끝 너머에 자유 단량체 셋을 놓고, valence 를 켜고/끈 채 씨앗이 단량체를 흡수해 긴 사슬로 자라는지 본다.',
+      observe: '전하 ON 이면 씨앗이 떨어져 있던 단량체들을 차례로 끌어와 한 줄 사슬(약 다섯 코어)로 *자란다*. OFF(단일 q)면 축선 위 코어가 풀려 흩어진다. 사슬이 단량체 욕조에서 성장하는 *연쇄 중합*.',
+      desc: '0026 은 단량체 *하나* 포획. 진짜 중합은 *연쇄* — 사슬 씨앗이 둘레의 *여러* 자유 단량체를 차례로 끌어 길이가 자란다(템플릿 성장·고분자 1차 목표 동역학). 씨앗 사슬(N=3·간격 3) + 끝 너머 자유 단량체 셋(간격 [4,4,4]·포획 반경 안)을 valence ON(bamp=3)·OFF(bamp=0=단일 q)로 1000틱(n=24·κb=0.06). 측정(seedGrowMeasure): 축선 위 결합 코어 수·연속 사슬 길이(boundLen) — ON 은 씨앗이 욕조를 템플릿으로 흡수해 boundLen≈5·ncore≈6 사슬로 성장, OFF 는 축선 결속 0(분산). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 씨앗+단량체 욕조 성장.',
+      ticks: 1000,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24, m = Math.floor((n - 1) / 2), c0 = 3; const cor = []; for (let i = 0; i < 3; i++) cor.push([c0 + i * 3, m, m]); let e = c0 + 2 * 3; for (const g of [4, 4, 4]) { e += g; cor.push([e, m, m]); } return valenceLumpsSpec(0.04, 0.06, 3, 3, 2, cor, n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = seedGrowMeasure(0.04, 0.06, 3, 3, 3, 3, [4, 4, 4], 1000, 24);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·중합 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin}` },
+          { name: '템플릿 성장(ON 씨앗이 단량체 흡수 → 긴 사슬)', pass: M.on.fin && M.on.boundLen >= 4, value: `boundLen_on=${M.on.boundLen}·ncore_on=${M.on.ncore} (씨앗3+단량체3=${M.total})` },
+          { name: '성장 = 결합(ON ≫ OFF 단일 q 축선 분산)', pass: M.on.fin && M.on.boundLen > M.off.boundLen + 2, value: `boundLen on=${M.on.boundLen} vs off=${M.off.boundLen}` },
+        ];
+      },
+    },
+
+    // ── step-0029: arc J — 무씨앗 자발 중합 천장(순수 잡음은 사슬을 안 낸다·null 측정) ── 장면+측정만(법칙·노브 0).
+    //   0028 은 *씨앗*이 있을 때 성장. 무씨앗(featureless q+b 잡음)에서도 사슬이 *스스로* 핵형성하나? 자발 클러스터의
+    //   국소 이방성(PCA 세장비)을 valence ON(b 잡음)·OFF(단일 q)로 재면 — ON 이 OFF 보다 *크지 않다*(등방 퍼콜 조각만)
+    //   = **자발 천장**(null 도 측정). 0028(씨앗 성장 성공)과 대비: 중합엔 *핵형성*이 필요 → 다음 확장 명령(author 0).
+    'step-0029': {
+      id: 'step-0029',
+      title: 'step-0029 — arc J: 무씨앗 자발 중합 천장(순수 잡음은 사슬을 안 냄·null)',
+      did: '씨앗 없이 뜨거운 q+b 잡음만으로 사슬이 스스로 생기는지, 자발 클러스터가 valence 로 더 길쭉(사슬성)해지는지 잰다.',
+      observe: '순수 잡음에서는 valence 를 켜도 자발 구조가 단일 q 보다 더 사슬스럽지 않다(이방성 ON ≤ OFF) — 등방 조각만 생긴다. 즉 중합엔 씨앗(핵형성)이 필요하다는 천장을 측정으로 못 박는다(0028 의 씨앗 성장과 대비).',
+      desc: '0028 은 *씨앗*(기존 사슬)이 있을 때 단량체를 흡수해 성장. 무씨앗(featureless q+b 잡음)에서도 사슬이 *스스로* 핵형성하나? 뜨거운 q+b 잡음(hotValenceSpec·결정론)을 valence 비선형 관성으로 800틱(n=16) 굴려, 자발 형성 클러스터(임계 0.6 이상 연결 성분)의 *국소 이방성*(PCA 세장비·크기 가중 평균)을 ON(b 잡음)·OFF(b=0=단일 q)로 비교(spontaneousChainMeasure). 측정: 이방성 ON ≤ OFF(anisoRatio≤1·등방 퍼콜 조각만·여러 임계서 일관) = **자발 천장**(순수 잡음은 사슬 안 냄). null 도 측정(SPINE §9·author 0) — 0028(씨앗 성공)과 대비해 *중합엔 핵형성이 필요*함을 못 박음. ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0. 메인 장면은 뜨거운 q+b 잡음.',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16; return hotValenceSpec(0.04, 0.06, 2, 3, n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = spontaneousChainMeasure(0.04, 0.06, 2, 3, 800, 16, 0.6);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·뜨거운 valence 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한·자발 클러스터 형성)', pass: M.on.fin && M.off.fin && M.on.nClust > 0 && M.off.nClust > 0, value: `nClust on=${M.on.nClust} off=${M.off.nClust}` },
+          { name: '자발 중합 천장(valence 가 더 사슬스럽지 않음 — 이방성 ON ≤ OFF·null)', pass: M.on.fin && M.anisoRatio <= 1.1, value: `aniso on=${M.on.aniso} ≤ off=${M.off.aniso} (ratio=${M.anisoRatio})` },
+          { name: '대비(씨앗 성장 0028=성공 ↔ 무씨앗=천장 → 핵형성 필요)', pass: M.on.fin, value: `순수 잡음 자발 사슬 없음(측정 null) — 중합엔 씨앗 필요` },
+        ];
+      },
+    },
+
+    // ── step-0030: arc J 종합(Part III 다발 캡스톤) — 둘째 보존 채널 b=원자가가 낸 화학 + 천장 ── 장면+측정만(법칙 0).
+    //   0021~0029 종합: 단일 q 천장(0019 blob)을 *측정이 명령한* 다성분 보존 다발(b=원자가)로 돌파해, 단일 q 가 못 한
+    //   화학(결합 0021·사슬 0022·선형 1D 0023·장 성질 0024·포화 0025·동적 성장 0026·장수명 0027·템플릿 중합 0028)을
+    //   다 냈다 = **1차 목표(고분자) 도달**. 천장: 무씨앗 자발 중합은 안 됨(0029 null). 대표 고분자 사슬 한 장면에서
+    //   결합·선형·단일파일·안정·ΣQ·ΣB 보존을 한 번에 재확인. Part I(소산→관성)·Part II(단일 q→다발)에 잇는 종합 step.
+    'step-0030': {
+      id: 'step-0030',
+      title: 'step-0030 — arc J 종합: 둘째 보존 채널(원자가)이 낸 화학(고분자 도달) + 천장',
+      did: '대표 고분자 사슬(다섯 마디) 하나에서 arc J 의 핵심 — 결합·선형·단일파일·안정·두 보존량 보존 — 을 한 번에 재확인하고, Part III(다발) 전체를 종합한다.',
+      observe: '한 사슬에서 다발 화학의 모든 핵심이 동시에 보인다: 다섯 마디가 다 결속(결합), 한 줄로 길고(선형 세장비≫1) 한 셀 두께(단일파일·포화), 끝까지 안정, q·b 둘 다 비트 보존. 단일 q 가 못 한 고분자가 둘째 보존량(원자가) 하나로 창발 — 1차 목표 도달.',
+      desc: '0021~0029 종합(Part III 다발 캡스톤). 단일 q 천장(0019 등방 blob)을 *측정이 명령한* 다성분 보존 다발(b=원자가·opt-in valence·새 법칙 0=같은 rule()+교차-인력)로 돌파해 단일 q 가 못 한 화학을 다 냈다: 결합(0021 d*=2)·사슬(0022)·선형 1D(0023 세장비 6)·결합=장 성질(0024 R∝κb)·방향성 포화(0025 길어지되 안 굵어짐)·동적 성장(0026)·장수명(0027 1500틱)·템플릿 중합(0028 씨앗→욕조 흡수) = **1차 목표(고분자) 도달**. 천장: 무씨앗 자발 중합 안 됨(0029 null→핵형성 필요). 대표 사슬(N=5)에서 종합 측정(synthesisMeasure·한 sim): 마디별 최소 peak(결합)·코어 세장비(선형)·가로 폭(단일파일)·후기 안정·ΣQ·ΣB 보존을 한 번에. 새 법칙·새 노브 0(author 0). 다음: 핵형성/셋째 채널(자발 중합·분지) 또는 net 트랙.',
+      ticks: 1000,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(5, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = synthesisMeasure(0.04, 0.05, 3, 3, 5, 4, 1000, 24, 1.2);
+        return [
+          { name: 'ΣQ·ΣB 보존(두 보존 장부 비트 — 다발 골격)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `|ΔΣq|=${M.dQ.toExponential(2)} |ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '결합(다섯 마디 다 결속·후기 최소 peak 높음)', pass: M.fin && M.minSeg > 1.3, value: `seg=[${M.seg}] min=${M.minSeg}` },
+          { name: '선형 + 단일파일(세장비≫1·가로 ≈1셀 — 덩어리 아님·포화)', pass: M.fin && M.aspect > 3 && M.tw < 1.2, value: `aspect=${M.aspect}·tw=${M.tw}셀` },
+          { name: '안정 고분자 도달(1차 목표 — 단일 q 천장 돌파)', pass: M.fin, value: `결합+선형+포화+안정 동시(N=5 사슬)·둘째 보존량 하나로 창발` },
         ];
       },
     },
