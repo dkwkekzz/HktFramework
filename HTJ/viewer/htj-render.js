@@ -33,11 +33,30 @@
   // 값(1/2/3) → 기본 색(표면=청록·중간=파랑·중심=보라). 값 0 은 그리지 않는다.
   const PALETTE = { 1: [52, 168, 190], 2: [64, 116, 230], 3: [142, 92, 220] };
 
+  // 에너지 히트 램프: 차가움(짙은 청) → 청록 → 노랑 → 적백(뜨거움). t∈[0,1].
+  const HEAT = [[24, 34, 78], [40, 120, 200], [60, 200, 175], [235, 220, 90], [250, 95, 60]];
+  function heatColor(t) {
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const f = t * (HEAT.length - 1), i = Math.min(HEAT.length - 2, f | 0), u = f - i;
+    const a = HEAT[i], b = HEAT[i + 1];
+    return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+  }
+
   // 기본 카메라 상태. yaw/pitch=회전, zoom=확대, panX/panY=픽셀 이동.
   function defaultCamera() { return { yaw: 0.7, pitch: 0.55, zoom: 1.0, panX: 0, panY: 0 }; }
 
   // 세계를 캔버스 컨텍스트에 그린다. cam 은 defaultCamera() 형태.
-  function draw(ctx, world, cam) {
+  //   opts.field: 'cells'(기본, uint8 voxel) | 'energy'(float64 에너지 히트맵).
+  //   에너지 모드는 E>eps 인 셀을 그리고 색을 E/max 로 정해 *흐름*을 눈에 보이게 한다.
+  function draw(ctx, world, cam, opts) {
+    opts = opts || {};
+    const useE = opts.field === 'energy';
+    const src = useE ? world.energy : world.cells;
+    const eps = useE ? (opts.eps != null ? opts.eps : 1e-9) : 0;
+    // 색 스케일: 에너지 모드는 최대값으로 정규화(흐를수록 max 가 줄어 대비 유지).
+    let emax = 1;
+    if (useE) { for (let i = 0; i < src.length; i++) if (src[i] > emax) emax = src[i]; if (opts.max) emax = opts.max; }
+    const filled = (i) => useE ? src[i] > eps : src[i] !== 0;   // 점유 판정
     const N = world.N, cells = world.cells;
     const W = ctx.canvas.width, H = ctx.canvas.height;
     const half = (N - 1) / 2;
@@ -76,21 +95,24 @@
     ctx.stroke();
 
     // ── 표면 셀 수집(내부 셀은 6이웃이 모두 채워짐 → 안 보임 → 건너뜀) ──
+    const NN = N * N;
     const list = [];
     for (let z = 0; z < N; z++)
       for (let y = 0; y < N; y++)
         for (let x = 0; x < N; x++) {
-          const v = cells[(z * N + y) * N + x];
-          if (!v) continue;
+          const idx = (z * N + y) * N + x;
+          if (!filled(idx)) continue;
           // 표면 판정: 6이웃 중 하나라도 빈(또는 경계 밖)이면 표면.
           const surf =
             x === 0 || x === N - 1 || y === 0 || y === N - 1 || z === 0 || z === N - 1 ||
-            !cells[(z * N + y) * N + x - 1] || !cells[(z * N + y) * N + x + 1] ||
-            !cells[(z * N + (y - 1)) * N + x] || !cells[(z * N + (y + 1)) * N + x] ||
-            !cells[((z - 1) * N + y) * N + x] || !cells[((z + 1) * N + y) * N + x];
+            !filled(idx - 1) || !filled(idx + 1) ||
+            !filled(idx - N) || !filled(idx + N) ||
+            !filled(idx - NN) || !filled(idx + NN);
           if (!surf) continue;
           const wx = x - half, wy = y - half, wz = z - half;
           const depth = wy * sp + (-wx * sy + wz * cy) * cp;   // project 의 z2 와 동일식(중심)
+          // cells 모드: v=uint8 값 / energy 모드: v=정규화 에너지(0~1) — 음수로 표식.
+          const v = useE ? -(src[idx] / emax) : src[idx];
           list.push([wx, wy, wz, v, depth]);
         }
     // 화가 알고리즘: 깊이 오름차순(먼 것 먼저) → 가까운 것이 위에 덮인다.
@@ -99,7 +121,8 @@
     // ── 큐브 그리기 ──
     for (let i = 0; i < list.length; i++) {
       const wx = list[i][0], wy = list[i][1], wz = list[i][2], v = list[i][3];
-      const base = PALETTE[v] || PALETTE[1];
+      // v<0 → 에너지 모드(정규화값 |v| 를 히트 램프로). v>0 → cells 팔레트.
+      const base = v < 0 ? heatColor(-v) : (PALETTE[v] || PALETTE[1]);
       for (let f = 0; f < FACES.length; f++) {
         if (!faceVisible[f]) continue;
         const face = FACES[f], sh = FACE_SHADE[f];

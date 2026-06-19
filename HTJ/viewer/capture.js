@@ -115,4 +115,66 @@ async function main() {
   process.exit(ok ? 0 : 1);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+// ── step_0002: 에너지 흐름(확산) 시계열 눈 검증 ──
+//   t=0(중앙 집중) 과 t=T(퍼짐) 두 프레임을 캡처해 *흐름*을 픽셀로 단언한다:
+//     · 총 에너지 보존(stat) · 엔트로피 증가(stat) · 점유 픽셀/덩어리가 *퍼진다*(눈).
+//   실행: node viewer/capture.js --energy [N] [steps]
+async function mainEnergy() {
+  const pw = loadPlaywright(), bp = browserPath();
+  const pos = process.argv.slice(2).filter(a => a !== '--energy');
+  const N = parseInt(pos[0] || '24', 10);
+  const STEPS = parseInt(pos[1] || '160', 10);
+  const dir = path.resolve(__dirname, '../steps/step_0002');
+  const out = path.join(dir, 'capture.png'), out0 = path.join(dir, 'capture_t0.png');
+
+  if (!pw || !bp) {
+    console.log(`\n캡처/눈 검증: ${!pw ? 'playwright 모듈' : 'chromium 브라우저'} 없음 — SKIP(비-치명).`);
+    process.exit(0);
+  }
+  if (!process.env.PLAYWRIGHT_BROWSERS_PATH) process.env.PLAYWRIGHT_BROWSERS_PATH = bp;
+  fs.mkdirSync(dir, { recursive: true });
+
+  const browser = await pw.chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 720, height: 720 } });
+  await page.goto(VIEWER);
+  await page.waitForFunction('window.HTJViewer && window.HTJWorld && window.HTJEnergy && window.HTJRender');
+  await page.evaluate(analyzeSrc);
+
+  // t=0: 중앙 단일 핫셀.
+  await page.evaluate(([n]) => {
+    const V = window.HTJViewer;
+    V.setSize(700, 700);
+    V.energyInit(n, { E0: 1000, half: 0 });
+    V.setCamera({ yaw: 0.7, pitch: 0.55, zoom: 1.0, panX: 0, panY: 0 });
+    V.render();
+  }, [N]);
+  await page.locator('#cv').screenshot({ path: out0 });
+  const a0 = await page.evaluate(() => window.__analyze());
+  const m0 = await page.evaluate(() => ({ E: window.HTJViewer.totalEnergy(), S: window.HTJViewer.entropy(), max: window.HTJEnergy.maxEnergy(window.HTJViewer.world) }));
+
+  // t=T: 확산 STEPS 회 → 퍼짐.
+  await page.evaluate(([alpha, steps]) => { window.HTJViewer.diffuse(alpha, steps); window.HTJViewer.render(); }, [1 / 7, STEPS]);
+  await page.locator('#cv').screenshot({ path: out });
+  const aT = await page.evaluate(() => window.__analyze());
+  const mT = await page.evaluate(() => ({ E: window.HTJViewer.totalEnergy(), S: window.HTJViewer.entropy(), max: window.HTJEnergy.maxEnergy(window.HTJViewer.world) }));
+
+  await browser.close();
+
+  const relErr = Math.abs(mT.E - m0.E) / m0.E;
+  const checks = [
+    { name: `t=0 에너지가 화면에 보임(핫셀 집중)`, pass: a0.lit > 0, value: `lit ${a0.lit}px` },
+    { name: `흐름 — 점유 픽셀이 퍼진다(t=T > 2·t=0)`, pass: aT.lit > a0.lit * 2, value: `${a0.lit} → ${aT.lit}px` },
+    { name: `흐름 — 피크가 식는다(최대 에너지 하락)`, pass: mT.max < m0.max * 0.5, value: `${m0.max.toFixed(2)} → ${mT.max.toFixed(2)}` },
+    { name: `제1법칙 — 총 에너지 보존(stat)`, pass: relErr < 1e-6, value: `ΔE/E0 = ${relErr.toExponential(2)}` },
+    { name: `제2법칙 — 엔트로피 증가(stat)`, pass: mT.S > m0.S, value: `${m0.S.toFixed(3)} → ${mT.S.toFixed(3)} nats` },
+  ];
+  console.log(`\n=== 눈 검증: HTJ 에너지 흐름 (N=${N}·${STEPS}스텝·α=1/7) ===`);
+  for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+  console.log(`  스크린샷: ${path.relative(process.cwd(), out0)} (t=0) · ${path.relative(process.cwd(), out)} (t=${STEPS})`);
+  const ok = checks.every(c => c.pass);
+  console.log(`\n결과: ${ok ? '눈 검증 PASS ✅' : 'FAIL ❌'}\n`);
+  process.exit(ok ? 0 : 1);
+}
+
+(process.argv.includes('--energy') ? mainEnergy() : main())
+  .catch(e => { console.error(e); process.exit(1); });

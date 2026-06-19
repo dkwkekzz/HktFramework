@@ -26,14 +26,19 @@
     };
   }
 
-  // 세계 = N³ 셀 격자. 각 셀은 uint8 값(0 = 빈 공간). 값의 *의미*는 미래 법칙이 정한다.
+  // 세계 = N³ 셀 격자.
+  //   - cells: uint8 값(0 = 빈 공간). *이산* 층 — 미래의 물질/원자 종류 자리(값의 의미는 미래 법칙이 정한다).
+  //   - energy: float64 에너지 밀도장(연속 층). step_0002 의 *흐름*이 사는 곳 — 셀이 가진 에너지의 양.
+  //     두 층은 직교한다: 에너지는 연속·보존되며 흐르고, 원자는 그 흐름 위에 *창발*할 이산 패턴이다(author 아님).
   function createWorld(N) {
     N = N | 0;
     if (N <= 0) throw new Error('createWorld: N must be > 0');
     const cells = new Uint8Array(N * N * N);
+    const energy = new Float64Array(N * N * N);
     return {
       N,
       cells,
+      energy,
       // 전단사 인덱싱: (x,y,z) ↔ i. z 가 가장 바깥(slab), 그 안에 y(row), x(col).
       index(x, y, z) { return (z * N + y) * N + x; },
       coords(i) { const x = i % N; const y = ((i - x) / N) % N; const z = (i - x - y * N) / (N * N); return [x, y, z]; },
@@ -42,10 +47,22 @@
       set(x, y, z, v) { cells[(z * N + y) * N + x] = v & 0xff; },
       clear() { cells.fill(0); },
       count() { let c = 0; for (let i = 0; i < cells.length; i++) if (cells[i]) c++; return c; },
-      // 결정론 지문 — FNV-1a 32bit. 같은 셀 배열이면 같은 값(검증·회귀 가드용).
+      // ── 에너지 장 접근자 (연속 층) ──
+      getE(x, y, z) { return energy[(z * N + y) * N + x]; },
+      setE(x, y, z, v) { energy[(z * N + y) * N + x] = v; },
+      clearEnergy() { energy.fill(0); },
+      totalEnergy() { let s = 0; for (let i = 0; i < energy.length; i++) s += energy[i]; return s; },
+      // 결정론 지문(uint8 cells) — FNV-1a 32bit. 같은 셀 배열이면 같은 값(검증·회귀 가드용).
       fingerprint() {
         let h = 0x811c9dc5;
         for (let i = 0; i < cells.length; i++) { h ^= cells[i]; h = Math.imul(h, 0x01000193); }
+        return h >>> 0;
+      },
+      // 에너지 장의 결정론 지문 — float64 바이트열 FNV-1a. 같은 흐름 → 같은 값.
+      energyFingerprint() {
+        const bytes = new Uint8Array(energy.buffer, energy.byteOffset, energy.byteLength);
+        let h = 0x811c9dc5;
+        for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 0x01000193); }
         return h >>> 0;
       }
     };
