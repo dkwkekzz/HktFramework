@@ -100,9 +100,9 @@
       label: 'step_0002 — 에너지 흐름', title: 'HTJ — 에너지 흐름', sub: '열역학 제2법칙 = 확산',
       mode: 'energy', dynamics: true, release: false,
       defaults: { alpha: 0.14, view: 'energy' },
-      init(w) { /* 빈(차가운) 상자 — 클릭으로 열원을 둔다 */ },
+      init(w) { HTJEnergy.seedHotSpot(w, { E0: 1000, half: 0 }); },     // 가운데 단일 열원(클릭으로 더 둘 수 있다)
       advance(w, p) { HTJEnergy.diffuseEnergy(w, p.alpha); },     // 법칙: 확산만
-      note: '<b>클릭</b>=열 주입(선택한 장) · 드래그=회전 · 휠=줌 · 우드래그=이동.<br />빈 상자에 클릭으로 열원을 두면 ▶ 흐름에서 확산된다. 총량 *보존*·엔트로피 *증가* → 퍼져 균일(열적 죽음). 색=평균 대비 밀도(청→적).'
+      note: '<b>클릭</b>=열 주입(선택한 장) · 드래그=회전 · 휠=줌 · 우드래그=이동.<br />가운데 열원이 하나 놓여 있다 — <b>▶ 흐름</b>에서 확산된다(클릭으로 더 둘 수 있다). 총량 *보존*·엔트로피 *증가* → 퍼져 균일(열적 죽음). 색=평균 대비 밀도(청→적).'
     },
     '0003': {
       label: 'step_0003 — 에너지의 탄생', title: 'HTJ — 에너지의 탄생', sub: '잠재력 방출(potential→energy)',
@@ -115,18 +115,18 @@
     '0004': {
       label: 'step_0004 — 별의 점화', title: 'HTJ — 별의 점화', sub: '임계 방출(밀도 게이트)',
       mode: 'energy', dynamics: true, release: true, ignite: true,
-      defaults: { alpha: 0, rate: 0.05, crit: 300, view: 'energy' },
+      defaults: { alpha: 0, rate: 0.05, crit: 300, view: 'potential', autoEnergyView: true },
       init(w) { HTJPotential.seedStarField(w, { core: 1000, background: 50, r: w.N * 0.25 }); },  // 별밭(코어+가스)
       advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); },  // 법칙: 임계 방출+확산
-      note: '처음엔 <b>검다</b>(에너지 0). <b>▶ 흐름</b>을 누르면 *임계 넘긴 코어만* 빨갛게 점화한다(=별) — 가스는 어둡다.<br />기본 α=0(확산 꺼짐)이라 별이 또렷이 보인다. <b>α(확산율)를 올리면</b> 별빛이 가스로 퍼진다. <b>점화 임계</b>를 올리면 별이 작아지고/안 켜진다 → "별 = 임계 위 영역".'
+      note: '시작 화면 = <b>potential</b>(연료 분포: 밀집한 코어 + 옅은 가스). <b>▶ 흐름</b>을 누르면 화면이 <b>energy</b> 로 바뀌며 *임계 넘긴 코어만* 빨갛게 점화한다(=별) — 가스는 어둡다.<br />기본 α=0(확산 꺼짐)이라 별이 또렷이 보인다. <b>α</b>를 올리면 별빛이 가스로 퍼지고, <b>점화 임계</b>를 올리면 별이 작아지고/안 켜진다 → "별 = 임계 위 영역".'
     },
     '0005': {
       label: 'step_0005 — 빛나는 별', title: 'HTJ — 빛나는 별', sub: '경계 복사(sink) → 영구 그래디언트',
       mode: 'energy', dynamics: true, release: true, ignite: true, radiate: true,
-      defaults: { alpha: 0.14, rate: 0.02, crit: 300, radiate: 0.2, colorScale: 'absolute', colorMax: 4000, view: 'energy' },
+      defaults: { alpha: 0.14, rate: 0.02, crit: 300, radiate: 0.2, colorScale: 'absolute', colorMax: 4000, view: 'potential', autoEnergyView: true },
       init(w) { HTJPotential.seedStarField(w, { core: 1e7, background: 0, r: w.N * 0.16 }); },  // 큰 연료 저장고
       advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); HTJRadiate.radiate(w, p.radiate); },  // 법칙: 점화+확산+복사
-      note: '<b>▶ 흐름</b>: 큰 연료의 코어가 *계속* 점화(=별) → 에너지가 확산으로 바깥으로 흐르고 <b>경계에서 우주로 빠져나간다</b>(sink). 그래서 중심은 *꾸준히 밝고* 바깥은 어둡다 = 영구 그래디언트.<br /><b>색 기준=절대</b>라 에너지가 빠져나가며 *전체가 어두워지는 것*도 보인다. 복사율을 0 으로 하면 닫힌 상자처럼 다시 균일해진다(별이 안 빛남).'
+      note: '시작 화면 = <b>potential</b>(큰 연료 저장고). <b>▶ 흐름</b>을 누르면 화면이 <b>energy</b> 로 바뀐다 — 코어가 *계속* 점화(=별) → 에너지가 확산으로 흐르고 <b>경계에서 우주로 빠져나간다</b>(sink). 중심은 *꾸준히 밝고* 바깥은 어둡다 = 영구 그래디언트.<br /><b>색 기준=절대</b>라 에너지가 빠져나가며 *전체가 어두워지는 것*도 보인다. 복사율을 0 으로 하면 닫힌 상자처럼 균일해진다(안 빛남).'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -214,7 +214,9 @@
 
   function render() {
     if (!world) return;
-    const name = brushField();
+    let name = brushField();
+    if (!world.fields[name]) name = world.fields.energy ? 'energy' : Object.keys(world.fields)[0];  // 선택 장이 없으면 폴백
+    if (!name) return;
     // 색 기준 두 가지:
     //  · 상대(평균): max = 평균*2 → "평균 대비" 분포를 본다(퍼지면 균일 색). 절대 총량은 색에 안 나타남.
     //  · 절대(고정): max = 색최대E 고정값 → 같은 에너지는 늘 같은 색. *에너지가 빠져나가 어두워지는 것*·
@@ -246,7 +248,15 @@
   }
 
   // 스텝 — 현재 step 의 법칙을 1회 굴린다(0002=확산 / 0003=방출+확산). 동역학 step 에서만.
-  function stepOnce() { const st = STEPS[currentStep()]; if (!st.dynamics) return; st.advance(world, advanceParams()); tick++; render(); updateStats(); }
+  // 별 step(autoEnergyView)은 로드 시 연료(potential)를 보여주다가, 동역학이 시작되면
+  //   결과가 보이는 energy 장으로 자동 전환한다(까만 화면 방지 + 별이 켜지는 걸 바로 보이게).
+  function maybeAutoEnergyView() {
+    const d = STEPS[currentStep()].defaults || {};
+    const bf = document.getElementById('brushField');
+    if (d.autoEnergyView && bf.value === 'potential' && world.fields.energy) bf.value = 'energy';
+  }
+
+  function stepOnce() { const st = STEPS[currentStep()]; if (!st.dynamics) return; maybeAutoEnergyView(); st.advance(world, advanceParams()); tick++; render(); updateStats(); }
 
   // 흐름 — 법칙을 연속 재생(시점 회전이 아니라 *세계의 동역학*).
   let raf = 0;
@@ -260,7 +270,7 @@
   function setPlaying(on) {
     playing = on;
     document.getElementById('play').textContent = on ? '⏸ 멈춤' : '▶ 흐름';
-    if (on) raf = requestAnimationFrame(loop); else cancelAnimationFrame(raf);
+    if (on) { maybeAutoEnergyView(); raf = requestAnimationFrame(loop); } else cancelAnimationFrame(raf);
   }
 
   // 클릭 화면좌표 → 캔버스 픽셀좌표(CSS 크기·dpr 보정).
