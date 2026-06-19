@@ -37,7 +37,7 @@ description: HGO flux 트랙 step 한 바퀴(읽기→장면·측정→검증→
 
 ## 4. 검증 — 공용 헤드리스 + 공유 뷰어
 
-- `node engine/verify.js step-NNNN` — 공용 검증기가 그 장면으로 **4기둥**(회귀 0·닫힌 장부 Σq·결정론·창발 측정 author 0) + 장면의 **가설 assert** 를 수치 출력. 문서의 모든 수치는 이 출력 그대로. *per-step verify.js 복사 없음.*
+- `node engine/verify.js step-NNNN` — 공용 검증기가 그 장면으로 **4기둥**(회귀 0·닫힌 장부 Σq·결정론·창발 측정 author 0) + ⑤ **직관 설명 게이트**(did·observe 필수 — 없으면 FAIL) + 장면의 **가설 assert** 를 수치 출력. 문서의 모든 수치는 이 출력 그대로. *per-step verify.js 복사 없음.*
 - `node engine/validate/...`(풀 골든 런)는 오래 걸린다 — `run_in_background` 로 돌려놓고 그동안 step 문서·장면을 진행. 닫기 직전 1회 최종 PASS 확인.
 - **시각화**: 공유 `../viewer.html?track=flux` 를 열고 step 선택 → 그 장면이 결정론적으로 돌며 "여기서 무슨 층이 창발했는지"를 보여줌(결정론 + 동결 장면이라 옛 step 도 비트까지 재현). step 문서는 `../viewer.html?track=flux#step-NNNN` 로 링크만 단다.
 

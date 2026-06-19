@@ -1,5 +1,6 @@
 // verify.js — 공용 헤드리스 검증기(트랙당 1벌, step 마다 복사 0). 장면 id 를 인자로 4기둥 + 가설 assert 를 수치 출력.
 //   4기둥(SPINE §9): ① 닫힌 장부 Σq 불변 ② 결정론(같은 시드 → 같은 해시) ③ 회귀 0(골든 해시) ④ 창발 측정(장면 assert).
+//   + ⑤ 직관 설명 게이트: did(한 일)·observe(관찰) 필수(뷰어 표시·SKILL §2.1) — 없으면 FAIL = 설명 없는 step 닫기 차단.
 //   사용: node engine/verify.js [step-NNNN | all] [--update]   (--update = 골든 해시 갱신/생성)
 'use strict';
 const fs = require('fs');
@@ -65,6 +66,15 @@ function verifyOne(id, golden, update) {
     ok = ok && a.pass;
     lines.push(`  ${mark(a.pass)} ${a.name}: ${a.value}`);
   }
+
+  // ⑤ 직관 설명 게이트 — 뷰어가 보여줄 did(한 일)·observe(관찰) 필수(SKILL §2.1·§6).
+  //   텍스트라 해시·결정론·골든과 직교하지만, 비전문가도 화면만 보고 따라오게 하려면 step 을 닫기 전 반드시 채운다.
+  //   닫기 체크리스트가 이 verify PASS 를 요구하므로, 이 게이트가 "설명 없는 step 닫기"를 기계적으로 막는다.
+  const hasDid = typeof scene.did === 'string' && scene.did.trim().length > 0;
+  const hasObs = typeof scene.observe === 'string' && scene.observe.trim().length > 0;
+  const explain = hasDid && hasObs;
+  ok = ok && explain;
+  lines.push(`  ${mark(explain)} 직관 설명(did·observe 필수): did ${hasDid ? '✓' : '✗'} · observe ${hasObs ? '✓' : '✗'}`);
 
   console.log(`\n[${id}] ${scene.title}`);
   console.log(lines.join('\n'));
