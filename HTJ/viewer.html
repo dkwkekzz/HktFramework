@@ -34,6 +34,7 @@
 
     <div class="row"><label>N (격자)</label><input id="N" type="number" min="4" max="48" step="1" value="24" /></div>
     <div class="row"><label>α (확산율)</label><input id="alpha" type="number" min="0" max="0.166" step="0.01" value="0.14" /></div>
+    <div class="row"><label>확산속도</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
     <div class="row"><label>장(field)</label><select id="brushField"></select></div>
     <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
     <div class="row"><label>열량</label><input id="brushAmt" type="number" min="1" step="50" value="800" /></div>
@@ -80,6 +81,7 @@
 
   function readN() { return Math.max(4, Math.min(48, parseInt(document.getElementById('N').value, 10) || 24)); }
   function readAlpha() { return Math.max(0, Math.min(HTJEnergy.ALPHA_MAX, parseFloat(document.getElementById('alpha').value) || 0)); }
+  function readSpeed() { return Math.max(1, Math.min(50, parseInt(document.getElementById('speed').value, 10) || 1)); }
   function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
   function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
   function brushField() { return document.getElementById('brushField').value || 'energy'; }
@@ -114,8 +116,14 @@
 
   function render() {
     if (!world) return;
-    // 선택한 장을 그린다. 일반=히트 램프(청→적) / 무대 데모(cells 모드)=팔레트(값 1/2/3).
-    surf = HTJRender.draw(ctx, world, cam, { field: brushField(), colormap: mode === 'cells' ? 'palette' : 'heat' });
+    const name = brushField();
+    // 색 스케일을 *평형 밀도(평균)* 에 고정한다: 갓 주입=빨강(E≫평균), 퍼질수록 모두 평균으로
+    // 수렴 → 전체가 같은 색(균일)으로. (매 프레임 최댓값 정규화는 봉우리를 늘 빨갛게 유지하고,
+    //  새 주입이 옛 열을 파랗게 '지워 보이게' 했음.) max=0 이면 draw 가 자동 폴백.
+    const mean = world.total(name) / world.fields[name].length;
+    surf = HTJRender.draw(ctx, world, cam, {
+      field: name, colormap: mode === 'cells' ? 'palette' : 'heat', max: mean > 0 ? mean * 2 : 0
+    });
   }
 
   // 열 주입 — 클릭 지점의 셀을 픽해, 붓 반경의 구(球) 안 셀에 열량을 더한다(선택한 장).
@@ -141,7 +149,8 @@
   let raf = 0;
   function loop() {
     if (!playing) return;
-    HTJEnergy.diffuseEnergy(world, readAlpha()); tick++;
+    const a = readAlpha(), s = readSpeed();
+    for (let k = 0; k < s; k++) { HTJEnergy.diffuseEnergy(world, a); tick++; }   // 프레임당 여러 스텝 → 균일화가 눈에 보이게
     render(); updateStats();
     raf = requestAnimationFrame(loop);
   }
