@@ -715,6 +715,29 @@
     return { rows, tws, sxs, twMax: +Math.max.apply(null, tws).toFixed(3), twSpread, minAspect, sxGrow: +(sxs[sxs.length - 1] / sxs[0]).toFixed(3), fin, dQ, dB };
   }
 
+  // 창발 측정(arc J — 동적 사슬 성장) — 사슬(N개) 끝에서 떨어진 *자유 단량체* 하나가 *사슬 끝으로 포획*돼 N+1
+  //   사슬이 되는지(끝-단량체 거리 수축=결합) 읽는다. valence 전하 ON 이면 b-접착제가 단량체를 끝으로 당겨 결합
+  //   거리로 수축, OFF(단일 q)는 자유로 표류. = 중합의 *동역학*(단량체가 사슬 끝에 붙어 자람). ΣQ·ΣB 보존도.
+  function chainGrowMeasure(kc, kb, amp, bamp, chainN, sp, monGap, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor((n - 1) / 2), c0 = 4;
+    const corners = []; for (let i = 0; i < chainN; i++) corners.push([c0 + i * sp, m, m]);
+    corners.push([c0 + (chainN - 1) * sp + monGap, m, m]);   // 자유 단량체(끝에서 monGap)
+    const endGap = sim => { const N = sim.cols, p = new Array(N).fill(0); let i = 0;
+      for (let z = 0; z < N; z++) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > p[c]) p[c] = e; i++; }
+      const pk = []; for (let c = 0; c < N; c++) { const L = p[(c - 1 + N) % N], R = p[(c + 1) % N]; if (p[c] >= 1.2 && p[c] >= L && p[c] > R) { if (pk.length && c - pk[pk.length - 1] < 2) continue; pk.push(c); } }
+      return pk.length < 2 ? 99 : pk[pk.length - 1] - pk[pk.length - 2]; };
+    const run = bb => {
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let s = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { s += endGap(sim); cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { gapLate: +(s / cnt).toFixed(2), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, monGap, captured: on.gapLate <= sp + 0.5 };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1338,6 +1361,30 @@
           { name: '안정(모든 N 유한)', pass: M.fin, value: `finite=${M.fin}` },
           { name: '가로 포화(N↑ 에도 가로 폭 일정·단일파일 ≈1셀)', pass: M.fin && M.twSpread < 0.15 && M.twMax < 1.0, value: `tw=[${M.tws}] spread=${M.twSpread}` },
           { name: '길어짐(세로 길이 N 따라 성장 + 항상 선형 세장비≫1)', pass: M.fin && M.sxGrow > 1.2 && M.minAspect > 4, value: `σx=[${M.sxs}] grow=${M.sxGrow}·minAspect=${M.minAspect}` },
+        ];
+      },
+    },
+
+    // ── step-0026: arc J — 동적 사슬 성장: 자유 단량체가 사슬 끝에 붙는다 ── 장면+측정만(법칙·노브 0).
+    //   0021~0025 는 *정적* 사슬(처음부터 배치). 진짜 중합은 *동적* — 떨어진 자유 단량체가 기존 사슬 *끝*에 다가와
+    //   붙어 길이가 자란다(고분자 1차 목표의 동역학). 사슬(3개) + 끝에서 떨어진 단량체 1개를 놓고 valence ON/OFF —
+    //   ON 은 b-접착제가 단량체를 끝으로 당겨 결합 거리로 수축(포획=성장), OFF 는 자유로 표류. 새 노브 0.
+    'step-0026': {
+      id: 'step-0026',
+      title: 'step-0026 — arc J: 동적 사슬 성장(자유 단량체가 끝에 붙음)',
+      did: '세 단량체 사슬 끝에서 떨어진 자유 단량체 하나를 놓고, valence 를 켜고/끈 채로 그 단량체가 사슬 끝에 붙어 자라는지 본다.',
+      observe: '전하 ON 이면 떨어져 있던 단량체가 사슬 끝으로 끌려와 결합 거리로 붙어 네 칸 사슬로 *자란다*. OFF(단일 q)면 자유롭게 떠돈다. 사슬이 *동적으로 성장*하는 중합의 한 걸음.',
+      desc: '0021~0025 는 *정적* 사슬(처음부터 배치). 진짜 중합은 *동적* — 자유 단량체가 기존 사슬 *끝*에 다가와 붙어 길이가 자란다(고분자 1차 목표의 동역학). 사슬(N=3·간격 3) + 끝에서 gap=5 떨어진 자유 단량체 1개를 valence ON(bamp=3)·OFF(bamp=0=단일 q)로 900틱(n=24). 측정(chainGrowMeasure): 끝-단량체 거리 gapLate — ON 은 b-접착제가 단량체를 끝으로 당겨 결합 거리(≈3)로 *수축=포획*(N→N+1 성장), OFF 는 자유 거리(≈5)로 표류. ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 메인 장면은 사슬+단량체 동적 결합.',
+      ticks: 900,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 24, m = Math.floor((n - 1) / 2), c0 = 4; const cor = []; for (let i = 0; i < 3; i++) cor.push([c0 + i * 3, m, m]); cor.push([c0 + 2 * 3 + 5, m, m]); return valenceLumpsSpec(0.04, 0.07, 3, 3, 2, cor, n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = chainGrowMeasure(0.04, 0.07, 3, 3, 3, 3, 5, 900, 24);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·성장 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
+          { name: '단량체 포획(ON 끝-단량체 거리 수축 → 사슬 성장)', pass: M.on.fin && M.captured, value: `gap_on=${M.on.gapLate} (init=5·결합 거리로 수축)` },
+          { name: '성장 = 결합(ON 수축 ≪ OFF 단일 q 자유 표류)', pass: M.on.fin && M.on.gapLate < M.off.gapLate - 1, value: `gap_on=${M.on.gapLate} vs gap_off=${M.off.gapLate}` },
         ];
       },
     },
