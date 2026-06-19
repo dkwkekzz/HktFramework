@@ -21,7 +21,8 @@ description: HGO flux 트랙 step 한 바퀴(읽기→장면·측정→검증→
 
 뷰어·검증기·골든은 **공용 1벌**이고 step 마다 복제하지 않는다. 한 step 이 더하는 것은 *append-only* 둘뿐(SPINE §5):
 
-1. **장면(scene)** — `engine/scenes.js` 에 이 step 의 장면 기술자 한 항(~10줄): `{ id:'step-NNNN', init(초기 q 배치), knobs(κ·θ·α 강조), watch(창발 지표), assert(가설 수치) }`. *어떤 척도/초기조건이 어떤 층을 드러내는가*의 한 실험. **이 한 항이 검증·골든 해시·시각화 셋 모두의 단일 출처다**(DRY).
+1. **장면(scene)** — `engine/scenes.js` 에 이 step 의 장면 기술자 한 항(~10줄): `{ id:'step-NNNN', title, did(한 일 1줄), observe(관찰 1줄), desc(전문 기록), init(초기 q 배치), knobs(κ·θ·α 강조), watch(창발 지표), assert(가설 수치) }`. *어떤 척도/초기조건이 어떤 층을 드러내는가*의 한 실험. **이 한 항이 검증·골든 해시·시각화 셋 모두의 단일 출처다**(DRY).
+   - **직관 설명 필수(`did`·`observe`)**: 뷰어가 `did`("한 일": 이 step 에서 무엇을 했나) 와 `observe`("관찰": 화면에서·watch 지표에서 무엇을 볼 수 있나) 를 라벨 붙여 *맨 위*에 보여준다 — 비전문가도 한눈에 따라오게 쉬운 한국어 1~2줄, 내부 약어(arc·§·ΣP 등) 지양. 기존 전문 `desc` 는 그대로 두되 뷰어의 "자세히" 토글 안으로 접힌다(전문성·친절함 둘 다 보존). 두 필드는 텍스트일 뿐 골든 해시·결정론에 무관(자유 편집·회귀 0).
 2. **창발 측정(measure)** — 그 층을 *읽는* 지표(히스토그램·도메인 수·사태 크기 분포·기울기장·상관 길이). `engine/` 의 측정 유틸에 더하거나 장면 watch/assert 안에. **author 한 라벨이 아니라 측정**(SPINE §4·§9).
 
 그 외 산출물은 `steps/step-NNNN.md`(마크다운 기록) 하나뿐. **복사되는 html·panel·verify 는 0개.**
@@ -36,7 +37,7 @@ description: HGO flux 트랙 step 한 바퀴(읽기→장면·측정→검증→
 
 ## 4. 검증 — 공용 헤드리스 + 공유 뷰어
 
-- `node engine/verify.js step-NNNN` — 공용 검증기가 그 장면으로 **4기둥**(회귀 0·닫힌 장부 Σq·결정론·창발 측정 author 0) + 장면의 **가설 assert** 를 수치 출력. 문서의 모든 수치는 이 출력 그대로. *per-step verify.js 복사 없음.*
+- `node engine/verify.js step-NNNN` — 공용 검증기가 그 장면으로 **4기둥**(회귀 0·닫힌 장부 Σq·결정론·창발 측정 author 0) + ⑤ **직관 설명 게이트**(did·observe 필수 — 없으면 FAIL) + 장면의 **가설 assert** 를 수치 출력. 문서의 모든 수치는 이 출력 그대로. *per-step verify.js 복사 없음.*
 - `node engine/validate/...`(풀 골든 런)는 오래 걸린다 — `run_in_background` 로 돌려놓고 그동안 step 문서·장면을 진행. 닫기 직전 1회 최종 PASS 확인.
 - **시각화**: 공유 `../viewer.html?track=flux` 를 열고 step 선택 → 그 장면이 결정론적으로 돌며 "여기서 무슨 층이 창발했는지"를 보여줌(결정론 + 동결 장면이라 옛 step 도 비트까지 재현). step 문서는 `../viewer.html?track=flux#step-NNNN` 로 링크만 단다.
 
@@ -45,12 +46,13 @@ description: HGO flux 트랙 step 한 바퀴(읽기→장면·측정→검증→
 - **STATE.md 전체 Write 금지** — 바뀐 절(§1 NOW·§2 NEXT·§3·§4·§7 append)만 개별 Edit.
 - 크기 예산: STATE ≤ 20KB · §1 NOW 항목당 ≤ 6줄(상세는 step 문서로) · §7 은 literal 1줄.
 - `step-NNNN.md` 예산 ≤ 14KB — 발견/한계 전문은 여기(STATE 아님). **"쉽게 풀어 쓴 설명" 절 필수**(비전문가도 따라올 수 있게·수치는 말로). `../viewer.html?track=flux#step-NNNN` 링크 포함.
+- **장면 `did`·`observe` 채우기 필수**(§2.1): step 을 닫기 전 `scenes.js` 의 이 step 항에 "한 일"(`did`)·"관찰"(`observe`) 두 줄을 적는다 — step 문서의 "쉽게 풀어 쓴 설명"을 1~2줄로 압축한 것. 뷰어를 연 사람이 코드·문서 없이 화면만 보고 "뭘 했고 뭘 보면 되는지" 알 수 있어야 한다.
 
 ## 6. 닫기 체크리스트
 
 1. 검증 4기둥(SPINE §9) 전부 통과 (`engine/verify.js step-NNNN` 출력 인용)
 2. 풀 골든 런 PASS (회귀 0 알리바이 — 규칙 고정이므로 과거 장면 비트 불변)
-3. `step-NNNN.md` "쉽게 풀어 쓴 설명" 절 + 뷰어 링크 포함·수치=verify 출력
+3. `step-NNNN.md` "쉽게 풀어 쓴 설명" 절 + 뷰어 링크 포함·수치=verify 출력 · **장면 `did`·`observe` 두 줄 채움**(뷰어 직관 설명, §2.1)
 4. STATE.md §1~5 Edit + §7 1줄 append
 5. 닫은 step 파일은 이후 불변 (장면은 `scenes.js` 에 동결로 남아 뷰어가 영구 재현)
 
