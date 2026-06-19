@@ -6,7 +6,8 @@
 
 - **step_0002 닫음** — 세계를 처음으로 *굴리는 법칙*. **확산 = 열역학 제2법칙** 구현. 중앙 핫스팟이 총량 보존하며(제1법칙) 식어 퍼져 균일 평형으로 수렴(엔트로피↑ → ln(N³)).
 - **세계 = 격자 + 장(fields) 모델로 통일** (legacy `cells` 제거): `world.fields`(이름→장 배열) + 장-단위 통일 API(`addField/get/set/total/count/max/fingerprint(name)`). 지금 장은 `energy`(연속 밀도, Float64) 하나. 원자·물질은 *사전 배열로 박지 않고*(author 안 함) 장의 동역학에서 *창발*한다.
-- **세계 ↔ 확인용 분리(단방향)**: `engine/htj-world.js`(격자+장) · `engine/htj-energy.js`(법칙 — 확산·엔트로피) · `viewer*`(확인용 — `draw` 가 `field`·`colormap` 으로 임의 장 렌더). `verify.js` 는 engine 만 의존.
+- **세계 ↔ 확인용 분리(단방향)**: `engine/htj-world.js`(격자+장) · `engine/htj-energy.js`(법칙 — 확산·엔트로피) · `viewer*`(확인용 — `draw` 가 `field`·`colormap` 으로 임의 장 렌더, `pick` 으로 클릭 픽킹). `verify.js` 는 engine 만 의존.
+- **뷰어 = step 갤러리**: 드롭다운으로 step 선택(0001 기반무대=정적 공·팔레트 / 0002 에너지흐름=클릭 주입·확산). 동역학 없는 step 은 인터랙션 컨트롤 자동 숨김. step 추가 시 `STEPS` 레지스트리에 한 항목 추가.
 
 ## §2. NEXT — 다음 할 일
 

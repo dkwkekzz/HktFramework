@@ -29,21 +29,26 @@
 <body>
 <div id="app">
   <div id="panel">
-    <h1>HTJ — 에너지 흐름</h1>
-    <p class="sub">열역학 제2법칙 = 확산 (step_0002)</p>
+    <h1 id="title">HTJ — 뷰어</h1>
+    <p class="sub" id="sub">step 선택</p>
 
+    <div class="row"><label>step</label><select id="step"></select></div>
     <div class="row"><label>N (격자)</label><input id="N" type="number" min="4" max="48" step="1" value="24" /></div>
-    <div class="row"><label>α (확산율)</label><input id="alpha" type="number" min="0" max="0.166" step="0.01" value="0.14" /></div>
-    <div class="row"><label>확산속도</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
-    <div class="row"><label>장(field)</label><select id="brushField"></select></div>
-    <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
-    <div class="row"><label>열량</label><input id="brushAmt" type="number" min="1" step="50" value="800" /></div>
-    <div class="row">
-      <button id="play" class="primary">▶ 흐름</button>
-      <button id="step">스텝</button>
-      <button id="reset">리셋(비우기)</button>
+
+    <div id="dyn">
+      <div class="row"><label>α (확산율)</label><input id="alpha" type="number" min="0" max="0.166" step="0.01" value="0.14" /></div>
+      <div class="row"><label>확산속도</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
+      <div class="row"><label>장(field)</label><select id="brushField"></select></div>
+      <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
+      <div class="row"><label>열량</label><input id="brushAmt" type="number" min="1" step="50" value="800" /></div>
+      <div class="row">
+        <button id="play" class="primary">▶ 흐름</button>
+        <button id="step-btn">스텝</button>
+      </div>
     </div>
+
     <div class="row">
+      <button id="reset">리셋</button>
       <button id="capture">📷 캡처(PNG)</button>
     </div>
 
@@ -54,8 +59,7 @@
       <div>점유 셀: <b id="s-occ">0</b> / <span id="s-cells">0</span></div>
       <div>최대 E: <b id="s-max">0</b></div>
     </div>
-    <p class="note"><b>클릭</b>=열 주입(선택한 장) · 드래그=회전 · 휠=줌 · 우드래그=이동.<br />
-      빈 상자에 클릭으로 뜨거운 열원을 두면 ▶ 흐름에서 이웃으로 확산된다. 총량은 *보존*, 엔트로피는 *증가* — 식으며 퍼져 균일(열적 죽음)로 간다. 색=밀도(청=차가움→적=뜨거움).</p>
+    <p class="note" id="note">드래그=회전 · 휠=줌 · 우드래그=이동.</p>
   </div>
   <div id="stage"><canvas id="cv"></canvas></div>
 </div>
@@ -70,6 +74,24 @@
   const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
   const cam = HTJRender.defaultCamera();
   let world = null, tick = 0, surf = 0, playing = false, mode = 'energy';
+
+  // ── step 레지스트리 — 각 step 의 장면(초기화)·렌더 모드·동역학 유무·설명 ──
+  //   드롭다운으로 선택해 step 별 세계를 본다. 동역학 없는 step 은 인터랙션 컨트롤을 숨긴다.
+  const STEPS = {
+    '0001': {
+      label: 'step_0001 — 기반 무대', title: 'HTJ — 기반 무대', sub: '격자 + 장(정적 데모 공)',
+      mode: 'cells', dynamics: false,
+      init(w) { HTJWorld.seedBall(w, { seed: 42 }); },       // 정물 공(법칙 없음)
+      note: '드래그=회전 · 휠=줌 · 우드래그=이동.<br />법칙(동역학)은 없다 — 격자와 그 관찰 가능성만 세운 무대. 가운데 정물 공을 3D voxel 로 본다.'
+    },
+    '0002': {
+      label: 'step_0002 — 에너지 흐름', title: 'HTJ — 에너지 흐름', sub: '열역학 제2법칙 = 확산',
+      mode: 'energy', dynamics: true,
+      init(w) { /* 빈(차가운) 상자 — 클릭으로 열원을 둔다 */ },
+      note: '<b>클릭</b>=열 주입(선택한 장) · 드래그=회전 · 휠=줌 · 우드래그=이동.<br />빈 상자에 클릭으로 열원을 두면 ▶ 흐름에서 확산된다. 총량 *보존*·엔트로피 *증가* → 퍼져 균일(열적 죽음). 색=평균 대비 밀도(청→적).'
+    }
+  };
+  function currentStep() { return document.getElementById('step').value || '0002'; }
 
   function resize() {
     const r = cv.parentElement.getBoundingClientRect();
@@ -96,13 +118,27 @@
     if (prev && world.fields[prev]) sel.value = prev;
   }
 
-  // 리셋 — 빈(차가운) 상자. 클릭으로 열원을 두고 ▶ 흐름으로 확산을 본다.
+  // 리셋 — 현재 step 의 장면으로 세계를 다시 만든다.
   function reset() {
+    const st = STEPS[currentStep()];
+    mode = st.mode;
     world = HTJWorld.createWorld(readN());
+    st.init(world);
     tick = 0;
     refreshFieldOptions();
     render();
     updateStats();
+  }
+
+  // step 전환 — 헤더·설명·컨트롤 가시성을 바꾸고 장면을 리셋한다.
+  function applyStep() {
+    setPlaying(false);
+    const st = STEPS[currentStep()];
+    document.getElementById('title').textContent = st.title;
+    document.getElementById('sub').textContent = st.sub + ' (step_' + currentStep() + ')';
+    document.getElementById('note').innerHTML = st.note;
+    document.getElementById('dyn').style.display = st.dynamics ? '' : 'none';
+    reset();
   }
 
   function updateStats() {
@@ -127,7 +163,9 @@
   }
 
   // 열 주입 — 클릭 지점의 셀을 픽해, 붓 반경의 구(球) 안 셀에 열량을 더한다(선택한 장).
+  //   동역학 없는 step(무대 등)에선 주입하지 않는다.
   function injectAt(sx, sy) {
+    if (!STEPS[currentStep()].dynamics) return;
     const cell = HTJRender.pick(ctx, world, cam, sx, sy);
     if (!cell) return;
     const name = brushField(), r = readBrushR(), amt = readBrushAmt();
@@ -142,8 +180,8 @@
     render(); updateStats();
   }
 
-  // 스텝 — 확산 1회(에너지가 이웃으로 흐른다). 이것이 세계를 굴리는 법칙.
-  function stepOnce() { HTJEnergy.diffuseEnergy(world, readAlpha()); tick++; render(); updateStats(); }
+  // 스텝 — 확산 1회(에너지가 이웃으로 흐른다). 이것이 세계를 굴리는 법칙. 동역학 step 에서만.
+  function stepOnce() { if (!STEPS[currentStep()].dynamics) return; HTJEnergy.diffuseEnergy(world, readAlpha()); tick++; render(); updateStats(); }
 
   // 흐름 — 확산을 연속 재생(시점 회전이 아니라 *세계의 동역학*).
   let raf = 0;
@@ -187,15 +225,25 @@
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('wheel', e => { cam.zoom = Math.max(0.2, Math.min(5, cam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); render(); e.preventDefault(); }, { passive: false });
 
+  // step 드롭다운 채우기.
+  (function () {
+    const sel = document.getElementById('step');
+    for (const key of Object.keys(STEPS)) {
+      const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
+    }
+    sel.value = '0002';                       // 기본 = 현재 step
+  })();
+
   // ── 버튼 ──
+  document.getElementById('step').onchange = applyStep;
   document.getElementById('play').onclick = () => setPlaying(!playing);
-  document.getElementById('step').onclick = stepOnce;
+  document.getElementById('step-btn').onclick = stepOnce;
   document.getElementById('reset').onclick = () => { setPlaying(false); reset(); };
   document.getElementById('N').onchange = () => { setPlaying(false); reset(); };
   document.getElementById('brushField').onchange = render;
   document.getElementById('capture').onclick = () => {
     const a = document.createElement('a');
-    a.download = 'htj-energy.png';
+    a.download = 'htj-' + currentStep() + '.png';
     a.href = cv.toDataURL('image/png');
     a.click();
   };
@@ -228,7 +276,7 @@
     render, get surf() { return surf; },
   };
 
-  reset();
+  applyStep();   // 헤더·설명·컨트롤 가시성 + 장면 초기화
   resize();
 })();
 </script>
