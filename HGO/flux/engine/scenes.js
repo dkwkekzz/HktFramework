@@ -789,6 +789,55 @@
     return { on, off, total: seedN + mons.length };
   }
 
+  // arc J 풍경 — 뜨거운 q+b 잡음(둘 다 결정론 해시·v=0). 무씨앗 자발 중합(잡음→사슬?)의 기질. rng 미사용.
+  function hotValenceSpec(kc, kb, amp, bamp, n) {
+    const cols = n || 16, rows = n || 16, depth = n || 16, W = 100, H = 100, D = 100, S = K.SCALE;
+    const atoms = []; let i = 0;
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      const h1 = (Math.imul(i + 1, 2654435761) >>> 0) / 4294967296;          // q 잡음
+      const h2 = (Math.imul((i * 7 + 3) | 0, 2246822519) >>> 0) / 4294967296; // b 잡음(다른 해시)
+      atoms.push({ rx, ry, rz, q: Math.round((1 + amp * (h1 - 0.5)) * S), b: Math.round(bamp * h2 * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+      i++;
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: kc != null ? 0.05 : 0.05, theta: 0, alpha: 2, inertial: 1, valence: 1, kc, kappaB: kb } };
+  }
+
+  // 창발 측정(arc J — 무씨앗 자발 중합 천장: null) — 뜨거운 q+b 잡음의 자발 형성 클러스터(임계 이상 연결 성분)의
+  //   *국소 이방성*(PCA 세장비, 크기 가중 평균)을 valence ON(b 잡음) vs OFF(b=0=단일 q)로 비교한다. 사슬이 *스스로*
+  //   핵형성하면 ON 이 더 이방적(사슬성)이어야 하는데 — 측정상 ON ≤ OFF(등방 퍼콜 조각만) = **자발 천장**(null 도
+  //   측정·SPINE §9). 0028(씨앗 성장)과 대비: 중합엔 *핵형성*이 필요. ΣQ·ΣB 보존도.
+  function spontaneousChainMeasure(kc, kb, amp, bamp, ticks, n, th) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, T = th || 0.6, idx = (c, r, z) => (z * n + r) * n + c, NB = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+    const aniso = sim => {
+      const seen = new Uint8Array(n * n * n); let totW = 0, sumA = 0, nC = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+        const id = idx(c, r, z); if (seen[id]) continue; if (Math.abs((sim.atoms[id].q - S) / S) < T) { seen[id] = 1; continue; }
+        const st = [[c, r, z]]; seen[id] = 1; const pts = [];
+        while (st.length) { const p = st.pop(); pts.push(p); for (const d of NB) { const c2 = (p[0] + d[0] + n) % n, r2 = (p[1] + d[1] + n) % n, z2 = (p[2] + d[2] + n) % n, id2 = idx(c2, r2, z2); if (!seen[id2] && Math.abs((sim.atoms[id2].q - S) / S) >= T) { seen[id2] = 1; st.push([c2, r2, z2]); } } }
+        if (pts.length < 4) continue;
+        let mx = 0, my = 0, mz = 0; for (const p of pts) { mx += p[0]; my += p[1]; mz += p[2]; } const N0 = pts.length; mx /= N0; my /= N0; mz /= N0;
+        let xx = 0, yy = 0, zz = 0, xy = 0, xz = 0, yz = 0; for (const p of pts) { const dx = p[0] - mx, dy = p[1] - my, dz = p[2] - mz; xx += dx * dx; yy += dy * dy; zz += dz * dz; xy += dx * dy; xz += dx * dz; yz += dy * dz; } xx /= N0; yy /= N0; zz /= N0; xy /= N0; xz /= N0; yz /= N0;
+        const M = [[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]]; let v = [1, 0.3, 0.7];
+        for (let it = 0; it < 40; it++) { const w = [M[0][0] * v[0] + M[0][1] * v[1] + M[0][2] * v[2], M[1][0] * v[0] + M[1][1] * v[1] + M[1][2] * v[2], M[2][0] * v[0] + M[2][1] * v[1] + M[2][2] * v[2]]; const nn = Math.hypot(w[0], w[1], w[2]) || 1; v = [w[0] / nn, w[1] / nn, w[2] / nn]; }
+        const lam = v[0] * (M[0][0] * v[0] + M[0][1] * v[1] + M[0][2] * v[2]) + v[1] * (M[1][0] * v[0] + M[1][1] * v[1] + M[1][2] * v[2]) + v[2] * (M[2][0] * v[0] + M[2][1] * v[1] + M[2][2] * v[2]);
+        const rest = (xx + yy + zz - lam) / 2, a = rest > 1e-6 ? Math.sqrt(lam / rest) : (lam > 1e-6 ? 5 : 1);
+        sumA += a * N0; totW += N0; nC++;
+      }
+      return { a: totW > 0 ? sumA / totW : 0, nC };
+    };
+    const run = bb => {
+      const sim = SIM.createSim(hotValenceSpec(kc, kb, amp, bb, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let as = 0, nc = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo && t % 20 === 0) { const r = aniso(sim); as += r.a; nc += r.nC; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { aniso: +(as / cnt).toFixed(3), nClust: +(nc / cnt).toFixed(1), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(bamp), off = run(0);
+    return { on, off, anisoRatio: +(on.aniso / off.aniso).toFixed(3) };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1485,6 +1534,30 @@
           { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin}` },
           { name: '템플릿 성장(ON 씨앗이 단량체 흡수 → 긴 사슬)', pass: M.on.fin && M.on.boundLen >= 4, value: `boundLen_on=${M.on.boundLen}·ncore_on=${M.on.ncore} (씨앗3+단량체3=${M.total})` },
           { name: '성장 = 결합(ON ≫ OFF 단일 q 축선 분산)', pass: M.on.fin && M.on.boundLen > M.off.boundLen + 2, value: `boundLen on=${M.on.boundLen} vs off=${M.off.boundLen}` },
+        ];
+      },
+    },
+
+    // ── step-0029: arc J — 무씨앗 자발 중합 천장(순수 잡음은 사슬을 안 낸다·null 측정) ── 장면+측정만(법칙·노브 0).
+    //   0028 은 *씨앗*이 있을 때 성장. 무씨앗(featureless q+b 잡음)에서도 사슬이 *스스로* 핵형성하나? 자발 클러스터의
+    //   국소 이방성(PCA 세장비)을 valence ON(b 잡음)·OFF(단일 q)로 재면 — ON 이 OFF 보다 *크지 않다*(등방 퍼콜 조각만)
+    //   = **자발 천장**(null 도 측정). 0028(씨앗 성장 성공)과 대비: 중합엔 *핵형성*이 필요 → 다음 확장 명령(author 0).
+    'step-0029': {
+      id: 'step-0029',
+      title: 'step-0029 — arc J: 무씨앗 자발 중합 천장(순수 잡음은 사슬을 안 냄·null)',
+      did: '씨앗 없이 뜨거운 q+b 잡음만으로 사슬이 스스로 생기는지, 자발 클러스터가 valence 로 더 길쭉(사슬성)해지는지 잰다.',
+      observe: '순수 잡음에서는 valence 를 켜도 자발 구조가 단일 q 보다 더 사슬스럽지 않다(이방성 ON ≤ OFF) — 등방 조각만 생긴다. 즉 중합엔 씨앗(핵형성)이 필요하다는 천장을 측정으로 못 박는다(0028 의 씨앗 성장과 대비).',
+      desc: '0028 은 *씨앗*(기존 사슬)이 있을 때 단량체를 흡수해 성장. 무씨앗(featureless q+b 잡음)에서도 사슬이 *스스로* 핵형성하나? 뜨거운 q+b 잡음(hotValenceSpec·결정론)을 valence 비선형 관성으로 800틱(n=16) 굴려, 자발 형성 클러스터(임계 0.6 이상 연결 성분)의 *국소 이방성*(PCA 세장비·크기 가중 평균)을 ON(b 잡음)·OFF(b=0=단일 q)로 비교(spontaneousChainMeasure). 측정: 이방성 ON ≤ OFF(anisoRatio≤1·등방 퍼콜 조각만·여러 임계서 일관) = **자발 천장**(순수 잡음은 사슬 안 냄). null 도 측정(SPINE §9·author 0) — 0028(씨앗 성공)과 대비해 *중합엔 핵형성이 필요*함을 못 박음. ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0. 메인 장면은 뜨거운 q+b 잡음.',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16; return hotValenceSpec(0.04, 0.06, 2, 3, n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = spontaneousChainMeasure(0.04, 0.06, 2, 3, 800, 16, 0.6);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·뜨거운 valence 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6 && M.on.dB < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)} |ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한·자발 클러스터 형성)', pass: M.on.fin && M.off.fin && M.on.nClust > 0 && M.off.nClust > 0, value: `nClust on=${M.on.nClust} off=${M.off.nClust}` },
+          { name: '자발 중합 천장(valence 가 더 사슬스럽지 않음 — 이방성 ON ≤ OFF·null)', pass: M.on.fin && M.anisoRatio <= 1.1, value: `aniso on=${M.on.aniso} ≤ off=${M.off.aniso} (ratio=${M.anisoRatio})` },
+          { name: '대비(씨앗 성장 0028=성공 ↔ 무씨앗=천장 → 핵형성 필요)', pass: M.on.fin, value: `순수 잡음 자발 사슬 없음(측정 null) — 중합엔 씨앗 필요` },
         ];
       },
     },
