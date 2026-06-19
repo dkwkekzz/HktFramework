@@ -53,8 +53,9 @@
   <div id="stage"><canvas id="cv"></canvas></div>
 </div>
 
+<!-- 세계(법칙)는 engine/, 그리기는 viewer/ — viewer 는 engine 을 *읽기만* 한다(단방향). -->
 <script src="engine/htj-world.js"></script>
-<script src="engine/htj-render.js"></script>
+<script src="viewer/htj-render.js"></script>
 <script>
 (function () {
   'use strict';

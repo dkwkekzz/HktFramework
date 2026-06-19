@@ -5,7 +5,7 @@
 ## §1. NOW — 지금 어디까지
 
 - **step_0001 닫음** — 기반 무대 완성. 셀로 된 N³ 3D 공간 + 결정론(지문) + 3D voxel 렌더러 + 헤드리스 캡처(눈 검증)를 세움.
-- `engine/` 3모듈(의존성 0, 브라우저·Node 공용): `htj-world.js`(격자·시드·지문) · `htj-render.js`(자작 voxel 렌더) · `capture.js`(playwright 캡처+눈검증). `viewer.html` 단일 뷰어.
+- **세계 ↔ 확인용 분리(단방향)**: `engine/htj-world.js`(세계 — 격자·시드·지문) · `viewer.html`+`viewer/`(확인용 — `htj-render.js` 자작 voxel 렌더·`capture.js` playwright 캡처+눈검증). viewer 는 engine 을 읽기만 하고, 세계는 viewer 없이도 검증됨(`verify.js` 는 engine 만 의존).
 - 아직 **법칙(동역학) 0개** — 스텝은 셀을 바꾸지 않는다(카운터만). 무대와 눈만 준비됨.
 
 ## §2. NEXT — 다음 할 일

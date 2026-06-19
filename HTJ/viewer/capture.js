@@ -4,8 +4,10 @@
 //   별도 하네스 HTML 없음 — viewer 가 노출한 window.HTJViewer 훅으로 시드·카메라를 고정해 그린다.
 //   픽셀 골든(환경마다 AA 로 깨짐)이 아니라 *상대 비교*(켜짐 픽셀 수·밝기 대비·회전 전후 차)라 환경 독립.
 //
+//   확인용(viewer) 도구다 — 세계(engine)는 이것 없이도 돌고 검증된다(verify.js). 단방향 의존.
+//
 //   실행:
-//     node engine/capture.js [outPng] [N] [seed]
+//     node viewer/capture.js [outPng] [N] [seed]
 //       기본 outPng = step_0001/capture.png · N=32 · seed=42
 //
 //   브라우저 없으면 *우아하게 skip*(exit 0) — 머신마다 안 깨지게.
