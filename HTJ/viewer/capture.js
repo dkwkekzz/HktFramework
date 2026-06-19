@@ -140,9 +140,10 @@ async function mainEnergy() {
   await page.waitForFunction('window.HTJViewer && window.HTJWorld && window.HTJEnergy && window.HTJRender');
   await page.evaluate(analyzeSrc);
 
-  // t=0: 중앙 단일 핫셀.
+  // t=0: 중앙 단일 핫셀. (render() 가 UI 색 기준에 의존하므로 *상대* 로 고정 — 기본 step 무관 재현성)
   await page.evaluate(([n]) => {
     const V = window.HTJViewer;
+    document.getElementById('colorScale').value = 'relative';
     V.setSize(700, 700);
     V.energyInit(n, { E0: 1000, half: 0 });
     V.setCamera({ yaw: 0.7, pitch: 0.55, zoom: 1.0, panX: 0, panY: 0 });
@@ -309,7 +310,72 @@ async function mainStar() {
   process.exit(ok ? 0 : 1);
 }
 
-(process.argv.includes('--star') ? mainStar()
+// ── step_0005: 지속적으로 빛나는 별(경계 복사 sink) 눈 검증 ──
+//   큰 연료 코어가 계속 점화 + 확산 + 경계 복사(우주로). 절대 색 스케일로 캡처해
+//   *중심은 꾸준히 밝고 바깥은 어둡다*(영구 그래디언트) + 에너지가 빠져나가는 걸 본다.
+//   캡처: capture.png(빛나는 별, 절대색) · capture_closed.png(복사=0 대조, 균일).
+//   실행: node viewer/capture.js --steady [N] [steps]
+async function mainSteady() {
+  const pw = loadPlaywright(), bp = browserPath();
+  const pos = process.argv.slice(2).filter(a => a !== '--steady');
+  const N = parseInt(pos[0] || '24', 10);
+  const STEPS = parseInt(pos[1] || '400', 10);
+  const RATE = 0.02, CRIT = 300, ALPHA = 1 / 7, RAD = 0.2, ABS = 4000;
+  const dir = path.resolve(__dirname, '../steps/step_0005');
+  const out = path.join(dir, 'capture.png'), outClosed = path.join(dir, 'capture_closed.png');
+
+  if (!pw || !bp) {
+    console.log(`\n캡처/눈 검증: ${!pw ? 'playwright 모듈' : 'chromium 브라우저'} 없음 — SKIP(비-치명).`);
+    process.exit(0);
+  }
+  if (!process.env.PLAYWRIGHT_BROWSERS_PATH) process.env.PLAYWRIGHT_BROWSERS_PATH = bp;
+  fs.mkdirSync(dir, { recursive: true });
+
+  const browser = await pw.chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 720, height: 720 } });
+  await page.goto(VIEWER);
+  await page.waitForFunction('window.HTJViewer && window.HTJPotential && window.HTJRadiate && window.HTJRender');
+  await page.evaluate(analyzeSrc);
+
+  // 별 + 복사(sink) — 절대 색으로 캡처.
+  const sink = await page.evaluate(([n, rate, crit, alpha, rad, steps, abs]) => {
+    const V = window.HTJViewer; V.setSize(700, 700);
+    V.starInit(n, { core: 1e7, background: 0, r: n * 0.16 });
+    V.setCamera({ yaw: 0.7, pitch: 0.55, zoom: 1.0, panX: 0, panY: 0 });
+    V.steadyRun(rate, crit, alpha, rad, steps);
+    V.drawField('energy', abs);
+    return { lit: window.__analyze().lit, radiated: V.radiated(), E: V.totalField('energy') };
+  }, [N, RATE, CRIT, ALPHA, RAD, STEPS, ABS]);
+  await page.locator('#cv').screenshot({ path: out });
+
+  // 대조: 복사=0(닫힌 상자) — 같은 절대 색.
+  const closed = await page.evaluate(([n, rate, crit, alpha, steps, abs]) => {
+    const V = window.HTJViewer;
+    V.starInit(n, { core: 1e7, background: 0, r: n * 0.16 });
+    V.steadyRun(rate, crit, alpha, 0, steps);   // rad=0
+    V.drawField('energy', abs);
+    return { lit: window.__analyze().lit, radiated: V.radiated() };
+  }, [N, RATE, CRIT, ALPHA, STEPS, ABS]);
+  await page.locator('#cv').screenshot({ path: outClosed });
+
+  await browser.close();
+
+  const checks = [
+    { name: `별이 화면에 빛난다(절대색, 점등 픽셀 존재)`, pass: sink.lit > 0, value: `lit ${sink.lit}px` },
+    { name: `sink — 에너지가 우주로 빠져나간다(radiated > 0)`, pass: sink.radiated > 0, value: `radiated ${sink.radiated.toFixed(0)}` },
+    { name: `sink 有 < 닫힌(복사0): 빛 영역이 더 작다(국소 별 vs 균일)`, pass: sink.lit < closed.lit, value: `sink ${sink.lit}px < 닫힘 ${closed.lit}px` },
+    { name: `대조 — 닫힌 상자는 복사 0(radiated=0)`, pass: closed.radiated === 0, value: `radiated ${closed.radiated}` },
+  ];
+  console.log(`\n=== 눈 검증: HTJ 빛나는 별 (N=${N}·${STEPS}스텝·복사=${RAD}·절대색=${ABS}) ===`);
+  for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+  console.log(`  스크린샷: ${path.relative(process.cwd(), out)} (빛나는 별) · ${path.relative(process.cwd(), outClosed)} (닫힌 대조)`);
+  const ok = checks.every(c => c.pass);
+  console.log(`\n결과: ${ok ? '눈 검증 PASS ✅' : 'FAIL ❌'}\n`);
+  process.exit(ok ? 0 : 1);
+}
+
+(process.argv.includes('--steady') ? mainSteady()
+  : process.argv.includes('--star') ? mainStar()
   : process.argv.includes('--potential') ? mainPotential()
   : process.argv.includes('--energy') ? mainEnergy() : main())
   .catch(e => { console.error(e); process.exit(1); });
