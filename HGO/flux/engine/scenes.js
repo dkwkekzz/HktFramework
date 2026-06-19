@@ -609,6 +609,35 @@
     return { on, off, sep0, pkRatio: +(on.pkLate / off.pkLate).toFixed(3), dDrop: +(sep0 - on.dLate).toFixed(3) };
   }
 
+  // x-축 N 등분 구획 각각의 후기 평균 peak(마디별 코어 생존 — author 0=q 함수). 사슬이 *모든 마디*를 유지하는지.
+  function segPeaksLate(sim0maker, n, ticks, nseg) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, sim = sim0maker(), w = Math.floor(n / nseg);
+    const sums = new Array(nseg).fill(0); let cnt = 0; const lo = Math.floor(ticks * 0.6);
+    for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const mx = new Array(nseg).fill(0); let i = 0;
+      for (let z = 0; z < n; z++) for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); const sg = Math.min(nseg - 1, Math.floor(c / w)); if (e > mx[sg]) mx[sg] = e; i++; }
+      for (let k = 0; k < nseg; k++) sums[k] += mx[k]; cnt++; } }
+    return { seg: sums.map(s => +(s / cnt).toFixed(4)), fin: Number.isFinite(sim.atoms[0].q) };
+  }
+  // x-축 N 등분 일렬 브리더 corners(중앙 정렬·간격 sp).
+  function lineCorners(N, sp, n) { const m = Math.floor((n - 1) / 2), span = (N - 1) * sp, c0 = Math.floor((n - span) / 2) - 1, a = []; for (let i = 0; i < N; i++) a.push([c0 + i * sp, m, m]); return a; }
+
+  // 창발 측정(arc J — 사슬=고분자 씨앗) — valence 전하 bamp 가 N 브리더 *일렬*을 선형 사슬로 묶어 *모든 마디*를
+  //   유지하는지 읽는다(nseg 구획별 후기 peak). 전하 ON(bamp>0)은 b-접착제가 사슬을 결속해 마디마다 코어 생존,
+  //   OFF(bamp=0=단일 q)는 0015 처럼 분산(약함). 최소 마디 peak ON ≫ OFF = 사슬 결합. ΣQ·ΣB 비트 보존.
+  function valenceChainMeasure(kc, kb, amp, bamp, N, sp, ticks, n) {
+    const corners = lineCorners(N, sp, n);
+    const mk = bb => () => { const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim; return SIM.createSim(valenceLumpsSpec(kc, kb, amp, bb, 2, corners, n)); };
+    const on = segPeaksLate(mk(bamp), n, ticks, N), off = segPeaksLate(mk(0), n, ticks, N);
+    const minOn = Math.min.apply(null, on.seg), minOff = Math.min.apply(null, off.seg);
+    // ΣB 보존 확인(별도 짧은 런)
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim, S = K.SCALE;
+    const cs = SIM.createSim(valenceLumpsSpec(kc, kb, amp, bamp, 2, corners, n)); const b0 = sumB(cs), q0 = sumQv(cs);
+    for (let t = 0; t < ticks; t++) SIM.step(cs);
+    const fin = Number.isFinite(cs.atoms[0].q);
+    return { on: on.seg, off: off.seg, minOn: +minOn.toFixed(4), minOff: +minOff.toFixed(4), ratio: +(minOn / minOff).toFixed(3), fin, dQ: fin ? Math.abs(sumQv(cs) - q0) / S : NaN, dB: fin ? Math.abs(sumB(cs) - b0) / S : NaN };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1135,6 +1164,30 @@
           { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
           { name: '결합 포획(채널 ON 두 브리더 거리 d* 로 수렴·고정 ≪ 초기)', pass: M.on.fin && M.on.dLate <= 2.5, value: `init sep=3 → d_late=${M.on.dLate} (d*≈2)` },
           { name: '결합 = peak 유지(ON ≫ OFF — OFF 는 0019 천장 분산)', pass: M.on.fin && M.pkRatio > 1.3, value: `peak_on=${M.on.pkLate} vs peak_off=${M.off.pkLate} (ratio=${M.pkRatio})` },
+        ];
+      },
+    },
+
+    // ── step-0022: arc J — 사슬(고분자 씨앗): valence 가 N 브리더 일렬을 선형 사슬로 묶어 모든 마디 유지 ── 장면+측정만.
+    //   0021 은 *둘*의 결합. 1차 목표는 *사슬*(고분자). 세 브리더를 일렬로 놓고 valence 전하 ON(bamp>0)/OFF(bamp=0=
+    //   단일 q)로 돌리면 — ON 은 b-접착제가 셋을 결속해 *모든 마디*가 코어를 유지(선형 사슬), OFF 는 0015 처럼 분산.
+    //   최소 마디 peak ON ≫ OFF = 사슬이 결합으로 유지됨. 새 법칙·새 노브 0(0021 의 valence 재사용).
+    'step-0022': {
+      id: 'step-0022',
+      title: 'step-0022 — arc J: 사슬(고분자 씨앗) — valence 가 세 브리더를 선형 사슬로 묶음',
+      did: '세 브리더를 일렬로 놓고 valence 결합 전하를 켜고(bamp=3)/끈(bamp=0) 채로 돌려, 사슬의 세 마디가 다 유지되는지 본다.',
+      observe: '전하 ON 이면 b-접착제가 셋을 결속해 세 마디 봉우리가 다 살아 선형 사슬을 이룬다. OFF(단일 q)면 0015 처럼 흩어져 약해진다. 가장 약한 마디조차 ON 이 OFF 보다 훨씬 높다 = 사슬이 결합으로 버틴다.',
+      desc: '0021 은 *둘*의 결합을 봤다. 1차 목표는 *사슬*(고분자). 세 브리더를 x-축 일렬(간격 4)로 놓고 valence 전하 ON(bamp=3)·OFF(bamp=0=단일 q)로 800틱. 측정(valenceChainMeasure): x 를 3 구획으로 갈라 마디별 후기 peak — ON 은 b-접착제가 셋을 결속해 *모든 마디*가 코어 유지(선형 사슬), OFF 는 0015 처럼 분산(약함). 최소 마디 peak ON ≫ OFF 면 사슬이 *결합으로* 버티는 것(독립 핀닝 아님). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 재사용·author 0). 고분자(SPINE §5·arc I/J)의 *결합된* 씨앗 — 0015 의 핀닝 일렬을 결합으로 격상.',
+      ticks: 800,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, lineCorners(3, 4, n), n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = valenceChainMeasure(0.04, 0.05, 3, 3, 3, 4, 800, 16);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·사슬 경로 비트)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `|ΔΣq|=${M.dQ.toExponential(2)} |ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.fin, value: `finite=${M.fin}` },
+          { name: '세 마디 다 생존(ON 최소 마디 peak 높음 — 선형 사슬)', pass: M.fin && M.minOn > 1.4, value: `seg_on=[${M.on}] min=${M.minOn}` },
+          { name: '사슬 = 결합(ON 최소 마디 ≫ OFF 단일 q 분산)', pass: M.fin && M.ratio > 1.3, value: `min_on=${M.minOn} vs min_off=${M.minOff} (ratio=${M.ratio})` },
         ];
       },
     },
