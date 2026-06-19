@@ -664,6 +664,28 @@
     return { on, off };
   }
 
+  // 창발 측정(arc J — 결합 거리는 장 성질) — 두 브리더 후기 결합 거리 d(sep0) 와 *포획 반경*(묶이는 최대 초기
+  //   간격: dLate ≤ sep0−0.5 = 수축=결합)을 κb(b 사거리) 별로 잰다. κb 큰 쪽이 더 먼 간격도 포획(장거리 접착제)
+  //   = 결합이 *author 상수가 아니라 둘째 채널 장의 함수*임을 못 박는다(author 0). ΣQ·ΣB 보존도.
+  function captureRadiusMeasure(kc, bamp, kbList, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor((n - 1) / 2);
+    const dLate = (kb, sep) => {
+      const c0 = m - Math.ceil(sep / 2), c1 = c0 + sep;
+      const sim = SIM.createSim(valenceLumpsSpec(kc, kb, 3, bamp, 2, [[c0, m, m], [c1, m, m]], n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let s = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { s += twoPeakDist(sim).d; cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { d: +(s / cnt).toFixed(2), fin, dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN };
+    };
+    const res = kbList.map(kb => {
+      let R = 1, fin = true, dQ = 0, dB = 0;
+      for (const sep of [2, 3, 4, 5, 6]) { const r = dLate(kb, sep); if (!r.fin) { fin = false; continue; } dQ = Math.max(dQ, r.dQ); dB = Math.max(dB, r.dB); if (r.d <= sep - 0.5) R = sep; }
+      return { kb, R, fin, dQ, dB };
+    });
+    return { res, Rs: res.map(r => r.R), fin: res.every(r => r.fin), dQ: Math.max.apply(null, res.map(r => r.dQ)), dB: Math.max.apply(null, res.map(r => r.dB)) };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1239,6 +1261,30 @@
           { name: '사슬은 선형(세장비 ≫ 1 — 덩어리 아님)', pass: M.on.fin && M.on.aspect > 3, value: `aspect_on=${M.on.aspect} (가로폭=${M.on.tw}셀)` },
           { name: '단일파일(가로 폭 ≈ 1셀)', pass: M.on.fin && M.on.tw < 1.2, value: `tw_on=${M.on.tw} 셀` },
           { name: 'valence 가 더 선형·얇음(ON > OFF 단일 q)', pass: M.on.fin && M.on.aspect > M.off.aspect && M.on.tw < M.off.tw, value: `aspect on=${M.on.aspect} > off=${M.off.aspect}·tw on=${M.on.tw} < off=${M.off.tw}` },
+        ];
+      },
+    },
+
+    // ── step-0024: arc J — 결합 거리는 장(field)의 성질: 포획 반경 ∝ κb ── 장면+측정만(법칙·노브 0).
+    //   0021~0023 의 결합이 *진짜 물리적 우물*이면 capture 반경(어느 초기 간격까지 묶이나)이 *둘째 채널 b 의
+    //   사거리 κb 의 함수*여야 한다(author 상수가 아니라 측정이 정함). 두 브리더 간격 스윕 × κb 스윕 — κb 큰 쪽이
+    //   더 먼 간격도 포획(장거리 b-접착제). 결합의 *장 정체*를 못 박는다(author 0 — κb 가 d* 와 반경을 정함).
+    'step-0024': {
+      id: 'step-0024',
+      title: 'step-0024 — arc J: 결합 거리는 장의 성질(포획 반경 ∝ κb)',
+      did: 'b-접착제의 사거리 κb 를 바꿔 가며, 두 브리더가 떨어져 있어도 끌려와 묶이는 최대 거리(포획 반경)를 잰다.',
+      observe: 'b 의 사거리가 길수록 더 멀리 떨어진 두 브리더도 끌려와 묶인다(포획 반경 3→5→6). 결합 거리는 author 한 상수가 아니라 둘째 채널 장이 정하는 물리량임이 측정으로 드러난다.',
+      desc: '0021~0023 의 결합이 *진짜 물리적 우물*이면 포획 반경(묶이는 최대 초기 간격)이 *둘째 채널 b 의 사거리 κb 의 함수*여야 한다(author 상수 아님). 두 브리더 간격 sep=2..6 × κb=[0.05,0.07,0.09] 스윕(n=20·700틱) — 후기 결합 거리 dLate ≤ sep−0.5(수축=결합)이면 포획. κb↑ → 포획 반경 R=3→5→6 단조↑(장거리 b-접착제). 결합 거리·반경이 *측정으로* κb 에 매여 있음 = 결합의 장(field) 정체(author 0·SPINE §4·§9). ΣQ·ΣB 비트 보존. 새 법칙·새 노브 0(0021 valence 의 κb 재사용). 메인 장면은 κb=0.09 두 브리더(먼 간격 5 포획).',
+      ticks: 700,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 20, m = Math.floor((n - 1) / 2); return valenceLumpsSpec(0.04, 0.09, 3, 3, 2, [[m - 3, m, m], [m + 2, m, m]], n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = captureRadiusMeasure(0.04, 3, [0.05, 0.07, 0.09], 700, 20);
+        return [
+          { name: 'ΣQ·ΣB 보존(닫힌 장부·모든 κb 경로 비트)', pass: M.fin && M.dQ < 1e-6 && M.dB < 1e-6, value: `max|ΔΣq|=${M.dQ.toExponential(2)} max|ΔΣb|=${M.dB.toExponential(2)}` },
+          { name: '안정(모든 κb·간격 유한)', pass: M.fin, value: `finite=${M.fin}` },
+          { name: '결합 존재(가까운 간격 포획 — R ≥ 3)', pass: M.fin && M.Rs[0] >= 3, value: `R(κb=0.05)=${M.Rs[0]}` },
+          { name: '포획 반경 ∝ κb(장거리 접착 — 단조↑, author 상수 아님)', pass: M.fin && M.Rs[2] > M.Rs[0] && M.Rs[1] >= M.Rs[0] && M.Rs[2] >= M.Rs[1], value: `R=[${M.Rs}] (κb=[0.05,0.07,0.09])` },
         ];
       },
     },
