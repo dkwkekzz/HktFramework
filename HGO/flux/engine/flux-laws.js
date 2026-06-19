@@ -31,6 +31,7 @@
   //   delta 는 정수만 담는다(Float64 지만 값은 정수 — 2⁵³ 내 +,− 비트 정확). κ·θ 는 노브(인간 단위)에서 fixed 로 환산.
   //   둘째 보존 채널 p 가 opt-in(knobs.gamma) 이면 결합 경로로 — gamma 없으면 아래 원래 경로 *그대로*(회귀 0, SKILL §3).
   function apply(sim) {
+    if (sim.knobs.valence) return applyValence(sim); // arc J(다발): 둘째 보존 채널 b=원자가. valence 미설정 장면은 비트 불변(회귀 0).
     if (sim.knobs.inertial) return applyInertial(sim); // arc F: 관성 적분(파동). inertial 미설정 장면은 비트 불변(회귀 0).
     if (sim.knobs.gamma) return applyCoupled(sim);   // arc E: p 채널·κ 변조(촉매). gamma 미설정 장면은 비트 불변.
     const kn = sim.knobs, SCALE = K.SCALE;
@@ -119,5 +120,43 @@
     sim.fluxLast = flux;
   }
 
-  return { rule, apply };
+  // arc J(다발) — 둘째 보존 채널 b = *원자가*(opt-in, knobs.valence 일 때만). 단일 q 천장(0019·0020: 등방·비포화
+  //   →덩어리)을 SPINE §5 처방대로 *측정이 명령한* 다성분 보존 다발로 돌파한다. 새 *법칙* 아님 — 같은 rule() 을
+  //   q·b 두 채널에 각각 적용 + 둘 사이 **교차-인력**(cross-attraction): q 는 높은 b 로, b 는 높은 q 로 흐른다
+  //   (서로 끌어당겨 *겹치는 곳*에 갇힘). 두 q-브리더가 각자 b-구름을 파고, 그 구름이 겹쳐 둘을 *고정 간격*으로
+  //   묶는다(인력 우물). b 총량이 유한 → 결합에 소진되어 *포화*(정해진 개수만 결합) = 원자가. 두 교차 플럭스 모두
+  //   간선 반대칭(−Fc/+Fc) → ΣQ·ΣB 비트 보존. q 는 관성(브리더 유지)·b 는 과감쇠(정적 결합 풀 = 안정).
+  //   정수 전용(floor) — 결정론. ⚠ kc 가 크면 발산 — 안정역은 장면 책임(작은 kc·κb).
+  function applyValence(sim) {
+    const kn = sim.knobs, SCALE = K.SCALE;
+    const kappaFix = Math.round(kn.kappa * SCALE);
+    const thetaFix = Math.round((kn.theta || 0) * SCALE);
+    const alpha = Math.max(1, Math.round(kn.alpha || 1));
+    const kbFix = Math.round((kn.kappaB != null ? kn.kappaB : kn.kappa) * SCALE); // b 자기 확산률
+    const kcFix = Math.round(kn.kc * SCALE);                                       // 교차-인력(결합) 세기
+    if (!kappaFix) return;
+    const a = sim.atoms, edges = sim.edges;
+    const G = sim._delta || (sim._delta = new Float64Array(a.length));    // q 알짜 힘(관성)
+    const dB = sim._deltaB || (sim._deltaB = new Float64Array(a.length));  // b 델타(과감쇠)
+    G.fill(0); dB.fill(0);
+    let flux = 0;
+    for (let e = 0; e < edges.length; e++) {
+      const i = edges[e][0], j = edges[e][1];
+      const dq = a[i].q - a[j].q, dbq = (a[i].b || 0) - (a[j].b || 0);
+      // q: 자기 상호작용(브리더, rule) + 교차-인력(q 를 높은 b 쪽으로 — b_j−b_i = −dbq)
+      let Fq = rule(dq, kappaFix, thetaFix, alpha, SCALE) + Math.floor(kcFix * (-dbq) / SCALE);
+      if (Fq !== 0) { G[i] -= Fq; G[j] += Fq; flux += Fq < 0 ? -Fq : Fq; }
+      // b: 자기 확산(rule, θ=0·α=1) + 교차-인력(b 를 높은 q 쪽으로 — q_j−q_i = −dq)
+      const Fb = rule(dbq, kbFix, 0, 1, SCALE) + Math.floor(kcFix * (-dq) / SCALE);
+      if (Fb !== 0) { dB[i] -= Fb; dB[j] += Fb; }
+    }
+    for (let k = 0; k < a.length; k++) {
+      let v = (a[k].v || 0) + G[k]; a[k].v = v; a[k].q += v;   // q 관성 적분(파동·브리더)
+      a[k].b = (a[k].b || 0) + dB[k];                          // b 과감쇠 적분(정적 결합 풀)
+      a[k].x = a[k].q / SCALE;
+    }
+    sim.fluxLast = flux;
+  }
+
+  return { rule, apply, applyValence };
 });

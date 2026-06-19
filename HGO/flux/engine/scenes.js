@@ -555,6 +555,60 @@
     return { non, lin, drift: +(Math.abs(non.Plate - non.Pmid) / non.Pmid).toFixed(3), N: (n || 12) ** 3 };
   }
 
+  // ══ arc J(다발) 공용 — 둘째 보존 채널 b=원자가(SPINE §5 다성분 확장) ══════════════════════════════
+  //   단일 q 천장(0019·0020)을 측정이 명령한 다발로 돌파. 셀에 b(결합 전하) 추가 + knobs.valence opt-in
+  //   (회귀 0: 기존 20 장면은 valence 미설정 → applyValence 미진입·비트 불변). q 는 관성 브리더(α>1),
+  //   b 는 과감쇠 접착제, 둘 사이 교차-인력(flux-laws.applyValence)이 *고정 간격 결합*과 *포화*를 낸다.
+
+  // 풍경 — 2³ 블록 브리더들(corners=[c,r,z] 좌하단) + 각 블록에 b 전하 bamp. blockLumpsSpec(단일 q)에 b 채널·
+  //   valence 노브를 더한 다발판(DRY). q=1+amp, b=bamp(유한 결합 용량=원자가). 새 법칙 0(같은 rule()·교차항).
+  function valenceLumpsSpec(kc, kb, amp, bamp, alpha, corners, n) {
+    const cols = n || 16, rows = n || 16, depth = n || 16, W = 100, H = 100, D = 100, S = K.SCALE;
+    const inB = (c, r, z, b) => (c === b[0] || c === b[0] + 1) && (r === b[1] || r === b[1] + 1) && (z === b[2] || z === b[2] + 1);
+    const atoms = [];
+    for (let z = 0; z < depth; z++) for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rx = (c + 0.5) / cols * W, ry = (r + 0.5) / rows * H, rz = (z + 0.5) / depth * D - D / 2;
+      let blob = 0; for (const b of corners) if (inB(c, r, z, b)) { blob = 1; break; }
+      atoms.push({ rx, ry, rz, q: Math.round((1 + blob * amp) * S), b: Math.round(blob * bamp * S), x: 1, Z: 1, N: 0, e: 1, vx: 0, vy: 0, v: 0 });
+    }
+    return { cols, rows, depth, W, H, D, atoms, knobs: { kappa: 0.05, theta: 0, alpha, inertial: 1, valence: 1, kc, kappaB: kb } };
+  }
+
+  // x-축 프로파일(열별 최대 |들뜸|) — 브리더 위치·결합 거리를 읽는 공용 렌즈(author 0=q 함수).
+  function xProfile(sim) {
+    const N = sim.cols, S = K.SCALE, p = new Array(N).fill(0); let i = 0;
+    for (let z = 0; z < N; z++) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const e = Math.abs((sim.atoms[i].q - S) / S); if (e > p[c]) p[c] = e; i++; }
+    return p;
+  }
+  // 두 지배 봉우리의 토러스 x-거리(d≥2 분리 요구 → 한 코어를 두 번 세지 않음) + 두 peak 값.
+  function twoPeakDist(sim) {
+    const N = sim.cols, p = xProfile(sim);
+    let c1 = 0; for (let c = 0; c < N; c++) if (p[c] > p[c1]) c1 = c;
+    let c2 = -1; for (let c = 0; c < N; c++) { const d = Math.min((c - c1 + N) % N, (c1 - c + N) % N); if (d >= 2 && (c2 < 0 || p[c] > p[c2])) c2 = c; }
+    const d = c2 < 0 ? 0 : Math.min((c2 - c1 + N) % N, (c1 - c2 + N) % N);
+    return { d, p1: p[c1], p2: c2 < 0 ? 0 : p[c2] };
+  }
+  function sumQv(sim) { const S = K.SCALE; let s = 0; for (const a of sim.atoms) s += a.q; return s; }
+  function sumB(sim) { let s = 0; for (const a of sim.atoms) s += (a.b || 0); return s; }
+
+  // 창발 측정(arc J — 결합) — valence 채널이 두 브리더를 *고정 결합 거리 d\*로 포획*하는지 읽는다. 같은 IC(간격
+  //   sep0)를 채널 ON(kc>0)·OFF(kc=0)로 돌려, 후기 두-봉우리 거리·지속 peak 를 비교한다. ON 은 인력 우물이
+  //   둘을 d* 로 끌어 안정 고정(peak 유지)·OFF 는 0019 천장(분산·간격 무관). ΣQ·ΣB 비트 보존도.
+  function valenceBindMeasure(kc, kb, amp, bamp, sep0, ticks, n) {
+    const SIM = (typeof require !== 'undefined') ? require('./flux-sim.js') : globalThis.HGO.sim;
+    const S = K.SCALE, m = Math.floor(((n || 16) - 1) / 2), c0 = m - Math.ceil(sep0 / 2), c1 = c0 + sep0;
+    const corners = [[c0, m, m], [c1, m, m]];
+    const run = useKc => {
+      const sim = SIM.createSim(valenceLumpsSpec(useKc, kb, amp, bamp, 2, corners, n));
+      const q0 = sumQv(sim), b0 = sumB(sim); let ds = 0, ps = 0, cnt = 0; const lo = Math.floor(ticks * 0.6);
+      for (let t = 0; t < ticks; t++) { SIM.step(sim); if (t >= lo) { const w = twoPeakDist(sim); ds += w.d; ps += Math.min(w.p1, w.p2); cnt++; } }
+      const fin = Number.isFinite(sim.atoms[0].q);
+      return { dLate: +(ds / cnt).toFixed(3), pkLate: +(ps / cnt).toFixed(4), dQ: fin ? Math.abs(sumQv(sim) - q0) / S : NaN, dB: fin ? Math.abs(sumB(sim) - b0) / S : NaN, fin };
+    };
+    const on = run(kc), off = run(0);
+    return { on, off, sep0, pkRatio: +(on.pkLate / off.pkLate).toFixed(3), dDrop: +(sep0 - on.dLate).toFixed(3) };
+  }
+
   const SCENES = {
     // ── step-0001: 기질 + 단일 규칙 + 닫힌 장부 ── θ=0(문턱 없음) → 규칙은 순수 선형 확산.
     //   3D 격자: 중앙 블롭(고 q) + 배경(저 q) → 규칙이 기울기를 6-이웃으로 평형화한다. Σq 불변·spread 단조 감소가 가설.
@@ -1055,6 +1109,32 @@
           { name: '개체수 안정(P 후기≈중기 — 한 덩어리로 안 붕괴·안 퍼짐)', pass: P.non.fin && P.drift < 0.15, value: `P_mid=${P.non.Pmid} → P_late=${P.non.Plate} (drift=${P.drift})` },
           { name: '국소 다체(비선형 P < 선형 — 잡음보다 응결)', pass: P.non.fin && P.non.Plate < P.lin.Plate, value: `P_non=${P.non.Plate} < P_lin=${P.lin.Plate}` },
           { name: '여럿(원자 기체·한 덩어리 아님 P≫1)', pass: P.non.fin && P.non.Plate > P.N / 100, value: `P_non=${P.non.Plate} ≫ 1 (N/100=${(P.N / 100).toFixed(0)})` },
+        ];
+      },
+    },
+
+    // ── step-0021: arc J 부트스트랩 — 둘째 보존 채널 b=원자가 → 고정 간격 결합(단일 q 천장 돌파) ── 규칙 정련(opt-in).
+    //   단일 q 는 두 브리더를 못 묶었다(0019 천장·등방·비포화→덩어리). SPINE §5 처방대로 *측정이 명령한* 다성분
+    //   보존 다발을 도입: 둘째 보존량 b 가 교차-인력(q↔b)으로 *고정 간격 결합 우물*을 판다. 같은 IC 를 채널
+    //   ON(kc>0)·OFF(kc=0)로 돌리면 — ON 은 두 브리더를 결합 거리 d* 로 끌어 안정 고정(peak 유지)·OFF 는 0019 분산.
+    //   새 *법칙* 0(같은 rule() 을 q·b 에 + 교차항·SPINE §1·§3). 회귀 0: valence 미설정 과거 20 장면 비트 불변.
+    'step-0021': {
+      id: 'step-0021',
+      title: 'step-0021 — arc J: 둘째 보존 채널 b=원자가로 고정 간격 결합',
+      did: '단일 q 가 못 한 결합을 위해, 측정이 명령한 둘째 보존량 b(결합 전하)를 켠다. 두 브리더 + 각자의 b 전하를 가까이 놓고 채널 ON/OFF 로 비교한다.',
+      observe: '채널 ON 이면 두 브리더가 b-접착제로 서로 끌려 고정 거리 d*≈2 로 묶이고 봉우리를 유지한다(결합). OFF(kc=0)면 0019 처럼 흩어진다. 둘째 양 b 도 q 처럼 비트 보존된다.',
+      desc: '단일 q 의 결합 천장(0019: 두 브리더 간격 의존 약함·고정 결합 없음·SPINE §5 blob)을 *측정이 명령한* 다성분 보존 다발로 돌파한다. 셀에 둘째 보존량 b(결합 전하=원자가)를 더하고(opt-in knobs.valence), 같은 rule() 을 q·b 에 각각 적용 + 둘 사이 교차-인력(q 는 높은 b 로·b 는 높은 q 로 — flux-laws.applyValence). 두 q-브리더가 각자 b-우물을 파고 그 우물이 서로 끌려 둘을 *고정 간격 d\**로 묶는다(인력 우물=결합). 측정: 같은 IC(간격 3)를 채널 ON(kc=0.04)·OFF(kc=0)로 600틱 — ON 은 후기 두-봉우리 거리 d* 로 수렴·지속 peak ON≫OFF, OFF 는 0019 천장(분산·peak 낮음). ΣQ·ΣB 둘 다 비트 보존(반대칭). 새 *법칙* 0(SPINE §1·§3)·정수 결정론·회귀 0(opt-in 게이트). arc J(다발) 첫 step — atom 트랙 전하/핵자/전자 다발과 수렴.',
+      ticks: 600,
+      init(rng, K, opts) { const n = (opts && opts.scale) || 16, m = 7; return valenceLumpsSpec(0.04, 0.05, 3, 3, 2, [[m - 2, m, m], [m + 2, m, m]], n); },
+      watch(sim) { return Object.assign(measure(sim), { sumB: +(sumB(sim) / K.SCALE).toFixed(6) }); },
+      assert(w0, w1) {
+        const M = valenceBindMeasure(0.04, 0.05, 3, 3, 3, 600, 16);
+        return [
+          { name: 'ΣQ 보존(닫힌 장부·valence 경로 비트)', pass: M.on.fin && M.on.dQ < 1e-6, value: `|ΔΣq|=${M.on.dQ.toExponential(2)}` },
+          { name: 'ΣB 보존(둘째 보존 채널 비트)', pass: M.on.fin && M.on.dB < 1e-6, value: `|ΔΣb|=${M.on.dB.toExponential(2)}` },
+          { name: '안정(발산 없이 유한)', pass: M.on.fin && M.off.fin, value: `finite on=${M.on.fin} off=${M.off.fin}` },
+          { name: '결합 포획(채널 ON 두 브리더 거리 d* 로 수렴·고정 ≪ 초기)', pass: M.on.fin && M.on.dLate <= 2.5, value: `init sep=3 → d_late=${M.on.dLate} (d*≈2)` },
+          { name: '결합 = peak 유지(ON ≫ OFF — OFF 는 0019 천장 분산)', pass: M.on.fin && M.pkRatio > 1.3, value: `peak_on=${M.on.pkLate} vs peak_off=${M.off.pkLate} (ratio=${M.pkRatio})` },
         ];
       },
     },
