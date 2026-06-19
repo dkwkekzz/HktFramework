@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HTJ Viewer — 기반 무대</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0a0c10; color: #c8d0dc; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #app { display: flex; height: 100%; }
+  #panel { width: 240px; flex: none; padding: 14px; border-right: 1px solid #1c2230; overflow: auto; }
+  #stage { flex: 1; position: relative; min-width: 0; }
+  #cv { display: block; width: 100%; height: 100%; }
+  h1 { font-size: 14px; margin: 0 0 2px; color: #e6ecf5; }
+  .sub { color: #6b778a; margin: 0 0 14px; font-size: 11px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .row label { width: 64px; color: #8a96a8; }
+  button { background: #18202e; color: #c8d0dc; border: 1px solid #2a3344; border-radius: 5px; padding: 6px 10px; cursor: pointer; font: inherit; }
+  button:hover { background: #212c3e; }
+  button.primary { background: #1f3a5c; border-color: #2f5688; }
+  input[type=number] { width: 64px; background: #11151d; color: #c8d0dc; border: 1px solid #2a3344; border-radius: 4px; padding: 4px 6px; font: inherit; }
+  .stat { color: #8a96a8; font-size: 11px; margin-top: 12px; border-top: 1px solid #1c2230; padding-top: 10px; }
+  .stat b { color: #c8d0dc; font-weight: 600; }
+  .note { color: #5b6678; font-size: 10px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="panel">
+    <h1>HTJ — 기반 무대</h1>
+    <p class="sub">셀로 구성된 3D 공간 (step_0001)</p>
+
+    <div class="row"><label>N (격자)</label><input id="N" type="number" min="4" max="64" step="2" value="32" /></div>
+    <div class="row"><label>seed</label><input id="seed" type="number" value="42" /></div>
+    <div class="row">
+      <button id="play" class="primary">▶ 회전</button>
+      <button id="step">스텝</button>
+      <button id="reset">리셋</button>
+    </div>
+    <div class="row">
+      <button id="capture">📷 캡처(PNG)</button>
+    </div>
+
+    <div class="stat">
+      <div>tick: <b id="s-tick">0</b></div>
+      <div>점유 셀: <b id="s-cells">0</b> / <span id="s-total">0</span></div>
+      <div>표면 셀: <b id="s-surf">0</b></div>
+      <div>지문: <b id="s-fp">—</b></div>
+    </div>
+    <p class="note">드래그=회전 · 휠=줌 · 우클릭 드래그=이동.<br />아직 법칙(동역학)은 없다 — 이 step 은 공간과 그 관찰 가능성을 세운다.</p>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas></div>
+</div>
+
+<!-- 세계(법칙)는 engine/, 그리기는 viewer/ — viewer 는 engine 을 *읽기만* 한다(단방향). -->
+<script src="engine/htj-world.js"></script>
+<script src="viewer/htj-render.js"></script>
+<script>
+(function () {
+  'use strict';
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const cam = HTJRender.defaultCamera();
+  let world = null, tick = 0, surf = 0, playing = false;
+
+  function resize() {
+    const r = cv.parentElement.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.max(2, (r.width * dpr) | 0);
+    cv.height = Math.max(2, (r.height * dpr) | 0);
+    render();
+  }
+
+  function reseed() {
+    const N = Math.max(4, Math.min(64, parseInt(document.getElementById('N').value, 10) || 32));
+    const seed = (parseInt(document.getElementById('seed').value, 10) || 0) >>> 0;
+    world = HTJWorld.createWorld(N);
+    HTJWorld.seedBall(world, { seed });
+    tick = 0;
+    render();
+    updateStats();
+  }
+
+  function updateStats() {
+    document.getElementById('s-tick').textContent = tick;
+    document.getElementById('s-cells').textContent = world.count();
+    document.getElementById('s-total').textContent = world.cells.length;
+    document.getElementById('s-surf').textContent = surf;
+    document.getElementById('s-fp').textContent = '0x' + world.fingerprint().toString(16).padStart(8, '0');
+  }
+
+  function render() { if (world) surf = HTJRender.draw(ctx, world, cam); }
+
+  // 스텝 — 아직 법칙이 없으므로 셀은 불변(카운터만 증가). 미래 step 이 여기서 세계를 굴린다.
+  function stepOnce() { tick++; updateStats(); }
+
+  // 회전(관찰 보조) — 자동 yaw 회전. 동역학이 아니라 시점 애니메이션임을 분명히 한다.
+  let raf = 0, last = 0;
+  function loop(t) {
+    if (!playing) return;
+    if (last) cam.yaw += (t - last) * 0.0004;
+    last = t;
+    render();
+    raf = requestAnimationFrame(loop);
+  }
+  function setPlaying(on) {
+    playing = on; last = 0;
+    document.getElementById('play').textContent = on ? '⏸ 멈춤' : '▶ 회전';
+    if (on) raf = requestAnimationFrame(loop); else cancelAnimationFrame(raf);
+  }
+
+  // ── 오빗 컨트롤 ──
+  let drag = null;
+  cv.addEventListener('mousedown', e => { drag = { x: e.clientX, y: e.clientY, b: e.button }; e.preventDefault(); });
+  window.addEventListener('mouseup', () => drag = null);
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.b === 2) { cam.panX += dx; cam.panY += dy; }
+    else { cam.yaw += dx * 0.01; cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch + dy * 0.01)); }
+    render();
+  });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('wheel', e => { cam.zoom = Math.max(0.2, Math.min(5, cam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); render(); e.preventDefault(); }, { passive: false });
+
+  // ── 버튼 ──
+  document.getElementById('play').onclick = () => setPlaying(!playing);
+  document.getElementById('step').onclick = stepOnce;
+  document.getElementById('reset').onclick = () => { setPlaying(false); reseed(); };
+  document.getElementById('N').onchange = reseed;
+  document.getElementById('seed').onchange = reseed;
+  document.getElementById('capture').onclick = () => {
+    const a = document.createElement('a');
+    a.download = 'htj-capture.png';
+    a.href = cv.toDataURL('image/png');
+    a.click();
+  };
+
+  window.addEventListener('resize', resize);
+
+  // 헤드리스 캡처/검증용 전역 훅 — capture.js 가 이 핸들로 카메라·시드를 고정하고 그린다.
+  window.HTJViewer = {
+    get world() { return world; }, cam,
+    setSize(w, h) { cv.width = w; cv.height = h; },
+    reseed(N, seed) {
+      world = HTJWorld.createWorld(N | 0);
+      HTJWorld.seedBall(world, { seed: (seed >>> 0) });
+      tick = 0; surf = 0;
+    },
+    setCamera(c) { Object.assign(cam, c); },
+    render, get surf() { return surf; },
+  };
+
+  reseed();
+  resize();
+})();
+</script>
+</body>
+</html>
