@@ -50,6 +50,7 @@ function run(opts) {
   const ranking = map.get('ranking') || null;
   const ranking2 = map.get('ranking2') || null;   // 대체 소비자(step-0061·spawnReplace) — standby. spawnReplace OFF 면 null(0060 동일).
   const presmon = map.get('presmon') || null;      // 프레즌스 모니터(step-0063·presenceMonitor) — svc.presence 읽기 모델. OFF 면 null(0062 동일).
+  const presence = map.get('presence') || null;    // 전용 프레즌스 박스(step-0064·presenceBox) — 프레즌스 SSOT. OFF 면 null(0063 동일).
   const persist = map.get('persist') || null;
   const persist2 = map.get('persist2') || null;
   // N-replica 복제 스토어 핸들(이 step) — persistReplicas≥1 이면 'persist2'..'persistN+1'. [] 면 0027 복구 경로(persist2 단일).
@@ -195,7 +196,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
