@@ -1,8 +1,8 @@
-// HktInfra step-0062 — 헤드리스 검증 (대체 소비자 late-join reconstruct: 활성화된 ranking2 가 쓰기 저널 replay 로 다운타임 갭까지 복원·투영==원장·spawnReconstruct)
+// HktInfra step-0063 — 헤드리스 검증 (프레즌스 모니터: svc.presence 의 down/up/permanent 를 구독해 소비자별 건강 상태 기계 유지·presenceMonitor)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `recon`.
-//   더한 한 조각: 0061 의 대체 소비자(ranking2)는 *활성화 이후* 결과만 인계해 다운타임(원 ranking 사망~활성화) 이력을 놓쳤다(투영이 원장에 뒤처짐·0061 §9). 이 step 은 그 갭을 메운다 — 활성화된 ranking2 가 *쓰기 모델의 영속 저널*(PersistStore)을 reconstruct(ranks 리셋 후 전수 재계산)해 다운타임까지 복원 → 투영==원장. 0020 의 읽기 모델 late-join 을 *대체 소비자*에 적용(CQRS: 휘발 스트림 아닌 내구 저널이 복구원).
-//   검증: ⒜ `reg`(키트) — spawnReconstruct=0 이면 0061 비트 동일(reconstruct 0). ⒝ `recon`(가설) — ON 이면 ranking2 활성화 + 투영==원장(갭 복원) / 대조(0061·reconstruct 없음)는 활성화돼도 투영!=원장(다운타임 갭). 비-침습(minted 동일).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `monitor`.
+//   더한 한 조각: 0060 §9 는 프레즌스 발행의 반응자로 *모니터링 대시보드·대체 spawn·알림*을 예고했다. 0061 이 *대체 spawn*(행동)을 더했다면, 이 step 은 *모니터링 대시보드*(관측) — svc.presence 를 구독해 소비자별 *상태 기계*(현재 down/up/permanent + 전이 회계)를 유지하는 구조적 읽기 모델(SPINE 계층 5 세션/프레즌스의 "누가 어디에" 관측 면). audit(0016)이 토픽별 수만 세는 범용 sink 라면, presmon 은 프레즌스 특화 상태 기계.
+//   검증: ⒜ `reg`(키트) — presenceMonitor=0 이면 0062 비트 동일(박스·구독 0). ⒝ `monitor`(가설) — 치유(rankDie): presmon ranking 상태 'up'·down 1·up 1 / 영구 분실(dropRecover+상한): 'permanent'·down 1·perm 1. 발행 수와 events 1:1(무손실 관측). OFF 면 presmon 없음. 발행자·기존 소비자 무수정·비-침습.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -12,54 +12,49 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { run, itemConserved, ledgerConsistent, ledgerCounts } = NET;
+const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const RECON_AT = 115;
-const P_BASE = (seed, extra) => ({ seed, ticks: 120, clients: 6, moves: 40, radius: 4, grid: 16, zones: 2,
-  incremental: true, recovery: true, failover: true, inventory: true, itemOps: 40, chat: true, chatOps: 12, regions: 2,
-  bus: true, audit: true, ranking: true, persist: true, busResend: true, busOutAck: true, busMinWm: true,
+const DEAD_DIE = 14; const PERM = 99; const CAP = 3;
+const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
+  incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
+  bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
   busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
-  spawnReplace: true, dropRecover: PERM, recoverMaxRetries: CAP, rankDie: DEAD_DIE, ...extra });
+  rankDie: DEAD_DIE, ...extra });
 
-// 대체 소비자 투영 정합 — ranking2.ranks 가 원장 byOwner 와 정확히 일치(다운타임 갭까지 복원되면 true).
-function rank2Faithful(r) {
-  if (!r.ranking2) return false;
-  const truth = ledgerCounts(r);
-  const ranks = r.ranking2.ranks;
-  for (const [a, n] of truth) if ((ranks.get(a) || 0) !== n) return false;
-  for (const [a, n] of ranks) if (n !== (truth.get(a) || 0)) return false;
-  return true;
-}
+const pub = (r) => r.orch.presencePublished;
+const ev = (r) => r.presmon ? r.presmon.events : -1;
+const st = (r) => r.presmon ? r.presmon.stateOf('ranking') : null;
+const cnt = (r, mp) => (r.presmon && r.presmon[mp].get('ranking')) || 0;
 
-function recon(seeds) {
-  console.log('== recon: *가설* — 활성화된 대체 소비자 ranking2 가 *쓰기 저널*(PersistStore)을 reconstruct 해 다운타임 갭까지 복원 → 투영==원장. spawnReconstruct ON vs OFF(0061) ==');
-  console.log(`  영구 분실(rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}) → permanent 발행→ranking2 활성화. ON 이면 quiescent tick ${RECON_AT} 에 저널 reconstruct(갭 복원·투영==원장). OFF 면 활성화 이후 부분 투영(갭).`);
-  console.log('seed   | act | on 투영==원장 | on r2수 | off 투영==원장 | off r2수 | 원장수 | 비침습 | 판정');
+function monitor(seeds) {
+  console.log('== monitor: *가설* — presmon 이 svc.presence(down/up/permanent)를 구독해 소비자별 건강 *상태 기계*를 유지. presenceMonitor ON vs OFF ==');
+  console.log(`  치유(rankDie ${DEAD_DIE}): ranking down→up → 상태 'up'·down 1·up 1. 영구 분실(dropRecover ${PERM}·상한 ${CAP}): down→permanent → 'permanent'·down 1·perm 1. events==발행(무손실).`);
+  console.log('seed   | heal 상태/cnt | perm 상태/cnt | ev==pub | off presmon | 비침습 | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { spawnReconstruct: true, reconstructAt: RECON_AT }) });
-    const off = run({ ...P_BASE(seed) });   // 0061 — 활성화만, reconstruct 없음
-    const activated = !!(on.ranking2 && on.ranking2.activated) && !!(off.ranking2 && off.ranking2.activated);
-    const onFaithful = rank2Faithful(on);          // 갭 복원 → 투영==원장
-    const offGap = !rank2Faithful(off);            // reconstruct 없음 → 다운타임 갭(투영!=원장)
-    const truthN = ledgerCounts(on).size;
-    const onN = on.ranking2 ? on.ranking2.ranks.size : 0;
-    const offN = off.ranking2 ? off.ranking2.ranks.size : 0;
-    const nonInvasive = on.inventory.minted === off.inventory.minted;
+    const heal = run({ ...P_BASE(seed, { presenceMonitor: true }) });
+    const perm = run({ ...P_BASE(seed, { presenceMonitor: true, dropRecover: PERM, recoverMaxRetries: CAP }) });
+    const off  = run({ ...P_BASE(seed) });   // presenceMonitor OFF
+    const healOk = st(heal) === 'up' && cnt(heal, 'downCount') === 1 && cnt(heal, 'upCount') === 1;
+    const permOk = st(perm) === 'permanent' && cnt(perm, 'downCount') === 1 && cnt(perm, 'permCount') === 1;
+    const lossless = ev(heal) === pub(heal) && ev(perm) === pub(perm);   // 관측==발행(무손실)
+    const offNone = off.presmon === null;
+    const nonInvasive = heal.inventory.minted === off.inventory.minted && perm.inventory.minted === off.inventory.minted;
     const ok =
-      check(activated, `seed ${seed}: ranking2 미활성(전제 불성립)`) &&
-      check(onFaithful, `seed ${seed}: reconstruct 후 투영!=원장(갭 복원 실패·r2 ${onN} vs 원장 ${truthN})`) &&
-      check(offGap, `seed ${seed}: reconstruct 없는데 투영==원장(갭이 없음? 대조군 무의미)`) &&
-      check(nonInvasive, `seed ${seed}: reconstruct 가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
-      check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad((on.ranking2 ? on.ranking2.activatedAt : '-'), 3)} | ${pad(onFaithful + '', 13)} | ${pad(onN, 7)} | ${pad((!offGap) + '', 14)} | ${pad(offN, 8)} | ${pad(truthN, 6)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(healOk, `seed ${seed}: 치유 상태 불일치(상태 ${st(heal)} down ${cnt(heal,'downCount')} up ${cnt(heal,'upCount')})`) &&
+      check(permOk, `seed ${seed}: 영구 상태 불일치(상태 ${st(perm)} down ${cnt(perm,'downCount')} perm ${cnt(perm,'permCount')})`) &&
+      check(lossless, `seed ${seed}: 관측!=발행(heal ${ev(heal)}/${pub(heal)} perm ${ev(perm)}/${pub(perm)})`) &&
+      check(offNone, `seed ${seed}: OFF 인데 presmon 존재`) &&
+      check(nonInvasive, `seed ${seed}: 모니터가 원장 권위 바꿈`) &&
+      check(ledgerConsistent(heal) && itemConserved(heal) && ledgerConsistent(perm) && itemConserved(perm), `seed ${seed}: 원장 자기-정합 깨짐`);
+    console.log(`${pad(seed, 6)} | ${pad(st(heal) + ' ' + cnt(heal,'downCount') + '/' + cnt(heal,'upCount'), 13)} | ${pad(st(perm) + ' ' + cnt(perm,'downCount') + '/' + cnt(perm,'permCount'), 13)} | ${pad(ev(heal) + '/' + pub(heal), 7)} | ${pad(offNone + '', 11)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 대체 소비자도 *자기 영속 0* — 활성화로 역할은 인계하되(0061), 다운타임 이력은 *쓰기 저널* reconstruct 로 메운다(0020 의 읽기 모델 late-join 을 대체 소비자에 적용). reconstruct 가 ranks 리셋-재구성이라 라이브 인계분과 이중 계산 0.');
-  console.log('    spawnReconstruct=0 = 0061 비트 동일(reconstruct 0·reg). 비-침습: ON/OFF minted 동일. 한계: harness-driven reconstruct(0020 선례) — 자율 저널 fetch(persist 에 버스 요청)는 후속.');
+  console.log('  → presmon 은 프레즌스 특화 *상태 기계*("누가 지금 어떤 상태인가" 대시보드·SPINE 계층 5 관측 면). 0061 의 대체 spawn(행동)과 짝 — 같은 svc.presence 신호에 *관측자*가 발행자 무수정으로 얹힌다(0016 decouple).');
+  console.log('    presenceMonitor=0 = 0062 비트 동일(박스·구독 0·reg). events==발행 = 무손실 관측. 비-침습: 발신 0·원장 권위 불변.');
 }
 
-kit.MODES['recon'] = recon;
-kit.ORDER.splice(1, 0, 'recon');
+kit.MODES['monitor'] = monitor;
+kit.ORDER.splice(1, 0, 'monitor');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

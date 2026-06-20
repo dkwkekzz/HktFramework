@@ -17,6 +17,7 @@ const { ChatService } = __p('svc-chat');
 const { ServiceBus } = __p('svc-bus');
 const { AuditService } = __p('svc-audit');
 const { RankingService } = __p('svc-ranking');
+const { PresenceMonitor } = __p('svc-presence-monitor');
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -81,6 +82,7 @@ function buildTopology(opts) {
     busPresenceRecover = false,
     presencePublish = false,
     spawnReplace = false,
+    presenceMonitor = false,
     recoverRetry = false,
     recoverTimeout = 4,
     recoverMaxRetries = 0,
@@ -130,6 +132,7 @@ function buildTopology(opts) {
     if (audit && busLeaseAudit && inventory) subs.push(['svc.item.lease', 'audit']);   // lease 생애 관측(0054) — audit 가 축출/재admission 이벤트 구독. busLeaseAudit OFF 면 미추가(0053 토폴로지 비트 동일).
     if (busLeaseAudit && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.item.lease', 'orch']);   // lease 생애 *반응*(0055) — 코디네이션(orch)이 lease 이벤트 구독해 소비자 프레즌스 SSOT 유지. busLeasePresence OFF·orch 부재면 미추가(0054 토폴로지 비트 동일).
     if (presencePublish && busLeasePresence && audit && failover && zones === 2 && inventory) subs.push(['svc.presence', 'audit']);   // 프레즌스 발행(0060) — orch 가 down/up/permanent 판정을 svc.presence 로 발행, audit(범용 sink)가 구독. presencePublish OFF·audit/orch 부재면 미추가(0059 토폴로지 비트 동일).
+    if (presenceMonitor && presencePublish && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.presence', 'presmon']);   // 프레즌스 모니터(0063) — svc.presence 의 셋째 소비자(구조적 상태 기계). presenceMonitor OFF 면 미추가(0062 토폴로지 비트 동일·발행자 무수정).
     if (replaceAddr && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.presence', 'ranking2']);   // 대체 소비자 활성화(0061) — standby ranking2 가 svc.presence 의 'permanent' 신호 구독(svc.item.out 은 활성화 후 *스스로* 재구독). spawnReplace OFF 면 미추가(0060 토폴로지 비트 동일).
     if (audit && rankingAddr) subs.push(['svc.rank.out', 'audit']);   // audit 도 rank 스트림 관찰(둘째 소비자의 둘째 소비자)
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
@@ -161,6 +164,9 @@ function buildTopology(opts) {
   if (chat) add({ addr: 'chat', kind: 'chat', opts: { gateway: 'gateway', bus: busAddr, persist: chatPersistAddr, snapshot: chatPersistAddr ? chatSnapshot : 0 } });
   // [게임 서비스] 감사(audit) — 발행자 무수정으로 추가된 새 소비자(bus 전제). 발신 0 = 구조적 비-침습.
   if (bus && audit) add({ addr: 'audit', kind: 'audit', opts: {} });
+  // [게임 서비스] 프레즌스 모니터(0063) — svc.presence 구조적 읽기 모델(상태 기계). presenceMonitor+발행 전제. OFF 면 토폴로지에 없음(0062 비트 동일). onTick 없음·발신 0 = 비-침습.
+  const presMonAddr = (presenceMonitor && presencePublish && bus && failover && zones === 2 && inventory) ? 'presmon' : null;
+  if (presMonAddr) add({ addr: 'presmon', kind: 'presmon', opts: {} });
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
@@ -202,6 +208,7 @@ function makeActor(spec, net) {
     case 'chat': a = new ChatService(spec.opts); break;
     case 'bus': a = new ServiceBus(spec.opts); break;
     case 'audit': a = new AuditService(spec.opts); break;
+    case 'presmon': a = new PresenceMonitor(); break;
     case 'ranking': a = new RankingService(spec.opts); break;
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;
