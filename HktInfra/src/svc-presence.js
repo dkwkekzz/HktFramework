@@ -1,5 +1,5 @@
 'use strict';
-// step-0066 — 프레즌스 박스 shadow 복제(presenceShadow): 0065 가 orch 의 전이 보고를 *버스 토픽*(svc.presence.report)으로 올려 orch 가 박스 주소 무지가 됐다(완전 decouple). 그 위에 *대기(standby)* PresenceService(presence2)를 같은 토픽에 구독시켜 SSOT(consumerDown/permanentDown)를 *그림자 복제*한다 — 단 발행은 안 한다(active=false → svc.presence 이중 발행 억제). 같은 보고 스트림을 먹는 두 박스가 같은 SSOT 로 수렴(존 follower 복제 0002·shadow follower 0009 의 코디네이션 판) → 프레즌스 박스 failover 의 토대(승격 시 SSOT 갭 0). (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0067 — 프레즌스 박스 failover 승격(presencePromote): 0066 의 standby(presence2)는 SSOT 를 그림자 복제만 했다(발행 억제). 이 step 은 마지막 고리를 닫는다 — primary 사망 시 standby 가 *승격*(active=true)해 svc.presence 발행을 인계한다(존 shadow follower 승격 0009·버스 failover 0034 의 코디네이션 판). shadow 가 모든 보고를 이미 먹었으므로(0066) 승격은 *SSOT 갭 0*: 죽음 전 보고는 둘 다 봤고, 죽음 후 보고는 승격된 standby 가 발행 → 다운스트림(presmon)이 전 전이열을 무손실 수신. 미승격(대조)이면 죽음 후 전이는 영영 미발행(failover 가 막는 갭). (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -15,10 +15,13 @@ class PresenceService {
     this.permanentDown = new Set();     // 영구 down(포기)으로 보고된 소비자.
     this.published = 0;                 // svc.presence 발행 수(계측) — 보고 수와 1:1(active 박스만).
     this.reports = 0;                   // orch 가 보고한 전이 수(계측) — active·standby 둘 다 같은 보고를 받으므로 동일하게 센다.
-    // active(step-0066·presenceShadow) — 이 박스가 *활성*(발행 권위 보유)인가. true(기본·primary)면 SSOT 갱신 후 svc.presence 로 발행. false(standby)면 같은 보고 스트림으로 SSOT 를 *그림자 복제*만 하고 발행은 억제(이중 발행 0). 미지정이면 true = 0065 비트 동일(단일 active 박스). 승격(0067 후보)은 이 플래그를 뒤집어 발행을 인계한다.
+    // active(step-0066·presenceShadow) — 이 박스가 *활성*(발행 권위 보유)인가. true(기본·primary)면 SSOT 갱신 후 svc.presence 로 발행. false(standby)면 같은 보고 스트림으로 SSOT 를 *그림자 복제*만 하고 발행은 억제(이중 발행 0). 미지정이면 true = 0065 비트 동일(단일 active 박스). 승격(0067·promote)이 이 플래그를 뒤집어 발행을 인계한다.
     this.active = opts.active !== undefined ? opts.active : true;
+    this.dead = false;            // primary 사망(step-0067·crash) — RAM 소실의 인프로세스 모델. dead 면 보고 무시·발행 0(승격된 standby 가 인계).
+    this.promotedAt = -1;         // standby→active 승격 tick(계측) — 미승격이면 -1.
   }
   onMsg(m) {
+    if (this.dead) return;        // 사망한 박스는 보고를 처리·발행하지 않는다(step-0067) — 승격된 standby 가 이후 보고를 인계.
     const p = m.payload;
     // orch 의 전이 보고 수신 — point-to-point({type:'presence'}·0064) 또는 버스 토픽({type:'ev', topic:'svc.presence.report'}·0065). 둘 다 같은 SSOT 갱신+발행.
     let kind, consumer;
@@ -33,6 +36,10 @@ class PresenceService {
     if (this.active && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence', ev: { kind, consumer } }); this.published++; }   // SSOT 갱신 후 발행(0060 의 발행을 이 박스로 인계).
   }
   stateOf(consumer) { return this.permanentDown.has(consumer) ? 'permanent' : (this.consumerDown.has(consumer) ? 'down' : 'up'); }
+  // crash(step-0067) — primary 프레즌스 박스 사망(RAM 소실)의 인프로세스 모델. 이후 보고 무시·발행 0. SSOT 는 standby(presence2)가 그림자 복제로 보유하므로 진실은 소실되지 않는다(0034 "진실 원천=소비자"의 코디네이션 판: 진실 원천=shadow).
+  crash() { this.dead = true; }
+  // promote(step-0067) — standby(active=false)를 *활성*으로 승격해 svc.presence 발행을 인계. shadow 가 이미 모든 보고로 SSOT 를 복제했으므로(0066) 승격 시점 SSOT 갭 0 — 죽음 후 보고만 새로 발행하면 다운스트림이 전 전이열을 무손실 수신. 0009 follower 승격(존)·0061 standby 활성화(서비스)의 프레즌스 판.
+  promote(tick) { if (this.active) return; this.active = true; this.promotedAt = (tick !== undefined) ? tick : 0; }
 }
 
 const __part = { PresenceService };
