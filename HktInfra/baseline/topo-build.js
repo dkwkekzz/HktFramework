@@ -18,6 +18,7 @@ const { ServiceBus } = __p('svc-bus');
 const { AuditService } = __p('svc-audit');
 const { RankingService } = __p('svc-ranking');
 const { PresenceMonitor } = __p('svc-presence-monitor');
+const { PresenceService } = __p('svc-presence');
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -83,6 +84,7 @@ function buildTopology(opts) {
     presencePublish = false,
     spawnReplace = false,
     presenceMonitor = false,
+    presenceBox = false,
     recoverRetry = false,
     recoverTimeout = 4,
     recoverMaxRetries = 0,
@@ -110,6 +112,8 @@ function buildTopology(opts) {
   const rankingAddr = (ranking && bus && inventory) ? 'ranking' : null;   // 랭킹 = bus+가방 전제(item 이벤트 소비). ranking OFF → 0018 비트 동일.
   // 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제. presencePublish 전제(svc.presence 의 'permanent' 신호로 활성화). OFF → 0060 비트 동일(액터·구독 0).
   const replaceAddr = (spawnReplace && presencePublish && rankingAddr) ? 'ranking2' : null;
+  // 전용 프레즌스 박스(step-0064·presenceBox) — orch 의 프레즌스 SSOT+발행을 인계하는 PresenceService. failover+발행 전제. OFF → 0063 비트 동일(박스 0·orch 직접).
+  const presenceSvcAddr = (presenceBox && presencePublish && failover && zones === 2 && inventory) ? 'presence' : null;
   const chatPersistAddr = (chatpersist && chat) ? 'chatpersist' : null;   // 채팅 영속(이 step) = 채팅 전제(채팅 커맨드 로그의 데이터 계층). OFF → 0020 비트 동일.
   const persistBackupAddr = (persistBackup && persistAddr) ? 'persist2' : null;   // 보조 영속(0027) = primary persist 전제. OFF → 0026 비트 동일(이중쓰기 0).
   // N-replica(이 step) — persistReplicas≥1 이면 'persist2'..'persistN+1' 복제 스토어 N개. primary 와 독립 인스턴스(범용 PersistStore 재사용).
@@ -167,6 +171,8 @@ function buildTopology(opts) {
   // [게임 서비스] 프레즌스 모니터(0063) — svc.presence 구조적 읽기 모델(상태 기계). presenceMonitor+발행 전제. OFF 면 토폴로지에 없음(0062 비트 동일). onTick 없음·발신 0 = 비-침습.
   const presMonAddr = (presenceMonitor && presencePublish && bus && failover && zones === 2 && inventory) ? 'presmon' : null;
   if (presMonAddr) add({ addr: 'presmon', kind: 'presmon', opts: {} });
+  // [코디네이션] 전용 프레즌스 박스(0064) — orch 의 프레즌스 SSOT+발행 인계처. OFF 면 없음(0063 비트 동일). onTick 없음 = 신성한 tick 밖.
+  if (presenceSvcAddr) add({ addr: 'presence', kind: 'presence', opts: { bus: busAddr } });
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
@@ -184,7 +190,7 @@ function buildTopology(opts) {
   }
 
   if (failover && zones === 2) {
-    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish } });
+    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: presenceSvcAddr } });
     add({ addr: 'zone1f', kind: 'zone', seed, opts: { ...zopt, region: { lo: 0, hi: H }, sibling: 'zone2f', boundary: H, shadow: true, orch: 'orch' } });
     add({ addr: 'zone2f', kind: 'zone', seed, opts: { ...zopt, region: { lo: H, hi: grid }, sibling: 'zone1f', boundary: H, shadow: true, orch: 'orch' } });
   }
@@ -209,6 +215,7 @@ function makeActor(spec, net) {
     case 'bus': a = new ServiceBus(spec.opts); break;
     case 'audit': a = new AuditService(spec.opts); break;
     case 'presmon': a = new PresenceMonitor(); break;
+    case 'presence': a = new PresenceService(spec.opts); break;
     case 'ranking': a = new RankingService(spec.opts); break;
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;

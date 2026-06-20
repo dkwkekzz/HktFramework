@@ -1,5 +1,5 @@
 'use strict';
-// step-0064 — 전용 프레즌스 박스 분리: orch 가 쥐던 프레즌스 SSOT(consumerDown/permanentDown)+발행(svc.presence)을 PresenceService 박스로 인계(presenceBox ON 이면 전이를 보고만). orch 는 순수 오케스트레이터(결정·recover/retry/포기)로 남는다. OFF 면 0063 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0065 — 프레즌스 보고 버스화: orch→PresenceService 보고를 point-to-point(0064)→버스 토픽 svc.presence.report 로 올린다(presenceReportBus). orch 가 프레즌스 박스 주소를 모른다(토픽만·완전 decouple→다중 orch/박스 failover 기반). OFF 면 0064 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -42,12 +42,17 @@ class Orchestrator {
     // 전용 프레즌스 박스 분리(step-0064·presenceBox) — ON 이면 orch 는 프레즌스 SSOT/발행을 직접 안 하고, 전이를 PresenceService(presenceAddr)에 *보고*만 한다(point-to-point). PresenceService 가 consumerDown/permanentDown SSOT 를 쥐고 svc.presence 로 발행. OFF 면 orch 가 직접(0063 비트 동일). orch 는 결정/행동(recover/retry/포기)에 집중 = 순수 오케스트레이터.
     this.presenceBox = opts.presenceBox || false;
     this.presenceAddr = opts.presenceAddr || null;
+    // 프레즌스 보고 버스화(step-0065·presenceReportBus) — 0064 의 orch→PresenceService 보고는 point-to-point(presenceAddr 명시)였다(0064 §9 한계). ON 이면 보고를 버스 토픽 svc.presence.report 로 발행 → orch 가 프레즌스 박스 *주소를 모른다*(토픽만·완전 decouple) → 다중 orch·프레즌스 박스 failover 가능. OFF 면 point-to-point(0064 동일).
+    this.presenceReportBus = opts.presenceReportBus || false;
     if (opts.monitor) for (const [a, f] of opts.monitor) this.monitor(a, f);
   }
   monitor(authority, follower) { this.pairs.set(authority, follower); this.lastLease.set(authority, 0); }
-  // 프레즌스 전이 처리(step-0064) — presenceBox ON 이면 PresenceService 에 보고만(SSOT/발행 인계). OFF 면 orch 가 직접 SSOT 갱신 + 발행(0063 동일·OFF 경로 비트 불변).
+  // 프레즌스 전이 처리(step-0064/0065) — presenceBox ON 이면 PresenceService 에 보고(0065: 버스 토픽 / 0064: point-to-point). OFF 면 orch 가 직접 SSOT 갱신 + 발행(0063 동일·OFF 경로 비트 불변).
   _track(kind, consumer) {
-    if (this.presenceBox && this.presenceAddr) { this.net.send(this.addr, this.presenceAddr, { type: 'presence', kind, consumer }); return; }
+    if (this.presenceBox) {
+      if (this.presenceReportBus && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence.report', ev: { kind, consumer } }); return; }   // 보고 버스화(0065·주소 무지)
+      if (this.presenceAddr) { this.net.send(this.addr, this.presenceAddr, { type: 'presence', kind, consumer }); return; }   // point-to-point(0064)
+    }
     if (kind === 'down') this.consumerDown.add(consumer);
     else if (kind === 'up') this.consumerDown.delete(consumer);
     else if (kind === 'permanent') this.permanentDown.add(consumer);

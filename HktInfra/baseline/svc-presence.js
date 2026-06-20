@@ -1,5 +1,5 @@
 'use strict';
-// step-0065 — 프레즌스 보고 버스화(presenceReportBus): PresenceService(0064 분리)가 orch 의 전이 보고를 point-to-point({type:'presence'}) *또는* 버스 토픽(svc.presence.report·{type:'ev'}) 둘 다 받아 SSOT 갱신+발행. 보고 버스화로 orch 가 박스 주소 무지(완전 decouple·failover 기반). SPINE 계층 5 "세션/프레즌스" SSOT. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0064 — 전용 프레즌스 박스 분리(presenceBox): SPINE 계층 5 의 "세션/프레즌스" 박스를 "오케스트레이터"(orch)에서 떼어낸다. 0055~0063 동안 orch 가 *결정(누가 down 인가)·발행(svc.presence)·SSOT(consumerDown/permanentDown)·행동(recover/retry/permanent)* 을 전부 했다. 이 박스는 그 중 *프레즌스 SSOT + 발행* 만 인수한다 — orch 는 전이를 *보고*(point-to-point)하고, PresenceService 가 SSOT 를 쥐고 svc.presence 로 발행. orch 는 순수 오케스트레이터(결정·행동)로 남는다. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -18,11 +18,8 @@ class PresenceService {
   }
   onMsg(m) {
     const p = m.payload;
-    // orch 의 전이 보고 수신 — point-to-point({type:'presence'}·0064) 또는 버스 토픽({type:'ev', topic:'svc.presence.report'}·0065). 둘 다 같은 SSOT 갱신+발행.
-    let kind, consumer;
-    if (p.type === 'presence') { kind = p.kind; consumer = p.consumer; }
-    else if (p.type === 'ev' && p.topic === 'svc.presence.report' && p.ev) { kind = p.ev.kind; consumer = p.ev.consumer; }
-    else return;
+    if (p.type !== 'presence') return;   // orch 의 전이 보고만(다른 메시지 무시).
+    const { kind, consumer } = p;
     this.reports++;
     if (kind === 'down') this.consumerDown.add(consumer);
     else if (kind === 'up') this.consumerDown.delete(consumer);
