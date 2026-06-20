@@ -1,8 +1,8 @@
-// HktInfra step-0060 — 헤드리스 검증 (프레즌스 *발행*: orch 의 소비자 건강 판정을 svc.presence 버스 이벤트로→다른 서비스 구독·presencePublish)
+// HktInfra step-0061 — 헤드리스 검증 (대체 소비자 자동 활성화: standby ranking2 가 svc.presence 'permanent' 신호에 스스로 활성화·역할 인계·spawnReplace)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `publish`.
-//   더한 한 조각: 0055~0059 의 소비자 건강 판정(down/up/permanent)은 orch *사유 상태*(consumerDown/permanentDown)였다 — 오직 orch 만 안다. 이제 그 판정을 svc.presence 버스 이벤트로 발행해 *다른 서비스*(audit·미래의 모니터링/대시보드/대체 spawn)가 구독·반응할 수 있게 한다. 0054 가 lease 를 관측 가능하게 한 것의 *프레즌스 판정* 판 — 프레즌스가 1급 발행 신호.
-//   검증: ⒜ `reg`(키트) — presencePublish=0 이면 0059 비트 동일(발행 0). ⒝ `publish`(가설) — 치유: down+up 2건 발행·audit 1:1 수신 / 영구 분실: down+permanent 2건·audit 수신·permanentDown={ranking}. OFF 면 발행/수신 0. 비-침습(minted 동일).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `spawn`.
+//   더한 한 조각: 0060 이 orch 의 'permanent'(포기) 판정을 svc.presence 로 *발행*만 했다(반응 로직 분리). 이 step 은 그 신호에 *행동하는* 첫 반응자 — 사전 등록된 *대기(standby)* 소비자 ranking2 가 svc.presence 의 'permanent'(ranking) 를 받아 스스로 svc.item.out 에 재구독해 죽은 소비자의 역할을 이어받는다(존 shadow follower 승격의 서비스 판).
+//   검증: ⒜ `reg`(키트) — spawnReplace=0 이면 0060 비트 동일(액터·구독 0). ⒝ `spawn`(가설) — 영구 분실로 permanent 발행 시: ON 이면 ranking2 활성화(activated)·인계 소비/발행(consumed>0·published>0) / OFF 면 standby 없음(대체 0). 비-침습(minted 동일).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,40 +16,40 @@ const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
 const DEAD_DIE = 14; const PERM = 99; const CAP = 3;
-const aud = (r) => r.audit.seen.get('svc.presence') || 0;
-const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
-  incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
+const P_BASE = (seed, extra) => ({ seed, ticks: 120, clients: 6, moves: 40, radius: 4, grid: 16, zones: 2,
+  incremental: true, recovery: true, failover: true, inventory: true, itemOps: 40, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
   busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
-  busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, ...extra });
+  busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
+  dropRecover: PERM, recoverMaxRetries: CAP, rankDie: DEAD_DIE, ...extra });
 
-function publish(seeds) {
-  console.log('== publish: *가설* — orch 의 소비자 건강 판정(down/up/permanent)을 svc.presence 버스 이벤트로 발행→audit(범용 sink)가 구독·수신. presencePublish ON vs OFF ==');
-  console.log(`  치유(rankDie ${DEAD_DIE}): down+up 2건 발행. 영구 분실(dropRecover ${PERM}·상한 ${CAP}): down+permanent 2건. audit 가 발행 수와 1:1 수신(무손실)·OFF 면 0.`);
-  console.log('seed   | heal pub/audit | perm pub/audit | perm permDown | OFF pub/audit | 비침습 | 판정');
+function spawn(seeds) {
+  console.log('== spawn: *가설* — orch 가 영구 분실 소비자(ranking)를 svc.presence 의 \'permanent\' 로 발행하면, 사전 등록된 대기(standby) 소비자 ranking2 가 스스로 svc.item.out 에 재구독해 역할을 인계. spawnReplace ON vs OFF ==');
+  console.log(`  영구 분실(rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}) → permanent 발행. ON 이면 ranking2 활성화·인계 소비/발행. OFF 면 standby 없음(대체 0).`);
+  console.log('seed   | permDown | on act@ | on consumed/pub | off standby | 비침습 | 판정');
   for (const seed of seeds) {
-    const heal = run({ ...P_BASE(seed, { presencePublish: true, rankDie: DEAD_DIE }) });
-    const perm = run({ ...P_BASE(seed, { presencePublish: true, dropRecover: PERM, recoverMaxRetries: CAP, rankDie: DEAD_DIE }) });
-    const off  = run({ ...P_BASE(seed, { rankDie: DEAD_DIE }) });   // presencePublish OFF
-    const healOk = heal.orch.presencePublished === 2 && aud(heal) === 2;           // down+up·audit 1:1
-    const permOk = perm.orch.presencePublished === 2 && aud(perm) === 2 && perm.orch.permanentDown.has('ranking');   // down+permanent
-    const offNone = off.orch.presencePublished === 0 && aud(off) === 0;
-    const delivered = aud(heal) === heal.orch.presencePublished && aud(perm) === perm.orch.presencePublished;   // 무손실 전달
-    const nonInvasive = heal.inventory.minted === off.inventory.minted && perm.inventory.minted === off.inventory.minted;
+    const on  = run({ ...P_BASE(seed, { spawnReplace: true }) });
+    const off = run({ ...P_BASE(seed) });   // spawnReplace OFF
+    const permFired = on.orch.permanentDown.has('ranking');
+    const r2 = on.ranking2;
+    const activated = !!(r2 && r2.activated);
+    const tookOver = !!(r2 && r2.consumed > 0 && r2.published > 0);
+    const offNoStandby = off.ranking2 === null;
+    const nonInvasive = on.inventory.minted === off.inventory.minted;
     const ok =
-      check(healOk, `seed ${seed}: 치유 발행 불일치(pub ${heal.orch.presencePublished} audit ${aud(heal)})`) &&
-      check(permOk, `seed ${seed}: 영구 발행 불일치(pub ${perm.orch.presencePublished} audit ${aud(perm)} permDown ${[...perm.orch.permanentDown]})`) &&
-      check(delivered, `seed ${seed}: 발행≠수신(무손실 깨짐)`) &&
-      check(offNone, `seed ${seed}: OFF 인데 발행/수신(${off.orch.presencePublished}/${aud(off)})`) &&
-      check(nonInvasive, `seed ${seed}: 발행이 원장 권위 바꿈(minted heal ${heal.inventory.minted} perm ${perm.inventory.minted} off ${off.inventory.minted})`) &&
-      check(ledgerConsistent(heal) && itemConserved(heal) && ledgerConsistent(perm) && itemConserved(perm), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(heal.orch.presencePublished + '/' + aud(heal), 14)} | ${pad(perm.orch.presencePublished + '/' + aud(perm), 14)} | ${pad('{' + [...perm.orch.permanentDown] + '}', 13)} | ${pad(off.orch.presencePublished + '/' + aud(off), 13)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(permFired, `seed ${seed}: permanent 미발행(트리거 불발)`) &&
+      check(activated, `seed ${seed}: ranking2 미활성(permanent 신호에 인계 안 함)`) &&
+      check(tookOver, `seed ${seed}: ranking2 인계 실패(consumed ${r2 && r2.consumed} pub ${r2 && r2.published})`) &&
+      check(offNoStandby, `seed ${seed}: OFF 인데 standby 존재(대체 새어나옴)`) &&
+      check(nonInvasive, `seed ${seed}: 대체 활성화가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
+      check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
+    console.log(`${pad(seed, 6)} | ${pad('{' + [...on.orch.permanentDown] + '}', 8)} | ${pad(r2 ? r2.activatedAt : '-', 7)} | ${pad((r2 ? r2.consumed : 0) + '/' + (r2 ? r2.published : 0), 15)} | ${pad(offNoStandby + '', 11)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 프레즌스가 1급 발행 신호: orch 의 건강 판정(down/up/permanent)이 svc.presence 버스 이벤트로 나가 audit 가 1:1 수신(무손실). 이제 *어떤 서비스*든 구독해 소비자 건강에 반응할 수 있다(모니터링·대시보드·대체 spawn 토대) — 0054 가 lease 를 관측 가능하게 한 것의 프레즌스 판정 판.');
-  console.log('    presencePublish=0 = 0059 비트 동일(발행 0·reg). 비-침습: ON/OFF minted 동일(순수 제어 평면·발행은 관측일 뿐 원장 권위 불변).');
+  console.log('  → permanent 신호에 *행동하는* 첫 반응자: 대기 소비자가 영구 down 발행을 받아 스스로 역할을 인계(존 shadow follower 승격의 서비스 판). 0060 이 신호를 발행만 했다면, 이 step 은 그 신호로 *자동 대체*가 일어남을 증명.');
+  console.log('    spawnReplace=0 = 0060 비트 동일(액터·구독 0·reg). 비-침습: ON/OFF minted 동일(대체는 읽기 모델 인계일 뿐 원장 권위 불변). 한계: 활성화 *이후* 결과만 인계(다운타임 중 놓친 이력은 late-join reconstruct(0020)가 후속).');
 }
 
-kit.MODES['publish'] = publish;
-kit.ORDER.splice(1, 0, 'publish');
+kit.MODES['spawn'] = spawn;
+kit.ORDER.splice(1, 0, 'spawn');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

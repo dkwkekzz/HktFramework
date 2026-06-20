@@ -1,5 +1,5 @@
 'use strict';
-// step-0059 — 재시도 *상한*: 영구 분실(소비자 영영 안 옴)에 재시도가 무한해지지 않게 recoverMaxRetries 로 상한. 상한 도달 시 그 소비자를 permanentDown 으로 *포기*(무한 루프 0·유계 제어 평면). 일시 분실은 상한 안에서 치유(불변). (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0060 — 프레즌스 *발행*: orch 의 소비자 건강 판정(down/up/permanent)을 svc.presence 버스 이벤트로 발행 → 다른 서비스가 구독해 반응(프레즌스가 orch 사유 상태→1급 *발행 신호*). 0054 가 lease 를, 이 step 은 *프레즌스 판정*을 관측 가능하게. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -35,9 +35,15 @@ class Orchestrator {
     this.recoverAttempts = new Map();   // consumer -> 누적 재발신 횟수(상한 비교 기준). ack 오면 readmit/ack 경로가 정리.
     this.permanentDown = new Set();      // 상한 도달로 포기한 소비자(영구 down 으로 단정 — 대체 소비자 spawn 등 상위 오케스트레이션의 대상·후속).
     this.givenUp = 0;                    // 포기 수(계측).
+    // 프레즌스 발행(step-0060·presencePublish) — 0055~0059 의 소비자 건강 판정(down/up/permanent)은 orch *사유 상태*(consumerDown/permanentDown)였다. 이제 그 판정을 svc.presence 버스 이벤트로 발행해 *다른 서비스*가 구독·반응할 수 있게 한다(프레즌스가 1급 발행 신호 — 0054 가 lease 를 관측 가능하게 한 것의 프레즌스 판정 판). OFF·버스 부재면 발행 0 = 0059 비트 동일.
+    this.bus = opts.bus || null;
+    this.presencePublish = opts.presencePublish || false;
+    this.presencePublished = 0;          // 발행한 svc.presence 이벤트 수(계측) — down/up/permanent 전이 합과 대조.
     if (opts.monitor) for (const [a, f] of opts.monitor) this.monitor(a, f);
   }
   monitor(authority, follower) { this.pairs.set(authority, follower); this.lastLease.set(authority, 0); }
+  // 프레즌스 판정 발행(step-0060) — down/up/permanent 전이를 svc.presence 토픽에 pub(구독자 주소 무지). OFF·버스 부재면 no-op(0059 비트 동일·순수 제어 평면·존 tick 밖).
+  _presence(kind, consumer) { if (!this.presencePublish || !this.bus) return; this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence', ev: { kind, consumer } }); this.presencePublished++; }
   onMsg(m) {
     const p = m.payload;
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
@@ -47,6 +53,8 @@ class Orchestrator {
     if (this.busLeasePresence && p.type === 'ev' && p.topic === 'svc.item.lease' && p.ev) {
       if (p.ev.kind === 'evict') {
         this.consumerDown.add(p.ev.consumer);
+        this._presence('down', p.ev.consumer);   // 프레즌스 판정 발행(step-0060) — down 전이를 svc.presence 로
+
         // 프레즌스 반응(step-0056·busPresenceRecover) — down 관측 즉시 그 소비자에 recover 명령(자기 재구독 트리거). evict 1회당 1 recover(recovered Set 중복 억제). OFF 면 미발신 = 0055 비트 동일.
         if (this.busPresenceRecover && !this.recovered.has(p.ev.consumer)) {
           this.recovered.add(p.ev.consumer);
@@ -56,6 +64,8 @@ class Orchestrator {
         }
       } else if (p.ev.kind === 'readmit') {
         this.consumerDown.delete(p.ev.consumer);
+        this._presence('up', p.ev.consumer);   // 프레즌스 판정 발행(step-0060) — up 전이를 svc.presence 로
+
         this.recovered.delete(p.ev.consumer);   // 살아 돌아옴 → 다음 down 때 다시 recover 가능(재발 대비)
       }
       this.presenceEvents++;
@@ -73,6 +83,7 @@ class Orchestrator {
             this.pendingRecover.delete(consumer);
             this.permanentDown.add(consumer);
             this.givenUp++;
+            this._presence('permanent', consumer);   // 프레즌스 판정 발행(step-0060) — 포기(영구 down)를 svc.presence 로
             continue;
           }
           this.net.send(this.addr, consumer, { type: 'recover', topic: this.recoverTopic });
