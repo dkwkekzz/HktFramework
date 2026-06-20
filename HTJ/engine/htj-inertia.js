@@ -44,6 +44,9 @@
   // 관성 1스텝 — 질량(ρ=energy)과 운동량(g)이 면을 통해 상류차분으로 이류한다(보존·탄도).
   //   dt=0 → 항등(early return, 회귀 0). 운동량 전부 0 이면 v=0 → flux 0 → 사실상 항등.
   //   no-flux 경계: 도메인 바깥 면으로는 flux 없음 → Σρ·Σg 정확 보존(상자 안에 머문다).
+  //   opts.scalars: 같은 면속도로 *함께 실어 나를* 수동 스칼라 장 이름들(예: 내부에너지 'therm').
+  //     생략하면 동작은 종전과 byte-동일(회귀 0) — 밀도·운동량만 수송. 에너지 밀도 같은 양은
+  //     질량처럼 흐름을 타야 하므로 이 훅으로 같은 보존형 수송에 얹는다(스킴은 한 곳에서 관리).
   function advect(world, dt, opts) {
     opts = opts || {};
     const rhoName = opts.field || RHO;
@@ -66,8 +69,9 @@
       vx[i] = gx[i] * inv; vy[i] = gy[i] * inv; vz[i] = gz[i] * inv;
     }
 
-    // 이류할 네 양(질량 + 운동량 3성분)에 같은 면속도로 flux 를 누적(이중버퍼).
+    // 이류할 양(질량 + 운동량 3성분 + 선택 수동 스칼라들)에 같은 면속도로 flux 를 누적(이중버퍼).
     const Q = [rho, gx, gy, gz];
+    if (opts.scalars) for (const nm of opts.scalars) Q.push(world.fields[nm] || world.addField(nm, { type: Float64Array }));
     const out = Q.map(q => q.slice());          // 변화량 누적용 복사(시작값에서 +=/-=)
 
     // 한 축(stride) 방향 면들에 대해 donor-cell 상류차분 flux 를 누적.
