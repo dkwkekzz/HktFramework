@@ -1,5 +1,5 @@
 'use strict';
-// step-0058 — 미확인 명령 재시도 소비자 측: RankingService 가 dropRecover>0 이면 처음 N개 recover 를 *떨군다*(명령 분실 모델 — 재구독·ack 0). orch 가 재시도해 결국 치유. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0061 — 대체 소비자 자동 활성화(spawnReplace): RankingService 인스턴스가 replaceTarget 을 받으면 *대기(standby)* 소비자가 되어 svc.presence 만 구독한다. orch 가 그 대상을 'permanent'(포기)로 발행하면 스스로 svc.item.out 에 재구독해 죽은 소비자의 역할을 이어받는다(존 shadow follower 승격의 서비스 판). 0060 의 'permanent' 신호에 *행동하는* 첫 반응자. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -21,6 +21,10 @@ class RankingService {
     this.outFrontier = -1;         // 소비 확인 outSeq 워터마크(단조) — 이하 재배달은 멱등 폐기·ack 의 frontier.
     this.dropRecover = opts.dropRecover || 0;   // 처음 N개 recover 를 떨군다(step-0058·명령 분실 주입) — 재구독·ack 안 함 → orch 재시도 자극. 0 면 0057 동일.
     this.recoverDropped = 0;       // 떨군 recover 수(계측).
+    // 대체 소비자 자동 활성화(step-0061·spawnReplace) — replaceTarget 이 설정된 인스턴스는 *대기(standby)* 소비자: 초기엔 svc.item.out 을 구독하지 않고(토폴로지가 svc.presence 만 구독시킴) svc.presence 의 'permanent' 신호만 듣는다. 그 대상이 영구 down 으로 발행되면 자기 활성화(스스로 svc.item.out 재구독→역할 인계). null 이면 정규 소비자(0060 동일·이 분기 휴면).
+    this.replaceTarget = opts.replaceTarget || null;
+    this.activated = false;        // 활성화 1회 가드(중복 sub 억제) — permanent 한 번만 인계.
+    this.activatedAt = -1;         // 활성화 tick(계측) — 미활성이면 -1.
   }
   _bump(avatar, delta) {
     const next = (this.ranks.get(avatar) || 0) + delta;
@@ -39,6 +43,14 @@ class RankingService {
       this.net.send(this.addr, this.bus, { type: 'sub', topic: p.topic || 'svc.item.out' });   // 자기 재구독(라우팅 권위=구독자)
       this.net.send(this.addr, m.from, { type: 'recoverAck', consumer: this.addr });             // 치유 확인 회신(step-0057) — 명령 보낸 orch(m.from)에 "받아서 재구독함" 통보. orch 가 명령 전달·수행을 안다(분실 0 이면 acks==commands).
       this.resubs = (this.resubs || 0) + 1; return;
+    }
+    // 대체 소비자 자동 활성화(step-0061·spawnReplace) — 0060 이 'permanent'(포기) 판정을 svc.presence 로 발행했다(반응 로직과 치유 로직 분리). 이 standby 는 그 신호를 구독해, 자기 replaceTarget 이 영구 down 으로 발행되면 *스스로* svc.item.out 에 재구독해 죽은 소비자의 역할을 이어받는다 — 존 shadow follower 승격(0009)의 서비스 판(사전 등록된 대기 액터가 발행 신호에 활성화). 'down'(일시 의심)·'up'(회복)은 무시: permanent 만이 "대체하라". 1회 활성(activated 가드). replaceTarget 미설정이면 이 분기 미발화 = 정규 소비자.
+    if (this.replaceTarget && p.type === 'ev' && p.topic === 'svc.presence' && p.ev &&
+        p.ev.kind === 'permanent' && p.ev.consumer === this.replaceTarget && !this.activated) {
+      this.activated = true;
+      this.activatedAt = (m.tick !== undefined) ? m.tick : 0;
+      if (this.bus) this.net.send(this.addr, this.bus, { type: 'sub', topic: 'svc.item.out' });   // 자기 재구독(라우팅 권위=구독자, 0034 와 동형) → 이후 결과 스트림 인계
+      return;
     }
     if (p.type !== 'ev' || p.topic !== 'svc.item.out') return;   // svc.item.out 구독 수신만(가방 결과 스트림)
     const ev = p.ev;

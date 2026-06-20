@@ -48,6 +48,9 @@ function run(opts) {
   const busSubs = bus ? ((topo.specs.find(s => s.addr === 'bus') || {}).opts || {}).subs || [] : [];   // 정적 subs spec(재협상 원천 — "소비자가 무엇을 구독했나"·0034 버스 failover)
   const audit = map.get('audit') || null;
   const ranking = map.get('ranking') || null;
+  const ranking2 = map.get('ranking2') || null;   // 대체 소비자(step-0061·spawnReplace) — standby. spawnReplace OFF 면 null(0060 동일).
+  const presmon = map.get('presmon') || null;      // 프레즌스 모니터(step-0063·presenceMonitor) — svc.presence 읽기 모델. OFF 면 null(0062 동일).
+  const presence = map.get('presence') || null;    // 전용 프레즌스 박스(step-0064·presenceBox) — 프레즌스 SSOT. OFF 면 null(0063 동일).
   const persist = map.get('persist') || null;
   const persist2 = map.get('persist2') || null;
   // N-replica 복제 스토어 핸들(이 step) — persistReplicas≥1 이면 'persist2'..'persistN+1'. [] 면 0027 복구 경로(persist2 단일).
@@ -96,6 +99,12 @@ function run(opts) {
     if (opts.rankRestart && ranking && i + 1 === opts.rankRestart.at) {
       ranking.crash();
       if (persist) ranking.reconstruct(persist.journal, persist.snapshot);   // 쓰기 저널 replay → 투영 재계산(스냅샷 압축 베이스 + tail). persist OFF → 소실.
+    }
+    // 대체 소비자 late-join reconstruct(step-0062·spawnReconstruct) — 0061 의 대체 소비자(ranking2)는 *활성화 이후* 결과만 인계해 다운타임(원 ranking 사망~활성화) 중 놓친 효과만큼 투영이 원장에 뒤처진다(0061 §9 의 정직한 한계).
+    //   여기서 그 갭을 메운다: 활성화된 ranking2 가 *쓰기 모델의 영속 저널*(PersistStore)을 reconstruct(=ranks 리셋 후 전수 재계산) → 다운타임 이력까지 복원해 투영==원장(0020 의 읽기 모델 late-join 을 *대체 소비자*에 적용).
+    //   reconstruct 는 ranks 를 *리셋-재구성*(this.ranks=new Map())하므로 라이브 소비분과 이중 계산 0. 늦은 quiescent tick(opts.reconstructAt — 활동 정지 후)이라 이후 라이브 효과가 없어 저널이 완전 = 투영 완전. spawnReconstruct OFF·미활성·persist 부재면 휴면 = 0061 비트 동일(reg 0).
+    if (opts.spawnReconstruct && ranking2 && ranking2.activated && persist && i + 1 === opts.reconstructAt) {
+      ranking2.reconstruct(persist.journal, persist.snapshot);
     }
     // 채팅 서비스 failover(이 step 의 한 조각) — chatRestart.at 의 deliver *직전*에 crash+replay(invRestart 와 같은 위치·제어 평면·net.log 비-기여).
     //   가방(0017)이 *효과 저널*(mint/xfer)을 replay 했다면, 채팅은 *커맨드 로그*(join/say/whisper/leave)를 replay 해 라우팅 테이블+deliveries 를
@@ -187,7 +196,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
