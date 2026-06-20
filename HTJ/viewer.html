@@ -40,6 +40,7 @@
       <div class="row" id="row-rate"><label>방출율</label><input id="rate" type="number" min="0" max="1" step="0.005" value="0.02" /></div>
       <div class="row" id="row-crit"><label>점화 임계</label><input id="crit" type="number" min="0" step="50" value="300" /></div>
       <div class="row" id="row-radiate"><label>복사율(sink)</label><input id="radiate" type="number" min="0" max="1" step="0.02" value="0.2" /></div>
+      <div class="row" id="row-pressure"><label>반발(K)</label><input id="kpress" type="number" min="0" max="2" step="0.01" value="0.2" /></div>
       <div class="row"><label>스텝/프레임</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
       <div class="row"><label>배속</label>
         <select id="speedMult">
@@ -92,6 +93,7 @@
 <script src="engine/htj-radiate.js"></script>
 <script src="engine/htj-inertia.js"></script>
 <script src="engine/htj-gravity.js"></script>
+<script src="engine/htj-pressure.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -158,6 +160,15 @@
       init(w) { HTJGravity.seedTwoMasses(w, { sep: 0, sigma: w.N * 0.16, M0: 1000 }); },
       advance(w) { HTJGravity.applyGravity(w, 0.3, { G: 0.15, iters: 50 }); HTJInertia.advect(w, 0.3); },  // 법칙: 중력 가속 + 이류
       note: '<b>모든 질량이 모든 질량을 끌어당긴다</b>(만유인력). 질량(=energy)이 퍼텐셜 Φ(∇²Φ=ρ−ρ̄)를 만들고, 그 기울기가 운동량을 가속한다. <b>▶ 흐름</b>: 넓게 퍼진 구름이 *스스로 수축*해 고밀 코어로 뭉친다 — <b>확산(0002)의 정확한 거울상</b>(퍼짐↔모임). 균일은 무력(대비만 끌림), 질량·운동량 보존. *반발이 없어* 끝내 한 점으로 붕괴한다 — 다음 step 의 단거리 반발/포화가 이걸 멈춰 지속 입자·접촉을 만든다.'
+    },
+    '0008': {
+      label: 'step_0008 — 단거리 반발', title: 'HTJ — 단거리 반발(압력)', sub: '중력 ↔ 압력 균형 → 유한 크기 코어',
+      mode: 'energy', dynamics: true, pressure: true,
+      defaults: { colorScale: 'relative', view: 'energy', kpress: 0.2 },
+      // 과밀 구름 — 중력은 모으고, 압력 P=K·ρ^γ 은 민다. 둘이 균형 잡는 밀도에서 *유한 코어*가 선다.
+      init(w) { HTJPressure.seedBlob(w, { sigma: w.N * 0.16, M0: 1000 }); },
+      advance(w, p) { HTJGravity.applyGravity(w, 0.3, { G: 0.2, iters: 50 }); HTJPressure.applyPressure(w, 0.3, { K: p.kpress, gamma: 2 }); HTJInertia.advect(w, 0.3); },  // 법칙: 중력 + 반발 + 이류
+      note: '<b>밀집을 거부하는 단거리 반발(압력)</b> — 중력의 거울짝. 압력 P=K·ρ^γ(γ>4/3)의 기울기가 운동량을 *밀어내* 중력 붕괴를 멈춘다. <b>▶ 흐름</b>: 구름이 수축하다 *유한 크기에서 멈춰* 퍼진 코어로 선다(중력↓ ↔ 반발↑ 균형) = <b>지속하는 덩어리(입자·물체의 씨앗)</b>. <b>반발(K)</b>을 0 으로 내리면 step_0007 처럼 한 점으로 붕괴(곧 발산)하고, 키우면 코어가 더 크고 옅게 부푼다. 균일 무력·질량·운동량 보존.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -177,8 +188,9 @@
   function readRate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('rate').value) || 0)); }
   function readCrit() { return Math.max(0, parseFloat(document.getElementById('crit').value) || 0); }
   function readRadiate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('radiate').value) || 0)); }
+  function readKpress() { return Math.max(0, Math.min(2, parseFloat(document.getElementById('kpress').value) || 0)); }
   function readColorMax() { return Math.max(0, parseFloat(document.getElementById('colorMax').value) || 0); }
-  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit(), radiate: readRadiate() }; }
+  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit(), radiate: readRadiate(), kpress: readKpress() }; }
   function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
   function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
   function brushField() { return document.getElementById('brushField').value || 'energy'; }
@@ -216,12 +228,14 @@
     document.getElementById('row-rate').style.display = st.release ? '' : 'none';   // 방출율은 방출 step 에서만
     document.getElementById('row-crit').style.display = st.ignite ? '' : 'none';    // 점화 임계는 점화 step 에서만
     document.getElementById('row-radiate').style.display = st.radiate ? '' : 'none'; // 복사율은 sink step 에서만
-    // step별 *관찰하기 좋은* 기본 노브 적용(α·방출율·임계·복사율·색 기준).
+    document.getElementById('row-pressure').style.display = st.pressure ? '' : 'none'; // 반발(K)은 압력 step 에서만
+    // step별 *관찰하기 좋은* 기본 노브 적용(α·방출율·임계·복사율·반발·색 기준).
     const d = st.defaults || {};
     if (d.alpha != null) document.getElementById('alpha').value = d.alpha;
     if (d.rate != null) document.getElementById('rate').value = d.rate;
     if (d.crit != null) document.getElementById('crit').value = d.crit;
     if (d.radiate != null) document.getElementById('radiate').value = d.radiate;
+    if (d.kpress != null) document.getElementById('kpress').value = d.kpress;
     document.getElementById('colorScale').value = d.colorScale || 'relative';
     if (d.colorMax != null) document.getElementById('colorMax').value = d.colorMax;
     document.getElementById('row-colormax').style.display = document.getElementById('colorScale').value === 'absolute' ? '' : 'none';
@@ -342,7 +356,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0005';                       // 기본 = 현재 step
+    sel.value = '0008';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
@@ -421,6 +435,15 @@
     },
     // 중력 가속 + 이류를 steps 회 굴린다(질량이 뭉친다).
     gravityRun(G, dt, iters, steps) { for (let t = 0; t < (steps || 1); t++) { HTJGravity.applyGravity(world, dt, { G, iters }); HTJInertia.advect(world, dt); tick++; } },
+    // 반발 모드(step_0008) — 과밀 구름 초기화.
+    pressureInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJPressure.seedBlob(world, opts || { sigma: (N | 0) * 0.16, M0: 1000 });
+      tick = 0;
+    },
+    // 중력 + 반발(압력) + 이류를 steps 회 굴린다(유한 코어가 선다).
+    pressureRun(G, K, dt, iters, steps) { for (let t = 0; t < (steps || 1); t++) { HTJGravity.applyGravity(world, dt, { G, iters }); HTJPressure.applyPressure(world, dt, { K, gamma: 2 }); HTJInertia.advect(world, dt); tick++; } },
     maxField2(name) { return world.max(name); },
     totalField(name) { return world.total(name); },
     maxField(name) { return world.max(name); },
