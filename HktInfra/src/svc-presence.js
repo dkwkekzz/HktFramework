@@ -1,5 +1,5 @@
 'use strict';
-// step-0068 — 프레즌스 박스 사망 자율 감지(presenceLease): 0067 의 승격은 *외부 주입*(presenceFailover.at 가 promote 호출)이었다(0067 §9 한계). 이 step 은 그 트리거를 *자율화*한다 — active 박스가 매 tick svc.presence.hb 하트비트를 발행하고, standby 가 그걸 구독해 *침묵 길이*(hbTimeout)로 primary 사망을 스스로 감지→자기 promote. 외부 promote 호출 없이 죽음 후 보고를 인계 발행. 0009 의 orch lease 타임아웃→follower 승격을 프레즌스 박스에 적용(감지 권위=standby 자신). presenceLease OFF 면 하트비트·자율 승격 0 = 0067 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0069 — 프레즌스 SSOT 질의 인터페이스(presenceQuery): 0064~0068 이 프레즌스 박스를 *쓰기·발행·failover* 까지 세웠다. 이제 *읽기 경로* — PresenceService 가 {type:'presenceQuery', consumer} 요청에 {type:'presenceReply', consumer, state} 로 답한다(state=stateOf=up/down/permanent). 발행(push)이 *전이 알림*이라면 질의(pull)는 *현재 상태 조회* — "누가 어디에/어떤 상태인가"의 SSOT 단일 조회처(귓속말·파티·핸드오프 라우팅의 미래 기반·SPINE 계층 5). 구독 안 한 소비자 상태도 pull 로 알 수 있다(독립 읽기 경로). 질의 미수신이면 응답 0 = 0068 비트 동일(순수 함수 핸들러). (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -25,10 +25,14 @@ class PresenceService {
     this.lastHbTick = 0;          // 마지막으로 svc.presence.hb 를 받은(또는 자기 발행한) tick. 0 면 미수신(부트스트랩 — 오감지 가드).
     this.hbSent = 0;              // 발행한 하트비트 수(계측·active 박스만). hbRecv = 받은 수(standby 측).
     this.hbRecv = 0;
+    this.queriesRx = 0;           // 받은 presenceQuery 수(step-0069·읽기 경로 계측). repliesSent = 보낸 응답 수(1:1).
+    this.repliesSent = 0;
   }
   onMsg(m) {
     if (this.dead) return;        // 사망한 박스는 보고를 처리·발행하지 않는다(step-0067) — 승격된 standby 가 이후 보고를 인계.
     const p = m.payload;
+    // SSOT 질의 응답(step-0069·presenceQuery) — {type:'presenceQuery', consumer} 요청에 현재 상태(stateOf)를 {type:'presenceReply'} 로 회신(request/reply·SPINE §4 경로3). 순수 읽기(SSOT 무변경) — 구독 안 한 소비자 상태도 pull 로 답한다. 질의 미수신이면 미발화 = 0068 비트 동일.
+    if (p.type === 'presenceQuery') { this.queriesRx++; this.net.send(this.addr, m.from, { type: 'presenceReply', consumer: p.consumer, state: this.stateOf(p.consumer) }); this.repliesSent++; return; }
     // 하트비트 수신(step-0068) — active 박스의 svc.presence.hb 구독. 받을 때마다 lastHbTick 갱신(침묵 길이 0 으로 리셋). standby 만 구독(active 는 자기 하트비트 안 들음). presenceLease OFF 면 이 토픽 미구독 = 미발화.
     if (p.type === 'ev' && p.topic === 'svc.presence.hb') { this.lastHbTick = this.net.tick; this.hbRecv++; return; }
     // orch 의 전이 보고 수신 — point-to-point({type:'presence'}·0064) 또는 버스 토픽({type:'ev', topic:'svc.presence.report'}·0065). 둘 다 같은 SSOT 갱신+발행.

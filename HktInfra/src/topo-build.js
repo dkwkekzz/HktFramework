@@ -89,6 +89,7 @@ function buildTopology(opts) {
     presenceShadow = false,
     presenceLease = false,
     hbTimeout = 3,
+    presenceQuery = false,
     recoverRetry = false,
     recoverTimeout = 4,
     recoverMaxRetries = 0,
@@ -179,7 +180,9 @@ function buildTopology(opts) {
   if (bus && audit) add({ addr: 'audit', kind: 'audit', opts: {} });
   // [게임 서비스] 프레즌스 모니터(0063) — svc.presence 구조적 읽기 모델(상태 기계). presenceMonitor+발행 전제. OFF 면 토폴로지에 없음(0062 비트 동일). onTick 없음·발신 0 = 비-침습.
   const presMonAddr = (presenceMonitor && presencePublish && bus && failover && zones === 2 && inventory) ? 'presmon' : null;
-  if (presMonAddr) add({ addr: 'presmon', kind: 'presmon', opts: {} });
+  //   질의자(0069·presenceQuery) — presmon 이 프레즌스 박스(presenceSvcAddr)의 읽기 인터페이스를 호출. queryFor=관측 대상('ranking' down)+미관측('inventory' 항상 up — 독립 읽기 경로 증명). presenceQuery OFF·박스 부재면 queryAddr null(0068 비트 동일).
+  const presQueryOn = presenceQuery && presMonAddr && presenceSvcAddr;
+  if (presMonAddr) add({ addr: 'presmon', kind: 'presmon', opts: presQueryOn ? { queryAddr: presenceSvcAddr, queryFor: ['ranking', 'inventory'] } : {} });
   // [코디네이션] 전용 프레즌스 박스(0064) — orch 의 프레즌스 SSOT+발행 인계처. OFF 면 없음(0063 비트 동일). onTick 없음 = 신성한 tick 밖.
   if (presenceSvcAddr) add({ addr: 'presence', kind: 'presence', opts: { bus: busAddr, lease: presenceLease, hbTimeout } });   // primary: presenceLease 면 매 tick 하트비트 발행(0068).
   // [코디네이션] 프레즌스 박스 shadow(0066·presenceShadow) — *대기(standby)* PresenceService(presence2). primary 뒤 등록(팬아웃 순서 primary 먼저). active=false → 같은 보고로 SSOT 그림자 복제만·svc.presence 발행 억제(이중 발행 0). bus 는 승격(0067) 대비 전달. lease 면 하트비트 구독→사망 자율 감지(0068). OFF 면 없음(0065 비트 동일).
@@ -225,7 +228,7 @@ function makeActor(spec, net) {
     case 'chat': a = new ChatService(spec.opts); break;
     case 'bus': a = new ServiceBus(spec.opts); break;
     case 'audit': a = new AuditService(spec.opts); break;
-    case 'presmon': a = new PresenceMonitor(); break;
+    case 'presmon': a = new PresenceMonitor(spec.opts); break;
     case 'presence': a = new PresenceService(spec.opts); break;
     case 'ranking': a = new RankingService(spec.opts); break;
     case 'persist': a = new PersistStore(spec.opts); break;
