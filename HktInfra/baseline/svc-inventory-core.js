@@ -1,5 +1,5 @@
 'use strict';
-// step-0048 정리 분할 — InventoryService *원장 코어*(생성자 + 트랜잭션 onMsg + crash + 조회).
+// step-0054 — lease 생애 관측(busLeaseAudit) 플래그 추가 — 축출/재admission 을 svc.item.lease 버스 이벤트로 발행(코디네이션 관측). InventoryService *원장 코어*(생성자 + _own/_unown + crash + 조회).
 //   write-behind 영속은 svc-inventory-persist.js, 버스 결과/replay 는 svc-inventory-bus.js 가 프로토타입 증강(Object.assign).
 //   진입점 svc-inventory.js 가 셋을 묶어 동일 export(InventoryService) 노출 — 분할은 *파일 구조*만(바이트·동작 불변·reg 0).
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
@@ -113,77 +113,27 @@ class InventoryService {
     //   busLeaseLife OFF 면 ⒜ 지연 baseline 미확립(consumerSeen 은 0045 처럼 ack 때만)·⒝ 재admission 0 → 0047 비트 동일(evicted 동작 무변경). busConsumerLease·busMinWm 전제.
     this.busLeaseLife = opts.busLeaseLife || false;
     this.readmissions = 0;                  // 재admission 누적(계측·이 step) — 축출됐던 소비자가 돌아와 min 정의역에 복귀한 횟수.
+    // ── 적응형 leaseSpan(step-0050·busLeaseAdapt) — 0048/0049 lease 의 *정직한 한계* 해소(고정 leaseSpan 의 영구-죽음 vs 일시-지연 분리·svc-inventory-core.js §lease·0048 verify §9). ──
+    //   문제: 고정 leaseSpan 은 *정상 ack 간격(침묵)보다 커야* 산 소비자를 안 쫓는다 — 그 간격은 생산율×소비자 cadence 의 함수라 *사전에 모른다*. 너무 작으면 산 소비자 오축출(leaseSpan≤5 에서 live ranking 축출 재현), 너무 크면 죽은 소비자 늦게 감지.
+    //   해법: 임계를 *관측된 cadence* 로 self-size. 소비자 c 가 ack 할 때마다 그 직전 침묵(frontier−consumerSeen = c 가 *살아서* 견딘 ack 간격)을 보고 per-c 러닝 최대(consumerMaxGap)를 키운다. 축출 임계 = consumerMaxGap(c) + leaseSpan(이제 *여유 마진*).
+    //   → 산 소비자: 침묵이 자기 관측 cadence 를 마진만큼만 넘지 않으면 오축출 0(임계가 cadence 를 따라 올라감). 죽은 소비자: ack 끊김 → consumerMaxGap 동결 → 침묵이 동결값+마진 초과 → 여전히 축출(죽음 감지 보존·유계).
+    //   leaseSpan 의 의미 전환: 고정-임계(OFF) → 관측 cadence 위의 *마진*(ON). 사전에 cadence 를 몰라도 된다(0048 §9 의 "임계를 사람이 맞춰야" 해소). busLeaseAdapt OFF 면 consumerMaxGap 미사용 = 0049 비트 동일(고정 leaseSpan 예측). busConsumerLease 전제.
+    this.busLeaseAdapt = opts.busLeaseAdapt || false;
+    this.consumerMaxGap = new Map();        // consumer id -> 그 소비자가 *살아서 ack 하며* 보인 최대 침묵(frontier 단위·단조 증가). 적응형 축출 임계의 cadence 추정.
+    // 시작 cadence prior(step-0051·busLeaseGrace) — 0050 §9 "bootstrap 1회 오축출" 해소. cadence G 를 학습하려면 G-침묵을 ack 으로 끝낸 사건을 1회 관측해야 하는데, 그 첫 침묵 동안엔 prior 가 없어 임계<G → 산 소비자 1회 오축출. prior 로 임계 바닥(floor)을 깔아 첫 침묵도 흡수(임계=max(관측,prior)+마진). 로직은 svc-inventory-bus.js _onOutAck 임계. OFF/prior 0 = 0050 비트 동일.
+    this.busLeaseGrace = opts.busLeaseGrace || false;
+    this.cadencePrior = opts.cadencePrior || 0;   // 시작 cadence 추정 바닥. 관측 cadence(consumerMaxGap)가 이보다 작은 bootstrap 구간에만 작동(이후 관측이 이김). 죽은 소비자도 임계=prior+마진 유계라 여전히 축출.
+    // ── 윈도 cadence(step-0052·busCadenceWindow) — 0050 §9 "consumerMaxGap 단조 증가(감쇠 없음)" 해소. 로직은 svc-inventory-bus.js _onOutAck. ──
+    //   단조 max(0050)는 한 번 본 큰 침묵을 영영 안 내린다 → 소비자가 빨라지면(cadence↓) 임계 과대 동결 → 죽음 늦게 감지. 윈도: cadence 추정 = 최근 K gap 의 max → 옛 큰 gap 이 창 밖으로 늙어 추정 감쇠. *grace prior 바닥*(0051) 위에서만 안전 — prior 없는 윈도는 eviction flapping 에 추정이 0 으로 붕괴(0051 §9). busCadenceWindow OFF(또는 K=0)면 전체 max(0051 비트 동일).
+    this.busCadenceWindow = opts.busCadenceWindow || false;
+    this.cadenceWindow = opts.cadenceWindow || 0;   // 최근 gap 창 크기 K(0=전체 max). ON 이려면 >0(+grace prior 권장).
+    this.consumerGaps = new Map();          // consumer id -> 최근 관측 gap 배열(길이≤K). busCadenceWindow ON 일 때만. consumerMaxGap = 이 창의 max.
+    // lease 생애 관측(step-0054·busLeaseAudit) — 0045~0050 소비자 lease 의 축출/재admission 은 *내부 계측*(evictions/readmissions)일 뿐 버스 밖에서 안 보인다. 코디네이션 계층(오케스트레이터)이 소비자 건강을 알려면 lease 전이가 관측 가능해야 한다(은닉·버스 pub/sub 원칙). ON 이면 축출/복귀 시 svc.item.lease 토픽에 이벤트 발행(audit/오케스트레이터가 구독). 발행 단일 경로·존 tick 밖. OFF 면 발행 0(0053 비트 동일). busConsumerLease 전제.
+    this.busLeaseAudit = opts.busLeaseAudit || false;
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
   _unown(owner, itemId) { const s = this.byOwner.get(owner); if (s) s.delete(itemId); }
-  onMsg(m) {
-    let p = m.payload;
-    if (p.type === 'journal_nak') { if (this.reliable) this._resend(p.missing || []); return; }   // 저널 홉 NAK(0023) — persist 가 감지한 갭 재전송(reactive·신성한 tick 밖)
-    if (p.type === 'journal_ack') { if (this.quorumW > 0) this._recordAck(p.seq, m.from); return; }   // 쓰기 정족수 ack(0029) — 스토어 저장 확인 집계 → durableSeq 워터마크. quorumW 0 면 ack 자체가 안 옴(0028 비트 동일)
-    if (p.type === 'ev' && p.topic === 'svc.item.out.ack') { this._onOutAck(p.ev); return; }   // 결과 ack(0041·busOutAck) — 게이트웨이→가방 자기-크기조정 경로. busOutAck OFF 면 미구독 = 0040 비트 동일.
-    if (p.type === 'ev' && p.topic === 'svc.item.seen') { this._onSeenWatermark(p.ev); return; }   // seen 워터마크(이 step·busSeenBound) — 게이트웨이 prune 프런티어 → seenReqs 가지치기. OFF 면 미구독 = 0041 비트 동일.
-    if (p.type === 'ev' && p.topic === 'svc.item') p = p.ev;   // 버스 봉투 해체(구독 수신) — 직접 모드와 같은 item_req/item_reconcile
-    // 요청 ack 발행(이 step·busAck) — reqId 실린 svc.item 을 받을 때마다 *처리 확인* 통보(dedup 폐기분 포함 — 위 주석 참조).
-    //   게이트웨이가 이 ack 로 inBuffer 를 가지쳐 자기-크기조정. OFF(또는 reqId 없음·버스 OFF)면 발행 0 = 0039 비트 동일.
-    if (this.busAck && this.bus && p && p.reqId !== undefined) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.ack', ev: { reqId: p.reqId } }); this.acksSent++; }
-    // 요청 dedup(이 step·busResendReq) — 게이트웨이 재발행이 gap 전 도달분도 다시 보내므로 reqId 로 *최초 1회만* 처리(pickup 이중 mint 0).
-    //   reqId 없으면(busResendReq OFF·재발행 미사용) 분기 휴면 = 0036 비트 동일. 멱등(Set dedup) — 재발행 무해.
-    if (this.busResendReq && p.reqId !== undefined) {
-      // dedup 키 — busProducerNs ON·producer 태깅이면 (producer,reqId) 복합키로 producer 네임스페이스 분리(이 step). OFF/미태깅이면 bare reqId = 0045 비트 동일.
-      const key = (this.busProducerNs && p.producer !== undefined) ? p.producer + '\u0000' + p.reqId : p.reqId;
-      if (this.seenReqs.has(key)) return;   // 이미 처리(재발행 중복·또는 같은 (producer,reqId)) — 폐기
-      this.seenReqs.add(key);
-      if (this.seenReqs.size > this.seenReqsPeak) this.seenReqsPeak = this.seenReqs.size;   // 최대 크기 계측 — 유계화 증거
-    }
-    if (p.type === 'item_reconcile') {
-      // id-reconciliation(이 step·mintRecon) — 클라가 믿는 아이템 id 목록을 받아 원장에 없는 것을 re-mint(새 id).
-      //   belief = 서버가 라이브로 확인한 사실 → crash 가 그 mint 저널을 소실했을 뿐 → 서버가 새 id 로 재발급(권위 재-확인).
-      //   원장에 이미 있는 id(durable mint)는 skip → 멱등(중복 요청·give-resend 와 공존에도 dupe 0).
-      //   결과 item_recon_map 은 _out 으로 → gateway 가 클라에 중계(은닉). 매핑이 없으면(전부 durable) 응답 없음(클라 belief 변경 0).
-      const av = p.reqAvatar;
-      // mintTotal 하한 보정: 클라가 신고한 id 중 mintTotal 이상인 것이 있으면 충돌 방지(xfer 손실 시 mintTotal 이 너무 낮을 수 있음)
-      for (const id of (p.owned || [])) {
-        const n = parseInt(String(id).slice(4), 10);
-        if (Number.isFinite(n) && n >= this.mintTotal) this.mintTotal = n + 1;
-      }
-      const mappings = [];
-      for (const oldId of (p.owned || [])) {
-        if (this.ledger.get(oldId) === av) continue;   // 이미 원장에 있음(durable mint) — skip
-        const newId = 'item' + (this.mintTotal++);
-        this.ledger.set(newId, av); this._own(av, newId);
-        this.minted++;
-        this._journal({ kind: 'mint', itemId: newId, owner: av });   // re-mint 도 저널에 기록 → 이후 crash/replay 에도 유지
-        mappings.push({ oldId, newId });
-      }
-      if (mappings.length > 0) this._out({ type: 'item_recon_map', reqAvatar: av, mappings });
-      return;
-    }
-    if (p.type !== 'item_req') return;
-    if (p.op === 'pickup') {
-      const itemId = 'item' + (this.mintTotal++);   // 신규 아이템 mint(dupe 아님 — 새 itemId)
-      this.ledger.set(itemId, p.avatar);
-      this._own(p.avatar, itemId);
-      this.minted++;
-      this._journal({ kind: 'mint', itemId, owner: p.avatar });   // 영속 효과 로그 — 새 가방이 replay 로 이 원장을 재현
-      this._out({ type: 'item_result', ok: true, op: 'pickup', reqAvatar: p.avatar, itemId });
-    } else if (p.op === 'give') {
-      const owner = this.ledger.get(p.itemId);
-      if (owner === p.fromAvatar && p.toAvatar && p.toAvatar !== p.fromAvatar) {
-        // 쌍 거래 — release(from) + acquire(to) 원자적. 원장·역인덱스 동시 갱신(둘 다 한 onMsg).
-        this._unown(p.fromAvatar, p.itemId);
-        this.ledger.set(p.itemId, p.toAvatar);
-        this._own(p.toAvatar, p.itemId);
-        this.transfers++;
-        this._journal({ kind: 'xfer', itemId: p.itemId, from: p.fromAvatar, to: p.toAvatar });
-        this._out({ type: 'item_result', ok: true, op: 'give', reqAvatar: p.fromAvatar, toAvatar: p.toAvatar, itemId: p.itemId });
-      } else {
-        // 미소유/이미 이동/자기자신 — 거부(중복 이동·phantom 0). net.log 엔 fail 만(원장 무변경·저널 무기록).
-        this.failedOps++;
-        this._out({ type: 'item_result', ok: false, op: 'give', reqAvatar: p.fromAvatar, itemId: p.itemId });
-      }
-    }
-  }
   // crash — 프로세스 사망(RAM 소실)의 인프로세스 모델: 원장·역인덱스·카운터 전부 비운다. PersistStore 는 *별 박스*라 무관.
   crash() {
     this.ledger = new Map(); this.byOwner = new Map();
@@ -196,6 +146,7 @@ class InventoryService {
     this.producerSeenWm = new Map();   // per-producer seen 워터마크 리셋(이 step) — 새 생애는 producer 별 prune 이력 0(busSeenNs OFF 면 무관).
     this.consumerWm = new Map(); // 다중 소비자 워터마크 리셋(0044) — 새 프로세스는 소비자 ack 이력 0(busMinWm OFF 면 무관·outConsumers 는 config 라 유지).
     this.evicted = new Set(); this.evictions = 0; this.consumerSeen = new Map();   // 축출·침묵 이력 리셋(0045) — 새 프로세스는 산 소비자 가정·정의역 복원(busConsumerLease OFF 면 무관·leaseSpan 은 config 라 유지).
+    this.consumerGaps = new Map();   // 윈도 cadence 이력 리셋(0052) — 새 생애는 gap 창 0(busCadenceWindow OFF 면 빈 Map 무변경 = 비트 동일).
     this.readmissions = 0;   // 재admission 이력 리셋(이 step) — 새 프로세스는 복귀 이력 0(busLeaseLife OFF 면 무관). §2 지연 baseline 은 sweep 가 다시 깐다(상태 불요).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }

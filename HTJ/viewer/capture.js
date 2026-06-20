@@ -374,7 +374,149 @@ async function mainSteady() {
   process.exit(ok ? 0 : 1);
 }
 
-(process.argv.includes('--steady') ? mainSteady()
+// ── step_0006: 관성(질량의 탄도 이류) 시계열 눈 검증 ──
+//   energy = 질량(E=mc²). 한쪽에서 출발한 *움직이는 덩어리*가 확산처럼 퍼지는 게 아니라
+//   통째로 *직진*한다(뉴턴 1법칙). t=0(왼쪽)·t=T(오른쪽으로 이동) 두 프레임으로 *탄도 이동*을 단언.
+//   대조: 같은 덩어리에 확산만 → 제자리에서 퍼질 뿐 질량중심 이동 없음.
+//   캡처: capture_t0.png(출발) · capture.png(직진 후) · capture_diffuse.png(확산 대조).
+//   실행: node viewer/capture.js --inertia [N] [steps]
+async function mainInertia() {
+  const pw = loadPlaywright(), bp = browserPath();
+  const pos = process.argv.slice(2).filter(a => a !== '--inertia');
+  const N = parseInt(pos[0] || '28', 10);
+  const STEPS = parseInt(pos[1] || '28', 10);
+  const DT = 0.5, V0 = 0.5;
+  const dir = path.resolve(__dirname, '../steps/step_0006');
+  const out = path.join(dir, 'capture.png'), out0 = path.join(dir, 'capture_t0.png'), outDiff = path.join(dir, 'capture_diffuse.png');
+
+  if (!pw || !bp) {
+    console.log(`\n캡처/눈 검증: ${!pw ? 'playwright 모듈' : 'chromium 브라우저'} 없음 — SKIP(비-치명).`);
+    process.exit(0);
+  }
+  if (!process.env.PLAYWRIGHT_BROWSERS_PATH) process.env.PLAYWRIGHT_BROWSERS_PATH = bp;
+  fs.mkdirSync(dir, { recursive: true });
+
+  const browser = await pw.chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 720, height: 720 } });
+  await page.goto(VIEWER);
+  await page.waitForFunction('window.HTJViewer && window.HTJWorld && window.HTJInertia && window.HTJRender');
+  await page.evaluate(analyzeSrc);
+
+  // t=0: 왼쪽(cx=0.25N)에서 +x 속도를 실은 질량 덩어리.
+  await page.evaluate(([n, v]) => {
+    const V = window.HTJViewer; V.setSize(700, 700);
+    V.inertiaInit(n, { cx: n * 0.25, vx: v, M0: 1000, sigma: n * 0.09 });
+    V.setCamera({ yaw: 0.7, pitch: 0.55, zoom: 1.0, panX: 0, panY: 0 });
+    V.drawField('energy');
+  }, [N, V0]);
+  await page.locator('#cv').screenshot({ path: out0 });
+  const a0 = await page.evaluate(() => window.__analyze());
+  const c0 = await page.evaluate(() => window.HTJViewer.centerOfMass());
+
+  // t=T: 탄도 이류 → 덩어리가 오른쪽으로 *직진*(질량중심 이동).
+  await page.evaluate(([dt, steps]) => { window.HTJViewer.inertiaRun(dt, steps); window.HTJViewer.drawField('energy'); }, [DT, STEPS]);
+  await page.locator('#cv').screenshot({ path: out });
+  const aT = await page.evaluate(() => window.__analyze());
+  const cT = await page.evaluate(() => window.HTJViewer.centerOfMass());
+  const mT = await page.evaluate(() => ({ M: window.HTJViewer.totalField('energy') }));
+
+  // 대조: 같은 출발 덩어리에 *확산만* → 제자리에서 퍼짐(질량중심 정지).
+  const cDiff = await page.evaluate(([n, v, steps]) => {
+    const V = window.HTJViewer;
+    V.inertiaInit(n, { cx: n * 0.25, vx: v, M0: 1000, sigma: n * 0.09 });
+    const c0 = V.centerOfMass();
+    for (let t = 0; t < steps * 6; t++) window.HTJEnergy.diffuseEnergy(V.world, 1 / 7);
+    V.drawField('energy');
+    return { c0, c1: V.centerOfMass() };
+  }, [N, V0, STEPS]);
+  await page.locator('#cv').screenshot({ path: outDiff });
+
+  await browser.close();
+
+  const moved = cT[0] - c0[0];                         // 관성: 질량중심 x 이동량
+  const diffMoved = Math.abs(cDiff.c1[0] - cDiff.c0[0]); // 확산: 질량중심 이동(≈0)
+  const checks = [
+    { name: `t=0 덩어리가 화면에 보임(질량)`, pass: a0.lit > 0, value: `lit ${a0.lit}px` },
+    { name: `탄도 직진 — 질량중심이 +x 로 이동(통째로 직진)`, pass: moved > 2, value: `CoM_x ${c0[0].toFixed(1)} → ${cT[0].toFixed(1)} (Δ${moved.toFixed(1)})` },
+    { name: `대조 — 확산만: 질량중심 정지(퍼질 뿐 이동 없음)`, pass: diffMoved < 0.5, value: `확산 ΔCoM_x ${diffMoved.toExponential(2)}` },
+    { name: `질량 보존(이류는 수송)`, pass: Math.abs(mT.M - 1000) / 1000 < 1e-6, value: `M=${mT.M.toFixed(2)}` },
+  ];
+  console.log(`\n=== 눈 검증: HTJ 관성 (N=${N}·${STEPS}스텝·dt=${DT}·v=${V0}) ===`);
+  for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+  console.log(`  스크린샷: ${path.relative(process.cwd(), out0)} (출발) · ${path.relative(process.cwd(), out)} (직진) · ${path.relative(process.cwd(), outDiff)} (확산 대조)`);
+  const ok = checks.every(c => c.pass);
+  console.log(`\n결과: ${ok ? '눈 검증 PASS ✅' : 'FAIL ❌'}\n`);
+  process.exit(ok ? 0 : 1);
+}
+
+// ── step_0007: 보편중력(자기중력 수축) 눈 검증 ──
+//   넓게 퍼진 질량 구름이 자기중력으로 *수축*해 고밀 코어가 된다(확산의 거울상). G=0 대조는 불변.
+//   캡처: capture_t0.png(구름) · capture.png(수축한 코어) · capture_nograv.png(G=0 불변).
+//   실행: node viewer/capture.js --gravity [N] [steps]
+async function mainGravity() {
+  const pw = loadPlaywright(), bp = browserPath();
+  const pos = process.argv.slice(2).filter(a => a !== '--gravity');
+  const N = parseInt(pos[0] || '28', 10);
+  const STEPS = parseInt(pos[1] || '16', 10);
+  const G = 0.25, DT = 0.3, ITERS = 90;
+  const dir = path.resolve(__dirname, '../steps/step_0007');
+  const out = path.join(dir, 'capture.png'), out0 = path.join(dir, 'capture_t0.png'), outNg = path.join(dir, 'capture_nograv.png');
+
+  if (!pw || !bp) {
+    console.log(`\n캡처/눈 검증: ${!pw ? 'playwright 모듈' : 'chromium 브라우저'} 없음 — SKIP(비-치명).`);
+    process.exit(0);
+  }
+  if (!process.env.PLAYWRIGHT_BROWSERS_PATH) process.env.PLAYWRIGHT_BROWSERS_PATH = bp;
+  fs.mkdirSync(dir, { recursive: true });
+
+  const browser = await pw.chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 720, height: 720 } });
+  await page.goto(VIEWER);
+  await page.waitForFunction('window.HTJViewer && window.HTJGravity && window.HTJInertia && window.HTJRender');
+  await page.evaluate(analyzeSrc);
+
+  // t=0: 넓은 질량 구름.
+  await page.evaluate(([n]) => {
+    const V = window.HTJViewer; V.setSize(700, 700);
+    V.gravityInit(n, { sep: 0, sigma: n * 0.16, M0: 1000 });
+    V.setCamera({ yaw: 0.7, pitch: 0.55, zoom: 1.0, panX: 0, panY: 0 });
+    V.drawField('energy');
+  }, [N]);
+  await page.locator('#cv').screenshot({ path: out0 });
+  const p0 = await page.evaluate(() => window.HTJViewer.maxField2('energy'));
+
+  // t=T: 자기중력 수축 → 고밀 코어.
+  await page.evaluate(([g, dt, it, steps]) => { window.HTJViewer.gravityRun(g, dt, it, steps); window.HTJViewer.drawField('energy'); }, [G, DT, ITERS, STEPS]);
+  await page.locator('#cv').screenshot({ path: out });
+  const pT = await page.evaluate(() => window.HTJViewer.maxField2('energy'));
+  const aT = await page.evaluate(() => window.__analyze());
+
+  // 대조: G=0 → 불변.
+  const pNg = await page.evaluate(([n, dt, it, steps]) => {
+    const V = window.HTJViewer; V.gravityInit(n, { sep: 0, sigma: n * 0.16, M0: 1000 });
+    V.gravityRun(0, dt, it, steps); V.drawField('energy');
+    return V.maxField2('energy');
+  }, [N, DT, ITERS, STEPS]);
+  await page.locator('#cv').screenshot({ path: outNg });
+
+  await browser.close();
+
+  const checks = [
+    { name: `t=T 코어가 화면에 보임(수축)`, pass: aT.lit > 0, value: `lit ${aT.lit}px` },
+    { name: `뭉침 — 자기중력으로 피크 밀도 상승(구름→코어)`, pass: pT > p0 * 3, value: `peak ${p0.toFixed(2)} → ${pT.toFixed(2)} (x${(pT / p0).toFixed(1)})` },
+    { name: `대조 — G=0: 피크 불변(안 뭉침)`, pass: Math.abs(pNg - p0) / p0 < 1e-6, value: `peak ${p0.toFixed(2)} → ${pNg.toFixed(2)}` },
+  ];
+  console.log(`\n=== 눈 검증: HTJ 보편중력 (N=${N}·${STEPS}스텝·G=${G}) ===`);
+  for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name} = ${c.value}`);
+  console.log(`  스크린샷: ${path.relative(process.cwd(), out0)} (구름) · ${path.relative(process.cwd(), out)} (코어) · ${path.relative(process.cwd(), outNg)} (G=0)`);
+  const ok = checks.every(c => c.pass);
+  console.log(`\n결과: ${ok ? '눈 검증 PASS ✅' : 'FAIL ❌'}\n`);
+  process.exit(ok ? 0 : 1);
+}
+
+(process.argv.includes('--gravity') ? mainGravity()
+  : process.argv.includes('--inertia') ? mainInertia()
+  : process.argv.includes('--steady') ? mainSteady()
   : process.argv.includes('--star') ? mainStar()
   : process.argv.includes('--potential') ? mainPotential()
   : process.argv.includes('--energy') ? mainEnergy() : main())

@@ -79,6 +79,8 @@
 <script src="engine/htj-energy.js"></script>
 <script src="engine/htj-potential.js"></script>
 <script src="engine/htj-radiate.js"></script>
+<script src="engine/htj-inertia.js"></script>
+<script src="engine/htj-gravity.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -127,6 +129,24 @@
       init(w) { HTJPotential.seedStarField(w, { core: 1e7, background: 0, r: w.N * 0.16 }); },  // 큰 연료 저장고
       advance(w, p) { HTJPotential.releaseEnergy(w, p.rate, { crit: p.crit }); HTJEnergy.diffuseEnergy(w, p.alpha); HTJRadiate.radiate(w, p.radiate); },  // 법칙: 점화+확산+복사
       note: '시작 화면 = <b>potential</b>(큰 연료 저장고). <b>▶ 흐름</b>을 누르면 화면이 <b>energy</b> 로 바뀐다 — 코어가 *계속* 점화(=별) → 에너지가 확산으로 흐르고 <b>경계에서 우주로 빠져나간다</b>(sink). 중심은 *꾸준히 밝고* 바깥은 어둡다 = 영구 그래디언트.<br /><b>색 기준=절대</b>라 에너지가 빠져나가며 *전체가 어두워지는 것*도 보인다. 복사율을 0 으로 하면 닫힌 상자처럼 균일해진다(안 빛남).'
+    },
+    '0006': {
+      label: 'step_0006 — 관성', title: 'HTJ — 관성', sub: '질량(=에너지)의 탄도 이류(뉴턴 1법칙)',
+      mode: 'energy', dynamics: true,
+      defaults: { colorScale: 'relative', view: 'energy' },
+      // energy = 질량(E=mc²). 균일 속도를 실은 덩어리(한쪽에서 출발) — 힘 없이 직진.
+      init(w) { HTJInertia.seedMovingBlob(w, { cx: w.N * 0.25, vx: 0.5, M0: 1000, sigma: w.N * 0.1 }); },
+      advance(w) { HTJInertia.advect(w, 0.5); },   // 법칙: 탄도 이류(힘 없음 → 등속 직진)
+      note: '이제 <b>energy = 질량</b>(E=mc²). 덩어리에 *운동량*을 실었다. <b>▶ 흐름</b>: 확산처럼 퍼지는 게 아니라 <b>통째로 직진</b>한다 — 힘이 없으니 *제 속도를 지킨 채* 등속(뉴턴 1법칙). 질량·운동량 *보존*, 질량중심이 등속 이동. 벽(닫힌 경계)에 닿으면 쌓인다. 다음 step 에서 이 운동량을 *질량이 만든 퍼텐셜*로 가속하면 중력이 창발한다.'
+    },
+    '0007': {
+      label: 'step_0007 — 보편중력', title: 'HTJ — 보편중력', sub: '자기중력(Poisson) → 질량이 뭉친다',
+      mode: 'energy', dynamics: true,
+      defaults: { colorScale: 'relative', view: 'energy' },
+      // 넓게 퍼진 질량 구름 — 자기중력이 *수축*시킨다(확산의 거울상).
+      init(w) { HTJGravity.seedTwoMasses(w, { sep: 0, sigma: w.N * 0.16, M0: 1000 }); },
+      advance(w) { HTJGravity.applyGravity(w, 0.3, { G: 0.15, iters: 50 }); HTJInertia.advect(w, 0.3); },  // 법칙: 중력 가속 + 이류
+      note: '<b>모든 질량이 모든 질량을 끌어당긴다</b>(만유인력). 질량(=energy)이 퍼텐셜 Φ(∇²Φ=ρ−ρ̄)를 만들고, 그 기울기가 운동량을 가속한다. <b>▶ 흐름</b>: 넓게 퍼진 구름이 *스스로 수축*해 고밀 코어로 뭉친다 — <b>확산(0002)의 정확한 거울상</b>(퍼짐↔모임). 균일은 무력(대비만 끌림), 질량·운동량 보존. *반발이 없어* 끝내 한 점으로 붕괴한다 — 다음 step 의 단거리 반발/포화가 이걸 멈춰 지속 입자·접촉을 만든다.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -366,6 +386,26 @@
     // 점화+확산+복사(sink)를 steps 회 굴린다(빛나는 별, step_0005).
     steadyRun(rate, crit, alpha, rad, steps) { for (let t = 0; t < (steps || 1); t++) { HTJPotential.releaseEnergy(world, rate, { crit }); HTJEnergy.diffuseEnergy(world, alpha); HTJRadiate.radiate(world, rad); tick++; } },
     radiated() { return world.radiated || 0; },
+    // 관성 모드(step_0006) — 움직이는 질량 덩어리 초기화.
+    inertiaInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJInertia.seedMovingBlob(world, opts || { cx: (N | 0) * 0.25, vx: 0.5, M0: 1000, sigma: (N | 0) * 0.1 });
+      tick = 0;
+    },
+    // 탄도 이류를 steps 회 굴린다(질량이 운동량을 싣고 직진).
+    inertiaRun(dt, steps) { for (let t = 0; t < (steps || 1); t++) { HTJInertia.advect(world, dt); tick++; } },
+    centerOfMass() { return HTJInertia.centerOfMass(world); },
+    // 중력 모드(step_0007) — 질량 구름/덩어리 초기화.
+    gravityInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJGravity.seedTwoMasses(world, opts || { sep: 0, sigma: (N | 0) * 0.16, M0: 1000 });
+      tick = 0;
+    },
+    // 중력 가속 + 이류를 steps 회 굴린다(질량이 뭉친다).
+    gravityRun(G, dt, iters, steps) { for (let t = 0; t < (steps || 1); t++) { HTJGravity.applyGravity(world, dt, { G, iters }); HTJInertia.advect(world, dt); tick++; } },
+    maxField2(name) { return world.max(name); },
     totalField(name) { return world.total(name); },
     maxField(name) { return world.max(name); },
     // 특정 장을 그린다(capture 가 골라 캡처). absMax>0 면 절대 색 스케일, 아니면 평균*2 상대.

@@ -138,6 +138,12 @@ function run(opts) {
     //   이후 ranking 은 결과를 못 받아 ack 가 끊긴다 → consumerWm 고정 → min-워터마크가 그 frontier 에 묶여 outBuffer 무계 성장(busConsumerLease OFF). lease ON 이면 가방이 leaseSpan 뒤처짐 후 축출 → drain.
     //   busReSub unsub 경로(0033) 재사용 — 정규 제어 평면(시드 로그의 일부 = 결정론). 미설정이면 휴면(reg 0 불변·멀티프로세스 E2E 는 미주입).
     if (opts.rankDie && ranking && i + 1 === opts.rankDie) net.send('ranking', 'bus', { type: 'unsub', topic: 'svc.item.out' });
+    // 소비자 *일시* 정지(step-0052·rankStall) — ranking 이 at 에 unsub 하고 until 에 re-sub(영구 rankDie 와 달리 복귀). 큰 *일시* gap 1개 생성(cadence 급변 자극·윈도 감쇠 검증용).
+    //   재-ack 시 그 stall gap 이 cadence 관측치로 기록 → 전체 러닝 max(OFF)는 영영 보유(임계 영구 과대) vs 윈도(ON)는 K acks 뒤 창 밖으로 늙어 감쇠. 영구 rankDie 와 동형 제어 평면(unsub/sub·시드 로그 = 결정론). 미설정이면 휴면(reg 0 불변).
+    if (opts.rankStall && ranking) {
+      if (i + 1 === opts.rankStall.at) net.send('ranking', 'bus', { type: 'unsub', topic: 'svc.item.out' });
+      if (i + 1 === opts.rankStall.until) { net.send('ranking', 'bus', { type: 'sub', topic: 'svc.item.out' }); if (opts.busResend && inventory) inventory.resendOut(); }
+    }
     // 다중 게이트웨이 producer 자극(이 step·producerInject) — 둘째 게이트웨이(gateway2)가 버스 seam 에 svc.item 요청을 발행(producer-local reqId 가 gateway1 과 겹침).
     //   가방은 버스 너머라 발신 게이트웨이를 구별 못 한다(은닉) — producer 태그가 유일한 네임스페이스 신호. op={at,reqId,avatar,producer}. 정규 svc.item pub(실제 둘째 게이트웨이가 발신할 메시지와 동형).
     //   busProducerNs OFF 면 가방이 reqId 만으로 dedup → gateway1 의 같은 reqId 와 충돌(둘째 producer 요청 폐기·손실). ON 이면 (producer,reqId) 분리 → 충돌 0. 미설정이면 휴면(reg 0 불변).

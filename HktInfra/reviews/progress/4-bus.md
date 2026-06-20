@@ -22,7 +22,9 @@
   - `step-0045` — 소비자 lease/축출.
   - `step-0046~0047` — 다중 게이트웨이 producer 네임스페이스·per-producer seen 워터마크.
   - `step-0048~0050` — lease lifecycle 정합·적응형 leaseSpan(관측 cadence 로 축출 임계 self-size).
-- **남은 것**: 버스 물리 분산·per-producer ack·cadence EWMA·라우팅 영속·서버간 인증.
+  - `step-0051~0052` — 적응 정밀화: 시작 cadence prior(bootstrap 오축출 0)·윈도 cadence(옛 큰 gap 늙혀 감쇠·죽음 감지 회복).
+  - `step-0054` — lease 생애를 svc.item.lease 이벤트로 *관측 가능*하게(축출/재admission 발행·코디네이션이 구독할 토대).
+- **남은 것**: 버스 물리 분산·per-producer ack·cadence EWMA 분포/주기 인지·마진 jitter 적응·라우팅 영속·서버간 인증.
 
 ---
 

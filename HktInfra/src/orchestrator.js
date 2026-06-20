@@ -1,5 +1,5 @@
 'use strict';
-// step-0048 분할 preamble — 박스 1개=파일 1개 (CLAUDE.md 임계 규칙). 진입점 net-core.js 가 묶는다.
+// step-0060 — 프레즌스 *발행*: orch 의 소비자 건강 판정(down/up/permanent)을 svc.presence 버스 이벤트로 발행 → 다른 서비스가 구독해 반응(프레즌스가 orch 사유 상태→1급 *발행 신호*). 0054 가 lease 를, 이 step 은 *프레즌스 판정*을 관측 가능하게. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -15,15 +15,84 @@ class Orchestrator {
     this.curTick = 0;
     this.promotions = 0;
     this.deathSeen = new Map();
+    // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
+    this.busLeasePresence = opts.busLeasePresence || false;
+    this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
+    this.presenceEvents = 0;         // 소비한 lease 이벤트 누적(계측) — evictions+readmissions 와 대조.
+    // 프레즌스 *반응*(step-0056·busPresenceRecover) — 0055 가 프레즌스를 *상태*로만 뒀다면, 이 step 은 마지막 고리(*행동*)를 닫는다: down 으로 관측한 소비자에게 recover 명령을 *직접* 보낸다(0009 promote/reroute 와 같은 제어 평면). 소비자가 *스스로* 재구독한다(orch 가 대신 sub 하면 orch 가 구독자로 등록됨 = 0055 §9 난점) → 결과 재개 → 재-ack → 가방 재admission → readmit → consumerDown 비움 = self-healing 고리 완성. OFF 면 recover 미발신 = 0055 비트 동일.
+    this.busPresenceRecover = opts.busPresenceRecover || false;
+    this.recoverTopic = opts.recoverTopic || 'svc.item.out';   // 소비자가 재구독할 토픽(가방 결과 스트림 — ranking 의 입력). 명시 인터페이스로 전달(소비자 내부 무지).
+    this.recoversSent = 0;           // 발신한 recover 명령 수(행동 계측) — OFF·미-down 이면 0.
+    this.recovered = new Set();      // 이미 recover 명령을 보낸 down 소비자(중복 명령 억제 — evict 1회당 1 recover).
+    this.recoverAcks = 0;            // 소비자가 돌려보낸 recover 확인 수(step-0057) — recoversSent 와 1:1 이면 모든 명령이 전달·수행됨(분실 0). 코디네이션이 명령 결과를 *안다*(fire-and-forget 가 아니라 확인된 루프).
+    // 미확인 명령 재시도(step-0058·recoverRetry) — recover 가 분실될 수 있다(명령 메시지 손실·소비자 일시 무응답). 0057 의 recoverAck 가 "확인됨"을 알려주므로, *미확인*(recoverTimeout 경과 후에도 ack 없음) 명령을 재발신해 분실에도 치유가 수렴하게 한다(0008 ack/NAK 재전송의 제어 평면 판). OFF 면 재시도 0 = 0057 비트 동일.
+    this.recoverRetry = opts.recoverRetry || false;
+    this.recoverTimeout = opts.recoverTimeout || 4;   // recover 후 ack 를 기다리는 tick(이후 미확인이면 재발신). 결정론 상수.
+    this.pendingRecover = new Map();   // consumer -> 마지막 recover 발신 tick(ack 오면 삭제). onTick 이 timeout 경과분을 재발신.
+    this.recoverRetries = 0;           // 재발신 수(계측) — 분실 1건당 ≥1.
+    // 재시도 상한(step-0059·recoverMaxRetries) — 영구 분실(소비자 영영 안 옴)에 재시도가 무한 반복되지 않게 per-consumer 재발신 횟수에 상한. 도달하면 그 소비자를 permanentDown 으로 *포기*(pending 에서 빼 루프 종료). 0 이면 무상한 = 0058 동일.
+    this.recoverMaxRetries = opts.recoverMaxRetries || 0;
+    this.recoverAttempts = new Map();   // consumer -> 누적 재발신 횟수(상한 비교 기준). ack 오면 readmit/ack 경로가 정리.
+    this.permanentDown = new Set();      // 상한 도달로 포기한 소비자(영구 down 으로 단정 — 대체 소비자 spawn 등 상위 오케스트레이션의 대상·후속).
+    this.givenUp = 0;                    // 포기 수(계측).
+    // 프레즌스 발행(step-0060·presencePublish) — 0055~0059 의 소비자 건강 판정(down/up/permanent)은 orch *사유 상태*(consumerDown/permanentDown)였다. 이제 그 판정을 svc.presence 버스 이벤트로 발행해 *다른 서비스*가 구독·반응할 수 있게 한다(프레즌스가 1급 발행 신호 — 0054 가 lease 를 관측 가능하게 한 것의 프레즌스 판정 판). OFF·버스 부재면 발행 0 = 0059 비트 동일.
+    this.bus = opts.bus || null;
+    this.presencePublish = opts.presencePublish || false;
+    this.presencePublished = 0;          // 발행한 svc.presence 이벤트 수(계측) — down/up/permanent 전이 합과 대조.
     if (opts.monitor) for (const [a, f] of opts.monitor) this.monitor(a, f);
   }
   monitor(authority, follower) { this.pairs.set(authority, follower); this.lastLease.set(authority, 0); }
+  // 프레즌스 판정 발행(step-0060) — down/up/permanent 전이를 svc.presence 토픽에 pub(구독자 주소 무지). OFF·버스 부재면 no-op(0059 비트 동일·순수 제어 평면·존 tick 밖).
+  _presence(kind, consumer) { if (!this.presencePublish || !this.bus) return; this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence', ev: { kind, consumer } }); this.presencePublished++; }
   onMsg(m) {
     const p = m.payload;
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
+    // 치유 확인 수신(step-0057·recoverAck) — recover 명령을 받은 소비자가 재구독하며 돌려보낸 확인. orch 가 명령 *전달·수행*을 안다(분실 0 이면 recoverAcks==recoversSent). busPresenceRecover OFF 면 recover 미발신 → 이 메시지 영영 안 옴 = 0056 비트 동일.
+    if (p.type === 'recoverAck') { this.recoverAcks++; this.pendingRecover.delete(p.consumer); this.recoverAttempts.delete(p.consumer); return; }
+    // lease 생애 이벤트 소비(step-0055·busLeasePresence) — 가방이 svc.item.lease 로 발행한 축출/복귀를 코디네이션이 프레즌스로 반영. 구독은 토폴로지가 busLeasePresence 일 때만 추가(OFF 면 이 분기 미수신 = 0054 비트 동일).
+    if (this.busLeasePresence && p.type === 'ev' && p.topic === 'svc.item.lease' && p.ev) {
+      if (p.ev.kind === 'evict') {
+        this.consumerDown.add(p.ev.consumer);
+        this._presence('down', p.ev.consumer);   // 프레즌스 판정 발행(step-0060) — down 전이를 svc.presence 로
+
+        // 프레즌스 반응(step-0056·busPresenceRecover) — down 관측 즉시 그 소비자에 recover 명령(자기 재구독 트리거). evict 1회당 1 recover(recovered Set 중복 억제). OFF 면 미발신 = 0055 비트 동일.
+        if (this.busPresenceRecover && !this.recovered.has(p.ev.consumer)) {
+          this.recovered.add(p.ev.consumer);
+          this.net.send(this.addr, p.ev.consumer, { type: 'recover', topic: this.recoverTopic });
+          this.recoversSent++;
+          this.pendingRecover.set(p.ev.consumer, this.curTick);   // 확인 대기(step-0058) — ack 오면 삭제·timeout 경과면 재발신.
+        }
+      } else if (p.ev.kind === 'readmit') {
+        this.consumerDown.delete(p.ev.consumer);
+        this._presence('up', p.ev.consumer);   // 프레즌스 판정 발행(step-0060) — up 전이를 svc.presence 로
+
+        this.recovered.delete(p.ev.consumer);   // 살아 돌아옴 → 다음 down 때 다시 recover 가능(재발 대비)
+      }
+      this.presenceEvents++;
+    }
   }
   onTick(tick) {
     this.curTick = tick;
+    // 미확인 recover 재시도(step-0058·recoverRetry) — recoverTimeout 경과해도 ack 안 온 명령을 재발신. ack 오면 onMsg 가 pendingRecover 에서 지운다(루프 종료). OFF 면 미실행 = 0057 비트 동일.
+    if (this.recoverRetry && this.pendingRecover.size) {
+      for (const [consumer, sentAt] of this.pendingRecover) {
+        if (tick - sentAt >= this.recoverTimeout) {
+          // 재시도 상한(step-0059) — 이미 max 회 재발신했는데도 ack 가 없으면 영구 분실로 단정: pending 에서 빼 포기(permanentDown). recoverMaxRetries 0 이면 무상한(0058 동일).
+          const attempts = this.recoverAttempts.get(consumer) || 0;
+          if (this.recoverMaxRetries > 0 && attempts >= this.recoverMaxRetries) {
+            this.pendingRecover.delete(consumer);
+            this.permanentDown.add(consumer);
+            this.givenUp++;
+            this._presence('permanent', consumer);   // 프레즌스 판정 발행(step-0060) — 포기(영구 down)를 svc.presence 로
+            continue;
+          }
+          this.net.send(this.addr, consumer, { type: 'recover', topic: this.recoverTopic });
+          this.pendingRecover.set(consumer, tick);
+          this.recoverAttempts.set(consumer, attempts + 1);
+          this.recoverRetries++;
+        }
+      }
+    }
     for (const [auth, follower] of this.pairs) {
       if (this.dead.has(auth)) continue;
       const last = this.lastLease.get(auth);

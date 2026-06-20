@@ -1,5 +1,5 @@
 'use strict';
-// step-0050 — 적응형 leaseSpan(busLeaseAdapt) 축출 임계. InventoryService *버스 결과/replay* 경로(_out·_onOutAck·_onSeenWatermark·resendOut).
+// step-0054 — lease 생애 관측(busLeaseAudit) — 축출/재admission 을 svc.item.lease 버스 이벤트로 발행(코디네이션 관측). InventoryService *버스 결과/replay* 경로(_out·_onOutAck·_onSeenWatermark·resendOut).
 //   원장 코어(svc-inventory-core.js)의 프로토타입을 Object.assign 으로 증강(동작 불변). 진입점이 core 뒤에 로드한다.
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const { InventoryService } = __isNode ? require('./svc-inventory-core.js') : globalThis.__HktNetParts.svc_inventory_core;
@@ -31,7 +31,7 @@ Object.assign(InventoryService.prototype, {
       //   복귀 후 그 소비자 frontier 가 다시 min 을 눌러 *이후* 결과를 보존(starve 재발 0). 이미 가지친 옛 결과는 그 소비자가 자기 저널 reconstruct(0020)로 복구(0045 §9·버퍼 replay 아님).
       //   outAcked 단조라 복귀가 워터마크를 되돌리진 않는다(min>outAcked 일 때만 전진) — 전진을 *멈출* 뿐. 아래 sweep 가 c===ev.consumer 를 건너뛰어 갓 복귀한 소비자를 같은 tick 즉시 재축출하지 않는다.
       //   busLeaseLife OFF 면 evicted 영구(0047 동일·재admission 0).
-      if (this.busLeaseLife && this.evicted.has(ev.consumer)) { this.evicted.delete(ev.consumer); this.readmissions++; }
+      if (this.busLeaseLife && this.evicted.has(ev.consumer)) { this.evicted.delete(ev.consumer); this.readmissions++; this._leaseEvent('readmit', ev.consumer, this.outSeq - 1); }
       // 소비자 lease 축출(이 step·busConsumerLease) — 산 소비자의 ack 가 sweep 를 구동한다(별도 tick 불요·결정론).
       //   방금 ack 한 소비자의 *침묵 기준*(consumerSeen)을 현재 생산자 frontier 로 갱신 → 그 뒤 frontier 가 leaseSpan 이상 전진하도록 재-ack 안 한 소비자(=죽음)를 evicted 에 넣어 min 정의역에서 뺀다.
       //   침묵 신호(frontier−lastSeen)는 ack 사건이 갱신하므로 생산 버스트에도 산 소비자를 오축출 안 함(content lag 와 다름). ack 이력 없는(undefined) 소비자는 미확립이라 정의역 밖. OFF·leaseSpan 0 면 휴면(evicted 안 채워짐 → 0044 비트 동일).
@@ -42,7 +42,18 @@ Object.assign(InventoryService.prototype, {
         //   busLeaseAdapt OFF 면 consumerMaxGap 미갱신 = 0049 비트 동일.
         if (this.busLeaseAdapt) {
           const prevSeen = this.consumerSeen.get(ev.consumer);
-          if (prevSeen !== undefined) { const gap = frontier - prevSeen, m = this.consumerMaxGap.get(ev.consumer) || 0; if (gap > m) this.consumerMaxGap.set(ev.consumer, gap); }
+          if (prevSeen !== undefined) {
+            const gap = frontier - prevSeen;
+            // 윈도 cadence(step-0052·busCadenceWindow) — 추정 = 최근 K gap 의 max(전체 max 아님). 옛 큰 gap 이 K 개 뒤로 늙으면 창에서 빠져 추정 감쇠(cadence↓ 추적). grace prior(0051)가 바닥이라 창이 작아도 임계는 prior 아래로 안 내려간다(flapping 붕괴 방지·0051 §9).
+            if (this.busCadenceWindow && this.cadenceWindow > 0) {
+              let gaps = this.consumerGaps.get(ev.consumer);
+              if (gaps === undefined) { gaps = []; this.consumerGaps.set(ev.consumer, gaps); }
+              gaps.push(gap);
+              while (gaps.length > this.cadenceWindow) gaps.shift();   // 최근 K gap 만 — 옛 gap 은 창에서 늙어 빠진다(감쇠)
+              let mx = 0; for (const g of gaps) if (g > mx) mx = g;     // 창의 max = 현재 cadence 추정
+              this.consumerMaxGap.set(ev.consumer, mx);
+            } else { const m = this.consumerMaxGap.get(ev.consumer) || 0; if (gap > m) this.consumerMaxGap.set(ev.consumer, gap); }   // 전체 러닝 max(0050/0051)
+          }
         }
         this.consumerSeen.set(ev.consumer, frontier);   // 방금 ack = 산 것 → 침묵 기준 리셋
         for (const c of this.outConsumers) {
@@ -55,10 +66,13 @@ Object.assign(InventoryService.prototype, {
             if (this.busLeaseLife) this.consumerSeen.set(c, frontier);
             continue;
           }
-          // 축출 임계 — 적응형(이 step·busLeaseAdapt)이면 관측 cadence(consumerMaxGap)+leaseSpan(여유 마진), 아니면 고정 leaseSpan(0049 동일).
+          // 축출 임계 — 적응형(0050·busLeaseAdapt)이면 관측 cadence(consumerMaxGap)+leaseSpan(여유 마진), 아니면 고정 leaseSpan(0049 동일).
           //   적응형: 산 소비자는 침묵이 자기 cadence 를 마진 안에서만 넘어 오축출 0(임계가 cadence 를 따라 오름) / 죽은 소비자는 max 동결 → 침묵이 동결값+마진 초과 → 축출.
-          const threshold = this.busLeaseAdapt ? (this.consumerMaxGap.get(c) || 0) + this.leaseSpan : this.leaseSpan;
-          if (frontier - seen > threshold) { this.evicted.add(c); this.evictions++; }
+          //   시작 cadence prior(step-0051·busLeaseGrace) — 0050 §9 "bootstrap 1회 오축출" 해소. 관측 cadence 가 prior 보다 작은 *시작 구간*에만 prior 로 임계 바닥을 깔아 첫 G-침묵을 흡수(오축출 0). 첫 관측이 prior 를 넘으면 관측이 이긴다(가짜 over-protect 아님). prior 유한이라 죽은 소비자는 임계=prior+마진 초과 시 여전히 축출(죽음 감지 보존). OFF/prior 0 = 0050 비트 동일.
+          let est = this.consumerMaxGap.get(c) || 0;
+          if (this.busLeaseGrace && this.cadencePrior > est) est = this.cadencePrior;
+          const threshold = this.busLeaseAdapt ? est + this.leaseSpan : this.leaseSpan;
+          if (frontier - seen > threshold) { this.evicted.add(c); this.evictions++; this._leaseEvent('evict', c, frontier); }
         }
       }
       let min = Infinity;
@@ -92,6 +106,8 @@ Object.assign(InventoryService.prototype, {
   //   gap 에 떨군 결과(원장 적용·클라 미수신 → belief < 원장)를 재배달 → 게이트웨이가 클라에 중계 → belief 가 원장 따라잡음(itemDesync→0).
   //   클라 belief 는 Set add/delete 라 *멱등*(이미 받은 결과 재배달 무해) → consumer dedup 불요. 순수 반응형 제어 평면(존 tick 밖·신성한 tick 보존).
   //   OFF 면 호출돼도 즉시 반환(reg 0 불변). 재구독이 라우팅을 복구한 뒤라야 fan-out 됨(토폴로지가 reneg 다음에 트리거).
+  // lease 생애 이벤트 발행(step-0054·busLeaseAudit) — 축출/재admission 을 svc.item.lease 토픽에 pub(audit/오케스트레이터 관측). OFF·버스 OFF 면 발행 0(0053 비트 동일·순수 제어 평면·존 tick 밖).
+  _leaseEvent(kind, consumer, frontier) { if (!this.busLeaseAudit || !this.bus) return; this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.lease', ev: { kind, consumer, frontier } }); this.leaseEventsSent = (this.leaseEventsSent || 0) + 1; },
   resendOut() {
     if (!this.busResend || !this.bus) return;
     for (const msg of this.outBuffer) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.item.out', ev: msg }); this.outResends++; }
