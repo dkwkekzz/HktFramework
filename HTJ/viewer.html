@@ -40,7 +40,18 @@
       <div class="row" id="row-rate"><label>방출율</label><input id="rate" type="number" min="0" max="1" step="0.005" value="0.02" /></div>
       <div class="row" id="row-crit"><label>점화 임계</label><input id="crit" type="number" min="0" step="50" value="300" /></div>
       <div class="row" id="row-radiate"><label>복사율(sink)</label><input id="radiate" type="number" min="0" max="1" step="0.02" value="0.2" /></div>
-      <div class="row"><label>확산속도</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
+      <div class="row"><label>스텝/프레임</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
+      <div class="row"><label>배속</label>
+        <select id="speedMult">
+          <option value="0.25">×0.25</option>
+          <option value="0.5">×0.5</option>
+          <option value="1" selected>×1</option>
+          <option value="2">×2</option>
+          <option value="4">×4</option>
+          <option value="8">×8</option>
+          <option value="16">×16</option>
+        </select>
+      </div>
       <div class="row"><label>장(field)</label><select id="brushField"></select></div>
       <div class="row"><label>붓 반경</label><input id="brushR" type="number" min="0" max="6" step="1" value="1" /></div>
       <div class="row"><label>열량</label><input id="brushAmt" type="number" min="1" step="50" value="800" /></div>
@@ -162,6 +173,7 @@
   function readN() { return Math.max(4, Math.min(48, parseInt(document.getElementById('N').value, 10) || 24)); }
   function readAlpha() { return Math.max(0, Math.min(HTJEnergy.ALPHA_MAX, parseFloat(document.getElementById('alpha').value) || 0)); }
   function readSpeed() { return Math.max(1, Math.min(50, parseInt(document.getElementById('speed').value, 10) || 1)); }
+  function readSpeedMult() { return Math.max(0.05, parseFloat(document.getElementById('speedMult').value) || 1); }   // 배속 배수(분수=느린재생, 정수=빨리감기)
   function readRate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('rate').value) || 0)); }
   function readCrit() { return Math.max(0, parseFloat(document.getElementById('crit').value) || 0); }
   function readRadiate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('radiate').value) || 0)); }
@@ -279,18 +291,22 @@
   function stepOnce() { const st = STEPS[currentStep()]; if (!st.dynamics) return; maybeAutoEnergyView(); st.advance(world, advanceParams()); tick++; render(); updateStats(); }
 
   // 흐름 — 법칙을 연속 재생(시점 회전이 아니라 *세계의 동역학*).
-  let raf = 0;
+  //   프레임당 스텝 수 = 스텝/프레임 × 배속. 누산기(stepAccum)로 분수 배속(느린 재생)도 매끄럽게 —
+  //   ×0.25 면 4프레임마다 한 묶음이 굴러간다. 정수 배속은 빨리감기.
+  let raf = 0, stepAccum = 0;
   function loop() {
     if (!playing) return;
-    const st = STEPS[currentStep()], p = advanceParams(), s = readSpeed();
-    for (let k = 0; k < s; k++) { st.advance(world, p); tick++; }   // 프레임당 여러 스텝 → 변화가 눈에 보이게
-    render(); updateStats();
+    const st = STEPS[currentStep()], p = advanceParams();
+    stepAccum += readSpeed() * readSpeedMult();
+    const n = Math.floor(stepAccum); stepAccum -= n;
+    for (let k = 0; k < n; k++) { st.advance(world, p); tick++; }   // 변화가 눈에 보이게 묶어서
+    if (n > 0) { render(); updateStats(); }
     raf = requestAnimationFrame(loop);
   }
   function setPlaying(on) {
     playing = on;
     document.getElementById('play').textContent = on ? '⏸ 멈춤' : '▶ 흐름';
-    if (on) { maybeAutoEnergyView(); raf = requestAnimationFrame(loop); } else cancelAnimationFrame(raf);
+    if (on) { stepAccum = 0; maybeAutoEnergyView(); raf = requestAnimationFrame(loop); } else cancelAnimationFrame(raf);
   }
 
   // 클릭 화면좌표 → 캔버스 픽셀좌표(CSS 크기·dpr 보정).
