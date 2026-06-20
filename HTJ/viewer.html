@@ -41,6 +41,7 @@
       <div class="row" id="row-crit"><label>점화 임계</label><input id="crit" type="number" min="0" step="50" value="300" /></div>
       <div class="row" id="row-radiate"><label>복사율(sink)</label><input id="radiate" type="number" min="0" max="1" step="0.02" value="0.2" /></div>
       <div class="row" id="row-pressure"><label>반발(K)</label><input id="kpress" type="number" min="0" max="2" step="0.01" value="0.2" /></div>
+      <div class="row" id="row-thermp"><label>열압력(Kth)</label><input id="kthermo" type="number" min="0" max="2" step="0.05" value="0.5" /></div>
       <div class="row"><label>스텝/프레임</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
       <div class="row"><label>배속</label>
         <select id="speedMult">
@@ -179,6 +180,15 @@
       init(w) { HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.16, M0: 1000, T0: 1 }); updateTemperature(w); },
       advance(w, p) { HTJGravity.applyGravity(w, 0.3, { G: 0.2, iters: 50 }); HTJPressure.applyPressure(w, 0.3, { K: p.kpress, gamma: 2 }); HTJInertia.advect(w, 0.3, { scalars: ['therm'] }); HTJThermal.applyHeating(w, 0.3, { gamma: 5 / 3 }); updateTemperature(w); },  // 법칙: 중력 + 반발 + 이류(+내부E 수송) + 압축 가열
       note: '이제 <b>물질은 온도를 가진다</b> — 새 장 <b>내부에너지 u</b>(온도 T=u/ρ). <b>압축 가열</b> 법칙: 모이는(수렴) 흐름은 *데우고*, 퍼지는 흐름은 *식힌다*(열역학 제1법칙 dU=−P dV → 단열 T∝ρ^(γ−1)). <b>▶ 흐름</b>: 구름이 중력으로 수축하며 코어가 <b>압축→가열</b>돼 *뜨거운 코어*가 창발한다(시작 화면 = temperature 장, 처음엔 균일 파랑 → 코어가 빨갛게). <b>장(field)</b>을 therm/energy 로 바꿔 비교해 보라. <b>반발(K)</b>로 수축 세기를 바꾸면 가열량도 바뀐다. *아직* 열압력이 되밀진 않는다(수동 온도) — 다음 step 에서 P_th 가 운동량을 밀어 별이 *열압력으로* 선다.'
+    },
+    '0010': {
+      label: 'step_0010 — 열압력 되먹임', title: 'HTJ — 열압력 되먹임(능동 압력)', sub: '열이 물질을 민다 — KE↔내부E 가역 교환',
+      mode: 'energy', dynamics: true, thermP: true,
+      defaults: { colorScale: 'relative', view: 'energy', kthermo: 0.5 },
+      // 작고 뜨거운 압축 덩어리 — 열압력 P_th=Kth(γ−1)u 가 *능동적으로* 밀어 팽창(내부E→운동E).
+      init(w) { HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.10, M0: 1000, T0: 3 }); updateTemperature(w); },
+      advance(w, p) { HTJThermal.applyThermalPressure(w, 0.15, { Kth: p.kthermo, gamma: 5 / 3 }); HTJInertia.advect(w, 0.15, { scalars: ['therm'] }); updateTemperature(w); },  // 법칙: 열압력 푸시+PdV(KE↔u) + 이류
+      note: '이제 온도가 *능동*이다 — <b>열압력 P_th=(γ−1)u 가 운동량을 되민다</b>(g←g−dt·∇P_th), 그 한 일은 내부에너지로 회계된다(PdV) → <b>KE↔내부E 가역 교환</b>(총E 보존). <b>▶ 흐름</b>: 작고 뜨거운 덩어리가 *제 열로 밀려* 팽창한다(내부E→운동E, 식으며 퍼짐). <b>열압력(Kth)</b>을 0 으로 내리면 안 밀린다(불활성). 이로써 step_0007 의 "사라진 에너지"가 *열로* 닫힌다(보존). 단 이 교환은 *가역*(단열)이라 진동을 **감쇠하진 않는다** — 별이 *정착*하려면 비가역 소산(충격/점성 가열·복사 냉각)이 필요하다(다음 step). <b>장(field)</b>을 therm/temperature 로 바꿔 식는 걸 보라.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -206,8 +216,9 @@
   function readCrit() { return Math.max(0, parseFloat(document.getElementById('crit').value) || 0); }
   function readRadiate() { return Math.max(0, Math.min(1, parseFloat(document.getElementById('radiate').value) || 0)); }
   function readKpress() { return Math.max(0, Math.min(2, parseFloat(document.getElementById('kpress').value) || 0)); }
+  function readKthermo() { return Math.max(0, Math.min(2, parseFloat(document.getElementById('kthermo').value) || 0)); }
   function readColorMax() { return Math.max(0, parseFloat(document.getElementById('colorMax').value) || 0); }
-  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit(), radiate: readRadiate(), kpress: readKpress() }; }
+  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit(), radiate: readRadiate(), kpress: readKpress(), kthermo: readKthermo() }; }
   function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
   function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
   function brushField() { return document.getElementById('brushField').value || 'energy'; }
@@ -246,6 +257,7 @@
     document.getElementById('row-crit').style.display = st.ignite ? '' : 'none';    // 점화 임계는 점화 step 에서만
     document.getElementById('row-radiate').style.display = st.radiate ? '' : 'none'; // 복사율은 sink step 에서만
     document.getElementById('row-pressure').style.display = st.pressure ? '' : 'none'; // 반발(K)은 압력 step 에서만
+    document.getElementById('row-thermp').style.display = st.thermP ? '' : 'none';     // 열압력(Kth)은 능동 열압력 step 에서만
     // step별 *관찰하기 좋은* 기본 노브 적용(α·방출율·임계·복사율·반발·색 기준).
     const d = st.defaults || {};
     if (d.alpha != null) document.getElementById('alpha').value = d.alpha;
@@ -253,6 +265,7 @@
     if (d.crit != null) document.getElementById('crit').value = d.crit;
     if (d.radiate != null) document.getElementById('radiate').value = d.radiate;
     if (d.kpress != null) document.getElementById('kpress').value = d.kpress;
+    if (d.kthermo != null) document.getElementById('kthermo').value = d.kthermo;
     document.getElementById('colorScale').value = d.colorScale || 'relative';
     if (d.colorMax != null) document.getElementById('colorMax').value = d.colorMax;
     document.getElementById('row-colormax').style.display = document.getElementById('colorScale').value === 'absolute' ? '' : 'none';
@@ -373,7 +386,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0009';                       // 기본 = 현재 step
+    sel.value = '0010';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
@@ -471,6 +484,17 @@
     // 중력 + 반발 + 이류(+내부E 수송) + 압축 가열을 steps 회 굴린다(뜨거운 코어가 창발).
     thermalRun(G, K, dt, iters, steps) { for (let t = 0; t < (steps || 1); t++) { HTJGravity.applyGravity(world, dt, { G, iters }); HTJPressure.applyPressure(world, dt, { K, gamma: 2 }); HTJInertia.advect(world, dt, { scalars: ['therm'] }); HTJThermal.applyHeating(world, dt, { gamma: 5 / 3 }); tick++; } },
     coreTemperature() { const T = HTJThermal.temperature(world), N = world.N, c = (N - 1) / 2 | 0; return T[(c * N + c) * N + c]; },
+    // 능동 열압력 모드(step_0010) — 작고 뜨거운 압축 덩어리 초기화.
+    thermPressInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJThermal.seedWarmBlob(world, opts || { sigma: (N | 0) * 0.10, M0: 1000, T0: 3 });
+      tick = 0;
+    },
+    // 열압력 푸시+PdV(KE↔u) + 이류를 steps 회 굴린다(열이 물질을 민다).
+    thermPressRun(Kth, dt, steps) { for (let t = 0; t < (steps || 1); t++) { HTJThermal.applyThermalPressure(world, dt, { Kth, gamma: 5 / 3 }); HTJInertia.advect(world, dt, { scalars: ['therm'] }); tick++; } },
+    kineticEnergy() { return HTJThermal.kineticEnergy(world); },
+    internalEnergy() { return HTJThermal.totalInternal(world); },
     maxField2(name) { return world.max(name); },
     totalField(name) { return world.total(name); },
     maxField(name) { return world.max(name); },

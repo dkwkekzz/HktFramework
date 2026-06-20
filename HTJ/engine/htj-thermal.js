@@ -101,8 +101,55 @@
     return T;
   }
 
+  // ── 열압력 되먹임(능동 압력) 1스텝 — step_0009 의 *수동* 온도를 *능동*으로: 열압력이 운동량을
+  //   되밀고(−∇P_th), 그 한 일이 내부에너지로 들어간다(PdV). 둘이 짝지어 **KE↔내부E 가역 교환**(1차 보존):
+  //     운동량 :  g ← g − dt·∇P_th        (압력힘; ΔKE ≈ −dt·v·∇P_th)
+  //     내부E  :  u ← u − dt·P_th·(∇·v)   (PdV 일; 압축 ∇·v<0 → u↑ = 데워짐)
+  //   합의 1차 = −dt·(v·∇P + P·∇·v) = −dt·∇·(P v) → 주기 경계서 Σ=0 → 총E=KE+u 보존(연속체에서 정확,
+  //   명시적 이산에서 1차·dt 수렴). 이것이 step_0008 의 "탄성 bounce"(KE 소산 0 → 진동 누적 → CFL 발산)에
+  //   소산을 주어, 붕괴 KE 가 *열로* 정착하며 별이 *열압력으로* 선다.
+  //   P_th = Kth·(γ−1)·u (이상기체; Kth=결합 노브). Kth=0 또는 dt=0 → 항등(early return, 회귀 0).
+  //   ∇·v 는 *밀기 전* 속도로(divergence) 계산 → push 와 가열이 같은 시점 v 를 공유(짝 일관).
+  function applyThermalPressure(world, dt, opts) {
+    opts = opts || {};
+    const Kth = opts.Kth != null ? opts.Kth : 1.0;
+    if (dt == null) dt = 1;
+    if (!Kth || !dt) return world;                       // 노브=0 → 세계 불변
+    const gamma = opts.gamma != null ? opts.gamma : DEFAULT_GAMMA;
+    const N = world.N, L = N * N * N;
+    const u = ensure(world, THERM);
+    const gx = ensure(world, MX), gy = ensure(world, MY), gz = ensure(world, MZ);
+    const c = Kth * (gamma - 1);
+    const P = world.scratch.__tpf || (world.scratch.__tpf = new Float64Array(L));
+    for (let i = 0; i < L; i++) P[i] = c * u[i];          // P_th = Kth·(γ−1)·u
+    const div = divergence(world);                        // ∇·v (밀기 전 속도)
+    const wrap = (a) => (a + N) % N;
+    // 운동량 푸시 g ← g − dt·∇P (중심차분·주기 — step_0008 압력 stencil, Σ∇P=0 → 순 운동량 보존).
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x;
+      const xm = (z * N + y) * N + wrap(x - 1), xp = (z * N + y) * N + wrap(x + 1);
+      const ym = (z * N + wrap(y - 1)) * N + x, yp = (z * N + wrap(y + 1)) * N + x;
+      const zm = (wrap(z - 1) * N + y) * N + x, zp = (wrap(z + 1) * N + y) * N + x;
+      gx[i] -= dt * (P[xp] - P[xm]) / 2;
+      gy[i] -= dt * (P[yp] - P[ym]) / 2;
+      gz[i] -= dt * (P[zp] - P[zm]) / 2;
+    }
+    // PdV 가열 u ← u − dt·P·(∇·v) (밀기 전 div). 압축(div<0) → u↑. u≥0 가드.
+    for (let i = 0; i < L; i++) { const nu = u[i] - dt * P[i] * div[i]; u[i] = nu > 0 ? nu : 0; }
+    return world;
+  }
+
   // 총 내부에너지 Σu — 측정자(수동 단계: 자체 보존이 아니라 압축/팽창으로 펌프됨).
   function totalInternal(world) { const u = ensure(world, THERM); let s = 0; for (let i = 0; i < u.length; i++) s += u[i]; return s; }
+
+  // 운동에너지 ½Σ|g|²/ρ — KE↔내부E 보존 측정자(htj-gravity 와 동일식, 모듈 자립용 재공).
+  function kineticEnergy(world) {
+    const rho = world.fields[RHO], gx = world.fields[MX], gy = world.fields[MY], gz = world.fields[MZ];
+    if (!gx) return 0;
+    let E = 0;
+    for (let i = 0; i < rho.length; i++) if (rho[i] > EPS) E += 0.5 * (gx[i] * gx[i] + gy[i] * gy[i] + gz[i] * gz[i]) / rho[i];
+    return E;
+  }
 
   // 데모 시드 — 가운데 과밀 구름(가우시안, 정지) + *균일 온도* T0(u=ρ·T0). 정지에서 시작.
   //   중력↔반발이 구름을 수축시키면 *코어가 압축*(∇·v<0)되어 그곳 u(=온도)가 오르는 걸 본다.
@@ -126,6 +173,7 @@
     return world;
   }
 
-  return { applyHeating, divergence, thermalPressure, temperature, totalInternal, seedWarmBlob,
-           RHO, THERM, MX, MY, MZ, DEFAULT_GAMMA, VERSION: 1 };
+  return { applyHeating, applyThermalPressure, divergence, thermalPressure, temperature,
+           totalInternal, kineticEnergy, seedWarmBlob,
+           RHO, THERM, MX, MY, MZ, DEFAULT_GAMMA, VERSION: 2 };
 });
