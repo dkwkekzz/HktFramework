@@ -94,6 +94,7 @@
 <script src="engine/htj-inertia.js"></script>
 <script src="engine/htj-gravity.js"></script>
 <script src="engine/htj-pressure.js"></script>
+<script src="engine/htj-thermal.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -169,9 +170,25 @@
       init(w) { HTJPressure.seedBlob(w, { sigma: w.N * 0.16, M0: 1000 }); },
       advance(w, p) { HTJGravity.applyGravity(w, 0.3, { G: 0.2, iters: 50 }); HTJPressure.applyPressure(w, 0.3, { K: p.kpress, gamma: 2 }); HTJInertia.advect(w, 0.3); },  // 법칙: 중력 + 반발 + 이류
       note: '<b>밀집을 거부하는 단거리 반발(압력)</b> — 중력의 거울짝. 압력 P=K·ρ^γ(γ>4/3)의 기울기가 운동량을 *밀어내* 중력 붕괴를 멈춘다. <b>▶ 흐름</b>: 구름이 수축하다 *유한 크기에서 멈춰* 퍼진 코어로 선다(중력↓ ↔ 반발↑ 균형) = <b>지속하는 덩어리(입자·물체의 씨앗)</b>. <b>반발(K)</b>을 0 으로 내리면 step_0007 처럼 한 점으로 붕괴(곧 발산)하고, 키우면 코어가 더 크고 옅게 부푼다. 균일 무력·질량·운동량 보존.'
+    },
+    '0009': {
+      label: 'step_0009 — 내부에너지(온도)', title: 'HTJ — 내부에너지(온도)', sub: '압축은 데우고 팽창은 식힌다(열역학 제1법칙)',
+      mode: 'energy', dynamics: true, pressure: true,
+      defaults: { colorScale: 'relative', view: 'temperature', kpress: 0.2 },
+      // 균일 온도 구름 — 중력↔반발이 수축시키면 *코어가 압축→가열*(T=u/ρ↑) = 뜨거운 코어가 창발.
+      init(w) { HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.16, M0: 1000, T0: 1 }); updateTemperature(w); },
+      advance(w, p) { HTJGravity.applyGravity(w, 0.3, { G: 0.2, iters: 50 }); HTJPressure.applyPressure(w, 0.3, { K: p.kpress, gamma: 2 }); HTJInertia.advect(w, 0.3, { scalars: ['therm'] }); HTJThermal.applyHeating(w, 0.3, { gamma: 5 / 3 }); updateTemperature(w); },  // 법칙: 중력 + 반발 + 이류(+내부E 수송) + 압축 가열
+      note: '이제 <b>물질은 온도를 가진다</b> — 새 장 <b>내부에너지 u</b>(온도 T=u/ρ). <b>압축 가열</b> 법칙: 모이는(수렴) 흐름은 *데우고*, 퍼지는 흐름은 *식힌다*(열역학 제1법칙 dU=−P dV → 단열 T∝ρ^(γ−1)). <b>▶ 흐름</b>: 구름이 중력으로 수축하며 코어가 <b>압축→가열</b>돼 *뜨거운 코어*가 창발한다(시작 화면 = temperature 장, 처음엔 균일 파랑 → 코어가 빨갛게). <b>장(field)</b>을 therm/energy 로 바꿔 비교해 보라. <b>반발(K)</b>로 수축 세기를 바꾸면 가열량도 바뀐다. *아직* 열압력이 되밀진 않는다(수동 온도) — 다음 step 에서 P_th 가 운동량을 밀어 별이 *열압력으로* 선다.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
+
+  // 파생 온도 장 갱신 — T=u/ρ 를 'temperature' 장에 복사(렌더가 고를 수 있게). 법칙 아님(측정·표시).
+  function updateTemperature(w) {
+    if (!w.fields.therm) return;
+    if (!w.fields.temperature) w.addField('temperature');
+    w.fields.temperature.set(HTJThermal.temperature(w));
+  }
 
   function resize() {
     const r = cv.parentElement.getBoundingClientRect();
@@ -356,7 +373,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0008';                       // 기본 = 현재 step
+    sel.value = '0009';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
@@ -444,6 +461,16 @@
     },
     // 중력 + 반발(압력) + 이류를 steps 회 굴린다(유한 코어가 선다).
     pressureRun(G, K, dt, iters, steps) { for (let t = 0; t < (steps || 1); t++) { HTJGravity.applyGravity(world, dt, { G, iters }); HTJPressure.applyPressure(world, dt, { K, gamma: 2 }); HTJInertia.advect(world, dt); tick++; } },
+    // 온도 모드(step_0009) — 균일 온도 과밀 구름 초기화.
+    thermalInit(N, opts) {
+      mode = 'energy';
+      world = HTJWorld.createWorld(N | 0);
+      HTJThermal.seedWarmBlob(world, opts || { sigma: (N | 0) * 0.16, M0: 1000, T0: 1 });
+      tick = 0;
+    },
+    // 중력 + 반발 + 이류(+내부E 수송) + 압축 가열을 steps 회 굴린다(뜨거운 코어가 창발).
+    thermalRun(G, K, dt, iters, steps) { for (let t = 0; t < (steps || 1); t++) { HTJGravity.applyGravity(world, dt, { G, iters }); HTJPressure.applyPressure(world, dt, { K, gamma: 2 }); HTJInertia.advect(world, dt, { scalars: ['therm'] }); HTJThermal.applyHeating(world, dt, { gamma: 5 / 3 }); tick++; } },
+    coreTemperature() { const T = HTJThermal.temperature(world), N = world.N, c = (N - 1) / 2 | 0; return T[(c * N + c) * N + c]; },
     maxField2(name) { return world.max(name); },
     totalField(name) { return world.total(name); },
     maxField(name) { return world.max(name); },
