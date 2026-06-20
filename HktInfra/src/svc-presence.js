@@ -1,5 +1,5 @@
 'use strict';
-// step-0067 — 프레즌스 박스 failover 승격(presencePromote): 0066 의 standby(presence2)는 SSOT 를 그림자 복제만 했다(발행 억제). 이 step 은 마지막 고리를 닫는다 — primary 사망 시 standby 가 *승격*(active=true)해 svc.presence 발행을 인계한다(존 shadow follower 승격 0009·버스 failover 0034 의 코디네이션 판). shadow 가 모든 보고를 이미 먹었으므로(0066) 승격은 *SSOT 갭 0*: 죽음 전 보고는 둘 다 봤고, 죽음 후 보고는 승격된 standby 가 발행 → 다운스트림(presmon)이 전 전이열을 무손실 수신. 미승격(대조)이면 죽음 후 전이는 영영 미발행(failover 가 막는 갭). (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0068 — 프레즌스 박스 사망 자율 감지(presenceLease): 0067 의 승격은 *외부 주입*(presenceFailover.at 가 promote 호출)이었다(0067 §9 한계). 이 step 은 그 트리거를 *자율화*한다 — active 박스가 매 tick svc.presence.hb 하트비트를 발행하고, standby 가 그걸 구독해 *침묵 길이*(hbTimeout)로 primary 사망을 스스로 감지→자기 promote. 외부 promote 호출 없이 죽음 후 보고를 인계 발행. 0009 의 orch lease 타임아웃→follower 승격을 프레즌스 박스에 적용(감지 권위=standby 자신). presenceLease OFF 면 하트비트·자율 승격 0 = 0067 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -19,10 +19,18 @@ class PresenceService {
     this.active = opts.active !== undefined ? opts.active : true;
     this.dead = false;            // primary 사망(step-0067·crash) — RAM 소실의 인프로세스 모델. dead 면 보고 무시·발행 0(승격된 standby 가 인계).
     this.promotedAt = -1;         // standby→active 승격 tick(계측) — 미승격이면 -1.
+    // 사망 자율 감지(step-0068·presenceLease) — active 박스가 매 tick svc.presence.hb 를 발행, standby 가 구독해 침묵 길이로 primary 사망을 스스로 감지→자기 promote(외부 트리거 없이). 0009 의 orch lease 타임아웃→follower 승격의 프레즌스 판(감지 권위=standby 자신). OFF 면 하트비트·자율 승격 0 = 0067 비트 동일.
+    this.lease = opts.lease || false;
+    this.hbTimeout = opts.hbTimeout || 3;   // 하트비트 침묵이 이만큼 쌓이면 primary 사망 단정→자기 승격(결정론 상수·0009 leaseTimeout 의 프레즌스 판).
+    this.lastHbTick = 0;          // 마지막으로 svc.presence.hb 를 받은(또는 자기 발행한) tick. 0 면 미수신(부트스트랩 — 오감지 가드).
+    this.hbSent = 0;              // 발행한 하트비트 수(계측·active 박스만). hbRecv = 받은 수(standby 측).
+    this.hbRecv = 0;
   }
   onMsg(m) {
     if (this.dead) return;        // 사망한 박스는 보고를 처리·발행하지 않는다(step-0067) — 승격된 standby 가 이후 보고를 인계.
     const p = m.payload;
+    // 하트비트 수신(step-0068) — active 박스의 svc.presence.hb 구독. 받을 때마다 lastHbTick 갱신(침묵 길이 0 으로 리셋). standby 만 구독(active 는 자기 하트비트 안 들음). presenceLease OFF 면 이 토픽 미구독 = 미발화.
+    if (p.type === 'ev' && p.topic === 'svc.presence.hb') { this.lastHbTick = this.net.tick; this.hbRecv++; return; }
     // orch 의 전이 보고 수신 — point-to-point({type:'presence'}·0064) 또는 버스 토픽({type:'ev', topic:'svc.presence.report'}·0065). 둘 다 같은 SSOT 갱신+발행.
     let kind, consumer;
     if (p.type === 'presence') { kind = p.kind; consumer = p.consumer; }
@@ -34,6 +42,13 @@ class PresenceService {
     else if (kind === 'permanent') this.permanentDown.add(consumer);
     // 발행은 *active 박스만*(step-0066·presenceShadow) — standby(active=false)는 같은 보고로 SSOT 그림자 복제만 하고 svc.presence 이중 발행을 억제. active 기본 true = 0065 비트 동일.
     if (this.active && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence', ev: { kind, consumer } }); this.published++; }   // SSOT 갱신 후 발행(0060 의 발행을 이 박스로 인계).
+  }
+  // onTick(step-0068·presenceLease) — active 박스는 매 tick 하트비트 발행(svc.presence.hb), standby 는 침묵 길이로 사망 자율 감지→자기 승격. presenceLease OFF 면 즉시 반환(0067 비트 동일·순수 반응형 유지). 죽은 박스는 침묵(dead 가드). 신성한 tick 밖 코디네이션 제어 평면.
+  onTick(tick) {
+    if (!this.lease || this.dead) return;
+    if (this.active) { if (this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence.hb', ev: { box: this.addr } }); this.hbSent++; } return; }   // active 박스: 생존 신호 발행
+    // standby: 하트비트 침묵이 hbTimeout 쌓이면 primary 사망 단정→자기 승격(외부 트리거 없이·감지 권위=자신). lastHbTick 0(부트스트랩)이면 미감지(오감지 가드).
+    if (this.lastHbTick > 0 && (tick - this.lastHbTick) >= this.hbTimeout) this.promote(tick);
   }
   stateOf(consumer) { return this.permanentDown.has(consumer) ? 'permanent' : (this.consumerDown.has(consumer) ? 'down' : 'up'); }
   // crash(step-0067) — primary 프레즌스 박스 사망(RAM 소실)의 인프로세스 모델. 이후 보고 무시·발행 0. SSOT 는 standby(presence2)가 그림자 복제로 보유하므로 진실은 소실되지 않는다(0034 "진실 원천=소비자"의 코디네이션 판: 진실 원천=shadow).
