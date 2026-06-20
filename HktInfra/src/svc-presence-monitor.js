@@ -1,4 +1,4 @@
-// step-0069 — 프레즌스 모니터(presenceMonitor) + SSOT 질의자(presenceQuery): svc.presence 의 down/up/permanent 발행을 구독해 소비자별 건강 상태 기계를 유지(0063)하던 *대시보드*가, 이제 프레즌스 박스의 *질의 인터페이스*(0069)를 호출하는 첫 *질의자*가 된다 — 발행으로 *관측*한 상태를 SSOT 에 *질의*(pull)해 대조·보강한다. 핵심: 구독 이벤트로 *못 본* 소비자(예: 한 번도 down 안 한 'inventory')의 상태도 질의로 알 수 있다(독립 읽기 경로 증명). queryAddr 미설정이면 질의 0 = 0068 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0070 — 프레즌스 모니터/질의자 + active 재타깃(presenceAnnounce): 0069 의 질의자는 queryAddr 를 *고정*(primary)으로 가리켜 primary 사망 후 질의가 끊겼다(0069 §9). 이 step 은 svc.presence.active 공지를 구독해 승격된 박스로 queryAddr 를 *재타깃* — 죽음 후 질의도 승격된 박스가 답한다(읽기 경로 failover 연속성). 공지 미구독이면 재타깃 0 = 0069 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -20,9 +20,12 @@ class PresenceMonitor {
     this.queried = new Map();     // consumer -> 질의로 받은 최신 state(pull 지식). 관측(state)과 대조용.
     this.queriesSent = 0;         // 보낸 presenceQuery 수(계측). repliesRecv = 받은 응답 수(1:1 = 무손실 읽기).
     this.repliesRecv = 0;
+    this.retargets = 0;           // active 재타깃 수(step-0070·svc.presence.active 공지 수신 — failover 시 1).
   }
   onMsg(m) {
     const p = m.payload;
+    // active 재타깃(step-0070·presenceAnnounce) — 승격된 박스가 svc.presence.active 로 공지한 새 active 주소로 queryAddr 갱신. 이후 질의가 승격된 박스로 간다(읽기 경로 failover 디스커버리). 미구독이면 미발화(0069 비트 동일).
+    if (p.type === 'ev' && p.topic === 'svc.presence.active' && p.ev) { this.queryAddr = p.ev.addr; this.retargets++; return; }
     // SSOT 질의 응답 수신(step-0069) — 프레즌스 박스가 회신한 현재 상태. queried 에 기록(pull 지식). 발행으로 못 본 소비자 상태도 여기서 알게 된다.
     if (p.type === 'presenceReply') { this.queried.set(p.consumer, p.state); this.repliesRecv++; return; }
     if (p.type !== 'ev' || p.topic !== 'svc.presence' || !p.ev) return;

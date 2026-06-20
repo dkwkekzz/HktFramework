@@ -1,5 +1,5 @@
 'use strict';
-// step-0069 — 프레즌스 SSOT 질의 인터페이스(presenceQuery): 0064~0068 이 프레즌스 박스를 *쓰기·발행·failover* 까지 세웠다. 이제 *읽기 경로* — PresenceService 가 {type:'presenceQuery', consumer} 요청에 {type:'presenceReply', consumer, state} 로 답한다(state=stateOf=up/down/permanent). 발행(push)이 *전이 알림*이라면 질의(pull)는 *현재 상태 조회* — "누가 어디에/어떤 상태인가"의 SSOT 단일 조회처(귓속말·파티·핸드오프 라우팅의 미래 기반·SPINE 계층 5). 구독 안 한 소비자 상태도 pull 로 알 수 있다(독립 읽기 경로). 질의 미수신이면 응답 0 = 0068 비트 동일(순수 함수 핸들러). (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
+// step-0070 — failover 중 질의 연속성(presenceAnnounce): 0067 의 failover 는 *발행(push)* 경로 연속성만 줬다(승격된 standby 가 svc.presence 인계 발행). 0069 의 *질의(pull)* 경로는 질의자가 *고정 주소*(primary)를 가리켜 primary 사망 후 질의가 끊긴다(0069 §9 한계). 이 step 은 그 고리를 닫는다 — standby 가 승격(promote)할 때 svc.presence.active 토픽으로 *새 active 주소를 공지*하고, 질의자(presmon)가 그 공지를 구독해 queryAddr 를 *재타깃*한다 → 죽음 후 질의도 승격된 박스가 답한다(읽기 경로 failover 서비스 디스커버리). announceActive OFF 면 공지 0 = 0069 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
@@ -27,6 +27,9 @@ class PresenceService {
     this.hbRecv = 0;
     this.queriesRx = 0;           // 받은 presenceQuery 수(step-0069·읽기 경로 계측). repliesSent = 보낸 응답 수(1:1).
     this.repliesSent = 0;
+    // failover 중 질의 연속성(step-0070·presenceAnnounce) — 승격 시 svc.presence.active 토픽으로 *새 active 주소*를 공지(질의자 재타깃용). OFF 면 공지 0 = 0069 비트 동일.
+    this.announceActive = opts.announceActive || false;
+    this.announced = 0;           // 발행한 active 공지 수(계측·승격 1회당 1).
   }
   onMsg(m) {
     if (this.dead) return;        // 사망한 박스는 보고를 처리·발행하지 않는다(step-0067) — 승격된 standby 가 이후 보고를 인계.
@@ -58,7 +61,12 @@ class PresenceService {
   // crash(step-0067) — primary 프레즌스 박스 사망(RAM 소실)의 인프로세스 모델. 이후 보고 무시·발행 0. SSOT 는 standby(presence2)가 그림자 복제로 보유하므로 진실은 소실되지 않는다(0034 "진실 원천=소비자"의 코디네이션 판: 진실 원천=shadow).
   crash() { this.dead = true; }
   // promote(step-0067) — standby(active=false)를 *활성*으로 승격해 svc.presence 발행을 인계. shadow 가 이미 모든 보고로 SSOT 를 복제했으므로(0066) 승격 시점 SSOT 갭 0 — 죽음 후 보고만 새로 발행하면 다운스트림이 전 전이열을 무손실 수신. 0009 follower 승격(존)·0061 standby 활성화(서비스)의 프레즌스 판.
-  promote(tick) { if (this.active) return; this.active = true; this.promotedAt = (tick !== undefined) ? tick : 0; }
+  promote(tick) {
+    if (this.active) return;
+    this.active = true; this.promotedAt = (tick !== undefined) ? tick : 0;
+    // 승격 공지(step-0070·presenceAnnounce) — 새 active 주소를 svc.presence.active 로 발행 → 질의자(presmon)가 재타깃해 읽기 경로 failover 디스커버리. OFF·버스 부재면 no-op(0069 비트 동일).
+    if (this.announceActive && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence.active', ev: { addr: this.addr } }); this.announced++; }
+  }
 }
 
 const __part = { PresenceService };
