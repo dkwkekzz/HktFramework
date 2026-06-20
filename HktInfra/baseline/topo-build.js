@@ -80,6 +80,7 @@ function buildTopology(opts) {
     busLeasePresence = false,
     busPresenceRecover = false,
     presencePublish = false,
+    spawnReplace = false,
     recoverRetry = false,
     recoverTimeout = 4,
     recoverMaxRetries = 0,
@@ -105,6 +106,8 @@ function buildTopology(opts) {
   const busAddr = bus ? 'bus' : null;
   const persistAddr = (persist && inventory) ? 'persist' : null;   // 영속 = 가방 전제(가방 원장의 데이터 계층). persist OFF → 0016 비트 동일.
   const rankingAddr = (ranking && bus && inventory) ? 'ranking' : null;   // 랭킹 = bus+가방 전제(item 이벤트 소비). ranking OFF → 0018 비트 동일.
+  // 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제. presencePublish 전제(svc.presence 의 'permanent' 신호로 활성화). OFF → 0060 비트 동일(액터·구독 0).
+  const replaceAddr = (spawnReplace && presencePublish && rankingAddr) ? 'ranking2' : null;
   const chatPersistAddr = (chatpersist && chat) ? 'chatpersist' : null;   // 채팅 영속(이 step) = 채팅 전제(채팅 커맨드 로그의 데이터 계층). OFF → 0020 비트 동일.
   const persistBackupAddr = (persistBackup && persistAddr) ? 'persist2' : null;   // 보조 영속(0027) = primary persist 전제. OFF → 0026 비트 동일(이중쓰기 0).
   // N-replica(이 step) — persistReplicas≥1 이면 'persist2'..'persistN+1' 복제 스토어 N개. primary 와 독립 인스턴스(범용 PersistStore 재사용).
@@ -127,6 +130,7 @@ function buildTopology(opts) {
     if (audit && busLeaseAudit && inventory) subs.push(['svc.item.lease', 'audit']);   // lease 생애 관측(0054) — audit 가 축출/재admission 이벤트 구독. busLeaseAudit OFF 면 미추가(0053 토폴로지 비트 동일).
     if (busLeaseAudit && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.item.lease', 'orch']);   // lease 생애 *반응*(0055) — 코디네이션(orch)이 lease 이벤트 구독해 소비자 프레즌스 SSOT 유지. busLeasePresence OFF·orch 부재면 미추가(0054 토폴로지 비트 동일).
     if (presencePublish && busLeasePresence && audit && failover && zones === 2 && inventory) subs.push(['svc.presence', 'audit']);   // 프레즌스 발행(0060) — orch 가 down/up/permanent 판정을 svc.presence 로 발행, audit(범용 sink)가 구독. presencePublish OFF·audit/orch 부재면 미추가(0059 토폴로지 비트 동일).
+    if (replaceAddr && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.presence', 'ranking2']);   // 대체 소비자 활성화(0061) — standby ranking2 가 svc.presence 의 'permanent' 신호 구독(svc.item.out 은 활성화 후 *스스로* 재구독). spawnReplace OFF 면 미추가(0060 토폴로지 비트 동일).
     if (audit && rankingAddr) subs.push(['svc.rank.out', 'audit']);   // audit 도 rank 스트림 관찰(둘째 소비자의 둘째 소비자)
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
   }
@@ -160,6 +164,8 @@ function buildTopology(opts) {
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
+  // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
+  if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });
 
   const zopt = { grid, radius, incremental, recovery, retxPeriod, heartbeat, failover };
   const orchAddr = (failover && zones === 2) ? 'orch' : null;

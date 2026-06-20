@@ -9,21 +9,21 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0061](step-0061.md) — **대체 소비자 자동 활성화**(spawnReplace·사전 등록된 대기 standby `ranking2` 가 svc.presence 의 'permanent'(ranking) 신호에 스스로 svc.item.out 재구독→죽은 소비자 역할 인계). 0060 이 'permanent'("대체하라")를 발행만 했다면, 이 step 은 그 신호에 *행동하는* 첫 반응자 — 존 shadow follower 승격(0009)의 서비스 판(동적 생성 아닌 사전 등록 대기 액터의 발행-신호 활성화). 발행자·기존 소비자 무수정·비-침습. 닿는 박스: svc-ranking·topo-build·topology.
-- **한 줄 상태**: reg ALL OK(src=baseline=0060 비트 동일·월드해시 5시드 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·spawn: permanent 발행(tick 37)→ranking2 활성화·인계 consume 61~66/pub 77~87·OFF standby 없음(대체 0)·비-침습(minted 동일)·spine src 누적 ALL OK(61-step).
-- **다음**: §2 참조(대체 소비자 late-join reconstruct(활성화 시 저널 replay→투영==원장·다운타임 갭) · 적응형 recoverTimeout(관측 RTT) · 마진 cadence-jitter 적응 · 전용 프레즌스 박스 분리 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0062](step-0062.md) — **대체 소비자 late-join reconstruct**(spawnReconstruct·활성화된 ranking2 가 quiescent tick 에 쓰기 저널 PersistStore 를 reconstruct(ranks 리셋-재구성)해 다운타임(원 ranking 사망~활성화) 갭까지 복원→투영==원장). 0061 의 정직한 한계(활성화 이후만 인계) 해소 — 0020 읽기 모델 late-join 을 *대체 소비자*에 적용(CQRS: 라이브 인계+저널 catch-up). reconstruct 리셋-재구성이 이중 계산 0 보장(0020 무수정 재사용). 닿는 박스: topology(드라이버 트리거).
+- **한 줄 상태**: reg ALL OK(src=baseline=0061 비트 동일·월드해시 5시드 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·recon: permanent 발행→ranking2 활성화(t37)+저널 reconstruct(t115)→투영==원장(갭 복원) vs OFF(0061) 투영!=원장(갭)·비-침습(minted 동일)·spine src 누적 ALL OK(62-step).
+- **다음**: §2 참조(대체 소비자 자율 저널 fetch(persist 버스 요청→catch-up) · 적응형 recoverTimeout(관측 RTT) · 전용 프레즌스 박스 분리 · 마진 cadence-jitter 적응 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0061 가 *대체 소비자 자동 활성화*(spawnReplace — standby ranking2 가 svc.presence 'permanent' 에 자기 활성화·역할 인계·계층 3/5)을 닫았다. 기능 후보: *대체 소비자 late-join reconstruct*(활성화 시 PersistStore 저널 replay→투영==원장·다운타임 갭 메움·spawn+0020 결합·자연스러운 다음)·*적응형 recoverTimeout*(관측 RTT·0050 cadence 적응의 제어 평면 판·단 단일 down 이벤트라 반복 적용 대상 빈약)·*마진 cadence-jitter 적응*·*cadence EWMA/주기 인지*(0047 §9·다중 게이트웨이·현재 단일이라 충분), *cadence EWMA 감쇠/시작 grace prior*(0050 §9), ⒝ *give×result-ahead*(0037 §9), ⒞ *활성 중 다운타임 일반 재발행*(0025/0026), ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격(이제 src/ 한 곳에서).**
+**step-0062 가 *대체 소비자 late-join reconstruct*(spawnReconstruct — 활성화된 ranking2 가 쓰기 저널 reconstruct 로 다운타임 갭 복원·투영==원장·계층 3/6)을 닫았다(0061 의 정직한 한계 해소). 기능 후보: *대체 소비자 자율 저널 fetch*(활성화 즉시 persist 에 버스 요청→catch-up·harness-driven 0062 의 자율화)·*적응형 recoverTimeout*(관측 RTT·0050 cadence 적응의 제어 평면 판·단 단일 down 이벤트라 반복 적용 대상 빈약)·*전용 프레즌스 박스 분리*(orch 의 consumerDown/svc.presence 책임을 SPINE 계층 5 세션/프레즌스 박스로)·*마진 cadence-jitter 적응*·*cadence EWMA 감쇠*(0050 §9), ⒝ *활성 중 다운타임 일반 재발행*(0025/0026), ⒞ *거래소/우편/길드(서비스 반복)*, ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격(이제 src/ 한 곳에서).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
-**병행 백로그(블로킹 아님·전문은 §3·각 step 문서)**: ⬜ per-producer ack/seenWm 유계화·give×result-ahead·적응형 K·디스크 fsync·anti-entropy·적응형 sweep·버스 라우팅 영속/분산/replay·활성 중 다운타임+재발행·채팅 in-flight/홉 신뢰·읽기모델 증분 follow·월드 영속·거래소/우편/길드/존 넘는 거래·비동기 결정론(논리 클럭)·서버간 인증·재접속·티켓.
+**병행 백로그(블로킹 아님·전문은 §3·각 step 문서)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·활성 중 다운타임+재발행·채팅 홉 신뢰·월드 영속·거래소/우편/길드·비동기 결정론(논리 클럭)·서버간 인증·재접속·티켓.
 
-**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049 전환)**: `engine/` = `index.js`(VM 커널·PRNG·FNV·`Net`·동결 `ISimCore`)·`panel-kit.js`·`verify-kit.js`(누적 회귀·모드 추가만)·`close-step.js`·`new-step.js`. 코드는 **`src/`(제자리 수정)** + `src/STEP` + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌·dual-mode). **step 절차**: ① `new-step.js`(src→baseline 스냅샷·STEP 전진) ② 닿는 박스만 Edit + verify 셸에 새 모드만 `kit.MODES['<mode>']=fn` ③ `close-step.js` 닫기 ④ 델타 1커밋+`git tag`. 정리 step: 0030·0035·0038·0043·0049·**0053**(기능 0·reg 0). *주의: 환경상 git 미사용 시 태그 생략*.
+**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049 전환)**: `engine/`=VM 커널·PRNG·FNV·`Net`·동결 `ISimCore`·`panel-kit`·`verify-kit`(누적 회귀·모드 추가만)·`close-step`·`new-step`. 코드는 **`src/` 제자리 수정** + `src/STEP` + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌·dual-mode). **step 절차**: ① `new-step.js`(src→baseline 스냅샷·STEP 전진) ② 닿는 박스만 Edit + verify 셸에 새 모드만 ③ `close-step.js` ④ 델타 1커밋+`git tag`. 정리 step: 0030·0035·0038·0043·0049·0053. *태그 원격 push 거부 환경=로컬만*.
 
 **TESTBED 도구**: `run.js`(단일 진입점 — `node run.js`=src/·`spine`=src 누적 회귀·`<NNNN>`=현재 step·`report`·`scenario`·`live`) + `report.html`(녹화 레코더) + `live.js`(SSE). 훅 `onTick`·`inject`(write-seam·미제공=no-op→reg 0).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제(현실 전송)·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(재-provisioning·divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·지역 격리)→0016 버스+audit→0017~0018 가방 failover·영속·스냅샷→0019~0020 ranking(발신 소비자)·읽기모델 late-join→0021~0022 채팅 영속·스냅샷→0023~0026 write-behind 신뢰성 완결(홉 NAK·tail·in-flight give/mint)→0027~0029 persist failover·N-replica·quorum write ack→0031~0032 윈도 해소·유계 sweep+retry(전문 §7)→0061 **대체 소비자 자동 활성화**(spawnReplace·standby ranking2 가 svc.presence 'permanent' 에 자기 활성화·svc.item.out 인계·존 shadow follower 승격의 서비스 판·발행자 무수정·비-침습). 전부 별 프로세스·신성한 tick·E2E 비트 동일. 0053 정리: 가방 박스 4부품 분할(core+txn+persist+bus·onMsg 추출·core 25.5KB). 거래소/우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·지역 격리)→0016 버스+audit→0017~0018 가방 failover·영속·스냅샷→0019~0020 ranking(발신 소비자)·읽기모델 late-join→0021~0022 채팅 영속·스냅샷→0023~0026 write-behind 신뢰성 완결(홉 NAK·tail·in-flight give/mint)→0027~0029 persist failover·N-replica·quorum write ack→0031~0032 윈도 해소·유계 sweep+retry(전문 §7)→0061 **대체 소비자 자동 활성화**(spawnReplace·standby ranking2 가 svc.presence 'permanent' 에 자기 활성화·역할 인계)→0062 **대체 소비자 late-join reconstruct**(spawnReconstruct·활성화 후 쓰기 저널 reconstruct 로 다운타임 갭 복원·투영==원장·0020 의 대체 소비자 판). 전부 별 프로세스·신성한 tick·E2E 비트 동일. 0053 정리: 가방 박스 4부품 분할(core+txn+persist+bus·onMsg 추출·core 25.5KB). 거래소/우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자(ranking)→0033 동적 구독→0034 **failover**(재구독·진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·요청/결과 ack 자기-크기조정·seenReqs 유계→0044 min-워터마크→0045 소비자 lease/축출→0046/0047 producer 네임스페이스+per-producer seen→0048 lease lifecycle 정합→0050~0052 적응형 leaseSpan·시작 grace·윈도 cadence→0054 lease 생애 관측(svc.item.lease·audit 무수정 구독). 버스 분산·마진 적응·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010 broker(lockstep 배리어) +0011 broker=TCP 서버 +0012 broker=버스 허브·분단 감지·펜싱 +0013 진짜 kill(소켓 close 감지)·epoch 펜싱·재-provisioning(split-brain 0). 0054~0055 소비자 lease 생애 관측→**orch 가 소비자 프레즌스 consumerDown SSOT**("누가 어디에" 씨앗·은닉) + **self-healing 호(0056~0061)**: 반응(busPresenceRecover·recover→소비자 자기 재구독→consumerDown 비움)→확인(recoverAck)→재시도(recoverRetry·분실 복구)→상한(recoverMaxRetries·permanentDown 포기)→발행(presencePublish·건강 판정 down/up/permanent→svc.presence→무수정 구독)→**행동**(0061·spawnReplace: standby ranking2 가 permanent 발행에 자기 활성화·역할 인계 — 발행 신호의 첫 *반응자*). broker 물리 분산·진짜 비동기·대체 소비자 late-join reconstruct·전용 프레즌스 박스 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·in-flight give/mint)→0027 failover(이중쓰기)→0028 N-replica quorum-read→0029 quorum write ack(`durableSeq`)→0031~0032 윈도 해소+유계 K·fill retry(전문 §7). 증분 스냅샷·fsync·anti-entropy·월드/버스 영속 후속 |
@@ -119,13 +119,13 @@
 | [0020](step-0020.md) | 읽기 모델 영속·late-join(ranking crash→쓰기 저널 reconstruct·CQRS) | 통과 · OFF=0019 비트 동일·kill→투영==원장·spine 20 |
 | [0021](step-0021.md) | 채팅 영속·failover(crash→커맨드 로그 replay·라우팅+deliveries event sourcing) | 통과 · OFF=0020 비트 동일·kill→replay 투명·spine 21 |
 | [0022](step-0022.md) | 채팅 커맨드 로그 스냅샷 압축(라우팅 스냅샷+tail replay) | 통과 · OFF=0021 비트 동일·스냅샷+tail==전체·로그 78→3·spine 22 |
-| [0023](step-0023.md) | 저널 홉 신뢰 전달(write-behind 홉 갭 NAK+재전송·0008 의 저널 판) | 통과 · OFF=0022 비트 동일·loss 0.3 ON 저널 완전 vs OFF 갭·spine 23 |
-| [0024](step-0024.md) | 저널 홉 tail 손실 감지(heartbeat→maxSentSeq→tail NAK·0023 §9 해소) | 통과 · OFF=0023 비트 동일·tail ON 완전·tailNAK 21~24 vs OFF 갭·spine 24 |
-| [0025](step-0025.md) | in-flight give 손실 복구(클라 give-resend→belief 재수렴·0024 §9 해소) | 통과 · OFF=0024 비트 동일·ON itemDesync 0 vs OFF 갭·spine 25 |
-| [0026](step-0026.md) | in-flight mint 손실 복구: id-reconciliation(belief→re-mint→newId·신뢰성 완결) | 통과 · OFF=0025 비트 동일·ON itemDesync 0·reconcile 6·dupe 0·spine 26 |
-| [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조 persist(primary+backup 동시→primary crash 복구) | 통과 · OFF=0026 비트 동일·crash ON 무손실·spine 27 |
+| [0023](step-0023.md) | 저널 홉 신뢰 전달(write-behind 홉 갭 NAK+재전송) | 통과 · OFF=0022 비트 동일·loss 0.3 ON 완전 vs OFF 갭·spine 23 |
+| [0024](step-0024.md) | 저널 홉 tail 손실 감지(heartbeat→tail NAK) | 통과 · OFF=0023 비트 동일·tail ON 완전·tailNAK 21~24 vs OFF 갭·spine 24 |
+| [0025](step-0025.md) | in-flight give 손실 복구(클라 give-resend→belief 재수렴) | 통과 · OFF=0024 비트 동일·ON itemDesync 0 vs OFF 갭·spine 25 |
+| [0026](step-0026.md) | in-flight mint 손실 복구: id-reconciliation(belief→re-mint→newId) | 통과 · OFF=0025 비트 동일·ON itemDesync 0·reconcile 6·dupe 0·spine 26 |
+| [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조 persist(primary+backup→crash 복구) | 통과 · OFF=0026 비트 동일·crash ON 무손실·spine 27 |
 | [0028](step-0028.md) | PersistStore N-replica+quorum: 복제 fan-out·생존 저널 union 복구 | 통과 · 0=0027 비트 동일·생존3 union==base·생존1 손실·spine 28 |
-| [0029](step-0029.md) | PersistStore quorum *쓰기* ack: W 정족수 후 durable 선언(durableSeq 워터마크) | 통과 · 0=0028 비트 동일·tail 미달=durableSeq T-1·spine 29 |
+| [0029](step-0029.md) | PersistStore quorum *쓰기* ack: W 정족수 후 durable(durableSeq 워터마크) | 통과 · 0=0028 비트 동일·tail 미달=durableSeq T-1·spine 29 |
 | [0030](step-0030.md) | 정리 step: 박스 1개=파일 1개 분할 + engine 승격(verify-kit) + 닫기 게이트(close-step)·기능 0 | 통과 · reg 25/25·디렉토리 267→203KB·spine 30 |
 | [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill — 주기 sweep 이 W 미달 seq 재-fan-out→durable) | 통과 · 0=0030 비트 동일·ON durSeq total-1/윈도 0·spine 31 |
 | [0032](step-0032.md) | 윈도 해소의 유계 sweep+fill retry(wfWindow K 창·주기 재-scan) | 통과 · 0=0031 비트 동일·유계 K=8 durSeq=total-1·spine 32 |
@@ -140,21 +140,22 @@
 | [0041](step-0041.md) | 결과 replay 버퍼 자기-크기조정(busOutAck — outSeq ack→outBuffer 가지치기) | 통과 · 0=0040 비트 동일·desync 0 vs fixedK8 4·spine 41 |
 | [0042](step-0042.md) | seenReqs dedup 집합 유계화(busSeenBound — inAcked 워터마크→가지치기) | 통과 · 0=0041 비트 동일·minted base==bound·peak 60→24·spine 42 |
 | [0043](step-0043.md) | 정리 step: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·바이트 동일·기능 0) | 통과 · reg 25/25·박스 34→최대 19.6KB·spine 43 |
-| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼를 모든 소비자 frontier 최소로) | 통과 · 0=0043 비트 동일·비대칭 복구 single F vs min T·spine 44 |
-| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자 판정→min 정의역 축출) | 통과 · 0=0044 비트 동일·OFF peak∝run(36→156) vs ON 유계(30)·오축출 0·spine 45 |
-| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — dedup 을 (producer,reqId) 복합키로) | 통과 · 0=0045 비트 동일·gw1 겹침 OFF Δ0 vs ON Δ5·spine 46 |
+| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 0=0043 비트 동일·비대칭 복구 single F vs min T·spine 44 |
+| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자→min 정의역 축출) | 통과 · 0=0044 비트 동일·OFF peak∝run(36→156) vs ON 유계(30)·오축출 0·spine 45 |
+| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — dedup=(producer,reqId) 복합키) | 통과 · 0=0045 비트 동일·gw1 겹침 OFF Δ0 vs ON Δ5·spine 46 |
 | [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키를 producer 별 가지치기) | 통과 · 0=0046 비트 동일·OFF peak∝run vs ON 유계(24)·spine 47 |
-| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission=축출 가역·0045 §9 해소) | 통과 · 0=0047 비트 동일·§2 outBuf 유계·§3 readm 1·spine 48 |
+| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission=축출 가역) | 통과 · 0=0047 비트 동일·outBuf 유계·readm 1·spine 48 |
 | [0049](step-0049.md) | 단일 살아있는 소스 `src/` 전환(복사 전진 폐기·정리 step·기능 0·reg 0) | 통과 · reg=src=baseline=0048 비트 동일·E2E 비트동일·spine 49 |
-| [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 관측 ack cadence 로 self-size·0048 §9 해소) | 통과 · 0=0049 비트 동일·고정 OFF flapping(6→26) vs 적응 ON 정착 ev=1·죽음 축출 peak 30·spine 50 |
-| [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease 축출 임계에 bootstrap 바닥 floor·0050 §9 "bootstrap 1회 오축출" 해소) | 통과 · 0=0050 비트 동일·적응만 live ev=1(bootstrap 오축출) vs grace ev=0·죽은 소비자 grace 도 축출(peak 30 유계)·minted 보존·spine 51 |
-| [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠·0050 §9 해소) | 통과 · 0=0051 비트 동일·stall 후 OFF 죽음 놓침(peak 60) vs ON cm 42→0·deadEvict·peak 36·spine 52 |
+| [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 관측 ack cadence 로 self-size) | 통과 · 0=0049 비트 동일·고정 OFF flapping(6→26) vs 적응 ON ev=1·죽음 축출 peak 30·spine 50 |
+| [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease 임계 bootstrap 바닥 floor) | 통과 · 0=0050 비트 동일·grace ev=0(오축출 0) vs 적응만 ev=1·죽은 소비자도 축출(peak 30)·spine 51 |
+| [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠) | 통과 · 0=0051 비트 동일·stall 후 OFF peak 60 vs ON cm 42→0·deadEvict peak 36·spine 52 |
 | [0053](step-0053.md) | 정리 step: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 바이트 동일 추출(core 31.9KB>30KB→25.5KB·기능 0·reg 0) | 통과 · reg=0052 비트 동일·onMsg 프로토타입 생존·박스 최대 25.5KB≤30KB·트랜잭션 정상(minted>0·원장 정합)·spine 53 |
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→svc.item.lease→audit 무수정 구독) | 통과 · 0=0053 비트 동일·전이 전부 관측(seen==ev+readm)·비-침습·spine 54 |
 | [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch 가 svc.item.lease 소비→소비자 프레즌스 consumerDown SSOT·계층 5 씨앗) | 통과 · 0=0054 비트 동일·consumerDown==evicted(영구·transient 둘 다)·비-침습·spine 55 |
 | [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — orch recover 명령→소비자 자기 재구독→readmit→consumerDown 비움·lease→프레즌스→액션 고리 완성) | 통과 · 0=0055 비트 동일·OFF 영영 down(readmit 0) vs ON recover/resub/readmit 1·consumerDown 비움·소비 119~128 vs 24·비-침습·spine 56 |
 | [0057](step-0057.md) | 치유 확인 고리(recoverAck — 소비자가 recover 받아 재구독하며 orch 에 회신→orch 가 명령 전달·수행 확인) | 통과 · 0=0056 비트 동일·ON recoversSent==recoverAcks==1(분실 0)·readmit 1·consumerDown 비움 vs OFF 0/0·비-침습·spine 57 |
 | [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recover 분실 시 orch 가 recoverTimeout 뒤 재발신→치유 수렴) | 통과 · 0=0057 비트 동일·recover 2회 분실 OFF 영영 down(ack 0) vs ON retries 2·ack 1·readmit 1·consumerDown 비움·비-침습·spine 58 |
-| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 영구 분실에 재시도 유계화→상한 도달 시 permanentDown 으로 포기) | 통과 · 0=0058 비트 동일·영구 분실 capON retries 3 유계·givenUp 1·permDown={ranking} vs capOFF 17 무계·일시 분실(<상한) 치유 유지·비-침습·spine 59 |
+| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 영구 분실 재시도 유계→상한 도달 시 permanentDown 포기) | 통과 · 0=0058 비트 동일·capON retries 3 유계·givenUp 1·permDown={ranking} vs capOFF 17 무계·일시 분실 치유 유지·spine 59 |
 | [0060](step-0060.md) | 프레즌스 발행(presencePublish — orch 의 건강 판정 down/up/permanent 를 svc.presence 버스 이벤트로 발행→audit 구독) | 통과 · 0=0059 비트 동일·치유 down+up 2건·영구 down+permanent 2건 발행→audit 1:1 무손실 수신·OFF 0·비-침습·spine 60 |
 | [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby ranking2 가 svc.presence 'permanent' 에 자기 활성화·svc.item.out 인계·shadow follower 승격의 서비스 판) | 통과 · 0=0060 비트 동일·permanent 발행(t37)→활성화·인계 consume 61~66/pub 77~87·OFF standby 없음·비-침습(minted 동일)·spine 61 |
+| [0062](step-0062.md) | 대체 소비자 late-join reconstruct(spawnReconstruct — 활성화된 ranking2 가 쓰기 저널 reconstruct 로 다운타임 갭 복원·0020 의 대체 소비자 판) | 통과 · 0=0061 비트 동일·활성화(t37)+reconstruct(t115)→투영==원장 vs OFF 투영!=원장(갭)·리셋-재구성 이중계산 0·비-침습·spine 62 |
