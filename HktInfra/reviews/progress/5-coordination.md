@@ -6,27 +6,26 @@
 
 ---
 
-## 세션/프레즌스 ✅ 자라는 중 *(소비자 건강 차원에서 깨어남)*
+## 세션/프레즌스 ✅ 자라는 중 *(전용 박스로 독립 → 쓰기·발행·읽기 전 경로 failover-safe)*
 
-- **푸는 병목**: 귓속말·파티·핸드오프가 "X 가 지금 어디" 를 매번 떠돌이로 찾으면 안 된다 — *조회 한 곳*(SSOT). 더해서 "어느 *소비자*가 지금 살아있나"도 한 곳이 알아야 죽은 데를 되살린다.
-- **지금 어디**: 등록 씨앗 → *소비자 건강 프레즌스*(누가 down 인가)를 버스 이벤트로 알고, 그 판정을 다시 발행까지.
+- **푸는 병목**: 귓속말·파티·핸드오프가 "X 가 지금 어디" 를 매번 떠돌이로 찾으면 안 된다 — *조회 한 곳*(SSOT). 그 한 곳이 *죽어도* 끊기면 안 되고, *물어보면* 답해야 한다.
+- **지금 어디**: 등록 씨앗 → orch 곁붙이 → **독립 박스(PresenceService)** → 그 박스가 *죽어도 살아남고 물어보면 답하는* failover-safe SSOT.
   - `step-0001` — 레지스트리 씨앗(누가 어디에 등록).
-  - `step-0055` — 소비자 프레즌스 SSOT: orch 가 svc.item.lease 를 구독해 `consumerDown` 유지(가방 내부 안 보고 버스로만·은닉).
-  - `step-0060` — 그 건강 판정(down/up/permanent)을 svc.presence 로 *발행* → 어떤 서비스든 구독·반응(모니터링·대시보드·대체 spawn 토대).
-- **남은 것**: 플레이어(아바타) 프레즌스 실사용(귓속말·파티 라우팅)·전용 PresenceService 박스 분리(지금은 orch 겸함).
+  - `step-0055~0063` — 소비자 건강 프레즌스(누가 down/permanent)를 버스로 알고 svc.presence 발행 + presmon 상태 기계 관측(orch 곁붙이 단계).
+  - `step-0064~0065` — **전용 박스로 독립**: SSOT+발행을 orch→PresenceService(이중 SSOT 제거) → 보고 버스화(orch 가 박스 *주소를 모름*·완전 decouple·failover 기반).
+  - `step-0066~0068` — **failover**: standby 가 같은 보고로 SSOT 그림자 복제(shadow·갭 0)→primary 죽으면 승격해 발행 인계→하트비트 침묵으로 *스스로* 사망 감지(외부 트리거 0).
+  - `step-0069~0070` — **읽기 경로**: "지금 상태?" pull 질의(구독 못 한 소비자도 앎)→승격 시 새 주소 공지→질의자 재타깃(질의도 failover 연속).
+- **남은 것**: 플레이어 프레즌스 실사용 — 귓속말/파티 *라우터*. self-hb 메아리·재타깃 윈도·다중 standby(경미).
 
 ## 오케스트레이터 ✅ 자라는 중 *(failover 에 더해 self-healing 제어 루프 완성)*
 
 - **푸는 병목**: 정적 배치는 한계다 — 존 배치·죽은 노드 인계가 *동적*이어야(주인 둘이면 split-brain). 더해서 *죽은 소비자*는 자동으로 되살아나야(사람 개입 0).
 - **지금 어디**: zone failover(주인 정하고 펜싱) → **소비자 self-healing 제어 루프**(죽음 감지→되살리기→확인→재시도→포기→발행).
   - `step-0009~0013` — zone failover: lease·진짜 kill 감지·epoch 펜싱·재-provisioning(split-brain 0). broker lockstep 배리어(검증용 결정론 받침).
-  - `step-0056` — 프레즌스 *반응*: down 소비자에 recover 명령→소비자가 *스스로* 재구독→치유(관측을 넘어 행동).
-  - `step-0057` — 치유 *확인*: 소비자가 recoverAck 회신→orch 가 명령 전달·수행을 안다(fire-and-forget→확인된 루프).
-  - `step-0058` — 미확인 *재시도*: recover 분실 시 recoverTimeout 뒤 재발신→분실에도 치유 수렴(ack 에만 종료).
-  - `step-0059` — 재시도 *상한*: 영구 분실에 유계화→permanentDown 으로 포기(무한 루프 0).
-  - `step-0060` — 건강 판정 *발행*: down/up/permanent→svc.presence(치유 로직과 반응 로직 분리).
-- **남은 것**: **진짜 비동기**(lockstep 배리어 해제) · 대체 소비자 spawn(permanentDown→동적 토폴로지·런타임 새 소비자) · 적응형 recoverTimeout(관측 RTT).
+  - `step-0056~0060` — **소비자 self-healing 루프**: down 소비자에 recover 명령(소비자 자기 재구독)→recoverAck 확인→미확인 재시도→상한 포기(permanentDown)→건강 판정 svc.presence 발행(반응·치유 로직 분리).
+  - `step-0064` — **순수 오케스트레이터로 정리**: 프레즌스 SSOT+발행을 PresenceService 로 넘기고 orch 는 *결정·행동*(recover/retry/포기)만 — 三역할 중 프레즌스 떼냄(치유는 아직 겸함).
+- **남은 것**: **진짜 비동기**(lockstep 배리어 해제·가장 큰 빚) · 치유 로직 HealService 분리(orch 가 아직 겸함) · 적응형 recoverTimeout(관측 RTT).
 
 ---
 
-> **이 계층 다음 걸음**: ⒜ 가장 큰 빚 — *진짜 비동기*(중앙 lockstep 배리어를 떼고 논리/벡터 클럭·인과 순서로 배리어 없이 결정론·소유자 1). ⒝ self-healing 의 마지막 조각 — permanentDown 신호를 받아 *대체 소비자를 런타임에 띄우는* 동적 토폴로지. ⒞ orch 가 세 역할(failover·프레즌스·치유)을 겸함 — 전용 프레즌스/치유 박스 분리.
+> **이 계층 다음 걸음**: ⒜ 가장 큰 빚 — *진짜 비동기*(중앙 lockstep 배리어를 떼고 논리/벡터 클럭·인과 순서로 배리어 없이 결정론·소유자 1). ⒝ 프레즌스 박스는 failover-safe SSOT 까지 섰다(0064~0070) — 다음은 *플레이어 프레즌스 실사용*(귓속말/파티 라우터). ⒞ orch 三역할 중 프레즌스 ✅분리(0064)·*치유(HealService) 분리*는 남음.

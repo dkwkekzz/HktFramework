@@ -16,13 +16,13 @@
 | ② 월드 | [2-world.md](2-world.md) | 존 · 인스턴스 | ✅ *가장 성숙* + ⬜ |
 | ③ 게임 서비스 | [3-services.md](3-services.md) | 가방 · 채팅 · 랭킹 · 길드/거래소/우편 | ✅✅✅ + ⬜ |
 | ④ 버스 | [4-bus.md](4-bus.md) | 이벤트 버스 | ✅ *깊게 자람* |
-| ⑤ 코디네이션 | [5-coordination.md](5-coordination.md) | 세션/프레즌스 · 오케스트레이터 | ✅ + ✅ *(self-healing 루프)* |
+| ⑤ 코디네이션 | [5-coordination.md](5-coordination.md) | 세션/프레즌스 · 오케스트레이터 | ✅ *(failover-safe 박스)* + ✅ |
 | ⑥ 데이터 | [6-data.md](6-data.md) | 캐시 · DB·write-behind | ⬜ + ✅ |
 
 상태 기호: ✅ 자라는 중(씨앗+능력 누적) · 🌱 씨앗만(계약만 섰음) · ⬜ 미착수(아직 박스 없음)
 
-> **기준선**: 닫힌 step **~0060**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론) · UE 모듈 링크 0 hit(headless) · 박스 파일 전부 <30KB(최대 svc-inventory-core 26.1KB) · zone 핸드오프 acquire/release 쌍 거래·failover 실재 · persist quorum write ack(`durableSeq`) 실재 · 코디네이션 self-healing 루프(recover→재구독→재시도→상한→발행) 실재 · `node run.js spine` = **ALL OK(60-step 누적 회귀 사슬 통과)**.
+> **기준선**: 닫힌 step **~0070**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론) · UE 모듈 링크 0 hit(headless) · 박스 파일 전부 <30KB(최대 topo-build 25.6KB) · zone 핸드오프 acquire/release 쌍 거래·failover 실재 · 프레즌스 박스 쓰기·발행·읽기 전 경로 failover-safe(0064~0070·승격 release+acquire 실재) · 대체 소비자 인계(0061/0062) 실재 · `node run.js spine` = **ALL OK(70-step 누적 회귀 사슬 통과)**. 단 0033+ ON-경로 가설은 누적 회귀 미승격(reg-0 만 보증·감사 #16).
 
 ## 다음 큰 걸음 (직관)
 
-⒜ 코디네이션의 *진짜 비동기*(lockstep 배리어 해제 — 논리/벡터 클럭으로 배리어 없이 결정론) · ⒝ self-healing 의 마지막 조각 — *대체 소비자 spawn*(permanentDown→동적 토폴로지·런타임 새 소비자) · ⒞ 월드의 *동적 경계·N 존* · ⒟ 미착수 박스(인스턴스·캐시·거래소/우편/길드)의 씨앗 심기. 권위는 [../../STATE.md](../../STATE.md) §2 NEXT.
+⒜ 코디네이션의 *진짜 비동기*(lockstep 배리어 해제 — 논리/벡터 클럭으로 배리어 없이 결정론) · ⒝ 프레즌스 박스 failover-safe SSOT 완성(0064~0070) → 다음은 *플레이어 프레즌스 실사용*(귓속말/파티 라우터) · ⒞ 월드의 *동적 경계·N 존* · ⒟ 미착수 박스(인스턴스·캐시·거래소/우편/길드)의 씨앗 심기. 권위는 [../../STATE.md](../../STATE.md) §2 NEXT.

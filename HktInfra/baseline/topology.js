@@ -51,6 +51,7 @@ function run(opts) {
   const ranking2 = map.get('ranking2') || null;   // 대체 소비자(step-0061·spawnReplace) — standby. spawnReplace OFF 면 null(0060 동일).
   const presmon = map.get('presmon') || null;      // 프레즌스 모니터(step-0063·presenceMonitor) — svc.presence 읽기 모델. OFF 면 null(0062 동일).
   const presence = map.get('presence') || null;    // 전용 프레즌스 박스(step-0064·presenceBox) — 프레즌스 SSOT. OFF 면 null(0063 동일).
+  const presenceShadow = map.get('presence2') || null;   // 프레즌스 박스 shadow(step-0066·presenceShadow) — standby PresenceService. 같은 보고로 SSOT 그림자 복제(active=false·발행 0). OFF 면 null(0065 동일).
   const persist = map.get('persist') || null;
   const persist2 = map.get('persist2') || null;
   // N-replica 복제 스토어 핸들(이 step) — persistReplicas≥1 이면 'persist2'..'persistN+1'. [] 면 0027 복구 경로(persist2 단일).
@@ -157,6 +158,13 @@ function run(opts) {
     //   가방은 버스 너머라 발신 게이트웨이를 구별 못 한다(은닉) — producer 태그가 유일한 네임스페이스 신호. op={at,reqId,avatar,producer}. 정규 svc.item pub(실제 둘째 게이트웨이가 발신할 메시지와 동형).
     //   busProducerNs OFF 면 가방이 reqId 만으로 dedup → gateway1 의 같은 reqId 와 충돌(둘째 producer 요청 폐기·손실). ON 이면 (producer,reqId) 분리 → 충돌 0. 미설정이면 휴면(reg 0 불변).
     if (opts.producerInject && bus) for (const op of opts.producerInject) if (op.at === i + 1) net.send('gateway', 'bus', { type: 'pub', topic: 'svc.item', ev: { type: 'item_req', op: 'pickup', avatar: op.avatar, reqId: op.reqId, producer: op.producer } });
+    // 프레즌스 박스 failover 승격(step-0067·presenceFailover) — at tick 에 primary 프레즌스 박스 crash(RAM 소실·이후 보고 무시·발행 0). presencePromote ON 이면 같은 tick 에 standby(presence2)를 promote(active=true)해 발행을 인계.
+    //   shadow 가 이미 모든 보고로 SSOT 를 그림자 복제했으므로(0066) 승격 시점 SSOT 갭 0 — 죽음 *후* 도착하는 보고(예: permanent)를 승격된 standby 가 svc.presence 로 발행 → 다운스트림(presmon)이 전 전이열(down→permanent) 무손실 수신.
+    //   미승격(presencePromote OFF·대조군)이면 primary 만 죽고 standby 는 passive → 죽음 후 전이는 영영 미발행(failover 가 막는 갭). presenceFailover 미제공이면 휴면(crash 0·reg 0 불변·0066 비트 동일).
+    if (opts.presenceFailover && presence && i + 1 === opts.presenceFailover.at) {
+      presence.crash();
+      if (opts.presencePromote && presenceShadow) presenceShadow.promote(i + 1);
+    }
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
@@ -196,7 +204,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
