@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0074](step-0074.md) — **재타깃 윈도 질의 재시도**(whisperRetry): 0072 재타깃은 사망 *후* 질의만 구했다 — 승격 공지 전 윈도(사망~공지 전파)에 보낸 질의는 죽은 primary 로 가 손실(0072 §9). 이 step 은 라우터가 재타깃(svc.presence.active)할 때 *보류 질의*(미응답)를 새 active 주소로 재발신 → 윈도 손실분도 승격 박스로 다시 가 해소(읽기 경로 at-least-once·0058 recoverRetry 의 질의 판·공지가 재시도 구동·onTick 0). 닿는 박스: svc-whisper(재타깃 핸들러 재발신·pendingCount)·topo-build(whisperRetry 배선).
-- **한 줄 상태**: reg ALL OK(src=baseline=0073 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·whisperretry: failover@30·귓속말@31(윈도)·둘 다 재타깃 1·ON retries 2→routed 1/bounced 1·pending 0 vs OFF retries 0·routed+bounced 0·pending 2(손실)·비침습·spine 74-step ALL OK.
-- **다음**: §2 참조(전달 신뢰(세션 전달·전달 영수증·ack/재시도) · 파티 멤버십 SSOT(파티/길드 서비스) · active 자기-하트비트 메아리 정리 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0075](step-0075.md) — **파티 멤버십 SSOT**(partyService — 멤버십 ⟂ 라우팅 분리): 0073 파티 라우터는 멤버 목록을 *인라인*으로 받았다(멤버십+라우팅 섞임). 이 step 은 멤버십을 전용 박스 PartyService 로 분리 — 클라가 파티 결성(partyCreate)하면 멤버십 SSOT 를 보유하고, 라우터는 partyTo(멤버 인라인 X)에 멤버 목록을 *질의*(partyQuery→partyMembers)로 얻는다 → 멤버십 SSOT→프레즌스 SSOT(0069)→라우팅 2단 조회. SPINE 계층3 길드/소셜의 첫 멤버십 박스. 닿는 박스: svc-party(신규)·svc-whisper(partyTo/partyMembers·membershipAddr)·topo-build(배선)·topology(주입·결과)·net-core(require).
+- **한 줄 상태**: reg ALL OK(src=baseline=0074 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·partysvc: P1=[inv·chat·rank] 결성→partyTo→membershipQueries 1·membersResolved 3·q/recv 3/3·routed 2/bounced 1·decision inv/chat=routed·rank=bounced·OFF pservice null·미해소·비침습·spine 75-step ALL OK.
+- **다음**: §2 참조(전달 신뢰(세션 전달·전달 영수증·ack/재시도) · 파티 멤버십 영속·failover · 증분 가입/탈퇴+변경 발행 · active 자기-하트비트 메아리 정리 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0074 가 *재타깃 윈도 질의 재시도*(whisperRetry — 읽기 경로 at-least-once)를 닫아 귓속말 질의가 failover 윈도를 가로질러 손실되지 않는다. 기능 후보(우선): *전달 신뢰*(게이트웨이 경유 세션 전달·전달 영수증 receipt·ack/재시도 — 0071~0074 의 best-effort whisperDeliver 를 신뢰 전달로·라우팅 *결정*은 견고해졌으니 다음은 *전달* 보장). 그 다음: *파티 멤버십 SSOT*(파티/길드 서비스 — 라우터는 멤버 목록을 받아 라우팅만·멤버십은 별 박스)·*active 자기-하트비트 메아리 정리*(0068 §9)·*적응형 hbTimeout*(0050 lease 판), ⒝ *활성 중 다운타임 일반 재발행*(0025/0026), ⒞ *거래소/우편/길드(서비스 반복)*, ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
+**step-0075 가 *파티 멤버십 SSOT*(partyService — 멤버십 ⟂ 라우팅 분리·계층3 길드/소셜 첫 멤버십 박스)를 닫았다. 기능 후보(우선): *전달 신뢰*(게이트웨이 경유 세션 전달·전달 영수증 receipt·ack/재시도 — 0071~0075 의 라우팅 *결정* 경로는 견고해졌으니 다음은 whisperDeliver *전달* 보장). 그 다음: *파티 멤버십 영속·failover*(가방/프레즌스가 걸은 저널/재타깃 길을 멤버십에·0075 §9)·*증분 가입/탈퇴+멤버십 변경 발행*·*active 자기-하트비트 메아리 정리*(0068 §9), ⒝ *활성 중 다운타임 일반 재발행*(0025/0026), ⒞ *거래소/우편/길드(서비스 반복)*, ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -41,11 +41,11 @@
 | 🟡 | **버스 단일점·분산·영속(동적 구독·failover·무손실·replay 유계·소비자 lease·치유·대체 활성화 ✅)** | 버스 | 0016 ServiceBus=*단일 박스·영속 0*. 동적구독→failover→무손실→lease→생애관측→프레즌스→self-healing→대체 활성화(0033~0061·§5/§7). 남은 것: 라우팅 영속·다중 브로커·per-producer ack·late-join reconstruct. |
 | 🟡 | **서비스 영속·failover (가방 ✅+압축·채팅 ✅+압축·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방=효과 저널(0017)+압축(0018). 채팅=커맨드 로그(0021)+압축(0022). write-behind 신뢰성·failover(0023~0029·§7). 단 버스 라우팅 영속 0·가방 일방 give(2PC 없음·0014 §9-2). |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService=*발신 소비자*(CQRS·투영==원장). 0020=*읽기 모델 영속·late-join*(crash→쓰기 저널 reconstruct·0019 §9 해소). 단 quiescent restart 만(0020 §9). 거래소·우편·길드 미착수. |
-| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover 승격·자율 감지·질의·질의 failover — 쓰기·발행·읽기 전 경로 failover-safe·§5). 0071 귓속말 라우터+0072 라우터 failover 연속+0073 파티 라우터(1:N)+0074 윈도 질의 재시도(읽기 at-least-once). 남은 것: 전달 신뢰·파티 멤버십 SSOT·존 배치·부하 분산·메아리 정리. |
+| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover·자율 감지·질의·질의 failover — 전 경로 failover-safe·§5). 귓속말/파티 라우팅 0071~0075(라우팅·라우터 failover·1:N·윈도 재시도·멤버십 SSOT). 남은 것: 전달 신뢰·존 배치·부하 분산·메아리 정리. |
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축·저널홉 신뢰·persist failover+N-replica+quorum+윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층 6 첫 박스) = 가방 효과 저널(write-behind)+압축(0018). 저널홉 신뢰→failover→N-replica quorum→윈도(0023~0032·§7). 단 *fsync 0·anti-entropy 0·월드 영속 0* — 0032/0029/0018 §9. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위의 고리 닫기. |
 
-> **✅ 해소된 격차 (0001~0070)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격/복제/Sim/전송(01~04)·AOI/분할/핸드오프/복원/failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스 분리(14~16)·가방/채팅 영속+압축·읽기모델(17~22)·write-behind 신뢰성·persist failover/quorum/윈도(23~32)·버스 동적구독/failover/무손실/lease(33~52)·lease 관측→프레즌스 박스(SSOT→failover→자율감지→질의→질의 failover)(54~70).
+> **✅ 해소된 격차 (0001~0075)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격/복제/Sim/전송(01~04)·AOI/분할/핸드오프/복원/failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스 분리(14~16)·가방/채팅 영속+압축·읽기모델(17~22)·write-behind/persist failover/quorum/윈도(23~32)·버스 동적구독/failover/무손실/lease(33~52)·lease 관측→프레즌스 박스(54~70)·귓속말/파티 라우팅(71~75).
 
 > **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5 필독): 매 step은 verify 4기둥 + 척추 체크 5항(① 신성한 tick ② 결정론 코어 ③ 권위 단일 소유 ④ 은닉·단일 연결 ⑤ headless·원격 검증)으로 판정. 분리 판정 기준: *그 일이 존 시뮬 tick 과 같은 박자로 돌아야 하는가?*
 
@@ -78,9 +78,9 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제(현실 전송)·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(재-provisioning·divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도(전문 §7)→**대체 소비자 호(0061~0063)**: 자동 활성화(spawnReplace·standby ranking2 가 svc.presence 'permanent' 에 자기 활성화)→late-join reconstruct(spawnReconstruct·저널로 다운타임 갭 복원·투영==원장)→프레즌스 모니터(presenceMonitor·presmon 상태 기계). **0071 귓속말 라우터(whisperRouter·wrouter)**: 질의 인터페이스(0069)의 첫 진짜 라우팅 소비자(귓속말→대상 상태 질의→up 전달/down·perm 반송·권위 0). 전부 별 프로세스·신성한 tick·E2E 비트 동일. 0053 정리: 가방 4부품 분할(core 25.5KB). 거래소/우편/길드 후속 |
-| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자(ranking)→0033 동적 구독→0034 **failover**(재구독·진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·요청/결과 ack 자기-크기조정·seenReqs 유계→0044 min-워터마크→0045 소비자 lease/축출→0046/0047 producer 네임스페이스+per-producer seen→0048 lease lifecycle 정합→0050~0052 적응형 leaseSpan·시작 grace·윈도 cadence→0054 lease 생애 관측(svc.item.lease·audit 무수정 구독). 버스 분산·마진 적응·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 생애 관측→프레즌스 SSOT→**self-healing 호**(recover→ack→retry→상한 포기→발행→spawnReplace 활성화→presmon 관측). **프레즌스 박스 호(0064~0070)**: 0064 전용 박스 분리(orch⟂프레즌스·이중 SSOT 제거)→0065 보고 버스화(orch 주소 무지)→0066 shadow 복제→0067 failover 승격→0068 사망 자율 감지(하트비트)→0069 질의 인터페이스(pull)→0070 질의 failover 연속(공지→재타깃). 쓰기·발행·읽기 전 경로 failover-safe. broker 물리 분산·진짜 비동기·귓속말 라우터/메아리 정리 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도(전문 §7)→**대체 소비자 호(0061~0063)**: 자동 활성화(spawnReplace)→late-join reconstruct(spawnReconstruct)→프레즌스 모니터(presmon). **0071~0075 귓속말/파티 라우팅 호(wrouter)**: 질의 인터페이스(0069)의 라우팅 소비자 — 귓속말(up 전달/반송)·라우터 failover 재타깃·파티 1:N·윈도 재시도(at-least-once)·**파티 멤버십 SSOT(pservice·멤버십⟂라우팅·2단 조회)**. 전부 별 프로세스·신성한 tick·E2E 비트 동일·권위 0. 0053 정리: 가방 4부품 분할(core 25.5KB). 거래소/우편/길드 후속 |
+| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 **failover**(재구독·진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·ack 자기-크기조정→0044 min-워터마크→0045 소비자 lease/축출→0046/0047 producer 네임스페이스→0048 lease lifecycle→0050~0052 적응형 leaseSpan·grace·윈도 cadence→0054 lease 생애 관측. 버스 분산·per-producer ack·라우팅 영속 후속 |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 생애 관측→프레즌스 SSOT→**self-healing 호**(recover→ack→retry→상한 포기→발행→spawnReplace→presmon 관측). **프레즌스 박스 호(0064~0070)**: 전용 박스 분리(orch⟂프레즌스)→보고 버스화→shadow 복제→failover 승격→사망 자율 감지→질의 인터페이스→질의 failover 연속(공지→재타깃). 쓰기·발행·읽기 전 경로 failover-safe. broker 물리 분산·진짜 비동기·메아리 정리 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·in-flight give/mint)→0027~0029 failover/N-replica quorum-read/quorum write ack(durableSeq)→0031~0032 윈도 해소+유계 K(§7)→0062 대체 소비자 reconstruct 복구원. 증분 스냅샷·fsync·anti-entropy·월드/버스 영속 후속 |
 
 ---
@@ -105,11 +105,11 @@
 | [0006](step-0006.md) | 공간 분할+존 간 권위 핸드오프 (EntityZone ×2) | 통과 · 소유자+in-flight=1·이중쓰기/공백 0 |
 | [0007](step-0007.md) | 증분 AOI(enter/exit/update+누적 재구성) | 통과 · 증분≡전체 288/288·절감 19~33% |
 | [0008](step-0008.md) | 전송 열화 아래 핸드오프+반응적 복원(ack/재전송·seq/NAK/keyframe) | 통과 · 손실 0~30% 권위 위반 0·desync 0 |
-| [0009](step-0009.md) | 추종자 승격 failover(shadow 복제·lease 감지·승격) | 통과 · 사망→소유자 1 회복·gap→0·spine 9 |
+| [0009](step-0009.md) | 추종자 승격 failover(shadow 복제·lease 감지·승격) | 통과 · 사망→소유자 1·gap→0·spine 9 |
 | [0010](step-0010.md) | 프로세스 경계 현실화(실 프로세스/IPC·broker lockstep) | 통과 · 멀티=인프로세스·spine 10 |
 | [0011](step-0011.md) | 실 TCP 소켓 전송 현실화(IPC 파이프→TCP·프레이밍) | 통과 · 실 소켓=인프로세스·spine 11 |
 | [0012](step-0012.md) | 버스 분산+네트워크 열화 내성(토픽 pub/sub·드롭+resend·분단·펜싱) | 통과 · 분단=deathTick·split-brain 0·spine 12 |
-| [0013](step-0013.md) | 진짜 프로세스 kill 아래 failover(child.kill·소켓 close 감지·epoch 펜싱) | 통과 · kill=인프로세스·split-brain 0·spine 13 |
+| [0013](step-0013.md) | 진짜 프로세스 kill 아래 failover(child.kill·소켓 close·epoch 펜싱) | 통과 · kill=인프로세스·split-brain 0·spine 13 |
 | [0014](step-0014.md) | 가방 서비스 분리(아이템 원장을 존 tick 밖 비동기 서비스로·단일 소유·쌍 거래) | 통과 · ON/OFF 월드·소유자 1·spine 14 |
 | [0015](step-0015.md) | 채팅 서비스 분리(채널 팬아웃 비동기·구독 라우팅·지역 격리·whisper) | 통과 · ON/OFF 월드·누설 0·spine 15 |
 | [0016](step-0016.md) | 이벤트 버스 서비스 층(발행/구독·직접 결합 제거·발행자 무수정 소비자) | 통과 · OFF=0015·직접 결합 409~427→0·spine 16 |
@@ -171,3 +171,4 @@
 | [0072](step-0072.md) | 귓속말 라우터 failover 연속성(whisperFailover — 승격 공지 svc.presence.active 구독→queryAddr 재타깃·0070 presmon 재타깃의 라우터 판) | 통과 · 0=0071·재타깃 1→presence2·사망 후 q/recv 2/2·routed 1/bounced 1 vs OFF 손실·비침습·spine 72 |
 | [0073](step-0073.md) | 파티 라우터(다중 대상 팬아웃·1:N — party 핸들러·멤버마다 질의→부분 전달·_queryFor 추출 재사용) | 통과 · 0=0072·1파티→parties 1·q/recv 3/3·routed 2(up)/bounced 1(perm)·decision inv/chat=routed·rank=bounced·비침습·spine 73 |
 | [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 재타깃 시 보류 질의 재발신·읽기 at-least-once·0058 recoverRetry 의 질의 판) | 통과 · 0=0073·윈도@31·둘 다 재타깃 1·ON retries 2→routed 1/bounced 1·pending 0 vs OFF retries 0·pending 2(손실)·비침습·spine 74 |
+| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — PartyService 박스·멤버십 ⟂ 라우팅·partyTo→partyQuery→멤버십 SSOT→프레즌스 SSOT→라우팅 2단) | 통과 · 0=0074·memQ 1·resolved 3·q/recv 3/3·routed 2/bounced 1 vs OFF pservice null·미해소·비침습·spine 75 |

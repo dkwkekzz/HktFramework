@@ -1,8 +1,8 @@
-// HktInfra step-0074 — 헤드리스 검증 (재타깃 윈도 질의 재시도·whisperRetry)
+// HktInfra step-0075 — 헤드리스 검증 (파티 멤버십 SSOT·partyService)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `whisperretry`.
-//   더한 한 조각: 0072 의 재타깃은 primary 사망 *후* 도착한 질의만 구한다 — 승격 공지가 라우터에 닿기 *전*의 윈도(사망~공지 전파)에 보낸 질의는 죽은 primary 로 가 영영 손실(0072 §9). 이 step 은 라우터가 재타깃(svc.presence.active)할 때 아직 응답 못 받은 *보류 질의*를 새 active 주소로 재발신 → 윈도 손실분도 승격 박스로 다시 가 답을 받는다(0058 recoverRetry 의 질의 판·공지가 재시도 구동·onTick 0).
-//   검증: ⒜ `reg`(키트) — whisperRetry 미설정이면 0073 비트 동일(재발신 0). ⒝ `whisperretry`(가설) — primary 사망(t30) 윈도(t31·공지 전)에 귓속말. 둘 다 재타깃됨(retargets 1). ON: 보류 질의 재발신(retries 2)→해소(routed 1·bounced 1·pending 0). OFF: 재발신 0→윈도 질의 영구 손실(routed+bounced 0·pending 2). minted 동일(비-침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `partysvc`.
+//   더한 한 조각: 0073 의 파티 라우터는 멤버 목록을 요청에 *인라인*으로 받았다(멤버십과 라우팅이 섞임). 이 step 은 멤버십을 전용 박스 PartyService 로 분리 — 클라가 파티 결성(partyCreate)하면 PartyService 가 멤버십 SSOT 를 보유하고, 라우터는 파티 전송 시 멤버 목록을 *질의*(partyQuery→partyMembers)로 얻는다 → 멤버십 SSOT→프레즌스 SSOT(0069)→라우팅 의 2단 조회. 멤버십 ⟂ 라우팅 분리(SPINE 계층3 길드/소셜).
+//   검증: ⒜ `reg`(키트) — partyService 미설정이면 0074 비트 동일(pservice 박스 0). ⒝ `partysvc`(가설) — 파티 P1=[inventory(up),chat(up),ranking(permanent)] 결성 후 partyTo P1(멤버 인라인 X). ON: 라우터가 멤버십 질의(membershipQueries 1)→멤버 3 해소(membersResolved 3)→프레즌스 질의 3→routed 2·bounced 1. OFF(partyService 끔): membershipAddr null → partyTo 미해소(membershipQueries 0·routed+bounced 0). minted 동일(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,48 +15,50 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const FAIL_AT = 30; const WHISPER_AT = 31;   // t31 = 승격 공지(promote~t34) 전 윈도
+const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const CREATE_AT = 76; const PARTY_AT = 80;
+const MEMBERS = ['inventory', 'chat', 'ranking'];   // inventory up·chat up(미관측)·ranking permanent → 부분 전달(routed 2·bounced 1)
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
   busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
-  presenceQuery: true, presenceAnnounce: true, presenceFailover: { at: FAIL_AT }, whisperRouter: true, whisperFailover: true, rankDie: DEAD_DIE,
-  whispers: [{ at: WHISPER_AT, from: 'client0', to: 'inventory', body: 'hi' }, { at: WHISPER_AT, from: 'client1', to: 'ranking', body: 'yo' }],
+  presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE,
+  partyCreate: [{ at: CREATE_AT, from: 'client0', partyId: 'P1', members: MEMBERS }],
+  partyTo: [{ at: PARTY_AT, from: 'client0', partyId: 'P1', body: 'gg' }],
   ...extra });
 
-function whisperretry(seeds) {
-  console.log('== whisperretry: *가설* — primary 사망(t' + FAIL_AT + ') 윈도(t' + WHISPER_AT + '·공지 전)에 귓속말 → 죽은 primary 로 질의 손실. 재타깃 시 보류 질의 재발신으로 복구. whisperRetry ON vs OFF ==');
-  console.log(`  rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}·failover@${FAIL_AT}·귓속말@${WHISPER_AT}(공지 전 윈도). 둘 다 재타깃 1. ON: retries 2→routed 1·bounced 1·pending 0. OFF: retries 0→손실(routed+bounced 0·pending 2).`);
-  console.log('seed   | retargets | retries | routed/bounced | pending | decision inv/rank | 비침습 | 판정');
+function partysvc(seeds) {
+  console.log('== partysvc: *가설* — 멤버십을 전용 박스(PartyService)로 분리. 라우터가 partyTo(멤버 인라인 X) 시 멤버십 SSOT 질의→멤버 해소→프레즌스 질의→라우팅(2단 조회). partyService ON vs OFF ==');
+  console.log(`  파티 P1=[${MEMBERS}] 결성@${CREATE_AT}·전송@${PARTY_AT}. ON: membershipQueries 1·membersResolved 3·routed 2·bounced 1. OFF: membershipAddr null→partyTo 미해소(0·0).`);
+  console.log('seed   | memQ/resolved | queries q/recv | routed/bounced | decision inv/chat/rank | pservice | 비침습 | 판정');
   for (const seed of seeds) {
     const base = { dropRecover: PERM, recoverMaxRetries: CAP };
-    const on  = run({ ...P_BASE(seed, { ...base, whisperRetry: true }) });
-    const off = run({ ...P_BASE(seed, base) });   // whisperRetry OFF — 재타깃은 주소만 갱신·보류 질의 방치(윈도 손실 영구)
-    const wr = on.wrouter; const wo = off.wrouter;
-    // ① 둘 다 재타깃됨(retargets 1) — 재시도 *외의* failover 경로는 동일. 차이는 보류 질의 재발신뿐.
-    const bothRetarget = wr.retargets === 1 && wo.retargets === 1;
-    // ② 윈도 복구(ON) — 보류 질의 재발신(retries 2)→전부 해소(routed 1 inventory·bounced 1 ranking·pending 0).
-    const recovered = wr.retries === 2 && wr.routed === 1 && wr.bounced === 1 && wr.pendingCount() === 0;
-    const decisionOk = wr.decisionOf('inventory') === 'routed' && wr.decisionOf('ranking') === 'bounced';
-    // ③ 대조(OFF) — 재발신 0 → 윈도 질의 영구 손실(routed+bounced 0·pending 2 미해소).
-    const offGap = wo.retries === 0 && (wo.routed + wo.bounced) === 0 && wo.pendingCount() === 2;
+    const on  = run({ ...P_BASE(seed, { ...base, partyService: true }) });
+    const off = run({ ...P_BASE(seed, base) });   // partyService OFF — pservice 박스 부재·라우터 membershipAddr null(partyTo 미해소)
+    const wr = on.wrouter; const ps = on.pservice; const wo = off.wrouter;
+    // ① 멤버십 SSOT 조회 — 라우터가 인라인 멤버 없이 PartyService 에 질의(membershipQueries 1)·멤버 3 해소(membersResolved 3). PartyService 가 멤버십 보유(creates 1·repliesSent 1).
+    const membership = wr && ps && wr.membershipQueries === 1 && wr.membersResolved === 3 && ps.creates === 1 && ps.repliesSent === 1;
+    // ② 2단 조회 끝 라우팅 — 멤버마다 프레즌스 질의(q/recv 3/3 무손실)→부분 전달(routed 2 up·bounced 1 permanent).
+    const routed = wr && wr.queriesSent === 3 && wr.repliesRecv === 3 && wr.routed === 2 && wr.bounced === 1;
+    const decisionOk = wr && wr.decisionOf('inventory') === 'routed' && wr.decisionOf('chat') === 'routed' && wr.decisionOf('ranking') === 'bounced';
+    // ③ 대조(OFF) — 멤버십 SSOT 부재(membershipAddr null) → partyTo 미해소(질의 0·라우팅 0). pservice 박스도 없음.
+    const offGap = off.pservice === null && wo && wo.membershipQueries === 0 && (wo.routed + wo.bounced) === 0;
     const nonInvasive = on.inventory.minted === off.inventory.minted;
     const ok =
-      check(bothRetarget, `seed ${seed}: 재타깃 비대칭(on ${wr.retargets} off ${wo.retargets})`) &&
-      check(recovered, `seed ${seed}: 윈도 복구 실패(retries ${wr.retries} routed ${wr.routed} bounced ${wr.bounced} pending ${wr.pendingCount()})`) &&
-      check(decisionOk, `seed ${seed}: 라우팅 판정 틀림(inv ${wr.decisionOf('inventory')} rank ${wr.decisionOf('ranking')})`) &&
-      check(offGap, `seed ${seed}: OFF 갭 미재현(retries ${wo.retries} routed ${wo.routed} bounced ${wo.bounced} pending ${wo.pendingCount()})`) &&
-      check(nonInvasive, `seed ${seed}: 라우터가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
+      check(membership, `seed ${seed}: 멤버십 조회 틀림(memQ ${wr && wr.membershipQueries}·resolved ${wr && wr.membersResolved}·creates ${ps && ps.creates})`) &&
+      check(routed, `seed ${seed}: 2단 라우팅 틀림(q ${wr && wr.queriesSent} recv ${wr && wr.repliesRecv} routed ${wr && wr.routed} bounced ${wr && wr.bounced})`) &&
+      check(decisionOk, `seed ${seed}: 라우팅 판정 틀림(inv ${wr && wr.decisionOf('inventory')} chat ${wr && wr.decisionOf('chat')} rank ${wr && wr.decisionOf('ranking')})`) &&
+      check(offGap, `seed ${seed}: OFF 갭 미재현(pservice ${off.pservice}·memQ ${wo && wo.membershipQueries}·routed ${wo && wo.routed}·bounced ${wo && wo.bounced})`) &&
+      check(nonInvasive, `seed ${seed}: 멤버십/라우터가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
       check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(wr.retargets + '/' + wo.retargets, 9)} | ${pad(wr.retries + '/' + wo.retries, 7)} | ${pad(wr.routed + '/' + wr.bounced, 14)} | ${pad(wr.pendingCount() + '/' + wo.pendingCount(), 7)} | ${pad(wr.decisionOf('inventory') + '/' + wr.decisionOf('ranking'), 17)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad((wr ? wr.membershipQueries : 0) + '/' + (wr ? wr.membersResolved : 0), 13)} | ${pad((wr ? wr.queriesSent : 0) + '/' + (wr ? wr.repliesRecv : 0), 14)} | ${pad((wr ? wr.routed : 0) + '/' + (wr ? wr.bounced : 0), 14)} | ${pad((wr ? wr.decisionOf('inventory') : '-') + '/' + (wr ? wr.decisionOf('chat') : '-') + '/' + (wr ? wr.decisionOf('ranking') : '-'), 22)} | ${pad((on.pservice ? 'box' : 'none'), 8)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 재타깃은 주소만 갱신할 뿐, 윈도(사망~공지 전파)에 이미 죽은 primary 로 보낸 질의는 OFF 면 영구 손실된다(0072 §9). ON 은 재타깃 시 보류 질의를 새 주소로 재발신 → 윈도 손실분도 승격 박스로 다시 가 라우팅이 끝까지 완결(읽기 경로 at-least-once·0058 recoverRetry 의 질의 판). 공지가 재시도를 구동(onTick 0).');
-  console.log('    whisperRetry 미설정 = 0073 비트 동일(재발신 0·reg). OFF 면 재타깃돼도 윈도 질의는 방치돼 손실(pending 잔존). 비-침습: minted ON==OFF·존 tick 밖 순수 반응형.');
+  console.log('  → 멤버십(누가 어느 파티)이 전용 박스 PartyService 의 SSOT 로 분리되고, 라우터는 파티 전송 시 멤버 목록을 *질의*로 얻는다 — 멤버십 SSOT→프레즌스 SSOT(0069)→라우팅 의 2단 조회. 라우터는 멤버 목록을 인라인으로 받지 않는다(멤버십 ⟂ 라우팅 관심사 분리·SPINE 계층3 길드/소셜).');
+  console.log('    partyService 미설정 = 0074 비트 동일(pservice 박스 0·reg). OFF 면 멤버십 SSOT 부재로 partyTo 미해소. 비-침습: 멤버십·라우터 권위 0(원장 무관)·minted ON==OFF·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['whisperretry'] = whisperretry;
-kit.ORDER.splice(1, 0, 'whisperretry');
+kit.MODES['partysvc'] = partysvc;
+kit.ORDER.splice(1, 0, 'partysvc');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

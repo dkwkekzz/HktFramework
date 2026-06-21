@@ -1,4 +1,5 @@
 'use strict';
+// step-0075 — 파티 멤버십 SSOT 소비(membershipAddr): 0073 의 파티 라우터는 멤버 목록을 요청에 *인라인*으로 받았다(멤버십과 라우팅이 한 요청에 섞임). 이 step 은 멤버십을 전용 박스(PartyService)로 분리하고, 라우터는 파티 전송 시 멤버 목록을 *질의*로 얻는다: {type:'partyTo', partyId} → 멤버십 SSOT(membershipAddr)에 partyQuery → partyMembers 응답이 오면 멤버마다 _queryFor(프레즌스 질의)→라우팅. 멤버십 SSOT(PartyService)→프레즌스 SSOT(0069)→라우팅 의 2단 조회. membershipAddr 없으면 partyTo 미해소(멤버십 SSOT 부재의 대조). 인라인 party(0073)는 그대로 동작.
 // step-0074 — 재타깃 윈도 질의 재시도(whisperRetry): 0072 의 재타깃은 primary 사망 *후* 도착한 질의만 구한다 — 승격 공지가 라우터에 닿기 *전*의 윈도(사망~공지 전파)에 보낸 질의는 죽은 primary 로 가 영영 손실된다(0072 §9). 이 step 은 그 고리를 닫는다: 라우터가 재타깃(svc.presence.active 수신)할 때, 아직 응답 못 받은 *보류 질의*를 새 active 주소로 재발신한다 → 윈도에 손실된 질의도 승격된 박스로 다시 가 답을 받는다(0058 recoverRetry 의 질의 판). 재시도 트리거는 *공지*(재타깃)라 onTick 0·순수 반응 유지. whisperRetry OFF 면 재발신 0 = 0073 비트 동일(재타깃은 주소만 갱신·보류 질의 방치).
 // step-0073 — 파티 라우터(다중 대상 팬아웃): 0071/0072 의 귓속말은 1:1(대상 1명)이었다. 파티 채팅·파티 초대는 1:N — 한 요청이 여러 멤버에게 가야 한다. 이 step 은 같은 라우터에 {type:'party', members:[...]} 를 더한다: 라우터가 *각 멤버*의 상태를 프레즌스 SSOT 에 질의(N개)하고, 응답이 오는 대로 멤버별 라우팅(up 멤버에 전달·down/permanent 멤버는 반송) — 한 요청에서 *부분 전달*(일부 up 전달·일부 down 반송)이 자연히 일어난다. SPINE 계층3 채팅/소셜의 1:N 팬아웃 + 계층5 프레즌스 질의 소비. 파티 미주입이면 미발화 = 0072 비트 동일(새 메시지 타입 핸들러는 휴면).
 // step-0072 — 귓속말 라우터 failover 연속성(whisperFailover): 0071 의 라우터는 queryAddr 를 *고정*(primary 프레즌스 박스)으로 가리켜, primary 사망 후 귓속말 질의가 죽은 박스로 가 끊긴다(0071 §9 — presmon 의 0069 §9 한계가 라우터로 옮겨온 것). 0070 이 presmon 에 준 해법(svc.presence.active 공지→queryAddr 재타깃)을 *라우터*에 적용한다: 승격된 박스가 공지한 새 active 주소를 라우터가 구독해 queryAddr 를 재타깃 → primary 사망 후 귓속말도 승격된 박스로 질의돼 라우팅이 연속된다(읽기 경로 failover 디스커버리의 라우팅 판). 공지 미구독(whisperFailover OFF)이면 재타깃 0 = 0071 비트 동일.
@@ -15,6 +16,7 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 class WhisperRouter {
   constructor(opts = {}) {
     this.retry = opts.retry || false;   // 재타깃 윈도 질의 재시도(step-0074·whisperRetry) — 재타깃 시 보류 질의 재발신. OFF 면 재발신 0(0073 동일).
+    this.membershipAddr = opts.membershipAddr || null;   // 파티 멤버십 SSOT 박스 주소(step-0075·PartyService). null 이면 partyTo 미해소(0074 동일).
     this.queryAddr = opts.queryAddr || null;   // 프레즌스 SSOT 박스 주소(명시 의존·request/reply 경로·0069 인터페이스). null 이면 질의 못 함→전부 보류.
     this.pending = new Map();     // consumer -> [{from, body}] — presenceReply 대기 중인 귓속말(질의↔응답 상관: consumer 키로 묶음).
     this.queriesSent = 0;         // 보낸 presenceQuery 수(계측). repliesRecv = 받은 응답 수(1:1 = 무손실 읽기).
@@ -25,6 +27,9 @@ class WhisperRouter {
     this.retargets = 0;           // active 재타깃 수(step-0072·svc.presence.active 공지 수신 — failover 시 1). 미구독이면 0(0071 동일).
     this.parties = 0;             // 받은 파티 요청 수(step-0073·1:N 팬아웃 계측). 멤버 수만큼 질의로 전개.
     this.retries = 0;             // 재타깃 시 재발신한 보류 질의 수(step-0074·whisperRetry 계측). 윈도 손실 복구.
+    this.partyPending = new Map(); // partyId -> {from, body} — partyMembers 응답 대기 중인 파티 전송 요청(step-0075·멤버십 조회 보류).
+    this.membershipQueries = 0;   // 보낸 partyQuery 수(step-0075·멤버십 SSOT 조회 계측). membersResolved = 응답으로 받은 멤버 누적.
+    this.membersResolved = 0;
   }
   pendingCount() { let n = 0; for (const arr of this.pending.values()) n += arr.length; return n; }
   // 한 대상에 귓속말 1건을 적재+질의(귓속말·파티 멤버 공통 경로). 응답 올 때까지 pending[to] 보류·queryAddr 로 presenceQuery.
@@ -43,8 +48,12 @@ class WhisperRouter {
     }
     // 클라→라우터 귓속말 요청(1:1) — 대상 상태를 모르므로 프레즌스 SSOT 에 질의(pull). 응답 올 때까지 보류(consumer 키). queryAddr 없으면 질의 0(전부 영구 보류 = 라우팅 불가의 대조).
     if (p.type === 'whisper') { this._queryFor(p.to, m.from, p.body); return; }
-    // 파티 요청(step-0073·1:N 팬아웃) — 멤버마다 _queryFor(질의 N개 전개). 응답이 오는 대로 멤버별 라우팅(아래 presenceReply 핸들러 공통) — 한 요청에서 부분 전달(일부 전달·일부 반송)이 자연 발생. 파티 미주입이면 이 분기 휴면(0072 비트 동일).
+    // 파티 요청(step-0073·1:N 팬아웃·멤버 인라인) — 멤버마다 _queryFor(질의 N개 전개). 응답이 오는 대로 멤버별 라우팅(아래 presenceReply 핸들러 공통) — 한 요청에서 부분 전달이 자연 발생. 파티 미주입이면 이 분기 휴면(0072 비트 동일).
     if (p.type === 'party') { this.parties++; for (const to of (p.members || [])) this._queryFor(to, m.from, p.body); return; }
+    // 파티 전송(step-0075·멤버십 SSOT 조회) — 멤버 목록을 *인라인으로 받지 않고* PartyService(membershipAddr)에 질의(partyQuery). 응답(partyMembers) 올 때까지 보류(partyId 키). membershipAddr 없으면 미해소(멤버십 SSOT 부재의 대조).
+    if (p.type === 'partyTo') { this.partyPending.set(p.partyId, { from: m.from, body: p.body }); if (this.membershipAddr) { this.net.send(this.addr, this.membershipAddr, { type: 'partyQuery', partyId: p.partyId }); this.membershipQueries++; } return; }
+    // 멤버십 응답(step-0075·partyMembers) — PartyService 가 회신한 멤버 목록으로 보류 파티 전송을 *전개*: 멤버마다 _queryFor(프레즌스 질의→라우팅·0073 와 동일 경로). 멤버십 SSOT→프레즌스 SSOT→라우팅 2단 조회 완성.
+    if (p.type === 'partyMembers') { this.parties++; this.membersResolved += (p.members || []).length; const req = this.partyPending.get(p.partyId) || { from: m.from }; this.partyPending.delete(p.partyId); for (const to of (p.members || [])) this._queryFor(to, req.from, req.body); return; }
     // 프레즌스 SSOT 응답(0069 presenceReply) — 대상 상태로 보류 귓속말을 라우팅. up=전달(whisperDeliver→대상 주소·best-effort), 아니면 반송. 라우팅 결정이 *프레즌스 질의로 구동*된다(이 step 의 핵심).
     if (p.type === 'presenceReply') {
       this.repliesRecv++;
