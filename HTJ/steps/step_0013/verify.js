@@ -166,6 +166,37 @@ function collapse(steps, coolRate) {
   check('결정론 — 같은 흐름 → 동일 지문', a === b, `0x${a.toString(16)}`);
 }
 
+// ── 11. 장기 안정·보존 (버그 수정 영구 가드) — 뷰어 기본 별(N=24)이 폭주 없이 빛난다 ──
+//   닫힐 때 verify(N=20·120스텝)는 도달 못 한 영역: 뷰어 기본(N=24·M0=6912)을 *재생*하면 step ~263 에서
+//   ① near-vacuum 셀의 v=g/ρ·KE 폭주 → advect CFL nsub 폭증 = **재생이 멈춘다(freeze)** ② 코어가 뜨거워져
+//   음속 c_s·dt>1(음향 CFL 위반) → 열압력·점성 발산 → **총에너지 6e4→1e17(보존 붕괴)→NaN→빈 화면**.
+//   수정: 열압력·점성에 **CFL 서브스텝**(advect CFL 가드의 음향/점성 버전; c_s·dt≤1 이면 nsub=1 → byte-동일)
+//   + **진공 운동량 가드**(|g|≤ρ·VMAX·nsub 상한 → KE 유한·hang 차단). 별이 virial 평형에 정착해 빛난다.
+//   이 가드: 폭주 직전 한참을 지나 굴려 ① 완주(=hang 없음) ② NaN 0 ③ 질량 정확 보존 ④ maxT·KE 유한
+//   (폭주면 1e17, 정착이면 ~1e3) 를 단언한다. 이후 같은 폭주가 재발하면 즉시 잡힌다.
+{
+  const N = 24, w = W.createWorld(N), M0 = Math.max(2500, N * N * N * 0.5);   // 뷰어 0013 기본과 동일
+  Th.seedWarmBlob(w, { sigma: N * 0.16, M0, T0: 1 });
+  const steps = 400;   // 옛 freeze/폭주 지점(~263) 한참 너머
+  for (let t = 0; t < steps; t++) {
+    Gr.applyGravity(w, 0.2, { G: 0.15, iters: 40 });
+    Pr.applyPressure(w, 0.2, { K: 0.12, gamma: 2 });
+    Th.applyThermalPressure(w, 0.2, { Kth: 0.3, gamma: 5 / 3 });
+    Vi.applyViscosity(w, 0.2, { Kvisc: 0.6 });
+    Fu.applyFusion(w, 0.2, { rate: 2, rhoCrit: 6, tCrit: 3 });
+    Co.applyCooling(w, 0.2, { coolRate: 0.06 });
+    Ine.advect(w, 0.2, { scalars: ['therm'] });
+  }
+  const mass = w.total('energy'), maxT = Fu.maxTemperature(w);
+  let KE = 0; const rho = w.fields.energy, gx = w.fields.mom_x, gy = w.fields.mom_y, gz = w.fields.mom_z;
+  for (let i = 0; i < rho.length; i++) if (rho[i] > 1e-12) KE += 0.5 * (gx[i] * gx[i] + gy[i] * gy[i] + gz[i] * gz[i]) / rho[i];
+  const massOk = Math.abs(mass - M0) < 1e-6 && !Number.isNaN(mass);   // 질량 정확 보존·NaN 없음
+  const bounded = Number.isFinite(maxT) && maxT < 1e5 && Number.isFinite(KE) && KE < 1e7;   // 폭주(1e17)면 위반, 정착이면 통과
+  check('장기 안정·보존 [버그 수정 가드] — N=24 별 400스텝: hang·NaN 없음·질량 보존·maxT/KE 유한',
+    massOk && bounded,
+    `질량 ${mass.toFixed(1)}(=M0 ${M0})·maxT ${maxT.toExponential(2)}(<1e5)·KE ${KE.toExponential(2)}(<1e7)·NaN 없음`);
+}
+
 console.log('\n=== step_0013 수치 검증: 복사 냉각(빛으로 식는 별) — 발열↔복사 균형의 정상상태 ===');
 for (const c of checks) console.log(`  ${c.pass ? 'PASS' : 'FAIL'}  ${c.name}${c.value ? ' = ' + c.value : ''}`);
 const ok = checks.every(c => c.pass);

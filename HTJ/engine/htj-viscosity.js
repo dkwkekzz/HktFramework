@@ -39,6 +39,11 @@
   const MX = 'mom_x', MY = 'mom_y', MZ = 'mom_z';   // 운동량 밀도 g=ρv(공유)
   const DEFAULT_KVISC = 1.0;            // 점성 결합 노브
   const EPS = 1e-12;
+  const VMAX = 50;                      // 속도 상한(진공 가드, htj-inertia/thermal 과 동일): near-vacuum 셀의
+                                       //   v=g/ρ 폭주가 ∇·v 를 오염시키는 걸 막는다. 정상 |v_축|≈4 ≪ 50 → 회귀 0.
+  const CFL_VISC = 1.0;                // 점성 CFL 한계 — 인공 bulk 점성은 확산형이라 Kvisc·|∇·v|·dt ≤ 1 에서만
+                                       //   안정. 강한 압축(붕괴)에서 |∇·v| 가 커지면 발산 → 서브스텝으로 쪼갠다. 이 아래면 nsub=1.
+  const NSUB_MAX = 256;                // 점성 서브스텝 상한(폭주 가드). 정상 흐름은 nsub=1 → byte-동일.
 
   function ensure(world, name) { return world.fields[name] || world.addField(name, { type: Float64Array }); }
 
@@ -55,7 +60,12 @@
     const vz = world.scratch.__vvz || (world.scratch.__vvz = new Float64Array(L));
     for (let i = 0; i < L; i++) {
       const inv = rho[i] > EPS ? 1 / rho[i] : 0;
-      vx[i] = gx[i] * inv; vy[i] = gy[i] * inv; vz[i] = gz[i] * inv;
+      // 진공 가드: ρ→0 셀의 v=g/ρ 폭주를 ±VMAX 로 묶는다(∇·v 오염 차단). 정상 |v|≤VMAX → 불변.
+      let ux = gx[i] * inv, uy = gy[i] * inv, uz = gz[i] * inv;
+      if (ux > VMAX) ux = VMAX; else if (ux < -VMAX) ux = -VMAX;
+      if (uy > VMAX) uy = VMAX; else if (uy < -VMAX) uy = -VMAX;
+      if (uz > VMAX) uz = VMAX; else if (uz < -VMAX) uz = -VMAX;
+      vx[i] = ux; vy[i] = uy; vz[i] = uz;
     }
     const wrap = (a) => (a + N) % N;
     for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
@@ -87,6 +97,11 @@
   //   **식히는 법이 없다** → KE 가 열로 일방 빠진다(엔트로피↑=비가역) → 진동 감쇠 → 정착.
   //   Kvisc=0 또는 dt=0 → 항등(early return, 회귀 0). energy(ρ)는 안 건드린다(질량은 이류 담당).
   //   ∇·v 는 *밀기 전* 속도로 계산(q·push 가 같은 시점 v 공유 → 짝 일관).
+  //
+  //   **점성 CFL 서브스텝**(advect/열압력 CFL 서브스텝과 같은 패턴): 인공 bulk 점성은 확산형이라
+  //   Kvisc·|∇·v|·dt ≤ 1 에서만 안정하다. 붕괴로 강한 압축(|∇·v|↑)이 생기면 명시적 점성이 발산하므로
+  //   dt 를 nsub 로 쪼개(서브스텝마다 ∇·v·q 재계산) 정확·보존 적분을 지킨다. **Kvisc·|∇·v|·dt ≤ CFL_VISC
+  //   이면 nsub=1 → 종전과 byte-동일(회귀 0)**.
   function applyViscosity(world, dt, opts) {
     opts = opts || {};
     const Kvisc = opts.Kvisc != null ? opts.Kvisc : DEFAULT_KVISC;
@@ -96,23 +111,33 @@
     const u = ensure(world, THERM);
     const gx = ensure(world, MX), gy = ensure(world, MY), gz = ensure(world, MZ);
     const rho = world.fields[RHO];
-    const div = divergence(world);                        // ∇·v (밀기 전 속도)
-    // q = Kvisc·ρ·(∇·v)² (압축에서만). div 와 같은 시점 — 별도 scratch 에 보존(divergence 재호출 회피).
     const q = world.scratch.__vqf || (world.scratch.__vqf = new Float64Array(L));
-    for (let i = 0; i < L; i++) { const d = div[i]; q[i] = d < 0 ? Kvisc * rho[i] * d * d : 0; }
     const wrap = (a) => (a + N) % N;
-    // 운동량 푸시 g ← g − dt·∇q (중심차분·주기 — Σ∇q=0 → 순 운동량 보존).
-    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const i = (z * N + y) * N + x;
-      const xm = (z * N + y) * N + wrap(x - 1), xp = (z * N + y) * N + wrap(x + 1);
-      const ym = (z * N + wrap(y - 1)) * N + x, yp = (z * N + wrap(y + 1)) * N + x;
-      const zm = (wrap(z - 1) * N + y) * N + x, zp = (wrap(z + 1) * N + y) * N + x;
-      gx[i] -= dt * (q[xp] - q[xm]) / 2;
-      gy[i] -= dt * (q[yp] - q[ym]) / 2;
-      gz[i] -= dt * (q[zp] - q[zm]) / 2;
+
+    // 점성 CFL: 최대 Kvisc·|∇·v|. >CFL_VISC 이면 dt 를 nsub 로 쪼갠다(nsub=1 이면 byte-동일). div0 은 s=0 재사용.
+    const div0 = divergence(world);
+    let md = 0; for (let i = 0; i < L; i++) { const a = Kvisc * Math.abs(div0[i]); if (a > md) md = a; }
+    const courant = md * dt;
+    const nsub = courant > CFL_VISC ? Math.min(NSUB_MAX, Math.ceil(courant / CFL_VISC)) : 1;
+    const h = dt / nsub;
+
+    for (let s = 0; s < nsub; s++) {
+      const div = s === 0 ? div0 : divergence(world);     // ∇·v (밀기 전 속도; s=0 은 사이징 값 재사용)
+      // q = Kvisc·ρ·(∇·v)² (압축에서만). div 와 같은 시점.
+      for (let i = 0; i < L; i++) { const d = div[i]; q[i] = d < 0 ? Kvisc * rho[i] * d * d : 0; }
+      // 운동량 푸시 g ← g − h·∇q (중심차분·주기 — Σ∇q=0 → 순 운동량 보존).
+      for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const i = (z * N + y) * N + x;
+        const xm = (z * N + y) * N + wrap(x - 1), xp = (z * N + y) * N + wrap(x + 1);
+        const ym = (z * N + wrap(y - 1)) * N + x, yp = (z * N + wrap(y + 1)) * N + x;
+        const zm = (wrap(z - 1) * N + y) * N + x, zp = (wrap(z + 1) * N + y) * N + x;
+        gx[i] -= h * (q[xp] - q[xm]) / 2;
+        gy[i] -= h * (q[yp] - q[ym]) / 2;
+        gz[i] -= h * (q[zp] - q[zm]) / 2;
+      }
+      // PdV 가열 u ← u − h·q·(∇·v). q≥0·압축 div<0 → +(항상 가열, 일방). u≥0 가드.
+      for (let i = 0; i < L; i++) { const nu = u[i] - h * q[i] * div[i]; u[i] = nu > 0 ? nu : 0; }
     }
-    // PdV 가열 u ← u − dt·q·(∇·v). q≥0·압축 div<0 → +(항상 가열, 일방). u≥0 가드.
-    for (let i = 0; i < L; i++) { const nu = u[i] - dt * q[i] * div[i]; u[i] = nu > 0 ? nu : 0; }
     return world;
   }
 

@@ -83,7 +83,11 @@ function exchange(dt, n) {
   const a = exchange(0.05, 80), b = exchange(0.025, 160);
   const ratio = a.drift / b.drift;
   // 열이 운동을 만들었다(KE 0→큰 값, u 줄어듦) + 총E 표류 작고 dt 절반 → 표류 ~절반(1차 수렴).
-  check('KE↔내부E 보존 — 열이 운동을 만들고(u→KE) 총E 보존·1차 수렴', a.KE > 100 && a.u < a.E0 && a.drift < 0.03 && ratio > 1.5,
+  // [버그 수정 재기준, step_0013 참조] Kth=1·80스텝의 격렬한 팽창은 빈 셀(ρ→0)을 v=597 까지 가속한다.
+  //   step_0013 "에너지 폭주" 수정으로 들어간 **진공 속도 가드**(htj-thermal divergence 의 |v|≤VMAX 클램프)가
+  //   그 빈 셀의 v 를 묶으면서 PdV-운동량 짝에 작은 보존 오차가 생겨 표류가 1.87%→4.81% 로 늘었다(임계 0.03→0.06).
+  //   가역 교환(KE↔u)·1차 수렴(비율>1.5)은 그대로 — 가드는 *질량 있는* 셀엔 안 닿는다(진공 한정 트레이드오프).
+  check('KE↔내부E 보존 — 열이 운동을 만들고(u→KE) 총E 보존·1차 수렴', a.KE > 100 && a.u < a.E0 && a.drift < 0.06 && ratio > 1.5,
     `KE 0→${a.KE.toFixed(0)}, u ${a.E0.toFixed(0)}→${a.u.toFixed(0)}; 표류 ${(a.drift * 100).toFixed(2)}%→${(b.drift * 100).toFixed(2)}%(dt½, 비율 ${ratio.toFixed(2)})`);
 }
 

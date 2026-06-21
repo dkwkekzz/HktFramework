@@ -34,6 +34,11 @@
   const EPS = 1e-12;                          // ρ≈0 셀에서 v=0 (0 나눗셈 가드)
   const DEFAULT_DT = 0.5;                      // 한 스텝의 시간 간격(격자 간격 dx=1; CFL: |v|·dt ≤ 1)
   const CFL_SAFE = 1.0;                        // donor-cell 비음수 한계(차원분리 L1: Σ|v_축|·dt ≤ 1). 이 아래면 nsub=1.
+  const VMAX = 50;                             // 속도 상한(진공 가드): near-vacuum 셀(ρ→0)은 압력 push 로 쌓인 g 가
+                                              //   v=g/ρ 를 폭주시킨다. 정상 흐름 |v_축|≈4 ≪ 50 → 안 닿음(byte-동일, 회귀 0).
+  const NSUB_MAX = 256;                        // CFL 서브스텝 상한(행 가드): nsub 가 무한정 커지면(폭주 시) 서브스텝
+                                              //   루프가 사실상 무한 반복 = *재생이 멈춘다(freeze)*. VMAX 가 속도를 묶어
+                                              //   정상 흐름 nsub 는 한 자리수 → 이 상한엔 안 닿는다(byte-동일).
 
   // 운동량 장이 없으면 만든다(지연 초기화 — htj-world 불변). 0 으로 초기화 = 정지.
   function ensureMomentum(world) {
@@ -60,6 +65,17 @@
     const gx = m[MX], gy = m[MY], gz = m[MZ];
     const L = rho.length;
 
+    // 진공 KE 가드 — 저장된 운동량을 |g_축| ≤ ρ·VMAX 로 묶는다 → KE=½g²/ρ ≤ ½ρ·VMAX²(진공 ρ→0 이면 KE→0).
+    //   near-vacuum 셀(ρ→0)은 압력 push 로 g 가 쌓여 KE 가 폭주(측정: 1e17)한다 — 파생 속도만 클램프하면
+    //   *저장 g 는 계속 큰다*. 상태(g) 자체를 묶어 *비물리 진공 운동량*을 제거(생성 0인 소산형 — 에너지는
+    //   줄지언정 절대 안 생긴다). 정상 흐름은 |g|=ρ·v, v<VMAX → cap>|g| → 안 닿음(byte-동일, 회귀 0).
+    for (let i = 0; i < L; i++) {
+      const cap = rho[i] * VMAX;
+      if (gx[i] > cap) gx[i] = cap; else if (gx[i] < -cap) gx[i] = -cap;
+      if (gy[i] > cap) gy[i] = cap; else if (gy[i] < -cap) gy[i] = -cap;
+      if (gz[i] > cap) gz[i] = cap; else if (gz[i] < -cap) gz[i] = -cap;
+    }
+
     // 이류할 양(질량 + 운동량 3성분 + 선택 수동 스칼라들)에 같은 면속도로 flux 를 누적(이중버퍼).
     const Q = [rho, gx, gy, gz];
     if (opts.scalars) for (const nm of opts.scalars) Q.push(world.fields[nm] || world.addField(nm, { type: Float64Array }));
@@ -74,7 +90,11 @@
       for (let i = 0; i < L; i++) {
         const r = rho[i] > EPS ? rho[i] : 0;
         const inv = r > 0 ? 1 / rho[i] : 0;
-        const ux = gx[i] * inv, uy = gy[i] * inv, uz = gz[i] * inv;
+        // 진공 가드: ρ→0 셀의 v=g/ρ 폭주를 ±VMAX 로 묶는다(정상 |v|≤VMAX → 분기 거짓, byte-동일).
+        let ux = gx[i] * inv, uy = gy[i] * inv, uz = gz[i] * inv;
+        if (ux > VMAX) ux = VMAX; else if (ux < -VMAX) ux = -VMAX;
+        if (uy > VMAX) uy = VMAX; else if (uy < -VMAX) uy = -VMAX;
+        if (uz > VMAX) uz = VMAX; else if (uz < -VMAX) uz = -VMAX;
         vx[i] = ux; vy[i] = uy; vz[i] = uz;
         const c = Math.abs(ux) + Math.abs(uy) + Math.abs(uz);
         if (c > cmax) cmax = c;
@@ -89,7 +109,9 @@
     //   CFL 이 이미 안전하면 nsub=1 → 종전과 byte-동일(회귀 0). 서브스텝마다 ρ,g 로 속도를 재계산(보존).
     const cmax = recomputeVelocity();
     const courant = cmax * dt;
-    const nsub = courant > CFL_SAFE ? Math.ceil(courant / CFL_SAFE) : 1;
+    // NSUB_MAX 로 상한 — VMAX 가 cmax 를 묶어 정상 흐름은 작은 nsub(상한 무관, byte-동일). 폭주 시 무한
+    //   루프(freeze)를 유한 작업으로 닫는 최후 가드.
+    const nsub = courant > CFL_SAFE ? Math.min(NSUB_MAX, Math.ceil(courant / CFL_SAFE)) : 1;
     const h = dt / nsub;
 
     let out = Q.map(q => q.slice());            // 변화량 누적용 복사(시작값에서 +=/-=)
