@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0072](step-0072.md) — **귓속말 라우터 failover 연속성**(whisperFailover — 0070 의 svc.presence.active 재타깃 패턴을 wrouter 에): 0071 라우터는 queryAddr 를 고정(primary)해 primary 사망 후 귓속말 질의가 끊겼다(0071 §9). 이 step 은 wrouter 가 승격 공지(svc.presence.active)를 구독해 queryAddr 를 재타깃 → primary 프레즌스 박스 사망 후 귓속말도 승격된 박스로 질의돼 라우팅 연속(읽기 경로 failover 디스커버리의 라우팅 판). 닿는 박스: svc-whisper(재타깃 핸들러)·topo-build(whisperFailover 배선·active 구독).
-- **한 줄 상태**: reg ALL OK(src=baseline=0071 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·whisperfo: 재타깃 1→presence2·사망 후 질의 무손실(q/recv 2/2)·routed 1/bounced 1·decision inv=routed/rank=bounced·OFF 재타깃 0·죽은 primary 질의→손실·미해소·비침습·spine 72-step ALL OK.
-- **다음**: §2 참조(파티 라우터(다중 대상 팬아웃·reqId 상관) · 재타깃 윈도 질의 재시도 · 전달 신뢰(ack/재시도) · active 자기-하트비트 메아리 정리 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0073](step-0073.md) — **파티 라우터**(다중 대상 팬아웃·1:N): 0071/0072 귓속말은 1:1 이었다. 이 step 은 같은 라우터에 `{type:'party', members}` 를 더한다 — 한 요청이 N 멤버 각각의 상태를 프레즌스 SSOT 에 질의하고 멤버별 라우팅(up 전달·down/permanent 반송) → 한 요청에서 *부분 전달*이 자연 발생. 귓속말/파티 공통 적재+질의를 `_queryFor` 로 추출해 멤버 루프로만 1:N 확장. SPINE 계층3 채팅/소셜 1:N 팬아웃. 닿는 박스: svc-whisper(party 핸들러·_queryFor)·topology(parties 주입).
+- **한 줄 상태**: reg ALL OK(src=baseline=0072 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·party: 멤버 [inventory·chat·ranking] 1파티→parties 1·질의 q/recv 3/3·routed 2(up)·bounced 1(permanent)·decision inv/chat=routed·rank=bounced·OFF wrouter null·비침습·spine 73-step ALL OK.
+- **다음**: §2 참조(전달 신뢰(세션 전달·전달 영수증·ack/재시도) · 파티 멤버십 SSOT(파티/길드 서비스) · 재타깃 윈도 질의 재시도 · active 자기-하트비트 메아리 정리 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0072 가 *귓속말 라우터 failover 연속성*(whisperFailover — 0070 재타깃을 wrouter 에)을 닫아 귓속말 라우팅이 프레즌스 failover 를 가로질러 끊기지 않는다. 기능 후보(우선): *파티 라우터*(다중 대상 팬아웃·질의 묶음 reqId 상관 — 0071 §9 의 상관 한계 해소·귓속말의 1:N 판). 그 다음: *재타깃 윈도 질의 재시도*(공지 전 윈도 손실·0058 recoverRetry 의 질의 판·0072 §9)·*전달 신뢰*(게이트웨이 경유 세션 전달·전달 ack/재시도)·*active 자기-하트비트 메아리 정리*(0068 §9)·*적응형 hbTimeout*(0050 lease 판), ⒝ *활성 중 다운타임 일반 재발행*(0025/0026), ⒞ *거래소/우편/길드(서비스 반복)*, ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
+**step-0073 가 *파티 라우터*(1:N 팬아웃·부분 전달)를 닫았다. 기능 후보(우선): *전달 신뢰*(게이트웨이 경유 세션 전달·전달 영수증 receipt·ack/재시도 — 0071~0073 의 best-effort 전달을 신뢰 전달로·라우팅 *결정* 다음의 *전달* 보장). 그 다음: *파티 멤버십 SSOT*(파티/길드 서비스 — 라우터는 멤버 목록을 받아 라우팅만·멤버십은 별 박스)·*재타깃 윈도 질의 재시도*(공지 전 윈도 손실·0058 recoverRetry 의 질의 판·0072 §9)·*active 자기-하트비트 메아리 정리*(0068 §9)·*적응형 hbTimeout*(0050 lease 판), ⒝ *활성 중 다운타임 일반 재발행*(0025/0026), ⒞ *거래소/우편/길드(서비스 반복)*, ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -41,7 +41,7 @@
 | 🟡 | **버스 단일점·분산·영속(동적 구독·failover·무손실·replay 유계·소비자 lease·치유·대체 활성화 ✅)** | 버스 | 0016 ServiceBus=*단일 박스·영속 0*. 동적구독→failover→무손실→replay 유계+ack→min-워터마크→소비자 lease→생애관측→프레즌스→self-healing→대체 활성화(0033~0061·상세 §5/§7). 남은 것: 마진/cadence 적응·per-producer ack·라우팅 영속·다중 브로커·late-join reconstruct. |
 | 🟡 | **서비스 영속·failover (가방 ✅+압축 ✅+저널홉 신뢰·tail·in-flight give·mint ✅·채팅 ✅+압축 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방=효과 저널(0017)+압축(0018). 채팅=커맨드 로그 소싱(0021)+압축(0022). write-behind 신뢰성·영속 failover(0023~0029·§7). 단 버스 라우팅 *영속 0*·채팅 in-flight/홉 신뢰 미적용·가방 일방 give(2PC 없음·0014 §9-2). |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService = *발신하는 소비자*(consume→publish·CQRS·프로젝션==원장). 0020 = *읽기 모델 영속·late-join*(랭킹 crash→쓰기 저널 reconstruct·투영==원장·0019 §9 해소). 단 *quiescent restart 만*(활성 중 다운타임+재발행 미검증·0020 §9)·증분 follow 0. 거래소·우편·길드 반복 미착수. |
-| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover 승격·자율 감지·질의·질의 failover — 쓰기·발행·읽기 전 경로 failover-safe·§5). 0071 귓속말 라우터+0072 라우터 failover 연속(질의 인터페이스의 라우팅 소비자·재타깃). 남은 것: 파티 라우터·존 배치·부하 분산·인스턴스 spawn·메아리 정리. |
+| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover 승격·자율 감지·질의·질의 failover — 쓰기·발행·읽기 전 경로 failover-safe·§5). 0071 귓속말 라우터+0072 라우터 failover 연속+0073 파티 라우터(1:N 팬아웃·부분 전달). 남은 것: 전달 신뢰·파티 멤버십 SSOT·존 배치·부하 분산·인스턴스 spawn·메아리 정리. |
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축·저널홉 신뢰·persist failover+N-replica+quorum+윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층 6 첫 박스) = 가방 효과 저널(write-behind)+압축(0018). 저널홉 신뢰→failover→N-replica quorum→윈도(0023~0032·전문 §7). 단 *fsync 0·anti-entropy 0·스냅샷 비유계·월드 영속 0* — 0032/0029/0018 §9. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위의 고리 닫기. |
 
@@ -129,37 +129,37 @@
 | [0030](step-0030.md) | 정리 step: 박스 1개=파일 1개 분할 + engine 승격(verify-kit)+닫기 게이트 | 통과·reg 25/25·spine 30 |
 | [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill — 주기 sweep 이 W 미달 seq 재-fan-out) | 통과 · 0=0030·ON durSeq total-1/윈도 0·spine 31 |
 | [0032](step-0032.md) | 윈도 해소의 유계 sweep+fill retry(wfWindow K 창) | 통과 · 0=0031·유계 K=8 durSeq=total-1·spine 32 |
-| [0033](step-0033.md) | 버스 동적 구독/해지(runtime unsub/sub·라우팅 양방향) | 통과 · 0=0032·unsub@15→re-sub@18 audit 30→42·spine 33 |
-| [0034](step-0034.md) | 버스 failover(bus.crash()→재협상 라우팅 복구·진실원천=소비자) | 통과 · 0=0033·crash@12→재협상@14·subN 0→3·spine 34 |
-| [0035](step-0035.md) | 정리 step: `cluster.js` 박스-부품 4분할(45KB>30KB·기능 0) | 통과 · 부품 최대 19.7KB·spine 35 |
-| [0036](step-0036.md) | 버스 failover 결과 경로 무손실(producer replay·복구 재발행) | 통과 · 0=0035·recover desync 6→ON 0·spine 36 |
-| [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway producer replay+reqId dedup) | 통과 · 0=0036·ON minted==base·spine 37 |
-| [0038](step-0038.md) | 정리 step: topology.js 박스-부품 분할(31KB>30KB·기능 0) | 통과 · reg 25/25·박스 <30KB·spine 38 |
+| [0033](step-0033.md) | 버스 동적 구독/해지(runtime unsub/sub·라우팅 양방향) | 통과 · 0=0032·unsub@15→re-sub@18·spine 33 |
+| [0034](step-0034.md) | 버스 failover(bus.crash()→재협상 라우팅 복구·진실원천=소비자) | 통과 · 0=0033·crash@12→재협상@14·spine 34 |
+| [0035](step-0035.md) | 정리: `cluster.js` 박스-부품 4분할(45KB>30KB·기능 0) | 통과 · 부품 ≤19.7KB·spine 35 |
+| [0036](step-0036.md) | 버스 failover 결과 경로 무손실(producer replay·복구 재발행) | 통과 · 0=0035·desync 6→ON 0·spine 36 |
+| [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway producer replay+reqId dedup) | 통과 · 0=0036·minted==base·spine 37 |
+| [0038](step-0038.md) | 정리: topology.js 박스-부품 분할(31KB>30KB·기능 0) | 통과 · reg 25/25·박스 <30KB·spine 38 |
 | [0039](step-0039.md) | 버스 replay 버퍼 유계화(busWindow 슬라이딩 K 창) | 통과 · 0=0038·bnd(K≥gap)≤24·desync 0 vs tiny 4·spine 39 |
-| [0040](step-0040.md) | 요청 replay 버퍼 자기-크기조정(busAck — reqId ack→워터마크) | 통과 · 0=0039·minted==base·peak 가동-무관·spine 40 |
+| [0040](step-0040.md) | 요청 replay 버퍼 자기-크기조정(busAck — reqId ack→워터마크) | 통과 · 0=0039·minted==base·peak 가동무관·spine 40 |
 | [0041](step-0041.md) | 결과 replay 버퍼 자기-크기조정(busOutAck — outSeq ack→가지치기) | 통과 · 0=0040·desync 0 vs fixedK8 4·spine 41 |
-| [0042](step-0042.md) | seenReqs dedup 집합 유계화(busSeenBound — inAcked 워터마크) | 통과 · 0=0041·minted base==bound·peak 60→24·spine 42 |
+| [0042](step-0042.md) | seenReqs dedup 집합 유계화(busSeenBound — inAcked 워터마크) | 통과 · 0=0041·base==bound·peak 60→24·spine 42 |
 | [0043](step-0043.md) | 정리 step: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·기능 0) | 통과 · reg 25/25·박스 최대 19.6KB·spine 43 |
 | [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 0=0043·비대칭 복구 F vs min T·spine 44 |
 | [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자→min 정의역 축출) | 통과 · 0=0044·OFF peak∝run vs ON 유계·spine 45 |
 | [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — dedup=(producer,reqId) 복합키) | 통과 · 0=0045·gw1 겹침 OFF Δ0 vs ON Δ5·spine 46 |
-| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키를 producer 별 가지치기) | 통과 · 0=0046·OFF peak∝run vs ON 유계·spine 47 |
-| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission=축출 가역) | 통과 · 0=0047·outBuf 유계·readm 1·spine 48 |
+| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키를 producer 별 가지치기) | 통과 · 0=0046·OFF peak∝run vs 유계·spine 47 |
+| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission 가역) | 통과 · 0=0047·outBuf 유계·readm 1·spine 48 |
 | [0049](step-0049.md) | 단일 살아있는 소스 `src/` 전환(복사 전진 폐기·정리 step·기능 0·reg 0) | 통과 · reg=src=baseline=0048·E2E 비트동일·spine 49 |
-| [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 관측 ack cadence 로 self-size) | 통과 · 0=0049·고정 OFF flapping vs 적응 ON ev=1·spine 50 |
-| [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease 임계 bootstrap 바닥 floor) | 통과 · 0=0050·grace ev=0 vs 적응만 ev=1·spine 51 |
+| [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 관측 ack cadence 로 self-size) | 통과 · 0=0049·고정 OFF flapping vs 적응 ev=1·spine 50 |
+| [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease 임계 bootstrap floor) | 통과 · 0=0050·grace ev=0 vs 적응만 1·spine 51 |
 | [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠) | 통과 · 0=0051·stall 후 OFF peak 60 vs ON cm→0·spine 52 |
-| [0053](step-0053.md) | 정리 step: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 바이트 동일 추출(core 31.9→25.5KB·기능 0) | 통과 · reg=0052·박스 최대 25.5KB≤30KB·트랜잭션 정상·spine 53 |
-| [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→svc.item.lease→audit 구독) | 통과 · 0=0053·전이 전부 관측·spine 54 |
-| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch 가 svc.item.lease 소비→consumerDown SSOT·계층5 씨앗) | 통과 · 0=0054·consumerDown==evicted·비-침습·spine 55 |
-| [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→자기 재구독→readmit→consumerDown 비움) | 통과 · 0=0055·OFF 영영 down vs ON recover/resub/readmit 1·spine 56 |
-| [0057](step-0057.md) | 치유 확인 고리(recoverAck — 소비자가 재구독하며 orch 에 회신→수행 확인) | 통과 · 0=0056·ON sent==acks==1·readmit 1 vs OFF 0·spine 57 |
-| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recover 분실 시 recoverTimeout 뒤 재발신) | 통과 · 0=0057·2회 분실 OFF 영영 down vs ON retries 2·ack 1·spine 58 |
-| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 영구 분실 재시도 유계→상한 도달 시 permanentDown 포기) | 통과 · 0=0058·capON retries 3·givenUp 1 vs capOFF 17·spine 59 |
-| [0060](step-0060.md) | 프레즌스 발행(presencePublish — orch 건강 판정 down/up/permanent→svc.presence→audit 구독) | 통과 · 0=0059·치유 2·영구 2→audit 1:1 무손실·spine 60 |
-| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby ranking2 가 svc.presence 'permanent' 에 자기 활성화·svc.item.out 인계) | 통과 · 0=0060·permanent→활성화·인계(consume/pub>0)·spine 61 |
-| [0062](step-0062.md) | 대체 소비자 late-join reconstruct(spawnReconstruct — 활성 ranking2 가 쓰기 저널 reconstruct 로 다운타임 갭 복원·0020 의 대체 판) | 통과 · 0=0061·활성화+reconstruct→투영==원장 vs OFF 갭·spine 62 |
-| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — presmon 이 svc.presence 구독→소비자별 건강 상태 기계) | 통과 · 0=0062·치유 'up'·영구 'permanent'·events==발행 2/2(무손실)·비-침습·spine 63 |
+| [0053](step-0053.md) | 정리 step: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 바이트 동일 추출(core 31.9→25.5KB·기능 0) | 통과 · reg=0052·박스 ≤25.5KB·spine 53 |
+| [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→svc.item.lease→audit) | 통과 · 0=0053·전이 전부 관측·spine 54 |
+| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch 가 svc.item.lease 소비→consumerDown SSOT·계층5 씨앗) | 통과 · 0=0054·consumerDown==evicted·비침습·spine 55 |
+| [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독→readmit→consumerDown 비움) | 통과 · 0=0055·ON recover/resub/readmit 1·spine 56 |
+| [0057](step-0057.md) | 치유 확인 고리(recoverAck — 소비자가 재구독하며 orch 에 회신→수행 확인) | 통과 · 0=0056·sent==acks==1·readmit 1·spine 57 |
+| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recover 분실 시 recoverTimeout 뒤 재발신) | 통과 · 0=0057·2회 분실 ON retries 2·ack 1·spine 58 |
+| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 재시도 유계→상한 도달 시 permanentDown 포기) | 통과 · 0=0058·capON retries 3·givenUp 1 vs OFF 17·spine 59 |
+| [0060](step-0060.md) | 프레즌스 발행(presencePublish — orch 판정 down/up/permanent→svc.presence→audit) | 통과 · 0=0059·치유 2·영구 2→audit 1:1·spine 60 |
+| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby ranking2 가 svc.presence 'permanent' 에 자기 활성화·인계) | 통과 · 0=0060·permanent→활성화·인계(consume/pub>0)·spine 61 |
+| [0062](step-0062.md) | 대체 소비자 late-join reconstruct(spawnReconstruct — 활성 ranking2 가 쓰기 저널로 다운타임 갭 복원) | 통과 · 0=0061·reconstruct→투영==원장 vs OFF 갭·spine 62 |
+| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — presmon 이 svc.presence 구독→소비자별 건강 상태 기계) | 통과 · 0=0062·치유 up·영구 permanent·events 2/2·비침습·spine 63 |
 | [0064](step-0064.md) | 전용 프레즌스 박스 분리(presenceBox — orch SSOT+발행→PresenceService·세션/프레즌스⟂orch) | 통과 · 0=0063·box SSOT permDown={ranking}·orch pub 0·이중 SSOT 제거·spine 64 |
 | [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus — 보고를 svc.presence.report 토픽으로·orch 주소 무지) | 통과 · 0=0064·orch presenceAddr=null·presmon ON==OFF·spine 65 |
 | [0066](step-0066.md) | 프레즌스 박스 shadow 복제(presenceShadow — standby presence2 가 같은 보고 토픽으로 SSOT 그림자·발행 억제) | 통과 · 0=0065·shadow SSOT==primary·pub 0 vs 2·spine 66 |
@@ -169,3 +169,4 @@
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — 승격 시 svc.presence.active 공지→질의자 재타깃→죽음 후 질의도 승격 박스가 답) | 통과 · 0=0069·공지→재타깃(→presence2)·죽음 후 질의 pri/std 2/2·queried permanent vs OFF stale down·spine 70 |
 | [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 클라 귓속말→대상 상태를 프레즌스 SSOT 질의→up 전달/permanent 반송·질의 인터페이스의 첫 진짜 라우팅 소비자) | 통과 · 0=0070·q/recv 2/2·routed 1/bounced 1·decision inv=routed/rank=bounced·OFF wrouter null·비침습·spine 71 |
 | [0072](step-0072.md) | 귓속말 라우터 failover 연속성(whisperFailover — 승격 공지 svc.presence.active 구독→queryAddr 재타깃·0070 presmon 재타깃의 라우터 판) | 통과 · 0=0071·재타깃 1→presence2·사망 후 q/recv 2/2·routed 1/bounced 1 vs OFF 손실·비침습·spine 72 |
+| [0073](step-0073.md) | 파티 라우터(다중 대상 팬아웃·1:N — party 핸들러·멤버마다 질의→부분 전달·_queryFor 추출 재사용) | 통과 · 0=0072·1파티→parties 1·q/recv 3/3·routed 2(up)/bounced 1(perm)·decision inv/chat=routed·rank=bounced·비침습·spine 73 |

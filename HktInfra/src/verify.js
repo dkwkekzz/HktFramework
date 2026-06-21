@@ -1,8 +1,8 @@
-// HktInfra step-0072 — 헤드리스 검증 (귓속말 라우터 failover 연속성: 승격 공지→라우터 재타깃·whisperFailover)
+// HktInfra step-0073 — 헤드리스 검증 (파티 라우터: 다중 대상 팬아웃 1:N·party)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `whisperfo`.
-//   더한 한 조각: 0071 의 귓속말 라우터는 queryAddr 를 *고정*(primary 프레즌스 박스)으로 가리켜, primary 사망 후 귓속말 질의가 죽은 박스로 가 끊긴다(0071 §9). 0070 이 presmon 에 준 해법(svc.presence.active 공지→queryAddr 재타깃)을 *라우터*에 적용 → primary 사망 후 귓속말도 승격된 박스로 질의돼 라우팅 연속(읽기 경로 failover 디스커버리의 라우팅 판).
-//   검증: ⒜ `reg`(키트) — whisperFailover 미설정이면 0071 비트 동일(wrouter 의 svc.presence.active 구독·재타깃 0). ⒝ `whisperfo`(가설) — primary 프레즌스 박스 사망(t30)→standby 자율 승격→active 공지. 사망 *후*(t50) 귓속말. ON: 라우터 재타깃(retargets 1·queryAddr presence2)→승격 박스가 질의 답함(질의 무손실 recv==sent==2·routed 1·bounced 1). OFF: 재타깃 0→죽은 primary 로 질의→손실(recv<sent)·귓속말 미해소(routed+bounced<2). minted 동일(비-침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `party`.
+//   더한 한 조각: 0071/0072 의 귓속말은 1:1(대상 1명)이었다. 이 step 은 같은 라우터에 {type:'party', members:[...]} 를 더한다 — 한 요청이 N 멤버 각각의 상태를 프레즌스 SSOT 에 질의하고, 응답마다 멤버별 라우팅(up=전달·down/permanent=반송) → 한 요청에서 *부분 전달*(일부 전달·일부 반송)이 자연 발생. SPINE 계층3 채팅/소셜 1:N 팬아웃 + 계층5 프레즌스 질의 소비.
+//   검증: ⒜ `reg`(키트) — 파티 미주입이면 0072 비트 동일(party 핸들러 휴면). ⒝ `party`(가설) — 멤버 ['inventory'(up),'chat'(up·미관측),'ranking'(permanent)] 1 파티 → parties 1·질의 3·routed 2(up 멤버)·bounced 1(permanent)·질의 무손실(recv==sent==3)·decision inv/chat=routed·rank=bounced. OFF(whisperRouter 끔): wrouter 부재 → 팬아웃 0. minted 동일(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,48 +15,48 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const FAIL_AT = 30; const WHISPER_AT = 50;
+const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const PARTY_AT = 80;
+const MEMBERS = ['inventory', 'chat', 'ranking'];   // inventory up·chat up(미관측)·ranking permanent → 부분 전달(routed 2·bounced 1)
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
   busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
-  presenceQuery: true, presenceAnnounce: true, presenceFailover: { at: FAIL_AT }, whisperRouter: true, rankDie: DEAD_DIE,
-  whispers: [{ at: WHISPER_AT, from: 'client0', to: 'inventory', body: 'hi' }, { at: WHISPER_AT, from: 'client1', to: 'ranking', body: 'yo' }],
-  ...extra });
+  presenceQuery: true, rankDie: DEAD_DIE, ...extra });
 
-function whisperfo(seeds) {
-  console.log('== whisperfo: *가설* — primary 프레즌스 박스 사망(t' + FAIL_AT + ')→standby 자율 승격→active 공지. 사망 후(t' + WHISPER_AT + ') 귓속말이 승격된 박스로 질의돼 라우팅 연속. whisperFailover ON vs OFF ==');
-  console.log(`  rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}·failover@${FAIL_AT}·귓속말@${WHISPER_AT}. ON: retargets 1·queryAddr presence2·routed 1·bounced 1·무손실. OFF: 재타깃 0·죽은 primary 질의→손실·미해소.`);
-  console.log('seed   | retarget→addr | queries q/recv | routed/bounced | decision inv/rank | 비침습 | 판정');
+function party(seeds) {
+  console.log('== party: *가설* — 한 파티 요청이 N 멤버 각각 프레즌스 질의→부분 전달(up 전달·permanent 반송). 귓속말 1:1 → 파티 1:N. whisperRouter ON vs OFF ==');
+  console.log(`  rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}·파티@${PARTY_AT} 멤버 [${MEMBERS}]. ON: parties 1·질의 3·routed 2·bounced 1·무손실. OFF: wrouter 부재→팬아웃 0.`);
+  console.log('seed   | parties | queries q/recv | routed/bounced | decision inv/chat/rank | wrouter | 비침습 | 판정');
   for (const seed of seeds) {
-    const base = { dropRecover: PERM, recoverMaxRetries: CAP };
-    const on  = run({ ...P_BASE(seed, { ...base, whisperFailover: true }) });
-    const off = run({ ...P_BASE(seed, base) });   // whisperFailover OFF — wrouter 가 svc.presence.active 미구독(재타깃 0·죽은 primary 고정)
-    const wr = on.wrouter; const wo = off.wrouter;
-    // ① 라우터 재타깃 — 승격 박스(presence2)로 queryAddr 갱신(공지 구독). OFF 는 고정(primary).
-    const retarget = wr.retargets === 1 && wr.queryAddr === 'presence2' && wo.retargets === 0 && wo.queryAddr === 'presence';
-    // ② 라우팅 연속성 — 사망 후 질의가 승격 박스로 가 답을 받음(무손실 recv==sent==2)·라우팅 완료(routed 1 inventory up·bounced 1 ranking permanent).
-    const continuity = wr.queriesSent === 2 && wr.repliesRecv === 2 && wr.routed === 1 && wr.bounced === 1;
-    const decisionOk = wr.decisionOf('inventory') === 'routed' && wr.decisionOf('ranking') === 'bounced';
-    // ③ 대조(OFF) — 재타깃 없으면 사망한 primary 로 질의 → 응답 손실(recv<sent)·귓속말 미해소(routed+bounced<2).
-    const offGap = wo.repliesRecv < wo.queriesSent && (wo.routed + wo.bounced) < 2;
+    const base = { dropRecover: PERM, recoverMaxRetries: CAP,
+      parties: [{ at: PARTY_AT, from: 'client0', members: MEMBERS, body: 'gg' }] };
+    const on  = run({ ...P_BASE(seed, { ...base, whisperRouter: true }) });
+    const off = run({ ...P_BASE(seed, base) });   // whisperRouter OFF — wrouter 부재(파티 주입 0·팬아웃 없음)
+    const wr = on.wrouter;
+    // ① 1:N 팬아웃 — 1 파티 요청이 멤버 수(3)만큼 질의로 전개·무손실(recv==sent==3).
+    const fanout = wr && wr.parties === 1 && wr.queriesSent === 3 && wr.repliesRecv === 3;
+    // ② 부분 전달 — up 멤버(inventory·chat) 전달(routed 2)·permanent 멤버(ranking) 반송(bounced 1).
+    const partial = wr && wr.routed === 2 && wr.bounced === 1;
+    const decisionOk = wr && wr.decisionOf('inventory') === 'routed' && wr.decisionOf('chat') === 'routed' && wr.decisionOf('ranking') === 'bounced';
+    // ③ 대조(OFF) — whisperRouter 끄면 wrouter 박스 부재(팬아웃 인프라 없음).
+    const offGap = off.wrouter === null;
     const nonInvasive = on.inventory.minted === off.inventory.minted;
     const ok =
-      check(retarget, `seed ${seed}: 재타깃 실패(retargets ${wr.retargets}·addr ${wr.queryAddr}·off ${wo.retargets}/${wo.queryAddr})`) &&
-      check(continuity, `seed ${seed}: 라우팅 연속성 깨짐(q ${wr.queriesSent} recv ${wr.repliesRecv} routed ${wr.routed} bounced ${wr.bounced})`) &&
-      check(decisionOk, `seed ${seed}: 라우팅 판정 틀림(inv ${wr.decisionOf('inventory')} rank ${wr.decisionOf('ranking')})`) &&
-      check(offGap, `seed ${seed}: OFF 갭 미재현(recv ${wo.repliesRecv}/sent ${wo.queriesSent}·routed ${wo.routed}·bounced ${wo.bounced})`) &&
+      check(fanout, `seed ${seed}: 팬아웃 틀림(parties ${wr && wr.parties}·sent ${wr && wr.queriesSent}·recv ${wr && wr.repliesRecv})`) &&
+      check(partial, `seed ${seed}: 부분 전달 틀림(routed ${wr && wr.routed} bounced ${wr && wr.bounced})`) &&
+      check(decisionOk, `seed ${seed}: 라우팅 판정 틀림(inv ${wr && wr.decisionOf('inventory')} chat ${wr && wr.decisionOf('chat')} rank ${wr && wr.decisionOf('ranking')})`) &&
+      check(offGap, `seed ${seed}: OFF 대조 깨짐(wrouter ${off.wrouter})`) &&
       check(nonInvasive, `seed ${seed}: 라우터가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
       check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(wr.retargets + '→' + wr.queryAddr, 13)} | ${pad(wr.queriesSent + '/' + wr.repliesRecv, 14)} | ${pad(wr.routed + '/' + wr.bounced, 14)} | ${pad(wr.decisionOf('inventory') + '/' + wr.decisionOf('ranking'), 17)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad((wr ? wr.parties : 0) + '', 7)} | ${pad((wr ? wr.queriesSent : 0) + '/' + (wr ? wr.repliesRecv : 0), 14)} | ${pad((wr ? wr.routed : 0) + '/' + (wr ? wr.bounced : 0), 14)} | ${pad((wr ? wr.decisionOf('inventory') : '-') + '/' + (wr ? wr.decisionOf('chat') : '-') + '/' + (wr ? wr.decisionOf('ranking') : '-'), 22)} | ${pad((on.wrouter ? 'box' : 'none'), 7)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → primary 프레즌스 박스 사망 후, 승격된 standby 가 svc.presence.active 로 공지하고 라우터가 queryAddr 를 재타깃 → 사망 후 귓속말도 승격 박스로 질의돼 라우팅이 연속(읽기 경로 failover 디스커버리의 라우팅 판·0070 presmon 재타깃을 라우터에). 귓속말 라우팅이 프레즌스 failover 를 가로질러 끊기지 않는다.');
-  console.log('    whisperFailover 미설정 = 0071 비트 동일(wrouter 의 active 구독·재타깃 0·reg). OFF 면 라우터가 죽은 primary 를 계속 가리켜 사망 후 귓속말 질의 손실·미해소. 비-침습: minted ON==OFF.');
+  console.log('  → 한 파티 요청이 멤버 수만큼 프레즌스 질의로 전개되고, 각 멤버의 상태로 부분 전달(up 멤버 전달·permanent 멤버 반송)이 일어난다 — 귓속말 1:1(0071)이 파티 1:N 으로 확장. 같은 라우터·같은 질의 인터페이스(0069)·같은 라우팅 규칙을 멤버 루프로만 재사용.');
+  console.log('    파티 미주입 = 0072 비트 동일(party 핸들러 휴면·reg). OFF 면 팬아웃 인프라 부재. 비-침습: 라우터 권위 0·minted ON==OFF·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['whisperfo'] = whisperfo;
-kit.ORDER.splice(1, 0, 'whisperfo');
+kit.MODES['party'] = party;
+kit.ORDER.splice(1, 0, 'party');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
