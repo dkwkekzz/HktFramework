@@ -1,5 +1,4 @@
 'use strict';
-// step-0072 — 귓속말 라우터 failover 연속성(whisperFailover): 0071 의 라우터는 queryAddr 를 *고정*(primary 프레즌스 박스)으로 가리켜, primary 사망 후 귓속말 질의가 죽은 박스로 가 끊긴다(0071 §9 — presmon 의 0069 §9 한계가 라우터로 옮겨온 것). 0070 이 presmon 에 준 해법(svc.presence.active 공지→queryAddr 재타깃)을 *라우터*에 적용한다: 승격된 박스가 공지한 새 active 주소를 라우터가 구독해 queryAddr 를 재타깃 → primary 사망 후 귓속말도 승격된 박스로 질의돼 라우팅이 연속된다(읽기 경로 failover 디스커버리의 라우팅 판). 공지 미구독(whisperFailover OFF)이면 재타깃 0 = 0071 비트 동일.
 // step-0071 — 귓속말 라우터(whisperRouter): 0069/0070 이 프레즌스 SSOT 의 *질의 인터페이스*(presenceQuery→presenceReply·pull)를 세웠지만, 그 질의자는 presmon(관찰 모델)이었다 — 질의 인터페이스의 *실제 소비자*가 아니라 "질의가 도는가"를 보이는 대역. 이 step 은 그 인터페이스의 첫 *진짜* 소비자를 더한다: 클라가 다른 플레이어에게 귓속말을 보내면, 라우터가 "그가 어디에/어떤 상태인가"를 프레즌스 SSOT 에 질의(pull)하고 그 답으로 *라우팅 결정*을 내린다(up=전달·down/permanent=반송). SPINE 계층5: 프레즌스 SSOT 가 곧 귓속말·파티·핸드오프 라우팅의 단일 조회처라는 큰 그림의 첫 라우팅 소비자. whisperRouter OFF 면 박스 0 = 0070 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
@@ -19,12 +18,9 @@ class WhisperRouter {
     this.routed = 0;              // 전달한 귓속말 수(대상 up·whisperDeliver 발신). bounced = 반송 수(대상 down/permanent).
     this.bounced = 0;
     this.decisions = new Map();   // consumer -> 'routed'|'bounced' — 대상별 최신 라우팅 판정(대시보드·검증 대조).
-    this.retargets = 0;           // active 재타깃 수(step-0072·svc.presence.active 공지 수신 — failover 시 1). 미구독이면 0(0071 동일).
   }
   onMsg(m) {
     const p = m.payload;
-    // active 재타깃(step-0072·whisperFailover) — 승격된 프레즌스 박스가 svc.presence.active 로 공지한 새 active 주소로 queryAddr 갱신. 이후 귓속말 질의가 승격된 박스로 간다(라우팅 읽기 경로 failover·0070 presmon 재타깃의 라우터 판). 미구독이면 미발화(0071 비트 동일).
-    if (p.type === 'ev' && p.topic === 'svc.presence.active' && p.ev) { this.queryAddr = p.ev.addr; this.retargets++; return; }
     // 클라→라우터 귓속말 요청 — 대상 상태를 모르므로 프레즌스 SSOT 에 질의(pull). 응답 올 때까지 보류(consumer 키). queryAddr 없으면 질의 0(전부 영구 보류 = 라우팅 불가의 대조).
     if (p.type === 'whisper') {
       const to = p.to;
