@@ -43,6 +43,7 @@
       <div class="row" id="row-pressure"><label>반발(K)</label><input id="kpress" type="number" min="0" max="2" step="0.01" value="0.2" /></div>
       <div class="row" id="row-thermp"><label>열압력(Kth)</label><input id="kthermo" type="number" min="0" max="2" step="0.05" value="0.5" /></div>
       <div class="row" id="row-visc"><label>점성(Kvisc)</label><input id="kvisc" type="number" min="0" max="4" step="0.1" value="0.8" /></div>
+      <div class="row" id="row-fusion"><label>발열률(rate)</label><input id="frate" type="number" min="0" max="5" step="0.5" value="2" /></div>
       <div class="row"><label>스텝/프레임</label><input id="speed" type="number" min="1" max="50" step="1" value="6" /></div>
       <div class="row"><label>배속</label>
         <select id="speedMult">
@@ -98,6 +99,7 @@
 <script src="engine/htj-pressure.js"></script>
 <script src="engine/htj-thermal.js"></script>
 <script src="engine/htj-viscosity.js"></script>
+<script src="engine/htj-fusion.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -206,6 +208,23 @@
         updateTemperature(w);
       },
       note: 'step_0010 의 가역 열압력은 진동을 *못 멈춘다*(무감쇠 — 빌려준 운동E를 그대로 돌려받음). 이 step 은 <b>인공 bulk 점성 q=Kvisc·ρ·(∇·v)²</b>(압축 ∇·v&lt;0 에서만)을 더한다 — 압축 흐름을 감속(g←g−dt·∇q)하고 그 일을 열로 적재(u←u−dt·q·∇·v). 열압력과 구조는 같되 <b>q 가 압축에서만 켜져 *식히는 법이 없다*</b> → <b>운동E가 열로 *일방* 빠진다</b>(엔트로피↑=비가역) → 진동 감쇠. <b>▶ 흐름</b>: 뜨거운 덩어리가 중력↔열압력으로 출렁이다, 점성이 그 운동E를 열로 떼어가 *코어가 가만히 선다*(정착). <b>점성(Kvisc)</b>을 0 으로 내리면 영영 출렁인다(무감쇠 — step_0008 의 CFL 발산으로 가는 길). 이것이 별을 *정착*시키는 비가역 부품이다.'
+    },
+    '0012': {
+      label: 'step_0012 — 내부 발열(별의 점화)', title: 'HTJ — 내부 발열(별의 점화)', sub: '같은 법칙에서 별과 돌이 임계로 갈린다',
+      mode: 'energy', dynamics: true, pressure: true, thermP: true, visc: true, fusion: true,
+      defaults: { colorScale: 'relative', view: 'temperature', kpress: 0.12, kthermo: 0.3, kvisc: 0.6, frate: 2 },
+      // 무거운 덩어리 — 중력 압축으로 ρ·T 가 임계를 넘어 점화 → 자기발열하는 *별*. 발열률 0 으로 내리면 *돌*.
+      init(w) { HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.16, M0: Math.max(2500, w.N * w.N * w.N * 0.5), T0: 1 }); updateTemperature(w); },
+      advance(w, p) {
+        HTJGravity.applyGravity(w, 0.2, { G: 0.15, iters: 40 });                  // 끌어모음(압축 가열의 동력)
+        HTJPressure.applyPressure(w, 0.2, { K: p.kpress, gamma: 2 });             // 단거리 반발(점 붕괴 방지)
+        HTJThermal.applyThermalPressure(w, 0.2, { Kth: p.kthermo, gamma: 5 / 3 });// 열압력(압축 가열 PdV)
+        HTJViscosity.applyViscosity(w, 0.2, { Kvisc: p.kvisc });                  // 비가역 소산(정착)
+        HTJFusion.applyFusion(w, 0.2, { rate: p.frate, rhoCrit: 6, tCrit: 3 });   // 내부 발열(점화): 무겁고 뜨거운 코어만
+        HTJInertia.advect(w, 0.2, { scalars: ['therm'] });
+        updateTemperature(w);
+      },
+      note: '드디어 <b>별</b>이다. 새 법칙 <b>내부 발열 applyFusion</b>: 코어가 충분히 무겁고 뜨거우면(ρ≥ρ_crit ∧ T≥T_crit) 스스로 열을 만든다 — <b>u ← u + dt·rate·ρ</b>(핵융합 점화). <b>질량(energy)은 안 건드린다</b> → 별이 빛내도 질량 보존(step_0005 의 질량 소실 모순을 닫는다). <b>▶ 흐름</b>: 무거운 덩어리가 중력으로 압축·가열되다 임계를 넘어 <b>점화 → 자기발열하는 뜨거운 별</b>(장(field)을 temperature 로 보면 코어가 타오른다). <b>발열률(rate)</b>을 0 으로 내리면 점화가 꺼져 *차가운 돌*이 된다. 핵심: <b>별과 돌을 따로 만들지 않았다</b> — 같은 법칙에 질량(또는 발열률)만 달리하면 하나는 별, 하나는 돌이 된다(author 안 함). N 을 줄여 가벼운 덩어리로 만들면 점화 임계를 못 넘어 돌로 남는다.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -235,8 +254,9 @@
   function readKpress() { return Math.max(0, Math.min(2, parseFloat(document.getElementById('kpress').value) || 0)); }
   function readKthermo() { return Math.max(0, Math.min(2, parseFloat(document.getElementById('kthermo').value) || 0)); }
   function readKvisc() { return Math.max(0, Math.min(4, parseFloat(document.getElementById('kvisc').value) || 0)); }
+  function readFrate() { return Math.max(0, Math.min(5, parseFloat(document.getElementById('frate').value) || 0)); }
   function readColorMax() { return Math.max(0, parseFloat(document.getElementById('colorMax').value) || 0); }
-  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit(), radiate: readRadiate(), kpress: readKpress(), kthermo: readKthermo(), kvisc: readKvisc() }; }
+  function advanceParams() { return { alpha: readAlpha(), rate: readRate(), crit: readCrit(), radiate: readRadiate(), kpress: readKpress(), kthermo: readKthermo(), kvisc: readKvisc(), frate: readFrate() }; }
   function readBrushR() { return Math.max(0, Math.min(6, parseInt(document.getElementById('brushR').value, 10) || 0)); }
   function readBrushAmt() { return Math.max(0, parseFloat(document.getElementById('brushAmt').value) || 0); }
   function brushField() { return document.getElementById('brushField').value || 'energy'; }
@@ -277,6 +297,7 @@
     document.getElementById('row-pressure').style.display = st.pressure ? '' : 'none'; // 반발(K)은 압력 step 에서만
     document.getElementById('row-thermp').style.display = st.thermP ? '' : 'none';     // 열압력(Kth)은 능동 열압력 step 에서만
     document.getElementById('row-visc').style.display = st.visc ? '' : 'none';         // 점성(Kvisc)은 소산 step 에서만
+    document.getElementById('row-fusion').style.display = st.fusion ? '' : 'none';     // 발열률(rate)은 점화 step 에서만
     // step별 *관찰하기 좋은* 기본 노브 적용(α·방출율·임계·복사율·반발·색 기준).
     const d = st.defaults || {};
     if (d.alpha != null) document.getElementById('alpha').value = d.alpha;
@@ -286,6 +307,7 @@
     if (d.kpress != null) document.getElementById('kpress').value = d.kpress;
     if (d.kthermo != null) document.getElementById('kthermo').value = d.kthermo;
     if (d.kvisc != null) document.getElementById('kvisc').value = d.kvisc;
+    if (d.frate != null) document.getElementById('frate').value = d.frate;
     document.getElementById('colorScale').value = d.colorScale || 'relative';
     if (d.colorMax != null) document.getElementById('colorMax').value = d.colorMax;
     document.getElementById('row-colormax').style.display = document.getElementById('colorScale').value === 'absolute' ? '' : 'none';
@@ -406,7 +428,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0011';                       // 기본 = 현재 step
+    sel.value = '0012';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
