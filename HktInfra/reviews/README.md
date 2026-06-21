@@ -23,7 +23,7 @@
 
 ## 1. 묶음 감사 인덱스 (한 줄/묶음)
 
-> 10 step = 1 묶음·십진 경계 정렬(0001–0010 · 0011–0020 · …). 닫힌 step 만 다룬다(STATE NOW 가 가리키는 미닫힘 step 제외). 닫힌 **0060** 까지 → **0001~0060 여섯 묶음 감사 완료**(박스별 진행은 [progress/](progress/) 가 0060 까지 반영).
+> 10 step = 1 묶음·십진 경계 정렬(0001–0010 · 0011–0020 · …). 닫힌 step 만 다룬다(STATE NOW 가 가리키는 미닫힘 step 제외). 닫힌 **0070** 까지 → **0001~0070 일곱 묶음 감사 완료**(박스별 진행은 [progress/](progress/) 가 0070 까지 반영).
 
 | 묶음 | 범위 | 호(arc) | 척추 판정 | 열린 이슈 |
 |---|---|---|---|---|
@@ -33,6 +33,7 @@
 | [review-0031-0040](review-0031-0040.md) | 0031~0040 | 정합성 윈도 해소(quorum-fill·유계 sweep) → 버스 동적 구독·failover·양경로 producer replay 무손실 → replay 버퍼 유계·ack 자기-크기조정 → 정리 2건(cluster·topology 분할) | ①✅ ②🟡 ③✅강화 ④✅ ⑤✅ | #1·#3·#4·#6·#7·#8·#9 유지 · #10 give×result-ahead(신규) |
 | [review-0041-0050](review-0041-0050.md) | 0041~0050 | 버스 replay 자기-크기조정(결과/seen ack 워터마크·K 추정 폐기) → 다중 소비자 min-워터마크 → 소비자 lease lifecycle(축출·재admission·적응) → 정리 2건(가방 분할·src/ 전환) | ①✅ ②✅(🟡#8) ③✅ ④✅(🟡#11) ⑤✅(🟡#9) | 묶음내 자체해소 6사슬(리뷰가 0047·0048 견인) · #4·#8·#9·#10 유지 · #11 다중GW per-producer ack·#12 cadence EWMA/prior(신규) |
 | [review-0051-0060](review-0051-0060.md) | 0051~0060 | cadence 적응 정밀화(grace prior·윈도 감쇠) → 정리(txn 추출) → lease 생애 관측→프레즌스 SSOT→**self-healing 제어 루프**(반응·확인·재시도·상한·발행) | ①✅ ②✅(🟡#8) ③✅ ④✅ ⑤✅(🟡#9·#13) | #12 ✅해소(0051·0052) · #13 전용 프레즌스/치유 박스·#14 대체 소비자 spawn·#15 적응 lease 정밀화(신규) · #9 확장·#4·#8·#10·#11 유지 |
+| [review-0061-0070](review-0061-0070.md) | 0061~0070 | 대체 소비자(spawnReplace·reconstruct) → presmon 관측 → **전용 프레즌스 박스 호**(분리→보고 버스화→shadow→failover 승격→사망 자율 감지→질의→질의 failover·쓰기·발행·읽기 전 경로 failover-safe) | ①✅ ②✅ ③✅ ④✅ ⑤✅ | #13 절반해소(0064)·#14 ✅해소(0061/0062) · #16 bespoke 가설 누적 회귀 미승격·#17 self-hb 메아리/재타깃 윈도(신규) · #9 확장·#4·#8·#10·#11·#15 유지 |
 
 ## 2. 열린 이슈 원장 (교차-배치 이월 — **유일하게 갱신**)
 
@@ -47,14 +48,17 @@
 - **#6 | 동적 경계·N 존 오케스트레이션 부재** | ③/성능 | 0001-0010 | 🟡 열림 — 현재 2 존 정적·전 존 브로드캐스트 | **목적지 STATE §3** → 게이트: 오케스트레이터 동적 배치·존 spawn(SPINE §2 코디네이션 계층). 0011-0020 미착수
 - **#7 | 채팅 best-effort — per-message ack/resend·홉 신뢰 부재** | 서비스 | 0011-0020 | 🟡 유지 — 0015 채팅=fire-and-forget 팬아웃·0021/0022 가 *영속·압축*은 더했으나 *전달 신뢰*(홉 ack/resend)는 미적용·0023/0024 신뢰화는 가방 홉 한정(0024 §9 ⓒ) | **목적지 STATE §3**(이미 "채팅 in-flight/홉 신뢰 미적용" 추적) → 게이트: 채널 시퀀스·ack/resend(0008/0023 복원 패턴의 채팅 판·끄면 회귀 0)
 - **#8 | `engine/panel-kit.js:29` Math.random** | ②/정리 | 0011-0020 | 🟡 신규(경미) — 브라우저 DOM 컨트롤 위젯 id 생성·헤드리스 verify/`compute()` 경로 밖(다이제스트 무관)이나 공유 `engine/` 의 결정론-금지 잠복 foot-gun | **목적지 STATE §3 OPEN GAPS**(정리성) → 게이트: 시드 카운터/결정론 id 로 교체(끄면 시각 위젯만 영향=회귀 0)
-- **#9 | give-resend 견고성 + 멀티프로세스 패리티 갭** | ③/⑤ | 0021-0030 | 🟡 유지(범위 확장) — 0025 §9 ⓕⓖ: ⒜ `_confirmGive` in-order 의존(재정렬 시 seed 1234 itemDesync 2) ⒝ `clientResync`/`resendGives` 인프로세스 `run()` 에만. **+0031-0040: 버스 failover replay 도 인프로세스 가설 모드만**·**+0051-0060: self-healing arc(recover/retry/cap·0056~0060)도 인프로세스 모드만**(`cluster.js` 무수정·멀티프로세스 recover/heal 미검증) | **목적지 STATE §3** → 게이트: opSeq 키 매칭 + 멀티프로세스 failover/heal 핸드셰이크(현 시나리오 FIFO·인프로세스라 미발현=회귀 0)
+- **#9 | give-resend 견고성 + 멀티프로세스 패리티 갭** | ③/⑤ | 0021-0030 | 🟡 유지(범위 확장) — 0025 §9 ⓕⓖ: ⒜ `_confirmGive` in-order 의존(재정렬 시 seed 1234 itemDesync 2) ⒝ `clientResync`/`resendGives` 인프로세스 `run()` 에만. **+0031-0040: 버스 failover replay 인프로세스만**·**+0051-0060: self-healing arc 인프로세스만**·**+0061-0070: 프레즌스 박스 호 전체 인프로세스 전용**(`src/host.js` 에 presence/ranking2 박스 0 → presence failover/query 멀티프로세스 미검증) | **목적지 STATE §3** → 게이트: opSeq 키 매칭 + 멀티프로세스 failover/heal 핸드셰이크(현 시나리오 FIFO·인프로세스라 미발현=회귀 0)
+- **#13 | orch 三역할 겸함 → 전용 프레즌스/치유 박스 분리** | ⑤/정리 | 0051-0060 | 🟡 **절반 해소** — 프레즌스 SSOT+발행 ✅ **0064**(PresenceService 분리·`src/svc-presence.js`)+0065(보고 버스화·orch 주소 무지). **잔여**: 치유(recover/retry/giveup)는 아직 orch(`src/orchestrator.js`) 내 | **목적지 STATE §3** → 게이트: HealService 추출(정리 step·기능 0·reg 0)
+- **#16 | bespoke 가설 모드가 누적 회귀(verify-kit)에 미승격** | ②/⑤/정리 | 0061-0070 | 🔴 신규 — verify-kit ORDER 가설 모드는 `reliable·tail·inflight`(~0024)에서 멈춤. 0033+ 버스/lease/heal/프레즌스 호의 *ON-경로 의미*(shadow·failover·자율감지·질의)는 close 시 bespoke 모드로 1회만 단언(다음 step 이 verify.js 덮어씀)·spine 은 reg-0(OFF=비트동일)만 보증 → 프레즌스 리팩터가 ON-경로를 깨도 spine 미포착 | **목적지 STATE §3 OPEN GAPS**(정리성) → 게이트: 안정 프레즌스/lease 가설을 verify-kit 으로 승격(또는 presence-stack 스모크 1 모드·끄면 현 spine=회귀 0)
+- **#17 | self-hb 메아리 + 재타깃 윈도 질의 손실** | ④/⑤ | 0061-0070 | 🟡 신규(경미) — 0068: 승격된 active 가 자기 svc.presence.hb 를 유일 구독자로 되받음(`hbRecv` 부풀음·무해·`src/topo-build.js:151`)·0070: 공지 도착 전 윈도 질의는 죽은 primary 로 손실(0068/0070 §9) | **목적지 STATE §3** → 게이트: active 자기-hb 제외 + 재타깃 윈도 질의 재시도(다중 standby/연쇄 failover 기반·끄면 단일 standby 현 거동=회귀 0)
 - **#10 | give 요청 × result-ahead 결합 미해소(transfers≠base)** | 서비스/버스 | 0031-0040 | 🟡 신규 — 0037/0039/0040 §9: 버스 gap 에 떨군 give 요청 재발행 시 결과 미수신 클라가 재-give → 원 give 재도달 시 owner 바뀌어 실패(failedOps) → *다른 유효 결과*로 수렴(원장 자기-정합·desync 0 이나 transfers≠base) | **목적지 STATE §2/§3**(이미 "give×result-ahead 0037 §9" 추적) → 게이트: 0025 클라 give-resend × 버스 요청 replay 통합 복구
 - **#11 | per-producer ack 워터마크 + 다중 게이트웨이 풀 토폴로지** | ④/⑤ | 0041-0050 | 🟡 신규 — 0046~0048 §9: 0046 이 요청 dedup *네임스페이스*(복합키)만 분리·둘째 게이트웨이는 버스 producer seam 으로 대표(클라-대면 풀 와이어 아님)·ack/seen 의 producer 키잉 미착수(단일 게이트웨이라 미발현) | **목적지 STATE §3** → 게이트: busAck/busSeenBound 를 (producer,reqId) 별로 키잉 + 게이트웨이 군 배치(끄면 단일 게이트웨이 현 거동=회귀 0) |
-- **#13 | orch 三역할 겸함 → 전용 프레즌스/치유 박스 분리** | ⑤/정리 | 0051-0060 | 🟡 신규 — orch 가 zone failover(0009)+소비자 프레즌스(0055)+치유(0056~0060) 겸함(0055·0059 §9) | **목적지 STATE §3** → 게이트: 정리 step 으로 프레즌스/치유 메서드를 PresenceService/HealService 로 추출(기능 0·reg 0)
-- **#14 | 대체 소비자 spawn(permanentDown→런타임 새 소비자)** | ⑤ | 0051-0060 | 🟡 신규 — 0059/0060 이 permanent 판정·svc.presence 발행까진 했으나 실제 동적 spawn 미착수(런타임 액터 생성·buildTopology 시점 등록 한계) | **목적지 STATE §2/§3** → 게이트: 동적 토폴로지(svc.presence permanent 구독→spawn·#6 동적경계 family)
 - **#15 | 적응형 lease 정밀화 — 둘째-결함 민감도·주기 인지·마진 jitter** | ④ | 0051-0060 | 🟡 신규(#12 잔여 흡수) — full-max/윈도(0050/0052) 둘 다 한 번의 긴 outage 가 *둘째 동일 결함* 감지 억제(0057 §9 반복 사이클 좌절)·윈도 주기성 맹점(0052 §9)·마진(leaseSpan) 고정(jitter 적응 0) | **목적지 STATE §3** → 게이트: cadence EWMA 분포/주기 인지 + busLeaseMarginAdapt(끄면 현 거동=회귀 0)
 
 ### 해소 ✅ (인덱스에서 제거 — 기록만)
+
+- **#14 | 대체 소비자 spawn(permanentDown→새 소비자)** (0051-0060 발견) → ✅ **0061** spawnReplace(사전 등록 standby ranking2 가 svc.presence permanent 에 자기 활성화·svc.item.out 자기 재구독·`src/svc-ranking.js:50`) + **0062** spawnReconstruct(활성화 후 저널 replay 로 다운타임 갭 복원·투영==원장). 형태 한정: *런타임 동적 액터 생성*은 아님(0061 §9) — 그 잔여는 #6 동적 토폴로지 family 로 흡수.
 
 - **#2 | 실 전송/버스 부재** (0001-0010 발견) → ✅ **0011**(IPC→실 TCP 소켓·spawn IPC 0·프레이밍) + **0012**(직접 주소지정→토픽 pub/sub 버스) + **0016**(ServiceBus 발행/구독 의미·직접결합 409→0). 잔여=물리 다중-브로커 분산(STATE 백로그).
 - **#5 | failover 펜싱·split-brain 미검증** (0001-0010 발견) → ✅ **0012**(링크 분단+재연결 fence·split-brain 0) + **0013**(진짜 child.kill·epoch 펜싱·거짓 사망=진짜 사망 비트 동일·재-provisioning N≥2·divergence 0).
