@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0070](step-0070.md) — **failover 중 질의 연속성**(presenceAnnounce·0067 발행 failover/0069 질의 위에 *읽기 경로 failover*: standby 가 승격 시 svc.presence.active 로 새 active 주소 *공지*→질의자(presmon)가 구독해 queryAddr *재타깃*→죽음 후 질의도 승격된 박스가 답함). 발행(0067)·질의(이 step) 둘 다 failover-safe → 프레즌스 박스가 진짜 failover-safe SSOT(쓰기·발행·읽기 전 경로 단일점 0). 닿는 박스: svc-presence(promote 공지)·svc-presence-monitor(재타깃)·topo-build(active 구독·announceActive).
-- **한 줄 상태**: reg ALL OK(src=baseline=0069 비트 동일·월드해시 5시드 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·presqcont: 승격 공지(announced 1)→재타깃(retargets 1·queryAddr presence2)→죽음 후 질의를 승격 박스가 답함(pri/std repliesSent 2/2·recv==sent 4)·queried[ranking]=permanent vs OFF stale down(std 0·손실)·push 둘 다 permanent(직교)·비-침습·spine src 누적 ALL OK(70-step).
-- **다음**: §2 참조(귓속말/파티 라우터(클라→라우터→presence 질의) · active 자기-하트비트 메아리 정리(다중 standby/연쇄 failover) · 재타깃 윈도 질의 재시도 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0071](step-0071.md) — **귓속말 라우터**(whisperRouter — 0069/0070 질의 인터페이스의 첫 *진짜* 라우팅 소비자·presmon 은 질의자 대역이었다): 새 박스 WhisperRouter(wrouter)가 클라 귓속말 `{to}` 을 받아 대상 상태를 프레즌스 SSOT 에 질의(pull)→그 답으로 라우팅(state up=전달 routed·down/permanent=반송 bounced). SPINE 계층5 큰 그림 — 프레즌스 SSOT 가 귓속말·파티·핸드오프 라우팅의 단일 조회처라는 첫 라우팅 소비자. 닿는 박스: svc-whisper(신규)·topo-build(배선·whisperAddr)·topology(wrouter 결과·whispers 주입)·net-core(require).
+- **한 줄 상태**: reg ALL OK(src=baseline=0070 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·whisper: q/recv 2/2·routed 1(inventory up)·bounced 1(ranking perm)·decision inv=routed/rank=bounced·OFF wrouter null·비침습·spine 71-step ALL OK.
+- **다음**: §2 참조(귓속말 라우터 failover 연속성(0070 재타깃을 wrouter 에) · 파티 라우터(다중 대상 팬아웃) · active 자기-하트비트 메아리 정리 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0070 가 *failover 중 질의 연속성*(presenceAnnounce — 승격 공지→질의자 재타깃→읽기 경로 failover)을 닫아 프레즌스 박스의 쓰기·발행·읽기 전 경로가 failover-safe 가 됐다(0064~0070 호 완성). 기능 후보(우선): *귓속말/파티 라우터*(클라→라우터→presence 질의→라우팅 — 0069/0070 의 질의 인터페이스를 실제 라우팅 소비자로·presmon 은 질의자 대역이었다). 그 다음: *active 자기-하트비트 메아리 정리*(승격된 active 가 자기 hb 를 안 듣게·다중 standby/연쇄 failover 기반·0068 §9)·*재타깃 윈도 질의 재시도*(공지 전 윈도 질의 손실·0058 recoverRetry 의 질의 판·0070 §9)·*적응형 hbTimeout*(0050 lease 판), ⒝ *활성 중 다운타임 일반 재발행*(0025/0026), ⒞ *거래소/우편/길드(서비스 반복)*, ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
+**step-0071 가 *귓속말 라우터*(whisperRouter — 프레즌스 질의 인터페이스의 첫 진짜 라우팅 소비자)를 닫았다. 기능 후보(우선): *귓속말 라우터 failover 연속성*(0070 의 svc.presence.active 재타깃 패턴을 wrouter 에 적용 — primary 사망 후 귓속말도 승격 박스로 질의·0071 §9). 그 다음: *파티 라우터*(다중 대상 팬아웃·질의 묶음 reqId 상관)·*전달 신뢰*(게이트웨이 경유 세션 전달·전달 ack/재시도)·*active 자기-하트비트 메아리 정리*(0068 §9)·*적응형 hbTimeout*(0050 lease 판), ⒝ *활성 중 다운타임 일반 재발행*(0025/0026), ⒞ *거래소/우편/길드(서비스 반복)*, ⒟ *비동기 결정론*(논리/벡터 클럭·🔴·broker 대공사·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -41,7 +41,7 @@
 | 🟡 | **버스 단일점·분산·영속(동적 구독·failover·무손실·replay 유계·소비자 lease·치유·대체 활성화 ✅)** | 버스 | 0016 ServiceBus=*단일 박스·영속 0*. 동적구독→failover→무손실→replay 유계+ack→min-워터마크→소비자 lease→생애관측→프레즌스→self-healing→대체 활성화(0033~0061·상세 §5/§7). 남은 것: 마진/cadence 적응·per-producer ack·라우팅 영속·다중 브로커·late-join reconstruct. |
 | 🟡 | **서비스 영속·failover (가방 ✅+압축 ✅+저널홉 신뢰·tail·in-flight give·mint ✅·채팅 ✅+압축 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방=효과 저널(0017)+압축(0018). 채팅=커맨드 로그 소싱(0021)+압축(0022). write-behind 신뢰성·영속 failover(0023~0029·§7). 단 버스 라우팅 *영속 0*·채팅 in-flight/홉 신뢰 미적용·가방 일방 give(2PC 없음·0014 §9-2). |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService = *발신하는 소비자*(consume→publish·CQRS·프로젝션==원장). 0020 = *읽기 모델 영속·late-join*(랭킹 crash→쓰기 저널 reconstruct·투영==원장·0019 §9 해소). 단 *quiescent restart 만*(활성 중 다운타임+재발행 미검증·0020 §9)·증분 follow 0. 거래소·우편·길드 반복 미착수. |
-| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover 승격·자율 감지·질의·질의 failover — 쓰기·발행·읽기 전 경로 failover-safe·§5). 남은 것: 귓속말/파티 라우터·존 배치·부하 분산·인스턴스 spawn·메아리 정리. |
+| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover 승격·자율 감지·질의·질의 failover — 쓰기·발행·읽기 전 경로 failover-safe·§5). 0071 귓속말 라우터(질의 인터페이스의 첫 라우팅 소비자). 남은 것: 귓속말 라우터 failover·파티 라우터·존 배치·부하 분산·인스턴스 spawn·메아리 정리. |
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축·저널홉 신뢰·persist failover+N-replica+quorum+윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층 6 첫 박스) = 가방 효과 저널(write-behind)+압축(0018). 저널홉 신뢰→failover→N-replica quorum→윈도(0023~0032·전문 §7). 단 *fsync 0·anti-entropy 0·스냅샷 비유계·월드 영속 0* — 0032/0029/0018 §9. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위의 고리 닫기. |
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제(현실 전송)·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(재-provisioning·divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도(전문 §7)→**대체 소비자 호(0061~0063)**: 자동 활성화(spawnReplace·standby ranking2 가 svc.presence 'permanent' 에 자기 활성화)→late-join reconstruct(spawnReconstruct·저널로 다운타임 갭 복원·투영==원장)→프레즌스 모니터(presenceMonitor·presmon 상태 기계·관측 짝). 전부 별 프로세스·신성한 tick·E2E 비트 동일. 0053 정리: 가방 박스 4부품 분할(core 25.5KB). 거래소/우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도(전문 §7)→**대체 소비자 호(0061~0063)**: 자동 활성화(spawnReplace·standby ranking2 가 svc.presence 'permanent' 에 자기 활성화)→late-join reconstruct(spawnReconstruct·저널로 다운타임 갭 복원·투영==원장)→프레즌스 모니터(presenceMonitor·presmon 상태 기계). **0071 귓속말 라우터(whisperRouter·wrouter)**: 질의 인터페이스(0069)의 첫 진짜 라우팅 소비자(귓속말→대상 상태 질의→up 전달/down·perm 반송·권위 0). 전부 별 프로세스·신성한 tick·E2E 비트 동일. 0053 정리: 가방 4부품 분할(core 25.5KB). 거래소/우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자(ranking)→0033 동적 구독→0034 **failover**(재구독·진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·요청/결과 ack 자기-크기조정·seenReqs 유계→0044 min-워터마크→0045 소비자 lease/축출→0046/0047 producer 네임스페이스+per-producer seen→0048 lease lifecycle 정합→0050~0052 적응형 leaseSpan·시작 grace·윈도 cadence→0054 lease 생애 관측(svc.item.lease·audit 무수정 구독). 버스 분산·마진 적응·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 생애 관측→프레즌스 SSOT→**self-healing 호**(recover→ack→retry→상한 포기→발행→spawnReplace 활성화→presmon 관측). **프레즌스 박스 호(0064~0070)**: 0064 전용 박스 분리(orch⟂프레즌스·이중 SSOT 제거)→0065 보고 버스화(orch 주소 무지)→0066 shadow 복제→0067 failover 승격→0068 사망 자율 감지(하트비트)→0069 질의 인터페이스(pull)→0070 질의 failover 연속(공지→재타깃). 쓰기·발행·읽기 전 경로 failover-safe. broker 물리 분산·진짜 비동기·귓속말 라우터/메아리 정리 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·in-flight give/mint)→0027~0029 failover/N-replica quorum-read/quorum write ack(durableSeq)→0031~0032 윈도 해소+유계 K(§7)→0062 대체 소비자 reconstruct 복구원. 증분 스냅샷·fsync·anti-entropy·월드/버스 영속 후속 |
@@ -167,3 +167,4 @@
 | [0068](step-0068.md) | 프레즌스 박스 사망 자율 감지(presenceLease — active 하트비트 svc.presence.hb→standby 침묵 hbTimeout 감지→자기 승격·외부 트리거 0) | 통과 · 0=0067·하트비트→자율 승격(promotedAt 34·외부 0)·presmon ON ev 2 vs OFF ev 1·spine 68 |
 | [0069](step-0069.md) | 프레즌스 SSOT 질의 인터페이스(presenceQuery — presenceQuery→presenceReply·stateOf pull·독립 읽기 경로) | 통과 · 0=0068·질의↔응답 무손실(4/4)·queried[inventory]=up·stateOf=null(미관측도 pull)·관측 ON==OFF·spine 69 |
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — 승격 시 svc.presence.active 공지→질의자 재타깃→죽음 후 질의도 승격 박스가 답) | 통과 · 0=0069·공지→재타깃(→presence2)·죽음 후 질의 pri/std 2/2·queried permanent vs OFF stale down·spine 70 |
+| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 클라 귓속말→대상 상태를 프레즌스 SSOT 질의→up 전달/permanent 반송·질의 인터페이스의 첫 진짜 라우팅 소비자) | 통과 · 0=0070·q/recv 2/2·routed 1/bounced 1·decision inv=routed/rank=bounced·OFF wrouter null·비침습·spine 71 |

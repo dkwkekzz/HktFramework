@@ -1,8 +1,8 @@
-// HktInfra step-0070 — 헤드리스 검증 (failover 중 질의 연속성: 승격 공지→질의자 재타깃·presenceAnnounce)
+// HktInfra step-0071 — 헤드리스 검증 (귓속말 라우터: 프레즌스 질의로 라우팅·whisperRouter)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `presqcont`.
-//   더한 한 조각: 0067 failover 는 *발행(push)* 경로 연속성만 줬다(승격 standby 가 svc.presence 인계 발행). 0069 *질의(pull)* 경로는 질의자가 고정 주소(primary)를 가리켜 primary 사망 후 끊겼다(0069 §9). 이 step 은 그 고리: standby 가 승격 시 svc.presence.active 로 새 active 주소를 *공지*, 질의자(presmon)가 구독해 queryAddr 를 *재타깃* → 죽음 후 질의도 승격된 박스가 답한다(읽기 경로 failover 디스커버리).
-//   검증: ⒜ `reg`(키트) — presenceAnnounce 미설정이면 0069 비트 동일(공지·재타깃 0). ⒝ `presqcont`(가설) — ON: 승격 공지(announced 1)→presmon 재타깃(retargets 1·queryAddr presence2)→죽음 후 질의를 승격된 박스가 답함(presence2 repliesSent>0)·질의 무손실(recv==sent)·queried[ranking]=permanent(fresh). OFF: 재타깃 0→죽음 후 질의가 죽은 primary 로 감(presence2 repliesSent 0·손실 recv<sent·queried[ranking]=down stale). minted 동일.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `whisper`.
+//   더한 한 조각: 0069/0070 은 프레즌스 SSOT 의 *질의 인터페이스*(presenceQuery→presenceReply·pull)와 그 failover 연속성을 세웠지만, 질의자는 presmon(관찰 모델·"질의가 도는가" 대역)이었다. 이 step 은 그 인터페이스의 첫 *진짜* 라우팅 소비자를 더한다 — 클라가 귓속말을 보내면 라우터(wrouter)가 대상 상태를 프레즌스 SSOT 에 질의→그 답으로 라우팅 결정(up=전달·down/permanent=반송). SPINE 계층5: 프레즌스 SSOT 가 귓속말·파티·핸드오프 라우팅의 단일 조회처라는 큰 그림의 첫 라우팅 소비자.
+//   검증: ⒜ `reg`(키트) — whisperRouter 미설정이면 0070 비트 동일(wrouter 박스 0). ⒝ `whisper`(가설) — ON: 귓속말 to 'inventory'(up)→전달(routed 1)·to 'ranking'(permanent)→반송(bounced 1)·질의 무손실(recv==sent==2)·decision[inventory]=routed/[ranking]=bounced. OFF(whisperRouter 끔): wrouter 부재 → 라우팅 0(대상 상태 모름·귓속말 미도달). minted 동일(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,51 +15,47 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const FAIL_AT = 30;
+const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const WHISPER_AT = 80;
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
   busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
-  presenceQuery: true, presenceFailover: { at: FAIL_AT }, rankDie: DEAD_DIE, ...extra });
+  presenceQuery: true, rankDie: DEAD_DIE, ...extra });
 
-const pmState = (r) => r.presmon ? r.presmon.stateOf('ranking') : null;
-
-function presqcont(seeds) {
-  console.log('== presqcont: *가설* — primary 사망(t' + FAIL_AT + ') 후 승격된 standby 가 svc.presence.active 공지→presmon 재타깃→죽음 후 질의도 답함(읽기 경로 failover 연속성). presenceAnnounce ON vs OFF ==');
-  console.log(`  rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}·failover@${FAIL_AT}. ON: announced 1·retargets 1·presence2 답함·무손실·queried[ranking]=permanent. OFF: 재타깃 0·죽은 primary 로 질의→손실·queried[ranking]=down(stale).`);
-  console.log('seed   | announced/retarget | presmon q/recv | pri/std repliesSent | queried ranking | push state | 비침습 | 판정');
+function whisper(seeds) {
+  console.log('== whisper: *가설* — 클라 귓속말을 라우터가 프레즌스 SSOT 에 질의→대상 상태로 라우팅(up 전달·permanent 반송). whisperRouter ON vs OFF ==');
+  console.log(`  rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}·귓속말@${WHISPER_AT}: to 'inventory'(up)·to 'ranking'(permanent). ON: routed 1·bounced 1·질의 무손실(recv==sent==2). OFF: wrouter 부재→라우팅 0.`);
+  console.log('seed   | queries q/recv | routed/bounced | decision inv/rank | wrouter on/off | 비침습 | 판정');
   for (const seed of seeds) {
-    const base = { dropRecover: PERM, recoverMaxRetries: CAP };
-    const on  = run({ ...P_BASE(seed, { ...base, presenceAnnounce: true }) });
-    const off = run({ ...P_BASE(seed, base) });   // presenceAnnounce OFF — 공지·재타깃 0(질의자 고정 주소)
-    const pm = on.presmon; const pri = on.presence; const std = on.presenceShadow;
-    // ① 승격 공지 + 재타깃 — standby 가 승격하며 active 주소 공지·presmon 이 queryAddr 를 presence2 로 갱신
-    const retarget = std.announced === 1 && pm.retargets === 1 && pm.queryAddr === 'presence2' && off.presmon.retargets === 0 && off.presmon.queryAddr === 'presence';
-    // ② 읽기 경로 연속성 — 죽음 전 질의는 primary 가(pri.repliesSent>0), 죽음 후 질의는 승격된 standby 가(std.repliesSent>0) 답함. 질의 무손실(recv==sent).
-    const continuity = pri.repliesSent > 0 && std.repliesSent > 0 && pm.repliesRecv === pm.queriesSent;
-    const freshRead = pm.queriedOf('ranking') === 'permanent';   // 재타깃 덕에 죽음 후 질의가 최신 SSOT(permanent)를 받음
-    // ③ 대조(OFF) — 재타깃 없으면 죽음 후 질의가 죽은 primary 로 감 → std 답 0·손실(recv<sent)·stale read
-    const offGap = off.presenceShadow.repliesSent === 0 && off.presmon.repliesRecv < off.presmon.queriesSent && off.presmon.queriedOf('ranking') === 'down';
-    // 발행(push) 경로는 둘 다 연속(0067) — presmon 관측 state 둘 다 permanent(질의/발행 직교)
-    const pushOk = pmState(on) === 'permanent' && pmState(off) === 'permanent';
+    const base = { dropRecover: PERM, recoverMaxRetries: CAP,
+      whispers: [{ at: WHISPER_AT, from: 'client0', to: 'inventory', body: 'hi' }, { at: WHISPER_AT, from: 'client1', to: 'ranking', body: 'yo' }] };
+    const on  = run({ ...P_BASE(seed, { ...base, whisperRouter: true }) });
+    const off = run({ ...P_BASE(seed, base) });   // whisperRouter OFF — wrouter 박스 부재(주입 0·라우팅 없음)
+    const wr = on.wrouter;
+    // ① 질의 무손실 — 귓속말 2건 각각 presence 질의 1건·응답 1건(recv==sent==2). 라우터가 SSOT 인터페이스를 실제 호출.
+    const lossless = wr && wr.queriesSent === 2 && wr.repliesRecv === 2;
+    // ② 프레즌스가 라우팅을 구동 — up 대상(inventory)은 전달(routed 1), permanent 대상(ranking)은 반송(bounced 1).
+    const routedOk = wr && wr.routed === 1 && wr.bounced === 1;
+    const decisionOk = wr && wr.decisionOf('inventory') === 'routed' && wr.decisionOf('ranking') === 'bounced';
+    // ③ 대조(OFF) — whisperRouter 끄면 wrouter 박스가 없다(라우팅 인프라 부재 = 귓속말이 프레즌스를 못 묻고 미도달).
+    const offGap = off.wrouter === null;
     const nonInvasive = on.inventory.minted === off.inventory.minted;
     const ok =
-      check(retarget, `seed ${seed}: 공지/재타깃 실패(announced ${std.announced}·retargets ${pm.retargets}·addr ${pm.queryAddr}·off retargets ${off.presmon.retargets})`) &&
-      check(continuity, `seed ${seed}: 읽기 연속성 깨짐(pri ${pri.repliesSent} std ${std.repliesSent} recv ${pm.repliesRecv} sent ${pm.queriesSent})`) &&
-      check(freshRead, `seed ${seed}: 죽음 후 질의 stale(queried ${pm.queriedOf('ranking')} 기대 permanent)`) &&
-      check(offGap, `seed ${seed}: OFF 갭 미재현(std ${off.presenceShadow.repliesSent}·recv ${off.presmon.repliesRecv}/sent ${off.presmon.queriesSent}·queried ${off.presmon.queriedOf('ranking')})`) &&
-      check(pushOk, `seed ${seed}: 발행 경로 불연속(on ${pmState(on)} off ${pmState(off)})`) &&
-      check(nonInvasive, `seed ${seed}: 공지가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
+      check(lossless, `seed ${seed}: 질의 무손실 깨짐(sent ${wr && wr.queriesSent} recv ${wr && wr.repliesRecv})`) &&
+      check(routedOk, `seed ${seed}: 라우팅 수치 틀림(routed ${wr && wr.routed} bounced ${wr && wr.bounced})`) &&
+      check(decisionOk, `seed ${seed}: 라우팅 판정 틀림(inv ${wr && wr.decisionOf('inventory')} rank ${wr && wr.decisionOf('ranking')})`) &&
+      check(offGap, `seed ${seed}: OFF 대조 깨짐(wrouter ${off.wrouter})`) &&
+      check(nonInvasive, `seed ${seed}: 라우터가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
       check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(std.announced + '/' + pm.retargets + '→' + pm.queryAddr, 18)} | ${pad(pm.queriesSent + '/' + pm.repliesRecv, 14)} | ${pad(pri.repliesSent + '/' + std.repliesSent, 19)} | ${pad(pm.queriedOf('ranking') + '/' + off.presmon.queriedOf('ranking'), 15)} | ${pad(pmState(on) + '', 10)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad((wr ? wr.queriesSent : 0) + '/' + (wr ? wr.repliesRecv : 0), 14)} | ${pad((wr ? wr.routed : 0) + '/' + (wr ? wr.bounced : 0), 14)} | ${pad((wr ? wr.decisionOf('inventory') : '-') + '/' + (wr ? wr.decisionOf('ranking') : '-'), 17)} | ${pad((on.wrouter ? 'box' : 'none') + '/' + (off.wrouter ? 'box' : 'none'), 14)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 승격된 박스가 svc.presence.active 로 새 주소를 공지하고 질의자가 재타깃 → 죽음 후 질의도 승격된 박스가 답한다(읽기 경로 failover 디스커버리). 발행(0067)·질의(이 step) *둘 다* failover 를 가로질러 연속 — 프레즌스 박스가 진짜 failover-safe SSOT.');
-  console.log('    presenceAnnounce 미설정 = 0069 비트 동일(공지·재타깃 0·reg). OFF 면 질의자가 죽은 primary 를 계속 가리켜 죽음 후 읽기 손실·stale(queried down). 비-침습: minted ON==OFF.');
+  console.log('  → 라우터가 "대상이 어디에/어떤 상태인가"를 프레즌스 SSOT 에 질의(pull)하고 그 답으로 라우팅을 결정한다 — up 은 전달, permanent 는 반송. 0069/0070 질의 인터페이스의 첫 *진짜* 라우팅 소비자(presmon 은 질의자 대역이었다). SPINE 계층5: 프레즌스 SSOT = 귓속말·파티 라우팅의 단일 조회처.');
+  console.log('    whisperRouter 미설정 = 0070 비트 동일(wrouter 박스 0·reg). OFF 면 라우팅 인프라 부재. 비-침습: 라우터는 권위 0(질의 소비·전달만)·minted ON==OFF·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['presqcont'] = presqcont;
-kit.ORDER.splice(1, 0, 'presqcont');
+kit.MODES['whisper'] = whisper;
+kit.ORDER.splice(1, 0, 'whisper');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
