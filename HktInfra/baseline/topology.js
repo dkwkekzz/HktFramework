@@ -170,6 +170,8 @@ function run(opts) {
     //   w={at, from, to, body} — 정규 net.send(client→wrouter·시드 로그의 일부 = 결정론). 라우터가 다음 step 부터 presence SSOT 질의→대상 상태로 전달/반송.
     //   wrouter 부재(whisperRouter OFF)면 주입 0 = 라우팅 없음(대조군). 미제공이면 휴면(reg 0 불변·멀티프로세스 E2E 미주입).
     if (opts.whispers && wrouter) for (const w of opts.whispers) if (w.at === i + 1) net.send(w.from || 'client0', 'wrouter', { type: 'whisper', to: w.to, body: w.body });
+    // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
