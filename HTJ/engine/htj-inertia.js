@@ -33,6 +33,7 @@
   const MX = 'mom_x', MY = 'mom_y', MZ = 'mom_z';   // 운동량 밀도 g = ρv (셀별, Float64)
   const EPS = 1e-12;                          // ρ≈0 셀에서 v=0 (0 나눗셈 가드)
   const DEFAULT_DT = 0.5;                      // 한 스텝의 시간 간격(격자 간격 dx=1; CFL: |v|·dt ≤ 1)
+  const CFL_SAFE = 1.0;                        // donor-cell 비음수 한계(차원분리 L1: Σ|v_축|·dt ≤ 1). 이 아래면 nsub=1.
 
   // 운동량 장이 없으면 만든다(지연 초기화 — htj-world 불변). 0 으로 초기화 = 정지.
   function ensureMomentum(world) {
@@ -57,26 +58,45 @@
     const rho = world.fields[rhoName];
     const m = ensureMomentum(world);
     const gx = m[MX], gy = m[MY], gz = m[MZ];
-
-    // 한 스텝 시작 상태에서 셀별 속도 v=g/ρ 를 한 번 계산(이류 내내 고정 → 결정론·선형성).
     const L = rho.length;
-    const vx = world.scratch.__vx || (world.scratch.__vx = new Float64Array(L));
-    const vy = world.scratch.__vy || (world.scratch.__vy = new Float64Array(L));
-    const vz = world.scratch.__vz || (world.scratch.__vz = new Float64Array(L));
-    for (let i = 0; i < L; i++) {
-      const r = rho[i] > EPS ? rho[i] : 0;
-      const inv = r > 0 ? 1 / rho[i] : 0;
-      vx[i] = gx[i] * inv; vy[i] = gy[i] * inv; vz[i] = gz[i] * inv;
-    }
 
     // 이류할 양(질량 + 운동량 3성분 + 선택 수동 스칼라들)에 같은 면속도로 flux 를 누적(이중버퍼).
     const Q = [rho, gx, gy, gz];
     if (opts.scalars) for (const nm of opts.scalars) Q.push(world.fields[nm] || world.addField(nm, { type: Float64Array }));
-    const out = Q.map(q => q.slice());          // 변화량 누적용 복사(시작값에서 +=/-=)
+
+    const vx = world.scratch.__vx || (world.scratch.__vx = new Float64Array(L));
+    const vy = world.scratch.__vy || (world.scratch.__vy = new Float64Array(L));
+    const vz = world.scratch.__vz || (world.scratch.__vz = new Float64Array(L));
+
+    // 셀별 속도 v=g/ρ 계산 + 최대 Courant 수(차원분리 안정 한계 = L1: Σ|v_축|·dt). 한 서브스텝 내내 고정.
+    function recomputeVelocity() {
+      let cmax = 0;
+      for (let i = 0; i < L; i++) {
+        const r = rho[i] > EPS ? rho[i] : 0;
+        const inv = r > 0 ? 1 / rho[i] : 0;
+        const ux = gx[i] * inv, uy = gy[i] * inv, uz = gz[i] * inv;
+        vx[i] = ux; vy[i] = uy; vz[i] = uz;
+        const c = Math.abs(ux) + Math.abs(uy) + Math.abs(uz);
+        if (c > cmax) cmax = c;
+      }
+      return cmax;
+    }
+
+    // CFL 안전 서브스텝: donor-cell 상류차분은 |v|·dt ≤ 1 아래에서만 *비음수*다(주석 위 참조).
+    //   점화(0012)처럼 매 스텝 열이 *주입*되면 열압력이 속도를 키워 CFL 을 넘기는데, 그러면 음수 밀도가
+    //   생겨 폭주(→NaN→화면이 빔)한다. dt 를 안전 한계 아래로 쪼개(서브스텝) 한 advect 호출이 스스로
+    //   비음수·보존을 지키게 한다 — 점성(0011)이 막지 못하는 *구동* 발산을 정수적으로 닫는다.
+    //   CFL 이 이미 안전하면 nsub=1 → 종전과 byte-동일(회귀 0). 서브스텝마다 ρ,g 로 속도를 재계산(보존).
+    const cmax = recomputeVelocity();
+    const courant = cmax * dt;
+    const nsub = courant > CFL_SAFE ? Math.ceil(courant / CFL_SAFE) : 1;
+    const h = dt / nsub;
+
+    let out = Q.map(q => q.slice());            // 변화량 누적용 복사(시작값에서 +=/-=)
 
     // 한 축(stride) 방향 면들에 대해 donor-cell 상류차분 flux 를 누적.
     //   면속도 uf = ½(v[i]+v[i+stride]). uf>0 → 상류=i, uf<0 → 상류=i+stride.
-    //   flux = dt·uf·q_up. q[i] -= flux, q[i+stride] += flux (보존).
+    //   flux = h·uf·q_up. q[i] -= flux, q[i+stride] += flux (보존).
     function sweep(stride, vAxis, isLast) {
       for (let z = 0; z < N; z++)
         for (let y = 0; y < N; y++)
@@ -87,18 +107,21 @@
             const uf = 0.5 * (vAxis[i] + vAxis[j]);
             if (uf === 0) continue;
             const up = uf > 0 ? i : j;
-            const f = dt * uf;
+            const f = h * uf;
             for (let k = 0; k < Q.length; k++) {
               const flux = f * Q[k][up];
               out[k][i] -= flux; out[k][j] += flux;
             }
           }
     }
-    sweep(1,   vx, { x: true });
-    sweep(N,   vy, { y: true });
-    sweep(NN,  vz, { z: true });
 
-    for (let k = 0; k < Q.length; k++) Q[k].set(out[k]);
+    for (let s = 0; s < nsub; s++) {
+      if (s > 0) { recomputeVelocity(); out = Q.map(q => q.slice()); }  // 갱신된 ρ,g 로 다음 서브스텝
+      sweep(1,   vx, { x: true });
+      sweep(N,   vy, { y: true });
+      sweep(NN,  vz, { z: true });
+      for (let k = 0; k < Q.length; k++) Q[k].set(out[k]);
+    }
     return world;
   }
 

@@ -10,7 +10,7 @@
 //     3. 균일 무력   — 균일 밀도 → ∇P=0 → 순 힘 0(끌·밀 중심 없음).
 //     4. 운동량 보존 — 주기 중심차분 → Σ∇P=0 → ΣΔg 정확 보존(내부 힘, 뉴턴 3법칙).
 //     5. 붕괴 정지   — 중력+반발: peak 밀도가 *유한값에서 plateau*(폭주 안 함). 핵심 결과.
-//     6. 대조(반발0) — K=0: 중력만 → peak 밀도 폭주(반발 있을 때보다 ≫ 큼).
+//     6. 대조(반발0) — K=0: 중력만 → peak 밀도가 더 큼(반발 없으면 더 붕괴). ※ CFL 가드 후 *유한*(아래 버그 수정 참조).
 //     7. 질량 보존   — 중력+반발+이류 진화 동안 Σρ 불변.
 //     8. 항등(K=0)   — 반발 0 이면 세계 불변(회귀 0).
 //     9. 항등(dt=0)  — dt=0 이면 세계 불변(회귀 0).
@@ -94,9 +94,13 @@ function evolve(G, K, steps) {
   // 붕괴 정지: peak 가 유한하고 후반 성장비(40/20)가 거의 1(plateau).
   check('붕괴 정지 — 중력+반발: peak 유한·plateau(후반 성장비≈1)', isFinite(b.peak) && b.peak / b.pmid < 1.5,
     `peak ${b.pmid.toFixed(2)}→${b.peak.toFixed(2)} (성장비 ${(b.peak / b.pmid).toFixed(3)})`);
-  // 대조: 반발 0 이면 중력만 → peak 폭주(반발 있을 때보다 ≫ 큼).
-  check('대조(반발0) — 중력만: peak 폭주(반발 대비 ≫ 큼)', g.peak > 1e4 * b.peak,
-    `중력만 peak=${g.peak.toExponential(2)} vs 반발 peak=${b.peak.toFixed(2)} (비율 ${(g.peak / b.peak).toExponential(2)})`);
+  // 대조: 반발 0 이면 중력만 → peak 가 더 큼(반발 없으면 더 붕괴).
+  //   ── 버그 수정(사후) ──: 과거 이 단언은 `g.peak > 1e4 * b.peak`(비율 ~7.8e7)였는데, 그 거대한 값은
+  //   *물리*가 아니라 advect 의 CFL 위반(|v|dt>1)이 만든 **음수밀도 폭주**(→NaN)의 수치 인공물이었다.
+  //   htj-inertia 의 CFL 안전 서브스텝 가드가 그 폭주를 닫자 중력만 붕괴는 *물리적으로 유한*(반발 대비
+  //   ~7×)해졌다. 그래서 단언을 **정성**(유한 ∧ 반발 없으면 더 붕괴)으로 교정한다 — 버그 크기에 묶지 않는다.
+  check('대조(반발0) — 중력만: 반발 없으면 더 붕괴(유한·peak 더 큼)', isFinite(g.peak) && g.peak > 3 * b.peak,
+    `중력만 peak=${g.peak.toFixed(2)} vs 반발 peak=${b.peak.toFixed(2)} (비율 ${(g.peak / b.peak).toFixed(2)}×, 유한)`);
   // 질량 보존: 반발은 운동량만 바꾼다(질량 직접 안 건드림) → 이류 동안 Σρ 불변.
   check('질량 보존 — 중력+반발+이류 동안 Σρ 불변', Math.abs(b.M - b.M0) / b.M0 < 1e-9,
     `ΔM/M0 = ${(Math.abs(b.M - b.M0) / b.M0).toExponential(2)}`);
