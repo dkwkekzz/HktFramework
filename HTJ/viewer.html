@@ -100,6 +100,7 @@
 <script src="engine/htj-thermal.js"></script>
 <script src="engine/htj-viscosity.js"></script>
 <script src="engine/htj-fusion.js"></script>
+<script src="engine/htj-cooling.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -225,6 +226,24 @@
         updateTemperature(w);
       },
       note: '드디어 <b>별</b>이다. 새 법칙 <b>내부 발열 applyFusion</b>: 코어가 충분히 무겁고 뜨거우면(ρ≥ρ_crit ∧ T≥T_crit) 스스로 열을 만든다 — <b>u ← u + dt·rate·ρ</b>(핵융합 점화). <b>질량(energy)은 안 건드린다</b> → 별이 빛내도 질량 보존(step_0005 의 질량 소실 모순을 닫는다). <b>▶ 흐름</b>: 무거운 덩어리가 중력으로 압축·가열되다 임계를 넘어 <b>점화 → 자기발열하는 뜨거운 별</b>(장(field)을 temperature 로 보면 코어가 타오른다). <b>발열률(rate)</b>을 0 으로 내리면 점화가 꺼져 *차가운 돌*이 된다. 핵심: <b>별과 돌을 따로 만들지 않았다</b> — 같은 법칙에 질량(또는 발열률)만 달리하면 하나는 별, 하나는 돌이 된다(author 안 함). N 을 줄여 가벼운 덩어리로 만들면 점화 임계를 못 넘어 돌로 남는다.'
+    },
+    '0013': {
+      label: 'step_0013 — 복사 냉각(빛으로 식는 별)', title: 'HTJ — 복사 냉각(빛으로 식는 별)', sub: '식어야 별이 뭉친 채 빛난다 — 안 식으면 제 열로 흩어진다',
+      mode: 'energy', dynamics: true, pressure: true, thermP: true, visc: true, fusion: true, radiate: true,
+      defaults: { colorScale: 'relative', view: 'temperature', kpress: 0.12, kthermo: 0.3, kvisc: 0.6, frate: 2, radiate: 0.06 },
+      // 무거운 별 — 발열(0012)에 *복사 냉각*을 더한다. 냉각율(복사 슬라이더)을 0 으로 내리면 과열로 부풀어 흩어진다(=0012).
+      init(w) { HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.16, M0: Math.max(2500, w.N * w.N * w.N * 0.5), T0: 1 }); updateTemperature(w); },
+      advance(w, p) {
+        HTJGravity.applyGravity(w, 0.2, { G: 0.15, iters: 40 });                  // 끌어모음(압축 가열의 동력)
+        HTJPressure.applyPressure(w, 0.2, { K: p.kpress, gamma: 2 });             // 단거리 반발(점 붕괴 방지)
+        HTJThermal.applyThermalPressure(w, 0.2, { Kth: p.kthermo, gamma: 5 / 3 });// 열압력(압축 가열 PdV)
+        HTJViscosity.applyViscosity(w, 0.2, { Kvisc: p.kvisc });                  // 비가역 소산(정착)
+        HTJFusion.applyFusion(w, 0.2, { rate: p.frate, rhoCrit: 6, tCrit: 3 });   // 내부 발열(점화)
+        HTJCooling.applyCooling(w, 0.2, { coolRate: p.radiate });                 // 복사 냉각(열→빛, 질량 보존)
+        HTJInertia.advect(w, 0.2, { scalars: ['therm'] });
+        updateTemperature(w);
+      },
+      note: '별이 *계속* 빛나려면 열을 내버려야 한다. 새 법칙 <b>복사 냉각 applyCooling</b>: 모든 셀이 제 열을 빛으로 방출 — <b>u ← u·(1−dt·coolRate)</b>, 빠진 열은 <b>world.radiated</b>(빛 장부)에 쌓인다. <b>질량(energy)은 안 건드린다</b> → 빛은 *열*에서 나온다(step_0005 의 질량 소실 모순을 therm 으로 옮겨 닫음, 발열의 거울짝: 발열=u source·복사=u sink). <b>▶ 흐름</b>: 별이 점화한 뒤, <b>냉각율(복사 슬라이더)</b>을 0 으로 두면 제 발열로 <b>부풀어 흩어진다</b>(=step_0012, peakρ↓). 0.06 쯤 올리면 과열을 빛으로 버려 <b>조밀하게 뭉친 채 점화를 지속</b>한다(peakρ 30×↑, 우하단 radiated 가 쌓이는 = 별이 빛난다). 발열↔복사 균형의 평형온도 <b>T*=rate/coolRate</b>(밀도 무관)에서 별이 안정적으로 빛난다 — 0012 의 무한 가열(runaway)이 닫힌다. 발열률(rate)을 0 으로 내리면 발열 없는 <b>돌</b>이 남은 열을 복사하고 *완전히 식는다*.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -428,7 +447,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0012';                       // 기본 = 현재 step
+    sel.value = '0013';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──

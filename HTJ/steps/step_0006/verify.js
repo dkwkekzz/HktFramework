@@ -13,6 +13,9 @@
 //     6. 비음수       — CFL(|v|dt≤1) 아래 질량 ρ ≥ 0.
 //     7. 결정론       — 같은 흐름 → 동일 (energy) 지문 + 동일 운동량.
 //     8. 항등(dt=0)   — 시간간격 0 이면 세계 불변(회귀 0).
+//     9. CFL 가드     — CFL *위반*(|v|dt>1)에서도 음수밀도·NaN 폭주 없이 질량 보존(서브스텝 가드).
+//                       step_0012 "에너지 소멸" 버그의 영구 회귀 가드. (CFL 안전 흐름의 byte-동일은 위
+//                       1~8 의 지문 불변이 이미 증명 — nsub=1 → 종전과 동일.)
 //
 //   실행: node HTJ/steps/step_0006/verify.js
 //   닫힌 뒤 불변 — 이후 어떤 step 을 진행해도 통과해야 한다.
@@ -121,6 +124,28 @@ const DT = 1.0, V0 = 0.5;   // 균일 속도 0.5, dt=1 → CFL |v|dt=0.5 ≤ 1 (
   Ine.advect(w, 0);
   check('항등 — dt=0 이면 세계 불변(회귀 0)',
     w.fingerprint('energy') === fp && w.fingerprint('mom_x') === fpx, `0x${fp.toString(16)}`);
+}
+
+// ── 9. CFL 안전 서브스텝 가드 — CFL 위반(|v|dt>1)에서도 음수밀도 폭주(→NaN) 없이 보존 ──
+//   donor-cell 상류차분은 |v|dt≤1 에서만 비음수다(검증 6). 점화(step_0012)처럼 매 스텝 열이 *주입*되면
+//   열압력이 속도를 키워 CFL 을 넘기는데, 가드(서브스텝) 없이는 음수밀도→폭주→NaN(화면이 빔)으로 갔다
+//   — 사용자가 본 "에너지 소멸" 버그. advect 는 한 호출 내부에서 dt 를 안전 한계 아래로 쪼개(nsub) *스스로*
+//   비음수·질량 보존을 지킨다. 여기선 CFL 을 대거 위반(|v|dt=3)시켜도 폭주가 없음을 영구 가드한다.
+{
+  const N = 24, w = W.createWorld(N);
+  Ine.seedMovingBlob(w, { cx: N * 0.3, cy: N * 0.5, cz: N * 0.5, vx: 3.0, M0: 1000, sigma: N * 0.1 }); // |v|dt=3 ≫ 1
+  const M0 = w.total('energy');
+  let minR = Infinity, nan = 0;
+  for (let t = 0; t < 12; t++) {
+    Ine.advect(w, 1.0);
+    const R = w.fields.energy;
+    for (let i = 0; i < R.length; i++) { const r = R[i]; if (Number.isNaN(r)) nan++; else if (r < minR) minR = r; }
+  }
+  const M1 = w.total('energy');
+  const conserved = M0 > 0 && Math.abs(M1 - M0) / M0 < 1e-9;
+  check('CFL 가드 — CFL 위반(|v|dt=3>1)에서도 음수밀도·NaN 폭주 없이 질량 보존(서브스텝)',
+    nan === 0 && minR >= -1e-9 && conserved,
+    `NaN=${nan}, min ρ=${minR.toExponential(2)}, ΔM/M0=${(M0 > 0 ? Math.abs(M1 - M0) / M0 : 0).toExponential(2)}`);
 }
 
 // ── 결과 ──
