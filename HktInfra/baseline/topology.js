@@ -183,6 +183,8 @@ function run(opts) {
     if (opts.mboxDrainAck && mbox) for (const a of [].concat(opts.mboxDrainAck)) if (a.at === i + 1) mbox.ackDrain(mbox.checkout ? mbox.checkout.seq : -1);
     // active 공지 메아리 주입(step-0105·presAnnounceStraggler) — at tick 에 *지연/메아리* svc.presence.active 공지가 presmon 에 직접 도착(net.log 밖·digest 불변). announceEpoch ON 이면 epoch 가 실려 낡은 공지는 거부, OFF 면 무조건 재타깃(0070 §9 역-재타깃 노출). presmon 부재·미제공이면 휴면(reg 0 불변).
     if (opts.presAnnounceStraggler && presmon) for (const s of [].concat(opts.presAnnounceStraggler)) if (s.at === i + 1) presmon.onMsg({ from: s.from || 'presence', payload: { type: 'ev', topic: 'svc.presence.active', ev: opts.announceEpoch ? { addr: s.addr, epoch: s.epoch } : { addr: s.addr } } });
+    // 라우터 active 공지 메아리 주입(step-0106·whisperAnnounceStraggler) — at tick 에 지연/메아리 svc.presence.active 공지가 wrouter 에 직접 도착. announceEpoch ON 이면 epoch 가 실려 낡은 공지는 거부(역-재타깃·재시도 폭주 방지), OFF 면 무조건 재타깃(0072 §9). wrouter 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.whisperAnnounceStraggler && wrouter) for (const s of [].concat(opts.whisperAnnounceStraggler)) if (s.at === i + 1) wrouter.onMsg({ from: s.from || 'presence', payload: { type: 'ev', topic: 'svc.presence.active', ev: opts.announceEpoch ? { addr: s.addr, epoch: s.epoch } : { addr: s.addr } } });
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).

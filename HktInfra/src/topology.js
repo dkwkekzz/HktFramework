@@ -53,6 +53,7 @@ function run(opts) {
   const presence = map.get('presence') || null;    // 전용 프레즌스 박스(step-0064·presenceBox) — 프레즌스 SSOT. OFF 면 null(0063 동일).
   const presenceShadow = map.get('presence2') || null;   // 프레즌스 박스 shadow(step-0066·presenceShadow) — standby PresenceService. 같은 보고로 SSOT 그림자 복제(active=false·발행 0). OFF 면 null(0065 동일).
   const wrouter = map.get('wrouter') || null;       // 귓속말 라우터(step-0071·whisperRouter) — 프레즌스 질의로 라우팅. OFF 면 null(0070 동일).
+  const exchange = map.get('exchange') || null;     // 거래소(step-0107·ExchangeService) — 아이템 escrow 거래. OFF 면 null(0106 동일).
   const pservice = map.get('pservice') || null;     // 파티 멤버십 SSOT(step-0075·partyService) — 멤버십 보유. OFF 면 null(0074 동일).
   const mbox = map.get('mbox') || null;             // 귓속말 수신 박스(step-0076·whisperReceipt) — Mailbox. OFF 면 null(0075 동일).
   const mbox2 = map.get('mbox2') || null;           // 둘째 수신 박스(step-0096·mailbox2) — 멤버별 Mailbox. OFF 면 null(0095 동일).
@@ -185,6 +186,8 @@ function run(opts) {
     if (opts.presAnnounceStraggler && presmon) for (const s of [].concat(opts.presAnnounceStraggler)) if (s.at === i + 1) presmon.onMsg({ from: s.from || 'presence', payload: { type: 'ev', topic: 'svc.presence.active', ev: opts.announceEpoch ? { addr: s.addr, epoch: s.epoch } : { addr: s.addr } } });
     // 라우터 active 공지 메아리 주입(step-0106·whisperAnnounceStraggler) — at tick 에 지연/메아리 svc.presence.active 공지가 wrouter 에 직접 도착. announceEpoch ON 이면 epoch 가 실려 낡은 공지는 거부(역-재타깃·재시도 폭주 방지), OFF 면 무조건 재타깃(0072 §9). wrouter 부재·미제공이면 휴면(reg 0 불변).
     if (opts.whisperAnnounceStraggler && wrouter) for (const s of [].concat(opts.whisperAnnounceStraggler)) if (s.at === i + 1) wrouter.onMsg({ from: s.from || 'presence', payload: { type: 'ev', topic: 'svc.presence.active', ev: opts.announceEpoch ? { addr: s.addr, epoch: s.epoch } : { addr: s.addr } } });
+    // 거래소 거래 주입(step-0107·exchangeOps) — at tick 에 list/buy/cancel 메시지를 거래소에 전달(클라/존이 보낸 거래 요청 모델·net.log 밖·digest 불변). 거래소 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.exchangeOps && exchange) for (const o of [].concat(opts.exchangeOps)) if (o.at === i + 1) exchange.onMsg({ from: o.from || 'gateway', payload: o.op });
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
@@ -232,7 +235,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
