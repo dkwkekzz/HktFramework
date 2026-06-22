@@ -1,8 +1,8 @@
-// HktInfra step-0112 — 헤드리스 검증 (거래소 시세 피드 읽기 모델·marketFeed·svc.exchange.sold+cancelled 구독)
+// HktInfra step-0113 — 헤드리스 검증 (시세 피드 영속·late-join·marketReconstruct·거래소 op 저널 replay)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `market`.
-//   더한 한 조각: 거래소(0107~0111)는 escrow 원장 권위 + 체결(0108 sold)·취소(0111 cancelled) 발행. 이 step 은 그 두 토픽을 *소비만* 하는 MarketFeed(읽기 모델)를 더한다 — item별 {last 체결가, volume 거래량, cancelled 취소} 투영(0019 RankingService 의 거래소 판·CQRS). 원장 권위 0·발신 0(audit 처럼 관찰 전용·시세는 pull). sold ev 에 item 추가(시세 키).
-//   검증: ⒜ `reg`(키트) — marketFeed OFF 면 박스 0·구독 0 = 0111 비트 동일. ⒝ `market`(가설) — OPS: list 4(sword10/shield5/potion3/ring20)·buy id1·id2·cancel id3. ON: priceOf(sword)=10/vol 1·priceOf(shield)=5/vol 1·cancelledOf(potion)=1·consumed 3(sold 2+cancel 1). OFF: market null. 둘 다 거래소 sold/cancelled·minted 불변(비-침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `mktpersist`.
+//   더한 한 조각: 0112 MarketFeed 는 자기 영속 0 — crash 시 시세 소실. 0020 읽기 모델이 쓰기 모델 저널을 replay 했듯, MarketFeed 가 *거래소 durable op 저널*(0109)을 replay 해 시세 재계산(list→id별 item·buy→last/volume·cancel→cancelled). 시세 피드는 자기 영속 0 이어도 거래소 저널이 권위 사본이라 완전 복원(다운타임 누락 따라잡음·CQRS).
+//   검증: ⒜ `reg`(키트) — 코드 변경은 MarketFeed 에 reconstruct 메서드 추가뿐(marketFeed OFF 면 박스 0) = 0112 비트 동일. ⒝ `mktpersist`(가설) — ON: crash→reconstruct(거래소 저널)==죽기 전==라이브. OFF: crash 만→빈 투영(소실). 둘 다 거래소 sold/minted 불변(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -25,6 +25,7 @@ const OPS = [
   { at: 75, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
   { at: 76, op: { type: 'exchCancel', seller: 's2', id: 3 } },
 ];
+const mktDigest = mk => JSON.stringify([...mk.market.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1));
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
@@ -32,37 +33,36 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  exchange: true, exchangePublish: true, cancelPublish: true, exchangeOps: OPS,
+  exchange: true, exchangePublish: true, cancelPublish: true, exchangePersist: true, marketFeed: true, exchangeOps: OPS,
   ...extra });
 
-function market(seeds) {
-  console.log('== market: *가설* — 거래소 시세 피드 읽기 모델(marketFeed). svc.exchange.sold+cancelled 구독→item별 {last 체결가·volume 거래량·cancelled}. 0019 RankingService 의 거래소 판(CQRS·원장 권위 0·발신 0·관찰 전용). ON vs OFF ==');
-  console.log('  OPS: list 4(sword10/shield5/potion3/ring20)·buy id1(sword,b1)·id2(shield,b2)·cancel id3(potion). ON: price sword 10/vol 1·shield 5/vol 1·potion cancelled 1·consumed 3. OFF: market null. 둘 다 거래소/minted 불변.');
-  console.log('seed   | consumed | sword@ | swordVol | shield@ | potionCancel | OFF null | sold ON==OFF | minted ON==OFF | 판정');
+function mktpersist(seeds) {
+  console.log('== mktpersist: *가설* — 시세 피드 영속·late-join(marketReconstruct). 시세 피드는 자기 영속 0 이어도 *거래소 durable op 저널*(0109) replay 로 시세 완전 복원(0020 읽기 모델의 거래소 판·CQRS). ON(crash→reconstruct) vs OFF(crash 만) ==');
+  console.log('  OPS: list 4·buy id1·id2·cancel id3. ON: reconstruct(거래소 저널)==죽기 전==라이브. OFF: crash 만→빈 투영(소실). 둘 다 거래소 sold/minted 불변.');
+  console.log('seed   | 저널 op | 라이브 다이제스트 | recon==before ON | empty OFF | sold ON==OFF | minted ON==OFF | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { marketFeed: true }) });
-    const off = run({ ...P_BASE(seed, {}) });   // marketFeed 0(박스 없음·0111 동일)
-    const mk = on.market;
-    const consumed = mk.consumed;
-    const swordP = mk.priceOf('sword'); const swordV = mk.volumeOf('sword');
-    const shieldP = mk.priceOf('shield'); const potionC = mk.cancelledOf('potion');
-    const offNull = off.market == null;
-    const soldEq = on.exchange.sold === off.exchange.sold && on.exchange.cancelled === off.exchange.cancelled;
-    const mintedEq = on.inventory.minted === off.inventory.minted && ledgerConsistent(on) && itemConserved(on);
+    const r = run({ ...P_BASE(seed, {}) });
+    const mk = r.market;
+    const before = mktDigest(mk); const jlen = r.exchange.journal.length;
+    // ON: crash→reconstruct(거래소 저널)
+    mk.crash(); mk.reconstruct(r.exchange.journal);
+    const reconOn = mktDigest(mk) === before && mk.market.size > 0;
+    // OFF: crash 만(복원 안 함) — 빈 투영
+    const off = run({ ...P_BASE(seed, {}) }); off.market.crash();
+    const emptyOff = off.market.market.size === 0;
+    const nonInvasive = r.exchange.sold === off.exchange.sold && r.inventory.minted === off.inventory.minted && ledgerConsistent(r) && itemConserved(r);
     const ok =
-      check(consumed === 3, `seed ${seed}: consumed 기대 3·실제 ${consumed}`) &&
-      check(swordP === 10 && swordV === 1, `seed ${seed}: sword 시세 기대 10/1·실제 ${swordP}/${swordV}`) &&
-      check(shieldP === 5, `seed ${seed}: shield 시세 기대 5·실제 ${shieldP}`) &&
-      check(potionC === 1, `seed ${seed}: potion cancelled 기대 1·실제 ${potionC}`) &&
-      check(offNull, `seed ${seed}: OFF 에 market 박스 존재(기대 null)`) &&
-      check(soldEq && mintedEq, `seed ${seed}: 피드가 거래소/세계 권위 바꿈(sold ${on.exchange.sold}/${off.exchange.sold}·minted ${on.inventory.minted}/${off.inventory.minted})`);
-    console.log(`${pad(seed, 6)} | ${pad(consumed, 8)} | ${pad(swordP, 6)} | ${pad(swordV, 8)} | ${pad(shieldP, 7)} | ${pad(potionC, 12)} | ${pad(offNull + '', 8)} | ${pad(soldEq + '', 12)} | ${pad(mintedEq + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(reconOn, `seed ${seed}: ON reconstruct != 죽기 전(before ${before})`) &&
+      check(emptyOff, `seed ${seed}: OFF crash 후 비어있지 않음(size ${off.market.market.size})`) &&
+      check(nonInvasive, `seed ${seed}: 복원이 거래소/세계 권위 바꿈(sold ${r.exchange.sold}/${off.exchange.sold}·minted ${r.inventory.minted}/${off.inventory.minted})`);
+    const liveD = `sword@${r.market.priceOf('sword')}/v${r.market.volumeOf('sword')}·shield@${r.market.priceOf('shield')}`;
+    console.log(`${pad(seed, 6)} | ${pad(jlen, 7)} | ${pad(liveD, 17)} | ${pad(reconOn + '', 16)} | ${pad(emptyOff + '', 9)} | ${pad((r.exchange.sold === off.exchange.sold) + '', 12)} | ${pad((r.inventory.minted === off.inventory.minted) + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소 발행 스트림(sold+cancelled)에서 item별 시세(체결가·거래량·취소)가 *파생 뷰*로 선다(0019 ranking CQRS 의 거래소 판): MarketFeed 는 두 토픽을 소비만 하고 원장 권위 0·발신 0(audit 처럼 관찰 전용·시세는 priceOf/volumeOf pull). 거래량 피드엔 sold+cancelled 양쪽이 필요(0111 의 동기).');
-  console.log('    marketFeed 0·거래소 부재 = 박스 0·구독 0 = 0111 비트 동일(reg). 비-침습: 피드는 발행 사본의 파생일 뿐 거래소 원장(sold/cancelled)·세계 가방(minted) 권위 불변·존 tick 밖 순수 반응형.');
+  console.log('  → 시세 피드가 *자기 영속 0* 이어도 거래소 op 저널(권위 사본) replay 로 완전 복원된다(0020 읽기 모델의 거래소 판): list→id별 item·buy→last/volume·cancel→cancelled = 라이브 sold/cancelled 소비와 동일 매핑. 다운타임에 버스가 흘려보낸 발행을 놓쳐도 거래소가 영속한 op 로 따라잡음(CQRS read model 의 핵심).');
+  console.log('    reconstruct 메서드 추가뿐(marketFeed OFF 면 박스 0) = 0112 비트 동일(reg). 비-침습: 복원은 시세 투영 재계산일 뿐 거래소 원장(sold)·세계 가방(minted) 권위 불변. ※ 저널 스냅샷 압축(0110) 시 가지친 head 의 volume 이력은 복원 불가(스냅샷에 시세 카운터 없음·snapInterval 0 전제·§9).');
 }
 
-kit.MODES['market'] = market;
-kit.ORDER.splice(1, 0, 'market');
+kit.MODES['mktpersist'] = mktpersist;
+kit.ORDER.splice(1, 0, 'mktpersist');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
