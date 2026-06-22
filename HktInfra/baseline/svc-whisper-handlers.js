@@ -51,7 +51,11 @@ Object.assign(WhisperRouter.prototype, {
           if (this.epochKeyed) msg.epoch = this.epoch;   // producer epoch(step-0089) — 재시작 안전 dedup 키. OFF 면 미부착(0088 비트 동일).
           this.net.send(this.addr, p.consumer, msg); this.routed++;
         }
-        else this.bounced++;
+        else {
+          this.bounced++;
+          // 귓속말 반송 발행(step-0097·bouncePublish) — 대상 down/permanent 로 *도달 불가*한 반송을 svc.whisper.bounced{to, from, state} 로 발행(관측). 0082 failed(유계 재시도 소진 후 포기)와 달리 *즉시 도달 불가* — 전달 수명주기의 셋째 결말(routed→delivered / undeliverable / bounced). OFF·bus 부재면 발행 0(0096 비트 동일).
+          if (this.bouncePublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.whisper.bounced', ev: { to: p.consumer, from: w.from, state: p.state } }); this.bouncePublished++; }
+        }
         this._partyTally(w.party, deliverable);   // 파티 영수증 집계(step-0083) — 멤버 판정을 그 파티 원장에 더한다(파티 전송 아니면 no-op). routed+bounced==members 면 파티 완료.
       }
       this.decisions.set(p.consumer, deliverable ? 'routed' : 'bounced');

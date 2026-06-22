@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0097](step-0097.md) — **귓속말 반송 발행**(bouncePublish·관측): 반송(대상 down/permanent 즉시 도달 불가)이 라우터 내부 카운터(bounced)에만 남았다. svc.whisper.bounced{to,from,state} 발행 → audit 구독. 0082 failed(재시도 소진 후 포기)와 달리 *즉시 도달 불가* — 전달 결말의 셋째 종류(delivered·failed·bounced). OFF·bus 부재면 발행 0=0096 비트 동일. 닿는 박스: svc-whisper-core(bouncePublish)·-handlers(presenceReply else 분기 발행)·topo-build(wrouter 전달+audit 구독 행).
-- **한 줄 상태**: reg ALL OK(src=baseline=0096 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pbounce: ranking permanent→귓속말 반송·ON bouncePublished 1/audit 1 vs OFF 0/0·둘 다 bounced 1·minted ON==OFF·spine 97-step ALL OK.
+- **닫힌 step**: [step-0098](step-0098.md) — **정리: topo-build 박스-부품 분할**(32KB>30KB·기능 0·reg 0): *액터 팩토리+라우트 필터*(makeActor·routeFilters·박스 클래스 import)를 topo-actors.js 로 분리. buildTopology(선언적 spec 빌더·외부 의존 0)는 topo-build.js 에 남고 진입점이 topo-actors require 해 동일 export. verbatim 이동 → src=baseline(0097) 비트 동일. 박스 32.1→28.5+4.9(유계 복귀). 발견: spec=데이터 ⟂ actor=구현 이음새 덕에 buildTopology 무손상.
+- **한 줄 상태**: reg ALL OK(src=baseline=0097 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·누적 회귀 all(0071~0097 가설 포함) 통과·spine 98-step ALL OK·박스 전부 ≤30KB.
 - **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0097 이 *귓속말 반송 발행*(bouncePublish)을 닫아 전달 결말 관측을 세 종류(delivered·failed·bounced)로 완성. 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*동적 멤버별 수신함*(N개 spawn·0096 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31.5KB>30KB — 다음 정리 step 필요(재분할·기능 0·reg 0).**
+**step-0098 이 *정리 분할*(topo-build 박스-부품·기능 0·reg 0)로 30KB 임계를 해소(박스 전부 ≤30KB 유계 복귀). 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*동적 멤버별 수신함*(N개 spawn·0096 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -35,9 +35,9 @@
 |---|---|---|---|
 | 🔴 | **C++ 시뮬 코어 headless 빌드 (최우선)** | 월드 | 결정론 시뮬 코어가 UE 모듈(`Core`·`CoreUObject`·`GameplayTags`·`Json` 등)에 링크되면 'UObject 0' 이라도 UE 소스/UBT 없이 빌드 불가 → 원격 검증 불가. UE-모듈-free 코어 분리 또는 얇은 헤드리스 shim 필요(§4 불변). C++ 승격의 선결(0003 §8.2). |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제·step-0014 후보)** | 코디네이션 | 0013 까지 결정론은 *중앙 lockstep 배리어*(broker 가 매 tick 전 프로세스 응답 대기)가 떠받친다. 진짜 비동기·노드 자유 진행·벽시계 타임아웃 곡선은 미착수 — 논리 클럭(Lamport/벡터)·인과 순서로 배리어 없이 결정론·소유자 1 보존이 후속(0012 §9-3·0013 §9-1). |
-| ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정 검증·대기열·티켓 만료(0001 §8.5). |
+| ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정 검증·대기열·만료(0001 §8.5). |
 | ⬜ | **다중 클라 결정론 복제·예측** | 월드 | 0002~0004 의 결정론 복제·예측은 *C++ 시뮬 코어 승격*에서 부활(더미는 경량 라우터). 다중 클라 intent 인터리빙·예측/롤백(0001 §8.6). |
-| ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신을 암묵 신뢰(0001 §8.3) — 분산 시 서버간 인증 필요. |
+| ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신을 암묵 신뢰(0001 §8.3) — 분산 시 필요. |
 | 🟡 | **버스 단일점·분산·영속(동적 구독·failover·무손실·replay 유계·소비자 lease·치유·대체 활성화 ✅)** | 버스 | 0016 ServiceBus=*단일 박스·영속 0*. 동적구독→failover→무손실→lease→생애관측→프레즌스→self-healing→대체 활성화(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅 ✅+압축·파티 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방 저널(0017)+압축(0018)·채팅 로그(0021)+압축(0022)·파티 멤버십 저널(0085). write-behind 신뢰성(0023~0029). 단 버스 라우팅 영속 0. |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService=발신 소비자(CQRS). 0020=읽기 모델 영속·late-join. 거래소·우편·길드 미착수. |
@@ -136,22 +136,22 @@
 | [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway replay+reqId dedup) | 통과 · minted==base |
 | [0038](step-0038.md) | 정리: topology.js 박스-부품 분할(31KB>30KB·기능 0) | 통과 |
 | [0039](step-0039.md) | 버스 replay 버퍼 유계화(busWindow 슬라이딩 K 창) | 통과 · desync 0 vs tiny 4 |
-| [0040](step-0040.md) | 요청 replay 버퍼 자기-크기조정(busAck — reqId ack→워터마크) | 통과 |
-| [0041](step-0041.md) | 결과 replay 버퍼 자기-크기조정(busOutAck — outSeq ack→가지치기) | 통과 · desync 0 vs fixedK8 4 |
-| [0042](step-0042.md) | seenReqs dedup 집합 유계화(busSeenBound — inAcked 워터마크) | 통과 · peak 60→24 |
+| [0040](step-0040.md) | 요청 replay 버퍼 자기조정(busAck — reqId ack→워터마크) | 통과 |
+| [0041](step-0041.md) | 결과 replay 버퍼 자기조정(busOutAck — outSeq ack→가지치기) | 통과 · desync 0 vs K8 4 |
+| [0042](step-0042.md) | seenReqs dedup 유계화(busSeenBound — inAcked 워터마크) | 통과 · peak 60→24 |
 | [0043](step-0043.md) | 정리: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·기능 0) | 통과 · ≤19.6KB |
 | [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 비대칭 F vs min T |
 | [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자 축출) | 통과 · OFF peak∝run vs ON 유계 |
 | [0046](step-0046.md) | 게이트웨이 producer 네임스페이스(busProducerNs — (producer,reqId) 복합키) | 통과 · OFF Δ0 vs ON Δ5 |
 | [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키 producer 별 가지치기) | 통과 · OFF peak∝run vs 유계 |
-| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission 가역) | 통과 · outBuf 유계·readm 1 |
-| [0049](step-0049.md) | 단일 살아있는 소스 `src/` 전환(복사 전진 폐기·기능 0·reg 0) | 통과 · src=baseline=0048 |
-| [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 관측 ack cadence 로 self-size) | 통과 · 고정 OFF flapping vs 적응 ev=1 |
-| [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease 임계 bootstrap floor) | 통과 · grace ev=0 vs 적응만 1 |
-| [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠) | 통과 · stall 후 OFF peak 60 vs ON cm→0 |
+| [0048](step-0048.md) | 소비자 lease lifecycle(busLeaseLife — never-ack 축출·재admission 가역) | 통과 · outBuf 유계·readm 1 |
+| [0049](step-0049.md) | 단일 살아있는 소스 src/ 전환(복사 전진 폐기·기능 0·reg 0) | 통과 · src=baseline=0048 |
+| [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 ack cadence 로 self-size) | 통과 · 고정 flapping vs 적응 ev=1 |
+| [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease bootstrap floor) | 통과 · grace ev=0 vs 적응만 1 |
+| [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠) | 통과 · stall 후 OFF 60 vs ON 0 |
 | [0053](step-0053.md) | 정리: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 추출(core 31.9→25.5KB·기능 0) | 통과 · spine 53 |
-| [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→svc.item.lease→audit) | 통과 · 전이 관측 |
-| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch 가 lease 소비→consumerDown SSOT) | 통과 · down==evicted |
+| [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→audit) | 통과 · 전이 관측 |
+| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch lease 소비→consumerDown) | 통과 · down==evicted |
 | [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독→readmit) | 통과 · 각 1 |
 | [0057](step-0057.md) | 치유 확인 고리(recoverAck — 재구독하며 orch 에 회신→수행 확인) | 통과 · sent==acks==1 |
 | [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recoverTimeout 뒤 재발신) | 통과 · ON retries 2·ack 1 |
@@ -194,3 +194,4 @@
 | [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결을 svc.party.complete 로 발행·audit·0093 incomplete 와 짝) | 통과 · ON pub 1/audit 1 vs OFF 0/0·spine 95 |
 | [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack 가능·0088 §9 해소) | 통과 · ON routed 2/delivered 2/acked true vs OFF delivered 1/acked false·spine 96 |
 | [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송을 svc.whisper.bounced 발행·audit·전달 결말 셋째) | 통과 · ON pub 1/audit 1 vs OFF 0/0·둘 다 bounced 1·spine 97 |
+| [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(32KB>30KB — topo-actors.js 로 makeActor·routeFilters 분리·기능 0) | 통과 · src=baseline 비트 동일·박스 32→28.5/4.9KB·spine 98 |
