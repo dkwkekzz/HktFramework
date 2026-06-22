@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0093](step-0093.md) — **파티 incomplete 발행**(partyIncompletePublish·관측): 0092 는 파티 부분 전달 종결(incomplete)을 라우터 *내부 원장*에만 둬 운영/감사 평면이 못 봤다(0092 §9). 0082(개별 전달 실패)·0087(성공) 발행처럼, 파티 전송의 부분 실패 종결을 svc.party.incomplete{partyId,members,routed,delivered,failed} 로 발행 → audit 가 발행자 무수정으로 구독 관측. 0082 의 파티 판·0084 멤버십 발행의 전달 종결 판. 닿는 박스: svc-whisper(partyIncompletePublish·_incPub·give-up 분기 발행)·topo-build(wrouter 전달 + audit svc.party.incomplete 구독 행).
-- **한 줄 상태**: reg ALL OK(src=baseline=0092 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·ppartyincpub: 파티 incomplete 종결·ON partyIncompletePublished 1/audit svc.party.incomplete 1 vs OFF 0/0·minted ON==OFF·spine 93-step ALL OK.
+- **닫힌 step**: [step-0094](step-0094.md) — **정리: svc-whisper 박스-부품 분할**(33KB>30KB·기능 0·reg 0): svc-whisper.js 가 30KB 임계를 넘겨, svc-inventory(0043/0053) 분할 패턴으로 박스를 세 파일로 — svc-whisper-core.js(클래스·constructor·파티 원장·_queryFor·restart) + svc-whisper-handlers.js(onMsg·onTick·Object.assign 프로토타입 증강) + svc-whisper.js(진입점 1.1KB·core→handlers require·동일 export). 내부 구조만 — 같은 클래스·메서드·export → src=baseline(0093) 비트 동일. 박스 크기 33.2KB→core 12.0/handlers 10.0/entry 1.1(유계 복귀).
+- **한 줄 상태**: reg ALL OK(src=baseline=0093 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·누적 회귀 all(0071~0093 가설 포함) 통과·spine 94-step ALL OK·박스 전부 ≤30KB.
 - **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0093 이 *파티 incomplete 발행*(partyIncompletePublish — 부분 전달 실패 종결 관측)을 닫아 0092 §9 한계(종결이 라우터 내부에만)를 메움(파티 전달 관측 수명주기 완성: 멤버십변경+개별실패/성공+파티실패종결). 기능 후보(우선): *멤버별 Mailbox 토폴로지*(파티원마다 수신함·0088 §9)·*파티 complete 발행*(성공 종결·0093 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: svc-whisper 30.4KB>30KB — 다음 기능 step 전 정리 step 필요(재분할/engine 승격·기능 0·reg 0).**
+**step-0094 가 *정리 분할*(svc-whisper 박스-부품·기능 0·reg 0)로 30KB 임계를 해소(박스 전부 ≤30KB 유계 복귀). 기능 후보(우선): *멤버별 Mailbox 토폴로지*(파티원마다 수신함·0088 §9)·*파티 complete 발행*(성공 종결·0093 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31KB 임계 근처 — 다음 정리 후보.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -190,3 +190,4 @@
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 워터마크 유예·지연 straggler dedup·producer 당 N+1 유계) | 통과 · 옛 epoch straggler ON received 4/dup 1 vs OFF 5(누수)/dup 0·spine 91 |
 | [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결·0078 N-of-M 판) | 통과 · ON rec{routed 2,delivered 1,failed 1}/incomplete vs OFF failed 0/보류·spine 92 |
 | [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결을 svc.party.incomplete 로 발행·audit 관측·0082 의 파티 판) | 통과 · ON pub 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 93 |
+| [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(33KB>30KB — core/handlers/entry·Object.assign 프로토타입·기능 0) | 통과 · src=baseline 비트 동일·박스 33→12/10/1KB·spine 94 |
