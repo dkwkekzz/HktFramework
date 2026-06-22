@@ -1,4 +1,5 @@
 'use strict';
+// step-0077 — 전달 손실 감지+재시도(whisperDeliverRetry): 0076 은 미확인 전달(inflight)을 *분리*만 했지, 전달/영수증이 손실되면 inflight 에 영영 남았다(at-most-once 확인·0076 §9). 이 step 은 그 고리를 닫는다 — 라우터에 onTick 을 더해 deliverTimeout 경과해도 whisperAck 못 받은 inflight 전달을 *재발신*(같은 seq·재전송)한다 → 전달/ack 손실에도 delivered 로 수렴(at-least-once). 영수증(0076)이 "확인됨"을 주므로 *미확인*만 재시도(0058 recoverRetry·0008 ack/NAK 재전송의 전달 판). whisperDeliverRetry OFF 면 onTick 무발화·재발신 0 = 0076 비트 동일(inflight 방치).
 // step-0076 — 전달 영수증(whisperReceipt): 0071~0075 의 라우터는 라우팅 *결정*(프레즌스 질의→up 전달/down 반송)까지만 견고했다 — whisperDeliver 를 보내는 순간 routed++ 로 셌지, *대상이 실제로 받았는지*는 확인하지 않았다(best-effort·0075 §9). 이 step 은 전달의 *수신 확인 고리*를 더한다: 라우터가 deliverable 일 때 whisperDeliver 에 {seq, ackTo:this.addr} 를 실어 보내고 inflight[seq] 에 보류, 수신측 Mailbox 가 whisperAck{seq} 를 회신하면 inflight 에서 지우고 delivered++(전달 확인). 0057 recoverAck(치유 확인 고리)의 *전달* 판 — routed(보냄) ⊇ delivered(확인됨), inflight=routed-delivered. whisperReceipt OFF 면 ackTo 미부착·inflight 미보류·Mailbox 부재 = 0075 비트 동일(routed 만·delivered 0).
 // step-0075 — 파티 멤버십 SSOT 소비(membershipAddr): 0073 의 파티 라우터는 멤버 목록을 요청에 *인라인*으로 받았다(멤버십과 라우팅이 한 요청에 섞임). 이 step 은 멤버십을 전용 박스(PartyService)로 분리하고, 라우터는 파티 전송 시 멤버 목록을 *질의*로 얻는다: {type:'partyTo', partyId} → 멤버십 SSOT(membershipAddr)에 partyQuery → partyMembers 응답이 오면 멤버마다 _queryFor(프레즌스 질의)→라우팅. 멤버십 SSOT(PartyService)→프레즌스 SSOT(0069)→라우팅 의 2단 조회. membershipAddr 없으면 partyTo 미해소(멤버십 SSOT 부재의 대조). 인라인 party(0073)는 그대로 동작.
 // step-0074 — 재타깃 윈도 질의 재시도(whisperRetry): 0072 의 재타깃은 primary 사망 *후* 도착한 질의만 구한다 — 승격 공지가 라우터에 닿기 *전*의 윈도(사망~공지 전파)에 보낸 질의는 죽은 primary 로 가 영영 손실된다(0072 §9). 이 step 은 그 고리를 닫는다: 라우터가 재타깃(svc.presence.active 수신)할 때, 아직 응답 못 받은 *보류 질의*를 새 active 주소로 재발신한다 → 윈도에 손실된 질의도 승격된 박스로 다시 가 답을 받는다(0058 recoverRetry 의 질의 판). 재시도 트리거는 *공지*(재타깃)라 onTick 0·순수 반응 유지. whisperRetry OFF 면 재발신 0 = 0073 비트 동일(재타깃은 주소만 갱신·보류 질의 방치).
@@ -17,8 +18,11 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 class WhisperRouter {
   constructor(opts = {}) {
     this.receipt = opts.receipt || false;   // 전달 영수증(step-0076·whisperReceipt) — whisperDeliver 에 seq/ackTo 부착·Mailbox 의 whisperAck 로 delivered 확인. OFF 면 best-effort(routed 만·0075 동일).
+    this.deliverRetry = opts.deliverRetry || false;   // 전달 손실 재시도(step-0077·whisperDeliverRetry) — onTick 이 deliverTimeout 경과한 미확인 inflight 를 재발신. OFF 면 재발신 0(0076 동일).
+    this.deliverTimeout = opts.deliverTimeout || 4;   // whisperDeliver 후 whisperAck 를 기다리는 tick(이후 미확인이면 재발신). 결정론 상수.
+    this.deliverRetries = 0;       // 재발신한 whisperDeliver 수(step-0077·계측). 손실 복구 횟수.
     this.deliverySeq = 0;          // 전달 시퀀스(step-0076) — whisperDeliver 마다 증가하는 영수증 상관키.
-    this.inflight = new Map();     // seq -> {to, from, body} — 전달했으나 아직 whisperAck 못 받은 보류 전달(routed-delivered).
+    this.inflight = new Map();     // seq -> {to, from, body, at} — 전달했으나 아직 whisperAck 못 받은 보류 전달(routed-delivered·at=마지막 발신 tick).
     this.delivered = 0;            // whisperAck 로 *확인된* 전달 수(step-0076). routed ⊇ delivered, 차이 = inflight.size.
     this.acksRecv = 0;             // 받은 whisperAck 수(계측·중복 ack 무시 후에도 카운트).
     this.retry = opts.retry || false;   // 재타깃 윈도 질의 재시도(step-0074·whisperRetry) — 재타깃 시 보류 질의 재발신. OFF 면 재발신 0(0073 동일).
@@ -71,13 +75,23 @@ class WhisperRouter {
         if (deliverable) {
           const msg = { type: 'whisperDeliver', from: w.from, body: w.body };
           // 전달 영수증(step-0076·whisperReceipt) — seq/ackTo 부착·inflight 보류. Mailbox 가 whisperAck 회신하면 delivered++(확인). OFF 면 best-effort(영수증 없이 routed 만·0075 비트 동일).
-          if (this.receipt) { const seq = ++this.deliverySeq; msg.seq = seq; msg.ackTo = this.addr; this.inflight.set(seq, { to: p.consumer, from: w.from, body: w.body }); }
+          if (this.receipt) { const seq = ++this.deliverySeq; msg.seq = seq; msg.ackTo = this.addr; this.inflight.set(seq, { to: p.consumer, from: w.from, body: w.body, at: this.net ? this.net.tick : 0 }); }
           this.net.send(this.addr, p.consumer, msg); this.routed++;
         }
         else this.bounced++;
       }
       this.decisions.set(p.consumer, deliverable ? 'routed' : 'bounced');
       return;
+    }
+  }
+  // 전달 손실 재시도(step-0077·whisperDeliverRetry) — deliverTimeout 경과해도 whisperAck 못 받은 inflight 전달을 같은 seq 로 재발신(at-least-once). whisperAck 오면 onMsg 가 inflight 에서 지운다(루프 종료). OFF 면 미실행 = 0076 비트 동일(inflight 방치). 존 tick 무관 — 라우터 제어 평면의 벽시계 timeout.
+  onTick(tick) {
+    if (!this.deliverRetry || !this.inflight.size) return;
+    for (const [seq, e] of this.inflight) {
+      if (tick - e.at >= this.deliverTimeout) {
+        this.net.send(this.addr, e.to, { type: 'whisperDeliver', from: e.from, body: e.body, seq, ackTo: this.addr });
+        e.at = tick; this.deliverRetries++;
+      }
     }
   }
   decisionOf(consumer) { return this.decisions.get(consumer) || null; }
