@@ -19,6 +19,12 @@ Object.assign(WhisperRouter.prototype, {
       if (this.inflight.has(p.seq)) {
         const e = this.inflight.get(p.seq); this.inflight.delete(p.seq); this.delivered++;
         this._partyAck(e.party);   // 파티 ack 집계(step-0088) — 이 전달이 파티 멤버였으면 그 파티 delivered++(실수신 확인). 비-파티면 no-op.
+        // 파티 complete 발행(step-0095·partyCompletePublish) — 이 ack 로 파티가 전원 acked(성공 종결)에 *처음* 이르면 svc.party.complete 발행(관측·종결 1회). OFF·bus 부재·비-파티면 no-op(0094 비트 동일). 0093 incomplete 와 짝·0087 deliveredPublish 의 파티 판.
+        if (this.partyCompletePublish && this.bus && e.party != null && this.partyAcked(e.party) && !this._completePub.has(e.party)) {
+          this._completePub.add(e.party); const r = this.partyReceipts.get(e.party);
+          this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.party.complete', ev: { partyId: e.party, members: r.members, routed: r.routed, delivered: r.delivered } });
+          this.partyCompletePublished++;
+        }
         // 전달 성공 발행(step-0087·deliveredPublish) — 확인된 전달을 svc.whisper.delivered{to, seq, tries} 로 발행(관측). tries=확인까지 재발신 횟수(전달 비용). 0082 failed(포기)와 짝 = 전달 수명주기 전체. OFF·bus 부재면 발행 0(0086 동일).
         if (this.deliveredPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.whisper.delivered', ev: { to: e.to, seq: p.seq, tries: e.tries } }); this.deliveredPublished++; }
       }

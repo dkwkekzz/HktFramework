@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0095](step-0095.md) — **파티 complete 발행**(partyCompletePublish·성공 종결 관측): 0093 은 파티 *실패* 종결(svc.party.incomplete)만 발행(0093 §9). 파티가 acked(routed>0 && delivered==routed)에 처음 이르면 svc.party.complete{partyId,members,routed,delivered} 발행 → audit 구독. 0087 deliveredPublish 의 파티 판·0093 incomplete 와 짝(파티 발행 수명주기 양 끝 완성). 닿는 박스: svc-whisper-core(partyCompletePublish·_completePub)·-handlers(whisperAck 분기 발행)·topo-build(wrouter 전달+audit 구독 행).
-- **한 줄 상태**: reg ALL OK(src=baseline=0094 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·ppartycomplete: ON partyCompletePublished 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 95-step ALL OK.
+- **닫힌 step**: [step-0096](step-0096.md) — **멤버별 Mailbox 토폴로지**(mailbox2·partyAcked N>1): 0088~0095 의 파티 ack 집계·종결·발행은 up 멤버가 Mailbox 를 가질 때만 delivered 에 기여 — mbox 하나뿐이라 up 멤버 여럿이면 acked 영영 false(0088 §9). 둘째 수신함(mbox2)을 더해 파티원마다 자기 수신함 → 모든 up 멤버 ack → partyAcked/complete 가 N>1 에서 의미. mailbox2 OFF 면 둘째 박스 0=0095 비트 동일. 닿는 박스: topo-build(mailbox2·__mboxOpts 공유·mbox2 spec)·topology(mbox2 노출).
+- **한 줄 상태**: reg ALL OK(src=baseline=0095 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pmemberbox: 파티 2멤버·ON routed 2/delivered 2/acked true/mbox2 received 1 vs OFF delivered 1/acked false(0088 §9 한계)·minted ON==OFF·spine 96-step ALL OK.
 - **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0095 가 *파티 complete 발행*(partyCompletePublish — 성공 종결 관측)을 닫아 0093 §9 한계(실패 절반만 발행)를 메움(파티 발행 수명주기 양 끝 완성: 멤버십변경+성공종결+실패종결). 기능 후보(우선): *멤버별 Mailbox 토폴로지*(파티원마다 수신함·0088 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31KB 임계 근처 — 다음 정리 후보.**
+**step-0096 이 *멤버별 Mailbox 토폴로지*(mailbox2)를 닫아 0088 §9 한계(Mailbox 없는 up 멤버→acked 영영 false)를 해소(파티 집계·종결·발행이 N>1 에서 정확). 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*동적 멤버별 수신함*(N개 spawn·0096 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31KB 임계 근처 — 다음 정리 후보.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -167,9 +167,9 @@
 | [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵 hbTimeout→자기 승격) | 통과 · 자율 승격 |
 | [0069](step-0069.md) | 프레즌스 SSOT 질의 인터페이스(presenceQuery→presenceReply·stateOf pull) | 통과 · 질의↔응답 4/4 |
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — svc.presence.active 공지→재타깃) | 통과 · 죽음 후 2/2 |
-| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 귓속말→프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed 1/bounced 1·OFF null·spine 71 |
-| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 0=0071·재타깃→presence2·사망 후 routed 1 vs OFF 손실·spine 72 |
-| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — party 핸들러·멤버마다 질의→부분 전달) | 통과 · routed 2/bounced 1·spine 73 |
+| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed 1/bounced 1·OFF null |
+| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 사망 후 routed 1 vs OFF 손실 |
+| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — 멤버마다 질의→부분 전달) | 통과 · routed 2/bounced 1 |
 | [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신·읽기 at-least-once) | 통과 · ON retries 2→pending 0 vs OFF 2(손실) |
 | [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→질의→멤버십→프레즌스 2단) | 통과 · resolved 3·routed 2/b 1 vs OFF null |
 | [0076](step-0076.md) | 전달 영수증(whisperReceipt — seq/ackTo·inflight 보류·Mailbox whisperAck→delivered) | 통과 · delivered 1·mbox 1/1 vs OFF 0 |
@@ -191,4 +191,5 @@
 | [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결·0078 N-of-M 판) | 통과 · ON rec{routed 2,delivered 1,failed 1}/incomplete vs OFF failed 0/보류·spine 92 |
 | [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결을 svc.party.incomplete 로 발행·audit 관측·0082 의 파티 판) | 통과 · ON pub 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 93 |
 | [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(33KB>30KB — core/handlers/entry·Object.assign 프로토타입·기능 0) | 통과 · src=baseline 비트 동일·박스 33→12/10/1KB·spine 94 |
-| [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결을 svc.party.complete 로 발행·audit 관측·0093 incomplete 와 짝) | 통과 · ON pub 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 95 |
+| [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결을 svc.party.complete 로 발행·audit·0093 incomplete 와 짝) | 통과 · ON pub 1/audit 1 vs OFF 0/0·spine 95 |
+| [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack 가능·0088 §9 해소) | 통과 · ON routed 2/delivered 2/acked true vs OFF delivered 1/acked false·spine 96 |
