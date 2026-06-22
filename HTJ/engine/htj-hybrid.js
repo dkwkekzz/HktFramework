@@ -68,5 +68,38 @@
     return entities;
   }
 
-  return { autoPromoteStable, stepEntities, activeCellCount, VERSION: 1 };
+  // 자동 강등(역트리거) — 외란/충돌로 임계를 넘은 개체를 다시 격자 유체로 푼다(demote). S5-c 의 나머지 절반.
+  //   "외란"=① 충돌: 두 개체 중심거리 < r_i+r_j+pad (접촉 임박 → 강체 근사 깨짐, 유체로 합쳐 풀어야) ·
+  //          ② 외력: opts.forceMag(개체별 받는 힘 크기)가 주어지고 임계 초과(강한 조석 → 찢김).
+  //   강등은 promote 의 역(질량·운동량·각운동량·에너지 보존·spin 기본 on=L 복원). 둘 자리 없으면(꽉 참)
+  //   그 개체는 *안* 풀고 개체로 남긴다(질량 손실 0 — 보존 우선). 반환 { survivors, demoted, addedCells }.
+  //   opts: { contactPad(기본 1), forceMag(개체별 배열·선택), forceThreshold, spin(기본 true) }.
+  function autoDemoteOnDisturbance(world, entities, opts) {
+    opts = opts || {};
+    const pad = opts.contactPad != null ? opts.contactPad : 1;
+    const spin = opts.spin !== false;
+    const n = entities.length;
+    const mark = new Array(n).fill(false);
+    // ① 충돌(쌍 근접).
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const d = Math.hypot(b.cx - a.cx, b.cy - a.cy, b.cz - a.cz);
+      if (d < a.radius + b.radius + pad) { mark[i] = true; mark[j] = true; }
+    }
+    // ② 외력 임계(선택).
+    if (opts.forceMag && opts.forceThreshold != null) {
+      for (let i = 0; i < n; i++) if (opts.forceMag[i] > opts.forceThreshold) mark[i] = true;
+    }
+    const survivors = [];
+    let demoted = 0, addedCells = 0;
+    for (let i = 0; i < n; i++) {
+      if (!mark[i]) { survivors.push(entities[i]); continue; }
+      const k = HTJPromote.demote(world, entities[i], { spin });   // 유체로 복원
+      if (k > 0) { addedCells += k; demoted++; }                   // 풀림
+      else survivors.push(entities[i]);                            // 둘 자리 없음 → 개체로 남김(손실 0)
+    }
+    return { survivors, demoted, addedCells };
+  }
+
+  return { autoPromoteStable, autoDemoteOnDisturbance, stepEntities, activeCellCount, VERSION: 2 };
 });
