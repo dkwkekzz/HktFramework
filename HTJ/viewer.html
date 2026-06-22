@@ -107,6 +107,7 @@
 <script src="engine/htj-activity.js"></script>
 <script src="engine/htj-promote.js"></script>
 <script src="engine/htj-entity.js"></script>
+<script src="engine/htj-hybrid.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -372,6 +373,47 @@
         HTJEntity.stepEntities(w.__entities, 0.05, { N: w.N });      // 위치 적분(토러스)
       },
       note: '<b>승격된 개체끼리 중력으로 끌어당긴다</b>(S5-b 둘째 단위). 0027 이 개체를 *힘 없이* 직진시켰다면, 이 step 은 <b>개체간 중력</b>을 더한다 — 쌍마다 F=G·m_i·m_j·r̂/(r²+soft²) 로 서로 끌어, <b>자유 직진이 휘는 궤적</b>이 된다(step_0007 격자 자기중력의 *개체-공간* 거울짝, 격자 보간 없이 개체끼리 직접 합산). <b>▶ 흐름</b>: 두 별(승격된 구체)이 격자에서 빠진 텅 빈 공간에서 서로 끌려 <b>곡선으로 감긴다</b>. <b>왜 중요한가</b>: ① 0027 직진 + 이 step 의 휨 = 개체 동역학이 *힘 받는 강체*로 — 비용이 개체 수에 묶인 채(격자 셀 0개) 궤도·낙하가 창발. ② 쌍힘이 크기 같고 방향 반대(뉴턴 3법칙)라 <b>순 운동량이 정확히 보존</b>된다(우상단 ΣP 불변). <b>정직한 한계</b>: ① 개체↔격자 유체 결합 중력은 아직 없다(개체끼리만) — 유체 셀+개체를 한 트리에 넣는 통합 중력은 <b>S6</b>(Barnes-Hut). ② 직접 합산이라 O(개체²)·각운동량 보존 회전(스핀)·자동 트리거(동결→승격)는 후속.'
+    },
+
+    // ── step_0030 — 자동 승격(동결→개체) 하이브리드: 안정 별=개체로 시뮬·나머지 가스=유체 ──
+    //   별이 붕괴·정착하면 활동도 추적기(0025)가 코어 블록을 *동결*로 판정 → autoPromoteStable 이 코어를
+    //   격자에서 빼내 개체(구체)로 올린다(0026). 유체(가스)는 격자에서 계속 흐르고, 개체는 개체-공간에서 굴린다.
+    //   = 사용자가 본 그 장면. 유체 voxel(draw) 위에 개체 구체(drawEntities) 오버레이.
+    '0030': {
+      label: 'step_0030 — 자동 승격 하이브리드(안정 별→개체)', title: 'HTJ — 자동 승격(동결→개체) 하이브리드',
+      sub: '안정 별=구체 개체로 시뮬 · 나머지 가스=유체. 동결(0025)→자동 승격(0026)·격자 셀 급감',
+      mode: 'energy', dynamics: true, pressure: true, thermP: true, visc: true,
+      render: 'hybrid',
+      defaults: { colorScale: 'relative', view: 'energy', kpress: 0.3, kthermo: 0.2, kvisc: 1.5 },
+      init(w) {
+        for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
+        HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.13, M0: Math.max(2500, w.N ** 3 * 0.09), T0: 1 });
+        updateTemperature(w);
+        const bs = 8;
+        w.__hyb = { bs, hold: 4, set: HTJSparse.createActiveSet(w.N, bs), tracker: HTJActivity.createActivityTracker(w.N, bs), entities: [], tick: 0 };
+      },
+      advance(w, p) {
+        const H = w.__hyb;
+        // 유체(격자) 법칙 — 별이 붕괴·정착(점성으로 감쇠).
+        HTJGravity.applyGravity(w, 0.2, { G: 0.15, iters: 40 });
+        HTJPressure.applyPressure(w, 0.2, { K: p.kpress, gamma: 2 });
+        HTJThermal.applyThermalPressure(w, 0.2, { Kth: p.kthermo, gamma: 5 / 3 });
+        HTJViscosity.applyViscosity(w, 0.2, { Kvisc: p.kvisc });
+        HTJInertia.advect(w, 0.2, { scalars: ['therm'] });
+        // 안정 판정(활동도·손실 허용 임계=근사 LOD) → 동결 코어 자동 승격.
+        H.set.rebuildFromField(w.fields.energy);
+        const mean = w.total('energy') / w.fields.energy.length;
+        H.tracker.measure(w.fields.energy, H.set.origins(), { threshold: mean * 2 });
+        if (H.tick++ > 30) {
+          const eps = Math.max(mean * 1.5, 1e-9);
+          const res = HTJHybrid.autoPromoteStable(w, H.tracker, { hold: H.hold, eps });
+          for (const e of res.entities) H.entities.push(e);
+        }
+        // 승격된 개체 동역학(개체-공간·격자 독립) — 개체간 중력 + 드리프트.
+        if (H.entities.length) HTJHybrid.stepEntities(H.entities, { dt: 0.2, G: H.entities.length > 1 ? 1 : 0, soft: 2, N: w.N });
+        updateTemperature(w);
+      },
+      note: '<b>자동 승격 하이브리드</b>(S5-c) — 그동안 따로 박은 부품을 *잇는다*: 검출(0014)·동결=안정 판정(0025)·보존 이관(0026/0029)·개체 동역학(0027/0028). <b>▶ 흐름</b>: 별이 중력으로 붕괴·정착하면, 활동도 추적기가 *거의 안 변하는* 코어 블록을 <b>동결</b>(안정)로 판정한다 → <b>자동 승격</b>이 그 코어를 격자에서 통째로 빼내 <b>개체(밝은 구체)</b>로 올린다(0026 의 explicit 승격이 *자동 트리거*로). 빠진 자리는 격자에서 비고(셀 급감), 주변 <b>가스는 유체(voxel)로 계속 흐른다</b> — 개체는 개체-공간에서 굴린다(O(개체)). = <b>"안정 별=구체 개체로 시뮬·나머지 가스만 유체로"</b>. <b>왜 중요한가</b>(design §0 목적 ②·§5): 레버2 가 *실제로* 활성 격자 칸을 줄인다(레버1 0023 은 블록 점유 100% 천장에 막혀 못 한 일) — 비용을 *흐르는 유체*에만 묶는다. <b>정직한 한계</b>: ① 단일 자기중력 별은 거친 격자에서 *미세 진동*해 exact-quiet 동결이 안 걸린다 → <b>손실 허용 임계</b>(근사 LOD·threshold&gt;0)로 "거의 안 변함"을 동결로 본다. ② 자동 *강등*(외란→유체 복원)·개체↔유체 결합 중력(S6)은 후속. ③ 가우시안 꼬리는 격자에 남아(0024 천장) 비-영 칸 총수는 천천히 준다 — 줄어든 건 *비싼 코어*다.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -494,6 +536,14 @@
       const clumps = e ? [{ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: e.peak || e.temp || 1 }] : [];
       surf = HTJRender.drawClumps(ctx, world, cam, clumps);
       const lab = document.getElementById('s-occ'); if (lab && e) lab.textContent = `개체 1 @ (${e.cx.toFixed(1)},${e.cy.toFixed(1)},${e.cz.toFixed(1)}) v=(${(e.px / e.mass).toFixed(2)},${(e.py / e.mass).toFixed(2)},${(e.pz / e.mass).toFixed(2)})`;
+      return;
+    }
+    // 자동 승격 하이브리드(0030): 유체 voxel(draw) 위에 승격 개체(drawEntities)를 오버레이.
+    if (stCur && stCur.render === 'hybrid' && world.__hyb) {
+      const mean = world.total('energy') / world.fields.energy.length, max = mean > 0 ? mean * 2 : 0;
+      surf = HTJRender.draw(ctx, world, cam, { field: 'energy', colormap: 'heat', max, eps: 1e-9 });
+      HTJRender.drawEntities(ctx, world, cam, world.__hyb.entities);
+      const lab = document.getElementById('s-occ'); if (lab) lab.textContent = `${world.count('energy', 1e-9)} 유체칸 · 개체 ${world.__hyb.entities.length}개(승격)`;
       return;
     }
     // 개체간 중력(0028): 격자는 비어 있고 여러 개체를 구체로 그린다(서로 끌려 휘는 궤적).
