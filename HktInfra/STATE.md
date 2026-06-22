@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0121](step-0121.md) — **거래소↔가방 escrow give 결과 비동기 수신**(exchSaga 피드백 채널): 0117~0120 의 거래소→가방 give 는 fire-and-forget(결과 미수신·낙관적 가정)이었다 — saga ON 이면 _custody give 에 replyTo(거래소 주소)+cause(레그) 첨부, 가방 _sagaReply 가 item_result 를 거래소로 echo, 거래소가 ackedGives/giveOks/giveFails 집계(관측만·보상은 후속). 정상 흐름서 모든 escrow give 가 ok 로 acked(ackedGives==gives==9·giveFails 0)=닫힌 피드백 고리. saga OFF·replyTo 부재면 회신 0 = 0120 비트 동일. 닿는 박스: svc-exchange(_custody/onMsg/saga)·svc-inventory-txn(_sagaReply)·topo-build(exchSaga).
-- **한 줄 상태**: reg ALL OK(src=baseline=0120 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagaack: gives 9==acked 9==oks 9·fails 0·OFF acked 0·open==escrow ["item4"]·minted 5·conserved·전 키트 모드 통과.
-- **다음**: §2 참조(list 인출 실패 보상=phantom 매물 0·give 실패 주입·거래소/우편/길드·비동기 결정론🔴).
+- **닫힌 step**: [step-0122](step-0122.md) — **거래소↔가방 list 인출 실패 보상**(exchCompensate·saga 보상 거래): 0121 은 give 결과를 받기만 했다 — 이 step 은 반응한다. list 인출 give 가 실패(판매자 미소유 itemId·ok:false·cause.kind='list')하면 거래소가 그 낙관적 listing 을 abort(listings.delete·listed--·aborted++·저널 'abort'). 미소유 list 주입 아래 ON 이면 거래소 open ≡ 가방 escrow 소유(2-서비스 보존 유지)·OFF 면 phantom 매물(open 에 가방 없는 item9) 잔존=보존 불변 깨짐. 저널 abort→reconstruct 정합(crash 후 phantom 미부활). compensate OFF·실패 부재면 abort 0 = 0121 비트 동일. 닿는 박스: svc-exchange(onMsg/reconstruct/compensate)·topo-build(exchCompensate).
+- **한 줄 상태**: reg ALL OK(src=baseline=0121 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagacomp: giveFails 1·aborted ON1/OFF0·ON open==escrow ["item0"]·OFF phantom ["item0","item9"]·recon ["item0"]·conserved·minted 2·전 키트 모드 통과.
+- **다음**: §2 참조(보상 발행 svc.exchange.aborted·buy leg 보상·회신 신뢰 전달·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0121 이 *거래소↔가방 saga 피드백 채널*(give 결과 비동기 수신·exchSaga)을 열어 2-서비스 원자성 arc 를 시작 — give 가 fire-and-forget 에서 *닫힌 피드백 고리*로(ackedGives==gives·정상 흐름 giveFails 0). 다음 후보(saga arc 진행): *list 인출 실패 보상*(미소유 list→give 실패→거래소 listing abort·phantom 매물 0·실패 주입 아래 보존 불변)·*보상 발행*(svc.exchange.aborted)·*보상 영속/저널 정합*·*회신 신뢰 전달*(ack 손실 재시도)·*멀티프로세스 E2E 거래소↔가방 give*. 그 외: *우편/길드 서비스*·*wiring 정리*(topo-build/topology ≈31KB)·*비동기 결정론*(🔴). 🔧 topo-build/topology ≈31KB. 🔎 0111~0120 묶음 리뷰(`infra-review`) 시점.**
+**step-0122 가 *list 인출 실패 보상*(exchCompensate)을 닫아 saga arc 가 give 실패에 *반응*(낙관적 open 롤백·phantom 0·실패 주입 아래 2-서비스 보존). 다음 후보(saga arc 진행): *보상 발행*(svc.exchange.aborted — abort 를 버스로·audit/시세 관측)·*buy 입금 leg 보상*(체결 후 give 실패 역보상)·*회신 신뢰 전달*(ack 손실 재시도/dedup·0023/0036 의 saga 판)·*멀티프로세스 E2E 거래소↔가방 give*. 그 외: *우편/길드 서비스*·*wiring 정리*(topo-build/topology ≈31KB)·*비동기 결정론*(🔴). 🔧 topo-build/topology ≈31KB. 🔎 0111~0120 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0121**(…→가방 list 인출→buy 입금→cancel/expire 반환→2-서비스 보존→0121 saga 피드백 채널: give 결과 비동기 수신). 신성한 tick·권위 0. saga 보상(실패 롤백)·우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0122**(…→list 인출→buy 입금→반환→2-서비스 보존→0121 saga 피드백→0122 list 실패 보상: 낙관적 open 롤백·phantom 0). 신성한 tick·권위 0. 보상 발행·buy leg 보상·우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0048 lease/ns/lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070): 분리→버스화→shadow→failover 승격→사망 자율 감지→질의 →0105/0106 공지 epoch 펜싱(presmon·wrouter 메아리 정리). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속/스냅샷→0023~0026 홉 신뢰→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 recon. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -150,8 +150,8 @@
 | [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max) | 통과 · stall 후 OFF 60 vs ON 0 |
 | [0053](step-0053.md) | 정리: 트랜잭션 onMsg→svc-inventory-txn.js 추출(31.9→25.5KB) | 통과 · spine 53 |
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→audit) | 통과 · 전이 관측 |
-| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — lease→consumerDown) | 통과 · down==evicted |
-| [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독) | 통과 · 각 1 |
+| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — lease→consumerDown) | 통과 |
+| [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독) | 통과 |
 | [0057](step-0057.md) | 치유 확인 고리(recoverAck — 재구독하며 orch 회신) | 통과 · sent==acks==1 |
 | [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — timeout 뒤 재발신) | 통과 · ON retries 2 |
 | [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — permanentDown 포기) | 통과 · givenUp 1 |
@@ -216,4 +216,5 @@
 | [0118](step-0118.md) | 거래소↔가방 buy 입금(exchInventory leg2 — give escrow→buyer·존 넘는 실물 거래 완성) | 통과 · ON item0→b1/gives 6/minted 불변·spine 118 |
 | [0119](step-0119.md) | 거래소↔가방 cancel/expire 반환(exchInventory leg3 — give escrow→seller·닫힌 장부) | 통과 · ON escrow 0/gives 4/minted 불변·spine 119 |
 | [0120](step-0120.md) | 거래소↔가방 2-서비스 보존 불변(escrowItemIds — 거래소 open ≡ 가방 escrow 소유·가방 total 불변·각 1소유자) | 통과 · open==escrow ["item4"]·minted 5 불변·소유자 합 5·spine 120 |
-| [0121](step-0121.md) | 거래소↔가방 escrow give 결과 비동기 수신(exchSaga — give 에 replyTo+cause·가방 item_result echo·거래소 집계) | 통과 · gives 9==acked 9==oks 9·fails 0·OFF acked 0·spine 121 |
+| [0121](step-0121.md) | 거래소↔가방 escrow give 결과 비동기 수신(exchSaga — give 에 replyTo+cause·가방 item_result echo·거래소 집계) | 통과 · gives 9==acked 9==oks 9·fails 0·spine 121 |
+| [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate — give 실패 시 listing abort·낙관적 open 롤백·저널 정합) | 통과 · giveFails 1·aborted ON1/OFF0·ON open==escrow·OFF phantom·spine 122 |

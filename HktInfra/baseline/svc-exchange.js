@@ -1,4 +1,5 @@
 'use strict';
+// step-0121 — 거래소↔가방 escrow give 결과 비동기 수신(exchSaga·2-서비스 saga 피드백 채널): 0117~0120 에서 거래소는 가방에 give(escrow 인출/입금/반환)를 *fire-and-forget* 으로 쏘고 *결과를 안 받았다* — 거래소는 give 가 성공했다고 *낙관적으로 가정*하고 회계를 굴린다(open/sold/cancelled). 하지만 가방 give 는 실패할 수 있다(판매자가 그 itemId 를 실제로 안 가졌으면 owner≠from → 거부·ok:false). 그러면 거래소 회계(open 매물)와 가방 권위(escrow 미소유)가 *영구 어긋난다*(phantom 매물·0120 보존 불변 위반). 이 step 은 그 피드백 채널을 연다: saga ON 이면 _custody give 에 replyTo(거래소 주소)+cause(어느 레그)를 실어 보내고, 가방은 item_result(ok)를 그 replyTo 로도 회신한다(은닉·명시 인터페이스). 거래소는 받은 결과를 회계(ackedGives·giveOks·giveFails)로 집계한다 — 아직 *보상*은 안 한다(관측만). 가설: 정상 거래 흐름서 모든 escrow give 가 ok 로 acked(ackedGives==gives·giveFails 0) = 2-서비스 결합이 *닫힌 피드백 고리*. saga OFF·replyTo 부재면 회신 0·집계 0 = 0120 비트 동일(낙관적 fire-and-forget). 실패 주입→보상은 후속 step.
 // step-0120 — 거래소↔가방 2-서비스 보존 불변(escrowItemIds 단언·결합 시스템의 창발 불변): 0117~0119 가 거래소↔가방을 escrow 중개로 결합했다 — 이제 *두 서비스에 걸친* 보존이 성립하는지 단언한다. 거래소가 들고 있다고 *믿는* open 매물의 itemId 집합(escrowItemIds)은 가방 원장에서 *실제로* 'escrow' 가 소유한 itemId 집합과 정확히 일치해야 한다(거래소 회계 ≡ 가방 권위·두 서비스 불일치 0). 또 전 거래 흐름(list/buy/cancel/expire 혼합)에서 가방 total(minted)은 불변(아이템은 mint/소멸이 아니라 소유자만 바뀜)·매 아이템은 정확히 한 소유자(seller/escrow/buyer). escrowItemIds 는 *읽기 accessor*(open 매물의 itemId 정렬 목록) — 단언용·미호출이면 동작 무영향 = 0119 비트 동일(reg).
 // step-0119 — 거래소↔가방 cancel/expire 반환(exchInventory leg 3·escrow→판매자 실물 반환): 0117 인출+0118 입금으로 list→buy 실물 거래는 닫혔으나, *미체결* 매물의 종결(취소 0107·만료 0114)은 거래소 회계(cancelled/expired/returned)만 굴리고 escrow custody 아이템이 가방에서 판매자에게 *안 돌아왔다*. 이 step 은 반환 레그를 더한다: exchCancel·exchSweep 만료 성립 시 거래소가 가방에 give(itemId, escrow→seller) → escrow custody 가 판매자 가방으로(인출 0117 의 역). 이로써 escrow 의 *모든 출구*(체결→구매자·취소/만료→판매자)가 실물 이동을 동반 — 미체결 아이템이 escrow 에 영영 묶이지 않는다. 가방 권위·minted 불변·xfer++. exchInventory OFF·itemId 부재면 give 0 = 0118 비트 동일.
 // step-0118 — 거래소↔가방 buy 입금(exchInventory leg 2·escrow→구매자 실물 인도): 0117 은 list 인출 레그만 — escrow 가 가방 원장에 실체화됐으나 exchBuy 는 거래소 회계(sold)만 굴리고 *구매자 가방엔 아이템이 안 들어왔다*. 이 step 은 입금 레그를 더한다: exchBuy 성립 시 거래소가 가방에 give(itemId, escrow→buyer) → escrow custody 아이템이 구매자 가방으로(2-서비스 쌍 거래의 *인도* 레그·인출 0117 의 짝). 이로써 list(인출)+buy(인도)가 *존을 넘는 실물 거래*를 완성 — 판매자가 escrow 에 맡긴 실제 아이템이 구매자에게 간다(가방이 권위·minted 불변·xfer++). exchInventory OFF·itemId 부재면 give 0 = 0117 비트 동일(추상 sold).
@@ -47,11 +48,19 @@ class ExchangeService {
     this.inv = opts.inv || null;        // 가방(inventory) 주소(step-0117·exchInventory) — escrow 실체화 give 의 대상. 부재면 추상 escrow(0116 동일).
     this.invMode = opts.invMode || false;   // 거래소↔가방 원자 거래(step-0117·exchInventory) — ON 이면 list/buy/cancel/expire 가 가방 give 로 escrow custody 를 실제 이동. OFF 면 추상 escrow(0116 비트 동일).
     this.gives = 0;                     // 가방으로 보낸 give 수(step-0117·계측·인출/입금/반환 레그 합).
+    this.saga = opts.saga || false;     // 2-서비스 saga 피드백(step-0121·exchSaga) — ON 이면 _custody give 에 replyTo+cause 를 실어 가방이 item_result 를 거래소로도 회신, 거래소가 결과를 집계. OFF 면 fire-and-forget(replyTo 0·회신 0·집계 0 = 0120 비트 동일).
+    this.ackedGives = 0;                // 가방에서 회신받은 give 결과 수(step-0121·계측·saga ON 일 때만). 정상 흐름서 == gives.
+    this.giveOks = 0;                   // 그 중 ok:true(성공 acked) 수.
+    this.giveFails = 0;                 // 그 중 ok:false(가방 거부·소유 불일치) 수 — phantom 매물의 신호(보상은 후속 step).
   }
   // escrow custody 이동 헬퍼(step-0117) — 거래소↔가방 2-서비스 쌍 거래의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(fromAvatar→toAvatar). 가방이 권위(보유 검사·xfer)·거래소는 요청만(은닉·명시 인터페이스). 미충족이면 no-op(추상 escrow·0116 동일).
-  _custody(itemId, from, to) {
+  _custody(itemId, from, to, cause) {
     if (!this.invMode || !this.inv || itemId == null) return;
-    this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to });
+    const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to };
+    // saga 피드백(step-0121) — ON 이면 replyTo(거래소 주소)+cause(어느 레그·listingId) 를 실어 가방이 item_result 를 거래소로도 회신.
+    //   OFF 면 msg 가 0120 과 정확히 같다(replyTo/cause 키 없음) → 가방의 회신 분기 휴면 = 비트 동일.
+    if (this.saga) { msg.replyTo = this.addr; msg.cause = cause; }
+    this.net.send(this.addr, this.inv, msg);
     this.gives++;
   }
   _bump(mp, k, n) { mp.set(k, (mp.get(k) || 0) + (n === undefined ? 1 : n)); }
@@ -71,12 +80,19 @@ class ExchangeService {
   }
   onMsg(m) {
     const p = m.payload;
+    // 가방 give 결과 비동기 수신(step-0121·saga 피드백) — _custody 가 replyTo 로 보낸 give 의 item_result 회신.
+    //   집계만(ackedGives·giveOks·giveFails) — 보상(실패 시 회계 롤백)은 후속 step. saga OFF 면 이 메시지가 영영 안 옴(0120 비트 동일).
+    if (p.type === 'item_result' && p.op === 'give') {
+      this.ackedGives++;
+      if (p.ok) this.giveOks++; else this.giveFails++;
+      return;
+    }
     // 매물 등록(list·acquire) — 판매자가 아이템을 거래소 escrow 로 맡긴다. 이후 그 아이템은 거래소 권위 아래(판매자 이중 판매 불가). open++.
     if (p.type === 'exchList') {
       const id = ++this.nextId;
       this.listings.set(id, { seller: p.seller, item: p.item, price: p.price | 0, at: m.tick | 0, itemId: p.itemId });   // itemId(0117·가방 원장의 escrow 대상)
       this.listed++;
-      this._custody(p.itemId, p.seller, 'escrow');   // 인출 레그(0117) — 판매자 가방 → escrow custody(invMode ON 일 때만)
+      this._custody(p.itemId, p.seller, 'escrow', { kind: 'list', id });   // 인출 레그(0117) — 판매자 가방 → escrow custody(invMode ON 일 때만)·cause=list(0121 saga)
       this._journal({ kind: 'list', id, seller: p.seller, item: p.item, price: p.price | 0, at: m.tick | 0, itemId: p.itemId });
       return;
     }
@@ -88,7 +104,7 @@ class ExchangeService {
         if (now - (l.at | 0) >= this.ttl) {
           this.listings.delete(id); this.expired++;
           this._bump(this.returned, l.seller);          // 판매자가 만료 아이템 반환 acquire(취소와 동형)
-          this._custody(l.itemId, 'escrow', l.seller);  // 반환 레그(0119) — escrow custody → 판매자 가방(만료·invMode ON 일 때만)
+          this._custody(l.itemId, 'escrow', l.seller, { kind: 'expire', id });  // 반환 레그(0119) — escrow custody → 판매자 가방(만료·invMode ON 일 때만)·cause=expire(0121 saga)
           // 만료 발행(step-0115·expirePublish) — 회수된 매물을 svc.exchange.expired 로 1회 발행(관측·0111 cancelled 의 시간 트리거 형제). OFF·bus 부재면 no-op(0114 비트 동일).
           if (this.expirePublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.expired', ev: { id, seller: l.seller, item: l.item, price: l.price } }); this.expirePublished++; }
           this._journal({ kind: 'expire', id, seller: l.seller });
@@ -103,7 +119,7 @@ class ExchangeService {
       this.listings.delete(p.id); this.sold++;
       this._bump(this.delivered, p.buyer);          // 구매자가 아이템 acquire
       this._bump(this.proceeds, l.seller, l.price); // 판매자가 대가 acquire
-      this._custody(l.itemId, 'escrow', p.buyer);   // 입금 레그(0118) — escrow custody → 구매자 가방(invMode ON 일 때만·인출 0117 의 짝)
+      this._custody(l.itemId, 'escrow', p.buyer, { kind: 'buy', id: p.id });   // 입금 레그(0118) — escrow custody → 구매자 가방(invMode ON 일 때만·인출 0117 의 짝)·cause=buy(0121 saga)
       // 체결 발행(step-0108·exchangePublish) — 성립한 거래를 svc.exchange.sold 로 1회 발행(관측·거래량/시세 피드 씨앗). OFF·bus 부재면 no-op(0107 비트 동일).
       if (this.publish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.sold', ev: { id: p.id, buyer: p.buyer, seller: l.seller, item: l.item, price: l.price } }); this.published++; }   // step-0112: item 추가(시세 피드 키)
       this._journal({ kind: 'buy', id: p.id, buyer: p.buyer, seller: l.seller, price: l.price });
@@ -115,7 +131,7 @@ class ExchangeService {
       if (!l || l.seller !== p.seller) { this.rejects++; return; }
       this.listings.delete(p.id); this.cancelled++;
       this._bump(this.returned, p.seller);          // 판매자가 아이템 반환 acquire
-      this._custody(l.itemId, 'escrow', p.seller);  // 반환 레그(0119) — escrow custody → 판매자 가방(취소·invMode ON 일 때만)
+      this._custody(l.itemId, 'escrow', p.seller, { kind: 'cancel', id: p.id });  // 반환 레그(0119) — escrow custody → 판매자 가방(취소·invMode ON 일 때만)·cause=cancel(0121 saga)
       // 취소 발행(step-0111·cancelPublish) — 회수된 매물을 svc.exchange.cancelled 로 1회 발행(관측·delisting 신호). OFF·bus 부재면 no-op(0110 비트 동일).
       if (this.cancelPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.cancelled', ev: { id: p.id, seller: p.seller, item: l.item, price: l.price } }); this.cancelPublished++; }
       this._journal({ kind: 'cancel', id: p.id, seller: p.seller });
@@ -125,6 +141,7 @@ class ExchangeService {
   // crash(step-0109) — 박스 RAM 소실의 인프로세스 모델: projection(매물·체결 회계)만 비운다. *op 저널은 durable* 이라 보존(0085 partyPersist 의 거래소 판). rejects(실패 시도 계측)도 비움 — 저널엔 성공 op 만 있어 reconstruct 가 못 살리는 비-durable 지표.
   crash() {
     this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
+    this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0;   // saga 피드백 집계 리셋(step-0121) — 새 프로세스는 give 결과 이력 0(saga OFF 면 무관).
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이). list=매물 복원+nextId 추적·buy=체결·cancel=취소 → 죽기 전과 비트 동일(durable 원장). 자기 영속 저널만으로 거래소 복원(0085 멤버십 판).

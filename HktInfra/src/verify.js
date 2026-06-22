@@ -1,8 +1,8 @@
-// HktInfra step-0121 — 헤드리스 검증 (거래소↔가방 escrow give 결과 비동기 수신·exchSaga 피드백 채널)
+// HktInfra step-0122 — 헤드리스 검증 (거래소↔가방 list 인출 실패 보상·exchCompensate saga 보상 거래)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagaack`.
-//   더한 한 조각: 0117~0120 의 거래소→가방 give 는 fire-and-forget(결과 미수신) — 거래소가 give 성공을 낙관적으로 가정한다. 이 step 은 saga 피드백 채널을 연다: saga ON 이면 give 에 replyTo+cause 를 실어 가방이 item_result(ok)를 거래소로도 회신, 거래소가 ackedGives/giveOks/giveFails 로 집계(관측만·보상은 후속).
-//   검증: ⒜ `reg`(키트) — saga OFF·replyTo 부재면 회신 0·집계 0 = 0120 비트 동일. ⒝ `exsagaack`(가설) — 정상 거래 흐름서 모든 escrow give 가 ok 로 acked(ackedGives==gives·giveOks==gives·giveFails 0) = 2-서비스 닫힌 피드백 고리. saga OFF 면 ackedGives 0(fire-and-forget). 0120 보존 불변(open==escrow 소유·minted 불변·conserved)도 유지.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagacomp`.
+//   더한 한 조각: 0121 은 give 결과를 받기만 했다(집계). 이 step 은 그 피드백에 *반응* — list 인출 give 실패(판매자 미소유 itemId)면 거래소가 그 낙관적 listing 을 abort(open 롤백·phantom 매물 0). 2-서비스 보존 불변이 *실패 주입 아래서도* 유지.
+//   검증: ⒜ `reg`(키트) — compensate OFF·실패 부재면 abort 0 = 0121 비트 동일. ⒝ `exsagacomp`(가설) — 미소유 list 주입: ON 이면 giveFails 1·aborted 1·거래소 open ≡ 가방 escrow 소유(2-서비스 일치 유지); OFF 면 phantom 매물 잔존(open 에 미소유 itemId·거래소 open ≠ 가방 escrow). 저널 'abort'→reconstruct 정합(crash 후 open 복원).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -12,58 +12,54 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { run, itemConserved, ledgerConsistent } = NET;
+const { run } = NET;
 const { check, pad } = kit.helpers;
 
+// 미소유 list 주입 — s1 이 item0/item1 을 적재(2 mint)한 뒤, item0 은 정상 list, 'item9'(미소유)는 무효 list.
+//   무효 list 의 인출 give 는 가방서 owner≠s1 → ok:false → compensate ON 이면 거래소가 그 listing 을 abort(phantom 0).
 const INV = [
   { at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item0
   { at: 61, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item1
-  { at: 62, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item2
-  { at: 63, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item3
-  { at: 64, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item4
 ];
 const OPS = [
-  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },
-  { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5, itemId: 'item1' } },
-  { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3, itemId: 'item2' } },
-  { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20, itemId: 'item3' } },
-  { at: 75, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },           // item0 → b1 (sold)
-  { at: 76, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },           // item1 → b2 (sold)
-  { at: 77, op: { type: 'exchCancel', seller: 's2', id: 3 } },       // item2 → s2 (cancel)
-  { at: 82, op: { type: 'exchList', seller: 's1', item: 'gem', price: 8, itemId: 'item4' } },   // 늦게 list(만료 회피)
-  { at: 85, op: { type: 'exchSweep', now: 85 } },                    // id4(item3·@73·age12) 만료→s2 / id5(item4·@82·age3) open 유지
+  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },   // 유효 — give ok → open
+  { at: 71, op: { type: 'exchList', seller: 's1', item: 'ghost', price: 5, itemId: 'item9' } },     // 무효(s1 미소유) — give fail → 보상 abort
 ];
-const TTL = 5;
 const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === av).map(([id]) => id).sort();
 const P = (seed, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
-  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchangeTtl: TTL, invOps: INV, exchangeOps: OPS, ...extra });
+  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, invOps: INV, exchangeOps: OPS, ...extra });
 
-function exsagaack(seeds) {
-  console.log('== exsagaack: *가설* — 거래소↔가방 escrow give 결과 비동기 수신. saga ON 이면 가방이 item_result 를 거래소로 회신·거래소가 집계 → 정상 흐름서 모든 escrow give 가 ok 로 acked(ackedGives==gives·giveFails 0)=닫힌 피드백 고리. saga OFF 면 회신 0. ==');
-  console.log('  5 적재→list 5→buy 2·cancel 1·만료 1·open 1. escrow give 9회(list 5+buy 2+cancel 1+expire 1) 전부 가방 ok → 거래소가 9 ack 수신·전부 ok. 0120 보존 불변도 유지.');
-  console.log('seed   | gives | ackedGives | giveOks | giveFails | OFF acked | open매물itemId==escrow소유 | minted | conserved | 판정');
+function exsagacomp(seeds) {
+  console.log('== exsagacomp: *가설* — list 인출 실패 보상. 미소유 list 주입(s1 이 안 가진 item9) → 가방 give 실패(ok:false) → compensate ON 이면 거래소가 그 listing 을 abort(phantom 매물 0·낙관적 open 롤백). 2-서비스 보존이 실패 아래서도 유지. OFF 면 phantom 잔존. ==');
+  console.log('  s1 적재 item0/item1 → list item0(유효·give ok→open) + list item9(미소유·give fail). ON: aborted 1·open=[item0]==가방 escrow. OFF: open=[item0,item9]≠가방 escrow(phantom).');
+  console.log('seed   | giveFails | abrt(ON/OFF) | ON open==escrow | OFF open==escrow | ON open | OFF open | recon open | conserved | 판정');
   for (const seed of seeds) {
-    const on = run({ ...P(seed, { exchSaga: true }) });
-    const off = run({ ...P(seed, { exchSaga: false }) });
-    const ex = on.exchange; const inv = on.inventory;
-    const escOwned = ownedSet(inv, 'escrow');
-    const exOpen = ex.escrowItemIds();
-    const match = JSON.stringify(escOwned) === JSON.stringify(exOpen);   // 0120 2-서비스 일치 유지
-    const minted = inv.minted; const conserved = ex.conserved();
-    const offAcked = off.exchange.ackedGives;
+    const on = run({ ...P(seed, { exchCompensate: true }) });
+    const off = run({ ...P(seed, { exchCompensate: false }) });
+    const onEsc = ownedSet(on.inventory, 'escrow');       // 가방 실제 escrow 소유(item0 만 — item9 give 실패)
+    const onOpen = on.exchange.escrowItemIds();            // 거래소가 믿는 open 매물 itemId
+    const offEsc = ownedSet(off.inventory, 'escrow');
+    const offOpen = off.exchange.escrowItemIds();
+    const onMatch = JSON.stringify(onEsc) === JSON.stringify(onOpen);    // ON: 보상으로 일치
+    const offMatch = JSON.stringify(offEsc) === JSON.stringify(offOpen); // OFF: phantom 으로 불일치
+    // 저널 'abort' → reconstruct 정합: persist ON 으로 다시 돌려 crash 후 복원 → open 복원(abort 가 replay 됨)
+    const rec = run({ ...P(seed, { exchCompensate: true, exchangePersist: true }) });
+    rec.exchange.crash(); rec.exchange.reconstruct();
+    const reconOpen = rec.exchange.escrowItemIds();
     const ok =
-      check(ex.gives > 0, `seed ${seed}: escrow give 0(인출/입금/반환 레그 미작동)`) &&
-      check(ex.ackedGives === ex.gives, `seed ${seed}: ack 누락(acked ${ex.ackedGives} != gives ${ex.gives})`) &&
-      check(ex.giveOks === ex.gives && ex.giveFails === 0, `seed ${seed}: 정상 흐름인데 give 실패(oks ${ex.giveOks}/fails ${ex.giveFails} vs gives ${ex.gives})`) &&
-      check(offAcked === 0, `seed ${seed}: saga OFF 인데 ack 수신(${offAcked}) — fire-and-forget 위반`) &&
-      check(match && minted === 5 && conserved, `seed ${seed}: 0120 보존 불변 깨짐(match ${match}·minted ${minted}·conserved ${conserved})`);
-    console.log(`${pad(seed, 6)} | ${pad(ex.gives, 5)} | ${pad(ex.ackedGives, 10)} | ${pad(ex.giveOks, 7)} | ${pad(ex.giveFails, 9)} | ${pad(offAcked, 9)} | ${pad((match ? '예' : '아니오') + ' ' + JSON.stringify(exOpen), 26)} | ${pad(minted, 6)} | ${pad(conserved + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(on.exchange.giveFails === 1 && off.exchange.giveFails === 1, `seed ${seed}: giveFails 기대 1(ON ${on.exchange.giveFails}/OFF ${off.exchange.giveFails})`) &&
+      check(on.exchange.aborted === 1 && off.exchange.aborted === 0, `seed ${seed}: aborted 기대 ON1/OFF0(ON ${on.exchange.aborted}/OFF ${off.exchange.aborted})`) &&
+      check(onMatch && JSON.stringify(onOpen) === '["item0"]', `seed ${seed}: ON 2-서비스 불일치(open ${JSON.stringify(onOpen)} vs escrow ${JSON.stringify(onEsc)})`) &&
+      check(!offMatch && JSON.stringify(offOpen) === '["item0","item9"]', `seed ${seed}: OFF phantom 미잔존(open ${JSON.stringify(offOpen)})`) &&
+      check(JSON.stringify(reconOpen) === '["item0"]', `seed ${seed}: reconstruct open != [item0](abort 저널 정합 깨짐·${JSON.stringify(reconOpen)})`) &&
+      check(on.exchange.conserved() && on.inventory.minted === 2, `seed ${seed}: 보존/minted 깨짐(conserved ${on.exchange.conserved()}·minted ${on.inventory.minted})`);
+    console.log(`${pad(seed, 6)} | ${pad(on.exchange.giveFails, 9)} | ${pad(on.exchange.aborted + '/' + off.exchange.aborted, 12)} | ${pad((onMatch ? '예' : '아니오') + ' ' + JSON.stringify(onOpen), 15)} | ${pad((offMatch ? '예' : '아니오') + ' ' + JSON.stringify(offOpen), 16)} | ${pad(on.exchange.open(), 7)} | ${pad(off.exchange.open(), 8)} | ${pad(JSON.stringify(reconOpen), 10)} | ${pad(on.exchange.conserved() + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소가 가방 give 결과를 *비동기로 받는다*: saga ON 이면 모든 escrow give(인출 5+입금 2+반환 1·취소 1·만료 1)가 ok 로 회신돼 ackedGives==gives·giveFails 0 — 2-서비스 결합이 *낙관적 fire-and-forget* 에서 *닫힌 피드백 고리*로. saga OFF 면 회신 0(0120 비트 동일).');
-  console.log('    이 피드백 채널이 *보상*(give 실패 시 거래소 회계 롤백·phantom 매물 0)의 토대 — 이 step 은 채널 개통+정상 흐름 집계만 단언(실패 주입→보상은 후속). replyTo 부재면 가방 회신 분기 휴면 = reg 0.');
+  console.log('  → 보상이 낙관적 가정을 *자기수정*한다: list 인출 give 가 실패하면(판매자 미소유) 거래소가 그 listing 을 abort → 거래소 open ≡ 가방 escrow 소유(2-서비스 보존이 실패 주입 아래서도 유지). compensate OFF 면 phantom 매물(open 에 가방에 없는 item9)이 잔존 — 0120 보존 불변이 *깨진다*. 보상이 그 격차의 원인.');
+  console.log('    저널 abort 가 reconstruct 에도 정합(crash 후 open=[item0]·phantom 미부활) — 보상이 영속 경로까지 닫힌다. compensate OFF·실패 부재면 abort 0 = 0121 비트 동일(reg).');
 }
 
-kit.MODES['exsagaack'] = exsagaack;
-kit.ORDER.splice(1, 0, 'exsagaack');
+kit.MODES['exsagacomp'] = exsagacomp;
+kit.ORDER.splice(1, 0, 'exsagacomp');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

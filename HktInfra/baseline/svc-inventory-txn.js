@@ -1,4 +1,5 @@
 'use strict';
+// step-0121 — 거래소↔가방 saga 회신(_sagaReply): give 에 replyTo 가 실려 오면 item_result 를 요청자(거래소)로도 echo(2-서비스 피드백 채널). replyTo 부재(일반 클라 give)면 no-op = 0120 비트 동일.
 // step-0053 — 정리 분할: 원장 *트랜잭션 핸들러*(onMsg) — svc-inventory-core.js 가 30KB 를 넘어(31.9KB) 박스를 부품으로 재분할(기능 0·바이트 동일·reg 0).
 //   원장 코어(svc-inventory-core.js)의 프로토타입을 Object.assign 으로 증강(persist·bus 와 동일 패턴·동작 불변). 진입점 svc-inventory.js 가 core 뒤에 로드한다.
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
@@ -64,12 +65,20 @@ Object.assign(InventoryService.prototype, {
         this.transfers++;
         this._journal({ kind: 'xfer', itemId: p.itemId, from: p.fromAvatar, to: p.toAvatar });
         this._out({ type: 'item_result', ok: true, op: 'give', reqAvatar: p.fromAvatar, toAvatar: p.toAvatar, itemId: p.itemId });
+        this._sagaReply(p, true);   // 2-서비스 saga 회신(step-0121) — replyTo 있으면 거래소로 결과 echo. 없으면 no-op(0120 비트 동일).
       } else {
         // 미소유/이미 이동/자기자신 — 거부(중복 이동·phantom 0). net.log 엔 fail 만(원장 무변경·저널 무기록).
         this.failedOps++;
         this._out({ type: 'item_result', ok: false, op: 'give', reqAvatar: p.fromAvatar, itemId: p.itemId });
+        this._sagaReply(p, false);
       }
     }
+  },
+  // 2-서비스 saga 회신(step-0121·exchSaga) — give 에 replyTo(요청자·거래소 주소)가 실려 오면 item_result 를 그 주소로도 회신(은닉·명시 인터페이스).
+  //   거래소가 자기 give 결과를 비동기로 받아 회계를 집계/보상. replyTo 없으면(일반 클라 give·saga OFF) no-op = 0120 비트 동일(reg 0).
+  _sagaReply(p, ok) {
+    if (p.replyTo === undefined || !this.net) return;
+    this.net.send(this.addr, p.replyTo, { type: 'item_result', ok, op: 'give', itemId: p.itemId, fromAvatar: p.fromAvatar, toAvatar: p.toAvatar, cause: p.cause });
   }
 });
 if (__isNode) module.exports = { InventoryService };
