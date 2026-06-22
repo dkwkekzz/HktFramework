@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0107](step-0107.md) — **거래소 서비스 분리**(ExchangeService·아이템 escrow 거래): SPINE 계층3 거래소 박스 첫 구현. 가방(0014)이 한 소유자 원장이면 거래소는 두 당사자 교환을 존 tick 밖 비동기로 — 같은 불변(단일 소유+쌍 거래). list=escrow 로 acquire·buy=escrow→구매자+대가→판매자 release·cancel=판매자 반환. 모든 listed 아이템 매 순간 정확히 한 상태(보존 listed==open+sold+cancelled). 닫힌 매물 buy/cancel 거부(이중 판매 0). exchange OFF=박스 0=0106 비트 동일. 닿는 박스: 새 svc-exchange·net-core·topo-actors·topo-build·topology(exchangeOps 훅).
-- **한 줄 상태**: reg ALL OK(src=baseline=0106 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pexch: 4 list·2 buy·1 cancel·2 거부 → listed 4/sold 2/cancel 1/open 1/rejects 2/conserved true·delivered b1·b2 1·proceeds s1 15·minted ON==OFF·spine 107 OK.
+- **닫힌 step**: [step-0108](step-0108.md) — **거래소 체결 발행**(exchangePublish·거래 수명주기 관측): 0107 거래소는 체결을 내부 카운터(sold)로만 굴려 외부 관측 불가. exchBuy 성공 시 svc.exchange.sold{id,buyer,seller,price} 1회 발행·audit 무수정 구독 관측 — 0016 패턴의 거래소 판(거래량/시세 피드 씨앗·0019 CQRS 거래소 판). exchangePublish OFF·bus 부재=발행 0=0107 비트 동일. 닿는 박스: svc-exchange(publish·published)·topo-build(exchangePublish+audit sub).
+- **한 줄 상태**: reg ALL OK(src=baseline=0107 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pexpub: 4 list·2 buy·1 cancel·ON published 2/audit svc.exchange.sold 2 vs OFF 0/0·sold 2·conserved·minted ON==OFF·spine 108 OK.
 - **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0107 이 *거래소 서비스 분리*(ExchangeService)를 닫아 SPINE 계층3 거래소 박스 첫 구현. 기능 후보: *거래소↔가방 2-서비스 원자 거래*(0107 §9)·*거래소 영속·발행*·*파티 cluster kill→replay*(0085 §9)·*비동기 결정론*(🔴). 🔧 buildTopology 24KB 단일 함수. 🔎 0101~0110 묶음 리뷰는 0110.**
+**step-0108 이 *거래소 체결 발행*(exchangePublish)을 닫음. 기능 후보: *거래소↔가방 2-서비스 원자 거래*(0107 §9)·*거래소 영속*(crash→매물 재구성)·*파티 cluster kill→replay*(0085 §9)·*비동기 결정론*(🔴). 🔧 buildTopology 24KB 단일 함수. 🔎 0101~0110 묶음 리뷰는 0110(다음 step).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -202,4 +202,5 @@
 | [0104](step-0104.md) | 수신함 손실 발행(lossPublish — inbox overflow 드롭 svc.mailbox.overflowed 발행·audit·0082/0103 손실 판) | 통과 · ON overflowed/pub/audit 4 vs OFF overflowed 4/pub 0·received 8·spine 104 |
 | [0105](step-0105.md) | active 공지 epoch 펜싱(announceEpoch — presmon 이 낡은 svc.presence.active 메아리 거부·역-재타깃 0·0013/0090 디스커버리 판) | 통과 · ON presence2/retargets 1/stale 1 vs OFF presence 역-재타깃 2·spine 105 |
 | [0106](step-0106.md) | wrouter 공지 epoch 펜싱(0105 의 라우터 판 — 둘째 소비자도 메아리 거부·발행자 무수정·재시도 폭주 0) | 통과 · ON presence2/stale 1 vs OFF presence 역-재타깃·spine 106 |
-| [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService — escrow 쌍 거래·존 넘는 거래 첫 박스·list=acquire/buy·cancel=release·보존·이중 판매 0) | 통과 · listed 4/sold 2/cancel 1/open 1/rejects 2/conserved·minted 불변·spine 107 |
+| [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService — escrow 쌍 거래·존 넘는 거래 첫 박스·보존·이중 판매 0) | 통과 · listed 4/sold 2/cancel 1/rejects 2/conserved·spine 107 |
+| [0108](step-0108.md) | 거래소 체결 발행(exchangePublish — exchBuy 성공 svc.exchange.sold 발행·audit·시세 피드 씨앗·0016 패턴) | 통과 · ON published/audit 2 vs OFF 0·sold 2/conserved·spine 108 |
