@@ -1,8 +1,8 @@
-// HktInfra step-0070 — 헤드리스 검증 (failover 중 질의 연속성: 승격 공지→질의자 재타깃·presenceAnnounce)
+// HktInfra step-0075 — 헤드리스 검증 (파티 멤버십 SSOT·partyService)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `presqcont`.
-//   더한 한 조각: 0067 failover 는 *발행(push)* 경로 연속성만 줬다(승격 standby 가 svc.presence 인계 발행). 0069 *질의(pull)* 경로는 질의자가 고정 주소(primary)를 가리켜 primary 사망 후 끊겼다(0069 §9). 이 step 은 그 고리: standby 가 승격 시 svc.presence.active 로 새 active 주소를 *공지*, 질의자(presmon)가 구독해 queryAddr 를 *재타깃* → 죽음 후 질의도 승격된 박스가 답한다(읽기 경로 failover 디스커버리).
-//   검증: ⒜ `reg`(키트) — presenceAnnounce 미설정이면 0069 비트 동일(공지·재타깃 0). ⒝ `presqcont`(가설) — ON: 승격 공지(announced 1)→presmon 재타깃(retargets 1·queryAddr presence2)→죽음 후 질의를 승격된 박스가 답함(presence2 repliesSent>0)·질의 무손실(recv==sent)·queried[ranking]=permanent(fresh). OFF: 재타깃 0→죽음 후 질의가 죽은 primary 로 감(presence2 repliesSent 0·손실 recv<sent·queried[ranking]=down stale). minted 동일.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `partysvc`.
+//   더한 한 조각: 0073 의 파티 라우터는 멤버 목록을 요청에 *인라인*으로 받았다(멤버십과 라우팅이 섞임). 이 step 은 멤버십을 전용 박스 PartyService 로 분리 — 클라가 파티 결성(partyCreate)하면 PartyService 가 멤버십 SSOT 를 보유하고, 라우터는 파티 전송 시 멤버 목록을 *질의*(partyQuery→partyMembers)로 얻는다 → 멤버십 SSOT→프레즌스 SSOT(0069)→라우팅 의 2단 조회. 멤버십 ⟂ 라우팅 분리(SPINE 계층3 길드/소셜).
+//   검증: ⒜ `reg`(키트) — partyService 미설정이면 0074 비트 동일(pservice 박스 0). ⒝ `partysvc`(가설) — 파티 P1=[inventory(up),chat(up),ranking(permanent)] 결성 후 partyTo P1(멤버 인라인 X). ON: 라우터가 멤버십 질의(membershipQueries 1)→멤버 3 해소(membersResolved 3)→프레즌스 질의 3→routed 2·bounced 1. OFF(partyService 끔): membershipAddr null → partyTo 미해소(membershipQueries 0·routed+bounced 0). minted 동일(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,51 +15,50 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const FAIL_AT = 30;
+const DEAD_DIE = 14; const PERM = 99; const CAP = 3; const CREATE_AT = 76; const PARTY_AT = 80;
+const MEMBERS = ['inventory', 'chat', 'ranking'];   // inventory up·chat up(미관측)·ranking permanent → 부분 전달(routed 2·bounced 1)
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
   busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
-  presenceQuery: true, presenceFailover: { at: FAIL_AT }, rankDie: DEAD_DIE, ...extra });
+  presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE,
+  partyCreate: [{ at: CREATE_AT, from: 'client0', partyId: 'P1', members: MEMBERS }],
+  partyTo: [{ at: PARTY_AT, from: 'client0', partyId: 'P1', body: 'gg' }],
+  ...extra });
 
-const pmState = (r) => r.presmon ? r.presmon.stateOf('ranking') : null;
-
-function presqcont(seeds) {
-  console.log('== presqcont: *가설* — primary 사망(t' + FAIL_AT + ') 후 승격된 standby 가 svc.presence.active 공지→presmon 재타깃→죽음 후 질의도 답함(읽기 경로 failover 연속성). presenceAnnounce ON vs OFF ==');
-  console.log(`  rankDie ${DEAD_DIE}·dropRecover ${PERM}·상한 ${CAP}·failover@${FAIL_AT}. ON: announced 1·retargets 1·presence2 답함·무손실·queried[ranking]=permanent. OFF: 재타깃 0·죽은 primary 로 질의→손실·queried[ranking]=down(stale).`);
-  console.log('seed   | announced/retarget | presmon q/recv | pri/std repliesSent | queried ranking | push state | 비침습 | 판정');
+function partysvc(seeds) {
+  console.log('== partysvc: *가설* — 멤버십을 전용 박스(PartyService)로 분리. 라우터가 partyTo(멤버 인라인 X) 시 멤버십 SSOT 질의→멤버 해소→프레즌스 질의→라우팅(2단 조회). partyService ON vs OFF ==');
+  console.log(`  파티 P1=[${MEMBERS}] 결성@${CREATE_AT}·전송@${PARTY_AT}. ON: membershipQueries 1·membersResolved 3·routed 2·bounced 1. OFF: membershipAddr null→partyTo 미해소(0·0).`);
+  console.log('seed   | memQ/resolved | queries q/recv | routed/bounced | decision inv/chat/rank | pservice | 비침습 | 판정');
   for (const seed of seeds) {
     const base = { dropRecover: PERM, recoverMaxRetries: CAP };
-    const on  = run({ ...P_BASE(seed, { ...base, presenceAnnounce: true }) });
-    const off = run({ ...P_BASE(seed, base) });   // presenceAnnounce OFF — 공지·재타깃 0(질의자 고정 주소)
-    const pm = on.presmon; const pri = on.presence; const std = on.presenceShadow;
-    // ① 승격 공지 + 재타깃 — standby 가 승격하며 active 주소 공지·presmon 이 queryAddr 를 presence2 로 갱신
-    const retarget = std.announced === 1 && pm.retargets === 1 && pm.queryAddr === 'presence2' && off.presmon.retargets === 0 && off.presmon.queryAddr === 'presence';
-    // ② 읽기 경로 연속성 — 죽음 전 질의는 primary 가(pri.repliesSent>0), 죽음 후 질의는 승격된 standby 가(std.repliesSent>0) 답함. 질의 무손실(recv==sent).
-    const continuity = pri.repliesSent > 0 && std.repliesSent > 0 && pm.repliesRecv === pm.queriesSent;
-    const freshRead = pm.queriedOf('ranking') === 'permanent';   // 재타깃 덕에 죽음 후 질의가 최신 SSOT(permanent)를 받음
-    // ③ 대조(OFF) — 재타깃 없으면 죽음 후 질의가 죽은 primary 로 감 → std 답 0·손실(recv<sent)·stale read
-    const offGap = off.presenceShadow.repliesSent === 0 && off.presmon.repliesRecv < off.presmon.queriesSent && off.presmon.queriedOf('ranking') === 'down';
-    // 발행(push) 경로는 둘 다 연속(0067) — presmon 관측 state 둘 다 permanent(질의/발행 직교)
-    const pushOk = pmState(on) === 'permanent' && pmState(off) === 'permanent';
+    const on  = run({ ...P_BASE(seed, { ...base, partyService: true }) });
+    const off = run({ ...P_BASE(seed, base) });   // partyService OFF — pservice 박스 부재·라우터 membershipAddr null(partyTo 미해소)
+    const wr = on.wrouter; const ps = on.pservice; const wo = off.wrouter;
+    // ① 멤버십 SSOT 조회 — 라우터가 인라인 멤버 없이 PartyService 에 질의(membershipQueries 1)·멤버 3 해소(membersResolved 3). PartyService 가 멤버십 보유(creates 1·repliesSent 1).
+    const membership = wr && ps && wr.membershipQueries === 1 && wr.membersResolved === 3 && ps.creates === 1 && ps.repliesSent === 1;
+    // ② 2단 조회 끝 라우팅 — 멤버마다 프레즌스 질의(q/recv 3/3 무손실)→부분 전달(routed 2 up·bounced 1 permanent).
+    const routed = wr && wr.queriesSent === 3 && wr.repliesRecv === 3 && wr.routed === 2 && wr.bounced === 1;
+    const decisionOk = wr && wr.decisionOf('inventory') === 'routed' && wr.decisionOf('chat') === 'routed' && wr.decisionOf('ranking') === 'bounced';
+    // ③ 대조(OFF) — 멤버십 SSOT 부재(membershipAddr null) → partyTo 미해소(질의 0·라우팅 0). pservice 박스도 없음.
+    const offGap = off.pservice === null && wo && wo.membershipQueries === 0 && (wo.routed + wo.bounced) === 0;
     const nonInvasive = on.inventory.minted === off.inventory.minted;
     const ok =
-      check(retarget, `seed ${seed}: 공지/재타깃 실패(announced ${std.announced}·retargets ${pm.retargets}·addr ${pm.queryAddr}·off retargets ${off.presmon.retargets})`) &&
-      check(continuity, `seed ${seed}: 읽기 연속성 깨짐(pri ${pri.repliesSent} std ${std.repliesSent} recv ${pm.repliesRecv} sent ${pm.queriesSent})`) &&
-      check(freshRead, `seed ${seed}: 죽음 후 질의 stale(queried ${pm.queriedOf('ranking')} 기대 permanent)`) &&
-      check(offGap, `seed ${seed}: OFF 갭 미재현(std ${off.presenceShadow.repliesSent}·recv ${off.presmon.repliesRecv}/sent ${off.presmon.queriesSent}·queried ${off.presmon.queriedOf('ranking')})`) &&
-      check(pushOk, `seed ${seed}: 발행 경로 불연속(on ${pmState(on)} off ${pmState(off)})`) &&
-      check(nonInvasive, `seed ${seed}: 공지가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
+      check(membership, `seed ${seed}: 멤버십 조회 틀림(memQ ${wr && wr.membershipQueries}·resolved ${wr && wr.membersResolved}·creates ${ps && ps.creates})`) &&
+      check(routed, `seed ${seed}: 2단 라우팅 틀림(q ${wr && wr.queriesSent} recv ${wr && wr.repliesRecv} routed ${wr && wr.routed} bounced ${wr && wr.bounced})`) &&
+      check(decisionOk, `seed ${seed}: 라우팅 판정 틀림(inv ${wr && wr.decisionOf('inventory')} chat ${wr && wr.decisionOf('chat')} rank ${wr && wr.decisionOf('ranking')})`) &&
+      check(offGap, `seed ${seed}: OFF 갭 미재현(pservice ${off.pservice}·memQ ${wo && wo.membershipQueries}·routed ${wo && wo.routed}·bounced ${wo && wo.bounced})`) &&
+      check(nonInvasive, `seed ${seed}: 멤버십/라우터가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
       check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(std.announced + '/' + pm.retargets + '→' + pm.queryAddr, 18)} | ${pad(pm.queriesSent + '/' + pm.repliesRecv, 14)} | ${pad(pri.repliesSent + '/' + std.repliesSent, 19)} | ${pad(pm.queriedOf('ranking') + '/' + off.presmon.queriedOf('ranking'), 15)} | ${pad(pmState(on) + '', 10)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad((wr ? wr.membershipQueries : 0) + '/' + (wr ? wr.membersResolved : 0), 13)} | ${pad((wr ? wr.queriesSent : 0) + '/' + (wr ? wr.repliesRecv : 0), 14)} | ${pad((wr ? wr.routed : 0) + '/' + (wr ? wr.bounced : 0), 14)} | ${pad((wr ? wr.decisionOf('inventory') : '-') + '/' + (wr ? wr.decisionOf('chat') : '-') + '/' + (wr ? wr.decisionOf('ranking') : '-'), 22)} | ${pad((on.pservice ? 'box' : 'none'), 8)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 승격된 박스가 svc.presence.active 로 새 주소를 공지하고 질의자가 재타깃 → 죽음 후 질의도 승격된 박스가 답한다(읽기 경로 failover 디스커버리). 발행(0067)·질의(이 step) *둘 다* failover 를 가로질러 연속 — 프레즌스 박스가 진짜 failover-safe SSOT.');
-  console.log('    presenceAnnounce 미설정 = 0069 비트 동일(공지·재타깃 0·reg). OFF 면 질의자가 죽은 primary 를 계속 가리켜 죽음 후 읽기 손실·stale(queried down). 비-침습: minted ON==OFF.');
+  console.log('  → 멤버십(누가 어느 파티)이 전용 박스 PartyService 의 SSOT 로 분리되고, 라우터는 파티 전송 시 멤버 목록을 *질의*로 얻는다 — 멤버십 SSOT→프레즌스 SSOT(0069)→라우팅 의 2단 조회. 라우터는 멤버 목록을 인라인으로 받지 않는다(멤버십 ⟂ 라우팅 관심사 분리·SPINE 계층3 길드/소셜).');
+  console.log('    partyService 미설정 = 0074 비트 동일(pservice 박스 0·reg). OFF 면 멤버십 SSOT 부재로 partyTo 미해소. 비-침습: 멤버십·라우터 권위 0(원장 무관)·minted ON==OFF·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['presqcont'] = presqcont;
-kit.ORDER.splice(1, 0, 'presqcont');
+kit.MODES['partysvc'] = partysvc;
+kit.ORDER.splice(1, 0, 'partysvc');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

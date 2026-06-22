@@ -19,6 +19,7 @@ const { AuditService } = __p('svc-audit');
 const { RankingService } = __p('svc-ranking');
 const { PresenceMonitor } = __p('svc-presence-monitor');
 const { PresenceService } = __p('svc-presence');
+const { WhisperRouter } = __p('svc-whisper');
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -90,6 +91,10 @@ function buildTopology(opts) {
     presenceLease = false,
     hbTimeout = 3,
     presenceQuery = false,
+    presenceAnnounce = false,
+    whisperRouter = false,
+    whisperFailover = false,
+    whisperRetry = false,
     recoverRetry = false,
     recoverTimeout = 4,
     recoverMaxRetries = 0,
@@ -144,6 +149,8 @@ function buildTopology(opts) {
     if (busLeaseAudit && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.item.lease', 'orch']);   // lease 생애 *반응*(0055) — 코디네이션(orch)이 lease 이벤트 구독해 소비자 프레즌스 SSOT 유지. busLeasePresence OFF·orch 부재면 미추가(0054 토폴로지 비트 동일).
     if (presencePublish && busLeasePresence && audit && failover && zones === 2 && inventory) subs.push(['svc.presence', 'audit']);   // 프레즌스 발행(0060) — orch 가 down/up/permanent 판정을 svc.presence 로 발행, audit(범용 sink)가 구독. presencePublish OFF·audit/orch 부재면 미추가(0059 토폴로지 비트 동일).
     if (presenceMonitor && presencePublish && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.presence', 'presmon']);   // 프레즌스 모니터(0063) — svc.presence 의 셋째 소비자(구조적 상태 기계). presenceMonitor OFF 면 미추가(0062 토폴로지 비트 동일·발행자 무수정).
+    if (presenceAnnounce && presenceQuery && presenceShadowAddr && presenceMonitor && presencePublish && failover && zones === 2 && inventory) subs.push(['svc.presence.active', 'presmon']);   // failover 중 질의 연속성(0070) — presmon 이 승격 공지를 구독해 queryAddr 재타깃. presenceAnnounce OFF 면 미추가(0069 토폴로지 비트 동일).
+    if (whisperRouter && whisperFailover && presenceAnnounce && presenceShadowAddr && presenceQuery && presenceMonitor && presencePublish && failover && zones === 2 && inventory) subs.push(['svc.presence.active', 'wrouter']);   // 귓속말 라우터 failover 연속성(0072) — wrouter 가 승격 공지를 구독해 queryAddr 재타깃(0070 presmon 재타깃의 라우터 판). whisperFailover OFF 면 미추가(0071 토폴로지 비트 동일).
     if (presenceBox && presenceReportBus && presencePublish && failover && zones === 2 && inventory) subs.push(['svc.presence.report', 'presence']);   // 프레즌스 보고 버스화(0065) — PresenceService 가 orch 의 전이 보고를 버스 토픽으로 구독(point-to-point 대신). presenceReportBus OFF 면 미추가(0064 토폴로지 비트 동일).
     if (presenceShadowAddr) subs.push(['svc.presence.report', 'presence2']);   // 프레즌스 박스 shadow(0066) — standby presence2 가 *같은* 보고 토픽을 구독해 SSOT 그림자 복제(primary 뒤 등록 → 팬아웃 순서 primary 먼저). presenceShadow OFF 면 미추가(0065 토폴로지 비트 동일).
     if (presenceShadowAddr && presenceLease) subs.push(['svc.presence.hb', 'presence2']);   // 프레즌스 박스 사망 자율 감지(0068) — standby presence2 가 active primary 의 하트비트를 구독해 침묵 길이로 사망 감지. presenceLease OFF 면 미추가(0067 토폴로지 비트 동일).
@@ -183,10 +190,14 @@ function buildTopology(opts) {
   //   질의자(0069·presenceQuery) — presmon 이 프레즌스 박스(presenceSvcAddr)의 읽기 인터페이스를 호출. queryFor=관측 대상('ranking' down)+미관측('inventory' 항상 up — 독립 읽기 경로 증명). presenceQuery OFF·박스 부재면 queryAddr null(0068 비트 동일).
   const presQueryOn = presenceQuery && presMonAddr && presenceSvcAddr;
   if (presMonAddr) add({ addr: 'presmon', kind: 'presmon', opts: presQueryOn ? { queryAddr: presenceSvcAddr, queryFor: ['ranking', 'inventory'] } : {} });
+  // [게임 서비스] 귓속말 라우터(0071·whisperRouter) — 프레즌스 질의 인터페이스(0069)의 첫 *진짜* 라우팅 소비자. 클라 귓속말을 받아 대상 상태를 프레즌스 SSOT 에 질의→라우팅(up 전달·아니면 반송).
+  //   질의 인터페이스 전제(presenceQuery+박스). OFF·박스 부재면 토폴로지에 없음(0070 비트 동일). onTick 없음 = 신성한 tick 밖·권위 0(질의 소비·라우팅 결정만).
+  const whisperAddr = (whisperRouter && presenceQuery && presenceSvcAddr && presMonAddr) ? 'wrouter' : null;
+  if (whisperAddr) add({ addr: 'wrouter', kind: 'whisper', opts: { queryAddr: presenceSvcAddr, retry: whisperFailover ? whisperRetry : false } });   // retry(0074): 재타깃 시 보류 질의 재발신. whisperFailover(재타깃) 전제 — OFF 면 false(0073 비트 동일).
   // [코디네이션] 전용 프레즌스 박스(0064) — orch 의 프레즌스 SSOT+발행 인계처. OFF 면 없음(0063 비트 동일). onTick 없음 = 신성한 tick 밖.
   if (presenceSvcAddr) add({ addr: 'presence', kind: 'presence', opts: { bus: busAddr, lease: presenceLease, hbTimeout } });   // primary: presenceLease 면 매 tick 하트비트 발행(0068).
   // [코디네이션] 프레즌스 박스 shadow(0066·presenceShadow) — *대기(standby)* PresenceService(presence2). primary 뒤 등록(팬아웃 순서 primary 먼저). active=false → 같은 보고로 SSOT 그림자 복제만·svc.presence 발행 억제(이중 발행 0). bus 는 승격(0067) 대비 전달. lease 면 하트비트 구독→사망 자율 감지(0068). OFF 면 없음(0065 비트 동일).
-  if (presenceShadowAddr) add({ addr: 'presence2', kind: 'presence', opts: { bus: busAddr, active: false, lease: presenceLease, hbTimeout } });
+  if (presenceShadowAddr) add({ addr: 'presence2', kind: 'presence', opts: { bus: busAddr, active: false, lease: presenceLease, hbTimeout, announceActive: presenceAnnounce } });   // announceActive(0070): 승격 시 svc.presence.active 공지(질의자 재타깃용).
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
@@ -230,6 +241,7 @@ function makeActor(spec, net) {
     case 'audit': a = new AuditService(spec.opts); break;
     case 'presmon': a = new PresenceMonitor(spec.opts); break;
     case 'presence': a = new PresenceService(spec.opts); break;
+    case 'whisper': a = new WhisperRouter(spec.opts); break;
     case 'ranking': a = new RankingService(spec.opts); break;
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;

@@ -52,6 +52,8 @@ function run(opts) {
   const presmon = map.get('presmon') || null;      // 프레즌스 모니터(step-0063·presenceMonitor) — svc.presence 읽기 모델. OFF 면 null(0062 동일).
   const presence = map.get('presence') || null;    // 전용 프레즌스 박스(step-0064·presenceBox) — 프레즌스 SSOT. OFF 면 null(0063 동일).
   const presenceShadow = map.get('presence2') || null;   // 프레즌스 박스 shadow(step-0066·presenceShadow) — standby PresenceService. 같은 보고로 SSOT 그림자 복제(active=false·발행 0). OFF 면 null(0065 동일).
+  const wrouter = map.get('wrouter') || null;       // 귓속말 라우터(step-0071·whisperRouter) — 프레즌스 질의로 라우팅. OFF 면 null(0070 동일).
+  const pservice = map.get('pservice') || null;     // 파티 멤버십 SSOT(step-0075·partyService) — 멤버십 보유. OFF 면 null(0074 동일).
   const persist = map.get('persist') || null;
   const persist2 = map.get('persist2') || null;
   // N-replica 복제 스토어 핸들(이 step) — persistReplicas≥1 이면 'persist2'..'persistN+1'. [] 면 0027 복구 경로(persist2 단일).
@@ -165,6 +167,16 @@ function run(opts) {
       presence.crash();
       if (opts.presencePromote && presenceShadow) presenceShadow.promote(i + 1);
     }
+    // 귓속말 라우팅 주입(step-0071·whisperRouter) — at tick 에 클라가 라우터(wrouter)로 귓속말 요청 발신(클라→라우터→presence 질의→라우팅).
+    //   w={at, from, to, body} — 정규 net.send(client→wrouter·시드 로그의 일부 = 결정론). 라우터가 다음 step 부터 presence SSOT 질의→대상 상태로 전달/반송.
+    //   wrouter 부재(whisperRouter OFF)면 주입 0 = 라우팅 없음(대조군). 미제공이면 휴면(reg 0 불변·멀티프로세스 E2E 미주입).
+    if (opts.whispers && wrouter) for (const w of opts.whispers) if (w.at === i + 1) net.send(w.from || 'client0', 'wrouter', { type: 'whisper', to: w.to, body: w.body });
+    // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body });
+    // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.partyCreate && pservice) for (const pc of opts.partyCreate) if (pc.at === i + 1) net.send(pc.from || 'client0', 'pservice', { type: 'partyCreate', partyId: pc.partyId, members: pc.members });
+    // 파티 전송 주입(step-0075) — at tick 에 클라가 라우터로 partyTo(멤버 인라인 X·partyId 만). 라우터가 멤버십 SSOT 조회→프레즌스 질의→라우팅(2단). wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.partyTo && wrouter) for (const pt of opts.partyTo) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'partyTo', partyId: pt.partyId, body: pt.body });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
@@ -204,7 +216,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
