@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0094](step-0094.md) — **정리: svc-whisper 박스-부품 분할**(33KB>30KB·기능 0·reg 0): svc-whisper.js 가 30KB 임계를 넘겨, svc-inventory(0043/0053) 분할 패턴으로 박스를 세 파일로 — svc-whisper-core.js(클래스·constructor·파티 원장·_queryFor·restart) + svc-whisper-handlers.js(onMsg·onTick·Object.assign 프로토타입 증강) + svc-whisper.js(진입점 1.1KB·core→handlers require·동일 export). 내부 구조만 — 같은 클래스·메서드·export → src=baseline(0093) 비트 동일. 박스 크기 33.2KB→core 12.0/handlers 10.0/entry 1.1(유계 복귀).
-- **한 줄 상태**: reg ALL OK(src=baseline=0093 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·누적 회귀 all(0071~0093 가설 포함) 통과·spine 94-step ALL OK·박스 전부 ≤30KB.
+- **닫힌 step**: [step-0095](step-0095.md) — **파티 complete 발행**(partyCompletePublish·성공 종결 관측): 0093 은 파티 *실패* 종결(svc.party.incomplete)만 발행(0093 §9). 파티가 acked(routed>0 && delivered==routed)에 처음 이르면 svc.party.complete{partyId,members,routed,delivered} 발행 → audit 구독. 0087 deliveredPublish 의 파티 판·0093 incomplete 와 짝(파티 발행 수명주기 양 끝 완성). 닿는 박스: svc-whisper-core(partyCompletePublish·_completePub)·-handlers(whisperAck 분기 발행)·topo-build(wrouter 전달+audit 구독 행).
+- **한 줄 상태**: reg ALL OK(src=baseline=0094 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·ppartycomplete: ON partyCompletePublished 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 95-step ALL OK.
 - **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0094 가 *정리 분할*(svc-whisper 박스-부품·기능 0·reg 0)로 30KB 임계를 해소(박스 전부 ≤30KB 유계 복귀). 기능 후보(우선): *멤버별 Mailbox 토폴로지*(파티원마다 수신함·0088 §9)·*파티 complete 발행*(성공 종결·0093 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31KB 임계 근처 — 다음 정리 후보.**
+**step-0095 가 *파티 complete 발행*(partyCompletePublish — 성공 종결 관측)을 닫아 0093 §9 한계(실패 절반만 발행)를 메움(파티 발행 수명주기 양 끝 완성: 멤버십변경+성공종결+실패종결). 기능 후보(우선): *멤버별 Mailbox 토폴로지*(파티원마다 수신함·0088 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31KB 임계 근처 — 다음 정리 후보.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -129,8 +129,8 @@
 | [0030](step-0030.md) | 정리: 박스 1개=파일 1개 분할 + engine 승격(verify-kit)+닫기 게이트 | 통과 |
 | [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill — 주기 sweep 이 W 미달 seq 재-fan-out) | 통과 · durSeq total-1/윈도 0 |
 | [0032](step-0032.md) | 윈도 해소의 유계 sweep+fill retry(wfWindow K 창) | 통과 · 유계 K=8 durSeq=total-1 |
-| [0033](step-0033.md) | 버스 동적 구독/해지(runtime unsub/sub·라우팅 양방향) | 통과 · unsub@15→re-sub@18 |
-| [0034](step-0034.md) | 버스 failover(bus.crash()→재협상 라우팅 복구·진실원천=소비자) | 통과 · crash@12→재협상@14 |
+| [0033](step-0033.md) | 버스 동적 구독/해지(runtime unsub/sub) | 통과 · unsub@15→re-sub@18 |
+| [0034](step-0034.md) | 버스 failover(bus.crash()→재협상·진실원천=소비자) | 통과 · crash@12→재협상@14 |
 | [0035](step-0035.md) | 정리: `cluster.js` 박스-부품 4분할(45KB>30KB·기능 0) | 통과 · ≤19.7KB |
 | [0036](step-0036.md) | 버스 failover 결과 경로 무손실(producer replay·복구 재발행) | 통과 · desync 6→0 |
 | [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway producer replay+reqId dedup) | 통과 · minted==base |
@@ -140,10 +140,10 @@
 | [0041](step-0041.md) | 결과 replay 버퍼 자기-크기조정(busOutAck — outSeq ack→가지치기) | 통과 · desync 0 vs fixedK8 4 |
 | [0042](step-0042.md) | seenReqs dedup 집합 유계화(busSeenBound — inAcked 워터마크) | 통과 · peak 60→24 |
 | [0043](step-0043.md) | 정리: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·기능 0) | 통과 · ≤19.6KB |
-| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 비대칭 복구 F vs min T |
-| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자→min 정의역 축출) | 통과 · OFF peak∝run vs ON 유계 |
-| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — dedup=(producer,reqId) 복합키) | 통과 · OFF Δ0 vs ON Δ5 |
-| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키를 producer 별 가지치기) | 통과 · OFF peak∝run vs 유계 |
+| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 비대칭 F vs min T |
+| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자 축출) | 통과 · OFF peak∝run vs ON 유계 |
+| [0046](step-0046.md) | 게이트웨이 producer 네임스페이스(busProducerNs — (producer,reqId) 복합키) | 통과 · OFF Δ0 vs ON Δ5 |
+| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키 producer 별 가지치기) | 통과 · OFF peak∝run vs 유계 |
 | [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission 가역) | 통과 · outBuf 유계·readm 1 |
 | [0049](step-0049.md) | 단일 살아있는 소스 `src/` 전환(복사 전진 폐기·기능 0·reg 0) | 통과 · src=baseline=0048 |
 | [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 관측 ack cadence 로 self-size) | 통과 · 고정 OFF flapping vs 적응 ev=1 |
@@ -153,10 +153,10 @@
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→svc.item.lease→audit) | 통과 · 전이 관측 |
 | [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch 가 lease 소비→consumerDown SSOT) | 통과 · down==evicted |
 | [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독→readmit) | 통과 · 각 1 |
-| [0057](step-0057.md) | 치유 확인 고리(recoverAck — 소비자 재구독하며 orch 에 회신→수행 확인) | 통과 · sent==acks==1 |
-| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recover 분실 시 recoverTimeout 뒤 재발신) | 통과 · ON retries 2·ack 1 |
-| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 상한 도달 시 permanentDown 포기) | 통과 · retries 3·givenUp 1 |
-| [0060](step-0060.md) | 프레즌스 발행(presencePublish — orch 판정 down/up/permanent→svc.presence→audit) | 통과 · 치유/영구→audit 1:1 |
+| [0057](step-0057.md) | 치유 확인 고리(recoverAck — 재구독하며 orch 에 회신→수행 확인) | 통과 · sent==acks==1 |
+| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recoverTimeout 뒤 재발신) | 통과 · ON retries 2·ack 1 |
+| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 도달 시 permanentDown 포기) | 통과 · retries 3·givenUp 1 |
+| [0060](step-0060.md) | 프레즌스 발행(presencePublish — down/up/permanent→svc.presence→audit) | 통과 · 치유/영구→audit 1:1 |
 | [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby 가 svc.presence 'permanent' 에 자기 활성화·인계) | 통과 · permanent→인계 |
 | [0062](step-0062.md) | 대체 소비자 late-join reconstruct(spawnReconstruct — 쓰기 저널로 다운타임 갭 복원) | 통과 · 투영==원장 |
 | [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — svc.presence 구독→소비자별 건강 상태 기계) | 통과 · events 2/2 |
@@ -164,9 +164,9 @@
 | [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus — 보고를 svc.presence.report 토픽으로) | 통과 · presmon ON==OFF |
 | [0066](step-0066.md) | 프레즌스 shadow 복제(presenceShadow — standby 가 같은 보고로 SSOT 그림자) | 통과 · shadow==primary |
 | [0067](step-0067.md) | 프레즌스 failover 승격(presencePromote — crash→standby promote·shadow 갭 0) | 통과 · 승격 분담 |
-| [0068](step-0068.md) | 프레즌스 박스 사망 자율 감지(presenceLease — hb 침묵 hbTimeout→자기 승격) | 통과 · 자율 승격 |
-| [0069](step-0069.md) | 프레즌스 SSOT 질의 인터페이스(presenceQuery — presenceQuery→presenceReply·stateOf pull) | 통과 · 질의↔응답 4/4 |
-| [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — 승격 시 svc.presence.active 공지→질의자 재타깃) | 통과 · 죽음 후 2/2 |
+| [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵 hbTimeout→자기 승격) | 통과 · 자율 승격 |
+| [0069](step-0069.md) | 프레즌스 SSOT 질의 인터페이스(presenceQuery→presenceReply·stateOf pull) | 통과 · 질의↔응답 4/4 |
+| [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — svc.presence.active 공지→재타깃) | 통과 · 죽음 후 2/2 |
 | [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 귓속말→프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed 1/bounced 1·OFF null·spine 71 |
 | [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 0=0071·재타깃→presence2·사망 후 routed 1 vs OFF 손실·spine 72 |
 | [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — party 핸들러·멤버마다 질의→부분 전달) | 통과 · routed 2/bounced 1·spine 73 |
@@ -191,3 +191,4 @@
 | [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결·0078 N-of-M 판) | 통과 · ON rec{routed 2,delivered 1,failed 1}/incomplete vs OFF failed 0/보류·spine 92 |
 | [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결을 svc.party.incomplete 로 발행·audit 관측·0082 의 파티 판) | 통과 · ON pub 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 93 |
 | [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(33KB>30KB — core/handlers/entry·Object.assign 프로토타입·기능 0) | 통과 · src=baseline 비트 동일·박스 33→12/10/1KB·spine 94 |
+| [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결을 svc.party.complete 로 발행·audit 관측·0093 incomplete 와 짝) | 통과 · ON pub 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 95 |
