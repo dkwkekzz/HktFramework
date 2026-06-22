@@ -253,7 +253,7 @@
       const bx = key % nbx, by = ((key - bx) / nbx) % nbx, bz = (key - bx - by * nbx) / (nbx * nbx);
       return [bx * bs, by * bs, bz * bs];
     }
-    // 한 블록(원점 ox,oy,oz)에 비-영 셀이 하나라도 있나? — 있으면 즉시 break(early-out). scanned 누적.
+    // 한 블록(원점 ox,oy,oz)에 비-영 셀이 하나라도 있나? — 있으면 즉시 return(early-out). scanned 누적.
     function blockNonEmpty(field, ox, oy, oz, counter) {
       for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
         for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
@@ -305,6 +305,51 @@
         }
         lastScanned = counter.n;
         return removed;
+      },
+
+      // ── *번지는* stencil 법칙(확산 등)용 halo + 증분 활성화(step_0020) ──
+      //
+      //   냉각(step_0019)은 단조 비-성장이라 활성 집합이 *줄기만* 했다 — 한 번 빌드 후 고정이 안전했다.
+      //   그러나 확산·advect 처럼 *번지는* 법칙은 비-영 셀을 한 칸씩 넓힌다(0 셀이 비-영 이웃의 flux 를
+      //   받아 비-영이 됨). 활성 블록만 돌면 그 경계 번짐을 *놓쳐* 조밀과 달라진다. → 두 가지가 필요:
+      //     · halo — 활성 블록 + 그 6-면 이웃 블록까지 함께 순회(번짐이 닿을 수 있는 칸을 모두 덮음).
+      //       증명: 비-영 셀은 활성 블록에만 산다 → 비-영 셀의 면-이웃은 활성 블록이거나 그 면-이웃 블록
+      //       (=halo). active∪halo 밖 셀은 자신·모든 이웃이 0 → 확산 결과 불변 → 건너뛰어도 비트 동일.
+      //     · 증분 활성화 — 번져서 비-영이 된 halo 블록을 집합에 *추가*(이웃 깨움). 전선이 자라남.
+      //   둘 다 O(활성)·전-격자 재스캔 없음(halo 는 활성 블록의 이웃만, 활성화는 후보 목록만 훑음).
+
+      // 활성 블록 ∪ 그 6-면 이웃 블록의 원점 목록(중복 제거·결정론 키 오름차순). 격자 밖 블록은 제외.
+      //   *번지는* 법칙은 이 목록을 opts.active 로 받아 돈다(halo 까지 처리 → 경계 번짐 포착).
+      originsWithHalo() {
+        const set = new Set();
+        const off = [[0, 0, 0], [-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1]];
+        for (const key of keys) {
+          const bx = key % nbx, by = ((key - bx) / nbx) % nbx, bz = (key - bx - by * nbx) / (nbx * nbx);
+          for (let d = 0; d < off.length; d++) {
+            const nx = bx + off[d][0], ny = by + off[d][1], nz = bz + off[d][2];
+            if (nx < 0 || ny < 0 || nz < 0 || nx >= nbx || ny >= nbx || nz >= nbx) continue;
+            set.add((nz * nbx + ny) * nbx + nx);
+          }
+        }
+        const sorted = [...set].sort((a, b) => a - b);
+        const out = new Array(sorted.length);
+        for (let i = 0; i < sorted.length; i++) out[i] = keyToOrigin(sorted[i]);
+        return out;
+      },
+
+      // 증분 활성화 — 후보 원점 목록(보통 originsWithHalo 결과) 중 *비-영이 된* 블록을 집합에 추가.
+      //   반환=새로 추가된 블록 수. 후보만 훑으므로 O(활성)(전-격자 재스캔 아님). 번짐 전선을 따라간다.
+      activateFrom(field, origins) {
+        const counter = { n: 0 };
+        let added = 0;
+        for (let i = 0; i < origins.length; i++) {
+          const ox = origins[i][0], oy = origins[i][1], oz = origins[i][2];
+          const key = ((oz / bs | 0) * nbx + (oy / bs | 0)) * nbx + (ox / bs | 0);
+          if (keys.has(key)) continue;                       // 이미 활성 → 건너뜀
+          if (blockNonEmpty(field, ox, oy, oz, counter)) { keys.add(key); added++; }
+        }
+        lastScanned = counter.n;
+        return added;
       }
     };
     return self;
