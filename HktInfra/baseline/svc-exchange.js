@@ -1,4 +1,5 @@
 'use strict';
+// step-0122 — 거래소↔가방 list 인출 실패 보상(exchCompensate·saga 보상 거래): 0121 은 give 결과를 *받기만* 했다(집계·관측). 이 step 은 그 피드백에 *반응*한다 — list 인출 give 가 실패(ok:false·cause.kind='list')하면 판매자가 그 itemId 를 실제로 안 가진 것(미소유·이미 이동) → escrow 에 아무것도 안 들어왔는데 거래소는 0117 에서 listing 을 *낙관적으로* open 에 올렸다(phantom 매물). 보상: 그 listing 을 abort(listings 에서 제거·listed--·aborted++·저널 'abort'). 이로써 2-서비스 보존 불변(거래소 open ≡ 가방 escrow 소유)이 *실패 주입 아래서도* 유지된다 — 거래소가 가방에 없는 escrow 를 영영 안 믿는다(낙관적 가정의 자기수정). compensate OFF·saga OFF·실패 부재면 abort 0 = 0121 비트 동일(낙관적 open 유지). buy/cancel/expire 레그 보상은 후속(list 인출이 첫 실패 지점 — 미소유 list).
 // step-0121 — 거래소↔가방 escrow give 결과 비동기 수신(exchSaga·2-서비스 saga 피드백 채널): 0117~0120 에서 거래소는 가방에 give(escrow 인출/입금/반환)를 *fire-and-forget* 으로 쏘고 *결과를 안 받았다* — 거래소는 give 가 성공했다고 *낙관적으로 가정*하고 회계를 굴린다(open/sold/cancelled). 하지만 가방 give 는 실패할 수 있다(판매자가 그 itemId 를 실제로 안 가졌으면 owner≠from → 거부·ok:false). 그러면 거래소 회계(open 매물)와 가방 권위(escrow 미소유)가 *영구 어긋난다*(phantom 매물·0120 보존 불변 위반). 이 step 은 그 피드백 채널을 연다: saga ON 이면 _custody give 에 replyTo(거래소 주소)+cause(어느 레그)를 실어 보내고, 가방은 item_result(ok)를 그 replyTo 로도 회신한다(은닉·명시 인터페이스). 거래소는 받은 결과를 회계(ackedGives·giveOks·giveFails)로 집계한다 — 아직 *보상*은 안 한다(관측만). 가설: 정상 거래 흐름서 모든 escrow give 가 ok 로 acked(ackedGives==gives·giveFails 0) = 2-서비스 결합이 *닫힌 피드백 고리*. saga OFF·replyTo 부재면 회신 0·집계 0 = 0120 비트 동일(낙관적 fire-and-forget). 실패 주입→보상은 후속 step.
 // step-0120 — 거래소↔가방 2-서비스 보존 불변(escrowItemIds 단언·결합 시스템의 창발 불변): 0117~0119 가 거래소↔가방을 escrow 중개로 결합했다 — 이제 *두 서비스에 걸친* 보존이 성립하는지 단언한다. 거래소가 들고 있다고 *믿는* open 매물의 itemId 집합(escrowItemIds)은 가방 원장에서 *실제로* 'escrow' 가 소유한 itemId 집합과 정확히 일치해야 한다(거래소 회계 ≡ 가방 권위·두 서비스 불일치 0). 또 전 거래 흐름(list/buy/cancel/expire 혼합)에서 가방 total(minted)은 불변(아이템은 mint/소멸이 아니라 소유자만 바뀜)·매 아이템은 정확히 한 소유자(seller/escrow/buyer). escrowItemIds 는 *읽기 accessor*(open 매물의 itemId 정렬 목록) — 단언용·미호출이면 동작 무영향 = 0119 비트 동일(reg).
 // step-0119 — 거래소↔가방 cancel/expire 반환(exchInventory leg 3·escrow→판매자 실물 반환): 0117 인출+0118 입금으로 list→buy 실물 거래는 닫혔으나, *미체결* 매물의 종결(취소 0107·만료 0114)은 거래소 회계(cancelled/expired/returned)만 굴리고 escrow custody 아이템이 가방에서 판매자에게 *안 돌아왔다*. 이 step 은 반환 레그를 더한다: exchCancel·exchSweep 만료 성립 시 거래소가 가방에 give(itemId, escrow→seller) → escrow custody 가 판매자 가방으로(인출 0117 의 역). 이로써 escrow 의 *모든 출구*(체결→구매자·취소/만료→판매자)가 실물 이동을 동반 — 미체결 아이템이 escrow 에 영영 묶이지 않는다. 가방 권위·minted 불변·xfer++. exchInventory OFF·itemId 부재면 give 0 = 0118 비트 동일.
@@ -51,7 +52,9 @@ class ExchangeService {
     this.saga = opts.saga || false;     // 2-서비스 saga 피드백(step-0121·exchSaga) — ON 이면 _custody give 에 replyTo+cause 를 실어 가방이 item_result 를 거래소로도 회신, 거래소가 결과를 집계. OFF 면 fire-and-forget(replyTo 0·회신 0·집계 0 = 0120 비트 동일).
     this.ackedGives = 0;                // 가방에서 회신받은 give 결과 수(step-0121·계측·saga ON 일 때만). 정상 흐름서 == gives.
     this.giveOks = 0;                   // 그 중 ok:true(성공 acked) 수.
-    this.giveFails = 0;                 // 그 중 ok:false(가방 거부·소유 불일치) 수 — phantom 매물의 신호(보상은 후속 step).
+    this.giveFails = 0;                 // 그 중 ok:false(가방 거부·소유 불일치) 수 — phantom 매물의 신호.
+    this.compensate = opts.compensate || false;   // saga 보상(step-0122·exchCompensate) — ON 이면 list 인출 give 실패 시 그 listing 을 abort(낙관적 open 롤백). OFF 면 실패해도 open 유지(0121 비트 동일). saga 전제(피드백 필요).
+    this.aborted = 0;                   // 보상으로 abort 한 listing 수(step-0122·계측). 보존식에서 listed-- 로 함께 빠지므로 conserved 불변.
   }
   // escrow custody 이동 헬퍼(step-0117) — 거래소↔가방 2-서비스 쌍 거래의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(fromAvatar→toAvatar). 가방이 권위(보유 검사·xfer)·거래소는 요청만(은닉·명시 인터페이스). 미충족이면 no-op(추상 escrow·0116 동일).
   _custody(itemId, from, to, cause) {
@@ -84,7 +87,14 @@ class ExchangeService {
     //   집계만(ackedGives·giveOks·giveFails) — 보상(실패 시 회계 롤백)은 후속 step. saga OFF 면 이 메시지가 영영 안 옴(0120 비트 동일).
     if (p.type === 'item_result' && p.op === 'give') {
       this.ackedGives++;
-      if (p.ok) this.giveOks++; else this.giveFails++;
+      if (p.ok) { this.giveOks++; return; }
+      this.giveFails++;
+      // 보상(step-0122·exchCompensate) — list 인출 give 실패면 그 listing 을 abort: 판매자가 itemId 를 안 가져 escrow 에 안 들어왔으므로 낙관적 open 을 롤백(phantom 매물 0).
+      //   listed-- 와 listings.delete 가 함께 빠져 보존식(listed==open+sold+cancelled+expired) 불변. 저널 'abort' 로 reconstruct 정합. compensate OFF 면 open 유지(0121 비트 동일).
+      if (this.compensate && p.cause && p.cause.kind === 'list' && this.listings.has(p.cause.id)) {
+        this.listings.delete(p.cause.id); this.listed--; this.aborted++;
+        this._journal({ kind: 'abort', id: p.cause.id });
+      }
       return;
     }
     // 매물 등록(list·acquire) — 판매자가 아이템을 거래소 escrow 로 맡긴다. 이후 그 아이템은 거래소 권위 아래(판매자 이중 판매 불가). open++.
@@ -141,7 +151,7 @@ class ExchangeService {
   // crash(step-0109) — 박스 RAM 소실의 인프로세스 모델: projection(매물·체결 회계)만 비운다. *op 저널은 durable* 이라 보존(0085 partyPersist 의 거래소 판). rejects(실패 시도 계측)도 비움 — 저널엔 성공 op 만 있어 reconstruct 가 못 살리는 비-durable 지표.
   crash() {
     this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
-    this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0;   // saga 피드백 집계 리셋(step-0121) — 새 프로세스는 give 결과 이력 0(saga OFF 면 무관).
+    this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0; this.aborted = 0;   // saga 피드백/보상 집계 리셋(step-0121·0122) — 새 프로세스는 give 결과·abort 이력 0(saga/compensate OFF 면 무관).
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이). list=매물 복원+nextId 추적·buy=체결·cancel=취소 → 죽기 전과 비트 동일(durable 원장). 자기 영속 저널만으로 거래소 복원(0085 멤버십 판).
@@ -153,6 +163,7 @@ class ExchangeService {
       else if (e.kind === 'buy') { this.listings.delete(e.id); this.sold++; this._bump(this.delivered, e.buyer); this._bump(this.proceeds, e.seller, e.price); }
       else if (e.kind === 'cancel') { this.listings.delete(e.id); this.cancelled++; this._bump(this.returned, e.seller); }
       else if (e.kind === 'expire') { this.listings.delete(e.id); this.expired++; this._bump(this.returned, e.seller); }   // 만료(step-0114) — 취소와 동형 release(escrow→판매자)·시간 트리거. 저널 정합.
+      else if (e.kind === 'abort') { this.listings.delete(e.id); this.listed--; this.aborted++; }   // 보상 abort(step-0122) — list 인출 실패로 롤백된 매물. list 가 더한 listed/listings 를 되돌림(저널 정합).
     }
   }
   // 보존 — 모든 listed 아이템은 매 순간 정확히 한 상태(open / sold / cancelled / expired). 공백·중복 0 의 거래소 판(권위 단일 소유 + 쌍 거래·시간 트리거 포함).
