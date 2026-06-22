@@ -68,6 +68,7 @@ function buildTopology(opts) {
     mailbox2 = false,
     mailboxInboxBound = 0,
     mailboxDrainAck = false,
+    mailboxCheckoutBound = 0,
     deliverRetry = false,
     deliverTimeout = 4,
     deliverDrop = 0,
@@ -197,7 +198,7 @@ function buildTopology(opts) {
   const partyAddr = (partyService && whisperAddr) ? 'pservice' : null;
   // 전달 영수증 수신 박스(0076·whisperReceipt) — 귓속말 수신측 Mailbox. 라우터 전제(whisperAddr). OFF·라우터 부재면 박스 0(0075 비트 동일).
   const mailboxOn = whisperReceipt && whisperAddr;
-  const __mboxOpts = { dropDeliver: deliverDrop, dedup: deliverDedup, dedupBound: deliverDedupBound, epochBound: deliverEpochBound, epochGrace: deliverEpochGrace, dropAck: deliverAckDrop, inboxBound: mailboxInboxBound, drainAck: mailboxDrainAck };   // inboxBound(0099): inbox 최근 K cap. drainAck(0101): 읽음 확인 2단계 읽음(checkout→ackDrain). 미설정=무계·파괴적 드레인(0100 동일).
+  const __mboxOpts = { dropDeliver: deliverDrop, dedup: deliverDedup, dedupBound: deliverDedupBound, epochBound: deliverEpochBound, epochGrace: deliverEpochGrace, dropAck: deliverAckDrop, inboxBound: mailboxInboxBound, drainAck: mailboxDrainAck, checkoutBound: mailboxCheckoutBound };   // inboxBound(0099): inbox 최근 K cap. drainAck(0101): 읽음 확인 2단계 읽음(checkout→ackDrain). checkoutBound(0102): 미확인 체크아웃 최근 K cap. 미설정=무계·파괴적 드레인(0100 동일).
   if (mailboxOn) add({ addr: 'mbox', kind: 'mailbox', opts: __mboxOpts });   // dropDeliver(0077): 전달 손실 주입. dedup(0080): exactly-once. dedupBound(0081): seen 유계화. epochBound(0090): epoch 워터마크 유계화. epochGrace(0091): 옛 epoch grace 유예(straggler 내성). dropAck(0080): ack 손실 주입. 미설정 = 0079 비트 동일.
   // 멤버별 Mailbox 토폴로지(step-0096·mailbox2) — 둘째 수신함 박스(mbox2). 파티원마다 *자기 수신함*을 가지면 모든 up 멤버가 ack 가능 → partyAcked/complete 가 N>1 에서 의미 있다(0088 §9 한계 해소). OFF 면 둘째 박스 0 = 0095 비트 동일.
   if (mailboxOn && mailbox2) add({ addr: 'mbox2', kind: 'mailbox', opts: Object.assign({}, __mboxOpts) });

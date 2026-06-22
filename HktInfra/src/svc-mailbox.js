@@ -1,4 +1,5 @@
 'use strict';
+// step-0103 — 읽음 소비 발행(drainedPublish·소비 수명주기 관측): 0100~0102 는 수신함 *보유*(inbox/checkout/drained)를 회계·유계화했지만, 소유자의 *읽음 확인 소비*(ackDrain·exactly-once 완료)는 박스 내부 카운터로만 남아 외부에서 관측 불가다. 0087 deliveredPublish 가 전달 *성공*을 svc.whisper.delivered 로 발행해 수명주기를 가시화했듯, 이 step 은 읽음 *소비 완료*를 svc.mailbox.drained{seq, count} 로 발행한다 — ackDrain 으로 배치가 안전 제거(확정 소비)되는 순간 버스로 1회 발행, audit 가 구독해 관측. 0087(전달측 성공 관측)의 *읽음측* 판 — 수신함 수명주기의 마지막 마디(전달→확인→소비)를 외부 가시화. drainedPublish OFF·bus 부재면 발행 0 = 0102 비트 동일.
 // step-0102 — 미확인 체크아웃 유계화(checkoutBound·읽음측 0099 판): 0101 의 2단계 읽음은 ack 전 미확인 메시지를 *체크아웃에 무계 보유*한다 — 읽는 이가 느리거나 죽어 영영 ack 안 하고 재드레인만 반복하면 checkout 이 received 에 비례해 성장(0101 §9). 0099 가 *수신함(inbox)* 을 최근 K 로 cap 했듯, 이 step 은 *미확인 체크아웃* 을 최근 K(checkoutBound)로 cap 한다: drain 후 K 초과면 가장 오래된 미확인을 떨군다(checkoutOverflowed++·lossy). 읽혔으나 확인 안 된 옛 메시지의 방어 — drained(ack 확인 소비)는 무손실 보존(0101)이고 checkout cap 은 미확인 보유의 lossy 유계화. 0099 inbox cap(미읽음 방어)과 0102 checkout cap(읽음-미확인 방어)이 짝. checkoutBound 0(기본)=무계 보유=0101 비트 동일.
 // step-0101 — 읽음 확인 영수증(drainAck·2단계 읽음): 0100 의 drain() 은 inbox 를 *파괴적으로 즉시 비운다* — 읽는 순간 소비로 친다. 그러나 읽은 결과가 손실되면(소유자가 처리 전 크래시·드레인 전송 유실) 메시지는 영영 잃는다(재드레인 정합 미보장·0100 §9). 이 step 은 그 드레인을 *2단계 읽음*으로 만든다: drain() 이 inbox 를 *미확인 체크아웃*(checkout)으로 옮겨 반환하되 *제거하지 않고* 보유하고, 소유자가 처리 완료 후 ackDrain(seq) 로 확인하면 *그때서야* 안전 제거(drainAcked 누적). ack 전에 재드레인하면 같은 체크아웃을 무손실 재반환(at-least-once 읽음) → 읽음 손실이 복구 가능. 0076 whisperReceipt(전달 영수증·수신측)의 *읽음측* 판 — at-least-once 읽음 + ack 안전 제거 = exactly-once *소비*. drainAck OFF 면 drain() 은 0100 파괴적 즉시 비움(비트 동일).
 // step-0100 — Mailbox inbox 드레인(drain·읽음 소비): 0099 의 inboxBound 는 inbox 를 최근 K개로 cap 하되 초과분을 *드롭*(잃음)한다 — notification 트레이 의미론(0099 §9). 진짜 수신함은 소유자(클라)가 *읽어 비운다* — 읽은 메시지는 잃는 게 아니라 소비된다. 이 step 은 그 드레인을 모델한다: `drain()` 이 현 inbox 를 반환하며 비우고(inbox=[]) 누적 소비량(drained)을 센다 → 읽는 이가 있으면 inbox 가 *무손실로* 비워져 메모리 유계(드롭 0). 0099 cap(읽는 이 없을 때의 방어)과 짝 — drain 은 읽는 이 있을 때의 정상 비움. drain() 미호출(mboxDrain 훅 미제공)이면 inbox 누적 = 0099 비트 동일.
@@ -44,6 +45,9 @@ class Mailbox {
     this.drainAcked = 0;    // ackDrain 으로 확인·안전 제거된 누적 항목 수(step-0101·계측). 드레인 후 ack 까지 완료된 exactly-once 소비.
     this.checkoutBound = opts.checkoutBound || 0;   // 미확인 체크아웃 유계화(step-0102·checkoutBound) — checkout 을 최근 K개로 cap(K 초과 시 가장 오래된 미확인 드롭·checkoutOverflowed++). 0(기본)=무계(0101 동일). drained(ack 소비)는 무손실 보존.
     this.checkoutOverflowed = 0;    // checkoutBound 로 떨군 미확인 체크아웃 항목 수(step-0102·계측·lossy). 읽혔으나 ack 전 드롭 — 슬로/데드 리더 방어(0099 inbox overflow 의 읽음측 판).
+    this.bus = opts.bus || null;    // 버스 주소(step-0103·drainedPublish) — 읽음 소비 발행 대상. drainedPublish ON 일 때만 설정(OFF·부재면 null=발행 0).
+    this.drainedPublish = opts.drainedPublish || false;   // 읽음 소비 발행(step-0103·drainedPublish) — ackDrain 확정 소비 시 svc.mailbox.drained{seq,count} 1회 발행(0087 deliveredPublish 의 읽음측 판). OFF 면 발행 0(0102 비트 동일).
+    this.drainedPublished = 0;      // 발행한 svc.mailbox.drained 수(step-0103·계측).
   }
   // inbox 드레인(step-0100·drain / step-0101·drainAck 2단계) — 소유자(클라)가 수신함을 *읽는다*.
   //   drainAck OFF(0100): 현 inbox 를 반환하며 *즉시 비우고* drained 누적(파괴적 읽음). 읽는 이가 있으면 inbox 가 무손실로 유계(0099 lossy cap 과 짝). 미호출이면 inbox 누적(0099 동일).
@@ -62,6 +66,8 @@ class Mailbox {
   ackDrain(seq) {
     if (!this.drainAck || !this.checkout || this.checkout.seq !== seq) return;
     const n = this.checkout.msgs.length; this.drained += n; this.drainAcked += n; this.checkout = null;
+    // 읽음 소비 발행(step-0103·drainedPublish) — 확정 소비(안전 제거)를 svc.mailbox.drained{seq,count} 로 1회 발행(수명주기 관측·0087 의 읽음측 판). OFF·bus 부재면 발행 0(0102 비트 동일).
+    if (this.drainedPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mailbox.drained', ev: { seq, count: n } }); this.drainedPublished++; }
   }
   // epoch 가지치기(step-0090) — base 의 더 높은 epoch 도착 시, 그 base 의 *낮은 epoch* 워터마크 키를 제거(옛 epoch 전달은 재시작으로 다시 안 옴 → 안전). epochBound OFF·epoch 없으면 no-op.
   //   step-0091 grace 유예: e-epochGrace *미만* epoch 만 제거(가장 최근 epochGrace 개 닫힌 epoch 워터마크는 유예 → 지연 straggler 를 정상 dedup). epochGrace 0 = e 미만 즉시 제거(0090).

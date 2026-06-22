@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0102](step-0102.md) — **미확인 체크아웃 유계화**(checkoutBound·읽음측 0099 판): 0101 2단계 읽음은 ack 전 미확인을 checkout 에 무계 보유 — 슬로/데드 리더가 영영 ack 안 하면 received 비례 성장(0101 §9). checkout 을 최근 K(checkoutBound)로 cap(초과 시 가장 오래된 미확인 드롭·checkoutOverflowed++·lossy). drained(ack 소비)는 무손실 보존. 0099 inbox cap(미읽음)과 0102 checkout cap(읽음-미확인)이 짝. checkoutBound 0=무계=0101 비트 동일. 닿는 박스: svc-mailbox(checkoutBound·checkoutOverflowed)·topo-build(mailboxCheckoutBound).
-- **한 줄 상태**: reg ALL OK(src=baseline=0101 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pcobnd: drain 후 ack 누락·ON(K4) held 4/overflow 4 vs OFF held 8/overflow 0·received 8·minted ON==OFF·spine 102 OK.
+- **닫힌 step**: [step-0103](step-0103.md) — **읽음 소비 발행**(drainedPublish): ackDrain 확정 소비를 svc.mailbox.drained{seq,count} 로 1회 발행·audit 무수정 구독 관측 — 0087 deliveredPublish 의 읽음측 판. 수신함 수명주기(전달→확인→소비) 외부 가시화 완성. OFF·bus 부재=발행 0=0102 비트 동일. 닿는 박스: svc-mailbox(bus·drainedPublish·drainedPublished)·topo-build(mailboxDrainedPublish+audit sub).
+- **한 줄 상태**: reg ALL OK(src=baseline=0102 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pdrpub: ON pub/audit 1 vs OFF 0·drained 8·received 8·minted ON==OFF·spine 103 OK.
 - **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0102 가 *미확인 체크아웃 유계화*(checkoutBound)를 닫아 수신함 메모리 세 차원(inbox cap·checkout cap·drained 무손실) 완성. 기능 후보: *파티 cluster kill→replay*(0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0101~0110 묶음 리뷰는 0110.**
+**step-0103 이 *읽음 소비 발행*(drainedPublish)을 닫아 수신함 수명주기(전달→확인→소비) 외부 가시화 완성. 기능 후보: *파티 cluster kill→replay*(0085 §9)·*active 메아리 정리*(0068 §9)·*수신함 손실 발행*(0103 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0101~0110 묶음 리뷰는 0110.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -38,10 +38,10 @@
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정 검증·대기열·만료(0001 §8.5). |
 | ⬜ | **다중 클라 결정론 복제·예측** | 월드 | 0002~0004 의 결정론 복제·예측은 *C++ 시뮬 코어 승격*에서 부활(더미는 경량 라우터). 다중 클라 intent 인터리빙·예측/롤백(0001 §8.6). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신을 암묵 신뢰(0001 §8.3) — 분산 시 필요. |
-| 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·replay 유계·lease·치유·대체활성화 ✅)** | 버스 | 0016 ServiceBus=단일 박스·영속 0. 동적구독→failover→무손실→lease→생애관측→self-healing→대체활성화(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
+| 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·lease·치유·대체활성화 ✅)** | 버스 | 0016 ServiceBus=단일 박스·영속 0. 동적구독→failover→무손실→lease→self-healing→대체활성화(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅 ✅+압축·파티 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방 저널(0017)+압축(0018)·채팅 로그(0021)+압축(0022)·파티 저널(0085). write-behind(0023~0029). 버스 라우팅 영속 0. |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService=발신 소비자(CQRS)·0020 읽기 모델 영속·late-join. 거래소·우편·길드 미착수. |
-| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover·자율감지·질의). 귓속말/파티 라우팅 0071~0097(라우팅·failover·1:N·멤버십 SSOT·영속·전달 신뢰·epoch 펜싱+유계화+grace·파티 종결/발행·멤버별 수신함·반송 발행). 남은 것: cluster kill→replay·존 배치·부하 분산·메아리 정리. |
+| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover·자율감지·질의). 귓속말/파티 라우팅 0071~0103(라우팅·failover·1:N·멤버십 SSOT·영속·전달 신뢰·epoch 펜싱·파티 종결/발행·수신함 유계/드레인/읽음확인/소비발행). 남은 것: cluster kill→replay·존 배치·부하 분산·메아리 정리. |
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축·홉 신뢰·persist failover+N-replica+quorum+윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층6 첫)=가방 저널+압축(0018). 홉 신뢰→failover→N-replica quorum→윈도(0023~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위 고리 닫기. |
 
@@ -78,10 +78,10 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→대체 소비자 호(0061~0063). **0071~0101 귓속말/파티 라우팅 호(wrouter)**: 프레즌스 질의(0069)의 라우팅 소비자 — 라우팅·failover 재타깃·파티 1:N·멤버십 SSOT(pservice)·전달 신뢰(0076~0082)·파티 집계/변경발행/영속/압축(0083~0086)·ack 집계·epoch 펜싱+유계+grace(0087~0091)·파티 종결/발행(0092~0097)·수신함 유계/드레인/읽음확인(0099~0101·상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
-| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 서비스 의미(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover(진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·ack 자기조정→0044 min-워터마크→0045 lease→0046/0047 producer 네임스페이스→0048 lifecycle→0050~0052 적응형 leaseSpan·grace·cadence→0054 lease 관측. 버스 분산·per-producer ack·라우팅 영속 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking·읽기모델→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→대체 소비자 호(0061~0063). **0071~0103 귓속말/파티 라우팅 호(wrouter)**: 라우팅·failover·파티 1:N·멤버십 SSOT·전달 신뢰(0076~0082)·파티 집계/영속/압축(0083~0086)·ack 집계·epoch 펜싱(0087~0091)·파티 종결/발행(0092~0097)·수신함 유계/드레인/읽음확인/소비발행(0099~0103·상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
+| 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover(진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045 lease→0046/0047 producer ns→0048 lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 관측→프레즌스 SSOT→self-healing 호. 프레즌스 박스 호(0064~0070): 전용 박스 분리(⟂orch)→보고 버스화→shadow→failover 승격→사망 자율 감지→질의 인터페이스→질의 failover. 전 경로 failover-safe. broker 물리 분산·진짜 비동기·메아리 정리 후속 |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·give/mint)→0027~0029 failover/N-replica quorum→0031~0032 윈도 해소+유계 K→0062 대체 소비자 reconstruct. 증분 스냅샷·fsync·월드/버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·give/mint)→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 reconstruct. 증분 스냅샷·fsync·월드/버스 영속 후속 |
 
 ---
 
@@ -167,26 +167,26 @@
 | [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵 hbTimeout→자기 승격) | 통과 · 자율 승격 |
 | [0069](step-0069.md) | 프레즌스 SSOT 질의 인터페이스(presenceQuery→presenceReply·stateOf pull) | 통과 · 질의↔응답 4/4 |
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — svc.presence.active 공지→재타깃) | 통과 · 죽음 후 2/2 |
-| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed 1/bounced 1·OFF null |
-| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 사망 후 routed 1 vs OFF 손실 |
-| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — 멤버마다 질의→부분 전달) | 통과 · routed 2/b 1 |
-| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신·at-least-once) | 통과 · ON pending 0 vs OFF 2(손실) |
-| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→멤버십→프레즌스 2단) | 통과 · resolved 3·routed 2 vs OFF null |
-| [0076](step-0076.md) | 전달 영수증(whisperReceipt — seq/ackTo·inflight·Mailbox whisperAck→delivered) | 통과 · delivered 1 vs OFF 0 |
-| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 재발신·at-least-once) | 통과 · ON delivered 1 vs OFF 0·inflight 1 |
-| [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기·undeliverable) | 통과 · ON undel 1 vs OFF 무상한 12 |
-| [0079](step-0079.md) | 전달 포기 통지(deliverNotify — 포기 시 발신자에 deliveryFailed 회신) | 통과 · ON failedNotified 1 vs OFF 0 |
-| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·중복 재적재 차단·재-ack·exactly-once) | 통과 · ON dup 1 vs OFF 0(중복 적재) |
+| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed/bounced 1·OFF null |
+| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 사망 후 routed 1 vs OFF 0 |
+| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — 멤버마다 질의→부분 전달) | 통과 · routed 2/b1 |
+| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신·at-least-once) | 통과 · ON pending 0 vs OFF 2 |
+| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→멤버십→프레즌스 2단) | 통과 · resolved 3·routed 2 |
+| [0076](step-0076.md) | 전달 영수증(whisperReceipt — seq/ackTo·inflight·Mailbox whisperAck→delivered) | 통과 · deliv 1 vs OFF 0 |
+| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 재발신·at-least-once) | 통과 · ON delivered 1 vs OFF 0 |
+| [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기·undeliverable) | 통과 · ON undel 1 vs OFF 12 |
+| [0079](step-0079.md) | 전달 포기 통지(deliverNotify — 포기 시 발신자에 deliveryFailed 회신) | 통과 · ON notified 1 vs OFF 0 |
+| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·중복 재적재 차단·재-ack·exactly-once) | 통과 · ON dup 1 vs OFF 0 |
 | [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound — 연속 워터마크+희소 비순차 집합으로 O(gap)) | 통과 · ON seenSize 0/wm 12 vs OFF 12(∝run)·dup 1 보존 |
-| [0082](step-0082.md) | 전달 실패 발행(failedPublish — 포기 시 svc.whisper.failed 발행·audit·통지와 직교) | 통과 · ON failedPub 1/audit 1 vs OFF 0 |
-| [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced} 원장·N-of-M) | 통과 · ON {3,2,1}/done vs OFF size 0 |
-| [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave 델타·svc.party.changed) | 통과 · ON 발행 2/audit 2 vs OFF 0 |
+| [0082](step-0082.md) | 전달 실패 발행(failedPublish — 포기 시 svc.whisper.failed 발행·audit·통지와 직교) | 통과 · ON pub/audit 1 vs OFF 0 |
+| [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced} 원장·N-of-M) | 통과 · ON {3,2,1}/done vs OFF 0 |
+| [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave 델타·svc.party.changed) | 통과 · ON 발행/audit 2 vs OFF 0 |
 | [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→reconstruct) | 통과 · reconstruct [b,c] vs OFF 소실 |
 | [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — 스냅샷+저널 가지치기·tail replay) | 통과 · ON tail 2 vs OFF 6·[a..f] 무손실 |
-| [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — whisperAck→svc.whisper.delivered·audit) | 통과 · ON pub 1/audit 1 vs OFF 0 |
-| [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck→delivered·acked=delivered==routed) | 통과 · ON acked vs OFF size 0 |
-| [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart 시 epoch++·Mailbox (prod,epoch) 키) | 통과 · restart 후 ON received 12/dup 0 vs OFF 6/6(유실) |
-| [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 높은 epoch 도착 시 낮은 epoch 가지치기·현재 epoch 만) | 통과 · 3재시작·ON epochKeys 1 vs OFF 4(∝epoch)·received 8/dup 0 |
+| [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — whisperAck→svc.whisper.delivered·audit) | 통과 · ON pub/audit 1 vs OFF 0 |
+| [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck→delivered·acked=delivered==routed) | 통과 · ON acked vs OFF 0 |
+| [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart 시 epoch++·Mailbox (prod,epoch) 키) | 통과 · restart 후 ON rec 12/dup 0 vs OFF 6/6 |
+| [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 높은 epoch 도착 시 낮은 epoch 가지치기) | 통과 · 3재시작·ON epochKeys 1 vs OFF 4·rec 8/dup 0 |
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 유예·지연 straggler dedup·N+1 유계) | 통과 · straggler ON rec 4/dup 1 vs OFF 5·spine 91 |
 | [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결) | 통과 · ON rec{routed 2,deliv 1,failed 1}/incomplete vs OFF failed 0·spine 92 |
 | [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결 svc.party.incomplete 발행·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 93 |
@@ -199,3 +199,4 @@
 | [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움·0099 cap 과 짝) | 통과 · ON inbox 0/drained 8 vs OFF inbox 8/drained 0·received 8·spine 100 |
 | [0101](step-0101.md) | 읽음 확인 영수증(drainAck — drain 2단계 checkout→ackDrain·재드레인 무손실·ack 시 안전 제거) | 통과 · ON-미확인 held 8 vs ON-확인 drained/acked 8/held 0 vs OFF drained 8(파괴적)·spine 101 |
 | [0102](step-0102.md) | 미확인 체크아웃 유계화(checkoutBound — checkout 최근 K cap·옛 미확인 lossy 드롭·0099 inbox cap 의 읽음측 판) | 통과 · ON(K4) held 4/overflow 4 vs OFF held 8/overflow 0·received 8·spine 102 |
+| [0103](step-0103.md) | 읽음 소비 발행(drainedPublish — ackDrain 확정 소비 svc.mailbox.drained 발행·audit·0087 읽음측 판) | 통과 · ON pub/audit 1 vs OFF 0·drained 8·spine 103 |
