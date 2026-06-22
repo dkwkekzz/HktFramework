@@ -20,6 +20,7 @@ const { RankingService } = __p('svc-ranking');
 const { PresenceMonitor } = __p('svc-presence-monitor');
 const { PresenceService } = __p('svc-presence');
 const { WhisperRouter } = __p('svc-whisper');
+const { PartyService } = __p('svc-party');
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -95,6 +96,7 @@ function buildTopology(opts) {
     whisperRouter = false,
     whisperFailover = false,
     whisperRetry = false,
+    partyService = false,
     recoverRetry = false,
     recoverTimeout = 4,
     recoverMaxRetries = 0,
@@ -193,7 +195,10 @@ function buildTopology(opts) {
   // [게임 서비스] 귓속말 라우터(0071·whisperRouter) — 프레즌스 질의 인터페이스(0069)의 첫 *진짜* 라우팅 소비자. 클라 귓속말을 받아 대상 상태를 프레즌스 SSOT 에 질의→라우팅(up 전달·아니면 반송).
   //   질의 인터페이스 전제(presenceQuery+박스). OFF·박스 부재면 토폴로지에 없음(0070 비트 동일). onTick 없음 = 신성한 tick 밖·권위 0(질의 소비·라우팅 결정만).
   const whisperAddr = (whisperRouter && presenceQuery && presenceSvcAddr && presMonAddr) ? 'wrouter' : null;
-  if (whisperAddr) add({ addr: 'wrouter', kind: 'whisper', opts: { queryAddr: presenceSvcAddr, retry: whisperFailover ? whisperRetry : false } });   // retry(0074): 재타깃 시 보류 질의 재발신. whisperFailover(재타깃) 전제 — OFF 면 false(0073 비트 동일).
+  // 파티 멤버십 SSOT(0075·partyService) — 라우터가 멤버 목록을 질의로 얻는 PartyService. whisperRouter 전제(라우터 소비자). OFF 면 토폴로지에 없음(0074 비트 동일).
+  const partyAddr = (partyService && whisperAddr) ? 'pservice' : null;
+  if (whisperAddr) add({ addr: 'wrouter', kind: 'whisper', opts: { queryAddr: presenceSvcAddr, retry: whisperFailover ? whisperRetry : false, membershipAddr: partyAddr } });   // retry(0074): 재타깃 시 보류 질의 재발신(whisperFailover 전제). membershipAddr(0075): 파티 멤버십 SSOT 주소(partyService OFF 면 null=0074 비트 동일).
+  if (partyAddr) add({ addr: 'pservice', kind: 'party', opts: {} });   // [게임 서비스] 파티 멤버십 SSOT(0075) — onTick 없음·신성한 tick 밖.
   // [코디네이션] 전용 프레즌스 박스(0064) — orch 의 프레즌스 SSOT+발행 인계처. OFF 면 없음(0063 비트 동일). onTick 없음 = 신성한 tick 밖.
   if (presenceSvcAddr) add({ addr: 'presence', kind: 'presence', opts: { bus: busAddr, lease: presenceLease, hbTimeout } });   // primary: presenceLease 면 매 tick 하트비트 발행(0068).
   // [코디네이션] 프레즌스 박스 shadow(0066·presenceShadow) — *대기(standby)* PresenceService(presence2). primary 뒤 등록(팬아웃 순서 primary 먼저). active=false → 같은 보고로 SSOT 그림자 복제만·svc.presence 발행 억제(이중 발행 0). bus 는 승격(0067) 대비 전달. lease 면 하트비트 구독→사망 자율 감지(0068). OFF 면 없음(0065 비트 동일).
@@ -242,6 +247,7 @@ function makeActor(spec, net) {
     case 'presmon': a = new PresenceMonitor(spec.opts); break;
     case 'presence': a = new PresenceService(spec.opts); break;
     case 'whisper': a = new WhisperRouter(spec.opts); break;
+    case 'party': a = new PartyService(spec.opts); break;
     case 'ranking': a = new RankingService(spec.opts); break;
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;
