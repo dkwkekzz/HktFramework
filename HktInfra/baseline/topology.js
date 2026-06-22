@@ -173,7 +173,7 @@ function run(opts) {
     //   wrouter 부재(whisperRouter OFF)면 주입 0 = 라우팅 없음(대조군). 미제공이면 휴면(reg 0 불변·멀티프로세스 E2E 미주입).
     if (opts.whispers && wrouter) for (const w of opts.whispers) if (w.at === i + 1) net.send(w.from || 'client0', 'wrouter', { type: 'whisper', to: w.to, body: w.body });
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
-    if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body });
+    if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.partyCreate && pservice) for (const pc of opts.partyCreate) if (pc.at === i + 1) net.send(pc.from || 'client0', 'pservice', { type: 'partyCreate', partyId: pc.partyId, members: pc.members });
     // 파티 전송 주입(step-0075) — at tick 에 클라가 라우터로 partyTo(멤버 인라인 X·partyId 만). 라우터가 멤버십 SSOT 조회→프레즌스 질의→라우팅(2단). wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
