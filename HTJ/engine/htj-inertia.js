@@ -65,6 +65,79 @@
     const gx = m[MX], gy = m[MY], gz = m[MZ];
     const L = rho.length;
 
+    const vx = world.scratch.__vx || (world.scratch.__vx = new Float64Array(L));
+    const vy = world.scratch.__vy || (world.scratch.__vy = new Float64Array(L));
+    const vz = world.scratch.__vz || (world.scratch.__vz = new Float64Array(L));
+
+    // ── 활성∪halo 순회(step_0021) — *수송하는* stencil 법칙 advect 의 활성 일반화 ──
+    //   advect 는 질량을 *방향성 있게* 옮긴다 → 활성 전선이 흐름 방향으로 비대칭 자란다(확산은 대칭).
+    //   donor-cell flux 는 *donor 의 ρ·g* 에 비례한다 → 활성 블록 밖 셀(ρ=0)은 donor 가 0 이라 flux 0 →
+    //   active∪halo 만 돌아도 조밀과 비트 동일(0020 확산과 같은 논리, donor=0 으로 경계 flux 가 자동 0).
+    //   진공 g-가드(|g|≤ρ·VMAX)로 ρ=0 ⟹ g=0 → g 의 비-영 지지 ⊆ ρ 지지 → 활성 집합을 ρ 로 추적하면
+    //   운동량도 함께 따라온다. **CFL 안전(courant≤1, nsub=1)에서만 활성** — 한 호출에 1셀 이동이라
+    //   1-블록 halo 에 넉넉히 든다. courant>1(nsub>1, 폭주/고속)은 *조밀로 폴백* — 한 호출에 여러 칸
+    //   이동하면 1-블록 halo 를 넘어 질량이 이탈해 보존이 샐 수 있어, 보존 척추를 위해 조밀로 정확히 푼다.
+    //   opts.active 생략 → 조밀 전-격자(아래) = byte 동일(회귀 0).
+    if (opts.active) {
+      const bs = opts.blockSize || 8;
+      const cells = [];
+      for (let b = 0; b < opts.active.length; b++) {
+        const ox = opts.active[b][0], oy = opts.active[b][1], oz = opts.active[b][2];
+        for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
+          for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
+            for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break; cells.push((z * N + y) * N + x); }
+          }
+        }
+      }
+      // courant 읽기 추정(상태 불변) — cells 밖은 ρ=g=0 → v=0 → max over cells = 진짜 max(폴백 판정용).
+      let cest = 0;
+      for (let c = 0; c < cells.length; c++) {
+        const i = cells[c]; const r = rho[i] > EPS ? rho[i] : 0; const inv = r > 0 ? 1 / rho[i] : 0;
+        let ux = gx[i] * inv, uy = gy[i] * inv, uz = gz[i] * inv;
+        if (ux > VMAX) ux = VMAX; else if (ux < -VMAX) ux = -VMAX;
+        if (uy > VMAX) uy = VMAX; else if (uy < -VMAX) uy = -VMAX;
+        if (uz > VMAX) uz = VMAX; else if (uz < -VMAX) uz = -VMAX;
+        const cc = Math.abs(ux) + Math.abs(uy) + Math.abs(uz); if (cc > cest) cest = cc;
+      }
+      if (cest * dt <= CFL_SAFE) {
+        // ── 활성 nsub=1 경로 (상태 변경은 여기서부터 — 폴백 시엔 아직 불변) ──
+        const Qa = [rho, gx, gy, gz];
+        if (opts.scalars) for (const nm of opts.scalars) Qa.push(world.fields[nm] || world.addField(nm, { type: Float64Array }));
+        for (let c = 0; c < cells.length; c++) {                  // 진공 g-가드(iter)
+          const i = cells[c], cap = rho[i] * VMAX;
+          if (gx[i] > cap) gx[i] = cap; else if (gx[i] < -cap) gx[i] = -cap;
+          if (gy[i] > cap) gy[i] = cap; else if (gy[i] < -cap) gy[i] = -cap;
+          if (gz[i] > cap) gz[i] = cap; else if (gz[i] < -cap) gz[i] = -cap;
+        }
+        for (let c = 0; c < cells.length; c++) {                  // 속도 재계산(iter·post-guard)
+          const i = cells[c]; const r = rho[i] > EPS ? rho[i] : 0; const inv = r > 0 ? 1 / rho[i] : 0;
+          let ux = gx[i] * inv, uy = gy[i] * inv, uz = gz[i] * inv;
+          if (ux > VMAX) ux = VMAX; else if (ux < -VMAX) ux = -VMAX;
+          if (uy > VMAX) uy = VMAX; else if (uy < -VMAX) uy = -VMAX;
+          if (uz > VMAX) uz = VMAX; else if (uz < -VMAX) uz = -VMAX;
+          vx[i] = ux; vy[i] = uy; vz[i] = uz;
+        }
+        let outA = world.scratch.__advOut;                        // out 스크래치(지속, Qa.length×L) — iter 만 리셋
+        if (!outA || outA.length !== Qa.length) { outA = world.scratch.__advOut = []; for (let k = 0; k < Qa.length; k++) outA.push(new Float64Array(L)); }
+        for (let c = 0; c < cells.length; c++) { const i = cells[c]; for (let k = 0; k < Qa.length; k++) outA[k][i] = Qa[k][i]; }
+        const h = dt;                                             // nsub=1
+        function sweepA(stride, vAxis, edge) {                    // donor-cell 상류차분(조밀 sweep 과 동일 식, iter 한정)
+          for (let c = 0; c < cells.length; c++) {
+            const i = cells[c], x = i % N, y = (i / N | 0) % N, z = (i / NN | 0);
+            if (edge === 0 ? x === N - 1 : edge === 1 ? y === N - 1 : z === N - 1) continue;   // no-flux 경계
+            const j = i + stride, uf = 0.5 * (vAxis[i] + vAxis[j]); if (uf === 0) continue;
+            const up = uf > 0 ? i : j, f = h * uf;                 // donor=up. up 이 빈 셀이면 Qa[up]=0 → flux 0(경계 자동)
+            for (let k = 0; k < Qa.length; k++) { const flux = f * Qa[k][up]; outA[k][i] -= flux; outA[k][j] += flux; }
+          }
+        }
+        sweepA(1, vx, 0); sweepA(N, vy, 1); sweepA(NN, vz, 2);
+        for (let c = 0; c < cells.length; c++) { const i = cells[c]; for (let k = 0; k < Qa.length; k++) Qa[k][i] = outA[k][i]; }
+        if (opts.stats) opts.stats.cellsVisited = cells.length;
+        return world;
+      }
+      // courant>CFL_SAFE → 조밀 폴백(아래로 진행, 상태 아직 불변 = 순수 조밀 결과).
+    }
+
     // 진공 KE 가드 — 저장된 운동량을 |g_축| ≤ ρ·VMAX 로 묶는다 → KE=½g²/ρ ≤ ½ρ·VMAX²(진공 ρ→0 이면 KE→0).
     //   near-vacuum 셀(ρ→0)은 압력 push 로 g 가 쌓여 KE 가 폭주(측정: 1e17)한다 — 파생 속도만 클램프하면
     //   *저장 g 는 계속 큰다*. 상태(g) 자체를 묶어 *비물리 진공 운동량*을 제거(생성 0인 소산형 — 에너지는
@@ -79,10 +152,6 @@
     // 이류할 양(질량 + 운동량 3성분 + 선택 수동 스칼라들)에 같은 면속도로 flux 를 누적(이중버퍼).
     const Q = [rho, gx, gy, gz];
     if (opts.scalars) for (const nm of opts.scalars) Q.push(world.fields[nm] || world.addField(nm, { type: Float64Array }));
-
-    const vx = world.scratch.__vx || (world.scratch.__vx = new Float64Array(L));
-    const vy = world.scratch.__vy || (world.scratch.__vy = new Float64Array(L));
-    const vz = world.scratch.__vz || (world.scratch.__vz = new Float64Array(L));
 
     // 셀별 속도 v=g/ρ 계산 + 최대 Courant 수(차원분리 안정 한계 = L1: Σ|v_축|·dt). 한 서브스텝 내내 고정.
     function recomputeVelocity() {
@@ -199,5 +268,5 @@
   }
 
   return { advect, totalMomentum, centerOfMass, seedMovingBlob,
-           ensureMomentum, RHO, MX, MY, MZ, DEFAULT_DT, VERSION: 1 };
+           ensureMomentum, RHO, MX, MY, MZ, DEFAULT_DT, VERSION: 2 };
 });

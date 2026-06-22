@@ -30,7 +30,14 @@
   // 확산 1스텝(동시 갱신) — 더블버퍼로 결정론·순서 무관.
   //   닫힌 경계(no-flux): 경계 밖 이웃과는 교환하지 않는다 → 에너지가 상자를 안 떠난다(총량 보존).
   //   α=0 → 항등(early return) — 가법성/회귀 0 가드.
-  function diffuseEnergy(world, alpha, name) {
+  //
+  //   opts.active(step_0020) — *번지는* stencil 법칙을 활성 순회로 일반화한다(확장성 레버1).
+  //     확산은 0 셀이 비-영 이웃의 flux 를 받아 *번진다* → 활성 블록만 돌면 경계 번짐을 놓친다.
+  //     그래서 opts.active 에는 **active∪halo**(활성 블록 + 6-면 이웃 블록, ActiveSet.originsWithHalo)를
+  //     넘긴다 — 번짐이 닿는 칸을 모두 덮어 *조밀과 비트 동일*. active∪halo 밖 셀은 자신·이웃이 모두 0 →
+  //     확산 결과 불변(건너뛰어도 동일). 더블버퍼라 읽기는 옛 E, 쓰기는 처리 칸만 → 순서 무관.
+  //     opts.active 생략 → 조밀 전-격자(기존 경로) = byte 동일(회귀 0).
+  function diffuseEnergy(world, alpha, name, opts) {
     name = name || FIELD;
     if (alpha == null) alpha = DEFAULT_ALPHA;
     if (!alpha) return world;                         // 노브=0 → 세계 불변
@@ -38,19 +45,47 @@
     const N = world.N, E = world.fields[name], NN = N * N;
     let out = world.scratch[name];
     if (!out || out.length !== E.length) out = world.scratch[name] = new Float64Array(E.length);
-    for (let z = 0; z < N; z++)
-      for (let y = 0; y < N; y++)
-        for (let x = 0; x < N; x++) {
-          const i = (z * N + y) * N + x, e = E[i];
-          let flux = 0;                                // Σ_{이웃}(E_j − E_i), 경계 밖은 생략(no-flux)
-          if (x > 0)     flux += E[i - 1]  - e;
-          if (x < N - 1) flux += E[i + 1]  - e;
-          if (y > 0)     flux += E[i - N]  - e;
-          if (y < N - 1) flux += E[i + N]  - e;
-          if (z > 0)     flux += E[i - NN] - e;
-          if (z < N - 1) flux += E[i + NN] - e;
-          out[i] = e + alpha * flux;
+
+    // 한 셀의 확산 갱신값(조밀·활성 공통) — out[i] = E[i] + α·Σ_{이웃}(E_j−E_i), no-flux 경계.
+    function step(x, y, z) {
+      const i = (z * N + y) * N + x, e = E[i];
+      let flux = 0;
+      if (x > 0)     flux += E[i - 1]  - e;
+      if (x < N - 1) flux += E[i + 1]  - e;
+      if (y > 0)     flux += E[i - N]  - e;
+      if (y < N - 1) flux += E[i + N]  - e;
+      if (z > 0)     flux += E[i - NN] - e;
+      if (z < N - 1) flux += E[i + NN] - e;
+      out[i] = e + alpha * flux;
+    }
+
+    if (opts && opts.active) {
+      // ── 활성∪halo 순회 — 번짐이 닿는 블록만(조밀과 비트 동일) ──
+      const bs = opts.blockSize || 8, active = opts.active;
+      let visited = 0;
+      for (let b = 0; b < active.length; b++) {                 // 1패스: 처리 칸만 새 값 계산(읽기=옛 E)
+        const ox = active[b][0], oy = active[b][1], oz = active[b][2];
+        for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
+          for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
+            for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break; step(x, y, z); visited++; }
+          }
         }
+      }
+      for (let b = 0; b < active.length; b++) {                 // 2패스: 처리 칸만 써넣기(나머지는 불변=0)
+        const ox = active[b][0], oy = active[b][1], oz = active[b][2];
+        for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
+          for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
+            for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break; const i = (z * N + y) * N + x; E[i] = out[i]; }
+          }
+        }
+      }
+      if (opts.stats) opts.stats.cellsVisited = visited;
+      return world;
+    }
+
+    for (let z = 0; z < N; z++)                                 // 조밀 전-격자(기존 경로 = 회귀 0)
+      for (let y = 0; y < N; y++)
+        for (let x = 0; x < N; x++) step(x, y, z);
     E.set(out);
     return world;
   }
@@ -100,5 +135,5 @@
   }
 
   return { diffuseEnergy, entropy, energyVariance, seedHotSpot,
-           ALPHA_MAX, DEFAULT_ALPHA, FIELD, VERSION: 2 };
+           ALPHA_MAX, DEFAULT_ALPHA, FIELD, VERSION: 3 };
 });
