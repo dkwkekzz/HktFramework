@@ -387,36 +387,73 @@
       defaults: { colorScale: 'relative', view: 'energy', kpress: 0.3, kthermo: 0.2, kvisc: 1.5 },
       init(w) {
         for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
-        HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.13, M0: Math.max(2500, w.N ** 3 * 0.09), T0: 1 });
+        const N = w.N, cen = (N - 1) / 2, rad = Math.max(2, N * 0.11);
+        // 차갑고 조밀한 중앙 별(승격 대상) + 옅은 가스 헤일로(유체로 남음).
+        for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const dx = x - cen, dy = y - cen, dz = z - cen, d2 = dx * dx + dy * dy + dz * dz, i = (z * N + y) * N + x;
+          if (d2 <= rad * rad) { w.fields.energy[i] = 12; w.fields.therm[i] = 2; }
+          else if (d2 <= (rad + 3) * (rad + 3)) { w.fields.energy[i] = 0.5; w.fields.therm[i] = 0.2; }
+        }
         updateTemperature(w);
         const bs = 8;
-        w.__hyb = { bs, hold: 4, set: HTJSparse.createActiveSet(w.N, bs), tracker: HTJActivity.createActivityTracker(w.N, bs), entities: [], tick: 0 };
+        w.__hyb = { bs, hold: 3, set: HTJSparse.createActiveSet(w.N, bs), tracker: HTJActivity.createActivityTracker(w.N, bs), entities: [] };
       },
-      advance(w, p) {
+      advance(w) {
         const H = w.__hyb;
-        // 유체(격자) 법칙 — 별이 붕괴·정착(점성으로 감쇠).
-        HTJGravity.applyGravity(w, 0.2, { G: 0.15, iters: 40 });
-        HTJPressure.applyPressure(w, 0.2, { K: p.kpress, gamma: 2 });
-        HTJThermal.applyThermalPressure(w, 0.2, { Kth: p.kthermo, gamma: 5 / 3 });
-        HTJViscosity.applyViscosity(w, 0.2, { Kvisc: p.kvisc });
-        HTJInertia.advect(w, 0.2, { scalars: ['therm'] });
-        // 안정 판정(활동도·손실 허용 임계=근사 LOD) → 동결 코어 자동 승격.
+        // 코어는 차갑고 조밀해 거의 안 변함 → 동결 판정 → 자동 승격(코어만·eps 높게 가스 제외).
         H.set.rebuildFromField(w.fields.energy);
-        const mean = w.total('energy') / w.fields.energy.length;
-        H.tracker.measure(w.fields.energy, H.set.origins(), { threshold: mean * 2 });
-        if (H.tick++ > 30) {
-          const eps = Math.max(mean * 1.5, 1e-9);
-          const res = HTJHybrid.autoPromoteStable(w, H.tracker, { hold: H.hold, eps });
-          for (const e of res.entities) H.entities.push(e);
-        }
-        // 통합 중력(S6 배선·0033): 승격 개체가 유체+서로의 중력을 트리로 받고, 유체도 개체를 느낀다.
+        H.tracker.measure(w.fields.energy, H.set.origins(), { threshold: 0 });
+        const res = HTJHybrid.autoPromoteStable(w, H.tracker, { hold: H.hold, eps: 5 });
+        for (const e of res.entities) H.entities.push(e);
+        // 승격 후: 가스가 개체(별)의 중력을 느껴 흘러든다(통합 중력 0033) + 가스 이류 + 개체 드리프트.
         if (H.entities.length) {
-          HTJHybrid.applyUnifiedGravity(w, H.entities, { G: 0.15, soft: 2, theta: 0.5, bs: H.bs, dt: 0.2 });
-          HTJHybrid.stepEntities(H.entities, { dt: 0.2, G: 0, N: w.N });   // 위치 적분(개체간 중력은 통합 트리가 이미)
+          HTJHybrid.applyUnifiedGravity(w, H.entities, { G: 0.5, soft: 3, theta: 0.5, bs: H.bs, dt: 0.2 });
+          HTJInertia.advect(w, 0.2, { scalars: ['therm'] });
+          HTJHybrid.stepEntities(H.entities, { dt: 0.2, G: 0, N: w.N });
         }
         updateTemperature(w);
       },
-      note: '<b>자동 승격 하이브리드</b>(S5-c) — 그동안 따로 박은 부품을 *잇는다*: 검출(0014)·동결=안정 판정(0025)·보존 이관(0026/0029)·개체 동역학(0027/0028). <b>▶ 흐름</b>: 별이 중력으로 붕괴·정착하면, 활동도 추적기가 *거의 안 변하는* 코어 블록을 <b>동결</b>(안정)로 판정한다 → <b>자동 승격</b>이 그 코어를 격자에서 통째로 빼내 <b>개체(밝은 구체)</b>로 올린다(0026 의 explicit 승격이 *자동 트리거*로). 빠진 자리는 격자에서 비고(셀 급감), 주변 <b>가스는 유체(voxel)로 계속 흐른다</b> — 개체는 개체-공간에서 굴린다(O(개체)). = <b>"안정 별=구체 개체로 시뮬·나머지 가스만 유체로"</b>. <b>왜 중요한가</b>(design §0 목적 ②·§5): 레버2 가 *실제로* 활성 격자 칸을 줄인다(레버1 0023 은 블록 점유 100% 천장에 막혀 못 한 일) — 비용을 *흐르는 유체*에만 묶는다. <b>정직한 한계</b>: ① 단일 자기중력 별은 거친 격자에서 *미세 진동*해 exact-quiet 동결이 안 걸린다 → <b>손실 허용 임계</b>(근사 LOD·threshold&gt;0)로 "거의 안 변함"을 동결로 본다. ② 자동 *강등*(외란→유체 복원)·개체↔유체 결합 중력(S6)은 후속. ③ 가우시안 꼬리는 격자에 남아(0024 천장) 비-영 칸 총수는 천천히 준다 — 줄어든 건 *비싼 코어*다.'
+      note: '<b>자동 승격 하이브리드</b>(S5-c) — 부품을 *잇는다*: 검출(0014)·동결=안정 판정(0025)·보존 이관(0026/0029)·개체 동역학(0027/0028)·통합 중력(0033). <b>▶ 흐름</b>: 처음엔 조밀한 별(차가운 코어)이 <b>복셀</b>로 보이고 둘레에 옅은 가스가 있다. 활동도 추적기가 코어를 <b>동결</b>(안정)로 판정하면 <b>자동 승격</b>이 코어를 격자에서 통째로 빼내 <b>구체(개체)</b>로 올린다(0026 explicit 승격이 *자동 트리거*로) — 코어 자리가 비고, 둘레 <b>가스는 유체(voxel)로 남아 구체 쪽으로 흘러든다</b>(0033 개체↔유체 결합 중력). = <b>"안정 별=구체로 시뮬·나머지 가스만 유체로"</b>. <b>왜 중요한가</b>(design §0 목적 ②·§5): 레버2 가 비용을 *흐르는 유체*에만 묶는다(별=개체 1개·O(개체)). <b>정직한 한계</b>: ① 단일 자기중력 별의 *emergent 붕괴*는 거친 격자에서 미세 진동/흩어져 exact-quiet 동결이 안 걸린다 → 이 장면은 *이미 조밀한 차가운 코어*를 시드해 안정 판정을 또렷이 보인다(승격 mechanism 은 동일). 여러 별이 동시에 승격되어 *서로 상호작용*하는 장면은 <b>step_0035</b>. ② 점유 셀 위 강등(병합)은 후속.'
+    },
+
+    // ── step_0035 — 다체 하이브리드: 복셀 별들이 구체로 승격되어 서로 상호작용(가스 사라짐) ──
+    //   여러 조밀 덩어리(복셀)가 동결→자동 승격으로 *전부* 구체(개체)가 되고(격자 비움=복셀 사라짐),
+    //   구체들이 서로 중력으로 끌려 궤도·상호작용한다 = 사용자가 본 "복셀 안 보이고 구체로 표현되어 상호작용".
+    '0035': {
+      label: 'step_0035 — 다체 하이브리드(복셀→구체→상호작용)', title: 'HTJ — 다체 하이브리드: 별들이 구체로 승격되어 상호작용',
+      sub: '복셀 덩어리들이 전부 구체(개체)로 승격(가스 사라짐) → 구체들이 서로 끌려 궤도·상호작용',
+      mode: 'energy', dynamics: true, render: 'hybrid',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
+        const N = w.N, cen = (N - 1) / 2, R = N * 0.3, rad = Math.max(2, N * 0.09), nb = 6, spin = 0.5;
+        for (let k = 0; k < nb; k++) {
+          const a = k * 2 * Math.PI / nb, bcx = cen + R * Math.cos(a), bcy = cen + R * Math.sin(a);
+          // 클러스터 중심 둘레 접선 속도(z축 회전) → 승격 후 구체들이 궤도.
+          const vx = -spin * (bcy - cen) / 8, vy = spin * (bcx - cen) / 8;
+          for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+            const dx = x - bcx, dy = y - bcy, dz = z - cen;
+            if (dx * dx + dy * dy + dz * dz <= rad * rad) { const i = (z * N + y) * N + x; w.fields.energy[i] = 10; w.fields.therm[i] = 3; w.fields.mom_x[i] = 10 * vx; w.fields.mom_y[i] = 10 * vy; }
+          }
+        }
+        updateTemperature(w);
+        const bs = 8;
+        w.__hyb = { bs, hold: 2, set: HTJSparse.createActiveSet(w.N, bs), tracker: HTJActivity.createActivityTracker(w.N, bs), entities: [] };
+      },
+      advance(w) {
+        const H = w.__hyb;
+        // 덩어리는 정적(차갑고 조밀) → 곧 동결 → 자동 승격(복셀 사라짐).
+        H.set.rebuildFromField(w.fields.energy);
+        const mean = w.total('energy') / w.fields.energy.length;
+        H.tracker.measure(w.fields.energy, H.set.origins(), { threshold: 0 });
+        const res = HTJHybrid.autoPromoteStable(w, H.tracker, { hold: H.hold, eps: Math.max(mean * 3, 1e-9) });
+        for (const e of res.entities) H.entities.push(e);
+        // 승격된 구체들: 서로 중력으로 끌려 궤도·상호작용(개체 N체).
+        if (H.entities.length >= 2) HTJEntity.applyEntityGravity(H.entities, 0.2, { G: 0.8, soft: 3 });
+        HTJEntity.stepEntities(H.entities, 0.2, { N: w.N });
+        updateTemperature(w);
+      },
+      note: '<b>여러 별이 구체로 승격되어 서로 상호작용</b> — 사용자가 본 그 장면. <b>▶ 흐름</b>: 처음엔 조밀한 별 덩어리들이 <b>복셀</b>로 보인다(파란 큐브). 곧 활동도 추적기가 이들을 <b>동결</b>(안정)로 판정 → <b>자동 승격</b>이 *전부* 격자에서 빼내 <b>구체(개체)</b>로 올린다 → <b>복셀이 사라지고 구체만 남는다</b>(격자 비움). 그 다음 구체들이 <b>서로 중력으로 끌려 궤도를 돌고 뭉치고 흩어진다</b>(개체 N체 동역학·0028). <b>왜 중요한가</b>(design §0 목적 ②): 존재가 수천 셀(복셀)이 아니라 <b>소수 파라미터 개체(구체)</b>로 표현·시뮬되고, 그 개체들끼리 상호작용한다 — 비용이 부피가 아니라 *개체 수*에 묶인다. 질량·운동량 정확 보존. <b>정직한 한계</b>: 접선 속도(회전)를 줘 구체들이 한 점으로 안 뭉치고 궤도하게 했다·충돌 시 자동 강등(유체 복원·0031)은 이 장면엔 안 켬(구체 상호작용을 보이려고).'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
