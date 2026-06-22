@@ -63,14 +63,43 @@
     if (!rate || !dt) return world;                      // 노브=0 → 세계 불변
     const rhoCrit = opts.rhoCrit != null ? opts.rhoCrit : DEFAULT_RHO_CRIT;
     const tCrit = opts.tCrit != null ? opts.tCrit : DEFAULT_T_CRIT;
-    const rho = world.fields[RHO], u = ensure(world, THERM), L = rho.length;
-    for (let i = 0; i < L; i++) {
-      const r = rho[i];
-      if (r < rhoCrit) continue;                         // 밀도 게이트
-      const T = r > EPS ? u[i] / r : 0;
-      if (T < tCrit) continue;                           // 온도 게이트
-      u[i] += dt * rate * r;                             // 내부 발열(질량당 발열률 × 질량). ρ 불변.
+    const rho = world.fields[RHO], u = ensure(world, THERM), L = rho.length, N = world.N;
+    let visited = 0;
+
+    // ── 활성 블록 순회(opts.active) — 동결/빈 블록을 *실제로 건너뛴다*(step_0018 cooling 의 fusion 판) ──
+    //   fusion 은 per-cell(이웃 없음)이고 게이트가 꺼진 셀(돌·진공)은 u 를 *안 건드린다*(0 변화) → 그런
+    //   블록만 골라 건너뛰어도 *조밀과 비트 동일*. step_0025 의 활동도 추적기가 "변화 멎은 블록"을 동결로
+    //   판정해 active 목록에서 빼면, 그 동결 블록은 어차피 게이트 off=0변화라 건너뜀이 비트 동일이다.
+    //   opts.active 생략 → 조밀 전-격자(아래) = byte 동일(회귀 0).
+    if (opts.active) {
+      const bs = opts.blockSize || 8;
+      for (let b = 0; b < opts.active.length; b++) {
+        const ox = opts.active[b][0], oy = opts.active[b][1], oz = opts.active[b][2];
+        for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
+          for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
+            for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break;
+              const i = (z * N + y) * N + x;
+              visited++;
+              const r = rho[i];
+              if (r < rhoCrit) continue;                 // 밀도 게이트
+              const T = r > EPS ? u[i] / r : 0;
+              if (T < tCrit) continue;                   // 온도 게이트
+              u[i] += dt * rate * r;                     // 내부 발열. ρ 불변.
+            }
+          }
+        }
+      }
+    } else {
+      for (let i = 0; i < L; i++) {                       // 조밀 전-격자(기존 경로 = 회귀 0)
+        const r = rho[i];
+        if (r < rhoCrit) continue;                       // 밀도 게이트
+        const T = r > EPS ? u[i] / r : 0;
+        if (T < tCrit) continue;                         // 온도 게이트
+        u[i] += dt * rate * r;                           // 내부 발열(질량당 발열률 × 질량). ρ 불변.
+      }
+      visited = L;
     }
+    if (opts.stats) opts.stats.cellsVisited = visited;    // 실측 작업량(방문 셀 수) — 동결 절감 증거(선택)
     return world;
   }
 

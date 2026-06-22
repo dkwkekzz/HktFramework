@@ -185,9 +185,39 @@
     return proj.length;   // 그린 구체 수
   }
 
+  // 확장성 *블록 상태 오버레이* — 8³ 블록을 와이어프레임 큐브로 그려 상태를 색으로 표시(배경 안 지움=덧그림).
+  //   세계 위에 덧그리는 진단 레이어 — design/scalability.md S2/S3 인프라(희소·활성·동결)를 *눈으로* 본다.
+  //   blocks = [{ox,oy,oz,bs,state}] (state: 'active'=도는 블록[주황] / 'frozen'=쉬는 블록[파랑]). 빈 블록은
+  //   애초에 목록에 없다(안 그림=희소화 0016/0017/0024 가 눈에 보임). draw 와 동일한 직교 투영.
+  function drawBlocks(ctx, world, cam, blocks) {
+    const N = world.N, W = ctx.canvas.width, H = ctx.canvas.height, half = (N - 1) / 2;
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const scale = (Math.min(W, H) * 0.80 / N) * cam.zoom;
+    const ox = W / 2 + cam.panX, oy = H / 2 + cam.panY;
+    function project(wx, wy, wz) {
+      const x1 = wx * cy + wz * sy, z1 = -wx * sy + wz * cy;
+      const y2 = wy * cp - z1 * sp, z2 = wy * sp + z1 * cp;
+      return [ox + x1 * scale, oy - y2 * scale, z2];
+    }
+    const E = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+    // 동결(파랑)을 먼저, 활성(주황)을 나중에 그려 활성이 위로 읽히게.
+    const order = blocks.slice().sort((a, b) => (a.state === 'active' ? 1 : 0) - (b.state === 'active' ? 1 : 0));
+    let nActive = 0, nFrozen = 0;
+    for (const blk of order) {
+      const bs = blk.bs, x0 = blk.ox - half - 0.5, y0 = blk.oy - half - 0.5, z0 = blk.oz - half - 0.5;
+      const x1 = Math.min(blk.ox + bs, N) - half - 0.5, y1 = Math.min(blk.oy + bs, N) - half - 0.5, z1 = Math.min(blk.oz + bs, N) - half - 0.5;
+      const c = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]].map(p => project(p[0], p[1], p[2]));
+      if (blk.state === 'active') { ctx.strokeStyle = 'rgba(250,150,60,0.9)'; ctx.lineWidth = 1.5; nActive++; }
+      else { ctx.strokeStyle = 'rgba(70,140,250,0.55)'; ctx.lineWidth = 1; nFrozen++; }
+      ctx.beginPath();
+      for (const [a, b] of E) { ctx.moveTo(c[a][0], c[a][1]); ctx.lineTo(c[b][0], c[b][1]); }
+      ctx.stroke();
+    }
+    return { nActive, nFrozen };
+  }
+
   // 화면 좌표(sx,sy) → 격자 셀 [x,y,z] 픽킹. draw 와 *동일한* 직교 투영을 재사용한다.
-  //   모든 셀 중심을 화면에 투영해, 클릭 근처(반경 R 픽셀)에서 가장 앞쪽(카메라 쪽) 셀을 고른다.
-  //   근처에 없으면 전역 최근접 셀로 폴백 → 빈(에너지 0) 공간에서도 항상 하나를 반환한다.
   function pick(ctx, world, cam, sx, sy) {
     const N = world.N, W = ctx.canvas.width, H = ctx.canvas.height, half = (N - 1) / 2;
     const cy = Math.cos(cam.yaw), say = Math.sin(cam.yaw);
@@ -213,5 +243,5 @@
     return i < 0 ? null : world.coords(i);
   }
 
-  return { draw, drawClumps, pick, defaultCamera, FACES, VERSION: 2 };
+  return { draw, drawClumps, drawBlocks, pick, defaultCamera, FACES, VERSION: 3 };
 });
