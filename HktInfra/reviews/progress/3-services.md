@@ -51,15 +51,24 @@
   - `step-0085~0086` — 영속·failover(휘발 projection ⟂ durable 변경 저널·crash→replay 재구성·0017/0021 event sourcing 의 멤버십 판) → 스냅샷+tail 압축(무계 저널 유계·0018/0022 판).
 - **남은 것**: cluster kill→replay 통합(현 in-process·#9).
 
-## 거래소 ✅ 자라는 중 *(새 박스·가방/파티와 같은 궤적)* + 우편 ⬜ 미착수
+## 거래소 ✅ 자라는 중 *(가방/파티 궤적 → 진짜 존 넘는 실물 거래)* + 우편 ⬜ 미착수
 
-- **푸는 병목**: *두 당사자* 사이의 아이템↔대가 교환을 존 tick 밖에서 — 가방(1-당사자 이동)과 같은 불변(단일 소유 + 쌍 거래)으로·이중 판매 0·*존을 넘는 거래*가 존간 결합 없이 성립.
-- **지금 어디**: 분리 한 step 만에 가방/파티가 여러 묶음에 걸쳐 자란 궤적(분리→발행→영속→압축)을 *한 묶음에* 재현 — 재사용 레시피 확립(`src/svc-exchange.js` 새 박스).
-  - `step-0107` — 서비스 분리: escrow 가 단일 쓰기 권위·list=acquire(맡김·이중 판매 0)·buy/cancel=release 쌍 거래·보존 `listed==open+sold+cancelled`·닫힌 매물 거부(`svc-exchange.js:54,62,74,97`).
-  - `step-0108` — 체결 발행(svc.exchange.sold→audit·시세 피드 씨앗·0016 무수정 소비자 패턴·0019 CQRS 의 거래소 판).
-  - `step-0109~0110` — 영속·failover(휘발 projection ⟂ durable op 저널·crash→reconstruct·0017/0085 판) → 스냅샷+tail 압축(무계 저널 유계·0018/0086 판).
-- **남은 것**: 거래소↔가방 *2-서비스 원자 거래*(현 escrow 자기 원장만·아이템 실이동 0·#30)·별 PersistStore 박스화·cluster kill→replay(현 post-run 직접 crash·#9)·우편·길드 전용 박스 미착수.
+- **푸는 병목**: *두 당사자* 사이의 아이템↔대가 교환을 존 tick 밖에서 — 가방(1-당사자 이동)과 같은 불변(단일 소유 + 쌍 거래)으로·이중 판매 0·*존을 넘는 거래*가 존간 결합 없이 성립. 더해 판매자가 *실제로 가진* 아이템이 빠지고 구매자에게 *실제로* 들어가야(추상 escrow→실물).
+- **지금 어디**: 분리→발행→영속→압축(한 묶음 레시피) → 수명주기 발행 완비·시세 피드 분리 → **escrow 를 가방 원장에 실체화해 진짜 존 넘는 실물 거래**(`src/svc-exchange.js`).
+  - `step-0107~0110` — 서비스 분리(escrow 단일 권위·쌍 거래·보존·이중 판매 0)→체결 발행(svc.exchange.sold)→영속(op 저널 replay)→스냅샷+tail 압축(가방/파티와 같은 궤적·`svc-exchange.js:62,103,116`).
+  - `step-0111·0114~0115` — *수명주기 종결 3종 완비*: 취소 발행(svc.exchange.cancelled·0108 의 대칭)·**매물 만료 TTL**(시간 트리거 escrow→판매자 회수·sweep `now−listedAt≥ttl`·새 종결 expired·보존식 4종 `listed==open+sold+cancelled+expired`·저널 'expire' 정합)·만료 발행(svc.exchange.expired). 매물이 영영 묶이지 않는다(`svc-exchange.js:67,123`).
+  - `step-0117~0120` — **거래소↔가방 2-서비스 실물 거래**(#30 결합 절반 해소): escrow 를 가방 원장 아바타로 실체화 → 인출(list seller→escrow)·입금(buy escrow→buyer)·반환(cancel/expire escrow→seller) 전부 가방 give(`_custody`·`svc-exchange.js:52`) → 2-서비스 보존 단언(거래소 open `escrowItemIds`≡가방 escrow 소유·minted 불변·각 1소유자·`:127`). 가방이 아이템 권위·거래소는 give 요청자(단일 소유 불침).
+- **남은 것**: 2-서비스 *원자성*(give 낙관적·결과 미수신·실패 보상 0·#31)·거래소 저널 *별 PersistStore 박스화*(현 자기 박스 내·#30 b)·멀티프로세스 배선(현 인프로세스·#9)·우편·길드 전용 박스 미착수.
+
+## 시세 피드(MarketFeed) ✅ 자라는 중 *(새 박스·0019 ranking 의 거래소 판)*
+
+- **푸는 병목**: 거래량·체결가·매물 회전은 거래소(발행자)를 안 건드리고 *버스 구독*으로 따라붙어 item별로 집계돼야 — 읽기 모델(CQRS)이고 권위는 거래소.
+- **지금 어디**: 발행 스트림 소비 → 저널 replay 복원 → 수명주기 3종 반영(`src/svc-market.js` 새 박스).
+  - `step-0112` — 분리: svc.exchange.sold+cancelled 소비→item별 {last 체결가·volume 거래량·cancelled}(원장 권위 0·발신 0·관찰 전용·pull·0019 RankingService 와 같은 CQRS 골격·다른 입력=수명주기 발행).
+  - `step-0113` — 영속·late-join: 자기 영속 0 이어도 *거래소 op 저널* replay 로 시세 완전 복원(다운타임 누락 따라잡음·0020 읽기모델의 거래소 판·`svc-market.js` reconstruct).
+  - `step-0116` — 만료 반영: svc.exchange.expired 구독 추가→수명주기 3종(체결·취소·만료) 모두 시세에 흐름(`svc-market.js:29`).
+- **남은 것**: reconstruct==라이브 가 *전-수명주기-발행 ON* 전제(#32)·매물 깊이(open depth·list 발행 없어 미추적)·자기 스냅샷/증분 영속·멀티프로세스 배선(#9).
 
 ---
 
-> **이 계층 다음 걸음**: 채팅에 홉 신뢰(ack/resend)를 채워 "팬아웃도 안 샌다"를 맞추고(#7), 라우팅/영속/수신함/거래소 호를 멀티프로세스로 배선한다(#9·전 호 인프로세스 전용). 안정된 전달·종결·유계화·거래소 호를 spine 가설 모드로 승격(#16·~40 모드 미승격). 거래소를 *거래소↔가방 2-서비스 원자 거래*로 이어 진짜 존 넘는 거래로 만들고(#30), 수신함을 동적 N·세션 간접으로 일반화(#27)·게이트웨이 경유 read E2E(#9/④). 우편·길드 전용 박스 씨앗 심기.
+> **이 계층 다음 걸음**: 거래소↔가방을 *2-서비스 원자성/saga*(give 결과 수신·실패 보상·#31)로 닫아 낙관적 결합을 견고하게. 거래소 저널을 별 PersistStore 박스로(#30 b). 채팅에 홉 신뢰(#7). 라우팅/전달/수신함/거래소↔가방/시세 피드 호를 멀티프로세스로 배선(#9·전 호 인프로세스 전용)·안정 호를 spine 가설 모드 승격(#16·~50 모드). 수신함 동적 N·세션 간접(#27)·게이트웨이 경유 read E2E(#9/④). 우편·길드 전용 박스 씨앗 심기.
