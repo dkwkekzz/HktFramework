@@ -1,4 +1,5 @@
 'use strict';
+// step-0091 — 옛 epoch grace 유예(deliverEpochGrace·straggler 내성): 0090 은 더 높은 epoch 도착 시 낮은 epoch 워터마크를 *즉시* 가지친다 — 단조 epoch 도착을 가정한다(0090 §9). 하지만 가지친 *뒤* 옛 epoch 의 지연 straggler 가 도착하면 워터마크가 없어 *신규로 오인 재수신*(중복 적재·전달 유실의 거울상). 이 step 은 즉시 가지치기 대신 *가장 최근 epochGrace 개의 닫힌 epoch 워터마크를 유예*(슬라이딩 윈도)한다 — epoch e 도착 시 e-epochGrace 미만 epoch 만 제거. 유예된 닫힌 epoch 의 straggler 는 워터마크가 살아 있어 정상 dedup(중복으로 인식·재적재 안 함). epoch 차원은 producer 당 epochGrace+1 로 여전히 유계(0051 lease grace 의 epoch 판). epochGrace 0(기본) = e 미만 즉시 제거 = 0090 비트 동일.
 // step-0090 — epoch 워터마크 유계화(epochBound·옛 epoch 가지치기): 0089 의 (producer,epoch) 워터마크는 재시작 안전을 주지만, Mailbox 가 *모든 epoch*의 워터마크를 영영 보관한다 → 라우터가 재시작할수록 epoch 차원이 ∝재시작 수로 무한 성장(0089 §9). 핵심 통찰: 라우터가 재시작하면(epoch++) inflight 를 비우므로 *옛 epoch 의 전달은 다시 오지 않는다* → 더 높은 epoch 가 도착하면 그 producer 의 *낮은 epoch 워터마크는 안전하게 잊어도 된다*. 이 step 은 base producer 별 *현재(최고) epoch* 만 유지하고, 더 높은 epoch 수신 시 낮은 epoch 워터마크 키를 가지친다 → epoch 차원이 producer 당 1 로 유계(0048 lease lifecycle·0042 seen 유계화의 epoch 판). epochBound OFF 면 가지치기 0·옛 epoch 누적 = 0089 비트 동일.
 // step-0081 — dedup seen 집합 유계화(deliverDedupBound·워터마크): 0080 의 수신측 dedup 은 본 seq 를 *전부* `seen` Set 에 영구 보관한다 → 귓속말이 누적될수록 메모리가 run 에 비례해 무한 성장(0080 §9). 라우터의 deliverySeq 는 *단조 증가*(producer 별 ++deliverySeq)이고, 라우터는 ack 받거나 포기하면 그 seq 를 다시 안 보낸다 — 따라서 *연속 워터마크 아래* 의 seq 는 영영 재발신 안 됨 = 안전하게 잊어도 됨. 이 step 은 그 통찰로 seen 을 유계화한다: producer(전달자 addr) 별로 ⒜ seenWm(본 *연속* 최고 seq — 이하는 전부 본 것으로 접힘) + ⒝ seenAbove(wm 초과 *비순차* seq 의 희소 집합)를 둔다. 새 seq 수신 시 seenAbove 에 넣고 wm+1 이 차 있으면 흡수하며 wm 전진(set 에서 제거) → 메모리 = O(gap)(순차 도착이면 ≈0), OFF 의 O(고유 seq)(∝run) 대비 유계. 0042 busSeenBound(inAcked 워터마크)·0047 busSeenNs(per-producer)의 *전달 dedup* 판. dedup 판정(중복=inbox 재적재 안 함)은 불변 — 메모리 표현만 유계화. deliverDedupBound OFF 면 0080 의 평면 Set(무계) = 비트 동일.
 // step-0080 — 수신측 dedup(exactly-once): 0077 의 at-least-once 재시도는 *영수증(ack)이 손실*되면 라우터가 *이미 받은 전달*도 재발신한다 → Mailbox 가 같은 귓속말을 두 번 적재(중복·0077 §9). 이 step 은 수신측을 멱등화한다 — Mailbox 가 seq 를 기억(seen)해, 중복 whisperDeliver(이미 본 seq)는 inbox 에 *재적재하지 않고*(duplicates++) ack 만 재회신(라우터 inflight 정리). 0026 id-reconciliation(belief 로 중복 mint 차단)의 *전달* 판 — at-least-once 전송 + 수신측 dedup = exactly-once *처리*. 손실 주입 dropAck(첫 N개 ack 억제·전달은 정상 수신)로 중복을 유발. dedup OFF 면 중복 적재(0079 동작·received 2).
@@ -29,13 +30,16 @@ class Mailbox {
     this.duplicates = 0;    // dedup 으로 걸러낸 중복 전달 수(계측).
     this.epochBound = opts.epochBound || false;   // epoch 워터마크 유계화(step-0090·epochBound) — base producer 별 현재 epoch 만 유지·낮은 epoch 가지치기. OFF 면 옛 epoch 누적(0089 동일).
     this.curEpoch = new Map();  // base producer(m.from) -> 본 최고 epoch(step-0090). 더 높은 epoch 도착 시 낮은 epoch 워터마크 키 가지치기.
+    this.epochGrace = opts.epochGrace || 0;   // 옛 epoch grace 유예(step-0091·deliverEpochGrace) — 가장 최근 N개 닫힌 epoch 워터마크를 유예(슬라이딩 윈도)해 지연 straggler 를 정상 dedup. 0(기본) = 즉시 가지치기(0090 동일). epoch 차원은 producer 당 N+1 로 유계.
   }
   // epoch 가지치기(step-0090) — base 의 더 높은 epoch 도착 시, 그 base 의 *낮은 epoch* 워터마크 키를 제거(옛 epoch 전달은 재시작으로 다시 안 옴 → 안전). epochBound OFF·epoch 없으면 no-op.
+  //   step-0091 grace 유예: e-epochGrace *미만* epoch 만 제거(가장 최근 epochGrace 개 닫힌 epoch 워터마크는 유예 → 지연 straggler 를 정상 dedup). epochGrace 0 = e 미만 즉시 제거(0090).
   _pruneEpoch(base, epoch) {
     if (!this.epochBound || epoch == null) return;
     const cur = this.curEpoch.get(base);
     if (cur != null && epoch <= cur) return;   // 새 epoch 아님 → 가지치기 불필요
-    if (cur != null) for (const k of [...this.seenWm.keys()]) { const i = k.lastIndexOf('#'); if (i >= 0 && k.slice(0, i) === base && +k.slice(i + 1) < epoch) { this.seenWm.delete(k); this.seenAbove.delete(k); } }
+    const floor = epoch - this.epochGrace;   // 이 미만 epoch 워터마크만 제거(0090: floor=epoch / grace N: 최근 N개 닫힌 epoch 유예)
+    if (cur != null) for (const k of [...this.seenWm.keys()]) { const i = k.lastIndexOf('#'); if (i >= 0 && k.slice(0, i) === base && +k.slice(i + 1) < floor) { this.seenWm.delete(k); this.seenAbove.delete(k); } }
     this.curEpoch.set(base, epoch);
   }
   epochKeyCount() { return this.seenWm.size; }   // 보관 중인 (producer,epoch) 워터마크 키 수(계측·유계 증명).

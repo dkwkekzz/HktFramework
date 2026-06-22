@@ -1,8 +1,8 @@
-// HktInfra step-0091 — 헤드리스 검증 (옛 epoch grace 유예·straggler 내성)
+// HktInfra step-0092 — 헤드리스 검증 (파티 ack 타임아웃 포기·N-of-M 종결)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pepochgrace`.
-//   더한 한 조각: 0090 은 더 높은 epoch 도착 시 낮은 epoch 워터마크를 *즉시* 가지친다(단조 epoch 가정·0090 §9). 가지친 *뒤* 옛 epoch 의 지연 straggler 가 도착하면 워터마크가 없어 *신규로 오인 재수신*(중복 적재·전달 유실의 거울상). 이 step 은 *가장 최근 epochGrace 개 닫힌 epoch 워터마크를 유예*(슬라이딩 윈도)해 유예 구간의 straggler 를 정상 dedup 한다. epoch 차원은 producer 당 epochGrace+1 로 여전히 유계(0051 lease grace 의 epoch 판).
-//   검증: ⒜ `reg`(키트) — epochGrace 0(기본)이면 즉시 가지치기 = 0090 비트 동일. ⒝ `pepochgrace`(가설) — 1회 재시작(epoch 0→1)·각 epoch 귓속말 2(총 4)·재시작 후 옛 epoch(0) straggler 1개 주입. ON(epochGrace 1): straggler 가 유예된 wrouter#0 워터마크로 dedup → received 4(불변)·duplicates 1. OFF(0090·즉시 가지치기): wrouter#0 가지쳐져 straggler 신규 오인 → received 5(유실의 거울상)·duplicates 0. minted 동일(비침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `ppartygiveup`.
+//   더한 한 조각: 0088 의 파티 ack 집계는 delivered==routed 면 acked 로 종결하지만, 일부 멤버 전달이 영영 실패(수신측 사망·손실)하면 delivered<routed 에서 acked 가 영영 false 로 *매달린다* — 파티 전송에 종결 상태가 없다(0088 §9). 0078 의 전달 재시도 상한(deliverMaxRetries→포기·undeliverable)은 개별 전달 차원이지 파티 차원이 아니었다. 이 step 은 그 포기를 파티 원장에 귀속한다: 파티 멤버 전달이 포기되면 failed++ → partyIncomplete(done && delivered+failed==routed && failed>0)로 *부분 전달 종결*을 단정. 0078 포기의 파티 N-of-M 판.
+//   검증: ⒜ `reg`(키트) — partyAckGiveup 미설정이면 0091 비트 동일(포기를 파티에 귀속 안 함·undeliverable 자체는 0078 불변). ⒝ `ppartygiveup`(가설) — 파티 'p1'(멤버 2: mbox up·ranking permanent). mbox 의 전달을 전량 손실(deliverDrop) → 재시도 상한(deliverMaxRetries) 후 포기. ON: rec {members 2,routed 1,bounced 1,delivered 0,failed 1}·done true·acked false·incomplete true·partyGiveups 1. OFF: failed 0·incomplete false(영구 보류). 둘 다 undeliverable 1(0078 불변)·minted 동일(비침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,16 +15,8 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const EPOCHS = 2;   // epoch 0,1 (1회 재시작)
-// epoch 0 구간: 귓속말 46,48 / 재시작 51 / epoch 1 구간: 54,56. 그 뒤 옛 epoch(0) straggler 주입.
-const WHISPERS = [
-  { at: 46, from: 'client0', to: 'mbox', body: 'e0a' }, { at: 48, from: 'client0', to: 'mbox', body: 'e0b' },
-  { at: 54, from: 'client0', to: 'mbox', body: 'e1a' }, { at: 56, from: 'client0', to: 'mbox', body: 'e1b' },
-];
-const RESTARTS = [{ at: 51 }];
-const TOTAL = WHISPERS.length;   // 4 정상 전달
-// 옛 epoch(0) straggler — 재시작·epoch 1 전달이 모두 처리된 뒤(tick 88) 지연 도착. 라우터 producer=wrouter, epoch 0, seq 1(epoch 0 에서 본 seq).
-const STRAGGLER = [{ at: 88, from: 'wrouter', epoch: 0, seq: 1, body: 'strag' }];
+const DEAD_DIE = 14; const PARTY_AT = 60;
+const MEMBERS = ['mbox', 'ranking'];   // 둘 다 up(라우팅됨). mbox=Mailbox(ack 함→delivered). ranking=수신함 없음(ack 0→재시도 상한 후 포기·failed). → 1-of-2 부분 전달.
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
@@ -32,36 +24,41 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  deliverDedupBound: true, epochKeyed: true, deliverEpochBound: true,   // 0081 워터마크 + 0089 epoch 키잉 + 0090 유계화
-  whispers: WHISPERS, wrouterRestart: RESTARTS, mboxStraggler: STRAGGLER,
+  deliverMaxRetries: 2,   // ranking(수신함 없음) 전달이 재시도 상한 후 포기되도록
+  partyReceipt: true,   // 파티 원장(0083/0088) — 이 위에 포기 귀속(0092)을 검증
+  parties: [{ at: PARTY_AT, from: 'client0', members: MEMBERS, body: 'party!', partyId: 'p1' }],
   ...extra });
 
-function pepochgrace(seeds) {
-  console.log('== pepochgrace: *가설* — 옛 epoch grace 유예. 즉시 가지치기 대신 최근 N개 닫힌 epoch 워터마크를 유예 → 지연 straggler 를 정상 dedup. epochGrace ON(1) vs OFF(0·0090) ==');
-  console.log(`  ${EPOCHS - 1}회 재시작(epoch 0→1)·정상 전달 ${TOTAL}·옛 epoch(0) straggler 1. ON: straggler dedup → received ${TOTAL}·dup 1. OFF: straggler 신규 오인 → received ${TOTAL + 1}·dup 0.`);
-  console.log('seed   | restarts | received ON | dup ON | epochKeys ON | received OFF | dup OFF | 비침습 | 판정');
+function ppartygiveup(seeds) {
+  console.log('== ppartygiveup: *가설* — 파티 ack 타임아웃 포기. 멤버 전달이 deliverMaxRetries 로 포기되면 그 파티 failed++ → partyIncomplete 로 부분 전달 종결(0078 포기의 파티 N-of-M 판). partyAckGiveup ON vs OFF ==');
+  console.log("  파티 'p1'(멤버 2 둘 다 up: mbox ack·ranking 수신함 없어 포기). ON: rec {routed 2,bounced 0,delivered 1,failed 1}·incomplete true·partyGiveups 1·acked false. OFF: failed 0·incomplete false(영구 보류). 둘 다 undeliverable 1·delivered 1.");
+  console.log('seed   | routed | bounced | delivered | failed ON | done | inc ON | undel ON | inc OFF | 비침습 | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { deliverEpochGrace: 1 }) });   // grace 1 — 직전 닫힌 epoch 워터마크 유예
-    const off = run({ ...P_BASE(seed, { deliverEpochGrace: 0 }) });   // grace 0 — 즉시 가지치기(0090 동작)
-    const mb = on.mbox; const mo = off.mbox; const wr = on.wrouter;
-    const onKeys = mb ? mb.epochKeyCount() : -1;
-    // ① grace 유예 — straggler 가 유예된 옛 epoch 워터마크로 dedup: received 불변(TOTAL)·duplicates 1·재시작 정상.
-    const graced = mb && mb.received === TOTAL && mb.duplicates === 1 && wr && wr.restarts === EPOCHS - 1;
-    // ② 대조(OFF) — 즉시 가지치기면 straggler 가 워터마크 없어 신규 오인 재수신: received TOTAL+1·duplicates 0(0090 §9 한계 노출).
-    const leaked = mo && mo.received === TOTAL + 1 && mo.duplicates === 0;
+    const on  = run({ ...P_BASE(seed, { partyAckGiveup: true }) });
+    const off = run({ ...P_BASE(seed, { partyAckGiveup: false }) });   // 포기를 파티에 귀속 안 함(0091 동작)
+    const wr = on.wrouter; const wo = off.wrouter;
+    const rec = wr ? wr.partyReceipts.get('p1') : null;
+    const done = wr ? wr.partyDone('p1') : false;
+    const incOn = wr ? wr.partyIncomplete('p1') : false;
+    const incOff = wo ? wo.partyIncomplete('p1') : false;
+    const ackedOn = wr ? wr.partyAcked('p1') : false;
+    // ① 포기 종결 — rec {routed 2,bounced 0,delivered 1,failed 1}·done·incomplete·acked false·partyGiveups 1(1-of-2 부분 전달).
+    const closed = rec && rec.routed === 2 && rec.bounced === 0 && rec.delivered === 1 && rec.failed === 1 && done && incOn && !ackedOn && wr.partyGiveups === 1;
+    // ② 대조(OFF) — 포기를 파티에 귀속 안 하면 failed 0·incomplete false(영구 보류). undeliverable 자체는 양쪽 1(0078 불변).
+    const hung = wo && wo.partyReceipts.get('p1') && wo.partyReceipts.get('p1').failed === 0 && !incOff && wo.partyGiveups === 0 && wr.undeliverable === 1 && wo.undeliverable === 1;
     const nonInvasive = on.inventory.minted === off.inventory.minted;
     const ok =
-      check(graced, `seed ${seed}: grace 유예 틀림(received ${mb && mb.received}·dup ${mb && mb.duplicates}·restarts ${wr && wr.restarts}·기대 ${TOTAL}/1/${EPOCHS - 1})`) &&
-      check(leaked, `seed ${seed}: OFF straggler 누수 미재현(received ${mo && mo.received}·dup ${mo && mo.duplicates}·기대 ${TOTAL + 1}/0)`) &&
-      check(nonInvasive, `seed ${seed}: grace 가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
+      check(closed, `seed ${seed}: 포기 종결 틀림(rec ${rec && JSON.stringify(rec)}·done ${done}·inc ${incOn}·giveups ${wr && wr.partyGiveups})`) &&
+      check(hung, `seed ${seed}: OFF 보류 미재현(failed ${wo && wo.partyReceipts.get('p1') && wo.partyReceipts.get('p1').failed}·inc ${incOff}·undel on ${wr && wr.undeliverable}/off ${wo && wo.undeliverable})`) &&
+      check(nonInvasive, `seed ${seed}: 포기 귀속이 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
       check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(wr ? wr.restarts : 0, 8)} | ${pad(mb ? mb.received : 0, 11)} | ${pad(mb ? mb.duplicates : 0, 6)} | ${pad(onKeys, 12)} | ${pad(mo ? mo.received : 0, 12)} | ${pad(mo ? mo.duplicates : 0, 7)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad(rec ? rec.routed : 0, 6)} | ${pad(rec ? rec.bounced : 0, 7)} | ${pad(rec ? rec.delivered : 0, 9)} | ${pad(rec ? rec.failed : 0, 9)} | ${pad(done + '', 4)} | ${pad(incOn + '', 6)} | ${pad(wr ? wr.undeliverable : 0, 8)} | ${pad(incOff + '', 7)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log(`  → 즉시 가지치기(0090)는 단조 epoch 도착을 가정한다 — 가지친 뒤 옛 epoch straggler 는 워터마크가 없어 신규 오인 재수신(전달 유실 0089 의 거울상·중복 적재). grace 유예는 최근 N개 닫힌 epoch 워터마크를 살려둬 straggler 를 정상 dedup 하면서도 epoch 차원을 producer 당 N+1 로 유계(0051 lease grace 의 epoch 판·SPINE 계층3·5).`);
-  console.log('    epochGrace 0(기본) = e 미만 즉시 제거 = 0090 비트 동일(reg). 비-침습: grace 는 워터마크 유지 윈도만(수신 판정·원장 불변)·minted ON==OFF·존 tick 밖 순수 반응형.');
+  console.log('  → 파티 전송은 *세 종결*을 갖는다: done(라우팅 결정·0083)·acked(전원 실수신·0088)·incomplete(일부 영구 실패·0092). 0088 까지 일부 멤버가 영영 실패하면 acked 가 false 로 매달려 종결이 없었다 — 0078 의 개별 전달 포기를 파티 차원으로 끌어올려 N-of-M 부분 전달을 *명시적으로 종결*한다(SPINE 계층3·5).');
+  console.log('    partyAckGiveup 미설정 = 포기를 파티에 귀속 안 함 = 0091 비트 동일(undeliverable 자체는 0078 불변). 비-침습: failed 집계는 추가 회계일 뿐 라우팅·영수증·원장 권위 불변(minted ON==OFF)·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['pepochgrace'] = pepochgrace;
-kit.ORDER.splice(1, 0, 'pepochgrace');
+kit.MODES['ppartygiveup'] = ppartygiveup;
+kit.ORDER.splice(1, 0, 'ppartygiveup');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
