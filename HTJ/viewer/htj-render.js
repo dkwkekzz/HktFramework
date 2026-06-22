@@ -217,6 +217,29 @@
     return { nActive, nFrozen };
   }
 
+  // 개체 오버레이 — 승격된 개체들을 *배경을 안 지우고* 구체로 덧그린다(draw 의 유체 voxel 위에 얹음).
+  //   hybrid 장면(step_0030): 유체는 draw 로, 승격 개체는 이걸로 — "안정 별=개체·나머지 가스=유체"를 한 화면에.
+  //   entities = [{cx,cy,cz,radius,temp|peak}]. draw 와 동일한 직교 투영. (drawBlocks 처럼 비-파괴 오버레이.)
+  function drawEntities(ctx, world, cam, entities) {
+    if (!entities || !entities.length) return 0;
+    const N = world.N, W = ctx.canvas.width, H = ctx.canvas.height, half = (N - 1) / 2;
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const scale = (Math.min(W, H) * 0.80 / N) * cam.zoom, ox = W / 2 + cam.panX, oy = H / 2 + cam.panY;
+    function project(wx, wy, wz) { const x1 = wx * cy + wz * sy, z1 = -wx * sy + wz * cy; const y2 = wy * cp - z1 * sp, z2 = wy * sp + z1 * cp; return [ox + x1 * scale, oy - y2 * scale, z2]; }
+    let tmax = 0; for (const e of entities) { const t = e.peak || e.temp || 1; if (t > tmax) tmax = t; }
+    const proj = entities.map(e => { const p = project(e.cx - half, e.cy - half, e.cz - half); return { sx: p[0], sy: p[1], depth: p[2], rp: Math.max(scale * 0.6, (e.radius || 1) * scale), t: e.peak || e.temp || 1 }; }).sort((a, b) => a.depth - b.depth);
+    for (const s of proj) {
+      const base = heatColor(tmax > 0 ? s.t / tmax : 0.6);
+      const g = ctx.createRadialGradient(s.sx - s.rp * 0.3, s.sy - s.rp * 0.3, s.rp * 0.1, s.sx, s.sy, s.rp);
+      g.addColorStop(0, 'rgb(255,255,255)');
+      g.addColorStop(0.4, 'rgb(' + (base[0] | 0) + ',' + (base[1] | 0) + ',' + (base[2] | 0) + ')');
+      g.addColorStop(1, 'rgb(' + ((base[0] * 0.3) | 0) + ',' + ((base[1] * 0.3) | 0) + ',' + ((base[2] * 0.3) | 0) + ')');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.sx, s.sy, s.rp, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(245,245,255,0.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(s.sx, s.sy, s.rp, 0, Math.PI * 2); ctx.stroke();
+    }
+    return proj.length;
+  }
+
   // 화면 좌표(sx,sy) → 격자 셀 [x,y,z] 픽킹. draw 와 *동일한* 직교 투영을 재사용한다.
   function pick(ctx, world, cam, sx, sy) {
     const N = world.N, W = ctx.canvas.width, H = ctx.canvas.height, half = (N - 1) / 2;
@@ -243,5 +266,5 @@
     return i < 0 ? null : world.coords(i);
   }
 
-  return { draw, drawClumps, drawBlocks, pick, defaultCamera, FACES, VERSION: 3 };
+  return { draw, drawClumps, drawBlocks, drawEntities, pick, defaultCamera, FACES, VERSION: 4 };
 });

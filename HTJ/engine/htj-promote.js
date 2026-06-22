@@ -93,7 +93,15 @@
   //   *빈 셀에만* 얹는 이유(보존): KE=½|g|²/ρ 는 (ρ,g)에 비선형이라 *기존 가스 위에 더하면* 에너지가
   //   비선형으로 어긋난다(½|g₀+g|²/(ρ₀+ρ) ≠ ½|g₀|²/ρ₀+½|g|²/ρ). 빈 셀(ρ₀=0)에 얹으면 정확히 가법.
   //   (점유 셀 위 강등 = 물리적 충돌/병합 = 후속 step.) 반환: 되돌린 셀 수.
-  function demote(world, entity) {
+  //
+  //   opts.spin(가법·기본 off): 켜면 개체의 기록된 각운동량 L 을 *강체 회전장*으로 복원한다(step_0029) —
+  //     ω = I⁻¹·L(I=볼 관성 텐서), 셀 속도 v = v_cm + ω×(r−볼CoM). 회전은 순 선운동량을 0 만큼 더하므로
+  //     (Σρ·ω×r = ω×Σρr = 0) Σg=P 불변, L 은 I·ω=L 로 복원(왕복 각운동량 보존). 회전 KE=½ω·L 는
+  //     internalE 에서 빼 열로 분배(uC=(internalE−KE_rot)/n) → 총E=KEcm+KE_rot+열=KEcm+internalE 정확 보존.
+  //     internalE 가 KE_rot 보다 작으면 ω 를 스케일해 열≥0 유지(에너지 우선·L 일부만 — 정직한 한계).
+  //     **off(기본)면 균일 속도 = 기존과 byte 동일**(회귀 0 — opts.spin 켠 step 만 회전 복원).
+  function demote(world, entity, opts) {
+    opts = opts || {};
     const N = world.N;
     const rho = ensure(world, RHO), u = ensure(world, THERM);
     const gx = ensure(world, MOM[0]), gy = ensure(world, MOM[1]), gz = ensure(world, MOM[2]);
@@ -118,14 +126,45 @@
     const vx = entity.mass > EPS ? entity.px / entity.mass : 0;   // 균일 속도 v=P/M
     const vy = entity.mass > EPS ? entity.py / entity.mass : 0;
     const vz = entity.mass > EPS ? entity.pz / entity.mass : 0;
-    const uC = entity.internalE / n;                  // 셀당 내부E(균일)
+    let uC = entity.internalE / n;                    // 셀당 내부E(균일·spin off 기본)
+    // 회전 복원(opts.spin) — 강체 각속도 ω=I⁻¹L 로 회전장을 얹는다(기본 off=균일=byte 동일).
+    let spin = false, wx = 0, wy = 0, wz = 0, bcx = 0, bcy = 0, bcz = 0;
+    if (opts.spin && entity.mass > EPS && (entity.Lx || entity.Ly || entity.Lz)) {
+      const xyz = (i) => { const x = i % N, y = ((i - x) / N) % N, z = (i - x - y * N) / (N * N); return [x, y, z]; };
+      for (let k = 0; k < n; k++) { const p = xyz(ball[k]); bcx += p[0]; bcy += p[1]; bcz += p[2]; }
+      bcx /= n; bcy /= n; bcz /= n;                   // 볼 CoM(회전 중심)
+      let Ixx = 0, Iyy = 0, Izz = 0, Ixy = 0, Ixz = 0, Iyz = 0;  // 관성 텐서(질량 rhoC 균일)
+      for (let k = 0; k < n; k++) { const p = xyz(ball[k]); const dx = p[0] - bcx, dy = p[1] - bcy, dz = p[2] - bcz; Ixx += rhoC * (dy * dy + dz * dz); Iyy += rhoC * (dx * dx + dz * dz); Izz += rhoC * (dx * dx + dy * dy); Ixy -= rhoC * dx * dy; Ixz -= rhoC * dx * dz; Iyz -= rhoC * dy * dz; }
+      const w3 = solve3(Ixx, Ixy, Ixz, Ixy, Iyy, Iyz, Ixz, Iyz, Izz, entity.Lx, entity.Ly, entity.Lz);
+      if (w3) {
+        wx = w3[0]; wy = w3[1]; wz = w3[2];
+        let KErot = 0.5 * (wx * entity.Lx + wy * entity.Ly + wz * entity.Lz);
+        if (KErot > entity.internalE && KErot > EPS) {  // 열 부족 → ω 스케일(에너지 우선, L 일부만)
+          const s = Math.sqrt(entity.internalE / KErot); wx *= s; wy *= s; wz *= s; KErot = entity.internalE;
+        }
+        uC = Math.max(0, entity.internalE - KErot) / n;  // 남은 internalE = 열
+        spin = true;
+      }
+    }
     for (let k = 0; k < n; k++) {
       const i = ball[k];
+      let vxi = vx, vyi = vy, vzi = vz;
+      if (spin) { const x = i % N, y = ((i - x) / N) % N, z = (i - x - y * N) / (N * N); const rx = x - bcx, ry = y - bcy, rz = z - bcz; vxi += wy * rz - wz * ry; vyi += wz * rx - wx * rz; vzi += wx * ry - wy * rx; }
       rho[i] = rhoC;                                   // 빈 셀(ρ=0)에 얹음 → 가법 정확
-      gx[i] = rhoC * vx; gy[i] = rhoC * vy; gz[i] = rhoC * vz;
+      gx[i] = rhoC * vxi; gy[i] = rhoC * vyi; gz[i] = rhoC * vzi;
       u[i] = uC;
     }
     return n;
+  }
+
+  // 대칭 3×3 선형계 A·ω=L 풀이(Cramer) — 관성 텐서 역(ω=I⁻¹L). |det|≈0(특이=점/선형 분포)면 null.
+  function solve3(a, b, c, d, e, f, g, h, i, lx, ly, lz) {
+    const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    if (Math.abs(det) < 1e-9) return null;
+    const wx = (lx * (e * i - f * h) - b * (ly * i - f * lz) + c * (ly * h - e * lz)) / det;
+    const wy = (a * (ly * i - lz * f) - lx * (d * i - f * g) + c * (d * lz - ly * g)) / det;
+    const wz = (a * (e * lz - ly * h) - b * (d * lz - ly * g) + lx * (d * h - e * g)) / det;
+    return [wx, wy, wz];
   }
 
   // 측정자 — 개체 목록의 보존량 합(이관 보존 검증 공유).
