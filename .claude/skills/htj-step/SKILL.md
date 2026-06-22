@@ -11,6 +11,7 @@ description: HTJ step 한 바퀴(논의→구현→검증→기록)를 토큰·�
 
 **필독**: `HTJ/CLAUDE.md` · `HTJ/STATE.md` (전체). STATE 가 현재의 SSOT 다.
 **조건부**: 직전 step 의 `steps/step_NNNN/step_NNNN.md` 1개(직전 법칙 형식 참고용)만 기본으로 읽는다. 그 외 옛 step 문서는 *습관적으로* 통째로 훑지 말 것 — 다만 이번 step 이 특정 과거 법칙을 직접 건드리거나 그 발견에 의존한다면 **해당 step 문서를 짚어 읽는다**(필요하면 전체라도). STATE 가 SSOT 이지만, 거기에 없는 세부가 필요하면 출처 step 으로 내려가는 게 맞다.
+**설계 문서**: 이번 step 이 `HTJ/design/` 의 설계(예: `design/scalability.md` 의 S1~S7 도입 사다리)를 구현하는 것이라면 **해당 설계 문서를 읽고**, 닫을 때 그 step 문서에서 설계 문서를 역참조한다(설계는 트랙 밖이 아니라 *이 트랙 후속 step 의 청사진*).
 **큰 코드 파일은 부분 읽기만**: `engine/` 의 법칙 파일이 커지면 Grep 으로 직전 법칙·진입점만 찾아 offset/limit 로 읽는다.
 
 ## 1. 논의 — step 의 의미를 먼저 확정
