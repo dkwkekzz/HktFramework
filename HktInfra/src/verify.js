@@ -1,8 +1,8 @@
-// HktInfra step-0109 — 헤드리스 검증 (거래소 영속·failover·exchangePersist·op 저널 replay)
+// HktInfra step-0110 — 헤드리스 검증 (거래소 저널 스냅샷 압축·exchangeSnapshot·snapshot+tail replay)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pexper`.
-//   더한 한 조각: 0107~0108 거래소 원장은 휘발 — 박스 crash 시 매물·체결 회계 전부 소실. 0017 가방·0085 파티가 event sourcing 으로 푼 것을 거래소에 적용: list/buy/cancel 명령을 durable op 저널에 기록, crash 후 fresh 거래소가 저널 seq 순 replay 해 projection 재구성 → 죽기 전과 비트 동일(open 매물·listed/sold/cancelled/delivered/proceeds/returned 재현). rejects(실패 시도)는 비-durable.
-//   검증: ⒜ `reg`(키트) — exchangePersist 미설정이면 저널 0·crash 후 빈 원장 = 0108 비트 동일. ⒝ `pexper`(가설) — 4 list·2 buy·1 cancel → crash → reconstruct. ON: 재구성 == 죽기 전(open 1·listed 4·sold 2·cancelled 1·proceeds s1 15·conserved). OFF: 재구성 후 빈 원장(소실·listed 0). minted 불변(비침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pexsnap`.
+//   더한 한 조각: 0109 의 op 저널은 무계 성장 — replay 비용·메모리 ∝op 수(0109 §9). 0018 가방·0086 파티의 *주기 스냅샷+tail replay* 압축을 거래소에 적용: snapInterval 개 op 마다 projection 스냅샷(upToSeq)+그 이하 저널 가지치기 → 저널 tail 만 유계. reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축).
+//   검증: ⒜ `reg`(키트) — snapInterval 0 이면 압축 0·저널 무계 = 0109 비트 동일. ⒝ `pexsnap`(가설) — 7 op·snapInterval 3. ON: 저널 tail ≤2(스냅샷 upToSeq 6)·crash→reconstruct == 죽기 전. OFF(0109·snap 0): 저널 7·reconstruct == 죽기 전. 둘 다 무손실·minted 불변.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -25,7 +25,7 @@ const OPS = [
   { at: 75, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
   { at: 76, op: { type: 'exchCancel', seller: 's2', id: 3 } },
 ];
-// 거래소 원장 다이제스트(crash 전후 비교 — durable 상태만: open 매물 + 회계).
+const SNAP = 3;   // snapInterval — 3 op 마다 스냅샷
 const exDigest = ex => JSON.stringify({
   open: [...ex.listings.keys()].sort((a, b) => a - b),
   listed: ex.listed, sold: ex.sold, cancelled: ex.cancelled,
@@ -38,36 +38,38 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  exchange: true, exchangeOps: OPS,
+  exchange: true, exchangePersist: true, exchangeOps: OPS,
   ...extra });
 
-function pexper(seeds) {
-  console.log('== pexper: *가설* — 거래소 영속·failover(exchangePersist). list/buy/cancel 을 durable op 저널에 기록·crash 후 replay 로 재구성 → 죽기 전과 비트 동일(0017 가방·0085 파티의 거래소 판). ON vs OFF ==');
-  console.log('  4 list·2 buy·1 cancel → crash → reconstruct. ON: 재구성 == 죽기 전(open 1·listed 4·sold 2·cancelled 1·proceeds s1 15·conserved). OFF: 빈 원장(소실).');
-  console.log('seed   | before(open/listed/sold/cancel) | journal | after ON | recon==before ON | after OFF(소실) | 비침습 | 판정');
+function pexsnap(seeds) {
+  console.log('== pexsnap: *가설* — 거래소 저널 스냅샷 압축(exchangeSnapshot). snapInterval 개 op 마다 projection 스냅샷+저널 가지치기 → 저널 tail 유계, reconstruct=스냅샷+tail==전체 저널(무손실·0018/0086 의 거래소 판). ON vs OFF ==');
+  console.log(`  7 op·snapInterval ${SNAP}. ON: 저널 tail ≤${SNAP - 1}·crash→reconstruct==죽기 전. OFF(0109·snap 0): 저널 7·reconstruct==죽기 전. 둘 다 무손실.`);
+  console.log('seed   | tail ON | snap upToSeq | recon==before ON | tail OFF | recon==before OFF | 비침습 | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { exchangePersist: true }) });
-    const off = run({ ...P_BASE(seed, {}) });   // 영속 OFF(0108 동작·휘발)
+    const on  = run({ ...P_BASE(seed, { exchangeSnapshot: SNAP }) });
+    const off = run({ ...P_BASE(seed, {}) });   // snap 0(0109 무계 저널)
     const ex = on.exchange; const eo = off.exchange;
-    const before = exDigest(ex); const jlen = ex.journal.length;
-    ex.crash(); ex.reconstruct();                 // RAM 소실 → 저널 replay 로 재구성
-    const after = exDigest(ex);
-    const reconOk = after === before && ex.conserved() && ex.open() === 1 && ex.sold === 2 && ex.cancelled === 1 && ex.proceeds.get('s1') === 15;
-    eo.crash(); eo.reconstruct();                 // 영속 OFF → 저널 0 → 빈 원장(소실)
-    const lost = eo.listed === 0 && eo.sold === 0 && eo.open() === 0 && eo.journal.length === 0;
+    const beforeOn = exDigest(ex); const tailOn = ex.journal.length; const upTo = ex.snapshot ? ex.snapshot.upToSeq : -1;
+    ex.crash(); ex.reconstruct();
+    const reconOn = exDigest(ex) === beforeOn && ex.conserved() && ex.open() === 1 && ex.sold === 2;
+    const beforeOff = exDigest(eo); const tailOff = eo.journal.length;
+    eo.crash(); eo.reconstruct();
+    const reconOff = exDigest(eo) === beforeOff && eo.conserved();
+    // 압축: ON 저널 tail < OFF 전체 저널(유계)·스냅샷 존재.
+    const compressed = ex.snapshot != null && tailOn < tailOff && tailOn < SNAP;
     const nonInvasive = on.inventory.minted === off.inventory.minted && ledgerConsistent(on) && itemConserved(on);
     const ok =
-      check(reconOk, `seed ${seed}: ON 재구성 != 죽기 전(before ${before}·after ${after}·conserved ${ex.conserved()})`) &&
-      check(lost, `seed ${seed}: OFF 소실 미재현(listed ${eo.listed}·sold ${eo.sold}·open ${eo.open()}·journal ${eo.journal.length}·기대 0)`) &&
-      check(nonInvasive, `seed ${seed}: 영속이 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted})`);
-    const bShort = `${ex.open()}/${ex.listed}/${ex.sold}/${ex.cancelled}`;
-    console.log(`${pad(seed, 6)} | ${pad(bShort, 31)} | ${pad(jlen, 7)} | ${pad(`${ex.open()}/${ex.listed}/${ex.sold}/${ex.cancelled}`, 8)} | ${pad(reconOk + '', 16)} | ${pad(`${eo.open()}/${eo.listed}/${eo.sold}`, 14)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(reconOn, `seed ${seed}: ON 스냅샷+tail recon != 죽기 전(before ${beforeOn})`) &&
+      check(reconOff, `seed ${seed}: OFF 전체저널 recon != 죽기 전`) &&
+      check(compressed, `seed ${seed}: 압축 미성립(snapshot ${ex.snapshot != null}·tailON ${tailOn}·tailOFF ${tailOff}·기대 tailON<${Math.min(tailOff, SNAP)})`) &&
+      check(nonInvasive, `seed ${seed}: 압축이 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted})`);
+    console.log(`${pad(seed, 6)} | ${pad(tailOn, 7)} | ${pad(upTo, 12)} | ${pad(reconOn + '', 16)} | ${pad(tailOff, 8)} | ${pad(reconOff + '', 17)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소가 *자기 op 저널만으로* crash 를 투명 복구한다: list/buy/cancel 이 durable 저널(체결 발행 0108 의 영속 짝), crash 후 fresh 박스가 seq 순 replay 해 projection 재구성 == 죽기 전(0017 가방·0085 파티 event sourcing 의 거래소 판). 매물·체결·escrow 보존이 죽음을 넘어 산다(데이터 계층6 의 게임 서비스 판).');
-  console.log('    exchangePersist 미설정 = 저널 0·crash 후 빈 원장 = 0108 비트 동일(reg). 비-침습: 영속은 저널 기록일 뿐 세계/가방 권위 불변(minted ON==OFF)·존 tick 밖 순수 반응형.');
+  console.log('  → 거래소 저널이 *스냅샷+tail* 로 유계화된다(0018 가방·0022 채팅·0086 파티의 거래소 판): snapInterval 마다 projection 을 스냅샷·이하 저널 가지치기, reconstruct 는 스냅샷에서 출발해 tail 만 replay → 전체 저널과 비트 동일(무손실 압축). 영속 비용이 op 누적과 무관하게 유계 — 거래소 arc(분리 0107→발행 0108→영속 0109→압축 0110) 완성.');
+  console.log('    exchangeSnapshot 0 = 압축 0·저널 무계 = 0109 비트 동일(reg). 비-침습: 압축은 저널 표현 유계화일 뿐 원장/세계 권위 불변(minted ON==OFF·reconstruct 무손실)·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['pexper'] = pexper;
-kit.ORDER.splice(1, 0, 'pexper');
+kit.MODES['pexsnap'] = pexsnap;
+kit.ORDER.splice(1, 0, 'pexsnap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
