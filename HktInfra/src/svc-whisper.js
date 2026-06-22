@@ -1,4 +1,5 @@
 'use strict';
+// step-0089 — producer epoch 워터마크(epochKeyed·라우터 재시작 안전): 0081 의 수신측 dedup 워터마크는 라우터의 deliverySeq 가 *단조 증가*라는 가정에 기댄다. 하지만 라우터가 *재시작*(crash→fresh)하면 deliverySeq 가 0 부터 다시 시작 → 재시작 후 seq 1,2,… 가 재시작 *전* 워터마크(예: 12) 이하라, Mailbox 가 정상 신규 전달을 *이미 본 것*으로 오인해 떨군다(전달 유실·0081 §9). 이 step 은 라우터에 epoch(재시작마다 ++)를 두고 whisperDeliver 에 실어, Mailbox 가 워터마크를 *(producer, epoch)* 별로 분리한다 → 새 epoch 는 새 워터마크(0 부터) → 재시작 후 낮은 seq 도 정상 수신. 0048 lease lifecycle 의 epoch 펜싱·0013 epoch 펜싱의 *전달 dedup* 판. epochKeyed OFF 면 epoch 미부착 = Mailbox 키는 producer 만(0081 동작) = 0088 비트 동일.
 // step-0088 — 파티 ack 집계(partyAckTally·delivered): 0083 의 파티 영수증 집계는 *라우팅 판정*(up=routed·permanent=bounced)까지만 셌다 — "전송을 *결정*했다"이지 "up 멤버가 실제로 *받았다*"는 아니었다(0083 §9). 0076 의 영수증(whisperAck→delivered)을 파티 단위로 집계해, 파티가 *실제 수신 확인*까지 완료됐는지(delivered==routed=모든 up 멤버 ack)를 가시화한다. 그러려면 inflight 엔트리에 partyId 를 실어, whisperAck 가 그 파티의 delivered 를 증가시킨다(라우팅 판정 집계 0083 + 영수증 집계 0088 = 파티 전송의 *결정*과 *확인* 둘 다). partyReceipt OFF·receipt 부재면 집계 0 = 0087 비트 동일.
 // step-0087 — 전달 수명주기 관측(deliveredPublish·svc.whisper.delivered): 0082 는 전달 *실패*(포기)만 svc.whisper.failed 로 발행해, 운영 평면이 보는 전달 스트림이 *실패 절반*뿐이었다 — 성공한 전달과 그 비용(재시도 횟수)은 관측 불가(0082 §9). 이 step 은 전달 *성공*도 발행해 수명주기를 완성한다: whisperAck 로 전달이 확인되면 deliveredPublish 면 svc.whisper.delivered{to, seq, tries} 를 bus 로 발행(tries=확인까지 재발신 횟수=전달 비용) → audit 가 성공·실패 둘 다 구독(0082 failed + 0087 delivered = 전달 수명주기 전체). 0082 의 *성공 경로* 짝 — 같은 audit sink 가 전달의 양 끝(성공·포기)을 본다. deliveredPublish OFF·bus 부재면 발행 0 = 0086 비트 동일.
 // step-0083 — 파티 1:N 라우팅 영수증 집계(partyReceipt·partyReceipts): 0073/0075 의 파티 팬아웃은 멤버마다 _queryFor→라우팅(전달/반송)하지만 *파티 단위 완료*를 집계하지 않는다 — "이 파티 전송이 N 멤버 중 몇에 전달/반송됐고 다 끝났는가"를 모른다(0073 §9). 이 step 은 partyId 별 영수증 원장을 더한다: 파티 수신 시 {members:N, routed:0, bounced:0} 를 열고, 각 멤버 라우팅 판정(up=routed·down/permanent=bounced)을 그 파티에 집계 → routed+bounced==members 면 *파티 전송 완료*(부분 전달 가시). 1:1 영수증(0076·delivered)의 *1:N 집계* 판 — 개별 전달 확인 위에 파티 완료 회계. partyReceipt OFF 면 집계 0 = 0082 비트 동일(파티는 멤버별 라우팅만).
@@ -36,6 +37,9 @@ class WhisperRouter {
     this.failedPublished = 0;      // svc.whisper.failed 로 발행한 실패 수(step-0082·계측). 관측 평면 노출.
     this.deliveredPublish = opts.deliveredPublish || false;   // 전달 성공 발행(step-0087·deliveredPublish) — whisperAck 확인 시 svc.whisper.delivered 발행(관측·수명주기 완성). OFF·bus 부재면 발행 0(0086 동일).
     this.deliveredPublished = 0;   // svc.whisper.delivered 로 발행한 성공 수(step-0087·계측). 0082 failed 와 짝.
+    this.epochKeyed = opts.epochKeyed || false;   // producer epoch 워터마크(step-0089·epochKeyed) — whisperDeliver 에 epoch 부착·재시작 안전. OFF 면 epoch 미부착(0081 동작·0088 비트 동일).
+    this.epoch = 0;               // 라우터 epoch(step-0089) — restart() 마다 ++. 재시작 전후 seq 공간을 (producer,epoch)로 분리하는 펜싱 토큰.
+    this.restarts = 0;            // 재시작 수(step-0089·계측).
     this.deliverySeq = 0;          // 전달 시퀀스(step-0076) — whisperDeliver 마다 증가하는 영수증 상관키.
     this.inflight = new Map();     // seq -> {to, from, body, at} — 전달했으나 아직 whisperAck 못 받은 보류 전달(routed-delivered·at=마지막 발신 tick).
     this.delivered = 0;            // whisperAck 로 *확인된* 전달 수(step-0076). routed ⊇ delivered, 차이 = inflight.size.
@@ -110,6 +114,7 @@ class WhisperRouter {
           const msg = { type: 'whisperDeliver', from: w.from, body: w.body };
           // 전달 영수증(step-0076·whisperReceipt) — seq/ackTo 부착·inflight 보류. Mailbox 가 whisperAck 회신하면 delivered++(확인). OFF 면 best-effort(영수증 없이 routed 만·0075 비트 동일).
           if (this.receipt) { const seq = ++this.deliverySeq; msg.seq = seq; msg.ackTo = this.addr; this.inflight.set(seq, { to: p.consumer, from: w.from, body: w.body, at: this.net ? this.net.tick : 0, tries: 0, party: w.party }); }   // party(0088): 영수증을 파티에 귀속
+          if (this.epochKeyed) msg.epoch = this.epoch;   // producer epoch(step-0089) — 재시작 안전 dedup 키. OFF 면 미부착(0088 비트 동일).
           this.net.send(this.addr, p.consumer, msg); this.routed++;
         }
         else this.bounced++;
@@ -133,11 +138,15 @@ class WhisperRouter {
           if (this.failedPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.whisper.failed', ev: { to: e.to, from: e.from, body: e.body } }); this.failedPublished++; }
           continue;
         }
-        this.net.send(this.addr, e.to, { type: 'whisperDeliver', from: e.from, body: e.body, seq, ackTo: this.addr });
+        const rmsg = { type: 'whisperDeliver', from: e.from, body: e.body, seq, ackTo: this.addr };
+        if (this.epochKeyed) rmsg.epoch = this.epoch;   // 재발신도 현 epoch(restart 가 inflight 를 비우므로 교차-epoch 재시도 없음)
+        this.net.send(this.addr, e.to, rmsg);
         e.at = tick; e.tries++; this.deliverRetries++;
       }
     }
   }
+  // restart(step-0089) — 라우터 재시작(crash→fresh)의 인프로세스 모델: deliverySeq 0 리셋·inflight 비움·epoch++. epoch 펜싱이 재시작 전후 seq 공간을 분리해 수신측 워터마크 오접힘을 막는다(0013/0048 epoch 펜싱의 전달 판). epochKeyed OFF 면 epoch 는 올라도 미부착이라 워터마크가 producer 만으로 키잉 → 재시작 후 낮은 seq 오접힘(버그 대조).
+  restart() { this.deliverySeq = 0; this.inflight = new Map(); this.epoch++; this.restarts++; }
   decisionOf(consumer) { return this.decisions.get(consumer) || null; }
 }
 

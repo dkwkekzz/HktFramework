@@ -172,6 +172,8 @@ function run(opts) {
     //   w={at, from, to, body} — 정규 net.send(client→wrouter·시드 로그의 일부 = 결정론). 라우터가 다음 step 부터 presence SSOT 질의→대상 상태로 전달/반송.
     //   wrouter 부재(whisperRouter OFF)면 주입 0 = 라우팅 없음(대조군). 미제공이면 휴면(reg 0 불변·멀티프로세스 E2E 미주입).
     if (opts.whispers && wrouter) for (const w of opts.whispers) if (w.at === i + 1) net.send(w.from || 'client0', 'wrouter', { type: 'whisper', to: w.to, body: w.body });
+    // 라우터 재시작 주입(step-0089·wrouterRestart) — at tick 에 wrouter.restart()(deliverySeq 0 리셋·epoch++). epoch 펜싱이 수신측 워터마크 오접힘을 막는지 검증용. wrouter 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.wrouterRestart && wrouter && i + 1 === opts.wrouterRestart.at) wrouter.restart();
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).

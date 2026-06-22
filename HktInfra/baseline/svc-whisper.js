@@ -1,4 +1,5 @@
 'use strict';
+// step-0088 — 파티 ack 집계(partyAckTally·delivered): 0083 의 파티 영수증 집계는 *라우팅 판정*(up=routed·permanent=bounced)까지만 셌다 — "전송을 *결정*했다"이지 "up 멤버가 실제로 *받았다*"는 아니었다(0083 §9). 0076 의 영수증(whisperAck→delivered)을 파티 단위로 집계해, 파티가 *실제 수신 확인*까지 완료됐는지(delivered==routed=모든 up 멤버 ack)를 가시화한다. 그러려면 inflight 엔트리에 partyId 를 실어, whisperAck 가 그 파티의 delivered 를 증가시킨다(라우팅 판정 집계 0083 + 영수증 집계 0088 = 파티 전송의 *결정*과 *확인* 둘 다). partyReceipt OFF·receipt 부재면 집계 0 = 0087 비트 동일.
 // step-0087 — 전달 수명주기 관측(deliveredPublish·svc.whisper.delivered): 0082 는 전달 *실패*(포기)만 svc.whisper.failed 로 발행해, 운영 평면이 보는 전달 스트림이 *실패 절반*뿐이었다 — 성공한 전달과 그 비용(재시도 횟수)은 관측 불가(0082 §9). 이 step 은 전달 *성공*도 발행해 수명주기를 완성한다: whisperAck 로 전달이 확인되면 deliveredPublish 면 svc.whisper.delivered{to, seq, tries} 를 bus 로 발행(tries=확인까지 재발신 횟수=전달 비용) → audit 가 성공·실패 둘 다 구독(0082 failed + 0087 delivered = 전달 수명주기 전체). 0082 의 *성공 경로* 짝 — 같은 audit sink 가 전달의 양 끝(성공·포기)을 본다. deliveredPublish OFF·bus 부재면 발행 0 = 0086 비트 동일.
 // step-0083 — 파티 1:N 라우팅 영수증 집계(partyReceipt·partyReceipts): 0073/0075 의 파티 팬아웃은 멤버마다 _queryFor→라우팅(전달/반송)하지만 *파티 단위 완료*를 집계하지 않는다 — "이 파티 전송이 N 멤버 중 몇에 전달/반송됐고 다 끝났는가"를 모른다(0073 §9). 이 step 은 partyId 별 영수증 원장을 더한다: 파티 수신 시 {members:N, routed:0, bounced:0} 를 열고, 각 멤버 라우팅 판정(up=routed·down/permanent=bounced)을 그 파티에 집계 → routed+bounced==members 면 *파티 전송 완료*(부분 전달 가시). 1:1 영수증(0076·delivered)의 *1:N 집계* 판 — 개별 전달 확인 위에 파티 완료 회계. partyReceipt OFF 면 집계 0 = 0082 비트 동일(파티는 멤버별 라우팅만).
 // step-0082 — 전달 실패 발행(failedPublish·svc.whisper.failed): 0079 의 포기 통지는 *원 발신자*에게만 deliveryFailed 를 회신한다 — 운영/감사 평면은 전달 실패를 못 본다(0079 §9). 이 step 은 포기를 *버스 토픽으로 발행*해 관측 가능하게 한다: 상한 도달로 포기(undeliverable)할 때, failedPublish 면 bus 로 {type:'pub', topic:'svc.whisper.failed', ev:{to, from, body}} 를 발행 → audit(범용 sink·발행자 무수정 소비자)가 구독해 실패 스트림을 관찰(failedPublished++). 0060 presencePublish(프레즌스 판정을 svc.presence 로 발행)의 *전달 실패* 판 — point-to-point 통지(0079)는 발신자 행동용, 토픽 발행(0082)은 관측/감사용(두 소비자 분리). failedPublish OFF·bus 부재면 발행 0 = 0081 비트 동일(포기는 발신자에게만).
@@ -58,10 +59,13 @@ class WhisperRouter {
     this.partyReceipts = new Map();   // partyId -> {members, routed, bounced} — 파티 전송 완료 원장(routed+bounced==members 면 완료). 부분 전달 가시.
   }
   // 파티 영수증 원장 열기(step-0083) — 파티 수신 시 멤버 수로 초기화. partyReceipt OFF 면 no-op(집계 0·0082 동일).
-  _partyOpen(partyId, n) { if (this.partyReceipt && partyId != null) this.partyReceipts.set(partyId, { members: n, routed: 0, bounced: 0 }); }
+  _partyOpen(partyId, n) { if (this.partyReceipt && partyId != null) this.partyReceipts.set(partyId, { members: n, routed: 0, bounced: 0, delivered: 0 }); }   // 0088: delivered(실수신 ack) 추가
   // 파티 영수증 집계(step-0083) — 멤버 라우팅 판정을 그 파티에 더한다(up=routed·아니면 bounced). 파티 전송 아니면(party null) no-op.
   _partyTally(partyId, deliverable) { if (!this.partyReceipt || partyId == null) return; const r = this.partyReceipts.get(partyId); if (r) { if (deliverable) r.routed++; else r.bounced++; } }
-  partyDone(partyId) { const r = this.partyReceipts.get(partyId); return r ? (r.routed + r.bounced === r.members) : false; }
+  // 파티 ack 집계(step-0088) — whisperAck 확인 시 그 전달이 속한 파티의 delivered 증가(실수신 확인). 파티 전송 아니면 no-op. routed(결정)≥delivered(확인).
+  _partyAck(partyId) { if (!this.partyReceipt || partyId == null) return; const r = this.partyReceipts.get(partyId); if (r) r.delivered++; }
+  partyDone(partyId) { const r = this.partyReceipts.get(partyId); return r ? (r.routed + r.bounced === r.members) : false; }   // 라우팅 결정 완료(0083)
+  partyAcked(partyId) { const r = this.partyReceipts.get(partyId); return r ? (r.routed > 0 && r.delivered === r.routed) : false; }   // 실수신 완료(0088) — 모든 up 멤버가 ack
   pendingCount() { let n = 0; for (const arr of this.pending.values()) n += arr.length; return n; }
   // 한 대상에 귓속말 1건을 적재+질의(귓속말·파티 멤버 공통 경로). 응답 올 때까지 pending[to] 보류·queryAddr 로 presenceQuery. party(step-0083): 파티 전송이면 partyId 를 보류 엔트리에 실어 라우팅 판정을 파티에 귀속.
   _queryFor(to, from, body, party) {
@@ -82,6 +86,7 @@ class WhisperRouter {
       this.acksRecv++;
       if (this.inflight.has(p.seq)) {
         const e = this.inflight.get(p.seq); this.inflight.delete(p.seq); this.delivered++;
+        this._partyAck(e.party);   // 파티 ack 집계(step-0088) — 이 전달이 파티 멤버였으면 그 파티 delivered++(실수신 확인). 비-파티면 no-op.
         // 전달 성공 발행(step-0087·deliveredPublish) — 확인된 전달을 svc.whisper.delivered{to, seq, tries} 로 발행(관측). tries=확인까지 재발신 횟수(전달 비용). 0082 failed(포기)와 짝 = 전달 수명주기 전체. OFF·bus 부재면 발행 0(0086 동일).
         if (this.deliveredPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.whisper.delivered', ev: { to: e.to, seq: p.seq, tries: e.tries } }); this.deliveredPublished++; }
       }
@@ -104,7 +109,7 @@ class WhisperRouter {
         if (deliverable) {
           const msg = { type: 'whisperDeliver', from: w.from, body: w.body };
           // 전달 영수증(step-0076·whisperReceipt) — seq/ackTo 부착·inflight 보류. Mailbox 가 whisperAck 회신하면 delivered++(확인). OFF 면 best-effort(영수증 없이 routed 만·0075 비트 동일).
-          if (this.receipt) { const seq = ++this.deliverySeq; msg.seq = seq; msg.ackTo = this.addr; this.inflight.set(seq, { to: p.consumer, from: w.from, body: w.body, at: this.net ? this.net.tick : 0, tries: 0 }); }
+          if (this.receipt) { const seq = ++this.deliverySeq; msg.seq = seq; msg.ackTo = this.addr; this.inflight.set(seq, { to: p.consumer, from: w.from, body: w.body, at: this.net ? this.net.tick : 0, tries: 0, party: w.party }); }   // party(0088): 영수증을 파티에 귀속
           this.net.send(this.addr, p.consumer, msg); this.routed++;
         }
         else this.bounced++;
