@@ -1,4 +1,5 @@
 'use strict';
+// step-0100 — Mailbox inbox 드레인(drain·읽음 소비): 0099 의 inboxBound 는 inbox 를 최근 K개로 cap 하되 초과분을 *드롭*(잃음)한다 — notification 트레이 의미론(0099 §9). 진짜 수신함은 소유자(클라)가 *읽어 비운다* — 읽은 메시지는 잃는 게 아니라 소비된다. 이 step 은 그 드레인을 모델한다: `drain()` 이 현 inbox 를 반환하며 비우고(inbox=[]) 누적 소비량(drained)을 센다 → 읽는 이가 있으면 inbox 가 *무손실로* 비워져 메모리 유계(드롭 0). 0099 cap(읽는 이 없을 때의 방어)과 짝 — drain 은 읽는 이 있을 때의 정상 비움. drain() 미호출(mboxDrain 훅 미제공)이면 inbox 누적 = 0099 비트 동일.
 // step-0099 — Mailbox inbox 유계화(inboxBound·드레인 읽기 모델): Mailbox.inbox 는 받은 귓속말을 *전부 영구 보관*한다 → 수신함이 read 로 비워지지 않는 한 메모리가 received 에 비례해 무한 성장(누설). 실 수신함은 소유자(클라)가 읽어 비운다 — 읽는 이가 없으면 무계 inbox 는 누설이다. 이 step 은 inbox 를 *최근 K개*(inboxBound)로 유계화한다: 적재 후 K 초과면 가장 오래된 것을 떨군다(overflowed++·드롭은 계측). received(총 수신 수)는 *진실의 SSOT*로 보존 — inbox 는 유계 최근-뷰(알림 트레이 cap). dedup 메모리(0081 seq·0090 epoch)에 이은 inbox 차원의 유계화. inboxBound 0(기본) = 무계 평면 배열(0098 비트 동일).
 // step-0091 — 옛 epoch grace 유예(deliverEpochGrace·straggler 내성): 0090 은 더 높은 epoch 도착 시 낮은 epoch 워터마크를 *즉시* 가지친다 — 단조 epoch 도착을 가정한다(0090 §9). 하지만 가지친 *뒤* 옛 epoch 의 지연 straggler 가 도착하면 워터마크가 없어 *신규로 오인 재수신*(중복 적재·전달 유실의 거울상). 이 step 은 즉시 가지치기 대신 *가장 최근 epochGrace 개의 닫힌 epoch 워터마크를 유예*(슬라이딩 윈도)한다 — epoch e 도착 시 e-epochGrace 미만 epoch 만 제거. 유예된 닫힌 epoch 의 straggler 는 워터마크가 살아 있어 정상 dedup(중복으로 인식·재적재 안 함). epoch 차원은 producer 당 epochGrace+1 로 여전히 유계(0051 lease grace 의 epoch 판). epochGrace 0(기본) = e 미만 즉시 제거 = 0090 비트 동일.
 // step-0090 — epoch 워터마크 유계화(epochBound·옛 epoch 가지치기): 0089 의 (producer,epoch) 워터마크는 재시작 안전을 주지만, Mailbox 가 *모든 epoch*의 워터마크를 영영 보관한다 → 라우터가 재시작할수록 epoch 차원이 ∝재시작 수로 무한 성장(0089 §9). 핵심 통찰: 라우터가 재시작하면(epoch++) inflight 를 비우므로 *옛 epoch 의 전달은 다시 오지 않는다* → 더 높은 epoch 가 도착하면 그 producer 의 *낮은 epoch 워터마크는 안전하게 잊어도 된다*. 이 step 은 base producer 별 *현재(최고) epoch* 만 유지하고, 더 높은 epoch 수신 시 낮은 epoch 워터마크 키를 가지친다 → epoch 차원이 producer 당 1 로 유계(0048 lease lifecycle·0042 seen 유계화의 epoch 판). epochBound OFF 면 가지치기 0·옛 epoch 누적 = 0089 비트 동일.
@@ -34,7 +35,10 @@ class Mailbox {
     this.epochGrace = opts.epochGrace || 0;   // 옛 epoch grace 유예(step-0091·deliverEpochGrace) — 가장 최근 N개 닫힌 epoch 워터마크를 유예(슬라이딩 윈도)해 지연 straggler 를 정상 dedup. 0(기본) = 즉시 가지치기(0090 동일). epoch 차원은 producer 당 N+1 로 유계.
     this.inboxBound = opts.inboxBound || 0;   // inbox 유계화(step-0099·inboxBound) — inbox 를 최근 K개로 cap(K 초과 시 가장 오래된 것 드롭). 0(기본) = 무계(0098 동일). received 는 보존(진실 SSOT).
     this.overflowed = 0;    // inboxBound 로 떨군 옛 inbox 항목 수(step-0099·계측). received - overflowed ≈ 현 inbox 보유(≤K).
+    this.drained = 0;       // drain() 으로 소비(읽어 비움)한 누적 항목 수(step-0100·계측). 드롭(overflowed)과 달리 무손실 소비.
   }
+  // inbox 드레인(step-0100·drain) — 소유자(클라)가 수신함을 *읽어 비운다*: 현 inbox 를 반환하며 비우고(inbox=[]) drained 누적. 읽는 이가 있으면 inbox 가 무손실로 유계(0099 cap 의 lossy 드롭과 짝·정상 비움). 미호출이면 inbox 누적(0099 동일).
+  drain() { const msgs = this.inbox; this.drained += msgs.length; this.inbox = []; return msgs; }
   // epoch 가지치기(step-0090) — base 의 더 높은 epoch 도착 시, 그 base 의 *낮은 epoch* 워터마크 키를 제거(옛 epoch 전달은 재시작으로 다시 안 옴 → 안전). epochBound OFF·epoch 없으면 no-op.
   //   step-0091 grace 유예: e-epochGrace *미만* epoch 만 제거(가장 최근 epochGrace 개 닫힌 epoch 워터마크는 유예 → 지연 straggler 를 정상 dedup). epochGrace 0 = e 미만 즉시 제거(0090).
   _pruneEpoch(base, epoch) {

@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0099](step-0099.md) — **Mailbox inbox 유계화**(inboxBound·드레인 읽기 모델): inbox 가 받은 귓속말을 전부 영구 보관 → 읽는 이 없으면 메모리 ∝received 누설. dedup 은 0081/0090/0091 로 유계화했지만 inbox 적재는 무계였다. inbox 를 최근 K개로 cap(초과 시 가장 오래된 것 드롭·overflowed++)·received(총 수신)는 진실 SSOT 보존. inboxBound 0(기본)=무계=0098 비트 동일. 닿는 박스: svc-mailbox(inboxBound·overflowed·push 후 shift)·topo-build(mailboxInboxBound→__mboxOpts).
-- **한 줄 상태**: reg ALL OK(src=baseline=0098 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pinboxbound: 8 귓속말·ON inbox 4/overflowed 4/received 8 vs OFF inbox 8/overflowed 0·minted ON==OFF·spine 99-step ALL OK.
+- **닫힌 step**: [step-0100](step-0100.md) — **Mailbox inbox 드레인**(drain·읽음 소비): 0099 cap 은 초과분을 드롭(잃음·0099 §9). 진짜 수신함은 소유자가 읽어 비운다. drain()=현 inbox 반환·비움·drained 누적 → 읽는 이 있으면 inbox 무손실 유계(드롭 0). 0099 cap 과 짝. mboxDrain 미제공=호출 0=0099 비트 동일. 닿는 박스: svc-mailbox(drain()·drained)·topology(mboxDrain 훅). ※ 0091~0100 묶음 닫힘 — `infra-review` 시점.
+- **한 줄 상태**: reg ALL OK(src=baseline=0099 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pdrain: 8 귓속말·ON inbox 0/drained 8/overflowed 0 vs OFF inbox 8/drained 0·둘 다 received 8·minted ON==OFF·spine 100-step ALL OK.
 - **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0099 가 *Mailbox inbox 유계화*(inboxBound)를 닫아 수신함 세 차원(dedup seq·dedup epoch·inbox 적재) 유계화 완성(회계 received ⟂ 보유 inbox 분리). 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*inbox 드레인*(읽음 확인·0099 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리.**
+**step-0100 이 *Mailbox inbox 드레인*(drain·읽음 소비)을 닫아 수신함 메모리 두 방어(drain 무손실·cap lossy) 완성. 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*읽음 확인 영수증*(0100 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0091~0100 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -39,11 +39,11 @@
 | ⬜ | **다중 클라 결정론 복제·예측** | 월드 | 0002~0004 의 결정론 복제·예측은 *C++ 시뮬 코어 승격*에서 부활(더미는 경량 라우터). 다중 클라 intent 인터리빙·예측/롤백(0001 §8.6). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신을 암묵 신뢰(0001 §8.3) — 분산 시 필요. |
 | 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·replay 유계·lease·치유·대체활성화 ✅)** | 버스 | 0016 ServiceBus=단일 박스·영속 0. 동적구독→failover→무손실→lease→생애관측→self-healing→대체활성화(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
-| 🟡 | **서비스 영속·failover (가방·채팅 ✅+압축·파티 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방 저널(0017)+압축(0018)·채팅 로그(0021)+압축(0022)·파티 멤버십 저널(0085). write-behind 신뢰성(0023~0029). 단 버스 라우팅 영속 0. |
-| 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService=발신 소비자(CQRS). 0020=읽기 모델 영속·late-join. 거래소·우편·길드 미착수. |
+| 🟡 | **서비스 영속·failover (가방·채팅 ✅+압축·파티 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방 저널(0017)+압축(0018)·채팅 로그(0021)+압축(0022)·파티 저널(0085). write-behind(0023~0029). 버스 라우팅 영속 0. |
+| 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 복구 ✅** | 서비스 | 0019 RankingService=발신 소비자(CQRS)·0020 읽기 모델 영속·late-join. 거래소·우편·길드 미착수. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover·자율감지·질의). 귓속말/파티 라우팅 0071~0097(라우팅·failover·1:N·멤버십 SSOT·영속·전달 신뢰·epoch 펜싱+유계화+grace·파티 종결/발행·멤버별 수신함·반송 발행). 남은 것: cluster kill→replay·존 배치·부하 분산·메아리 정리. |
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축·홉 신뢰·persist failover+N-replica+quorum+윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층6 첫)=가방 저널+압축(0018). 홉 신뢰→failover→N-replica quorum→윈도(0023~0032). fsync 0·월드 영속 0. |
-| ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위의 고리 닫기. |
+| ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위 고리 닫기. |
 
 > **✅ 해소된 격차 (0001~0086)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스 분리(14~16)·가방/채팅 영속+압축(17~22)·write-behind/quorum/윈도(23~32)·버스 동적구독~lease(33~52)·lease 관측→프레즌스 박스(54~70)·귓속말/파티 라우팅~멤버십 영속·압축(71~86).
 
@@ -169,11 +169,11 @@
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — svc.presence.active 공지→재타깃) | 통과 · 죽음 후 2/2 |
 | [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed 1/bounced 1·OFF null |
 | [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 사망 후 routed 1 vs OFF 손실 |
-| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — 멤버마다 질의→부분 전달) | 통과 · routed 2/bounced 1 |
-| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신·읽기 at-least-once) | 통과 · ON retries 2→pending 0 vs OFF 2(손실) |
-| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→질의→멤버십→프레즌스 2단) | 통과 · resolved 3·routed 2/b 1 vs OFF null |
-| [0076](step-0076.md) | 전달 영수증(whisperReceipt — seq/ackTo·inflight 보류·Mailbox whisperAck→delivered) | 통과 · delivered 1·mbox 1/1 vs OFF 0 |
-| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 inflight 재발신·at-least-once) | 통과 · ON delivered 1 vs OFF 0·inflight 1(갇힘) |
+| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — 멤버마다 질의→부분 전달) | 통과 · routed 2/b 1 |
+| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신·at-least-once) | 통과 · ON pending 0 vs OFF 2(손실) |
+| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→멤버십→프레즌스 2단) | 통과 · resolved 3·routed 2 vs OFF null |
+| [0076](step-0076.md) | 전달 영수증(whisperReceipt — seq/ackTo·inflight·Mailbox whisperAck→delivered) | 통과 · delivered 1 vs OFF 0 |
+| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 재발신·at-least-once) | 통과 · ON delivered 1 vs OFF 0·inflight 1 |
 | [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기·undeliverable) | 통과 · ON undel 1 vs OFF 무상한 12 |
 | [0079](step-0079.md) | 전달 포기 통지(deliverNotify — 포기 시 발신자에 deliveryFailed 회신) | 통과 · ON failedNotified 1 vs OFF 0 |
 | [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·중복 재적재 차단·재-ack·exactly-once) | 통과 · ON dup 1 vs OFF 0(중복 적재) |
@@ -183,8 +183,8 @@
 | [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave 델타·svc.party.changed) | 통과 · ON 발행 2/audit 2 vs OFF 0 |
 | [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→reconstruct) | 통과 · reconstruct [b,c] vs OFF 소실 |
 | [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — 스냅샷+저널 가지치기·tail replay) | 통과 · ON tail 2 vs OFF 6·[a..f] 무손실 |
-| [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — whisperAck 시 svc.whisper.delivered 발행·audit) | 통과 · ON pub 1/audit 1 vs OFF 0 |
-| [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck→파티 delivered 집계·acked=delivered==routed) | 통과 · ON {routed 1,delivered 1}·acked vs OFF size 0 |
+| [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — whisperAck→svc.whisper.delivered·audit) | 통과 · ON pub 1/audit 1 vs OFF 0 |
+| [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck→delivered·acked=delivered==routed) | 통과 · ON acked vs OFF size 0 |
 | [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart 시 epoch++·Mailbox (prod,epoch) 키) | 통과 · restart 후 ON received 12/dup 0 vs OFF 6/6(유실) |
 | [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 높은 epoch 도착 시 낮은 epoch 가지치기·현재 epoch 만) | 통과 · 3재시작·ON epochKeys 1 vs OFF 4(∝epoch)·received 8/dup 0 |
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 유예·지연 straggler dedup·N+1 유계) | 통과 · straggler ON received 4/dup 1 vs OFF 5(누수)·spine 91 |
@@ -196,3 +196,4 @@
 | [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송을 svc.whisper.bounced 발행·audit·전달 결말 셋째) | 통과 · ON pub 1/audit 1 vs OFF 0/0·둘 다 bounced 1·spine 97 |
 | [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(32KB>30KB — topo-actors.js 로 makeActor·routeFilters 분리·기능 0) | 통과 · src=baseline 비트 동일·박스 32→28.5/4.9KB·spine 98 |
 | [0099](step-0099.md) | Mailbox inbox 유계화(inboxBound — inbox 최근 K cap·received 보존·수신함 inbox 차원 유계) | 통과 · ON inbox 4/overflow 4 vs OFF inbox 8/overflow 0·received 8 보존·spine 99 |
+| [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움·0099 lossy cap 과 짝) | 통과 · ON inbox 0/drained 8/overflow 0 vs OFF inbox 8/drained 0·received 8·spine 100 |
