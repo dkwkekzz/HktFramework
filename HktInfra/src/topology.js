@@ -172,10 +172,14 @@ function run(opts) {
     //   w={at, from, to, body} — 정규 net.send(client→wrouter·시드 로그의 일부 = 결정론). 라우터가 다음 step 부터 presence SSOT 질의→대상 상태로 전달/반송.
     //   wrouter 부재(whisperRouter OFF)면 주입 0 = 라우팅 없음(대조군). 미제공이면 휴면(reg 0 불변·멀티프로세스 E2E 미주입).
     if (opts.whispers && wrouter) for (const w of opts.whispers) if (w.at === i + 1) net.send(w.from || 'client0', 'wrouter', { type: 'whisper', to: w.to, body: w.body });
+    // 라우터 재시작 주입(step-0089·wrouterRestart) — at tick 에 wrouter.restart()(deliverySeq 0 리셋·epoch++). epoch 펜싱이 수신측 워터마크 오접힘을 막는지 검증용. wrouter 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.wrouterRestart && wrouter) for (const r of [].concat(opts.wrouterRestart)) if (r.at === i + 1) wrouter.restart();   // 단일 {at} 또는 배열(0090·다중 재시작) 둘 다 지원
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
-    if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body });
+    if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.partyCreate && pservice) for (const pc of opts.partyCreate) if (pc.at === i + 1) net.send(pc.from || 'client0', 'pservice', { type: 'partyCreate', partyId: pc.partyId, members: pc.members });
+    // 파티 증분 가입/탈퇴 주입(step-0084·partyChange) — at tick 에 클라가 PartyService 에 partyJoin/partyLeave(멤버 델타). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.partyOps && pservice) for (const po of opts.partyOps) if (po.at === i + 1) net.send(po.from || 'client0', 'pservice', { type: po.op === 'leave' ? 'partyLeave' : 'partyJoin', partyId: po.partyId, member: po.member });
     // 파티 전송 주입(step-0075) — at tick 에 클라가 라우터로 partyTo(멤버 인라인 X·partyId 만). 라우터가 멤버십 SSOT 조회→프레즌스 질의→라우팅(2단). wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.partyTo && wrouter) for (const pt of opts.partyTo) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'partyTo', partyId: pt.partyId, body: pt.body });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
