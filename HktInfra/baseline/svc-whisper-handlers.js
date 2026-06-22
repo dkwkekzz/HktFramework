@@ -8,6 +8,8 @@ Object.assign(WhisperRouter.prototype, {
     const p = m.payload;
     // active 재타깃(step-0072·whisperFailover) — 승격된 프레즌스 박스가 svc.presence.active 로 공지한 새 active 주소로 queryAddr 갱신. 이후 귓속말 질의가 승격된 박스로 간다(라우팅 읽기 경로 failover·0070 presmon 재타깃의 라우터 판). 미구독이면 미발화(0071 비트 동일).
     if (p.type === 'ev' && p.topic === 'svc.presence.active' && p.ev) {
+      // active 공지 epoch 펜싱(step-0106·announceEpoch) — 공지에 epoch 가 실리면(0105 presence) 본 최고 이하는 메아리로 거부(staleAnnounces++·역-재타깃·재시도 폭주 방지), 더 높은 epoch 만 재타깃. epoch 없으면(0072) 무조건 재타깃(비트 동일). 0105 presmon 펜싱의 라우터 판.
+      if (p.ev.epoch != null) { if (p.ev.epoch <= this.activeEpoch) { this.staleAnnounces++; return; } this.activeEpoch = p.ev.epoch; }
       this.queryAddr = p.ev.addr; this.retargets++;
       // 재타깃 윈도 질의 재시도(step-0074·whisperRetry) — 재타깃 전 보낸 질의가 죽은 primary 로 가 손실됐을 수 있다(0072 §9). 아직 응답 못 받은 보류 질의를 새 active 주소로 재발신 → 윈도 손실분도 승격 박스로 다시 감. 공지(재타깃)가 재시도를 구동(onTick 0·순수 반응). retry OFF 면 재발신 0(0073 비트 동일·보류 방치).
       if (this.retry && this.queryAddr) for (const to of this.pending.keys()) { this.net.send(this.addr, this.queryAddr, { type: 'presenceQuery', consumer: to }); this.queriesSent++; this.retries++; }

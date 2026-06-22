@@ -38,18 +38,28 @@
   - `step-0082·0087·0097` — 전달 *세 결말을 버스로 관측*: 포기(svc.whisper.failed)·성공(svc.whisper.delivered{tries})·**반송**(svc.whisper.bounced·즉시 도달 불가·`svc-whisper-handlers.js:57`)을 audit 에 발행(발행자 무수정).
   - `step-0083·0088·0092~0093·0095` — 파티 1:N *세 종결*: done(라우팅 결정)·acked(전원 실수신)·**incomplete**(일부 영구 실패·0092 partyAckGiveup·`svc-whisper-core.js:78`) + 성공/실패 종결 *발행*(svc.party.complete/incomplete→audit·0093/0095).
   - `step-0096` — **멤버별 수신함**(mbox2): 파티원마다 자기 수신함→모든 up 멤버 ack→acked 가 N>1 에서 참값(0088 §9 해소).
-  - `step-0099~0100` — 수신함 *inbox 차원 유계화*: 읽는 이 없을 때 최근 K cap(lossy·overflowed)·있을 때 drain(무손실 소비·`svc-mailbox.js:41`)·received 는 진실 SSOT 분리 보존.
-- **남은 것**: 종결 이벤트 단일성(#25)·inbox 드레인 읽음 영수증·게이트웨이 경유 read E2E(#26)·동적 N 수신함/세션 간접(#27)·멀티프로세스 미배선(#9)·ON-의미 spine 미승격(#16).
+  - `step-0099~0104` — 수신함 *메모리·수명주기·관측 완성*: inbox cap(미읽음·lossy)·**drainAck 2단계 읽음**(ack 전 보유 checkout→ackDrain 안전 제거·재드레인 무손실·exactly-once 소비·#26 해소·`svc-mailbox.js:58,69`)·checkout cap(읽음-미확인·lossy)·소비/손실 *발행*(svc.mailbox.drained·overflowed→audit). 수신함 메모리 세 차원(미읽음·읽음-미확인·확정소비) 유계 + 양면(성공·손실) 관측.
+  - `step-0105~0106` — 디스커버리 *메아리 펜싱*: wrouter 도 svc.presence.active 공지에 epoch 가드(`svc-whisper-handlers.js:12`)로 낡은 공지 거부→죽은 박스 역-재타깃·재시도 폭주 0(presmon 0105 의 라우터 판·발행자 무수정).
+- **남은 것**: 종결 이벤트 단일성(#25)·게이트웨이 경유 read E2E(#9/④)·동적 N 수신함/세션 간접(#27)·멀티프로세스 미배선(#9)·펜싱 로직 중복(#28)·ON-의미 spine 미승격(#16).
 
-## 길드/소셜(파티 멤버십) ✅ 자라는 중 + 거래소·우편 ⬜ 미착수
+## 길드/소셜(파티 멤버십) ✅ 자라는 중
 
 - **푸는 병목**: 파티/길드 멤버십은 *오래 사는 상태* — 한 명 들고 날 때 전체 재전송 말고(증분)·변경을 남이 구독하고(발행)·죽어도 살아남아야(영속).
 - **지금 어디**: 인메모리 SSOT 씨앗(0075) → **증분·관측·영속**까지 자란 첫 길드/소셜 박스(`src/svc-party.js`).
   - `step-0075` — 멤버십 전용 박스(2단 조회)·전체 덮어쓰기.
   - `step-0084` — 증분 가입/탈퇴(partyJoin/Leave 멱등)+변경 발행(svc.party.changed→audit·발행 스트림=변경 이력).
   - `step-0085~0086` — 영속·failover(휘발 projection ⟂ durable 변경 저널·crash→replay 재구성·0017/0021 event sourcing 의 멤버십 판) → 스냅샷+tail 압축(무계 저널 유계·0018/0022 판).
-- **남은 것**: cluster kill→replay 통합(현 in-process·#9)·거래소·우편 미착수.
+- **남은 것**: cluster kill→replay 통합(현 in-process·#9).
+
+## 거래소 ✅ 자라는 중 *(새 박스·가방/파티와 같은 궤적)* + 우편 ⬜ 미착수
+
+- **푸는 병목**: *두 당사자* 사이의 아이템↔대가 교환을 존 tick 밖에서 — 가방(1-당사자 이동)과 같은 불변(단일 소유 + 쌍 거래)으로·이중 판매 0·*존을 넘는 거래*가 존간 결합 없이 성립.
+- **지금 어디**: 분리 한 step 만에 가방/파티가 여러 묶음에 걸쳐 자란 궤적(분리→발행→영속→압축)을 *한 묶음에* 재현 — 재사용 레시피 확립(`src/svc-exchange.js` 새 박스).
+  - `step-0107` — 서비스 분리: escrow 가 단일 쓰기 권위·list=acquire(맡김·이중 판매 0)·buy/cancel=release 쌍 거래·보존 `listed==open+sold+cancelled`·닫힌 매물 거부(`svc-exchange.js:54,62,74,97`).
+  - `step-0108` — 체결 발행(svc.exchange.sold→audit·시세 피드 씨앗·0016 무수정 소비자 패턴·0019 CQRS 의 거래소 판).
+  - `step-0109~0110` — 영속·failover(휘발 projection ⟂ durable op 저널·crash→reconstruct·0017/0085 판) → 스냅샷+tail 압축(무계 저널 유계·0018/0086 판).
+- **남은 것**: 거래소↔가방 *2-서비스 원자 거래*(현 escrow 자기 원장만·아이템 실이동 0·#30)·별 PersistStore 박스화·cluster kill→replay(현 post-run 직접 crash·#9)·우편·길드 전용 박스 미착수.
 
 ---
 
-> **이 계층 다음 걸음**: 채팅에 홉 신뢰(ack/resend)를 채워 "팬아웃도 안 샌다"를 맞추고(#7), 라우팅/영속/수신함 호를 멀티프로세스로 배선한다(#9·전 호 인프로세스 전용). 안정된 전달·종결·유계화 호를 spine 가설 모드로 승격(#16·~30 모드 미승격). 수신함 드레인을 읽음 영수증·게이트웨이 경유 read 로 잇고(#26), 수신함을 동적 N·세션 간접으로 일반화(#27). 미착수 박스(거래소부터) 씨앗 심기 — 거래소는 *존을 넘는 거래*라 가방 쌍 거래의 확장 무대.
+> **이 계층 다음 걸음**: 채팅에 홉 신뢰(ack/resend)를 채워 "팬아웃도 안 샌다"를 맞추고(#7), 라우팅/영속/수신함/거래소 호를 멀티프로세스로 배선한다(#9·전 호 인프로세스 전용). 안정된 전달·종결·유계화·거래소 호를 spine 가설 모드로 승격(#16·~40 모드 미승격). 거래소를 *거래소↔가방 2-서비스 원자 거래*로 이어 진짜 존 넘는 거래로 만들고(#30), 수신함을 동적 N·세션 간접으로 일반화(#27)·게이트웨이 경유 read E2E(#9/④). 우편·길드 전용 박스 씨앗 심기.

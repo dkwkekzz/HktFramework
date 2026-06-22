@@ -24,6 +24,9 @@ function buildTopology(opts) {
     bus = false, audit = false,
     persist = false, snapshot = 0, journalReliable = false, journalHeartbeat = false,
     ranking = false,
+    exchange = false,
+    exchangePublish = false,
+    exchangePersist = false,
     chatpersist = false, chatSnapshot = 0,
     clientResend = false,
     mintRecon = false,
@@ -59,6 +62,7 @@ function buildTopology(opts) {
     presenceLease = false,
     hbTimeout = 3,
     presenceQuery = false,
+    announceEpoch = false,
     presenceAnnounce = false,
     whisperRouter = false,
     whisperFailover = false,
@@ -67,6 +71,10 @@ function buildTopology(opts) {
     whisperReceipt = false,
     mailbox2 = false,
     mailboxInboxBound = 0,
+    mailboxDrainAck = false,
+    mailboxCheckoutBound = 0,
+    mailboxDrainedPublish = false,
+    mailboxLossPublish = false,
     deliverRetry = false,
     deliverTimeout = 4,
     deliverDrop = 0,
@@ -154,6 +162,9 @@ function buildTopology(opts) {
     if (audit && partyChange && partyService) subs.push(['svc.party.changed', 'audit']);   // 멤버십 변경 발행(0084) — audit 가 svc.party.changed 구독(가입/탈퇴 관측). partyChange OFF 면 미추가(0083 토폴로지 비트 동일).
     if (audit && partyIncompletePublish && whisperRouter) subs.push(['svc.party.incomplete', 'audit']);   // 파티 incomplete 발행(0093) — audit 가 svc.party.incomplete 구독(부분 전달 실패 종결 관측). partyIncompletePublish OFF 면 미추가(0092 토폴로지 비트 동일).
     if (audit && partyCompletePublish && whisperRouter) subs.push(['svc.party.complete', 'audit']);   // 파티 complete 발행(0095) — audit 가 svc.party.complete 구독(전원 acked 성공 종결 관측). partyCompletePublish OFF 면 미추가(0094 토폴로지 비트 동일).
+    if (audit && mailboxDrainedPublish && whisperReceipt && whisperRouter) subs.push(['svc.mailbox.drained', 'audit']);   // 읽음 소비 발행(0103) — audit 가 svc.mailbox.drained 구독(읽음 확인 소비 관측·수명주기 마지막 마디). mailboxDrainedPublish OFF 면 미추가(0102 토폴로지 비트 동일).
+    if (audit && mailboxLossPublish && whisperReceipt && whisperRouter) subs.push(['svc.mailbox.overflowed', 'audit']);   // 수신함 손실 발행(0104) — audit 가 svc.mailbox.overflowed 구독(inbox overflow 손실 관측). mailboxLossPublish OFF 면 미추가(0103 토폴로지 비트 동일).
+    if (audit && exchange && exchangePublish) subs.push(['svc.exchange.sold', 'audit']);   // 거래소 체결 발행(0108) — audit 가 svc.exchange.sold 구독(거래 수명주기 관측). exchangePublish OFF 면 미추가(0107 토폴로지 비트 동일).
     if (audit && bouncePublish && whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
   }
@@ -196,7 +207,7 @@ function buildTopology(opts) {
   const partyAddr = (partyService && whisperAddr) ? 'pservice' : null;
   // 전달 영수증 수신 박스(0076·whisperReceipt) — 귓속말 수신측 Mailbox. 라우터 전제(whisperAddr). OFF·라우터 부재면 박스 0(0075 비트 동일).
   const mailboxOn = whisperReceipt && whisperAddr;
-  const __mboxOpts = { dropDeliver: deliverDrop, dedup: deliverDedup, dedupBound: deliverDedupBound, epochBound: deliverEpochBound, epochGrace: deliverEpochGrace, dropAck: deliverAckDrop, inboxBound: mailboxInboxBound };   // inboxBound(0099): inbox 최근 K cap. 미설정=무계(0098 동일).
+  const __mboxOpts = { dropDeliver: deliverDrop, dedup: deliverDedup, dedupBound: deliverDedupBound, epochBound: deliverEpochBound, epochGrace: deliverEpochGrace, dropAck: deliverAckDrop, inboxBound: mailboxInboxBound, drainAck: mailboxDrainAck, checkoutBound: mailboxCheckoutBound, bus: (mailboxDrainedPublish || mailboxLossPublish) ? busAddr : null, drainedPublish: mailboxDrainedPublish, lossPublish: mailboxLossPublish };   // inboxBound(0099): inbox 최근 K cap. drainAck(0101): 읽음 확인 2단계 읽음(checkout→ackDrain). checkoutBound(0102): 미확인 체크아웃 최근 K cap. drainedPublish(0103): 읽음 소비를 svc.mailbox.drained 로 발행. lossPublish(0104): inbox overflow 를 svc.mailbox.overflowed 로 발행. 미설정=무계·파괴적 드레인·발행 0(0100 동일).
   if (mailboxOn) add({ addr: 'mbox', kind: 'mailbox', opts: __mboxOpts });   // dropDeliver(0077): 전달 손실 주입. dedup(0080): exactly-once. dedupBound(0081): seen 유계화. epochBound(0090): epoch 워터마크 유계화. epochGrace(0091): 옛 epoch grace 유예(straggler 내성). dropAck(0080): ack 손실 주입. 미설정 = 0079 비트 동일.
   // 멤버별 Mailbox 토폴로지(step-0096·mailbox2) — 둘째 수신함 박스(mbox2). 파티원마다 *자기 수신함*을 가지면 모든 up 멤버가 ack 가능 → partyAcked/complete 가 N>1 에서 의미 있다(0088 §9 한계 해소). OFF 면 둘째 박스 0 = 0095 비트 동일.
   if (mailboxOn && mailbox2) add({ addr: 'mbox2', kind: 'mailbox', opts: Object.assign({}, __mboxOpts) });
@@ -205,10 +216,11 @@ function buildTopology(opts) {
   // [코디네이션] 전용 프레즌스 박스(0064) — orch 의 프레즌스 SSOT+발행 인계처. OFF 면 없음(0063 비트 동일). onTick 없음 = 신성한 tick 밖.
   if (presenceSvcAddr) add({ addr: 'presence', kind: 'presence', opts: { bus: busAddr, lease: presenceLease, hbTimeout } });   // primary: presenceLease 면 매 tick 하트비트 발행(0068).
   // [코디네이션] 프레즌스 박스 shadow(0066·presenceShadow) — *대기(standby)* PresenceService(presence2). primary 뒤 등록(팬아웃 순서 primary 먼저). active=false → 같은 보고로 SSOT 그림자 복제만·svc.presence 발행 억제(이중 발행 0). bus 는 승격(0067) 대비 전달. lease 면 하트비트 구독→사망 자율 감지(0068). OFF 면 없음(0065 비트 동일).
-  if (presenceShadowAddr) add({ addr: 'presence2', kind: 'presence', opts: { bus: busAddr, active: false, lease: presenceLease, hbTimeout, announceActive: presenceAnnounce } });   // announceActive(0070): 승격 시 svc.presence.active 공지(질의자 재타깃용).
+  if (presenceShadowAddr) add({ addr: 'presence2', kind: 'presence', opts: { bus: busAddr, active: false, lease: presenceLease, hbTimeout, announceActive: presenceAnnounce, announceEpoch: presenceAnnounce && announceEpoch } });   // announceActive(0070): 승격 시 svc.presence.active 공지(질의자 재타깃용). announceEpoch(0105): 공지에 epoch 실어 메아리 거부.
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
+  if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist } });   // 거래소(step-0107) — 아이템 escrow 거래 박스(존 tick 밖·단일 소유·쌍 거래). publish(0108): 체결 svc.exchange.sold 발행. persist(0109): op 저널 replay·crash→reconstruct. exchange OFF 면 박스 0 = 0106 비트 동일.
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });
 

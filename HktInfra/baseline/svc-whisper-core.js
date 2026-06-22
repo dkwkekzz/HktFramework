@@ -46,6 +46,8 @@ class WhisperRouter {
     this.bounced = 0;
     this.decisions = new Map();   // consumer -> 'routed'|'bounced' — 대상별 최신 라우팅 판정(대시보드·검증 대조).
     this.retargets = 0;           // active 재타깃 수(step-0072·svc.presence.active 공지 수신 — failover 시 1). 미구독이면 0(0071 동일).
+    this.activeEpoch = -1;        // 본 최고 active 공지 epoch(step-0106·announceEpoch 펜싱) — 이하 공지는 메아리로 거부(역-재타깃·재시도 폭주 방지). epoch 없으면 0072 무조건 재타깃.
+    this.staleAnnounces = 0;      // epoch 펜싱으로 거부한 낡은/메아리 공지 수(step-0106·계측·0105 presmon 펜싱의 라우터 판).
     this.parties = 0;             // 받은 파티 요청 수(step-0073·1:N 팬아웃 계측). 멤버 수만큼 질의로 전개.
     this.retries = 0;             // 재타깃 시 재발신한 보류 질의 수(step-0074·whisperRetry 계측). 윈도 손실 복구.
     this.partyPending = new Map(); // partyId -> {from, body} — partyMembers 응답 대기 중인 파티 전송 요청(step-0075·멤버십 조회 보류).

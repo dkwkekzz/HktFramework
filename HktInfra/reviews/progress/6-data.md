@@ -26,6 +26,8 @@
   - `step-0031~0032` — 정합 윈도 해소 + 유계 K·fill retry.
 - **남은 것**: 증분 스냅샷·fsync·anti-entropy·월드/버스 자체 영속.
 
+> **참고 — 게임 서비스 *자기 박스* 영속(별 PersistStore 미경유)**: 같은 event-sourcing 골격(휘발 projection ⟂ durable op 저널·crash→seq replay·스냅샷+tail 압축)이 PersistStore 밖에서도 박스 안에 직접 산다 — 멤버십(`svc-party.js`·0085/0086)·**거래소**(`svc-exchange.js`·`step-0109` op 저널 replay → `step-0110` 스냅샷 압축·무손실). 가방(0017/0018)·파티·거래소가 *완전히 같은 두 step 짝*으로 닫혀, event sourcing 이 박스 종류와 무관한 보편 레시피임을 보인다. 잔여: 이 자기-저널들을 별 PersistStore 박스(N-replica quorum·#9·#30)로 통합.
+
 ---
 
-> **이 계층 다음 걸음**: 캐시 박스 씨앗을 심어 "조회가 DB 직행 안 함"을 세우고, 영속 대상을 가방 너머 *월드·버스*로 넓혀 전 계층이 죽어도 되살아나게.
+> **이 계층 다음 걸음**: 캐시 박스 씨앗을 심어 "조회가 DB 직행 안 함"을 세우고, 영속 대상을 가방 너머 *월드·버스·거래소*로 넓혀(자기-저널 → 별 PersistStore 통합·#30) 전 계층이 죽어도 되살아나게.

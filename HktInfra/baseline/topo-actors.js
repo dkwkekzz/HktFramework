@@ -21,6 +21,7 @@ const { PresenceService } = __p('svc-presence');
 const { WhisperRouter } = __p('svc-whisper');
 const { PartyService } = __p('svc-party');
 const { Mailbox } = __p('svc-mailbox');
+const { ExchangeService } = __p('svc-exchange');
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -58,6 +59,7 @@ function makeActor(spec, net) {
     case 'whisper': a = new WhisperRouter(spec.opts); break;
     case 'party': a = new PartyService(spec.opts); break;
     case 'mailbox': a = new Mailbox(spec.opts); break;
+    case 'exchange': a = new ExchangeService(spec.opts); break;
     case 'ranking': a = new RankingService(spec.opts); break;
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;
