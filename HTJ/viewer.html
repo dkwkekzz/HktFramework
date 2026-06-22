@@ -105,6 +105,8 @@
 <script src="engine/htj-sparse.js"></script>
 <script src="engine/htj-vacuum.js"></script>
 <script src="engine/htj-activity.js"></script>
+<script src="engine/htj-promote.js"></script>
+<script src="engine/htj-entity.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -310,6 +312,33 @@
         updateTemperature(w);
       },
       note: '<b>확장성 인프라(S2·S3) 통합 오버레이</b> — step_0016~0025 는 거동이 0014 와 (거의) 같은 *인프라*라 개별 장면이 없었다. 여기선 그 인프라가 <b>실제로 무엇을 하는지</b>를 한 화면에서 본다. 법칙은 0014 와 동일하게 돌리고(거동 동일·질량 보존), 희소·활성·동결 층을 <b>관찰자</b>로 얹어 8³ 블록을 와이어프레임으로 덧그린다: <span style="color:#fa963c">주황=도는(활성) 블록</span> · <span style="color:#4a8cfa">파랑=쉬는(동결) 블록</span>. <b>▶ 무엇이 보이나</b>: ① 처음 잔잔할 땐 많은 블록이 파랑(동결)이다가, ② 별이 붕괴하며 전부 깨어 주황(활성)이 되고, ③ 다시 정착하면 출렁임이 멎은 블록부터 파랑으로 굳는다(<b>0025</b> 동결=시간 LOD/안정 판정). 주황 블록이 <b>법칙이 실제로 돌 곳</b>(0018~0022 활성 순회). <b>▶ 정직한 한계(0024 천장)</b>: 가우시안 별의 옅은 꼬리가 <b>모든 블록에 한 톨씩</b> 남아 — 진공 희소화(0016/0017/0024)를 켜도 — 통째로 *빈* 블록은 거의 안 생긴다(블록 점유 ~100%). 그래서 셀은 희소화돼도 블록 단위 절감엔 천장이 있다. <b>왜 중요한가</b>: 그 천장이 곧 다음 단계의 이유다 — 동결(파랑)=안정 신호로 <b>S5 승격</b>이 별을 격자에서 통째로 빼내 개체 1개로 굴려야 비용이 진짜 준다.'
+    },
+
+    // ── step_0027 — 승격된 개체의 탄도 운동(자유 강체 드리프트) ──
+    //   조밀한 구를 격자에서 *승격*해 개체 1개로 빼낸 뒤(격자 비움), 그 개체를 *개체-공간에서* 굴린다.
+    //   힘이 없으니 제 속도(v=P/질량)를 지킨 채 등속 직진 — 개체판 뉴턴 1법칙. 격자는 한 칸도 안 돈다(위치
+    //   몇 숫자만 적분). 토러스 wrap. 구체는 drawClumps 로 그린다(개체 = {cx,cy,cz,radius,peak} 형태).
+    '0027': {
+      label: 'step_0027 — 개체 탄도 운동(승격된 별의 드리프트)', title: 'HTJ — 개체 탄도 운동(자유 강체 드리프트)',
+      sub: '승격된 개체가 격자 순회 없이 제 속도로 등속 직진(개체판 뉴턴 1법칙) — 토러스 wrap',
+      mode: 'energy', dynamics: true, render: 'entity',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
+        w.fields.therm || w.addField('therm');
+        // 조밀한 균일 구(반지름 ~N/8) + bulk 속도 → 승격하면 그 속도로 드리프트한다.
+        const N = w.N, cx0 = N * 0.2, cy0 = (N - 1) / 2, cz0 = (N - 1) / 2, rad = Math.max(2, N * 0.12), rho0 = 4, vx0 = 0.5;
+        for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const dx = x - cx0, dy = y - cy0, dz = z - cz0;
+          if (dx * dx + dy * dy + dz * dz <= rad * rad) { const i = (z * N + y) * N + x; w.fields.energy[i] = rho0; w.fields.mom_x[i] = rho0 * vx0; w.fields.therm[i] = rho0 * 0.5; }
+        }
+        // 구 전체를 한 개체로 승격(격자 비움) — 이후 격자는 안 돌고 개체만 굴린다.
+        const clumps = HTJCluster.detectClumps(w, { eps: 1e-9, minCells: 2, collectCells: true });
+        w.__entity = clumps.length ? HTJPromote.promote(w, clumps[0].cellList) : null;
+        updateTemperature(w);
+      },
+      advance(w) { if (w.__entity) HTJEntity.stepEntity(w.__entity, 0.3, { N: w.N }); },  // 법칙: 자유 탄도 드리프트(힘 없음)
+      note: '<b>승격된 개체를 *개체-공간에서* 굴린다</b>(S5-b 첫 단위). step_0026 이 안정 덩어리를 격자에서 빼내 개체 1개로 *환원*했다면(이관), 이 step 은 그 개체를 <b>법칙으로 움직인다</b>. 시작 시 조밀한 구를 <b>승격</b>해 격자에서 통째로 빼낸다(격자는 텅 빔 — 셀 순회 0) → 화면엔 voxel 수백 개가 아니라 <b>구체 1개</b>가 뜬다. <b>▶ 흐름</b>: 힘이 없으니 개체는 제 속도(v=운동량/질량)를 지킨 채 <b>등속 직진</b>한다(개체판 뉴턴 1법칙·step_0006 격자 advect 의 개체-공간 거울짝). 경계에 닿으면 반대편으로 <b>감긴다</b>(토러스). <b>왜 중요한가</b>(design/scalability.md §0 목적 ②): 비용이 *부피*가 아니라 *개체 수*에 묶인다 — 별 하나를 굴리는 데 수천 셀이 아니라 위치 몇 숫자만 적분한다(O(개체)). 질량·운동량·에너지는 드리프트 내내 *정확 보존*(위치만 변함). <b>정직한 한계</b>: 아직 *힘이 없다*(자유 드리프트뿐) — 중력 가속(개체에 작용)·각운동량 보존 회전(스핀)·개체끼리 상호작용·자동 트리거(동결→승격)는 후속 step.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -424,6 +453,14 @@
       const eps = mean > 0 ? Math.max(mean * 1.5, 1e-9) : 1e-9;   // 본체 임계(평균 위) — 헤일로 제외
       const clumps = HTJCluster.detectClumps(world, { eps, minCells: 2 });
       surf = HTJRender.drawClumps(ctx, world, cam, clumps);
+      return;
+    }
+    // 개체 드리프트(0027): 격자는 비어 있고 승격된 개체 1개를 구체로 그린다(위치만 바뀌며 직진).
+    if (stCur && stCur.render === 'entity') {
+      const e = world.__entity;
+      const clumps = e ? [{ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: e.peak || e.temp || 1 }] : [];
+      surf = HTJRender.drawClumps(ctx, world, cam, clumps);
+      const lab = document.getElementById('s-occ'); if (lab && e) lab.textContent = `개체 1 @ (${e.cx.toFixed(1)},${e.cy.toFixed(1)},${e.cz.toFixed(1)}) v=(${(e.px / e.mass).toFixed(2)},${(e.py / e.mass).toFixed(2)},${(e.pz / e.mass).toFixed(2)})`;
       return;
     }
     // 확장성 오버레이(scal): 별 voxel 위에 8³ 블록 상태(활성/동결)를 와이어프레임으로 덧그린다.
