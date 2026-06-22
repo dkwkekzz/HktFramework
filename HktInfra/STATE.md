@@ -172,11 +172,11 @@
 | [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신) | 통과 · ON pending 0 vs OFF 2 |
 | [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·2단) | 통과 · resolved 3·routed 2 |
 | [0076](step-0076.md) | 전달 영수증(whisperReceipt — Mailbox whisperAck→delivered) | 통과 · deliv 1 vs OFF 0 |
-| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 재발신) | 통과 · ON delivered 1 vs OFF 0 |
-| [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기·undeliverable) | 통과 · ON undel 1 vs OFF 12 |
-| [0079](step-0079.md) | 전달 포기 통지(deliverNotify — 포기 시 발신자에 deliveryFailed 회신) | 통과 · ON notified 1 vs OFF 0 |
-| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·중복 차단·exactly-once) | 통과 · ON dup 1 vs OFF 0 |
-| [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound — 연속 워터마크+희소 비순차 집합 O(gap)) | 통과 · ON seenSize 0 vs OFF ∝run·dup 1 보존 |
+| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 재발신) | 통과 · ON delivered 1 vs OFF 0 |
+| [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기) | 통과 · ON undel 1 vs OFF 12 |
+| [0079](step-0079.md) | 전달 포기 통지(deliverNotify — 포기 시 deliveryFailed 회신) | 통과 · ON notified 1 vs OFF 0 |
+| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·exactly-once) | 통과 · ON dup 1 vs OFF 0 |
+| [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound — 워터마크+희소 집합 O(gap)) | 통과 · ON seenSize 0 vs OFF ∝run |
 | [0082](step-0082.md) | 전달 실패 발행(failedPublish — 포기 시 svc.whisper.failed 발행·audit·통지와 직교) | 통과 · ON pub/audit 1 vs OFF 0 |
 | [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced}) | 통과 · ON {3,2,1} vs OFF 0 |
 | [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave·svc.party.changed) | 통과 · ON 2 vs OFF 0 |
@@ -189,11 +189,11 @@
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N 닫힌 epoch 유예) | 통과 · straggler ON dup 1·spine 91 |
 | [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 포기→파티 failed 종결) | 통과 · ON failed 1 vs OFF 0·spine 92 |
 | [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — svc.party.incomplete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 93 |
-| [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(core/handlers/entry·기능 0) | OK · 박스 33→12/10/1KB·spine 94 |
+| [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(core/handlers/entry) | OK · 33→12/10/1KB·spine 94 |
 | [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked svc.party.complete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 95 |
 | [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack) | 통과 · ON deliv 2/acked vs OFF 1·spine 96 |
-| [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송 svc.whisper.bounced·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 97 |
-| [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(topo-actors.js·기능 0) | OK · 박스 32→28.5/4.9KB·spine 98 |
+| [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — 반송 svc.whisper.bounced·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 97 |
+| [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(topo-actors.js·기능 0) | OK · 32→28.5/4.9KB·spine 98 |
 | [0099](step-0099.md) | Mailbox inbox 유계화(inboxBound — inbox 최근 K cap·received 보존) | 통과 · ON overflow 4 vs OFF 0·spine 99 |
 | [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움) | 통과 · ON drained 8 vs OFF 0·spine 100 |
 | [0101](step-0101.md) | 읽음 확인 영수증(drainAck — drain 2단계 checkout→ackDrain·재드레인 무손실) | 통과 · 확인 drained/acked 8 vs OFF 파괴적·spine 101 |
