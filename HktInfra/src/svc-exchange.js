@@ -1,4 +1,5 @@
 'use strict';
+// step-0109 — 거래소 영속·failover(exchangePersist·op 저널 replay): 0107~0108 의 거래소 escrow 원장은 *휘발*(in-memory)이라 박스 crash 시 매물·체결 회계가 전부 소실됐다(영속 0). 0017 가방·0085 파티가 event sourcing(효과/변경 저널 replay)으로 푼 것을 *거래소 원장*에 적용한다: 원장을 바꾸는 명령(list/buy/cancel)을 *durable op 저널*에 추가하고, crash(RAM 소실) 후 fresh 거래소가 그 저널을 seq 순 replay 해 매물·체결 projection 을 재구성한다 → 죽기 전과 비트 동일(open 매물·listed/sold/cancelled/delivered/proceeds/returned 모두 재현). 원장(projection)은 휘발, 저널은 durable(0108 svc.exchange.sold 스트림이 곧 체결 이벤트의 외부 사본). 닫힌 매물 거부(rejects)는 *실패 시도 계측*이라 저널 안 함(0085 가 실패 변경을 저널 안 하듯) — 비-durable 운영 지표. exchangePersist OFF 면 저널 0·crash 후 reconstruct 해도 빈 원장(소실) = 0108 비트 동일(저널 미기록·휴면).
 // step-0108 — 거래소 체결 발행(exchangePublish·거래 수명주기 관측): 0107 의 거래소는 escrow 원장을 내부 카운터(sold·proceeds)로만 굴린다 — 체결 사실이 외부에서 관측 불가. 가방(0014)이 svc.item.* 로 이벤트를 흘리고 0087/0103 이 수명주기를 발행했듯, 이 step 은 체결(exchBuy 성공)을 svc.exchange.sold{id,buyer,seller,price} 로 발행한다 — escrow→구매자 release 가 성립하는 순간 버스로 1회, audit·랭킹 등 무수정 소비자가 구독해 관측(거래량·시세 피드의 씨앗). 0016 발행자 무수정 소비자 패턴의 거래소 판. exchangePublish OFF·bus 부재면 발행 0 = 0107 비트 동일.
 // step-0107 — 거래소(Exchange) 서비스 분리 (존 넘는 아이템 거래·escrow 쌍 거래): SPINE 계층3 게임 서비스의 거래소 박스 첫 구현. 가방(0014)이 *한 소유자* 원장이라면, 거래소는 *두 당사자 사이*의 아이템↔대가 교환을 존 tick 밖에서 비동기로 성립시킨다 — 그리고 그 핵심 netcode 불변은 가방과 같다: 권위 단일 소유 + 쌍 거래(release+acquire). list = 판매자가 아이템을 거래소 escrow 로 *맡김*(acquire — 이후 판매자는 그 아이템을 못 쓴다·이중 판매 0), buy = escrow 아이템을 구매자에게 *넘기고* 대가를 판매자에게(release 쌍), cancel = escrow 를 판매자에게 반환(release). 모든 listed 아이템은 매 순간 *정확히 한* 상태(open=escrow 보유 / sold / cancelled)에 있다 — 공백도 중복도 없다(보존: listed == open + sold + cancelled). 닫힌 listing 에 대한 buy/cancel 은 거부(rejects·이중 해결 0). 존을 넘는 거래가 *존간 결합 없이* 거래소 한 박스에서 성립(SPINE §2 가방 행). exchange 미설정이면 박스 0 = 0106 비트 동일.
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
@@ -23,8 +24,13 @@ class ExchangeService {
     this.delivered = new Map();         // buyer -> 받은 아이템 수(release acquire 측 회계).
     this.proceeds = new Map();          // seller -> 받은 대가 합(체결 시 판매자 수익).
     this.returned = new Map();          // seller -> 취소로 반환받은 아이템 수.
+    this.persist = opts.persist || false;   // 원장 영속(step-0109·exchangePersist) — list/buy/cancel 명령을 durable op 저널에 기록·crash 후 replay 로 재구성. OFF 면 저널 0(0108 동일·휘발).
+    this.journal = [];                  // durable op 저널 [{seq, kind, ...}](step-0109) — projection(listings·회계)과 분리(crash 시 projection 만 소실·저널은 영속). 성공 op 만 기록(rejects 제외).
+    this.jseq = 0;                      // 저널 seq 단조 발급.
   }
   _bump(mp, k, n) { mp.set(k, (mp.get(k) || 0) + (n === undefined ? 1 : n)); }
+  // op 저널 추가(step-0109) — 원장을 바꾼 성공 명령만 durable 저널에 append(0085 partyPersist 와 같은 매핑). persist OFF 면 no-op(0108 동일).
+  _journal(entry) { if (this.persist) this.journal.push({ seq: ++this.jseq, ...entry }); }
   onMsg(m) {
     const p = m.payload;
     // 매물 등록(list·acquire) — 판매자가 아이템을 거래소 escrow 로 맡긴다. 이후 그 아이템은 거래소 권위 아래(판매자 이중 판매 불가). open++.
@@ -32,6 +38,7 @@ class ExchangeService {
       const id = ++this.nextId;
       this.listings.set(id, { seller: p.seller, item: p.item, price: p.price | 0 });
       this.listed++;
+      this._journal({ kind: 'list', id, seller: p.seller, item: p.item, price: p.price | 0 });
       return;
     }
     // 체결(buy·release 쌍) — escrow 아이템을 구매자에게 넘기고 대가를 판매자에게. 매물은 닫힌다(delete). 없는/닫힌 매물이면 거부(이중 판매 0).
@@ -43,6 +50,7 @@ class ExchangeService {
       this._bump(this.proceeds, l.seller, l.price); // 판매자가 대가 acquire
       // 체결 발행(step-0108·exchangePublish) — 성립한 거래를 svc.exchange.sold 로 1회 발행(관측·거래량/시세 피드 씨앗). OFF·bus 부재면 no-op(0107 비트 동일).
       if (this.publish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.sold', ev: { id: p.id, buyer: p.buyer, seller: l.seller, price: l.price } }); this.published++; }
+      this._journal({ kind: 'buy', id: p.id, buyer: p.buyer, seller: l.seller, price: l.price });
       return;
     }
     // 취소(cancel·release) — 판매자가 자기 매물을 거둬 escrow 아이템을 돌려받는다. 소유자 불일치/없는 매물이면 거부.
@@ -51,7 +59,21 @@ class ExchangeService {
       if (!l || l.seller !== p.seller) { this.rejects++; return; }
       this.listings.delete(p.id); this.cancelled++;
       this._bump(this.returned, p.seller);          // 판매자가 아이템 반환 acquire
+      this._journal({ kind: 'cancel', id: p.id, seller: p.seller });
       return;
+    }
+  }
+  // crash(step-0109) — 박스 RAM 소실의 인프로세스 모델: projection(매물·체결 회계)만 비운다. *op 저널은 durable* 이라 보존(0085 partyPersist 의 거래소 판). rejects(실패 시도 계측)도 비움 — 저널엔 성공 op 만 있어 reconstruct 가 못 살리는 비-durable 지표.
+  crash() {
+    this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.rejects = 0; this.published = 0;
+    this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
+  }
+  // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이). list=매물 복원+nextId 추적·buy=체결·cancel=취소 → 죽기 전과 비트 동일(durable 원장). 자기 영속 저널만으로 거래소 복원(0085 멤버십 판).
+  reconstruct() {
+    for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) {
+      if (e.kind === 'list') { this.listings.set(e.id, { seller: e.seller, item: e.item, price: e.price }); this.listed++; if (e.id > this.nextId) this.nextId = e.id; }
+      else if (e.kind === 'buy') { this.listings.delete(e.id); this.sold++; this._bump(this.delivered, e.buyer); this._bump(this.proceeds, e.seller, e.price); }
+      else if (e.kind === 'cancel') { this.listings.delete(e.id); this.cancelled++; this._bump(this.returned, e.seller); }
     }
   }
   // 보존 — 모든 listed 아이템은 매 순간 정확히 한 상태(open / sold / cancelled). 공백·중복 0 의 거래소 판(권위 단일 소유 + 쌍 거래).

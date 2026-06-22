@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0108](step-0108.md) — **거래소 체결 발행**(exchangePublish·거래 수명주기 관측): 0107 거래소는 체결을 내부 카운터(sold)로만 굴려 외부 관측 불가. exchBuy 성공 시 svc.exchange.sold{id,buyer,seller,price} 1회 발행·audit 무수정 구독 관측 — 0016 패턴의 거래소 판(거래량/시세 피드 씨앗·0019 CQRS 거래소 판). exchangePublish OFF·bus 부재=발행 0=0107 비트 동일. 닿는 박스: svc-exchange(publish·published)·topo-build(exchangePublish+audit sub).
-- **한 줄 상태**: reg ALL OK(src=baseline=0107 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pexpub: 4 list·2 buy·1 cancel·ON published 2/audit svc.exchange.sold 2 vs OFF 0/0·sold 2·conserved·minted ON==OFF·spine 108 OK.
+- **닫힌 step**: [step-0109](step-0109.md) — **거래소 영속·failover**(exchangePersist·op 저널 replay): 거래소 원장 휘발 → crash 시 소실. list/buy/cancel 을 durable op 저널에 기록·crash()=projection 만 비움·reconstruct()=저널 seq 순 replay 재구성 → 죽기 전 비트 동일(0017 가방·0085 파티 event sourcing 의 거래소 판). rejects 비-durable. OFF=저널 0·빈 원장=0108 비트 동일. 닿는 박스: svc-exchange(persist·journal·crash·reconstruct)·topo-build(exchangePersist).
+- **한 줄 상태**: reg ALL OK(src=baseline=0108 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pexper: 4 list·2 buy·1 cancel→crash→reconstruct·ON recon==before(1/4/2/1·proceeds s1 15·conserved) vs OFF 소실·minted ON==OFF·spine 109 OK.
 - **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0108 이 *거래소 체결 발행*(exchangePublish)을 닫음. 기능 후보: *거래소↔가방 2-서비스 원자 거래*(0107 §9)·*거래소 영속*(crash→매물 재구성)·*파티 cluster kill→replay*(0085 §9)·*비동기 결정론*(🔴). 🔧 buildTopology 24KB 단일 함수. 🔎 0101~0110 묶음 리뷰는 0110(다음 step).**
+**step-0109 가 *거래소 영속·failover*(exchangePersist)를 닫음 — 거래소 arc(0107 분리→0108 발행→0109 영속). 기능 후보: *거래소 저널 스냅샷 압축*(0109 §9·0086 판)·*거래소↔가방 2-서비스 원자 거래*(0107 §9)·*파티 cluster kill→replay*(0085 §9)·*비동기 결정론*(🔴). 🔧 buildTopology 24KB 단일 함수. 🔎 0101~0110 묶음 리뷰는 0110(다음 step) 후.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -35,15 +35,15 @@
 |---|---|---|---|
 | 🔴 | **C++ 시뮬 코어 headless 빌드 (최우선)** | 월드 | 결정론 시뮬 코어가 UE 모듈(Core·CoreUObject·GameplayTags·Json 등)에 링크되면 'UObject 0' 이라도 UE 소스/UBT 없이 빌드 불가 → 원격 검증 불가. UE-모듈-free 코어 분리 또는 얇은 헤드리스 shim 필요(§4). C++ 승격 선결(0003 §8.2). |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받친다. 진짜 비동기·노드 자유 진행은 미착수 — 논리 클럭(Lamport/벡터)·인과 순서로 배리어 없이 결정론·소유자 1 보존이 후속(0012 §9-3·0105 §9). |
-| ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정 검증·대기열·만료(0001 §8.5). |
+| ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정 검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 복제·예측** | 월드 | 0002~0004 결정론 복제·예측은 C++ 시뮬 승격에서 부활. 다중 클라 intent 인터리빙·예측/롤백(0001 §8.6). |
-| ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신을 암묵 신뢰(0001 §8.3) — 분산 시 필요. |
+| ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001) — 분산 시 필요. |
 | 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·lease·치유·대체활성화 ✅)** | 버스 | 0016 ServiceBus 단일 박스·영속 0. 동적구독→failover→무손실→lease→self-healing→대체활성화(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅 ✅+압축·파티 ✅·버스 ⬜)·존 넘는 거래** | 서비스/데이터 | 가방/채팅 저널+압축(0017/0018·0021/0022)·파티 저널(0085). write-behind(0023~0029). 버스 라우팅 영속 0. |
 | 🟡 | **길드·거래소·우편(서비스 반복)·랭킹 ✅·읽기 모델 ✅** | 서비스 | 0019 Ranking=발신 소비자(CQRS)·0020 읽기 모델 영속. 거래소·우편·길드 미착수. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스 0064~0070(분리·버스화·shadow·failover·자율감지·질의). 귓속말/파티 라우팅 0071~0103(라우팅·failover·1:N·멤버십 SSOT·영속·전달 신뢰·epoch 펜싱·파티 종결/발행·수신함 유계/드레인/읽음확인/소비발행). 남은 것: cluster kill→replay·존 배치·부하 분산·메아리 정리. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·persist failover/N-replica/quorum/윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017 계층6 첫)+압축(0018). 홉 신뢰→failover→quorum→윈도(0023~0032). fsync 0·월드 영속 0. |
-| ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위 고리 닫기. |
+| ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성. |
 
 > **✅ 해소된 격차 (0001~0101)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스(14~16)·가방/채팅 영속+압축(17~22)·write-behind/quorum/윈도(23~32)·버스 동적구독~lease(33~52)·lease 관측→프레즌스 박스(54~70)·귓속말/파티 라우팅~수신함 유계/드레인/읽음확인(71~101).
 
@@ -129,7 +129,7 @@
 | [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill — sweep 이 W 미달 seq 재-fan-out) | 통과 · durSeq total-1 |
 | [0032](step-0032.md) | 윈도 해소 유계 sweep+fill retry(wfWindow K 창) | 통과 · K=8 durSeq=total-1 |
 | [0033](step-0033.md) | 버스 동적 구독/해지(runtime unsub/sub) | 통과 · unsub@15→re-sub@18 |
-| [0034](step-0034.md) | 버스 failover(bus.crash()→재협상·진실원천=소비자) | 통과 · crash@12→재협상@14 |
+| [0034](step-0034.md) | 버스 failover(bus.crash()→재협상·진실원천=소비자) | 통과 · crash@12→재협상 |
 | [0035](step-0035.md) | 정리: cluster.js 박스-부품 4분할(45KB>30KB·기능 0) | 통과 |
 | [0036](step-0036.md) | 버스 failover 결과 경로 무손실(producer replay) | 통과 · desync 6→0 |
 | [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway replay+reqId dedup) | 통과 · minted==base |
@@ -195,12 +195,13 @@
 | [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송 svc.whisper.bounced 발행·audit) | 통과 · ON pub/audit 1 vs OFF 0·bounced 1·spine 97 |
 | [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(topo-actors.js 로 makeActor·routeFilters 분리·기능 0) | 통과 · src=baseline·박스 32→28.5/4.9KB·spine 98 |
 | [0099](step-0099.md) | Mailbox inbox 유계화(inboxBound — inbox 최근 K cap·received 보존) | 통과 · ON inbox 4/overflow 4 vs OFF 8/0·spine 99 |
-| [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움·0099 cap 과 짝) | 통과 · ON inbox 0/drained 8 vs OFF inbox 8/drained 0·received 8·spine 100 |
-| [0101](step-0101.md) | 읽음 확인 영수증(drainAck — drain 2단계 checkout→ackDrain·재드레인 무손실·ack 시 안전 제거) | 통과 · ON-미확인 held 8 vs ON-확인 drained/acked 8/held 0 vs OFF drained 8(파괴적)·spine 101 |
-| [0102](step-0102.md) | 미확인 체크아웃 유계화(checkoutBound — checkout 최근 K cap·옛 미확인 lossy 드롭·0099 inbox cap 의 읽음측 판) | 통과 · ON(K4) held 4/overflow 4 vs OFF held 8/overflow 0·received 8·spine 102 |
-| [0103](step-0103.md) | 읽음 소비 발행(drainedPublish — ackDrain 확정 소비 svc.mailbox.drained 발행·audit·0087 읽음측 판) | 통과 · ON pub/audit 1 vs OFF 0·drained 8·spine 103 |
-| [0104](step-0104.md) | 수신함 손실 발행(lossPublish — inbox overflow 드롭 svc.mailbox.overflowed 발행·audit·0082/0103 손실 판) | 통과 · ON overflowed/pub/audit 4 vs OFF overflowed 4/pub 0·received 8·spine 104 |
-| [0105](step-0105.md) | active 공지 epoch 펜싱(announceEpoch — presmon 이 낡은 svc.presence.active 메아리 거부·역-재타깃 0·0013/0090 디스커버리 판) | 통과 · ON presence2/retargets 1/stale 1 vs OFF presence 역-재타깃 2·spine 105 |
-| [0106](step-0106.md) | wrouter 공지 epoch 펜싱(0105 의 라우터 판 — 둘째 소비자도 메아리 거부·발행자 무수정·재시도 폭주 0) | 통과 · ON presence2/stale 1 vs OFF presence 역-재타깃·spine 106 |
-| [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService — escrow 쌍 거래·존 넘는 거래 첫 박스·보존·이중 판매 0) | 통과 · listed 4/sold 2/cancel 1/rejects 2/conserved·spine 107 |
+| [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움·0099 cap 과 짝) | 통과 · ON inbox 0/drained 8 vs OFF 8/0·spine 100 |
+| [0101](step-0101.md) | 읽음 확인 영수증(drainAck — drain 2단계 checkout→ackDrain·재드레인 무손실·ack 시 안전 제거) | 통과 · 미확인 held 8 vs 확인 drained/acked 8 vs OFF 파괴적·spine 101 |
+| [0102](step-0102.md) | 미확인 체크아웃 유계화(checkoutBound — checkout 최근 K cap·옛 미확인 lossy 드롭·0099 읽음측 판) | 통과 · ON(K4) held 4/overflow 4 vs OFF 8/0·spine 102 |
+| [0103](step-0103.md) | 읽음 소비 발행(drainedPublish — ackDrain 확정 소비 svc.mailbox.drained 발행·audit·0087 판) | 통과 · ON pub/audit 1 vs OFF 0·spine 103 |
+| [0104](step-0104.md) | 수신함 손실 발행(lossPublish — inbox overflow 드롭 svc.mailbox.overflowed 발행·audit·0082/0103 손실 판) | 통과 · ON overflowed/pub/audit 4 vs OFF pub 0·spine 104 |
+| [0105](step-0105.md) | active 공지 epoch 펜싱(announceEpoch — presmon 이 낡은 svc.presence.active 메아리 거부·역-재타깃 0·0013/0090 판) | 통과 · ON presence2/stale 1 vs OFF 역-재타깃 2·spine 105 |
+| [0106](step-0106.md) | wrouter 공지 epoch 펜싱(0105 의 라우터 판 — 둘째 소비자도 메아리 거부·재시도 폭주 0) | 통과 · ON presence2/stale 1 vs OFF 역-재타깃·spine 106 |
+| [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService — escrow 쌍 거래·존 넘는 거래 첫 박스·보존·이중 판매 0) | 통과 · listed 4/sold 2/cancel 1/conserved·spine 107 |
 | [0108](step-0108.md) | 거래소 체결 발행(exchangePublish — exchBuy 성공 svc.exchange.sold 발행·audit·시세 피드 씨앗·0016 패턴) | 통과 · ON published/audit 2 vs OFF 0·sold 2/conserved·spine 108 |
+| [0109](step-0109.md) | 거래소 영속·failover(exchangePersist — op 저널 replay·crash→reconstruct·0017/0085 거래소 판) | 통과 · ON 저널 7/recon==before vs OFF 소실·spine 109 |
