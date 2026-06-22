@@ -42,6 +42,7 @@
     opts = opts || {};
     const eps = opts.eps != null ? opts.eps : DEFAULT_EPS;
     const minCells = opts.minCells != null ? opts.minCells : 1;
+    const collectCells = !!opts.collectCells;          // true → 각 덩어리에 cells(셀 인덱스 목록) 첨부(승격용)
     const N = world.N, NN = N * N;
     const rho = world.fields[RHO];
     const u = world.fields[THERM] || null;             // 온도 장이 없으면 평균온도=0
@@ -59,6 +60,7 @@
       // 새 연결 성분 — flood fill 로 전부 모으며 환원량 누적.
       seen[s] = 1; stack.length = 0; stack.push(s);
       let mass = 0, mx = 0, my = 0, mz = 0, uSum = 0, peak = 0, cells = 0;
+      const cellList = collectCells ? [] : null;
       while (stack.length) {
         const i = stack.pop();
         const r = rho[i];
@@ -68,6 +70,7 @@
         if (u) uSum += u[i];                            // Σu (질량가중 평균온도 = Σu/Σρ)
         if (r > peak) peak = r;
         cells++;
+        if (cellList) cellList.push(i);
         // 6-이웃(격자 경계 안에서만 — no-flux, 주기 아님).
         if (x > 0     && !seen[i - 1]  && rho[i - 1]  > eps) { seen[i - 1]  = 1; stack.push(i - 1); }
         if (x < N - 1 && !seen[i + 1]  && rho[i + 1]  > eps) { seen[i + 1]  = 1; stack.push(i + 1); }
@@ -77,7 +80,7 @@
         if (z < N - 1 && !seen[i + NN] && rho[i + NN] > eps) { seen[i + NN] = 1; stack.push(i + NN); }
       }
       if (cells < minCells) continue;
-      clumps.push({
+      const clump = {
         cx: mass > EPS ? mx / mass : 0,                // 질량중심
         cy: mass > EPS ? my / mass : 0,
         cz: mass > EPS ? mz / mass : 0,
@@ -86,7 +89,9 @@
         radius: equivalentRadius(cells),               // 등가 구 반지름
         temp: mass > EPS ? uSum / mass : 0,            // 질량가중 평균온도 = Σu/Σρ
         peak                                           // 정점 밀도
-      });
+      };
+      if (cellList) clump.cellList = cellList;         // 승격용 셀 인덱스 목록(opts.collectCells)
+      clumps.push(clump);
     }
     // 질량 내림차순(같으면 셀 수) — 결정론적 안정 순서.
     clumps.sort((a, b) => (b.mass - a.mass) || (b.cells - a.cells));
