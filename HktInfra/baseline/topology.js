@@ -177,8 +177,10 @@ function run(opts) {
     if (opts.wrouterRestart && wrouter) for (const r of [].concat(opts.wrouterRestart)) if (r.at === i + 1) wrouter.restart();   // 단일 {at} 또는 배열(0090·다중 재시작) 둘 다 지원
     // 옛 epoch straggler 주입(step-0091·mboxStraggler) — at tick 에 *지연된 옛 epoch* whisperDeliver 가 Mailbox 에 직접 도착(net.log 밖·digest 불변). epoch grace 가 유예한 닫힌 epoch 워터마크면 정상 dedup, 가지친 뒤면 신규 오인 재수신(0090 §9 한계 노출). mbox 부재·미제공이면 휴면(reg 0 불변).
     if (opts.mboxStraggler && mbox) for (const s of [].concat(opts.mboxStraggler)) if (s.at === i + 1) mbox.onMsg({ from: s.from, payload: { type: 'whisperDeliver', from: s.from, body: s.body, seq: s.seq, epoch: s.epoch } });
-    // inbox 드레인 주입(step-0100·mboxDrain) — at tick 에 소유자가 수신함을 읽어 비운다(mbox.drain()). 읽는 이가 있으면 inbox 가 무손실로 유계됨을 보인다(0099 lossy cap 과 짝). mbox 부재·미제공이면 휴면(reg 0 불변).
+    // inbox 드레인 주입(step-0100·mboxDrain) — at tick 에 소유자가 수신함을 읽어 비운다(mbox.drain()). 읽는 이가 있으면 inbox 가 무손실로 유계됨을 보인다(0099 lossy cap 과 짝). mbox 부재·미제공이면 휴면(reg 0 불변). drainAck ON(0101) 이면 파괴적 비움 대신 미확인 체크아웃으로 옮긴다(ack 전 보유·재드레인 무손실).
     if (opts.mboxDrain && mbox) for (const d of [].concat(opts.mboxDrain)) if (d.at === i + 1) mbox.drain();
+    // 읽음 확인 주입(step-0101·mboxDrainAck) — at tick 에 소유자가 읽은 *최신* 체크아웃 배치 처리 완료를 확인(mbox.ackDrain(현 checkout.seq)) → 안전 제거(drainAcked 누적). ack 누락 시 체크아웃이 보유돼 재드레인이 무손실 재반환(읽음 손실 복구). mbox 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.mboxDrainAck && mbox) for (const a of [].concat(opts.mboxDrainAck)) if (a.at === i + 1) mbox.ackDrain(mbox.checkout ? mbox.checkout.seq : -1);
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).

@@ -1,8 +1,8 @@
-// HktInfra step-0101 — 헤드리스 검증 (읽음 확인 영수증·drainAck 2단계 읽음)
+// HktInfra step-0102 — 헤드리스 검증 (미확인 체크아웃 유계화·checkoutBound)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pread`.
-//   더한 한 조각: 0100 의 drain() 은 inbox 를 *파괴적으로 즉시 비운다* — 읽는 순간 소비. 읽은 결과가 손실되면(처리 전 크래시·전송 유실) 영영 잃음(재드레인 정합 미보장·0100 §9). 이 step 은 drain 을 *2단계 읽음*으로: drain() 이 inbox 를 미확인 체크아웃으로 옮겨 반환하되 *제거 않고 보유*, ackDrain(seq) 로 처리 완료 확인 시에만 안전 제거(drainAcked). ack 전 재드레인은 같은 배치 무손실 재반환(at-least-once 읽음) → 읽음 손실 복구 가능. 0076 whisperReceipt 의 *읽음측* 판.
-//   검증: ⒜ `reg`(키트) — drainAck 미설정(mailboxDrainAck OFF)이면 drain() = 0100 파괴적 즉시 비움 = 비트 동일. ⒝ `pread`(가설) — 8 귓속말→mbox. ON-미확인: 읽되 ack 0 → 8 보유(checkout·drained 0·복구 가능) vs OFF: 읽음=즉시 소비(drained 8·held 0·파괴적). ON-확인: 재드레인(읽음 손실 복구)+ack → drained 8·drainAcked 8·held 0(안전 제거). 셋 다 received 8·minted 동일(비침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pcobnd`.
+//   더한 한 조각: 0101 의 2단계 읽음은 ack 전 미확인 메시지를 *체크아웃에 무계 보유*한다 — 읽는 이가 느리거나 죽어 영영 ack 안 하면 checkout 이 received 에 비례해 성장(0101 §9). 0099 가 inbox 를 최근 K 로 cap 했듯, 이 step 은 *미확인 체크아웃* 을 최근 K(checkoutBound)로 cap: drain 후 K 초과면 가장 오래된 미확인 드롭(checkoutOverflowed++·lossy). drained(ack 소비)는 무손실 보존(0101), checkout cap 은 미확인 보유의 lossy 유계화 — 0099 inbox cap(미읽음 방어)의 읽음측 판.
+//   검증: ⒜ `reg`(키트) — checkoutBound 미설정이면 무계 보유 = 0101 비트 동일. ⒝ `pcobnd`(가설) — 8 귓속말→mbox, drain 후 ack 누락(슬로/데드 리더). ON(checkoutBound 4): held 4·overflow 4(옛 미확인 드롭). OFF(무계): held 8·overflow 0. 둘 다 received 8·minted 동일(비침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -19,7 +19,8 @@ const DEAD_DIE = 14;
 const WHISPERS = [];
 for (let i = 0; i < 8; i++) WHISPERS.push({ at: 46 + i * 2, from: 'client0', to: 'mbox', body: 'w' + i });   // 8 귓속말→mbox(전부 up·전달, 마지막 at 60)
 const N = WHISPERS.length;   // 8 수신
-const held = m => (m && m.checkout ? m.checkout.msgs.length : 0);   // 미확인 체크아웃 보유량(읽었으나 ack 안 됨·복구 가능)
+const K = 4;   // 미확인 체크아웃 cap(최근 K개)
+const held = m => (m && m.checkout ? m.checkout.msgs.length : 0);   // 미확인 체크아웃 보유량
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
@@ -30,38 +31,33 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   whispers: WHISPERS,
   ...extra });
 
-function pread(seeds) {
-  console.log('== pread: *가설* — 읽음 확인 영수증(drainAck). drain 을 2단계 읽음(checkout→ackDrain)으로: ack 전엔 보유(복구 가능)·ack 시에만 안전 제거. 읽음 손실이 재드레인으로 복구됨을 보인다(0100 파괴적 드레인 대비) ==');
-  console.log(`  ${N} 귓속말→mbox. ON-미확인: 읽되 ack 0 → ${N} 보유(checkout·drained 0). ON-확인: 재드레인+ack → drained ${N}·drainAcked ${N}·held 0. OFF(0100): 읽음=즉시 소비(drained ${N}·held 0·파괴적).`);
-  console.log('seed   | received | held(ON-미확인) | drained(ON-확인) | drainAcked | held(ON-확인) | drained(OFF) | held(OFF) | 비침습 | 판정');
+function pcobnd(seeds) {
+  console.log('== pcobnd: *가설* — 미확인 체크아웃 유계화(checkoutBound). 읽되 영영 ack 안 하는 슬로/데드 리더의 보유 누설을 최근 K 로 cap(0099 inbox cap 의 읽음측 판). ON vs OFF ==');
+  console.log(`  ${N} 귓속말→mbox, drain 후 ack 누락. ON(checkoutBound ${K}): held ${K}·overflow ${N - K}(옛 미확인 드롭). OFF(무계): held ${N}·overflow 0. 둘 다 received ${N}.`);
+  console.log('seed   | received | held ON | overflow ON | held OFF | overflow OFF | drained | 비침습 | 판정');
   for (const seed of seeds) {
-    // ON-미확인: 읽되 ack 누락 → N 이 체크아웃에 보유(복구 가능·drained 0).
-    const onHeld = run({ ...P_BASE(seed, { mailboxDrainAck: true, mboxDrain: [{ at: 75 }] }) });
-    // ON-확인: 읽음 손실 복구 — drain@75(읽음 유실·ack 없음)→재drain@80(같은 배치 무손실 재반환)→ackDrain@85(안전 제거).
-    const onAck = run({ ...P_BASE(seed, { mailboxDrainAck: true, mboxDrain: [{ at: 75 }, { at: 80 }], mboxDrainAck: [{ at: 85 }] }) });
-    // OFF(0100): 파괴적 즉시 비움 — 읽는 순간 소비(읽음 손실 시 영영 잃음).
-    const off = run({ ...P_BASE(seed, { mboxDrain: [{ at: 75 }] }) });
-    const mh = onHeld.mbox; const ma = onAck.mbox; const mo = off.mbox;
-    // ① ON-미확인 — 읽었으나 ack 0: N 보유(checkout)·drained 0·drainAcked 0·inbox 0(읽음 손실에도 복구 가능).
-    const heldRecoverable = mh && mh.received === N && mh.inbox.length === 0 && held(mh) === N && mh.drained === 0 && mh.drainAcked === 0;
-    // ② ON-확인 — 재드레인(읽음 손실 복구)+ack: drained N·drainAcked N·held 0·checkout null·inbox 0(안전 제거·exactly-once 소비).
-    const confirmedRemoved = ma && ma.received === N && ma.inbox.length === 0 && ma.checkout === null && ma.drained === N && ma.drainAcked === N && held(ma) === 0;
-    // ③ OFF(0100) 대조 — 파괴적: drained N(읽음=소비)·held 0·drainAcked 0(2단계 없음).
-    const offDestructive = mo && mo.received === N && mo.inbox.length === 0 && mo.drained === N && mo.drainAcked === 0 && held(mo) === 0;
-    const nonInvasive = onHeld.inventory.minted === off.inventory.minted && onAck.inventory.minted === off.inventory.minted && mh.received === mo.received && ma.received === mo.received;
+    // ON: 미확인 체크아웃 최근 K cap. drain@75 후 ack 누락 → held K·overflow N-K(옛 미확인 드롭).
+    const on  = run({ ...P_BASE(seed, { mailboxDrainAck: true, mboxDrain: [{ at: 75 }], mailboxCheckoutBound: K }) });
+    // OFF: 무계 보유(0101) — held N·overflow 0.
+    const off = run({ ...P_BASE(seed, { mailboxDrainAck: true, mboxDrain: [{ at: 75 }] }) });
+    const mb = on.mbox; const mo = off.mbox;
+    // ① ON cap — held K·checkoutOverflowed N-K·received N 보존·drained 0(ack 누락).
+    const capped = mb && mb.received === N && held(mb) === K && mb.checkoutOverflowed === N - K && mb.drained === 0;
+    // ② OFF 무계 — held N·overflow 0·received N.
+    const unbounded = mo && mo.received === N && held(mo) === N && mo.checkoutOverflowed === 0 && mo.drained === 0;
+    const nonInvasive = on.inventory.minted === off.inventory.minted && mb.received === mo.received;
     const ok =
-      check(heldRecoverable, `seed ${seed}: ON-미확인 보유 틀림(received ${mh && mh.received}·held ${held(mh)}·drained ${mh && mh.drained}·acked ${mh && mh.drainAcked}·기대 ${N}/${N}/0/0)`) &&
-      check(confirmedRemoved, `seed ${seed}: ON-확인 안전제거 틀림(drained ${ma && ma.drained}·acked ${ma && ma.drainAcked}·held ${held(ma)}·checkout ${ma && ma.checkout}·기대 ${N}/${N}/0/null)`) &&
-      check(offDestructive, `seed ${seed}: OFF 파괴적 미재현(drained ${mo && mo.drained}·held ${held(mo)}·acked ${mo && mo.drainAcked}·기대 ${N}/0/0)`) &&
-      check(nonInvasive, `seed ${seed}: 읽음 확인이 수신/원장 권위 바꿈(received ${mh.received}/${ma.received}/${mo.received}·minted ${onHeld.inventory.minted}/${onAck.inventory.minted}/${off.inventory.minted})`) &&
-      check(ledgerConsistent(onAck) && itemConserved(onAck) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(mh ? mh.received : 0, 8)} | ${pad(held(mh), 14)} | ${pad(ma ? ma.drained : 0, 16)} | ${pad(ma ? ma.drainAcked : 0, 10)} | ${pad(held(ma), 13)} | ${pad(mo ? mo.drained : 0, 12)} | ${pad(held(mo), 9)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(capped, `seed ${seed}: ON cap 틀림(received ${mb && mb.received}·held ${held(mb)}·overflow ${mb && mb.checkoutOverflowed}·기대 ${N}/${K}/${N - K})`) &&
+      check(unbounded, `seed ${seed}: OFF 무계 미재현(held ${held(mo)}·overflow ${mo && mo.checkoutOverflowed}·기대 ${N}/0)`) &&
+      check(nonInvasive, `seed ${seed}: 체크아웃 cap 이 수신/원장 권위 바꿈(received ${mb.received}/${mo.received}·minted ${on.inventory.minted}/${off.inventory.minted})`) &&
+      check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
+    console.log(`${pad(seed, 6)} | ${pad(mb ? mb.received : 0, 8)} | ${pad(held(mb), 7)} | ${pad(mb ? mb.checkoutOverflowed : 0, 11)} | ${pad(held(mo), 8)} | ${pad(mo ? mo.checkoutOverflowed : 0, 12)} | ${pad(mb ? mb.drained : 0, 7)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log(`  → 드레인이 *2단계 읽음*(checkout→ackDrain)으로 손실 안전해진다: 읽되 미확인이면 보유(복구 가능)·재드레인이 무손실 재반환(at-least-once 읽음)·ack 시에만 안전 제거(exactly-once 소비). 0100 파괴적 드레인(읽음=소비)의 읽음 손실 취약성을 닫는다 — 0076 전달 영수증의 읽음측 판.`);
-  console.log('    mailboxDrainAck 미설정 = drain() 파괴적 즉시 비움 = 0100 비트 동일(reg). 비-침습: 읽음 확인은 보유 비움 절차일 뿐 수신/ack/원장 권위 불변(received·minted ON==OFF)·존 tick 밖 순수 반응형.');
+  console.log(`  → 수신함 메모리가 세 차원 모두 유계: *미읽음* inbox cap(0099·lossy)·*읽음-미확인* checkout cap(0102·lossy)·*확인 소비* drained(0100/0101·무손실). received(총 수신 회계)는 셋 다 진실 SSOT 로 보존 — 보유는 차원별로 cap·소비로 유계, 진실은 분리.`);
+  console.log('    mailboxCheckoutBound 미설정 = 무계 보유 = 0101 비트 동일(reg). 비-침습: 체크아웃 cap 은 미확인 보유 드롭일 뿐 수신/원장 권위 불변(received·minted ON==OFF)·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['pread'] = pread;
-kit.ORDER.splice(1, 0, 'pread');
+kit.MODES['pcobnd'] = pcobnd;
+kit.ORDER.splice(1, 0, 'pcobnd');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

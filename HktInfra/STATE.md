@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0101](step-0101.md) — **읽음 확인 영수증**(drainAck·2단계 읽음): 0100 drain() 파괴적 즉시 비움 → 읽음 손실 시 영영 잃음(0100 §9). drainAck ON: drain()=inbox 를 미확인 checkout 으로 옮겨 보유(반환·제거 안 함)·ackDrain(seq)=처리 확인 시에만 안전 제거. ack 전 재드레인=carry 로 같은 배치 무손실 재반환(at-least-once)→손실 복구·exactly-once 소비(0076 영수증 읽음측 판). OFF=파괴적=0100 비트 동일. 닿는 박스: svc-mailbox(drainAck·checkout·ackDrain·drainAcked)·topology(mboxDrainAck 훅)·topo-build(mailboxDrainAck 옵션).
-- **한 줄 상태**: reg ALL OK(src=baseline=0100 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pread: ON-미확인 held 8/drained 0 vs ON-확인 drained 8/drainAcked 8/held 0 vs OFF drained 8(파괴적)·received 8·minted ON==OFF·spine 101 OK.
+- **닫힌 step**: [step-0102](step-0102.md) — **미확인 체크아웃 유계화**(checkoutBound·읽음측 0099 판): 0101 2단계 읽음은 ack 전 미확인을 checkout 에 무계 보유 — 슬로/데드 리더가 영영 ack 안 하면 received 비례 성장(0101 §9). checkout 을 최근 K(checkoutBound)로 cap(초과 시 가장 오래된 미확인 드롭·checkoutOverflowed++·lossy). drained(ack 소비)는 무손실 보존. 0099 inbox cap(미읽음)과 0102 checkout cap(읽음-미확인)이 짝. checkoutBound 0=무계=0101 비트 동일. 닿는 박스: svc-mailbox(checkoutBound·checkoutOverflowed)·topo-build(mailboxCheckoutBound).
+- **한 줄 상태**: reg ALL OK(src=baseline=0101 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pcobnd: drain 후 ack 누락·ON(K4) held 4/overflow 4 vs OFF held 8/overflow 0·received 8·minted ON==OFF·spine 102 OK.
 - **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0101 이 *읽음 확인 영수증*(drainAck·2단계)을 닫아 드레인 손실 안전화. 기능 후보: *파티 cluster kill→replay*(0085 §9)·*active 메아리 정리*(0068 §9)·*checkout 유계화*(0101 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0101~0110 묶음 리뷰는 0110.**
+**step-0102 가 *미확인 체크아웃 유계화*(checkoutBound)를 닫아 수신함 메모리 세 차원(inbox cap·checkout cap·drained 무손실) 완성. 기능 후보: *파티 cluster kill→replay*(0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0101~0110 묶음 리뷰는 0110.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -187,14 +187,15 @@
 | [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck→delivered·acked=delivered==routed) | 통과 · ON acked vs OFF size 0 |
 | [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart 시 epoch++·Mailbox (prod,epoch) 키) | 통과 · restart 후 ON received 12/dup 0 vs OFF 6/6(유실) |
 | [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 높은 epoch 도착 시 낮은 epoch 가지치기·현재 epoch 만) | 통과 · 3재시작·ON epochKeys 1 vs OFF 4(∝epoch)·received 8/dup 0 |
-| [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 유예·지연 straggler dedup·N+1 유계) | 통과 · straggler ON received 4/dup 1 vs OFF 5(누수)·spine 91 |
-| [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결·0078 N-of-M 판) | 통과 · ON rec{routed 2,delivered 1,failed 1}/incomplete vs OFF failed 0/보류·spine 92 |
-| [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결을 svc.party.incomplete 로 발행·audit 관측·0082 의 파티 판) | 통과 · ON pub 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 93 |
+| [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 유예·지연 straggler dedup·N+1 유계) | 통과 · straggler ON rec 4/dup 1 vs OFF 5·spine 91 |
+| [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결) | 통과 · ON rec{routed 2,deliv 1,failed 1}/incomplete vs OFF failed 0·spine 92 |
+| [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결 svc.party.incomplete 발행·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 93 |
 | [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(33KB>30KB — core/handlers/entry·Object.assign 프로토타입·기능 0) | 통과 · src=baseline 비트 동일·박스 33→12/10/1KB·spine 94 |
-| [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결을 svc.party.complete 로 발행·audit·0093 incomplete 와 짝) | 통과 · ON pub 1/audit 1 vs OFF 0/0·spine 95 |
-| [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack 가능·0088 §9 해소) | 통과 · ON routed 2/delivered 2/acked true vs OFF delivered 1/acked false·spine 96 |
-| [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송을 svc.whisper.bounced 발행·audit·전달 결말 셋째) | 통과 · ON pub 1/audit 1 vs OFF 0/0·둘 다 bounced 1·spine 97 |
-| [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(32KB>30KB — topo-actors.js 로 makeActor·routeFilters 분리·기능 0) | 통과 · src=baseline 비트 동일·박스 32→28.5/4.9KB·spine 98 |
-| [0099](step-0099.md) | Mailbox inbox 유계화(inboxBound — inbox 최근 K cap·received 보존·수신함 inbox 차원 유계) | 통과 · ON inbox 4/overflow 4 vs OFF inbox 8/overflow 0·received 8 보존·spine 99 |
-| [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움·0099 lossy cap 과 짝) | 통과 · ON inbox 0/drained 8/overflow 0 vs OFF inbox 8/drained 0·received 8·spine 100 |
+| [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결 svc.party.complete 발행·audit·0093 짝) | 통과 · ON pub/audit 1 vs OFF 0·spine 95 |
+| [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack 가능·0088 §9 해소) | 통과 · ON routed/deliv 2/acked true vs OFF deliv 1/acked false·spine 96 |
+| [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송 svc.whisper.bounced 발행·audit) | 통과 · ON pub/audit 1 vs OFF 0·bounced 1·spine 97 |
+| [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(topo-actors.js 로 makeActor·routeFilters 분리·기능 0) | 통과 · src=baseline·박스 32→28.5/4.9KB·spine 98 |
+| [0099](step-0099.md) | Mailbox inbox 유계화(inboxBound — inbox 최근 K cap·received 보존) | 통과 · ON inbox 4/overflow 4 vs OFF inbox 8/overflow 0·received 8·spine 99 |
+| [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움·0099 cap 과 짝) | 통과 · ON inbox 0/drained 8 vs OFF inbox 8/drained 0·received 8·spine 100 |
 | [0101](step-0101.md) | 읽음 확인 영수증(drainAck — drain 2단계 checkout→ackDrain·재드레인 무손실·ack 시 안전 제거) | 통과 · ON-미확인 held 8 vs ON-확인 drained/acked 8/held 0 vs OFF drained 8(파괴적)·spine 101 |
+| [0102](step-0102.md) | 미확인 체크아웃 유계화(checkoutBound — checkout 최근 K cap·옛 미확인 lossy 드롭·0099 inbox cap 의 읽음측 판) | 통과 · ON(K4) held 4/overflow 4 vs OFF held 8/overflow 0·received 8·spine 102 |
