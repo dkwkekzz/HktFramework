@@ -339,6 +339,39 @@
       },
       advance(w) { if (w.__entity) HTJEntity.stepEntity(w.__entity, 0.3, { N: w.N }); },  // 법칙: 자유 탄도 드리프트(힘 없음)
       note: '<b>승격된 개체를 *개체-공간에서* 굴린다</b>(S5-b 첫 단위). step_0026 이 안정 덩어리를 격자에서 빼내 개체 1개로 *환원*했다면(이관), 이 step 은 그 개체를 <b>법칙으로 움직인다</b>. 시작 시 조밀한 구를 <b>승격</b>해 격자에서 통째로 빼낸다(격자는 텅 빔 — 셀 순회 0) → 화면엔 voxel 수백 개가 아니라 <b>구체 1개</b>가 뜬다. <b>▶ 흐름</b>: 힘이 없으니 개체는 제 속도(v=운동량/질량)를 지킨 채 <b>등속 직진</b>한다(개체판 뉴턴 1법칙·step_0006 격자 advect 의 개체-공간 거울짝). 경계에 닿으면 반대편으로 <b>감긴다</b>(토러스). <b>왜 중요한가</b>(design/scalability.md §0 목적 ②): 비용이 *부피*가 아니라 *개체 수*에 묶인다 — 별 하나를 굴리는 데 수천 셀이 아니라 위치 몇 숫자만 적분한다(O(개체)). 질량·운동량·에너지는 드리프트 내내 *정확 보존*(위치만 변함). <b>정직한 한계</b>: 아직 *힘이 없다*(자유 드리프트뿐) — 중력 가속(개체에 작용)·각운동량 보존 회전(스핀)·개체끼리 상호작용·자동 트리거(동결→승격)는 후속 step.'
+    },
+
+    // ── step_0028 — 개체간 중력(직접 합산 N-body) ──
+    //   두 개체를 승격해 격자에서 빼낸 뒤(격자 텅 빔), 개체끼리 끌어당기게 한다 — 자유 직진(0027)이 *휘는
+    //   궤적*이 된다. step_0007 격자 자기중력의 개체-공간 거울짝. 쌍힘 equal-opposite → 순 운동량 정확 보존.
+    '0028': {
+      label: 'step_0028 — 개체간 중력(두 별이 끌어 휜다)', title: 'HTJ — 개체간 중력(직접 합산 N-body)',
+      sub: '승격된 개체끼리 서로 끌어 *휘는 궤적* — 자유 직진(0027)의 다음, step_0007 의 개체-공간 거울짝',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
+        w.fields.therm || w.addField('therm');
+        const N = w.N, c = (N - 1) / 2, sep = N * 0.28, rad = Math.max(2, N * 0.1), rho0 = 4, vt = 0.45;
+        // 두 조밀 구(접선 속도 ±vt) — 승격해 개체 2개로. 서로 끌려 곡선으로 감긴다.
+        const seed = (cx, cy, vy) => {
+          const cells = [];
+          for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+            const dx = x - cx, dy = y - cy, dz = z - c;
+            if (dx * dx + dy * dy + dz * dz <= rad * rad) { const i = (z * N + y) * N + x; w.fields.energy[i] = rho0; w.fields.mom_y[i] = rho0 * vy; w.fields.therm[i] = rho0 * 0.5; cells.push(i); }
+          }
+          return HTJPromote.promote(w, cells);
+        };
+        w.__entities = [seed(c - sep, c, vt), seed(c + sep, c, -vt)];
+        w.__gopt = { G: 1.2, soft: Math.max(1.5, N * 0.08) };
+        updateTemperature(w);
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.05, w.__gopt);  // 개체간 중력(휨)
+        HTJEntity.stepEntities(w.__entities, 0.05, { N: w.N });      // 위치 적분(토러스)
+      },
+      note: '<b>승격된 개체끼리 중력으로 끌어당긴다</b>(S5-b 둘째 단위). 0027 이 개체를 *힘 없이* 직진시켰다면, 이 step 은 <b>개체간 중력</b>을 더한다 — 쌍마다 F=G·m_i·m_j·r̂/(r²+soft²) 로 서로 끌어, <b>자유 직진이 휘는 궤적</b>이 된다(step_0007 격자 자기중력의 *개체-공간* 거울짝, 격자 보간 없이 개체끼리 직접 합산). <b>▶ 흐름</b>: 두 별(승격된 구체)이 격자에서 빠진 텅 빈 공간에서 서로 끌려 <b>곡선으로 감긴다</b>. <b>왜 중요한가</b>: ① 0027 직진 + 이 step 의 휨 = 개체 동역학이 *힘 받는 강체*로 — 비용이 개체 수에 묶인 채(격자 셀 0개) 궤도·낙하가 창발. ② 쌍힘이 크기 같고 방향 반대(뉴턴 3법칙)라 <b>순 운동량이 정확히 보존</b>된다(우상단 ΣP 불변). <b>정직한 한계</b>: ① 개체↔격자 유체 결합 중력은 아직 없다(개체끼리만) — 유체 셀+개체를 한 트리에 넣는 통합 중력은 <b>S6</b>(Barnes-Hut). ② 직접 합산이라 O(개체²)·각운동량 보존 회전(스핀)·자동 트리거(동결→승격)는 후속.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -461,6 +494,14 @@
       const clumps = e ? [{ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: e.peak || e.temp || 1 }] : [];
       surf = HTJRender.drawClumps(ctx, world, cam, clumps);
       const lab = document.getElementById('s-occ'); if (lab && e) lab.textContent = `개체 1 @ (${e.cx.toFixed(1)},${e.cy.toFixed(1)},${e.cz.toFixed(1)}) v=(${(e.px / e.mass).toFixed(2)},${(e.py / e.mass).toFixed(2)},${(e.pz / e.mass).toFixed(2)})`;
+      return;
+    }
+    // 개체간 중력(0028): 격자는 비어 있고 여러 개체를 구체로 그린다(서로 끌려 휘는 궤적).
+    if (stCur && stCur.render === 'entities') {
+      const es = world.__entities || [];
+      const clumps = es.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: e.peak || e.temp || 1 }));
+      surf = HTJRender.drawClumps(ctx, world, cam, clumps);
+      const lab = document.getElementById('s-occ'); if (lab) { let P = [0, 0, 0]; for (const e of es) { P[0] += e.px; P[1] += e.py; P[2] += e.pz; } lab.textContent = `개체 ${es.length} · ΣP=(${P[0].toFixed(2)},${P[1].toFixed(2)},${P[2].toFixed(2)})`; }
       return;
     }
     // 확장성 오버레이(scal): 별 voxel 위에 8³ 블록 상태(활성/동결)를 와이어프레임으로 덧그린다.

@@ -54,11 +54,57 @@
     return entities;
   }
 
+  // 개체간 중력(직접 합산 N-body) — 자유 직진(stepEntity)을 *서로 끌어 휘는 궤적*으로.
+  //   step_0007 격자 자기중력(모든 질량이 모든 질량을 끈다)의 *개체-공간* 거울짝. 격자 보간 없이 개체끼리만:
+  //   쌍(i,j)마다 F = G·m_i·m_j·(r_j−r_i)/(|r|²+soft²)^{3/2} 를 i 에 +F·j 에 −F(뉴턴 3법칙)로 줘
+  //   **순 운동량을 기계 정밀도로 정확 보존**(쌍힘 equal-opposite, 쌍 루프라 구조적으로 상쇄). soft=특이점
+  //   완화 길이(r→0 발산 방지). 운동량이 바뀌면 KE_cm·energy(=KE_cm+internalE) 를 재계산(descriptor 자기일관).
+  //   opts: { G(기본 1), soft(기본 1) }. (격자↔개체 결합 중력 = S6 통합 트리, 이 단위 밖.)
+  function applyEntityGravity(entities, dt, opts) {
+    opts = opts || {};
+    const G = opts.G != null ? opts.G : 1;
+    const soft = opts.soft != null ? opts.soft : 1;
+    const s2 = soft * soft, n = entities.length;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;     // r_j − r_i
+      const d2 = dx * dx + dy * dy + dz * dz + s2;
+      const f = G * a.mass * b.mass / (d2 * Math.sqrt(d2));           // |F|/dist (softened 1/d³)
+      const fx = f * dx * dt, fy = f * dy * dt, fz = f * dz * dt;     // 충격량 = F·dt
+      a.px += fx; a.py += fy; a.pz += fz;                             // i 는 j 쪽으로(+F, 인력)
+      b.px -= fx; b.py -= fy; b.pz -= fz;                             // j 는 −F(뉴턴 3법칙) → ΣΔp=0 정확
+    }
+    // 운동량 바뀐 개체의 KE_cm·energy 재계산(descriptor 자기일관: energy=KE_cm+internalE, internalE 불변).
+    for (let i = 0; i < n; i++) {
+      const e = entities[i];
+      if (e.internalE == null) e.internalE = e.energy - (e.KEcm || 0);
+      e.KEcm = e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return entities;
+  }
+
+  // 개체 쌍 중력 퍼텐셜 에너지(softened, 위 힘과 일관) — 역학 에너지 보존 검증 공유.
+  //   U = −Σ_{i<j} G·m_i·m_j / sqrt(|r|²+soft²). (역학E = ΣKE_cm + U 가 유계로 보존되는지 verify 에서 확인.)
+  function pairPotentialEnergy(entities, opts) {
+    opts = opts || {};
+    const G = opts.G != null ? opts.G : 1;
+    const soft = opts.soft != null ? opts.soft : 1;
+    const s2 = soft * soft, n = entities.length;
+    let U = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      U -= G * a.mass * b.mass / Math.sqrt(dx * dx + dy * dy + dz * dz + s2);
+    }
+    return U;
+  }
+
   // 개체 속도 v=P/질량(편의 — 검증·표시 공유).
   function velocity(entity) {
     const m = entity.mass;
     return m > EPS ? [entity.px / m, entity.py / m, entity.pz / m] : [0, 0, 0];
   }
 
-  return { stepEntity, stepEntities, velocity, VERSION: 1 };
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, VERSION: 2 };
 });
