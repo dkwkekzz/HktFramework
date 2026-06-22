@@ -176,6 +176,8 @@ function run(opts) {
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.partyCreate && pservice) for (const pc of opts.partyCreate) if (pc.at === i + 1) net.send(pc.from || 'client0', 'pservice', { type: 'partyCreate', partyId: pc.partyId, members: pc.members });
+    // 파티 증분 가입/탈퇴 주입(step-0084·partyChange) — at tick 에 클라가 PartyService 에 partyJoin/partyLeave(멤버 델타). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.partyOps && pservice) for (const po of opts.partyOps) if (po.at === i + 1) net.send(po.from || 'client0', 'pservice', { type: po.op === 'leave' ? 'partyLeave' : 'partyJoin', partyId: po.partyId, member: po.member });
     // 파티 전송 주입(step-0075) — at tick 에 클라가 라우터로 partyTo(멤버 인라인 X·partyId 만). 라우터가 멤버십 SSOT 조회→프레즌스 질의→라우팅(2단). wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.partyTo && wrouter) for (const pt of opts.partyTo) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'partyTo', partyId: pt.partyId, body: pt.body });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
