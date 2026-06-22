@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0103](step-0103.md) — **읽음 소비 발행**(drainedPublish): ackDrain 확정 소비를 svc.mailbox.drained{seq,count} 로 1회 발행·audit 무수정 구독 관측 — 0087 deliveredPublish 의 읽음측 판. 수신함 수명주기(전달→확인→소비) 외부 가시화 완성. OFF·bus 부재=발행 0=0102 비트 동일. 닿는 박스: svc-mailbox(bus·drainedPublish·drainedPublished)·topo-build(mailboxDrainedPublish+audit sub).
-- **한 줄 상태**: reg ALL OK(src=baseline=0102 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pdrpub: ON pub/audit 1 vs OFF 0·drained 8·received 8·minted ON==OFF·spine 103 OK.
+- **닫힌 step**: [step-0104](step-0104.md) — **수신함 손실 발행**(lossPublish): 0099 inboxBound 가 떨군 미읽음(overflowed)은 0103 까지 조용히 잃었다(0103 §9). inbox overflow 드롭 1건마다 svc.mailbox.overflowed{kind} 발행·audit 무수정 구독 관측 — 0082/0103 의 손실 판. 수신함 수명주기 성공·손실 양면 외부 가시화 완성(0099~0104 arc 닫힘). OFF·bus 부재=발행 0=0103 비트 동일(드롭 자체는 0099 그대로). 닿는 박스: svc-mailbox(lossPublish·overflowPublished)·topo-build(mailboxLossPublish+audit sub).
+- **한 줄 상태**: reg ALL OK(src=baseline=0103 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pmloss: inboxBound 4·ON overflowed 4/published 4/audit svc.mailbox.overflowed 4 vs OFF overflowed 4/published 0·received 8·minted ON==OFF·spine 104 OK.
 - **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0103 이 *읽음 소비 발행*(drainedPublish)을 닫아 수신함 수명주기(전달→확인→소비) 외부 가시화 완성. 기능 후보: *파티 cluster kill→replay*(0085 §9)·*active 메아리 정리*(0068 §9)·*수신함 손실 발행*(0103 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0101~0110 묶음 리뷰는 0110.**
+**step-0104 가 *수신함 손실 발행*(lossPublish)을 닫아 수신함 메모리·수명주기·관측 arc(0099~0104) 완성. 다음은 *다른 박스로 전환*. 기능 후보: *파티 cluster kill→replay*(0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*(새 게임 서비스 박스)·*비동기 결정론*(🔴·0012 §9-3). 🔧 buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0101~0110 묶음 리뷰는 0110.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -126,30 +126,30 @@
 | [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조 persist(primary+backup) | 통과 · crash 무손실 |
 | [0028](step-0028.md) | PersistStore N-replica+quorum: fan-out·생존 union 복구 | 통과 · 생존3 union==base |
 | [0029](step-0029.md) | PersistStore quorum 쓰기 ack: W 정족수 후 durable | 통과 · durableSeq T-1 |
-| [0030](step-0030.md) | 정리: 박스 1개=파일 1개 분할 + engine 승격(verify-kit)+닫기 게이트 | 통과 |
+| [0030](step-0030.md) | 정리: 박스 1개=파일 1개 분할 + engine 승격(verify-kit)+닫기 게이트 | OK |
 | [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill — sweep 이 W 미달 seq 재-fan-out) | 통과 · durSeq total-1/윈도 0 |
 | [0032](step-0032.md) | 윈도 해소 유계 sweep+fill retry(wfWindow K 창) | 통과 · K=8 durSeq=total-1 |
 | [0033](step-0033.md) | 버스 동적 구독/해지(runtime unsub/sub) | 통과 · unsub@15→re-sub@18 |
 | [0034](step-0034.md) | 버스 failover(bus.crash()→재협상·진실원천=소비자) | 통과 · crash@12→재협상@14 |
-| [0035](step-0035.md) | 정리: cluster.js 박스-부품 4분할(45KB>30KB·기능 0) | 통과 · ≤19.7KB |
+| [0035](step-0035.md) | 정리: cluster.js 박스-부품 4분할(45KB>30KB·기능 0) | 통과 |
 | [0036](step-0036.md) | 버스 failover 결과 경로 무손실(producer replay) | 통과 · desync 6→0 |
 | [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway replay+reqId dedup) | 통과 · minted==base |
-| [0038](step-0038.md) | 정리: topology.js 박스-부품 분할(31KB>30KB·기능 0) | 통과 |
+| [0038](step-0038.md) | 정리: topology.js 박스-부품 분할(31KB>30KB·기능 0) | OK |
 | [0039](step-0039.md) | 버스 replay 버퍼 유계화(busWindow 슬라이딩 K 창) | 통과 · desync 0 vs tiny 4 |
-| [0040](step-0040.md) | 요청 replay 버퍼 자기조정(busAck — reqId ack→워터마크) | 통과 |
+| [0040](step-0040.md) | 요청 replay 버퍼 자기조정(busAck — reqId ack→워터마크) | OK |
 | [0041](step-0041.md) | 결과 replay 버퍼 자기조정(busOutAck — outSeq ack→가지치기) | 통과 · desync 0 vs K8 4 |
 | [0042](step-0042.md) | seenReqs dedup 유계화(busSeenBound — inAcked 워터마크) | 통과 · peak 60→24 |
-| [0043](step-0043.md) | 정리: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·기능 0) | 통과 · ≤19.6KB |
+| [0043](step-0043.md) | 정리: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·기능 0) | 통과 |
 | [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 비대칭 F vs min T |
 | [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자 축출) | 통과 · OFF peak∝run vs ON 유계 |
 | [0046](step-0046.md) | 게이트웨이 producer 네임스페이스(busProducerNs — (producer,reqId) 복합키) | 통과 · OFF Δ0 vs ON Δ5 |
 | [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키 producer 별 가지치기) | 통과 · OFF peak∝run vs 유계 |
 | [0048](step-0048.md) | 소비자 lease lifecycle(busLeaseLife — never-ack 축출·재admission 가역) | 통과 · outBuf 유계·readm 1 |
-| [0049](step-0049.md) | 단일 살아있는 소스 src/ 전환(복사 전진 폐기·기능 0·reg 0) | 통과 · src=baseline=0048 |
+| [0049](step-0049.md) | 단일 살아있는 소스 src/ 전환(복사 전진 폐기·기능 0·reg 0) | OK · src=baseline=0048 |
 | [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 ack cadence 로 self-size) | 통과 · 고정 flapping vs 적응 ev=1 |
 | [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease bootstrap floor) | 통과 · grace ev=0 vs 적응만 1 |
 | [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠) | 통과 · stall 후 OFF 60 vs ON 0 |
-| [0053](step-0053.md) | 정리: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 추출(core 31.9→25.5KB·기능 0) | 통과 · spine 53 |
+| [0053](step-0053.md) | 정리: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 추출(31.9→25.5KB·기능 0) | 통과 · spine 53 |
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→audit) | 통과 · 전이 관측 |
 | [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch lease 소비→consumerDown) | 통과 · down==evicted |
 | [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독→readmit) | 통과 · 각 1 |
@@ -190,7 +190,7 @@
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 유예·지연 straggler dedup·N+1 유계) | 통과 · straggler ON rec 4/dup 1 vs OFF 5·spine 91 |
 | [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결) | 통과 · ON rec{routed 2,deliv 1,failed 1}/incomplete vs OFF failed 0·spine 92 |
 | [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결 svc.party.incomplete 발행·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 93 |
-| [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(33KB>30KB — core/handlers/entry·Object.assign 프로토타입·기능 0) | 통과 · src=baseline 비트 동일·박스 33→12/10/1KB·spine 94 |
+| [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(core/handlers/entry·Object.assign·기능 0) | OK · src=baseline·박스 33→12/10/1KB·spine 94 |
 | [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결 svc.party.complete 발행·audit·0093 짝) | 통과 · ON pub/audit 1 vs OFF 0·spine 95 |
 | [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack 가능·0088 §9 해소) | 통과 · ON routed/deliv 2/acked true vs OFF deliv 1/acked false·spine 96 |
 | [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송 svc.whisper.bounced 발행·audit) | 통과 · ON pub/audit 1 vs OFF 0·bounced 1·spine 97 |
@@ -200,3 +200,4 @@
 | [0101](step-0101.md) | 읽음 확인 영수증(drainAck — drain 2단계 checkout→ackDrain·재드레인 무손실·ack 시 안전 제거) | 통과 · ON-미확인 held 8 vs ON-확인 drained/acked 8/held 0 vs OFF drained 8(파괴적)·spine 101 |
 | [0102](step-0102.md) | 미확인 체크아웃 유계화(checkoutBound — checkout 최근 K cap·옛 미확인 lossy 드롭·0099 inbox cap 의 읽음측 판) | 통과 · ON(K4) held 4/overflow 4 vs OFF held 8/overflow 0·received 8·spine 102 |
 | [0103](step-0103.md) | 읽음 소비 발행(drainedPublish — ackDrain 확정 소비 svc.mailbox.drained 발행·audit·0087 읽음측 판) | 통과 · ON pub/audit 1 vs OFF 0·drained 8·spine 103 |
+| [0104](step-0104.md) | 수신함 손실 발행(lossPublish — inbox overflow 드롭 svc.mailbox.overflowed 발행·audit·0082/0103 손실 판) | 통과 · ON overflowed/pub/audit 4 vs OFF overflowed 4/pub 0·received 8·spine 104 |
