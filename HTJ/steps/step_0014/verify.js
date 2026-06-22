@@ -41,18 +41,17 @@ function makeWorld(N) {
   return w;
 }
 
-// ── 1. 연결 성분 — 떨어진 두 블롭 → 2, 붙은 한 블롭 → 1 ──
+// ── 1. 연결 성분 — *같은 세계*에서 떨어진 두 블롭(→2)을 다리로 이으면 한 덩어리(→1) ──
 {
   const w = makeWorld(8);
-  w.put(1, 1, 1, 5); w.put(2, 1, 1, 5);          // 블롭 A(붙은 두 셀)
-  w.put(6, 6, 6, 4);                              // 블롭 B(떨어진 한 셀)
+  // x=1,2 블롭 A · x=5,6 블롭 B — x=3,4 가 비어 떨어져 있다.
+  w.put(1, 1, 1, 5); w.put(2, 1, 1, 5); w.put(5, 1, 1, 4); w.put(6, 1, 1, 4);
   const sep = Cl.detectClumps(w, { eps: 1e-9 });
-  // 이제 둘을 다리로 잇는다 → 한 덩어리.
-  const w2 = makeWorld(8);
-  for (let x = 1; x <= 6; x++) w2.put(x, 1, 1, 3); // 한 줄로 이어진 블롭
-  const joined = Cl.detectClumps(w2, { eps: 1e-9 });
-  check('연결 성분 — 떨어진 둘 → 2 개체, 이으면 → 1 개체', sep.length === 2 && joined.length === 1,
-    `분리=${sep.length}개(질량 ${sep.map(c => c.mass).join(',')}) · 연결=${joined.length}개`);
+  // 같은 세계에 다리 셀(x=3,4)을 채워 둘을 잇는다 → 한 덩어리.
+  w.put(3, 1, 1, 1); w.put(4, 1, 1, 1);
+  const joined = Cl.detectClumps(w, { eps: 1e-9 });
+  check('연결 성분 — 같은 세계: 떨어진 둘 → 2 개체, 다리로 이으면 → 1 개체', sep.length === 2 && joined.length === 1,
+    `분리=${sep.length}개(질량 ${sep.map(c => c.mass).join(',')}) · 다리 추가 후=${joined.length}개`);
 }
 
 // ── 2. 질량 이관 보존 — Σ개체질량 = Σ_{ρ>eps} ρ ──
@@ -168,12 +167,12 @@ function makeWorld(N) {
   const totalMass = w.total('energy');
   const found = clumps.length >= 1;
   const dominantShare = dominant ? dominant.mass / bodyMass : 0;   // 본체 중 지배 개체 비중
-  const hot = dominant && dominant.temp > 0;        // 별=뜨겁다
+  const hot = dominant && dominant.temp > 1.5;      // 별=발열로 초기 T0=1 보다 확실히 뜨겁다(차가운 돌과 구분)
   const readOnly = w.fingerprint('energy') === fpE; // 검출이 별을 안 건드림
   const massOk = Math.abs(totalMass - 4000) < 1e-6 && !Number.isNaN(totalMass);
-  check('통합(별→구체) — 0013 붕괴 별이 지배적 한 개체로 환원(질량 흡수·뜨겁다·질량 보존) [헤드라인]',
+  check('통합(별→구체) — 0013 붕괴 별이 지배적 한 개체로 환원(질량 흡수·T>1.5 뜨겁다·질량 보존) [헤드라인]',
     found && dominantShare > 0.8 && hot && readOnly && massOk,
-    `개체 ${clumps.length}개·지배 질량 ${dominant ? dominant.mass.toFixed(0) : 0}(본체 ${bodyMass.toFixed(0)}의 ${(dominantShare * 100).toFixed(0)}%)·r=${dominant ? dominant.radius.toFixed(2) : 0}·T=${dominant ? dominant.temp.toFixed(1) : 0}·Σρ=${totalMass.toFixed(0)}`);
+    `개체 ${clumps.length}개·지배 질량 ${dominant ? dominant.mass.toFixed(0) : 0}(본체 ${bodyMass.toFixed(0)}의 ${(dominantShare * 100).toFixed(0)}%)·r=${dominant ? dominant.radius.toFixed(2) : 0}·T=${dominant ? dominant.temp.toFixed(2) : 0}(>1.5)·Σρ=${totalMass.toFixed(0)}`);
 }
 
 console.log('\n=== step_0014 수치 검증: 덩어리 검출·환원(안정 덩어리 → 개체/구체) ===');

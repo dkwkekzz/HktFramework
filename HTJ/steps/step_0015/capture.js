@@ -96,16 +96,15 @@ for (let y = 38; y < 50; y++) for (let x = mL; x < mL + 16; x++) px(x, y, 250, 1
 const outPath = path.join(__dirname, 'capture.png');
 writePNG(outPath, Wd, Hd, out);
 
-// ── 단언(결정론 프록시 + png) ──
+// ── 단언(결정론 값만 — 벽시계는 머신 의존이라 단언 안 함, verify.js 와 동일 정책) ──
 const r16 = data.find(d => d.N === 16), r32 = data.find(d => d.N === 32);
-const memCubic = Math.abs(r32.mem / r16.mem - 8) < 1e-9;                 // 메모리 정확히 ×8
-const msMono = data.every((d, i) => i === 0 || d.ms >= data[i - 1].ms * 0.7);  // 벽시계 대체로 증가(노이즈 허용)
+const memCubic = Math.abs(r32.mem / r16.mem - 8) < 1e-9;                 // 메모리 정확히 ×8(실측)
 const pngOk = fs.existsSync(outPath) && fs.statSync(outPath).size > 0;
 console.log('\n=== 눈 검증: HTJ S1 측정 베이스라인 — 비용이 N 으로 터지는 곡선 ===');
 for (const d of data) console.log(`    N=${String(d.N).padStart(2)} · 메모리 ${(d.mem / 1024 / 1024).toFixed(2).padStart(6)}MB · 벽시계 ${d.ms.toFixed(2).padStart(7)} ms/step`);
-console.log(`  청록=메모리(결정론·정확 N³) · 주황=벽시계(실측·머신 의존) — 둘 다 위로 휜다(초선형)`);
-console.log(`  메모리 N16→N32 = ×${(r32.mem / r16.mem).toFixed(2)}(=8 부피) · 벽시계 N16→N48 = ×${(data[data.length - 1].ms / r16.ms).toFixed(1)}`);
-const ok = memCubic && msMono && pngOk;
+console.log(`  청록=메모리(결정론·실측 부피) · 주황=벽시계(실측·머신 의존·비단언) — 둘 다 위로 휜다(초선형)`);
+console.log(`  메모리 N16→N32 = ×${(r32.mem / r16.mem).toFixed(2)}(=8 부피, 단언) · 벽시계 N16→N48 = ×${(data[data.length - 1].ms / r16.ms).toFixed(1)}(정보)`);
+const ok = memCubic && pngOk;
 console.log(`  스크린샷: ${path.relative(process.cwd(), outPath)}`);
 console.log(`\n결과: ${ok ? '눈 검증 PASS ✅' : 'FAIL ❌'}\n`);
 process.exit(ok ? 0 : 1);
