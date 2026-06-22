@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0092](step-0092.md) — **파티 ack 타임아웃 포기**(partyAckGiveup·N-of-M 종결): 0088 의 파티 ack 집계는 delivered==routed 면 acked 로 종결하지만, 일부 멤버 전달이 영영 실패하면 delivered<routed 에서 acked 가 영영 false 로 *매달린다* — 파티 전송에 종결 상태 없음(0088 §9). 0078 의 개별 전달 포기(deliverMaxRetries→undeliverable)를 파티 원장에 귀속: 멤버 전달 포기 시 그 파티 failed++ → partyIncomplete(done && delivered+failed==routed && failed>0)로 부분 전달 종결. 0078 포기의 파티 N-of-M 판. 닿는 박스: svc-whisper(partyAckGiveup·_partyFail·partyIncomplete·partyGiveups·원장 failed)·topo-build(wrouter partyAckGiveup 전달).
-- **한 줄 상태**: reg ALL OK(src=baseline=0091 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·ppartygiveup: 파티 멤버 2(mbox ack·ranking 포기)·ON rec{routed 2,delivered 1,failed 1}·incomplete true/partyGiveups 1 vs OFF failed 0/incomplete false(보류)·둘 다 undeliverable 1·minted ON==OFF·spine 92-step ALL OK.
-- **다음**: §2 참조(파티 incomplete 발행(svc.party.incomplete·관측) · 멤버별 Mailbox 토폴로지(0088 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0093](step-0093.md) — **파티 incomplete 발행**(partyIncompletePublish·관측): 0092 는 파티 부분 전달 종결(incomplete)을 라우터 *내부 원장*에만 둬 운영/감사 평면이 못 봤다(0092 §9). 0082(개별 전달 실패)·0087(성공) 발행처럼, 파티 전송의 부분 실패 종결을 svc.party.incomplete{partyId,members,routed,delivered,failed} 로 발행 → audit 가 발행자 무수정으로 구독 관측. 0082 의 파티 판·0084 멤버십 발행의 전달 종결 판. 닿는 박스: svc-whisper(partyIncompletePublish·_incPub·give-up 분기 발행)·topo-build(wrouter 전달 + audit svc.party.incomplete 구독 행).
+- **한 줄 상태**: reg ALL OK(src=baseline=0092 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·ppartyincpub: 파티 incomplete 종결·ON partyIncompletePublished 1/audit svc.party.incomplete 1 vs OFF 0/0·minted ON==OFF·spine 93-step ALL OK.
+- **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0092 가 *파티 ack 타임아웃 포기*(partyAckGiveup — N-of-M 종결)를 닫아 0088 §9 한계(일부 멤버 영구 실패 시 acked 영영 보류)를 메움(파티 전송이 done·acked·incomplete 세 종결 획득). 기능 후보(우선): *파티 incomplete 발행*(svc.party.incomplete→audit·0082/0087 발행의 파티 판)·*멤버별 Mailbox 토폴로지*(파티원마다 수신함·0088 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 30.6KB·svc-whisper 29.4KB — 다음 기능 step 전 정리 압력(30KB 임박).**
+**step-0093 이 *파티 incomplete 발행*(partyIncompletePublish — 부분 전달 실패 종결 관측)을 닫아 0092 §9 한계(종결이 라우터 내부에만)를 메움(파티 전달 관측 수명주기 완성: 멤버십변경+개별실패/성공+파티실패종결). 기능 후보(우선): *멤버별 Mailbox 토폴로지*(파티원마다 수신함·0088 §9)·*파티 complete 발행*(성공 종결·0093 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: svc-whisper 30.4KB>30KB — 다음 기능 step 전 정리 step 필요(재분할/engine 승격·기능 0·reg 0).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -151,8 +151,8 @@
 | [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠) | 통과 · stall 후 OFF peak 60 vs ON cm→0 |
 | [0053](step-0053.md) | 정리: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 추출(core 31.9→25.5KB·기능 0) | 통과 · spine 53 |
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→svc.item.lease→audit) | 통과 · 전이 관측 |
-| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch 가 svc.item.lease 소비→consumerDown SSOT) | 통과 · down==evicted |
-| [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독→readmit) | 통과 · recover/resub/readmit 1 |
+| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch 가 lease 소비→consumerDown SSOT) | 통과 · down==evicted |
+| [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독→readmit) | 통과 · 각 1 |
 | [0057](step-0057.md) | 치유 확인 고리(recoverAck — 소비자 재구독하며 orch 에 회신→수행 확인) | 통과 · sent==acks==1 |
 | [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recover 분실 시 recoverTimeout 뒤 재발신) | 통과 · ON retries 2·ack 1 |
 | [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 상한 도달 시 permanentDown 포기) | 통과 · retries 3·givenUp 1 |
@@ -188,4 +188,5 @@
 | [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart 시 epoch++ 부착·Mailbox (prod,epoch) 키) | 통과 · restart 후 ON received 12/dup 0 vs OFF 6/6(유실)·spine 89 |
 | [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 더 높은 epoch 도착 시 낮은 epoch 워터마크 가지치기·producer 당 현재 epoch 만) | 통과 · 0=0089·3재시작·ON epochKeys 1 vs OFF 4(∝epoch)·둘 다 received 8/dup 0·spine 90 |
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 워터마크 유예·지연 straggler dedup·producer 당 N+1 유계) | 통과 · 옛 epoch straggler ON received 4/dup 1 vs OFF 5(누수)/dup 0·spine 91 |
-| [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결·0078 의 N-of-M 판) | 통과 · ON rec{routed 2,delivered 1,failed 1}/incomplete vs OFF failed 0/보류·둘 다 undel 1·spine 92 |
+| [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 전달 포기를 파티 failed 귀속·partyIncomplete 종결·0078 N-of-M 판) | 통과 · ON rec{routed 2,delivered 1,failed 1}/incomplete vs OFF failed 0/보류·spine 92 |
+| [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 전달 실패 종결을 svc.party.incomplete 로 발행·audit 관측·0082 의 파티 판) | 통과 · ON pub 1/audit 1 vs OFF 0/0·minted ON==OFF·spine 93 |

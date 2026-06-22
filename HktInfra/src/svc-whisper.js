@@ -1,4 +1,5 @@
 'use strict';
+// step-0093 — 파티 incomplete 발행(partyIncompletePublish·관측): 0092 는 파티가 *부분 전달 종결*(incomplete)에 이르렀음을 라우터 *내부 원장*에만 둔다 — 운영/감사 평면은 파티 전송이 실패로 종결됐는지 볼 수 없다(0092 §9). 0082 가 *개별 전달* 포기를 svc.whisper.failed 로, 0087 이 성공을 svc.whisper.delivered 로 발행했듯, 이 step 은 *파티 전송* 의 부분 실패 종결을 svc.party.incomplete{partyId, members, routed, delivered, failed} 로 발행한다 → audit(범용 sink)가 구독해 파티 전송 실패 스트림을 관측. 0084 svc.party.changed(멤버십 발행)의 *전달 종결* 판·0082 의 파티 판. partyIncompletePublish OFF·bus 부재면 발행 0 = 0092 비트 동일.
 // step-0092 — 파티 ack 타임아웃 포기(partyAckGiveup·N-of-M 종결): 0088 의 파티 ack 집계는 delivered==routed(모든 up 멤버 ack)면 acked 로 종결하지만, *일부 멤버 전달이 영영 실패*하면(수신측 사망·손실) delivered<routed 에서 acked 가 영영 false 로 *매달린다* — 파티 전송에 종결 상태가 없다(0088 §9). 0078 의 전달 재시도 상한(deliverMaxRetries→포기·undeliverable)은 *개별 전달* 차원이지 파티 차원이 아니었다. 이 step 은 그 포기를 파티 원장에 귀속한다: 파티 멤버 전달이 deliverMaxRetries 로 포기되면 그 파티의 failed++ → partyIncomplete(done && delivered+failed==routed && failed>0)로 *부분 전달 종결*을 단정(acked 도 incomplete 도 아닌 영구 보류 제거). 0078 포기의 *파티 N-of-M* 판. partyAckGiveup OFF 면 포기를 파티에 귀속 안 함 = 0091 비트 동일(undeliverable 자체는 0078 불변).
 // step-0089 — producer epoch 워터마크(epochKeyed·라우터 재시작 안전): 0081 의 수신측 dedup 워터마크는 라우터의 deliverySeq 가 *단조 증가*라는 가정에 기댄다. 하지만 라우터가 *재시작*(crash→fresh)하면 deliverySeq 가 0 부터 다시 시작 → 재시작 후 seq 1,2,… 가 재시작 *전* 워터마크(예: 12) 이하라, Mailbox 가 정상 신규 전달을 *이미 본 것*으로 오인해 떨군다(전달 유실·0081 §9). 이 step 은 라우터에 epoch(재시작마다 ++)를 두고 whisperDeliver 에 실어, Mailbox 가 워터마크를 *(producer, epoch)* 별로 분리한다 → 새 epoch 는 새 워터마크(0 부터) → 재시작 후 낮은 seq 도 정상 수신. 0048 lease lifecycle 의 epoch 펜싱·0013 epoch 펜싱의 *전달 dedup* 판. epochKeyed OFF 면 epoch 미부착 = Mailbox 키는 producer 만(0081 동작) = 0088 비트 동일.
 // step-0088 — 파티 ack 집계(partyAckTally·delivered): 0083 의 파티 영수증 집계는 *라우팅 판정*(up=routed·permanent=bounced)까지만 셌다 — "전송을 *결정*했다"이지 "up 멤버가 실제로 *받았다*"는 아니었다(0083 §9). 0076 의 영수증(whisperAck→delivered)을 파티 단위로 집계해, 파티가 *실제 수신 확인*까지 완료됐는지(delivered==routed=모든 up 멤버 ack)를 가시화한다. 그러려면 inflight 엔트리에 partyId 를 실어, whisperAck 가 그 파티의 delivered 를 증가시킨다(라우팅 판정 집계 0083 + 영수증 집계 0088 = 파티 전송의 *결정*과 *확인* 둘 다). partyReceipt OFF·receipt 부재면 집계 0 = 0087 비트 동일.
@@ -64,6 +65,9 @@ class WhisperRouter {
     this.partyReceipts = new Map();   // partyId -> {members, routed, bounced} — 파티 전송 완료 원장(routed+bounced==members 면 완료). 부분 전달 가시.
     this.partyAckGiveup = opts.partyAckGiveup || false;   // 파티 ack 타임아웃 포기(step-0092·partyAckGiveup) — 멤버 전달이 deliverMaxRetries 로 포기되면 그 파티 failed++ → partyIncomplete 종결. OFF 면 포기를 파티에 귀속 안 함(0091 동일·undeliverable 자체는 0078 불변).
     this.partyGiveups = 0;   // 파티에 귀속된 멤버 전달 포기 수(step-0092·계측).
+    this.partyIncompletePublish = opts.partyIncompletePublish || false;   // 파티 incomplete 발행(step-0093·partyIncompletePublish) — 파티가 부분 전달 종결에 이르면 svc.party.incomplete 발행(관측). OFF·bus 부재면 발행 0(0092 동일).
+    this.partyIncompletePublished = 0;   // svc.party.incomplete 로 발행한 파티 수(step-0093·계측). 0082 failed·0087 delivered 의 파티 판.
+    this._incPub = new Set();   // 이미 incomplete 발행한 partyId(중복 발행 방지·종결은 1회).
   }
   // 파티 영수증 원장 열기(step-0083) — 파티 수신 시 멤버 수로 초기화. partyReceipt OFF 면 no-op(집계 0·0082 동일).
   _partyOpen(partyId, n) { if (this.partyReceipt && partyId != null) this.partyReceipts.set(partyId, { members: n, routed: 0, bounced: 0, delivered: 0, failed: 0 }); }   // 0088: delivered(실수신 ack)·0092: failed(포기) 추가
@@ -140,6 +144,12 @@ class WhisperRouter {
         if (this.deliverMaxRetries > 0 && e.tries >= this.deliverMaxRetries) {
           this.inflight.delete(seq); this.undeliverable++;
           this._partyFail(e.party);   // 파티 ack 타임아웃 포기(step-0092) — 이 전달이 파티 멤버였으면 그 파티 failed++ → partyIncomplete 종결. partyAckGiveup OFF·비-파티면 no-op(0091 비트 동일).
+          // 파티 incomplete 발행(step-0093·partyIncompletePublish) — 이 포기로 파티가 부분 전달 종결에 *처음* 이르면 svc.party.incomplete 발행(관측·종결 1회). OFF·bus 부재·비-파티면 no-op(0092 비트 동일). 0082 failed 의 파티 판.
+          if (this.partyIncompletePublish && this.bus && e.party != null && this.partyIncomplete(e.party) && !this._incPub.has(e.party)) {
+            this._incPub.add(e.party); const r = this.partyReceipts.get(e.party);
+            this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.party.incomplete', ev: { partyId: e.party, members: r.members, routed: r.routed, delivered: r.delivered, failed: r.failed } });
+            this.partyIncompletePublished++;
+          }
           // 전달 포기 통지(step-0079·deliverNotify) — 원 발신자(e.from)에게 영구 전달실패를 회신해 가시화. OFF 면 통지 0(0078 동일·포기는 조용).
           if (this.deliverNotify) { this.net.send(this.addr, e.from, { type: 'deliveryFailed', to: e.to, body: e.body }); this.failedNotified++; }
           // 전달 실패 발행(step-0082·failedPublish) — 포기를 svc.whisper.failed 토픽으로 발행(관측/감사 평면). 발신자 통지(point-to-point·행동용)와 *직교* — audit 같은 범용 sink 가 실패 스트림을 구독. OFF·bus 부재면 발행 0(0081 비트 동일).
