@@ -52,15 +52,54 @@
 
   // 반발(압력) 1스텝 — P=K·ρ^γ 의 기울기로 운동량을 민다: g ← g − dt·∇P.
   //   K=0 또는 dt=0 → 항등(early return, 회귀 0). 주기 중심차분 → 순 운동량 정확 보존(Σ∇P=0).
+  //
+  //   opts.active(step_0022) — *번지는* stencil 힘 법칙을 활성 순회로 일반화한다(확장성 레버1).
+  //     확산(step_0020)이 ρ 장에 번졌다면, 압력은 ∇P 로 *g(운동량)* 에 번진다 — ∇P[i]≠0 이려면 i 의
+  //     ±1 이웃 중 ρ>0 인 게 있어야 한다(P=K·ρ^γ, ρ=0→P=0). 그 이웃은 활성 블록 → i 는 활성 블록이거나
+  //     그 6-면 이웃(=halo). 그래서 opts.active 에 **active∪halo**(ActiveSet.originsWithHalo)를 넘기면
+  //     g 를 바꾸는 모든 셀(rim 포함)을 덮어 *조밀과 비트 동일*. active∪halo 밖 셀은 자신·6-이웃 모두 ρ=0
+  //     → P 전부 0 → ∇P=0 → g 불변 → 건너뛰어도 비트 동일. 압력은 ρ 를 안 바꾸므로(힘 법칙) 활성 집합은
+  //     자라지 않는다 — 확산과 달리 activateFrom 불필요(스케줄러는 originsWithHalo 만). opts.active 생략
+  //     → 조밀 전-격자(기존 경로) = byte 동일(회귀 0).
   function applyPressure(world, dt, opts) {
     opts = opts || {};
     const K = opts.K != null ? opts.K : DEFAULT_K;
+    const gamma = opts.gamma != null ? opts.gamma : DEFAULT_GAMMA;
     if (dt == null) dt = 1;
     if (!K || !dt) return world;                 // 노브=0 → 세계 불변
-    const N = world.N, NN = N * N;
+    const N = world.N;
     const gx = ensure(world, MX), gy = ensure(world, MY), gz = ensure(world, MZ);
-    const P = pressureField(world, opts);        // P = K·ρ^γ
+    const rho = world.fields[opts.field || RHO];
     const wrap = (a) => (a + N) % N;
+    // P = K·ρ^γ 를 *즉석* 계산 — 조밀 pressureField 의 per-cell 식과 *비트 동일*(scratch 낡음 무관).
+    const Pof = (j) => { const r = rho[j]; return r > 0 ? K * Math.pow(r, gamma) : 0; };
+
+    if (opts.active) {
+      // ── 활성∪halo 순회 — ∇P 가 g 를 바꾸는 블록만(조밀과 비트 동일) ──
+      const bs = opts.blockSize || 8, active = opts.active;
+      let visited = 0;
+      for (let b = 0; b < active.length; b++) {
+        const ox = active[b][0], oy = active[b][1], oz = active[b][2];
+        for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
+          for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
+            for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break;
+              const i = (z * N + y) * N + x;
+              const xm = (z * N + y) * N + wrap(x - 1), xp = (z * N + y) * N + wrap(x + 1);
+              const ym = (z * N + wrap(y - 1)) * N + x, yp = (z * N + wrap(y + 1)) * N + x;
+              const zm = (wrap(z - 1) * N + y) * N + x, zp = (wrap(z + 1) * N + y) * N + x;
+              gx[i] -= dt * (Pof(xp) - Pof(xm)) / 2;
+              gy[i] -= dt * (Pof(yp) - Pof(ym)) / 2;
+              gz[i] -= dt * (Pof(zp) - Pof(zm)) / 2;
+              visited++;
+            }
+          }
+        }
+      }
+      if (opts.stats) opts.stats.cellsVisited = visited;
+      return world;
+    }
+
+    const P = pressureField(world, opts);        // P = K·ρ^γ (조밀 경로 — 기존, 회귀 0)
     // g ← g − dt·∇P (중심차분, 주기 경계 — 중력 BC 와 일치, Σ∇P=0 → 순 운동량 보존).
     for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const i = (z * N + y) * N + x;

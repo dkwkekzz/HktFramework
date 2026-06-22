@@ -29,6 +29,11 @@
 
   // 진공 흡수 1스텝 — 옅은 셀(0<ρ<eps)의 질량을 더 밀한 이웃으로 옮기고 0 으로(질량 보존).
   //   eps=0/null → 항등(early return, 회귀 0). 더블버퍼 → 결정론.
+  //
+  //   opts.scalars(step_0024) — 옅은 셀이 흡수될 때 *함께 이동할* 장 목록(운동량 mom_x/y/z·내부E therm 등).
+  //     기부는 full 이동(셀이 정확히 0 이 됨) → 동반 장도 full 이동(i 의 값 통째 → bj). 그래야 질량을 *비울
+  //     때* 운동량·에너지도 같이 흘러 보존된다(step_0017 정직한 한계 "운동량 동반 안 함" 을 닫음 — 별을
+  //     희소화해도 물리 일관). opts.scalars 없으면 미동작 → 기존(밀도장만) 경로 byte 동일(회귀 0).
   function applyVacuum(world, opts) {
     opts = opts || {};
     const eps = opts.eps != null ? opts.eps : DEFAULT_EPS;
@@ -40,6 +45,16 @@
     let out = world.scratch[name];
     if (!out || out.length !== R.length) out = world.scratch[name] = new Float64Array(R.length);
     out.set(R);                                          // 스냅샷 복사(판정은 R, 기록은 out)
+    // 동반 수송 장(운동량·내부E 등) — 각자 더블버퍼(스냅샷 S, 기록 so). 기부 i→bj 매핑은 R(밀도)이 정한다.
+    const carry = [];
+    if (opts.scalars) for (const sn of opts.scalars) {
+      const S = world.fields[sn]; if (!S) continue;
+      const key = '__vac_' + sn;
+      let so = world.scratch[key];
+      if (!so || so.length !== S.length) so = world.scratch[key] = new Float64Array(S.length);
+      so.set(S);
+      carry.push({ S, so });
+    }
 
     for (let z = 0; z < N; z++)
       for (let y = 0; y < N; y++)
@@ -57,8 +72,12 @@
           if (bj < 0) continue;                          // 더 밀한 이웃 없음(고립 국소 최대) → 그대로
           out[i] -= v;                                   // 옅은 셀 비움(받은 게 없으면 정확히 0)
           out[bj] += v;                                  // 더 밀한 이웃이 통째 흡수(질량 보존)
+          for (let c = 0; c < carry.length; c++) {       // 동반 장도 full 이동(스냅샷 기준 → 보존)
+            const q = carry[c].S[i]; carry[c].so[bj] += q; carry[c].so[i] -= q;
+          }
         }
     R.set(out);
+    for (let c = 0; c < carry.length; c++) carry[c].S.set(carry[c].so);
     return world;
   }
 

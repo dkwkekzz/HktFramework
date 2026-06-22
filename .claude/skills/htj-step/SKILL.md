@@ -29,6 +29,7 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 
 - **법칙은 `engine/`** 한 곳. 새 법칙은 직전 법칙 형식을 따르고 **가법적**으로 추가(기존 동작 회귀 0 — 노브=0 → early-return 패턴 권장). engine 코드는 캔버스·DOM·렌더에 의존하지 않는다(Node 에서 그대로 돈다).
 - **확인용은 `viewer.html` + `viewer/`** (렌더 `viewer/htj-render.js` · 캡처 `viewer/capture.js`). 이 step 의 세계가 보여질 시뮬레이션을 여기에 추가/갱신한다.
+- **viewer 갤러리 등록은 의무 — 또는 사유 명시**: 닫는 step 은 `viewer.html` 의 `STEPS` 레지스트리에 한 항목으로 등록한다(드롭다운=step 갤러리). *새로 보여줄 장면이 없는* step(벤치마크 차트·조밀과 비트 동일한 등가 변환 등)이라 등록이 무의미하면, **`tools/check-viewer.js` 의 `EXEMPT` 에 사유와 함께 등재**한다. 둘 중 하나는 반드시 — 가드(`node tools/check-viewer.js`)가 등록도 면제도 없는 닫힌 step 을 FAIL 시킨다. (chromium 부재로 눈 검증이 capture.js 폴백으로 옮겨가며 등록 강제력이 사라져 0015~0021 이 조용히 누락된 선례 — 그 재발을 막는 가드.)
 
 ## 3. 검증 — verify.js (수치) + 시뮬레이션 캡처 (눈)
 
@@ -59,8 +60,8 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 
 ## 5. 닫기 체크리스트
 
-1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0)
-2. `viewer.html` 캡처(`steps/step_NNNN/capture.png`) 확보 + 화면이 verify 가설과 일치
+1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0) + `node tools/check-viewer.js` PASS (viewer 등록 누락 가드)
+2. **viewer 갤러리 등록** — `viewer.html` STEPS 에 이 step 항목 추가 *또는* 정당한 사유로 `tools/check-viewer.js` 의 `EXEMPT` 에 등재(가드가 강제). 그리고 **캡처**(`steps/step_NNNN/capture.png`, viewer 또는 capture.js 폴백) 확보 + 화면이 verify 가설과 일치
 3. `steps/step_NNNN/step_NNNN.md` "쉽게 풀어 쓴 설명" 포함 · 수치 = verify 출력 · 캡처 참조 · 다음 연결 명시
 4. `STATE.md` §1~5 Edit
 5. git: (로컬) `main` 에 commit·push / (원격) 지정 브랜치 규칙
