@@ -227,5 +227,88 @@
     return out;
   }
 
-  return { createSparseField, fromDense, referenceFingerprint, activeBlockOrigins, DEFAULT_BLOCK, VERSION: 1 };
+  // 활성 블록 집합 — *재스캔 없이 유지*하는 증분 구조(step_0019, S2 레버1 의 "실현 절감"을 진짜로 실현).
+  //
+  //   문제(step_0018 의 정직한 한계): activeBlockOrigins 는 매 step *전-격자 O(N³)* 를 재스캔해
+  //   활성 블록을 찾는다 → 법칙이 빈 블록을 건너뛰어 아낀 만큼을 그 재스캔이 도로 상쇄한다
+  //   (step_0018 verify 실측: 재스캔 0.554 ≥ 조밀 0.303). 절감은 활성 집합이 *유지*돼야 실현된다.
+  //
+  //   처방: 활성 블록 키 집합을 **한 번 빌드**(seed 시 O(N³))한 뒤 step 간 *재사용*하고, 비워진
+  //   블록은 *활성 블록만 훑어* 그 자리에서 제거(prune, O(활성)) — 전-격자 재스캔이 없다.
+  //   냉각처럼 *단조 비-성장* 법칙(u·factor 는 0 셀을 비-영으로 못 만든다)은 한 번 빌드한 집합이
+  //   모든 후속 step 의 유효한 cover 라서 재사용이 안전하다(verify §3 가 이 불변식을 박는다).
+  //
+  //   결정론: origins() 는 블록키 오름차순 → activeBlockOrigins 와 *동일 순서*(교차 검증). 순서 무관.
+  //   이건 *컨테이너/스케줄러 층*(design §5 "가법성")일 뿐 — 법칙 코드를 대체하지 않고, 법칙은 여전히
+  //   opts.active=origins() 를 받아 돈다. 렌더·DOM 에 의존하지 않는다(Node 에서 그대로 돈다).
+  function createActiveSet(N, blockSize) {
+    N = N | 0;
+    if (N <= 0) throw new Error('createActiveSet: N must be > 0');
+    const bs = (blockSize | 0) || DEFAULT_BLOCK;
+    const nbx = Math.ceil(N / bs);
+    const keys = new Set();          // 활성(비-영) 블록 키
+    let lastScanned = 0;             // 마지막 빌드/정리가 *실제로 훑은* 셀 수(재스캔 비용의 실측 증거)
+
+    function keyToOrigin(key) {
+      const bx = key % nbx, by = ((key - bx) / nbx) % nbx, bz = (key - bx - by * nbx) / (nbx * nbx);
+      return [bx * bs, by * bs, bz * bs];
+    }
+    // 한 블록(원점 ox,oy,oz)에 비-영 셀이 하나라도 있나? — 있으면 즉시 break(early-out). scanned 누적.
+    function blockNonEmpty(field, ox, oy, oz, counter) {
+      for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
+        for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
+          for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break;
+            counter.n++;
+            if (field[(z * N + y) * N + x] !== 0) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    const self = {
+      N, blockSize: bs, blocksPerAxis: nbx,
+      size() { return keys.size; },
+      has(bx, by, bz) { return keys.has((bz * nbx + by) * nbx + bx); },
+      lastScannedCells() { return lastScanned; },
+
+      // 한 번 빌드 — 조밀 field 에서 비-영 블록 키를 모은다(O(N³), seed 시 1회). 훑은 셀 수 기록.
+      rebuildFromField(field) {
+        keys.clear();
+        const counter = { n: 0 };
+        for (let bz = 0; bz < nbx; bz++)
+          for (let by = 0; by < nbx; by++)
+            for (let bx = 0; bx < nbx; bx++) {
+              if (blockNonEmpty(field, bx * bs, by * bs, bz * bs, counter)) keys.add((bz * nbx + by) * nbx + bx);
+            }
+        lastScanned = counter.n;
+        return self;
+      },
+
+      // 결정론 순서(블록키 오름차순)의 활성 블록 원점 목록 — opts.active 로 법칙에 넘긴다.
+      //   activeBlockOrigins 와 *같은 순서*(둘 다 키 오름차순) → 비트 동일 보장.
+      origins() {
+        const sorted = [...keys].sort((a, b) => a - b);
+        const out = new Array(sorted.length);
+        for (let i = 0; i < sorted.length; i++) out[i] = keyToOrigin(sorted[i]);
+        return out;
+      },
+
+      // 비워진 블록 제거(재스캔 *없이*) — *활성 블록만* 훑어 전부 0 이면 키 제거. 반환=제거 수.
+      //   훑는 범위가 활성 블록 칸뿐 → O(활성), 전-격자 O(N³) 아님(이게 step_0018 한계를 닫는 핵심).
+      prune(field) {
+        const counter = { n: 0 };
+        let removed = 0;
+        for (const key of [...keys]) {
+          const o = keyToOrigin(key);
+          if (!blockNonEmpty(field, o[0], o[1], o[2], counter)) { keys.delete(key); removed++; }
+        }
+        lastScanned = counter.n;
+        return removed;
+      }
+    };
+    return self;
+  }
+
+  return { createSparseField, fromDense, referenceFingerprint, activeBlockOrigins, createActiveSet, DEFAULT_BLOCK, VERSION: 2 };
 });
