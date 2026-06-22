@@ -37,6 +37,7 @@ const EXEMPT = {
   '0026': 'S5 승격/역승격 이관 mechanism — 눈 검증은 capture(별 본체가 격자서 빠져 구체 1개+보존). 자동 트리거(동결→승격) viewer 장면은 후속 step',
   '0029': 'S5-b demote 회전 복원 mechanism — 밀도 장면은 균일 구와 동일(회전은 *속도장*에 있음), 눈 검증은 capture.js 속도 화살표(균일=정지 vs 스핀=소용돌이). 0028 viewer 개체 장면과 거동 동류',
   '0031': 'S5-c 자동 강등(충돌→유체) mechanism — 0030 하이브리드 viewer 의 *역트리거*(승격의 거울), 눈 검증은 capture.js(개체 구체 2개→격자 유체 2덩어리로 풀림·보존). 0030 장면에 합류하는 mechanism',
+  '0032': 'S6 Barnes-Hut 트리 중력 — 산출물이 O(N log N) vs O(N²) 스케일 차트(capture.js)이고 시뮬 장면 아님(0015/0023 류). 통합 중력 viewer 장면은 후속 step(엔진에 배선 시)',
 };
 
 // 1) 닫힌 step 목록 — steps/step_NNNN/step_NNNN.md 가 있으면 "닫힌" 것으로 본다.
