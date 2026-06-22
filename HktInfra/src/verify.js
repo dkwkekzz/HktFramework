@@ -1,8 +1,8 @@
-// HktInfra step-0113 — 헤드리스 검증 (시세 피드 영속·late-join·marketReconstruct·거래소 op 저널 replay)
+// HktInfra step-0114 — 헤드리스 검증 (매물 만료 TTL·exchExpiry·시간 기반 escrow 자동 회수)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `mktpersist`.
-//   더한 한 조각: 0112 MarketFeed 는 자기 영속 0 — crash 시 시세 소실. 0020 읽기 모델이 쓰기 모델 저널을 replay 했듯, MarketFeed 가 *거래소 durable op 저널*(0109)을 replay 해 시세 재계산(list→id별 item·buy→last/volume·cancel→cancelled). 시세 피드는 자기 영속 0 이어도 거래소 저널이 권위 사본이라 완전 복원(다운타임 누락 따라잡음·CQRS).
-//   검증: ⒜ `reg`(키트) — 코드 변경은 MarketFeed 에 reconstruct 메서드 추가뿐(marketFeed OFF 면 박스 0) = 0112 비트 동일. ⒝ `mktpersist`(가설) — ON: crash→reconstruct(거래소 저널)==죽기 전==라이브. OFF: crash 만→빈 투영(소실). 둘 다 거래소 sold/minted 불변(비-침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exexpire`.
+//   더한 한 조각: 0107~0113 매물은 판매자 명시 취소로만 닫힘 — 안 팔리고 안 취소되면 영영 escrow 묶임(0111 §9). 매물에 listedAt(m.tick) 기록·exchSweep{now} op 가 now−listedAt ≥ ttl 인 open 매물을 자동 만료(escrow→판매자·취소와 같은 release 쌍이되 시간 트리거). 새 종결 상태 expired·보존식 확장(listed==open+sold+cancelled+expired)·durable 저널('expire')로 reconstruct 정합.
+//   검증: ⒜ `reg`(키트) — ttl 0·exchSweep 없음 = 0113 비트 동일. ⒝ `exexpire`(가설) — list 4·buy id1·id2·cancel id3·sweep@80(now 80). ttl 5: id4(ring·@73·age 7) 만료→expired 1·open 0·conserved·crash→reconstruct==before. ttl 0(OFF): sweep no-op·open 1·expired 0. 둘 다 minted 불변.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -24,8 +24,10 @@ const OPS = [
   { at: 74, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },
   { at: 75, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
   { at: 76, op: { type: 'exchCancel', seller: 's2', id: 3 } },
+  { at: 80, op: { type: 'exchSweep', now: 80 } },
 ];
-const mktDigest = mk => JSON.stringify([...mk.market.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1));
+const TTL = 5;   // id4(ring·listedAt 73·sweep now 80·age 7) ≥ ttl → 만료
+const exDigest = ex => JSON.stringify({ open: [...ex.listings.keys()].sort((a, b) => a - b), listed: ex.listed, sold: ex.sold, cancelled: ex.cancelled, expired: ex.expired, ret: [...ex.returned.entries()].sort() });
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
@@ -33,36 +35,36 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  exchange: true, exchangePublish: true, cancelPublish: true, exchangePersist: true, marketFeed: true, exchangeOps: OPS,
+  exchange: true, exchangePublish: true, cancelPublish: true, exchangePersist: true, exchangeOps: OPS,
   ...extra });
 
-function mktpersist(seeds) {
-  console.log('== mktpersist: *가설* — 시세 피드 영속·late-join(marketReconstruct). 시세 피드는 자기 영속 0 이어도 *거래소 durable op 저널*(0109) replay 로 시세 완전 복원(0020 읽기 모델의 거래소 판·CQRS). ON(crash→reconstruct) vs OFF(crash 만) ==');
-  console.log('  OPS: list 4·buy id1·id2·cancel id3. ON: reconstruct(거래소 저널)==죽기 전==라이브. OFF: crash 만→빈 투영(소실). 둘 다 거래소 sold/minted 불변.');
-  console.log('seed   | 저널 op | 라이브 다이제스트 | recon==before ON | empty OFF | sold ON==OFF | minted ON==OFF | 판정');
+function exexpire(seeds) {
+  console.log('== exexpire: *가설* — 매물 만료 TTL(exchExpiry). exchSweep{now} 가 now−listedAt ≥ ttl 인 open 매물을 자동 만료(escrow→판매자·시간 트리거 release 쌍). 새 종결 상태 expired·저널 정합. ON(ttl 5) vs OFF(ttl 0) ==');
+  console.log(`  list 4·buy id1·id2·cancel id3·sweep@80. ttl ${TTL}: id4(ring@73·age 7) 만료. ON: expired 1·open 0·conserved·crash→reconstruct==before. OFF: sweep no-op·open 1·expired 0.`);
+  console.log('seed   | open ON | expired ON | conserved ON | recon==before | open OFF | expired OFF | minted ON==OFF | 판정');
   for (const seed of seeds) {
-    const r = run({ ...P_BASE(seed, {}) });
-    const mk = r.market;
-    const before = mktDigest(mk); const jlen = r.exchange.journal.length;
-    // ON: crash→reconstruct(거래소 저널)
-    mk.crash(); mk.reconstruct(r.exchange.journal);
-    const reconOn = mktDigest(mk) === before && mk.market.size > 0;
-    // OFF: crash 만(복원 안 함) — 빈 투영
-    const off = run({ ...P_BASE(seed, {}) }); off.market.crash();
-    const emptyOff = off.market.market.size === 0;
-    const nonInvasive = r.exchange.sold === off.exchange.sold && r.inventory.minted === off.inventory.minted && ledgerConsistent(r) && itemConserved(r);
+    const on  = run({ ...P_BASE(seed, { exchangeTtl: TTL }) });
+    const off = run({ ...P_BASE(seed, { exchangeTtl: 0 }) });   // 만료 비활성(sweep no-op·0113 동일)
+    const ex = on.exchange; const eo = off.exchange;
+    const openOn = ex.open(); const expOn = ex.expired; const consOn = ex.conserved();
+    const before = exDigest(ex);
+    ex.crash(); ex.reconstruct();
+    const reconOn = exDigest(ex) === before && ex.conserved();
+    const openOff = eo.open(); const expOff = eo.expired; const consOff = eo.conserved();
+    const mintedEq = on.inventory.minted === off.inventory.minted && ledgerConsistent(on) && itemConserved(on);
     const ok =
-      check(reconOn, `seed ${seed}: ON reconstruct != 죽기 전(before ${before})`) &&
-      check(emptyOff, `seed ${seed}: OFF crash 후 비어있지 않음(size ${off.market.market.size})`) &&
-      check(nonInvasive, `seed ${seed}: 복원이 거래소/세계 권위 바꿈(sold ${r.exchange.sold}/${off.exchange.sold}·minted ${r.inventory.minted}/${off.inventory.minted})`);
-    const liveD = `sword@${r.market.priceOf('sword')}/v${r.market.volumeOf('sword')}·shield@${r.market.priceOf('shield')}`;
-    console.log(`${pad(seed, 6)} | ${pad(jlen, 7)} | ${pad(liveD, 17)} | ${pad(reconOn + '', 16)} | ${pad(emptyOff + '', 9)} | ${pad((r.exchange.sold === off.exchange.sold) + '', 12)} | ${pad((r.inventory.minted === off.inventory.minted) + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(openOn === 0 && expOn === 1, `seed ${seed}: ON 기대 open 0/expired 1·실제 ${openOn}/${expOn}`) &&
+      check(consOn, `seed ${seed}: ON 보존 위반(listed != open+sold+cancelled+expired)`) &&
+      check(reconOn, `seed ${seed}: ON reconstruct != 죽기 전(저널 expire 정합 실패·before ${before})`) &&
+      check(openOff === 1 && expOff === 0 && consOff, `seed ${seed}: OFF 기대 open 1/expired 0/conserved·실제 ${openOff}/${expOff}/${consOff}`) &&
+      check(mintedEq, `seed ${seed}: 만료가 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted})`);
+    console.log(`${pad(seed, 6)} | ${pad(openOn, 7)} | ${pad(expOn, 10)} | ${pad(consOn + '', 12)} | ${pad(reconOn + '', 13)} | ${pad(openOff, 8)} | ${pad(expOff, 11)} | ${pad(mintedEq + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 시세 피드가 *자기 영속 0* 이어도 거래소 op 저널(권위 사본) replay 로 완전 복원된다(0020 읽기 모델의 거래소 판): list→id별 item·buy→last/volume·cancel→cancelled = 라이브 sold/cancelled 소비와 동일 매핑. 다운타임에 버스가 흘려보낸 발행을 놓쳐도 거래소가 영속한 op 로 따라잡음(CQRS read model 의 핵심).');
-  console.log('    reconstruct 메서드 추가뿐(marketFeed OFF 면 박스 0) = 0112 비트 동일(reg). 비-침습: 복원은 시세 투영 재계산일 뿐 거래소 원장(sold)·세계 가방(minted) 권위 불변. ※ 저널 스냅샷 압축(0110) 시 가지친 head 의 volume 이력은 복원 불가(스냅샷에 시세 카운터 없음·snapInterval 0 전제·§9).');
+  console.log('  → 매물이 *시간*으로 자동 회수된다(상용 경매장 만료): exchSweep 가 now−listedAt ≥ ttl 인 open 매물을 escrow→판매자 반환(취소와 같은 release 쌍이되 판매자 요청이 아닌 시간 트리거). 새 종결 상태 expired 가 보존식에 합류(listed==open+sold+cancelled+expired)·durable 저널(expire)로 crash→reconstruct 정합(0109/0110 영속·압축과 동작).');
+  console.log('    ttl 0·exchSweep 없음 = sweep no-op·만료 0 = 0113 비트 동일(reg). 비-침습: 만료는 escrow 원장 내부 release 일 뿐 세계 가방(minted) 권위 불변·존 tick 밖 순수 반응형(sweep 도 주입 메시지).');
 }
 
-kit.MODES['mktpersist'] = mktpersist;
-kit.ORDER.splice(1, 0, 'mktpersist');
+kit.MODES['exexpire'] = exexpire;
+kit.ORDER.splice(1, 0, 'exexpire');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
