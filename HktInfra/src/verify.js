@@ -1,8 +1,8 @@
-// HktInfra step-0110 — 헤드리스 검증 (거래소 저널 스냅샷 압축·exchangeSnapshot·snapshot+tail replay)
+// HktInfra step-0120 — 헤드리스 검증 (거래소↔가방 2-서비스 보존 불변·escrowItemIds 단언)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pexsnap`.
-//   더한 한 조각: 0109 의 op 저널은 무계 성장 — replay 비용·메모리 ∝op 수(0109 §9). 0018 가방·0086 파티의 *주기 스냅샷+tail replay* 압축을 거래소에 적용: snapInterval 개 op 마다 projection 스냅샷(upToSeq)+그 이하 저널 가지치기 → 저널 tail 만 유계. reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축).
-//   검증: ⒜ `reg`(키트) — snapInterval 0 이면 압축 0·저널 무계 = 0109 비트 동일. ⒝ `pexsnap`(가설) — 7 op·snapInterval 3. ON: 저널 tail ≤2(스냅샷 upToSeq 6)·crash→reconstruct == 죽기 전. OFF(0109·snap 0): 저널 7·reconstruct == 죽기 전. 둘 다 무손실·minted 불변.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exinvconsv`.
+//   더한 한 조각: 0117~0119 가 거래소↔가방을 escrow 중개로 결합 — 이제 두 서비스에 걸친 보존을 단언한다. 거래소 open 매물 itemId 집합(escrowItemIds) ≡ 가방 원장의 'escrow' 소유 itemId 집합(거래소 회계 ≡ 가방 권위·불일치 0). 전 거래 흐름(list/buy/cancel/expire 혼합)서 가방 total(minted) 불변·매 아이템 정확히 한 소유자.
+//   검증: ⒜ `reg`(키트) — escrowItemIds 는 미호출 읽기 accessor = 0119 비트 동일. ⒝ `exinvconsv`(가설) — 5 적재→list 5(4 조기·1 늦게)→buy 2·cancel 1·sweep 만료 1. 끝: item0→b1·item1→b2(sold)·item2→s2(cancel)·item3→s2(expire)·item4→escrow(open). escrowItemIds==['item4']==가방 escrow 소유·minted 5 불변·각 1소유자·conserved.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,61 +15,56 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14;
-const OPS = [
-  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10 } },
-  { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5 } },
-  { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3 } },
-  { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20 } },
-  { at: 74, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },
-  { at: 75, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
-  { at: 76, op: { type: 'exchCancel', seller: 's2', id: 3 } },
+const INV = [
+  { at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item0
+  { at: 61, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item1
+  { at: 62, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item2
+  { at: 63, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item3
+  { at: 64, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item4
 ];
-const SNAP = 3;   // snapInterval — 3 op 마다 스냅샷
-const exDigest = ex => JSON.stringify({
-  open: [...ex.listings.keys()].sort((a, b) => a - b),
-  listed: ex.listed, sold: ex.sold, cancelled: ex.cancelled,
-  deliv: [...ex.delivered.entries()].sort(), proc: [...ex.proceeds.entries()].sort(), ret: [...ex.returned.entries()].sort(),
-});
-const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
-  incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
-  bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
-  busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
-  busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
-  presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
-  presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  exchange: true, exchangePersist: true, exchangeOps: OPS,
-  ...extra });
+const OPS = [
+  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },
+  { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5, itemId: 'item1' } },
+  { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3, itemId: 'item2' } },
+  { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20, itemId: 'item3' } },
+  { at: 75, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },           // item0 → b1 (sold)
+  { at: 76, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },           // item1 → b2 (sold)
+  { at: 77, op: { type: 'exchCancel', seller: 's2', id: 3 } },       // item2 → s2 (cancel)
+  { at: 82, op: { type: 'exchList', seller: 's1', item: 'gem', price: 8, itemId: 'item4' } },   // 늦게 list(만료 회피)
+  { at: 85, op: { type: 'exchSweep', now: 85 } },                    // id4(item3·@73·age12) 만료→s2 / id5(item4·@82·age3) open 유지
+];
+const TTL = 5;
+const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === av).map(([id]) => id).sort();
+const P = (seed, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
+  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchangeTtl: TTL, invOps: INV, exchangeOps: OPS, ...extra });
 
-function pexsnap(seeds) {
-  console.log('== pexsnap: *가설* — 거래소 저널 스냅샷 압축(exchangeSnapshot). snapInterval 개 op 마다 projection 스냅샷+저널 가지치기 → 저널 tail 유계, reconstruct=스냅샷+tail==전체 저널(무손실·0018/0086 의 거래소 판). ON vs OFF ==');
-  console.log(`  7 op·snapInterval ${SNAP}. ON: 저널 tail ≤${SNAP - 1}·crash→reconstruct==죽기 전. OFF(0109·snap 0): 저널 7·reconstruct==죽기 전. 둘 다 무손실.`);
-  console.log('seed   | tail ON | snap upToSeq | recon==before ON | tail OFF | recon==before OFF | 비침습 | 판정');
+function exinvconsv(seeds) {
+  console.log('== exinvconsv: *가설* — 거래소↔가방 2-서비스 보존 불변. 거래소 open 매물 itemId(escrowItemIds) ≡ 가방 원장 escrow 소유 itemId(거래소 회계≡가방 권위). 전 거래 흐름서 가방 total 불변·매 아이템 한 소유자. ==');
+  console.log('  5 적재→list 5→buy 2·cancel 1·만료 1·open 1. 끝: item0→b1/item1→b2(sold)·item2→s2(cancel)·item3→s2(expire)·item4→escrow(open). escrowItemIds==가방 escrow 소유==[item4].');
+  console.log('seed   | escrow소유 | open매물itemId | 일치 | minted | open | sold/can/exp | 한소유자합=5 | conserved | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { exchangeSnapshot: SNAP }) });
-    const off = run({ ...P_BASE(seed, {}) });   // snap 0(0109 무계 저널)
-    const ex = on.exchange; const eo = off.exchange;
-    const beforeOn = exDigest(ex); const tailOn = ex.journal.length; const upTo = ex.snapshot ? ex.snapshot.upToSeq : -1;
-    ex.crash(); ex.reconstruct();
-    const reconOn = exDigest(ex) === beforeOn && ex.conserved() && ex.open() === 1 && ex.sold === 2;
-    const beforeOff = exDigest(eo); const tailOff = eo.journal.length;
-    eo.crash(); eo.reconstruct();
-    const reconOff = exDigest(eo) === beforeOff && eo.conserved();
-    // 압축: ON 저널 tail < OFF 전체 저널(유계)·스냅샷 존재.
-    const compressed = ex.snapshot != null && tailOn < tailOff && tailOn < SNAP;
-    const nonInvasive = on.inventory.minted === off.inventory.minted && ledgerConsistent(on) && itemConserved(on);
+    const r = run({ ...P(seed, {}) });
+    const inv = r.inventory; const ex = r.exchange;
+    const escOwned = ownedSet(inv, 'escrow');              // 가방 원장에서 실제 escrow 소유
+    const exOpen = ex.escrowItemIds();                     // 거래소가 믿는 open 매물 itemId
+    const match = JSON.stringify(escOwned) === JSON.stringify(exOpen);   // 2-서비스 일치(회계 ≡ 권위)
+    const minted = inv.minted; const open = ex.open();
+    // 매 아이템 정확히 한 소유자: ledger 5개·각 소유자 1명(byOwner 합 == 5)
+    const byOwnerSum = ownedSet(inv, 's1').length + ownedSet(inv, 's2').length + ownedSet(inv, 'b1').length + ownedSet(inv, 'b2').length + escOwned.length;
+    const conserved = ex.conserved();
     const ok =
-      check(reconOn, `seed ${seed}: ON 스냅샷+tail recon != 죽기 전(before ${beforeOn})`) &&
-      check(reconOff, `seed ${seed}: OFF 전체저널 recon != 죽기 전`) &&
-      check(compressed, `seed ${seed}: 압축 미성립(snapshot ${ex.snapshot != null}·tailON ${tailOn}·tailOFF ${tailOff}·기대 tailON<${Math.min(tailOff, SNAP)})`) &&
-      check(nonInvasive, `seed ${seed}: 압축이 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted})`);
-    console.log(`${pad(seed, 6)} | ${pad(tailOn, 7)} | ${pad(upTo, 12)} | ${pad(reconOn + '', 16)} | ${pad(tailOff, 8)} | ${pad(reconOff + '', 17)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(match && escOwned.length === 1 && escOwned[0] === 'item4', `seed ${seed}: 2-서비스 불일치(가방 escrow ${JSON.stringify(escOwned)} != 거래소 open ${JSON.stringify(exOpen)})`) &&
+      check(minted === 5 && open === 1, `seed ${seed}: minted/open 기대 5/1·실제 ${minted}/${open}`) &&
+      check(ex.sold === 2 && ex.cancelled === 1 && ex.expired === 1, `seed ${seed}: sold/can/exp 기대 2/1/1·실제 ${ex.sold}/${ex.cancelled}/${ex.expired}`) &&
+      check(byOwnerSum === 5 && ledgerConsistent(r) && itemConserved(r), `seed ${seed}: 아이템 소유자 합 != 5(${byOwnerSum})·원장 정합 위반`) &&
+      check(conserved, `seed ${seed}: 거래소 보존 위반(listed != open+sold+cancelled+expired)`);
+    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(escOwned), 10)} | ${pad(JSON.stringify(exOpen), 14)} | ${pad(match + '', 4)} | ${pad(minted, 6)} | ${pad(open, 4)} | ${pad(ex.sold + '/' + ex.cancelled + '/' + ex.expired, 12)} | ${pad(byOwnerSum, 12)} | ${pad(conserved + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소 저널이 *스냅샷+tail* 로 유계화된다(0018 가방·0022 채팅·0086 파티의 거래소 판): snapInterval 마다 projection 을 스냅샷·이하 저널 가지치기, reconstruct 는 스냅샷에서 출발해 tail 만 replay → 전체 저널과 비트 동일(무손실 압축). 영속 비용이 op 누적과 무관하게 유계 — 거래소 arc(분리 0107→발행 0108→영속 0109→압축 0110) 완성.');
-  console.log('    exchangeSnapshot 0 = 압축 0·저널 무계 = 0109 비트 동일(reg). 비-침습: 압축은 저널 표현 유계화일 뿐 원장/세계 권위 불변(minted ON==OFF·reconstruct 무손실)·존 tick 밖 순수 반응형.');
+  console.log('  → 거래소↔가방 결합이 *두 서비스에 걸친 보존*을 유지한다: 거래소가 믿는 open 매물(escrowItemIds) ≡ 가방 원장이 실제 escrow 에 가진 아이템(회계 ≡ 권위·불일치 0). 전 거래 흐름(list/buy/cancel/expire 혼합)서 가방 total(minted) 불변이고 매 아이템은 정확히 한 소유자 — 0014 가방의 "단일 소유"가 *두 서비스 결합*에도 보존(escrow 중개 닫힌 장부).');
+  console.log('    escrowItemIds 는 미호출 읽기 accessor = 0119 비트 동일(reg). 이 step 은 *결합 시스템의 창발 불변*을 단언 — 거래소↔가방 arc(0117 인출→0118 입금→0119 반환→0120 보존)가 존 넘는 실물 거래를 닫는다.');
 }
 
-kit.MODES['pexsnap'] = pexsnap;
-kit.ORDER.splice(1, 0, 'pexsnap');
+kit.MODES['exinvconsv'] = exinvconsv;
+kit.ORDER.splice(1, 0, 'exinvconsv');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
