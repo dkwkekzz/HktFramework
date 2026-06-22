@@ -17,11 +17,11 @@
 (function (root, factory) {
   'use strict';
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = factory(require('./htj-cluster.js'), require('./htj-promote.js'), require('./htj-entity.js'));
+    module.exports = factory(require('./htj-cluster.js'), require('./htj-promote.js'), require('./htj-entity.js'), require('./htj-bhtree.js'));
   } else {
-    root.HTJHybrid = factory(root.HTJCluster, root.HTJPromote, root.HTJEntity);
+    root.HTJHybrid = factory(root.HTJCluster, root.HTJPromote, root.HTJEntity, root.HTJBHTree);
   }
-})(typeof self !== 'undefined' ? self : this, function (HTJCluster, HTJPromote, HTJEntity) {
+})(typeof self !== 'undefined' ? self : this, function (HTJCluster, HTJPromote, HTJEntity, HTJBHTree) {
   'use strict';
 
   const RHO = 'energy';
@@ -101,5 +101,60 @@
     return { survivors, demoted, addedCells };
   }
 
-  return { autoPromoteStable, autoDemoteOnDisturbance, stepEntities, activeCellCount, VERSION: 2 };
+  // 유체(격자)를 블록 응집 점질량으로 — 비-영 셀을 8³ 블록마다 {CoM·질량}으로 묶는다(트리 잎 후보).
+  //   승격 개체와 *한 트리*에 넣어 전역 중력을 함께 푼다(design §3 — 개체+유체 한 무대).
+  function fluidBlockBodies(world, bs) {
+    const N = world.N, NN = N * N, rho = world.fields[RHO], nbx = Math.ceil(N / bs);
+    const map = new Map();
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x, m = rho[i]; if (m === 0) continue;
+      const key = (((z / bs) | 0) * nbx + ((y / bs) | 0)) * nbx + ((x / bs) | 0);
+      let b = map.get(key); if (!b) { b = { mass: 0, mx: 0, my: 0, mz: 0 }; map.set(key, b); }
+      b.mass += m; b.mx += m * x; b.my += m * y; b.mz += m * z;
+    }
+    const bodies = [];
+    for (const b of map.values()) bodies.push({ x: b.mx / b.mass, y: b.my / b.mass, z: b.mz / b.mass, mass: b.mass });
+    return bodies;
+  }
+
+  // 통합 중력(S6 배선) — 승격 개체 + 유체 블록을 *한 트리*에 넣어 *서로* 끌게 한다. 0030 이 남긴
+  //   "개체↔유체 결합 중력 없음"(개체끼리 0028·유체끼리 격자 Poisson 만)을 채운다 = 레버2 완전 실현.
+  //   · 개체: 트리(0032)로 *모든 몸체*(다른 개체 + 유체 블록)의 중력을 받아 가속(O(N log N)).
+  //   · 유체: 비-영 셀이 *개체들*의 중력을 직접 받아 격자 운동량 가속(개체 소수라 cell×개체 저렴).
+  //     (유체끼리는 격자 Poisson 이 이미 — 트리는 *결합*만 더한다, 이중계산 회피.)
+  //   개체↔유체 셀 쌍은 같은 1/d³ 식이라 작용-반작용 ≈ 상쇄(트리 근사·블록 응집 granularity 만큼 작은 표류).
+  //   opts: { G, soft, theta, bs(기본 8), dt }. 운동량 갱신 후 개체 KE_cm·energy 재계산.
+  function applyUnifiedGravity(world, entities, opts) {
+    opts = opts || {};
+    const G = opts.G != null ? opts.G : 1, soft = opts.soft != null ? opts.soft : 1;
+    const theta = opts.theta != null ? opts.theta : 0.5, bs = opts.bs || 8, dt = opts.dt != null ? opts.dt : 0.05;
+    const ne = entities.length; if (ne === 0) return entities;
+    const N = world.N, rho = world.fields[RHO], gx = world.fields.mom_x, gy = world.fields.mom_y, gz = world.fields.mom_z;
+    // ① 개체: 트리로 모든 몸체(개체+유체 블록)의 중력.
+    const fb = fluidBlockBodies(world, bs);
+    const bodies = []; for (let i = 0; i < ne; i++) bodies.push({ x: entities[i].cx, y: entities[i].cy, z: entities[i].cz, mass: entities[i].mass });
+    for (const b of fb) bodies.push(b);
+    const acc = HTJBHTree.computeAccelerations(bodies, { G, theta, soft }).acc;
+    for (let i = 0; i < ne; i++) {
+      const e = entities[i]; e.px += e.mass * acc[i][0] * dt; e.py += e.mass * acc[i][1] * dt; e.pz += e.mass * acc[i][2] * dt;
+      if (e.internalE == null) e.internalE = e.energy - (e.KEcm || 0);
+      e.KEcm = e.mass > 1e-12 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    // ② 유체: 비-영 셀이 개체들의 중력을 직접 받아 격자 운동량 가속.
+    const soft2 = soft * soft, NN = N * N;
+    for (let i = 0; i < rho.length; i++) {
+      const m = rho[i]; if (m === 0) continue;
+      const x = i % N, y = ((i - x) / N) % N, z = (i - x - y * N) / NN;
+      let ax = 0, ay = 0, az = 0;
+      for (let k = 0; k < ne; k++) {
+        const e = entities[k], dx = e.cx - x, dy = e.cy - y, dz = e.cz - z, d2 = dx * dx + dy * dy + dz * dz + soft2, inv = 1 / (d2 * Math.sqrt(d2));
+        ax += G * e.mass * dx * inv; ay += G * e.mass * dy * inv; az += G * e.mass * dz * inv;
+      }
+      gx[i] += m * ax * dt; gy[i] += m * ay * dt; gz[i] += m * az * dt;
+    }
+    return entities;
+  }
+
+  return { autoPromoteStable, autoDemoteOnDisturbance, stepEntities, applyUnifiedGravity, fluidBlockBodies, activeCellCount, VERSION: 3 };
 });

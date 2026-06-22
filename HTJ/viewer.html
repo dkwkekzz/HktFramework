@@ -409,8 +409,11 @@
           const res = HTJHybrid.autoPromoteStable(w, H.tracker, { hold: H.hold, eps });
           for (const e of res.entities) H.entities.push(e);
         }
-        // 승격된 개체 동역학(개체-공간·격자 독립) — 개체간 중력 + 드리프트.
-        if (H.entities.length) HTJHybrid.stepEntities(H.entities, { dt: 0.2, G: H.entities.length > 1 ? 1 : 0, soft: 2, N: w.N });
+        // 통합 중력(S6 배선·0033): 승격 개체가 유체+서로의 중력을 트리로 받고, 유체도 개체를 느낀다.
+        if (H.entities.length) {
+          HTJHybrid.applyUnifiedGravity(w, H.entities, { G: 0.15, soft: 2, theta: 0.5, bs: H.bs, dt: 0.2 });
+          HTJHybrid.stepEntities(H.entities, { dt: 0.2, G: 0, N: w.N });   // 위치 적분(개체간 중력은 통합 트리가 이미)
+        }
         updateTemperature(w);
       },
       note: '<b>자동 승격 하이브리드</b>(S5-c) — 그동안 따로 박은 부품을 *잇는다*: 검출(0014)·동결=안정 판정(0025)·보존 이관(0026/0029)·개체 동역학(0027/0028). <b>▶ 흐름</b>: 별이 중력으로 붕괴·정착하면, 활동도 추적기가 *거의 안 변하는* 코어 블록을 <b>동결</b>(안정)로 판정한다 → <b>자동 승격</b>이 그 코어를 격자에서 통째로 빼내 <b>개체(밝은 구체)</b>로 올린다(0026 의 explicit 승격이 *자동 트리거*로). 빠진 자리는 격자에서 비고(셀 급감), 주변 <b>가스는 유체(voxel)로 계속 흐른다</b> — 개체는 개체-공간에서 굴린다(O(개체)). = <b>"안정 별=구체 개체로 시뮬·나머지 가스만 유체로"</b>. <b>왜 중요한가</b>(design §0 목적 ②·§5): 레버2 가 *실제로* 활성 격자 칸을 줄인다(레버1 0023 은 블록 점유 100% 천장에 막혀 못 한 일) — 비용을 *흐르는 유체*에만 묶는다. <b>정직한 한계</b>: ① 단일 자기중력 별은 거친 격자에서 *미세 진동*해 exact-quiet 동결이 안 걸린다 → <b>손실 허용 임계</b>(근사 LOD·threshold&gt;0)로 "거의 안 변함"을 동결로 본다. ② 자동 *강등*(외란→유체 복원)·개체↔유체 결합 중력(S6)은 후속. ③ 가우시안 꼬리는 격자에 남아(0024 천장) 비-영 칸 총수는 천천히 준다 — 줄어든 건 *비싼 코어*다.'
