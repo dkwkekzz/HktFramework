@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0085](step-0085.md) — **파티 멤버십 영속·failover**(partyPersist·변경 저널 replay): 0084 까지 PartyService 멤버십은 *휘발*이라 crash 시 결성·가입/탈퇴 전부 소실(0084 §9). 이 step 은 멤버십을 휘발 projection + durable 변경 저널로 분리: 변경 명령(create/join/leave)을 저널에 기록, crash(RAM 소실) 후 fresh 박스가 저널 replay 로 멤버십 재구성→죽기 전과 비트 동일. 0017 가방·0020 랭킹·0021 채팅 event sourcing 의 멤버십 판(0084 svc.party.changed 스트림=이 저널의 이벤트). 닿는 박스: svc-party(persist·journal·crash·reconstruct)·topo-build(pservice persist 전달).
-- **한 줄 상태**: reg ALL OK(src=baseline=0084 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·ppersist: p1[b,c]·저널 3→crash 후 빈 멤버십→reconstruct 후 [b,c](==죽기 전) vs OFF 저널 0·복원 빈 멤버십(소실)·minted ON==OFF·spine 85-step ALL OK.
-- **다음**: §2 참조(파티 저널 스냅샷 압축(0018/0022 의 파티 판·0085 §9) · producer epoch 워터마크(0081 §9) · 전달 수명주기 관측(0082 §9) · 파티 ack 집계(0083 §9) · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0086](step-0086.md) — **파티 저널 스냅샷 압축**(partySnapshot·snapshot+tail replay): 0085 변경 저널은 *무계 성장*(replay 비용·메모리 ∝변경 수·0085 §9). 0018 가방·0022 채팅의 주기 스냅샷+tail 압축을 멤버십 저널에 적용: snapInterval 개 변경마다 멤버십 스냅샷(upToSeq)+그 이하 저널 가지치기→저널 tail 만(유계). reconstruct=스냅샷+tail==전체 저널(무손실). 닿는 박스: svc-party(snapInterval·snapshot·_journalChange 압축·reconstruct 스냅샷 출발)·topo-build(pservice snapInterval 전달).
+- **한 줄 상태**: reg ALL OK(src=baseline=0085 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pcompact: create p1[a]+join b..f(6 변경)·snapInterval 4→ON 저널 tail 2·스냅샷 1 vs OFF 저널 6·둘 다 reconstruct [a..f](무손실)·minted ON==OFF·spine 86-step ALL OK.
+- **다음**: §2 참조(파티 ack 집계(0083 §9) · producer epoch 워터마크(0081 §9) · 전달 수명주기 관측(0082 §9) · 파티 cluster kill→replay 통합(0085 §9) · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0085 가 *파티 멤버십 영속·failover*(partyPersist — 변경 저널 replay)를 닫아 0084 의 휘발 격차를 메움(0084 발행→0085 저널: 같은 변경 이벤트의 관측·복구 두 소비처). 기능 후보(우선): *파티 저널 스냅샷 압축*(0018 가방·0022 채팅의 멤버십 판·무계 저널 유계화·0085 §9)·*파티 ack 집계*(멤버별 Mailbox·실수신 기준 완료·0083 §9)·*producer epoch 워터마크*(라우터 재시작 시 seq 리셋→오접힘 방지·0081 §9)·*전달 수명주기 관측*(시도·성공·포기 토픽·0082 §9)·*active 메아리 정리*(0068 §9)·*활성 중 다운타임 재발행*(0025/0026)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
+**step-0086 이 *파티 저널 스냅샷 압축*(partySnapshot — 스냅샷+tail replay)을 닫아 0085 의 무계 저널 격차를 메움(가방 0018·채팅 0022 압축의 멤버십 판). 기능 후보(우선): *파티 ack 집계*(멤버별 Mailbox·실수신 기준 완료·0083 §9)·*producer epoch 워터마크*(라우터 재시작 시 seq 리셋→오접힘 방지·0081 §9)·*전달 수명주기 관측*(시도·성공·포기 토픽·0082 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*활성 중 다운타임 재발행*(0025/0026)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -45,7 +45,7 @@
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축·저널홉 신뢰·persist failover+N-replica+quorum+윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층 6 첫 박스)=가방 효과 저널+압축(0018). 저널홉 신뢰→failover→N-replica quorum→윈도(0023~0032). 단 fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위의 고리 닫기. |
 
-> **✅ 해소된 격차 (0001~0075)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격/복제/Sim/전송(01~04)·AOI/분할/핸드오프/복원/failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스 분리(14~16)·가방/채팅 영속+압축·읽기모델(17~22)·write-behind/persist failover/quorum/윈도(23~32)·버스 동적구독/failover/무손실/lease(33~52)·lease 관측→프레즌스 박스(54~70)·귓속말/파티 라우팅(71~75).
+> **✅ 해소된 격차 (0001~0086)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스 분리(14~16)·가방/채팅 영속+압축(17~22)·write-behind/quorum/윈도(23~32)·버스 동적구독~lease(33~52)·lease 관측→프레즌스 박스(54~70)·귓속말/파티 라우팅~멤버십 영속·압축(71~86).
 
 > **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5 필독): 매 step은 verify 4기둥 + 척추 체크 5항(① 신성한 tick ② 결정론 코어 ③ 권위 단일 소유 ④ 은닉·단일 연결 ⑤ headless·원격 검증)으로 판정. 분리 판정 기준: *그 일이 존 시뮬 tick 과 같은 박자로 돌아야 하는가?*
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제(현실 전송)·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(재-provisioning·divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→**대체 소비자 호(0061~0063)** spawnReplace→reconstruct→presmon. **0071~0084 귓속말/파티 라우팅 호(wrouter)**: 프레즌스 질의(0069)의 라우팅 소비자 — 귓속말·failover 재타깃·파티 1:N·멤버십 SSOT(pservice)·**전달 신뢰 호 0076~0082**(영수증→재시도→상한→통지→dedup→seen 유계화→실패 발행)·**파티 0083~0085**(영수증 집계·증분 가입탈퇴+변경 발행·멤버십 영속 reconstruct)(상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→**대체 소비자 호(0061~0063)** spawnReplace→reconstruct→presmon. **0071~0084 귓속말/파티 라우팅 호(wrouter)**: 프레즌스 질의(0069)의 라우팅 소비자 — 귓속말·failover 재타깃·파티 1:N·멤버십 SSOT(pservice)·**전달 신뢰 호 0076~0082**(영수증→재시도→상한→통지→dedup→seen 유계화→실패 발행)·**파티 0083~0086**(영수증 집계·증분 가입탈퇴+변경 발행·멤버십 영속·저널 스냅샷 압축)(상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 **failover**(재구독·진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·ack 자기-크기조정→0044 min-워터마크→0045 소비자 lease→0046/0047 producer 네임스페이스→0048 lease lifecycle→0050~0052 적응형 leaseSpan·grace·cadence→0054 lease 생애 관측. 버스 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 생애 관측→프레즌스 SSOT→**self-healing 호**(recover→ack→retry→상한 포기→발행→spawnReplace→presmon 관측). **프레즌스 박스 호(0064~0070)**: 전용 박스 분리(orch⟂프레즌스)→보고 버스화→shadow 복제→failover 승격→사망 자율 감지→질의 인터페이스→질의 failover 연속(공지→재타깃). 쓰기·발행·읽기 전 경로 failover-safe. broker 물리 분산·진짜 비동기·메아리 정리 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·in-flight give/mint)→0027~0029 failover/N-replica quorum-read/quorum write ack→0031~0032 윈도 해소+유계 K→0062 대체 소비자 reconstruct 복구원. 증분 스냅샷·fsync·anti-entropy·월드/버스 영속 후속 |
@@ -140,11 +140,11 @@
 | [0041](step-0041.md) | 결과 replay 버퍼 자기-크기조정(busOutAck — outSeq ack→가지치기) | 통과 · desync 0 vs fixedK8 4·spine 41 |
 | [0042](step-0042.md) | seenReqs dedup 집합 유계화(busSeenBound — inAcked 워터마크) | 통과 · peak 60→24·spine 42 |
 | [0043](step-0043.md) | 정리: `svc-inventory.js` 박스-부품 3분할(34KB>30KB·기능 0) | 통과 · 박스 ≤19.6KB·spine 43 |
-| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 비대칭 복구 F vs min T·spine 44 |
-| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자→min 정의역 축출) | 통과 · OFF peak∝run vs ON 유계·spine 45 |
-| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — dedup=(producer,reqId) 복합키) | 통과 · OFF Δ0 vs ON Δ5·spine 46 |
-| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키를 producer 별 가지치기) | 통과 · OFF peak∝run vs 유계·spine 47 |
-| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission 가역) | 통과 · outBuf 유계·readm 1·spine 48 |
+| [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=모든 소비자 frontier 최소) | 통과 · 비대칭 복구 F vs min T |
+| [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자→min 정의역 축출) | 통과 · OFF peak∝run vs ON 유계 |
+| [0046](step-0046.md) | 다중 게이트웨이 producer 네임스페이스(busProducerNs — dedup=(producer,reqId) 복합키) | 통과 · OFF Δ0 vs ON Δ5 |
+| [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs — 복합키를 producer 별 가지치기) | 통과 · OFF peak∝run vs 유계 |
+| [0048](step-0048.md) | 소비자 lease lifecycle 정합(busLeaseLife — never-ack 축출·재admission 가역) | 통과 · outBuf 유계·readm 1 |
 | [0049](step-0049.md) | 단일 살아있는 소스 `src/` 전환(복사 전진 폐기·기능 0·reg 0) | 통과 · src=baseline=0048·spine 49 |
 | [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 관측 ack cadence 로 self-size) | 통과 · 고정 OFF flapping vs 적응 ev=1·spine 50 |
 | [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease 임계 bootstrap floor) | 통과 · grace ev=0 vs 적응만 1·spine 51 |
@@ -182,3 +182,4 @@
 | [0083](step-0083.md) | 파티 1:N 라우팅 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced} 완료 원장·부분 전달 N-of-M 가시) | 통과 · 0=0082·ON 원장 {3,2,1}/done vs OFF size 0·총계 2/1 동일·spine 83 |
 | [0084](step-0084.md) | 증분 가입/탈퇴 + 멤버십 변경 발행(partyChange — partyJoin/Leave 델타·svc.party.changed→audit) | 통과 · 0=0083·p1[a,b]→join c→leave a→[b,c]·ON 발행 2/audit 2 vs OFF 0/0·멤버십 ON==OFF·spine 84 |
 | [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→reconstruct) | 통과 · 0=0084·p1[b,c] 저널 3→crash→reconstruct [b,c](==죽기 전) vs OFF 저널 0·소실·spine 85 |
+| [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — snapInterval 마다 멤버십 스냅샷+저널 가지치기·tail replay) | 통과 · 0=0085·6변경/snapI 4→ON 저널 tail 2/스냅샷 1 vs OFF 6·둘 다 reconstruct [a..f] 무손실·spine 86 |
