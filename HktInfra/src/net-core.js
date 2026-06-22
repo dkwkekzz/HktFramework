@@ -22,7 +22,7 @@ const __hktNet = Object.assign(
   { mulberry32: __c.mulberry32, fnv1a: __c.fnv1a, Net: __c.Net, LoginServer: __c.LoginServer, SessionRegistry: __c.SessionRegistry },
   __p('gateway'), __p('orchestrator'), __p('zone'),
   __p('svc-inventory'), __p('svc-chat'), __p('svc-bus'), __p('svc-audit'), __p('svc-ranking'),
-  __p('svc-presence-monitor'), __p('svc-presence'), __p('svc-whisper'), __p('svc-party'), __p('svc-mailbox'), __p('svc-exchange'),
+  __p('svc-presence-monitor'), __p('svc-presence'), __p('svc-whisper'), __p('svc-party'), __p('svc-mailbox'), __p('svc-exchange'), __p('svc-market'),
   __p('persist'), __p('client'), __p('metrics'), __p('topo-build'), __p('topology'),
   { PUBLIC_ADDRS, DEFAULTS: __c.DEFAULTS, SUPPORTS });
 if (typeof module !== 'undefined' && module.exports) module.exports = __hktNet;

@@ -1,8 +1,8 @@
-// HktInfra step-0111 — 헤드리스 검증 (거래소 취소 발행·cancelPublish·svc.exchange.cancelled)
+// HktInfra step-0112 — 헤드리스 검증 (거래소 시세 피드 읽기 모델·marketFeed·svc.exchange.sold+cancelled 구독)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `excancel`.
-//   더한 한 조각: 0108 은 체결(exchBuy)만 svc.exchange.sold 로 발행 — 매물 회수(exchCancel 성공)는 외부 관측 불가. 0097 반송 발행·0104 손실 발행의 매핑으로 취소 성립을 svc.exchange.cancelled{id,seller,item,price} 로 1회 발행(매물이 escrow→판매자로 돌아가는 순간·delisting 신호). 0016 발행자 무수정 소비자 패턴의 거래소 *취소* 판(0108 sold 의 대칭).
-//   검증: ⒜ `reg`(키트) — cancelPublish OFF 면 발행 0 = 0110 비트 동일. ⒝ `excancel`(가설) — OPS 에 cancel 1개. ON: cancelPublished==cancelled(1)·audit 가 svc.exchange.cancelled 1 관측. OFF: 발행 0·audit 0. 둘 다 cancelled/conserved/minted 불변(비-침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `market`.
+//   더한 한 조각: 거래소(0107~0111)는 escrow 원장 권위 + 체결(0108 sold)·취소(0111 cancelled) 발행. 이 step 은 그 두 토픽을 *소비만* 하는 MarketFeed(읽기 모델)를 더한다 — item별 {last 체결가, volume 거래량, cancelled 취소} 투영(0019 RankingService 의 거래소 판·CQRS). 원장 권위 0·발신 0(audit 처럼 관찰 전용·시세는 pull). sold ev 에 item 추가(시세 키).
+//   검증: ⒜ `reg`(키트) — marketFeed OFF 면 박스 0·구독 0 = 0111 비트 동일. ⒝ `market`(가설) — OPS: list 4(sword10/shield5/potion3/ring20)·buy id1·id2·cancel id3. ON: priceOf(sword)=10/vol 1·priceOf(shield)=5/vol 1·cancelledOf(potion)=1·consumed 3(sold 2+cancel 1). OFF: market null. 둘 다 거래소 sold/cancelled·minted 불변(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -32,35 +32,37 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  exchange: true, exchangePublish: true, exchangeOps: OPS,
+  exchange: true, exchangePublish: true, cancelPublish: true, exchangeOps: OPS,
   ...extra });
 
-function excancel(seeds) {
-  console.log('== excancel: *가설* — 거래소 취소 발행(cancelPublish). exchCancel 성공 시 svc.exchange.cancelled 1회 발행(매물 escrow→판매자 회수·delisting 신호·0108 sold 의 대칭·0016 무수정 소비자 판). ON vs OFF ==');
-  console.log('  OPS 에 cancel 1개(s2·id3). ON: cancelPublished==cancelled(1)·audit svc.exchange.cancelled 1. OFF: 발행 0·audit 0. 둘 다 cancelled/conserved/minted 불변(비침습).');
-  console.log('seed   | cancelled | pub ON | audit ON | pub OFF | audit OFF | conserved | minted ON==OFF | 판정');
+function market(seeds) {
+  console.log('== market: *가설* — 거래소 시세 피드 읽기 모델(marketFeed). svc.exchange.sold+cancelled 구독→item별 {last 체결가·volume 거래량·cancelled}. 0019 RankingService 의 거래소 판(CQRS·원장 권위 0·발신 0·관찰 전용). ON vs OFF ==');
+  console.log('  OPS: list 4(sword10/shield5/potion3/ring20)·buy id1(sword,b1)·id2(shield,b2)·cancel id3(potion). ON: price sword 10/vol 1·shield 5/vol 1·potion cancelled 1·consumed 3. OFF: market null. 둘 다 거래소/minted 불변.');
+  console.log('seed   | consumed | sword@ | swordVol | shield@ | potionCancel | OFF null | sold ON==OFF | minted ON==OFF | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { cancelPublish: true }) });
-    const off = run({ ...P_BASE(seed, {}) });   // cancelPublish 0(0110 발행 없음)
-    const ex = on.exchange; const eo = off.exchange;
-    const cancelled = ex.cancelled;
-    const pubOn = ex.cancelPublished; const auOn = on.audit.seen.get('svc.exchange.cancelled') || 0;
-    const pubOff = eo.cancelPublished; const auOff = off.audit.seen.get('svc.exchange.cancelled') || 0;
-    const conserved = ex.conserved() && eo.conserved();
-    const nonInvasive = on.inventory.minted === off.inventory.minted && ex.cancelled === eo.cancelled && ledgerConsistent(on) && itemConserved(on);
+    const on  = run({ ...P_BASE(seed, { marketFeed: true }) });
+    const off = run({ ...P_BASE(seed, {}) });   // marketFeed 0(박스 없음·0111 동일)
+    const mk = on.market;
+    const consumed = mk.consumed;
+    const swordP = mk.priceOf('sword'); const swordV = mk.volumeOf('sword');
+    const shieldP = mk.priceOf('shield'); const potionC = mk.cancelledOf('potion');
+    const offNull = off.market == null;
+    const soldEq = on.exchange.sold === off.exchange.sold && on.exchange.cancelled === off.exchange.cancelled;
+    const mintedEq = on.inventory.minted === off.inventory.minted && ledgerConsistent(on) && itemConserved(on);
     const ok =
-      check(cancelled === 1, `seed ${seed}: cancelled 기대 1·실제 ${cancelled}`) &&
-      check(pubOn === cancelled && auOn === cancelled, `seed ${seed}: ON 발행/관측 != cancelled(pub ${pubOn}·audit ${auOn}·cancelled ${cancelled})`) &&
-      check(pubOff === 0 && auOff === 0, `seed ${seed}: OFF 발행/관측 != 0(pub ${pubOff}·audit ${auOff})`) &&
-      check(conserved, `seed ${seed}: 보존 위반(listed != open+sold+cancelled)`) &&
-      check(nonInvasive, `seed ${seed}: 발행이 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted}·cancelled ${ex.cancelled}/${eo.cancelled})`);
-    console.log(`${pad(seed, 6)} | ${pad(cancelled, 9)} | ${pad(pubOn, 6)} | ${pad(auOn, 8)} | ${pad(pubOff, 7)} | ${pad(auOff, 9)} | ${pad(conserved + '', 9)} | ${pad(nonInvasive + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(consumed === 3, `seed ${seed}: consumed 기대 3·실제 ${consumed}`) &&
+      check(swordP === 10 && swordV === 1, `seed ${seed}: sword 시세 기대 10/1·실제 ${swordP}/${swordV}`) &&
+      check(shieldP === 5, `seed ${seed}: shield 시세 기대 5·실제 ${shieldP}`) &&
+      check(potionC === 1, `seed ${seed}: potion cancelled 기대 1·실제 ${potionC}`) &&
+      check(offNull, `seed ${seed}: OFF 에 market 박스 존재(기대 null)`) &&
+      check(soldEq && mintedEq, `seed ${seed}: 피드가 거래소/세계 권위 바꿈(sold ${on.exchange.sold}/${off.exchange.sold}·minted ${on.inventory.minted}/${off.inventory.minted})`);
+    console.log(`${pad(seed, 6)} | ${pad(consumed, 8)} | ${pad(swordP, 6)} | ${pad(swordV, 8)} | ${pad(shieldP, 7)} | ${pad(potionC, 12)} | ${pad(offNull + '', 8)} | ${pad(soldEq + '', 12)} | ${pad(mintedEq + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소 *취소*(매물 회수)가 svc.exchange.cancelled 로 외부 관측된다(0108 sold 발행의 대칭): escrow→판매자 반환이 성립하는 순간 버스로 1회, audit 등 무수정 소비자가 구독해 delisting 을 본다(거래량 피드는 sold+cancelled 양쪽 필요·매물 깊이 추적 씨앗). 0016 발행자 무수정 소비자 패턴.');
-  console.log('    cancelPublish 0·bus 부재 = 발행 0 = 0110 비트 동일(reg). 비-침습: 발행은 관측 사본일 뿐 원장/세계 권위 불변(minted ON==OFF·cancelled 동일·conserved)·존 tick 밖 순수 반응형.');
+  console.log('  → 거래소 발행 스트림(sold+cancelled)에서 item별 시세(체결가·거래량·취소)가 *파생 뷰*로 선다(0019 ranking CQRS 의 거래소 판): MarketFeed 는 두 토픽을 소비만 하고 원장 권위 0·발신 0(audit 처럼 관찰 전용·시세는 priceOf/volumeOf pull). 거래량 피드엔 sold+cancelled 양쪽이 필요(0111 의 동기).');
+  console.log('    marketFeed 0·거래소 부재 = 박스 0·구독 0 = 0111 비트 동일(reg). 비-침습: 피드는 발행 사본의 파생일 뿐 거래소 원장(sold/cancelled)·세계 가방(minted) 권위 불변·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['excancel'] = excancel;
-kit.ORDER.splice(1, 0, 'excancel');
+kit.MODES['market'] = market;
+kit.ORDER.splice(1, 0, 'market');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

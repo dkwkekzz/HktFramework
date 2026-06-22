@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0111](step-0111.md) — **거래소 취소 발행**(cancelPublish·svc.exchange.cancelled): 0108 은 체결(sold)만 발행 — 매물 회수(exchCancel 성공)는 외부 관측 불가. 취소 성립을 svc.exchange.cancelled{id,seller,item,price} 1회 발행(escrow→판매자 반환 순간·delisting 신호·0108 sold 의 대칭·0016 무수정 소비자). cancelPublish OFF·bus 부재=발행 0=0110 비트 동일. 닿는 박스: svc-exchange(cancelPublish·cancelPublished)·topo-build(opt+audit 구독).
-- **한 줄 상태**: reg ALL OK(src=baseline=0110 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·excancel: cancelled 1·ON pub/audit 1 vs OFF 0·conserved·minted ON==OFF·spine 111 OK.
+- **닫힌 step**: [step-0112](step-0112.md) — **거래소 시세 피드 읽기 모델**(marketFeed·새 박스 MarketFeed): 거래소 발행(0108 sold·0111 cancelled)을 *소비만* 해 item별 {last 체결가·volume 거래량·cancelled} 투영(0019 RankingService 의 거래소 판·CQRS·원장 권위 0·발신 0·관찰 전용·시세 pull). sold ev 에 item 추가(시세 키). marketFeed OFF=박스 0·구독 0=0111 비트 동일. 닿는 박스: svc-market(신규)·svc-exchange(sold ev item)·net-core/topo-actors/topo-build/topology(배선).
+- **한 줄 상태**: reg ALL OK(src=baseline=0111 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·market: consumed 3·sword@10/vol1·shield@5·potion cancel 1·OFF null·sold/minted ON==OFF·spine 112 OK.
 - **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0111 이 *거래소 취소 발행*(cancelPublish·svc.exchange.cancelled)을 닫아 거래소 수명주기 발행을 sold(0108)→sold+cancelled 양쪽으로 넓힘 — 시세 피드(delisting 신호) 선결. 다음 후보: *시세 피드 읽기 모델*(svc.exchange.sold+cancelled 구독→item별 체결가·거래량·매물 깊이·0019 ranking CQRS 의 거래소 판)·*매물 만료 TTL*(자동 회수→반환·발행)·*거래소↔가방 2-서비스 원자 거래*(0107 §9)·*비동기 결정론*(🔴). 🔧 topo-build/topology ≈30KB(분할 임박). 🔎 0101~0110 묶음 리뷰(`infra-review`) 시점.**
+**step-0112 가 *거래소 시세 피드 읽기 모델*(marketFeed·MarketFeed 박스)을 닫아 거래소 발행→item별 시세 투영 CQRS 를 세움(0019 ranking 의 거래소 판). 다음 후보: *시세 피드 영속·late-join*(crash→svc.exchange.sold replay·0020 판)·*매물 만료 TTL*(자동 회수→반환·발행)·*거래소↔가방 2-서비스 원자 거래*(0107 §9)·*비동기 결정론*(🔴). 🔧 topo-build/topology ≈31KB(분할 임박·다음 기능 전 정리 step 고려). 🔎 0101~0110 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking·읽기모델→0023~0032 write-behind/quorum/윈도→대체 소비자(0061~0063). **0071~0106 귓속말/파티 라우팅(wrouter)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰(0076~0082)·파티 집계/영속/압축(0083~0086)·epoch 펜싱(0087~0091)·종결/발행(0092~0097)·수신함 유계/드레인/관측(0099~0104)·공지 메아리 펜싱(0105~0106). **거래소 arc 0107~0111**(escrow 쌍 거래→발행→영속→압축→취소 발행). 신성한 tick·권위 0. 시세 피드·만료·우편/길드·거래소↔가방 원자 거래 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking·읽기모델→0023~0032 write-behind/quorum/윈도→대체 소비자(0061~0063). **0071~0106 귓속말/파티 라우팅(wrouter)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰(0076~0082)·파티 집계/영속/압축(0083~0086)·epoch 펜싱(0087~0091)·종결/발행(0092~0097)·수신함 유계/드레인/관측(0099~0104)·공지 메아리 펜싱(0105~0106). **거래소 arc 0107~0112**(escrow 쌍 거래→발행→영속→압축→취소 발행→시세 피드 CQRS). 신성한 tick·권위 0. 시세 영속·만료·우편/길드·거래소↔가방 원자 거래 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0048 lease/ns/lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070): 분리→버스화→shadow→failover 승격→사망 자율 감지→질의 →0105/0106 공지 epoch 펜싱(presmon·wrouter 메아리 정리). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·give/mint)→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 reconstruct. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -207,3 +207,4 @@
 | [0109](step-0109.md) | 거래소 영속·failover(exchangePersist — op 저널 replay·crash→reconstruct·0017/0085 거래소 판) | 통과 · ON 저널 7/recon==before vs OFF 소실·spine 109 |
 | [0110](step-0110.md) | 거래소 저널 스냅샷 압축(exchangeSnapshot — snapshot+tail replay·0018/0086 거래소 판·무손실) | 통과 · ON tail 1/upToSeq 6/recon==before vs OFF tail 7·spine 110 |
 | [0111](step-0111.md) | 거래소 취소 발행(cancelPublish — exchCancel 성공 svc.exchange.cancelled·delisting 신호·0108 sold 의 대칭) | 통과 · ON pub/audit 1 vs OFF 0·conserved·spine 111 |
+| [0112](step-0112.md) | 거래소 시세 피드 읽기 모델(marketFeed — MarketFeed 가 sold+cancelled 구독→item별 체결가·거래량·0019 CQRS 의 거래소 판) | 통과 · consumed 3·sword@10/vol1·OFF null·spine 112 |
