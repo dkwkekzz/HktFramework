@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0114](step-0114.md) — **매물 만료 TTL**(exchExpiry·시간 기반 escrow 자동 회수): 0107~0113 매물은 판매자 명시 취소로만 닫힘(0111 §9 한계). listing 에 listedAt(at) 기록·exchSweep{now} 가 now−at ≥ ttl 인 open 매물 자동 만료(escrow→판매자·취소와 같은 release 쌍이되 시간 트리거). 새 종결 expired·보존식 확장(listed==open+sold+cancelled+expired)·durable 저널('expire')로 reconstruct 정합. ttl 0=sweep no-op=0113 비트 동일. 닿는 박스: svc-exchange(ttl·expired·sweep·at·저널/recon)·topo-build(exchangeTtl)·topology(tick 동봉).
-- **한 줄 상태**: reg ALL OK(src=baseline=0113 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·exexpire: ON(ttl5) id4 만료 open0/expired1/conserved/recon==before vs OFF open1/expired0·minted ON==OFF·spine 114 OK.
+- **닫힌 step**: [step-0115](step-0115.md) — **매물 만료 발행**(expirePublish·svc.exchange.expired): 0114 만료는 내부 expired 회계로만 굴러 외부 관측 불가(0114 §9). 0108 sold·0111 cancelled 와 같은 매핑으로 sweep 만료 시 svc.exchange.expired{id,seller,item,price} 1회 발행→audit 관측(거래소 수명주기 발행 3종 완비). expirePublish OFF·bus 부재=발행 0=0114 비트 동일. 닿는 박스: svc-exchange(expirePublish·expirePublished)·topo-build(opt+audit 구독).
+- **한 줄 상태**: reg ALL OK(src=baseline=0114 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·exexppub: expired 1·ON pub/audit 1 vs OFF 0·conserved·minted ON==OFF·spine 115 OK.
 - **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0114 가 *매물 만료 TTL*(exchExpiry)을 닫아 매물 종결을 명시 취소→시간 자동 회수까지 확장(보존식 4종 종결). 다음 후보: *만료 발행*(svc.exchange.expired·시세/audit 관측)·*거래소↔가방 2-서비스 원자 거래*(0107 §9)·*wiring 정리 step*(topo-build/topology ≈31KB)·*비동기 결정론*(🔴). 🔧 topo-build/topology ≈31KB(분할 임박). 🔎 0101~0110 묶음 리뷰(`infra-review`) 시점.**
+**step-0115 가 *매물 만료 발행*(expirePublish)을 닫아 거래소 수명주기 발행 3종(체결·취소·만료) 완비. 다음 후보: *시세 피드 만료 반영*(MarketFeed 가 svc.exchange.expired 구독)·*거래소↔가방 2-서비스 원자 거래*(0107 §9)·*wiring 정리 step*(topo-build/topology ≈31KB)·*비동기 결정론*(🔴). 🔧 topo-build/topology ≈31KB(분할 임박). 🔎 0101~0110 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0114**(escrow 쌍 거래→발행→영속→압축→취소 발행→시세 CQRS→시세 late-join→만료 TTL). 신성한 tick·권위 0. 만료 발행·우편/길드·거래소↔가방 원자 거래 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0115**(escrow 쌍 거래→발행→영속→압축→취소 발행→시세 CQRS→시세 late-join→만료 TTL→만료 발행). 신성한 tick·권위 0. 시세 만료 반영·우편/길드·거래소↔가방 원자 거래 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0048 lease/ns/lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070): 분리→버스화→shadow→failover 승격→사망 자율 감지→질의 →0105/0106 공지 epoch 펜싱(presmon·wrouter 메아리 정리). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속/스냅샷→0023~0026 홉 신뢰→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 recon. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -187,10 +187,10 @@
 | [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart epoch++·Mailbox (prod,epoch) 키) | 통과 · ON dup 0 vs OFF 6/6 |
 | [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 높은 epoch 도착 시 낮은 epoch 가지치기) | 통과 · ON keys 1 vs OFF 4·dup 0 |
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N 닫힌 epoch 유예·N+1 유계) | 통과 · straggler ON rec 4/dup 1·spine 91 |
-| [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 포기→파티 failed·partyIncomplete 종결) | 통과 · ON {routed 2,deliv 1,failed 1} vs OFF 0·spine 92 |
-| [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 실패 종결 svc.party.incomplete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 93 |
+| [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 포기→파티 failed 종결) | 통과 · ON failed 1 vs OFF 0·spine 92 |
+| [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — svc.party.incomplete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 93 |
 | [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(core/handlers/entry·기능 0) | OK · 박스 33→12/10/1KB·spine 94 |
-| [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결 svc.party.complete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 95 |
+| [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked svc.party.complete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 95 |
 | [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack) | 통과 · ON deliv 2/acked vs OFF 1·spine 96 |
 | [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송 svc.whisper.bounced·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 97 |
 | [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(topo-actors.js·기능 0) | OK · 박스 32→28.5/4.9KB·spine 98 |
@@ -210,3 +210,4 @@
 | [0112](step-0112.md) | 거래소 시세 피드 읽기 모델(marketFeed — MarketFeed 가 sold+cancelled 구독→item별 체결가·거래량·0019 CQRS 의 거래소 판) | 통과 · consumed 3·sword@10/vol1·OFF null·spine 112 |
 | [0113](step-0113.md) | 시세 피드 영속·late-join(marketReconstruct — 거래소 op 저널 replay 로 시세 복원·0020 읽기모델의 거래소 판) | 통과 · ON recon==라이브 vs OFF empty·spine 113 |
 | [0114](step-0114.md) | 매물 만료 TTL(exchExpiry — exchSweep 가 now−listedAt ≥ ttl 매물 자동 회수→판매자·새 종결 expired·저널 정합) | 통과 · ON open0/expired1/recon==before vs OFF open1·spine 114 |
+| [0115](step-0115.md) | 매물 만료 발행(expirePublish — sweep 만료 svc.exchange.expired·audit·수명주기 발행 3종 완비) | 통과 · ON pub/audit 1 vs OFF 0·conserved·spine 115 |

@@ -1,8 +1,8 @@
-// HktInfra step-0114 — 헤드리스 검증 (매물 만료 TTL·exchExpiry·시간 기반 escrow 자동 회수)
+// HktInfra step-0115 — 헤드리스 검증 (매물 만료 발행·expirePublish·svc.exchange.expired)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exexpire`.
-//   더한 한 조각: 0107~0113 매물은 판매자 명시 취소로만 닫힘 — 안 팔리고 안 취소되면 영영 escrow 묶임(0111 §9). 매물에 listedAt(m.tick) 기록·exchSweep{now} op 가 now−listedAt ≥ ttl 인 open 매물을 자동 만료(escrow→판매자·취소와 같은 release 쌍이되 시간 트리거). 새 종결 상태 expired·보존식 확장(listed==open+sold+cancelled+expired)·durable 저널('expire')로 reconstruct 정합.
-//   검증: ⒜ `reg`(키트) — ttl 0·exchSweep 없음 = 0113 비트 동일. ⒝ `exexpire`(가설) — list 4·buy id1·id2·cancel id3·sweep@80(now 80). ttl 5: id4(ring·@73·age 7) 만료→expired 1·open 0·conserved·crash→reconstruct==before. ttl 0(OFF): sweep no-op·open 1·expired 0. 둘 다 minted 불변.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exexppub`.
+//   더한 한 조각: 0114 만료(시간 트리거 회수)는 거래소 내부 expired 회계로만 굴러 외부 관측 불가(0114 §9). 0108 sold·0111 cancelled 발행과 같은 매핑으로 만료 성립을 svc.exchange.expired{id,seller,item,price} 로 1회 발행 — 무수정 소비자(audit·시세)가 만료 관측. 0016 발행자 무수정 소비자 패턴의 거래소 *만료* 판(0111 cancelled 의 시간 트리거 형제).
+//   검증: ⒜ `reg`(키트) — expirePublish OFF·bus 부재 = 발행 0 = 0114 비트 동일. ⒝ `exexppub`(가설) — sweep@80 으로 id4 만료. ON: expirePublished==expired(1)·audit svc.exchange.expired 1. OFF: 발행 0·audit 0. 둘 다 expired/conserved/minted 불변(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -27,7 +27,6 @@ const OPS = [
   { at: 80, op: { type: 'exchSweep', now: 80 } },
 ];
 const TTL = 5;   // id4(ring·listedAt 73·sweep now 80·age 7) ≥ ttl → 만료
-const exDigest = ex => JSON.stringify({ open: [...ex.listings.keys()].sort((a, b) => a - b), listed: ex.listed, sold: ex.sold, cancelled: ex.cancelled, expired: ex.expired, ret: [...ex.returned.entries()].sort() });
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
@@ -35,36 +34,35 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  exchange: true, exchangePublish: true, cancelPublish: true, exchangePersist: true, exchangeOps: OPS,
+  exchange: true, exchangePublish: true, cancelPublish: true, exchangePersist: true, exchangeTtl: TTL, exchangeOps: OPS,
   ...extra });
 
-function exexpire(seeds) {
-  console.log('== exexpire: *가설* — 매물 만료 TTL(exchExpiry). exchSweep{now} 가 now−listedAt ≥ ttl 인 open 매물을 자동 만료(escrow→판매자·시간 트리거 release 쌍). 새 종결 상태 expired·저널 정합. ON(ttl 5) vs OFF(ttl 0) ==');
-  console.log(`  list 4·buy id1·id2·cancel id3·sweep@80. ttl ${TTL}: id4(ring@73·age 7) 만료. ON: expired 1·open 0·conserved·crash→reconstruct==before. OFF: sweep no-op·open 1·expired 0.`);
-  console.log('seed   | open ON | expired ON | conserved ON | recon==before | open OFF | expired OFF | minted ON==OFF | 판정');
+function exexppub(seeds) {
+  console.log('== exexppub: *가설* — 매물 만료 발행(expirePublish). sweep 만료 시 svc.exchange.expired 1회 발행(시간 트리거 escrow→판매자 회수·0108 sold·0111 cancelled 의 만료 형제·0016 무수정 소비자). ON vs OFF ==');
+  console.log(`  sweep@80 으로 id4(ring·age 7≥ttl ${TTL}) 만료. ON: expirePublished==expired(1)·audit svc.exchange.expired 1. OFF: 발행 0·audit 0. 둘 다 expired/conserved/minted 불변.`);
+  console.log('seed   | expired | pub ON | audit ON | pub OFF | audit OFF | conserved | minted ON==OFF | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { exchangeTtl: TTL }) });
-    const off = run({ ...P_BASE(seed, { exchangeTtl: 0 }) });   // 만료 비활성(sweep no-op·0113 동일)
+    const on  = run({ ...P_BASE(seed, { expirePublish: true }) });
+    const off = run({ ...P_BASE(seed, {}) });   // expirePublish 0(0114 발행 없음)
     const ex = on.exchange; const eo = off.exchange;
-    const openOn = ex.open(); const expOn = ex.expired; const consOn = ex.conserved();
-    const before = exDigest(ex);
-    ex.crash(); ex.reconstruct();
-    const reconOn = exDigest(ex) === before && ex.conserved();
-    const openOff = eo.open(); const expOff = eo.expired; const consOff = eo.conserved();
-    const mintedEq = on.inventory.minted === off.inventory.minted && ledgerConsistent(on) && itemConserved(on);
+    const expired = ex.expired;
+    const pubOn = ex.expirePublished; const auOn = on.audit.seen.get('svc.exchange.expired') || 0;
+    const pubOff = eo.expirePublished; const auOff = off.audit.seen.get('svc.exchange.expired') || 0;
+    const conserved = ex.conserved() && eo.conserved();
+    const nonInvasive = on.inventory.minted === off.inventory.minted && ex.expired === eo.expired && ledgerConsistent(on) && itemConserved(on);
     const ok =
-      check(openOn === 0 && expOn === 1, `seed ${seed}: ON 기대 open 0/expired 1·실제 ${openOn}/${expOn}`) &&
-      check(consOn, `seed ${seed}: ON 보존 위반(listed != open+sold+cancelled+expired)`) &&
-      check(reconOn, `seed ${seed}: ON reconstruct != 죽기 전(저널 expire 정합 실패·before ${before})`) &&
-      check(openOff === 1 && expOff === 0 && consOff, `seed ${seed}: OFF 기대 open 1/expired 0/conserved·실제 ${openOff}/${expOff}/${consOff}`) &&
-      check(mintedEq, `seed ${seed}: 만료가 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted})`);
-    console.log(`${pad(seed, 6)} | ${pad(openOn, 7)} | ${pad(expOn, 10)} | ${pad(consOn + '', 12)} | ${pad(reconOn + '', 13)} | ${pad(openOff, 8)} | ${pad(expOff, 11)} | ${pad(mintedEq + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(expired === 1, `seed ${seed}: expired 기대 1·실제 ${expired}`) &&
+      check(pubOn === expired && auOn === expired, `seed ${seed}: ON 발행/관측 != expired(pub ${pubOn}·audit ${auOn}·expired ${expired})`) &&
+      check(pubOff === 0 && auOff === 0, `seed ${seed}: OFF 발행/관측 != 0(pub ${pubOff}·audit ${auOff})`) &&
+      check(conserved, `seed ${seed}: 보존 위반(listed != open+sold+cancelled+expired)`) &&
+      check(nonInvasive, `seed ${seed}: 발행이 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted}·expired ${ex.expired}/${eo.expired})`);
+    console.log(`${pad(seed, 6)} | ${pad(expired, 7)} | ${pad(pubOn, 6)} | ${pad(auOn, 8)} | ${pad(pubOff, 7)} | ${pad(auOff, 9)} | ${pad(conserved + '', 9)} | ${pad(nonInvasive + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 매물이 *시간*으로 자동 회수된다(상용 경매장 만료): exchSweep 가 now−listedAt ≥ ttl 인 open 매물을 escrow→판매자 반환(취소와 같은 release 쌍이되 판매자 요청이 아닌 시간 트리거). 새 종결 상태 expired 가 보존식에 합류(listed==open+sold+cancelled+expired)·durable 저널(expire)로 crash→reconstruct 정합(0109/0110 영속·압축과 동작).');
-  console.log('    ttl 0·exchSweep 없음 = sweep no-op·만료 0 = 0113 비트 동일(reg). 비-침습: 만료는 escrow 원장 내부 release 일 뿐 세계 가방(minted) 권위 불변·존 tick 밖 순수 반응형(sweep 도 주입 메시지).');
+  console.log('  → 매물 *만료*(시간 트리거 회수)가 svc.exchange.expired 로 외부 관측된다(0108 sold·0111 cancelled 의 만료 형제): sweep 가 escrow→판매자 반환을 성립시키는 순간 버스로 1회, audit·시세 등 무수정 소비자가 만료를 본다(시세 회전/깊이 추적). 0016 발행자 무수정 소비자 패턴 — 거래소 수명주기 발행 3종(체결·취소·만료) 완비.');
+  console.log('    expirePublish 0·bus 부재 = 발행 0 = 0114 비트 동일(reg). 비-침습: 발행은 관측 사본일 뿐 거래소 원장(expired/returned)·세계 가방(minted) 권위 불변·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['exexpire'] = exexpire;
-kit.ORDER.splice(1, 0, 'exexpire');
+kit.MODES['exexppub'] = exexppub;
+kit.ORDER.splice(1, 0, 'exexppub');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

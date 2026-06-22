@@ -1,4 +1,5 @@
 'use strict';
+// step-0115 — 매물 만료 발행(expirePublish·svc.exchange.expired): 0114 만료(시간 트리거 회수)는 거래소 내부 회계(expired)로만 굴러 외부 관측 불가 — audit·시세 피드가 만료를 못 본다(0114 §9). 0108 sold·0111 cancelled 발행과 같은 매핑으로, 만료 성립(sweep 회수)을 svc.exchange.expired{id,seller,item,price} 로 1회 발행한다 — 시간 트리거 escrow→판매자 반환 순간 버스로, 무수정 소비자(audit·시세 피드)가 구독해 만료를 관측(시세 깊이/회전 추적). 0016 발행자 무수정 소비자 패턴의 거래소 *만료* 판(취소 발행 0111 의 시간 트리거 형제). expirePublish OFF·bus 부재면 발행 0 = 0114 비트 동일.
 // step-0114 — 매물 만료 TTL(exchExpiry·시간 기반 escrow 자동 회수): 0107~0113 의 매물은 *판매자 명시 취소*(exchCancel)로만 닫혔다 — 안 팔리고 안 취소되면 영영 escrow 에 묶인다(0111 §9 한계). 상용 거래소(경매장) 매물은 일정 시간 뒤 *자동 만료*돼 판매자에게 돌아간다. 매물에 listedAt(m.tick)을 기록하고, exchSweep{now} op 가 들어오면 now−listedAt ≥ ttl 인 open 매물을 만료시킨다(escrow→판매자 반환·취소와 같은 release 쌍이되 *시간 트리거*). 만료는 새 종결 상태 expired 로 회계 — 보존식 확장: listed == open + sold + cancelled + expired. 만료도 durable 저널('expire')에 기록→reconstruct 정합(영속·압축과 동작). ttl 0 = 만료 비활성(sweep no-op) = 0113 비트 동일.
 // step-0112 — sold 발행 ev 에 item 추가(시세 피드 입력): 0108 svc.exchange.sold 는 {id,buyer,seller,price} 만 실어 *어떤 아이템*이 거래됐는지 빠졌다 — item별 시세 피드(0112 MarketFeed)가 키로 쓸 수 없었다. 체결 시점 listing l.item 을 ev 에 추가({id,buyer,seller,item,price}) → 거래량/체결가 피드가 item 별 집계 가능(0111 cancelled ev 는 이미 item 포함). 발행은 exchangePublish ON 일 때만 — reg 시나리오엔 거래소 OFF 라 비트 동일.
 // step-0111 — 거래소 취소 발행(cancelPublish·svc.exchange.cancelled): 0108 은 체결(exchBuy)만 svc.exchange.sold 로 발행했다 — 매물 *회수*(exchCancel 성공)는 외부에서 관측 불가(escrow→판매자 반환이 조용히 일어남). 0097 귓속말 반송 발행(bouncePublish)·0104 수신함 손실 발행과 같은 매핑으로, 취소 성립을 svc.exchange.cancelled{id,seller,item,price} 로 1회 발행한다 — 매물이 escrow 에서 빠져 판매자에게 돌아가는 순간 버스로, audit·시세 피드 등 무수정 소비자가 구독해 *delisting* 을 관측(거래량 피드는 sold 와 cancelled 양쪽이 필요·매물 깊이 추적의 씨앗). 0016 발행자 무수정 소비자 패턴의 거래소 *취소* 판(0108 sold 발행의 대칭). cancelPublish OFF·bus 부재면 발행 0 = 0110 비트 동일.
@@ -28,6 +29,8 @@ class ExchangeService {
     this.cancelled = 0;                 // 누적 취소(escrow→판매자 반환) 수.
     this.ttl = opts.ttl || 0;           // 매물 만료 TTL(step-0114·exchExpiry) — now−listedAt ≥ ttl 이면 sweep 시 자동 만료(escrow→판매자). 0 이면 만료 비활성(sweep no-op·0113 동일).
     this.expired = 0;                   // 누적 만료(시간 트리거 escrow→판매자 반환) 수(step-0114). 보존식 우변에 합류: listed == open+sold+cancelled+expired.
+    this.expirePublish = opts.expirePublish || false;   // 만료 발행(step-0115) — sweep 만료 시 svc.exchange.expired 발행(만료 관측). OFF·bus 부재면 발행 0(0114 비트 동일).
+    this.expirePublished = 0;           // 발행한 svc.exchange.expired 수(step-0115·계측·expired 와 1:1).
     this.rejects = 0;                   // 닫힌/없는 listing 에 대한 buy/cancel 거부 수(이중 해결 차단 계측).
     this.delivered = new Map();         // buyer -> 받은 아이템 수(release acquire 측 회계).
     this.proceeds = new Map();          // seller -> 받은 대가 합(체결 시 판매자 수익).
@@ -71,7 +74,9 @@ class ExchangeService {
         if (now - (l.at | 0) >= this.ttl) {
           this.listings.delete(id); this.expired++;
           this._bump(this.returned, l.seller);          // 판매자가 만료 아이템 반환 acquire(취소와 동형)
-          this._journal({ kind: 'expire', id, seller: l.seller });   // 만료 발행(svc.exchange.expired)은 후속 step(0111 판) — 이번엔 기계+저널만
+          // 만료 발행(step-0115·expirePublish) — 회수된 매물을 svc.exchange.expired 로 1회 발행(관측·0111 cancelled 의 시간 트리거 형제). OFF·bus 부재면 no-op(0114 비트 동일).
+          if (this.expirePublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.expired', ev: { id, seller: l.seller, item: l.item, price: l.price } }); this.expirePublished++; }
+          this._journal({ kind: 'expire', id, seller: l.seller });
         }
       }
       return;
@@ -102,7 +107,7 @@ class ExchangeService {
   }
   // crash(step-0109) — 박스 RAM 소실의 인프로세스 모델: projection(매물·체결 회계)만 비운다. *op 저널은 durable* 이라 보존(0085 partyPersist 의 거래소 판). rejects(실패 시도 계측)도 비움 — 저널엔 성공 op 만 있어 reconstruct 가 못 살리는 비-durable 지표.
   crash() {
-    this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0;
+    this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0;
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이). list=매물 복원+nextId 추적·buy=체결·cancel=취소 → 죽기 전과 비트 동일(durable 원장). 자기 영속 저널만으로 거래소 복원(0085 멤버십 판).
