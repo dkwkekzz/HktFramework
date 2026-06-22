@@ -1,3 +1,4 @@
+// step-0105 — active 공지 epoch 펜싱(announceEpoch·메아리 정리): 0070 의 presmon 은 svc.presence.active 공지를 *무조건* 받아 queryAddr 를 재타깃한다 — 낡은/메아리(echo) 공지(지연 도착·다중 standby·flapping)가 도착하면 *죽은 박스로 역-재타깃*된다(0068 §9 메아리). 이 step 은 공지에 epoch(=promotedAt·승격 시각·단조)를 실어, presmon 이 *본 최고 epoch 이하* 공지를 메아리로 거부(staleAnnounces++)하고 *더 높은 epoch* 만 재타깃하게 한다 → 디스커버리 채널의 split-brain 방지(0013 epoch 펜싱·0090 epochBound 의 읽기-디스커버리 판). epoch 없는 공지(announceEpoch OFF)면 0070 무조건 재타깃(비트 동일).
 // step-0070 — 프레즌스 모니터/질의자 + active 재타깃(presenceAnnounce): 0069 의 질의자는 queryAddr 를 *고정*(primary)으로 가리켜 primary 사망 후 질의가 끊겼다(0069 §9). 이 step 은 svc.presence.active 공지를 구독해 승격된 박스로 queryAddr 를 *재타깃* — 죽음 후 질의도 승격된 박스가 답한다(읽기 경로 failover 연속성). 공지 미구독이면 재타깃 0 = 0069 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
@@ -21,11 +22,17 @@ class PresenceMonitor {
     this.queriesSent = 0;         // 보낸 presenceQuery 수(계측). repliesRecv = 받은 응답 수(1:1 = 무손실 읽기).
     this.repliesRecv = 0;
     this.retargets = 0;           // active 재타깃 수(step-0070·svc.presence.active 공지 수신 — failover 시 1).
+    this.activeEpoch = -1;        // 본 최고 active 공지 epoch(step-0105·announceEpoch 펜싱) — 이하 공지는 메아리로 거부. epoch 없는 공지는 무관(0070 무조건 재타깃).
+    this.staleAnnounces = 0;      // epoch 펜싱으로 거부한 낡은/메아리 공지 수(step-0105·계측).
   }
   onMsg(m) {
     const p = m.payload;
     // active 재타깃(step-0070·presenceAnnounce) — 승격된 박스가 svc.presence.active 로 공지한 새 active 주소로 queryAddr 갱신. 이후 질의가 승격된 박스로 간다(읽기 경로 failover 디스커버리). 미구독이면 미발화(0069 비트 동일).
-    if (p.type === 'ev' && p.topic === 'svc.presence.active' && p.ev) { this.queryAddr = p.ev.addr; this.retargets++; return; }
+    if (p.type === 'ev' && p.topic === 'svc.presence.active' && p.ev) {
+      // epoch 펜싱(step-0105·announceEpoch) — 공지에 epoch 가 실리면(announceEpoch ON) 본 최고 이하는 메아리로 거부(staleAnnounces++), 더 높은 epoch 만 재타깃. epoch 없으면(0070) 무조건 재타깃(비트 동일).
+      if (p.ev.epoch != null) { if (p.ev.epoch <= this.activeEpoch) { this.staleAnnounces++; return; } this.activeEpoch = p.ev.epoch; }
+      this.queryAddr = p.ev.addr; this.retargets++; return;
+    }
     // SSOT 질의 응답 수신(step-0069) — 프레즌스 박스가 회신한 현재 상태. queried 에 기록(pull 지식). 발행으로 못 본 소비자 상태도 여기서 알게 된다.
     if (p.type === 'presenceReply') { this.queried.set(p.consumer, p.state); this.repliesRecv++; return; }
     if (p.type !== 'ev' || p.topic !== 'svc.presence' || !p.ev) return;

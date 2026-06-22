@@ -59,6 +59,7 @@ function buildTopology(opts) {
     presenceLease = false,
     hbTimeout = 3,
     presenceQuery = false,
+    announceEpoch = false,
     presenceAnnounce = false,
     whisperRouter = false,
     whisperFailover = false,
@@ -211,7 +212,7 @@ function buildTopology(opts) {
   // [코디네이션] 전용 프레즌스 박스(0064) — orch 의 프레즌스 SSOT+발행 인계처. OFF 면 없음(0063 비트 동일). onTick 없음 = 신성한 tick 밖.
   if (presenceSvcAddr) add({ addr: 'presence', kind: 'presence', opts: { bus: busAddr, lease: presenceLease, hbTimeout } });   // primary: presenceLease 면 매 tick 하트비트 발행(0068).
   // [코디네이션] 프레즌스 박스 shadow(0066·presenceShadow) — *대기(standby)* PresenceService(presence2). primary 뒤 등록(팬아웃 순서 primary 먼저). active=false → 같은 보고로 SSOT 그림자 복제만·svc.presence 발행 억제(이중 발행 0). bus 는 승격(0067) 대비 전달. lease 면 하트비트 구독→사망 자율 감지(0068). OFF 면 없음(0065 비트 동일).
-  if (presenceShadowAddr) add({ addr: 'presence2', kind: 'presence', opts: { bus: busAddr, active: false, lease: presenceLease, hbTimeout, announceActive: presenceAnnounce } });   // announceActive(0070): 승격 시 svc.presence.active 공지(질의자 재타깃용).
+  if (presenceShadowAddr) add({ addr: 'presence2', kind: 'presence', opts: { bus: busAddr, active: false, lease: presenceLease, hbTimeout, announceActive: presenceAnnounce, announceEpoch: presenceAnnounce && announceEpoch } });   // announceActive(0070): 승격 시 svc.presence.active 공지(질의자 재타깃용). announceEpoch(0105): 공지에 epoch 실어 메아리 거부.
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });

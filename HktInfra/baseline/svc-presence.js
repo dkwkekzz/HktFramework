@@ -30,6 +30,7 @@ class PresenceService {
     // failover 중 질의 연속성(step-0070·presenceAnnounce) — 승격 시 svc.presence.active 토픽으로 *새 active 주소*를 공지(질의자 재타깃용). OFF 면 공지 0 = 0069 비트 동일.
     this.announceActive = opts.announceActive || false;
     this.announced = 0;           // 발행한 active 공지 수(계측·승격 1회당 1).
+    this.announceEpoch = opts.announceEpoch || false;   // active 공지 epoch 펜싱(step-0105·announceEpoch) — 공지 ev 에 epoch(=promotedAt·단조 시각)를 실어 질의자가 낡은 공지(메아리)를 거부하게 한다. OFF 면 ev={addr}(0104 비트 동일).
   }
   onMsg(m) {
     if (this.dead) return;        // 사망한 박스는 보고를 처리·발행하지 않는다(step-0067) — 승격된 standby 가 이후 보고를 인계.
@@ -65,7 +66,8 @@ class PresenceService {
     if (this.active) return;
     this.active = true; this.promotedAt = (tick !== undefined) ? tick : 0;
     // 승격 공지(step-0070·presenceAnnounce) — 새 active 주소를 svc.presence.active 로 발행 → 질의자(presmon)가 재타깃해 읽기 경로 failover 디스커버리. OFF·버스 부재면 no-op(0069 비트 동일).
-    if (this.announceActive && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence.active', ev: { addr: this.addr } }); this.announced++; }
+    // 승격 공지 ev — announceEpoch ON 이면 epoch(=promotedAt·승격 시각·단조)를 함께 실어 질의자가 낡은 공지를 거부(0105). OFF 면 {addr}만(0104 비트 동일).
+    if (this.announceActive && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.presence.active', ev: this.announceEpoch ? { addr: this.addr, epoch: this.promotedAt } : { addr: this.addr } }); this.announced++; }
   }
 }
 
