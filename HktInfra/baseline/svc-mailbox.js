@@ -63,7 +63,8 @@ class Mailbox {
       if (this.dropped < this.dropDeliver) { this.dropped++; return; }
       // 수신측 dedup(step-0080·exactly-once) — 이미 본 seq 면 중복: inbox 재적재 안 함(멱등). 단 ack 은 재회신해 라우터 inflight 를 정리(at-least-once 전송 + 수신측 멱등 = exactly-once 처리). dedup OFF 면 이 분기 없이 중복도 적재(0079).
       // dedup 키 표현은 평면 Set(0080·무계) 또는 producer 별 워터마크(0081·유계)를 _seenHas/_seenAdd 가 디스패치 — 판정은 동일, 메모리만 다름. producer = 전달자 addr(m.from).
-      const prod = m.from;
+      // producer epoch(step-0089) — p.epoch 가 실려오면(라우터 epochKeyed) (producer,epoch) 로 분리: 라우터 재시작 시 새 epoch=새 워터마크 → 리셋된 낮은 seq 오접힘 방지. epoch 없으면 producer 만(0081 동작·비트 동일).
+      const prod = (p.epoch != null) ? (m.from + '#' + p.epoch) : m.from;
       if ((this.dedup || this.dedupBound) && p.seq != null && this._seenHas(prod, p.seq)) { this.duplicates++; this._ack(p); return; }
       if (p.seq != null) this._seenAdd(prod, p.seq);
       this.received++; this.inbox.push({ from: p.from, body: p.body });
