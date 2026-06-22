@@ -9,21 +9,21 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0100](step-0100.md) — **Mailbox inbox 드레인**(drain·읽음 소비): 0099 cap 은 초과분을 드롭(잃음·0099 §9). 진짜 수신함은 소유자가 읽어 비운다. drain()=현 inbox 반환·비움·drained 누적 → 읽는 이 있으면 inbox 무손실 유계(드롭 0). 0099 cap 과 짝. mboxDrain 미제공=호출 0=0099 비트 동일. 닿는 박스: svc-mailbox(drain()·drained)·topology(mboxDrain 훅). ※ 0091~0100 묶음 닫힘 — `infra-review` 시점.
-- **한 줄 상태**: reg ALL OK(src=baseline=0099 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pdrain: 8 귓속말·ON inbox 0/drained 8/overflowed 0 vs OFF inbox 8/drained 0·둘 다 received 8·minted ON==OFF·spine 100-step ALL OK.
-- **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0101](step-0101.md) — **읽음 확인 영수증**(drainAck·2단계 읽음): 0100 drain() 파괴적 즉시 비움 → 읽음 손실 시 영영 잃음(0100 §9). drainAck ON: drain()=inbox 를 미확인 checkout 으로 옮겨 보유(반환·제거 안 함)·ackDrain(seq)=처리 확인 시에만 안전 제거. ack 전 재드레인=carry 로 같은 배치 무손실 재반환(at-least-once)→손실 복구·exactly-once 소비(0076 영수증 읽음측 판). OFF=파괴적=0100 비트 동일. 닿는 박스: svc-mailbox(drainAck·checkout·ackDrain·drainAcked)·topology(mboxDrainAck 훅)·topo-build(mailboxDrainAck 옵션).
+- **한 줄 상태**: reg ALL OK(src=baseline=0100 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pread: ON-미확인 held 8/drained 0 vs ON-확인 drained 8/drainAcked 8/held 0 vs OFF drained 8(파괴적)·received 8·minted ON==OFF·spine 101 OK.
+- **다음**: §2 참조(파티 cluster kill→replay(0085 §9)·active 메아리 정리(0068 §9)·checkout 유계화(0101 §9)·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0100 이 *Mailbox inbox 드레인*(drain·읽음 소비)을 닫아 수신함 메모리 두 방어(drain 무손실·cap lossy) 완성. 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*읽음 확인 영수증*(0100 §9)·*active 메아리 정리*(0068 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0091~0100 묶음 리뷰(`infra-review`) 시점.**
+**step-0101 이 *읽음 확인 영수증*(drainAck·2단계)을 닫아 드레인 손실 안전화. 기능 후보: *파티 cluster kill→replay*(0085 §9)·*active 메아리 정리*(0068 §9)·*checkout 유계화*(0101 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 buildTopology 24KB 단일 함수 — 더 자라면 구독 테이블 분리. 🔎 0101~0110 묶음 리뷰는 0110.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
-**병행 백로그(블로킹 아님·전문은 §3·각 step 문서)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·활성 중 다운타임+재발행·채팅 홉 신뢰·월드 영속·거래소/우편/길드·비동기 결정론(논리 클럭)·서버간 인증·재접속·티켓.
+**병행 백로그(블로킹 아님·전문은 §3·각 step 문서)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·활성 중 다운타임+재발행·월드 영속·거래소/우편/길드·비동기 결정론(논리 클럭)·서버간 인증·재접속·티켓.
 
-**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049 전환)**: `engine/`=VM 커널·PRNG·FNV·`Net`·동결 `ISimCore`·`panel-kit`·`verify-kit`(누적 회귀·모드 추가만)·`close-step`·`new-step`. 코드는 **`src/` 제자리 수정** + `src/STEP` + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌·dual-mode). **step 절차**: ① `new-step.js`(src→baseline 스냅샷·STEP 전진) ② 닿는 박스만 Edit + verify 셸에 새 모드만 ③ `close-step.js` ④ 델타 1커밋+`git tag`. 정리 step: 0030·0035·0038·0043·0049·0053. *태그 원격 push 거부 환경=로컬만*.
+**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049 전환)**: `engine/`=VM 커널·PRNG·FNV·`Net`·동결 `ISimCore`·`panel-kit`·`verify-kit`(누적 회귀·모드 추가만)·`close-step`·`new-step`. 코드는 **`src/` 제자리 수정** + `src/STEP` + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌·dual-mode). **step 절차**: ① `new-step.js` ② 닿는 박스만 Edit + verify 셸에 새 모드만 ③ `close-step.js` ④ 델타 1커밋+`git tag`. 정리 step: 0030·0035·0038·0043·0049·0053. *태그 원격 push 거부 환경=로컬만*.
 
 **TESTBED 도구**: `run.js`(단일 진입점 — `node run.js`=src/·`spine`=src 누적 회귀·`<NNNN>`=현재 step·`report`·`scenario`·`live`) + `report.html`(녹화 레코더) + `live.js`(SSE). 훅 `onTick`·`inject`(write-seam·미제공=no-op→reg 0).
 
@@ -45,7 +45,7 @@
 | 🟡 | **캐시 + write-behind 영속 (가방·채팅 저널+압축·홉 신뢰·persist failover+N-replica+quorum+윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017·계층6 첫)=가방 저널+압축(0018). 홉 신뢰→failover→N-replica quorum→윈도(0023~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속에서 뷰/권위 재구성 — 소실 권위 고리 닫기. |
 
-> **✅ 해소된 격차 (0001~0086)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스 분리(14~16)·가방/채팅 영속+압축(17~22)·write-behind/quorum/윈도(23~32)·버스 동적구독~lease(33~52)·lease 관측→프레즌스 박스(54~70)·귓속말/파티 라우팅~멤버십 영속·압축(71~86).
+> **✅ 해소된 격차 (0001~0101)** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~09)·프로세스/TCP/버스/kill(10~13)·게임서비스(14~16)·가방/채팅 영속+압축(17~22)·write-behind/quorum/윈도(23~32)·버스 동적구독~lease(33~52)·lease 관측→프레즌스 박스(54~70)·귓속말/파티 라우팅~수신함 유계/드레인/읽음확인(71~101).
 
 > **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5 필독): 매 step은 verify 4기둥 + 척추 체크 5항(① 신성한 tick ② 결정론 코어 ③ 권위 단일 소유 ④ 은닉·단일 연결 ⑤ headless·원격 검증)으로 판정. 분리 판정 기준: *그 일이 존 시뮬 tick 과 같은 박자로 돌아야 하는가?*
 
@@ -78,9 +78,9 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→대체 소비자 호(0061~0063 spawnReplace→reconstruct→presmon). **0071~0091 귓속말/파티 라우팅 호(wrouter)**: 프레즌스 질의(0069)의 라우팅 소비자 — 라우팅·failover 재타깃·파티 1:N·멤버십 SSOT(pservice)·전달 신뢰(0076~0082 영수증→재시도→상한→통지→dedup→유계화→실패발행)·파티(0083~0086 집계·증분 변경발행·영속·압축)·관측·ack 집계·epoch 펜싱+유계화+grace(0087~0091·상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→대체 소비자 호(0061~0063). **0071~0101 귓속말/파티 라우팅 호(wrouter)**: 프레즌스 질의(0069)의 라우팅 소비자 — 라우팅·failover 재타깃·파티 1:N·멤버십 SSOT(pservice)·전달 신뢰(0076~0082)·파티 집계/변경발행/영속/압축(0083~0086)·ack 집계·epoch 펜싱+유계+grace(0087~0091)·파티 종결/발행(0092~0097)·수신함 유계/드레인/읽음확인(0099~0101·상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 서비스 의미(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover(진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·ack 자기조정→0044 min-워터마크→0045 lease→0046/0047 producer 네임스페이스→0048 lifecycle→0050~0052 적응형 leaseSpan·grace·cadence→0054 lease 관측. 버스 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 관측→프레즌스 SSOT→self-healing 호(recover→ack→retry→포기→발행→spawnReplace→presmon). 프레즌스 박스 호(0064~0070): 전용 박스 분리(⟂orch)→보고 버스화→shadow→failover 승격→사망 자율 감지→질의 인터페이스→질의 failover 연속. 전 경로 failover-safe. broker 물리 분산·진짜 비동기·메아리 정리 후속 |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 관측→프레즌스 SSOT→self-healing 호. 프레즌스 박스 호(0064~0070): 전용 박스 분리(⟂orch)→보고 버스화→shadow→failover 승격→사망 자율 감지→질의 인터페이스→질의 failover. 전 경로 failover-safe. broker 물리 분산·진짜 비동기·메아리 정리 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·give/mint)→0027~0029 failover/N-replica quorum→0031~0032 윈도 해소+유계 K→0062 대체 소비자 reconstruct. 증분 스냅샷·fsync·월드/버스 영속 후속 |
 
 ---
@@ -197,3 +197,4 @@
 | [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(32KB>30KB — topo-actors.js 로 makeActor·routeFilters 분리·기능 0) | 통과 · src=baseline 비트 동일·박스 32→28.5/4.9KB·spine 98 |
 | [0099](step-0099.md) | Mailbox inbox 유계화(inboxBound — inbox 최근 K cap·received 보존·수신함 inbox 차원 유계) | 통과 · ON inbox 4/overflow 4 vs OFF inbox 8/overflow 0·received 8 보존·spine 99 |
 | [0100](step-0100.md) | Mailbox inbox 드레인(drain — 소유자 읽음 소비·무손실 비움·0099 lossy cap 과 짝) | 통과 · ON inbox 0/drained 8/overflow 0 vs OFF inbox 8/drained 0·received 8·spine 100 |
+| [0101](step-0101.md) | 읽음 확인 영수증(drainAck — drain 2단계 checkout→ackDrain·재드레인 무손실·ack 시 안전 제거) | 통과 · ON-미확인 held 8 vs ON-확인 drained/acked 8/held 0 vs OFF drained 8(파괴적)·spine 101 |
