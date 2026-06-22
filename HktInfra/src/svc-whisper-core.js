@@ -1,4 +1,5 @@
 'use strict';
+// step-0097 — 귓속말 반송 발행(bouncePublish·관측): 0082(포기)·0087(성공)·0093/0095(파티 종결) 발행은 전달 수명주기 대부분을 관측 스트림에 실었지만, *반송*(대상 down/permanent 으로 즉시 도달 불가)은 라우터 내부 카운터(bounced)에만 남아 운영 평면이 못 봤다. 이 step 은 반송을 svc.whisper.bounced{to,from,state} 로 발행 → audit 구독. 0082 failed(유계 재시도 소진 후 포기)와 달리 *즉시 도달 불가*(프레즌스가 down/permanent 판정) — 전달 결말의 셋째 종류. bouncePublish OFF·bus 부재면 발행 0 = 0096 비트 동일.
 // step-0095 — 파티 complete 발행(partyCompletePublish·성공 종결 관측): 0093 은 파티 *실패* 종결(svc.party.incomplete)만 발행했다 — 0082→0087 이 개별 전달의 실패+성공 발행으로 수명주기를 완성했듯, 파티 차원에도 *성공 종결*(전원 acked)이 빠져 운영 평면이 실패 절반만 봤다(0093 §9). 이 step 은 파티가 acked(routed>0 && delivered==routed=모든 up 멤버 실수신)에 *처음* 이르면 svc.party.complete{partyId,members,routed,delivered} 를 발행 → audit 가 구독. 0087 deliveredPublish 의 파티 판·0093 incomplete 와 짝(파티 전송 발행 수명주기 완성). partyCompletePublish OFF·bus 부재면 발행 0 = 0094 비트 동일.
 // step-0094 정리 분할 — WhisperRouter *코어*(클래스·constructor·파티 영수증 원장·질의 적재·restart). svc-whisper.js 가 33KB>30KB 박스 트리거를 넘겨
 //   박스를 부품으로 재분할(기능 0·바이트 동일·reg 0). 큰 메시지 핸들러(onMsg·onTick)는 svc-whisper-handlers.js 가 프로토타입을 Object.assign 으로 증강(svc-inventory 분할 패턴 동일). 진입점 svc-whisper.js 가 core→handlers 순 로드.
@@ -60,6 +61,8 @@ class WhisperRouter {
     this.partyCompletePublish = opts.partyCompletePublish || false;   // 파티 complete 발행(step-0095·partyCompletePublish) — 파티가 전원 acked 에 이르면 svc.party.complete 발행(성공 종결 관측). OFF·bus 부재면 발행 0(0094 동일).
     this.partyCompletePublished = 0;   // svc.party.complete 로 발행한 파티 수(step-0095·계측). 0093 incomplete 와 짝.
     this._completePub = new Set();   // 이미 complete 발행한 partyId(중복 발행 방지·종결은 1회).
+    this.bouncePublish = opts.bouncePublish || false;   // 귓속말 반송 발행(step-0097·bouncePublish) — 대상 down/permanent 반송을 svc.whisper.bounced 발행(관측). OFF·bus 부재면 발행 0(0096 동일).
+    this.bouncePublished = 0;   // svc.whisper.bounced 로 발행한 반송 수(step-0097·계측). 0082 failed·0087 delivered 와 같은 관측 평면.
   }
   // 파티 영수증 원장 열기(step-0083) — 파티 수신 시 멤버 수로 초기화. partyReceipt OFF 면 no-op(집계 0·0082 동일).
   _partyOpen(partyId, n) { if (this.partyReceipt && partyId != null) this.partyReceipts.set(partyId, { members: n, routed: 0, bounced: 0, delivered: 0, failed: 0 }); }   // 0088: delivered(실수신 ack)·0092: failed(포기) 추가

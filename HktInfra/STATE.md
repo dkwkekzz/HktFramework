@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0096](step-0096.md) — **멤버별 Mailbox 토폴로지**(mailbox2·partyAcked N>1): 0088~0095 의 파티 ack 집계·종결·발행은 up 멤버가 Mailbox 를 가질 때만 delivered 에 기여 — mbox 하나뿐이라 up 멤버 여럿이면 acked 영영 false(0088 §9). 둘째 수신함(mbox2)을 더해 파티원마다 자기 수신함 → 모든 up 멤버 ack → partyAcked/complete 가 N>1 에서 의미. mailbox2 OFF 면 둘째 박스 0=0095 비트 동일. 닿는 박스: topo-build(mailbox2·__mboxOpts 공유·mbox2 spec)·topology(mbox2 노출).
-- **한 줄 상태**: reg ALL OK(src=baseline=0095 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pmemberbox: 파티 2멤버·ON routed 2/delivered 2/acked true/mbox2 received 1 vs OFF delivered 1/acked false(0088 §9 한계)·minted ON==OFF·spine 96-step ALL OK.
+- **닫힌 step**: [step-0097](step-0097.md) — **귓속말 반송 발행**(bouncePublish·관측): 반송(대상 down/permanent 즉시 도달 불가)이 라우터 내부 카운터(bounced)에만 남았다. svc.whisper.bounced{to,from,state} 발행 → audit 구독. 0082 failed(재시도 소진 후 포기)와 달리 *즉시 도달 불가* — 전달 결말의 셋째 종류(delivered·failed·bounced). OFF·bus 부재면 발행 0=0096 비트 동일. 닿는 박스: svc-whisper-core(bouncePublish)·-handlers(presenceReply else 분기 발행)·topo-build(wrouter 전달+audit 구독 행).
+- **한 줄 상태**: reg ALL OK(src=baseline=0096 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pbounce: ranking permanent→귓속말 반송·ON bouncePublished 1/audit 1 vs OFF 0/0·둘 다 bounced 1·minted ON==OFF·spine 97-step ALL OK.
 - **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 complete 발행(성공 종결·0093 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0096 이 *멤버별 Mailbox 토폴로지*(mailbox2)를 닫아 0088 §9 한계(Mailbox 없는 up 멤버→acked 영영 false)를 해소(파티 집계·종결·발행이 N>1 에서 정확). 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*동적 멤버별 수신함*(N개 spawn·0096 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31KB 임계 근처 — 다음 정리 후보.**
+**step-0097 이 *귓속말 반송 발행*(bouncePublish)을 닫아 전달 결말 관측을 세 종류(delivered·failed·bounced)로 완성. 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*동적 멤버별 수신함*(N개 spawn·0096 §9)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 31.5KB>30KB — 다음 정리 step 필요(재분할·기능 0·reg 0).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -113,27 +113,27 @@
 | [0014](step-0014.md) | 가방 서비스 분리(아이템 원장을 존 tick 밖 비동기·단일 소유·쌍 거래) | 통과 · 소유자 1·spine 14 |
 | [0015](step-0015.md) | 채팅 서비스 분리(채널 팬아웃 비동기·구독 라우팅·지역 격리·whisper) | 통과 · 누설 0·spine 15 |
 | [0016](step-0016.md) | 이벤트 버스 서비스 층(발행/구독·직접 결합 제거·발행자 무수정 소비자) | 통과 · 결합 409~427→0·spine 16 |
-| [0017](step-0017.md) | 가방 failover·영속(원장을 영속 저널서 재구성·event sourcing·계층 6 첫 진입) | 통과 · 복구==무재시작 |
+| [0017](step-0017.md) | 가방 failover·영속(원장을 영속 저널서 재구성·event sourcing·계층6 첫) | 통과 · 복구==무재시작 |
 | [0018](step-0018.md) | 가방 저널 스냅샷 압축(intent 로그+주기 스냅샷) | 통과 · 저널 92% 절감 |
-| [0019](step-0019.md) | 발신하는 둘째 소비자(RankingService·consume→publish·CQRS) | 통과 · 투영==원장 |
-| [0020](step-0020.md) | 읽기 모델 영속·late-join(ranking crash→쓰기 저널 reconstruct) | 통과 · 투영==원장 |
-| [0021](step-0021.md) | 채팅 영속·failover(crash→커맨드 로그 replay·event sourcing) | 통과 · kill→replay 투명 |
-| [0022](step-0022.md) | 채팅 커맨드 로그 스냅샷 압축(라우팅 스냅샷+tail replay) | 통과 · 로그 78→3 |
+| [0019](step-0019.md) | 발신하는 둘째 소비자(RankingService·CQRS) | 통과 · 투영==원장 |
+| [0020](step-0020.md) | 읽기 모델 영속·late-join(crash→쓰기 저널 reconstruct) | 통과 · 투영==원장 |
+| [0021](step-0021.md) | 채팅 영속·failover(crash→커맨드 로그 replay) | 통과 · kill→replay 투명 |
+| [0022](step-0022.md) | 채팅 커맨드 로그 스냅샷 압축(스냅샷+tail replay) | 통과 · 로그 78→3 |
 | [0023](step-0023.md) | 저널 홉 신뢰 전달(write-behind 홉 갭 NAK+재전송) | 통과 · ON 완전 vs OFF 갭·spine 23 |
 | [0024](step-0024.md) | 저널 홉 tail 손실 감지(heartbeat→tail NAK) | 통과 · tail ON 완전·spine 24 |
-| [0025](step-0025.md) | in-flight give 손실 복구(클라 give-resend→belief 재수렴) | 통과 · ON itemDesync 0 |
-| [0026](step-0026.md) | in-flight mint 손실 복구: id-reconciliation(belief→re-mint→newId) | 통과 · desync/dupe 0 |
-| [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조 persist(primary+backup→crash 복구) | 통과 · crash 무손실 |
-| [0028](step-0028.md) | PersistStore N-replica+quorum: 복제 fan-out·생존 저널 union 복구 | 통과 · 생존3 union==base |
-| [0029](step-0029.md) | PersistStore quorum 쓰기 ack: W 정족수 후 durable(durableSeq) | 통과 · durableSeq T-1 |
+| [0025](step-0025.md) | in-flight give 손실 복구(give-resend→belief 재수렴) | 통과 · ON itemDesync 0 |
+| [0026](step-0026.md) | in-flight mint 손실 복구: id-reconciliation(belief→re-mint) | 통과 · desync/dupe 0 |
+| [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조 persist(primary+backup) | 통과 · crash 무손실 |
+| [0028](step-0028.md) | PersistStore N-replica+quorum: fan-out·생존 union 복구 | 통과 · 생존3 union==base |
+| [0029](step-0029.md) | PersistStore quorum 쓰기 ack: W 정족수 후 durable | 통과 · durableSeq T-1 |
 | [0030](step-0030.md) | 정리: 박스 1개=파일 1개 분할 + engine 승격(verify-kit)+닫기 게이트 | 통과 |
-| [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill — 주기 sweep 이 W 미달 seq 재-fan-out) | 통과 · durSeq total-1/윈도 0 |
-| [0032](step-0032.md) | 윈도 해소의 유계 sweep+fill retry(wfWindow K 창) | 통과 · 유계 K=8 durSeq=total-1 |
+| [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill — sweep 이 W 미달 seq 재-fan-out) | 통과 · durSeq total-1/윈도 0 |
+| [0032](step-0032.md) | 윈도 해소 유계 sweep+fill retry(wfWindow K 창) | 통과 · K=8 durSeq=total-1 |
 | [0033](step-0033.md) | 버스 동적 구독/해지(runtime unsub/sub) | 통과 · unsub@15→re-sub@18 |
 | [0034](step-0034.md) | 버스 failover(bus.crash()→재협상·진실원천=소비자) | 통과 · crash@12→재협상@14 |
-| [0035](step-0035.md) | 정리: `cluster.js` 박스-부품 4분할(45KB>30KB·기능 0) | 통과 · ≤19.7KB |
-| [0036](step-0036.md) | 버스 failover 결과 경로 무손실(producer replay·복구 재발행) | 통과 · desync 6→0 |
-| [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway producer replay+reqId dedup) | 통과 · minted==base |
+| [0035](step-0035.md) | 정리: cluster.js 박스-부품 4분할(45KB>30KB·기능 0) | 통과 · ≤19.7KB |
+| [0036](step-0036.md) | 버스 failover 결과 경로 무손실(producer replay) | 통과 · desync 6→0 |
+| [0037](step-0037.md) | 버스 failover 요청 경로 무손실(gateway replay+reqId dedup) | 통과 · minted==base |
 | [0038](step-0038.md) | 정리: topology.js 박스-부품 분할(31KB>30KB·기능 0) | 통과 |
 | [0039](step-0039.md) | 버스 replay 버퍼 유계화(busWindow 슬라이딩 K 창) | 통과 · desync 0 vs tiny 4 |
 | [0040](step-0040.md) | 요청 replay 버퍼 자기-크기조정(busAck — reqId ack→워터마크) | 통과 |
@@ -193,3 +193,4 @@
 | [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(33KB>30KB — core/handlers/entry·Object.assign 프로토타입·기능 0) | 통과 · src=baseline 비트 동일·박스 33→12/10/1KB·spine 94 |
 | [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결을 svc.party.complete 로 발행·audit·0093 incomplete 와 짝) | 통과 · ON pub 1/audit 1 vs OFF 0/0·spine 95 |
 | [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack 가능·0088 §9 해소) | 통과 · ON routed 2/delivered 2/acked true vs OFF delivered 1/acked false·spine 96 |
+| [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송을 svc.whisper.bounced 발행·audit·전달 결말 셋째) | 통과 · ON pub 1/audit 1 vs OFF 0/0·둘 다 bounced 1·spine 97 |
