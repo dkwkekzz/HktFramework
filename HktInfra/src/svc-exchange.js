@@ -1,4 +1,5 @@
 'use strict';
+// step-0119 — 거래소↔가방 cancel/expire 반환(exchInventory leg 3·escrow→판매자 실물 반환): 0117 인출+0118 입금으로 list→buy 실물 거래는 닫혔으나, *미체결* 매물의 종결(취소 0107·만료 0114)은 거래소 회계(cancelled/expired/returned)만 굴리고 escrow custody 아이템이 가방에서 판매자에게 *안 돌아왔다*. 이 step 은 반환 레그를 더한다: exchCancel·exchSweep 만료 성립 시 거래소가 가방에 give(itemId, escrow→seller) → escrow custody 가 판매자 가방으로(인출 0117 의 역). 이로써 escrow 의 *모든 출구*(체결→구매자·취소/만료→판매자)가 실물 이동을 동반 — 미체결 아이템이 escrow 에 영영 묶이지 않는다. 가방 권위·minted 불변·xfer++. exchInventory OFF·itemId 부재면 give 0 = 0118 비트 동일.
 // step-0118 — 거래소↔가방 buy 입금(exchInventory leg 2·escrow→구매자 실물 인도): 0117 은 list 인출 레그만 — escrow 가 가방 원장에 실체화됐으나 exchBuy 는 거래소 회계(sold)만 굴리고 *구매자 가방엔 아이템이 안 들어왔다*. 이 step 은 입금 레그를 더한다: exchBuy 성립 시 거래소가 가방에 give(itemId, escrow→buyer) → escrow custody 아이템이 구매자 가방으로(2-서비스 쌍 거래의 *인도* 레그·인출 0117 의 짝). 이로써 list(인출)+buy(인도)가 *존을 넘는 실물 거래*를 완성 — 판매자가 escrow 에 맡긴 실제 아이템이 구매자에게 간다(가방이 권위·minted 불변·xfer++). exchInventory OFF·itemId 부재면 give 0 = 0117 비트 동일(추상 sold).
 // step-0117 — 거래소↔가방 list 인출(exchInventory leg 1·escrow 를 진짜 가방 원장에 실체화): 0107~0116 의 escrow 는 *추상*이었다 — 거래소 자기 카운터로만 굴러 실제 가방(inventory) 아이템은 빠지지 않았다(판매자가 list 후에도 그 아이템을 계속 보유·존 넘는 거래의 진짜 형태 아님·0107 §9). 이 step 은 escrow 를 *가방 원장의 reserved 아바타 'escrow'* 로 실체화한다: exchList{seller,itemId} 시 거래소가 가방에 give(itemId, seller→escrow) 를 보내 아이템을 escrow custody 로 옮긴다(2-서비스 쌍 거래의 *인출* 레그). 이후 그 아이템은 가방 원장에서 'escrow' 소유 — 판매자 이중 판매 불가(가방이 권위). 가방 total(minted) 불변(이동일 뿐)·xfer++. exchInventory OFF·itemId 부재면 give 0 = 0116 비트 동일(추상 escrow). buy/cancel/expire 의 입금/반환 레그는 후속 step.
 // step-0115 — 매물 만료 발행(expirePublish·svc.exchange.expired): 0114 만료(시간 트리거 회수)는 거래소 내부 회계(expired)로만 굴러 외부 관측 불가 — audit·시세 피드가 만료를 못 본다(0114 §9). 0108 sold·0111 cancelled 발행과 같은 매핑으로, 만료 성립(sweep 회수)을 svc.exchange.expired{id,seller,item,price} 로 1회 발행한다 — 시간 트리거 escrow→판매자 반환 순간 버스로, 무수정 소비자(audit·시세 피드)가 구독해 만료를 관측(시세 깊이/회전 추적). 0016 발행자 무수정 소비자 패턴의 거래소 *만료* 판(취소 발행 0111 의 시간 트리거 형제). expirePublish OFF·bus 부재면 발행 0 = 0114 비트 동일.
@@ -86,6 +87,7 @@ class ExchangeService {
         if (now - (l.at | 0) >= this.ttl) {
           this.listings.delete(id); this.expired++;
           this._bump(this.returned, l.seller);          // 판매자가 만료 아이템 반환 acquire(취소와 동형)
+          this._custody(l.itemId, 'escrow', l.seller);  // 반환 레그(0119) — escrow custody → 판매자 가방(만료·invMode ON 일 때만)
           // 만료 발행(step-0115·expirePublish) — 회수된 매물을 svc.exchange.expired 로 1회 발행(관측·0111 cancelled 의 시간 트리거 형제). OFF·bus 부재면 no-op(0114 비트 동일).
           if (this.expirePublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.expired', ev: { id, seller: l.seller, item: l.item, price: l.price } }); this.expirePublished++; }
           this._journal({ kind: 'expire', id, seller: l.seller });
@@ -112,6 +114,7 @@ class ExchangeService {
       if (!l || l.seller !== p.seller) { this.rejects++; return; }
       this.listings.delete(p.id); this.cancelled++;
       this._bump(this.returned, p.seller);          // 판매자가 아이템 반환 acquire
+      this._custody(l.itemId, 'escrow', p.seller);  // 반환 레그(0119) — escrow custody → 판매자 가방(취소·invMode ON 일 때만)
       // 취소 발행(step-0111·cancelPublish) — 회수된 매물을 svc.exchange.cancelled 로 1회 발행(관측·delisting 신호). OFF·bus 부재면 no-op(0110 비트 동일).
       if (this.cancelPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.cancelled', ev: { id: p.id, seller: p.seller, item: l.item, price: l.price } }); this.cancelPublished++; }
       this._journal({ kind: 'cancel', id: p.id, seller: p.seller });
