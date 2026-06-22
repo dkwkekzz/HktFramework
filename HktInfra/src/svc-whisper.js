@@ -1,4 +1,5 @@
 'use strict';
+// step-0083 — 파티 1:N 라우팅 영수증 집계(partyReceipt·partyReceipts): 0073/0075 의 파티 팬아웃은 멤버마다 _queryFor→라우팅(전달/반송)하지만 *파티 단위 완료*를 집계하지 않는다 — "이 파티 전송이 N 멤버 중 몇에 전달/반송됐고 다 끝났는가"를 모른다(0073 §9). 이 step 은 partyId 별 영수증 원장을 더한다: 파티 수신 시 {members:N, routed:0, bounced:0} 를 열고, 각 멤버 라우팅 판정(up=routed·down/permanent=bounced)을 그 파티에 집계 → routed+bounced==members 면 *파티 전송 완료*(부분 전달 가시). 1:1 영수증(0076·delivered)의 *1:N 집계* 판 — 개별 전달 확인 위에 파티 완료 회계. partyReceipt OFF 면 집계 0 = 0082 비트 동일(파티는 멤버별 라우팅만).
 // step-0082 — 전달 실패 발행(failedPublish·svc.whisper.failed): 0079 의 포기 통지는 *원 발신자*에게만 deliveryFailed 를 회신한다 — 운영/감사 평면은 전달 실패를 못 본다(0079 §9). 이 step 은 포기를 *버스 토픽으로 발행*해 관측 가능하게 한다: 상한 도달로 포기(undeliverable)할 때, failedPublish 면 bus 로 {type:'pub', topic:'svc.whisper.failed', ev:{to, from, body}} 를 발행 → audit(범용 sink·발행자 무수정 소비자)가 구독해 실패 스트림을 관찰(failedPublished++). 0060 presencePublish(프레즌스 판정을 svc.presence 로 발행)의 *전달 실패* 판 — point-to-point 통지(0079)는 발신자 행동용, 토픽 발행(0082)은 관측/감사용(두 소비자 분리). failedPublish OFF·bus 부재면 발행 0 = 0081 비트 동일(포기는 발신자에게만).
 // step-0079 — 전달 포기 통지(deliverNotify·deliveryFailed): 0078 의 포기(undeliverable)는 라우터 *내부 계측*일 뿐 — 귓속말을 보낸 클라는 전달이 영영 실패했음을 모른다(0078 §9). 이 step 은 포기를 *발신자에게 가시화*한다 — 상한 도달로 포기할 때, 원 발신자(inflight.from)에게 {type:'deliveryFailed', to, body} 를 회신한다(failedNotified++). 클라는 이 신호로 "상대에게 끝내 닿지 못했다"를 안다(반송 bounce 가 *도달 불가 즉시* 알리듯, 포기는 *유계 재시도 소진 후* 알린다). deliverNotify OFF 면 통지 0 = 0078 비트 동일(포기는 조용).
 // step-0078 — 전달 재시도 상한(deliverMaxRetries): 0077 의 재시도는 *무상한*이라 수신측이 영영 죽으면 inflight·재발신이 무한 누적된다(0077 §9). 이 step 은 재시도를 유계화한다 — inflight 엔트리마다 tries 를 세고, deliverMaxRetries 회 재발신했는데도 whisperAck 가 없으면 *영구 전달불가*로 단정: inflight 에서 빼 포기(undeliverable++). 0059 recoverMaxRetries(치유 포기)의 *전달* 판 — at-least-once 의 무한 재시도를 유계 재시도+명시적 포기로. deliverMaxRetries 0 이면 무상한(0077 동일).
@@ -50,11 +51,18 @@ class WhisperRouter {
     this.partyPending = new Map(); // partyId -> {from, body} — partyMembers 응답 대기 중인 파티 전송 요청(step-0075·멤버십 조회 보류).
     this.membershipQueries = 0;   // 보낸 partyQuery 수(step-0075·멤버십 SSOT 조회 계측). membersResolved = 응답으로 받은 멤버 누적.
     this.membersResolved = 0;
+    this.partyReceipt = opts.partyReceipt || false;   // 파티 1:N 라우팅 영수증 집계(step-0083·partyReceipt) — partyId 별 {members,routed,bounced} 원장. OFF 면 집계 0(0082 동일).
+    this.partyReceipts = new Map();   // partyId -> {members, routed, bounced} — 파티 전송 완료 원장(routed+bounced==members 면 완료). 부분 전달 가시.
   }
+  // 파티 영수증 원장 열기(step-0083) — 파티 수신 시 멤버 수로 초기화. partyReceipt OFF 면 no-op(집계 0·0082 동일).
+  _partyOpen(partyId, n) { if (this.partyReceipt && partyId != null) this.partyReceipts.set(partyId, { members: n, routed: 0, bounced: 0 }); }
+  // 파티 영수증 집계(step-0083) — 멤버 라우팅 판정을 그 파티에 더한다(up=routed·아니면 bounced). 파티 전송 아니면(party null) no-op.
+  _partyTally(partyId, deliverable) { if (!this.partyReceipt || partyId == null) return; const r = this.partyReceipts.get(partyId); if (r) { if (deliverable) r.routed++; else r.bounced++; } }
+  partyDone(partyId) { const r = this.partyReceipts.get(partyId); return r ? (r.routed + r.bounced === r.members) : false; }
   pendingCount() { let n = 0; for (const arr of this.pending.values()) n += arr.length; return n; }
-  // 한 대상에 귓속말 1건을 적재+질의(귓속말·파티 멤버 공통 경로). 응답 올 때까지 pending[to] 보류·queryAddr 로 presenceQuery.
-  _queryFor(to, from, body) {
-    const arr = this.pending.get(to) || []; arr.push({ from, body }); this.pending.set(to, arr);
+  // 한 대상에 귓속말 1건을 적재+질의(귓속말·파티 멤버 공통 경로). 응답 올 때까지 pending[to] 보류·queryAddr 로 presenceQuery. party(step-0083): 파티 전송이면 partyId 를 보류 엔트리에 실어 라우팅 판정을 파티에 귀속.
+  _queryFor(to, from, body, party) {
+    const arr = this.pending.get(to) || []; arr.push({ from, body, party }); this.pending.set(to, arr);
     if (this.queryAddr) { this.net.send(this.addr, this.queryAddr, { type: 'presenceQuery', consumer: to }); this.queriesSent++; }
   }
   onMsg(m) {
@@ -71,11 +79,11 @@ class WhisperRouter {
     // 클라→라우터 귓속말 요청(1:1) — 대상 상태를 모르므로 프레즌스 SSOT 에 질의(pull). 응답 올 때까지 보류(consumer 키). queryAddr 없으면 질의 0(전부 영구 보류 = 라우팅 불가의 대조).
     if (p.type === 'whisper') { this._queryFor(p.to, m.from, p.body); return; }
     // 파티 요청(step-0073·1:N 팬아웃·멤버 인라인) — 멤버마다 _queryFor(질의 N개 전개). 응답이 오는 대로 멤버별 라우팅(아래 presenceReply 핸들러 공통) — 한 요청에서 부분 전달이 자연 발생. 파티 미주입이면 이 분기 휴면(0072 비트 동일).
-    if (p.type === 'party') { this.parties++; for (const to of (p.members || [])) this._queryFor(to, m.from, p.body); return; }
+    if (p.type === 'party') { this.parties++; this._partyOpen(p.partyId, (p.members || []).length); for (const to of (p.members || [])) this._queryFor(to, m.from, p.body, p.partyId); return; }
     // 파티 전송(step-0075·멤버십 SSOT 조회) — 멤버 목록을 *인라인으로 받지 않고* PartyService(membershipAddr)에 질의(partyQuery). 응답(partyMembers) 올 때까지 보류(partyId 키). membershipAddr 없으면 미해소(멤버십 SSOT 부재의 대조).
     if (p.type === 'partyTo') { this.partyPending.set(p.partyId, { from: m.from, body: p.body }); if (this.membershipAddr) { this.net.send(this.addr, this.membershipAddr, { type: 'partyQuery', partyId: p.partyId }); this.membershipQueries++; } return; }
     // 멤버십 응답(step-0075·partyMembers) — PartyService 가 회신한 멤버 목록으로 보류 파티 전송을 *전개*: 멤버마다 _queryFor(프레즌스 질의→라우팅·0073 와 동일 경로). 멤버십 SSOT→프레즌스 SSOT→라우팅 2단 조회 완성.
-    if (p.type === 'partyMembers') { this.parties++; this.membersResolved += (p.members || []).length; const req = this.partyPending.get(p.partyId) || { from: m.from }; this.partyPending.delete(p.partyId); for (const to of (p.members || [])) this._queryFor(to, req.from, req.body); return; }
+    if (p.type === 'partyMembers') { this.parties++; this.membersResolved += (p.members || []).length; const req = this.partyPending.get(p.partyId) || { from: m.from }; this.partyPending.delete(p.partyId); this._partyOpen(p.partyId, (p.members || []).length); for (const to of (p.members || [])) this._queryFor(to, req.from, req.body, p.partyId); return; }
     // 프레즌스 SSOT 응답(0069 presenceReply) — 대상 상태로 보류 귓속말을 라우팅. up=전달(whisperDeliver→대상 주소·best-effort), 아니면 반송. 라우팅 결정이 *프레즌스 질의로 구동*된다(이 step 의 핵심).
     if (p.type === 'presenceReply') {
       this.repliesRecv++;
@@ -89,6 +97,7 @@ class WhisperRouter {
           this.net.send(this.addr, p.consumer, msg); this.routed++;
         }
         else this.bounced++;
+        this._partyTally(w.party, deliverable);   // 파티 영수증 집계(step-0083) — 멤버 판정을 그 파티 원장에 더한다(파티 전송 아니면 no-op). routed+bounced==members 면 파티 완료.
       }
       this.decisions.set(p.consumer, deliverable ? 'routed' : 'bounced');
       return;
