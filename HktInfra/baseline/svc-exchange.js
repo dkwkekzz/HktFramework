@@ -1,4 +1,5 @@
 'use strict';
+// step-0120 — 거래소↔가방 2-서비스 보존 불변(escrowItemIds 단언·결합 시스템의 창발 불변): 0117~0119 가 거래소↔가방을 escrow 중개로 결합했다 — 이제 *두 서비스에 걸친* 보존이 성립하는지 단언한다. 거래소가 들고 있다고 *믿는* open 매물의 itemId 집합(escrowItemIds)은 가방 원장에서 *실제로* 'escrow' 가 소유한 itemId 집합과 정확히 일치해야 한다(거래소 회계 ≡ 가방 권위·두 서비스 불일치 0). 또 전 거래 흐름(list/buy/cancel/expire 혼합)에서 가방 total(minted)은 불변(아이템은 mint/소멸이 아니라 소유자만 바뀜)·매 아이템은 정확히 한 소유자(seller/escrow/buyer). escrowItemIds 는 *읽기 accessor*(open 매물의 itemId 정렬 목록) — 단언용·미호출이면 동작 무영향 = 0119 비트 동일(reg).
 // step-0119 — 거래소↔가방 cancel/expire 반환(exchInventory leg 3·escrow→판매자 실물 반환): 0117 인출+0118 입금으로 list→buy 실물 거래는 닫혔으나, *미체결* 매물의 종결(취소 0107·만료 0114)은 거래소 회계(cancelled/expired/returned)만 굴리고 escrow custody 아이템이 가방에서 판매자에게 *안 돌아왔다*. 이 step 은 반환 레그를 더한다: exchCancel·exchSweep 만료 성립 시 거래소가 가방에 give(itemId, escrow→seller) → escrow custody 가 판매자 가방으로(인출 0117 의 역). 이로써 escrow 의 *모든 출구*(체결→구매자·취소/만료→판매자)가 실물 이동을 동반 — 미체결 아이템이 escrow 에 영영 묶이지 않는다. 가방 권위·minted 불변·xfer++. exchInventory OFF·itemId 부재면 give 0 = 0118 비트 동일.
 // step-0118 — 거래소↔가방 buy 입금(exchInventory leg 2·escrow→구매자 실물 인도): 0117 은 list 인출 레그만 — escrow 가 가방 원장에 실체화됐으나 exchBuy 는 거래소 회계(sold)만 굴리고 *구매자 가방엔 아이템이 안 들어왔다*. 이 step 은 입금 레그를 더한다: exchBuy 성립 시 거래소가 가방에 give(itemId, escrow→buyer) → escrow custody 아이템이 구매자 가방으로(2-서비스 쌍 거래의 *인도* 레그·인출 0117 의 짝). 이로써 list(인출)+buy(인도)가 *존을 넘는 실물 거래*를 완성 — 판매자가 escrow 에 맡긴 실제 아이템이 구매자에게 간다(가방이 권위·minted 불변·xfer++). exchInventory OFF·itemId 부재면 give 0 = 0117 비트 동일(추상 sold).
 // step-0117 — 거래소↔가방 list 인출(exchInventory leg 1·escrow 를 진짜 가방 원장에 실체화): 0107~0116 의 escrow 는 *추상*이었다 — 거래소 자기 카운터로만 굴러 실제 가방(inventory) 아이템은 빠지지 않았다(판매자가 list 후에도 그 아이템을 계속 보유·존 넘는 거래의 진짜 형태 아님·0107 §9). 이 step 은 escrow 를 *가방 원장의 reserved 아바타 'escrow'* 로 실체화한다: exchList{seller,itemId} 시 거래소가 가방에 give(itemId, seller→escrow) 를 보내 아이템을 escrow custody 로 옮긴다(2-서비스 쌍 거래의 *인출* 레그). 이후 그 아이템은 가방 원장에서 'escrow' 소유 — 판매자 이중 판매 불가(가방이 권위). 가방 total(minted) 불변(이동일 뿐)·xfer++. exchInventory OFF·itemId 부재면 give 0 = 0116 비트 동일(추상 escrow). buy/cancel/expire 의 입금/반환 레그는 후속 step.
@@ -140,6 +141,9 @@ class ExchangeService {
   // 보존 — 모든 listed 아이템은 매 순간 정확히 한 상태(open / sold / cancelled / expired). 공백·중복 0 의 거래소 판(권위 단일 소유 + 쌍 거래·시간 트리거 포함).
   conserved() { return this.listed === this.listings.size + this.sold + this.cancelled + this.expired; }
   open() { return this.listings.size; }
+  // 거래소가 escrow 에 들고 있다고 *믿는* open 매물의 itemId 집합(step-0120·2-서비스 보존 단언용 읽기 accessor·정렬).
+  //   가방 원장에서 실제 'escrow' 소유 itemId 집합과 일치해야 한다(거래소 회계 ≡ 가방 권위). itemId 없는(추상 escrow·invMode OFF) 매물은 제외.
+  escrowItemIds() { return [...this.listings.values()].map(l => l.itemId).filter(x => x != null).sort(); }
 }
 
 const __part = { ExchangeService };

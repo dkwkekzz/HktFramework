@@ -1,8 +1,8 @@
-// HktInfra step-0120 — 헤드리스 검증 (거래소↔가방 2-서비스 보존 불변·escrowItemIds 단언)
+// HktInfra step-0121 — 헤드리스 검증 (거래소↔가방 escrow give 결과 비동기 수신·exchSaga 피드백 채널)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exinvconsv`.
-//   더한 한 조각: 0117~0119 가 거래소↔가방을 escrow 중개로 결합 — 이제 두 서비스에 걸친 보존을 단언한다. 거래소 open 매물 itemId 집합(escrowItemIds) ≡ 가방 원장의 'escrow' 소유 itemId 집합(거래소 회계 ≡ 가방 권위·불일치 0). 전 거래 흐름(list/buy/cancel/expire 혼합)서 가방 total(minted) 불변·매 아이템 정확히 한 소유자.
-//   검증: ⒜ `reg`(키트) — escrowItemIds 는 미호출 읽기 accessor = 0119 비트 동일. ⒝ `exinvconsv`(가설) — 5 적재→list 5(4 조기·1 늦게)→buy 2·cancel 1·sweep 만료 1. 끝: item0→b1·item1→b2(sold)·item2→s2(cancel)·item3→s2(expire)·item4→escrow(open). escrowItemIds==['item4']==가방 escrow 소유·minted 5 불변·각 1소유자·conserved.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagaack`.
+//   더한 한 조각: 0117~0120 의 거래소→가방 give 는 fire-and-forget(결과 미수신) — 거래소가 give 성공을 낙관적으로 가정한다. 이 step 은 saga 피드백 채널을 연다: saga ON 이면 give 에 replyTo+cause 를 실어 가방이 item_result(ok)를 거래소로도 회신, 거래소가 ackedGives/giveOks/giveFails 로 집계(관측만·보상은 후속).
+//   검증: ⒜ `reg`(키트) — saga OFF·replyTo 부재면 회신 0·집계 0 = 0120 비트 동일. ⒝ `exsagaack`(가설) — 정상 거래 흐름서 모든 escrow give 가 ok 로 acked(ackedGives==gives·giveOks==gives·giveFails 0) = 2-서비스 닫힌 피드백 고리. saga OFF 면 ackedGives 0(fire-and-forget). 0120 보존 불변(open==escrow 소유·minted 불변·conserved)도 유지.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -38,33 +38,32 @@ const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === 
 const P = (seed, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
   inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchangeTtl: TTL, invOps: INV, exchangeOps: OPS, ...extra });
 
-function exinvconsv(seeds) {
-  console.log('== exinvconsv: *가설* — 거래소↔가방 2-서비스 보존 불변. 거래소 open 매물 itemId(escrowItemIds) ≡ 가방 원장 escrow 소유 itemId(거래소 회계≡가방 권위). 전 거래 흐름서 가방 total 불변·매 아이템 한 소유자. ==');
-  console.log('  5 적재→list 5→buy 2·cancel 1·만료 1·open 1. 끝: item0→b1/item1→b2(sold)·item2→s2(cancel)·item3→s2(expire)·item4→escrow(open). escrowItemIds==가방 escrow 소유==[item4].');
-  console.log('seed   | escrow소유 | open매물itemId | 일치 | minted | open | sold/can/exp | 한소유자합=5 | conserved | 판정');
+function exsagaack(seeds) {
+  console.log('== exsagaack: *가설* — 거래소↔가방 escrow give 결과 비동기 수신. saga ON 이면 가방이 item_result 를 거래소로 회신·거래소가 집계 → 정상 흐름서 모든 escrow give 가 ok 로 acked(ackedGives==gives·giveFails 0)=닫힌 피드백 고리. saga OFF 면 회신 0. ==');
+  console.log('  5 적재→list 5→buy 2·cancel 1·만료 1·open 1. escrow give 9회(list 5+buy 2+cancel 1+expire 1) 전부 가방 ok → 거래소가 9 ack 수신·전부 ok. 0120 보존 불변도 유지.');
+  console.log('seed   | gives | ackedGives | giveOks | giveFails | OFF acked | open매물itemId==escrow소유 | minted | conserved | 판정');
   for (const seed of seeds) {
-    const r = run({ ...P(seed, {}) });
-    const inv = r.inventory; const ex = r.exchange;
-    const escOwned = ownedSet(inv, 'escrow');              // 가방 원장에서 실제 escrow 소유
-    const exOpen = ex.escrowItemIds();                     // 거래소가 믿는 open 매물 itemId
-    const match = JSON.stringify(escOwned) === JSON.stringify(exOpen);   // 2-서비스 일치(회계 ≡ 권위)
-    const minted = inv.minted; const open = ex.open();
-    // 매 아이템 정확히 한 소유자: ledger 5개·각 소유자 1명(byOwner 합 == 5)
-    const byOwnerSum = ownedSet(inv, 's1').length + ownedSet(inv, 's2').length + ownedSet(inv, 'b1').length + ownedSet(inv, 'b2').length + escOwned.length;
-    const conserved = ex.conserved();
+    const on = run({ ...P(seed, { exchSaga: true }) });
+    const off = run({ ...P(seed, { exchSaga: false }) });
+    const ex = on.exchange; const inv = on.inventory;
+    const escOwned = ownedSet(inv, 'escrow');
+    const exOpen = ex.escrowItemIds();
+    const match = JSON.stringify(escOwned) === JSON.stringify(exOpen);   // 0120 2-서비스 일치 유지
+    const minted = inv.minted; const conserved = ex.conserved();
+    const offAcked = off.exchange.ackedGives;
     const ok =
-      check(match && escOwned.length === 1 && escOwned[0] === 'item4', `seed ${seed}: 2-서비스 불일치(가방 escrow ${JSON.stringify(escOwned)} != 거래소 open ${JSON.stringify(exOpen)})`) &&
-      check(minted === 5 && open === 1, `seed ${seed}: minted/open 기대 5/1·실제 ${minted}/${open}`) &&
-      check(ex.sold === 2 && ex.cancelled === 1 && ex.expired === 1, `seed ${seed}: sold/can/exp 기대 2/1/1·실제 ${ex.sold}/${ex.cancelled}/${ex.expired}`) &&
-      check(byOwnerSum === 5 && ledgerConsistent(r) && itemConserved(r), `seed ${seed}: 아이템 소유자 합 != 5(${byOwnerSum})·원장 정합 위반`) &&
-      check(conserved, `seed ${seed}: 거래소 보존 위반(listed != open+sold+cancelled+expired)`);
-    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(escOwned), 10)} | ${pad(JSON.stringify(exOpen), 14)} | ${pad(match + '', 4)} | ${pad(minted, 6)} | ${pad(open, 4)} | ${pad(ex.sold + '/' + ex.cancelled + '/' + ex.expired, 12)} | ${pad(byOwnerSum, 12)} | ${pad(conserved + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(ex.gives > 0, `seed ${seed}: escrow give 0(인출/입금/반환 레그 미작동)`) &&
+      check(ex.ackedGives === ex.gives, `seed ${seed}: ack 누락(acked ${ex.ackedGives} != gives ${ex.gives})`) &&
+      check(ex.giveOks === ex.gives && ex.giveFails === 0, `seed ${seed}: 정상 흐름인데 give 실패(oks ${ex.giveOks}/fails ${ex.giveFails} vs gives ${ex.gives})`) &&
+      check(offAcked === 0, `seed ${seed}: saga OFF 인데 ack 수신(${offAcked}) — fire-and-forget 위반`) &&
+      check(match && minted === 5 && conserved, `seed ${seed}: 0120 보존 불변 깨짐(match ${match}·minted ${minted}·conserved ${conserved})`);
+    console.log(`${pad(seed, 6)} | ${pad(ex.gives, 5)} | ${pad(ex.ackedGives, 10)} | ${pad(ex.giveOks, 7)} | ${pad(ex.giveFails, 9)} | ${pad(offAcked, 9)} | ${pad((match ? '예' : '아니오') + ' ' + JSON.stringify(exOpen), 26)} | ${pad(minted, 6)} | ${pad(conserved + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소↔가방 결합이 *두 서비스에 걸친 보존*을 유지한다: 거래소가 믿는 open 매물(escrowItemIds) ≡ 가방 원장이 실제 escrow 에 가진 아이템(회계 ≡ 권위·불일치 0). 전 거래 흐름(list/buy/cancel/expire 혼합)서 가방 total(minted) 불변이고 매 아이템은 정확히 한 소유자 — 0014 가방의 "단일 소유"가 *두 서비스 결합*에도 보존(escrow 중개 닫힌 장부).');
-  console.log('    escrowItemIds 는 미호출 읽기 accessor = 0119 비트 동일(reg). 이 step 은 *결합 시스템의 창발 불변*을 단언 — 거래소↔가방 arc(0117 인출→0118 입금→0119 반환→0120 보존)가 존 넘는 실물 거래를 닫는다.');
+  console.log('  → 거래소가 가방 give 결과를 *비동기로 받는다*: saga ON 이면 모든 escrow give(인출 5+입금 2+반환 1·취소 1·만료 1)가 ok 로 회신돼 ackedGives==gives·giveFails 0 — 2-서비스 결합이 *낙관적 fire-and-forget* 에서 *닫힌 피드백 고리*로. saga OFF 면 회신 0(0120 비트 동일).');
+  console.log('    이 피드백 채널이 *보상*(give 실패 시 거래소 회계 롤백·phantom 매물 0)의 토대 — 이 step 은 채널 개통+정상 흐름 집계만 단언(실패 주입→보상은 후속). replyTo 부재면 가방 회신 분기 휴면 = reg 0.');
 }
 
-kit.MODES['exinvconsv'] = exinvconsv;
-kit.ORDER.splice(1, 0, 'exinvconsv');
+kit.MODES['exsagaack'] = exsagaack;
+kit.ORDER.splice(1, 0, 'exsagaack');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
