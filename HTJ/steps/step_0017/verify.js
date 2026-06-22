@@ -107,7 +107,9 @@ function gaussWorld() {
     bytesEqual(snap, w.fields.energy), 'eps=0 → 항등');
 }
 
-// ── 7. 희소 이득 실현 — 가우시안 별에 진공 반복 → 희소 점유 급감(step_0016 한계 닫음), 질량 보존 ──
+// ── 7. 데이터 희소화 실현 — 가우시안 별에 진공 반복 → 점유 급감(step_0016 한계 닫음), 질량 보존 ──
+//   (정직: 여기서 *실현*된 것은 **데이터**가 희소해진 것[필드에 exact 0 생김]뿐이다. 그 희소성을
+//    *계산 절감*으로 쓰는 법칙은 아직 없다 — 법칙은 여전히 조밀 N³ 순회. 계산 연결은 step_0018.)
 {
   const w = gaussWorld();
   const massBefore = Va.totalMass(w);
@@ -119,7 +121,7 @@ function gaussWorld() {
   const blocksAfter = spAfter.activeBlocks();
   const massOk = Math.abs(massAfter - massBefore) <= 1e-9 * Math.abs(massBefore);
   const sparser = blocksAfter < blocksBefore * 0.2;     // 점유 블록 1/5 이하로 급감(512→~32)
-  check('희소 이득 실현 — 가우시안 별 진공 반복 → 점유 블록 급감(step_0016 한계 닫음) · 질량 보존',
+  check('데이터 희소화 실현 — 진공 반복 → 점유 블록 급감(step_0016 한계 닫음) · 질량 보존 [계산 연결=step_0018]',
     massOk && sparser,
     `점유 ${blocksBefore}/${spBefore.blocksTotal}블록 → ${blocksAfter}/${spAfter.blocksTotal}블록 (${(100 * blocksAfter / spAfter.blocksTotal).toFixed(0)}%) · 질량 Δ=${Math.abs(massAfter - massBefore).toExponential(1)}`);
 }

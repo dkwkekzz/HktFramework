@@ -202,5 +202,30 @@
     return acc >>> 0;
   }
 
-  return { createSparseField, fromDense, referenceFingerprint, DEFAULT_BLOCK, VERSION: 1 };
+  // 조밀 장(Float64Array(N³))에서 *비-영 셀이 하나라도 있는 블록*의 원점 목록을 뽑는다.
+  //   반환: [[ox,oy,oz], …] (블록키 오름차순 = 결정론). 법칙이 이 목록만 순회하면 빈 블록을
+  //   *실제로 건너뛴다* → 비용이 부피(N³)가 아니라 활성 블록에 비례(step_0018 의 첫 실현 절감).
+  //   per-cell 법칙(이웃 stencil 없음)은 이 목록으로 조밀과 *비트 동일*하다(빈 블록=전부 0=무변화).
+  function activeBlockOrigins(field, N, blockSize) {
+    const bs = (blockSize | 0) || DEFAULT_BLOCK;
+    const nbx = Math.ceil(N / bs);
+    const out = [];
+    for (let bz = 0; bz < nbx; bz++)
+      for (let by = 0; by < nbx; by++)
+        for (let bx = 0; bx < nbx; bx++) {
+          const ox = bx * bs, oy = by * bs, oz = bz * bs;
+          let nonempty = false;
+          for (let lz = 0; lz < bs && !nonempty; lz++) { const z = oz + lz; if (z >= N) break;
+            for (let ly = 0; ly < bs && !nonempty; ly++) { const y = oy + ly; if (y >= N) break;
+              for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break;
+                if (field[(z * N + y) * N + x] !== 0) { nonempty = true; break; }
+              }
+            }
+          }
+          if (nonempty) out.push([ox, oy, oz]);
+        }
+    return out;
+  }
+
+  return { createSparseField, fromDense, referenceFingerprint, activeBlockOrigins, DEFAULT_BLOCK, VERSION: 1 };
 });
