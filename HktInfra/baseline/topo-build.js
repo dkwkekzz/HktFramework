@@ -172,7 +172,7 @@ function buildTopology(opts) {
     if (audit && exchange && exchangePublish) subs.push(['svc.exchange.sold', 'audit']);   // 거래소 체결 발행(0108) — audit 가 svc.exchange.sold 구독(거래 수명주기 관측). exchangePublish OFF 면 미추가(0107 토폴로지 비트 동일).
     if (audit && exchange && cancelPublish) subs.push(['svc.exchange.cancelled', 'audit']);   // 거래소 취소 발행(0111) — audit 가 svc.exchange.cancelled 구독(delisting 관측). cancelPublish OFF 면 미추가(0110 토폴로지 비트 동일).
     if (audit && exchange && expirePublish) subs.push(['svc.exchange.expired', 'audit']);   // 거래소 만료 발행(0115) — audit 가 svc.exchange.expired 구독(만료 관측). expirePublish OFF 면 미추가(0114 토폴로지 비트 동일).
-    if (marketFeed && exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); }   // 시세 피드(0112) — MarketFeed 가 체결·취소 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
+    if (marketFeed && exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); subs.push(['svc.exchange.expired', 'market']); }   // 시세 피드(0112·0116) — MarketFeed 가 체결·취소·만료 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
     if (audit && bouncePublish && whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
   }

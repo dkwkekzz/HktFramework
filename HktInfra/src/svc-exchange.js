@@ -1,4 +1,5 @@
 'use strict';
+// step-0117 — 거래소↔가방 list 인출(exchInventory leg 1·escrow 를 진짜 가방 원장에 실체화): 0107~0116 의 escrow 는 *추상*이었다 — 거래소 자기 카운터로만 굴러 실제 가방(inventory) 아이템은 빠지지 않았다(판매자가 list 후에도 그 아이템을 계속 보유·존 넘는 거래의 진짜 형태 아님·0107 §9). 이 step 은 escrow 를 *가방 원장의 reserved 아바타 'escrow'* 로 실체화한다: exchList{seller,itemId} 시 거래소가 가방에 give(itemId, seller→escrow) 를 보내 아이템을 escrow custody 로 옮긴다(2-서비스 쌍 거래의 *인출* 레그). 이후 그 아이템은 가방 원장에서 'escrow' 소유 — 판매자 이중 판매 불가(가방이 권위). 가방 total(minted) 불변(이동일 뿐)·xfer++. exchInventory OFF·itemId 부재면 give 0 = 0116 비트 동일(추상 escrow). buy/cancel/expire 의 입금/반환 레그는 후속 step.
 // step-0115 — 매물 만료 발행(expirePublish·svc.exchange.expired): 0114 만료(시간 트리거 회수)는 거래소 내부 회계(expired)로만 굴러 외부 관측 불가 — audit·시세 피드가 만료를 못 본다(0114 §9). 0108 sold·0111 cancelled 발행과 같은 매핑으로, 만료 성립(sweep 회수)을 svc.exchange.expired{id,seller,item,price} 로 1회 발행한다 — 시간 트리거 escrow→판매자 반환 순간 버스로, 무수정 소비자(audit·시세 피드)가 구독해 만료를 관측(시세 깊이/회전 추적). 0016 발행자 무수정 소비자 패턴의 거래소 *만료* 판(취소 발행 0111 의 시간 트리거 형제). expirePublish OFF·bus 부재면 발행 0 = 0114 비트 동일.
 // step-0114 — 매물 만료 TTL(exchExpiry·시간 기반 escrow 자동 회수): 0107~0113 의 매물은 *판매자 명시 취소*(exchCancel)로만 닫혔다 — 안 팔리고 안 취소되면 영영 escrow 에 묶인다(0111 §9 한계). 상용 거래소(경매장) 매물은 일정 시간 뒤 *자동 만료*돼 판매자에게 돌아간다. 매물에 listedAt(m.tick)을 기록하고, exchSweep{now} op 가 들어오면 now−listedAt ≥ ttl 인 open 매물을 만료시킨다(escrow→판매자 반환·취소와 같은 release 쌍이되 *시간 트리거*). 만료는 새 종결 상태 expired 로 회계 — 보존식 확장: listed == open + sold + cancelled + expired. 만료도 durable 저널('expire')에 기록→reconstruct 정합(영속·압축과 동작). ttl 0 = 만료 비활성(sweep no-op) = 0113 비트 동일.
 // step-0112 — sold 발행 ev 에 item 추가(시세 피드 입력): 0108 svc.exchange.sold 는 {id,buyer,seller,price} 만 실어 *어떤 아이템*이 거래됐는지 빠졌다 — item별 시세 피드(0112 MarketFeed)가 키로 쓸 수 없었다. 체결 시점 listing l.item 을 ev 에 추가({id,buyer,seller,item,price}) → 거래량/체결가 피드가 item 별 집계 가능(0111 cancelled ev 는 이미 item 포함). 발행은 exchangePublish ON 일 때만 — reg 시나리오엔 거래소 OFF 라 비트 동일.
@@ -40,6 +41,15 @@ class ExchangeService {
     this.jseq = 0;                      // 저널 seq 단조 발급.
     this.snapInterval = opts.snapInterval || 0;   // 저널 스냅샷 압축(step-0110·exchangeSnapshot) — snapInterval 개 op 마다 projection 스냅샷+저널 가지치기. 0 이면 압축 0·저널 무계(0109 동일).
     this.snapshot = null;               // {upToSeq, state}(step-0110) — 마지막 압축 스냅샷(이하 저널은 가지쳐짐). reconstruct 의 출발점.
+    this.inv = opts.inv || null;        // 가방(inventory) 주소(step-0117·exchInventory) — escrow 실체화 give 의 대상. 부재면 추상 escrow(0116 동일).
+    this.invMode = opts.invMode || false;   // 거래소↔가방 원자 거래(step-0117·exchInventory) — ON 이면 list/buy/cancel/expire 가 가방 give 로 escrow custody 를 실제 이동. OFF 면 추상 escrow(0116 비트 동일).
+    this.gives = 0;                     // 가방으로 보낸 give 수(step-0117·계측·인출/입금/반환 레그 합).
+  }
+  // escrow custody 이동 헬퍼(step-0117) — 거래소↔가방 2-서비스 쌍 거래의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(fromAvatar→toAvatar). 가방이 권위(보유 검사·xfer)·거래소는 요청만(은닉·명시 인터페이스). 미충족이면 no-op(추상 escrow·0116 동일).
+  _custody(itemId, from, to) {
+    if (!this.invMode || !this.inv || itemId == null) return;
+    this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to });
+    this.gives++;
   }
   _bump(mp, k, n) { mp.set(k, (mp.get(k) || 0) + (n === undefined ? 1 : n)); }
   // projection 직렬화(step-0110·스냅샷) — durable 상태(open 매물 + 회계)를 복사. Map 은 entries 배열로.
@@ -61,9 +71,10 @@ class ExchangeService {
     // 매물 등록(list·acquire) — 판매자가 아이템을 거래소 escrow 로 맡긴다. 이후 그 아이템은 거래소 권위 아래(판매자 이중 판매 불가). open++.
     if (p.type === 'exchList') {
       const id = ++this.nextId;
-      this.listings.set(id, { seller: p.seller, item: p.item, price: p.price | 0, at: m.tick | 0 });   // at=listedAt(0114·만료 판정 기준·m.tick)
+      this.listings.set(id, { seller: p.seller, item: p.item, price: p.price | 0, at: m.tick | 0, itemId: p.itemId });   // itemId(0117·가방 원장의 escrow 대상)
       this.listed++;
-      this._journal({ kind: 'list', id, seller: p.seller, item: p.item, price: p.price | 0, at: m.tick | 0 });
+      this._custody(p.itemId, p.seller, 'escrow');   // 인출 레그(0117) — 판매자 가방 → escrow custody(invMode ON 일 때만)
+      this._journal({ kind: 'list', id, seller: p.seller, item: p.item, price: p.price | 0, at: m.tick | 0, itemId: p.itemId });
       return;
     }
     // 매물 만료 sweep(step-0114·exchExpiry) — now−listedAt ≥ ttl 인 open 매물을 자동 만료(escrow→판매자 반환). 취소(cancel)와 같은 release 쌍이되 *판매자 요청*이 아닌 *시간 트리거*. ttl 0 면 비활성(no-op·0113 동일). 결정론: listings 는 삽입 순(Map) 순회.
@@ -107,7 +118,7 @@ class ExchangeService {
   }
   // crash(step-0109) — 박스 RAM 소실의 인프로세스 모델: projection(매물·체결 회계)만 비운다. *op 저널은 durable* 이라 보존(0085 partyPersist 의 거래소 판). rejects(실패 시도 계측)도 비움 — 저널엔 성공 op 만 있어 reconstruct 가 못 살리는 비-durable 지표.
   crash() {
-    this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0;
+    this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이). list=매물 복원+nextId 추적·buy=체결·cancel=취소 → 죽기 전과 비트 동일(durable 원장). 자기 영속 저널만으로 거래소 복원(0085 멤버십 판).
@@ -115,7 +126,7 @@ class ExchangeService {
   reconstruct() {
     if (this.snapshot) this._restore(this.snapshot.state);
     for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) {
-      if (e.kind === 'list') { this.listings.set(e.id, { seller: e.seller, item: e.item, price: e.price, at: e.at | 0 }); this.listed++; if (e.id > this.nextId) this.nextId = e.id; }
+      if (e.kind === 'list') { this.listings.set(e.id, { seller: e.seller, item: e.item, price: e.price, at: e.at | 0, itemId: e.itemId }); this.listed++; if (e.id > this.nextId) this.nextId = e.id; }
       else if (e.kind === 'buy') { this.listings.delete(e.id); this.sold++; this._bump(this.delivered, e.buyer); this._bump(this.proceeds, e.seller, e.price); }
       else if (e.kind === 'cancel') { this.listings.delete(e.id); this.cancelled++; this._bump(this.returned, e.seller); }
       else if (e.kind === 'expire') { this.listings.delete(e.id); this.expired++; this._bump(this.returned, e.seller); }   // 만료(step-0114) — 취소와 동형 release(escrow→판매자)·시간 트리거. 저널 정합.

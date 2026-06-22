@@ -189,6 +189,8 @@ function run(opts) {
     if (opts.whisperAnnounceStraggler && wrouter) for (const s of [].concat(opts.whisperAnnounceStraggler)) if (s.at === i + 1) wrouter.onMsg({ from: s.from || 'presence', payload: { type: 'ev', topic: 'svc.presence.active', ev: opts.announceEpoch ? { addr: s.addr, epoch: s.epoch } : { addr: s.addr } } });
     // 거래소 거래 주입(step-0107·exchangeOps) — at tick 에 list/buy/cancel 메시지를 거래소에 전달(클라/존이 보낸 거래 요청 모델·net.log 밖·digest 불변). 거래소 부재·미제공이면 휴면(reg 0 불변).
     if (opts.exchangeOps && exchange) for (const o of [].concat(opts.exchangeOps)) if (o.at === i + 1) exchange.onMsg({ from: o.from || 'gateway', payload: o.op, tick: i + 1 });   // tick 동봉(step-0114·만료 listedAt 기준)
+    // 가방 직접 주입(step-0117·invOps 테스트 seam) — at tick 에 item_req(pickup/give)를 가방에 직접 전달(거래소↔가방 원자 거래 테스트의 판매자 선-적재용·net.log 밖·digest 불변). 가방 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.invOps && inventory) for (const o of [].concat(opts.invOps)) if (o.at === i + 1) inventory.onMsg({ from: o.from || 'gateway', payload: o.op });
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).

@@ -1,8 +1,8 @@
-// HktInfra step-0116 — 헤드리스 검증 (시세 피드 만료 반영·svc.exchange.expired 구독)
+// HktInfra step-0117 — 헤드리스 검증 (거래소↔가방 list 인출·exchInventory leg 1·escrow 실체화)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmktexp`.
-//   더한 한 조각: 0112 MarketFeed 는 체결·취소만 소비 — 0115 가 발행하는 만료(svc.exchange.expired)는 시세에 반영 안 됨(0115 §9). 셋째 토픽을 구독해 item별 expired 회전 누적 → 거래소 수명주기 3종(체결·취소·만료)이 모두 시세에 흐른다. reconstruct(0113)도 'expire' op 를 expired++ 로 처리(라이브 소비와 정합).
-//   검증: ⒜ `reg`(키트) — marketFeed OFF 면 박스 0 = 0115 비트 동일. ⒝ `exmktexp`(가설) — sweep@80 으로 ring 만료. ON: expiredOf(ring)=1·consumed 3(sold2+expire1)·reconstruct(거래소 저널)==라이브. cancel 없는 OPS 라 cancelledOf 0. 둘 다 거래소 sold/minted 불변.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exinvlist`.
+//   더한 한 조각: 0107~0116 escrow 는 추상(거래소 카운터)이라 list 후에도 판매자가 가방 아이템을 계속 보유(0107 §9). escrow 를 *가방 원장의 reserved 아바타 'escrow'* 로 실체화: exchList{seller,itemId} 시 거래소가 가방에 give(itemId, seller→escrow) → 아이템이 escrow custody 로(2-서비스 쌍 거래의 인출 레그). 가방이 권위(판매자 이중 판매 불가)·가방 total(minted) 불변·xfer++.
+//   검증: ⒜ `reg`(키트) — exchInventory OFF·itemId 부재면 give 0 = 0116 비트 동일(추상 escrow). ⒝ `exinvlist`(가설) — 판매자 가방 선-적재(invOps pickup)→exchList(itemId). ON: 4 아이템 'escrow' 소유·판매자 0·gives/transfers 4·minted 불변·open 4·conserved. OFF: 아이템 판매자 보유·gives 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,56 +15,49 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14;
-const OPS = [
-  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10 } },
-  { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5 } },
-  { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3 } },
-  { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20 } },
-  { at: 74, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },
-  { at: 75, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
-  { at: 80, op: { type: 'exchSweep', now: 80 } },   // potion(id3·@72)·ring(id4·@73) 둘 다 age ≥ ttl → 만료
+// 판매자 가방 선-적재(invOps pickup·itemOps 0 라 itemId 결정론: item0..item3)
+const INV = [
+  { at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item0
+  { at: 61, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item1
+  { at: 62, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item2
+  { at: 63, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item3
 ];
-const TTL = 5;
-const mktDigest = mk => JSON.stringify([...mk.market.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1));
-const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
-  incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
-  bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
-  busConsumerLease: true, leaseSpan: 3, busLeaseLife: true, busLeaseAdapt: true, busLeaseGrace: true, cadencePrior: 6,
-  busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
-  presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
-  presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  exchange: true, exchangePublish: true, cancelPublish: true, expirePublish: true, exchangePersist: true, exchangeTtl: TTL, marketFeed: true, exchangeOps: OPS,
-  ...extra });
+const OPS = [
+  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },
+  { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5, itemId: 'item1' } },
+  { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3, itemId: 'item2' } },
+  { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20, itemId: 'item3' } },
+];
+const ownedBy = (inv, av) => [...inv.ledger.values()].filter(o => o === av).length;
+const P = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
+  inventory: true, itemOps: 0, exchange: true, invOps: INV, exchangeOps: OPS, ...extra });
 
-function exmktexp(seeds) {
-  console.log('== exmktexp: *가설* — 시세 피드 만료 반영(svc.exchange.expired 구독). 0112 체결·취소에 만료(0115)를 더해 거래소 수명주기 3종이 모두 시세에 흐른다. reconstruct 도 expire op 를 expired++ 로 정합. ON ==');
-  console.log(`  sweep@80 으로 potion(id3)·ring(id4) 만료. ON: expiredOf(ring)=1·expiredOf(potion)=1·consumed 4(sold2+expire2)·reconstruct(거래소 저널)==라이브. 둘 다 거래소/minted 불변.`);
-  console.log('seed   | consumed | ring exp | potion exp | sword vol | recon==live | expired 합 | minted ON==OFF | 판정');
+function exinvlist(seeds) {
+  console.log('== exinvlist: *가설* — 거래소↔가방 list 인출(exchInventory leg 1). exchList 시 거래소가 가방에 give(itemId, seller→escrow) → escrow 를 가방 원장에 실체화(추상→진짜·2-서비스 쌍 거래 인출 레그). 가방이 권위·minted 불변. ON vs OFF ==');
+  console.log('  판매자 가방 선-적재(item0/1=s1·item2/3=s2)→list 4. ON: 4 아이템 escrow 소유·판매자 0·gives/transfers 4·open 4·conserved. OFF: 아이템 판매자 보유·gives 0.');
+  console.log('seed   | escrow소유 | 판매자소유 | gives | transfers | minted | open | conserved | minted ON==OFF | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, {}) });
-    const off = run({ ...P_BASE(seed, { marketFeed: false, expirePublish: false }) });   // 시세 피드 없음(0115 동일)
-    const mk = on.market;
-    const consumed = mk.consumed;
-    const ringExp = mk.expiredOf('ring'); const potExp = mk.expiredOf('potion'); const swordVol = mk.volumeOf('sword');
-    const live = mktDigest(mk);
-    const fresh = new (NET.MarketFeed)({ bus: 'bus' }); fresh.reconstruct(on.exchange.journal);
-    const reconEq = mktDigest(fresh) === live;
-    const expSum = on.exchange.expired;
+    const on  = run({ ...P(seed, { exchInventory: true }) });
+    const off = run({ ...P(seed, { exchInventory: false }) });   // 추상 escrow(0116·give 0)
+    const inv = on.inventory; const ex = on.exchange;
+    const esc = ownedBy(inv, 'escrow'); const sellerOwn = ownedBy(inv, 's1') + ownedBy(inv, 's2');
+    const gives = ex.gives; const xfers = inv.transfers; const minted = inv.minted; const open = ex.open();
+    const conserved = ex.conserved();
+    const offSellerOwn = ownedBy(off.inventory, 's1') + ownedBy(off.inventory, 's2'); const offGives = off.exchange.gives;
     const mintedEq = on.inventory.minted === off.inventory.minted && ledgerConsistent(on) && itemConserved(on);
     const ok =
-      check(consumed === 4, `seed ${seed}: consumed 기대 4(sold2+expire2)·실제 ${consumed}`) &&
-      check(ringExp === 1 && potExp === 1, `seed ${seed}: 만료 반영 기대 ring1/potion1·실제 ${ringExp}/${potExp}`) &&
-      check(reconEq, `seed ${seed}: reconstruct(저널) != 라이브(live ${live})`) &&
-      check(expSum === 2, `seed ${seed}: 거래소 expired 기대 2·실제 ${expSum}`) &&
-      check(mintedEq, `seed ${seed}: 시세 반영이 세계 권위 바꿈(minted ${on.inventory.minted}/${off.inventory.minted})`);
-    console.log(`${pad(seed, 6)} | ${pad(consumed, 8)} | ${pad(ringExp, 8)} | ${pad(potExp, 10)} | ${pad(swordVol, 9)} | ${pad(reconEq + '', 11)} | ${pad(expSum, 10)} | ${pad(mintedEq + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(esc === 4 && sellerOwn === 0, `seed ${seed}: ON escrow 소유 기대 4/판매자 0·실제 ${esc}/${sellerOwn}`) &&
+      check(gives === 4 && xfers === 4, `seed ${seed}: ON gives/transfers 기대 4·실제 ${gives}/${xfers}`) &&
+      check(minted === 4 && open === 4 && conserved, `seed ${seed}: ON minted/open/conserved 기대 4/4/true·실제 ${minted}/${open}/${conserved}`) &&
+      check(offSellerOwn === 4 && offGives === 0, `seed ${seed}: OFF 판매자 보유/gives 기대 4/0·실제 ${offSellerOwn}/${offGives}`) &&
+      check(mintedEq, `seed ${seed}: 인출이 세계 mint 바꿈(minted ${on.inventory.minted}/${off.inventory.minted})`);
+    console.log(`${pad(seed, 6)} | ${pad(esc, 10)} | ${pad(sellerOwn, 10)} | ${pad(gives, 5)} | ${pad(xfers, 9)} | ${pad(minted, 6)} | ${pad(open, 4)} | ${pad(conserved + '', 9)} | ${pad(mintedEq + '', 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소 수명주기 3종(체결 0108·취소 0111·만료 0115)이 모두 시세 피드에 흐른다 — MarketFeed 가 svc.exchange.expired 를 구독해 item별 만료 회전을 누적(매물 깊이/회전 추적 완성). reconstruct 도 거래소 op 저널의 expire 를 expired++ 로 처리해 라이브와 비트 동일(CQRS read model 은 전 수명주기 발행을 전제).');
-  console.log('    marketFeed OFF·만료 미발행 = 시세 박스 0·expired 0 = 0115 비트 동일(reg). 비-침습: 시세 반영은 발행 사본의 파생일 뿐 거래소 원장(sold/expired)·세계 가방(minted) 권위 불변·존 tick 밖 순수 반응형.');
+  console.log('  → escrow 가 *가방 원장에 실체화*된다(존 넘는 거래의 진짜 형태): exchList 가 가방에 give(seller→escrow) 를 보내 아이템을 escrow custody 로 옮긴다 — 이후 가방 원장에서 escrow 소유(판매자 이중 판매 불가·가방이 권위). 거래소↔가방 2-서비스 쌍 거래의 *인출* 레그. 가방 total(minted) 불변(이동일 뿐).');
+  console.log('    exchInventory OFF·itemId 부재 = give 0 = 0116 비트 동일(reg·추상 escrow). 비-침습: 인출은 가방 권위 안의 이동일 뿐 세계 mint 불변·존 tick 밖(거래소→가방 명시 인터페이스 give·은닉). buy/cancel/expire 입금·반환 레그는 후속.');
 }
 
-kit.MODES['exmktexp'] = exmktexp;
-kit.ORDER.splice(1, 0, 'exmktexp');
+kit.MODES['exinvlist'] = exinvlist;
+kit.ORDER.splice(1, 0, 'exinvlist');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
