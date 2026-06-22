@@ -1,4 +1,5 @@
 'use strict';
+// step-0076 — 전달 영수증(whisperReceipt): 0071~0075 의 라우터는 라우팅 *결정*(프레즌스 질의→up 전달/down 반송)까지만 견고했다 — whisperDeliver 를 보내는 순간 routed++ 로 셌지, *대상이 실제로 받았는지*는 확인하지 않았다(best-effort·0075 §9). 이 step 은 전달의 *수신 확인 고리*를 더한다: 라우터가 deliverable 일 때 whisperDeliver 에 {seq, ackTo:this.addr} 를 실어 보내고 inflight[seq] 에 보류, 수신측 Mailbox 가 whisperAck{seq} 를 회신하면 inflight 에서 지우고 delivered++(전달 확인). 0057 recoverAck(치유 확인 고리)의 *전달* 판 — routed(보냄) ⊇ delivered(확인됨), inflight=routed-delivered. whisperReceipt OFF 면 ackTo 미부착·inflight 미보류·Mailbox 부재 = 0075 비트 동일(routed 만·delivered 0).
 // step-0075 — 파티 멤버십 SSOT 소비(membershipAddr): 0073 의 파티 라우터는 멤버 목록을 요청에 *인라인*으로 받았다(멤버십과 라우팅이 한 요청에 섞임). 이 step 은 멤버십을 전용 박스(PartyService)로 분리하고, 라우터는 파티 전송 시 멤버 목록을 *질의*로 얻는다: {type:'partyTo', partyId} → 멤버십 SSOT(membershipAddr)에 partyQuery → partyMembers 응답이 오면 멤버마다 _queryFor(프레즌스 질의)→라우팅. 멤버십 SSOT(PartyService)→프레즌스 SSOT(0069)→라우팅 의 2단 조회. membershipAddr 없으면 partyTo 미해소(멤버십 SSOT 부재의 대조). 인라인 party(0073)는 그대로 동작.
 // step-0074 — 재타깃 윈도 질의 재시도(whisperRetry): 0072 의 재타깃은 primary 사망 *후* 도착한 질의만 구한다 — 승격 공지가 라우터에 닿기 *전*의 윈도(사망~공지 전파)에 보낸 질의는 죽은 primary 로 가 영영 손실된다(0072 §9). 이 step 은 그 고리를 닫는다: 라우터가 재타깃(svc.presence.active 수신)할 때, 아직 응답 못 받은 *보류 질의*를 새 active 주소로 재발신한다 → 윈도에 손실된 질의도 승격된 박스로 다시 가 답을 받는다(0058 recoverRetry 의 질의 판). 재시도 트리거는 *공지*(재타깃)라 onTick 0·순수 반응 유지. whisperRetry OFF 면 재발신 0 = 0073 비트 동일(재타깃은 주소만 갱신·보류 질의 방치).
 // step-0073 — 파티 라우터(다중 대상 팬아웃): 0071/0072 의 귓속말은 1:1(대상 1명)이었다. 파티 채팅·파티 초대는 1:N — 한 요청이 여러 멤버에게 가야 한다. 이 step 은 같은 라우터에 {type:'party', members:[...]} 를 더한다: 라우터가 *각 멤버*의 상태를 프레즌스 SSOT 에 질의(N개)하고, 응답이 오는 대로 멤버별 라우팅(up 멤버에 전달·down/permanent 멤버는 반송) — 한 요청에서 *부분 전달*(일부 up 전달·일부 down 반송)이 자연히 일어난다. SPINE 계층3 채팅/소셜의 1:N 팬아웃 + 계층5 프레즌스 질의 소비. 파티 미주입이면 미발화 = 0072 비트 동일(새 메시지 타입 핸들러는 휴면).
@@ -15,6 +16,11 @@ const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
 //   분리 이유(SPINE §2 판정): 귓속말 팬아웃·라우팅은 존 tick 박자와 무관 — 비동기 서비스. 프레즌스 SSOT 는 *질의*로만 소비(권위 0·은닉: 라우터는 SSOT 내부를 모르고 질의/응답 계약만 안다).
 class WhisperRouter {
   constructor(opts = {}) {
+    this.receipt = opts.receipt || false;   // 전달 영수증(step-0076·whisperReceipt) — whisperDeliver 에 seq/ackTo 부착·Mailbox 의 whisperAck 로 delivered 확인. OFF 면 best-effort(routed 만·0075 동일).
+    this.deliverySeq = 0;          // 전달 시퀀스(step-0076) — whisperDeliver 마다 증가하는 영수증 상관키.
+    this.inflight = new Map();     // seq -> {to, from, body} — 전달했으나 아직 whisperAck 못 받은 보류 전달(routed-delivered).
+    this.delivered = 0;            // whisperAck 로 *확인된* 전달 수(step-0076). routed ⊇ delivered, 차이 = inflight.size.
+    this.acksRecv = 0;             // 받은 whisperAck 수(계측·중복 ack 무시 후에도 카운트).
     this.retry = opts.retry || false;   // 재타깃 윈도 질의 재시도(step-0074·whisperRetry) — 재타깃 시 보류 질의 재발신. OFF 면 재발신 0(0073 동일).
     this.membershipAddr = opts.membershipAddr || null;   // 파티 멤버십 SSOT 박스 주소(step-0075·PartyService). null 이면 partyTo 미해소(0074 동일).
     this.queryAddr = opts.queryAddr || null;   // 프레즌스 SSOT 박스 주소(명시 의존·request/reply 경로·0069 인터페이스). null 이면 질의 못 함→전부 보류.
@@ -46,6 +52,8 @@ class WhisperRouter {
       if (this.retry && this.queryAddr) for (const to of this.pending.keys()) { this.net.send(this.addr, this.queryAddr, { type: 'presenceQuery', consumer: to }); this.queriesSent++; this.retries++; }
       return;
     }
+    // 전달 영수증 수신(step-0076·whisperAck) — Mailbox 가 회신한 영수증으로 inflight[seq] 보류 해제·delivered++(전달 확인). 미보류 seq(중복/허위)면 delivered 무변경(idempotent). receipt OFF 면 ackTo 미부착이라 이 메시지 자체가 안 옴.
+    if (p.type === 'whisperAck') { this.acksRecv++; if (this.inflight.has(p.seq)) { this.inflight.delete(p.seq); this.delivered++; } return; }
     // 클라→라우터 귓속말 요청(1:1) — 대상 상태를 모르므로 프레즌스 SSOT 에 질의(pull). 응답 올 때까지 보류(consumer 키). queryAddr 없으면 질의 0(전부 영구 보류 = 라우팅 불가의 대조).
     if (p.type === 'whisper') { this._queryFor(p.to, m.from, p.body); return; }
     // 파티 요청(step-0073·1:N 팬아웃·멤버 인라인) — 멤버마다 _queryFor(질의 N개 전개). 응답이 오는 대로 멤버별 라우팅(아래 presenceReply 핸들러 공통) — 한 요청에서 부분 전달이 자연 발생. 파티 미주입이면 이 분기 휴면(0072 비트 동일).
@@ -60,7 +68,12 @@ class WhisperRouter {
       const arr = this.pending.get(p.consumer) || []; this.pending.delete(p.consumer);
       const deliverable = p.state === 'up';
       for (const w of arr) {
-        if (deliverable) { this.net.send(this.addr, p.consumer, { type: 'whisperDeliver', from: w.from, body: w.body }); this.routed++; }
+        if (deliverable) {
+          const msg = { type: 'whisperDeliver', from: w.from, body: w.body };
+          // 전달 영수증(step-0076·whisperReceipt) — seq/ackTo 부착·inflight 보류. Mailbox 가 whisperAck 회신하면 delivered++(확인). OFF 면 best-effort(영수증 없이 routed 만·0075 비트 동일).
+          if (this.receipt) { const seq = ++this.deliverySeq; msg.seq = seq; msg.ackTo = this.addr; this.inflight.set(seq, { to: p.consumer, from: w.from, body: w.body }); }
+          this.net.send(this.addr, p.consumer, msg); this.routed++;
+        }
         else this.bounced++;
       }
       this.decisions.set(p.consumer, deliverable ? 'routed' : 'bounced');
