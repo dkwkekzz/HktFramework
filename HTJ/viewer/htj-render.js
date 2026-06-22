@@ -140,6 +140,51 @@
     return list.length;   // 그린 표면 셀 수(디버그/검증용)
   }
 
+  // 덩어리(구체) 렌더 — 검출된 개체 목록을 *구체*로 그린다(셀 voxel 대신). draw 와 동일한 직교 투영.
+  //   확인용 전용 — design/scalability.md §0 목적 ①(안정 덩어리=구체로 보임)의 시각화. 세계는 안 건드린다.
+  //   clumps = HTJCluster.detectClumps 결과({cx,cy,cz,radius,peak,...}). opts.peakMax 로 색(heat) 정규화.
+  function drawClumps(ctx, world, cam, clumps, opts) {
+    opts = opts || {};
+    const N = world.N, W = ctx.canvas.width, H = ctx.canvas.height, half = (N - 1) / 2;
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const scale = (Math.min(W, H) * 0.80 / N) * cam.zoom;
+    const ox = W / 2 + cam.panX, oy = H / 2 + cam.panY;
+    let peakMax = opts.peakMax || 0;
+    if (!peakMax) for (const c of clumps) if (c.peak > peakMax) peakMax = c.peak;
+
+    // 배경(다크).
+    ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, W, H);
+
+    // 경계 박스(와이어) — 구체보다 먼저.
+    function project(wx, wy, wz) {
+      const x1 = wx * cy + wz * sy, z1 = -wx * sy + wz * cy;
+      const y2 = wy * cp - z1 * sp, z2 = wy * sp + z1 * cp;
+      return [ox + x1 * scale, oy - y2 * scale, z2];
+    }
+    const e = N / 2 + 0.5;
+    const corners = [[-e, -e, -e], [e, -e, -e], [e, e, -e], [-e, e, -e], [-e, -e, e], [e, -e, e], [e, e, e], [-e, e, e]].map(p => project(p[0], p[1], p[2]));
+    const edges = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+    ctx.strokeStyle = '#2a3242'; ctx.lineWidth = 1; ctx.beginPath();
+    for (const [a, b] of edges) { ctx.moveTo(corners[a][0], corners[a][1]); ctx.lineTo(corners[b][0], corners[b][1]); }
+    ctx.stroke();
+
+    // 깊이 정렬(뒤→앞) 후 방사 그라디언트 원반(구체감)으로.
+    const proj = clumps.map(c => {
+      const p = project(c.cx - half, c.cy - half, c.cz - half);
+      return { sx: p[0], sy: p[1], depth: p[2], rp: Math.max(scale * 0.5, c.radius * scale), peak: c.peak };
+    }).sort((a, b) => a.depth - b.depth);
+    for (const s of proj) {
+      const base = heatColor(peakMax > 0 ? s.peak / peakMax : 0);
+      const g = ctx.createRadialGradient(s.sx - s.rp * 0.3, s.sy - s.rp * 0.3, s.rp * 0.1, s.sx, s.sy, s.rp);
+      g.addColorStop(0, 'rgb(' + (base[0] | 0) + ',' + (base[1] | 0) + ',' + (base[2] | 0) + ')');
+      g.addColorStop(1, 'rgb(' + ((base[0] * 0.35) | 0) + ',' + ((base[1] * 0.35) | 0) + ',' + ((base[2] * 0.35) | 0) + ')');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(s.sx, s.sy, s.rp, 0, Math.PI * 2); ctx.fill();
+    }
+    return proj.length;   // 그린 구체 수
+  }
+
   // 화면 좌표(sx,sy) → 격자 셀 [x,y,z] 픽킹. draw 와 *동일한* 직교 투영을 재사용한다.
   //   모든 셀 중심을 화면에 투영해, 클릭 근처(반경 R 픽셀)에서 가장 앞쪽(카메라 쪽) 셀을 고른다.
   //   근처에 없으면 전역 최근접 셀로 폴백 → 빈(에너지 0) 공간에서도 항상 하나를 반환한다.
@@ -168,5 +213,5 @@
     return i < 0 ? null : world.coords(i);
   }
 
-  return { draw, pick, defaultCamera, FACES, VERSION: 2 };
+  return { draw, drawClumps, pick, defaultCamera, FACES, VERSION: 2 };
 });
