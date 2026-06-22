@@ -49,14 +49,36 @@
     if (world.radiated == null) world.radiated = 0;       // 빛 장부(지연 초기화 — htj-world 불변)
     const k = dt * coolRate;
     const factor = k >= 1 ? 0 : 1 - k;                    // dt·coolRate>1 → 0 클램프(과냉각 음수 방지)
-    const u = ensure(world, THERM), L = u.length;
-    let emitted = 0;
-    for (let i = 0; i < L; i++) {
-      const lost = u[i] * (1 - factor);                   // 이 셀이 빛으로 내보낸 열
-      u[i] -= lost;                                       // = u[i] *= factor
-      emitted += lost;
+    const u = ensure(world, THERM), L = u.length, N = world.N;
+    let emitted = 0, visited = 0;
+
+    // ── 활성 블록 순회(opts.active) — 빈 블록을 *실제로 건너뛴다*(step_0018, 첫 실현 절감) ──
+    //   복사는 per-cell(이웃 없음)이고 빈 셀(u=0)은 lost=0=무변화 → 활성 블록만 돌아도 *조밀과 비트 동일*.
+    //   opts.active 생략 → 조밀 전-격자(아래) = byte 동일(회귀 0).
+    if (opts.active) {
+      const bs = opts.blockSize || 8;
+      for (let b = 0; b < opts.active.length; b++) {
+        const ox = opts.active[b][0], oy = opts.active[b][1], oz = opts.active[b][2];
+        for (let lz = 0; lz < bs; lz++) { const z = oz + lz; if (z >= N) break;
+          for (let ly = 0; ly < bs; ly++) { const y = oy + ly; if (y >= N) break;
+            for (let lx = 0; lx < bs; lx++) { const x = ox + lx; if (x >= N) break;
+              const i = (z * N + y) * N + x;
+              const lost = u[i] * (1 - factor);
+              u[i] -= lost; emitted += lost; visited++;
+            }
+          }
+        }
+      }
+    } else {
+      for (let i = 0; i < L; i++) {                        // 조밀 전-격자(기존 경로 = 회귀 0)
+        const lost = u[i] * (1 - factor);                  // 이 셀이 빛으로 내보낸 열
+        u[i] -= lost;                                      // = u[i] *= factor
+        emitted += lost;
+      }
+      visited = L;
     }
     world.radiated += emitted;                            // 세계 밖으로 나간 총 빛(장부)
+    if (opts.stats) opts.stats.cellsVisited = visited;    // 실측 작업량(방문 셀 수) — 절감 증거(선택)
     return world;
   }
 
