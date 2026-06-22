@@ -1,8 +1,8 @@
-// HktInfra step-0090 — 헤드리스 검증 (epoch 워터마크 유계화)
+// HktInfra step-0100 — 헤드리스 검증 (Mailbox inbox 드레인·읽음 소비)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pepochbnd`.
-//   더한 한 조각: 0089 의 (producer,epoch) 워터마크는 재시작 안전을 주지만 Mailbox 가 *모든 epoch* 워터마크를 영영 보관 → epoch 차원이 ∝재시작 수로 무한 성장(0089 §9). 재시작(epoch++)은 inflight 를 비우므로 *옛 epoch 전달은 다시 안 옴* → 더 높은 epoch 도착 시 낮은 epoch 워터마크는 안전하게 가지친다. base producer 당 현재 epoch 만 유지 → epoch 차원 유계(0048/0042 유계화의 epoch 판).
-//   검증: ⒜ `reg`(키트) — epochBound 미설정이면 0089 비트 동일(가지치기 0). ⒝ `pepochbnd`(가설) — 3회 재시작(epoch 0..3)·각 epoch 마다 귓속말. ON(epochBound): epochKeyCount 1(현재 epoch 만)·received 전부. OFF: epochKeyCount 4(∝epoch·누적). 둘 다 received 동일·dup 0(epoch 키잉은 불변). minted 동일(비침습).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `pdrain`.
+//   더한 한 조각: 0099 의 inboxBound 는 inbox 를 최근 K개로 cap 하되 초과분을 *드롭*(잃음)한다 — notification 트레이 의미론(0099 §9). 진짜 수신함은 소유자가 *읽어 비운다* — 읽은 메시지는 소비된다. 이 step 은 drain() 으로 그 정상 비움을 모델: 현 inbox 반환·비움·drained 누적 → 읽는 이가 있으면 inbox 가 *무손실로* 유계(드롭 0). 0099 cap(읽는 이 없을 때 방어)과 짝.
+//   검증: ⒜ `reg`(키트) — drain() 미호출(mboxDrain 미제공)이면 inbox 누적 = 0099 비트 동일. ⒝ `pdrain`(가설) — 8 귓속말→mbox, 모두 전달 후 drain 1회. ON(mboxDrain): inbox 0·drained 8·overflowed 0(무손실). OFF: inbox 8·drained 0. 둘 다 received 8·minted 동일(비침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,15 +15,11 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const EPOCHS = 4;   // epoch 0..3 (3회 재시작)
-// 각 epoch 구간에 귓속말 2개씩 + 구간 사이 재시작. epoch e 구간: tick base..base+3, 재시작은 그 직후.
-const WHISPERS = []; const RESTARTS = [];
-for (let e = 0; e < EPOCHS; e++) {
-  const base = 46 + e * 8;
-  WHISPERS.push({ at: base, from: 'client0', to: 'mbox', body: 'e' + e + 'a' }, { at: base + 2, from: 'client0', to: 'mbox', body: 'e' + e + 'b' });
-  if (e < EPOCHS - 1) RESTARTS.push({ at: base + 5 });   // 마지막 epoch 뒤엔 재시작 없음
-}
-const TOTAL = WHISPERS.length;   // 8 전달
+const DEAD_DIE = 14;
+const WHISPERS = [];
+for (let i = 0; i < 8; i++) WHISPERS.push({ at: 46 + i * 2, from: 'client0', to: 'mbox', body: 'w' + i });   // 8 귓속말→mbox(전부 up·전달, 마지막 at 60)
+const N = WHISPERS.length;   // 8 수신
+const DRAIN = [{ at: 75 }];   // 전부 전달된 뒤 소유자가 1회 읽어 비움
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
@@ -31,36 +27,34 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true, deliverTimeout: 4,
-  deliverDedupBound: true, epochKeyed: true,   // 0081 워터마크 + 0089 epoch 키잉(이 버그가 사는 곳)
-  whispers: WHISPERS, wrouterRestart: RESTARTS,
+  whispers: WHISPERS,
   ...extra });
 
-function pepochbnd(seeds) {
-  console.log('== pepochbnd: *가설* — epoch 워터마크 유계화. 재시작(epoch++)은 inflight 를 비우므로 옛 epoch 전달은 다시 안 옴 → 더 높은 epoch 도착 시 낮은 epoch 워터마크 가지치기. base producer 당 현재 epoch 만 유지. epochBound ON vs OFF ==');
-  console.log(`  ${EPOCHS - 1}회 재시작(epoch 0..${EPOCHS - 1})·각 epoch 귓속말 2. ON: epochKeyCount 1(현재만)·received ${TOTAL}. OFF: epochKeyCount ${EPOCHS}(∝epoch·누적)·received ${TOTAL}. 둘 다 dup 0.`);
-  console.log('seed   | restarts | epochKeys ON | received ON | dup ON | epochKeys OFF | received OFF | 비침습 | 판정');
+function pdrain(seeds) {
+  console.log('== pdrain: *가설* — Mailbox inbox 드레인. 소유자가 수신함을 읽어 비운다(drain) → 읽는 이가 있으면 inbox 가 무손실로 유계(0099 lossy cap 과 짝). mboxDrain ON vs OFF ==');
+  console.log(`  ${N} 귓속말→mbox·전달 후 drain 1회. ON: inbox 0·drained ${N}·overflowed 0(무손실). OFF: inbox ${N}·drained 0. 둘 다 received ${N}.`);
+  console.log('seed   | received | inbox ON | drained ON | overflow ON | inbox OFF | drained OFF | 비침습 | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { deliverEpochBound: true }) });
-    const off = run({ ...P_BASE(seed, {}) });   // epochBound OFF — 옛 epoch 워터마크 누적(0089 동작)
-    const mb = on.mbox; const mo = off.mbox; const wr = on.wrouter;
-    const onKeys = mb ? mb.epochKeyCount() : -1; const offKeys = mo ? mo.epochKeyCount() : -1;
-    // ① epoch 유계 — 현재 epoch 워터마크만(producer 당 1)·재시작에도 전부 수신·dup 0(epoch 키잉 불변).
-    const bounded = onKeys === 1 && mb.received === TOTAL && mb.duplicates === 0 && wr && wr.restarts === EPOCHS - 1;
-    // ② 대조(OFF) — 가지치기 0 이면 epoch 마다 워터마크 누적(EPOCHS 개)·received 는 같다(유계화는 메모리만).
-    const accum = offKeys === EPOCHS && mo.received === TOTAL && mo.duplicates === 0;
-    const nonInvasive = on.inventory.minted === off.inventory.minted;
+    const on  = run({ ...P_BASE(seed, { mboxDrain: DRAIN }) });
+    const off = run({ ...P_BASE(seed, {}) });   // drain 미호출(0099 동작)
+    const mb = on.mbox; const mo = off.mbox;
+    // ① 드레인 — inbox 0·drained N·overflowed 0(무손실 비움)·received N 보존.
+    const drained = mb && mb.received === N && mb.inbox.length === 0 && mb.drained === N && mb.overflowed === 0;
+    // ② 대조(OFF) — drain 미호출: inbox 누적(==received)·drained 0.
+    const accum = mo && mo.received === N && mo.inbox.length === N && mo.drained === 0;
+    const nonInvasive = on.inventory.minted === off.inventory.minted && mb.received === mo.received;
     const ok =
-      check(bounded, `seed ${seed}: epoch 유계 틀림(onKeys ${onKeys}·received ${mb && mb.received}·dup ${mb && mb.duplicates}·restarts ${wr && wr.restarts}·기대 1/${TOTAL}/0/${EPOCHS - 1})`) &&
-      check(accum, `seed ${seed}: OFF 누적 미재현(offKeys ${offKeys}·received ${mo && mo.received}·기대 ${EPOCHS}/${TOTAL})`) &&
-      check(nonInvasive, `seed ${seed}: 유계화가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
+      check(drained, `seed ${seed}: 드레인 틀림(received ${mb && mb.received}·inbox ${mb && mb.inbox.length}·drained ${mb && mb.drained}·overflow ${mb && mb.overflowed}·기대 ${N}/0/${N}/0)`) &&
+      check(accum, `seed ${seed}: OFF 누적 미재현(inbox ${mo && mo.inbox.length}·drained ${mo && mo.drained}·기대 ${N}/0)`) &&
+      check(nonInvasive, `seed ${seed}: 드레인이 수신/원장 권위 바꿈(received on ${mb.received} off ${mo.received}·minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
       check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(wr ? wr.restarts : 0, 8)} | ${pad(onKeys, 12)} | ${pad(mb ? mb.received : 0, 11)} | ${pad(mb ? mb.duplicates : 0, 6)} | ${pad(offKeys, 13)} | ${pad(mo ? mo.received : 0, 12)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad(mb ? mb.received : 0, 8)} | ${pad(mb ? mb.inbox.length : 0, 8)} | ${pad(mb ? mb.drained : 0, 10)} | ${pad(mb ? mb.overflowed : 0, 11)} | ${pad(mo ? mo.inbox.length : 0, 9)} | ${pad(mo ? mo.drained : 0, 11)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log(`  → epoch 차원이 *현재 epoch* 하나로 접힌다: 재시작이 옛 epoch 전달을 영영 끊으므로(inflight 비움) 낮은 epoch 워터마크는 잊어도 안전 — 재시작 안전(0089)을 무계 메모리 없이 얻는다(received ${TOTAL}·dup 0 불변). 0048 lease lifecycle·0042 seen 유계화의 epoch 판(SPINE 계층3·5).`);
-  console.log('    epochBound 미설정 = 0089 비트 동일(가지치기 0·옛 epoch 누적·reg). 비-침습: 유계화는 워터마크 키 표현만(수신 판정·원장 불변)·received/minted ON==OFF·존 tick 밖 순수 반응형.');
+  console.log(`  → 수신함 메모리의 두 방어가 완성된다: *읽는 이 있을 때* drain(무손실 소비·0100)·*읽는 이 없을 때* inboxBound cap(lossy 드롭·0099). received(총 수신 회계)는 둘 다 진실 SSOT 로 보존 — 보유(inbox)는 소비/방어로 유계, 진실은 분리(SPINE 계층3·5 수신함 메모리 모델 완성).`);
+  console.log('    mboxDrain 미제공 = drain() 미호출 = inbox 누적 = 0099 비트 동일(reg). 비-침습: drain 은 보유 비움일 뿐 수신/ack/원장 권위 불변(received·minted ON==OFF)·존 tick 밖 순수 반응형.');
 }
 
-kit.MODES['pepochbnd'] = pepochbnd;
-kit.ORDER.splice(1, 0, 'pepochbnd');
+kit.MODES['pdrain'] = pdrain;
+kit.ORDER.splice(1, 0, 'pdrain');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

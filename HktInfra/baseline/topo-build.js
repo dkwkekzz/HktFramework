@@ -1,45 +1,11 @@
 'use strict';
 // step-0048 분할 preamble — 박스 1개=파일 1개 (CLAUDE.md 임계 규칙). 진입점 topology.js 가 묶는다.
-// 정리 step: topology.js 가 31KB>30KB 박스 트리거를 넘겨, *토폴로지 구성*(선언적 spec 빌더 + 액터 팩토리 + 라우트 필터)을
-//   이 파일로 분리한다. topology.js 는 *run 드라이버 + 진입점*으로 남는다(quorumMergeJournals·run·runMulti). 기능 0·바이트 동일(verbatim 이동)·
-//   export 집합 불변 → reg 0(0037 비트 동일). 0030 net-core 분할·0035 cluster 분할의 topology 판.
-// dual-mode: Node require / 브라우저는 common.js·박스 파일을 <script> 선행 로드(전역 __HktNetCommon·__HktNetParts).
-const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
-  ? require('./common.js') : globalThis.__HktNetCommon;
-const { LoginServer, SessionRegistry } = __c;
-const __p = n => (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
-  ? require('./' + n + '.js') : globalThis.__HktNetParts[n.replace(/-/g, '_')];
-const { Gateway } = __p('gateway');
-const { Orchestrator } = __p('orchestrator');
-const { EntityZone } = __p('zone');
-const { InventoryService } = __p('svc-inventory');
-const { ChatService } = __p('svc-chat');
-const { ServiceBus } = __p('svc-bus');
-const { AuditService } = __p('svc-audit');
-const { RankingService } = __p('svc-ranking');
-const { PresenceMonitor } = __p('svc-presence-monitor');
-const { PresenceService } = __p('svc-presence');
-const { WhisperRouter } = __p('svc-whisper');
-const { PartyService } = __p('svc-party');
-const { Mailbox } = __p('svc-mailbox');
-const { PersistStore } = __p('persist');
-const { Client } = __p('client');
-
-// ── routeFilter — 0009 그대로 ──
-const routeFilters = {
-  handoff: (m) => /^zone/.test(m.from) && /^zone/.test(m.to) && m.payload.type === 'handoff',
-  delta: (m) => /^zone/.test(m.from) && m.to === 'gateway' && m.payload.type === 'view_delta',
-  both: (m) => (/^zone/.test(m.from) && /^zone/.test(m.to) && m.payload.type === 'handoff') ||
-               (/^zone/.test(m.from) && m.to === 'gateway' && m.payload.type === 'view_delta'),
-  // 가방 서버-측 홉(gateway↔inventory) — redundancy/dedup 아래 원장 보존(idempotent transfer) 검증용.
-  item: (m) => (m.from === 'gateway' && m.to === 'inventory') || (m.from === 'inventory' && m.to === 'gateway'),
-  // 채팅 서버-측 홉(gateway↔chat) — loss/redundancy 아래 best-effort 팬아웃(누설 0·지역 격리 보존, 완전성은 graceful 열화) 검증용.
-  chat: (m) => (m.from === 'gateway' && m.to === 'chat') || (m.from === 'chat' && m.to === 'gateway'),
-  // 이벤트 버스 홉(bus 출입 전체 — pub·ev) — loss/redundancy 아래 라우팅 정확성(누설/phantom 0)·원장 보존 검증용(0016).
-  svcbus: (m) => m.from === 'bus' || m.to === 'bus',
-  // 영속 저널 홉(inventory→persist) — loss/redundancy 아래 라우팅 정확성·원장 보존(저널 미사용 시 무해) 검증용(0017).
-  persist: (m) => m.to === 'persist' || m.from === 'persist',
-};
+// step-0098 정리 분할: topo-build.js 가 32KB>30KB 박스 트리거를 넘겨, *액터 팩토리 + 라우트 필터*(makeActor·routeFilters·박스 클래스 import)를
+//   topo-actors.js 로 분리한다. 이 파일은 *선언적 spec 빌더*(buildTopology) + 진입점으로 남고, topo-actors 를 require 해 동일 export 를 노출한다 —
+//   기능 0·verbatim 이동·export 집합 불변 → reg 0. 0030 net-core·0035 cluster·0038 topology 분할의 topo-build 판.
+// dual-mode: Node 는 부품을 require, 브라우저는 <script> 선행 로드(전역 __HktNetParts.topo_actors). buildTopology 는 외부 의존 0(opts 만).
+const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
+const { routeFilters, makeActor } = __isNode ? require('./topo-actors.js') : globalThis.__HktNetParts.topo_actors;
 
 // ════════════════════════════════════════════════════════════════════════
 //  토폴로지 빌더 — 인프로세스/멀티프로세스가 *같은 단일 경로*로 액터를 구성(E2E 동치의 토대).
@@ -99,6 +65,8 @@ function buildTopology(opts) {
     whisperRetry = false,
     partyService = false,
     whisperReceipt = false,
+    mailbox2 = false,
+    mailboxInboxBound = 0,
     deliverRetry = false,
     deliverTimeout = 4,
     deliverDrop = 0,
@@ -108,11 +76,17 @@ function buildTopology(opts) {
     deliveredPublish = false,
     epochKeyed = false,
     partyReceipt = false,
+    partyAckGiveup = false,
+    partyIncompletePublish = false,
+    partyCompletePublish = false,
+    bouncePublish = false,
     partyChange = false,
     partyPersist = false,
     partySnapshot = 0,
     deliverDedup = false,
     deliverDedupBound = false,
+    deliverEpochBound = false,
+    deliverEpochGrace = 0,
     deliverAckDrop = 0,
     recoverRetry = false,
     recoverTimeout = 4,
@@ -178,6 +152,9 @@ function buildTopology(opts) {
     if (audit && failedPublish && whisperRouter) subs.push(['svc.whisper.failed', 'audit']);   // 전달 실패 발행(0082) — audit 가 svc.whisper.failed 구독(발행자 무수정 관측 소비자). failedPublish OFF 면 미추가(0081 토폴로지 비트 동일).
     if (audit && deliveredPublish && whisperRouter) subs.push(['svc.whisper.delivered', 'audit']);   // 전달 성공 발행(0087) — audit 가 svc.whisper.delivered 구독(수명주기 성공 절반). deliveredPublish OFF 면 미추가(0086 토폴로지 비트 동일).
     if (audit && partyChange && partyService) subs.push(['svc.party.changed', 'audit']);   // 멤버십 변경 발행(0084) — audit 가 svc.party.changed 구독(가입/탈퇴 관측). partyChange OFF 면 미추가(0083 토폴로지 비트 동일).
+    if (audit && partyIncompletePublish && whisperRouter) subs.push(['svc.party.incomplete', 'audit']);   // 파티 incomplete 발행(0093) — audit 가 svc.party.incomplete 구독(부분 전달 실패 종결 관측). partyIncompletePublish OFF 면 미추가(0092 토폴로지 비트 동일).
+    if (audit && partyCompletePublish && whisperRouter) subs.push(['svc.party.complete', 'audit']);   // 파티 complete 발행(0095) — audit 가 svc.party.complete 구독(전원 acked 성공 종결 관측). partyCompletePublish OFF 면 미추가(0094 토폴로지 비트 동일).
+    if (audit && bouncePublish && whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
   }
   // [데이터] 영속 스토어 — persist ON 일 때만 토폴로지에 존재(OFF = 0016 토폴로지 비트 동일). onTick 없음 = 신성한 tick 밖.
@@ -219,8 +196,11 @@ function buildTopology(opts) {
   const partyAddr = (partyService && whisperAddr) ? 'pservice' : null;
   // 전달 영수증 수신 박스(0076·whisperReceipt) — 귓속말 수신측 Mailbox. 라우터 전제(whisperAddr). OFF·라우터 부재면 박스 0(0075 비트 동일).
   const mailboxOn = whisperReceipt && whisperAddr;
-  if (mailboxOn) add({ addr: 'mbox', kind: 'mailbox', opts: { dropDeliver: deliverDrop, dedup: deliverDedup, dedupBound: deliverDedupBound, dropAck: deliverAckDrop } });   // dropDeliver(0077): 전달 손실 주입. dedup(0080): 수신측 exactly-once. dedupBound(0081): seen 집합 유계화. dropAck(0080): ack 손실 주입. 미설정 = 0079 비트 동일.
-  if (whisperAddr) add({ addr: 'wrouter', kind: 'whisper', opts: { queryAddr: presenceSvcAddr, retry: whisperFailover ? whisperRetry : false, membershipAddr: partyAddr, receipt: mailboxOn, deliverRetry: mailboxOn ? deliverRetry : false, deliverTimeout, deliverMaxRetries, deliverNotify, failedPublish, deliveredPublish, epochKeyed, bus: busAddr, partyReceipt } });   // retry(0074): 재타깃 시 보류 질의 재발신(whisperFailover 전제). membershipAddr(0075): 파티 멤버십 SSOT 주소(partyService OFF 면 null=0074 비트 동일). receipt(0076): 전달 영수증(whisperReceipt OFF 면 false=0075 비트 동일). deliverRetry(0077): 미확인 전달 재발신(receipt 전제·OFF 면 false=0076 비트 동일). failedPublish/bus(0082): 포기 시 svc.whisper.failed 발행(OFF 면 0081 비트 동일).
+  const __mboxOpts = { dropDeliver: deliverDrop, dedup: deliverDedup, dedupBound: deliverDedupBound, epochBound: deliverEpochBound, epochGrace: deliverEpochGrace, dropAck: deliverAckDrop, inboxBound: mailboxInboxBound };   // inboxBound(0099): inbox 최근 K cap. 미설정=무계(0098 동일).
+  if (mailboxOn) add({ addr: 'mbox', kind: 'mailbox', opts: __mboxOpts });   // dropDeliver(0077): 전달 손실 주입. dedup(0080): exactly-once. dedupBound(0081): seen 유계화. epochBound(0090): epoch 워터마크 유계화. epochGrace(0091): 옛 epoch grace 유예(straggler 내성). dropAck(0080): ack 손실 주입. 미설정 = 0079 비트 동일.
+  // 멤버별 Mailbox 토폴로지(step-0096·mailbox2) — 둘째 수신함 박스(mbox2). 파티원마다 *자기 수신함*을 가지면 모든 up 멤버가 ack 가능 → partyAcked/complete 가 N>1 에서 의미 있다(0088 §9 한계 해소). OFF 면 둘째 박스 0 = 0095 비트 동일.
+  if (mailboxOn && mailbox2) add({ addr: 'mbox2', kind: 'mailbox', opts: Object.assign({}, __mboxOpts) });
+  if (whisperAddr) add({ addr: 'wrouter', kind: 'whisper', opts: { queryAddr: presenceSvcAddr, retry: whisperFailover ? whisperRetry : false, membershipAddr: partyAddr, receipt: mailboxOn, deliverRetry: mailboxOn ? deliverRetry : false, deliverTimeout, deliverMaxRetries, deliverNotify, failedPublish, deliveredPublish, epochKeyed, bus: busAddr, partyReceipt, partyAckGiveup, partyIncompletePublish, partyCompletePublish, bouncePublish } });   // retry(0074): 재타깃 시 보류 질의 재발신(whisperFailover 전제). membershipAddr(0075): 파티 멤버십 SSOT 주소(partyService OFF 면 null=0074 비트 동일). receipt(0076): 전달 영수증(whisperReceipt OFF 면 false=0075 비트 동일). deliverRetry(0077): 미확인 전달 재발신(receipt 전제·OFF 면 false=0076 비트 동일). failedPublish/bus(0082): 포기 시 svc.whisper.failed 발행(OFF 면 0081 비트 동일).
   if (partyAddr) add({ addr: 'pservice', kind: 'party', opts: { bus: busAddr, changePublish: partyChange, persist: partyPersist, snapInterval: partySnapshot } });   // [게임 서비스] 파티 멤버십 SSOT(0075) — onTick 없음·신성한 tick 밖. changePublish(0084): svc.party.changed 발행. persist(0085): 변경 저널 영속·crash replay. snapInterval(0086): 저널 스냅샷 압축(0 면 0085 비트 동일).
   // [코디네이션] 전용 프레즌스 박스(0064) — orch 의 프레즌스 SSOT+발행 인계처. OFF 면 없음(0063 비트 동일). onTick 없음 = 신성한 tick 밖.
   if (presenceSvcAddr) add({ addr: 'presence', kind: 'presence', opts: { bus: busAddr, lease: presenceLease, hbTimeout } });   // primary: presenceLease 면 매 tick 하트비트 발행(0068).
@@ -254,32 +234,7 @@ function buildTopology(opts) {
   return { specs, order, zoneAddrs, H, grid, radius, hasInventory: !!inventory, hasChat: !!chat, hasBus: !!bus, hasAudit: !!(bus && audit), hasPersist: !!persistAddr };
 }
 
-// makeActor — spec → 액터(net 에 register). 인프로세스(engine Net)·호스트(HostNet shim) 양쪽이 같은 팩토리 사용.
-function makeActor(spec, net) {
-  let a;
-  switch (spec.kind) {
-    case 'login': a = new LoginServer(spec.opts.accounts, spec.opts.seed); break;
-    case 'registry': a = new SessionRegistry(); break;
-    case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr, spec.opts.busResendReq, spec.opts.busWindow, spec.opts.busAck, spec.opts.busOutAck, spec.opts.busSeenBound, spec.opts.busMinWm, spec.opts.busProducerNs, spec.opts.busSeenNs); break;
-    case 'zone': a = new EntityZone(spec.seed, spec.opts); break;
-    case 'orch': a = new Orchestrator(spec.opts); break;
-    case 'inventory': a = new InventoryService(spec.opts); break;
-    case 'chat': a = new ChatService(spec.opts); break;
-    case 'bus': a = new ServiceBus(spec.opts); break;
-    case 'audit': a = new AuditService(spec.opts); break;
-    case 'presmon': a = new PresenceMonitor(spec.opts); break;
-    case 'presence': a = new PresenceService(spec.opts); break;
-    case 'whisper': a = new WhisperRouter(spec.opts); break;
-    case 'party': a = new PartyService(spec.opts); break;
-    case 'mailbox': a = new Mailbox(spec.opts); break;
-    case 'ranking': a = new RankingService(spec.opts); break;
-    case 'persist': a = new PersistStore(spec.opts); break;
-    case 'client': a = new Client(spec.opts.script); break;
-    default: throw new Error('unknown kind ' + spec.kind);
-  }
-  net.register(spec.addr, a);
-  return a;
-}
+// makeActor·routeFilters 는 topo-actors.js 로 분리(step-0098) — 진입점이 re-export.
 
 const __part = { routeFilters, buildTopology, makeActor };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
