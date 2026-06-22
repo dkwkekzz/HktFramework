@@ -1,4 +1,5 @@
 'use strict';
+// step-0079 — 전달 포기 통지(deliverNotify·deliveryFailed): 0078 의 포기(undeliverable)는 라우터 *내부 계측*일 뿐 — 귓속말을 보낸 클라는 전달이 영영 실패했음을 모른다(0078 §9). 이 step 은 포기를 *발신자에게 가시화*한다 — 상한 도달로 포기할 때, 원 발신자(inflight.from)에게 {type:'deliveryFailed', to, body} 를 회신한다(failedNotified++). 클라는 이 신호로 "상대에게 끝내 닿지 못했다"를 안다(반송 bounce 가 *도달 불가 즉시* 알리듯, 포기는 *유계 재시도 소진 후* 알린다). deliverNotify OFF 면 통지 0 = 0078 비트 동일(포기는 조용).
 // step-0078 — 전달 재시도 상한(deliverMaxRetries): 0077 의 재시도는 *무상한*이라 수신측이 영영 죽으면 inflight·재발신이 무한 누적된다(0077 §9). 이 step 은 재시도를 유계화한다 — inflight 엔트리마다 tries 를 세고, deliverMaxRetries 회 재발신했는데도 whisperAck 가 없으면 *영구 전달불가*로 단정: inflight 에서 빼 포기(undeliverable++). 0059 recoverMaxRetries(치유 포기)의 *전달* 판 — at-least-once 의 무한 재시도를 유계 재시도+명시적 포기로. deliverMaxRetries 0 이면 무상한(0077 동일).
 // step-0077 — 전달 손실 감지+재시도(whisperDeliverRetry): 0076 은 미확인 전달(inflight)을 *분리*만 했지, 전달/영수증이 손실되면 inflight 에 영영 남았다(at-most-once 확인·0076 §9). 이 step 은 그 고리를 닫는다 — 라우터에 onTick 을 더해 deliverTimeout 경과해도 whisperAck 못 받은 inflight 전달을 *재발신*(같은 seq·재전송)한다 → 전달/ack 손실에도 delivered 로 수렴(at-least-once). 영수증(0076)이 "확인됨"을 주므로 *미확인*만 재시도(0058 recoverRetry·0008 ack/NAK 재전송의 전달 판). whisperDeliverRetry OFF 면 onTick 무발화·재발신 0 = 0076 비트 동일(inflight 방치).
 // step-0076 — 전달 영수증(whisperReceipt): 0071~0075 의 라우터는 라우팅 *결정*(프레즌스 질의→up 전달/down 반송)까지만 견고했다 — whisperDeliver 를 보내는 순간 routed++ 로 셌지, *대상이 실제로 받았는지*는 확인하지 않았다(best-effort·0075 §9). 이 step 은 전달의 *수신 확인 고리*를 더한다: 라우터가 deliverable 일 때 whisperDeliver 에 {seq, ackTo:this.addr} 를 실어 보내고 inflight[seq] 에 보류, 수신측 Mailbox 가 whisperAck{seq} 를 회신하면 inflight 에서 지우고 delivered++(전달 확인). 0057 recoverAck(치유 확인 고리)의 *전달* 판 — routed(보냄) ⊇ delivered(확인됨), inflight=routed-delivered. whisperReceipt OFF 면 ackTo 미부착·inflight 미보류·Mailbox 부재 = 0075 비트 동일(routed 만·delivered 0).
@@ -22,8 +23,10 @@ class WhisperRouter {
     this.deliverRetry = opts.deliverRetry || false;   // 전달 손실 재시도(step-0077·whisperDeliverRetry) — onTick 이 deliverTimeout 경과한 미확인 inflight 를 재발신. OFF 면 재발신 0(0076 동일).
     this.deliverTimeout = opts.deliverTimeout || 4;   // whisperDeliver 후 whisperAck 를 기다리는 tick(이후 미확인이면 재발신). 결정론 상수.
     this.deliverMaxRetries = opts.deliverMaxRetries || 0;   // 전달 재시도 상한(step-0078·deliverMaxRetries) — 이 횟수 재발신해도 ack 없으면 포기(undeliverable). 0 이면 무상한(0077 동일).
+    this.deliverNotify = opts.deliverNotify || false;   // 전달 포기 통지(step-0079·deliverNotify) — 포기 시 원 발신자에 deliveryFailed 회신. OFF 면 통지 0(0078 동일).
     this.deliverRetries = 0;       // 재발신한 whisperDeliver 수(step-0077·계측). 손실 복구 횟수.
     this.undeliverable = 0;        // 상한 도달로 포기한 전달 수(step-0078·계측). 영구 전달불가.
+    this.failedNotified = 0;       // 발신자에 회신한 deliveryFailed 수(step-0079·계측).
     this.deliverySeq = 0;          // 전달 시퀀스(step-0076) — whisperDeliver 마다 증가하는 영수증 상관키.
     this.inflight = new Map();     // seq -> {to, from, body, at} — 전달했으나 아직 whisperAck 못 받은 보류 전달(routed-delivered·at=마지막 발신 tick).
     this.delivered = 0;            // whisperAck 로 *확인된* 전달 수(step-0076). routed ⊇ delivered, 차이 = inflight.size.
@@ -93,7 +96,12 @@ class WhisperRouter {
     for (const [seq, e] of this.inflight) {
       if (tick - e.at >= this.deliverTimeout) {
         // 재시도 상한(step-0078·deliverMaxRetries) — 이미 max 회 재발신했는데도 ack 가 없으면 영구 전달불가로 단정: inflight 에서 빼 포기(undeliverable++). 0 이면 무상한(0077 동일).
-        if (this.deliverMaxRetries > 0 && e.tries >= this.deliverMaxRetries) { this.inflight.delete(seq); this.undeliverable++; continue; }
+        if (this.deliverMaxRetries > 0 && e.tries >= this.deliverMaxRetries) {
+          this.inflight.delete(seq); this.undeliverable++;
+          // 전달 포기 통지(step-0079·deliverNotify) — 원 발신자(e.from)에게 영구 전달실패를 회신해 가시화. OFF 면 통지 0(0078 동일·포기는 조용).
+          if (this.deliverNotify) { this.net.send(this.addr, e.from, { type: 'deliveryFailed', to: e.to, body: e.body }); this.failedNotified++; }
+          continue;
+        }
         this.net.send(this.addr, e.to, { type: 'whisperDeliver', from: e.from, body: e.body, seq, ackTo: this.addr });
         e.at = tick; e.tries++; this.deliverRetries++;
       }
