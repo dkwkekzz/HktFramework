@@ -102,6 +102,9 @@
 <script src="engine/htj-fusion.js"></script>
 <script src="engine/htj-cooling.js"></script>
 <script src="engine/htj-cluster.js"></script>
+<script src="engine/htj-sparse.js"></script>
+<script src="engine/htj-vacuum.js"></script>
+<script src="engine/htj-activity.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -264,6 +267,49 @@
         updateTemperature(w);
       },
       note: '<b>관찰 연산자</b>(동역학 법칙 아님): 안정된 덩어리를 <b>개체로 환원</b>한다 — { 중심(CoM)·질량 Σρ·반지름(점유 볼륨 등가 구)·평균온도 Σu/Σρ·정점밀도 }. 검출 = ρ&gt;eps 셀의 <b>연결 성분</b>(6-이웃 flood fill) — 떨어진 두 별은 두 개체, 붙으면 한 개체. <b>▶ 무엇이 보이나</b>: 0013 과 똑같은 별이 붕괴하지만, 화면엔 수천 voxel 이 아니라 <b>구체 하나</b>가 뜬다 — 같은 세계의 다른 *표현*이다(검출은 세계를 안 건드린다, 읽기 전용=회귀 0). <b>왜 중요한가</b>(design/scalability.md §0): ① <b>렌더</b> — 수만 셀 대신 구체 1개로 그린다(보여지는 단위=덩어리). ② <b>시뮬</b> — (다음 step) 같은 환원 산출물을 *승격*해 덩어리를 개체 단위로 굴린다(비용=흐르는 물질만). 질량은 개체로 <b>정확히 보존</b>되어 위층으로 상속된다(Σ개체질량=Σρ). 이 step 은 ①(+검출 기계)까지 — ②(승격)의 토대.'
+    },
+
+    // ── 확장성 인프라 통합 오버레이(step_0016~0025) — 같은 별 위에 8³ 블록 상태를 본다 ──
+    //   0016~0025 는 거동이 0014 와 (거의) 같은 *확장성 인프라*라 개별 장면이 없었다(드롭다운 0014 까지).
+    //   이 장면은 그 인프라가 *실제로 무엇을 하는지*를 한 화면에서 보여준다: 진공 희소화로 빈 블록이 사라지고
+    //   (0016/0017/0024), 활성 집합이 도는 블록을 추리고(0018~0022), 활동도 추적기가 *변화 멎은* 블록을
+    //   동결(쉼)로 가른다(0025). 법칙은 0014 와 동일하게 돌리고(거동 동일), 희소/활성/동결 층은 *관찰자*로 얹어
+    //   와이어프레임으로 덧그린다 — 주황=도는(활성) 블록, 파랑=쉬는(동결) 블록, 빈 블록은 안 그림(희소화).
+    'scal': {
+      label: 'step_0016~0025 — 확장성 오버레이(활성/동결 블록)', title: 'HTJ — 확장성 인프라 오버레이(S2·S3)',
+      sub: '같은 별 붕괴 위에 8³ 블록 상태: 주황=도는(활성)·파랑=쉬는(동결). 블록은 거의 안 비워짐(=0024 천장)',
+      mode: 'energy', dynamics: true, pressure: true, thermP: true, visc: true, fusion: true, radiate: true,
+      render: 'scalability',
+      defaults: { colorScale: 'relative', view: 'energy', kpress: 0.12, kthermo: 0.3, kvisc: 0.6, frate: 2, radiate: 0.06 },
+      init(w) {
+        HTJThermal.seedWarmBlob(w, { sigma: w.N * 0.16, M0: Math.max(2500, w.N * w.N * w.N * 0.5), T0: 1 });
+        for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
+        updateTemperature(w);
+        const bs = 8;
+        w.__scal = {
+          bs, hold: 3, thr: 0.05,
+          set: HTJSparse.createActiveSet(w.N, bs).rebuildFromField(w.fields.energy),
+          tracker: HTJActivity.createActivityTracker(w.N, bs)
+        };
+        w.__scal.tracker.measure(w.fields.energy, w.__scal.set.origins(), { threshold: w.__scal.thr });  // 첫 스냅샷
+      },
+      advance(w, p) {
+        const S = w.__scal, bs = S.bs;
+        // 법칙은 0014 와 동일(조밀) — 거동을 안 바꾼다(오버레이는 관찰자).
+        HTJGravity.applyGravity(w, 0.2, { G: 0.15, iters: 40 });
+        HTJPressure.applyPressure(w, 0.2, { K: p.kpress, gamma: 2 });
+        HTJThermal.applyThermalPressure(w, 0.2, { Kth: p.kthermo, gamma: 5 / 3 });
+        HTJViscosity.applyViscosity(w, 0.2, { Kvisc: p.kvisc });
+        HTJFusion.applyFusion(w, 0.2, { rate: p.frate, rhoCrit: 6, tCrit: 3 });
+        HTJCooling.applyCooling(w, 0.2, { coolRate: p.radiate });
+        HTJInertia.advect(w, 0.2, { scalars: ['therm'] });
+        HTJVacuum.applyVacuum(w, { eps: 1e-2, scalars: ['mom_x', 'mom_y', 'mom_z', 'therm'] });  // 0017/0024 희소화
+        // 관찰자 층: 활성 집합 갱신(0018~0022) + 활동도/동결 측정(0025).
+        S.set.rebuildFromField(w.fields.energy);
+        S.tracker.measure(w.fields.energy, S.set.origins(), { threshold: S.thr });
+        updateTemperature(w);
+      },
+      note: '<b>확장성 인프라(S2·S3) 통합 오버레이</b> — step_0016~0025 는 거동이 0014 와 (거의) 같은 *인프라*라 개별 장면이 없었다. 여기선 그 인프라가 <b>실제로 무엇을 하는지</b>를 한 화면에서 본다. 법칙은 0014 와 동일하게 돌리고(거동 동일·질량 보존), 희소·활성·동결 층을 <b>관찰자</b>로 얹어 8³ 블록을 와이어프레임으로 덧그린다: <span style="color:#fa963c">주황=도는(활성) 블록</span> · <span style="color:#4a8cfa">파랑=쉬는(동결) 블록</span>. <b>▶ 무엇이 보이나</b>: ① 처음 잔잔할 땐 많은 블록이 파랑(동결)이다가, ② 별이 붕괴하며 전부 깨어 주황(활성)이 되고, ③ 다시 정착하면 출렁임이 멎은 블록부터 파랑으로 굳는다(<b>0025</b> 동결=시간 LOD/안정 판정). 주황 블록이 <b>법칙이 실제로 돌 곳</b>(0018~0022 활성 순회). <b>▶ 정직한 한계(0024 천장)</b>: 가우시안 별의 옅은 꼬리가 <b>모든 블록에 한 톨씩</b> 남아 — 진공 희소화(0016/0017/0024)를 켜도 — 통째로 *빈* 블록은 거의 안 생긴다(블록 점유 ~100%). 그래서 셀은 희소화돼도 블록 단위 절감엔 천장이 있다. <b>왜 중요한가</b>: 그 천장이 곧 다음 단계의 이유다 — 동결(파랑)=안정 신호로 <b>S5 승격</b>이 별을 격자에서 통째로 빼내 개체 1개로 굴려야 비용이 진짜 준다.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -378,6 +424,17 @@
       const eps = mean > 0 ? Math.max(mean * 1.5, 1e-9) : 1e-9;   // 본체 임계(평균 위) — 헤일로 제외
       const clumps = HTJCluster.detectClumps(world, { eps, minCells: 2 });
       surf = HTJRender.drawClumps(ctx, world, cam, clumps);
+      return;
+    }
+    // 확장성 오버레이(scal): 별 voxel 위에 8³ 블록 상태(활성/동결)를 와이어프레임으로 덧그린다.
+    if (stCur && stCur.render === 'scalability' && world.__scal) {
+      const mean = world.total('energy') / world.fields.energy.length, max = mean > 0 ? mean * 2 : 0;
+      surf = HTJRender.draw(ctx, world, cam, { field: 'energy', colormap: 'heat', max, eps: 1e-9 });
+      const S = world.__scal, origins = S.set.origins(), bs = S.bs, nbx = Math.ceil(world.N / bs);
+      const fk = new Set(S.tracker.frozenOrigins(origins, S.hold).map(o => ((o[2] / bs | 0) * nbx + (o[1] / bs | 0)) * nbx + (o[0] / bs | 0)));
+      const blocks = origins.map(o => ({ ox: o[0], oy: o[1], oz: o[2], bs, state: fk.has(((o[2] / bs | 0) * nbx + (o[1] / bs | 0)) * nbx + (o[0] / bs | 0)) ? 'frozen' : 'active' }));
+      const cnt = HTJRender.drawBlocks(ctx, world, cam, blocks);
+      const lab = document.getElementById('s-occ'); if (lab) lab.textContent = `${world.count('energy', 1e-9)} (블록 활성 ${cnt.nActive}·동결 ${cnt.nFrozen})`;
       return;
     }
     let name = brushField();
