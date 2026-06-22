@@ -1,4 +1,5 @@
 'use strict';
+// step-0082 — 전달 실패 발행(failedPublish·svc.whisper.failed): 0079 의 포기 통지는 *원 발신자*에게만 deliveryFailed 를 회신한다 — 운영/감사 평면은 전달 실패를 못 본다(0079 §9). 이 step 은 포기를 *버스 토픽으로 발행*해 관측 가능하게 한다: 상한 도달로 포기(undeliverable)할 때, failedPublish 면 bus 로 {type:'pub', topic:'svc.whisper.failed', ev:{to, from, body}} 를 발행 → audit(범용 sink·발행자 무수정 소비자)가 구독해 실패 스트림을 관찰(failedPublished++). 0060 presencePublish(프레즌스 판정을 svc.presence 로 발행)의 *전달 실패* 판 — point-to-point 통지(0079)는 발신자 행동용, 토픽 발행(0082)은 관측/감사용(두 소비자 분리). failedPublish OFF·bus 부재면 발행 0 = 0081 비트 동일(포기는 발신자에게만).
 // step-0079 — 전달 포기 통지(deliverNotify·deliveryFailed): 0078 의 포기(undeliverable)는 라우터 *내부 계측*일 뿐 — 귓속말을 보낸 클라는 전달이 영영 실패했음을 모른다(0078 §9). 이 step 은 포기를 *발신자에게 가시화*한다 — 상한 도달로 포기할 때, 원 발신자(inflight.from)에게 {type:'deliveryFailed', to, body} 를 회신한다(failedNotified++). 클라는 이 신호로 "상대에게 끝내 닿지 못했다"를 안다(반송 bounce 가 *도달 불가 즉시* 알리듯, 포기는 *유계 재시도 소진 후* 알린다). deliverNotify OFF 면 통지 0 = 0078 비트 동일(포기는 조용).
 // step-0078 — 전달 재시도 상한(deliverMaxRetries): 0077 의 재시도는 *무상한*이라 수신측이 영영 죽으면 inflight·재발신이 무한 누적된다(0077 §9). 이 step 은 재시도를 유계화한다 — inflight 엔트리마다 tries 를 세고, deliverMaxRetries 회 재발신했는데도 whisperAck 가 없으면 *영구 전달불가*로 단정: inflight 에서 빼 포기(undeliverable++). 0059 recoverMaxRetries(치유 포기)의 *전달* 판 — at-least-once 의 무한 재시도를 유계 재시도+명시적 포기로. deliverMaxRetries 0 이면 무상한(0077 동일).
 // step-0077 — 전달 손실 감지+재시도(whisperDeliverRetry): 0076 은 미확인 전달(inflight)을 *분리*만 했지, 전달/영수증이 손실되면 inflight 에 영영 남았다(at-most-once 확인·0076 §9). 이 step 은 그 고리를 닫는다 — 라우터에 onTick 을 더해 deliverTimeout 경과해도 whisperAck 못 받은 inflight 전달을 *재발신*(같은 seq·재전송)한다 → 전달/ack 손실에도 delivered 로 수렴(at-least-once). 영수증(0076)이 "확인됨"을 주므로 *미확인*만 재시도(0058 recoverRetry·0008 ack/NAK 재전송의 전달 판). whisperDeliverRetry OFF 면 onTick 무발화·재발신 0 = 0076 비트 동일(inflight 방치).
@@ -24,9 +25,12 @@ class WhisperRouter {
     this.deliverTimeout = opts.deliverTimeout || 4;   // whisperDeliver 후 whisperAck 를 기다리는 tick(이후 미확인이면 재발신). 결정론 상수.
     this.deliverMaxRetries = opts.deliverMaxRetries || 0;   // 전달 재시도 상한(step-0078·deliverMaxRetries) — 이 횟수 재발신해도 ack 없으면 포기(undeliverable). 0 이면 무상한(0077 동일).
     this.deliverNotify = opts.deliverNotify || false;   // 전달 포기 통지(step-0079·deliverNotify) — 포기 시 원 발신자에 deliveryFailed 회신. OFF 면 통지 0(0078 동일).
+    this.failedPublish = opts.failedPublish || false;   // 전달 실패 발행(step-0082·failedPublish) — 포기 시 svc.whisper.failed 토픽 발행(관측/감사용). OFF·bus 부재면 발행 0(0081 동일).
+    this.bus = opts.bus || null;        // 버스 주소(step-0082·발행 경로). null 이면 발행 못 함(구독자 주소 무지·은닉).
     this.deliverRetries = 0;       // 재발신한 whisperDeliver 수(step-0077·계측). 손실 복구 횟수.
     this.undeliverable = 0;        // 상한 도달로 포기한 전달 수(step-0078·계측). 영구 전달불가.
     this.failedNotified = 0;       // 발신자에 회신한 deliveryFailed 수(step-0079·계측).
+    this.failedPublished = 0;      // svc.whisper.failed 로 발행한 실패 수(step-0082·계측). 관측 평면 노출.
     this.deliverySeq = 0;          // 전달 시퀀스(step-0076) — whisperDeliver 마다 증가하는 영수증 상관키.
     this.inflight = new Map();     // seq -> {to, from, body, at} — 전달했으나 아직 whisperAck 못 받은 보류 전달(routed-delivered·at=마지막 발신 tick).
     this.delivered = 0;            // whisperAck 로 *확인된* 전달 수(step-0076). routed ⊇ delivered, 차이 = inflight.size.
@@ -100,6 +104,8 @@ class WhisperRouter {
           this.inflight.delete(seq); this.undeliverable++;
           // 전달 포기 통지(step-0079·deliverNotify) — 원 발신자(e.from)에게 영구 전달실패를 회신해 가시화. OFF 면 통지 0(0078 동일·포기는 조용).
           if (this.deliverNotify) { this.net.send(this.addr, e.from, { type: 'deliveryFailed', to: e.to, body: e.body }); this.failedNotified++; }
+          // 전달 실패 발행(step-0082·failedPublish) — 포기를 svc.whisper.failed 토픽으로 발행(관측/감사 평면). 발신자 통지(point-to-point·행동용)와 *직교* — audit 같은 범용 sink 가 실패 스트림을 구독. OFF·bus 부재면 발행 0(0081 비트 동일).
+          if (this.failedPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.whisper.failed', ev: { to: e.to, from: e.from, body: e.body } }); this.failedPublished++; }
           continue;
         }
         this.net.send(this.addr, e.to, { type: 'whisperDeliver', from: e.from, body: e.body, seq, ackTo: this.addr });

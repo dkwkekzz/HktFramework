@@ -1,8 +1,8 @@
-// HktInfra step-0081 — 헤드리스 검증 (dedup seen 집합 유계화·워터마크)
+// HktInfra step-0082 — 헤드리스 검증 (전달 실패 발행·svc.whisper.failed)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `wsbound`.
-//   더한 한 조각: 0080 의 수신측 dedup 은 본 seq 를 *전부* 평면 Set 에 영구 보관 → 귓속말 누적 시 메모리가 run 에 비례해 무한 성장(0080 §9). 라우터 deliverySeq 는 단조 증가이고 ack/포기한 seq 는 재발신 안 되므로 *연속 워터마크 이하* seq 는 안전하게 잊어도 된다. 이 step 은 producer(전달자) 별 연속 워터마크(seenWm)+희소 비순차 집합(seenAbove)으로 seen 을 O(gap)로 유계화한다(0042 busSeenBound·0047 busSeenNs 의 전달 dedup 판). dedup 판정은 불변 — 메모리 표현만 유계.
-//   검증: ⒜ `reg`(키트) — dedupBound 미설정이면 0080 비트 동일(평면 Set). ⒝ `wsbound`(가설) — N개 귓속말을 잇따라 'mbox' 로(각 단조 deliverySeq) + 첫 ack 손실(dropAck 1)로 중복 1건 유발. ON(dedupBound): seenSize(=ΣseenAbove)≤K 유계·seenWm=N(연속 흡수). OFF(평면 dedup): seenSize=N(∝run·무계). 둘 다 received N·inbox N·duplicates 1(dedup 보존)·delivered N.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `wfpublish`.
+//   더한 한 조각: 0079 의 포기 통지는 *원 발신자*에게만 deliveryFailed 를 회신한다 — 운영/감사 평면은 전달 실패를 못 본다(0079 §9). 이 step 은 포기(undeliverable)를 svc.whisper.failed 토픽으로 발행해 audit(범용 sink·발행자 무수정 소비자)가 관측하게 한다. 0060 presencePublish 의 *전달 실패* 판 — point-to-point 통지(발신자 행동용)와 토픽 발행(관측/감사용)이 직교.
+//   검증: ⒜ `reg`(키트) — failedPublish 미설정이면 0081 비트 동일(발행 0). ⒝ `wfpublish`(가설) — 'mbox' 가 전달을 *전부* 떨굼(deliverDrop 99·ack 0)→라우터 재시도 상한 도달→포기(undeliverable 1). ON(failedPublish): svc.whisper.failed 1건 발행·audit 관측 1·failedPublished 1·failedNotified 1. OFF: 발행 0·audit 미관측·failedNotified 1(통지는 불변). 둘 다 undeliverable 1. minted 동일(비침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,10 +15,7 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
-const DEAD_DIE = 14; const ACKDROP = 1; const DTIMEOUT = 4;
-// N개 귓속말을 spaced 틱으로 'mbox' 에 — 각자 단조 deliverySeq 를 만들어 seen 집합을 키운다(유계 vs 무계 대조). 첫 ack 손실로 중복 1건 유발(dedup 보존 확인).
-const NWHISPER = 12; const WSTART = 48; const WSTEP = 2;
-const WHISPERS = Array.from({ length: NWHISPER }, (_, k) => ({ at: WSTART + k * WSTEP, from: 'client0', to: 'mbox', body: 'w' + k }));
+const DEAD_DIE = 14; const WHISPER_AT = 56; const DTIMEOUT = 4; const DMAX = 2; const DROPALL = 99;
 const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2,
   incremental: true, recovery: true, failover: true, inventory: true, itemOps: 30, chat: true, chatOps: 12, regions: 2,
   bus: true, audit: true, ranking: true, busResend: true, busOutAck: true, busMinWm: true,
@@ -26,38 +23,37 @@ const P_BASE = (seed, extra) => ({ seed, ticks: 90, clients: 6, moves: 30, radiu
   busLeaseAudit: true, busLeasePresence: true, busPresenceRecover: true, recoverRetry: true, presencePublish: true,
   presenceMonitor: true, presenceBox: true, presenceReportBus: true, presenceShadow: true, presenceLease: true, hbTimeout: 3,
   presenceQuery: true, whisperRouter: true, rankDie: DEAD_DIE, whisperReceipt: true, deliverRetry: true,
-  deliverTimeout: DTIMEOUT, deliverAckDrop: ACKDROP, whispers: WHISPERS,
+  deliverTimeout: DTIMEOUT, deliverMaxRetries: DMAX, deliverNotify: true, deliverDrop: DROPALL,
+  whispers: [{ at: WHISPER_AT, from: 'client0', to: 'mbox', body: 'hi' }],
   ...extra });
 
-function wsbound(seeds) {
-  console.log('== wsbound: *가설* — dedup seen 집합 유계화. 라우터 deliverySeq 단조 + ack/포기 후 재발신 0 → 연속 워터마크 이하 seq 는 잊어도 안전. producer 별 seenWm+희소 seenAbove 로 O(gap) 유계화. dedupBound ON vs OFF(평면) ==');
-  console.log(`  ${NWHISPER}개 귓속말을 잇따라 'mbox'(단조 seq) + 첫 ack 손실(dropAck ${ACKDROP})로 중복 1건. ON: seenSize(Σabove)≤K 유계·seenWm=${NWHISPER}. OFF: seenSize=${NWHISPER}(∝run). 둘 다 received ${NWHISPER}·inbox ${NWHISPER}·duplicates 1.`);
-  console.log('seed   | seenSize ON | seenWm | OFF seenSize | received | inbox | dup | delivered | bounded | 비침습 | 판정');
+function wfpublish(seeds) {
+  console.log('== wfpublish: *가설* — 전달 실패 발행. 라우터가 포기(undeliverable)할 때 svc.whisper.failed 토픽으로 발행 → audit(범용 sink)가 관측. point-to-point 통지(발신자)와 직교. failedPublish ON vs OFF ==');
+  console.log(`  'mbox' 가 전달 전부 떨굼(deliverDrop ${DROPALL})→재시도 상한(${DMAX}) 도달→포기. ON: 발행 1·audit 관측 1·failedPublished 1. OFF: 발행 0·audit 0. 둘 다 undeliverable 1·failedNotified 1.`);
+  console.log('seed   | undel ON | failedPub | audit관측 | notif | OFF audit관측 | OFF pub | 비침습 | 판정');
   for (const seed of seeds) {
-    const on  = run({ ...P_BASE(seed, { deliverDedupBound: true }) });   // 유계 — 워터마크+희소 집합
-    const off = run({ ...P_BASE(seed, { deliverDedup: true }) });        // 무계 — 0080 평면 Set(∝고유 seq)
-    const mb = on.mbox; const mo = off.mbox; const wr = on.wrouter;
-    const onSize = mb ? mb.seenSize() : -1;
-    const offSize = mo ? mo.seenSize() : -1;
-    // producer(wrouter) 별 워터마크가 N 까지 연속 흡수됐는가 — 전체 N seq 가 접혀 잔여(seenAbove)는 유계.
-    const wm = mb && mb.seenWm.size ? Math.max(...mb.seenWm.values()) : 0;
-    // ① 유계 — ON 의 보관 항목(Σ seenAbove)은 작은 상수(K=2) 이하, OFF 는 N(고유 seq 전부 보관). 워터마크는 N 까지 전진.
-    const bounded = onSize >= 0 && onSize <= 2 && offSize === NWHISPER && wm === NWHISPER;
-    // ② dedup 보존 — 메모리 유계화에도 exactly-once 유지: 중복 1건 걸러(duplicates 1)·inbox/received N(중복 미적재)·라우터 delivered N.
-    const exactly = mb && mb.received === NWHISPER && mb.inbox.length === NWHISPER && mb.duplicates === 1 && wr && wr.delivered === NWHISPER;
+    const on  = run({ ...P_BASE(seed, { failedPublish: true }) });
+    const off = run({ ...P_BASE(seed, {}) });   // failedPublish OFF — 포기는 발신자 통지만(0081 동작)·토픽 발행 0
+    const wr = on.wrouter; const wo = off.wrouter;
+    const auON  = on.audit ? (on.audit.seen.get('svc.whisper.failed') || 0) : -1;
+    const auOFF = off.audit ? (off.audit.seen.get('svc.whisper.failed') || 0) : -1;
+    // ① 발행+관측 — 포기 1건을 svc.whisper.failed 로 발행(failedPublished 1)·audit 가 구독해 관측 1·통지도 1(직교).
+    const published = wr && wr.undeliverable === 1 && wr.failedPublished === 1 && auON === 1 && wr.failedNotified === 1;
+    // ② 대조(OFF) — failedPublish 없으면 발행 0·audit 미관측: undeliverable 1·failedNotified 1(통지는 불변)·failedPublished 0.
+    const silent = wo && wo.undeliverable === 1 && wo.failedPublished === 0 && auOFF === 0 && wo.failedNotified === 1;
     const nonInvasive = on.inventory.minted === off.inventory.minted;
     const ok =
-      check(bounded, `seed ${seed}: 유계 틀림(ON seenSize ${onSize} wm ${wm}·OFF ${offSize}·기대 ON≤2 wm ${NWHISPER} OFF ${NWHISPER})`) &&
-      check(exactly, `seed ${seed}: dedup 보존 틀림(rx ${mb && mb.received}·inbox ${mb && mb.inbox.length}·dup ${mb && mb.duplicates}·delivered ${wr && wr.delivered}·기대 ${NWHISPER}/${NWHISPER}/1/${NWHISPER})`) &&
-      check(nonInvasive, `seed ${seed}: 유계화가 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
+      check(published, `seed ${seed}: 발행/관측 틀림(undel ${wr && wr.undeliverable}·pub ${wr && wr.failedPublished}·audit ${auON}·notif ${wr && wr.failedNotified})`) &&
+      check(silent, `seed ${seed}: OFF 발행 누설(undel ${wo && wo.undeliverable}·pub ${wo && wo.failedPublished}·audit ${auOFF})`) &&
+      check(nonInvasive, `seed ${seed}: 발행이 원장 권위 바꿈(minted on ${on.inventory.minted} off ${off.inventory.minted})`) &&
       check(ledgerConsistent(on) && itemConserved(on) && ledgerConsistent(off) && itemConserved(off), `seed ${seed}: 원장 자기-정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(onSize, 11)} | ${pad(wm, 6)} | ${pad(offSize, 12)} | ${pad(mb ? mb.received : 0, 8)} | ${pad(mb ? mb.inbox.length : 0, 5)} | ${pad(mb ? mb.duplicates : 0, 3)} | ${pad(wr ? wr.delivered : 0, 9)} | ${pad(bounded + '', 7)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad(wr ? wr.undeliverable : 0, 8)} | ${pad(wr ? wr.failedPublished : 0, 9)} | ${pad(auON, 9)} | ${pad(wr ? wr.failedNotified : 0, 5)} | ${pad(auOFF, 13)} | ${pad(wo ? wo.failedPublished : 0, 7)} | ${pad(nonInvasive + '', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 평면 Set(0080) 은 본 seq 를 영구 보관해 메모리가 run 에 비례(∝고유 seq). producer 별 연속 워터마크는 흡수된 seq 를 즉시 잊어(O(gap)) 유계 — 같은 dedup 정확도(exactly-once)를 무계 메모리 없이 얻는다(0042/0047 의 전달 dedup 판·SPINE 계층3).');
-  console.log('    dedupBound 미설정 = 0080 비트 동일(평면 Set·무계·reg). 비-침습: 유계화 권위 0(원장 무관)·minted ON==OFF·존 tick 밖 순수 반응형.');
+  console.log('  → 포기(undeliverable)가 두 평면으로 갈라진다: 발신자 통지(deliveryFailed·point-to-point·행동용·0079)와 토픽 발행(svc.whisper.failed·관측/감사용·0082). audit 는 발행자(wrouter) 무수정으로 구독 행만 추가돼 실패 스트림을 본다(0060 presencePublish 의 전달 실패 판·SPINE 계층3).');
+  console.log('    failedPublish 미설정 = 0081 비트 동일(발행 0·reg). 비-침습: 발행 권위 0(원장 무관)·minted ON==OFF·존 tick 밖 순수 반응형·은닉(bus 만 알고 구독자 무지).');
 }
 
-kit.MODES['wsbound'] = wsbound;
-kit.ORDER.splice(1, 0, 'wsbound');
+kit.MODES['wfpublish'] = wfpublish;
+kit.ORDER.splice(1, 0, 'wfpublish');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
