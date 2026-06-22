@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0090](step-0090.md) — **epoch 워터마크 유계화**(epochBound·옛 epoch 가지치기): 0089 의 (producer,epoch) 워터마크는 재시작 안전을 주지만 Mailbox 가 *모든 epoch* 워터마크를 영영 보관→epoch 차원 ∝재시작 무한 성장(0089 §9). 재시작(epoch++)은 inflight 를 비워 옛 epoch 전달이 다시 안 오므로, 더 높은 epoch 도착 시 낮은 epoch 워터마크는 안전하게 가지친다 → base producer 당 현재 epoch 만 유지(유계). 0048 lease lifecycle·0042 seen 유계화의 epoch 판. 0081(seq)+0090(epoch)=직교 유계화로 dedup 메모리 완전 유계. 닿는 박스: svc-mailbox(epochBound·curEpoch·_pruneEpoch·epochKeyCount)·topo-build(mbox epochBound 전달)·topology(다중 wrouterRestart 배열).
-- **한 줄 상태**: reg ALL OK(src=baseline=0089 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pepochbnd: 3재시작(epoch 0..3)·8전달·ON epochKeys 1(현재만)/received 8/dup 0 vs OFF epochKeys 4(∝epoch)/received 8·minted ON==OFF·spine 90-step ALL OK.
-- **다음**: §2 참조(파티 cluster kill→replay 통합(0085 §9) · 멤버별 Mailbox 토폴로지(0088 §9) · 옛 epoch grace 유예(0090 §9) · active 메아리 정리(0068 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
+- **닫힌 step**: [step-0091](step-0091.md) — **옛 epoch grace 유예**(deliverEpochGrace·straggler 내성): 0090 은 더 높은 epoch 도착 시 낮은 epoch 워터마크를 *즉시* 가지친다(단조 epoch 도착 가정·0090 §9). 가지친 뒤 옛 epoch 의 지연 straggler 가 도착하면 워터마크 부재로 *신규 오인 재수신*(중복 적재·0089 전달 유실의 거울상). 이 step 은 즉시 가지치기 대신 *가장 최근 N개 닫힌 epoch 워터마크를 유예*(`_pruneEpoch` 제거 기준 `<epoch`→`<epoch-epochGrace`)해 유예 구간 straggler 를 정상 dedup. epoch 차원은 producer 당 N+1 로 여전히 유계(0051 lease grace 의 epoch 판). 닿는 박스: svc-mailbox(epochGrace·_pruneEpoch floor)·topo-build(mbox epochGrace 전달)·topology(mboxStraggler 주입 훅).
+- **한 줄 상태**: reg ALL OK(src=baseline=0090 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·E2E 14프로세스 비트동일·pepochgrace: 1재시작·정상 4전달·옛 epoch straggler 1·ON received 4/dup 1/epochKeys 2 vs OFF received 5(누수)/dup 0·minted ON==OFF·spine 91-step ALL OK.
+- **다음**: §2 참조(멤버별 Mailbox 토폴로지(0088 §9) · 파티 cluster kill→replay 통합(0085 §9) · active 메아리 정리(0068 §9) · 옛 epoch 닫힘 TTL(0091 §9) · 거래소/우편/길드 · 비동기 결정론🔴). 이제 각 step 은 `src/` 닿는 박스만 제자리 수정.
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0090 이 *epoch 워터마크 유계화*(epochBound — 옛 epoch 가지치기)를 닫아 0089 의 무계 epoch 격차를 메움(0081 seq + 0090 epoch = dedup 메모리 완전 유계). 기능 후보(우선): *파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*멤버별 Mailbox 토폴로지*(파티원마다 수신함·실수신 완료 강화·0088 §9)·*옛 epoch grace 유예*(straggler 대비·0090 §9)·*active 메아리 정리*(0068 §9)·*활성 중 다운타임 재발행*(0025/0026)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: 안정 박스 `engine/` 승격.**
+**step-0091 이 *옛 epoch grace 유예*(deliverEpochGrace — straggler 내성)를 닫아 0090 §9 한계(가지친 뒤 옛 epoch straggler 신규 오인)를 메움(grace 윈도 N → epoch 차원 producer 당 N+1 유계 보존). 기능 후보(우선): *멤버별 Mailbox 토폴로지*(파티원마다 수신함·실수신 완료 강화·0088 §9)·*파티 cluster kill→replay 통합*(별 프로세스·0085 §9)·*active 메아리 정리*(0068 §9)·*옛 epoch 닫힘 TTL*(N 초과 지연 straggler·0091 §9)·*활성 중 다운타임 재발행*(0025/0026)·*거래소/우편/길드*·*비동기 결정론*(🔴·0012 §9-3). 🔧 정리: topo-build 30.5KB·svc-whisper 28.7KB — 다음 기능 step 전 정리 압력.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제(현실 전송)·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원(재-provisioning·divergence 0·N≥2). 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→**대체 소비자 호(0061~0063)** spawnReplace→reconstruct→presmon. **0071~0084 귓속말/파티 라우팅 호(wrouter)**: 프레즌스 질의(0069)의 라우팅 소비자 — 귓속말·failover 재타깃·파티 1:N·멤버십 SSOT(pservice)·**전달 신뢰 호 0076~0082**(영수증→재시도→상한→통지→dedup→seen 유계화→실패 발행)·**파티 0083~0086**(영수증 집계·증분 가입탈퇴+변경 발행·멤버십 영속·저널 스냅샷 압축)·**0087~0090 전달 수명주기 관측·파티 ack 집계·epoch 워터마크+유계화**(상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 0014 가방·0015 채팅(단일 소유·쌍 거래·팬아웃·격리)→0016 버스+audit→0017~0022 가방/채팅 영속+압축·ranking 발신소비자·읽기모델 late-join→0023~0032 write-behind 신뢰성·persist failover/N-replica/quorum/윈도→대체 소비자 호(0061~0063 spawnReplace→reconstruct→presmon). **0071~0091 귓속말/파티 라우팅 호(wrouter)**: 프레즌스 질의(0069)의 라우팅 소비자 — 라우팅·failover 재타깃·파티 1:N·멤버십 SSOT(pservice)·전달 신뢰(0076~0082 영수증→재시도→상한→통지→dedup→유계화→실패발행)·파티(0083~0086 집계·증분 변경발행·영속·압축)·관측·ack 집계·epoch 펜싱+유계화+grace(0087~0091·상세 §7). 전부 별 프로세스·신성한 tick·권위 0. 거래소/우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 **서비스 의미**(ServiceBus·발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 **failover**(재구독·진실원천=소비자)→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계화·ack 자기-크기조정→0044 min-워터마크→0045 소비자 lease→0046/0047 producer 네임스페이스→0048 lease lifecycle→0050~0052 적응형 leaseSpan·grace·cadence→0054 lease 생애 관측. 버스 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease 생애 관측→프레즌스 SSOT→**self-healing 호**(recover→ack→retry→상한 포기→발행→spawnReplace→presmon 관측). **프레즌스 박스 호(0064~0070)**: 전용 박스 분리(orch⟂프레즌스)→보고 버스화→shadow 복제→failover 승격→사망 자율 감지→질의 인터페이스→질의 failover 연속(공지→재타깃). 쓰기·발행·읽기 전 경로 failover-safe. broker 물리 분산·진짜 비동기·메아리 정리 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속·스냅샷→0023~0026 홉 신뢰(NAK·tail·in-flight give/mint)→0027~0029 failover/N-replica quorum-read/quorum write ack→0031~0032 윈도 해소+유계 K→0062 대체 소비자 reconstruct 복구원. 증분 스냅샷·fsync·anti-entropy·월드/버스 영속 후속 |
@@ -170,20 +170,21 @@
 | [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 귓속말→프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed 1/bounced 1·OFF null·spine 71 |
 | [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 0=0071·재타깃→presence2·사망 후 routed 1 vs OFF 손실·spine 72 |
 | [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — party 핸들러·멤버마다 질의→부분 전달) | 통과 · routed 2/bounced 1·spine 73 |
-| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 재타깃 시 보류 질의 재발신·읽기 at-least-once) | 통과 · ON retries 2→pending 0 vs OFF 2(손실)·spine 74 |
-| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→partyQuery→멤버십→프레즌스→라우팅 2단) | 통과 · resolved 3·routed 2/b 1 vs OFF null·spine 75 |
-| [0076](step-0076.md) | 전달 영수증(whisperReceipt — whisperDeliver 에 seq/ackTo·inflight 보류·Mailbox whisperAck→delivered) | 통과 · delivered 1·mbox 1/1 vs OFF 0 |
-| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — onTick 이 deliverTimeout 경과 inflight 재발신·at-least-once) | 통과 · ON delivered 1 vs OFF 0·inflight 1(갇힘) |
+| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신·읽기 at-least-once) | 통과 · ON retries 2→pending 0 vs OFF 2(손실) |
+| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→질의→멤버십→프레즌스 2단) | 통과 · resolved 3·routed 2/b 1 vs OFF null |
+| [0076](step-0076.md) | 전달 영수증(whisperReceipt — seq/ackTo·inflight 보류·Mailbox whisperAck→delivered) | 통과 · delivered 1·mbox 1/1 vs OFF 0 |
+| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 inflight 재발신·at-least-once) | 통과 · ON delivered 1 vs OFF 0·inflight 1(갇힘) |
 | [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기·undeliverable·유계 재시도) | 통과 · ON undel 1 vs OFF 무상한 12 |
 | [0079](step-0079.md) | 전달 포기 통지(deliverNotify — 포기 시 원 발신자에 deliveryFailed 회신·가시화) | 통과 · ON failedNotified 1 vs OFF 0 |
-| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox 가 seq 기억해 중복 whisperDeliver inbox 재적재 차단·재-ack·exactly-once) | 통과 · ON dup 1 vs OFF 0(중복 적재) |
-| [0081](step-0081.md) | dedup seen 집합 유계화(deliverDedupBound — producer 별 연속 워터마크+희소 비순차 집합으로 seen 을 O(gap) 유계화) | 통과 · 12귓속말 ON seenSize 0/wm 12 vs OFF 12(∝run)·dup 1 보존 |
-| [0082](step-0082.md) | 전달 실패 발행(failedPublish — 포기 시 svc.whisper.failed 토픽 발행·audit 관측·발신자 통지와 직교) | 통과 · ON failedPublished 1/audit 1 vs OFF 0/0·undel 1 |
-| [0083](step-0083.md) | 파티 1:N 라우팅 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced} 완료 원장·부분 전달 N-of-M 가시) | 통과 · ON 원장 {3,2,1}/done vs OFF size 0·총계 2/1 |
-| [0084](step-0084.md) | 증분 가입/탈퇴 + 멤버십 변경 발행(partyChange — partyJoin/Leave 델타·svc.party.changed→audit) | 통과 · join c/leave a→[b,c]·ON 발행 2/audit 2 vs OFF 0/0 |
-| [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→reconstruct) | 통과 · 저널 3→crash→reconstruct [b,c] vs OFF 소실 |
-| [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — snapInterval 마다 멤버십 스냅샷+저널 가지치기·tail replay) | 통과 · 6변경/snapI 4→ON 저널 tail 2 vs OFF 6·둘 다 [a..f] 무손실 |
-| [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — whisperAck 확인 시 svc.whisper.delivered{to,seq,tries} 발행·audit) | 통과 · dropDeliver 1→ON pub 1/audit 1/tries 1 vs OFF 0/0 |
-| [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck 를 파티 delivered 로 집계·partyAcked=delivered==routed) | 통과 · ON {routed 1,bounced 1,delivered 1}·done/acked vs OFF size 0 |
-| [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — 라우터 restart 시 epoch++ whisperDeliver 부착·Mailbox (prod,epoch) 키) | 통과 · 0=0088·restart 후 ON received 12/dup 0 vs OFF 6/6(유실 버그)·spine 89 |
+| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·중복 재적재 차단·재-ack·exactly-once) | 통과 · ON dup 1 vs OFF 0(중복 적재) |
+| [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound — 연속 워터마크+희소 비순차 집합으로 O(gap)) | 통과 · ON seenSize 0/wm 12 vs OFF 12(∝run)·dup 1 보존 |
+| [0082](step-0082.md) | 전달 실패 발행(failedPublish — 포기 시 svc.whisper.failed 발행·audit·통지와 직교) | 통과 · ON failedPub 1/audit 1 vs OFF 0 |
+| [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced} 완료 원장·N-of-M) | 통과 · ON 원장 {3,2,1}/done vs OFF size 0 |
+| [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave 델타·svc.party.changed→audit) | 통과 · →[b,c]·ON 발행 2/audit 2 vs OFF 0 |
+| [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→reconstruct) | 통과 · crash→reconstruct [b,c] vs OFF 소실 |
+| [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — 멤버십 스냅샷+저널 가지치기·tail replay) | 통과 · ON 저널 tail 2 vs OFF 6·둘 다 [a..f] 무손실 |
+| [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — whisperAck 시 svc.whisper.delivered 발행·audit) | 통과 · ON pub 1/audit 1 vs OFF 0 |
+| [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck→파티 delivered 집계·acked=delivered==routed) | 통과 · ON {routed 1,delivered 1}·acked vs OFF size 0 |
+| [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart 시 epoch++ 부착·Mailbox (prod,epoch) 키) | 통과 · restart 후 ON received 12/dup 0 vs OFF 6/6(유실)·spine 89 |
 | [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 더 높은 epoch 도착 시 낮은 epoch 워터마크 가지치기·producer 당 현재 epoch 만) | 통과 · 0=0089·3재시작·ON epochKeys 1 vs OFF 4(∝epoch)·둘 다 received 8/dup 0·spine 90 |
+| [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N개 닫힌 epoch 워터마크 유예·지연 straggler dedup·epoch 차원 producer 당 N+1 유계) | 통과 · 0=0090·옛 epoch straggler ON received 4/dup 1 vs OFF 5(누수)/dup 0·spine 91 |

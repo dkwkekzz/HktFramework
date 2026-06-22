@@ -1,4 +1,5 @@
 'use strict';
+// step-0090 — epoch 워터마크 유계화(epochBound·옛 epoch 가지치기): 0089 의 (producer,epoch) 워터마크는 재시작 안전을 주지만, Mailbox 가 *모든 epoch*의 워터마크를 영영 보관한다 → 라우터가 재시작할수록 epoch 차원이 ∝재시작 수로 무한 성장(0089 §9). 핵심 통찰: 라우터가 재시작하면(epoch++) inflight 를 비우므로 *옛 epoch 의 전달은 다시 오지 않는다* → 더 높은 epoch 가 도착하면 그 producer 의 *낮은 epoch 워터마크는 안전하게 잊어도 된다*. 이 step 은 base producer 별 *현재(최고) epoch* 만 유지하고, 더 높은 epoch 수신 시 낮은 epoch 워터마크 키를 가지친다 → epoch 차원이 producer 당 1 로 유계(0048 lease lifecycle·0042 seen 유계화의 epoch 판). epochBound OFF 면 가지치기 0·옛 epoch 누적 = 0089 비트 동일.
 // step-0081 — dedup seen 집합 유계화(deliverDedupBound·워터마크): 0080 의 수신측 dedup 은 본 seq 를 *전부* `seen` Set 에 영구 보관한다 → 귓속말이 누적될수록 메모리가 run 에 비례해 무한 성장(0080 §9). 라우터의 deliverySeq 는 *단조 증가*(producer 별 ++deliverySeq)이고, 라우터는 ack 받거나 포기하면 그 seq 를 다시 안 보낸다 — 따라서 *연속 워터마크 아래* 의 seq 는 영영 재발신 안 됨 = 안전하게 잊어도 됨. 이 step 은 그 통찰로 seen 을 유계화한다: producer(전달자 addr) 별로 ⒜ seenWm(본 *연속* 최고 seq — 이하는 전부 본 것으로 접힘) + ⒝ seenAbove(wm 초과 *비순차* seq 의 희소 집합)를 둔다. 새 seq 수신 시 seenAbove 에 넣고 wm+1 이 차 있으면 흡수하며 wm 전진(set 에서 제거) → 메모리 = O(gap)(순차 도착이면 ≈0), OFF 의 O(고유 seq)(∝run) 대비 유계. 0042 busSeenBound(inAcked 워터마크)·0047 busSeenNs(per-producer)의 *전달 dedup* 판. dedup 판정(중복=inbox 재적재 안 함)은 불변 — 메모리 표현만 유계화. deliverDedupBound OFF 면 0080 의 평면 Set(무계) = 비트 동일.
 // step-0080 — 수신측 dedup(exactly-once): 0077 의 at-least-once 재시도는 *영수증(ack)이 손실*되면 라우터가 *이미 받은 전달*도 재발신한다 → Mailbox 가 같은 귓속말을 두 번 적재(중복·0077 §9). 이 step 은 수신측을 멱등화한다 — Mailbox 가 seq 를 기억(seen)해, 중복 whisperDeliver(이미 본 seq)는 inbox 에 *재적재하지 않고*(duplicates++) ack 만 재회신(라우터 inflight 정리). 0026 id-reconciliation(belief 로 중복 mint 차단)의 *전달* 판 — at-least-once 전송 + 수신측 dedup = exactly-once *처리*. 손실 주입 dropAck(첫 N개 ack 억제·전달은 정상 수신)로 중복을 유발. dedup OFF 면 중복 적재(0079 동작·received 2).
 // step-0077 — 전달 손실 재시도(whisperDeliverRetry) 대조용 손실 주입 dropDeliver 추가: 첫 N개 whisperDeliver 를 떨궈(수신·ack 0) 라우터의 재발신(deliverTimeout 후)이 손실에도 delivered 로 수렴함을 보인다. dropDeliver 0 = 0076 동일.
@@ -23,10 +24,21 @@ class Mailbox {
     this.dropAck = opts.dropAck || 0;   // ack 손실 주입(step-0080·테스트 전용) — 첫 N개 ack 을 억제(전달은 정상 수신). 라우터가 ack 못 받아 재발신→중복 유발. 0 이면 ack 손실 없음(0079 동일).
     this.ackDropped = 0;    // 억제한 ack 수(계측).
     this.seen = new Set();  // 본 seq 집합(dedup 키·0080 무계 평면 경로) — dedupBound OFF 때만 사용.
-    this.seenWm = new Map();    // producer addr -> 본 *연속* 최고 seq(step-0081·유계 경로). 이하는 전부 본 것으로 접힘 → 보관 0.
-    this.seenAbove = new Map(); // producer addr -> Set(wm 초과 *비순차* seq)(step-0081). 순차 도착이면 즉시 흡수돼 ≈빈 집합 → 메모리 O(gap).
+    this.seenWm = new Map();    // producer 키(addr 또는 addr#epoch) -> 본 *연속* 최고 seq(step-0081·유계 경로). 이하는 전부 본 것으로 접힘 → 보관 0.
+    this.seenAbove = new Map(); // producer 키 -> Set(wm 초과 *비순차* seq)(step-0081). 순차 도착이면 즉시 흡수돼 ≈빈 집합 → 메모리 O(gap).
     this.duplicates = 0;    // dedup 으로 걸러낸 중복 전달 수(계측).
+    this.epochBound = opts.epochBound || false;   // epoch 워터마크 유계화(step-0090·epochBound) — base producer 별 현재 epoch 만 유지·낮은 epoch 가지치기. OFF 면 옛 epoch 누적(0089 동일).
+    this.curEpoch = new Map();  // base producer(m.from) -> 본 최고 epoch(step-0090). 더 높은 epoch 도착 시 낮은 epoch 워터마크 키 가지치기.
   }
+  // epoch 가지치기(step-0090) — base 의 더 높은 epoch 도착 시, 그 base 의 *낮은 epoch* 워터마크 키를 제거(옛 epoch 전달은 재시작으로 다시 안 옴 → 안전). epochBound OFF·epoch 없으면 no-op.
+  _pruneEpoch(base, epoch) {
+    if (!this.epochBound || epoch == null) return;
+    const cur = this.curEpoch.get(base);
+    if (cur != null && epoch <= cur) return;   // 새 epoch 아님 → 가지치기 불필요
+    if (cur != null) for (const k of [...this.seenWm.keys()]) { const i = k.lastIndexOf('#'); if (i >= 0 && k.slice(0, i) === base && +k.slice(i + 1) < epoch) { this.seenWm.delete(k); this.seenAbove.delete(k); } }
+    this.curEpoch.set(base, epoch);
+  }
+  epochKeyCount() { return this.seenWm.size; }   // 보관 중인 (producer,epoch) 워터마크 키 수(계측·유계 증명).
   // 본 seq 인가(dedup 판정 — 평면/유계 공통 디스패치). 유계 경로: wm 이하(접힘) 또는 seenAbove 에 있으면 본 것.
   _seenHas(prod, seq) {
     if (!this.dedupBound) return this.seen.has(seq);
@@ -63,6 +75,8 @@ class Mailbox {
       if (this.dropped < this.dropDeliver) { this.dropped++; return; }
       // 수신측 dedup(step-0080·exactly-once) — 이미 본 seq 면 중복: inbox 재적재 안 함(멱등). 단 ack 은 재회신해 라우터 inflight 를 정리(at-least-once 전송 + 수신측 멱등 = exactly-once 처리). dedup OFF 면 이 분기 없이 중복도 적재(0079).
       // dedup 키 표현은 평면 Set(0080·무계) 또는 producer 별 워터마크(0081·유계)를 _seenHas/_seenAdd 가 디스패치 — 판정은 동일, 메모리만 다름. producer = 전달자 addr(m.from).
+      // epoch 워터마크 유계화(step-0090) — 더 높은 epoch 도착 시 그 base 의 낮은 epoch 워터마크 키 가지치기(옛 epoch 전달은 재시작으로 다시 안 옴). epochBound OFF 면 no-op(0089 누적).
+      this._pruneEpoch(m.from, p.epoch);
       // producer epoch(step-0089) — p.epoch 가 실려오면(라우터 epochKeyed) (producer,epoch) 로 분리: 라우터 재시작 시 새 epoch=새 워터마크 → 리셋된 낮은 seq 오접힘 방지. epoch 없으면 producer 만(0081 동작·비트 동일).
       const prod = (p.epoch != null) ? (m.from + '#' + p.epoch) : m.from;
       if ((this.dedup || this.dedupBound) && p.seq != null && this._seenHas(prod, p.seq)) { this.duplicates++; this._ack(p); return; }
