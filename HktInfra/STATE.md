@@ -150,48 +150,48 @@
 | [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max·감쇠) | 통과 · stall 후 OFF 60 vs ON 0 |
 | [0053](step-0053.md) | 정리: 트랜잭션 onMsg 를 svc-inventory-txn.js 로 추출(31.9→25.5KB·기능 0) | 통과 · spine 53 |
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→audit) | 통과 · 전이 관측 |
-| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch lease 소비→consumerDown) | 통과 · down==evicted |
+| [0055](step-0055.md) | lease 생애 반응(busLeasePresence — orch lease→consumerDown) | 통과 · down==evicted |
 | [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독→readmit) | 통과 · 각 1 |
-| [0057](step-0057.md) | 치유 확인 고리(recoverAck — 재구독하며 orch 에 회신) | 통과 · sent==acks==1 |
+| [0057](step-0057.md) | 치유 확인 고리(recoverAck — 재구독하며 orch 회신) | 통과 · sent==acks==1 |
 | [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — recoverTimeout 뒤 재발신) | 통과 · ON retries 2 |
-| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — 도달 시 permanentDown 포기) | 통과 · retries 3·givenUp 1 |
-| [0060](step-0060.md) | 프레즌스 발행(presencePublish — down/up/permanent→svc.presence→audit) | 통과 · audit 1:1 |
-| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby 가 svc.presence 'permanent' 에 자기 활성화) | 통과 · permanent→인계 |
-| [0062](step-0062.md) | 대체 소비자 late-join reconstruct(spawnReconstruct — 쓰기 저널로 다운타임 갭 복원) | 통과 · 투영==원장 |
-| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — svc.presence 구독→소비자별 건강 상태 기계) | 통과 · events 2/2 |
-| [0064](step-0064.md) | 전용 프레즌스 박스 분리(presenceBox — orch SSOT+발행→PresenceService·⟂orch) | 통과 · orch pub 0 |
-| [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus — svc.presence.report 토픽으로) | 통과 · presmon ON==OFF |
-| [0066](step-0066.md) | 프레즌스 shadow 복제(presenceShadow — standby 가 같은 보고로 SSOT 그림자) | 통과 · shadow==primary |
+| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — permanentDown 포기) | 통과 · retries 3·givenUp 1 |
+| [0060](step-0060.md) | 프레즌스 발행(presencePublish — down/up/permanent→audit) | 통과 · audit 1:1 |
+| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby 가 'permanent' 에 자기 활성화) | 통과 · permanent→인계 |
+| [0062](step-0062.md) | 대체 소비자 late-join recon(spawnReconstruct — 쓰기 저널로 갭 복원) | 통과 · 투영==원장 |
+| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — svc.presence 구독→건강 상태 기계) | 통과 · events 2/2 |
+| [0064](step-0064.md) | 전용 프레즌스 박스 분리(presenceBox — orch SSOT+발행→PresenceService) | 통과 · orch pub 0 |
+| [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus — svc.presence.report 토픽) | 통과 · presmon ON==OFF |
+| [0066](step-0066.md) | 프레즌스 shadow 복제(presenceShadow — standby 가 같은 보고로 그림자) | 통과 · shadow==primary |
 | [0067](step-0067.md) | 프레즌스 failover 승격(presencePromote — crash→standby promote) | 통과 · 승격 분담 |
-| [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵 hbTimeout→자기 승격) | 통과 · 자율 승격 |
-| [0069](step-0069.md) | 프레즌스 SSOT 질의 인터페이스(presenceQuery→presenceReply·pull) | 통과 · 질의↔응답 4/4 |
+| [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵→자기 승격) | 통과 · 자율 승격 |
+| [0069](step-0069.md) | 프레즌스 SSOT 질의(presenceQuery→presenceReply·pull) | 통과 · 질의↔응답 4/4 |
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — svc.presence.active→재타깃) | 통과 · 죽음 후 2/2 |
-| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 프레즌스 질의→up 전달/permanent 반송·첫 라우팅 소비자) | 통과 · routed/bounced 1·OFF null |
-| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지 구독→queryAddr 재타깃) | 통과 · 사망 후 routed 1 vs OFF 0 |
+| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 프레즌스 질의→up 전달/permanent 반송) | 통과 · routed/bounced 1·OFF null |
+| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지→queryAddr 재타깃) | 통과 · 사망 후 routed 1 vs OFF 0 |
 | [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — 멤버마다 질의→부분 전달) | 통과 · routed 2/b1 |
-| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신·at-least-once) | 통과 · ON pending 0 vs OFF 2 |
-| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo→멤버십→프레즌스 2단) | 통과 · resolved 3·routed 2 |
+| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신) | 통과 · ON pending 0 vs OFF 2 |
+| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·partyTo 2단) | 통과 · resolved 3·routed 2 |
 | [0076](step-0076.md) | 전달 영수증(whisperReceipt — seq/ackTo·inflight·Mailbox whisperAck→delivered) | 통과 · deliv 1 vs OFF 0 |
-| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 재발신·at-least-once) | 통과 · ON delivered 1 vs OFF 0 |
+| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout 경과 재발신) | 통과 · ON delivered 1 vs OFF 0 |
 | [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기·undeliverable) | 통과 · ON undel 1 vs OFF 12 |
 | [0079](step-0079.md) | 전달 포기 통지(deliverNotify — 포기 시 발신자에 deliveryFailed 회신) | 통과 · ON notified 1 vs OFF 0 |
-| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·중복 재적재 차단·exactly-once) | 통과 · ON dup 1 vs OFF 0 |
-| [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound — 연속 워터마크+희소 비순차 집합으로 O(gap)) | 통과 · ON seenSize 0/wm 12 vs OFF 12(∝run)·dup 1 보존 |
+| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·중복 차단·exactly-once) | 통과 · ON dup 1 vs OFF 0 |
+| [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound — 연속 워터마크+희소 비순차 집합 O(gap)) | 통과 · ON seenSize 0 vs OFF ∝run·dup 1 보존 |
 | [0082](step-0082.md) | 전달 실패 발행(failedPublish — 포기 시 svc.whisper.failed 발행·audit·통지와 직교) | 통과 · ON pub/audit 1 vs OFF 0 |
-| [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced}·N-of-M) | 통과 · ON {3,2,1}/done vs OFF 0 |
+| [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — partyId 별 {members,routed,bounced}) | 통과 · ON {3,2,1} vs OFF 0 |
 | [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave 델타·svc.party.changed) | 통과 · ON 2 vs OFF 0 |
-| [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→reconstruct) | 통과 · recon [b,c] vs OFF 소실 |
+| [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→recon) | 통과 · recon [b,c] vs OFF 소실 |
 | [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — 스냅샷+저널 가지치기·tail replay) | 통과 · ON tail 2 vs OFF 6 |
 | [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — whisperAck→svc.whisper.delivered·audit) | 통과 · ON 1 vs OFF 0 |
 | [0088](step-0088.md) | 파티 ack 집계(partyAckTally — whisperAck→delivered·acked=delivered==routed) | 통과 · ON acked vs OFF 0 |
-| [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart epoch++·Mailbox (prod,epoch) 키) | 통과 · ON rec 12/dup 0 vs OFF 6/6 |
-| [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 높은 epoch 도착 시 낮은 epoch 가지치기) | 통과 · ON epochKeys 1 vs OFF 4·dup 0 |
+| [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart epoch++·Mailbox (prod,epoch) 키) | 통과 · ON dup 0 vs OFF 6/6 |
+| [0090](step-0090.md) | epoch 워터마크 유계화(epochBound — 높은 epoch 도착 시 낮은 epoch 가지치기) | 통과 · ON keys 1 vs OFF 4·dup 0 |
 | [0091](step-0091.md) | 옛 epoch grace 유예(deliverEpochGrace — 최근 N 닫힌 epoch 유예·N+1 유계) | 통과 · straggler ON rec 4/dup 1·spine 91 |
 | [0092](step-0092.md) | 파티 ack 타임아웃 포기(partyAckGiveup — 멤버 포기→파티 failed·partyIncomplete 종결) | 통과 · ON {routed 2,deliv 1,failed 1} vs OFF 0·spine 92 |
 | [0093](step-0093.md) | 파티 incomplete 발행(partyIncompletePublish — 부분 실패 종결 svc.party.incomplete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 93 |
 | [0094](step-0094.md) | 정리: svc-whisper 박스-부품 분할(core/handlers/entry·기능 0) | OK · 박스 33→12/10/1KB·spine 94 |
 | [0095](step-0095.md) | 파티 complete 발행(partyCompletePublish — 전원 acked 성공 종결 svc.party.complete·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 95 |
-| [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack·0088 §9) | 통과 · ON deliv 2/acked true vs OFF 1·spine 96 |
+| [0096](step-0096.md) | 멤버별 Mailbox 토폴로지(mailbox2 — 둘째 수신함·파티원마다 ack) | 통과 · ON deliv 2/acked vs OFF 1·spine 96 |
 | [0097](step-0097.md) | 귓속말 반송 발행(bouncePublish — down/permanent 반송 svc.whisper.bounced·audit) | 통과 · ON pub/audit 1 vs OFF 0·spine 97 |
 | [0098](step-0098.md) | 정리: topo-build 박스-부품 분할(topo-actors.js·기능 0) | OK · 박스 32→28.5/4.9KB·spine 98 |
 | [0099](step-0099.md) | Mailbox inbox 유계화(inboxBound — inbox 최근 K cap·received 보존) | 통과 · ON inbox 4/overflow 4 vs OFF 8/0·spine 99 |
