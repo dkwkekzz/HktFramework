@@ -1,4 +1,5 @@
 'use strict';
+// step-0087 — 전달 수명주기 관측(deliveredPublish·svc.whisper.delivered): 0082 는 전달 *실패*(포기)만 svc.whisper.failed 로 발행해, 운영 평면이 보는 전달 스트림이 *실패 절반*뿐이었다 — 성공한 전달과 그 비용(재시도 횟수)은 관측 불가(0082 §9). 이 step 은 전달 *성공*도 발행해 수명주기를 완성한다: whisperAck 로 전달이 확인되면 deliveredPublish 면 svc.whisper.delivered{to, seq, tries} 를 bus 로 발행(tries=확인까지 재발신 횟수=전달 비용) → audit 가 성공·실패 둘 다 구독(0082 failed + 0087 delivered = 전달 수명주기 전체). 0082 의 *성공 경로* 짝 — 같은 audit sink 가 전달의 양 끝(성공·포기)을 본다. deliveredPublish OFF·bus 부재면 발행 0 = 0086 비트 동일.
 // step-0083 — 파티 1:N 라우팅 영수증 집계(partyReceipt·partyReceipts): 0073/0075 의 파티 팬아웃은 멤버마다 _queryFor→라우팅(전달/반송)하지만 *파티 단위 완료*를 집계하지 않는다 — "이 파티 전송이 N 멤버 중 몇에 전달/반송됐고 다 끝났는가"를 모른다(0073 §9). 이 step 은 partyId 별 영수증 원장을 더한다: 파티 수신 시 {members:N, routed:0, bounced:0} 를 열고, 각 멤버 라우팅 판정(up=routed·down/permanent=bounced)을 그 파티에 집계 → routed+bounced==members 면 *파티 전송 완료*(부분 전달 가시). 1:1 영수증(0076·delivered)의 *1:N 집계* 판 — 개별 전달 확인 위에 파티 완료 회계. partyReceipt OFF 면 집계 0 = 0082 비트 동일(파티는 멤버별 라우팅만).
 // step-0082 — 전달 실패 발행(failedPublish·svc.whisper.failed): 0079 의 포기 통지는 *원 발신자*에게만 deliveryFailed 를 회신한다 — 운영/감사 평면은 전달 실패를 못 본다(0079 §9). 이 step 은 포기를 *버스 토픽으로 발행*해 관측 가능하게 한다: 상한 도달로 포기(undeliverable)할 때, failedPublish 면 bus 로 {type:'pub', topic:'svc.whisper.failed', ev:{to, from, body}} 를 발행 → audit(범용 sink·발행자 무수정 소비자)가 구독해 실패 스트림을 관찰(failedPublished++). 0060 presencePublish(프레즌스 판정을 svc.presence 로 발행)의 *전달 실패* 판 — point-to-point 통지(0079)는 발신자 행동용, 토픽 발행(0082)은 관측/감사용(두 소비자 분리). failedPublish OFF·bus 부재면 발행 0 = 0081 비트 동일(포기는 발신자에게만).
 // step-0079 — 전달 포기 통지(deliverNotify·deliveryFailed): 0078 의 포기(undeliverable)는 라우터 *내부 계측*일 뿐 — 귓속말을 보낸 클라는 전달이 영영 실패했음을 모른다(0078 §9). 이 step 은 포기를 *발신자에게 가시화*한다 — 상한 도달로 포기할 때, 원 발신자(inflight.from)에게 {type:'deliveryFailed', to, body} 를 회신한다(failedNotified++). 클라는 이 신호로 "상대에게 끝내 닿지 못했다"를 안다(반송 bounce 가 *도달 불가 즉시* 알리듯, 포기는 *유계 재시도 소진 후* 알린다). deliverNotify OFF 면 통지 0 = 0078 비트 동일(포기는 조용).
@@ -32,6 +33,8 @@ class WhisperRouter {
     this.undeliverable = 0;        // 상한 도달로 포기한 전달 수(step-0078·계측). 영구 전달불가.
     this.failedNotified = 0;       // 발신자에 회신한 deliveryFailed 수(step-0079·계측).
     this.failedPublished = 0;      // svc.whisper.failed 로 발행한 실패 수(step-0082·계측). 관측 평면 노출.
+    this.deliveredPublish = opts.deliveredPublish || false;   // 전달 성공 발행(step-0087·deliveredPublish) — whisperAck 확인 시 svc.whisper.delivered 발행(관측·수명주기 완성). OFF·bus 부재면 발행 0(0086 동일).
+    this.deliveredPublished = 0;   // svc.whisper.delivered 로 발행한 성공 수(step-0087·계측). 0082 failed 와 짝.
     this.deliverySeq = 0;          // 전달 시퀀스(step-0076) — whisperDeliver 마다 증가하는 영수증 상관키.
     this.inflight = new Map();     // seq -> {to, from, body, at} — 전달했으나 아직 whisperAck 못 받은 보류 전달(routed-delivered·at=마지막 발신 tick).
     this.delivered = 0;            // whisperAck 로 *확인된* 전달 수(step-0076). routed ⊇ delivered, 차이 = inflight.size.
@@ -75,7 +78,15 @@ class WhisperRouter {
       return;
     }
     // 전달 영수증 수신(step-0076·whisperAck) — Mailbox 가 회신한 영수증으로 inflight[seq] 보류 해제·delivered++(전달 확인). 미보류 seq(중복/허위)면 delivered 무변경(idempotent). receipt OFF 면 ackTo 미부착이라 이 메시지 자체가 안 옴.
-    if (p.type === 'whisperAck') { this.acksRecv++; if (this.inflight.has(p.seq)) { this.inflight.delete(p.seq); this.delivered++; } return; }
+    if (p.type === 'whisperAck') {
+      this.acksRecv++;
+      if (this.inflight.has(p.seq)) {
+        const e = this.inflight.get(p.seq); this.inflight.delete(p.seq); this.delivered++;
+        // 전달 성공 발행(step-0087·deliveredPublish) — 확인된 전달을 svc.whisper.delivered{to, seq, tries} 로 발행(관측). tries=확인까지 재발신 횟수(전달 비용). 0082 failed(포기)와 짝 = 전달 수명주기 전체. OFF·bus 부재면 발행 0(0086 동일).
+        if (this.deliveredPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.whisper.delivered', ev: { to: e.to, seq: p.seq, tries: e.tries } }); this.deliveredPublished++; }
+      }
+      return;
+    }
     // 클라→라우터 귓속말 요청(1:1) — 대상 상태를 모르므로 프레즌스 SSOT 에 질의(pull). 응답 올 때까지 보류(consumer 키). queryAddr 없으면 질의 0(전부 영구 보류 = 라우팅 불가의 대조).
     if (p.type === 'whisper') { this._queryFor(p.to, m.from, p.body); return; }
     // 파티 요청(step-0073·1:N 팬아웃·멤버 인라인) — 멤버마다 _queryFor(질의 N개 전개). 응답이 오는 대로 멤버별 라우팅(아래 presenceReply 핸들러 공통) — 한 요청에서 부분 전달이 자연 발생. 파티 미주입이면 이 분기 휴면(0072 비트 동일).
