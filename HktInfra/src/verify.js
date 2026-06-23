@@ -1,8 +1,8 @@
-// HktInfra step-0135 — 헤드리스 검증 (saga 재admission 발행·readmitPublish — 0132 포기 발행의 짝·liveness 수명주기 관측 완비)
+// HktInfra step-0136 — 헤드리스 검증 (saga 재admission 자동 트리거·autoReadmit — 0056 busPresenceRecover 의 saga 판)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagareadpub`.
-//   더한 한 조각: 0134 exchReadmit 은 *조용히* 재개했다 — 0132 가 포기를 발행했듯 재개도 발행돼야 운영이 saga liveness 수명주기(포기↔재개)를 본다. exchReadmit 핸들러에서 readmitPublish ON 이면 svc.exchange.saga_readmitted 를 gid 마다 1회 발행(readmitPublished==readmitted)·audit 가 구독 관측.
-//   검증: ⒜ `reg`(키트) — readmitPublish OFF 면 발행 0 = 0134 비트 동일. ⒝ `exsagareadpub`(가설) — 손실(tick<86)로 포기 후 손실 해소→exchReadmit. ON: readmitPublished 1==readmitted·audit svc.exchange.saga_readmitted 1·pending 0·open==escrow. OFF: 발행 0·audit 0(재개 자체는 동일).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagaautoread`.
+//   더한 한 조각: 0134/0135 재admission 은 *수동* exchReadmit op 였다. autoReadmit ON 이면 거래소가 svc.inventory.up(가방 회복 신호)을 *구독*해, 그 ev 수신 시 스스로 _readmit() — 수동 op 불요(decouple·은닉: 거래소는 가방 회복을 직접 안 보고 발행된 신호로만 반응). 가방 회복 신호 전달은 0187/0189 의 presAnnounceStraggler 처럼 구독 ev 를 거래소에 주입해 모델.
+//   검증: ⒜ `reg`(키트) — autoReadmit OFF 면 svc.inventory.up ev 무시·구독 미추가 = 0135 비트 동일. ⒝ `exsagaautoread`(가설) — 손실(tick<86)로 포기 후 손실 해소→svc.inventory.up 발행(@88). ON: 거래소 자동 _readmit→readmitted 1·sweep@90 재전송→pending 0·open==escrow. OFF: 같은 ev 무시→readmitted 0·pending 1 고착.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -21,7 +21,7 @@ const OPS = [
   { at: 76, op: { type: 'exchSweep', now: 76 } },   // retry1(reply 손실)
   { at: 80, op: { type: 'exchSweep', now: 80 } },   // retry2(reply 손실)
   { at: 84, op: { type: 'exchSweep', now: 84 } },   // cap=2 도달 → 포기
-  { at: 88, op: { type: 'exchReadmit' } },          // 손실 해소 후 재admission(발행)
+  { at: 88, op: { type: 'ev', topic: 'svc.inventory.up', ev: { addr: 'inventory' } } },   // 가방 회복 신호(구독 ev 주입·바스 배달 모델) → autoReadmit ON 이면 자동 재admission
   { at: 90, op: { type: 'exchSweep', now: 90 } },   // 재전송 → ack → drain
 ];
 const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === av).map(([id]) => id).sort();
@@ -32,29 +32,27 @@ const P = (seed, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4,
   inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, sagaDedup: true, autoRetry: true, sagaMaxRetries: CAP,
   bus: true, audit: true, transport: REPLYLOSS(seed), invOps: INV, exchangeOps: OPS, ...extra });
 
-function exsagareadpub(seeds) {
-  console.log('== exsagareadpub: *가설* — saga 재admission 발행(0132 포기 발행의 짝). 손실로 포기 후 손실 해소→exchReadmit. ON: readmitPublished 1==readmitted·audit svc.exchange.saga_readmitted 1·pending 0·open==escrow. OFF: 발행 0·audit 0(재개는 동일). ==');
-  console.log('seed   | ON pub/readmitted | audit saw | ON pending/open==escrow | OFF pub/audit | sagaConsistent | 판정');
+function exsagaautoread(seeds) {
+  console.log('== exsagaautoread: *가설* — saga 재admission 자동 트리거(autoReadmit). 손실로 포기 후 손실 해소→svc.inventory.up 발행(@88). ON: 거래소가 구독 신호 수신→스스로 _readmit→readmitted 1·sweep@90→pending 0·open==escrow(수동 op 불요). OFF: 같은 ev 무시→readmitted 0·pending 1 고착. ==');
+  console.log('seed   | ON readmitted/pending/oks | ON open==escrow | OFF readmitted/pending/oks | ON 자동회복·안전 | sagaConsistent | 판정');
   for (const seed of seeds) {
-    const on = run({ ...P(seed, { readmitPublish: true }) });
-    const off = run({ ...P(seed, { readmitPublish: false }) });
+    const on = run({ ...P(seed, { autoReadmit: true }) });
+    const off = run({ ...P(seed, { autoReadmit: false }) });
     const onEsc = ownedSet(on.inventory, 'escrow'), onOpen = on.exchange.escrowItemIds();
     const onSafe = JSON.stringify(onEsc) === JSON.stringify(onOpen) && JSON.stringify(onOpen) === '["item0"]';
-    const auditSaw = on.audit ? (on.audit.seen.get('svc.exchange.saga_readmitted') || 0) : 0;
-    const offPub = off.exchange.readmitPublished, offAudit = off.audit ? (off.audit.seen.get('svc.exchange.saga_readmitted') || 0) : 0;
+    const recovered = on.exchange.readmitted === 1 && on.exchange.pendingGives() === 0 && on.exchange.giveOks === on.exchange.gives;
     const ok =
-      check(on.exchange.readmitPublished === 1 && on.exchange.readmitted === 1, `seed ${seed}: 발행 != 재admission(pub ${on.exchange.readmitPublished}/readmitted ${on.exchange.readmitted})`) &&
-      check(auditSaw === 1, `seed ${seed}: audit 관측 ${auditSaw} != 1`) &&
-      check(on.exchange.pendingGives() === 0 && onSafe, `seed ${seed}: 재개 후 미회복/안전 위반(pending ${on.exchange.pendingGives()}·open ${JSON.stringify(onOpen)})`) &&
-      check(offPub === 0 && offAudit === 0 && off.exchange.readmitted === 1, `seed ${seed}: OFF 인데 발행/관측(pub ${offPub}/audit ${offAudit}/readmitted ${off.exchange.readmitted})`) &&
-      check(on.exchange.sagaConsistent() && off.exchange.sagaConsistent(), `seed ${seed}: 회계 정합 깨짐`);
-    console.log(`${pad(seed, 6)} | ${pad(on.exchange.readmitPublished + '/' + on.exchange.readmitted, 17)} | ${pad(auditSaw, 9)} | ${pad(on.exchange.pendingGives() + '/' + (onSafe ? '예' : '아니오'), 23)} | ${pad(offPub + '/' + offAudit, 13)} | ${pad((on.exchange.sagaConsistent() && off.exchange.sagaConsistent()) ? '예' : '아니오', 14)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(recovered, `seed ${seed}: 자동 재admission 회복 실패(readmitted ${on.exchange.readmitted}/pending ${on.exchange.pendingGives()}/oks ${on.exchange.giveOks}/gives ${on.exchange.gives})`) &&
+      check(onSafe, `seed ${seed}: 자동 회복 안전 위반(open ${JSON.stringify(onOpen)} vs escrow ${JSON.stringify(onEsc)})`) &&
+      check(off.exchange.readmitted === 0 && off.exchange.pendingGives() === 1 && off.exchange.giveOks === 0, `seed ${seed}: OFF 인데 ev 에 반응(readmitted ${off.exchange.readmitted}/pending ${off.exchange.pendingGives()})`) &&
+      check(on.exchange.sagaConsistent() && off.exchange.sagaConsistent(), `seed ${seed}: 회계 정합 깨짐(0128 불변)`);
+    console.log(`${pad(seed, 6)} | ${pad(on.exchange.readmitted + '/' + on.exchange.pendingGives() + '/' + on.exchange.giveOks, 25)} | ${pad((onSafe ? '예' : '아니오') + ' ' + JSON.stringify(onOpen), 15)} | ${pad(off.exchange.readmitted + '/' + off.exchange.pendingGives() + '/' + off.exchange.giveOks, 26)} | ${pad((recovered && onSafe) ? '예' : '아니오', 15)} | ${pad((on.exchange.sagaConsistent() && off.exchange.sagaConsistent()) ? '예' : '아니오', 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → saga liveness 수명주기가 *양방향 관측*된다: 포기(svc.exchange.saga_abandoned·0132)와 재개(svc.exchange.saga_readmitted·이 step)를 모두 audit 가 구독 → 운영이 "어느 give 가 포기됐고 언제 재개됐나"를 본다. readmitPublished 1 == readmitted 1.');
-  console.log('    발행은 통보일 뿐 — 재개 동작/회복(pending drain·open==escrow)은 발행 무관(ON/OFF 동일). readmitPublish OFF·bus 부재면 발행 0 = 0134 비트 동일(reg). 회계 정합(sagaConsistent) ON/OFF 유지.');
+  console.log('  → 재admission 이 *자동·decouple* 이 된다: 거래소가 svc.inventory.up(가방 회복)을 구독해 수신 시 스스로 _readmit → 운영의 수동 exchReadmit 없이 손실 해소를 따라 회복(readmitted 1·pending 0·open==escrow). 거래소는 가방 내부/주소를 직접 안 보고 *발행된 신호*로만 반응(은닉·단일 연결). 0056 busPresenceRecover(프레즌스 회복→재구독)의 saga 판.');
+  console.log('    autoReadmit OFF 면 같은 svc.inventory.up ev 가 와도 거래소가 무시(branch 휴면) → pending 1 고착·oks 0. autoReadmit OFF·구독 미추가면 0135 비트 동일(reg). 회계 정합(sagaConsistent) ON/OFF 유지.');
 }
 
-kit.MODES['exsagareadpub'] = exsagareadpub;
-kit.ORDER.splice(1, 0, 'exsagareadpub');
+kit.MODES['exsagaautoread'] = exsagaautoread;
+kit.ORDER.splice(1, 0, 'exsagaautoread');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

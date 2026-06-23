@@ -38,6 +38,7 @@ function buildSubs(c) {
   if (c.audit && c.exchange && c.expirePublish) subs.push(['svc.exchange.expired', 'audit']);   // 거래소 만료 발행(0115) — audit 가 svc.exchange.expired 구독(만료 관측). expirePublish OFF 면 미추가(0114 토폴로지 비트 동일).
   if (c.audit && c.exchange && c.abortPublish) subs.push(['svc.exchange.aborted', 'audit']);   // 보상 발행(0123) — audit 가 svc.exchange.aborted 구독(보상 롤백 관측). abortPublish OFF 면 미추가(0122 토폴로지 비트 동일).
   if (c.audit && c.exchange && c.abandonPublish) subs.push(['svc.exchange.saga_abandoned', 'audit']);   // 포기 발행(0132) — audit 가 svc.exchange.saga_abandoned 구독(영구 미해결 give 관측). abandonPublish OFF 면 미추가(0131 토폴로지 비트 동일).
+  if (c.audit && c.exchange && c.readmitPublish) subs.push(['svc.exchange.saga_readmitted', 'audit']);   // 재admission 발행(0135) — audit 가 svc.exchange.saga_readmitted 구독(포기 give 재개 관측·0132 의 짝). readmitPublish OFF 면 미추가(0134 토폴로지 비트 동일).
   if (c.marketFeed && c.exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); subs.push(['svc.exchange.expired', 'market']); }   // 시세 피드(0112·0116) — MarketFeed 가 체결·취소·만료 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
   if (c.audit && c.bouncePublish && c.whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
   return subs;

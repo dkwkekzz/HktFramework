@@ -1,4 +1,5 @@
 'use strict';
+// step-0136 — saga 재admission 자동 트리거(autoReadmit): 거래소가 svc.inventory.up(가방 회복) ev 를 구독해 수신 시 _readmit() — 수동 exchReadmit 불요. OFF 면 ev 무시 = 0135 비트 동일.
 // step-0134 — saga 포기 give 재admission(exchReadmit): 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개(retryCount 리셋). exchReadmit op 부재면 0133 비트 동일.
 // step-0131 — saga 재시도 상한(sagaMaxRetries): exchRetry(0126)·exchSweep autoRetry(0129) 의 재전송 루프를 _resendPending() 공용 헬퍼로 추출하고 gid 당 N회 상한을 둔다. 상한 0(기본)이면 무제한 = 0130 비트 동일.
 // step-0124 정리 분할 — 거래소 *트랜잭션 핸들러*(onMsg): svc-exchange.js 가 32KB 를 넘어(비대화 트리거) 박스를 부품으로 재분할(기능 0·바이트 동일·reg 0).
@@ -35,15 +36,9 @@ Object.assign(ExchangeService.prototype, {
     //   재전송이라 gives/pending 무증가(이미 추적 중)·retries++. pendingGive 비었으면(saga OFF·전부 acked) no-op = 0125 비트 동일.
     if (p.type === 'exchRetry') { this._resendPending(); return; }   // step-0131: 재전송 루프를 _resendPending() 로 추출(상한 0 면 무제한 = 0126 동일).
     // 포기 give 재admission(step-0134·exchReadmit) — 운영이 손실 해소 후 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개. retryCount 리셋(상한 재충전). 이후 sweep/Retry 가 재전송. abandonedGive 비었으면 no-op = 0133 비트 동일.
-    if (p.type === 'exchReadmit') {
-      for (const [gid, g] of this.abandonedGive) {
-        this.pendingGive.set(gid, g); this.retryCount.delete(gid); this.readmitted++;
-        // 재admission 발행(step-0135·readmitPublish) — 재개한 give 를 svc.exchange.saga_readmitted 로 1회 발행(0132 포기 발행의 짝). OFF·bus 부재면 no-op(0134 비트 동일).
-        if (this.readmitPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.saga_readmitted', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.readmitPublished++; }
-      }
-      this.abandonedGive = new Map();
-      return;
-    }
+    if (p.type === 'exchReadmit') { this._readmit(); return; }   // step-0136: 재admission 실행을 _readmit() 로 추출(수동 op·발행 0135 포함·동작 불변).
+    // 재admission 자동 트리거(step-0136·autoReadmit) — 거래소가 구독한 svc.inventory.up(가방 회복) ev 수신 시 스스로 재admission(수동 exchReadmit 불요). OFF 면 ev 무시 = 0135 비트 동일(branch 휴면).
+    if (this.autoReadmit && p.type === 'ev' && p.topic === 'svc.inventory.up') { this._readmit(); return; }
     // 매물 등록(list·acquire) — 판매자가 아이템을 거래소 escrow 로 맡긴다. 이후 거래소 권위 아래(판매자 이중 판매 불가). open++.
     if (p.type === 'exchList') {
       const id = ++this.nextId;
