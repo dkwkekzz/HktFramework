@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0154](step-0154.md) — **MailFeed 영속·late-join**(reconstruct): 자기 영속 0 인 배지를 우편 op 저널(0145) replay 로 완전 복원(MarketFeed 0113·ranking 0020 의 우편 판·CQRS late-join). crash 후 reconstruct==라이브(digest 동일). 닿는 박스: svc-mailfeed.
-- **한 줄 상태**: reg ALL OK(reconstruct 미호출=0153 비트 동일)·exmlfrec: crash→reconstruct digest==라이브(0x37591eab)·feed==권위·h3 unread 1·spine 통과.
-- **다음**: §2 — MailFeed arc(0155 회계 정합 capstone·0156 배지 질의), 이후 아이템 첨부 우편(0157~0160).
+- **닫힌 step**: [step-0155](step-0155.md) — **MailFeed 회계 정합 capstone**(feedConsistent·unread==sent−read−expired): 0151~0154 배지 전이의 창발 불변(0150 mailConsistent 의 읽기 모델 판). 4체제 전부 true·feed==우편 권위·crash 복구 정합. **MailFeed arc(0151~0155) 닫힘** — MarketFeed(0112~0116)와 동형. 닿는 박스: svc-mailfeed.
+- **한 줄 상태**: reg ALL OK(feedConsistent 미호출=0154 비트 동일)·exmlfcons: 4체제 feedConsistent 예(4/4)·totalUnread==totalHeld·crash 복구 정합·spine 통과.
+- **다음**: §2 — 배지 질의 인터페이스(0156·mailUnreadQuery→reply), 이후 아이템 첨부 우편(0157~0160).
 
 ---
 
@@ -250,3 +250,4 @@
 | [0152](step-0152.md) | MailFeed 읽음 반영(mailFeedRead) | 통과 · h1 0/3·total 2·unread==sent−read |
 | [0153](step-0153.md) | MailFeed 만료 반영(mailFeedExpire) | 통과 · h2 0/0/2·unread==sent−read−expired |
 | [0154](step-0154.md) | MailFeed 영속·late-join(reconstruct·우편 op 저널 replay 로 배지 복원) | 통과 · crash→reconstruct digest==라이브 |
+| [0155](step-0155.md) | MailFeed 회계 정합 capstone(feedConsistent·unread==sent−read−expired·MailFeed arc 닫기) | 통과 · 4체제 true·totalUnread==totalHeld |

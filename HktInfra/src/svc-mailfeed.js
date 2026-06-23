@@ -1,4 +1,6 @@
 'use strict';
+// step-0155 — MailFeed 회계 정합 capstone(feedConsistent·unread==sent−read−expired): 0151~0154 가 배지에 입금(+)·읽음(−)·만료(−)·복원을 쌓았다. 그 회계가 *대수적으로 닫혀* 있는가?
+//   feedConsistent: 모든 수신자에 대해 unread == sent − read − expired (배지의 미읽음은 입금에서 읽음·만료를 뺀 것·음수 0). 0150 mailConsistent(우편 박스 권위 판)의 *읽기 모델 판*. 미호출 read accessor = 0154 비트 동일(reg).
 // step-0154 — MailFeed 영속·late-join(reconstruct·우편 op 저널 replay): 0151~0153 MailFeed 는 *자기 영속 0* — crash 시 미읽음 배지가 전부 소실됐다.
 //   0020 읽기 모델(ranking)·0113 시세 피드(MarketFeed)가 *쓰기 모델의 durable 저널*을 replay 해 투영을 복원했듯, MailFeed 는 우편 박스의 op 저널(0145 mailPersist·send/fetch/expire)을 replay 해 수신자별 배지(unread/sent/read/expired)를 재계산한다.
 //   다운타임에 버스가 흘려보낸 svc.mail.* 를 놓쳤어도 우편이 영속한 op 로 완전 복원(CQRS late-join). reconstruct == 라이브 == 죽기 전. 미호출(restart 미주입)이면 0153 비트 동일.
@@ -41,6 +43,8 @@ class MailFeed {
   readOf(rcpt) { const r = this.badges.get(rcpt); return r ? r.read : 0; }       // 한 수신자 누적 읽음 통수(step-0152)
   expiredOf(rcpt) { const r = this.badges.get(rcpt); return r ? r.expired : 0; }   // 한 수신자 누적 만료 통수(step-0153)
   totalUnread() { let n = 0; for (const r of this.badges.values()) n += r.unread; return n; }   // 전 수신자 미읽음 합
+  // 배지 회계 정합 capstone(step-0155·단언용 읽기 accessor) — 모든 수신자에 unread == sent − read − expired·unread≥0(공백·중복 0). 0150 mailConsistent 의 읽기 모델 판. 미호출 = 0154 비트 동일.
+  feedConsistent() { for (const r of this.badges.values()) if (r.unread !== r.sent - r.read - r.expired || r.unread < 0) return false; return true; }
   // crash — 읽기 모델 프로세스 사망(RAM 소실)의 인프로세스 모델. 투영·소비 회계 비움(자기 영속 0).
   crash() { this.badges = new Map(); this.consumed = 0; }
   // reconstruct(step-0154·late-join) — 자기 영속 0 인데도 *우편 박스의 durable op 저널*(0145)을 replay 해 배지를 재계산(MarketFeed 0113·ranking 0020 의 우편 판).

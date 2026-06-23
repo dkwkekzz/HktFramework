@@ -1,4 +1,7 @@
 'use strict';
+// step-0154 — MailFeed 영속·late-join(reconstruct·우편 op 저널 replay): 0151~0153 MailFeed 는 *자기 영속 0* — crash 시 미읽음 배지가 전부 소실됐다.
+//   0020 읽기 모델(ranking)·0113 시세 피드(MarketFeed)가 *쓰기 모델의 durable 저널*을 replay 해 투영을 복원했듯, MailFeed 는 우편 박스의 op 저널(0145 mailPersist·send/fetch/expire)을 replay 해 수신자별 배지(unread/sent/read/expired)를 재계산한다.
+//   다운타임에 버스가 흘려보낸 svc.mail.* 를 놓쳤어도 우편이 영속한 op 로 완전 복원(CQRS late-join). reconstruct == 라이브 == 죽기 전. 미호출(restart 미주입)이면 0153 비트 동일.
 // step-0153 — MailFeed 만료 반영(svc.mail.expired 구독→unread--): 0152 까지 unread 는 입금(+)·읽음(−)만 반영 — 미수령 만료(0148~0149)는 배지에 안 빠져 *영영 미읽음으로 남았다*.
 //   이 step: svc.mail.expired(0149)도 구독해 만료 시 그 수신자 unread--·expired++ → 만료된 우편은 배지에서도 사라진다. 회계가 unread==sent−read−expired 로 닫힌다(0155 capstone 대비). mailFeedExpire OFF 면 0152 비트 동일(expired 토픽 미구독).
 // step-0152 — MailFeed 읽음 반영(svc.mail.read 구독→unread--): 0151 은 입금(svc.mail.sent)만 소비해 unread 가 *단조 증가*였다 — 수령(읽음)해도 배지가 안 줄었다.
@@ -40,6 +43,18 @@ class MailFeed {
   totalUnread() { let n = 0; for (const r of this.badges.values()) n += r.unread; return n; }   // 전 수신자 미읽음 합
   // crash — 읽기 모델 프로세스 사망(RAM 소실)의 인프로세스 모델. 투영·소비 회계 비움(자기 영속 0).
   crash() { this.badges = new Map(); this.consumed = 0; }
+  // reconstruct(step-0154·late-join) — 자기 영속 0 인데도 *우편 박스의 durable op 저널*(0145)을 replay 해 배지를 재계산(MarketFeed 0113·ranking 0020 의 우편 판).
+  //   매핑(우편 reconstruct 와 동형): send → 그 수신자 unread++·sent++(보유 적재). fetch → 그 시점 보유분 전부 unread→read 이동(수령). expire → unread--·expired++(만료 회수).
+  //   라이브 배지(svc.mail.sent/read/expired 소비)와 *정확히 같은* 투영을 만든다 — 다운타임에 놓친 발행도 우편 저널이 메운다. 저널은 seq 순.
+  reconstruct(journal) {
+    this.badges = new Map(); this.consumed = 0;
+    const held = new Map();   // rcpt -> 현재 보유 통수(fetch 가 한 번에 옮길 양 산출용 — 우편 저널의 fetch 는 통수 미기록)
+    for (const e of (journal || []).slice().sort((a, b) => a.seq - b.seq)) {
+      if (e.kind === 'send') { const r = this._row(e.to); r.unread++; r.sent++; held.set(e.to, (held.get(e.to) || 0) + 1); this.consumed++; }
+      else if (e.kind === 'fetch') { const h = held.get(e.to) || 0; if (h) { const r = this._row(e.to); r.unread -= h; r.read += h; held.set(e.to, 0); this.consumed += h; } }
+      else if (e.kind === 'expire') { const r = this._row(e.to); r.unread--; r.expired++; held.set(e.to, (held.get(e.to) || 0) - 1); this.consumed++; }
+    }
+  }
   // digest — 배지 투영 해시(결정론 검증용). recipient 정렬 순회.
   digest() {
     const rows = [];
