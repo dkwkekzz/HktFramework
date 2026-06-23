@@ -1,4 +1,7 @@
 'use strict';
+// step-0164 — 아이템 우편↔가방 2-서비스 보존 capstone(escrowItemIds·escrowConsistent): 0161~0163 이 3 레그(발신 인출·수령 입금·만료 반환)로 아이템을 *실제 가방 간* 이동시켰다. 그 두 서비스(우편·가방)의 회계가 *교차 정합*인가?
+//   이 step: 우편 박스가 escrow custody 중인 itemId 집합(escrowIds)을 추적 — 발신 시 add·수령/만료 시 delete(invMode 일 때만). 두 단언: ⒜ escrowConsistent(우편 내부: itemHeld==escrowIds.size — 보유 아이템 우편 통수 == escrow 아이템 수) ⒝ verify 가 우편 escrowItemIds() == 가방의 'escrow' 소유 집합(두 서비스 일치·거래소 0120 escrowItemIds 의 우편 판).
+//   미호출 read accessor·invMode OFF 시 escrowIds 미변경 = 0163 비트 동일(회귀 0). 거래소↔가방 0120(open==escrow) 의 우편 판·아이템 우편↔가방 arc(0161~0164) 닫기.
 // step-0163 — 아이템 우편↔가방 leg3: 만료 시 escrow → 발신자 가방 반환(mailInv): 0161~0162 는 발신 인출·수령 입금만 했다 — 미수령 우편이 TTL 만료(0159)되면 아이템이 escrow 에 영영 묶였다(발신자도 수신자도 못 받음·아이템 증발).
 //   이 step: mailSweep 만료 시 아이템 실은 통마다 가방에 give('escrow' → 발신자 from) 를 요청한다(거래소 0119 cancel/expire leg3 의 우편 판). 미수령 아이템이 발신자 가방으로 회수. 회계 gives++.
 //   아이템 경로 분기 완성: 발신자→escrow(leg1) → {수령 시 수신자(leg2) | 만료 시 발신자 반환(leg3)}. 아이템은 어느 경로든 *실제 가방*에 착지(증발 0). 2-서비스 보존 capstone(0164) 후속.
@@ -75,6 +78,7 @@ class MailService {
     this.inv = opts.inv || null;        // 가방(inventory) 주소(step-0161·mailInv) — 아이템 우편 escrow 실체화 give 의 대상. 부재면 추상 escrow(0160 동일).
     this.invMode = opts.invMode || false;   // 우편↔가방 원자 거래(step-0161·mailInv) — ON 이면 send/fetch/expire 가 가방 give 로 아이템 custody 이동. OFF 면 추상 escrow(0160 비트 동일).
     this.gives = 0;                // 가방에 보낸 give 요청 통수(step-0161 — 0164 2-서비스 보존·가방 escrowXfers 와 교차 정합).
+    this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
     this.ttl = opts.ttl || 0;      // 만료 TTL(step-0148·mailTtl) — now−sentAt≥ttl 미수령 우편 자동 회수. 0 면 만료 0(0147 동일).
@@ -114,6 +118,8 @@ class MailService {
     if (!this.invMode || !this.inv || itemId == null || !this.net) return;
     this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to });
     this.gives++;
+    if (to === 'escrow') this.escrowIds.add(itemId);        // 발신 인출(leg1) — escrow 진입(step-0164·2-서비스 보존 추적)
+    else if (from === 'escrow') this.escrowIds.delete(itemId);   // 수령 입금(leg2)·만료 반환(leg3) — escrow 이탈
   }
   onMsg(m) {
     const p = m && m.payload;
@@ -185,6 +191,7 @@ class MailService {
     this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this.expirePublished = 0; this._seq = 0; this._lastFetch = null;
     this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
     this.gives = 0;   // step-0161: give 계측도 소실. reconstruct 는 custody 를 *재발행하지 않는다*(다른 서비스 부수효과·저널 replay 는 projection 만 — 거래소 0109 동형)
+    this.escrowIds = new Set();   // step-0164: escrow 추적도 소실 → reconstruct 가 저널 replay 로 재계산(custody 재발행 없이 집합만).
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
@@ -199,6 +206,7 @@ class MailService {
         box.set(e.id, { id: e.id, from: e.from, to: e.to, body: e.body, sentAt: e.sentAt, item });
         this.sent++;
         if (item != null) this.itemSent++;
+        if (this.invMode && item != null) this.escrowIds.add(item);   // step-0164: 발신 replay 시 escrow 진입 재계산(custody 재발행 없이 집합만)
       } else if (e.kind === 'fetch') {
         const box = this.boxes.get(e.to);
         const out = box ? [...box.values()] : [];
@@ -208,11 +216,12 @@ class MailService {
           this.read.set(e.to, log);
           this.fetched += out.length;
           for (const mm of out) if (mm.item != null) this.itemFetched++;   // step-0158: 아이템 수령 이동 replay
+          if (this.invMode) for (const mm of out) if (mm.item != null) this.escrowIds.delete(mm.item);   // step-0164: 수령 replay 시 escrow 이탈 재계산
           box.clear();
         }
       } else if (e.kind === 'expire') {   // 만료(step-0148) — 회수된 우편 1통 제거 + expired++(저널 정합).
         const box = this.boxes.get(e.to);
-        if (box && box.has(e.id)) { const mm = box.get(e.id); box.delete(e.id); this.expired++; if (mm.item != null) this.itemExpired++; }   // step-0159: 아이템 만료 회수 replay
+        if (box && box.has(e.id)) { const mm = box.get(e.id); box.delete(e.id); this.expired++; if (mm.item != null) { this.itemExpired++; if (this.invMode) this.escrowIds.delete(mm.item); } }   // step-0159: 아이템 만료 회수 replay (step-0164: escrow 이탈 재계산)
       }
     }
   }
@@ -230,6 +239,10 @@ class MailService {
   // 아이템 회계 정합 capstone(step-0160·단언용 읽기 accessor) — 0157~0159 의 창발 불변: 아이템 1개는 매 순간 정확히 한 상태(보유 itemHeld·수령 itemFetched·만료 itemExpired)에 분할(공백·중복 0).
   //   itemSent == itemHeld + itemFetched + itemExpired 가 *모든 체제*서 성립. 0150 mailConsistent(메시지 통수 판)의 아이템 판·아이템 우편 arc(0157~0160) 닫기.
   itemConsistent() { return this.itemSent === this.itemHeld() + this.itemFetched + this.itemExpired; }
+  // 우편↔가방 2-서비스 보존 capstone(step-0164·단언용 읽기 accessor) — escrow custody 중인 itemId 집합·우편 내부 정합.
+  //   escrowItemIds(): 우편이 escrow 에 묶었다고 믿는 itemId 정렬 집합(가방의 'escrow' 소유 집합과 교차 정합 — 두 서비스 일치). escrowConsistent(): 보유 아이템 우편 통수(itemHeld) == escrow 아이템 수(escrowIds.size) — 우편 1통=아이템 1개=escrow 1건. 거래소 0120 escrowItemIds(open==escrow) 의 우편 판.
+  escrowItemIds() { return [...this.escrowIds].sort(); }
+  escrowConsistent() { return this.itemHeld() === this.escrowIds.size; }
   // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];
