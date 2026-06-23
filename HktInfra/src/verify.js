@@ -1,8 +1,8 @@
-// HktInfra step-0140 — 헤드리스 검증 (saga liveness 회계 정합 capstone·sagaLiveConsistent — 0131~0139 arc 의 창발 불변)
+// HktInfra step-0142 — 헤드리스 검증 (우편 서비스 분리·MailService — 오프라인 비동기 배송 박스 입금)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagalive`.
-//   더한 한 조각: 0131~0139 가 saga liveness FSM(재전송 상한→포기→재admission→자동 트리거→재admission 상한→영구 실패→회복 발행)을 쌓았다. 그 회계가 *대수적으로 닫혀* 있는가? sagaLiveConsistent: 미해결(pending) give 는 정확히 한 상태 — 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed) 으로 분할(공백·중복 0)된다. pending.size == pendingGive + abandonedGive + permFailed, + 0128 sagaConsistent AND.
-//   검증: ⒜ `reg`(키트) — 미호출 accessor = 0139 비트 동일. ⒝ `exsagalive`(가설) — 4체제(정상·포기·재admission 회복·영구 실패)서 sagaLiveConsistent 전부 true + 각 체제 분할 카운트 일치. liveness 회계 닫힘을 capstone 으로 단언.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmail`.
+//   더한 한 조각: SPINE §2 게임 서비스 *우편*(⬜→🟡). 귓속말(0071~)이 온라인 라우팅이면 우편은 오프라인 배송 — 발신자가 수신자 우편함에 입금(mailSend)하면 수신자가 나중에 수령(0143~). 0142 는 입금 + 우편함(recipient별 Map) 만.
+//   검증: ⒜ `reg`(키트) — mail OFF = 0141 비트 동일(박스 0·주입 0). ⒝ `exmail`(가설) — mailSend 입금이 수신자별 우편함에 정확히 적재(sent==입금 통수·held(rcpt)==그 수신자 통수·멱등 재전송 0 이중 적재)·결정론(시드 무관 digest 안정).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,51 +15,45 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const INV = [{ at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } }];   // item0
-const SW = (at) => ({ at, op: { type: 'exchSweep', now: at } });
-const READMIT = (at) => ({ at, op: { type: 'exchReadmit' } });
-const LIST = { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } };
-const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === av).map(([id]) => id).sort();
-// 영구 손실(tail<HEAL 이면 해소) — 체제별로 HEAL 조정.
-const LOSS = (seed, heal) => ({ seed: (seed ^ 0x5A6A) >>> 0, delayMin: 0, delayMax: 0, loss: 1.0, redundancy: 1,
-  routeFilter: (m) => m.from === 'inventory' && m.to === 'exchange' && m.payload.type === 'item_result' && (heal == null || m.tick < heal) });
-const base = (seed, ops, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
-  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, sagaDedup: true, autoRetry: true, invOps: INV, exchangeOps: ops, ...extra });
+// 우편 입금 op — at tick 에 발신자→수신자 우편함 적재. id 명시(회계 안정·멱등 재전송 검증용).
+const SEND = (at, id, from, to, body) => ({ at, op: { type: 'mailSend', id, from, to, body } });
+const base = (seed, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, mail: true, ...extra });
 
-// 4 체제: 정상(무손실)·포기(영구 손실+cap)·재admission 회복(손실 해소+readmit)·영구 실패(영구 손실+readmitMax 초과)
-const REGIMES = (seed) => ({
-  normal:  base(seed, [LIST, SW(80)], { sagaMaxRetries: 2 }),                                   // 무손실 → pending 0
-  abandon: base(seed, [LIST, SW(74), SW(78)], { sagaMaxRetries: 1, transport: LOSS(seed) }),    // 영구 손실 → 포기(abandonedGive 1)
-  recover: base(seed, [LIST, SW(76), SW(80), SW(84), READMIT(88), SW(90)], { sagaMaxRetries: 2, transport: LOSS(seed, 86) }),   // 손실 해소+readmit → drain
-  permfail: base(seed, [LIST, SW(72), SW(74), READMIT(75), SW(76), SW(78), READMIT(79), SW(80), SW(82)], { sagaMaxRetries: 1, readmitMax: 2, transport: LOSS(seed) }),   // 영구 손실 → 영구 실패(permFailed 1)
-});
-
-function exsagalive(seeds) {
-  console.log('== exsagalive: *capstone* — saga liveness 회계 정합(sagaLiveConsistent). 미해결 give 는 정확히 한 상태: 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed). pending == 셋의 합(공백·중복 0) + 0128 sagaConsistent. 4체제(정상·포기·재admission 회복·영구실패) 전부 성립. ==');
-  console.log('seed   | normal(p/pg/ab/pf) | abandon | recover | permfail | 4체제 sagaLiveConsistent | open==escrow | 판정');
+function exmail(seeds) {
+  console.log('== exmail: 우편 서비스 입금(MailService·mailSend) — 발신자가 수신자 우편함에 우편 1통을 오프라인 적재(수신자 접속 무관). sent==입금 통수·held(rcpt)==그 수신자 보유·멱등 재전송 0 이중 적재·결정론 digest. ==');
+  console.log('seed   | sent | held(h1) | held(h3) | totalHeld | dup-재전송 멱등 | digest 결정론 | 판정');
+  let digest0 = null;
   for (const seed of seeds) {
-    const R = REGIMES(seed);
-    const runs = {}; for (const k of Object.keys(R)) runs[k] = run({ ...R[k] });
-    const snap = (r) => { const e = r.exchange; return e.pendingGives() + '/' + e.pendingGive.size + '/' + e.abandonedGive.size + '/' + e.permFailed; };
-    const live = Object.values(runs).every(r => r.exchange.sagaLiveConsistent());
-    // 각 체제 기대 분할: normal pending 0 / abandon abandonedGive 1 / recover pending 0(drain) / permfail permFailed 1
-    const shapes =
-      runs.normal.exchange.pendingGives() === 0 &&
-      runs.abandon.exchange.abandonedGive.size === 1 && runs.abandon.exchange.pendingGives() === 1 &&
-      runs.recover.exchange.pendingGives() === 0 && runs.recover.exchange.readmitted === 1 &&
-      runs.permfail.exchange.permFailed === 1 && runs.permfail.exchange.pendingGives() === 1;
-    const safe = Object.values(runs).every(r => JSON.stringify(ownedSet(r.inventory, 'escrow')) === JSON.stringify(r.exchange.escrowItemIds()));
+    // 5통 입금: h1←(h0,h2,h4 세 통)·h3←(h0 한 통)·dup: m_dup 를 두 번(멱등). 총 distinct 4통 → totalHeld 4.
+    const ops = [
+      SEND(10, 'm0', 'hero0', 'hero1', 'hi'),
+      SEND(12, 'm1', 'hero2', 'hero1', 'yo'),
+      SEND(14, 'm_dup', 'hero4', 'hero1', 'dup'),
+      SEND(16, 'm_dup', 'hero4', 'hero1', 'dup'),   // 같은 id 재전송 — 멱등(이중 적재 0)
+      SEND(18, 'm3', 'hero0', 'hero3', 'sup'),
+    ];
+    const r = run({ ...base(seed, { mailOps: ops }) });
+    const mail = r.mail;
+    const sent = mail.sent;             // 멱등 폐기는 sent++ 전이라 sent==distinct 입금 4
+    const h1 = mail.held('hero1');      // m0·m1·m_dup = 3
+    const h3 = mail.held('hero3');      // m3 = 1
+    const total = mail.totalHeld();     // 4
+    const dig = mail.digest();
+    if (digest0 == null) digest0 = dig; const detOk = (dig === digest0);   // mail 은 난수 무관 → 전 시드 digest 동일(결정론)
+    const dupOk = (sent === 4 && h1 === 3);   // 멱등: 5회 발신 중 1회 중복 폐기 → sent 4·h1 3
     const ok =
-      check(live, `seed ${seed}: 어느 체제서 sagaLiveConsistent false`) &&
-      check(shapes, `seed ${seed}: 체제별 분할 카운트 기대 어긋남(normal ${snap(runs.normal)}·abandon ${snap(runs.abandon)}·recover ${snap(runs.recover)}·permfail ${snap(runs.permfail)})`) &&
-      check(safe, `seed ${seed}: 어느 체제서 open!=escrow(2-서비스 안전 위반)`);
-    console.log(`${pad(seed, 6)} | ${pad(snap(runs.normal), 18)} | ${pad(snap(runs.abandon), 7)} | ${pad(snap(runs.recover), 7)} | ${pad(snap(runs.permfail), 8)} | ${pad(live ? '예(4/4)' : '아니오', 23)} | ${pad(safe ? '예' : '아니오', 12)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(sent === 4, `seed ${seed}: sent ${sent}!=4`) &&
+      check(h1 === 3 && h3 === 1, `seed ${seed}: held h1=${h1}(≠3) h3=${h3}(≠1)`) &&
+      check(total === 4, `seed ${seed}: totalHeld ${total}!=4`) &&
+      check(dupOk, `seed ${seed}: 멱등 재전송 실패(sent ${sent}·h1 ${h1})`) &&
+      check(detOk, `seed ${seed}: digest 비결정론(${dig.toString(16)}≠${digest0.toString(16)})`);
+    console.log(`${pad(seed, 6)} | ${pad(sent, 4)} | ${pad(h1, 8)} | ${pad(h3, 8)} | ${pad(total, 9)} | ${pad(dupOk ? '예' : '아니오', 15)} | ${pad(detOk ? '예' : '아니오', 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → liveness 회계가 *대수적으로 닫힌다*: 미해결 give 는 매 순간 정확히 한 상태(재전송 중 pendingGive·재admission 대기 abandonedGive·영구 종결 permFailed)에 있고 pending == 셋의 합(공백·중복 0) — 0131~0139 arc(상한·포기·재admission·자동 트리거·영구 실패)가 더한 모든 전이가 이 분할을 보존한다. 0128 sagaConsistent(보낸/받은 회계)와 AND 로 saga 회계 전체가 닫힘.');
-  console.log('    형식: p(pending)/pg(pendingGive)/ab(abandonedGive)/pf(permFailed). 정상 0/0/0/0·포기 1/0/1/0·재admission 회복 0/0/0/0·영구실패 1/0/0/1 — 각 체제가 다른 분할이되 pending==pg+ab+pf 불변. 모든 체제 open==escrow(2-서비스 안전). sagaLiveConsistent 는 미호출 accessor = 0139 비트 동일(reg).');
+  console.log('  → 우편함은 *권위 단일 소유*(MailService)·오프라인 배송(수신자 접속 무관·세계가 세션보다 오래)·존 tick 밖(신성한 tick). 같은 id 재전송은 멱등(이중 적재 0 — 재전송 신뢰성 0145~ 의 토대). mail OFF = 0141 비트 동일(reg).');
+  console.log('    다음(0143): 수령(mailFetch) — 수신자가 우편함을 pull, 무손실로 held→fetched 이동(읽음 표시). 회계 sent==held+fetched 로 확장.');
 }
 
-kit.MODES['exsagalive'] = exsagalive;
-kit.ORDER.splice(1, 0, 'exsagalive');
+kit.MODES['exmail'] = exmail;
+kit.ORDER.splice(1, 0, 'exmail');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
