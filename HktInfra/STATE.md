@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0132](step-0132.md) — **saga 포기 발행**(abandonPublish): 0131 은 상한 포기를 조용히 했다(giveAbandoned 만). 운영 가시화를 위해 `_resendPending()` 포기 분기에서 abandonPublish ON 이면 svc.exchange.saga_abandoned{gid,itemId,cause} 1회 발행(abandonPublished == giveAbandoned)·audit 가 구독 관측. 발행은 통보일 뿐(보상 아님)·open==escrow 안전 유지·sagaConsistent 불변. 거래소 수명주기 발행 5종(sold 0108·cancelled 0111·expired 0115·aborted 0123·saga_abandoned 0132). OFF·bus 부재면 발행 0 = 0131 비트 동일. 닿는 박스: svc-exchange-core·topo-build(배선+audit 구독).
-- **한 줄 상태**: reg ALL OK(src=baseline=0131 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagaaband: ON pub 1==abandoned 1·audit saw 1·open==escrow ["item0"]·OFF pub/audit 0·sagaConsistent 양체제·전 키트 모드+spine 통과.
-- **다음**: §2 참조(포기 give 보상·topo-build/topology 정리·우편/길드·비동기 결정론🔴·0131~0140 묶음 리뷰 시점).
+- **닫힌 step**: [step-0133](step-0133.md) — **정리: topo-build.js 버스 구독 테이블 분할**(topo-subs.js·buildSubs·기능 0·reg 0): 0131·0132 가 구독 행을 더해 topo-build 가 33.1KB>30KB(박스 트리거)를 다시 넘겨, `if(bus){…subs.push…}` 블록(~35행)을 `buildSubs(c)`(topo-subs.js)로 verbatim 이동(각 변수 c. 접두)·topo-build 는 한 줄 호출로 위임. net.log·버스 라우팅·audit 스트림·구독 spec 비트 동일(topsplit). 크기 33.1→25.5KB·topo-subs 9.6KB. topo-actors 0098 분리의 후속(이번엔 구독 테이블). 닿는 박스: topo-build·topo-subs(신규).
+- **한 줄 상태**: reg ALL OK(src=baseline 비트 동일)·topsplit: 5시드 logHash src==base(0xf8032c41…)·bus/audit/subs 동일·전 키트 모드+spine 통과.
+- **다음**: §2 참조(포기 give 보상·topology 정리·우편/길드·비동기 결정론🔴·0131~0140 묶음 리뷰 시점).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0132 가 *saga 포기 발행*(abandonPublish)으로 상한 포기(0131)를 svc.exchange.saga_abandoned 로 가시화(audit 관측·발행 5종 완비). 다음 후보: *포기 give 보상*(영구 실패 list-leg → listing abort·0122 exchCompensate 의 timeout 판)·*정리* topo-build(33.1KB)·topology(31.6KB) 분할·*우편/길드 서비스*·*buy leg 보상*·*비동기 결정론*(🔴). 🔧 topo-build 33.1KB·topology 31.6KB. 🔎 0131~0140 묶음 리뷰(`infra-review`) 시점.**
+**step-0133 이 *정리*(topo-build 구독 테이블→topo-subs.js·기능 0·reg 0)로 박스 크기를 다시 유계화(33.1→25.5KB). 다음 후보: *포기 give 보상*(영구 실패 list-leg → listing abort·0122 exchCompensate 의 timeout 판)·*정리* topology(31.6KB) 분할·*우편/길드 서비스*·*buy leg 보상*·*비동기 결정론*(🔴). 🔧 topology 31.6KB. 🔎 0131~0140 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -228,3 +228,4 @@
 | [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers — 요청 회계 ≡ 실행 회계) | 통과 · giveOks==escrowXfers==transfers 9·3정합층·spine 130 |
 | [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — autoRetry/exchRetry gid 당 N회·포기 abort 아님) | 통과 · cap ON retries 2/abandoned 1·OFF 4 발산·open==escrow 안전·sagaConsistent·spine 131 |
 | [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned·발행 5종 완비) | 통과 · ON pub 1==abandoned 1·audit saw 1·OFF 0·안전·spine 132 |
+| [0133](step-0133.md) | 정리: topo-build 구독 테이블 분할(topo-subs.js·buildSubs·기능 0) | OK · 33.1→25.5KB·log/bus/audit/subs src==base·spine 133 |
