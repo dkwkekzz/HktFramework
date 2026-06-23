@@ -794,6 +794,40 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
       },
       note: '<b>고속 충돌은 부수고·느린 접촉은 합친다 — 임계가 author 없이 가른다</b>(구체 세계 SW3·강착↔파편 왕복). <b>▶ 흐름</b>: 뜨거운 큰 천체(노랑=강착열) 둘레에 작은 구체들이 있고, 왼쪽에서 <b>고속 충돌체</b>가 날아온다. 박히는 순간 상대 운동E 가 임계(shatterKE)를 넘어 천체가 <b>파편으로 폭발</b>한다(우상단 "개체 N" 이 <b>확 늘어남</b>·0038 fragmentEntity 의 보존 분배). 흩어진 파편은 중력으로 다시 끌리고 접촉 소산으로 식어, <b>느려지면(vstick 아래) 다시 합쳐진다</b>(0036 강착) — N 이 <b>폭발↑ 했다가 재강착↓</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW3·§4): <b>"상대 속도가 임계를 넘으면 깨지고, 못 넘으면 붙는다 — author 하지 않고 임계가 가른다"</b>. 같은 두 법칙(합치기·쪼개기)이 <b>한 세계에서</b> 충돌 속도에 따라 갈려 — 합치기↔쪼개기 <b>왕복이 닫힌다</b>(소행성 충돌 cascade·충돌 강착의 양면). <b>새 엔진 법칙 없음</b> — 0043 강착에 0038 쪼개기를 <b>같이 굴린 조립</b>(0035 정신). <b>보존(쌍 보존·분배)</b>: 깨질 때도 합칠 때도 질량·운동량 <b>기계 정밀도로 정확 불변</b>(우상단 ΣP). <b>임계 분리</b>: 파편 분산 속도 > vstick 라야 <i>깨자마자 재합침(flicker)</i> 없이 왕복이 닫힌다. <b>정직한 한계</b>: 파편 분산E 는 부모 internalE(결합열)에서(충돌 운동E 직접 소비 아님·0038 한계 계승)·조각 수 n 고정·재강착은 중력+소산에 의존(파라미터 영역). 새 법칙 없는 *왕복 조립 step*.'
+    },
+
+    // ── step_0045 — SW5 능동 열압력: P=(γ−1)ρu 되먹임으로 단열 가스 공이 되튄다 ──
+    //   0041(barotropic·u 무관)·0042(에너지 닫힘·u 가 힘에 안 먹임)의 *되먹임* 판. 압축이 u 를 데우고 → 데운 u 가
+    //   P 를 키워 더 세게 떠받친다. 찬 가스가 무너지며 데워지고, 열압력이 붕괴를 멈춰 되튄다(별 코어의 단열 지지).
+    '0045': {
+      label: 'step_0045 — SW5 능동 열압력(P=(γ−1)ρu·단열 되튐)', title: 'HTJ — SW5 능동 열압력: 데운 가스가 더 세게 떠받쳐 단열 공이 되튄다',
+      sub: '압력이 내부에너지에서 나온다(P=(γ−1)ρu) — 찬 가스가 중력으로 무너지며 압축으로 데워지고, 데운 u 가 압력을 키워 붕괴를 멈춰 되튄다(단열 지지). 0009→0010(수동 온도→능동 열압력)의 SPH 판·구체 세계 SW5. 운동량·총E 정확 보존',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        let seed = 9; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 60; i++) {
+          const r = N * 0.1 + rnd() * N * 0.12, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph), m = 1, vin = -0.4;   // 안쪽 속도(붕괴)
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: 0.2, energy: 0.2 + 0.5 * m * vin * vin, cells: 5, radius: eqR(5) });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.25, soft: Math.max(2, N * 0.12) };
+        w.__topt = { gamma: 5 / 3, h: Math.max(2.5, N * 0.14) };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.14, w.__gopt);     // 안으로 끌고(0028)
+        HTJSPH.sphThermalPressureForce(w.__entities, 0.14, w.__topt);   // 열압력(P=(γ−1)ρu·되먹임·밀도 자동 갱신)
+        HTJEntity.stepEntities(w.__entities, 0.14, { N: w.N });
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 압축되면 밝게(데움)·되튀면 식음.
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>압력이 내부에너지에서 나온다 — 데운 가스가 더 세게 떠받친다</b>(구체 세계 SW5·능동 열압력). <b>▶ 흐름</b>: 찬 가스 구름(어두움)이 <b>중력으로 무너진다</b>(0028). 빽빽해지며 압력 일이 <b>내부에너지(열)로 닫히고</b>(0042), 이제 그 <b>데운 u 가 압력을 키운다</b> — 상태식 <b>P = (γ−1)·ρ·u</b>. 그래서 압축될수록 <b>더 세게 떠받쳐</b>, 중력 붕괴가 한 점으로 찌부러지지 않고 <b>핫코어(노랑)에서 멈춰 되튄다</b>(rms 가 줄었다 다시 늚=단열 숨쉬기). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0009(수동 온도 T∝ρ^(γ−1))→0010(능동 열압력 되먹임)의 SPH 판</b> — 0041 은 압력이 밀도만 따랐고(barotropic·u 무관), 0042 는 u 를 닫았지만 힘에 안 먹였다. 이 step 이 <b>u→P 되먹임</b>을 닫아, 가스가 <b>별 코어처럼 단열로 스스로 지탱</b>한다(압축 데움→압력↑→지지). 같은 밀도라도 <b>뜨거운 가스가 찬 가스보다 더 센 압력</b>(verify: u 10배→힘 10배). <b>보존</b>: 운동량 <b>기계 정밀도 정확</b>(대칭 쌍힘·우상단 ΣP)·압력 일↔내부E <b>총E 닫힘</b>(순간 전력 균형 −S+S=0·중력 PE 제외). u≤0 → P=0(음압 없음). <b>정직한 한계</b>: 점성(충격 감쇠) 없음 — 단열 진동이 안 식음·평활길이 h 고정·이웃 O(N²)·격자 유체 은퇴는 SW5 마지막. 여기선 *열압력 되먹임 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1041,7 +1075,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0044';                       // 기본 = 현재 step
+    sel.value = '0045';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──

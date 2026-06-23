@@ -160,5 +160,53 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphDensity, sphPressureForce, sphThermalEnergy, VERSION: 3 };
+  // SPH 능동 열압력(되먹임) — 압력이 *내부에너지에서 나온다*: P_i = (γ−1)·ρ_i·u_i (u_i=비내부E=internalE/질량).
+  //   design/sphere-world.md §6 SW5 — 0041(barotropic P=k·ρ^γ·u 무관)·0042(에너지 닫힘·u 는 닫히되 힘에 안 먹임)
+  //   의 *되먹임* 판. **0009(수동 온도)→0010(능동 열압력)의 SPH 판**: 압축이 u 를 데우고(0042) → 데운 u 가 P 를
+  //   키워(이 함수) → *더 세게 떠받친다*(별 코어의 단열 지지). 0041 압력 힘(Monaghan 대칭 쌍힘)과 0042 에너지
+  //   닫힘(대칭 내부E식)을 *한 함수*에서 열 EOS 로 묶는다 — 같은 사전 속도로 a_i 와 dU_i 를 함께 계산해 적용하면
+  //   운동량 정확 보존 + 순간 전력 균형(−S+S=0) 기계 정밀도(0041·0042 결합). u 가 P 에 들어가므로 *되먹임*:
+  //       P_i = (γ−1)ρ_i u_i,  a_i = −Σ_j m_j(P_i/ρ_i²+P_j/ρ_j²)∇_iW,  dU_i = m_i·½Σ_j m_j(…)v_ij·∇_iW·dt
+  //   u≥0 → P≥0 → 항상 반발. opts: { gamma(기본 5/3·단원자), h(기본 1) }. n<2 면 무변화. 신규 함수 — 기존 호출처
+  //   없으니 회귀 0(구조적). 0041/0042 와 달리 *EOS 가 u 의존* = 데운 가스가 더 센 압력(되먹임).
+  function sphThermalPressureForce(particles, dt, opts) {
+    opts = opts || {};
+    const n = particles.length;
+    if (n < 2) return particles;
+    const h = opts.h != null ? opts.h : 1;
+    const gamma = opts.gamma != null ? opts.gamma : 5 / 3;
+    const EPS2 = 1e-12;
+    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const P = new Array(n);
+    for (let i = 0; i < n; i++) {                             // 열 EOS: P=(γ−1)·ρ·u (u=internalE/질량·u≥0→P≥0)
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      const u = e.mass > EPS2 ? e.internalE / e.mass : 0;
+      P[i] = (gamma - 1) * (e.density || 0) * Math.max(0, u);
+    }
+    const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n), dU = new Float64Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = particles[i], b = particles[j];
+      const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
+      const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
+      const g = kernelGradW(a.cx - b.cx, a.cy - b.cy, a.cz - b.cz, h);   // ∇_i W_ij
+      ax[i] -= b.mass * term * g[0]; ay[i] -= b.mass * term * g[1]; az[i] -= b.mass * term * g[2];   // 운동량(0041)
+      ax[j] += a.mass * term * g[0]; ay[j] += a.mass * term * g[1]; az[j] += a.mass * term * g[2];
+      const vix = a.px / a.mass, viy = a.py / a.mass, viz = a.pz / a.mass;   // 사전 속도 v_i=p_i/m_i
+      const vjx = b.px / b.mass, vjy = b.py / b.mass, vjz = b.pz / b.mass;
+      const vdotg = (vix - vjx) * g[0] + (viy - vjy) * g[1] + (viz - vjz) * g[2];   // v_ij·∇_iW
+      const inc = 0.5 * a.mass * b.mass * term * vdotg;       // 에너지 닫힘(0042·두 입자에 동일)
+      dU[i] += inc; dU[j] += inc;
+    }
+    for (let i = 0; i < n; i++) {                             // p 와 internalE 동시 적용(같은 사전 속도 → 총E 닫힘)
+      const e = particles[i];
+      e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
+      e.internalE += dU[i] * dt;                              // 압축 데움→P↑(되먹임)·팽창 식힘→P↓
+      e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return particles;
+  }
+
+  return { kernelW, kernelGradW, sphDensity, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, VERSION: 4 };
 });
