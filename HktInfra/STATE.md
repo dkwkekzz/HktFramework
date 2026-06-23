@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0165](step-0165.md) — **정리: svc-mail.js 박스-부품 분할**(core/txn/entry·기능 0·reg 0): 30.9KB(박스 30KB 유계 초과·비대화 트리거)를 svc-mail-core(원장·헬퍼·accessor)·svc-mail-txn(onMsg)·svc-mail(진입점)로 재분할. 거래소 0124·가방 0053 패턴. 다음 기능(아이템 우편 saga) 헤드룸 확보.
-- **한 줄 상태**: reg ALL OK·mailsplit: NET(분할)·NETPREV(0164) mail digest 0x421ff2a9 비트 동일·spine 통과. core 25.6KB·txn 5.9KB·entry 1.1KB.
-- **다음**: §2 — 아이템 우편 saga(give 회신 비동기 수신·실패 보상·재전송 — 거래소 0121~ 류·현재 give=fire-and-forget)·발행 게이트 통합·길드·비동기 결정론🔴·0151~0160 묶음 리뷰(`infra-review`).
+- **닫힌 step**: [step-0166](step-0166.md) — **아이템 우편 saga 회신 비동기 수신**(mailSaga·ackedGives): give 가 fire-and-forget(0161~0164)에서 *회신 받는 닫힌 고리*로 — _custody 가 replyTo+cause 동봉→가방이 item_result echo→ackedGives/giveOks 집계. 거래소 0121 의 우편 판. 닿는 박스: svc-mail-core·svc-mail-txn·topo-build.
+- **한 줄 상태**: reg ALL OK(mailSaga OFF·replyTo 부재=0165 비트 동일)·exmlsaga: ON gives/acked/oks 4/4/4(닫힌 고리)·OFF acked 0·spine 통과.
+- **다음**: §2 — 아이템 우편 saga 회신 손실 감지(미해결 추적·gid 0167)·재전송+dedup·정합 capstone·transfers capstone(거래소 0125~0130 류)·발행 게이트 통합·길드·비동기 결정론🔴·리뷰.
 
 ---
 
@@ -63,7 +63,7 @@
 - **수렴(desync 0)**: 클라 예측 뷰는 권위 재현으로 수렴. 겹친 뷰의 참여자는 조정 후 일치.
 - **복제 = 재현, 상태 전송 아님**: `(seed+params+intent 로그)` 가 기본. 전체 스냅샷은 late-join·복구의 최후 수단.
 - **Sim = 인터페이스 우선, C++ 최후 교체**: 존 시뮬은 *동결된 Sim 인터페이스* 뒤에 산다 — 오늘은 더미 구현(헤드리스), 인프라 전체를 원격 E2E 로 세운 뒤 인터페이스 무변경으로 얇은 C++ 호스트로 *교체만*. C++ 선-구축으로 원격 검증 루프를 끊지 않는다 ([TOOLS.md](TOOLS.md) §4·§6). 더미는 throwaway 가 아니라 인터페이스의 *첫 구현*.
-- **headless·원격 검증(게임 시뮬 포함, 협상 불가)**: 모든 서버 동작 검증은 *결정론 시뮬 코어까지* Unreal Engine·GUI 없이 headless 로, 원격(이 환경/CI)에서 가능해야 한다. 더미=Node 라 자명히 충족 — C++ 승격 경로도 시뮬 *검증*에 UE 모듈을 링크하지 않는다. **'UObject 0' 으로는 부족**: 결정론 시뮬 코어가 UE 모듈(`Core`·`CoreUObject`·`GameplayTags`·`Json` 등)에 링크되면 headless 빌드 불가(§3 격차) → UE-모듈-free 코어 분리 또는 얇은 헤드리스 shim 으로 충족. 'UE 없이, 원격에서 빌드·통신·검증되는가'가 모든 박스(시뮬 포함)의 통과 조건 ([TOOLS.md](TOOLS.md) §1·§4).
+- **headless·원격 검증(게임 시뮬 포함, 협상 불가)**: 모든 서버 동작 검증은 *결정론 시뮬 코어까지* UE·GUI 없이 headless·원격(이 환경/CI)서 가능. 더미=Node 자명 충족. **'UObject 0' 으로는 부족** — 시뮬 코어가 UE 모듈(`Core`·`CoreUObject`·`Json` 등)에 링크되면 headless 빌드 불가(§3 격차) → UE-모듈-free 코어 분리/얇은 shim 선결 ([TOOLS.md](TOOLS.md) §1·§4).
 - **수치 = verify 출력**: 모든 문서 수치는 시드 [42, 7, 1234, 99, 2026] 평균으로 재현.
 - **코어 netcode 불변**: 결정론 시뮬 코어 순수성(UObject 0 — headless 빌드 가능) · 서버 권위(클라 읽기전용) · ISP 3-Layer · 시뮬 상태 직접쓰기 금지(intent 경유). 인프라는 *확장*하되 *깨지 않는다*.
 - **한 step = 한 조각**: 더 떠올라도 다음으로 전가. 새 코어는 직전 코어를 잇고 박스/계약 하나만 더한다.
@@ -261,3 +261,4 @@
 | [0163](step-0163.md) | 아이템 우편↔가방 leg3: 만료 시 escrow→발신자 가방 반환(mailInv) | 통과 · item0→h1·item1→x·escrowXfers 4 |
 | [0164](step-0164.md) | 아이템 우편↔가방 2-서비스 보존 capstone(escrowItemIds·escrowConsistent·arc 0161~0164 닫기) | 통과 · 우편==가방 escrow 집합·crash 복구 정합 |
 | [0165](step-0165.md) | 정리: svc-mail.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 30.9→25.6/5.9/1.1KB·digest 비트동일 |
+| [0166](step-0166.md) | 아이템 우편 saga 회신 비동기 수신(mailSaga·ackedGives) | 통과 · gives==acked==oks 4·OFF acked 0 |

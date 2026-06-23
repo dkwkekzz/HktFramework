@@ -1,7 +1,4 @@
 'use strict';
-// step-0166 — 아이템 우편 saga 회신 비동기 수신(mailSaga·ackedGives): 0161~0164 는 가방 give 를 *fire-and-forget* 으로 보냈다 — 회신(item_result)을 안 받아 give 성공/실패를 우편이 몰랐다(거래소 0121 의 무대비).
-//   이 step: mailSaga ON 이면 _custody 가 give 에 replyTo(우편 주소)+cause 를 실어 가방이 item_result 를 우편으로도 echo(2-서비스 피드백 채널). 우편 onMsg 가 item_result{op:'give'} 수신 → ackedGives++·giveOks/giveFails 집계. 무손실서 gives==ackedGives(닫힌 고리 liveness).
-//   거래소↔가방 saga(0121)의 우편 판. mailSaga OFF·replyTo 부재면 가방이 echo 안 함 → item_result 안 옴 = 0165 비트 동일(회귀 0).
 // step-0165 정리 분할 — MailService *원장 코어*(생성자 + 헬퍼 _snapState/_restore/_journal/_box/_custody + crash + reconstruct + 조회/회계 accessor + digest).
 //   svc-mail.js 가 30KB 를 넘어(비대화 트리거·박스 1개=파일 1개 유계) 박스를 부품으로 재분할(기능 0·바이트 동일·reg 0). 거래소 svc-exchange core/txn(0124)·가방 svc-inventory(0053)·svc-whisper(0094) 와 같은 패턴.
 //   트랜잭션 핸들러(onMsg: mailSend/mailFetch/mailSweep)는 svc-mail-txn.js 가 Object.assign 으로 프로토타입 증강(동작 불변). 진입점 svc-mail.js 가 core→txn 순 로드.
@@ -84,10 +81,6 @@ class MailService {
     this.inv = opts.inv || null;        // 가방(inventory) 주소(step-0161·mailInv) — 아이템 우편 escrow 실체화 give 의 대상. 부재면 추상 escrow(0160 동일).
     this.invMode = opts.invMode || false;   // 우편↔가방 원자 거래(step-0161·mailInv) — ON 이면 send/fetch/expire 가 가방 give 로 아이템 custody 이동. OFF 면 추상 escrow(0160 비트 동일).
     this.gives = 0;                // 가방에 보낸 give 요청 통수(step-0161 — 0164 2-서비스 보존·가방 escrowXfers 와 교차 정합).
-    this.saga = opts.saga || false;     // saga 회신 비동기 수신(step-0166·mailSaga) — ON 이면 give 에 replyTo+cause 를 실어 가방이 item_result 를 echo. OFF 면 fire-and-forget(0165 비트 동일).
-    this.ackedGives = 0;           // 가방서 회신(item_result) 받은 give 통수(step-0166 — 무손실서 gives==ackedGives·닫힌 고리 liveness).
-    this.giveOks = 0;              // 성공 회신 통수(step-0166 — 0170 giveOks==가방 escrowXfers 교차 정합 capstone 의 좌변).
-    this.giveFails = 0;            // 실패 회신 통수(step-0166 — 발신자 미소유 등; 무손실·정상 소유서 0).
     this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
@@ -126,11 +119,7 @@ class MailService {
   //   거래소 _custody(0117)의 우편 판. send=발신자→escrow(leg1 0161)·fetch=escrow→수신자(leg2 0162)·expire=escrow→발신자(leg3 0163).
   _custody(itemId, from, to, cause) {
     if (!this.invMode || !this.inv || itemId == null || !this.net) return;
-    const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to };
-    // saga 피드백(step-0166·mailSaga) — ON 이면 replyTo(우편 주소)+cause(어느 레그·mailId) 를 실어 가방이 item_result 를 우편으로도 회신.
-    //   OFF 면 msg 가 0165 와 정확히 같다(replyTo/cause 키 없음) → 가방의 echo(_sagaReply) 휴면 = 비트 동일(reg 0).
-    if (this.saga) { msg.replyTo = this.addr; msg.cause = cause; }
-    this.net.send(this.addr, this.inv, msg);
+    this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to });
     this.gives++;
     if (to === 'escrow') this.escrowIds.add(itemId);        // 발신 인출(leg1) — escrow 진입(step-0164·2-서비스 보존 추적)
     else if (from === 'escrow') this.escrowIds.delete(itemId);   // 수령 입금(leg2)·만료 반환(leg3) — escrow 이탈
@@ -141,7 +130,6 @@ class MailService {
     this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this.expirePublished = 0; this._seq = 0; this._lastFetch = null;
     this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
     this.gives = 0;   // step-0161: give 계측도 소실. reconstruct 는 custody 를 *재발행하지 않는다*(다른 서비스 부수효과·저널 replay 는 projection 만 — 거래소 0109 동형)
-    this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0;   // step-0166: saga 회신 계측 소실(저널 밖·외부 회신 의존·reconstruct 가 재발행 안 함)
     this.escrowIds = new Set();   // step-0164: escrow 추적도 소실 → reconstruct 가 저널 replay 로 재계산(custody 재발행 없이 집합만).
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
