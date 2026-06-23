@@ -1,4 +1,5 @@
 'use strict';
+// step-0134 — saga 포기 give 재admission(exchReadmit): 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개(retryCount 리셋). exchReadmit op 부재면 0133 비트 동일.
 // step-0131 — saga 재시도 상한(sagaMaxRetries): exchRetry(0126)·exchSweep autoRetry(0129) 의 재전송 루프를 _resendPending() 공용 헬퍼로 추출하고 gid 당 N회 상한을 둔다. 상한 0(기본)이면 무제한 = 0130 비트 동일.
 // step-0124 정리 분할 — 거래소 *트랜잭션 핸들러*(onMsg): svc-exchange.js 가 32KB 를 넘어(비대화 트리거) 박스를 부품으로 재분할(기능 0·바이트 동일·reg 0).
 //   원장 코어(svc-exchange-core.js)의 프로토타입을 Object.assign 으로 증강(가방 core/txn 와 동일 패턴·동작 불변). 진입점 svc-exchange.js 가 core 뒤에 로드한다.
@@ -33,6 +34,12 @@ Object.assign(ExchangeService.prototype, {
     // 미해결 give 재전송(step-0126·exchRetry) — 회신 손실로 pending 에 남은 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 dedup 전제).
     //   재전송이라 gives/pending 무증가(이미 추적 중)·retries++. pendingGive 비었으면(saga OFF·전부 acked) no-op = 0125 비트 동일.
     if (p.type === 'exchRetry') { this._resendPending(); return; }   // step-0131: 재전송 루프를 _resendPending() 로 추출(상한 0 면 무제한 = 0126 동일).
+    // 포기 give 재admission(step-0134·exchReadmit) — 운영이 손실 해소 후 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개. retryCount 리셋(상한 재충전). 이후 sweep/Retry 가 재전송. abandonedGive 비었으면 no-op = 0133 비트 동일.
+    if (p.type === 'exchReadmit') {
+      for (const [gid, g] of this.abandonedGive) { this.pendingGive.set(gid, g); this.retryCount.delete(gid); this.readmitted++; }
+      this.abandonedGive = new Map();
+      return;
+    }
     // 매물 등록(list·acquire) — 판매자가 아이템을 거래소 escrow 로 맡긴다. 이후 거래소 권위 아래(판매자 이중 판매 불가). open++.
     if (p.type === 'exchList') {
       const id = ++this.nextId;

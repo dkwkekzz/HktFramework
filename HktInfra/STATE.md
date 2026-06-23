@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0133](step-0133.md) — **정리: topo-build.js 버스 구독 테이블 분할**(topo-subs.js·buildSubs·기능 0·reg 0): 0131·0132 가 구독 행을 더해 topo-build 가 33.1KB>30KB(박스 트리거)를 다시 넘겨, `if(bus){…subs.push…}` 블록(~35행)을 `buildSubs(c)`(topo-subs.js)로 verbatim 이동(각 변수 c. 접두)·topo-build 는 한 줄 호출로 위임. net.log·버스 라우팅·audit 스트림·구독 spec 비트 동일(topsplit). 크기 33.1→25.5KB·topo-subs 9.6KB. topo-actors 0098 분리의 후속(이번엔 구독 테이블). 닿는 박스: topo-build·topo-subs(신규).
-- **한 줄 상태**: reg ALL OK(src=baseline 비트 동일)·topsplit: 5시드 logHash src==base(0xf8032c41…)·bus/audit/subs 동일·전 키트 모드+spine 통과.
-- **다음**: §2 참조(포기 give 보상·topology 정리·우편/길드·비동기 결정론🔴·0131~0140 묶음 리뷰 시점).
+- **닫힌 step**: [step-0134](step-0134.md) — **saga 포기 give 재admission**(exchReadmit·0048 재admission 의 saga 판): 0131 포기는 영구였다. 포기 시 give 를 abandonedGive 에 간직, exchReadmit op 이 pendingGive 로 되돌리고 retryCount 리셋 → sweep 재전송 → 손실 해소면 ack→drain. ON: readmitted 1·pending 0·oks 회복·open==escrow. OFF: pending 1 고착. exchReadmit 부재·sagaMaxRetries 0 면 abandonedGive 빔 = 0133 비트 동일. 닿는 박스: svc-exchange-core/txn.
+- **한 줄 상태**: reg ALL OK(src=baseline=0133 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagaread: ON readmit 1/pending 0/oks 1·OFF pending 1 고착·open==escrow·sagaConsistent 양체제·키트+spine 통과.
+- **다음**: §2 참조(재admission 자동 트리거·topology 정리·우편/길드·비동기 결정론🔴·0131~0140 묶음 리뷰 시점).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0133 이 *정리*(topo-build 구독 테이블→topo-subs.js·기능 0·reg 0)로 박스 크기를 다시 유계화(33.1→25.5KB). 다음 후보: *포기 give 보상*(영구 실패 list-leg → listing abort·0122 exchCompensate 의 timeout 판)·*정리* topology(31.6KB) 분할·*우편/길드 서비스*·*buy leg 보상*·*비동기 결정론*(🔴). 🔧 topology 31.6KB. 🔎 0131~0140 묶음 리뷰(`infra-review`) 시점.**
+**step-0134 가 *saga 포기 give 재admission*(exchReadmit)으로 포기를 가역화(손실 해소 후 retry 재개·안전·정합 유지). 다음 후보: *재admission 자동 트리거*(프레즌스 회복→exchReadmit·0056 busPresenceRecover 의 saga 판)·*정리* topology(30.8KB) run() 분할·*우편/길드 서비스*·*buy leg 보상*·*비동기 결정론*(🔴). 🔧 topology 30.8KB(run() 단일 함수). 🔎 0131~0140 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0131**(…→0126 재전송+dedup→0127 유계화→0128 회계 불변→0129 자동 재전송→0130 give↔transfers capstone→0131 재시도 상한 sagaMaxRetries→0132 포기 발행 abandonPublish: svc.exchange.saga_abandoned·발행 5종 완비). 신성한 tick·권위 0. 포기 보상·buy leg 보상·우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십·전달 신뢰·파티 집계/영속·epoch 펜싱·수신함 유계/드레인. **거래소 arc 0107~0134**: escrow 쌍 거래·발행 5종·영속/압축·시세 피드·만료 TTL·가방 give 3leg·2-서비스 보존·saga(피드백 0121→보상 0122→capstone 0130→재시도 상한 0131→포기 발행 0132→재admission 0134). 정리 0124/0133. 신성한 tick·권위 0. 재admit 자동 트리거·buy leg 보상·우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0048 lease/ns/lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070): 분리→버스화→shadow→failover 승격→사망 자율 감지→질의 →0105/0106 공지 epoch 펜싱(presmon·wrouter 메아리 정리). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속/스냅샷→0023~0026 홉 신뢰→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 recon. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -202,21 +202,21 @@
 | [0104](step-0104.md) | 수신함 손실 발행(lossPublish — overflow svc.mailbox.overflowed) | 통과 · spine 104 |
 | [0105](step-0105.md) | active 공지 epoch 펜싱(announceEpoch — 낡은 메아리 거부) | 통과 · ON stale 1·spine 105 |
 | [0106](step-0106.md) | wrouter 공지 epoch 펜싱(0105 라우터 판) | 통과 · ON stale 1·spine 106 |
-| [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService — escrow 쌍 거래·존 넘는 거래 첫 박스) | 통과 · listed4/sold2·spine 107 |
+| [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService — escrow 쌍 거래·존 넘는 거래) | 통과 · listed4/sold2·spine 107 |
 | [0108](step-0108.md) | 거래소 체결 발행(exchangePublish — svc.exchange.sold) | 통과 · ON pub 2·spine 108 |
 | [0109](step-0109.md) | 거래소 영속·failover(exchangePersist — op 저널 replay) | 통과 · recon==before·spine 109 |
-| [0110](step-0110.md) | 거래소 저널 스냅샷 압축(exchangeSnapshot — snapshot+tail) | 통과 · tail 1·spine 110 |
+| [0110](step-0110.md) | 거래소 저널 스냅샷 압축(exchangeSnapshot) | 통과 · tail 1·spine 110 |
 | [0111](step-0111.md) | 거래소 취소 발행(cancelPublish — svc.exchange.cancelled) | 통과 · ON pub 1·spine 111 |
 | [0112](step-0112.md) | 거래소 시세 피드 읽기 모델(marketFeed — sold+cancelled 구독→item별 시세) | 통과 · spine 112 |
-| [0113](step-0113.md) | 시세 피드 영속·late-join(marketReconstruct — op 저널 replay 로 시세 복원) | 통과 · spine 113 |
-| [0114](step-0114.md) | 매물 만료 TTL(exchExpiry — now−listedAt ≥ ttl 자동 회수·종결 expired) | 통과 · expired1·spine 114 |
-| [0115](step-0115.md) | 매물 만료 발행(expirePublish — svc.exchange.expired·수명주기 3종) | 통과 · ON pub 1·spine 115 |
-| [0116](step-0116.md) | 시세 피드 만료 반영(MarketFeed svc.exchange.expired 구독·수명주기 3종) | 통과 · spine 116 |
+| [0113](step-0113.md) | 시세 피드 영속·late-join(marketReconstruct — op 저널 replay) | 통과 · spine 113 |
+| [0114](step-0114.md) | 매물 만료 TTL(exchExpiry — now−listedAt ≥ ttl 자동 회수) | 통과 · expired1·spine 114 |
+| [0115](step-0115.md) | 매물 만료 발행(expirePublish — svc.exchange.expired) | 통과 · ON pub 1·spine 115 |
+| [0116](step-0116.md) | 시세 피드 만료 반영(MarketFeed svc.exchange.expired 구독) | 통과 · spine 116 |
 | [0117](step-0117.md) | 거래소↔가방 list 인출(exchInventory leg1 — escrow 가방 원장 실체화) | 통과 · spine 117 |
 | [0118](step-0118.md) | 거래소↔가방 buy 입금(exchInventory leg2 — give escrow→buyer) | 통과 · spine 118 |
 | [0119](step-0119.md) | 거래소↔가방 cancel/expire 반환(exchInventory leg3 — give escrow→seller) | 통과 · spine 119 |
-| [0120](step-0120.md) | 거래소↔가방 2-서비스 보존 불변(escrowItemIds — 거래소 open ≡ 가방 escrow 소유·각 1소유자) | 통과 · open==escrow ["item4"]·minted 5·spine 120 |
-| [0121](step-0121.md) | 거래소↔가방 escrow give 결과 비동기 수신(exchSaga — give 에 replyTo+cause·가방 item_result echo) | 통과 · gives 9==acked 9·fails 0·spine 121 |
+| [0120](step-0120.md) | 거래소↔가방 2-서비스 보존(escrowItemIds — open ≡ 가방 escrow 소유) | 통과 · open==escrow·minted 5·spine 120 |
+| [0121](step-0121.md) | 거래소↔가방 give 결과 비동기 수신(exchSaga — replyTo+cause·item_result echo) | 통과 · gives 9==acked 9·spine 121 |
 | [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate — give 실패→listing abort·open 롤백) | 통과 · giveFails 1·aborted ON1/OFF0·spine 122 |
 | [0123](step-0123.md) | 보상 발행(abortPublish — abort→svc.exchange.aborted·audit 관측·수명주기 발행 4종 완비) | 통과 · aborted 1·abortPublished ON1/OFF0·audit ON1/OFF0·spine 123 |
 | [0124](step-0124.md) | 정리: svc-exchange.js 박스-부품 분할(core/txn/entry·기능 0·헤더 압축) | OK · 32.4→12.5/7.0/1.1KB·log+ex 비트 동일·spine 124 |
@@ -229,3 +229,4 @@
 | [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — autoRetry/exchRetry gid 당 N회·포기 abort 아님) | 통과 · cap ON retries 2/abandoned 1·OFF 4 발산·open==escrow 안전·sagaConsistent·spine 131 |
 | [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned·발행 5종 완비) | 통과 · ON pub 1==abandoned 1·audit saw 1·OFF 0·안전·spine 132 |
 | [0133](step-0133.md) | 정리: topo-build 구독 테이블 분할(topo-subs.js·buildSubs·기능 0) | OK · 33.1→25.5KB·log/bus/audit/subs src==base·spine 133 |
+| [0134](step-0134.md) | saga 포기 give 재admission(exchReadmit — abandonedGive→pendingGive) | 통과 · ON readmit 1/pending 0·OFF pending 1 고착·open==escrow·spine 134 |
