@@ -53,5 +53,67 @@
     return particles;
   }
 
-  return { kernelW, sphDensity, VERSION: 1 };
+  // 커널 기울기 ∇_i W(r_i−r_j, h) — 압력·점성 등 모든 SPH 쌍힘의 방향·크기. (dx,dy,dz)=r_i−r_j.
+  //   ∇_i W = (dW/dr)·(r_i−r_j)/r,  dW/dr = (σ/h)·f'(q),  σ = 1/(π h³),  q = r/h:
+  //     f'(q) = −3q + 2.25q²     (0 ≤ q < 1)
+  //           = −0.75(2−q)²       (1 ≤ q < 2)
+  //           = 0                  (q ≥ 2)
+  //   r→0 에서 f'(0)=0 → 기울기 0(특이점 없음). 반대칭 ∇_i W = −∇_j W(쌍힘 운동량 보존의 뿌리).
+  function kernelGradW(dx, dy, dz, h) {
+    if (h <= 0) return [0, 0, 0];
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < 1e-12) return [0, 0, 0];                          // 동일 위치 → 방향 불정·f'(0)=0
+    const q = r / h, sigma = 1 / (Math.PI * h * h * h);
+    let fp;
+    if (q < 1) fp = -3 * q + 2.25 * q * q;
+    else if (q < 2) { const a = 2 - q; fp = -0.75 * a * a; }
+    else return [0, 0, 0];
+    const c = (sigma / h) * fp / r;                           // (dW/dr)/r
+    return [c * dx, c * dy, c * dz];
+  }
+
+  // SPH 압력 힘 — 밀도(0040) 위에 상태식 P=f(ρ) 와 대칭 쌍힘으로 구체 떼를 *가스처럼 퍼지게* 한다(SW5).
+  //   design/sphere-world.md §6 SW5 / §3 — 0008(격자 단거리 반발 P=Kρ^γ)·0010(열압력)의 *SPH 판*. 밀도가
+  //   높은 곳일수록 큰 압력 → 입자를 밀어낸다. Monaghan 대칭 운동량식:
+  //       a_i = −Σ_j m_j (P_i/ρ_i² + P_j/ρ_j²) ∇_i W_ij
+  //   쌍힘 F_ij = −m_i m_j(P_i/ρ_i²+P_j/ρ_j²)∇_i W_ij, ∇_j W = −∇_i W → F_ji = −F_ij(뉴턴3) → **순 운동량
+  //   기계 정밀도로 정확 보존**(쌍 루프라 구조적으로 상쇄). 상태식 P_i = k·ρ_i^γ(항상 ≥0 → 항상 반발 → 퍼짐).
+  //   opts: { stiffness(k, 기본 0 → early-return·회귀 0), gamma(기본 2), h(기본 1) }. 밀도는 내부에서 sphDensity 로
+  //   재계산(자기 완결). 운동량 바뀐 입자의 KEcm·energy 재계산(자기일관). 입력을 제자리 변형해 반환.
+  //   정직한 한계(이 단위): 압력은 *힘*만(운동량 보존) — 압력 일↔내부에너지 닫힘(KE↔u)은 후속 SPH 열 벽돌
+  //   (0008→0010 순서와 동형). 점성·적응 h 도 후속.
+  function sphPressureForce(particles, dt, opts) {
+    opts = opts || {};
+    const k = opts.stiffness != null ? opts.stiffness : 0;
+    const n = particles.length;
+    if (n < 2 || k === 0) return particles;                   // 노브=0 → early-return(회귀 0)
+    const h = opts.h != null ? opts.h : 1;
+    const gamma = opts.gamma != null ? opts.gamma : 2;
+    const EPS2 = 1e-12;
+    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const P = new Array(n);
+    for (let i = 0; i < n; i++) P[i] = k * Math.pow(particles[i].density || 0, gamma);   // 상태식(항상 ≥0)
+    const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = particles[i], b = particles[j];
+      const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
+      const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
+      const g = kernelGradW(a.cx - b.cx, a.cy - b.cy, a.cz - b.cz, h);   // ∇_i W_ij
+      ax[i] -= b.mass * term * g[0]; ay[i] -= b.mass * term * g[1]; az[i] -= b.mass * term * g[2];   // a_i += −m_j·term·∇_iW
+      ax[j] += a.mass * term * g[0]; ay[j] += a.mass * term * g[1]; az[j] += a.mass * term * g[2];   // a_j += −m_i·term·∇_jW(=+∇_iW)
+    }
+    for (let i = 0; i < n; i++) {                             // Δp_i = m_i·a_i·dt → 쌍마다 ΣΔp=0(정확)
+      const e = particles[i];
+      e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
+    }
+    for (let i = 0; i < n; i++) {                             // KEcm·energy 재계산(internalE 불변·자기일관)
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return particles;
+  }
+
+  return { kernelW, kernelGradW, sphDensity, sphPressureForce, VERSION: 2 };
 });
