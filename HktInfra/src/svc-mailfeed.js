@@ -1,4 +1,6 @@
 'use strict';
+// step-0156 — 미읽음 배지 질의 인터페이스(mailUnreadQuery→mailUnreadReply): 0151~0155 배지는 *프로세스 내 pull*(unreadOf)로만 읽혔다 — 게이트웨이/클라가 *원격에서* 미읽음 수를 물을 길이 없었다.
+//   이 step: MailFeed 가 {type:'mailUnreadQuery',rcpt} 요청에 현재 unread 를 {type:'mailUnreadReply',rcpt,unread} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069 presenceQuery 의 우편 판). 순수 읽기(배지 무변경). 질의 미수신이면 미발화 = 0155 비트 동일.
 // step-0155 — MailFeed 회계 정합 capstone(feedConsistent·unread==sent−read−expired): 0151~0154 가 배지에 입금(+)·읽음(−)·만료(−)·복원을 쌓았다. 그 회계가 *대수적으로 닫혀* 있는가?
 //   feedConsistent: 모든 수신자에 대해 unread == sent − read − expired (배지의 미읽음은 입금에서 읽음·만료를 뺀 것·음수 0). 0150 mailConsistent(우편 박스 권위 판)의 *읽기 모델 판*. 미호출 read accessor = 0154 비트 동일(reg).
 // step-0154 — MailFeed 영속·late-join(reconstruct·우편 op 저널 replay): 0151~0153 MailFeed 는 *자기 영속 0* — crash 시 미읽음 배지가 전부 소실됐다.
@@ -26,10 +28,20 @@ class MailFeed {
     this.bus = opts.bus || null;   // 이벤트 버스 주소(구독 경유 — 발행자 주소 무지). mailFeed 는 bus 전제.
     this.badges = new Map();       // recipient -> {unread, sent} (미읽음 배지 투영 — 우편 발행 스트림의 파생, 권위 아님)
     this.consumed = 0;             // svc.mail.* 소비 수(관찰 소비자의 입력 회계)
+    this.queriesRx = 0;            // 받은 mailUnreadQuery 수(step-0156·읽기 경로 계측). repliesSent = 보낸 회신 수(1:1).
+    this.repliesSent = 0;
   }
   _row(rcpt) { if (!this.badges.has(rcpt)) this.badges.set(rcpt, { unread: 0, sent: 0, read: 0, expired: 0 }); return this.badges.get(rcpt); }
   onMsg(m) {
     const p = m.payload;
+    // 미읽음 배지 질의 응답(step-0156·mailUnreadQuery) — {type,rcpt} 요청에 현재 unread 를 {type:'mailUnreadReply'} 로 회신(request/reply·프레즌스 0069 의 우편 판). 순수 읽기(배지 무변경). _lastReply 에 마지막 회신 보관(검증용).
+    if (p.type === 'mailUnreadQuery') {
+      this.queriesRx++;
+      const unread = this.unreadOf(p.rcpt);
+      this._lastReply = { rcpt: p.rcpt, unread };
+      if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'mailUnreadReply', rcpt: p.rcpt, unread }); this.repliesSent++; }
+      return;
+    }
     if (p.type !== 'ev' || !p.ev) return;
     // 입금 소비(svc.mail.sent·0144) — 그 수신자의 미읽음 통수 증가. ev={id,from,to,sentAt}.
     if (p.topic === 'svc.mail.sent') { const r = this._row(p.ev.to); r.unread++; r.sent++; this.consumed++; return; }
