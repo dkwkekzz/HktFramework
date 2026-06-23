@@ -33,6 +33,12 @@ function buildTopology(opts) {
     exchangeTtl = 0,
     expirePublish = false,
     exchInventory = false,
+    exchSaga = false,
+    exchCompensate = false,
+    abortPublish = false,
+    sagaDedup = false,
+    sagaDedupBound = false,
+    autoRetry = false,
     chatpersist = false, chatSnapshot = 0,
     clientResend = false,
     mintRecon = false,
@@ -173,6 +179,7 @@ function buildTopology(opts) {
     if (audit && exchange && exchangePublish) subs.push(['svc.exchange.sold', 'audit']);   // 거래소 체결 발행(0108) — audit 가 svc.exchange.sold 구독(거래 수명주기 관측). exchangePublish OFF 면 미추가(0107 토폴로지 비트 동일).
     if (audit && exchange && cancelPublish) subs.push(['svc.exchange.cancelled', 'audit']);   // 거래소 취소 발행(0111) — audit 가 svc.exchange.cancelled 구독(delisting 관측). cancelPublish OFF 면 미추가(0110 토폴로지 비트 동일).
     if (audit && exchange && expirePublish) subs.push(['svc.exchange.expired', 'audit']);   // 거래소 만료 발행(0115) — audit 가 svc.exchange.expired 구독(만료 관측). expirePublish OFF 면 미추가(0114 토폴로지 비트 동일).
+    if (audit && exchange && abortPublish) subs.push(['svc.exchange.aborted', 'audit']);   // 보상 발행(0123) — audit 가 svc.exchange.aborted 구독(보상 롤백 관측). abortPublish OFF 면 미추가(0122 토폴로지 비트 동일).
     if (marketFeed && exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); subs.push(['svc.exchange.expired', 'market']); }   // 시세 피드(0112·0116) — MarketFeed 가 체결·취소·만료 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
     if (audit && bouncePublish && whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
@@ -194,7 +201,7 @@ function buildTopology(opts) {
   //   replicas (0028) — persistReplicas≥1 이면 fan-out 대상 목록. [] 면 0027 비트 동일(N-replica 휴면).
   //   quorumW (이 step) — persist ON 일 때만 의미(저널에 q 플래그·ack 집계·durableSeq). 0 면 0028 비트 동일(ack 0).
   //   windowFill (0031) — persist+quorumW>0 일 때만 의미(윈도 해소 sweep). wfWindow (이 step) — 유계 sweep 범위(0=무계·0031 동일). OFF → 0029 비트 동일(sweep 0).
-  if (inventory) add({ addr: 'inventory', kind: 'inventory', opts: { gateway: 'gateway', bus: busAddr, persist: persistAddr, persistBackup: persistBackupAddr, replicas: persistReplicaAddrs, quorumW: persistAddr ? quorumW : 0, windowFill: persistAddr ? windowFill : false, wfWindow: persistAddr ? wfWindow : 0, snapshot: persistAddr ? snapshot : 0, reliable: persistAddr ? journalReliable : false, journalHb: persistAddr ? journalHeartbeat : false, busResend: busAddr ? busResend : false, busResendReq: busAddr ? busResendReq : false, busWindow: busAddr ? busWindow : 0, busAck: busAddr ? busAck : false, busOutAck: busAddr ? busOutAck : false, busSeenBound: busAddr ? busSeenBound : false, busMinWm: busAddr ? busMinWm : false, outConsumers: (busAddr && busMinWm) ? (rankingAddr ? ['gateway', 'ranking'] : ['gateway']) : [], busConsumerLease: busAddr ? busConsumerLease : false, leaseSpan: busAddr ? leaseSpan : 0, busLeaseLife: busAddr ? busLeaseLife : false, busLeaseAdapt: busAddr ? busLeaseAdapt : false, busLeaseGrace: busAddr ? busLeaseGrace : false, cadencePrior: busAddr ? cadencePrior : 0, busCadenceWindow: busAddr ? busCadenceWindow : false, cadenceWindow: busAddr ? cadenceWindow : 0, busLeaseAudit: busAddr ? busLeaseAudit : false, busProducerNs: busAddr ? busProducerNs : false, busSeenNs: busAddr ? busSeenNs : false } });
+  if (inventory) add({ addr: 'inventory', kind: 'inventory', opts: { gateway: 'gateway', bus: busAddr, persist: persistAddr, persistBackup: persistBackupAddr, replicas: persistReplicaAddrs, quorumW: persistAddr ? quorumW : 0, windowFill: persistAddr ? windowFill : false, wfWindow: persistAddr ? wfWindow : 0, snapshot: persistAddr ? snapshot : 0, reliable: persistAddr ? journalReliable : false, journalHb: persistAddr ? journalHeartbeat : false, busResend: busAddr ? busResend : false, busResendReq: busAddr ? busResendReq : false, busWindow: busAddr ? busWindow : 0, busAck: busAddr ? busAck : false, busOutAck: busAddr ? busOutAck : false, busSeenBound: busAddr ? busSeenBound : false, busMinWm: busAddr ? busMinWm : false, outConsumers: (busAddr && busMinWm) ? (rankingAddr ? ['gateway', 'ranking'] : ['gateway']) : [], busConsumerLease: busAddr ? busConsumerLease : false, leaseSpan: busAddr ? leaseSpan : 0, busLeaseLife: busAddr ? busLeaseLife : false, busLeaseAdapt: busAddr ? busLeaseAdapt : false, busLeaseGrace: busAddr ? busLeaseGrace : false, cadencePrior: busAddr ? cadencePrior : 0, busCadenceWindow: busAddr ? busCadenceWindow : false, cadenceWindow: busAddr ? cadenceWindow : 0, busLeaseAudit: busAddr ? busLeaseAudit : false, busProducerNs: busAddr ? busProducerNs : false, busSeenNs: busAddr ? busSeenNs : false, sagaDedup } });   // 0126: sagaDedup — saga give 재전송 멱등(재실행 0).
   // [데이터] 채팅 영속 스토어(이 step) — chatpersist ON 일 때만 존재(OFF = 0020 토폴로지 비트 동일). PersistStore *재사용*(범용 저널) —
   //   가방 persist 와 *독립 인스턴스*(채팅 커맨드 로그). 채팅보다 먼저 등록(onTick 0·순서 무관). 채팅이 죽어도 이 박스는 산다(데이터 계층).
   if (chatPersistAddr) add({ addr: 'chatpersist', kind: 'persist', opts: {} });
@@ -229,7 +236,7 @@ function buildTopology(opts) {
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
-  if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist, snapInterval: exchangeSnapshot, cancelPublish, ttl: exchangeTtl, expirePublish, inv: (exchInventory && inventory) ? inventoryAddr : null, invMode: exchInventory } });   // 0117: exchInventory ON 이면 거래소가 가방 주소를 알고 escrow 를 실체화(give). OFF 면 추상 escrow(0116 비트 동일).
+  if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist, snapInterval: exchangeSnapshot, cancelPublish, ttl: exchangeTtl, expirePublish, inv: (exchInventory && inventory) ? inventoryAddr : null, invMode: exchInventory, saga: exchSaga, compensate: exchCompensate, abortPublish, sagaDedupBound, autoRetry } });   // 0117: exchInventory ON 이면 거래소가 가방 주소를 알고 escrow 를 실체화(give). OFF 면 추상 escrow(0116 비트 동일).
   if (marketFeed && exchange) add({ addr: 'market', kind: 'market', opts: { bus: busAddr } });   // 시세 피드(step-0112·MarketFeed) — 거래소 발행 스트림 구독 읽기 모델. marketFeed OFF·거래소 부재면 박스 0 = 0111 비트 동일.   // 거래소(step-0107) — 아이템 escrow 거래 박스(존 tick 밖·단일 소유·쌍 거래). publish(0108): 체결 발행. persist(0109): op 저널 replay. snapInterval(0110): 저널 스냅샷 압축. exchange OFF 면 박스 0 = 0106 비트 동일.
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });

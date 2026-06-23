@@ -1,8 +1,8 @@
-// HktInfra step-0120 — 헤드리스 검증 (거래소↔가방 2-서비스 보존 불변·escrowItemIds 단언)
+// HktInfra step-0130 — 헤드리스 검증 (거래소 give ↔ 가방 transfers 정합 capstone·escrowXfers — 두 서비스 회계 합치)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exinvconsv`.
-//   더한 한 조각: 0117~0119 가 거래소↔가방을 escrow 중개로 결합 — 이제 두 서비스에 걸친 보존을 단언한다. 거래소 open 매물 itemId 집합(escrowItemIds) ≡ 가방 원장의 'escrow' 소유 itemId 집합(거래소 회계 ≡ 가방 권위·불일치 0). 전 거래 흐름(list/buy/cancel/expire 혼합)서 가방 total(minted) 불변·매 아이템 정확히 한 소유자.
-//   검증: ⒜ `reg`(키트) — escrowItemIds 는 미호출 읽기 accessor = 0119 비트 동일. ⒝ `exinvconsv`(가설) — 5 적재→list 5(4 조기·1 늦게)→buy 2·cancel 1·sweep 만료 1. 끝: item0→b1·item1→b2(sold)·item2→s2(cancel)·item3→s2(expire)·item4→escrow(open). escrowItemIds==['item4']==가방 escrow 소유·minted 5 불변·각 1소유자·conserved.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagacap`.
+//   더한 한 조각: 거래소↔가방 saga arc(0121~0129)의 capstone. 가방에 escrowXfers(from/to 중 'escrow' 인 성공 transfer) 계측을 더해, *거래소가 믿는* 성공 give 수(giveOks)와 *가방이 실제 실행한* escrow transfer 수(escrowXfers)가 정확히 일치함을 단언 — 두 서비스의 회계가 합치(cross-service 정합). 거래소가 유일한 give 원천이면 가방 총 transfers == escrowXfers 도 성립.
+//   검증: ⒜ `reg`(키트) — escrowXfers 는 escrow give 부재면 0 = 0129 비트 동일. ⒝ `exsagacap`(가설) — 전 거래 흐름서 giveOks==escrowXfers==9·가방 transfers==escrowXfers(거래소 유일 give 원천)·minted 5 불변·open==escrow·conserved·sagaConsistent. 0120 물리 정합 + 0128 회계 닫힘을 *두 서비스 transfer 수준*에서 묶는다.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,55 +16,49 @@ const { run, itemConserved, ledgerConsistent } = NET;
 const { check, pad } = kit.helpers;
 
 const INV = [
-  { at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item0
-  { at: 61, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item1
-  { at: 62, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item2
-  { at: 63, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },   // item3
-  { at: 64, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },   // item4
+  { at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
+  { at: 61, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
+  { at: 62, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },
+  { at: 63, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },
+  { at: 64, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
 ];
 const OPS = [
   { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },
   { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5, itemId: 'item1' } },
   { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3, itemId: 'item2' } },
   { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20, itemId: 'item3' } },
-  { at: 75, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },           // item0 → b1 (sold)
-  { at: 76, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },           // item1 → b2 (sold)
-  { at: 77, op: { type: 'exchCancel', seller: 's2', id: 3 } },       // item2 → s2 (cancel)
-  { at: 82, op: { type: 'exchList', seller: 's1', item: 'gem', price: 8, itemId: 'item4' } },   // 늦게 list(만료 회피)
-  { at: 85, op: { type: 'exchSweep', now: 85 } },                    // id4(item3·@73·age12) 만료→s2 / id5(item4·@82·age3) open 유지
+  { at: 75, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },
+  { at: 76, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
+  { at: 77, op: { type: 'exchCancel', seller: 's2', id: 3 } },
+  { at: 82, op: { type: 'exchList', seller: 's1', item: 'gem', price: 8, itemId: 'item4' } },
+  { at: 85, op: { type: 'exchSweep', now: 85 } },
 ];
-const TTL = 5;
 const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === av).map(([id]) => id).sort();
-const P = (seed, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
-  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchangeTtl: TTL, invOps: INV, exchangeOps: OPS, ...extra });
+const P = (seed) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
+  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, exchangeTtl: 5, invOps: INV, exchangeOps: OPS });
 
-function exinvconsv(seeds) {
-  console.log('== exinvconsv: *가설* — 거래소↔가방 2-서비스 보존 불변. 거래소 open 매물 itemId(escrowItemIds) ≡ 가방 원장 escrow 소유 itemId(거래소 회계≡가방 권위). 전 거래 흐름서 가방 total 불변·매 아이템 한 소유자. ==');
-  console.log('  5 적재→list 5→buy 2·cancel 1·만료 1·open 1. 끝: item0→b1/item1→b2(sold)·item2→s2(cancel)·item3→s2(expire)·item4→escrow(open). escrowItemIds==가방 escrow 소유==[item4].');
-  console.log('seed   | escrow소유 | open매물itemId | 일치 | minted | open | sold/can/exp | 한소유자합=5 | conserved | 판정');
+function exsagacap(seeds) {
+  console.log('== exsagacap: *가설* — 거래소 give ↔ 가방 transfers 정합 capstone. 거래소가 믿는 성공 give(giveOks) == 가방이 실제 실행한 escrow transfer(escrowXfers) — 두 서비스 회계 합치. 거래소 유일 give 원천이면 가방 transfers==escrowXfers. 0120 물리 정합 + 0128 회계 닫힘을 두 서비스 transfer 수준서 묶음. ==');
+  console.log('seed   | giveOks | escrowXfers | inv transfers | giveOks==escrowXfers | xfers==escrowXfers | minted | open==escrow | conserved | 판정');
   for (const seed of seeds) {
-    const r = run({ ...P(seed, {}) });
-    const inv = r.inventory; const ex = r.exchange;
-    const escOwned = ownedSet(inv, 'escrow');              // 가방 원장에서 실제 escrow 소유
-    const exOpen = ex.escrowItemIds();                     // 거래소가 믿는 open 매물 itemId
-    const match = JSON.stringify(escOwned) === JSON.stringify(exOpen);   // 2-서비스 일치(회계 ≡ 권위)
-    const minted = inv.minted; const open = ex.open();
-    // 매 아이템 정확히 한 소유자: ledger 5개·각 소유자 1명(byOwner 합 == 5)
-    const byOwnerSum = ownedSet(inv, 's1').length + ownedSet(inv, 's2').length + ownedSet(inv, 'b1').length + ownedSet(inv, 'b2').length + escOwned.length;
-    const conserved = ex.conserved();
+    const r = run({ ...P(seed) });
+    const ex = r.exchange, inv = r.inventory;
+    const esc = ownedSet(inv, 'escrow'), open = ex.escrowItemIds();
+    const safe = JSON.stringify(esc) === JSON.stringify(open);
+    const cross = ex.giveOks === inv.escrowXfers;                 // 두 서비스 회계 합치(핵심 capstone)
+    const soleSrc = inv.transfers === inv.escrowXfers;            // 거래소가 유일 give 원천(itemOps 0) → 모든 transfer 가 escrow
     const ok =
-      check(match && escOwned.length === 1 && escOwned[0] === 'item4', `seed ${seed}: 2-서비스 불일치(가방 escrow ${JSON.stringify(escOwned)} != 거래소 open ${JSON.stringify(exOpen)})`) &&
-      check(minted === 5 && open === 1, `seed ${seed}: minted/open 기대 5/1·실제 ${minted}/${open}`) &&
-      check(ex.sold === 2 && ex.cancelled === 1 && ex.expired === 1, `seed ${seed}: sold/can/exp 기대 2/1/1·실제 ${ex.sold}/${ex.cancelled}/${ex.expired}`) &&
-      check(byOwnerSum === 5 && ledgerConsistent(r) && itemConserved(r), `seed ${seed}: 아이템 소유자 합 != 5(${byOwnerSum})·원장 정합 위반`) &&
-      check(conserved, `seed ${seed}: 거래소 보존 위반(listed != open+sold+cancelled+expired)`);
-    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(escOwned), 10)} | ${pad(JSON.stringify(exOpen), 14)} | ${pad(match + '', 4)} | ${pad(minted, 6)} | ${pad(open, 4)} | ${pad(ex.sold + '/' + ex.cancelled + '/' + ex.expired, 12)} | ${pad(byOwnerSum, 12)} | ${pad(conserved + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(ex.giveOks === 9 && inv.escrowXfers === 9, `seed ${seed}: giveOks/escrowXfers 기대 9(${ex.giveOks}/${inv.escrowXfers})`) &&
+      check(cross, `seed ${seed}: 거래소 giveOks(${ex.giveOks}) != 가방 escrowXfers(${inv.escrowXfers}) — 두 서비스 회계 불합치`) &&
+      check(soleSrc, `seed ${seed}: 가방 transfers(${inv.transfers}) != escrowXfers(${inv.escrowXfers}) — 비-escrow give 혼입`) &&
+      check(safe && inv.minted === 5 && ex.conserved() && ex.sagaConsistent() && itemConserved(r) && ledgerConsistent(r), `seed ${seed}: 보존/정합 깨짐(safe ${safe}·minted ${inv.minted}·conserved ${ex.conserved()}·sagaConsistent ${ex.sagaConsistent()})`);
+    console.log(`${pad(seed, 6)} | ${pad(ex.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(inv.transfers, 13)} | ${pad(cross ? '예' : '아니오', 20)} | ${pad(soleSrc ? '예' : '아니오', 18)} | ${pad(inv.minted, 6)} | ${pad((safe ? '예' : '아니오') + ' ' + JSON.stringify(open), 12)} | ${pad(ex.conserved() + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 거래소↔가방 결합이 *두 서비스에 걸친 보존*을 유지한다: 거래소가 믿는 open 매물(escrowItemIds) ≡ 가방 원장이 실제 escrow 에 가진 아이템(회계 ≡ 권위·불일치 0). 전 거래 흐름(list/buy/cancel/expire 혼합)서 가방 total(minted) 불변이고 매 아이템은 정확히 한 소유자 — 0014 가방의 "단일 소유"가 *두 서비스 결합*에도 보존(escrow 중개 닫힌 장부).');
-  console.log('    escrowItemIds 는 미호출 읽기 accessor = 0119 비트 동일(reg). 이 step 은 *결합 시스템의 창발 불변*을 단언 — 거래소↔가방 arc(0117 인출→0118 입금→0119 반환→0120 보존)가 존 넘는 실물 거래를 닫는다.');
+  console.log('  → 두 서비스의 회계가 *합치*한다: 거래소가 믿는 성공 escrow give(giveOks 9) == 가방이 실제 실행한 escrow transfer(escrowXfers 9) — 거래소의 *요청 회계*와 가방의 *실행 회계*가 정확히 일치(cross-service 정합). 거래소가 유일 give 원천이라 가방 총 transfers 도 escrowXfers 와 같다(비-escrow give 혼입 0).');
+  console.log('    이것이 거래소↔가방 arc 의 capstone: 0120 물리 정합(open 매물 ≡ 가방 escrow 소유)·0128 회계 닫힘(gives==acked+pending)을 *transfer 수준*에서 묶는다 — 한 서비스의 give 결정이 다른 서비스의 원장 변이와 1:1. minted 5 불변·open==escrow·conserved·sagaConsistent 동반. escrowXfers 는 escrow give 부재면 0 = 0129 비트 동일(reg).');
 }
 
-kit.MODES['exinvconsv'] = exinvconsv;
-kit.ORDER.splice(1, 0, 'exinvconsv');
+kit.MODES['exsagacap'] = exsagacap;
+kit.ORDER.splice(1, 0, 'exsagacap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
