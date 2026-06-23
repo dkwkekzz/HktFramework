@@ -26,7 +26,7 @@ step 한 바퀴의 실행 절차(논의→구현→검증→기록)는 `htj-step
 | [STATE.md](STATE.md) | 지금 어디까지 · 다음 할 일 · step별 한 줄 요약 | step마다 |
 | `.claude/skills/htj-step/SKILL.md` | step 한 바퀴(논의→구현→검증→기록)를 실행하는 절차 | 거의 불변 |
 | `design/` | **설계 문서** — 닫은 step 아닌 *앞으로의 아키텍처 계획*. 후속 step 이 참조해 구현한다(트랙은 하나). | 비정기 |
-| ┗ [design/scalability.md](design/scalability.md) | 확장성 설계 — 안정 덩어리를 *구체로 보이고 + 덩어리로 시뮬*(승격), 희소화·LOD·중력 트리 | |
+| ┗ [design/sphere-world.md](design/sphere-world.md) | **구체 세계 설계(현 진행 방향·권위)** — 세계를 한 원소=자유 구체로 재정립. 합치기/쪼개기=적응 LOD. 로드맵 SW1~SW5 | |
 | `engine/` | **세계(법칙·시뮬) src** — 한 곳에서 관리, step마다 가법적 확장. *확인용 코드 금지* | step마다 |
 | `viewer.html` · `viewer/` | **확인용** — 세계를 보여주는 뷰어 + 렌더(`viewer/htj-render.js`) + 헤드리스 캡처(`viewer/capture.js`) | step마다 |
 | `steps/step_NNNN/` | **한 step = 한 폴더**. 모든 step 은 `steps/` 아래. 그 step 의 산출물을 담는다(닫은 뒤 불변): | step마다 추가 |

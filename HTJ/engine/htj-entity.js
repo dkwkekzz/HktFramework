@@ -106,5 +106,89 @@
     return m > EPS ? [entity.px / m, entity.py / m, entity.pz / m] : [0, 0, 0];
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, VERSION: 2 };
+  // 구체 합치기(강착) — 닿고 느린 개체들을 더 큰 개체 하나로 합친다(수박/강착·step_0036·SW1).
+  //   design/sphere-world.md §6 SW1 — 구체 세계의 첫 벽돌. 두 구체가 *닿고*(CoM 거리 ≤ r_a+r_b+pad)
+  //   *느리면*(상대 속도 |v_a−v_b| ≤ vstick) 하나의 큰 구체로 붙는다 — 느리면 붙고 빠르면 안 붙음(임계가
+  //   author 안 하고 가른다; 빠르면 깨지는 쪽은 SW3). N 개를 1 개로 줄여 비용↓(N체 중력·충돌) + 창발 물리
+  //   (강착=행성 형성). 닿고 느린 쌍을 *연결 성분*으로 묶어 각 성분을 한 개체로 **직접 합산**(순서 무관·결정론).
+  //
+  //   보존(합산이라 *정확*): 한 성분 g 에 대해 — 질량 Σm · 운동량 ΣP · CoM=질량가중 · 각운동량(원점 기준)
+  //     Σ(L_i + r_i×P_i) 불변 · 총E ΣE_i 불변. 합쳐진 개체:
+  //       mass=Σm, P=ΣP, CoM=Σm·r/Σm, KEcm=½|P|²/M,
+  //       internalE = ΣE_i − KEcm  (비탄성 강착: 잃은 CoM 운동E 가 *열*로 → internalE ≥ Σinternal_i·항상 데워짐),
+  //       energy = KEcm + internalE = ΣE_i  (정확),
+  //       L_intrinsic = ΣL_i + Σ(r_i−CoM)×P_i  (궤도 각운동량 → 합쳐진 구체의 *스핀*; 원점 기준 총 L 불변),
+  //       radius = 등가 구(Σcells), cells=Σcells.
+  //   opts: { vstick(상대 속도 임계, 기본 0.5·시뮬 상수), pad(닿음 여유, 기본 0.5) }.
+  //   반환: { entities: 새 목록(합쳐진 것 + 안 닿은 것), merges: 합쳐진 성분 수 }. 입력은 변형하지 않는다.
+  const FOURPI_3 = 4 * Math.PI / 3;
+  function equivalentRadius(n) { return Math.cbrt(n / FOURPI_3); }
+
+  function mergeGroup(entities, g) {
+    let mass = 0, cx = 0, cy = 0, cz = 0, Px = 0, Py = 0, Pz = 0;
+    let energySum = 0, cells = 0, peak = 0, sumKEcm = 0, sumIntKE = 0;
+    for (const idx of g) {
+      const e = entities[idx];
+      mass += e.mass; cx += e.mass * e.cx; cy += e.mass * e.cy; cz += e.mass * e.cz;
+      Px += e.px; Py += e.py; Pz += e.pz;
+      energySum += (e.energy != null ? e.energy : 0);
+      cells += (e.cells || 1);
+      sumKEcm += (e.KEcm != null ? e.KEcm : (e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0));
+      sumIntKE += (e.internalKE || 0);
+      if ((e.peak || 0) > peak) peak = e.peak || 0;
+    }
+    cx = mass > EPS ? cx / mass : 0; cy = mass > EPS ? cy / mass : 0; cz = mass > EPS ? cz / mass : 0;
+    // 각운동량 L_intrinsic = Σ L_i + Σ (r_i−CoM)×P_i (궤도 L → 합쳐진 구체 스핀). 원점 기준 총 L 불변.
+    let Lx = 0, Ly = 0, Lz = 0;
+    for (const idx of g) {
+      const e = entities[idx];
+      Lx += (e.Lx || 0); Ly += (e.Ly || 0); Lz += (e.Lz || 0);
+      const rx = e.cx - cx, ry = e.cy - cy, rz = e.cz - cz;
+      Lx += ry * e.pz - rz * e.py; Ly += rz * e.px - rx * e.pz; Lz += rx * e.py - ry * e.px;
+    }
+    const KEcm = mass > EPS ? 0.5 * (Px * Px + Py * Py + Pz * Pz) / mass : 0;
+    const internalE = energySum - KEcm;            // 비탄성 강착열(≥0: KEcm≤ΣKEcm_i≤ΣE_i)
+    const internalKE = sumIntKE + (sumKEcm - KEcm); // 강체화된 상대 운동(열로)
+    const energy = KEcm + internalE;               // = energySum (정확 보존)
+    return {
+      cx, cy, cz, mass, px: Px, py: Py, pz: Pz, Lx, Ly, Lz,
+      KEcm, internalKE, internalE, energy,
+      cells, radius: equivalentRadius(cells),
+      temp: mass > EPS ? internalE / mass : 0, peak
+    };
+  }
+
+  function mergeEntities(entities, opts) {
+    opts = opts || {};
+    const vstick = opts.vstick != null ? opts.vstick : 0.5;
+    const pad = opts.pad != null ? opts.pad : 0.5;
+    const n = entities.length;
+    if (n < 2) return { entities: entities.slice(), merges: 0 };
+    // union-find — 닿고 느린 쌍을 연결 성분으로(root=성분 최소 인덱스 → 결정론).
+    const parent = new Array(n); for (let i = 0; i < n; i++) parent[i] = i;
+    function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    function union(a, b) { const ra = find(a), rb = find(b); if (ra === rb) return; if (ra < rb) parent[rb] = ra; else parent[ra] = rb; }
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist > a.radius + b.radius + pad) continue;          // 안 닿음
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      const rvx = b.px / mb - a.px / ma, rvy = b.py / mb - a.py / ma, rvz = b.pz / mb - a.pz / ma;
+      if (Math.sqrt(rvx * rvx + rvy * rvy + rvz * rvz) > vstick) continue;  // 너무 빠름 → 안 붙음(SW3 가 깸)
+      union(i, j);
+    }
+    const groups = new Map();
+    for (let i = 0; i < n; i++) { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(i); }
+    const roots = Array.from(groups.keys()).sort((a, b) => a - b);  // 최소 인덱스 순 = 결정론
+    const out = []; let merges = 0;
+    for (const r of roots) {
+      const g = groups.get(r);
+      if (g.length === 1) { out.push(entities[g[0]]); continue; }
+      out.push(mergeGroup(entities, g)); merges++;
+    }
+    return { entities: out, merges };
+  }
+
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, VERSION: 3 };
 });
