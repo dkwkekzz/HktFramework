@@ -9,19 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0179](step-0179.md) — **아이템 우편 saga 영구 실패 발행**(mailFailPublish·거래소 0138 의 우편 판): 영구 실패(permFailed) 시 svc.mail.saga_failed 1회 발행(audit 관측·permFailed 와 1:1). OFF=0178 비트 동일. 우편 saga 발행 3종(포기 0174·재개 0177·종결 0179) 완비. 닿는 박스: svc-mail-core/persist·topo.
-- **한 줄 상태**: reg ALL OK·mailfail: ON permFailed 1·pub/audit 1/1·OFF 0·spine OK.
-- **다음**: §2 — saga liveness capstone(mailSagaLiveConsistent·거래소 0140·pending 분할 불변)·발행 게이트 통합·길드·비동기 결정론🔴·**0161~0170 묶음 리뷰 적기**.
+- **닫힌 step**: [step-0180](step-0180.md) — **아이템 우편 saga liveness capstone**(sagaLivenessConsistent·거래소 0140 의 우편 판): 미해결 give = 재전송중+재admission대기+영구종결 정확히 분할(pending==pendingGive+abandonedGive+permFailed·공백/중복 0) AND sagaConsistent. **saga liveness arc(0166~0180) 닫힘.** 미호출 accessor=0179 비트 동일. 닿는 박스: svc-mail-core.
+- **한 줄 상태**: reg ALL OK·mailliveness: 네 체제(정상/재전송/abandon/영구) pending 분할 항등식 4/4·spine OK.
+- **다음**: §2 — 발행 게이트 통합(거래소+우편 발행 일원화)·길드 서비스(신규 박스)·비동기 결정론🔴·**0171~0180 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 박스 = 거래소 arc(0107~0140) 동형: 메시지(0142~0150)·배지(0151~0156)·아이템(0157~0160)·가방 3레그+2-서비스(0161~0164)·saga(0166~0179 회신~발행 3종+readmitMax — 거래소 0121~0140 우편 판)✅. 다음 후보: *liveness capstone*(mailSagaLiveConsistent·거래소 0140·pending 분할 불변)·*발행 게이트 통합*·*길드*·*비동기 결정론*(🔴). 🔧 svc-mail-core 20KB. 🔎 0161~0170 묶음 리뷰 적기.**
+**우편(Mail) 박스 = 거래소 arc(0107~0140) 동형 완성: 메시지(0142~0150)·배지(0151~0156)·아이템(0157~0160)·가방 3레그+2-서비스(0161~0164)·saga liveness(0166~0180 — 거래소 0121~0140 우편 판)✅. 다음 후보: *발행 게이트 통합*(거래소+우편 일원화)·*길드 서비스*(신규 박스·0142 패턴)·*비동기 결정론*(🔴). 🔧 svc-mail-core 20KB. 🔎 0171~0180 묶음 리뷰 적기.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
-**병행 백로그(블로킹 아님·전문은 §3·각 step 문서)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·길드·비동기 결정론(논리 클럭)·서버간 인증·재접속·티켓.
+**병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·길드·비동기 결정론·서버간 인증·재접속·티켓.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·panel-kit·verify-kit(누적 회귀·추가만)·close-step·new-step. 코드 `src/` 제자리 수정 + STEP + verify.js(NETPREV=`../baseline` 고정) + baseline(직전 동결). **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. 정리: 0030~0165(10회·0175 헤더 압축). TESTBED: run.js(src/·spine·report·scenario·live). 훅 inject(미제공=reg 0).
 
@@ -36,14 +36,14 @@
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 복제·예측** | 월드 | 0002~0004 결정론 복제·예측은 C++ 시뮬 승격에서 부활. 다중 클라 intent 인터리빙·예측/롤백(0001 §8.6). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
-| 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·lease·치유·대체활성화 ✅)** | 버스 | 0016 단일 박스·영속 0→동적구독/failover/무손실/lease/self-healing(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
-| 🟡 | **서비스 영속·failover (가방·채팅·파티 ✅·버스 ⬜)** | 서비스/데이터 | 가방/채팅/파티 저널+압축(0017~0022·0085). write-behind(0023~0029). 버스 라우팅 영속 0. |
-| 🟡 | **거래소 ✅(0107~0140)·우편 ✅(0142~0179)·랭킹/읽기모델 ✅·길드 ⬜** | 서비스 | 거래소·우편 동형(escrow/발행/saga liveness). 길드·발행 게이트 통합 후속. |
-| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스(0064~0070)·귓속말/파티 라우팅(0071~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
-| 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017)+압축(0018)·홉 신뢰→quorum→윈도(0023~0032). fsync 0·월드 영속 0. |
+| 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·lease·치유·대체활성화 ✅)** | 버스 | 단일 박스→동적구독/failover/무손실/lease/self-healing(0016~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
+| 🟡 | **서비스 영속·failover (가방·채팅·파티 ✅·버스 ⬜)** | 서비스/데이터 | 가방/채팅/파티 저널+압축+write-behind(0017~0029·0085). 버스 라우팅 영속 0. |
+| 🟡 | **거래소 ✅(0107~0140)·우편 ✅(0142~0180)·랭킹/읽기모델 ✅·길드 ⬜** | 서비스 | 거래소·우편 동형(escrow/발행/saga liveness). 길드·발행 게이트 통합 후속. |
+| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
+| 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
 
-> **✅ 해소된 격차** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~13)·게임서비스+영속+quorum(14~32)·버스(33~63)·프레즌스/귓속말/파티(64~106)·거래소/우편(107~179).
+> **✅ 해소된 격차** — 전문은 §7 INDEX(1줄/step)·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~13)·게임서비스+영속+quorum(14~32)·버스(33~63)·프레즌스/귓속말/파티(64~106)·거래소/우편(107~180).
 
 > **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5): 매 step은 verify 4기둥 + 척추 5항(①신성한 tick ②결정론 코어 ③권위 단일 소유 ④은닉·단일 연결 ⑤headless·원격 검증). 분리 기준: *존 tick 과 같은 박자로 돌아야 하는가?*
 
@@ -76,7 +76,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+게이트웨이 producer 네임스페이스(0046). 대기열·만료·재접속·게이트웨이 군 풀 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제·동결 Sim+AOI+분할·핸드오프(소유자=1)+증분 AOI+반응적 복원+failover+별 프로세스+죽은 추종자 재충원(0001~0013). 비트-결정론 복제는 C++ 승격서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum+대체소비자(0014~0063)·귓속말/파티 wrouter(0071~0106)·거래소 escrow/발행/영속/시세/가방 3leg/saga liveness(0107~0140·정리 0124/0133)·**우편(0142~0179)**: 메시지+배지+아이템+가방 3레그+saga liveness(거래소 0121~0140 의 우편 판·정리 0165/0171/0175). 신성한 tick·권위 0. readmitMax·길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum+대체소비자(0014~0063)·귓속말/파티 wrouter(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/가방 3leg/saga liveness·정리 0124/0133/0165/0171/0175). 신성한 tick·권위 0. 발행 게이트 통합·길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-워터마크/lease·ns·lifecycle·적응형/관측(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→버스 허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·프레즌스 박스·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→읽기모델 복구→채팅 영속→홉 신뢰→failover/N-replica quorum→윈도+유계 K→대체소비자 recon(0017~0062). 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -86,7 +86,7 @@
 ## 6. 빠른 참조
 
 - 큰 그림·계층 책임·씨앗 매핑·척추 5항: [SPINE.md](SPINE.md) · 도구·스택·데이터 3분할: [TOOLS.md](TOOLS.md)
-- **의외의 발견 / 정직한 한계 전문**: 각 `step-NNNN.md`(STATE 중복 안 함 — §3·§4가 load-bearing 요약).
+- **의외의 발견 / 정직한 한계 전문**: 각 `step-NNNN.md`(STATE 중복 안 함).
 
 ---
 
@@ -273,3 +273,4 @@
 | [0177](step-0177.md) | 아이템 우편 saga 재admission 발행(mailReadmitPublish·거래소 0135 우편 판) | 통과 · ON pub/audit 1/1==readmitted·OFF 0 |
 | [0178](step-0178.md) | 아이템 우편 saga 재admission 횟수 상한(mailReadmitMax·거래소 0137 우편 판) | 통과 · 무제한 2/0·상한1 1/1 영구실패 차단 |
 | [0179](step-0179.md) | 아이템 우편 saga 영구 실패 발행(mailFailPublish·거래소 0138 우편 판) | 통과 · ON pub/audit 1/1==permFailed·OFF 0 |
+| [0180](step-0180.md) | 아이템 우편 saga liveness 회계 정합 capstone(sagaLivenessConsistent·거래소 0140 우편 판·arc 0166~0180 닫기) | 통과 · 네 체제 분할 4/4 |
