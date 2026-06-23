@@ -10,13 +10,15 @@ Object.assign(MailService.prototype, {
     // 가방 give 결과 비동기 수신(step-0166·mailSaga) — _custody 가 replyTo 로 보낸 give 의 item_result 회신.
     //   집계(ackedGives·giveOks·giveFails) + 미해결 추적 drain(step-0167). saga OFF 면 이 메시지가 영영 안 옴(0165 비트 동일·가방 echo 휴면).
     if (p.type === 'item_result' && p.op === 'give') {
-      // 회신 손실 모의(step-0167·테스트 seam ackDrop) — 이 gid 회신이 전송 중 손실된 것처럼 드롭(처리 0). 잃은 gid 가 pending 에 남는다(ackedGives<gives). 미제공이면 무손실.
-      if (this.ackDrop && p.gid !== undefined && this.ackDrop.has(p.gid)) return;
+      // 회신 손실 모의(step-0167·테스트 seam ackDrop) — 이 gid 회신을 *1회* 드롭(transient·step-0168 drop-once → 재전송이 통과). 잃은 gid 가 pending 에 남는다(ackedGives<gives). 미제공이면 무손실.
+      if (this.ackDrop && p.gid !== undefined && this.ackDrop.has(p.gid)) { this.ackDrop.delete(p.gid); return; }
       this.ackedGives++;
       if (p.gid !== undefined) { this.pending.delete(p.gid); this.pendingGive.delete(p.gid); }   // step-0167: 회신 도착 → 미해결서 제거(정상 흐름 0 으로 drain)
       if (p.ok) this.giveOks++; else this.giveFails++;
       return;
     }
+    // 미해결 give 재전송(step-0168·mailRetry) — 회신 손실로 pending 에 남은 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제). pendingGive 비었으면 no-op = 0167 비트 동일.
+    if (p.type === 'mailRetry') { this._resendPending(); return; }
     // 우편 입금(mailSend) — 발신자가 수신자 우편함에 우편 1통을 비동기 적재(수신자 접속 무관). p={type,id?,from,to,body}.
     //   id 미지정이면 결정론 시퀀스로 부여. 같은 id 재전송은 멱등(이중 적재 0 — 재전송 신뢰성 0145~ 대비).
     if (p.type === 'mailSend') {

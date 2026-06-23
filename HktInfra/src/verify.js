@@ -1,8 +1,8 @@
-// HktInfra step-0167 — 헤드리스 검증 (아이템 우편 saga 미해결 추적 + 회신 손실 감지·pendingGives·gid)
+// HktInfra step-0168 — 헤드리스 검증 (아이템 우편 saga 회신 재전송 + idempotent dedup·mailRetry·가방 sagaDedup)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlpend`.
-//   더한 한 조각: saga ON 이면 _custody 가 give 마다 gid 부여·pending 에 add, item_result 회신이 delete. 정상 0 drain·회신 손실(테스트 seam ackDrop) 시 잃은 gid 잔존(ackedGives<gives·격차 가시). 거래소 0125 의 우편 판.
-//   검증: ⒜ `reg`(키트) — saga OFF·gid 부재 = 0166 비트 동일. ⒝ `exmlpend`(가설) — 무손실: pending 0·gives==acked / 회신 손실: pending=잃은 수·ackedGives<gives.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlretry`.
+//   더한 한 조각: mailRetry op 이 pendingGive 의 미해결 give 를 같은 gid 로 재발신(_resendPending). 가방 sagaDedup 이 (replyTo,gid) 로 *재실행 없이 재회신* → pending drain·재실행 0. 거래소 0126 의 우편 판.
+//   검증: ⒜ `reg`(키트) — mailRetry op 부재 = 0167 비트 동일. ⒝ `exmlretry`(가설) — dedup ON: 재전송→재회신→pending 0·escrowXfers 불변(재실행 0) / dedup OFF: 재실행→escrowXfers++ (안전 위반·아이템 오배치).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -19,34 +19,33 @@ const PICK = (at, avatar) => ({ at, op: { type: 'item_req', op: 'pickup', avatar
 const SEND = (at, id, from, to, body, item) => ({ at, op: { type: 'mailSend', id, from, to, body, item } });
 const FETCH = (at, to) => ({ at, op: { type: 'mailFetch', to } });
 const SWEEP = (at) => ({ at, op: { type: 'mailSweep' } });
-// give 4건(발신2 gid0/1·수령1 gid2·만료1 gid3). drop=[1] 이면 발신2 회신 손실 → pending {1}.
-const base = (seed, drop) => ({
-  seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true,
-  inventory: true, mail: true, mailPersist: true, mailItem: true, mailInv: true, mailSaga: true, mailTtl: 10, mailAckDrop: drop,
+const RETRY = (at) => ({ at, op: { type: 'mailRetry' } });
+// gid1(둘째 발신 인출) 회신 1회 손실 → pending {1} → mailRetry 재전송. dedup ON/OFF 대조.
+const base = (seed, dedup) => ({
+  seed, ticks: 50, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true,
+  inventory: true, mail: true, mailPersist: true, mailItem: true, mailInv: true, mailSaga: true, sagaDedup: dedup, mailTtl: 10, mailAckDrop: [1],
   invOps: [PICK(2, 'x'), PICK(3, 'x')],
-  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h2', '2', 'item1'), FETCH(15, 'h1'), SWEEP(30)],
+  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h2', '2', 'item1'), FETCH(15, 'h1'), SWEEP(30), RETRY(40)],
 });
 
-function exmlpend(seeds) {
-  console.log('== exmlpend: 아이템 우편 saga 미해결 추적 + 회신 손실 감지(pendingGives·gid). 무손실서 pending 0 drain(닫힌 고리)·회신 손실 시 잃은 gid 가 pending 에 남는다(ackedGives<gives 격차 가시). 거래소 0125 의 우편 판. ==');
-  console.log('seed   | 무손실 gives/acked/pending | 손실[1] gives/acked/pending | 격차 가시 | 판정');
+function exmlretry(seeds) {
+  console.log('== exmlretry: 아이템 우편 saga 회신 재전송 + idempotent dedup(mailRetry). 회신 손실된 give 를 같은 gid 로 재전송 → 가방 sagaDedup 이 *재실행 없이 재회신*(ON) vs 재실행(OFF·escrowXfers++ 안전 위반). 거래소 0126 의 우편 판. ==');
+  console.log('seed   | dedup ON acked/pend/xfers | dedup OFF acked/pend/xfers | 재실행 0(ON) | 판정');
   for (const seed of seeds) {
-    const clean = run(base(seed, null));
-    const lossy = run(base(seed, [1]));
-    const cleanOk = (clean.mail.gives === 4 && clean.mail.ackedGives === 4 && clean.mail.pendingGives() === 0);
-    const lossyOk = (lossy.mail.gives === 4 && lossy.mail.ackedGives === 3 && lossy.mail.pendingGives() === 1 && lossy.mail.pending.has(1));
-    const gap = (lossy.mail.gives - lossy.mail.ackedGives === lossy.mail.pendingGives());
+    const on = run(base(seed, true));
+    const off = run(base(seed, false));
+    const onOk = (on.mail.ackedGives === 4 && on.mail.pendingGives() === 0 && on.mail.giveOks === 4 && on.mail.giveFails === 0 && on.inventory.escrowXfers === 4 && on.mail.retries === 1 && on.mail.itemConsistent());
+    const offHazard = (off.inventory.escrowXfers === 5);   // dedup OFF: 재전송이 *재실행*돼 spurious transfer(아이템 오배치·안전 위반)
     const ok =
-      check(cleanOk, `seed ${seed}: 무손실 drain 어긋남(gives ${clean.mail.gives}·acked ${clean.mail.ackedGives}·pending ${clean.mail.pendingGives()})`) &&
-      check(lossyOk, `seed ${seed}: 손실 잔존 어긋남(acked ${lossy.mail.ackedGives}·pending ${lossy.mail.pendingGives()})`) &&
-      check(gap, `seed ${seed}: gives-acked != pending(격차 불일치)`);
-    console.log(`${pad(seed, 6)} | ${pad(clean.mail.gives + '/' + clean.mail.ackedGives + '/' + clean.mail.pendingGives(), 26)} | ${pad(lossy.mail.gives + '/' + lossy.mail.ackedGives + '/' + lossy.mail.pendingGives(), 27)} | ${pad(gap ? '예' : '아니오', 9)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(onOk, `seed ${seed}: dedup ON 안전 drain 어긋남(acked ${on.mail.ackedGives}·pending ${on.mail.pendingGives()}·xfers ${on.inventory.escrowXfers}·oks ${on.mail.giveOks})`) &&
+      check(offHazard, `seed ${seed}: dedup OFF 재실행 안 일어남(escrowXfers ${off.inventory.escrowXfers} != 5) — dedup 의 의의 미입증`);
+    console.log(`${pad(seed, 6)} | ${pad(on.mail.ackedGives + '/' + on.mail.pendingGives() + '/' + on.inventory.escrowXfers, 26)} | ${pad(off.mail.ackedGives + '/' + off.mail.pendingGives() + '/' + off.inventory.escrowXfers, 26)} | ${pad(on.inventory.escrowXfers === 4 ? '예' : '아니오', 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 무손실: 보낸 give 4 모두 회신 도착 → pending 0 drain(닫힌 고리 liveness). 회신 손실(ackDrop=[1]): gid1(둘째 발신 인출)의 item_result 가 손실 → 그 gid 가 pending 에 *남는다*(ackedGives 3<gives 4·gives−acked==pending). 우편이 "어느 give 가 응답을 못 받았나"를 안다 — 재전송의 토대.');
-  console.log('    재전송(idempotent dedup·가방 sagaDedup 재사용 0168)·정합 capstone(sagaConsistent 0169)·transfers capstone(0170) 후속.');
+  console.log('  → dedup ON: 재전송→가방이 저장된 ok 재회신(재실행 0)→pending 0 drain·escrowXfers 4 불변·itemConsistent 보존. dedup OFF: 재전송이 *재실행*(이미 만료 반환된 item1 을 다시 escrow 로)→escrowXfers 5·아이템 오배치(안전 위반). 회신만 손실된 give 의 재전송은 *재회신*이어야 안전 — 가방 (replyTo,gid) dedup 이 보장.');
+  console.log('    dedup 유계화(saga_done 재사용 0169?)·정합 capstone(sagaConsistent)·transfers capstone(giveOks==escrowXfers 0170) 후속.');
 }
 
-kit.MODES['exmlpend'] = exmlpend;
-kit.ORDER.splice(1, 0, 'exmlpend');
+kit.MODES['exmlretry'] = exmlretry;
+kit.ORDER.splice(1, 0, 'exmlretry');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
