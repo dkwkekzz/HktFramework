@@ -71,6 +71,7 @@ Object.assign(InventoryService.prototype, {
         this.ledger.set(p.itemId, p.toAvatar);
         this._own(p.toAvatar, p.itemId);
         this.transfers++;
+        if (p.fromAvatar === 'escrow' || p.toAvatar === 'escrow') this.escrowXfers++;   // escrow custody transfer 계측(step-0130) — 거래소 giveOks 와 교차 정합(두 서비스 회계 합치). 일반 give 는 비-증가.
         this._journal({ kind: 'xfer', itemId: p.itemId, from: p.fromAvatar, to: p.toAvatar });
         this._out({ type: 'item_result', ok: true, op: 'give', reqAvatar: p.fromAvatar, toAvatar: p.toAvatar, itemId: p.itemId });
         if (sagaKey !== null) this.sagaResults.set(sagaKey, true);   // dedup 결과 저장(step-0126·재전송 시 재회신 소스)

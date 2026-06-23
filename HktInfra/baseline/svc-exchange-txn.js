@@ -49,6 +49,13 @@ Object.assign(ExchangeService.prototype, {
     }
     // 매물 만료 sweep(step-0114·exchExpiry) — now−listedAt ≥ ttl 인 open 매물을 자동 만료(escrow→판매자 반환). 취소와 같은 release 쌍이되 *시간 트리거*. ttl 0 면 no-op(0113 동일). 결정론: 삽입 순(Map) 순회.
     if (p.type === 'exchSweep') {
+      // 자동 재전송(step-0129·autoRetry) — sweep 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·exchRetry 0126 의 주기 형태). 가방 dedup(0126) 이 재실행 0 보장. OFF 면 블록 skip = 0128 비트 동일(TTL 만 sweep).
+      if (this.autoRetry) {
+        for (const [gid, g] of this.pendingGive) {
+          this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
+          this.retries++;
+        }
+      }
       if (this.ttl <= 0) return;
       const now = p.now | 0;
       for (const [id, l] of [...this.listings]) {
