@@ -1,4 +1,7 @@
 'use strict';
+// step-0160 — 아이템 우편 회계 정합 capstone(itemConsistent·itemSent==itemHeld+itemFetched+itemExpired): 0157~0159 가 아이템의 입금·수령·만료를 쌓았다. 그 회계가 *대수적으로 닫혀* 있는가?
+//   itemConsistent: 아이템 1개는 매 순간 정확히 한 상태 — 보유(itemHeld)·수령(itemFetched)·만료(itemExpired) 으로 분할(공백·중복 0). itemSent == 셋의 합이 *모든 체제*(수령만·만료만·혼합·crash 복구)서 성립.
+//   0150 mailConsistent(메시지 통수 판)의 *아이템 판*·아이템 우편 arc(0157~0160) 닫기. 미호출 read accessor = 0159 비트 동일(reg).
 // step-0159 — 아이템 우편 만료 회수(itemExpired): 0157~0158 은 아이템의 입금·수령만 회계했다 — 미수령 아이템 우편이 TTL 만료되면 아이템 회계가 어디로 가는지 미집계였다.
 //   이 step: mailSweep 만료 시 아이템 실은 통수만큼 itemExpired++(만료 우편의 아이템 회수). 회계 itemHeld→itemExpired 전이. 만료된 아이템은 발신자 반환이 자연스러우나(가방 연동) 본 step 은 *우편 박스 내 회수 회계*까지(반환 give 는 백로그). mailItem OFF·아이템 미첨부면 itemExpired 0 = 0158 비트 동일.
 // step-0158 — 아이템 우편 수령(itemFetched): 0157 은 아이템을 *보유(held)* 까지만 회계했다 — 수신자가 수령하면 아이템이 어디로 가는지 미집계였다.
@@ -198,6 +201,9 @@ class MailService {
   // 우편 회계 정합 capstone(step-0150·단언용 읽기 accessor) — 0142~0149 arc 의 창발 불변: 우편 1통은 매 순간 정확히 한 상태(보유 held·수령 fetched·만료 expired)에 분할(공백·중복 0).
   //   sent == totalHeld + fetched + expired 가 *모든 체제*(수령만·만료만·혼합·crash 복구)서 성립. accountConsistent 와 동치이나 capstone 의 명시 이름(거래소 0140 sagaLiveConsistent 의 우편 판).
   mailConsistent() { return this.sent === this.totalHeld() + this.fetched + this.expired; }
+  // 아이템 회계 정합 capstone(step-0160·단언용 읽기 accessor) — 0157~0159 의 창발 불변: 아이템 1개는 매 순간 정확히 한 상태(보유 itemHeld·수령 itemFetched·만료 itemExpired)에 분할(공백·중복 0).
+  //   itemSent == itemHeld + itemFetched + itemExpired 가 *모든 체제*서 성립. 0150 mailConsistent(메시지 통수 판)의 아이템 판·아이템 우편 arc(0157~0160) 닫기.
+  itemConsistent() { return this.itemSent === this.itemHeld() + this.itemFetched + this.itemExpired; }
   // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];
