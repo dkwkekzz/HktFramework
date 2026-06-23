@@ -47,40 +47,23 @@ for (const f of fs.readdirSync(SRC)) {
 // 2. src/STEP 전진
 fs.writeFileSync(path.join(SRC, 'STEP'), N + '\n');
 
-// 3. md / concepts 골격
-fs.writeFileSync(nextMd, `# step-${N} — (TODO: 제목 — 더한 한 조각 한 줄)
+// 3. md 골격 — 압축형: agent 가 *한 일(delta)* + review 가 *확인할 재현 정보* 만.
+//    인과·직관 서사는 reviews/(infra-review), "지금 어디/다음"은 STATE.md 가 가진다(중복 0).
+fs.writeFileSync(nextMd, `# step-${N} — (TODO: 더한 한 조각 한 줄)
 
-> 직전: [step-${C}](step-${C}.md) · 현재 위치·다음 가설의 권위: [STATE.md](STATE.md) · 척추: [SPINE.md](SPINE.md)
-> 코드는 단일 소스 \`src/\`(제자리 수정) · 직전 동결 스냅샷 \`baseline/\` · reg 는 src vs baseline 비트 대조.
+> 직전 step-${C} · 권위 [STATE.md](STATE.md) · 척추 [SPINE.md](SPINE.md) · 코드 \`src/\`(제자리) · reg=src vs baseline 비트 대조
 
-## 검증 질문
+## 한 일 (delta)
 
-(TODO: 이 step 이 답할 질문과 닫는 조건 — SPINE 6계층의 어느 박스/계약을 채우는가)
+(TODO: 박스 \`src/<box>.js\` — 더한 메커니즘 1~3줄 · 계층:<6계층 중> · OFF 플래그 <name>(OFF→baseline 비트 동일=회귀 0) · verify.js 새 모드 <mode>)
 
-## 1. 6계층 지도 ([SPINE.md](SPINE.md) §6)
+## 검증 (수치 = \`node run.js\` / \`node run.js spine\` 출력)
 
-| 계층 | 이번 step |
-|------|-----------|
-| 엣지 | |
-| 월드 | |
-| 게임 서비스 | |
-| 이벤트 버스 | |
-| 코디네이션 | |
-| 데이터 | |
+(TODO: reg 0 · 결정론 전파 · 권위/수렴 · 가설 <mode>:<핵심 수치 1개> · spine ALL OK)
 
-## 2. 메커니즘 — (TODO: 더한 한 조각; 플래그 OFF → baseline 비트 동일 = 회귀 0)
+## 척추 5항 + 한계
 
-## 3. 검증 결과 (시드 [42,7,1234,99,2026] · \`node run.js\` / \`node run.js spine\`)
-
-(TODO: 문서의 수치 = verify 출력. reg·결정론 전파·권위 보존·수렴·가설)
-
-## 4. 척추 체크 5항
-
-(① 신성한 tick ② 결정론 코어 ③ 권위 단일 소유 ④ 은닉·단일 연결 ⑤ headless·원격 검증)
-
-## 9. 의외의 발견 / 정직한 한계
-
-## 다음 (권위는 [STATE.md](STATE.md) §2)
+(TODO: ①tick ②결정론 ③권위 ④은닉 ⑤headless — 편차·이슈·정직한 한계·의외의 발견 있으면 한 줄, 없으면 "이상 없음")
 `);
 
 console.log(`스캐폴드 완료: step-${C} → step-${N} (단일 src/ 모델)
@@ -91,7 +74,7 @@ console.log(`스캐폴드 완료: step-${C} → step-${N} (단일 src/ 모델)
 남은 일 (에이전트 — src/ 의 닿는 박스 파일만 Edit, 통복사 없음):
   1. src/<박스>.js — 이번 한 조각의 프로토콜/박스 + OFF 플래그 (수정한 파일 헤더만 step-${N} 으로 갱신)
   2. src/verify.js — 이번 step 의 새 가설 모드로 교체(kit.MODES['<mode>']=fn·kit.ORDER.splice). NETPREV 는 ../baseline 고정(불변).
-  3. step-${N}.md — 골격 채우기 (수치 = verify 출력)
+  3. step-${N}.md — 압축 골격 3절 채우기(한 일·검증·척추+한계 / 수치=verify 출력 / 서사 금지 — 인과는 reviews/, 다음은 STATE)
   4. node run.js && node run.js spine 통과 확인 (reg = src vs baseline 비트 동일)
   5. STATE.md §1~6 갱신 + §7 INDEX 1줄 append
   6. node engine/close-step.js (닫기 게이트) → 통과 시 git tag step-${N}`);

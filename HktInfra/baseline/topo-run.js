@@ -56,6 +56,7 @@ function run(opts) {
   const exchange = map.get('exchange') || null;     // 거래소(step-0107·ExchangeService) — 아이템 escrow 거래. OFF 면 null(0106 동일).
   const market = map.get('market') || null;         // 시세 피드(step-0112·MarketFeed) — 거래소 발행 구독 읽기 모델. OFF 면 null(0111 동일).
   const mail = map.get('mail') || null;             // 우편(step-0142·MailService) — 오프라인 비동기 배송 박스. OFF 면 null(0141 동일).
+  const mailfeed = map.get('mailfeed') || null;     // 우편 미읽음 배지(step-0151·MailFeed) — 우편 발행 구독 읽기 모델. OFF 면 null(0150 동일).
   const pservice = map.get('pservice') || null;     // 파티 멤버십 SSOT(step-0075·partyService) — 멤버십 보유. OFF 면 null(0074 동일).
   const mbox = map.get('mbox') || null;             // 귓속말 수신 박스(step-0076·whisperReceipt) — Mailbox. OFF 면 null(0075 동일).
   const mbox2 = map.get('mbox2') || null;           // 둘째 수신 박스(step-0096·mailbox2) — 멤버별 Mailbox. OFF 면 null(0095 동일).
@@ -193,6 +194,8 @@ function run(opts) {
     if (opts.invOps && inventory) for (const o of [].concat(opts.invOps)) if (o.at === i + 1) inventory.onMsg({ from: o.from || 'gateway', payload: o.op });
     // 우편 주입(step-0142·mailOps) — at tick 에 mailSend/mailFetch 메시지를 우편 박스에 전달(발신자/수신자 우편 요청 모델·net.log 밖·digest 불변). tick 동봉(sentAt 기준·0148 만료 TTL 대비). 우편 부재·미제공이면 휴면(reg 0 불변).
     if (opts.mailOps && mail) for (const o of [].concat(opts.mailOps)) if (o.at === i + 1) mail.onMsg({ from: o.from || 'gateway', payload: o.op, tick: i + 1 });
+    // 미읽음 배지 질의 주입(step-0156·mailFeedQuery) — at tick 에 mailUnreadQuery 를 게이트웨이→mailfeed 로 전달(클라/운영 배지 조회 모델·request/reply over net). mailfeed 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.mailFeedQuery && mailfeed) for (const o of [].concat(opts.mailFeedQuery)) if (o.at === i + 1) net.send(o.from || 'gateway', 'mailfeed', { type: 'mailUnreadQuery', rcpt: o.rcpt });
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
@@ -240,7 +243,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════

@@ -38,11 +38,12 @@ node engine/new-step.js        # src/*.js → baseline/ 스냅샷 회전 + src/S
 - `node run.js spine` (전 시리즈 회귀 사슬)은 오래 걸린다 — `run_in_background` 로 돌려놓고 그동안 문서 작업.
 - 시각 확인이 필요할 때만 `node run.js report` — html 손작성 금지.
 
-## 5. 갱신 — STATE.md 는 Edit 로만
+## 5. 갱신 — step 문서는 압축형(한 일+검증), STATE.md 는 Edit 로만
 
+- **step-NNNN.md 는 압축 골격 3절만** (new-step.js 가 연다): ① **한 일(delta)** — 어느 박스 파일에 무슨 메커니즘 + 계층 + OFF 플래그 + verify 새 모드. ② **검증** — 수치=run.js/spine 출력(reg·결정론·권위/수렴·가설·spine). ③ **척추 5항 + 한계** — 5항 판정 + *실제* 편차·이슈·정직한 한계·의외의 발견이 있을 때만 한 줄(없으면 "이상 없음").
+  > **서사 금지**(사람이 안 읽고 review 가 대신함): 검증 질문 산문·인과/직관 해설·"다음 예고" 를 step 문서에 쓰지 않는다 — *왜·어떻게의 인과 서사*는 `reviews/`(infra-review 묶음 감사)가, *지금 어디·다음*은 STATE.md 가 가진다. step 문서는 *agent 가 한 일(delta) + review 가 재현·확인할 정보*만.
 - **STATE.md 전체 Write 금지** — 바뀐 절(§1 NOW·§2 NEXT·§3·§4 추가분·§5·§7 append)만 개별 Edit.
-- 크기 예산: STATE ≤ 30KB · §1 NOW 항목당 ≤ 6줄(상세는 step 문서로) · §7 은 literal 1줄(`step | 조각 | 통과+핵심수치 1개`). 30KB 초과 시 STATE 헤더의 "누적 함정"부터 정리(가장 비대한 §7 행 압축 포함 — 전문은 step 문서가 SSOT).
-- `step-NNNN.md` ≤ 18KB · `step-NNNN-concepts.md` ≤ 10KB — 발견/한계 전문은 step 문서에(STATE 아님).
+- 크기 예산: STATE ≤ 30KB · §1 NOW 항목당 ≤ 6줄 · §7 은 literal 1줄(`step | 조각 | 통과+핵심수치 1개`) · **`step-NNNN.md` ≤ 8KB**(close-step 게이트). STATE 30KB 초과 시 헤더의 "누적 함정"부터 정리.
 
 ## 6. 닫기 — 기계 판정은 close-step 한 줄
 

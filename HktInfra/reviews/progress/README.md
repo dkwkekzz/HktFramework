@@ -16,14 +16,14 @@
 |---|---|---|
 | ① 엣지 | [1-edge.md](1-edge.md) | **로그인** 🌱 일회 티켓·은닉 스텁(대기열 미착수) · **게이트웨이** 🟡 별 프로세스·다중 GW 네임스페이스(군 풀 후속) |
 | ② 월드 | [2-world.md](2-world.md) | **존** 🟡 *가장 성숙* — 결정론 복제·AOI·분할·핸드오프·failover(동적 N 존 후속) · **인스턴스** ⬜ 미착수 |
-| ③ 게임 서비스 | [3-services.md](3-services.md) | **가방·채팅·랭킹·wrouter+수신함·길드(파티)·거래소·시세 피드·우편** 🟡 — 거래소↔가방 saga + **우편 전용 박스 ✅(0142~0150·거래소 동형 골격)**(길드 ⬜) |
+| ③ 게임 서비스 | [3-services.md](3-services.md) | **가방·채팅·랭킹·wrouter+수신함·길드(파티)·거래소·시세 피드·우편·우편배지(MailFeed)** 🟡 — 거래소↔가방 saga + **우편 ✅(0142~0150)+미읽음 배지 MailFeed ✅(0151~0156)+아이템 첨부 🟡(0157~0160·가방 연동 #40)**(길드 ⬜) |
 | ④ 버스 | [4-bus.md](4-bus.md) | **이벤트 버스** 🟡 *깊게 자람* — pub/sub·failover·무손실·유계화·소비자 lease·관측(물리 분산 후속) |
 | ⑤ 코디네이션 | [5-coordination.md](5-coordination.md) | **세션/프레즌스** 🟡 failover-safe SSOT(진짜 플레이어 프레즌스 후속) · **오케스트레이터** 🟡 zone failover+self-healing(진짜 비동기 후속) |
 | ⑥ 데이터 | [6-data.md](6-data.md) | **캐시** ⬜ 미착수 · **DB·write-behind** 🟡 저널·복제·quorum·정합 윈도(월드/버스 영속 후속) |
 
 상태 기호(STATE §5 정합): 🟡 자라는 중(씨앗+능력 누적·아직 부분) · 🌱 씨앗만(계약만 섰음) · ⬜ 미착수(아직 박스 없음)
 
-> **기준선**: 닫힌 step **~0150**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론) · UE 모듈 링크 0 hit(headless) · 박스 tick 내 `await/fs` 0(하니스/CLI만·신성한 tick) · 박스 파일 대부분 ≤30KB(svc-mail 18.4·**단 topo-run 31.2KB >30KB·#34(c) — 0141 정리가 topology run()을 topo-run.js 로 옮겼으나 bulk 가 여전히 초과**) · zone 핸드오프 쌍 거래·failover 실재 · 프레즌스 박스 failover-safe+디스커버리 메아리 펜싱 · 귓속말/파티 전달 신뢰 exactly-once·수신함 유계+관측 · 거래소↔가방 2-서비스 saga liveness(0121~0140·네 정합층·**#31·#35 해소**) · **우편 전용 박스 ✅(0142~0150·거래소 동형 골격 — 입금→수령→발행 3종→영속·압축→만료 TTL→회계 capstone mailConsistent 4체제)** · `node run.js spine` = **ALL OK(150-step 누적 회귀 사슬 통과)**. 단 0033+ ON-경로 가설(~70 모드·우편 9 포함)은 누적 회귀 미승격·라우팅/전달/수신함/거래소 saga/우편 호 멀티프로세스 미배선(reg-0 만 보증·감사 #16·#9).
+> **기준선**: 닫힌 step **~0160**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론) · UE 모듈 링크 0 hit(headless) · 박스 tick 내 `await/fs` 0(하니스/CLI만·신성한 tick) · 박스 파일 대부분 ≤30KB(svc-mail 19.6·svc-mailfeed 신규 ~3KB·**단 topo-run 31.9KB >30KB·#34(c)**) · zone 핸드오프 쌍 거래·failover 실재 · 프레즌스 박스 failover-safe+디스커버리 메아리 펜싱 · 귓속말/파티 전달 신뢰 exactly-once·수신함 유계+관측 · 거래소↔가방 2-서비스 saga liveness(0121~0140·네 정합층·**#31·#35 해소**) · **우편 전용 박스 ✅(0142~0150)+미읽음 배지 MailFeed ✅(0151~0156·읽기 경로 완비)+아이템 첨부 🟡(0157~0160·우편 박스 내 회계·가방 연동 #40)** · `node run.js spine` = **ALL OK(160-step 누적 회귀 사슬 통과)**. 단 0033+ ON-경로 가설(~80 모드·우편 read-model/item 10 포함)은 누적 회귀 미승격·라우팅/전달/수신함/거래소 saga/우편/배지 호 멀티프로세스 미배선(reg-0 만 보증·감사 #16·#9).
 
 ## 다음 큰 걸음 (직관)
 

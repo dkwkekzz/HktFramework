@@ -33,7 +33,7 @@
 
 > **단일 진실 원천(SSOT)**: "지금 어디까지 왔고 다음은 무엇인가"는 **오직 `STATE.md`** 에만 산다. 닫은 step 문서(`step-NNNN.md`)는 그 step의 *기록*이므로 이후 수정하지 않는다.
 >
-> **STATE.md 는 고정 크기 대시보드(에이전트 효율)**: §1~6(NOW·NEXT·OPEN GAPS·DURABLE CONSTRAINTS·6요소·빠른참조)은 step 마다 **덮어쓴다(rewrite)** — 누적하지 않는다. 오직 §7 INDEX 만 **literal 1줄/step** append. *의외의 발견·정직한 한계의 전문*은 STATE 가 아니라 `step-NNNN.md` 에 산다(STATE = 현재의 SSOT, step 문서 = 역사의 SSOT). 발견/한계가 다음 결정에 아직 작용(load-bearing)하면 STATE §3 OPEN GAPS 또는 §4 DURABLE CONSTRAINTS 에 *현재 상태로만* 반영하고, 후속 step 이 해소하면 인덱스 한 줄로 떨어진다.
+> **STATE.md 는 고정 크기 대시보드(에이전트 효율)**: §1~6(NOW·NEXT·OPEN GAPS·DURABLE CONSTRAINTS·6요소·빠른참조)은 step 마다 **덮어쓴다(rewrite)** — 누적하지 않는다. 오직 §7 INDEX 만 **literal 1줄/step** append. *의외의 발견·정직한 한계*는 STATE 가 아니라 `step-NNNN.md` 척추 절에 *있을 때만 한 줄*로 기록한다(STATE = 현재의 SSOT, step 문서 = 역사의 점적 SSOT·인과 해설은 `reviews/`). 발견/한계가 다음 결정에 아직 작용(load-bearing)하면 STATE §3 OPEN GAPS 또는 §4 DURABLE CONSTRAINTS 에 *현재 상태로만* 반영하고, 후속 step 이 해소하면 인덱스 한 줄로 떨어진다.
 >
 > **누적 함정 금지 (토큰이 step 수에 비례해 터지지 않게 — "덮어쓴다"가 *크기를 묶는다*는 뜻)**: ① **§7 INDEX 는 literal 1줄** — `step | 더한 조각 | 통과/실패 + 핵심 수치 1개`, *문단 금지*. 발견·한계 전문은 각 `step-NNNN.md`(역사의 SSOT)에 둔다. ② **§5 6계층 진행에서 박스별 진척을 step별로 *재나열*하지 않는다** — 현재 마커 + 핵심 step 목록만(prose 누적 금지). ③ **§3 OPEN GAPS 에 ✅해소 격차를 전문 보존하지 않는다** — 해소되면 한 줄(또는 묶음 한 줄)로 떨어뜨리고 전문은 step 문서로. ④ **§4 DURABLE 은 *여러 step 이 반복 참조하는 불변*만**. STATE 가 비대해지면(대략 30KB 초과) 위 네 함정부터 점검·정리한다.
 >
@@ -64,8 +64,8 @@
 
 step마다 다음 산출물을 만든다.
 
-- `step-NNNN.md` — 문서. 도입부에 "6요소 지도" 표, 가설·검증 결과·다음 예고를 담는다.
-  > **개념 해설(`step-NNNN-concepts.md`)은 폐기**(src 단일화 정리). 직관·개념 정리는 step 마다 곁들이지 않고 **`reviews/` 묶음 감사**(`infra-review` 스킬, 10-step 묶음)로 일원화한다 — step 트랙은 *세우고 검증*, 리뷰 트랙은 *정합 감사 + 직관 정리*. 기존 50개 concepts 는 삭제됨(역사는 git + `reviews/`).
+- `step-NNNN.md` — 압축형 문서 (≤ 8KB·`new-step.js` 골격 3절). *agent 가 한 일(delta) + review 가 재현·확인할 정보* 만 담는다: ① **한 일(delta)** — 어느 박스 파일에 무슨 메커니즘·계층·OFF 플래그·verify 새 모드, ② **검증** — 수치=`run.js`/`spine` 출력, ③ **척추 5항 + 한계** — 5항 판정 + 실제 편차·한계·의외의 발견이 있을 때만 한 줄.
+  > **서사 금지(사람이 안 읽고 review 가 대신함)**: 검증 질문 산문·인과/직관 해설·"다음 예고" 를 step 문서에 쓰지 않는다. *왜·어떻게의 인과 서사*는 **`reviews/` 묶음 감사**(`infra-review` 스킬, 10-step 묶음)가, *지금 어디·다음*은 `STATE.md` 가 가진다 — step 트랙은 *세우고 검증·delta 기록*, 리뷰 트랙은 *정합 감사 + 직관 정리*. (개념 해설 `step-NNNN-concepts.md` 는 폐기 — 기존 50개 삭제됨, 역사는 git + `reviews/`.)
 - `src/net-core.js` (+ 박스 파일들) — 브라우저/Node 겸용 프로토타입 코어. **모든 인프라 로직이 사는 단일 살아있는 소스.** 박스 1개=파일 1개 분할 구조(`gateway.js`·`zone.js`·`svc-*.js`·`persist.js`·`client.js` + `topology.js` 배선·`metrics.js` 회계·`common.js`) — `net-core.js` 는 부품을 묶어 동일 export 를 노출하는 *진입점*. 새 step 은 *닿는 박스 파일만* 제자리 Edit 한다(통복사 0). **dual-mode 노출 필수**(아래) — Node `require` 와 브라우저 `<script>` 전역 둘 다.
 - `src/verify.js` — 헤드리스 검증 *셸*. 누적 회귀(reg + 잔존 가설 모드)는 **`engine/verify-kit.js`**(0030 승격·모드 제거 금지/추가만)가 들고, 셸은 ctx 구성 + *이번 step 의 새 모드*만 `kit.MODES['<mode>'] = fn` 으로 더해 `kit.cli()` 에 위임한다. **`NETPREV` 는 항상 `../baseline/net-core.js`**(직전 step 동결 스냅샷) — step 번호 치환 없음(0049 전환). 회귀·결정론 전파·권위보존·수렴(desync)을 수치로 출력.
 - `src/STEP` — 현재 step 번호의 단일 권위(`run.js`·`close-step.js` 가 읽음). `new-step.js` 가 전진.
@@ -96,7 +96,7 @@ step마다 다음 산출물을 만든다.
 3. **구현** — 직전 step 프로토타입을 잇고 항을 *하나만* 더한다. **step 골격은 `node engine/new-step.js` 로 연다**(src/*.js → baseline/ 스냅샷 회전 + src/STEP 전진 + md 골격 — 코드 통복사 0). 산출물 작성: `src/` 의 *닿는 박스 파일만* 제자리 Edit + `src/verify.js` 셸에 이번 step 의 새 모드 추가(NETPREV 는 ../baseline 고정). 닫을 때 델타 커밋 + `git tag step-NNNN`(역사 보존).
 4. **검증** — `node HktInfra/run.js`(현재 step 검증) + `node HktInfra/run.js spine`(src 누적 회귀 — 전 역사 불변을 현재 코드에 단언)로 가설 4기둥 + **척추 체크 5항**을 모두 통과시킨다(에이전트 자율, exit 0). 통과 못 하면 step을 닫지 않는다. *시각 확인이 필요하면* `node HktInfra/run.js report` 로 `report.html` 1장 생성(html 손작성 아님).
 5. **갱신** — 발견/한계의 *전문*은 이번 `step-NNNN.md` 에 기록한 뒤 `STATE.md` 를 갱신한다(§1~6 덮어쓰기 / §7 인덱스만 append). **시각화는 testbed 가 자동 반영하므로 손으로 그릴 그림(html)은 없다** — `SYSTEM.html`·`step-NNNN.html` 은 폐기됐다([TESTBED.md](TESTBED.md)).
-6. **닫기** — **`node engine/close-step.js`**(0030 도입)로 기계 판정분(검증 exit 0·크기 예산·산출물 존재·STATE §7 행)을 한 줄로 통과시킨 뒤, step 문서 도입부 "6요소 지도" 표를 이번 step 기준으로 확정. 닫은 step 문서(`step-NNNN.md`)는 이후 수정하지 않는다.
+6. **닫기** — **`node engine/close-step.js`**(0030 도입)로 기계 판정분(검증 exit 0·크기 예산 ≤ 8KB·산출물 존재·STATE §7 행)을 한 줄로 통과시킨 뒤, 압축 골격 3절(한 일·검증·척추+한계)이 채워졌는지 확정. 닫은 step 문서(`step-NNNN.md`)는 이후 수정하지 않는다.
 
 > **직관 정리는 별도 트랙(직교)** — step 루프는 *세우고 검증*만 한다. 개념·직관 정리와 척추 정합 감사는 닫힌 step 10개를 묶어 회고하는 **`reviews/` 묶음 감사**(`infra-review` 스킬)가 담당한다(옛 per-step `concepts.md` 를 대체).
 

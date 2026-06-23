@@ -123,10 +123,26 @@
 5. **저널 스냅샷 압축** ✅ — 왜: 저널 무압축→무한 성장. / 어떻게: snapInterval 마다 projection 스냅샷+가지치기→tail 만 보관·reconstruct 는 스냅샷+tail(거래소 0110·가방 0018 판). / 했나: `step-0146`(snap+tail==full==live 비트 동일).
 6. **만료 TTL(시간 트리거)** ✅ — 왜: 미수령 우편이 영영 쌓임. / 어떻게: mailSweep(now) 가 now−sentAt≥ttl 미수령 우편 자동 회수(보유→만료·거래소 0114 판)·만료 durable op→reconstruct 정합. / 했나: `step-0148`(`:121`).
 7. **회계 정합 capstone** ✅ — 왜: "우편 1통이 정확히 한 상태인가"를 증명해야. / 어떻게: mailConsistent(sent==totalHeld+fetched+expired·보유/수령/만료 분할·공백·중복 0)를 4체제(수령만·만료만·혼합·crash 복구)서 단언(거래소 0140 sagaLiveConsistent 의 우편 판). / 했나: `step-0150`(`:180`·4/4·수령만 0/3/0·만료만 0/0/3·혼합 1/2/1).
-8. **클라 와이어·아이템 우편·멀티프로세스** ⬜ — 왜: 현재 입금/수령이 `mailOps` 주입 seam·crash/reconstruct post-run·인프로세스만(#9). 아이템 우편(가방 give 연동·만료 시 발신자 반환)은 거래소↔가방(0117~0120) 2-서비스 보존의 우편 판이 필요. / 했나: 미착수(#9·신규 백로그).
+8. **아이템 첨부 우편(우편이 아이템을 나른다)** 🟡 *우편 박스 내 회계까지* — 왜: 0142~0156 은 *메시지(body)* 만 날랐다 — 선물·전리품 배송(아이템 우편)이 없었다. / 어떻게: mailSend 가 선택 필드 item 을 받아 우편 1통이 아이템 1개를 함께 보유(거래소 escrow 의 우편 판)·아이템도 메시지 회계와 동형으로 보유→수령→만료 전이·itemConsistent(itemSent==itemHeld+itemFetched+itemExpired) capstone. / 했나: `step-0157~0160`(`svc-mail.js:itemHeld/itemFetched/itemExpired/itemConsistent`·mailItem 플래그·4체제 0/2/0·0/0/2·1/1/1·crash 복구 보존). **잔여(load-bearing)**: 아이템이 *우편 박스 안 회계*로만 추적 — 발신자 가방 인출(give)·수령 시 수령자 가방 입금·만료 시 발신자 반환 등 **가방(inventory) 연동 2-서비스 보존**(거래소↔가방 0117~0120 의 우편 판)이 미착수(#40).
+9. **클라 와이어·멀티프로세스** ⬜ — 왜: 입금/수령이 `mailOps` 주입 seam·crash/reconstruct post-run·인프로세스만(#9). / 했나: 미착수(#9).
 
-**지금 어디 / 다음**: 분리→수령→발행 3종→영속·압축→만료 TTL→회계 capstone(0142~0150)까지 — 거래소 arc(0107~0140)와 *동형 골격*(서비스 박스 패턴의 두 번째 입증). 다음 = 아이템 우편(가방 연동·2-서비스 보존)·클라 와이어·멀티프로세스 배선(#9).
+**지금 어디 / 다음**: 분리→수령→발행 3종→영속·압축→만료 TTL→회계 capstone(0142~0150)→**아이템 첨부(0157~0160·우편 박스 내 회계)**까지 — 거래소 arc(0107~0140)와 *동형 골격*. 다음 = 아이템 우편 가방 연동(give/반환·2-서비스 보존·#40)·클라 와이어·멀티프로세스 배선(#9).
+
+## 우편 미읽음 배지(MailFeed) 서버 🟡 자라는 중 *(0112 MarketFeed 의 우편 판 — 우편 박스의 읽기 모델)*
+
+**무슨 서버인가**: 우편 박스가 발행하는 수명주기(svc.mail.sent/read/expired)를 구독해 *수신자별 미읽음 통수(배지)* 를 집계하는 *읽기 모델(CQRS)* 서버(`svc-mailfeed.js`). 우편함 권위 0·발신 0(reply 제외)·순수 반응형. *비유 — 메일 앱의 안 읽은 메일 N 배지*: 우편함(권위)을 안 건드리고 "안 읽은 게 몇 통" 만 따로 세 보여준다.
+
+**필요한 기능들** (거래소 MarketFeed arc 패턴을 그대로 따른 동형 골격):
+
+1. **입금 구독 집계(CQRS·관찰 전용)** ✅ — 왜: 배지는 우편 권위를 안 건드리고 따라붙어야. / 어떻게: svc.mail.sent 구독→수신자별 unread++(권위는 우편 박스·발신 0·발행자 무수정). / 했나: `step-0151`(`svc-mailfeed.js:onMsg`).
+2. **읽음·만료 반영(배지가 줄어든다)** ✅ — 왜: 0151 은 입금만 세 unread 단조 증가(읽어도·만료돼도 안 줌). / 어떻게: svc.mail.read→unread-- (mailFeedRead)·svc.mail.expired→unread-- (mailFeedExpire)·MarketFeed 0116 수명주기 반영의 우편 판. / 했나: `step-0152~0153`(unread==sent−read−expired).
+3. **영속·late-join** ✅ — 왜: 자기 영속 0 — crash 시 배지 소실. / 어떻게: 우편 박스 durable op 저널(0145) replay 로 배지 재계산(ranking 0020·MarketFeed 0113 의 우편 판·CQRS late-join). / 했나: `step-0154`(`:reconstruct`·crash 후 digest==라이브). **잔여**: 우편 저널이 스냅샷 압축(0146·mailSnapshot>0)되면 가지친 head 배지 이력 복원 불가 — 완전 복원은 무압축 전제(#39·MarketFeed #32 의 우편 판).
+4. **회계 정합 capstone** ✅ — 왜: 배지 회계가 닫혔는지 증명해야. / 어떻게: feedConsistent(모든 수신자 unread==sent−read−expired·unread≥0)를 4체제서 단언(0150 mailConsistent 의 읽기 모델 판). / 했나: `step-0155`(`:feedConsistent`·4/4·totalUnread==우편 totalHeld·crash 복구 정합).
+5. **원격 질의 인터페이스(pull)** ✅ — 왜: 배지가 프로세스 내 pull 로만 읽혔다 — 게이트웨이/클라가 원격에서 못 물음. / 어떻게: mailUnreadQuery→mailUnreadReply request/reply over net(프레즌스 0069 presenceQuery 의 우편 판). / 했나: `step-0156`(`:onMsg`·queriesRx==repliesSent·회신==배지).
+6. **매물 깊이류 보강·자기 영속·멀티프로세스** ⬜ — 왜: 배지 정렬/페이지네이션·자기 저널·host.js 0(#9). / 했나: 미착수(#9·#39).
+
+**지금 어디 / 다음**: 입금 집계→읽음/만료 반영→영속 late-join→회계 capstone→원격 질의까지(읽기 경로 완비: push 발행 + pull 질의). 다음 = 자기 영속(우편 저널 무압축 의존 해소·#39)·멀티프로세스(#9).
 
 ---
 
-> **이 계층 다음 걸음**: 거래소↔가방 2-서비스 saga 가 *원자성·신뢰 전달·교차 정합·**liveness(유계화·자율 복구·관측·정합 capstone)***까지 닫힘(#31·#35·0121~0140·네 정합층). **우편 전용 박스 ✅(0142~0150)** — 거래소 arc 의 동형 골격(입금→수령→발행 3종→영속·압축→만료→회계 capstone)으로 7번째 서비스 박스가 섰다(서비스 박스 패턴 재현력 입증). 남은 견고화: 거래소 저널 별 PersistStore 박스화(#30b)·채팅 홉 신뢰(#7)·아이템 우편(가방 연동·2-서비스 보존). 멀티프로세스 배선(#9·우편 포함)·spine 승격(#16·우편 9 모드 포함). 수신함 동적 N(#27). topology wiring 분할(#34 — topo-build ✅0133/topology ✅0141 슬림화/**topo-run 🔴31.2KB 신규**). **길드 전용 박스 씨앗 심기(미착수)**.
+> **이 계층 다음 걸음**: 거래소↔가방 2-서비스 saga 가 *원자성·신뢰 전달·교차 정합·**liveness***까지 닫힘(#31·#35·0121~0140·네 정합층). **우편 전용 박스 ✅(0142~0150)** + **우편 미읽음 배지 MailFeed ✅(0151~0156·MarketFeed 의 우편 판·읽기 경로 완비)** + **아이템 첨부 우편 🟡(0157~0160·우편 박스 내 회계까지·가방 연동 미착수 #40)** — 우편이 메시지·배지·아이템 세 축으로 섰다(서비스 박스 패턴 재현력 입증). 남은 견고화: 아이템 우편 가방 연동(#40·load-bearing)·거래소 저널 별 PersistStore(#30b)·채팅 홉 신뢰(#7). 멀티프로세스 배선(#9·우편/배지 포함)·spine 승격(#16·우편 read-model/item 10 모드 포함). 읽기 모델 reconstruct 무압축 전제(#39·#32 family). 수신함 동적 N(#27). topo-run 🔴31.9KB 분할(#34c). **길드 전용 박스 씨앗 심기(미착수)**.
