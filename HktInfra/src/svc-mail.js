@@ -1,4 +1,8 @@
 'use strict';
+// step-0163 — 아이템 우편↔가방 leg3: 만료 시 escrow → 발신자 가방 반환(mailInv): 0161~0162 는 발신 인출·수령 입금만 했다 — 미수령 우편이 TTL 만료(0159)되면 아이템이 escrow 에 영영 묶였다(발신자도 수신자도 못 받음·아이템 증발).
+//   이 step: mailSweep 만료 시 아이템 실은 통마다 가방에 give('escrow' → 발신자 from) 를 요청한다(거래소 0119 cancel/expire leg3 의 우편 판). 미수령 아이템이 발신자 가방으로 회수. 회계 gives++.
+//   아이템 경로 분기 완성: 발신자→escrow(leg1) → {수령 시 수신자(leg2) | 만료 시 발신자 반환(leg3)}. 아이템은 어느 경로든 *실제 가방*에 착지(증발 0). 2-서비스 보존 capstone(0164) 후속.
+//   mailInv OFF·inv 부재·item 미첨부면 give 0 = 0162 비트 동일(회귀 0).
 // step-0162 — 아이템 우편↔가방 leg2: 수령 시 escrow → 수신자 가방 입금(mailInv): 0161 은 발신자 가방서 인출(escrow)만 했다 — 수신자가 수령해도 아이템이 escrow 에 묶인 채였다(가방엔 안 들어옴).
 //   이 step: mailFetch 가 아이템 실은 통마다 가방에 give('escrow' → 수신자) 를 요청한다(거래소 0118 buy leg2 의 우편 판). 아이템이 escrow 를 떠나 수신자 가방으로 입금. 회계 gives++.
 //   leg1(0161 발신 인출)의 짝 — 발신자→escrow→수신자 의 2-홉 custody 가 닫힌다(선물·전리품이 실제 가방 간 이동). 만료 반환 leg3(0163)·2-서비스 보존 capstone(0164) 후속.
@@ -165,6 +169,7 @@ class MailService {
           if (now - mm.sentAt >= this.ttl) {
             box.delete(id); this.expired++;
             if (mm.item != null) this.itemExpired++;   // step-0159: 아이템 실은 우편 만료 회수(itemHeld→itemExpired)
+            if (mm.item != null) this._custody(mm.item, 'escrow', mm.from, { kind: 'expire', id });   // 반환 레그(step-0163·leg3) — escrow → 발신자 가방 custody(mailInv ON 일 때만). 미수령 아이템이 발신자에게 회수(거래소 0119 expire leg 의 우편 판·증발 0).
             this._journal({ kind: 'expire', to: rcpt, id });   // durable op(만료도 replay 정합)
             // 만료 발행(step-0149·mailExpirePublish) — 회수 통마다 svc.mail.expired 발행(운영/발신자 관측). OFF·bus 부재면 no-op(0148 비트 동일·replay 에선 안 함).
             if (this.expirePublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.expired', ev: { id, to: rcpt, from: mm.from } }); this.expirePublished++; }

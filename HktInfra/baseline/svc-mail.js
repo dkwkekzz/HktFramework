@@ -1,4 +1,8 @@
 'use strict';
+// step-0162 — 아이템 우편↔가방 leg2: 수령 시 escrow → 수신자 가방 입금(mailInv): 0161 은 발신자 가방서 인출(escrow)만 했다 — 수신자가 수령해도 아이템이 escrow 에 묶인 채였다(가방엔 안 들어옴).
+//   이 step: mailFetch 가 아이템 실은 통마다 가방에 give('escrow' → 수신자) 를 요청한다(거래소 0118 buy leg2 의 우편 판). 아이템이 escrow 를 떠나 수신자 가방으로 입금. 회계 gives++.
+//   leg1(0161 발신 인출)의 짝 — 발신자→escrow→수신자 의 2-홉 custody 가 닫힌다(선물·전리품이 실제 가방 간 이동). 만료 반환 leg3(0163)·2-서비스 보존 capstone(0164) 후속.
+//   mailInv OFF·inv 부재·item 미첨부면 give 0 = 0161 비트 동일(회귀 0).
 // step-0161 — 아이템 우편↔가방 leg1: 발신 시 발신자 가방 인출(mailInv·escrow custody): 0157~0160 은 아이템을 *우편 박스 내 회계*로만 추적했다 — 실제 가방(inventory) 원장은 안 건드렸다(아이템 우편이 가방과 분리된 가짜 escrow).
 //   이 step: mailInv ON 이면 mailSend 가 아이템 실은 통마다 가방에 give(발신자 from → 'escrow') 를 요청한다(거래소 0117 list leg1 의 우편 판). 가방이 원장 권위·우편 박스는 요청만(은닉·명시 인터페이스). 회계 gives++.
 //   거래소↔가방 2-서비스 쌍 거래(0117~0120)의 우편 판 — 아이템이 발신자 가방을 *실제로 떠나* escrow custody 로 이동. 수령 입금(0162)·만료 반환(0163)·2-서비스 보존 capstone(0164) 후속.
@@ -140,6 +144,7 @@ class MailService {
         this.read.set(rcpt, log);
         this.fetched += out.length;
         for (const mm of out) if (mm.item != null) this.itemFetched++;   // step-0158: 아이템도 수령 이동(itemHeld→itemFetched)
+        for (const mm of out) if (mm.item != null) this._custody(mm.item, 'escrow', rcpt, { kind: 'fetch', id: mm.id });   // 입금 레그(step-0162·leg2) — escrow → 수신자 가방 custody(mailInv ON 일 때만). 아이템이 escrow 를 떠나 수신자 가방으로(거래소 0118 buy leg 의 우편 판).
         box.clear();   // 보유→수령 이동(무손실·중복 0). 빈 Map 유지(held(rcpt)==0).
         this._journal({ kind: 'fetch', to: rcpt });   // step-0145: durable op(수령도 replay 정합 — replay 시 그 시점 보유분을 동일 이동)
         // 읽음 발행(step-0147·mailReadPublish) — 수령 통마다 svc.mail.read 발행(운영/발신자 읽음 관측). OFF·bus 부재면 no-op(0146 비트 동일·발행은 replay 에서 안 함).
