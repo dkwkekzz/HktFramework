@@ -36,7 +36,11 @@ Object.assign(ExchangeService.prototype, {
     if (p.type === 'exchRetry') { this._resendPending(); return; }   // step-0131: 재전송 루프를 _resendPending() 로 추출(상한 0 면 무제한 = 0126 동일).
     // 포기 give 재admission(step-0134·exchReadmit) — 운영이 손실 해소 후 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개. retryCount 리셋(상한 재충전). 이후 sweep/Retry 가 재전송. abandonedGive 비었으면 no-op = 0133 비트 동일.
     if (p.type === 'exchReadmit') {
-      for (const [gid, g] of this.abandonedGive) { this.pendingGive.set(gid, g); this.retryCount.delete(gid); this.readmitted++; }
+      for (const [gid, g] of this.abandonedGive) {
+        this.pendingGive.set(gid, g); this.retryCount.delete(gid); this.readmitted++;
+        // 재admission 발행(step-0135·readmitPublish) — 재개한 give 를 svc.exchange.saga_readmitted 로 1회 발행(0132 포기 발행의 짝). OFF·bus 부재면 no-op(0134 비트 동일).
+        if (this.readmitPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.saga_readmitted', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.readmitPublished++; }
+      }
       this.abandonedGive = new Map();
       return;
     }

@@ -1,4 +1,5 @@
 'use strict';
+// step-0135 — saga 재admission 발행(readmitPublish): exchReadmit 으로 포기 give 를 재개할 때 svc.exchange.saga_readmitted{gid,itemId,cause} 1회 발행(운영 가시화·0132 포기 발행 svc.exchange.saga_abandoned 의 짝·readmitPublished==readmitted). OFF·bus 부재면 발행 0 = 0134 비트 동일.
 // step-0134 — saga 포기 give 재admission(exchReadmit): 0131 포기는 영구였다 — 손실이 *해소*되면 운영이 재개할 수 있어야 한다. 포기 시 give 파라미터를 abandonedGive 에 간직, exchReadmit op 이 그것을 pendingGive 로 되돌리고 retryCount 리셋 → 다음 sweep 이 재전송(손실 해소 후면 ack→drain). exchReadmit 부재면 0133 비트 동일. (0048 busLeaseLife 재admission 의 saga 판.)
 // step-0132 — saga 포기 발행(abandonPublish): 0131 상한 도달로 포기한 give 를 svc.exchange.saga_abandoned 로 1회 발행(운영 가시화·audit 관측·giveAbandoned 와 1:1). OFF·bus 부재면 발행 0 = 0131 비트 동일.
 // step-0131 — saga 재시도 상한(sagaMaxRetries): autoRetry/exchRetry 재전송을 _resendPending() 헬퍼로 추출 + gid 당 N회 상한. 도달 시 포기(pendingGive 제거·giveAbandoned++)·pending 잔존(sagaConsistent 불변). 상한 0 면 무제한 = 0130 비트 동일.
@@ -70,6 +71,8 @@ class ExchangeService {
     this.abandonPublished = 0;          // 발행한 svc.exchange.saga_abandoned 수(step-0132·계측·giveAbandoned 와 1:1).
     this.abandonedGive = new Map();     // gid -> {itemId, from, to, cause}(step-0134) — 포기한 give 의 파라미터 보관(재admission 소스). 0131 은 버렸으나 운영이 손실 해소 후 재개할 수 있게 *간직*한다(내부 상태·sagaMaxRetries 0 면 빈 맵).
     this.readmitted = 0;                // exchReadmit 으로 재admission 한 give 누적(step-0134·계측) — 포기 give 의 retry 재개 수.
+    this.readmitPublish = opts.readmitPublish || false;   // 재admission 발행(step-0135) — exchReadmit 으로 give 재개 시 svc.exchange.saga_readmitted 발행(운영 가시화·0132 포기 발행의 짝). OFF·bus 부재면 발행 0(0134 비트 동일).
+    this.readmitPublished = 0;          // 발행한 svc.exchange.saga_readmitted 수(step-0135·계측·readmitted 와 1:1).
   }
   // 미해결 give 재전송(step-0126 exchRetry·0129 autoRetry 공용 추출 — 0131)·재시도 상한(step-0131·sagaMaxRetries).
   //   pendingGive 의 각 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 dedup 전제). sagaMaxRetries>0 이면 gid 당 N회 재전송 후 포기(pendingGive 제거→이후 sweep 비-순회·giveAbandoned++·pending 잔존).
@@ -128,7 +131,7 @@ class ExchangeService {
     this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0; this.aborted = 0; this.abortPublished = 0;   // saga 피드백/보상/발행 집계 리셋(step-0121~0123) — 새 프로세스는 give 결과·abort·발행 이력 0(플래그 OFF 면 무관).
     this.gid = 0; this.pending = new Set(); this.pendingPeak = 0; this.pendingGive = new Map(); this.retries = 0; this.sagaDones = 0;   // 미해결 give 추적/재전송/유계화 리셋(step-0125~0127) — 새 프로세스는 in-flight give 이력 0(saga OFF 면 무관).
-    this.retryCount = new Map(); this.giveAbandoned = 0; this.abandonPublished = 0; this.abandonedGive = new Map(); this.readmitted = 0;   // 재시도 상한/포기 발행/재admission 리셋(step-0131·0132·0134) — 새 프로세스는 재시도 이력 0(sagaMaxRetries 0 면 무관).
+    this.retryCount = new Map(); this.giveAbandoned = 0; this.abandonPublished = 0; this.abandonedGive = new Map(); this.readmitted = 0; this.readmitPublished = 0;   // 재시도 상한/포기 발행/재admission/재admission 발행 리셋(step-0131·0132·0134·0135) — 새 프로세스는 재시도 이력 0(sagaMaxRetries 0 면 무관).
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
