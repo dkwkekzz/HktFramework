@@ -426,6 +426,7 @@
       defaults: { colorScale: 'relative', view: 'energy' },
       init(w) {
         for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
+        w.fields.therm || w.addField('therm');     // 내부E 장 — 없으면 아래 therm 시드가 죽어 장면이 안 뜬다(필수)
         const N = w.N, cen = (N - 1) / 2, R = N * 0.3, rad = Math.max(2, N * 0.09), nb = 6, spin = 0.5;
         for (let k = 0; k < nb; k++) {
           const a = k * 2 * Math.PI / nb, bcx = cen + R * Math.cos(a), bcy = cen + R * Math.sin(a);
@@ -466,7 +467,7 @@
       defaults: { colorScale: 'relative', view: 'energy' },
       init(w) {
         const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
-        const cells = Math.max(8, Math.round(N * N * 0.018)), spc = Math.max(3, N * 0.19), tang = 0.06;
+        const cells = Math.max(8, Math.round(N * N * 0.018)), spc = Math.max(3, N * 0.19), tang = 0.03;   // 접선 속도 약하게 — 세야 궤도만 돌고 안 합쳐짐(0.06→0.03: 9→1 강착)
         const ents = [];
         for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
           const cx = cen - spc + c * spc, cy = cen - spc + r * spc;
