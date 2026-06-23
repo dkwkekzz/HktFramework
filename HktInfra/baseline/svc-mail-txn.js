@@ -1,4 +1,5 @@
 'use strict';
+// step-0172 — 아이템 우편 saga 자동 주기 재전송(mailAutoRetry): mailSweep 핸들러가 autoRetry ON 이면 _resendPending() 도 트리거(ttl 체크 앞·TTL 회수와 직교·거래소 0129 의 우편 판). OFF 면 0171 비트 동일.
 // step-0165 정리 분할 — 우편 *트랜잭션 핸들러*(onMsg): mailSend(입금·아이템 첨부·leg1 인출)·mailFetch(수령·leg2 입금)·mailSweep(만료·leg3 반환).
 //   원장 코어(svc-mail-core.js)의 프로토타입을 Object.assign 으로 증강(거래소 svc-exchange-txn 0124·가방 svc-inventory-txn 0053 과 동일 패턴·동작 불변). 진입점 svc-mail.js 가 core 뒤에 로드한다.
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
@@ -10,15 +11,19 @@ Object.assign(MailService.prototype, {
     // 가방 give 결과 비동기 수신(step-0166·mailSaga) — _custody 가 replyTo 로 보낸 give 의 item_result 회신.
     //   집계(ackedGives·giveOks·giveFails) + 미해결 추적 drain(step-0167). saga OFF 면 이 메시지가 영영 안 옴(0165 비트 동일·가방 echo 휴면).
     if (p.type === 'item_result' && p.op === 'give') {
+      // 지속 회신 손실 모의(step-0173·테스트 seam ackDropAlways) — 이 gid 회신을 *매번* 드롭(안 지움 → 재전송이 영영 통과 못 함 → maxRetries 상한 트리거). 미제공이면 무손실.
+      if (this.ackDropAlways && p.gid !== undefined && this.ackDropAlways.has(p.gid)) return;
       // 회신 손실 모의(step-0167·테스트 seam ackDrop) — 이 gid 회신을 *1회* 드롭(transient·step-0168 drop-once → 재전송이 통과). 잃은 gid 가 pending 에 남는다(ackedGives<gives). 미제공이면 무손실.
       if (this.ackDrop && p.gid !== undefined && this.ackDrop.has(p.gid)) { this.ackDrop.delete(p.gid); return; }
       this.ackedGives++;
-      if (p.gid !== undefined) { this.pending.delete(p.gid); this.pendingGive.delete(p.gid); }   // step-0167: 회신 도착 → 미해결서 제거(정상 흐름 0 으로 drain)
+      if (p.gid !== undefined) { this.pending.delete(p.gid); this.pendingGive.delete(p.gid); this.retryCount.delete(p.gid); }   // step-0167: 회신 도착 → 미해결서 제거(정상 흐름 0 으로 drain) (step-0173: 재전송 카운트도 제거)
       if (p.ok) this.giveOks++; else this.giveFails++;
       return;
     }
     // 미해결 give 재전송(step-0168·mailRetry) — 회신 손실로 pending 에 남은 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제). pendingGive 비었으면 no-op = 0167 비트 동일.
     if (p.type === 'mailRetry') { this._resendPending(); return; }
+    // 포기 give 재admission(step-0176·mailReadmit) — 운영이 손실 해소 후 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개(거래소 0134 의 우편 판). abandonedGive 비었으면 no-op = 0175 비트 동일.
+    if (p.type === 'mailReadmit') { this._readmit(); return; }
     // 우편 입금(mailSend) — 발신자가 수신자 우편함에 우편 1통을 비동기 적재(수신자 접속 무관). p={type,id?,from,to,body}.
     //   id 미지정이면 결정론 시퀀스로 부여. 같은 id 재전송은 멱등(이중 적재 0 — 재전송 신뢰성 0145~ 대비).
     if (p.type === 'mailSend') {
@@ -61,6 +66,9 @@ Object.assign(MailService.prototype, {
     // 우편 만료 sweep(mailSweep·step-0148) — now−sentAt≥ttl 인 미수령 우편을 시간 트리거로 회수(보유→만료). p={type,now?}. now 미지정이면 주입 tick.
     //   ttl 0 면 no-op(0147 동일). 결정론: recipient/id 정렬 순회. 만료도 durable op('expire')로 저널 → reconstruct 정합.
     if (p.type === 'mailSweep') {
+      // 자동 재전송(step-0172·mailAutoRetry) — sweep 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·exchSweep autoRetry 0129 의 우편 판·명시 mailRetry 0168 의 주기 형태).
+      //   가방 dedup(0168) 이 재실행 0 보장. ttl 체크 *앞*(autoRetry 와 TTL 회수는 직교·같은 주기 신호 재사용). OFF 면 skip = 0171 비트 동일.
+      if (this.autoRetry) this._resendPending();
       if (this.ttl <= 0) return;
       const now = p.now != null ? p.now : (m.tick | 0);
       for (const rcpt of [...this.boxes.keys()].sort()) {
