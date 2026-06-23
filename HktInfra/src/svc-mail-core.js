@@ -1,4 +1,5 @@
 'use strict';
+// step-0176 — 아이템 우편 saga 포기 give 재admission(mailReadmit): 포기(abandonedGive·0173/0174)된 give 를 pendingGive 로 되돌려 retry 재개(retryCount 리셋·거래소 0134 의 우편 판). op 부재면 0175 비트 동일.
 // ── MailService 코어 — 오프라인 우편 배송 박스(SPINE §2 게임 서비스). 거래소 arc(0107~0140)의 우편 판. ──
 //   상세 step 역사(0142~0174)는 각 step-NNNN.md(역사의 SSOT) + reviews/(인과 감사). 여기엔 *구조 + 최근 delta*만 둔다(0175 정리 — 누적 step-주석 헤더 17KB 압축·기능 0·reg 0).
 //   arc 골격: 메시지(0142 분리·0143 수령·0144~0149 발행·0150 정합)·MailFeed 미읽음 배지(0151~0156)·아이템 첨부(0157~0160)·가방 연동 escrow custody 3레그+2-서비스 보존(0161~0164)·saga(0166 회신/0167 추적/0168 재전송+dedup/0169 정합/0170 transfers/0172 autoRetry/0173 재시도상한/0174 포기발행). 정리 분할: 0165(core/txn/entry)·0171(persist 추출)·0175(헤더 압축).
@@ -47,6 +48,8 @@ class MailService {
     this.giveAbandoned = 0;        // 상한 도달로 포기한 give 누적(step-0173·계측) — 영구 회신 손실의 신호. pending 에는 남는다(미해결·재전송만 중단).
     this.abandonPublish = opts.abandonPublish || false;   // 포기 발행(step-0174·mailAbandonPublish·거래소 0132 의 우편 판) — 상한 도달 포기 시 svc.mail.saga_abandoned 1회 발행(운영 가시화·audit 관측·giveAbandoned 와 1:1). OFF·bus 부재면 발행 0(0173 비트 동일).
     this.abandonPublished = 0;     // 발행한 svc.mail.saga_abandoned 수(step-0174·계측·giveAbandoned 와 1:1).
+    this.abandonedGive = new Map();  // gid -> {itemId,from,to,cause}(step-0176·mailReadmit) — 포기된 give 의 재admission 소스(운영이 손실 해소 후 pendingGive 로 되돌림·거래소 0134 의 우편 판).
+    this.readmitted = 0;           // 재admission 한 give 누적(step-0176·계측).
     this.ackDropAlways = opts.ackDropAlways ? new Set(opts.ackDropAlways) : null;   // 테스트 seam(step-0173) — 수신 시 *매번* 드롭할 gid 집합(지속 회신 손실 모의·drop-once ackDrop 0167 과 달리 안 지움 → 재전송이 영영 통과 못 함 → 상한 트리거). 미제공이면 무손실(production 무영향·reg 0).
     this.autoRetry = opts.autoRetry || false;   // 자동 주기 재전송(step-0172·mailAutoRetry) — ON 이면 mailSweep op 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·거래소 0129 의 우편 판). OFF 면 sweep 은 TTL 회수만(0171 비트 동일). 명시 mailRetry op(0168) 없이도 같은 주기 신호(sweep)로 pending drain.
     this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
@@ -89,6 +92,7 @@ class MailService {
         const c = this.retryCount.get(gid) || 0;
         if (c >= this.maxRetries) {
           this.pendingGive.delete(gid); this.retryCount.delete(gid); this.giveAbandoned++;   // 상한 도달 — 포기(재전송 중단·pending 잔존)
+          this.abandonedGive.set(gid, g);   // 재admission 소스(step-0176) — 포기 give 파라미터 간직(운영이 손실 해소 후 mailReadmit 으로 재개). pending(Set)엔 그대로 남아 미해결.
           // 포기 발행(step-0174·mailAbandonPublish) — 영구 미해결 give 를 svc.mail.saga_abandoned 로 1회 발행(운영 가시화·거래소 0132 의 우편 판). OFF·bus 부재면 no-op(0173 비트 동일).
           if (this.abandonPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.saga_abandoned', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.abandonPublished++; }
           continue;
@@ -98,6 +102,11 @@ class MailService {
       this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
       this.retries++;
     }
+  }
+  // 포기 give 재admission(step-0176·mailReadmit·거래소 0134 의 우편 판) — 운영이 손실 해소 후 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개(retryCount 리셋·상한 재충전). 이후 sweep/mailRetry 가 재전송 → 손실 해소 후면 ack→drain. abandonedGive 비었으면 no-op = 0175 비트 동일.
+  _readmit() {
+    for (const [gid, g] of this.abandonedGive) { this.pendingGive.set(gid, g); this.retryCount.delete(gid); this.readmitted++; }
+    this.abandonedGive = new Map();
   }
   // crash/reconstruct(영속·failover·step-0145~)는 svc-mail-persist.js 가 프로토타입 증강(step-0171 정리 분할·동작 불변).
   held(rcpt) { const b = this.boxes.get(rcpt); return b ? b.size : 0; }   // 한 수신자 우편함 보유 통수

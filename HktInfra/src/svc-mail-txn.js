@@ -22,6 +22,8 @@ Object.assign(MailService.prototype, {
     }
     // 미해결 give 재전송(step-0168·mailRetry) — 회신 손실로 pending 에 남은 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제). pendingGive 비었으면 no-op = 0167 비트 동일.
     if (p.type === 'mailRetry') { this._resendPending(); return; }
+    // 포기 give 재admission(step-0176·mailReadmit) — 운영이 손실 해소 후 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개(거래소 0134 의 우편 판). abandonedGive 비었으면 no-op = 0175 비트 동일.
+    if (p.type === 'mailReadmit') { this._readmit(); return; }
     // 우편 입금(mailSend) — 발신자가 수신자 우편함에 우편 1통을 비동기 적재(수신자 접속 무관). p={type,id?,from,to,body}.
     //   id 미지정이면 결정론 시퀀스로 부여. 같은 id 재전송은 멱등(이중 적재 0 — 재전송 신뢰성 0145~ 대비).
     if (p.type === 'mailSend') {
