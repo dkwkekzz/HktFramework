@@ -1,4 +1,6 @@
 'use strict';
+// step-0144 — 우편 발행(mailSentPublish·svc.mail.sent): 입금(mailSend)을 버스로 발행해 audit/읽기 모델이 *발행자 무수정으로* 관측한다 —
+//   거래소 0108(exchangePublish→svc.exchange.sold·audit 구독)의 우편 판. 우편함 권위는 여전히 MailService(발행은 파생 관찰 스트림). OFF·bus 부재면 발행 0 = 0143 비트 동일.
 // step-0143 — 우편 수령(mailFetch): 0142 는 입금만이라 우편함이 무한히 쌓였다 — 수신자가 *가져가는* 경로가 없었다.
 //   이 step: 수신자가 우편함을 pull → 보유(held)에서 수령(fetched)으로 *무손실 이동*(읽음 보관·이중 수령 0·빈 우편함 재수령 0).
 //   회계 확장: 0142 sent==totalHeld 에서 sent==held+fetched 로(+expired 0148). 우편은 오프라인 배송이므로 *접속 시 수령*이 정상 흐름(귓속말의 즉시 전달과 대비).
@@ -17,7 +19,9 @@ const { fnv1a } = __c;
 //   회계(0150 capstone 대비): sent = 총 입금 통수. 0142 엔 held(보유)만 = sent(수령/만료 0).
 class MailService {
   constructor(opts = {}) {
-    this.bus = opts.bus || null;   // 발행용(0144~ svc.mail.* 발행) — 0142 엔 미사용(발신 0).
+    this.bus = opts.bus || null;   // 발행용(svc.mail.* 발행 — 0144~).
+    this.sentPublish = opts.sentPublish || false;   // 입금 발행(step-0144·mailSentPublish) — mailSend 시 svc.mail.sent 발행. OFF·bus 부재면 발행 0(0143 비트 동일).
+    this.sentPublished = 0;        // 발행한 svc.mail.sent 수(step-0144·계측·sent 와 1:1).
     this.boxes = new Map();        // recipient -> Map(mailId -> mail) — 우편함 권위(단일 소유·보유 held).
     this.sent = 0;                 // 총 입금 통수(회계 — 0150 sent==held+fetched+expired 의 좌변).
     this.fetched = 0;              // 총 수령 통수(step-0143 — 수신자가 가져간 합).
@@ -36,8 +40,11 @@ class MailService {
       const id = p.id != null ? p.id : ('mail' + (this._seq++));
       const box = this._box(rcpt);
       if (box.has(id)) return;   // idempotent
-      box.set(id, { id, from: p.from, to: rcpt, body: p.body, sentAt: m.tick != null ? m.tick : (p.sentAt | 0) });
+      const sentAt = m.tick != null ? m.tick : (p.sentAt | 0);
+      box.set(id, { id, from: p.from, to: rcpt, body: p.body, sentAt });
       this.sent++;
+      // 입금 발행(step-0144·mailSentPublish) — svc.mail.sent 로 1회 발행(운영 가시화·audit 관측). OFF·bus 부재면 no-op(0143 비트 동일).
+      if (this.sentPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.sent', ev: { id, from: p.from, to: rcpt, sentAt } }); this.sentPublished++; }
       return;
     }
     // 우편 수령(mailFetch·step-0143) — 수신자가 자기 우편함을 pull. 보유분 전부를 읽음 보관으로 *무손실 이동*(box→read).

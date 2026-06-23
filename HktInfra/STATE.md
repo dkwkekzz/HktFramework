@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0144](step-0144.md) — **우편 입금 발행**(mailSentPublish·svc.mail.sent): 입금을 버스로 발행 → audit(발행자 무수정 소비자)가 관측(거래소 0108 의 우편 판). 우편함 권위는 여전히 MailService(발행=파생 관찰 스트림·비-침습). OFF·bus 부재 = 0143 비트 동일. 닿는 박스: svc-mail·topo-build·topo-subs.
-- **한 줄 상태**: reg ALL OK(src=baseline=0143 비트 동일)·exmail: sentPublished 3==audit.seen 3==sent 3·발행 ON/OFF totalHeld 동일(비-침습)·OFF 발행 0·spine 통과.
-- **다음**: §2 참조(0145 우편 영속·failover mailPersist — op 저널 replay).
+- **닫힌 step**: [step-0145](step-0145.md) — **우편 영속·failover**(mailPersist·op 저널 replay): 0142~0144 우편함은 자기 영속 0(crash 휘발). 이 step: send/fetch op 를 durable 저널에 기록·crash(projection 소실) 후 seq 순 replay → 우편함+읽음+회계 *죽기 전과 비트 동일* 재구성(가방 0017·거래소 0109 의 우편 판·event sourcing). persist OFF → 소실(대조군). OFF·mail OFF = 0144 비트 동일. 닿는 박스: svc-mail·topo-build.
+- **한 줄 상태**: reg ALL OK(src=baseline=0144 비트 동일)·exmail: reconstruct digest==pre 전 시드·crash 빈 투영·persist OFF 소실·accountConsistent·spine 통과.
+- **다음**: §2 참조(0146 우편 저널 스냅샷 압축 mailSnapshot).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 서비스 arc 진행 중(0142 분리✅·0143 수령✅·0144 발행✅). 남은: 0145 영속·failover→0146 저널 스냅샷 압축→0147 읽음확인 발행→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·거래소 발행 7종·우편 발행 1종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
+**우편(Mail) 서비스 arc 진행 중(0142 분리✅·0143 수령✅·0144 발행✅·0145 영속✅). 남은: 0146 저널 스냅샷 압축→0147 읽음확인 발행→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·거래소 발행 7종·우편 발행 1종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -240,3 +240,4 @@
 | [0142](step-0142.md) | 우편(Mail) 서비스 분리(MailService — mailSend 입금·수신자별 우편함·존 tick 밖·발신 0) | 통과 · sent 4·held 3/1·멱등·결정론 |
 | [0143](step-0143.md) | 우편 수령(mailFetch — held→fetched 무손실 이동·sent==held+fetched) | 통과 · h1 fetched 2·재수령 0·accountConsistent |
 | [0144](step-0144.md) | 우편 입금 발행(mailSentPublish — svc.mail.sent·audit 무수정 관측) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
+| [0145](step-0145.md) | 우편 영속·failover(mailPersist — op 저널 replay·crash→reconstruct) | 통과 · reconstruct==pre digest·OFF 소실·accountConsistent |
