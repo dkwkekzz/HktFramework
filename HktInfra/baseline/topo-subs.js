@@ -40,6 +40,7 @@ function buildSubs(c) {
   if (c.audit && c.exchange && c.abandonPublish) subs.push(['svc.exchange.saga_abandoned', 'audit']);   // 포기 발행(0132) — audit 가 svc.exchange.saga_abandoned 구독(영구 미해결 give 관측). abandonPublish OFF 면 미추가(0131 토폴로지 비트 동일).
   if (c.audit && c.exchange && c.readmitPublish) subs.push(['svc.exchange.saga_readmitted', 'audit']);   // 재admission 발행(0135) — audit 가 svc.exchange.saga_readmitted 구독(포기 give 재개 관측·0132 의 짝). readmitPublish OFF 면 미추가(0134 토폴로지 비트 동일).
   if (c.exchange && c.autoReadmit && c.inventory) subs.push(['svc.inventory.up', 'exchange']);   // 재admission 자동 트리거(0136) — 거래소가 가방 회복 신호(svc.inventory.up)를 구독해 수신 시 스스로 재admission(0056 busPresenceRecover 의 saga 판). autoReadmit OFF 면 미추가(0135 토폴로지 비트 동일).
+  if (c.audit && c.exchange && c.failPublish) subs.push(['svc.exchange.saga_failed', 'audit']);   // 영구 실패 발행(0138) — audit 가 svc.exchange.saga_failed 구독(saga 종결 통보 관측·saga_abandoned 0132 의 종결 판). failPublish OFF 면 미추가(0137 토폴로지 비트 동일).
   if (c.marketFeed && c.exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); subs.push(['svc.exchange.expired', 'market']); }   // 시세 피드(0112·0116) — MarketFeed 가 체결·취소·만료 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
   if (c.audit && c.bouncePublish && c.whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
   return subs;
