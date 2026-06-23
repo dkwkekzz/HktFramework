@@ -757,6 +757,43 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
       },
       note: '<b>작은 구체 구름이 무너지며 합쳐져 몇 개의 큰 천체가 된다</b>(구체 세계 SW1+SW2·강착=행성 형성). <b>▶ 흐름</b>: 작은 구체 40개가 흩어져 있다(파랑=차가움). 서로 <b>중력으로 끌려</b>(0028) 무너지고, 부딪치면 <b>접촉</b>이 <b>겹침을 거부</b>(반발)하면서 <b>낙하 에너지를 열로 식힌다</b>(감쇠·소산). 식어서 <b>느려진 접촉은 하나로 합쳐진다</b>(0036 강착·vstick 임계) — 우상단 "개체 N" 이 <b>40 → 몇 개로 뚝뚝 떨어지고</b> 남은 천체가 <b>커지고 밝아진다</b>(노랑=강착열↑). <b>왜 중요한가</b>(design/sphere-world.md §0·§6): 이게 사용자가 말한 <b>"모여서 커지면 하나로 합쳐 단순화"</b> 의 실현 — ① <b>창발 물리</b>: 미행성이 충돌·합체로 행성이 되는 그 방식 ② <b>성능</b>: N 개가 적은 큰 구체로 줄어 비용↓(적응 LOD 의 Lagrangian 형태). <b>새 엔진 법칙이 없다</b> — 이미 가진 중력·접촉·합치기를 <b>한 세계에서 같이 굴린 것</b>(0035 "새 engine 없음" 과 같은 *조립=창발 무대*). 그동안 비어 보였던 건 이 셋이 <b>한 장면에 같이 돈 적이 없어서</b>다. <b>보존(쌍 보존·합산)</b>: 질량·운동량 <b>기계 정밀도로 정확 불변</b>(우상단 ΣP). <b>소산 = 시간의 화살</b>: 내부에너지(열)가 <b>단조 증가</b> — 낙하 운동E 가 접촉 감쇠+강착열로 비가역 전환(다시 안 흩어짐). <b>정직한 한계</b>: 각운동량 때문에 <b>한 점이 아니라 몇 천체로</b> 정착해 서로 궤도를 돈다(물리적으로 옳음·한 덩어리로 안 뭉침)·합쳐진 큰 천체끼리는 더는 안 닿아 추가 소산이 멈춘다(궤도 N체)·빠른 정면충돌은 SW3 로 깨질 수도(여기선 소산이 식혀 합침 우세). 새 법칙 없는 *조립 step*.'
+    },
+
+    // ── step_0044 — 강착↔파편 왕복: 임계가 합침/깨짐을 가른다(SW3 조립·새 엔진 없음) ──
+    //   강착 세계(0043)에 쪼개기(0038 fragmentOnImpact)를 더한다: advance = 중력→접촉→적분→fragment(빠름→파편)→
+    //   merge(느림→합침). 고속 충돌체가 뜨거운 천체에 박혀 *파편으로 폭발*(N↑)하고, 파편이 중력+소산으로 식어
+    //   *다시 합쳐진다*(N↓·재강착). 임계가 author 없이 행동을 가른다 — 새 법칙 없는 조립(0043 처럼).
+    '0044': {
+      label: 'step_0044 — 강착↔파편 왕복(부수고 다시 모임)', title: 'HTJ — 강착↔파편 왕복: 임계가 합침/깨짐을 가른다',
+      sub: '강착 세계(0043)에 쪼개기(0038)를 더한다 — 고속 충돌체가 뜨거운 천체에 박혀 파편으로 폭발하고(빠름→깨짐), 파편이 중력+소산으로 식어 다시 합쳐진다(느림→합침·재강착). 임계가 author 없이 가른다. 새 엔진 법칙 없음·구체 세계 SW3. 질량·운동량 정확 보존',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const big = Math.max(40, Math.round(N * N * 0.14)), small = Math.max(4, Math.round(N * N * 0.018));
+        const body = (cx, cy, cells, vx, vy, intE) => { const m = cells * 4; return { cx, cy, cz: cen, mass: m, px: m * vx, py: m * vy, pz: 0, Lx: 0, Ly: 0, Lz: 0, KEcm: 0.5 * m * (vx * vx + vy * vy), internalE: intE, energy: 0, cells, radius: eqR(cells), temp: 0, peak: 1 }; };
+        let seed = 7; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [body(cen + N * 0.04, cen, big, 0, 0, 600), body(cen - N * 0.38, cen, small * 1.7, 5.5, 0, 3)];   // 뜨거운 천체 + 고속 충돌체
+        for (let i = 0; i < 8; i++) { const dx = (rnd() - 0.5) * N * 0.2 + N * 0.12, dy = (rnd() - 0.5) * N * 0.45; ents.push(body(cen + dx, cen + dy, small, -0.04 * dy, 0.02 * dx, 3)); }
+        for (const e of ents) e.energy = e.KEcm + e.internalE;
+        w.__entities = ents;
+        w.__gopt = { G: 0.3, soft: Math.max(2, N * 0.1) };
+        w.__copt = { stiffness: 5, damping: 10, pad: 0.3 };
+        w.__fopt = { shatterKE: 40, n: 6, dispersalFrac: 0.85, spread: 1.3, pad: 0.4 };   // 빠름 → 파편
+        w.__mopt = { vstick: 1.2, pad: 0.6 };                                            // 느림 → 합침
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.08, w.__gopt);     // 끌어 모음(0028)
+        HTJEntity.applyEntityContact(w.__entities, 0.08, w.__copt);     // 반발+소산(0037)
+        HTJEntity.stepEntities(w.__entities, 0.08, { N: w.N });
+        w.__entities = HTJEntity.fragmentOnImpact(w.__entities, w.__fopt).entities;   // 빠른 충돌 → 파편(0038)
+        w.__entities = HTJEntity.mergeEntities(w.__entities, w.__mopt).entities;      // 느려진 접촉 → 합침(0036)
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 깨지면 흩어진 파편·식어 합치면 큰 천체.
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>고속 충돌은 부수고·느린 접촉은 합친다 — 임계가 author 없이 가른다</b>(구체 세계 SW3·강착↔파편 왕복). <b>▶ 흐름</b>: 뜨거운 큰 천체(노랑=강착열) 둘레에 작은 구체들이 있고, 왼쪽에서 <b>고속 충돌체</b>가 날아온다. 박히는 순간 상대 운동E 가 임계(shatterKE)를 넘어 천체가 <b>파편으로 폭발</b>한다(우상단 "개체 N" 이 <b>확 늘어남</b>·0038 fragmentEntity 의 보존 분배). 흩어진 파편은 중력으로 다시 끌리고 접촉 소산으로 식어, <b>느려지면(vstick 아래) 다시 합쳐진다</b>(0036 강착) — N 이 <b>폭발↑ 했다가 재강착↓</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW3·§4): <b>"상대 속도가 임계를 넘으면 깨지고, 못 넘으면 붙는다 — author 하지 않고 임계가 가른다"</b>. 같은 두 법칙(합치기·쪼개기)이 <b>한 세계에서</b> 충돌 속도에 따라 갈려 — 합치기↔쪼개기 <b>왕복이 닫힌다</b>(소행성 충돌 cascade·충돌 강착의 양면). <b>새 엔진 법칙 없음</b> — 0043 강착에 0038 쪼개기를 <b>같이 굴린 조립</b>(0035 정신). <b>보존(쌍 보존·분배)</b>: 깨질 때도 합칠 때도 질량·운동량 <b>기계 정밀도로 정확 불변</b>(우상단 ΣP). <b>임계 분리</b>: 파편 분산 속도 > vstick 라야 <i>깨자마자 재합침(flicker)</i> 없이 왕복이 닫힌다. <b>정직한 한계</b>: 파편 분산E 는 부모 internalE(결합열)에서(충돌 운동E 직접 소비 아님·0038 한계 계승)·조각 수 n 고정·재강착은 중력+소산에 의존(파라미터 영역). 새 법칙 없는 *왕복 조립 step*.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1004,7 +1041,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0043';                       // 기본 = 현재 step
+    sel.value = '0044';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
