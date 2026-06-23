@@ -9,7 +9,7 @@
  * 하는 일(기계 판정 가능분):
  *   1. node run.js          — 현재 step 4기둥 (exit 0)
  *   2. node run.js spine    — src 누적 회귀(전 역사 불변을 현재 코드에 단언) (exit 0)
- *   3. 크기 예산 — STATE.md ≤ 30KB · step-NNNN.md ≤ 18KB
+ *   3. 크기 예산 — STATE.md ≤ 30KB · step-NNNN.md ≤ 8KB (압축형: delta+검증+척추, 서사 0)
  *   4. 산출물 존재 — step-NNNN.md (골격 TODO 잔존 검사 포함)
  *   5. STATE.md §7 INDEX 에 [NNNN](step-NNNN.md) 행 존재
  *
@@ -37,7 +37,7 @@ console.log(`== close-step step-${N} — 닫기 게이트(기계 판정분) ==`)
 // 3·4. 산출물 존재 + 크기 예산 + 골격 잔존
 const budgets = [
   ['STATE.md', 30 * 1024],
-  [`step-${N}.md`, 18 * 1024],
+  [`step-${N}.md`, 8 * 1024],
 ];
 for (const [f, max] of budgets) {
   const p = path.join(ROOT, f);
