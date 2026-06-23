@@ -1,4 +1,7 @@
 'use strict';
+// step-0148 — 우편 만료 TTL(mailTtl·now−sentAt≥ttl 자동 회수): 미수령 우편이 우편함에 영영 쌓일 수 있다(0143 의 정직한 한계).
+//   거래소 0114(매물 만료 TTL)처럼, mailSweep(now) 가 now−sentAt≥ttl 인 미수령 우편을 *시간 트리거*로 회수(보유→만료). 회계가 sent==held+fetched+expired 로 완비(우편 1통은 매 순간 보유/수령/만료 정확히 한 상태).
+//   만료도 durable op('expire')로 저널 → reconstruct 정합. ttl 0·mailSweep 미주입이면 만료 0 = 0147 비트 동일.
 // step-0147 — 우편 읽음 확인 발행(mailReadPublish·svc.mail.read): 0144 는 *입금*만 발행했다 — 수령(읽음)은 운영/발신자가 관측할 길이 없었다.
 //   이 step: mailFetch 수령 시 통마다 svc.mail.read{id,to,from} 발행 → audit/발신자가 *읽음*을 관측(수명주기 발행 확장·거래소 sold/cancelled 류). 우편함 권위 불변(발행=파생 스트림·비-침습). OFF·bus 부재면 발행 0 = 0146 비트 동일.
 // step-0146 — 우편 저널 스냅샷 압축(mailSnapshot): 0145 저널은 무압축이라 send/fetch 누적으로 무한 성장한다.
@@ -38,6 +41,7 @@ class MailService {
     this.expired = 0;              // 총 만료 통수(step-0148 — 만료 회수 합; 0143 엔 0).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
+    this.ttl = opts.ttl || 0;      // 만료 TTL(step-0148·mailTtl) — now−sentAt≥ttl 미수령 우편 자동 회수. 0 면 만료 0(0147 동일).
     this.persist = opts.persist || false;   // 원장 영속(step-0145·mailPersist) — send/fetch op 를 durable 저널에 기록·crash 후 replay. OFF 면 저널 0(0144 동일·휘발).
     this.journal = [];             // durable op 저널 [{seq,kind,...}](step-0145) — projection(우편함·읽음·회계)과 분리(crash 시 projection 만 소실).
     this.jseq = 0;                 // 저널 시퀀스(append-only).
@@ -105,6 +109,23 @@ class MailService {
       this._lastFetch = { to: rcpt, mails: out };
       return;
     }
+    // 우편 만료 sweep(mailSweep·step-0148) — now−sentAt≥ttl 인 미수령 우편을 시간 트리거로 회수(보유→만료). p={type,now?}. now 미지정이면 주입 tick.
+    //   ttl 0 면 no-op(0147 동일). 결정론: recipient/id 정렬 순회. 만료도 durable op('expire')로 저널 → reconstruct 정합.
+    if (p.type === 'mailSweep') {
+      if (this.ttl <= 0) return;
+      const now = p.now != null ? p.now : (m.tick | 0);
+      for (const rcpt of [...this.boxes.keys()].sort()) {
+        const box = this.boxes.get(rcpt);
+        for (const id of [...box.keys()].sort()) {
+          const mm = box.get(id);
+          if (now - mm.sentAt >= this.ttl) {
+            box.delete(id); this.expired++;
+            this._journal({ kind: 'expire', to: rcpt, id });   // durable op(만료도 replay 정합)
+          }
+        }
+      }
+      return;
+    }
   }
   // crash(step-0145) — 박스 RAM 소실의 인프로세스 모델: projection(우편함·읽음·회계)만 비운다. *op 저널은 durable* 이라 보존(거래소 0109 의 우편 판).
   crash() {
@@ -132,6 +153,9 @@ class MailService {
           this.fetched += out.length;
           box.clear();
         }
+      } else if (e.kind === 'expire') {   // 만료(step-0148) — 회수된 우편 1통 제거 + expired++(저널 정합).
+        const box = this.boxes.get(e.to);
+        if (box && box.has(e.id)) { box.delete(e.id); this.expired++; }
       }
     }
   }
