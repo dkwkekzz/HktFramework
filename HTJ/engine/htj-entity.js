@@ -190,5 +190,173 @@
     return { entities: out, merges };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, VERSION: 3 };
+  // 개체 접촉(반발 + 소산) — 겹친 구체를 밀어내고(반발=Hooke 쌍힘) 접촉 상대 운동을 감쇠(소산→열·비가역).
+  //   design/sphere-world.md §6 SW2(DEM) — 합치기(SW1)가 *닿고 느린* 구체를 하나로 붙였다면, 이건 *겹친*
+  //   구체가 합쳐지지 않고 **서로를 떠받치게** 한다 — "쌓이고·표면이 서고·선다"의 접촉 쪽("선 캐릭터 =
+  //   중력↓ + 접촉 반발↑ 균형"). 두 힘:
+  //     ① 반발(Hooke 보존 쌍힘): 겹침 overlap=(r_a+r_b)−d > 0 이면 F=k·overlap 를 법선(a↔b)으로 밀어냄.
+  //        a 는 −n̂·b 는 +n̂ 로 equal-opposite → **순 운동량 정확 보존**(step_0028 중력 쌍힘과 동형). 보존력
+  //        → 탄성 PE U=½k·overlap²(contactPotentialEnergy)에 저장, 정착(평형 overlap*)에서 중력과 균형.
+  //     ② 감쇠(법선 소산): 접촉 상대 법선 속도 v_n 을 감쇠(J=−c·v_n·dt, equal-opposite=운동량 보존).
+  //        잃은 운동E 를 *정확 회계*(감쇠 충격량 전후 KE 차)해 두 개체 internalE 로 → **비가역 소산**(엔트로피↑·
+  //        step_0011 점성의 구체-접촉 판). 반발만이면 영원히 튕기지만(탄성), 감쇠가 있어야 *멈춘다*.
+  //   에너지 정합: 총E = Σenergy_i + U_contact 가 보존(반발은 KEcm↔U_contact 가역·감쇠는 KEcm→internalE 비가역).
+  //   opts: { k(반발 강성, 기본 0 → 접촉 없음·early-return=회귀 0), cDamp(법선 감쇠, 기본 0) }.
+  //   가법: 노브 0 이면 즉시 반환(기존 거동 불변). 입력 개체를 제자리 변형해 반환.
+  function applyEntityContact(entities, dt, opts) {
+    opts = opts || {};
+    const k = opts.k != null ? opts.k : 0;
+    const c = opts.cDamp != null ? opts.cDamp : 0;
+    const n = entities.length;
+    if (n < 2 || (k === 0 && c === 0)) return entities;       // 노브=0 → early-return(회귀 0)
+    // internalE 자기일관 보장(descriptor 에 없으면 energy−KEcm 으로 채움).
+    for (let i = 0; i < n; i++) {
+      const e = entities[i];
+      if (e.internalE == null) {
+        const ke = e.KEcm != null ? e.KEcm : (e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0);
+        e.internalE = (e.energy != null ? e.energy : ke) - ke;
+      }
+    }
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;     // a→b
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const overlap = (a.radius + b.radius) - d;
+      if (overlap <= 0 || d < EPS) continue;                          // 안 겹침·동일 위치(방향 불정) → 접촉 없음
+      const nx = dx / d, ny = dy / d, nz = dz / d;                    // 법선 단위(a→b)
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      // ① 반발(Hooke 보존 쌍힘) — a 는 −n̂(밀려남)·b 는 +n̂ → ΣΔp=0 정확.
+      if (k !== 0) {
+        const jr = k * overlap * dt;                                  // 충격량 크기 = F·dt
+        a.px -= jr * nx; a.py -= jr * ny; a.pz -= jr * nz;
+        b.px += jr * nx; b.py += jr * ny; b.pz += jr * nz;
+      }
+      // ② 감쇠(법선 소산 → 열) — 정확 KE 회계로 비가역 dissipation 을 internalE 에 적립.
+      if (c !== 0) {
+        const KEa0 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma;
+        const KEb0 = 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
+        const vn = (b.px / mb - a.px / ma) * nx + (b.py / mb - a.py / ma) * ny + (b.pz / mb - a.pz / ma) * nz;
+        // 임계 감쇠 클램프: 상대 법선 속도를 *0 까지만* 없앤다(역전 금지). Δv_n = J/μ 이므로 v_n→0 의 임펄스는
+        //   J_zero = −μ·v_n. |J| 가 이를 넘으면(c·dt > μ) 상대 운동이 역전·증폭돼 KE 가 *늘어*(dissip<0·에너지 주입·
+        //   internalE 음수)나므로, 넘지 않게 자른다 → dissip ≥ 0·internalE 단조↑ 보장(비가역 소산이 항상 참).
+        const mu = (ma * mb) / (ma + mb);
+        let J = -c * vn * dt;                                         // 상대 법선 운동 반대(소산) — equal-opposite
+        const Jzero = -mu * vn;                                       // v_n→0 임펄스(같은 부호)
+        if (Math.abs(J) > Math.abs(Jzero)) J = Jzero;                 // 임계 초과 → 0 까지만(역전 방지)
+        b.px += J * nx; b.py += J * ny; b.pz += J * nz;
+        a.px -= J * nx; a.py -= J * ny; a.pz -= J * nz;
+        const KEa1 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma;
+        const KEb1 = 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
+        const dissip = (KEa0 + KEb0) - (KEa1 + KEb1);                 // 잃은 KE(클램프로 항상 ≥0) → 열로
+        a.internalE += 0.5 * dissip; b.internalE += 0.5 * dissip;    // 두 개체 반씩(비가역)
+      }
+    }
+    // KEcm·energy 재계산(자기일관: energy = KEcm + internalE).
+    for (let i = 0; i < n; i++) {
+      const e = entities[i];
+      e.KEcm = e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return entities;
+  }
+
+  // 접촉 탄성 퍼텐셜 에너지 U = Σ_{i<j} ½·k·overlap²(겹친 쌍만) — 반발 힘과 일관(F=−dU/d(overlap)).
+  //   역학E 보존 검증 공유: 총E = Σenergy_i + U_contact 가 보존(반발은 KEcm↔U 가역). pairPotentialEnergy 의 접촉 판.
+  function contactPotentialEnergy(entities, opts) {
+    opts = opts || {};
+    const k = opts.k != null ? opts.k : 0;
+    if (k === 0) return 0;
+    const n = entities.length;
+    let U = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      const overlap = (a.radius + b.radius) - Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (overlap > 0) U += 0.5 * k * overlap * overlap;
+    }
+    return U;
+  }
+
+  // 구체 쪼개기(파편화) — 한 구체를 n 조각으로 터뜨린다(mergeGroup 의 역·step_0038·SW3).
+  //   design/sphere-world.md §6 SW3 — 합치기(SW1)의 *거울*: 강한 충돌/외란으로 임계를 넘은 구체가 작은
+  //   구체들로 깨진다. mergeGroup 의 보존 합산을 *역으로* — 부모 1 개를 n 조각으로 나누되 질량·운동량·
+  //   각운동량(원점 기준)·총E 를 *정확* 보존(Σ조각 = 부모). 분산(폭발)에 쓰는 운동E 는 부모 internalE
+  //   (결합/열)에서 꺼낸다 — merge 의 "잃은 CoM KE → 열" 의 역인 "결합열 → 조각 분산 KE"(internalE↔KEcm 재분배).
+  //
+  //   조각 배치(대칭 → 보존 정확): n 조각을 CoM 둘레 평면 고리(각 2πk/n)에 등질량·등셀로 놓고 반경 방향
+  //   폭발 속도 s·û_k 를 준다. Σû_k=0(고리) → 순 운동량 부모와 같음(질량가중 평균차감으로 기계정밀도 강제·0007
+  //   거울). 각운동량: 부모 intrinsic 스핀 L 을 조각마다 L/n 씩 나눠 줌 + 대칭 배치라 궤도 L=0 → 원점 기준 총 L
+  //   정확 보존. 에너지: KE_explosion=½M·s²=dispersalFrac·internalE → 조각 internalE=(1−dispersalFrac)·internalE/n,
+  //   ΣE = KEcm_parent + internalE_parent = E_parent(정확).
+  //   opts: { n(조각 수, 기본 4), dispersalFrac(분산에 쓸 internalE 비율, 기본 0.5), spread(배치 반경 배수, 기본 1) }.
+  //   반환: 조각 배열(n<2 면 [entity] 그대로). 입력은 변형하지 않는다.
+  function fragmentEntity(entity, opts) {
+    opts = opts || {};
+    const n = Math.max(1, Math.floor(opts.n != null ? opts.n : 4));
+    if (n < 2) return [entity];
+    const df = Math.max(0, Math.min(1, opts.dispersalFrac != null ? opts.dispersalFrac : 0.5));
+    const M = entity.mass;
+    const vcx = M > EPS ? entity.px / M : 0, vcy = M > EPS ? entity.py / M : 0, vcz = M > EPS ? entity.pz / M : 0;
+    const internalE = entity.internalE != null ? entity.internalE : ((entity.energy || 0) - (entity.KEcm || 0));
+    const m = M / n, cells = (entity.cells || n) / n, radius = equivalentRadius(Math.max(1e-9, cells));
+    const d = (opts.spread != null ? opts.spread : 1) * (entity.radius || radius);
+    const KE_explosion = df * Math.max(0, internalE);
+    const s = M > EPS ? Math.sqrt(2 * KE_explosion / M) : 0;     // ½M·s² = KE_explosion
+    const intEach = (internalE - KE_explosion) / n;             // 남은 결합열 균등 분배(≥0: df≤1)
+    const Lx = (entity.Lx || 0) / n, Ly = (entity.Ly || 0) / n, Lz = (entity.Lz || 0) / n;  // intrinsic 스핀 균등 분배
+    // 조각 속도(폭발) 만들고, 질량가중 평균을 v_cm 에 맞춰 빼 ΣP 를 부모와 *정확* 일치(0007 평균차감).
+    const dirs = [], vel = []; let mvx = 0, mvy = 0, mvz = 0;
+    for (let k = 0; k < n; k++) {
+      const th = 2 * Math.PI * k / n, ux = Math.cos(th), uy = Math.sin(th), uz = 0;
+      const vx = vcx + s * ux, vy = vcy + s * uy, vz = vcz + s * uz;
+      dirs.push([ux, uy, uz]); vel.push([vx, vy, vz]); mvx += vx; mvy += vy; mvz += vz;
+    }
+    const ox = mvx / n - vcx, oy = mvy / n - vcy, oz = mvz / n - vcz;   // 평균 − v_cm = 보정 오프셋(Σû_k≠0 의 FP)
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const ux = dirs[k][0], uy = dirs[k][1], uz = dirs[k][2];
+      const vx = vel[k][0] - ox, vy = vel[k][1] - oy, vz = vel[k][2] - oz;   // ΣP 정확 보정
+      const px = m * vx, py = m * vy, pz = m * vz;
+      const KEcm = m > EPS ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+      out.push({
+        cx: entity.cx + ux * d, cy: entity.cy + uy * d, cz: entity.cz + uz * d,
+        mass: m, px, py, pz, Lx, Ly, Lz,
+        KEcm, internalKE: (entity.internalKE || 0) / n, internalE: intEach, energy: KEcm + intEach,
+        cells, radius, temp: m > EPS ? intEach / m : 0, peak: entity.peak || 1
+      });
+    }
+    return out;
+  }
+
+  // 충돌 임계 쪼개기(자기-트리거) — 닿고 *빠른* 쌍을 파편화(mergeEntities 의 거울: 느림→합침·빠름→깨짐).
+  //   design/sphere-world.md §6 SW3 — 합치기↔쪼개기 왕복. 접촉(거리 ≤ r_a+r_b+pad)한 쌍의 상대 운동E
+  //   ½·μ·|v_a−v_b|² 가 결합E 임계(shatterKE·시뮬 상수) 이상이면 두 구체를 fragmentEntity 로 깬다(임계가 가른다).
+  //   각 fragmentEntity 가 *제* 보존량을 정확 보존 → 쌍 총량도 정확 보존(합의 합). μ=reduced mass.
+  //   opts: { shatterKE(임계 상대 운동E·기본 1), n, dispersalFrac, spread, pad(닿음 여유·기본 0.5) }.
+  //   반환: { entities, shatters }. 입력은 변형하지 않는다.
+  function fragmentOnImpact(entities, opts) {
+    opts = opts || {};
+    const shatterKE = opts.shatterKE != null ? opts.shatterKE : 1;
+    const pad = opts.pad != null ? opts.pad : 0.5;
+    const n = entities.length;
+    if (n < 2) return { entities: entities.slice(), shatters: 0 };
+    const mark = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      if (Math.sqrt(dx * dx + dy * dy + dz * dz) > a.radius + b.radius + pad) continue;   // 안 닿음
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      const rvx = b.px / mb - a.px / ma, rvy = b.py / mb - a.py / ma, rvz = b.pz / mb - a.pz / ma;
+      const mu = (ma * mb) / (ma + mb);
+      if (0.5 * mu * (rvx * rvx + rvy * rvy + rvz * rvz) >= shatterKE) { mark[i] = true; mark[j] = true; }  // 빠르면 깨짐
+    }
+    const out = []; let shatters = 0;
+    for (let i = 0; i < n; i++) {
+      if (mark[i]) { const frags = fragmentEntity(entities[i], opts); for (const f of frags) out.push(f); shatters++; }
+      else out.push(entities[i]);
+    }
+    return { entities: out, shatters };
+  }
+
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, fragmentEntity, fragmentOnImpact, VERSION: 5 };
 });
