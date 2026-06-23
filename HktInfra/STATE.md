@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0165](step-0165.md) — **아이템 우편 give 결과 비동기 수신**(mailSaga·replyTo+gid): _custody 가 replyTo+gid 를 실어 가방 회신을 받고 acked(ok/fail) 집계·미해결 pending 추적(거래소 0121 의 우편 판). 무손실서 pending 0 drain. 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(mailSaga OFF=0164 비트 동일)·exmlsaga: gives 4·acked 4·ackedOk 4·pending 0 drain·spine 통과.
-- **다음**: §2 — 아이템 우편 saga 신뢰 전달(0166 실패 보상·0167 회신 손실 재전송·0168 dedup·0169 회계·0170 교차 정합 capstone).
+- **닫힌 step**: [step-0166](step-0166.md) — **아이템 우편 발신 실패 보상**(mailCompensate): 발신 leg give 실패 회신→우편 롤백(box 제거·sent--·compensated++·거래소 0122 의 우편 판). 발신자가 안 가진 아이템 우편은 적재 취소(phantom 0). 닿는 박스: svc-mail·topo-build.
+- **한 줄 상태**: reg ALL OK(mailCompensate OFF=0165 비트 동일)·exmlcomp: sent 1(itemX 롤백)·ackedFail 1·compensated 1·phantom 0·spine 통과.
+- **다음**: §2 — 아이템 우편 saga 신뢰 전달(0167 회신 손실 재전송·0168 dedup·0169 회계·0170 교차 정합 capstone).
 
 ---
 
@@ -256,8 +256,9 @@
 | [0158](step-0158.md) | 아이템 우편 수령(itemFetched·보유→수령 아이템 이동·itemHeld→itemFetched) | 통과 · itemSent 3·itemHeld 1·itemFetched 2 |
 | [0159](step-0159.md) | 아이템 우편 만료 회수(itemExpired·mailSweep 만료 시 아이템 회수·itemHeld→itemExpired) | 통과 · itemSent 3·held/fetch/exp 1/1/1 |
 | [0160](step-0160.md) | 아이템 우편 회계 정합 capstone(itemConsistent·itemSent==itemHeld+itemFetched+itemExpired·아이템 우편 arc 닫기) | 통과 · 4체제 true·분할 0/2/0·0/0/2·1/1/1 |
-| [0161](step-0161.md) | 아이템 우편 발신 인출 leg1(mailInv·mailSend → 발신자 가방→mailcustody give·거래소 0117 의 우편 판) | 통과 · gives 2·owner=mailcustody·발신자 잔여 0 |
-| [0162](step-0162.md) | 아이템 우편 수령 입금 leg2(mailFetch → custody→수령자 가방 give·거래소 0118 의 우편 판) | 통과 · item0→h1·item1 custody 잔류·gives 3 |
-| [0163](step-0163.md) | 아이템 우편 만료 반환 leg3(mailSweep 만료 → custody→발신자 가방 give·거래소 0119 의 우편 판) | 통과 · item1→x 반환·gives 4·세 leg 완비 |
-| [0164](step-0164.md) | 아이템 우편 2-서비스 보존(mailCustodyItems ≡ 가방 mailcustody 소유·거래소 0120 의 우편 판) | 통과 · [item2]==[item2]·합치·보존 |
-| [0165](step-0165.md) | 아이템 우편 give 결과 비동기 수신(mailSaga·replyTo+gid·acked 집계·pending 추적·거래소 0121 의 우편 판) | 통과 · gives 4·acked 4·pending 0 drain |
+| [0161](step-0161.md) | 아이템 우편 발신 인출 leg1(mailInv·mailSend → 발신자 가방→mailcustody give) | 통과 · gives 2·owner=mailcustody·발신자 잔여 0 |
+| [0162](step-0162.md) | 아이템 우편 수령 입금 leg2(mailFetch → custody→수령자 가방 give) | 통과 · item0→h1·item1 custody 잔류·gives 3 |
+| [0163](step-0163.md) | 아이템 우편 만료 반환 leg3(mailSweep 만료 → custody→발신자 가방 give) | 통과 · item1→x 반환·gives 4·세 leg 완비 |
+| [0164](step-0164.md) | 아이템 우편 2-서비스 보존(mailCustodyItems ≡ 가방 mailcustody 소유) | 통과 · [item2]==[item2]·합치·보존 |
+| [0165](step-0165.md) | 아이템 우편 give 결과 비동기 수신(mailSaga·replyTo+gid·acked 집계·pending 추적) | 통과 · gives 4·acked 4·pending 0 drain |
+| [0166](step-0166.md) | 아이템 우편 발신 실패 보상(mailCompensate·give 실패→우편 롤백·phantom 0) | 통과 · sent 1·ackedFail 1·compensated 1 |
