@@ -678,6 +678,46 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * (e.density || 0) / mx : 1;
       },
       note: '<b>중력으로 끌리는 가스가 압력으로 떠받쳐져 유한한 공이 된다</b>(구체 세계 SW5·SPH 압력). <b>▶ 흐름</b>: 작은 구체 구름이 <b>중력으로 안으로 끌린다</b>(0028). 동시에 <b>SPH 압력</b>이 민다 — 밀도(0040)에서 상태식 <b>P = k·ρ^γ</b> 로 압력을 만들고, <b>커널 기울기 ∇W</b> 로 대칭 쌍힘 a_i = −Σ_j m_j(P_i/ρ_i²+P_j/ρ_j²)∇_i W_ij 를 줘 빽빽한 곳을 밀어낸다. <b>중력만이면 한 점으로 붕괴</b>하지만 압력이 떠받쳐 <b>유한한 가스 공에서 멈춰 숨쉰다</b>(수축↔팽창 진동) — 중심이 밝다(밀도↑). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0008(중력↔단거리 반발 균형으로 유한 코어)·0010(열압력)의 SPH 판</b> — 구체 떼가 *가스/별처럼* 거동한다. "선 캐릭터"의 지면도 결국 이런 <b>압력으로 떠받쳐진 큰 구체</b>다. <b>보존(대칭 쌍힘·뉴턴3)</b>: F_ij=−F_ji(∇_jW=−∇_iW) → <b>순 운동량 정확 보존</b>(우상단 ΣP 불변). 균일하면 압력 힘 ≈ 0(기울기 0), 밀도 차가 있어야 민다. <b>정직한 한계</b>: 압력은 *힘*만(운동량 보존) — 압력 일↔내부에너지 닫힘(KE↔u)은 후속 SPH 열 벽돌(0008→0010 순서와 동형)·점성(끈적함)·적응 평활길이 h·격자 유체 은퇴는 후속. 여기선 *압력 힘 한 법칙*만.'
+    },
+
+    // ── step_0042 — SPH 에너지 닫힘: 압축이 데우고 팽창이 식힌다(SW5 셋째 벽돌) ──
+    //   0041 압력이 한 일이 이제 내부에너지로 닫힌다(총E 정확 보존·KE↔u). du/dt=½Σ m(P/ρ²+P/ρ²)v_ij·∇W —
+    //   안으로 무너지는 가스가 *압축되며 데워진다*(코어 밝아짐). 색=온도. 0009(수동 온도)·0010(닫힘)의 SPH 판.
+    '0042': {
+      label: 'step_0042 — SPH 에너지 닫힘(압축 데움·팽창 식힘)', title: 'HTJ — SPH 에너지 닫힘: 압축이 데우고 팽창이 식힌다',
+      sub: '0041 압력이 한 일을 내부에너지로 되돌려 총E를 정확히 보존한다 — 안으로 무너지는 가스 구름이 압축되며 데워지고(코어 밝게) 되튀어 식는다(KE↔u 가역). 색=온도. 0010 열압력 닫힘의 SPH 판·구체 세계 SW5',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const cells = Math.max(4, Math.round(N * N * 0.009));
+        let seed = 5; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 50; i++) {
+          const r = N * 0.16 + rnd() * N * 0.14, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph);
+          const m = cells * 2, vin = -0.6;                                  // 안쪽 속도(붕괴 → 압축 데움)
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz,
+            mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: cells * 0.3, energy: cells * 0.3 + 0.5 * m * vin * vin,
+            cells, radius: eqR(cells) });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.3, soft: Math.max(1.5, N * 0.05) };
+        w.__sphH = Math.max(2.5, N * 0.1);
+        w.__popt = { stiffness: 8, gamma: 2, h: w.__sphH };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.2, w.__gopt);     // 안으로 끌고(0028)
+        HTJSPH.sphThermalEnergy(w.__entities, 0.2, w.__popt);          // 압력 일 → 내부E(열·사전 속도·p 불변)
+        HTJSPH.sphPressureForce(w.__entities, 0.2, w.__popt);          // 밖으로 떠받침(같은 사전 속도라 총E 닫힘)
+        HTJEntity.stepEntities(w.__entities, 0.2, { N: w.N });
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 압축되면 밝게(데움)·팽창하면 어둡게(식힘).
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>압력이 한 일이 열로 닫힌다 — 압축이 데우고 팽창이 식힌다</b>(구체 세계 SW5·SPH 에너지 닫힘). <b>▶ 흐름</b>: 가스 구름이 <b>안쪽 속도로 무너진다</b>(중력+초기 붕괴). 빽빽해질수록 0041 <b>압력</b>이 밀어내는데(KE 를 깎음), 이제 그 깎인 운동에너지가 <b>사라지지 않고 내부에너지(열)로 들어간다</b> — <b>du_i/dt = ½ Σ_j m_j(P_i/ρ_i²+P_j/ρ_j²)(v_i−v_j)·∇_i W_ij</b>. 구체 색이 <b>온도</b>(internalE/질량)다 — 코어가 <b>압축되며 밝아지고</b>(데움) 되튀어 팽창하면 <b>어두워진다</b>(식힘). 우상단 총E(KE+u)는 <b>거의 불변</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW5·§5): 0041 은 "압력이 *implicit 열저장고*에서 일을 꺼낸다"는 정직한 한계를 남겼다 — 이 step 이 그 저장고를 <b>실제 내부에너지로 만들어 총E 를 정확히 닫는다</b>(<b>KE↔u 가역</b>·순간 전력 균형이 기계 정밀도로 정확). 이게 <b>0009(수동 온도 T∝ρ^(γ−1))·0010(KE↔내부E 가역 닫힘)의 SPH 판</b> — 별이 *수축으로 데워져 빛나는* 그 메커니즘이다. <b>궤적은 0041 과 불변</b>: EOS P=k·ρ^γ 가 barotropic 이라 u 가 *아직 힘에 되먹지 않는다* — 이 단위는 <b>에너지 책</b>만 정직하게 닫는다(0009 가 수동 온도였던 것과 같은 정신). <b>정직한 한계</b>: 열→압력 되먹임(P=(γ−1)ρu·압축 데움이 더 세게 떠받침)은 후속 벽돌(0010 의 능동 열압력 판)·점성(충격 소산)·격자 유체 은퇴는 SW5 마지막. 여기선 *에너지 닫힘 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -925,7 +965,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0041';                       // 기본 = 현재 step
+    sel.value = '0042';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
