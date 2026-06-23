@@ -1,4 +1,5 @@
 'use strict';
+// step-0125 — saga 미해결 give 추적 + 회신 손실 감지(pendingGives·gid): 0121 의 §9(회신 손실 무대비) 를 *가시화*한다. saga ON 이면 _custody 가 각 give 에 단조 gid 를 부여하고 미해결 집합(pending)에 넣는다 — 가방 item_result 회신이 그 gid 로 돌아오면 제거한다. 정상(무손실) 흐름서 pending 은 0 으로 drain(모든 give 가 acked·닫힌 고리의 liveness). 회신 경로(inventory→exchange item_result)에 손실을 주입하면 잃은 회신의 gid 가 pending 에 *남는다*(ack 미수신 격차가 가시·ackedGives<gives). 이로써 "어느 give 가 응답을 못 받았나"를 거래소가 안다 — 재전송(idempotent dedup)의 토대(후속). saga OFF·gid 부재면 추적 0 = 0124 비트 동일.
 // step-0124 정리 분할 — ExchangeService *원장 코어*(생성자 + 헬퍼 _custody/_journal/스냅샷 + crash + reconstruct + 조회).
 //   거래소 트랜잭션 핸들러(onMsg)는 svc-exchange-txn.js 가 Object.assign 으로 프로토타입 증강(가방 core/txn 분할과 같은 패턴·동작 불변·reg 0).
 //   진입점 svc-exchange.js 가 둘을 묶어 동일 export(ExchangeService) 노출 — 분할은 *파일 구조*만(바이트·동작 불변·svc-exchange.js 가 32KB 초과 → 비대화 트리거).
@@ -47,14 +48,22 @@ class ExchangeService {
     this.aborted = 0;                   // 보상으로 abort 한 listing 수(step-0122·계측). 보존식에서 listed-- 로 함께 빠지므로 conserved 불변.
     this.abortPublish = opts.abortPublish || false;   // 보상 발행(step-0123) — abort 성립 시 svc.exchange.aborted 발행. OFF·bus 부재면 발행 0(0122 비트 동일).
     this.abortPublished = 0;            // 발행한 svc.exchange.aborted 수(step-0123·계측·aborted 와 1:1).
+    this.gid = 0;                       // give id 단조 발급(step-0125·saga ON 일 때만) — 미해결 추적·회신 매칭 키.
+    this.pending = new Set();           // 미해결 give 의 gid 집합(step-0125) — _custody 가 add·item_result 회신이 delete. 정상 흐름서 0 으로 drain·회신 손실 시 잔존(ack 미수신 격차 가시).
+    this.pendingPeak = 0;              // pending 최대 크기(step-0125·계측) — in-flight give 가 실제로 있었음을 증거(0 이면 추적 미작동).
   }
   // escrow custody 이동 헬퍼(step-0117) — 거래소↔가방 2-서비스 쌍 거래의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(fromAvatar→toAvatar). 가방이 권위·거래소는 요청만(은닉). 미충족이면 no-op(추상 escrow·0116 동일).
   _custody(itemId, from, to, cause) {
     if (!this.invMode || !this.inv || itemId == null) return;
     const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to };
     // saga 피드백(step-0121) — ON 이면 replyTo(거래소 주소)+cause(어느 레그·listingId) 를 실어 가방이 item_result 를 거래소로도 회신.
-    //   OFF 면 msg 가 0120 과 정확히 같다(replyTo/cause 키 없음) → 가방의 회신 분기 휴면 = 비트 동일.
-    if (this.saga) { msg.replyTo = this.addr; msg.cause = cause; }
+    //   OFF 면 msg 가 0120 과 정확히 같다(replyTo/cause/gid 키 없음) → 가방의 회신 분기 휴면 = 비트 동일.
+    if (this.saga) {
+      const gid = this.gid++;           // 미해결 추적 id(step-0125) — 회신 매칭 키
+      msg.replyTo = this.addr; msg.cause = cause; msg.gid = gid;
+      this.pending.add(gid);
+      if (this.pending.size > this.pendingPeak) this.pendingPeak = this.pending.size;
+    }
     this.net.send(this.addr, this.inv, msg);
     this.gives++;
   }
@@ -77,6 +86,7 @@ class ExchangeService {
   crash() {
     this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0; this.aborted = 0; this.abortPublished = 0;   // saga 피드백/보상/발행 집계 리셋(step-0121~0123) — 새 프로세스는 give 결과·abort·발행 이력 0(플래그 OFF 면 무관).
+    this.gid = 0; this.pending = new Set(); this.pendingPeak = 0;   // 미해결 give 추적 리셋(step-0125) — 새 프로세스는 in-flight give 이력 0(saga OFF 면 무관).
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
@@ -94,6 +104,7 @@ class ExchangeService {
   // 보존 — 모든 listed 아이템은 매 순간 정확히 한 상태(open / sold / cancelled / expired). 공백·중복 0 의 거래소 판(권위 단일 소유 + 쌍 거래·시간 트리거 포함).
   conserved() { return this.listed === this.listings.size + this.sold + this.cancelled + this.expired; }
   open() { return this.listings.size; }
+  pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0125) — 정상 흐름 0·회신 손실 시 >0(ack 미수신 격차).
   // 거래소가 escrow 에 들고 있다고 *믿는* open 매물의 itemId 집합(step-0120·2-서비스 보존 단언용 읽기 accessor·정렬). itemId 없는(추상 escrow) 매물은 제외.
   escrowItemIds() { return [...this.listings.values()].map(l => l.itemId).filter(x => x != null).sort(); }
 }

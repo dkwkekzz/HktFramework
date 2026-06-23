@@ -1,4 +1,5 @@
 'use strict';
+// step-0125 — saga 회신에 gid echo(_sagaReply): 거래소 미해결 추적(pending)의 매칭 키. replyTo 부재면 무관(0124 비트 동일).
 // step-0121 — 거래소↔가방 saga 회신(_sagaReply): give 에 replyTo 가 실려 오면 item_result 를 요청자(거래소)로도 echo(2-서비스 피드백 채널). replyTo 부재(일반 클라 give)면 no-op = 0120 비트 동일.
 // step-0053 — 정리 분할: 원장 *트랜잭션 핸들러*(onMsg) — svc-inventory-core.js 가 30KB 를 넘어(31.9KB) 박스를 부품으로 재분할(기능 0·바이트 동일·reg 0).
 //   원장 코어(svc-inventory-core.js)의 프로토타입을 Object.assign 으로 증강(persist·bus 와 동일 패턴·동작 불변). 진입점 svc-inventory.js 가 core 뒤에 로드한다.
@@ -78,7 +79,7 @@ Object.assign(InventoryService.prototype, {
   //   거래소가 자기 give 결과를 비동기로 받아 회계를 집계/보상. replyTo 없으면(일반 클라 give·saga OFF) no-op = 0120 비트 동일(reg 0).
   _sagaReply(p, ok) {
     if (p.replyTo === undefined || !this.net) return;
-    this.net.send(this.addr, p.replyTo, { type: 'item_result', ok, op: 'give', itemId: p.itemId, fromAvatar: p.fromAvatar, toAvatar: p.toAvatar, cause: p.cause });
+    this.net.send(this.addr, p.replyTo, { type: 'item_result', ok, op: 'give', itemId: p.itemId, fromAvatar: p.fromAvatar, toAvatar: p.toAvatar, cause: p.cause, gid: p.gid });   // gid(step-0125) — 미해결 추적 매칭 키 echo
   }
 });
 if (__isNode) module.exports = { InventoryService };
