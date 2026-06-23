@@ -542,6 +542,43 @@
     return out;
   }
 
+  // ── SW5 격자 은퇴 자동 이주 트리거: 조건 충족 격자 영역 → SPH 입자 *이동*(격자에서 비움) ──────────
+  //   design/sphere-world.md §6 SW5 — "격자 유체를 구체로 이주 → 격자 은퇴". 0051 fluidToParticles 는 격자장을
+  //   *읽기만* 해 입자로 **복사**했다(격자·입자 중복 존재·이주 시연). 이 법칙은 그 *이동* 판 = **autoPromoteStable
+  //   (htj-hybrid.js·동결 덩어리만 선택 승격)의 *유체* 판**: 조건(region)을 충족하는 셀만 SPH 입자로 옮기고 **그 셀을
+  //   격자에서 비운다**(rho·운동량·내부E = 0). → 물질이 격자에서 입자로 *옮겨가* 격자가 실제로 은퇴한다(활성 셀↓).
+  //   조건은 caller 가 준다(autoPromote 가 tracker 동결을 쓰듯) — region(x,y,z)=>bool 술어(기본 전체) + threshold.
+  //   **보존(이동이라 전역 정확)**: Σ이주 입자 = Σ비운 셀(질량·운동량·내부E·KE) → (남은 격자 + 입자) 총량 = 원래 총량.
+  //   복사(0051)는 합이 *배가*되지만 이동(이 step)은 *불변* — 이게 "은퇴"의 핵심(이중 표현·이중 계산 방지). 진공 셀
+  //   (rho≤threshold)은 건너뜀(희소화). region 이 아무 셀도 안 고르면 입자 0·격자 불변(회귀 0). world 를 *제자리 변형*
+  //   (격자 비움)하고 새 입자 배열을 반환한다 — 0051 과 달리 읽기 전용 아님(이동이므로). opts: { field('energy'),
+  //   threshold(0), region((x,y,z)=>bool·기본 전체) }. 반환 { particles, migratedCells, removedMass }.
+  function migrateRegionToSPH(world, opts) {
+    opts = opts || {};
+    const thresh = opts.threshold != null ? opts.threshold : 0;
+    const region = opts.region || null;                      // 술어(x,y,z)=>bool · 없으면 전체
+    const N = world.N;
+    const rho = world.fields[opts.field || 'energy'];
+    const gx = world.fields['mom_x'], gy = world.fields['mom_y'], gz = world.fields['mom_z'];
+    const u = world.fields['therm'];
+    const RAD1 = Math.cbrt(3 / (4 * Math.PI));               // 부피 1 셀의 등가 반지름(렌더용·0051 과 동일)
+    const particles = [];
+    let removedMass = 0;
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x;
+      const m = rho[i];
+      if (m <= thresh) continue;                             // 진공 셀 → 안 옮김(희소화)
+      if (region && !region(x, y, z)) continue;              // 조건 불충족 셀 → 격자에 남김(선택적)
+      const px = gx ? gx[i] : 0, py = gy ? gy[i] : 0, pz = gz ? gz[i] : 0;
+      const ie = u ? u[i] : 0;
+      const KEcm = m > 0 ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+      particles.push({ cx: x, cy: y, cz: z, mass: m, px, py, pz, KEcm, internalE: ie, energy: KEcm + ie, density: 0, cells: 1, radius: RAD1 });
+      rho[i] = 0; if (gx) gx[i] = 0; if (gy) gy[i] = 0; if (gz) gz[i] = 0; if (u) u[i] = 0;   // ← 격자에서 비움(은퇴)
+      removedMass += m;
+    }
+    return { particles, migratedCells: particles.length, removedMass };
+  }
+
   // ── SW5 SPH 복사 냉각 — 입자가 제 열을 *빛으로* 내보내 식는다(계의 첫 에너지 sink) ──────────────
   //   design/sphere-world.md §6 SW5 — 압력(0041)·점성(0046)·전도(0049)는 에너지를 *재분배*만 한다(KE↔U·U↔U).
   //   계 밖으로 에너지가 *나갈 출구*가 없어 붕괴열이 갇힌다. 이 법칙은 그 출구 = **빛**: 광학적으로 얇은 회색 복사로
@@ -574,5 +611,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, VERSION: 12 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, VERSION: 13 };
 });

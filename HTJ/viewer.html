@@ -1043,6 +1043,45 @@
         for (const e of w.__entities) { e.peak = hmax > hmin ? (1 - (e.h - hmin) / (hmax - hmin)) * 3 : 1.5; e.radius = Math.max(0.6, Math.min(3.5, e.h)); }   // 색=분해능·반지름=h_i
       },
       note: '<b>0048 이 *측정*만 한 입자별 분해능 h_i 를 이제 압력 힘이 *쓴다* — 분해능이 물질을 따라가며 힘이 보존된다</b>(구체 세계 SW5·SPH 물리 마무리). <b>▶ 무엇</b>: 0041 압력은 <b>고정 h</b> 였다. 0048 은 입자별 <b>h_i = η(m_i/ρ_i)^⅓</b> 를 자기일관으로 *재기만* 했다(조밀하면 좁은 h·희박하면 넓은 h). 이 법칙은 그 h_i 를 <b>압력 힘에 연동</b>한다. <b>난점</b>: 쌍 (i,j) 의 h_i≠h_j 면 ∇W(r,h_i)≠∇W(r,h_j) 라 <b>커널이 비대칭</b> → 뉴턴3(운동량 보존)이 깨질 위험. <b>해법 = 대칭 평균 커널</b>: <b>∇W̄_ij = ½(∇W(r,h_i)+∇W(r,h_j))</b>. W̄ 가 i↔j 대칭이라 <b>∇_jW̄_ji = −∇_iW̄_ij</b> → 쌍힘 +F/−F → <b>순 운동량 정확 보존</b>(가변 h 여도·verify 1.6e-14). <b>포섭</b>: 모든 h 동일이면 ∇W̄=∇W → <b>0041 과 비트 동일</b>(고정-h SPH 를 특수경우로 포함). <b>화면</b>: 변밀도 구름(중력으로 묶음)·그림 <b>반지름 = h_i</b>(커널이 보임)·색 = 분해능 — <b>조밀 코어엔 작은 커널 촘촘(노랑·고분해)·희박 헤일로엔 큰 커널(보라·저분해)</b>이 한 무대에 공존하며 적응-h 압력이 운동량을 정확 보존(h 범위 코어 0.4 ~ 헤일로 8.8 = ×20 가변). <b>왜 중요한가</b>(design §4·§6 SW5): 이게 <b>SW4 적응 LOD(분해능이 물질·관찰을 따라감)의 SPH 힘-레벨 완성</b> — 측정(0048)+힘(이 step)으로 SPH 솔버가 *가변 분해능*을 일관되게 다룬다. <b>SPH 물리 스택이 이로써 마무리</b>(밀도·압력·에너지·열압력·점성·전도·복사·점화·가속·적응-h). <b>정직한 한계</b>: grad-h Ω 보정(에너지 일관)은 생략(운동량엔 대칭만으로 충분)·점성/전도의 적응-h 도 같은 대칭-커널 패턴으로 확장(기계적 후속). 여기선 *적응-h 압력 한 가지*만.'
+    },
+
+    // ── step_0055 — SW5 격자 은퇴 자동 이주 트리거: 밀집 격자 영역 → SPH 입자 *이동*(격자에서 빠짐=은퇴) ──
+    //   격자 유체가 붕괴하다 *충분히 밀집한*(ρ>trig) 셀이 SPH 입자로 옮겨가고 그 셀은 격자에서 비워진다(은퇴).
+    //   복셀(붕괴하는 헤일로) + 구체(이주된 코어 SPH 입자) 공존 = 0035 autoPromote 의 *유체* 판. 이동이라 총량 보존.
+    '0055': {
+      label: 'step_0055 — SW5 자동 이주 트리거(밀집 격자 영역→SPH·격자 은퇴)', title: 'HTJ — SW5 자동 이주: 밀집 격자 유체가 SPH 입자로 옮겨가 격자가 은퇴한다',
+      sub: '격자 유체가 자기중력으로 붕괴하다 충분히 밀집한(ρ>trig) 셀이 SPH 입자로 *이동*하고 그 셀은 격자에서 비워진다(은퇴) — 0035 autoPromote(동결 덩어리→구체)의 *유체* 판·0051 복사와 달리 *이동*이라 (격자+입자) 총량 정확 보존. 붕괴하는 복셀 헤일로 + 이주된 SPH 코어 입자가 공존하며 격자가 점차 은퇴',
+      mode: 'energy', dynamics: true, render: 'hybrid',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        for (const nm of ['mom_x', 'mom_y', 'mom_z']) w.fields[nm] || w.addField(nm, { type: Float64Array });
+        w.fields.therm || w.addField('therm');
+        const N = w.N, cen = (N - 1) / 2, sig = N * 0.16;
+        for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const d2 = (x - cen) ** 2 + (y - cen) ** 2 + (z - cen) ** 2, i = (z * N + y) * N + x;
+          const r = 2.0 * Math.exp(-d2 / (2 * sig * sig)); w.fields.energy[i] = r; w.fields.therm[i] = r * 0.3;
+        }
+        updateTemperature(w);
+        w.__hyb = { entities: [], trig: 3.2 };     // entities = 이주된 SPH 입자(hybrid 렌더가 읽음)·trig = 이주 임계 밀도
+      },
+      advance(w) {
+        const H = w.__hyb, N = w.N, rho = w.fields.energy;
+        // ① 격자 유체: 자기중력 붕괴 → 코어가 밀집(조건 충족 향해 감).
+        HTJGravity.applyGravity(w, 0.2, { G: 0.25, iters: 40 });
+        HTJThermal.applyThermalPressure(w, 0.2, { Kth: 0.3, gamma: 5 / 3 });
+        HTJInertia.advect(w, 0.2, { scalars: ['therm'] });
+        // ② 자동 이주 트리거: 충분히 밀집한(ρ>trig) 셀을 SPH 입자로 *이동*(격자에서 비움=은퇴).
+        const res = HTJSPH.migrateRegionToSPH(w, { region: (x, y, z) => rho[(z * N + y) * N + x] > H.trig, threshold: H.trig });
+        for (const p of res.particles) { p.h = 2.2; H.entities.push(p); }
+        // ③ 이주된 SPH 입자: 서로 중력 + 열압력으로 자유 붕괴(격자가 못 하던 Lagrangian 거동).
+        if (H.entities.length >= 1) {
+          HTJEntity.applyEntityGravity(H.entities, 0.12, { G: 0.25, soft: 2.5 });
+          HTJSPH.sphThermalPressureForce(H.entities, 0.12, { gamma: 5 / 3, h: 2.2 });
+          HTJEntity.stepEntities(H.entities, 0.12, { N });
+        }
+        updateTemperature(w);
+      },
+      note: '<b>밀집한 격자 유체가 SPH 입자로 옮겨가고 그 자리의 격자는 비워진다 — 격자가 점차 은퇴한다</b>(구체 세계 SW5·격자 은퇴 엮기의 첫 live 장면). <b>▶ 무엇</b>: SW5 의 최종 목적지는 <b>격자 유체를 구체(SPH)로 옮겨 격자를 은퇴</b>시키는 것(design §6). 0051 은 그 *이주 메커니즘*을 격자장을 <b>읽어 복사</b>로 보였다(격자·입자 중복). 이 step 은 그 <b>*이동* 판 = 자동 이주 트리거</b>: 격자 유체가 자기중력으로 붕괴하다 <b>충분히 밀집한 셀</b>(ρ&gt;trig)이 <b>SPH 입자로 옮겨가고, 그 셀은 격자에서 비워진다</b>(rho·운동량·내부E=0). 이게 <b>0035 autoPromote(동결 덩어리를 격자에서 빼내 구체로)의 *유체* 판</b> — 조건(동결 대신 <b>밀집</b>) 충족 영역이 격자에서 빠져나간다. <b>화면</b>: 처음엔 가우시안 블롭이 <b>복셀</b>(격자)로 보인다 → 중력으로 붕괴해 코어가 밀집 → 코어가 임계를 넘는 순간부터 <b>구체(SPH 입자)로 옮겨가고 격자엔 구멍이 생긴다</b> → 옮겨간 입자는 <b>SPH 압력+중력으로 자유 붕괴</b>(Eulerian 격자가 못 하던 Lagrangian 거동)·바깥 헤일로는 아직 격자(복셀)로 남아 흐른다 = <b>두 표현 공존·격자 점진 은퇴</b>. <b>왜 *이동*인가</b>(0051 복사와의 차이): 복사는 (격자+입자) 합이 <b>배가</b>되지만(이중 계산), 이동은 물질이 한 표현에서 다른 표현으로 *옮겨가* <b>(남은 격자 + 입자) 총량이 정확 불변</b> — 이게 "은퇴"의 핵심(이중 표현 방지). 질량·운동량·내부E·KE 정확 보존(verify Δ≈1e-13). <b>왜 중요한가</b>(design §5 난점 3·4): 격자는 *임시 비계*였다 — 구체가 승격돼 나오면 은퇴한다. 이 트리거가 그 은퇴를 <b>자동·가법적</b>으로 굴린다(big-bang 재작성 회피). <b>정직한 한계</b>: 일방(SPH→격자 역이주는 없음·0031 자동 강등의 SPH 판은 후속)·이주된 입자는 격자 중력과 결합 안 함(개체끼리만·통합 중력 0033 의 SPH 판은 후속)·밀집 임계는 장면 노브(결정론 임계 아님). 여기선 *밀집→이주 트리거 한 가지*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
