@@ -106,7 +106,8 @@ class MailService {
     this.pendingGive = new Map();  // gid -> {itemId,from,to,cause}(step-0167) — 재전송 소스(0168 대비·회신 손실 시 같은 gid 로 재발신).
     this.pendingPeak = 0;          // 미해결 최대치(step-0167·관측).
     this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0167) — 수신 시 *1회* 드롭할 gid 집합(transient 회신 손실 모의·step-0168 부터 drop-once → 재전송이 통과). 미제공이면 무손실(production 무영향·reg 0).
-    this.retries = 0;              // saga 재전송 통수(step-0168·mailRetry — 재발신은 gives 무증가·이 별도 계측).
+    this.retries = 0;              // saga 재전송 통수(step-0168·mailRetry + step-0172·autoRetry — 재발신은 gives 무증가·이 별도 계측).
+    this.autoRetry = opts.autoRetry || false;   // 자동 주기 재전송(step-0172·mailAutoRetry) — ON 이면 mailSweep op 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·거래소 0129 의 우편 판). OFF 면 sweep 은 TTL 회수만(0171 비트 동일). 명시 mailRetry op(0168) 없이도 같은 주기 신호(sweep)로 pending drain.
     this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
