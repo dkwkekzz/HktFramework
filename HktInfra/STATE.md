@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0164](step-0164.md) — **아이템 우편↔가방 2-서비스 보존 capstone**(escrowItemIds·escrowConsistent): 우편이 escrow 중이라 믿는 itemId 집합 == 가방의 실제 'escrow' 소유 집합(두 서비스 교차 정합)·itemHeld==escrowIds.size. **아이템 우편↔가방 arc(0161~0164) 닫힘** — 거래소↔가방(0117~0120)의 우편 판. 닿는 박스: svc-mail.
-- **한 줄 상태**: reg ALL OK(미호출 accessor=0163 비트 동일)·exmlin4: 우편==가방 escrow 집합 일치(예)·escrowConsistent(예)·minted 3 분포 h1/x/escrow·crash 복구 정합·spine 통과.
+- **닫힌 step**: [step-0165](step-0165.md) — **정리: svc-mail.js 박스-부품 분할**(core/txn/entry·기능 0·reg 0): 30.9KB(박스 30KB 유계 초과·비대화 트리거)를 svc-mail-core(원장·헬퍼·accessor)·svc-mail-txn(onMsg)·svc-mail(진입점)로 재분할. 거래소 0124·가방 0053 패턴. 다음 기능(아이템 우편 saga) 헤드룸 확보.
+- **한 줄 상태**: reg ALL OK·mailsplit: NET(분할)·NETPREV(0164) mail digest 0x421ff2a9 비트 동일·spine 통과. core 25.6KB·txn 5.9KB·entry 1.1KB.
 - **다음**: §2 — 아이템 우편 saga(give 회신 비동기 수신·실패 보상·재전송 — 거래소 0121~ 류·현재 give=fire-and-forget)·발행 게이트 통합·길드·비동기 결정론🔴·0151~0160 묶음 리뷰(`infra-review`).
 
 ---
@@ -260,3 +260,4 @@
 | [0162](step-0162.md) | 아이템 우편↔가방 leg2: 수령 시 escrow→수신자 가방 입금(mailInv) | 통과 · gives/escrowXfers 4/4·소유자 h1 |
 | [0163](step-0163.md) | 아이템 우편↔가방 leg3: 만료 시 escrow→발신자 가방 반환(mailInv) | 통과 · item0→h1·item1→x·escrowXfers 4 |
 | [0164](step-0164.md) | 아이템 우편↔가방 2-서비스 보존 capstone(escrowItemIds·escrowConsistent·arc 0161~0164 닫기) | 통과 · 우편==가방 escrow 집합·crash 복구 정합 |
+| [0165](step-0165.md) | 정리: svc-mail.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 30.9→25.6/5.9/1.1KB·digest 비트동일 |
