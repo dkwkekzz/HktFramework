@@ -718,6 +718,45 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
       },
       note: '<b>압력이 한 일이 열로 닫힌다 — 압축이 데우고 팽창이 식힌다</b>(구체 세계 SW5·SPH 에너지 닫힘). <b>▶ 흐름</b>: 가스 구름이 <b>안쪽 속도로 무너진다</b>(중력+초기 붕괴). 빽빽해질수록 0041 <b>압력</b>이 밀어내는데(KE 를 깎음), 이제 그 깎인 운동에너지가 <b>사라지지 않고 내부에너지(열)로 들어간다</b> — <b>du_i/dt = ½ Σ_j m_j(P_i/ρ_i²+P_j/ρ_j²)(v_i−v_j)·∇_i W_ij</b>. 구체 색이 <b>온도</b>(internalE/질량)다 — 코어가 <b>압축되며 밝아지고</b>(데움) 되튀어 팽창하면 <b>어두워진다</b>(식힘). 우상단 총E(KE+u)는 <b>거의 불변</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW5·§5): 0041 은 "압력이 *implicit 열저장고*에서 일을 꺼낸다"는 정직한 한계를 남겼다 — 이 step 이 그 저장고를 <b>실제 내부에너지로 만들어 총E 를 정확히 닫는다</b>(<b>KE↔u 가역</b>·순간 전력 균형이 기계 정밀도로 정확). 이게 <b>0009(수동 온도 T∝ρ^(γ−1))·0010(KE↔내부E 가역 닫힘)의 SPH 판</b> — 별이 *수축으로 데워져 빛나는* 그 메커니즘이다. <b>궤적은 0041 과 불변</b>: EOS P=k·ρ^γ 가 barotropic 이라 u 가 *아직 힘에 되먹지 않는다* — 이 단위는 <b>에너지 책</b>만 정직하게 닫는다(0009 가 수동 온도였던 것과 같은 정신). <b>정직한 한계</b>: 열→압력 되먹임(P=(γ−1)ρu·압축 데움이 더 세게 떠받침)은 후속 벽돌(0010 의 능동 열압력 판)·점성(충격 소산)·격자 유체 은퇴는 SW5 마지막. 여기선 *에너지 닫힘 한 법칙*만.'
+    },
+
+    // ── step_0043 — 강착 세계: 중력+소산 접촉+합치기 조립 → 작은 구체 구름이 몇 천체로 합쳐진다(SW1+SW2) ──
+    //   새 엔진 법칙 없음(0035 "새 engine 없음" 선례) — 가진 부품(중력 0028 + 접촉 반발·소산 0037 + 합치기 0036)을
+    //   *한 세계*에서 함께 굴린다. 그동안 합치기·접촉·중력이 따로 놀아 "공이 겹쳐 비비기만" 했던 공백을 메운다:
+    //   작은 구체 40개가 무너지며 충돌·소산으로 식고 느려진 접촉이 합쳐져 *몇 개의 큰 천체로 강착*(미행성→행성).
+    '0043': {
+      label: 'step_0043 — 강착 세계(구름 → 몇 천체로 합쳐짐)', title: 'HTJ — 강착 세계: 중력+소산 접촉+합치기 조립 → 작은 구체 구름이 몇 천체로 합쳐진다',
+      sub: '가진 부품(중력+접촉 반발·소산+합치기)을 한 세계에서 함께 굴린다 — 작은 구체 40개 구름이 무너지며 충돌·소산으로 식고, 느려진 접촉이 합쳐져 몇 개의 큰 천체로 강착한다(미행성→행성). 새 엔진 법칙 없음(조립=창발 무대)·구체 세계 SW1+SW2. 질량·운동량 정확 보존·소산 단조↑',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const cells = Math.max(4, Math.round(N * N * 0.01));
+        let seed = 11; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 40; i++) {
+          const dx = (rnd() - 0.5) * N * 0.62, dy = (rnd() - 0.5) * N * 0.62, dz = (rnd() - 0.5) * N * 0.62;
+          const m = cells * 4, tang = 0.04;                              // 약한 접선 속도(각운동량) → 궤도 천체
+          ents.push({ cx: cen + dx, cy: cen + dy, cz: cen + dz,
+            mass: m, px: m * -tang * dy, py: m * tang * dx, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+            KEcm: 0, internalE: cells * 0.5, energy: cells * 0.5, cells, radius: eqR(cells), temp: 0, peak: 1 });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.5, soft: Math.max(2, N * 0.085) };
+        w.__copt = { stiffness: 4, damping: 25, pad: 0.3 };              // 반발(겹침 거부)+감쇠(소산→열)
+        w.__mopt = { vstick: 3.0, pad: 0.6 };                           // 식어 느려진 접촉 → 합침
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.1, w.__gopt);      // 서로 끌어 모음(0028)
+        HTJEntity.applyEntityContact(w.__entities, 0.1, w.__copt);      // 겹침 거부(반발)+낙하 식힘(소산→열)
+        HTJEntity.stepEntities(w.__entities, 0.1, { N: w.N });
+        w.__entities = HTJEntity.mergeEntities(w.__entities, w.__mopt).entities;  // 느려진 접촉 → 합침(강착)
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 강착할수록 밝게(낙하E→열).
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>작은 구체 구름이 무너지며 합쳐져 몇 개의 큰 천체가 된다</b>(구체 세계 SW1+SW2·강착=행성 형성). <b>▶ 흐름</b>: 작은 구체 40개가 흩어져 있다(파랑=차가움). 서로 <b>중력으로 끌려</b>(0028) 무너지고, 부딪치면 <b>접촉</b>이 <b>겹침을 거부</b>(반발)하면서 <b>낙하 에너지를 열로 식힌다</b>(감쇠·소산). 식어서 <b>느려진 접촉은 하나로 합쳐진다</b>(0036 강착·vstick 임계) — 우상단 "개체 N" 이 <b>40 → 몇 개로 뚝뚝 떨어지고</b> 남은 천체가 <b>커지고 밝아진다</b>(노랑=강착열↑). <b>왜 중요한가</b>(design/sphere-world.md §0·§6): 이게 사용자가 말한 <b>"모여서 커지면 하나로 합쳐 단순화"</b> 의 실현 — ① <b>창발 물리</b>: 미행성이 충돌·합체로 행성이 되는 그 방식 ② <b>성능</b>: N 개가 적은 큰 구체로 줄어 비용↓(적응 LOD 의 Lagrangian 형태). <b>새 엔진 법칙이 없다</b> — 이미 가진 중력·접촉·합치기를 <b>한 세계에서 같이 굴린 것</b>(0035 "새 engine 없음" 과 같은 *조립=창발 무대*). 그동안 비어 보였던 건 이 셋이 <b>한 장면에 같이 돈 적이 없어서</b>다. <b>보존(쌍 보존·합산)</b>: 질량·운동량 <b>기계 정밀도로 정확 불변</b>(우상단 ΣP). <b>소산 = 시간의 화살</b>: 내부에너지(열)가 <b>단조 증가</b> — 낙하 운동E 가 접촉 감쇠+강착열로 비가역 전환(다시 안 흩어짐). <b>정직한 한계</b>: 각운동량 때문에 <b>한 점이 아니라 몇 천체로</b> 정착해 서로 궤도를 돈다(물리적으로 옳음·한 덩어리로 안 뭉침)·합쳐진 큰 천체끼리는 더는 안 닿아 추가 소산이 멈춘다(궤도 N체)·빠른 정면충돌은 SW3 로 깨질 수도(여기선 소산이 식혀 합침 우세). 새 법칙 없는 *조립 step*.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -965,7 +1004,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0042';                       // 기본 = 현재 step
+    sel.value = '0043';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
