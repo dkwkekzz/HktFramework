@@ -108,6 +108,7 @@
 <script src="engine/htj-promote.js"></script>
 <script src="engine/htj-entity.js"></script>
 <script src="engine/htj-hybrid.js"></script>
+<script src="engine/htj-sph.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -603,6 +604,43 @@
         w.__entities = r.entities;                     // 먼 곳 합치고·가까운 곳 쪼갬(매 틱 재평가)
       },
       note: '<b>관찰자가 보는 곳만 정밀, 멀수록 거칠게</b>(구체 세계 SW4·적응 LOD). <b>▶ 흐름</b>: 세계 전역에 작은 구체 떼가 흩어져 있다. <b>관찰자</b>(흰 점·둘레 초록 링 = near 반경)가 원을 그리며 세계를 훑는다. <b>관찰자서 먼 블록</b>의 구체들은 <b>블록당 큰 구체 1개로 합쳐지고</b>(coarse·N↓), 관찰자가 <b>다가온 곳</b>은 그 큰 구체가 다시 <b>작은 구체들로 쪼개진다</b>(fine·디테일 복원) — 우상단 "개체 N" 이 관찰자 위치 따라 <b>숨쉬듯</b> 늘었다 줄었다 한다. <b>왜 중요한가</b>(design/sphere-world.md §6 SW4·§4): <b>비용이 세계 크기가 아니라 관찰되는 디테일에 묶인다</b> — 먼 구체를 아무리 늘려도(세계를 키워도) 합쳐져 블록 수에 묶이므로 near 예산은 일정(scalability.md 레버3 의 Lagrangian 판·0034 격자 LOD 의 구체 버전). 새 법칙이 아니라 <b>같은 보존 합산/분배의 재사용</b>: 합치기(SW1·mergeGroup)·쪼개기(SW3·fragmentEntity)를 <b>물리 임계 대신 거리 임계</b>로 트리거할 뿐. <b>보존(합산/분배라 정확)</b>: 질량·운동량·각운동량(원점)·총E 가 coarsen·refine·왕복 모두 불변(우상단 ΣP 불변) — <b>벌크는 정확, 모양만 LOD 손실</b>(coarse 는 내부 배열을 잃고 refine 은 평면 고리로 근사 복원·design §5 난점 1·약한 결정론). <b>정직한 한계</b>: 모양 복원은 근사(원래 배열 아님)·블록 버킷은 고정 격자(옥트리 다단계 아님)·구체 유체(SPH)는 SW5. 여기선 *적응 LOD 한 법칙*만.'
+    },
+
+    // ── step_0040 — SPH 밀도 추정: 구체 떼의 국소 밀도를 색으로(SW5 첫 벽돌) ──
+    //   유체를 구체(SPH 입자)로 옮기는 SW5 의 토대 = 밀도 ρ_i=Σ_j m_j·W(r,h). 약한 중력(0028)으로 구름이
+    //   수축하면 sphDensity 가 그 모임을 *밀도*로 읽어낸다(중심 밝게). 수동 측정 — 힘은 안 만든다(회귀 0).
+    '0040': {
+      label: 'step_0040 — SPH 밀도 추정(구체 떼의 국소 밀도)', title: 'HTJ — SPH 밀도 추정: 구체 떼의 국소 밀도를 색으로',
+      sub: '구름이 약한 중력으로 수축하면 SPH 커널 밀도 ρ=Σ m·W(r,h)가 그 모임을 읽어낸다(중심 밝게) — 유체를 구체로 옮기는 구체 세계 SW5 의 첫 벽돌. 밀도는 수동 측정(아직 힘 없음)·압력은 후속',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const cells = Math.max(4, Math.round(N * N * 0.01));
+        let seed = 12345; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 70; i++) {
+          const r = N * 0.12 + rnd() * N * 0.22, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const m = cells * 2;
+          ents.push({ cx: cen + r * Math.sin(ph) * Math.cos(th), cy: cen + r * Math.sin(ph) * Math.sin(th), cz: cen + r * Math.cos(ph),
+            mass: m, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+            KEcm: 0, internalKE: 0, internalE: cells * 0.3, energy: cells * 0.3,
+            cells, radius: eqR(cells), temp: 0, peak: 1 });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.5, soft: Math.max(2, N * 0.07) };
+        w.__sphH = Math.max(2.5, N * 0.12);
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.4, w.__gopt);     // 약한 중력으로 구름 수축(0028)
+        HTJEntity.stepEntities(w.__entities, 0.4, { N: w.N });
+        HTJSPH.sphDensity(w.__entities, { h: w.__sphH });              // 모임을 SPH 밀도로 측정(수동)
+        // 밀도를 peak 에 실어 렌더가 색으로 — 모일수록 밝게(힘은 아님).
+        let mx = 0; for (const e of w.__entities) if (e.density > mx) mx = e.density;
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * e.density / mx : 1;
+      },
+      note: '<b>구체 떼의 "어디에 얼마나 모였는지"를 밀도로 잰다</b>(구체 세계 SW5·SPH 의 첫 벽돌). <b>▶ 흐름</b>: 흩어진 작은 구체 구름이 <b>약한 중력으로 천천히 수축</b>한다(0028 재사용). 매 틱 <b>SPH 커널 밀도</b> ρ_i = Σ_j m_j·W(|r_i−r_j|, h) 를 잰다 — 각 구체 둘레로 <b>부드러운 커널 W</b>(3D 3차 B-스플라인·지지반경 2h)를 씌워 이웃 질량을 가중 합산한다. 구체 색이 <b>밀도</b>를 나타낸다 — 중심에 모일수록 <b>밝아진다</b>(어두움=옅음·밝음=밀집). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5·§3): 유체·가스를 격자가 아니라 <b>작은 구체 떼(SPH)</b>로 표현하면 — 세계가 *한 원소(자유 구체)만으로* 굴러간다(격자 은퇴). 그 SPH 의 <b>토대가 밀도</b>다: 압력·점성·확산 등 모든 SPH 힘이 이 밀도 위에 선다(0009 의 온도가 수동으로 먼저 도입돼 0010 압력의 토대가 된 것과 같은 정신). <b>성질</b>: 커널 정규화 ∫W dV=1 → 균일 분포면 ρ→참 밀도(m·n₀)·모이면 ρ↑·평행이동 불변(국소 양). <b>이 단위는 수동 측정</b> — 밀도는 *재기만* 하고 <b>아직 아무 힘도 안 만든다</b>(회귀 0·중력만 움직임). <b>정직한 한계</b>: 압력 힘(∇W 쌍힘·운동량 보존)·점성·열은 후속 SW5 step·이웃 탐색은 O(N²)(0032 Barnes-Hut 류 가속은 후속)·격자 유체 은퇴는 SW5 마지막. 여기선 *밀도 추정 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -850,7 +888,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0039';                       // 기본 = 현재 step
+    sel.value = '0040';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
