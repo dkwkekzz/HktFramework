@@ -828,6 +828,221 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
       },
       note: '<b>압력이 내부에너지에서 나온다 — 데운 가스가 더 세게 떠받친다</b>(구체 세계 SW5·능동 열압력). <b>▶ 흐름</b>: 찬 가스 구름(어두움)이 <b>중력으로 무너진다</b>(0028). 빽빽해지며 압력 일이 <b>내부에너지(열)로 닫히고</b>(0042), 이제 그 <b>데운 u 가 압력을 키운다</b> — 상태식 <b>P = (γ−1)·ρ·u</b>. 그래서 압축될수록 <b>더 세게 떠받쳐</b>, 중력 붕괴가 한 점으로 찌부러지지 않고 <b>핫코어(노랑)에서 멈춰 되튄다</b>(rms 가 줄었다 다시 늚=단열 숨쉬기). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0009(수동 온도 T∝ρ^(γ−1))→0010(능동 열압력 되먹임)의 SPH 판</b> — 0041 은 압력이 밀도만 따랐고(barotropic·u 무관), 0042 는 u 를 닫았지만 힘에 안 먹였다. 이 step 이 <b>u→P 되먹임</b>을 닫아, 가스가 <b>별 코어처럼 단열로 스스로 지탱</b>한다(압축 데움→압력↑→지지). 같은 밀도라도 <b>뜨거운 가스가 찬 가스보다 더 센 압력</b>(verify: u 10배→힘 10배). <b>보존</b>: 운동량 <b>기계 정밀도 정확</b>(대칭 쌍힘·우상단 ΣP)·압력 일↔내부E <b>총E 닫힘</b>(순간 전력 균형 −S+S=0·중력 PE 제외). u≤0 → P=0(음압 없음). <b>정직한 한계</b>: 점성(충격 감쇠) 없음 — 단열 진동이 안 식음·평활길이 h 고정·이웃 O(N²)·격자 유체 은퇴는 SW5 마지막. 여기선 *열압력 되먹임 한 법칙*만.'
+    },
+
+    // ── step_0046 — SW5 점성: 단열 진동이 점성으로 식어 정착한다(SW5 다섯째 벽돌) ──
+    //   0041~0045 압력은 가역(데움↔식힘)이라 단열 진동이 영원히 안 식음. Monaghan 인공 점성 Π_ij 가 *접근하는*
+    //   쌍의 bulk KE 를 열로 일방 소산 → 진동이 잦아들며 정착. 0011(비가역 점성 소산)·0037(DEM 감쇠)의 SPH 판.
+    '0046': {
+      label: 'step_0046 — SW5 점성(단열 진동을 식혀 정착)', title: 'HTJ — SW5 점성: 인공 점성이 단열 진동을 식혀 가스 공이 정착한다',
+      sub: '인공 점성(Monaghan Π_ij)이 접근하는 입자 쌍의 bulk 운동E를 열로 일방 소산한다 — 0045 까지의 가역 압력은 단열 진동이 안 식지만, 점성을 켜면 진동이 잦아들며 정착한다(접근에만·시간의 화살). 0011(비가역 점성 소산)·0037(DEM 감쇠)의 SPH 판·구체 세계 SW5. 운동량·총E 정확 보존',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        let seed = 9; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 60; i++) {
+          const r = N * 0.1 + rnd() * N * 0.12, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph), m = 1, vin = -0.4;   // 안쪽 속도(붕괴)
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: 0.2, energy: 0.2 + 0.5 * m * vin * vin, cells: 5, radius: eqR(5) });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.25, soft: Math.max(2, N * 0.12) };
+        w.__topt = { gamma: 5 / 3, h: Math.max(2.5, N * 0.14) };
+        w.__vopt = { alpha: 1.5, beta: 3, gamma: 5 / 3, h: Math.max(2.5, N * 0.14) };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.14, w.__gopt);     // 안으로 끌고(0028)
+        HTJSPH.sphThermalPressureForce(w.__entities, 0.14, w.__topt);   // 가역 열압력(0045·밀도 자동 갱신)
+        HTJSPH.sphViscosity(w.__entities, 0.14, w.__vopt);             // 비가역 점성(이 step·접근 쌍 KE→열)
+        HTJEntity.stepEntities(w.__entities, 0.14, { N: w.N });
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>점성이 단열 진동을 식혀 가스 공이 정착한다</b>(구체 세계 SW5·인공 점성). <b>▶ 흐름</b>: 찬 가스 구름(보라)이 <b>중력으로 무너지며</b> 압축으로 데워진다(핫코어 노랑·0042/0045). 0045 까지의 <b>압력은 가역</b>(압축 데움↔팽창 식힘)이라 무너진 가스가 <b>영원히 숨쉰다</b>(안 식음). 이 step 의 <b>인공 점성</b>(Monaghan)이 그걸 식힌다 — <b>접근하는</b>(v_ij·r_ij&lt;0) 입자 쌍에만 소산 압력 <b>Π_ij = (−α c̄ μ_ij + β μ_ij²)/ρ̄</b> 를 줘 상대운동을 깎고 그 <b>bulk 운동E를 내부E(열)로 일방 전환</b>한다(μ_ij = h v_ij·r_ij/(r²+0.01h²)). 그래서 <b>진동이 잦아들며 따뜻한 공으로 정착</b>한다(rms 가 줄어드는 진폭으로 숨쉬다 멎음). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5·§5 난점 2): 이게 <b>0011(비가역 점성 소산 bulk KE→열·엔트로피↑·별 정착)·0037(DEM 접촉 감쇠)의 SPH 판</b> — 소산이 있어야 세계가 *멈춘다*("선 캐릭터"의 정착도 결국 소산). <b>두 보존·한 비가역</b>: 운동량 <b>기계 정밀도 정확</b>(대칭 쌍힘 ∇_jW=−∇_iW·뉴턴3·우상단 ΣP)·점성 일↔내부E <b>총E 닫힘</b>(순간 전력 균형 −S+S=0). 그러나 Π≥0 이고 접근 쌍의 v_ij·∇_iW&gt;0 라 <b>ΔU≥0 — 오직 데움(단방향·시간의 화살)</b> = 0045 가역 압력과의 결정적 차이(<b>멀어지는 쌍은 점성 0</b>). 음속은 0045 열 EOS 와 정합 <b>c=√(γ(γ−1)u)</b>(뜨거우면 더 끈적). <b>정직한 한계</b>: 평활길이 h 고정·이웃 O(N²)·격자 유체 은퇴는 SW5 마지막(측정된 필요 후). 여기선 *점성 한 법칙*만.'
+    },
+
+    // ── step_0047 — SW5 이웃 탐색 가속: 셀 리스트로 O(N²)→O(N)(큰 가스 구름) ──
+    //   SPH 합은 지지반경 2h 안 이웃만 기여 → 셀 크기 2h 격자로 27 이웃 셀만 훑어 가속. 물리는 brute 와 비트 동일
+    //   (verify) — 새 물리 없음. payoff = 더 큰 가스 구름(200개)을 가속 경로로 굴린다(중력+열압력+점성 한 무대).
+    '0047': {
+      label: 'step_0047 — SW5 이웃 탐색 가속(O(N²)→O(N)·큰 구름)', title: 'HTJ — SW5 이웃 탐색 가속: 셀 리스트로 큰 가스 구름을 빠르게',
+      sub: '공간 격자(셀 리스트)로 SPH 이웃 탐색을 O(N²)→O(N) 가속한다 — 셀 크기를 지지반경 2h 로 잡아 27 이웃 셀만 훑는다. 같은 쌍을 같은 순서로 봐 결과는 brute 와 비트 동일(새 물리 없음). payoff = 더 큰 가스 구름(200개)을 가속 경로로 굴려 중력+열압력+점성을 한 무대에. 0032 Barnes-Hut 의 SPH·근거리 판·구체 세계 SW5',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        let seed = 17; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 200; i++) {                       // 큰 구름 — 가속이 여는 규모
+          const r = N * 0.12 + rnd() * N * 0.18, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph), m = 1, vin = -0.3;
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: 0.2, energy: 0.2 + 0.5 * m * vin * vin, cells: 4, radius: eqR(4) });
+        }
+        w.__entities = ents;
+        const h = Math.max(2.5, N * 0.13);
+        w.__gopt = { G: 0.18, soft: Math.max(2, N * 0.12) };
+        w.__topt = { gamma: 5 / 3, h, accelerate: true };     // 가속 경로(셀 리스트·brute 와 비트 동일)
+        w.__vopt = { alpha: 1.2, beta: 2.4, gamma: 5 / 3, h, accelerate: true };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.12, w.__gopt);     // 안으로 끌고(0028)
+        HTJSPH.sphThermalPressureForce(w.__entities, 0.12, w.__topt);   // 가속 열압력(0045)
+        HTJSPH.sphViscosity(w.__entities, 0.12, w.__vopt);             // 가속 점성(0046)
+        HTJEntity.stepEntities(w.__entities, 0.12, { N: w.N });
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>이웃 탐색을 O(N²)→O(N) 로 가속한다 — 더 큰 가스 구름이 열린다</b>(구체 세계 SW5). <b>▶ 무엇</b>: SPH 합(밀도·압력·점성)은 <b>지지반경 2h 안의 이웃만</b> 기여한다 — 멀리 있는 입자는 커널 <b>W=0·∇W=0</b>(정확). 그런데 기본 경로는 <b>O(N²)</b> 모든 쌍을 본다. 셀 크기를 <b>지지반경 2h</b> 로 잡아 입자를 버킷에 담으면, 한 입자의 이웃은 <b>자기 셀+인접 26 셀(3×3×3)</b> 안에만 있다(분리 ≤2h → 셀 인덱스 차 ≤1). 균일 밀도면 셀당 입자 수가 일정 → 이웃 탐색이 <b>O(N)</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0032 Barnes-Hut(중력 O(N log N))의 SPH·근거리 판</b> — 더 큰 세계 = 더 풍부한 창발을 연다(여기 화면은 <b>입자 200개</b> 가스 구름이 무너지며 데워짐). <b>물리는 불변</b>: 가속은 <b>같은 쌍을 같은 순서로</b> 방문하므로(이웃 오름차순 정렬·먼 쌍은 0 기여) <b>brute 와 비트 동일</b>(0016/0018 "조밀과 비트 동일"의 SPH 판·verify: 밀도·압력·점성·열압력 네 함수 모두 가속=brute). <b>보존</b>: 운동량·총E 가속해도 그대로(같은 쌍힘·우상단 ΣP). <b>정직한 한계</b>: 균일 밀도 가정(국소 과밀이면 한 셀에 몰림)·평활길이 h 고정(적응 h 는 후속)·격자 유체 은퇴는 SW5 마지막(측정된 필요 후). 여기선 *이웃 탐색 가속 한 가지*만 — 새 물리 없음.'
+    },
+
+    // ── step_0048 — SW5 적응 평활길이 h: 분해능이 밀도를 따라간다 ──
+    //   h_i=η(m_i/ρ_i)^⅓ 를 자기일관(고정점)으로 푼다 — 조밀하면 좁은 h, 희박하면 넓은 h(이웃 수 일정). 수동 측정(힘 없음).
+    //   그리는 반지름 = h_i 로 둬 평활길이를 눈에 보인다: 무너지는 구름의 코어가 조밀해지며 커널이 줄어든다. 색=밀도.
+    '0048': {
+      label: 'step_0048 — SW5 적응 평활길이 h(분해능이 밀도를 따라감)', title: 'HTJ — SW5 적응 평활길이 h: h_i=η(m_i/ρ_i)^⅓ 자기일관',
+      sub: '입자마다 평활길이 h_i 를 국소 밀도에 묶는다 — h_i=η(m_i/ρ_i)^⅓ 를 자기일관(고정점 반복)으로 푼다. 조밀한 코어는 좁은 h(촘촘히 분해)·희박한 헤일로는 넓은 h → 이웃 수가 일정. SW4 적응 LOD(분해능이 물질을 따라감)의 SPH·연속판. 그리는 원 반지름 = h_i 라 평활길이가 눈에 보인다(무너지는 코어의 커널이 줄어듦)·색=밀도. 수동 측정(힘 없음)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        let seed = 11; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 150; i++) {
+          const r = N * 0.05 + rnd() * N * 0.22, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph), m = 1, vin = -0.35;
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: 0.15, energy: 0.15 + 0.5 * m * vin * vin, cells: 4, radius: 1 });
+        }
+        w.__entities = ents;
+        const h = Math.max(2.5, N * 0.13);
+        w.__gopt = { G: 0.4, soft: Math.max(2, N * 0.06) };
+        w.__topt = { gamma: 5 / 3, h };                        // 운동: 고정-h 열압력(적응-h 힘은 후속)
+        w.__h = h;
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.1, w.__gopt);      // 중력으로 무너지고
+        HTJSPH.sphThermalPressureForce(w.__entities, 0.1, w.__topt);    // 약한 열압력 지지
+        HTJEntity.stepEntities(w.__entities, 0.1, { N: w.N });
+        HTJSPH.sphAdaptiveH(w.__entities, { eta: 1.3, h0: w.__h });     // 적응 h 측정(따뜻한 시작)
+        let rmax = 0; for (const e of w.__entities) if ((e.density || 0) > rmax) rmax = e.density;
+        for (const e of w.__entities) { e.peak = rmax > 0 ? 0.2 + 2.5 * (e.density || 0) / rmax : 1; e.radius = Math.max(0.4, Math.min(6, e.h || 1)); }
+      },
+      note: '<b>입자마다 분해능(평활길이 h)을 국소 밀도에 묶는다 — 분해능이 물질을 따라간다</b>(구체 세계 SW5·SW4 적응 LOD 의 SPH 연속판). <b>▶ 무엇</b>: 지금까지 SPH 의 평활길이 h 는 <b>전 입자 공통 상수</b>였다. 그런데 가스가 무너지면 밀도가 <b>자릿수로</b> 변한다 — 고정 h 는 조밀 코어를 <b>과평활</b>(뭉개고)하거나 희박부를 <b>못 분해</b>한다. 표준 SPH 해법: h_i 를 국소 밀도에 묶어 <b>이웃 수를 일정</b>하게 — 3D 에서 <b>h_i = η·(m_i/ρ_i)^⅓</b>(η=이웃 수 노브·여기 1.3). ρ_i 가 h_i 에 의존하니 <b>자기일관</b>으로 푼다(고정점 반복: ρ 재고 h 갱신을 수렴까지·잔차 1.4e-5). <b>왜 중요한가</b>(design §4·§6 SW5): 이게 <b>SW4 적응 LOD</b>(멀면 합치고 가까이 쪼개 분해능을 관찰/물질에 맞춤)의 <b>SPH·연속판</b> — 비용·정밀도가 *디테일이 있는 곳*에 묶인다. <b>그림으로 보기</b>: 원 반지름 = h_i 라 <b>평활 커널 자체가 보인다</b> — 무너지는 구름의 코어가 조밀해지면 거기 <b>h 가 줄어(작은 커널 촘촘)</b>·바깥 희박 헤일로는 <b>큰 커널</b>(코어 최소 h 3.4→0.8 예리화·h 범위 2.9→7.0 분화). 색 = 밀도(뜨거울수록 조밀). <b>0040 밀도처럼 수동 측정</b>: a.h·a.density 만 써넣고 <b>힘은 안 만든다</b>(신규 함수·호출처 없음 → 회귀 0). 운동은 중력+<b>고정-h</b> 열압력이 만들고, 적응 h 는 그 위에서 분해능을 <b>잰다</b>. <b>정직한 한계</b>: <b>적응-h 힘</b>(대칭 커널·grad-h Ω 보정으로 에너지까지 일관)은 <b>다음 벽돌</b> — 이 step 은 측정만. 외톨이 입자는 분해 척도가 없어 h 발산(이웃 없음·물리적). 격자 유체 은퇴는 SW5 마지막(측정된 필요 후). 여기선 *적응 평활길이 한 가지*만.'
+    },
+
+    // ── step_0049 — SW5 열전도: 온도 차를 평형화(0002 확산의 SPH 판) ──
+    //   du_i/dt=Σ_j m_j(κ_i+κ_j)/(ρ_iρ_j)(u_i−u_j)(r·∇W)/(r²+ε) — 대칭 쌍 교환 → 총 내부E 보존·열 hot→cold·엔트로피↑.
+    //   평면 원반(위치 고정)·중심 뜨겁게: 핫코어가 바깥으로 확산해 균일 미지근으로. 색=온도(절대). CFL 서브스텝으로 안정(0012).
+    '0049': {
+      label: 'step_0049 — SW5 열전도(온도 확산·0002 의 SPH 판)', title: 'HTJ — SW5 열전도: 뜨거운 코어가 바깥으로 확산',
+      sub: 'SPH 열전도 — 이웃 쌍 사이로 비열E(온도)를 흘려 온도 차를 평형화한다. 0046 점성이 bulk 운동을 식혔다면 이건 온도 차를 식힌다 = 0002 확산(열역학 제2법칙)의 SPH 판. 라플라시안 SPH 근사(Brookshaw)·대칭 쌍 교환 → 총 내부E 정확 보존·열 hot→cold·온도 분산 단조↓(엔트로피↑). 평면 원반(위치 고정)·중심 뜨겁게: 핫코어가 바깥으로 확산해 균일 미지근으로. 색=온도(절대 스케일). 운동량·KE 불변(U 만 재분배)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'absolute', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, R = N * 0.42, SP = Math.max(1.6, N * 0.05);
+        const ents = [];
+        for (let x = -R; x <= R; x += SP) for (let y = -R; y <= R; y += SP) {   // 평면 원반(z=0)
+          const r = Math.sqrt(x * x + y * y); if (r > R) continue;
+          const u = r < R / 2.4 ? 10 : 0.5;                  // 중심 뜨겁게·바깥 차갑게
+          ents.push({ cx: cen + x, cy: cen + y, cz: cen, mass: 1, px: 0, py: 0, pz: 0, KEcm: 0, internalE: u, energy: u, radius: 1.2 });
+        }
+        w.__entities = ents;
+        w.__h = Math.max(2.5, N * 0.11);
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJSPH.sphThermalConduction(w.__entities, 0.4, { kappa: 0.06, h: w.__h });   // 전도만 — 위치 고정(운동 없음)
+        for (const e of w.__entities) e.peak = Math.min(1, (e.internalE / e.mass) / 10) * 3;   // 절대 온도 색(초기 코어=10)
+      },
+      note: '<b>이웃 사이로 열을 흘려 온도 차를 평형화한다 — 0002 확산(열역학 제2법칙)의 SPH 판</b>(구체 세계 SW5 "압력·<b>확산</b>"). <b>▶ 무엇</b>: 0046 점성이 <b>bulk 운동</b>을 식혔다면, 이건 <b>온도 차</b>를 식힌다. 라플라시안의 SPH 근사(Brookshaw): <b>du_i/dt = Σ_j m_j(κ_i+κ_j)/(ρ_iρ_j)·(u_i−u_j)·(r_ij·∇_iW)/(r²+ε)</b>. r_ij·∇_iW &lt; 0(커널 단조 감소)이라 i 가 더 뜨거우면(u_i&gt;u_j) <b>i 는 식고 j 는 데움 = 열이 hot→cold 로</b> 흐른다. <b>화면</b>: 평면 원반(위치 고정·운동 없음)·중심을 뜨겁게(노랑) 바깥을 차갑게(파랑) 줬다 — 핫코어가 <b>바깥으로 확산</b>해 점점 <b>균일한 미지근(보라)</b>으로(코어 u 10→2.4·껍질 0.5→2.2·온도 분산 13.4→0.01). 색 = 온도(절대 스케일). <b>두 보존·한 비가역</b>: 쌍 계수 K_ij 가 <b>i↔j 대칭</b>(질량가중 교환 Σ m_i du_i=0) → <b>총 내부E 정확 보존</b>(319.00 불변·재분배만). 운동량·KE 는 <b>안 건드림</b>(전도는 열↔열·운동 무관) → 총E=Σ(KE+u) 자동 보존. 그러나 열은 <b>hot→cold 한 방향</b>뿐 → <b>온도 분산 단조↓ = 엔트로피↑·시간의 화살</b>(섞이기만·안 풀림·0002·0046 정신). <b>안정성</b>: explicit 확산은 조건부 안정 — dt·확산률 크면 발산 → <b>0012 advect 처럼 CFL 서브스텝</b>으로 감싸 어떤 dt 에도 안정(보존 불변). <b>왜 중요한가</b>: 격자 0002(확산)가 SPH 로 옮겨오면 <b>격자 유체가 하던 일을 구체가 대신</b>할 수 있다 — 격자 은퇴(SW5 최후)의 한 벽돌. <b>정직한 한계</b>: κ 등방·상수(이방·온도의존 전도 아님)·고정 h(적응-h 전도는 후속). 여기선 *열전도 한 가지*만.'
+    },
+
+    // ── step_0052 — SW5 복사 냉각: 가스가 제 열을 빛으로 내보내 식는다(계의 첫 sink) ──
+    //   u_i ← u_floor+(u_i−u_floor)(1−dt·coolRate)·radiated += 잃은 열. 0005/0013 의 SPH 판. 핫코어가 *제자리에서* 어두워짐
+    //   (전도 0049 처럼 안 퍼지고 *사라짐* = 에너지가 빛으로 계를 떠남). 위치 고정 평면 원반·색=온도(절대).
+    '0052': {
+      label: 'step_0052 — SW5 복사 냉각(열의 출구=빛·계의 첫 sink)', title: 'HTJ — SW5 복사 냉각: 가스가 제 열을 빛으로 내보내 식는다',
+      sub: 'SPH 복사 냉각 — 각 입자가 제 내부E 일부를 회색 복사(빛)로 방출해 식는다 = 0005/0013(열의 출구=빛·질량 보존)의 SPH 판. 압력·점성·전도는 에너지를 *재분배*만 하지만(KE↔U·U↔U), 이건 계 밖으로 *내보내는* 첫 sink. 핫코어가 전도(0049)처럼 퍼지지 않고 제자리서 어두워진다(에너지가 빛으로 계를 떠남). 위치 고정 평면 원반·색=온도(절대)·열+빛 합 일정·질량 불변',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'absolute', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, R = N * 0.42, SP = Math.max(1.6, N * 0.05);
+        const ents = [];
+        for (let x = -R; x <= R; x += SP) for (let y = -R; y <= R; y += SP) {   // 평면 원반(z=0)
+          const r = Math.sqrt(x * x + y * y); if (r > R) continue;
+          const u = r < R / 2.2 ? 10 : 2;                    // 중심 뜨겁게·바깥 미지근
+          ents.push({ cx: cen + x, cy: cen + y, cz: cen, mass: 1, px: 0, py: 0, pz: 0, KEcm: 0, internalE: u, energy: u, radiated: 0, radius: 1.3 });
+        }
+        w.__entities = ents;
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJSPH.sphRadiativeCooling(w.__entities, 0.2, { coolRate: 0.5, floor: 0.3 });   // 복사만 — 위치 고정·O(N)
+        for (const e of w.__entities) e.peak = Math.min(1, (e.internalE / e.mass) / 10) * 3;   // 절대 온도 색(초기 코어=10)
+      },
+      note: '<b>가스가 제 열을 빛으로 내보내 식는다 — 계의 첫 에너지 sink</b>(구체 세계 SW5·0005/0013 의 SPH 판). <b>▶ 무엇</b>: 지금까지 SPH 의 압력(0041)·점성(0046)·전도(0049)는 에너지를 <b>재분배만</b> 했다 — KE↔내부E, 내부E↔내부E. 계 밖으로 <b>나갈 출구가 없어</b> 붕괴열이 갇힌다(점성·전도는 열을 *옮길* 뿐 못 버린다). 이 법칙은 그 출구 = <b>빛</b>: 광학적으로 얇은 회색 복사로 각 입자가 제 내부E 일부를 방출한다 — <b>u_i ← u_floor + (u_i−u_floor)·(1−dt·coolRate)</b>, 잃은 열은 <b>radiated 장부</b>(빛)로 쌓인다. <b>화면</b>: 평면 원반(위치 고정)·중심을 뜨겁게(노랑) 줬다 — 핫코어가 <b>제자리에서 어두워진다</b>(코어 u 10→0.4). <b>전도(0049)와 대비</b>: 전도는 열을 바깥으로 *퍼뜨려* 균일하게 만들었지만, 복사는 <b>안 퍼지고 그냥 사라진다</b>(에너지가 빛으로 계를 떠남). <b>보존</b>: 빛은 <b>열에서</b> 나오지 질량 아님(0005 질량소실 닫음) → ρ(질량)·운동량·KE <b>불변</b>, 총E=KE+u 만 줄어든다(빛이 계를 떠나). <b>열+빛 합 일정</b>(계 내부E 816→71 + 방출 빛 0→745 = 816 불변·회계). u_floor(바닥 복사장·CMB 류) 아래론 안 식는다. <b>왜 중요한가</b>: <b>0013 이 0012 runaway 를 닫았듯</b>, 이 sink 가 있어야 가스가 *진짜로 식어 정착*한다 — 격자의 별-탄생 파이프라인(붕괴→가열→<b>복사→정착</b>)을 구체가 온전히 대신하는 한 벽돌(격자 은퇴). <b>정직한 한계</b>: 회색 복사(주파수 무관·광학적으로 얇음=흡수 없음)·점화(발열 source)는 후속(0004 의 SPH 판). 여기선 *복사 냉각 한 가지*만.'
+    },
+
+    // ── step_0053 — SW5 점화: 충분히 뜨거우면 불붙어 빛난다(별 vs 별 아님·0004 의 SPH 판) ──
+    //   u≥uCrit & fuel>0 → burn=min(fuel,rate·m·dt)·internalE += burn. 0052 복사와 짝지어 발열↔복사 균형=정상상태 별.
+    //   위치 고정 원반·따뜻한 코어(u≥uCrit) 불붙어 노랑·찬 가장자리(u<uCrit) 어두움. 색=온도.
+    '0053': {
+      label: 'step_0053 — SW5 점화(별 vs 별 아님·핵융합 발열)', title: 'HTJ — SW5 점화: 충분히 뜨거우면 불붙어 빛난다',
+      sub: 'SPH 점화 — 충분히 뜨거운(u≥uCrit) 입자가 연료를 태워 데운다(핵융합 발열 source) = 0004(임계 방출=별)·0003(potential→energy)의 SPH 판. 0052 복사(sink)와 짝지으면 발열↔복사가 균형 잡아 별이 virial 정상상태에서 빛난다. 위치 고정 원반: 따뜻한 코어(u≥uCrit)는 불붙어 노랑으로 빛나고, 찬 가장자리(u<uCrit)는 점화 못 해 복사로 어두워진다 = 별과 별 아닌 것의 경계. 연료↔열 보존·질량/운동량 불변',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'absolute', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, R = N * 0.42, SP = Math.max(1.6, N * 0.05);
+        const ents = [];
+        for (let x = -R; x <= R; x += SP) for (let y = -R; y <= R; y += SP) {   // 평면 원반(z=0)
+          const r = Math.sqrt(x * x + y * y); if (r > R) continue;
+          const u = r < R / 2.2 ? 2.0 : 0.4;                 // 코어 따뜻(≥uCrit)·가장자리 차가움(<uCrit)
+          ents.push({ cx: cen + x, cy: cen + y, cz: cen, mass: 1, px: 0, py: 0, pz: 0, KEcm: 0, internalE: u, energy: u, fuel: 1e6, radius: 1.3 });
+        }
+        w.__entities = ents;
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJSPH.sphIgnition(w.__entities, 0.1, { rate: 1.5, uCrit: 1.5 });        // 점화(이 step)
+        HTJSPH.sphRadiativeCooling(w.__entities, 0.1, { coolRate: 0.2, floor: 0.2 });   // 복사(0052) 균형
+        for (const e of w.__entities) e.peak = Math.min(1, (e.internalE / e.mass) / 8) * 3;   // 절대 온도 색
+      },
+      note: '<b>충분히 뜨거우면 불붙어 빛난다 — 별과 별 아닌 것의 경계</b>(구체 세계 SW5·0004 의 SPH 판). <b>▶ 무엇</b>: 0052 복사는 열의 *출구*(sink)였다. 이 법칙은 열의 <b>입구(source) = 점화</b>: 별은 코어가 <b>충분히 뜨거우면</b>(u≥uCrit) 핵융합으로 불붙어 <b>연료를 열로</b> 바꾼다 — u≥uCrit & fuel&gt;0 → <b>burn = min(fuel, rate·m·dt)</b>, internalE += burn·fuel −= burn. 이게 <b>0004(임계 방출=별)·0003(potential→energy)의 SPH 판</b>. <b>화면</b>: 평면 원반(위치 고정)·코어를 따뜻하게(u=2≥uCrit) 가장자리를 차갑게(u=0.4&lt;uCrit) 줬다 — <b>코어는 불붙어 노랑으로 밝아지고</b>(u 2→6.7) <b>가장자리는 점화 못 해 복사로 어두워진다</b>(u 0.4→0.23). 임계 하나가 별과 가스를 가른다. <b>점화↔복사 정상상태</b>: 0052 복사와 짝지으면 <b>발열(점화)↔복사(0052)가 균형</b> 잡아 코어가 <b>runaway 도 cold 도 아닌 정상상태</b>(u* = rate(1−dt·c)/c)에서 빛난다 = <b>0013 이 0012 runaway 를 닫고 만든 virial 별</b>의 SPH 판. <b>보존</b>: 연료↔열 <b>Σ(fuel+internalE) 정확 보존</b>(연료가 열로 바뀔 뿐)·질량·운동량·KE 불변(0005 질량소실 닫음). <b>연료 유한</b> → 다 타면 꺼진다(무한 발열 없음). <b>왜 중요한가</b>: 이로써 격자 별-탄생 파이프라인(붕괴→가열→<b>점화</b>→복사→virial 정착)이 *구체로 완성*된다 — 격자의 signature 현상이 SPH 로 옮겨졌다(격자 은퇴). <b>정직한 한계</b>: 점화 조건은 온도 임계(밀도 임계는 옵션)·전체 붕괴→virial 별은 열압력 되먹임 균형이 섬세(여기선 위치 고정으로 점화 임계만 격리). 여기선 *점화 한 가지*만.'
+    },
+
+    // ── step_0054 — SW5 적응-h 압력 힘: 0048 측정의 힘 연동(대칭 평균 커널·SPH 물리 마무리) ──
+    //   입자별 h_i 를 압력 힘에 쓴다. h_i≠h_j 면 ∇W̄_ij=½(∇W(h_i)+∇W(h_j)) 대칭 평균 → ∇_jW̄=−∇_iW̄ → 운동량 정확 보존.
+    //   변밀도 구름: 코어=작은 커널(고분해)·헤일로=큰 커널(저분해) 공존·그림 r=h_i·색=분해능. 가변 h 여도 보존.
+    '0054': {
+      label: 'step_0054 — SW5 적응-h 압력 힘(분해능 연동·SPH 물리 마무리)', title: 'HTJ — SW5 적응-h 압력 힘: 분해능이 물질을 따라가며 힘이 보존된다',
+      sub: '0048 이 측정만 한 입자별 h_i=η(m_i/ρ_i)^⅓ 를 압력 힘에 연동한다. 쌍 h_i≠h_j 면 ∇W 가 비대칭이라 운동량 보존이 깨질 위험 → 대칭 평균 커널 ∇W̄_ij=½(∇W(r,h_i)+∇W(r,h_j))로 막는다(W̄ 대칭 → ∇_jW̄=−∇_iW̄ → 순 운동량 정확 보존). 균일 h 면 0041 과 비트 동일(포섭). 변밀도 구름: 조밀 코어=작은 커널(고분해)·희박 헤일로=큰 커널(저분해)이 공존하며 힘이 운동량 보존. 그림 반지름=h_i·색=분해능',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'absolute', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        let seed = 5; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        const shell = (n, rmin, rmax) => { for (let i = 0; i < n; i++) { const r = rmin + rnd() * (rmax - rmin), th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1); const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph); ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: 1, px: 0, py: 0, pz: 0, KEcm: 0, internalE: 1, energy: 1, h: 3, density: 0, radius: 1 }); } };
+        shell(110, 0, N * 0.08); shell(70, N * 0.13, N * 0.22);
+        w.__entities = ents;
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJSPH.sphAdaptiveH(w.__entities, { eta: 1.3, h0: 3 });                  // 입자별 h_i·ρ_i 재적응(0048)
+        HTJEntity.applyEntityGravity(w.__entities, 0.08, { G: 0.25, soft: 3 });    // 중력으로 묶고
+        HTJSPH.sphPressureForceVarH(w.__entities, 0.08, { stiffness: 0.5, gamma: 2 });   // 적응-h 압력(이 step)
+        HTJEntity.stepEntities(w.__entities, 0.08, { N: w.N });
+        let hmin = Infinity, hmax = 0; for (const e of w.__entities) { if (e.h < hmin) hmin = e.h; if (e.h > hmax) hmax = e.h; }
+        for (const e of w.__entities) { e.peak = hmax > hmin ? (1 - (e.h - hmin) / (hmax - hmin)) * 3 : 1.5; e.radius = Math.max(0.6, Math.min(3.5, e.h)); }   // 색=분해능·반지름=h_i
+      },
+      note: '<b>0048 이 *측정*만 한 입자별 분해능 h_i 를 이제 압력 힘이 *쓴다* — 분해능이 물질을 따라가며 힘이 보존된다</b>(구체 세계 SW5·SPH 물리 마무리). <b>▶ 무엇</b>: 0041 압력은 <b>고정 h</b> 였다. 0048 은 입자별 <b>h_i = η(m_i/ρ_i)^⅓</b> 를 자기일관으로 *재기만* 했다(조밀하면 좁은 h·희박하면 넓은 h). 이 법칙은 그 h_i 를 <b>압력 힘에 연동</b>한다. <b>난점</b>: 쌍 (i,j) 의 h_i≠h_j 면 ∇W(r,h_i)≠∇W(r,h_j) 라 <b>커널이 비대칭</b> → 뉴턴3(운동량 보존)이 깨질 위험. <b>해법 = 대칭 평균 커널</b>: <b>∇W̄_ij = ½(∇W(r,h_i)+∇W(r,h_j))</b>. W̄ 가 i↔j 대칭이라 <b>∇_jW̄_ji = −∇_iW̄_ij</b> → 쌍힘 +F/−F → <b>순 운동량 정확 보존</b>(가변 h 여도·verify 1.6e-14). <b>포섭</b>: 모든 h 동일이면 ∇W̄=∇W → <b>0041 과 비트 동일</b>(고정-h SPH 를 특수경우로 포함). <b>화면</b>: 변밀도 구름(중력으로 묶음)·그림 <b>반지름 = h_i</b>(커널이 보임)·색 = 분해능 — <b>조밀 코어엔 작은 커널 촘촘(노랑·고분해)·희박 헤일로엔 큰 커널(보라·저분해)</b>이 한 무대에 공존하며 적응-h 압력이 운동량을 정확 보존(h 범위 코어 0.4 ~ 헤일로 8.8 = ×20 가변). <b>왜 중요한가</b>(design §4·§6 SW5): 이게 <b>SW4 적응 LOD(분해능이 물질·관찰을 따라감)의 SPH 힘-레벨 완성</b> — 측정(0048)+힘(이 step)으로 SPH 솔버가 *가변 분해능*을 일관되게 다룬다. <b>SPH 물리 스택이 이로써 마무리</b>(밀도·압력·에너지·열압력·점성·전도·복사·점화·가속·적응-h). <b>정직한 한계</b>: grad-h Ω 보정(에너지 일관)은 생략(운동량엔 대칭만으로 충분)·점성/전도의 적응-h 도 같은 대칭-커널 패턴으로 확장(기계적 후속). 여기선 *적응-h 압력 한 가지*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1075,7 +1290,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0045';                       // 기본 = 현재 step
+    sel.value = '0054';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──

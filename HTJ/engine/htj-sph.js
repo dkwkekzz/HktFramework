@@ -40,15 +40,58 @@
     opts = opts || {};
     const h = opts.h != null ? opts.h : 1;
     const n = particles.length;
+    const grid = resolveGrid(particles, h, opts);             // null 이면 brute(기본·회귀 0)
     for (let i = 0; i < n; i++) {
       const a = particles[i];
+      let rho = 0;
+      const nb = grid ? sphNeighbors(grid, particles, i) : null;   // 이웃 후보(오름차순) 또는 전체
+      const cnt = nb ? nb.length : n;
+      for (let t = 0; t < cnt; t++) {
+        const b = particles[nb ? nb[t] : t];                 // 지지 밖(먼 쌍)은 W=0 정확 → 빠뜨려도 합 동일
+        const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+        rho += (b.mass || 0) * kernelW(Math.sqrt(dx * dx + dy * dy + dz * dz), h);
+      }
+      a.density = rho;
+    }
+    return particles;
+  }
+
+  // SPH 적응 평활길이 h_i — 입자마다 *자기 분해능*을 갖는다(밀도 높으면 좁게·낮으면 넓게).
+  //   고정 h 는 붕괴 코어(밀도 자릿수 변화)를 과평활하거나 희박부를 못 분해한다. 표준 SPH 는 h_i 를 국소
+  //   밀도에 묶어 *이웃 수를 일정*하게 유지한다 — 3D 에서  h_i = η·(m_i/ρ_i)^(1/3)  (η=이웃 수 노브).
+  //   ρ_i 가 h_i 에 의존하므로 *자기일관*(고정점 반복)으로 푼다:
+  //       ρ_i^(k) = Σ_j m_j W(r_ij, h_i^(k)),   h_i^(k+1) = η (m_i/ρ_i^(k))^(1/3)   수렴까지.
+  //   이건 SW4 적응 LOD(분해능이 물질을 따라감)의 SPH·연속판 — 비용이 디테일에 묶인다. 0040 밀도처럼
+  //   *수동 측정*: a.h·a.density 만 써넣고 힘은 안 만든다(신규 함수·호출처 없음→회귀 0). 적응-h 힘(대칭
+  //   커널·grad-h)은 후속 벽돌. opts: { eta(기본 1.3), h0(초기·기본 1), iters(최대 반복·기본 30), tol(상대 수렴·1e-5) }.
+  function sphAdaptiveH(particles, opts) {
+    opts = opts || {};
+    const eta = opts.eta != null ? opts.eta : 1.3;
+    const h0 = opts.h0 != null ? opts.h0 : 1;
+    const iters = opts.iters != null ? opts.iters : 30;
+    const tol = opts.tol != null ? opts.tol : 1e-5;
+    const n = particles.length;
+    const densAt = (a, h) => {                                 // ρ(a; h) = Σ_j m_j W(r_aj, h)
       let rho = 0;
       for (let j = 0; j < n; j++) {
         const b = particles[j];
         const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
         rho += (b.mass || 0) * kernelW(Math.sqrt(dx * dx + dy * dy + dz * dz), h);
       }
-      a.density = rho;
+      return rho;
+    };
+    for (let i = 0; i < n; i++) {
+      const a = particles[i];
+      let h = (a.h != null && a.h > 0) ? a.h : h0;             // 따뜻한 시작(이전 프레임 h 재사용 가능)
+      for (let k = 0; k < iters; k++) {                        // 고정점 반복(감쇠 불필요·단조 수렴)
+        const rho = densAt(a, h);
+        const hNew = rho > 0 ? eta * Math.cbrt((a.mass || 0) / rho) : h;   // h_i = η(m_i/ρ_i)^⅓
+        const rel = Math.abs(hNew - h) / (h || 1);
+        h = hNew;
+        if (rel < tol) break;
+      }
+      a.h = h;
+      a.density = densAt(a, h);                                // 최종 h 로 ρ 재계산 → (h,ρ) 진짜 자기일관
     }
     return particles;
   }
@@ -72,6 +115,61 @@
     return [c * dx, c * dy, c * dz];
   }
 
+  // ── SPH 이웃 탐색 가속: 균일 공간 격자(셀 리스트) ─────────────────────────────────────────────
+  //   SPH 합(밀도·압력·점성)은 지지반경 2h 안의 이웃만 기여한다 — 멀리 있는 입자는 커널 W=0·∇W=0(정확). 그런데
+  //   sphDensity/force 의 기본 경로는 O(N²) 모든 쌍을 본다. 셀 크기를 지지반경(2h)으로 잡아 입자를 버킷에 담으면,
+  //   한 입자의 이웃은 *자기 셀 + 인접 26 셀(3×3×3)* 안에만 있다(분리 ≤2h → 셀 인덱스 차 ≤1). 균일 밀도면 셀당
+  //   입자 수가 일정 → 이웃 탐색이 O(N)(0032 Barnes-Hut 가 중력을 O(N log N) 으로 줄인 것의 SPH·근거리 판).
+  //   **물리는 불변** — 가속은 *같은 쌍을 같은 순서로* 방문하므로(이웃 오름차순 정렬·먼 쌍은 어차피 0 기여)
+  //   brute 와 비트 동일(0016/0018 "조밀과 비트 동일"의 SPH 판). opts: { h(평활길이·셀 크기=2h, 기본 1) }.
+  function sphNeighborGrid(particles, opts) {
+    opts = opts || {};
+    const h = opts.h != null ? opts.h : 1;
+    const inv = 1 / (2 * h);                                  // 셀 크기 = 지지반경 2h
+    const map = new Map();
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const key = Math.floor(p.cx * inv) + ':' + Math.floor(p.cy * inv) + ':' + Math.floor(p.cz * inv);
+      let arr = map.get(key); if (!arr) { arr = []; map.set(key, arr); }
+      arr.push(i);                                            // 버킷엔 인덱스가 오름차순으로 쌓임
+    }
+    return { map, inv };
+  }
+
+  // 입자 i 의 이웃 후보 인덱스(자기 셀 + 26 인접 = 27 셀)를 모아 *오름차순 정렬*해 반환(자기 자신 포함).
+  //   정렬 → 합 순서가 brute(j=0..n−1)와 같아져 밀도·힘이 비트 동일. 27 셀이 지지반경 2h 를 완전히 덮는다.
+  function sphNeighbors(grid, particles, i) {
+    const inv = grid.inv, p = particles[i];
+    const a = Math.floor(p.cx * inv), b = Math.floor(p.cy * inv), c = Math.floor(p.cz * inv);
+    const out = [];
+    for (let da = -1; da <= 1; da++) for (let db = -1; db <= 1; db++) for (let dc = -1; dc <= 1; dc++) {
+      const arr = grid.map.get((a + da) + ':' + (b + db) + ':' + (c + dc));
+      if (arr) for (let t = 0; t < arr.length; t++) out.push(arr[t]);
+    }
+    out.sort((x, y) => x - y);
+    return out;
+  }
+
+  // 무순서 쌍 (i<j) 순회 — grid 있으면 셀 리스트(27 이웃)로 지지 내 후보만, 없으면 전체 O(N²). 각 쌍에 cb(i,j).
+  //   두 경로 모두 (i 오름차순, 그 안에서 j 오름차순)=사전식 순서 → brute 와 누적 순서 동일(비트 동일의 뿌리).
+  function eachPair(particles, n, h, grid, cb) {
+    if (grid) {
+      for (let i = 0; i < n; i++) {
+        const nb = sphNeighbors(grid, particles, i);
+        for (let t = 0; t < nb.length; t++) { const j = nb[t]; if (j > i) cb(i, j); }
+      }
+    } else {
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) cb(i, j);
+    }
+  }
+
+  // opts 에서 격자를 얻는다 — prebuilt grid 객체(opts.grid)면 재사용, opts.accelerate 면 즉석 빌드, 아니면 null(brute).
+  function resolveGrid(particles, h, opts) {
+    if (opts.grid && opts.grid.map) return opts.grid;
+    if (opts.accelerate) return sphNeighborGrid(particles, { h });
+    return null;
+  }
+
   // SPH 압력 힘 — 밀도(0040) 위에 상태식 P=f(ρ) 와 대칭 쌍힘으로 구체 떼를 *가스처럼 퍼지게* 한다(SW5).
   //   design/sphere-world.md §6 SW5 / §3 — 0008(격자 단거리 반발 P=Kρ^γ)·0010(열압력)의 *SPH 판*. 밀도가
   //   높은 곳일수록 큰 압력 → 입자를 밀어낸다. Monaghan 대칭 운동량식:
@@ -90,23 +188,68 @@
     const h = opts.h != null ? opts.h : 1;
     const gamma = opts.gamma != null ? opts.gamma : 2;
     const EPS2 = 1e-12;
-    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
     const P = new Array(n);
     for (let i = 0; i < n; i++) P[i] = k * Math.pow(particles[i].density || 0, gamma);   // 상태식(항상 ≥0)
     const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n);
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    eachPair(particles, n, h, grid, (i, j) => {
       const a = particles[i], b = particles[j];
       const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
       const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
       const g = kernelGradW(a.cx - b.cx, a.cy - b.cy, a.cz - b.cz, h);   // ∇_i W_ij
       ax[i] -= b.mass * term * g[0]; ay[i] -= b.mass * term * g[1]; az[i] -= b.mass * term * g[2];   // a_i += −m_j·term·∇_iW
       ax[j] += a.mass * term * g[0]; ay[j] += a.mass * term * g[1]; az[j] += a.mass * term * g[2];   // a_j += −m_i·term·∇_jW(=+∇_iW)
-    }
+    });
     for (let i = 0; i < n; i++) {                             // Δp_i = m_i·a_i·dt → 쌍마다 ΣΔp=0(정확)
       const e = particles[i];
       e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
     }
     for (let i = 0; i < n; i++) {                             // KEcm·energy 재계산(internalE 불변·자기일관)
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return particles;
+  }
+
+  // ── SW5 적응-h 압력 힘 — 0048 이 *측정*한 입자별 h_i 를 압력 힘에 *연동*한다(가변 분해능) ───────────
+  //   design/sphere-world.md §6 SW5 — 0041 압력은 *고정* h 였다. 0048 은 입자별 h_i=η(m_i/ρ_i)^⅓ 를 자기일관으로
+  //   *재기만* 했다(수동 측정). 이 법칙은 그 h_i 를 *힘에 쓴다* — 그런데 쌍 (i,j) 의 h_i≠h_j 면 ∇W 가 비대칭이 돼
+  //   뉴턴3(운동량 보존)이 깨질 위험이 있다. **대칭 평균 커널**로 막는다: ∇W̄_ij = ½(∇W(r,h_i)+∇W(r,h_j)). W̄ 가 i↔j
+  //   대칭이라 ∇_jW̄_ji = −∇_iW̄_ij → 쌍힘 +F/−F → **순 운동량 정확 보존**(가변 h 여도). (grad-h Ω 보정은 *에너지*
+  //   일관용·운동량엔 대칭만으로 충분 — 0046 점성·0049 전도도 같은 패턴으로 확장 가능.) caller 가 입자별 a.h·a.density
+  //   를 설정(sphAdaptiveH)해 넘긴다 — 없으면 a.h=h0 로 폴백(그때 모든 h 동일 → ∇W̄=∇W → 0041 과 비트 동일).
+  //     P_i = k·ρ_i^γ,  a_i = −Σ_j m_j(P_i/ρ_i² + P_j/ρ_j²)∇_iW̄_ij,  ∇_iW̄_ij = ½(∇W(r,h_i)+∇W(r,h_j))
+  //   opts: { stiffness(k·0→early-return·회귀0 의미無=신규), gamma(2), h0(a.h 없을 때 폴백·1) }. p 갱신·internalE 불변.
+  function sphPressureForceVarH(particles, dt, opts) {
+    opts = opts || {};
+    const k = opts.stiffness != null ? opts.stiffness : 0;
+    const n = particles.length;
+    if (n < 2 || k === 0) return particles;                   // 노브=0 → early-return
+    const gamma = opts.gamma != null ? opts.gamma : 2;
+    const h0 = opts.h0 != null ? opts.h0 : 1;
+    const EPS2 = 1e-12;
+    const P = new Array(n);
+    for (let i = 0; i < n; i++) P[i] = k * Math.pow(particles[i].density || 0, gamma);   // 상태식(입자별 ρ_i·자기 h_i 로)
+    const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = particles[i], b = particles[j];
+      const hi = (a.h > 0) ? a.h : h0, hj = (b.h > 0) ? b.h : h0;
+      const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+      const gi = kernelGradW(dx, dy, dz, hi), gj = kernelGradW(dx, dy, dz, hj);   // 각자 h 로 ∇W
+      const gx = 0.5 * (gi[0] + gj[0]), gy = 0.5 * (gi[1] + gj[1]), gz = 0.5 * (gi[2] + gj[2]);   // 대칭 평균 ∇_iW̄
+      const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
+      const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
+      ax[i] -= b.mass * term * gx; ay[i] -= b.mass * term * gy; az[i] -= b.mass * term * gz;   // a_i += −m_j·term·∇_iW̄
+      ax[j] += a.mass * term * gx; ay[j] += a.mass * term * gy; az[j] += a.mass * term * gz;   // a_j += +m_i·term·∇_iW̄(=−∇_jW̄)
+    }
+    for (let i = 0; i < n; i++) {                             // Δp_i = m_i·a_i·dt → 쌍마다 ΣΔp=0(정확·가변 h 여도)
+      const e = particles[i];
+      e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
+    }
+    for (let i = 0; i < n; i++) {                             // KEcm·energy 재계산(internalE 불변)
       const e = particles[i];
       if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
       e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
@@ -135,11 +278,12 @@
     const h = opts.h != null ? opts.h : 1;
     const gamma = opts.gamma != null ? opts.gamma : 2;
     const EPS2 = 1e-12;
-    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
     const P = new Array(n);
     for (let i = 0; i < n; i++) P[i] = k * Math.pow(particles[i].density || 0, gamma);   // 상태식(0041 과 동일)
     const dU = new Float64Array(n);                           // ΔinternalE_i / dt 누적
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    eachPair(particles, n, h, grid, (i, j) => {
       const a = particles[i], b = particles[j];
       const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
       const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
@@ -149,7 +293,7 @@
       const vdotg = (vix - vjx) * g[0] + (viy - vjy) * g[1] + (viz - vjz) * g[2];   // v_ij·∇_iW(접근→>0)
       const inc = 0.5 * a.mass * b.mass * term * vdotg;       // 쌍 기여(두 입자에 동일)
       dU[i] += inc; dU[j] += inc;                             // m_i·½ m_j term v_ij·∇W
-    }
+    });
     for (let i = 0; i < n; i++) {                             // internalE += ΔU·dt → 총E=Σ(KE+u) 정확 닫힘
       const e = particles[i];
       if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
@@ -176,7 +320,8 @@
     const h = opts.h != null ? opts.h : 1;
     const gamma = opts.gamma != null ? opts.gamma : 5 / 3;
     const EPS2 = 1e-12;
-    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
     const P = new Array(n);
     for (let i = 0; i < n; i++) {                             // 열 EOS: P=(γ−1)·ρ·u (u=internalE/질량·u≥0→P≥0)
       const e = particles[i];
@@ -185,7 +330,7 @@
       P[i] = (gamma - 1) * (e.density || 0) * Math.max(0, u);
     }
     const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n), dU = new Float64Array(n);
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    eachPair(particles, n, h, grid, (i, j) => {
       const a = particles[i], b = particles[j];
       const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
       const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
@@ -197,7 +342,7 @@
       const vdotg = (vix - vjx) * g[0] + (viy - vjy) * g[1] + (viz - vjz) * g[2];   // v_ij·∇_iW
       const inc = 0.5 * a.mass * b.mass * term * vdotg;       // 에너지 닫힘(0042·두 입자에 동일)
       dU[i] += inc; dU[j] += inc;
-    }
+    });
     for (let i = 0; i < n; i++) {                             // p 와 internalE 동시 적용(같은 사전 속도 → 총E 닫힘)
       const e = particles[i];
       e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
@@ -208,5 +353,226 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphDensity, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, VERSION: 4 };
+  // SPH 인공 점성(Monaghan-Gingold) — *접근하는* 입자 쌍의 상대운동을 깎아 그 운동E를 내부E로 **일방** 소산한다(SW5).
+  //   design/sphere-world.md §6 SW5 / §5 난점 2 — 0011(비가역 점성 소산 bulk KE→열·엔트로피↑·진동 감쇠·별 정착)·
+  //   0037(DEM 접촉 감쇠)의 *SPH 판*. 0041~0045 의 압력은 *가역*(압축 데움↔팽창 식힘)이라 단열 진동이 영원히 안 식는다
+  //   — 점성이 그걸 식힌다(충격·진동을 열로). 표준 Monaghan 인공 점성 Π_ij(접근할 때만·짝대칭 Π_ij=Π_ji):
+  //       μ_ij = h (v_ij·r_ij) / (|r_ij|² + 0.01 h²)            (접근 v_ij·r_ij<0 → μ<0, 아니면 0)
+  //       Π_ij = (−α c̄_ij μ_ij + β μ_ij²) / ρ̄_ij               (μ<0 → 두 항 모두 ≥0 → Π≥0)
+  //       a_i  = −Σ_j m_j Π_ij ∇_i W_ij                          (0041 과 같은 대칭 쌍힘 꼴)
+  //       dU_i =  m_i·½ Σ_j m_j Π_ij v_ij·∇_i W_ij·dt            (0042 와 같은 대칭 에너지 꼴)
+  //   c̄=(c_i+c_j)/2 음속·ρ̄=(ρ_i+ρ_j)/2. 음속은 0045 열 EOS 와 정합 c_i=√(γ(γ−1)u_i)(u=internalE/질량·뜨거우면 더 끈적).
+  //   **두 보존·한 비가역**: ∇_jW=−∇_iW → F_ji=−F_ij(뉴턴3) → 순 운동량 정확 보존. a_i 와 dU_i 를 한 쌍 루프에서
+  //   같은 사전 속도로 계산해 적용 → KE 일 + ΔU = 0(순간 전력 균형·기계 정밀도·0042/0045 와 동형). 그러나 Π≥0 이고
+  //   접근 쌍의 v_ij·∇_iW>0 라 **ΔU≥0 — 오직 데움(단방향·시간의 화살)**. 0045 가역 압력과의 결정적 차이.
+  //   opts: { alpha(α, 기본 0 → early-return·회귀 0), beta(β, 기본 2α), gamma(γ, 기본 5/3), h(기본 1) }. 멀어지는
+  //   쌍(v·r≥0)은 건너뜀(소산은 압축에만). 신규 함수 — 기존 호출처 없으니 회귀 0(구조적).
+  function sphViscosity(particles, dt, opts) {
+    opts = opts || {};
+    const alpha = opts.alpha != null ? opts.alpha : 0;
+    const n = particles.length;
+    if (n < 2 || alpha === 0) return particles;               // 노브=0 → early-return(회귀 0)
+    const beta = opts.beta != null ? opts.beta : 2 * alpha;
+    const h = opts.h != null ? opts.h : 1;
+    const gamma = opts.gamma != null ? opts.gamma : 5 / 3;
+    const EPS2 = 1e-12, epsH = 0.01 * h * h;                  // μ 분모 정칙화(특이점 방지)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
+    const c = new Float64Array(n);                            // 음속 c_i=√(γ(γ−1)u)(0045 열 EOS 정합)
+    for (let i = 0; i < n; i++) {
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      const u = e.mass > EPS2 ? e.internalE / e.mass : 0;
+      c[i] = Math.sqrt(Math.max(0, gamma * (gamma - 1) * u));
+    }
+    const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n), dU = new Float64Array(n);
+    eachPair(particles, n, h, grid, (i, j) => {
+      const a = particles[i], b = particles[j];
+      const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+      const vix = a.px / a.mass, viy = a.py / a.mass, viz = a.pz / a.mass;   // 사전 속도 v_i=p_i/m_i
+      const vjx = b.px / b.mass, vjy = b.py / b.mass, vjz = b.pz / b.mass;
+      const vrx = vix - vjx, vry = viy - vjy, vrz = viz - vjz;               // v_ij
+      const vr = vrx * dx + vry * dy + vrz * dz;              // v_ij·r_ij
+      if (vr >= 0) return;                                    // 멀어지면 점성 없음(소산은 압축에만·단방향)
+      const r2 = dx * dx + dy * dy + dz * dz;
+      const mu = h * vr / (r2 + epsH);                        // <0 (접근)
+      const rhoBar = 0.5 * ((a.density || EPS2) + (b.density || EPS2));
+      const cBar = 0.5 * (c[i] + c[j]);
+      const Pi = (-alpha * cBar * mu + beta * mu * mu) / rhoBar;   // ≥0 (소산 압력)
+      const g = kernelGradW(dx, dy, dz, h);                  // ∇_i W_ij
+      ax[i] -= b.mass * Pi * g[0]; ay[i] -= b.mass * Pi * g[1]; az[i] -= b.mass * Pi * g[2];   // 운동량(뉴턴3)
+      ax[j] += a.mass * Pi * g[0]; ay[j] += a.mass * Pi * g[1]; az[j] += a.mass * Pi * g[2];
+      const vdotg = vrx * g[0] + vry * g[1] + vrz * g[2];     // v_ij·∇_iW (접근→>0)
+      const inc = 0.5 * a.mass * b.mass * Pi * vdotg;         // ≥0 → 오직 데움(단방향·시간의 화살)
+      dU[i] += inc; dU[j] += inc;
+    });
+    for (let i = 0; i < n; i++) {                             // p·internalE 동시 적용(같은 사전 속도 → 총E 닫힘)
+      const e = particles[i];
+      e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
+      e.internalE += dU[i] * dt;                              // bulk KE → 열(비가역)
+      e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return particles;
+  }
+
+  // SPH 열전도(thermal conduction) — 이웃 쌍 사이로 비열E(u=internalE/질량)를 흘려 *온도를 평형화*한다.
+  //   design/sphere-world.md §6 SW5 — "구체 떼가 가스처럼 거동(압력·**확산**)". 0046 점성이 bulk *운동*을 식혔다면,
+  //   이건 *온도 차*를 식힌다 = **0002 확산(열역학 제2법칙)의 SPH 판**. 라플라시안의 SPH 근사(Brookshaw/Cleary-Monaghan):
+  //       du_i/dt = Σ_j m_j (κ_i+κ_j)/(ρ_i ρ_j) · (u_i − u_j) · (r_ij·∇_iW_ij)/(|r_ij|²+ε)
+  //   r_ij·∇_iW < 0(커널 단조 감소) → i 가 더 뜨거우면(u_i>u_j) du_i<0(식고) du_j>0(데움) = **열 hot→cold**.
+  //   쌍 계수 K_ij = m_i m_j(κ_i+κ_j)/(ρ_iρ_j)·(r·∇W)/(r²+ε) 는 i↔j *대칭* → dE_i=+K(u_i−u_j)·dt, dE_j=−(같은 값)
+  //   → **총 내부E 정확 보존**(Σ dE=0). 온도 분산 단조↓ = **엔트로피↑·단방향**(섞임만·안 풀림·시간의 화살·0002·0046 정신).
+  //   운동량·KE 는 *안 건드림*(U 만 재분배) → 총E=Σ(KE+u) 자동 보존. opts: { kappa(열확산계수·기본 0), h(기본 1) }.
+  //   κ=0 → early-return(회귀 0). 신규 함수 — 기존 호출처 없으니 회귀 0(구조적). 0046 점성과 짝: 둘 다 소산이나
+  //   점성=운동 차 소산(KE→열)·전도=온도 차 소산(열↔열 재분배·KE 불변).
+  //   **안정성**: explicit 확산은 조건부 안정 — dt·(국소 확산률) 이 크면 발산한다. 0012 advect 처럼 *CFL 서브스텝*으로
+  //   감싼다: 입자별 감쇠율 A_i=Σ_j a_ij 의 최댓값으로 nSub 을 잡아 dt_sub·maxA ≤ 0.4 보장 → 어떤 dt 에도 안정(보존은 불변).
+  function sphThermalConduction(particles, dt, opts) {
+    opts = opts || {};
+    const kappa = opts.kappa != null ? opts.kappa : 0;
+    const n = particles.length;
+    if (kappa === 0 || n < 2) return particles;               // 노브 0 → 무변화(회귀 0)
+    const h = opts.h != null ? opts.h : 1;
+    const EPS2 = 1e-12, epsR = 0.01 * h * h;                  // 분모 정칙화(r→0 특이점 방지)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·같은 격자)
+    const u = new Array(n);                                   // 비내부E u_i = internalE_i/m_i
+    const A = new Float64Array(n);                            // 입자별 감쇠율 A_i=Σ_j a_ij (안정성 CFL 용)
+    for (let i = 0; i < n; i++) {
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      if (e.KEcm == null) e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      u[i] = e.mass > EPS2 ? e.internalE / e.mass : 0;
+    }
+    // a_ij = −m_j(2κ)/(ρ_iρ_j)(r·∇W)/(r²+ε) > 0 (대칭 쌍 계수 K=−a_ij·m_i). du_i/dt=−Σ_j a_ij(u_i−u_j).
+    const pairW = [];                                         // 쌍 가중치 [i,j,wij] 미리 계산(위치 고정 → 서브스텝 불변)
+    eachPair(particles, n, h, grid, (i, j) => {
+      const a = particles[i], b = particles[j];
+      const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+      const r2 = dx * dx + dy * dy + dz * dz;
+      const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
+      const g = kernelGradW(dx, dy, dz, h);
+      const rdotg = dx * g[0] + dy * g[1] + dz * g[2];       // < 0
+      const w = -(2 * kappa) / (rhoi * rhoj) * rdotg / (r2 + epsR);   // ≥0 — du_i 기여 = w·m_j(u_j−u_i)
+      if (w !== 0) { pairW.push(i, j, w); A[i] += w * b.mass; A[j] += w * a.mass; }
+    });
+    let maxA = 0; for (let i = 0; i < n; i++) if (A[i] > maxA) maxA = A[i];
+    const nSub = Math.max(1, Math.ceil(dt * maxA / 0.4));     // 확산 CFL — dt_sub·maxA ≤ 0.4
+    const ds = dt / nSub;
+    const dU = new Float64Array(n);
+    for (let s = 0; s < nSub; s++) {                          // 안정 서브스텝(위치 고정 → 가중치 재사용·u 만 갱신)
+      dU.fill(0);
+      for (let t = 0; t < pairW.length; t += 3) {
+        const i = pairW[t], j = pairW[t + 1], w = pairW[t + 2];
+        const flow = w * (u[j] - u[i]);                       // i 차가우면(u_j>u_i) flow>0 → i 데움
+        dU[i] += particles[j].mass * flow;                   // du_i += w·m_j(u_j−u_i)
+        dU[j] -= particles[i].mass * flow;                   // 대칭 교환(질량가중 Σ m_i du_i = 0 → 총 내부E 보존)
+      }
+      for (let i = 0; i < n; i++) u[i] += dU[i] * ds;         // u 재분배(다음 서브스텝 입력)
+    }
+    for (let i = 0; i < n; i++) {                            // u → internalE 반영(KE·운동량 불변 → 총E 자동 보존)
+      const e = particles[i];
+      e.internalE = u[i] * e.mass;
+      e.energy = e.KEcm + e.internalE;                       // p 는 불변(전도는 운동 안 건드림)
+    }
+    return particles;
+  }
+
+  // ── SW5 SPH 점화(핵융합 발열 source) — 충분히 뜨거운 입자가 연료를 태워 데운다 ───────────────────
+  //   design/sphere-world.md §6 SW5 — 0052 복사는 열의 *출구*(sink). 이 법칙은 열의 *입구*(source) = **점화** =
+  //   **0004(임계 방출=별)·0003(potential→energy)의 SPH 판**. 별은 코어가 *충분히 뜨거우면*(u≥uCrit) 핵융합으로
+  //   불붙어 연료를 열로 바꾼다. 0052 복사와 짝지으면: 발열(이 법칙)↔복사(0052)가 균형 잡아 별이 **virial 정상상태**
+  //   에서 빛난다(0013 이 0012 runaway 를 닫고 정상 별을 만든 정신·정상 u_eq = floor + rate/coolRate).
+  //     u_i ≥ uCrit (그리고 ρ_i ≥ rhoCrit) 이고 fuel_i>0 → burn = min(fuel_i, rate·m_i·dt); internalE += burn; fuel −= burn
+  //   **연료↔열 보존**: Σ(fuel+internalE) 정확 보존(연료가 열로 바뀔 뿐). 질량·운동량·KE 불변(0005 질량소실 닫음).
+  //   연료 유한 → 다 타면 멈춤(무한 발열 없음·0004 의 "별도 언젠가 꺼진다"). rate=0 또는 dt=0 → early-return(회귀 0).
+  //   opts: { rate(0·연소율), uCrit(점화 온도 임계·기본 ∞=안 붙음), rhoCrit(밀도 임계·기본 0), fuel0(초기 연료·e.fuel 없을 때) }.
+  function sphIgnition(particles, dt, opts) {
+    opts = opts || {};
+    const rate = opts.rate != null ? opts.rate : 0;
+    if (dt == null) dt = 1;
+    if (!rate || !dt) return particles;                       // 노브=0 → 세계 불변(회귀 0)
+    const uCrit = opts.uCrit != null ? opts.uCrit : Infinity; // 점화 온도 임계(이상이면 불붙음)
+    const rhoCrit = opts.rhoCrit != null ? opts.rhoCrit : 0;  // 점화 밀도 임계(옵션·e.density 필요)
+    const fuel0 = opts.fuel0 != null ? opts.fuel0 : 0;
+    const EPS2 = 1e-12;
+    for (let i = 0; i < particles.length; i++) {
+      const e = particles[i];
+      if (e.fuel == null) e.fuel = fuel0;
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      if (e.KEcm == null) e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      const u = e.mass > EPS2 ? e.internalE / e.mass : 0;
+      if (u >= uCrit && (e.density || 0) >= rhoCrit && e.fuel > 0) {   // 뜨겁고(·조밀하고) 연료 있으면 점화
+        const burn = Math.min(e.fuel, rate * e.mass * dt);    // 연소량 ∝ 질량·rate·dt
+        e.internalE += burn; e.fuel -= burn;                  // 연료 → 열(Σ(fuel+u) 보존)
+        e.energy = e.KEcm + e.internalE;                      // 총E↑(연료에서)·질량 불변
+      }
+    }
+    return particles;
+  }
+
+  // ── SW5 격자 은퇴 첫 벽돌: 격자 유체 → SPH 입자 *이주* ───────────────────────────────────────
+  //   design/sphere-world.md §6 SW5 — "격자 유체를 구체로 이주 → 격자 은퇴". 격자(Eulerian·칸 고정) 위의 연속
+  //   유체장(ρ=energy·운동량 g=mom_*·내부E u=therm)을 *셀마다 SPH 입자 하나*로 재버킷팅한다 = 0026 promote
+  //   (덩어리→개체)의 *유체 전체* 판. 셀 부피 dV=1(격자 단위)이라 셀 i 의 보존량이 그대로 입자의 양이 된다:
+  //       위치 = 셀 중심(x,y,z) · 질량 m=ρ_i · 운동량 p=(g_x,g_y,g_z)_i · 내부E=u_i · 속도 v=p/m · KE=½|p|²/m
+  //   **정확 보존**(단순 재버킷팅): Σ입자 질량·운동량·내부E·KE = 격자 장 총합(진공 셀 ρ≤0 은 빈 곳=입자 0,
+  //   기여 0 → 합 불변). 진공을 건너뛰므로 *희소화*(빈 곳엔 구체 없음·Lagrangian)도 공짜. 이주 후 입자는 SPH
+  //   힘(0041~0049)으로 자유로이 굴러간다 — 격자를 점진 은퇴시키는 토대. world: { N, fields{energy,mom_x/y/z,therm} }.
+  //   opts: { field('energy'), threshold(0·이하 셀은 진공·건너뜀) }. 세계(읽기 전용) → 새 입자 배열 반환.
+  function fluidToParticles(world, opts) {
+    opts = opts || {};
+    const thresh = opts.threshold != null ? opts.threshold : 0;
+    const N = world.N;
+    const rho = world.fields[opts.field || 'energy'];
+    const gx = world.fields['mom_x'], gy = world.fields['mom_y'], gz = world.fields['mom_z'];
+    const u = world.fields['therm'];
+    const RAD1 = Math.cbrt(3 / (4 * Math.PI));               // 부피 1 셀의 등가 반지름(렌더용)
+    const out = [];
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x;
+      const m = rho[i];
+      if (m <= thresh) continue;                             // 진공 셀 → 입자 없음(희소화)
+      const px = gx ? gx[i] : 0, py = gy ? gy[i] : 0, pz = gz ? gz[i] : 0;
+      const ie = u ? u[i] : 0;
+      const KEcm = m > 0 ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+      out.push({ cx: x, cy: y, cz: z, mass: m, px, py, pz, KEcm, internalE: ie, energy: KEcm + ie, density: 0, cells: 1, radius: RAD1 });
+    }
+    return out;
+  }
+
+  // ── SW5 SPH 복사 냉각 — 입자가 제 열을 *빛으로* 내보내 식는다(계의 첫 에너지 sink) ──────────────
+  //   design/sphere-world.md §6 SW5 — 압력(0041)·점성(0046)·전도(0049)는 에너지를 *재분배*만 한다(KE↔U·U↔U).
+  //   계 밖으로 에너지가 *나갈 출구*가 없어 붕괴열이 갇힌다. 이 법칙은 그 출구 = **빛**: 광학적으로 얇은 회색 복사로
+  //   각 입자가 제 내부E 의 일부를 빛으로 방출한다 = **0005/0013(열의 출구=빛·질량 보존)의 SPH 판**. 0013 이 0012
+  //   runaway 를 닫았듯, 이 sink 가 있어야 가스가 *진짜로 식어 정착*한다(점성·전도는 열을 옮길 뿐 못 버린다).
+  //     u_i ← u_floor + (u_i − u_floor)·(1 − dt·coolRate),   radiated_i += 잃은 내부E   (질량·운동량·KE 불변)
+  //   u_floor(=floor·m_i) 아래론 안 식는다(바닥 복사장·CMB 류·기본 0=완전히 식음). 빛은 *열에서* 나오지 질량
+  //   아님(0005 질량소실 닫음) → energy=KE+u 는 줄지만 ρ(질량)는 불변. coolRate=0 또는 dt=0 → early-return(회귀 0).
+  //   opts: { coolRate(0), floor(0·바닥 비내부E) }. 빛 장부는 입자별 e.radiated 로 누적(Lagrangian·총빛=Σe.radiated).
+  function sphRadiativeCooling(particles, dt, opts) {
+    opts = opts || {};
+    const coolRate = opts.coolRate != null ? opts.coolRate : 0;
+    if (dt == null) dt = 1;
+    if (!coolRate || !dt) return particles;                   // 노브=0 → 세계 불변(회귀 0)
+    const floor = opts.floor != null ? opts.floor : 0;
+    const EPS2 = 1e-12, f = Math.max(0, 1 - dt * coolRate);   // 감쇠 계수(비음수 가드)
+    for (let i = 0; i < particles.length; i++) {
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      if (e.KEcm == null) e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      const floorE = floor * (e.mass || 0);                   // 바닥 내부E (u_floor·m)
+      const above = e.internalE - floorE;                     // 바닥 위 초과분만 식는다
+      if (above > 0) {
+        const lost = above * (1 - f);                         // 잃는 내부E = 방출 빛
+        e.internalE -= lost;
+        e.radiated = (e.radiated || 0) + lost;                // 빛 장부(열에서·질량 아님)
+      }
+      e.energy = e.KEcm + e.internalE;                        // 총E 감소(빛이 계를 떠남)·ρ(질량) 불변
+    }
+    return particles;
+  }
+
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, VERSION: 12 };
 });
