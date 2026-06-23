@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0151](step-0151.md) — **우편 미읽음 배지 읽기 모델**(mailFeed·MailFeed): 우편 발행 스트림 `svc.mail.sent`(0144)를 *소비만* 해 수신자별 unread 투영(거래소 MarketFeed 0112 의 우편 판·CQRS). 우편함 권위 0·발신 0(순수 반응형). 새 박스 svc-mailfeed.js + 배선(net-core·topo-actors/build/subs/run). 닿는 박스: 신규 svc-mailfeed.
-- **한 줄 상태**: reg ALL OK(mailFeed OFF=0150 비트 동일)·exmailfeed: 5통(h1×3·h2×2)→unread 3/2·totalUnread 5==mail.sent·feed==권위·spine 통과.
-- **다음**: §2 — MailFeed arc 진행(0152 읽음 반영·0153 만료 반영·0154 영속·late-join·0155 회계 정합·0156 배지 질의), 이후 아이템 첨부 우편(0157~0160).
+- **닫힌 step**: [step-0152](step-0152.md) — **MailFeed 읽음 반영**(mailFeedRead): svc.mail.read(0147) 구독→수신자 unread--·read++. 0151 의 단조 증가 해소 → 미읽음 배지가 *읽으면 준다*(unread==sent−read). 닿는 박스: svc-mailfeed·topo-build/subs.
+- **한 줄 상태**: reg ALL OK(mailFeedRead OFF=0151 비트 동일)·exmlfread: h1 0/3·h2 2/0·totalUnread 2·unread==sent−read·spine 통과.
+- **다음**: §2 — MailFeed arc(0153 만료 반영·0154 영속·late-join·0155 회계 정합·0156 배지 질의), 이후 아이템 첨부 우편(0157~0160).
 
 ---
 
@@ -246,4 +246,5 @@
 | [0148](step-0148.md) | 우편 만료 TTL(mailTtl — now−sentAt≥ttl 자동 회수·sent==held+fetched+expired) | 통과 · expired 1·accountConsistent·reconstruct==live·ttl0 만료0 |
 | [0149](step-0149.md) | 우편 만료 발행(mailExpirePublish — svc.mail.expired·수명주기 발행 3종 완비) | 통과 · expirePublished 1==audit 1==expired·3종 동시·OFF 0 |
 | [0150](step-0150.md) | 우편 회계 정합 capstone(mailConsistent — sent==held+fetched+expired·우편 arc 닫기) | 통과 · 4체제 true·분할 0/3/0·0/0/3·1/2/1·crash 복구 정합 |
-| [0151](step-0151.md) | 우편 미읽음 배지 읽기 모델(mailFeed·MailFeed — svc.mail.sent 구독→수신자별 unread·MarketFeed 0112 의 우편 판) | 통과 · unread 3/2·total 5==sent·feed==권위 |
+| [0151](step-0151.md) | 우편 미읽음 배지 읽기 모델(mailFeed·MailFeed — svc.mail.sent 구독→수신자별 unread) | 통과 · unread 3/2·total 5==sent |
+| [0152](step-0152.md) | MailFeed 읽음 반영(mailFeedRead — svc.mail.read 구독→unread--·읽으면 배지 준다) | 통과 · h1 0/3·total 2·unread==sent−read |

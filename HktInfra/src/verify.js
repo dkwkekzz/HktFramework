@@ -1,8 +1,8 @@
-// HktInfra step-0151 — 헤드리스 검증 (우편 미읽음 배지 읽기 모델·mailFeed — svc.mail.sent 구독→수신자별 unread)
+// HktInfra step-0152 — 헤드리스 검증 (MailFeed 읽음 반영·mailFeedRead — svc.mail.read 구독→unread--)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmailfeed`.
-//   더한 한 조각: MailFeed — 우편 박스가 발행하는 svc.mail.sent(0144)를 *소비만* 해 수신자별 미읽음(unread) 투영을 만든다(거래소 MarketFeed 0112 의 우편 판·CQRS read model). 우편함 권위 0·발신 0.
-//   검증: ⒜ `reg`(키트) — mailFeed OFF = 0150 비트 동일(박스·구독 0). ⒝ `exmailfeed`(가설) — 발행된 입금마다 수신자 unread++·feed 투영이 우편 박스 권위(sent)와 일치.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlfread`.
+//   더한 한 조각: MailFeed 가 svc.mail.read(0147)도 구독해 수령(읽음) 시 unread 차감 → 미읽음 배지가 *읽으면 줄어든다*(0151 단조 증가 해소·MarketFeed 0116 만료 반영의 우편 판).
+//   검증: ⒜ `reg`(키트) — mailFeedRead OFF = 0151 비트 동일(read 토픽 미구독). ⒝ `exmlfread`(가설) — 수령한 만큼 unread 감소·unread==sent−read.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,31 +16,32 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const SEND = (at, id, from, to, body) => ({ at, op: { type: 'mailSend', id, from, to, body } });
-// 발행→구독 전제: bus ON·mailSentPublish ON·mailFeed ON. mailFeed 는 svc.mail.sent 만 소비(unread++) — 읽음/만료 반영은 0152~0153.
-const base = (seed, ops, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailSentPublish: true, mailFeed: true, mailOps: ops, ...extra });
+const FETCH = (at, to) => ({ at, op: { type: 'mailFetch', to } });
+// 발행→구독 전제: bus·mailSentPublish·mailReadPublish·mailFeed·mailFeedRead ON.
+const base = (seed, ops, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailSentPublish: true, mailReadPublish: true, mailFeed: true, mailFeedRead: true, mailOps: ops, ...extra });
 
-function exmailfeed(seeds) {
-  console.log('== exmailfeed: 우편 미읽음 배지 읽기 모델(MailFeed·svc.mail.sent 구독→수신자별 unread). 우편함 권위 0·발신 0(거래소 MarketFeed 0112 의 우편 판). 발행된 입금마다 수신자 unread++·feed==우편 박스 sent. ==');
-  console.log('seed   | h1 unread | h2 unread | totalUnread | mail.sent | feed==auth | 판정');
+function exmlfread(seeds) {
+  console.log('== exmlfread: MailFeed 읽음 반영(svc.mail.read 구독→unread--). 미읽음 배지가 읽으면 준다(0151 단조 증가 해소). unread==sent−read. ==');
+  console.log('seed   | h1 u/r | h2 u/r | total unread | feed unread==sent−read | 판정');
   for (const seed of seeds) {
-    // 5통 입금: h1 ×3·h2 ×2 → unreadOf(h1)==3·unreadOf(h2)==2·totalUnread==5.
-    const ops = [SEND(5, 'a', 'x', 'h1', '1'), SEND(6, 'b', 'x', 'h1', '2'), SEND(7, 'c', 'x', 'h1', '3'), SEND(8, 'd', 'y', 'h2', '4'), SEND(9, 'e', 'y', 'h2', '5')];
+    // h1 3통 입금 후 수령(읽음 3) → unread 0·read 3. h2 2통 입금·미수령 → unread 2·read 0.
+    const ops = [SEND(5, 'a', 'x', 'h1', '1'), SEND(6, 'b', 'x', 'h1', '2'), SEND(7, 'c', 'x', 'h1', '3'), SEND(8, 'd', 'y', 'h2', '4'), SEND(9, 'e', 'y', 'h2', '5'), FETCH(20, 'h1')];
     const r = run(base(seed, ops));
-    const f = r.mailfeed, mail = r.mail;
-    const u1 = f.unreadOf('h1'), u2 = f.unreadOf('h2'), tot = f.totalUnread();
-    // feed 투영이 우편 박스 권위(입금 sent)와 일치 — 발행자 무수정 소비자가 권위 스트림을 정확히 미러.
-    const feedEqAuth = (tot === mail.sent) && (u1 === mail.held('h1') + mail.fetchedOf('h1')) && (u2 === mail.held('h2') + mail.fetchedOf('h2'));
+    const f = r.mailfeed;
+    const u1 = f.unreadOf('h1'), r1 = f.readOf('h1'), u2 = f.unreadOf('h2'), r2 = f.readOf('h2'), tot = f.totalUnread();
+    // unread == sent − read (per recipient)
+    const inv = (u1 === f.sentOf('h1') - r1) && (u2 === f.sentOf('h2') - r2);
     const ok =
-      check(u1 === 3, `seed ${seed}: h1 unread ${u1}≠3`) &&
-      check(u2 === 2, `seed ${seed}: h2 unread ${u2}≠2`) &&
-      check(tot === 5, `seed ${seed}: totalUnread ${tot}≠5`) &&
-      check(feedEqAuth, `seed ${seed}: feed 투영≠우편 권위(tot ${tot} vs sent ${mail.sent})`);
-    console.log(`${pad(seed, 6)} | ${pad(u1, 9)} | ${pad(u2, 9)} | ${pad(tot, 11)} | ${pad(mail.sent, 9)} | ${pad(feedEqAuth ? '예' : '아니오', 10)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(u1 === 0 && r1 === 3, `seed ${seed}: h1 u/r ${u1}/${r1}≠0/3`) &&
+      check(u2 === 2 && r2 === 0, `seed ${seed}: h2 u/r ${u2}/${r2}≠2/0`) &&
+      check(tot === 2, `seed ${seed}: totalUnread ${tot}≠2`) &&
+      check(inv, `seed ${seed}: unread≠sent−read`);
+    console.log(`${pad(seed, 6)} | ${pad(u1 + '/' + r1, 6)} | ${pad(u2 + '/' + r2, 6)} | ${pad(tot, 12)} | ${pad(inv ? '예' : '아니오', 22)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → MailFeed 는 우편 발행 스트림(svc.mail.sent)을 소비만 해 수신자별 미읽음 배지를 투영한다(원장 권위 0·발신 0). 0016 발행자 무수정 소비자: 우편/버스 코드·발신 스트림 비트 동일, 추가는 구독 행 + 박스뿐(reg 0). 읽음(0152)·만료(0153) 반영·영속(0154)·회계 정합(0155)·질의(0156) 후속.');
+  console.log('  → 읽음(svc.mail.read) 구독으로 미읽음 배지가 *읽으면 준다*: unread==sent−read(per recipient·0151 단조 증가 해소). 만료 반영(0153)·영속·late-join(0154)·회계 정합(0155)·질의(0156) 후속. mailFeedRead OFF=0151 비트 동일(read 토픽 미구독·reg).');
 }
 
-kit.MODES['exmailfeed'] = exmailfeed;
-kit.ORDER.splice(1, 0, 'exmailfeed');
+kit.MODES['exmlfread'] = exmlfread;
+kit.ORDER.splice(1, 0, 'exmlfread');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
