@@ -935,6 +935,33 @@
         for (const e of w.__entities) { e.peak = rmax > 0 ? 0.2 + 2.5 * (e.density || 0) / rmax : 1; e.radius = Math.max(0.4, Math.min(6, e.h || 1)); }
       },
       note: '<b>입자마다 분해능(평활길이 h)을 국소 밀도에 묶는다 — 분해능이 물질을 따라간다</b>(구체 세계 SW5·SW4 적응 LOD 의 SPH 연속판). <b>▶ 무엇</b>: 지금까지 SPH 의 평활길이 h 는 <b>전 입자 공통 상수</b>였다. 그런데 가스가 무너지면 밀도가 <b>자릿수로</b> 변한다 — 고정 h 는 조밀 코어를 <b>과평활</b>(뭉개고)하거나 희박부를 <b>못 분해</b>한다. 표준 SPH 해법: h_i 를 국소 밀도에 묶어 <b>이웃 수를 일정</b>하게 — 3D 에서 <b>h_i = η·(m_i/ρ_i)^⅓</b>(η=이웃 수 노브·여기 1.3). ρ_i 가 h_i 에 의존하니 <b>자기일관</b>으로 푼다(고정점 반복: ρ 재고 h 갱신을 수렴까지·잔차 1.4e-5). <b>왜 중요한가</b>(design §4·§6 SW5): 이게 <b>SW4 적응 LOD</b>(멀면 합치고 가까이 쪼개 분해능을 관찰/물질에 맞춤)의 <b>SPH·연속판</b> — 비용·정밀도가 *디테일이 있는 곳*에 묶인다. <b>그림으로 보기</b>: 원 반지름 = h_i 라 <b>평활 커널 자체가 보인다</b> — 무너지는 구름의 코어가 조밀해지면 거기 <b>h 가 줄어(작은 커널 촘촘)</b>·바깥 희박 헤일로는 <b>큰 커널</b>(코어 최소 h 3.4→0.8 예리화·h 범위 2.9→7.0 분화). 색 = 밀도(뜨거울수록 조밀). <b>0040 밀도처럼 수동 측정</b>: a.h·a.density 만 써넣고 <b>힘은 안 만든다</b>(신규 함수·호출처 없음 → 회귀 0). 운동은 중력+<b>고정-h</b> 열압력이 만들고, 적응 h 는 그 위에서 분해능을 <b>잰다</b>. <b>정직한 한계</b>: <b>적응-h 힘</b>(대칭 커널·grad-h Ω 보정으로 에너지까지 일관)은 <b>다음 벽돌</b> — 이 step 은 측정만. 외톨이 입자는 분해 척도가 없어 h 발산(이웃 없음·물리적). 격자 유체 은퇴는 SW5 마지막(측정된 필요 후). 여기선 *적응 평활길이 한 가지*만.'
+    },
+
+    // ── step_0049 — SW5 열전도: 온도 차를 평형화(0002 확산의 SPH 판) ──
+    //   du_i/dt=Σ_j m_j(κ_i+κ_j)/(ρ_iρ_j)(u_i−u_j)(r·∇W)/(r²+ε) — 대칭 쌍 교환 → 총 내부E 보존·열 hot→cold·엔트로피↑.
+    //   평면 원반(위치 고정)·중심 뜨겁게: 핫코어가 바깥으로 확산해 균일 미지근으로. 색=온도(절대). CFL 서브스텝으로 안정(0012).
+    '0049': {
+      label: 'step_0049 — SW5 열전도(온도 확산·0002 의 SPH 판)', title: 'HTJ — SW5 열전도: 뜨거운 코어가 바깥으로 확산',
+      sub: 'SPH 열전도 — 이웃 쌍 사이로 비열E(온도)를 흘려 온도 차를 평형화한다. 0046 점성이 bulk 운동을 식혔다면 이건 온도 차를 식힌다 = 0002 확산(열역학 제2법칙)의 SPH 판. 라플라시안 SPH 근사(Brookshaw)·대칭 쌍 교환 → 총 내부E 정확 보존·열 hot→cold·온도 분산 단조↓(엔트로피↑). 평면 원반(위치 고정)·중심 뜨겁게: 핫코어가 바깥으로 확산해 균일 미지근으로. 색=온도(절대 스케일). 운동량·KE 불변(U 만 재분배)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'absolute', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, R = N * 0.42, SP = Math.max(1.6, N * 0.05);
+        const ents = [];
+        for (let x = -R; x <= R; x += SP) for (let y = -R; y <= R; y += SP) {   // 평면 원반(z=0)
+          const r = Math.sqrt(x * x + y * y); if (r > R) continue;
+          const u = r < R / 2.4 ? 10 : 0.5;                  // 중심 뜨겁게·바깥 차갑게
+          ents.push({ cx: cen + x, cy: cen + y, cz: cen, mass: 1, px: 0, py: 0, pz: 0, KEcm: 0, internalE: u, energy: u, radius: 1.2 });
+        }
+        w.__entities = ents;
+        w.__h = Math.max(2.5, N * 0.11);
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJSPH.sphThermalConduction(w.__entities, 0.4, { kappa: 0.06, h: w.__h });   // 전도만 — 위치 고정(운동 없음)
+        for (const e of w.__entities) e.peak = Math.min(1, (e.internalE / e.mass) / 10) * 3;   // 절대 온도 색(초기 코어=10)
+      },
+      note: '<b>이웃 사이로 열을 흘려 온도 차를 평형화한다 — 0002 확산(열역학 제2법칙)의 SPH 판</b>(구체 세계 SW5 "압력·<b>확산</b>"). <b>▶ 무엇</b>: 0046 점성이 <b>bulk 운동</b>을 식혔다면, 이건 <b>온도 차</b>를 식힌다. 라플라시안의 SPH 근사(Brookshaw): <b>du_i/dt = Σ_j m_j(κ_i+κ_j)/(ρ_iρ_j)·(u_i−u_j)·(r_ij·∇_iW)/(r²+ε)</b>. r_ij·∇_iW &lt; 0(커널 단조 감소)이라 i 가 더 뜨거우면(u_i&gt;u_j) <b>i 는 식고 j 는 데움 = 열이 hot→cold 로</b> 흐른다. <b>화면</b>: 평면 원반(위치 고정·운동 없음)·중심을 뜨겁게(노랑) 바깥을 차갑게(파랑) 줬다 — 핫코어가 <b>바깥으로 확산</b>해 점점 <b>균일한 미지근(보라)</b>으로(코어 u 10→2.4·껍질 0.5→2.2·온도 분산 13.4→0.01). 색 = 온도(절대 스케일). <b>두 보존·한 비가역</b>: 쌍 계수 K_ij 가 <b>i↔j 대칭</b>(질량가중 교환 Σ m_i du_i=0) → <b>총 내부E 정확 보존</b>(319.00 불변·재분배만). 운동량·KE 는 <b>안 건드림</b>(전도는 열↔열·운동 무관) → 총E=Σ(KE+u) 자동 보존. 그러나 열은 <b>hot→cold 한 방향</b>뿐 → <b>온도 분산 단조↓ = 엔트로피↑·시간의 화살</b>(섞이기만·안 풀림·0002·0046 정신). <b>안정성</b>: explicit 확산은 조건부 안정 — dt·확산률 크면 발산 → <b>0012 advect 처럼 CFL 서브스텝</b>으로 감싸 어떤 dt 에도 안정(보존 불변). <b>왜 중요한가</b>: 격자 0002(확산)가 SPH 로 옮겨오면 <b>격자 유체가 하던 일을 구체가 대신</b>할 수 있다 — 격자 은퇴(SW5 최후)의 한 벽돌. <b>정직한 한계</b>: κ 등방·상수(이방·온도의존 전도 아님)·고정 h(적응-h 전도는 후속). 여기선 *열전도 한 가지*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1182,7 +1209,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0048';                       // 기본 = 현재 step
+    sel.value = '0049';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──

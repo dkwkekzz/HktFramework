@@ -372,5 +372,68 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, VERSION: 7 };
+  // SPH 열전도(thermal conduction) — 이웃 쌍 사이로 비열E(u=internalE/질량)를 흘려 *온도를 평형화*한다.
+  //   design/sphere-world.md §6 SW5 — "구체 떼가 가스처럼 거동(압력·**확산**)". 0046 점성이 bulk *운동*을 식혔다면,
+  //   이건 *온도 차*를 식힌다 = **0002 확산(열역학 제2법칙)의 SPH 판**. 라플라시안의 SPH 근사(Brookshaw/Cleary-Monaghan):
+  //       du_i/dt = Σ_j m_j (κ_i+κ_j)/(ρ_i ρ_j) · (u_i − u_j) · (r_ij·∇_iW_ij)/(|r_ij|²+ε)
+  //   r_ij·∇_iW < 0(커널 단조 감소) → i 가 더 뜨거우면(u_i>u_j) du_i<0(식고) du_j>0(데움) = **열 hot→cold**.
+  //   쌍 계수 K_ij = m_i m_j(κ_i+κ_j)/(ρ_iρ_j)·(r·∇W)/(r²+ε) 는 i↔j *대칭* → dE_i=+K(u_i−u_j)·dt, dE_j=−(같은 값)
+  //   → **총 내부E 정확 보존**(Σ dE=0). 온도 분산 단조↓ = **엔트로피↑·단방향**(섞임만·안 풀림·시간의 화살·0002·0046 정신).
+  //   운동량·KE 는 *안 건드림*(U 만 재분배) → 총E=Σ(KE+u) 자동 보존. opts: { kappa(열확산계수·기본 0), h(기본 1) }.
+  //   κ=0 → early-return(회귀 0). 신규 함수 — 기존 호출처 없으니 회귀 0(구조적). 0046 점성과 짝: 둘 다 소산이나
+  //   점성=운동 차 소산(KE→열)·전도=온도 차 소산(열↔열 재분배·KE 불변).
+  //   **안정성**: explicit 확산은 조건부 안정 — dt·(국소 확산률) 이 크면 발산한다. 0012 advect 처럼 *CFL 서브스텝*으로
+  //   감싼다: 입자별 감쇠율 A_i=Σ_j a_ij 의 최댓값으로 nSub 을 잡아 dt_sub·maxA ≤ 0.4 보장 → 어떤 dt 에도 안정(보존은 불변).
+  function sphThermalConduction(particles, dt, opts) {
+    opts = opts || {};
+    const kappa = opts.kappa != null ? opts.kappa : 0;
+    const n = particles.length;
+    if (kappa === 0 || n < 2) return particles;               // 노브 0 → 무변화(회귀 0)
+    const h = opts.h != null ? opts.h : 1;
+    const EPS2 = 1e-12, epsR = 0.01 * h * h;                  // 분모 정칙화(r→0 특이점 방지)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·같은 격자)
+    const u = new Array(n);                                   // 비내부E u_i = internalE_i/m_i
+    const A = new Float64Array(n);                            // 입자별 감쇠율 A_i=Σ_j a_ij (안정성 CFL 용)
+    for (let i = 0; i < n; i++) {
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      if (e.KEcm == null) e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      u[i] = e.mass > EPS2 ? e.internalE / e.mass : 0;
+    }
+    // a_ij = −m_j(2κ)/(ρ_iρ_j)(r·∇W)/(r²+ε) > 0 (대칭 쌍 계수 K=−a_ij·m_i). du_i/dt=−Σ_j a_ij(u_i−u_j).
+    const pairW = [];                                         // 쌍 가중치 [i,j,wij] 미리 계산(위치 고정 → 서브스텝 불변)
+    eachPair(particles, n, h, grid, (i, j) => {
+      const a = particles[i], b = particles[j];
+      const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+      const r2 = dx * dx + dy * dy + dz * dz;
+      const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
+      const g = kernelGradW(dx, dy, dz, h);
+      const rdotg = dx * g[0] + dy * g[1] + dz * g[2];       // < 0
+      const w = -(2 * kappa) / (rhoi * rhoj) * rdotg / (r2 + epsR);   // ≥0 — du_i 기여 = w·m_j(u_j−u_i)
+      if (w !== 0) { pairW.push(i, j, w); A[i] += w * b.mass; A[j] += w * a.mass; }
+    });
+    let maxA = 0; for (let i = 0; i < n; i++) if (A[i] > maxA) maxA = A[i];
+    const nSub = Math.max(1, Math.ceil(dt * maxA / 0.4));     // 확산 CFL — dt_sub·maxA ≤ 0.4
+    const ds = dt / nSub;
+    const dU = new Float64Array(n);
+    for (let s = 0; s < nSub; s++) {                          // 안정 서브스텝(위치 고정 → 가중치 재사용·u 만 갱신)
+      dU.fill(0);
+      for (let t = 0; t < pairW.length; t += 3) {
+        const i = pairW[t], j = pairW[t + 1], w = pairW[t + 2];
+        const flow = w * (u[j] - u[i]);                       // i 차가우면(u_j>u_i) flow>0 → i 데움
+        dU[i] += particles[j].mass * flow;                   // du_i += w·m_j(u_j−u_i)
+        dU[j] -= particles[i].mass * flow;                   // 대칭 교환(질량가중 Σ m_i du_i = 0 → 총 내부E 보존)
+      }
+      for (let i = 0; i < n; i++) u[i] += dU[i] * ds;         // u 재분배(다음 서브스텝 입력)
+    }
+    for (let i = 0; i < n; i++) {                            // u → internalE 반영(KE·운동량 불변 → 총E 자동 보존)
+      const e = particles[i];
+      e.internalE = u[i] * e.mass;
+      e.energy = e.KEcm + e.internalE;                       // p 는 불변(전도는 운동 안 건드림)
+    }
+    return particles;
+  }
+
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, VERSION: 8 };
 });
