@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0168](step-0168.md) — **아이템 우편 saga 회신 재전송 + idempotent dedup**(mailRetry·가방 sagaDedup): _resendPending 이 미해결 give 를 같은 gid 로 재발신 → 가방이 *재실행 없이 재회신*. dedup ON: pending drain·escrowXfers 불변(재실행 0)·OFF: 재실행→escrowXfers++ 안전 위반. 거래소 0126 의 우편 판. 닿는 박스: svc-mail-core·svc-mail-txn.
-- **한 줄 상태**: reg ALL OK(mailRetry op 부재=0167 비트 동일)·exmlretry: dedup ON 4/0/4(itemConsistent 보존)·OFF 4/0/5(재실행 hazard)·spine 통과.
-- **다음**: §2 — 아이템 우편 saga 정합 capstone(sagaConsistent gives==acked+pending 0169)·transfers capstone(giveOks==escrowXfers 0170)·주기 재전송(autoRetry)·발행 게이트 통합·길드·비동기 결정론🔴·리뷰.
+- **닫힌 step**: [step-0169](step-0169.md) — **아이템 우편 saga 회계 정합 capstone**(sagaConsistent): ① gives==acked+pending ② acked==oks+fails 가 정상·회신손실·재전송 *모든 체제*서 성립(새는 give 0·분류 누락 0). 거래소 0128 의 우편 판. 닿는 박스: svc-mail-core.
+- **한 줄 상태**: reg ALL OK(미호출 accessor=0168 비트 동일)·exmlsagac: 3체제(4/4/0·4/3/1·4/4/0) sagaConsistent 예(3/3)·spine 통과.
+- **다음**: §2 — give↔가방 transfers capstone(giveOks==가방 escrowXfers·두 서비스 회계 합치 0170)·주기 재전송(autoRetry)·발행 게이트 통합·길드·비동기 결정론🔴·0161~0170 묶음 리뷰.
 
 ---
 
@@ -262,3 +262,4 @@
 | [0166](step-0166.md) | 아이템 우편 saga 회신 비동기 수신(mailSaga·ackedGives) | 통과 · gives==acked==oks 4·OFF acked 0 |
 | [0167](step-0167.md) | 아이템 우편 saga 미해결 추적+회신 손실 감지(pendingGives·gid) | 통과 · 무손실 0 drain·손실[1] pending 1 |
 | [0168](step-0168.md) | 아이템 우편 saga 회신 재전송+idempotent dedup(mailRetry·가방 sagaDedup) | 통과 · ON 재실행0 xfers 4·OFF 5 hazard |
+| [0169](step-0169.md) | 아이템 우편 saga 회계 정합 capstone(sagaConsistent·gives==acked+pending) | 통과 · 3체제 true(4/4/0·4/3/1·4/4/0) |

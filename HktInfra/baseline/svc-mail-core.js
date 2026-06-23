@@ -1,4 +1,7 @@
 'use strict';
+// step-0168 — 아이템 우편 saga 회신 재전송 + idempotent dedup(mailRetry·가방 sagaDedup 재사용): 0167 은 손실을 *감지*만 했다 — 잃은 회신을 *되찾는* 경로가 없었다.
+//   이 step: mailRetry op 이 pendingGive 의 미해결 give 를 *같은 gid* 로 재발신(_resendPending). 가방이 (replyTo,gid) 로 dedup(sagaDedup) — 이미 처리한 give 면 *재실행 없이 저장된 결과를 재회신*. 회신만 손실된 give(이미 성공)가 재실행→오판되는 것을 막는다(거래소 0126 의 우편 판). 재전송은 pending 잔존분만(gives/escrowXfers 무증가·retries++).
+//   dedup ON: 재전송→저장 ok 재회신→pending drain·escrowXfers 불변(재실행 0). mailRetry op 부재면 0167 비트 동일(회귀 0). ackDrop 은 *1회* 손실로 변경(transient·재전송이 통과).
 // step-0167 — 아이템 우편 saga 미해결 give 추적 + 회신 손실 감지(pendingGives·gid): 0166 은 회신을 *세기만* 했다 — 어느 give 가 회신을 못 받았는지 몰랐다(회신 손실 무대비).
 //   이 step: saga ON 이면 _custody 가 give 마다 단조 gid 를 부여·미해결 집합(pending)에 add. item_result 회신이 그 gid 로 오면 delete. 정상 흐름서 pending 0 으로 drain(닫힌 고리 liveness). 회신 손실(테스트 seam ackDrop)이면 잃은 gid 가 pending 에 *남는다*(ackedGives<gives·격차 가시). 재전송 소스 pendingGive 도 보관(0168 대비).
 //   거래소↔가방 0125(pendingGives·gid)의 우편 판. saga OFF·gid 부재면 추적 0 = 0166 비트 동일(회귀 0). ackDrop 미제공이면 손실 0(정상 = 무손실).
@@ -95,7 +98,8 @@ class MailService {
     this.pending = new Set();      // 미해결 give 의 gid 집합(step-0167) — _custody add·item_result 회신이 delete. 정상 0 drain·회신 손실 시 잔존(ack 미수신 격차 가시).
     this.pendingGive = new Map();  // gid -> {itemId,from,to,cause}(step-0167) — 재전송 소스(0168 대비·회신 손실 시 같은 gid 로 재발신).
     this.pendingPeak = 0;          // 미해결 최대치(step-0167·관측).
-    this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0167) — 수신 시 드롭할 gid 집합(회신 손실 모의). 미제공이면 무손실(production 무영향·reg 0).
+    this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0167) — 수신 시 *1회* 드롭할 gid 집합(transient 회신 손실 모의·step-0168 부터 drop-once → 재전송이 통과). 미제공이면 무손실(production 무영향·reg 0).
+    this.retries = 0;              // saga 재전송 통수(step-0168·mailRetry — 재발신은 gives 무증가·이 별도 계측).
     this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
@@ -149,6 +153,15 @@ class MailService {
     if (to === 'escrow') this.escrowIds.add(itemId);        // 발신 인출(leg1) — escrow 진입(step-0164·2-서비스 보존 추적)
     else if (from === 'escrow') this.escrowIds.delete(itemId);   // 수령 입금(leg2)·만료 반환(leg3) — escrow 이탈
   }
+  // 미해결 give 재전송(step-0168·mailRetry) — pendingGive 에 남은(회신 손실) give 를 *같은 gid* 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제).
+  //   재전송이라 gives/escrowIds 무증가(이미 추적 중)·retries++. pendingGive 비었으면(saga OFF·전부 acked) no-op = 0167 비트 동일.
+  _resendPending() {
+    if (!this.invMode || !this.inv || !this.net) return;
+    for (const [gid, g] of this.pendingGive) {
+      this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
+      this.retries++;
+    }
+  }
   // crash(step-0145) — 박스 RAM 소실의 인프로세스 모델: projection(우편함·읽음·회계)만 비운다. *op 저널은 durable* 이라 보존(거래소 0109 의 우편 판).
   crash() {
     this.boxes = new Map(); this.read = new Map();
@@ -157,6 +170,7 @@ class MailService {
     this.gives = 0;   // step-0161: give 계측도 소실. reconstruct 는 custody 를 *재발행하지 않는다*(다른 서비스 부수효과·저널 replay 는 projection 만 — 거래소 0109 동형)
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0;   // step-0166: saga 회신 계측 소실(저널 밖·외부 회신 의존·reconstruct 가 재발행 안 함)
     this.gid = 0; this.pending = new Set(); this.pendingGive = new Map(); this.pendingPeak = 0;   // step-0167: 미해결 추적도 소실(외부 회신 의존)
+    this.retries = 0;   // step-0168: 재전송 계측 소실
     this.escrowIds = new Set();   // step-0164: escrow 추적도 소실 → reconstruct 가 저널 replay 로 재계산(custody 재발행 없이 집합만).
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
