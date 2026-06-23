@@ -40,6 +40,7 @@ const EXEMPT = {
   '0032': 'S6 Barnes-Hut 트리 중력 — 산출물이 O(N log N) vs O(N²) 스케일 차트(capture.js)이고 시뮬 장면 아님(0015/0023 류). 통합 중력 viewer 장면은 후속 step(엔진에 배선 시)',
   '0033': 'S6 통합 중력 배선(개체↔유체 결합) — 0030 하이브리드 viewer 장면에 *합류*(advance 가 applyUnifiedGravity 호출=승격 개체가 가스+서로 끌림). 개별 눈 검증은 capture.js 속도장(유체→개체·개체→유체 화살표)',
   '0034': 'S7 공간 LOD — 산출물이 "비용 vs 세계 크기" 분리 차트(capture.js·조밀 N³ vs LOD 유효 셀)이고 시뮬 장면 아님(0015/0032 류). LOD 거동 viewer 장면은 후속(엔진 배선 시)',
+  '0050': 'SW5 격자↔구체 정성 일치 — 새 engine 법칙 0(조립/관찰). 산출물이 *격자(좌)↔SPH(우) 나란히 비교* capture.png(같은 자기중력 가스가 둘 다 붕괴+코어 가열)이고, 두 substrate 는 이미 각자 갤러리 live(격자 0008~0013·SPH 0045~0049). 단일 substrate live 장면은 0045/0049 중복이라 비교 capture 가 고유 산출물(0023/0032 비교 차트 류)',
 };
 
 // 1) 닫힌 step 목록 — steps/step_NNNN/step_NNNN.md 가 있으면 "닫힌" 것으로 본다.
