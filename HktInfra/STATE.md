@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0143](step-0143.md) — **우편 수령**(mailFetch): 0142 는 입금만이라 우편함이 무한 누적 — 수신자가 가져가는 경로가 없었다. 이 step: 수신자가 우편함 pull → 보유(held)→수령(fetched) *무손실 이동*(이중 수령 0·빈 재수령 0통). 회계 0142 sent==totalHeld → **sent==held+fetched**(우편 1통은 매 순간 보유/수령 정확히 한 상태). 새 op 타입(플래그 0). 닿는 박스: svc-mail.
-- **한 줄 상태**: reg ALL OK(src=baseline=0142 비트 동일)·exmail: sent 3·h1 수령후 held 0/fetched 2·totalHeld 1·재수령 0통·accountConsistent 전 시드·결정론·spine 통과.
-- **다음**: §2 참조(0144 우편 발행 mailSentPublish — svc.mail.sent).
+- **닫힌 step**: [step-0144](step-0144.md) — **우편 입금 발행**(mailSentPublish·svc.mail.sent): 입금을 버스로 발행 → audit(발행자 무수정 소비자)가 관측(거래소 0108 의 우편 판). 우편함 권위는 여전히 MailService(발행=파생 관찰 스트림·비-침습). OFF·bus 부재 = 0143 비트 동일. 닿는 박스: svc-mail·topo-build·topo-subs.
+- **한 줄 상태**: reg ALL OK(src=baseline=0143 비트 동일)·exmail: sentPublished 3==audit.seen 3==sent 3·발행 ON/OFF totalHeld 동일(비-침습)·OFF 발행 0·spine 통과.
+- **다음**: §2 참조(0145 우편 영속·failover mailPersist — op 저널 replay).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 서비스 arc 진행 중(0142 분리✅·0143 수령✅). 남은: 0144 발행(svc.mail.sent)→0145 영속·failover→0146 저널 스냅샷 압축→0147 읽음확인 발행→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB(주입 핸들러 ~41개)·거래소 발행 7종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
+**우편(Mail) 서비스 arc 진행 중(0142 분리✅·0143 수령✅·0144 발행✅). 남은: 0145 영속·failover→0146 저널 스냅샷 압축→0147 읽음확인 발행→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·거래소 발행 7종·우편 발행 1종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -239,3 +239,4 @@
 | [0141](step-0141.md) | 정리: topology.js run 드라이버→topo-run.js 분리(quorumMergeJournals·run·runMulti·기능 0) | OK · 31.5→~1.0KB 진입점·reg 0·spine 141 |
 | [0142](step-0142.md) | 우편(Mail) 서비스 분리(MailService — mailSend 입금·수신자별 우편함·존 tick 밖·발신 0) | 통과 · sent 4·held 3/1·멱등·결정론 |
 | [0143](step-0143.md) | 우편 수령(mailFetch — held→fetched 무손실 이동·sent==held+fetched) | 통과 · h1 fetched 2·재수령 0·accountConsistent |
+| [0144](step-0144.md) | 우편 입금 발행(mailSentPublish — svc.mail.sent·audit 무수정 관측) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
