@@ -1,4 +1,7 @@
 'use strict';
+// step-0165 — 아이템 우편 give 결과 비동기 수신(mailSaga·replyTo+gid): 0161~0164 의 give 는 fire-and-forget — 가방 give 가 성공했는지 우편이 몰랐다(낙관적).
+//   이 step: mailSaga ON 이면 _custody 가 give 에 replyTo(자기 주소)+단조 gid 를 실어 보내고 미해결 집합(pending)에 넣는다. 가방 item_result 회신이 그 gid 로 오면 pending 에서 빼고 acked(ok/fail) 집계(거래소 0121 exchSaga 의 우편 판). 정상(무손실)서 pending 0 으로 drain.
+//   mailSaga OFF·replyTo 부재면 가방이 회신 안 함(_sagaReply no-op) = 0164 비트 동일.
 // step-0164 — 아이템 우편 2-서비스 보존(mailCustodyItems): 0161~0163 세 leg(인출·입금·반환)가 우편 회계와 가방을 따로 움직인다 — 둘이 *합치*하는가?
 //   이 step: mailCustodyItems()(보유 우편이 든 아이템 id 집합·단언용 읽기) == 가방의 'mailcustody' 소유 집합이어야 한다(거래소 0120 open escrowItemIds≡가방 escrow 의 우편 판). in-transit 아이템 = 보유 우편의 아이템과 정확히 일치(공백·중복 0). 미호출 = 0163 비트 동일(reg).
 // step-0163 — 아이템 우편 만료 반환 leg3: 0161~0162 는 발신 인출·수령 입금만 — 미수령 만료 시 아이템이 우편 custody 에 영영 묶였다.
@@ -80,12 +83,19 @@ class MailService {
     this.inv = opts.inv || null;        // 가방(inventory) 주소(step-0161·mailInv) — 아이템 우편 custody give 의 대상. 부재면 우편 박스 내 회계만(0160 동일).
     this.invMode = opts.invMode || false;   // 아이템 우편 가방 연동(step-0161) — ON 이면 mailSend/fetch/expire 가 가방 give 로 custody 이동. OFF 면 0160 비트 동일.
     this.gives = 0;                // 발신한 custody give 수(step-0161 — 거래소 0117 _custody 의 우편 판·0169 회계·0170 교차 정합 대비).
+    this.saga = opts.saga || false;   // give 결과 비동기 수신(step-0165·mailSaga) — _custody 가 replyTo+gid 를 실어 가방 회신을 받는다. OFF 면 가방 회신 안 함(0164 비트 동일).
+    this._gid = 0;                 // 단조 give id(step-0165·미해결 추적 매칭 키).
+    this.pending = new Set();      // 미해결 give 의 gid(step-0165) — _custody add·item_result 회신이 delete. 정상 흐름서 0 으로 drain(회신 손실 시 잔존·0167 가시).
+    this.acked = 0; this.ackedOk = 0; this.ackedFail = 0;   // 회신 받은 give 수(step-0165·ok/fail 분리·0169 gives==ackedOk+ackedFail+pending).
   }
   // custody 이동 헬퍼(step-0161) — 아이템 우편 가방 연동의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(from→to). 가방이 권위·우편은 요청만(은닉). 미충족이면 no-op(0160 비트 동일).
   //   custody 의제 소유자 'mailcustody' — 발신~수령/만료 사이 in-transit 아이템 보관(거래소 'escrow' 의 우편 판). cause 로 leg 구분(mailsend/mailfetch/mailexpire).
+  //   step-0165: saga ON 이면 replyTo(자기)+gid 동봉·pending 추적(가방 회신 매칭).
   _custody(itemId, from, to, cause) {
     if (!this.invMode || !this.inv || itemId == null || !this.net) return;
-    this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to, cause });
+    const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to, cause };
+    if (this.saga) { const gid = ++this._gid; msg.replyTo = this.addr; msg.gid = gid; this.pending.add(gid); }
+    this.net.send(this.addr, this.inv, msg);
     this.gives++;
   }
   // projection 스냅샷/복원(step-0146) — 우편함(보유)·읽음·회계를 plain 구조로 직렬화/역직렬화(스냅샷 압축의 베이스).
@@ -115,6 +125,12 @@ class MailService {
   onMsg(m) {
     const p = m && m.payload;
     if (!p) return;
+    // 가방 give 결과 비동기 수신(step-0165·mailSaga) — _custody 가 replyTo 로 보낸 give 의 item_result 회신. gid 로 pending 에서 제거 + acked(ok/fail) 집계.
+    //   saga OFF 면 이 메시지가 영영 안 옴(가방 _sagaReply no-op·0164 비트 동일). 미해결 추적·재전송(0167)·보상(0166)의 토대.
+    if (p.type === 'item_result' && p.op === 'give') {
+      if (p.gid !== undefined && this.pending.has(p.gid)) { this.pending.delete(p.gid); this.acked++; if (p.ok) this.ackedOk++; else this.ackedFail++; }
+      return;
+    }
     // 우편 입금(mailSend) — 발신자가 수신자 우편함에 우편 1통을 비동기 적재(수신자 접속 무관). p={type,id?,from,to,body}.
     //   id 미지정이면 결정론 시퀀스로 부여. 같은 id 재전송은 멱등(이중 적재 0 — 재전송 신뢰성 0145~ 대비).
     if (p.type === 'mailSend') {
@@ -182,6 +198,7 @@ class MailService {
     this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this.expirePublished = 0; this._seq = 0; this._lastFetch = null;
     this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
     this.gives = 0;   // step-0161: custody give 계측 리셋(가방 give 는 외부 — 우편 박스 RAM 소실 모델)
+    this.pending = new Set(); this.acked = 0; this.ackedOk = 0; this.ackedFail = 0; this._gid = 0;   // step-0165: saga 미해결/회신 회계 리셋
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
