@@ -47,6 +47,7 @@ function buildSubs(c) {
   if (c.audit && c.mail && c.mailReadPublish) subs.push(['svc.mail.read', 'audit']);   // 우편 읽음 발행(0147) — audit 가 svc.mail.read 구독(수령 관측·수명주기 발행 확장). mailReadPublish OFF 면 미추가(0146 토폴로지 비트 동일).
   if (c.audit && c.mail && c.mailExpirePublish) subs.push(['svc.mail.expired', 'audit']);   // 우편 만료 발행(0149) — audit 가 svc.mail.expired 구독(만료 관측·수명주기 발행 3종 완비). mailExpirePublish OFF 면 미추가(0148 토폴로지 비트 동일).
   if (c.audit && c.mail && c.mailAbandonPublish) subs.push(['svc.mail.saga_abandoned', 'audit']);   // 우편 saga 포기 발행(0174) — audit 가 svc.mail.saga_abandoned 구독(영구 미해결 give 관측·거래소 0132 의 우편 판). mailAbandonPublish OFF 면 미추가(0173 토폴로지 비트 동일).
+  if (c.audit && c.mail && c.mailReadmitPublish) subs.push(['svc.mail.saga_readmitted', 'audit']);   // 우편 saga 재admission 발행(0177) — audit 가 svc.mail.saga_readmitted 구독(포기 give 재개 관측·0174 의 짝·거래소 0135 의 우편 판). mailReadmitPublish OFF 면 미추가(0176 토폴로지 비트 동일).
   if (c.mailFeed && c.mail && c.mailSentPublish) subs.push(['svc.mail.sent', 'mailfeed']);   // 우편 미읽음 배지(0151) — MailFeed 가 svc.mail.sent 구독→수신자별 unread 투영(거래소 MarketFeed 0112 의 우편 판). mailFeed OFF 면 미추가(0150 토폴로지 비트 동일).
   if (c.mailFeed && c.mail && c.mailReadPublish && c.mailFeedRead) subs.push(['svc.mail.read', 'mailfeed']);   // MailFeed 읽음 반영(0152) — svc.mail.read 구독→unread--. mailFeedRead OFF 면 미추가(0151 토폴로지 비트 동일).
   if (c.mailFeed && c.mail && c.mailExpirePublish && c.mailFeedExpire) subs.push(['svc.mail.expired', 'mailfeed']);   // MailFeed 만료 반영(0153) — svc.mail.expired 구독→unread--. mailFeedExpire OFF 면 미추가(0152 토폴로지 비트 동일).

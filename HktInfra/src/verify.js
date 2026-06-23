@@ -1,8 +1,8 @@
-// HktInfra step-0177 — 헤드리스 검증 (아이템 우편 saga 재admission 발행·mailReadmitPublish)
+// HktInfra step-0178 — 헤드리스 검증 (아이템 우편 saga 재admission 횟수 상한·mailReadmitMax)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `mailreadmitpub`.
-//   더한 한 조각: _readmit 으로 포기 give 재개(0176) 시 svc.mail.saga_readmitted 1회 발행(0174 포기 발행의 짝·운영 가시화·audit 관측·readmitPublished==readmitted·거래소 0135 의 우편 판). OFF·bus 부재면 발행 0 = 0176 비트 동일.
-//   검증: ⒜ `reg`(키트) — readmitPublish OFF = 0176 비트 동일(구독 미추가). ⒝ `mailreadmitpub`(가설) — 포기→재admission 서 ON 은 readmitPublished==readmitted 발행+audit 관측·OFF 는 발행 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `mailreadmitmax`.
+//   더한 한 조각: gid 가 readmitMax 회 재admission 된 뒤 또 포기되면 *영구 실패*(permFailed)로 abandonedGive 에 안 넣어 재admission 차단(무한 abandon↔readmit 루프 방지·거래소 0137 의 우편 판). pending 엔 잔존(sagaConsistent 불변). readmitMax 0 면 무제한 = 0177 비트 동일.
+//   검증: ⒜ `reg`(키트) — readmitMax 0 = 0177 비트 동일. ⒝ `mailreadmitmax`(가설) — 반복 abandon↔readmit 서 상한(1)은 permFailed 1·재admission 차단(readmitted 1)·무제한(0)은 readmitted 2·permFailed 0. 양 체제 sagaConsistent.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -19,34 +19,35 @@ const PICK = (at, avatar) => ({ at, op: { type: 'item_req', op: 'pickup', avatar
 const SEND = (at, id, from, to, body, item) => ({ at, op: { type: 'mailSend', id, from, to, body, item } });
 const SWEEP = (at) => ({ at, op: { type: 'mailSweep' } });
 const READMIT = (at) => ({ at, op: { type: 'mailReadmit' } });
-// 지속 손실(gid1)+상한2 → sweep50 포기·readmit55 재개. pub: mailReadmitPublish 토글. audit 관측. ttl 0.
-const base = (seed, pub) => ({
-  seed, ticks: 70, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, audit: true,
+// 지속 손실(gid1)+상한2. 두 라운드 abandon↔readmit. rmMax: 재admission 횟수 상한(0=무제한). ttl 0.
+const base = (seed, rmMax) => ({
+  seed, ticks: 100, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true,
   inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true, sagaDedup: true, mailTtl: 0,
-  mailAckDropAlways: [1], mailAutoRetry: true, mailMaxRetries: 2, mailReadmitPublish: pub,
+  mailAckDropAlways: [1], mailAutoRetry: true, mailMaxRetries: 2, mailReadmitMax: rmMax,
   invOps: [PICK(2, 'x'), PICK(3, 'x')],
-  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h2', '2', 'item1'), SWEEP(30), SWEEP(40), SWEEP(50), READMIT(55), SWEEP(60)],
+  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h2', '2', 'item1'),
+    SWEEP(30), SWEEP(40), SWEEP(50), READMIT(55), SWEEP(60), SWEEP(70), SWEEP(80), READMIT(85), SWEEP(90)],
 });
 
-function mailreadmitpub(seeds) {
-  console.log('== mailreadmitpub: 아이템 우편 saga *재admission 발행*(mailReadmitPublish). _readmit 으로 포기 give 재개 시 svc.mail.saga_readmitted 1회 발행(0174 포기 발행의 짝·audit 관측·readmitted 와 1:1·거래소 0135 의 우편 판). ON 발행+관측 vs OFF 발행 0. ==');
-  console.log('seed   | readmitted | ON published/audit | OFF published | 1:1+관측 | 판정');
+function mailreadmitmax(seeds) {
+  console.log('== mailreadmitmax: 아이템 우편 saga *재admission 횟수 상한*(mailReadmitMax). 무한 abandon↔readmit 루프 차단 — gid 가 N회 재admission 후 또 포기되면 영구 실패(permFailed)로 재admission 차단. 거래소 0137 의 우편 판. 상한1 vs 무제한. ==');
+  console.log('seed   | 무제한 readmitted/perm | 상한1 readmitted/perm | 차단 | sagaConsistent 양체제 | 판정');
   for (const seed of seeds) {
-    const on = run(base(seed, true));
-    const off = run(base(seed, false));
-    const rm = on.mail.readmitted;
-    const auditRx = on.audit.seen.get('svc.mail.saga_readmitted') || 0;
-    const onMatch = on.mail.readmitPublished === rm && auditRx === rm && rm === 1;
-    const offSilent = off.mail.readmitPublished === 0 && off.mail.readmitted === 1;   // OFF: 재admission 은 하되 발행 0
+    const inf = run(base(seed, 0));
+    const cap = run(base(seed, 1));
+    const consistent = inf.mail.sagaConsistent() && cap.mail.sagaConsistent();
+    const capped = cap.mail.permFailed === 1 && cap.mail.readmitted === 1 && cap.mail.abandonedGive.size === 0;   // 1회 재admission 후 또 포기→영구 실패·재admission 차단
+    const unbounded = inf.mail.permFailed === 0 && inf.mail.readmitted === 2;   // 무제한: 두 번 재admission·영구 실패 0
     const ok =
-      check(onMatch, `seed ${seed}: ON 발행/관측 불일치(readmitted ${rm}·pub ${on.mail.readmitPublished}·audit ${auditRx})`) &&
-      check(offSilent, `seed ${seed}: OFF 발행 0 아님(pub ${off.mail.readmitPublished}·readmitted ${off.mail.readmitted})`);
-    console.log(`${pad(seed, 6)} | ${pad(rm, 10)} | ${pad(on.mail.readmitPublished + '/' + auditRx, 18)} | ${pad(off.mail.readmitPublished, 13)} | ${pad(onMatch ? '예' : '아니오', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(consistent, `seed ${seed}: 어느 체제서 sagaConsistent false`) &&
+      check(unbounded, `seed ${seed}: 무제한 기대 어긋남(readmitted ${inf.mail.readmitted}/perm ${inf.mail.permFailed})`) &&
+      check(capped, `seed ${seed}: 상한 기대 어긋남(readmitted ${cap.mail.readmitted}/perm ${cap.mail.permFailed}/abandonedGive ${cap.mail.abandonedGive.size})`);
+    console.log(`${pad(seed, 6)} | ${pad(inf.mail.readmitted + '/' + inf.mail.permFailed, 22)} | ${pad(cap.mail.readmitted + '/' + cap.mail.permFailed, 21)} | ${pad(capped ? '예' : '아니오', 4)} | ${pad(consistent ? '예' : '아니오', 21)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 포기(0174)된 give 를 재admission(0176)으로 재개할 때 svc.mail.saga_readmitted 를 1회 발행한다 — 운영/audit 가 *발행자(우편) 무수정으로* 재개를 관측(0174 포기 발행 svc.mail.saga_abandoned 의 짝·거래소 0135 의 우편 판·발행==재admission==audit 관측 1:1). 포기↔재개 수명주기 발행 한 쌍 완비. OFF 면 발행 0·구독 미추가 = 0176 비트 동일.');
+  console.log('  → 손실이 영영 안 풀리면 abandon↔readmit 가 무한 반복될 수 있다(무제한·readmitted 누적). readmitMax 상한은 gid 당 N회 재admission 후 또 포기되면 *영구 실패*(permFailed)로 못 박아 재admission 을 차단한다(abandonedGive 제외). 그래도 abort 아님 — pending(Set)엔 미해결로 남겨 sagaConsistent(gives==acked+pending) 불변. 0059 recoverMaxRetries·거래소 0137 의 우편 판. (영구 실패 발행=후속 0179.)');
 }
 
-kit.MODES['mailreadmitpub'] = mailreadmitpub;
-kit.ORDER.splice(1, 0, 'mailreadmitpub');
+kit.MODES['mailreadmitmax'] = mailreadmitmax;
+kit.ORDER.splice(1, 0, 'mailreadmitmax');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
