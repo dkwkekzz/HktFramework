@@ -18,6 +18,8 @@ class InventoryService {
   constructor(opts = {}) {
     this.gateway = opts.gateway || 'gateway';
     this.bus = opts.bus || null;  // 이벤트 버스 주소(null = 0015 직접 라우팅 비트 동일 — 버스 ON 이면 gateway 주소 미사용)
+    this.invUpPublish = opts.invUpPublish || false;  // 가방 회복 자기 공지(step-0139·invUpPublish) — announceUp seam 수신 시 svc.inventory.up 발행(거래소 0136 autoReadmit 트리거 신호 발행자). OFF·bus 부재면 발행 0(0138 비트 동일).
+    this.invUpPublished = 0;       // 발행한 svc.inventory.up 수(step-0139·계측).
     this.persist = opts.persist || null;  // 영속 스토어 주소(null = 0016 비트 동일 — write-behind 저널 OFF). 가방 자기 데이터 스토어 명시 인터페이스.
     this.persistBackup = opts.persistBackup || null;  // 보조 영속 스토어 주소(0027·persistBackup) — _journal 이중쓰기 대상. null = 0026 비트 동일(단일 persist).
     this.replicas = opts.replicas || [];  // N-replica 영속 스토어 주소 목록(0028·persistReplicas) — _journal 이 primary + 이 목록 전부에 fan-out. [] = 0027 비트 동일(N-replica 휴면). persistBackup 과 상호배타(토폴로지가 둘 중 하나만 와이어).

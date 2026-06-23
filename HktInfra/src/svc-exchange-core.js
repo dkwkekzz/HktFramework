@@ -1,4 +1,5 @@
 'use strict';
+// step-0140 — saga liveness 회계 정합 capstone(sagaLiveConsistent): 0131~0139 liveness arc 의 창발 불변. 미해결(pending) give 는 정확히 한 상태 — 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed) 으로 분할(pending.size == 셋의 합·공백·중복 0) + 0128 sagaConsistent AND. 미호출 읽기 accessor·단언용 = 0139 비트 동일(reg).
 // step-0138 — saga 영구 실패 발행(failPublish): 0137 영구 실패(permFailed)를 svc.exchange.saga_failed 로 1회 발행(운영 종결 통보·saga_abandoned 0132 의 종결 판·failPublished==permFailed). 이제 saga liveness 수명주기 발행이 포기(0132)·재개(0135)·종결(0138)로 완비. OFF·bus 부재면 발행 0 = 0137 비트 동일.
 // step-0137 — saga 재admission 횟수 상한(readmitMax): 0134/0136 §9 의 무한 abandon↔readmit 루프를 막는다. gid 가 readmitMax 회 재admission 된 뒤 또 포기되면 *영구 실패*(permFailed)로 abandonedGive 에 안 넣어 재admission 차단. pending 엔 남아 미해결(sagaConsistent 불변). readmitMax 0 면 무제한 = 0136 비트 동일.
 // step-0136 — saga 재admission 자동 트리거(autoReadmit·0056 busPresenceRecover 의 saga 판): 0134/0135 재admission 은 수동 op 였다. autoReadmit ON 이면 거래소가 svc.inventory.up(가방 회복 신호)을 *구독*해, 그 ev 수신 시 스스로 _readmit() — 수동 exchReadmit 불요(은닉·decouple: 거래소는 가방 회복을 직접 안 보고 발행된 신호로만 반응). OFF 면 그 ev 무시 = 0135 비트 동일.
@@ -179,6 +180,10 @@ class ExchangeService {
   pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0125) — 정상 흐름 0·회신 손실 시 >0(ack 미수신 격차).
   // saga 회계 정합 불변(step-0128·단언용 읽기 accessor) — ① 보낸 give 는 acked 또는 pending(새는 give 0) ② 받은 회신은 ok 또는 fail(분류 누락 0). 모든 체제(정상·손실·재전송)서 성립.
   sagaConsistent() { return this.gives === this.ackedGives + this.pending.size && this.ackedGives === this.giveOks + this.giveFails; }
+  // saga liveness 회계 정합 capstone(step-0140·단언용 읽기 accessor) — 0131~0139 liveness arc 의 창발 불변: *미해결(pending) give 는 정확히 한 liveness 상태*에 있다 —
+  //   재전송 중(pendingGive)·재admission 대기(abandonedGive·포기됨)·영구 종결(permFailed) 셋으로 분할되며 공백·중복 0(pending.size == pendingGive + abandonedGive + permFailed).
+  //   여기에 0128 sagaConsistent(gives==acked+pending·acked==oks+fails)를 AND — 보낸/받은/미해결 회계 전체가 대수적으로 닫힘. 정상·손실·포기·재admission·영구실패 *모든 체제*서 성립.
+  sagaLiveConsistent() { return this.pending.size === this.pendingGive.size + this.abandonedGive.size + this.permFailed && this.sagaConsistent(); }
   // 거래소가 escrow 에 들고 있다고 *믿는* open 매물의 itemId 집합(step-0120·2-서비스 보존 단언용 읽기 accessor·정렬). itemId 없는(추상 escrow) 매물은 제외.
   escrowItemIds() { return [...this.listings.values()].map(l => l.itemId).filter(x => x != null).sort(); }
 }
