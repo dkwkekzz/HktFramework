@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0161](step-0161.md) — **아이템 우편 발신 인출 leg1**(mailInv·invMode): invMode ON 이면 mailSend 가 아이템을 발신자 가방→'mailcustody' 로 give(거래소 0117 인출 leg 의 우편 판·가방이 권위·우편은 요청만·은닉). 리뷰 #40 의 첫 마디. 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(mailInv OFF=0160 비트 동일)·exmlinv1: gives 2·item0/1 owner=mailcustody·발신자 잔여 없음·spine 통과.
-- **다음**: §2 — 아이템 우편 가방 연동 arc(0162 수령 입금·0163 만료 반환·0164 2-서비스 보존·0165~ saga 신뢰 전달).
+- **닫힌 step**: [step-0162](step-0162.md) — **아이템 우편 수령 입금 leg2**: mailFetch 가 수령 통 아이템을 우편 custody→수령자 가방으로 give(거래소 0118 입금 leg 의 우편 판). 발신 인출(0161)의 짝 — 발신자서 빠진 실물이 수령자 가방에 들어온다. 닿는 박스: svc-mail.
+- **한 줄 상태**: reg ALL OK(invMode OFF=0161 비트 동일)·exmlinv2: item0 owner=h1(수령)·item1=mailcustody(미수령)·gives 3·spine 통과.
+- **다음**: §2 — 아이템 우편 가방 연동 arc(0163 만료 반환·0164 2-서비스 보존·0165~ saga 신뢰 전달).
 
 ---
 
@@ -257,3 +257,4 @@
 | [0159](step-0159.md) | 아이템 우편 만료 회수(itemExpired·mailSweep 만료 시 아이템 회수·itemHeld→itemExpired) | 통과 · itemSent 3·held/fetch/exp 1/1/1 |
 | [0160](step-0160.md) | 아이템 우편 회계 정합 capstone(itemConsistent·itemSent==itemHeld+itemFetched+itemExpired·아이템 우편 arc 닫기) | 통과 · 4체제 true·분할 0/2/0·0/0/2·1/1/1 |
 | [0161](step-0161.md) | 아이템 우편 발신 인출 leg1(mailInv·mailSend → 발신자 가방→mailcustody give·거래소 0117 의 우편 판) | 통과 · gives 2·owner=mailcustody·발신자 잔여 0 |
+| [0162](step-0162.md) | 아이템 우편 수령 입금 leg2(mailFetch → custody→수령자 가방 give·거래소 0118 의 우편 판) | 통과 · item0→h1·item1 custody 잔류·gives 3 |
