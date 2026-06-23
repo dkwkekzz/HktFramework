@@ -465,5 +465,37 @@
     return out;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, fluidToParticles, VERSION: 9 };
+  // ── SW5 SPH 복사 냉각 — 입자가 제 열을 *빛으로* 내보내 식는다(계의 첫 에너지 sink) ──────────────
+  //   design/sphere-world.md §6 SW5 — 압력(0041)·점성(0046)·전도(0049)는 에너지를 *재분배*만 한다(KE↔U·U↔U).
+  //   계 밖으로 에너지가 *나갈 출구*가 없어 붕괴열이 갇힌다. 이 법칙은 그 출구 = **빛**: 광학적으로 얇은 회색 복사로
+  //   각 입자가 제 내부E 의 일부를 빛으로 방출한다 = **0005/0013(열의 출구=빛·질량 보존)의 SPH 판**. 0013 이 0012
+  //   runaway 를 닫았듯, 이 sink 가 있어야 가스가 *진짜로 식어 정착*한다(점성·전도는 열을 옮길 뿐 못 버린다).
+  //     u_i ← u_floor + (u_i − u_floor)·(1 − dt·coolRate),   radiated_i += 잃은 내부E   (질량·운동량·KE 불변)
+  //   u_floor(=floor·m_i) 아래론 안 식는다(바닥 복사장·CMB 류·기본 0=완전히 식음). 빛은 *열에서* 나오지 질량
+  //   아님(0005 질량소실 닫음) → energy=KE+u 는 줄지만 ρ(질량)는 불변. coolRate=0 또는 dt=0 → early-return(회귀 0).
+  //   opts: { coolRate(0), floor(0·바닥 비내부E) }. 빛 장부는 입자별 e.radiated 로 누적(Lagrangian·총빛=Σe.radiated).
+  function sphRadiativeCooling(particles, dt, opts) {
+    opts = opts || {};
+    const coolRate = opts.coolRate != null ? opts.coolRate : 0;
+    if (dt == null) dt = 1;
+    if (!coolRate || !dt) return particles;                   // 노브=0 → 세계 불변(회귀 0)
+    const floor = opts.floor != null ? opts.floor : 0;
+    const EPS2 = 1e-12, f = Math.max(0, 1 - dt * coolRate);   // 감쇠 계수(비음수 가드)
+    for (let i = 0; i < particles.length; i++) {
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      if (e.KEcm == null) e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      const floorE = floor * (e.mass || 0);                   // 바닥 내부E (u_floor·m)
+      const above = e.internalE - floorE;                     // 바닥 위 초과분만 식는다
+      if (above > 0) {
+        const lost = above * (1 - f);                         // 잃는 내부E = 방출 빛
+        e.internalE -= lost;
+        e.radiated = (e.radiated || 0) + lost;                // 빛 장부(열에서·질량 아님)
+      }
+      e.energy = e.KEcm + e.internalE;                        // 총E 감소(빛이 계를 떠남)·ρ(질량) 불변
+    }
+    return particles;
+  }
+
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, fluidToParticles, VERSION: 10 };
 });
