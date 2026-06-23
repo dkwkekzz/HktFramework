@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0127](step-0127.md) — **saga dedup 유계화**(sagaDedupBound·saga_done ack-of-ack): 0126 §9(sagaResults 무계) 해소. 거래소가 give 결과 최종 수신(ack) 시 saga_done{gid} 를 가방에 발신, 가방이 sagaResults[(replyTo,gid)] 가지치기(best-effort·없어도 안전). bound ON: 정상 흐름서 sagaResults 0 으로 drain(saga_done 9==ack 9·처리 give 수 무관)·bound OFF: 무계(==gives 9). 정확성(giveOks 9·open==escrow·conserved)은 유계화와 직교·불변. saga_done 손실돼도 멱등 보존(다음 ack 가 재-prune). 0126 dedup 키 null 바이트→공백 정렬(store/lookup/prune 통일·동작 불변). sagaDedupBound OFF 면 0126 비트 동일. 닿는 박스: svc-exchange-core/txn(saga_done)·svc-inventory-txn(prune)·topo-build.
-- **한 줄 상태**: reg ALL OK(src=baseline=0126 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagabound: gives 9·bound ON sagaResults 0/dones 9·OFF sagaResults 9·giveOks 9·open==escrow ["item4"]·conserved·전 키트 모드 통과.
-- **다음**: §2 참조(saga 회계 정합 불변·자동 재전송·buy leg 보상·topo-build/topology 정리·우편/길드·비동기 결정론🔴).
+- **닫힌 step**: [step-0128](step-0128.md) — **saga 회계 정합 불변**(sagaConsistent·체제 무관 대수적 닫힘): 0121~0127 saga 회계가 대수적으로 닫혀 있는지 단언. ① gives==ackedGives+pendingGives(새는 give 0) ② ackedGives==giveOks+giveFails(분류 누락 0). 정상(pending 0·oks==gives)·회신손실(pending==gives·acked 0)·재전송+dedup(pending 0·oks 회복) *세 체제 모두서* sagaConsistent()==true — 체제는 항의 분포만 바꾸고 합(gives)은 불변(회계가 고장 아래서도 새거나 중복 0). 0120 2-서비스 보존의 회계 평면 판. sagaConsistent 미호출 accessor = 0127 비트 동일. 닿는 박스: svc-exchange-core(sagaConsistent).
+- **한 줄 상태**: reg ALL OK(src=baseline=0127 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagaconsist: 정상 9=9+0/9=9+0·손실 9=0+9/0=0+0·재전송 9=9+0/9=9+0·sagaConsistent 전부 true·전 키트 모드 통과.
+- **다음**: §2 참조(자동 재전송·거래소 give↔가방 transfers capstone·topo-build/topology 정리·우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0127 이 *saga dedup 유계화*(sagaDedupBound·saga_done)로 saga 신뢰 전달 arc 를 유계까지 완성(피드백→보상→발행→감지→재전송→멱등→유계). 다음 후보: *saga 회계 정합 불변*(gives==acked+pending·acked==oks+fails)·*자동 재전송*·*정리* topo-build/topology 분할·*우편/길드*·*비동기 결정론*(🔴). 🔧 topo-build 32.7KB·topology 31.5KB. 🔎 0111~0120 묶음 리뷰 시점.**
+**step-0128 이 *saga 회계 정합 불변*(sagaConsistent)으로 saga arc 의 창발 불변을 단언(체제 무관 대수적 닫힘). 다음 후보: *자동 재전송*(exchSweep 피기백·타임아웃)·*거래소 give↔가방 transfers capstone*(cross-service 정합)·*정리* topo-build/topology 분할·*우편/길드*·*비동기 결정론*(🔴). 🔧 topo-build 32.7KB·topology 31.5KB. 🔎 0111~0120 묶음 리뷰 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -112,8 +112,8 @@
 | [0014](step-0014.md) | 가방 서비스 분리(아이템 원장 존 tick 밖 비동기·단일 소유·쌍 거래) | 통과 |
 | [0015](step-0015.md) | 채팅 서비스 분리(채널 팬아웃 비동기·구독 라우팅·지역 격리) | 통과 · 누설 0 |
 | [0016](step-0016.md) | 이벤트 버스 서비스 층(발행/구독·직접 결합 제거·무수정 소비자) | 통과 |
-| [0017](step-0017.md) | 가방 failover·영속(원장을 영속 저널서 재구성·event sourcing) | 통과 · 복구==무재시작 |
-| [0018](step-0018.md) | 가방 저널 스냅샷 압축(intent 로그+주기 스냅샷) | 통과 · 저널 92%↓ |
+| [0017](step-0017.md) | 가방 failover·영속(원장을 영속 저널서 재구성·event sourcing) | 통과 |
+| [0018](step-0018.md) | 가방 저널 스냅샷 압축(intent 로그+주기 스냅샷) | 통과 · 92%↓ |
 | [0019](step-0019.md) | 발신하는 둘째 소비자(RankingService·CQRS) | 통과 · 투영==원장 |
 | [0020](step-0020.md) | 읽기 모델 영속·late-join(crash→쓰기 저널 recon) | 통과 · 투영==원장 |
 | [0021](step-0021.md) | 채팅 영속·failover(crash→커맨드 로그 replay) | 통과 · replay 투명 |
@@ -223,3 +223,4 @@
 | [0125](step-0125.md) | saga 미해결 give 추적+회신 손실 감지(pendingGives·gid — give 에 gid·pending add/remove) | 통과 · 정상 pending 0/peak 2·손실 pending 9/acked 0·안전 유지·spine 125 |
 | [0126](step-0126.md) | saga 회신 재전송+idempotent dedup(exchRetry·sagaDedup — 가방 (replyTo,gid) 재실행 0 재회신) | 통과 · dedupON pending 0/oks 1/안전·dedupOFF abrt 1/open[] != escrow·spine 126 |
 | [0127](step-0127.md) | saga dedup 유계화(sagaDedupBound·saga_done — ack 시 거래소→가방 prune 통보) | 통과 · bound ON sagaResults 0/dones 9·OFF 9·정확성 불변·spine 127 |
+| [0128](step-0128.md) | saga 회계 정합 불변(sagaConsistent — gives==acked+pending·acked==oks+fails 체제 무관) | 통과 · 정상/손실/재전송 3체제 sagaConsistent true·spine 128 |

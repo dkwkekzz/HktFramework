@@ -1,4 +1,5 @@
 'use strict';
+// step-0127 — saga dedup 유계화(sagaDedupBound·saga_done ack-of-ack): 0126 §9 해소. 가방의 dedup 맵(sagaResults)은 처리한 모든 (replyTo,gid)를 무계로 쌓는다 — 재전송이 끝나도 안 지워진다. 거래소가 give 결과를 *최종 수신*(pending 에서 제거)하면 더는 그 gid 를 재전송하지 않으므로, 가방은 그 dedup 항목을 안전히 잊어도 된다. 거래소가 ack 수신 시 saga_done{gid} 를 가방에 보내 sagaResults[(replyTo,gid)] 를 가지친다(0042 busSeenBound 워터마크의 saga 회신 판·best-effort). sagaDedupBound ON: 정상 흐름서 sagaResults 가 0 으로 drain(유계). OFF: 무계(0126 동일·∝처리 give 수). saga_done 손실돼도 안전(가방이 항목 보존·재전송 시 여전히 재회신·다음 ack 가 다시 prune). sagaDedupBound OFF·saga_done 부재면 0126 비트 동일.
 // step-0126 — saga 회신 재전송 + idempotent dedup(exchRetry·sagaDedup): 0125 의 §9 해소. 거래소가 미해결 give(pending)의 *파라미터*를 pendingGive 에 보관했다가 exchRetry op 에 재전송한다 — 단 *재실행이 아니라 재회신*을 받아야 안전하다. 가방이 give 를 (replyTo,gid)로 dedup(sagaResults): 이미 처리한 give 면 *원래 결과*를 재실행 없이 재회신한다. 그래야 회신만 손실된 경우(give 는 성공) 재전송이 owner≠from 으로 *재실행→ok:false 오판*되어 보상이 *valid 매물을 잘못 abort*(안전 위반)하는 것을 막는다. dedup ON: 재전송→저장된 ok:true 재회신→pending drain·giveOks 정확·2-서비스 안전. dedup OFF: 재전송→재실행 실패(ok:false)→보상 오작동(valid 매물 abort·open≠escrow). exchRetry op 부재·sagaDedup OFF 면 0125 비트 동일. 0042 seenReqs(요청 dedup)의 saga 회신 판.
 // step-0125 — saga 미해결 give 추적 + 회신 손실 감지(pendingGives·gid): 0121 의 §9(회신 손실 무대비) 를 *가시화*한다. saga ON 이면 _custody 가 각 give 에 단조 gid 를 부여하고 미해결 집합(pending)에 넣는다 — 가방 item_result 회신이 그 gid 로 돌아오면 제거한다. 정상(무손실) 흐름서 pending 은 0 으로 drain(모든 give 가 acked·닫힌 고리의 liveness). 회신 경로(inventory→exchange item_result)에 손실을 주입하면 잃은 회신의 gid 가 pending 에 *남는다*(ack 미수신 격차가 가시·ackedGives<gives). 이로써 "어느 give 가 응답을 못 받았나"를 거래소가 안다 — 재전송(idempotent dedup)의 토대(후속). saga OFF·gid 부재면 추적 0 = 0124 비트 동일.
 // step-0124 정리 분할 — ExchangeService *원장 코어*(생성자 + 헬퍼 _custody/_journal/스냅샷 + crash + reconstruct + 조회).
@@ -54,6 +55,8 @@ class ExchangeService {
     this.pendingPeak = 0;              // pending 최대 크기(step-0125·계측) — in-flight give 가 실제로 있었음을 증거(0 이면 추적 미작동).
     this.pendingGive = new Map();       // gid -> {itemId, from, to, cause}(step-0126) — 미해결 give 의 파라미터(재전송 소스). ack 시 pending 과 함께 delete.
     this.retries = 0;                   // 재전송한 give 누적(step-0126·exchRetry·계측).
+    this.sagaDedupBound = opts.sagaDedupBound || false;   // saga dedup 유계화(step-0127) — ON 이면 give 결과 최종 수신 시 saga_done{gid} 를 가방에 보내 dedup 항목 가지치기. OFF 면 발신 0(0126 비트 동일).
+    this.sagaDones = 0;                 // 발신한 saga_done 수(step-0127·계측·ackedGives 와 1:1·재전송 ack 포함).
   }
   // escrow custody 이동 헬퍼(step-0117) — 거래소↔가방 2-서비스 쌍 거래의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(fromAvatar→toAvatar). 가방이 권위·거래소는 요청만(은닉). 미충족이면 no-op(추상 escrow·0116 동일).
   _custody(itemId, from, to, cause) {
@@ -90,7 +93,7 @@ class ExchangeService {
   crash() {
     this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0; this.aborted = 0; this.abortPublished = 0;   // saga 피드백/보상/발행 집계 리셋(step-0121~0123) — 새 프로세스는 give 결과·abort·발행 이력 0(플래그 OFF 면 무관).
-    this.gid = 0; this.pending = new Set(); this.pendingPeak = 0; this.pendingGive = new Map(); this.retries = 0;   // 미해결 give 추적/재전송 리셋(step-0125·0126) — 새 프로세스는 in-flight give 이력 0(saga OFF 면 무관).
+    this.gid = 0; this.pending = new Set(); this.pendingPeak = 0; this.pendingGive = new Map(); this.retries = 0; this.sagaDones = 0;   // 미해결 give 추적/재전송/유계화 리셋(step-0125~0127) — 새 프로세스는 in-flight give 이력 0(saga OFF 면 무관).
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
