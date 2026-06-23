@@ -196,6 +196,8 @@ function run(opts) {
     if (opts.mailOps && mail) for (const o of [].concat(opts.mailOps)) if (o.at === i + 1) mail.onMsg({ from: o.from || 'gateway', payload: o.op, tick: i + 1 });
     // 미읽음 배지 질의 주입(step-0156·mailFeedQuery) — at tick 에 mailUnreadQuery 를 게이트웨이→mailfeed 로 전달(클라/운영 배지 조회 모델·request/reply over net). mailfeed 부재·미제공이면 휴면(reg 0 불변).
     if (opts.mailFeedQuery && mailfeed) for (const o of [].concat(opts.mailFeedQuery)) if (o.at === i + 1) net.send(o.from || 'gateway', 'mailfeed', { type: 'mailUnreadQuery', rcpt: o.rcpt });
+    // 미해결 give 재전송 트리거(step-0168·mailRetryAt) — at tick 에 우편 박스가 pending give 재발신(회신 손실 회복·idempotent dedup 전제). 미제공이면 휴면(reg 0 불변).
+    if (opts.mailRetryAt && mail) for (const at of [].concat(opts.mailRetryAt)) if (at === i + 1) mail._resendPending();
     // 파티 라우팅 주입(step-0073·1:N 팬아웃) — at tick 에 클라가 라우터로 파티 요청(members 다수) 발신. 라우터가 멤버마다 presence 질의→부분 전달. wrouter 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.parties && wrouter) for (const pt of opts.parties) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'party', members: pt.members, body: pt.body, partyId: pt.partyId });
     // 파티 멤버십 결성 주입(step-0075·partyService) — at tick 에 클라가 PartyService 에 partyCreate(멤버십 SSOT 쓰기). pservice 부재면 주입 0. 미제공이면 휴면(reg 0 불변).

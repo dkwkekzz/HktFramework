@@ -1,4 +1,5 @@
 'use strict';
+// step-0169 — mailXfers 계측: mailcustody 가 관여한 transfer(from/to 중 'mailcustody') 수. 우편 ackedOk 와 교차 정합(거래소 0130 escrowXfers 의 우편 판). 우편 give 부재면 0 = 0168 비트 동일.
 // step-0130 — escrowXfers 계측: escrow custody 가 관여한 transfer(from/to 중 'escrow') 수. 거래소 giveOks 와 교차 정합(두 서비스 회계 합치 capstone). escrow give 부재면 0 = 0129 비트 동일.
 // step-0054 — lease 생애 관측(busLeaseAudit) 플래그 추가 — 축출/재admission 을 svc.item.lease 버스 이벤트로 발행(코디네이션 관측). InventoryService *원장 코어*(생성자 + _own/_unown + crash + 조회).
 //   write-behind 영속은 svc-inventory-persist.js, 버스 결과/replay 는 svc-inventory-bus.js 가 프로토타입 증강(Object.assign).
@@ -139,6 +140,7 @@ class InventoryService {
     this.sagaDedup = opts.sagaDedup || false;
     this.sagaResults = new Map();   // (replyTo gid) -> ok(boolean) — 처리한 saga give 결과(재전송 시 재회신 소스). sagaDedup ON 일 때만. 유계화는 0127 saga_done.
     this.escrowXfers = 0;           // escrow custody 가 관여한 transfer 수(step-0130) — from/to 중 하나가 'escrow' 인 성공 give. 거래소 giveOks 와 *교차 정합*(두 서비스 회계 합치 capstone). 일반 클라 give 는 비-증가.
+    this.mailXfers = 0;             // mailcustody 가 관여한 transfer 수(step-0169) — from/to 중 하나가 'mailcustody' 인 성공 give. 우편 ackedOk 와 *교차 정합*(거래소 0130 escrowXfers 의 우편 판). 우편 give 부재면 0(0168 동일).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -159,6 +161,7 @@ class InventoryService {
     this.readmissions = 0;   // 재admission 이력 리셋(이 step) — 새 프로세스는 복귀 이력 0(busLeaseLife OFF 면 무관). §2 지연 baseline 은 sweep 가 다시 깐다(상태 불요).
     this.sagaResults = new Map();   // saga give dedup 이력 리셋(step-0126) — 새 프로세스는 처리 이력 0(sagaDedup OFF 면 빈 Map 무변경).
     this.escrowXfers = 0;           // escrow transfer 계측 리셋(step-0130) — 새 프로세스는 0(escrow give 부재면 무관).
+    this.mailXfers = 0;             // mailcustody transfer 계측 리셋(step-0169) — 새 프로세스는 0(우편 give 부재면 무관).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   itemCount() { return this.ledger.size; }

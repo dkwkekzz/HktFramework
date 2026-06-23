@@ -1,4 +1,7 @@
 'use strict';
+// step-0168 — 아이템 우편 미해결 give 재전송 멱등(mailRetry + 가방 sagaDedup): 0165 회신 손실 시 gid 가 pending 에 남는다(멀티프로세스 무대·#9) — 되살리려면 재전송이 필요한데, 순진한 재전송은 이미 옮긴 아이템을 owner≠from 으로 *재실행 실패*→오보상한다.
+//   이 step: _resendPending() 이 pending give 를 *같은 gid* 로 재발신하고, 가방 sagaDedup((replyTo,gid)→원결과)이 *재실행 없이* 원래 결과를 재회신한다(거래소 0126 exchRetry+sagaDedup 의 우편 판·재실행 0). pending(Set→Map: gid→give 파라미터)으로 재전송 소스 보관.
+//   mailRetry 미주입·sagaDedup OFF 면 재전송 0·dedup 0 = 0167 비트 동일.
 // step-0167 — 아이템 우편 give 회계 정합(mailGiveConsistent): 0165~0166 이 give·회신·보상을 쌓았다 — 그 회계가 닫혀 있는가?
 //   mailGiveConsistent: 발신한 모든 custody give 는 매 순간 정확히 한 상태 — 회신 성공(ackedOk)·회신 실패(ackedFail)·미해결(pending) 으로 분할(공백·중복 0). gives == ackedOk + ackedFail + pending.size 가 모든 체제(정상·보상·혼합)서 성립(거래소 0128 sagaConsistent 의 우편 판). 미호출 = 0166 비트 동일(reg).
 // step-0166 — 아이템 우편 발신 실패 보상(mailCompensate): 0165 는 give 실패(ackedFail)를 *집계만* 했다 — 발신자가 아이템을 안 가졌는데도 우편이 낙관적으로 적재돼 *phantom 우편*(실물 없는 우편)이 남았다.
@@ -90,7 +93,8 @@ class MailService {
     this.gives = 0;                // 발신한 custody give 수(step-0161 — 거래소 0117 _custody 의 우편 판·0169 회계·0170 교차 정합 대비).
     this.saga = opts.saga || false;   // give 결과 비동기 수신(step-0165·mailSaga) — _custody 가 replyTo+gid 를 실어 가방 회신을 받는다. OFF 면 가방 회신 안 함(0164 비트 동일).
     this._gid = 0;                 // 단조 give id(step-0165·미해결 추적 매칭 키).
-    this.pending = new Set();      // 미해결 give 의 gid(step-0165) — _custody add·item_result 회신이 delete. 정상 흐름서 0 으로 drain(회신 손실 시 잔존·0167 가시).
+    this.pending = new Map();      // 미해결 give gid → give 파라미터(step-0165 Set→0168 Map) — _custody set·item_result 회신이 delete. 정상 흐름서 0 으로 drain(회신 손실 시 잔존). Map 값은 재전송(0168) 소스.
+    this.retries = 0;              // 재전송한 give 수(step-0168·_resendPending — gives 무증가·이미 추적 중).
     this.acked = 0; this.ackedOk = 0; this.ackedFail = 0;   // 회신 받은 give 수(step-0165·ok/fail 분리·0169 gives==ackedOk+ackedFail+pending).
     this.compensate = opts.compensate || false;   // 발신 실패 보상(step-0166·mailCompensate) — 발신 leg give 실패 시 우편 롤백. OFF 면 0165 비트 동일.
     this.compensated = 0;          // 보상(롤백)한 발신 우편 수(step-0166).
@@ -111,9 +115,17 @@ class MailService {
   _custody(itemId, from, to, cause, ref) {
     if (!this.invMode || !this.inv || itemId == null || !this.net) return;
     const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to, cause };
-    if (this.saga) { const gid = ++this._gid; msg.replyTo = this.addr; msg.gid = gid; this.pending.add(gid); if (ref) this._gidRef.set(gid, ref); }   // step-0166: ref(발신 leg 우편 참조) 보관·실패 시 롤백
+    if (this.saga) { const gid = ++this._gid; msg.replyTo = this.addr; msg.gid = gid; this.pending.set(gid, { itemId, from, to, cause }); if (ref) this._gidRef.set(gid, ref); }   // step-0166: ref 보관. step-0168: pending Map 값=재전송 소스.
     this.net.send(this.addr, this.inv, msg);
     this.gives++;
+  }
+  // 미해결 give 재전송(step-0168·mailRetry) — pending 에 남은 give 를 *같은 gid* 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제). gives 무증가(이미 추적 중)·retries++. pending 비었으면 no-op = 0167 비트 동일.
+  _resendPending() {
+    if (!this.invMode || !this.inv || !this.net) return;
+    for (const [gid, g] of this.pending) {
+      this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, cause: g.cause, replyTo: this.addr, gid });
+      this.retries++;
+    }
   }
   // projection 스냅샷/복원(step-0146) — 우편함(보유)·읽음·회계를 plain 구조로 직렬화/역직렬화(스냅샷 압축의 베이스).
   _snapState() {
@@ -220,7 +232,7 @@ class MailService {
     this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this.expirePublished = 0; this._seq = 0; this._lastFetch = null;
     this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
     this.gives = 0;   // step-0161: custody give 계측 리셋(가방 give 는 외부 — 우편 박스 RAM 소실 모델)
-    this.pending = new Set(); this.acked = 0; this.ackedOk = 0; this.ackedFail = 0; this._gid = 0;   // step-0165: saga 미해결/회신 회계 리셋
+    this.pending = new Map(); this.acked = 0; this.ackedOk = 0; this.ackedFail = 0; this._gid = 0; this.retries = 0;   // step-0165/0168: saga 미해결/회신/재전송 회계 리셋
     this.compensated = 0; this._gidRef = new Map();   // step-0166: 보상 회계 리셋
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
