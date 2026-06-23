@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0169](step-0169.md) — **아이템 우편 교차 정합**(mailXfers): 가방 mailXfers(mailcustody 관여 transfer) == 우편 ackedOk(성공 회신) — 두 서비스 회계 합치(거래소 0130 의 우편 판). 우편 give 는 escrowXfers(거래소) 무오염. 닿는 박스: svc-inventory-core/txn.
-- **한 줄 상태**: reg ALL OK(우편 give 부재=0168 비트 동일)·exmlxfer: gives 5·ackedOk 5·mailXfers 5·교차 합치·escrowXfers 0·spine 통과.
-- **다음**: §2 — 아이템 우편 saga liveness capstone(0170·전 정합층 동시 성립·arc 닫기). 재전송 상한(거래소 0131 판)은 멀티프로세스 무대 백로그(#37 family).
+- **닫힌 step**: [step-0170](step-0170.md) — **아이템 우편 saga liveness capstone**(mailLiveConsistent = give 회계 ∧ 아이템 회계): 0161~0169 의 세 leg·2-서비스 보존·saga 회신·보상·재전송·교차 정합이 4체제(정상·보상·혼합·crash 복구)서 *동시* 성립(거래소 0140 의 우편 판). **아이템 우편↔가방 arc(0161~0170) 완성 — 리뷰 #40 닫힘.** 닿는 박스: svc-mail.
+- **한 줄 상태**: reg ALL OK(미호출=0169 비트 동일)·exmllive: 4체제 mailLiveConsistent·2-서비스 보존·교차 정합(ackedOk==mailXfers)·crash 복구 보존·spine 통과.
+- **다음**: §2 — 우편 멀티프로세스 배선(#9)·재전송 상한/backoff(#37 family)·leg2/3 실패 보상·발행 게이트 통합·길드·비동기 결정론🔴·0161~0170 묶음 리뷰(`infra-review`).
 
 ---
 
@@ -40,7 +40,7 @@
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·lease·치유·대체활성화 ✅)** | 버스 | 0016 단일 박스·영속 0→동적구독/failover/무손실/lease/self-healing(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티 ✅·버스 ⬜)** | 서비스/데이터 | 가방/채팅/파티 저널+압축(0017~0022·0085). write-behind(0023~0029). 버스 라우팅 영속 0. |
-| 🟡 | **거래소 ✅(0107~0140)·우편 ✅(0142~0160)·랭킹/읽기모델 ✅·길드 ⬜** | 서비스 | 0107~0140 거래소(escrow·발행 7종·saga liveness)·0142~0160 우편(메시지 0142~0150·미읽음 배지 MailFeed 0151~0156·아이템 첨부 0157~0160). 길드·가방 연동 아이템 우편(give/반환)·발행 게이트 통합 후속. |
+| 🟡 | **거래소 ✅(0107~0140)·우편 ✅(0142~0170)·랭킹/읽기모델 ✅·길드 ⬜** | 서비스 | 0107~0140 거래소(escrow·발행 7종·saga liveness)·0142~0170 우편(메시지 0142~0150·미읽음 배지 MailFeed 0151~0156·아이템 첨부 0157~0160·**가방 연동 아이템 우편 0161~0170**: 3leg give/반환·2-서비스 보존·saga 회신/보상/멱등 재전송/교차 정합·liveness capstone). 길드·발행 게이트 통합 후속. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스(0064~0070)·귓속말/파티 라우팅(0071~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017)+압축(0018)·홉 신뢰→quorum→윈도(0023~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십·전달 신뢰·파티 집계/영속·epoch 펜싱·수신함 유계/드레인. **거래소 arc 0107~0140**: escrow 쌍 거래·발행 7종·영속/압축·시세 피드·만료 TTL·가방 give 3leg·2-서비스 보존·saga liveness(0121~0140: 자율 복구·네 정합층 완성·전문 §7). 정리 0124/0133. **우편 arc 0142~0160**: 메시지(0142~0150 입금/수령/발행 3종/영속·압축/만료 TTL/회계 capstone)·미읽음 배지 읽기 모델 MailFeed(0151~0156 입금/읽음/만료 반영·영속 late-join·회계 capstone·질의)·아이템 첨부(0157~0160 첨부/수령/만료/itemConsistent). 신성한 tick·권위 0. 가방 연동 give/반환·발행 게이트·길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십·전달 신뢰·파티 집계/영속·epoch 펜싱·수신함 유계/드레인. **거래소 arc 0107~0140**: escrow 쌍 거래·발행 7종·영속/압축·시세 피드·만료 TTL·가방 give 3leg·2-서비스 보존·saga liveness(0121~0140: 자율 복구·네 정합층 완성·전문 §7). 정리 0124/0133. **우편 arc 0142~0170**: 메시지(0142~0150)·미읽음 배지 MailFeed(0151~0156)·아이템 첨부(0157~0160)·**가방 연동 아이템 우편(0161~0170)**: 3leg(인출/입금/반환 give)·2-서비스 보존(mailCustodyItems≡가방 mailcustody)·saga 회신/실패 보상/멱등 재전송/교차 정합(mailXfers)·liveness capstone(mailLiveConsistent). 거래소↔가방 0117~0140 의 우편 판. 신성한 tick·권위 가방 단독. 멀티프로세스 배선·발행 게이트·길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 substrate→0012 토픽 pub/sub→0016 ServiceBus→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0052 lease/ns/lifecycle/적응형→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리+0009 Orchestrator+0010~0013 broker(lockstep→TCP→버스 허브·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070)·0105/0106 공지 epoch 펜싱. broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속/스냅샷→0023~0026 홉 신뢰→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 recon. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -265,3 +265,4 @@
 | [0167](step-0167.md) | 아이템 우편 give 회계 정합(mailGiveConsistent·gives==ackedOk+ackedFail+pending) | 통과 · 3체제 true·무손실 pending 0 drain |
 | [0168](step-0168.md) | 아이템 우편 미해결 give 재전송 멱등(mailRetry+가방 sagaDedup·재실행 0·이중 이동 0) | 통과 · retries 1·transfers 1·acked 1 |
 | [0169](step-0169.md) | 아이템 우편 교차 정합(mailXfers·mail ackedOk==가방 mailcustody transfers·거래소 0130 의 우편 판) | 통과 · gives 5·ackedOk 5·mailXfers 5·escrow 무오염 |
+| [0170](step-0170.md) | 아이템 우편 saga liveness capstone(mailLiveConsistent=give 회계∧아이템 회계·우편↔가방 arc 닫기·#40) | 통과 · 4체제 live·보존·교차·crash 복구 |

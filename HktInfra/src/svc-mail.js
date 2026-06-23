@@ -1,4 +1,6 @@
 'use strict';
+// step-0170 — 아이템 우편 saga liveness capstone(mailLiveConsistent·아이템 우편↔가방 arc 닫기): 0161~0169 의 세 leg·2-서비스 보존·saga 회신·보상·재전송·교차 정합이 *동시에* 닫혀 있는가?
+//   mailLiveConsistent = mailGiveConsistent(0167: gives==ackedOk+ackedFail+pending) ∧ itemConsistent(0160: itemSent==itemHeld+itemFetched+itemExpired). 거래소 0140 sagaLiveConsistent 의 우편 판. 검증이 2-서비스 보존·교차 정합·crash 복구를 4체제서 동시 단언. 미호출 = 0169 비트 동일(reg).
 // step-0168 — 아이템 우편 미해결 give 재전송 멱등(mailRetry + 가방 sagaDedup): 0165 회신 손실 시 gid 가 pending 에 남는다(멀티프로세스 무대·#9) — 되살리려면 재전송이 필요한데, 순진한 재전송은 이미 옮긴 아이템을 owner≠from 으로 *재실행 실패*→오보상한다.
 //   이 step: _resendPending() 이 pending give 를 *같은 gid* 로 재발신하고, 가방 sagaDedup((replyTo,gid)→원결과)이 *재실행 없이* 원래 결과를 재회신한다(거래소 0126 exchRetry+sagaDedup 의 우편 판·재실행 0). pending(Set→Map: gid→give 파라미터)으로 재전송 소스 보관.
 //   mailRetry 미주입·sagaDedup OFF 면 재전송 0·dedup 0 = 0167 비트 동일.
@@ -272,6 +274,8 @@ class MailService {
   mailCustodyItems() { const ids = []; for (const b of this.boxes.values()) for (const mm of b.values()) if (mm.item != null) ids.push(mm.item); return ids.sort(); }
   // give 회계 정합 capstone(step-0167·단언용 읽기) — 발신한 custody give 는 매 순간 정확히 한 상태(회신성공 ackedOk·회신실패 ackedFail·미해결 pending)에 분할(공백·중복 0). 거래소 0128 sagaConsistent 의 우편 판.
   mailGiveConsistent() { return this.gives === this.ackedOk + this.ackedFail + this.pending.size; }
+  // 아이템 우편 saga liveness capstone(step-0170·단언용 읽기) — give 회계(0167)와 아이템 회계(0160)가 *함께* 닫힘. 거래소 0140 sagaLiveConsistent 의 우편 판·아이템 우편↔가방 arc 닫기.
+  mailLiveConsistent() { return this.mailGiveConsistent() && this.itemConsistent(); }
   fetchedOf(rcpt) { const l = this.read.get(rcpt); return l ? l.length : 0; }   // 한 수신자 수령 통수(step-0143)
   boxOf(rcpt) { const b = this.boxes.get(rcpt); return b ? [...b.values()] : []; }   // 우편함 통째(읽기·결정론 순서)
   readOf(rcpt) { const l = this.read.get(rcpt); return l ? l.slice() : []; }   // 수령(읽음) 보관 통째(step-0143)
