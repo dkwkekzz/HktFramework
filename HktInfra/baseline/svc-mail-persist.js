@@ -37,6 +37,7 @@ Object.assign(MailService.prototype, {
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0;   // step-0166: saga 회신 계측 소실(저널 밖·외부 회신 의존·reconstruct 가 재발행 안 함)
     this.gid = 0; this.pending = new Set(); this.pendingGive = new Map(); this.pendingPeak = 0;   // step-0167: 미해결 추적도 소실(외부 회신 의존)
     this.retries = 0;   // step-0168: 재전송 계측 소실
+    this.retryCount = new Map(); this.giveAbandoned = 0;   // step-0173: 재시도 카운트·포기 계측 소실(외부 회신 의존)
     this.escrowIds = new Set();   // step-0164: escrow 추적도 소실 → reconstruct 가 저널 replay 로 재계산(custody 재발행 없이 집합만).
   },
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
