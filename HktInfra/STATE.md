@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0150](step-0150.md) — **우편 회계 정합 capstone**(mailConsistent·sent==held+fetched+expired): 0142~0149 우편 arc 의 창발 불변(거래소 0140 의 우편 판). 우편 1통은 매 순간 정확히 한 상태 — 보유(held)·수령(fetched)·만료(expired) 분할(공백·중복 0). 4체제(수령만 0/3/0·만료만 0/0/3·혼합 1/2/1·crash 복구) 전부 true. 미호출 accessor = 0149 비트 동일. **우편 arc(0142~0150) 닫힘** — SPINE §2 우편 박스 완성. 닿는 박스: svc-mail.
-- **한 줄 상태**: reg ALL OK(src=baseline=0149 비트 동일)·exmail: 4체제 mailConsistent 예(4/4)·체제별 분할 카운트 일치·crash→reconstruct 후 정합+digest 보존·spine 통과.
-- **다음**: §2 참조(우편 arc 닫힘 — 발행 게이트 통합·길드·아이템 우편·비동기 결정론🔴·0141~0150 묶음 리뷰).
+- **닫힌 step**: [step-0151](step-0151.md) — **우편 미읽음 배지 읽기 모델**(mailFeed·MailFeed): 우편 발행 스트림 `svc.mail.sent`(0144)를 *소비만* 해 수신자별 unread 투영(거래소 MarketFeed 0112 의 우편 판·CQRS). 우편함 권위 0·발신 0(순수 반응형). 새 박스 svc-mailfeed.js + 배선(net-core·topo-actors/build/subs/run). 닿는 박스: 신규 svc-mailfeed.
+- **한 줄 상태**: reg ALL OK(mailFeed OFF=0150 비트 동일)·exmailfeed: 5통(h1×3·h2×2)→unread 3/2·totalUnread 5==mail.sent·feed==권위·spine 통과.
+- **다음**: §2 — MailFeed arc 진행(0152 읽음 반영·0153 만료 반영·0154 영속·late-join·0155 회계 정합·0156 배지 질의), 이후 아이템 첨부 우편(0157~0160).
 
 ---
 
@@ -226,17 +226,17 @@
 | [0128](step-0128.md) | saga 회계 정합 불변(sagaConsistent — gives==acked+pending) | 통과 · 3체제 true |
 | [0129](step-0129.md) | saga 자동 재전송(autoRetry — exchSweep 피기백·주기 재전송) | 통과 |
 | [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers — 요청≡실행 회계) | 통과 · giveOks==escrowXfers 9 |
-| [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — gid 당 N회·포기 abort 아님) | 통과 · retries 2·open==escrow·spine 131 |
-| [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned) | 통과 · pub 1==abandoned 1·spine 132 |
-| [0133](step-0133.md) | 정리: topo-build 구독 테이블 분할(topo-subs.js·buildSubs) | OK · 33.1→25.5KB·spine 133 |
-| [0134](step-0134.md) | saga 포기 give 재admission(exchReadmit — abandonedGive→pendingGive) | 통과 · readmit 1/pending 0·open==escrow·spine 134 |
-| [0135](step-0135.md) | saga 재admission 발행(readmitPublish — svc.exchange.saga_readmitted·0132 의 짝) | 통과 · pub 1==readmit 1·발행 6종·spine 135 |
-| [0136](step-0136.md) | saga 재admission 자동 트리거(autoReadmit — svc.inventory.up 구독→자동 _readmit) | 통과 · readmit 1/pending 0·spine 136 |
-| [0137](step-0137.md) | saga 재admission 횟수 상한(readmitMax — 무한 루프 방지·영구 실패 종결) | 통과 · readmit 2/permFailed 1·spine 137 |
-| [0138](step-0138.md) | saga 영구 실패 발행(failPublish — svc.exchange.saga_failed·발행 수명주기 완비) | 통과 · pub 1==permFailed 1·발행 7종·spine 138 |
-| [0139](step-0139.md) | 가방 회복 자기 공지(invUpPublish — svc.inventory.up·0136 자동 트리거 발행자) | 통과 · invUpPub 1→readmit 1·실 버스 체인·spine 139 |
-| [0140](step-0140.md) | saga liveness 회계 정합 capstone(sagaLiveConsistent — pending==pendingGive+abandonedGive+permFailed) | 통과 · 4체제 true·네 정합층 완성·open==escrow·spine 140 |
-| [0141](step-0141.md) | 정리: topology.js run 드라이버→topo-run.js 분리(quorumMergeJournals·run·runMulti·기능 0) | OK · 31.5→~1.0KB 진입점·reg 0·spine 141 |
+| [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — gid 당 N회·포기 abort 아님) | 통과 · retries 2 |
+| [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned) | 통과 · pub 1==abandoned 1 |
+| [0133](step-0133.md) | 정리: topo-build 구독 테이블 분할(topo-subs.js·buildSubs) | OK · 33.1→25.5KB |
+| [0134](step-0134.md) | saga 포기 give 재admission(exchReadmit — abandonedGive→pendingGive) | 통과 · readmit 1/pending 0 |
+| [0135](step-0135.md) | saga 재admission 발행(readmitPublish — svc.exchange.saga_readmitted·0132 의 짝) | 통과 · pub 1==readmit 1·발행 6종 |
+| [0136](step-0136.md) | saga 재admission 자동 트리거(autoReadmit — svc.inventory.up 구독→자동 _readmit) | 통과 · readmit 1/pending 0 |
+| [0137](step-0137.md) | saga 재admission 횟수 상한(readmitMax — 무한 루프 방지·영구 실패 종결) | 통과 · readmit 2/permFailed 1 |
+| [0138](step-0138.md) | saga 영구 실패 발행(failPublish — svc.exchange.saga_failed·발행 수명주기 완비) | 통과 · pub 1==permFailed 1·발행 7종 |
+| [0139](step-0139.md) | 가방 회복 자기 공지(invUpPublish — svc.inventory.up·0136 자동 트리거 발행자) | 통과 · invUpPub 1→readmit 1·실 버스 체인 |
+| [0140](step-0140.md) | saga liveness 회계 정합 capstone(sagaLiveConsistent — pending==pendingGive+abandonedGive+permFailed) | 통과 · 4체제 true·네 정합층 완성 |
+| [0141](step-0141.md) | 정리: topology.js run 드라이버→topo-run.js 분리(quorumMergeJournals·run·runMulti·기능 0) | OK · 31.5→~1.0KB 진입점·reg 0 |
 | [0142](step-0142.md) | 우편(Mail) 서비스 분리(MailService — mailSend 입금·수신자별 우편함·존 tick 밖·발신 0) | 통과 · sent 4·held 3/1·멱등·결정론 |
 | [0143](step-0143.md) | 우편 수령(mailFetch — held→fetched 무손실 이동·sent==held+fetched) | 통과 · h1 fetched 2·재수령 0·accountConsistent |
 | [0144](step-0144.md) | 우편 입금 발행(mailSentPublish — svc.mail.sent·audit 무수정 관측) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
@@ -246,3 +246,4 @@
 | [0148](step-0148.md) | 우편 만료 TTL(mailTtl — now−sentAt≥ttl 자동 회수·sent==held+fetched+expired) | 통과 · expired 1·accountConsistent·reconstruct==live·ttl0 만료0 |
 | [0149](step-0149.md) | 우편 만료 발행(mailExpirePublish — svc.mail.expired·수명주기 발행 3종 완비) | 통과 · expirePublished 1==audit 1==expired·3종 동시·OFF 0 |
 | [0150](step-0150.md) | 우편 회계 정합 capstone(mailConsistent — sent==held+fetched+expired·우편 arc 닫기) | 통과 · 4체제 true·분할 0/3/0·0/0/3·1/2/1·crash 복구 정합 |
+| [0151](step-0151.md) | 우편 미읽음 배지 읽기 모델(mailFeed·MailFeed — svc.mail.sent 구독→수신자별 unread·MarketFeed 0112 의 우편 판) | 통과 · unread 3/2·total 5==sent·feed==권위 |
