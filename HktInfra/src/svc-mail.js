@@ -1,4 +1,6 @@
 'use strict';
+// step-0159 — 아이템 우편 만료 회수(itemExpired): 0157~0158 은 아이템의 입금·수령만 회계했다 — 미수령 아이템 우편이 TTL 만료되면 아이템 회계가 어디로 가는지 미집계였다.
+//   이 step: mailSweep 만료 시 아이템 실은 통수만큼 itemExpired++(만료 우편의 아이템 회수). 회계 itemHeld→itemExpired 전이. 만료된 아이템은 발신자 반환이 자연스러우나(가방 연동) 본 step 은 *우편 박스 내 회수 회계*까지(반환 give 는 백로그). mailItem OFF·아이템 미첨부면 itemExpired 0 = 0158 비트 동일.
 // step-0158 — 아이템 우편 수령(itemFetched): 0157 은 아이템을 *보유(held)* 까지만 회계했다 — 수신자가 수령하면 아이템이 어디로 가는지 미집계였다.
 //   이 step: mailFetch 가 보유→수령 이동 시 아이템 실은 통수만큼 itemFetched++(아이템도 메시지와 함께 read 로 이동·읽음 보관). 회계 itemHeld→itemFetched 전이. mailItem OFF·아이템 미첨부면 itemFetched 0 = 0157 비트 동일.
 // step-0157 — 아이템 첨부 우편(mailItem·mailSend item): 0142~0156 우편은 *메시지(body)* 만 날랐다 — 아이템 우편(선물·전리품 배송)이 없었다.
@@ -139,6 +141,7 @@ class MailService {
           const mm = box.get(id);
           if (now - mm.sentAt >= this.ttl) {
             box.delete(id); this.expired++;
+            if (mm.item != null) this.itemExpired++;   // step-0159: 아이템 실은 우편 만료 회수(itemHeld→itemExpired)
             this._journal({ kind: 'expire', to: rcpt, id });   // durable op(만료도 replay 정합)
             // 만료 발행(step-0149·mailExpirePublish) — 회수 통마다 svc.mail.expired 발행(운영/발신자 관측). OFF·bus 부재면 no-op(0148 비트 동일·replay 에선 안 함).
             if (this.expirePublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.expired', ev: { id, to: rcpt, from: mm.from } }); this.expirePublished++; }
@@ -180,7 +183,7 @@ class MailService {
         }
       } else if (e.kind === 'expire') {   // 만료(step-0148) — 회수된 우편 1통 제거 + expired++(저널 정합).
         const box = this.boxes.get(e.to);
-        if (box && box.has(e.id)) { box.delete(e.id); this.expired++; }
+        if (box && box.has(e.id)) { const mm = box.get(e.id); box.delete(e.id); this.expired++; if (mm.item != null) this.itemExpired++; }   // step-0159: 아이템 만료 회수 replay
       }
     }
   }
