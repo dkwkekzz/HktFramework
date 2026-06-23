@@ -1,4 +1,6 @@
 'use strict';
+// step-0164 — 아이템 우편 2-서비스 보존(mailCustodyItems): 0161~0163 세 leg(인출·입금·반환)가 우편 회계와 가방을 따로 움직인다 — 둘이 *합치*하는가?
+//   이 step: mailCustodyItems()(보유 우편이 든 아이템 id 집합·단언용 읽기) == 가방의 'mailcustody' 소유 집합이어야 한다(거래소 0120 open escrowItemIds≡가방 escrow 의 우편 판). in-transit 아이템 = 보유 우편의 아이템과 정확히 일치(공백·중복 0). 미호출 = 0163 비트 동일(reg).
 // step-0163 — 아이템 우편 만료 반환 leg3: 0161~0162 는 발신 인출·수령 입금만 — 미수령 만료 시 아이템이 우편 custody 에 영영 묶였다.
 //   이 step: mailSweep 만료 시 그 우편의 아이템을 우편 custody→*발신자* 가방으로 반환 give(거래소 0119 cancel/expire 반환 leg 의 우편 판). 받는 이가 안 가져가면 보낸 이에게 돌아온다(아이템 보존). invMode OFF·item 부재면 give 0 = 0162 비트 동일.
 // step-0162 — 아이템 우편 수령 입금 leg2: 0161 은 발신 시 아이템을 우편 custody 로 인출만 했다 — 수령자가 받아도 가방에 안 들어왔다.
@@ -214,6 +216,8 @@ class MailService {
   held(rcpt) { const b = this.boxes.get(rcpt); return b ? b.size : 0; }   // 한 수신자 우편함 보유 통수
   totalHeld() { let n = 0; for (const b of this.boxes.values()) n += b.size; return n; }   // 전 우편함 보유 합
   itemHeld() { let n = 0; for (const b of this.boxes.values()) for (const mm of b.values()) if (mm.item != null) n++; return n; }   // 보유 중 아이템 실은 통수(step-0157)
+  // 보유 우편이 든 아이템 id 집합(step-0164·단언용 읽기) — in-transit custody 에 있어야 할 아이템들. 가방 'mailcustody' 소유 집합과 일치해야(2-서비스 보존·거래소 0120 의 우편 판).
+  mailCustodyItems() { const ids = []; for (const b of this.boxes.values()) for (const mm of b.values()) if (mm.item != null) ids.push(mm.item); return ids.sort(); }
   fetchedOf(rcpt) { const l = this.read.get(rcpt); return l ? l.length : 0; }   // 한 수신자 수령 통수(step-0143)
   boxOf(rcpt) { const b = this.boxes.get(rcpt); return b ? [...b.values()] : []; }   // 우편함 통째(읽기·결정론 순서)
   readOf(rcpt) { const l = this.read.get(rcpt); return l ? l.slice() : []; }   // 수령(읽음) 보관 통째(step-0143)

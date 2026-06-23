@@ -1,4 +1,6 @@
 'use strict';
+// step-0163 — 아이템 우편 만료 반환 leg3: 0161~0162 는 발신 인출·수령 입금만 — 미수령 만료 시 아이템이 우편 custody 에 영영 묶였다.
+//   이 step: mailSweep 만료 시 그 우편의 아이템을 우편 custody→*발신자* 가방으로 반환 give(거래소 0119 cancel/expire 반환 leg 의 우편 판). 받는 이가 안 가져가면 보낸 이에게 돌아온다(아이템 보존). invMode OFF·item 부재면 give 0 = 0162 비트 동일.
 // step-0162 — 아이템 우편 수령 입금 leg2: 0161 은 발신 시 아이템을 우편 custody 로 인출만 했다 — 수령자가 받아도 가방에 안 들어왔다.
 //   이 step: mailFetch 가 수령 통의 아이템을 우편 custody→수령자 가방으로 give(거래소 0118 buy 입금 leg 의 우편 판). 인출(0161)의 짝 — 발신자서 빠진 실물이 수령자 가방에 들어온다. invMode OFF·item 부재면 give 0 = 0161 비트 동일.
 // step-0161 — 아이템 우편 발신 인출 leg1(mailInv·invMode): 0157~0160 은 아이템을 *우편 박스 안 회계*로만 추적했다 — 발신자 가방서 실물이 안 빠졌다(리뷰 #40).
@@ -162,6 +164,7 @@ class MailService {
           if (now - mm.sentAt >= this.ttl) {
             box.delete(id); this.expired++;
             if (mm.item != null) this.itemExpired++;   // step-0159: 아이템 실은 우편 만료 회수(itemHeld→itemExpired)
+            if (mm.item != null) this._custody(mm.item, 'mailcustody', mm.from, 'mailexpire');   // step-0163: 만료 반환 leg3 — 우편 custody→발신자 가방(거래소 0119 의 우편 판·invMode OFF 면 no-op)
             this._journal({ kind: 'expire', to: rcpt, id });   // durable op(만료도 replay 정합)
             // 만료 발행(step-0149·mailExpirePublish) — 회수 통마다 svc.mail.expired 발행(운영/발신자 관측). OFF·bus 부재면 no-op(0148 비트 동일·replay 에선 안 함).
             if (this.expirePublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.expired', ev: { id, to: rcpt, from: mm.from } }); this.expirePublished++; }

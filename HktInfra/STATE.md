@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0163](step-0163.md) — **아이템 우편 만료 반환 leg3**: mailSweep 만료 시 그 우편 아이템을 우편 custody→*발신자* 가방으로 반환 give(거래소 0119 의 우편 판). 받는 이가 안 가져가면 보낸 이에게 돌아온다. 세 leg(인출/입금/반환) 완비. 닿는 박스: svc-mail.
-- **한 줄 상태**: reg ALL OK(invMode OFF=0162 비트 동일)·exmlinv3: item0→h1(수령)·item1→x(만료 반환)·gives 4·spine 통과.
-- **다음**: §2 — 아이템 우편 가방 연동 arc(0164 2-서비스 보존·0165 saga 회신·0166 실패 보상·0167~ 신뢰 전달).
+- **닫힌 step**: [step-0164](step-0164.md) — **아이템 우편 2-서비스 보존**(mailCustodyItems): 보유 우편 아이템 집합 ≡ 가방 'mailcustody' 소유(거래소 0120 open≡escrow 의 우편 판). 세 leg 가 in-transit 아이템을 보유 우편과 일치(아이템은 발신자/custody/수령자 중 한 곳에만·보존). 닿는 박스: svc-mail.
+- **한 줄 상태**: reg ALL OK(미호출=0163 비트 동일)·exmlinv4: mailCustodyItems [item2]==가방 mailcustody [item2]·합치·spine 통과.
+- **다음**: §2 — 아이템 우편 saga 신뢰 전달(0165 give 회신·0166 실패 보상·0167 회신 손실 재전송·0168 dedup·0169 회계·0170 교차 정합 capstone).
 
 ---
 
@@ -259,3 +259,4 @@
 | [0161](step-0161.md) | 아이템 우편 발신 인출 leg1(mailInv·mailSend → 발신자 가방→mailcustody give·거래소 0117 의 우편 판) | 통과 · gives 2·owner=mailcustody·발신자 잔여 0 |
 | [0162](step-0162.md) | 아이템 우편 수령 입금 leg2(mailFetch → custody→수령자 가방 give·거래소 0118 의 우편 판) | 통과 · item0→h1·item1 custody 잔류·gives 3 |
 | [0163](step-0163.md) | 아이템 우편 만료 반환 leg3(mailSweep 만료 → custody→발신자 가방 give·거래소 0119 의 우편 판) | 통과 · item1→x 반환·gives 4·세 leg 완비 |
+| [0164](step-0164.md) | 아이템 우편 2-서비스 보존(mailCustodyItems ≡ 가방 mailcustody 소유·거래소 0120 의 우편 판) | 통과 · [item2]==[item2]·합치·보존 |
