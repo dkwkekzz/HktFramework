@@ -15,7 +15,7 @@ Object.assign(ExchangeService.prototype, {
     if (p.type === 'item_result' && p.op === 'give') {
       this.ackedGives++;
       if (p.gid !== undefined) {
-        this.pending.delete(p.gid); this.pendingGive.delete(p.gid); this.retryCount.delete(p.gid);   // 미해결 추적(step-0125·0126) — 회신 도착한 give 를 pending/pendingGive 에서 제거(정상 흐름 0 으로 drain). retryCount(0131)도 정리(상한 0 면 빈 맵·no-op).
+        this.pending.delete(p.gid); this.pendingGive.delete(p.gid); this.retryCount.delete(p.gid); this.readmitCount.delete(p.gid);   // 미해결 추적(step-0125·0126) — 회신 도착한 give 를 pending/pendingGive 에서 제거(정상 흐름 0 으로 drain). retryCount(0131)·readmitCount(0137)도 정리(상한 0 면 빈 맵·no-op).
         // saga dedup 유계화(step-0127·sagaDedupBound) — 결과 최종 수신 → 더는 그 gid 재전송 안 함 → 가방이 dedup 항목 잊어도 안전. saga_done 으로 통보(0042 워터마크의 saga 판). OFF·inv 부재면 발신 0(0126 비트 동일).
         if (this.sagaDedupBound && this.inv) { this.net.send(this.addr, this.inv, { type: 'saga_done', gid: p.gid }); this.sagaDones++; }
       }
