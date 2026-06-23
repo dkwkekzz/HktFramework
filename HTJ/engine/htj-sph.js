@@ -40,11 +40,14 @@
     opts = opts || {};
     const h = opts.h != null ? opts.h : 1;
     const n = particles.length;
+    const grid = resolveGrid(particles, h, opts);             // null 이면 brute(기본·회귀 0)
     for (let i = 0; i < n; i++) {
       const a = particles[i];
       let rho = 0;
-      for (let j = 0; j < n; j++) {
-        const b = particles[j];
+      const nb = grid ? sphNeighbors(grid, particles, i) : null;   // 이웃 후보(오름차순) 또는 전체
+      const cnt = nb ? nb.length : n;
+      for (let t = 0; t < cnt; t++) {
+        const b = particles[nb ? nb[t] : t];                 // 지지 밖(먼 쌍)은 W=0 정확 → 빠뜨려도 합 동일
         const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
         rho += (b.mass || 0) * kernelW(Math.sqrt(dx * dx + dy * dy + dz * dz), h);
       }
@@ -72,6 +75,61 @@
     return [c * dx, c * dy, c * dz];
   }
 
+  // ── SPH 이웃 탐색 가속: 균일 공간 격자(셀 리스트) ─────────────────────────────────────────────
+  //   SPH 합(밀도·압력·점성)은 지지반경 2h 안의 이웃만 기여한다 — 멀리 있는 입자는 커널 W=0·∇W=0(정확). 그런데
+  //   sphDensity/force 의 기본 경로는 O(N²) 모든 쌍을 본다. 셀 크기를 지지반경(2h)으로 잡아 입자를 버킷에 담으면,
+  //   한 입자의 이웃은 *자기 셀 + 인접 26 셀(3×3×3)* 안에만 있다(분리 ≤2h → 셀 인덱스 차 ≤1). 균일 밀도면 셀당
+  //   입자 수가 일정 → 이웃 탐색이 O(N)(0032 Barnes-Hut 가 중력을 O(N log N) 으로 줄인 것의 SPH·근거리 판).
+  //   **물리는 불변** — 가속은 *같은 쌍을 같은 순서로* 방문하므로(이웃 오름차순 정렬·먼 쌍은 어차피 0 기여)
+  //   brute 와 비트 동일(0016/0018 "조밀과 비트 동일"의 SPH 판). opts: { h(평활길이·셀 크기=2h, 기본 1) }.
+  function sphNeighborGrid(particles, opts) {
+    opts = opts || {};
+    const h = opts.h != null ? opts.h : 1;
+    const inv = 1 / (2 * h);                                  // 셀 크기 = 지지반경 2h
+    const map = new Map();
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const key = Math.floor(p.cx * inv) + ':' + Math.floor(p.cy * inv) + ':' + Math.floor(p.cz * inv);
+      let arr = map.get(key); if (!arr) { arr = []; map.set(key, arr); }
+      arr.push(i);                                            // 버킷엔 인덱스가 오름차순으로 쌓임
+    }
+    return { map, inv };
+  }
+
+  // 입자 i 의 이웃 후보 인덱스(자기 셀 + 26 인접 = 27 셀)를 모아 *오름차순 정렬*해 반환(자기 자신 포함).
+  //   정렬 → 합 순서가 brute(j=0..n−1)와 같아져 밀도·힘이 비트 동일. 27 셀이 지지반경 2h 를 완전히 덮는다.
+  function sphNeighbors(grid, particles, i) {
+    const inv = grid.inv, p = particles[i];
+    const a = Math.floor(p.cx * inv), b = Math.floor(p.cy * inv), c = Math.floor(p.cz * inv);
+    const out = [];
+    for (let da = -1; da <= 1; da++) for (let db = -1; db <= 1; db++) for (let dc = -1; dc <= 1; dc++) {
+      const arr = grid.map.get((a + da) + ':' + (b + db) + ':' + (c + dc));
+      if (arr) for (let t = 0; t < arr.length; t++) out.push(arr[t]);
+    }
+    out.sort((x, y) => x - y);
+    return out;
+  }
+
+  // 무순서 쌍 (i<j) 순회 — grid 있으면 셀 리스트(27 이웃)로 지지 내 후보만, 없으면 전체 O(N²). 각 쌍에 cb(i,j).
+  //   두 경로 모두 (i 오름차순, 그 안에서 j 오름차순)=사전식 순서 → brute 와 누적 순서 동일(비트 동일의 뿌리).
+  function eachPair(particles, n, h, grid, cb) {
+    if (grid) {
+      for (let i = 0; i < n; i++) {
+        const nb = sphNeighbors(grid, particles, i);
+        for (let t = 0; t < nb.length; t++) { const j = nb[t]; if (j > i) cb(i, j); }
+      }
+    } else {
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) cb(i, j);
+    }
+  }
+
+  // opts 에서 격자를 얻는다 — prebuilt grid 객체(opts.grid)면 재사용, opts.accelerate 면 즉석 빌드, 아니면 null(brute).
+  function resolveGrid(particles, h, opts) {
+    if (opts.grid && opts.grid.map) return opts.grid;
+    if (opts.accelerate) return sphNeighborGrid(particles, { h });
+    return null;
+  }
+
   // SPH 압력 힘 — 밀도(0040) 위에 상태식 P=f(ρ) 와 대칭 쌍힘으로 구체 떼를 *가스처럼 퍼지게* 한다(SW5).
   //   design/sphere-world.md §6 SW5 / §3 — 0008(격자 단거리 반발 P=Kρ^γ)·0010(열압력)의 *SPH 판*. 밀도가
   //   높은 곳일수록 큰 압력 → 입자를 밀어낸다. Monaghan 대칭 운동량식:
@@ -90,18 +148,19 @@
     const h = opts.h != null ? opts.h : 1;
     const gamma = opts.gamma != null ? opts.gamma : 2;
     const EPS2 = 1e-12;
-    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
     const P = new Array(n);
     for (let i = 0; i < n; i++) P[i] = k * Math.pow(particles[i].density || 0, gamma);   // 상태식(항상 ≥0)
     const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n);
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    eachPair(particles, n, h, grid, (i, j) => {
       const a = particles[i], b = particles[j];
       const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
       const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
       const g = kernelGradW(a.cx - b.cx, a.cy - b.cy, a.cz - b.cz, h);   // ∇_i W_ij
       ax[i] -= b.mass * term * g[0]; ay[i] -= b.mass * term * g[1]; az[i] -= b.mass * term * g[2];   // a_i += −m_j·term·∇_iW
       ax[j] += a.mass * term * g[0]; ay[j] += a.mass * term * g[1]; az[j] += a.mass * term * g[2];   // a_j += −m_i·term·∇_jW(=+∇_iW)
-    }
+    });
     for (let i = 0; i < n; i++) {                             // Δp_i = m_i·a_i·dt → 쌍마다 ΣΔp=0(정확)
       const e = particles[i];
       e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
@@ -135,11 +194,12 @@
     const h = opts.h != null ? opts.h : 1;
     const gamma = opts.gamma != null ? opts.gamma : 2;
     const EPS2 = 1e-12;
-    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
     const P = new Array(n);
     for (let i = 0; i < n; i++) P[i] = k * Math.pow(particles[i].density || 0, gamma);   // 상태식(0041 과 동일)
     const dU = new Float64Array(n);                           // ΔinternalE_i / dt 누적
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    eachPair(particles, n, h, grid, (i, j) => {
       const a = particles[i], b = particles[j];
       const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
       const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
@@ -149,7 +209,7 @@
       const vdotg = (vix - vjx) * g[0] + (viy - vjy) * g[1] + (viz - vjz) * g[2];   // v_ij·∇_iW(접근→>0)
       const inc = 0.5 * a.mass * b.mass * term * vdotg;       // 쌍 기여(두 입자에 동일)
       dU[i] += inc; dU[j] += inc;                             // m_i·½ m_j term v_ij·∇W
-    }
+    });
     for (let i = 0; i < n; i++) {                             // internalE += ΔU·dt → 총E=Σ(KE+u) 정확 닫힘
       const e = particles[i];
       if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
@@ -176,7 +236,8 @@
     const h = opts.h != null ? opts.h : 1;
     const gamma = opts.gamma != null ? opts.gamma : 5 / 3;
     const EPS2 = 1e-12;
-    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
     const P = new Array(n);
     for (let i = 0; i < n; i++) {                             // 열 EOS: P=(γ−1)·ρ·u (u=internalE/질량·u≥0→P≥0)
       const e = particles[i];
@@ -185,7 +246,7 @@
       P[i] = (gamma - 1) * (e.density || 0) * Math.max(0, u);
     }
     const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n), dU = new Float64Array(n);
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    eachPair(particles, n, h, grid, (i, j) => {
       const a = particles[i], b = particles[j];
       const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
       const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
@@ -197,7 +258,7 @@
       const vdotg = (vix - vjx) * g[0] + (viy - vjy) * g[1] + (viz - vjz) * g[2];   // v_ij·∇_iW
       const inc = 0.5 * a.mass * b.mass * term * vdotg;       // 에너지 닫힘(0042·두 입자에 동일)
       dU[i] += inc; dU[j] += inc;
-    }
+    });
     for (let i = 0; i < n; i++) {                             // p 와 internalE 동시 적용(같은 사전 속도 → 총E 닫힘)
       const e = particles[i];
       e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
@@ -231,7 +292,8 @@
     const h = opts.h != null ? opts.h : 1;
     const gamma = opts.gamma != null ? opts.gamma : 5 / 3;
     const EPS2 = 1e-12, epsH = 0.01 * h * h;                  // μ 분모 정칙화(특이점 방지)
-    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const grid = resolveGrid(particles, h, opts);             // 이웃 격자(null=brute·회귀 0)
+    sphDensity(particles, { h, grid });                       // 밀도 갱신(0040 재사용·자기일관·같은 격자)
     const c = new Float64Array(n);                            // 음속 c_i=√(γ(γ−1)u)(0045 열 EOS 정합)
     for (let i = 0; i < n; i++) {
       const e = particles[i];
@@ -240,14 +302,14 @@
       c[i] = Math.sqrt(Math.max(0, gamma * (gamma - 1) * u));
     }
     const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n), dU = new Float64Array(n);
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    eachPair(particles, n, h, grid, (i, j) => {
       const a = particles[i], b = particles[j];
       const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
       const vix = a.px / a.mass, viy = a.py / a.mass, viz = a.pz / a.mass;   // 사전 속도 v_i=p_i/m_i
       const vjx = b.px / b.mass, vjy = b.py / b.mass, vjz = b.pz / b.mass;
       const vrx = vix - vjx, vry = viy - vjy, vrz = viz - vjz;               // v_ij
       const vr = vrx * dx + vry * dy + vrz * dz;              // v_ij·r_ij
-      if (vr >= 0) continue;                                  // 멀어지면 점성 없음(소산은 압축에만·단방향)
+      if (vr >= 0) return;                                    // 멀어지면 점성 없음(소산은 압축에만·단방향)
       const r2 = dx * dx + dy * dy + dz * dz;
       const mu = h * vr / (r2 + epsH);                        // <0 (접근)
       const rhoBar = 0.5 * ((a.density || EPS2) + (b.density || EPS2));
@@ -259,7 +321,7 @@
       const vdotg = vrx * g[0] + vry * g[1] + vrz * g[2];     // v_ij·∇_iW (접근→>0)
       const inc = 0.5 * a.mass * b.mass * Pi * vdotg;         // ≥0 → 오직 데움(단방향·시간의 화살)
       dU[i] += inc; dU[j] += inc;
-    }
+    });
     for (let i = 0; i < n; i++) {                             // p·internalE 동시 적용(같은 사전 속도 → 총E 닫힘)
       const e = particles[i];
       e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
@@ -270,5 +332,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphDensity, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, VERSION: 5 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, VERSION: 6 };
 });
