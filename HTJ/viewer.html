@@ -678,6 +678,156 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * (e.density || 0) / mx : 1;
       },
       note: '<b>중력으로 끌리는 가스가 압력으로 떠받쳐져 유한한 공이 된다</b>(구체 세계 SW5·SPH 압력). <b>▶ 흐름</b>: 작은 구체 구름이 <b>중력으로 안으로 끌린다</b>(0028). 동시에 <b>SPH 압력</b>이 민다 — 밀도(0040)에서 상태식 <b>P = k·ρ^γ</b> 로 압력을 만들고, <b>커널 기울기 ∇W</b> 로 대칭 쌍힘 a_i = −Σ_j m_j(P_i/ρ_i²+P_j/ρ_j²)∇_i W_ij 를 줘 빽빽한 곳을 밀어낸다. <b>중력만이면 한 점으로 붕괴</b>하지만 압력이 떠받쳐 <b>유한한 가스 공에서 멈춰 숨쉰다</b>(수축↔팽창 진동) — 중심이 밝다(밀도↑). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0008(중력↔단거리 반발 균형으로 유한 코어)·0010(열압력)의 SPH 판</b> — 구체 떼가 *가스/별처럼* 거동한다. "선 캐릭터"의 지면도 결국 이런 <b>압력으로 떠받쳐진 큰 구체</b>다. <b>보존(대칭 쌍힘·뉴턴3)</b>: F_ij=−F_ji(∇_jW=−∇_iW) → <b>순 운동량 정확 보존</b>(우상단 ΣP 불변). 균일하면 압력 힘 ≈ 0(기울기 0), 밀도 차가 있어야 민다. <b>정직한 한계</b>: 압력은 *힘*만(운동량 보존) — 압력 일↔내부에너지 닫힘(KE↔u)은 후속 SPH 열 벽돌(0008→0010 순서와 동형)·점성(끈적함)·적응 평활길이 h·격자 유체 은퇴는 후속. 여기선 *압력 힘 한 법칙*만.'
+    },
+
+    // ── step_0042 — SPH 에너지 닫힘: 압축이 데우고 팽창이 식힌다(SW5 셋째 벽돌) ──
+    //   0041 압력이 한 일이 이제 내부에너지로 닫힌다(총E 정확 보존·KE↔u). du/dt=½Σ m(P/ρ²+P/ρ²)v_ij·∇W —
+    //   안으로 무너지는 가스가 *압축되며 데워진다*(코어 밝아짐). 색=온도. 0009(수동 온도)·0010(닫힘)의 SPH 판.
+    '0042': {
+      label: 'step_0042 — SPH 에너지 닫힘(압축 데움·팽창 식힘)', title: 'HTJ — SPH 에너지 닫힘: 압축이 데우고 팽창이 식힌다',
+      sub: '0041 압력이 한 일을 내부에너지로 되돌려 총E를 정확히 보존한다 — 안으로 무너지는 가스 구름이 압축되며 데워지고(코어 밝게) 되튀어 식는다(KE↔u 가역). 색=온도. 0010 열압력 닫힘의 SPH 판·구체 세계 SW5',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const cells = Math.max(4, Math.round(N * N * 0.009));
+        let seed = 5; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 50; i++) {
+          const r = N * 0.16 + rnd() * N * 0.14, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph);
+          const m = cells * 2, vin = -0.6;                                  // 안쪽 속도(붕괴 → 압축 데움)
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz,
+            mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: cells * 0.3, energy: cells * 0.3 + 0.5 * m * vin * vin,
+            cells, radius: eqR(cells) });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.3, soft: Math.max(1.5, N * 0.05) };
+        w.__sphH = Math.max(2.5, N * 0.1);
+        w.__popt = { stiffness: 8, gamma: 2, h: w.__sphH };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.2, w.__gopt);     // 안으로 끌고(0028)
+        HTJSPH.sphThermalEnergy(w.__entities, 0.2, w.__popt);          // 압력 일 → 내부E(열·사전 속도·p 불변)
+        HTJSPH.sphPressureForce(w.__entities, 0.2, w.__popt);          // 밖으로 떠받침(같은 사전 속도라 총E 닫힘)
+        HTJEntity.stepEntities(w.__entities, 0.2, { N: w.N });
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 압축되면 밝게(데움)·팽창하면 어둡게(식힘).
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>압력이 한 일이 열로 닫힌다 — 압축이 데우고 팽창이 식힌다</b>(구체 세계 SW5·SPH 에너지 닫힘). <b>▶ 흐름</b>: 가스 구름이 <b>안쪽 속도로 무너진다</b>(중력+초기 붕괴). 빽빽해질수록 0041 <b>압력</b>이 밀어내는데(KE 를 깎음), 이제 그 깎인 운동에너지가 <b>사라지지 않고 내부에너지(열)로 들어간다</b> — <b>du_i/dt = ½ Σ_j m_j(P_i/ρ_i²+P_j/ρ_j²)(v_i−v_j)·∇_i W_ij</b>. 구체 색이 <b>온도</b>(internalE/질량)다 — 코어가 <b>압축되며 밝아지고</b>(데움) 되튀어 팽창하면 <b>어두워진다</b>(식힘). 우상단 총E(KE+u)는 <b>거의 불변</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW5·§5): 0041 은 "압력이 *implicit 열저장고*에서 일을 꺼낸다"는 정직한 한계를 남겼다 — 이 step 이 그 저장고를 <b>실제 내부에너지로 만들어 총E 를 정확히 닫는다</b>(<b>KE↔u 가역</b>·순간 전력 균형이 기계 정밀도로 정확). 이게 <b>0009(수동 온도 T∝ρ^(γ−1))·0010(KE↔내부E 가역 닫힘)의 SPH 판</b> — 별이 *수축으로 데워져 빛나는* 그 메커니즘이다. <b>궤적은 0041 과 불변</b>: EOS P=k·ρ^γ 가 barotropic 이라 u 가 *아직 힘에 되먹지 않는다* — 이 단위는 <b>에너지 책</b>만 정직하게 닫는다(0009 가 수동 온도였던 것과 같은 정신). <b>정직한 한계</b>: 열→압력 되먹임(P=(γ−1)ρu·압축 데움이 더 세게 떠받침)은 후속 벽돌(0010 의 능동 열압력 판)·점성(충격 소산)·격자 유체 은퇴는 SW5 마지막. 여기선 *에너지 닫힘 한 법칙*만.'
+    },
+
+    // ── step_0043 — 강착 세계: 중력+소산 접촉+합치기 조립 → 작은 구체 구름이 몇 천체로 합쳐진다(SW1+SW2) ──
+    //   새 엔진 법칙 없음(0035 "새 engine 없음" 선례) — 가진 부품(중력 0028 + 접촉 반발·소산 0037 + 합치기 0036)을
+    //   *한 세계*에서 함께 굴린다. 그동안 합치기·접촉·중력이 따로 놀아 "공이 겹쳐 비비기만" 했던 공백을 메운다:
+    //   작은 구체 40개가 무너지며 충돌·소산으로 식고 느려진 접촉이 합쳐져 *몇 개의 큰 천체로 강착*(미행성→행성).
+    '0043': {
+      label: 'step_0043 — 강착 세계(구름 → 몇 천체로 합쳐짐)', title: 'HTJ — 강착 세계: 중력+소산 접촉+합치기 조립 → 작은 구체 구름이 몇 천체로 합쳐진다',
+      sub: '가진 부품(중력+접촉 반발·소산+합치기)을 한 세계에서 함께 굴린다 — 작은 구체 40개 구름이 무너지며 충돌·소산으로 식고, 느려진 접촉이 합쳐져 몇 개의 큰 천체로 강착한다(미행성→행성). 새 엔진 법칙 없음(조립=창발 무대)·구체 세계 SW1+SW2. 질량·운동량 정확 보존·소산 단조↑',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const cells = Math.max(4, Math.round(N * N * 0.01));
+        let seed = 11; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 40; i++) {
+          const dx = (rnd() - 0.5) * N * 0.62, dy = (rnd() - 0.5) * N * 0.62, dz = (rnd() - 0.5) * N * 0.62;
+          const m = cells * 4, tang = 0.04;                              // 약한 접선 속도(각운동량) → 궤도 천체
+          ents.push({ cx: cen + dx, cy: cen + dy, cz: cen + dz,
+            mass: m, px: m * -tang * dy, py: m * tang * dx, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+            KEcm: 0, internalE: cells * 0.5, energy: cells * 0.5, cells, radius: eqR(cells), temp: 0, peak: 1 });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.5, soft: Math.max(2, N * 0.085) };
+        w.__copt = { stiffness: 4, damping: 25, pad: 0.3 };              // 반발(겹침 거부)+감쇠(소산→열)
+        w.__mopt = { vstick: 3.0, pad: 0.6 };                           // 식어 느려진 접촉 → 합침
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.1, w.__gopt);      // 서로 끌어 모음(0028)
+        HTJEntity.applyEntityContact(w.__entities, 0.1, w.__copt);      // 겹침 거부(반발)+낙하 식힘(소산→열)
+        HTJEntity.stepEntities(w.__entities, 0.1, { N: w.N });
+        w.__entities = HTJEntity.mergeEntities(w.__entities, w.__mopt).entities;  // 느려진 접촉 → 합침(강착)
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 강착할수록 밝게(낙하E→열).
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>작은 구체 구름이 무너지며 합쳐져 몇 개의 큰 천체가 된다</b>(구체 세계 SW1+SW2·강착=행성 형성). <b>▶ 흐름</b>: 작은 구체 40개가 흩어져 있다(파랑=차가움). 서로 <b>중력으로 끌려</b>(0028) 무너지고, 부딪치면 <b>접촉</b>이 <b>겹침을 거부</b>(반발)하면서 <b>낙하 에너지를 열로 식힌다</b>(감쇠·소산). 식어서 <b>느려진 접촉은 하나로 합쳐진다</b>(0036 강착·vstick 임계) — 우상단 "개체 N" 이 <b>40 → 몇 개로 뚝뚝 떨어지고</b> 남은 천체가 <b>커지고 밝아진다</b>(노랑=강착열↑). <b>왜 중요한가</b>(design/sphere-world.md §0·§6): 이게 사용자가 말한 <b>"모여서 커지면 하나로 합쳐 단순화"</b> 의 실현 — ① <b>창발 물리</b>: 미행성이 충돌·합체로 행성이 되는 그 방식 ② <b>성능</b>: N 개가 적은 큰 구체로 줄어 비용↓(적응 LOD 의 Lagrangian 형태). <b>새 엔진 법칙이 없다</b> — 이미 가진 중력·접촉·합치기를 <b>한 세계에서 같이 굴린 것</b>(0035 "새 engine 없음" 과 같은 *조립=창발 무대*). 그동안 비어 보였던 건 이 셋이 <b>한 장면에 같이 돈 적이 없어서</b>다. <b>보존(쌍 보존·합산)</b>: 질량·운동량 <b>기계 정밀도로 정확 불변</b>(우상단 ΣP). <b>소산 = 시간의 화살</b>: 내부에너지(열)가 <b>단조 증가</b> — 낙하 운동E 가 접촉 감쇠+강착열로 비가역 전환(다시 안 흩어짐). <b>정직한 한계</b>: 각운동량 때문에 <b>한 점이 아니라 몇 천체로</b> 정착해 서로 궤도를 돈다(물리적으로 옳음·한 덩어리로 안 뭉침)·합쳐진 큰 천체끼리는 더는 안 닿아 추가 소산이 멈춘다(궤도 N체)·빠른 정면충돌은 SW3 로 깨질 수도(여기선 소산이 식혀 합침 우세). 새 법칙 없는 *조립 step*.'
+    },
+
+    // ── step_0044 — 강착↔파편 왕복: 임계가 합침/깨짐을 가른다(SW3 조립·새 엔진 없음) ──
+    //   강착 세계(0043)에 쪼개기(0038 fragmentOnImpact)를 더한다: advance = 중력→접촉→적분→fragment(빠름→파편)→
+    //   merge(느림→합침). 고속 충돌체가 뜨거운 천체에 박혀 *파편으로 폭발*(N↑)하고, 파편이 중력+소산으로 식어
+    //   *다시 합쳐진다*(N↓·재강착). 임계가 author 없이 행동을 가른다 — 새 법칙 없는 조립(0043 처럼).
+    '0044': {
+      label: 'step_0044 — 강착↔파편 왕복(부수고 다시 모임)', title: 'HTJ — 강착↔파편 왕복: 임계가 합침/깨짐을 가른다',
+      sub: '강착 세계(0043)에 쪼개기(0038)를 더한다 — 고속 충돌체가 뜨거운 천체에 박혀 파편으로 폭발하고(빠름→깨짐), 파편이 중력+소산으로 식어 다시 합쳐진다(느림→합침·재강착). 임계가 author 없이 가른다. 새 엔진 법칙 없음·구체 세계 SW3. 질량·운동량 정확 보존',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const big = Math.max(40, Math.round(N * N * 0.14)), small = Math.max(4, Math.round(N * N * 0.018));
+        const body = (cx, cy, cells, vx, vy, intE) => { const m = cells * 4; return { cx, cy, cz: cen, mass: m, px: m * vx, py: m * vy, pz: 0, Lx: 0, Ly: 0, Lz: 0, KEcm: 0.5 * m * (vx * vx + vy * vy), internalE: intE, energy: 0, cells, radius: eqR(cells), temp: 0, peak: 1 }; };
+        let seed = 7; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [body(cen + N * 0.04, cen, big, 0, 0, 600), body(cen - N * 0.38, cen, small * 1.7, 5.5, 0, 3)];   // 뜨거운 천체 + 고속 충돌체
+        for (let i = 0; i < 8; i++) { const dx = (rnd() - 0.5) * N * 0.2 + N * 0.12, dy = (rnd() - 0.5) * N * 0.45; ents.push(body(cen + dx, cen + dy, small, -0.04 * dy, 0.02 * dx, 3)); }
+        for (const e of ents) e.energy = e.KEcm + e.internalE;
+        w.__entities = ents;
+        w.__gopt = { G: 0.3, soft: Math.max(2, N * 0.1) };
+        w.__copt = { stiffness: 5, damping: 10, pad: 0.3 };
+        w.__fopt = { shatterKE: 40, n: 6, dispersalFrac: 0.85, spread: 1.3, pad: 0.4 };   // 빠름 → 파편
+        w.__mopt = { vstick: 1.2, pad: 0.6 };                                            // 느림 → 합침
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.08, w.__gopt);     // 끌어 모음(0028)
+        HTJEntity.applyEntityContact(w.__entities, 0.08, w.__copt);     // 반발+소산(0037)
+        HTJEntity.stepEntities(w.__entities, 0.08, { N: w.N });
+        w.__entities = HTJEntity.fragmentOnImpact(w.__entities, w.__fopt).entities;   // 빠른 충돌 → 파편(0038)
+        w.__entities = HTJEntity.mergeEntities(w.__entities, w.__mopt).entities;      // 느려진 접촉 → 합침(0036)
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 깨지면 흩어진 파편·식어 합치면 큰 천체.
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>고속 충돌은 부수고·느린 접촉은 합친다 — 임계가 author 없이 가른다</b>(구체 세계 SW3·강착↔파편 왕복). <b>▶ 흐름</b>: 뜨거운 큰 천체(노랑=강착열) 둘레에 작은 구체들이 있고, 왼쪽에서 <b>고속 충돌체</b>가 날아온다. 박히는 순간 상대 운동E 가 임계(shatterKE)를 넘어 천체가 <b>파편으로 폭발</b>한다(우상단 "개체 N" 이 <b>확 늘어남</b>·0038 fragmentEntity 의 보존 분배). 흩어진 파편은 중력으로 다시 끌리고 접촉 소산으로 식어, <b>느려지면(vstick 아래) 다시 합쳐진다</b>(0036 강착) — N 이 <b>폭발↑ 했다가 재강착↓</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW3·§4): <b>"상대 속도가 임계를 넘으면 깨지고, 못 넘으면 붙는다 — author 하지 않고 임계가 가른다"</b>. 같은 두 법칙(합치기·쪼개기)이 <b>한 세계에서</b> 충돌 속도에 따라 갈려 — 합치기↔쪼개기 <b>왕복이 닫힌다</b>(소행성 충돌 cascade·충돌 강착의 양면). <b>새 엔진 법칙 없음</b> — 0043 강착에 0038 쪼개기를 <b>같이 굴린 조립</b>(0035 정신). <b>보존(쌍 보존·분배)</b>: 깨질 때도 합칠 때도 질량·운동량 <b>기계 정밀도로 정확 불변</b>(우상단 ΣP). <b>임계 분리</b>: 파편 분산 속도 > vstick 라야 <i>깨자마자 재합침(flicker)</i> 없이 왕복이 닫힌다. <b>정직한 한계</b>: 파편 분산E 는 부모 internalE(결합열)에서(충돌 운동E 직접 소비 아님·0038 한계 계승)·조각 수 n 고정·재강착은 중력+소산에 의존(파라미터 영역). 새 법칙 없는 *왕복 조립 step*.'
+    },
+
+    // ── step_0045 — SW5 능동 열압력: P=(γ−1)ρu 되먹임으로 단열 가스 공이 되튄다 ──
+    //   0041(barotropic·u 무관)·0042(에너지 닫힘·u 가 힘에 안 먹임)의 *되먹임* 판. 압축이 u 를 데우고 → 데운 u 가
+    //   P 를 키워 더 세게 떠받친다. 찬 가스가 무너지며 데워지고, 열압력이 붕괴를 멈춰 되튄다(별 코어의 단열 지지).
+    '0045': {
+      label: 'step_0045 — SW5 능동 열압력(P=(γ−1)ρu·단열 되튐)', title: 'HTJ — SW5 능동 열압력: 데운 가스가 더 세게 떠받쳐 단열 공이 되튄다',
+      sub: '압력이 내부에너지에서 나온다(P=(γ−1)ρu) — 찬 가스가 중력으로 무너지며 압축으로 데워지고, 데운 u 가 압력을 키워 붕괴를 멈춰 되튄다(단열 지지). 0009→0010(수동 온도→능동 열압력)의 SPH 판·구체 세계 SW5. 운동량·총E 정확 보존',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        let seed = 9; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 60; i++) {
+          const r = N * 0.1 + rnd() * N * 0.12, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph), m = 1, vin = -0.4;   // 안쪽 속도(붕괴)
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: 0.2, energy: 0.2 + 0.5 * m * vin * vin, cells: 5, radius: eqR(5) });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.25, soft: Math.max(2, N * 0.12) };
+        w.__topt = { gamma: 5 / 3, h: Math.max(2.5, N * 0.14) };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.14, w.__gopt);     // 안으로 끌고(0028)
+        HTJSPH.sphThermalPressureForce(w.__entities, 0.14, w.__topt);   // 열압력(P=(γ−1)ρu·되먹임·밀도 자동 갱신)
+        HTJEntity.stepEntities(w.__entities, 0.14, { N: w.N });
+        // 온도(internalE/mass)를 peak 에 실어 색으로 — 압축되면 밝게(데움)·되튀면 식음.
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>압력이 내부에너지에서 나온다 — 데운 가스가 더 세게 떠받친다</b>(구체 세계 SW5·능동 열압력). <b>▶ 흐름</b>: 찬 가스 구름(어두움)이 <b>중력으로 무너진다</b>(0028). 빽빽해지며 압력 일이 <b>내부에너지(열)로 닫히고</b>(0042), 이제 그 <b>데운 u 가 압력을 키운다</b> — 상태식 <b>P = (γ−1)·ρ·u</b>. 그래서 압축될수록 <b>더 세게 떠받쳐</b>, 중력 붕괴가 한 점으로 찌부러지지 않고 <b>핫코어(노랑)에서 멈춰 되튄다</b>(rms 가 줄었다 다시 늚=단열 숨쉬기). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0009(수동 온도 T∝ρ^(γ−1))→0010(능동 열압력 되먹임)의 SPH 판</b> — 0041 은 압력이 밀도만 따랐고(barotropic·u 무관), 0042 는 u 를 닫았지만 힘에 안 먹였다. 이 step 이 <b>u→P 되먹임</b>을 닫아, 가스가 <b>별 코어처럼 단열로 스스로 지탱</b>한다(압축 데움→압력↑→지지). 같은 밀도라도 <b>뜨거운 가스가 찬 가스보다 더 센 압력</b>(verify: u 10배→힘 10배). <b>보존</b>: 운동량 <b>기계 정밀도 정확</b>(대칭 쌍힘·우상단 ΣP)·압력 일↔내부E <b>총E 닫힘</b>(순간 전력 균형 −S+S=0·중력 PE 제외). u≤0 → P=0(음압 없음). <b>정직한 한계</b>: 점성(충격 감쇠) 없음 — 단열 진동이 안 식음·평활길이 h 고정·이웃 O(N²)·격자 유체 은퇴는 SW5 마지막. 여기선 *열압력 되먹임 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -925,7 +1075,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0041';                       // 기본 = 현재 step
+    sel.value = '0045';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──

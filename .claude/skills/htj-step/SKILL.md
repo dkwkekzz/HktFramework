@@ -23,6 +23,11 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 
 결정되면 구현을 시작한다. 애매하면 멈추고 논의한다.
 
+### step 의 두 종류 — 의례를 무게에 맞춘다
+
+- **법칙 step (새 엔진 법칙)**: engine 에 새 거동을 더한다. 한 step = 가장 단순한 법칙 하나(여러 개 욱여넣지 않음). 아래 §3~5 의 *온전한* 의례를 따른다.
+- **조립/통합 step (새 엔진 법칙 0)**: 이미 가진 법칙들을 viewer 한 장면에서 *함께 굴려* 창발을 보인다(선례 0035·0043·0044). engine 변경 0 → 회귀는 구조적으로 0. **가벼운 의례**: verify 는 *새로 생긴 상호작용·창발 + 합쳐서도 보존*만(부품 자체 보존은 부품 step verify 가 이미 보증) · 문서는 타이트(§4). **자잘한 조립 여러 개는 한 step 으로 묶어도 된다** — 조립은 "가장 단순한 단위 하나" 규칙의 예외(법칙이 아니라 무대라서). 어느 종류인지 §1 에서 먼저 밝힌다.
+
 ## 2. 구현 — 세계(engine)와 확인용(viewer) 분리
 
 **세계 ↔ 확인용은 단방향 의존**: `engine/` = 세계(법칙) 그 자체 · `viewer*` = 그것을 확인하는 도구. `viewer` 는 `engine` 을 *읽기만* 하고, `engine` 은 `viewer`(렌더·캡처·캔버스)를 **절대 import/참조하지 않는다**. 렌더 방식을 바꿔도 세계는 불변이어야 한다.
@@ -35,24 +40,30 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 
 검증은 두 축이다. 둘 다 통과해야 step 을 닫는다.
 
-**(a) 수치 — `steps/step_NNNN/verify.js`**
-- 그 법칙을 **완전히** 검증한다 (`node HTJ/steps/step_NNNN/verify.js`).
+**(a) 수치 — `steps/step_NNNN/verify.js`** — *적정 검증*(완전 망라 아님)
+- **핵심 불변만** 검증한다 (`node HTJ/steps/step_NNNN/verify.js`): ① 이 step 이 도입한 *새 거동* ② 보존(질량·운동량·각운동량·총E 중 해당 법칙이 건드리는 것) ③ 항등/안전(노브=0 → 회귀 0) ④ 결정론. 이 4 축이 보통 4~6 검사면 충분 — *고정 6종을 채우려 늘리지 말 것*. 조립 step 은 *새로 생긴 상호작용·창발 + 합쳐서 보존*만(부품 보존은 부품 verify 가 보증·중복 검증 금지).
 - verify 는 **자체로 온전·순수**해야 한다 — 외부 가변 상태에 의존하지 않고, 이후 어떤 step 을 진행해도 깨지지 않는다(영구 회귀 가드).
-- 닫기 전 **이전 step 들의 verify 를 전부 재실행**해 회귀 0 을 확인한다. 깨지면 멈추고 사용자와 논의한다.
+- 닫기 전 **이전 step 들의 verify 를 전부 재실행**해 회귀 0 을 확인한다(*이건 알맹이 — 절대 생략 안 함*). 깨지면 멈추고 사용자와 논의한다.
 - 문서의 모든 수치는 verify 출력을 그대로 옮긴다.
 
 **(b) 눈 — 시뮬레이션 캡처**
-- `viewer.html` 에서 이 step 의 세계를 실제로 띄워 **화면을 캡처**한다 (headless 브라우저로 viewer 를 로드 → 대표 시점에서 스크린샷). 산출물: `steps/step_NNNN/capture.png`(필요 시 여러 프레임).
-- 캡처가 *수치 검증의 가설과 일치하는지* 눈으로 확인한다 — 보존량이 퍼지는 모양, 패턴 창발 등 verify 가 주장하는 바가 화면에 실제로 보여야 한다. 어긋나면 멈추고 논의한다.
-- 캡처 이미지는 `steps/step_NNNN/step_NNNN.md` 에 첨부/참조한다.
+- 이 step 의 세계를 **화면으로 캡처**한다. 산출물: `steps/step_NNNN/capture.png`(보통 시간 경과 4 프레임). 두 길:
+  - **viewer 헤드리스**(chromium 있으면) — `viewer.html` 로드 → 스크린샷.
+  - **engine 직접 PNG**(기본·chromium 없을 때) — `steps/step_NNNN/capture.js` 가 engine 을 직접 굴려 프레임을 그린다. **PNG 인코더·heat 색·디스크 그리기는 새로 짜지 말고 `tools/htj-capture.js` 를 쓴다**(`writeFramesPNG(out, frames, {N})` — frames=[{pts:[{cx,cy,r,v}]}]). capture.js 는 *장면·프레임·검증 출력*만 담당(~15줄). capture.js 도 확인용이라 engine 을 *읽기만* 한다.
+- 캡처가 *수치 검증의 가설과 일치하는지* 눈으로 확인한다 — verify 가 주장하는 바가 화면에 실제로 보여야 한다. 어긋나면 멈추고 논의한다.
 
 ## 4. 기록 — steps/step_NNNN/ + STATE.md
 
 **한 step = 한 폴더.** 그 step 의 모든 산출물(`step_NNNN.md`·`verify.js`·`capture.png`)은 `steps/step_NNNN/` 안에 모은다.
 
-- `steps/step_NNNN/step_NNNN.md`: 논의·구현·검증·발견 전문 + **"쉽게 풀어 쓴 설명"** + 이 step 이 *목적에 어떤 의미를 남겼고 다음에 어떤 작업으로 연결되는지*.
+- **긴 산문은 한 곳만 — 이중 작성 금지.** "쉽게 풀어 쓴 설명"(사용자가 실제로 읽는 곳)은 **viewer `note`** 에 둔다. `step_NNNN.md` 는 그걸 또 풀로 쓰지 말고 **타이트 템플릿**으로:
+  - **논의**(3 bullets: 세계를 어떻게 변형 · 무엇으로 검증 · 무엇 보존/변함)
+  - **구현**(법칙 식·진입점 — 코드블록 한둘)
+  - **검증**(verify 출력 *그대로 붙여넣기* + 캡처 이미지 참조 1줄)
+  - **다음**(한 줄: 무슨 의미를 남겼고 다음 작업으로 어떻게 연결)
+  - 길게 풀 가치가 있는 *발견·정직한 한계*만 추가(나머지 산문은 viewer note 가 집).
 - `STATE.md`: §1 NOW · §2 NEXT · §3 좌표 · §4 격차 · §5 시리즈 인덱스 1줄 append. **전체 Write 금지 — 바뀐 절만 Edit.**
-- 닫은 `steps/step_NNNN/` 폴더(문서·verify)는 이후 **불변** — **단, 버그 수정은 예외**(아래).
+- 닫은 `steps/step_NNNN/` 폴더(문서·verify·capture)는 이후 **불변** — **단, 버그 수정은 예외**(아래). (불변이라 *과거* capture.js 를 새 헬퍼로 소급 리팩터링하지 않는다.)
 
 ### 버그 수정 예외 — 닫은 step 도 *버그 한정* 수정 가능
 
@@ -60,16 +71,21 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 
 ## 5. 닫기 체크리스트
 
-1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0) + `node tools/check-viewer.js` PASS (viewer 등록 누락 가드)
-2. **viewer 갤러리 등록** — `viewer.html` STEPS 에 이 step 항목 추가 *또는* 정당한 사유로 `tools/check-viewer.js` 의 `EXEMPT` 에 등재(가드가 강제). 그리고 **캡처**(`steps/step_NNNN/capture.png`, viewer 또는 capture.js 폴백) 확보 + 화면이 verify 가설과 일치
-3. `steps/step_NNNN/step_NNNN.md` "쉽게 풀어 쓴 설명" 포함 · 수치 = verify 출력 · 캡처 참조 · 다음 연결 명시
-4. `STATE.md` §1~5 Edit
+1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0) + `node tools/check-viewer.js` PASS — 한 묶음 명령으로(아래)
+2. **viewer 갤러리 등록** — `viewer.html` STEPS 에 이 step 항목 추가(긴 산문=`note`) *또는* 정당한 사유로 `tools/check-viewer.js` `EXEMPT` 등재. **캡처** 확보(`capture.js` 는 `tools/htj-capture.js` 사용) + 화면이 verify 가설과 일치
+3. `step_NNNN.md` = 타이트 템플릿(논의 3 bullets · 구현 · verify 출력 붙여넣기 · 캡처 참조 · 다음 1줄) — 긴 설명 중복 금지(§4)
+4. `STATE.md` §1~5 Edit (바뀐 절만)
 5. git: (로컬) `main` 에 commit·push / (원격) 지정 브랜치 규칙
+
+> **닫기 검증 한 묶음**(복붙): `node steps/step_NNNN/verify.js && node tools/check-viewer.js && for d in steps/step_*/; do node "$d/verify.js" >/dev/null 2>&1 || echo "REGRESSION $d"; done && echo OK`
 
 ## 금지 사항 (비용 함정)
 
-- 검증 없는 step 을 닫지 않는다.
+- 검증 없는 step 을 닫지 않는다. (단 *적정* 검증 — 고정 6종을 채우려 늘리지 말 것. §3a)
+- 전 step verify 재실행(회귀 0)은 절대 생략 안 한다 — 이건 알맹이.
 - 옛 step 문서를 *습관적으로* 통째로 훑지 않는다 — STATE 가 SSOT. (단, 이번 step 이 특정 과거 법칙·발견에 직접 의존하면 그 step 문서는 짚어 읽는다.)
 - verify 를 다른 step 에 의존시키지 않는다 — 순수·독립.
-- 한 step 에 법칙을 여러 개 욱여넣지 않는다 — 가장 단순한 단위 하나.
+- **법칙 step** 에 법칙을 여러 개 욱여넣지 않는다 — 가장 단순한 단위 하나. (단 **조립 step** 은 부품 여럿을 한 무대로 묶어도 된다 — §1.)
+- 긴 설명을 step 문서 *와* viewer note 양쪽에 풀로 쓰지 않는다 — note 가 집(§4).
+- capture.js 에 PNG 인코더·heat·디스크를 새로 짜지 않는다 — `tools/htj-capture.js` 를 쓴다(§3b).
 - `engine/`(세계) 안에 확인용(렌더·캡처·DOM) 코드를 넣지 않는다 — 세계는 viewer 없이도 돌아야 한다.
