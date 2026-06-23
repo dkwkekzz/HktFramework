@@ -47,6 +47,7 @@ function buildSubs(c) {
   if (c.audit && c.mail && c.mailReadPublish) subs.push(['svc.mail.read', 'audit']);   // 우편 읽음 발행(0147) — audit 가 svc.mail.read 구독(수령 관측·수명주기 발행 확장). mailReadPublish OFF 면 미추가(0146 토폴로지 비트 동일).
   if (c.audit && c.mail && c.mailExpirePublish) subs.push(['svc.mail.expired', 'audit']);   // 우편 만료 발행(0149) — audit 가 svc.mail.expired 구독(만료 관측·수명주기 발행 3종 완비). mailExpirePublish OFF 면 미추가(0148 토폴로지 비트 동일).
   if (c.mailFeed && c.mail && c.mailSentPublish) subs.push(['svc.mail.sent', 'mailfeed']);   // 우편 미읽음 배지(0151) — MailFeed 가 svc.mail.sent 구독→수신자별 unread 투영(거래소 MarketFeed 0112 의 우편 판). mailFeed OFF 면 미추가(0150 토폴로지 비트 동일).
+  if (c.mailFeed && c.mail && c.mailReadPublish && c.mailFeedRead) subs.push(['svc.mail.read', 'mailfeed']);   // MailFeed 읽음 반영(0152) — svc.mail.read 구독→unread--. mailFeedRead OFF 면 미추가(0151 토폴로지 비트 동일).
   return subs;
 }
 

@@ -1,4 +1,6 @@
 'use strict';
+// step-0152 — MailFeed 읽음 반영(svc.mail.read 구독→unread--): 0151 은 입금(svc.mail.sent)만 소비해 unread 가 *단조 증가*였다 — 수령(읽음)해도 배지가 안 줄었다.
+//   이 step: 우편 박스가 발행하는 svc.mail.read(0147)를 구독해 그 수신자 unread--·read++ → 미읽음 배지가 *읽으면 줄어든다*(거래소 MarketFeed 0116 만료 반영의 우편 판). svc.mail.read 미구독(mailFeedRead OFF)이면 0151 비트 동일(read 토픽 미전달).
 // step-0151 — 우편 미읽음 배지 읽기 모델(mailFeed·svc.mail.sent 구독→수신자별 unread 카운트): 우편 박스(0142~0150)는 우편함 *권위*만 들고
 //   입금(0144 svc.mail.sent)·읽음(0147 svc.mail.read)·만료(0149 svc.mail.expired)를 버스로 발행한다. 이 박스는 그 발행 스트림을 *소비만* 해
 //   수신자별 {unread 미읽음 통수} 투영을 만든다 — 0112 MarketFeed(거래소 sold/cancelled→item별 시세)의 *우편 판*(CQRS read model).
@@ -18,22 +20,25 @@ class MailFeed {
     this.badges = new Map();       // recipient -> {unread, sent} (미읽음 배지 투영 — 우편 발행 스트림의 파생, 권위 아님)
     this.consumed = 0;             // svc.mail.* 소비 수(관찰 소비자의 입력 회계)
   }
-  _row(rcpt) { if (!this.badges.has(rcpt)) this.badges.set(rcpt, { unread: 0, sent: 0 }); return this.badges.get(rcpt); }
+  _row(rcpt) { if (!this.badges.has(rcpt)) this.badges.set(rcpt, { unread: 0, sent: 0, read: 0 }); return this.badges.get(rcpt); }
   onMsg(m) {
     const p = m.payload;
     if (p.type !== 'ev' || !p.ev) return;
     // 입금 소비(svc.mail.sent·0144) — 그 수신자의 미읽음 통수 증가. ev={id,from,to,sentAt}.
     if (p.topic === 'svc.mail.sent') { const r = this._row(p.ev.to); r.unread++; r.sent++; this.consumed++; return; }
+    // 읽음 소비(svc.mail.read·0147·step-0152) — 그 수신자의 미읽음 차감(읽으면 배지가 준다)·read 누적. ev={id,to,from}. mailFeedRead OFF 면 미구독(미전달=0151 비트 동일).
+    if (p.topic === 'svc.mail.read') { const r = this._row(p.ev.to); r.unread--; r.read++; this.consumed++; return; }
   }
   unreadOf(rcpt) { const r = this.badges.get(rcpt); return r ? r.unread : 0; }   // 한 수신자 미읽음 통수(배지)
   sentOf(rcpt) { const r = this.badges.get(rcpt); return r ? r.sent : 0; }       // 한 수신자 누적 입금 통수
+  readOf(rcpt) { const r = this.badges.get(rcpt); return r ? r.read : 0; }       // 한 수신자 누적 읽음 통수(step-0152)
   totalUnread() { let n = 0; for (const r of this.badges.values()) n += r.unread; return n; }   // 전 수신자 미읽음 합
   // crash — 읽기 모델 프로세스 사망(RAM 소실)의 인프로세스 모델. 투영·소비 회계 비움(자기 영속 0).
   crash() { this.badges = new Map(); this.consumed = 0; }
   // digest — 배지 투영 해시(결정론 검증용). recipient 정렬 순회.
   digest() {
     const rows = [];
-    for (const rcpt of [...this.badges.keys()].sort()) { const r = this.badges.get(rcpt); rows.push(`${rcpt}:u${r.unread}/s${r.sent}`); }
+    for (const rcpt of [...this.badges.keys()].sort()) { const r = this.badges.get(rcpt); rows.push(`${rcpt}:u${r.unread}/s${r.sent}/r${r.read || 0}`); }
     return fnv1a(rows.join('|'));
   }
 }
