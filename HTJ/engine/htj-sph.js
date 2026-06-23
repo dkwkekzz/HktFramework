@@ -208,5 +208,67 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphDensity, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, VERSION: 4 };
+  // SPH 인공 점성(Monaghan-Gingold) — *접근하는* 입자 쌍의 상대운동을 깎아 그 운동E를 내부E로 **일방** 소산한다(SW5).
+  //   design/sphere-world.md §6 SW5 / §5 난점 2 — 0011(비가역 점성 소산 bulk KE→열·엔트로피↑·진동 감쇠·별 정착)·
+  //   0037(DEM 접촉 감쇠)의 *SPH 판*. 0041~0045 의 압력은 *가역*(압축 데움↔팽창 식힘)이라 단열 진동이 영원히 안 식는다
+  //   — 점성이 그걸 식힌다(충격·진동을 열로). 표준 Monaghan 인공 점성 Π_ij(접근할 때만·짝대칭 Π_ij=Π_ji):
+  //       μ_ij = h (v_ij·r_ij) / (|r_ij|² + 0.01 h²)            (접근 v_ij·r_ij<0 → μ<0, 아니면 0)
+  //       Π_ij = (−α c̄_ij μ_ij + β μ_ij²) / ρ̄_ij               (μ<0 → 두 항 모두 ≥0 → Π≥0)
+  //       a_i  = −Σ_j m_j Π_ij ∇_i W_ij                          (0041 과 같은 대칭 쌍힘 꼴)
+  //       dU_i =  m_i·½ Σ_j m_j Π_ij v_ij·∇_i W_ij·dt            (0042 와 같은 대칭 에너지 꼴)
+  //   c̄=(c_i+c_j)/2 음속·ρ̄=(ρ_i+ρ_j)/2. 음속은 0045 열 EOS 와 정합 c_i=√(γ(γ−1)u_i)(u=internalE/질량·뜨거우면 더 끈적).
+  //   **두 보존·한 비가역**: ∇_jW=−∇_iW → F_ji=−F_ij(뉴턴3) → 순 운동량 정확 보존. a_i 와 dU_i 를 한 쌍 루프에서
+  //   같은 사전 속도로 계산해 적용 → KE 일 + ΔU = 0(순간 전력 균형·기계 정밀도·0042/0045 와 동형). 그러나 Π≥0 이고
+  //   접근 쌍의 v_ij·∇_iW>0 라 **ΔU≥0 — 오직 데움(단방향·시간의 화살)**. 0045 가역 압력과의 결정적 차이.
+  //   opts: { alpha(α, 기본 0 → early-return·회귀 0), beta(β, 기본 2α), gamma(γ, 기본 5/3), h(기본 1) }. 멀어지는
+  //   쌍(v·r≥0)은 건너뜀(소산은 압축에만). 신규 함수 — 기존 호출처 없으니 회귀 0(구조적).
+  function sphViscosity(particles, dt, opts) {
+    opts = opts || {};
+    const alpha = opts.alpha != null ? opts.alpha : 0;
+    const n = particles.length;
+    if (n < 2 || alpha === 0) return particles;               // 노브=0 → early-return(회귀 0)
+    const beta = opts.beta != null ? opts.beta : 2 * alpha;
+    const h = opts.h != null ? opts.h : 1;
+    const gamma = opts.gamma != null ? opts.gamma : 5 / 3;
+    const EPS2 = 1e-12, epsH = 0.01 * h * h;                  // μ 분모 정칙화(특이점 방지)
+    sphDensity(particles, { h });                             // 밀도 갱신(0040 재사용·자기일관)
+    const c = new Float64Array(n);                            // 음속 c_i=√(γ(γ−1)u)(0045 열 EOS 정합)
+    for (let i = 0; i < n; i++) {
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      const u = e.mass > EPS2 ? e.internalE / e.mass : 0;
+      c[i] = Math.sqrt(Math.max(0, gamma * (gamma - 1) * u));
+    }
+    const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n), dU = new Float64Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = particles[i], b = particles[j];
+      const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+      const vix = a.px / a.mass, viy = a.py / a.mass, viz = a.pz / a.mass;   // 사전 속도 v_i=p_i/m_i
+      const vjx = b.px / b.mass, vjy = b.py / b.mass, vjz = b.pz / b.mass;
+      const vrx = vix - vjx, vry = viy - vjy, vrz = viz - vjz;               // v_ij
+      const vr = vrx * dx + vry * dy + vrz * dz;              // v_ij·r_ij
+      if (vr >= 0) continue;                                  // 멀어지면 점성 없음(소산은 압축에만·단방향)
+      const r2 = dx * dx + dy * dy + dz * dz;
+      const mu = h * vr / (r2 + epsH);                        // <0 (접근)
+      const rhoBar = 0.5 * ((a.density || EPS2) + (b.density || EPS2));
+      const cBar = 0.5 * (c[i] + c[j]);
+      const Pi = (-alpha * cBar * mu + beta * mu * mu) / rhoBar;   // ≥0 (소산 압력)
+      const g = kernelGradW(dx, dy, dz, h);                  // ∇_i W_ij
+      ax[i] -= b.mass * Pi * g[0]; ay[i] -= b.mass * Pi * g[1]; az[i] -= b.mass * Pi * g[2];   // 운동량(뉴턴3)
+      ax[j] += a.mass * Pi * g[0]; ay[j] += a.mass * Pi * g[1]; az[j] += a.mass * Pi * g[2];
+      const vdotg = vrx * g[0] + vry * g[1] + vrz * g[2];     // v_ij·∇_iW (접근→>0)
+      const inc = 0.5 * a.mass * b.mass * Pi * vdotg;         // ≥0 → 오직 데움(단방향·시간의 화살)
+      dU[i] += inc; dU[j] += inc;
+    }
+    for (let i = 0; i < n; i++) {                             // p·internalE 동시 적용(같은 사전 속도 → 총E 닫힘)
+      const e = particles[i];
+      e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
+      e.internalE += dU[i] * dt;                              // bulk KE → 열(비가역)
+      e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return particles;
+  }
+
+  return { kernelW, kernelGradW, sphDensity, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, VERSION: 5 };
 });

@@ -828,6 +828,41 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
       },
       note: '<b>압력이 내부에너지에서 나온다 — 데운 가스가 더 세게 떠받친다</b>(구체 세계 SW5·능동 열압력). <b>▶ 흐름</b>: 찬 가스 구름(어두움)이 <b>중력으로 무너진다</b>(0028). 빽빽해지며 압력 일이 <b>내부에너지(열)로 닫히고</b>(0042), 이제 그 <b>데운 u 가 압력을 키운다</b> — 상태식 <b>P = (γ−1)·ρ·u</b>. 그래서 압축될수록 <b>더 세게 떠받쳐</b>, 중력 붕괴가 한 점으로 찌부러지지 않고 <b>핫코어(노랑)에서 멈춰 되튄다</b>(rms 가 줄었다 다시 늚=단열 숨쉬기). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0009(수동 온도 T∝ρ^(γ−1))→0010(능동 열압력 되먹임)의 SPH 판</b> — 0041 은 압력이 밀도만 따랐고(barotropic·u 무관), 0042 는 u 를 닫았지만 힘에 안 먹였다. 이 step 이 <b>u→P 되먹임</b>을 닫아, 가스가 <b>별 코어처럼 단열로 스스로 지탱</b>한다(압축 데움→압력↑→지지). 같은 밀도라도 <b>뜨거운 가스가 찬 가스보다 더 센 압력</b>(verify: u 10배→힘 10배). <b>보존</b>: 운동량 <b>기계 정밀도 정확</b>(대칭 쌍힘·우상단 ΣP)·압력 일↔내부E <b>총E 닫힘</b>(순간 전력 균형 −S+S=0·중력 PE 제외). u≤0 → P=0(음압 없음). <b>정직한 한계</b>: 점성(충격 감쇠) 없음 — 단열 진동이 안 식음·평활길이 h 고정·이웃 O(N²)·격자 유체 은퇴는 SW5 마지막. 여기선 *열압력 되먹임 한 법칙*만.'
+    },
+
+    // ── step_0046 — SW5 점성: 단열 진동이 점성으로 식어 정착한다(SW5 다섯째 벽돌) ──
+    //   0041~0045 압력은 가역(데움↔식힘)이라 단열 진동이 영원히 안 식음. Monaghan 인공 점성 Π_ij 가 *접근하는*
+    //   쌍의 bulk KE 를 열로 일방 소산 → 진동이 잦아들며 정착. 0011(비가역 점성 소산)·0037(DEM 감쇠)의 SPH 판.
+    '0046': {
+      label: 'step_0046 — SW5 점성(단열 진동을 식혀 정착)', title: 'HTJ — SW5 점성: 인공 점성이 단열 진동을 식혀 가스 공이 정착한다',
+      sub: '인공 점성(Monaghan Π_ij)이 접근하는 입자 쌍의 bulk 운동E를 열로 일방 소산한다 — 0045 까지의 가역 압력은 단열 진동이 안 식지만, 점성을 켜면 진동이 잦아들며 정착한다(접근에만·시간의 화살). 0011(비가역 점성 소산)·0037(DEM 감쇠)의 SPH 판·구체 세계 SW5. 운동량·총E 정확 보존',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        let seed = 9; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 60; i++) {
+          const r = N * 0.1 + rnd() * N * 0.12, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph), m = 1, vin = -0.4;   // 안쪽 속도(붕괴)
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: 0.2, energy: 0.2 + 0.5 * m * vin * vin, cells: 5, radius: eqR(5) });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 0.25, soft: Math.max(2, N * 0.12) };
+        w.__topt = { gamma: 5 / 3, h: Math.max(2.5, N * 0.14) };
+        w.__vopt = { alpha: 1.5, beta: 3, gamma: 5 / 3, h: Math.max(2.5, N * 0.14) };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.14, w.__gopt);     // 안으로 끌고(0028)
+        HTJSPH.sphThermalPressureForce(w.__entities, 0.14, w.__topt);   // 가역 열압력(0045·밀도 자동 갱신)
+        HTJSPH.sphViscosity(w.__entities, 0.14, w.__vopt);             // 비가역 점성(이 step·접근 쌍 KE→열)
+        HTJEntity.stepEntities(w.__entities, 0.14, { N: w.N });
+        let mx = 0; for (const e of w.__entities) { const t = (e.internalE || 0) / (e.mass || 1); if (t > mx) mx = t; }
+        for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
+      },
+      note: '<b>점성이 단열 진동을 식혀 가스 공이 정착한다</b>(구체 세계 SW5·인공 점성). <b>▶ 흐름</b>: 찬 가스 구름(보라)이 <b>중력으로 무너지며</b> 압축으로 데워진다(핫코어 노랑·0042/0045). 0045 까지의 <b>압력은 가역</b>(압축 데움↔팽창 식힘)이라 무너진 가스가 <b>영원히 숨쉰다</b>(안 식음). 이 step 의 <b>인공 점성</b>(Monaghan)이 그걸 식힌다 — <b>접근하는</b>(v_ij·r_ij&lt;0) 입자 쌍에만 소산 압력 <b>Π_ij = (−α c̄ μ_ij + β μ_ij²)/ρ̄</b> 를 줘 상대운동을 깎고 그 <b>bulk 운동E를 내부E(열)로 일방 전환</b>한다(μ_ij = h v_ij·r_ij/(r²+0.01h²)). 그래서 <b>진동이 잦아들며 따뜻한 공으로 정착</b>한다(rms 가 줄어드는 진폭으로 숨쉬다 멎음). <b>왜 중요한가</b>(design/sphere-world.md §6 SW5·§5 난점 2): 이게 <b>0011(비가역 점성 소산 bulk KE→열·엔트로피↑·별 정착)·0037(DEM 접촉 감쇠)의 SPH 판</b> — 소산이 있어야 세계가 *멈춘다*("선 캐릭터"의 정착도 결국 소산). <b>두 보존·한 비가역</b>: 운동량 <b>기계 정밀도 정확</b>(대칭 쌍힘 ∇_jW=−∇_iW·뉴턴3·우상단 ΣP)·점성 일↔내부E <b>총E 닫힘</b>(순간 전력 균형 −S+S=0). 그러나 Π≥0 이고 접근 쌍의 v_ij·∇_iW&gt;0 라 <b>ΔU≥0 — 오직 데움(단방향·시간의 화살)</b> = 0045 가역 압력과의 결정적 차이(<b>멀어지는 쌍은 점성 0</b>). 음속은 0045 열 EOS 와 정합 <b>c=√(γ(γ−1)u)</b>(뜨거우면 더 끈적). <b>정직한 한계</b>: 평활길이 h 고정·이웃 O(N²)·격자 유체 은퇴는 SW5 마지막(측정된 필요 후). 여기선 *점성 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1075,7 +1110,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0045';                       // 기본 = 현재 step
+    sel.value = '0046';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
