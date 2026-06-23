@@ -11,7 +11,6 @@ Object.assign(ExchangeService.prototype, {
     //   집계(ackedGives·giveOks·giveFails) + 보상(step-0122). saga OFF 면 이 메시지가 영영 안 옴(0120 비트 동일).
     if (p.type === 'item_result' && p.op === 'give') {
       this.ackedGives++;
-      if (p.gid !== undefined) this.pending.delete(p.gid);   // 미해결 추적(step-0125) — 회신 도착한 give 를 pending 에서 제거(정상 흐름 0 으로 drain).
       if (p.ok) { this.giveOks++; return; }
       this.giveFails++;
       // 보상(step-0122·exchCompensate) — list 인출 give 실패면 그 listing 을 abort: 판매자가 itemId 를 안 가져 escrow 에 안 들어왔으므로 낙관적 open 을 롤백(phantom 매물 0).

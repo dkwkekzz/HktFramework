@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0124](step-0124.md) — **정리: svc-exchange.js 박스-부품 분할**(core/txn/entry·기능 0·reg 0): saga arc 누적으로 svc-exchange.js 가 32.4KB 초과(비대화 트리거) → ExchangeService 를 core(상태·헬퍼·crash·reconstruct·조회)+txn(onMsg)+entry 로 분할(가방 0053·whisper 0094 패턴). 누적 step 헤더 주석을 한 줄 포인터로 압축(역사 SSOT=step 문서). 크기 32.4KB→core 12.5+txn 7.0+entry 1.1=20.6KB(셋 다 30KB 유계). 거래소 전 분기(list/buy/cancel/expire/abort+발행 4종+saga+보상+영속+시세)를 src(분할)·baseline(단일 파일) 양쪽서 돌려 net.log·거래소 회계 비트 동일 단언. 닿는 박스: svc-exchange→core/txn/entry.
-- **한 줄 상태**: reg ALL OK(src=baseline=0123 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsplit: src logHash==base logHash·exHash 0xfa2f7584 동일·sold/can/exp/abrt 2/1/1/1·open 1·전 키트 모드 통과.
-- **다음**: §2 참조(saga 회신 신뢰 전달·buy leg 보상·topo-build/topology 정리·멀티프로세스 E2E·거래소/우편/길드·비동기 결정론🔴).
+- **닫힌 step**: [step-0125](step-0125.md) — **saga 미해결 give 추적 + 회신 손실 감지**(pendingGives·gid): 0121 §9(회신 손실 무대비)를 가시화. saga ON 이면 각 give 에 gid 부여·pending 집합 add, item_result 회신이 gid 로 remove. 정상 흐름 pending→0(닫힌 고리 liveness·peak 2)·회신 경로(inventory→exchange item_result) 손실 주입 시 pending==gives·ackedGives 0(ack 미수신 격차 가시). 손실에도 2-서비스 *안전*(open==가방 escrow ["item4"]) 유지 — 격차는 *지식*이지 안전 아님(낙관 booking 이 우연히 옳음). saga OFF·gid 부재면 추적 0 = 0124 비트 동일. 닿는 박스: svc-exchange-core(gid/pending)·svc-exchange-txn(delete)·svc-inventory-txn(gid echo).
+- **한 줄 상태**: reg ALL OK(src=baseline=0124 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagapend: gives 9·정상 pending 0/peak 2·acked 9·손실 pending 9/acked 0·손실 open==escrow ["item4"]·전 키트 모드 통과.
+- **다음**: §2 참조(saga 회신 재전송+idempotent dedup·buy leg 보상·topo-build/topology 정리·우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0124 가 *svc-exchange.js 정리 분할*(core/txn/entry·32.4→20.6KB)로 박스 유계를 회복. 다음 후보(saga arc 진행): *회신 신뢰 전달*(give 회신 손실 시 ack 미수신 격차·0121 §9·0023/0036 의 saga 판)·*buy 입금 leg 보상*(체결 후 give 실패 역보상·0122 §9)·*멀티프로세스 E2E 거래소↔가방 give*. 정리 후보: *topo-build*(32.7KB)·*topology*(31.5KB) 박스 분할(0124 §9). 그 외: *우편/길드 서비스*·*비동기 결정론*(🔴). 🔧 topo-build 32.7KB·topology 31.5KB. 🔎 0111~0120 묶음 리뷰(`infra-review`) 시점.**
+**step-0125 가 *saga 미해결 추적+회신 손실 감지*(pendingGives·gid)로 0121 §9 격차를 가시화(감지 절반). 다음 후보(saga arc 진행): *saga 회신 재전송+idempotent dedup*(가방이 (replyTo,gid) 결과 기억·재회신·naive 재전송 오보상 방지·0042 seenReqs 의 saga 판·0125 §9)·*buy 입금 leg 보상*(0122 §9)·*멀티프로세스 E2E 거래소↔가방 give*. 정리 후보: *topo-build*(32.7KB)·*topology*(31.5KB) 박스 분할. 그 외: *우편/길드 서비스*·*비동기 결정론*(🔴). 🔧 topo-build 32.7KB·topology 31.5KB. 🔎 0111~0120 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0123**(…→2-서비스 보존→0121 saga 피드백→0122 list 실패 보상→0123 보상 발행: 수명주기 발행 4종 sold/cancelled/expired/aborted 완비). 신성한 tick·권위 0. 회신 신뢰·buy leg 보상·우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0125**(…→2-서비스 보존→0121 saga 피드백→0122 list 실패 보상→0123 보상 발행 4종→0124 정리 분할→0125 미해결 추적+회신 손실 감지). 신성한 tick·권위 0. 회신 재전송·buy leg 보상·우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0048 lease/ns/lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070): 분리→버스화→shadow→failover 승격→사망 자율 감지→질의 →0105/0106 공지 epoch 펜싱(presmon·wrouter 메아리 정리). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속/스냅샷→0023~0026 홉 신뢰→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 recon. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -153,19 +153,19 @@
 | [0055](step-0055.md) | lease 생애 반응(busLeasePresence — lease→consumerDown) | 통과 |
 | [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독) | 통과 |
 | [0057](step-0057.md) | 치유 확인 고리(recoverAck — 재구독하며 orch 회신) | 통과 · sent==acks==1 |
-| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — timeout 뒤 재발신) | 통과 · ON retries 2 |
-| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — permanentDown 포기) | 통과 · givenUp 1 |
-| [0060](step-0060.md) | 프레즌스 발행(presencePublish — down/up/permanent→audit) | 통과 · audit 1:1 |
-| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby 가 'permanent' 에 활성화) | 통과 · permanent→인계 |
-| [0062](step-0062.md) | 대체 소비자 late-join recon(spawnReconstruct — 쓰기 저널 복원) | 통과 · 투영==원장 |
-| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — svc.presence→건강 상태 기계) | 통과 · events 2/2 |
+| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — timeout 뒤 재발신) | 통과 |
+| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — permanentDown 포기) | 통과 |
+| [0060](step-0060.md) | 프레즌스 발행(presencePublish — down/up/permanent→audit) | 통과 |
+| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby→'permanent' 활성화) | 통과 |
+| [0062](step-0062.md) | 대체 소비자 late-join recon(spawnReconstruct — 쓰기 저널 복원) | 통과 |
+| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — svc.presence→건강 상태 기계) | 통과 |
 | [0064](step-0064.md) | 전용 프레즌스 박스 분리(presenceBox — orch SSOT+발행→PresenceService) | 통과 · orch pub 0 |
-| [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus — svc.presence.report) | 통과 · presmon ON==OFF |
+| [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus — svc.presence.report) | 통과 |
 | [0066](step-0066.md) | 프레즌스 shadow 복제(presenceShadow — 같은 보고로 그림자) | 통과 · shadow==primary |
-| [0067](step-0067.md) | 프레즌스 failover 승격(presencePromote — crash→standby promote) | 통과 · 승격 분담 |
-| [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵→자기 승격) | 통과 · 자율 승격 |
-| [0069](step-0069.md) | 프레즌스 SSOT 질의(presenceQuery→presenceReply·pull) | 통과 · 질의↔응답 4/4 |
-| [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — active→재타깃) | 통과 · 죽음 후 2/2 |
+| [0067](step-0067.md) | 프레즌스 failover 승격(presencePromote — crash→standby promote) | 통과 |
+| [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵→자기 승격) | 통과 |
+| [0069](step-0069.md) | 프레즌스 SSOT 질의(presenceQuery→presenceReply·pull) | 통과 · 4/4 |
+| [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — active→재타깃) | 통과 · 2/2 |
 | [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 질의→up 전달/permanent 반송) | 통과 · routed/bounced 1 |
 | [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지→queryAddr 재타깃) | 통과 · 사망 후 routed 1 |
 | [0073](step-0073.md) | 파티 라우터(1:N 팬아웃 — 멤버마다 질의→부분 전달) | 통과 · routed 2/b1 |
@@ -215,8 +215,9 @@
 | [0117](step-0117.md) | 거래소↔가방 list 인출(exchInventory leg1 — escrow 를 가방 원장에 실체화·give seller→escrow) | 통과 · ON escrow 4/xfers 4/minted 불변·spine 117 |
 | [0118](step-0118.md) | 거래소↔가방 buy 입금(exchInventory leg2 — give escrow→buyer·존 넘는 실물 거래 완성) | 통과 · ON item0→b1/gives 6/minted 불변·spine 118 |
 | [0119](step-0119.md) | 거래소↔가방 cancel/expire 반환(exchInventory leg3 — give escrow→seller·닫힌 장부) | 통과 · ON escrow 0/gives 4/minted 불변·spine 119 |
-| [0120](step-0120.md) | 거래소↔가방 2-서비스 보존 불변(escrowItemIds — 거래소 open ≡ 가방 escrow 소유·가방 total 불변·각 1소유자) | 통과 · open==escrow ["item4"]·minted 5 불변·소유자 합 5·spine 120 |
-| [0121](step-0121.md) | 거래소↔가방 escrow give 결과 비동기 수신(exchSaga — give 에 replyTo+cause·가방 item_result echo·거래소 집계) | 통과 · gives 9==acked 9==oks 9·fails 0·spine 121 |
-| [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate — give 실패 시 listing abort·낙관적 open 롤백·저널 정합) | 통과 · giveFails 1·aborted ON1/OFF0·ON open==escrow·OFF phantom·spine 122 |
+| [0120](step-0120.md) | 거래소↔가방 2-서비스 보존 불변(escrowItemIds — 거래소 open ≡ 가방 escrow 소유·각 1소유자) | 통과 · open==escrow ["item4"]·minted 5·spine 120 |
+| [0121](step-0121.md) | 거래소↔가방 escrow give 결과 비동기 수신(exchSaga — give 에 replyTo+cause·가방 item_result echo) | 통과 · gives 9==acked 9·fails 0·spine 121 |
+| [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate — give 실패 시 listing abort·낙관적 open 롤백) | 통과 · giveFails 1·aborted ON1/OFF0·ON open==escrow·OFF phantom·spine 122 |
 | [0123](step-0123.md) | 보상 발행(abortPublish — abort→svc.exchange.aborted·audit 관측·수명주기 발행 4종 완비) | 통과 · aborted 1·abortPublished ON1/OFF0·audit ON1/OFF0·spine 123 |
 | [0124](step-0124.md) | 정리: svc-exchange.js 박스-부품 분할(core/txn/entry·기능 0·헤더 압축) | OK · 32.4→12.5/7.0/1.1KB·log+ex 비트 동일·spine 124 |
+| [0125](step-0125.md) | saga 미해결 give 추적+회신 손실 감지(pendingGives·gid — give 에 gid·pending add/remove) | 통과 · 정상 pending 0/peak 2·손실 pending 9/acked 0·안전 유지·spine 125 |
