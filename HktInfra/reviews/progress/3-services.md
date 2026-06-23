@@ -51,14 +51,18 @@
   - `step-0085~0086` — 영속·failover(휘발 projection ⟂ durable 변경 저널·crash→replay 재구성·0017/0021 event sourcing 의 멤버십 판) → 스냅샷+tail 압축(무계 저널 유계·0018/0022 판).
 - **남은 것**: cluster kill→replay 통합(현 in-process·#9).
 
-## 거래소 ✅ 자라는 중 *(가방/파티 궤적 → 진짜 존 넘는 실물 거래)* + 우편 ⬜ 미착수
+## 거래소 ✅ 자라는 중 *(실물 거래 → 2-서비스 saga 신뢰 전달·원자성)* + 우편 ⬜ 미착수
 
-- **푸는 병목**: *두 당사자* 사이의 아이템↔대가 교환을 존 tick 밖에서 — 가방(1-당사자 이동)과 같은 불변(단일 소유 + 쌍 거래)으로·이중 판매 0·*존을 넘는 거래*가 존간 결합 없이 성립. 더해 판매자가 *실제로 가진* 아이템이 빠지고 구매자에게 *실제로* 들어가야(추상 escrow→실물).
-- **지금 어디**: 분리→발행→영속→압축(한 묶음 레시피) → 수명주기 발행 완비·시세 피드 분리 → **escrow 를 가방 원장에 실체화해 진짜 존 넘는 실물 거래**(`src/svc-exchange.js`).
-  - `step-0107~0110` — 서비스 분리(escrow 단일 권위·쌍 거래·보존·이중 판매 0)→체결 발행(svc.exchange.sold)→영속(op 저널 replay)→스냅샷+tail 압축(가방/파티와 같은 궤적·`svc-exchange.js:62,103,116`).
-  - `step-0111·0114~0115` — *수명주기 종결 3종 완비*: 취소 발행(svc.exchange.cancelled·0108 의 대칭)·**매물 만료 TTL**(시간 트리거 escrow→판매자 회수·sweep `now−listedAt≥ttl`·새 종결 expired·보존식 4종 `listed==open+sold+cancelled+expired`·저널 'expire' 정합)·만료 발행(svc.exchange.expired). 매물이 영영 묶이지 않는다(`svc-exchange.js:67,123`).
-  - `step-0117~0120` — **거래소↔가방 2-서비스 실물 거래**(#30 결합 절반 해소): escrow 를 가방 원장 아바타로 실체화 → 인출(list seller→escrow)·입금(buy escrow→buyer)·반환(cancel/expire escrow→seller) 전부 가방 give(`_custody`·`svc-exchange.js:52`) → 2-서비스 보존 단언(거래소 open `escrowItemIds`≡가방 escrow 소유·minted 불변·각 1소유자·`:127`). 가방이 아이템 권위·거래소는 give 요청자(단일 소유 불침).
-- **남은 것**: 2-서비스 *원자성*(give 낙관적·결과 미수신·실패 보상 0·#31)·거래소 저널 *별 PersistStore 박스화*(현 자기 박스 내·#30 b)·멀티프로세스 배선(현 인프로세스·#9)·우편·길드 전용 박스 미착수.
+- **푸는 병목**: *두 당사자* 사이의 아이템↔대가 교환을 존 tick 밖에서·단일 소유+쌍 거래·이중 판매 0·존 넘는 거래가 존간 결합 없이. 더해 판매자 아이템이 *실제로* 빠지고 구매자에게 *실제로* 들어가야(실물 escrow)·그리고 그 두 서비스 give 가 *낙관적이 아니라 닫힌 고리*여야(결과 받고·실패면 보상하고·손실되면 재전송하되 *재실행 0*).
+- **지금 어디**: 분리→발행→영속→압축 → 수명주기 완비·시세 피드 → 실물 거래(escrow 실체화) → **2-서비스 saga 신뢰 전달**(give 낙관적 결합을 견고하게·`src/svc-exchange-core.js`+`-txn.js`).
+  - `step-0107~0110` — 서비스 분리(escrow 단일 권위·쌍 거래·보존)→체결 발행→영속(op 저널 replay)→스냅샷+tail 압축.
+  - `step-0111·0114~0115` — 수명주기 종결 3종(취소 발행·만료 TTL 시간 트리거 회수·만료 발행·보존식 4종).
+  - `step-0117~0120` — 거래소↔가방 실물 거래: escrow 를 가방 원장 아바타로 실체화(인출·입금·반환 전부 가방 give `_custody`)→2-서비스 보존 단언(open `escrowItemIds`≡가방 escrow 소유).
+  - `step-0121~0123` — **낙관적 결합을 닫힌 고리로**: give 결과 비동기 수신(replyTo+cause·가방 `_sagaReply` echo)→list 인출 실패 보상(saga 롤백: give 실패면 listing abort·phantom 0)→보상 발행(svc.exchange.aborted·수명주기 발행 4종 완비).
+  - `step-0124` — 정리 분할(svc-exchange 32.4KB→core/txn/entry·기능 0·헤더 압축).
+  - `step-0125~0127` — **회신 손실 신뢰 전달**: 미해결 추적+손실 감지(gid·pending)→재전송+**멱등 dedup**(가방 (replyTo,gid) 재실행 0 재회신·dedup 없으면 재전송이 valid 매물 오보상·`svc-inventory-txn.js:65`)→dedup 유계화(saga_done ack-of-ack·sagaResults drain).
+  - `step-0128~0130` — **세 정합 층 합류**: 회계 닫힘(sagaConsistent `gives==acked+pending`·체제 무관·`core.js:119`)→자동 재전송(autoRetry·exchSweep 피기백·지속 손실도 회복)→교차 정합 capstone(escrowXfers==giveOks·요청 회계≡실행 회계·`inventory-txn.js:74`). 물리(0120)·회계(0128)·교차(0130) — give 가 정확히 한 번 옮겨짐을 양 서비스서 증거(**#31 해소**).
+- **남은 것**: 거래소 저널 *별 PersistStore 박스화*(현 자기 박스 내·#30 b)·멀티프로세스 배선(현 인프로세스·#9)·자동 재전송 재시도 상한·나이 인지(#35)·우편·길드 전용 박스 미착수.
 
 ## 시세 피드(MarketFeed) ✅ 자라는 중 *(새 박스·0019 ranking 의 거래소 판)*
 
@@ -71,4 +75,4 @@
 
 ---
 
-> **이 계층 다음 걸음**: 거래소↔가방을 *2-서비스 원자성/saga*(give 결과 수신·실패 보상·#31)로 닫아 낙관적 결합을 견고하게. 거래소 저널을 별 PersistStore 박스로(#30 b). 채팅에 홉 신뢰(#7). 라우팅/전달/수신함/거래소↔가방/시세 피드 호를 멀티프로세스로 배선(#9·전 호 인프로세스 전용)·안정 호를 spine 가설 모드 승격(#16·~50 모드). 수신함 동적 N·세션 간접(#27)·게이트웨이 경유 read E2E(#9/④). 우편·길드 전용 박스 씨앗 심기.
+> **이 계층 다음 걸음**: 거래소↔가방 2-서비스 saga 가 *원자성·신뢰 전달·교차 정합*까지 닫혔다(#31 해소·0121~0130). 남은 견고화: 거래소 저널을 별 PersistStore 박스로(#30 b)·자동 재전송 재시도 상한/나이 인지(#35). 채팅에 홉 신뢰(#7). 라우팅/전달/수신함/거래소↔가방 saga/시세 피드 호를 멀티프로세스로 배선(#9·전 호 인프로세스 전용)·안정 호를 spine 가설 모드 승격(#16·~60 모드). 수신함 동적 N·세션 간접(#27). wiring 박스 분할(#34·topo-build/topology >30KB). 우편·길드 전용 박스 씨앗 심기.
