@@ -1,4 +1,5 @@
 'use strict';
+// step-0179 — 아이템 우편 saga 영구 실패 발행(mailFailPublish): 영구 실패(permFailed·0178) 시 svc.mail.saga_failed 1회 발행(saga liveness 발행 종결 마디·포기 0174/재개 0177 의 종결 판·failPublished==permFailed·거래소 0138 의 우편 판). OFF·bus 부재면 발행 0 = 0178 비트 동일.
 // step-0178 — 아이템 우편 saga 재admission 횟수 상한(mailReadmitMax): gid 가 readmitMax 회 재admission 후 또 포기되면 영구 실패(permFailed)로 abandonedGive 제외→재admission 차단(무한 루프 방지·거래소 0137 의 우편 판). pending 잔존(sagaConsistent 불변). readmitMax 0 면 무제한 = 0177 비트 동일.
 // step-0177 — 아이템 우편 saga 재admission 발행(mailReadmitPublish): _readmit 재개 시 svc.mail.saga_readmitted 1회 발행(0174 포기 발행의 짝·audit 관측·readmitPublished==readmitted·거래소 0135 의 우편 판). OFF·bus 부재면 발행 0 = 0176 비트 동일.
 // step-0176 — 아이템 우편 saga 포기 give 재admission(mailReadmit): 포기(abandonedGive·0173/0174)된 give 를 pendingGive 로 되돌려 retry 재개(retryCount 리셋·거래소 0134 의 우편 판). op 부재면 0175 비트 동일.
@@ -57,6 +58,8 @@ class MailService {
     this.readmitMax = opts.readmitMax || 0;   // 재admission 횟수 상한(step-0178·mailReadmitMax·거래소 0137 의 우편 판) — gid 가 readmitMax 회 재admission 된 뒤 또 포기되면 *영구 실패*(permFailed)로 abandonedGive 에 안 넣어 재admission 차단(무한 abandon↔readmit 루프 방지). pending 엔 잔존(sagaConsistent 불변). 0 이면 무제한(0177 비트 동일).
     this.readmitCount = new Map();  // gid -> 재admission 횟수(step-0178·readmitMax>0 일 때만 사용) — _readmit 누적·상한 비교용.
     this.permFailed = 0;           // 영구 실패한 give 누적(step-0178·계측) — readmitMax 도달 후 또 포기. 재admission 차단(abandonedGive 제외)·pending 잔존.
+    this.failPublish = opts.failPublish || false;   // 영구 실패 발행(step-0179·mailFailPublish·거래소 0138 의 우편 판) — 영구 실패 시 svc.mail.saga_failed 1회 발행(saga liveness 수명주기 발행 종결 마디·포기 0174/재개 0177 의 종결 판·failPublished==permFailed). OFF·bus 부재면 발행 0(0178 비트 동일).
+    this.failPublished = 0;        // 발행한 svc.mail.saga_failed 수(step-0179·계측·permFailed 와 1:1).
     this.ackDropAlways = opts.ackDropAlways ? new Set(opts.ackDropAlways) : null;   // 테스트 seam(step-0173) — 수신 시 *매번* 드롭할 gid 집합(지속 회신 손실 모의·drop-once ackDrop 0167 과 달리 안 지움 → 재전송이 영영 통과 못 함 → 상한 트리거). 미제공이면 무손실(production 무영향·reg 0).
     this.autoRetry = opts.autoRetry || false;   // 자동 주기 재전송(step-0172·mailAutoRetry) — ON 이면 mailSweep op 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·거래소 0129 의 우편 판). OFF 면 sweep 은 TTL 회수만(0171 비트 동일). 명시 mailRetry op(0168) 없이도 같은 주기 신호(sweep)로 pending drain.
     this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
@@ -100,7 +103,12 @@ class MailService {
         if (c >= this.maxRetries) {
           this.pendingGive.delete(gid); this.retryCount.delete(gid); this.giveAbandoned++;   // 상한 도달 — 포기(재전송 중단·pending 잔존)
           // 재admission 횟수 상한(step-0178·readmitMax) — readmitMax 회 재admission 된 give 가 또 포기되면 *영구 실패*: abandonedGive 에 안 넣어 재admission 차단(무한 abandon↔readmit 루프 방지). pending(Set)엔 잔존(미해결·sagaConsistent 불변). readmitMax 0 면 항상 abandonedGive(0177 비트 동일).
-          if (this.readmitMax > 0 && (this.readmitCount.get(gid) || 0) >= this.readmitMax) { this.readmitCount.delete(gid); this.permFailed++; continue; }
+          if (this.readmitMax > 0 && (this.readmitCount.get(gid) || 0) >= this.readmitMax) {
+            this.readmitCount.delete(gid); this.permFailed++;
+            // 영구 실패 발행(step-0179·mailFailPublish) — 종결된 give 를 svc.mail.saga_failed 로 1회 발행(saga liveness 발행 종결 마디·거래소 0138 의 우편 판). OFF·bus 부재면 no-op(0178 비트 동일).
+            if (this.failPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.saga_failed', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.failPublished++; }
+            continue;
+          }
           this.abandonedGive.set(gid, g);   // 재admission 소스(step-0176) — 포기 give 파라미터 간직(운영이 손실 해소 후 mailReadmit 으로 재개). pending(Set)엔 그대로 남아 미해결.
           // 포기 발행(step-0174·mailAbandonPublish) — 영구 미해결 give 를 svc.mail.saga_abandoned 로 1회 발행(운영 가시화·거래소 0132 의 우편 판). OFF·bus 부재면 no-op(0173 비트 동일).
           if (this.abandonPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.saga_abandoned', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.abandonPublished++; }

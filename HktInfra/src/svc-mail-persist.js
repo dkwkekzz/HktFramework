@@ -39,7 +39,7 @@ Object.assign(MailService.prototype, {
     this.retries = 0;   // step-0168: 재전송 계측 소실
     this.retryCount = new Map(); this.giveAbandoned = 0; this.abandonPublished = 0;   // step-0173/0174: 재시도 카운트·포기 계측·포기 발행 계측 소실(외부 회신 의존·발행은 replay 에서 안 함)
     this.abandonedGive = new Map(); this.readmitted = 0; this.readmitPublished = 0;   // step-0176/0177: 재admission 소스·계측·발행 계측 소실(외부 회신 의존·발행은 replay 에서 안 함)
-    this.readmitCount = new Map(); this.permFailed = 0;   // step-0178: 재admission 횟수·영구 실패 계측 소실(외부 회신 의존)
+    this.readmitCount = new Map(); this.permFailed = 0; this.failPublished = 0;   // step-0178/0179: 재admission 횟수·영구 실패 계측·발행 계측 소실(외부 회신 의존·발행은 replay 에서 안 함)
     this.escrowIds = new Set();   // step-0164: escrow 추적도 소실 → reconstruct 가 저널 replay 로 재계산(custody 재발행 없이 집합만).
   },
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
