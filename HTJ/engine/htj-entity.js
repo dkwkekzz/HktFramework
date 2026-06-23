@@ -271,5 +271,86 @@
     return U;
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, VERSION: 4 };
+  // 구체 쪼개기(파편화) — 한 구체를 n 조각으로 터뜨린다(mergeGroup 의 역·step_0038·SW3).
+  //   design/sphere-world.md §6 SW3 — 합치기(SW1)의 *거울*: 강한 충돌/외란으로 임계를 넘은 구체가 작은
+  //   구체들로 깨진다. mergeGroup 의 보존 합산을 *역으로* — 부모 1 개를 n 조각으로 나누되 질량·운동량·
+  //   각운동량(원점 기준)·총E 를 *정확* 보존(Σ조각 = 부모). 분산(폭발)에 쓰는 운동E 는 부모 internalE
+  //   (결합/열)에서 꺼낸다 — merge 의 "잃은 CoM KE → 열" 의 역인 "결합열 → 조각 분산 KE"(internalE↔KEcm 재분배).
+  //
+  //   조각 배치(대칭 → 보존 정확): n 조각을 CoM 둘레 평면 고리(각 2πk/n)에 등질량·등셀로 놓고 반경 방향
+  //   폭발 속도 s·û_k 를 준다. Σû_k=0(고리) → 순 운동량 부모와 같음(질량가중 평균차감으로 기계정밀도 강제·0007
+  //   거울). 각운동량: 부모 intrinsic 스핀 L 을 조각마다 L/n 씩 나눠 줌 + 대칭 배치라 궤도 L=0 → 원점 기준 총 L
+  //   정확 보존. 에너지: KE_explosion=½M·s²=dispersalFrac·internalE → 조각 internalE=(1−dispersalFrac)·internalE/n,
+  //   ΣE = KEcm_parent + internalE_parent = E_parent(정확).
+  //   opts: { n(조각 수, 기본 4), dispersalFrac(분산에 쓸 internalE 비율, 기본 0.5), spread(배치 반경 배수, 기본 1) }.
+  //   반환: 조각 배열(n<2 면 [entity] 그대로). 입력은 변형하지 않는다.
+  function fragmentEntity(entity, opts) {
+    opts = opts || {};
+    const n = Math.max(1, Math.floor(opts.n != null ? opts.n : 4));
+    if (n < 2) return [entity];
+    const df = Math.max(0, Math.min(1, opts.dispersalFrac != null ? opts.dispersalFrac : 0.5));
+    const M = entity.mass;
+    const vcx = M > EPS ? entity.px / M : 0, vcy = M > EPS ? entity.py / M : 0, vcz = M > EPS ? entity.pz / M : 0;
+    const internalE = entity.internalE != null ? entity.internalE : ((entity.energy || 0) - (entity.KEcm || 0));
+    const m = M / n, cells = (entity.cells || n) / n, radius = equivalentRadius(Math.max(1e-9, cells));
+    const d = (opts.spread != null ? opts.spread : 1) * (entity.radius || radius);
+    const KE_explosion = df * Math.max(0, internalE);
+    const s = M > EPS ? Math.sqrt(2 * KE_explosion / M) : 0;     // ½M·s² = KE_explosion
+    const intEach = (internalE - KE_explosion) / n;             // 남은 결합열 균등 분배(≥0: df≤1)
+    const Lx = (entity.Lx || 0) / n, Ly = (entity.Ly || 0) / n, Lz = (entity.Lz || 0) / n;  // intrinsic 스핀 균등 분배
+    // 조각 속도(폭발) 만들고, 질량가중 평균을 v_cm 에 맞춰 빼 ΣP 를 부모와 *정확* 일치(0007 평균차감).
+    const dirs = [], vel = []; let mvx = 0, mvy = 0, mvz = 0;
+    for (let k = 0; k < n; k++) {
+      const th = 2 * Math.PI * k / n, ux = Math.cos(th), uy = Math.sin(th), uz = 0;
+      const vx = vcx + s * ux, vy = vcy + s * uy, vz = vcz + s * uz;
+      dirs.push([ux, uy, uz]); vel.push([vx, vy, vz]); mvx += vx; mvy += vy; mvz += vz;
+    }
+    const ox = mvx / n - vcx, oy = mvy / n - vcy, oz = mvz / n - vcz;   // 평균 − v_cm = 보정 오프셋(Σû_k≠0 의 FP)
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const ux = dirs[k][0], uy = dirs[k][1], uz = dirs[k][2];
+      const vx = vel[k][0] - ox, vy = vel[k][1] - oy, vz = vel[k][2] - oz;   // ΣP 정확 보정
+      const px = m * vx, py = m * vy, pz = m * vz;
+      const KEcm = m > EPS ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+      out.push({
+        cx: entity.cx + ux * d, cy: entity.cy + uy * d, cz: entity.cz + uz * d,
+        mass: m, px, py, pz, Lx, Ly, Lz,
+        KEcm, internalKE: (entity.internalKE || 0) / n, internalE: intEach, energy: KEcm + intEach,
+        cells, radius, temp: m > EPS ? intEach / m : 0, peak: entity.peak || 1
+      });
+    }
+    return out;
+  }
+
+  // 충돌 임계 쪼개기(자기-트리거) — 닿고 *빠른* 쌍을 파편화(mergeEntities 의 거울: 느림→합침·빠름→깨짐).
+  //   design/sphere-world.md §6 SW3 — 합치기↔쪼개기 왕복. 접촉(거리 ≤ r_a+r_b+pad)한 쌍의 상대 운동E
+  //   ½·μ·|v_a−v_b|² 가 결합E 임계(shatterKE·시뮬 상수) 이상이면 두 구체를 fragmentEntity 로 깬다(임계가 가른다).
+  //   각 fragmentEntity 가 *제* 보존량을 정확 보존 → 쌍 총량도 정확 보존(합의 합). μ=reduced mass.
+  //   opts: { shatterKE(임계 상대 운동E·기본 1), n, dispersalFrac, spread, pad(닿음 여유·기본 0.5) }.
+  //   반환: { entities, shatters }. 입력은 변형하지 않는다.
+  function fragmentOnImpact(entities, opts) {
+    opts = opts || {};
+    const shatterKE = opts.shatterKE != null ? opts.shatterKE : 1;
+    const pad = opts.pad != null ? opts.pad : 0.5;
+    const n = entities.length;
+    if (n < 2) return { entities: entities.slice(), shatters: 0 };
+    const mark = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      if (Math.sqrt(dx * dx + dy * dy + dz * dz) > a.radius + b.radius + pad) continue;   // 안 닿음
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      const rvx = b.px / mb - a.px / ma, rvy = b.py / mb - a.py / ma, rvz = b.pz / mb - a.pz / ma;
+      const mu = (ma * mb) / (ma + mb);
+      if (0.5 * mu * (rvx * rvx + rvy * rvy + rvz * rvz) >= shatterKE) { mark[i] = true; mark[j] = true; }  // 빠르면 깨짐
+    }
+    const out = []; let shatters = 0;
+    for (let i = 0; i < n; i++) {
+      if (mark[i]) { const frags = fragmentEntity(entities[i], opts); for (const f of frags) out.push(f); shatters++; }
+      else out.push(entities[i]);
+    }
+    return { entities: out, shatters };
+  }
+
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, fragmentEntity, fragmentOnImpact, VERSION: 5 };
 });

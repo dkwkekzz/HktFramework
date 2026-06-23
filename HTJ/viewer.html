@@ -528,6 +528,39 @@
         HTJEntity.stepEntities(w.__entities, 0.25);                   // 위치 적분(자유 공간·중력이 가둠)
       },
       note: '<b>작은 구체들이 큰 구체(지면) 위로 떨어져 쌓여 표면을 이룬다</b>(구체 세계 SW2·DEM). <b>▶ 흐름</b>: 중앙에 큰 구체(지면)가 있고, 둘레에 작은 구체 12개가 떠 있다. 작은 구체들이 <b>중력으로 끌려</b>(0028) 지면으로 떨어진다. 닿으면 <b>합쳐지지 않고</b>(SW1과 다름) <b>반발</b>(겹침 overlap>0 이면 F=k·overlap 쌍힘)이 <b>겹침을 거부</b>해 지면 위에·서로 위에 <b>쌓이고 표면이 선다</b>. 동시에 <b>감쇠</b>(접촉 법선 상대 운동을 소산→열)가 튕김을 죽여 <b>멈춘다</b> — 우상단 잔류 속도가 0 으로 잦아든다. <b>왜 중요한가</b>(design/sphere-world.md §6): 이게 "<b>선 캐릭터 = 중력(무게)↓ + 접촉 반발(떠받침)↑ 균형</b>"의 접촉 쪽 — 지면은 *아주 큰 구체*. 반발이 있어야 쌓이고·표면이 서고·선다, 소산이 있어야 멈춘다. <b>보존</b>: 반발·감쇠 모두 equal-opposite 쌍힘 → <b>운동량 정확 보존</b>(ΣP). 총E = Σenergy + 탄성 U_contact 보존 — 반발은 KE↔탄성 PE 가역, 감쇠는 <b>KE→열(internalE) 비가역</b>(엔트로피↑·구체가 멈추며 데워진다). <b>정직한 한계</b>: 쪼개기(강한 충돌→파편)는 SW3·적응 합치기 LOD 는 SW4·구체 유체(SPH)는 SW5. 여기선 *접촉 한 법칙*만.'
+    },
+
+    // ── step_0038 — 쪼개기(파편화): 큰 구체 둘이 빠르게 충돌해 작은 구체들로(SW3) ──
+    //   합치기(SW1)의 거울 — 닿고 *빠르면*(상대 운동E ≥ 결합E 임계) 합쳐지지 않고 작은 구체들로 깨진다.
+    //   질량·운동량·각운동량(원점)·총E 정확 보존(쪼갠 합=원본). 분산 KE 는 부모 internalE(결합열)에서.
+    '0038': {
+      label: 'step_0038 — 쪼개기(파편화·충돌→작은 구체들)', title: 'HTJ — 쪼개기(파편화): 큰 구체 둘이 빠르게 충돌해 작은 구체들로',
+      sub: '큰 구체 둘이 빠르게 충돌(상대 운동E ≥ 임계)하면 합쳐지지 않고 작은 구체들로 깨진다 — 합치기(SW1)의 거울. 구체 세계 SW3. 보존: 질량·운동량·각운동량·총E(쪼갠 합=원본)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const cells = Math.max(120, Math.round(N * N * 0.55)), m = 400, v = N * 0.034;   // 마주보고 접근하는 속도
+        const ents = [];
+        // 큰 구체 2개 — 결합열(internalE) 크게(분산 재료). 마주보고 접근(상대 운동E 큼 → 임계 넘음).
+        for (const sgn of [-1, 1]) {
+          const vx = -sgn * v;
+          ents.push({ cx: cen + sgn * N * 0.28, cy: cen, cz: cen, mass: m, px: m * vx, py: 0, pz: 0,
+            Lx: 0, Ly: 0, Lz: 0, KEcm: 0.5 * m * vx * vx, internalKE: 0, internalE: 300,
+            energy: 0.5 * m * vx * vx + 300, cells, radius: eqR(cells), temp: 0, peak: 1 });
+        }
+        w.__entities = ents;
+        // 임계: 큰-큰 충돌은 넘기고(깸), 조각-조각은 μ↓ 로 못 넘게(재파편 폭주 차단).
+        w.__fopt = { shatterKE: 200, n: 6, dispersalFrac: 0.4, pad: 0.6 };
+        w.__copt = { k: 14, cDamp: 6 };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        w.__entities = HTJEntity.fragmentOnImpact(w.__entities, w.__fopt).entities;  // 빠른 충돌 → 파편화
+        HTJEntity.applyEntityContact(w.__entities, 0.5, w.__copt);                   // 파편 겹침 거부(반발+감쇠)
+        HTJEntity.stepEntities(w.__entities, 0.5, { N: w.N });                       // 이동(토러스)
+      },
+      note: '<b>큰 구체 둘이 빠르게 충돌하면 작은 구체들로 깨진다</b>(구체 세계 SW3·파편화). <b>▶ 흐름</b>: 온전한 큰 구체 2개가 마주보고 접근한다. 닿을 때 <b>상대 운동E 가 결합E 임계(shatterKE)를 넘으면</b> 합쳐지지 않고(SW1 과 반대) 각자 <b>작은 구체 6개로 깨진다</b>(2→12) — 우상단 "개체 N" 이 늘고 구체가 작아진다. 파편은 <b>흩어진다</b>(분산). 천천히 부딪히면 안 깨지고(SW1 이 합침·SW2 가 떠받침) <b>빠르면 깨진다</b> — 임계가 author 안 하고 가른다. <b>재파편 폭주 없음</b>: 조각은 질량↓ → 환산질량 μ↓ → 조각끼리 상대 운동E 가 임계 아래 = 더 안 깨짐(N 12 에 머묾). <b>왜 중요한가</b>(design/sphere-world.md §6): 합치기(SW1)↔쪼개기(SW3) <b>왕복</b>이 완성된다 — 미행성이 모여 행성이 되고(강착), 큰 충돌로 다시 부서진다. 0031("충돌→유체")의 구체-세계 판. <b>보존(쪼갠 합 = 원본·mergeGroup 의 역)</b>: 질량·운동량·각운동량(원점)·총E 정확(우상단 ΣP 불변). 부모 <b>스핀이 조각들에 나뉘고</b>(L/n 씩), 분산(폭발) 운동E 는 부모 <b>결합열(internalE)에서</b> 꺼낸다 — 합치기의 "잃은 KE→열" 의 <b>역</b>("결합열→분산 KE"). <b>정직한 한계</b>: 분산 KE 는 충돌 운동E 가 아니라 부모 internalE 에서(보존 단순화)·조각 수 n 고정·적응 합치기 LOD 는 SW4·구체 유체는 SW5. 여기선 *쪼개기 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -775,7 +808,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0037';                       // 기본 = 현재 step
+    sel.value = '0038';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
