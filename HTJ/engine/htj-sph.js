@@ -435,5 +435,35 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, VERSION: 8 };
+  // ── SW5 격자 은퇴 첫 벽돌: 격자 유체 → SPH 입자 *이주* ───────────────────────────────────────
+  //   design/sphere-world.md §6 SW5 — "격자 유체를 구체로 이주 → 격자 은퇴". 격자(Eulerian·칸 고정) 위의 연속
+  //   유체장(ρ=energy·운동량 g=mom_*·내부E u=therm)을 *셀마다 SPH 입자 하나*로 재버킷팅한다 = 0026 promote
+  //   (덩어리→개체)의 *유체 전체* 판. 셀 부피 dV=1(격자 단위)이라 셀 i 의 보존량이 그대로 입자의 양이 된다:
+  //       위치 = 셀 중심(x,y,z) · 질량 m=ρ_i · 운동량 p=(g_x,g_y,g_z)_i · 내부E=u_i · 속도 v=p/m · KE=½|p|²/m
+  //   **정확 보존**(단순 재버킷팅): Σ입자 질량·운동량·내부E·KE = 격자 장 총합(진공 셀 ρ≤0 은 빈 곳=입자 0,
+  //   기여 0 → 합 불변). 진공을 건너뛰므로 *희소화*(빈 곳엔 구체 없음·Lagrangian)도 공짜. 이주 후 입자는 SPH
+  //   힘(0041~0049)으로 자유로이 굴러간다 — 격자를 점진 은퇴시키는 토대. world: { N, fields{energy,mom_x/y/z,therm} }.
+  //   opts: { field('energy'), threshold(0·이하 셀은 진공·건너뜀) }. 세계(읽기 전용) → 새 입자 배열 반환.
+  function fluidToParticles(world, opts) {
+    opts = opts || {};
+    const thresh = opts.threshold != null ? opts.threshold : 0;
+    const N = world.N;
+    const rho = world.fields[opts.field || 'energy'];
+    const gx = world.fields['mom_x'], gy = world.fields['mom_y'], gz = world.fields['mom_z'];
+    const u = world.fields['therm'];
+    const RAD1 = Math.cbrt(3 / (4 * Math.PI));               // 부피 1 셀의 등가 반지름(렌더용)
+    const out = [];
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x;
+      const m = rho[i];
+      if (m <= thresh) continue;                             // 진공 셀 → 입자 없음(희소화)
+      const px = gx ? gx[i] : 0, py = gy ? gy[i] : 0, pz = gz ? gz[i] : 0;
+      const ie = u ? u[i] : 0;
+      const KEcm = m > 0 ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+      out.push({ cx: x, cy: y, cz: z, mass: m, px, py, pz, KEcm, internalE: ie, energy: KEcm + ie, density: 0, cells: 1, radius: RAD1 });
+    }
+    return out;
+  }
+
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, fluidToParticles, VERSION: 9 };
 });
