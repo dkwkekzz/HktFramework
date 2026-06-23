@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0140](step-0140.md) — **saga liveness 회계 정합 capstone**(sagaLiveConsistent): 0131~0139 liveness arc 의 창발 불변. *미해결(pending) give 는 정확히 한 상태* — 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed) 으로 분할(pending.size==셋의 합·공백·중복 0) ∧ 0128 sagaConsistent. 4체제(정상 0/0/0/0·포기 1/0/1/0·재admission 회복 0/0/0/0·영구실패 1/0/0/1) 전부 true·open==escrow 안전. 0120 물리·0128 회계·0130 교차에 이은 네 번째 정합층(liveness). 미호출 accessor = 0139 비트 동일. 닿는 박스: svc-exchange-core.
-- **한 줄 상태**: reg ALL OK(src=baseline=0139 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagalive: 4체제 sagaLiveConsistent 예(4/4)·pending==pg+ab+pf 불변·open==escrow·키트+spine 통과.
-- **다음**: §2 참조(0131~0140 묶음 리뷰 `infra-review`·정리 topology/발행 게이트·우편/길드·비동기 결정론🔴).
+- **닫힌 step**: [step-0141](step-0141.md) — **정리: topology.js run 드라이버 분리**(topo-run.js). topology.js 가 31.5KB>30KB 박스 트리거를 넘겨, run 드라이버(`quorumMergeJournals`·`run`·`runMulti`)를 `topo-run.js` 로 verbatim 이동·topology.js 는 진입점(build+run 부품 묶어 동일 export)으로 슬림화(31.5→~1.0KB). net-core·topo-build·topo-actors·topo-subs 무수정. 기능 0·바이트 동일·export 불변 → reg 0(0140 비트 동일). 0142 우편 arc 출발선 정리. 닿는 박스: topology(슬림)·topo-run(신규).
+- **한 줄 상태**: reg ALL OK(src=baseline=0140 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·spine 전 가설 모드(exsagalive capstone 포함) 분리 코드서 통과·e2e 멀티프로세스 비트 동일·파일 크기 박스 유계 복귀.
+- **다음**: §2 참조(우편 Mail 서비스 arc 0142~·발행 게이트 통합·길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0140 이 *saga liveness 회계 정합 capstone*(sagaLiveConsistent)으로 거래소↔가방 saga liveness arc(0131~0140)를 닫음 — 네 정합층(0120 물리·0128 회계·0130 교차·0140 liveness) 완성. 다음 후보: *0131~0140 묶음 리뷰*(`infra-review`·적기)·*정리* topology(30.8KB) run()·발행 게이트 통합·*우편/길드 서비스*·*비동기 결정론*(🔴). 🔧 topology 30.8KB·거래소 발행 7종. 🔎 0131~0140 묶음 리뷰 적기.**
+**step-0141 이 topology.js(31.5KB>30KB) run 드라이버를 topo-run.js 로 분리(정리·reg 0) — 0142 우편 arc 출발선 정리. 다음: *우편(Mail) 서비스 arc*(0142 분리→0143 수령→0144 발행→0145 영속→0146 압축→0147 읽음확인→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone) — 거래소 arc(0107~0140) 패턴을 본뜸. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB(주입 핸들러 ~40개)·거래소 발행 7종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -225,14 +225,15 @@
 | [0127](step-0127.md) | saga dedup 유계화(sagaDedupBound·saga_done — ack 시 prune 통보) | 통과 · bound ON sagaResults 0·spine 127 |
 | [0128](step-0128.md) | saga 회계 정합 불변(sagaConsistent — gives==acked+pending) | 통과 · 3체제 true·spine 128 |
 | [0129](step-0129.md) | saga 자동 재전송(autoRetry — exchSweep 피기백·주기 재전송) | 통과 · autoON retries 2/pending 0·spine 129 |
-| [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers — 요청≡실행 회계) | 통과 · giveOks==escrowXfers 9·spine 130 |
-| [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — gid 당 N회·포기 abort 아님) | 통과 · cap ON retries 2·OFF 4 발산·open==escrow·spine 131 |
-| [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned) | 통과 · ON pub 1==abandoned 1·audit saw 1·spine 132 |
+| [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers — 요청≡실행 회계) | 통과 · giveOks==escrowXfers 9 |
+| [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — gid 당 N회·포기 abort 아님) | 통과 · retries 2·open==escrow·spine 131 |
+| [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned) | 통과 · pub 1==abandoned 1·spine 132 |
 | [0133](step-0133.md) | 정리: topo-build 구독 테이블 분할(topo-subs.js·buildSubs) | OK · 33.1→25.5KB·spine 133 |
-| [0134](step-0134.md) | saga 포기 give 재admission(exchReadmit — abandonedGive→pendingGive) | 통과 · ON readmit 1/pending 0·OFF pending 1 고착·open==escrow·spine 134 |
-| [0135](step-0135.md) | saga 재admission 발행(readmitPublish — svc.exchange.saga_readmitted·0132 의 짝) | 통과 · ON pub 1==readmit 1·audit saw 1·OFF 0·발행 6종·spine 135 |
-| [0136](step-0136.md) | saga 재admission 자동 트리거(autoReadmit — svc.inventory.up 구독→자동 _readmit) | 통과 · ON readmit 1/pending 0·OFF ev 무시 pending 1·spine 136 |
-| [0137](step-0137.md) | saga 재admission 횟수 상한(readmitMax — 무한 루프 방지·영구 실패 종결) | 통과 · ON readmit 2/permFailed 1·OFF readmit 3 발산·spine 137 |
-| [0138](step-0138.md) | saga 영구 실패 발행(failPublish — svc.exchange.saga_failed·발행 수명주기 완비) | 통과 · ON pub 1==permFailed 1·audit saw 1·OFF 0·발행 7종·spine 138 |
-| [0139](step-0139.md) | 가방 회복 자기 공지(invUpPublish — svc.inventory.up·0136 자동 트리거 발행자) | 통과 · ON invUpPub 1→ex readmit 1/pending 0·OFF 고착·실 버스 체인·spine 139 |
+| [0134](step-0134.md) | saga 포기 give 재admission(exchReadmit — abandonedGive→pendingGive) | 통과 · readmit 1/pending 0·open==escrow·spine 134 |
+| [0135](step-0135.md) | saga 재admission 발행(readmitPublish — svc.exchange.saga_readmitted·0132 의 짝) | 통과 · pub 1==readmit 1·발행 6종·spine 135 |
+| [0136](step-0136.md) | saga 재admission 자동 트리거(autoReadmit — svc.inventory.up 구독→자동 _readmit) | 통과 · readmit 1/pending 0·spine 136 |
+| [0137](step-0137.md) | saga 재admission 횟수 상한(readmitMax — 무한 루프 방지·영구 실패 종결) | 통과 · readmit 2/permFailed 1·spine 137 |
+| [0138](step-0138.md) | saga 영구 실패 발행(failPublish — svc.exchange.saga_failed·발행 수명주기 완비) | 통과 · pub 1==permFailed 1·발행 7종·spine 138 |
+| [0139](step-0139.md) | 가방 회복 자기 공지(invUpPublish — svc.inventory.up·0136 자동 트리거 발행자) | 통과 · invUpPub 1→readmit 1·실 버스 체인·spine 139 |
 | [0140](step-0140.md) | saga liveness 회계 정합 capstone(sagaLiveConsistent — pending==pendingGive+abandonedGive+permFailed) | 통과 · 4체제 true·네 정합층 완성·open==escrow·spine 140 |
+| [0141](step-0141.md) | 정리: topology.js run 드라이버→topo-run.js 분리(quorumMergeJournals·run·runMulti·기능 0) | OK · 31.5→~1.0KB 진입점·reg 0·spine 141 |
