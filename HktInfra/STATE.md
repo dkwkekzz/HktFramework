@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0166](step-0166.md) — **아이템 우편 saga 회신 비동기 수신**(mailSaga·ackedGives): give 가 fire-and-forget(0161~0164)에서 *회신 받는 닫힌 고리*로 — _custody 가 replyTo+cause 동봉→가방이 item_result echo→ackedGives/giveOks 집계. 거래소 0121 의 우편 판. 닿는 박스: svc-mail-core·svc-mail-txn·topo-build.
-- **한 줄 상태**: reg ALL OK(mailSaga OFF·replyTo 부재=0165 비트 동일)·exmlsaga: ON gives/acked/oks 4/4/4(닫힌 고리)·OFF acked 0·spine 통과.
-- **다음**: §2 — 아이템 우편 saga 회신 손실 감지(미해결 추적·gid 0167)·재전송+dedup·정합 capstone·transfers capstone(거래소 0125~0130 류)·발행 게이트 통합·길드·비동기 결정론🔴·리뷰.
+- **닫힌 step**: [step-0167](step-0167.md) — **아이템 우편 saga 미해결 추적 + 회신 손실 감지**(pendingGives·gid): _custody 가 give 마다 gid 부여·pending add, item_result 회신이 delete. 정상 0 drain·회신 손실(테스트 seam ackDrop) 시 잃은 gid 잔존(ackedGives<gives 격차 가시). 거래소 0125 의 우편 판. 닿는 박스: svc-mail-core·svc-mail-txn·topo-build.
+- **한 줄 상태**: reg ALL OK(saga OFF·gid 부재=0166 비트 동일)·exmlpend: 무손실 4/4/0·손실[1] 4/3/1·gives−acked==pending·spine 통과.
+- **다음**: §2 — 아이템 우편 saga 재전송+idempotent dedup(가방 sagaDedup 재사용 0168)·정합 capstone(sagaConsistent 0169)·transfers capstone(giveOks==escrowXfers 0170)·발행 게이트 통합·길드·비동기 결정론🔴·리뷰.
 
 ---
 
@@ -23,9 +23,7 @@
 
 **병행 백로그(블로킹 아님·전문은 §3·각 step 문서)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·활성 중 다운타임+재발행·월드 영속·거래소/우편/길드·비동기 결정론(논리 클럭)·서버간 인증·재접속·티켓.
 
-**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049 전환)**: `engine/`=VM 커널·PRNG·FNV·`Net`·동결 `ISimCore`·`panel-kit`·`verify-kit`(누적 회귀·추가만)·`close-step`·`new-step`. 코드는 **`src/` 제자리 수정** + `src/STEP` + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌·dual-mode). **절차**: ① `new-step.js` ② 닿는 박스만 Edit + verify 셸 새 모드 ③ `close-step.js` ④ 델타 커밋+`git tag`. 정리: 0030·0035·0038·0043·0049·0053. *태그 push 거부 환경=로컬만*.
-
-**TESTBED**: `run.js`(`node run.js`=src/·`spine`=누적 회귀·`<NNNN>`·`report`·`scenario`·`live`) + `report.html`(녹화) + `live.js`(SSE). 훅 `onTick`·`inject`(write-seam·미제공=no-op→reg 0).
+**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·`Net`·`ISimCore`·`panel-kit`·`verify-kit`(누적 회귀·추가만)·`close-step`·`new-step`. 코드는 `src/` 제자리 수정 + `src/STEP` + `src/verify.js`(NETPREV=`../baseline` 고정) + `baseline/`(직전 동결 1벌). **절차**: ①`new-step.js` ②닿는 박스만 Edit+verify 새 모드 ③`close-step.js` ④델타 커밋+`git tag`. 정리: 0030·0035·0038·0043·0049·0053·0124·0133·0141·0165. TESTBED: `run.js`(`node run.js`=src/·`spine`=회귀·`report`·`scenario`·`live`)+`report.html`(녹화). 훅 inject(미제공=reg 0).
 
 ---
 
@@ -262,3 +260,4 @@
 | [0164](step-0164.md) | 아이템 우편↔가방 2-서비스 보존 capstone(escrowItemIds·escrowConsistent·arc 0161~0164 닫기) | 통과 · 우편==가방 escrow 집합·crash 복구 정합 |
 | [0165](step-0165.md) | 정리: svc-mail.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 30.9→25.6/5.9/1.1KB·digest 비트동일 |
 | [0166](step-0166.md) | 아이템 우편 saga 회신 비동기 수신(mailSaga·ackedGives) | 통과 · gives==acked==oks 4·OFF acked 0 |
+| [0167](step-0167.md) | 아이템 우편 saga 미해결 추적+회신 손실 감지(pendingGives·gid) | 통과 · 무손실 0 drain·손실[1] pending 1 |

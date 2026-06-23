@@ -1,4 +1,7 @@
 'use strict';
+// step-0167 — 아이템 우편 saga 미해결 give 추적 + 회신 손실 감지(pendingGives·gid): 0166 은 회신을 *세기만* 했다 — 어느 give 가 회신을 못 받았는지 몰랐다(회신 손실 무대비).
+//   이 step: saga ON 이면 _custody 가 give 마다 단조 gid 를 부여·미해결 집합(pending)에 add. item_result 회신이 그 gid 로 오면 delete. 정상 흐름서 pending 0 으로 drain(닫힌 고리 liveness). 회신 손실(테스트 seam ackDrop)이면 잃은 gid 가 pending 에 *남는다*(ackedGives<gives·격차 가시). 재전송 소스 pendingGive 도 보관(0168 대비).
+//   거래소↔가방 0125(pendingGives·gid)의 우편 판. saga OFF·gid 부재면 추적 0 = 0166 비트 동일(회귀 0). ackDrop 미제공이면 손실 0(정상 = 무손실).
 // step-0166 — 아이템 우편 saga 회신 비동기 수신(mailSaga·ackedGives): 0161~0164 는 가방 give 를 *fire-and-forget* 으로 보냈다 — 회신(item_result)을 안 받아 give 성공/실패를 우편이 몰랐다(거래소 0121 의 무대비).
 //   이 step: mailSaga ON 이면 _custody 가 give 에 replyTo(우편 주소)+cause 를 실어 가방이 item_result 를 우편으로도 echo(2-서비스 피드백 채널). 우편 onMsg 가 item_result{op:'give'} 수신 → ackedGives++·giveOks/giveFails 집계. 무손실서 gives==ackedGives(닫힌 고리 liveness).
 //   거래소↔가방 saga(0121)의 우편 판. mailSaga OFF·replyTo 부재면 가방이 echo 안 함 → item_result 안 옴 = 0165 비트 동일(회귀 0).
@@ -88,6 +91,11 @@ class MailService {
     this.ackedGives = 0;           // 가방서 회신(item_result) 받은 give 통수(step-0166 — 무손실서 gives==ackedGives·닫힌 고리 liveness).
     this.giveOks = 0;              // 성공 회신 통수(step-0166 — 0170 giveOks==가방 escrowXfers 교차 정합 capstone 의 좌변).
     this.giveFails = 0;            // 실패 회신 통수(step-0166 — 발신자 미소유 등; 무손실·정상 소유서 0).
+    this.gid = 0;                  // 단조 give id(step-0167) — saga 회신 매칭 키. _custody 가 발급.
+    this.pending = new Set();      // 미해결 give 의 gid 집합(step-0167) — _custody add·item_result 회신이 delete. 정상 0 drain·회신 손실 시 잔존(ack 미수신 격차 가시).
+    this.pendingGive = new Map();  // gid -> {itemId,from,to,cause}(step-0167) — 재전송 소스(0168 대비·회신 손실 시 같은 gid 로 재발신).
+    this.pendingPeak = 0;          // 미해결 최대치(step-0167·관측).
+    this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0167) — 수신 시 드롭할 gid 집합(회신 손실 모의). 미제공이면 무손실(production 무영향·reg 0).
     this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
@@ -129,7 +137,13 @@ class MailService {
     const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to };
     // saga 피드백(step-0166·mailSaga) — ON 이면 replyTo(우편 주소)+cause(어느 레그·mailId) 를 실어 가방이 item_result 를 우편으로도 회신.
     //   OFF 면 msg 가 0165 와 정확히 같다(replyTo/cause 키 없음) → 가방의 echo(_sagaReply) 휴면 = 비트 동일(reg 0).
-    if (this.saga) { msg.replyTo = this.addr; msg.cause = cause; }
+    if (this.saga) {
+      const gid = this.gid++;           // 미해결 추적 id(step-0167) — 회신 매칭 키
+      msg.replyTo = this.addr; msg.cause = cause; msg.gid = gid;
+      this.pending.add(gid);
+      this.pendingGive.set(gid, { itemId, from, to, cause });   // 재전송 소스(step-0168 대비)
+      if (this.pending.size > this.pendingPeak) this.pendingPeak = this.pending.size;
+    }
     this.net.send(this.addr, this.inv, msg);
     this.gives++;
     if (to === 'escrow') this.escrowIds.add(itemId);        // 발신 인출(leg1) — escrow 진입(step-0164·2-서비스 보존 추적)
@@ -142,6 +156,7 @@ class MailService {
     this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
     this.gives = 0;   // step-0161: give 계측도 소실. reconstruct 는 custody 를 *재발행하지 않는다*(다른 서비스 부수효과·저널 replay 는 projection 만 — 거래소 0109 동형)
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0;   // step-0166: saga 회신 계측 소실(저널 밖·외부 회신 의존·reconstruct 가 재발행 안 함)
+    this.gid = 0; this.pending = new Set(); this.pendingGive = new Map(); this.pendingPeak = 0;   // step-0167: 미해결 추적도 소실(외부 회신 의존)
     this.escrowIds = new Set();   // step-0164: escrow 추적도 소실 → reconstruct 가 저널 replay 로 재계산(custody 재발행 없이 집합만).
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
@@ -194,6 +209,7 @@ class MailService {
   //   escrowItemIds(): 우편이 escrow 에 묶었다고 믿는 itemId 정렬 집합(가방의 'escrow' 소유 집합과 교차 정합 — 두 서비스 일치). escrowConsistent(): 보유 아이템 우편 통수(itemHeld) == escrow 아이템 수(escrowIds.size) — 우편 1통=아이템 1개=escrow 1건. 거래소 0120 escrowItemIds(open==escrow) 의 우편 판.
   escrowItemIds() { return [...this.escrowIds].sort(); }
   escrowConsistent() { return this.itemHeld() === this.escrowIds.size; }
+  pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 통수(step-0167) — 정상 0·회신 손실 시 잔존. 0166 gives==ackedGives 의 격차 = 이 값.
   // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];

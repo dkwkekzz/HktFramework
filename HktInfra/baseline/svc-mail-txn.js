@@ -7,6 +7,13 @@ Object.assign(MailService.prototype, {
   onMsg(m) {
     const p = m && m.payload;
     if (!p) return;
+    // 가방 give 결과 비동기 수신(step-0166·mailSaga) — _custody 가 replyTo 로 보낸 give 의 item_result 회신.
+    //   집계(ackedGives·giveOks·giveFails). saga OFF 면 이 메시지가 영영 안 옴(0165 비트 동일·가방 echo 휴면).
+    if (p.type === 'item_result' && p.op === 'give') {
+      this.ackedGives++;
+      if (p.ok) this.giveOks++; else this.giveFails++;
+      return;
+    }
     // 우편 입금(mailSend) — 발신자가 수신자 우편함에 우편 1통을 비동기 적재(수신자 접속 무관). p={type,id?,from,to,body}.
     //   id 미지정이면 결정론 시퀀스로 부여. 같은 id 재전송은 멱등(이중 적재 0 — 재전송 신뢰성 0145~ 대비).
     if (p.type === 'mailSend') {

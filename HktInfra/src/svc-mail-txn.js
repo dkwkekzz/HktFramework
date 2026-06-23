@@ -8,9 +8,12 @@ Object.assign(MailService.prototype, {
     const p = m && m.payload;
     if (!p) return;
     // 가방 give 결과 비동기 수신(step-0166·mailSaga) — _custody 가 replyTo 로 보낸 give 의 item_result 회신.
-    //   집계(ackedGives·giveOks·giveFails). saga OFF 면 이 메시지가 영영 안 옴(0165 비트 동일·가방 echo 휴면).
+    //   집계(ackedGives·giveOks·giveFails) + 미해결 추적 drain(step-0167). saga OFF 면 이 메시지가 영영 안 옴(0165 비트 동일·가방 echo 휴면).
     if (p.type === 'item_result' && p.op === 'give') {
+      // 회신 손실 모의(step-0167·테스트 seam ackDrop) — 이 gid 회신이 전송 중 손실된 것처럼 드롭(처리 0). 잃은 gid 가 pending 에 남는다(ackedGives<gives). 미제공이면 무손실.
+      if (this.ackDrop && p.gid !== undefined && this.ackDrop.has(p.gid)) return;
       this.ackedGives++;
+      if (p.gid !== undefined) { this.pending.delete(p.gid); this.pendingGive.delete(p.gid); }   // step-0167: 회신 도착 → 미해결서 제거(정상 흐름 0 으로 drain)
       if (p.ok) this.giveOks++; else this.giveFails++;
       return;
     }
