@@ -190,5 +190,86 @@
     return { entities: out, merges };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, VERSION: 3 };
+  // 개체 접촉(반발 + 소산) — 겹친 구체를 밀어내고(반발=Hooke 쌍힘) 접촉 상대 운동을 감쇠(소산→열·비가역).
+  //   design/sphere-world.md §6 SW2(DEM) — 합치기(SW1)가 *닿고 느린* 구체를 하나로 붙였다면, 이건 *겹친*
+  //   구체가 합쳐지지 않고 **서로를 떠받치게** 한다 — "쌓이고·표면이 서고·선다"의 접촉 쪽("선 캐릭터 =
+  //   중력↓ + 접촉 반발↑ 균형"). 두 힘:
+  //     ① 반발(Hooke 보존 쌍힘): 겹침 overlap=(r_a+r_b)−d > 0 이면 F=k·overlap 를 법선(a↔b)으로 밀어냄.
+  //        a 는 −n̂·b 는 +n̂ 로 equal-opposite → **순 운동량 정확 보존**(step_0028 중력 쌍힘과 동형). 보존력
+  //        → 탄성 PE U=½k·overlap²(contactPotentialEnergy)에 저장, 정착(평형 overlap*)에서 중력과 균형.
+  //     ② 감쇠(법선 소산): 접촉 상대 법선 속도 v_n 을 감쇠(J=−c·v_n·dt, equal-opposite=운동량 보존).
+  //        잃은 운동E 를 *정확 회계*(감쇠 충격량 전후 KE 차)해 두 개체 internalE 로 → **비가역 소산**(엔트로피↑·
+  //        step_0011 점성의 구체-접촉 판). 반발만이면 영원히 튕기지만(탄성), 감쇠가 있어야 *멈춘다*.
+  //   에너지 정합: 총E = Σenergy_i + U_contact 가 보존(반발은 KEcm↔U_contact 가역·감쇠는 KEcm→internalE 비가역).
+  //   opts: { k(반발 강성, 기본 0 → 접촉 없음·early-return=회귀 0), cDamp(법선 감쇠, 기본 0) }.
+  //   가법: 노브 0 이면 즉시 반환(기존 거동 불변). 입력 개체를 제자리 변형해 반환.
+  function applyEntityContact(entities, dt, opts) {
+    opts = opts || {};
+    const k = opts.k != null ? opts.k : 0;
+    const c = opts.cDamp != null ? opts.cDamp : 0;
+    const n = entities.length;
+    if (n < 2 || (k === 0 && c === 0)) return entities;       // 노브=0 → early-return(회귀 0)
+    // internalE 자기일관 보장(descriptor 에 없으면 energy−KEcm 으로 채움).
+    for (let i = 0; i < n; i++) {
+      const e = entities[i];
+      if (e.internalE == null) {
+        const ke = e.KEcm != null ? e.KEcm : (e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0);
+        e.internalE = (e.energy != null ? e.energy : ke) - ke;
+      }
+    }
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;     // a→b
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const overlap = (a.radius + b.radius) - d;
+      if (overlap <= 0 || d < EPS) continue;                          // 안 겹침·동일 위치(방향 불정) → 접촉 없음
+      const nx = dx / d, ny = dy / d, nz = dz / d;                    // 법선 단위(a→b)
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      // ① 반발(Hooke 보존 쌍힘) — a 는 −n̂(밀려남)·b 는 +n̂ → ΣΔp=0 정확.
+      if (k !== 0) {
+        const jr = k * overlap * dt;                                  // 충격량 크기 = F·dt
+        a.px -= jr * nx; a.py -= jr * ny; a.pz -= jr * nz;
+        b.px += jr * nx; b.py += jr * ny; b.pz += jr * nz;
+      }
+      // ② 감쇠(법선 소산 → 열) — 정확 KE 회계로 비가역 dissipation 을 internalE 에 적립.
+      if (c !== 0) {
+        const KEa0 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma;
+        const KEb0 = 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
+        const vn = (b.px / mb - a.px / ma) * nx + (b.py / mb - a.py / ma) * ny + (b.pz / mb - a.pz / ma) * nz;
+        const J = -c * vn * dt;                                       // 상대 법선 운동 반대(소산) — equal-opposite
+        b.px += J * nx; b.py += J * ny; b.pz += J * nz;
+        a.px -= J * nx; a.py -= J * ny; a.pz -= J * nz;
+        const KEa1 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma;
+        const KEb1 = 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
+        const dissip = (KEa0 + KEb0) - (KEa1 + KEb1);                 // 잃은 KE(안정 영역 ≥0) → 열로
+        a.internalE += 0.5 * dissip; b.internalE += 0.5 * dissip;    // 두 개체 반씩(비가역)
+      }
+    }
+    // KEcm·energy 재계산(자기일관: energy = KEcm + internalE).
+    for (let i = 0; i < n; i++) {
+      const e = entities[i];
+      e.KEcm = e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return entities;
+  }
+
+  // 접촉 탄성 퍼텐셜 에너지 U = Σ_{i<j} ½·k·overlap²(겹친 쌍만) — 반발 힘과 일관(F=−dU/d(overlap)).
+  //   역학E 보존 검증 공유: 총E = Σenergy_i + U_contact 가 보존(반발은 KEcm↔U 가역). pairPotentialEnergy 의 접촉 판.
+  function contactPotentialEnergy(entities, opts) {
+    opts = opts || {};
+    const k = opts.k != null ? opts.k : 0;
+    if (k === 0) return 0;
+    const n = entities.length;
+    let U = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      const overlap = (a.radius + b.radius) - Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (overlap > 0) U += 0.5 * k * overlap * overlap;
+    }
+    return U;
+  }
+
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, VERSION: 4 };
 });

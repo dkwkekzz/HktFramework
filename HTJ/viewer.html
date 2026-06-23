@@ -487,6 +487,47 @@
         w.__entities = HTJEntity.mergeEntities(w.__entities, w.__mopt).entities;  // 닿고 느리면 합침(강착)
       },
       note: '<b>작은 구체들이 합쳐져 큰 구체가 된다</b>(구체 세계 SW1·수박/강착). <b>▶ 흐름</b>: 처음엔 작은 구체 9개가 흩어져 있다. 서로 <b>중력으로 끌려</b>(0028) 가까워지고, <b>닿고 느리면</b>(CoM 거리 ≤ r_a+r_b+pad, 상대 속도 ≤ vstick) <b>하나의 큰 구체로 붙는다</b>(강착) — 우상단 "개체 N" 이 줄고 구체가 커진다. 빠르게 스치면 안 붙는다(임계가 author 안 하고 가른다·빠르면 깨지는 쪽은 SW3). <b>왜 중요한가</b>(design/sphere-world.md §6): ① <b>성능</b> — N 개가 적은 큰 구체로 줄어 N체 중력·충돌 비용↓(적응 LOD 의 Lagrangian 형태). ② <b>창발 물리</b> — 이게 곧 <b>강착=행성이 만들어지는 방식</b>(미행성→행성). <b>보존(합산이라 정확)</b>: 질량·운동량·각운동량(원점 기준)·총E 불변(우상단 ΣP 불변). 합칠 때 <b>궤도 각운동량이 합쳐진 구체의 스핀</b>으로 옮겨가고, 잃은 CoM 운동E 는 <b>강착열</b>(internalE↑)로 — 합쳐지면 데워진다(비탄성). <b>정직한 한계</b>: 접촉 반발·소산(겹침 거부·정착)은 아직 없다(SW2)·쪼개기(빠른 충돌→파편)는 SW3·적응 합치기 LOD 는 SW4. 여기선 *합치기 한 법칙*만.'
+    },
+
+    // ── step_0037 — 접촉(반발 + 소산): 작은 구체들이 큰 구체(지면) 위로 떨어져 쌓인다(DEM·SW2) ──
+    //   합치기(SW1)가 닿고 느린 구체를 *하나로* 붙였다면, 접촉은 겹친 구체를 *합치지 않고 떠받친다* —
+    //   반발(Hooke 쌍힘=운동량 보존)이 겹침을 거부해 쌓이고·표면이 서고, 감쇠(법선 소산→열)가 바운스를
+    //   죽여 멈춘다. "선 캐릭터 = 중력↓ + 접촉 반발↑ 균형"의 접촉 쪽.
+    '0037': {
+      label: 'step_0037 — 접촉(반발+소산·구체들이 쌓여 표면)', title: 'HTJ — 접촉(반발 + 소산): 작은 구체들이 큰 구체 위로 떨어져 쌓인다',
+      sub: '작은 구체들이 큰 구체(지면) 위로 떨어져 — 반발(겹침 거부)로 쌓이고·표면이 서고, 감쇠(소산→열)로 멈춘다. 구체 세계 SW2(DEM). 보존: 운동량(쌍힘)·총E(반발=가역·감쇠=KE→열 비가역)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const ents = [];
+        // 지면 = 큰 구체(질량 거대 → 거의 안 움직임)·중심.
+        const groundR = N * 0.26, groundCells = (4 * Math.PI / 3) * groundR * groundR * groundR;
+        ents.push({ cx: cen, cy: cen, cz: cen, mass: 6e4, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: groundCells, radius: groundR, temp: 0, peak: 0.2 });
+        // 작은 구체들 — 지면 둘레 껍질(반지름 shellR)에 결정론적으로 흩뿌려 떨어뜨린다.
+        const small = 12, smallR = N * 0.07, smallM = 70, shellR = N * 0.40;
+        const gold = Math.PI * (3 - Math.sqrt(5));                 // 황금각 — 균등 분포(결정론)
+        for (let i = 0; i < small; i++) {
+          const yfrac = 1 - (i + 0.5) / small * 2;                 // [1,-1) — 위→아래
+          const r = Math.sqrt(Math.max(0, 1 - yfrac * yfrac)), th = gold * i;
+          const dx = Math.cos(th) * r, dy = yfrac, dz = Math.sin(th) * r;
+          ents.push({ cx: cen + dx * shellR, cy: cen + dy * shellR, cz: cen + dz * shellR,
+            mass: smallM, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+            KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: (4 * Math.PI / 3) * smallR * smallR * smallR,
+            radius: smallR, temp: 0, peak: 1 });
+        }
+        w.__entities = ents;
+        w.__gopt = { G: 8e-4, soft: Math.max(2, N * 0.08) };       // 지면이 작은 구체를 끈다(부드럽게)
+        w.__copt = { k: 12, cDamp: 40 };                          // 반발(떠받침) + 강한 감쇠(빨리 멈춤)
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.25, w.__gopt);   // 중력↓ — 지면 쪽으로(0028)
+        HTJEntity.applyEntityContact(w.__entities, 0.25, w.__copt);   // 접촉↑ — 겹침 거부(반발) + 감쇠(소산→열)
+        HTJEntity.stepEntities(w.__entities, 0.25);                   // 위치 적분(자유 공간·중력이 가둠)
+      },
+      note: '<b>작은 구체들이 큰 구체(지면) 위로 떨어져 쌓여 표면을 이룬다</b>(구체 세계 SW2·DEM). <b>▶ 흐름</b>: 중앙에 큰 구체(지면)가 있고, 둘레에 작은 구체 12개가 떠 있다. 작은 구체들이 <b>중력으로 끌려</b>(0028) 지면으로 떨어진다. 닿으면 <b>합쳐지지 않고</b>(SW1과 다름) <b>반발</b>(겹침 overlap>0 이면 F=k·overlap 쌍힘)이 <b>겹침을 거부</b>해 지면 위에·서로 위에 <b>쌓이고 표면이 선다</b>. 동시에 <b>감쇠</b>(접촉 법선 상대 운동을 소산→열)가 튕김을 죽여 <b>멈춘다</b> — 우상단 잔류 속도가 0 으로 잦아든다. <b>왜 중요한가</b>(design/sphere-world.md §6): 이게 "<b>선 캐릭터 = 중력(무게)↓ + 접촉 반발(떠받침)↑ 균형</b>"의 접촉 쪽 — 지면은 *아주 큰 구체*. 반발이 있어야 쌓이고·표면이 서고·선다, 소산이 있어야 멈춘다. <b>보존</b>: 반발·감쇠 모두 equal-opposite 쌍힘 → <b>운동량 정확 보존</b>(ΣP). 총E = Σenergy + 탄성 U_contact 보존 — 반발은 KE↔탄성 PE 가역, 감쇠는 <b>KE→열(internalE) 비가역</b>(엔트로피↑·구체가 멈추며 데워진다). <b>정직한 한계</b>: 쪼개기(강한 충돌→파편)는 SW3·적응 합치기 LOD 는 SW4·구체 유체(SPH)는 SW5. 여기선 *접촉 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -734,7 +775,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0036';                       // 기본 = 현재 step
+    sel.value = '0037';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
