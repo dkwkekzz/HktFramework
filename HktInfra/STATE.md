@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0148](step-0148.md) — **우편 만료 TTL**(mailTtl·now−sentAt≥ttl): 미수령 우편이 영영 쌓일 수 있었다(0143 한계). mailSweep(now) 가 now−sentAt≥ttl 미수령 우편을 시간 트리거로 회수(보유→만료·거래소 0114 의 우편 판). 회계 **sent==held+fetched+expired** 완비(우편 1통은 매 순간 보유/수령/만료 한 상태). 만료 durable op→reconstruct 정합. ttl 0·mail OFF = 0147 비트 동일. 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(src=baseline=0147 비트 동일)·exmail: sweep@35·ttl 10 → sent 4/fetched 2/expired 1/held 1·accountConsistent·reconstruct==live·ttl 0 만료 0·spine 통과.
-- **다음**: §2 참조(0149 우편 만료 발행 svc.mail.expired → 0150 회계 capstone).
+- **닫힌 step**: [step-0149](step-0149.md) — **우편 만료 발행**(mailExpirePublish·svc.mail.expired): 0148 만료는 발행 0 — 관측 불가였다. mailSweep 만료 시 통마다 svc.mail.expired 발행 → audit 관측. 우편 수명주기 발행 **3종**(sent 0144·read 0147·expired) 완비(거래소 sold/cancelled/expired 와 동형). OFF·bus 부재 = 0148 비트 동일. 닿는 박스: svc-mail·topo-build·topo-subs.
+- **한 줄 상태**: reg ALL OK(src=baseline=0148 비트 동일)·exmail: expirePublished 1==audit.seen 1==expired·3종 동시 관측(sent 4/read 2/expired 1)·비-침습·OFF 0·spine 통과.
+- **다음**: §2 참조(0150 우편 회계 정합 capstone mailConsistent — sent==held+fetched+expired·arc 닫기).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 서비스 arc 마무리 중(0142~0148 분리/수령/발행/영속/압축/읽음발행/만료TTL✅). 남은: 0149 만료 발행(svc.mail.expired)→0150 회계 정합 capstone(sent==held+fetched+expired). 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·우편 발행 2종(sent·read)→3종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
+**우편(Mail) 서비스 arc 마무리 중(0142~0149 분리/수령/발행/영속/압축/읽음발행/만료TTL/만료발행✅). 남은: 0150 회계 정합 capstone(mailConsistent — sent==held+fetched+expired·arc 닫기). 거래소 arc(0107~0140) 패턴. 다음 arc 후보: 발행 게이트 통합·길드·비동기 결정론(🔴)·우편 클라 와이어/아이템 우편. 🔧 topo-run 27KB·우편 발행 3종(sent·read·expired). 🔎 0131~0140·0141~0150 묶음 리뷰 적기.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -166,20 +166,20 @@
 | [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵→자기 승격) | 통과 |
 | [0069](step-0069.md) | 프레즌스 SSOT 질의(presenceQuery→presenceReply·pull) | 통과 · 4/4 |
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — active→재타깃) | 통과 |
-| [0071](step-0071.md) | 귓속말 라우터(whisperRouter — 질의→up 전달/permanent 반송) | 통과 |
-| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover — 승격 공지→queryAddr 재타깃) | 통과 |
-| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃·멤버마다 질의) | 통과 |
-| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry — 보류 질의 재발신) | 통과 |
-| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅·2단) | 통과 |
-| [0076](step-0076.md) | 전달 영수증(whisperReceipt — Mailbox whisperAck→delivered) | 통과 |
-| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry — deliverTimeout) | 통과 |
-| [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries — tries≥상한 포기) | 통과 |
-| [0079](step-0079.md) | 전달 포기 통지(deliverNotify — deliveryFailed 회신) | 통과 |
-| [0080](step-0080.md) | 수신측 dedup(deliverDedup — Mailbox seq 기억·exactly-once) | 통과 |
-| [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound — 워터마크+희소 집합) | 통과 |
-| [0082](step-0082.md) | 전달 실패 발행(failedPublish — svc.whisper.failed·audit) | 통과 |
-| [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — {members,routed,bounced}) | 통과 |
-| [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave·svc.party.changed) | 통과 |
+| [0071](step-0071.md) | 귓속말 라우터(whisperRouter) | 통과 |
+| [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover) | 통과 |
+| [0073](step-0073.md) | 파티 라우터(1:N 팬아웃) | 통과 |
+| [0074](step-0074.md) | 재타깃 윈도 질의 재시도(whisperRetry) | 통과 |
+| [0075](step-0075.md) | 파티 멤버십 SSOT(partyService — 멤버십⟂라우팅) | 통과 |
+| [0076](step-0076.md) | 전달 영수증(whisperReceipt — whisperAck→delivered) | 통과 |
+| [0077](step-0077.md) | 전달 손실 재시도(whisperDeliverRetry) | 통과 |
+| [0078](step-0078.md) | 전달 재시도 상한(deliverMaxRetries) | 통과 |
+| [0079](step-0079.md) | 전달 포기 통지(deliverNotify) | 통과 |
+| [0080](step-0080.md) | 수신측 dedup(deliverDedup — exactly-once) | 통과 |
+| [0081](step-0081.md) | dedup seen 유계화(deliverDedupBound) | 통과 |
+| [0082](step-0082.md) | 전달 실패 발행(failedPublish — svc.whisper.failed) | 통과 |
+| [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt) | 통과 |
+| [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — svc.party.changed) | 통과 |
 | [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→recon) | 통과 |
 | [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — 스냅샷+tail replay) | 통과 |
 | [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — svc.whisper.delivered) | 통과 |
@@ -244,3 +244,4 @@
 | [0146](step-0146.md) | 우편 저널 스냅샷 압축(mailSnapshot — 스냅샷+tail==full==live 비트 동일) | 통과 · tail 2<full 8·3자 비트동일·accountConsistent |
 | [0147](step-0147.md) | 우편 읽음 확인 발행(mailReadPublish — svc.mail.read·audit 무수정 관측) | 통과 · readPublished 3==audit 3==fetched·비-침습·OFF 0 |
 | [0148](step-0148.md) | 우편 만료 TTL(mailTtl — now−sentAt≥ttl 자동 회수·sent==held+fetched+expired) | 통과 · expired 1·accountConsistent·reconstruct==live·ttl0 만료0 |
+| [0149](step-0149.md) | 우편 만료 발행(mailExpirePublish — svc.mail.expired·수명주기 발행 3종 완비) | 통과 · expirePublished 1==audit 1==expired·3종 동시·OFF 0 |

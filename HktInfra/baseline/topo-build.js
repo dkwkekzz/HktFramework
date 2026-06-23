@@ -37,6 +37,7 @@ function buildTopology(opts) {
     mailReadPublish = false,
     mailPersist = false,
     mailSnapshot = 0,
+    mailTtl = 0,
     exchangeTtl = 0,
     expirePublish = false,
     exchInventory = false,
@@ -222,7 +223,7 @@ function buildTopology(opts) {
   if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist, snapInterval: exchangeSnapshot, cancelPublish, ttl: exchangeTtl, expirePublish, inv: (exchInventory && inventory) ? inventoryAddr : null, invMode: exchInventory, saga: exchSaga, compensate: exchCompensate, abortPublish, sagaDedupBound, autoRetry, sagaMaxRetries, abandonPublish, readmitPublish, autoReadmit, readmitMax, failPublish } });   // 0117: exchInventory ON 이면 거래소가 가방 주소를 알고 escrow 를 실체화(give). OFF 면 추상 escrow(0116 비트 동일).
   if (marketFeed && exchange) add({ addr: 'market', kind: 'market', opts: { bus: busAddr } });   // 시세 피드(step-0112·MarketFeed) — 거래소 발행 스트림 구독 읽기 모델. marketFeed OFF·거래소 부재면 박스 0 = 0111 비트 동일.   // 거래소(step-0107) — 아이템 escrow 거래 박스(존 tick 밖·단일 소유·쌍 거래). publish(0108): 체결 발행. persist(0109): op 저널 replay. snapInterval(0110): 저널 스냅샷 압축. exchange OFF 면 박스 0 = 0106 비트 동일.
   // [게임 서비스] 우편(step-0142·MailService) — 오프라인 비동기 배송 박스(존 tick 밖·발신 0). 거래소·시세 피드와 독립(아이템/메시지 우편함). mail OFF 면 박스 0 = 0141 비트 동일.
-  if (mail) add({ addr: 'mail', kind: 'mail', opts: { bus: busAddr, sentPublish: mailSentPublish, readPublish: mailReadPublish, persist: mailPersist, snapInterval: mailPersist ? mailSnapshot : 0 } });   // sentPublish(0144): svc.mail.sent. readPublish(0147): svc.mail.read. persist(0145): op 저널 replay. snapInterval(0146): 압축. OFF 면 직전 비트 동일.
+  if (mail) add({ addr: 'mail', kind: 'mail', opts: { bus: busAddr, sentPublish: mailSentPublish, readPublish: mailReadPublish, persist: mailPersist, snapInterval: mailPersist ? mailSnapshot : 0, ttl: mailTtl } });   // sentPublish(0144): svc.mail.sent. readPublish(0147): svc.mail.read. persist(0145): op 저널 replay. snapInterval(0146): 압축. ttl(0148): 만료 TTL. OFF 면 직전 비트 동일.
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });
 
