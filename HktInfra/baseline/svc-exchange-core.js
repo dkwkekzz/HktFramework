@@ -1,4 +1,5 @@
 'use strict';
+// step-0128 — saga 회계 정합 불변(sagaConsistent·결합 시스템의 창발 불변): 0121~0127 의 saga 회계(gives·ackedGives·pendingGives·giveOks·giveFails)가 *대수적으로 닫혀* 있는지 단언한다. 두 항등식: ① gives == ackedGives + pendingGives(보낸 모든 give 는 *정확히* acked(회신 받음) 또는 pending(미수신) 둘 중 하나·새는 give 0) ② ackedGives == giveOks + giveFails(받은 모든 회신은 ok 또는 fail·분류 누락 0). 이 불변은 정상·회신손실·재전송 *모든 체제*에서 성립해야 한다(체제 무관 회계 정합). sagaConsistent 는 미호출 읽기 accessor(두 항등식의 AND)·단언용 — 미호출이면 동작 무영향 = 0127 비트 동일(reg).
 // step-0127 — saga dedup 유계화(sagaDedupBound·saga_done ack-of-ack): 0126 §9 해소. 가방의 dedup 맵(sagaResults)은 처리한 모든 (replyTo,gid)를 무계로 쌓는다 — 재전송이 끝나도 안 지워진다. 거래소가 give 결과를 *최종 수신*(pending 에서 제거)하면 더는 그 gid 를 재전송하지 않으므로, 가방은 그 dedup 항목을 안전히 잊어도 된다. 거래소가 ack 수신 시 saga_done{gid} 를 가방에 보내 sagaResults[(replyTo,gid)] 를 가지친다(0042 busSeenBound 워터마크의 saga 회신 판·best-effort). sagaDedupBound ON: 정상 흐름서 sagaResults 가 0 으로 drain(유계). OFF: 무계(0126 동일·∝처리 give 수). saga_done 손실돼도 안전(가방이 항목 보존·재전송 시 여전히 재회신·다음 ack 가 다시 prune). sagaDedupBound OFF·saga_done 부재면 0126 비트 동일.
 // step-0126 — saga 회신 재전송 + idempotent dedup(exchRetry·sagaDedup): 0125 의 §9 해소. 거래소가 미해결 give(pending)의 *파라미터*를 pendingGive 에 보관했다가 exchRetry op 에 재전송한다 — 단 *재실행이 아니라 재회신*을 받아야 안전하다. 가방이 give 를 (replyTo,gid)로 dedup(sagaResults): 이미 처리한 give 면 *원래 결과*를 재실행 없이 재회신한다. 그래야 회신만 손실된 경우(give 는 성공) 재전송이 owner≠from 으로 *재실행→ok:false 오판*되어 보상이 *valid 매물을 잘못 abort*(안전 위반)하는 것을 막는다. dedup ON: 재전송→저장된 ok:true 재회신→pending drain·giveOks 정확·2-서비스 안전. dedup OFF: 재전송→재실행 실패(ok:false)→보상 오작동(valid 매물 abort·open≠escrow). exchRetry op 부재·sagaDedup OFF 면 0125 비트 동일. 0042 seenReqs(요청 dedup)의 saga 회신 판.
 // step-0125 — saga 미해결 give 추적 + 회신 손실 감지(pendingGives·gid): 0121 의 §9(회신 손실 무대비) 를 *가시화*한다. saga ON 이면 _custody 가 각 give 에 단조 gid 를 부여하고 미해결 집합(pending)에 넣는다 — 가방 item_result 회신이 그 gid 로 돌아오면 제거한다. 정상(무손실) 흐름서 pending 은 0 으로 drain(모든 give 가 acked·닫힌 고리의 liveness). 회신 경로(inventory→exchange item_result)에 손실을 주입하면 잃은 회신의 gid 가 pending 에 *남는다*(ack 미수신 격차가 가시·ackedGives<gives). 이로써 "어느 give 가 응답을 못 받았나"를 거래소가 안다 — 재전송(idempotent dedup)의 토대(후속). saga OFF·gid 부재면 추적 0 = 0124 비트 동일.
@@ -112,6 +113,8 @@ class ExchangeService {
   conserved() { return this.listed === this.listings.size + this.sold + this.cancelled + this.expired; }
   open() { return this.listings.size; }
   pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0125) — 정상 흐름 0·회신 손실 시 >0(ack 미수신 격차).
+  // saga 회계 정합 불변(step-0128·단언용 읽기 accessor) — ① 보낸 give 는 acked 또는 pending(새는 give 0) ② 받은 회신은 ok 또는 fail(분류 누락 0). 모든 체제(정상·손실·재전송)서 성립.
+  sagaConsistent() { return this.gives === this.ackedGives + this.pending.size && this.ackedGives === this.giveOks + this.giveFails; }
   // 거래소가 escrow 에 들고 있다고 *믿는* open 매물의 itemId 집합(step-0120·2-서비스 보존 단언용 읽기 accessor·정렬). itemId 없는(추상 escrow) 매물은 제외.
   escrowItemIds() { return [...this.listings.values()].map(l => l.itemId).filter(x => x != null).sort(); }
 }

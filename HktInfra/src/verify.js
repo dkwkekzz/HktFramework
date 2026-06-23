@@ -1,8 +1,8 @@
-// HktInfra step-0128 — 헤드리스 검증 (saga 회계 정합 불변·sagaConsistent — 체제 무관 대수적 닫힘)
+// HktInfra step-0129 — 헤드리스 검증 (saga 자동 재전송·autoRetry — exchSweep 피기백)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagaconsist`.
-//   더한 한 조각: 0121~0127 saga 회계가 *대수적으로 닫혀* 있는지 단언. ① gives==ackedGives+pendingGives(새는 give 0) ② ackedGives==giveOks+giveFails(분류 누락 0). 세 체제(정상·회신손실·재전송+dedup) 모두서 성립=체제 무관 회계 정합.
-//   검증: ⒜ `reg`(키트) — sagaConsistent 미호출 accessor = 0127 비트 동일. ⒝ `exsagaconsist`(가설) — 정상(pending 0·oks==gives)·손실(pending==gives·acked 0)·재전송+dedup(pending 0·oks 회복) 모두 sagaConsistent()==true·항등식 성립.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagaauto`.
+//   더한 한 조각: 0126 의 명시 exchRetry op 를 *주기적* exchSweep(0114 TTL sweep)이 트리거하는 자동 재전송으로. autoRetry ON 이면 매 sweep 이 미해결 give 재전송 → 회신 손실이 지속돼도 다음 sweep 이 다시 시도(가방 dedup 이 재실행 0).
+//   검증: ⒜ `reg`(키트) — autoRetry OFF·exchSweep 부재면 0128 비트 동일(sweep 은 TTL 만). ⒝ `exsagaauto`(가설) — 회신 손실(tick<88) + exchSweep@84(손실 중·재시도 실패)·@90(손실 후·재시도 성공). autoRetry ON: pending 0·giveOks 회복·open==escrow(안전). OFF: pending 1(고착·재전송 0).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,56 +15,41 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const INV = [
-  { at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
-  { at: 61, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
-  { at: 62, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },
-  { at: 63, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },
-  { at: 64, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
-];
+// s1 list item0(give·회신 손실). exchSweep 2회(84=손실 중·90=손실 후)가 자동 재전송 트리거. ttl 0(만료 없음·sweep 은 재전송 트리거로만).
+const INV = [{ at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } }];   // item0
 const OPS = [
-  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },
-  { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5, itemId: 'item1' } },
-  { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3, itemId: 'item2' } },
-  { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20, itemId: 'item3' } },
-  { at: 75, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },
-  { at: 76, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
-  { at: 77, op: { type: 'exchCancel', seller: 's2', id: 3 } },
-  { at: 82, op: { type: 'exchList', seller: 's1', item: 'gem', price: 8, itemId: 'item4' } },
-  { at: 85, op: { type: 'exchSweep', now: 85 } },
+  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },   // give seller→escrow(gid0)·회신 손실
+  { at: 84, op: { type: 'exchSweep', now: 84 } },   // 손실 중 재전송(회신 또 손실)
+  { at: 90, op: { type: 'exchSweep', now: 90 } },   // 손실 후 재전송(회신 통과→pending drain)
 ];
-const OPS_RETRY = OPS.concat([{ at: 88, op: { type: 'exchRetry' } }]);
+const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === av).map(([id]) => id).sort();
 const REPLYLOSS = (seed) => ({ seed: (seed ^ 0x5A6A) >>> 0, delayMin: 0, delayMax: 0, loss: 1.0, redundancy: 1,
-  routeFilter: (m) => m.from === 'inventory' && m.to === 'exchange' && m.payload.type === 'item_result' && m.tick < 88 });   // tick<88: 최초 회신만 손실·재전송(88+) 회신 통과
+  routeFilter: (m) => m.from === 'inventory' && m.to === 'exchange' && m.payload.type === 'item_result' && m.tick < 88 });   // tick<88 회신 손실(최초+84 재전송)·90 재전송 회신 통과
 const P = (seed, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
-  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, exchangeTtl: 5, invOps: INV, exchangeOps: OPS, ...extra });
+  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, sagaDedup: true,
+  transport: REPLYLOSS(seed), invOps: INV, exchangeOps: OPS, ...extra });
 
-function exsagaconsist(seeds) {
-  console.log('== exsagaconsist: *가설* — saga 회계 정합 불변. ① gives==acked+pending(새는 give 0) ② acked==oks+fails(분류 누락 0). 세 체제(정상·회신손실·재전송+dedup) 모두서 sagaConsistent()==true. 체제 무관 대수적 닫힘. ==');
-  console.log('seed   | 체제          | gives | acked | pending | oks | fails | ①gives==a+p | ②a==o+f | sagaConsistent | 판정');
+function exsagaauto(seeds) {
+  console.log('== exsagaauto: *가설* — saga 자동 재전송(exchSweep 피기백). 회신 손실(tick<88) + 주기 exchSweep@84(손실 중)·@90(손실 후). autoRetry ON: 매 sweep 이 미해결 give 재전송→90 재전송 회신 통과→pending 0·giveOks 회복·open==escrow(안전). OFF: 재전송 0·pending 고착. ==');
+  console.log('seed   | autoON retries/pending/oks | ON open==escrow | autoOFF retries/pending | OFF open==escrow | 판정');
   for (const seed of seeds) {
-    const regimes = [
-      ['정상         ', run({ ...P(seed) })],
-      ['회신손실      ', run({ ...P(seed, { transport: REPLYLOSS(seed) }) })],
-      ['재전송+dedup  ', run({ ...P(seed, { sagaDedup: true, sagaDedupBound: true, exchangeOps: OPS_RETRY, transport: REPLYLOSS(seed) }) })],
-    ];
-    for (const [name, r] of regimes) {
-      const e = r.exchange;
-      const id1 = e.gives === e.ackedGives + e.pendingGives();
-      const id2 = e.ackedGives === e.giveOks + e.giveFails;
-      const sc = e.sagaConsistent();
-      const ok =
-        check(id1, `seed ${seed} ${name.trim()}: gives ${e.gives} != acked ${e.ackedGives} + pending ${e.pendingGives()}`) &&
-        check(id2, `seed ${seed} ${name.trim()}: acked ${e.ackedGives} != oks ${e.giveOks} + fails ${e.giveFails}`) &&
-        check(sc === (id1 && id2), `seed ${seed} ${name.trim()}: sagaConsistent() ${sc} != (id1&&id2)`);
-      console.log(`${pad(seed, 6)} | ${name} | ${pad(e.gives, 5)} | ${pad(e.ackedGives, 5)} | ${pad(e.pendingGives(), 7)} | ${pad(e.giveOks, 3)} | ${pad(e.giveFails, 5)} | ${pad(id1 ? '예' : '아니오', 11)} | ${pad(id2 ? '예' : '아니오', 7)} | ${pad(sc ? '예' : '아니오', 14)} | ${ok ? 'OK' : 'FAIL'}`);
-    }
+    const on = run({ ...P(seed, { autoRetry: true }) });
+    const off = run({ ...P(seed, { autoRetry: false }) });
+    const onEsc = ownedSet(on.inventory, 'escrow'), onOpen = on.exchange.escrowItemIds();
+    const offEsc = ownedSet(off.inventory, 'escrow'), offOpen = off.exchange.escrowItemIds();
+    const onSafe = JSON.stringify(onEsc) === JSON.stringify(onOpen);
+    const ok =
+      check(on.exchange.retries >= 1 && on.exchange.pendingGives() === 0 && on.exchange.giveOks === on.exchange.gives, `seed ${seed}: autoRetry ON 회복 실패(retries ${on.exchange.retries}/pending ${on.exchange.pendingGives()}/oks ${on.exchange.giveOks}/gives ${on.exchange.gives})`) &&
+      check(onSafe && JSON.stringify(onOpen) === '["item0"]', `seed ${seed}: autoRetry ON 안전 위반(open ${JSON.stringify(onOpen)} vs escrow ${JSON.stringify(onEsc)})`) &&
+      check(off.exchange.retries === 0 && off.exchange.pendingGives() === off.exchange.gives, `seed ${seed}: autoRetry OFF 인데 재전송/회복 발생(retries ${off.exchange.retries}/pending ${off.exchange.pendingGives()})`) &&
+      check(on.exchange.sagaConsistent() && off.exchange.sagaConsistent(), `seed ${seed}: 회계 정합 깨짐(0128 불변)`);
+    console.log(`${pad(seed, 6)} | ${pad(on.exchange.retries + '/' + on.exchange.pendingGives() + '/' + on.exchange.giveOks, 26)} | ${pad((onSafe ? '예' : '아니오') + ' ' + JSON.stringify(onOpen), 15)} | ${pad(off.exchange.retries + '/' + off.exchange.pendingGives(), 23)} | ${pad((JSON.stringify(offEsc) === JSON.stringify(offOpen) ? '예' : '아니오') + ' ' + JSON.stringify(offOpen), 16)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → saga 회계가 *체제 무관*으로 대수적으로 닫혀 있다: 보낸 모든 give 는 정확히 acked(회신 받음) 또는 pending(미수신) 둘 중 하나(새는 give 0)·받은 모든 회신은 ok 또는 fail(분류 누락 0). 정상(pending 0·oks==gives)·회신손실(pending==gives·acked 0)·재전송+dedup(pending 0·oks 회복) 모두서 sagaConsistent()==true.');
-  console.log('    이 두 항등식이 거래소↔가방 saga(0121 피드백~0127 유계)의 *창발 불변* — 손실·재전송 같은 고장 주입 아래서도 회계가 새거나 중복되지 않는다(0120 2-서비스 보존의 회계 평면 판). sagaConsistent 미호출이면 동작 무영향 = 0127 비트 동일(reg).');
+  console.log('  → 재전송이 *자동·주기적*이 된다: exchSweep(0114 TTL 신호)을 재사용해 매 주기 미해결 give 를 재전송 → 회신 손실이 지속돼도(@84 재전송 회신 또 손실) 다음 주기(@90)에 다시 시도해 끝내 회복(pending 0·giveOks 회복·2-서비스 안전). 가방 dedup(0126) 이 매 재전송의 재실행 0 을 보장.');
+  console.log('    autoRetry OFF 면 sweep 은 TTL 회수만(0114) → 재전송 0·pending 고착(회신 손실 영구). exchSweep 부재·autoRetry OFF 면 0128 비트 동일(reg). 회계 정합(0128 sagaConsistent)은 ON/OFF 모두 유지.');
 }
 
-kit.MODES['exsagaconsist'] = exsagaconsist;
-kit.ORDER.splice(1, 0, 'exsagaconsist');
+kit.MODES['exsagaauto'] = exsagaauto;
+kit.ORDER.splice(1, 0, 'exsagaauto');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
