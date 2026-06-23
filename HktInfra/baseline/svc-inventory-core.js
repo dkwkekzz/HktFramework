@@ -130,6 +130,11 @@ class InventoryService {
     this.consumerGaps = new Map();          // consumer id -> 최근 관측 gap 배열(길이≤K). busCadenceWindow ON 일 때만. consumerMaxGap = 이 창의 max.
     // lease 생애 관측(step-0054·busLeaseAudit) — 0045~0050 소비자 lease 의 축출/재admission 은 *내부 계측*(evictions/readmissions)일 뿐 버스 밖에서 안 보인다. 코디네이션 계층(오케스트레이터)이 소비자 건강을 알려면 lease 전이가 관측 가능해야 한다(은닉·버스 pub/sub 원칙). ON 이면 축출/복귀 시 svc.item.lease 토픽에 이벤트 발행(audit/오케스트레이터가 구독). 발행 단일 경로·존 tick 밖. OFF 면 발행 0(0053 비트 동일). busConsumerLease 전제.
     this.busLeaseAudit = opts.busLeaseAudit || false;
+    // ── saga give idempotent dedup(step-0126·sagaDedup) — 거래소↔가방 saga 회신 재전송의 *재실행 0* 보장. ──
+    //   회신만 손실된 give(가방서 이미 성공)를 거래소가 재전송하면, dedup 없이는 owner≠from 으로 재실행 실패(ok:false)→거래소 오보상(valid 매물 abort). dedup ON 이면 (replyTo,gid)로 *원래 결과*를 재실행 없이 재회신.
+    //   0042 seenReqs(pickup 이중 mint 방지)의 saga 회신 판 — 키=(replyTo,gid)·값=ok. OFF 면 저장 0·dedup 0 = 0125 비트 동일.
+    this.sagaDedup = opts.sagaDedup || false;
+    this.sagaResults = new Map();   // (replyTo\0gid) -> ok(boolean) — 처리한 saga give 결과(재전송 시 재회신 소스). sagaDedup ON 일 때만. 유계화는 후속(0042 워터마크 판).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   _own(owner, itemId) { if (!this.byOwner.has(owner)) this.byOwner.set(owner, new Set()); this.byOwner.get(owner).add(itemId); }
@@ -148,6 +153,7 @@ class InventoryService {
     this.evicted = new Set(); this.evictions = 0; this.consumerSeen = new Map();   // 축출·침묵 이력 리셋(0045) — 새 프로세스는 산 소비자 가정·정의역 복원(busConsumerLease OFF 면 무관·leaseSpan 은 config 라 유지).
     this.consumerGaps = new Map();   // 윈도 cadence 이력 리셋(0052) — 새 생애는 gap 창 0(busCadenceWindow OFF 면 빈 Map 무변경 = 비트 동일).
     this.readmissions = 0;   // 재admission 이력 리셋(이 step) — 새 프로세스는 복귀 이력 0(busLeaseLife OFF 면 무관). §2 지연 baseline 은 sweep 가 다시 깐다(상태 불요).
+    this.sagaResults = new Map();   // saga give dedup 이력 리셋(step-0126) — 새 프로세스는 처리 이력 0(sagaDedup OFF 면 빈 Map 무변경).
     this.minted = 0; this.transfers = 0; this.failedOps = 0;
   }
   itemCount() { return this.ledger.size; }
