@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0174](step-0174.md) — **아이템 우편 saga 포기 발행**(mailAbandonPublish·거래소 0132 의 우편 판): 재시도 상한 도달 포기 시 svc.mail.saga_abandoned 1회 발행(audit 관측·giveAbandoned 와 1:1·비-침습). OFF=0173 비트 동일(구독 미추가). 닿는 박스: svc-mail-core/persist·topo-build/subs.
-- **한 줄 상태**: reg ALL OK·mailabandon: ON abandoned 1·published/audit 1/1·OFF published 0·spine OK.
+- **닫힌 step**: [step-0175](step-0175.md) — **정리: svc-mail-core 누적 step-주석 헤더 압축**(34→18.6KB): 헤더 17KB(중복 per-step 역사 0142~0174·각 step-NNNN.md 가 SSOT)을 구조+최근 delta 압축 인덱스로 갈음. 코드 0 변경·reg 0(주석만). 영속 분할(0171)에 이은 두 번째 우편 정리·STATE 압축의 소스 판.
+- **한 줄 상태**: reg ALL OK·mailhdr: src(압축) 우편 digest==baseline(0174)·saga 회계 일치·spine OK.
 - **다음**: §2 — saga 재admission(mailReadmit·거래소 0134~0138)·발행 게이트 통합·길드 서비스·비동기 결정론🔴·**0161~0170 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 박스 = 거래소 arc(0107~0140)와 동형 골격 완성: 메시지(0142~0150)·미읽음 배지(0151~0156)·아이템 첨부(0157~0160)·가방 연동 3 레그+2-서비스 보존(0161~0164)·saga(0166~0174 회신/추적/재전송/정합/transfers/autoRetry/재시도상한/포기발행 — 거래소 0121~0140 의 우편 판)✅. 다음 arc 후보: *재admission*(mailReadmit·거래소 0134~0138)·*발행 게이트 통합*·*길드 서비스*·*비동기 결정론*(🔴). 🔧 svc-mail-core 31.4KB(saga 누적 — 30KB 초과·다음 정리 후보). 🔎 0161~0170 묶음 리뷰 적기.**
+**우편(Mail) 박스 = 거래소 arc(0107~0140)와 동형 골격 완성: 메시지(0142~0150)·미읽음 배지(0151~0156)·아이템 첨부(0157~0160)·가방 연동 3 레그+2-서비스 보존(0161~0164)·saga(0166~0174 회신/추적/재전송/정합/transfers/autoRetry/재시도상한/포기발행 — 거래소 0121~0140 의 우편 판)✅. 다음 arc 후보: *재admission*(mailReadmit·거래소 0134~0138)·*발행 게이트 통합*·*길드 서비스*·*비동기 결정론*(🔴). 🔧 svc-mail-core 18.6KB(0175 헤더 압축으로 유계). 🔎 0161~0170 묶음 리뷰 적기.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -268,3 +268,4 @@
 | [0172](step-0172.md) | 아이템 우편 saga 자동 주기 재전송(mailAutoRetry·sweep 피기백·거래소 0129 우편 판) | 통과 · ON pending 0/retries 1·OFF 잔존 |
 | [0173](step-0173.md) | 아이템 우편 saga 재시도 상한(mailMaxRetries·거래소 0131 우편 판) | 통과 · 무제한 4/0·상한2 2/1 포기·pending 잔존 |
 | [0174](step-0174.md) | 아이템 우편 saga 포기 발행(mailAbandonPublish·거래소 0132 우편 판) | 통과 · ON pub/audit 1/1==abandoned·OFF 0 |
+| [0175](step-0175.md) | 정리: svc-mail-core 누적 step-주석 헤더 압축(코드 0 변경) | OK · 34→18.6KB·digest==0174 |

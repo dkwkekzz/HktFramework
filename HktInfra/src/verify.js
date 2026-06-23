@@ -1,8 +1,8 @@
-// HktInfra step-0174 — 헤드리스 검증 (아이템 우편 saga 포기 발행·mailAbandonPublish)
+// HktInfra step-0175 — 헤드리스 검증 (정리: svc-mail-core 누적 step-주석 헤더 압축)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `mailabandon`.
-//   더한 한 조각: maxRetries 상한 도달 포기(0173) 시 svc.mail.saga_abandoned 1회 발행(운영 가시화·audit 관측·giveAbandoned 와 1:1·거래소 0132 의 우편 판). OFF·bus 부재면 발행 0 = 0173 비트 동일.
-//   검증: ⒜ `reg`(키트) — abandonPublish OFF = 0173 비트 동일(토폴로지 구독 미추가). ⒝ `mailabandon`(가설) — 지속 손실 포기서 ON 은 abandonPublished==giveAbandoned 발행+audit 관측·OFF 는 발행 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `mailhdr`.
+//   더한 한 조각: svc-mail-core.js(34KB>30KB·헤더 17KB=파일 절반)에서 중복 step-역사 주석(0142~0174·각 step-NNNN.md 가 SSOT)을 *구조+최근 delta* 압축 인덱스로 갈음(코드·동작 불변·reg 0·34→18.6KB). 영속 부품 분할(0171)에 이은 헤더 압축 — STATE §1~6 압축의 소스 판.
+//   검증: ⒜ `reg`(키트) — 주석만 변경 = 0174 비트 동일(전 시스템). ⒝ `mailhdr`(가설) — saga 시나리오서 src(압축) vs baseline(0174) 우편 digest + saga 회계 비트 동일(주석 압축이 동작 0 변경).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -12,40 +12,37 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const PICK = (at, avatar) => ({ at, op: { type: 'item_req', op: 'pickup', avatar } });
 const SEND = (at, id, from, to, body, item) => ({ at, op: { type: 'mailSend', id, from, to, body, item } });
+const FETCH = (at, to) => ({ at, op: { type: 'mailFetch', to } });
 const SWEEP = (at) => ({ at, op: { type: 'mailSweep' } });
-// 지속 손실(gid1)+상한2 → 포기 1. pub: mailAbandonPublish 토글. audit 관측. ttl 0 → sweep 은 autoRetry 만.
-const base = (seed, pub) => ({
+// 아이템 우편·수령·만료·saga(포기 발행) 혼합 — 우편 박스의 거의 모든 경로를 자극.
+const base = (seed) => ({
   seed, ticks: 70, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, audit: true,
-  inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true, sagaDedup: true, mailTtl: 0,
-  mailAckDropAlways: [1], mailAutoRetry: true, mailMaxRetries: 2, mailAbandonPublish: pub,
-  invOps: [PICK(2, 'x'), PICK(3, 'x')],
-  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h2', '2', 'item1'), SWEEP(30), SWEEP(40), SWEEP(50), SWEEP(60)],
+  inventory: true, mail: true, mailPersist: true, mailSnapshot: 4, mailItem: true, mailInv: true, mailSaga: true, sagaDedup: true,
+  mailTtl: 10, mailAutoRetry: true, mailMaxRetries: 2, mailAbandonPublish: true,
+  invOps: [PICK(2, 'x'), PICK(3, 'x'), PICK(4, 'x')],
+  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h2', '2', 'item1'), SEND(28, 'c', 'x', 'h4', '3', 'item2'), FETCH(15, 'h1'), SWEEP(30), SWEEP(40), SWEEP(50)],
 });
 
-function mailabandon(seeds) {
-  console.log('== mailabandon: 아이템 우편 saga *포기 발행*(mailAbandonPublish). 재시도 상한(0173) 도달로 포기한 give 를 svc.mail.saga_abandoned 로 1회 발행(운영 가시화·audit 관측·giveAbandoned 와 1:1). 거래소 0132 의 우편 판. ON 발행+관측 vs OFF 발행 0. ==');
-  console.log('seed   | abandoned | ON published/audit | OFF published | 1:1+관측 | 판정');
+function mailhdr(seeds) {
+  console.log('== mailhdr: *정리* — svc-mail-core 누적 step-주석 헤더 압축(34→18.6KB·헤더 17KB=중복 역사→각 step-NNNN.md 가 SSOT). 코드·동작 불변? src(압축) vs baseline(0174) 우편 digest + saga 회계 비트 동일. ==');
+  console.log('seed   | src mail digest | prev mail digest | gives/abandoned | 동일 | 판정');
   for (const seed of seeds) {
-    const on = run(base(seed, true));
-    const off = run(base(seed, false));
-    const ab = on.mail.giveAbandoned;
-    const auditRx = on.audit.seen.get('svc.mail.saga_abandoned') || 0;
-    const onMatch = on.mail.abandonPublished === ab && auditRx === ab && ab === 1;   // 발행==포기·audit 관측==발행
-    const offSilent = off.mail.abandonPublished === 0 && off.mail.giveAbandoned === 1;   // OFF: 포기는 하되 발행 0
-    const ok =
-      check(onMatch, `seed ${seed}: ON 발행/관측 불일치(abandoned ${ab}·pub ${on.mail.abandonPublished}·audit ${auditRx})`) &&
-      check(offSilent, `seed ${seed}: OFF 발행 0 아님(pub ${off.mail.abandonPublished})`);
-    console.log(`${pad(seed, 6)} | ${pad(ab, 9)} | ${pad(on.mail.abandonPublished + '/' + auditRx, 18)} | ${pad(off.mail.abandonPublished, 13)} | ${pad(onMatch ? '예' : '아니오', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const cur = NET.run(base(seed));
+    const prev = NETPREV.run(base(seed));
+    const dCur = cur.mail.digest(), dPrev = prev.mail.digest();
+    const acctSame = cur.mail.gives === prev.mail.gives && cur.mail.giveAbandoned === prev.mail.giveAbandoned && cur.mail.sagaConsistent() === prev.mail.sagaConsistent();
+    const same = dCur === dPrev && acctSame;
+    const ok = check(same, `seed ${seed}: 압축 후 동작 변경(digest ${dCur.toString(16)} vs ${dPrev.toString(16)}·acct ${acctSame})`);
+    console.log(`${pad(seed, 6)} | ${pad('0x' + dCur.toString(16), 15)} | ${pad('0x' + dPrev.toString(16), 16)} | ${pad(cur.mail.gives + '/' + cur.mail.giveAbandoned, 15)} | ${pad(same ? '예' : '아니오', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 재전송 상한 도달로 포기한 give(영구 미해결)를 svc.mail.saga_abandoned 로 1회 발행한다 — 운영/audit 가 *발행자(우편) 무수정으로* 영구 손실을 관측(거래소 0132 의 우편 판·발행==포기==audit 관측 1:1). 포기는 발행해도 pending 잔존(미해결·재admission 여지·후속). OFF 면 발행 0·구독 미추가 = 0173 비트 동일.');
+  console.log('  → 중복된 per-step 역사 주석(0142~0174·step-NNNN.md 가 역사의 SSOT)을 구조+최근 delta 압축 인덱스로 갈음했다. 코드는 한 줄도 안 바뀌어 src(압축) 우편 digest·saga 회계가 baseline(0174)과 비트 동일 — 박스 크기를 유계로 묶되(34→18.6KB) 동작은 0 변경. STATE §1~6 압축의 소스 코드 판·영속 분할(0171)에 이은 두 번째 우편 정리. reg(전 시스템)와 함께 회귀 0.');
 }
 
-kit.MODES['mailabandon'] = mailabandon;
-kit.ORDER.splice(1, 0, 'mailabandon');
+kit.MODES['mailhdr'] = mailhdr;
+kit.ORDER.splice(1, 0, 'mailhdr');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
