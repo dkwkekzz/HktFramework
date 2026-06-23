@@ -1,8 +1,8 @@
-// HktInfra step-0161 — 헤드리스 검증 (아이템 우편↔가방 leg1: 발신 시 발신자 가방 인출·mailInv·escrow custody)
+// HktInfra step-0162 — 헤드리스 검증 (아이템 우편↔가방 leg2: 수령 시 escrow→수신자 가방 입금·mailInv)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlinv`.
-//   더한 한 조각: mailSend 가 아이템 실은 통마다 가방에 give(발신자→'escrow') 를 요청한다(mailInv ON). 거래소 0117 list leg1 의 우편 판 — 아이템이 발신자 가방을 *실제로 떠난다*.
-//   검증: ⒜ `reg`(키트) — mailInv OFF·give 0 = 0160 비트 동일. ⒝ `exmlinv`(가설) — ON: 아이템이 발신자→escrow 로 이동(가방 ownerOf=escrow·escrowXfers==gives==itemSent)·OFF: 발신자 보유(추상 escrow).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlin2`.
+//   더한 한 조각: mailFetch 가 아이템 실은 통마다 가방에 give('escrow'→수신자) 를 요청한다(mailInv ON). 거래소 0118 buy leg2 의 우편 판 — 아이템이 escrow 를 떠나 수신자 가방으로.
+//   검증: ⒜ `reg`(키트) — mailInv OFF·give 0 = 0161 비트 동일. ⒝ `exmlin2`(가설) — 발신자→escrow(leg1)→수신자(leg2) 2-홉 custody 가 닫힌다(수령 후 가방 ownerOf=수신자·gives 4).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -17,36 +17,37 @@ const { check, pad } = kit.helpers;
 
 const PICK = (at, avatar) => ({ at, op: { type: 'item_req', op: 'pickup', avatar } });
 const SEND = (at, id, from, to, body, item) => ({ at, op: { type: 'mailSend', id, from, to, body, item } });
-// 발신자 x 가 가방서 item0·item1 을 mint(선-적재) → 아이템 우편 2통 발신(item0·item1) + 메시지만 1통.
+const FETCH = (at, to) => ({ at, op: { type: 'mailFetch', to } });
+// x 가 item0·item1 mint → 아이템 우편 2통 h1 발신 → h1 수령. 아이템 경로: x → escrow(leg1) → h1(leg2).
 const base = (seed, inv) => ({
   seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true,
   inventory: true, mail: true, mailPersist: true, mailItem: true, mailInv: inv,
   invOps: [PICK(2, 'x'), PICK(3, 'x')],
-  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h1', '2', 'item1'), SEND(8, 'c', 'x', 'h1', '3')],
+  mailOps: [SEND(5, 'a', 'x', 'h1', '1', 'item0'), SEND(6, 'b', 'x', 'h1', '2', 'item1'), FETCH(20, 'h1')],
 });
 
-function exmlinv(seeds) {
-  console.log('== exmlinv: 아이템 우편↔가방 leg1 — 발신 시 발신자 가방 인출(mailInv·escrow custody). 아이템이 발신자 가방을 *실제로 떠나* escrow 로 이동(ON) vs 우편 박스 내 추상 escrow(OFF). 거래소 0117 list leg 의 우편 판. ==');
-  console.log('seed   | ON gives/escrowXfers | item0/item1 소유자(ON) | OFF 소유자 | itemHeld ON/OFF | 판정');
+function exmlin2(seeds) {
+  console.log('== exmlin2: 아이템 우편↔가방 leg2 — 수령 시 escrow→수신자 가방 입금(mailInv). 발신자→escrow(leg1)→수신자(leg2) 2-홉 custody 가 닫힌다(선물·전리품이 실제 가방 간 이동). 거래소 0118 buy leg 의 우편 판. ==');
+  console.log('seed   | ON gives/escrowXfers | item0/item1 소유자(ON) | OFF 소유자 | itemFetched ON | 판정');
   for (const seed of seeds) {
     const on = run(base(seed, true));
     const off = run(base(seed, false));
     const ownersOn = on.inventory.ownerOf('item0') + '/' + on.inventory.ownerOf('item1');
     const ownersOff = off.inventory.ownerOf('item0') + '/' + off.inventory.ownerOf('item1');
-    const onOk = (on.mail.gives === 2 && on.mail.itemSent === 2 && on.inventory.escrowXfers === 2 &&
-      on.inventory.ownerOf('item0') === 'escrow' && on.inventory.ownerOf('item1') === 'escrow' && on.mail.itemHeld() === 2);
+    const onOk = (on.mail.gives === 4 && on.inventory.escrowXfers === 4 && on.mail.itemFetched === 2 &&
+      on.inventory.ownerOf('item0') === 'h1' && on.inventory.ownerOf('item1') === 'h1');
     const offOk = (off.mail.gives === 0 && off.inventory.escrowXfers === 0 &&
-      off.inventory.ownerOf('item0') === 'x' && off.inventory.ownerOf('item1') === 'x' && off.mail.itemHeld() === 2);
+      off.inventory.ownerOf('item0') === 'x' && off.inventory.ownerOf('item1') === 'x');
     const ok =
-      check(onOk, `seed ${seed}: ON leg1 어긋남(gives ${on.mail.gives}·escrowXfers ${on.inventory.escrowXfers}·owners ${ownersOn}·itemHeld ${on.mail.itemHeld()})`) &&
+      check(onOk, `seed ${seed}: ON leg2 어긋남(gives ${on.mail.gives}·escrowXfers ${on.inventory.escrowXfers}·owners ${ownersOn}·itemFetched ${on.mail.itemFetched})`) &&
       check(offOk, `seed ${seed}: OFF 추상 escrow 어긋남(gives ${off.mail.gives}·owners ${ownersOff})`);
-    console.log(`${pad(seed, 6)} | ${pad(on.mail.gives + '/' + on.inventory.escrowXfers, 20)} | ${pad(ownersOn, 22)} | ${pad(ownersOff, 10)} | ${pad(on.mail.itemHeld() + '/' + off.mail.itemHeld(), 15)} | ${ok ? 'OK' : 'FAIL'}`);
+    console.log(`${pad(seed, 6)} | ${pad(on.mail.gives + '/' + on.inventory.escrowXfers, 20)} | ${pad(ownersOn, 22)} | ${pad(ownersOff, 10)} | ${pad(on.mail.itemFetched, 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → mailInv ON: 아이템 우편 발신이 발신자 가방서 아이템을 *실제로 인출*해 escrow custody 로 옮긴다(가방 ownerOf=escrow·escrowXfers==gives==itemSent==2). OFF: 우편 박스 회계(itemHeld)는 같으나 가방 원장 무변경(item0/1 여전히 발신자 x 소유 = 추상 escrow 0157~0160).');
-  console.log('    거래소↔가방 2-서비스 쌍 거래(0117~0120)의 우편 leg1 — 수령 입금(0162)·만료 반환(0163)·2-서비스 보존 capstone(0164) 후속.');
+  console.log('  → mailInv ON: 수령이 escrow custody 의 아이템을 *수신자 가방으로 실제 입금*(가방 ownerOf=h1·gives 4=발신2+수령2·escrowXfers 4). 발신자 x → escrow → 수신자 h1 의 2-홉이 닫힌다. OFF: 가방 원장 무변경(item0/1 여전히 발신자 x·추상 escrow).');
+  console.log('    아이템 우편↔가방 leg1(0161 발신 인출)+leg2(이 step 수령 입금) — 만료 반환 leg3(0163)·2-서비스 보존 capstone(0164) 후속.');
 }
 
-kit.MODES['exmlinv'] = exmlinv;
-kit.ORDER.splice(1, 0, 'exmlinv');
+kit.MODES['exmlin2'] = exmlin2;
+kit.ORDER.splice(1, 0, 'exmlin2');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

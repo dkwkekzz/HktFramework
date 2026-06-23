@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0161](step-0161.md) — **아이템 우편↔가방 leg1**(mailInv·발신 시 발신자 가방 인출): mailSend 가 아이템 실은 통마다 가방에 give(발신자→'escrow') 요청 → 아이템이 발신자 가방을 *실제로 떠나* escrow custody(추상 escrow 0157~0160 → 실 2-서비스). 거래소 0117 list leg1 의 우편 판. 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(mailInv OFF·give 0=0160 비트 동일)·exmlinv: ON gives/escrowXfers 2/2·소유자 escrow(가방 실 이동)·OFF 소유자 x(추상)·itemHeld 불변·spine 통과.
-- **다음**: §2 — 아이템 우편↔가방 leg2 수령 입금(0162)·leg3 만료 반환(0163)·2-서비스 보존 capstone(0164)·saga 회신 수신(0165~)·발행 게이트 통합·길드·비동기 결정론🔴·0151~0160 묶음 리뷰(`infra-review`).
+- **닫힌 step**: [step-0162](step-0162.md) — **아이템 우편↔가방 leg2**(mailInv·수령 시 escrow→수신자 가방 입금): mailFetch 가 아이템 실은 통마다 가방에 give('escrow'→수신자) 요청 → 발신자→escrow(leg1)→수신자(leg2) 2-홉 custody 닫힘(선물·전리품이 실제 가방 간 이동). 거래소 0118 buy leg2 의 우편 판. 닿는 박스: svc-mail.
+- **한 줄 상태**: reg ALL OK(mailInv OFF·give 0=0161 비트 동일)·exmlin2: ON gives/escrowXfers 4/4·소유자 h1(가방 실 입금)·OFF 소유자 x(추상)·itemFetched 2·spine 통과.
+- **다음**: §2 — 아이템 우편↔가방 leg3 만료 반환(0163)·2-서비스 보존 capstone(0164)·saga 회신 수신(0165~)·발행 게이트 통합·길드·비동기 결정론🔴·0151~0160 묶음 리뷰(`infra-review`).
 
 ---
 
@@ -257,3 +257,4 @@
 | [0159](step-0159.md) | 아이템 우편 만료 회수(itemExpired·mailSweep 만료 시 아이템 회수·itemHeld→itemExpired) | 통과 · itemSent 3·held/fetch/exp 1/1/1 |
 | [0160](step-0160.md) | 아이템 우편 회계 정합 capstone(itemConsistent·itemSent==itemHeld+itemFetched+itemExpired·아이템 우편 arc 닫기) | 통과 · 4체제 true·분할 0/2/0·0/0/2·1/1/1 |
 | [0161](step-0161.md) | 아이템 우편↔가방 leg1: 발신 시 발신자 가방 인출(mailInv·escrow custody) | 통과 · gives/escrowXfers 2/2·소유자 escrow |
+| [0162](step-0162.md) | 아이템 우편↔가방 leg2: 수령 시 escrow→수신자 가방 입금(mailInv) | 통과 · gives/escrowXfers 4/4·소유자 h1 |
