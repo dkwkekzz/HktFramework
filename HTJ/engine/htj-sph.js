@@ -56,6 +56,46 @@
     return particles;
   }
 
+  // SPH 적응 평활길이 h_i — 입자마다 *자기 분해능*을 갖는다(밀도 높으면 좁게·낮으면 넓게).
+  //   고정 h 는 붕괴 코어(밀도 자릿수 변화)를 과평활하거나 희박부를 못 분해한다. 표준 SPH 는 h_i 를 국소
+  //   밀도에 묶어 *이웃 수를 일정*하게 유지한다 — 3D 에서  h_i = η·(m_i/ρ_i)^(1/3)  (η=이웃 수 노브).
+  //   ρ_i 가 h_i 에 의존하므로 *자기일관*(고정점 반복)으로 푼다:
+  //       ρ_i^(k) = Σ_j m_j W(r_ij, h_i^(k)),   h_i^(k+1) = η (m_i/ρ_i^(k))^(1/3)   수렴까지.
+  //   이건 SW4 적응 LOD(분해능이 물질을 따라감)의 SPH·연속판 — 비용이 디테일에 묶인다. 0040 밀도처럼
+  //   *수동 측정*: a.h·a.density 만 써넣고 힘은 안 만든다(신규 함수·호출처 없음→회귀 0). 적응-h 힘(대칭
+  //   커널·grad-h)은 후속 벽돌. opts: { eta(기본 1.3), h0(초기·기본 1), iters(최대 반복·기본 30), tol(상대 수렴·1e-5) }.
+  function sphAdaptiveH(particles, opts) {
+    opts = opts || {};
+    const eta = opts.eta != null ? opts.eta : 1.3;
+    const h0 = opts.h0 != null ? opts.h0 : 1;
+    const iters = opts.iters != null ? opts.iters : 30;
+    const tol = opts.tol != null ? opts.tol : 1e-5;
+    const n = particles.length;
+    const densAt = (a, h) => {                                 // ρ(a; h) = Σ_j m_j W(r_aj, h)
+      let rho = 0;
+      for (let j = 0; j < n; j++) {
+        const b = particles[j];
+        const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+        rho += (b.mass || 0) * kernelW(Math.sqrt(dx * dx + dy * dy + dz * dz), h);
+      }
+      return rho;
+    };
+    for (let i = 0; i < n; i++) {
+      const a = particles[i];
+      let h = (a.h != null && a.h > 0) ? a.h : h0;             // 따뜻한 시작(이전 프레임 h 재사용 가능)
+      for (let k = 0; k < iters; k++) {                        // 고정점 반복(감쇠 불필요·단조 수렴)
+        const rho = densAt(a, h);
+        const hNew = rho > 0 ? eta * Math.cbrt((a.mass || 0) / rho) : h;   // h_i = η(m_i/ρ_i)^⅓
+        const rel = Math.abs(hNew - h) / (h || 1);
+        h = hNew;
+        if (rel < tol) break;
+      }
+      a.h = h;
+      a.density = densAt(a, h);                                // 최종 h 로 ρ 재계산 → (h,ρ) 진짜 자기일관
+    }
+    return particles;
+  }
+
   // 커널 기울기 ∇_i W(r_i−r_j, h) — 압력·점성 등 모든 SPH 쌍힘의 방향·크기. (dx,dy,dz)=r_i−r_j.
   //   ∇_i W = (dW/dr)·(r_i−r_j)/r,  dW/dr = (σ/h)·f'(q),  σ = 1/(π h³),  q = r/h:
   //     f'(q) = −3q + 2.25q²     (0 ≤ q < 1)
@@ -332,5 +372,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, VERSION: 6 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, VERSION: 7 };
 });

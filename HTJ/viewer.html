@@ -899,6 +899,42 @@
         for (const e of w.__entities) e.peak = mx > 0 ? 0.2 + 2.5 * ((e.internalE || 0) / (e.mass || 1)) / mx : 1;
       },
       note: '<b>이웃 탐색을 O(N²)→O(N) 로 가속한다 — 더 큰 가스 구름이 열린다</b>(구체 세계 SW5). <b>▶ 무엇</b>: SPH 합(밀도·압력·점성)은 <b>지지반경 2h 안의 이웃만</b> 기여한다 — 멀리 있는 입자는 커널 <b>W=0·∇W=0</b>(정확). 그런데 기본 경로는 <b>O(N²)</b> 모든 쌍을 본다. 셀 크기를 <b>지지반경 2h</b> 로 잡아 입자를 버킷에 담으면, 한 입자의 이웃은 <b>자기 셀+인접 26 셀(3×3×3)</b> 안에만 있다(분리 ≤2h → 셀 인덱스 차 ≤1). 균일 밀도면 셀당 입자 수가 일정 → 이웃 탐색이 <b>O(N)</b>. <b>왜 중요한가</b>(design/sphere-world.md §6 SW5): 이게 <b>0032 Barnes-Hut(중력 O(N log N))의 SPH·근거리 판</b> — 더 큰 세계 = 더 풍부한 창발을 연다(여기 화면은 <b>입자 200개</b> 가스 구름이 무너지며 데워짐). <b>물리는 불변</b>: 가속은 <b>같은 쌍을 같은 순서로</b> 방문하므로(이웃 오름차순 정렬·먼 쌍은 0 기여) <b>brute 와 비트 동일</b>(0016/0018 "조밀과 비트 동일"의 SPH 판·verify: 밀도·압력·점성·열압력 네 함수 모두 가속=brute). <b>보존</b>: 운동량·총E 가속해도 그대로(같은 쌍힘·우상단 ΣP). <b>정직한 한계</b>: 균일 밀도 가정(국소 과밀이면 한 셀에 몰림)·평활길이 h 고정(적응 h 는 후속)·격자 유체 은퇴는 SW5 마지막(측정된 필요 후). 여기선 *이웃 탐색 가속 한 가지*만 — 새 물리 없음.'
+    },
+
+    // ── step_0048 — SW5 적응 평활길이 h: 분해능이 밀도를 따라간다 ──
+    //   h_i=η(m_i/ρ_i)^⅓ 를 자기일관(고정점)으로 푼다 — 조밀하면 좁은 h, 희박하면 넓은 h(이웃 수 일정). 수동 측정(힘 없음).
+    //   그리는 반지름 = h_i 로 둬 평활길이를 눈에 보인다: 무너지는 구름의 코어가 조밀해지며 커널이 줄어든다. 색=밀도.
+    '0048': {
+      label: 'step_0048 — SW5 적응 평활길이 h(분해능이 밀도를 따라감)', title: 'HTJ — SW5 적응 평활길이 h: h_i=η(m_i/ρ_i)^⅓ 자기일관',
+      sub: '입자마다 평활길이 h_i 를 국소 밀도에 묶는다 — h_i=η(m_i/ρ_i)^⅓ 를 자기일관(고정점 반복)으로 푼다. 조밀한 코어는 좁은 h(촘촘히 분해)·희박한 헤일로는 넓은 h → 이웃 수가 일정. SW4 적응 LOD(분해능이 물질을 따라감)의 SPH·연속판. 그리는 원 반지름 = h_i 라 평활길이가 눈에 보인다(무너지는 코어의 커널이 줄어듦)·색=밀도. 수동 측정(힘 없음)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        let seed = 11; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const ents = [];
+        for (let i = 0; i < 150; i++) {
+          const r = N * 0.05 + rnd() * N * 0.22, th = rnd() * 2 * Math.PI, ph = Math.acos(2 * rnd() - 1);
+          const ux = Math.sin(ph) * Math.cos(th), uy = Math.sin(ph) * Math.sin(th), uz = Math.cos(ph), m = 1, vin = -0.35;
+          ents.push({ cx: cen + r * ux, cy: cen + r * uy, cz: cen + r * uz, mass: m, px: m * vin * ux, py: m * vin * uy, pz: m * vin * uz,
+            KEcm: 0.5 * m * vin * vin, internalE: 0.15, energy: 0.15 + 0.5 * m * vin * vin, cells: 4, radius: 1 });
+        }
+        w.__entities = ents;
+        const h = Math.max(2.5, N * 0.13);
+        w.__gopt = { G: 0.4, soft: Math.max(2, N * 0.06) };
+        w.__topt = { gamma: 5 / 3, h };                        // 운동: 고정-h 열압력(적응-h 힘은 후속)
+        w.__h = h;
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.1, w.__gopt);      // 중력으로 무너지고
+        HTJSPH.sphThermalPressureForce(w.__entities, 0.1, w.__topt);    // 약한 열압력 지지
+        HTJEntity.stepEntities(w.__entities, 0.1, { N: w.N });
+        HTJSPH.sphAdaptiveH(w.__entities, { eta: 1.3, h0: w.__h });     // 적응 h 측정(따뜻한 시작)
+        let rmax = 0; for (const e of w.__entities) if ((e.density || 0) > rmax) rmax = e.density;
+        for (const e of w.__entities) { e.peak = rmax > 0 ? 0.2 + 2.5 * (e.density || 0) / rmax : 1; e.radius = Math.max(0.4, Math.min(6, e.h || 1)); }
+      },
+      note: '<b>입자마다 분해능(평활길이 h)을 국소 밀도에 묶는다 — 분해능이 물질을 따라간다</b>(구체 세계 SW5·SW4 적응 LOD 의 SPH 연속판). <b>▶ 무엇</b>: 지금까지 SPH 의 평활길이 h 는 <b>전 입자 공통 상수</b>였다. 그런데 가스가 무너지면 밀도가 <b>자릿수로</b> 변한다 — 고정 h 는 조밀 코어를 <b>과평활</b>(뭉개고)하거나 희박부를 <b>못 분해</b>한다. 표준 SPH 해법: h_i 를 국소 밀도에 묶어 <b>이웃 수를 일정</b>하게 — 3D 에서 <b>h_i = η·(m_i/ρ_i)^⅓</b>(η=이웃 수 노브·여기 1.3). ρ_i 가 h_i 에 의존하니 <b>자기일관</b>으로 푼다(고정점 반복: ρ 재고 h 갱신을 수렴까지·잔차 1.4e-5). <b>왜 중요한가</b>(design §4·§6 SW5): 이게 <b>SW4 적응 LOD</b>(멀면 합치고 가까이 쪼개 분해능을 관찰/물질에 맞춤)의 <b>SPH·연속판</b> — 비용·정밀도가 *디테일이 있는 곳*에 묶인다. <b>그림으로 보기</b>: 원 반지름 = h_i 라 <b>평활 커널 자체가 보인다</b> — 무너지는 구름의 코어가 조밀해지면 거기 <b>h 가 줄어(작은 커널 촘촘)</b>·바깥 희박 헤일로는 <b>큰 커널</b>(코어 최소 h 3.4→0.8 예리화·h 범위 2.9→7.0 분화). 색 = 밀도(뜨거울수록 조밀). <b>0040 밀도처럼 수동 측정</b>: a.h·a.density 만 써넣고 <b>힘은 안 만든다</b>(신규 함수·호출처 없음 → 회귀 0). 운동은 중력+<b>고정-h</b> 열압력이 만들고, 적응 h 는 그 위에서 분해능을 <b>잰다</b>. <b>정직한 한계</b>: <b>적응-h 힘</b>(대칭 커널·grad-h Ω 보정으로 에너지까지 일관)은 <b>다음 벽돌</b> — 이 step 은 측정만. 외톨이 입자는 분해 척도가 없어 h 발산(이웃 없음·물리적). 격자 유체 은퇴는 SW5 마지막(측정된 필요 후). 여기선 *적응 평활길이 한 가지*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1146,7 +1182,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0047';                       // 기본 = 현재 step
+    sel.value = '0048';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
