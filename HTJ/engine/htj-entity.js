@@ -358,5 +358,59 @@
     return { entities: out, shatters };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, fragmentEntity, fragmentOnImpact, VERSION: 5 };
+  // 적응 LOD (관찰자 거리 기반 합치기/쪼개기) — 멀면 합치고(coarse)·가까이서 쪼갠다(fine)·step_0039·SW4.
+  //   design/sphere-world.md §6 SW4 / §4. 0034 공간 LOD(htj-lod downsample/upsample)의 *Lagrangian* 판:
+  //   격자 블록을 평균내는 대신, *구체*를 관찰자 거리에 따라 합치고 쪼갠다. 트리거만 바뀐다 — SW1(합치기·
+  //   mergeGroup)·SW3(쪼개기·fragmentEntity)의 보존 합산/분배를 *물리 임계*(속도·충돌E) 대신 **거리 임계**로
+  //   재사용한다(보존은 그대로라 벌크 정확). 두 방향:
+  //     ① coarsen(먼 곳→합침): 관찰자서 먼(near 밖) 구체를 *블록 버킷*으로 묶어 블록당 1 개 coarse 구체로 합산
+  //        (mergeGroup). occupied far block 1 개 = 1 노드 → 먼 구체를 아무리 늘려도 비용이 *블록 수*에 묶인다.
+  //     ② refine(가까운 곳→쪼갬): near 안의 coarse 구체(lodMembers>1)를 그 구성원 수 만큼 fine 조각으로 되쪼갬
+  //        (fragmentEntity, dispersalFrac=0 → 폭발 없이 v_cm 공유·벌크 정확). 가까이서 디테일 복원.
+  //   **비용이 세계 크기가 아니라 관찰되는 디테일에 묶인다**(scalability.md 레버3 의 Lagrangian 판). 세계를 키워
+  //   (먼 구체를 더 늘려)도 near 예산(fine 개체)+occupied far block 수는 일정 → effective 개체 수 평탄.
+  //   벌크(질량·운동량·각운동량(원점)·총E)는 합산/분배가 정확하므로 coarsen·refine·왕복 모두 *정확 보존*.
+  //   모양은 손실(LOD 근사·design §5 난점 1) — coarse 는 내부 배열을 잃고, refine 은 평면 고리로 *근사 복원*.
+  //   opts: { observer:[x,y,z], blockSize(bs>0), nearRadius(관찰자 거리 ≤ 이 값=near·world 단위), spread } —
+  //     observer 없거나 bs≤0 이면 early-return(아무 호출처도 없으니 회귀 0). lodMembers 는 구성원 수(기본 1).
+  //   반환: { entities(새 목록·= effective 개체 수), coarsened(합친 far 블록 수), refined(되쪼갠 near coarse 수) }.
+  //   입력은 변형하지 않는다(합쳐진/쪼개진 건 새 descriptor).
+  function adaptLOD(entities, opts) {
+    opts = opts || {};
+    const obs = opts.observer, bs = opts.blockSize != null ? opts.blockSize : 0;
+    if (!obs || bs <= 0) return { entities: entities.slice(), coarsened: 0, refined: 0 };  // 노브 없음 → 회귀 0
+    const nearR2 = (opts.nearRadius != null ? opts.nearRadius : 0) ** 2;
+    const n = entities.length;
+    // near/far 분류 — near 는 그대로/refine 대상, far 는 블록 버킷으로 묶어 coarsen.
+    const farBuckets = new Map(); const nearIdx = [];
+    for (let i = 0; i < n; i++) {
+      const e = entities[i];
+      const dx = e.cx - obs[0], dy = e.cy - obs[1], dz = e.cz - obs[2];
+      if (dx * dx + dy * dy + dz * dz <= nearR2) { nearIdx.push(i); continue; }
+      const key = Math.floor(e.cx / bs) + ',' + Math.floor(e.cy / bs) + ',' + Math.floor(e.cz / bs);
+      if (!farBuckets.has(key)) farBuckets.set(key, []);
+      farBuckets.get(key).push(i);
+    }
+    const out = []; let coarsened = 0, refined = 0;
+    // ① coarsen — 블록당 2+ 면 합침(블록 키 정렬 = 결정론). 단일은 그대로(이미 최소).
+    for (const key of Array.from(farBuckets.keys()).sort()) {
+      const g = farBuckets.get(key);
+      if (g.length === 1) { out.push(entities[g[0]]); continue; }
+      const merged = mergeGroup(entities, g);
+      merged.lodMembers = g.reduce((s, idx) => s + (entities[idx].lodMembers || 1), 0);  // 되쪼갤 fine 수
+      out.push(merged); coarsened++;
+    }
+    // ② refine — near 의 coarse 구체(구성원>1)를 그 수 만큼 fine 으로(폭발 없이 = dispersalFrac 0).
+    for (const idx of nearIdx) {
+      const e = entities[idx], members = e.lodMembers || 1;
+      if (members > 1) {
+        const frags = fragmentEntity(e, { n: members, dispersalFrac: 0, spread: opts.spread });
+        for (const f of frags) { f.lodMembers = 1; out.push(f); }
+        refined++;
+      } else out.push(e);
+    }
+    return { entities: out, coarsened, refined };
+  }
+
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, fragmentEntity, fragmentOnImpact, adaptLOD, VERSION: 6 };
 });

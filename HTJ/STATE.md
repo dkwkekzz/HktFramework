@@ -4,12 +4,12 @@
 
 ## §1. NOW — 지금 어디까지
 
-**진행 방향 = 구체 세계** ([design/sphere-world.md](design/sphere-world.md)). 세계를 **한 원소 = 자유 구체**로 굴린다 — 구체는 합쳐지고 쪼개지며 알려진 역학(중력·접촉)으로 상호작용, *법칙은 author·구조는 창발*, 예외 없음. 합치기/쪼개기 = 적응 LOD = 성능(Lagrangian). **step_0001~0038 닫음 — 구체 세계 트랙(SW1 합치기·SW2 접촉·SW3 쪼개기 = 합치기↔쪼개기 왕복 완성).**
+**진행 방향 = 구체 세계** ([design/sphere-world.md](design/sphere-world.md)). 세계를 **한 원소 = 자유 구체**로 굴린다 — 구체는 합쳐지고 쪼개지며 알려진 역학(중력·접촉)으로 상호작용, *법칙은 author·구조는 창발*, 예외 없음. 합치기/쪼개기 = 적응 LOD = 성능(Lagrangian). **step_0001~0041 닫음 — 구체 세계 트랙(SW1 합치기·SW2 접촉·SW3 쪼개기·SW4 적응 LOD·SW5 진행=SPH 밀도+압력).**
 
 - **토대 = 구체 substrate (0026~0035).** 안정 덩어리를 격자에서 빼낸 자유 구체가 *이미 굴러간다*: 승격/강등(격자↔구체 4 보존량 정확)·자유 운동(뉴턴1)·개체간 중력(N체·뉴턴3)·스핀 복원·자동 승격/강등·Barnes-Hut·통합 중력·다체 궤도 시연(0035). → **SW step 은 이 위에 *합치기·접촉·쪼개기·LOD* 를 더한다.**
 - **비계 = 격자 트랙 (0002~0025).** 자기중력 압축성 열유체 13 법칙 — 구름→붕괴→점화로 별/돌을 *낳는*(구체가 태어나는) 곳 + 확장성 인프라(사다리 S1~S7 완주). SW5(SPH)에서 유체까지 구체화되면 은퇴.
 
-## §2. NEXT — 다음 step = SW4
+## §2. NEXT — 다음 step = SW5
 
 **▶ 구체 세계 로드맵** [sphere-world.md §6 권위]. 각 단계는 여러 step.
 
@@ -18,8 +18,8 @@
 | **SW1. 구체 합치기(강착)** | 두 구체가 닿으면(느리면) 큰 구체 하나로 | ☑ **닫음(0036)** |
 | **SW2. 접촉 반발 + 소산(DEM)** | 겹침 거부+감쇠 → 쌓이고·"선다"·멈춘다 | ☑ **닫음(0037)** |
 | **SW3. 쪼개기(파편화)** | 임계 넘는 충돌/외란 → 작은 구체들(왕복) | ☑ **닫음(0038)** |
-| SW4. 적응 합치기 = LOD | 멀면 합치고 가까이 쪼갬 → 세계 크기서 비용 분리 | ☐ **다음 step** |
-| SW5. 구체 유체(SPH) | 격자 유체를 구체로 이주 → 격자 은퇴(최후·측정 후) | ☐ |
+| **SW4. 적응 합치기 = LOD** | 멀면 합치고 가까이 쪼갬 → 세계 크기서 비용 분리 | ☑ **닫음(0039)** |
+| SW5. 구체 유체(SPH) | 격자 유체를 구체로 이주 → 격자 은퇴(최후·측정 후) | ◐ **진행(0040 밀도·0041 압력)·다음=열/점성** |
 
 **SW1 닫음(0036)**: `mergeEntities`(htj-entity.js) — 닿고(거리 ≤ r+r+pad) 느린(상대속도 ≤ vstick) 구체를 연결 성분으로 묶어 직접 합산. 질량·운동량·각운동량(원점)·총E *정확*·궤도 L→스핀·잃은 CoM KE→강착열. 검증 7/7·눈 PASS(9개→1개).
 
@@ -27,16 +27,23 @@
 
 **SW3 닫음(0038)**: `fragmentEntity`·`fragmentOnImpact`(htj-entity.js) — `mergeGroup` 의 *역*: 닿고 *빠른*(상대 운동E ≥ shatterKE) 구체를 n 조각으로 깸. 질량·운동량(평균차감 정확)·각운동량(원점·스핀 L/n 분배)·총E *정확*(쪼갠 합=원본). 분산 KE 는 부모 internalE(결합열)에서 = merge "잃은 KE→열" 의 **역**. 조각 μ↓ → 재파편 폭주 자연 차단. 검증 6/6·눈 PASS(2→12·질량 800→800·ΣP 보존). **합치기↔쪼개기 왕복 완성.**
 
-**SW4 상세 (다음 step 착수점)**:
-- **무엇**: 합치기(SW1)·쪼개기(SW3)를 **관찰자 거리에 결합** — *멀면 합치고(coarse)·가까이서 쪼갠다(fine)*. 같은 보존 합산/분배(`mergeGroup`·`fragmentEntity`)를 *비용 분리*에 재사용 → 세계가 커져도 비용이 관찰 영역에만 묶임(0034 공간 LOD 의 Lagrangian 형태).
-- **재사용**: `mergeEntities`(0036)+`fragmentEntity`(0038)를 *물리 임계*(속도·충돌E) 대신 *거리 임계*로 트리거. 보존은 그대로(합산/분배가 이미 정확).
-- **검증**: 관찰자서 멀어진 구체 무리가 적은 coarse 구체로 합쳐지고(비용↓·보존)·가까워지면 다시 fine 으로 쪼개짐(왕복·보존)·비용이 관찰 영역 크기에 묶임(세계 크기 무관)·눈(원거리 coarse·근거리 fine).
+**SW4 닫음(0039)**: `adaptLOD`(htj-entity.js) — 합치기(SW1)·쪼개기(SW3)를 **관찰자 거리**에 결합. coarsen: 관찰자서 먼 구체를 블록 버킷으로 묶어 블록당 1 개 coarse 구체로 `mergeGroup` 합침(occupied far block 수에 비용 묶임). refine: near 의 coarse 구체(lodMembers>1)를 그 수 만큼 `fragmentEntity`(dispersalFrac=0·폭발 없이)로 fine 복원. 물리 임계 대신 *거리 임계* — 보존(합산/분배) 그대로라 벌크 정확. 노브 없으면 early-return(회귀0). **비용이 세계 크기가 아니라 관찰 영역에 묶임**(0034 격자 LOD 의 Lagrangian 판). 검증 6/6(먼 구체 밀도 4×→effective 개체 수 불변)·눈 PASS(원본 32→coarsen 9→refine 21·질량/ΣP 정확 보존). scalability 세 레버(희소화·승격·LOD)가 *한 Lagrangian 원소*로 통합.
+
+**SW5 착수(0040)**: `htj-sph.js` 신규 법칙 파일 — `kernelW`(3D 3차 B-스플라인·정규화 ∫W dV=1)·`sphDensity`(ρ_i=Σ_j m_j·W(r,h)·자기 기여 포함·O(N²)). SPH 의 토대 = 밀도. *수동 측정*(밀도는 재기만·힘 없음→회귀 0). 검증 6/6(정규화 1·균일→참 밀도 m·n₀·단일 ρ=m/πh³·밀집→ρ↑·평행이동 불변)·눈 PASS(중력 수축 구름 최대 ρ 0.062→0.209→0.241 단조↑). 0009 온도가 0010 압력 토대 된 것과 같은 정신.
+
+**SW5 압력(0041)**: `kernelGradW`(∇_iW 반대칭·r→0 특이점 없음)·`sphPressureForce`(상태식 P=k·ρ^γ + Monaghan 대칭 쌍힘 a_i=−Σ_j m_j(P_i/ρ_i²+P_j/ρ_j²)∇_iW_ij). ∇_jW=−∇_iW → F_ji=−F_ij(뉴턴3) → **순 운동량 정확 보존**. P≥0 → 항상 반발 → 가스 퍼짐. 노브 k=0 early-return(회귀0). 검증 6/6(운동량 보존·압축→반발·균일→힘0·기울기 반대칭)·눈 PASS(압축 가스 rms 1.95→6.35 퍼짐·최대 ρ 0.46→0.08 옅어짐·ΣP 0 / viewer=중력+압력 유한 가스 공 숨쉼). 0008 중력↔반발·0010 열압력의 SPH 판. *정직한 한계*: 압력은 힘만(운동량 보존)·압력 일↔내부E 닫힘(총E)은 다음 벽돌.
+
+**SW5 다음 벽돌 (착수점)** [sphere-world.md §6 SW5·§5 난점 3]:
+- **다음 = SPH 열/에너지 닫힘 또는 점성**: ① du_i/dt=(P_i/ρ_i²)Σ m_j v_ij·∇W_ij 로 압력 일을 내부E 로 닫아 **총E 보존**(0010 열압력 되먹임의 SPH 판·압축 데움/팽창 식힘) ② 또는 점성 소산(충격 감쇠). 그 뒤 격자 유체 은퇴.
+- **주의**: 가장 큰 작업 — **측정된 필요**가 올 때 *최후에*(0023 교훈·design §5 난점 3). 가법적으로 한 벽돌씩. 격자는 SW5 완료까지 비계로 공존(big-bang 재작성 회피).
+- **검증(예정)**: 압축 데움/팽창 식힘·총E 보존(KE↔u 가역)·격자 결과와 정성 일치.
 
 **구체 substrate 부품 (SW step 이 재사용 — engine/)**:
 - `htj-promote.js`: `promote(world,cells)`=격자 덩어리→개체`{CoM·질량·P·L·총E·internalE·반지름·온도·셀수}` · `demote(world,entity,{spin})`=개체→격자 빈 셀 구(spin=L→강체 회전장)
-- `htj-entity.js`: `stepEntity`/`stepEntities`(자유 운동) · `applyEntityGravity`(쌍힘 N체·뉴턴3 운동량 비트 보존) · `mergeEntities`(SW1 강착·연결 성분 합산·4 보존량 정확) · `pairPotentialEnergy`(역학E) · `equivalentRadius`
+- `htj-entity.js`: `stepEntity`/`stepEntities`(자유 운동) · `applyEntityGravity`(쌍힘 N체·뉴턴3 운동량 비트 보존) · `mergeEntities`(SW1 강착·연결 성분 합산·4 보존량 정확) · `applyEntityContact`(SW2 반발+소산 DEM) · `fragmentEntity`/`fragmentOnImpact`(SW3 쪼개기·합산의 역) · `adaptLOD`(SW4 거리 LOD·merge/fragment 를 거리 임계로 재사용) · `pairPotentialEnergy`(역학E) · `equivalentRadius`
 - `htj-hybrid.js`: `autoPromoteStable`(동결→승격) · `autoDemoteOnDisturbance`(충돌/외력→강등) · `applyUnifiedGravity`(개체↔유체) · `activeCellCount`
 - `htj-bhtree.js`: `computeAccelerations`(Barnes-Hut O(N log N)) · `htj-cluster.js detectClumps`(검출) · `htj-activity.js createActivityTracker`(동결 판정)
+- `htj-sph.js`: `kernelW`(3D 3차 B-스플라인 커널·정규화 ∫W dV=1) · `sphDensity`(SW5 밀도 ρ=Σ m·W·수동 측정) · `kernelGradW`(∇_iW 반대칭) · `sphPressureForce`(SW5 압력 P=k·ρ^γ·대칭 쌍힘·운동량 보존) — 열/점성은 후속 SW5 벽돌이 이 위에 선다
 
 **가로지르는 제약(전 step 준수)** [sphere-world.md §7]: 보존 최우선 · 결정론(약한 재정의·임계는 시뮬 상수) · 가법성(닫은 step 불변·버그 한정 예외·한 step=법칙 하나) · 측정으로 결정(0023 교훈).
 
@@ -52,12 +59,12 @@
 
 ## §4. 열린 격차 / 결정 대기
 
-- **구체 세계(active)**: SW4~SW5 미구현(§2 로드맵). 현 substrate 는 *중력 + 합치기(SW1) + 접촉 반발·소산(SW2) + 쪼개기(SW3)* — 적응 LOD(SW4)·SPH(SW5) 없음. SW2 한계: 법선 접촉만(마찰·구름 없음 → 경사면 못 섬)·선형 Hooke. SW3 한계: 분산 KE 가 부모 internalE 에서(충돌 운동E 소비 아님)·조각 수 n 고정·등질량 평면 고리 배치.
+- **구체 세계(active)**: SW5 진행 중(§2 로드맵). 현 substrate 는 *중력 + 합치기(SW1) + 접촉 반발·소산(SW2) + 쪼개기(SW3) + 적응 LOD(SW4) + SPH 밀도(0040) + SPH 압력(0041)*. SW5 미완: 압력은 힘만(총E 닫힘 안 됨)·점성·열 없음·격자 유체 은퇴 안 됨. SW2 한계: 법선 접촉만(마찰·구름 없음 → 경사면 못 섬)·선형 Hooke. SW3 한계: 분산 KE 가 부모 internalE 에서(충돌 운동E 소비 아님)·조각 수 n 고정·등질량 평면 고리 배치. SW4 한계: 모양 복원 근사(refine=평면 고리·약한 결정론)·블록 버킷 고정 격자(옥트리 다단계 아님·2단계 near/far)·coarsen 은 블록당 2+ 일 때만.
 - **격자(비계 — SW5 까지만 유효, 구체 표현이 점차 대체)**: 비트 완벽 보존 아님(진공 운동량 소산·음향 1차 — 보존형 총E flux 재작성 필요) · 이류 1차 수치 확산(MUSCL 별도) · 중력 BC 주기↔no-flux 불일치 · 렌더 내부 구조/이중 채널 안 됨 · 복사 흡수·점화 전파 보류.
 
 ## §5. 시리즈 인덱스 (step별 한 줄 요약)
 
-> 0002~0013 = 격자 13 법칙(비계) · 0014~0025 = 확장성 인프라(S1~S4) · **0026~0038 = 구체 substrate·세계(토대)**.
+> 0002~0013 = 격자 13 법칙(비계) · 0014~0025 = 확장성 인프라(S1~S4) · **0026~0041 = 구체 substrate·세계(토대)**.
 
 | step | 한 줄 요약 |
 |---|---|
@@ -99,4 +106,7 @@
 | 0036 | **(SW1) 구체 합치기(강착)** — 닿고 느린 구체→큰 구체. 4 보존량 정확·궤도 L→스핀·강착열·N↓. mergeEntities. |
 | 0037 | **(SW2) 접촉(반발+소산·DEM)** — 겹친 구체를 반발(Hooke 쌍힘=운동량 보존·탄성 PE 가역)로 떠받치고 감쇠(소산→열 비가역)로 멈춤. 쌓이고·표면·"선다". 총E 보존. applyEntityContact. |
 | 0038 | **(SW3) 쪼개기(파편화)** — mergeGroup 의 역: 닿고 빠른 구체→n 조각. 4 보존량 정확(스핀 L/n·결합열→분산 KE)·재파편 폭주 차단. 합치기↔쪼개기 왕복 완성. fragmentEntity·fragmentOnImpact. |
+| 0039 | **(SW4) 적응 LOD** — 멀면 합치고(coarse·블록당 1)·가까이서 쪼갬(fine). merge(0036)/fragment(0038)를 *거리 임계*로 재사용·벌크 정확·비용이 관찰 영역에 묶임(세계 크기 분리). 0034 격자 LOD 의 Lagrangian 판. adaptLOD. |
+| 0040 | **(SW5 착수) SPH 밀도 추정** — 유체를 구체로(htj-sph.js). ρ=Σ m·W(3D 3차 B-스플라인·정규화 1)·이웃 합으로 국소 밀도·균일→참 밀도·밀집→ρ↑. 수동 측정(힘 없음·회귀0). 압력·점성·열의 토대. |
+| 0041 | **(SW5) SPH 압력 힘** — P=k·ρ^γ + ∇W 대칭 쌍힘(a_i=−Σ m_j(P_i/ρ_i²+P_j/ρ_j²)∇_iW). F_ij=−F_ji→순 운동량 정확 보존·P≥0→가스 퍼짐·중력↔압력=유한 가스 공. 0008/0010 의 SPH 판. 압력 일↔내부E 닫힘은 다음. sphPressureForce·kernelGradW. |
 </content>
