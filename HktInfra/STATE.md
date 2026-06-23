@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0146](step-0146.md) — **우편 저널 스냅샷 압축**(mailSnapshot): 0145 저널 무압축→무한 성장. 저널 N항(snapInterval)마다 projection 스냅샷+가지치기 → tail 만 유계 보관. reconstruct(스냅샷+tail) == 무압축 full == 라이브 *비트 동일*(거래소 0110·가방 0018 의 우편 판·무손실 압축). 압축은 저널 쪽 일(라이브 비-침습). snapInterval 0·mail OFF = 0145 비트 동일. 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(src=baseline=0145 비트 동일)·exmail: snap+tail(2) == full(8) == live digest 3자 비트 동일·tail<full·accountConsistent·spine 통과.
-- **다음**: §2 참조(0147 우편 읽음 확인 발행 mailReadPublish — svc.mail.read).
+- **닫힌 step**: [step-0147](step-0147.md) — **우편 읽음 확인 발행**(mailReadPublish·svc.mail.read): 0144 는 입금만 발행 — 수령(읽음)은 관측 불가였다. 이 step: mailFetch 수령 시 통마다 svc.mail.read 발행 → audit(무수정 소비자)가 읽음 관측(수명주기 발행 확장·입금 발행의 짝). 우편함 권위 불변(비-침습). OFF·bus 부재 = 0146 비트 동일. 닿는 박스: svc-mail·topo-build·topo-subs.
+- **한 줄 상태**: reg ALL OK(src=baseline=0146 비트 동일)·exmail: readPublished 3==audit.seen 3==fetched 3·발행 ON/OFF totalHeld/fetched 동일(비-침습)·OFF 발행 0·spine 통과.
+- **다음**: §2 참조(0148 우편 만료 TTL mailTtl — sent==held+fetched+expired).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 서비스 arc 진행 중(0142~0146 분리/수령/발행/영속/압축✅). 남은: 0147 읽음확인 발행(svc.mail.read)→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·거래소 발행 7종·우편 발행 1종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
+**우편(Mail) 서비스 arc 진행 중(0142~0147 분리/수령/발행/영속/압축/읽음발행✅). 남은: 0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·거래소 발행 7종·우편 발행 2종(sent·read). 🔎 0131~0140 묶음 리뷰 적기(병행).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -137,7 +137,7 @@
 | [0039](step-0039.md) | 버스 replay 버퍼 유계화(busWindow 슬라이딩 K 창) | 통과 |
 | [0040](step-0040.md) | 요청 replay 버퍼 자기조정(busAck — reqId ack→워터마크) | OK |
 | [0041](step-0041.md) | 결과 replay 버퍼 자기조정(busOutAck — outSeq ack) | 통과 |
-| [0042](step-0042.md) | seenReqs dedup 유계화(busSeenBound — inAcked 워터마크) | 통과 · peak 60→24 |
+| [0042](step-0042.md) | seenReqs dedup 유계화(busSeenBound — inAcked 워터마크) | 통과 |
 | [0043](step-0043.md) | 정리: svc-inventory.js 박스-부품 3분할(34KB) | 통과 |
 | [0044](step-0044.md) | 다중 소비자 min-워터마크(busMinWm — 결과 버퍼=소비자 frontier 최소) | 통과 |
 | [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease — 침묵 길이로 죽은 소비자 축출) | 통과 |
@@ -147,8 +147,8 @@
 | [0049](step-0049.md) | 단일 살아있는 소스 src/ 전환(복사 전진 폐기·기능 0·reg 0) | OK · src=baseline=0048 |
 | [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt — 축출 임계를 ack cadence 로 self-size) | 통과 |
 | [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace — 적응형 lease bootstrap floor) | 통과 |
-| [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max) | 통과 · stall 후 ON 0 |
-| [0053](step-0053.md) | 정리: 트랜잭션 onMsg→svc-inventory-txn.js 추출(31.9→25.5KB) | 통과 · spine 53 |
+| [0052](step-0052.md) | 윈도 cadence(busCadenceWindow — 추정=최근 K gap max) | 통과 |
+| [0053](step-0053.md) | 정리: 트랜잭션 onMsg→svc-inventory-txn.js 추출(31.9→25.5KB) | 통과 |
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→audit) | 통과 |
 | [0055](step-0055.md) | lease 생애 반응(busLeasePresence — lease→consumerDown) | 통과 |
 | [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독) | 통과 |
@@ -181,7 +181,7 @@
 | [0083](step-0083.md) | 파티 1:N 영수증 집계(partyReceipt — {members,routed,bounced}) | 통과 |
 | [0084](step-0084.md) | 증분 가입/탈퇴+변경 발행(partyChange — Join/Leave·svc.party.changed) | 통과 |
 | [0085](step-0085.md) | 파티 멤버십 영속·failover(partyPersist — 변경 저널 replay·crash→recon) | 통과 |
-| [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — 스냅샷+tail replay) | 통과 · tail 2 |
+| [0086](step-0086.md) | 파티 저널 스냅샷 압축(partySnapshot — 스냅샷+tail replay) | 통과 |
 | [0087](step-0087.md) | 전달 수명주기 관측(deliveredPublish — svc.whisper.delivered) | 통과 |
 | [0088](step-0088.md) | 파티 ack 집계(partyAckTally — acked=delivered==routed) | 통과 |
 | [0089](step-0089.md) | producer epoch 워터마크(epochKeyed — restart epoch++·(prod,epoch) 키) | 통과 |
@@ -220,11 +220,11 @@
 | [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate — give 실패→abort) | 통과 · aborted ON1/OFF0 |
 | [0123](step-0123.md) | 보상 발행(abortPublish — svc.exchange.aborted·수명주기 발행 4종) | 통과 · aborted 1 |
 | [0124](step-0124.md) | 정리: svc-exchange.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 32.4→12.5/7.0/1.1KB |
-| [0125](step-0125.md) | saga 미해결 give 추적+회신 손실 감지(pendingGives·gid) | 통과 · 정상 0·손실 pending 9 |
-| [0126](step-0126.md) | saga 회신 재전송+idempotent dedup(exchRetry·sagaDedup) | 통과 · dedupON 안전·OFF open!=escrow |
+| [0125](step-0125.md) | saga 미해결 give 추적+회신 손실 감지(pendingGives·gid) | 통과 · 손실 pending 9 |
+| [0126](step-0126.md) | saga 회신 재전송+idempotent dedup(exchRetry·sagaDedup) | 통과 · dedup 안전 |
 | [0127](step-0127.md) | saga dedup 유계화(sagaDedupBound·saga_done — ack 시 prune 통보) | 통과 · bound sagaResults 0 |
 | [0128](step-0128.md) | saga 회계 정합 불변(sagaConsistent — gives==acked+pending) | 통과 · 3체제 true |
-| [0129](step-0129.md) | saga 자동 재전송(autoRetry — exchSweep 피기백·주기 재전송) | 통과 · retries 2/pending 0 |
+| [0129](step-0129.md) | saga 자동 재전송(autoRetry — exchSweep 피기백·주기 재전송) | 통과 |
 | [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers — 요청≡실행 회계) | 통과 · giveOks==escrowXfers 9 |
 | [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — gid 당 N회·포기 abort 아님) | 통과 · retries 2·open==escrow·spine 131 |
 | [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned) | 통과 · pub 1==abandoned 1·spine 132 |
@@ -242,3 +242,4 @@
 | [0144](step-0144.md) | 우편 입금 발행(mailSentPublish — svc.mail.sent·audit 무수정 관측) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
 | [0145](step-0145.md) | 우편 영속·failover(mailPersist — op 저널 replay·crash→reconstruct) | 통과 · reconstruct==pre digest·OFF 소실·accountConsistent |
 | [0146](step-0146.md) | 우편 저널 스냅샷 압축(mailSnapshot — 스냅샷+tail==full==live 비트 동일) | 통과 · tail 2<full 8·3자 비트동일·accountConsistent |
+| [0147](step-0147.md) | 우편 읽음 확인 발행(mailReadPublish — svc.mail.read·audit 무수정 관측) | 통과 · readPublished 3==audit 3==fetched·비-침습·OFF 0 |

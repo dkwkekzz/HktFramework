@@ -1,4 +1,7 @@
 'use strict';
+// step-0146 — 우편 저널 스냅샷 압축(mailSnapshot): 0145 저널은 무압축이라 send/fetch 누적으로 무한 성장한다.
+//   거래소 0110·가방 0018 처럼, 저널 N항(snapInterval)마다 현재 projection 을 스냅샷(upToSeq=jseq)하고 그 이하 저널을 가지치기 → *tail 만* 유계 보관.
+//   reconstruct 는 스냅샷에서 출발해 tail 만 replay → 전체-저널 replay 와 *비트 동일*(무손실 압축). 라이브 projection 비-침습(압축은 저널 쪽 일). snapInterval 0 면 0145 비트 동일.
 // step-0145 — 우편 영속·failover(mailPersist·op 저널 replay): 0142~0144 우편함은 *자기 영속 0* — crash 시 보유·수령이 전부 휘발했다.
 //   가방 0017(효과 저널)·거래소 0109(op 저널)처럼, 우편도 원장을 바꾼 op(send·fetch)를 durable 저널에 append 하고, crash(projection 소실) 후 그 저널을 seq 순 replay 해
 //   우편함+읽음+회계를 *죽기 전과 비트 동일*하게 재구성한다(event sourcing·발신/발행 없이 순수 재현). persist OFF·미replay 면 소실(영속 부재의 대가 = 대조군). "세계가 세션보다 오래 산다".
@@ -34,9 +37,32 @@ class MailService {
     this.persist = opts.persist || false;   // 원장 영속(step-0145·mailPersist) — send/fetch op 를 durable 저널에 기록·crash 후 replay. OFF 면 저널 0(0144 동일·휘발).
     this.journal = [];             // durable op 저널 [{seq,kind,...}](step-0145) — projection(우편함·읽음·회계)과 분리(crash 시 projection 만 소실).
     this.jseq = 0;                 // 저널 시퀀스(append-only).
+    this.snapInterval = opts.snapInterval || 0;   // 저널 스냅샷 압축(step-0146·mailSnapshot) — 저널 N항마다 projection 스냅샷+가지치기. 0 면 무압축(0145 동일).
+    this.snapshot = null;          // {upToSeq, state}(step-0146) — 마지막 압축 스냅샷. reconstruct 의 출발점.
+  }
+  // projection 스냅샷/복원(step-0146) — 우편함(보유)·읽음·회계를 plain 구조로 직렬화/역직렬화(스냅샷 압축의 베이스).
+  _snapState() {
+    return {
+      boxes: [...this.boxes].map(([r, mm]) => [r, [...mm.values()].map(x => ({ ...x }))]),
+      read: [...this.read].map(([r, arr]) => [r, arr.map(x => ({ ...x }))]),
+      sent: this.sent, fetched: this.fetched, expired: this.expired,
+    };
+  }
+  _restore(s) {
+    this.boxes = new Map(s.boxes.map(([r, arr]) => [r, new Map(arr.map(x => [x.id, { ...x }]))]));
+    this.read = new Map(s.read.map(([r, arr]) => [r, arr.map(x => ({ ...x }))]));
+    this.sent = s.sent; this.fetched = s.fetched; this.expired = s.expired;
   }
   // op 저널 추가(step-0145) — 우편함을 바꾼 op(send/fetch)만 durable 저널에 append. persist OFF 면 no-op(0144 동일).
-  _journal(entry) { if (!this.persist) return; this.journal.push({ seq: ++this.jseq, ...entry }); }
+  //   step-0146: snapInterval 도달 시 현재 projection 을 스냅샷(upToSeq=jseq)하고 그 이하 저널을 가지치기 → tail 만 유계 보관.
+  _journal(entry) {
+    if (!this.persist) return;
+    this.journal.push({ seq: ++this.jseq, ...entry });
+    if (this.snapInterval > 0 && this.journal.length >= this.snapInterval) {
+      this.snapshot = { upToSeq: this.jseq, state: this._snapState() };
+      this.journal = this.journal.filter(e => e.seq > this.jseq);   // tail 만(방금 upToSeq 이하 전부 가지치기 → 0)
+    }
+  }
   _box(rcpt) { if (!this.boxes.has(rcpt)) this.boxes.set(rcpt, new Map()); return this.boxes.get(rcpt); }
   onMsg(m) {
     const p = m && m.payload;
@@ -81,7 +107,9 @@ class MailService {
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
+  //   step-0146: 스냅샷이 있으면 그 projection 에서 출발해 tail(seq>upToSeq)만 replay(스냅샷 압축 — 전체 replay 와 비트 동일).
   reconstruct() {
+    if (this.snapshot) this._restore(this.snapshot.state);
     for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) {
       if (e.kind === 'send') {
         const box = this._box(e.to);

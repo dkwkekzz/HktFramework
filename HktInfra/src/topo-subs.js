@@ -44,6 +44,7 @@ function buildSubs(c) {
   if (c.marketFeed && c.exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); subs.push(['svc.exchange.expired', 'market']); }   // 시세 피드(0112·0116) — MarketFeed 가 체결·취소·만료 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
   if (c.audit && c.bouncePublish && c.whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
   if (c.audit && c.mail && c.mailSentPublish) subs.push(['svc.mail.sent', 'audit']);   // 우편 입금 발행(0144) — audit 가 svc.mail.sent 구독(우편 발송 관측·거래소 0108 의 우편 판). mailSentPublish OFF 면 미추가(0143 토폴로지 비트 동일).
+  if (c.audit && c.mail && c.mailReadPublish) subs.push(['svc.mail.read', 'audit']);   // 우편 읽음 발행(0147) — audit 가 svc.mail.read 구독(수령 관측·수명주기 발행 확장). mailReadPublish OFF 면 미추가(0146 토폴로지 비트 동일).
   return subs;
 }
 

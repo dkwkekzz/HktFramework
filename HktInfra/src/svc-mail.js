@@ -1,4 +1,6 @@
 'use strict';
+// step-0147 — 우편 읽음 확인 발행(mailReadPublish·svc.mail.read): 0144 는 *입금*만 발행했다 — 수령(읽음)은 운영/발신자가 관측할 길이 없었다.
+//   이 step: mailFetch 수령 시 통마다 svc.mail.read{id,to,from} 발행 → audit/발신자가 *읽음*을 관측(수명주기 발행 확장·거래소 sold/cancelled 류). 우편함 권위 불변(발행=파생 스트림·비-침습). OFF·bus 부재면 발행 0 = 0146 비트 동일.
 // step-0146 — 우편 저널 스냅샷 압축(mailSnapshot): 0145 저널은 무압축이라 send/fetch 누적으로 무한 성장한다.
 //   거래소 0110·가방 0018 처럼, 저널 N항(snapInterval)마다 현재 projection 을 스냅샷(upToSeq=jseq)하고 그 이하 저널을 가지치기 → *tail 만* 유계 보관.
 //   reconstruct 는 스냅샷에서 출발해 tail 만 replay → 전체-저널 replay 와 *비트 동일*(무손실 압축). 라이브 projection 비-침습(압축은 저널 쪽 일). snapInterval 0 면 0145 비트 동일.
@@ -28,6 +30,8 @@ class MailService {
     this.bus = opts.bus || null;   // 발행용(svc.mail.* 발행 — 0144~).
     this.sentPublish = opts.sentPublish || false;   // 입금 발행(step-0144·mailSentPublish) — mailSend 시 svc.mail.sent 발행. OFF·bus 부재면 발행 0(0143 비트 동일).
     this.sentPublished = 0;        // 발행한 svc.mail.sent 수(step-0144·계측·sent 와 1:1).
+    this.readPublish = opts.readPublish || false;   // 읽음 발행(step-0147·mailReadPublish) — mailFetch 수령 시 통마다 svc.mail.read 발행. OFF·bus 부재면 발행 0(0146 비트 동일).
+    this.readPublished = 0;        // 발행한 svc.mail.read 수(step-0147·계측·fetched 와 1:1).
     this.boxes = new Map();        // recipient -> Map(mailId -> mail) — 우편함 권위(단일 소유·보유 held).
     this.sent = 0;                 // 총 입금 통수(회계 — 0150 sent==held+fetched+expired 의 좌변).
     this.fetched = 0;              // 총 수령 통수(step-0143 — 수신자가 가져간 합).
@@ -95,6 +99,8 @@ class MailService {
         this.fetched += out.length;
         box.clear();   // 보유→수령 이동(무손실·중복 0). 빈 Map 유지(held(rcpt)==0).
         this._journal({ kind: 'fetch', to: rcpt });   // step-0145: durable op(수령도 replay 정합 — replay 시 그 시점 보유분을 동일 이동)
+        // 읽음 발행(step-0147·mailReadPublish) — 수령 통마다 svc.mail.read 발행(운영/발신자 읽음 관측). OFF·bus 부재면 no-op(0146 비트 동일·발행은 replay 에서 안 함).
+        if (this.readPublish && this.bus && this.net) for (const mm of out) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.read', ev: { id: mm.id, to: rcpt, from: mm.from } }); this.readPublished++; }
       }
       this._lastFetch = { to: rcpt, mails: out };
       return;
@@ -103,7 +109,7 @@ class MailService {
   // crash(step-0145) — 박스 RAM 소실의 인프로세스 모델: projection(우편함·읽음·회계)만 비운다. *op 저널은 durable* 이라 보존(거래소 0109 의 우편 판).
   crash() {
     this.boxes = new Map(); this.read = new Map();
-    this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this._seq = 0; this._lastFetch = null;
+    this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this._seq = 0; this._lastFetch = null;
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
