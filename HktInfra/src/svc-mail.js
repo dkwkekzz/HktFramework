@@ -1,4 +1,7 @@
 'use strict';
+// step-0161 — 아이템 우편 발신 인출 leg1(mailInv·invMode): 0157~0160 은 아이템을 *우편 박스 안 회계*로만 추적했다 — 발신자 가방서 실물이 안 빠졌다(리뷰 #40).
+//   이 step: invMode ON 이면 mailSend 가 아이템을 발신자 가방→우편 custody('mailcustody')로 give(거래소 0117 list 인출 leg 의 우편 판). 가방이 권위·우편은 요청만(은닉). 수령 입금(0162)·만료 반환(0163)·2-서비스 보존(0164) 후속.
+//   mailInv OFF·item 부재·inv 부재면 give 0 = 0160 비트 동일(우편 박스 내 회계만·가방 무변경).
 // step-0160 — 아이템 우편 회계 정합 capstone(itemConsistent·itemSent==itemHeld+itemFetched+itemExpired): 0157~0159 가 아이템의 입금·수령·만료를 쌓았다. 그 회계가 *대수적으로 닫혀* 있는가?
 //   itemConsistent: 아이템 1개는 매 순간 정확히 한 상태 — 보유(itemHeld)·수령(itemFetched)·만료(itemExpired) 으로 분할(공백·중복 0). itemSent == 셋의 합이 *모든 체제*(수령만·만료만·혼합·crash 복구)서 성립.
 //   0150 mailConsistent(메시지 통수 판)의 *아이템 판*·아이템 우편 arc(0157~0160) 닫기. 미호출 read accessor = 0159 비트 동일(reg).
@@ -68,6 +71,16 @@ class MailService {
     this.jseq = 0;                 // 저널 시퀀스(append-only).
     this.snapInterval = opts.snapInterval || 0;   // 저널 스냅샷 압축(step-0146·mailSnapshot) — 저널 N항마다 projection 스냅샷+가지치기. 0 면 무압축(0145 동일).
     this.snapshot = null;          // {upToSeq, state}(step-0146) — 마지막 압축 스냅샷. reconstruct 의 출발점.
+    this.inv = opts.inv || null;        // 가방(inventory) 주소(step-0161·mailInv) — 아이템 우편 custody give 의 대상. 부재면 우편 박스 내 회계만(0160 동일).
+    this.invMode = opts.invMode || false;   // 아이템 우편 가방 연동(step-0161) — ON 이면 mailSend/fetch/expire 가 가방 give 로 custody 이동. OFF 면 0160 비트 동일.
+    this.gives = 0;                // 발신한 custody give 수(step-0161 — 거래소 0117 _custody 의 우편 판·0169 회계·0170 교차 정합 대비).
+  }
+  // custody 이동 헬퍼(step-0161) — 아이템 우편 가방 연동의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(from→to). 가방이 권위·우편은 요청만(은닉). 미충족이면 no-op(0160 비트 동일).
+  //   custody 의제 소유자 'mailcustody' — 발신~수령/만료 사이 in-transit 아이템 보관(거래소 'escrow' 의 우편 판). cause 로 leg 구분(mailsend/mailfetch/mailexpire).
+  _custody(itemId, from, to, cause) {
+    if (!this.invMode || !this.inv || itemId == null || !this.net) return;
+    this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to, cause });
+    this.gives++;
   }
   // projection 스냅샷/복원(step-0146) — 우편함(보유)·읽음·회계를 plain 구조로 직렬화/역직렬화(스냅샷 압축의 베이스).
   _snapState() {
@@ -109,6 +122,7 @@ class MailService {
       this.sent++;
       if (item != null) this.itemSent++;
       this._journal({ kind: 'send', id, from: p.from, to: rcpt, body: p.body, sentAt, item });   // step-0145: durable op (step-0157: item 동봉)
+      if (item != null) this._custody(item, p.from, 'mailcustody', 'mailsend');   // step-0161: 발신 인출 leg1 — 발신자 가방→우편 custody(거래소 0117 의 우편 판·invMode OFF 면 no-op)
       // 입금 발행(step-0144·mailSentPublish) — svc.mail.sent 로 1회 발행(운영 가시화·audit 관측). OFF·bus 부재면 no-op(0143 비트 동일).
       if (this.sentPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.sent', ev: { id, from: p.from, to: rcpt, sentAt } }); this.sentPublished++; }
       return;
@@ -159,6 +173,7 @@ class MailService {
     this.boxes = new Map(); this.read = new Map();
     this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this.expirePublished = 0; this._seq = 0; this._lastFetch = null;
     this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
+    this.gives = 0;   // step-0161: custody give 계측 리셋(가방 give 는 외부 — 우편 박스 RAM 소실 모델)
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
