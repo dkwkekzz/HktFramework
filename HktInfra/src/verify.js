@@ -1,8 +1,8 @@
-// HktInfra step-0153 — 헤드리스 검증 (MailFeed 만료 반영·mailFeedExpire — svc.mail.expired 구독→unread--)
+// HktInfra step-0154 — 헤드리스 검증 (MailFeed 영속·late-join·mailFeedReconstruct — 우편 op 저널 replay 로 배지 복원)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlfexp`.
-//   더한 한 조각: MailFeed 가 svc.mail.expired(0149)도 구독해 만료 시 unread 차감·expired++ → 미수령 만료 우편이 배지에서 사라진다. 회계 unread==sent−read−expired 로 닫힘.
-//   검증: ⒜ `reg`(키트) — mailFeedExpire OFF = 0152 비트 동일(expired 토픽 미구독). ⒝ `exmlfexp`(가설) — 만료한 만큼 unread 감소·unread==sent−read−expired.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlfrec`.
+//   더한 한 조각: MailFeed.reconstruct(journal) — 자기 영속 0 인데도 우편 박스 op 저널(0145)을 replay 해 배지(unread/sent/read/expired)를 재계산(MarketFeed 0113·ranking 0020 의 우편 판·CQRS late-join).
+//   검증: ⒜ `reg`(키트) — reconstruct 미호출 = 0153 비트 동일. ⒝ `exmlfrec`(가설) — crash 후 reconstruct == 라이브 배지(digest 동일)·feed==우편 권위.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -18,32 +18,34 @@ const { check, pad } = kit.helpers;
 const SEND = (at, id, from, to, body) => ({ at, op: { type: 'mailSend', id, from, to, body } });
 const FETCH = (at, to) => ({ at, op: { type: 'mailFetch', to } });
 const SWEEP = (at) => ({ at, op: { type: 'mailSweep' } });
-// 발행→구독 전제: bus·mail*Publish 3종·mailFeed·mailFeedRead·mailFeedExpire ON. ttl 로 만료 트리거.
-const base = (seed, ops, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailSentPublish: true, mailReadPublish: true, mailExpirePublish: true, mailFeed: true, mailFeedRead: true, mailFeedExpire: true, mailTtl: 10, mailOps: ops, ...extra });
+// mailPersist ON → 우편 op 저널 존재(reconstruct 의 복구원). 발행 3종·feed 3종 구독 ON.
+const base = (seed, ops, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailPersist: true, mailSentPublish: true, mailReadPublish: true, mailExpirePublish: true, mailFeed: true, mailFeedRead: true, mailFeedExpire: true, mailTtl: 10, mailOps: ops, ...extra });
 
-function exmlfexp(seeds) {
-  console.log('== exmlfexp: MailFeed 만료 반영(svc.mail.expired 구독→unread--). 미수령 만료 우편이 배지에서 사라진다. unread==sent−read−expired. ==');
-  console.log('seed   | h1 u/r/e | h2 u/r/e | total unread | unread==sent−read−expired | 판정');
+function exmlfrec(seeds) {
+  console.log('== exmlfrec: MailFeed 영속·late-join(reconstruct — 우편 op 저널 replay). 자기 영속 0 인데도 우편 저널로 배지 완전 복원. crash 후 reconstruct==라이브(digest 동일). ==');
+  console.log('seed   | 라이브 digest | reconstruct digest | 동일 | feed==auth | 판정');
   for (const seed of seeds) {
-    // h1 3통 입금+수령(read 3·unread 0). h2 2통 입금·미수령→sweep 만료(expired 2·unread 0).
-    const ops = [SEND(5, 'a', 'x', 'h1', '1'), SEND(6, 'b', 'x', 'h1', '2'), SEND(7, 'c', 'x', 'h1', '3'), SEND(8, 'd', 'y', 'h2', '4'), SEND(9, 'e', 'y', 'h2', '5'), FETCH(15, 'h1'), SWEEP(30)];
+    // h1 3통 입금+수령(read 3)·h2 2통 입금+만료(expired 2)·h3 1통 입금 생존(unread 1).
+    const ops = [SEND(5, 'a', 'x', 'h1', '1'), SEND(6, 'b', 'x', 'h1', '2'), SEND(7, 'c', 'x', 'h1', '3'), SEND(8, 'd', 'y', 'h2', '4'), SEND(9, 'e', 'y', 'h2', '5'), FETCH(15, 'h1'), SWEEP(30), SEND(32, 'g', 'z', 'h3', '6')];
     const r = run(base(seed, ops));
-    const f = r.mailfeed;
-    const u1 = f.unreadOf('h1'), r1 = f.readOf('h1'), e1 = f.expiredOf('h1');
-    const u2 = f.unreadOf('h2'), r2 = f.readOf('h2'), e2 = f.expiredOf('h2');
-    const tot = f.totalUnread();
-    const inv = (u1 === f.sentOf('h1') - r1 - e1) && (u2 === f.sentOf('h2') - r2 - e2);
+    const f = r.mailfeed, mail = r.mail;
+    const liveDig = f.digest();
+    // feed 투영 == 우편 박스 권위(라이브): unread==held·read==fetched·expired (per recipient).
+    const feedEqAuth = ['h1', 'h2', 'h3'].every(h => f.unreadOf(h) === mail.held(h) && f.readOf(h) === mail.fetchedOf(h));
+    // crash → 우편 저널 replay 로 복원.
+    f.crash(); f.reconstruct(mail.journal);
+    const recDig = f.digest();
+    const same = (recDig === liveDig);
     const ok =
-      check(u1 === 0 && r1 === 3 && e1 === 0, `seed ${seed}: h1 u/r/e ${u1}/${r1}/${e1}≠0/3/0`) &&
-      check(u2 === 0 && r2 === 0 && e2 === 2, `seed ${seed}: h2 u/r/e ${u2}/${r2}/${e2}≠0/0/2`) &&
-      check(tot === 0, `seed ${seed}: totalUnread ${tot}≠0`) &&
-      check(inv, `seed ${seed}: unread≠sent−read−expired`);
-    console.log(`${pad(seed, 6)} | ${pad(u1 + '/' + r1 + '/' + e1, 8)} | ${pad(u2 + '/' + r2 + '/' + e2, 8)} | ${pad(tot, 12)} | ${pad(inv ? '예' : '아니오', 25)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(feedEqAuth, `seed ${seed}: 라이브 feed≠우편 권위`) &&
+      check(same, `seed ${seed}: reconstruct digest≠라이브(${recDig} vs ${liveDig})`) &&
+      check(f.unreadOf('h3') === 1, `seed ${seed}: 복원 후 h3 unread≠1`);
+    console.log(`${pad(seed, 6)} | ${pad('0x' + liveDig.toString(16), 13)} | ${pad('0x' + recDig.toString(16), 18)} | ${pad(same ? '예' : '아니오', 4)} | ${pad(feedEqAuth ? '예' : '아니오', 10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 만료(svc.mail.expired) 구독으로 미수령 만료 우편이 배지에서 사라진다: unread==sent−read−expired(per recipient). 0151~0153 으로 배지가 입금(+)·읽음(−)·만료(−) 전 수명주기를 반영. 영속·late-join(0154)·회계 정합 capstone(0155)·질의(0156) 후속. mailFeedExpire OFF=0152 비트 동일(reg).');
+  console.log('  → MailFeed 는 자기 영속 0 이어도 우편 박스 durable op 저널(0145)을 replay 해 배지를 완전 복원한다(CQRS late-join·MarketFeed 0113 의 우편 판): crash 후 reconstruct == 라이브 배지(digest 동일)·다운타임에 놓친 발행도 우편 저널이 메운다. 회계 정합 capstone(0155)·배지 질의(0156) 후속. reconstruct 미호출=0153 비트 동일(reg).');
 }
 
-kit.MODES['exmlfexp'] = exmlfexp;
-kit.ORDER.splice(1, 0, 'exmlfexp');
+kit.MODES['exmlfrec'] = exmlfrec;
+kit.ORDER.splice(1, 0, 'exmlfrec');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
