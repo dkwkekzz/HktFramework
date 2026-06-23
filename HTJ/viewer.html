@@ -1082,6 +1082,49 @@
         updateTemperature(w);
       },
       note: '<b>밀집한 격자 유체가 SPH 입자로 옮겨가고 그 자리의 격자는 비워진다 — 격자가 점차 은퇴한다</b>(구체 세계 SW5·격자 은퇴 엮기의 첫 live 장면). <b>▶ 무엇</b>: SW5 의 최종 목적지는 <b>격자 유체를 구체(SPH)로 옮겨 격자를 은퇴</b>시키는 것(design §6). 0051 은 그 *이주 메커니즘*을 격자장을 <b>읽어 복사</b>로 보였다(격자·입자 중복). 이 step 은 그 <b>*이동* 판 = 자동 이주 트리거</b>: 격자 유체가 자기중력으로 붕괴하다 <b>충분히 밀집한 셀</b>(ρ&gt;trig)이 <b>SPH 입자로 옮겨가고, 그 셀은 격자에서 비워진다</b>(rho·운동량·내부E=0). 이게 <b>0035 autoPromote(동결 덩어리를 격자에서 빼내 구체로)의 *유체* 판</b> — 조건(동결 대신 <b>밀집</b>) 충족 영역이 격자에서 빠져나간다. <b>화면</b>: 처음엔 가우시안 블롭이 <b>복셀</b>(격자)로 보인다 → 중력으로 붕괴해 코어가 밀집 → 코어가 임계를 넘는 순간부터 <b>구체(SPH 입자)로 옮겨가고 격자엔 구멍이 생긴다</b> → 옮겨간 입자는 <b>SPH 압력+중력으로 자유 붕괴</b>(Eulerian 격자가 못 하던 Lagrangian 거동)·바깥 헤일로는 아직 격자(복셀)로 남아 흐른다 = <b>두 표현 공존·격자 점진 은퇴</b>. <b>왜 *이동*인가</b>(0051 복사와의 차이): 복사는 (격자+입자) 합이 <b>배가</b>되지만(이중 계산), 이동은 물질이 한 표현에서 다른 표현으로 *옮겨가* <b>(남은 격자 + 입자) 총량이 정확 불변</b> — 이게 "은퇴"의 핵심(이중 표현 방지). 질량·운동량·내부E·KE 정확 보존(verify Δ≈1e-13). <b>왜 중요한가</b>(design §5 난점 3·4): 격자는 *임시 비계*였다 — 구체가 승격돼 나오면 은퇴한다. 이 트리거가 그 은퇴를 <b>자동·가법적</b>으로 굴린다(big-bang 재작성 회피). <b>정직한 한계</b>: 일방(SPH→격자 역이주는 없음·0031 자동 강등의 SPH 판은 후속)·이주된 입자는 격자 중력과 결합 안 함(개체끼리만·통합 중력 0033 의 SPH 판은 후속)·밀집 임계는 장면 노브(결정론 임계 아님). 여기선 *밀집→이주 트리거 한 가지*만.'
+    },
+
+    // ── step_0056 — TW1 산 = 딛는 지형 표면: 기복 정적 앵커 위에 작은 구체가 떨어져 정착(환경 트랙 첫 벽돌) ──
+    //   design/environment.md §3 TW1. 지면(중력원·큰 앵커) + 산(저질량 앵커 = 고체 돌출). 작은 구체가 떨어져
+    //   반발+감쇠(0037)로 표면 위에 정착. 마찰 없어(SW2 한계) 경사면선 낮은 데로 굴러내림(창발). 앵커는 정적(고정).
+    '0056': {
+      label: 'step_0056 — TW1 산=딛는 지형 표면(구체가 지형 위에 정착)', title: 'HTJ — TW1 산 = 딛는 지형 표면: 작은 구체가 기복 지형 위에 떨어져 선다',
+      sub: '환경 트랙(오픈월드)의 첫 벽돌 — 기복 있는 정적 앵커 지형(지면 + 산 = 모양은 구체 배열에 담김) 위에 작은 구체(캐릭터 대리)가 떨어져 중력↓+접촉 반발↑ 균형으로 정착(딛기). 새 엔진 법칙 0 = 중력(0028)+접촉(0037) 조립. 지형=정적 앵커(질량 무한 극한·외부 경계, 지구처럼). 마찰 없어(SW2 한계) 경사면선 낮은 데로 굴러내림(창발)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const groundR = N * 0.26, mountR = N * 0.10, smallR = N * 0.05;
+        const mk = (cx, cy, cz, mass, r, anchored) => ({ cx, cy, cz, mass, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.15, anchored: !!anchored });
+        const ents = [];
+        ents.push(mk(cen, cen, cen, 6e4, groundR, true));                                  // 지면(중력원·큰 앵커)
+        ents.push(mk(cen, cen, cen + groundR + mountR * 0.8, 1, mountR, true));             // 산 1(저질량 앵커=고체 돌출)
+        ents.push(mk(cen + groundR * 0.7, cen, cen + groundR * 0.62, 1, mountR * 0.85, true)); // 산 2(옆 봉우리)
+        // 작은 구체들 — +z 반구 위에 황금각으로 흩뿌려 떨어뜨림(표면을 덮는 층으로 정착).
+        const gold = Math.PI * (3 - Math.sqrt(5)), nSmall = 16, dropR = N * 0.46;
+        for (let i = 0; i < nSmall; i++) {
+          const zf = 0.2 + 0.75 * (i + 0.5) / nSmall, rr = Math.sqrt(Math.max(0, 1 - zf * zf)), th = gold * i;
+          ents.push(mk(cen + Math.cos(th) * rr * dropR, cen + Math.sin(th) * rr * dropR * 0.6, cen + zf * dropR + 2, 70, smallR, false));
+        }
+        w.__entities = ents;
+        w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz }));
+        w.__gopt = { G: 8e-4, soft: N * 0.08 };       // 지면이 작은 구체를 끈다(중력↓)
+        w.__copt = { k: 14, cDamp: 42 };              // 반발(떠받침) + 강한 감쇠(빨리 정착)
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJEntity.applyEntityGravity(w.__entities, 0.25, w.__gopt);   // 중력↓(0028)
+        HTJEntity.applyEntityContact(w.__entities, 0.25, w.__copt);   // 접촉↑ 반발+감쇠(0037)
+        HTJEntity.stepEntities(w.__entities, 0.25);
+        // 정적 앵커 고정 — 지형은 힘 받아도 위치 불변(질량 무한 극한·environment §4). engine 은 안 건드림.
+        const es = w.__entities, sv = w.__saved;
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; es[i].KEcm = 0; }
+        // 색 = 속도(빠름=뜨겁게·느림=차갑게) → 정착하며 식어 보임. 앵커는 어둡게(지형).
+        let vmax = 0; for (const e of es) if (!e.anchored) { const v = Math.hypot(e.px, e.py, e.pz) / e.mass; if (v > vmax) vmax = v; }
+        for (const e of es) e.peak = e.anchored ? 0.15 : (vmax > 0 ? Math.min(1, (Math.hypot(e.px, e.py, e.pz) / e.mass) / vmax) : 0);
+      },
+      note: '<b>작은 구체(캐릭터 대리)가 기복 있는 지형 위에 떨어져 딛고 선다</b>(환경 트랙 = 오픈월드의 첫 벽돌). <b>▶ 무엇</b>(design/environment.md §3 TW1): 오픈월드 MMORPG 의 본질은 <b>딛고 다닐 광활한 환경</b>이다. 그 첫 조각 = <b>산·지면</b>. sphere-world 의 접촉(0037)이 *단일* 큰 구체 위 쌓임을 보였다면, 이건 그 <b>환경 스케일 판</b>: 지면(큰 앵커) + 산(돌출 앵커)으로 <b>기복 있는 지형</b>을 만들고(모양은 *구체 배열*에 담긴다·sphere-world §3 "지형 디테일") 그 위에 작은 구체를 떨어뜨린다. <b>새 엔진 법칙은 0</b> — 중력(0028)+접촉 반발·소산(0037)을 *조립*해 새 무대에서 굴렸다(0035·0043 류). <b>화면</b>: 작은 구체들이 위에서 떨어져(파랑=빠름) → 지형 표면에 닿아 <b>반발로 떠받쳐지고 감쇠로 멈춘다</b>(노랑→식어 정착) → 표면 위에 <b>딛고 선다</b> = "선 캐릭터 = 중력(무게)↓ + 접촉 반발(떠받침)↑ 균형". <b>지형은 정적 앵커</b>: 힘을 받아도 위치 불변(질량 무한 극한·<b>외부 경계</b>로서 충격 흡수 — 지구처럼, 점프해도 지구는 안 밀린다). 큰 질량 구체끼리의 비현실적 중력 폭발도 이 극한이 피한다. <b>창발 + 정직한 한계</b>: <b>마찰이 없어</b>(SW2 는 법선 접촉만) 경사면에선 못 서고 <b>낮은 데(골)로 굴러내려 모인다</b> — 이건 물리적으로 옳고, 동시에 "<b>딛는 표면엔 마찰이 필요하다</b>"를 드러낸다(다음 환경 벽돌의 씨앗·바다 TW2·강 TW3·광활 LOD TW4 와 함께). <b>왜 중요한가</b>: 이게 동역학(궤도·강착)만 있던 구체 세계에 처음으로 <b>딛고 다닐 환경</b>을 들이는 첫 걸음 — 산도 캐릭터도 *같은 구체*, 크기·배열·정적/자유만 다르다.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
