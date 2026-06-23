@@ -1,8 +1,8 @@
-// HktInfra step-0149 — 헤드리스 검증 (우편 만료 발행·mailExpirePublish — svc.mail.expired·수명주기 발행 3종 완비)
+// HktInfra step-0150 — 헤드리스 검증 (우편 회계 정합 capstone·mailConsistent — sent==held+fetched+expired·0142~0149 arc 의 창발 불변)
 // 사용: node src/verify.js <mode> [seed]
 //   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmail`.
-//   더한 한 조각: 0148 만료는 발행 0 — 발신자/운영이 관측 불가였다. 이 step 은 mailSweep 만료 시 통마다 svc.mail.expired 발행 → audit 관측. 우편 수명주기 발행 3종(sent 0144·read 0147·expired) 완비(거래소 sold/cancelled/expired 와 동형).
-//   검증: ⒜ `reg`(키트) — mailExpirePublish OFF·mail OFF = 0148 비트 동일. ⒝ `exmail`(가설) — ON: expirePublished==expired==audit.seen(svc.mail.expired)·발행 비-침습·OFF: 발행 0·3종 발행 동시 관측.
+//   더한 한 조각: 0142~0149 가 우편 박스(입금→수령→발행→영속→압축→읽음발행→만료TTL→만료발행)를 쌓았다. 그 회계가 *대수적으로 닫혀* 있는가? mailConsistent: 우편 1통은 매 순간 정확히 한 상태 — 보유(held)·수령(fetched)·만료(expired) 으로 분할(공백·중복 0). sent==totalHeld+fetched+expired 가 *모든 체제*서 성립.
+//   검증: ⒜ `reg`(키트) — 미호출 accessor = 0149 비트 동일. ⒝ `exmail`(가설) — 4체제(수령만·만료만·혼합·crash 복구)서 mailConsistent 전부 true + 각 체제 분할 카운트 일치.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -18,38 +18,42 @@ const { check, pad } = kit.helpers;
 const SEND = (at, id, from, to, body) => ({ at, op: { type: 'mailSend', id, from, to, body } });
 const FETCH = (at, to) => ({ at, op: { type: 'mailFetch', to } });
 const SWEEP = (at) => ({ at, op: { type: 'mailSweep' } });
-const base = (seed, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, audit: true, mail: true, ...extra });
-// m0/m1→h1 수령·m2→h3 만료·m3→h5 생존. 3종 발행 모두 켜서 동시 관측.
-const OPS = [
-  SEND(5, 'm0', 'h0', 'h1', 'a'), SEND(8, 'm1', 'h2', 'h1', 'b'), SEND(12, 'm2', 'h0', 'h3', 'c'),
-  FETCH(20, 'h1'), SEND(30, 'm3', 'h0', 'h5', 'd'), SWEEP(35),
-];
-const PUBS = { mailSentPublish: true, mailReadPublish: true, mailExpirePublish: true };
+const base = (seed, ops, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, mail: true, mailPersist: true, mailOps: ops, ...extra });
+
+// 4 체제 — 분할 카운트가 서로 다르되 sent==held+fetched+expired 불변.
+const REGIMES = (seed) => ({
+  // 수령만: 3통 입금·전부 h1 수령 → held 0·fetched 3·expired 0
+  fetchOnly: base(seed, [SEND(5, 'a', 'x', 'h1', '1'), SEND(6, 'b', 'x', 'h1', '2'), SEND(7, 'c', 'x', 'h1', '3'), FETCH(20, 'h1')], { mailTtl: 0 }),
+  // 만료만: 3통 입금·미수령·sweep 만료 → held 0·fetched 0·expired 3
+  expireOnly: base(seed, [SEND(5, 'a', 'x', 'h2', '1'), SEND(6, 'b', 'x', 'h2', '2'), SEND(7, 'c', 'x', 'h3', '3'), SWEEP(30)], { mailTtl: 10 }),
+  // 혼합: 4통·h1 수령(2)·h4 만료(1)·h5 생존(1) → held 1·fetched 2·expired 1
+  mixed: base(seed, [SEND(5, 'a', 'x', 'h1', '1'), SEND(6, 'b', 'x', 'h1', '2'), SEND(8, 'c', 'x', 'h4', '3'), FETCH(20, 'h1'), SEND(30, 'd', 'x', 'h5', '4'), SWEEP(35)], { mailTtl: 10 }),
+});
 
 function exmail(seeds) {
-  console.log('== exmail: 우편 만료 발행(mailExpirePublish·svc.mail.expired) — mailSweep 만료 시 통마다 발행, audit 관측. 수명주기 발행 3종(sent·read·expired) 동시 완비. ON: expirePublished==expired==audit.seen·비-침습. OFF: 발행 0. ==');
-  console.log('seed   | expired | expirePublished | audit(expired) | audit(sent/read) | OFF발행0 | 비-침습 | 판정');
+  console.log('== exmail: *capstone* — 우편 회계 정합(mailConsistent·sent==held+fetched+expired). 우편 1통은 매 순간 정확히 한 상태(보유 held·수령 fetched·만료 expired)에 분할(공백·중복 0). 4체제(수령만·만료만·혼합·crash 복구) 전부 성립. ==');
+  console.log('seed   | fetchOnly(h/f/e) | expireOnly | mixed | crash복구 정합 | 4체제 mailConsistent | 판정');
   for (const seed of seeds) {
-    const on = run({ ...base(seed, { mailOps: OPS, mailTtl: 10, ...PUBS }) });
-    const off = run({ ...base(seed, { mailOps: OPS, mailTtl: 10, mailSentPublish: true, mailReadPublish: true, mailExpirePublish: false }) });
-    const mOn = on.mail, mOff = off.mail;
-    const exp = mOn.expired;                                       // 1
-    const pub = mOn.expirePublished;                               // 1
-    const seenE = on.audit.seen.get('svc.mail.expired') || 0;      // 1
-    const seenS = on.audit.seen.get('svc.mail.sent') || 0;         // 4 (3종 동시)
-    const seenR = on.audit.seen.get('svc.mail.read') || 0;         // 2
-    const offPub = mOff.expirePublished;                           // 0
-    const nonInv = (mOn.expired === mOff.expired && mOn.totalHeld() === mOff.totalHeld() && mOn.fetched === mOff.fetched);
+    const R = REGIMES(seed);
+    const runs = {}; for (const k of Object.keys(R)) runs[k] = run({ ...R[k] });
+    const snap = (r) => { const m = r.mail; return m.totalHeld() + '/' + m.fetched + '/' + m.expired; };
+    const live = Object.values(runs).every(r => r.mail.mailConsistent());
+    // 각 체제 기대 분할
+    const shapes =
+      (runs.fetchOnly.mail.totalHeld() === 0 && runs.fetchOnly.mail.fetched === 3 && runs.fetchOnly.mail.expired === 0) &&
+      (runs.expireOnly.mail.totalHeld() === 0 && runs.expireOnly.mail.fetched === 0 && runs.expireOnly.mail.expired === 3) &&
+      (runs.mixed.mail.totalHeld() === 1 && runs.mixed.mail.fetched === 2 && runs.mixed.mail.expired === 1);
+    // crash 복구 체제: mixed 를 crash→reconstruct 후에도 mailConsistent
+    const m = runs.mixed.mail; const preDig = m.digest(); m.crash(); m.reconstruct();
+    const crashOk = (m.mailConsistent() && m.digest() === preDig);
     const ok =
-      check(exp === 1 && pub === 1, `seed ${seed}: expired ${exp}·published ${pub}(≠1)`) &&
-      check(seenE === 1, `seed ${seed}: audit svc.mail.expired ${seenE}(≠1)`) &&
-      check(seenS === 4 && seenR === 2, `seed ${seed}: 3종 동시 관측 실패(sent ${seenS}≠4·read ${seenR}≠2)`) &&
-      check(offPub === 0, `seed ${seed}: OFF 발행 ${offPub}(≠0)`) &&
-      check(nonInv, `seed ${seed}: 발행이 상태 변경(비-침습 위반)`);
-    console.log(`${pad(seed, 6)} | ${pad(exp, 7)} | ${pad(pub, 15)} | ${pad(seenE, 14)} | ${pad(seenS + '/' + seenR, 16)} | ${pad(offPub === 0 ? '예' : '아니오', 8)} | ${pad(nonInv ? '예' : '아니오', 7)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(live, `seed ${seed}: 어느 체제서 mailConsistent false`) &&
+      check(shapes, `seed ${seed}: 체제별 분할 기대 어긋남(fetchOnly ${snap(runs.fetchOnly)}·expireOnly ${snap(runs.expireOnly)}·mixed ${snap(runs.mixed)})`) &&
+      check(crashOk, `seed ${seed}: crash 복구 후 정합/digest 깨짐`);
+    console.log(`${pad(seed, 6)} | ${pad(snap(runs.fetchOnly), 16)} | ${pad(snap(runs.expireOnly), 10)} | ${pad(snap(runs.mixed), 5)} | ${pad(crashOk ? '예' : '아니오', 13)} | ${pad(live ? '예(4/4)' : '아니오', 20)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 만료 발행으로 우편 수명주기 발행 3종(입금 svc.mail.sent 0144·읽음 svc.mail.read 0147·만료 svc.mail.expired) 완비 — 거래소(sold/cancelled/expired)와 동형. audit 는 구독 행 추가만으로 3종 동시 관측(발행자 무수정). 발행은 우편함 권위 불변(비-침습·expirePublished==expired==audit.seen). OFF·bus 부재면 발행 0 = 0148 비트 동일(reg).');
-  console.log('    다음(0150): 회계 정합 capstone(mailConsistent — sent==held+fetched+expired) — 0142~0149 arc 의 창발 불변을 단언(거래소 0140 sagaLiveConsistent 의 우편 판).');
+  console.log('  → 우편 회계가 *대수적으로 닫힌다*: 우편 1통은 매 순간 정확히 한 상태(보유 held·수령 fetched·만료 expired)에 있고 sent == 셋의 합(공백·중복 0) — 0142~0149 arc(입금·수령·발행·영속·압축·읽음발행·만료TTL·만료발행)가 더한 모든 전이가 이 분할을 보존한다. crash→reconstruct(영속 replay) 후에도 불변. 형식 h(held)/f(fetched)/e(expired): 수령만 0/3/0·만료만 0/0/3·혼합 1/2/1 — 다른 분할이되 sent==h+f+e 불변. mailConsistent 는 미호출 accessor = 0149 비트 동일(reg).');
+  console.log('    우편 arc(0142~0150) 닫힘 — SPINE §2 게임 서비스 *우편* 박스 완성(입금/수령/발행 3종/영속·압축·만료·회계 정합). 거래소 arc(0107~0140)와 동형 골격.');
 }
 
 kit.MODES['exmail'] = exmail;

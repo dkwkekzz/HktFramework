@@ -1,4 +1,7 @@
 'use strict';
+// step-0150 — 우편 회계 정합 capstone(mailConsistent·sent==held+fetched+expired): 0142~0149 우편 arc 의 *창발 불변*을 단언하는 capstone(거래소 0140 sagaLiveConsistent 의 우편 판).
+//   우편 1통은 매 순간 정확히 한 상태에 있다 — 보유(held·우편함)·수령(fetched·읽음)·만료(expired·회수) 으로 분할되며 공백·중복 0. sent == totalHeld + fetched + expired 가 *모든 체제*(수령만·만료만·혼합·crash 복구)서 성립.
+//   미호출 read accessor = 0149 비트 동일(reg). 0142~0149 가 더한 모든 전이(입금·수령·만료·replay)가 이 분할을 보존함을 닫는 단언.
 // step-0149 — 우편 만료 발행(mailExpirePublish·svc.mail.expired): 0148 만료는 *발행 0* — 발신자/운영이 만료를 관측할 길이 없었다.
 //   이 step: mailSweep 만료 시 통마다 svc.mail.expired{id,to,from} 발행 → audit 가 관측. 우편 수명주기 발행 3종(입금 svc.mail.sent 0144·읽음 svc.mail.read 0147·만료 svc.mail.expired) 완비(거래소 sold/cancelled/expired 와 동형). OFF·bus 부재면 발행 0 = 0148 비트 동일.
 // step-0148 — 우편 만료 TTL(mailTtl·now−sentAt≥ttl 자동 회수): 미수령 우편이 우편함에 영영 쌓일 수 있다(0143 의 정직한 한계).
@@ -172,6 +175,9 @@ class MailService {
   readOf(rcpt) { const l = this.read.get(rcpt); return l ? l.slice() : []; }   // 수령(읽음) 보관 통째(step-0143)
   // 회계 정합(step-0143 — sent==held+fetched; 0148 에 +expired). 우편 1통은 매 순간 정확히 한 상태(보유·수령·만료)에 있다(공백·중복 0).
   accountConsistent() { return this.sent === this.totalHeld() + this.fetched + this.expired; }
+  // 우편 회계 정합 capstone(step-0150·단언용 읽기 accessor) — 0142~0149 arc 의 창발 불변: 우편 1통은 매 순간 정확히 한 상태(보유 held·수령 fetched·만료 expired)에 분할(공백·중복 0).
+  //   sent == totalHeld + fetched + expired 가 *모든 체제*(수령만·만료만·혼합·crash 복구)서 성립. accountConsistent 와 동치이나 capstone 의 명시 이름(거래소 0140 sagaLiveConsistent 의 우편 판).
+  mailConsistent() { return this.sent === this.totalHeld() + this.fetched + this.expired; }
   // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];

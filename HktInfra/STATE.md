@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0149](step-0149.md) — **우편 만료 발행**(mailExpirePublish·svc.mail.expired): 0148 만료는 발행 0 — 관측 불가였다. mailSweep 만료 시 통마다 svc.mail.expired 발행 → audit 관측. 우편 수명주기 발행 **3종**(sent 0144·read 0147·expired) 완비(거래소 sold/cancelled/expired 와 동형). OFF·bus 부재 = 0148 비트 동일. 닿는 박스: svc-mail·topo-build·topo-subs.
-- **한 줄 상태**: reg ALL OK(src=baseline=0148 비트 동일)·exmail: expirePublished 1==audit.seen 1==expired·3종 동시 관측(sent 4/read 2/expired 1)·비-침습·OFF 0·spine 통과.
-- **다음**: §2 참조(0150 우편 회계 정합 capstone mailConsistent — sent==held+fetched+expired·arc 닫기).
+- **닫힌 step**: [step-0150](step-0150.md) — **우편 회계 정합 capstone**(mailConsistent·sent==held+fetched+expired): 0142~0149 우편 arc 의 창발 불변(거래소 0140 의 우편 판). 우편 1통은 매 순간 정확히 한 상태 — 보유(held)·수령(fetched)·만료(expired) 분할(공백·중복 0). 4체제(수령만 0/3/0·만료만 0/0/3·혼합 1/2/1·crash 복구) 전부 true. 미호출 accessor = 0149 비트 동일. **우편 arc(0142~0150) 닫힘** — SPINE §2 우편 박스 완성. 닿는 박스: svc-mail.
+- **한 줄 상태**: reg ALL OK(src=baseline=0149 비트 동일)·exmail: 4체제 mailConsistent 예(4/4)·체제별 분할 카운트 일치·crash→reconstruct 후 정합+digest 보존·spine 통과.
+- **다음**: §2 참조(우편 arc 닫힘 — 발행 게이트 통합·길드·아이템 우편·비동기 결정론🔴·0141~0150 묶음 리뷰).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 서비스 arc 마무리 중(0142~0149 분리/수령/발행/영속/압축/읽음발행/만료TTL/만료발행✅). 남은: 0150 회계 정합 capstone(mailConsistent — sent==held+fetched+expired·arc 닫기). 거래소 arc(0107~0140) 패턴. 다음 arc 후보: 발행 게이트 통합·길드·비동기 결정론(🔴)·우편 클라 와이어/아이템 우편. 🔧 topo-run 27KB·우편 발행 3종(sent·read·expired). 🔎 0131~0140·0141~0150 묶음 리뷰 적기.**
+**우편(Mail) 서비스 arc 완성(0142~0150 분리/수령/발행/영속/압축/읽음발행/만료TTL/만료발행/회계 capstone✅) — SPINE §2 우편 박스 = 거래소 arc(0107~0140)와 동형 골격. 다음 arc 후보: *발행 게이트 통합*(거래소+우편 발행 일원화)·*아이템 우편*(가방 연동 give·만료 반환·2-서비스 보존)·*길드 서비스*·*비동기 결정론*(🔴). 🔧 topo-run 27KB·svc-mail ~6KB. 🔎 0131~0140·0141~0150 묶음 리뷰 적기(`infra-review`).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -40,7 +40,7 @@
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·lease·치유·대체활성화 ✅)** | 버스 | 0016 단일 박스·영속 0→동적구독/failover/무손실/lease/self-healing(0033~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티 ✅·버스 ⬜)** | 서비스/데이터 | 가방/채팅/파티 저널+압축(0017~0022·0085). write-behind(0023~0029). 버스 라우팅 영속 0. |
-| 🟡 | **거래소 ✅(0107~0140)·랭킹/읽기모델 ✅·우편 🟡(0142~)·길드 ⬜** | 서비스 | 0019/0020 CQRS·0107~0140 거래소(escrow·발행 7종·saga liveness). 0142~ 우편(MailService — mailSend 입금·우편함). 길드·우편 수령/영속/만료 후속. |
+| 🟡 | **거래소 ✅(0107~0140)·우편 ✅(0142~0150)·랭킹/읽기모델 ✅·길드 ⬜** | 서비스 | 0107~0140 거래소(escrow·발행 7종·saga liveness)·0142~0150 우편(입금/수령/발행 3종/영속·압축/만료 TTL/회계 capstone). 길드·아이템 우편(가방 연동)·발행 게이트 통합 후속. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스(0064~0070)·귓속말/파티 라우팅(0071~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore(0017)+압축(0018)·홉 신뢰→quorum→윈도(0023~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
@@ -151,20 +151,20 @@
 | [0053](step-0053.md) | 정리: 트랜잭션 onMsg→svc-inventory-txn.js 추출(31.9→25.5KB) | 통과 |
 | [0054](step-0054.md) | lease 생애 관측(busLeaseAudit — 축출/재admission→audit) | 통과 |
 | [0055](step-0055.md) | lease 생애 반응(busLeasePresence — lease→consumerDown) | 통과 |
-| [0056](step-0056.md) | 프레즌스 반응(self-healing·busPresenceRecover — recover→재구독) | 통과 |
-| [0057](step-0057.md) | 치유 확인 고리(recoverAck — 재구독하며 orch 회신) | 통과 |
-| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry — timeout 뒤 재발신) | 통과 |
-| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — permanentDown 포기) | 통과 |
-| [0060](step-0060.md) | 프레즌스 발행(presencePublish — down/up/permanent→audit) | 통과 |
-| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace — standby→'permanent' 활성화) | 통과 |
-| [0062](step-0062.md) | 대체 소비자 late-join recon(spawnReconstruct — 쓰기 저널 복원) | 통과 |
-| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — svc.presence→건강 상태 기계) | 통과 |
-| [0064](step-0064.md) | 전용 프레즌스 박스 분리(presenceBox — orch SSOT+발행→PresenceService) | 통과 |
-| [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus — svc.presence.report) | 통과 |
-| [0066](step-0066.md) | 프레즌스 shadow 복제(presenceShadow — 같은 보고로 그림자) | 통과 |
-| [0067](step-0067.md) | 프레즌스 failover 승격(presencePromote — crash→standby promote) | 통과 |
-| [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵→자기 승격) | 통과 |
-| [0069](step-0069.md) | 프레즌스 SSOT 질의(presenceQuery→presenceReply·pull) | 통과 · 4/4 |
+| [0056](step-0056.md) | 프레즌스 self-healing(busPresenceRecover — recover→재구독) | 통과 |
+| [0057](step-0057.md) | 치유 확인 고리(recoverAck) | 통과 |
+| [0058](step-0058.md) | 미확인 명령 재시도(recoverRetry) | 통과 |
+| [0059](step-0059.md) | 재시도 상한(recoverMaxRetries — permanentDown) | 통과 |
+| [0060](step-0060.md) | 프레즌스 발행(presencePublish — down/up/permanent) | 통과 |
+| [0061](step-0061.md) | 대체 소비자 자동 활성화(spawnReplace) | 통과 |
+| [0062](step-0062.md) | 대체 소비자 late-join recon(spawnReconstruct) | 통과 |
+| [0063](step-0063.md) | 프레즌스 모니터(presenceMonitor — 건강 상태 기계) | 통과 |
+| [0064](step-0064.md) | 전용 프레즌스 박스 분리(presenceBox — PresenceService) | 통과 |
+| [0065](step-0065.md) | 프레즌스 보고 버스화(presenceReportBus) | 통과 |
+| [0066](step-0066.md) | 프레즌스 shadow 복제(presenceShadow) | 통과 |
+| [0067](step-0067.md) | 프레즌스 failover 승격(presencePromote) | 통과 |
+| [0068](step-0068.md) | 프레즌스 사망 자율 감지(presenceLease — hb 침묵) | 통과 |
+| [0069](step-0069.md) | 프레즌스 SSOT 질의(presenceQuery→presenceReply) | 통과 |
 | [0070](step-0070.md) | failover 중 질의 연속성(presenceAnnounce — active→재타깃) | 통과 |
 | [0071](step-0071.md) | 귓속말 라우터(whisperRouter) | 통과 |
 | [0072](step-0072.md) | 귓속말 라우터 failover(whisperFailover) | 통과 |
@@ -245,3 +245,4 @@
 | [0147](step-0147.md) | 우편 읽음 확인 발행(mailReadPublish — svc.mail.read·audit 무수정 관측) | 통과 · readPublished 3==audit 3==fetched·비-침습·OFF 0 |
 | [0148](step-0148.md) | 우편 만료 TTL(mailTtl — now−sentAt≥ttl 자동 회수·sent==held+fetched+expired) | 통과 · expired 1·accountConsistent·reconstruct==live·ttl0 만료0 |
 | [0149](step-0149.md) | 우편 만료 발행(mailExpirePublish — svc.mail.expired·수명주기 발행 3종 완비) | 통과 · expirePublished 1==audit 1==expired·3종 동시·OFF 0 |
+| [0150](step-0150.md) | 우편 회계 정합 capstone(mailConsistent — sent==held+fetched+expired·우편 arc 닫기) | 통과 · 4체제 true·분할 0/3/0·0/0/3·1/2/1·crash 복구 정합 |

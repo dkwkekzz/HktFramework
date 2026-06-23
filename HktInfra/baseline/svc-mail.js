@@ -1,4 +1,6 @@
 'use strict';
+// step-0149 — 우편 만료 발행(mailExpirePublish·svc.mail.expired): 0148 만료는 *발행 0* — 발신자/운영이 만료를 관측할 길이 없었다.
+//   이 step: mailSweep 만료 시 통마다 svc.mail.expired{id,to,from} 발행 → audit 가 관측. 우편 수명주기 발행 3종(입금 svc.mail.sent 0144·읽음 svc.mail.read 0147·만료 svc.mail.expired) 완비(거래소 sold/cancelled/expired 와 동형). OFF·bus 부재면 발행 0 = 0148 비트 동일.
 // step-0148 — 우편 만료 TTL(mailTtl·now−sentAt≥ttl 자동 회수): 미수령 우편이 우편함에 영영 쌓일 수 있다(0143 의 정직한 한계).
 //   거래소 0114(매물 만료 TTL)처럼, mailSweep(now) 가 now−sentAt≥ttl 인 미수령 우편을 *시간 트리거*로 회수(보유→만료). 회계가 sent==held+fetched+expired 로 완비(우편 1통은 매 순간 보유/수령/만료 정확히 한 상태).
 //   만료도 durable op('expire')로 저널 → reconstruct 정합. ttl 0·mailSweep 미주입이면 만료 0 = 0147 비트 동일.
@@ -35,6 +37,8 @@ class MailService {
     this.sentPublished = 0;        // 발행한 svc.mail.sent 수(step-0144·계측·sent 와 1:1).
     this.readPublish = opts.readPublish || false;   // 읽음 발행(step-0147·mailReadPublish) — mailFetch 수령 시 통마다 svc.mail.read 발행. OFF·bus 부재면 발행 0(0146 비트 동일).
     this.readPublished = 0;        // 발행한 svc.mail.read 수(step-0147·계측·fetched 와 1:1).
+    this.expirePublish = opts.expirePublish || false;   // 만료 발행(step-0149·mailExpirePublish) — mailSweep 만료 시 통마다 svc.mail.expired 발행. OFF·bus 부재면 발행 0(0148 비트 동일).
+    this.expirePublished = 0;      // 발행한 svc.mail.expired 수(step-0149·계측·expired 와 1:1).
     this.boxes = new Map();        // recipient -> Map(mailId -> mail) — 우편함 권위(단일 소유·보유 held).
     this.sent = 0;                 // 총 입금 통수(회계 — 0150 sent==held+fetched+expired 의 좌변).
     this.fetched = 0;              // 총 수령 통수(step-0143 — 수신자가 가져간 합).
@@ -121,6 +125,8 @@ class MailService {
           if (now - mm.sentAt >= this.ttl) {
             box.delete(id); this.expired++;
             this._journal({ kind: 'expire', to: rcpt, id });   // durable op(만료도 replay 정합)
+            // 만료 발행(step-0149·mailExpirePublish) — 회수 통마다 svc.mail.expired 발행(운영/발신자 관측). OFF·bus 부재면 no-op(0148 비트 동일·replay 에선 안 함).
+            if (this.expirePublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.expired', ev: { id, to: rcpt, from: mm.from } }); this.expirePublished++; }
           }
         }
       }
@@ -130,7 +136,7 @@ class MailService {
   // crash(step-0145) — 박스 RAM 소실의 인프로세스 모델: projection(우편함·읽음·회계)만 비운다. *op 저널은 durable* 이라 보존(거래소 0109 의 우편 판).
   crash() {
     this.boxes = new Map(); this.read = new Map();
-    this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this._seq = 0; this._lastFetch = null;
+    this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this.expirePublished = 0; this._seq = 0; this._lastFetch = null;
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
