@@ -12,7 +12,8 @@
 //     3. 비가역 소산(비탄성 충돌) — 감쇠로 충돌 후 KE↓, 잃은 만큼 정확히 internalE↑(열)·ΣP=0.
 //     4. 중력↓+접촉↑ 균형 — 시험 구체가 큰 구체(=지면) 위에서 정착(속도→0·접촉 유지). 0028 중력 재사용.
 //     5. 항등/안전 — 노브 0·안 겹침·빈/단일 입력 무변화(가법성=회귀 0).
-//     6. 결정론.
+//     6. 과감쇠 안정 가드 — c·dt ≫ μ 에서도 임계 클램프로 에너지 주입·internalE 음수 없음(버그 수정 회귀 가드).
+//     7. 결정론.
 //
 //   실행: node HTJ/steps/step_0037/verify.js
 'use strict';
@@ -136,7 +137,24 @@ const speed = (e) => Math.hypot(e.px, e.py, e.pz) / e.mass;
     `노브0 ${noopOk ? '불변' : 'X'} · 안 겹침 ${farOk ? '불변' : 'X'} · 빈/단일 ${emptyOk && singleOk ? 'OK' : 'X'}`);
 }
 
-// ── 6. 결정론 ──
+// ── 6. 과감쇠 안정 가드 — c·dt ≫ μ 에서도 에너지 주입·internalE 음수 없음(임계 클램프) ──
+{
+  // 정면 접근하며 겹친 둘에 *과한* 감쇠(c·dt 가 환산질량 μ=50 을 크게 초과). 클램프 없으면 상대 운동이
+  // 역전·증폭 → KE↑·dissip<0·internalE 음수(에너지 주입). 클램프로: dissip≥0·internalE 단조↑·총E 보존.
+  const es = [ent(15, 16, 16, 100, 40, 0, 0, { internalE: 10, radius: 2 }),
+              ent(18, 16, 16, 100, -40, 0, 0, { internalE: 10, radius: 2 })];   // 겹침(거리 3<4)·정면 접근
+  const opt = { k: 0, cDamp: 1e4 };                 // 감쇠만·극단(c·dt=500 ≫ μ=50)
+  const KE0 = totKE(es), int0 = totInt(es), E0 = totE(es);
+  En.applyEntityContact(es, 0.05, opt);
+  const KE1 = totKE(es), int1 = totInt(es), E1 = totE(es);
+  // 보장: KE 안 늘어남(소산)·internalE 안 줄어듦(열 적립)·둘 다 ≥0·총E 보존·ΣP 정확.
+  const ok = KE1 <= KE0 + 1e-9 && int1 >= int0 - 1e-9 && es.every(e => e.internalE >= -1e-9) &&
+    relOk(E1, E0, 1e-6 * Math.abs(E0)) && Math.abs(totPx(es)) < 1e-9;
+  check('과감쇠 안정 가드 — c·dt≫μ 에서도 에너지 주입·internalE 음수 없음(임계 클램프)',
+    ok, `KE ${KE0.toFixed(1)}→${KE1.toFixed(1)}(↓·역전 없음) · internalE ${int0.toFixed(1)}→${int1.toFixed(1)}(↑≥0) · 총E ${E0.toFixed(1)}→${E1.toFixed(1)} · ΣP≈0`);
+}
+
+// ── 7. 결정론 ──
 {
   function fp() {
     const es = [];

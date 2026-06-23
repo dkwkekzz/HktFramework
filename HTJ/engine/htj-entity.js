@@ -236,12 +236,18 @@
         const KEa0 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma;
         const KEb0 = 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
         const vn = (b.px / mb - a.px / ma) * nx + (b.py / mb - a.py / ma) * ny + (b.pz / mb - a.pz / ma) * nz;
-        const J = -c * vn * dt;                                       // 상대 법선 운동 반대(소산) — equal-opposite
+        // 임계 감쇠 클램프: 상대 법선 속도를 *0 까지만* 없앤다(역전 금지). Δv_n = J/μ 이므로 v_n→0 의 임펄스는
+        //   J_zero = −μ·v_n. |J| 가 이를 넘으면(c·dt > μ) 상대 운동이 역전·증폭돼 KE 가 *늘어*(dissip<0·에너지 주입·
+        //   internalE 음수)나므로, 넘지 않게 자른다 → dissip ≥ 0·internalE 단조↑ 보장(비가역 소산이 항상 참).
+        const mu = (ma * mb) / (ma + mb);
+        let J = -c * vn * dt;                                         // 상대 법선 운동 반대(소산) — equal-opposite
+        const Jzero = -mu * vn;                                       // v_n→0 임펄스(같은 부호)
+        if (Math.abs(J) > Math.abs(Jzero)) J = Jzero;                 // 임계 초과 → 0 까지만(역전 방지)
         b.px += J * nx; b.py += J * ny; b.pz += J * nz;
         a.px -= J * nx; a.py -= J * ny; a.pz -= J * nz;
         const KEa1 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma;
         const KEb1 = 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
-        const dissip = (KEa0 + KEb0) - (KEa1 + KEb1);                 // 잃은 KE(안정 영역 ≥0) → 열로
+        const dissip = (KEa0 + KEb0) - (KEa1 + KEb1);                 // 잃은 KE(클램프로 항상 ≥0) → 열로
         a.internalE += 0.5 * dissip; b.internalE += 0.5 * dissip;    // 두 개체 반씩(비가역)
       }
     }
