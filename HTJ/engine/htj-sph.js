@@ -214,6 +214,50 @@
     return particles;
   }
 
+  // ── SW5 적응-h 압력 힘 — 0048 이 *측정*한 입자별 h_i 를 압력 힘에 *연동*한다(가변 분해능) ───────────
+  //   design/sphere-world.md §6 SW5 — 0041 압력은 *고정* h 였다. 0048 은 입자별 h_i=η(m_i/ρ_i)^⅓ 를 자기일관으로
+  //   *재기만* 했다(수동 측정). 이 법칙은 그 h_i 를 *힘에 쓴다* — 그런데 쌍 (i,j) 의 h_i≠h_j 면 ∇W 가 비대칭이 돼
+  //   뉴턴3(운동량 보존)이 깨질 위험이 있다. **대칭 평균 커널**로 막는다: ∇W̄_ij = ½(∇W(r,h_i)+∇W(r,h_j)). W̄ 가 i↔j
+  //   대칭이라 ∇_jW̄_ji = −∇_iW̄_ij → 쌍힘 +F/−F → **순 운동량 정확 보존**(가변 h 여도). (grad-h Ω 보정은 *에너지*
+  //   일관용·운동량엔 대칭만으로 충분 — 0046 점성·0049 전도도 같은 패턴으로 확장 가능.) caller 가 입자별 a.h·a.density
+  //   를 설정(sphAdaptiveH)해 넘긴다 — 없으면 a.h=h0 로 폴백(그때 모든 h 동일 → ∇W̄=∇W → 0041 과 비트 동일).
+  //     P_i = k·ρ_i^γ,  a_i = −Σ_j m_j(P_i/ρ_i² + P_j/ρ_j²)∇_iW̄_ij,  ∇_iW̄_ij = ½(∇W(r,h_i)+∇W(r,h_j))
+  //   opts: { stiffness(k·0→early-return·회귀0 의미無=신규), gamma(2), h0(a.h 없을 때 폴백·1) }. p 갱신·internalE 불변.
+  function sphPressureForceVarH(particles, dt, opts) {
+    opts = opts || {};
+    const k = opts.stiffness != null ? opts.stiffness : 0;
+    const n = particles.length;
+    if (n < 2 || k === 0) return particles;                   // 노브=0 → early-return
+    const gamma = opts.gamma != null ? opts.gamma : 2;
+    const h0 = opts.h0 != null ? opts.h0 : 1;
+    const EPS2 = 1e-12;
+    const P = new Array(n);
+    for (let i = 0; i < n; i++) P[i] = k * Math.pow(particles[i].density || 0, gamma);   // 상태식(입자별 ρ_i·자기 h_i 로)
+    const ax = new Float64Array(n), ay = new Float64Array(n), az = new Float64Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = particles[i], b = particles[j];
+      const hi = (a.h > 0) ? a.h : h0, hj = (b.h > 0) ? b.h : h0;
+      const dx = a.cx - b.cx, dy = a.cy - b.cy, dz = a.cz - b.cz;
+      const gi = kernelGradW(dx, dy, dz, hi), gj = kernelGradW(dx, dy, dz, hj);   // 각자 h 로 ∇W
+      const gx = 0.5 * (gi[0] + gj[0]), gy = 0.5 * (gi[1] + gj[1]), gz = 0.5 * (gi[2] + gj[2]);   // 대칭 평균 ∇_iW̄
+      const rhoi = a.density || EPS2, rhoj = b.density || EPS2;
+      const term = P[i] / (rhoi * rhoi) + P[j] / (rhoj * rhoj);
+      ax[i] -= b.mass * term * gx; ay[i] -= b.mass * term * gy; az[i] -= b.mass * term * gz;   // a_i += −m_j·term·∇_iW̄
+      ax[j] += a.mass * term * gx; ay[j] += a.mass * term * gy; az[j] += a.mass * term * gz;   // a_j += +m_i·term·∇_iW̄(=−∇_jW̄)
+    }
+    for (let i = 0; i < n; i++) {                             // Δp_i = m_i·a_i·dt → 쌍마다 ΣΔp=0(정확·가변 h 여도)
+      const e = particles[i];
+      e.px += e.mass * ax[i] * dt; e.py += e.mass * ay[i] * dt; e.pz += e.mass * az[i] * dt;
+    }
+    for (let i = 0; i < n; i++) {                             // KEcm·energy 재계산(internalE 불변)
+      const e = particles[i];
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return particles;
+  }
+
   // SPH 내부에너지(열) 닫힘 — 압력(0041)이 한 일을 내부에너지로 되돌려 **총E 를 정확히 보존**한다(SW5).
   //   design/sphere-world.md §6 SW5 / §5 난점 — 0009(수동 온도 T∝ρ^(γ−1))·0010(KE↔내부E 가역 닫힘)의 *SPH 판*.
   //   0041 이 남긴 정직한 한계("압력이 implicit 열저장고에서 일을 꺼냄") 를 메운다 — 그 일은 이제 내부에너지에서
@@ -530,5 +574,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, VERSION: 11 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, VERSION: 12 };
 });
