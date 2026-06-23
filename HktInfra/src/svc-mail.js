@@ -1,4 +1,6 @@
 'use strict';
+// step-0158 — 아이템 우편 수령(itemFetched): 0157 은 아이템을 *보유(held)* 까지만 회계했다 — 수신자가 수령하면 아이템이 어디로 가는지 미집계였다.
+//   이 step: mailFetch 가 보유→수령 이동 시 아이템 실은 통수만큼 itemFetched++(아이템도 메시지와 함께 read 로 이동·읽음 보관). 회계 itemHeld→itemFetched 전이. mailItem OFF·아이템 미첨부면 itemFetched 0 = 0157 비트 동일.
 // step-0157 — 아이템 첨부 우편(mailItem·mailSend item): 0142~0156 우편은 *메시지(body)* 만 날랐다 — 아이템 우편(선물·전리품 배송)이 없었다.
 //   이 step: mailSend 가 선택 필드 item(아이템 id)을 받아 우편 1통이 아이템 1개를 *함께 보유*한다. itemSent(아이템 실은 입금 통수)·itemHeld(보유 중 아이템 통수) 회계. 거래소 escrow(0117)처럼 아이템이 우편함에 묶인다(가방 연동 give/반환은 후속 백로그).
 //   mailItem OFF·item 미첨부면 item=null·itemSent 0·digest 무변경 = 0156 비트 동일. 수령 시 아이템 이동(0158)·만료 회수(0159)·아이템 회계 capstone(0160) 후속.
@@ -117,6 +119,7 @@ class MailService {
         for (const mm of out) log.push(mm);
         this.read.set(rcpt, log);
         this.fetched += out.length;
+        for (const mm of out) if (mm.item != null) this.itemFetched++;   // step-0158: 아이템도 수령 이동(itemHeld→itemFetched)
         box.clear();   // 보유→수령 이동(무손실·중복 0). 빈 Map 유지(held(rcpt)==0).
         this._journal({ kind: 'fetch', to: rcpt });   // step-0145: durable op(수령도 replay 정합 — replay 시 그 시점 보유분을 동일 이동)
         // 읽음 발행(step-0147·mailReadPublish) — 수령 통마다 svc.mail.read 발행(운영/발신자 읽음 관측). OFF·bus 부재면 no-op(0146 비트 동일·발행은 replay 에서 안 함).
@@ -172,6 +175,7 @@ class MailService {
           for (const mm of out) log.push(mm);
           this.read.set(e.to, log);
           this.fetched += out.length;
+          for (const mm of out) if (mm.item != null) this.itemFetched++;   // step-0158: 아이템 수령 이동 replay
           box.clear();
         }
       } else if (e.kind === 'expire') {   // 만료(step-0148) — 회수된 우편 1통 제거 + expired++(저널 정합).
@@ -201,7 +205,7 @@ class MailService {
       }
     for (const rcpt of [...this.read.keys()].sort())
       for (const mm of this.read.get(rcpt))
-        rows.push(`R/${rcpt}/${mm.id}:${mm.from}>${mm.to}@${mm.sentAt}:${mm.body}`);
+        rows.push(`R/${rcpt}/${mm.id}:${mm.from}>${mm.to}@${mm.sentAt}:${mm.body}${mm.item != null ? ':i' + mm.item : ''}`);   // step-0158: 수령 아이템 첨부 시만 추가
     rows.push(`C:sent=${this.sent},fetched=${this.fetched},expired=${this.expired}`);
     return fnv1a(rows.join('|'));
   }

@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0157](step-0157.md) — **아이템 첨부 우편**(mailItem): mailSend item → 우편 1통이 아이템 1개 보유(거래소 escrow 의 우편 판). itemSent·itemHeld 회계·mailConsistent 불변·crash 복구 아이템 보존. 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(mailItem OFF=0156 비트 동일)·exmlitem: sent 3·itemSent 2·itemHeld 2·crash 복구 보존·spine 통과.
-- **다음**: §2 — 아이템 우편 arc(0158 수령 이동·0159 만료 회수·0160 아이템 회계 capstone). 가방 연동 give/반환은 백로그.
+- **닫힌 step**: [step-0158](step-0158.md) — **아이템 우편 수령**(itemFetched): mailFetch 가 보유→수령 시 아이템도 read 로 이동·itemHeld→itemFetched 전이. itemSent==itemHeld+itemFetched+itemExpired. 닿는 박스: svc-mail.
+- **한 줄 상태**: reg ALL OK(mailItem OFF=0157 비트 동일)·exmlitf: itemSent 3·itemHeld 1·itemFetched 2·crash 복구 정합·spine 통과.
+- **다음**: §2 — 아이템 우편 arc(0159 만료 회수·0160 아이템 회계 capstone). 가방 연동 give/반환은 백로그.
 
 ---
 
@@ -253,3 +253,4 @@
 | [0155](step-0155.md) | MailFeed 회계 정합 capstone(feedConsistent·unread==sent−read−expired·MailFeed arc 닫기) | 통과 · 4체제 true·totalUnread==totalHeld |
 | [0156](step-0156.md) | 미읽음 배지 질의 인터페이스(mailUnreadQuery→mailUnreadReply·request/reply over net) | 통과 · queriesRx 2·repliesSent 2·회신==배지 |
 | [0157](step-0157.md) | 아이템 첨부 우편(mailItem·mailSend item → 우편 1통이 아이템 1개 보유·거래소 escrow 의 우편 판) | 통과 · sent 3·itemSent 2·itemHeld 2 |
+| [0158](step-0158.md) | 아이템 우편 수령(itemFetched·보유→수령 아이템 이동·itemHeld→itemFetched) | 통과 · itemSent 3·itemHeld 1·itemFetched 2 |

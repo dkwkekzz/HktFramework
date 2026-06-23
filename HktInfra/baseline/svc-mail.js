@@ -1,4 +1,7 @@
 'use strict';
+// step-0157 — 아이템 첨부 우편(mailItem·mailSend item): 0142~0156 우편은 *메시지(body)* 만 날랐다 — 아이템 우편(선물·전리품 배송)이 없었다.
+//   이 step: mailSend 가 선택 필드 item(아이템 id)을 받아 우편 1통이 아이템 1개를 *함께 보유*한다. itemSent(아이템 실은 입금 통수)·itemHeld(보유 중 아이템 통수) 회계. 거래소 escrow(0117)처럼 아이템이 우편함에 묶인다(가방 연동 give/반환은 후속 백로그).
+//   mailItem OFF·item 미첨부면 item=null·itemSent 0·digest 무변경 = 0156 비트 동일. 수령 시 아이템 이동(0158)·만료 회수(0159)·아이템 회계 capstone(0160) 후속.
 // step-0150 — 우편 회계 정합 capstone(mailConsistent·sent==held+fetched+expired): 0142~0149 우편 arc 의 *창발 불변*을 단언하는 capstone(거래소 0140 sagaLiveConsistent 의 우편 판).
 //   우편 1통은 매 순간 정확히 한 상태에 있다 — 보유(held·우편함)·수령(fetched·읽음)·만료(expired·회수) 으로 분할되며 공백·중복 0. sent == totalHeld + fetched + expired 가 *모든 체제*(수령만·만료만·혼합·crash 복구)서 성립.
 //   미호출 read accessor = 0149 비트 동일(reg). 0142~0149 가 더한 모든 전이(입금·수령·만료·replay)가 이 분할을 보존함을 닫는 단언.
@@ -46,6 +49,10 @@ class MailService {
     this.sent = 0;                 // 총 입금 통수(회계 — 0150 sent==held+fetched+expired 의 좌변).
     this.fetched = 0;              // 총 수령 통수(step-0143 — 수신자가 가져간 합).
     this.expired = 0;              // 총 만료 통수(step-0148 — 만료 회수 합; 0143 엔 0).
+    this.item = opts.item || false;   // 아이템 첨부 우편(step-0157·mailItem) — mailSend 의 item 필드를 우편에 싣는다. OFF 면 item=null·itemSent 0(0156 비트 동일).
+    this.itemSent = 0;             // 아이템 실은 입금 통수(step-0157 — 0160 itemSent==itemHeld+itemFetched+itemExpired 의 좌변).
+    this.itemFetched = 0;          // 아이템 실은 수령 통수(step-0158).
+    this.itemExpired = 0;          // 아이템 실은 만료 통수(step-0159).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
     this.ttl = opts.ttl || 0;      // 만료 TTL(step-0148·mailTtl) — now−sentAt≥ttl 미수령 우편 자동 회수. 0 면 만료 0(0147 동일).
@@ -90,9 +97,11 @@ class MailService {
       const box = this._box(rcpt);
       if (box.has(id)) return;   // idempotent
       const sentAt = m.tick != null ? m.tick : (p.sentAt | 0);
-      box.set(id, { id, from: p.from, to: rcpt, body: p.body, sentAt });
+      const item = (this.item && p.item != null) ? p.item : null;   // step-0157: 아이템 첨부(mailItem OFF·미첨부면 null = 0156 비트 동일)
+      box.set(id, { id, from: p.from, to: rcpt, body: p.body, sentAt, item });
       this.sent++;
-      this._journal({ kind: 'send', id, from: p.from, to: rcpt, body: p.body, sentAt });   // step-0145: durable op
+      if (item != null) this.itemSent++;
+      this._journal({ kind: 'send', id, from: p.from, to: rcpt, body: p.body, sentAt, item });   // step-0145: durable op (step-0157: item 동봉)
       // 입금 발행(step-0144·mailSentPublish) — svc.mail.sent 로 1회 발행(운영 가시화·audit 관측). OFF·bus 부재면 no-op(0143 비트 동일).
       if (this.sentPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.sent', ev: { id, from: p.from, to: rcpt, sentAt } }); this.sentPublished++; }
       return;
@@ -140,6 +149,7 @@ class MailService {
   crash() {
     this.boxes = new Map(); this.read = new Map();
     this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this.readPublished = 0; this.expirePublished = 0; this._seq = 0; this._lastFetch = null;
+    this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
@@ -150,8 +160,10 @@ class MailService {
       if (e.kind === 'send') {
         const box = this._box(e.to);
         if (box.has(e.id)) continue;
-        box.set(e.id, { id: e.id, from: e.from, to: e.to, body: e.body, sentAt: e.sentAt });
+        const item = e.item != null ? e.item : null;   // step-0157: 아이템 동봉 replay
+        box.set(e.id, { id: e.id, from: e.from, to: e.to, body: e.body, sentAt: e.sentAt, item });
         this.sent++;
+        if (item != null) this.itemSent++;
       } else if (e.kind === 'fetch') {
         const box = this.boxes.get(e.to);
         const out = box ? [...box.values()] : [];
@@ -170,6 +182,7 @@ class MailService {
   }
   held(rcpt) { const b = this.boxes.get(rcpt); return b ? b.size : 0; }   // 한 수신자 우편함 보유 통수
   totalHeld() { let n = 0; for (const b of this.boxes.values()) n += b.size; return n; }   // 전 우편함 보유 합
+  itemHeld() { let n = 0; for (const b of this.boxes.values()) for (const mm of b.values()) if (mm.item != null) n++; return n; }   // 보유 중 아이템 실은 통수(step-0157)
   fetchedOf(rcpt) { const l = this.read.get(rcpt); return l ? l.length : 0; }   // 한 수신자 수령 통수(step-0143)
   boxOf(rcpt) { const b = this.boxes.get(rcpt); return b ? [...b.values()] : []; }   // 우편함 통째(읽기·결정론 순서)
   readOf(rcpt) { const l = this.read.get(rcpt); return l ? l.slice() : []; }   // 수령(읽음) 보관 통째(step-0143)
@@ -184,7 +197,7 @@ class MailService {
     for (const rcpt of [...this.boxes.keys()].sort())
       for (const id of [...this.boxes.get(rcpt).keys()].sort()) {
         const mm = this.boxes.get(rcpt).get(id);
-        rows.push(`H/${rcpt}/${id}:${mm.from}>${mm.to}@${mm.sentAt}:${mm.body}`);
+        rows.push(`H/${rcpt}/${id}:${mm.from}>${mm.to}@${mm.sentAt}:${mm.body}${mm.item != null ? ':i' + mm.item : ''}`);   // step-0157: 아이템 첨부 시만 추가(미첨부=0156 비트 동일)
       }
     for (const rcpt of [...this.read.keys()].sort())
       for (const mm of this.read.get(rcpt))
