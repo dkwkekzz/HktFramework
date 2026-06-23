@@ -29,7 +29,9 @@ const relOk = (a, b, tol) => Math.abs(a - b) <= (tol || 1e-6) + 1e-9 * Math.abs(
     const r = Math.sqrt((x + step / 2) ** 2 + (y + step / 2) ** 2 + (z + step / 2) ** 2);
     integral += SPH.kernelW(r, h) * dv;
   }
-  const even = relOk(SPH.kernelW(0.7, h), SPH.kernelW(0.7, h), 0) && SPH.kernelW(-0.7, h) === SPH.kernelW(0.7, h);  // r 은 거리(≥0)지만 부호 무관
+  // 짝함수 W(−r)=W(r)(커널은 거리만 받지만 부호 무관) + 값이 손 계산 공식과 일치(정규화 σ·f(q) 검증).
+  const q07 = 0.7 / h, sig = 1 / (Math.PI * h * h * h), wExpect = sig * (1 - 1.5 * q07 * q07 + 0.75 * q07 ** 3);
+  const even = SPH.kernelW(-0.7, h) === SPH.kernelW(0.7, h) && relOk(SPH.kernelW(0.7, h), wExpect, 1e-12);
   const outside = SPH.kernelW(2 * h, h) === 0 && SPH.kernelW(2 * h + 1, h) === 0;
   check('커널 정규화 — ∫W dV ≈ 1·짝함수·지지 밖(q≥2) 0',
     relOk(integral, 1, 0.01) && even && outside,

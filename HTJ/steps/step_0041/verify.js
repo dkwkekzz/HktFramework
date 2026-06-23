@@ -68,7 +68,7 @@ function sumP(ps) { let x = 0, y = 0, z = 0; for (const p of ps) { x += p.px; y 
   const edge = parts.find(p => Math.abs(p.cx - 3) < 1e-9 && Math.abs(p.cy) < 1e-9 && Math.abs(p.cz) < 1e-9);
   const emag = Math.sqrt(edge.px * edge.px + edge.py * edge.py + edge.pz * edge.pz);
   check('균일 → 힘 ≈ 0 — 등간격 격자 내부 입자 순 압력 힘 ≈ 0(가장자리보다 훨씬 작음)',
-    pmag < 1e-9 && emag > pmag,
+    pmag < 1e-9 && emag > 1e-3 && emag > 1e6 * pmag,   // 중심=기계영·가장자리=실제 힘(절대 하한)·자릿수 차이
     `중심 |Δp|=${pmag.toExponential(2)}(≈0) · 가장자리 |Δp|=${emag.toFixed(3)}(>중심·압력 기울기)`);
 }
 
