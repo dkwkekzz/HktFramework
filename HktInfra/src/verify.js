@@ -1,8 +1,8 @@
-// HktInfra step-0166 — 헤드리스 검증 (아이템 우편 발신 실패 보상·mailCompensate — give 실패→우편 롤백·phantom 0)
+// HktInfra step-0167 — 헤드리스 검증 (아이템 우편 give 회계 정합·mailGiveConsistent — gives==ackedOk+ackedFail+pending)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlcomp`.
-//   더한 한 조각: 발신 leg give 가 실패(발신자 미소유) 회신하면 그 우편을 롤백(box 제거·sent--·itemSent--·compensated++). 거래소 0122 exchCompensate 의 우편 판·phantom 0.
-//   검증: ⒜ `reg`(키트) — mailCompensate OFF = 0165 비트 동일. ⒝ `exmlcomp`(가설) — 미소유 발신은 롤백(우편 미적재)·소유 발신은 유지.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlgc`.
+//   더한 한 조각: mailGiveConsistent() — 발신한 custody give 는 매 순간 정확히 한 상태(ackedOk·ackedFail·pending)에 분할. gives==셋의 합(거래소 0128 sagaConsistent 의 우편 판).
+//   검증: ⒜ `reg`(키트) — 미호출 = 0166 비트 동일. ⒝ `exmlgc`(가설) — 3체제(정상·보상·혼합)서 mailGiveConsistent 전부 true·무손실 pending 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,30 +16,39 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const SEND = (at, id, from, to, body, item) => ({ at, op: { type: 'mailSend', id, from, to, body, item } });
+const FETCH = (at, to) => ({ at, op: { type: 'mailFetch', to } });
 const PICK = (at, avatar) => ({ at, op: { type: 'item_req', op: 'pickup', avatar } });
 const base = (seed, mailOps, invOps, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true, mailCompensate: true, mailPersist: true, mailOps, invOps, ...extra });
 
-function exmlcomp(seeds) {
-  console.log('== exmlcomp: 아이템 우편 발신 실패 보상(mailCompensate·give 실패→우편 롤백). 발신자가 안 가진 아이템 우편은 적재 취소(거래소 0122 의 우편 판·phantom 0). ==');
-  console.log('seed   | sent | itemHeld | ackedFail | compensated | h1 우편함(phantom) | 판정');
+const REGIMES = (seed) => ({
+  // 정상: 2 소유 발신+수령 = 4 give 전부 ok.
+  normal: base(seed, [SEND(8, 'a', 'x', 'h1', '1', 'item0'), SEND(9, 'b', 'x', 'h1', '2', 'item1'), FETCH(20, 'h1')], [PICK(3, 'x'), PICK(4, 'x')]),
+  // 보상: 1 소유(ok)+1 미소유(fail→보상). gives 2·ackedOk 1·ackedFail 1.
+  comp: base(seed, [SEND(8, 'a', 'x', 'h1', '1', 'item0'), SEND(9, 'b', 'x', 'h1', '2', 'itemX')], [PICK(3, 'x')]),
+  // 혼합: 2 소유 발신(2 give)·h2 미수령(custody 잔류·수령 give 0).
+  mixed: base(seed, [SEND(8, 'a', 'x', 'h1', '1', 'item0'), SEND(9, 'b', 'x', 'h2', '2', 'item1')], [PICK(3, 'x'), PICK(4, 'x')]),
+});
+
+function exmlgc(seeds) {
+  console.log('== exmlgc: *capstone* — 아이템 우편 give 회계 정합(mailGiveConsistent·gives==ackedOk+ackedFail+pending). custody give 는 매 순간 정확히 한 상태(회신성공·회신실패·미해결)에 분할(거래소 0128 의 우편 판). ==');
+  console.log('seed   | normal(g/ok/f/p) | comp | mixed | 3체제 mailGiveConsistent | 판정');
   for (const seed of seeds) {
-    // x 가 item0 만 pickup. item0(유효)·itemX(x 미소유) 두 통 발신 → itemX 발신 leg 실패→롤백. 유효 item0 만 남음.
-    const invOps = [PICK(3, 'x')];
-    const mailOps = [SEND(8, 'a', 'x', 'h1', '1', 'item0'), SEND(9, 'b', 'x', 'h1', '2', 'itemX')];
-    const r = run(base(seed, mailOps, invOps));
-    const mail = r.mail;
-    const phantom = mail.held('h1');   // 보상 후 h1 우편함엔 유효 우편(item0) 1통만(phantom itemX 롤백).
+    const R = REGIMES(seed);
+    const runs = {}; for (const k of Object.keys(R)) runs[k] = run({ ...R[k] });
+    const snap = (r) => { const m = r.mail; return m.gives + '/' + m.ackedOk + '/' + m.ackedFail + '/' + m.pending.size; };
+    const live = Object.values(runs).every(r => r.mail.mailGiveConsistent());
+    const drained = Object.values(runs).every(r => r.mail.pending.size === 0);   // 무손실(인프로세스 FIFO)서 전부 drain
+    const shapes = (runs.comp.mail.ackedOk === 1 && runs.comp.mail.ackedFail === 1 && runs.comp.mail.compensated === 1);
     const ok =
-      check(mail.sent === 1, `seed ${seed}: sent ${mail.sent}≠1(itemX 롤백 후)`) &&
-      check(mail.itemHeld() === 1, `seed ${seed}: itemHeld ${mail.itemHeld()}≠1`) &&
-      check(mail.ackedFail === 1 && mail.compensated === 1, `seed ${seed}: ackedFail ${mail.ackedFail}·compensated ${mail.compensated}≠1`) &&
-      check(phantom === 1, `seed ${seed}: h1 우편함 ${phantom}≠1(phantom 잔존?)`);
-    console.log(`${pad(seed, 6)} | ${pad(mail.sent, 4)} | ${pad(mail.itemHeld(), 8)} | ${pad(mail.ackedFail, 9)} | ${pad(mail.compensated, 11)} | ${pad(phantom, 18)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(live, `seed ${seed}: 어느 체제서 mailGiveConsistent false`) &&
+      check(drained, `seed ${seed}: pending 미drain`) &&
+      check(shapes, `seed ${seed}: 보상 체제 분할 어긋남(${snap(runs.comp)})`);
+    console.log(`${pad(seed, 6)} | ${pad(snap(runs.normal), 16)} | ${pad(snap(runs.comp), 8)} | ${pad(snap(runs.mixed), 9)} | ${pad(live ? '예(3/3)' : '아니오', 24)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 발신자가 안 가진 아이템 우편은 *적재가 취소*된다: 발신 leg give 실패 회신→우편 롤백(box 제거·sent--·compensated++·거래소 0122 의 우편 판). 받는 이가 실물 없는 phantom 우편을 받지 않는다(phantom 0). 회신 손실 재전송(0167)·dedup(0168) 후속. mailCompensate OFF=0165 비트 동일(reg).');
+  console.log('  → give 회계가 *대수적으로 닫힌다*: 발신한 custody give 는 매 순간 정확히 한 상태(회신성공 ackedOk·회신실패 ackedFail·미해결 pending)에 있고 gives==셋의 합(공백·중복 0·거래소 0128 의 우편 판). 무손실(인프로세스 FIFO)서 pending 0 drain·실패는 보상으로 phantom 0. 재전송 멱등(0168)·교차 정합(0169)·liveness capstone(0170) 후속. 미호출=0166 비트 동일(reg).');
 }
 
-kit.MODES['exmlcomp'] = exmlcomp;
-kit.ORDER.splice(1, 0, 'exmlcomp');
+kit.MODES['exmlgc'] = exmlgc;
+kit.ORDER.splice(1, 0, 'exmlgc');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

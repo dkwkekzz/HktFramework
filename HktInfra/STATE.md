@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0166](step-0166.md) — **아이템 우편 발신 실패 보상**(mailCompensate): 발신 leg give 실패 회신→우편 롤백(box 제거·sent--·compensated++·거래소 0122 의 우편 판). 발신자가 안 가진 아이템 우편은 적재 취소(phantom 0). 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(mailCompensate OFF=0165 비트 동일)·exmlcomp: sent 1(itemX 롤백)·ackedFail 1·compensated 1·phantom 0·spine 통과.
-- **다음**: §2 — 아이템 우편 saga 신뢰 전달(0167 회신 손실 재전송·0168 dedup·0169 회계·0170 교차 정합 capstone).
+- **닫힌 step**: [step-0167](step-0167.md) — **아이템 우편 give 회계 정합**(mailGiveConsistent·gives==ackedOk+ackedFail+pending): custody give 는 매 순간 정확히 한 상태(회신성공·회신실패·미해결)에 분할(거래소 0128 의 우편 판). 3체제 true·무손실 pending 0 drain. 닿는 박스: svc-mail.
+- **한 줄 상태**: reg ALL OK(미호출=0166 비트 동일)·exmlgc: normal 4/4/0/0·comp 2/1/1/0·mixed 2/2/0/0·3체제 consistent·spine 통과.
+- **다음**: §2 — 아이템 우편 saga(0168 재전송 멱등·0169 교차 정합·0170 liveness capstone).
 
 ---
 
@@ -262,3 +262,4 @@
 | [0164](step-0164.md) | 아이템 우편 2-서비스 보존(mailCustodyItems ≡ 가방 mailcustody 소유) | 통과 · [item2]==[item2]·합치·보존 |
 | [0165](step-0165.md) | 아이템 우편 give 결과 비동기 수신(mailSaga·replyTo+gid·acked 집계·pending 추적) | 통과 · gives 4·acked 4·pending 0 drain |
 | [0166](step-0166.md) | 아이템 우편 발신 실패 보상(mailCompensate·give 실패→우편 롤백·phantom 0) | 통과 · sent 1·ackedFail 1·compensated 1 |
+| [0167](step-0167.md) | 아이템 우편 give 회계 정합(mailGiveConsistent·gives==ackedOk+ackedFail+pending) | 통과 · 3체제 true·무손실 pending 0 drain |

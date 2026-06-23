@@ -1,4 +1,7 @@
 'use strict';
+// step-0166 — 아이템 우편 발신 실패 보상(mailCompensate): 0165 는 give 실패(ackedFail)를 *집계만* 했다 — 발신자가 아이템을 안 가졌는데도 우편이 낙관적으로 적재돼 *phantom 우편*(실물 없는 우편)이 남았다.
+//   이 step: 발신 leg(cause=mailsend) give 가 실패 회신하면 그 우편을 롤백(box 에서 제거·sent--·itemSent--·compensated++). 거래소 0122 exchCompensate(list 인출 실패→매물 abort)의 우편 판. 받는 이가 실물 없는 우편을 받지 않는다(phantom 0).
+//   mailCompensate OFF·give 성공이면 롤백 0 = 0165 비트 동일.
 // step-0165 — 아이템 우편 give 결과 비동기 수신(mailSaga·replyTo+gid): 0161~0164 의 give 는 fire-and-forget — 가방 give 가 성공했는지 우편이 몰랐다(낙관적).
 //   이 step: mailSaga ON 이면 _custody 가 give 에 replyTo(자기 주소)+단조 gid 를 실어 보내고 미해결 집합(pending)에 넣는다. 가방 item_result 회신이 그 gid 로 오면 pending 에서 빼고 acked(ok/fail) 집계(거래소 0121 exchSaga 의 우편 판). 정상(무손실)서 pending 0 으로 drain.
 //   mailSaga OFF·replyTo 부재면 가방이 회신 안 함(_sagaReply no-op) = 0164 비트 동일.
@@ -87,14 +90,26 @@ class MailService {
     this._gid = 0;                 // 단조 give id(step-0165·미해결 추적 매칭 키).
     this.pending = new Set();      // 미해결 give 의 gid(step-0165) — _custody add·item_result 회신이 delete. 정상 흐름서 0 으로 drain(회신 손실 시 잔존·0167 가시).
     this.acked = 0; this.ackedOk = 0; this.ackedFail = 0;   // 회신 받은 give 수(step-0165·ok/fail 분리·0169 gives==ackedOk+ackedFail+pending).
+    this.compensate = opts.compensate || false;   // 발신 실패 보상(step-0166·mailCompensate) — 발신 leg give 실패 시 우편 롤백. OFF 면 0165 비트 동일.
+    this.compensated = 0;          // 보상(롤백)한 발신 우편 수(step-0166).
+    this._gidRef = new Map();      // gid -> {kind:'send', mailId, rcpt}(step-0166) — 발신 leg give 의 우편 참조(실패 시 롤백 대상).
+  }
+  // 발신 우편 롤백(step-0166·보상) — 발신 leg give 실패 시 낙관적 적재한 우편을 제거(거래소 0122 abort 의 우편 판·phantom 0).
+  _compensateSend(ref) {
+    const box = this.boxes.get(ref.rcpt);
+    if (box && box.has(ref.mailId)) {
+      const mm = box.get(ref.mailId);
+      box.delete(ref.mailId); this.sent--; if (mm.item != null) this.itemSent--;
+      this.compensated++;
+    }
   }
   // custody 이동 헬퍼(step-0161) — 아이템 우편 가방 연동의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(from→to). 가방이 권위·우편은 요청만(은닉). 미충족이면 no-op(0160 비트 동일).
   //   custody 의제 소유자 'mailcustody' — 발신~수령/만료 사이 in-transit 아이템 보관(거래소 'escrow' 의 우편 판). cause 로 leg 구분(mailsend/mailfetch/mailexpire).
   //   step-0165: saga ON 이면 replyTo(자기)+gid 동봉·pending 추적(가방 회신 매칭).
-  _custody(itemId, from, to, cause) {
+  _custody(itemId, from, to, cause, ref) {
     if (!this.invMode || !this.inv || itemId == null || !this.net) return;
     const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to, cause };
-    if (this.saga) { const gid = ++this._gid; msg.replyTo = this.addr; msg.gid = gid; this.pending.add(gid); }
+    if (this.saga) { const gid = ++this._gid; msg.replyTo = this.addr; msg.gid = gid; this.pending.add(gid); if (ref) this._gidRef.set(gid, ref); }   // step-0166: ref(발신 leg 우편 참조) 보관·실패 시 롤백
     this.net.send(this.addr, this.inv, msg);
     this.gives++;
   }
@@ -128,7 +143,12 @@ class MailService {
     // 가방 give 결과 비동기 수신(step-0165·mailSaga) — _custody 가 replyTo 로 보낸 give 의 item_result 회신. gid 로 pending 에서 제거 + acked(ok/fail) 집계.
     //   saga OFF 면 이 메시지가 영영 안 옴(가방 _sagaReply no-op·0164 비트 동일). 미해결 추적·재전송(0167)·보상(0166)의 토대.
     if (p.type === 'item_result' && p.op === 'give') {
-      if (p.gid !== undefined && this.pending.has(p.gid)) { this.pending.delete(p.gid); this.acked++; if (p.ok) this.ackedOk++; else this.ackedFail++; }
+      if (p.gid !== undefined && this.pending.has(p.gid)) {
+        this.pending.delete(p.gid); this.acked++;
+        if (p.ok) this.ackedOk++;
+        else { this.ackedFail++; if (this.compensate) { const ref = this._gidRef.get(p.gid); if (ref && ref.kind === 'send') this._compensateSend(ref); } }   // step-0166: 발신 실패→우편 롤백(phantom 0)
+        this._gidRef.delete(p.gid);
+      }
       return;
     }
     // 우편 입금(mailSend) — 발신자가 수신자 우편함에 우편 1통을 비동기 적재(수신자 접속 무관). p={type,id?,from,to,body}.
@@ -144,7 +164,7 @@ class MailService {
       this.sent++;
       if (item != null) this.itemSent++;
       this._journal({ kind: 'send', id, from: p.from, to: rcpt, body: p.body, sentAt, item });   // step-0145: durable op (step-0157: item 동봉)
-      if (item != null) this._custody(item, p.from, 'mailcustody', 'mailsend');   // step-0161: 발신 인출 leg1 — 발신자 가방→우편 custody(거래소 0117 의 우편 판·invMode OFF 면 no-op)
+      if (item != null) this._custody(item, p.from, 'mailcustody', 'mailsend', { kind: 'send', mailId: id, rcpt });   // step-0161: 발신 인출 leg1 — 발신자 가방→우편 custody(거래소 0117 의 우편 판·invMode OFF 면 no-op). step-0166: ref 로 실패 시 롤백.
       // 입금 발행(step-0144·mailSentPublish) — svc.mail.sent 로 1회 발행(운영 가시화·audit 관측). OFF·bus 부재면 no-op(0143 비트 동일).
       if (this.sentPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.sent', ev: { id, from: p.from, to: rcpt, sentAt } }); this.sentPublished++; }
       return;
@@ -199,6 +219,7 @@ class MailService {
     this.itemSent = 0; this.itemFetched = 0; this.itemExpired = 0;   // step-0157~0159: 아이템 회계도 RAM 소실(저널 replay 로 복원)
     this.gives = 0;   // step-0161: custody give 계측 리셋(가방 give 는 외부 — 우편 박스 RAM 소실 모델)
     this.pending = new Set(); this.acked = 0; this.ackedOk = 0; this.ackedFail = 0; this._gid = 0;   // step-0165: saga 미해결/회신 회계 리셋
+    this.compensated = 0; this._gidRef = new Map();   // step-0166: 보상 회계 리셋
   }
   // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
   //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
