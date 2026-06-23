@@ -562,6 +562,47 @@
         HTJEntity.stepEntities(w.__entities, 0.5, { N: w.N });                       // 이동(토러스)
       },
       note: '<b>큰 구체 둘이 빠르게 충돌하면 작은 구체들로 깨진다</b>(구체 세계 SW3·파편화). <b>▶ 흐름</b>: 온전한 큰 구체 2개가 마주보고 접근한다. 닿을 때 <b>상대 운동E 가 결합E 임계(shatterKE)를 넘으면</b> 합쳐지지 않고(SW1 과 반대) 각자 <b>작은 구체 6개로 깨진다</b>(2→12) — 우상단 "개체 N" 이 늘고 구체가 작아진다. 파편은 <b>흩어진다</b>(분산). 천천히 부딪히면 안 깨지고(SW1 이 합침·SW2 가 떠받침) <b>빠르면 깨진다</b> — 임계가 author 안 하고 가른다. <b>재파편 폭주 없음</b>: 조각은 질량↓ → 환산질량 μ↓ → 조각끼리 상대 운동E 가 임계 아래 = 더 안 깨짐(N 12 에 머묾). <b>왜 중요한가</b>(design/sphere-world.md §6): 합치기(SW1)↔쪼개기(SW3) <b>왕복</b>이 완성된다 — 미행성이 모여 행성이 되고(강착), 큰 충돌로 다시 부서진다. 0031("충돌→유체")의 구체-세계 판. <b>보존(쪼갠 합 = 원본·mergeGroup 의 역)</b>: 질량·운동량·각운동량(원점)·총E 정확(우상단 ΣP 불변). 부모 <b>스핀이 조각들에 나뉘고</b>(L/n 씩), 분산(폭발) 운동E 는 부모 <b>결합열(internalE)에서</b> 꺼낸다 — 합치기의 "잃은 KE→열" 의 <b>역</b>("결합열→분산 KE"). <b>정직한 한계</b>: 분산 KE 는 충돌 운동E 가 아니라 부모 internalE 에서(보존 단순화)·조각 수 n 고정·적응 합치기 LOD 는 SW4·구체 유체는 SW5. 여기선 *쪼개기 한 법칙*만.'
+    },
+
+    // ── step_0039 — 적응 LOD: 관찰자 멀면 합치고(coarse) 가까이서 쪼갠다(fine)(SW4) ──
+    //   0034 격자 LOD 의 Lagrangian 판 — 같은 보존 합산/분배(SW1 mergeGroup·SW3 fragmentEntity)를 *거리 임계*로
+    //   재사용. 관찰자(흰 점·초록 near 링)가 오가면 먼 블록은 1 개로 합쳐지고(N↓)·다가온 곳은 fine 으로 복원.
+    //   비용이 세계 크기가 아니라 관찰 영역에 묶인다. 합치고 쪼개도 질량·운동량 정확 보존(벌크 불변·모양만 LOD).
+    '0039': {
+      label: 'step_0039 — 적응 LOD(멀면 합치고 가까이서 쪼갬)', title: 'HTJ — 적응 LOD: 관찰자 멀면 합치고 가까이서 쪼갠다',
+      sub: '관찰자(흰 점·초록 near 링)가 오가면 먼 구체는 블록당 1 개로 합쳐지고(coarse·비용↓)·다가온 곳은 fine 으로 되쪼개진다 — 구체 세계 SW4(0034 격자 LOD 의 Lagrangian 판). 보존: 질량·운동량·각운동량·총E(벌크 불변·모양만 LOD)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, eqR = (n) => HTJEntity.equivalentRadius(n);
+        const cells = Math.max(4, Math.round(N * N * 0.012));
+        const ents = [];
+        // 세계 전역에 작은 구체 떼를 흩뿌린다 — 격자(블록) 간격으로 무리지어.
+        const bs = Math.max(4, Math.round(N / 5));
+        for (let bx = 0; bx < N; bx += bs) for (let by = 0; by < N; by += bs) {
+          for (let i = 0; i < 5; i++) {
+            const cx = bx + 1 + (i % 3) * 1.2, cy = by + 1 + ((i / 3) | 0) * 1.4;
+            if (cx >= N - 1 || cy >= N - 1) continue;
+            const m = cells * 2;
+            ents.push({ cx, cy, cz: (N - 1) / 2, mass: m, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+              KEcm: 0, internalKE: 0, internalE: cells * 0.4, energy: cells * 0.4,
+              cells, radius: eqR(cells), temp: 0, peak: 1, lodMembers: 1 });
+          }
+        }
+        w.__entities = ents;
+        w.__lodopt = { blockSize: bs, nearRadius: Math.max(5, N * 0.22) };
+        w.__obsT = 0;                                  // 관찰자 위상(원궤도로 세계를 훑음)
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        const N = w.N, cen = (N - 1) / 2, R = N * 0.32;
+        w.__obsT += 0.12;
+        const obs = [cen + R * Math.cos(w.__obsT), cen + R * Math.sin(w.__obsT), cen];   // 관찰자 원궤도
+        w.__obs = obs;                                 // 렌더가 표식할 수 있게
+        const r = HTJEntity.adaptLOD(w.__entities, Object.assign({ observer: obs }, w.__lodopt));
+        w.__entities = r.entities;                     // 먼 곳 합치고·가까운 곳 쪼갬(매 틱 재평가)
+      },
+      note: '<b>관찰자가 보는 곳만 정밀, 멀수록 거칠게</b>(구체 세계 SW4·적응 LOD). <b>▶ 흐름</b>: 세계 전역에 작은 구체 떼가 흩어져 있다. <b>관찰자</b>(흰 점·둘레 초록 링 = near 반경)가 원을 그리며 세계를 훑는다. <b>관찰자서 먼 블록</b>의 구체들은 <b>블록당 큰 구체 1개로 합쳐지고</b>(coarse·N↓), 관찰자가 <b>다가온 곳</b>은 그 큰 구체가 다시 <b>작은 구체들로 쪼개진다</b>(fine·디테일 복원) — 우상단 "개체 N" 이 관찰자 위치 따라 <b>숨쉬듯</b> 늘었다 줄었다 한다. <b>왜 중요한가</b>(design/sphere-world.md §6 SW4·§4): <b>비용이 세계 크기가 아니라 관찰되는 디테일에 묶인다</b> — 먼 구체를 아무리 늘려도(세계를 키워도) 합쳐져 블록 수에 묶이므로 near 예산은 일정(scalability.md 레버3 의 Lagrangian 판·0034 격자 LOD 의 구체 버전). 새 법칙이 아니라 <b>같은 보존 합산/분배의 재사용</b>: 합치기(SW1·mergeGroup)·쪼개기(SW3·fragmentEntity)를 <b>물리 임계 대신 거리 임계</b>로 트리거할 뿐. <b>보존(합산/분배라 정확)</b>: 질량·운동량·각운동량(원점)·총E 가 coarsen·refine·왕복 모두 불변(우상단 ΣP 불변) — <b>벌크는 정확, 모양만 LOD 손실</b>(coarse 는 내부 배열을 잃고 refine 은 평면 고리로 근사 복원·design §5 난점 1·약한 결정론). <b>정직한 한계</b>: 모양 복원은 근사(원래 배열 아님)·블록 버킷은 고정 격자(옥트리 다단계 아님)·구체 유체(SPH)는 SW5. 여기선 *적응 LOD 한 법칙*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -809,7 +850,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0038';                       // 기본 = 현재 step
+    sel.value = '0039';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──
