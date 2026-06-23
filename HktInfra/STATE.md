@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0145](step-0145.md) — **우편 영속·failover**(mailPersist·op 저널 replay): 0142~0144 우편함은 자기 영속 0(crash 휘발). 이 step: send/fetch op 를 durable 저널에 기록·crash(projection 소실) 후 seq 순 replay → 우편함+읽음+회계 *죽기 전과 비트 동일* 재구성(가방 0017·거래소 0109 의 우편 판·event sourcing). persist OFF → 소실(대조군). OFF·mail OFF = 0144 비트 동일. 닿는 박스: svc-mail·topo-build.
-- **한 줄 상태**: reg ALL OK(src=baseline=0144 비트 동일)·exmail: reconstruct digest==pre 전 시드·crash 빈 투영·persist OFF 소실·accountConsistent·spine 통과.
-- **다음**: §2 참조(0146 우편 저널 스냅샷 압축 mailSnapshot).
+- **닫힌 step**: [step-0146](step-0146.md) — **우편 저널 스냅샷 압축**(mailSnapshot): 0145 저널 무압축→무한 성장. 저널 N항(snapInterval)마다 projection 스냅샷+가지치기 → tail 만 유계 보관. reconstruct(스냅샷+tail) == 무압축 full == 라이브 *비트 동일*(거래소 0110·가방 0018 의 우편 판·무손실 압축). 압축은 저널 쪽 일(라이브 비-침습). snapInterval 0·mail OFF = 0145 비트 동일. 닿는 박스: svc-mail·topo-build.
+- **한 줄 상태**: reg ALL OK(src=baseline=0145 비트 동일)·exmail: snap+tail(2) == full(8) == live digest 3자 비트 동일·tail<full·accountConsistent·spine 통과.
+- **다음**: §2 참조(0147 우편 읽음 확인 발행 mailReadPublish — svc.mail.read).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 서비스 arc 진행 중(0142 분리✅·0143 수령✅·0144 발행✅·0145 영속✅). 남은: 0146 저널 스냅샷 압축→0147 읽음확인 발행→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·거래소 발행 7종·우편 발행 1종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
+**우편(Mail) 서비스 arc 진행 중(0142~0146 분리/수령/발행/영속/압축✅). 남은: 0147 읽음확인 발행(svc.mail.read)→0148 만료 TTL→0149 만료 발행→0150 회계 정합 capstone(sent==held+fetched+expired) — 거래소 arc(0107~0140) 패턴. 병행 후보: 발행 게이트 통합·길드·비동기 결정론(🔴). 🔧 topo-run 27KB·거래소 발행 7종·우편 발행 1종. 🔎 0131~0140 묶음 리뷰 적기(병행).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십·전달 신뢰·파티 집계/영속·epoch 펜싱·수신함 유계/드레인. **거래소 arc 0107~0134**: escrow 쌍 거래·발행 5종·영속/압축·시세 피드·만료 TTL·가방 give 3leg·2-서비스 보존·saga(피드백 0121→보상 0122→capstone 0130→재시도 상한 0131→포기 발행 0132→재admission 0134→발행 0135→자동 트리거 0136→재admission 상한 0137→영구 실패 발행 0138→가방 회복 공지 0139→liveness capstone 0140: 자율 복구·네 정합층 완성). 정리 0124/0133. **우편 arc 0142~**: MailService(mailSend 입금·수신자별 우편함·발신 0). 신성한 tick·권위 0. 발행 게이트·우편 수령/영속/만료·길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십·전달 신뢰·파티 집계/영속·epoch 펜싱·수신함 유계/드레인. **거래소 arc 0107~0140**: escrow 쌍 거래·발행 7종·영속/압축·시세 피드·만료 TTL·가방 give 3leg·2-서비스 보존·saga liveness(0121~0140: 자율 복구·네 정합층 완성·전문 §7). 정리 0124/0133. **우편 arc 0142~**: MailService(입금/수령/발행/영속/압축·sent==held+fetched·발신 svc.mail.sent). 신성한 tick·권위 0. 우편 읽음확인/만료·발행 게이트·길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0048 lease/ns/lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070): 분리→버스화→shadow→failover 승격→사망 자율 감지→질의 →0105/0106 공지 epoch 펜싱(presmon·wrouter 메아리 정리). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속/스냅샷→0023~0026 홉 신뢰→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 recon. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -241,3 +241,4 @@
 | [0143](step-0143.md) | 우편 수령(mailFetch — held→fetched 무손실 이동·sent==held+fetched) | 통과 · h1 fetched 2·재수령 0·accountConsistent |
 | [0144](step-0144.md) | 우편 입금 발행(mailSentPublish — svc.mail.sent·audit 무수정 관측) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
 | [0145](step-0145.md) | 우편 영속·failover(mailPersist — op 저널 replay·crash→reconstruct) | 통과 · reconstruct==pre digest·OFF 소실·accountConsistent |
+| [0146](step-0146.md) | 우편 저널 스냅샷 압축(mailSnapshot — 스냅샷+tail==full==live 비트 동일) | 통과 · tail 2<full 8·3자 비트동일·accountConsistent |

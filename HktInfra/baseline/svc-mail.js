@@ -1,4 +1,7 @@
 'use strict';
+// step-0145 — 우편 영속·failover(mailPersist·op 저널 replay): 0142~0144 우편함은 *자기 영속 0* — crash 시 보유·수령이 전부 휘발했다.
+//   가방 0017(효과 저널)·거래소 0109(op 저널)처럼, 우편도 원장을 바꾼 op(send·fetch)를 durable 저널에 append 하고, crash(projection 소실) 후 그 저널을 seq 순 replay 해
+//   우편함+읽음+회계를 *죽기 전과 비트 동일*하게 재구성한다(event sourcing·발신/발행 없이 순수 재현). persist OFF·미replay 면 소실(영속 부재의 대가 = 대조군). "세계가 세션보다 오래 산다".
 // step-0144 — 우편 발행(mailSentPublish·svc.mail.sent): 입금(mailSend)을 버스로 발행해 audit/읽기 모델이 *발행자 무수정으로* 관측한다 —
 //   거래소 0108(exchangePublish→svc.exchange.sold·audit 구독)의 우편 판. 우편함 권위는 여전히 MailService(발행은 파생 관찰 스트림). OFF·bus 부재면 발행 0 = 0143 비트 동일.
 // step-0143 — 우편 수령(mailFetch): 0142 는 입금만이라 우편함이 무한히 쌓였다 — 수신자가 *가져가는* 경로가 없었다.
@@ -28,7 +31,12 @@ class MailService {
     this.expired = 0;              // 총 만료 통수(step-0148 — 만료 회수 합; 0143 엔 0).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
     this._seq = 0;                 // 결정론 mail id 시퀀스(id 미지정 시 'mail'+seq — 단일 박스 순서 = 결정적).
+    this.persist = opts.persist || false;   // 원장 영속(step-0145·mailPersist) — send/fetch op 를 durable 저널에 기록·crash 후 replay. OFF 면 저널 0(0144 동일·휘발).
+    this.journal = [];             // durable op 저널 [{seq,kind,...}](step-0145) — projection(우편함·읽음·회계)과 분리(crash 시 projection 만 소실).
+    this.jseq = 0;                 // 저널 시퀀스(append-only).
   }
+  // op 저널 추가(step-0145) — 우편함을 바꾼 op(send/fetch)만 durable 저널에 append. persist OFF 면 no-op(0144 동일).
+  _journal(entry) { if (!this.persist) return; this.journal.push({ seq: ++this.jseq, ...entry }); }
   _box(rcpt) { if (!this.boxes.has(rcpt)) this.boxes.set(rcpt, new Map()); return this.boxes.get(rcpt); }
   onMsg(m) {
     const p = m && m.payload;
@@ -43,6 +51,7 @@ class MailService {
       const sentAt = m.tick != null ? m.tick : (p.sentAt | 0);
       box.set(id, { id, from: p.from, to: rcpt, body: p.body, sentAt });
       this.sent++;
+      this._journal({ kind: 'send', id, from: p.from, to: rcpt, body: p.body, sentAt });   // step-0145: durable op
       // 입금 발행(step-0144·mailSentPublish) — svc.mail.sent 로 1회 발행(운영 가시화·audit 관측). OFF·bus 부재면 no-op(0143 비트 동일).
       if (this.sentPublish && this.bus && this.net) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.mail.sent', ev: { id, from: p.from, to: rcpt, sentAt } }); this.sentPublished++; }
       return;
@@ -59,9 +68,37 @@ class MailService {
         this.read.set(rcpt, log);
         this.fetched += out.length;
         box.clear();   // 보유→수령 이동(무손실·중복 0). 빈 Map 유지(held(rcpt)==0).
+        this._journal({ kind: 'fetch', to: rcpt });   // step-0145: durable op(수령도 replay 정합 — replay 시 그 시점 보유분을 동일 이동)
       }
       this._lastFetch = { to: rcpt, mails: out };
       return;
+    }
+  }
+  // crash(step-0145) — 박스 RAM 소실의 인프로세스 모델: projection(우편함·읽음·회계)만 비운다. *op 저널은 durable* 이라 보존(거래소 0109 의 우편 판).
+  crash() {
+    this.boxes = new Map(); this.read = new Map();
+    this.sent = 0; this.fetched = 0; this.expired = 0; this.sentPublished = 0; this._seq = 0; this._lastFetch = null;
+  }
+  // reconstruct(step-0145·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
+  //   send → 우편함 적재 + sent++(멱등). fetch → 그 시점 보유분 전부 box→read 이동(수령 회계 재현). 발행(sentPublish)은 replay 에서 *안 한다*(파생 스트림·이중 발행 방지).
+  reconstruct() {
+    for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) {
+      if (e.kind === 'send') {
+        const box = this._box(e.to);
+        if (box.has(e.id)) continue;
+        box.set(e.id, { id: e.id, from: e.from, to: e.to, body: e.body, sentAt: e.sentAt });
+        this.sent++;
+      } else if (e.kind === 'fetch') {
+        const box = this.boxes.get(e.to);
+        const out = box ? [...box.values()] : [];
+        if (out.length) {
+          const log = this.read.get(e.to) || [];
+          for (const mm of out) log.push(mm);
+          this.read.set(e.to, log);
+          this.fetched += out.length;
+          box.clear();
+        }
+      }
     }
   }
   held(rcpt) { const b = this.boxes.get(rcpt); return b ? b.size : 0; }   // 한 수신자 우편함 보유 통수
@@ -71,14 +108,18 @@ class MailService {
   readOf(rcpt) { const l = this.read.get(rcpt); return l ? l.slice() : []; }   // 수령(읽음) 보관 통째(step-0143)
   // 회계 정합(step-0143 — sent==held+fetched; 0148 에 +expired). 우편 1통은 매 순간 정확히 한 상태(보유·수령·만료)에 있다(공백·중복 0).
   accountConsistent() { return this.sent === this.totalHeld() + this.fetched + this.expired; }
-  // digest — 우편함 상태 해시(결정론 검증용·recipient/id 정렬). 0142: 입금만이므로 sentAt·from·body 포함.
+  // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];
     for (const rcpt of [...this.boxes.keys()].sort())
       for (const id of [...this.boxes.get(rcpt).keys()].sort()) {
         const mm = this.boxes.get(rcpt).get(id);
-        rows.push(`${rcpt}/${id}:${mm.from}>${mm.to}@${mm.sentAt}:${mm.body}`);
+        rows.push(`H/${rcpt}/${id}:${mm.from}>${mm.to}@${mm.sentAt}:${mm.body}`);
       }
+    for (const rcpt of [...this.read.keys()].sort())
+      for (const mm of this.read.get(rcpt))
+        rows.push(`R/${rcpt}/${mm.id}:${mm.from}>${mm.to}@${mm.sentAt}:${mm.body}`);
+    rows.push(`C:sent=${this.sent},fetched=${this.fetched},expired=${this.expired}`);
     return fnv1a(rows.join('|'));
   }
 }
