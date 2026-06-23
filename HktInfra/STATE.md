@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0131](step-0131.md) — **saga 재시도 상한**(sagaMaxRetries·0059 recoverMaxRetries 의 saga 판): 0129 autoRetry 는 영구 회신 손실 시 무한 재전송했다. exchRetry(0126)·autoRetry(0129) 재전송을 `_resendPending()` 공용 헬퍼로 추출하고 gid 당 sagaMaxRetries 회 상한을 둠. 도달 시 give 포기(pendingGive 제거→재전송 중단·giveAbandoned++)·pending 잔존(미해결). 포기는 abort 아님 — give 가 실제 성공했을 수 있어(dedup→escrow 소유) 낙관적 open 유지(open==escrow 안전)·pending 잔존으로 sagaConsistent(gives==acked+pending) 불변. 상한 0 면 분기 휴면 = 0130 비트 동일. 닿는 박스: svc-exchange-core/txn·topo-build(배선).
-- **한 줄 상태**: reg ALL OK(src=baseline=0130 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagamax: cap ON retries 2/abandoned 1/pending 1·open==escrow ["item0"]·cap OFF retries 4(발산)·ON<OFF·sagaConsistent 양체제·전 키트 모드+spine 통과.
-- **다음**: §2 참조(포기 give 발행·topo-build/topology 정리·우편/길드·비동기 결정론🔴·0131~0140 묶음 리뷰 시점).
+- **닫힌 step**: [step-0132](step-0132.md) — **saga 포기 발행**(abandonPublish): 0131 은 상한 포기를 조용히 했다(giveAbandoned 만). 운영 가시화를 위해 `_resendPending()` 포기 분기에서 abandonPublish ON 이면 svc.exchange.saga_abandoned{gid,itemId,cause} 1회 발행(abandonPublished == giveAbandoned)·audit 가 구독 관측. 발행은 통보일 뿐(보상 아님)·open==escrow 안전 유지·sagaConsistent 불변. 거래소 수명주기 발행 5종(sold 0108·cancelled 0111·expired 0115·aborted 0123·saga_abandoned 0132). OFF·bus 부재면 발행 0 = 0131 비트 동일. 닿는 박스: svc-exchange-core·topo-build(배선+audit 구독).
+- **한 줄 상태**: reg ALL OK(src=baseline=0131 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsagaaband: ON pub 1==abandoned 1·audit saw 1·open==escrow ["item0"]·OFF pub/audit 0·sagaConsistent 양체제·전 키트 모드+spine 통과.
+- **다음**: §2 참조(포기 give 보상·topo-build/topology 정리·우편/길드·비동기 결정론🔴·0131~0140 묶음 리뷰 시점).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0131 이 *saga 재시도 상한*(sagaMaxRetries)으로 거래소↔가방 saga 신뢰 전달의 liveness 를 유계화(영구 회신 손실에도 재전송 발산 0·안전·정합 유지). 다음 후보: *포기 give 발행*(svc.exchange.saga_abandoned·audit 관측 — 0131 §9 의 "포기는 인지일 뿐")·*정리* topo-build(32.8KB)·topology(31.6KB) 분할·*우편/길드 서비스*·*buy leg 보상*·*비동기 결정론*(🔴). 🔧 topo-build 32.8KB·topology 31.6KB. 🔎 0131~0140 묶음 리뷰(`infra-review`) 시점.**
+**step-0132 가 *saga 포기 발행*(abandonPublish)으로 상한 포기(0131)를 svc.exchange.saga_abandoned 로 가시화(audit 관측·발행 5종 완비). 다음 후보: *포기 give 보상*(영구 실패 list-leg → listing abort·0122 exchCompensate 의 timeout 판)·*정리* topo-build(33.1KB)·topology(31.6KB) 분할·*우편/길드 서비스*·*buy leg 보상*·*비동기 결정론*(🔴). 🔧 topo-build 33.1KB·topology 31.6KB. 🔎 0131~0140 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -78,7 +78,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 0001 스텁(일회 티켓·단일 연결·은닉) + 0010 별 OS 프로세스 + 0046 게이트웨이 producer 네임스페이스(다중 게이트웨이 reqId 겹침→복합키). 대기열·만료·재접속·게이트웨이 군 풀 토폴로지 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 0001 존 VM +0002~0004 결정론 복제·동결 Sim +0005 AOI +0006 분할·핸드오프(소유자=1) +0007 증분 AOI +0008 반응적 복원 +0009 failover +0010 별 프로세스 +0013 죽은 추종자 재충원. 0002~0004 비트-결정론 복제는 C++ 승격에서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0131**(…→0126 재전송+dedup→0127 유계화→0128 회계 불변→0129 자동 재전송→0130 give↔transfers capstone→0131 재시도 상한 sagaMaxRetries: 영구 손실 재전송 유계·포기 abort 아님·안전/정합 유지). 신성한 tick·권위 0. 포기 give 발행·buy leg 보상·우편/길드 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델(0014~0022)→write-behind/quorum(0023~0032)→대체 소비자(0061~0063). **귓속말/파티 라우팅 wrouter(0071~0106)**: 라우팅·failover·1:N·멤버십 SSOT·전달 신뢰·파티 집계/영속/압축·epoch 펜싱·종결/발행·수신함 유계/드레인/관측·공지 메아리 펜싱. **거래소 arc 0107~0131**(…→0126 재전송+dedup→0127 유계화→0128 회계 불변→0129 자동 재전송→0130 give↔transfers capstone→0131 재시도 상한 sagaMaxRetries→0132 포기 발행 abandonPublish: svc.exchange.saga_abandoned·발행 5종 완비). 신성한 tick·권위 0. 포기 보상·buy leg 보상·우편/길드 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 0004 전송 substrate→0012 토픽 pub/sub→0016 ServiceBus(발행자 무수정 소비자)→0019 발신 소비자→0033 동적 구독→0034 failover→0036/0037 결과/요청 무손실(producer replay)→0039~0042 replay 유계·ack 자기조정→0044 min-워터마크→0045~0048 lease/ns/lifecycle→0050~0052 적응형 leaseSpan/grace/cadence→0054 관측. 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 0001 레지스트리 +0009 Orchestrator(lease·failover) +0010~0013 broker(lockstep→TCP→버스 허브·분단/펜싱·kill·split-brain 0). 0054~0063 lease→프레즌스 SSOT→self-healing. 프레즌스 박스(0064~0070): 분리→버스화→shadow→failover 승격→사망 자율 감지→질의 →0105/0106 공지 epoch 펜싱(presmon·wrouter 메아리 정리). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 0017 PersistStore 첫 박스(효과 저널·write-behind·kill→replay)→0018 스냅샷 압축→0020 읽기모델 복구원→0021~0022 채팅 영속/스냅샷→0023~0026 홉 신뢰→0027~0029 failover/N-replica quorum→0031~0032 윈도+유계 K→0062 대체 소비자 recon. 증분 스냅샷·fsync·월드/버스 영속 후속 |
@@ -223,7 +223,8 @@
 | [0125](step-0125.md) | saga 미해결 give 추적+회신 손실 감지(pendingGives·gid — give 에 gid·pending add/remove) | 통과 · 정상 pending 0/peak 2·손실 pending 9/acked 0·안전 유지·spine 125 |
 | [0126](step-0126.md) | saga 회신 재전송+idempotent dedup(exchRetry·sagaDedup — (replyTo,gid) 재실행 0 재회신) | 통과 · dedupON pending 0/안전·OFF open[]!=escrow·spine 126 |
 | [0127](step-0127.md) | saga dedup 유계화(sagaDedupBound·saga_done — ack 시 prune 통보) | 통과 · bound ON sagaResults 0/dones 9·spine 127 |
-| [0128](step-0128.md) | saga 회계 정합 불변(sagaConsistent — gives==acked+pending·acked==oks+fails 체제 무관) | 통과 · 정상/손실/재전송 3체제 sagaConsistent true·spine 128 |
-| [0129](step-0129.md) | saga 자동 재전송(autoRetry — exchSweep 피기백·주기 타임아웃 재전송) | 통과 · autoON retries 2/pending 0/oks 회복·OFF retries 0/pending 1·spine 129 |
-| [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers — 요청 회계 ≡ 실행 회계) | 통과 · giveOks 9==escrowXfers 9==transfers 9·3정합층 합류·spine 130 |
+| [0128](step-0128.md) | saga 회계 정합 불변(sagaConsistent — gives==acked+pending·acked==oks+fails) | 통과 · 3체제 true·spine 128 |
+| [0129](step-0129.md) | saga 자동 재전송(autoRetry — exchSweep 피기백·주기 타임아웃 재전송) | 통과 · autoON retries 2/pending 0·OFF pending 1·spine 129 |
+| [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers — 요청 회계 ≡ 실행 회계) | 통과 · giveOks==escrowXfers==transfers 9·3정합층·spine 130 |
 | [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries — autoRetry/exchRetry gid 당 N회·포기 abort 아님) | 통과 · cap ON retries 2/abandoned 1·OFF 4 발산·open==escrow 안전·sagaConsistent·spine 131 |
+| [0132](step-0132.md) | saga 포기 발행(abandonPublish — svc.exchange.saga_abandoned·발행 5종 완비) | 통과 · ON pub 1==abandoned 1·audit saw 1·OFF 0·안전·spine 132 |

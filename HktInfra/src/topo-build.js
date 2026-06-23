@@ -40,6 +40,7 @@ function buildTopology(opts) {
     sagaDedupBound = false,
     autoRetry = false,
     sagaMaxRetries = 0,
+    abandonPublish = false,
     chatpersist = false, chatSnapshot = 0,
     clientResend = false,
     mintRecon = false,
@@ -181,6 +182,7 @@ function buildTopology(opts) {
     if (audit && exchange && cancelPublish) subs.push(['svc.exchange.cancelled', 'audit']);   // 거래소 취소 발행(0111) — audit 가 svc.exchange.cancelled 구독(delisting 관측). cancelPublish OFF 면 미추가(0110 토폴로지 비트 동일).
     if (audit && exchange && expirePublish) subs.push(['svc.exchange.expired', 'audit']);   // 거래소 만료 발행(0115) — audit 가 svc.exchange.expired 구독(만료 관측). expirePublish OFF 면 미추가(0114 토폴로지 비트 동일).
     if (audit && exchange && abortPublish) subs.push(['svc.exchange.aborted', 'audit']);   // 보상 발행(0123) — audit 가 svc.exchange.aborted 구독(보상 롤백 관측). abortPublish OFF 면 미추가(0122 토폴로지 비트 동일).
+    if (audit && exchange && abandonPublish) subs.push(['svc.exchange.saga_abandoned', 'audit']);   // 포기 발행(0132) — audit 가 svc.exchange.saga_abandoned 구독(영구 미해결 give 관측). abandonPublish OFF 면 미추가(0131 토폴로지 비트 동일).
     if (marketFeed && exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); subs.push(['svc.exchange.expired', 'market']); }   // 시세 피드(0112·0116) — MarketFeed 가 체결·취소·만료 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
     if (audit && bouncePublish && whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
@@ -237,7 +239,7 @@ function buildTopology(opts) {
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
-  if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist, snapInterval: exchangeSnapshot, cancelPublish, ttl: exchangeTtl, expirePublish, inv: (exchInventory && inventory) ? inventoryAddr : null, invMode: exchInventory, saga: exchSaga, compensate: exchCompensate, abortPublish, sagaDedupBound, autoRetry, sagaMaxRetries } });   // 0117: exchInventory ON 이면 거래소가 가방 주소를 알고 escrow 를 실체화(give). OFF 면 추상 escrow(0116 비트 동일).
+  if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist, snapInterval: exchangeSnapshot, cancelPublish, ttl: exchangeTtl, expirePublish, inv: (exchInventory && inventory) ? inventoryAddr : null, invMode: exchInventory, saga: exchSaga, compensate: exchCompensate, abortPublish, sagaDedupBound, autoRetry, sagaMaxRetries, abandonPublish } });   // 0117: exchInventory ON 이면 거래소가 가방 주소를 알고 escrow 를 실체화(give). OFF 면 추상 escrow(0116 비트 동일).
   if (marketFeed && exchange) add({ addr: 'market', kind: 'market', opts: { bus: busAddr } });   // 시세 피드(step-0112·MarketFeed) — 거래소 발행 스트림 구독 읽기 모델. marketFeed OFF·거래소 부재면 박스 0 = 0111 비트 동일.   // 거래소(step-0107) — 아이템 escrow 거래 박스(존 tick 밖·단일 소유·쌍 거래). publish(0108): 체결 발행. persist(0109): op 저널 replay. snapInterval(0110): 저널 스냅샷 압축. exchange OFF 면 박스 0 = 0106 비트 동일.
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });

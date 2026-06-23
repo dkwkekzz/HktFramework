@@ -60,6 +60,23 @@ class ExchangeService {
     this.sagaDedupBound = opts.sagaDedupBound || false;   // saga dedup 유계화(step-0127) — ON 이면 give 결과 최종 수신 시 saga_done{gid} 를 가방에 보내 dedup 항목 가지치기. OFF 면 발신 0(0126 비트 동일).
     this.sagaDones = 0;                 // 발신한 saga_done 수(step-0127·계측·ackedGives 와 1:1·재전송 ack 포함).
     this.autoRetry = opts.autoRetry || false;   // 자동 재전송(step-0129) — ON 이면 exchSweep op 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송). OFF 면 sweep 은 TTL 회수만(0128 비트 동일).
+    this.sagaMaxRetries = opts.sagaMaxRetries || 0;   // saga 재시도 상한(step-0131·0059 recoverMaxRetries 의 saga 판) — autoRetry/exchRetry 재전송을 gid 당 N회로 제한. 도달 시 그 give 포기(pendingGive 제거·재전송 중단)·pending 에는 잔존(미해결·sagaConsistent 불변). 0 이면 무제한(0130 비트 동일).
+    this.retryCount = new Map();        // gid -> 재전송 횟수(step-0131·sagaMaxRetries>0 일 때만 사용) — 상한 비교용. ack/포기 시 제거.
+    this.giveAbandoned = 0;             // 상한 도달로 포기한 give 누적(step-0131·계측) — 영구 회신 손실의 신호. pending 에는 남는다(미해결·재전송만 중단).
+  }
+  // 미해결 give 재전송(step-0126 exchRetry·0129 autoRetry 공용 추출 — 0131)·재시도 상한(step-0131·sagaMaxRetries).
+  //   pendingGive 의 각 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 dedup 전제). sagaMaxRetries>0 이면 gid 당 N회 재전송 후 포기(pendingGive 제거→이후 sweep 비-순회·giveAbandoned++·pending 잔존).
+  //   sagaMaxRetries 0(기본) 이면 상한 분기 휴면 → 무제한 재전송 = 0130 비트 동일(reg). 포기는 *재전송 중단*일 뿐 abort 아님(give 가 실제 성공했을 수 있으므로 낙관적 open 유지 = 안전).
+  _resendPending() {
+    for (const [gid, g] of [...this.pendingGive]) {
+      if (this.sagaMaxRetries > 0) {
+        const c = this.retryCount.get(gid) || 0;
+        if (c >= this.sagaMaxRetries) { this.pendingGive.delete(gid); this.retryCount.delete(gid); this.giveAbandoned++; continue; }
+        this.retryCount.set(gid, c + 1);
+      }
+      this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
+      this.retries++;
+    }
   }
   // escrow custody 이동 헬퍼(step-0117) — 거래소↔가방 2-서비스 쌍 거래의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(fromAvatar→toAvatar). 가방이 권위·거래소는 요청만(은닉). 미충족이면 no-op(추상 escrow·0116 동일).
   _custody(itemId, from, to, cause) {
@@ -97,6 +114,7 @@ class ExchangeService {
     this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0; this.aborted = 0; this.abortPublished = 0;   // saga 피드백/보상/발행 집계 리셋(step-0121~0123) — 새 프로세스는 give 결과·abort·발행 이력 0(플래그 OFF 면 무관).
     this.gid = 0; this.pending = new Set(); this.pendingPeak = 0; this.pendingGive = new Map(); this.retries = 0; this.sagaDones = 0;   // 미해결 give 추적/재전송/유계화 리셋(step-0125~0127) — 새 프로세스는 in-flight give 이력 0(saga OFF 면 무관).
+    this.retryCount = new Map(); this.giveAbandoned = 0;   // 재시도 상한 리셋(step-0131) — 새 프로세스는 재시도 이력 0(sagaMaxRetries 0 면 무관).
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
