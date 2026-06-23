@@ -1,4 +1,7 @@
 'use strict';
+// step-0136 — saga 재admission 자동 트리거(autoReadmit): 거래소가 svc.inventory.up(가방 회복) ev 를 구독해 수신 시 _readmit() — 수동 exchReadmit 불요. OFF 면 ev 무시 = 0135 비트 동일.
+// step-0134 — saga 포기 give 재admission(exchReadmit): 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개(retryCount 리셋). exchReadmit op 부재면 0133 비트 동일.
+// step-0131 — saga 재시도 상한(sagaMaxRetries): exchRetry(0126)·exchSweep autoRetry(0129) 의 재전송 루프를 _resendPending() 공용 헬퍼로 추출하고 gid 당 N회 상한을 둔다. 상한 0(기본)이면 무제한 = 0130 비트 동일.
 // step-0124 정리 분할 — 거래소 *트랜잭션 핸들러*(onMsg): svc-exchange.js 가 32KB 를 넘어(비대화 트리거) 박스를 부품으로 재분할(기능 0·바이트 동일·reg 0).
 //   원장 코어(svc-exchange-core.js)의 프로토타입을 Object.assign 으로 증강(가방 core/txn 와 동일 패턴·동작 불변). 진입점 svc-exchange.js 가 core 뒤에 로드한다.
 //   onMsg 의 분기: item_result(0121 saga 회신·0122 보상)·exchList(0107 인출)·exchSweep(0114 만료)·exchBuy(0107/0118 입금)·exchCancel(0107/0119 반환). 발행 4종(sold/cancelled/expired/aborted).
@@ -12,7 +15,7 @@ Object.assign(ExchangeService.prototype, {
     if (p.type === 'item_result' && p.op === 'give') {
       this.ackedGives++;
       if (p.gid !== undefined) {
-        this.pending.delete(p.gid); this.pendingGive.delete(p.gid);   // 미해결 추적(step-0125·0126) — 회신 도착한 give 를 pending/pendingGive 에서 제거(정상 흐름 0 으로 drain).
+        this.pending.delete(p.gid); this.pendingGive.delete(p.gid); this.retryCount.delete(p.gid); this.readmitCount.delete(p.gid);   // 미해결 추적(step-0125·0126) — 회신 도착한 give 를 pending/pendingGive 에서 제거(정상 흐름 0 으로 drain). retryCount(0131)·readmitCount(0137)도 정리(상한 0 면 빈 맵·no-op).
         // saga dedup 유계화(step-0127·sagaDedupBound) — 결과 최종 수신 → 더는 그 gid 재전송 안 함 → 가방이 dedup 항목 잊어도 안전. saga_done 으로 통보(0042 워터마크의 saga 판). OFF·inv 부재면 발신 0(0126 비트 동일).
         if (this.sagaDedupBound && this.inv) { this.net.send(this.addr, this.inv, { type: 'saga_done', gid: p.gid }); this.sagaDones++; }
       }
@@ -31,13 +34,11 @@ Object.assign(ExchangeService.prototype, {
     }
     // 미해결 give 재전송(step-0126·exchRetry) — 회신 손실로 pending 에 남은 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 dedup 전제).
     //   재전송이라 gives/pending 무증가(이미 추적 중)·retries++. pendingGive 비었으면(saga OFF·전부 acked) no-op = 0125 비트 동일.
-    if (p.type === 'exchRetry') {
-      for (const [gid, g] of this.pendingGive) {
-        this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
-        this.retries++;
-      }
-      return;
-    }
+    if (p.type === 'exchRetry') { this._resendPending(); return; }   // step-0131: 재전송 루프를 _resendPending() 로 추출(상한 0 면 무제한 = 0126 동일).
+    // 포기 give 재admission(step-0134·exchReadmit) — 운영이 손실 해소 후 포기(abandonedGive)된 give 를 pendingGive 로 되돌려 retry 재개. retryCount 리셋(상한 재충전). 이후 sweep/Retry 가 재전송. abandonedGive 비었으면 no-op = 0133 비트 동일.
+    if (p.type === 'exchReadmit') { this._readmit(); return; }   // step-0136: 재admission 실행을 _readmit() 로 추출(수동 op·발행 0135 포함·동작 불변).
+    // 재admission 자동 트리거(step-0136·autoReadmit) — 거래소가 구독한 svc.inventory.up(가방 회복) ev 수신 시 스스로 재admission(수동 exchReadmit 불요). OFF 면 ev 무시 = 0135 비트 동일(branch 휴면).
+    if (this.autoReadmit && p.type === 'ev' && p.topic === 'svc.inventory.up') { this._readmit(); return; }
     // 매물 등록(list·acquire) — 판매자가 아이템을 거래소 escrow 로 맡긴다. 이후 거래소 권위 아래(판매자 이중 판매 불가). open++.
     if (p.type === 'exchList') {
       const id = ++this.nextId;
@@ -50,12 +51,7 @@ Object.assign(ExchangeService.prototype, {
     // 매물 만료 sweep(step-0114·exchExpiry) — now−listedAt ≥ ttl 인 open 매물을 자동 만료(escrow→판매자 반환). 취소와 같은 release 쌍이되 *시간 트리거*. ttl 0 면 no-op(0113 동일). 결정론: 삽입 순(Map) 순회.
     if (p.type === 'exchSweep') {
       // 자동 재전송(step-0129·autoRetry) — sweep 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·exchRetry 0126 의 주기 형태). 가방 dedup(0126) 이 재실행 0 보장. OFF 면 블록 skip = 0128 비트 동일(TTL 만 sweep).
-      if (this.autoRetry) {
-        for (const [gid, g] of this.pendingGive) {
-          this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
-          this.retries++;
-        }
-      }
+      if (this.autoRetry) this._resendPending();   // step-0131: 같은 _resendPending() 재사용(상한 0 면 무제한 = 0129 동일).
       if (this.ttl <= 0) return;
       const now = p.now | 0;
       for (const [id, l] of [...this.listings]) {

@@ -18,9 +18,10 @@
 2. **영속·failover** ✅ — 왜: 죽으면 원장 소실. / 어떻게: 효과 저널 write-behind + 스냅샷 압축. / 했나: `step-0017~0018`.
 3. **신뢰 전달·quorum** ✅ — 왜: 홉에서 흘리면·단일 저장본이면 위험. / 어떻게: NAK·heartbeat·give·mint 복구 → quorum(데이터 계층과 짝). / 했나: `step-0023~0029`.
 4. **거래소 saga leg(escrow 실물)** ✅ — 왜: 거래소 escrow 가 실물 아이템으로 빠져야. / 어떻게: escrow custody give + 멱등 dedup. / 했나: `step-0117~0130`(거래소 항목 참조).
-5. **멀티프로세스 패리티** ⬜ — 왜: transfers≠base 잔류. / 했나: 미착수(#9).
+5. **회복 자기 공지(svc.inventory.up)** ✅ — 왜: 가방 회복을 거래소가 알아야 saga 를 자동 재개(0136). / 어떻게: 회복 시점(announceUp seam)에 svc.inventory.up 발행→버스→거래소 구독(발행→버스→구독 실 체인·발행자 무수정·decouple). / 했나: `step-0139`(`svc-inventory-txn.js:15`). 단, announceUp 은 *회복 시점 seam*(클러스터 reconstruct 직후 자동 발행은 #9 무대).
+6. **멀티프로세스 패리티** ⬜ — 왜: transfers≠base 잔류·announceUp 자동 트리거 미배선. / 했나: 미착수(#9).
 
-**지금 어디 / 다음**: 단일 소유 원장 → 신뢰 전달·quorum·거래소 saga leg 까지. 다음 = 멀티프로세스 배선.
+**지금 어디 / 다음**: 단일 소유 원장 → 신뢰 전달·quorum·거래소 saga leg·회복 자기 공지까지. 다음 = 멀티프로세스 배선.
 
 ## 채팅 서버 🟡 자라는 중
 
@@ -91,9 +92,10 @@
 5. **닫힌 saga 고리(보상)** ✅ — 왜: 두 서비스 give 가 낙관적이면 한쪽 실패가 유령 상태. / 어떻게: give 결과 비동기 수신(replyTo+cause)→실패 보상 롤백→보상 발행. / 했나: `step-0121~0123`(phantom 0).
 6. **회신 손실 신뢰 전달** ✅ — 왜: 회신 손실 시 saga 멈춤·오보상. / 어떻게: 미해결 추적(gid·pending)+손실 감지→재전송+멱등 dedup→유계화(saga_done). / 했나: `step-0125~0127`(`svc-inventory-txn.js:65`).
 7. **세 정합 층 합류(정확히 한 번 증명)** ✅ — 왜: "정확히 한 번 옮겨졌나"를 증명해야. / 어떻게: 회계 닫힘(sagaConsistent `gives==acked+pending`) + 자동 재전송 + 교차 정합(escrowXfers==giveOks). / 했나: `step-0128~0130`(`svc-exchange-core.js:119`·`svc-inventory-txn.js:74`·물리0120/회계0128/교차0130·#31 해소).
-8. **저널 별 PersistStore 박스화·자동 재전송 상한·멀티프로세스** ⬜ — 했나: 미착수(#30b·#35·#9).
+8. **saga liveness 유계화·자율 복구·관측** ✅ — 왜: 회신이 *영구* 손실되면 자동 재전송(0129)이 무한 반복하고, 멈추면 give 가 영영 미해결(0129 §9·#35). 유계하게 재시도·포기하되 손실이 풀리면 되살리고, 안 되면 종결하고, 그 전 생애를 운영이 봐야. / 어떻게(기능마다 다른 이론): ⒜ *재전송 상한* — gid 당 N회 후 포기(0059 recoverMaxRetries 의 saga 판) ⒝ *재admission* — 포기 give 간직→손실 해소 시 retry 재개(0048 lease 재admission 의 saga 판) ⒞ *자동 트리거* — 가방 회복 신호 구독→자동 재개(0056 busPresenceRecover 의 saga 판·decouple) ⒟ *2단 유계* — 재admission 횟수 상한→영구 실패(총 재전송 ≤ sagaMaxRetries×(readmitMax+1)) ⒠ *수명주기 발행* — 포기·재개·종결 3종 버스 발행 ⒡ *liveness 정합 capstone* — pending==pendingGive+abandonedGive+permFailed(분할 불변). / 했나: `step-0131`(sagaMaxRetries·`svc-exchange-core.js:71,101`)·`0132`(abandonPublish svc.exchange.saga_abandoned)·`0134`(exchReadmit·`:89`)·`0135`(readmitPublish)·`0136`(autoReadmit svc.inventory.up 구독·`svc-exchange-txn.js:41`)·`0137`(readmitMax·permFailed·`:81,83`)·`0138`(failPublish svc.exchange.saga_failed)·`0140`(sagaLiveConsistent·`:186`). 4체제(정상·포기·재admission 회복·영구실패)서 분할 불변+open==escrow. **포기/종결도 abort 아님** — give 가 실제 성공했을 수 있어(dedup→escrow 소유) 낙관적 open 유지. #35 해소.
+9. **저널 별 PersistStore 박스화·멀티프로세스·buy/cancel leg 보상** ⬜ — 했나: 미착수(#30b·#9). buy-leg 보상은 list-leg compensate(0122)가 phantom 을 막아 무대 자체가 드묾(arc 정합 대기).
 
-**지금 어디 / 다음**: 분리→발행→영속→수명주기→실물 거래→2-서비스 saga 신뢰 전달·교차 정합까지. 다음 = 저널 PersistStore 통합 + 재전송 상한. (정리 분할 `step-0124`.)
+**지금 어디 / 다음**: 분리→발행→영속→수명주기→실물 거래→2-서비스 saga 신뢰 전달·교차 정합→**saga liveness 유계화·자율 복구·관측·정합 capstone(0131~0140)**까지. 거래소↔가방 saga 가 *네 정합층*(물리 0120·회계 0128·교차 0130·liveness 0140)에서 닫힘. 다음 = 저널 PersistStore 통합(#30b) + 멀티프로세스 배선(#9). (정리 분할 `step-0124`·`0133` topo-subs.)
 
 ## 시세 피드(MarketFeed) 서버 🟡 자라는 중 *(0019 ranking 의 거래소 판)*
 
@@ -110,4 +112,4 @@
 
 ---
 
-> **이 계층 다음 걸음**: 거래소↔가방 2-서비스 saga 가 *원자성·신뢰 전달·교차 정합*까지 닫힘(#31·0121~0130). 남은 견고화: 거래소 저널 별 PersistStore 박스화(#30b)·자동 재전송 상한/나이(#35)·채팅 홉 신뢰(#7). 멀티프로세스 배선(#9)·spine 승격(#16). 수신함 동적 N(#27). wiring 박스 분할(#34). **우편·길드 전용 박스 씨앗 심기**.
+> **이 계층 다음 걸음**: 거래소↔가방 2-서비스 saga 가 *원자성·신뢰 전달·교차 정합·**liveness(유계화·자율 복구·관측·정합 capstone)***까지 닫힘(#31·#35·0121~0140·네 정합층). 남은 견고화: 거래소 저널 별 PersistStore 박스화(#30b)·채팅 홉 신뢰(#7). 멀티프로세스 배선(#9·announceUp 자동 트리거 포함)·spine 승격(#16·saga 60+ 모드). 수신함 동적 N(#27). topology wiring 분할(#34 잔여 — topo-build ✅0133/topology 🟡30.8KB). **우편·길드 전용 박스 씨앗 심기(미착수)**.

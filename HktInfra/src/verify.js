@@ -1,8 +1,8 @@
-// HktInfra step-0130 — 헤드리스 검증 (거래소 give ↔ 가방 transfers 정합 capstone·escrowXfers — 두 서비스 회계 합치)
+// HktInfra step-0140 — 헤드리스 검증 (saga liveness 회계 정합 capstone·sagaLiveConsistent — 0131~0139 arc 의 창발 불변)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagacap`.
-//   더한 한 조각: 거래소↔가방 saga arc(0121~0129)의 capstone. 가방에 escrowXfers(from/to 중 'escrow' 인 성공 transfer) 계측을 더해, *거래소가 믿는* 성공 give 수(giveOks)와 *가방이 실제 실행한* escrow transfer 수(escrowXfers)가 정확히 일치함을 단언 — 두 서비스의 회계가 합치(cross-service 정합). 거래소가 유일한 give 원천이면 가방 총 transfers == escrowXfers 도 성립.
-//   검증: ⒜ `reg`(키트) — escrowXfers 는 escrow give 부재면 0 = 0129 비트 동일. ⒝ `exsagacap`(가설) — 전 거래 흐름서 giveOks==escrowXfers==9·가방 transfers==escrowXfers(거래소 유일 give 원천)·minted 5 불변·open==escrow·conserved·sagaConsistent. 0120 물리 정합 + 0128 회계 닫힘을 *두 서비스 transfer 수준*에서 묶는다.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exsagalive`.
+//   더한 한 조각: 0131~0139 가 saga liveness FSM(재전송 상한→포기→재admission→자동 트리거→재admission 상한→영구 실패→회복 발행)을 쌓았다. 그 회계가 *대수적으로 닫혀* 있는가? sagaLiveConsistent: 미해결(pending) give 는 정확히 한 상태 — 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed) 으로 분할(공백·중복 0)된다. pending.size == pendingGive + abandonedGive + permFailed, + 0128 sagaConsistent AND.
+//   검증: ⒜ `reg`(키트) — 미호출 accessor = 0139 비트 동일. ⒝ `exsagalive`(가설) — 4체제(정상·포기·재admission 회복·영구 실패)서 sagaLiveConsistent 전부 true + 각 체제 분할 카운트 일치. liveness 회계 닫힘을 capstone 으로 단언.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -12,53 +12,54 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { run, itemConserved, ledgerConsistent } = NET;
+const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const INV = [
-  { at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
-  { at: 61, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
-  { at: 62, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },
-  { at: 63, op: { type: 'item_req', op: 'pickup', avatar: 's2' } },
-  { at: 64, op: { type: 'item_req', op: 'pickup', avatar: 's1' } },
-];
-const OPS = [
-  { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } },
-  { at: 71, op: { type: 'exchList', seller: 's1', item: 'shield', price: 5, itemId: 'item1' } },
-  { at: 72, op: { type: 'exchList', seller: 's2', item: 'potion', price: 3, itemId: 'item2' } },
-  { at: 73, op: { type: 'exchList', seller: 's2', item: 'ring', price: 20, itemId: 'item3' } },
-  { at: 75, op: { type: 'exchBuy', buyer: 'b1', id: 1 } },
-  { at: 76, op: { type: 'exchBuy', buyer: 'b2', id: 2 } },
-  { at: 77, op: { type: 'exchCancel', seller: 's2', id: 3 } },
-  { at: 82, op: { type: 'exchList', seller: 's1', item: 'gem', price: 8, itemId: 'item4' } },
-  { at: 85, op: { type: 'exchSweep', now: 85 } },
-];
+const INV = [{ at: 60, op: { type: 'item_req', op: 'pickup', avatar: 's1' } }];   // item0
+const SW = (at) => ({ at, op: { type: 'exchSweep', now: at } });
+const READMIT = (at) => ({ at, op: { type: 'exchReadmit' } });
+const LIST = { at: 70, op: { type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'item0' } };
 const ownedSet = (inv, av) => [...inv.ledger.entries()].filter(([, o]) => o === av).map(([id]) => id).sort();
-const P = (seed) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
-  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, exchangeTtl: 5, invOps: INV, exchangeOps: OPS });
+// 영구 손실(tail<HEAL 이면 해소) — 체제별로 HEAL 조정.
+const LOSS = (seed, heal) => ({ seed: (seed ^ 0x5A6A) >>> 0, delayMin: 0, delayMax: 0, loss: 1.0, redundancy: 1,
+  routeFilter: (m) => m.from === 'inventory' && m.to === 'exchange' && m.payload.type === 'item_result' && (heal == null || m.tick < heal) });
+const base = (seed, ops, extra) => ({ seed, ticks: 95, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2,
+  inventory: true, itemOps: 0, exchange: true, exchInventory: true, exchSaga: true, sagaDedup: true, autoRetry: true, invOps: INV, exchangeOps: ops, ...extra });
 
-function exsagacap(seeds) {
-  console.log('== exsagacap: *가설* — 거래소 give ↔ 가방 transfers 정합 capstone. 거래소가 믿는 성공 give(giveOks) == 가방이 실제 실행한 escrow transfer(escrowXfers) — 두 서비스 회계 합치. 거래소 유일 give 원천이면 가방 transfers==escrowXfers. 0120 물리 정합 + 0128 회계 닫힘을 두 서비스 transfer 수준서 묶음. ==');
-  console.log('seed   | giveOks | escrowXfers | inv transfers | giveOks==escrowXfers | xfers==escrowXfers | minted | open==escrow | conserved | 판정');
+// 4 체제: 정상(무손실)·포기(영구 손실+cap)·재admission 회복(손실 해소+readmit)·영구 실패(영구 손실+readmitMax 초과)
+const REGIMES = (seed) => ({
+  normal:  base(seed, [LIST, SW(80)], { sagaMaxRetries: 2 }),                                   // 무손실 → pending 0
+  abandon: base(seed, [LIST, SW(74), SW(78)], { sagaMaxRetries: 1, transport: LOSS(seed) }),    // 영구 손실 → 포기(abandonedGive 1)
+  recover: base(seed, [LIST, SW(76), SW(80), SW(84), READMIT(88), SW(90)], { sagaMaxRetries: 2, transport: LOSS(seed, 86) }),   // 손실 해소+readmit → drain
+  permfail: base(seed, [LIST, SW(72), SW(74), READMIT(75), SW(76), SW(78), READMIT(79), SW(80), SW(82)], { sagaMaxRetries: 1, readmitMax: 2, transport: LOSS(seed) }),   // 영구 손실 → 영구 실패(permFailed 1)
+});
+
+function exsagalive(seeds) {
+  console.log('== exsagalive: *capstone* — saga liveness 회계 정합(sagaLiveConsistent). 미해결 give 는 정확히 한 상태: 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed). pending == 셋의 합(공백·중복 0) + 0128 sagaConsistent. 4체제(정상·포기·재admission 회복·영구실패) 전부 성립. ==');
+  console.log('seed   | normal(p/pg/ab/pf) | abandon | recover | permfail | 4체제 sagaLiveConsistent | open==escrow | 판정');
   for (const seed of seeds) {
-    const r = run({ ...P(seed) });
-    const ex = r.exchange, inv = r.inventory;
-    const esc = ownedSet(inv, 'escrow'), open = ex.escrowItemIds();
-    const safe = JSON.stringify(esc) === JSON.stringify(open);
-    const cross = ex.giveOks === inv.escrowXfers;                 // 두 서비스 회계 합치(핵심 capstone)
-    const soleSrc = inv.transfers === inv.escrowXfers;            // 거래소가 유일 give 원천(itemOps 0) → 모든 transfer 가 escrow
+    const R = REGIMES(seed);
+    const runs = {}; for (const k of Object.keys(R)) runs[k] = run({ ...R[k] });
+    const snap = (r) => { const e = r.exchange; return e.pendingGives() + '/' + e.pendingGive.size + '/' + e.abandonedGive.size + '/' + e.permFailed; };
+    const live = Object.values(runs).every(r => r.exchange.sagaLiveConsistent());
+    // 각 체제 기대 분할: normal pending 0 / abandon abandonedGive 1 / recover pending 0(drain) / permfail permFailed 1
+    const shapes =
+      runs.normal.exchange.pendingGives() === 0 &&
+      runs.abandon.exchange.abandonedGive.size === 1 && runs.abandon.exchange.pendingGives() === 1 &&
+      runs.recover.exchange.pendingGives() === 0 && runs.recover.exchange.readmitted === 1 &&
+      runs.permfail.exchange.permFailed === 1 && runs.permfail.exchange.pendingGives() === 1;
+    const safe = Object.values(runs).every(r => JSON.stringify(ownedSet(r.inventory, 'escrow')) === JSON.stringify(r.exchange.escrowItemIds()));
     const ok =
-      check(ex.giveOks === 9 && inv.escrowXfers === 9, `seed ${seed}: giveOks/escrowXfers 기대 9(${ex.giveOks}/${inv.escrowXfers})`) &&
-      check(cross, `seed ${seed}: 거래소 giveOks(${ex.giveOks}) != 가방 escrowXfers(${inv.escrowXfers}) — 두 서비스 회계 불합치`) &&
-      check(soleSrc, `seed ${seed}: 가방 transfers(${inv.transfers}) != escrowXfers(${inv.escrowXfers}) — 비-escrow give 혼입`) &&
-      check(safe && inv.minted === 5 && ex.conserved() && ex.sagaConsistent() && itemConserved(r) && ledgerConsistent(r), `seed ${seed}: 보존/정합 깨짐(safe ${safe}·minted ${inv.minted}·conserved ${ex.conserved()}·sagaConsistent ${ex.sagaConsistent()})`);
-    console.log(`${pad(seed, 6)} | ${pad(ex.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(inv.transfers, 13)} | ${pad(cross ? '예' : '아니오', 20)} | ${pad(soleSrc ? '예' : '아니오', 18)} | ${pad(inv.minted, 6)} | ${pad((safe ? '예' : '아니오') + ' ' + JSON.stringify(open), 12)} | ${pad(ex.conserved() + '', 9)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(live, `seed ${seed}: 어느 체제서 sagaLiveConsistent false`) &&
+      check(shapes, `seed ${seed}: 체제별 분할 카운트 기대 어긋남(normal ${snap(runs.normal)}·abandon ${snap(runs.abandon)}·recover ${snap(runs.recover)}·permfail ${snap(runs.permfail)})`) &&
+      check(safe, `seed ${seed}: 어느 체제서 open!=escrow(2-서비스 안전 위반)`);
+    console.log(`${pad(seed, 6)} | ${pad(snap(runs.normal), 18)} | ${pad(snap(runs.abandon), 7)} | ${pad(snap(runs.recover), 7)} | ${pad(snap(runs.permfail), 8)} | ${pad(live ? '예(4/4)' : '아니오', 23)} | ${pad(safe ? '예' : '아니오', 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 두 서비스의 회계가 *합치*한다: 거래소가 믿는 성공 escrow give(giveOks 9) == 가방이 실제 실행한 escrow transfer(escrowXfers 9) — 거래소의 *요청 회계*와 가방의 *실행 회계*가 정확히 일치(cross-service 정합). 거래소가 유일 give 원천이라 가방 총 transfers 도 escrowXfers 와 같다(비-escrow give 혼입 0).');
-  console.log('    이것이 거래소↔가방 arc 의 capstone: 0120 물리 정합(open 매물 ≡ 가방 escrow 소유)·0128 회계 닫힘(gives==acked+pending)을 *transfer 수준*에서 묶는다 — 한 서비스의 give 결정이 다른 서비스의 원장 변이와 1:1. minted 5 불변·open==escrow·conserved·sagaConsistent 동반. escrowXfers 는 escrow give 부재면 0 = 0129 비트 동일(reg).');
+  console.log('  → liveness 회계가 *대수적으로 닫힌다*: 미해결 give 는 매 순간 정확히 한 상태(재전송 중 pendingGive·재admission 대기 abandonedGive·영구 종결 permFailed)에 있고 pending == 셋의 합(공백·중복 0) — 0131~0139 arc(상한·포기·재admission·자동 트리거·영구 실패)가 더한 모든 전이가 이 분할을 보존한다. 0128 sagaConsistent(보낸/받은 회계)와 AND 로 saga 회계 전체가 닫힘.');
+  console.log('    형식: p(pending)/pg(pendingGive)/ab(abandonedGive)/pf(permFailed). 정상 0/0/0/0·포기 1/0/1/0·재admission 회복 0/0/0/0·영구실패 1/0/0/1 — 각 체제가 다른 분할이되 pending==pg+ab+pf 불변. 모든 체제 open==escrow(2-서비스 안전). sagaLiveConsistent 는 미호출 accessor = 0139 비트 동일(reg).');
 }
 
-kit.MODES['exsagacap'] = exsagacap;
-kit.ORDER.splice(1, 0, 'exsagacap');
+kit.MODES['exsagalive'] = exsagalive;
+kit.ORDER.splice(1, 0, 'exsagalive');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

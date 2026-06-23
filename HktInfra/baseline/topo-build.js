@@ -1,11 +1,13 @@
 'use strict';
 // step-0048 분할 preamble — 박스 1개=파일 1개 (CLAUDE.md 임계 규칙). 진입점 topology.js 가 묶는다.
+// step-0133 정리 분할: topo-build.js 가 33KB>30KB 박스 트리거를 다시 넘겨, *버스 구독 테이블 빌더*(buildSubs)를 topo-subs.js 로 분리한다(기능 0·verbatim·reg 0 — 33.1→25.5KB).
 // step-0098 정리 분할: topo-build.js 가 32KB>30KB 박스 트리거를 넘겨, *액터 팩토리 + 라우트 필터*(makeActor·routeFilters·박스 클래스 import)를
 //   topo-actors.js 로 분리한다. 이 파일은 *선언적 spec 빌더*(buildTopology) + 진입점으로 남고, topo-actors 를 require 해 동일 export 를 노출한다 —
 //   기능 0·verbatim 이동·export 집합 불변 → reg 0. 0030 net-core·0035 cluster·0038 topology 분할의 topo-build 판.
 // dual-mode: Node 는 부품을 require, 브라우저는 <script> 선행 로드(전역 __HktNetParts.topo_actors). buildTopology 는 외부 의존 0(opts 만).
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
 const { routeFilters, makeActor } = __isNode ? require('./topo-actors.js') : globalThis.__HktNetParts.topo_actors;
+const { buildSubs } = __isNode ? require('./topo-subs.js') : globalThis.__HktNetParts.topo_subs;   // step-0133 분할 — 버스 구독 테이블 빌더.
 
 // ════════════════════════════════════════════════════════════════════════
 //  토폴로지 빌더 — 인프로세스/멀티프로세스가 *같은 단일 경로*로 액터를 구성(E2E 동치의 토대).
@@ -39,6 +41,13 @@ function buildTopology(opts) {
     sagaDedup = false,
     sagaDedupBound = false,
     autoRetry = false,
+    sagaMaxRetries = 0,
+    abandonPublish = false,
+    readmitPublish = false,
+    autoReadmit = false,
+    readmitMax = 0,
+    failPublish = false,
+    invUpPublish = false,
     chatpersist = false, chatSnapshot = 0,
     clientResend = false,
     mintRecon = false,
@@ -149,39 +158,8 @@ function buildTopology(opts) {
   // [버스] ServiceBus — bus ON 일 때만 토폴로지에 존재(OFF = 0015 토폴로지 비트 동일). onTick 없음 = 신성한 tick 밖.
   //   구독 = 선언 spec(이 테이블이 SSOT). *새 소비자(audit) 추가 = 여기 행 추가뿐* — 발행자 spec 무수정(decouple 가설).
   if (bus) {
-    const subs = [];
-    if (inventory) subs.push(['svc.item', 'inventory'], ['svc.item.out', 'gateway']);
-    if (inventory && busAck) subs.push(['svc.item.ack', 'gateway']);   // 요청 ack(0040) — 가방→게이트웨이 자기-크기조정 경로. busAck OFF 면 미추가 = 0039 토폴로지 비트 동일.
-    if (inventory && busOutAck) subs.push(['svc.item.out.ack', 'inventory']);   // 결과 ack(0041) — 게이트웨이→가방 자기-크기조정 경로. busOutAck OFF 면 미추가 = 0040 토폴로지 비트 동일.
-    if (inventory && busSeenBound) subs.push(['svc.item.seen', 'inventory']);   // seen 워터마크(이 step) — 게이트웨이→가방 seenReqs 가지치기 경로. busSeenBound OFF 면 미추가 = 0041 토폴로지 비트 동일.
-    if (chat) subs.push(['svc.chat', 'chat'], ['svc.chat.out', 'gateway']);
-    // 랭킹(이 step) — *발행자 무수정으로* svc.item.out 에 둘째 소비자(ranking) 행 추가 + svc.rank.out 을 gateway 가 구독(클라 중계).
-    if (rankingAddr) subs.push(['svc.item.out', 'ranking'], ['svc.rank.out', 'gateway']);
-    if (audit) for (const t of ['svc.item', 'svc.item.out', 'svc.chat', 'svc.chat.out']) subs.push([t, 'audit']);
-    if (audit && busLeaseAudit && inventory) subs.push(['svc.item.lease', 'audit']);   // lease 생애 관측(0054) — audit 가 축출/재admission 이벤트 구독. busLeaseAudit OFF 면 미추가(0053 토폴로지 비트 동일).
-    if (busLeaseAudit && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.item.lease', 'orch']);   // lease 생애 *반응*(0055) — 코디네이션(orch)이 lease 이벤트 구독해 소비자 프레즌스 SSOT 유지. busLeasePresence OFF·orch 부재면 미추가(0054 토폴로지 비트 동일).
-    if (presencePublish && busLeasePresence && audit && failover && zones === 2 && inventory) subs.push(['svc.presence', 'audit']);   // 프레즌스 발행(0060) — orch 가 down/up/permanent 판정을 svc.presence 로 발행, audit(범용 sink)가 구독. presencePublish OFF·audit/orch 부재면 미추가(0059 토폴로지 비트 동일).
-    if (presenceMonitor && presencePublish && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.presence', 'presmon']);   // 프레즌스 모니터(0063) — svc.presence 의 셋째 소비자(구조적 상태 기계). presenceMonitor OFF 면 미추가(0062 토폴로지 비트 동일·발행자 무수정).
-    if (presenceAnnounce && presenceQuery && presenceShadowAddr && presenceMonitor && presencePublish && failover && zones === 2 && inventory) subs.push(['svc.presence.active', 'presmon']);   // failover 중 질의 연속성(0070) — presmon 이 승격 공지를 구독해 queryAddr 재타깃. presenceAnnounce OFF 면 미추가(0069 토폴로지 비트 동일).
-    if (whisperRouter && whisperFailover && presenceAnnounce && presenceShadowAddr && presenceQuery && presenceMonitor && presencePublish && failover && zones === 2 && inventory) subs.push(['svc.presence.active', 'wrouter']);   // 귓속말 라우터 failover 연속성(0072) — wrouter 가 승격 공지를 구독해 queryAddr 재타깃(0070 presmon 재타깃의 라우터 판). whisperFailover OFF 면 미추가(0071 토폴로지 비트 동일).
-    if (presenceBox && presenceReportBus && presencePublish && failover && zones === 2 && inventory) subs.push(['svc.presence.report', 'presence']);   // 프레즌스 보고 버스화(0065) — PresenceService 가 orch 의 전이 보고를 버스 토픽으로 구독(point-to-point 대신). presenceReportBus OFF 면 미추가(0064 토폴로지 비트 동일).
-    if (presenceShadowAddr) subs.push(['svc.presence.report', 'presence2']);   // 프레즌스 박스 shadow(0066) — standby presence2 가 *같은* 보고 토픽을 구독해 SSOT 그림자 복제(primary 뒤 등록 → 팬아웃 순서 primary 먼저). presenceShadow OFF 면 미추가(0065 토폴로지 비트 동일).
-    if (presenceShadowAddr && presenceLease) subs.push(['svc.presence.hb', 'presence2']);   // 프레즌스 박스 사망 자율 감지(0068) — standby presence2 가 active primary 의 하트비트를 구독해 침묵 길이로 사망 감지. presenceLease OFF 면 미추가(0067 토폴로지 비트 동일).
-    if (replaceAddr && busLeasePresence && failover && zones === 2 && inventory) subs.push(['svc.presence', 'ranking2']);   // 대체 소비자 활성화(0061) — standby ranking2 가 svc.presence 의 'permanent' 신호 구독(svc.item.out 은 활성화 후 *스스로* 재구독). spawnReplace OFF 면 미추가(0060 토폴로지 비트 동일).
-    if (audit && rankingAddr) subs.push(['svc.rank.out', 'audit']);   // audit 도 rank 스트림 관찰(둘째 소비자의 둘째 소비자)
-    if (audit && failedPublish && whisperRouter) subs.push(['svc.whisper.failed', 'audit']);   // 전달 실패 발행(0082) — audit 가 svc.whisper.failed 구독(발행자 무수정 관측 소비자). failedPublish OFF 면 미추가(0081 토폴로지 비트 동일).
-    if (audit && deliveredPublish && whisperRouter) subs.push(['svc.whisper.delivered', 'audit']);   // 전달 성공 발행(0087) — audit 가 svc.whisper.delivered 구독(수명주기 성공 절반). deliveredPublish OFF 면 미추가(0086 토폴로지 비트 동일).
-    if (audit && partyChange && partyService) subs.push(['svc.party.changed', 'audit']);   // 멤버십 변경 발행(0084) — audit 가 svc.party.changed 구독(가입/탈퇴 관측). partyChange OFF 면 미추가(0083 토폴로지 비트 동일).
-    if (audit && partyIncompletePublish && whisperRouter) subs.push(['svc.party.incomplete', 'audit']);   // 파티 incomplete 발행(0093) — audit 가 svc.party.incomplete 구독(부분 전달 실패 종결 관측). partyIncompletePublish OFF 면 미추가(0092 토폴로지 비트 동일).
-    if (audit && partyCompletePublish && whisperRouter) subs.push(['svc.party.complete', 'audit']);   // 파티 complete 발행(0095) — audit 가 svc.party.complete 구독(전원 acked 성공 종결 관측). partyCompletePublish OFF 면 미추가(0094 토폴로지 비트 동일).
-    if (audit && mailboxDrainedPublish && whisperReceipt && whisperRouter) subs.push(['svc.mailbox.drained', 'audit']);   // 읽음 소비 발행(0103) — audit 가 svc.mailbox.drained 구독(읽음 확인 소비 관측·수명주기 마지막 마디). mailboxDrainedPublish OFF 면 미추가(0102 토폴로지 비트 동일).
-    if (audit && mailboxLossPublish && whisperReceipt && whisperRouter) subs.push(['svc.mailbox.overflowed', 'audit']);   // 수신함 손실 발행(0104) — audit 가 svc.mailbox.overflowed 구독(inbox overflow 손실 관측). mailboxLossPublish OFF 면 미추가(0103 토폴로지 비트 동일).
-    if (audit && exchange && exchangePublish) subs.push(['svc.exchange.sold', 'audit']);   // 거래소 체결 발행(0108) — audit 가 svc.exchange.sold 구독(거래 수명주기 관측). exchangePublish OFF 면 미추가(0107 토폴로지 비트 동일).
-    if (audit && exchange && cancelPublish) subs.push(['svc.exchange.cancelled', 'audit']);   // 거래소 취소 발행(0111) — audit 가 svc.exchange.cancelled 구독(delisting 관측). cancelPublish OFF 면 미추가(0110 토폴로지 비트 동일).
-    if (audit && exchange && expirePublish) subs.push(['svc.exchange.expired', 'audit']);   // 거래소 만료 발행(0115) — audit 가 svc.exchange.expired 구독(만료 관측). expirePublish OFF 면 미추가(0114 토폴로지 비트 동일).
-    if (audit && exchange && abortPublish) subs.push(['svc.exchange.aborted', 'audit']);   // 보상 발행(0123) — audit 가 svc.exchange.aborted 구독(보상 롤백 관측). abortPublish OFF 면 미추가(0122 토폴로지 비트 동일).
-    if (marketFeed && exchange) { subs.push(['svc.exchange.sold', 'market']); subs.push(['svc.exchange.cancelled', 'market']); subs.push(['svc.exchange.expired', 'market']); }   // 시세 피드(0112·0116) — MarketFeed 가 체결·취소·만료 구독→item별 시세 투영. marketFeed OFF 면 미추가(0111 토폴로지 비트 동일).
-    if (audit && bouncePublish && whisperRouter) subs.push(['svc.whisper.bounced', 'audit']);   // 귓속말 반송 발행(0097) — audit 가 svc.whisper.bounced 구독(즉시 도달 불가 관측). bouncePublish OFF 면 미추가(0096 토폴로지 비트 동일).
+    // 구독 테이블 빌더(step-0133 분할·topo-subs.js) — 플래그 컨텍스트로부터 [topic,addr] spec 을 짓는다. 행 추가 = 새 소비자(발행자 무수정).
+    const subs = buildSubs({ inventory, busAck, busOutAck, busSeenBound, chat, rankingAddr, audit, busLeaseAudit, busLeasePresence, failover, zones, presencePublish, presenceMonitor, presenceAnnounce, presenceQuery, presenceShadowAddr, whisperRouter, whisperFailover, presenceBox, presenceReportBus, presenceLease, replaceAddr, failedPublish, deliveredPublish, partyChange, partyService, partyIncompletePublish, partyCompletePublish, mailboxDrainedPublish, mailboxLossPublish, whisperReceipt, exchange, exchangePublish, cancelPublish, expirePublish, abortPublish, abandonPublish, readmitPublish, autoReadmit, failPublish, marketFeed, bouncePublish });
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
   }
   // [데이터] 영속 스토어 — persist ON 일 때만 토폴로지에 존재(OFF = 0016 토폴로지 비트 동일). onTick 없음 = 신성한 tick 밖.
@@ -201,7 +179,7 @@ function buildTopology(opts) {
   //   replicas (0028) — persistReplicas≥1 이면 fan-out 대상 목록. [] 면 0027 비트 동일(N-replica 휴면).
   //   quorumW (이 step) — persist ON 일 때만 의미(저널에 q 플래그·ack 집계·durableSeq). 0 면 0028 비트 동일(ack 0).
   //   windowFill (0031) — persist+quorumW>0 일 때만 의미(윈도 해소 sweep). wfWindow (이 step) — 유계 sweep 범위(0=무계·0031 동일). OFF → 0029 비트 동일(sweep 0).
-  if (inventory) add({ addr: 'inventory', kind: 'inventory', opts: { gateway: 'gateway', bus: busAddr, persist: persistAddr, persistBackup: persistBackupAddr, replicas: persistReplicaAddrs, quorumW: persistAddr ? quorumW : 0, windowFill: persistAddr ? windowFill : false, wfWindow: persistAddr ? wfWindow : 0, snapshot: persistAddr ? snapshot : 0, reliable: persistAddr ? journalReliable : false, journalHb: persistAddr ? journalHeartbeat : false, busResend: busAddr ? busResend : false, busResendReq: busAddr ? busResendReq : false, busWindow: busAddr ? busWindow : 0, busAck: busAddr ? busAck : false, busOutAck: busAddr ? busOutAck : false, busSeenBound: busAddr ? busSeenBound : false, busMinWm: busAddr ? busMinWm : false, outConsumers: (busAddr && busMinWm) ? (rankingAddr ? ['gateway', 'ranking'] : ['gateway']) : [], busConsumerLease: busAddr ? busConsumerLease : false, leaseSpan: busAddr ? leaseSpan : 0, busLeaseLife: busAddr ? busLeaseLife : false, busLeaseAdapt: busAddr ? busLeaseAdapt : false, busLeaseGrace: busAddr ? busLeaseGrace : false, cadencePrior: busAddr ? cadencePrior : 0, busCadenceWindow: busAddr ? busCadenceWindow : false, cadenceWindow: busAddr ? cadenceWindow : 0, busLeaseAudit: busAddr ? busLeaseAudit : false, busProducerNs: busAddr ? busProducerNs : false, busSeenNs: busAddr ? busSeenNs : false, sagaDedup } });   // 0126: sagaDedup — saga give 재전송 멱등(재실행 0).
+  if (inventory) add({ addr: 'inventory', kind: 'inventory', opts: { gateway: 'gateway', bus: busAddr, persist: persistAddr, persistBackup: persistBackupAddr, replicas: persistReplicaAddrs, quorumW: persistAddr ? quorumW : 0, windowFill: persistAddr ? windowFill : false, wfWindow: persistAddr ? wfWindow : 0, snapshot: persistAddr ? snapshot : 0, reliable: persistAddr ? journalReliable : false, journalHb: persistAddr ? journalHeartbeat : false, busResend: busAddr ? busResend : false, busResendReq: busAddr ? busResendReq : false, busWindow: busAddr ? busWindow : 0, busAck: busAddr ? busAck : false, busOutAck: busAddr ? busOutAck : false, busSeenBound: busAddr ? busSeenBound : false, busMinWm: busAddr ? busMinWm : false, outConsumers: (busAddr && busMinWm) ? (rankingAddr ? ['gateway', 'ranking'] : ['gateway']) : [], busConsumerLease: busAddr ? busConsumerLease : false, leaseSpan: busAddr ? leaseSpan : 0, busLeaseLife: busAddr ? busLeaseLife : false, busLeaseAdapt: busAddr ? busLeaseAdapt : false, busLeaseGrace: busAddr ? busLeaseGrace : false, cadencePrior: busAddr ? cadencePrior : 0, busCadenceWindow: busAddr ? busCadenceWindow : false, cadenceWindow: busAddr ? cadenceWindow : 0, busLeaseAudit: busAddr ? busLeaseAudit : false, busProducerNs: busAddr ? busProducerNs : false, busSeenNs: busAddr ? busSeenNs : false, sagaDedup, invUpPublish: busAddr ? invUpPublish : false } });   // 0126: sagaDedup — saga give 재전송 멱등(재실행 0). 0139: invUpPublish — 가방 회복 자기 공지(svc.inventory.up).
   // [데이터] 채팅 영속 스토어(이 step) — chatpersist ON 일 때만 존재(OFF = 0020 토폴로지 비트 동일). PersistStore *재사용*(범용 저널) —
   //   가방 persist 와 *독립 인스턴스*(채팅 커맨드 로그). 채팅보다 먼저 등록(onTick 0·순서 무관). 채팅이 죽어도 이 박스는 산다(데이터 계층).
   if (chatPersistAddr) add({ addr: 'chatpersist', kind: 'persist', opts: {} });
@@ -236,7 +214,7 @@ function buildTopology(opts) {
   // [게임 서비스] 랭킹(ranking) — *발신하는* 둘째 소비자(이 step). svc.item.out 소비 → rank 투영 → svc.rank.out 발행(consume→publish).
   //   bus+가방 전제. OFF 면 토폴로지에 없음(0018 비트 동일). onTick 없음 = 신성한 tick 밖·권위 아닌 읽기 모델(CQRS).
   if (rankingAddr) add({ addr: 'ranking', kind: 'ranking', opts: { bus: busAddr, busMinWm: busAddr ? busMinWm : false, dropRecover } });
-  if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist, snapInterval: exchangeSnapshot, cancelPublish, ttl: exchangeTtl, expirePublish, inv: (exchInventory && inventory) ? inventoryAddr : null, invMode: exchInventory, saga: exchSaga, compensate: exchCompensate, abortPublish, sagaDedupBound, autoRetry } });   // 0117: exchInventory ON 이면 거래소가 가방 주소를 알고 escrow 를 실체화(give). OFF 면 추상 escrow(0116 비트 동일).
+  if (exchange) add({ addr: 'exchange', kind: 'exchange', opts: { bus: busAddr, publish: exchangePublish, persist: exchangePersist, snapInterval: exchangeSnapshot, cancelPublish, ttl: exchangeTtl, expirePublish, inv: (exchInventory && inventory) ? inventoryAddr : null, invMode: exchInventory, saga: exchSaga, compensate: exchCompensate, abortPublish, sagaDedupBound, autoRetry, sagaMaxRetries, abandonPublish, readmitPublish, autoReadmit, readmitMax, failPublish } });   // 0117: exchInventory ON 이면 거래소가 가방 주소를 알고 escrow 를 실체화(give). OFF 면 추상 escrow(0116 비트 동일).
   if (marketFeed && exchange) add({ addr: 'market', kind: 'market', opts: { bus: busAddr } });   // 시세 피드(step-0112·MarketFeed) — 거래소 발행 스트림 구독 읽기 모델. marketFeed OFF·거래소 부재면 박스 0 = 0111 비트 동일.   // 거래소(step-0107) — 아이템 escrow 거래 박스(존 tick 밖·단일 소유·쌍 거래). publish(0108): 체결 발행. persist(0109): op 저널 replay. snapInterval(0110): 저널 스냅샷 압축. exchange OFF 면 박스 0 = 0106 비트 동일.
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });

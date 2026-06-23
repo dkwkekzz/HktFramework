@@ -11,6 +11,8 @@ Object.assign(InventoryService.prototype, {
   onMsg(m) {
     let p = m.payload;
     if (p.type === 'saga_done') { this.sagaResults.delete(m.from + ' ' + p.gid); return; }   // saga dedup 유계화(step-0127·sagaDedupBound) — 거래소가 결과 최종 수신 통보 → (replyTo=from,gid) dedup 항목 가지치기(best-effort·없어도 안전). sagaDedup OFF 면 sagaResults 빔이라 no-op.
+    // 가방 회복 자기 공지(step-0139·invUpPublish) — 가방이 회복/재가용을 svc.inventory.up 으로 발행(거래소 0136 autoReadmit 구독자가 받아 자동 재admission). announceUp 은 회복 시점 seam(클러스터 failover/운영 트리거 모델). OFF·bus 부재면 발행 0 = 0138 비트 동일.
+    if (p.type === 'announceUp') { if (this.invUpPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.inventory.up', ev: { addr: this.addr } }); this.invUpPublished++; } return; }
     if (p.type === 'journal_nak') { if (this.reliable) this._resend(p.missing || []); return; }   // 저널 홉 NAK(0023) — persist 가 감지한 갭 재전송(reactive·신성한 tick 밖)
     if (p.type === 'journal_ack') { if (this.quorumW > 0) this._recordAck(p.seq, m.from); return; }   // 쓰기 정족수 ack(0029) — 스토어 저장 확인 집계 → durableSeq 워터마크. quorumW 0 면 ack 자체가 안 옴(0028 비트 동일)
     if (p.type === 'ev' && p.topic === 'svc.item.out.ack') { this._onOutAck(p.ev); return; }   // 결과 ack(0041·busOutAck) — 게이트웨이→가방 자기-크기조정 경로. busOutAck OFF 면 미구독 = 0040 비트 동일.
@@ -71,6 +73,7 @@ Object.assign(InventoryService.prototype, {
         this.ledger.set(p.itemId, p.toAvatar);
         this._own(p.toAvatar, p.itemId);
         this.transfers++;
+        if (p.fromAvatar === 'escrow' || p.toAvatar === 'escrow') this.escrowXfers++;   // escrow custody transfer 계측(step-0130) — 거래소 giveOks 와 교차 정합(두 서비스 회계 합치). 일반 give 는 비-증가.
         this._journal({ kind: 'xfer', itemId: p.itemId, from: p.fromAvatar, to: p.toAvatar });
         this._out({ type: 'item_result', ok: true, op: 'give', reqAvatar: p.fromAvatar, toAvatar: p.toAvatar, itemId: p.itemId });
         if (sagaKey !== null) this.sagaResults.set(sagaKey, true);   // dedup 결과 저장(step-0126·재전송 시 재회신 소스)

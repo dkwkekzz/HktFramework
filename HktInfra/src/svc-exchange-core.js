@@ -1,4 +1,12 @@
 'use strict';
+// step-0140 — saga liveness 회계 정합 capstone(sagaLiveConsistent): 0131~0139 liveness arc 의 창발 불변. 미해결(pending) give 는 정확히 한 상태 — 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed) 으로 분할(pending.size == 셋의 합·공백·중복 0) + 0128 sagaConsistent AND. 미호출 읽기 accessor·단언용 = 0139 비트 동일(reg).
+// step-0138 — saga 영구 실패 발행(failPublish): 0137 영구 실패(permFailed)를 svc.exchange.saga_failed 로 1회 발행(운영 종결 통보·saga_abandoned 0132 의 종결 판·failPublished==permFailed). 이제 saga liveness 수명주기 발행이 포기(0132)·재개(0135)·종결(0138)로 완비. OFF·bus 부재면 발행 0 = 0137 비트 동일.
+// step-0137 — saga 재admission 횟수 상한(readmitMax): 0134/0136 §9 의 무한 abandon↔readmit 루프를 막는다. gid 가 readmitMax 회 재admission 된 뒤 또 포기되면 *영구 실패*(permFailed)로 abandonedGive 에 안 넣어 재admission 차단. pending 엔 남아 미해결(sagaConsistent 불변). readmitMax 0 면 무제한 = 0136 비트 동일.
+// step-0136 — saga 재admission 자동 트리거(autoReadmit·0056 busPresenceRecover 의 saga 판): 0134/0135 재admission 은 수동 op 였다. autoReadmit ON 이면 거래소가 svc.inventory.up(가방 회복 신호)을 *구독*해, 그 ev 수신 시 스스로 _readmit() — 수동 exchReadmit 불요(은닉·decouple: 거래소는 가방 회복을 직접 안 보고 발행된 신호로만 반응). OFF 면 그 ev 무시 = 0135 비트 동일.
+// step-0135 — saga 재admission 발행(readmitPublish): exchReadmit 으로 포기 give 를 재개할 때 svc.exchange.saga_readmitted{gid,itemId,cause} 1회 발행(운영 가시화·0132 포기 발행 svc.exchange.saga_abandoned 의 짝·readmitPublished==readmitted). OFF·bus 부재면 발행 0 = 0134 비트 동일.
+// step-0134 — saga 포기 give 재admission(exchReadmit): 0131 포기는 영구였다 — 손실이 *해소*되면 운영이 재개할 수 있어야 한다. 포기 시 give 파라미터를 abandonedGive 에 간직, exchReadmit op 이 그것을 pendingGive 로 되돌리고 retryCount 리셋 → 다음 sweep 이 재전송(손실 해소 후면 ack→drain). exchReadmit 부재면 0133 비트 동일. (0048 busLeaseLife 재admission 의 saga 판.)
+// step-0132 — saga 포기 발행(abandonPublish): 0131 상한 도달로 포기한 give 를 svc.exchange.saga_abandoned 로 1회 발행(운영 가시화·audit 관측·giveAbandoned 와 1:1). OFF·bus 부재면 발행 0 = 0131 비트 동일.
+// step-0131 — saga 재시도 상한(sagaMaxRetries): autoRetry/exchRetry 재전송을 _resendPending() 헬퍼로 추출 + gid 당 N회 상한. 도달 시 포기(pendingGive 제거·giveAbandoned++)·pending 잔존(sagaConsistent 불변). 상한 0 면 무제한 = 0130 비트 동일.
 // step-0129 — saga 자동 재전송(autoRetry·exchSweep 피기백): 0126 의 재전송은 명시 exchRetry op 1회였다 — 실서버는 *타임아웃 기반 주기 재전송*이 필요하다(거래소는 onTick 없는 순수 반응형이라 주기 트리거가 외부 op). 이미 0114 가 주기적 exchSweep op(TTL 회수)을 받는다 — autoRetry ON 이면 exchSweep 가 *미해결 give 재전송도* 트리거한다(TTL 만료 회수와 직교·같은 주기 신호 재사용). 매 sweep 이 pending 의 give 를 같은 gid 로 재발신 → 가방 dedup(0126) 이 재실행 없이 재회신 → 회신 손실이 *지속*돼도 다음 sweep 이 다시 시도(결국 한 회신이 통과하면 pending drain). autoRetry OFF·exchSweep 부재면 재전송 0 = 0128 비트 동일. exchSweep 의 TTL 로직(0114)은 autoRetry 와 독립(autoRetry 블록이 ttl 체크 앞·OFF 면 0114 동일).
 // step-0128 — saga 회계 정합 불변(sagaConsistent·결합 시스템의 창발 불변): 0121~0127 의 saga 회계(gives·ackedGives·pendingGives·giveOks·giveFails)가 *대수적으로 닫혀* 있는지 단언한다. 두 항등식: ① gives == ackedGives + pendingGives(보낸 모든 give 는 *정확히* acked(회신 받음) 또는 pending(미수신) 둘 중 하나·새는 give 0) ② ackedGives == giveOks + giveFails(받은 모든 회신은 ok 또는 fail·분류 누락 0). 이 불변은 정상·회신손실·재전송 *모든 체제*에서 성립해야 한다(체제 무관 회계 정합). sagaConsistent 는 미호출 읽기 accessor(두 항등식의 AND)·단언용 — 미호출이면 동작 무영향 = 0127 비트 동일(reg).
 // step-0127 — saga dedup 유계화(sagaDedupBound·saga_done ack-of-ack): 0126 §9 해소. 가방의 dedup 맵(sagaResults)은 처리한 모든 (replyTo,gid)를 무계로 쌓는다 — 재전송이 끝나도 안 지워진다. 거래소가 give 결과를 *최종 수신*(pending 에서 제거)하면 더는 그 gid 를 재전송하지 않으므로, 가방은 그 dedup 항목을 안전히 잊어도 된다. 거래소가 ack 수신 시 saga_done{gid} 를 가방에 보내 sagaResults[(replyTo,gid)] 를 가지친다(0042 busSeenBound 워터마크의 saga 회신 판·best-effort). sagaDedupBound ON: 정상 흐름서 sagaResults 가 0 으로 drain(유계). OFF: 무계(0126 동일·∝처리 give 수). saga_done 손실돼도 안전(가방이 항목 보존·재전송 시 여전히 재회신·다음 ack 가 다시 prune). sagaDedupBound OFF·saga_done 부재면 0126 비트 동일.
@@ -60,6 +68,60 @@ class ExchangeService {
     this.sagaDedupBound = opts.sagaDedupBound || false;   // saga dedup 유계화(step-0127) — ON 이면 give 결과 최종 수신 시 saga_done{gid} 를 가방에 보내 dedup 항목 가지치기. OFF 면 발신 0(0126 비트 동일).
     this.sagaDones = 0;                 // 발신한 saga_done 수(step-0127·계측·ackedGives 와 1:1·재전송 ack 포함).
     this.autoRetry = opts.autoRetry || false;   // 자동 재전송(step-0129) — ON 이면 exchSweep op 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송). OFF 면 sweep 은 TTL 회수만(0128 비트 동일).
+    this.sagaMaxRetries = opts.sagaMaxRetries || 0;   // saga 재시도 상한(step-0131·0059 recoverMaxRetries 의 saga 판) — autoRetry/exchRetry 재전송을 gid 당 N회로 제한. 도달 시 그 give 포기(pendingGive 제거·재전송 중단)·pending 에는 잔존(미해결·sagaConsistent 불변). 0 이면 무제한(0130 비트 동일).
+    this.retryCount = new Map();        // gid -> 재전송 횟수(step-0131·sagaMaxRetries>0 일 때만 사용) — 상한 비교용. ack/포기 시 제거.
+    this.giveAbandoned = 0;             // 상한 도달로 포기한 give 누적(step-0131·계측) — 영구 회신 손실의 신호. pending 에는 남는다(미해결·재전송만 중단).
+    this.abandonPublish = opts.abandonPublish || false;   // 포기 발행(step-0132) — 상한 도달로 give 포기 시 svc.exchange.saga_abandoned 발행(운영 가시화·audit 관측). OFF·bus 부재면 발행 0(0131 비트 동일).
+    this.abandonPublished = 0;          // 발행한 svc.exchange.saga_abandoned 수(step-0132·계측·giveAbandoned 와 1:1).
+    this.abandonedGive = new Map();     // gid -> {itemId, from, to, cause}(step-0134) — 포기한 give 의 파라미터 보관(재admission 소스). 0131 은 버렸으나 운영이 손실 해소 후 재개할 수 있게 *간직*한다(내부 상태·sagaMaxRetries 0 면 빈 맵).
+    this.readmitted = 0;                // exchReadmit 으로 재admission 한 give 누적(step-0134·계측) — 포기 give 의 retry 재개 수.
+    this.readmitPublish = opts.readmitPublish || false;   // 재admission 발행(step-0135) — exchReadmit 으로 give 재개 시 svc.exchange.saga_readmitted 발행(운영 가시화·0132 포기 발행의 짝). OFF·bus 부재면 발행 0(0134 비트 동일).
+    this.readmitPublished = 0;          // 발행한 svc.exchange.saga_readmitted 수(step-0135·계측·readmitted 와 1:1).
+    this.autoReadmit = opts.autoReadmit || false;   // 재admission 자동 트리거(step-0136·0056 busPresenceRecover 의 saga 판) — ON 이면 거래소가 svc.inventory.up(가방 회복 신호)을 *구독*해 수신 시 스스로 _readmit(수동 exchReadmit op 불요). OFF 면 그 ev 무시 = 0135 비트 동일.
+    this.readmitMax = opts.readmitMax || 0;   // 재admission 횟수 상한(step-0137·0134/0136 §9 의 무한 abandon↔readmit 루프 방지) — gid 가 readmitMax 회 재admission 된 뒤 또 포기되면 *영구 실패*로 abandonedGive 에 넣지 않는다(재admission 차단). 0 이면 무제한(0136 비트 동일).
+    this.readmitCount = new Map();      // gid -> 재admission 누적 횟수(step-0137·readmitMax>0 일 때만 의미) — 상한 비교용. ack 시 정리.
+    this.permFailed = 0;                // 재admission 상한 도달로 영구 실패 처리한 give 누적(step-0137·계측) — pending 엔 남는다(미해결·sagaConsistent 불변)·재admission 만 차단.
+    this.failPublish = opts.failPublish || false;   // 영구 실패 발행(step-0138) — readmitMax 상한 도달로 영구 실패 시 svc.exchange.saga_failed 발행(운영 종결 통보·0132 포기 발행의 종결 판). OFF·bus 부재면 발행 0(0137 비트 동일).
+    this.failPublished = 0;             // 발행한 svc.exchange.saga_failed 수(step-0138·계측·permFailed 와 1:1).
+  }
+  // 포기 give 재admission 실행(step-0134 추출·0136) — abandonedGive 의 give 를 pendingGive 로 되돌리고 retryCount 리셋(상한 재충전)·readmitted++. readmitPublish ON 이면 gid 마다 svc.exchange.saga_readmitted 발행(0135).
+  //   exchReadmit op(수동)과 autoReadmit ev(자동·0136)가 공용한다. abandonedGive 비었으면 no-op.
+  _readmit() {
+    for (const [gid, g] of this.abandonedGive) {
+      this.pendingGive.set(gid, g); this.retryCount.delete(gid); this.readmitted++;
+      this.readmitCount.set(gid, (this.readmitCount.get(gid) || 0) + 1);   // 재admission 횟수 누적(step-0137·readmitMax 비교용·readmitMax 0 면 미사용·관찰 무영향)
+
+      if (this.readmitPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.saga_readmitted', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.readmitPublished++; }
+    }
+    this.abandonedGive = new Map();
+  }
+  // 미해결 give 재전송(step-0126 exchRetry·0129 autoRetry 공용 추출 — 0131)·재시도 상한(step-0131·sagaMaxRetries).
+  //   pendingGive 의 각 give 를 같은 gid 로 재발신(재실행 아닌 *재회신* 유도·가방 dedup 전제). sagaMaxRetries>0 이면 gid 당 N회 재전송 후 포기(pendingGive 제거→이후 sweep 비-순회·giveAbandoned++·pending 잔존).
+  //   sagaMaxRetries 0(기본) 이면 상한 분기 휴면 → 무제한 재전송 = 0130 비트 동일(reg). 포기는 *재전송 중단*일 뿐 abort 아님(give 가 실제 성공했을 수 있으므로 낙관적 open 유지 = 안전).
+  _resendPending() {
+    for (const [gid, g] of [...this.pendingGive]) {
+      if (this.sagaMaxRetries > 0) {
+        const c = this.retryCount.get(gid) || 0;
+        if (c >= this.sagaMaxRetries) {
+          this.pendingGive.delete(gid); this.retryCount.delete(gid); this.giveAbandoned++;
+          // 재admission 횟수 상한(step-0137·readmitMax) — readmitMax 회 재admission 된 give 가 또 포기되면 *영구 실패*: abandonedGive 에 안 넣어 재admission 차단(무한 루프 방지). pending(Set)엔 남아 미해결(sagaConsistent 불변). readmitMax 0 면 항상 abandonedGive(0136 동일).
+          if (this.readmitMax > 0 && (this.readmitCount.get(gid) || 0) >= this.readmitMax) {
+            this.readmitCount.delete(gid); this.permFailed++;
+            // 영구 실패 발행(step-0138·failPublish) — 종결된 give 를 svc.exchange.saga_failed 로 1회 발행(운영 종결 통보·saga_abandoned 0132 의 종결 판). OFF·bus 부재면 no-op(0137 비트 동일).
+            if (this.failPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.saga_failed', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.failPublished++; }
+            continue;
+          }
+          this.abandonedGive.set(gid, g);   // 재admission 소스(step-0134) — 포기한 give 의 파라미터를 간직(운영이 손실 해소 후 exchReadmit 으로 재개). pending(Set)엔 그대로 남아 미해결.
+          // 포기 발행(step-0132·abandonPublish) — 영구 미해결 give 를 svc.exchange.saga_abandoned 로 1회 발행(운영 가시화). OFF·bus 부재면 no-op(0131 비트 동일).
+          // 포기 발행(step-0132·abandonPublish) — 영구 미해결 give 를 svc.exchange.saga_abandoned 로 1회 발행(운영 가시화). OFF·bus 부재면 no-op(0131 비트 동일).
+          if (this.abandonPublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.exchange.saga_abandoned', ev: { gid, itemId: g.itemId, cause: g.cause } }); this.abandonPublished++; }
+          continue;
+        }
+        this.retryCount.set(gid, c + 1);
+      }
+      this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
+      this.retries++;
+    }
   }
   // escrow custody 이동 헬퍼(step-0117) — 거래소↔가방 2-서비스 쌍 거래의 한 레그. invMode·inv·itemId 있을 때만 가방에 give(fromAvatar→toAvatar). 가방이 권위·거래소는 요청만(은닉). 미충족이면 no-op(추상 escrow·0116 동일).
   _custody(itemId, from, to, cause) {
@@ -97,6 +159,7 @@ class ExchangeService {
     this.listings = new Map(); this.nextId = 0; this.listed = 0; this.sold = 0; this.cancelled = 0; this.expired = 0; this.rejects = 0; this.published = 0; this.cancelPublished = 0; this.expirePublished = 0; this.gives = 0;
     this.ackedGives = 0; this.giveOks = 0; this.giveFails = 0; this.aborted = 0; this.abortPublished = 0;   // saga 피드백/보상/발행 집계 리셋(step-0121~0123) — 새 프로세스는 give 결과·abort·발행 이력 0(플래그 OFF 면 무관).
     this.gid = 0; this.pending = new Set(); this.pendingPeak = 0; this.pendingGive = new Map(); this.retries = 0; this.sagaDones = 0;   // 미해결 give 추적/재전송/유계화 리셋(step-0125~0127) — 새 프로세스는 in-flight give 이력 0(saga OFF 면 무관).
+    this.retryCount = new Map(); this.giveAbandoned = 0; this.abandonPublished = 0; this.abandonedGive = new Map(); this.readmitted = 0; this.readmitPublished = 0; this.readmitCount = new Map(); this.permFailed = 0; this.failPublished = 0;   // 재시도 상한/포기 발행/재admission/발행/횟수 상한/영구실패 발행 리셋(step-0131~0138) — 새 프로세스는 재시도 이력 0(sagaMaxRetries 0 면 무관).
     this.delivered = new Map(); this.proceeds = new Map(); this.returned = new Map();
   }
   // reconstruct(step-0109·failover) — fresh 박스가 durable op 저널을 seq 순 replay 해 projection 을 재계산(onMsg 와 정확히 같은 매핑·발신/발행 없이) → 죽기 전과 비트 동일.
@@ -117,6 +180,10 @@ class ExchangeService {
   pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0125) — 정상 흐름 0·회신 손실 시 >0(ack 미수신 격차).
   // saga 회계 정합 불변(step-0128·단언용 읽기 accessor) — ① 보낸 give 는 acked 또는 pending(새는 give 0) ② 받은 회신은 ok 또는 fail(분류 누락 0). 모든 체제(정상·손실·재전송)서 성립.
   sagaConsistent() { return this.gives === this.ackedGives + this.pending.size && this.ackedGives === this.giveOks + this.giveFails; }
+  // saga liveness 회계 정합 capstone(step-0140·단언용 읽기 accessor) — 0131~0139 liveness arc 의 창발 불변: *미해결(pending) give 는 정확히 한 liveness 상태*에 있다 —
+  //   재전송 중(pendingGive)·재admission 대기(abandonedGive·포기됨)·영구 종결(permFailed) 셋으로 분할되며 공백·중복 0(pending.size == pendingGive + abandonedGive + permFailed).
+  //   여기에 0128 sagaConsistent(gives==acked+pending·acked==oks+fails)를 AND — 보낸/받은/미해결 회계 전체가 대수적으로 닫힘. 정상·손실·포기·재admission·영구실패 *모든 체제*서 성립.
+  sagaLiveConsistent() { return this.pending.size === this.pendingGive.size + this.abandonedGive.size + this.permFailed && this.sagaConsistent(); }
   // 거래소가 escrow 에 들고 있다고 *믿는* open 매물의 itemId 집합(step-0120·2-서비스 보존 단언용 읽기 accessor·정렬). itemId 없는(추상 escrow) 매물은 제외.
   escrowItemIds() { return [...this.listings.values()].map(l => l.itemId).filter(x => x != null).sort(); }
 }
