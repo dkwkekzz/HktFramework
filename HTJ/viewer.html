@@ -1125,6 +1125,47 @@
         for (const e of es) e.peak = e.anchored ? 0.15 : (vmax > 0 ? Math.min(1, (Math.hypot(e.px, e.py, e.pz) / e.mass) / vmax) : 0);
       },
       note: '<b>작은 구체(캐릭터 대리)가 기복 있는 지형 위에 떨어져 딛고 선다</b>(환경 트랙 = 오픈월드의 첫 벽돌). <b>▶ 무엇</b>(design/environment.md §3 TW1): 오픈월드 MMORPG 의 본질은 <b>딛고 다닐 광활한 환경</b>이다. 그 첫 조각 = <b>산·지면</b>. sphere-world 의 접촉(0037)이 *단일* 큰 구체 위 쌓임을 보였다면, 이건 그 <b>환경 스케일 판</b>: 지면(큰 앵커) + 산(돌출 앵커)으로 <b>기복 있는 지형</b>을 만들고(모양은 *구체 배열*에 담긴다·sphere-world §3 "지형 디테일") 그 위에 작은 구체를 떨어뜨린다. <b>새 엔진 법칙은 0</b> — 중력(0028)+접촉 반발·소산(0037)을 *조립*해 새 무대에서 굴렸다(0035·0043 류). <b>화면</b>: 작은 구체들이 위에서 떨어져(파랑=빠름) → 지형 표면에 닿아 <b>반발로 떠받쳐지고 감쇠로 멈춘다</b>(노랑→식어 정착) → 표면 위에 <b>딛고 선다</b> = "선 캐릭터 = 중력(무게)↓ + 접촉 반발(떠받침)↑ 균형". <b>지형은 정적 앵커</b>: 힘을 받아도 위치 불변(질량 무한 극한·<b>외부 경계</b>로서 충격 흡수 — 지구처럼, 점프해도 지구는 안 밀린다). 큰 질량 구체끼리의 비현실적 중력 폭발도 이 극한이 피한다. <b>창발 + 정직한 한계</b>: <b>마찰이 없어</b>(SW2 는 법선 접촉만) 경사면에선 못 서고 <b>낮은 데(골)로 굴러내려 모인다</b> — 이건 물리적으로 옳고, 동시에 "<b>딛는 표면엔 마찰이 필요하다</b>"를 드러낸다(다음 환경 벽돌의 씨앗·바다 TW2·강 TW3·광활 LOD TW4 와 함께). <b>왜 중요한가</b>: 이게 동역학(궤도·강착)만 있던 구체 세계에 처음으로 <b>딛고 다닐 환경</b>을 들이는 첫 걸음 — 산도 캐릭터도 *같은 구체*, 크기·배열·정적/자유만 다르다.'
+    },
+
+    // ── step_0057 — TW1 마찰: 접촉의 접선 저항(Coulomb + 구름) → 안식각(구가 더미로 쌓인다) ──
+    //   0056 이 드러낸 격차("마찰 없어 경사면 못 서고 골로 미끄러짐")를 메우는 새 엔진 법칙. 마찰의 진짜 효과
+    //   = 안식각: 마찰 없으면 구가 액체처럼 퍼지고, 있으면 쌓여 더미(딛는 표면이 모양 유지). 접촉점 작용→각운동량 보존.
+    '0057': {
+      label: 'step_0057 — TW1 마찰(접선 저항·구름 → 안식각·더미로 쌓임)', title: 'HTJ — TW1 마찰: 구가 더미로 쌓인다(안식각) — 딛는 표면이 모양을 유지',
+      sub: '접촉(0037)의 *법선* 반발/감쇠가 못 막는 접선 상대 운동에 저항(Coulomb 마찰 |F_t|≤μ·F_n + 구름). 0056 격차("마찰 없어 경사면 못 서고 골로 미끄러짐") 메움. 진짜 효과 = 안식각: 마찰 없으면 구가 액체처럼 퍼지고, 있으면 *쌓여 더미*. 올바른 마찰은 접촉점에 작용해 스핀(구름)으로 각운동량을 넘긴다 → 운동량·각운동량·총E 정확 보존',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const R = N * 1.1, sr = N * 0.024, gold = Math.PI * (3 - Math.sqrt(5));
+        const topZ = cen + N * 0.16;                                       // 지면 꼭대기(국소 평평)
+        const mk = (cx, cy, cz, mass, r, anchored) => ({ cx, cy, cz, mass, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.15, anchored: !!anchored });
+        const ents = [mk(cen, cen, topZ - R, 1e6, R, true)];              // 지면 = 큰 앵커(꼭대기 평평·중력원)
+        // 작은 구체들 — 꼭대기에 좁은 기둥으로 떨궈 쌓는다(마찰이 더미로 잡음).
+        for (let i = 0; i < 26; i++) {
+          const rr = Math.sqrt(i / 26) * N * 0.05, th = gold * i;
+          ents.push(mk(cen + Math.cos(th) * rr, cen + Math.sin(th) * rr, topZ + N * 0.08 + i * sr * 0.8, 50, sr, false));
+        }
+        w.__entities = ents;
+        w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz }));
+        w.__gopt = { G: 0.28 * R * R / 1e6, soft: N * 0.06 };             // 꼭대기 가속 ≈0.28(아래로)
+        w.__copt = { k: 22, cDamp: 22 };
+        w.__fopt = { k: 22, mu: 0.9 };                                    // 마찰(접선 저항·구름)
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        const es = w.__entities;
+        HTJEntity.applyEntityGravity(es, 0.25, w.__gopt);    // 중력↓(0028)
+        HTJEntity.applyEntityContact(es, 0.25, w.__copt);    // 접촉↑ 반발+법선 감쇠(0037)
+        HTJEntity.applyEntityFriction(es, 0.25, w.__fopt);   // 마찰↗ 접선 저항+구름(0057·신규)
+        HTJEntity.stepEntities(es, 0.25);
+        const sv = w.__saved;                                // 정적 앵커 고정(지면)
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; es[i].KEcm = 0; es[i].Lx = es[i].Ly = es[i].Lz = 0; }
+        let vmax = 0; for (const e of es) if (!e.anchored) { const v = Math.hypot(e.px, e.py, e.pz) / e.mass; if (v > vmax) vmax = v; }
+        for (const e of es) e.peak = e.anchored ? 0.15 : (vmax > 0 ? Math.min(1, (Math.hypot(e.px, e.py, e.pz) / e.mass) / vmax) : 0);
+      },
+      note: '<b>마찰이 구를 더미로 쌓는다 — 딛는 표면이 모양을 유지한다</b>(안식각·angle of repose). <b>▶ 무엇</b>(design/environment.md §3 TW1): 0056 이 드러낸 격차 — 접촉(0037)은 <b>법선</b> 반발·감쇠만이라 <b>접선 방향(미끄럼)</b>을 못 막아, 구가 경사에서 골로 미끄러져 모였다("딛는 표면엔 마찰이 필요"). 이 step 이 그 <b>마찰</b>을 새 엔진 법칙으로 더한다. <b>Coulomb 마찰</b>: 접선력 |F_t| ≤ μ·F_n(F_n=반발력) — 미끄럼이 크면 동마찰(점성, μ·F_n 상한)로 <b>KE→열</b> 소산, 작으면 접선 운동을 0 까지만 잡아 <b>구름</b>(rolling)으로 넘긴다. <b>왜 접촉점인가</b>: 접선력을 *중심*에 걸면 각운동량이 깨진다 — 올바른 마찰은 <b>접촉점</b>에 작용해 구를 <b>스핀</b>(ω=L/I, I=⅖mr²)시킨다. 단일 접촉점으로 양 구의 지렛대를 맞추면 ΔL_total=0 → <b>각운동량 정확 보존</b>. <b>화면</b>: 작은 구체들이 꼭대기에 좁은 기둥으로 떨어져 → 마찰이 서로·바닥을 <b>붙잡아</b> 옆으로 흘러내리지 않고 <b>더미로 쌓인다</b>(색=속도, 식어 정착). <b>대조</b>(capture.png): 같은 더미를 <b>마찰 없이</b> 떨구면 액체처럼 <b>퍼져 팬케이크</b>(수평 반경 RMS 18.7)가 되지만, <b>마찰 있으면</b> 좁은 <b>더미</b>(9.5·51%)로 머문다. 이게 "<b>딛는 표면이 모양을 유지</b>"의 핵심 — 모래·흙·바위가 산·언덕으로 *쌓이는* 이유. <b>보존</b>: 운동량(equal-opposite 쌍힘)·각운동량(접촉점 단일화)·총E(잃은 병진 KE→internalE, merge 규약 계승·스핀 KE 도 internalE 에 lump) 정확 보존. <b>왜 중요한가</b>: 마찰은 강체 구가 <b>경사에 못 서는</b>(늘 구름) 물리적 진실 위에서, 알갱이들이 <b>더미·경사를 이루게</b> 하는 법칙 — 지형이 평평하게 무너지지 않고 <b>산·언덕의 모양을 유지</b>하게 한다. <b>정직한 한계</b>: 스핀 KE 를 internalE 에 lump(별도 회전E 장 없음·merge 와 동일 규약)·단일 μ(정/동마찰 구분 없음·속도 무관)·구름 저항(rolling resistance) 없음(굴러가면 안 멈춤)·점착(cohesion) 없음. 다음 환경 벽돌: 바다 TW2(SPH 수면)·강 TW3(흐름)·광활 LOD TW4.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
