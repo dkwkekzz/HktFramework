@@ -1,4 +1,7 @@
 'use strict';
+// step-0169 — 아이템 우편 saga 회계 정합 capstone(sagaConsistent): 0166~0168 의 saga 회계(gives·ackedGives·pendingGives·giveOks·giveFails)가 *대수적으로 닫혀* 있는가?
+//   두 항등식: ① gives == ackedGives + pendingGives(보낸 모든 give 는 정확히 acked(회신 받음) 또는 pending(미수신) 둘 중 하나·새는 give 0) ② ackedGives == giveOks + giveFails(받은 모든 회신은 ok/fail 분류·누락 0). 정상·회신손실·재전송 *모든 체제*서 성립.
+//   sagaConsistent = 두 항등식 AND·미호출 읽기 accessor·단언용. 거래소 0128 의 우편 판. 미호출이면 동작 무영향 = 0168 비트 동일(reg).
 // step-0168 — 아이템 우편 saga 회신 재전송 + idempotent dedup(mailRetry·가방 sagaDedup 재사용): 0167 은 손실을 *감지*만 했다 — 잃은 회신을 *되찾는* 경로가 없었다.
 //   이 step: mailRetry op 이 pendingGive 의 미해결 give 를 *같은 gid* 로 재발신(_resendPending). 가방이 (replyTo,gid) 로 dedup(sagaDedup) — 이미 처리한 give 면 *재실행 없이 저장된 결과를 재회신*. 회신만 손실된 give(이미 성공)가 재실행→오판되는 것을 막는다(거래소 0126 의 우편 판). 재전송은 pending 잔존분만(gives/escrowXfers 무증가·retries++).
 //   dedup ON: 재전송→저장 ok 재회신→pending drain·escrowXfers 불변(재실행 0). mailRetry op 부재면 0167 비트 동일(회귀 0). ackDrop 은 *1회* 손실로 변경(transient·재전송이 통과).
@@ -224,6 +227,9 @@ class MailService {
   escrowItemIds() { return [...this.escrowIds].sort(); }
   escrowConsistent() { return this.itemHeld() === this.escrowIds.size; }
   pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 통수(step-0167) — 정상 0·회신 손실 시 잔존. 0166 gives==ackedGives 의 격차 = 이 값.
+  // saga 회계 정합 capstone(step-0169·단언용 읽기 accessor) — 0166~0168 saga 회계의 창발 불변. 두 항등식 AND:
+  //   ① gives == ackedGives + pendingGives(보낸 give 는 정확히 acked 또는 pending·새는 give 0) ② ackedGives == giveOks + giveFails(회신은 ok/fail 분류·누락 0). 정상·손실·재전송 모든 체제서 성립. 거래소 0128 의 우편 판.
+  sagaConsistent() { return this.gives === this.ackedGives + this.pending.size && this.ackedGives === this.giveOks + this.giveFails; }
   // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];
