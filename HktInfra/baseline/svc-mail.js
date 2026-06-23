@@ -1,4 +1,6 @@
 'use strict';
+// step-0167 — 아이템 우편 give 회계 정합(mailGiveConsistent): 0165~0166 이 give·회신·보상을 쌓았다 — 그 회계가 닫혀 있는가?
+//   mailGiveConsistent: 발신한 모든 custody give 는 매 순간 정확히 한 상태 — 회신 성공(ackedOk)·회신 실패(ackedFail)·미해결(pending) 으로 분할(공백·중복 0). gives == ackedOk + ackedFail + pending.size 가 모든 체제(정상·보상·혼합)서 성립(거래소 0128 sagaConsistent 의 우편 판). 미호출 = 0166 비트 동일(reg).
 // step-0166 — 아이템 우편 발신 실패 보상(mailCompensate): 0165 는 give 실패(ackedFail)를 *집계만* 했다 — 발신자가 아이템을 안 가졌는데도 우편이 낙관적으로 적재돼 *phantom 우편*(실물 없는 우편)이 남았다.
 //   이 step: 발신 leg(cause=mailsend) give 가 실패 회신하면 그 우편을 롤백(box 에서 제거·sent--·itemSent--·compensated++). 거래소 0122 exchCompensate(list 인출 실패→매물 abort)의 우편 판. 받는 이가 실물 없는 우편을 받지 않는다(phantom 0).
 //   mailCompensate OFF·give 성공이면 롤백 0 = 0165 비트 동일.
@@ -256,6 +258,8 @@ class MailService {
   itemHeld() { let n = 0; for (const b of this.boxes.values()) for (const mm of b.values()) if (mm.item != null) n++; return n; }   // 보유 중 아이템 실은 통수(step-0157)
   // 보유 우편이 든 아이템 id 집합(step-0164·단언용 읽기) — in-transit custody 에 있어야 할 아이템들. 가방 'mailcustody' 소유 집합과 일치해야(2-서비스 보존·거래소 0120 의 우편 판).
   mailCustodyItems() { const ids = []; for (const b of this.boxes.values()) for (const mm of b.values()) if (mm.item != null) ids.push(mm.item); return ids.sort(); }
+  // give 회계 정합 capstone(step-0167·단언용 읽기) — 발신한 custody give 는 매 순간 정확히 한 상태(회신성공 ackedOk·회신실패 ackedFail·미해결 pending)에 분할(공백·중복 0). 거래소 0128 sagaConsistent 의 우편 판.
+  mailGiveConsistent() { return this.gives === this.ackedOk + this.ackedFail + this.pending.size; }
   fetchedOf(rcpt) { const l = this.read.get(rcpt); return l ? l.length : 0; }   // 한 수신자 수령 통수(step-0143)
   boxOf(rcpt) { const b = this.boxes.get(rcpt); return b ? [...b.values()] : []; }   // 우편함 통째(읽기·결정론 순서)
   readOf(rcpt) { const l = this.read.get(rcpt); return l ? l.slice() : []; }   // 수령(읽음) 보관 통째(step-0143)

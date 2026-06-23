@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0167](step-0167.md) — **아이템 우편 give 회계 정합**(mailGiveConsistent·gives==ackedOk+ackedFail+pending): custody give 는 매 순간 정확히 한 상태(회신성공·회신실패·미해결)에 분할(거래소 0128 의 우편 판). 3체제 true·무손실 pending 0 drain. 닿는 박스: svc-mail.
-- **한 줄 상태**: reg ALL OK(미호출=0166 비트 동일)·exmlgc: normal 4/4/0/0·comp 2/1/1/0·mixed 2/2/0/0·3체제 consistent·spine 통과.
-- **다음**: §2 — 아이템 우편 saga(0168 재전송 멱등·0169 교차 정합·0170 liveness capstone).
+- **닫힌 step**: [step-0168](step-0168.md) — **아이템 우편 미해결 give 재전송 멱등**(mailRetry+가방 sagaDedup): pending give 같은 gid 재발신·가방이 재실행 없이 원결과 재회신(거래소 0126 의 우편 판·이중 이동 0). pending Set→Map(재전송 소스). 닿는 박스: svc-mail·topo-run.
+- **한 줄 상태**: reg ALL OK(mailRetry 미주입=0167 비트 동일)·exmlretry: gives 1·retries 1·acked 1·inv transfers 1(이중 0)·spine 통과.
+- **다음**: §2 — 아이템 우편 saga(0169 교차 정합·0170 liveness capstone). 재전송 상한(거래소 0131 판)은 멀티프로세스 무대 백로그(#37 family).
 
 ---
 
@@ -96,24 +96,24 @@
 
 | step | 더한 한 조각 | 결과 (회귀 0 전제) |
 |---|---|---|
-| [0001](step-0001.md) | 최소 골격 토폴로지 (4박스+세션 계약) | 통과 · 은닉 0/47 |
-| [0002](step-0002.md) | 존 결정론 복제 (추종자 존+입력 미러 탭) | 통과 · 0/60 desync |
-| [0003](step-0003.md) | Sim 인터페이스 동결 (ISimCore v1·2구현) | 통과 · 구체 참조 0 |
-| [0004](step-0004.md) | 현실 전송(지연·손실·재정렬)+논리-tick | 통과 · desync 597→0 |
-| [0005](step-0005.md) | 멀티 클라+AOI 브로드캐스트 (EntityZone) | 통과 · 절감 51~68% |
-| [0006](step-0006.md) | 공간 분할+존 간 권위 핸드오프 (EntityZone ×2) | 통과 · 소유자=1 |
-| [0007](step-0007.md) | 증분 AOI(enter/exit/update) | 통과 · 증분≡전체 288 |
-| [0008](step-0008.md) | 전송 열화 아래 핸드오프+반응적 복원(ack/NAK/keyframe) | 통과 · 손실 0~30%·desync 0 |
-| [0009](step-0009.md) | 추종자 승격 failover(shadow 복제·lease 감지) | 통과 · 사망→소유자 1 |
+| [0001](step-0001.md) | 최소 골격 토폴로지 (4박스+세션 계약) | 통과 |
+| [0002](step-0002.md) | 존 결정론 복제 (추종자 존+입력 미러 탭) | 통과 |
+| [0003](step-0003.md) | Sim 인터페이스 동결 (ISimCore v1·2구현) | 통과 |
+| [0004](step-0004.md) | 현실 전송(지연·손실·재정렬)+논리-tick | 통과 |
+| [0005](step-0005.md) | 멀티 클라+AOI 브로드캐스트 (EntityZone) | 통과 |
+| [0006](step-0006.md) | 공간 분할+존 간 권위 핸드오프 (EntityZone ×2) | 통과 |
+| [0007](step-0007.md) | 증분 AOI(enter/exit/update) | 통과 |
+| [0008](step-0008.md) | 전송 열화 아래 핸드오프+반응적 복원(ack/NAK/keyframe) | 통과 |
+| [0009](step-0009.md) | 추종자 승격 failover(shadow 복제·lease 감지) | 통과 |
 | [0010](step-0010.md) | 프로세스 경계 현실화(실 프로세스/IPC·broker) | 통과 |
 | [0011](step-0011.md) | 실 TCP 소켓 전송(IPC→TCP·프레이밍) | 통과 |
-| [0012](step-0012.md) | 버스 분산+열화 내성(토픽 pub/sub·분단·펜싱) | 통과 · split-brain 0 |
-| [0013](step-0013.md) | 진짜 프로세스 kill 아래 failover(child.kill·epoch 펜싱) | 통과 · split-brain 0 |
+| [0012](step-0012.md) | 버스 분산+열화 내성(토픽 pub/sub·분단·펜싱) | 통과 |
+| [0013](step-0013.md) | 진짜 프로세스 kill 아래 failover(child.kill·epoch 펜싱) | 통과 |
 | [0014](step-0014.md) | 가방 서비스 분리(아이템 원장 존 tick 밖·단일 소유·쌍 거래) | 통과 |
-| [0015](step-0015.md) | 채팅 서비스 분리(채널 팬아웃·구독 라우팅·지역 격리) | 통과 · 누설 0 |
+| [0015](step-0015.md) | 채팅 서비스 분리(채널 팬아웃·구독 라우팅·지역 격리) | 통과 |
 | [0016](step-0016.md) | 이벤트 버스 서비스 층(발행/구독·무수정 소비자) | 통과 |
 | [0017](step-0017.md) | 가방 failover·영속(원장 영속 저널 재구성·event sourcing) | 통과 |
-| [0018](step-0018.md) | 가방 저널 스냅샷 압축(intent 로그+주기 스냅샷) | 통과 · 92%↓ |
+| [0018](step-0018.md) | 가방 저널 스냅샷 압축(intent 로그+주기 스냅샷) | 통과 |
 | [0019](step-0019.md) | 발신하는 둘째 소비자(RankingService·CQRS) | 통과 |
 | [0020](step-0020.md) | 읽기 모델 영속·late-join(crash→저널 recon) | 통과 |
 | [0021](step-0021.md) | 채팅 영속·failover(crash→커맨드 로그 replay) | 통과 |
@@ -121,9 +121,9 @@
 | [0023](step-0023.md) | 저널 홉 신뢰 전달(write-behind 홉 갭 NAK+재전송) | 통과 |
 | [0024](step-0024.md) | 저널 홉 tail 손실 감지(heartbeat→tail NAK) | 통과 |
 | [0025](step-0025.md) | in-flight give 손실 복구(give-resend→belief 재수렴) | 통과 |
-| [0026](step-0026.md) | in-flight mint 손실 복구: id-reconciliation(re-mint) | 통과 · dupe 0 |
+| [0026](step-0026.md) | in-flight mint 손실 복구: id-reconciliation(re-mint) | 통과 |
 | [0027](step-0027.md) | PersistStore failover: 이중쓰기 보조(primary+backup) | 통과 |
-| [0028](step-0028.md) | PersistStore N-replica+quorum: 생존 union 복구 | 통과 · union==base |
+| [0028](step-0028.md) | PersistStore N-replica+quorum: 생존 union 복구 | 통과 |
 | [0029](step-0029.md) | PersistStore quorum 쓰기 ack: W 정족수 durable | 통과 |
 | [0030](step-0030.md) | 정리: 박스 1개=파일 1개 분할 + engine 승격(verify-kit) | OK |
 | [0031](step-0031.md) | 정합성 윈도 해소(quorum-fill) | 통과 |
@@ -143,8 +143,8 @@
 | [0045](step-0045.md) | 소비자 lease/축출(busConsumerLease) | 통과 |
 | [0046](step-0046.md) | 게이트웨이 producer 네임스페이스(busProducerNs — (producer,reqId) 복합키) | 통과 |
 | [0047](step-0047.md) | per-producer seen 워터마크(busSeenNs) | 통과 |
-| [0048](step-0048.md) | 소비자 lease lifecycle(busLeaseLife) | 통과 · readm 1 |
-| [0049](step-0049.md) | 단일 살아있는 소스 src/ 전환(복사 전진 폐기·기능 0·reg 0) | OK · src=baseline=0048 |
+| [0048](step-0048.md) | 소비자 lease lifecycle(busLeaseLife) | 통과 |
+| [0049](step-0049.md) | 단일 살아있는 소스 src/ 전환(복사 전진 폐기·기능 0·reg 0) | OK |
 | [0050](step-0050.md) | 적응형 leaseSpan(busLeaseAdapt) | 통과 |
 | [0051](step-0051.md) | 시작 cadence prior(busLeaseGrace) | 통과 |
 | [0052](step-0052.md) | 윈도 cadence(busCadenceWindow) | 통과 |
@@ -263,3 +263,4 @@
 | [0165](step-0165.md) | 아이템 우편 give 결과 비동기 수신(mailSaga·replyTo+gid·acked 집계·pending 추적) | 통과 · gives 4·acked 4·pending 0 drain |
 | [0166](step-0166.md) | 아이템 우편 발신 실패 보상(mailCompensate·give 실패→우편 롤백·phantom 0) | 통과 · sent 1·ackedFail 1·compensated 1 |
 | [0167](step-0167.md) | 아이템 우편 give 회계 정합(mailGiveConsistent·gives==ackedOk+ackedFail+pending) | 통과 · 3체제 true·무손실 pending 0 drain |
+| [0168](step-0168.md) | 아이템 우편 미해결 give 재전송 멱등(mailRetry+가방 sagaDedup·재실행 0·이중 이동 0) | 통과 · retries 1·transfers 1·acked 1 |
