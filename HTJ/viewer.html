@@ -988,6 +988,33 @@
         for (const e of w.__entities) e.peak = Math.min(1, (e.internalE / e.mass) / 10) * 3;   // 절대 온도 색(초기 코어=10)
       },
       note: '<b>가스가 제 열을 빛으로 내보내 식는다 — 계의 첫 에너지 sink</b>(구체 세계 SW5·0005/0013 의 SPH 판). <b>▶ 무엇</b>: 지금까지 SPH 의 압력(0041)·점성(0046)·전도(0049)는 에너지를 <b>재분배만</b> 했다 — KE↔내부E, 내부E↔내부E. 계 밖으로 <b>나갈 출구가 없어</b> 붕괴열이 갇힌다(점성·전도는 열을 *옮길* 뿐 못 버린다). 이 법칙은 그 출구 = <b>빛</b>: 광학적으로 얇은 회색 복사로 각 입자가 제 내부E 일부를 방출한다 — <b>u_i ← u_floor + (u_i−u_floor)·(1−dt·coolRate)</b>, 잃은 열은 <b>radiated 장부</b>(빛)로 쌓인다. <b>화면</b>: 평면 원반(위치 고정)·중심을 뜨겁게(노랑) 줬다 — 핫코어가 <b>제자리에서 어두워진다</b>(코어 u 10→0.4). <b>전도(0049)와 대비</b>: 전도는 열을 바깥으로 *퍼뜨려* 균일하게 만들었지만, 복사는 <b>안 퍼지고 그냥 사라진다</b>(에너지가 빛으로 계를 떠남). <b>보존</b>: 빛은 <b>열에서</b> 나오지 질량 아님(0005 질량소실 닫음) → ρ(질량)·운동량·KE <b>불변</b>, 총E=KE+u 만 줄어든다(빛이 계를 떠나). <b>열+빛 합 일정</b>(계 내부E 816→71 + 방출 빛 0→745 = 816 불변·회계). u_floor(바닥 복사장·CMB 류) 아래론 안 식는다. <b>왜 중요한가</b>: <b>0013 이 0012 runaway 를 닫았듯</b>, 이 sink 가 있어야 가스가 *진짜로 식어 정착*한다 — 격자의 별-탄생 파이프라인(붕괴→가열→<b>복사→정착</b>)을 구체가 온전히 대신하는 한 벽돌(격자 은퇴). <b>정직한 한계</b>: 회색 복사(주파수 무관·광학적으로 얇음=흡수 없음)·점화(발열 source)는 후속(0004 의 SPH 판). 여기선 *복사 냉각 한 가지*만.'
+    },
+
+    // ── step_0053 — SW5 점화: 충분히 뜨거우면 불붙어 빛난다(별 vs 별 아님·0004 의 SPH 판) ──
+    //   u≥uCrit & fuel>0 → burn=min(fuel,rate·m·dt)·internalE += burn. 0052 복사와 짝지어 발열↔복사 균형=정상상태 별.
+    //   위치 고정 원반·따뜻한 코어(u≥uCrit) 불붙어 노랑·찬 가장자리(u<uCrit) 어두움. 색=온도.
+    '0053': {
+      label: 'step_0053 — SW5 점화(별 vs 별 아님·핵융합 발열)', title: 'HTJ — SW5 점화: 충분히 뜨거우면 불붙어 빛난다',
+      sub: 'SPH 점화 — 충분히 뜨거운(u≥uCrit) 입자가 연료를 태워 데운다(핵융합 발열 source) = 0004(임계 방출=별)·0003(potential→energy)의 SPH 판. 0052 복사(sink)와 짝지으면 발열↔복사가 균형 잡아 별이 virial 정상상태에서 빛난다. 위치 고정 원반: 따뜻한 코어(u≥uCrit)는 불붙어 노랑으로 빛나고, 찬 가장자리(u<uCrit)는 점화 못 해 복사로 어두워진다 = 별과 별 아닌 것의 경계. 연료↔열 보존·질량/운동량 불변',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'absolute', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, R = N * 0.42, SP = Math.max(1.6, N * 0.05);
+        const ents = [];
+        for (let x = -R; x <= R; x += SP) for (let y = -R; y <= R; y += SP) {   // 평면 원반(z=0)
+          const r = Math.sqrt(x * x + y * y); if (r > R) continue;
+          const u = r < R / 2.2 ? 2.0 : 0.4;                 // 코어 따뜻(≥uCrit)·가장자리 차가움(<uCrit)
+          ents.push({ cx: cen + x, cy: cen + y, cz: cen, mass: 1, px: 0, py: 0, pz: 0, KEcm: 0, internalE: u, energy: u, fuel: 1e6, radius: 1.3 });
+        }
+        w.__entities = ents;
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        HTJSPH.sphIgnition(w.__entities, 0.1, { rate: 1.5, uCrit: 1.5 });        // 점화(이 step)
+        HTJSPH.sphRadiativeCooling(w.__entities, 0.1, { coolRate: 0.2, floor: 0.2 });   // 복사(0052) 균형
+        for (const e of w.__entities) e.peak = Math.min(1, (e.internalE / e.mass) / 8) * 3;   // 절대 온도 색
+      },
+      note: '<b>충분히 뜨거우면 불붙어 빛난다 — 별과 별 아닌 것의 경계</b>(구체 세계 SW5·0004 의 SPH 판). <b>▶ 무엇</b>: 0052 복사는 열의 *출구*(sink)였다. 이 법칙은 열의 <b>입구(source) = 점화</b>: 별은 코어가 <b>충분히 뜨거우면</b>(u≥uCrit) 핵융합으로 불붙어 <b>연료를 열로</b> 바꾼다 — u≥uCrit & fuel&gt;0 → <b>burn = min(fuel, rate·m·dt)</b>, internalE += burn·fuel −= burn. 이게 <b>0004(임계 방출=별)·0003(potential→energy)의 SPH 판</b>. <b>화면</b>: 평면 원반(위치 고정)·코어를 따뜻하게(u=2≥uCrit) 가장자리를 차갑게(u=0.4&lt;uCrit) 줬다 — <b>코어는 불붙어 노랑으로 밝아지고</b>(u 2→6.7) <b>가장자리는 점화 못 해 복사로 어두워진다</b>(u 0.4→0.23). 임계 하나가 별과 가스를 가른다. <b>점화↔복사 정상상태</b>: 0052 복사와 짝지으면 <b>발열(점화)↔복사(0052)가 균형</b> 잡아 코어가 <b>runaway 도 cold 도 아닌 정상상태</b>(u* = rate(1−dt·c)/c)에서 빛난다 = <b>0013 이 0012 runaway 를 닫고 만든 virial 별</b>의 SPH 판. <b>보존</b>: 연료↔열 <b>Σ(fuel+internalE) 정확 보존</b>(연료가 열로 바뀔 뿐)·질량·운동량·KE 불변(0005 질량소실 닫음). <b>연료 유한</b> → 다 타면 꺼진다(무한 발열 없음). <b>왜 중요한가</b>: 이로써 격자 별-탄생 파이프라인(붕괴→가열→<b>점화</b>→복사→virial 정착)이 *구체로 완성*된다 — 격자의 signature 현상이 SPH 로 옮겨졌다(격자 은퇴). <b>정직한 한계</b>: 점화 조건은 온도 임계(밀도 임계는 옵션)·전체 붕괴→virial 별은 열압력 되먹임 균형이 섬세(여기선 위치 고정으로 점화 임계만 격리). 여기선 *점화 한 가지*만.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1235,7 +1262,7 @@
     for (const key of Object.keys(STEPS)) {
       const o = document.createElement('option'); o.value = key; o.textContent = STEPS[key].label; sel.appendChild(o);
     }
-    sel.value = '0052';                       // 기본 = 현재 step
+    sel.value = '0053';                       // 기본 = 현재 step
   })();
 
   // ── 버튼 ──

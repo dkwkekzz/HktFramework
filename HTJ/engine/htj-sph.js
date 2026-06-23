@@ -435,6 +435,39 @@
     return particles;
   }
 
+  // ── SW5 SPH 점화(핵융합 발열 source) — 충분히 뜨거운 입자가 연료를 태워 데운다 ───────────────────
+  //   design/sphere-world.md §6 SW5 — 0052 복사는 열의 *출구*(sink). 이 법칙은 열의 *입구*(source) = **점화** =
+  //   **0004(임계 방출=별)·0003(potential→energy)의 SPH 판**. 별은 코어가 *충분히 뜨거우면*(u≥uCrit) 핵융합으로
+  //   불붙어 연료를 열로 바꾼다. 0052 복사와 짝지으면: 발열(이 법칙)↔복사(0052)가 균형 잡아 별이 **virial 정상상태**
+  //   에서 빛난다(0013 이 0012 runaway 를 닫고 정상 별을 만든 정신·정상 u_eq = floor + rate/coolRate).
+  //     u_i ≥ uCrit (그리고 ρ_i ≥ rhoCrit) 이고 fuel_i>0 → burn = min(fuel_i, rate·m_i·dt); internalE += burn; fuel −= burn
+  //   **연료↔열 보존**: Σ(fuel+internalE) 정확 보존(연료가 열로 바뀔 뿐). 질량·운동량·KE 불변(0005 질량소실 닫음).
+  //   연료 유한 → 다 타면 멈춤(무한 발열 없음·0004 의 "별도 언젠가 꺼진다"). rate=0 또는 dt=0 → early-return(회귀 0).
+  //   opts: { rate(0·연소율), uCrit(점화 온도 임계·기본 ∞=안 붙음), rhoCrit(밀도 임계·기본 0), fuel0(초기 연료·e.fuel 없을 때) }.
+  function sphIgnition(particles, dt, opts) {
+    opts = opts || {};
+    const rate = opts.rate != null ? opts.rate : 0;
+    if (dt == null) dt = 1;
+    if (!rate || !dt) return particles;                       // 노브=0 → 세계 불변(회귀 0)
+    const uCrit = opts.uCrit != null ? opts.uCrit : Infinity; // 점화 온도 임계(이상이면 불붙음)
+    const rhoCrit = opts.rhoCrit != null ? opts.rhoCrit : 0;  // 점화 밀도 임계(옵션·e.density 필요)
+    const fuel0 = opts.fuel0 != null ? opts.fuel0 : 0;
+    const EPS2 = 1e-12;
+    for (let i = 0; i < particles.length; i++) {
+      const e = particles[i];
+      if (e.fuel == null) e.fuel = fuel0;
+      if (e.internalE == null) e.internalE = (e.energy != null ? e.energy : 0) - (e.KEcm || 0);
+      if (e.KEcm == null) e.KEcm = e.mass > EPS2 ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      const u = e.mass > EPS2 ? e.internalE / e.mass : 0;
+      if (u >= uCrit && (e.density || 0) >= rhoCrit && e.fuel > 0) {   // 뜨겁고(·조밀하고) 연료 있으면 점화
+        const burn = Math.min(e.fuel, rate * e.mass * dt);    // 연소량 ∝ 질량·rate·dt
+        e.internalE += burn; e.fuel -= burn;                  // 연료 → 열(Σ(fuel+u) 보존)
+        e.energy = e.KEcm + e.internalE;                      // 총E↑(연료에서)·질량 불변
+      }
+    }
+    return particles;
+  }
+
   // ── SW5 격자 은퇴 첫 벽돌: 격자 유체 → SPH 입자 *이주* ───────────────────────────────────────
   //   design/sphere-world.md §6 SW5 — "격자 유체를 구체로 이주 → 격자 은퇴". 격자(Eulerian·칸 고정) 위의 연속
   //   유체장(ρ=energy·운동량 g=mom_*·내부E u=therm)을 *셀마다 SPH 입자 하나*로 재버킷팅한다 = 0026 promote
@@ -497,5 +530,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, fluidToParticles, VERSION: 10 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, VERSION: 11 };
 });
