@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0123](step-0123.md) — **보상 발행**(abortPublish·svc.exchange.aborted): 0122 의 abort 는 내부 회계로만 굴러 외부 관측 불가 — 이 step 은 보상 성립을 svc.exchange.aborted{id,seller,item,price} 로 1회 발행(delete 전 listing 캡처), audit 무수정 소비자가 구독해 관측. 0111 cancelled·0115 expired 의 실패-롤백 형제 — 거래소 수명주기 발행 4종(sold/cancelled/expired/aborted) 완비. 발행은 *관측*만 더한다(보상 자체·2-서비스 일치는 발행과 직교). abortPublish OFF·bus 부재면 발행 0 = 0122 비트 동일. 닿는 박스: svc-exchange(abortPublish)·topo-build(subs+옵션).
-- **한 줄 상태**: reg ALL OK(src=baseline=0122 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exabortpub: aborted 1·abortPublished ON1/OFF0·audit aborted ON1/OFF0·open==escrow ["item0"]·conserved·전 키트 모드 통과.
-- **다음**: §2 참조(회신 신뢰 전달·buy leg 보상·멀티프로세스 E2E·거래소/우편/길드·비동기 결정론🔴).
+- **닫힌 step**: [step-0124](step-0124.md) — **정리: svc-exchange.js 박스-부품 분할**(core/txn/entry·기능 0·reg 0): saga arc 누적으로 svc-exchange.js 가 32.4KB 초과(비대화 트리거) → ExchangeService 를 core(상태·헬퍼·crash·reconstruct·조회)+txn(onMsg)+entry 로 분할(가방 0053·whisper 0094 패턴). 누적 step 헤더 주석을 한 줄 포인터로 압축(역사 SSOT=step 문서). 크기 32.4KB→core 12.5+txn 7.0+entry 1.1=20.6KB(셋 다 30KB 유계). 거래소 전 분기(list/buy/cancel/expire/abort+발행 4종+saga+보상+영속+시세)를 src(분할)·baseline(단일 파일) 양쪽서 돌려 net.log·거래소 회계 비트 동일 단언. 닿는 박스: svc-exchange→core/txn/entry.
+- **한 줄 상태**: reg ALL OK(src=baseline=0123 비트 동일·월드해시 `0x7a122947`(seed42)… 보존)·exsplit: src logHash==base logHash·exHash 0xfa2f7584 동일·sold/can/exp/abrt 2/1/1/1·open 1·전 키트 모드 통과.
+- **다음**: §2 참조(saga 회신 신뢰 전달·buy leg 보상·topo-build/topology 정리·멀티프로세스 E2E·거래소/우편/길드·비동기 결정론🔴).
 
 ---
 
 ## 2. NEXT — step-0044 후 가설 (후보, 권위는 이 절)
 
-**step-0123 이 *보상 발행*(abortPublish·svc.exchange.aborted)을 닫아 거래소 수명주기 발행 4종(sold/cancelled/expired/aborted)을 완비 — 매물의 모든 종결이 버스로 관측. 다음 후보(saga arc 진행): *회신 신뢰 전달*(give 회신 손실 시 ack 미수신 격차·0121 §9·0023/0036 의 saga 판)·*buy 입금 leg 보상*(체결 후 give 실패 역보상·0122 §9)·*멀티프로세스 E2E 거래소↔가방 give*(saga 회신이 멀티프로세스서도 비트 동일). 그 외: *우편/길드 서비스*·*wiring 정리*(topo-build ≈32KB)·*비동기 결정론*(🔴). 🔧 topo-build ≈32KB. 🔎 0111~0120 묶음 리뷰(`infra-review`) 시점.**
+**step-0124 가 *svc-exchange.js 정리 분할*(core/txn/entry·32.4→20.6KB)로 박스 유계를 회복. 다음 후보(saga arc 진행): *회신 신뢰 전달*(give 회신 손실 시 ack 미수신 격차·0121 §9·0023/0036 의 saga 판)·*buy 입금 leg 보상*(체결 후 give 실패 역보상·0122 §9)·*멀티프로세스 E2E 거래소↔가방 give*. 정리 후보: *topo-build*(32.7KB)·*topology*(31.5KB) 박스 분할(0124 §9). 그 외: *우편/길드 서비스*·*비동기 결정론*(🔴). 🔧 topo-build 32.7KB·topology 31.5KB. 🔎 0111~0120 묶음 리뷰(`infra-review`) 시점.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -99,8 +99,8 @@
 | [0001](step-0001.md) | 최소 골격 토폴로지 (4박스+세션 계약) | 통과 · 은닉 0/47·비트 결정론 |
 | [0002](step-0002.md) | 존 결정론 복제 (추종자 존+입력 미러 탭) | 통과 · 0/60 desync·0바이트 |
 | [0003](step-0003.md) | Sim 인터페이스 동결 (ISimCore v1·2구현) | 통과 · 구체 참조 0 |
-| [0004](step-0004.md) | 현실 전송(지연·손실·재정렬)+논리-tick | 통과 · redundancy 1→3 desync 597→0 |
-| [0005](step-0005.md) | 멀티 클라+AOI 브로드캐스트 (EntityZone·시뮬 0) | 통과 · seen==트루스·절감 51~68% |
+| [0004](step-0004.md) | 현실 전송(지연·손실·재정렬)+논리-tick | 통과 · desync 597→0 |
+| [0005](step-0005.md) | 멀티 클라+AOI 브로드캐스트 (EntityZone·시뮬 0) | 통과 · 절감 51~68% |
 | [0006](step-0006.md) | 공간 분할+존 간 권위 핸드오프 (EntityZone ×2) | 통과 · 소유자+in-flight=1 |
 | [0007](step-0007.md) | 증분 AOI(enter/exit/update+누적 재구성) | 통과 · 증분≡전체 288/288 |
 | [0008](step-0008.md) | 전송 열화 아래 핸드오프+반응적 복원(ack/재전송·NAK/keyframe) | 통과 · 손실 0~30%·desync 0 |
@@ -219,3 +219,4 @@
 | [0121](step-0121.md) | 거래소↔가방 escrow give 결과 비동기 수신(exchSaga — give 에 replyTo+cause·가방 item_result echo·거래소 집계) | 통과 · gives 9==acked 9==oks 9·fails 0·spine 121 |
 | [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate — give 실패 시 listing abort·낙관적 open 롤백·저널 정합) | 통과 · giveFails 1·aborted ON1/OFF0·ON open==escrow·OFF phantom·spine 122 |
 | [0123](step-0123.md) | 보상 발행(abortPublish — abort→svc.exchange.aborted·audit 관측·수명주기 발행 4종 완비) | 통과 · aborted 1·abortPublished ON1/OFF0·audit ON1/OFF0·spine 123 |
+| [0124](step-0124.md) | 정리: svc-exchange.js 박스-부품 분할(core/txn/entry·기능 0·헤더 압축) | OK · 32.4→12.5/7.0/1.1KB·log+ex 비트 동일·spine 124 |
