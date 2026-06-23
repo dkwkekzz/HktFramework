@@ -1,4 +1,7 @@
 'use strict';
+// step-0170 — 아이템 우편 give↔가방 transfers capstone(sagaLiveConsistent + 두 서비스 giveOks==escrowXfers): 0161~0169 가 아이템 우편↔가방 3 레그·2-서비스 보존·saga 회신/재전송/정합을 쌓았다. *전체*가 닫혀 있는가?
+//   sagaLiveConsistent = mailConsistent(메시지 0150) AND itemConsistent(아이템 0160) AND escrowConsistent(escrow 0164) AND sagaConsistent(saga 0169) — 우편 박스 *내부* 네 회계층의 동시 닫힘. + verify 가 우편 giveOks == 가방 escrowXfers(두 서비스 회계 합치·거래소 0130 의 우편 판).
+//   미호출 읽기 accessor·단언용 = 0169 비트 동일(reg). 아이템 우편↔가방 saga arc(0161~0170) 닫기·거래소↔가방(0117~0140)의 우편 판 완성.
 // step-0169 — 아이템 우편 saga 회계 정합 capstone(sagaConsistent): 0166~0168 의 saga 회계(gives·ackedGives·pendingGives·giveOks·giveFails)가 *대수적으로 닫혀* 있는가?
 //   두 항등식: ① gives == ackedGives + pendingGives(보낸 모든 give 는 정확히 acked(회신 받음) 또는 pending(미수신) 둘 중 하나·새는 give 0) ② ackedGives == giveOks + giveFails(받은 모든 회신은 ok/fail 분류·누락 0). 정상·회신손실·재전송 *모든 체제*서 성립.
 //   sagaConsistent = 두 항등식 AND·미호출 읽기 accessor·단언용. 거래소 0128 의 우편 판. 미호출이면 동작 무영향 = 0168 비트 동일(reg).
@@ -230,6 +233,9 @@ class MailService {
   // saga 회계 정합 capstone(step-0169·단언용 읽기 accessor) — 0166~0168 saga 회계의 창발 불변. 두 항등식 AND:
   //   ① gives == ackedGives + pendingGives(보낸 give 는 정확히 acked 또는 pending·새는 give 0) ② ackedGives == giveOks + giveFails(회신은 ok/fail 분류·누락 0). 정상·손실·재전송 모든 체제서 성립. 거래소 0128 의 우편 판.
   sagaConsistent() { return this.gives === this.ackedGives + this.pending.size && this.ackedGives === this.giveOks + this.giveFails; }
+  // 아이템 우편↔가방 전체 닫힘 capstone(step-0170·단언용 읽기 accessor) — 우편 박스 *내부* 네 회계층의 동시 닫힘:
+  //   mailConsistent(메시지 통수 0150) AND itemConsistent(아이템 0160) AND escrowConsistent(escrow 집합 0164) AND sagaConsistent(saga 회계 0169). 거래소 0140 sagaLiveConsistent 의 우편 판. + verify 가 giveOks==가방 escrowXfers(두 서비스 합치).
+  sagaLiveConsistent() { return this.mailConsistent() && this.itemConsistent() && this.escrowConsistent() && this.sagaConsistent(); }
   // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];

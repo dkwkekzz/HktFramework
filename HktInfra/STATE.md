@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0170](step-0170.md) — **아이템 우편 give↔가방 transfers capstone**(sagaLiveConsistent + giveOks==escrowXfers): 우편 박스 내부 네 회계층(메시지·아이템·escrow·saga) 동시 닫힘 + 우편 giveOks==가방 escrowXfers(두 *독립* 서비스 회계 합치). 거래소 0130/0140 의 우편 판. **아이템 우편↔가방 saga arc(0161~0170) 닫힘.** 닿는 박스: svc-mail-core.
-- **한 줄 상태**: reg ALL OK(미호출 accessor=0169 비트 동일)·exmllive: normal·loss+retry 양 체제 giveOks/xfers 5/5·두 서비스 합치·sagaLiveConsistent 예(2/2)·spine 통과.
+- **닫힌 step**: [step-0171](step-0171.md) — **정리: svc-mail-core 영속·failover 부품 분할**(→svc-mail-persist.js·svc-inventory-persist 0053 동형): `_snapState/_restore/_journal/crash/reconstruct` 추출(프로토타입 증강·기능 0·reg 0·34.7→30.4KB).
+- **한 줄 상태**: reg ALL OK(전 시스템 0170 비트 동일)·mailsplit: 무압축/스냅샷 crash→reconstruct pre==post(5시드)·tail 1<full 5·spine ALL OK.
 - **다음**: §2 — 주기 재전송(autoRetry·exchSweep 피기백 류)·발행 게이트 통합(거래소+우편 일원화)·길드 서비스·비동기 결정론🔴·**0161~0170 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**우편(Mail) 박스 = 거래소 arc(0107~0140)와 동형 골격 완성: 메시지(0142~0150)·미읽음 배지(0151~0156)·아이템 첨부(0157~0160)·가방 연동 3 레그+2-서비스 보존(0161~0164)·saga(0166~0170 회신/추적/재전송/정합/transfers capstone — 거래소 0121~0140 의 우편 판)✅. 다음 arc 후보: *주기 재전송*(autoRetry·exchSweep 피기백 류 0129)·*발행 게이트 통합*(거래소+우편 발행 일원화)·*길드 서비스*(신규 박스·0142 MailService 도입 패턴)·*비동기 결정론*(🔴). 🔧 svc-mail-core ~28KB(30KB 근접 — saga 더하면 정리 step 후보). 🔎 0161~0170 묶음 리뷰 적기(`infra-review`).**
+**우편(Mail) 박스 = 거래소 arc(0107~0140)와 동형 골격 완성: 메시지(0142~0150)·미읽음 배지(0151~0156)·아이템 첨부(0157~0160)·가방 연동 3 레그+2-서비스 보존(0161~0164)·saga(0166~0170 회신/추적/재전송/정합/transfers capstone — 거래소 0121~0140 의 우편 판)✅. 다음 arc 후보: *주기 재전송*(autoRetry·exchSweep 피기백 류 0129)·*발행 게이트 통합*(거래소+우편 발행 일원화)·*길드 서비스*(신규 박스·0142 MailService 도입 패턴)·*비동기 결정론*(🔴). 🔧 svc-mail-core 30.4KB(0171 persist 추출로 유계·svc-exchange-core 동급). 🔎 0161~0170 묶음 리뷰 적기(`infra-review`).**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -264,3 +264,4 @@
 | [0168](step-0168.md) | 아이템 우편 saga 회신 재전송+idempotent dedup(mailRetry·가방 sagaDedup) | 통과 · ON 재실행0 xfers 4·OFF 5 hazard |
 | [0169](step-0169.md) | 아이템 우편 saga 회계 정합 capstone(sagaConsistent·gives==acked+pending) | 통과 · 3체제 true(4/4/0·4/3/1·4/4/0) |
 | [0170](step-0170.md) | 아이템 우편 give↔가방 transfers capstone(sagaLiveConsistent·giveOks==escrowXfers·arc 0161~0170 닫기) | 통과 · 양체제 5/5 합치·2/2 true |
+| [0171](step-0171.md) | 정리: svc-mail-core 영속·failover 부품 분할(→svc-mail-persist.js·기능 0) | OK · 34.7→30.4KB·crash→reconstruct 비트동일 |
