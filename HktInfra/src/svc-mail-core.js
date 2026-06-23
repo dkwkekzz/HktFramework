@@ -1,4 +1,5 @@
 'use strict';
+// step-0173 — 아이템 우편 saga 재시도 상한(mailMaxRetries): _resendPending 에 gid 당 재전송 상한. 도달 시 포기(pendingGive 제거·giveAbandoned++)·pending(Set) 잔존(sagaConsistent 불변·거래소 0131 의 우편 판). maxRetries 0 면 무제한 = 0172 비트 동일. 테스트 seam ackDropAlways(지속 손실).
 // step-0171 정리 분할 — MailService *원장 코어*. svc-mail-core.js 가 34.7KB(>30KB·비대화 트리거)로 커져 영속·failover 메서드(_snapState/_restore/_journal/crash/reconstruct)를 svc-mail-persist.js 로 추출(Object.assign 프로토타입 증강·기능 0·바이트 동일·reg 0). 가방 svc-inventory-persist(0053)·우편 txn(0165) 와 동일 패턴. 진입점 svc-mail.js 가 core→txn→persist 순 로드.
 // step-0170 — 아이템 우편 give↔가방 transfers capstone(sagaLiveConsistent + 두 서비스 giveOks==escrowXfers): 0161~0169 가 아이템 우편↔가방 3 레그·2-서비스 보존·saga 회신/재전송/정합을 쌓았다. *전체*가 닫혀 있는가?
 //   sagaLiveConsistent = mailConsistent(메시지 0150) AND itemConsistent(아이템 0160) AND escrowConsistent(escrow 0164) AND sagaConsistent(saga 0169) — 우편 박스 *내부* 네 회계층의 동시 닫힘. + verify 가 우편 giveOks == 가방 escrowXfers(두 서비스 회계 합치·거래소 0130 의 우편 판).
@@ -107,6 +108,10 @@ class MailService {
     this.pendingPeak = 0;          // 미해결 최대치(step-0167·관측).
     this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0167) — 수신 시 *1회* 드롭할 gid 집합(transient 회신 손실 모의·step-0168 부터 drop-once → 재전송이 통과). 미제공이면 무손실(production 무영향·reg 0).
     this.retries = 0;              // saga 재전송 통수(step-0168·mailRetry + step-0172·autoRetry — 재발신은 gives 무증가·이 별도 계측).
+    this.maxRetries = opts.maxRetries || 0;   // saga 재시도 상한(step-0173·mailMaxRetries·거래소 0131 의 우편 판) — _resendPending 재전송을 gid 당 N회로 제한. 도달 시 그 give 포기(pendingGive 제거·재전송 중단)·pending(Set)엔 잔존(미해결·sagaConsistent 불변). 0 이면 무제한(0172 비트 동일).
+    this.retryCount = new Map();   // gid -> 재전송 횟수(step-0173·maxRetries>0 일 때만 사용) — 상한 비교용. ack/포기 시 제거.
+    this.giveAbandoned = 0;        // 상한 도달로 포기한 give 누적(step-0173·계측) — 영구 회신 손실의 신호. pending 에는 남는다(미해결·재전송만 중단).
+    this.ackDropAlways = opts.ackDropAlways ? new Set(opts.ackDropAlways) : null;   // 테스트 seam(step-0173) — 수신 시 *매번* 드롭할 gid 집합(지속 회신 손실 모의·drop-once ackDrop 0167 과 달리 안 지움 → 재전송이 영영 통과 못 함 → 상한 트리거). 미제공이면 무손실(production 무영향·reg 0).
     this.autoRetry = opts.autoRetry || false;   // 자동 주기 재전송(step-0172·mailAutoRetry) — ON 이면 mailSweep op 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·거래소 0129 의 우편 판). OFF 면 sweep 은 TTL 회수만(0171 비트 동일). 명시 mailRetry op(0168) 없이도 같은 주기 신호(sweep)로 pending drain.
     this.escrowIds = new Set();    // escrow custody 중인 itemId 집합(step-0164·2-서비스 보존) — 발신 add·수령/만료 delete(invMode 일 때만). 가방의 'escrow' 소유 집합과 교차 정합. invMode OFF 면 빔(0163 비트 동일).
     this.read = new Map();         // recipient -> [수령한 mail…] — 읽음 보관(0147 읽음 확인 발행 대비·수령 내용 검증).
@@ -139,11 +144,16 @@ class MailService {
     if (to === 'escrow') this.escrowIds.add(itemId);        // 발신 인출(leg1) — escrow 진입(step-0164·2-서비스 보존 추적)
     else if (from === 'escrow') this.escrowIds.delete(itemId);   // 수령 입금(leg2)·만료 반환(leg3) — escrow 이탈
   }
-  // 미해결 give 재전송(step-0168·mailRetry) — pendingGive 에 남은(회신 손실) give 를 *같은 gid* 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제).
-  //   재전송이라 gives/escrowIds 무증가(이미 추적 중)·retries++. pendingGive 비었으면(saga OFF·전부 acked) no-op = 0167 비트 동일.
+  // 미해결 give 재전송(step-0168·mailRetry·0172·autoRetry 공용)·재시도 상한(step-0173·maxRetries) — pendingGive 에 남은(회신 손실) give 를 *같은 gid* 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제).
+  //   재전송이라 gives/escrowIds 무증가(이미 추적 중)·retries++. maxRetries>0 이면 gid 당 N회 재전송 후 포기(pendingGive 제거→이후 sweep 비-순회·giveAbandoned++·pending(Set) 잔존·sagaConsistent 불변). 포기는 *재전송 중단*일 뿐 abort 아님(give 가 실제 성공했을 수 있어 낙관적 미해결 유지=안전). maxRetries 0·pendingGive 빔이면 0172 비트 동일.
   _resendPending() {
     if (!this.invMode || !this.inv || !this.net) return;
-    for (const [gid, g] of this.pendingGive) {
+    for (const [gid, g] of [...this.pendingGive]) {
+      if (this.maxRetries > 0) {
+        const c = this.retryCount.get(gid) || 0;
+        if (c >= this.maxRetries) { this.pendingGive.delete(gid); this.retryCount.delete(gid); this.giveAbandoned++; continue; }   // 상한 도달 — 포기(재전송 중단·pending 잔존)
+        this.retryCount.set(gid, c + 1);
+      }
       this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
       this.retries++;
     }

@@ -1,4 +1,5 @@
 'use strict';
+// step-0172 — 아이템 우편 saga 자동 주기 재전송(mailAutoRetry): mailSweep 핸들러가 autoRetry ON 이면 _resendPending() 도 트리거(ttl 체크 앞·TTL 회수와 직교·거래소 0129 의 우편 판). OFF 면 0171 비트 동일.
 // step-0165 정리 분할 — 우편 *트랜잭션 핸들러*(onMsg): mailSend(입금·아이템 첨부·leg1 인출)·mailFetch(수령·leg2 입금)·mailSweep(만료·leg3 반환).
 //   원장 코어(svc-mail-core.js)의 프로토타입을 Object.assign 으로 증강(거래소 svc-exchange-txn 0124·가방 svc-inventory-txn 0053 과 동일 패턴·동작 불변). 진입점 svc-mail.js 가 core 뒤에 로드한다.
 const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
@@ -61,6 +62,9 @@ Object.assign(MailService.prototype, {
     // 우편 만료 sweep(mailSweep·step-0148) — now−sentAt≥ttl 인 미수령 우편을 시간 트리거로 회수(보유→만료). p={type,now?}. now 미지정이면 주입 tick.
     //   ttl 0 면 no-op(0147 동일). 결정론: recipient/id 정렬 순회. 만료도 durable op('expire')로 저널 → reconstruct 정합.
     if (p.type === 'mailSweep') {
+      // 자동 재전송(step-0172·mailAutoRetry) — sweep 이 미해결 give 재전송도 트리거(주기적 타임아웃 재전송·exchSweep autoRetry 0129 의 우편 판·명시 mailRetry 0168 의 주기 형태).
+      //   가방 dedup(0168) 이 재실행 0 보장. ttl 체크 *앞*(autoRetry 와 TTL 회수는 직교·같은 주기 신호 재사용). OFF 면 skip = 0171 비트 동일.
+      if (this.autoRetry) this._resendPending();
       if (this.ttl <= 0) return;
       const now = p.now != null ? p.now : (m.tick | 0);
       for (const rcpt of [...this.boxes.keys()].sort()) {
