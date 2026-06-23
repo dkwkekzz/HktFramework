@@ -1,8 +1,8 @@
-// HktInfra step-0156 — 헤드리스 검증 (미읽음 배지 질의 인터페이스·mailUnreadQuery→mailUnreadReply)
+// HktInfra step-0157 — 헤드리스 검증 (아이템 첨부 우편·mailItem — mailSend item·itemSent/itemHeld 회계)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlfq`.
-//   더한 한 조각: MailFeed 가 {type:'mailUnreadQuery',rcpt} 요청에 현재 unread 를 {type:'mailUnreadReply'} 로 회신(request/reply over net·프레즌스 0069 presenceQuery 의 우편 판). 순수 읽기.
-//   검증: ⒜ `reg`(키트) — 질의 미수신 = 0155 비트 동일. ⒝ `exmlfq`(가설) — 질의 수신→회신 1:1·회신 unread == 질의 시점 unreadOf.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `exmlitem`.
+//   더한 한 조각: mailSend 가 선택 필드 item 을 받아 우편 1통이 아이템 1개를 함께 보유(거래소 escrow 의 우편 판). itemSent(아이템 실은 입금)·itemHeld(보유 중 아이템) 회계.
+//   검증: ⒜ `reg`(키트) — mailItem OFF = 0156 비트 동일. ⒝ `exmlitem`(가설) — 아이템 첨부분만 itemSent++·itemHeld 추적·mailConsistent 불변·crash 복구 시 아이템 보존.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,32 +15,30 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const SEND = (at, id, from, to, body) => ({ at, op: { type: 'mailSend', id, from, to, body } });
-const base = (seed, ops, q, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailSentPublish: true, mailFeed: true, mailOps: ops, mailFeedQuery: q, ...extra });
+const SEND = (at, id, from, to, body, item) => ({ at, op: { type: 'mailSend', id, from, to, body, item } });
+const base = (seed, ops, extra) => ({ seed, ticks: 40, clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailPersist: true, mailItem: true, mailOps: ops, ...extra });
 
-function exmlfq(seeds) {
-  console.log('== exmlfq: 미읽음 배지 질의 인터페이스(mailUnreadQuery→mailUnreadReply·request/reply over net·프레즌스 0069 의 우편 판). 질의 수신→회신 1:1·회신 unread == 질의 시점 배지. ==');
-  console.log('seed   | queriesRx | repliesSent | 회신 h1/h2 unread | 회신==배지 | 판정');
+function exmlitem(seeds) {
+  console.log('== exmlitem: 아이템 첨부 우편(mailSend item·itemSent/itemHeld). 우편 1통이 아이템 1개를 함께 보유(거래소 escrow 의 우편 판). 아이템 첨부분만 회계·mailConsistent 불변. ==');
+  console.log('seed   | sent | itemSent | itemHeld | mailConsistent | crash복구 아이템 보존 | 판정');
   for (const seed of seeds) {
-    // h1 3통·h2 2통 입금 후, tick 25 에 h1·h2 배지 질의(미수령 → unread 3·2).
-    const ops = [SEND(5, 'a', 'x', 'h1', '1'), SEND(6, 'b', 'x', 'h1', '2'), SEND(7, 'c', 'x', 'h1', '3'), SEND(8, 'd', 'y', 'h2', '4'), SEND(9, 'e', 'y', 'h2', '5')];
-    const q = [{ at: 25, rcpt: 'h1' }, { at: 26, rcpt: 'h2' }];
-    const r = run(base(seed, ops, q));
-    const f = r.mailfeed;
-    const last = f._lastReply || {};
-    // 마지막 질의(h2)의 회신 unread == 그 시점 배지 unreadOf(h2). 1:1(queriesRx==repliesSent==2).
-    const replyEqBadge = (last.rcpt === 'h2' && last.unread === f.unreadOf('h2'));
+    // h1 에 3통: 2통 아이템 첨부(sword·shield)·1통 메시지만. → sent 3·itemSent 2·itemHeld 2·held 3.
+    const ops = [SEND(5, 'a', 'x', 'h1', '1', 'sword'), SEND(6, 'b', 'x', 'h1', '2', 'shield'), SEND(7, 'c', 'x', 'h1', '3')];
+    const r = run(base(seed, ops));
+    const mail = r.mail;
+    const consistent = mail.mailConsistent() && mail.itemSent === 2 && mail.itemHeld() === 2 && mail.sent === 3 && mail.totalHeld() === 3;
+    // crash→reconstruct 후 아이템 보존(itemSent·itemHeld·digest 동일).
+    const preDig = mail.digest(); mail.crash(); mail.reconstruct();
+    const crashOk = (mail.digest() === preDig && mail.itemSent === 2 && mail.itemHeld() === 2);
     const ok =
-      check(f.queriesRx === 2, `seed ${seed}: queriesRx ${f.queriesRx}≠2`) &&
-      check(f.repliesSent === 2, `seed ${seed}: repliesSent ${f.repliesSent}≠2`) &&
-      check(replyEqBadge, `seed ${seed}: 회신 unread≠배지(${last.unread} vs ${f.unreadOf('h2')})`) &&
-      check(f.unreadOf('h1') === 3 && f.unreadOf('h2') === 2, `seed ${seed}: 배지 ${f.unreadOf('h1')}/${f.unreadOf('h2')}≠3/2`);
-    console.log(`${pad(seed, 6)} | ${pad(f.queriesRx, 9)} | ${pad(f.repliesSent, 11)} | ${pad(f.unreadOf('h1') + '/' + f.unreadOf('h2'), 17)} | ${pad(replyEqBadge ? '예' : '아니오', 10)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(consistent, `seed ${seed}: 아이템 회계 어긋남(itemSent ${mail.itemSent}·itemHeld ${mail.itemHeld()}·sent ${mail.sent})`) &&
+      check(crashOk, `seed ${seed}: crash 복구 후 아이템 소실/digest 깨짐`);
+    console.log(`${pad(seed, 6)} | ${pad(mail.sent, 4)} | ${pad(mail.itemSent, 8)} | ${pad(mail.itemHeld(), 8)} | ${pad(mail.mailConsistent() ? '예' : '아니오', 14)} | ${pad(crashOk ? '예' : '아니오', 20)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 미읽음 배지를 *원격에서 질의*할 수 있다: mailUnreadQuery→mailUnreadReply(request/reply over net·프레즌스 0069 의 우편 판). 회신 unread == 질의 시점 배지·질의↔회신 1:1. 순수 읽기(배지 무변경). 아이템 첨부 우편(0157~) 후속. 질의 미수신=0155 비트 동일(reg).');
+  console.log('  → 우편이 *아이템*을 나른다: mailSend item → 우편 1통이 아이템 1개를 함께 보유(itemSent·itemHeld·거래소 escrow 의 우편 판). 아이템 첨부분만 itemSent++(메시지 전용 우편은 item=null·미집계)·mailConsistent(sent==held+fetched+expired) 불변·crash→reconstruct 시 아이템 저널 동봉으로 보존. 수령 이동(0158)·만료 회수(0159)·아이템 회계 capstone(0160) 후속. mailItem OFF=0156 비트 동일(reg).');
 }
 
-kit.MODES['exmlfq'] = exmlfq;
-kit.ORDER.splice(1, 0, 'exmlfq');
+kit.MODES['exmlitem'] = exmlitem;
+kit.ORDER.splice(1, 0, 'exmlitem');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
