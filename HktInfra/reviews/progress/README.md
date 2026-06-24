@@ -21,13 +21,13 @@
 | ⑤ 코디네이션 | [5-coordination.md](5-coordination.md) | **세션/프레즌스** 🟡 failover-safe SSOT(플레이어 프레즌스 후속) · **오케스트레이터** 🟡 zone failover+self-healing + 배치 SSOT/질의·부하 배치·핸드오프(0217~0218) + **자동 재배치·host 드레인(0223~0224·단 #51 paper map)** |
 | ⑥ 데이터 | [6-data.md](6-data.md) | **캐시** 🟡 set/get+read-through·TTL·무효화 + **용량 LRU·touch(0225~0226)** · **월드 영속** 🟡 intent 로그·replay·스냅샷·crash/recover + **write-behind·fsync(0227~0228)** · **DB·write-behind** 🟡 저널·복제·quorum·정합 윈도 |
 
-상태 기호(STATE §5 정합): 🟡 자라는 중(씨앗+능력 누적·아직 부분) · 🌱 씨앗만(계약만 섰음) · ⬜ 미착수(아직 박스 없음). **★ 0230 현재 ⬜/🌱 박스 0 — 너비 1차 + 2차·3차 균형 라운드(5박스 각 2조각씩) 완료.**
+상태 기호(STATE §5 정합): 🟡 자라는 중(씨앗+능력 누적·아직 부분) · 🌱 씨앗만(계약만 섰음) · ⬜ 미착수(아직 박스 없음). **★ 0240 현재 ⬜/🌱 박스 0 — 너비 1차 + 2차·3차 균형 라운드(5박스 각 2조각씩) 완료 + #16 승급 라운드(0231~0240) 완료.**
 
-> **기준선**: 닫힌 step **~0230**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론·5박스) · UE 모듈 링크 0 hit(headless) · 신규 코드 tick 내 `onTick/await/fs` 0(touched 4박스 주석만·orch onTick 은 0058 self-heal 제어 평면=존 tick 밖·이번 라운드 place* 는 onMsg) · `node run.js spine` = **ALL OK(230-step 누적 회귀 사슬 통과)** · 3차 10조각 전부 OFF 플래그로 reg 0. 박스 크기 건전(cache 9.5·instance 11.4·loginqueue 11.0·worldlog 12.5·orch 22.3KB). **단 wiring 박스 >30KB 잔존: topo-build 31.5(이번 라운드 0229 loginAccounts 로 +1줄 접촉)·topo-run 35.9KB(미접촉)(#49)**. 3차 bespoke 10모드는 누적 회귀 미승급(#16)·멀티프로세스 미배선(#9).
+> **기준선**: 닫힌 step **~0240**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론·5박스) · UE 모듈 링크 0 hit(headless) · `node run.js spine` = **ALL OK**(누적 회귀 사슬 통과) · **0231~0240 = 3차 라운드 10 bespoke 모드를 verify-kit 누적 키트로 승급(박스 .js 0줄 변경=reg 0 구조적·spine 이 이제 0221~0230 양성 의미를 매번 단언)**. 박스 크기 건전(cache 9.5·instance 11.4·loginqueue 11.0·worldlog 12.5·orch 22.3KB). **단 wiring 박스 >30KB 잔존(#49·미진전): topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB**. **#16 부분 해소**: 3차 10모드 ✅·잔여 0033~0220 수백 bespoke 모드 미승급(git 복구 필요). #33(INDEX 천장) ✅ 해소(0107~0200 묶음 fold·STATE 23.8KB). 멀티프로세스 미배선(#9)·배치 advisory paper map(#51·0순위 미진전).
 
-## 다음 큰 걸음 (직관) — 🎯 3차 균형 라운드 완료 (0221~0230·SKILL §3.6)
+## 다음 큰 걸음 (직관) — 🎯 #16 승급 라운드 완료 (0231~0240·SKILL §3.6)
 
-> **0221~0230 이 5박스를 또 *각 2조각씩* 심화했다** — 너비 1차(0201~0210)·2차(0211~0220) 위에 3차도 균형(과심화 0·한 박스 코박기 없음). 단 오케스트레이터 2조각(0223 자동 재배치·0224 드레인)은 #51(배치 SSOT 가 실 존 미배선·paper map) 위에 *정책 자동화*를 더 쌓아 advisory 표면만 키웠다 — 정교하나 실 존 핸드오프와 여전히 단절(아래 §평결).
+> **0231~0240 = 정리·도구 라운드** — 0221~0230 verdict 의 "더 깊은 정책 → 실배선(#51)/정리·도구(#49·#33·#16)" 권고 중 *정리·도구* 버킷을 집행했다. 3차 라운드 bespoke 10모드를 `engine/verify-kit.js` 누적 키트로 승급(1 step=1 모드·박스 .js 0줄=reg 0 구조적). 부수로 #33(INDEX 천장)을 0107~0200 묶음 fold 로 해소. **너비·박스 기능은 불변**(하니스만 강화) — 따라서 박스 상태 맵 마커 변동 0. **단 0순위 #51(배치 실배선)·게이트 #49(wiring 분할)는 또 미진전** — step-loop 이 load-bearing(#51)보다 저위험 정리(#16)를 먼저 택함(아래 §평결).
 
 **3차 균형 라운드 5박스 — 각 2조각 ✅:**
 1. **인스턴스(던전)** 🟡 (계층2) — 플레이어 이탈(0221·occupancy release)+수요 자동 despawn(0222·점유 보호 회수).
@@ -36,4 +36,6 @@
 4. **월드 영속** 🟡 (계층6) — write-behind 버퍼(0227·쓰기 지연 배치)+fsync durable barrier(0228·물리 확정 경계).
 5. **로그인 큐·티켓** 🟡 (계층1) — 계정 검증(0229·엣지 차단)+큐 이탈(0230·좀비 슬롯 회수).
 
-**다음 = 실 배선(advisory→실물) / 정리·도구 / 멀티프로세스 중 택**. 후보: ⒜ **#51 배치→실 존 lifecycle 배선**(load-bearing·이 라운드로 advisory 표면만 더 커짐 — placeMigrate/Rebalance/Drain→실 존 핸드오프 트리거) ⒝ **정리 #49**(wiring >30KB·이번 라운드 topo-build 미세 접촉·다음 *너비/멀티프로세스 배선* 전 분할 게이트 — topo-inject 추출 + close-step src size 체크#43) ⒞ 멀티프로세스 배선(#9)·spine 승급(#16) ⒟ 길드 금고↔가방(#46)·진짜 비동기(#4·최우선 빚). 권위는 [../../STATE.md](../../STATE.md) §2 NEXT·승급 게이트는 [../README.md](../README.md) §2 단계 평결.
+**0231~0240 #16 승급 라운드 ✅:** 위 3차 10모드(instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon)를 verify-kit ORDER 로 편입 — 매 spine 이 이제 이 양성 의미를 단언. + #33(INDEX 천장) 해소.
+
+**다음 = 실 배선(advisory→실물) / 정리 게이트 중 택**(#33·#16 정리·도구는 이번에 소진). 남은 후보: ⒜ **#51 배치→실 존 lifecycle 배선**(🔴 load-bearing·0순위·두 라운드 연속 미집행 — placeMigrate/Rebalance/Drain→실 존 핸드오프 트리거) ⒝ **정리 #49**(wiring >30KB 미진전·다음 *너비/멀티프로세스 배선* 전 분할 게이트 — topo-inject 추출 + close-step src size#43) ⒞ 멀티프로세스 배선(#9)·#16 잔여(0033~0220 모드 점진 승급) ⒟ 길드 금고↔가방(#46)·진짜 비동기(#4·최우선 빚). 권위는 [../../STATE.md](../../STATE.md) §2 NEXT·승급 게이트는 [../README.md](../README.md) §2 단계 평결.

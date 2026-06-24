@@ -9,19 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0230](step-0230.md) — **로그인 큐 이탈**: `loginAbandon{player}`→입장 전 대기열서 제거(abandoned·기다리다 포기), 미줄 멱등 no-op. 좀비 슬롯 비워 큐 길이 정확(0219 백프레셔 정확도). 미주입→0229 비트 동일. **3차 고도화 로그인 #2·5박스 3차 균형 라운드(0221~0230) 닫기**. 닿는 박스: loginqueue.
-- **한 줄 상태**: reg ALL OK·loginabandon: 5/5 p2 이탈·큐 [p1,p3]·abandoned 1·miss 1·spine ALL OK.
-- **다음**: 🎯 **3차 균형 라운드 완료**(0221~0230·5박스 각 2조각 심화). 다음 방향(4차 심화/멀티프로세스 배선#9/spine 승급#16/신규 너비)은 **`infra-review`**(0221~0230 묶음 — progress 맵 갱신·평결). step-loop 은 그 평결을 §2 로 승급. 🔎 묶음 리뷰 적기.
+- **닫힌 step**: [step-0240](step-0240.md) — **loginabandon 모드 spine 승급(#16 완료)**: 0230 의 라이브 bespoke 를 `engine/verify-kit.js` 로 이동·verify.js 를 순수 셸로 정리(중복 등록 0). 박스 `.js` 0줄 → reg 0 자명. **#16 정리·도구 라운드 10/10 — 3차 균형 라운드(0221~0230) bespoke 10모드 전부 누적 회귀화 완료.**
+- **한 줄 상태**: reg ALL OK·loginabandon: 5/5 p2 이탈·큐 [p1,p3]·`run.js all` 에 10모드 전부 + classics ALL OK·spine ALL OK.
+- **다음**: 🎯 **#16 spine 승급 라운드(0231~0240) 완료** — 3차 라운드 양성 단언이 이제 생성 step 한정이 아니라 매 spine 항구. **다음 방향(실배선#51/정리#49 wiring>30KB/멀티프로세스#9/실 존 연동/진짜 비동기#4)의 권위 판정은 `infra-review`**(0231~0240 묶음). 🔎 묶음 리뷰 적기. 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **3차 균형 라운드 완료**(0221~0230) — 5박스 *각 2조각* 심화(backlog "추가 심화" 집행·균형·전부 reg 0·spine OK). **다음 방향(4차 심화/멀티프로세스 배선#9/spine 승급#16/신규 너비)의 권위 판정은 `infra-review`**(0221~0230 묶음). step-loop 은 그 평결을 읽어 여기로 승급.
+> 🎯 **#16 spine 승급 라운드 완료**(0231~0240) — 3차 균형 라운드(0221~0230)의 bespoke 10모드를 1 step 당 1개씩 `engine/verify-kit.js` 누적 키트로 승급(전부 박스 0줄·reg 0 자명·spine OK). 생성 step 한정이던 양성 단언이 이제 매 spine 항구. **다음 방향의 권위 판정은 `infra-review`**(0231~0240 묶음). step-loop 은 그 평결을 읽어 여기로 승급.
 
-**3차 균형 라운드 5박스 — 각 2조각 ✅:** ①인스턴스 이탈(0221)+수요 despawn(0222) ②오케 재배치 자동(0223)+host 드레인(0224) ③캐시 용량 LRU(0225)+touch(0226) ④월드영속 write-behind(0227)+fsync(0228) ⑤로그인 계정 검증(0229)+큐 이탈(0230).
+**#16 승급 라운드 ✅(0231~0240):** instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon → verify-kit ORDER 편입. verify.js 는 순수 셸로 정리(중복 0).
 
-**4차/후속 백로그 (🔴 제외)**: 5박스 추가 심화(실 존 연동·복제 anti-entropy·트리거 정교화) + 신규 5박스 멀티프로세스 배선(#9)·spine 승급(#16) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
+**후속 백로그 (🔴 제외)**: ⒜ **실배선 #51**(배치 SSOT→실 존 lifecycle·placeMigrate/Rebalance/Drain 이 advisory paper map) ⒝ **정리 #49**(wiring >30KB — topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB·다음 너비/멀티프로세스 전 분할 게이트) ⒞ 멀티프로세스 배선(#9) ⒟ 진짜 비동기(#4) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -106,96 +106,16 @@
 | [0081–0090](reviews/review-0081-0090.md) | 전달 dedup 유계·관측→파티 1:N 영수증/ack 집계→멤버십 영속(증분·저널·압축) | 통과(reg 0·spine OK) |
 | [0091–0100](reviews/review-0091-0100.md) | 파티 종결 3종·발행 양끝→멤버별 수신함→수신함 메모리 3차원 유계화→정리 2건 | 통과(reg 0·spine OK) |
 | [0101–0106](step-0101.md) | 수신함 읽음 영수증·체크아웃 유계·읽음/손실 발행→공지 epoch 펜싱(active·wrouter) | 통과(reg 0) |
-| [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService) | 통과 |
-| [0108](step-0108.md) | 거래소 체결 발행(exchangePublish) | 통과 |
-| [0109](step-0109.md) | 거래소 영속·failover(exchangePersist) | 통과 |
-| [0110](step-0110.md) | 거래소 저널 스냅샷 압축(exchangeSnapshot) | 통과 · tail 1 |
-| [0111](step-0111.md) | 거래소 취소 발행(cancelPublish) | 통과 · ON pub 1 |
-| [0112-0113](step-0112.md) | 거래소 시세 피드 읽기 모델+영속·late-join(marketFeed·marketReconstruct) | 통과 |
-| [0114-0115](step-0114.md) | 매물 만료 TTL+발행(exchExpiry·expirePublish) | 통과 · expired 1·pub 1 |
-| [0116](step-0116.md) | 시세 피드 만료 반영(MarketFeed svc.exchange.expired 구독) | 통과 |
-| [0117-0119](step-0117.md) | 거래소↔가방 escrow legs(list 인출·buy 입금·cancel/expire 반환·exchInventory) | 통과 |
-| [0120](step-0120.md) | 거래소↔가방 2-서비스 보존(escrowItemIds) | 통과 · open==escrow·minted 5 |
-| [0121](step-0121.md) | 거래소↔가방 give 결과 비동기 수신(exchSaga) | 통과 · gives==acked 9 |
-| [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate) | 통과 · aborted ON1/OFF0 |
-| [0123](step-0123.md) | 보상 발행(abortPublish) | 통과 · aborted 1 |
-| [0124](step-0124.md) | 정리: svc-exchange.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 32.4→12.5/7.0/1.1KB |
-| [0125](step-0125.md) | saga 미해결 give 추적+회신 손실 감지(pendingGives·gid) | 통과 · 손실 pending 9 |
-| [0126](step-0126.md) | saga 회신 재전송+idempotent dedup(exchRetry·sagaDedup) | 통과 · dedup 안전 |
-| [0127](step-0127.md) | saga dedup 유계화(sagaDedupBound·saga_done) | 통과 · bound sagaResults 0 |
-| [0128](step-0128.md) | saga 회계 정합 불변(sagaConsistent) | 통과 · 3체제 true |
-| [0129](step-0129.md) | saga 자동 재전송(autoRetry) | 통과 |
-| [0130](step-0130.md) | 거래소 give↔가방 transfers capstone(escrowXfers) | 통과 · giveOks==escrowXfers 9 |
-| [0131](step-0131.md) | saga 재시도 상한(sagaMaxRetries) | 통과 · retries 2 |
-| [0132](step-0132.md) | saga 포기 발행(abandonPublish) | 통과 · pub 1==abandoned 1 |
-| [0133](step-0133.md) | 정리: topo-build 구독 테이블 분할(topo-subs.js·buildSubs) | OK · 33.1→25.5KB |
-| [0134](step-0134.md) | saga 포기 give 재admission(exchReadmit) | 통과 · readmit 1/pending 0 |
-| [0135](step-0135.md) | saga 재admission 발행(readmitPublish) | 통과 · pub 1==readmit 1 |
-| [0136](step-0136.md) | saga 재admission 자동 트리거(autoReadmit) | 통과 · readmit 1/pending 0 |
-| [0137](step-0137.md) | saga 재admission 횟수 상한(readmitMax) | 통과 · readmit 2/permFailed 1 |
-| [0138](step-0138.md) | saga 영구 실패 발행(failPublish) | 통과 · pub 1==permFailed 1 |
-| [0139](step-0139.md) | 가방 회복 자기 공지(invUpPublish) | 통과 · invUpPub 1→readmit 1 |
-| [0140](step-0140.md) | saga liveness 회계 정합 capstone(sagaLiveConsistent) | 통과 · 4체제 true |
-| [0141](step-0141.md) | 정리: topology.js run 드라이버→topo-run.js 분리(기능 0) | OK · 31.5→~1.0KB·reg 0 |
-| [0142](step-0142.md) | 우편(Mail) 서비스 분리(MailService) | 통과 · sent 4·held 3/1·멱등·결정론 |
-| [0143](step-0143.md) | 우편 수령(mailFetch) | 통과 · h1 fetched 2·재수령 0·accountConsistent |
-| [0144](step-0144.md) | 우편 입금 발행(mailSentPublish) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
-| [0145](step-0145.md) | 우편 영속·failover(mailPersist) | 통과 · reconstruct==pre·OFF 소실 |
-| [0146](step-0146.md) | 우편 저널 스냅샷 압축(mailSnapshot) | 통과 · tail 2<full 8 |
-| [0147](step-0147.md) | 우편 읽음 확인 발행(mailReadPublish) | 통과 · readPub 3==audit·OFF 0 |
-| [0148](step-0148.md) | 우편 만료 TTL(mailTtl) | 통과 · expired 1·reconstruct==live |
-| [0149](step-0149.md) | 우편 만료 발행(mailExpirePublish) | 통과 · expirePub 1==audit·OFF 0 |
-| [0150](step-0150.md) | 우편 회계 정합 capstone(mailConsistent) | 통과 · 4체제 true·crash 정합 |
-| [0151](step-0151.md) | 우편 미읽음 배지 읽기 모델(mailFeed·MailFeed) | 통과 · unread 3/2·total 5==sent |
-| [0152](step-0152.md) | MailFeed 읽음 반영(mailFeedRead) | 통과 · unread==sent−read |
-| [0153](step-0153.md) | MailFeed 만료 반영(mailFeedExpire) | 통과 · unread==sent−read−expired |
-| [0154](step-0154.md) | MailFeed 영속·late-join(우편 op 저널 replay 배지 복원) | 통과 · reconstruct==라이브 |
-| [0155](step-0155.md) | MailFeed 회계 정합 capstone(feedConsistent·MailFeed arc 닫기) | 통과 · 4체제·unread==held |
-| [0156](step-0156.md) | 미읽음 배지 질의 인터페이스(mailUnreadQuery→mailUnreadReply·request/reply over net) | 통과 · queriesRx 2·repliesSent 2·회신==배지 |
-| [0157](step-0157.md) | 아이템 첨부 우편(mailItem·우편 1통이 아이템 보유·거래소 escrow 판) | 통과 · itemSent 2·itemHeld 2 |
-| [0158](step-0158.md) | 아이템 우편 수령(itemFetched·itemHeld→itemFetched) | 통과 · held 1·fetched 2 |
-| [0159](step-0159.md) | 아이템 우편 만료 회수(itemExpired·itemHeld→itemExpired) | 통과 · held/fetch/exp 1/1/1 |
-| [0160](step-0160.md) | 아이템 우편 회계 정합 capstone(itemConsistent·arc 닫기) | 통과 · 4체제 true |
-| [0161](step-0161.md) | 아이템 우편↔가방 leg1: 발신 시 발신자 가방 인출(mailInv·escrow) | 통과 · xfers 2·소유자 escrow |
-| [0162](step-0162.md) | 아이템 우편↔가방 leg2: 수령 시 escrow→수신자 가방(mailInv) | 통과 · xfers 4·소유자 h1 |
-| [0163](step-0163.md) | 아이템 우편↔가방 leg3: 만료 시 escrow→발신자 가방(mailInv) | 통과 · escrowXfers 4 |
-| [0164](step-0164.md) | 아이템 우편↔가방 2-서비스 보존 capstone(escrowConsistent·arc 0161~0164) | 통과 · 우편==가방 escrow |
-| [0165](step-0165.md) | 정리: svc-mail.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 30.9→25.6/5.9/1.1KB·digest 비트동일 |
-| [0166](step-0166.md) | 우편 saga 회신 비동기 수신(mailSaga·ackedGives) | 통과 · gives==acked 4 |
-| [0167](step-0167.md) | 우편 saga 미해결 추적+회신 손실 감지(pendingGives·gid) | 통과 · 손실 pending 1 |
-| [0168](step-0168.md) | 우편 saga 회신 재전송+idempotent dedup(mailRetry·sagaDedup) | 통과 · ON xfers 4 |
-| [0169](step-0169.md) | 우편 saga 회계 정합 capstone(sagaConsistent) | 통과 · 3체제 true |
-| [0170](step-0170.md) | 우편 give↔가방 transfers capstone(sagaLiveConsistent·arc 0161~0170) | 통과 · 5/5·2/2 |
-| [0171](step-0171.md) | 정리: svc-mail-core 영속 부품 분할(기능 0) | OK · 34.7→30.4KB |
-| [0172](step-0172.md) | 우편 saga 자동 주기 재전송(mailAutoRetry·0129 판) | 통과 · ON pending 0 |
-| [0173](step-0173.md) | 우편 saga 재시도 상한(mailMaxRetries·0131 판) | 통과 · 상한2 2/1 포기 |
-| [0174](step-0174.md) | 우편 saga 포기 발행(mailAbandonPublish·0132 판) | 통과 · pub 1==abandoned |
-| [0175](step-0175.md) | 정리: svc-mail-core 헤더 압축(코드 0) | OK · 34→18.6KB |
-| [0176](step-0176.md) | 우편 saga 포기 give 재admission(mailReadmit·0134 판) | 통과 · 재무장 1/0 |
-| [0177](step-0177.md) | 우편 saga 재admission 발행(mailReadmitPublish·0135 판) | 통과 · pub 1==readmitted |
-| [0178](step-0178.md) | 우편 saga 재admission 횟수 상한(mailReadmitMax·0137 판) | 통과 · 상한1 영구실패 차단 |
-| [0179](step-0179.md) | 우편 saga 영구 실패 발행(mailFailPublish·0138 판) | 통과 · pub 1==permFailed |
-| [0180](step-0180.md) | 우편 saga liveness 정합 capstone(sagaLivenessConsistent·arc 0166~0180) | 통과 · 4체제 4/4 |
-| [0181](step-0181.md) | 길드 서비스 분리(guildService·로스터+마스터십 SSOT·single-master) | 통과 · 길드 2·5/5 |
-| [0182](step-0182.md) | 길드 증분 가입/탈퇴(guildJoin/Leave·멱등·master 보호) | 통과 · 로스터 [x,c2] |
-| [0183](step-0183.md) | 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed) | 통과 · pub 3==audit·OFF 0 |
-| [0184](step-0184.md) | 길드 영속·failover(guildPersist·변경 저널 replay) | 통과 · crash pre==post |
-| [0185](step-0185.md) | 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail) | 통과 · full 8→tail 2 |
-| [0186](step-0186.md) | 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed) | 통과 · 배지==로스터·OFF 0 |
-| [0187](step-0187.md) | GuildFeed 영속·late-join(guildFeedPersist·op 저널 replay) | 통과 · crash pre==post |
-| [0188](step-0188.md) | GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터) | 통과 · 4체제 4/4 |
-| [0189](step-0189.md) | 마스터 이양(guildTransfer·single-master 쌍 거래·핸드오프 0006 판) | 통과 · x→c1·crash 보존 |
-| [0190](step-0190.md) | 길드 정합 capstone(rosterConsistent·single-master·arc 0181~0190 닫기) | 통과 · 3체제 3/3 |
-| [0191](step-0191.md) | 길드 금고 deposit(guildBank·guildDeposit·공유 아이템 원장·bank arc 출발) | 통과 · vault [sword,shield]·중복 0 |
-| [0192](step-0192.md) | 길드 금고 withdraw(guildWithdraw·입출금 쌍·0118/0158 판) | 통과 · 예치2/인출3→vault [shield] |
-| [0193](step-0193.md) | 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed·0108/0183 판) | 통과 · ON pub 3==rx·OFF 0 |
-| [0194](step-0194.md) | 길드 금고 영속·failover(guildPersist 금고 확장·저널 replay·0184 판) | 통과 · reconstruct==pre·OFF 소실 |
-| [0195](step-0195.md) | 길드 금고 저널 스냅샷 압축(guildSnapshot 금고 확장·0185 판) | 통과 · tail 1<full 9·무손실 |
-| [0196](step-0196.md) | 길드 금고 아이템 수 배지(guildBankFeed·bankCount·0186 판) | 통과 · 배지==vault·OFF 0 |
-| [0197](step-0197.md) | 길드 금고 배지 영속·late-join(guildFeedPersist 금고 배지·0187 판) | 통과 · reconstruct==pre·OFF 소실 |
-| [0198](step-0198.md) | 길드 금고 배지 정합 capstone(bankFeedConsistent·배지==vault·0188 판) | 통과 · 3체제 3/3·vault 2/2 |
-| [0199](step-0199.md) | 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유·0190 판) | 통과 · 3체제 3/3·중복 0 |
-| [0200](step-0200.md) | 길드 금고 arc capstone(bankCapstone·원장+배지 결합·0140/0180/0190 금고 판·arc 0191~0200 닫기) | 통과 · 3체제 3/3 |
+| [0107–0110](reviews/review-0101-0110.md) | 거래소 arc — 분리·체결발행·영속·저널 스냅샷 압축 | 통과(reg 0·spine OK) |
+| [0111–0120](reviews/review-0111-0120.md) | 거래소 취소/시세피드/만료 + 거래소↔가방 escrow legs·2-서비스 보존 | 통과(reg 0·spine OK) |
+| [0121–0130](reviews/review-0121-0130.md) | 거래소 saga — give 비동기·보상·dedup 유계·정합 capstone·자동 재전송·escrow transfers | 통과(reg 0·spine OK) |
+| [0131–0140](reviews/review-0131-0140.md) | 거래소 saga — 재시도 상한·포기/재admission 발행·자동·상한·영구실패·liveness capstone | 통과(reg 0·spine OK) |
+| [0141–0150](reviews/review-0141-0150.md) | 우편 arc — 서비스 분리·수령·입금발행·영속·압축·읽음/만료 발행·회계 정합 capstone | 통과(reg 0·spine OK) |
+| [0151–0160](reviews/review-0151-0160.md) | 우편 배지 읽기모델(MailFeed)·질의 + 아이템 첨부 우편(수령/만료/정합) | 통과(reg 0·spine OK) |
+| [0161–0170](reviews/review-0161-0170.md) | 아이템 우편↔가방 escrow 3-leg·보존 + 우편 saga(비동기/손실/재전송/transfers capstone) | 통과(reg 0·spine OK) |
+| [0171–0180](reviews/review-0171-0180.md) | 우편 saga — 자동 재전송·상한·포기/재admission 발행·영구실패·liveness capstone | 통과(reg 0·spine OK) |
+| [0181–0190](reviews/review-0181-0190.md) | 길드 arc — 분리·가입/탈퇴·발행·영속·압축·배지(GuildFeed)·정합·마스터 이양·capstone | 통과(reg 0·spine OK) |
+| [0191–0200](reviews/review-0191-0200.md) | 길드 금고 arc — deposit/withdraw·발행·영속·압축·배지·정합·원장 단일소유·capstone | 통과(reg 0·spine OK) |
 | [0201](step-0201.md) | 인스턴스(던전) 서버 분리·spawn 기본(InstanceServer·instanceSpawn·active SSOT·너비 1차 시작) | 통과 · active 3/spawns 4 |
 | [0202](step-0202.md) | 인스턴스 despawn(instanceDespawn·수명주기 SSOT 완성·일회성 수명) | 통과 · active 2/retired 1 |
 | [0203](step-0203.md) | 오케스트레이터 존 배치 SSOT(placeZone·zoneId→host·정적 배치 한계 제거 씨앗) | 통과 · placed 2/zone1 hostC |
@@ -226,3 +146,13 @@
 | [0228](step-0228.md) | 월드영속 fsync durable barrier(worldFsync/worldRecoverDurable·durableSeq=디스크 확정 프런티어·seq≤durableSeq 만 복구·flush/fsync 구분·3차 고도화 월드영속 #2) | 통과 · durableSeq 3·dur복구 3·full 5 |
 | [0229](step-0229.md) | 로그인 계정 검증(loginAuth·validAccounts 만 enqueue·미인증 거부·줄 이전 차단·0001 검증 큐 실체화·3차 고도화 로그인 #1) | 통과 · p1·p2 enqueue·pX 거부·authRejects 1 |
 | [0230](step-0230.md) | 로그인 큐 이탈(loginAbandon·입장 전 대기열 제거·미줄 멱등 no-op·좀비 슬롯 회수·0219 백프레셔 정확도·3차 고도화 로그인 #2·3차 균형 라운드 0221~0230 닫기) | 통과 · p2 이탈·큐 [p1,p3]·aband 1·miss 1 |
+| [0231](step-0231.md) | instanceleave 모드 spine 승급(#16 — 0221 bespoke→verify-kit 누적 회귀·박스 0줄·OPS 함수내 지역화·정리 라운드 1/10) | 통과(reg 0·spine OK) · 5/5 d1 occ 1 |
+| [0232](step-0232.md) | instancereap 모드 spine 승급(#16 — 0222 수요 자동 despawn·정리 라운드 2/10) | 통과(reg 0·spine OK) · 5/5 active 1·reaped 3 |
+| [0233](step-0233.md) | placerebalance 모드 spine 승급(#16 — 0223 오케 부하 재배치 자동 트리거·정리 라운드 3/10) | 통과(reg 0·spine OK) · 5/5 균형·moves 2 |
+| [0234](step-0234.md) | placedrain 모드 spine 승급(#16 — 0224 오케 host 드레인·정리 라운드 4/10) | 통과(reg 0·spine OK) · 5/5 A 0·moves 2 |
+| [0235](step-0235.md) | cachecapacity 모드 spine 승급(#16 — 0225 캐시 용량 LRU 회수·정리 라운드 5/10) | 통과(reg 0·spine OK) · 5/5 size 2·evic 1 |
+| [0236](step-0236.md) | cachetouch 모드 spine 승급(#16 — 0226 캐시 recency touch 진짜 LRU·정리 라운드 6/10) | 통과(reg 0·spine OK) · 5/5 k1 생존·touches 1 |
+| [0237](step-0237.md) | worldwb 모드 spine 승급(#16 — 0227 월드영속 write-behind 버퍼·정리 라운드 7/10) | 통과(reg 0·spine OK) · 5/5 로그 2·버퍼 1 |
+| [0238](step-0238.md) | worldfsync 모드 spine 승급(#16 — 0228 월드영속 fsync durable barrier·정리 라운드 8/10) | 통과(reg 0·spine OK) · 5/5 durSeq 3·full 5 |
+| [0239](step-0239.md) | loginauth 모드 spine 승급(#16 — 0229 로그인 계정 검증·정리 라운드 9/10) | 통과(reg 0·spine OK) · 5/5 authed 2·rejects 1 |
+| [0240](step-0240.md) | loginabandon 모드 spine 승급(#16 — 0230 큐 이탈·verify.js→kit 이동·순수 셸 정리·#16 승급 라운드 0231~0240 닫기) | 통과(reg 0·spine OK) · 5/5 + 10모드 ALL OK |

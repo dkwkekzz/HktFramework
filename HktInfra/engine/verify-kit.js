@@ -697,9 +697,183 @@ async function summary(seeds) {
   console.log('write-behind 신뢰성(0023~0026)·이중쓰기 backup(0027)·N-replica quorum-read(0028) 위에 quorum *쓰기* ack(이 step) — W 정족수 ack 후 durable 선언·durableSeq 워터마크가 정합성 윈도를 가시·유계화. 남은 §9 = 디스크 fsync·복제 anti-entropy·버스 영속·월드 영속·활성 중 다운타임 일반 재발행 후속.');
 }
 
+// ── 3차 균형 라운드(0221~0230) 승급 모드 (step-0231~ · #16 — 너비 5박스 3차 심화의 누적 회귀화) ──
+//   각 모드는 자기 OPS/BASE 를 *함수 안에* 지역화(다중 승급 시 const 충돌 방지)·run/check/pad 는 키트 클로저.
+//   spine = verify.js all = 현재 src 에 이 단언 전부를 매번 돌린다(생성 step 한정이던 양성 단언을 항구화).
+function instanceleave(seeds) {
+  const SPAWN = (at, instanceId, kind) => ({ at, op: { type: 'instanceSpawn', instanceId, kind } });
+  const ROUTE = (at, player, instanceId) => ({ at, op: { type: 'instanceRoute', player, instanceId } });
+  const LEAVE = (at, player) => ({ at, op: { type: 'instanceLeave', player } });
+  const OPS = [SPAWN(1, 'd1', 'dungeon'), ROUTE(2, 'p1', 'd1'), ROUTE(3, 'p2', 'd1'), LEAVE(4, 'p1'), LEAVE(5, 'pX')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
+  console.log('== instanceleave (0221 승급): 인스턴스 플레이어 이탈(instanceLeave) — 배정 player 이탈 시 route 해제·occupancy 감소·권위 release(0216 acquire 짝)·미배정은 멱등 no-op. ==');
+  console.log('seed   | d1 occ | p1 route | left | misses | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const inst = r.instance;
+    const ok = check(inst.occupancyOf('d1') === 1 && inst.instanceOf('p1') === null && inst.instanceOf('p2') === 'd1' && inst.left === 1 && inst.leaveMisses === 1 && inst.routedCount() === 1,
+      `seed ${seed}: 이탈 위반 (d1 occ ${inst.occupancyOf('d1')}·p1 ${inst.instanceOf('p1')}·left ${inst.left}·misses ${inst.leaveMisses})`);
+    console.log(`${pad(seed, 6)} | ${pad(inst.occupancyOf('d1'), 6)} | ${pad(inst.instanceOf('p1') || '-', 8)} | ${pad(inst.left, 4)} | ${pad(inst.leaveMisses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function instancereap(seeds) {
+  const DEMAND = (at, kind, target) => ({ at, op: { type: 'instanceDemand', kind, target } });
+  const ROUTE = (at, player, instanceId) => ({ at, op: { type: 'instanceRoute', player, instanceId } });
+  const REAP = (at, kind, target) => ({ at, op: { type: 'instanceReap', kind, target } });
+  const OPS = [DEMAND(1, 'dungeon', 4), ROUTE(2, 'p1', 'dungeon-auto-1'), REAP(3, 'dungeon', 1)];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
+  console.log('== instancereap (0222 승급): 인스턴스 수요 자동 despawn — active>target 면 빈(occupancy 0) 인스턴스를 부족분만큼 회수(탄력 축소·0215 거울)·점유 인스턴스 보호. ==');
+  console.log('seed   | active | reaped | auto-1 | auto-2 | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const inst = r.instance;
+    const ok = check(inst.activeCount() === 1 && inst.reaped === 3 && inst.isActive('dungeon-auto-1') && !inst.isActive('dungeon-auto-2') && inst.occupancyOf('dungeon-auto-1') === 1,
+      `seed ${seed}: reap 위반 (active ${inst.activeCount()}·reaped ${inst.reaped}·auto-1 ${inst.isActive('dungeon-auto-1')})`);
+    console.log(`${pad(seed, 6)} | ${pad(inst.activeCount(), 6)} | ${pad(inst.reaped, 6)} | ${pad(inst.isActive('dungeon-auto-1') ? 'live' : '-', 6)} | ${pad(inst.isActive('dungeon-auto-2') ? 'live' : 'reap', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function placerebalance(seeds) {
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const REBAL = (at, hosts) => ({ at, op: { type: 'placeRebalance', hosts } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostA'), REBAL(4, ['hostA', 'hostB', 'hostC'])];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placementOps: OPS };
+  console.log('== placerebalance (0223 승급): 오케 부하 재배치 자동 트리거 — 불균형(최대−최소≥2)이면 최대부하 host 존을 최소부하 host 로 자동 이주(균형 한 패스 수렴·release+acquire). ==');
+  console.log('seed   | A부하 | B부하 | C부하 | moves | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const o = r.orch;
+    const ok = check(o.hostLoad('hostA') === 1 && o.hostLoad('hostB') === 1 && o.hostLoad('hostC') === 1 && o.rebalanceMoves === 2 && o.placementOf('z3') === 'hostA',
+      `seed ${seed}: rebalance 위반 (A ${o.hostLoad('hostA')}·B ${o.hostLoad('hostB')}·C ${o.hostLoad('hostC')}·moves ${o.rebalanceMoves})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.hostLoad('hostA'), 5)} | ${pad(o.hostLoad('hostB'), 5)} | ${pad(o.hostLoad('hostC'), 5)} | ${pad(o.rebalanceMoves, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function placedrain(seeds) {
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const DRAIN = (at, host, hosts) => ({ at, op: { type: 'placeDrain', host, hosts } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), PLACE(4, 'z4', 'hostC'), DRAIN(5, 'hostA', ['hostA', 'hostB', 'hostC'])];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placementOps: OPS };
+  console.log('== placedrain (0224 승급): 오케 host 드레인 — 퇴역 host 의 모든 존을 나머지 최소부하로 차례 이주(release+acquire 연쇄·드레인 후 그 host 부하 0·매 존 최소부하 재계산). ==');
+  console.log('seed   | A부하 | B부하 | C부하 | moves | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const o = r.orch;
+    const ok = check(o.hostLoad('hostA') === 0 && o.hostLoad('hostB') === 2 && o.hostLoad('hostC') === 2 && o.drainMoves === 2 && o.placementOf('z1') === 'hostB' && o.placementOf('z2') === 'hostC',
+      `seed ${seed}: drain 위반 (A ${o.hostLoad('hostA')}·B ${o.hostLoad('hostB')}·C ${o.hostLoad('hostC')}·moves ${o.drainMoves})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.hostLoad('hostA'), 5)} | ${pad(o.hostLoad('hostB'), 5)} | ${pad(o.hostLoad('hostC'), 5)} | ${pad(o.drainMoves, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function cachecapacity(seeds) {
+  const CAP = (at, cap) => ({ at, op: { type: 'cacheCapacity', cap } });
+  const SET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
+  const OPS = [CAP(1, 2), SET(2, 'k1', 'v1'), SET(3, 'k2', 'v2'), SET(4, 'k3', 'v3')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, cacheService: true, cacheOps: OPS };
+  console.log('== cachecapacity (0225 승급): 캐시 용량 LRU 회수 — 키 수 상한(cap) 초과 시 가장 오래된(setAt 최소) 키 회수(개수 유계·Redis allkeys-lru 더미). ==');
+  console.log('seed   | size | k1   | k2   | k3   | evic | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const c = r.cache;
+    const ok = check(c.size() === 2 && !c.has('k1') && c.has('k2') && c.has('k3') && c.capEvicted === 1,
+      `seed ${seed}: capacity 위반 (size ${c.size()}·k1 ${c.has('k1')}·evic ${c.capEvicted})`);
+    console.log(`${pad(seed, 6)} | ${pad(c.size(), 4)} | ${pad(c.has('k1') ? 'live' : 'evic', 4)} | ${pad(c.has('k2') ? 'live' : '-', 4)} | ${pad(c.has('k3') ? 'live' : '-', 4)} | ${pad(c.capEvicted, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function cachetouch(seeds) {
+  const TOUCH = (at, on) => ({ at, op: { type: 'cacheLruTouch', on } });
+  const CAP = (at, cap) => ({ at, op: { type: 'cacheCapacity', cap } });
+  const SET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
+  const GET = (at, key) => ({ at, op: { type: 'cacheGet', key } });
+  const OPS = [TOUCH(1, true), CAP(2, 2), SET(3, 'k1', 'v1'), SET(4, 'k2', 'v2'), GET(5, 'k1'), SET(6, 'k3', 'v3')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, cacheService: true, cacheOps: OPS };
+  console.log('== cachetouch (0226 승급): 캐시 recency touch — lruTouch ON 이면 get hit 시 recency(setAt) 갱신 → 핫 키 생존(진짜 LRU). get k1 후 k3 진입 시 k2 회수(0225 면 k1 회수). ==');
+  console.log('seed   | k1   | k2   | k3   | touch | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const c = r.cache;
+    const ok = check(c.has('k1') && !c.has('k2') && c.has('k3') && c.touches === 1 && c.capEvicted === 1,
+      `seed ${seed}: touch LRU 위반 (k1 ${c.has('k1')}·k2 ${c.has('k2')}·touches ${c.touches})`);
+    console.log(`${pad(seed, 6)} | ${pad(c.has('k1') ? 'live' : 'evic', 4)} | ${pad(c.has('k2') ? 'live' : 'evic', 4)} | ${pad(c.has('k3') ? 'live' : '-', 4)} | ${pad(c.touches, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function worldwb(seeds) {
+  const BUF = (at, intent) => ({ at, op: { type: 'worldBuffer', intent } });
+  const FLUSH = (at) => ({ at, op: { type: 'worldFlush' } });
+  const OPS = [BUF(1, { e: 'e1', kind: 'move', to: 11 }), BUF(2, { e: 'e2', kind: 'move', to: 22 }), FLUSH(3), BUF(4, { e: 'e1', kind: 'pickup', item: 'gold' })];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
+  console.log('== worldwb (0227 승급): 월드 영속 write-behind 버퍼 — intent 를 버퍼링 후 flush 로 durable 로그 일괄 적층(쓰기 지연·배치). 미flush 분은 비-durable(crash 윈도). ==');
+  console.log('seed   | 로그 | 버퍼 | flushed | e1 gold | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const w = r.worldlog;
+    w.replay();
+    const e1 = w.stateOf('e1');
+    const gold = !!(e1 && e1.items.includes('gold'));
+    const ok = check(w.length() === 2 && w.bufferLength() === 1 && w.flushed === 2 && !gold && e1 && e1.pos === 11,
+      `seed ${seed}: write-behind 위반 (로그 ${w.length()}·버퍼 ${w.bufferLength()}·flushed ${w.flushed}·gold ${gold})`);
+    console.log(`${pad(seed, 6)} | ${pad(w.length(), 4)} | ${pad(w.bufferLength(), 4)} | ${pad(w.flushed, 7)} | ${pad(gold ? 'yes' : 'no', 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function worldfsync(seeds) {
+  const APP = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
+  const FSYNC = (at) => ({ at, op: { type: 'worldFsync' } });
+  const OPS = [APP(1, { e: 'e1', kind: 'move', to: 1 }), APP(2, { e: 'e2', kind: 'move', to: 2 }), APP(3, { e: 'e3', kind: 'move', to: 3 }), FSYNC(4), APP(5, { e: 'e4', kind: 'move', to: 4 }), APP(6, { e: 'e5', kind: 'move', to: 5 })];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
+  console.log('== worldfsync (0228 승급): 월드 영속 fsync durable barrier — durableSeq=fsync 로 디스크 확정된 최대 seq. recoverDurable 은 seq≤durableSeq 만 replay(flush=페이지캐시 vs fsync=물리 확정). ==');
+  console.log('seed   | durSeq | dur복구 | full복구 | e4(미fsync) | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const w = r.worldlog;
+    w._replayDurable();
+    const durCount = ['e1', 'e2', 'e3', 'e4', 'e5'].filter(e => w.stateOf(e)).length;
+    const e4durable = !!w.stateOf('e4');
+    w.replay();
+    const fullCount = ['e1', 'e2', 'e3', 'e4', 'e5'].filter(e => w.stateOf(e)).length;
+    const ok = check(w.durableSeq === 3 && durCount === 3 && !e4durable && fullCount === 5,
+      `seed ${seed}: fsync 위반 (durSeq ${w.durableSeq}·dur ${durCount}·full ${fullCount}·e4 ${e4durable})`);
+    console.log(`${pad(seed, 6)} | ${pad(w.durableSeq, 6)} | ${pad(durCount, 7)} | ${pad(fullCount, 8)} | ${pad(e4durable ? 'durable' : 'lost', 11)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function loginauth(seeds) {
+  const AUTH = (at, player) => ({ at, op: { type: 'loginAuth', player } });
+  const OPS = [AUTH(2, 'p1'), AUTH(3, 'p2'), AUTH(4, 'pX')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginAccounts: ['p1', 'p2'], loginOps: OPS };
+  console.log('== loginauth (0229 승급): 로그인 계정 검증 — 유효 계정(validAccounts)만 enqueue(검증→줄 세움·미인증→거부·줄 이전 차단). 0001 LoginServer 검증의 엣지 큐 실체화. ==');
+  console.log('seed   | 큐 | authed | rejects | pX pos | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const q = r.loginqueue;
+    const ok = check(q.queueLength() === 2 && q.authed === 2 && q.authRejects === 1 && q.positionOf('p1') === 0 && q.positionOf('pX') === -1,
+      `seed ${seed}: 계정검증 위반 (큐 ${q.queueLength()}·authed ${q.authed}·rejects ${q.authRejects})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.queueLength(), 2)} | ${pad(q.authed, 6)} | ${pad(q.authRejects, 7)} | ${pad(q.positionOf('pX'), 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+function loginabandon(seeds) {
+  const ENQ = (at, player) => ({ at, op: { type: 'loginEnqueue', player } });
+  const ABANDON = (at, player) => ({ at, op: { type: 'loginAbandon', player } });
+  const OPS = [ENQ(1, 'p1'), ENQ(2, 'p2'), ENQ(3, 'p3'), ABANDON(4, 'p2'), ABANDON(5, 'pX')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginOps: OPS };
+  console.log('== loginabandon (0230 승급): 로그인 큐 이탈 — 입장 전 player 가 줄 떠남(대기열서 제거). 미줄/이미입장 player 는 멱등 no-op. 좀비 슬롯 회수로 큐 길이 정확(0219 백프레셔). ==');
+  console.log('seed   | 큐 | p2 pos | p3 pos | aband | miss | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const q = r.loginqueue;
+    const ok = check(q.queueLength() === 2 && q.positionOf('p2') === -1 && q.positionOf('p1') === 0 && q.positionOf('p3') === 1 && q.abandoned === 1 && q.abandonMisses === 1,
+      `seed ${seed}: 이탈 위반 (큐 ${q.queueLength()}·p2 ${q.positionOf('p2')}·aband ${q.abandoned}·miss ${q.abandonMisses})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.queueLength(), 2)} | ${pad(q.positionOf('p2'), 6)} | ${pad(q.positionOf('p3'), 6)} | ${pad(q.abandoned, 5)} | ${pad(q.abandonMisses, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro };
-  const ORDER = ['reg', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
