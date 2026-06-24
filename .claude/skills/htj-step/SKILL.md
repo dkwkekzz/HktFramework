@@ -70,7 +70,12 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
   - **검증**(verify 출력 *그대로 붙여넣기* + 캡처 이미지 참조 1줄)
   - **다음**(한 줄: 무슨 의미를 남겼고 다음 작업으로 어떻게 연결)
   - 길게 풀 가치가 있는 *발견·정직한 한계*만 추가(나머지 산문은 viewer note 가 집).
-- `STATE.md`: §1 NOW · §2 NEXT · §3 좌표 · §4 격차 · §5 시리즈 인덱스 1줄 append. **전체 Write 금지 — 바뀐 절만 Edit.**
+- `STATE.md` 갱신 — **바뀐 절만 Edit(전체 Write 금지)·각 절은 짧게 유지·닫은 step 산문을 STATE 에 쌓지 말 것**(긴 설명·수치·한계는 `step_NNNN.md`·viewer note 가 집). 절 구성과 갱신 규칙:
+  - **§1 NOW**: 지금 위치 한두 줄로 *교체*(append 아님).
+  - **§2 트랙별 상태(4 기획서: SW·TW·M·U)**: 해당 로드맵 테이블의 **상태 칸만** 갱신 — 단락/문단 추가 금지.
+  - **§3 NEXT**: *다음 할 일*만(짧게). **방금 닫은 step 의 writeup 을 여기 적지 않는다** — 그건 §6·step 문서 몫(과거 §2 NEXT 가 닫은 step 단락 33개로 비대해진 재발 방지).
+  - **§4 좌표 / §5 격차**: §4 는 거의 불변. §5 는 *새로 생기거나 해소된 열린 결정*만 반영 — per-step 한계 나열 금지.
+  - **§6 시리즈 인덱스**: **진짜 한 줄** append — `(트랙) 법칙/장면명 — 핵심 한 문장`. step 번호 순서 유지·수치/한계는 step 문서가 집.
 - 닫은 `steps/step_NNNN/` 폴더(문서·verify·capture)는 이후 **불변** — **단, 버그 수정은 예외**(아래). (불변이라 *과거* capture.js 를 새 헬퍼로 소급 리팩터링하지 않는다.)
 
 ### 버그 수정 예외 — 닫은 step 도 *버그 한정* 수정 가능
@@ -82,7 +87,7 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0) + `node tools/check-viewer.js` PASS — 한 묶음 명령으로(아래)
 2. **viewer 갤러리 등록** — `viewer/scenes/step_NNNN.js` 시나리오 모듈 작성(자동 등록·viewer 라이브) *또는* 정당한 사유로 `tools/check-viewer.js` `EXEMPT` 등재. **캡처** 확보(`node tools/htj-render-capture.js NNNN` — 시나리오 1벌에서 PNG) + 화면이 verify 가설과 일치
 3. `step_NNNN.md` = 타이트 템플릿(논의 3 bullets · 구현 · verify 출력 붙여넣기 · 캡처 참조 · 다음 1줄) — 긴 설명 중복 금지(§4)
-4. `STATE.md` §1~5 Edit (바뀐 절만)
+4. `STATE.md` §1~6 Edit (바뀐 절만 — §3 NEXT 에 닫은 step writeup 금지·§6 은 한 줄)
 5. git: (로컬) `main` 에 commit·push / (원격) 지정 브랜치 규칙
 
 > **닫기 검증 한 묶음**(복붙): `node steps/step_NNNN/verify.js && node tools/check-viewer.js && for d in steps/step_*/; do node "$d/verify.js" >/dev/null 2>&1 || echo "REGRESSION $d"; done && echo OK`
