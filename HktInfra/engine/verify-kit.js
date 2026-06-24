@@ -855,9 +855,25 @@ function loginauth(seeds) {
   }
 }
 
+function loginabandon(seeds) {
+  const ENQ = (at, player) => ({ at, op: { type: 'loginEnqueue', player } });
+  const ABANDON = (at, player) => ({ at, op: { type: 'loginAbandon', player } });
+  const OPS = [ENQ(1, 'p1'), ENQ(2, 'p2'), ENQ(3, 'p3'), ABANDON(4, 'p2'), ABANDON(5, 'pX')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginOps: OPS };
+  console.log('== loginabandon (0230 승급): 로그인 큐 이탈 — 입장 전 player 가 줄 떠남(대기열서 제거). 미줄/이미입장 player 는 멱등 no-op. 좀비 슬롯 회수로 큐 길이 정확(0219 백프레셔). ==');
+  console.log('seed   | 큐 | p2 pos | p3 pos | aband | miss | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const q = r.loginqueue;
+    const ok = check(q.queueLength() === 2 && q.positionOf('p2') === -1 && q.positionOf('p1') === 0 && q.positionOf('p3') === 1 && q.abandoned === 1 && q.abandonMisses === 1,
+      `seed ${seed}: 이탈 위반 (큐 ${q.queueLength()}·p2 ${q.positionOf('p2')}·aband ${q.abandoned}·miss ${q.abandonMisses})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.queueLength(), 2)} | ${pad(q.positionOf('p2'), 6)} | ${pad(q.positionOf('p3'), 6)} | ${pad(q.abandoned, 5)} | ${pad(q.abandonMisses, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth };
-  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }

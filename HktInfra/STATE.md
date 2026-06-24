@@ -9,19 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0239](step-0239.md) — **loginauth 모드 spine 승급(#16)**: 0229 bespoke 검증 모드(로그인 계정 검증)를 `engine/verify-kit.js` 누적 키트로 승급. 박스 `.js` 0줄 → reg 0 자명. **정리·도구 라운드 9/10**.
-- **한 줄 상태**: reg ALL OK·loginauth: 5/5 p1·p2 enqueue·pX 거부·spine ALL OK(0221~0229 모드 누적 편입).
-- **다음**: 🔧 **#16 spine 승급 라운드 마지막 1**(0240 — loginabandon[verify.js bespoke→kit 이동]). 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결. 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
+- **닫힌 step**: [step-0240](step-0240.md) — **loginabandon 모드 spine 승급(#16 완료)**: 0230 의 라이브 bespoke 를 `engine/verify-kit.js` 로 이동·verify.js 를 순수 셸로 정리(중복 등록 0). 박스 `.js` 0줄 → reg 0 자명. **#16 정리·도구 라운드 10/10 — 3차 균형 라운드(0221~0230) bespoke 10모드 전부 누적 회귀화 완료.**
+- **한 줄 상태**: reg ALL OK·loginabandon: 5/5 p2 이탈·큐 [p1,p3]·`run.js all` 에 10모드 전부 + classics ALL OK·spine ALL OK.
+- **다음**: 🎯 **#16 spine 승급 라운드(0231~0240) 완료** — 3차 라운드 양성 단언이 이제 생성 step 한정이 아니라 매 spine 항구. **다음 방향(실배선#51/정리#49 wiring>30KB/멀티프로세스#9/실 존 연동/진짜 비동기#4)의 권위 판정은 `infra-review`**(0231~0240 묶음). 🔎 묶음 리뷰 적기. 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **3차 균형 라운드 완료**(0221~0230) — 5박스 *각 2조각* 심화(backlog "추가 심화" 집행·균형·전부 reg 0·spine OK). **다음 방향(4차 심화/멀티프로세스 배선#9/spine 승급#16/신규 너비)의 권위 판정은 `infra-review`**(0221~0230 묶음). step-loop 은 그 평결을 읽어 여기로 승급.
+> 🎯 **#16 spine 승급 라운드 완료**(0231~0240) — 3차 균형 라운드(0221~0230)의 bespoke 10모드를 1 step 당 1개씩 `engine/verify-kit.js` 누적 키트로 승급(전부 박스 0줄·reg 0 자명·spine OK). 생성 step 한정이던 양성 단언이 이제 매 spine 항구. **다음 방향의 권위 판정은 `infra-review`**(0231~0240 묶음). step-loop 은 그 평결을 읽어 여기로 승급.
 
-**3차 균형 라운드 5박스 — 각 2조각 ✅:** ①인스턴스 이탈(0221)+수요 despawn(0222) ②오케 재배치 자동(0223)+host 드레인(0224) ③캐시 용량 LRU(0225)+touch(0226) ④월드영속 write-behind(0227)+fsync(0228) ⑤로그인 계정 검증(0229)+큐 이탈(0230).
+**#16 승급 라운드 ✅(0231~0240):** instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon → verify-kit ORDER 편입. verify.js 는 순수 셸로 정리(중복 0).
 
-**4차/후속 백로그 (🔴 제외)**: 5박스 추가 심화(실 존 연동·복제 anti-entropy·트리거 정교화) + 신규 5박스 멀티프로세스 배선(#9)·spine 승급(#16) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
+**후속 백로그 (🔴 제외)**: ⒜ **실배선 #51**(배치 SSOT→실 존 lifecycle·placeMigrate/Rebalance/Drain 이 advisory paper map) ⒝ **정리 #49**(wiring >30KB — topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB·다음 너비/멀티프로세스 전 분할 게이트) ⒞ 멀티프로세스 배선(#9) ⒟ 진짜 비동기(#4) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -155,3 +155,4 @@
 | [0237](step-0237.md) | worldwb 모드 spine 승급(#16 — 0227 월드영속 write-behind 버퍼·정리 라운드 7/10) | 통과(reg 0·spine OK) · 5/5 로그 2·버퍼 1 |
 | [0238](step-0238.md) | worldfsync 모드 spine 승급(#16 — 0228 월드영속 fsync durable barrier·정리 라운드 8/10) | 통과(reg 0·spine OK) · 5/5 durSeq 3·full 5 |
 | [0239](step-0239.md) | loginauth 모드 spine 승급(#16 — 0229 로그인 계정 검증·정리 라운드 9/10) | 통과(reg 0·spine OK) · 5/5 authed 2·rejects 1 |
+| [0240](step-0240.md) | loginabandon 모드 spine 승급(#16 — 0230 큐 이탈·verify.js→kit 이동·순수 셸 정리·#16 승급 라운드 0231~0240 닫기) | 통과(reg 0·spine OK) · 5/5 + 10모드 ALL OK |
