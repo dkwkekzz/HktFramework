@@ -87,3 +87,4 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 - 긴 설명을 step 문서 *와* viewer note 양쪽에 풀로 쓰지 않는다 — note 가 집(§4).
 - per-step `capture.js` 를 새로 짜지 않는다 — 장면은 `viewer/scenes/step_NNNN.js` 시나리오 1벌, PNG 는 범용 러너 `tools/htj-render-capture.js`(내부 `tools/htj-capture.js`)가 뽑는다(§2·§3b). verify 의 보존·결정론·항등도 손으로 다시 안 짠다 — `tools/htj-verify-lib.js` 공용 가드(§3a).
 - `engine/`(세계) 안에 확인용(렌더·캡처·DOM) 코드를 넣지 않는다 — 세계는 viewer 없이도 돌아야 한다.
+- **`engine/` 에 타입 전용 처리를 넣지 않는다**(절대·HTJ/CLAUDE.md 「절대 원칙」) — `"지형"·"바다"·"퇴적"` 같은 특정 타입을 아는 함수·분기 금지. 모양·자연스러움은 DNA(`shapeHash`→`shapeDict`)가 담고 *제너릭* 렌더(viewer)가 발현한다. 새 step 마다 "engine 에 타입 이름이 박힌 처리를 넣고 있지 않은가?" 자문. (위반 선례: `terrainSurface`·`smooth` 0065~0067·되돌림.)
