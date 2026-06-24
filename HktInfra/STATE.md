@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0251](step-0251.md) — **정리(#49 인접): 오케스트레이터 배치 런타임 분리**. orchestrator.js(34KB>30KB 트리거)의 배치 SSOT 런타임 메서드(_start/_migrate/_hostDown/_stop/_rebalance/_drain·load helper·placement/executed 질의)를 새 박스 `orch-placement.js` 믹스인으로 분리, `Object.assign(prototype)` 으로 되섞음(투명·플래그 없음·reg 0). orchestrator.js 34KB→27.5KB(<30KB). 프레즌스/failover 제어 평면 잔류.
-- **한 줄 상태**: reg ALL OK(비트 동일)·orchsplit: 5/5 분리 후 z1@A→C 이주 running==hostC·drift 0·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 정리 라운드 진행 중 — wiring >30KB 박스(topo-run 35.9·topo-build 31.5·svc-exchange-core 30.7KB) 분할 잔여(#49). 그 뒤 #51 잔여(실 EntityZone host 이주·zone.js 핸드오프)·멀티프로세스 패리티(#9). 방향 권위 = `infra-review`(0241~0250 묶음·🔎 묶음 리뷰 적기).
+- **닫힌 step**: [step-0252](step-0252.md) — **캐시 write-through 소스 정합(cacheWriteThrough)**. writeThrough ON 이면 cacheSet 이 캐시(store) 외 backing source(DB 더미·SSOT)에도 동시 기록 → 무효화(0212) 후 read-through(0206)가 *최신* 값 재적재(OFF 면 stale). 토글 미수신→0226 비트 동일. 4차 고도화 캐시 #1.
+- **한 줄 상태**: reg ALL OK·cachewt: 5/5 WT ON get=v2(정합)·OFF get=v1(stale)·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 캐시 박스 고도화 arc 진행 중(Redis-like 정합/신뢰성 — write-through 0252 → cache-aside delete·bulk get·negative caching·stats 등). **검토 게이트 보류**: #49(wiring >30KB topo-run/topo-build 단일 거대 함수 — 신중 분할 arc 필요)·#51 잔여(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스. 방향 권위 = `infra-review`(0241~0250 묶음·🔎 묶음 리뷰 적기).
 
 ---
 
@@ -79,7 +79,7 @@
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)+executed auto(0247·부하 기반 실 가동)+host 장애 복구(0248·placeHostDown·생존 host re-acquire)+lifecycle capstone(0249·runningHosts·전 op drift 0)+placeQuery executed host(0250·읽기 경로·게이트웨이 실 위치 라우팅)** · **#51 executed SSOT arc(0241~0250) 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
 
@@ -167,3 +167,4 @@
 | [0249](step-0249.md) | 배치 SSOT 실배선 #51-9: 전 lifecycle 집행 capstone(runningHosts 질의·start·auto·migrate·hostdown·stop 혼합 후 결정==집행·drift 0·단일 소유·arc 0241~0249 닫기) | 통과(reg 0·spine OK) · 5/5 run 4/placed 4·drift 0·single owner |
 | [0250](step-0250.md) | 배치 SSOT 실배선 #51-10: placeQuery executed host(질의 회신에 실 가동 running 추가·게이트웨이 실 위치 라우팅·읽기 경로 완성·0241~0250 decade 닫기) | 통과(reg 0·spine OK) · 5/5 reply host==running==hostC |
 | [0251](step-0251.md) | 정리(#49): 오케스트레이터 배치 런타임 분리(orch-placement.js 믹스인·Object.assign prototype·투명 분할·34KB→27.5KB·정리 라운드 1) | 통과(reg 0·spine OK) · 5/5 drift 0·running 단일 소유 |
+| [0252](step-0252.md) | 캐시 write-through 소스 정합(cacheWriteThrough·set 시 backing source 동시 기록·무효화 후 read-through 최신값·4차 고도화 캐시 #1) | 통과(reg 0·spine OK) · 5/5 WT get=v2·OFF get=v1(stale) |
