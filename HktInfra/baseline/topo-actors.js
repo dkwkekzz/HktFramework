@@ -28,6 +28,7 @@ const { MailService } = __p('svc-mail');   // step-0142 — 우편 서비스(오
 const { MailFeed } = __p('svc-mailfeed');   // step-0151 — 우편 미읽음 배지 읽기 모델(svc.mail.* 구독·발신 0).
 const { GuildService } = __p('svc-guild');   // step-0181 — 길드 로스터+마스터십 SSOT(오래 사는 조직·존 tick 밖).
 const { GuildFeed } = __p('svc-guildfeed');   // step-0186 — 길드 멤버 수 배지 읽기 모델(svc.guild.changed 구독·발신 0).
+const { CacheStore } = __p('cache');   // step-0205 — 핫 데이터 캐시 계층(set/get·DB 직행 대체).
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -73,6 +74,7 @@ function makeActor(spec, net) {
     case 'guild': a = new GuildService(spec.opts); break;   // step-0181 — 길드 서비스 박스.
     case 'guildfeed': a = new GuildFeed(spec.opts); break;   // step-0186 — 길드 멤버 수 배지 읽기 모델.
     case 'ranking': a = new RankingService(spec.opts); break;
+    case 'cache': a = new CacheStore(spec.opts); break;   // step-0205 — 캐시 박스.
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;
     default: throw new Error('unknown kind ' + spec.kind);

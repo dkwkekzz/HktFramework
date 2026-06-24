@@ -59,6 +59,7 @@ function run(opts) {
   const mailfeed = map.get('mailfeed') || null;     // 우편 미읽음 배지(step-0151·MailFeed) — 우편 발행 구독 읽기 모델. OFF 면 null(0150 동일).
   const pservice = map.get('pservice') || null;     // 파티 멤버십 SSOT(step-0075·partyService) — 멤버십 보유. OFF 면 null(0074 동일).
   const instance = map.get('instance') || null;     // 인스턴스(던전) 서버(step-0201·InstanceServer) — spawn/despawn SSOT. instanceService OFF 면 null(0200 동일).
+  const cache = map.get('cache') || null;           // 캐시(step-0205·CacheStore) — 핫 데이터 1홉 캐시. cacheService OFF 면 null(0204 동일).
   const guild = map.get('guild') || null;           // 길드(step-0181·GuildService) — 로스터+마스터십 SSOT. OFF 면 null(0180 동일).
   const guildfeed = map.get('guildfeed') || null;   // 길드 멤버 수 배지(step-0186·GuildFeed) — svc.guild.changed 구독 읽기 모델. OFF 면 null(0185 동일).
   const mbox = map.get('mbox') || null;             // 귓속말 수신 박스(step-0076·whisperReceipt) — Mailbox. OFF 면 null(0075 동일).
@@ -213,6 +214,8 @@ function run(opts) {
     if (opts.instanceOps && instance) for (const io of [].concat(opts.instanceOps)) if (io.at === i + 1) net.send(io.from || 'orch', 'instance', io.op);
     // 존 배치 명령 주입(step-0203·placementOps) — at tick 에 게이트웨이/운영이 Orchestrator 에 placeZone(존을 host 에 배치). orch 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.placementOps && orch) for (const po of [].concat(opts.placementOps)) if (po.at === i + 1) net.send(po.from || 'gateway', 'orch', po.op);
+    // 캐시 명령 주입(step-0205·cacheOps) — at tick 에 게이트웨이/서비스가 CacheStore 에 cacheSet(핫 데이터 캐시 채움). cache 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.cacheOps && cache) for (const co of [].concat(opts.cacheOps)) if (co.at === i + 1) net.send(co.from || 'gateway', 'cache', co.op);
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
@@ -252,7 +255,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, instance, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, instance, cache, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
