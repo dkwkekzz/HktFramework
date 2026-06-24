@@ -1459,8 +1459,58 @@
       },
       advance() { /* 정적 표면 발현 — 동역학 없음(렌더 트랙) */ },
       note: '<b>지형(높이장 앵커 카펫)이 *민둥 구 점 무리*가 아니라 *연속 음영 표면(땅)*으로 발현된다</b> — 병합·형태 DNA 트랙 T1(지형 발현). <b>▶ 무엇</b>(design/merge-dna.md §5 T1): 동역학(0026~)·환경 물리(TW1~3·정착·마찰·바다·강)·병합 DNA(M1~M3)는 다 섰는데도 사용자가 "지형이 안 자연스럽다"고 한 까닭 = <b>두 격차</b>: ① <b>배선</b> — 지형은 정적 앵커 카펫이라 병합/형태 DNA(0061~0063) 경로를 안 탄다(coalesce 가 앵커 제외) ② <b>표현</b> — viewer 가 그 앵커를 *하나하나 민둥 구*로 그려 "공 무더기"지 "땅"이 아니다. 이 step 은 그중 <b>②(표현)를 점→면</b>으로 올린다: <b>terrainSurface</b>(engine·htj-terrain)가 성긴 앵커 점 격자를 <b>조밀한 연속 높이장 + 정점 법선</b>으로 환원하고(bilinear 업샘플·×12.8 정점), viewer 의 <b>drawSurface</b>가 그 표면을 <b>법선 음영(n·L)</b>으로 채워 그린다. <b>흐름</b>(capture 4 패널): ① 앵커 점(민둥 구·old) → ② 표면 정점(조밀) → ③ 표면 채움(면) → ④ 법선 음영(기운 면이 밝기 차 = 자연스러운 땅). <b>왜 중요한가</b>: "발현은 점이 아니라 표면"(§5 원칙 3) — 같은 지형 데이터가 *공 무더기*에서 *이어진 땅*으로 보인다. <b>세계↔확인용 단방향</b>: engine(htj-terrain)은 표면의 <b>형태(높이·법선)</b>만 들고(읽기 전용·순수·물리량 안 건드림·detectClumps/reconstructShape 부류), 픽셀·음영색은 viewer 가 입힌다 → engine·물리는 <b>불변</b>(렌더 트랙·회귀0 구조적). <b>정직한 한계</b>: ①(배선)은 아직 — 지형 청크를 registerShape 로 사전 등록·hash·dedup(K≪N)는 <b>T2</b>·거리 LOD 는 <b>T3</b>(TW4 합류). 표면은 손수 높이장 골격(절차 생성/무한 광활 아님)·정적(침식 없음)·단일 패치(끝없는 펼침=TW4). 색은 heatColor(높이)·법선 음영 — 흙/풀 재질은 후속. 다음: T2 지형 형태 DNA 배선(K≪N) 또는 T3 거리 LOD(TW4).'
+    },
+
+    // ── step_0066 — 지형이 자란다(퇴적 발현): 정착 구체(퇴적물)가 지형 표면이 되어 계곡이 차오른다 ──
+    //   T1(0065) 표면 발현 + 0059 정착 물리 조립. terrainSurface(deposits)=정착 자유 구체를 표면에 splat(max).
+    //   engine 물리 불변(terrainSurface 가법 확장·정착은 기존 entity 법칙)·environment §2/§4 "쌓임=구체 법칙의 창발".
+    '0066': {
+      label: 'step_0066 — 지형이 자란다(정착 구체가 표면이 되어 계곡이 차오름·퇴적)', title: 'HTJ — 지형이 자란다: 정착한 자유 구체(퇴적물)가 지형 표면이 된다',
+      sub: '자유 구체가 계곡으로 굴러 정착하면(0059 물리), 그 정착 퇴적물이 지형 표면 *위에 얹혀* 표면을 들어올린다 → 계곡이 *차오른다*. T1(0065) 표면 발현 + 정착 물리 조립. terrainSurface(deposits)=정착 구체를 표면에 splat(max). engine 물리 불변(가법 확장·정착=기존 entity 법칙)·"쌓임은 구체 법칙의 창발"(environment §2/§4)',
+      mode: 'energy', dynamics: true, render: 'terrain',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const Rf = N * 1.4, AR = N * 0.05, sr = N * 0.022, SPC = N * 0.06, Wt = N * 0.34;
+        const bowl = (x, y) => N * 0.0010 * (x * x + y * y) - N * 0.10;     // 가운데 낮은 사발(계곡)
+        const topZ = cen + N * 0.12;
+        const mk = (cx, cy, cz, mass, r, anc) => ({ cx, cy, cz, mass, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.5, anchored: !!anc });
+        const ents = [mk(cen, cen, topZ - Rf, 1e9, Rf, true)];             // 바닥 구(중력원·가둠)
+        const carpet = [];
+        for (let gx = -Wt; gx <= Wt; gx += SPC) for (let gy = -Wt; gy <= Wt; gy += SPC) { const e = mk(cen + gx, cen + gy, topZ + bowl(gx, gy), 1, AR, true); ents.push(e); carpet.push({ cx: e.cx, cy: e.cy, cz: e.cz }); }
+        const gold = Math.PI * (3 - Math.sqrt(5));                         // 자유 구체(퇴적 재료)
+        for (let i = 0; i < 150; i++) { const rr = Math.sqrt((i + 0.5) / 150) * Wt * 0.5, th = gold * i; ents.push(mk(cen + Math.cos(th) * rr, cen + Math.sin(th) * rr, topZ + N * 0.18 + (i % 8) * sr * 0.5, 60, sr, false)); }
+        w.__entities = ents; w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz })); w.__carpet = carpet; w.__topZ = topZ; w.__Rf = Rf; w.__up = 4;
+        w.__gopt = { G: 0.2 * Rf * Rf / 1e9, soft: N * 0.06 }; w.__copt = { k: 40, cDamp: 25 }; w.__fopt = { k: 40, mu: 0.9 }; w.__ropt = { k: 40, muRoll: 1.2 };
+        rebuildSurface0066(w);
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        const es = w.__entities;
+        HTJEntity.applyEntityGravity(es, 0.12, w.__gopt); HTJEntity.applyEntityContact(es, 0.12, w.__copt);
+        HTJEntity.applyEntityFriction(es, 0.12, w.__fopt); HTJEntity.applyEntityRollingResistance(es, 0.12, w.__ropt);
+        HTJEntity.stepEntities(es, 0.12);
+        const sv = w.__saved;
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; es[i].Lx = es[i].Ly = es[i].Lz = 0; }
+        rebuildSurface0066(w);
+      },
+      note: '<b>지형이 *자란다* — 정착한 자유 구체(퇴적물)가 지형 표면이 되어 계곡이 차오른다</b> — 자연스러운 지형(환경 트랙·merge-dna §5 T1 확장). <b>▶ 무엇</b>(design/environment.md §2/§4 "그 위의 거동[딛기·고임·흐름·<b>깎임/쌓임</b>]은 구체 법칙의 창발"): T1(0065)은 지형을 *연속 음영 표면*으로 발현했지만 그 지형은 <b>정적</b>(author 한 카펫·"침식·깎임 없음")이었다. 이 step 은 그 표면을 <b>동적</b>으로 — 자유 구체가 중력+접촉+마찰+구름 저항(0059 물리)으로 계곡(낮은 데)으로 굴러 <b>정착</b>하면, terrainSurface 가 그 <b>정착 퇴적물을 표면에 splat</b>(각 구의 상단 z=cz+√(r²−d²) 와 지형의 <b>max</b> = "물질이 위에 쌓임")해 <b>표면이 들어올려진다</b>. <b>흐름</b>(capture 4 패널): 맨 사발(계곡) → 구체가 굴러 정착(퇴적 0→증가) → 표면(법선 음영 band)이 <b>계곡에서 차오른다</b>. <b>왜 중요한가</b>: 지형의 모양이 더는 author 한 고정이 아니라 <b>구체가 굴러간 결과(정착·퇴적)로 변한다</b> = "법칙은 author·구조(지형 모양)는 창발". 사막 모래·강 하구 퇴적·계곡 메움이 *같은 한 원소*로. <b>세계↔확인용 단방향</b>: 정착은 기존 entity 법칙(engine·물리 보존), 표면은 그 결과를 <b>읽어 splat</b>(terrainSurface 가법 확장·deposits 없으면 0065 표면과 byte 동일) → engine·물리 <b>불변</b>(렌더 트랙·회귀0). <b>정직한 한계</b>: 표면이 구 상단 max 라 <b>울퉁(개별 봉우리)</b> — 매끄러운 퇴적(가우시안 splat·이완)·침식(깎임·역방향)은 후속. 퇴적물은 표면에만 반영(되쪼개 물리 footprint 공유는 M4)·정착 판정 절대속도+고도 게이트(장면 노브)·여전히 단일 패치(광활=TW4)·바닥 골격 손수. 다음: 매끄러운 퇴적·침식(물↔지형 왕복) 또는 T2 지형 DNA 배선(K≪N).'
     }
   };
+  // 0066 보조 — 카펫 앵커 + 정착(느린·내려앉은) 자유 구체를 terrainSurface 로 환원(퇴적 발현). 낙하 중 구체는 오버레이용.
+  function rebuildSurface0066(w) {
+    const es = w.__entities, topZ = w.__topZ, sp = (e) => Math.hypot(e.px, e.py, e.pz) / e.mass;
+    const deposits = [], flying = [];
+    for (const e of es) {
+      if (e.anchored) continue;
+      if (sp(e) < 0.5 && (e.cz - topZ) < w.N * 0.12) deposits.push({ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius });   // 정착(느림·지형 위로 내려앉음)
+      else flying.push({ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: 0.7 });                                    // 낙하 중(오버레이)
+    }
+    w.__surface = HTJTerrain.terrainSurface(w.__carpet, { up: w.__up, deposits });
+    let hMax = -Infinity; for (const h of w.__surface.heights) if (h > hMax) hMax = h; w.__hMax = hMax;
+    w.__flying = flying;
+  }
   function currentStep() { return document.getElementById('step').value || '0003'; }
 
   // 파생 온도 장 갱신 — T=u/ρ 를 'temperature' 장에 복사(렌더가 고를 수 있게). 법칙 아님(측정·표시).
@@ -1608,7 +1658,9 @@
     // 지형 표면(0065·T1): 높이장 앵커 카펫을 terrainSurface 로 환원해 *연속 음영 표면*으로 그린다(점→면).
     if (stCur && stCur.render === 'terrain' && world.__surface) {
       surf = HTJRender.drawSurface(ctx, world, cam, world.__surface, { heightMax: world.__hMax });
-      const lab = document.getElementById('s-occ'); if (lab) lab.textContent = `지형 표면 ${world.__surface.count} 정점(앵커 ${world.__surface.anchorCount} → 면) · 사각형 ${surf}`;
+      if (world.__flying && world.__flying.length) HTJRender.drawEntities(ctx, world, cam, world.__flying);  // 낙하 중 구체(퇴적 재료) 오버레이
+      const dep = world.__surface.depositCount || 0;
+      const lab = document.getElementById('s-occ'); if (lab) lab.textContent = `지형 표면 ${world.__surface.count} 정점(앵커 ${world.__surface.anchorCount} → 면)${dep ? ' · 퇴적 ' + dep : ''} · 사각형 ${surf}`;
       return;
     }
     // 확장성 오버레이(scal): 별 voxel 위에 8³ 블록 상태(활성/동결)를 와이어프레임으로 덧그린다.

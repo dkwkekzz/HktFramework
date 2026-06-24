@@ -34,13 +34,15 @@
 
   // 지형 표면 — 앵커 카펫(정규 (x,y) 격자·z=높이)을 조밀한 연속 높이장 + 정점 법선으로 환원한다.
   //   anchors: [{cx,cy,cz}] (바닥 구 같은 비-카펫 큰 앵커는 호출 전에 거른다 — 여긴 표면 카펫만).
-  //   opts: { up(셀당 업샘플 배수·기본 4·점→면 조밀도), tol(격자선 묶음 허용오차·기본 1e-6) }.
-  //   반환: { nx, ny, x0, y0, dx, dy, heights:[nx*ny], normals:[nx*ny·{x,y,z}], count, anchorCount }
+  //   opts: { up(셀당 업샘플 배수·기본 4·점→면 조밀도), tol(격자선 묶음 허용오차·기본 1e-6),
+  //           deposits([{cx,cy,cz,radius}]·정착 퇴적물·아래 splat 참조·없으면 T1 표면과 byte 동일) }.
+  //   반환: { nx, ny, x0, y0, dx, dy, heights:[nx*ny], normals:[nx*ny·{x,y,z}], count, anchorCount, depositCount }
   //     heights[J*nx+I] = (I,J) 정점 높이 · normals 동일 인덱스 · 월드좌표 = (x0+I*dx, y0+J*dy, height).
   function terrainSurface(anchors, opts) {
     opts = opts || {};
     const up = opts.up != null ? Math.max(1, opts.up | 0) : 4;
     const tol = opts.tol != null ? opts.tol : 1e-6;
+    const deposits = opts.deposits || null;
     const xs = uniqueAxis(anchors.map(a => a.cx), tol);
     const ys = uniqueAxis(anchors.map(a => a.cy), tol);
     const nx0 = xs.length, ny0 = ys.length;
@@ -68,6 +70,23 @@
         heights[J * nx + I] = a + (b - a) * fy;
       }
     }
+    // 퇴적 splat(자연스러운 지형·창발 거동) — 정착한 자유 구체(퇴적물)가 지형 *위에 얹혀* 표면을 들어올린다.
+    //   각 퇴적 구 d 가 덮는 (x,y) 정점에서 구 표면 상단 z_top = d.cz + √(r²−d²) 와 지형 높이의 *max* = "물질이 위에 쌓임".
+    //   = environment.md §2/§4 "그 위의 거동(…깎임/쌓임)은 구체 법칙의 창발" — 정착은 0059 물리, 표면은 그 결과를 *읽기만*.
+    //   deposits 없으면 이 블록은 통째로 건너뛴다 → T1(0065) 표면과 byte 동일(가법·회귀0).
+    let depositCount = 0;
+    if (deposits && deposits.length) {
+      depositCount = deposits.length;
+      for (let J = 0; J < ny; J++) for (let I = 0; I < nx; I++) {
+        const wx = x0 + I * dx, wy = y0 + J * dy, k = J * nx + I;
+        let h = heights[k];
+        for (const d of deposits) {
+          const r = d.radius || 1, ex = wx - d.cx, ey = wy - d.cy, d2 = ex * ex + ey * ey;
+          if (d2 < r * r) { const top = d.cz + Math.sqrt(r * r - d2); if (top > h) h = top; }
+        }
+        heights[k] = h;
+      }
+    }
     // 정점 법선 — 중앙차분(경계는 한쪽차분)으로 기울기 → n=normalize(−∂z/∂x,−∂z/∂y,1).
     const normals = new Array(nx * ny);
     for (let J = 0; J < ny; J++) for (let I = 0; I < nx; I++) {
@@ -80,7 +99,7 @@
       const nzx = -gxv, nzy = -gyv, nzz = 1, m = Math.sqrt(nzx * nzx + nzy * nzy + nzz * nzz) || 1;
       normals[k] = { x: nzx / m, y: nzy / m, z: nzz / m };
     }
-    return { nx, ny, x0, y0, dx, dy, heights, normals, count: nx * ny, anchorCount: anchors.length };
+    return { nx, ny, x0, y0, dx, dy, heights, normals, count: nx * ny, anchorCount: anchors.length, depositCount };
   }
 
   // 표면 정점 → 월드 좌표 {cx,cy,cz} (viewer/capture 가 그릴 점·읽기 전용 유틸).
@@ -89,5 +108,5 @@
     return { cx: surf.x0 + I * surf.dx, cy: surf.y0 + J * surf.dy, cz: surf.heights[k], n: surf.normals[k] };
   }
 
-  return { terrainSurface, vertexWorld, VERSION: 1 };
+  return { terrainSurface, vertexWorld, VERSION: 2 };
 });
