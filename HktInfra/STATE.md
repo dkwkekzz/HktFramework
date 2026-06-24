@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0188](step-0188.md) — **GuildFeed 회계 정합 capstone**(feedConsistent·배지==로스터 크기·고아 0): 정상·feed crash·guild crash·영속 네 체제서 읽기 모델이 권위 SSOT 와 갈라지지 않음 증명. GuildFeed arc(0186~0188) 닫힘. 우편 MailFeed 0155 의 길드 판. 닿는 박스: svc-guildfeed.
-- **한 줄 상태**: reg ALL OK·guildconsistent: 4체제 4/4·배지총합 5==로스터 5·spine OK.
-- **다음**: §2 — guild arc 0189~0190(마스터 이양·capstone·arc 닫기)·이후 발행 게이트 통합·비동기 결정론🔴·0181~0190 묶음 리뷰.
+- **닫힌 step**: [step-0189](step-0189.md) — **마스터 이양**(guildTransfer·single-master 보존 쌍 거래): from 이 master·to 가 멤버일 때만 master 원자 교체(release+acquire·공백/이중 0). from 잔류·로스터 불변·거부 no-op·이양 저널 replay. 존 핸드오프 0006 의 마스터십 판. 닿는 박스: svc-guild.
+- **한 줄 상태**: reg ALL OK·guildtransfer: master x→c1·from 잔류·crash 후 보존·single-master 5/5·spine OK.
+- **다음**: §2 — 0190(single-master+roster capstone·guild arc 닫기)·이후 발행 게이트 통합·비동기 결정론🔴·0181~0190 묶음 리뷰.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드(Guild) 박스 arc(0181~0190) = 파티(0075)+우편(0142~) 동형: 분리·증분·발행·영속·스냅샷·배지·feed 영속·feed 정합(0181~0188 ✅·GuildFeed arc 닫힘). 다음: 마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행: 발행 게이트 통합·비동기 결정론🔴. 🔎 0181~0190 묶음 리뷰 후속.**
+**길드(Guild) 박스 arc(0181~0190) = 파티(0075)+우편(0142~) 동형: 분리·증분·발행·영속·스냅샷·배지·feed·정합·마스터 이양(0181~0189 ✅). 다음: single-master+roster capstone·arc 닫기(0190). 병행: 발행 게이트 통합·비동기 결정론🔴. 🔎 0181~0190 묶음 리뷰 후속.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -262,16 +262,16 @@
 | [0168](step-0168.md) | 아이템 우편 saga 회신 재전송+idempotent dedup(mailRetry·가방 sagaDedup) | 통과 · ON 재실행0 xfers 4·OFF 5 hazard |
 | [0169](step-0169.md) | 아이템 우편 saga 회계 정합 capstone(sagaConsistent·gives==acked+pending) | 통과 · 3체제 true(4/4/0·4/3/1·4/4/0) |
 | [0170](step-0170.md) | 아이템 우편 give↔가방 transfers capstone(sagaLiveConsistent·giveOks==escrowXfers·arc 0161~0170 닫기) | 통과 · 양체제 5/5 합치·2/2 true |
-| [0171](step-0171.md) | 정리: svc-mail-core 영속·failover 부품 분할(→svc-mail-persist.js·기능 0) | OK · 34.7→30.4KB·crash→reconstruct 비트동일 |
-| [0172](step-0172.md) | 아이템 우편 saga 자동 주기 재전송(mailAutoRetry·sweep 피기백·거래소 0129 우편 판) | 통과 · ON pending 0/retries 1·OFF 잔존 |
-| [0173](step-0173.md) | 아이템 우편 saga 재시도 상한(mailMaxRetries·거래소 0131 우편 판) | 통과 · 무제한 4/0·상한2 2/1 포기·pending 잔존 |
-| [0174](step-0174.md) | 아이템 우편 saga 포기 발행(mailAbandonPublish·거래소 0132 우편 판) | 통과 · ON pub/audit 1/1==abandoned·OFF 0 |
-| [0175](step-0175.md) | 정리: svc-mail-core 누적 step-주석 헤더 압축(코드 0 변경) | OK · 34→18.6KB·digest==0174 |
-| [0176](step-0176.md) | 아이템 우편 saga 포기 give 재admission(mailReadmit·거래소 0134 우편 판) | 통과 · ON 재무장 1/0·OFF 잔존 0/1 |
-| [0177](step-0177.md) | 아이템 우편 saga 재admission 발행(mailReadmitPublish·거래소 0135 우편 판) | 통과 · ON pub/audit 1/1==readmitted·OFF 0 |
-| [0178](step-0178.md) | 아이템 우편 saga 재admission 횟수 상한(mailReadmitMax·거래소 0137 우편 판) | 통과 · 무제한 2/0·상한1 1/1 영구실패 차단 |
-| [0179](step-0179.md) | 아이템 우편 saga 영구 실패 발행(mailFailPublish·거래소 0138 우편 판) | 통과 · ON pub/audit 1/1==permFailed·OFF 0 |
-| [0180](step-0180.md) | 아이템 우편 saga liveness 회계 정합 capstone(sagaLivenessConsistent·거래소 0140 우편 판·arc 0166~0180 닫기) | 통과 · 네 체제 분할 4/4 |
+| [0171](step-0171.md) | 정리: svc-mail-core 영속 부품 분할(→svc-mail-persist.js·기능 0) | OK · 34.7→30.4KB·비트동일 |
+| [0172](step-0172.md) | 우편 saga 자동 주기 재전송(mailAutoRetry·거래소 0129 판) | 통과 · ON pending 0/retries 1·OFF 잔존 |
+| [0173](step-0173.md) | 우편 saga 재시도 상한(mailMaxRetries·0131 판) | 통과 · 무제한 4/0·상한2 2/1 포기 |
+| [0174](step-0174.md) | 우편 saga 포기 발행(mailAbandonPublish·0132 판) | 통과 · ON pub/audit 1/1==abandoned |
+| [0175](step-0175.md) | 정리: svc-mail-core 헤더 압축(코드 0 변경) | OK · 34→18.6KB·digest==0174 |
+| [0176](step-0176.md) | 우편 saga 포기 give 재admission(mailReadmit·거래소 0134 판) | 통과 · ON 재무장 1/0·OFF 잔존 0/1 |
+| [0177](step-0177.md) | 우편 saga 재admission 발행(mailReadmitPublish·0135 판) | 통과 · ON pub/audit 1/1==readmitted |
+| [0178](step-0178.md) | 우편 saga 재admission 횟수 상한(mailReadmitMax·0137 판) | 통과 · 무제한 2/0·상한1 1/1 영구실패 차단 |
+| [0179](step-0179.md) | 우편 saga 영구 실패 발행(mailFailPublish·0138 판) | 통과 · ON pub/audit 1/1==permFailed |
+| [0180](step-0180.md) | 우편 saga liveness 정합 capstone(sagaLivenessConsistent·0140 판·arc 0166~0180 닫기) | 통과 · 네 체제 분할 4/4 |
 | [0181](step-0181.md) | 길드 서비스 분리(guildService·GuildService·로스터+마스터십 SSOT·single-master·파티 0075 영속 조직 판) | 통과 · 길드 2·single-master 5/5·회신==SSOT |
 | [0182](step-0182.md) | 길드 증분 가입/탈퇴(guildJoin/guildLeave·멱등·master 보호·파티 0084 길드 판) | 통과 · 로스터 [x,c2]·master 유지 5/5 |
 | [0183](step-0183.md) | 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed·파티 0084 길드 판) | 통과 · published 3==audit 3==실변경·OFF 0 |
@@ -280,3 +280,4 @@
 | [0186](step-0186.md) | 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed·우편 MailFeed 0151 길드 판) | 통과 · g1 3·g2 2·배지==로스터·OFF 0 |
 | [0187](step-0187.md) | GuildFeed 영속·late-join(guildFeedPersist·op 저널 replay·우편 MailFeed 0154 길드 판) | 통과 · crash→reconstruct pre==post·배지==로스터 |
 | [0188](step-0188.md) | GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터·우편 0155 길드 판·feed arc 닫기) | 통과 · 4체제 4/4·배지총합 5==로스터 5 |
+| [0189](step-0189.md) | 마스터 이양(guildTransfer·single-master 보존 쌍 거래·존 핸드오프 0006 마스터십 판) | 통과 · master x→c1·from 잔류·crash 후 보존 |
