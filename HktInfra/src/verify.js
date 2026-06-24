@@ -1,8 +1,8 @@
-// HktInfra step-0207 — 헤드리스 검증 (월드 영속 박스·intent 로그 append·worldLog/worldAppend)
+// HktInfra step-0208 — 헤드리스 검증 (월드 영속 replay 재구성·crash→로그 replay 무손실)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldappend`.
-//   더한 한 조각: WorldLog 박스 — 월드 상태의 유일 쓰기 경로(intent·SPINE §4 경로1)를 durable 로그로 event sourcing(데이터 3분할 ①). worldLog OFF → 박스 0 → 0206 비트 동일(reg). replay 재구성은 0208.
-//   검증: ⒜ `reg`(키트). ⒝ `worldappend`(가설) — intent 4 append → 로그 길이 4·seq 단조 1~4·at(2) 복원.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldreplay`.
+//   더한 한 조각: WorldLog.replay — durable intent 로그 전수 재적용 → 월드 상태 투영 복원. crash(투영 소실) 후 로그만으로 동일 상태(event sourcing). worldLog OFF → 0206 비트 동일(reg).
+//   검증: ⒜ `reg`(키트). ⒝ `worldreplay`(가설) — append 4 → replay 상태 vs crash 후 replay 상태 digest 동일·h1 pos 6/sword·h2 pos 8.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,30 +16,33 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const APPEND = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
-// 시나리오: 월드 intent 4개(이동·이동·픽업·이동) 적층.
 const OPS = [
   APPEND(2, { kind: 'move', e: 'h1', to: 5 }), APPEND(3, { kind: 'move', e: 'h2', to: 8 }),
   APPEND(4, { kind: 'pickup', e: 'h1', item: 'sword' }), APPEND(5, { kind: 'move', e: 'h1', to: 6 }),
 ];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
 
-function worldappend(seeds) {
-  console.log('== worldappend: 월드 영속 박스 — intent 로그 append 기본. 세계 상태의 유일 쓰기 경로(intent)를 durable 로그로 event sourcing(로그만으로 재구성·복제=재현). 서비스 저널·캐시와 직교(데이터 3분할). ==');
-  console.log('seed   | 로그 길이 | seq 단조 | at(2) | appends | 판정');
+function worldreplay(seeds) {
+  console.log('== worldreplay: 월드 영속 replay 재구성 — durable intent 로그 전수 재적용 → 월드 상태 투영 복원. crash(투영 소실) 후에도 로그만으로 동일 상태(event sourcing·복제=재현). ==');
+  console.log('seed   | digest(pre) | digest(post-crash replay) | 무손실 | h1 pos/items | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const w = r.worldlog, len = w.length();
-    const seqs = w.journal.map(e => e.seq);
-    const mono = seqs.every((s, i) => s === i + 1);
-    const at2 = w.at(2);
-    const ok = check(len === 4 && mono && at2 && at2.kind === 'move' && at2.e === 'h2' && w.appends === 4,
-      `seed ${seed}: 월드로그 위반 (len ${len}·mono ${mono}·appends ${w.appends})`);
-    console.log(`${pad(seed, 6)} | ${pad(len, 9)} | ${pad(mono ? '예' : '아니오', 8)} | ${pad(at2 ? at2.kind + ':' + at2.e : '-', 7)} | ${pad(w.appends, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    const w = r.worldlog;
+    w.replay();                       // 로그→투영 재구성.
+    const pre = w.stateDigest();
+    w.crash();                        // 투영 소실(로그는 durable).
+    w.replay();                       // 로그만으로 재구성.
+    const post = w.stateDigest();
+    const h1 = w.stateOf('h1'), h2 = w.stateOf('h2');
+    const lossless = pre === post;
+    const ok = check(lossless && h1 && h1.pos === 6 && h1.items.join(',') === 'sword' && h2 && h2.pos === 8,
+      `seed ${seed}: replay 위반 (pre ${pre}·post ${post}·h1 ${JSON.stringify(h1)})`);
+    console.log(`${pad(seed, 6)} | ${pad(pre, 11)} | ${pad(post, 25)} | ${pad(lossless ? '예' : '아니오', 6)} | ${pad((h1 ? h1.pos + '/' + h1.items.join('') : '-'), 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → WorldLog 가 월드 intent 를 append-only 로그로 적층(seq 단조 1~4·길이 4). 월드 상태는 DB 행이 아니라 *intent 로그*로 산다(event sourcing·결정론 덕에 로그+시드만으로 상태 재구성=복제). 데이터 3분할 ①. 기본 통신 — replay 재구성은 0208.');
+  console.log('  → WorldLog.replay 가 durable 로그를 전수 재적용해 투영(h1 pos 6+sword·h2 pos 8) 복원. crash 로 투영이 소실돼도 *로그가 살아남아* 동일 digest 로 재구성 — 월드 상태는 DB 행이 아니라 로그로 산다(event sourcing 의 무손실 복구·복제=재현). 월드 영속 박스 기본 통신 완비(append 0207 + replay 0208).');
 }
 
-kit.MODES['worldappend'] = worldappend;
-kit.ORDER.splice(1, 0, 'worldappend');
+kit.MODES['worldreplay'] = worldreplay;
+kit.ORDER.splice(1, 0, 'worldreplay');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

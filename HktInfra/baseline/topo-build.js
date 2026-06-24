@@ -145,6 +145,7 @@ function buildTopology(opts) {
     instanceService = false,
     cacheService = false,
     cacheSource = null,
+    worldLog = false,
     deliverDedup = false,
     deliverDedupBound = false,
     deliverEpochBound = false,
@@ -263,6 +264,8 @@ function buildTopology(opts) {
   if (instanceService) add({ addr: 'instance', kind: 'instance', opts: {} });
   // [데이터] 캐시(step-0205·CacheStore) — 핫 데이터(세션·가방·시세) 1홉 캐시 계층. DB 직행 대체·존 tick 밖·onTick 없음. cacheService OFF 면 박스 0 = 0204 비트 동일(reg 0).
   if (cacheService) add({ addr: 'cache', kind: 'cache', opts: { source: cacheSource } });   // source(0206): read-through miss 시 읽을 backing store(DB 더미). 없으면 miss 가 안 채워짐(0205 거동).
+  // [데이터] 월드 영속(step-0207·WorldLog) — 월드 상태의 intent 로그 event sourcing(데이터 3분할 ①). 서비스 PersistStore·캐시와 직교·존 tick 밖. worldLog OFF 면 박스 0 = 0206 비트 동일(reg 0).
+  if (worldLog) add({ addr: 'worldlog', kind: 'worldlog', opts: {} });
 
   const zopt = { grid, radius, incremental, recovery, retxPeriod, heartbeat, failover };
   const orchAddr = (failover && zones === 2) ? 'orch' : null;
