@@ -78,7 +78,7 @@
 - **구체 세계 SW5**: SPH 물리 스택 ☑ · 양방향 이주 ☑(0051 복사·0055 이동·0076 역이주) · 자동 적응 이주 ☑(0077 `autoMigrate`·**0081 전단 `gridShearField`·0082 와도 `gridVorticityField`·밀도/전단/회전 다축**) · **통합 중력 ☑(0078 `applyParticleMeshGravity`·격자+입자 단일 Φ·순 운동량 보존·입자 없음→applyGravity byte 동일)**. 남은 = viewer 격자 장면 SPH 점진 대체·**TSC 보간**(0079 CIC 까지·2차 미도입)·입자 SPH 압력/점성과 PM 중력의 통합 루프·autoMigrate+PM 중력 조립.
 - **환경/지형**: TW1~TW4 ☑ · 절차적 장 노이즈 ☑(0074) · **침식 첫 벽돌 ☑(0075·`sphSedimentErosion`·물↔지형 왕복)**. 남은 = **안정 분절 침식**(0075 는 단일 램프 균일 하강·공간 협곡은 분절 바닥 필요·겹친 앵커 경계력 폭발이 난점)·TW2 **연속 바다**·절차적 장 **다축 바이옴**.
 - **격자(비계 — SW5 까지만 유효)**: 비트 완벽 보존 아님(진공 운동량 소산·음향 1차)·이류 1차 수치 확산·중력 BC 주기↔no-flux 불일치 — 구체 표현이 점차 대체.
-- **작업 방식(U4)**: 닫은 step 59개 소급 안 함·픽셀 동일 아님(chromium 부재→world 동일)·다음부터 모든 step 이 `scenes` 1벌+경량 verify 로 닫는다.
+- **작업 방식(U4)**: 닫은 step 59개 소급 안 함·픽셀 동일 아님(chromium 부재→world 동일)·다음부터 모든 step 이 `scenes` 1벌+경량 verify 로 닫는다. **버그 수정**: `render:'points'` 시나리오(0075~0082)가 라이브 뷰어에 *안 그려지던* 공백 — viewer.html `render()` 에 points 분기 추가(toFrame→2D top-down·캡처와 같은 좌표·색)로 해소.
 
 ## §6. 시리즈 인덱스 (step별 한 줄)
 

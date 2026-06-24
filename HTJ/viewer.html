@@ -1642,6 +1642,30 @@
     if (!world) return;
     // 덩어리 구체 렌더 step(0014) — 셀 voxel 대신 검출 개체를 구체로 그린다(읽기 전용 환원).
     const stCur = STEPS[currentStep()];
+    // 점 무리 렌더(points): 시나리오 모듈의 toFrame(world)→{pts} 를 2D top-down 으로 그린다(격자+SPH 입자 공존
+    //   장면·0066/0077~0082). 라이브 뷰어가 헤드리스 캡처(tools/htj-capture.js)와 *같은 한 벌·같은 좌표계*를 그린다.
+    if (stCur && stCur.render === 'points' && typeof stCur.toFrame === 'function') {
+      const co = stCur.captureOpts || {};
+      const Np = co.N || readN();
+      const color = co.color || ((v) => { const t = Math.max(0, Math.min(1, v)); return [t * 255, t * 255, t * 120]; });
+      const Wd = cv.width, Hd = cv.height;
+      ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, Wd, Hd);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2), pad = 16 * dpr;
+      const side = Math.max(2, Math.min(Wd, Hd) - pad * 2), sc = side / Np;
+      const ox = (Wd - side) / 2, oy = (Hd - side) / 2;
+      ctx.strokeStyle = '#2a3242'; ctx.lineWidth = 1; ctx.strokeRect(ox, oy, side, side);
+      let fr = null; try { fr = stCur.toFrame(world); } catch (e) { /* 장면 미준비 → 빈 패널 */ }
+      const pts = (fr && fr.pts) || [];
+      for (const p of pts) {
+        const c = color(p.v != null ? p.v : 0);
+        ctx.fillStyle = 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')';
+        const rad = Math.max(sc * 0.34, (p.r || 0.5) * sc * 0.5);
+        ctx.beginPath(); ctx.arc(ox + p.cx * sc, oy + p.cy * sc, rad, 0, 6.2832); ctx.fill();
+      }
+      const lab = document.getElementById('s-occ');
+      if (lab && fr) lab.textContent = [fr.grid != null ? '격자 ' + fr.grid : '', fr.sph != null ? 'SPH ' + fr.sph : '', fr.toSPH ? '→SPH ' + fr.toSPH : '', fr.toGrid ? '→격자 ' + fr.toGrid : ''].filter(Boolean).join(' · ');
+      return;
+    }
     if (stCur && stCur.render === 'spheres' && typeof HTJCluster !== 'undefined') {
       const mean = world.total('energy') / world.fields.energy.length;
       const eps = mean > 0 ? Math.max(mean * 1.5, 1e-9) : 1e-9;   // 본체 임계(평균 위) — 헤일로 제외
