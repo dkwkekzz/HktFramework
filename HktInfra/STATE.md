@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0231](step-0231.md) — **instanceleave 모드 spine 승급(#16 시작)**: 0221 bespoke 검증 모드(인스턴스 플레이어 이탈)를 `engine/verify-kit.js` 누적 키트로 승급(MODES+ORDER·OPS/BASE 함수 내 지역화). 박스 `.js` 0줄 → reg 0 자명. 생성 step 한정 양성 단언을 매 spine 항구화. **정리·도구 라운드(3차 10모드 #16 승급)의 1/10**.
-- **한 줄 상태**: reg ALL OK·instanceleave: 5/5 d1 occ 1·left 1·miss 1·spine ALL OK(instanceleave 누적 편입).
-- **다음**: 🔧 **#16 spine 승급 라운드 진행 중**(0231~0240 — 3차 라운드 0221~0230 bespoke 10모드를 1 step 당 1개씩 누적 회귀화). 남은: 0222~0230 (instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon[verify.js→kit 이동]). 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
+- **닫힌 step**: [step-0232](step-0232.md) — **instancereap 모드 spine 승급(#16)**: 0222 bespoke 검증 모드(인스턴스 수요 자동 despawn)를 `engine/verify-kit.js` 누적 키트로 승급. 박스 `.js` 0줄 → reg 0 자명. **정리·도구 라운드 2/10**.
+- **한 줄 상태**: reg ALL OK·instancereap: 5/5 active 1·reaped 3·점유 보호·spine ALL OK(instanceleave+instancereap 누적 편입).
+- **다음**: 🔧 **#16 spine 승급 라운드 진행 중**(0231~0240 — 3차 라운드 0221~0230 bespoke 10모드를 1 step 당 1개씩 누적 회귀화). 남은: 0223~0230 (placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon[verify.js→kit 이동]). 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
 
 ---
 
@@ -147,3 +147,4 @@
 | [0229](step-0229.md) | 로그인 계정 검증(loginAuth·validAccounts 만 enqueue·미인증 거부·줄 이전 차단·0001 검증 큐 실체화·3차 고도화 로그인 #1) | 통과 · p1·p2 enqueue·pX 거부·authRejects 1 |
 | [0230](step-0230.md) | 로그인 큐 이탈(loginAbandon·입장 전 대기열 제거·미줄 멱등 no-op·좀비 슬롯 회수·0219 백프레셔 정확도·3차 고도화 로그인 #2·3차 균형 라운드 0221~0230 닫기) | 통과 · p2 이탈·큐 [p1,p3]·aband 1·miss 1 |
 | [0231](step-0231.md) | instanceleave 모드 spine 승급(#16 — 0221 bespoke→verify-kit 누적 회귀·박스 0줄·OPS 함수내 지역화·정리 라운드 1/10) | 통과(reg 0·spine OK) · 5/5 d1 occ 1 |
+| [0232](step-0232.md) | instancereap 모드 spine 승급(#16 — 0222 수요 자동 despawn·정리 라운드 2/10) | 통과(reg 0·spine OK) · 5/5 active 1·reaped 3 |
