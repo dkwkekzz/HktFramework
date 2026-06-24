@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0222](step-0222.md) — **인스턴스 수요 자동 despawn**: `instanceReap{kind,target}`→active>target 면 빈(occupancy 0) 인스턴스 부족분 회수(탄력 축소·0215 거울·점유 보호). 미주입→0221 비트 동일. **3차 고도화 인스턴스 #2**. 닿는 박스: instance.
-- **한 줄 상태**: reg ALL OK·instancereap: 5/5 demand 4→reap target 1→reaped 3·active 1(점유 생존)·spine ALL OK.
-- **다음**: 🎯 **3차 균형 라운드 진행 중**(0221~0230). 인스턴스 ✅(0221~0222). 다음: 0223 오케스트레이터 부하 재배치 자동 트리거(placeRebalance·최대부하 임계 초과→자동 placeMigrate).
+- **닫힌 step**: [step-0223](step-0223.md) — **오케 부하 재배치 자동 트리거**: `placeRebalance{hosts}`→부하 불균형(최대−최소≥2) 자동 해소(최대→최소 host 존 이주·균형까지·0218 자동판). 미주입→0222 비트 동일. **3차 고도화 오케 #1**. 닿는 박스: orchestrator.
+- **한 줄 상태**: reg ALL OK·placerebalance: 5/5 A3/0/0→A1/B1/C1·moves 2·spine ALL OK.
+- **다음**: 🎯 **3차 균형 라운드 진행 중**(0221~0230). 인스턴스✅. 다음: 0224 오케 host 드레인(placeDrain·host 퇴역 시 모든 존 최소부하로 이주).
 
 ---
 
@@ -21,7 +21,7 @@
 
 **3차 균형 라운드 5박스 — 각 2조각 (체크표):**
 1. **인스턴스(던전) 서버** (계층2) — ✅ 이탈(0221·occupancy 감소·release)+✅ 수요 자동 despawn(0222·active>target 회수·점유 보호).
-2. **오케스트레이터** (계층5) — ⬜ 부하 재배치 자동 트리거(0223)+host 드레인(0224).
+2. **오케스트레이터** (계층5) — ✅ 부하 재배치 자동 트리거(0223·불균형≥2 자동 균형)+⬜ host 드레인(0224).
 3. **캐시 박스** (계층6) — ⬜ 용량 LRU 회수(0225)+recency touch(0226).
 4. **월드 영속** (계층6) — ⬜ write-behind 버퍼(0227)+fsync durable barrier(0228).
 5. **로그인 큐·티켓** (계층1) — ⬜ 계정 검증(0229)+큐 이탈(0230·라운드 닫기).
@@ -83,7 +83,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218·release+acquire·권위 보존)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223·불균형 자동 균형)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212·write 일관성)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214·스냅샷 arc 닫기)**. fsync·버스 영속 후속 |
 
 ---
@@ -228,3 +228,4 @@
 | [0220](step-0220.md) | 로그인 큐 재접속 세션 재개(loginReconnect·유효 티켓 재개·새 티켓 0·2차 고도화 로그인 #2·균형 라운드 0211~0220 닫기) | 통과 · p1 tkt-1 재개·p2 miss |
 | [0221](step-0221.md) | 인스턴스 플레이어 이탈(instanceLeave·route 해제·occupancy 감소·권위 release·0216 acquire 짝·3차 고도화 인스턴스 #1·균형 라운드 0221~0230 시작) | 통과 · d1 occ 2→1·left 1·miss 1 |
 | [0222](step-0222.md) | 인스턴스 수요 자동 despawn(instanceReap·active>target 빈 인스턴스 회수·점유 보호·0215 수요 spawn 거울·3차 고도화 인스턴스 #2) | 통과 · demand 4→reap target 1→reaped 3·active 1 |
+| [0223](step-0223.md) | 오케 부하 재배치 자동 트리거(placeRebalance·불균형≥2 최대→최소 host 존 자동 이주·균형 수렴·0218 자동판·3차 고도화 오케 #1) | 통과 · A3/0/0→A1/B1/C1·moves 2 |

@@ -1,4 +1,5 @@
 'use strict';
+// step-0222 — 인스턴스 수요 자동 despawn(instanceReap): active(kind) > target 면 *빈*(occupancy 0) 인스턴스를 부족분만큼 자동 회수(탄력 축소·0215 수요 spawn 의 거울). 점유된 인스턴스는 보호(플레이어 쫓아내지 않음). 결정론 회수 순서(active 삽입 순). instanceReap 미수신이면 0221 비트 동일(reg 0). 3차 고도화(인스턴스 #2).
 // step-0221 — 인스턴스 플레이어 이탈(instanceLeave): 배정된 player 가 인스턴스를 떠나면 route 해제(occupancy 감소·권위 release). 던전 클리어/퇴장의 라우팅 짝(0216 acquire 의 release). 미배정 player 는 멱등 no-op. instanceLeave 미수신이면 0220 비트 동일(reg 0). 3차 고도화(인스턴스 #1·균형 라운드 시작).
 // step-0216 — 인스턴스 플레이어 라우팅(instanceRoute): player→instance 배정 SSOT(한 player 는 정확히 한 인스턴스·권위 단일 소유 척추③). 죽은 인스턴스로는 라우팅 거부(no-op). 다른 인스턴스로 옮기면 release+acquire 쌍(원자 재배정). instanceRoute 미수신이면 0215 비트 동일(reg 0). 2차 고도화(인스턴스 #2).
 // step-0215 — 인스턴스 수요 spawn(instanceDemand): active(kind) < target 면 부족분만큼 자동 spawn(탄력 확장·수요 따라 던전 인스턴스를 채운다). 결정론 auto-id(kind-auto-N). 이미 target 도달이면 멱등 no-op. instanceDemand 미수신이면 0214 비트 동일(reg 0). 2차 고도화(인스턴스 #1).
@@ -26,7 +27,20 @@ class InstanceServer {
     this.routeRejects = 0;       // 죽은 인스턴스로의 라우팅 거부 누적 수(step-0216).
     this.left = 0;               // 인스턴스 이탈 누적 수(step-0221·route 해제 성공·occupancy 감소).
     this.leaveMisses = 0;        // 미배정 player 이탈 시도 누적 수(step-0221·멱등 no-op).
+    this.reaps = 0;              // 처리한 instanceReap 수(step-0222·계측·no-op 멱등 포함).
+    this.reaped = 0;             // 수요 축소로 자동 회수된 빈 인스턴스 누적 수(step-0222·active>target·occupancy 0).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
+  }
+  // 수요 자동 despawn(step-0222·instanceReap) — active(kind) 가 target 을 초과하면 *빈*(occupancy 0) 인스턴스를 부족분만큼 회수(탄력 축소·0215 수요 spawn 의 거울). 점유된 인스턴스는 보호(active 삽입 순으로 빈 것만). 이미 target 이하면 0개(멱등). 오케스트레이터가 수요 하락으로 발신.
+  _reap(kind, target) {
+    let made = 0;
+    for (const [id, v] of [...this.active]) {                  // active 삽입 순 — 결정론 회수 순서.
+      if (this._countKind(kind) <= target) break;             // target 도달 → 중단.
+      if (v.kind !== kind) continue;                          // 다른 kind 보호.
+      if (this.occupancyOf(id) > 0) continue;                 // 점유 인스턴스 보호(플레이어 안 쫓음).
+      this._despawn(id); made++;                              // 빈 인스턴스 회수(retired++).
+    }
+    this.reaped += made; return made;
   }
   // 플레이어 이탈(step-0221·instanceLeave) — 배정된 player 가 인스턴스를 떠나면 route 해제(occupancy 감소·권위 release). 던전 클리어/퇴장의 0216 acquire 짝. 미배정 player 는 멱등 no-op(leaveMisses). 비운 인스턴스는 후속 수요 자동 despawn(0222)의 회수 대상이 된다.
   _leave(player) {
@@ -75,6 +89,8 @@ class InstanceServer {
     if (p.type === 'instanceRoute') { this._route(p.player, p.instanceId); return; }
     // 이탈 요청(step-0221·instanceLeave) — {player} → 배정된 player 의 route 해제(occupancy 감소·권위 release). 던전 퇴장/클리어. instanceLeave 미수신이면 미발화 = 0220 비트 동일.
     if (p.type === 'instanceLeave') { this._leave(p.player); return; }
+    // 수요 자동 despawn 요청(step-0222·instanceReap) — {kind, target} → active(kind)>target 면 빈(occupancy 0) 인스턴스 부족분 회수(탄력 축소·점유 보호). instanceReap 미수신이면 미발화 = 0221 비트 동일.
+    if (p.type === 'instanceReap') { this._reap(p.kind || 'dungeon', p.target | 0); this.reaps++; return; }
   }
   // 질의 인터페이스 — "지금 몇 개 살아있나 / 이 인스턴스가 사나"(SSOT 읽기). 게이트웨이 라우팅(0202)·검증이 쓴다.
   activeCount() { return this.active.size; }

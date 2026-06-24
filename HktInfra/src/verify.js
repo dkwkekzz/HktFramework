@@ -1,8 +1,8 @@
-// HktInfra step-0222 — 헤드리스 검증 (인스턴스 수요 자동 despawn·instanceReap)
+// HktInfra step-0223 — 헤드리스 검증 (오케스트레이터 부하 재배치 자동 트리거·placeRebalance)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instancereap`.
-//   더한 한 조각: instanceReap{kind,target} → active(kind)>target 면 빈(occupancy 0) 인스턴스 부족분 자동 회수(탄력 축소·0215 거울). 점유 인스턴스 보호. 미주입 → 0221 비트 동일(reg). 3차 고도화 인스턴스 #2.
-//   검증: ⒜ `reg`(키트). ⒝ `instancereap`(가설) — demand 4 spawn → 1개 점유 → reap target 1 → 빈 3개 회수·점유 1개 생존.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placerebalance`.
+//   더한 한 조각: placeRebalance{hosts} → 후보 부하 불균형(최대−최소≥2)이면 최대→최소 host 로 존 자동 이주(균형까지·0218 자동 트리거판). 미주입 → 0222 비트 동일(reg). 3차 고도화 오케 #1.
+//   검증: ⒜ `reg`(키트). ⒝ `placerebalance`(가설) — 3존 모두 hostA → rebalance → A/B/C 각 1(균형).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,32 +15,30 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const DEMAND = (at, kind, target) => ({ at, op: { type: 'instanceDemand', kind, target } });
-const ROUTE = (at, player, instanceId) => ({ at, op: { type: 'instanceRoute', player, instanceId } });
-const REAP = (at, kind, target) => ({ at, op: { type: 'instanceReap', kind, target } });
-// demand 4 dungeon spawn(auto-1..4) → p1 을 auto-1 에 배정(점유) → reap target 1 → 빈 auto-2..4 회수·점유 auto-1 생존.
+const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+const REBAL = (at, hosts) => ({ at, op: { type: 'placeRebalance', hosts } });
+// z1·z2·z3 모두 hostA 에 배치(A 과부하 3·B/C 0) → rebalance[A,B,C] → 균형(A1·B1·C1).
 const OPS = [
-  DEMAND(1, 'dungeon', 4),
-  ROUTE(2, 'p1', 'dungeon-auto-1'),
-  REAP(3, 'dungeon', 1),
+  PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostA'),
+  REBAL(4, ['hostA', 'hostB', 'hostC']),
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placementOps: OPS };
 
-function instancereap(seeds) {
-  console.log('== instancereap: 인스턴스 수요 자동 despawn(instanceReap) — active(kind)>target 면 빈(occupancy 0) 인스턴스를 부족분만큼 자동 회수(탄력 축소·0215 수요 spawn 의 거울). 점유 인스턴스는 보호(플레이어 안 쫓음). 결정론 회수 순서. 3차 고도화 인스턴스 #2. ==');
-  console.log('seed   | active | reaped | auto-1 | auto-2 | 판정');
+function placerebalance(seeds) {
+  console.log('== placerebalance: 오케스트레이터 부하 재배치 자동 트리거(placeRebalance) — 후보 host 부하 불균형(최대−최소≥2)이면 최대부하 host 의 존을 최소부하 host 로 자동 이주(균형까지 한 패스 수렴·0218 placeMigrate 의 자동 트리거판·release+acquire). 정적 배치 한계 제거. 3차 고도화 오케 #1. ==');
+  console.log('seed   | A부하 | B부하 | C부하 | moves | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const inst = r.instance;
-    // demand 4 → reap target 1: 점유된 auto-1 생존·빈 auto-2/3/4 회수(reaped 3·active 1).
-    const ok = check(inst.activeCount() === 1 && inst.reaped === 3 && inst.isActive('dungeon-auto-1') && !inst.isActive('dungeon-auto-2') && inst.occupancyOf('dungeon-auto-1') === 1,
-      `seed ${seed}: reap 위반 (active ${inst.activeCount()}·reaped ${inst.reaped}·auto-1 ${inst.isActive('dungeon-auto-1')})`);
-    console.log(`${pad(seed, 6)} | ${pad(inst.activeCount(), 6)} | ${pad(inst.reaped, 6)} | ${pad(inst.isActive('dungeon-auto-1') ? 'live' : '-', 6)} | ${pad(inst.isActive('dungeon-auto-2') ? 'live' : 'reap', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const o = r.orch;
+    // 3존 모두 A → rebalance → A1·B1·C1(균형)·moves 2(z1→B·z2→C).
+    const ok = check(o.hostLoad('hostA') === 1 && o.hostLoad('hostB') === 1 && o.hostLoad('hostC') === 1 && o.rebalanceMoves === 2 && o.placementOf('z3') === 'hostA',
+      `seed ${seed}: rebalance 위반 (A ${o.hostLoad('hostA')}·B ${o.hostLoad('hostB')}·C ${o.hostLoad('hostC')}·moves ${o.rebalanceMoves})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.hostLoad('hostA'), 5)} | ${pad(o.hostLoad('hostB'), 5)} | ${pad(o.hostLoad('hostC'), 5)} | ${pad(o.rebalanceMoves, 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 수요 4로 띄운 던전 중 점유된 auto-1 은 보호되고 빈 auto-2/3/4 만 회수(reaped 3·active 1) — 수요 하락 시 빈 인스턴스를 탄력 축소(0215 spawn 의 거울)하되 플레이어를 쫓지 않는다. 던전 수명주기 회수 절반 완성. 인스턴스 3차 고도화 #2.');
+  console.log('  → 3존이 모두 hostA 에 몰린 불균형(3/0/0)을 자동 트리거가 A1/B1/C1 균형으로 수렴(moves 2·z1→B·z2→C·z3 잔류) — 운영자가 손으로 placeMigrate(0218) 하지 않아도 부하 임계 초과를 오케가 스스로 해소. 부하 분산 자동화. 오케 3차 고도화 #1.');
 }
 
-kit.MODES['instancereap'] = instancereap;
-kit.ORDER.splice(1, 0, 'instancereap');
+kit.MODES['placerebalance'] = placerebalance;
+kit.ORDER.splice(1, 0, 'placerebalance');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
