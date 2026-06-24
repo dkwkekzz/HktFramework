@@ -91,10 +91,18 @@
 4. **영속·failover + 스냅샷 압축** ✅ — 왜: 죽으면 로스터·마스터십 소실 + 저널 무한 성장. / 어떻게: create/join/leave/transfer op durable 저널 replay(파티 0085·가방 0017 판) + snapInterval 스냅샷+tail 압축(파티 0086·가방 0018 판). / 했나: `step-0184~0185`(`svc-guild.js:47,113`·crash→reconstruct 비트 동일·full 8→tail 2 무손실).
 5. **멤버 수 배지 읽기 모델 + 영속 + 정합** ✅ — 왜: 길드 현재 멤버 수를 질의 없이 한눈에. / 어떻게: GuildFeed 가 svc.guild.changed 구독(create=크기·join+1·leave−1·CQRS·발신 0·권위 0·MailFeed 0151 판) + **자기 소비-op 저널 self-persist**(MailFeed #39 와 달리 *자기 저널* replay — 외부 저널 의존 0) + feedConsistent(배지==로스터·고아 0). / 했나: `step-0186~0188`(`svc-guildfeed.js:35,43`·배지==로스터 4체제).
 6. **마스터 이양(single-master 보존 쌍 거래)** ✅ — 왜: master 보호(2)가 마스터를 영구 고정 — 위임 길 없음. / 어떻게: guildTransfer{from,to} = release+acquire 쌍 거래(존 핸드오프 0006·escrow 0117 의 *마스터십* 판) — from 이 master·to 가 멤버일 때만 원자 교체(공백 0·이중 0)·from 잔류·거부 no-op·이양도 저널 replay. / 했나: `step-0189`(`svc-guild.js:88-95`·master x→c1·crash 후 보존).
-7. **정합 capstone(single-master 불변)** ✅ — 왜: 박스 전체가 권위 단일 소유를 깨지 않음을 증명해야. / 어떻게: rosterConsistent(전 길드 정확히 한 master·master∈members·중복 0)를 모든 연산(create/join/leave/transfer)×세 체제(정상·guild crash·feed crash)서 feedConsistent 와 결합 단언(거래소 0140·우편 0180 판). / 했나: `step-0190`(`svc-guild.js:109`·3체제 3/3).
-8. **발행 게이트 통합·길드 bank(escrow)·멀티프로세스** ⬜ — 왜: 거래소+우편+길드 발행 일원화·길드 공유 금고(아이템 우편 0161 escrow 패턴)·host.js 0(#9·#16). / 했나: 미착수.
+7. **정합 capstone(single-master 불변)** ✅ — 왜: 박스 전체가 권위 단일 소유를 깨지 않음을 증명해야. / 어떻게: rosterConsistent(전 길드 정확히 한 master·master∈members·중복 0)를 모든 연산(create/join/leave/transfer)×세 체제(정상·guild crash·feed crash)서 feedConsistent 와 결합 단언(거래소 0140·우편 0180 판). / 했나: `step-0190`(`svc-guild.js:159`·3체제 3/3).
+8. **공유 금고(Guild Bank) — 조직 공유 아이템 원장** 🟡 *자라는 중* — 왜: 길드가 *공유 아이템*(길드 소유 장비·재료)을 멤버끼리 맡기고 꺼내야 — 개인 가방(0014)·거래소 escrow(0117)·우편 custody(0157)의 *조직 공유* 판. / 어떻게(거래소·우편 escrow arc 를 그대로 따른 동형 골격·기능마다 다른 이론):
+   - ⒜ **예치/인출(입출금 쌍)** ✅ — guildDeposit{member,itemId}→vault 적재(집합 멱등·중복 0)·guildWithdraw→제거(실재 itemId·멤버만·멱등 graceful no-op). 권위 단일 소유(itemId 금고 1곳). / `step-0191~0192`(`svc-guild.js:117,128`).
+   - ⒝ **변경 발행** ✅ — 예치/인출 성사를 svc.guild.bank.changed 발행→audit(no-op 발행 0·발행==실변경·거래소 0108·길드 0183 판). / `step-0193`(`svc-guild.js:76`).
+   - ⒞ **영속·failover + 스냅샷 압축** ✅ — deposit/withdraw op durable 저널 replay(0184 로스터 영속의 금고 확장·crash→vault 재구성 비트 동일) + snapInterval 스냅샷에 vault 포함·tail 압축(0185 판·tail 1<full 9 무손실). / `step-0194~0195`(`svc-guild.js:65,180`).
+   - ⒟ **금고 아이템 수 배지 + 영속 + 정합** ✅ — GuildFeed 가 svc.guild.bank.changed 구독→bankCount 배지(deposit+1·withdraw−1·CQRS·발신 0·0186 판) + 자기 저널 replay 영속(kind 분기·0187 판) + bankFeedConsistent(배지==vault·0188 판). / `step-0196~0198`(`svc-guildfeed.js:25,61,70`).
+   - ⒠ **원장 정합 + arc capstone** ✅ — bankConsistent(itemId 단일 길드 소유·교차/내부 중복 0·rosterConsistent 0190 의 *아이템 권위* 판) + bankCapstone(원장+배지 결합·세 체제 3/3·거래소 0140·우편 0180·길드 0190 의 금고 판). / `step-0199~0200`(`svc-guild.js:150,168`).
+   - ⒡ **가방 실연동(escrow 실체화)** ⬜ — 왜: 현 금고는 itemId *문자열*만 보유 — 예치해도 멤버 가방서 안 빠짐(가짜 escrow·아이템 우편 0157~0160 가 0161~0164 로 닫힌 갭의 길드 판·#46). / 했나: 미착수(load-bearing·다음 자연 arc·거래소 0117~0120/우편 0161~0164 동형).
+   - ⒢ **인출 권한 등급·멀티프로세스** ⬜ — 인출이 멤버십만 가드(예치자/rank 무관·#48)·host.js 0(#9)·spine 승격(#16). / 미착수.
+9. **길드 종료(disband)·발행 게이트 통합** ⬜ — 왜: 솔로-마스터 길드 해소 길 0(#44)·거래소+우편+길드 발행 일원화. / 미착수.
 
-**지금 어디 / 다음**: 분리→증분/master 보호→발행→영속/스냅샷→배지/feed 영속/정합→마스터 이양→single-master capstone(0181~0190)까지 — 파티+우편 동형 골격 + 길드 고유 single-master 권위(이양 쌍 거래). SPINE 계층3 길드 박스 *골격 완성*. 다음 = 발행 게이트 통합·길드 bank(escrow)·멀티프로세스 배선(#9)·spine 승격(#16).
+**지금 어디 / 다음**: 분리→증분/master 보호→발행→영속/스냅샷→배지/feed 영속/정합→마스터 이양→single-master capstone(0181~0190)→**공유 금고 arc(0191~0200·예치/인출/발행/영속/스냅샷/배지/원장정합/capstone)**까지 — 파티+우편 동형 골격 + 길드 고유 single-master 권위 + 거래소/우편 escrow 의 *조직 공유* 금고. SPINE 계층3 길드 박스 골격+금고 *완성*(단, 금고는 아직 가방 미연동=가짜 escrow). 다음 = **금고↔가방 실연동(#46·load-bearing)** + 인출 권한(#48)·disband(#44)·멀티프로세스(#9)·spine 승격(#16)·박스 분할(#47·28.8KB).
 
 ## 거래소 서버 🟡 자라는 중 *(실물 거래 → 2-서비스 saga 신뢰 전달·원자성)*
 
