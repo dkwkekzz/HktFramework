@@ -220,8 +220,8 @@ function run(opts) {
     if (opts.cacheOps && cache) for (const co of [].concat(opts.cacheOps)) if (co.at === i + 1) net.send(co.from || 'gateway', 'cache', co.op);
     // 월드 intent 주입(step-0207·worldOps) — at tick 에 존/게이트웨이가 WorldLog 에 worldAppend(intent 로그 적층). worldlog 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.worldOps && worldlog) for (const wo of [].concat(opts.worldOps)) if (wo.at === i + 1) net.send(wo.from || 'zone1', 'worldlog', wo.op);
-    // 로그인 큐 명령 주입(step-0209·loginOps) — at tick 에 클라/게이트웨이가 LoginQueue 에 loginEnqueue/loginDequeue(줄서기·입장 허가). loginqueue 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
-    if (opts.loginOps && loginqueue) for (const lo of [].concat(opts.loginOps)) if (lo.at === i + 1) net.send(lo.from || 'gateway', 'loginqueue', lo.op);
+    // 로그인 큐 명령 주입(step-0209·loginOps) — at tick 에 클라/게이트웨이가 LoginQueue 에 loginEnqueue/loginDequeue/loginExpire. tick 동봉(0210 만료 기준·우편 mailOps 패턴). loginqueue 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.loginOps && loginqueue) for (const lo of [].concat(opts.loginOps)) if (lo.at === i + 1) loginqueue.onMsg({ from: lo.from || 'gateway', payload: lo.op, tick: i + 1 });
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
