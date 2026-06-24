@@ -20,6 +20,8 @@
 |---|---|---|
 | **이론 전체 지도** | [Concepts/README.md](Concepts/README.md) | 14개 분기의 tree/DAG · 의존 관계 · 읽는 순서 |
 | **분기별 심화** | `Concepts/NN-*.md` | 한 분기 = 한 문서. 정의 → 이론·수식 → 알고리즘 → 실무 → 트레이드오프 |
+| **Chaos 코드 분석 지도** | [Chaos/README.md](Chaos/README.md) | UE 5.7 내장 엔진 Chaos 소스 분석 트랙 — 모듈 지형 · 학습 DAG(C00~C17) · 이론↔구현 1:1 |
+| **Chaos 챕터별 심화** | `Chaos/CNN-*.md` | 한 챕터 = 한 서브시스템. 책임 → 진입점(파일:라인) → 데이터 흐름 → 알고리즘 해부 → 결정론/스레딩 |
 
 ## 작업 원칙
 

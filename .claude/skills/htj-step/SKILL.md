@@ -59,6 +59,7 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 **(b) 눈 — 시뮬레이션 캡처 (범용 러너·per-step capture.js 폐지)**
 - 이 step 의 세계를 **화면으로 캡처**한다. 산출물: `steps/step_NNNN/capture.png`(보통 시간 경과 4 프레임). **§2 의 시나리오 모듈에서 바로 뽑는다**: `node HTJ/tools/htj-render-capture.js NNNN` — 범용 러너가 `viewer/scenes/step_NNNN.js`(viewer 라이브와 *같은 한 벌*)를 읽어 `init→advance` 를 `frames` 마크까지 굴리고 각 마크에서 `toFrame(w)` 을 모아 `tools/htj-capture.js` 로 PNG 를 쓴다. **per-step `capture.js` 를 새로 짜지 않는다** — 장면은 시나리오 모듈에, PNG 보일러플레이트는 `htj-capture.js` 에 이미 있다(`writeFramesPNG`). (chromium+playwright 가 있으면 viewer 캔버스 *픽셀 동일* 스크린샷도 가능하나 통상 부재 → 범용 러너가 *세계 동일* PNG. design/scene-unify.md §3.)
 - 캡처가 *수치 검증의 가설과 일치하는지* 눈으로 확인한다 — verify 가 주장하는 바가 화면에 실제로 보여야 한다. 어긋나면 멈추고 논의한다.
+- 캡처한 내용을 사용자에게 보여준다.
 
 ## 4. 기록 — steps/step_NNNN/ + STATE.md
 
