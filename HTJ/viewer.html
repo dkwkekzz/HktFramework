@@ -1305,6 +1305,44 @@
         for (const p of wat) p.peak = 0.35 + 0.55 * (p.cz - zmin) / (zmax - zmin + 1e-9);
       },
       note: '<b>물(SPH 입자 떼)이 지형 분지에 떨어져 고여 *수평 수면*을 이룬다</b> — 환경 트랙 TW2(바다). <b>▶ 무엇</b>(design/environment.md §3 TW2): 0026~ 동역학·0040~ SPH 물리 스택(밀도·압력·점성…)은 섰지만, <b>물이 *지형*(정적 앵커·0056/0059)을 느끼는 결합</b>이 없어 물이 지형을 그냥 통과했다. 이 step 의 <b>새 엔진 법칙 sphBoundaryForce</b> 가 그 *유일하게 빠진 벽돌* = <b>SPH↔앵커 경계</b>: 물 입자가 앵커 구 표면 안으로 파고들면 <b>바깥으로 반발</b>(Hooke)하고, 파고드는 법선 운동은 <b>감쇠→열</b>(낙하 KE 가 식음). <b>창발</b>: 그러면 <b>중력</b>(아래)+<b>SPH 압력</b>(0041·물끼리 밀어 퍼짐)이 물을 분지(바닥+테 앵커) 안에 <b>고여 수평 표면(등z=등퍼텐셜)</b>으로 평형시킨다 — author 한 건 분지 골격뿐, *수면이 평평해지는 건 법칙이 굴러간 결과*. <b>왜 중요한가</b>: "선 캐릭터=중력↓+접촉↑"의 <b>접촉</b>을 고체(0037)에서 <b>유체(물)</b>로 옮긴 것 — 지형 위에 비로소 <b>물</b>이 얹힌다(딛는 땅 다음 = 바다·호수). <b>앵커=무한 질량 외부 경계</b>(environment §1·0056 정신): 충격을 흡수하고 위치 불변(지구처럼) → 물의 운동량은 그 경계로 빠진다(닫힌계의 *예외 아닌 극한*). <b>보존</b>: 질량 불변·낙하 KE→internalE(열) 비가역 소산(엔트로피↑)·앵커 표면 밖 입자=완전 불변(항등). <b>정직한 한계</b>: 분지 골격은 손수 배치(절차 생성 아님)·작은 패치 규모(끝없는 바다 = TW4 LOD)·물↔지형 일방 결합(지형 정적·침식/깎임 없음)·SPH 표면이 입자 스케일로 울퉁(연속 수면 근사). 다음 환경 벽돌: 강 TW3(경사 따라 흐름·경로 창발)·광활 LOD TW4.'
+    },
+
+    // ── step_0061 — M1 신뢰성 병합: 정착한 알맹이들이 한 개체로 coalesce(수박게임·merge-dna.md §4 M1) ──
+    //   새 엔진 법칙 coalesceSettled(정착 게이트 병합). 닿아 가라앉은(느림·동결) 인접 개체를 연결 성분 통째로
+    //   한 개체로 합친다(mergeGroup 재사용·4 보존량 정확·앵커 제외). 접촉(0037)이 못 합치던 복잡 클러스터 정리.
+    '0061': {
+      label: 'step_0061 — M1 신뢰성 병합(정착한 알맹이들이 한 개체로·수박게임)', title: 'HTJ — M1: 닿아 정착한 알맹이들이 확실히 한 개체로 coalesce',
+      sub: '지면(앵커) 위 작은 구체들이 떨어져 쌓이고, 가라앉아 정착(지속적으로 느림=동결)하면 새 법칙 coalesceSettled 가 인접 덩어리를 한 개체로 합친다(수박게임). 병합·형태 DNA 트랙 M1. 보존: 질량·운동량·각운동량·총E(mergeGroup 0036 재사용)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const GR = N * 0.26, sr = N * 0.05;
+        const mk = (cx, cy, cz, m, r, anc) => ({ cx, cy, cz, mass: m, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 5, energy: 5, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.15, anchored: !!anc });
+        const ents = [mk(cen, cen, cen, 6e4, GR, true)];        // 지면(앵커)
+        const gold = Math.PI * (3 - Math.sqrt(5));
+        for (let i = 0; i < 14; i++) { const yf = 1 - (i + 0.5) / 14 * 2, rr = Math.sqrt(Math.max(0, 1 - yf * yf)), th = gold * i;
+          ents.push(mk(cen + Math.cos(th) * rr * N * 0.40, cen + yf * N * 0.40, cen + Math.sin(th) * rr * N * 0.40, 70, sr)); }
+        w.__entities = ents; w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz })); w.__sr = sr;
+        w.__gopt = { G: 8e-4, soft: Math.max(2, N * 0.08) }; w.__copt = { k: 15, cDamp: 40 }; w.__fopt = { k: 15, mu: 0.9 };
+        w.__mopt = { dwell: 30, vSettle: N * 0.012, vstick: N * 0.03, pad: N * 0.04 };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        let es = w.__entities;
+        HTJEntity.applyEntityGravity(es, 0.25, w.__gopt);         // 지면 쪽으로(0028)
+        HTJEntity.applyEntityContact(es, 0.25, w.__copt);         // 접촉 반발+감쇠(0037)
+        HTJEntity.applyEntityFriction(es, 0.25, w.__fopt);        // 마찰(0057)
+        HTJEntity.stepEntities(es, 0.25);
+        es = HTJEntity.coalesceSettled(es, 0.25, w.__mopt).entities;  // 정착한 인접 덩어리 → 한 개체(이 step·M1)
+        w.__entities = es;
+        const sv = w.__saved;                                    // 지면 앵커 고정(정적·앵커는 병합 제외)
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; }
+        // 색 = 크기 tier(작은 알=어두움·합친 큰 개체=밝음) → 수박게임 병합이 색으로 보인다.
+        for (const e of es) e.peak = e.anchored ? 0.12 : Math.max(0.18, Math.min(1, (e.radius - w.__sr) / (2.4 * w.__sr) * 0.82 + 0.18));
+      },
+      note: '<b>닿아 정착한 작은 알맹이들이 확실히 한 개체로 합쳐진다</b>(수박게임) — 병합·형태 DNA 트랙 M1. <b>▶ 무엇</b>(design/merge-dna.md §4 M1): 세계가 커지면 원소를 하나하나 다 굴릴 수 없어 <b>뭉친 건 한 개체로 병합</b>해야 한다. 그런데 기존 합치기(0036)는 *순간* 상대속도(vstick)로만 판정해, 접촉(0037 반발)이 떼어놓고 잔여 진동이 있는 인접 덩어리는 <b>닿아만 있고 안 합쳐졌다</b>(같은 종류라도 복잡한 알맹이 클러스터로 남음). 이 step 의 <b>새 엔진 법칙 coalesceSettled</b> 는 판정을 <b>지속 정착</b>으로 바꾼다: 개체마다 "느린 step 연속 수(settle)"를 세고, 두 개체가 <b>둘 다 충분히 오래 정착(settle≥dwell)</b>하고 닿아 있고 상대운동이 느릴 때만 묶어 <b>연결 성분 통째로</b> 합친다(=0025 활동도/동결 판정의 개체 병합 판). <b>흐름</b>: 지면 위로 14알이 떨어져 → 접촉으로 쌓이고 → 가라앉아 멈추면(정착) → 한 개체로 합쳐진다(반경↑·색이 밝아짐=수박게임 tier). <b>왜 이렇게</b>: 붕괴 도중 순간적으로 느려진 쌍을 *성급히* 안 합치고(dwell 대기), 정말 가라앉은 덩어리만 합쳐 <b>안정적으로 한 개체</b>가 된다. <b>보존</b>: 병합 산술은 mergeGroup(0036) 재사용 → <b>질량·운동량·각운동량(원점)·총E 정확 보존</b>. <b>정적 앵커(지면)는 병합 제외</b>(지형은 안 합쳐짐). <b>왜 중요한가</b>: 이게 "뭉치면 한 개체"(확장성)의 토대 — 다음 M2 에서 합친 개체에 <b>형태 hash(DNA)</b>를 붙여, 큰 원이 아니라 *원래 모양*을 세계 형태 사전에서 복원하게 한다(M3 렌더). <b>정직한 한계</b>: 정착 판정이 <b>절대속도</b> 기준(세계 정지계·자유 공간 comoving 덩어리엔 상대속도 판정이 맞음·후속)·합친 개체는 아직 <b>민둥 구</b>(모양 보존은 M2~M3 형태 DNA)·dwell·vSettle 은 장면 노브.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }

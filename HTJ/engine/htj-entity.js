@@ -539,5 +539,62 @@
     return { entities: out, coarsened, refined };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, VERSION: 8 };
+  // ── M1 신뢰성 있는 인접 병합 — 닿아 *정착*(지속적으로 느림=동결)한 개체를 한 개체로 coalesce ──────────
+  //   design/merge-dna.md §4 M1 — 합치기(0036 mergeEntities)는 *순간* 상대속도(vstick)로 판정한다. 그래서
+  //   접촉(0037 반발)이 평형 overlap 으로 떼어놓고 잔여 진동이 있는 인접 덩어리는, 닿아 있어도 *붙어만 있고
+  //   coalesce 안 한다*(같은 종류라도 복잡한 알맹이 클러스터로 남음 — 사용자 관찰). 이 법칙은 그 판정을 *지속
+  //   정착*으로 바꾼다: 개체마다 "느린 step 연속 수"(settle)를 세고, 두 개체가 **둘 다 충분히 오래 정착**
+  //   (settle≥dwell)하고 닿아 있고 상대운동이 느릴 때만 묶어 합친다 = **0025 활동도(동결 판정)의 개체 병합 판**.
+  //   덕분에 (ㄱ) 붕괴 도중 순간적으로 느려진 쌍을 *성급히* 안 합치고(정착 dwell 대기) (ㄴ) 정말 가라앉아 멈춘
+  //   덩어리는 *확실히* 한 개체가 된다(연결 성분 통째로). 병합 산술은 mergeGroup(0036) 재사용 → 질량·운동량·
+  //   각운동량(원점)·총E 정확 보존. 정적 앵커(anchored)는 제외(지형은 안 합쳐짐). 합친 개체는 settle=dwell 계승
+  //   (즉시 재트리거 없음). dwell≤0 → early-return(정착 카운터도 안 건드림·회귀 0). 신규 함수라 기존 호출처 0.
+  //     settle_i ← (|v_i| ≤ vSettle) ? settle_i+1 : 0;  쌍(i,j): settle≥dwell ∧ 닿음(≤Σr+pad) ∧ |v_rel|≤vstick → union
+  //   opts: { dwell(정착 임계 step·0→early-return·회귀0 의미無=신규), vSettle(느림 임계 0.1), vstick(상대 0.5), pad(0.5) }.
+  function coalesceSettled(entities, dt, opts) {
+    opts = opts || {};
+    const dwell = opts.dwell != null ? opts.dwell : 0;
+    const n = entities.length;
+    if (dwell <= 0 || n < 2) return { entities: entities.slice(), merges: 0 };   // 노브=0 → 회귀 0(세계 불변)
+    const vSettle = opts.vSettle != null ? opts.vSettle : 0.1;
+    const vstick = opts.vstick != null ? opts.vstick : 0.5;
+    const pad = opts.pad != null ? opts.pad : 0.5;
+    // ① 정착 카운터 — 느리면 +1, 빠르면 0(동결 판정·0025 활동도의 개체 판). 앵커는 늘 정지지만 ②에서 제외.
+    for (let i = 0; i < n; i++) {
+      const e = entities[i];
+      const v = e.mass > EPS ? Math.sqrt(e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.settle = (v <= vSettle) ? ((e.settle || 0) + 1) : 0;
+    }
+    // ② union-find — 둘 다 정착(settle≥dwell)·닿음·느린 상대운동·비앵커 쌍을 연결 성분으로(root=최소 인덱스·결정론).
+    const parent = new Array(n); for (let i = 0; i < n; i++) parent[i] = i;
+    function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    function union(a, b) { const ra = find(a), rb = find(b); if (ra === rb) return; if (ra < rb) parent[rb] = ra; else parent[ra] = rb; }
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      if (a.anchored || b.anchored) continue;                          // 정적 지형은 안 합쳐짐
+      if ((a.settle || 0) < dwell || (b.settle || 0) < dwell) continue; // 아직 충분히 정착 안 함
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist > a.radius + b.radius + pad) continue;                   // 안 닿음
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      const rvx = b.px / mb - a.px / ma, rvy = b.py / mb - a.py / ma, rvz = b.pz / mb - a.pz / ma;
+      if (Math.sqrt(rvx * rvx + rvy * rvy + rvz * rvz) > vstick) continue;  // 너무 빠른 상대운동(충돌)
+      union(i, j);
+    }
+    // ③ 연결 성분별 병합(mergeGroup 재사용·4 보존량 정확). 단일 성분은 그대로.
+    const groups = new Map();
+    for (let i = 0; i < n; i++) { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(i); }
+    const roots = Array.from(groups.keys()).sort((a, b) => a - b);
+    const out = []; let merges = 0;
+    for (const r of roots) {
+      const g = groups.get(r);
+      if (g.length === 1) { out.push(entities[g[0]]); continue; }
+      const m = mergeGroup(entities, g);
+      m.settle = dwell;                                                 // 합친 개체는 정착 상태 계승(즉시 재트리거 방지)
+      out.push(m); merges++;
+    }
+    return { entities: out, merges };
+  }
+
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 9 };
 });
