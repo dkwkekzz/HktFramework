@@ -550,7 +550,8 @@
   //   각운동량(원점)·총E 정확 보존. 정적 앵커(anchored)는 제외(지형은 안 합쳐짐). 합친 개체는 settle=dwell 계승
   //   (즉시 재트리거 없음). dwell≤0 → early-return(정착 카운터도 안 건드림·회귀 0). 신규 함수라 기존 호출처 0.
   //     settle_i ← (|v_i| ≤ vSettle) ? settle_i+1 : 0;  쌍(i,j): settle≥dwell ∧ 닿음(≤Σr+pad) ∧ |v_rel|≤vstick → union
-  //   opts: { dwell(정착 임계 step·0→early-return·회귀0 의미無=신규), vSettle(느림 임계 0.1), vstick(상대 0.5), pad(0.5) }.
+  //   opts: { dwell(정착 임계 step·0→early-return·회귀0 의미無=신규), vSettle(느림 임계 0.1), vstick(상대 0.5), pad(0.5),
+  //           tagMerge(members)=>any (M2 형태 DNA 훅·옵션·미지정=태깅 안 함=0061 동일) — 합친 개체 m.shapeHash 에 반환값 부착 }.
   function coalesceSettled(entities, dt, opts) {
     opts = opts || {};
     const dwell = opts.dwell != null ? opts.dwell : 0;
@@ -591,10 +592,11 @@
       if (g.length === 1) { out.push(entities[g[0]]); continue; }
       const m = mergeGroup(entities, g);
       m.settle = dwell;                                                 // 합친 개체는 정착 상태 계승(즉시 재트리거 방지)
+      if (opts.tagMerge) m.shapeHash = opts.tagMerge(g.map(i => entities[i]));  // (M2) 형태 DNA 태깅 훅(옵션·미지정=0061 동일)
       out.push(m); merges++;
     }
     return { entities: out, merges };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 9 };
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 10 };
 });
