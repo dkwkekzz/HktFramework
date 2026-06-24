@@ -113,7 +113,10 @@
   //   · 질량가중 평균 가속 ā(격자+입자 *모두* 포함) 차감 → 순 운동량 *정확* 보존(뉴턴 3법칙·NGP 적치/수집 대칭).
   //   · 입자 없음 → 0007 applyGravity 와 byte 동일(ρ⁺=ρ_grid·회귀 0). G=0 또는 dt=0 → 항등(early return).
   //   · 입자는 generic 구체(cx,cy,cz,mass,px,py,pz)만 안다 — 타입 무지(절대 원칙: engine 에 타입 분기 없음).
-  //   world(격자·제자리 가속)+particles(제자리 가속)·dt·opts{ G, field, iters, reset }. 반환 world.
+  //   **적치/수집 스텐실(opts.cic)** — 기본 NGP(nearest, 셀 해상도·blocky)·`cic:true` → CIC(cloud-in-cell·trilinear·
+  //     셀 사이 8 셀에 부피 가중 분배·*같은* 가중으로 힘 수집 → 부드러운 sub-cell 격자력). 둘 다 적치·수집이 *대칭*이라
+  //     평균 가속 차감으로 순 운동량 정확 보존(scheme 무관). cic 안 줌 → NGP = 0078 byte 동일(회귀 0).
+  //   world(격자·제자리 가속)+particles(제자리 가속)·dt·opts{ G, field, iters, reset, cic }. 반환 world.
   function applyParticleMeshGravity(world, particles, dt, opts) {
     opts = opts || {};
     particles = particles || [];
@@ -124,15 +127,28 @@
     const rho = world.fields[opts.field || RHO];
     const gx = ensure(world, MX), gy = ensure(world, MY), gz = ensure(world, MZ);
     const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
-    const cellOf = (p) => (clamp(Math.round(p.cz || 0)) * N + clamp(Math.round(p.cy || 0))) * N + clamp(Math.round(p.cx || 0));
-    // ① 결합 밀도 ρ⁺ = ρ_grid + NGP(parts) → scratch 장. 입자 없으면 ρ_grid 복사(항등).
+    const wrap = (a) => (a + N) % N;
+    // 적치/수집 스텐실 — 입자 위치 → [[cellIndex, weight], …] (Σweight=1). NGP=단일 셀·CIC=8 셀 trilinear.
+    function stencil(p) {
+      if (!opts.cic) return [[(clamp(Math.round(p.cz || 0)) * N + clamp(Math.round(p.cy || 0))) * N + clamp(Math.round(p.cx || 0)), 1]];
+      const px = p.cx || 0, py = p.cy || 0, pz = p.cz || 0;
+      const x0 = Math.floor(px), y0 = Math.floor(py), z0 = Math.floor(pz), fx = px - x0, fy = py - y0, fz = pz - z0;
+      const out = [];
+      for (let dz = 0; dz < 2; dz++) { const wz = dz ? fz : 1 - fz, zz = wrap(z0 + dz);
+        for (let dy = 0; dy < 2; dy++) { const wy = dy ? fy : 1 - fy, yy = wrap(y0 + dy);
+          for (let dx = 0; dx < 2; dx++) { const wx = dx ? fx : 1 - fx, xx = wrap(x0 + dx);
+            const w = wx * wy * wz; if (w !== 0) out.push([(zz * N + yy) * N + xx, w]); } } }
+      return out;
+    }
+    const stencils = new Array(particles.length);
+    for (let n = 0; n < particles.length; n++) stencils[n] = stencil(particles[n]);
+    // ① 결합 밀도 ρ⁺ = ρ_grid + scatter(parts·스텐실) → scratch 장. 입자 없으면 ρ_grid 복사(항등).
     const src = ensure(world, PMRHO);
     src.set(rho);
-    for (let n = 0; n < particles.length; n++) src[cellOf(particles[n])] += (particles[n].mass || 0);
+    for (let n = 0; n < particles.length; n++) { const m = particles[n].mass || 0, st = stencils[n]; for (let c = 0; c < st.length; c++) src[st[c][0]] += m * st[c][1]; }
     // ② 결합 밀도로 단 하나의 Poisson Φ (격자·입자가 같은 퍼텐셜).
     solvePotential(world, { field: PMRHO, iters: opts.iters, reset: opts.reset });
     const phi = world.fields[PHI];
-    const wrap = (a) => (a + N) % N;
     // ③ a=−∇Φ (중심차분·주기) + 질량가중 평균 가속 ā(격자+입자 모두 → 순 운동량 정확 보존).
     const ax = world.scratch.__pmax || (world.scratch.__pmax = new Float64Array(L));
     const ay = world.scratch.__pmay || (world.scratch.__pmay = new Float64Array(L));
@@ -146,9 +162,13 @@
       ax[i] = fx; ay[i] = fy; az[i] = fz;
       Sx += rho[i] * fx; Sy += rho[i] * fy; Sz += rho[i] * fz; M += rho[i];
     }
+    // 입자별 가속 a@p = Σ w·a[cell] (스텐실 수집) — 적치와 *같은* 가중(대칭).
+    const pax = new Float64Array(particles.length), pay = new Float64Array(particles.length), paz = new Float64Array(particles.length);
     for (let n = 0; n < particles.length; n++) {
-      const p = particles[n], m = p.mass || 0, i = cellOf(p);
-      Sx += m * ax[i]; Sy += m * ay[i]; Sz += m * az[i]; M += m;
+      const m = particles[n].mass || 0, st = stencils[n]; let gxa = 0, gya = 0, gza = 0;
+      for (let c = 0; c < st.length; c++) { const i = st[c][0], w = st[c][1]; gxa += w * ax[i]; gya += w * ay[i]; gza += w * az[i]; }
+      pax[n] = gxa; pay[n] = gya; paz[n] = gza;
+      Sx += m * gxa; Sy += m * gya; Sz += m * gza; M += m;
     }
     const abx = M > EPS ? Sx / M : 0, aby = M > EPS ? Sy / M : 0, abz = M > EPS ? Sz / M : 0;
     const k = dt * G;
@@ -159,9 +179,9 @@
     }
     // ⑤ 입자 가속(+ KEcm/energy 재계산·0033 규약).
     for (let n = 0; n < particles.length; n++) {
-      const p = particles[n], m = p.mass || 0, i = cellOf(p);
+      const p = particles[n], m = p.mass || 0;
       if (p.px == null) p.px = 0; if (p.py == null) p.py = 0; if (p.pz == null) p.pz = 0;
-      p.px += k * m * (ax[i] - abx); p.py += k * m * (ay[i] - aby); p.pz += k * m * (az[i] - abz);
+      p.px += k * m * (pax[n] - abx); p.py += k * m * (pay[n] - aby); p.pz += k * m * (paz[n] - abz);
       if (p.internalE == null) p.internalE = (p.energy || 0) - (p.KEcm || 0);
       p.KEcm = m > EPS ? 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m : 0;
       p.energy = p.KEcm + p.internalE;
@@ -232,5 +252,5 @@
   function mulberry(seed) { let a = seed >>> 0; return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
   return { solvePotential, applyGravity, applyParticleMeshGravity, kineticEnergy, poissonResidual, seedTwoMasses, seedPerturbedUniform,
-           RHO, PHI, MX, MY, MZ, DEFAULT_G, DEFAULT_ITERS, VERSION: 2 };
+           RHO, PHI, MX, MY, MZ, DEFAULT_G, DEFAULT_ITERS, VERSION: 3 };
 });
