@@ -1,8 +1,8 @@
-// HktInfra step-0193 — 헤드리스 검증 (길드 금고 변경 발행·guildBankPublish·svc.guild.bank.changed)
+// HktInfra step-0194 — 헤드리스 검증 (길드 금고 영속·failover·guildPersist 의 금고 확장)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildbankpublish`.
-//   더한 한 조각: 예치/인출 성사 시 svc.guild.bank.changed{guildId,kind,itemId,member} 발행 → audit 구독. no-op 은 발행 안 함(발행==실 변경). bankPublish OFF·bus 부재면 0192 비트 동일(reg). 거래소 0108·길드 변경 발행 0183 의 금고 판.
-//   검증: ⒜ `reg`(키트) — 0192 비트 동일. ⒝ `guildbankpublish`(가설) — 발행 수==audit 수신==실 변경 수·no-op 발행 0·OFF 발행 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildbankpersist`.
+//   더한 한 조각: 예치/인출을 변경 저널에 append, crash(vault 소실) 후 reconstruct 가 저널 replay 로 vault 재구성 → 비트 동일. guildPersist OFF 면 crash 후 빈 금고(소실) = 0193 비트 동일(reg). 0184 로스터 영속의 금고 확장.
+//   검증: ⒜ `reg`(키트) — 0193 비트 동일. ⒝ `guildbankpersist`(가설) — crash→reconstruct vault==pre·OFF 면 소실(빈 금고).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -18,32 +18,33 @@ const { check, pad } = kit.helpers;
 const GCREATE = (at, guildId, master, members) => ({ at, op: { type: 'guildCreate', guildId, master, members } });
 const GDEPOSIT = (at, guildId, member, itemId) => ({ at, op: { type: 'guildDeposit', guildId, member, itemId } });
 const GWITHDRAW = (at, guildId, member, itemId) => ({ at, op: { type: 'guildWithdraw', guildId, member, itemId } });
-// 시나리오: 결성·예치 2(성사)·중복 예치(no-op)·인출 1(성사)·없는 인출(no-op)·비멤버 예치(no-op) → 실 변경 3.
 const OPS = [
   GCREATE(2, 'g1', 'x', ['x', 'c1', 'c2']),
-  GDEPOSIT(4, 'g1', 'x', 'sword'), GDEPOSIT(5, 'g1', 'c1', 'shield'),
-  GDEPOSIT(6, 'g1', 'x', 'sword'),       // 중복 → 발행 안 함.
-  GWITHDRAW(7, 'g1', 'c2', 'sword'),     // 성사 → 발행.
-  GWITHDRAW(8, 'g1', 'c1', 'gem'),       // 없는 itemId → 발행 안 함.
-  GDEPOSIT(9, 'g1', 'c9', 'gem'),        // 비멤버 → 발행 안 함.
+  GDEPOSIT(4, 'g1', 'x', 'sword'), GDEPOSIT(5, 'g1', 'c1', 'shield'), GDEPOSIT(6, 'g1', 'c2', 'potion'),
+  GWITHDRAW(8, 'g1', 'c2', 'sword'),     // 인출 1 → 최종 vault [shield, potion].
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildBank: true, audit: true };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildBank: true };
+const sig = v => JSON.stringify(v.slice().sort());
 
-function guildbankpublish(seeds) {
-  console.log('== guildbankpublish: 금고 변경(예치/인출) 발행 — svc.guild.bank.changed 를 audit 가 구독. no-op(중복·없는 인출·비멤버) 발행 안 함(발행==실 변경). OFF 면 발행 0. 거래소 0108·길드 변경 발행 0183 의 금고 판. ==');
-  console.log('seed   | ON pub | audit rx | OFF pub | pub==rx==실변경3 | 판정');
+function guildbankpersist(seeds) {
+  console.log('== guildbankpersist: 금고 영속·failover — 예치/인출 변경 저널 replay. crash(vault 소실)→reconstruct==죽기 전. OFF 면 소실(빈 금고). 0184 로스터 영속의 금고 확장. ==');
+  console.log('seed   | pre vault           | post(reconstruct)   | OFF post | ON복원·OFF소실 | 판정');
   for (const seed of seeds) {
-    const on = run({ seed, ticks: 11, ...BASE, guildBankPublish: true, guildOps: OPS });
-    const off = run({ seed, ticks: 11, ...BASE, guildBankPublish: false, guildOps: OPS });
-    const rx = on.audit.seen.get('svc.guild.bank.changed') || 0;
-    const okShape = on.guild.bankPublished === 3 && rx === 3 && off.guild.bankPublished === 0;
-    const ok = check(okShape, `seed ${seed}: 발행 위반 (ON ${on.guild.bankPublished}·rx ${rx}·OFF ${off.guild.bankPublished})`);
-    console.log(`${pad(seed, 6)} | ${pad(on.guild.bankPublished, 6)} | ${pad(rx, 8)} | ${pad(off.guild.bankPublished, 7)} | ${pad(okShape ? '예' : '아니오', 16)} | ${ok ? 'OK' : 'FAIL'}`);
+    const on = run({ seed, ticks: 10, ...BASE, guildPersist: true, guildOps: OPS });
+    const pre = on.guild.bankOf('g1').slice();
+    on.guild.crash(); on.guild.reconstruct();
+    const post = on.guild.bankOf('g1');
+    const off = run({ seed, ticks: 10, ...BASE, guildPersist: false, guildOps: OPS });
+    off.guild.crash(); off.guild.reconstruct();
+    const offPost = off.guild.bankOf('g1');
+    const okShape = sig(pre) === sig(post) && pre.length === 2 && offPost.length === 0;   // ON 복원·OFF 소실.
+    const ok = check(okShape, `seed ${seed}: 영속 위반 (pre ${sig(pre)}·post ${sig(post)}·off ${offPost.length})`);
+    console.log(`${pad(seed, 6)} | ${pad(sig(pre), 19)} | ${pad(sig(post), 19)} | ${pad(offPost.length, 8)} | ${pad(okShape ? '예' : '아니오', 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 실제 금고 변동(예치 2·인출 1 = 3)만 svc.guild.bank.changed 로 발행되고 발행자 무수정 소비자(audit)가 정확히 그 수를 수신(pub==rx==3). no-op(중복 예치·없는 인출·비멤버)은 발행 안 함 → 발행==실 변경. OFF 면 발행 0(0192 비트 동일). 거래소 체결 발행 0108·길드 멤버십 변경 발행 0183 의 금고 판.');
+  console.log('  → 금고 vault 는 휘발(projection)·변경 저널은 durable. crash 로 vault 가 소실돼도 fresh 박스가 deposit/withdraw 저널을 seq 순 replay 해 금고를 재구성 → 죽기 전과 비트 동일(예치 3·인출 1 = vault [shield,potion]). guildPersist OFF 면 저널 0·crash 후 빈 금고(소실). 0184 로스터/마스터십 영속의 금고 확장 — 같은 저널·같은 replay 루프.');
 }
 
-kit.MODES['guildbankpublish'] = guildbankpublish;
-kit.ORDER.splice(1, 0, 'guildbankpublish');
+kit.MODES['guildbankpersist'] = guildbankpersist;
+kit.ORDER.splice(1, 0, 'guildbankpersist');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
