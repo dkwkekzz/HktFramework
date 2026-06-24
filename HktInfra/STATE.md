@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0190](step-0190.md) — **길드 정합 capstone**(rosterConsistent·single-master·**guild arc 0181~0190 닫힘**): 전 길드 한 master·master∈members·중복 0 AND feedConsistent. 연산(create/join/leave/transfer)×세 체제(정상·guild crash·feed crash) 성립. 거래소 0140·우편 0180 의 길드 판. SPINE 계층3 길드 박스 완성. 닿는 박스: svc-guild.
-- **한 줄 상태**: reg ALL OK·guildcapstone: 3체제 3/3·g1 이양 c2·g2 거부 c4·spine OK.
-- **다음**: §2 — 길드 후속(발행 게이트 통합·길드 bank escrow)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0191](step-0191.md) — **길드 금고(Guild Bank) deposit**(guildBank·guildDeposit·**bank arc 0191~0200 출발**): 길드 공유 아이템 원장(vault: guildId→[itemId]). 멤버가 아이템 예치(멤버만·집합 멱등·중복 0·권위 단일 소유). 거래소 escrow 0117·우편 custody 0157 의 *조직 공유* 판. 닿는 박스: svc-guild·topo-build.
+- **한 줄 상태**: reg ALL OK·guildbank: g1 vault [sword,shield]·deposits 5·중복 0·spine OK.
+- **다음**: §2 — bank withdraw(0192)→발행→영속→배지→정합 capstone·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드(Guild) arc(0181~0190) ✅ 닫힘 = 파티+우편 동형(분리·증분·발행·영속·스냅샷·배지·feed·정합·이양·single-master capstone). SPINE 계층3 길드 박스 완성. 다음 후보: 발행 게이트 통합·길드 bank(escrow)·비동기 결정론🔴. 🔎 0181~0190 묶음 리뷰 적기.**
+**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit ✅. 다음: withdraw(0192)→bank 변경 발행(0193)→bank 영속·failover(0194)→저널 스냅샷 압축(0195)→bank 배지 읽기 모델(0196)→배지 영속(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -36,7 +36,7 @@
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0029·0085·0184). 버스 라우팅 영속 0. |
-| 🟡 | **거래소·우편·랭킹·길드 ✅** | 서비스 | 거래소(0107~0140)·우편(0142~0180)·길드(0181~0190·로스터/마스터십/배지/이양·single-master) 동형. 발행 게이트 통합·길드 bank 후속. |
+| 🟡 | **거래소·우편·랭킹·길드 ✅·길드 금고 진행** | 서비스 | 거래소(0107~0140)·우편(0142~0180)·길드(0181~0190·로스터/마스터십/배지/이양·single-master) 동형. 길드 금고(0191~·공유 아이템 원장 deposit). 가방 escrow 연동 후속. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
@@ -74,7 +74,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+게이트웨이 producer 네임스페이스(0046). 대기열·만료·재접속·게이트웨이 군 풀 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제·동결 Sim+AOI+분할·핸드오프(소유자=1)+증분 AOI+복원+failover+별 프로세스+추종자 재충원(0001~0013). 비트-결정론은 C++ 승격서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양·single-master). 발행 게이트 통합·길드 bank 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~·공유 아이템 원장). 가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→읽기모델 복구→채팅 영속→홉 신뢰→failover/N-replica quorum→윈도+유계 K(0017~0062). fsync·월드/버스 영속 후속 |
@@ -272,13 +272,14 @@
 | [0178](step-0178.md) | 우편 saga 재admission 횟수 상한(mailReadmitMax·0137 판) | 통과 · 무제한 2/0·상한1 1/1 영구실패 차단 |
 | [0179](step-0179.md) | 우편 saga 영구 실패 발행(mailFailPublish·0138 판) | 통과 · ON pub/audit 1/1==permFailed |
 | [0180](step-0180.md) | 우편 saga liveness 정합 capstone(sagaLivenessConsistent·0140 판·arc 0166~0180 닫기) | 통과 · 네 체제 분할 4/4 |
-| [0181](step-0181.md) | 길드 서비스 분리(guildService·GuildService·로스터+마스터십 SSOT·single-master·파티 0075 영속 조직 판) | 통과 · 길드 2·single-master 5/5·회신==SSOT |
-| [0182](step-0182.md) | 길드 증분 가입/탈퇴(guildJoin/guildLeave·멱등·master 보호·파티 0084 길드 판) | 통과 · 로스터 [x,c2]·master 유지 5/5 |
-| [0183](step-0183.md) | 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed·파티 0084 길드 판) | 통과 · published 3==audit 3==실변경·OFF 0 |
-| [0184](step-0184.md) | 길드 영속·failover(guildPersist·변경 저널 replay·파티 0085 길드 판) | 통과 · crash→reconstruct pre==post·OFF 소실 |
-| [0185](step-0185.md) | 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay·파티 0086 길드 판) | 통과 · full 8→tail 2·snap==full 무손실 |
-| [0186](step-0186.md) | 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed·우편 MailFeed 0151 길드 판) | 통과 · g1 3·g2 2·배지==로스터·OFF 0 |
-| [0187](step-0187.md) | GuildFeed 영속·late-join(guildFeedPersist·op 저널 replay·우편 MailFeed 0154 길드 판) | 통과 · crash→reconstruct pre==post·배지==로스터 |
-| [0188](step-0188.md) | GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터·우편 0155 길드 판·feed arc 닫기) | 통과 · 4체제 4/4·배지총합 5==로스터 5 |
-| [0189](step-0189.md) | 마스터 이양(guildTransfer·single-master 보존 쌍 거래·존 핸드오프 0006 마스터십 판) | 통과 · master x→c1·from 잔류·crash 후 보존 |
-| [0190](step-0190.md) | 길드 정합 capstone(rosterConsistent·single-master·거래소 0140/우편 0180 길드 판·arc 0181~0190 닫기) | 통과 · 3체제 3/3·이양 성사/거부 |
+| [0181](step-0181.md) | 길드 서비스 분리(guildService·로스터+마스터십 SSOT·single-master) | 통과 · 길드 2·5/5 |
+| [0182](step-0182.md) | 길드 증분 가입/탈퇴(guildJoin/Leave·멱등·master 보호) | 통과 · 로스터 [x,c2] |
+| [0183](step-0183.md) | 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed) | 통과 · pub 3==audit·OFF 0 |
+| [0184](step-0184.md) | 길드 영속·failover(guildPersist·변경 저널 replay) | 통과 · crash pre==post |
+| [0185](step-0185.md) | 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail) | 통과 · full 8→tail 2 |
+| [0186](step-0186.md) | 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed) | 통과 · 배지==로스터·OFF 0 |
+| [0187](step-0187.md) | GuildFeed 영속·late-join(guildFeedPersist·op 저널 replay) | 통과 · crash pre==post |
+| [0188](step-0188.md) | GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터) | 통과 · 4체제 4/4 |
+| [0189](step-0189.md) | 마스터 이양(guildTransfer·single-master 쌍 거래·핸드오프 0006 판) | 통과 · x→c1·crash 보존 |
+| [0190](step-0190.md) | 길드 정합 capstone(rosterConsistent·single-master·arc 0181~0190 닫기) | 통과 · 3체제 3/3 |
+| [0191](step-0191.md) | 길드 금고 deposit(guildBank·guildDeposit·공유 아이템 원장·거래소 escrow/우편 custody 의 조직 판·bank arc 출발) | 통과 · g1 vault [sword,shield]·중복 0 |

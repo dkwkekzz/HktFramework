@@ -1,4 +1,5 @@
 'use strict';
+// step-0190 — 길드 정합 capstone(rosterConsistent·single-master 불변·arc 0181~0190 닫기): 0181~0189 에서 길드 박스를 세웠다(로스터 SSOT·증분·발행·영속·스냅샷·배지·feed 영속·정합·마스터 이양). 이 step 은 박스 전체를 관통하는 *척추 ③ 권위 단일 소유*의 길드 불변을 명시 단언한다 — rosterConsistent(): 모든 길드는 정확히 한 master(공백 0)·master ∈ members(고아 마스터 0)·멤버 중복 0. 모든 연산(create/join/leave/transfer)·모든 체제(정상·guild crash→reconstruct·feed crash→reconstruct)서 성립 + feedConsistent(0188 배지==로스터)와 결합 → 길드 박스가 결코 single-master 를 깨지 않음을 증명. 순수 읽기(권위 0·실행 경로 무변경) → 0189 비트 동일(reg). 거래소 0140·우편 0180 capstone 의 길드 판.
 // step-0189 — 마스터 이양(guildTransfer·single-master 보존 쌍 거래): 0182 master 보호는 마스터를 *영구 고정*했다 — 마스터가 길드를 떠나거나 위임할 길이 없었다(0182 한계). 권위 이동의 정전 패턴(release+acquire 쌍 거래·SPINE §5 ③·존 핸드오프 0006·escrow 거래 0117 의 *마스터십* 판)을 길드에 적용한다: guildTransfer{guildId,from,to} → from 이 현재 master 이고 to 가 멤버일 때만 master 를 to 로 *원자 교체*(공백 0·이중 0). from 은 일반 멤버로 잔류(로스터 크기 불변). to 비-멤버·from 비-마스터면 no-op(거래 거부). 이양도 발행(kind 'transfer'·GuildFeed 는 무시=배지 불변)·저널(영속 replay 동일 적용). guildTransfer 미주입이면 0188 비트 동일(reg).
 // step-0186 — 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed): 0183 변경 발행은 가입/탈퇴 델타만 노출했다 — 길드 *현재 멤버 수*를 한눈에 보려는 소비자(길드 목록 UI·정원 체크)는 매번 로스터 질의를 해야 했다(0185 한계). 우편 MailFeed 0151·거래소 MarketFeed 0112 의 읽기 모델(발행 스트림 구독·발신 0·권위 0)을 길드에 적용한다: 새 박스 GuildFeed 가 svc.guild.changed 를 구독해 guildId 별 memberCount 배지를 유지(create=초기 로스터 크기·join +1·leave −1). 배지는 로스터 SSOT 와 독립한 *파생 읽기 모델*(CQRS). 정확한 배지를 위해 이 step 은 guildCreate 도 발행(kind 'create'·members) — changePublish ON 일 때만. guildFeed OFF·guild 부재면 박스 0 = 0185 비트 동일.
 // step-0185 — 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay): 0184 의 변경 저널은 *무계 성장*이라 가입/탈퇴가 누적될수록 replay 비용·메모리가 ∝변경 수다(0184 한계). 파티 0086(가방 0018·채팅 0022 동일)의 주기 스냅샷+tail replay 를 길드 저널에 적용한다: snapInterval 개 변경마다 현재 로스터 projection 을 스냅샷(upToSeq 기록)하고 그 이하 저널을 가지치기 → 저널은 *마지막 스냅샷 이후 tail* 만 보관(유계). reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot(snapInterval 0) 면 압축 0·저널 무계 = 0184 비트 동일.
@@ -104,6 +105,15 @@ class GuildService {
   }
   membersOf(guildId) { const g = this.guilds.get(guildId); return g ? g.members : []; }
   masterOf(guildId) { const g = this.guilds.get(guildId); return g ? g.master : null; }
+  // rosterConsistent(step-0190·capstone) — single-master 불변(척추 ③): 전 길드 정확히 한 master(공백 0)·master ∈ members(고아 0)·멤버 중복 0. 순수 읽기(권위 0). 모든 연산·체제서 성립해야 길드 박스가 권위 단일 소유를 보존. 거래소 0140·우편 0180 capstone 의 길드 판.
+  rosterConsistent() {
+    for (const g of this.guilds.values()) {
+      if (g.master == null) return false;                              // 마스터 공백 0.
+      if (!g.members.includes(g.master)) return false;                 // 고아 마스터 0(master ∈ members).
+      if (new Set(g.members).size !== g.members.length) return false;  // 멤버 중복 0.
+    }
+    return true;
+  }
   // crash(step-0184) — 박스 RAM 소실의 인프로세스 모델: 로스터 projection·계측만 비운다. *변경 저널은 durable* 이라 보존(파티 0085 의 길드 판).
   crash() { this.guilds = new Map(); this.creates = 0; this.joins = 0; this.leaves = 0; }
   // reconstruct(step-0184·failover) — fresh 박스가 durable 변경 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재계산. create=설정·join=추가·leave=제거(master 보호 동일) → 죽기 전과 비트 동일. 자기 영속 저널만으로 복원.
