@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0203](step-0203.md) — **오케스트레이터 존 배치 SSOT**(placeZone): orch 에 배치 맵(zoneId→host·재배치 덮어씀)·`placementOf`/`placedCount`. "누가 어디서 도나"의 배치 결정 권위(정적 배치 한계 제거 씨앗). 추가-휴면 분기(placementOps 미주입→0202 비트 동일). 닿는 박스: orchestrator·topo-run.
-- **한 줄 상태**: reg ALL OK·zoneplace: 5/5 placed 2·zone1=hostC·spine ALL OK.
-- **다음**: §2 — **0204 존 배치 질의(request/reply)**. 너비 1차 진행 중(인스턴스 ✅·오케스트레이터 배치 진행).
+- **닫힌 step**: [step-0204](step-0204.md) — **오케스트레이터 존 배치 질의**(placeQuery→placeReply): 배치 SSOT(0203)를 원격 request/reply 로 읽음(게이트웨이가 "이 존 어디 사나"·순수 읽기·미배치=null). 0203 의 placementOps seam 재사용·미주입→0203 비트 동일. 닿는 박스: orchestrator.
+- **한 줄 상태**: reg ALL OK·zonequery: 5/5 rx 2/sent 2·zone9=null·spine ALL OK.
+- **다음**: §2 — **0205 캐시 박스(set/write-through)** 시작. 너비 1차: 인스턴스 ✅·오케스트레이터 배치 ✅(place+query).
 
 ---
 
@@ -21,7 +21,7 @@
 
 **1차 너비 잔여 박스 (이 순서로 — 각 박스는 *기본만*, 심화 금지):**
 1. **인스턴스(던전) 서버** (계층2) — ✅ 기본 통신 완비: spawn(0201)+despawn(0202) 수명주기 SSOT. 존과 수명주기 분리. (라우팅·수요 기반 spawn 은 2차.)
-2. **오케스트레이터 존 배치** (계층5) — 🟡 place ✅(0203·배치 SSOT zoneId→host) · query 후속(0204). 정적 배치 한계 제거 씨앗.
+2. **오케스트레이터 존 배치** (계층5) — ✅ 기본 통신 완비: place(0203·배치 SSOT)+query(0204·원격 request/reply). 정적 배치 한계 제거 씨앗. (부하 기반 배치·재배치 핸드오프는 2차.)
 3. **캐시 박스** (계층6) — get/set 기본: 핫 데이터 read-through/write-through 1홉. DB 직행 대체.
 4. **월드 영속** (계층6) — append/replay 기본: 존 intent 로그 event sourcing → 상태 재구성(서비스 PersistStore 아닌 *월드* 판).
 5. **로그인 큐·티켓 실체화** (계층1) — enqueue/dequeue/expire 기본: 스텁 티켓을 대기열+만료로.
@@ -83,7 +83,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn 수명주기 SSOT(0201~0202·존과 분리)**. 존 N개·라우팅 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 SSOT 🟡(0203·placeZone·질의 0204)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery 기본 통신)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→읽기모델 복구→채팅 영속→홉 신뢰→failover/N-replica quorum→윈도+유계 K(0017~0062). fsync·월드/버스 영속 후속 |
 
 ---
@@ -209,3 +209,4 @@
 | [0201](step-0201.md) | 인스턴스(던전) 서버 분리·spawn 기본(InstanceServer·instanceSpawn·active SSOT·너비 1차 시작) | 통과 · active 3/spawns 4 |
 | [0202](step-0202.md) | 인스턴스 despawn(instanceDespawn·수명주기 SSOT 완성·일회성 수명) | 통과 · active 2/retired 1 |
 | [0203](step-0203.md) | 오케스트레이터 존 배치 SSOT(placeZone·zoneId→host·정적 배치 한계 제거 씨앗) | 통과 · placed 2/zone1 hostC |
+| [0204](step-0204.md) | 오케스트레이터 존 배치 질의(placeQuery→placeReply·원격 request/reply·순수 읽기) | 통과 · rx 2/sent 2 |
