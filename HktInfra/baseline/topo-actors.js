@@ -11,6 +11,7 @@ const __p = n => (typeof module !== 'undefined' && module.exports && typeof requ
 const { Gateway } = __p('gateway');
 const { Orchestrator } = __p('orchestrator');
 const { EntityZone } = __p('zone');
+const { InstanceServer } = __p('instance');   // step-0201 — 던전/매치 일회성 인스턴스(spawn/despawn·존과 수명주기 분리).
 const { InventoryService } = __p('svc-inventory');
 const { ChatService } = __p('svc-chat');
 const { ServiceBus } = __p('svc-bus');
@@ -27,6 +28,9 @@ const { MailService } = __p('svc-mail');   // step-0142 — 우편 서비스(오
 const { MailFeed } = __p('svc-mailfeed');   // step-0151 — 우편 미읽음 배지 읽기 모델(svc.mail.* 구독·발신 0).
 const { GuildService } = __p('svc-guild');   // step-0181 — 길드 로스터+마스터십 SSOT(오래 사는 조직·존 tick 밖).
 const { GuildFeed } = __p('svc-guildfeed');   // step-0186 — 길드 멤버 수 배지 읽기 모델(svc.guild.changed 구독·발신 0).
+const { CacheStore } = __p('cache');   // step-0205 — 핫 데이터 캐시 계층(set/get·DB 직행 대체).
+const { WorldLog } = __p('worldlog');   // step-0207 — 월드 intent 로그 event sourcing(append/replay).
+const { LoginQueue } = __p('loginqueue');   // step-0209 — 로그인 대기열+티켓(enqueue/dequeue·엣지 흡수).
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -54,6 +58,7 @@ function makeActor(spec, net) {
     case 'registry': a = new SessionRegistry(); break;
     case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr, spec.opts.busResendReq, spec.opts.busWindow, spec.opts.busAck, spec.opts.busOutAck, spec.opts.busSeenBound, spec.opts.busMinWm, spec.opts.busProducerNs, spec.opts.busSeenNs); break;
     case 'zone': a = new EntityZone(spec.seed, spec.opts); break;
+    case 'instance': a = new InstanceServer(spec.opts); break;   // step-0201 — 인스턴스 서버.
     case 'orch': a = new Orchestrator(spec.opts); break;
     case 'inventory': a = new InventoryService(spec.opts); break;
     case 'chat': a = new ChatService(spec.opts); break;
@@ -71,6 +76,9 @@ function makeActor(spec, net) {
     case 'guild': a = new GuildService(spec.opts); break;   // step-0181 — 길드 서비스 박스.
     case 'guildfeed': a = new GuildFeed(spec.opts); break;   // step-0186 — 길드 멤버 수 배지 읽기 모델.
     case 'ranking': a = new RankingService(spec.opts); break;
+    case 'cache': a = new CacheStore(spec.opts); break;   // step-0205 — 캐시 박스.
+    case 'worldlog': a = new WorldLog(spec.opts); break;   // step-0207 — 월드 intent 로그.
+    case 'loginqueue': a = new LoginQueue(spec.opts); break;   // step-0209 — 로그인 큐.
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;
     default: throw new Error('unknown kind ' + spec.kind);

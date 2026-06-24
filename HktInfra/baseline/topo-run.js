@@ -58,6 +58,10 @@ function run(opts) {
   const mail = map.get('mail') || null;             // 우편(step-0142·MailService) — 오프라인 비동기 배송 박스. OFF 면 null(0141 동일).
   const mailfeed = map.get('mailfeed') || null;     // 우편 미읽음 배지(step-0151·MailFeed) — 우편 발행 구독 읽기 모델. OFF 면 null(0150 동일).
   const pservice = map.get('pservice') || null;     // 파티 멤버십 SSOT(step-0075·partyService) — 멤버십 보유. OFF 면 null(0074 동일).
+  const instance = map.get('instance') || null;     // 인스턴스(던전) 서버(step-0201·InstanceServer) — spawn/despawn SSOT. instanceService OFF 면 null(0200 동일).
+  const cache = map.get('cache') || null;           // 캐시(step-0205·CacheStore) — 핫 데이터 1홉 캐시. cacheService OFF 면 null(0204 동일).
+  const worldlog = map.get('worldlog') || null;     // 월드 영속(step-0207·WorldLog) — intent 로그 event sourcing. worldLog OFF 면 null(0206 동일).
+  const loginqueue = map.get('loginqueue') || null; // 로그인 큐(step-0209·LoginQueue) — 대기열+티켓. loginQueue OFF 면 null(0208 동일).
   const guild = map.get('guild') || null;           // 길드(step-0181·GuildService) — 로스터+마스터십 SSOT. OFF 면 null(0180 동일).
   const guildfeed = map.get('guildfeed') || null;   // 길드 멤버 수 배지(step-0186·GuildFeed) — svc.guild.changed 구독 읽기 모델. OFF 면 null(0185 동일).
   const mbox = map.get('mbox') || null;             // 귓속말 수신 박스(step-0076·whisperReceipt) — Mailbox. OFF 면 null(0075 동일).
@@ -208,6 +212,16 @@ function run(opts) {
     if (opts.partyTo && wrouter) for (const pt of opts.partyTo) if (pt.at === i + 1) net.send(pt.from || 'client0', 'wrouter', { type: 'partyTo', partyId: pt.partyId, body: pt.body });
     // 길드 명령 주입(step-0181·guildOps) — at tick 에 클라가 GuildService 에 guildCreate/guildQuery(로스터 SSOT 쓰기/질의). guild 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.guildOps && guild) for (const go of [].concat(opts.guildOps)) if (go.at === i + 1) net.send(go.from || 'client0', 'guild', go.op);
+    // 인스턴스 명령 주입(step-0201·instanceOps) — at tick 에 오케스트레이터/게이트웨이가 InstanceServer 에 instanceSpawn(던전 1개 띄움). instance 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.instanceOps && instance) for (const io of [].concat(opts.instanceOps)) if (io.at === i + 1) net.send(io.from || 'orch', 'instance', io.op);
+    // 존 배치 명령 주입(step-0203·placementOps) — at tick 에 게이트웨이/운영이 Orchestrator 에 placeZone(존을 host 에 배치). orch 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.placementOps && orch) for (const po of [].concat(opts.placementOps)) if (po.at === i + 1) net.send(po.from || 'gateway', 'orch', po.op);
+    // 캐시 명령 주입(step-0205·cacheOps) — at tick 에 게이트웨이/서비스가 CacheStore 에 cacheSet(핫 데이터 캐시 채움). cache 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.cacheOps && cache) for (const co of [].concat(opts.cacheOps)) if (co.at === i + 1) net.send(co.from || 'gateway', 'cache', co.op);
+    // 월드 intent 주입(step-0207·worldOps) — at tick 에 존/게이트웨이가 WorldLog 에 worldAppend(intent 로그 적층). worldlog 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.worldOps && worldlog) for (const wo of [].concat(opts.worldOps)) if (wo.at === i + 1) net.send(wo.from || 'zone1', 'worldlog', wo.op);
+    // 로그인 큐 명령 주입(step-0209·loginOps) — at tick 에 클라/게이트웨이가 LoginQueue 에 loginEnqueue/loginDequeue(줄서기·입장 허가). loginqueue 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.loginOps && loginqueue) for (const lo of [].concat(opts.loginOps)) if (lo.at === i + 1) net.send(lo.from || 'gateway', 'loginqueue', lo.op);
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
@@ -247,7 +261,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, instance, cache, worldlog, loginqueue, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
