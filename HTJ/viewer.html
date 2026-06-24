@@ -1166,6 +1166,48 @@
         for (const e of es) e.peak = e.anchored ? 0.15 : (vmax > 0 ? Math.min(1, (Math.hypot(e.px, e.py, e.pz) / e.mass) / vmax) : 0);
       },
       note: '<b>마찰이 구를 더미로 쌓는다 — 딛는 표면이 모양을 유지한다</b>(안식각·angle of repose). <b>▶ 무엇</b>(design/environment.md §3 TW1): 0056 이 드러낸 격차 — 접촉(0037)은 <b>법선</b> 반발·감쇠만이라 <b>접선 방향(미끄럼)</b>을 못 막아, 구가 경사에서 골로 미끄러져 모였다("딛는 표면엔 마찰이 필요"). 이 step 이 그 <b>마찰</b>을 새 엔진 법칙으로 더한다. <b>Coulomb 마찰</b>: 접선력 |F_t| ≤ μ·F_n(F_n=반발력) — 미끄럼이 크면 동마찰(점성, μ·F_n 상한)로 <b>KE→열</b> 소산, 작으면 접선 운동을 0 까지만 잡아 <b>구름</b>(rolling)으로 넘긴다. <b>왜 접촉점인가</b>: 접선력을 *중심*에 걸면 각운동량이 깨진다 — 올바른 마찰은 <b>접촉점</b>에 작용해 구를 <b>스핀</b>(ω=L/I, I=⅖mr²)시킨다. 단일 접촉점으로 양 구의 지렛대를 맞추면 ΔL_total=0 → <b>각운동량 정확 보존</b>. <b>화면</b>: 작은 구체들이 꼭대기에 좁은 기둥으로 떨어져 → 마찰이 서로·바닥을 <b>붙잡아</b> 옆으로 흘러내리지 않고 <b>더미로 쌓인다</b>(색=속도, 식어 정착). <b>대조</b>(capture.png): 같은 더미를 <b>마찰 없이</b> 떨구면 액체처럼 <b>퍼져 팬케이크</b>(수평 반경 RMS 18.7)가 되지만, <b>마찰 있으면</b> 좁은 <b>더미</b>(9.5·51%)로 머문다. 이게 "<b>딛는 표면이 모양을 유지</b>"의 핵심 — 모래·흙·바위가 산·언덕으로 *쌓이는* 이유. <b>보존</b>: 운동량(equal-opposite 쌍힘)·각운동량(접촉점 단일화)·총E(잃은 병진 KE→internalE, merge 규약 계승·스핀 KE 도 internalE 에 lump) 정확 보존. <b>왜 중요한가</b>: 마찰은 강체 구가 <b>경사에 못 서는</b>(늘 구름) 물리적 진실 위에서, 알갱이들이 <b>더미·경사를 이루게</b> 하는 법칙 — 지형이 평평하게 무너지지 않고 <b>산·언덕의 모양을 유지</b>하게 한다. <b>정직한 한계</b>: 스핀 KE 를 internalE 에 lump(별도 회전E 장 없음·merge 와 동일 규약)·단일 μ(정/동마찰 구분 없음·속도 무관)·구름 저항(rolling resistance) 없음(굴러가면 안 멈춤)·점착(cohesion) 없음. 다음 환경 벽돌: 바다 TW2(SPH 수면)·강 TW3(흐름)·광활 LOD TW4.'
+    },
+
+    // ── step_0058 — TW1 구름 저항: 굴러가다 멈춰 가파른 안식각(진짜 산 더미가 솟는다) ──
+    //   0057 마찰은 미끄럼만 막아 구가 굴러 퍼져 더미가 완만했다(10°). 구름 저항이 *구름 자체*를 막아 가파른 산(28°).
+    //   상대 구름 ω_rel 에 반대 토크 쌍 → 총 각운동량 보존·운동량 불변·총E 보존. design/environment.md §3 TW1.
+    '0058': {
+      label: 'step_0058 — TW1 구름 저항(굴러가다 멈춰 산이 솟는다)', title: 'HTJ — TW1 구름 저항: 구체가 가파른 산으로 쌓인다(딛는 지형 창발)',
+      sub: '마찰(0057)은 미끄럼을 막아도 구체는 자유로이 굴러 비탈을 흘러내려 안식각이 완만했다(납작한 더미·10°). 구름 저항은 그 구름 자체에 저항(상대 구름 각속도 ω_rel 에 반대 토크 쌍)해 굴러가다 멈추게 한다 → 가파른 안식각(28°·진짜 산). 토크 쌍이라 총 각운동량 정확 보존·운동량 불변·총E 보존(스핀 KE 는 internalE 에 lump)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const R = N * 0.85, sr = N * 0.022, gold = Math.PI * (3 - Math.sqrt(5));
+        const topZ = cen - N * 0.30 + R;                                  // 바닥 곡선이 화면에 보이게(꼭대기 약간 위)
+        const mk = (cx, cy, cz, mass, r, anc) => ({ cx, cy, cz, mass, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.1, anchored: !!anc });
+        const ents = [mk(cen, cen, topZ - R, 1e9, R, true)];             // 바닥 = 큰 앵커(중력원·정적)
+        for (let i = 0; i < 90; i++) {                                    // 꼭대기에 뭉쳐 떨궈 산을 쌓는다
+          const rr = Math.sqrt(i / 90) * N * 0.13, th = gold * i;
+          ents.push(mk(cen + Math.cos(th) * rr, cen + Math.sin(th) * rr * 0.4, topZ + N * 0.06 + (i % 22) * sr * 0.8, 1, sr, false));
+        }
+        w.__entities = ents; w.__R = R; w.__topZ = topZ;
+        w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz }));
+        w.__gopt = { G: 0.3 * R * R / 1e9, soft: N * 0.06 };
+        w.__copt = { k: 20, cDamp: 18 }; w.__fopt = { k: 20, mu: 0.9 }; w.__ropt = { k: 20, muRoll: 1.0 };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        const es = w.__entities;
+        HTJEntity.applyEntityGravity(es, 0.25, w.__gopt);          // 중력↓(0028)
+        HTJEntity.applyEntityContact(es, 0.25, w.__copt);          // 접촉↑ 반발+법선 감쇠(0037)
+        HTJEntity.applyEntityFriction(es, 0.25, w.__fopt);         // 마찰↗ 접선 저항+구름(0057)
+        HTJEntity.applyEntityRollingResistance(es, 0.25, w.__ropt);// 구름 저항 — 굴러가다 멈춤(0058·신규)
+        HTJEntity.stepEntities(es, 0.25);
+        const sv = w.__saved;                                      // 정적 앵커 고정(바닥)
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; es[i].KEcm = 0; es[i].Lx = es[i].Ly = es[i].Lz = 0; }
+        // 색 = 높이(바닥 위) → 봉우리=뜨겁게(지형 윤곽이 읽힌다)·바닥 앵커=어둡게.
+        const R = w.__R; let hmax = 1e-9;
+        for (const e of es) if (!e.anchored) { const h = Math.hypot(e.cx - es[0].cx, e.cy - es[0].cy, e.cz - es[0].cz) - R; if (h > hmax) hmax = h; }
+        for (const e of es) e.peak = e.anchored ? 0.1 : Math.max(0.12, Math.min(1, (Math.hypot(e.cx - es[0].cx, e.cy - es[0].cy, e.cz - es[0].cz) - R) / hmax));
+      },
+      note: '<b>구체가 굴러가다 멈춰 가파른 산으로 쌓인다 — 딛는 지형(언덕·산)이 창발한다</b>(안식각의 완성). <b>▶ 무엇</b>(design/environment.md §3 TW1): 0057 마찰은 <b>미끄럼</b>을 막았지만 구체는 여전히 <b>자유로이 굴러</b> 비탈을 데굴데굴 흘러내려, 더미가 <b>완만</b>했다(안식각 ~10°·납작). 진짜 산·언덕은 가파르다 — 빠진 건 <b>구름 저항</b>(rolling resistance). 이 step 이 그것을 새 엔진 법칙으로 더한다: 겹친 두 구의 <b>상대 구름 각속도</b> ω_rel=ω_a−ω_b(ω=L/I)에 <b>반대하는 토크 쌍</b>(a 에 −M·b 에 +M)이 <b>구름 자체를 멈춘다</b> → 굴러가다 서고, 안식각이 <b>가팔라진다</b>(~28°·진짜 산). <b>화면</b>: 작은 구체들이 꼭대기에 떨어져 → 마찰(0057)이 미끄럼을 잡고 <b>구름 저항</b>이 구름을 잡아, 옆으로 안 흘러내리고 <b>봉우리로 솟는다</b>(색=높이, 노랑=정상). <b>대조</b>(capture.png): 같은 구체를 구름 저항 <b>없이</b> 떨구면 굴러 <b>퍼져 팬케이크</b>(안식각 12°)지만, <b>있으면</b> 가파른 <b>산</b>(28°·바닥 위로 솟은 언덕)이 된다. <b>왜 토크 쌍인가</b>: 스핀끼리 주고받아(a 감속·b 가속) <b>순 각운동량 변화 0</b> → <b>총 각운동량 정확 보존</b>·운동량은 안 건드림(순수 토크). <b>보존</b>: 각운동량(토크 쌍)·운동량(불변)·총E(스핀 KE 는 internalE 에 lump·구름이 줄면 열로 재분류 → KEcm·internalE 불변=총E 보존) 정확. <b>왜 중요한가</b>: 마찰(0057)+구름 저항(0058)으로 알갱이가 <b>가파른 산·언덕을 이루고 유지</b>한다 = "<b>딛는 지형이 손 안 대고 창발</b>"(author 가 아니라 구체 법칙이 쌓은 산). 산도 모래도 같은 구체 — 법칙이 쌓는다. <b>정직한 한계</b>: 28° 입상 안식각(가파른 암벽엔 점착 cohesion 필요)·낮은 둔덕 규모(스케일·연속 표면은 TW4 LOD)·단일 μ_r(속도 무관)·스핀 KE 를 internalE 에 lump. 다음 환경 벽돌: 바다 TW2(SPH 수면)·강 TW3(흐름)·광활 LOD TW4.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
