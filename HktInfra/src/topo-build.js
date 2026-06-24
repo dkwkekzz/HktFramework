@@ -147,6 +147,7 @@ function buildTopology(opts) {
     cacheSource = null,
     worldLog = false,
     loginQueue = false,
+    loginAccounts = null,   // step-0229·loginAuth 가 검증할 유효 계정 목록(미제공이면 빈 채=0228 거동·loginAuth 미수신이면 무영향).
     deliverDedup = false,
     deliverDedupBound = false,
     deliverEpochBound = false,
@@ -268,7 +269,7 @@ function buildTopology(opts) {
   // [데이터] 월드 영속(step-0207·WorldLog) — 월드 상태의 intent 로그 event sourcing(데이터 3분할 ①). 서비스 PersistStore·캐시와 직교·존 tick 밖. worldLog OFF 면 박스 0 = 0206 비트 동일(reg 0).
   if (worldLog) add({ addr: 'worldlog', kind: 'worldlog', opts: {} });
   // [엣지] 로그인 큐(step-0209·LoginQueue) — 대기열+티켓 발급. 접속 폭주를 엣지서 흡수(0001 LoginServer 스텁의 대기열 실체화). 존 tick 밖·onTick 없음. loginQueue OFF 면 박스 0 = 0208 비트 동일(reg 0).
-  if (loginQueue) add({ addr: 'loginqueue', kind: 'loginqueue', opts: {} });
+  if (loginQueue) add({ addr: 'loginqueue', kind: 'loginqueue', opts: { accounts: loginAccounts } });   // accounts(0229): loginAuth 가 검증할 유효 계정. 미제공이면 빈 채(loginAuth 미수신이면 무영향=reg 0).
 
   const zopt = { grid, radius, incremental, recovery, retxPeriod, heartbeat, failover };
   const orchAddr = (failover && zones === 2) ? 'orch' : null;

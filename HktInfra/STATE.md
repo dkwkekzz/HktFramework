@@ -9,24 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0220](step-0220.md) — **로그인 큐 재접속 세션 재개**: `loginReconnect{player}`→유효 티켓이면 기존 티켓 재개(새 티켓 미발급·멱등·줄 다시 안 섬), 만료/미발급이면 재개 불가. 미주입→0219 비트 동일. **2차 고도화 로그인 큐 #2·5박스 2차 균형 라운드(0211~0220) 닫기**. 닿는 박스: loginqueue.
-- **한 줄 상태**: reg ALL OK·loginreconnect: 5/5 p1 재개(tkt-1 불변)·p2 miss·spine ALL OK.
-- **다음**: 🎯 **2차 균형 라운드 완료**(0211~0220·5박스 각 2조각 심화). 단계 판정·다음 방향(3차 심화/멀티프로세스 배선#9/spine 승급#16/신규 너비)은 **`infra-review`**(0211~0220 묶음 — progress 맵 갱신·평결). step-loop 은 그 평결을 §2 로 승급.
+- **닫힌 step**: [step-0230](step-0230.md) — **로그인 큐 이탈**: `loginAbandon{player}`→입장 전 대기열서 제거(abandoned·기다리다 포기), 미줄 멱등 no-op. 좀비 슬롯 비워 큐 길이 정확(0219 백프레셔 정확도). 미주입→0229 비트 동일. **3차 고도화 로그인 #2·5박스 3차 균형 라운드(0221~0230) 닫기**. 닿는 박스: loginqueue.
+- **한 줄 상태**: reg ALL OK·loginabandon: 5/5 p2 이탈·큐 [p1,p3]·abandoned 1·miss 1·spine ALL OK.
+- **다음**: 🎯 **3차 균형 라운드 완료**(0221~0230·5박스 각 2조각 심화). 다음 방향(4차 심화/멀티프로세스 배선#9/spine 승급#16/신규 너비)은 **`infra-review`**(0221~0230 묶음 — progress 맵 갱신·평결). step-loop 은 그 평결을 §2 로 승급. 🔎 묶음 리뷰 적기.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **2차 균형 라운드 완료**(0211~0220) — 너비 1차(0201~0210)로 기본 통신에 도달한 5박스를 *각 2조각씩* 심화했다(한 박스 과심화 없이 균형). **다음 방향(3차 심화 / 멀티프로세스 배선 / spine 승급 / 신규 너비)의 권위 판정은 `infra-review`**(0211~0220 묶음 — progress 맵 갱신·2차 평결). step-loop 은 그 평결을 읽어 여기로 승급한다.
+> 🎯 **3차 균형 라운드 완료**(0221~0230) — 5박스 *각 2조각* 심화(backlog "추가 심화" 집행·균형·전부 reg 0·spine OK). **다음 방향(4차 심화/멀티프로세스 배선#9/spine 승급#16/신규 너비)의 권위 판정은 `infra-review`**(0221~0230 묶음). step-loop 은 그 평결을 읽어 여기로 승급.
 
-**2차 균형 라운드 5박스 — 각 2조각 ✅:**
-1. **인스턴스(던전) 서버** (계층2) — ✅ 수요 spawn(0215·탄력 확장)+플레이어 라우팅(0216·배정 SSOT).
-2. **오케스트레이터** (계층5) — ✅ 부하 배치(0217·최소 부하)+재배치 핸드오프(0218·release+acquire).
-3. **캐시 박스** (계층6) — ✅ TTL 만료(0211·메모리 유계)+무효화(0212·write 일관성).
-4. **월드 영속** (계층6) — ✅ 스냅샷 압축(0213·무손실)+crash/recover 정합(0214·스냅샷 arc 닫기).
-5. **로그인 큐·티켓** (계층1) — ✅ 수용량 백프레셔(0219·동접 상한)+재접속 재개(0220·세션 연속성).
+**3차 균형 라운드 5박스 — 각 2조각 ✅:** ①인스턴스 이탈(0221)+수요 despawn(0222) ②오케 재배치 자동(0223)+host 드레인(0224) ③캐시 용량 LRU(0225)+touch(0226) ④월드영속 write-behind(0227)+fsync(0228) ⑤로그인 계정 검증(0229)+큐 이탈(0230).
 
-**3차/후속 백로그 (infra-review 평결로 개시·블로킹 🔴 제외)**: 위 5박스의 추가 심화(실 존 연동·write-behind·수요 자동 despawn·재배치 자동 트리거·계정 검증) + 신규 5박스 멀티프로세스 배선(#9)·spine 승급(#16·신규 bespoke 모드 누적 회귀로) + 길드 금고↔가방 escrow·per-producer ack·fsync·버스 라우팅 영속·서버간 인증. 🔎 0211~0220 묶음 리뷰 적기.
+**4차/후속 백로그 (🔴 제외)**: 5박스 추가 심화(실 존 연동·복제 anti-entropy·트리거 정교화) + 신규 5박스 멀티프로세스 배선(#9)·spine 승급(#16) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -79,12 +74,12 @@
 
 | # | 계층 | 박스 | 상태 (현재 마커 + 핵심 step) |
 |---|------|------|------|
-| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급+만료(0209~0210)+수용량 백프레셔(0219)+재접속 재개(0220·세션 연속성)**. 게이트웨이 군 풀 후속 |
-| 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+플레이어 라우팅(0216·배정 SSOT)**. 존 N개 후속 |
+| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급+만료(0209~0210)+수용량 백프레셔(0219)+재접속 재개(0220)+계정 검증(0229)+큐 이탈(0230·좀비 슬롯 회수)**. 게이트웨이 군 풀 후속 |
+| 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218·release+acquire·권위 보존)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212·write 일관성)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214·스냅샷 arc 닫기)**. fsync·버스 영속 후속 |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)** |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
 
@@ -110,12 +105,7 @@
 | [0071–0080](reviews/review-0071-0080.md) | 귓속말/파티 라우터→전달 신뢰 호(영수증·재시도·상한·exactly-once dedup) | 통과(reg 0·spine OK) |
 | [0081–0090](reviews/review-0081-0090.md) | 전달 dedup 유계·관측→파티 1:N 영수증/ack 집계→멤버십 영속(증분·저널·압축) | 통과(reg 0·spine OK) |
 | [0091–0100](reviews/review-0091-0100.md) | 파티 종결 3종·발행 양끝→멤버별 수신함→수신함 메모리 3차원 유계화→정리 2건 | 통과(reg 0·spine OK) |
-| [0101](step-0101.md) | 읽음 확인 영수증(drainAck) | 통과 |
-| [0102](step-0102.md) | 미확인 체크아웃 유계화(checkoutBound) | 통과 |
-| [0103](step-0103.md) | 읽음 소비 발행(drainedPublish) | 통과 |
-| [0104](step-0104.md) | 수신함 손실 발행(lossPublish) | 통과 |
-| [0105](step-0105.md) | active 공지 epoch 펜싱(announceEpoch) | 통과 |
-| [0106](step-0106.md) | wrouter 공지 epoch 펜싱(0105 라우터 판) | 통과 |
+| [0101–0106](step-0101.md) | 수신함 읽음 영수증·체크아웃 유계·읽음/손실 발행→공지 epoch 펜싱(active·wrouter) | 통과(reg 0) |
 | [0107](step-0107.md) | 거래소 서비스 분리(ExchangeService) | 통과 |
 | [0108](step-0108.md) | 거래소 체결 발행(exchangePublish) | 통과 |
 | [0109](step-0109.md) | 거래소 영속·failover(exchangePersist) | 통과 |
@@ -226,3 +216,13 @@
 | [0218](step-0218.md) | 오케스트레이터 존 재배치 핸드오프(placeMigrate·release+acquire 쌍·권위 단일 소유 보존·2차 고도화 오케 #2) | 통과 · z1 A→C·배치 보존·mig 1/rej 2 |
 | [0219](step-0219.md) | 로그인 큐 수용량 백프레셔(loginCapacity·admitted cap 도달 시 입장 보류·동접 상한·2차 고도화 로그인 #1) | 통과 · admitted 2/queue 1/rejected 1 |
 | [0220](step-0220.md) | 로그인 큐 재접속 세션 재개(loginReconnect·유효 티켓 재개·새 티켓 0·2차 고도화 로그인 #2·균형 라운드 0211~0220 닫기) | 통과 · p1 tkt-1 재개·p2 miss |
+| [0221](step-0221.md) | 인스턴스 플레이어 이탈(instanceLeave·route 해제·occupancy 감소·권위 release·0216 acquire 짝·3차 고도화 인스턴스 #1·균형 라운드 0221~0230 시작) | 통과 · d1 occ 2→1·left 1·miss 1 |
+| [0222](step-0222.md) | 인스턴스 수요 자동 despawn(instanceReap·active>target 빈 인스턴스 회수·점유 보호·0215 수요 spawn 거울·3차 고도화 인스턴스 #2) | 통과 · demand 4→reap target 1→reaped 3·active 1 |
+| [0223](step-0223.md) | 오케 부하 재배치 자동 트리거(placeRebalance·불균형≥2 최대→최소 host 존 자동 이주·균형 수렴·0218 자동판·3차 고도화 오케 #1) | 통과 · A3/0/0→A1/B1/C1·moves 2 |
+| [0224](step-0224.md) | 오케 host 드레인(placeDrain·퇴역 host 모든 존 나머지 최소부하로 이주·release+acquire 연쇄·드레인 후 부하 0·3차 고도화 오케 #2) | 통과 · A2→A0·B2·C2·moves 2 |
+| [0225](step-0225.md) | 캐시 용량 LRU 회수(cacheCapacity·키 수 상한·size>cap 면 setAt 최소 키 회수·개수 유계·0211 시간 유계 짝·allkeys-lru 더미·3차 고도화 캐시 #1) | 통과 · cap 2·k1 회수·size 2·evic 1 |
+| [0226](step-0226.md) | 캐시 recency touch(cacheLruTouch·get hit 시 setAt 갱신→핫 키 생존·진짜 LRU·0225 set-시각만의 보완·3차 고도화 캐시 #2) | 통과 · get k1 후 k2 회수·k1 생존·touches 1 |
+| [0227](step-0227.md) | 월드영속 write-behind 버퍼(worldBuffer/worldFlush·intent 버퍼링→durable 로그 일괄 적층·쓰기 지연 배치·미flush=비-durable crash 윈도·3차 고도화 월드영속 #1) | 통과 · 버퍼 2→flush 로그 2·미flush 1 비-durable |
+| [0228](step-0228.md) | 월드영속 fsync durable barrier(worldFsync/worldRecoverDurable·durableSeq=디스크 확정 프런티어·seq≤durableSeq 만 복구·flush/fsync 구분·3차 고도화 월드영속 #2) | 통과 · durableSeq 3·dur복구 3·full 5 |
+| [0229](step-0229.md) | 로그인 계정 검증(loginAuth·validAccounts 만 enqueue·미인증 거부·줄 이전 차단·0001 검증 큐 실체화·3차 고도화 로그인 #1) | 통과 · p1·p2 enqueue·pX 거부·authRejects 1 |
+| [0230](step-0230.md) | 로그인 큐 이탈(loginAbandon·입장 전 대기열 제거·미줄 멱등 no-op·좀비 슬롯 회수·0219 백프레셔 정확도·3차 고도화 로그인 #2·3차 균형 라운드 0221~0230 닫기) | 통과 · p2 이탈·큐 [p1,p3]·aband 1·miss 1 |

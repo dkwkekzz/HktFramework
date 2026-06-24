@@ -1,4 +1,6 @@
 'use strict';
+// step-0224 — 오케스트레이터 host 드레인(placeDrain): 정비/퇴역할 host 의 *모든* 존을 다른(나머지) host 중 최소부하로 차례차례 이주(release+acquire 연쇄·존 권위 단일 소유 보존). 드레인 후 그 host 부하 0(비운다). 다른 host 없으면 보류(존 잔류). placeDrain 미수신이면 0223 비트 동일(reg 0). 3차 고도화(오케스트레이터 #2).
+// step-0223 — 오케스트레이터 부하 재배치 자동 트리거(placeRebalance): 후보 host 부하 불균형(최대−최소 ≥ 2)이면 최대부하 host 의 존을 최소부하 host 로 *자동* placeMigrate(0218 의 자동 트리거판·정적 배치 한계 제거). 균형(gap<2)까지 한 패스 수렴. 결정론 host/zone 순서. placeRebalance 미수신이면 0222 비트 동일(reg 0). 3차 고도화(오케스트레이터 #1).
 // step-0218 — 오케스트레이터 존 재배치 핸드오프(placeMigrate): 이미 배치된 존을 다른 host 로 *release(기존)+acquire(신규) 쌍*으로 옮긴다(존 권위 단일 소유 보존·공백/중복 0·0006 핸드오프의 배치 판). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 0217 비트 동일(reg 0). 2차 고도화(오케스트레이터 #2).
 // step-0217 — 오케스트레이터 부하 배치(placeAuto): 후보 host 중 *최소 부하*(=배치된 존 수 최소) host 를 골라 존을 자동 배치(정적 배치 한계 제거·부하 분산). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 0216 비트 동일(reg 0). 2차 고도화(오케스트레이터 #1).
 // step-0204 — 오케스트레이터 존 배치 질의(placeQuery→placeReply): 배치 SSOT(0203)를 원격 request/reply 로 읽는다(게이트웨이가 "이 존 어디 사나" 물음). 순수 읽기·placeQuery 미수신이면 0203 비트 동일(reg 0). 배치 박스 기본 통신 완비. (아래 0065 메모는 프레즌스 보고 버스화 설명·유지.)
@@ -27,6 +29,10 @@ class Orchestrator {
     this.autoPlacements = 0;      // 처리한 placeAuto 수(step-0217·부하 기반 자동 배치·계측).
     this.migrations = 0;          // 처리한 placeMigrate 성공 수(step-0218·release+acquire 쌍·재배치).
     this.migrateRejects = 0;      // 거부된 placeMigrate 수(step-0218·미배치 존·같은 host no-op).
+    this.rebalances = 0;          // 처리한 placeRebalance 패스 수(step-0223·계측·균형이면 0).
+    this.rebalanceMoves = 0;      // 재배치 자동 트리거로 옮긴 존 누적 수(step-0223·release+acquire 쌍).
+    this.drains = 0;              // 처리한 placeDrain 수(step-0224·계측).
+    this.drainMoves = 0;          // 드레인으로 다른 host 로 이주한 존 누적 수(step-0224·release+acquire 연쇄).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -89,6 +95,10 @@ class Orchestrator {
       this.placement.set(p.zoneId, p.toHost); this.migrations++;   // release(from)+acquire(toHost) — Map 단일 키 원자 교체(중간 상태 공백/중복 0).
       return;
     }
+    // 부하 재배치 자동 트리거(step-0223·placeRebalance) — {hosts[]} → 후보 부하 불균형(최대−최소≥2)이면 최대→최소 host 로 존 자동 이주(균형까지·release+acquire). 0218 placeMigrate 의 자동 트리거판. placeRebalance 미수신이면 미발화 = 0222 비트 동일.
+    if (p.type === 'placeRebalance') { this._rebalance(p.hosts || []); this.rebalances++; return; }
+    // host 드레인(step-0224·placeDrain) — {host, hosts[]} → host 의 모든 존을 나머지 host 중 최소부하로 이주(release+acquire 연쇄·드레인 후 부하 0). 정비/퇴역. placeDrain 미수신이면 미발화 = 0223 비트 동일.
+    if (p.type === 'placeDrain') { this._drain(p.host, p.hosts || []); this.drains++; return; }
     // 존 배치 질의(step-0204·placeQuery) — {zoneId} 요청에 현재 배치 host 를 {placeReply} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069/우편 0156 의 배치 판). 순수 읽기(배치 무변경). _lastPlaceReply 에 보관(검증용). 질의 미수신이면 미발화 = 0203 비트 동일.
     if (p.type === 'placeQuery') {
       this.placeQueriesRx++;
@@ -171,6 +181,31 @@ class Orchestrator {
     let best = null, bestLoad = Infinity;
     for (const h of hosts) { const l = this.hostLoad(h); if (l < bestLoad) { bestLoad = l; best = h; } }
     return best;
+  }
+  // 부하 재배치 자동 트리거(step-0223·placeRebalance) — 후보 host 부하 불균형(최대−최소 ≥ 2)이면 최대부하 host 의 존(placement 삽입 순 첫 존)을 최소부하 host 로 옮긴다(release+acquire 쌍=0218 자동판). 균형(gap<2)까지 한 패스 수렴. 동률은 후보/존 순서로 결정론 tie-break. 옮긴 존 수 반환(균형이면 0).
+  _rebalance(hosts) {
+    let moved = 0;
+    while (true) {
+      let maxH = null, maxL = -1, minH = null, minL = Infinity;
+      for (const h of hosts) { const l = this.hostLoad(h); if (l > maxL) { maxL = l; maxH = h; } if (l < minL) { minL = l; minH = h; } }
+      if (maxH === null || maxL - minL < 2) break;            // 균형(또는 후보 없음) → 종료.
+      let z = null; for (const [zid, h] of this.placement) if (h === maxH) { z = zid; break; }   // 최대부하 host 의 첫 존(삽입 순).
+      if (z === null) break;
+      this.placement.set(z, minH); moved++;                   // release(maxH)+acquire(minH) — 단일 키 원자 교체.
+    }
+    this.rebalanceMoves += moved; return moved;
+  }
+  // host 드레인(step-0224·placeDrain) — 정비/퇴역할 host 의 *모든* 존을 나머지 host 중 최소부하로 차례차례 이주(release+acquire 연쇄·권위 단일 소유 보존·드레인 후 그 host 부하 0). 매 존마다 최소부하 재계산(부하 고르게 분산). 다른 host 없으면 보류. 옮긴 존 수 반환.
+  _drain(host, hosts) {
+    let moved = 0;
+    const others = (hosts || []).filter(h => h !== host);   // 드레인 대상 제외 후보.
+    for (const [zid, h] of [...this.placement]) {            // placement 삽입 순(결정론).
+      if (h !== host) continue;                             // 드레인 host 의 존만.
+      const target = this._leastLoaded(others);             // 매번 최소부하 재계산(고른 분산).
+      if (target === null) break;                           // 받을 host 없음 → 보류.
+      this.placement.set(zid, target); moved++;             // release(host)+acquire(target).
+    }
+    this.drainMoves += moved; return moved;
   }
 }
 
