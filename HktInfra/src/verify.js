@@ -1,8 +1,8 @@
-// HktInfra step-0247 — 헤드리스 검증 (배치 SSOT 실배선 #51 — executed placeAuto)
+// HktInfra step-0248 — 헤드리스 검증 (배치 SSOT 실배선 #51 — host 장애 복구 placeHostDown)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placeautoexec`.
-//   더한 한 조각: placeExecute ON 이면 부하 기반 자동 배치(placeAuto)가 최소부하 host 선택 + paper 갱신에 더해 실 존 런타임도 가동(_start·0217 advisory 자동 배치의 집행 판). 미주입/OFF → 0246 비트 동일(reg). #51 실배선 7.
-//   검증: ⒜ `reg`(키트). ⒝ `placeautoexec`(가설) — z1@A 가동 → z2·z3·z4 자동 배치 → running A2/B1/C1·starts 4·drift 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placehostdown`.
+//   더한 한 조각: placeHostDown{host, hosts} → 비자발적으로 죽은 host 의 모든 존을 생존 host 중 최소부하로 *재가동*(re-acquire·드레인의 graceful migrate 와 달리 죽은 host 는 release 불가). 복구 후 죽은 host running 0·drift 0. 미주입/OFF → 0247 비트 동일(reg). #51 실배선 8.
+//   검증: ⒜ `reg`(키트). ⒝ `placehostdown`(가설) — z1·z2@A·z3@B 가동 → A 장애 → z1·z2 생존 host(B·C) 재가동·A run 0·drift 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,26 +16,27 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-const AUTO = (at, zoneId, hosts) => ({ at, op: { type: 'placeAuto', zoneId, hosts } });
+const HOSTDOWN = (at, host, hosts) => ({ at, op: { type: 'placeHostDown', host, hosts } });
 const HOSTS = ['hostA', 'hostB', 'hostC'];
-// z1@A 가동(A1/B0/C0) → z2 자동(→B)·z3 자동(→C)·z4 자동(→A·결정론 tie-break 첫 최소).
-const OPS = [PLACE(1, 'z1', 'hostA'), AUTO(2, 'z2', HOSTS), AUTO(3, 'z3', HOSTS), AUTO(4, 'z4', HOSTS)];
+// z1·z2@hostA·z3@hostB 가동 → hostA 비자발 장애 → z1·z2 생존 host(B·C)로 재가동(re-acquire).
+const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), HOSTDOWN(4, 'hostA', HOSTS)];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, placementOps: OPS };
 
-function placeautoexec(seeds) {
-  console.log('== placeautoexec (0247·#51 실배선): executed placeAuto — placeExecute ON 이면 부하 기반 자동 배치가 최소부하 host 선택 + 실 존 런타임도 가동(_start·0217 advisory 자동 배치의 집행 판). z1@A → z2→B·z3→C·z4→A → running A2/B1/C1·starts 4·drift 0·결정==집행. ==');
-  console.log('seed   | A run | B run | C run | starts | drift | 판정');
+function placehostdown(seeds) {
+  console.log('== placehostdown (0248·#51 실배선): host 장애 복구 — placeHostDown 이 비자발적으로 죽은 host 의 모든 존을 생존 host 중 최소부하로 *재가동*(re-acquire·드레인의 graceful migrate 와 달리 죽은 host 는 release 불가). z1·z2@A·z3@B → A 장애 → A run 0·생존 host 회복·drift 0·rescued 2·한 존 정확히 한 host. ==');
+  console.log('seed   | A run | B run | C run | rescued | drift | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
     const o = r.orch;
-    // 부하 분산 실 가동: running A2/B1/C1·runningCount 4·starts 4·drift 0·결정==집행.
-    const ok = check(o.runningOn('hostA') === 2 && o.runningOn('hostB') === 1 && o.runningOn('hostC') === 1 && o.runningCount() === 4 && o.starts === 4 && o.placementDrift() === 0,
-      `seed ${seed}: 실 자동배치 위반 (A ${o.runningOn('hostA')}·B ${o.runningOn('hostB')}·C ${o.runningOn('hostC')}·starts ${o.starts}·drift ${o.placementDrift()})`);
-    console.log(`${pad(seed, 6)} | ${pad(o.runningOn('hostA'), 5)} | ${pad(o.runningOn('hostB'), 5)} | ${pad(o.runningOn('hostC'), 5)} | ${pad(o.starts, 6)} | ${pad(o.placementDrift(), 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    // A 장애: A run 0(소실)·z1→B(부하 1<C 0? z3@B 라 B1,C0 → z1→C, z2→B)·총 3존 생존·rescued 2·drift 0·한 존 한 host.
+    const A = o.runningOn('hostA'), B = o.runningOn('hostB'), C = o.runningOn('hostC');
+    const ok = check(A === 0 && o.runningCount() === 3 && (A + B + C) === 3 && o.hostRescued === 2 && o.placementDrift() === 0 && o.runningHostOf('z3') === 'hostB',
+      `seed ${seed}: 장애 복구 위반 (A ${A}·B ${B}·C ${C}·rescued ${o.hostRescued}·drift ${o.placementDrift()})`);
+    console.log(`${pad(seed, 6)} | ${pad(A, 5)} | ${pad(B, 5)} | ${pad(C, 5)} | ${pad(o.hostRescued, 7)} | ${pad(o.placementDrift(), 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['placeautoexec'] = placeautoexec;
-kit.ORDER.splice(1, 0, 'placeautoexec');
+kit.MODES['placehostdown'] = placehostdown;
+kit.ORDER.splice(1, 0, 'placehostdown');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

@@ -1,4 +1,5 @@
 'use strict';
+// step-0247 — 배치 SSOT 실배선(#51) 7: executed placeAuto. 부하 기반 자동 배치(placeAuto)가 placeExecute ON 이면 최소부하 host 선택 + paper placement 갱신에 더해 실 존 런타임도 그 host 에 가동(_start). 0217 advisory 자동 배치의 집행 판. OFF→0246 비트 동일(reg 0).
 // step-0246 — 배치 SSOT 실배선(#51) 6: executed placeStop. placeStop{zoneId} → 존을 운영 퇴역: 결정(placement)에서 제거 + placeExecute ON 이면 실 존 런타임도 종료(running 제거·instance.js _despawn 의 존 판). 없는 존은 멱등 no-op. 드레인(host 전체 이주)과 달리 *그 존 자체를 내린다*. placeStop 미수신이면 0245 비트 동일(reg 0).
 // step-0245 — 배치 SSOT 실배선(#51) 5: placement↔running reconcile capstone. `placementDrift()` 질의(결정 placement 와 집행 running 이 어긋난 존 수). placeExecute ON 이면 모든 배치 op(place/migrate/rebalance/drain) 뒤 drift 0(결정==집행·paper 표류 없음)을 단언 — advisory→executed arc 닫기. 코드는 읽기 질의 1개(쓰기 무변경)·OFF→0244 비트 동일(reg 0).
 // step-0244 — 배치 SSOT 실배선(#51) 4: executed placeDrain. placeExecute ON 이면 host 드레인이 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 이주 → 드레인 후 그 host running 0(실제 비워짐·0224 퇴역 안전 이주의 집행 판). 0242 _migrate 재사용. OFF→0243 비트 동일(reg 0).
@@ -98,7 +99,7 @@ class Orchestrator {
     // 부하 기반 자동 배치(step-0217·placeAuto) — {zoneId, hosts[]} → 후보 host 중 최소 부하(배치된 존 수 최소) host 선택 배치(부하 분산·정적 배치 한계 제거). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 미발화 = 0216 비트 동일.
     if (p.type === 'placeAuto') {
       const host = this._leastLoaded(p.hosts || []);
-      if (host !== null) { this.placement.set(p.zoneId, host); this.autoPlacements++; }
+      if (host !== null) { this.placement.set(p.zoneId, host); this.autoPlacements++; if (this.placeExecute) this._start(p.zoneId, host); }   // 집행(step-0247) — 실 존 런타임도 가동.
       return;
     }
     // 존 재배치 핸드오프(step-0218·placeMigrate) — {zoneId, toHost} → 이미 배치된 존을 release(기존 host)+acquire(toHost) 쌍으로 옮긴다(권위 단일 소유 보존·공백/중복 0). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 미발화 = 0217 비트 동일.
