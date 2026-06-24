@@ -25,6 +25,8 @@ const { ExchangeService } = __p('svc-exchange');
 const { MarketFeed } = __p('svc-market');
 const { MailService } = __p('svc-mail');   // step-0142 — 우편 서비스(오프라인 비동기 배송).
 const { MailFeed } = __p('svc-mailfeed');   // step-0151 — 우편 미읽음 배지 읽기 모델(svc.mail.* 구독·발신 0).
+const { GuildService } = __p('svc-guild');   // step-0181 — 길드 로스터+마스터십 SSOT(오래 사는 조직·존 tick 밖).
+const { GuildFeed } = __p('svc-guildfeed');   // step-0186 — 길드 멤버 수 배지 읽기 모델(svc.guild.changed 구독·발신 0).
 const { PersistStore } = __p('persist');
 const { Client } = __p('client');
 
@@ -66,6 +68,8 @@ function makeActor(spec, net) {
     case 'market': a = new MarketFeed(spec.opts); break;
     case 'mail': a = new MailService(spec.opts); break;   // step-0142 — 우편 서비스 박스.
     case 'mailfeed': a = new MailFeed(spec.opts); break;   // step-0151 — 우편 미읽음 배지 읽기 모델.
+    case 'guild': a = new GuildService(spec.opts); break;   // step-0181 — 길드 서비스 박스.
+    case 'guildfeed': a = new GuildFeed(spec.opts); break;   // step-0186 — 길드 멤버 수 배지 읽기 모델.
     case 'ranking': a = new RankingService(spec.opts); break;
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;

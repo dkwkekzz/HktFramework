@@ -1,4 +1,5 @@
 'use strict';
+// step-0180 — 아이템 우편 saga liveness 회계 정합 capstone(sagaLivenessConsistent): pending.size == pendingGive.size + abandonedGive.size + permFailed(미해결 give 는 재전송중·재admission대기·영구종결 정확히 분할·공백/중복 0) AND sagaConsistent. 0172~0179 liveness arc 닫기·거래소 0140 의 우편 판. 미호출 accessor = 0179 비트 동일.
 // step-0179 — 아이템 우편 saga 영구 실패 발행(mailFailPublish): 영구 실패(permFailed·0178) 시 svc.mail.saga_failed 1회 발행(saga liveness 발행 종결 마디·포기 0174/재개 0177 의 종결 판·failPublished==permFailed·거래소 0138 의 우편 판). OFF·bus 부재면 발행 0 = 0178 비트 동일.
 // step-0178 — 아이템 우편 saga 재admission 횟수 상한(mailReadmitMax): gid 가 readmitMax 회 재admission 후 또 포기되면 영구 실패(permFailed)로 abandonedGive 제외→재admission 차단(무한 루프 방지·거래소 0137 의 우편 판). pending 잔존(sagaConsistent 불변). readmitMax 0 면 무제한 = 0177 비트 동일.
 // step-0177 — 아이템 우편 saga 재admission 발행(mailReadmitPublish): _readmit 재개 시 svc.mail.saga_readmitted 1회 발행(0174 포기 발행의 짝·audit 관측·readmitPublished==readmitted·거래소 0135 의 우편 판). OFF·bus 부재면 발행 0 = 0176 비트 동일.
@@ -156,6 +157,9 @@ class MailService {
   // 아이템 우편↔가방 전체 닫힘 capstone(step-0170·단언용 읽기 accessor) — 우편 박스 *내부* 네 회계층의 동시 닫힘:
   //   mailConsistent(메시지 통수 0150) AND itemConsistent(아이템 0160) AND escrowConsistent(escrow 집합 0164) AND sagaConsistent(saga 회계 0169). 거래소 0140 sagaLiveConsistent 의 우편 판. + verify 가 giveOks==가방 escrowXfers(두 서비스 합치).
   sagaLiveConsistent() { return this.mailConsistent() && this.itemConsistent() && this.escrowConsistent() && this.sagaConsistent(); }
+  // saga liveness 회계 정합 capstone(step-0180·단언용 읽기 accessor) — 0172~0179 liveness arc 의 창발 불변(거래소 0140 의 우편 판).
+  //   미해결(pending) give 는 매 순간 정확히 한 상태 — 재전송 중(pendingGive)·재admission 대기(abandonedGive)·영구 종결(permFailed) 으로 분할: pending.size == pendingGive.size + abandonedGive.size + permFailed(공백·중복 0) AND sagaConsistent(0169). 정상 drain·abandon 잔존·재admission·영구 실패 모든 체제서 성립.
+  sagaLivenessConsistent() { return this.pending.size === this.pendingGive.size + this.abandonedGive.size + this.permFailed && this.sagaConsistent(); }
   // digest — 우편 *전체 상태* 해시(결정론·failover 비트 동일 검증용). 0145: 우편함(보유)+읽음(수령)+회계 카운터 포함(crash→reconstruct 가 죽기 전과 동일한지 단언).
   digest() {
     const rows = [];
