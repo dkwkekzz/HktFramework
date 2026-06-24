@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0199](step-0199.md) — **길드 금고 원장 정합**(bankConsistent·itemId 단일 길드 소유): 어떤 itemId 도 두 길드 금고 동시 부재(교차/내부 중복 0=이중 소유 0)·3체제 성립. rosterConsistent(0190·master 권위)의 아이템 권위 판. 닿는 박스: svc-guild.
-- **한 줄 상태**: reg ALL OK·guildbankconsistent: 3체제 3/3·g1/g2 vault 1/2·spine OK.
-- **다음**: §2 — guild bank arc capstone(0200·원장+배지 정합 결합·arc 0191~0200 닫기)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0200](step-0200.md) — **길드 금고 arc capstone**(bankCapstone·**guild bank arc 0191~0200 닫힘**): bankConsistent(원장 권위 단일 소유·0199) AND bankFeedConsistent(배지==vault·0198) 결합. 연산(create/join/deposit/withdraw)×세 체제(정상·guild crash·feed crash) 성립. 거래소 0140·우편 0180·길드 0190 의 금고 판. SPINE 계층3 길드 금고 박스 완성. 닿는 박스: svc-guild.
+- **한 줄 상태**: reg ALL OK·guildbankcapstone: 3체제 3/3·g1/g2 vault 2/2·spine OK.
+- **다음**: §2 — 길드 금고↔가방 escrow 연동(예치 시 멤버 가방 인출·인출 시 입금)·비동기 결정론🔴·**0191~0200 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷·0196 배지·0197 배지 영속·0198 배지 정합 ✅. 다음: 원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
+**길드 금고(Guild Bank) arc(0191~0200) ✅ 닫힘 = 거래소 escrow/우편 custody 의 조직 공유 판(deposit·withdraw·발행·영속·스냅샷·배지·배지영속·배지정합·원장정합·capstone). SPINE 계층3 길드 금고 박스 완성. 다음 후보: 길드 금고↔가방 escrow 연동(예치 시 멤버 가방 인출·인출 시 입금·거래소 0117~0120·우편 0161~0164 의 금고 판)·발행 게이트 통합·비동기 결정론🔴. 🔎 0191~0200 묶음 리뷰 적기.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -36,7 +36,7 @@
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0029·0085·0184). 버스 라우팅 영속 0. |
-| 🟡 | **거래소·우편·랭킹·길드 ✅·길드 금고 진행** | 서비스 | 거래소(0107~0140)·우편(0142~0180)·길드(0181~0190·로스터/마스터십/배지/이양·single-master) 동형. 길드 금고(0191~·공유 아이템 원장 deposit). 가방 escrow 연동 후속. |
+| 🟡 | **거래소·우편·랭킹·길드·길드 금고 ✅** | 서비스 | 거래소(0107~0140)·우편(0142~0180)·길드(0181~0190·로스터/마스터십/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합 capstone) 동형. 금고↔가방 escrow 연동 후속. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
@@ -74,7 +74,7 @@
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+게이트웨이 producer 네임스페이스(0046). 대기열·만료·재접속·게이트웨이 군 풀 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제·동결 Sim+AOI+분할·핸드오프(소유자=1)+증분 AOI+복원+failover+별 프로세스+추종자 재충원(0001~0013). 비트-결정론은 C++ 승격서 부활. 존 N개·동적 경계 후속 |
-| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~·공유 아이템 원장). 가방 escrow 연동 후속 |
+| 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→읽기모델 복구→채팅 영속→홉 신뢰→failover/N-replica quorum→윈도+유계 K(0017~0062). fsync·월드/버스 영속 후속 |
@@ -203,14 +203,10 @@
 | [0109](step-0109.md) | 거래소 영속·failover(exchangePersist) | 통과 |
 | [0110](step-0110.md) | 거래소 저널 스냅샷 압축(exchangeSnapshot) | 통과 · tail 1 |
 | [0111](step-0111.md) | 거래소 취소 발행(cancelPublish) | 통과 · ON pub 1 |
-| [0112](step-0112.md) | 거래소 시세 피드 읽기 모델(marketFeed) | 통과 |
-| [0113](step-0113.md) | 시세 피드 영속·late-join(marketReconstruct) | 통과 |
-| [0114](step-0114.md) | 매물 만료 TTL(exchExpiry) | 통과 · expired 1 |
-| [0115](step-0115.md) | 매물 만료 발행(expirePublish) | 통과 · ON pub 1 |
+| [0112-0113](step-0112.md) | 거래소 시세 피드 읽기 모델+영속·late-join(marketFeed·marketReconstruct) | 통과 |
+| [0114-0115](step-0114.md) | 매물 만료 TTL+발행(exchExpiry·expirePublish) | 통과 · expired 1·pub 1 |
 | [0116](step-0116.md) | 시세 피드 만료 반영(MarketFeed svc.exchange.expired 구독) | 통과 |
-| [0117](step-0117.md) | 거래소↔가방 list 인출(exchInventory leg1) | 통과 |
-| [0118](step-0118.md) | 거래소↔가방 buy 입금(exchInventory leg2) | 통과 |
-| [0119](step-0119.md) | 거래소↔가방 cancel/expire 반환(exchInventory leg3) | 통과 |
+| [0117-0119](step-0117.md) | 거래소↔가방 escrow legs(list 인출·buy 입금·cancel/expire 반환·exchInventory) | 통과 |
 | [0120](step-0120.md) | 거래소↔가방 2-서비스 보존(escrowItemIds) | 통과 · open==escrow·minted 5 |
 | [0121](step-0121.md) | 거래소↔가방 give 결과 비동기 수신(exchSaga) | 통과 · gives==acked 9 |
 | [0122](step-0122.md) | 거래소↔가방 list 인출 실패 보상(exchCompensate) | 통과 · aborted ON1/OFF0 |
@@ -282,12 +278,13 @@
 | [0188](step-0188.md) | GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터) | 통과 · 4체제 4/4 |
 | [0189](step-0189.md) | 마스터 이양(guildTransfer·single-master 쌍 거래·핸드오프 0006 판) | 통과 · x→c1·crash 보존 |
 | [0190](step-0190.md) | 길드 정합 capstone(rosterConsistent·single-master·arc 0181~0190 닫기) | 통과 · 3체제 3/3 |
-| [0191](step-0191.md) | 길드 금고 deposit(guildBank·guildDeposit·공유 아이템 원장·bank arc 출발) | 통과 · g1 vault [sword,shield]·중복 0 |
-| [0192](step-0192.md) | 길드 금고 withdraw(guildWithdraw·입출금 쌍·거래소 buy 0118/우편 fetch 0158 판) | 통과 · 예치2/인출3→vault [shield] |
-| [0193](step-0193.md) | 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed·거래소 0108/길드 0183 판) | 통과 · ON pub 3==rx==실변경·OFF 0 |
-| [0194](step-0194.md) | 길드 금고 영속·failover(guildPersist 금고 확장·deposit/withdraw 저널 replay) | 통과 · crash→reconstruct vault==pre·OFF 소실 |
-| [0195](step-0195.md) | 길드 금고 저널 스냅샷 압축(guildSnapshot 금고 확장·vault 포함·tail replay) | 통과 · tail 1<full 9·무손실 vault 4 |
-| [0196](step-0196.md) | 길드 금고 아이템 수 배지(guildBankFeed·GuildFeed bankCount·0186 금고 판) | 통과 · 배지==vault(g1 2·g2 1)·OFF 0 |
-| [0197](step-0197.md) | 길드 금고 배지 영속·late-join(guildFeedPersist 금고 배지·kind 분기 replay·0187 판) | 통과 · crash→reconstruct 배지==pre·OFF 소실 |
-| [0198](step-0198.md) | 길드 금고 배지 정합 capstone(bankFeedConsistent·배지==vault 크기·0188 금고 판) | 통과 · 3체제 3/3·g1/g2 vault 2/2 |
-| [0199](step-0199.md) | 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유·0190 아이템 권위 판) | 통과 · 3체제 3/3·교차/내부 중복 0 |
+| [0191](step-0191.md) | 길드 금고 deposit(guildBank·guildDeposit·공유 아이템 원장·bank arc 출발) | 통과 · vault [sword,shield]·중복 0 |
+| [0192](step-0192.md) | 길드 금고 withdraw(guildWithdraw·입출금 쌍·0118/0158 판) | 통과 · 예치2/인출3→vault [shield] |
+| [0193](step-0193.md) | 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed·0108/0183 판) | 통과 · ON pub 3==rx·OFF 0 |
+| [0194](step-0194.md) | 길드 금고 영속·failover(guildPersist 금고 확장·저널 replay·0184 판) | 통과 · reconstruct==pre·OFF 소실 |
+| [0195](step-0195.md) | 길드 금고 저널 스냅샷 압축(guildSnapshot 금고 확장·0185 판) | 통과 · tail 1<full 9·무손실 |
+| [0196](step-0196.md) | 길드 금고 아이템 수 배지(guildBankFeed·bankCount·0186 판) | 통과 · 배지==vault·OFF 0 |
+| [0197](step-0197.md) | 길드 금고 배지 영속·late-join(guildFeedPersist 금고 배지·0187 판) | 통과 · reconstruct==pre·OFF 소실 |
+| [0198](step-0198.md) | 길드 금고 배지 정합 capstone(bankFeedConsistent·배지==vault·0188 판) | 통과 · 3체제 3/3·vault 2/2 |
+| [0199](step-0199.md) | 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유·0190 판) | 통과 · 3체제 3/3·중복 0 |
+| [0200](step-0200.md) | 길드 금고 arc capstone(bankCapstone·원장+배지 결합·0140/0180/0190 금고 판·arc 0191~0200 닫기) | 통과 · 3체제 3/3 |
