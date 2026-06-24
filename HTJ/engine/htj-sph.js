@@ -579,6 +579,56 @@
     return { particles, migratedCells: particles.length, removedMass };
   }
 
+  // ── SW5 격자 은퇴 역이주: SPH 입자 → 격자 유체 *되돌림*(0051 의 역·왕복 닫음) ──────────────────
+  //   design/sphere-world.md §6 SW5 — 0051 fluidToParticles(격자→SPH 복사)·0055 migrateRegionToSPH(격자→SPH 이동)의
+  //   *역* = **0026/0031 demote(개체→격자 유체)의 *SPH 전체* 판**. SPH 입자를 제가 점유한 격자 셀(반올림 좌표)에
+  //   되쌓는다(질량 ρ=energy 장·운동량 mom·내부E therm 누적) → 입자가 격자로 *녹아들어* 왕복이 닫힌다(격자→SPH→격자
+  //   = 항등). "은퇴"가 일방이 아니라 *가역*(SPH 가 필요 없어진 영역을 격자로 되접어 비용 절감)이라는 증거.
+  //     셀 i = round(p.cx,cy,cz) (격자 밖은 경계로 클램프·질량 손실 0) · ρ[i]+=m · mom[i]+=p · therm[i]+=internalE
+  //   **한 셀에 여러 입자가 모이면**(또는 기존 격자 유체와 합쳐지면) bulk 운동량은 합쳐지나 *상대 운동 KE 는
+  //   사라진다* → 그 잃은 상대 KE 를 internalE(열)로 적립해 **총E 정확 보존**(0031 demote 의 충돌→열 규약·
+  //   relKE = (기존 bulk KE + Σ입자 KE) − 합친 bulk KE ≥ 0). 한 셀에 입자 하나면 relKE=0(항등). **보존**: 누적이라
+  //   Σ질량·운동량·총E(=KE+내부E) 정확 보존(격자→SPH→격자 왕복 = 비트 근사 항등). world 를 *제자리 변형*(격자에
+  //   누적)하고 요약 반환. world: { N, fields{energy,mom_x/y/z,therm} }. opts: { field('energy') }. 입자 없음 → 격자 불변.
+  function particlesToFluid(particles, world, opts) {
+    opts = opts || {};
+    if (!particles || particles.length === 0) return { cells: 0, mass: 0, heated: 0 };   // 입자 없음 → 격자 불변(회귀 0)
+    const N = world.N;
+    const rho = world.fields[opts.field || 'energy'];
+    const gx = world.fields['mom_x'], gy = world.fields['mom_y'], gz = world.fields['mom_z'];
+    const u = world.fields['therm'];
+    const EPS = 1e-9;
+    const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
+    // 1패스: 셀별 누적(질량·운동량·내부E·입자 KE 합) — 상대 KE→열은 합친 뒤 한 번에.
+    const acc = new Map();                                   // i -> [dm, dpx, dpy, dpz, dIE, dKEparts]
+    let totalMass = 0;
+    for (let n = 0; n < particles.length; n++) {
+      const p = particles[n];
+      const m = p.mass || 0;
+      const ix = clamp(Math.round(p.cx || 0)), iy = clamp(Math.round(p.cy || 0)), iz = clamp(Math.round(p.cz || 0));
+      const i = (iz * N + iy) * N + ix;
+      const px = p.px || 0, py = p.py || 0, pz = p.pz || 0;
+      const ie = p.internalE != null ? p.internalE : ((p.energy != null ? p.energy : 0) - (p.KEcm || 0));
+      const keP = m > EPS ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+      const a = acc.get(i) || [0, 0, 0, 0, 0, 0];
+      a[0] += m; a[1] += px; a[2] += py; a[3] += pz; a[4] += ie; a[5] += keP;
+      acc.set(i, a); totalMass += m;
+    }
+    // 2패스: 셀에 적용 + 상대 KE→열(총E 보존).
+    let heated = 0;
+    for (const [i, a] of acc) {
+      const preM = rho[i] || 0, prePx = gx ? gx[i] : 0, prePy = gy ? gy[i] : 0, prePz = gz ? gz[i] : 0;
+      const preKE = preM > EPS ? 0.5 * (prePx * prePx + prePy * prePy + prePz * prePz) / preM : 0;
+      const newM = preM + a[0], nPx = prePx + a[1], nPy = prePy + a[2], nPz = prePz + a[3];
+      const newBulkKE = newM > EPS ? 0.5 * (nPx * nPx + nPy * nPy + nPz * nPz) / newM : 0;
+      const relKE = (preKE + a[5]) - newBulkKE;             // 잃은 상대 운동 KE(≥0) → 열
+      rho[i] = newM; if (gx) gx[i] = nPx; if (gy) gy[i] = nPy; if (gz) gz[i] = nPz;
+      if (u) u[i] = (u[i] || 0) + a[4] + (relKE > 0 ? relKE : 0);
+      if (relKE > 0) heated += relKE;
+    }
+    return { cells: acc.size, mass: totalMass, heated };
+  }
+
   // ── TW2 바다 — SPH 물 입자가 *정적 지형 앵커*를 느끼는 경계 결합(안 새어 나감) ────────────────────
   //   design/environment.md §3 TW2 — sphere-world 동역학(0026~)+SPH 물리 스택(0040~)은 섰지만, 물(SPH 입자)이
   //   *지형*(정적 앵커·0056/0059)을 느끼는 결합이 없어 물이 지형을 그냥 통과한다. 이 법칙은 그 *유일하게 빠진
@@ -771,5 +821,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 16 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 17 };
 });
