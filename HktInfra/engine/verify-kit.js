@@ -697,9 +697,29 @@ async function summary(seeds) {
   console.log('write-behind 신뢰성(0023~0026)·이중쓰기 backup(0027)·N-replica quorum-read(0028) 위에 quorum *쓰기* ack(이 step) — W 정족수 ack 후 durable 선언·durableSeq 워터마크가 정합성 윈도를 가시·유계화. 남은 §9 = 디스크 fsync·복제 anti-entropy·버스 영속·월드 영속·활성 중 다운타임 일반 재발행 후속.');
 }
 
+// ── 3차 균형 라운드(0221~0230) 승급 모드 (step-0231~ · #16 — 너비 5박스 3차 심화의 누적 회귀화) ──
+//   각 모드는 자기 OPS/BASE 를 *함수 안에* 지역화(다중 승급 시 const 충돌 방지)·run/check/pad 는 키트 클로저.
+//   spine = verify.js all = 현재 src 에 이 단언 전부를 매번 돌린다(생성 step 한정이던 양성 단언을 항구화).
+function instanceleave(seeds) {
+  const SPAWN = (at, instanceId, kind) => ({ at, op: { type: 'instanceSpawn', instanceId, kind } });
+  const ROUTE = (at, player, instanceId) => ({ at, op: { type: 'instanceRoute', player, instanceId } });
+  const LEAVE = (at, player) => ({ at, op: { type: 'instanceLeave', player } });
+  const OPS = [SPAWN(1, 'd1', 'dungeon'), ROUTE(2, 'p1', 'd1'), ROUTE(3, 'p2', 'd1'), LEAVE(4, 'p1'), LEAVE(5, 'pX')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
+  console.log('== instanceleave (0221 승급): 인스턴스 플레이어 이탈(instanceLeave) — 배정 player 이탈 시 route 해제·occupancy 감소·권위 release(0216 acquire 짝)·미배정은 멱등 no-op. ==');
+  console.log('seed   | d1 occ | p1 route | left | misses | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const inst = r.instance;
+    const ok = check(inst.occupancyOf('d1') === 1 && inst.instanceOf('p1') === null && inst.instanceOf('p2') === 'd1' && inst.left === 1 && inst.leaveMisses === 1 && inst.routedCount() === 1,
+      `seed ${seed}: 이탈 위반 (d1 occ ${inst.occupancyOf('d1')}·p1 ${inst.instanceOf('p1')}·left ${inst.left}·misses ${inst.leaveMisses})`);
+    console.log(`${pad(seed, 6)} | ${pad(inst.occupancyOf('d1'), 6)} | ${pad(inst.instanceOf('p1') || '-', 8)} | ${pad(inst.left, 4)} | ${pad(inst.leaveMisses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro };
-  const ORDER = ['reg', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave };
+  const ORDER = ['reg', 'instanceleave', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
