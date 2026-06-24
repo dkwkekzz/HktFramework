@@ -637,17 +637,50 @@
   //   **전역 보존**: grid→SPH(0055 이동)+SPH→grid(0076 누적) 둘 다 보존이라 (남은 격자+입자) 총 질량·운동량·총E 불변.
   //   rhoOn 없음→grid→SPH 안 함·rhoOff 없음→SPH→grid 안 함·둘 다 없음→불변(회귀 0). world(제자리 변형)+particles(현 SPH
   //   입자)→ { particles(갱신), toSPH, toGrid }. opts: { field('energy'), rhoOn(셀 ρ≥이값→SPH), rhoOff(입자셀질량≤이값→격자) }.
+  // ── 격자 속도 전단(shear) 장 — |∇v| 셀별 측정(적응 이주 디테일 검출자) ─────────────────────────────
+  //   "비용이 디테일을 따라간다"(0039/0077)에서 *디테일*은 밀도만이 아니다 — 속도가 *공간적으로 빠르게 변하는*
+  //   곳(전단·소용돌이·충돌면)은 고정 셀 격자가 수치 확산으로 뭉개고, Lagrangian(SPH·물질 따라감)이 더 잘 좇는다.
+  //   이 측정자가 그 곳을 짚는다: 셀별 속도 v=mom/ρ 의 |∇v| = √(Σ_comp Σ_axis (∂v_comp/∂axis)²) (중심차분·경계 클램프).
+  //   ρ≤0 셀은 속도 미정 → 전단 0. mom 장 없으면 0. 읽기 전용(world 불변). opts: { field('energy') }. → Float64Array(L).
+  function gridShearField(world, opts) {
+    opts = opts || {};
+    const N = world.N, L = N * N * N, EPS = 1e-12;
+    const rho = world.fields[opts.field || 'energy'];
+    const mx = world.fields['mom_x'], my = world.fields['mom_y'], mz = world.fields['mom_z'];
+    const out = new Float64Array(L);
+    if (!mx || !my || !mz) return out;
+    const vx = new Float64Array(L), vy = new Float64Array(L), vz = new Float64Array(L);
+    for (let i = 0; i < L; i++) { const m = rho[i]; if (m > EPS) { vx[i] = mx[i] / m; vy[i] = my[i] / m; vz[i] = mz[i] / m; } }
+    const cl = (a) => a < 0 ? 0 : (a >= N ? N - 1 : a);
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x; if (rho[i] <= EPS) continue;
+      const ixm = (z * N + y) * N + cl(x - 1), ixp = (z * N + y) * N + cl(x + 1);
+      const iym = (z * N + cl(y - 1)) * N + x, iyp = (z * N + cl(y + 1)) * N + x;
+      const izm = (cl(z - 1) * N + y) * N + x, izp = (cl(z + 1) * N + y) * N + x;
+      let s = 0;
+      for (const V of [vx, vy, vz]) {
+        const dvx = (V[ixp] - V[ixm]) / 2, dvy = (V[iyp] - V[iym]) / 2, dvz = (V[izp] - V[izm]) / 2;
+        s += dvx * dvx + dvy * dvy + dvz * dvz;
+      }
+      out[i] = Math.sqrt(s);
+    }
+    return out;
+  }
+
   function autoMigrate(world, particles, opts) {
     opts = opts || {};
     particles = particles || [];
     const N = world.N;
     const field = opts.field || 'energy';
     const rho = world.fields[field];
-    const rhoOn = opts.rhoOn, rhoOff = opts.rhoOff;
+    const rhoOn = opts.rhoOn, rhoOff = opts.rhoOff, shearOn = opts.shearOn;
     let toSPHn = 0, toGridn = 0;
-    // 1. 격자 → SPH: ρ ≥ rhoOn 인 셀(밀집·붕괴) → 입자(0055 이동·격자 비움).
-    if (rhoOn != null) {
-      const mig = migrateRegionToSPH(world, { field, threshold: 0, region: (x, y, z) => rho[(z * N + y) * N + x] >= rhoOn });
+    // 1. 격자 → SPH: ρ ≥ rhoOn(밀집·붕괴) *또는* |∇v| ≥ shearOn(전단·소용돌이·디테일) 인 셀 → 입자(0055 이동·격자 비움).
+    //    shearOn 안 줌 → 밀도 기준만(0077 동일). 디테일은 밀도뿐 아니라 *속도 변화*도 — 비용이 디테일을 따라간다.
+    if (rhoOn != null || shearOn != null) {
+      const shearF = shearOn != null ? gridShearField(world, { field }) : null;
+      const region = (x, y, z) => { const i = (z * N + y) * N + x; return (rhoOn != null && rho[i] >= rhoOn) || (shearOn != null && shearF[i] >= shearOn); };
+      const mig = migrateRegionToSPH(world, { field, threshold: 0, region });
       particles = particles.concat(mig.particles);
       toSPHn = mig.particles.length;
     }
@@ -857,5 +890,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 18 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, gridShearField, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 19 };
 });
