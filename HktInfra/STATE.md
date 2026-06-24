@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0191](step-0191.md) — **길드 금고(Guild Bank) deposit**(guildBank·guildDeposit·**bank arc 0191~0200 출발**): 길드 공유 아이템 원장(vault: guildId→[itemId]). 멤버가 아이템 예치(멤버만·집합 멱등·중복 0·권위 단일 소유). 거래소 escrow 0117·우편 custody 0157 의 *조직 공유* 판. 닿는 박스: svc-guild·topo-build.
-- **한 줄 상태**: reg ALL OK·guildbank: g1 vault [sword,shield]·deposits 5·중복 0·spine OK.
-- **다음**: §2 — bank withdraw(0192)→발행→영속→배지→정합 capstone·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0192](step-0192.md) — **길드 금고 withdraw**(guildWithdraw): 멤버가 금고에서 아이템 인출(실재 itemId·멤버만·멱등 graceful no-op). itemId 가 금고를 떠나며 권위 단일 소유 보존. deposit(0191)+withdraw 입출금 쌍 완성. 거래소 buy 0118·우편 fetch 0158 의 길드 금고 판. 닿는 박스: svc-guild.
+- **한 줄 상태**: reg ALL OK·guildwithdraw: 예치 2/인출 3 후 g1 vault [shield]·spine OK.
+- **다음**: §2 — bank 변경 발행(0193)→영속→배지→정합 capstone·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
@@ -282,4 +282,5 @@
 | [0188](step-0188.md) | GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터) | 통과 · 4체제 4/4 |
 | [0189](step-0189.md) | 마스터 이양(guildTransfer·single-master 쌍 거래·핸드오프 0006 판) | 통과 · x→c1·crash 보존 |
 | [0190](step-0190.md) | 길드 정합 capstone(rosterConsistent·single-master·arc 0181~0190 닫기) | 통과 · 3체제 3/3 |
-| [0191](step-0191.md) | 길드 금고 deposit(guildBank·guildDeposit·공유 아이템 원장·거래소 escrow/우편 custody 의 조직 판·bank arc 출발) | 통과 · g1 vault [sword,shield]·중복 0 |
+| [0191](step-0191.md) | 길드 금고 deposit(guildBank·guildDeposit·공유 아이템 원장·bank arc 출발) | 통과 · g1 vault [sword,shield]·중복 0 |
+| [0192](step-0192.md) | 길드 금고 withdraw(guildWithdraw·입출금 쌍·거래소 buy 0118/우편 fetch 0158 판) | 통과 · 예치2/인출3→vault [shield] |

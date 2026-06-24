@@ -1,4 +1,5 @@
 'use strict';
+// step-0192 — 길드 금고 withdraw(guildWithdraw): 0191 의 예치(deposit)는 *입금 전용*이라 길드 금고가 단조 증가만 했다 — 멤버가 금고에서 아이템을 도로 꺼낼 길이 없었다(0191 한계). 인출을 더한다: guildWithdraw{guildId,member,itemId} → 금고에 그 itemId 가 있고 요청자가 멤버일 때만 제거(없으면/비멤버면 멱등·graceful no-op). 거래소 buy leg(0118)·우편 fetch(0158)의 길드 금고 판. bank OFF·미주입이면 0191 비트 동일(reg).
 // step-0191 — 길드 금고(Guild Bank) deposit(guildBank·guildDeposit): 0181~0190 에서 길드 박스(로스터+마스터십)를 완성했다. 이 arc(0191~0200)는 길드의 *공유 아이템 원장*(금고/vault)을 키운다 — 멤버가 아이템을 길드 금고에 예치/인출하는, 거래소 escrow(0117)·우편 아이템 custody(0157)의 *조직 공유* 판. 첫 조각: guildDeposit{guildId, member, itemId} → 금고가 itemId 를 보유(vault: guildId→[itemId]·집합 의미론·중복 무시 멱등). single-master 와 직교(권위=금고 원장). bank OFF·미주입이면 금고 0 = 0190 비트 동일(reg). 계층: 3 게임 서비스.
 // step-0190 — 길드 정합 capstone(rosterConsistent·single-master 불변·arc 0181~0190 닫기): 0181~0189 에서 길드 박스를 세웠다(로스터 SSOT·증분·발행·영속·스냅샷·배지·feed 영속·정합·마스터 이양). 이 step 은 박스 전체를 관통하는 *척추 ③ 권위 단일 소유*의 길드 불변을 명시 단언한다 — rosterConsistent(): 모든 길드는 정확히 한 master(공백 0)·master ∈ members(고아 마스터 0)·멤버 중복 0. 모든 연산(create/join/leave/transfer)·모든 체제(정상·guild crash→reconstruct·feed crash→reconstruct)서 성립 + feedConsistent(0188 배지==로스터)와 결합 → 길드 박스가 결코 single-master 를 깨지 않음을 증명. 순수 읽기(권위 0·실행 경로 무변경) → 0189 비트 동일(reg). 거래소 0140·우편 0180 capstone 의 길드 판.
 // step-0189 — 마스터 이양(guildTransfer·single-master 보존 쌍 거래): 0182 master 보호는 마스터를 *영구 고정*했다 — 마스터가 길드를 떠나거나 위임할 길이 없었다(0182 한계). 권위 이동의 정전 패턴(release+acquire 쌍 거래·SPINE §5 ③·존 핸드오프 0006·escrow 거래 0117 의 *마스터십* 판)을 길드에 적용한다: guildTransfer{guildId,from,to} → from 이 현재 master 이고 to 가 멤버일 때만 master 를 to 로 *원자 교체*(공백 0·이중 0). from 은 일반 멤버로 잔류(로스터 크기 불변). to 비-멤버·from 비-마스터면 no-op(거래 거부). 이양도 발행(kind 'transfer'·GuildFeed 는 무시=배지 불변)·저널(영속 replay 동일 적용). guildTransfer 미주입이면 0188 비트 동일(reg).
@@ -39,6 +40,7 @@ class GuildService {
     this.bank = opts.bank || false;     // 길드 금고 활성(step-0191·guildBank) — 멤버가 아이템을 길드 공유 원장(vault)에 예치/인출. OFF 면 금고 명령 무시(0190 비트 동일). 거래소 escrow·우편 custody 의 조직 공유 판.
     this.vault = new Map();       // guildId -> [itemId...] (금고 원장 SSOT — 길드가 보유한 아이템 집합·중복 0·권위 단일 소유). 로스터/마스터십과 직교(권위=원장).
     this.deposits = 0;            // 처리한 guildDeposit 수(step-0191·계측·no-op 포함).
+    this.withdraws = 0;           // 처리한 guildWithdraw 수(step-0192·계측·no-op 포함).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
@@ -107,6 +109,17 @@ class GuildService {
       if (g && g.members.includes(p.member)) {
         const v = this.vault.get(p.guildId) || [];
         if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0).
+      }
+      return;
+    }
+    // 길드 금고 인출(step-0192·guildWithdraw) — 멤버가 길드 금고에서 아이템을 꺼냄. bank OFF 면 무시(0191 비트 동일). 멤버이고 금고에 그 itemId 가 있을 때만 제거(비멤버·없는 itemId·미존재 길드면 멱등 graceful no-op). 거래소 buy leg 0118·우편 fetch 0158 의 길드 금고 판.
+    if (p.type === 'guildWithdraw') {
+      if (!this.bank) return;
+      this.withdraws++;
+      const g = this.guilds.get(p.guildId);
+      const v = this.vault.get(p.guildId);
+      if (g && g.members.includes(p.member) && v && v.includes(p.itemId)) {
+        this.vault.set(p.guildId, v.filter(x => x !== p.itemId));   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0).
       }
       return;
     }
