@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0248](step-0248.md) — **배치 SSOT 실배선(#51) 8: host 장애 복구(placeHostDown)**. 비자발적으로 죽은 host 의 모든 존을 생존 host 최소부하로 *재가동(re-acquire)*(`_hostDown`·드레인 graceful migrate 와 달리 죽은 host 는 release 불가·running 단일 키 재배치·공백 없이 한 존 한 host 회복·drift 0). OFF→0247 비트 동일.
-- **한 줄 상태**: reg ALL OK·placehostdown: 5/5 A 장애→A run 0·z1→C·z2→B·rescued 2·drift 0·`run.js all` 18모드+classics ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51 실배선 8조각 완료**(0241~0248·place/migrate/rebalance/drain/stop/auto/hostdown executed + reconcile). **다음 = 0249 멀티프로세스 패리티**(host.js 에 placement op seam·#9 의 배치 판) 또는 게이트 #49(wiring 분할). 🔎 0241~0250 묶음 리뷰 적기 — 다음 방향(실 zone.js 핸드오프 잔여·#49 분할·#9 멀티프로세스)은 `infra-review` 평결.
+- **닫힌 step**: [step-0249](step-0249.md) — **배치 SSOT 실배선(#51) 9: 전 lifecycle 집행 capstone**. `runningHosts()` 질의 + 전 op(start·auto·migrate·hostdown·stop) 혼합 시퀀스 후에도 결정(placement)==집행(running)·drift 0·한 존 정확히 한 host(공백/중복 0)·전 op-type 발화 단언(executed 배치 SSOT arc 0241~0249 닫기). OFF→0248 비트 동일.
+- **한 줄 상태**: reg ALL OK·placecapstone: 5/5 running 4/placed 4·drift 0·single owner·가동 host 3·rescued 2·`run.js all` 19모드+classics ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51 executed 배치 SSOT arc(0241~0249) 닫힘** — placement(advisory paper)을 코디네이션 SSOT 층에서 executed lifecycle(start/migrate/rebalance/drain/stop/auto/hostdown)로 집행·capstone. **#51 잔여**: 실 EntityZone host 이주(zone.js 핸드오프 트리거)·멀티프로세스 패리티(#9). **다음 방향(#51 잔여 / 게이트 #49 wiring 분할 / #9)의 권위 판정은 `infra-review`**(0241~0250 묶음). 🔎 묶음 리뷰 적기.
 
 ---
 
@@ -78,7 +78,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)+executed auto(0247·부하 기반 실 가동)+host 장애 복구(0248·placeHostDown·생존 host re-acquire)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)+executed auto(0247·부하 기반 실 가동)+host 장애 복구(0248·placeHostDown·생존 host re-acquire)+lifecycle capstone(0249·runningHosts·전 op drift 0)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
@@ -164,3 +164,4 @@
 | [0246](step-0246.md) | 배치 SSOT 실배선 #51-6: executed placeStop(_stop·존 운영 퇴역·결정+집행 동시 제거·instance _despawn 의 존 판·드레인과 달리 그 존 자체 내림) | 통과(reg 0·spine OK) · 5/5 z2 퇴역·placed 2·drift 0 |
 | [0247](step-0247.md) | 배치 SSOT 실배선 #51-7: executed placeAuto(부하 기반 자동 배치가 최소부하 host 에 실 런타임 _start·0217 advisory 자동 배치의 집행 판) | 통과(reg 0·spine OK) · 5/5 running A2/B1/C1·starts 4·drift 0 |
 | [0248](step-0248.md) | 배치 SSOT 실배선 #51-8: host 장애 복구(placeHostDown·_hostDown·죽은 host 존 생존 host 재가동 re-acquire·드레인과 달리 비자발·release 불가) | 통과(reg 0·spine OK) · 5/5 A 장애→A run 0·rescued 2·drift 0 |
+| [0249](step-0249.md) | 배치 SSOT 실배선 #51-9: 전 lifecycle 집행 capstone(runningHosts 질의·start·auto·migrate·hostdown·stop 혼합 후 결정==집행·drift 0·단일 소유·arc 0241~0249 닫기) | 통과(reg 0·spine OK) · 5/5 run 4/placed 4·drift 0·single owner |
