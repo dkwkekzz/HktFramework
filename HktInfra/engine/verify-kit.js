@@ -800,9 +800,28 @@ function cachetouch(seeds) {
   }
 }
 
+function worldwb(seeds) {
+  const BUF = (at, intent) => ({ at, op: { type: 'worldBuffer', intent } });
+  const FLUSH = (at) => ({ at, op: { type: 'worldFlush' } });
+  const OPS = [BUF(1, { e: 'e1', kind: 'move', to: 11 }), BUF(2, { e: 'e2', kind: 'move', to: 22 }), FLUSH(3), BUF(4, { e: 'e1', kind: 'pickup', item: 'gold' })];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
+  console.log('== worldwb (0227 승급): 월드 영속 write-behind 버퍼 — intent 를 버퍼링 후 flush 로 durable 로그 일괄 적층(쓰기 지연·배치). 미flush 분은 비-durable(crash 윈도). ==');
+  console.log('seed   | 로그 | 버퍼 | flushed | e1 gold | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const w = r.worldlog;
+    w.replay();
+    const e1 = w.stateOf('e1');
+    const gold = !!(e1 && e1.items.includes('gold'));
+    const ok = check(w.length() === 2 && w.bufferLength() === 1 && w.flushed === 2 && !gold && e1 && e1.pos === 11,
+      `seed ${seed}: write-behind 위반 (로그 ${w.length()}·버퍼 ${w.bufferLength()}·flushed ${w.flushed}·gold ${gold})`);
+    console.log(`${pad(seed, 6)} | ${pad(w.length(), 4)} | ${pad(w.bufferLength(), 4)} | ${pad(w.flushed, 7)} | ${pad(gold ? 'yes' : 'no', 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch };
-  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
