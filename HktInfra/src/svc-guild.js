@@ -1,0 +1,48 @@
+'use strict';
+// step-0181 — 길드(Guild) 서비스 분리(guildService·GuildService): SPINE 계층3 게임 서비스의 마지막 미착수 박스(가방·채팅·거래소·우편·랭킹 ✅, 길드 ⬜). 파티(0075 PartyService)가 *수명 짧은* 그룹 멤버십이라면, 길드는 *오래 사는 명명된 조직* — 마스터(단일 권위 소유자)가 결성하고 로스터(멤버 집합)를 보유한다. 거래소·우편 박스의 계보(escrow/발행/영속/saga)를 따라 이 arc(0181~0190)에서 키운다.
+//   분리 이유(SPINE §2 판정): 길드 멤버십·마스터십은 *존 tick 박자와 무관한 오래 사는 게임 상태* → 비동기 서비스(존 tick 밖·onTick 없음·순수 반응형). 클라/라우터는 로스터를 *질의*로만 소비(은닉: 저장 방식 모름·질의 계약만). 0075 파티 멤버십 SSOT 의 *길드* 판 + single-master 권위 불변(척추 ③ 권위 단일 소유의 길드 적용).
+//   더한 한 조각(0181): ⒜ guildCreate{guildId, master, members} → 로스터 SSOT 쓰기(master 는 항상 멤버에 포함·중복 제거) ⒝ guildQuery{guildId} → guildRoster{guildId, master, members} 회신(request/reply·SPINE §4 경로3). single-master 불변: 매 길드는 정확히 한 master(권위 단일 소유). guildService OFF → 박스 0 = 0180 비트 동일(reg).
+// dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
+const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('./common.js') : globalThis.__HktNetCommon;
+const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
+
+// ── [게임 서비스] GuildService — 길드 *로스터+마스터십*의 SSOT(SPINE 계층3 길드/소셜). 존 tick 밖 *순수 반응형*(onTick 없음·권위=로스터/마스터만). ──
+//   guildCreate: 길드 결성/갱신({guildId, master, members}) → 로스터 SSOT 갱신(master ∈ members 보장). guildQuery: 로스터 질의(request/reply) → guildRoster 회신.
+//   single-master 불변: 모든 길드는 정확히 한 master(권위 단일 소유·척추 ③). 마스터 이양은 후속(0189) 쌍 거래.
+class GuildService {
+  constructor(opts = {}) {
+    this.guilds = new Map();      // guildId -> { master, members:[...] } (로스터 SSOT — 오래 사는 상태·master ∈ members).
+    this.creates = 0;             // 처리한 guildCreate 수(계측).
+    this.queriesRx = 0;           // 받은 guildQuery 수(계측). repliesSent = 보낸 응답 수(1:1).
+    this.repliesSent = 0;
+    this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
+  }
+  // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
+  _normalize(master, members) {
+    const out = [master];
+    for (const m of (members || [])) if (m !== master && !out.includes(m)) out.push(m);
+    return out;
+  }
+  onMsg(m) {
+    const p = m.payload;
+    // 길드 결성/갱신(로스터 SSOT 쓰기) — guildId 의 master+멤버를 설정. 같은 guildId 재-create 면 덮어씀(단순 모델·후속 step 이 증분 가입/탈퇴로 정련). master 는 항상 멤버.
+    if (p.type === 'guildCreate') {
+      this.guilds.set(p.guildId, { master: p.master, members: this._normalize(p.master, p.members) });
+      this.creates++; return;
+    }
+    // 로스터 질의(읽기·request/reply) — 클라/라우터가 길드 로스터를 묻는다. 미존재 길드면 master null·빈 목록(graceful). 응답을 m.from 으로 회신.
+    if (p.type === 'guildQuery') {
+      this.queriesRx++;
+      const g = this.guilds.get(p.guildId);
+      this.net.send(this.addr, m.from, { type: 'guildRoster', guildId: p.guildId, master: g ? g.master : null, members: g ? g.members.slice() : [] });
+      this.repliesSent++; return;
+    }
+  }
+  membersOf(guildId) { const g = this.guilds.get(guildId); return g ? g.members : []; }
+  masterOf(guildId) { const g = this.guilds.get(guildId); return g ? g.master : null; }
+}
+
+const __guild = { GuildService };
+if (typeof module !== 'undefined' && module.exports) module.exports = __guild;
+if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).svc_guild = __guild;
