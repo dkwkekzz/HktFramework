@@ -1,4 +1,5 @@
 'use strict';
+// step-0249 — 배치 SSOT 실배선(#51) 9: 전 lifecycle 집행 capstone. `runningHosts()` 질의(현재 존을 돌리는 *가동 중 host* 집합·운영 대시보드). 한 혼합 시퀀스(start→auto→rebalance→migrate→stop→hostdown→auto)가 전 op 를 거쳐도 매번 결정(placement)==집행(running)·drift 0·한 존 정확히 한 host(공백/중복 0)를 단언 — executed 배치 SSOT arc(0241~0249) 닫기. 읽기 질의 1개·OFF→0248 비트 동일(reg 0).
 // step-0248 — 배치 SSOT 실배선(#51) 8: host 장애 복구(placeHostDown). host 가 *비자발적*으로 죽으면(드레인=계획 퇴역과 달리) 그 host 의 모든 존 런타임이 소실 → 살아남은 host 중 최소부하로 *재가동(re-acquire)*. 죽은 host 는 release 불가(이미 죽음)이므로 graceful migrate 가 아니라 running 단일 키 재배치(공백 없이 한 존 정확히 한 host 회복). 복구 후 죽은 host running 0·drift 0. placeHostDown 미수신이면 0247 비트 동일(reg 0).
 // step-0247 — 배치 SSOT 실배선(#51) 7: executed placeAuto. 부하 기반 자동 배치(placeAuto)가 placeExecute ON 이면 최소부하 host 선택 + paper placement 갱신에 더해 실 존 런타임도 그 host 에 가동(_start). 0217 advisory 자동 배치의 집행 판. OFF→0246 비트 동일(reg 0).
 // step-0246 — 배치 SSOT 실배선(#51) 6: executed placeStop. placeStop{zoneId} → 존을 운영 퇴역: 결정(placement)에서 제거 + placeExecute ON 이면 실 존 런타임도 종료(running 제거·instance.js _despawn 의 존 판). 없는 존은 멱등 no-op. 드레인(host 전체 이주)과 달리 *그 존 자체를 내린다*. placeStop 미수신이면 0245 비트 동일(reg 0).
@@ -232,6 +233,8 @@ class Orchestrator {
   runningHostOf(zoneId) { return this.running.get(zoneId) || null; }
   runningOn(host) { let n = 0; for (const h of this.running.values()) if (h === host) n++; return n; }
   runningCount() { return this.running.size; }
+  // 가동 host 질의(step-0249·#51) — 현재 존을 하나라도 돌리는 *가동 중 host* 집합(운영 대시보드 — "지금 몇 대가 일하나"). 빈 host(드레인/장애 후)는 빠진다.
+  runningHosts() { return new Set(this.running.values()); }
   // placement↔running 표류 질의(step-0245·#51 capstone) — 결정(placement)과 집행(running)이 어긋난 존 수(host 불일치 또는 한쪽에만 존재). placeExecute ON 이면 모든 배치 op 뒤 0(결정==집행·advisory paper 표류 없음)이어야 한다. 읽기 전용(쓰기 무변경).
   placementDrift() {
     let d = 0;
