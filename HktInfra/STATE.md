@@ -248,14 +248,14 @@
 | [0154](step-0154.md) | MailFeed 영속·late-join(reconstruct·우편 op 저널 replay 로 배지 복원) | 통과 · crash→reconstruct digest==라이브 |
 | [0155](step-0155.md) | MailFeed 회계 정합 capstone(feedConsistent·unread==sent−read−expired·MailFeed arc 닫기) | 통과 · 4체제 true·totalUnread==totalHeld |
 | [0156](step-0156.md) | 미읽음 배지 질의 인터페이스(mailUnreadQuery→mailUnreadReply·request/reply over net) | 통과 · queriesRx 2·repliesSent 2·회신==배지 |
-| [0157](step-0157.md) | 아이템 첨부 우편(mailItem·mailSend item → 우편 1통이 아이템 1개 보유·거래소 escrow 의 우편 판) | 통과 · sent 3·itemSent 2·itemHeld 2 |
-| [0158](step-0158.md) | 아이템 우편 수령(itemFetched·보유→수령 아이템 이동·itemHeld→itemFetched) | 통과 · itemSent 3·itemHeld 1·itemFetched 2 |
-| [0159](step-0159.md) | 아이템 우편 만료 회수(itemExpired·mailSweep 만료 시 아이템 회수·itemHeld→itemExpired) | 통과 · itemSent 3·held/fetch/exp 1/1/1 |
-| [0160](step-0160.md) | 아이템 우편 회계 정합 capstone(itemConsistent·itemSent==itemHeld+itemFetched+itemExpired·아이템 우편 arc 닫기) | 통과 · 4체제 true·분할 0/2/0·0/0/2·1/1/1 |
-| [0161](step-0161.md) | 아이템 우편↔가방 leg1: 발신 시 발신자 가방 인출(mailInv·escrow custody) | 통과 · gives/escrowXfers 2/2·소유자 escrow |
-| [0162](step-0162.md) | 아이템 우편↔가방 leg2: 수령 시 escrow→수신자 가방 입금(mailInv) | 통과 · gives/escrowXfers 4/4·소유자 h1 |
-| [0163](step-0163.md) | 아이템 우편↔가방 leg3: 만료 시 escrow→발신자 가방 반환(mailInv) | 통과 · item0→h1·item1→x·escrowXfers 4 |
-| [0164](step-0164.md) | 아이템 우편↔가방 2-서비스 보존 capstone(escrowItemIds·escrowConsistent·arc 0161~0164 닫기) | 통과 · 우편==가방 escrow 집합·crash 복구 정합 |
+| [0157](step-0157.md) | 아이템 첨부 우편(mailItem·우편 1통이 아이템 보유·거래소 escrow 판) | 통과 · itemSent 2·itemHeld 2 |
+| [0158](step-0158.md) | 아이템 우편 수령(itemFetched·itemHeld→itemFetched) | 통과 · held 1·fetched 2 |
+| [0159](step-0159.md) | 아이템 우편 만료 회수(itemExpired·itemHeld→itemExpired) | 통과 · held/fetch/exp 1/1/1 |
+| [0160](step-0160.md) | 아이템 우편 회계 정합 capstone(itemConsistent·arc 닫기) | 통과 · 4체제 true |
+| [0161](step-0161.md) | 아이템 우편↔가방 leg1: 발신 시 발신자 가방 인출(mailInv·escrow) | 통과 · xfers 2·소유자 escrow |
+| [0162](step-0162.md) | 아이템 우편↔가방 leg2: 수령 시 escrow→수신자 가방(mailInv) | 통과 · xfers 4·소유자 h1 |
+| [0163](step-0163.md) | 아이템 우편↔가방 leg3: 만료 시 escrow→발신자 가방(mailInv) | 통과 · escrowXfers 4 |
+| [0164](step-0164.md) | 아이템 우편↔가방 2-서비스 보존 capstone(escrowConsistent·arc 0161~0164) | 통과 · 우편==가방 escrow |
 | [0165](step-0165.md) | 정리: svc-mail.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 30.9→25.6/5.9/1.1KB·digest 비트동일 |
 | [0166](step-0166.md) | 우편 saga 회신 비동기 수신(mailSaga·ackedGives) | 통과 · gives==acked==oks 4 |
 | [0167](step-0167.md) | 우편 saga 미해결 추적+회신 손실 감지(pendingGives·gid) | 통과 · 무손실 0·손실 pending 1 |
