@@ -110,6 +110,7 @@
 <script src="engine/htj-hybrid.js"></script>
 <script src="engine/htj-sph.js"></script>
 <script src="engine/htj-shapedna.js"></script>
+<script src="engine/htj-terrain.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -1376,8 +1377,140 @@
         for (const e of w.__entities) e.peak = (typeof e.shapeHash === 'string') ? 0.35 + 0.6 * HTJShapeDNA.hashToUnit(e.shapeHash) : 0.15;
       },
       note: '<b>합친 개체가 *민둥 구가 아니라* 원래 윤곽(L·직선·삼각)으로 그려진다</b> — 병합·형태 DNA 트랙 M3. <b>▶ 무엇</b>(design/merge-dna.md §4 M3): M1(0061)으로 뭉친 알맹이가 한 개체로 합쳐지고, M2(0062)로 합친 개체가 <b>형태 코드(shapeHash·DNA)</b>를 들고 세계 <b>형태 사전</b>이 모양을 K종 공유하게 됐다. 그러나 합친 개체를 <b>그릴</b> 땐 여전히 큰 원 하나였다(사용자 지적: "큰 원이 지형 모양이 안 됨"). 이 step 은 그 코드를 <b>발현</b>한다: viewer 가 <b>reconstructShape(개체, 사전)</b> 로 shapeHash → 사전의 canonical 형태를 꺼내, 개체 위치·반경에 맞춰 <b>구성원 점 무리(원래 윤곽)</b>로 펼쳐 그린다. <b>흐름</b>: 클러스터(L 3·직선 2·삼각 2)가 제자리서 정착·병합 → 합친 개체가 <b>원래 윤곽으로</b> 나타난다(L 은 L·직선은 직선·삼각은 삼각). <b>같은 모양 = 같은 hash = 같은 윤곽·같은 색</b>(DNA). <b>왜 중요한가</b>: 물리적으로는 <b>개체 하나(코드 하나)</b>지만, 그림은 <b>원래 모양</b>이다 = "큰 원이 지형 모양으로 돌아온다". 수십만 개체가 K종 형태를 <b>공유</b>해 지형을 이루는 길(원소는 hash 만·형태는 사전이 발현). <b>세계↔확인용 단방향</b>: reconstructShape 는 *어디에 그릴지*(점 위치)만 계산하고 픽셀은 viewer 가 그린다 — engine·물리는 <b>불변</b>(렌더만 바뀜). <b>정직한 한계</b>: 회전 미정규화(회전한 같은 모양→다른 hash·다른 윤곽·PCA 정렬은 후속)·윤곽은 *대략*(양자화 격자 해상도 quantum)·아직 점 무리(메시/표면 아님)·DNA 색은 heatColor 라 형태종류 많으면 색 겹칠 수 있음(윤곽이 주 신호). 다음(선택) M4: 가까이선 윤곽 복원·물리 footprint 공유.'
+    },
+
+    // ── step_0064 — TW3 강: 물이 기울인 지형 램프를 *흘러내려* 하류 댐에 고인다(environment.md §3 TW3) ──
+    //   새 엔진 법칙 sphBedFriction(바닥 접선 항력). 0060(법선 반발/감쇠)은 *파고드는* 운동만 막아 경사면 물이
+    //   끝없이 가속(탄도)했다. 이 step 은 접촉 입자의 *접선 슬립*을 속도비례로 소산→열 → 종단속도(유한)로 정상
+    //   흐름(강). 상류(우)서 흘러 들어와 하류(좌) 댐에 고이고, 재순환(통과 흐름)으로 계속 흐른다.
+    '0064': {
+      label: 'step_0064 — TW3 강(물이 경사 램프를 흘러내려 댐에 고임)', title: 'HTJ — TW3 강: SPH bed friction 으로 물이 경사를 흘러내려 하류 댐에 고인다',
+      sub: '기울인 지형 램프(우측 高→좌측 低) 위로 물(SPH 입자)이 *흘러내린다* — 새 법칙 sphBedFriction(바닥 접선 항력)이 종단속도를 줘서 끝없는 가속(탄도) 대신 *일정 속도로 흘러* 하류 댐에 고인다. 환경 트랙 TW3. 잃은 접선 KE→열·앵커=무한질량 외부 경계·재순환=통과 흐름',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const Rf = N * 6, cxF = cen + N * 1.777, czF = -N * 5.193;     // 램프 바닥 = 오른쪽-위 큰 구(우리 패치가 내리막 좌)
+        const floorZ = (x) => czF + Math.sqrt(Math.max(0, Rf * Rf - (x - cxF) * (x - cxF)));
+        const Cw = N * 0.40, xL = cen - Cw, xR = cen + Cw, BRw = N * 3, Hwy = N * 0.12;
+        // 지형 = 정적 앵커(읽기만): 램프 바닥 + 댐(좌·하류) + 상류 back(우) + y 벽(채널 좁힘). 중심은 화면 밖 → 렌더 안 함.
+        const terrain = [
+          { cx: cxF, cy: cen, cz: czF, mass: 1e9, radius: Rf },
+          { cx: xL - BRw, cy: cen, cz: floorZ(xL), mass: 1e9, radius: BRw }, { cx: xR + BRw, cy: cen, cz: floorZ(xR), mass: 1e9, radius: BRw },
+          { cx: cen, cy: cen - (BRw + Hwy), cz: floorZ(cen), mass: 1e9, radius: BRw }, { cx: cen, cy: cen + (BRw + Hwy), cz: floorZ(cen), mass: 1e9, radius: BRw },
+        ];
+        // 보이는 강바닥 마커(렌더 전용·물리 아님) — 내리막 램프 + 댐 윤곽.
+        const marks = [];
+        for (let x = xL; x <= xR + 1e-9; x += (xR - xL) / 26) marks.push({ cx: x, cy: cen, cz: floorZ(x), radius: N * 0.020, temp: 0, peak: 0.12 });
+        for (let z = N * 0.04; z <= N * 0.30; z += N * 0.04) marks.push({ cx: xL, cy: cen, cz: floorZ(xL) + z, radius: N * 0.020, temp: 0, peak: 0.12 });   // 댐(좌·세로벽)
+        // 물 = SPH 입자 떼(재순환으로 인구 일정).
+        let seed = 12345; const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+        const wr = N * 0.035, SRC = Math.round(N * N * 0.045), water = [];
+        for (let i = 0; i < SRC; i++) { const x = xR - 1 - rnd() * 4; water.push({ cx: x, cy: cen + (rnd() - 0.5) * Hwy * 1.2, cz: floorZ(x) + N * 0.07 + rnd() * N * 0.04,
+          mass: 1, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0, KEcm: 0, internalKE: 0, internalE: 0, energy: 0, density: 0, cells: 0, radius: wr, temp: 0, peak: 0.6 }); }
+        w.__water = water; w.__terrain = terrain; w.__entities = marks.concat(water);
+        w.__floorZ = floorZ; w.__cen = cen; w.__xL = xL; w.__xR = xR; w.__Cw = Cw; w.__Hwy = Hwy; w.__seed = seed;
+        const h = N * 0.09;
+        w.__popt = { stiffness: N * 2, h, gamma: 2 }; w.__vopt = { alpha: 1.5, beta: 2, h, gamma: 2 };
+        w.__bopt = { stiffness: N * 4, damp: N * 0.8, skin: N * 0.025 }; w.__grav = N * 0.012; w.__drag = 0.6;
+      },
+      advance(w) {
+        if (!w.__water) return;
+        const wat = w.__water, fz = w.__floorZ, xR = w.__xR, Hwy = w.__Hwy, N = w.N, cen = w.__cen;
+        let seed = w.__seed; const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+        // 재순환: 하류(좌) 댐에 닿은 물을 상류(우)로 되돌림 = *통과 흐름*(강이 흘러 들어와 빠져나감)·count 보존.
+        for (const p of wat) if (p.cx < w.__xL + w.__Cw * 0.18) {
+          const x = xR - 1 - rnd() * 4; p.cx = x; p.cy = cen + (rnd() - 0.5) * Hwy * 1.2; p.cz = fz(x) + N * 0.07 + rnd() * N * 0.04;
+          p.px = 0; p.py = 0; p.pz = 0; p.internalE = 0; p.KEcm = 0; p.energy = 0;
+        }
+        w.__seed = seed;
+        HTJSPH.sphPressureForce(wat, 0.12, w.__popt);                 // 물↔물 압력(0041)
+        HTJSPH.sphViscosity(wat, 0.12, w.__vopt);                    // 슬로싱 소산(0046)
+        for (const p of wat) p.pz -= p.mass * w.__grav * 0.12;        // 수직 중력(기울기는 램프 바닥에)
+        HTJSPH.sphBoundaryForce(wat, w.__terrain, 0.12, w.__bopt);   // 법선 경계(0060)
+        HTJSPH.sphBedFriction(wat, w.__terrain, 0.12, { drag: w.__drag, skin: w.__bopt.skin });   // 접선 바닥 항력(이 step)
+        HTJEntity.stepEntities(wat, 0.12);                           // 위치 적분
+        // 색 = 흐름 속도(빠른 흐름=밝은 파랑·고인 물=어두움) → 강줄기가 드러난다.
+        for (const p of wat) p.peak = 0.28 + 0.6 * Math.min(1, (Math.hypot(p.px, p.py, p.pz) / p.mass) / (N * 0.03));
+      },
+      note: '<b>물이 기울인 지형 램프를 *흘러내려* 하류 댐에 고인다 — 강</b>(환경 트랙 TW3). <b>▶ 무엇</b>(design/environment.md §3 TW3): TW2(0060 sphBoundaryForce)는 물을 지형에 *얹었지만*(법선 반발+법선 감쇠) <b>경사면을 따라 미끄러지는(접선) 운동엔 저항이 0</b> 이었다 → 기울인 바닥 위 물은 중력 접선 성분에 <b>끝없이 가속</b>한다(종단속도 없음 = 강이 아니라 탄도 추락). 이 step 의 <b>새 엔진 법칙 sphBedFriction</b> 이 그 빠진 벽돌 = <b>바닥 접선 항력</b>: 접촉(파고든) 입자의 <b>접선 슬립을 속도에 비례해 소산→열</b>. 속도비례(점성형)라 경사에서 중력 접선(g·sinθ)과 <b>균형 = 종단속도</b>(유한)에 이른다 → 물이 <b>일정 속도로 흘러</b> 강이 된다. <b>흐름</b>: 상류(오른쪽 높은 곳)에서 물이 흘러 들어와, 램프를 <b>일정 속도로 흘러내려</b>(밝은 파랑 = 빠른 흐름), 하류(왼쪽) <b>댐에 고인다</b>(어두운 = 고인 물). 재순환(댐 도달 물을 상류로 되돌림)으로 *통과 흐름*이 계속된다(강이 흘러 들어와 빠져나감). <b>왜 중요한가</b>: TW1(0057)에서 <b>마찰</b>이 알갱이를 경사에 *서게* 했듯, 여기선 <b>바닥 항력</b>이 물을 *흐르게*(종단속도) 한다 — Coulomb(속도무관) 마찰은 멈추거나 무한 가속뿐이라 강을 못 만든다. 이것은 <b>0046(입자↔입자 점성 소산)의 바닥↔입자 판</b>이자 <b>0057(접촉 접선 마찰)의 SPH↔앵커 판</b>. <b>보존</b>: 잃은 접선 KE→internalE(열·비가역·시간의 화살)·법선 운동 불변(접선만)·질량 불변·앵커=무한질량 외부 경계(잃은 운동량은 경계로). drag=0 → 0060 단독으로 회귀(가법·회귀0). <b>정직한 한계</b>: 램프 골격은 손수 배치(절차 생성/무한 광활 아님·TW4 LOD)·작은 패치 규모·지형 정적(침식·깎임 없음·물↔지형 일방)·viewer 재순환은 *확인용* 통과-흐름 연출(engine·verify·capture 는 정직한 일방 물리). 다음 환경 벽돌: 광활 LOD TW4·물↔지형 왕복(침식).'
+    },
+
+    // ── step_0065 — T1 지형 표면 발현: 높이장 앵커 카펫을 *연속 음영 표면*으로(점→면·merge-dna.md §5 T1) ──
+    //   렌더 트랙(engine 물리 불변). 0059 형 지형 앵커(민둥 구로 그리던)를 terrainSurface 로 환원해 drawSurface 로
+    //   *법선 음영 연속 표면*으로 그린다 = "지형이 안 자연스럽다"의 가시적 답(점 무리→땅).
+    '0065': {
+      label: 'step_0065 — T1 지형 표면 발현(앵커 카펫이 연속 음영 표면으로·점→면)', title: 'HTJ — T1: 지형 높이장 앵커를 민둥 구가 아니라 연속 음영 표면으로 발현',
+      sub: '지형(TW1·0059 의 높이장 봉우리 앵커 카펫)을 viewer 가 *민둥 구 점 무리*로 그리던 것을, terrainSurface(앵커→조밀 연속 높이장+법선)로 환원해 drawSurface 로 *법선 음영 연속 표면*으로 그린다(점→면). engine·물리 불변(렌더 트랙) — 형태(높이·법선)는 engine(htj-terrain)이 들고 픽셀·음영은 viewer 가 입힌다(단방향). merge-dna.md §5 T1',
+      mode: 'energy', dynamics: false, render: 'terrain',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const SPC = N * 0.08, Wt = N * 0.40;
+        const hf = (x, y) => N * 0.10 * Math.sin(0.36 / (N / 40) * x) * Math.cos(0.3 / (N / 40) * y) + N * 0.07 * Math.sin((0.24 * x + 0.2 * y) / (N / 40));
+        const topZ = cen + N * 0.10;
+        // 0059 형 봉우리 앵커 카펫(정규 격자) — 여기선 *표면 발현*만(자유 구체·동역학 없음).
+        const anchors = [];
+        for (let gx = -Wt; gx <= Wt; gx += SPC) for (let gy = -Wt; gy <= Wt; gy += SPC)
+          anchors.push({ cx: cen + gx, cy: cen + gy, cz: topZ + hf(gx, gy) });
+        // terrainSurface = engine(htj-terrain) 형태 환원 — 성긴 앵커 점 → 조밀 연속 높이장 + 정점 법선(점→면).
+        w.__surface = HTJTerrain.terrainSurface(anchors, { up: 4 });
+        let hMax = -Infinity; for (const h of w.__surface.heights) if (h > hMax) hMax = h; w.__hMax = hMax;
+      },
+      advance() { /* 정적 표면 발현 — 동역학 없음(렌더 트랙) */ },
+      note: '<b>지형(높이장 앵커 카펫)이 *민둥 구 점 무리*가 아니라 *연속 음영 표면(땅)*으로 발현된다</b> — 병합·형태 DNA 트랙 T1(지형 발현). <b>▶ 무엇</b>(design/merge-dna.md §5 T1): 동역학(0026~)·환경 물리(TW1~3·정착·마찰·바다·강)·병합 DNA(M1~M3)는 다 섰는데도 사용자가 "지형이 안 자연스럽다"고 한 까닭 = <b>두 격차</b>: ① <b>배선</b> — 지형은 정적 앵커 카펫이라 병합/형태 DNA(0061~0063) 경로를 안 탄다(coalesce 가 앵커 제외) ② <b>표현</b> — viewer 가 그 앵커를 *하나하나 민둥 구*로 그려 "공 무더기"지 "땅"이 아니다. 이 step 은 그중 <b>②(표현)를 점→면</b>으로 올린다: <b>terrainSurface</b>(engine·htj-terrain)가 성긴 앵커 점 격자를 <b>조밀한 연속 높이장 + 정점 법선</b>으로 환원하고(bilinear 업샘플·×12.8 정점), viewer 의 <b>drawSurface</b>가 그 표면을 <b>법선 음영(n·L)</b>으로 채워 그린다. <b>흐름</b>(capture 4 패널): ① 앵커 점(민둥 구·old) → ② 표면 정점(조밀) → ③ 표면 채움(면) → ④ 법선 음영(기운 면이 밝기 차 = 자연스러운 땅). <b>왜 중요한가</b>: "발현은 점이 아니라 표면"(§5 원칙 3) — 같은 지형 데이터가 *공 무더기*에서 *이어진 땅*으로 보인다. <b>세계↔확인용 단방향</b>: engine(htj-terrain)은 표면의 <b>형태(높이·법선)</b>만 들고(읽기 전용·순수·물리량 안 건드림·detectClumps/reconstructShape 부류), 픽셀·음영색은 viewer 가 입힌다 → engine·물리는 <b>불변</b>(렌더 트랙·회귀0 구조적). <b>정직한 한계</b>: ①(배선)은 아직 — 지형 청크를 registerShape 로 사전 등록·hash·dedup(K≪N)는 <b>T2</b>·거리 LOD 는 <b>T3</b>(TW4 합류). 표면은 손수 높이장 골격(절차 생성/무한 광활 아님)·정적(침식 없음)·단일 패치(끝없는 펼침=TW4). 색은 heatColor(높이)·법선 음영 — 흙/풀 재질은 후속. 다음: T2 지형 형태 DNA 배선(K≪N) 또는 T3 거리 LOD(TW4).'
+    },
+
+    // ── step_0066 — 지형이 자란다(퇴적 발현): 정착 구체(퇴적물)가 지형 표면이 되어 계곡이 차오른다 ──
+    //   T1(0065) 표면 발현 + 0059 정착 물리 조립. terrainSurface(deposits)=정착 자유 구체를 표면에 splat(max).
+    //   engine 물리 불변(terrainSurface 가법 확장·정착은 기존 entity 법칙)·environment §2/§4 "쌓임=구체 법칙의 창발".
+    '0066': {
+      label: 'step_0066 — 지형이 자란다(정착 구체가 표면이 되어 계곡이 차오름·퇴적)', title: 'HTJ — 지형이 자란다: 정착한 자유 구체(퇴적물)가 지형 표면이 된다',
+      sub: '자유 구체가 계곡으로 굴러 정착하면(0059 물리), 그 정착 퇴적물이 지형 표면 *위에 얹혀* 표면을 들어올린다 → 계곡이 *차오른다*. T1(0065) 표면 발현 + 정착 물리 조립. terrainSurface(deposits)=정착 구체를 표면에 splat(max). engine 물리 불변(가법 확장·정착=기존 entity 법칙)·"쌓임은 구체 법칙의 창발"(environment §2/§4)',
+      mode: 'energy', dynamics: true, render: 'terrain',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const Rf = N * 1.4, AR = N * 0.05, sr = N * 0.022, SPC = N * 0.06, Wt = N * 0.34;
+        const bowl = (x, y) => N * 0.0010 * (x * x + y * y) - N * 0.10;     // 가운데 낮은 사발(계곡)
+        const topZ = cen + N * 0.12;
+        const mk = (cx, cy, cz, mass, r, anc) => ({ cx, cy, cz, mass, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.5, anchored: !!anc });
+        const ents = [mk(cen, cen, topZ - Rf, 1e9, Rf, true)];             // 바닥 구(중력원·가둠)
+        const carpet = [];
+        for (let gx = -Wt; gx <= Wt; gx += SPC) for (let gy = -Wt; gy <= Wt; gy += SPC) { const e = mk(cen + gx, cen + gy, topZ + bowl(gx, gy), 1, AR, true); ents.push(e); carpet.push({ cx: e.cx, cy: e.cy, cz: e.cz }); }
+        const gold = Math.PI * (3 - Math.sqrt(5));                         // 자유 구체(퇴적 재료)
+        for (let i = 0; i < 150; i++) { const rr = Math.sqrt((i + 0.5) / 150) * Wt * 0.5, th = gold * i; ents.push(mk(cen + Math.cos(th) * rr, cen + Math.sin(th) * rr, topZ + N * 0.18 + (i % 8) * sr * 0.5, 60, sr, false)); }
+        w.__entities = ents; w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz })); w.__carpet = carpet; w.__topZ = topZ; w.__Rf = Rf; w.__up = 4;
+        w.__gopt = { G: 0.2 * Rf * Rf / 1e9, soft: N * 0.06 }; w.__copt = { k: 40, cDamp: 25 }; w.__fopt = { k: 40, mu: 0.9 }; w.__ropt = { k: 40, muRoll: 1.2 };
+        rebuildSurface0066(w);
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        const es = w.__entities;
+        HTJEntity.applyEntityGravity(es, 0.12, w.__gopt); HTJEntity.applyEntityContact(es, 0.12, w.__copt);
+        HTJEntity.applyEntityFriction(es, 0.12, w.__fopt); HTJEntity.applyEntityRollingResistance(es, 0.12, w.__ropt);
+        HTJEntity.stepEntities(es, 0.12);
+        const sv = w.__saved;
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; es[i].Lx = es[i].Ly = es[i].Lz = 0; }
+        rebuildSurface0066(w);
+      },
+      note: '<b>지형이 *자란다* — 정착한 자유 구체(퇴적물)가 지형 표면이 되어 계곡이 차오른다</b> — 자연스러운 지형(환경 트랙·merge-dna §5 T1 확장). <b>▶ 무엇</b>(design/environment.md §2/§4 "그 위의 거동[딛기·고임·흐름·<b>깎임/쌓임</b>]은 구체 법칙의 창발"): T1(0065)은 지형을 *연속 음영 표면*으로 발현했지만 그 지형은 <b>정적</b>(author 한 카펫·"침식·깎임 없음")이었다. 이 step 은 그 표면을 <b>동적</b>으로 — 자유 구체가 중력+접촉+마찰+구름 저항(0059 물리)으로 계곡(낮은 데)으로 굴러 <b>정착</b>하면, terrainSurface 가 그 <b>정착 퇴적물을 표면에 splat</b>(각 구의 상단 z=cz+√(r²−d²) 와 지형의 <b>max</b> = "물질이 위에 쌓임")해 <b>표면이 들어올려진다</b>. <b>흐름</b>(capture 4 패널): 맨 사발(계곡) → 구체가 굴러 정착(퇴적 0→증가) → 표면(법선 음영 band)이 <b>계곡에서 차오른다</b>. <b>왜 중요한가</b>: 지형의 모양이 더는 author 한 고정이 아니라 <b>구체가 굴러간 결과(정착·퇴적)로 변한다</b> = "법칙은 author·구조(지형 모양)는 창발". 사막 모래·강 하구 퇴적·계곡 메움이 *같은 한 원소*로. <b>세계↔확인용 단방향</b>: 정착은 기존 entity 법칙(engine·물리 보존), 표면은 그 결과를 <b>읽어 splat</b>(terrainSurface 가법 확장·deposits 없으면 0065 표면과 byte 동일) → engine·물리 <b>불변</b>(렌더 트랙·회귀0). <b>정직한 한계</b>: 표면이 구 상단 max 라 <b>울퉁(개별 봉우리)</b> — 매끄러운 퇴적(가우시안 splat·이완)·침식(깎임·역방향)은 후속. 퇴적물은 표면에만 반영(되쪼개 물리 footprint 공유는 M4)·정착 판정 절대속도+고도 게이트(장면 노브)·여전히 단일 패치(광활=TW4)·바닥 골격 손수. 다음: 매끄러운 퇴적·침식(물↔지형 왕복) 또는 T2 지형 DNA 배선(K≪N).'
     }
   };
+  // 0066 보조 — 카펫 앵커 + 정착(느린·내려앉은) 자유 구체를 terrainSurface 로 환원(퇴적 발현). 낙하 중 구체는 오버레이용.
+  function rebuildSurface0066(w) {
+    const es = w.__entities, topZ = w.__topZ, sp = (e) => Math.hypot(e.px, e.py, e.pz) / e.mass;
+    const deposits = [], flying = [];
+    for (const e of es) {
+      if (e.anchored) continue;
+      if (sp(e) < 0.5 && (e.cz - topZ) < w.N * 0.12) deposits.push({ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius });   // 정착(느림·지형 위로 내려앉음)
+      else flying.push({ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: 0.7 });                                    // 낙하 중(오버레이)
+    }
+    w.__surface = HTJTerrain.terrainSurface(w.__carpet, { up: w.__up, deposits });
+    let hMax = -Infinity; for (const h of w.__surface.heights) if (h > hMax) hMax = h; w.__hMax = hMax;
+    w.__flying = flying;
+  }
   function currentStep() { return document.getElementById('step').value || '0003'; }
 
   // 파생 온도 장 갱신 — T=u/ρ 를 'temperature' 장에 복사(렌더가 고를 수 있게). 법칙 아님(측정·표시).
@@ -1520,6 +1653,14 @@
       }
       surf = HTJRender.drawClumps(ctx, world, cam, clumps);
       const lab = document.getElementById('s-occ'); if (lab) { let P = [0, 0, 0]; for (const e of es) { P[0] += e.px; P[1] += e.py; P[2] += e.pz; } lab.textContent = `개체 ${es.length} · ΣP=(${P[0].toFixed(2)},${P[1].toFixed(2)},${P[2].toFixed(2)})`; }
+      return;
+    }
+    // 지형 표면(0065·T1): 높이장 앵커 카펫을 terrainSurface 로 환원해 *연속 음영 표면*으로 그린다(점→면).
+    if (stCur && stCur.render === 'terrain' && world.__surface) {
+      surf = HTJRender.drawSurface(ctx, world, cam, world.__surface, { heightMax: world.__hMax });
+      if (world.__flying && world.__flying.length) HTJRender.drawEntities(ctx, world, cam, world.__flying);  // 낙하 중 구체(퇴적 재료) 오버레이
+      const dep = world.__surface.depositCount || 0;
+      const lab = document.getElementById('s-occ'); if (lab) lab.textContent = `지형 표면 ${world.__surface.count} 정점(앵커 ${world.__surface.anchorCount} → 면)${dep ? ' · 퇴적 ' + dep : ''} · 사각형 ${surf}`;
       return;
     }
     // 확장성 오버레이(scal): 별 voxel 위에 8³ 블록 상태(활성/동결)를 와이어프레임으로 덧그린다.

@@ -633,6 +633,56 @@
     return particles;
   }
 
+  // ── TW3 강 = SPH bed friction(지형 바닥 접선 항력) — 물이 경사를 *흘러내린다*(종단속도→정상 흐름) ──────
+  //   design/environment.md §3 TW3 — TW2(0060 sphBoundaryForce)가 물을 지형에 *얹었다*(법선 반발+법선 감쇠).
+  //   그러나 0060 은 *법선*(파고드는) 운동만 막는다 — 경사면을 따라 *미끄러지는(접선)* 운동엔 저항이 0 이다.
+  //   그래서 기울인 바닥 위 물은 중력 접선 성분에 *끝없이 가속*한다(종단속도 없음·강이 아니라 탄도 추락).
+  //   이것이 TW3 의 빠진 벽돌 = **바닥 접선 항력**: 접촉(pen>0) 입자의 *접선 슬립*을 속도에 비례해 소산→열.
+  //     v = vn·n̂ + v_t,   v_t ← v_t·(1 − min(drag·dt, 1)),   잃은 KE → internalE   (법선 vn 불변)
+  //   속도비례(점성형) 항력이라 경사에서 중력 접선(g·sinθ)과 균형 = **종단속도 v_term ≈ g·sinθ/drag**(유한)
+  //   → 물이 *일정 속도로 흘러내려* 하류에 고인다(강). Coulomb(속도무관) 마찰과 달리 종단속도를 준다. 이것은
+  //   0046(입자↔입자 점성 소산·속도비례)의 *바닥↔입자* 판이자, TW1 의 0057(접촉 접선 마찰)의 *SPH↔앵커* 판.
+  //   앵커는 **무한 질량 정적 외부 경계**(0056/0060 정신) — 잃은 접선 운동량은 그 경계로 빠진다(쌍힘 아님·물
+  //   입자끼리 보존 아님). 잃은 KE 는 *열*(internalE↑·비가역·시간의 화살)로 정직히 적립. 접선 운동을 *0 까지만*
+  //   줄여 역전 금지(0037/0057 클램프). drag=0/앵커 없음/dt=0 → early-return(회귀 0). 신규 함수라 기존 호출처
+  //   0 → 구조적 회귀 0(0060 sphBoundaryForce 는 *전혀* 안 건드림 — 법선=0060·접선=이 step 직교 분해).
+  //   anchors=[{cx,cy,cz,radius}](*읽기만*). opts: { drag(0→early-return), skin(경계층·0060 과 같은 접촉 판정) }.
+  function sphBedFriction(particles, anchors, dt, opts) {
+    opts = opts || {};
+    const drag = opts.drag != null ? opts.drag : 0;
+    if (dt == null) dt = 1;
+    if (drag === 0 || !anchors || anchors.length === 0 || !dt) return particles;  // 노브=0/앵커 없음 → early-return(회귀 0)
+    const skin = opts.skin != null ? opts.skin : 0;
+    const f = Math.min(drag * dt, 1);                              // 접선 감쇠 분율(접촉 동안·0..1·역전 금지)
+    const EPS = 1e-9;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const m = p.mass > EPS ? p.mass : 1;
+      if (p.internalE == null) p.internalE = (p.energy != null ? p.energy : 0) - (p.KEcm || 0);
+      for (let a = 0; a < anchors.length; a++) {
+        const A = anchors[a];
+        const dx = p.cx - A.cx, dy = p.cy - A.cy, dz = p.cz - A.cz;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const pen = ((A.radius || 0) + skin) - d;                  // 접촉(표면 안) 판정 — 0060 과 동일
+        if (pen <= 0 || d < EPS) continue;                        // 표면 밖·중심 일치 → 항력 0
+        const nx = dx / d, ny = dy / d, nz = dz / d;               // 바깥 법선
+        const vx = p.px / m, vy = p.py / m, vz = p.pz / m;
+        const vn = vx * nx + vy * ny + vz * nz;                    // 법선 속도(부호)
+        const tx = vx - vn * nx, ty = vy - vn * ny, tz = vz - vn * nz;   // 접선 속도(슬립)
+        const vt = Math.sqrt(tx * tx + ty * ty + tz * tz);
+        if (vt < EPS) continue;                                    // 슬립 없음 → 항력 0
+        const KE0 = 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m;
+        const Jt = f * m * vt;                                     // 접선 운동량 일부 제거(속도비례·0..vt = 역전 없음)
+        p.px -= Jt * tx / vt; p.py -= Jt * ty / vt; p.pz -= Jt * tz / vt;
+        const dissip = KE0 - 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m;   // 잃은 접선 KE(≥0) → 열
+        if (dissip > 0) p.internalE += dissip;
+      }
+      p.KEcm = m > EPS ? 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m : 0;
+      p.energy = p.KEcm + p.internalE;                             // 자기일관(energy=KEcm+internalE)
+    }
+    return particles;
+  }
+
   // ── SW5 SPH 복사 냉각 — 입자가 제 열을 *빛으로* 내보내 식는다(계의 첫 에너지 sink) ──────────────
   //   design/sphere-world.md §6 SW5 — 압력(0041)·점성(0046)·전도(0049)는 에너지를 *재분배*만 한다(KE↔U·U↔U).
   //   계 밖으로 에너지가 *나갈 출구*가 없어 붕괴열이 갇힌다. 이 법칙은 그 출구 = **빛**: 광학적으로 얇은 회색 복사로
@@ -665,5 +715,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, sphBoundaryForce, VERSION: 14 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, sphBoundaryForce, sphBedFriction, VERSION: 15 };
 });

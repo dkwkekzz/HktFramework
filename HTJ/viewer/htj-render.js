@@ -185,6 +185,62 @@
     return proj.length;   // 그린 구체 수
   }
 
+  // 지형 표면 렌더(T1·step_0065) — htj-terrain.terrainSurface 결과를 *연속 음영 표면*으로 그린다(민둥 구 아님).
+  //   surface = { nx,ny,x0,y0,dx,dy,heights,normals }. 각 격자 사각형(quad)을 채우고 *법선 음영*(n·L)을 입힌다.
+  //   확인용 전용 — engine 은 표면 *형태*(높이·법선)만 들고(htj-terrain·읽기 전용), 여기서 *픽셀·음영색*을 입힌다
+  //   (세계↔확인용 단방향). design/merge-dna.md §5 T1 "발현은 점이 아니라 표면". opts.heightMax 로 색(heat) 정규화.
+  function drawSurface(ctx, world, cam, surface, opts) {
+    opts = opts || {};
+    const N = world.N, W = ctx.canvas.width, H = ctx.canvas.height, half = (N - 1) / 2;
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const scale = (Math.min(W, H) * 0.80 / N) * cam.zoom;
+    const ox = W / 2 + cam.panX, oy = H / 2 + cam.panY;
+    function project(wx, wy, wz) {
+      const x1 = wx * cy + wz * sy, z1 = -wx * sy + wz * cy;
+      const y2 = wy * cp - z1 * sp, z2 = wy * sp + z1 * cp;
+      return [ox + x1 * scale, oy - y2 * scale, z2];
+    }
+    ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, W, H);
+    // 경계 박스(와이어).
+    const e = N / 2 + 0.5;
+    const corners = [[-e, -e, -e], [e, -e, -e], [e, e, -e], [-e, e, -e], [-e, -e, e], [e, -e, e], [e, e, e], [-e, e, e]].map(p => project(p[0], p[1], p[2]));
+    const edges = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+    ctx.strokeStyle = '#2a3242'; ctx.lineWidth = 1; ctx.beginPath();
+    for (const [a, b] of edges) { ctx.moveTo(corners[a][0], corners[a][1]); ctx.lineTo(corners[b][0], corners[b][1]); }
+    ctx.stroke();
+    const nx = surface.nx, ny = surface.ny, hgt = surface.heights, nrm = surface.normals;
+    let hmin = Infinity, hmax = -Infinity; for (const h of hgt) { if (h < hmin) hmin = h; if (h > hmax) hmax = h; }
+    const span = (hmax - hmin) || 1;
+    // 정점 월드 좌표(world.cz 중심에 맞춰 cz 기준 = surface 높이가 화면 가운데쯤 오도록 그대로 사용).
+    const vx = (I) => surface.x0 + I * surface.dx, vy = (J) => surface.y0 + J * surface.dy;
+    // 각 quad 의 깊이(중심) → 화가 정렬.
+    const quads = [];
+    for (let J = 0; J < ny - 1; J++) for (let I = 0; I < nx - 1; I++) {
+      const c = (vx(I) + vx(I + 1)) / 2 - half, r = (vy(J) + vy(J + 1)) / 2 - half;
+      const k = J * nx + I, hz = (hgt[k] + hgt[k + 1] + hgt[k + nx] + hgt[k + nx + 1]) / 4 - half;
+      const z1 = -c * sy + hz * cy, depth = r * sp + z1 * cp;
+      quads.push([I, J, depth]);
+    }
+    quads.sort((a, b) => a[2] - b[2]);
+    for (const [I, J, _] of quads) {
+      const k = J * nx + I;
+      const p0 = project(vx(I) - half, vy(J) - half, hgt[k] - half);
+      const p1 = project(vx(I + 1) - half, vy(J) - half, hgt[k + 1] - half);
+      const p2 = project(vx(I + 1) - half, vy(J + 1) - half, hgt[k + nx + 1] - half);
+      const p3 = project(vx(I) - half, vy(J + 1) - half, hgt[k + nx] - half);
+      // 법선 음영(quad 평균 법선·고정 광원) + 높이 색(heat).
+      const n0 = nrm[k], n1 = nrm[k + 1], n2 = nrm[k + nx + 1], n3 = nrm[k + nx];
+      const nxv = (n0.x + n1.x + n2.x + n3.x) / 4, nyv = (n0.y + n1.y + n2.y + n3.y) / 4, nzv = (n0.z + n1.z + n2.z + n3.z) / 4;
+      const sh = 0.45 + 0.55 * Math.max(0, nxv * L[0] + nyv * L[1] + nzv * L[2]);
+      const hMid = (hgt[k] + hgt[k + nx + 1]) / 2;
+      const base = heatColor(opts.heightMax ? (hMid - hmin) / (opts.heightMax - hmin || 1) : (hMid - hmin) / span);
+      ctx.fillStyle = 'rgb(' + ((base[0] * sh) | 0) + ',' + ((base[1] * sh) | 0) + ',' + ((base[2] * sh) | 0) + ')';
+      ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.lineTo(p3[0], p3[1]); ctx.closePath(); ctx.fill();
+    }
+    return quads.length;   // 그린 표면 사각형 수
+  }
+
   // 확장성 *블록 상태 오버레이* — 8³ 블록을 와이어프레임 큐브로 그려 상태를 색으로 표시(배경 안 지움=덧그림).
   //   세계 위에 덧그리는 진단 레이어 — design/scalability.md S2/S3 인프라(희소·활성·동결)를 *눈으로* 본다.
   //   blocks = [{ox,oy,oz,bs,state}] (state: 'active'=도는 블록[주황] / 'frozen'=쉬는 블록[파랑]). 빈 블록은
@@ -266,5 +322,5 @@
     return i < 0 ? null : world.coords(i);
   }
 
-  return { draw, drawClumps, drawBlocks, drawEntities, pick, defaultCamera, FACES, VERSION: 4 };
+  return { draw, drawClumps, drawSurface, drawBlocks, drawEntities, pick, defaultCamera, FACES, VERSION: 5 };
 });
