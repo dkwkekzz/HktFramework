@@ -277,6 +277,133 @@
     return U;
   }
 
+  // 접촉 마찰(접선 저항 + 구름) — 접촉(0037)의 *법선* 반발/감쇠가 못 막는 **접선 방향 상대 운동**에 저항.
+  //   design/environment.md §3 TW1 "딛는 표면엔 마찰이 필요" — 0056 이 드러낸 격차(마찰 없는 법선 접촉이라
+  //   경사면서 못 서고 골로 미끄러짐)를 메운다. Coulomb 마찰: 접선력 |F_t| ≤ μ·F_n (F_n=k·overlap=반발력).
+  //   미끄럼이 크면 동마찰(점성 cTan·|v_t|, μ·F_n 상한)로 *KE→열* 소산, 작으면 접선 운동을 0 까지만 잡아(역전
+  //   금지) *정지 마찰* 근사 → 경사면에 *선다/그립*.
+  //   **올바른 마찰은 접촉점에 작용해 스핀(구름)으로 각운동량을 넘긴다**(중심 접선력은 각운동량을 깬다):
+  //     · 단일 접촉점 p_c = 겹침 구간 중점 → 두 개체의 지렛대(ra_vec=p_c−r_a·rb_vec=p_c−r_b)가 같은 점 →
+  //       임펄스를 p·L(스핀) 양쪽에 주면 ΔL_total = p_c×(J_a+J_b) = p_c×0 = 0 (각운동량 *정확* 보존).
+  //     · 표면 접선 상대속도(스핀 ω=L/I 포함, I=⅖m r²)를 줄인다 → 미끄럼 멈추고 구른다.
+  //   에너지: 잃은 *병진* KE 를 internalE 로 적립(merge 규약 계승 — 스핀 KE 도 internalE 에 lump, energy=KEcm+
+  //   internalE 정확 보존). 운동량=equal-opposite 쌍힘 정확 보존. J ≤ J_stop(접선 운동 0 임펄스) → 소산≥0.
+  //   opts: { k(반발 강성=F_n 계산용), mu(Coulomb 계수, 기본 0 → early-return=회귀 0), cTan(접선 점성, 기본 mu*k) }.
+  //   가법: mu=0 이면 즉시 반환(0037 거동 불변). 입력 개체를 제자리 변형해 반환.
+  function applyEntityFriction(entities, dt, opts) {
+    opts = opts || {};
+    const k = opts.k != null ? opts.k : 0;
+    const mu = opts.mu != null ? opts.mu : 0;
+    const cTan = opts.cTan != null ? opts.cTan : mu * k;
+    const n = entities.length;
+    if (n < 2 || mu === 0 || k === 0) return entities;          // 노브=0 → early-return(회귀 0)
+    for (let i = 0; i < n; i++) {                               // internalE 자기일관(없으면 채움)
+      const e = entities[i];
+      if (e.internalE == null) {
+        const ke = e.KEcm != null ? e.KEcm : (e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0);
+        e.internalE = (e.energy != null ? e.energy : ke) - ke;
+      }
+    }
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const overlap = (a.radius + b.radius) - d;
+      if (overlap <= 0 || d < EPS) continue;
+      const nx = dx / d, ny = dy / d, nz = dz / d;               // 법선 단위(a→b)
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      const Ia = 0.4 * ma * a.radius * a.radius, Ib = 0.4 * mb * b.radius * b.radius;  // 구체 관성 ⅖mr²
+      // 단일 접촉점 지렛대(겹침 중점) — 양 개체 같은 점 → 각운동량 정확 보존.
+      const la = a.radius - overlap / 2, lb = -(b.radius - overlap / 2);  // ra_vec=la·n̂·rb_vec=lb·n̂
+      // 각속도 ω = L / I.
+      const wax = (a.Lx || 0) / Ia, way = (a.Ly || 0) / Ia, waz = (a.Lz || 0) / Ia;
+      const wbx = (b.Lx || 0) / Ib, wby = (b.Ly || 0) / Ib, wbz = (b.Lz || 0) / Ib;
+      // 접촉점 표면 속도 = v_cm + ω×r_vec. r_vec_a = la·n̂, r_vec_b = lb·n̂.
+      const vax = a.px / ma + (way * (la * nz) - waz * (la * ny));
+      const vay = a.py / ma + (waz * (la * nx) - wax * (la * nz));
+      const vaz = a.pz / ma + (wax * (la * ny) - way * (la * nx));
+      const vbx = b.px / mb + (wby * (lb * nz) - wbz * (lb * ny));
+      const vby = b.py / mb + (wbz * (lb * nx) - wbx * (lb * nz));
+      const vbz = b.pz / mb + (wbx * (lb * ny) - wby * (lb * nx));
+      // 상대 표면 속도(b−a) → 접선 성분(법선 제거).
+      let rvx = vbx - vax, rvy = vby - vay, rvz = vbz - vaz;
+      const rvn = rvx * nx + rvy * ny + rvz * nz;
+      let tx = rvx - rvn * nx, ty = rvy - rvn * ny, tz = rvz - rvn * nz;
+      const vt = Math.sqrt(tx * tx + ty * ty + tz * tz);
+      if (vt < EPS) continue;
+      tx /= vt; ty /= vt; tz /= vt;                              // 접선 단위 t̂
+      const Fn = k * overlap;
+      // 접선 유효 질량⁻¹ = 1/ma + 1/mb + |la·n̂×t̂|²/Ia + |lb·n̂×t̂|²/Ib (n̂⊥t̂ → |n̂×t̂|=1).
+      const mEffInv = 1 / ma + 1 / mb + (la * la) / Ia + (lb * lb) / Ib;
+      const Jstop = vt / mEffInv;                                // 접선 상대 운동 0 임펄스
+      let J = Math.min(cTan * vt * dt, mu * Fn * dt, Jstop);     // 점성 vs Coulomb 상한 vs 정지(역전 금지)
+      // 임펄스 Jt = J·t̂ — b 는 −Jt·a 는 +Jt(equal-opposite=운동량 보존). 전후 *병진* KE 차 → internalE.
+      const KEt0 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma + 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
+      const Jx = J * tx, Jy = J * ty, Jz = J * tz;
+      a.px += Jx; a.py += Jy; a.pz += Jz;
+      b.px -= Jx; b.py -= Jy; b.pz -= Jz;
+      // 스핀: 접촉점 임펄스의 토크 ΔL = r_vec × J_impulse. a: (la·n̂)×(+Jt)·b: (lb·n̂)×(−Jt).
+      a.Lx = (a.Lx || 0) + (la * ny) * Jz - (la * nz) * Jy;
+      a.Ly = (a.Ly || 0) + (la * nz) * Jx - (la * nx) * Jz;
+      a.Lz = (a.Lz || 0) + (la * nx) * Jy - (la * ny) * Jx;
+      b.Lx = (b.Lx || 0) - ((lb * ny) * Jz - (lb * nz) * Jy);
+      b.Ly = (b.Ly || 0) - ((lb * nz) * Jx - (lb * nx) * Jz);
+      b.Lz = (b.Lz || 0) - ((lb * nx) * Jy - (lb * ny) * Jx);
+      const KEt1 = 0.5 * (a.px * a.px + a.py * a.py + a.pz * a.pz) / ma + 0.5 * (b.px * b.px + b.py * b.py + b.pz * b.pz) / mb;
+      const dissip = KEt0 - KEt1;                                // 잃은 병진 KE(스핀+열) → internalE(merge 규약)
+      a.internalE += 0.5 * dissip; b.internalE += 0.5 * dissip;
+    }
+    for (let i = 0; i < n; i++) {                                // KEcm·energy 재계산(자기일관)
+      const e = entities[i];
+      e.KEcm = e.mass > EPS ? 0.5 * (e.px * e.px + e.py * e.py + e.pz * e.pz) / e.mass : 0;
+      e.energy = e.KEcm + e.internalE;
+    }
+    return entities;
+  }
+
+  // 구름 저항(rolling resistance) — 마찰(0057)이 *미끄럼*을 막아도 구체는 자유로이 *굴러* 비탈을 데굴데굴 흘러내려
+  //   안식각이 완만해진다(평평한 더미). 구름 저항은 그 *구름 자체*에 저항해 굴러가다 멈추게 한다 → **가파른 안식각**
+  //   (진짜 산·언덕 더미). design/environment.md §3 TW1 — 0057 이 "구름 저항 없음"으로 남긴 한계를 메운다.
+  //   겹친 쌍의 **상대 구름 각속도** ω_rel = ω_a − ω_b (ω=L/I, I=⅖mr²) 에 반대하는 *토크 쌍*(a 에 −M·b 에 +M):
+  //     · 토크 쌍이라 순 각운동량 변화 0 → **총 각운동량 정확 보존**(스핀끼리 주고받음)·운동량은 안 건드림(순수 토크).
+  //     · 크기 J = min(cRoll·|ω_rel|·dt, μ_r·R_eff·F_n·dt, J_stop) — 점성 vs Coulomb 상한(μ_r·R_eff·F_n) vs 정지
+  //       (ω_rel→0 임펄스 J_stop=|ω_rel|/(1/I_a+1/I_b), 역전 금지). F_n=k·overlap, R_eff=조화평균 반경.
+  //   에너지: 스핀 KE 는 internalE 에 lump 되어 있다(0057·merge 규약) — 구름이 줄면 그 스핀 KE 가 열로 바뀌므로
+  //   internalE·KEcm 둘 다 손대지 않는다 → 총E(=KEcm+internalE) 정확 보존(스핀 KE 감소는 internalE 내부 재분류).
+  //   opts: { k(반발 강성=F_n), muRoll(Coulomb 구름 계수, 기본 0 → early-return=회귀0), cRoll(점성, 기본 0.5) }.
+  //   가법: muRoll=0 이면 즉시 반환(0057 거동 불변). 입력 개체를 제자리 변형해 반환.
+  function applyEntityRollingResistance(entities, dt, opts) {
+    opts = opts || {};
+    const k = opts.k != null ? opts.k : 0;
+    const muRoll = opts.muRoll != null ? opts.muRoll : 0;
+    const cRoll = opts.cRoll != null ? opts.cRoll : 0.5;
+    const n = entities.length;
+    if (n < 2 || muRoll === 0 || k === 0) return entities;       // 노브=0 → early-return(회귀 0)
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = entities[i], b = entities[j];
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, dz = b.cz - a.cz;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const overlap = (a.radius + b.radius) - d;
+      if (overlap <= 0 || d < EPS) continue;
+      const ma = a.mass > EPS ? a.mass : 1, mb = b.mass > EPS ? b.mass : 1;
+      const Ia = 0.4 * ma * a.radius * a.radius, Ib = 0.4 * mb * b.radius * b.radius;
+      // 상대 구름 각속도 ω_rel = ω_a − ω_b.
+      const wx = (a.Lx || 0) / Ia - (b.Lx || 0) / Ib;
+      const wy = (a.Ly || 0) / Ia - (b.Ly || 0) / Ib;
+      const wz = (a.Lz || 0) / Ia - (b.Lz || 0) / Ib;
+      const wm = Math.sqrt(wx * wx + wy * wy + wz * wz);
+      if (wm < EPS) continue;
+      const Fn = k * overlap, Reff = 2 * a.radius * b.radius / (a.radius + b.radius);
+      const Jstop = wm / (1 / Ia + 1 / Ib);                      // ω_rel→0 임펄스(역전 금지)
+      const J = Math.min(cRoll * wm * dt, muRoll * Reff * Fn * dt, Jstop);
+      const ux = wx / wm, uy = wy / wm, uz = wz / wm;
+      // 토크 쌍: a 의 스핀 감소·b 증가 → ω_rel↓·ΣL_spin 불변(총 각운동량 보존).
+      a.Lx = (a.Lx || 0) - J * ux; a.Ly = (a.Ly || 0) - J * uy; a.Lz = (a.Lz || 0) - J * uz;
+      b.Lx = (b.Lx || 0) + J * ux; b.Ly = (b.Ly || 0) + J * uy; b.Lz = (b.Lz || 0) + J * uz;
+    }
+    return entities;                                            // 운동량·internalE·KEcm 불변 → energy 그대로
+  }
+
   // 구체 쪼개기(파편화) — 한 구체를 n 조각으로 터뜨린다(mergeGroup 의 역·step_0038·SW3).
   //   design/sphere-world.md §6 SW3 — 합치기(SW1)의 *거울*: 강한 충돌/외란으로 임계를 넘은 구체가 작은
   //   구체들로 깨진다. mergeGroup 의 보존 합산을 *역으로* — 부모 1 개를 n 조각으로 나누되 질량·운동량·
@@ -412,5 +539,5 @@
     return { entities: out, coarsened, refined };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, fragmentEntity, fragmentOnImpact, adaptLOD, VERSION: 6 };
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, VERSION: 8 };
 });
