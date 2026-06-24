@@ -1,4 +1,5 @@
 'use strict';
+// step-0244 — 배치 SSOT 실배선(#51) 4: executed placeDrain. placeExecute ON 이면 host 드레인이 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 이주 → 드레인 후 그 host running 0(실제 비워짐·0224 퇴역 안전 이주의 집행 판). 0242 _migrate 재사용. OFF→0243 비트 동일(reg 0).
 // step-0243 — 배치 SSOT 실배선(#51) 3: executed placeRebalance. placeExecute ON 이면 자동 부하 재배치가 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 함께 이주(running 균형까지 실제 수렴·0223 자동 트리거의 집행 판). 0242 _migrate 재사용. OFF→0242 비트 동일(reg 0).
 // step-0242 — 배치 SSOT 실배선(#51) 2: executed placeMigrate. placeExecute ON 이면 placeMigrate 가 paper placement 갱신에 더해 실 존 런타임을 release(기존 host)+acquire(toHost) 쌍으로 *실제 이주*(running 단일 키 원자 교체·한 존은 정확히 한 host·공백/중복 0). paper Map.set 만이던 0218 의 집행 판(advisory→executed migrate). OFF→0241 비트 동일(reg 0).
 // step-0241 — 배치 SSOT 실배선(#51) 1: 존 런타임 레지스트리(running). placement(결정 SSOT·"어디서 돌아야 하나")와 별개로 *실제 가동 중인* 존 런타임을 host 별로 추적하는 executed SSOT(=집행 현실). placeExecute ON 이면 placeZone 이 paper 갱신에 더해 실 존 런타임을 *띄운다*(running.set·starts++·instance.js active SSOT 와 동형). OFF 면 paper map 만 = 0240 비트 동일(reg 0). advisory→executed 의 첫 조각.
@@ -229,6 +230,7 @@ class Orchestrator {
       const target = this._leastLoaded(others);             // 매번 최소부하 재계산(고른 분산).
       if (target === null) break;                           // 받을 host 없음 → 보류.
       this.placement.set(zid, target); moved++;             // release(host)+acquire(target).
+      if (this.placeExecute) this._migrate(zid, target);    // 집행(step-0244) — 실 존 런타임도 함께 이주(드레인 후 running 0).
     }
     this.drainMoves += moved; return moved;
   }
