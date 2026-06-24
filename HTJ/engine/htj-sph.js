@@ -667,19 +667,49 @@
     return out;
   }
 
+  // ── 격자 와도(vorticity) 장 — |∇×v| 셀별 측정(회전 디테일 검출자) ──────────────────────────────────
+  //   |∇v|(0081 전단)은 *회전*(소용돌이)과 *압축/팽창*(발산)을 못 가른다. 와도 ω=∇×v 는 *회전만* 짚는다 —
+  //   순수 발산(방사 팽창)은 |∇v| 크지만 |ω|=0. 회전 소용돌이(eddy)는 Lagrangian(SPH)이 특히 잘 좇으므로 별도 축이 값있다.
+  //     ω_x=∂v_z/∂y−∂v_y/∂z · ω_y=∂v_x/∂z−∂v_z/∂x · ω_z=∂v_y/∂x−∂v_x/∂y · out=|ω| (중심차분·경계 클램프·ρ≤0→0).
+  //   읽기 전용(world 불변). opts: { field('energy') }. → Float64Array(L).
+  function gridVorticityField(world, opts) {
+    opts = opts || {};
+    const N = world.N, L = N * N * N, EPS = 1e-12;
+    const rho = world.fields[opts.field || 'energy'];
+    const mx = world.fields['mom_x'], my = world.fields['mom_y'], mz = world.fields['mom_z'];
+    const out = new Float64Array(L);
+    if (!mx || !my || !mz) return out;
+    const vx = new Float64Array(L), vy = new Float64Array(L), vz = new Float64Array(L);
+    for (let i = 0; i < L; i++) { const m = rho[i]; if (m > EPS) { vx[i] = mx[i] / m; vy[i] = my[i] / m; vz[i] = mz[i] / m; } }
+    const cl = (a) => a < 0 ? 0 : (a >= N ? N - 1 : a);
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x; if (rho[i] <= EPS) continue;
+      const ixm = (z * N + y) * N + cl(x - 1), ixp = (z * N + y) * N + cl(x + 1);
+      const iym = (z * N + cl(y - 1)) * N + x, iyp = (z * N + cl(y + 1)) * N + x;
+      const izm = (cl(z - 1) * N + y) * N + x, izp = (cl(z + 1) * N + y) * N + x;
+      const dvz_dy = (vz[iyp] - vz[iym]) / 2, dvy_dz = (vy[izp] - vy[izm]) / 2;
+      const dvx_dz = (vx[izp] - vx[izm]) / 2, dvz_dx = (vz[ixp] - vz[ixm]) / 2;
+      const dvy_dx = (vy[ixp] - vy[ixm]) / 2, dvx_dy = (vx[iyp] - vx[iym]) / 2;
+      const wx = dvz_dy - dvy_dz, wy = dvx_dz - dvz_dx, wz = dvy_dx - dvx_dy;
+      out[i] = Math.sqrt(wx * wx + wy * wy + wz * wz);
+    }
+    return out;
+  }
+
   function autoMigrate(world, particles, opts) {
     opts = opts || {};
     particles = particles || [];
     const N = world.N;
     const field = opts.field || 'energy';
     const rho = world.fields[field];
-    const rhoOn = opts.rhoOn, rhoOff = opts.rhoOff, shearOn = opts.shearOn;
+    const rhoOn = opts.rhoOn, rhoOff = opts.rhoOff, shearOn = opts.shearOn, vortOn = opts.vortOn;
     let toSPHn = 0, toGridn = 0;
-    // 1. 격자 → SPH: ρ ≥ rhoOn(밀집·붕괴) *또는* |∇v| ≥ shearOn(전단·소용돌이·디테일) 인 셀 → 입자(0055 이동·격자 비움).
-    //    shearOn 안 줌 → 밀도 기준만(0077 동일). 디테일은 밀도뿐 아니라 *속도 변화*도 — 비용이 디테일을 따라간다.
-    if (rhoOn != null || shearOn != null) {
+    // 1. 격자 → SPH: ρ≥rhoOn(밀집) *또는* |∇v|≥shearOn(전단) *또는* |∇×v|≥vortOn(회전·소용돌이) 인 셀 → 입자(0055 이동).
+    //    임계 안 준 축은 무시(다 안 주면 0077 밀도만). 디테일은 밀도·전단·회전 — 비용이 디테일을 따라간다(다축 정책).
+    if (rhoOn != null || shearOn != null || vortOn != null) {
       const shearF = shearOn != null ? gridShearField(world, { field }) : null;
-      const region = (x, y, z) => { const i = (z * N + y) * N + x; return (rhoOn != null && rho[i] >= rhoOn) || (shearOn != null && shearF[i] >= shearOn); };
+      const vortF = vortOn != null ? gridVorticityField(world, { field }) : null;
+      const region = (x, y, z) => { const i = (z * N + y) * N + x; return (rhoOn != null && rho[i] >= rhoOn) || (shearOn != null && shearF[i] >= shearOn) || (vortOn != null && vortF[i] >= vortOn); };
       const mig = migrateRegionToSPH(world, { field, threshold: 0, region });
       particles = particles.concat(mig.particles);
       toSPHn = mig.particles.length;
@@ -890,5 +920,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, gridShearField, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 19 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, gridShearField, gridVorticityField, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 20 };
 });
