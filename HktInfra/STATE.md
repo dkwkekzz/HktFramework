@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0250](step-0250.md) — **배치 SSOT 실배선(#51) 10: placeQuery executed host**. 배치 질의(0204) 회신에 실 가동 host(`running`) 추가 — 게이트웨이가 존이 *실제로 도는 곳*(집행)으로 라우팅(0204 는 결정만 회신했음). 읽기 전용. OFF→0249 비트 동일. executed 배치 SSOT 읽기 경로 완성·0241~0250 decade 닫기.
-- **한 줄 상태**: reg ALL OK·placequeryexec: 5/5 z1@A→C 이주 후 reply host==running==hostC·`run.js all` 20모드+classics ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51 executed 배치 SSOT arc(0241~0250) 완료** — placement(advisory paper)을 코디네이션 SSOT 층에서 executed lifecycle(start/migrate/rebalance/drain/stop/auto/hostdown)+읽기 경로(placeQuery executed host)로 집행·capstone. **#51 잔여**: 실 EntityZone host 이주(zone.js 핸드오프 트리거·orch 추상 레지스트리→실 존)·멀티프로세스 패리티(#9). **다음 방향(#51 잔여 / 게이트 #49 wiring 분할 / #9)의 권위 판정은 `infra-review`**(0241~0250 묶음). 🔎 묶음 리뷰 적기.
+- **닫힌 step**: [step-0251](step-0251.md) — **정리(#49 인접): 오케스트레이터 배치 런타임 분리**. orchestrator.js(34KB>30KB 트리거)의 배치 SSOT 런타임 메서드(_start/_migrate/_hostDown/_stop/_rebalance/_drain·load helper·placement/executed 질의)를 새 박스 `orch-placement.js` 믹스인으로 분리, `Object.assign(prototype)` 으로 되섞음(투명·플래그 없음·reg 0). orchestrator.js 34KB→27.5KB(<30KB). 프레즌스/failover 제어 평면 잔류.
+- **한 줄 상태**: reg ALL OK(비트 동일)·orchsplit: 5/5 분리 후 z1@A→C 이주 running==hostC·drift 0·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 정리 라운드 진행 중 — wiring >30KB 박스(topo-run 35.9·topo-build 31.5·svc-exchange-core 30.7KB) 분할 잔여(#49). 그 뒤 #51 잔여(실 EntityZone host 이주·zone.js 핸드오프)·멀티프로세스 패리티(#9). 방향 권위 = `infra-review`(0241~0250 묶음·🔎 묶음 리뷰 적기).
 
 ---
 
@@ -166,3 +166,4 @@
 | [0248](step-0248.md) | 배치 SSOT 실배선 #51-8: host 장애 복구(placeHostDown·_hostDown·죽은 host 존 생존 host 재가동 re-acquire·드레인과 달리 비자발·release 불가) | 통과(reg 0·spine OK) · 5/5 A 장애→A run 0·rescued 2·drift 0 |
 | [0249](step-0249.md) | 배치 SSOT 실배선 #51-9: 전 lifecycle 집행 capstone(runningHosts 질의·start·auto·migrate·hostdown·stop 혼합 후 결정==집행·drift 0·단일 소유·arc 0241~0249 닫기) | 통과(reg 0·spine OK) · 5/5 run 4/placed 4·drift 0·single owner |
 | [0250](step-0250.md) | 배치 SSOT 실배선 #51-10: placeQuery executed host(질의 회신에 실 가동 running 추가·게이트웨이 실 위치 라우팅·읽기 경로 완성·0241~0250 decade 닫기) | 통과(reg 0·spine OK) · 5/5 reply host==running==hostC |
+| [0251](step-0251.md) | 정리(#49): 오케스트레이터 배치 런타임 분리(orch-placement.js 믹스인·Object.assign prototype·투명 분할·34KB→27.5KB·정리 라운드 1) | 통과(reg 0·spine OK) · 5/5 drift 0·running 단일 소유 |

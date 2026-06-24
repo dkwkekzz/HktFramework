@@ -1,4 +1,5 @@
 'use strict';
+// step-0250 — 배치 SSOT 실배선(#51) 10: placeQuery 가 executed 실 가동 host 회신. 0204 배치 질의는 결정(placement)만 회신했다 — 이제 reply 에 *실 가동 host*(running)도 실어, 게이트웨이가 존이 *실제로 도는 곳*으로 라우팅한다(결정만이 아니라 집행 위치까지 읽기). reply 에 running 필드 추가(읽기 전용·placeQuery 미수신이면 0249 비트 동일·reg 0). executed 배치 SSOT 의 읽기 경로 완성(0241~0250 decade 닫기).
 // step-0249 — 배치 SSOT 실배선(#51) 9: 전 lifecycle 집행 capstone. `runningHosts()` 질의(현재 존을 돌리는 *가동 중 host* 집합·운영 대시보드). 한 혼합 시퀀스(start→auto→rebalance→migrate→stop→hostdown→auto)가 전 op 를 거쳐도 매번 결정(placement)==집행(running)·drift 0·한 존 정확히 한 host(공백/중복 0)를 단언 — executed 배치 SSOT arc(0241~0249) 닫기. 읽기 질의 1개·OFF→0248 비트 동일(reg 0).
 // step-0248 — 배치 SSOT 실배선(#51) 8: host 장애 복구(placeHostDown). host 가 *비자발적*으로 죽으면(드레인=계획 퇴역과 달리) 그 host 의 모든 존 런타임이 소실 → 살아남은 host 중 최소부하로 *재가동(re-acquire)*. 죽은 host 는 release 불가(이미 죽음)이므로 graceful migrate 가 아니라 running 단일 키 재배치(공백 없이 한 존 정확히 한 host 회복). 복구 후 죽은 host running 0·drift 0. placeHostDown 미수신이면 0247 비트 동일(reg 0).
 // step-0247 — 배치 SSOT 실배선(#51) 7: executed placeAuto. 부하 기반 자동 배치(placeAuto)가 placeExecute ON 이면 최소부하 host 선택 + paper placement 갱신에 더해 실 존 런타임도 그 host 에 가동(_start). 0217 advisory 자동 배치의 집행 판. OFF→0246 비트 동일(reg 0).
@@ -125,9 +126,10 @@ class Orchestrator {
     // 존 배치 질의(step-0204·placeQuery) — {zoneId} 요청에 현재 배치 host 를 {placeReply} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069/우편 0156 의 배치 판). 순수 읽기(배치 무변경). _lastPlaceReply 에 보관(검증용). 질의 미수신이면 미발화 = 0203 비트 동일.
     if (p.type === 'placeQuery') {
       this.placeQueriesRx++;
-      const host = this.placementOf(p.zoneId);
-      this._lastPlaceReply = { zoneId: p.zoneId, host };
-      if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'placeReply', zoneId: p.zoneId, host }); this.placeRepliesSent++; }
+      const host = this.placementOf(p.zoneId);          // 결정(어디서 돌아야 하나).
+      const running = this.runningHostOf(p.zoneId);      // 집행(step-0250·실제 어디서 도나 — 게이트웨이가 진짜 위치로 라우팅).
+      this._lastPlaceReply = { zoneId: p.zoneId, host, running };
+      if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'placeReply', zoneId: p.zoneId, host, running }); this.placeRepliesSent++; }
       return;
     }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
