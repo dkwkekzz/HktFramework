@@ -1,4 +1,5 @@
 'use strict';
+// step-0199 — 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유): 0191~0198 에서 금고 박스(예치·인출·발행·영속·스냅샷·배지·배지영속·배지정합)를 세웠다. 이 step 은 금고 원장(vault)의 *척추 ③ 권위 단일 소유*를 명시 단언한다 — bankConsistent(): 어떤 itemId 도 두 길드 금고에 동시에 있지 않고(이중 소유 0·교차 중복 0)·한 금고 안에서 중복 0. rosterConsistent(0190)가 master 권위를 단언하듯, bankConsistent 는 *아이템 권위*를 단언한다. 순수 읽기(권위 0·실행 경로 무변경) → 0198 비트 동일(reg). 거래소 escrow 보존 0120·우편 escrow 0164 의 길드 금고 판.
 // step-0195 — 길드 금고 저널 스냅샷 압축(guildSnapshot 의 금고 확장): 0194 의 금고 저널은 *무계 성장*이라 예치/인출이 누적될수록 replay 비용·메모리가 ∝변경 수다(0194 한계). 0185 가 로스터 projection 을 주기 스냅샷+tail replay 로 압축한 그 메커니즘을 vault 에 확장한다: 스냅샷에 로스터뿐 아니라 *vault 도* 담고(bank: [[guildId,[itemId...]]...]), 그 이하 저널은 가지치기 → 저널은 마지막 스냅샷 이후 tail 만 보관(유계). reconstruct 는 스냅샷의 guilds+bank 에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot 0(snapInterval 0)이면 압축 0·저널 무계 = 0194 비트 동일(reg).
 // step-0194 — 길드 금고 영속·failover(guildPersist 의 금고 확장·변경 저널 replay): 0191~0193 의 금고(vault)는 *휘발*이라 박스 crash 시 예치된 아이템이 전부 소실됐다(영속 0·0193 한계). 0184 가 로스터/마스터십을 변경 저널로 영속시킨 그 메커니즘을 금고에 확장한다: 예치/인출 성사를 *변경 저널*(durable)에 append(kind 'deposit'/'withdraw'), crash(vault 소실) 후 fresh GuildService 가 저널을 seq 순 replay 해 vault projection 을 재구성 → 죽기 전과 비트 동일. crash 가 vault 도 비우고 reconstruct 가 vault 도 복원(로스터와 같은 저널·같은 replay 루프). guildPersist OFF 면 저널 0·crash 후 빈 금고(소실) = 0193 비트 동일(reg).
 // step-0193 — 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed): 0191~0192 의 예치/인출은 *관측 불가*였다 — 금고에 무엇이 들고 났는지 스트림이 0이었다(0192 한계). 다른 시스템(금고 UI 배지·감사·길드 로그)이 금고 변동을 구독해야 한다. 거래소 체결 발행(0108)·길드 멤버십 변경 발행(0183)의 금고 판: 실제 변경(예치 성사·인출 성사) 시 svc.guild.bank.changed{guildId,kind:deposit|withdraw,itemId,member} 를 버스로 발행 → 발행자 무수정 소비자(audit)가 반응. no-op(중복 예치·없는 인출·비멤버)은 발행 안 함(발행==실 변경). bankPublish OFF·bus 부재면 발행 0 = 0192 비트 동일(reg).
@@ -144,6 +145,15 @@ class GuildService {
   membersOf(guildId) { const g = this.guilds.get(guildId); return g ? g.members : []; }
   masterOf(guildId) { const g = this.guilds.get(guildId); return g ? g.master : null; }
   bankOf(guildId) { return this.vault.get(guildId) || []; }   // 금고 원장 읽기(step-0191) — 길드가 보유한 itemId 목록(읽기·권위 0).
+  // bankConsistent(step-0199·capstone) — 금고 원장 권위 단일 소유 불변(척추 ③): 어떤 itemId 도 두 길드 금고에 동시에 있지 않고(교차 중복 0=이중 소유 0)·한 금고 안 중복 0. 순수 읽기(권위 0). rosterConsistent(0190·master 권위)의 *아이템 권위* 판. 거래소 escrow 보존 0120·우편 0164 의 길드 금고 판.
+  bankConsistent() {
+    const owner = new Map();   // itemId -> 보유 guildId(첫 등장). 둘째 등장 = 이중 소유 위반.
+    for (const [gid, items] of this.vault) {
+      if (new Set(items).size !== items.length) return false;   // 금고 내부 중복 0.
+      for (const it of items) { if (owner.has(it)) return false; owner.set(it, gid); }   // itemId 단일 길드 소유(교차 중복 0).
+    }
+    return true;
+  }
   // rosterConsistent(step-0190·capstone) — single-master 불변(척추 ③): 전 길드 정확히 한 master(공백 0)·master ∈ members(고아 0)·멤버 중복 0. 순수 읽기(권위 0). 모든 연산·체제서 성립해야 길드 박스가 권위 단일 소유를 보존. 거래소 0140·우편 0180 capstone 의 길드 판.
   rosterConsistent() {
     for (const g of this.guilds.values()) {

@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0198](step-0198.md) — **길드 금고 배지 정합 capstone**(bankFeedConsistent·배지==vault 크기): 전 길드 bankCountOf==bankOf().length(고아 0)·정상·guild crash·feed crash 3체제 성립. 0188 멤버 배지 정합의 금고 판. 닿는 박스: svc-guildfeed.
-- **한 줄 상태**: reg ALL OK·guildbankfeedconsistent: 3체제 3/3·g1/g2 vault 2/2·spine OK.
-- **다음**: §2 — bank 원장 정합(0199·itemId 단일 길드 소유)→arc capstone(0200)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0199](step-0199.md) — **길드 금고 원장 정합**(bankConsistent·itemId 단일 길드 소유): 어떤 itemId 도 두 길드 금고 동시 부재(교차/내부 중복 0=이중 소유 0)·3체제 성립. rosterConsistent(0190·master 권위)의 아이템 권위 판. 닿는 박스: svc-guild.
+- **한 줄 상태**: reg ALL OK·guildbankconsistent: 3체제 3/3·g1/g2 vault 1/2·spine OK.
+- **다음**: §2 — guild bank arc capstone(0200·원장+배지 정합 결합·arc 0191~0200 닫기)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
@@ -290,3 +290,4 @@
 | [0196](step-0196.md) | 길드 금고 아이템 수 배지(guildBankFeed·GuildFeed bankCount·0186 금고 판) | 통과 · 배지==vault(g1 2·g2 1)·OFF 0 |
 | [0197](step-0197.md) | 길드 금고 배지 영속·late-join(guildFeedPersist 금고 배지·kind 분기 replay·0187 판) | 통과 · crash→reconstruct 배지==pre·OFF 소실 |
 | [0198](step-0198.md) | 길드 금고 배지 정합 capstone(bankFeedConsistent·배지==vault 크기·0188 금고 판) | 통과 · 3체제 3/3·g1/g2 vault 2/2 |
+| [0199](step-0199.md) | 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유·0190 아이템 권위 판) | 통과 · 3체제 3/3·교차/내부 중복 0 |
