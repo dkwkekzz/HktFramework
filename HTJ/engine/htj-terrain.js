@@ -74,9 +74,10 @@
     //   각 퇴적 구 d 가 덮는 (x,y) 정점에서 구 표면 상단 z_top = d.cz + √(r²−d²) 와 지형 높이의 *max* = "물질이 위에 쌓임".
     //   = environment.md §2/§4 "그 위의 거동(…깎임/쌓임)은 구체 법칙의 창발" — 정착은 0059 물리, 표면은 그 결과를 *읽기만*.
     //   deposits 없으면 이 블록은 통째로 건너뛴다 → T1(0065) 표면과 byte 동일(가법·회귀0).
-    let depositCount = 0;
+    let depositCount = 0, baseH = null;
     if (deposits && deposits.length) {
       depositCount = deposits.length;
+      baseH = heights.slice();                                       // 퇴적 전 지형(평활 시 delta 분리용)
       for (let J = 0; J < ny; J++) for (let I = 0; I < nx; I++) {
         const wx = x0 + I * dx, wy = y0 + J * dy, k = J * nx + I;
         let h = heights[k];
@@ -86,6 +87,28 @@
         }
         heights[k] = h;
       }
+    }
+    // 매끄러운 퇴적(T1 동적 지형 확장·step_0067) — 퇴적 delta(쌓인 물질)를 확산 이완해 *개별 구 봉우리*를
+    //   *매끄러운 둔덕*으로 만든다. base 지형은 불변(delta 만 평활)·확산은 쌍대칭(각 인접쌍이 ±λΔ 로 상쇄)이라
+    //   Σdelta(쌓인 부피) *정확 보존*·λ≤1/4 면 convex 결합이라 음수 없음(=깎임 아님·일방 퇴적). Neumann 경계.
+    //   smooth=0/무지정 → 이 블록 건너뜀 → step_0066(deposits splat) 표면과 byte 동일(가법·회귀0).
+    const smooth = opts.smooth != null ? Math.max(0, opts.smooth | 0) : 0;
+    if (smooth > 0 && baseH) {
+      const lam = opts.smoothRate != null ? opts.smoothRate : 0.2;   // 확산 계수(0<λ≤1/4)
+      let d0 = new Array(nx * ny), d1 = new Array(nx * ny);
+      for (let k = 0; k < nx * ny; k++) d0[k] = heights[k] - baseH[k];
+      for (let it = 0; it < smooth; it++) {
+        for (let J = 0; J < ny; J++) for (let I = 0; I < nx; I++) {
+          const k = J * nx + I; let s = 0;
+          if (I > 0) s += d0[k - 1] - d0[k];
+          if (I < nx - 1) s += d0[k + 1] - d0[k];
+          if (J > 0) s += d0[k - nx] - d0[k];
+          if (J < ny - 1) s += d0[k + nx] - d0[k];
+          d1[k] = d0[k] + lam * s;
+        }
+        const t = d0; d0 = d1; d1 = t;                              // 더블버퍼 스왑
+      }
+      for (let k = 0; k < nx * ny; k++) heights[k] = baseH[k] + d0[k];
     }
     // 정점 법선 — 중앙차분(경계는 한쪽차분)으로 기울기 → n=normalize(−∂z/∂x,−∂z/∂y,1).
     const normals = new Array(nx * ny);
@@ -108,5 +131,5 @@
     return { cx: surf.x0 + I * surf.dx, cy: surf.y0 + J * surf.dy, cz: surf.heights[k], n: surf.normals[k] };
   }
 
-  return { terrainSurface, vertexWorld, VERSION: 2 };
+  return { terrainSurface, vertexWorld, VERSION: 3 };
 });
