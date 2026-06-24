@@ -683,6 +683,62 @@
     return particles;
   }
 
+  // ── 침식 = SPH 퇴적물 운반(바닥↔흐름 용량 기반 교환) — 물이 *땅을 깎고 쌓는다*(지형 정적·일방 해소) ──────
+  //   design/environment.md §2/§4 — 0060(법선 경계)·0064(접선 마찰)은 물을 지형에 *얹고 흘렀게* 했으나 지형은
+  //   *정적*이었다(물→지형 일방·거의 모든 지형 step 의 공통 한계). 이 법칙은 그 일방을 *왕복*으로 닫는다:
+  //   흐르는 물(SPH)이 바닥(앵커)을 *깎아 싣고*(침식) 느려지면 *내려놓는다*(퇴적) = 흐름이 땅을 빚는다.
+  //     운반 용량 C = capacity·|v_t|              (stream power — 빠른 흐름일수록 더 많이 운반)
+  //     load(p.sediment) < C → 침식: dm=min(erodeRate·(C−load)·dt, bed−minBed)  바닥→입자(bed↓·load↑)
+  //     load > C            → 퇴적: dm=min(erodeRate·(load−C)·dt, load)          입자→바닥(bed↑·load↓)
+  //   바닥 두께 = 앵커 반경(A.bed·첫 접촉 시 radius 로 초기화)·A.radius=A.bed 로 기하 반영 → 깎인 바닥을 물이
+  //   *따라간다*(다음 step 의 0060 경계력이 갱신된 radius 를 읽음·창발 결합). 보존: 모든 dm 은 bed↔load *쌍 이동*
+  //   → **Σ A.bed + Σ p.sediment 정확 보존**(질량은 사라지지 않고 땅↔흐름을 오갈 뿐). 퇴적물은 *수동 스칼라*
+  //   (운동량·내부E 안 건드림) → 0064 동역학 불변(erodeRate=0 → 정확 회귀). 빠른 상류는 깎이고(협곡) 느린
+  //   하류는 쌓여(삼각주) **graded 하천 단면이 창발**(author 없이·"법칙 author·구조 창발"). 0064(접선 마찰)·
+  //   0060(법선)과 같은 SPH↔앵커 *generic* 법칙 family(타입 모름·"지형/강" 분기 없음·바닥=generic 정적 경계).
+  //   erodeRate=0/앵커 없음/dt=0 → early-return(회귀 0). anchors 는 *읽고 bed/radius 만 갱신*(위치 불변).
+  //   opts: { erodeRate(0→early-return), capacity(운반 용량 계수), skin(0060 과 같은 접촉층), minBed(다 깎이면 멈춤·기본 0) }.
+  function sphSedimentErosion(particles, anchors, dt, opts) {
+    opts = opts || {};
+    const erodeRate = opts.erodeRate != null ? opts.erodeRate : 0;
+    if (dt == null) dt = 1;
+    if (erodeRate === 0 || !anchors || anchors.length === 0 || !dt) return particles;  // 노브=0/앵커 없음 → early-return(회귀 0)
+    const capacity = opts.capacity != null ? opts.capacity : 1;
+    const skin = opts.skin != null ? opts.skin : 0;
+    const minBed = opts.minBed != null ? opts.minBed : 0;
+    const EPS = 1e-9;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (p.sediment == null) p.sediment = 0;
+      const m = p.mass > EPS ? p.mass : 1;
+      for (let a = 0; a < anchors.length; a++) {
+        const A = anchors[a];
+        if (A.bed == null) A.bed = A.radius || 0;                 // 첫 접촉: 바닥 두께 = 현재 반경
+        const dx = p.cx - A.cx, dy = p.cy - A.cy, dz = p.cz - A.cz;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const pen = ((A.radius || 0) + skin) - d;                 // 접촉(표면 안) 판정 — 0060/0064 와 동일
+        if (pen <= 0 || d < EPS) continue;
+        const nx = dx / d, ny = dy / d, nz = dz / d;              // 바깥 법선
+        const vx = p.px / m, vy = p.py / m, vz = p.pz / m;
+        const vn = vx * nx + vy * ny + vz * nz;                   // 법선 속도
+        const tx = vx - vn * nx, ty = vy - vn * ny, tz = vz - vn * nz;   // 접선 슬립(흐름)
+        const vt = Math.sqrt(tx * tx + ty * ty + tz * tz);
+        const C = capacity * vt;                                  // 운반 용량 ∝ 흐름 속도(stream power)
+        if (p.sediment < C) {                                     // 침식: 바닥을 깎아 싣는다
+          let dm = erodeRate * (C - p.sediment) * dt;
+          if (dm > A.bed - minBed) dm = A.bed - minBed;
+          if (dm > 0) { A.bed -= dm; p.sediment += dm; }
+        } else if (p.sediment > C) {                              // 퇴적: 바닥에 내려놓는다
+          let dm = erodeRate * (p.sediment - C) * dt;
+          if (dm > p.sediment) dm = p.sediment;
+          if (dm > 0) { A.bed += dm; p.sediment -= dm; }
+        }
+        A.radius = A.bed;                                         // 기하 반영(물이 깎인 바닥을 따라간다)
+      }
+    }
+    return particles;
+  }
+
   // ── SW5 SPH 복사 냉각 — 입자가 제 열을 *빛으로* 내보내 식는다(계의 첫 에너지 sink) ──────────────
   //   design/sphere-world.md §6 SW5 — 압력(0041)·점성(0046)·전도(0049)는 에너지를 *재분배*만 한다(KE↔U·U↔U).
   //   계 밖으로 에너지가 *나갈 출구*가 없어 붕괴열이 갇힌다. 이 법칙은 그 출구 = **빛**: 광학적으로 얇은 회색 복사로
@@ -715,5 +771,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, sphBoundaryForce, sphBedFriction, VERSION: 15 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 16 };
 });
