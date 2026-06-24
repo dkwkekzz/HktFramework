@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0195](step-0195.md) — **길드 금고 저널 스냅샷 압축**(guildSnapshot 금고 확장): 스냅샷에 vault 포함·tail 만 보관·reconstruct(스냅샷+tail)==전체 저널 replay(무손실). 0185 로스터 압축의 금고 확장. 닿는 박스: svc-guild.
-- **한 줄 상태**: reg ALL OK·guildbanksnapshot: snaps 2·tail 1<full 9·vault [i2,i4,i5,i6] 무손실·spine OK.
-- **다음**: §2 — bank 배지 읽기 모델(0196·GuildFeed 금고 아이템 수)→배지 영속→정합 capstone·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0196](step-0196.md) — **길드 금고 아이템 수 배지**(guildBankFeed·GuildFeed bankCount): GuildFeed 가 svc.guild.bank.changed 구독→금고 아이템 수 배지(deposit +1·withdraw −1·CQRS·발신 0). 배지==vault 크기. 0186 멤버 수 배지의 금고 판. 닿는 박스: svc-guildfeed·topo-build·topo-subs.
+- **한 줄 상태**: reg ALL OK·guildbankfeed: g1 배지 2==vault·g2 1==vault·OFF 0·spine OK.
+- **다음**: §2 — bank 배지 영속·late-join(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷 ✅. 다음: bank 배지 읽기 모델(0196)→배지 영속(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
+**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷·0196 배지 ✅. 다음: 배지 영속(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -236,17 +236,17 @@
 | [0142](step-0142.md) | 우편(Mail) 서비스 분리(MailService) | 통과 · sent 4·held 3/1·멱등·결정론 |
 | [0143](step-0143.md) | 우편 수령(mailFetch) | 통과 · h1 fetched 2·재수령 0·accountConsistent |
 | [0144](step-0144.md) | 우편 입금 발행(mailSentPublish) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
-| [0145](step-0145.md) | 우편 영속·failover(mailPersist) | 통과 · reconstruct==pre digest·OFF 소실·accountConsistent |
-| [0146](step-0146.md) | 우편 저널 스냅샷 압축(mailSnapshot) | 통과 · tail 2<full 8·3자 비트동일·accountConsistent |
-| [0147](step-0147.md) | 우편 읽음 확인 발행(mailReadPublish) | 통과 · readPublished 3==audit 3==fetched·비-침습·OFF 0 |
-| [0148](step-0148.md) | 우편 만료 TTL(mailTtl) | 통과 · expired 1·accountConsistent·reconstruct==live·ttl0 만료0 |
-| [0149](step-0149.md) | 우편 만료 발행(mailExpirePublish) | 통과 · expirePublished 1==audit 1==expired·3종 동시·OFF 0 |
-| [0150](step-0150.md) | 우편 회계 정합 capstone(mailConsistent) | 통과 · 4체제 true·분할 0/3/0·0/0/3·1/2/1·crash 복구 정합 |
+| [0145](step-0145.md) | 우편 영속·failover(mailPersist) | 통과 · reconstruct==pre·OFF 소실 |
+| [0146](step-0146.md) | 우편 저널 스냅샷 압축(mailSnapshot) | 통과 · tail 2<full 8 |
+| [0147](step-0147.md) | 우편 읽음 확인 발행(mailReadPublish) | 통과 · readPub 3==audit·OFF 0 |
+| [0148](step-0148.md) | 우편 만료 TTL(mailTtl) | 통과 · expired 1·reconstruct==live |
+| [0149](step-0149.md) | 우편 만료 발행(mailExpirePublish) | 통과 · expirePub 1==audit·OFF 0 |
+| [0150](step-0150.md) | 우편 회계 정합 capstone(mailConsistent) | 통과 · 4체제 true·crash 정합 |
 | [0151](step-0151.md) | 우편 미읽음 배지 읽기 모델(mailFeed·MailFeed) | 통과 · unread 3/2·total 5==sent |
-| [0152](step-0152.md) | MailFeed 읽음 반영(mailFeedRead) | 통과 · h1 0/3·total 2·unread==sent−read |
-| [0153](step-0153.md) | MailFeed 만료 반영(mailFeedExpire) | 통과 · h2 0/0/2·unread==sent−read−expired |
-| [0154](step-0154.md) | MailFeed 영속·late-join(reconstruct·우편 op 저널 replay 로 배지 복원) | 통과 · crash→reconstruct digest==라이브 |
-| [0155](step-0155.md) | MailFeed 회계 정합 capstone(feedConsistent·unread==sent−read−expired·MailFeed arc 닫기) | 통과 · 4체제 true·totalUnread==totalHeld |
+| [0152](step-0152.md) | MailFeed 읽음 반영(mailFeedRead) | 통과 · unread==sent−read |
+| [0153](step-0153.md) | MailFeed 만료 반영(mailFeedExpire) | 통과 · unread==sent−read−expired |
+| [0154](step-0154.md) | MailFeed 영속·late-join(우편 op 저널 replay 배지 복원) | 통과 · reconstruct==라이브 |
+| [0155](step-0155.md) | MailFeed 회계 정합 capstone(feedConsistent·MailFeed arc 닫기) | 통과 · 4체제·unread==held |
 | [0156](step-0156.md) | 미읽음 배지 질의 인터페이스(mailUnreadQuery→mailUnreadReply·request/reply over net) | 통과 · queriesRx 2·repliesSent 2·회신==배지 |
 | [0157](step-0157.md) | 아이템 첨부 우편(mailItem·우편 1통이 아이템 보유·거래소 escrow 판) | 통과 · itemSent 2·itemHeld 2 |
 | [0158](step-0158.md) | 아이템 우편 수령(itemFetched·itemHeld→itemFetched) | 통과 · held 1·fetched 2 |
@@ -287,3 +287,4 @@
 | [0193](step-0193.md) | 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed·거래소 0108/길드 0183 판) | 통과 · ON pub 3==rx==실변경·OFF 0 |
 | [0194](step-0194.md) | 길드 금고 영속·failover(guildPersist 금고 확장·deposit/withdraw 저널 replay) | 통과 · crash→reconstruct vault==pre·OFF 소실 |
 | [0195](step-0195.md) | 길드 금고 저널 스냅샷 압축(guildSnapshot 금고 확장·vault 포함·tail replay) | 통과 · tail 1<full 9·무손실 vault 4 |
+| [0196](step-0196.md) | 길드 금고 아이템 수 배지(guildBankFeed·GuildFeed bankCount·0186 금고 판) | 통과 · 배지==vault(g1 2·g2 1)·OFF 0 |

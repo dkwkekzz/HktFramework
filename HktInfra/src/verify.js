@@ -1,8 +1,8 @@
-// HktInfra step-0195 — 헤드리스 검증 (길드 금고 저널 스냅샷 압축·guildSnapshot 의 금고 확장)
+// HktInfra step-0196 — 헤드리스 검증 (길드 금고 아이템 수 배지·guildBankFeed·GuildFeed bankCount)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildbanksnapshot`.
-//   더한 한 조각: 스냅샷에 vault 도 포함·tail 만 보관. reconstruct 는 스냅샷(guilds+bank)+tail replay → 전체 저널 replay 와 비트 동일(무손실 압축). snapInterval 0 면 0194 비트 동일(reg).
-//   검증: ⒜ `reg`(키트) — 0194 비트 동일. ⒝ `guildbanksnapshot`(가설) — 압축 ON tail<full·reconstruct vault==무압축 reconstruct(무손실).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildbankfeed`.
+//   더한 한 조각: GuildFeed 가 svc.guild.bank.changed 도 구독해 guildId 별 bankCount 배지(deposit +1·withdraw −1). vault SSOT 와 독립 파생 읽기 모델(CQRS·발신 0·권위 0). guildBankFeed OFF 면 미구독·배지 0 = 0195 비트 동일(reg). 0186 멤버 수 배지의 금고 판.
+//   검증: ⒜ `reg`(키트) — 0195 비트 동일. ⒝ `guildbankfeed`(가설) — 배지 bankCount==vault 크기·OFF 면 배지 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -18,34 +18,31 @@ const { check, pad } = kit.helpers;
 const GCREATE = (at, guildId, master, members) => ({ at, op: { type: 'guildCreate', guildId, master, members } });
 const GDEPOSIT = (at, guildId, member, itemId) => ({ at, op: { type: 'guildDeposit', guildId, member, itemId } });
 const GWITHDRAW = (at, guildId, member, itemId) => ({ at, op: { type: 'guildWithdraw', guildId, member, itemId } });
-// 다수 금고 변경(create 1 + 예치 6 + 인출 2 = 9 저널 항) → snapInterval 로 압축 발화.
 const OPS = [
-  GCREATE(2, 'g1', 'x', ['x', 'c1', 'c2', 'c3']),
-  GDEPOSIT(3, 'g1', 'x', 'i1'), GDEPOSIT(4, 'g1', 'c1', 'i2'), GDEPOSIT(5, 'g1', 'c2', 'i3'),
-  GDEPOSIT(6, 'g1', 'c3', 'i4'), GDEPOSIT(7, 'g1', 'x', 'i5'), GDEPOSIT(8, 'g1', 'c1', 'i6'),
-  GWITHDRAW(9, 'g1', 'c2', 'i1'), GWITHDRAW(10, 'g1', 'c3', 'i3'),   // 최종 vault = [i2,i4,i5,i6].
+  GCREATE(2, 'g1', 'x', ['x', 'c1', 'c2']), GCREATE(3, 'g2', 'c4', ['c4', 'c6']),
+  GDEPOSIT(4, 'g1', 'x', 'sword'), GDEPOSIT(5, 'g1', 'c1', 'shield'), GDEPOSIT(6, 'g1', 'c2', 'potion'),
+  GDEPOSIT(7, 'g2', 'c4', 'ring'),
+  GWITHDRAW(9, 'g1', 'c2', 'sword'),   // g1 최종 금고 2(shield,potion)·g2 1(ring).
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildBank: true, guildPersist: true, guildOps: OPS };
-const sig = v => JSON.stringify(v.slice().sort());
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildBank: true, guildBankPublish: true, guildFeed: true, guildChangePublish: true, guildOps: OPS };
 
-function guildbanksnapshot(seeds) {
-  console.log('== guildbanksnapshot: 금고 저널 스냅샷 압축 — 스냅샷에 vault 포함·tail 만 보관. reconstruct(스냅샷+tail)==전체 저널 replay(무손실). snapInterval 0 면 0194 동일. 0185 로스터 압축의 금고 확장. ==');
-  console.log('seed   | snaps | tail | full | reconstruct vault       | tail<full·무손실 | 판정');
+function guildbankfeed(seeds) {
+  console.log('== guildbankfeed: 금고 아이템 수 배지 — GuildFeed 가 svc.guild.bank.changed 구독(deposit +1·withdraw −1). vault SSOT 와 독립(CQRS·발신 0). OFF 면 배지 0. 0186 멤버 수 배지의 금고 판. ==');
+  console.log('seed   | g1 배지/vault | g2 배지/vault | OFF 배지 | 배지==vault·OFF0 | 판정');
   for (const seed of seeds) {
-    const on = run({ seed, ticks: 12, ...BASE, guildSnapshot: 4 });
-    const off = run({ seed, ticks: 12, ...BASE, guildSnapshot: 0 });
-    const tail = on.guild.journal.length, full = off.guild.journal.length;
-    on.guild.crash(); on.guild.reconstruct();
-    off.guild.crash(); off.guild.reconstruct();
-    const vOn = on.guild.bankOf('g1'), vOff = off.guild.bankOf('g1');
-    const okShape = on.guild.snapshots > 0 && tail < full && sig(vOn) === sig(vOff) && vOn.length === 4;
-    const ok = check(okShape, `seed ${seed}: 압축 위반 (snaps ${on.guild.snapshots}·tail ${tail}·full ${full}·vOn ${sig(vOn)}·vOff ${sig(vOff)})`);
-    console.log(`${pad(seed, 6)} | ${pad(on.guild.snapshots, 5)} | ${pad(tail, 4)} | ${pad(full, 4)} | ${pad(sig(vOn), 23)} | ${pad(okShape ? '예' : '아니오', 16)} | ${ok ? 'OK' : 'FAIL'}`);
+    const on = run({ seed, ticks: 11, ...BASE, guildBankFeed: true });
+    const off = run({ seed, ticks: 11, ...BASE, guildBankFeed: false });
+    const g1b = on.guildfeed.bankCountOf('g1'), g1v = on.guild.bankOf('g1').length;
+    const g2b = on.guildfeed.bankCountOf('g2'), g2v = on.guild.bankOf('g2').length;
+    const offb = off.guildfeed.bankCountOf('g1');
+    const okShape = g1b === g1v && g1b === 2 && g2b === g2v && g2b === 1 && offb === 0;
+    const ok = check(okShape, `seed ${seed}: 배지 위반 (g1 ${g1b}/${g1v}·g2 ${g2b}/${g2v}·off ${offb})`);
+    console.log(`${pad(seed, 6)} | ${pad(g1b + '/' + g1v, 13)} | ${pad(g2b + '/' + g2v, 13)} | ${pad(offb, 8)} | ${pad(okShape ? '예' : '아니오', 16)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 금고 변경이 누적돼도 snapInterval 마다 vault projection 을 스냅샷에 굳히고 그 이하 저널을 가지치기 → 저널은 tail 만(유계). reconstruct 는 스냅샷의 guilds+bank 에서 출발해 tail 만 replay → 전체 저널 replay 와 비트 동일(무손실·vault [i2,i4,i5,i6]). 0185 로스터 스냅샷 압축의 금고 확장 — vault 도 같은 스냅샷·같은 tail replay.');
+  console.log('  → GuildFeed 가 svc.guild.bank.changed 를 구독해 길드별 금고 아이템 수 배지를 유지(deposit +1·withdraw −1) → 배지==vault 크기(g1 2·g2 1). vault SSOT(GuildService)와 독립한 파생 읽기 모델(CQRS): 발신 0·권위 0(순수 관찰). guildBankFeed OFF 면 미구독·배지 0(0195 비트 동일). 0186 멤버 수 배지의 금고 판.');
 }
 
-kit.MODES['guildbanksnapshot'] = guildbanksnapshot;
-kit.ORDER.splice(1, 0, 'guildbanksnapshot');
+kit.MODES['guildbankfeed'] = guildbankfeed;
+kit.ORDER.splice(1, 0, 'guildbankfeed');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
