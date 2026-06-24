@@ -750,9 +750,25 @@ function placerebalance(seeds) {
   }
 }
 
+function placedrain(seeds) {
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const DRAIN = (at, host, hosts) => ({ at, op: { type: 'placeDrain', host, hosts } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), PLACE(4, 'z4', 'hostC'), DRAIN(5, 'hostA', ['hostA', 'hostB', 'hostC'])];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placementOps: OPS };
+  console.log('== placedrain (0224 승급): 오케 host 드레인 — 퇴역 host 의 모든 존을 나머지 최소부하로 차례 이주(release+acquire 연쇄·드레인 후 그 host 부하 0·매 존 최소부하 재계산). ==');
+  console.log('seed   | A부하 | B부하 | C부하 | moves | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const o = r.orch;
+    const ok = check(o.hostLoad('hostA') === 0 && o.hostLoad('hostB') === 2 && o.hostLoad('hostC') === 2 && o.drainMoves === 2 && o.placementOf('z1') === 'hostB' && o.placementOf('z2') === 'hostC',
+      `seed ${seed}: drain 위반 (A ${o.hostLoad('hostA')}·B ${o.hostLoad('hostB')}·C ${o.hostLoad('hostC')}·moves ${o.drainMoves})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.hostLoad('hostA'), 5)} | ${pad(o.hostLoad('hostB'), 5)} | ${pad(o.hostLoad('hostC'), 5)} | ${pad(o.drainMoves, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance };
-  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
