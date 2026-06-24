@@ -528,10 +528,13 @@
       out.push(merged); coarsened++;
     }
     // ② refine — near 의 coarse 구체(구성원>1)를 그 수 만큼 fine 으로(폭발 없이 = dispersalFrac 0).
+    //   (M4·0070) opts.refineDNA(entity) 훅이 있고 그 개체가 DNA(shapeHash)를 들면 *원래 형태* 물리 조각으로
+    //   되쪼갠다(refineByDNA·렌더 LOD↔물리 LOD 합류). 훅 미지정/DNA 없음 → fragmentEntity 평면 고리(0039·회귀0).
     for (const idx of nearIdx) {
       const e = entities[idx], members = e.lodMembers || 1;
       if (members > 1) {
-        const frags = fragmentEntity(e, { n: members, dispersalFrac: 0, spread: opts.spread });
+        let frags = opts.refineDNA ? opts.refineDNA(e) : null;        // DNA 형태 물리 복원 훅(옵션)
+        if (!frags) frags = fragmentEntity(e, { n: members, dispersalFrac: 0, spread: opts.spread });  // 폴백=평면 고리(0039)
         for (const f of frags) { f.lodMembers = 1; out.push(f); }
         refined++;
       } else out.push(e);
@@ -598,5 +601,5 @@
     return { entities: out, merges };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 10 };
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 11 };
 });
