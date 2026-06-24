@@ -63,5 +63,27 @@
     return (h >>> 0) / 4294967296;
   }
 
-  return { fnv1a, shapeDNA, registerShape, hashToUnit, VERSION: 1 };
+  // (M3) 형태 복원 — 개체의 shapeHash 로 세계 사전에서 canonical 형태를 꺼내, *민둥 구가 아니라* 원래 구성원
+  //   배치(윤곽)를 개체 변환(위치·반경 스케일)으로 펼친 점 무리를 돌려준다 = "큰 원이 지형 모양으로 돌아온다".
+  //   design/merge-dna.md §4 M3. 순수(입력 안 변형)·렌더 의존 0 — viewer/capture 가 이 점들을 *그리기만* 한다
+  //   (세계↔확인용 단방향: 이 함수는 *어디에 그릴지*만 계산·픽셀은 viewer). hash 없음/사전에 없음 → null(단일 구 폴백).
+  //   canonical.points 는 정규화(스케일 불변)점이라 절대 크기는 잃었다 → 개체 반경에 비례해 펼친다(proportion 보존).
+  //     offset_i = q_i · quantum · radius · spread,   sub 반경 = radius / count^⅓ · subScale(≈원래 구성원 크기)
+  //   entity: {cx,cy,cz,radius,shapeHash}. dict: {hash→canonical}. opts: { quantum(0.25), spread(1.5), subScale(1.5) }.
+  function reconstructShape(entity, dict, opts) {
+    opts = opts || {};
+    const hash = entity && entity.shapeHash;
+    if (!hash || !dict || !dict[hash]) return null;            // DNA 없음 → 단일 구 폴백(렌더가 알아서)
+    const pts = dict[hash].points || [], count = pts.length || 1;
+    const quantum = opts.quantum != null ? opts.quantum : 0.25;
+    const spread = opts.spread != null ? opts.spread : 1.5;
+    const R = entity.radius || 1;
+    const k = quantum * R * spread;                            // 정규화 점 → 월드 오프셋 배율(반경 비례)
+    const rsub = R / Math.cbrt(count) * (opts.subScale != null ? opts.subScale : 1.5);  // ≈원래 구성원 반경
+    const out = [];
+    for (const q of pts) out.push({ cx: entity.cx + q[0] * k, cy: entity.cy + q[1] * k, cz: (entity.cz || 0) + q[2] * k, r: rsub });
+    return out;
+  }
+
+  return { fnv1a, shapeDNA, registerShape, hashToUnit, reconstructShape, VERSION: 2 };
 });
