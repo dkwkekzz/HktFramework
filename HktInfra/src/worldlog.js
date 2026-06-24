@@ -1,5 +1,6 @@
 'use strict';
-// step-0213 — 월드 영속 스냅샷 압축(worldSnapshot): 투영을 스냅샷으로 굳히고 로그를 tail(스냅샷 이후 seq)로 절단. replay = 스냅샷+tail 재적용 = 전체-로그 replay 와 *비트 동일*(무손실 압축). intent 로그가 무한히 안 자라게(저장 유계·가방 0018/우편 0146/길드 0185 의 월드 판). worldSnapshot 미수신이면 0212 비트 동일(reg 0). 2차 고도화(월드영속 #1).
+// step-0214 — 월드 영속 정합 capstone(worldCrash/worldRecover): crash(투영 소실)→recover(스냅샷+tail replay) 를 *메시지 구동* 프로토콜로(슈퍼바이저가 복구를 명령). 스냅샷이 durable 해 crash 후에도 동일 digest 복원(스냅샷 load-bearing·tail 단독 불충분). worldCrash/worldRecover 미수신이면 0213 비트 동일(reg 0). 2차 고도화(월드영속 #2·스냅샷 arc 닫기).
+// step-0213 — 월드 영속 스냅샷 압축(worldSnapshot): 투영을 스냅샷으로 굳히고 로그를 tail(스냅샷 이후 seq)로 절단. replay = 스냅샷+tail 재적용 = 전체-로그 replay 와 *비트 동일*(무손실 압축). intent 로그가 무한히 안 자라게(가방 0018/우편 0146/길드 0185 의 월드 판). worldSnapshot 미수신이면 0212 비트 동일(reg 0). 2차 고도화(월드영속 #1).
 // step-0208 — 월드 영속 replay 재구성: durable intent 로그를 전수 재적용해 월드 상태 투영 복원(crash 후 로그만으로 동일 상태·event sourcing 핵심·복제=재현). worldLog OFF 면 박스 0 = 0206 비트 동일(reg 0). 월드 영속 박스 기본 통신 완비.
 // step-0207 — 월드 영속 박스 분리: intent 로그 append 기본(worldLog·worldAppend). 세계 상태의 유일 쓰기 경로(intent)를 durable 로그로 event sourcing. worldLog OFF 면 박스 0 = 0206 비트 동일(reg 0).
 // dual-mode: Node require / 브라우저는 common.js 선행 로드(전역 __HktNetCommon).
@@ -63,6 +64,10 @@ class WorldLog {
     if (p.type === 'worldAppend') { this._append(p.intent); this.appends++; return; }
     // 스냅샷 압축 요청(step-0213·worldSnapshot) — 투영을 스냅샷으로 굳히고 로그를 tail 로 절단(로그 저장 유계). worldSnapshot 미수신이면 미발화 = 0212 비트 동일.
     if (p.type === 'worldSnapshot') { this._snapshot(); return; }
+    // crash 명령(step-0214·worldCrash) — 투영(RAM·휘발) 소실의 메시지 구동 모델. 스냅샷·tail 로그는 durable 이라 살아남는다. worldCrash 미수신이면 미발화 = 0213 비트 동일.
+    if (p.type === 'worldCrash') { this.crash(); this.crashes = (this.crashes || 0) + 1; return; }
+    // recover 명령(step-0214·worldRecover) — 슈퍼바이저가 복구를 명령 → 스냅샷+tail replay 로 투영 재구성(crash 후 무손실 복원·복제=재현). worldRecover 미수신이면 미발화 = 0213 비트 동일.
+    if (p.type === 'worldRecover') { this.replay(); this.recovers = (this.recovers || 0) + 1; return; }
   }
   // 질의 인터페이스 — 로그 길이/항목·투영 상태(event sourcing 읽기). 검증·replay 가 쓴다.
   length() { return this.journal.length; }

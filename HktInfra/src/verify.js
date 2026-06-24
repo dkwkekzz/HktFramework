@@ -1,8 +1,8 @@
-// HktInfra step-0213 — 헤드리스 검증 (월드 영속 스냅샷 압축·worldSnapshot·무손실)
+// HktInfra step-0214 — 헤드리스 검증 (월드 영속 정합 capstone·worldCrash/worldRecover·스냅샷 arc 닫기)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldsnap`.
-//   더한 한 조각: worldSnapshot → 투영을 스냅샷으로 굳히고 로그를 tail(seq>snapshotSeq)로 절단. replay = 스냅샷+tail = 전체-로그 replay 와 비트 동일(무손실 압축·로그 저장 유계). worldSnapshot 미주입 → 0212 비트 동일(reg). 2차 고도화 월드영속 #1.
-//   검증: ⒜ `reg`(키트). ⒝ `worldsnap`(가설) — 압축 run(스냅샷 후 tail) 의 replay stateDigest == 전체 run replay stateDigest, journal tail < full.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldcrash`.
+//   더한 한 조각: worldCrash(투영 소실)·worldRecover(스냅샷+tail replay) 를 메시지 구동 프로토콜로. 스냅샷 durable → crash 후 동일 digest 복원(스냅샷 load-bearing). 미주입 → 0213 비트 동일(reg). 2차 고도화 월드영속 #2.
+//   검증: ⒜ `reg`(키트). ⒝ `worldcrash`(가설) — append+snapshot+tail → worldCrash → worldRecover 후 digest == 전체-replay digest(무손실)·스냅샷 제거 시 digest 달라짐(load-bearing).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -17,7 +17,8 @@ const { check, pad } = kit.helpers;
 
 const APP = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
 const SNAP = (at) => ({ at, op: { type: 'worldSnapshot' } });
-// intent: {e, kind:'move'|'pickup', to/item}. 5개 intent — 중간(스냅샷) 후 2개가 tail.
+const CRASH = (at) => ({ at, op: { type: 'worldCrash' } });
+const RECOVER = (at) => ({ at, op: { type: 'worldRecover' } });
 const INTENTS = [
   APP(2, { e: 'e1', kind: 'move', to: 'A' }),
   APP(3, { e: 'e1', kind: 'move', to: 'B' }),
@@ -25,27 +26,32 @@ const INTENTS = [
   APP(6, { e: 'e1', kind: 'move', to: 'C' }),
   APP(7, { e: 'e2', kind: 'pickup', item: 'shield' }),
 ];
-const COMPRESSED = INTENTS.concat([SNAP(5)]);   // 5번째 intent 전(처음 3개 후) 스냅샷 → tail 2개.
+// 스냅샷(@5·처음 3개 후)+tail 2개 → crash(@9)+recover(@10) 메시지 구동.
+const CYCLE = INTENTS.concat([SNAP(5), CRASH(9), RECOVER(10)]);
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true };
 
-function worldsnap(seeds) {
-  console.log('== worldsnap: 월드 영속 스냅샷 압축(worldSnapshot) — 투영을 스냅샷으로 굳히고 로그를 tail 로 절단. replay=스냅샷+tail == 전체-로그 replay(무손실·로그 저장 유계). 2차 고도화 월드영속 #1. ==');
-  console.log('seed   | full len | tail len | full digest | snap digest | 판정');
+function worldcrash(seeds) {
+  console.log('== worldcrash: 월드 영속 정합 capstone(worldCrash/worldRecover) — crash(투영 소실)→recover(스냅샷+tail replay) 메시지 구동. 스냅샷 durable → crash 후 동일 digest 복원(스냅샷 load-bearing). 2차 고도화 월드영속 #2·스냅샷 arc 닫기. ==');
+  console.log('seed   | full digest | recover digest | snap제거 digest | crash/recover | 판정');
   for (const seed of seeds) {
-    const full = run({ seed, ticks: 10, ...BASE, worldOps: INTENTS });        // 스냅샷 없음(전체 로그).
-    const comp = run({ seed, ticks: 10, ...BASE, worldOps: COMPRESSED });     // 스냅샷 후 tail.
-    full.worldlog.replay(); comp.worldlog.replay();
-    const fd = full.worldlog.stateDigest(), cd = comp.worldlog.stateDigest();
-    const fl = full.worldlog.length(), cl = comp.worldlog.length();
-    // 무손실: 압축 replay digest == 전체 replay digest. 절단: tail < full. 스냅샷 1회.
-    const ok = check(fd === cd && cl < fl && comp.worldlog.snapshots === 1 && comp.worldlog.snapshotSeq === 3,
-      `seed ${seed}: 스냅샷 위반 (full ${fd}/${fl}·comp ${cd}/${cl}·snaps ${comp.worldlog.snapshots})`);
-    console.log(`${pad(seed, 6)} | ${pad(fl, 8)} | ${pad(cl, 8)} | ${pad(fd, 11)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const full = run({ seed, ticks: 12, ...BASE, worldOps: INTENTS });   // 기준: 스냅샷/crash 없는 전체 replay.
+    full.worldlog.replay();
+    const fd = full.worldlog.stateDigest();
+    const cyc = run({ seed, ticks: 12, ...BASE, worldOps: CYCLE });        // 스냅샷+crash+recover.
+    const w = cyc.worldlog;
+    const rd = w.stateDigest();                                            // recover 가 이미 재구성한 투영.
+    // 스냅샷 제거 시뮬(load-bearing 증명) — 스냅샷 없이 tail(2)만으로 replay → 처음 3 intent 누락 → digest 달라짐.
+    const saved = w.snapshot; w.snapshot = null; const savedSeq = w.snapshotSeq; w.snapshotSeq = 0;
+    w.replay(); const nd = w.stateDigest();
+    w.snapshot = saved; w.snapshotSeq = savedSeq;                          // 원복(부수효과 0).
+    const ok = check(rd === fd && nd !== fd && w.crashes === 1 && w.recovers === 1,
+      `seed ${seed}: 정합 위반 (recover ${rd}·full ${fd}·noSnap ${nd}·crash ${w.crashes}/recover ${w.recovers})`);
+    console.log(`${pad(seed, 6)} | ${pad(fd, 11)} | ${pad(rd, 14)} | ${pad(nd, 15)} | ${pad(w.crashes + '/' + w.recovers, 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 스냅샷 후 tail(2) < 전체 로그(5)·압축 replay digest == 전체 replay digest(무손실). intent 로그가 무한히 안 자란다(저장 유계·event sourcing 스냅샷 토대). 월드영속 2차 고도화 #1.');
+  console.log('  → crash 후 worldRecover 가 스냅샷+tail 로 투영을 무손실 복원(recover digest == 전체-replay digest). 스냅샷 제거 시 digest 가 달라짐 = 스냅샷이 접힌 역사를 짊어진다(load-bearing). 월드영속 스냅샷 arc(0207~0214) 닫힘.');
 }
 
-kit.MODES['worldsnap'] = worldsnap;
-kit.ORDER.splice(1, 0, 'worldsnap');
+kit.MODES['worldcrash'] = worldcrash;
+kit.ORDER.splice(1, 0, 'worldcrash');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
