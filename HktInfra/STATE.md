@@ -11,15 +11,22 @@
 
 - **닫힌 step**: [step-0200](step-0200.md) — **길드 금고 arc capstone**(bankCapstone·**guild bank arc 0191~0200 닫힘**): bankConsistent(원장 권위 단일 소유·0199) AND bankFeedConsistent(배지==vault·0198) 결합. 연산(create/join/deposit/withdraw)×세 체제(정상·guild crash·feed crash) 성립. 거래소 0140·우편 0180·길드 0190 의 금고 판. SPINE 계층3 길드 금고 박스 완성. 닿는 박스: svc-guild.
 - **한 줄 상태**: reg ALL OK·guildbankcapstone: 3체제 3/3·g1/g2 vault 2/2·spine OK.
-- **다음**: §2 — 길드 금고↔가방 escrow 연동(예치 시 멤버 가방 인출·인출 시 입금)·비동기 결정론🔴·**0191~0200 묶음 리뷰(`infra-review`) 적기**.
+- **다음**: §2 — **너비 우선 전환**(CLAUDE.md "진행 정책"): 길드 금고 심화는 멈추고, *기본 통신조차 없는 박스*(인스턴스 서버·오케스트레이터 배치·캐시·월드 영속·로그인 큐)를 **기본 통신** 선까지 세운다. 1순위: **인스턴스(던전) 서버 spawn/despawn 기본**. **0191~0200 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드 금고(Guild Bank) arc(0191~0200) ✅ 닫힘 = 거래소 escrow/우편 custody 의 조직 공유 판(deposit·withdraw·발행·영속·스냅샷·배지·배지영속·배지정합·원장정합·capstone). SPINE 계층3 길드 금고 박스 완성. 다음 후보: 길드 금고↔가방 escrow 연동(예치 시 멤버 가방 인출·인출 시 입금·거래소 0117~0120·우편 0161~0164 의 금고 판)·발행 게이트 통합·비동기 결정론🔴. 🔎 0191~0200 묶음 리뷰 적기.**
+> **단계 = 1차 너비** (CLAUDE.md "진행 정책"). 0107~0200 이 서비스 한 줄(거래소·우편·길드)을 영속~정합 capstone 까지 깊게 판 결과, SPINE 6계층에 *기본 통신조차 없는 박스*가 남았다. **이제 심화를 멈추고 그 빈 박스들을 기본 통신 선까지 세운다.** 1차 완료 = 아래 잔여 박스 전부가 "기본 통신 가능"(목적 달성 최소 연산 + 척추 5항 + reg 0). 그 뒤에야 2차 고도화 백로그를 연다.
 
-**병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
+**1차 너비 잔여 박스 (이 순서로 — 각 박스는 *기본만*, 심화 금지):**
+1. **인스턴스(던전) 서버** (계층2) — spawn/despawn/route 기본: 오케스트레이터 요청 시 일회성 인스턴스 생성·종료, 클라 라우팅. 존과 수명주기 분리.
+2. **오케스트레이터 존 배치** (계층5) — place/query 기본: "어느 존을 어디에" 배치 결정 SSOT + 질의. (현 orchestrator.js 는 존 failover 만.)
+3. **캐시 박스** (계층6) — get/set 기본: 핫 데이터 read-through/write-through 1홉. DB 직행 대체.
+4. **월드 영속** (계층6) — append/replay 기본: 존 intent 로그 event sourcing → 상태 재구성(서비스 PersistStore 아닌 *월드* 판).
+5. **로그인 큐·티켓 실체화** (계층1) — enqueue/dequeue/expire 기본: 스텁 티켓을 대기열+만료로.
+
+**2차 고도화 백로그 (너비 완료 전엔 꺼내지 않음·블로킹 격차 🔴 제외)**: 길드 금고↔가방 escrow 연동·발행 게이트 통합·per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·서버간 인증·재접속, 그리고 위 1차 박스들의 영속·failover·스냅샷·정합 capstone. 🔎 0191~0200 묶음 리뷰 적기.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
