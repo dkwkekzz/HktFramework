@@ -28,7 +28,8 @@ step 한 바퀴의 실행 절차(논의→구현→검증→기록)는 `htj-step
 | `design/` | **설계 문서** — 닫은 step 아닌 *앞으로의 아키텍처 계획*. 후속 step 이 참조해 구현한다(트랙은 하나). | 비정기 |
 | ┗ [design/sphere-world.md](design/sphere-world.md) | **구체 세계 설계(진행 방향·권위)** — 세계를 한 원소=자유 구체로 재정립. 합치기/쪼개기=적응 LOD. 로드맵 SW1~SW5 | |
 | ┗ [design/environment.md](design/environment.md) | **환경 설계(오픈월드·권위)** — sphere-world 위에 *딛고 다닐 광활한 환경*(산·바다·강)을 같은 원소로. 로드맵 TW1~TW4 | |
-| ┗ [design/merge-dna.md](design/merge-dna.md) | **병합·형태 DNA 설계(권위)** — 뭉친 원소를 한 개체로 병합(수박게임)하되 형태는 정규화된 hash 로 세계 사전에서 공유. 로드맵 M1~M4 | |
+| ┗ [design/merge-dna.md](design/merge-dna.md) | **병합·형태 DNA 설계(권위)** — 뭉친 원소를 한 개체로 병합(수박게임)하되 형태는 정규화된 hash 로 세계 사전에서 공유. 로드맵 M1~M4 |
+| ┗ [design/scene-unify.md](design/scene-unify.md) | **장면 통일 설계(작업 방식 개선·권위)** — capture.js↔viewer 를 *시나리오 1벌*로 일원화(per-step capture.js 폐지)·verify=새 법칙만(보존·결정론은 공용 가드). engine·물리 불변(확인용 트랙). 로드맵 U1~U4·**닫은 step 소급 안 함** | |
 | `engine/` | **세계(법칙·시뮬) src** — 한 곳에서 관리, step마다 가법적 확장. *확인용 코드 금지* | step마다 |
 | `viewer.html` · `viewer/` | **확인용** — 세계를 보여주는 뷰어 + 렌더(`viewer/htj-render.js`) + 헤드리스 캡처(`viewer/capture.js`) | step마다 |
 | `steps/step_NNNN/` | **한 step = 한 폴더**. 모든 step 은 `steps/` 아래. 그 step 의 산출물을 담는다(닫은 뒤 불변): | step마다 추가 |
