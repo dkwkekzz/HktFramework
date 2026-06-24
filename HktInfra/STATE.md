@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0181](step-0181.md) — **길드(Guild) 서비스 분리**(guildService·GuildService·신규 박스): SPINE 계층3 마지막 미착수 박스 착수. 길드 로스터+마스터십 SSOT(존 tick 밖·onTick 없음)·guildCreate→로스터 쓰기(master∈members)·guildQuery→guildRoster 회신·single-master 불변. 파티 0075 의 *영속 조직* 판. 닿는 박스: 신규 svc-guild + 배선 4점(net-core/topo-actors/topo-build/topo-run).
-- **한 줄 상태**: reg ALL OK·guild: 길드 2개·single-master 불변 5/5·질의 회신==SSOT·spine OK.
-- **다음**: §2 — guild arc 0182~0190(증분 가입/탈퇴·발행·영속·스냅샷·배지·마스터 이양)·발행 게이트 통합·비동기 결정론🔴·**0171~0180 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0182](step-0182.md) — **길드 증분 가입/탈퇴**(guildJoin/guildLeave·멱등·master 보호): 한 멤버 델타(전체 덮어쓰기 대신)·중복 가입/없는 탈퇴 no-op·**master 탈퇴 거부**로 single-master 불변 보존. 파티 0084 의 길드 판. 닿는 박스: svc-guild.
+- **한 줄 상태**: reg ALL OK·guildjoin: 최종 로스터 [x,c2]·master 유지 5/5·single-master 보존·spine OK.
+- **다음**: §2 — guild arc 0183~0190(변경 발행·영속·스냅샷·배지·마스터 이양)·발행 게이트 통합·비동기 결정론🔴·**0171~0180 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드(Guild) 박스 arc(0181~0190) 진행 중 = 파티(0075)+우편(0142~) 패턴 동형: 박스 분리(0181 ✅·로스터+마스터십 SSOT·single-master). 다음: 증분 가입/탈퇴(0182)·변경 발행(0183)·영속·failover(0184)·저널 스냅샷(0185)·멤버 배지 읽기 모델 GuildFeed(0186)·feed 영속(0187)·feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행 후보: *발행 게이트 통합*(거래소+우편 일원화)·*비동기 결정론*(🔴). 🔧 svc-mail-core 25KB. 🔎 0171~0180 묶음 리뷰 적기.**
+**길드(Guild) 박스 arc(0181~0190) 진행 중 = 파티(0075)+우편(0142~) 패턴 동형: 박스 분리(0181 ✅)·증분 가입/탈퇴(0182 ✅·멱등·master 보호). 다음: 변경 발행(0183)·영속·failover(0184)·저널 스냅샷(0185)·멤버 배지 읽기 모델 GuildFeed(0186)·feed 영속(0187)·feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행 후보: *발행 게이트 통합*(거래소+우편 일원화)·*비동기 결정론*(🔴). 🔧 svc-mail-core 25KB. 🔎 0171~0180 묶음 리뷰 적기.**
 
 **검증할 것(공통)**: ① **회귀 0**(새 항 OFF=직전 비트 동일) ② **신성한 tick**(존 tick 밖·비-침습) ③ **E2E 동치**(멀티프로세스=인프로세스·은닉) ④ **가설**(고장 주입·복구 수렴 증명).
 
@@ -275,3 +275,4 @@
 | [0179](step-0179.md) | 아이템 우편 saga 영구 실패 발행(mailFailPublish·거래소 0138 우편 판) | 통과 · ON pub/audit 1/1==permFailed·OFF 0 |
 | [0180](step-0180.md) | 아이템 우편 saga liveness 회계 정합 capstone(sagaLivenessConsistent·거래소 0140 우편 판·arc 0166~0180 닫기) | 통과 · 네 체제 분할 4/4 |
 | [0181](step-0181.md) | 길드 서비스 분리(guildService·GuildService·로스터+마스터십 SSOT·single-master·파티 0075 영속 조직 판) | 통과 · 길드 2·single-master 5/5·회신==SSOT |
+| [0182](step-0182.md) | 길드 증분 가입/탈퇴(guildJoin/guildLeave·멱등·master 보호·파티 0084 길드 판) | 통과 · 로스터 [x,c2]·master 유지 5/5 |

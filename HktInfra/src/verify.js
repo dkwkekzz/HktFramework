@@ -1,8 +1,8 @@
-// HktInfra step-0181 — 헤드리스 검증 (길드 서비스 분리·guildService·GuildService)
+// HktInfra step-0182 — 헤드리스 검증 (길드 증분 가입/탈퇴·guildJoin/guildLeave·멱등·master 보호)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guild`.
-//   더한 한 조각: GuildService = 길드 로스터+마스터십 SSOT(존 tick 밖·onTick 없음). guildCreate{guildId,master,members}→로스터 쓰기(master∈members 보장)·guildQuery→guildRoster 회신(request/reply). single-master 불변(매 길드 정확히 한 master·권위 단일 소유). 파티 0075 의 *영속 조직* 판. guildService OFF → 박스 0 = 0180 비트 동일(reg).
-//   검증: ⒜ `reg`(키트) — guildService 미설정 = 0180 비트 동일. ⒝ `guild`(가설) — 결성된 길드의 single-master 불변·master∈members·질의 회신==SSOT·결정론.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildjoin`.
+//   더한 한 조각: guildJoin{guildId,member}(증분 추가·멱등)·guildLeave{guildId,member}(증분 제거·멱등·master 탈퇴 no-op). 파티 0084 의 길드 판. 증분 명령 미주입이면 0181 비트 동일(reg).
+//   검증: ⒜ `reg`(키트) — guild 미주입 = 0181 비트 동일. ⒝ `guildjoin`(가설) — 증분 가입/탈퇴 정확·멱등(중복 가입/없는 탈퇴 no-op)·master 보호(master 탈퇴 거부)·single-master 보존.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,46 +16,41 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const GCREATE = (at, guildId, master, members) => ({ at, op: { type: 'guildCreate', guildId, master, members } });
-const GQUERY = (at, guildId, from) => ({ at, from, op: { type: 'guildQuery', guildId } });
+const GJOIN = (at, guildId, member) => ({ at, op: { type: 'guildJoin', guildId, member } });
+const GLEAVE = (at, guildId, member) => ({ at, op: { type: 'guildLeave', guildId, member } });
 const COMMON = { clients: 4, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true };
-// 두 길드 결성(g1: master x·멤버 x/c1/c2 · g2: master c3·멤버 c3/c1) + 질의. master 중복/누락은 normalize 가 흡수.
-const GUILDS = [
-  GCREATE(3, 'g1', 'x', ['x', 'c1', 'c2']),
-  GCREATE(4, 'g2', 'c3', ['c3', 'c1']),
-  GQUERY(8, 'g1', 'client0'), GQUERY(9, 'g2', 'client0'),
+// g1 master x, 멤버 x/c1. 증분: c2 가입·c1 가입(멱등 중복)·c1 탈퇴·c9 탈퇴(없음 no-op)·x 탈퇴(master 거부). 최종 로스터 = [x, c2].
+const OPS = [
+  GCREATE(3, 'g1', 'x', ['x', 'c1']),
+  GJOIN(5, 'g1', 'c2'), GJOIN(6, 'g1', 'c1'),     // c2 추가 / c1 중복(no-op)
+  GLEAVE(7, 'g1', 'c1'), GLEAVE(8, 'g1', 'c9'),   // c1 제거 / c9 없음(no-op)
+  GLEAVE(9, 'g1', 'x'),                            // master x 탈퇴(거부·no-op)
 ];
 
-function guild(seeds) {
-  console.log('== guild: 길드 로스터+마스터십 SSOT. single-master 불변(매 길드 정확히 한 master·master∈members·권위 단일 소유) + 질의 회신==SSOT. 파티 0075 의 영속 조직 판. ==');
-  console.log('seed   | 길드 수 | g1 master/멤버 | g2 master/멤버 | 질의/회신 | single-master | 판정');
+function guildjoin(seeds) {
+  console.log('== guildjoin: 증분 가입/탈퇴(guildJoin/guildLeave). 멱등(중복 가입·없는 탈퇴 no-op)·master 보호(master 탈퇴 거부)·single-master 보존. 파티 0084 의 길드 판. ==');
+  console.log('seed   | join/leave 호출 | 최종 로스터 | master 유지 | 멱등+보호 | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 14, ...COMMON, guildOps: GUILDS });
+    const r = run({ seed, ticks: 14, ...COMMON, guildOps: OPS });
     const g = r.guild;
-    // single-master 불변: 모든 길드는 master 1개 + master ∈ members + 멤버 중복 0.
-    const singleMaster = [...g.guilds.values()].every(x =>
-      x.master != null && x.members.includes(x.master) && new Set(x.members).size === x.members.length);
-    // 질의 회신(net.log 의 guildRoster) == SSOT.
-    const replies = r.net.log.filter(m => m.payload && m.payload.type === 'guildRoster');
-    const replyOk = replies.length === 2 && replies.every(rep => {
-      const ssot = g.guilds.get(rep.payload.guildId);
-      return ssot && rep.payload.master === ssot.master &&
-        JSON.stringify(rep.payload.members) === JSON.stringify(ssot.members);
-    });
-    const g1 = g.guilds.get('g1'), g2 = g.guilds.get('g2');
-    const shapes = g.guilds.size === 2 &&
-      g1.master === 'x' && g1.members.length === 3 &&
-      g2.master === 'c3' && g2.members.length === 2 &&
-      g.queriesRx === 2 && g.repliesSent === 2;
+    const g1 = g.guilds.get('g1');
+    const roster = g1.members.slice().sort();
+    // 기대 최종 로스터: master x + c2(c1 가입 후 탈퇴·중복/없는 탈퇴 no-op·master 탈퇴 거부).
+    const rosterOk = JSON.stringify(roster) === JSON.stringify(['c2', 'x']);
+    const masterOk = g1.master === 'x' && g1.members.includes('x');
+    const counts = g.joins === 2 && g.leaves === 3;   // 호출 수(no-op 포함): join 2·leave 3.
+    const singleMaster = [...g.guilds.values()].every(x => x.members.includes(x.master) && new Set(x.members).size === x.members.length);
     const ok =
-      check(singleMaster, `seed ${seed}: single-master 불변 위반`) &&
-      check(replyOk, `seed ${seed}: 질의 회신 != SSOT`) &&
-      check(shapes, `seed ${seed}: 기대 로스터/계측 어긋남`);
-    console.log(`${pad(seed, 6)} | ${pad(g.guilds.size, 7)} | ${pad(g1.master + '/' + g1.members.length, 14)} | ${pad(g2.master + '/' + g2.members.length, 14)} | ${pad(g.queriesRx + '/' + g.repliesSent, 9)} | ${pad(singleMaster ? '예' : '아니오', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(rosterOk, `seed ${seed}: 최종 로스터 != [x,c2] (실제 ${JSON.stringify(roster)})`) &&
+      check(masterOk, `seed ${seed}: master 유실(탈퇴 거부 실패)`) &&
+      check(counts, `seed ${seed}: join/leave 계측 어긋남`) &&
+      check(singleMaster, `seed ${seed}: single-master 불변 위반`);
+    console.log(`${pad(seed, 6)} | ${pad(g.joins + '/' + g.leaves, 15)} | ${pad(JSON.stringify(roster), 11)} | ${pad(masterOk ? '예' : '아니오', 11)} | ${pad((rosterOk && masterOk) ? '예' : '아니오', 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 길드는 *오래 사는 명명된 조직*: 마스터(단일 권위 소유자·척추 ③)가 결성하고 로스터를 보유한다. 존 tick 밖 순수 반응형(onTick 없음). 질의 회신은 SSOT 와 일치(은닉: 소비자는 저장 방식 모름·질의 계약만). 파티(0075 수명 짧은 그룹)의 영속 판 — 증분 가입/탈퇴·발행·영속·배지·마스터 이양은 후속(arc 0181~0190).');
+  console.log('  → 증분 가입/탈퇴는 전체 로스터 덮어쓰기 없이 한 멤버 델타만 적용한다. 멱등: 중복 가입·없는 멤버 탈퇴는 no-op(상태 불변). master 보호: master 의 guildLeave 는 거부(no-op) → 마스터 공백 없음(single-master 불변·척추 ③). 마스터 이양(0189)이 master 교체 경로. 파티 0084 의 길드 판.');
 }
 
-kit.MODES['guild'] = guild;
-kit.ORDER.splice(1, 0, 'guild');
+kit.MODES['guildjoin'] = guildjoin;
+kit.ORDER.splice(1, 0, 'guildjoin');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
