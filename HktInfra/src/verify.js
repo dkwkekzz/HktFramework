@@ -1,8 +1,8 @@
-// HktInfra step-0219 — 헤드리스 검증 (로그인 큐 수용량 백프레셔·loginCapacity·동접 상한)
+// HktInfra step-0220 — 헤드리스 검증 (로그인 큐 재접속 세션 재개·loginReconnect·균형 라운드 닫기)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `logincapacity`.
-//   더한 한 조각: loginCapacity{cap} → admitted 가 cap 도달이면 dequeue 가 입장 보류(player 큐 잔류·백프레셔·rejectedByCapacity). 월드 동접 상한을 엣지가 강제. 미주입 → capacity=∞ → 0218 비트 동일(reg). 2차 고도화 로그인 큐 #1.
-//   검증: ⒜ `reg`(키트). ⒝ `logincapacity`(가설) — p1·p2·p3 enqueue → cap2 → dequeue×3: p1·p2 입장·p3 보류(큐 잔류).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `loginreconnect`.
+//   더한 한 조각: loginReconnect{player} → 유효 admitted player 면 기존 티켓 재개(새 티켓 미발급·ticketSeq 불변·멱등). 만료/미발급이면 재개 불가(reconnectMisses·재큐 필요). 미주입 → 0219 비트 동일(reg). 2차 고도화 로그인 큐 #2.
+//   검증: ⒜ `reg`(키트). ⒝ `loginreconnect`(가설) — p1 입장 → reconnect 재개(같은 티켓·새 티켓 0) / p2 미입장 → 재개 실패.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -17,30 +17,30 @@ const { check, pad } = kit.helpers;
 
 const ENQ = (at, player) => ({ at, op: { type: 'loginEnqueue', player } });
 const DEQ = (at) => ({ at, op: { type: 'loginDequeue' } });
-const CAP = (at, cap) => ({ at, op: { type: 'loginCapacity', cap } });
-// p1·p2·p3 줄섬 → cap2 → dequeue×3: p1·p2 입장(2)·p3 보류(큐 잔류·백프레셔).
+const RECONNECT = (at, player) => ({ at, op: { type: 'loginReconnect', player } });
+// p1 입장(tkt-1) → reconnect p1 재개(같은 티켓·ticketSeq 불변) → reconnect p2(미입장) 재개 실패.
 const OPS = [
-  ENQ(2, 'p1'), ENQ(3, 'p2'), ENQ(4, 'p3'),
-  CAP(5, 2),
-  DEQ(6), DEQ(7), DEQ(8),
+  ENQ(2, 'p1'), DEQ(3),
+  RECONNECT(5, 'p1'),
+  RECONNECT(6, 'p2'),
 ];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginOps: OPS };
 
-function logincapacity(seeds) {
-  console.log('== logincapacity: 로그인 큐 수용량 백프레셔(loginCapacity) — admitted 가 cap 도달이면 dequeue 가 입장 보류(player 큐 잔류). 월드 동접 상한을 엣지가 강제(폭주 시 줄이 늘되 월드는 cap 이상 안 받는다). 2차 고도화 로그인 큐 #1. ==');
-  console.log('seed   | admitted | queueLen | rejected(백프레셔) | 판정');
+function loginreconnect(seeds) {
+  console.log('== loginreconnect: 로그인 큐 재접속 세션 재개(loginReconnect) — 유효 admitted player 면 기존 티켓 재개(새 티켓 미발급·멱등 resume). 만료/미발급이면 재개 불가(재큐 필요). 끊겼다 금방 돌아온 세션이 줄을 다시 안 선다. 2차 고도화 로그인 큐 #2·균형 라운드 닫기. ==');
+  console.log('seed   | p1 티켓 | ticketSeq | resumes | misses | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 9, ...BASE });
+    const r = run({ seed, ticks: 8, ...BASE });
     const q = r.loginqueue;
-    // cap2 → p1·p2 입장(admitted 2)·p3 보류(queueLength 1·rejectedByCapacity 1·dequeues 3).
-    const ok = check(q.admittedCount() === 2 && q.queueLength() === 1 && q.rejectedByCapacity === 1 && q.positionOf('p3') === 0,
-      `seed ${seed}: 수용량 위반 (admit ${q.admittedCount()}·queue ${q.queueLength()}·rejected ${q.rejectedByCapacity})`);
-    console.log(`${pad(seed, 6)} | ${pad(q.admittedCount(), 8)} | ${pad(q.queueLength(), 8)} | ${pad(q.rejectedByCapacity, 18)} | ${ok ? 'OK' : 'FAIL'}`);
+    // p1 입장 tkt-1 → reconnect p1 재개(같은 tkt-1·ticketSeq 1 불변·resumes 1) → reconnect p2 미입장(reconnectMisses 1).
+    const ok = check(q.ticketOf('p1') === 'tkt-1' && q.ticketSeq === 1 && q.resumes === 1 && q.reconnectMisses === 1 && q.reconnects === 2 && q.admittedCount() === 1,
+      `seed ${seed}: 재접속 위반 (p1 ${q.ticketOf('p1')}·seq ${q.ticketSeq}·resumes ${q.resumes}·misses ${q.reconnectMisses})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.ticketOf('p1') || '-', 7)} | ${pad(q.ticketSeq, 9)} | ${pad(q.resumes, 7)} | ${pad(q.reconnectMisses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → cap2 에 도달하면 dequeue 가 입장을 보류(admitted 2 고정·p3 는 큐 맨 앞에 잔류·rejectedByCapacity 1). 폭주해도 월드 동접이 cap 이상 안 늘고 초과분은 엣지 큐에서 대기(백프레셔). 동접 상한·대기열 토대. 로그인 큐 2차 고도화 #1.');
+  console.log('  → 유효 티켓 player(p1) 재접속은 기존 티켓을 그대로 재개(같은 tkt-1·ticketSeq 1 불변=새 티켓 0·줄 다시 안 섬), 미입장 player(p2) 는 재개 실패(reconnectMisses 1·재큐 필요). 끊김에 강한 세션 연속성(재접속 토대). 로그인 큐 2차 고도화 #2 — 5박스 2차 균형 라운드(0211~0220) 닫기.');
 }
 
-kit.MODES['logincapacity'] = logincapacity;
-kit.ORDER.splice(1, 0, 'logincapacity');
+kit.MODES['loginreconnect'] = loginreconnect;
+kit.ORDER.splice(1, 0, 'loginreconnect');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
