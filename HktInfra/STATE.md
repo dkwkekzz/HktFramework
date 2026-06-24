@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0201](step-0201.md) — **인스턴스(던전) 서버 분리·spawn 기본**(너비 우선 1차 시작): 새 박스 `src/instance.js`(InstanceServer)·`instanceSpawn`→active SSOT(멱등 no-op·권위 단일 소유)·존과 수명주기 분리. OFF 플래그 `instanceService`(OFF→박스 0=0200 비트 동일). 닿는 박스: instance(신규)·net-core·topo-actors/build/run.
-- **한 줄 상태**: reg ALL OK·instancespawn: 5/5 active 3/spawns 4·spine ALL OK.
-- **다음**: §2 — **0202 인스턴스 despawn + 클라 라우팅**(인스턴스 박스 기본 통신 완성), 이후 오케스트레이터 배치(0203~). 너비 1차 진행 중.
+- **닫힌 step**: [step-0202](step-0202.md) — **인스턴스 서버 despawn**(spawn/despawn 수명주기 SSOT 완성): `instanceDespawn`→active 제거(멱등 no-op)·`retired` 누적. 던전/매치 일회성 수명(떴다 사라짐)·존(영속)과 분리. OFF 플래그 `instanceService`. 닿는 박스: instance.
+- **한 줄 상태**: reg ALL OK·instancedespawn: 5/5 active 2/retired 1·spine ALL OK.
+- **다음**: §2 — **0203 오케스트레이터 존 배치(place)** 시작. 인스턴스 박스 기본 통신 완비. 너비 1차 진행 중.
 
 ---
 
@@ -20,7 +20,7 @@
 > **단계 = 1차 너비** (CLAUDE.md "진행 정책"). 0107~0200 이 서비스 한 줄(거래소·우편·길드)을 영속~정합 capstone 까지 깊게 판 결과, SPINE 6계층에 *기본 통신조차 없는 박스*가 남았다. **이제 심화를 멈추고 그 빈 박스들을 기본 통신 선까지 세운다.** 1차 완료 = 아래 잔여 박스 전부가 "기본 통신 가능"(목적 달성 최소 연산 + 척추 5항 + reg 0). 그 뒤에야 2차 고도화 백로그를 연다.
 
 **1차 너비 잔여 박스 (이 순서로 — 각 박스는 *기본만*, 심화 금지):**
-1. **인스턴스(던전) 서버** (계층2) — 🟡 spawn ✅(0201·active SSOT) · despawn/route 후속(0202). 존과 수명주기 분리.
+1. **인스턴스(던전) 서버** (계층2) — ✅ 기본 통신 완비: spawn(0201)+despawn(0202) 수명주기 SSOT. 존과 수명주기 분리. (라우팅·수요 기반 spawn 은 2차.)
 2. **오케스트레이터 존 배치** (계층5) — place/query 기본: "어느 존을 어디에" 배치 결정 SSOT + 질의. (현 orchestrator.js 는 존 failover 만.)
 3. **캐시 박스** (계층6) — get/set 기본: 핫 데이터 read-through/write-through 1홉. DB 직행 대체.
 4. **월드 영속** (계층6) — append/replay 기본: 존 intent 로그 event sourcing → 상태 재구성(서비스 PersistStore 아닌 *월드* 판).
@@ -80,7 +80,7 @@
 | # | 계층 | 박스 | 상태 (현재 마커 + 핵심 step) |
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+게이트웨이 producer 네임스페이스(0046). 대기열·만료·재접속·게이트웨이 군 풀 후속 |
-| 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🌱 spawn SSOT(0201·존과 수명주기 분리·despawn/route 0202~)**. 존 N개·동적 경계 후속 |
+| 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn 수명주기 SSOT(0201~0202·존과 분리)**. 존 N개·라우팅 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 |
@@ -207,3 +207,4 @@
 | [0199](step-0199.md) | 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유·0190 판) | 통과 · 3체제 3/3·중복 0 |
 | [0200](step-0200.md) | 길드 금고 arc capstone(bankCapstone·원장+배지 결합·0140/0180/0190 금고 판·arc 0191~0200 닫기) | 통과 · 3체제 3/3 |
 | [0201](step-0201.md) | 인스턴스(던전) 서버 분리·spawn 기본(InstanceServer·instanceSpawn·active SSOT·너비 1차 시작) | 통과 · active 3/spawns 4 |
+| [0202](step-0202.md) | 인스턴스 despawn(instanceDespawn·수명주기 SSOT 완성·일회성 수명) | 통과 · active 2/retired 1 |

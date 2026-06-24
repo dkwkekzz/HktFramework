@@ -1,3 +1,4 @@
+// HktInfra step-0201 — 진입점에 instance(인스턴스 서버·SPINE 계층2) 박스 등록(__p('instance')). 아래 0048 메모는 분할 dual-mode export 패턴 설명(유지).
 // HktInfra step-0048 — 소비자 lease lifecycle 정합 (시작-시점 죽음 축출 + 축출 비가역 해소·busLeaseLife·0045 §9/리뷰 §2·§3 해소).
 //   0045 소비자 lease(busConsumerLease)는 침묵 기준(consumerSeen)을 *그 소비자가 처음 ack 한 시점*에야 세운다 → 두 빈틈이 남았다:
 //   §2 *시작-시점 죽음*: 한 번도 ack 안 한 소비자(구독 후 영영 죽음)는 consumerSeen 미확립 → 축출 정의역 밖(영영 못 축출) + consumerWm 미확립으로 min 을 -1 에 고정 → outBuffer 무계 성장.
@@ -20,7 +21,7 @@ const PUBLIC_ADDRS = ['login', 'gateway'];
 // ── 모듈 노출 (dual-mode) — export 집합은 0029 와 동일(분할은 내부 구조만) ───────────
 const __hktNet = Object.assign(
   { mulberry32: __c.mulberry32, fnv1a: __c.fnv1a, Net: __c.Net, LoginServer: __c.LoginServer, SessionRegistry: __c.SessionRegistry },
-  __p('gateway'), __p('orchestrator'), __p('zone'),
+  __p('gateway'), __p('orchestrator'), __p('zone'), __p('instance'),
   __p('svc-inventory'), __p('svc-chat'), __p('svc-bus'), __p('svc-audit'), __p('svc-ranking'),
   __p('svc-presence-monitor'), __p('svc-presence'), __p('svc-whisper'), __p('svc-party'), __p('svc-mailbox'), __p('svc-exchange'), __p('svc-market'), __p('svc-mail'), __p('svc-mailfeed'), __p('svc-guild'), __p('svc-guildfeed'),
   __p('persist'), __p('client'), __p('metrics'), __p('topo-build'), __p('topology'),

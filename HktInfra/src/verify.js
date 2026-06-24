@@ -1,8 +1,8 @@
-// HktInfra step-0201 — 헤드리스 검증 (인스턴스 서버 분리·spawn 기본·instanceService/instanceSpawn)
+// HktInfra step-0202 — 헤드리스 검증 (인스턴스 서버 despawn·spawn/despawn 수명주기 SSOT 완성)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instancespawn`.
-//   더한 한 조각: InstanceServer 박스 — 던전/매치 일회성 인스턴스의 spawn SSOT(존과 수명주기 분리). instanceSpawn 으로 인스턴스를 띄우고 active SSOT 에 잡힘(멱등 재-spawn no-op). instanceService OFF → 박스 0 → 0200 비트 동일(reg). 1차 너비: 기본 통신만(despawn·라우팅은 0202~).
-//   검증: ⒜ `reg`(키트) — 0200 비트 동일. ⒝ `instancespawn`(가설) — spawn 3종+멱등 재-spawn → activeCount==3·각 isActive·미spawn isActive=false.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instancedespawn`.
+//   더한 한 조각: instanceDespawn → active 에서 제거(없는 id 멱등 no-op). 0201 spawn 의 짝 — 던전/매치 일회성 수명(떴다 사라짐). instanceService OFF → 0200 비트 동일(reg).
+//   검증: ⒜ `reg`(키트) — 0201(=0200 비트 동일) 동일. ⒝ `instancedespawn`(가설) — spawn 3 + despawn 1 + 없는 id despawn → active 2·retired 1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,28 +16,29 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const SPAWN = (at, instanceId, kind) => ({ at, op: { type: 'instanceSpawn', instanceId, kind } });
-// 시나리오: 던전 3종 spawn + 같은 id 재-spawn(멱등 no-op) 섞임.
+const DESPAWN = (at, instanceId) => ({ at, op: { type: 'instanceDespawn', instanceId } });
+// 시나리오: 던전 3종 spawn → d2 despawn(종료) → 없는 d9 despawn(멱등 no-op).
 const OPS = [
-  SPAWN(2, 'd1', 'dungeon'), SPAWN(3, 'd2', 'dungeon'), SPAWN(4, 'd1', 'dungeon'),   // d1 재-spawn → 멱등(active 2).
-  SPAWN(5, 'd3', 'arena'),
+  SPAWN(2, 'd1', 'dungeon'), SPAWN(3, 'd2', 'dungeon'), SPAWN(4, 'd3', 'arena'),
+  DESPAWN(5, 'd2'), DESPAWN(6, 'd9'),   // d2 종료(active→2)·d9 없음(멱등 no-op).
 ];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
 
-function instancespawn(seeds) {
-  console.log('== instancespawn: 인스턴스(던전) 서버 분리 — spawn 기본. 던전/매치 일회성 인스턴스를 수요 따라 띄우고 active SSOT 에 잡힘(멱등 재-spawn no-op·권위 단일 소유). 존과 수명주기 분리. ==');
-  console.log('seed   | active | d1 | d2 | d3 | d9(미spawn) | spawns | 판정');
+function instancedespawn(seeds) {
+  console.log('== instancedespawn: 인스턴스 despawn — spawn/despawn 수명주기 SSOT 완성. 던전 종료 시 active 에서 제거(일회성 수명·없는 id 멱등 no-op). 존(영속)과 달리 인스턴스는 떴다 사라진다. ==');
+  console.log('seed   | active | d1 | d2(종료) | d3 | despawns | retired | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
     const active = r.instance.activeCount();
-    const d1 = r.instance.isActive('d1'), d2 = r.instance.isActive('d2'), d3 = r.instance.isActive('d3'), d9 = r.instance.isActive('d9');
-    const ok = check(active === 3 && d1 && d2 && d3 && !d9 && r.instance.spawns === 4,
-      `seed ${seed}: spawn 위반 (active ${active}·spawns ${r.instance.spawns})`);
-    console.log(`${pad(seed, 6)} | ${pad(active, 6)} | ${pad(d1 ? '예' : '아니오', 2)} | ${pad(d2 ? '예' : '아니오', 2)} | ${pad(d3 ? '예' : '아니오', 2)} | ${pad(d9 ? '예' : '아니오', 11)} | ${pad(r.instance.spawns, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const d1 = r.instance.isActive('d1'), d2 = r.instance.isActive('d2'), d3 = r.instance.isActive('d3');
+    const ok = check(active === 2 && d1 && !d2 && d3 && r.instance.despawns === 2 && r.instance.retired === 1,
+      `seed ${seed}: despawn 위반 (active ${active}·despawns ${r.instance.despawns}·retired ${r.instance.retired})`);
+    console.log(`${pad(seed, 6)} | ${pad(active, 6)} | ${pad(d1 ? '예' : '아니오', 2)} | ${pad(d2 ? '예' : '아니오', 8)} | ${pad(d3 ? '예' : '아니오', 2)} | ${pad(r.instance.despawns, 8)} | ${pad(r.instance.retired, 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → InstanceServer 가 던전/매치 일회성 인스턴스의 *어떤 게 살아있나* SSOT(권위 단일 소유). spawn 4회 중 d1 재-spawn 은 멱등 no-op → active 3(중복 0). 존과 수명주기 분리(존=영속 tick·인스턴스=수요 탄력). 1차 너비 기본 통신 — despawn/라우팅은 0202~.');
+  console.log('  → instanceDespawn 으로 던전 종료를 SSOT 에 반영(active 제거). spawn 3·despawn 2(d2 종료+d9 멱등 no-op) → active 2·retired 1(실제 종료만). 일회성 수명(spawn→despawn) 완성 — 존의 영속 수명과 분리. 기본 통신 완비(0203~ 오케스트레이터 배치).');
 }
 
-kit.MODES['instancespawn'] = instancespawn;
-kit.ORDER.splice(1, 0, 'instancespawn');
+kit.MODES['instancedespawn'] = instancedespawn;
+kit.ORDER.splice(1, 0, 'instancedespawn');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

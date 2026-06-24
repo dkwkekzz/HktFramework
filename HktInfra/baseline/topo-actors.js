@@ -11,6 +11,7 @@ const __p = n => (typeof module !== 'undefined' && module.exports && typeof requ
 const { Gateway } = __p('gateway');
 const { Orchestrator } = __p('orchestrator');
 const { EntityZone } = __p('zone');
+const { InstanceServer } = __p('instance');   // step-0201 — 던전/매치 일회성 인스턴스(spawn/despawn·존과 수명주기 분리).
 const { InventoryService } = __p('svc-inventory');
 const { ChatService } = __p('svc-chat');
 const { ServiceBus } = __p('svc-bus');
@@ -54,6 +55,7 @@ function makeActor(spec, net) {
     case 'registry': a = new SessionRegistry(); break;
     case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr, spec.opts.busResendReq, spec.opts.busWindow, spec.opts.busAck, spec.opts.busOutAck, spec.opts.busSeenBound, spec.opts.busMinWm, spec.opts.busProducerNs, spec.opts.busSeenNs); break;
     case 'zone': a = new EntityZone(spec.seed, spec.opts); break;
+    case 'instance': a = new InstanceServer(spec.opts); break;   // step-0201 — 인스턴스 서버.
     case 'orch': a = new Orchestrator(spec.opts); break;
     case 'inventory': a = new InventoryService(spec.opts); break;
     case 'chat': a = new ChatService(spec.opts); break;
