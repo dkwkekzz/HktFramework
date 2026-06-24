@@ -579,6 +579,92 @@
     return { particles, migratedCells: particles.length, removedMass };
   }
 
+  // ── SW5 격자 은퇴 역이주: SPH 입자 → 격자 유체 *되돌림*(0051 의 역·왕복 닫음) ──────────────────
+  //   design/sphere-world.md §6 SW5 — 0051 fluidToParticles(격자→SPH 복사)·0055 migrateRegionToSPH(격자→SPH 이동)의
+  //   *역* = **0026/0031 demote(개체→격자 유체)의 *SPH 전체* 판**. SPH 입자를 제가 점유한 격자 셀(반올림 좌표)에
+  //   되쌓는다(질량 ρ=energy 장·운동량 mom·내부E therm 누적) → 입자가 격자로 *녹아들어* 왕복이 닫힌다(격자→SPH→격자
+  //   = 항등). "은퇴"가 일방이 아니라 *가역*(SPH 가 필요 없어진 영역을 격자로 되접어 비용 절감)이라는 증거.
+  //     셀 i = round(p.cx,cy,cz) (격자 밖은 경계로 클램프·질량 손실 0) · ρ[i]+=m · mom[i]+=p · therm[i]+=internalE
+  //   **한 셀에 여러 입자가 모이면**(또는 기존 격자 유체와 합쳐지면) bulk 운동량은 합쳐지나 *상대 운동 KE 는
+  //   사라진다* → 그 잃은 상대 KE 를 internalE(열)로 적립해 **총E 정확 보존**(0031 demote 의 충돌→열 규약·
+  //   relKE = (기존 bulk KE + Σ입자 KE) − 합친 bulk KE ≥ 0). 한 셀에 입자 하나면 relKE=0(항등). **보존**: 누적이라
+  //   Σ질량·운동량·총E(=KE+내부E) 정확 보존(격자→SPH→격자 왕복 = 비트 근사 항등). world 를 *제자리 변형*(격자에
+  //   누적)하고 요약 반환. world: { N, fields{energy,mom_x/y/z,therm} }. opts: { field('energy') }. 입자 없음 → 격자 불변.
+  function particlesToFluid(particles, world, opts) {
+    opts = opts || {};
+    if (!particles || particles.length === 0) return { cells: 0, mass: 0, heated: 0 };   // 입자 없음 → 격자 불변(회귀 0)
+    const N = world.N;
+    const rho = world.fields[opts.field || 'energy'];
+    const gx = world.fields['mom_x'], gy = world.fields['mom_y'], gz = world.fields['mom_z'];
+    const u = world.fields['therm'];
+    const EPS = 1e-9;
+    const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
+    // 1패스: 셀별 누적(질량·운동량·내부E·입자 KE 합) — 상대 KE→열은 합친 뒤 한 번에.
+    const acc = new Map();                                   // i -> [dm, dpx, dpy, dpz, dIE, dKEparts]
+    let totalMass = 0;
+    for (let n = 0; n < particles.length; n++) {
+      const p = particles[n];
+      const m = p.mass || 0;
+      const ix = clamp(Math.round(p.cx || 0)), iy = clamp(Math.round(p.cy || 0)), iz = clamp(Math.round(p.cz || 0));
+      const i = (iz * N + iy) * N + ix;
+      const px = p.px || 0, py = p.py || 0, pz = p.pz || 0;
+      const ie = p.internalE != null ? p.internalE : ((p.energy != null ? p.energy : 0) - (p.KEcm || 0));
+      const keP = m > EPS ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+      const a = acc.get(i) || [0, 0, 0, 0, 0, 0];
+      a[0] += m; a[1] += px; a[2] += py; a[3] += pz; a[4] += ie; a[5] += keP;
+      acc.set(i, a); totalMass += m;
+    }
+    // 2패스: 셀에 적용 + 상대 KE→열(총E 보존).
+    let heated = 0;
+    for (const [i, a] of acc) {
+      const preM = rho[i] || 0, prePx = gx ? gx[i] : 0, prePy = gy ? gy[i] : 0, prePz = gz ? gz[i] : 0;
+      const preKE = preM > EPS ? 0.5 * (prePx * prePx + prePy * prePy + prePz * prePz) / preM : 0;
+      const newM = preM + a[0], nPx = prePx + a[1], nPy = prePy + a[2], nPz = prePz + a[3];
+      const newBulkKE = newM > EPS ? 0.5 * (nPx * nPx + nPy * nPy + nPz * nPz) / newM : 0;
+      const relKE = (preKE + a[5]) - newBulkKE;             // 잃은 상대 운동 KE(≥0) → 열
+      rho[i] = newM; if (gx) gx[i] = nPx; if (gy) gy[i] = nPy; if (gz) gz[i] = nPz;
+      if (u) u[i] = (u[i] || 0) + a[4] + (relKE > 0 ? relKE : 0);
+      if (relKE > 0) heated += relKE;
+    }
+    return { cells: acc.size, mass: totalMass, heated };
+  }
+
+  // ── SW5 격자 은퇴 자동 양방향 이주: 밀도 기준으로 격자↔SPH 표현을 *적응 선택*(이력으로 깜빡임 방지) ──────
+  //   design/sphere-world.md §6 SW5 — 0055(격자→SPH 이동)·0076(SPH→격자 역이주)이 양방향 메커니즘을 줬다. 이 법칙은
+  //   둘을 *정책*으로 묶어 **표현을 자동 선택**한다 = SW4 적응 LOD(0039·멀면 합치고 가까이 쪼갬)의 *격자↔SPH 표현* 판:
+  //   밀집/붕괴 영역은 SPH(Lagrangian 이 디테일을 따라감)·확산/조용한 영역은 격자(고정 셀로 저렴) → *비용이 디테일을
+  //   따라가게*. **이력(hysteresis)**: ρ_on > ρ_off 라 임계 근처에서 표현이 *깜빡이지 않는다*(0025 동결·0039 coarsen 정신).
+  //   **전역 보존**: grid→SPH(0055 이동)+SPH→grid(0076 누적) 둘 다 보존이라 (남은 격자+입자) 총 질량·운동량·총E 불변.
+  //   rhoOn 없음→grid→SPH 안 함·rhoOff 없음→SPH→grid 안 함·둘 다 없음→불변(회귀 0). world(제자리 변형)+particles(현 SPH
+  //   입자)→ { particles(갱신), toSPH, toGrid }. opts: { field('energy'), rhoOn(셀 ρ≥이값→SPH), rhoOff(입자셀질량≤이값→격자) }.
+  function autoMigrate(world, particles, opts) {
+    opts = opts || {};
+    particles = particles || [];
+    const N = world.N;
+    const field = opts.field || 'energy';
+    const rho = world.fields[field];
+    const rhoOn = opts.rhoOn, rhoOff = opts.rhoOff;
+    let toSPHn = 0, toGridn = 0;
+    // 1. 격자 → SPH: ρ ≥ rhoOn 인 셀(밀집·붕괴) → 입자(0055 이동·격자 비움).
+    if (rhoOn != null) {
+      const mig = migrateRegionToSPH(world, { field, threshold: 0, region: (x, y, z) => rho[(z * N + y) * N + x] >= rhoOn });
+      particles = particles.concat(mig.particles);
+      toSPHn = mig.particles.length;
+    }
+    // 2. SPH → 격자: 셀 입자질량 ≤ rhoOff 인 *확산* 입자 → 격자(0076 누적). 밀집 클러스터(>rhoOff)는 SPH 유지.
+    if (rhoOff != null && particles.length) {
+      const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
+      const key = (p) => (clamp(Math.round(p.cz || 0)) * N + clamp(Math.round(p.cy || 0))) * N + clamp(Math.round(p.cx || 0));
+      const cellMass = new Map();                              // round(cell) → Σ 입자 질량(밀도 프록시)
+      for (const p of particles) { const k = key(p); cellMass.set(k, (cellMass.get(k) || 0) + (p.mass || 0)); }
+      const stay = [], back = [];
+      for (const p of particles) (cellMass.get(key(p)) <= rhoOff ? back : stay).push(p);
+      if (back.length) particlesToFluid(back, world, { field });
+      particles = stay; toGridn = back.length;
+    }
+    return { particles, toSPH: toSPHn, toGrid: toGridn };
+  }
+
   // ── TW2 바다 — SPH 물 입자가 *정적 지형 앵커*를 느끼는 경계 결합(안 새어 나감) ────────────────────
   //   design/environment.md §3 TW2 — sphere-world 동역학(0026~)+SPH 물리 스택(0040~)은 섰지만, 물(SPH 입자)이
   //   *지형*(정적 앵커·0056/0059)을 느끼는 결합이 없어 물이 지형을 그냥 통과한다. 이 법칙은 그 *유일하게 빠진
@@ -683,6 +769,62 @@
     return particles;
   }
 
+  // ── 침식 = SPH 퇴적물 운반(바닥↔흐름 용량 기반 교환) — 물이 *땅을 깎고 쌓는다*(지형 정적·일방 해소) ──────
+  //   design/environment.md §2/§4 — 0060(법선 경계)·0064(접선 마찰)은 물을 지형에 *얹고 흘렀게* 했으나 지형은
+  //   *정적*이었다(물→지형 일방·거의 모든 지형 step 의 공통 한계). 이 법칙은 그 일방을 *왕복*으로 닫는다:
+  //   흐르는 물(SPH)이 바닥(앵커)을 *깎아 싣고*(침식) 느려지면 *내려놓는다*(퇴적) = 흐름이 땅을 빚는다.
+  //     운반 용량 C = capacity·|v_t|              (stream power — 빠른 흐름일수록 더 많이 운반)
+  //     load(p.sediment) < C → 침식: dm=min(erodeRate·(C−load)·dt, bed−minBed)  바닥→입자(bed↓·load↑)
+  //     load > C            → 퇴적: dm=min(erodeRate·(load−C)·dt, load)          입자→바닥(bed↑·load↓)
+  //   바닥 두께 = 앵커 반경(A.bed·첫 접촉 시 radius 로 초기화)·A.radius=A.bed 로 기하 반영 → 깎인 바닥을 물이
+  //   *따라간다*(다음 step 의 0060 경계력이 갱신된 radius 를 읽음·창발 결합). 보존: 모든 dm 은 bed↔load *쌍 이동*
+  //   → **Σ A.bed + Σ p.sediment 정확 보존**(질량은 사라지지 않고 땅↔흐름을 오갈 뿐). 퇴적물은 *수동 스칼라*
+  //   (운동량·내부E 안 건드림) → 0064 동역학 불변(erodeRate=0 → 정확 회귀). 빠른 상류는 깎이고(협곡) 느린
+  //   하류는 쌓여(삼각주) **graded 하천 단면이 창발**(author 없이·"법칙 author·구조 창발"). 0064(접선 마찰)·
+  //   0060(법선)과 같은 SPH↔앵커 *generic* 법칙 family(타입 모름·"지형/강" 분기 없음·바닥=generic 정적 경계).
+  //   erodeRate=0/앵커 없음/dt=0 → early-return(회귀 0). anchors 는 *읽고 bed/radius 만 갱신*(위치 불변).
+  //   opts: { erodeRate(0→early-return), capacity(운반 용량 계수), skin(0060 과 같은 접촉층), minBed(다 깎이면 멈춤·기본 0) }.
+  function sphSedimentErosion(particles, anchors, dt, opts) {
+    opts = opts || {};
+    const erodeRate = opts.erodeRate != null ? opts.erodeRate : 0;
+    if (dt == null) dt = 1;
+    if (erodeRate === 0 || !anchors || anchors.length === 0 || !dt) return particles;  // 노브=0/앵커 없음 → early-return(회귀 0)
+    const capacity = opts.capacity != null ? opts.capacity : 1;
+    const skin = opts.skin != null ? opts.skin : 0;
+    const minBed = opts.minBed != null ? opts.minBed : 0;
+    const EPS = 1e-9;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (p.sediment == null) p.sediment = 0;
+      const m = p.mass > EPS ? p.mass : 1;
+      for (let a = 0; a < anchors.length; a++) {
+        const A = anchors[a];
+        if (A.bed == null) A.bed = A.radius || 0;                 // 첫 접촉: 바닥 두께 = 현재 반경
+        const dx = p.cx - A.cx, dy = p.cy - A.cy, dz = p.cz - A.cz;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const pen = ((A.radius || 0) + skin) - d;                 // 접촉(표면 안) 판정 — 0060/0064 와 동일
+        if (pen <= 0 || d < EPS) continue;
+        const nx = dx / d, ny = dy / d, nz = dz / d;              // 바깥 법선
+        const vx = p.px / m, vy = p.py / m, vz = p.pz / m;
+        const vn = vx * nx + vy * ny + vz * nz;                   // 법선 속도
+        const tx = vx - vn * nx, ty = vy - vn * ny, tz = vz - vn * nz;   // 접선 슬립(흐름)
+        const vt = Math.sqrt(tx * tx + ty * ty + tz * tz);
+        const C = capacity * vt;                                  // 운반 용량 ∝ 흐름 속도(stream power)
+        if (p.sediment < C) {                                     // 침식: 바닥을 깎아 싣는다
+          let dm = erodeRate * (C - p.sediment) * dt;
+          if (dm > A.bed - minBed) dm = A.bed - minBed;
+          if (dm > 0) { A.bed -= dm; p.sediment += dm; }
+        } else if (p.sediment > C) {                              // 퇴적: 바닥에 내려놓는다
+          let dm = erodeRate * (p.sediment - C) * dt;
+          if (dm > p.sediment) dm = p.sediment;
+          if (dm > 0) { A.bed += dm; p.sediment -= dm; }
+        }
+        A.radius = A.bed;                                         // 기하 반영(물이 깎인 바닥을 따라간다)
+      }
+    }
+    return particles;
+  }
+
   // ── SW5 SPH 복사 냉각 — 입자가 제 열을 *빛으로* 내보내 식는다(계의 첫 에너지 sink) ──────────────
   //   design/sphere-world.md §6 SW5 — 압력(0041)·점성(0046)·전도(0049)는 에너지를 *재분배*만 한다(KE↔U·U↔U).
   //   계 밖으로 에너지가 *나갈 출구*가 없어 붕괴열이 갇힌다. 이 법칙은 그 출구 = **빛**: 광학적으로 얇은 회색 복사로
@@ -715,5 +857,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, sphBoundaryForce, sphBedFriction, VERSION: 15 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 18 };
 });
