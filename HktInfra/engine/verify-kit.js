@@ -782,9 +782,27 @@ function cachecapacity(seeds) {
   }
 }
 
+function cachetouch(seeds) {
+  const TOUCH = (at, on) => ({ at, op: { type: 'cacheLruTouch', on } });
+  const CAP = (at, cap) => ({ at, op: { type: 'cacheCapacity', cap } });
+  const SET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
+  const GET = (at, key) => ({ at, op: { type: 'cacheGet', key } });
+  const OPS = [TOUCH(1, true), CAP(2, 2), SET(3, 'k1', 'v1'), SET(4, 'k2', 'v2'), GET(5, 'k1'), SET(6, 'k3', 'v3')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, cacheService: true, cacheOps: OPS };
+  console.log('== cachetouch (0226 승급): 캐시 recency touch — lruTouch ON 이면 get hit 시 recency(setAt) 갱신 → 핫 키 생존(진짜 LRU). get k1 후 k3 진입 시 k2 회수(0225 면 k1 회수). ==');
+  console.log('seed   | k1   | k2   | k3   | touch | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const c = r.cache;
+    const ok = check(c.has('k1') && !c.has('k2') && c.has('k3') && c.touches === 1 && c.capEvicted === 1,
+      `seed ${seed}: touch LRU 위반 (k1 ${c.has('k1')}·k2 ${c.has('k2')}·touches ${c.touches})`);
+    console.log(`${pad(seed, 6)} | ${pad(c.has('k1') ? 'live' : 'evic', 4)} | ${pad(c.has('k2') ? 'live' : 'evic', 4)} | ${pad(c.has('k3') ? 'live' : '-', 4)} | ${pad(c.touches, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity };
-  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
