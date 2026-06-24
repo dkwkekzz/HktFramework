@@ -1,8 +1,8 @@
-// HktInfra step-0220 — 헤드리스 검증 (로그인 큐 재접속 세션 재개·loginReconnect·균형 라운드 닫기)
+// HktInfra step-0221 — 헤드리스 검증 (인스턴스 플레이어 이탈·instanceLeave·3차 균형 라운드 시작)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `loginreconnect`.
-//   더한 한 조각: loginReconnect{player} → 유효 admitted player 면 기존 티켓 재개(새 티켓 미발급·ticketSeq 불변·멱등). 만료/미발급이면 재개 불가(reconnectMisses·재큐 필요). 미주입 → 0219 비트 동일(reg). 2차 고도화 로그인 큐 #2.
-//   검증: ⒜ `reg`(키트). ⒝ `loginreconnect`(가설) — p1 입장 → reconnect 재개(같은 티켓·새 티켓 0) / p2 미입장 → 재개 실패.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instanceleave`.
+//   더한 한 조각: instanceLeave{player} → 배정된 player 의 route 해제(occupancy 감소·권위 release·0216 acquire 짝). 미배정 player 는 멱등 no-op(leaveMisses). 미주입 → 0220 비트 동일(reg). 3차 고도화 인스턴스 #1.
+//   검증: ⒜ `reg`(키트). ⒝ `instanceleave`(가설) — spawn+route 후 배정 player 이탈 → occupancy 감소·route null / 미배정 player 이탈 → miss.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,32 +15,33 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const ENQ = (at, player) => ({ at, op: { type: 'loginEnqueue', player } });
-const DEQ = (at) => ({ at, op: { type: 'loginDequeue' } });
-const RECONNECT = (at, player) => ({ at, op: { type: 'loginReconnect', player } });
-// p1 입장(tkt-1) → reconnect p1 재개(같은 티켓·ticketSeq 불변) → reconnect p2(미입장) 재개 실패.
+const SPAWN = (at, instanceId, kind) => ({ at, op: { type: 'instanceSpawn', instanceId, kind } });
+const ROUTE = (at, player, instanceId) => ({ at, op: { type: 'instanceRoute', player, instanceId } });
+const LEAVE = (at, player) => ({ at, op: { type: 'instanceLeave', player } });
+// d1 spawn → p1·p2 를 d1 에 배정 → p1 이탈(occupancy 2→1·route null) → pX(미배정) 이탈(miss).
 const OPS = [
-  ENQ(2, 'p1'), DEQ(3),
-  RECONNECT(5, 'p1'),
-  RECONNECT(6, 'p2'),
+  SPAWN(1, 'd1', 'dungeon'),
+  ROUTE(2, 'p1', 'd1'), ROUTE(3, 'p2', 'd1'),
+  LEAVE(4, 'p1'),
+  LEAVE(5, 'pX'),
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginOps: OPS };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
 
-function loginreconnect(seeds) {
-  console.log('== loginreconnect: 로그인 큐 재접속 세션 재개(loginReconnect) — 유효 admitted player 면 기존 티켓 재개(새 티켓 미발급·멱등 resume). 만료/미발급이면 재개 불가(재큐 필요). 끊겼다 금방 돌아온 세션이 줄을 다시 안 선다. 2차 고도화 로그인 큐 #2·균형 라운드 닫기. ==');
-  console.log('seed   | p1 티켓 | ticketSeq | resumes | misses | 판정');
+function instanceleave(seeds) {
+  console.log('== instanceleave: 인스턴스 플레이어 이탈(instanceLeave) — 배정된 player 가 인스턴스를 떠나면 route 해제(occupancy 감소·권위 release·0216 acquire 짝·던전 퇴장). 미배정 player 는 멱등 no-op. 비운 인스턴스는 0222 수요 자동 despawn 의 회수 대상. 3차 고도화 인스턴스 #1·균형 라운드 시작. ==');
+  console.log('seed   | d1 occ | p1 route | left | misses | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const q = r.loginqueue;
-    // p1 입장 tkt-1 → reconnect p1 재개(같은 tkt-1·ticketSeq 1 불변·resumes 1) → reconnect p2 미입장(reconnectMisses 1).
-    const ok = check(q.ticketOf('p1') === 'tkt-1' && q.ticketSeq === 1 && q.resumes === 1 && q.reconnectMisses === 1 && q.reconnects === 2 && q.admittedCount() === 1,
-      `seed ${seed}: 재접속 위반 (p1 ${q.ticketOf('p1')}·seq ${q.ticketSeq}·resumes ${q.resumes}·misses ${q.reconnectMisses})`);
-    console.log(`${pad(seed, 6)} | ${pad(q.ticketOf('p1') || '-', 7)} | ${pad(q.ticketSeq, 9)} | ${pad(q.resumes, 7)} | ${pad(q.reconnectMisses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const inst = r.instance;
+    // p1·p2 배정 후 p1 이탈 → d1 occupancy 1(p2 만)·p1 route null·left 1·미배정 pX 이탈 leaveMisses 1·routedCount 1.
+    const ok = check(inst.occupancyOf('d1') === 1 && inst.instanceOf('p1') === null && inst.instanceOf('p2') === 'd1' && inst.left === 1 && inst.leaveMisses === 1 && inst.routedCount() === 1,
+      `seed ${seed}: 이탈 위반 (d1 occ ${inst.occupancyOf('d1')}·p1 ${inst.instanceOf('p1')}·left ${inst.left}·misses ${inst.leaveMisses})`);
+    console.log(`${pad(seed, 6)} | ${pad(inst.occupancyOf('d1'), 6)} | ${pad(inst.instanceOf('p1') || '-', 8)} | ${pad(inst.left, 4)} | ${pad(inst.leaveMisses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 유효 티켓 player(p1) 재접속은 기존 티켓을 그대로 재개(같은 tkt-1·ticketSeq 1 불변=새 티켓 0·줄 다시 안 섬), 미입장 player(p2) 는 재개 실패(reconnectMisses 1·재큐 필요). 끊김에 강한 세션 연속성(재접속 토대). 로그인 큐 2차 고도화 #2 — 5박스 2차 균형 라운드(0211~0220) 닫기.');
+  console.log('  → 배정 player(p1) 이탈은 route 를 해제해 occupancy 가 2→1 로 줄고(권위 release·d1 엔 p2 만 남음), 미배정 player(pX) 이탈은 멱등 no-op(leaveMisses 1). 비운 자리는 0222 수요 자동 despawn 회수 대상 — 던전 수명주기의 축소 절반. 인스턴스 3차 고도화 #1.');
 }
 
-kit.MODES['loginreconnect'] = loginreconnect;
-kit.ORDER.splice(1, 0, 'loginreconnect');
+kit.MODES['instanceleave'] = instanceleave;
+kit.ORDER.splice(1, 0, 'instanceleave');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
