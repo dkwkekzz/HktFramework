@@ -1,4 +1,5 @@
 'use strict';
+// step-0213 — 월드 영속 스냅샷 압축(worldSnapshot): 투영을 스냅샷으로 굳히고 로그를 tail(스냅샷 이후 seq)로 절단. replay = 스냅샷+tail 재적용 = 전체-로그 replay 와 *비트 동일*(무손실 압축). intent 로그가 무한히 안 자라게(저장 유계·가방 0018/우편 0146/길드 0185 의 월드 판). worldSnapshot 미수신이면 0212 비트 동일(reg 0). 2차 고도화(월드영속 #1).
 // step-0208 — 월드 영속 replay 재구성: durable intent 로그를 전수 재적용해 월드 상태 투영 복원(crash 후 로그만으로 동일 상태·event sourcing 핵심·복제=재현). worldLog OFF 면 박스 0 = 0206 비트 동일(reg 0). 월드 영속 박스 기본 통신 완비.
 // step-0207 — 월드 영속 박스 분리: intent 로그 append 기본(worldLog·worldAppend). 세계 상태의 유일 쓰기 경로(intent)를 durable 로그로 event sourcing. worldLog OFF 면 박스 0 = 0206 비트 동일(reg 0).
 // dual-mode: Node require / 브라우저는 common.js 선행 로드(전역 __HktNetCommon).
@@ -15,7 +16,20 @@ class WorldLog {
     this.appends = 0;          // 처리한 worldAppend 수(계측).
     this._state = new Map();   // 파생 투영(entity -> {pos, items[]}) — 로그를 replay 해 얻는 월드 상태(휘발·crash 시 소실·로그서 재구성·step-0208).
     this.replays = 0;          // 처리한 replay 수(step-0208·계측).
+    this.snapshot = null;      // 스냅샷(step-0213·entity->{pos,items} 깊은 복사) — replay 시작점. null 이면 빈 상태서 출발(0208 거동).
+    this.snapshotSeq = 0;      // 스냅샷이 담은 최대 seq(step-0213·이하 로그는 절단·이상만 tail).
+    this.snapshots = 0;        // 처리한 worldSnapshot 수(step-0213·계측).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
+  }
+  // 투영 깊은 복사(step-0213) — 스냅샷 보관/복원용(entity 별 {pos, items[]} 독립 사본·참조 공유 0).
+  _cloneState(s) { const m = new Map(); for (const [k, v] of s) m.set(k, { pos: v.pos, items: v.items.slice() }); return m; }
+  // 스냅샷 압축(step-0213·worldSnapshot) — ① 전체 재구성(replay)로 투영을 현재화 → ② 그 투영을 스냅샷으로 굳히고 snapshotSeq=현재 jseq → ③ 로그를 tail(seq>snapshotSeq)만 남기고 절단. 다음 replay 는 스냅샷+tail = 전체 replay 와 동일(무손실). 로그가 무한히 안 자란다(저장 유계).
+  _snapshot() {
+    this.replay();                                       // 스냅샷+기존 tail 전수 재구성(투영 현재화).
+    this.snapshot = this._cloneState(this._state);       // 현재 투영을 스냅샷으로 굳힘(깊은 복사).
+    this.snapshotSeq = this.jseq;                        // 스냅샷이 담은 최대 seq.
+    this.journal = this.journal.filter(e => e.seq > this.snapshotSeq);   // tail(이후 seq)만 보존 — 스냅샷에 접힌 로그 절단.
+    this.snapshots++;
   }
   // intent append(step-0207·기본) — 세계 상태 변경 intent 를 durable 로그에 적층(append-only). 존/게이트웨이가 매 tick 의 intent 를 흘려보낸다. 결정론: 로그 순서가 상태를 결정.
   _append(intent) { this.journal.push({ seq: ++this.jseq, intent }); }
@@ -27,10 +41,10 @@ class WorldLog {
     else if (it.kind === 'pickup') { if (!e.items.includes(it.item)) e.items.push(it.item); }
     this._state.set(it.e, e);
   }
-  // replay 재구성(step-0208) — 투영을 리셋하고 durable 로그를 seq 순서로 전수 재적용 → 월드 상태 재구성. crash(투영 소실) 후에도 로그만으로 동일 상태 복원(event sourcing 의 핵심·복제=재현). 미래엔 스냅샷+tail(2차).
+  // replay 재구성(step-0208·0213 스냅샷 확장) — 투영을 *스냅샷서* 출발(없으면 빈 상태)하고 tail 로그(seq>snapshotSeq)를 seq 순서로 재적용 → 월드 상태 재구성. crash(투영 소실) 후에도 스냅샷+로그만으로 동일 상태 복원(event sourcing 핵심·복제=재현). 스냅샷 없으면 0208 거동(빈 상태서 전수).
   replay() {
-    this._state = new Map();
-    for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) this._apply(e.intent);
+    this._state = this.snapshot ? this._cloneState(this.snapshot) : new Map();
+    for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) if (e.seq > this.snapshotSeq) this._apply(e.intent);
     this.replays++;
   }
   // crash(step-0208) — 월드 상태 투영 소실(RAM·휘발)의 인프로세스 모델. *로그는 durable* 이라 살아남는다 → replay 로 복원. 데이터 계층이 세션보다 오래 산다.
@@ -47,6 +61,8 @@ class WorldLog {
     const p = m.payload;
     // append 요청(worldAppend) — {intent} → intent 로그에 적층. replay 재구성은 0208(이미 위 메서드). 지금은 append 만 onMsg.
     if (p.type === 'worldAppend') { this._append(p.intent); this.appends++; return; }
+    // 스냅샷 압축 요청(step-0213·worldSnapshot) — 투영을 스냅샷으로 굳히고 로그를 tail 로 절단(로그 저장 유계). worldSnapshot 미수신이면 미발화 = 0212 비트 동일.
+    if (p.type === 'worldSnapshot') { this._snapshot(); return; }
   }
   // 질의 인터페이스 — 로그 길이/항목·투영 상태(event sourcing 읽기). 검증·replay 가 쓴다.
   length() { return this.journal.length; }

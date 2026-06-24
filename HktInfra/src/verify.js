@@ -1,8 +1,8 @@
-// HktInfra step-0212 — 헤드리스 검증 (캐시 무효화·cacheInvalidate·write 시 캐시 일관성)
+// HktInfra step-0213 — 헤드리스 검증 (월드 영속 스냅샷 압축·worldSnapshot·무손실)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `cacheinval`.
-//   더한 한 조각: cacheInvalidate{key} → 소스(SSOT) 변경 통지에 캐시 사본을 끊는다(store/setAt 제거) → 다음 get miss → read-through 로 새 값 재적재. stale 사본 차단. cacheInvalidate 미주입 → 0211 비트 동일(reg). 2차 고도화 캐시 박스 #2.
-//   검증: ⒜ `reg`(키트). ⒝ `cacheinval`(가설) — k1 stale set → invalidate(k1) → get(k1) miss → 소스 fresh 재적재.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldsnap`.
+//   더한 한 조각: worldSnapshot → 투영을 스냅샷으로 굳히고 로그를 tail(seq>snapshotSeq)로 절단. replay = 스냅샷+tail = 전체-로그 replay 와 비트 동일(무손실 압축·로그 저장 유계). worldSnapshot 미주입 → 0212 비트 동일(reg). 2차 고도화 월드영속 #1.
+//   검증: ⒜ `reg`(키트). ⒝ `worldsnap`(가설) — 압축 run(스냅샷 후 tail) 의 replay stateDigest == 전체 run replay stateDigest, journal tail < full.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,34 +15,37 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const SET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
-const INVAL = (at, key) => ({ at, op: { type: 'cacheInvalidate', key } });
-const GET = (at, key) => ({ at, op: { type: 'cacheGet', key } });
-// 시나리오: k1 stale set(@2)·k2 set(@3) → invalidate k1(@5·소스가 바뀜) → get k1(@7) miss → 소스 fresh 재적재.
-const OPS = [
-  SET(2, 'k1', 'v1-stale'), SET(3, 'k2', 'v2'),
-  INVAL(5, 'k1'),
-  GET(7, 'k1'),
+const APP = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
+const SNAP = (at) => ({ at, op: { type: 'worldSnapshot' } });
+// intent: {e, kind:'move'|'pickup', to/item}. 5개 intent — 중간(스냅샷) 후 2개가 tail.
+const INTENTS = [
+  APP(2, { e: 'e1', kind: 'move', to: 'A' }),
+  APP(3, { e: 'e1', kind: 'move', to: 'B' }),
+  APP(4, { e: 'e2', kind: 'pickup', item: 'sword' }),
+  APP(6, { e: 'e1', kind: 'move', to: 'C' }),
+  APP(7, { e: 'e2', kind: 'pickup', item: 'shield' }),
 ];
-// 소스(backing SSOT)의 k1 은 fresh — invalidate 후 read-through 가 이 값을 다시 채운다.
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, cacheService: true, cacheSource: { k1: 'v1-fresh' }, cacheOps: OPS };
+const COMPRESSED = INTENTS.concat([SNAP(5)]);   // 5번째 intent 전(처음 3개 후) 스냅샷 → tail 2개.
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true };
 
-function cacheinval(seeds) {
-  console.log('== cacheinval: 캐시 무효화(cacheInvalidate) — 소스(SSOT) 변경 시 캐시 사본을 끊는다 → 다음 get miss → read-through 로 fresh 재적재(stale 사본 차단·write 시 일관성). 2차 고도화 캐시 박스 #2. ==');
-  console.log('seed   | invalidated | k1 값(재적재) | k2 | misses | 판정');
+function worldsnap(seeds) {
+  console.log('== worldsnap: 월드 영속 스냅샷 압축(worldSnapshot) — 투영을 스냅샷으로 굳히고 로그를 tail 로 절단. replay=스냅샷+tail == 전체-로그 replay(무손실·로그 저장 유계). 2차 고도화 월드영속 #1. ==');
+  console.log('seed   | full len | tail len | full digest | snap digest | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 10, ...BASE });
-    const c = r.cache;
-    const k1v = c.get('k1'), k2 = c.has('k2');
-    // invalidate 가 stale 사본 제거(invalidated 1) → get(k1) miss → 소스 fresh('v1-fresh') 재적재. k2 무관 생존.
-    const ok = check(c.invalidated === 1 && c.invalidations === 1 && k1v === 'v1-fresh' && k2 && c.misses >= 1,
-      `seed ${seed}: 무효화 위반 (invalidated ${c.invalidated}·k1 ${k1v}·k2 ${k2}·misses ${c.misses})`);
-    console.log(`${pad(seed, 6)} | ${pad(c.invalidated, 11)} | ${pad(k1v || '-', 13)} | ${pad(k2 ? 'live' : '-', 4)} | ${pad(c.misses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const full = run({ seed, ticks: 10, ...BASE, worldOps: INTENTS });        // 스냅샷 없음(전체 로그).
+    const comp = run({ seed, ticks: 10, ...BASE, worldOps: COMPRESSED });     // 스냅샷 후 tail.
+    full.worldlog.replay(); comp.worldlog.replay();
+    const fd = full.worldlog.stateDigest(), cd = comp.worldlog.stateDigest();
+    const fl = full.worldlog.length(), cl = comp.worldlog.length();
+    // 무손실: 압축 replay digest == 전체 replay digest. 절단: tail < full. 스냅샷 1회.
+    const ok = check(fd === cd && cl < fl && comp.worldlog.snapshots === 1 && comp.worldlog.snapshotSeq === 3,
+      `seed ${seed}: 스냅샷 위반 (full ${fd}/${fl}·comp ${cd}/${cl}·snaps ${comp.worldlog.snapshots})`);
+    console.log(`${pad(seed, 6)} | ${pad(fl, 8)} | ${pad(cl, 8)} | ${pad(fd, 11)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → cacheInvalidate 가 stale 사본을 끊고(invalidated 1) 다음 get 이 miss→소스 fresh 재적재(k1=v1-fresh). write 경로가 캐시를 stale 로 안 남긴다(캐시 일관성 토대). 캐시 박스 2차 고도화 #2.');
+  console.log('  → 스냅샷 후 tail(2) < 전체 로그(5)·압축 replay digest == 전체 replay digest(무손실). intent 로그가 무한히 안 자란다(저장 유계·event sourcing 스냅샷 토대). 월드영속 2차 고도화 #1.');
 }
 
-kit.MODES['cacheinval'] = cacheinval;
-kit.ORDER.splice(1, 0, 'cacheinval');
+kit.MODES['worldsnap'] = worldsnap;
+kit.ORDER.splice(1, 0, 'worldsnap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

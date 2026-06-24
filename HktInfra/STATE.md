@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0212](step-0212.md) — **캐시 무효화**: `cacheInvalidate{key}`→소스 변경 시 사본 끊기→다음 get miss→fresh 재적재(stale 차단·write 시 일관성). cacheInvalidate 미주입→0211 비트 동일. **2차 고도화 캐시 박스 #2**. 닿는 박스: cache.
-- **한 줄 상태**: reg ALL OK·cacheinval: 5/5 invalidated 1/k1=fresh 재적재/k2 생존·spine ALL OK.
-- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2조각→월드영속→인스턴스→오케→로그인). 다음 = 0213 월드영속 스냅샷 압축(worldSnapshot).
+- **닫힌 step**: [step-0213](step-0213.md) — **월드영속 스냅샷 압축**: `worldSnapshot`→투영 스냅샷+로그 tail 절단. replay=스냅샷+tail == 전체-로그 replay(무손실·저장 유계). worldSnapshot 미주입→0212 비트 동일. **2차 고도화 월드영속 #1**. 닿는 박스: worldlog.
+- **한 줄 상태**: reg ALL OK·worldsnap: 5/5 tail 2<full 5/digest 동일(무손실)·spine ALL OK.
+- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2→월드영속→인스턴스→오케→로그인). 다음 = 0214 월드영속 스냅샷 정합 capstone(worldSnapConsistent·crash→스냅샷 복원).
 
 ---
 
@@ -84,7 +84,7 @@
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery 기본 통신)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212·write 일관성)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208·event sourcing·crash 무손실)**. fsync·버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212·write 일관성)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213·무손실·저장 유계)**. fsync·버스 영속 후속 |
 
 ---
 
@@ -218,3 +218,4 @@
 | [0210](step-0210.md) | 로그인 티켓 만료 TTL(loginExpire·너비 1차 5박스 완성) | 통과 · p1 만료/p2 생존 |
 | [0211](step-0211.md) | 캐시 TTL 만료(cacheExpire·setAt+ttl≤now 회수·메모리 유계·2차 고도화 캐시 #1) | 통과 · k1 만료/k2 생존·evicted 1 |
 | [0212](step-0212.md) | 캐시 무효화(cacheInvalidate·소스 변경 시 사본 끊기→fresh 재적재·2차 고도화 캐시 #2) | 통과 · invalidated 1·k1=fresh |
+| [0213](step-0213.md) | 월드영속 스냅샷 압축(worldSnapshot·스냅샷+tail==전체 replay·무손실·2차 고도화 월드영속 #1) | 통과 · tail 2<full 5·digest 동일 |
