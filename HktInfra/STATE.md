@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0215](step-0215.md) — **인스턴스 수요 spawn**: `instanceDemand{kind,target}`→active<target 부족분 자동 spawn(탄력 확장·결정론 auto-id). 충족이면 멱등 0. 미주입→0214 비트 동일. **2차 고도화 인스턴스 #1**. 닿는 박스: instance.
-- **한 줄 상태**: reg ALL OK·instancedemand: 5/5 active 3·demandSpawns 3·멱등·spine ALL OK.
-- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2→월드영속 ✅2→인스턴스→오케→로그인). 다음 = 0216 인스턴스 플레이어 라우팅(instanceRoute·player→instance 배정 SSOT).
+- **닫힌 step**: [step-0216](step-0216.md) — **인스턴스 플레이어 라우팅**: `instanceRoute{player,instanceId}`→player→instance 배정 SSOT(한 player=한 인스턴스·죽은 인스턴스 거부·재배정 release+acquire). 미주입→0215 비트 동일. **2차 고도화 인스턴스 #2**. 닿는 박스: instance.
+- **한 줄 상태**: reg ALL OK·instanceroute: 5/5 p1 d1→d2·occ 1/2·routed 3/reroute 1/reject 1·spine ALL OK.
+- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2→월드영속 ✅2→인스턴스 ✅2→오케→로그인). 다음 = 0217 오케스트레이터 부하 배치(placeLoad·최소 부하 host 선택).
 
 ---
 
@@ -80,7 +80,7 @@
 | # | 계층 | 박스 | 상태 (현재 마커 + 핵심 step) |
 |---|------|------|------|
 | 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급+만료(0209~0210·폭주 엣지 흡수)**. 재접속·게이트웨이 군 풀 후속 |
-| 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215·탄력 확장)**. 라우팅 후속 |
+| 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+플레이어 라우팅(0216·배정 SSOT)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery 기본 통신)** |
@@ -221,3 +221,4 @@
 | [0213](step-0213.md) | 월드영속 스냅샷 압축(worldSnapshot·스냅샷+tail==전체 replay·무손실·2차 고도화 월드영속 #1) | 통과 · tail 2<full 5·digest 동일 |
 | [0214](step-0214.md) | 월드영속 정합 capstone(worldCrash/worldRecover·메시지 구동·스냅샷 load-bearing·arc 0207~0214 닫기) | 통과 · recover==full·snap제거 달라짐 |
 | [0215](step-0215.md) | 인스턴스 수요 spawn(instanceDemand·active<target 부족분 자동 채움·탄력 확장·2차 고도화 인스턴스 #1) | 통과 · active 3·demandSpawns 3·멱등 |
+| [0216](step-0216.md) | 인스턴스 플레이어 라우팅(instanceRoute·player→instance 배정 SSOT·재배정 release+acquire·2차 고도화 인스턴스 #2) | 통과 · routed 3/reroute 1/reject 1 |

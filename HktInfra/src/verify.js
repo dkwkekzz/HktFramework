@@ -1,8 +1,8 @@
-// HktInfra step-0215 — 헤드리스 검증 (인스턴스 수요 spawn·instanceDemand·탄력 확장)
+// HktInfra step-0216 — 헤드리스 검증 (인스턴스 플레이어 라우팅·instanceRoute·배정 SSOT)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instancedemand`.
-//   더한 한 조각: instanceDemand{kind,target} → active(kind)<target 면 부족분 자동 spawn(탄력 확장·결정론 auto-id). 이미 충족이면 멱등 0개. 미주입 → 0214 비트 동일(reg). 2차 고도화 인스턴스 #1.
-//   검증: ⒜ `reg`(키트). ⒝ `instancedemand`(가설) — 1개서 demand(target3)→+2, 재요청 멱등 0, despawn 후 demand→+1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instanceroute`.
+//   더한 한 조각: instanceRoute{player,instanceId} → player 를 active 인스턴스에 배정(한 player=한 인스턴스·권위 단일 소유). 죽은 인스턴스 거부·다른 인스턴스로 옮기면 release+acquire 쌍. 미주입 → 0215 비트 동일(reg). 2차 고도화 인스턴스 #2.
+//   검증: ⒜ `reg`(키트). ⒝ `instanceroute`(가설) — p1·p2→d1, p3→d2, p1 재배정→d2, p4→죽은 d3 거부.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,33 +16,32 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const SPAWN = (at, instanceId, kind) => ({ at, op: { type: 'instanceSpawn', instanceId, kind } });
-const DESPAWN = (at, instanceId) => ({ at, op: { type: 'instanceDespawn', instanceId } });
-const DEMAND = (at, kind, target) => ({ at, op: { type: 'instanceDemand', kind, target } });
-// d1 1개 → demand(target3)=+2 → 재요청 멱등 0 → d1 despawn → demand(target3)=+1.
+const ROUTE = (at, player, instanceId) => ({ at, op: { type: 'instanceRoute', player, instanceId } });
+// d1·d2 spawn → p1·p2→d1, p3→d2 → p1 재배정 d1→d2(release+acquire) → p4→죽은 d3 거부.
 const OPS = [
-  SPAWN(2, 'd1', 'dungeon'),
-  DEMAND(4, 'dungeon', 3),
-  DEMAND(6, 'dungeon', 3),
-  DESPAWN(8, 'd1'),
-  DEMAND(10, 'dungeon', 3),
+  SPAWN(2, 'd1', 'dungeon'), SPAWN(2, 'd2', 'dungeon'),
+  ROUTE(4, 'p1', 'd1'), ROUTE(4, 'p2', 'd1'), ROUTE(5, 'p3', 'd2'),
+  ROUTE(7, 'p1', 'd2'),
+  ROUTE(8, 'p4', 'd3'),
 ];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
 
-function instancedemand(seeds) {
-  console.log('== instancedemand: 인스턴스 수요 spawn(instanceDemand) — active(kind)<target 면 부족분 자동 spawn(탄력 확장). 이미 충족이면 멱등 0개. 수요 따라 던전 인스턴스를 채운다. 2차 고도화 인스턴스 #1. ==');
-  console.log('seed   | active | demandSpawns | demands | 판정');
+function instanceroute(seeds) {
+  console.log('== instanceroute: 인스턴스 플레이어 라우팅(instanceRoute) — player→instance 배정 SSOT(한 player=한 인스턴스·권위 단일 소유). 죽은 인스턴스 거부·재배정은 release+acquire 쌍. 2차 고도화 인스턴스 #2. ==');
+  console.log('seed   | p1 | d1 occ | d2 occ | routed/reroute/reject | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 12, ...BASE });
+    const r = run({ seed, ticks: 10, ...BASE });
     const ins = r.instance;
-    // d1(+1) → demand3(+2=3) → demand3(멱등 0) → despawn(2) → demand3(+1=3). 최종 active 3·demandSpawns 3·demands 3.
-    const ok = check(ins.activeCount() === 3 && ins.demandSpawns === 3 && ins.demands === 3 && ins.retired === 1,
-      `seed ${seed}: 수요 위반 (active ${ins.activeCount()}·demandSpawns ${ins.demandSpawns}·demands ${ins.demands})`);
-    console.log(`${pad(seed, 6)} | ${pad(ins.activeCount(), 6)} | ${pad(ins.demandSpawns, 12)} | ${pad(ins.demands, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    const p1 = ins.instanceOf('p1'), d1 = ins.occupancyOf('d1'), d2 = ins.occupancyOf('d2');
+    // p1 d1→d2 재배정·p2 d1·p3 d2 → d1 occ 1(p2)·d2 occ 2(p1,p3). p4→죽은 d3 거부. routed 3·rerouted 1·reject 1·routedCount 3.
+    const ok = check(p1 === 'd2' && d1 === 1 && d2 === 2 && ins.routed === 3 && ins.rerouted === 1 && ins.routeRejects === 1 && ins.instanceOf('p4') === null && ins.routedCount() === 3,
+      `seed ${seed}: 라우팅 위반 (p1 ${p1}·d1 ${d1}·d2 ${d2}·routed ${ins.routed}/reroute ${ins.rerouted}/reject ${ins.routeRejects})`);
+    console.log(`${pad(seed, 6)} | ${pad(p1 || '-', 4)} | ${pad(d1, 6)} | ${pad(d2, 6)} | ${pad(ins.routed + '/' + ins.rerouted + '/' + ins.routeRejects, 21)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → demand(target3) 가 부족분만 자동 spawn(1→3 채움·+2), 이미 충족이면 멱등 0, despawn 후 재요청은 다시 채움(+1). active 가 target 으로 탄력 수렴(수요 기반 스케일링·오케스트레이터 부하 spawn 토대). 인스턴스 2차 고도화 #1.');
+  console.log('  → player 가 정확히 한 인스턴스에 배정되고(routedCount 3·단일 소유), 재배정은 release+acquire 쌍(p1 d1→d2·d1 occ 줄고 d2 occ 늘어), 죽은 인스턴스 라우팅은 거부(reject 1). 게이트웨이 던전 입장 라우팅 토대. 인스턴스 2차 고도화 #2.');
 }
 
-kit.MODES['instancedemand'] = instancedemand;
-kit.ORDER.splice(1, 0, 'instancedemand');
+kit.MODES['instanceroute'] = instanceroute;
+kit.ORDER.splice(1, 0, 'instanceroute');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
