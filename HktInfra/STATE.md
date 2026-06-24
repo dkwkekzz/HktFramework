@@ -9,24 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0228](step-0228.md) — **월드영속 fsync durable barrier**: `worldFsync`→durableSeq=jseq(디스크 확정), `worldRecoverDurable`→seq≤durableSeq 만 replay(이후 tail 미보장). flush(페이지캐시)/fsync(물리 확정) 구분. 미주입→0227 비트 동일. **3차 고도화 월드영속 #2**. 닿는 박스: worldlog.
-- **한 줄 상태**: reg ALL OK·worldfsync: 5/5 durableSeq 3·recoverDurable 3개·full 5개·spine ALL OK.
-- **다음**: 🎯 **3차 균형 라운드 진행 중**(0221~0230). 인스턴스✅·오케✅·캐시✅·월드영속✅. 다음: 0229 로그인 계정 검증(loginAuth·유효 계정만 enqueue·미인증 거부).
+- **닫힌 step**: [step-0229](step-0229.md) — **로그인 계정 검증**: `loginAuth{player}`→validAccounts 면 enqueue·미인증 거부(authRejects·줄 이전 차단·0001 검증의 큐 실체화). 미주입→0228 비트 동일. **3차 고도화 로그인 #1**. 닿는 박스: loginqueue(+topo-build loginAccounts).
+- **한 줄 상태**: reg ALL OK·loginauth: 5/5 p1·p2 enqueue·pX 거부(authRejects 1)·spine ALL OK.
+- **다음**: 🎯 **3차 균형 라운드**(0221~0230). 인스턴스✅·오케✅·캐시✅·월드영속✅. 다음(마지막): 0230 로그인 큐 이탈(loginAbandon·입장 전 줄 떠남·라운드 닫기).
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **3차 균형 라운드 진행 중**(0221~0230) — 1차 너비(0201~0210)·2차 심화(0211~0220) 위에 5박스를 *각 2조각씩* 더 심화한다(한 박스 과심화 없이 균형·backlog §2 의 "추가 심화" 집행). 라운드 닫으면 `infra-review`(0221~0230 묶음) 가 progress 맵 갱신·평결.
+> 🎯 **3차 균형 라운드 진행 중**(0221~0230) — 5박스 *각 2조각* 심화(backlog "추가 심화" 집행·균형). 라운드 닫으면 `infra-review`(0221~0230) 평결.
 
-**3차 균형 라운드 5박스 — 각 2조각 (체크표):**
-1. **인스턴스(던전) 서버** (계층2) — ✅ 이탈(0221·occupancy 감소·release)+✅ 수요 자동 despawn(0222·active>target 회수·점유 보호).
-2. **오케스트레이터** (계층5) — ✅ 부하 재배치 자동 트리거(0223·불균형≥2 자동 균형)+✅ host 드레인(0224·퇴역 안전 이주).
-3. **캐시 박스** (계층6) — ✅ 용량 LRU 회수(0225·개수 유계)+✅ recency touch(0226·진짜 LRU).
-4. **월드 영속** (계층6) — ✅ write-behind 버퍼(0227·쓰기 지연 배치)+✅ fsync durable barrier(0228·물리 확정 경계).
-5. **로그인 큐·티켓** (계층1) — ⬜ 계정 검증(0229)+큐 이탈(0230·라운드 닫기).
+**3차 균형 라운드 5박스 — 각 2조각:** ①인스턴스 ✅이탈(0221)+✅수요 despawn(0222) ②오케 ✅재배치 자동(0223)+✅host 드레인(0224) ③캐시 ✅용량 LRU(0225)+✅touch(0226) ④월드영속 ✅write-behind(0227)+✅fsync(0228) ⑤로그인 ✅계정 검증(0229)+⬜큐 이탈(0230·닫기).
 
-**4차/후속 백로그 (블로킹 🔴 제외)**: 위 5박스 추가 심화(실 존 연동·복제 anti-entropy·자동 트리거 정교화) + 신규 5박스 멀티프로세스 배선(#9)·spine 승급(#16·신규 bespoke 모드 누적 회귀로) + 길드 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
+**4차/후속 백로그 (🔴 제외)**: 5박스 추가 심화(실 존 연동·복제 anti-entropy·트리거 정교화) + 신규 5박스 멀티프로세스 배선(#9)·spine 승급(#16) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -79,7 +74,7 @@
 
 | # | 계층 | 박스 | 상태 (현재 마커 + 핵심 step) |
 |---|------|------|------|
-| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급+만료(0209~0210)+수용량 백프레셔(0219)+재접속 재개(0220·세션 연속성)**. 게이트웨이 군 풀 후속 |
+| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급+만료(0209~0210)+수용량 백프레셔(0219)+재접속 재개(0220)+계정 검증(0229·엣지 차단)**. 게이트웨이 군 풀 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
@@ -234,3 +229,4 @@
 | [0226](step-0226.md) | 캐시 recency touch(cacheLruTouch·get hit 시 setAt 갱신→핫 키 생존·진짜 LRU·0225 set-시각만의 보완·3차 고도화 캐시 #2) | 통과 · get k1 후 k2 회수·k1 생존·touches 1 |
 | [0227](step-0227.md) | 월드영속 write-behind 버퍼(worldBuffer/worldFlush·intent 버퍼링→durable 로그 일괄 적층·쓰기 지연 배치·미flush=비-durable crash 윈도·3차 고도화 월드영속 #1) | 통과 · 버퍼 2→flush 로그 2·미flush 1 비-durable |
 | [0228](step-0228.md) | 월드영속 fsync durable barrier(worldFsync/worldRecoverDurable·durableSeq=디스크 확정 프런티어·seq≤durableSeq 만 복구·flush/fsync 구분·3차 고도화 월드영속 #2) | 통과 · durableSeq 3·dur복구 3·full 5 |
+| [0229](step-0229.md) | 로그인 계정 검증(loginAuth·validAccounts 만 enqueue·미인증 거부·줄 이전 차단·0001 검증 큐 실체화·3차 고도화 로그인 #1) | 통과 · p1·p2 enqueue·pX 거부·authRejects 1 |

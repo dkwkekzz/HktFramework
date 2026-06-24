@@ -1,4 +1,5 @@
 'use strict';
+// step-0228 — 월드 영속 fsync durable barrier(worldFsync/worldRecoverDurable): durableSeq 워터마크 = fsync 로 *디스크 확정*된 최대 seq(0227 flush=OS 페이지캐시 적층, fsync=물리 확정의 구분). worldRecoverDurable 은 seq≤durableSeq 만 replay(fsync 이후 tail 은 crash 시 미보장 — durability 의 *진짜* 경계). worldFsync 미수신이면 durableSeq 0·recoverDurable 미발화 = 0227 비트 동일(reg 0). 3차 고도화(월드영속 #2).
 // step-0227 — 월드 영속 write-behind 버퍼(worldBuffer/worldFlush): intent 를 *버퍼*에 모았다 worldFlush 로 durable 로그에 일괄 적층(쓰기 지연·배치 = 매 intent 마다 디스크 안 때림·신성한 tick 보호). 버퍼는 비-durable(미flush 분은 crash 시 소실 — write-behind 의 본질적 윈도). worldBuffer/worldFlush 미수신이면 버퍼 빈 채 = 0226 비트 동일(reg 0). 3차 고도화(월드영속 #1).
 // step-0214 — 월드 영속 정합 capstone(worldCrash/worldRecover): crash(투영 소실)→recover(스냅샷+tail replay) 를 *메시지 구동* 프로토콜로(슈퍼바이저가 복구를 명령). 스냅샷이 durable 해 crash 후에도 동일 digest 복원(스냅샷 load-bearing·tail 단독 불충분). worldCrash/worldRecover 미수신이면 0213 비트 동일(reg 0). 2차 고도화(월드영속 #2·스냅샷 arc 닫기).
 // step-0213 — 월드 영속 스냅샷 압축(worldSnapshot): 투영을 스냅샷으로 굳히고 로그를 tail(스냅샷 이후 seq)로 절단. replay = 스냅샷+tail 재적용 = 전체-로그 replay 와 *비트 동일*(무손실 압축). intent 로그가 무한히 안 자라게(가방 0018/우편 0146/길드 0185 의 월드 판). worldSnapshot 미수신이면 0212 비트 동일(reg 0). 2차 고도화(월드영속 #1).
@@ -25,7 +26,15 @@ class WorldLog {
     this.buffered = 0;         // 버퍼에 모인 intent 누적 수(step-0227·계측).
     this.flushes = 0;          // 처리한 worldFlush 수(step-0227·계측·빈 버퍼 no-op 포함).
     this.flushed = 0;          // flush 로 durable 로그에 적층된 intent 누적 수(step-0227).
+    this.durableSeq = 0;       // fsync 로 디스크 확정된 최대 seq(step-0228·이 이하만 crash 후 보장·이상 tail 은 미보장).
+    this.fsyncs = 0;           // 처리한 worldFsync 수(step-0228·계측).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
+  }
+  // fsync durable replay(step-0228·worldRecoverDurable) — 스냅샷서 출발해 seq≤durableSeq 인 tail 만 재적용(fsync 이후 미확정 tail 제외). 0208 replay 가 *전체* 로그를 가정한다면, 이건 디스크 확정 프런티어까지만 — crash 후 *진짜* 복구 가능한 상태. durableSeq 0 이면 스냅샷(또는 빈)만.
+  _replayDurable() {
+    this._state = this.snapshot ? this._cloneState(this.snapshot) : new Map();
+    for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) if (e.seq > this.snapshotSeq && e.seq <= this.durableSeq) this._apply(e.intent);
+    this.recoversDurable = (this.recoversDurable || 0) + 1;
   }
   // write-behind flush(step-0227·worldFlush) — 버퍼에 모인 intent 를 durable 로그에 일괄 적층(순서 보존·배치 쓰기). flush 전엔 비-durable(crash 시 소실). 빈 버퍼면 멱등 no-op.
   _flush() {
@@ -84,6 +93,10 @@ class WorldLog {
     if (p.type === 'worldBuffer') { this.buffer.push(p.intent); this.buffered++; return; }
     // write-behind flush(step-0227·worldFlush) — 버퍼를 durable 로그에 일괄 적층(배치). worldFlush 미수신이면 미발화 = 0226 비트 동일.
     if (p.type === 'worldFlush') { this._flush(); return; }
+    // fsync durable barrier(step-0228·worldFsync) — 현재 jseq 까지를 디스크 확정(durableSeq=jseq). 이후 append(tail)는 다음 fsync 까지 미보장. worldFsync 미수신이면 durableSeq 0 = 0227 비트 동일.
+    if (p.type === 'worldFsync') { this.durableSeq = this.jseq; this.fsyncs++; return; }
+    // fsync durable replay(step-0228·worldRecoverDurable) — seq≤durableSeq tail 만 재구성(crash 후 진짜 복구 경계). worldRecoverDurable 미수신이면 미발화 = 0227 비트 동일.
+    if (p.type === 'worldRecoverDurable') { this._replayDurable(); return; }
   }
   // 질의 인터페이스 — 로그 길이/항목·투영 상태(event sourcing 읽기). 검증·replay 가 쓴다.
   length() { return this.journal.length; }

@@ -1,8 +1,8 @@
-// HktInfra step-0228 — 헤드리스 검증 (월드 영속 fsync durable barrier·worldFsync/worldRecoverDurable)
+// HktInfra step-0229 — 헤드리스 검증 (로그인 계정 검증·loginAuth)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldfsync`.
-//   더한 한 조각: worldFsync→durableSeq=jseq(디스크 확정 프런티어), worldRecoverDurable→seq≤durableSeq 만 replay(fsync 이후 tail 미보장). 미주입 → 0227 비트 동일(reg). 3차 고도화 월드영속 #2.
-//   검증: ⒜ `reg`(키트). ⒝ `worldfsync`(가설) — 3 append→fsync→2 append→recoverDurable 은 3개만, full replay 는 5개.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `loginauth`.
+//   더한 한 조각: loginAuth{player} → validAccounts 면 enqueue, 미인증이면 거부(authRejects·줄 이전 차단). validAccounts 빈 채/loginAuth 미수신이면 0228 비트 동일(reg). 3차 고도화 로그인 #1.
+//   검증: ⒜ `reg`(키트). ⒝ `loginauth`(가설) — p1·p2 유효 → enqueue, pX 미인증 → 거부.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,36 +15,28 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const APP = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
-const FSYNC = (at) => ({ at, op: { type: 'worldFsync' } });
-// e1·e2·e3 append → fsync(durableSeq 3) → e4·e5 append(미fsync) → recoverDurable=3개만·full replay=5개.
+const AUTH = (at, player) => ({ at, op: { type: 'loginAuth', player } });
+// validAccounts=[p1,p2] → loginAuth p1·p2 통과(줄 세움)·pX 미인증(거부·줄 이전 차단).
 const OPS = [
-  APP(1, { e: 'e1', kind: 'move', to: 1 }), APP(2, { e: 'e2', kind: 'move', to: 2 }), APP(3, { e: 'e3', kind: 'move', to: 3 }),
-  FSYNC(4),
-  APP(5, { e: 'e4', kind: 'move', to: 4 }), APP(6, { e: 'e5', kind: 'move', to: 5 }),
+  AUTH(2, 'p1'), AUTH(3, 'p2'), AUTH(4, 'pX'),
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginAccounts: ['p1', 'p2'], loginOps: OPS };
 
-function worldfsync(seeds) {
-  console.log('== worldfsync: 월드 영속 fsync durable barrier(worldFsync/worldRecoverDurable) — durableSeq 워터마크 = fsync 로 디스크 확정된 최대 seq(0227 flush=페이지캐시 적층, fsync=물리 확정 구분). recoverDurable 은 seq≤durableSeq 만 replay(fsync 이후 tail 은 crash 시 미보장). durability 의 *진짜* 경계. 3차 고도화 월드영속 #2. ==');
-  console.log('seed   | durSeq | dur복구 | full복구 | e4(미fsync) | 판정');
+function loginauth(seeds) {
+  console.log('== loginauth: 로그인 계정 검증(loginAuth) — 유효 계정(validAccounts)만 대기열에 넣는다(검증 통과→enqueue·미인증→거부·줄 이전 차단). 0001 LoginServer 계정 검증을 엣지 큐에 실체화 — 불량 접속이 대기열·월드에 안 닿는다. 3차 고도화 로그인 #1. ==');
+  console.log('seed   | 큐 | authed | rejects | pX pos | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const w = r.worldlog;
-    w._replayDurable();                              // seq≤durableSeq(=3) 만 — crash 후 진짜 복구.
-    const durCount = [...['e1', 'e2', 'e3', 'e4', 'e5']].filter(e => w.stateOf(e)).length;
-    const e4durable = !!w.stateOf('e4');
-    w.replay();                                      // full(전체 로그) — 5개.
-    const fullCount = [...['e1', 'e2', 'e3', 'e4', 'e5']].filter(e => w.stateOf(e)).length;
-    // fsync 가 seq 3 까지 확정 → recoverDurable 3개(e1~e3)·e4/e5 미보장 / full replay 5개.
-    const ok = check(w.durableSeq === 3 && durCount === 3 && !e4durable && fullCount === 5,
-      `seed ${seed}: fsync 위반 (durSeq ${w.durableSeq}·dur ${durCount}·full ${fullCount}·e4 ${e4durable})`);
-    console.log(`${pad(seed, 6)} | ${pad(w.durableSeq, 6)} | ${pad(durCount, 7)} | ${pad(fullCount, 8)} | ${pad(e4durable ? 'durable' : 'lost', 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const q = r.loginqueue;
+    // p1·p2 통과(큐 2·authed 2)·pX 거부(authRejects 1·줄에 없음 pos -1).
+    const ok = check(q.queueLength() === 2 && q.authed === 2 && q.authRejects === 1 && q.positionOf('p1') === 0 && q.positionOf('pX') === -1,
+      `seed ${seed}: 계정검증 위반 (큐 ${q.queueLength()}·authed ${q.authed}·rejects ${q.authRejects})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.queueLength(), 2)} | ${pad(q.authed, 6)} | ${pad(q.authRejects, 7)} | ${pad(q.positionOf('pX'), 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → fsync 가 seq 3 까지 디스크 확정(durableSeq 3)하면 crash 후 진짜 복구(recoverDurable)는 e1~e3 3개만 — fsync 이후 append 한 e4·e5 는 미보장(crash 시 소실 가능). full replay(전체 로그)는 5개를 본다. flush(0227·페이지캐시)와 fsync(0228·물리 확정)의 구분 = durability 의 진짜 경계. 월드영속 3차 고도화 #2.');
+  console.log('  → 유효 계정 p1·p2 만 줄에 서고(큐 2·authed 2) 미인증 pX 는 거부된다(authRejects 1·positionOf -1=줄에 없음). 계정 검증을 *대기열 이전*(엣지)에 두어 불량 접속이 대기열·월드를 아예 못 건드린다(0001 LoginServer 검증의 큐 실체화). 로그인 3차 고도화 #1.');
 }
 
-kit.MODES['worldfsync'] = worldfsync;
-kit.ORDER.splice(1, 0, 'worldfsync');
+kit.MODES['loginauth'] = loginauth;
+kit.ORDER.splice(1, 0, 'loginauth');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
