@@ -141,6 +141,7 @@ function buildTopology(opts) {
     guildFeedPersist = false,
     guildBank = false,
     guildBankPublish = false,
+    guildBankFeed = false,
     deliverDedup = false,
     deliverDedupBound = false,
     deliverEpochBound = false,
@@ -188,7 +189,7 @@ function buildTopology(opts) {
   //   구독 = 선언 spec(이 테이블이 SSOT). *새 소비자(audit) 추가 = 여기 행 추가뿐* — 발행자 spec 무수정(decouple 가설).
   if (bus) {
     // 구독 테이블 빌더(step-0133 분할·topo-subs.js) — 플래그 컨텍스트로부터 [topic,addr] spec 을 짓는다. 행 추가 = 새 소비자(발행자 무수정).
-    const subs = buildSubs({ inventory, busAck, busOutAck, busSeenBound, chat, rankingAddr, audit, busLeaseAudit, busLeasePresence, failover, zones, presencePublish, presenceMonitor, presenceAnnounce, presenceQuery, presenceShadowAddr, whisperRouter, whisperFailover, presenceBox, presenceReportBus, presenceLease, replaceAddr, failedPublish, deliveredPublish, partyChange, partyService, guildService, guildChangePublish, guildFeed, guildBank, guildBankPublish, partyIncompletePublish, partyCompletePublish, mailboxDrainedPublish, mailboxLossPublish, whisperReceipt, exchange, exchangePublish, cancelPublish, expirePublish, abortPublish, abandonPublish, readmitPublish, autoReadmit, failPublish, marketFeed, bouncePublish, mail, mailSentPublish, mailReadPublish, mailExpirePublish, mailAbandonPublish, mailReadmitPublish, mailFailPublish, mailFeed, mailFeedRead, mailFeedExpire });
+    const subs = buildSubs({ inventory, busAck, busOutAck, busSeenBound, chat, rankingAddr, audit, busLeaseAudit, busLeasePresence, failover, zones, presencePublish, presenceMonitor, presenceAnnounce, presenceQuery, presenceShadowAddr, whisperRouter, whisperFailover, presenceBox, presenceReportBus, presenceLease, replaceAddr, failedPublish, deliveredPublish, partyChange, partyService, guildService, guildChangePublish, guildFeed, guildBank, guildBankPublish, guildBankFeed, partyIncompletePublish, partyCompletePublish, mailboxDrainedPublish, mailboxLossPublish, whisperReceipt, exchange, exchangePublish, cancelPublish, expirePublish, abortPublish, abandonPublish, readmitPublish, autoReadmit, failPublish, marketFeed, bouncePublish, mail, mailSentPublish, mailReadPublish, mailExpirePublish, mailAbandonPublish, mailReadmitPublish, mailFailPublish, mailFeed, mailFeedRead, mailFeedExpire });
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
   }
   // [데이터] 영속 스토어 — persist ON 일 때만 토폴로지에 존재(OFF = 0016 토폴로지 비트 동일). onTick 없음 = 신성한 tick 밖.

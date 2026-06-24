@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0196](step-0196.md) — **길드 금고 아이템 수 배지**(guildBankFeed·GuildFeed bankCount): GuildFeed 가 svc.guild.bank.changed 구독→금고 아이템 수 배지(deposit +1·withdraw −1·CQRS·발신 0). 배지==vault 크기. 0186 멤버 수 배지의 금고 판. 닿는 박스: svc-guildfeed·topo-build·topo-subs.
-- **한 줄 상태**: reg ALL OK·guildbankfeed: g1 배지 2==vault·g2 1==vault·OFF 0·spine OK.
-- **다음**: §2 — bank 배지 영속·late-join(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0197](step-0197.md) — **길드 금고 배지 영속·late-join**(guildFeedPersist 금고 배지 확장): 금고 소비 op 저널 replay·crash(bankCounts 소실)→reconstruct kind 분기 replay 로 배지 재구성. 0187 멤버 배지 영속의 금고 판. 닿는 박스: svc-guildfeed.
+- **한 줄 상태**: reg ALL OK·guildbankfeedpersist: crash→reconstruct 배지 g1 2·g2 1==pre·OFF 소실·spine OK.
+- **다음**: §2 — bank 배지 정합 capstone(0198·배지==vault)→원장 정합(0199)→arc capstone(0200)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷·0196 배지 ✅. 다음: 배지 영속(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
+**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷·0196 배지·0197 배지 영속 ✅. 다음: 배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -288,3 +288,4 @@
 | [0194](step-0194.md) | 길드 금고 영속·failover(guildPersist 금고 확장·deposit/withdraw 저널 replay) | 통과 · crash→reconstruct vault==pre·OFF 소실 |
 | [0195](step-0195.md) | 길드 금고 저널 스냅샷 압축(guildSnapshot 금고 확장·vault 포함·tail replay) | 통과 · tail 1<full 9·무손실 vault 4 |
 | [0196](step-0196.md) | 길드 금고 아이템 수 배지(guildBankFeed·GuildFeed bankCount·0186 금고 판) | 통과 · 배지==vault(g1 2·g2 1)·OFF 0 |
+| [0197](step-0197.md) | 길드 금고 배지 영속·late-join(guildFeedPersist 금고 배지·kind 분기 replay·0187 판) | 통과 · crash→reconstruct 배지==pre·OFF 소실 |
