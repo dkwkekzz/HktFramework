@@ -9,17 +9,17 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0240](step-0240.md) — **loginabandon 모드 spine 승급(#16 완료)**: 0230 의 라이브 bespoke 를 `engine/verify-kit.js` 로 이동·verify.js 를 순수 셸로 정리(중복 등록 0). 박스 `.js` 0줄 → reg 0 자명. **#16 정리·도구 라운드 10/10 — 3차 균형 라운드(0221~0230) bespoke 10모드 전부 누적 회귀화 완료.**
-- **한 줄 상태**: reg ALL OK·loginabandon: 5/5 p2 이탈·큐 [p1,p3]·`run.js all` 에 10모드 전부 + classics ALL OK·spine ALL OK.
-- **다음**: 🎯 **#16 spine 승급 라운드(0231~0240) 완료** — 3차 라운드 양성 단언이 이제 생성 step 한정이 아니라 매 spine 항구. **다음 방향(실배선#51/정리#49 wiring>30KB/멀티프로세스#9/실 존 연동/진짜 비동기#4)의 권위 판정은 `infra-review`**(0231~0240 묶음). 🔎 묶음 리뷰 적기. 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
+- **닫힌 step**: [step-0241](step-0241.md) — **배치 SSOT 실배선(#51) 1: 존 런타임 레지스트리**. `orchestrator.js` 에 `running`(zoneId→실 가동 host·executed SSOT)+`_start`+질의 추가·`placeZone` 이 `placeExecute` ON 이면 paper `placement`(결정) 갱신에 더해 실 존 런타임 가동(advisory→executed 첫 조각·instance.js active 동형). OFF→0240 비트 동일.
+- **한 줄 상태**: reg ALL OK·placeexec: 5/5 placed 2·running 2·starts 2·결정==집행·`run.js all` 11모드+classics ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51 실배선 arc 진행 중**(0231~0240 verdict: "load-bearing 0순위 #51 — placeMigrate/Rebalance/Drain→실 존 핸드오프"). 0241 = 존 런타임 SSOT(start). **다음 = 0242 executed placeMigrate**(실 런타임 release+acquire 핸드오프·paper Map.set→실 이주). 그 뒤 rebalance/drain executed·reconcile capstone → 그 다음 게이트 #49(wiring 분할).
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#16 spine 승급 라운드 완료**(0231~0240) — 3차 균형 라운드(0221~0230)의 bespoke 10모드를 1 step 당 1개씩 `engine/verify-kit.js` 누적 키트로 승급(전부 박스 0줄·reg 0 자명·spine OK). 생성 step 한정이던 양성 단언이 이제 매 spine 항구. **다음 방향의 권위 판정은 `infra-review`**(0231~0240 묶음). step-loop 은 그 평결을 읽어 여기로 승급.
+> 🎯 **#51 배치 SSOT 실배선 arc 진행 중** — 0231~0240 verdict 평결: "정리 빚 대부분 청산·load-bearing 0순위 #51 이 명백" (placeZone/Migrate/Rebalance/Drain 이 `orchestrator.js:placement` paper map 만 갱신·실 존 안 움직임). 집행: placement(결정)을 실 존 런타임 lifecycle 로 구동. **게이트 = `placeExecute` OFF→현 paper map=회귀 0.**
 
-**#16 승급 라운드 ✅(0231~0240):** instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon → verify-kit ORDER 편입. verify.js 는 순수 셸로 정리(중복 0).
+**#51 실배선 arc 계획:** 0241 존 런타임 SSOT(running·executed·start) ✅ → 0242 executed placeMigrate(실 release+acquire) → 0243 executed placeRebalance → 0244 executed placeDrain → 0245 placement↔running reconcile capstone(drift 0) → 0246~ 심화(executed placeAuto·placeStop·crash/recover) 또는 게이트 #49(wiring 분할).
 
 **후속 백로그 (🔴 제외)**: ⒜ **실배선 #51**(배치 SSOT→실 존 lifecycle·placeMigrate/Rebalance/Drain 이 advisory paper map) ⒝ **정리 #49**(wiring >30KB — topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB·다음 너비/멀티프로세스 전 분할 게이트) ⒞ 멀티프로세스 배선(#9) ⒟ 진짜 비동기(#4) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
 
@@ -78,7 +78,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
@@ -156,3 +156,4 @@
 | [0238](step-0238.md) | worldfsync 모드 spine 승급(#16 — 0228 월드영속 fsync durable barrier·정리 라운드 8/10) | 통과(reg 0·spine OK) · 5/5 durSeq 3·full 5 |
 | [0239](step-0239.md) | loginauth 모드 spine 승급(#16 — 0229 로그인 계정 검증·정리 라운드 9/10) | 통과(reg 0·spine OK) · 5/5 authed 2·rejects 1 |
 | [0240](step-0240.md) | loginabandon 모드 spine 승급(#16 — 0230 큐 이탈·verify.js→kit 이동·순수 셸 정리·#16 승급 라운드 0231~0240 닫기) | 통과(reg 0·spine OK) · 5/5 + 10모드 ALL OK |
+| [0241](step-0241.md) | 배치 SSOT 실배선 #51-1: 존 런타임 레지스트리(running·executed SSOT·placeExecute→placeZone start·advisory paper→executed lifecycle 첫 조각) | 통과(reg 0·spine OK) · 5/5 running 2·starts 2·결정==집행 |

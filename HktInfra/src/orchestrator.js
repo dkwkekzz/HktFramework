@@ -1,4 +1,5 @@
 'use strict';
+// step-0241 — 배치 SSOT 실배선(#51) 1: 존 런타임 레지스트리(running). placement(결정 SSOT·"어디서 돌아야 하나")와 별개로 *실제 가동 중인* 존 런타임을 host 별로 추적하는 executed SSOT(=집행 현실). placeExecute ON 이면 placeZone 이 paper 갱신에 더해 실 존 런타임을 *띄운다*(running.set·starts++·instance.js active SSOT 와 동형). OFF 면 paper map 만 = 0240 비트 동일(reg 0). advisory→executed 의 첫 조각.
 // step-0224 — 오케스트레이터 host 드레인(placeDrain): 정비/퇴역할 host 의 *모든* 존을 다른(나머지) host 중 최소부하로 차례차례 이주(release+acquire 연쇄·존 권위 단일 소유 보존). 드레인 후 그 host 부하 0(비운다). 다른 host 없으면 보류(존 잔류). placeDrain 미수신이면 0223 비트 동일(reg 0). 3차 고도화(오케스트레이터 #2).
 // step-0223 — 오케스트레이터 부하 재배치 자동 트리거(placeRebalance): 후보 host 부하 불균형(최대−최소 ≥ 2)이면 최대부하 host 의 존을 최소부하 host 로 *자동* placeMigrate(0218 의 자동 트리거판·정적 배치 한계 제거). 균형(gap<2)까지 한 패스 수렴. 결정론 host/zone 순서. placeRebalance 미수신이면 0222 비트 동일(reg 0). 3차 고도화(오케스트레이터 #1).
 // step-0218 — 오케스트레이터 존 재배치 핸드오프(placeMigrate): 이미 배치된 존을 다른 host 로 *release(기존)+acquire(신규) 쌍*으로 옮긴다(존 권위 단일 소유 보존·공백/중복 0·0006 핸드오프의 배치 판). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 0217 비트 동일(reg 0). 2차 고도화(오케스트레이터 #2).
@@ -33,6 +34,10 @@ class Orchestrator {
     this.rebalanceMoves = 0;      // 재배치 자동 트리거로 옮긴 존 누적 수(step-0223·release+acquire 쌍).
     this.drains = 0;              // 처리한 placeDrain 수(step-0224·계측).
     this.drainMoves = 0;          // 드레인으로 다른 host 로 이주한 존 누적 수(step-0224·release+acquire 연쇄).
+    // 존 런타임 레지스트리(step-0241·#51 실배선) — placement 가 "어느 존이 어느 host 에서 *돌아야* 하나"(결정)라면, running 은 "지금 *실제로* 어느 host 에서 도는가"(집행 현실). placeExecute ON 이면 배치 결정이 실 존 런타임 lifecycle(start/migrate/stop)을 구동한다(advisory paper → executed). OFF 면 빈 채 = 0240 비트 동일.
+    this.placeExecute = opts.placeExecute || false;
+    this.running = new Map();     // zoneId -> host (실 가동 중인 존 런타임의 host·executed SSOT·권위 단일 소유: 한 존은 정확히 한 host 에서 돈다).
+    this.starts = 0;              // executed placeZone 으로 실제 가동(start)된 존 런타임 누적 수(step-0241·계측·멱등 재배치 제외).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -81,7 +86,7 @@ class Orchestrator {
   onMsg(m) {
     const p = m.payload;
     // 존 배치 SSOT 쓰기(step-0203·placeZone) — {zoneId, host} → 배치 맵 갱신(재배치는 덮어씀). 코디네이션의 배치 결정 권위. placementOps 미주입이면 영영 안 옴 = 0202 비트 동일(reg 0). 질의는 0204.
-    if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; return; }
+    if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; if (this.placeExecute) this._start(p.zoneId, p.host); return; }
     // 부하 기반 자동 배치(step-0217·placeAuto) — {zoneId, hosts[]} → 후보 host 중 최소 부하(배치된 존 수 최소) host 선택 배치(부하 분산·정적 배치 한계 제거). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 미발화 = 0216 비트 동일.
     if (p.type === 'placeAuto') {
       const host = this._leastLoaded(p.hosts || []);
@@ -171,9 +176,18 @@ class Orchestrator {
     for (const a of this.pairs.keys()) if (a !== deadAuth && !this.dead.has(a)) return a;
     return null;
   }
+  // 존 런타임 start(step-0241·#51) — 배치 결정을 *집행*: 실 존 런타임을 host 에 띄운다(running 등록). 이미 도는 존이면 멱등(같은/다른 host 재배치는 0242 migrate 가 담당·여기선 신규 가동만 카운트). placeExecute ON 일 때만 placeZone 이 호출. instance.js _spawn 의 존-배치 판.
+  _start(zoneId, host) {
+    if (this.running.has(zoneId)) { this.running.set(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등·신규 start 아님).
+    this.running.set(zoneId, host); this.starts++; return true;
+  }
   // 존 배치 질의(step-0203) — "이 존이 어디 사나 / 몇 개 배치됐나"(배치 SSOT 읽기). 게이트웨이 라우팅·검증이 쓴다. 질의 인터페이스(request/reply over net)는 0204.
   placementOf(zoneId) { return this.placement.get(zoneId) || null; }
   placedCount() { return this.placement.size; }
+  // 존 런타임 질의(step-0241·#51) — "이 존이 *실제로* 어느 host 에서 도나 / 이 host 에 몇 개 도나 / 총 몇 개 도나"(executed SSOT 읽기·placement 결정과 대조해 drift 0 검증).
+  runningHostOf(zoneId) { return this.running.get(zoneId) || null; }
+  runningOn(host) { let n = 0; for (const h of this.running.values()) if (h === host) n++; return n; }
+  runningCount() { return this.running.size; }
   // host 부하(step-0217) — 그 host 에 배치된 존 수(배치 SSOT 에서 파생·부하 지표). 부하 분산 판정의 기준.
   hostLoad(host) { let n = 0; for (const h of this.placement.values()) if (h === host) n++; return n; }
   // 최소 부하 host(step-0217) — 후보 중 hostLoad 최소를 고른다. 동률은 후보 배열 순서로 결정론 tie-break(첫 최소). 후보 없으면 null.
