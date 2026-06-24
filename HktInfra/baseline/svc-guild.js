@@ -1,4 +1,11 @@
 'use strict';
+// step-0199 — 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유): 0191~0198 에서 금고 박스(예치·인출·발행·영속·스냅샷·배지·배지영속·배지정합)를 세웠다. 이 step 은 금고 원장(vault)의 *척추 ③ 권위 단일 소유*를 명시 단언한다 — bankConsistent(): 어떤 itemId 도 두 길드 금고에 동시에 있지 않고(이중 소유 0·교차 중복 0)·한 금고 안에서 중복 0. rosterConsistent(0190)가 master 권위를 단언하듯, bankConsistent 는 *아이템 권위*를 단언한다. 순수 읽기(권위 0·실행 경로 무변경) → 0198 비트 동일(reg). 거래소 escrow 보존 0120·우편 escrow 0164 의 길드 금고 판.
+// step-0195 — 길드 금고 저널 스냅샷 압축(guildSnapshot 의 금고 확장): 0194 의 금고 저널은 *무계 성장*이라 예치/인출이 누적될수록 replay 비용·메모리가 ∝변경 수다(0194 한계). 0185 가 로스터 projection 을 주기 스냅샷+tail replay 로 압축한 그 메커니즘을 vault 에 확장한다: 스냅샷에 로스터뿐 아니라 *vault 도* 담고(bank: [[guildId,[itemId...]]...]), 그 이하 저널은 가지치기 → 저널은 마지막 스냅샷 이후 tail 만 보관(유계). reconstruct 는 스냅샷의 guilds+bank 에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot 0(snapInterval 0)이면 압축 0·저널 무계 = 0194 비트 동일(reg).
+// step-0194 — 길드 금고 영속·failover(guildPersist 의 금고 확장·변경 저널 replay): 0191~0193 의 금고(vault)는 *휘발*이라 박스 crash 시 예치된 아이템이 전부 소실됐다(영속 0·0193 한계). 0184 가 로스터/마스터십을 변경 저널로 영속시킨 그 메커니즘을 금고에 확장한다: 예치/인출 성사를 *변경 저널*(durable)에 append(kind 'deposit'/'withdraw'), crash(vault 소실) 후 fresh GuildService 가 저널을 seq 순 replay 해 vault projection 을 재구성 → 죽기 전과 비트 동일. crash 가 vault 도 비우고 reconstruct 가 vault 도 복원(로스터와 같은 저널·같은 replay 루프). guildPersist OFF 면 저널 0·crash 후 빈 금고(소실) = 0193 비트 동일(reg).
+// step-0193 — 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed): 0191~0192 의 예치/인출은 *관측 불가*였다 — 금고에 무엇이 들고 났는지 스트림이 0이었다(0192 한계). 다른 시스템(금고 UI 배지·감사·길드 로그)이 금고 변동을 구독해야 한다. 거래소 체결 발행(0108)·길드 멤버십 변경 발행(0183)의 금고 판: 실제 변경(예치 성사·인출 성사) 시 svc.guild.bank.changed{guildId,kind:deposit|withdraw,itemId,member} 를 버스로 발행 → 발행자 무수정 소비자(audit)가 반응. no-op(중복 예치·없는 인출·비멤버)은 발행 안 함(발행==실 변경). bankPublish OFF·bus 부재면 발행 0 = 0192 비트 동일(reg).
+// step-0192 — 길드 금고 withdraw(guildWithdraw): 0191 의 예치(deposit)는 *입금 전용*이라 길드 금고가 단조 증가만 했다 — 멤버가 금고에서 아이템을 도로 꺼낼 길이 없었다(0191 한계). 인출을 더한다: guildWithdraw{guildId,member,itemId} → 금고에 그 itemId 가 있고 요청자가 멤버일 때만 제거(없으면/비멤버면 멱등·graceful no-op). 거래소 buy leg(0118)·우편 fetch(0158)의 길드 금고 판. bank OFF·미주입이면 0191 비트 동일(reg).
+// step-0191 — 길드 금고(Guild Bank) deposit(guildBank·guildDeposit): 0181~0190 에서 길드 박스(로스터+마스터십)를 완성했다. 이 arc(0191~0200)는 길드의 *공유 아이템 원장*(금고/vault)을 키운다 — 멤버가 아이템을 길드 금고에 예치/인출하는, 거래소 escrow(0117)·우편 아이템 custody(0157)의 *조직 공유* 판. 첫 조각: guildDeposit{guildId, member, itemId} → 금고가 itemId 를 보유(vault: guildId→[itemId]·집합 의미론·중복 무시 멱등). single-master 와 직교(권위=금고 원장). bank OFF·미주입이면 금고 0 = 0190 비트 동일(reg). 계층: 3 게임 서비스.
+// step-0190 — 길드 정합 capstone(rosterConsistent·single-master 불변·arc 0181~0190 닫기): 0181~0189 에서 길드 박스를 세웠다(로스터 SSOT·증분·발행·영속·스냅샷·배지·feed 영속·정합·마스터 이양). 이 step 은 박스 전체를 관통하는 *척추 ③ 권위 단일 소유*의 길드 불변을 명시 단언한다 — rosterConsistent(): 모든 길드는 정확히 한 master(공백 0)·master ∈ members(고아 마스터 0)·멤버 중복 0. 모든 연산(create/join/leave/transfer)·모든 체제(정상·guild crash→reconstruct·feed crash→reconstruct)서 성립 + feedConsistent(0188 배지==로스터)와 결합 → 길드 박스가 결코 single-master 를 깨지 않음을 증명. 순수 읽기(권위 0·실행 경로 무변경) → 0189 비트 동일(reg). 거래소 0140·우편 0180 capstone 의 길드 판.
 // step-0189 — 마스터 이양(guildTransfer·single-master 보존 쌍 거래): 0182 master 보호는 마스터를 *영구 고정*했다 — 마스터가 길드를 떠나거나 위임할 길이 없었다(0182 한계). 권위 이동의 정전 패턴(release+acquire 쌍 거래·SPINE §5 ③·존 핸드오프 0006·escrow 거래 0117 의 *마스터십* 판)을 길드에 적용한다: guildTransfer{guildId,from,to} → from 이 현재 master 이고 to 가 멤버일 때만 master 를 to 로 *원자 교체*(공백 0·이중 0). from 은 일반 멤버로 잔류(로스터 크기 불변). to 비-멤버·from 비-마스터면 no-op(거래 거부). 이양도 발행(kind 'transfer'·GuildFeed 는 무시=배지 불변)·저널(영속 replay 동일 적용). guildTransfer 미주입이면 0188 비트 동일(reg).
 // step-0186 — 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed): 0183 변경 발행은 가입/탈퇴 델타만 노출했다 — 길드 *현재 멤버 수*를 한눈에 보려는 소비자(길드 목록 UI·정원 체크)는 매번 로스터 질의를 해야 했다(0185 한계). 우편 MailFeed 0151·거래소 MarketFeed 0112 의 읽기 모델(발행 스트림 구독·발신 0·권위 0)을 길드에 적용한다: 새 박스 GuildFeed 가 svc.guild.changed 를 구독해 guildId 별 memberCount 배지를 유지(create=초기 로스터 크기·join +1·leave −1). 배지는 로스터 SSOT 와 독립한 *파생 읽기 모델*(CQRS). 정확한 배지를 위해 이 step 은 guildCreate 도 발행(kind 'create'·members) — changePublish ON 일 때만. guildFeed OFF·guild 부재면 박스 0 = 0185 비트 동일.
 // step-0185 — 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay): 0184 의 변경 저널은 *무계 성장*이라 가입/탈퇴가 누적될수록 replay 비용·메모리가 ∝변경 수다(0184 한계). 파티 0086(가방 0018·채팅 0022 동일)의 주기 스냅샷+tail replay 를 길드 저널에 적용한다: snapInterval 개 변경마다 현재 로스터 projection 을 스냅샷(upToSeq 기록)하고 그 이하 저널을 가지치기 → 저널은 *마지막 스냅샷 이후 tail* 만 보관(유계). reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot(snapInterval 0) 면 압축 0·저널 무계 = 0184 비트 동일.
@@ -34,6 +41,12 @@ class GuildService {
     this.snapInterval = opts.snapInterval || 0;   // 저널 스냅샷 압축(step-0185·guildSnapshot) — 이 개수 변경마다 로스터 스냅샷+저널 가지치기. 0 이면 압축 0(0184 동일·무계 저널).
     this.snapshot = null;         // {upToSeq, guilds:[[guildId,{master,members}]...]} — 마지막 압축 스냅샷(이하 저널은 가지쳐짐). reconstruct 의 출발점.
     this.snapshots = 0;           // 찍은 스냅샷 수(step-0185·계측).
+    this.bank = opts.bank || false;     // 길드 금고 활성(step-0191·guildBank) — 멤버가 아이템을 길드 공유 원장(vault)에 예치/인출. OFF 면 금고 명령 무시(0190 비트 동일). 거래소 escrow·우편 custody 의 조직 공유 판.
+    this.vault = new Map();       // guildId -> [itemId...] (금고 원장 SSOT — 길드가 보유한 아이템 집합·중복 0·권위 단일 소유). 로스터/마스터십과 직교(권위=원장).
+    this.deposits = 0;            // 처리한 guildDeposit 수(step-0191·계측·no-op 포함).
+    this.withdraws = 0;           // 처리한 guildWithdraw 수(step-0192·계측·no-op 포함).
+    this.bankPublish = opts.bankPublish || false;   // 금고 변경 발행(step-0193·guildBankPublish) — 예치/인출을 svc.guild.bank.changed 로. OFF·bus 부재면 발행 0(0192 동일).
+    this.bankPublished = 0;       // svc.guild.bank.changed 발행 수(step-0193·계측). 실 변경과 1:1(no-op 발행 안 함).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
@@ -48,7 +61,7 @@ class GuildService {
     this.journal.push({ seq: ++this.jseq, ...entry });
     // 스냅샷 압축(step-0185) — tail 길이가 snapInterval 에 도달하면 현재 로스터를 스냅샷(upToSeq=jseq)하고 그 이하 저널 가지치기. 저널은 마지막 스냅샷 이후 tail 만 보관(유계). snapInterval 0 면 미발화(0184 동일). 파티 0086 의 길드 판.
     if (this.snapInterval > 0 && this.journal.length >= this.snapInterval) {
-      this.snapshot = { upToSeq: this.jseq, guilds: [...this.guilds].map(([k, v]) => [k, { master: v.master, members: v.members.slice() }]) };
+      this.snapshot = { upToSeq: this.jseq, guilds: [...this.guilds].map(([k, v]) => [k, { master: v.master, members: v.members.slice() }]), bank: [...this.vault].map(([k, v]) => [k, v.slice()]) };   // step-0195 — vault 도 스냅샷에 포함(금고 압축).
       this.journal = this.journal.filter(e => e.seq > this.jseq);   // tail 만 남김(방금 upToSeq 이하 전부 가지치기 → 0)
       this.snapshots++;
     }
@@ -57,6 +70,11 @@ class GuildService {
   _publishChange(guildId, kind, member) {
     if (!(this.changePublish && this.bus)) return;
     this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.guild.changed', ev: { guildId, kind, member } }); this.published++;
+  }
+  // 금고 변경 발행(step-0193) — 예치/인출 성사를 svc.guild.bank.changed 로. bankPublish OFF·bus 부재면 no-op(0192 동일). 실 변경 시에만 호출(no-op 발행 안 함). 거래소 0108·길드 변경 발행 0183 의 금고 판.
+  _publishBank(guildId, kind, itemId, member) {
+    if (!(this.bankPublish && this.bus)) return;
+    this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.guild.bank.changed', ev: { guildId, kind, itemId, member } }); this.bankPublished++;
   }
   onMsg(m) {
     const p = m.payload;
@@ -94,6 +112,28 @@ class GuildService {
       }
       return;
     }
+    // 길드 금고 예치(step-0191·guildDeposit) — 멤버가 아이템을 길드 공유 원장(vault)에 예치. bank OFF 면 무시(0190 비트 동일). 미존재 길드·비멤버면 graceful no-op(로스터 선결·은닉). 이미 vault 에 있으면 멱등 no-op(집합 의미론). 거래소 0117 list leg·우편 0157 mailItem 의 조직 공유 판.
+    if (p.type === 'guildDeposit') {
+      if (!this.bank) return;
+      this.deposits++;
+      const g = this.guilds.get(p.guildId);
+      if (g && g.members.includes(p.member)) {
+        const v = this.vault.get(p.guildId) || [];
+        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); this._journalChange({ kind: 'deposit', guildId: p.guildId, itemId: p.itemId }); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193)·저널(0194).
+      }
+      return;
+    }
+    // 길드 금고 인출(step-0192·guildWithdraw) — 멤버가 길드 금고에서 아이템을 꺼냄. bank OFF 면 무시(0191 비트 동일). 멤버이고 금고에 그 itemId 가 있을 때만 제거(비멤버·없는 itemId·미존재 길드면 멱등 graceful no-op). 거래소 buy leg 0118·우편 fetch 0158 의 길드 금고 판.
+    if (p.type === 'guildWithdraw') {
+      if (!this.bank) return;
+      this.withdraws++;
+      const g = this.guilds.get(p.guildId);
+      const v = this.vault.get(p.guildId);
+      if (g && g.members.includes(p.member) && v && v.includes(p.itemId)) {
+        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member); this._journalChange({ kind: 'withdraw', guildId: p.guildId, itemId: p.itemId });   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193)·저널(0194).
+      }
+      return;
+    }
     // 로스터 질의(읽기·request/reply) — 클라/라우터가 길드 로스터를 묻는다. 미존재 길드면 master null·빈 목록(graceful). 응답을 m.from 으로 회신.
     if (p.type === 'guildQuery') {
       this.queriesRx++;
@@ -104,13 +144,34 @@ class GuildService {
   }
   membersOf(guildId) { const g = this.guilds.get(guildId); return g ? g.members : []; }
   masterOf(guildId) { const g = this.guilds.get(guildId); return g ? g.master : null; }
+  bankOf(guildId) { return this.vault.get(guildId) || []; }   // 금고 원장 읽기(step-0191) — 길드가 보유한 itemId 목록(읽기·권위 0).
+  // bankConsistent(step-0199·capstone) — 금고 원장 권위 단일 소유 불변(척추 ③): 어떤 itemId 도 두 길드 금고에 동시에 있지 않고(교차 중복 0=이중 소유 0)·한 금고 안 중복 0. 순수 읽기(권위 0). rosterConsistent(0190·master 권위)의 *아이템 권위* 판. 거래소 escrow 보존 0120·우편 0164 의 길드 금고 판.
+  bankConsistent() {
+    const owner = new Map();   // itemId -> 보유 guildId(첫 등장). 둘째 등장 = 이중 소유 위반.
+    for (const [gid, items] of this.vault) {
+      if (new Set(items).size !== items.length) return false;   // 금고 내부 중복 0.
+      for (const it of items) { if (owner.has(it)) return false; owner.set(it, gid); }   // itemId 단일 길드 소유(교차 중복 0).
+    }
+    return true;
+  }
+  // rosterConsistent(step-0190·capstone) — single-master 불변(척추 ③): 전 길드 정확히 한 master(공백 0)·master ∈ members(고아 0)·멤버 중복 0. 순수 읽기(권위 0). 모든 연산·체제서 성립해야 길드 박스가 권위 단일 소유를 보존. 거래소 0140·우편 0180 capstone 의 길드 판.
+  rosterConsistent() {
+    for (const g of this.guilds.values()) {
+      if (g.master == null) return false;                              // 마스터 공백 0.
+      if (!g.members.includes(g.master)) return false;                 // 고아 마스터 0(master ∈ members).
+      if (new Set(g.members).size !== g.members.length) return false;  // 멤버 중복 0.
+    }
+    return true;
+  }
   // crash(step-0184) — 박스 RAM 소실의 인프로세스 모델: 로스터 projection·계측만 비운다. *변경 저널은 durable* 이라 보존(파티 0085 의 길드 판).
-  crash() { this.guilds = new Map(); this.creates = 0; this.joins = 0; this.leaves = 0; }
+  crash() { this.guilds = new Map(); this.vault = new Map(); this.creates = 0; this.joins = 0; this.leaves = 0; this.deposits = 0; this.withdraws = 0; }   // step-0194 — vault 도 휘발(저널만 durable). 금고 미사용 시 vault 는 빈 Map → 비우기·복원 모두 빈 Map(0193 비트 동일).
   // reconstruct(step-0184·failover) — fresh 박스가 durable 변경 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재계산. create=설정·join=추가·leave=제거(master 보호 동일) → 죽기 전과 비트 동일. 자기 영속 저널만으로 복원.
   //   0185: 스냅샷이 있으면 그 로스터에서 출발해 tail(seq>upToSeq)만 replay → 스냅샷+tail == 전체 저널(무손실 압축). 스냅샷 없으면 저널 전체 replay(0184).
   reconstruct() {
     const m = new Map();
+    const bank = new Map();   // step-0194 — 금고 vault projection 도 같은 저널에서 재구성.
     if (this.snapshot) for (const [k, v] of this.snapshot.guilds) m.set(k, { master: v.master, members: v.members.slice() });
+    if (this.snapshot && this.snapshot.bank) for (const [k, v] of this.snapshot.bank) bank.set(k, v.slice());   // step-0195 — 스냅샷의 vault 에서 출발(tail 만 replay).
     const upTo = this.snapshot ? this.snapshot.upToSeq : -1;
     for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) {
       if (e.seq <= upTo) continue;
@@ -118,8 +179,11 @@ class GuildService {
       else if (e.kind === 'join') { const g = m.get(e.guildId); if (g && !g.members.includes(e.member)) g.members.push(e.member); }
       else if (e.kind === 'leave') { const g = m.get(e.guildId); if (g && e.member !== g.master && g.members.includes(e.member)) g.members = g.members.filter(x => x !== e.member); }
       else if (e.kind === 'transfer') { const g = m.get(e.guildId); if (g && g.members.includes(e.master)) g.master = e.master; }   // step-0189 — 이양 replay(master 교체·로스터 불변).
+      else if (e.kind === 'deposit') { const v = bank.get(e.guildId) || []; if (!v.includes(e.itemId)) { v.push(e.itemId); bank.set(e.guildId, v); } }   // step-0194 — 예치 replay(금고에 itemId 추가·중복 0).
+      else if (e.kind === 'withdraw') { const v = bank.get(e.guildId); if (v && v.includes(e.itemId)) bank.set(e.guildId, v.filter(x => x !== e.itemId)); }   // step-0194 — 인출 replay(금고서 itemId 제거).
     }
     this.guilds = m;
+    this.vault = bank;
   }
 }
 
