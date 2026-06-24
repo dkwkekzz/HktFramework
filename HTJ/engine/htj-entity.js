@@ -520,18 +520,24 @@
     }
     const out = []; let coarsened = 0, refined = 0;
     // ① coarsen — 블록당 2+ 면 합침(블록 키 정렬 = 결정론). 단일은 그대로(이미 최소).
+    //   (M2·0072) opts.tagDNA(members) 훅이 있으면 합치며 구성원 배치를 형태 DNA 로 태깅(merged.shapeHash) →
+    //   재coarsen 해도 DNA 보존 → 다음 refine 이 평면 고리 아닌 *원래 형태*(refineByDNA·0071). 미지정=태깅 안 함(0039).
     for (const key of Array.from(farBuckets.keys()).sort()) {
       const g = farBuckets.get(key);
       if (g.length === 1) { out.push(entities[g[0]]); continue; }
       const merged = mergeGroup(entities, g);
       merged.lodMembers = g.reduce((s, idx) => s + (entities[idx].lodMembers || 1), 0);  // 되쪼갤 fine 수
+      if (opts.tagDNA) merged.shapeHash = opts.tagDNA(g.map(i => entities[i]));           // (M2) 형태 DNA 태깅 훅
       out.push(merged); coarsened++;
     }
     // ② refine — near 의 coarse 구체(구성원>1)를 그 수 만큼 fine 으로(폭발 없이 = dispersalFrac 0).
+    //   (M4·0070) opts.refineDNA(entity) 훅이 있고 그 개체가 DNA(shapeHash)를 들면 *원래 형태* 물리 조각으로
+    //   되쪼갠다(refineByDNA·렌더 LOD↔물리 LOD 합류). 훅 미지정/DNA 없음 → fragmentEntity 평면 고리(0039·회귀0).
     for (const idx of nearIdx) {
       const e = entities[idx], members = e.lodMembers || 1;
       if (members > 1) {
-        const frags = fragmentEntity(e, { n: members, dispersalFrac: 0, spread: opts.spread });
+        let frags = opts.refineDNA ? opts.refineDNA(e) : null;        // DNA 형태 물리 복원 훅(옵션)
+        if (!frags) frags = fragmentEntity(e, { n: members, dispersalFrac: 0, spread: opts.spread });  // 폴백=평면 고리(0039)
         for (const f of frags) { f.lodMembers = 1; out.push(f); }
         refined++;
       } else out.push(e);
@@ -598,5 +604,5 @@
     return { entities: out, merges };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 10 };
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 12 };
 });
