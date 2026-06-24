@@ -1,8 +1,8 @@
-// HktInfra step-0208 — 헤드리스 검증 (월드 영속 replay 재구성·crash→로그 replay 무손실)
+// HktInfra step-0209 — 헤드리스 검증 (로그인 큐 박스·enqueue/dequeue·loginQueue)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldreplay`.
-//   더한 한 조각: WorldLog.replay — durable intent 로그 전수 재적용 → 월드 상태 투영 복원. crash(투영 소실) 후 로그만으로 동일 상태(event sourcing). worldLog OFF → 0206 비트 동일(reg).
-//   검증: ⒜ `reg`(키트). ⒝ `worldreplay`(가설) — append 4 → replay 상태 vs crash 후 replay 상태 digest 동일·h1 pos 6/sword·h2 pos 8.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `loginqueue`.
+//   더한 한 조각: LoginQueue 박스 — 대기열 FIFO(enqueue·중복 멱등) + 입장 티켓 발급(dequeue·먼저 줄 선 순서). 접속 폭주를 엣지서 흡수(0001 스텁의 대기열 실체화). loginQueue OFF → 0208 비트 동일(reg). 만료는 0210.
+//   검증: ⒜ `reg`(키트). ⒝ `loginqueue`(가설) — enqueue 4(p1·p2·p3·p1 중복) + dequeue 1 → 큐 2·admitted 1·p1 tkt-1·p2 pos 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,34 +15,30 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const APPEND = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
+const ENQ = (at, player) => ({ at, op: { type: 'loginEnqueue', player } });
+const DEQ = (at) => ({ at, op: { type: 'loginDequeue' } });
+// 시나리오: p1·p2·p3 줄서기 + p1 중복(멱등) → dequeue 1(p1 입장·FIFO).
 const OPS = [
-  APPEND(2, { kind: 'move', e: 'h1', to: 5 }), APPEND(3, { kind: 'move', e: 'h2', to: 8 }),
-  APPEND(4, { kind: 'pickup', e: 'h1', item: 'sword' }), APPEND(5, { kind: 'move', e: 'h1', to: 6 }),
+  ENQ(2, 'p1'), ENQ(3, 'p2'), ENQ(4, 'p3'), ENQ(5, 'p1'),   // p1 중복 → 멱등 no-op.
+  DEQ(6),   // 맨 앞 p1 입장 → tkt-1.
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginOps: OPS };
 
-function worldreplay(seeds) {
-  console.log('== worldreplay: 월드 영속 replay 재구성 — durable intent 로그 전수 재적용 → 월드 상태 투영 복원. crash(투영 소실) 후에도 로그만으로 동일 상태(event sourcing·복제=재현). ==');
-  console.log('seed   | digest(pre) | digest(post-crash replay) | 무손실 | h1 pos/items | 판정');
+function loginqueue(seeds) {
+  console.log('== loginqueue: 로그인 큐 박스 — enqueue/dequeue 기본. 접속 폭주를 엣지서 대기열로 흡수(FIFO·중복 멱등)하고 순서대로 세션 티켓 발급. 대기열은 엣지서 끝난다(월드 안 닿음). ==');
+  console.log('seed   | 큐 길이 | admitted | p1 ticket | p2 pos | enq/deq | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const w = r.worldlog;
-    w.replay();                       // 로그→투영 재구성.
-    const pre = w.stateDigest();
-    w.crash();                        // 투영 소실(로그는 durable).
-    w.replay();                       // 로그만으로 재구성.
-    const post = w.stateDigest();
-    const h1 = w.stateOf('h1'), h2 = w.stateOf('h2');
-    const lossless = pre === post;
-    const ok = check(lossless && h1 && h1.pos === 6 && h1.items.join(',') === 'sword' && h2 && h2.pos === 8,
-      `seed ${seed}: replay 위반 (pre ${pre}·post ${post}·h1 ${JSON.stringify(h1)})`);
-    console.log(`${pad(seed, 6)} | ${pad(pre, 11)} | ${pad(post, 25)} | ${pad(lossless ? '예' : '아니오', 6)} | ${pad((h1 ? h1.pos + '/' + h1.items.join('') : '-'), 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const q = r.loginqueue;
+    const ok = check(q.queueLength() === 2 && q.admittedCount() === 1 && q.ticketOf('p1') === 'tkt-1' &&
+      q.positionOf('p2') === 0 && q.enqueues === 4 && q.dequeues === 1,
+      `seed ${seed}: 큐 위반 (len ${q.queueLength()}·admit ${q.admittedCount()}·p1 ${q.ticketOf('p1')})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.queueLength(), 7)} | ${pad(q.admittedCount(), 8)} | ${pad(q.ticketOf('p1') || '-', 9)} | ${pad(q.positionOf('p2'), 6)} | ${pad(q.enqueues + '/' + q.dequeues, 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → WorldLog.replay 가 durable 로그를 전수 재적용해 투영(h1 pos 6+sword·h2 pos 8) 복원. crash 로 투영이 소실돼도 *로그가 살아남아* 동일 digest 로 재구성 — 월드 상태는 DB 행이 아니라 로그로 산다(event sourcing 의 무손실 복구·복제=재현). 월드 영속 박스 기본 통신 완비(append 0207 + replay 0208).');
+  console.log('  → LoginQueue 가 접속을 엣지서 줄세우고(enqueue 4·p1 중복 멱등 → 큐 [p1,p2,p3]) 순서대로 입장 티켓 발급(dequeue → p1 입장·tkt-1·큐 [p2,p3]). 폭주가 월드에 안 닿는다(대기열은 엣지서 끝남·0001 스텁의 대기열 실체화). 기본 통신 — 티켓 만료는 0210.');
 }
 
-kit.MODES['worldreplay'] = worldreplay;
-kit.ORDER.splice(1, 0, 'worldreplay');
+kit.MODES['loginqueue'] = loginqueue;
+kit.ORDER.splice(1, 0, 'loginqueue');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

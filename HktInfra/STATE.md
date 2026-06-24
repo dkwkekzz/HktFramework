@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0208](step-0208.md) — **월드 영속 replay 재구성**: `replay()`(durable 로그 전수 재적용→투영)·`crash()`(투영 소실·로그 durable)·`stateDigest`. crash 후 로그만으로 동일 상태(event sourcing 무손실·복제=재현). worldLog OFF→0206 비트 동일. 닿는 박스: worldlog.
-- **한 줄 상태**: reg ALL OK·worldreplay: 5/5 무손실 digest 0x7de275ff·spine ALL OK.
-- **다음**: §2 — **0209 로그인 큐·티켓(enqueue/dequeue)**. 너비 1차: 인스턴스 ✅·오케 배치 ✅·캐시 ✅·월드 영속 ✅·로그인 큐만 남음.
+- **닫힌 step**: [step-0209](step-0209.md) — **로그인 큐 박스·enqueue/dequeue**: 새 박스 `src/loginqueue.js`(LoginQueue)·`loginEnqueue`(중복 멱등)→대기열·`loginDequeue`→입장+티켓 발급(admitted SSOT). 접속 폭주 엣지 흡수(0001 스텁 대기열 실체화). OFF 플래그 `loginQueue`(OFF→박스 0=0208 비트 동일). 닿는 박스: loginqueue(신규)·net-core·topo-actors/build/run.
+- **한 줄 상태**: reg ALL OK·loginqueue: 5/5 큐 2/admit 1/tkt-1·spine ALL OK.
+- **다음**: §2 — **0210 로그인 티켓 만료(TTL)** = 너비 1차 마지막 박스 완성. 이후 단계 판정은 infra-review.
 
 ---
 
@@ -24,7 +24,7 @@
 2. **오케스트레이터 존 배치** (계층5) — ✅ 기본 통신 완비: place(0203·배치 SSOT)+query(0204·원격 request/reply). 정적 배치 한계 제거 씨앗. (부하 기반 배치·재배치 핸드오프는 2차.)
 3. **캐시 박스** (계층6) — ✅ 기본 통신 완비: set/get(0205)+read-through miss→소스(0206). 핫 데이터 1홉·DB 직행 대체. (write-behind·TTL/eviction 은 2차.)
 4. **월드 영속** (계층6) — ✅ 기본 통신 완비: intent 로그 append(0207)+replay 재구성(0208·crash 무손실). event sourcing·데이터 3분할 ①. (스냅샷 압축·실 존 연동은 2차.)
-5. **로그인 큐·티켓 실체화** (계층1) — enqueue/dequeue/expire 기본: 스텁 티켓을 대기열+만료로.
+5. **로그인 큐·티켓 실체화** (계층1) — 🟡 enqueue/dequeue ✅(0209·LoginQueue 대기열+티켓 발급) · expire(TTL) 후속(0210). 0001 스텁의 대기열 실체화.
 
 **2차 고도화 백로그 (너비 완료 전엔 꺼내지 않음·블로킹 격차 🔴 제외)**: 길드 금고↔가방 escrow 연동·발행 게이트 통합·per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·서버간 인증·재접속, 그리고 위 1차 박스들의 영속·failover·스냅샷·정합 capstone. 🔎 0191~0200 묶음 리뷰 적기.
 
@@ -79,7 +79,7 @@
 
 | # | 계층 | 박스 | 상태 (현재 마커 + 핵심 step) |
 |---|------|------|------|
-| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+게이트웨이 producer 네임스페이스(0046). 대기열·만료·재접속·게이트웨이 군 풀 후속 |
+| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급(0209·폭주 엣지 흡수·만료 0210)**. 재접속·게이트웨이 군 풀 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn 수명주기 SSOT(0201~0202·존과 분리)**. 존 N개·라우팅 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
@@ -214,3 +214,4 @@
 | [0206](step-0206.md) | 캐시 read-through(cacheGet·miss→소스 채움·DB 직행 흡수) | 통과 · hits 2/misses 2 |
 | [0207](step-0207.md) | 월드 영속 박스·intent 로그 append(WorldLog·worldAppend·event sourcing·데이터 3분할 ①) | 통과 · 길이 4/seq 단조 |
 | [0208](step-0208.md) | 월드 영속 replay 재구성(replay·crash→로그 무손실·event sourcing 복제=재현) | 통과 · 무손실 0x7de275ff |
+| [0209](step-0209.md) | 로그인 큐 박스·enqueue/dequeue(LoginQueue·대기열 FIFO+티켓 발급·폭주 엣지 흡수) | 통과 · 큐 2/admit 1 |
