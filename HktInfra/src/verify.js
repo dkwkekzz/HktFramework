@@ -1,8 +1,8 @@
-// HktInfra step-0206 — 헤드리스 검증 (캐시 read-through·cacheGet·miss→소스 채움)
+// HktInfra step-0207 — 헤드리스 검증 (월드 영속 박스·intent 로그 append·worldLog/worldAppend)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `cachereadthrough`.
-//   더한 한 조각: cacheGet → hit 면 즉답·miss 면 소스(backing)서 읽어 캐시 채운 뒤 답(다음 hit). DB 직행 흡수. cacheGet 미주입 → 0205 비트 동일(reg).
-//   검증: ⒜ `reg`(키트) — 0205 비트 동일. ⒝ `cachereadthrough`(가설) — get 4(hit·miss-fill·refill-hit·absent-miss) → hits 2·misses 2·소스값 캐시 채움.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldappend`.
+//   더한 한 조각: WorldLog 박스 — 월드 상태의 유일 쓰기 경로(intent·SPINE §4 경로1)를 durable 로그로 event sourcing(데이터 3분할 ①). worldLog OFF → 박스 0 → 0206 비트 동일(reg). replay 재구성은 0208.
+//   검증: ⒜ `reg`(키트). ⒝ `worldappend`(가설) — intent 4 append → 로그 길이 4·seq 단조 1~4·at(2) 복원.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,34 +15,31 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const SET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
-const GET = (at, key) => ({ at, from: 'gateway', op: { type: 'cacheGet', key } });
-// 시나리오: session 을 캐시에 set → get(hit) · price:gem get(miss→소스 채움) · price:gem 재get(hit) · absent get(miss·소스도 없음).
+const APPEND = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
+// 시나리오: 월드 intent 4개(이동·이동·픽업·이동) 적층.
 const OPS = [
-  SET(2, 'session:h1', 'gw1'),
-  GET(3, 'session:h1'),     // hit(캐시에 있음).
-  GET(4, 'price:gem'),      // miss → 소스 'price:gem'=50 으로 채움.
-  GET(5, 'price:gem'),      // hit(read-through 로 채워짐).
-  GET(6, 'absent:z'),       // miss → 소스에도 없음 → undefined.
+  APPEND(2, { kind: 'move', e: 'h1', to: 5 }), APPEND(3, { kind: 'move', e: 'h2', to: 8 }),
+  APPEND(4, { kind: 'pickup', e: 'h1', item: 'sword' }), APPEND(5, { kind: 'move', e: 'h1', to: 6 }),
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, cacheService: true, cacheSource: { 'price:gem': 50 }, cacheOps: OPS };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
 
-function cachereadthrough(seeds) {
-  console.log('== cachereadthrough: 캐시 read-through — cacheGet miss 시 소스(backing DB)서 읽어 캐시 채운 뒤 답(다음 get 은 hit). DB 직행을 캐시가 흡수. ==');
-  console.log('seed   | getsRx | hits | misses | size | last(absent) | 판정');
+function worldappend(seeds) {
+  console.log('== worldappend: 월드 영속 박스 — intent 로그 append 기본. 세계 상태의 유일 쓰기 경로(intent)를 durable 로그로 event sourcing(로그만으로 재구성·복제=재현). 서비스 저널·캐시와 직교(데이터 3분할). ==');
+  console.log('seed   | 로그 길이 | seq 단조 | at(2) | appends | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const c = r.cache, last = c._lastGet;
-    // hit: session, price(refill) = 2. miss: price(첫), absent = 2. store: session+price(채워짐) = size 2(absent 는 소스 없어 미채움).
-    const ok = check(c.getsRx === 4 && c.hits === 2 && c.misses === 2 && c.size() === 2 && c.get('price:gem') === 50 &&
-      last && last.key === 'absent:z' && last.value === undefined && last.hit === false,
-      `seed ${seed}: read-through 위반 (rx ${c.getsRx}·hits ${c.hits}·misses ${c.misses}·size ${c.size()})`);
-    console.log(`${pad(seed, 6)} | ${pad(c.getsRx, 6)} | ${pad(c.hits, 4)} | ${pad(c.misses, 6)} | ${pad(c.size(), 4)} | ${pad(last ? last.key + '=' + last.value : '-', 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const w = r.worldlog, len = w.length();
+    const seqs = w.journal.map(e => e.seq);
+    const mono = seqs.every((s, i) => s === i + 1);
+    const at2 = w.at(2);
+    const ok = check(len === 4 && mono && at2 && at2.kind === 'move' && at2.e === 'h2' && w.appends === 4,
+      `seed ${seed}: 월드로그 위반 (len ${len}·mono ${mono}·appends ${w.appends})`);
+    console.log(`${pad(seed, 6)} | ${pad(len, 9)} | ${pad(mono ? '예' : '아니오', 8)} | ${pad(at2 ? at2.kind + ':' + at2.e : '-', 7)} | ${pad(w.appends, 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → cacheGet: hit 는 캐시서 즉답(DB 0), miss 는 소스서 읽어 *캐시 채운 뒤* 답(price:gem 첫 get miss→fill, 재get hit). 소스에도 없는 absent 는 undefined. read-through 가 매 조회의 DB 직행을 흡수(첫 miss 만 소스 1홉). 캐시 박스 기본 통신 완비(set 0205 + get/read-through 0206).');
+  console.log('  → WorldLog 가 월드 intent 를 append-only 로그로 적층(seq 단조 1~4·길이 4). 월드 상태는 DB 행이 아니라 *intent 로그*로 산다(event sourcing·결정론 덕에 로그+시드만으로 상태 재구성=복제). 데이터 3분할 ①. 기본 통신 — replay 재구성은 0208.');
 }
 
-kit.MODES['cachereadthrough'] = cachereadthrough;
-kit.ORDER.splice(1, 0, 'cachereadthrough');
+kit.MODES['worldappend'] = worldappend;
+kit.ORDER.splice(1, 0, 'worldappend');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
