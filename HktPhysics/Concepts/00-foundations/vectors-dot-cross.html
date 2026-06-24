@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내적·외적 시각화 (Dot / Cross)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+    margin: 0; padding: 16px; background: #0f1116; color: #e6e8eb;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  h1 { font-size: 18px; margin: 4px 0; font-weight: 600; }
+  .hint { font-size: 13px; color: #9aa0a6; margin: 0; text-align: center; max-width: 640px; }
+  .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; }
+  canvas { background: #161a22; border-radius: 10px; touch-action: none; cursor: grab; }
+  .panel {
+    background: #161a22; border-radius: 10px; padding: 14px 16px; min-width: 240px;
+    font-variant-numeric: tabular-nums;
+  }
+  .panel h2 { font-size: 14px; margin: 0 0 10px; color: #c7ccd1; }
+  .row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 14px; }
+  .row .k { color: #9aa0a6; }
+  .row .v { font-weight: 600; }
+  .a { color: #5ac8fa; } .b { color: #ff9f5a; }
+  .pos { color: #4ade80; } .neg { color: #f87171; }
+  .leg { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  footer { font-size: 12px; color: #6b7177; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <h1>내적 · 외적(2D perp-dot) 시각화</h1>
+  <p class="hint">두 벡터 <b class="a">a</b>(파랑) · <b class="b">b</b>(주황)의 화살촉을 <b>드래그</b>하세요.
+  내적은 그림자(투영) 길이 × |a|, 2D 외적은 두 벡터가 만드는 평행사변형의 부호 있는 넓이입니다.</p>
+  <div class="wrap">
+    <canvas id="cv" width="460" height="460"></canvas>
+    <div class="panel">
+      <h2>측정값</h2>
+      <div class="row"><span class="k"><span class="leg" style="background:#5ac8fa"></span>a</span><span class="v a" id="va">–</span></div>
+      <div class="row"><span class="k"><span class="leg" style="background:#ff9f5a"></span>b</span><span class="v b" id="vb">–</span></div>
+      <div class="row"><span class="k">|a| · |b|</span><span class="v" id="vlen">–</span></div>
+      <div class="row"><span class="k">사이각 θ</span><span class="v" id="vang">–</span></div>
+      <hr style="border-color:#2a2f3a;border-style:solid;border-width:0 0 1px;margin:8px 0">
+      <div class="row"><span class="k">a · b (내적)</span><span class="v" id="vdot">–</span></div>
+      <div class="row"><span class="k">a × b (perp-dot)</span><span class="v" id="vcross">–</span></div>
+      <hr style="border-color:#2a2f3a;border-style:solid;border-width:0 0 1px;margin:8px 0">
+      <div class="row"><span class="k">관계</span><span class="v" id="vrel" style="font-size:12px">–</span></div>
+    </div>
+  </div>
+  <footer>내적 부호 = 같은 방향(+)/직각(0)/반대(−) · 외적 부호 = 반시계(+)/시계(−) 회전 방향</footer>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const O = { x: W/2, y: H/2 };      // 원점(화면 중심)
+const S = 70;                       // 1 단위 = 70px
+
+// 수학좌표(y 위쪽 +) → 화면좌표
+function toScreen(v){ return { x: O.x + v.x*S, y: O.y - v.y*S }; }
+function toMath(p){ return { x: (p.x - O.x)/S, y: (O.y - p.y)/S }; }
+
+let a = { x: 2.2, y: 0.6 };
+let b = { x: 0.9, y: 1.9 };
+let drag = null;
+
+function dot(u,v){ return u.x*v.x + u.y*v.y; }
+function cross2(u,v){ return u.x*v.y - u.y*v.x; }   // 2D perp-dot: 부호 있는 넓이
+function len(u){ return Math.hypot(u.x,u.y); }
+
+function drawArrow(from, to, color, label){
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+  const ang = Math.atan2(to.y-from.y, to.x-from.x), hl = 12;
+  ctx.beginPath();
+  ctx.moveTo(to.x, to.y);
+  ctx.lineTo(to.x - hl*Math.cos(ang - 0.4), to.y - hl*Math.sin(ang - 0.4));
+  ctx.lineTo(to.x - hl*Math.cos(ang + 0.4), to.y - hl*Math.sin(ang + 0.4));
+  ctx.closePath(); ctx.fill();
+  if(label){
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText(label, to.x + 8*Math.cos(ang), to.y + 8*Math.sin(ang) - 6);
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  // 격자
+  ctx.strokeStyle = '#222732'; ctx.lineWidth = 1;
+  for(let i=-3;i<=3;i++){
+    let p1=toScreen({x:i,y:-3.2}), p2=toScreen({x:i,y:3.2});
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    let q1=toScreen({x:-3.2,y:i}), q2=toScreen({x:3.2,y:i});
+    ctx.beginPath(); ctx.moveTo(q1.x,q1.y); ctx.lineTo(q2.x,q2.y); ctx.stroke();
+  }
+  // 축
+  ctx.strokeStyle = '#3a4150'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0,O.y); ctx.lineTo(W,O.y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(O.x,0); ctx.lineTo(O.x,H); ctx.stroke();
+
+  const sA = toScreen(a), sB = toScreen(b);
+  const la = len(a), lb = len(b);
+  const d = dot(a,b), c = cross2(a,b);
+
+  // 평행사변형(외적 = 부호 있는 넓이) 채우기
+  const sAB = toScreen({x:a.x+b.x, y:a.y+b.y});
+  ctx.beginPath();
+  ctx.moveTo(O.x,O.y); ctx.lineTo(sA.x,sA.y); ctx.lineTo(sAB.x,sAB.y); ctx.lineTo(sB.x,sB.y); ctx.closePath();
+  ctx.fillStyle = c >= 0 ? 'rgba(74,222,128,0.13)' : 'rgba(248,113,113,0.13)';
+  ctx.fill();
+
+  // a 위로의 b 투영(내적 = 그림자) — a 방향 단위벡터에 b를 투영
+  if(la > 1e-6){
+    const ux = a.x/la, uy = a.y/la;
+    const proj = (b.x*ux + b.y*uy);        // 부호 있는 투영 길이
+    const footMath = { x: ux*proj, y: uy*proj };
+    const sFoot = toScreen(footMath);
+    // 투영선(b 끝 → a 위 발)
+    ctx.strokeStyle = '#5ac8fa'; ctx.setLineDash([4,4]); ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(sB.x,sB.y); ctx.lineTo(sFoot.x,sFoot.y); ctx.stroke();
+    ctx.setLineDash([]);
+    // 투영(그림자) 막대
+    ctx.strokeStyle = proj>=0 ? '#4ade80' : '#f87171'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(O.x,O.y); ctx.lineTo(sFoot.x,sFoot.y); ctx.stroke();
+  }
+
+  drawArrow(O, sA, '#5ac8fa', 'a');
+  drawArrow(O, sB, '#ff9f5a', 'b');
+
+  // 원점 점
+  ctx.fillStyle = '#e6e8eb'; ctx.beginPath(); ctx.arc(O.x,O.y,3,0,7); ctx.fill();
+  // 드래그 핸들
+  for(const [s,col] of [[sA,'#5ac8fa'],[sB,'#ff9f5a']]){
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(s.x,s.y,7,0,7); ctx.fill();
+    ctx.strokeStyle = '#0f1116'; ctx.lineWidth=2; ctx.stroke();
+  }
+
+  // 패널 갱신
+  const f = n => (n>=0?'+':'') + n.toFixed(2);
+  document.getElementById('va').textContent = `(${a.x.toFixed(2)}, ${a.y.toFixed(2)})`;
+  document.getElementById('vb').textContent = `(${b.x.toFixed(2)}, ${b.y.toFixed(2)})`;
+  document.getElementById('vlen').textContent = `${la.toFixed(2)} · ${lb.toFixed(2)}`;
+  const theta = (la>1e-6 && lb>1e-6) ? Math.acos(Math.max(-1,Math.min(1, d/(la*lb))))*180/Math.PI : 0;
+  document.getElementById('vang').textContent = `${theta.toFixed(1)}°`;
+  const dotEl = document.getElementById('vdot');
+  dotEl.textContent = f(d); dotEl.className = 'v ' + (d>=0?'pos':'neg');
+  const crEl = document.getElementById('vcross');
+  crEl.textContent = `${f(c)}  (넓이 ${Math.abs(c).toFixed(2)})`; crEl.className = 'v ' + (c>=0?'pos':'neg');
+  let rel = d>0.01 ? '예각(같은 방향 성분)' : d<-0.01 ? '둔각(반대 방향 성분)' : '거의 직각 (a·b≈0)';
+  rel += c>0.01 ? ' · b가 a의 반시계' : c<-0.01 ? ' · b가 a의 시계' : ' · 평행(외적≈0)';
+  document.getElementById('vrel').textContent = rel;
+}
+
+function hit(p, s){ return Math.hypot(p.x-s.x, p.y-s.y) < 16; }
+function pos(e){
+  const r = cv.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX - r.left, y: t.clientY - r.top };
+}
+cv.addEventListener('pointerdown', e=>{
+  const p = pos(e);
+  if(hit(p, toScreen(a))) drag='a';
+  else if(hit(p, toScreen(b))) drag='b';
+  if(drag) cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e=>{
+  if(!drag) return;
+  const m = toMath(pos(e));
+  m.x = Math.max(-3.3, Math.min(3.3, m.x));
+  m.y = Math.max(-3.3, Math.min(3.3, m.y));
+  if(drag==='a') a=m; else b=m;
+  draw();
+});
+cv.addEventListener('pointerup', ()=> drag=null);
+cv.addEventListener('pointercancel', ()=> drag=null);
+
+draw();
+</script>
+</body>
+</html>
