@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0194](step-0194.md) — **길드 금고 영속·failover**(guildPersist 금고 확장): 예치/인출을 변경 저널 append·crash(vault 소실)→reconstruct replay 로 vault 재구성(비트 동일). 0184 로스터 영속의 금고 확장(같은 저널·같은 루프). 닿는 박스: svc-guild.
-- **한 줄 상태**: reg ALL OK·guildbankpersist: crash→reconstruct vault [potion,shield]==pre·OFF 소실·spine OK.
-- **다음**: §2 — bank 저널 스냅샷 압축(0195)→배지→정합 capstone·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0195](step-0195.md) — **길드 금고 저널 스냅샷 압축**(guildSnapshot 금고 확장): 스냅샷에 vault 포함·tail 만 보관·reconstruct(스냅샷+tail)==전체 저널 replay(무손실). 0185 로스터 압축의 금고 확장. 닿는 박스: svc-guild.
+- **한 줄 상태**: reg ALL OK·guildbanksnapshot: snaps 2·tail 1<full 9·vault [i2,i4,i5,i6] 무손실·spine OK.
+- **다음**: §2 — bank 배지 읽기 모델(0196·GuildFeed 금고 아이템 수)→배지 영속→정합 capstone·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 변경 발행·0194 영속 ✅. 다음: 저널 스냅샷 압축(0195)→bank 배지 읽기 모델(0196)→배지 영속(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
+**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷 ✅. 다음: bank 배지 읽기 모델(0196)→배지 영속(0197)→배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -286,3 +286,4 @@
 | [0192](step-0192.md) | 길드 금고 withdraw(guildWithdraw·입출금 쌍·거래소 buy 0118/우편 fetch 0158 판) | 통과 · 예치2/인출3→vault [shield] |
 | [0193](step-0193.md) | 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed·거래소 0108/길드 0183 판) | 통과 · ON pub 3==rx==실변경·OFF 0 |
 | [0194](step-0194.md) | 길드 금고 영속·failover(guildPersist 금고 확장·deposit/withdraw 저널 replay) | 통과 · crash→reconstruct vault==pre·OFF 소실 |
+| [0195](step-0195.md) | 길드 금고 저널 스냅샷 압축(guildSnapshot 금고 확장·vault 포함·tail replay) | 통과 · tail 1<full 9·무손실 vault 4 |

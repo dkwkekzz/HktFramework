@@ -1,4 +1,5 @@
 'use strict';
+// step-0194 — 길드 금고 영속·failover(guildPersist 의 금고 확장·변경 저널 replay): 0191~0193 의 금고(vault)는 *휘발*이라 박스 crash 시 예치된 아이템이 전부 소실됐다(영속 0·0193 한계). 0184 가 로스터/마스터십을 변경 저널로 영속시킨 그 메커니즘을 금고에 확장한다: 예치/인출 성사를 *변경 저널*(durable)에 append(kind 'deposit'/'withdraw'), crash(vault 소실) 후 fresh GuildService 가 저널을 seq 순 replay 해 vault projection 을 재구성 → 죽기 전과 비트 동일. crash 가 vault 도 비우고 reconstruct 가 vault 도 복원(로스터와 같은 저널·같은 replay 루프). guildPersist OFF 면 저널 0·crash 후 빈 금고(소실) = 0193 비트 동일(reg).
 // step-0193 — 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed): 0191~0192 의 예치/인출은 *관측 불가*였다 — 금고에 무엇이 들고 났는지 스트림이 0이었다(0192 한계). 다른 시스템(금고 UI 배지·감사·길드 로그)이 금고 변동을 구독해야 한다. 거래소 체결 발행(0108)·길드 멤버십 변경 발행(0183)의 금고 판: 실제 변경(예치 성사·인출 성사) 시 svc.guild.bank.changed{guildId,kind:deposit|withdraw,itemId,member} 를 버스로 발행 → 발행자 무수정 소비자(audit)가 반응. no-op(중복 예치·없는 인출·비멤버)은 발행 안 함(발행==실 변경). bankPublish OFF·bus 부재면 발행 0 = 0192 비트 동일(reg).
 // step-0192 — 길드 금고 withdraw(guildWithdraw): 0191 의 예치(deposit)는 *입금 전용*이라 길드 금고가 단조 증가만 했다 — 멤버가 금고에서 아이템을 도로 꺼낼 길이 없었다(0191 한계). 인출을 더한다: guildWithdraw{guildId,member,itemId} → 금고에 그 itemId 가 있고 요청자가 멤버일 때만 제거(없으면/비멤버면 멱등·graceful no-op). 거래소 buy leg(0118)·우편 fetch(0158)의 길드 금고 판. bank OFF·미주입이면 0191 비트 동일(reg).
 // step-0191 — 길드 금고(Guild Bank) deposit(guildBank·guildDeposit): 0181~0190 에서 길드 박스(로스터+마스터십)를 완성했다. 이 arc(0191~0200)는 길드의 *공유 아이템 원장*(금고/vault)을 키운다 — 멤버가 아이템을 길드 금고에 예치/인출하는, 거래소 escrow(0117)·우편 아이템 custody(0157)의 *조직 공유* 판. 첫 조각: guildDeposit{guildId, member, itemId} → 금고가 itemId 를 보유(vault: guildId→[itemId]·집합 의미론·중복 무시 멱등). single-master 와 직교(권위=금고 원장). bank OFF·미주입이면 금고 0 = 0190 비트 동일(reg). 계층: 3 게임 서비스.
@@ -116,7 +117,7 @@ class GuildService {
       const g = this.guilds.get(p.guildId);
       if (g && g.members.includes(p.member)) {
         const v = this.vault.get(p.guildId) || [];
-        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193).
+        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); this._journalChange({ kind: 'deposit', guildId: p.guildId, itemId: p.itemId }); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193)·저널(0194).
       }
       return;
     }
@@ -127,7 +128,7 @@ class GuildService {
       const g = this.guilds.get(p.guildId);
       const v = this.vault.get(p.guildId);
       if (g && g.members.includes(p.member) && v && v.includes(p.itemId)) {
-        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member);   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193).
+        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member); this._journalChange({ kind: 'withdraw', guildId: p.guildId, itemId: p.itemId });   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193)·저널(0194).
       }
       return;
     }
@@ -152,11 +153,12 @@ class GuildService {
     return true;
   }
   // crash(step-0184) — 박스 RAM 소실의 인프로세스 모델: 로스터 projection·계측만 비운다. *변경 저널은 durable* 이라 보존(파티 0085 의 길드 판).
-  crash() { this.guilds = new Map(); this.creates = 0; this.joins = 0; this.leaves = 0; }
+  crash() { this.guilds = new Map(); this.vault = new Map(); this.creates = 0; this.joins = 0; this.leaves = 0; this.deposits = 0; this.withdraws = 0; }   // step-0194 — vault 도 휘발(저널만 durable). 금고 미사용 시 vault 는 빈 Map → 비우기·복원 모두 빈 Map(0193 비트 동일).
   // reconstruct(step-0184·failover) — fresh 박스가 durable 변경 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재계산. create=설정·join=추가·leave=제거(master 보호 동일) → 죽기 전과 비트 동일. 자기 영속 저널만으로 복원.
   //   0185: 스냅샷이 있으면 그 로스터에서 출발해 tail(seq>upToSeq)만 replay → 스냅샷+tail == 전체 저널(무손실 압축). 스냅샷 없으면 저널 전체 replay(0184).
   reconstruct() {
     const m = new Map();
+    const bank = new Map();   // step-0194 — 금고 vault projection 도 같은 저널에서 재구성.
     if (this.snapshot) for (const [k, v] of this.snapshot.guilds) m.set(k, { master: v.master, members: v.members.slice() });
     const upTo = this.snapshot ? this.snapshot.upToSeq : -1;
     for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) {
@@ -165,8 +167,11 @@ class GuildService {
       else if (e.kind === 'join') { const g = m.get(e.guildId); if (g && !g.members.includes(e.member)) g.members.push(e.member); }
       else if (e.kind === 'leave') { const g = m.get(e.guildId); if (g && e.member !== g.master && g.members.includes(e.member)) g.members = g.members.filter(x => x !== e.member); }
       else if (e.kind === 'transfer') { const g = m.get(e.guildId); if (g && g.members.includes(e.master)) g.master = e.master; }   // step-0189 — 이양 replay(master 교체·로스터 불변).
+      else if (e.kind === 'deposit') { const v = bank.get(e.guildId) || []; if (!v.includes(e.itemId)) { v.push(e.itemId); bank.set(e.guildId, v); } }   // step-0194 — 예치 replay(금고에 itemId 추가·중복 0).
+      else if (e.kind === 'withdraw') { const v = bank.get(e.guildId); if (v && v.includes(e.itemId)) bank.set(e.guildId, v.filter(x => x !== e.itemId)); }   // step-0194 — 인출 replay(금고서 itemId 제거).
     }
     this.guilds = m;
+    this.vault = bank;
   }
 }
 
