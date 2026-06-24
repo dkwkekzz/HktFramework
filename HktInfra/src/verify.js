@@ -1,8 +1,8 @@
-// HktInfra step-0184 — 헤드리스 검증 (길드 영속·failover·guildPersist·변경 저널 replay)
+// HktInfra step-0185 — 헤드리스 검증 (길드 저널 스냅샷 압축·guildSnapshot·snapshot+tail replay)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildpersist`.
-//   더한 한 조각: 로스터 변경(create/join/leave)을 durable 저널에 append·crash(projection 소실) 후 reconstruct(저널 seq replay)→죽기 전과 비트 동일. 파티 0085 의 길드 판. guildPersist OFF 면 저널 0·reconstruct 빈 로스터 = 0183 비트 동일(reg).
-//   검증: ⒜ `reg`(키트) — guildPersist OFF = 0183 비트 동일. ⒝ `guildpersist`(가설) — ON: crash→reconstruct digest == 죽기 전·single-master 보존. OFF: reconstruct 빈 로스터(소실).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildsnap`.
+//   더한 한 조각: snapInterval 개 변경마다 로스터 스냅샷+저널 가지치기(tail 유계). reconstruct 는 스냅샷+tail(seq>upToSeq) replay → 전체 저널 replay 와 비트 동일(무손실 압축). 파티 0086 의 길드 판. snapInterval 0 면 0184 비트 동일(reg).
+//   검증: ⒜ `reg`(키트) — guildSnapshot 0 = 0184 비트 동일. ⒝ `guildsnap`(가설) — tail < full·스냅샷+tail digest == 전체 저널 digest == 죽기 전·snapshots≥1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -18,37 +18,36 @@ const { check, pad } = kit.helpers;
 const GCREATE = (at, guildId, master, members) => ({ at, op: { type: 'guildCreate', guildId, master, members } });
 const GJOIN = (at, guildId, member) => ({ at, op: { type: 'guildJoin', guildId, member } });
 const GLEAVE = (at, guildId, member) => ({ at, op: { type: 'guildLeave', guildId, member } });
-const COMMON = { clients: 4, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true };
+const COMMON = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildPersist: true };
+// 변경 8건(create + 가입 5 + 탈퇴 2) — snapInterval 3 이면 압축 발화·tail 유계.
 const OPS = [
-  GCREATE(3, 'g1', 'x', ['x', 'c1']), GCREATE(4, 'g2', 'c3', ['c3']),
-  GJOIN(5, 'g1', 'c2'), GJOIN(6, 'g2', 'c4'), GLEAVE(7, 'g1', 'c1'), GLEAVE(8, 'g1', 'x'),
+  GCREATE(2, 'g1', 'x', ['x']),
+  GJOIN(3, 'g1', 'c1'), GJOIN(4, 'g1', 'c2'), GJOIN(5, 'g1', 'c3'), GJOIN(6, 'g1', 'c4'), GJOIN(7, 'g1', 'c5'),
+  GLEAVE(8, 'g1', 'c1'), GLEAVE(9, 'g1', 'c2'),
 ];
-// 로스터 다이제스트(guildId 정렬·master+멤버 정렬) — projection 동치 비교.
 const digest = (g) => fnv1a([...g.guilds.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1)
   .map(([k, v]) => k + ':' + v.master + ':' + v.members.slice().sort().join(',')).join('|'));
 
-function guildpersist(seeds) {
-  console.log('== guildpersist: 영속·failover. crash(projection 소실)→reconstruct(변경 저널 seq replay) == 죽기 전 비트 동일·single-master 보존. OFF=소실. 파티 0085 의 길드 판. ==');
-  console.log('seed   | pre digest | post(ON) | ON 동일 | OFF post | OFF 소실 | 판정');
+function guildsnap(seeds) {
+  console.log('== guildsnap: 저널 스냅샷 압축(snapshot+tail). tail<full·스냅샷+tail == 전체 저널 == 죽기 전(무손실). 파티 0086 의 길드 판. ==');
+  console.log('seed   | full 저널 | snap tail | snapshots | snap digest | full digest | 동일 | 판정');
   for (const seed of seeds) {
-    const on = run({ seed, ticks: 12, ...COMMON, guildPersist: true, guildOps: OPS });
-    const pre = digest(on.guild);
-    on.guild.crash(); const crashed = on.guild.guilds.size;
-    on.guild.reconstruct(); const post = digest(on.guild);
-    const onOk = crashed === 0 && post === pre &&
-      [...on.guild.guilds.values()].every(v => v.members.includes(v.master));
-    const off = run({ seed, ticks: 12, ...COMMON, guildPersist: false, guildOps: OPS });
-    off.guild.crash(); off.guild.reconstruct();
-    const offLost = off.guild.guilds.size === 0;   // 저널 0 → reconstruct 빈 로스터(소실).
+    const full = run({ seed, ticks: 12, ...COMMON, guildSnapshot: 0, guildOps: OPS });   // 압축 0(0184)·무계 저널.
+    const fullLen = full.guild.journal.length;
+    const preFull = digest(full.guild); full.guild.crash(); full.guild.reconstruct(); const fullRe = digest(full.guild);
+    const snap = run({ seed, ticks: 12, ...COMMON, guildSnapshot: 3, guildOps: OPS });   // 압축 ON·tail 유계.
+    const tailLen = snap.guild.journal.length;
+    const preSnap = digest(snap.guild); snap.guild.crash(); snap.guild.reconstruct(); const snapRe = digest(snap.guild);
     const ok =
-      check(onOk, `seed ${seed}: ON reconstruct != 죽기 전 (pre ${pre.toString(16)}·post ${post.toString(16)})`) &&
-      check(offLost, `seed ${seed}: OFF 인데 로스터 살아남음(영속 휴면 위반)`);
-    console.log(`${pad(seed, 6)} | ${pad(pre.toString(16), 10)} | ${pad(post.toString(16), 8)} | ${pad(post === pre ? '예' : '아니오', 7)} | ${pad(off.guild.guilds.size, 8)} | ${pad(offLost ? '예' : '아니오', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(tailLen < fullLen, `seed ${seed}: tail(${tailLen}) < full(${fullLen}) 아님(압축 미발생)`) &&
+      check(snap.guild.snapshots >= 1, `seed ${seed}: 스냅샷 0`) &&
+      check(snapRe === preSnap && snapRe === fullRe && fullRe === preFull, `seed ${seed}: 스냅샷+tail != 전체 저널(무손실 위반)`);
+    console.log(`${pad(seed, 6)} | ${pad(fullLen, 9)} | ${pad(tailLen, 9)} | ${pad(snap.guild.snapshots, 9)} | ${pad(snapRe.toString(16), 11)} | ${pad(fullRe.toString(16), 11)} | ${pad(snapRe === fullRe ? '예' : '아니오', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 로스터는 휘발 projection, 변경 저널은 durable. crash 가 projection 만 날려도 fresh 박스가 저널을 seq 순 replay 해 로스터+마스터십을 비트 동일하게 복원(자기 영속 저널만으로·event sourcing). master 보호도 replay 에서 동일 적용 → single-master 보존. guildPersist OFF 면 저널 0 → reconstruct 빈 로스터(0183 비트 동일·휴면). 파티 0085 의 길드 판.');
+  console.log('  → snapInterval 개 변경마다 현재 로스터를 스냅샷(upToSeq 기록)하고 그 이하 저널 가지치기 → tail 유계(full 저널 대비 짧음). reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 스냅샷+tail == 전체 저널 replay == 죽기 전(무손실 압축). snapInterval 0 면 압축 0(0184 비트 동일). 파티 0086 의 길드 판.');
 }
 
-kit.MODES['guildpersist'] = guildpersist;
-kit.ORDER.splice(1, 0, 'guildpersist');
+kit.MODES['guildsnap'] = guildsnap;
+kit.ORDER.splice(1, 0, 'guildsnap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

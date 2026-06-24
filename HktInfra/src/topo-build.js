@@ -136,6 +136,7 @@ function buildTopology(opts) {
     guildService = false,
     guildChangePublish = false,
     guildPersist = false,
+    guildSnapshot = 0,
     deliverDedup = false,
     deliverDedupBound = false,
     deliverEpochBound = false,
@@ -245,7 +246,7 @@ function buildTopology(opts) {
   // [게임 서비스] 우편 미읽음 배지(step-0151·MailFeed) — 우편 발행 스트림(svc.mail.*) 구독 읽기 모델(거래소 MarketFeed 0112 의 우편 판). 발신 0·권위 0(순수 관찰). mailFeed OFF·우편 부재면 박스 0 = 0150 비트 동일.
   if (mailFeed && mail) add({ addr: 'mailfeed', kind: 'mailfeed', opts: { bus: busAddr } });
   // [게임 서비스] 길드(step-0181·GuildService) — 오래 사는 명명된 조직 박스(로스터+마스터십 SSOT·존 tick 밖·onTick 없음). 파티(0075)의 *영속 조직* 판·single-master 권위. guildService OFF 면 박스 0 = 0180 비트 동일.
-  if (guildService) add({ addr: 'guild', kind: 'guild', opts: { bus: busAddr, changePublish: guildChangePublish, persist: guildPersist } });   // changePublish(0183): svc.guild.changed 발행. persist(0184): 변경 저널 영속·crash replay(OFF 면 직전 비트 동일).
+  if (guildService) add({ addr: 'guild', kind: 'guild', opts: { bus: busAddr, changePublish: guildChangePublish, persist: guildPersist, snapInterval: guildPersist ? guildSnapshot : 0 } });   // changePublish(0183): svc.guild.changed 발행. persist(0184): 변경 저널 영속·crash replay. snapInterval(0185): 저널 스냅샷 압축(0 면 0184 비트 동일).
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });
 

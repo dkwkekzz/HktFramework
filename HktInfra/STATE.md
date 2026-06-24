@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0184](step-0184.md) — **길드 영속·failover**(guildPersist·변경 저널 replay): 로스터 변경(create/join/leave)을 durable 저널 append·crash(projection 소실)→reconstruct(저널 seq replay)==죽기 전 비트 동일·master 보호 동일 적용→single-master 보존. 파티 0085 event sourcing 의 길드 판. 닿는 박스: svc-guild·topo-build.
-- **한 줄 상태**: reg ALL OK·guildpersist: ON pre==post f0030286·OFF 소실 0·spine OK.
-- **다음**: §2 — guild arc 0185~0190(스냅샷·배지·feed 영속·정합·마스터 이양)·발행 게이트 통합·비동기 결정론🔴·**0171~0180 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0185](step-0185.md) — **길드 저널 스냅샷 압축**(guildSnapshot·snapshot+tail replay): snapInterval 개 변경마다 로스터 스냅샷+저널 가지치기(tail 유계)·reconstruct 는 스냅샷+tail replay == 전체 저널 == 죽기 전(무손실). 파티 0086 의 길드 판. 닿는 박스: svc-guild·topo-build.
+- **한 줄 상태**: reg ALL OK·guildsnap: full 8→tail 2·snapshots 2·snap digest==full 2f062538·spine OK.
+- **다음**: §2 — guild arc 0186~0190(멤버 배지·feed 영속·정합·마스터 이양)·발행 게이트 통합·비동기 결정론🔴·**0171~0180 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드(Guild) 박스 arc(0181~0190) 진행 중 = 파티(0075)+우편(0142~) 패턴 동형: 박스 분리(0181 ✅)·증분 가입/탈퇴(0182 ✅)·변경 발행(0183 ✅)·영속·failover(0184 ✅·저널 replay). 다음: 저널 스냅샷(0185)·멤버 배지 읽기 모델 GuildFeed(0186)·feed 영속(0187)·feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행 후보: *발행 게이트 통합*(거래소+우편 일원화)·*비동기 결정론*(🔴). 🔧 svc-mail-core 25KB. 🔎 0171~0180 묶음 리뷰 적기.**
+**길드(Guild) 박스 arc(0181~0190) 진행 중 = 파티(0075)+우편(0142~) 패턴 동형: 박스 분리(0181 ✅)·증분 가입/탈퇴(0182 ✅)·변경 발행(0183 ✅)·영속·failover(0184 ✅)·저널 스냅샷(0185 ✅·tail 유계). 다음: 멤버 배지 읽기 모델 GuildFeed(0186)·feed 영속(0187)·feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행 후보: *발행 게이트 통합*(거래소+우편 일원화)·*비동기 결정론*(🔴). 🔧 svc-mail-core 25KB. 🔎 0171~0180 묶음 리뷰 적기.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -276,3 +276,4 @@
 | [0182](step-0182.md) | 길드 증분 가입/탈퇴(guildJoin/guildLeave·멱등·master 보호·파티 0084 길드 판) | 통과 · 로스터 [x,c2]·master 유지 5/5 |
 | [0183](step-0183.md) | 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed·파티 0084 길드 판) | 통과 · published 3==audit 3==실변경·OFF 0 |
 | [0184](step-0184.md) | 길드 영속·failover(guildPersist·변경 저널 replay·파티 0085 길드 판) | 통과 · crash→reconstruct pre==post·OFF 소실 |
+| [0185](step-0185.md) | 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay·파티 0086 길드 판) | 통과 · full 8→tail 2·snap==full 무손실 |

@@ -1,4 +1,5 @@
 'use strict';
+// step-0185 — 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay): 0184 의 변경 저널은 *무계 성장*이라 가입/탈퇴가 누적될수록 replay 비용·메모리가 ∝변경 수다(0184 한계). 파티 0086(가방 0018·채팅 0022 동일)의 주기 스냅샷+tail replay 를 길드 저널에 적용한다: snapInterval 개 변경마다 현재 로스터 projection 을 스냅샷(upToSeq 기록)하고 그 이하 저널을 가지치기 → 저널은 *마지막 스냅샷 이후 tail* 만 보관(유계). reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot(snapInterval 0) 면 압축 0·저널 무계 = 0184 비트 동일.
 // step-0184 — 길드 영속·failover(guildPersist·변경 저널 replay): 0183 까지 GuildService 의 로스터/마스터십은 *휘발*(in-memory)이라 박스 crash 시 결성·가입/탈퇴가 전부 소실됐다(영속 0·0183 한계). 파티 0085 의 event sourcing 을 길드에 적용한다: 로스터를 바꾸는 명령(create/join/leave)을 *변경 저널*(durable)에 append 하고, crash(RAM 소실) 후 fresh GuildService 가 그 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재구성한다 → 죽기 전과 비트 동일. projection(guilds)은 휘발, 저널은 durable. guildPersist OFF 면 저널 0·crash 후 reconstruct 해도 빈 로스터(소실) = 0183 비트 동일(저널 미기록·휴면).
 // step-0183 — 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed): 0182 의 증분 가입/탈퇴는 *관측 불가*였다(누가 언제 들고 났는지 스트림 0·0182 한계). 실제 길드 변경은 다른 시스템(채팅 채널·배지·감사)이 구독해야 한다. 파티 0084 의 변경 발행을 길드에 적용한다: 실제 멤버십 변경(가입/탈퇴) 시 svc.guild.changed{guildId,kind,member} 를 버스로 발행 → 발행자 무수정 소비자(audit)가 반응. 변경 없는 no-op(중복 가입·없는 탈퇴·master 탈퇴 거부)은 발행 안 함(발행==실 변경). guildChangePublish OFF·bus 부재면 발행 0 = 0182 비트 동일(reg).
 // step-0182 — 길드 증분 가입/탈퇴(guildJoin/guildLeave·멱등·master 보호): 0181 의 GuildService 는 guildCreate(*전체 로스터 덮어쓰기*)로만 멤버십을 갱신했다 — 한 명 가입/탈퇴에도 전체 목록을 다시 보내야 한다(0181 한계). 파티 0084 의 증분 가입/탈퇴를 길드에 적용한다: guildJoin{guildId,member}(한 멤버 추가·이미 있으면 no-op·멱등)·guildLeave{guildId,member}(한 멤버 제거·없으면 no-op·멱등). **master 보호**: master 의 guildLeave 는 no-op(마스터는 탈퇴 못 함 — 이양 0189 선결) → single-master 불변 보존. 미존재 길드 join 은 graceful 무시(create 선결). 증분 명령 미주입이면 0181 비트 동일(휴면·reg 0).
@@ -27,6 +28,9 @@ class GuildService {
     this.persist = opts.persist || false;   // 로스터 영속(step-0184·guildPersist) — 변경 명령을 durable 저널에 기록·crash 후 replay 로 재구성. OFF 면 저널 0(0183 동일·휘발).
     this.journal = [];            // durable 변경 저널 [{seq, kind, guildId, master|member}] — projection(guilds)과 분리(crash 시 guilds 만 소실·저널은 영속). 파티 0085 변경 저널의 길드 판.
     this.jseq = 0;                // 저널 시퀀스(단조).
+    this.snapInterval = opts.snapInterval || 0;   // 저널 스냅샷 압축(step-0185·guildSnapshot) — 이 개수 변경마다 로스터 스냅샷+저널 가지치기. 0 이면 압축 0(0184 동일·무계 저널).
+    this.snapshot = null;         // {upToSeq, guilds:[[guildId,{master,members}]...]} — 마지막 압축 스냅샷(이하 저널은 가지쳐짐). reconstruct 의 출발점.
+    this.snapshots = 0;           // 찍은 스냅샷 수(step-0185·계측).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
@@ -39,6 +43,12 @@ class GuildService {
   _journalChange(entry) {
     if (!this.persist) return;
     this.journal.push({ seq: ++this.jseq, ...entry });
+    // 스냅샷 압축(step-0185) — tail 길이가 snapInterval 에 도달하면 현재 로스터를 스냅샷(upToSeq=jseq)하고 그 이하 저널 가지치기. 저널은 마지막 스냅샷 이후 tail 만 보관(유계). snapInterval 0 면 미발화(0184 동일). 파티 0086 의 길드 판.
+    if (this.snapInterval > 0 && this.journal.length >= this.snapInterval) {
+      this.snapshot = { upToSeq: this.jseq, guilds: [...this.guilds].map(([k, v]) => [k, { master: v.master, members: v.members.slice() }]) };
+      this.journal = this.journal.filter(e => e.seq > this.jseq);   // tail 만 남김(방금 upToSeq 이하 전부 가지치기 → 0)
+      this.snapshots++;
+    }
   }
   // 멤버십 변경 발행(step-0183) — 가입/탈퇴 델타를 svc.guild.changed 로. changePublish OFF·bus 부재면 no-op(0182 동일). 실제 변경 시에만 호출(no-op 변경은 발행 안 함). 파티 0084 _publishChange 의 길드 판.
   _publishChange(guildId, kind, member) {
@@ -79,9 +89,13 @@ class GuildService {
   // crash(step-0184) — 박스 RAM 소실의 인프로세스 모델: 로스터 projection·계측만 비운다. *변경 저널은 durable* 이라 보존(파티 0085 의 길드 판).
   crash() { this.guilds = new Map(); this.creates = 0; this.joins = 0; this.leaves = 0; }
   // reconstruct(step-0184·failover) — fresh 박스가 durable 변경 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재계산. create=설정·join=추가·leave=제거(master 보호 동일) → 죽기 전과 비트 동일. 자기 영속 저널만으로 복원.
+  //   0185: 스냅샷이 있으면 그 로스터에서 출발해 tail(seq>upToSeq)만 replay → 스냅샷+tail == 전체 저널(무손실 압축). 스냅샷 없으면 저널 전체 replay(0184).
   reconstruct() {
     const m = new Map();
+    if (this.snapshot) for (const [k, v] of this.snapshot.guilds) m.set(k, { master: v.master, members: v.members.slice() });
+    const upTo = this.snapshot ? this.snapshot.upToSeq : -1;
     for (const e of this.journal.slice().sort((a, b) => a.seq - b.seq)) {
+      if (e.seq <= upTo) continue;
       if (e.kind === 'create') m.set(e.guildId, { master: e.master, members: this._normalize(e.master, e.members) });
       else if (e.kind === 'join') { const g = m.get(e.guildId); if (g && !g.members.includes(e.member)) g.members.push(e.member); }
       else if (e.kind === 'leave') { const g = m.get(e.guildId); if (g && e.member !== g.master && g.members.includes(e.member)) g.members = g.members.filter(x => x !== e.member); }
