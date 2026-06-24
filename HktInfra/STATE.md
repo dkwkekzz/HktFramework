@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0234](step-0234.md) — **placedrain 모드 spine 승급(#16)**: 0224 bespoke 검증 모드(오케 host 드레인)를 `engine/verify-kit.js` 누적 키트로 승급. 박스 `.js` 0줄 → reg 0 자명. **정리·도구 라운드 4/10**.
-- **한 줄 상태**: reg ALL OK·placedrain: 5/5 A 부하 0·B/C 2·moves 2·spine ALL OK(0221~0224 모드 누적 편입).
-- **다음**: 🔧 **#16 spine 승급 라운드 진행 중**(0231~0240 — 3차 라운드 0221~0230 bespoke 10모드를 1 step 당 1개씩 누적 회귀화). 남은: 0225~0230 (cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon[verify.js→kit 이동]). 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
+- **닫힌 step**: [step-0235](step-0235.md) — **cachecapacity 모드 spine 승급(#16)**: 0225 bespoke 검증 모드(캐시 용량 LRU 회수)를 `engine/verify-kit.js` 누적 키트로 승급. 박스 `.js` 0줄 → reg 0 자명. **정리·도구 라운드 5/10**.
+- **한 줄 상태**: reg ALL OK·cachecapacity: 5/5 cap 2·k1 회수·size 2·spine ALL OK(0221~0225 모드 누적 편입).
+- **다음**: 🔧 **#16 spine 승급 라운드 진행 중**(0231~0240 — 3차 라운드 0221~0230 bespoke 10모드를 1 step 당 1개씩 누적 회귀화). 남은: 0226~0230 (cachetouch·worldwb·worldfsync·loginauth·loginabandon[verify.js→kit 이동]). 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
 
 ---
 
@@ -150,3 +150,4 @@
 | [0232](step-0232.md) | instancereap 모드 spine 승급(#16 — 0222 수요 자동 despawn·정리 라운드 2/10) | 통과(reg 0·spine OK) · 5/5 active 1·reaped 3 |
 | [0233](step-0233.md) | placerebalance 모드 spine 승급(#16 — 0223 오케 부하 재배치 자동 트리거·정리 라운드 3/10) | 통과(reg 0·spine OK) · 5/5 균형·moves 2 |
 | [0234](step-0234.md) | placedrain 모드 spine 승급(#16 — 0224 오케 host 드레인·정리 라운드 4/10) | 통과(reg 0·spine OK) · 5/5 A 0·moves 2 |
+| [0235](step-0235.md) | cachecapacity 모드 spine 승급(#16 — 0225 캐시 용량 LRU 회수·정리 라운드 5/10) | 통과(reg 0·spine OK) · 5/5 size 2·evic 1 |

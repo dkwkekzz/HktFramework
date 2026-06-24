@@ -766,9 +766,25 @@ function placedrain(seeds) {
   }
 }
 
+function cachecapacity(seeds) {
+  const CAP = (at, cap) => ({ at, op: { type: 'cacheCapacity', cap } });
+  const SET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
+  const OPS = [CAP(1, 2), SET(2, 'k1', 'v1'), SET(3, 'k2', 'v2'), SET(4, 'k3', 'v3')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, cacheService: true, cacheOps: OPS };
+  console.log('== cachecapacity (0225 승급): 캐시 용량 LRU 회수 — 키 수 상한(cap) 초과 시 가장 오래된(setAt 최소) 키 회수(개수 유계·Redis allkeys-lru 더미). ==');
+  console.log('seed   | size | k1   | k2   | k3   | evic | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const c = r.cache;
+    const ok = check(c.size() === 2 && !c.has('k1') && c.has('k2') && c.has('k3') && c.capEvicted === 1,
+      `seed ${seed}: capacity 위반 (size ${c.size()}·k1 ${c.has('k1')}·evic ${c.capEvicted})`);
+    console.log(`${pad(seed, 6)} | ${pad(c.size(), 4)} | ${pad(c.has('k1') ? 'live' : 'evic', 4)} | ${pad(c.has('k2') ? 'live' : '-', 4)} | ${pad(c.has('k3') ? 'live' : '-', 4)} | ${pad(c.capEvicted, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain };
-  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
