@@ -1,4 +1,5 @@
 'use strict';
+// step-0246 — 배치 SSOT 실배선(#51) 6: executed placeStop. placeStop{zoneId} → 존을 운영 퇴역: 결정(placement)에서 제거 + placeExecute ON 이면 실 존 런타임도 종료(running 제거·instance.js _despawn 의 존 판). 없는 존은 멱등 no-op. 드레인(host 전체 이주)과 달리 *그 존 자체를 내린다*. placeStop 미수신이면 0245 비트 동일(reg 0).
 // step-0245 — 배치 SSOT 실배선(#51) 5: placement↔running reconcile capstone. `placementDrift()` 질의(결정 placement 와 집행 running 이 어긋난 존 수). placeExecute ON 이면 모든 배치 op(place/migrate/rebalance/drain) 뒤 drift 0(결정==집행·paper 표류 없음)을 단언 — advisory→executed arc 닫기. 코드는 읽기 질의 1개(쓰기 무변경)·OFF→0244 비트 동일(reg 0).
 // step-0244 — 배치 SSOT 실배선(#51) 4: executed placeDrain. placeExecute ON 이면 host 드레인이 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 이주 → 드레인 후 그 host running 0(실제 비워짐·0224 퇴역 안전 이주의 집행 판). 0242 _migrate 재사용. OFF→0243 비트 동일(reg 0).
 // step-0243 — 배치 SSOT 실배선(#51) 3: executed placeRebalance. placeExecute ON 이면 자동 부하 재배치가 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 함께 이주(running 균형까지 실제 수렴·0223 자동 트리거의 집행 판). 0242 _migrate 재사용. OFF→0242 비트 동일(reg 0).
@@ -43,6 +44,8 @@ class Orchestrator {
     this.running = new Map();     // zoneId -> host (실 가동 중인 존 런타임의 host·executed SSOT·권위 단일 소유: 한 존은 정확히 한 host 에서 돈다).
     this.starts = 0;              // executed placeZone 으로 실제 가동(start)된 존 런타임 누적 수(step-0241·계측·멱등 재배치 제외).
     this.runtimeMigrations = 0;   // executed placeMigrate 로 실 존 런타임을 release+acquire 이주한 누적 수(step-0242·집행·paper migrations 와 대조).
+    this.stops = 0;               // 처리한 placeStop 수(step-0246·계측·no-op 멱등 포함).
+    this.zonesRetired = 0;        // placeStop 으로 실제 퇴역(placement 에서 제거)된 존 누적 수(step-0246·존 자체 내림).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -110,6 +113,8 @@ class Orchestrator {
     if (p.type === 'placeRebalance') { this._rebalance(p.hosts || []); this.rebalances++; return; }
     // host 드레인(step-0224·placeDrain) — {host, hosts[]} → host 의 모든 존을 나머지 host 중 최소부하로 이주(release+acquire 연쇄·드레인 후 부하 0). 정비/퇴역. placeDrain 미수신이면 미발화 = 0223 비트 동일.
     if (p.type === 'placeDrain') { this._drain(p.host, p.hosts || []); this.drains++; return; }
+    // 존 운영 퇴역(step-0246·placeStop) — {zoneId} → 그 존을 내린다(결정 placement 제거 + placeExecute ON 이면 실 런타임 running 종료). 드레인(host 의 *모든* 존 이주)과 달리 *특정 존 자체*를 stop. 없는 존 멱등. placeStop 미수신이면 미발화 = 0245 비트 동일.
+    if (p.type === 'placeStop') { this._stop(p.zoneId); this.stops++; return; }
     // 존 배치 질의(step-0204·placeQuery) — {zoneId} 요청에 현재 배치 host 를 {placeReply} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069/우편 0156 의 배치 판). 순수 읽기(배치 무변경). _lastPlaceReply 에 보관(검증용). 질의 미수신이면 미발화 = 0203 비트 동일.
     if (p.type === 'placeQuery') {
       this.placeQueriesRx++;
@@ -192,6 +197,13 @@ class Orchestrator {
     if (!this.running.has(zoneId)) return false;     // 미가동 — 집행 대상 없음(멱등).
     if (this.running.get(zoneId) === toHost) return false;
     this.running.set(zoneId, toHost); this.runtimeMigrations++; return true;   // release(from)+acquire(toHost) 원자 교체.
+  }
+  // 존 운영 퇴역 stop(step-0246·#51) — 존을 내린다: 결정(placement)에서 빼고 placeExecute ON 이면 실 런타임(running)도 종료. 없는 존이면 멱등 no-op(zonesRetired 무증). instance.js _despawn 의 존 판. drift 0 보존(둘 다 제거).
+  _stop(zoneId) {
+    const had = this.placement.delete(zoneId);     // 결정 제거(존 퇴역).
+    if (this.placeExecute) this.running.delete(zoneId);   // 집행 — 실 런타임 종료.
+    if (had) this.zonesRetired++;
+    return had;
   }
   // 존 배치 질의(step-0203) — "이 존이 어디 사나 / 몇 개 배치됐나"(배치 SSOT 읽기). 게이트웨이 라우팅·검증이 쓴다. 질의 인터페이스(request/reply over net)는 0204.
   placementOf(zoneId) { return this.placement.get(zoneId) || null; }
